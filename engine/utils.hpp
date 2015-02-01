@@ -496,6 +496,255 @@ struct StackString
 
 
 //
+// HASH TABLE
+//
+
+typedef uint32_t Hash;
+Hash HashFunc( const char* str, size_t size );
+
+template< class K, class V >
+struct HashTable
+{
+	typedef int32_t size_type;
+	typedef K key_type;
+	typedef V value_type;
+	
+	struct Var
+	{
+		Hash hash;
+		K key;
+		V value;
+	};
+	
+	size_type* m_pairs;
+	Var* m_vars;
+	size_type m_pair_mem;
+	size_type m_var_mem;
+	size_type m_size;
+	size_type m_num_removed;
+	
+#ifdef USE_HASHTABLE
+	// special pair IDs
+	enum { EMPTY = -1, REMOVED = -2 };
+	
+	HashTable( size_type initial_mem = 4 ) : m_pair_mem( initial_mem ), m_var_mem( initial_mem ), m_size( 0 ), m_num_removed( 0 )
+	{
+		m_pairs = new size_type[ m_pair_mem ];
+		m_vars = (Var*) malloc( sizeof(Var) * m_var_mem );
+		TMEMSET( m_pairs, m_pair_mem, EMPTY );
+	}
+	~HashTable()
+	{
+		for( size_type i = 0; i < m_size; ++i )
+		{
+			m_vars[ i ].key.~K();
+			m_vars[ i ].value.~V();
+		}
+		delete [] m_pairs;
+		free( m_vars );
+	}
+	
+	size_t size() const { return m_size; }
+	FINLINE const V& get( const K& key, const V* defval = NULL ) const { Var* raw = getraw( key ); return raw ? raw->value : defval; }
+	FINLINE V* get( const K& key, const V* defval = NULL ){ Var* raw = getraw( key ); return raw ? raw->value : defval; }
+	FINLINE V& operator [] ( const K& key ){ Var* raw = getraw( key ); if( !raw ) raw = set( key, V() ); return raw->value; }
+	
+	size_type _get_pair_id( const K& key, Hash hash )
+	{
+		size_type i, sp = (size_type)( hash % (Hash) m_pair_mem );
+		i = sp;
+		do
+		{
+			size_type idx = m_pairs[ i ];
+			if( idx == EMPTY )
+				break;
+			if( idx != REMOVED && m_vars[ idx ].key == key )
+				return i;
+			i++;
+			if( i >= m_pair_mem )
+				i = 0;
+		}
+		while( i != sp );
+		return -1;
+	}
+	Var* getraw( const K& key )
+	{
+		size_type i = _get_pair_id( K, HashVar( K ) );
+		if( i >= 0 )
+			return &m_vars[ m_pairs[ i ] ];
+		else
+			return NULL;
+	}
+	Var* set( const K& key, const V& val )
+	{
+		Hash h = HashVar( K );
+		size_type sp, i = _get_pair_id( K, h );
+		if( i >= 0 )
+		{
+			Var& var = m_vars[ m_pairs[ i ] ];
+			var.value.~V();
+			new (&var.value) V( val );
+			return &var;
+		}
+		else
+		{
+			size_type osize = m_size;
+			UNUSED( osize );
+			
+			/* prefer to rehash if too many removed (num_rem) items are found */
+			if( m_size + m_num_removed + 1.0 >= m_pair_mem * 0.7 )
+				rehash( (size_type) TMAX( m_pair_mem * 1.5, m_size + 16 ) );
+			if( m_size >= m_var_mem )
+				reserve( (size_type) TMAX( m_size * 1.5, m_size + 16 ) );
+			
+			{
+				Var& var = m_vars[ m_size ];
+				new (&var.key) K( key );
+				new (&var.value) V( val );
+				var.hash = h;
+			}
+			
+			sp = i = (size_type)( h % (Hash) m_pair_mem );
+			do
+			{
+				size_type idx = m_pairs[ i ];
+				if( idx == EMPTY || idx == REMOVED )
+				{
+					if( idx == REMOVED )
+						m_num_removed--;
+					m_pairs[ i ] = m_size;
+					m_size++;
+					break;
+				}
+				i++;
+				if( i >= m_pair_mem )
+					i = 0;
+			}
+			while( i != sp );
+			
+			assert( m_size != osize );
+			
+			return &m_vars[ m_size - 1 ];
+		}
+	}
+	bool unset( const K& key )
+	{
+		sgs_Hash h = HashVar( K );
+		size_type i = _get_pair_id( K, h );
+		if( i >= 0 )
+		{
+			size_type idx = m_pairs[ i ];
+			Var* p = &m_vars[ idx ];
+			p->key.~K();
+			p->value.~V();
+			
+			m_pairs[ i ] = REMOVED;
+			
+			m_num_removed++;
+			m_size--;
+			if( p < m_vars + m_size )
+			{
+				Var* ep = m_vars + m_size;
+				i = _get_pair_id( &ep->key, ep->hash );
+				assert( i != -1 );
+				
+				new (&p->key) K( ep->key );
+				new (&p->value) V( ep->value );
+				p->hash = ep->hash;
+				
+				m_pairs[ i ] = idx;
+			}
+			
+			// for some reason originally old item was deleted after swap
+		}
+		
+		if( m_num_removed > m_var_mem * 0.25 + 16 )
+		{
+			reserve( (size_type) ( m_size * 0.75 + m_var_mem * 0.25 ) );
+			rehash( (size_type) ( m_size * 0.5 + m_var_mem * 0.5 ) );
+		}
+	}
+	void rehash( size_type size )
+	{
+		Hash h;
+		size_type i, si, sp, idx, *np;
+		ASSERT( size >= m_size );
+		
+		if( size == m_pair_mem )
+			return;
+		if( size < 4 )
+			size = 4;
+		
+		np = new size_type[ size ];
+		memset( np, EMPTY, sizeof(size_type) * (size_t) size );
+		
+	#if 0
+		printf( "rehash %d -> %d (size = %d, mem = %d kB)\n", m_pair_mem, size, m_size,
+			(size * sizeof(size_type) + T->var_mem * sizeof(sgs_VHTVar)) / 1024 );
+	#endif
+		
+		for( si = 0; si < m_pair_mem; ++si )
+		{
+			idx = m_pairs[ si ];
+			if( idx >= 0 )
+			{
+				h = m_vars[ idx ].hash;
+				sp = i = (size_type)( h % (Hash) size );
+				do
+				{
+					size_type nidx = np[ i ];
+					if( nidx == EMPTY )
+					{
+						np[ i ] = idx;
+						break;
+					}
+					i++;
+					if( i >= size )
+						i = 0;
+				}
+				while( i != sp );
+			}
+		}
+		
+		delete [] m_pairs );
+		m_pairs = np;
+		m_pair_mem = size;
+		m_num_removed = 0;
+	}
+	void reserve( size_type size )
+	{
+		Var* p;
+		
+		ASSERT( size >= m_size );
+		
+		if( size == m_var_mem )
+			return;
+		if( size < 4 )
+			size = 4;
+		
+	#if 0
+		printf( "reserve %d -> %d (size = %d, mem = %d kB)\n", m_var_mem, size, m_size,
+			(m_pair_mem * sizeof(size_type) + size * sizeof(Var)) / 1024 );
+	#endif
+		
+		/* WP: hash table limit */
+		p = (Var*) malloc( sizeof(Var) * size );
+		for( size_type i = 0; i < m_size; ++i )
+		{
+			new (&p[ i ].key) K( m_vars[ i ].key );
+			new (&p[ i ].value) V( m_vars[ i ].value );
+			m_vars[ i ].key.~K();
+			m_vars[ i ].value.~V();
+		}
+		free( m_vars );
+		m_vars = p;
+		m_var_mem = size;
+	}
+#endif
+};
+
+
+//
 // FILES
 //
 

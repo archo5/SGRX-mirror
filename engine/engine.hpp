@@ -107,14 +107,8 @@ private:
 };
 typedef Handle< SGRX_Texture > TextureHandle;
 
+EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
-
-void R2D_SetColor( float* v4f );
-FINLINE void R2D_SetColor( float r, float g, float b, float a = 1.0f ){ float rgba[4] = { r, g, b, a }; R2D_SetColor( rgba ); }
-void R2D_DrawRect( float x0, float y0, float x1, float y1 );
-void R2D_DrawText( const char* text, int size );
-
-
 
 
 extern "C" EXPORT int SGRX_EntryPoint( int argc, char** argv, int debug );

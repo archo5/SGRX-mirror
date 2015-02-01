@@ -10,11 +10,12 @@ extern "C" {
 #include "dds.h"
 }
 #include "../ext/src/libpng/png.h"
+#include "../ext/src/libjpg/jpeglib.h"
 
 #define USE_ARRAY
 
 #define INCLUDE_REAL_SDL
-#include "engine.hpp"
+#include "engine_int.hpp"
 #include "renderer.hpp"
 
 
@@ -199,6 +200,23 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 void SGRX_Texture::Destroy()
 {
 	m_texture->Destroy();
+}
+
+TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
+{
+	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, mips };
+	ITexture* itex = g_Renderer->CreateTexture( &ti, NULL );
+	if( !itex )
+	{
+		// error is already printed
+		return TextureHandle();
+	}
+	
+	SGRX_Texture* tex = new SGRX_Texture;
+	tex->m_texture = itex;
+	
+	LOG << "Created 2D texture: " << width << "x" << height << ", format=" << format << ", mips=" << mips;
+	return tex;
 }
 
 TextureHandle GR_GetTexture( const StringView& path )
@@ -413,7 +431,7 @@ static bool png_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* con
 	if( setjmp( png_jmpbuf( png_ptr ) ) )
 	{
 		png_destroy_read_struct( &png_ptr, NULL, NULL );
-		LOG_ERROR << "failed to read PNG image: " << filename;
+	//	LOG_ERROR << "failed to read PNG image: " << filename;
 		return false;
 	}
 	
@@ -468,6 +486,69 @@ static bool png_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* con
 }
 
 /* =============== JPG =============== */
+typedef struct _jpg_error_mgr
+{
+	struct jpeg_error_mgr pub;
+	jmp_buf setjmp_buffer;
+}
+jpg_error_mgr;
+
+static void _jpg_error_exit( j_common_ptr cinfo )
+{
+	jpg_error_mgr* myerr = (jpg_error_mgr*) cinfo->err;
+	(*cinfo->err->output_message) (cinfo);
+	longjmp(myerr->setjmp_buffer, 1);
+}
+
+static bool jpg_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* const */ ByteArray& texdata, const StringView& filename )
+{
+	struct jpeg_decompress_struct cinfo;
+	jpg_error_mgr jerr;
+	
+	JSAMPARRAY buffer;
+	int x, row_stride;
+	
+	cinfo.err = jpeg_std_error( &jerr.pub );
+	jerr.pub.error_exit = _jpg_error_exit;
+	if( setjmp( jerr.setjmp_buffer ) )
+	{
+		jpeg_destroy_decompress( &cinfo );
+	//	LOG_ERROR << "failed to read JPEG image: " << filename;
+		return false;
+	}
+	
+	jpeg_create_decompress( &cinfo );
+	jpeg_mem_src( &cinfo, texdata.data(), texdata.size() );
+	jpeg_read_header( &cinfo, 1 );
+	jpeg_start_decompress( &cinfo );
+	
+	out.resize( cinfo.output_width * cinfo.output_height * 4 );
+	uint8_t* imgdata = out.data();
+	
+	row_stride = cinfo.output_width * cinfo.output_components;
+	buffer = (*cinfo.mem->alloc_sarray)( (j_common_ptr) &cinfo, JPOOL_IMAGE, row_stride, 1 );
+	
+	while( cinfo.output_scanline < cinfo.output_height )
+	{
+		jpeg_read_scanlines( &cinfo, buffer, 1 );
+		for( x = 0; x < cinfo.output_width; ++x )
+		{
+			imgdata[ x * 4   ] = buffer[0][ x * 3   ];
+			imgdata[ x * 4+1 ] = buffer[0][ x * 3+1 ];
+			imgdata[ x * 4+2 ] = buffer[0][ x * 3+2 ];
+			imgdata[ x * 4+3 ] = 0xff;
+		}
+		imgdata += cinfo.output_width * 4;
+	}
+	
+	jpeg_finish_decompress( &cinfo );
+	jpeg_destroy_decompress( &cinfo );
+	
+	*outw = cinfo.output_width;
+	*outh = cinfo.output_height;
+	return true;
+}
+
 /* =============== --- =============== */
 
 
@@ -509,6 +590,19 @@ bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& fi
 	
 	// Try to load PNG
 	if( png_decode32( TD->data, &w, &h, texdata, filename ) )
+	{
+		TD->info.type = TEXTYPE_2D;
+		TD->info.width = w;
+		TD->info.height = h;
+		TD->info.depth = 1;
+		TD->info.format = TEXFORMAT_RGBA8;
+		TD->info.flags = 0;
+		TD->info.mipcount = 1;
+		goto success_genmips;
+	}
+	
+	// Try to load JPG
+	if( jpg_decode32( TD->data, &w, &h, texdata, filename ) )
 	{
 		TD->info.type = TEXTYPE_2D;
 		TD->info.width = w;
@@ -654,6 +748,7 @@ BatchRenderer& BatchRenderer::Flush()
 	}
 	return *this;
 }
+
 
 
 //

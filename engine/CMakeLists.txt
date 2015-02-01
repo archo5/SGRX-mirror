@@ -14,7 +14,12 @@ set_target_properties( SDL2 PROPERTIES
 list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/SDL2.dll" )
 
 # Engine
-add_library( sgrx-core SHARED engine utils dds ../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3 ../ext/src/libpng1 )
+add_library( sgrx-core SHARED
+	engine utils dds
+	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
+	../ext/src/libpng1
+	../ext/src/libjpg1 ../ext/src/libjpg2 ../ext/src/libjpg3
+)
 target_link_libraries( sgrx-core SDL2 )
 set_target_properties( sgrx-core PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
