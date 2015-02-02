@@ -281,6 +281,7 @@ struct Handle
 	~Handle(){ if( item ){ item->Release(); item = NULL; } }
 	Handle& operator = ( const Handle& h ){ if( item ) item->Release(); item = h.item; if( item ) item->Acquire(); }
 	T* operator -> () const { return item; }
+	T& operator * () const { return *item; }
 	operator T* () const { return item; }
 };
 
@@ -304,6 +305,17 @@ struct Array
 	Array() : m_data(NULL), m_size(0), m_mem(0){}
 	Array( const T* v, size_t sz ) : m_data(NULL), m_size(0), m_mem(0) { insert( 0, v, sz ); }
 	~Array(){ free( m_data ); }
+	
+	FINLINE bool operator == ( const Array& other ) const
+	{
+		if( m_size != other.m_size )
+			return false;
+		for( size_t i = 0; i < other.m_size; ++i )
+			if( !( m_data[ i ] == other.m_data[ i ] ) )
+				return false;
+		return true;
+	}
+	FINLINE bool operator != ( const Array& other ) const { return !( *this == other ); }
 	
 	FINLINE size_t size() const { return m_size; }
 	FINLINE size_t capacity() const { return m_mem; }
@@ -463,6 +475,9 @@ struct StringView
 	FINLINE size_t size() const { return m_size; }
 	FINLINE operator bool() const { return m_str && m_size; }
 	
+	FINLINE bool operator == ( const StringView& sv ) const { return m_size == sv.m_size && !memcmp( m_str, sv.m_str, m_size ); }
+	FINLINE bool operator != ( const StringView& sv ) const { return !( *this == sv ); }
+	
 	FINLINE bool contains( const StringView& substr ) const { return find_first_at( substr ) != NOT_FOUND; }
 	size_t find_first_at( const StringView& substr, size_t defval = NOT_FOUND ) const
 	{
@@ -486,7 +501,7 @@ struct StringView
 	}
 	FINLINE bool skip( size_t n )
 	{
-		if( n > m_size );
+		if( n > m_size )
 		{
 			m_str += m_size;
 			m_size = 0;
@@ -533,6 +548,14 @@ EXPORT int UTF8Encode( uint32_t ch, char* out );
 typedef uint32_t Hash;
 Hash HashFunc( const char* str, size_t size );
 
+inline Hash HashVar( int8_t v ){ return v; }
+inline Hash HashVar( uint8_t v ){ return v; }
+inline Hash HashVar( int16_t v ){ return v; }
+inline Hash HashVar( uint16_t v ){ return v; }
+inline Hash HashVar( int32_t v ){ return v; }
+inline Hash HashVar( uint32_t v ){ return v; }
+inline Hash HashVar( int64_t v ){ return v; }
+inline Hash HashVar( uint64_t v ){ return v; }
 inline Hash HashVar( const String& s ){ return HashFunc( s.m_data, s.m_size ); }
 inline Hash HashVar( const StringView& sv ){ return HashFunc( sv.m_str, sv.m_size ); }
 
@@ -596,7 +619,7 @@ struct HashTable
 	FINLINE V* getptr( const K& key, const V* defval = NULL ){ Var* raw = getraw( key ); return raw ? raw->value : defval; }
 	FINLINE V& operator [] ( const K& key ){ Var* raw = getraw( key ); if( !raw ) raw = set( key, V() ); return raw->value; }
 	
-	size_type _get_pair_id( const K& key, Hash hash )
+	size_type _get_pair_id( const K& key, Hash hash ) const
 	{
 		size_type i, sp = (size_type)( hash % (Hash) m_pair_mem );
 		i = sp;
@@ -690,8 +713,6 @@ struct HashTable
 		{
 			size_type idx = m_pairs[ i ];
 			Var* p = &m_vars[ idx ];
-			p->key.~K();
-			p->value.~V();
 			
 			m_pairs[ i ] = REMOVED;
 			
@@ -700,17 +721,24 @@ struct HashTable
 			if( p < m_vars + m_size )
 			{
 				Var* ep = m_vars + m_size;
-				i = _get_pair_id( &ep->key, ep->hash );
+				i = _get_pair_id( ep->key, ep->hash );
 				assert( i != -1 );
 				
+				p->key.~K();
+				p->value.~V();
 				new (&p->key) K( ep->key );
 				new (&p->value) V( ep->value );
+				ep->key.~K();
+				ep->value.~V();
 				p->hash = ep->hash;
 				
 				m_pairs[ i ] = idx;
 			}
-			
-			// for some reason originally old item was deleted after swap
+			else
+			{
+				p->key.~K();
+				p->value.~V();
+			}
 		}
 		
 		if( m_num_removed > m_var_mem * 0.25 + 16 )
@@ -790,6 +818,7 @@ struct HashTable
 			new (&p[ i ].value) V( m_vars[ i ].value );
 			m_vars[ i ].key.~K();
 			m_vars[ i ].value.~V();
+			p[ i ].hash = m_vars[ i ].hash;
 		}
 		free( m_vars );
 		m_vars = p;
@@ -804,4 +833,11 @@ struct HashTable
 //
 
 bool LoadBinaryFile( const char* path, ByteArray& out );
+
+
+//
+// TESTS
+//
+
+int TestSystems();
 

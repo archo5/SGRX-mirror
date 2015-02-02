@@ -24,6 +24,11 @@ struct RasterCache
 		Array< Node > tree;
 		uint32_t framediff;
 	};
+	struct NodePos
+	{
+		uint32_t page;
+		uint32_t node;
+	};
 	
 	Node* _NodeAlloc( int page, int32_t startnode, int32_t w, int32_t h )
 	{
@@ -45,31 +50,31 @@ struct RasterCache
 			return NULL;
 		
 		// too small
-		if( w < me->x1 - me->x0 || h < me->y1 - me->y0 )
+		if( w > me->x1 - me->x0 || h > me->y1 - me->y0 )
 			return NULL;
 		
 		if( w == me->x1 - me->x0 && h == me->y1 - me->y0 )
 			return me;
 		
 		// split
-		me->child0 = P.size();
+		me->child0 = P.tree.size();
 		me->child1 = me->child0 + 1;
 		Node tmpl = { 0, 0, 0, 0, 0, 0, false };
-		P.push_back( tmpl );
-		P.push_back( tmpl );
+		P.tree.push_back( tmpl );
+		P.tree.push_back( tmpl );
 		me = &P.tree[ startnode ]; // -- refresh my pointer (in case of reallocation)
 		Node* ch0 = &P.tree[ me->child0 ];
 		Node* ch1 = &P.tree[ me->child1 ];
 		
-		int32_t dw = me->w - w;
-		int32_t dh = me->h - h;
+		int32_t dw = me->x1 - me->x0 - w;
+		int32_t dh = me->y1 - me->y0 - h;
 		ch0->x0 = me->x0;
 		ch0->y0 = me->y0;
 		ch1->x1 = me->x1;
 		ch1->y1 = me->y1;
 		if( dw > dh )
 		{
-			ch0->x1 = me->x0 + w - 1;
+			ch0->x1 = me->x0 + w;
 			ch0->y1 = me->y1;
 			ch1->x0 = me->x0 + w;
 			ch1->y0 = me->y0;
@@ -77,7 +82,7 @@ struct RasterCache
 		else
 		{
 			ch0->x1 = me->x1;
-			ch0->y1 = me->y0 + h - 1;
+			ch0->y1 = me->y0 + h;
 			ch1->x0 = me->x0;
 			ch1->y0 = me->y0 + h;
 		}
@@ -95,7 +100,10 @@ struct RasterCache
 				node->page = i;
 				node->occupied = true;
 				node->lastframe = frame;
-				m_keyNodeMap[ key ] = node;
+				
+				NodePos np = { i, node - m_pages[ i ].tree.data() };
+				m_keyNodeMap[ key ] = np;
+				
 				return node;
 			}
 		}
@@ -116,19 +124,20 @@ struct RasterCache
 				count++;
 			}
 		}
-		P.framediff = counter / count;
+		P.framediff = count ? counter / count : 0;
 	}
 	bool _DropLast( int32_t curframe )
 	{
+		LOG << "Cache page drop requested!";
 		uint32_t largestafd = 0;
 		int lastpage = -1; 
 		
 		for( int i = 0; i < m_pages.size(); ++i )
 		{
 			_AvgFrameDiff( i, curframe );
-			if( m_pages[ i ].lastframe > largestafd )
+			if( m_pages[ i ].framediff > largestafd )
 			{
-				largestafd = m_pages[ i ].lastframe;
+				largestafd = m_pages[ i ].framediff;
 				lastpage = i;
 			}
 		}
@@ -143,6 +152,8 @@ struct RasterCache
 			m_keyNodeMap.unset( N.key );
 		}
 		P.tree.resize(1);
+		P.tree[0].child0 = 0;
+		P.tree[0].child1 = 0;
 		P.tree[0].occupied = false;
 		return true;
 	}
@@ -166,20 +177,25 @@ struct RasterCache
 	}
 	Node* Find( int32_t frame, const K& key )
 	{
-		Node* node = m_keyNodeMap.get( key, NULL );
-		if( node )
-		{
-			node->lastframe = frame;
-			return node; // already here
-		}
-		return NULL;
+		NodePos np = { -1, 0 };
+		np = m_keyNodeMap.getcopy( key, np );
+		if( np.page == -1 )
+			return NULL;
+		Node* node = &m_pages[ np.page ].tree[ np.node ];
+		node->lastframe = frame;
+		return node; // already here
 	}
 	void Resize( int numpages, int32_t w, int32_t h )
 	{
 		m_pageWidth = w;
 		m_pageHeight = h;
 		m_pages.resize( numpages );
-		Node root = { 0, 0, 0, 0, w, h, 0, false };
+		Node root =
+		{
+			0, 0, // children
+			0, 0, w, h, // rect
+			0, false, 0 // lastframe, page, occupied
+		};
 		for( int i = 0; i < numpages; ++i )
 		{
 			m_pages[ i ].texture = GR_CreateTexture( w, h, TEXFORMAT_RGBA8 );
@@ -203,7 +219,7 @@ struct RasterCache
 	int32_t m_pageHeight;
 	Array< Page > m_pages;
 	Array< int32_t > m_timeStore;
-	HashTable< K, Node* > m_keyNodeMap;
+	HashTable< K, NodePos > m_keyNodeMap;
 };
 
 
@@ -221,9 +237,13 @@ struct FontRenderer
 	{
 		String name;
 		int size;
+		
+		bool operator == ( const FontKey& key ) const { return name == key.name && size == key.size; }
 	};
 	struct Font
 	{
+		~Font();
+		
 		FontKey key;
 		FT_FACE_TYPE face;
 	};
@@ -238,11 +258,11 @@ struct FontRenderer
 		int16_t advx;
 		int16_t advy;
 		
-		bool operator == ( const CacheKey& other ) const { return font == other.font && ft_glyph_id == other.ft_glyph_id; }
+		bool operator == ( const CacheKey& other ) const { return font == other.font && codepoint == other.codepoint; }
 	};
 	typedef RasterCache< CacheKey > GlyphCache;
 	
-	FontRenderer( int pagecount = 8, int pagesize = 1024 );
+	FontRenderer( int pagecount = 8, int pagesize = 256 );
 	~FontRenderer();
 	
 	// core features
@@ -269,9 +289,13 @@ struct FontRenderer
 };
 
 #ifdef USE_HASHTABLE
-Hash HashVar( const FontRenderer::FontKey& fk )
+inline Hash HashVar( const FontRenderer::FontKey& fk )
 {
 	return HashVar( fk.name ) + fk.size;
+}
+inline Hash HashVar( const FontRenderer::CacheKey& ck )
+{
+	return (Hash)( ck.font ) + ck.codepoint;
 }
 #endif
 

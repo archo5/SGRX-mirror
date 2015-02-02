@@ -19,6 +19,7 @@ add_library( sgrx-core SHARED
 	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
 	../ext/src/libpng1
 	../ext/src/libjpg1 ../ext/src/libjpg2 ../ext/src/libjpg3
+	../ext/src/freetype1
 )
 target_link_libraries( sgrx-core SDL2 )
 set_target_properties( sgrx-core PROPERTIES

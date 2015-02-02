@@ -6,6 +6,7 @@
 #define USE_VEC3
 #define USE_MAT4
 #define USE_ARRAY
+#define USE_HASHTABLE
 
 #include "utils.hpp"
 
@@ -218,6 +219,19 @@ int UTF8Encode( uint32_t ch, char* out )
 }
 
 
+Hash HashFunc( const char* str, size_t size )
+{
+	size_t i, adv = size / 127 + 1;
+	Hash h = 2166136261u;
+	for( i = 0; i < size; i += adv )
+	{
+		h ^= (Hash) (uint8_t) str[ i ];
+		h *= 16777619u;
+	}
+	return h;
+}
+
+
 bool LoadBinaryFile( const char* path, ByteArray& out )
 {
 	FILE* fp = fopen( path, "rb" );
@@ -238,6 +252,35 @@ bool LoadBinaryFile( const char* path, ByteArray& out )
 	bool ret = fread( out.data(), (size_t) len, 1, fp ) == 1;
 	fclose( fp );
 	return ret;
+}
+
+
+struct _teststr_ { const void* p; int x; };
+inline bool operator == ( const _teststr_& a, const _teststr_& b ){ return a.p == b.p && a.x == b.x; }
+inline Hash HashVar( const _teststr_& v ){ return (int)v.p + v.x; }
+
+int TestSystems()
+{
+	HashTable< int, int > ht_ii;
+	if( ht_ii.size() != 0 ) return 501; // empty
+	if( ht_ii.getcopy( 0, 0 ) ) return 502; // miss
+	ht_ii.set( 42, 12345 );
+	if( ht_ii.size() == 0 ) return 503; // not empty
+	if( ht_ii.item(0).key != 42 || ht_ii.item(0).value != 12345 ) return 504; // created item
+	if( !ht_ii.getraw( 42 ) ) return 505; // can find item
+	if( ht_ii.getcopy( 42 ) != 12345 ) return 506; // returns right value
+	
+	HashTable< _teststr_, int > ht_si;
+	_teststr_ tskey = { "test", 42 };
+	if( ht_si.size() != 0 ) return 501; // empty
+	if( ht_si.getcopy( tskey, 0 ) ) return 502; // miss
+	ht_si.set( tskey, 12345 );
+	if( ht_si.size() == 0 ) return 503; // not empty
+	if( ht_si.item(0).key.x != tskey.x || ht_si.item(0).value != 12345 ) return 504; // created item
+	if( !ht_si.getraw( tskey ) ) return 505; // can find item
+	if( ht_si.getcopy( tskey ) != 12345 ) return 506; // returns right value
+	
+	return 0;
 }
 
 

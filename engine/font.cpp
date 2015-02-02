@@ -17,6 +17,10 @@ void InitializeFontRendering()
 	FT_Init_FreeType( &g_FTLib );
 }
 
+FontRenderer::Font::~Font()
+{
+	FT_Done_Face( face );
+}
 
 FontRenderer::FontRenderer( int pagecount, int pagesize ) :
 	m_cursor_x( 0.0f ),
@@ -61,8 +65,8 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 	int n = 0;
 	GlyphCache::Node* prev = NULL;
 	
-	float fw = m_cache.m_pageWidth;
-	float fh = m_cache.m_pageHeight;
+	float ifw = 1.0f / m_cache.m_pageWidth;
+	float ifh = 1.0f / m_cache.m_pageHeight;
 	
 	StringView it = text;
 	while( it.size() > 0 )
@@ -75,11 +79,11 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		GlyphCache::Node* node = _GetGlyph( m_currentFont, cp );
 		if( node && br )
 		{
-			float ftx0 = node->x0 / fw, ftx1 = node->x1 / fw;
-			float fty0 = node->y0 / fh, fty1 = node->y1 / fh;
+			float ftx0 = node->x0 * ifw, ftx1 = node->x1 * ifw;
+			float fty0 = node->y0 * ifh, fty1 = node->y1 * ifh;
 			
 			float fx0 = m_cursor_x + node->key.bmoffx;
-			float fy0 = m_cursor_y + node->key.bmoffy;
+			float fy0 = m_cursor_y + m_currentFont->key.size - node->key.bmoffy;
 			float fx1 = fx0 + node->x1 - node->x0;
 			float fy1 = fy0 + node->y1 - node->y0;
 			
@@ -95,6 +99,8 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 			br->Tex( ftx0, fty1 ).Pos( fx0, fy1 );
 			br->Tex( ftx0, fty0 ).Pos( fx0, fy0 );
 		}
+		if( node )
+			m_cursor_x += node->key.advx;
 		prev = node;
 		n++;
 	}
@@ -126,10 +132,12 @@ FontRenderer::Font* FontRenderer::_GetOrCreateFont( const FontKey& fk )
 		StackString< ENGINE_MAX_PATH > path( fk.name );
 		if( FT_New_Face( g_FTLib, path, 0, &face ) )
 			return NULL;
+		FT_Set_Pixel_Sizes( face, fk.size, 0 );
 		font = new Font;
 		font->key = fk;
 		font->face = face;
 		m_fonts.set( fk, font );
+		LOG << "Loaded new font: " << fk.name << " (" << fk.size << ")";
 	}
 	return font;
 }
@@ -142,9 +150,8 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( Font* font, uint32_t ch
 		return node;
 	
 	// load glyph
-	FT_GlyphSlot glyph;
 	FT_Load_Char( font->face, ch, 0 );
-	glyph = font->face->glyph;
+	FT_GlyphSlot glyph = font->face->glyph;
 	FT_Render_Glyph( glyph, FT_RENDER_MODE_NORMAL );
 	
 	ckey.ft_glyph_id = FT_Get_Char_Index( font->face, ch );
@@ -153,6 +160,25 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( Font* font, uint32_t ch
 	ckey.advx = glyph->advance.x >> 6;
 	ckey.advy = glyph->advance.y >> 6;
 	node = m_cache.Alloc( m_cache_frame, ckey, glyph->bitmap.width, glyph->bitmap.rows );
+	if( !node )
+	{
+		LOG_ERROR << "  FAILED TO ALLOCATE GLYPH!!!";
+		return NULL;
+	}
+	
+	int width = glyph->bitmap.width;
+	int height = glyph->bitmap.rows;
+	int pitch = glyph->bitmap.pitch;
+	LOG << "Allocated glyph " << ch << " (" << width << "x" << height << ")";
+	
+	Array< uint32_t > bitmap;
+	bitmap.resize( width * height );
+	for( int y = 0; y < height; ++y )
+	{
+		for( int x = 0; x < width; ++x )
+			bitmap[ x + y * width ] = COLOR_RGBA( 255, 255, 255, glyph->bitmap.buffer[ x + y * pitch ] );
+	}
+	m_cache.GetPageTexture( node->page )->UploadRGBA8Part( bitmap.data(), 0, width, height, node->x0, node->y0 );
 	
 	return node;
 }

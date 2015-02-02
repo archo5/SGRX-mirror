@@ -49,6 +49,7 @@ static pfnRndInitialize g_RfnInitialize = NULL;
 static pfnRndFree g_RfnFree = NULL;
 static pfnRndCreateRenderer g_RfnCreateRenderer = NULL;
 static IRenderer* g_Renderer = NULL;
+static BatchRenderer* g_BatchRenderer = NULL;
 static FontRenderer* g_FontRenderer = NULL;
 static Array< IScreen* > g_OverlayScreens;
 
@@ -88,6 +89,8 @@ SGRX_Log& SGRX_Log::operator << ( int32_t v ){ prelog(); printf( "%" PRId32, v )
 SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ prelog(); printf( "%" PRIu32, v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( int64_t v ){ prelog(); printf( "%" PRId64, v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ prelog(); printf( "%" PRIu64, v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
+SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%f", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"%.*s\"", (int) sv.size(), (int) sv.size(), sv.data() ); return *this; }
@@ -139,7 +142,7 @@ void Game_Process( float dt )
 	float f[4] = { 0.2f, 0.4f, 0.6f, 1.0f };
 	g_Renderer->Clear( f );
 	
-	BatchRenderer br( g_Renderer );
+	BatchRenderer& br = *g_BatchRenderer;
 	br.SetTexture( metal );
 	br.SetPrimitiveType( PT_Triangles );
 	br.Tex( 0, 0 ).Pos( 0, 0 )
@@ -148,6 +151,10 @@ void Game_Process( float dt )
 	br.Tex( 0, 0 ).Pos( 0, 0 )
 		.Tex( 1, 1 ).Pos( 200, 200 )
 		.Tex( 1, 0 ).Pos( 200, 0 );
+	
+	GR2D_SetFont( "fonts/lato-regular.ttf", 100 + sin( GetTimeMsec() * 0.001f ) * 80 ); // 32 );
+	GR2D_DrawTextLine( 16, 16, "LongTest" );
+	br.Flush();
 	
 	g_Game->OnTick( dt, g_GameTime );
 	
@@ -203,6 +210,35 @@ void SGRX_Texture::Destroy()
 	m_texture->Destroy();
 }
 
+const TextureInfo& SGRX_Texture::GetInfo()
+{
+	return m_texture->m_info;
+}
+
+bool SGRX_Texture::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )
+{
+	const TextureInfo& TI = m_texture->m_info;
+	
+	if( mip < 0 || mip >= TI.mipcount )
+	{
+		LOG_ERROR << "Cannot UploadRGBA8Part - mip count out of bounds (" << mip << "/" << TI.mipcount << ")";
+		return false;
+	}
+	
+	TextureInfo mti;
+	if( !TextureInfo_GetMipInfo( &TI, mip, &mti ) )
+	{
+		LOG_ERROR << "Cannot UploadRGBA8Part - failed to get mip info (" << mip << ")";
+		return false;
+	}
+	
+	if( w < 0 ) w = mti.width;
+	if( h < 0 ) h = mti.height;
+	
+	return m_texture->UploadRGBA8Part( data, mip, x, y, w, h );
+}
+
+
 TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 {
 	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, mips };
@@ -214,6 +250,7 @@ TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 	}
 	
 	SGRX_Texture* tex = new SGRX_Texture;
+	tex->m_refcount = 0;
 	tex->m_texture = itex;
 	
 	LOG << "Created 2D texture: " << width << "x" << height << ", format=" << format << ", mips=" << mips;
@@ -245,6 +282,7 @@ TextureHandle GR_GetTexture( const StringView& path )
 	}
 	
 	SGRX_Texture* tex = new SGRX_Texture;
+	tex->m_refcount = 0;
 	tex->m_texture = itex;
 	tex->m_key.append( path.data(), path.size() );
 	
@@ -253,11 +291,23 @@ TextureHandle GR_GetTexture( const StringView& path )
 }
 
 
+bool GR2D_SetFont( const StringView& name, int pxsize )
+{
+	return g_FontRenderer->SetFont( name, pxsize );
+}
+
+int GR2D_DrawTextLine( float x, float y, const StringView& text )
+{
+	g_FontRenderer->SetCursor( x, y );
+	return g_FontRenderer->PutText( g_BatchRenderer, text );
+}
+
+
 //
 // RENDERING
 //
 
-size_t TextureInfo_GetTextureSideSize( TextureInfo* TI )
+size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI )
 {
 	size_t width = TI->width, height = TI->height, depth = TI->depth;
 	int bpu = 0;
@@ -288,7 +338,7 @@ size_t TextureInfo_GetTextureSideSize( TextureInfo* TI )
 	return 0;
 }
 
-void TextureInfo_GetCopyDims( TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount )
+void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount )
 {
 	size_t width = TI->width, height = TI->height, depth = TI->depth;
 	int bpu = 0;
@@ -319,7 +369,7 @@ void TextureInfo_GetCopyDims( TextureInfo* TI, size_t* outcopyrowsize, size_t* o
 	}
 }
 
-bool TextureInfo_GetMipInfo( TextureInfo* TI, int mip, TextureInfo* outinfo )
+bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo )
 {
 	TextureInfo info = *TI;
 	if( mip >= TI->mipcount )
@@ -806,6 +856,9 @@ static int init_graphics()
 	}
 	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
 	
+	g_BatchRenderer = new BatchRenderer( g_Renderer );
+	LOG << LOG_DATE << "  Created batch renderer";
+	
 	InitializeFontRendering();
 	g_FontRenderer = new FontRenderer();
 	LOG << LOG_DATE << "  Created font renderer";
@@ -815,6 +868,12 @@ static int init_graphics()
 
 static void free_graphics()
 {
+	delete g_FontRenderer;
+	g_FontRenderer = NULL;
+	
+	delete g_BatchRenderer;
+	g_BatchRenderer = NULL;
+	
 	g_Renderer->Destroy();
 	g_Renderer = NULL;
 	
@@ -832,6 +891,17 @@ typedef IGame* (*pfnCreateGame) ();
 
 int SGRX_EntryPoint( int argc, char** argv, int debug )
 {
+#if 1
+	LOG << "Engine self-test...";
+	int ret = TestSystems();
+	if( ret )
+	{
+		LOG << "Test FAILED with code: " << ret;
+		return 0;
+	}
+	LOG << "Test completed successfully.";
+#endif
+	
 	LOG << LOG_DATE << "  Engine started";
 	
 	/* initialize SDL */

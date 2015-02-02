@@ -41,6 +41,8 @@ struct EXPORT SGRX_Log
 	SGRX_Log& operator << ( uint32_t );
 	SGRX_Log& operator << ( int64_t );
 	SGRX_Log& operator << ( uint64_t );
+	SGRX_Log& operator << ( float );
+	SGRX_Log& operator << ( double );
 	SGRX_Log& operator << ( const void* );
 	SGRX_Log& operator << ( const char* );
 	SGRX_Log& operator << ( const StringView& );
@@ -97,10 +99,38 @@ struct EXPORT RenderSettings
 	bool vsync;
 };
 
+#define TEXTYPE_2D     1 /* 1 side, width x height */
+#define TEXTYPE_CUBE   2 /* 6 sides, width x width */
+#define TEXTYPE_VOLUME 3 /* 1 side, width x height x depth */
+
+#define TEXFORMAT_UNKNOWN 0
+#define TEXFORMAT_RGBA8  1
+#define TEXFORMAT_BGRA8  2
+#define TEXFORMAT_BGRX8  3
+#define TEXFORMAT_R5G6B5 5
+#define TEXFORMAT_DXT1   11
+#define TEXFORMAT_DXT3   13
+#define TEXFORMAT_DXT5   15
+#define TEXFORMAT_ISBLOCK4FORMAT( x ) ((x)==TEXFORMAT_DXT1||(x)==TEXFORMAT_DXT3||(x)==TEXFORMAT_DXT5)
+
+struct TextureInfo
+{
+	uint32_t flags; /* TEXFLAGS */
+	int type; /* TEXTYPE */
+	int width;
+	int height;
+	int depth;
+	int format; /* TEXFORMAT */
+	int mipcount;
+};
+
 struct EXPORT SGRX_Texture
 {
 	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ if( --m_refcount <= 0 ) Destroy(); }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	const TextureInfo& GetInfo();
+	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 	
 	struct ITexture* m_texture;
 	int32_t m_refcount;
@@ -113,6 +143,9 @@ typedef Handle< SGRX_Texture > TextureHandle;
 
 EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
+
+EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 
 
 //

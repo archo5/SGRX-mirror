@@ -11,6 +11,60 @@
 static IDirect3D9* g_D3D = NULL;
 
 
+static D3DFORMAT texfmt2d3d( int fmt )
+{
+	switch( fmt )
+	{
+	case TEXFORMAT_BGRX8: return D3DFMT_X8R8G8B8;
+	case TEXFORMAT_BGRA8:
+	case TEXFORMAT_RGBA8: return D3DFMT_A8R8G8B8;
+	case TEXFORMAT_R5G6B5: return D3DFMT_R5G6B5;
+	
+	case TEXFORMAT_DXT1: return D3DFMT_DXT1;
+	case TEXFORMAT_DXT3: return D3DFMT_DXT3;
+	case TEXFORMAT_DXT5: return D3DFMT_DXT5;
+	}
+	return (D3DFORMAT) 0;
+}
+
+static void swap4b2ms( uint32_t* data, int size, int mask1, int shift1R, int mask2, int shift2L )
+{
+	int i;
+	for( i = 0; i < size; ++i )
+	{
+		uint32_t O = data[i];
+		uint32_t N = ( O & ~( mask1 | mask2 ) ) | ( ( O & mask1 ) >> shift1R ) | ( ( O & mask2 ) << shift2L );
+		data[i] = N;
+	}
+}
+
+static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, int side, int mip )
+{
+	int ret;
+	uint8_t *src, *dst;
+	size_t i, off, copyrowsize = 0, copyrowcount = 0;
+	TextureInfo mipTI;
+	
+	off = TextureData_GetMipDataOffset( texinfo, data, side, mip );
+	ret = TextureInfo_GetMipInfo( texinfo, mip, &mipTI );
+	ASSERT( ret );
+	
+//	printf( "read side=%d mip=%d at %d\n", side, mip, off );
+	
+	src = ((uint8_t*)data) + off;
+	dst = (uint8_t*)plr->pBits;
+	TextureInfo_GetCopyDims( &mipTI, &copyrowsize, &copyrowcount );
+	
+	for( i = 0; i < copyrowcount; ++i )
+	{
+		memcpy( dst, src, copyrowsize );
+		if( texinfo->format == TEXFORMAT_RGBA8 )
+			swap4b2ms( (uint32_t*) dst, copyrowsize / 4, 0xff0000, 16, 0xff, 16 );
+		src += copyrowsize;
+		dst += plr->Pitch;
+	}
+}
+
 static void _ss_reset_states( IDirect3DDevice9* dev, int w, int h )
 {
 	dev->SetTextureStageState( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
@@ -45,11 +99,41 @@ struct D3D9Texture : ITexture
 		IDirect3DVolumeTexture9* vol;
 	}
 	m_ptr;
+	struct D3D9Renderer* m_renderer;
 	
 	void Destroy()
 	{
 		SAFE_RELEASE( m_ptr.base );
 		delete this;
+	}
+	
+	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
+	{
+		RECT rct = { x, y, x + w, y + h };
+		D3DLOCKED_RECT lr;
+		HRESULT hr = m_ptr.tex2d->LockRect( mip, &lr, &rct, D3DLOCK_DISCARD );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to lock D3D9 texture";
+			return false;
+		}
+		
+		for( int j = 0; j < h; ++j )
+		{
+			uint8_t* dst = (uint8_t*)lr.pBits + lr.Pitch * j;
+			memcpy( dst, ((uint32_t*)data) + w * j, w * 4 );
+			if( m_info.format == TEXFORMAT_RGBA8 )
+				swap4b2ms( (uint32_t*) dst, w, 0xff0000, 16, 0xff, 16 );
+		}
+		
+		hr = m_ptr.tex2d->UnlockRect( mip );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to unlock D3D9 texture";
+			return false;
+		}
+		
+		return true;
 	}
 };
 
@@ -201,60 +285,6 @@ void D3D9Renderer::Clear( float* color_v4f, bool clear_zbuffer )
 }
 
 
-static D3DFORMAT texfmt2d3d( int fmt )
-{
-	switch( fmt )
-	{
-	case TEXFORMAT_BGRX8: return D3DFMT_X8R8G8B8;
-	case TEXFORMAT_BGRA8:
-	case TEXFORMAT_RGBA8: return D3DFMT_A8R8G8B8;
-	case TEXFORMAT_R5G6B5: return D3DFMT_R5G6B5;
-	
-	case TEXFORMAT_DXT1: return D3DFMT_DXT1;
-	case TEXFORMAT_DXT3: return D3DFMT_DXT3;
-	case TEXFORMAT_DXT5: return D3DFMT_DXT5;
-	}
-	return (D3DFORMAT) 0;
-}
-
-static void swap4b2ms( uint32_t* data, int size, int mask1, int shift1R, int mask2, int shift2L )
-{
-	int i;
-	for( i = 0; i < size; ++i )
-	{
-		uint32_t O = data[i];
-		uint32_t N = ( O & ~( mask1 | mask2 ) ) | ( ( O & mask1 ) >> shift1R ) | ( ( O & mask2 ) << shift2L );
-		data[i] = N;
-	}
-}
-
-static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, int side, int mip )
-{
-	int ret;
-	uint8_t *src, *dst;
-	size_t i, off, copyrowsize = 0, copyrowcount = 0;
-	TextureInfo mipTI;
-	
-	off = TextureData_GetMipDataOffset( texinfo, data, side, mip );
-	ret = TextureInfo_GetMipInfo( texinfo, mip, &mipTI );
-	ASSERT( ret );
-	
-//	printf( "read side=%d mip=%d at %d\n", side, mip, off );
-	
-	src = ((uint8_t*)data) + off;
-	dst = (uint8_t*)plr->pBits;
-	TextureInfo_GetCopyDims( &mipTI, &copyrowsize, &copyrowcount );
-	
-	for( i = 0; i < copyrowcount; ++i )
-	{
-		memcpy( dst, src, copyrowsize );
-		if( texinfo->format == TEXFORMAT_RGBA8 )
-			swap4b2ms( (uint32_t*) dst, copyrowsize / 4, 0xff0000, 16, 0xff, 16 );
-		src += copyrowsize;
-		dst += plr->Pitch;
-	}
-}
-
 ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 {
 	int mip, side;
@@ -273,28 +303,32 @@ ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 			return NULL;
 		}
 		
-		// load all mip levels into it
-		for( mip = 0; mip < texinfo->mipcount; ++mip )
+		if( data )
 		{
-			D3DLOCKED_RECT lr;
-			hr = d3dtex->LockRect( mip, &lr, NULL, D3DLOCK_DISCARD );
-			if( FAILED( hr ) )
+			// load all mip levels into it
+			for( mip = 0; mip < texinfo->mipcount; ++mip )
 			{
-				LOG_ERROR << "failed to lock D3D9 texture";
-				return NULL;
-			}
-			
-			texdatacopy( &lr, texinfo, data, 0, mip );
-			
-			hr = d3dtex->UnlockRect( mip );
-			if( FAILED( hr ) )
-			{
-				LOG_ERROR << "failed to unlock D3D9 texture";
-				return NULL;
+				D3DLOCKED_RECT lr;
+				hr = d3dtex->LockRect( mip, &lr, NULL, D3DLOCK_DISCARD );
+				if( FAILED( hr ) )
+				{
+					LOG_ERROR << "failed to lock D3D9 texture";
+					return NULL;
+				}
+				
+				texdatacopy( &lr, texinfo, data, 0, mip );
+				
+				hr = d3dtex->UnlockRect( mip );
+				if( FAILED( hr ) )
+				{
+					LOG_ERROR << "failed to unlock D3D9 texture";
+					return NULL;
+				}
 			}
 		}
 		
 		D3D9Texture* T = new D3D9Texture;
+		T->m_renderer = this;
 		T->m_info = *texinfo;
 		T->m_ptr.tex2d = d3dtex;
 		return T;
@@ -305,31 +339,35 @@ ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		
 		hr = m_dev->CreateCubeTexture( texinfo->width, texinfo->mipcount, 0, texfmt2d3d( texinfo->format ), D3DPOOL_MANAGED, &d3dtex, NULL );
 		
-		// load all mip levels into it
-		for( side = 0; side < 6; ++side )
+		if( data )
 		{
-			for( mip = 0; mip < texinfo->mipcount; ++mip )
+			// load all mip levels into it
+			for( side = 0; side < 6; ++side )
 			{
-				D3DLOCKED_RECT lr;
-				hr = d3dtex->LockRect( (D3DCUBEMAP_FACES) side, mip, &lr, NULL, D3DLOCK_DISCARD );
-				if( FAILED( hr ) )
+				for( mip = 0; mip < texinfo->mipcount; ++mip )
 				{
-					LOG_ERROR << "failed to lock D3D9 texture";
-					return NULL;
-				}
-				
-				texdatacopy( &lr, texinfo, data, side, mip );
-				
-				hr = d3dtex->UnlockRect( (D3DCUBEMAP_FACES) side, mip );
-				if( FAILED( hr ) )
-				{
-					LOG_ERROR << "failed to unlock D3D9 texture";
-					return NULL;
+					D3DLOCKED_RECT lr;
+					hr = d3dtex->LockRect( (D3DCUBEMAP_FACES) side, mip, &lr, NULL, D3DLOCK_DISCARD );
+					if( FAILED( hr ) )
+					{
+						LOG_ERROR << "failed to lock D3D9 texture";
+						return NULL;
+					}
+					
+					texdatacopy( &lr, texinfo, data, side, mip );
+					
+					hr = d3dtex->UnlockRect( (D3DCUBEMAP_FACES) side, mip );
+					if( FAILED( hr ) )
+					{
+						LOG_ERROR << "failed to unlock D3D9 texture";
+						return NULL;
+					}
 				}
 			}
 		}
 		
 		D3D9Texture* T = new D3D9Texture;
+		T->m_renderer = this;
 		T->m_info = *texinfo;
 		T->m_ptr.cube = d3dtex;
 		return T;

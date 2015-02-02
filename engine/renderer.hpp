@@ -8,34 +8,9 @@
 /// TEXTURE
 ///
 
-#define TEXTYPE_2D     1 /* 1 side, width x height */
-#define TEXTYPE_CUBE   2 /* 6 sides, width x width */
-#define TEXTYPE_VOLUME 3 /* 1 side, width x height x depth */
-
-#define TEXFORMAT_UNKNOWN 0
-#define TEXFORMAT_RGBA8  1
-#define TEXFORMAT_BGRA8  2
-#define TEXFORMAT_BGRX8  3
-#define TEXFORMAT_R5G6B5 5
-#define TEXFORMAT_DXT1   11
-#define TEXFORMAT_DXT3   13
-#define TEXFORMAT_DXT5   15
-#define TEXFORMAT_ISBLOCK4FORMAT( x ) ((x)==TEXFORMAT_DXT1||(x)==TEXFORMAT_DXT3||(x)==TEXFORMAT_DXT5)
-
-struct TextureInfo
-{
-	uint32_t flags; /* TEXFLAGS */
-	int type; /* TEXTYPE */
-	int width;
-	int height;
-	int depth;
-	int format; /* TEXFORMAT */
-	int mipcount;
-};
-
-EXPORT size_t TextureInfo_GetTextureSideSize( TextureInfo* TI );
-EXPORT void TextureInfo_GetCopyDims( TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount );
-EXPORT bool TextureInfo_GetMipInfo( TextureInfo* TI, int mip, TextureInfo* outinfo );
+EXPORT size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI );
+EXPORT void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount );
+EXPORT bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo );
 
 struct TextureData
 {
@@ -53,7 +28,7 @@ struct EXPORT ITexture
 	TextureInfo m_info;
 	
 	virtual void Destroy() = 0;
-	virtual void SetData( int mip, void* data ){ /* TODO */ }
+	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 };
 
 
@@ -66,7 +41,7 @@ struct RendererInfo
 	bool swapRB;
 };
 
-struct IRenderer
+struct EXPORT IRenderer
 {
 	virtual void Destroy() = 0;
 	virtual const RendererInfo& GetInfo() = 0;
