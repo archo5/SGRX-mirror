@@ -15,7 +15,7 @@ list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/SDL2.dll
 
 # Engine
 add_library( sgrx-core SHARED
-	engine utils dds
+	engine font utils dds
 	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
 	../ext/src/libpng1
 	../ext/src/libjpg1 ../ext/src/libjpg2 ../ext/src/libjpg3
@@ -24,7 +24,7 @@ target_link_libraries( sgrx-core SDL2 )
 set_target_properties( sgrx-core PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
-	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/include;${CMAKE_SOURCE_DIR}/ext/src/zlib"
+	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/include;${CMAKE_SOURCE_DIR}/ext/include/freetype;${CMAKE_SOURCE_DIR}/ext/src/zlib"
 	LINKER_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/lib-win32"
 	COMPILE_FLAGS "-m32"
 	LINK_FLAGS "-m32"

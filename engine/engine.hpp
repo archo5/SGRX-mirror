@@ -84,6 +84,10 @@ struct EXPORT IGame
 };
 
 
+//
+// RENDERER DATA
+//
+
 struct EXPORT RenderSettings
 {
 	int width;
@@ -109,6 +113,57 @@ typedef Handle< SGRX_Texture > TextureHandle;
 
 EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
+
+
+//
+// BASIC RENDERING
+//
+
+enum EPrimitiveType
+{
+	PT_None,
+	PT_Points,
+	PT_Lines,
+	PT_LineStrip,
+	PT_Triangles,
+	PT_TriangleStrip,
+	PT_TriangleFan,
+};
+
+struct BatchRenderer
+{
+	struct Vertex
+	{
+		float x, y, z;
+		uint32_t color;
+		float u, v;
+	};
+	
+	BatchRenderer( struct IRenderer* r );
+	~BatchRenderer(){ if( m_renderer ) Flush(); }
+	
+	BatchRenderer& AddVertices( Vertex* verts, int count );
+	BatchRenderer& AddVertex( const Vertex& vert );
+	FINLINE BatchRenderer& Col( float x ){ return Col( x, x, x, x ); }
+	FINLINE BatchRenderer& Col( float x, float a ){ return Col( x, x, x, a ); }
+	FINLINE BatchRenderer& Col( float r, float g, float b ){ return Col( r, g, b, 1.0f ); }
+	FINLINE BatchRenderer& Col( float r, float g, float b, float a ){ return Colb( r * 255, g * 255, b * 255, a * 255 ); }
+	BatchRenderer& Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+	FINLINE BatchRenderer& Tex( float x, float y ){ m_proto.u = x; m_proto.v = y; return *this; }
+	FINLINE BatchRenderer& Pos( float x, float y, float z = 0.0f ){ m_proto.x = x; m_proto.y = y; m_proto.z = z; AddVertex( m_proto ); return *this; }
+	
+	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
+	bool CheckSetTexture( SGRX_Texture* tex );
+	BatchRenderer& SetTexture( SGRX_Texture* tex );
+	BatchRenderer& Flush();
+	
+	IRenderer* m_renderer;
+	SGRX_Texture* m_texture;
+	EPrimitiveType m_primType;
+	Vertex m_proto;
+	bool m_swapRB;
+	Array< Vertex > m_verts;
+};
 
 
 extern "C" EXPORT int SGRX_EntryPoint( int argc, char** argv, int debug );

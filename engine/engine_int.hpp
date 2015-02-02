@@ -1,6 +1,7 @@
 
 
 #pragma once
+#define USE_HASHTABLE
 #include "engine.hpp"
 #include "renderer.hpp"
 
@@ -13,6 +14,7 @@ struct RasterCache
 		int32_t child0, child1;
 		int32_t x0, y0, x1, y1;
 		int32_t lastframe;
+		int page;
 		bool occupied;
 		K key;
 	};
@@ -23,20 +25,6 @@ struct RasterCache
 		uint32_t framediff;
 	};
 	
-	void Resize( int numpages, int32_t w, int32_t h )
-	{
-		m_pageWidth = w;
-		m_pageHeight = h;
-		m_pages.resize( numpages );
-		Node root = { 0, 0, 0, 0, w, h, 0, false };
-		for( int i = 0; i < numpages; ++i )
-		{
-			m_pages[ i ].texture = GR_CreateTexture( w, h, TEXFORMAT_RGBA8 );
-			m_pages[ i ].tree.clear();
-			m_pages[ i ].tree.push_back( root );
-		}
-		m_keyNodeMap.clear();
-	}
 	Node* _NodeAlloc( int page, int32_t startnode, int32_t w, int32_t h )
 	{
 		Page& P = m_pages[ page ];
@@ -104,6 +92,7 @@ struct RasterCache
 			if( node )
 			{
 				node->key = key;
+				node->page = i;
 				node->occupied = true;
 				node->lastframe = frame;
 				m_keyNodeMap[ key ] = node;
@@ -185,6 +174,26 @@ struct RasterCache
 		}
 		return NULL;
 	}
+	void Resize( int numpages, int32_t w, int32_t h )
+	{
+		m_pageWidth = w;
+		m_pageHeight = h;
+		m_pages.resize( numpages );
+		Node root = { 0, 0, 0, 0, w, h, 0, false };
+		for( int i = 0; i < numpages; ++i )
+		{
+			m_pages[ i ].texture = GR_CreateTexture( w, h, TEXFORMAT_RGBA8 );
+			m_pages[ i ].tree.clear();
+			m_pages[ i ].tree.push_back( root );
+		}
+		m_keyNodeMap.clear();
+	}
+	TextureHandle GetPageTexture( int page )
+	{
+		if( page < 0 || page >= m_pages.size() )
+			return TextureHandle();
+		return m_pages[ page ].texture;
+	}
 	// usage:
 	// - Find
 	// - if found, exit
@@ -203,6 +212,9 @@ struct RasterCache
 #else
 #  define FT_FACE_TYPE void*
 #endif
+
+void InitializeFontRendering();
+
 struct FontRenderer
 {
 	struct FontKey
@@ -212,37 +224,55 @@ struct FontRenderer
 	};
 	struct Font
 	{
-		String name;
+		FontKey key;
 		FT_FACE_TYPE face;
 	};
+	typedef HashTable< FontKey, Font* > FontTable;
 	struct CacheKey
 	{
 		Font* font;
-		uint32_t glyph_id;
-		int bmoffx;
-		int bmoffy;
-		int advx;
-		int advy;
+		uint32_t codepoint;
+		uint32_t ft_glyph_id;
+		int16_t bmoffx;
+		int16_t bmoffy;
+		int16_t advx;
+		int16_t advy;
 		
-		bool operator == ( const CacheKey& other ) const { return font == other.font && glyph_id == other.glyph_id; }
+		bool operator == ( const CacheKey& other ) const { return font == other.font && ft_glyph_id == other.ft_glyph_id; }
 	};
+	typedef RasterCache< CacheKey > GlyphCache;
+	
+	FontRenderer( int pagecount = 8, int pagesize = 1024 );
+	~FontRenderer();
 	
 	// core features
 	bool SetFont( const StringView& name, int pxsize );
-	int PutChar( BatchRenderer* br, uint32_t ch );
+	void SetCursor( float x, float y );
+	
 	int PutText( BatchRenderer* br, const StringView& text );
-	int SkipChar( uint32_t ch );
 	int SkipText( const StringView& text );
-	float GetCharWidth( uint32_t ch );
 	float GetTextWidth( const StringView& text );
 	
 	// advanced features
 	// TODO
 	
+	// internal
+	Font* _GetOrCreateFont( const FontKey& fk );
+	GlyphCache::Node* _GetGlyph( Font* font, uint32_t ch );
+	
 	float m_cursor_x;
 	float m_cursor_y;
-	RasterCache< CacheKey > m_cache;
-	HashTable< FontKey, Font > m_fonts;
+	Font* m_currentFont;
+	GlyphCache m_cache;
+	int32_t m_cache_frame;
+	FontTable m_fonts;
 };
+
+#ifdef USE_HASHTABLE
+Hash HashVar( const FontRenderer::FontKey& fk )
+{
+	return HashVar( fk.name ) + fk.size;
+}
+#endif
 
 

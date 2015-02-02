@@ -141,6 +141,82 @@ bool Mat4::InvertTo( Mat4& out )
 }
 
 
+#define U8NFL( x ) ((x&0xC0)!=0x80)
+
+int UTF8Decode( const char* buf, size_t size, uint32_t* outchar )
+{
+	char c;
+	if( size == 0 )
+		return 0;
+	
+	c = *buf;
+	if( !( c & 0x80 ) )
+	{
+		*outchar = (uint32_t) c;
+		return 1;
+	}
+	
+	if( ( c & 0xE0 ) == 0xC0 )
+	{
+		if( size < 2 || U8NFL( buf[1] ) )
+			return - (int) TMIN( size, (size_t) 2 );
+		*outchar = (uint32_t) ( ( ((int)(buf[0]&0x1f)) << 6 ) | ((int)(buf[1]&0x3f)) );
+		return 2;
+	}
+	
+	if( ( c & 0xF0 ) == 0xE0 )
+	{
+		if( size < 3 || U8NFL( buf[1] ) || U8NFL( buf[2] ) )
+			return - (int) TMIN( size, (size_t) 3 );
+		*outchar = (uint32_t) ( ( ((int)(buf[0]&0x0f)) << 12 ) | ( ((int)(buf[1]&0x3f)) << 6 )
+			| ((int)(buf[2]&0x3f)) );
+		return 3;
+	}
+	
+	if( ( c & 0xF8 ) == 0xF0 )
+	{
+		if( size < 4 || U8NFL( buf[1] ) || U8NFL( buf[2] ) || U8NFL( buf[3] ) )
+			return - (int) TMIN( size, (size_t) 4 );
+		*outchar = (uint32_t) ( ( ((int)(buf[0]&0x07)) << 18 ) | ( ((int)(buf[1]&0x3f)) << 12 )
+				| ( ((int)(buf[2]&0x3f)) << 6 ) | ((int)(buf[3]&0x3f)) );
+		return 4;
+	}
+	
+	return -1;
+}
+
+int UTF8Encode( uint32_t ch, char* out )
+{
+	if( ch <= 0x7f )
+	{
+		*out = (char) ch;
+		return 1;
+	}
+	if( ch <= 0x7ff )
+	{
+		out[ 0 ] = (char)( 0xc0 | ( ( ch >> 6 ) & 0x1f ) );
+		out[ 1 ] = (char)( 0x80 | ( ch & 0x3f ) );
+		return 2;
+	}
+	if( ch <= 0xffff )
+	{
+		out[ 0 ] = (char)( 0xe0 | ( ( ch >> 12 ) & 0x0f ) );
+		out[ 1 ] = (char)( 0x80 | ( ( ch >> 6 ) & 0x3f ) );
+		out[ 2 ] = (char)( 0x80 | ( ch & 0x3f ) );
+		return 3;
+	}
+	if( ch <= 0x10ffff )
+	{
+		out[ 0 ] = (char)( 0xf0 | ( ( ch >> 18 ) & 0x07 ) );
+		out[ 1 ] = (char)( 0x80 | ( ( ch >> 12 ) & 0x3f ) );
+		out[ 2 ] = (char)( 0x80 | ( ( ch >> 6 ) & 0x3f ) );
+		out[ 3 ] = (char)( 0x80 | ( ch & 0x3f ) );
+		return 4;
+	}
+
+	return 0;
+}
+
 
 bool LoadBinaryFile( const char* path, ByteArray& out )
 {

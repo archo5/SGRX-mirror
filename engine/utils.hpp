@@ -17,6 +17,7 @@
 #endif
 
 #define SGRX_CAST( t, to, from ) t to = (t) from
+#define UNUSED( x ) (void) x
 
 
 #define SMALL_FLOAT 0.001f
@@ -483,6 +484,22 @@ struct StringView
 		size_t pos = find_first_at( substr, 0 );
 		return StringView( m_str, pos );
 	}
+	FINLINE bool skip( size_t n )
+	{
+		if( n > m_size );
+		{
+			m_str += m_size;
+			m_size = 0;
+			return false;
+		}
+		m_str += n;
+		m_size -= n;
+		return true;
+	}
+	
+#ifdef USE_ARRAY
+	FINLINE operator String () const { return String( m_str, m_size ); }
+#endif
 };
 
 template< size_t N >
@@ -496,11 +513,28 @@ struct StackString
 
 
 //
+// UNICODE
+//
+// - utf8_decode: returns number of bytes parsed (negated if input was invalid)
+// - utf8_encode: returns number of bytes written (up to 4, make sure there's space)
+//
+
+#define UNICODE_INVCHAR 0xfffd
+#define UNICODE_INVCHAR_STR "\xef\xbf\xbd"
+#define UNICODE_INVCHAR_LEN 3
+EXPORT int UTF8Decode( const char* buf, size_t size, uint32_t* outchar );
+EXPORT int UTF8Encode( uint32_t ch, char* out );
+
+
+//
 // HASH TABLE
 //
 
 typedef uint32_t Hash;
 Hash HashFunc( const char* str, size_t size );
+
+inline Hash HashVar( const String& s ){ return HashFunc( s.m_data, s.m_size ); }
+inline Hash HashVar( const StringView& sv ){ return HashFunc( sv.m_str, sv.m_size ); }
 
 template< class K, class V >
 struct HashTable
@@ -531,7 +565,7 @@ struct HashTable
 	{
 		m_pairs = new size_type[ m_pair_mem ];
 		m_vars = (Var*) malloc( sizeof(Var) * m_var_mem );
-		TMEMSET( m_pairs, m_pair_mem, EMPTY );
+		TMEMSET( m_pairs, m_pair_mem, (size_type) EMPTY );
 	}
 	~HashTable()
 	{
@@ -544,9 +578,22 @@ struct HashTable
 		free( m_vars );
 	}
 	
-	size_t size() const { return m_size; }
-	FINLINE const V& get( const K& key, const V* defval = NULL ) const { Var* raw = getraw( key ); return raw ? raw->value : defval; }
-	FINLINE V* get( const K& key, const V* defval = NULL ){ Var* raw = getraw( key ); return raw ? raw->value : defval; }
+	void clear()
+	{
+		for( size_type i = 0; i < m_size; ++i )
+		{
+			m_vars[ i ].key.~K();
+			m_vars[ i ].value.~V();
+		}
+		m_num_removed += m_size;
+		m_size = 0;
+		TMEMSET( m_pairs, m_pair_mem, (size_type) EMPTY );
+	}
+	
+	FINLINE size_t size() const { return m_size; }
+	FINLINE Var& item( size_t i ){ ASSERT( i < m_size ); return m_vars[ i ]; }
+	FINLINE V getcopy( const K& key, const V& defval = V() ) const { const Var* raw = getraw( key ); return raw ? raw->value : defval; }
+	FINLINE V* getptr( const K& key, const V* defval = NULL ){ Var* raw = getraw( key ); return raw ? raw->value : defval; }
 	FINLINE V& operator [] ( const K& key ){ Var* raw = getraw( key ); if( !raw ) raw = set( key, V() ); return raw->value; }
 	
 	size_type _get_pair_id( const K& key, Hash hash )
@@ -569,7 +616,15 @@ struct HashTable
 	}
 	Var* getraw( const K& key )
 	{
-		size_type i = _get_pair_id( K, HashVar( K ) );
+		size_type i = _get_pair_id( key, HashVar( key ) );
+		if( i >= 0 )
+			return &m_vars[ m_pairs[ i ] ];
+		else
+			return NULL;
+	}
+	const Var* getraw( const K& key ) const
+	{
+		size_type i = _get_pair_id( key, HashVar( key ) );
 		if( i >= 0 )
 			return &m_vars[ m_pairs[ i ] ];
 		else
@@ -577,8 +632,8 @@ struct HashTable
 	}
 	Var* set( const K& key, const V& val )
 	{
-		Hash h = HashVar( K );
-		size_type sp, i = _get_pair_id( K, h );
+		Hash h = HashVar( key );
+		size_type sp, i = _get_pair_id( key, h );
 		if( i >= 0 )
 		{
 			Var& var = m_vars[ m_pairs[ i ] ];
@@ -593,9 +648,9 @@ struct HashTable
 			
 			/* prefer to rehash if too many removed (num_rem) items are found */
 			if( m_size + m_num_removed + 1.0 >= m_pair_mem * 0.7 )
-				rehash( (size_type) TMAX( m_pair_mem * 1.5, m_size + 16 ) );
+				rehash( (size_type) TMAX<double>( m_pair_mem * 1.5, m_size + 16 ) );
 			if( m_size >= m_var_mem )
-				reserve( (size_type) TMAX( m_size * 1.5, m_size + 16 ) );
+				reserve( (size_type) TMAX<double>( m_size * 1.5, m_size + 16 ) );
 			
 			{
 				Var& var = m_vars[ m_size ];
@@ -629,8 +684,8 @@ struct HashTable
 	}
 	bool unset( const K& key )
 	{
-		sgs_Hash h = HashVar( K );
-		size_type i = _get_pair_id( K, h );
+		Hash h = HashVar( key );
+		size_type i = _get_pair_id( key, h );
 		if( i >= 0 )
 		{
 			size_type idx = m_pairs[ i ];
@@ -680,7 +735,7 @@ struct HashTable
 		
 	#if 0
 		printf( "rehash %d -> %d (size = %d, mem = %d kB)\n", m_pair_mem, size, m_size,
-			(size * sizeof(size_type) + T->var_mem * sizeof(sgs_VHTVar)) / 1024 );
+			(size * sizeof(size_type) + T->var_mem * sizeof(Var)) / 1024 );
 	#endif
 		
 		for( si = 0; si < m_pair_mem; ++si )
@@ -706,7 +761,7 @@ struct HashTable
 			}
 		}
 		
-		delete [] m_pairs );
+		delete [] m_pairs;
 		m_pairs = np;
 		m_pair_mem = size;
 		m_num_removed = 0;

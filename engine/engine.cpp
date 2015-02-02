@@ -49,6 +49,7 @@ static pfnRndInitialize g_RfnInitialize = NULL;
 static pfnRndFree g_RfnFree = NULL;
 static pfnRndCreateRenderer g_RfnCreateRenderer = NULL;
 static IRenderer* g_Renderer = NULL;
+static FontRenderer* g_FontRenderer = NULL;
 static Array< IScreen* > g_OverlayScreens;
 
 
@@ -729,13 +730,20 @@ BatchRenderer& BatchRenderer::SetPrimitiveType( EPrimitiveType pt )
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::SetTexture( SGRX_Texture* tex )
+bool BatchRenderer::CheckSetTexture( SGRX_Texture* tex )
 {
 	if( tex != m_texture )
 	{
 		Flush();
 		m_texture = tex;
+		return true;
 	}
+	return false;
+}
+
+BatchRenderer& BatchRenderer::SetTexture( SGRX_Texture* tex )
+{
+	CheckSetTexture( tex );
 	return *this;
 }
 
@@ -796,8 +804,11 @@ static int init_graphics()
 		LOG_ERROR << "Failed to create renderer (" << rendername << ")";
 		return 105;
 	}
-	
 	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
+	
+	InitializeFontRendering();
+	g_FontRenderer = new FontRenderer();
+	LOG << LOG_DATE << "  Created font renderer";
 	
 	return 0;
 }
