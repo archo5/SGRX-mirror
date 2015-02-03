@@ -46,6 +46,8 @@ struct EXPORT SGRX_Log
 	SGRX_Log& operator << ( const void* );
 	SGRX_Log& operator << ( const char* );
 	SGRX_Log& operator << ( const StringView& );
+	SGRX_Log& operator << ( const Vec3& );
+	SGRX_Log& operator << ( const Mat4& );
 };
 #define LOG SGRX_Log()
 #define LOG_ERROR SGRX_Log() << "ERROR: "
@@ -141,10 +143,18 @@ private:
 };
 typedef Handle< SGRX_Texture > TextureHandle;
 
+EXPORT int GR_GetWidth();
+EXPORT int GR_GetHeight();
+
 EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
 
+EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
+EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
 EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+EXPORT void GR2D_SetTextCursor( float x, float y );
+EXPORT Vec2 GR2D_GetTextCursor();
+EXPORT int GR2D_DrawTextLine( const StringView& text );
 EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 
 

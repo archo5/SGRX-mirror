@@ -141,6 +141,14 @@ bool Mat4::InvertTo( Mat4& out )
 	return true;
 }
 
+const Mat4 Mat4::Identity =
+{
+	1, 0, 0, 0,
+	0, 1, 0, 0,
+	0, 0, 1, 0,
+	0, 0, 0, 1,
+};
+
 
 #define U8NFL( x ) ((x&0xC0)!=0x80)
 

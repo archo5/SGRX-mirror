@@ -2,6 +2,8 @@
 
 #include <d3d9.h>
 
+#define USE_VEC3
+#define USE_MAT4
 #include "renderer.hpp"
 
 
@@ -153,6 +155,9 @@ struct D3D9Renderer : IRenderer
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	void Clear( float* color_v4f, bool clear_zbuffer );
 	
+	void SetWorldMatrix( const Mat4& mtx );
+	void SetViewMatrix( const Mat4& mtx );
+	
 	ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, ITexture* tex );
@@ -160,6 +165,9 @@ struct D3D9Renderer : IRenderer
 	bool ResetDevice();
 	void ResetViewport();
 	void SetTexture( int i, ITexture* tex );
+	
+	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
+	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
 	
 	IDirect3DDevice9* m_dev;
 	D3DPRESENT_PARAMETERS m_params;
@@ -178,6 +186,7 @@ extern "C" EXPORT bool Initialize( const char** outname )
 extern "C" EXPORT void Free()
 {
 	g_D3D->Release();
+	g_D3D = NULL;
 }
 
 extern "C" EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, void* windowHandle )
@@ -282,6 +291,21 @@ void D3D9Renderer::Clear( float* color_v4f, bool clear_zbuffer )
 	if( clear_zbuffer )
 		flags |= D3DCLEAR_ZBUFFER;
 	m_dev->Clear( 0, NULL, flags, cc, 1.0f, 0 );
+}
+
+
+void D3D9Renderer::SetWorldMatrix( const Mat4& mtx )
+{
+	m_dev->SetTransform( D3DTS_WORLD, (const D3DMATRIX*) &mtx );
+}
+
+void D3D9Renderer::SetViewMatrix( const Mat4& mtx )
+{
+	float w = GetWidth();
+	float h = GetHeight();
+	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &Mat4::Identity );
+	Mat4 mfx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
+	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) Mat4().Multiply( mtx, mfx ).a );
 }
 
 

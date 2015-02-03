@@ -36,6 +36,16 @@
 
 inline size_t divideup( size_t x, int d ){ return ( x + d - 1 ) / d; }
 
+#define IIF( cond, a, b ) ((cond)?(a):(b))
+inline float clamp( float v, float vmin, float vmax ){ return IIF( v < vmin, vmin, IIF( v > vmax, vmax, v ) ); }
+inline float lerp( float a, float b, float t ){ return a * (1.0f-t) + b * t; }
+inline float sign( float x ){ return IIF( x == 0, 0, IIF( x < 0, -1, 1 ) ); }
+inline float normalize_angle( float x ){ x = fmodf( x, M_PI * 2 ); return IIF( x < 0, x + M_PI*2, x ); }
+inline float saturate( float x ){ return IIF( x < 0, 0, IIF( x > 1, 1, x ) ); }
+inline float smoothstep( float x ){ return x * x * ( 3 - 2 * x ); }
+inline float smoothlerp_oneway( float t, float a, float b ){ if( b == a ) return 1.0f; return smoothstep( saturate( ( t - a ) / ( b - a ) ) ); }
+inline float smoothlerp_range( float t, float a, float b, float c, float d ){ return smoothlerp_oneway( t, a, b ) * smoothlerp_oneway( t, d, c ); }
+
 
 //
 // TEMPLATES
@@ -48,13 +58,86 @@ template< class T > void TMEMSET( T* a, size_t c, const T& v )
 	for( size_t i = 0; i < c; ++i )
 		a[ i ] = v;
 }
+template< class T > void TSWAP( T& a, T& b ){ T tmp( a ); a = b; b = tmp; }
+
+
+//
+// VEC2
+//
+
+struct EXPORT Vec2
+{
+	float x, y;
+	
+#ifdef USE_VEC2
+	static FINLINE Vec2 Create( float x ){ Vec2 v = { x, x }; return v; }
+	static FINLINE Vec2 Create( float x, float y ){ Vec2 v = { x, y }; return v; }
+	static FINLINE Vec2 CreateFromPtr( const float* x ){ Vec2 v = { x[0], x[1] }; return v; }
+	
+	FINLINE Vec2 operator + () const { return *this; }
+	FINLINE Vec2 operator - () const { Vec2 v = { -x, -y }; return v; }
+	
+	FINLINE Vec2 operator + ( const Vec2& o ) const { Vec2 v = { x + o.x, y + o.y }; return v; }
+	FINLINE Vec2 operator - ( const Vec2& o ) const { Vec2 v = { x - o.x, y - o.y }; return v; }
+	FINLINE Vec2 operator * ( const Vec2& o ) const { Vec2 v = { x * o.x, y * o.y }; return v; }
+	FINLINE Vec2 operator / ( const Vec2& o ) const { Vec2 v = { x / o.x, y / o.y }; return v; }
+	
+	FINLINE Vec2 operator + ( float f ) const { Vec2 v = { x + f, y + f }; return v; }
+	FINLINE Vec2 operator - ( float f ) const { Vec2 v = { x - f, y - f }; return v; }
+	FINLINE Vec2 operator * ( float f ) const { Vec2 v = { x * f, y * f }; return v; }
+	FINLINE Vec2 operator / ( float f ) const { Vec2 v = { x / f, y / f }; return v; }
+	
+	FINLINE Vec2& operator += ( const Vec2& o ){ x += o.x; y += o.y; return *this; }
+	FINLINE Vec2& operator -= ( const Vec2& o ){ x -= o.x; y -= o.y; return *this; }
+	FINLINE Vec2& operator *= ( const Vec2& o ){ x *= o.x; y *= o.y; return *this; }
+	FINLINE Vec2& operator /= ( const Vec2& o ){ x /= o.x; y /= o.y; return *this; }
+	
+	FINLINE Vec2& operator += ( float f ){ x += f; y += f; return *this; }
+	FINLINE Vec2& operator -= ( float f ){ x -= f; y -= f; return *this; }
+	FINLINE Vec2& operator *= ( float f ){ x *= f; y *= f; return *this; }
+	FINLINE Vec2& operator /= ( float f ){ x /= f; y /= f; return *this; }
+	
+	FINLINE bool operator == ( const Vec2& o ) const { return x == o.x && y == o.y; }
+	FINLINE bool operator != ( const Vec2& o ) const { return x != o.x || y != o.y; }
+	
+	FINLINE bool IsZero() const { return x == 0 && y == 0; }
+	FINLINE bool NearZero() const { return fabs(x) < SMALL_FLOAT && fabs(y) < SMALL_FLOAT; }
+	FINLINE float LengthSq() const { return x * x + y * y; }
+	FINLINE float Length() const { return sqrtf( LengthSq() ); }
+	FINLINE Vec2 Normalized() const
+	{
+		float lensq = LengthSq();
+		if( lensq == 0 )
+		{
+			Vec2 v = { 0, 0 };
+			return v;
+		}
+		float invlen = 1.0f / sqrtf( lensq );
+		Vec2 v = { x * invlen, y * invlen };
+		return v;
+	}
+#endif
+};
+
+#ifdef USE_VEC2
+FINLINE Vec2 operator + ( float f, const Vec2& v ){ Vec2 out = { f + v.x, f + v.y }; return out; }
+FINLINE Vec2 operator - ( float f, const Vec2& v ){ Vec2 out = { f - v.x, f - v.y }; return out; }
+FINLINE Vec2 operator * ( float f, const Vec2& v ){ Vec2 out = { f * v.x, f * v.y }; return out; }
+FINLINE Vec2 operator / ( float f, const Vec2& v ){ Vec2 out = { f / v.x, f / v.y }; return out; }
+
+FINLINE float Vec2Dot( const Vec2& v1, const Vec2& v2 ){ return v1.x * v2.x + v1.y * v2.y; }
+#endif
 
 
 //
 // VEC3
 //
 
-struct Vec3
+#ifdef USE_MAT4
+#define USE_VEC3
+#endif
+
+struct EXPORT Vec3
 {
 	float x, y, z;
 	
@@ -132,13 +215,15 @@ FINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 // MAT4
 //
 
-struct Mat4
+struct EXPORT Mat4
 {
 	union
 	{
 		float a[16];
 		float m[4][4];
 	};
+	
+	static const Mat4 Identity;
 	
 #ifdef USE_MAT4
 	void SetIdentity()
@@ -151,6 +236,40 @@ struct Mat4
 	{
 		Mat4 m;
 		m.SetIdentity();
+		return m;
+	}
+	static Mat4 CreateFromPtr( float* v16f )
+	{
+		Mat4 m;
+		memcpy( m.a, v16f, sizeof(float[16]) );
+		return m;
+	}
+	
+	static Mat4 Create2DCamera( float x, float y, float size, float aspect, float angle = 0 )
+	{
+		size = 1.0f / size;
+		x *= size / aspect;
+		y *= size;
+		Mat4 m =
+		{
+			size / aspect, 0, 0, 0,
+			0, -size, 0, 0,
+			0, 0, size, 0,
+			-x, y, 0.5f * size, 1
+		};
+		return m;
+	}
+	static Mat4 CreateUI( float x0, float y0, float x1, float y1 )
+	{
+		float w = x1 - x0;
+		float h = y1 - y0;
+		Mat4 m =
+		{
+			2.0f / w, 0, 0, 0,
+			0, -2.0f / h, 0, 0,
+			0, 0, 1, 0,
+			-1 - x0 / w * 2.0f, 1 + y0 / w * 2.0f, 0, 1
+		};
 		return m;
 	}
 	
@@ -180,12 +299,12 @@ struct Mat4
 	bool InvertTo( Mat4& out );
 	FINLINE void Transpose()
 	{
-		std::swap( m[1][0], m[0][1] );
-		std::swap( m[2][0], m[0][2] );
-		std::swap( m[3][0], m[0][3] );
-		std::swap( m[2][1], m[1][2] );
-		std::swap( m[3][1], m[1][3] );
-		std::swap( m[3][2], m[2][3] );
+		TSWAP( m[1][0], m[0][1] );
+		TSWAP( m[2][0], m[0][2] );
+		TSWAP( m[3][0], m[0][3] );
+		TSWAP( m[2][1], m[1][2] );
+		TSWAP( m[3][1], m[1][3] );
+		TSWAP( m[3][2], m[2][3] );
 	}
 	void GenNormalMatrix( Mat4& out ) const
 	{
@@ -200,7 +319,7 @@ struct Mat4
 		out.Transpose();
 	}
 	
-	void Multiply( const Mat4& A, const Mat4& B )
+	Mat4& Multiply( const Mat4& A, const Mat4& B )
 	{
 		m[0][0] = A.m[0][0] * B.m[0][0] + A.m[0][1] * B.m[1][0] + A.m[0][2] * B.m[2][0] + A.m[0][3] * B.m[3][0];
 		m[0][1] = A.m[0][0] * B.m[0][1] + A.m[0][1] * B.m[1][1] + A.m[0][2] * B.m[2][1] + A.m[0][3] * B.m[3][1];
@@ -218,6 +337,7 @@ struct Mat4
 		m[3][1] = A.m[3][0] * B.m[0][1] + A.m[3][1] * B.m[1][1] + A.m[3][2] * B.m[2][1] + A.m[3][3] * B.m[3][1];
 		m[3][2] = A.m[3][0] * B.m[0][2] + A.m[3][1] * B.m[1][2] + A.m[3][2] * B.m[2][2] + A.m[3][3] * B.m[3][2];
 		m[3][3] = A.m[3][0] * B.m[0][3] + A.m[3][1] * B.m[1][3] + A.m[3][2] * B.m[2][3] + A.m[3][3] * B.m[3][3];
+		return *this;
 	}
 	
 	void Scale( Vec3 scale )
@@ -303,8 +423,15 @@ struct Array
 	
 #ifdef USE_ARRAY
 	Array() : m_data(NULL), m_size(0), m_mem(0){}
+	Array( const Array& a ) : m_data(NULL), m_size(0), m_mem(0) { insert( 0, a.m_data, a.m_size ); }
 	Array( const T* v, size_t sz ) : m_data(NULL), m_size(0), m_mem(0) { insert( 0, v, sz ); }
-	~Array(){ free( m_data ); }
+	~Array(){ clear(); free( m_data ); }
+	Array& operator = ( const Array& a )
+	{
+		clear();
+		insert( 0, a.m_data, a.m_size );
+		return *this;
+	}
 	
 	FINLINE bool operator == ( const Array& other ) const
 	{

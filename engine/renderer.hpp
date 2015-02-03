@@ -51,6 +51,9 @@ struct EXPORT IRenderer
 	virtual void SetCurrent() = 0;
 	virtual void Clear( float* color_v4f, bool clear_zbuffer = true ) = 0;
 	
+	virtual void SetWorldMatrix( const Mat4& mtx ) = 0;
+	virtual void SetViewMatrix( const Mat4& mtx ) = 0;
+	
 	virtual ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
 	
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, ITexture* tex ) = 0;

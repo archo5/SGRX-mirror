@@ -5,13 +5,9 @@
 #include <intrin.h>
 #include <windows.h>
 
-#define __STDC_FORMAT_MACROS 1
-extern "C" {
-#include "dds.h"
-}
-#include "../ext/src/libpng/png.h"
-#include "../ext/src/libjpg/jpeglib.h"
-
+#define USE_VEC2
+#define USE_VEC3
+#define USE_MAT4
 #define USE_ARRAY
 
 #define INCLUDE_REAL_SDL
@@ -94,6 +90,22 @@ SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%f", v ); retur
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"%.*s\"", (int) sv.size(), (int) sv.size(), sv.data() ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const Vec3& v )
+{
+	prelog();
+	printf( "Vec3( %f ; %f ; %f )", v.x, v.y, v.z );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
+{
+	prelog();
+	printf( "Mat4(\n" );
+	printf( "\t%f\t%f\t%f\t%f\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
+	printf( "\t%f\t%f\t%f\t%f\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
+	printf( "\t%f\t%f\t%f\t%f\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
+	printf( "\t%f\t%f\t%f\t%f\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
+	return *this;
+}
 
 
 //
@@ -142,6 +154,8 @@ void Game_Process( float dt )
 	float f[4] = { 0.2f, 0.4f, 0.6f, 1.0f };
 	g_Renderer->Clear( f );
 	
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+	
 	BatchRenderer& br = *g_BatchRenderer;
 	br.SetTexture( metal );
 	br.SetPrimitiveType( PT_Triangles );
@@ -152,8 +166,16 @@ void Game_Process( float dt )
 		.Tex( 1, 1 ).Pos( 200, 200 )
 		.Tex( 1, 0 ).Pos( 200, 0 );
 	
-	GR2D_SetFont( "fonts/lato-regular.ttf", 100 + sin( GetTimeMsec() * 0.001f ) * 80 ); // 32 );
-	GR2D_DrawTextLine( 16, 16, "LongTest" );
+	GR2D_SetFont( "fonts/lato-regular.ttf", 11 );
+	GR2D_SetTextCursor( 0, 0 );
+	for( int i = 0; i < 249; ++i )
+	{
+		GR2D_DrawTextLine( i % 3 == 0 ? " SomeTextHere" : " TextHere" );
+		if( GR2D_GetTextCursor().x > GR_GetWidth() )
+		{
+			GR2D_SetTextCursor( ( i % 5 ) * 5, GR2D_GetTextCursor().y + 11 );
+		}
+	}
 	br.Flush();
 	
 	g_Game->OnTick( dt, g_GameTime );
@@ -208,6 +230,7 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 void SGRX_Texture::Destroy()
 {
 	m_texture->Destroy();
+	delete this;
 }
 
 const TextureInfo& SGRX_Texture::GetInfo()
@@ -237,6 +260,10 @@ bool SGRX_Texture::UploadRGBA8Part( void* data, int mip, int w, int h, int x, in
 	
 	return m_texture->UploadRGBA8Part( data, mip, x, y, w, h );
 }
+
+
+int GR_GetWidth(){ return g_RenderSettings.width; }
+int GR_GetHeight(){ return g_RenderSettings.height; }
 
 
 TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
@@ -291,9 +318,34 @@ TextureHandle GR_GetTexture( const StringView& path )
 }
 
 
+void GR2D_SetWorldMatrix( const Mat4& mtx )
+{
+	g_Renderer->SetWorldMatrix( mtx );
+}
+
+void GR2D_SetViewMatrix( const Mat4& mtx )
+{
+	g_Renderer->SetViewMatrix( mtx );
+}
+
 bool GR2D_SetFont( const StringView& name, int pxsize )
 {
 	return g_FontRenderer->SetFont( name, pxsize );
+}
+
+void GR2D_SetTextCursor( float x, float y )
+{
+	g_FontRenderer->SetCursor( x, y );
+}
+
+Vec2 GR2D_GetTextCursor()
+{
+	return Vec2::Create( g_FontRenderer->m_cursor_x, g_FontRenderer->m_cursor_y );
+}
+
+int GR2D_DrawTextLine( const StringView& text )
+{
+	return g_FontRenderer->PutText( g_BatchRenderer, text );
 }
 
 int GR2D_DrawTextLine( float x, float y, const StringView& text )
@@ -306,433 +358,6 @@ int GR2D_DrawTextLine( float x, float y, const StringView& text )
 //
 // RENDERING
 //
-
-size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI )
-{
-	size_t width = TI->width, height = TI->height, depth = TI->depth;
-	int bpu = 0;
-	switch( TI->format )
-	{
-	/* bytes per pixel */
-	case TEXFORMAT_BGRA8:
-	case TEXFORMAT_BGRX8:
-	case TEXFORMAT_RGBA8: bpu = 4; break;
-	case TEXFORMAT_R5G6B5: bpu = 2; break;
-	/* bytes per block */
-	case TEXFORMAT_DXT1: bpu = 8; break;
-	case TEXFORMAT_DXT3:
-	case TEXFORMAT_DXT5: bpu = 16; break;
-	}
-	if( TEXFORMAT_ISBLOCK4FORMAT( TI->format ) )
-	{
-		width = divideup( width, 4 );
-		height = divideup( height, 4 );
-		depth = divideup( depth, 4 );
-	}
-	switch( TI->type )
-	{
-	case TEXTYPE_2D: return width * height * bpu;
-	case TEXTYPE_CUBE: return width * width * bpu;
-	case TEXTYPE_VOLUME: return width * height * depth * bpu;
-	}
-	return 0;
-}
-
-void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount )
-{
-	size_t width = TI->width, height = TI->height, depth = TI->depth;
-	int bpu = 0;
-	switch( TI->format )
-	{
-	/* bytes per pixel */
-	case TEXFORMAT_BGRA8:
-	case TEXFORMAT_BGRX8:
-	case TEXFORMAT_RGBA8: bpu = 4; break;
-	case TEXFORMAT_R5G6B5: bpu = 2; break;
-	/* bytes per block */
-	case TEXFORMAT_DXT1: bpu = 8; break;
-	case TEXFORMAT_DXT3:
-	case TEXFORMAT_DXT5: bpu = 16; break;
-	}
-	if( TEXFORMAT_ISBLOCK4FORMAT( TI->format ) )
-	{
-		width = divideup( width, 4 );
-		height = divideup( height, 4 );
-		depth = divideup( depth, 4 );
-	}
-	switch( TI->type )
-	{
-	case TEXTYPE_2D: *outcopyrowsize = width * bpu; *outcopyrowcount = height; break;
-	case TEXTYPE_CUBE: *outcopyrowsize = width * bpu; *outcopyrowcount = width; break;
-	case TEXTYPE_VOLUME: *outcopyrowsize = width * bpu; *outcopyrowcount = height * depth; break;
-	default: *outcopyrowsize = 0; *outcopyrowcount = 0; break;
-	}
-}
-
-bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo )
-{
-	TextureInfo info = *TI;
-	if( mip >= TI->mipcount )
-		return false;
-	info.width /= pow( 2, mip ); if( info.width < 1 ) info.width = 1;
-	info.height /= pow( 2, mip ); if( info.height < 1 ) info.height = 1;
-	info.depth /= pow( 2, mip ); if( info.depth < 1 ) info.depth = 1;
-	info.mipcount -= mip;
-	*outinfo = info;
-	return true;
-}
-
-
-static uint32_t _avg_col4( uint32_t a, uint32_t b, uint32_t c, uint32_t d )
-{
-	uint32_t ocr = ( COLOR_EXTRACT_R( a ) + COLOR_EXTRACT_R( b ) + COLOR_EXTRACT_R( c ) + COLOR_EXTRACT_R( d ) ) / 4;
-	uint32_t ocg = ( COLOR_EXTRACT_G( a ) + COLOR_EXTRACT_G( b ) + COLOR_EXTRACT_G( c ) + COLOR_EXTRACT_G( d ) ) / 4;
-	uint32_t ocb = ( COLOR_EXTRACT_B( a ) + COLOR_EXTRACT_B( b ) + COLOR_EXTRACT_B( c ) + COLOR_EXTRACT_B( d ) ) / 4;
-	uint32_t oca = ( COLOR_EXTRACT_A( a ) + COLOR_EXTRACT_A( b ) + COLOR_EXTRACT_A( c ) + COLOR_EXTRACT_A( d ) ) / 4;
-	return COLOR_RGBA( ocr, ocg, ocb, oca );
-}
-
-static void _img_ds2x( uint32_t* dst, unsigned dstW, unsigned dstH, uint32_t* src, unsigned srcW, unsigned srcH )
-{
-	unsigned x, y, sx0, sy0, sx1, sy1;
-	uint32_t c00, c10, c01, c11;
-	for( y = 0; y < dstH; ++y )
-	{
-		for( x = 0; x < dstW; ++x )
-		{
-			sx0 = ( x * 2 ) % srcW;
-			sy0 = ( y * 2 ) % srcH;
-			sx1 = ( x * 2 + 1 ) % srcW;
-			sy1 = ( y * 2 + 1 ) % srcH;
-			
-			c00 = src[ sx0 + sy0 * srcW ];
-			c10 = src[ sx1 + sy0 * srcW ];
-			c01 = src[ sx0 + sy1 * srcW ];
-			c11 = src[ sx1 + sy1 * srcW ];
-			
-			dst[ x + y * dstW ] = _avg_col4( c00, c10, c01, c11 );
-		}
-	}
-}
-
-static int ddsfmt_to_enginefmt( dds_u32 fmt )
-{
-	switch( fmt )
-	{
-	case DDS_FMT_R8G8B8A8: return TEXFORMAT_RGBA8;
-	case DDS_FMT_B8G8R8A8: return TEXFORMAT_BGRA8;
-	case DDS_FMT_B8G8R8X8: return TEXFORMAT_BGRX8;
-	case DDS_FMT_DXT1: return TEXFORMAT_DXT1;
-	case DDS_FMT_DXT3: return TEXFORMAT_DXT3;
-	case DDS_FMT_DXT5: return TEXFORMAT_DXT5;
-	default: return TEXFORMAT_UNKNOWN;
-	}
-}
-
-
-/* =============== DDS =============== */
-static bool dds_read_all( dds_info* info, ByteArray& out )
-{
-	int s, m, nsz = info->flags & DDS_CUBEMAP ? 6 : 1;
-	static const dds_u32 sideflags[6] = { DDS_CUBEMAP_PX, DDS_CUBEMAP_NX, DDS_CUBEMAP_PY, DDS_CUBEMAP_NY, DDS_CUBEMAP_PZ, DDS_CUBEMAP_NZ };
-	
-	out.resize( info->image.size );
-	for( s = 0; s < nsz; ++s )
-	{
-		if( nsz == 6 && !( info->flags & sideflags[ s ] ) )
-			continue;
-		for( m = 0; m < info->mipcount; ++m )
-		{
-			if( dds_seek( info, s, m ) != DDS_SUCCESS ||
-				!dds_read( info, out.data() + info->sideoffsets[ s ] + info->mipoffsets[ m ] ) )
-				return false;
-//			printf( "written s=%d m=%d at %d\n", s, m, info->sideoffsets[ s ] + info->mipoffsets[ m ] );
-		}
-	}
-	
-	return true;
-}
-
-/* =============== PNG =============== */
-struct png_read_data
-{
-	uint8_t *data, *at;
-	size_t size;
-};
-
-static void _png_memread( png_structp png_ptr, png_bytep data, png_size_t size )
-{
-	png_read_data* pd = (png_read_data*) png_get_io_ptr( png_ptr );
-	ASSERT( pd->at + size <= pd->data + pd->size );
-	memcpy( data, pd->at, size );
-	pd->at += size;
-}
-
-static bool png_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* const */ ByteArray& texdata, const StringView& filename )
-{
-	// png_structp png_ptr = png_create_read_struct_2( PNG_LIBPNG_VER_STRING, NULL, NULL, NULL, C, &_ss_png_alloc, &_ss_png_free );
-	png_structp png_ptr = png_create_read_struct( PNG_LIBPNG_VER_STRING, NULL, NULL, NULL );
-	
-	if( !png_ptr )
-	{
-		LOG_ERROR << "failed to initialize PNG";
-		return false;
-	}
-	
-	if( setjmp( png_jmpbuf( png_ptr ) ) )
-	{
-		png_destroy_read_struct( &png_ptr, NULL, NULL );
-	//	LOG_ERROR << "failed to read PNG image: " << filename;
-		return false;
-	}
-	
-	png_infop info_ptr = png_create_info_struct( png_ptr );
-	
-	if( !info_ptr )
-	{
-		png_destroy_read_struct( &png_ptr, NULL, NULL );
-		LOG_ERROR << "failed to set up PNG reading";
-		return false;
-	}
-	
-	// Load..
-	png_read_data prd = { texdata.data(), texdata.data(), texdata.size() };
-	png_set_read_fn( png_ptr, &prd, (png_rw_ptr) &_png_memread );
-	png_set_user_limits( png_ptr, 4096, 4096 );
-	
-	png_read_info( png_ptr, info_ptr );
-	png_set_strip_16( png_ptr );
-	png_set_packing( png_ptr );
-	png_set_gray_to_rgb( png_ptr );
-	// png_set_bgr( png_ptr );
-	png_set_add_alpha( png_ptr, 0xffffffff, PNG_FILLER_AFTER );
-	
-	// send info..
-	uint32_t width = png_get_image_width( png_ptr, info_ptr );
-	uint32_t height = png_get_image_height( png_ptr, info_ptr );
-	
-	out.resize( width * height * 4 );
-	uint8_t* imgdata = out.data();
-	
-	uint16_t offsets[ 4096 ] = {0};
-	int pass, number_passes = png_set_interlace_handling(png_ptr);
-	for( pass = 0; pass < number_passes; ++pass )
-	{
-		uint32_t y;
-		for( y = 0; y < height; ++y )
-		{
-			png_bytep rowp = (png_bytep) imgdata + y * width * 4;
-			png_bytep crp = rowp + offsets[ y ];
-			png_read_rows(png_ptr, &crp, NULL, 1);
-			offsets[ y ] = crp - rowp;
-		}
-	}
-	
-	png_read_end( png_ptr, info_ptr );
-	
-	png_destroy_read_struct( &png_ptr, &info_ptr, NULL );
-	*outw = width;
-	*outh = height;
-	return true;
-}
-
-/* =============== JPG =============== */
-typedef struct _jpg_error_mgr
-{
-	struct jpeg_error_mgr pub;
-	jmp_buf setjmp_buffer;
-}
-jpg_error_mgr;
-
-static void _jpg_error_exit( j_common_ptr cinfo )
-{
-	jpg_error_mgr* myerr = (jpg_error_mgr*) cinfo->err;
-	(*cinfo->err->output_message) (cinfo);
-	longjmp(myerr->setjmp_buffer, 1);
-}
-
-static bool jpg_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* const */ ByteArray& texdata, const StringView& filename )
-{
-	struct jpeg_decompress_struct cinfo;
-	jpg_error_mgr jerr;
-	
-	JSAMPARRAY buffer;
-	int x, row_stride;
-	
-	cinfo.err = jpeg_std_error( &jerr.pub );
-	jerr.pub.error_exit = _jpg_error_exit;
-	if( setjmp( jerr.setjmp_buffer ) )
-	{
-		jpeg_destroy_decompress( &cinfo );
-	//	LOG_ERROR << "failed to read JPEG image: " << filename;
-		return false;
-	}
-	
-	jpeg_create_decompress( &cinfo );
-	jpeg_mem_src( &cinfo, texdata.data(), texdata.size() );
-	jpeg_read_header( &cinfo, 1 );
-	jpeg_start_decompress( &cinfo );
-	
-	out.resize( cinfo.output_width * cinfo.output_height * 4 );
-	uint8_t* imgdata = out.data();
-	
-	row_stride = cinfo.output_width * cinfo.output_components;
-	buffer = (*cinfo.mem->alloc_sarray)( (j_common_ptr) &cinfo, JPOOL_IMAGE, row_stride, 1 );
-	
-	while( cinfo.output_scanline < cinfo.output_height )
-	{
-		jpeg_read_scanlines( &cinfo, buffer, 1 );
-		for( x = 0; x < cinfo.output_width; ++x )
-		{
-			imgdata[ x * 4   ] = buffer[0][ x * 3   ];
-			imgdata[ x * 4+1 ] = buffer[0][ x * 3+1 ];
-			imgdata[ x * 4+2 ] = buffer[0][ x * 3+2 ];
-			imgdata[ x * 4+3 ] = 0xff;
-		}
-		imgdata += cinfo.output_width * 4;
-	}
-	
-	jpeg_finish_decompress( &cinfo );
-	jpeg_destroy_decompress( &cinfo );
-	
-	*outw = cinfo.output_width;
-	*outh = cinfo.output_height;
-	return true;
-}
-
-/* =============== --- =============== */
-
-
-bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& filename )
-{
-	unsigned w, h;
-	int err;
-	
-	static const dds_u32 dds_supfmt[] = { DDS_FMT_R8G8B8A8, DDS_FMT_B8G8R8A8, DDS_FMT_B8G8R8X8, DDS_FMT_DXT1, DDS_FMT_DXT3, DDS_FMT_DXT5, 0 };
-	dds_info ddsinfo;
-	
-	memset( TD, 0, sizeof(*TD) );
-	
-	// Try to load DDS
-	err = dds_load_from_memory( texdata.data(), texdata.size(), &ddsinfo, dds_supfmt );
-	if( err == DDS_SUCCESS )
-	{
-		dds_u32 cmf = ddsinfo.flags & DDS_CUBEMAP_FULL;
-		if( cmf && cmf != DDS_CUBEMAP_FULL )
-		{
-			dds_close( &ddsinfo );
-			LOG << LOG_DATE << "  Failed to load texture '" << filename << "' - incomplete cubemap";
-			return false;
-		}
-		TD->info.type = ddsinfo.flags & DDS_CUBEMAP ? TEXTYPE_CUBE : ( ddsinfo.flags & DDS_VOLUME ? TEXTYPE_VOLUME : TEXTYPE_2D );
-		TD->info.width = ddsinfo.image.width;
-		TD->info.height = ddsinfo.image.height;
-		TD->info.depth = ddsinfo.image.depth;
-		TD->info.format = ddsfmt_to_enginefmt( ddsinfo.image.format );
-		TD->info.mipcount = ddsinfo.mipcount;
-		if( !dds_read_all( &ddsinfo, TD->data ) )
-		{
-			LOG << LOG_DATE << "  Failed to load texture '" << filename << "' - unknown DDS read error";
-			return false;
-		}
-		dds_close( &ddsinfo );
-		goto success;
-	}
-	
-	// Try to load PNG
-	if( png_decode32( TD->data, &w, &h, texdata, filename ) )
-	{
-		TD->info.type = TEXTYPE_2D;
-		TD->info.width = w;
-		TD->info.height = h;
-		TD->info.depth = 1;
-		TD->info.format = TEXFORMAT_RGBA8;
-		TD->info.flags = 0;
-		TD->info.mipcount = 1;
-		goto success_genmips;
-	}
-	
-	// Try to load JPG
-	if( jpg_decode32( TD->data, &w, &h, texdata, filename ) )
-	{
-		TD->info.type = TEXTYPE_2D;
-		TD->info.width = w;
-		TD->info.height = h;
-		TD->info.depth = 1;
-		TD->info.format = TEXFORMAT_RGBA8;
-		TD->info.flags = 0;
-		TD->info.mipcount = 1;
-		goto success_genmips;
-	}
-	
-	// type not supported
-	goto failure;
-	
-success_genmips:
-	if( TD->info.type == TEXTYPE_2D && ( TD->info.format == TEXFORMAT_RGBA8 || TD->info.format == TEXFORMAT_BGRA8 ) )
-	{
-		size_t addspace = 0;
-		unsigned char* cur;
-		
-		// calculate additional space required
-		while( w > 1 || h > 1 )
-		{
-			addspace += w * h * 4;
-			w /= 2; if( w < 1 ) w = 1;
-			h /= 2; if( h < 1 ) h = 1;
-			TD->info.mipcount++;
-		}
-		addspace += 4; /* 1x1 */
-		w = TD->info.width;
-		h = TD->info.height;
-		
-		// reallocate
-		TD->data.resize( addspace );
-		
-		// do cascaded ds2x
-		cur = TD->data.data();
-		while( w > 1 || h > 1 )
-		{
-			unsigned char* dst = cur + w * h * 4;
-			unsigned pw = w, ph = h;
-			w /= 2; if( w < 1 ) w = 1;
-			h /= 2; if( h < 1 ) h = 1;
-			_img_ds2x( (uint32_t*) dst, w, h, (uint32_t*) cur, pw, ph );
-			cur = dst;
-		}
-	}
-success:
-	
-	return true;
-failure:
-	LOG << LOG_DATE << "  Failed to load texture '" << filename << "' - unsupported type";
-	return false;
-}
-
-size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, void* data, int side, int mip )
-{
-	size_t off = 0;
-	int mipit = mip;
-	while( mipit --> 0 )
-		off += TextureData_GetMipDataSize( texinfo, mipit );
-	if( side && texinfo->type == TEXTYPE_CUBE )
-	{
-		size_t fullsidesize = 0;
-		mipit = texinfo->mipcount;
-		while( mipit --> 0 )
-			fullsidesize += TextureData_GetMipDataSize( texinfo, mipit );
-		off += fullsidesize * side;
-	}
-	return off;
-}
-
-size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip )
-{
-	TextureInfo mipTI;
-	if( !TextureInfo_GetMipInfo( texinfo, mip, &mipTI ) )
-		return 0;
-	return TextureInfo_GetTextureSideSize( &mipTI );
-}
 
 BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_texture( NULL ), m_primType( PT_None )
 {

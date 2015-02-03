@@ -79,6 +79,13 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		GlyphCache::Node* node = _GetGlyph( m_currentFont, cp );
 		if( node && br )
 		{
+			if( prev && FT_HAS_KERNING( m_currentFont->face ) )
+			{
+				FT_Vector delta;
+				FT_Get_Kerning( m_currentFont->face, prev->key.ft_glyph_id, node->key.ft_glyph_id, FT_KERNING_DEFAULT, &delta );
+				m_cursor_x += delta.x >> 6;
+			}
+			
 			float ftx0 = node->x0 * ifw, ftx1 = node->x1 * ifw;
 			float fty0 = node->y0 * ifh, fty1 = node->y1 * ifh;
 			
@@ -100,7 +107,9 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 			br->Tex( ftx0, fty0 ).Pos( fx0, fy0 );
 		}
 		if( node )
+		{
 			m_cursor_x += node->key.advx;
+		}
 		prev = node;
 		n++;
 	}

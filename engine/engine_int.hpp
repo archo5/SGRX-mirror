@@ -262,7 +262,7 @@ struct FontRenderer
 	};
 	typedef RasterCache< CacheKey > GlyphCache;
 	
-	FontRenderer( int pagecount = 8, int pagesize = 256 );
+	FontRenderer( int pagecount = 8, int pagesize = 1024 );
 	~FontRenderer();
 	
 	// core features
