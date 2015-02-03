@@ -37,6 +37,8 @@ static SDL_Window* g_Window = NULL;
 static void* g_GameLib = NULL;
 static IGame* g_Game = NULL;
 static uint32_t g_GameTime = 0;
+static ActionMap* g_ActionMap;
+static Vec2 g_CursorPos = {0,0};
 
 static RenderSettings g_RenderSettings = { 1024, 576, false, false, false };
 static const char* g_RendererName = "sgrx-render-d3d9";
@@ -90,6 +92,12 @@ SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%f", v ); retur
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"%.*s\"", (int) sv.size(), (int) sv.size(), sv.data() ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const Vec2& v )
+{
+	prelog();
+	printf( "Vec2( %f ; %f )", v.x, v.y );
+	return *this;
+}
 SGRX_Log& SGRX_Log::operator << ( const Vec3& v )
 {
 	prelog();
@@ -112,6 +120,44 @@ SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
 // GAME SYSTEMS
 //
 
+void Command::_SetState( float x )
+{
+	value = x;
+	state = x >= threshold;
+}
+
+void Command::_Advance()
+{
+	prev_value = value;
+	prev_state = state;
+}
+
+void Game_RegisterAction( Command* cmd )
+{
+	g_ActionMap->Register( cmd );
+}
+
+void Game_UnregisterAction( Command* cmd )
+{
+	g_ActionMap->Unregister( cmd );
+}
+
+void Game_BindKeyToAction( uint32_t key, Command* cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE( ACTINPUT_KEY, key ), cmd );
+}
+
+void Game_BindKeyToAction( uint32_t key, const StringView& cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE( ACTINPUT_KEY, key ), cmd );
+}
+
+Vec2 Game_GetCursorPos()
+{
+	return g_CursorPos;
+}
+
+
 bool Game_HasOverlayScreen( IScreen* screen )
 {
 	return g_OverlayScreens.has( screen );
@@ -120,11 +166,16 @@ bool Game_HasOverlayScreen( IScreen* screen )
 void Game_AddOverlayScreen( IScreen* screen )
 {
 	g_OverlayScreens.push_back( screen );
+	screen->OnStart();
 }
 
 void Game_RemoveOverlayScreen( IScreen* screen )
 {
-	g_OverlayScreens.remove_all( screen );
+	if( g_OverlayScreens.has( screen ) )
+	{
+		screen->OnEnd();
+		g_OverlayScreens.remove_all( screen );
+	}
 }
 
 static void process_overlay_screens( float dt )
@@ -133,18 +184,42 @@ static void process_overlay_screens( float dt )
 	{
 		IScreen* scr = g_OverlayScreens[ i ];
 		if( scr->Draw( dt ) )
+		{
 			g_OverlayScreens.erase( i-- );
+			if( !g_OverlayScreens.has( scr ) )
+				scr->OnEnd();
+		}
 	}
 }
 
 void Game_OnEvent( const Event& e )
 {
+	if( e.type == SDL_MOUSEMOTION )
+	{
+		g_CursorPos.x = e.motion.x;
+		g_CursorPos.y = e.motion.y;
+	}
+	
 	for( size_t i = g_OverlayScreens.size(); i > 0; )
 	{
 		i--;
 		IScreen* screen = g_OverlayScreens[ i ];
 		if( screen->OnEvent( e ) )
 			return; // event inhibited
+	}
+	
+	if( e.type == SDL_KEYDOWN || e.type == SDL_KEYUP )
+	{
+		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_KEY( e.key.keysym.sym ) );
+		if( cmd )
+			cmd->_SetState( e.key.state );
+	}
+	
+	if( e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP )
+	{
+		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_MOUSE( e.button.button ) );
+		if( cmd )
+			cmd->_SetState( e.button.state );
 	}
 }
 
@@ -158,6 +233,7 @@ void Game_Process( float dt )
 	
 	BatchRenderer& br = *g_BatchRenderer;
 	br.SetTexture( metal );
+	br.Col( 1 );
 	br.SetPrimitiveType( PT_Triangles );
 	br.Tex( 0, 0 ).Pos( 0, 0 )
 		.Tex( 1, 1 ).Pos( -50, -50 )
@@ -181,6 +257,8 @@ void Game_Process( float dt )
 	g_Game->OnTick( dt, g_GameTime );
 	
 	process_overlay_screens( dt );
+	
+	br.Flush();
 }
 
 
@@ -259,6 +337,21 @@ bool SGRX_Texture::UploadRGBA8Part( void* data, int mip, int w, int h, int x, in
 	if( h < 0 ) h = mti.height;
 	
 	return m_texture->UploadRGBA8Part( data, mip, x, y, w, h );
+}
+
+const TextureInfo& TextureHandle::GetInfo()
+{
+	static TextureInfo dummy_info = {0};
+	if( !item )
+		return dummy_info;
+	return item->GetInfo();
+}
+
+bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )
+{
+	if( !item )
+		return false;
+	return item->UploadRGBA8Part( data, mip, w, h, x, y );
 }
 
 
@@ -354,6 +447,11 @@ int GR2D_DrawTextLine( float x, float y, const StringView& text )
 	return g_FontRenderer->PutText( g_BatchRenderer, text );
 }
 
+BatchRenderer& GR2D_GetBatchRenderer()
+{
+	return *g_BatchRenderer;
+}
+
 
 //
 // RENDERING
@@ -405,7 +503,28 @@ BatchRenderer& BatchRenderer::SetPrimitiveType( EPrimitiveType pt )
 	return *this;
 }
 
-bool BatchRenderer::CheckSetTexture( SGRX_Texture* tex )
+BatchRenderer& BatchRenderer::Prev( int i )
+{
+	if( i < 0 || i >= m_verts.size() )
+		AddVertex( m_proto );
+	else
+		AddVertex( m_verts[ m_verts.size() - 1 - i ] );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::Quad( float x0, float y0, float x1, float y1 )
+{
+	SetPrimitiveType( PT_Triangles );
+	Tex( 0, 0 ); Pos( x0, y0 );
+	Tex( 1, 0 ); Pos( x1, y0 );
+	Tex( 1, 1 ); Pos( x1, y1 );
+	Prev( 0 );
+	Tex( 0, 1 ); Pos( x0, y1 );
+	Prev( 4 );
+	return *this;
+}
+
+bool BatchRenderer::CheckSetTexture( const TextureHandle& tex )
 {
 	if( tex != m_texture )
 	{
@@ -416,7 +535,7 @@ bool BatchRenderer::CheckSetTexture( SGRX_Texture* tex )
 	return false;
 }
 
-BatchRenderer& BatchRenderer::SetTexture( SGRX_Texture* tex )
+BatchRenderer& BatchRenderer::SetTexture( const TextureHandle& tex )
 {
 	CheckSetTexture( tex );
 	return *this;
@@ -541,6 +660,8 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		return 5;
 	}
 	
+	g_ActionMap = new ActionMap;
+	
 	g_GameLib = SDL_LoadObject( "game.dll" );
 	if( !g_GameLib )
 	{
@@ -584,7 +705,8 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 				g_Running = false;
 				break;
 			}
-			// TODO process
+			
+			Game_OnEvent( event );
 		}
 		
 		uint32_t curtime = GetTimeMsec();
@@ -604,6 +726,8 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	free_graphics();
 	
 	SDL_UnloadObject( g_GameLib );
+	
+	delete g_ActionMap;
 	
 	LOG << LOG_DATE << "  Engine finished";
 	return 0;

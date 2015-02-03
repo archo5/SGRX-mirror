@@ -46,6 +46,7 @@ struct EXPORT SGRX_Log
 	SGRX_Log& operator << ( const void* );
 	SGRX_Log& operator << ( const char* );
 	SGRX_Log& operator << ( const StringView& );
+	SGRX_Log& operator << ( const Vec2& );
 	SGRX_Log& operator << ( const Vec3& );
 	SGRX_Log& operator << ( const Mat4& );
 };
@@ -59,16 +60,54 @@ struct EXPORT SGRX_Log
 typedef SDL_Event Event;
 
 
-struct IScreen
+struct EXPORT Command
+{
+	Command( const StringView& sv, float thr = 0.1f ) :
+		name(sv),
+		threshold(thr),
+		value(0), prev_value(0),
+		state(false), prev_state(false)
+	{}
+	virtual ~Command(){}
+	virtual void OnChangeState(){}
+	
+	FINLINE bool IsPressed() const { return state && !prev_state; }
+	FINLINE bool IsReleased() const { return !state && prev_state; }
+	
+	void _SetState( float x );
+	void _Advance();
+	
+	StringView name;
+	float threshold;
+	float value, prev_value;
+	bool state, prev_state;
+};
+
+struct EXPORT Command_Func : Command
+{
+	virtual void Function() = 0;
+	void OnChangeState(){ if( state && !state ) Function(); }
+};
+
+EXPORT void Game_RegisterAction( Command* cmd );
+EXPORT void Game_UnregisterAction( Command* cmd );
+EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
+EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
+EXPORT Vec2 Game_GetCursorPos();
+
+
+struct EXPORT IScreen
 {
 	virtual ~IScreen(){}
+	virtual void OnStart(){}
+	virtual void OnEnd(){}
 	virtual bool OnEvent( const Event& e ) = 0; // return value - whether event is inhibited
 	virtual bool Draw( float delta ) = 0; // return value - whether to remove
 };
 
-bool Game_HasOverlayScreen( IScreen* screen );
-void Game_AddOverlayScreen( IScreen* screen );
-void Game_RemoveOverlayScreen( IScreen* screen );
+EXPORT bool Game_HasOverlayScreen( IScreen* screen );
+EXPORT void Game_AddOverlayScreen( IScreen* screen );
+EXPORT void Game_RemoveOverlayScreen( IScreen* screen );
 
 #define TEXFLAGS_SRGB    0x01
 #define TEXFLAGS_HASMIPS 0x02
@@ -132,7 +171,7 @@ struct EXPORT SGRX_Texture
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
 	
 	const TextureInfo& GetInfo();
-	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
+	bool UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y );
 	
 	struct ITexture* m_texture;
 	int32_t m_refcount;
@@ -141,26 +180,16 @@ struct EXPORT SGRX_Texture
 private:
 	void Destroy();
 };
-typedef Handle< SGRX_Texture > TextureHandle;
 
-EXPORT int GR_GetWidth();
-EXPORT int GR_GetHeight();
-
-EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
-EXPORT TextureHandle GR_GetTexture( const StringView& path );
-
-EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
-EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
-EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
-EXPORT void GR2D_SetTextCursor( float x, float y );
-EXPORT Vec2 GR2D_GetTextCursor();
-EXPORT int GR2D_DrawTextLine( const StringView& text );
-EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
-
-
-//
-// BASIC RENDERING
-//
+struct EXPORT TextureHandle : Handle< SGRX_Texture >
+{
+	TextureHandle() : Handle(){}
+	TextureHandle( const TextureHandle& h ) : Handle( h ){}
+	TextureHandle( SGRX_Texture* tex ) : Handle( tex ){}
+	
+	const TextureInfo& GetInfo();
+	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
+};
 
 enum EPrimitiveType
 {
@@ -173,7 +202,7 @@ enum EPrimitiveType
 	PT_TriangleFan,
 };
 
-struct BatchRenderer
+struct EXPORT BatchRenderer
 {
 	struct Vertex
 	{
@@ -195,18 +224,41 @@ struct BatchRenderer
 	FINLINE BatchRenderer& Tex( float x, float y ){ m_proto.u = x; m_proto.v = y; return *this; }
 	FINLINE BatchRenderer& Pos( float x, float y, float z = 0.0f ){ m_proto.x = x; m_proto.y = y; m_proto.z = z; AddVertex( m_proto ); return *this; }
 	
+	BatchRenderer& Prev( int i );
+	BatchRenderer& Quad( float x0, float y0, float x1, float y1 );
+	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h ){ return Quad( x, y, x + w, y + h ); }
+	FINLINE BatchRenderer& Box( float x, float y, float w, float h ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h ); }
+	
 	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
-	bool CheckSetTexture( SGRX_Texture* tex );
-	BatchRenderer& SetTexture( SGRX_Texture* tex );
+	bool CheckSetTexture( const TextureHandle& tex );
+	BatchRenderer& SetTexture( const TextureHandle& tex );
+	BatchRenderer& UnsetTexture(){ return SetTexture( NULL ); }
 	BatchRenderer& Flush();
 	
 	IRenderer* m_renderer;
-	SGRX_Texture* m_texture;
+	TextureHandle m_texture;
 	EPrimitiveType m_primType;
 	Vertex m_proto;
 	bool m_swapRB;
 	Array< Vertex > m_verts;
 };
+
+
+EXPORT int GR_GetWidth();
+EXPORT int GR_GetHeight();
+
+EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
+EXPORT TextureHandle GR_GetTexture( const StringView& path );
+
+EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
+EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
+EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+EXPORT void GR2D_SetTextCursor( float x, float y );
+EXPORT Vec2 GR2D_GetTextCursor();
+EXPORT int GR2D_DrawTextLine( const StringView& text );
+EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
+
+EXPORT BatchRenderer& GR2D_GetBatchRenderer();
 
 
 extern "C" EXPORT int SGRX_EntryPoint( int argc, char** argv, int debug );

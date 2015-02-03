@@ -300,3 +300,43 @@ inline Hash HashVar( const FontRenderer::CacheKey& ck )
 #endif
 
 
+typedef uint64_t ActionInput;
+#define ACTINPUT_KEY 1
+#define ACTINPUT_MOUSE 2
+#define ACTINPUT_JOYSTICK0 3
+#define ACTINPUT_MAKE( type, val ) (((uint64_t)(type)<<32ull)|(val))
+#define ACTINPUT_MAKE_KEY( val ) ACTINPUT_MAKE( ACTINPUT_KEY, val )
+#define ACTINPUT_MAKE_MOUSE( val ) ACTINPUT_MAKE( ACTINPUT_MOUSE, val )
+
+struct ActionMap
+{
+	typedef HashTable< StringView, Command* > NameCmdMap;
+	typedef HashTable< uint32_t, Command* > InputCmdMap;
+	
+	void Register( Command* cmd ){ m_nameCmdMap.set( cmd->name, cmd ); }
+	void Unregister( Command* cmd ){ m_nameCmdMap.unset( cmd->name ); }
+	Command* FindAction( const StringView& sv ){ return m_nameCmdMap.getcopy( sv ); }
+	
+	bool Map( ActionInput input, Command* cmd )
+	{
+		if( cmd )
+			m_inputCmdMap.set( input, cmd );
+		else
+			m_inputCmdMap.unset( input );
+		return !!cmd;
+	}
+	bool Map( ActionInput input, const StringView& sv )
+	{
+		Command* cmd = FindAction( sv );
+		if( cmd )
+			m_inputCmdMap.set( input, cmd );
+		return !!cmd;
+	}
+	void Unmap( ActionInput input ){ m_inputCmdMap.unset( input ); }
+	Command* Get( ActionInput input ){ return m_inputCmdMap.getcopy( input ); }
+	
+	NameCmdMap m_nameCmdMap;
+	InputCmdMap m_inputCmdMap;
+};
+
+
