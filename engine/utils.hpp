@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 #include <new>
 
 #define ASSERT assert
@@ -45,6 +46,8 @@ inline float saturate( float x ){ return IIF( x < 0, 0, IIF( x > 1, 1, x ) ); }
 inline float smoothstep( float x ){ return x * x * ( 3 - 2 * x ); }
 inline float smoothlerp_oneway( float t, float a, float b ){ if( b == a ) return 1.0f; return smoothstep( saturate( ( t - a ) / ( b - a ) ) ); }
 inline float smoothlerp_range( float t, float a, float b, float c, float d ){ return smoothlerp_oneway( t, a, b ) * smoothlerp_oneway( t, d, c ); }
+inline float randf(){ return (float) rand() / (float) RAND_MAX; }
+inline float randf11(){ return randf() * 2 - 1; }
 
 
 //
@@ -116,6 +119,8 @@ struct EXPORT Vec2
 		Vec2 v = { x * invlen, y * invlen };
 		return v;
 	}
+	FINLINE Vec2 Rotate( float angle ) const { return Rotate( Vec2::Create( cos( angle ), sin( angle ) ) ); }
+	FINLINE Vec2 Rotate( const Vec2& dir ) const { return Vec2::Create( x * dir.x - y * dir.y, x * dir.y + y * dir.x ); }
 #endif
 };
 
@@ -449,10 +454,10 @@ struct Array
 	FINLINE const T* data() const { return m_data; }
 	FINLINE T* data(){ return m_data; }
 	
-	FINLINE T& front(){ ASSERT( m_size ); return m_data[0]; }
-	FINLINE const T& front() const { ASSERT( m_size ); return m_data[0]; }
-	FINLINE T& back(){ ASSERT( m_size ); return m_data[ m_size - 1 ]; }
-	FINLINE const T& back() const { ASSERT( m_size ); return m_data[ m_size - 1 ]; }
+	FINLINE T& first(){ ASSERT( m_size ); return m_data[0]; }
+	FINLINE const T& first() const { ASSERT( m_size ); return m_data[0]; }
+	FINLINE T& last(){ ASSERT( m_size ); return m_data[ m_size - 1 ]; }
+	FINLINE const T& last() const { ASSERT( m_size ); return m_data[ m_size - 1 ]; }
 	
 	FINLINE T& operator [] ( size_t i ){ ASSERT( i < m_size ); return m_data[ i ]; }
 	FINLINE const T& operator [] ( size_t i ) const { ASSERT( i < m_size ); return m_data[ i ]; }
@@ -601,12 +606,15 @@ struct StringView
 	FINLINE const char* data() const { return m_str; }
 	FINLINE size_t size() const { return m_size; }
 	FINLINE operator bool() const { return m_str && m_size; }
+	FINLINE const char* begin() const { return m_str; }
+	FINLINE const char* end() const { return m_str + m_size; }
 	
 	FINLINE bool operator == ( const StringView& sv ) const { return m_size == sv.m_size && !memcmp( m_str, sv.m_str, m_size ); }
 	FINLINE bool operator != ( const StringView& sv ) const { return !( *this == sv ); }
 	
+	FINLINE char ch() const { if( m_size ) return *m_str; else return 0; }
 	FINLINE bool contains( const StringView& substr ) const { return find_first_at( substr ) != NOT_FOUND; }
-	size_t find_first_at( const StringView& substr, size_t defval = NOT_FOUND ) const
+	FINLINE size_t find_first_at( const StringView& substr, size_t defval = NOT_FOUND ) const
 	{
 		if( substr.m_size > m_size )
 			return defval;
@@ -614,6 +622,13 @@ struct StringView
 			if( !memcmp( m_str + i, substr.m_str, substr.m_size ) )
 				return i;
 		return defval;
+	}
+	FINLINE bool is_any( char c ) const
+	{
+		for( size_t i = 0; i < m_size; ++i )
+			if( m_str[i] == c )
+				return true;
+		return false;
 	}
 	
 	FINLINE StringView from( const StringView& substr ) const
@@ -632,6 +647,20 @@ struct StringView
 	{
 		size_t pos = find_first_at( substr, m_size );
 		return StringView( m_str, pos );
+	}
+	FINLINE StringView until_any( const StringView& chars ) const
+	{
+		const char *ptr = m_str, *end = m_str + m_size;
+		while( ptr < end && !chars.is_any( *ptr ) )
+			ptr++;
+		return StringView( m_str, ptr - m_str );
+	}
+	FINLINE StringView after_all( const StringView& chars ) const
+	{
+		const char *ptr = m_str, *end = m_str + m_size;
+		while( ptr < end && chars.is_any( *ptr ) )
+			ptr++;
+		return StringView( ptr, end - ptr );
 	}
 	FINLINE bool skip( size_t n )
 	{
@@ -734,6 +763,17 @@ struct HashTable
 		m_vars = (Var*) malloc( sizeof(Var) * m_var_mem );
 		TMEMSET( m_pairs, m_pair_mem, (size_type) EMPTY );
 	}
+	HashTable( const HashTable& ht ) : m_pair_mem( ht.m_pair_mem ), m_var_mem( ht.m_var_mem ), m_size( ht.m_size ), m_num_removed( ht.m_num_removed )
+	{
+		m_pairs = new size_type[ m_pair_mem ];
+		m_vars = (Var*) malloc( sizeof(Var) * m_var_mem );
+		memcpy( m_pairs, ht.m_pairs, sizeof(size_type) * m_pair_mem );
+		for( size_type i = 0; i < m_size; ++i )
+		{
+			new (&m_vars[ i ].key) K( ht.m_vars[ i ].key );
+			new (&m_vars[ i ].value) V( ht.m_vars[ i ].value );
+		}
+	}
 	~HashTable()
 	{
 		for( size_type i = 0; i < m_size; ++i )
@@ -743,6 +783,12 @@ struct HashTable
 		}
 		delete [] m_pairs;
 		free( m_vars );
+	}
+	
+	HashTable& operator = ( const HashTable& ht )
+	{
+		this->~HashTable();
+		new (this) HashTable( ht );
 	}
 	
 	void clear()
@@ -905,11 +951,11 @@ struct HashTable
 			size = 4;
 		
 		np = new size_type[ size ];
-		memset( np, EMPTY, sizeof(size_type) * (size_t) size );
+		TMEMSET( np, (size_t) size, (size_type) EMPTY );
 		
 	#if 0
 		printf( "rehash %d -> %d (size = %d, mem = %d kB)\n", m_pair_mem, size, m_size,
-			(size * sizeof(size_type) + T->var_mem * sizeof(Var)) / 1024 );
+			(size * sizeof(size_type) + m_var_mem * sizeof(Var)) / 1024 );
 	#endif
 		
 		for( si = 0; si < m_pair_mem; ++si )

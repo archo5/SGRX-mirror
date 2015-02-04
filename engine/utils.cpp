@@ -151,8 +151,176 @@ const Mat4 Mat4::Identity =
 
 
 
+/* string -> number conversion */
+
+typedef const char CCH;
+
+static inline bool hexchar( char c )
+	{ return ( (c) >= '0' && (c) <= '9' ) ||
+	( (c) >= 'a' && (c) <= 'f' ) || ( (c) >= 'A' && (c) <= 'F' ); }
+static inline int gethex( char c )
+	{ return ( (c) >= '0' && (c) <= '9' ) ? ( (c) - '0' ) :
+	( ( (c) >= 'a' && (c) <= 'f' ) ? ( (c) - 'a' + 10 ) : ( (c) - 'A' + 10 ) ); }
+static inline bool decchar( char c ){ return c >= '0' && c <= '9'; }
+static inline int getdec( char c ){ return c - '0'; }
+static inline bool octchar( char c ){ return c >= '0' && c <= '7'; }
+static inline int getoct( char c ){ return c - '0'; }
+static inline bool binchar( char c ){ return c == '0' || c == '1'; }
+static inline int getbin( char c ){ return c - '0'; }
+
+static int strtonum_hex( CCH** at, CCH* end, int64_t* outi )
+{
+	int64_t val = 0;
+	CCH* str = *at + 2;
+	while( str < end && hexchar( *str ) )
+	{
+		val *= 16;
+		val += gethex( *str );
+		str++;
+	}
+	*at = str;
+	*outi = val;
+	return 1;
+}
+
+static int strtonum_oct( CCH** at, CCH* end, int64_t* outi )
+{
+	int64_t val = 0;
+	CCH* str = *at + 2;
+	while( str < end && octchar( *str ) )
+	{
+		val *= 8;
+		val += getoct( *str );
+		str++;
+	}
+	*at = str;
+	*outi = val;
+	return 1;
+}
+
+static int strtonum_bin( CCH** at, CCH* end, int64_t* outi )
+{
+	int64_t val = 0;
+	CCH* str = *at + 2;
+	while( str < end && binchar( *str ) )
+	{
+		val *= 2;
+		val += getbin( *str );
+		str++;
+	}
+	*at = str;
+	*outi = val;
+	return 1;
+}
+
+static int strtonum_real( CCH** at, CCH* end, double* outf )
+{
+	double val = 0;
+	double vsign = 1;
+	CCH* str = *at, *teststr;
+	
+	if( *str == '+' ) str++;
+	else if( *str == '-' ){ vsign = -1; str++; }
+	
+	teststr = str;
+	while( str < end && decchar( *str ) )
+	{
+		val *= 10;
+		val += getdec( *str );
+		str++;
+	}
+	if( str == teststr )
+		return 0;
+	if( str >= end )
+		goto done;
+	if( *str == '.' )
+	{
+		double mult = 1.0;
+		str++;
+		while( str < end && decchar( *str ) )
+		{
+			mult /= 10;
+			val += getdec( *str ) * mult;
+			str++;
+		}
+	}
+	if( str < end && ( *str == 'e' || *str == 'E' ) )
+	{
+		double sign, e = 0;
+		str++;
+		if( str >= end || ( *str != '+' && *str != '-' ) )
+			goto done;
+		sign = *str++ == '-' ? -1 : 1;
+		while( str < end && decchar( *str ) )
+		{
+			e *= 10;
+			e += getdec( *str );
+			str++;
+		}
+		val *= pow( 10, e * sign );
+	}
+	
+done:
+	*outf = val * vsign;
+	*at = str;
+	return 2;
+}
+
+static int strtonum_dec( CCH** at, CCH* end, int64_t* outi, double* outf )
+{
+	CCH* str = *at, *teststr;
+	if( *str == '+' || *str == '-' ) str++;
+	teststr = str;
+	while( str < end && decchar( *str ) )
+		str++;
+	if( str == teststr )
+		return 0;
+	if( str < end && ( *str == '.' || *str == 'E' || *str == 'e' ) )
+		return strtonum_real( at, end, outf );
+	else
+	{
+		int64_t val = 0;
+		int invsign = 0;
+		
+		str = *at;
+		if( *str == '+' ) str++;
+		else if( *str == '-' ){ invsign = 1; str++; }
+		
+		while( str < end && decchar( *str ) )
+		{
+			val *= 10;
+			val += getdec( *str );
+			str++;
+		}
+		if( invsign ) val = -val;
+		*outi = val;
+		*at = str;
+		return 1;
+	}
+}
+
+int util_strtonum( CCH** at, CCH* end, int64_t* outi, double* outf )
+{
+	CCH* str = *at;
+	if( str >= end )
+		return 0;
+	if( end - str >= 3 && *str == '0' )
+	{
+		if( str[1] == 'x' ) return strtonum_hex( at, end, outi );
+		else if( str[1] == 'o' ) return strtonum_oct( at, end, outi );
+		else if( str[1] == 'b' ) return strtonum_bin( at, end, outi );
+	}
+	return strtonum_dec( at, end, outi, outf );
+}
+
 float String_ParseFloat( const StringView& sv, bool* success )
 {
+	double val = 0;
+	const char* begin = sv.begin(), *end = sv.end();
+	bool suc = strtonum_real( &begin, end, &val );
+	if( success )
+		*success = suc;
+	return val;
 }
 
 Vec3 String_ParseVec3( const StringView& sv, bool* success )
@@ -333,13 +501,95 @@ bool LoadTextFile( const StringView& path, String& out )
 	return ret;
 }
 
+#define SPACE_CHARS " \t\n"
+#define HSPACE_CHARS " \t"
 bool LoadItemListFile( const StringView& path, ItemList& out )
 {
 	String text;
 	if( !LoadTextFile( path, text ) )
 		return false;
 	
-	return false;
+	out.clear();
+	
+	StringView it = text;
+	it = it.after_all( SPACE_CHARS );
+	while( it.size() )
+	{
+		// prepare for in-place editing
+		out.push_back( IL_Item() );
+		IL_Item& outitem = out.last();
+		
+		// comment
+		if( it.ch() == '#' )
+		{
+			it = it.from( "\n" ).after_all( SPACE_CHARS );
+			continue;
+		}
+		
+		// read name
+		StringView value, name = it.until_any( SPACE_CHARS );
+		outitem.name = name;
+		
+		// skip name and following spaces
+		it.skip( name.size() );
+		it = it.after_all( HSPACE_CHARS );
+		
+		// while not at end of line
+		while( it.size() && it.ch() != '\n' )
+		{
+			String tmpval;
+			
+			// read and skip param name
+			name = it.until( "=" );
+			it.skip( name.size() + 1 );
+			
+			// read and skip param value
+			if( it.ch() == '"' )
+			{
+				// parse quoted value
+				const char* ptr = it.data(), *end = it.data() + it.size();
+				while( ptr < end )
+				{
+					if( *ptr == '\n' )
+					{
+						// detected newline in parameter value
+						return false;
+					}
+					if( *ptr == '\"' )
+					{
+						it.skip( ptr + 1 - it.data() );
+						break;
+					}
+					if( ptr > it.m_str && *(ptr-1) == '\\' )
+					{
+						if( *ptr == 'n' )
+							tmpval.push_back( '\n' );
+						else if( *ptr == '"' )
+							tmpval.push_back( '\"' );
+						else
+							tmpval.push_back( '\\' );
+					}
+					else
+						tmpval.push_back( *ptr );
+					ptr++;
+				}
+				
+				value = tmpval;
+			}
+			else
+				value = it.until_any( SPACE_CHARS );
+			it.skip( value.size() );
+			
+			// add param
+			outitem.params.set( name, value );
+			
+			it = it.after_all( HSPACE_CHARS );
+		}
+		
+		it = it.after_all( SPACE_CHARS );
+	}
+	
+	return true;
 }
 
 
