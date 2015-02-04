@@ -150,6 +150,34 @@ const Mat4 Mat4::Identity =
 };
 
 
+
+float String_ParseFloat( const StringView& sv, bool* success )
+{
+}
+
+Vec3 String_ParseVec3( const StringView& sv, bool* success )
+{
+	bool suc = true;
+	Vec3 out = {0,0,0};
+	StringView substr = ";";
+	if( success ) *success = true;
+	
+	out.x = String_ParseFloat( sv.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	StringView tmp = sv.after( substr );
+	out.y = String_ParseFloat( tmp.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	tmp = tmp.after( substr );
+	out.z = String_ParseFloat( tmp.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	return out;
+}
+
+
+
 #define U8NFL( x ) ((x&0xC0)!=0x80)
 
 int UTF8Decode( const char* buf, size_t size, uint32_t* outchar )
@@ -240,9 +268,9 @@ Hash HashFunc( const char* str, size_t size )
 }
 
 
-bool LoadBinaryFile( const char* path, ByteArray& out )
+bool LoadBinaryFile( const StringView& path, ByteArray& out )
 {
-	FILE* fp = fopen( path, "rb" );
+	FILE* fp = fopen( StackPath( path ), "rb" );
 	if( !fp )
 		return false;
 	
@@ -262,6 +290,63 @@ bool LoadBinaryFile( const char* path, ByteArray& out )
 	return ret;
 }
 
+bool LoadTextFile( const StringView& path, String& out )
+{
+	FILE* fp = fopen( StackPath( path ), "rb" );
+	if( !fp )
+		return false;
+	
+	fseek( fp, 0, SEEK_END );
+	long len = ftell( fp );
+	fseek( fp, 0, SEEK_SET );
+	
+	if( len > 0x7fffffff )
+	{
+		fclose( fp );
+		return false;
+	}
+	
+	out.resize( len );
+	bool ret = fread( out.data(), (size_t) len, 1, fp ) == 1;
+	if( ret )
+	{
+		char* src = out.data();
+		char* dst = src;
+		char* end = src + out.size();
+		while( src < end )
+		{
+			if( *src == '\r' )
+			{
+				if( src + 1 < end && src[1] == '\n' )
+					src++;
+				else
+					*src = '\n';
+			}
+			if( src != dst )
+				*dst = *src;
+			src++;
+			dst++;
+		}
+		out.resize( dst - out.data() );
+	}
+	fclose( fp );
+	return ret;
+}
+
+bool LoadItemListFile( const StringView& path, ItemList& out )
+{
+	String text;
+	if( !LoadTextFile( path, text ) )
+		return false;
+	
+	return false;
+}
+
+
+
+//
+// TESTS
+//
 
 struct _teststr_ { const void* p; int x; };
 inline bool operator == ( const _teststr_& a, const _teststr_& b ){ return a.p == b.p && a.x == b.x; }

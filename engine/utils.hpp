@@ -616,14 +616,21 @@ struct StringView
 		return defval;
 	}
 	
-	FINLINE StringView until( const StringView& substr ) const
-	{
-		size_t pos = find_first_at( substr, 0 );
-		return StringView( m_str + pos, m_size - pos );
-	}
 	FINLINE StringView from( const StringView& substr ) const
 	{
-		size_t pos = find_first_at( substr, 0 );
+		size_t pos = find_first_at( substr, m_size );
+		return StringView( m_str + pos, m_size - pos );
+	}
+	FINLINE StringView after( const StringView& substr ) const
+	{
+		if( substr.m_size > m_size )
+			return StringView( m_str + m_size, 0 );
+		size_t pos = find_first_at( substr, m_size - substr.m_size ) + substr.m_size;
+		return StringView( m_str + pos, m_size - pos );
+	}
+	FINLINE StringView until( const StringView& substr ) const
+	{
+		size_t pos = find_first_at( substr, m_size );
 		return StringView( m_str, pos );
 	}
 	FINLINE bool skip( size_t n )
@@ -652,6 +659,15 @@ struct StackString
 	StackString( const StringView& sv ){ size_t sz = TMIN( sv.m_size, N ); if( sz ) memcpy( str, sv.m_str, sz ); str[ sz ] = 0; }
 	operator const char* (){ return str; }
 };
+typedef StackString< ENGINE_MAX_PATH > StackPath;
+
+
+//
+// PARSING
+//
+
+EXPORT float String_ParseFloat( const StringView& sv, bool* success = NULL );
+EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
 
 
 //
@@ -673,7 +689,7 @@ EXPORT int UTF8Encode( uint32_t ch, char* out );
 //
 
 typedef uint32_t Hash;
-Hash HashFunc( const char* str, size_t size );
+EXPORT Hash HashFunc( const char* str, size_t size );
 
 inline Hash HashVar( int8_t v ){ return v; }
 inline Hash HashVar( uint8_t v ){ return v; }
@@ -743,8 +759,10 @@ struct HashTable
 	
 	FINLINE size_t size() const { return m_size; }
 	FINLINE Var& item( size_t i ){ ASSERT( i < m_size ); return m_vars[ i ]; }
+	FINLINE const Var& item( size_t i ) const { ASSERT( i < m_size ); return m_vars[ i ]; }
 	FINLINE V getcopy( const K& key, const V& defval = V() ) const { const Var* raw = getraw( key ); return raw ? raw->value : defval; }
-	FINLINE V* getptr( const K& key, const V* defval = NULL ){ Var* raw = getraw( key ); return raw ? raw->value : defval; }
+	FINLINE V* getptr( const K& key, V* defval = NULL ){ Var* raw = getraw( key ); return raw ? &raw->value : defval; }
+	FINLINE const V* getptr( const K& key, const V* defval = NULL ) const { const Var* raw = getraw( key ); return raw ? &raw->value : defval; }
 	FINLINE V& operator [] ( const K& key ){ Var* raw = getraw( key ); if( !raw ) raw = set( key, V() ); return raw->value; }
 	
 	size_type _get_pair_id( const K& key, Hash hash ) const
@@ -955,12 +973,24 @@ struct HashTable
 #endif
 };
 
+typedef HashTable< String, String > StringTable;
+
 
 //
 // FILES
 //
 
-bool LoadBinaryFile( const char* path, ByteArray& out );
+EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
+EXPORT bool LoadTextFile( const StringView& path, String& out );
+
+struct IL_Item
+{
+	String name;
+	StringTable params;
+};
+typedef Array< IL_Item > ItemList;
+
+EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
 
 
 //

@@ -287,8 +287,7 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	
 	StringView path = key.until( ":" );
 	
-	StackString< ENGINE_MAX_PATH > pathNT( path );
-	if( !LoadBinaryFile( pathNT, outdata ) )
+	if( !LoadBinaryFile( path, outdata ) )
 		return false;
 	
 	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y;
@@ -520,6 +519,20 @@ BatchRenderer& BatchRenderer::Quad( float x0, float y0, float x1, float y1 )
 	Tex( 1, 1 ); Pos( x1, y1 );
 	Prev( 0 );
 	Tex( 0, 1 ); Pos( x0, y1 );
+	Prev( 4 );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy )
+{
+	float tx = -dy;
+	float ty = dx;
+	SetPrimitiveType( PT_Triangles );
+	Tex( 0, 0 ); Pos( x - dx - tx, y - dy - ty );
+	Tex( 1, 0 ); Pos( x - dx + tx, y - dy + ty );
+	Tex( 1, 1 ); Pos( x + dx + tx, y + dy + ty );
+	Prev( 0 );
+	Tex( 0, 1 ); Pos( x + dx - tx, y + dy - ty );
 	Prev( 4 );
 	return *this;
 }
