@@ -229,6 +229,7 @@ void Game_Process( float dt )
 	float f[4] = { 0.2f, 0.4f, 0.6f, 1.0f };
 	g_Renderer->Clear( f );
 	
+#if 0
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
 	BatchRenderer& br = *g_BatchRenderer;
@@ -253,12 +254,13 @@ void Game_Process( float dt )
 		}
 	}
 	br.Flush();
+#endif
 	
 	g_Game->OnTick( dt, g_GameTime );
 	
 	process_overlay_screens( dt );
 	
-	br.Flush();
+	g_BatchRenderer->Flush();
 }
 
 

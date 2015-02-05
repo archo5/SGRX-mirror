@@ -323,6 +323,23 @@ float String_ParseFloat( const StringView& sv, bool* success )
 	return val;
 }
 
+Vec2 String_ParseVec2( const StringView& sv, bool* success )
+{
+	bool suc = true;
+	Vec2 out = {0,0};
+	StringView substr = ";";
+	if( success ) *success = true;
+	
+	out.x = String_ParseFloat( sv.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	StringView tmp = sv.after( substr );
+	out.y = String_ParseFloat( tmp.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	return out;
+}
+
 Vec3 String_ParseVec3( const StringView& sv, bool* success )
 {
 	bool suc = true;

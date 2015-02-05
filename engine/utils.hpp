@@ -75,6 +75,7 @@ struct EXPORT Vec2
 #ifdef USE_VEC2
 	static FINLINE Vec2 Create( float x ){ Vec2 v = { x, x }; return v; }
 	static FINLINE Vec2 Create( float x, float y ){ Vec2 v = { x, y }; return v; }
+	static FINLINE Vec2 CreateFromAngle( float a, float d = 1.0f ){ Vec2 v = { cos( a ) * d, sin( a ) * d }; return v; }
 	static FINLINE Vec2 CreateFromPtr( const float* x ){ Vec2 v = { x[0], x[1] }; return v; }
 	
 	FINLINE Vec2 operator + () const { return *this; }
@@ -107,6 +108,7 @@ struct EXPORT Vec2
 	FINLINE bool NearZero() const { return fabs(x) < SMALL_FLOAT && fabs(y) < SMALL_FLOAT; }
 	FINLINE float LengthSq() const { return x * x + y * y; }
 	FINLINE float Length() const { return sqrtf( LengthSq() ); }
+	FINLINE float Angle() const { return atan2( y, x ); }
 	FINLINE Vec2 Normalized() const
 	{
 		float lensq = LengthSq();
@@ -119,6 +121,7 @@ struct EXPORT Vec2
 		Vec2 v = { x * invlen, y * invlen };
 		return v;
 	}
+	FINLINE void Normalize(){ *this = Normalized(); }
 	FINLINE Vec2 Rotate( float angle ) const { return Rotate( Vec2::Create( cos( angle ), sin( angle ) ) ); }
 	FINLINE Vec2 Rotate( const Vec2& dir ) const { return Vec2::Create( x * dir.x - y * dir.y, x * dir.y + y * dir.x ); }
 #endif
@@ -193,6 +196,7 @@ struct EXPORT Vec3
 		Vec3 v = { x * invlen, y * invlen, z * invlen };
 		return v;
 	}
+	FINLINE void Normalize(){ *this = Normalized(); }
 #endif
 };
 
@@ -609,6 +613,8 @@ struct StringView
 	FINLINE const char* begin() const { return m_str; }
 	FINLINE const char* end() const { return m_str + m_size; }
 	
+	FINLINE char operator [] ( size_t i ) const { assert( i < m_size ); return m_str[ i ]; }
+	
 	FINLINE bool operator == ( const StringView& sv ) const { return m_size == sv.m_size && !memcmp( m_str, sv.m_str, m_size ); }
 	FINLINE bool operator != ( const StringView& sv ) const { return !( *this == sv ); }
 	
@@ -696,6 +702,7 @@ typedef StackString< ENGINE_MAX_PATH > StackPath;
 //
 
 EXPORT float String_ParseFloat( const StringView& sv, bool* success = NULL );
+EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL );
 EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
 
 
