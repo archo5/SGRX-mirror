@@ -29,19 +29,6 @@ EXPORT void TextureData_Free( TextureData* TD );
 EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, void* data, int side, int mip );
 EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );
 
-struct EXPORT ITexture
-{
-	TextureInfo m_info;
-	
-	virtual void Destroy() = 0;
-	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
-};
-
-struct EXPORT IShader
-{
-	virtual void Destroy() = 0;
-};
-
 EXPORT const char* VDeclInfo_Parse( VDeclInfo* info, const char* text );
 EXPORT int GetAABBFromVertexData( VDeclInfo* info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );
 
@@ -234,11 +221,12 @@ struct EXPORT IRenderer
 	virtual void SetWorldMatrix( const Mat4& mtx ) = 0;
 	virtual void SetViewMatrix( const Mat4& mtx ) = 0;
 	
-	virtual ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
+	virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
 	virtual bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
-	virtual IShader* CreateShader( ByteArray& code ) = 0; // StringView for uncompiled, byte buffer for compiled shaders
+	virtual SGRX_IShader* CreateShader( ByteArray& code ) = 0; // StringView for uncompiled, byte buffer for compiled shaders
+	virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
 	
-	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, ITexture* tex ) = 0;
+	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex ) = 0;
 	
 //	void set_render_state( int, int, int, int, int ); /* type, arg0, arg1, arg2, arg3 */
 //	void set_matrix( int, float* ); /* type, float[16] */

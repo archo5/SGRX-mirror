@@ -168,50 +168,45 @@ struct TextureInfo
 	int mipcount;
 };
 
-struct EXPORT SGRX_Texture
+struct EXPORT SGRX_ITexture
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
 	
-	const TextureInfo& GetInfo();
-	bool UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y );
-	
-	struct ITexture* m_texture;
+	TextureInfo m_info;
 	int32_t m_refcount;
 	String m_key;
 	
-private:
-	void Destroy();
+	virtual void Destroy() = 0;
+	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 };
 
-struct EXPORT TextureHandle : Handle< SGRX_Texture >
+struct EXPORT TextureHandle : Handle< SGRX_ITexture >
 {
 	TextureHandle() : Handle(){}
 	TextureHandle( const TextureHandle& h ) : Handle( h ){}
-	TextureHandle( SGRX_Texture* tex ) : Handle( tex ){}
+	TextureHandle( SGRX_ITexture* tex ) : Handle( tex ){}
 	
 	const TextureInfo& GetInfo();
 	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
-struct EXPORT SGRX_Shader
+struct EXPORT SGRX_IShader
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
 	
-	struct IShader* m_shader;
+	virtual void Destroy() = 0;
+	
 	int32_t m_refcount;
 	String m_key;
-	
-private:
-	void Destroy();
 };
 
-struct EXPORT ShaderHandle : Handle< SGRX_Shader >
+struct EXPORT ShaderHandle : Handle< SGRX_IShader >
 {
 	ShaderHandle() : Handle(){}
 	ShaderHandle( const ShaderHandle& h ) : Handle( h ){}
-	ShaderHandle( SGRX_Shader* shdr ) : Handle( shdr ){}
+	ShaderHandle( SGRX_IShader* shdr ) : Handle( shdr ){}
 };
 
 #define INDEX_16 0
@@ -259,6 +254,27 @@ struct VDeclInfo
 	uint8_t usages [ VDECL_MAX_ITEMS ];
 	uint8_t count;
 	uint8_t size;
+};
+
+struct EXPORT SGRX_IVertexDecl
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	virtual void Destroy() = 0;
+	
+	VDeclInfo m_info;
+	int32_t m_refcount;
+	String m_text;
+};
+
+struct EXPORT VertexDeclHandle : Handle< SGRX_IVertexDecl >
+{
+	VertexDeclHandle() : Handle(){}
+	VertexDeclHandle( const VertexDeclHandle& h ) : Handle( h ){}
+	VertexDeclHandle( SGRX_IVertexDecl* vd ) : Handle( vd ){}
+	
+	const VDeclInfo& GetInfo();
 };
 
 enum EPrimitiveType
@@ -322,6 +338,8 @@ EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mi
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
 
 EXPORT ShaderHandle GR_GetShader( const StringView& path );
+
+EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
 EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );

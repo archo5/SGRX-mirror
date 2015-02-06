@@ -63,7 +63,7 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		return 0;
 	
 	int n = 0;
-	GlyphCache::Node* prev = NULL;
+	uint32_t prev_glyph_id = NOT_FOUND;
 	
 	float ifw = 1.0f / m_cache.m_pageWidth;
 	float ifh = 1.0f / m_cache.m_pageHeight;
@@ -79,10 +79,10 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		GlyphCache::Node* node = _GetGlyph( m_currentFont, cp );
 		if( node && br )
 		{
-			if( prev && FT_HAS_KERNING( m_currentFont->face ) )
+			if( prev_glyph_id != NOT_FOUND && FT_HAS_KERNING( m_currentFont->face ) )
 			{
 				FT_Vector delta;
-				FT_Get_Kerning( m_currentFont->face, prev->key.ft_glyph_id, node->key.ft_glyph_id, FT_KERNING_DEFAULT, &delta );
+				FT_Get_Kerning( m_currentFont->face, prev_glyph_id, node->key.ft_glyph_id, FT_KERNING_DEFAULT, &delta );
 				m_cursor_x += delta.x >> 6;
 			}
 			
@@ -110,7 +110,7 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		{
 			m_cursor_x += node->key.advx;
 		}
-		prev = node;
+		prev_glyph_id = node->key.ft_glyph_id;
 		n++;
 	}
 	return n;
@@ -187,7 +187,7 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( Font* font, uint32_t ch
 		for( int x = 0; x < width; ++x )
 			bitmap[ x + y * width ] = COLOR_RGBA( 255, 255, 255, glyph->bitmap.buffer[ x + y * pitch ] );
 	}
-	m_cache.GetPageTexture( node->page )->UploadRGBA8Part( bitmap.data(), 0, width, height, node->x0, node->y0 );
+	m_cache.GetPageTexture( node->page ).UploadRGBA8Part( bitmap.data(), 0, width, height, node->x0, node->y0 );
 	
 	return node;
 }

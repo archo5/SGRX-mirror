@@ -96,7 +96,7 @@ static void _ss_reset_states( IDirect3DDevice9* dev, int w, int h )
 }
 
 
-struct D3D9Texture : ITexture
+struct D3D9Texture : SGRX_ITexture
 {
 	union
 	{
@@ -111,7 +111,7 @@ struct D3D9Texture : ITexture
 	void Destroy()
 	{
 		SAFE_RELEASE( m_ptr.base );
-		delete this;
+		SGRX_ITexture::Destroy();
 	}
 	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
@@ -145,7 +145,7 @@ struct D3D9Texture : ITexture
 };
 
 
-struct D3D9Shader : IShader
+struct D3D9Shader : SGRX_IShader
 {
 	D3D9Shader( struct D3D9Renderer* r ) : m_VS( NULL ), m_PS( NULL ), m_VSCT( NULL ), m_PSCT( NULL ), m_renderer( r ){}
 	IDirect3DVertexShader9* m_VS;
@@ -160,7 +160,20 @@ struct D3D9Shader : IShader
 		SAFE_RELEASE( m_PSCT );
 		SAFE_RELEASE( m_VS );
 		SAFE_RELEASE( m_PS );
-		delete this;
+		SGRX_IShader::Destroy();
+	}
+};
+
+
+struct D3D9VertexDecl : SGRX_IVertexDecl
+{
+	IDirect3DVertexDeclaration9* m_vdecl;
+	struct D3D9Renderer* m_renderer;
+	
+	void Destroy()
+	{
+		SAFE_RELEASE( m_vdecl );
+		SGRX_IVertexDecl::Destroy();
 	}
 };
 
@@ -185,16 +198,17 @@ struct D3D9Renderer : IRenderer
 	void SetWorldMatrix( const Mat4& mtx );
 	void SetViewMatrix( const Mat4& mtx );
 	
-	ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
+	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors );
-	IShader* CreateShader( ByteArray& code );
+	SGRX_IShader* CreateShader( ByteArray& code );
+	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, ITexture* tex );
+	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex );
 	
 	bool ResetDevice();
 	void ResetViewport();
-	void SetTexture( int i, ITexture* tex );
-	void SetShader( IShader* shd );
+	void SetTexture( int i, SGRX_ITexture* tex );
+	void SetShader( SGRX_IShader* shd );
 	
 	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
 	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
@@ -339,7 +353,7 @@ void D3D9Renderer::SetViewMatrix( const Mat4& mtx )
 }
 
 
-ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
+SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 {
 	int mip, side;
 	HRESULT hr;
@@ -497,7 +511,7 @@ bool D3D9Renderer::CompileShader( const StringView& code, ByteArray& outcomp, St
 	return true;
 }
 
-IShader* D3D9Renderer::CreateShader( ByteArray& code )
+SGRX_IShader* D3D9Renderer::CreateShader( ByteArray& code )
 {
 	HRESULT hr;
 	ByteReader br( &code );
@@ -536,6 +550,62 @@ cleanup:
 	return NULL;
 }
 
+static int vdecltype_to_eltype[] =
+{
+	D3DDECLTYPE_FLOAT1,
+	D3DDECLTYPE_FLOAT2,
+	D3DDECLTYPE_FLOAT3,
+	D3DDECLTYPE_FLOAT4,
+	D3DDECLTYPE_D3DCOLOR,
+};
+
+static int vdeclusage_to_elusage[] =
+{
+	D3DDECLUSAGE_POSITION,
+	D3DDECLUSAGE_COLOR,
+	D3DDECLUSAGE_NORMAL,
+	D3DDECLUSAGE_TANGENT,
+	D3DDECLUSAGE_BLENDWEIGHT,
+	D3DDECLUSAGE_BLENDINDICES,
+	D3DDECLUSAGE_TEXCOORD,
+	D3DDECLUSAGE_TEXCOORD,
+	D3DDECLUSAGE_TEXCOORD,
+	D3DDECLUSAGE_TEXCOORD,
+};
+
+static int vdeclusage_to_elusageindex[] = { 0, 0, 0, 0, 0, 0, 0, 1, 2, 3 };
+
+SGRX_IVertexDecl* D3D9Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
+{
+	D3DVERTEXELEMENT9 elements[ VDECL_MAX_ITEMS + 1 ], end[1] = { D3DDECL_END() };
+	for( int i = 0; i < vdinfo.count; ++i )
+	{
+		elements[ i ].Stream = 0;
+		elements[ i ].Offset = vdinfo.offsets[ i ];
+		elements[ i ].Type = vdecltype_to_eltype[ vdinfo.types[ i ] ];
+		elements[ i ].Method = D3DDECLMETHOD_DEFAULT;
+		elements[ i ].Usage = vdeclusage_to_elusage[ vdinfo.usages[ i ] ];
+		elements[ i ].UsageIndex = vdeclusage_to_elusageindex[ vdinfo.usages[ i ] ];
+		if( vdinfo.usages[ i ] == VDECLUSAGE_BLENDIDX && vdinfo.types[ i ] == VDECLTYPE_BCOL4 )
+			elements[ i ].Type = D3DDECLTYPE_UBYTE4;
+		if( vdinfo.usages[ i ] == VDECLUSAGE_BLENDWT && vdinfo.types[ i ] == VDECLTYPE_BCOL4 )
+			elements[ i ].Type = D3DDECLTYPE_UBYTE4N;
+	}
+	memcpy( elements + vdinfo.count, end, sizeof(*end) );
+	
+	IDirect3DVertexDeclaration9* VD = NULL;
+	if( FAILED( m_dev->CreateVertexDeclaration( elements, &VD ) ) || !VD )
+	{
+		LOG_ERROR << "Failed to create D3D9 vertex declaration";
+		return NULL;
+	}
+	
+	D3D9VertexDecl* vdecl = new D3D9VertexDecl;
+	vdecl->m_vdecl = VD;
+	vdecl->m_renderer = this;
+	return vdecl;
+}
+
 FINLINE D3DPRIMITIVETYPE conv_prim_type( EPrimitiveType pt )
 {
 	switch( pt )
@@ -564,7 +634,7 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 	}
 }
 
-void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, ITexture* tex )
+void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex )
 {
 	SetTexture( 0, tex );
 	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_DIFFUSE );
@@ -593,7 +663,7 @@ void D3D9Renderer::ResetViewport()
 	m_dev->SetViewport( &vp );
 }
 
-void D3D9Renderer::SetTexture( int slot, ITexture* tex )
+void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
 {
 	SGRX_CAST( D3D9Texture*, T, tex ); 
 	m_dev->SetTexture( slot, T ? T->m_ptr.base : NULL );
@@ -609,7 +679,7 @@ void D3D9Renderer::SetTexture( int slot, ITexture* tex )
 	}
 }
 
-void D3D9Renderer::SetShader( IShader* shd )
+void D3D9Renderer::SetShader( SGRX_IShader* shd )
 {
 	SGRX_CAST( D3D9Shader*, S, shd );
 	m_dev->SetPixelShader( S ? S->m_PS : NULL );

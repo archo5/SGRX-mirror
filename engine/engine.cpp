@@ -33,8 +33,9 @@ uint32_t GetTimeMsec()
 // GLOBALS
 //
 
-typedef HashTable< StringView, SGRX_Texture* > TextureHashTable;
-typedef HashTable< StringView, SGRX_Shader* > ShaderHashTable;
+typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
+typedef HashTable< StringView, SGRX_IShader* > ShaderHashTable;
+typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 
 static bool g_Running = true;
 static SDL_Window* g_Window = NULL;
@@ -56,6 +57,7 @@ static BatchRenderer* g_BatchRenderer = NULL;
 static FontRenderer* g_FontRenderer = NULL;
 static TextureHashTable* g_Textures = NULL;
 static ShaderHashTable* g_Shaders = NULL;
+static VertexDeclHashTable* g_VertexDecls = NULL;
 
 
 //
@@ -368,21 +370,26 @@ bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path,
 }
 
 
-void SGRX_Texture::Destroy()
+void SGRX_ITexture::Destroy()
 {
 	g_Textures->unset( m_key );
-	m_texture->Destroy();
 	delete this;
 }
 
-const TextureInfo& SGRX_Texture::GetInfo()
+const TextureInfo& TextureHandle::GetInfo()
 {
-	return m_texture->m_info;
+	static TextureInfo dummy_info = {0};
+	if( !item )
+		return dummy_info;
+	return item->m_info;
 }
 
-bool SGRX_Texture::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )
+bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )
 {
-	const TextureInfo& TI = m_texture->m_info;
+	if( !item )
+		return false;
+	
+	const TextureInfo& TI = item->m_info;
 	
 	if( mip < 0 || mip >= TI.mipcount )
 	{
@@ -400,30 +407,29 @@ bool SGRX_Texture::UploadRGBA8Part( void* data, int mip, int w, int h, int x, in
 	if( w < 0 ) w = mti.width;
 	if( h < 0 ) h = mti.height;
 	
-	return m_texture->UploadRGBA8Part( data, mip, x, y, w, h );
-}
-
-const TextureInfo& TextureHandle::GetInfo()
-{
-	static TextureInfo dummy_info = {0};
-	if( !item )
-		return dummy_info;
-	return item->GetInfo();
-}
-
-bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )
-{
-	if( !item )
-		return false;
-	return item->UploadRGBA8Part( data, mip, w, h, x, y );
+	return item->UploadRGBA8Part( data, mip, x, y, w, h );
 }
 
 
-void SGRX_Shader::Destroy()
+void SGRX_IShader::Destroy()
 {
 	g_Shaders->unset( m_key );
-	m_shader->Destroy();
 	delete this;
+}
+
+
+void SGRX_IVertexDecl::Destroy()
+{
+	g_VertexDecls->unset( m_text );
+	delete this;
+}
+
+const VDeclInfo& VertexDeclHandle::GetInfo()
+{
+	static VDeclInfo dummy_info = {0};
+	if( !item )
+		return dummy_info;
+	return item->m_info;
 }
 
 
@@ -434,16 +440,15 @@ int GR_GetHeight(){ return g_RenderSettings.height; }
 TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 {
 	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, mips };
-	ITexture* itex = g_Renderer->CreateTexture( &ti, NULL );
-	if( !itex )
+	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, NULL );
+	if( !tex )
 	{
 		// error is already printed
 		return TextureHandle();
 	}
 	
-	SGRX_Texture* tex = new SGRX_Texture;
 	tex->m_refcount = 0;
-	tex->m_texture = itex;
+	tex->m_info = ti;
 	
 	LOG << "Created 2D texture: " << width << "x" << height << ", format=" << format << ", mips=" << mips;
 	return tex;
@@ -451,7 +456,7 @@ TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 
 TextureHandle GR_GetTexture( const StringView& path )
 {
-	SGRX_Texture* tx = g_Textures->getcopy( path );
+	SGRX_ITexture* tx = g_Textures->getcopy( path );
 	if( tx )
 		return tx;
 	
@@ -470,16 +475,15 @@ TextureHandle GR_GetTexture( const StringView& path )
 		return TextureHandle();
 	}
 	
-	ITexture* itex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
-	if( !itex )
+	SGRX_ITexture* tex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
+	if( !tex )
 	{
 		// error is already printed
 		return TextureHandle();
 	}
 	
-	SGRX_Texture* tex = new SGRX_Texture;
+	tex->m_info = texdata.info;
 	tex->m_refcount = 0;
-	tex->m_texture = itex;
 	tex->m_key.append( path.data(), path.size() );
 	g_Textures->set( tex->m_key, tex );
 	
@@ -490,9 +494,9 @@ TextureHandle GR_GetTexture( const StringView& path )
 
 ShaderHandle GR_GetShader( const StringView& path )
 {
-	SGRX_Shader* sh = g_Shaders->getcopy( path );
-	if( sh )
-		return sh;
+	SGRX_IShader* shd = g_Shaders->getcopy( path );
+	if( shd )
+		return shd;
 	
 	String code;
 	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderType, path, code ) )
@@ -501,7 +505,6 @@ ShaderHandle GR_GetShader( const StringView& path )
 		return ShaderHandle();
 	}
 	
-	IShader* ishd;
 	if( g_Renderer->GetInfo().compileShaders )
 	{
 		String errors;
@@ -515,7 +518,7 @@ ShaderHandle GR_GetShader( const StringView& path )
 			return ShaderHandle();
 		}
 		
-		ishd = g_Renderer->CreateShader( comp );
+		shd = g_Renderer->CreateShader( comp );
 	}
 	else
 	{
@@ -523,15 +526,46 @@ ShaderHandle GR_GetShader( const StringView& path )
 		ByteArray bcode;
 		bcode.resize( code.size() );
 		memcpy( bcode.data(), code.data(), code.size() );
-		ishd = g_Renderer->CreateShader( bcode );
+		shd = g_Renderer->CreateShader( bcode );
 	}
 	
-	SGRX_Shader* shd = new SGRX_Shader;
-	shd->m_shader = ishd;
+	if( !shd )
+	{
+		// error already printed in renderer
+		return NULL;
+	}
+	
 	shd->m_key = path;
+	g_Shaders->set( shd->m_key, shd );
 	
 	LOG << "Loaded shader: " << path;
 	return shd;
+}
+
+
+VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
+{
+	VDeclInfo vdinfo = {0};
+	const char* err = VDeclInfo_Parse( &vdinfo, StackString< 64 >( vdecl ) );
+	if( err )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to parse vertex declaration - " << err << " (" << vdecl << ")";
+		return NULL;
+	}
+	
+	SGRX_IVertexDecl* VD = g_Renderer->CreateVertexDecl( vdinfo );
+	if( !VD )
+	{
+		// error already printed in renderer
+		return NULL;
+	}
+	
+	VD->m_text = vdecl;
+	VD->m_refcount = 0;
+	g_VertexDecls->set( VD->m_text, VD );
+	
+	LOG << "Created vertex declaration: " << vdecl;
+	return VD;
 }
 
 
@@ -683,7 +717,7 @@ BatchRenderer& BatchRenderer::Flush()
 {
 	if( m_verts.size() )
 	{
-		m_renderer->DrawBatchVertices( m_verts.data(), m_verts.size(), m_primType, m_texture ? m_texture->m_texture : NULL );
+		m_renderer->DrawBatchVertices( m_verts.data(), m_verts.size(), m_primType, m_texture );
 		m_verts.clear();
 	}
 	return *this;
@@ -740,6 +774,7 @@ static int init_graphics()
 	
 	g_Textures = new TextureHashTable();
 	g_Shaders = new ShaderHashTable();
+	g_VertexDecls = new VertexDeclHashTable();
 	LOG << LOG_DATE << "  Created renderer resource caches";
 	
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
@@ -759,6 +794,9 @@ static void free_graphics()
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;
+	
+	delete g_VertexDecls;
+	g_VertexDecls = NULL;
 	
 	delete g_Shaders;
 	g_Shaders = NULL;
