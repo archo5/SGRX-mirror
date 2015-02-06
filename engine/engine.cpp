@@ -433,6 +433,24 @@ const VDeclInfo& VertexDeclHandle::GetInfo()
 }
 
 
+void SGRX_Camera::UpdateViewMatrix()
+{
+	mView.LookAt( position, direction, up );
+	mView.InvertTo( mInvView );
+}
+
+void SGRX_Camera::UpdateProjMatrix()
+{
+	mProj.Perspective( angle, aspect, aamix, znear, zfar );
+}
+
+void SGRX_Camera::UpdateMatrices()
+{
+	UpdateViewMatrix();
+	UpdateProjMatrix();
+}
+
+
 int GR_GetWidth(){ return g_RenderSettings.width; }
 int GR_GetHeight(){ return g_RenderSettings.height; }
 

@@ -4,12 +4,6 @@
 #include "engine.hpp"
 
 
-#define SHADER_NAME_LENGTH 64
-#define MAX_NUM_PASSES     16
-#define MAX_MI_TEXTURES    4
-#define MAX_MI_CONSTANTS   16
-
-
 ///
 /// TEXTURE
 ///
@@ -78,123 +72,6 @@ struct MeshFileData
 };
 
 const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out );
-
-
-struct SGRX_Mesh;
-struct SGRX_MeshInstance;
-struct SGRX_Light;
-struct SGRX_Scene;
-
-struct MeshHandle : Handle< SGRX_Mesh >
-{
-};
-
-
-struct SGRX_Camera
-{
-	Vec3 position;
-	Vec3 direction;
-	Vec3 up;
-	float angle;
-	float aspect;
-	float aamix;
-	float znear;
-	float zfar;
-	
-	Mat4 mView;
-	Mat4 mProj;
-	Mat4 mInvView;
-};
-
-struct SGRX_Viewport
-{
-	int x1, y1, x2, y2;
-};
-
-struct SGRX_MeshInstLight
-{
-	SGRX_MeshInstance* MI;
-	SGRX_Light* L;
-};
-
-struct SGRX_Light
-{
-	SGRX_Scene* scene;
-	
-	int type;
-	int enabled;
-	Vec3 position;
-	Vec3 direction;
-	Vec3 updir;
-	Vec3 color;
-	float range;
-	float power;
-	float angle;
-	float aspect;
-	TextureHandle cookieTexture;
-	TextureHandle shadowTexture;
-	Mat4 viewMatrix;
-	Mat4 projMatrix;
-	Mat4 viewProjMatrix;
-	int hasShadows;
-	
-	/* frame cache */
-	SGRX_MeshInstLight* mibuf_begin;
-	SGRX_MeshInstLight* mibuf_end;
-};
-
-struct SGRX_Scene
-{
-	HashTable< SGRX_MeshInstance*, bool > m_meshInstances;
-	HashTable< SGRX_Light*, bool > m_lights;
-	
-//	sgs_VarObj* cullScenes;
-	SGRX_Camera* m_camera;
-	
-	Vec3 fogColor;
-	float fogHeightFactor;
-	float fogDensity;
-	float fogHeightDensity;
-	float fogStartHeight;
-	float fogMinDist;
-	
-	Vec3 ambientLightColor;
-	Vec3 dirLightColor;
-	Vec3 dirLightDir;
-	
-	TextureHandle skyTexture;
-};
-
-struct SGRX_MeshInstance
-{
-	SGRX_Scene* m_scene;
-	
-	MeshHandle mesh;
-	Mat4 matrix;
-	Vec4 color;
-	uint32_t enabled : 1;
-	uint32_t cpuskin : 1; /* TODO */
-	
-	TextureHandle textures[ MAX_MI_TEXTURES ];
-	Vec4 constants[ MAX_MI_CONSTANTS ];
-	
-	Array< Mat4 > skin_matrices;
-	
-	/* frame cache */
-	SGRX_MeshInstLight* lightbuf_begin;
-	SGRX_MeshInstLight* lightbuf_end;
-};
-
-struct SGRX_RenderPass
-{
-	uint8_t type;
-	uint8_t flags;
-	int16_t maxruns;
-	uint16_t pointlight_count;
-	uint8_t spotlight_count;
-	uint8_t num_inst_textures;
-	char shname[ SHADER_NAME_LENGTH ];
-};
 
 
 ///

@@ -389,6 +389,19 @@ struct EXPORT Mat4
 		return m;
 	}
 	
+	static Mat4 CreateLookAt( Vec3 pos, Vec3 dir, Vec3 up )
+	{
+		Mat4 out;
+		out.LookAt( pos, dir, up );
+		return out;
+	}
+	static Mat4 CreatePerspective( float angle, float aspect, float aamix, float znear, float zfar )
+	{
+		Mat4 out;
+		out.Perspective( angle, aspect, aamix, znear, zfar );
+		return out;
+	}
+	
 	FINLINE Vec3 Transform( const Vec3& v, float w ) const
 	{
 		Vec3 out =

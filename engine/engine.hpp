@@ -173,12 +173,12 @@ struct EXPORT SGRX_ITexture
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
 	
+	virtual void Destroy() = 0;
+	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
+	
 	TextureInfo m_info;
 	int32_t m_refcount;
 	String m_key;
-	
-	virtual void Destroy() = 0;
-	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 };
 
 struct EXPORT TextureHandle : Handle< SGRX_ITexture >
@@ -247,6 +247,11 @@ struct EXPORT ShaderHandle : Handle< SGRX_IShader >
 #define VDECLUSAGE_TEXTURE2 8
 #define VDECLUSAGE_TEXTURE3 9
 
+#define SHADER_NAME_LENGTH 64
+#define MAX_NUM_PASSES     16
+#define MAX_MI_TEXTURES    4
+#define MAX_MI_CONSTANTS   16
+
 struct VDeclInfo
 {
 	uint8_t offsets[ VDECL_MAX_ITEMS ];
@@ -268,13 +273,239 @@ struct EXPORT SGRX_IVertexDecl
 	String m_text;
 };
 
-struct EXPORT VertexDeclHandle : Handle< SGRX_IVertexDecl >
+struct EXPORT VertexDeclHandle : Handle< struct SGRX_IVertexDecl >
 {
 	VertexDeclHandle() : Handle(){}
 	VertexDeclHandle( const VertexDeclHandle& h ) : Handle( h ){}
-	VertexDeclHandle( SGRX_IVertexDecl* vd ) : Handle( vd ){}
+	VertexDeclHandle( struct SGRX_IVertexDecl* vd ) : Handle( vd ){}
 	
 	const VDeclInfo& GetInfo();
+};
+
+struct EXPORT SGRX_Camera
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	
+	void UpdateViewMatrix();
+	void UpdateProjMatrix();
+	void UpdateMatrices();
+	
+	Vec3 position;
+	Vec3 direction;
+	Vec3 up;
+	float angle;
+	float aspect;
+	float aamix;
+	float znear;
+	float zfar;
+	
+	Mat4 mView;
+	Mat4 mProj;
+	Mat4 mInvView;
+	
+	int32_t m_refcount;
+};
+
+struct EXPORT CameraHandle : Handle< struct SGRX_Camera >
+{
+	CameraHandle() : Handle(){}
+	CameraHandle( const CameraHandle& h ) : Handle( h ){}
+	CameraHandle( struct SGRX_Camera* cam ) : Handle( cam ){}
+	
+	Vec3 WorldToScreen( Vec3 pos );
+	bool GetCursorRay( float x, float y, Vec3 posdir[2] );
+};
+
+struct SGRX_Viewport
+{
+	int x1, y1, x2, y2;
+};
+
+struct SGRX_Mesh;
+struct SGRX_MeshInstance;
+struct SGRX_Light;
+struct SGRX_Scene;
+
+struct SGRX_MeshPart
+{
+	uint32_t vertexOffset;
+	uint32_t vertexCount;
+	uint32_t indexOffset;
+	uint32_t indexCount;
+	
+	ShaderHandle shaders[ MAX_NUM_PASSES ];
+	ShaderHandle shaders_skin[ MAX_NUM_PASSES ];
+	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
+	char shader_name[ SHADER_NAME_LENGTH ];
+};
+
+struct SGRX_MeshBone
+{
+	String name;
+	Mat4 boneOffset;
+	Mat4 invSkinOffset;
+	int parent_id;
+};
+
+struct SGRX_Mesh
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	virtual void Destroy() = 0;
+	
+	/* rendering info */
+	uint32_t dataFlags;
+	VertexDeclHandle vertexDecl;
+	uint32_t vertexCount;
+	uint32_t vertexDataSize;
+	uint32_t indexCount;
+	uint32_t indexDataSize;
+	SGRX_MeshPart parts[ MAX_MESH_PARTS ];
+	SGRX_MeshBone bones[ MAX_MESH_BONES ];
+	int numParts;
+	int numBones;
+	
+	/* collision detection */
+	Vec3 boundsMin;
+	Vec3 boundsMax;
+	
+	int32_t m_refcount;
+};
+
+struct MeshHandle : Handle< SGRX_Mesh >
+{
+	MeshHandle() : Handle(){}
+	MeshHandle( const MeshHandle& h ) : Handle( h ){}
+	MeshHandle( struct SGRX_Mesh* mesh ) : Handle( mesh ){}
+};
+
+struct SGRX_Scene
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	void Destroy();
+	
+	HashTable< SGRX_MeshInstance*, bool > m_meshInstances;
+	HashTable< SGRX_Light*, bool > m_lights;
+	
+//	sgs_VarObj* cullScenes;
+	CameraHandle m_camera;
+	
+	Vec3 fogColor;
+	float fogHeightFactor;
+	float fogDensity;
+	float fogHeightDensity;
+	float fogStartHeight;
+	float fogMinDist;
+	
+	Vec3 ambientLightColor;
+	Vec3 dirLightColor;
+	Vec3 dirLightDir;
+	
+	TextureHandle skyTexture;
+	
+	int32_t m_refcount;
+};
+
+struct EXPORT SceneHandle : Handle< SGRX_Scene >
+{
+	SceneHandle() : Handle(){}
+	SceneHandle( const SceneHandle& h ) : Handle( h ){}
+	SceneHandle( struct SGRX_Scene* sc ) : Handle( sc ){}
+};
+
+struct SGRX_MeshInstLight
+{
+	SGRX_MeshInstance* MI;
+	SGRX_Light* L;
+};
+
+struct EXPORT SGRX_Light
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	void Destroy();
+	
+	SceneHandle m_scene;
+	
+	int type;
+	int enabled;
+	Vec3 position;
+	Vec3 direction;
+	Vec3 updir;
+	Vec3 color;
+	float range;
+	float power;
+	float angle;
+	float aspect;
+	TextureHandle cookieTexture;
+	TextureHandle shadowTexture;
+	Mat4 viewMatrix;
+	Mat4 projMatrix;
+	Mat4 viewProjMatrix;
+	int hasShadows;
+	
+	/* frame cache */
+	SGRX_MeshInstLight* mibuf_begin;
+	SGRX_MeshInstLight* mibuf_end;
+	
+	int32_t m_refcount;
+};
+
+struct EXPORT LightHandle : Handle< SGRX_Light >
+{
+	LightHandle() : Handle(){}
+	LightHandle( const LightHandle& h ) : Handle( h ){}
+	LightHandle( SGRX_Light* lt ) : Handle( lt ){}
+};
+
+struct SGRX_MeshInstance
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	void Destroy();
+	
+	SceneHandle m_scene;
+	
+	MeshHandle mesh;
+	Mat4 matrix;
+	Vec4 color;
+	uint32_t enabled : 1;
+	uint32_t cpuskin : 1; /* TODO */
+	
+	TextureHandle textures[ MAX_MI_TEXTURES ];
+	Vec4 constants[ MAX_MI_CONSTANTS ];
+	
+	Array< Mat4 > skin_matrices;
+	
+	/* frame cache */
+	SGRX_MeshInstLight* lightbuf_begin;
+	SGRX_MeshInstLight* lightbuf_end;
+	
+	int32_t m_refcount;
+};
+
+struct EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
+{
+	MeshInstHandle() : Handle(){}
+	MeshInstHandle( const MeshInstHandle& h ) : Handle( h ){}
+	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
+};
+
+struct SGRX_RenderPass
+{
+	uint8_t type;
+	uint8_t flags;
+	int16_t maxruns;
+	uint16_t pointlight_count;
+	uint8_t spotlight_count;
+	uint8_t num_inst_textures;
+	char shname[ SHADER_NAME_LENGTH ];
 };
 
 enum EPrimitiveType
