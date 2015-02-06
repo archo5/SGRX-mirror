@@ -1,9 +1,14 @@
 
 
+#define __STDC_FORMAT_MACROS 1
+#include <inttypes.h>
 #include <d3d9.h>
+#include <d3dx9.h>
 
 #define USE_VEC3
 #define USE_MAT4
+#define USE_ARRAY
+#define USE_SERIALIZATION
 #include "renderer.hpp"
 
 
@@ -140,9 +145,31 @@ struct D3D9Texture : ITexture
 };
 
 
+struct D3D9Shader : IShader
+{
+	D3D9Shader( struct D3D9Renderer* r ) : m_VS( NULL ), m_PS( NULL ), m_VSCT( NULL ), m_PSCT( NULL ), m_renderer( r ){}
+	IDirect3DVertexShader9* m_VS;
+	IDirect3DPixelShader9* m_PS;
+	ID3DXConstantTable* m_VSCT;
+	ID3DXConstantTable* m_PSCT;
+	struct D3D9Renderer* m_renderer;
+	
+	void Destroy()
+	{
+		SAFE_RELEASE( m_VSCT );
+		SAFE_RELEASE( m_PSCT );
+		SAFE_RELEASE( m_VS );
+		SAFE_RELEASE( m_PS );
+		delete this;
+	}
+};
+
+
 RendererInfo g_D3D9RendererInfo =
 {
 	true, // swap R/B
+	true, // compile shaders
+	"d3d9", // shader type
 };
 
 struct D3D9Renderer : IRenderer
@@ -159,12 +186,15 @@ struct D3D9Renderer : IRenderer
 	void SetViewMatrix( const Mat4& mtx );
 	
 	ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
+	bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors );
+	IShader* CreateShader( ByteArray& code );
 	
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, ITexture* tex );
 	
 	bool ResetDevice();
 	void ResetViewport();
 	void SetTexture( int i, ITexture* tex );
+	void SetShader( IShader* shd );
 	
 	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
 	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
@@ -401,6 +431,111 @@ ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 	return NULL;
 }
 
+bool D3D9Renderer::CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors )
+{
+	HRESULT hr;
+	ID3DXBuffer *outbuf = NULL, *outerr = NULL;
+	
+	static const D3DXMACRO vsmacros[] = { { "VS", "1" }, { NULL, NULL } };
+	static const D3DXMACRO psmacros[] = { { "PS", "1" }, { NULL, NULL } };
+	
+	ByteWriter bw( &outcomp );
+	bw.marker( "CSH\x7f", 4 );
+	
+	int32_t shsize;
+	
+	hr = D3DXCompileShader( code.data(), code.size(), vsmacros, NULL, "main", "vs_3_0", D3DXSHADER_OPTIMIZATION_LEVEL3, &outbuf, &outerr, NULL );
+	if( FAILED( hr ) )
+	{
+		if( outerr )
+		{
+			const char* errtext = (const char*) outerr->GetBufferPointer();
+			outerrors.append( STRLIT_BUF( "Errors in vertex shader compilation:\n" ) );
+			outerrors.append( errtext, strlen( errtext ) );
+		}
+		else
+			outerrors.append( STRLIT_BUF( "Unknown error in vertex shader compilation" ) );
+		
+		SAFE_RELEASE( outbuf );
+		SAFE_RELEASE( outerr );
+		return false;
+	}
+	
+	shsize = outbuf->GetBufferSize();
+	
+	bw << shsize;
+	bw.memory( outbuf->GetBufferPointer(), shsize );
+	
+	SAFE_RELEASE( outbuf );
+	SAFE_RELEASE( outerr );
+	
+	hr = D3DXCompileShader( code.data(), code.size(), psmacros, NULL, "main", "ps_3_0", D3DXSHADER_OPTIMIZATION_LEVEL3, &outbuf, &outerr, NULL );
+	if( FAILED( hr ) )
+	{
+		if( outerr )
+		{
+			const char* errtext = (const char*) outerr->GetBufferPointer();
+			outerrors.append( STRLIT_BUF( "Errors in pixel shader compilation:\n" ) );
+			outerrors.append( errtext, strlen( errtext ) );
+		}
+		else
+			outerrors.append( STRLIT_BUF( "Unknown error in pixel shader compilation" ) );
+		
+		SAFE_RELEASE( outbuf );
+		SAFE_RELEASE( outerr );
+		return false;
+	}
+	
+	shsize = outbuf->GetBufferSize();
+	
+	bw << shsize;
+	bw.memory( outbuf->GetBufferPointer(), shsize );
+	
+	SAFE_RELEASE( outbuf );
+	SAFE_RELEASE( outerr );
+	
+	return true;
+}
+
+IShader* D3D9Renderer::CreateShader( ByteArray& code )
+{
+	HRESULT hr;
+	ByteReader br( &code );
+	br.marker( "CSH\x7f", 4 );
+	if( br.error )
+		return NULL;
+	
+	int32_t vslen = 0;
+	br << vslen;
+	uint8_t* vsbuf = &code[ 8 ];
+	uint8_t* psbuf = &code[ 12 + vslen ];
+	
+	D3D9Shader S( this );
+	
+	hr = m_dev->CreateVertexShader( (const DWORD*) vsbuf, &S.m_VS );
+	if( FAILED( hr ) )
+		{ LOG << "Failed to create a D3D9 vertex shader"; goto cleanup; }
+	hr = D3DXGetShaderConstantTable( (const DWORD*) vsbuf, &S.m_VSCT );
+	if( FAILED( hr ) )
+		{ LOG << "Failed to create a constant table for vertex shader"; goto cleanup; }
+	
+	hr = m_dev->CreatePixelShader( (const DWORD*) psbuf, &S.m_PS );
+	if( FAILED( hr ) )
+		{ LOG << "Failed to create a D3D9 pixel shader"; goto cleanup; }
+	hr = D3DXGetShaderConstantTable( (const DWORD*) psbuf, &S.m_PSCT );
+	if( FAILED( hr ) )
+		{ LOG << "Failed to create a constant table for pixel shader"; goto cleanup; }
+	
+	return new D3D9Shader( S );
+	
+cleanup:
+	SAFE_RELEASE( S.m_VSCT );
+	SAFE_RELEASE( S.m_PSCT );
+	SAFE_RELEASE( S.m_VS );
+	SAFE_RELEASE( S.m_PS );
+	return NULL;
+}
+
 FINLINE D3DPRIMITIVETYPE conv_prim_type( EPrimitiveType pt )
 {
 	switch( pt )
@@ -472,5 +607,12 @@ void D3D9Renderer::SetTexture( int slot, ITexture* tex )
 		m_dev->SetSamplerState( slot, D3DSAMP_ADDRESSV, ( flags & TEXFLAGS_CLAMP_Y ) ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP );
 		m_dev->SetSamplerState( slot, D3DSAMP_SRGBTEXTURE, ( flags & TEXFLAGS_SRGB ) ? 1 : 0 );
 	}
+}
+
+void D3D9Renderer::SetShader( IShader* shd )
+{
+	SGRX_CAST( D3D9Shader*, S, shd );
+	m_dev->SetPixelShader( S ? S->m_PS : NULL );
+	m_dev->SetVertexShader( S ? S->m_VS : NULL );
 }
 

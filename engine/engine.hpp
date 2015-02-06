@@ -123,7 +123,10 @@ struct EXPORT IGame
 	virtual void OnDestroy(){}
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
-	virtual bool OnLoadTexture( const StringView& path, ByteArray& outdata, uint32_t& outusageflags );
+	virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
+	virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
+	virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
+	virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
 };
 
 
@@ -191,6 +194,73 @@ struct EXPORT TextureHandle : Handle< SGRX_Texture >
 	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
+struct EXPORT SGRX_Shader
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	struct IShader* m_shader;
+	int32_t m_refcount;
+	String m_key;
+	
+private:
+	void Destroy();
+};
+
+struct EXPORT ShaderHandle : Handle< SGRX_Shader >
+{
+	ShaderHandle() : Handle(){}
+	ShaderHandle( const ShaderHandle& h ) : Handle( h ){}
+	ShaderHandle( SGRX_Shader* shdr ) : Handle( shdr ){}
+};
+
+#define INDEX_16 0
+#define INDEX_32 1
+
+/* mesh data flags */
+#define MDF_INDEX_32      0x01
+#define MDF_TRIANGLESTRIP 0x02
+#define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
+#define MDF_TRANSPARENT   0x10 /* mesh is required to be rendered transparent */
+#define MDF_UNLIT         0x20 /* mesh doesn't require the lighting passes to be applied */
+#define MDF_NOCULL        0x40 /* mesh has culling disabled */
+#define MDF_SKINNED       0x80 /* mesh has bone data (name, offset, parent id) */
+
+#define MDF__PUBFLAGMASK (0x01|0x02|0x10|0x20|0x40|0x80)
+#define MDF__PUBFLAGBASE  0
+
+#define NUM_MATERIAL_TEXTURES 8
+#define MAX_MESH_PARTS 16
+#define MAX_MESH_BONES 32
+#define VDECL_MAX_ITEMS 10
+
+#define VDECLTYPE_FLOAT1 0
+#define VDECLTYPE_FLOAT2 1
+#define VDECLTYPE_FLOAT3 2
+#define VDECLTYPE_FLOAT4 3
+#define VDECLTYPE_BCOL4 4
+
+/* usage type | expected data type */
+#define VDECLUSAGE_POSITION 0 /* float3 */
+#define VDECLUSAGE_COLOR    1 /* float3/float4/bcol4 */
+#define VDECLUSAGE_NORMAL   2 /* float3 */
+#define VDECLUSAGE_TANGENT  3 /* float4 */
+#define VDECLUSAGE_BLENDWT  4 /* preferably bcol4 */
+#define VDECLUSAGE_BLENDIDX 5 /* preferably bcol4 (will be passed as ubyte4, not float4) */
+#define VDECLUSAGE_TEXTURE0 6 /* any .. */
+#define VDECLUSAGE_TEXTURE1 7
+#define VDECLUSAGE_TEXTURE2 8
+#define VDECLUSAGE_TEXTURE3 9
+
+struct VDeclInfo
+{
+	uint8_t offsets[ VDECL_MAX_ITEMS ];
+	uint8_t types  [ VDECL_MAX_ITEMS ];
+	uint8_t usages [ VDECL_MAX_ITEMS ];
+	uint8_t count;
+	uint8_t size;
+};
+
 enum EPrimitiveType
 {
 	PT_None,
@@ -250,6 +320,8 @@ EXPORT int GR_GetHeight();
 
 EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
+
+EXPORT ShaderHandle GR_GetShader( const StringView& path );
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
 EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );

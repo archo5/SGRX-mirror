@@ -9,6 +9,7 @@
 #define USE_VEC3
 #define USE_MAT4
 #define USE_ARRAY
+#define USE_HASHTABLE
 
 #define INCLUDE_REAL_SDL
 #include "engine_int.hpp"
@@ -32,6 +33,9 @@ uint32_t GetTimeMsec()
 // GLOBALS
 //
 
+typedef HashTable< StringView, SGRX_Texture* > TextureHashTable;
+typedef HashTable< StringView, SGRX_Shader* > ShaderHashTable;
+
 static bool g_Running = true;
 static SDL_Window* g_Window = NULL;
 static void* g_GameLib = NULL;
@@ -39,6 +43,7 @@ static IGame* g_Game = NULL;
 static uint32_t g_GameTime = 0;
 static ActionMap* g_ActionMap;
 static Vec2 g_CursorPos = {0,0};
+static Array< IScreen* > g_OverlayScreens;
 
 static RenderSettings g_RenderSettings = { 1024, 576, false, false, false };
 static const char* g_RendererName = "sgrx-render-d3d9";
@@ -49,7 +54,8 @@ static pfnRndCreateRenderer g_RfnCreateRenderer = NULL;
 static IRenderer* g_Renderer = NULL;
 static BatchRenderer* g_BatchRenderer = NULL;
 static FontRenderer* g_FontRenderer = NULL;
-static Array< IScreen* > g_OverlayScreens;
+static TextureHashTable* g_Textures = NULL;
+static ShaderHashTable* g_Shaders = NULL;
 
 
 //
@@ -305,9 +311,66 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	return true;
 }
 
+bool IGame::OnLoadShader( const StringView& type, const StringView& key, String& outdata )
+{
+	if( !key )
+		return false;
+	
+	if( key.part( 0, 4 ) == "mtl:" )
+	{
+		int i = 0;
+		String prepend;
+		StringView tpl, mtl, cur, it = key.part( 4 );
+		while( it.size() )
+		{
+			i++;
+			cur = it.until( ":" );
+			if( i == 1 )
+				mtl = it;
+			else if( i == 2 )
+				tpl = it;
+			else
+			{
+				prepend.append( STRLIT_BUF( "#define " ) );
+				prepend.append( it.data(), it.size() );
+				prepend.append( STRLIT_BUF( "\n" ) );
+			}
+			it.skip( cur.size() + 1 );
+		}
+		
+		String tpl_data, mtl_data;
+		if( !OnLoadShaderFile( type, String_Concat( "tpl_", tpl ), tpl_data ) )
+			return false;
+		if( !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
+			return false;
+		outdata = String_Replace( tpl_data, "__CODE__", mtl_data );
+		return true;
+	}
+	return OnLoadShaderFile( type, key, outdata );
+}
+
+bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata )
+{
+	String filename = "shaders_";
+	filename.append( type.data(), type.size() );
+	filename.push_back( '/' );
+	filename.append( path.data(), path.size() );
+	filename.append( STRLIT_BUF( ".shd" ) );
+	
+	if( !LoadTextFile( filename, outdata ) )
+		return false;
+	return ParseShaderIncludes( type, path, outdata );
+}
+
+bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata )
+{
+	return true;
+}
+
 
 void SGRX_Texture::Destroy()
 {
+	g_Textures->unset( m_key );
 	m_texture->Destroy();
 	delete this;
 }
@@ -356,6 +419,14 @@ bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, i
 }
 
 
+void SGRX_Shader::Destroy()
+{
+	g_Shaders->unset( m_key );
+	m_shader->Destroy();
+	delete this;
+}
+
+
 int GR_GetWidth(){ return g_RenderSettings.width; }
 int GR_GetHeight(){ return g_RenderSettings.height; }
 
@@ -380,6 +451,10 @@ TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 
 TextureHandle GR_GetTexture( const StringView& path )
 {
+	SGRX_Texture* tx = g_Textures->getcopy( path );
+	if( tx )
+		return tx;
+	
 	uint32_t usageflags;
 	ByteArray imgdata;
 	if( !g_Game->OnLoadTexture( path, imgdata, usageflags ) )
@@ -406,9 +481,57 @@ TextureHandle GR_GetTexture( const StringView& path )
 	tex->m_refcount = 0;
 	tex->m_texture = itex;
 	tex->m_key.append( path.data(), path.size() );
+	g_Textures->set( tex->m_key, tex );
 	
 	LOG << "Loaded texture: " << path;
 	return tex;
+}
+
+
+ShaderHandle GR_GetShader( const StringView& path )
+{
+	SGRX_Shader* sh = g_Shaders->getcopy( path );
+	if( sh )
+		return sh;
+	
+	String code;
+	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderType, path, code ) )
+	{
+		LOG_ERROR << LOG_DATE << "  Could not find shader: " << path;
+		return ShaderHandle();
+	}
+	
+	IShader* ishd;
+	if( g_Renderer->GetInfo().compileShaders )
+	{
+		String errors;
+		ByteArray comp;
+		
+		if( !g_Renderer->CompileShader( code, comp, errors ) )
+		{
+			LOG_ERROR << LOG_DATE << "  Failed to compile shader: " << path;
+			LOG << errors;
+			LOG << "---";
+			return ShaderHandle();
+		}
+		
+		ishd = g_Renderer->CreateShader( comp );
+	}
+	else
+	{
+		// TODO: I know...
+		ByteArray bcode;
+		bcode.resize( code.size() );
+		memcpy( bcode.data(), code.data(), code.size() );
+		ishd = g_Renderer->CreateShader( bcode );
+	}
+	
+	SGRX_Shader* shd = new SGRX_Shader;
+	shd->m_shader = ishd;
+	shd->m_key = path;
+	
+	LOG << "Loaded shader: " << path;
+	return shd;
 }
 
 
@@ -615,6 +738,10 @@ static int init_graphics()
 	}
 	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
 	
+	g_Textures = new TextureHashTable();
+	g_Shaders = new ShaderHashTable();
+	LOG << LOG_DATE << "  Created renderer resource caches";
+	
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
 	LOG << LOG_DATE << "  Created batch renderer";
 	
@@ -632,6 +759,12 @@ static void free_graphics()
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;
+	
+	delete g_Shaders;
+	g_Shaders = NULL;
+	
+	delete g_Textures;
+	g_Textures = NULL;
 	
 	g_Renderer->Destroy();
 	g_Renderer = NULL;

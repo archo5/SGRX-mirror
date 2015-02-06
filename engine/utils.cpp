@@ -7,6 +7,7 @@
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
+#define USE_SERIALIZATION
 
 #include "utils.hpp"
 
@@ -155,19 +156,6 @@ const Mat4 Mat4::Identity =
 
 typedef const char CCH;
 
-static inline bool hexchar( char c )
-	{ return ( (c) >= '0' && (c) <= '9' ) ||
-	( (c) >= 'a' && (c) <= 'f' ) || ( (c) >= 'A' && (c) <= 'F' ); }
-static inline int gethex( char c )
-	{ return ( (c) >= '0' && (c) <= '9' ) ? ( (c) - '0' ) :
-	( ( (c) >= 'a' && (c) <= 'f' ) ? ( (c) - 'a' + 10 ) : ( (c) - 'A' + 10 ) ); }
-static inline bool decchar( char c ){ return c >= '0' && c <= '9'; }
-static inline int getdec( char c ){ return c - '0'; }
-static inline bool octchar( char c ){ return c >= '0' && c <= '7'; }
-static inline int getoct( char c ){ return c - '0'; }
-static inline bool binchar( char c ){ return c == '0' || c == '1'; }
-static inline int getbin( char c ){ return c - '0'; }
-
 static int strtonum_hex( CCH** at, CCH* end, int64_t* outi )
 {
 	int64_t val = 0;
@@ -313,7 +301,44 @@ int util_strtonum( CCH** at, CCH* end, int64_t* outi, double* outf )
 	return strtonum_dec( at, end, outi, outf );
 }
 
-float String_ParseFloat( const StringView& sv, bool* success )
+
+String String_Concat( const StringView& a, const StringView& b )
+{
+	String out;
+	out.resize( a.size() + b.size() );
+	memcpy( &out[0], a.data(), a.size() );
+	memcpy( &out[a.size()], b.data(), b.size() );
+	return out;
+}
+
+String String_Replace( const StringView& base, const StringView& sub, const StringView& rep )
+{
+	String out;
+	size_t at, cur = 0;
+	while( ( at = base.find_first_at( sub, cur ) ) != NOT_FOUND )
+	{
+		out.append( &base[ cur ], at - cur );
+		out.append( rep.data(), rep.size() );
+		cur = at + rep.size();
+	}
+	if( cur < base.size() )
+		out.append( &base[ cur ], base.size() - cur );
+	return out;
+}
+
+
+int64_t String_ParseInt( const StringView& sv, bool* success )
+{
+	int64_t val = 0;
+	double valdbl = 0;
+	const char* begin = sv.begin(), *end = sv.end();
+	int suc = util_strtonum( &begin, end, &val, &valdbl );
+	if( success )
+		*success = !!suc;
+	return suc == 2 ? valdbl : val;
+}
+
+double String_ParseFloat( const StringView& sv, bool* success )
 {
 	double val = 0;
 	const char* begin = sv.begin(), *end = sv.end();
@@ -619,6 +644,14 @@ struct _teststr_ { const void* p; int x; };
 inline bool operator == ( const _teststr_& a, const _teststr_& b ){ return a.p == b.p && a.x == b.x; }
 inline Hash HashVar( const _teststr_& v ){ return (int)v.p + v.x; }
 
+#define TESTSER_SIZE (1+8+4+(4+4+4))
+struct _testser_
+{
+	uint8_t a; int64_t b; float c; Vec3 d;
+	bool operator != ( const _testser_& o ) const { return a != o.a || b != o.b || c != o.c || d != o.d; }
+	template< class T > void Serialize( T& arch ){ if( T::IsText ) arch.marker( "TEST" ); arch << a << b << c << d; }
+};
+
 int TestSystems()
 {
 	HashTable< int, int > ht_ii;
@@ -632,13 +665,29 @@ int TestSystems()
 	
 	HashTable< _teststr_, int > ht_si;
 	_teststr_ tskey = { "test", 42 };
-	if( ht_si.size() != 0 ) return 501; // empty
-	if( ht_si.getcopy( tskey, 0 ) ) return 502; // miss
+	if( ht_si.size() != 0 ) return 551; // empty
+	if( ht_si.getcopy( tskey, 0 ) ) return 552; // miss
 	ht_si.set( tskey, 12345 );
-	if( ht_si.size() == 0 ) return 503; // not empty
-	if( ht_si.item(0).key.x != tskey.x || ht_si.item(0).value != 12345 ) return 504; // created item
-	if( !ht_si.getraw( tskey ) ) return 505; // can find item
-	if( ht_si.getcopy( tskey ) != 12345 ) return 506; // returns right value
+	if( ht_si.size() == 0 ) return 553; // not empty
+	if( ht_si.item(0).key.x != tskey.x || ht_si.item(0).value != 12345 ) return 554; // created item
+	if( !ht_si.getraw( tskey ) ) return 555; // can find item
+	if( ht_si.getcopy( tskey ) != 12345 ) return 556; // returns right value
+	
+	_testser_ dst, src = { 1, -2, 3, { 4, 5, 6 } };
+	ByteArray barr;
+	String carr;
+	ByteWriter( &barr ) << src;
+	if( barr.size() != TESTSER_SIZE ) return 601;
+	TextWriter( &carr ) << src;
+	if( !carr.size() ) return 602;
+	ByteReader br( &barr );
+	br << dst;
+	if( br.error ) return 603;
+	if( src != dst ) return 604;
+	TextReader tr( &carr );
+	tr << dst;
+	if( tr.error ) return 605;
+	if( src != dst ) return 606;
 	
 	return 0;
 }

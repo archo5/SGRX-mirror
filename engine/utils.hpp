@@ -19,6 +19,8 @@
 
 #define SGRX_CAST( t, to, from ) t to = (t) from
 #define UNUSED( x ) (void) x
+#define STRLIT_LEN( x ) (sizeof(x)-1)
+#define STRLIT_BUF( x ) x, STRLIT_LEN( x )
 
 
 #define SMALL_FLOAT 0.001f
@@ -48,6 +50,20 @@ inline float smoothlerp_oneway( float t, float a, float b ){ if( b == a ) return
 inline float smoothlerp_range( float t, float a, float b, float c, float d ){ return smoothlerp_oneway( t, a, b ) * smoothlerp_oneway( t, d, c ); }
 inline float randf(){ return (float) rand() / (float) RAND_MAX; }
 inline float randf11(){ return randf() * 2 - 1; }
+
+
+inline bool hexchar( char c )
+	{ return ( (c) >= '0' && (c) <= '9' ) ||
+	( (c) >= 'a' && (c) <= 'f' ) || ( (c) >= 'A' && (c) <= 'F' ); }
+inline int gethex( char c )
+	{ return ( (c) >= '0' && (c) <= '9' ) ? ( (c) - '0' ) :
+	( ( (c) >= 'a' && (c) <= 'f' ) ? ( (c) - 'a' + 10 ) : ( (c) - 'A' + 10 ) ); }
+inline bool decchar( char c ){ return c >= '0' && c <= '9'; }
+inline int getdec( char c ){ return c - '0'; }
+inline bool octchar( char c ){ return c >= '0' && c <= '7'; }
+inline int getoct( char c ){ return c - '0'; }
+inline bool binchar( char c ){ return c == '0' || c == '1'; }
+inline int getbin( char c ){ return c - '0'; }
 
 
 //
@@ -124,6 +140,12 @@ struct EXPORT Vec2
 	FINLINE void Normalize(){ *this = Normalized(); }
 	FINLINE Vec2 Rotate( float angle ) const { return Rotate( Vec2::Create( cos( angle ), sin( angle ) ) ); }
 	FINLINE Vec2 Rotate( const Vec2& dir ) const { return Vec2::Create( x * dir.x - y * dir.y, x * dir.y + y * dir.x ); }
+	template< class T > void Serialize( T& arch )
+	{
+		if( T::IsText )
+			arch.marker( "Vec2" );
+		arch << x << y;
+	}
 #endif
 };
 
@@ -153,6 +175,8 @@ struct EXPORT Vec3
 	static FINLINE Vec3 Create( float x ){ Vec3 v = { x, x, x }; return v; }
 	static FINLINE Vec3 Create( float x, float y, float z ){ Vec3 v = { x, y, z }; return v; }
 	static FINLINE Vec3 CreateFromPtr( const float* x ){ Vec3 v = { x[0], x[1], x[2] }; return v; }
+	static FINLINE Vec3 Min( const Vec3& a, const Vec3& b ){ return Create( TMIN( a.x, b.x ), TMIN( a.y, b.y ), TMIN( a.z, b.z ) ); }
+	static FINLINE Vec3 Max( const Vec3& a, const Vec3& b ){ return Create( TMAX( a.x, b.x ), TMAX( a.y, b.y ), TMAX( a.z, b.z ) ); }
 	
 	FINLINE Vec3 operator + () const { return *this; }
 	FINLINE Vec3 operator - () const { Vec3 v = { -x, -y, -z }; return v; }
@@ -197,6 +221,13 @@ struct EXPORT Vec3
 		return v;
 	}
 	FINLINE void Normalize(){ *this = Normalized(); }
+	template< class T > void Serialize( T& arch )
+	{
+		if( T::IsText )
+			arch.marker( "Vec3" );
+		arch << x << y << z;
+	}
+	FINLINE void Set( float _x, float _y, float _z ){ x = _x; y = _y; z = _z; }
 #endif
 };
 
@@ -217,6 +248,82 @@ FINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 	};
 	return out;
 }
+#endif
+
+
+//
+// VEC4
+//
+
+struct EXPORT Vec4
+{
+	float x, y, z;
+	
+#ifdef USE_VEC4
+	static FINLINE Vec4 Create( float x ){ Vec4 v = { x, x, x, x }; return v; }
+	static FINLINE Vec4 Create( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; return v; }
+	static FINLINE Vec4 CreateFromPtr( const float* x ){ Vec4 v = { x[0], x[1], x[2], x[3] }; return v; }
+	
+	FINLINE Vec4 operator + () const { return *this; }
+	FINLINE Vec4 operator - () const { Vec4 v = { -x, -y, -z, -w }; return v; }
+	
+	FINLINE Vec4 operator + ( const Vec4& o ) const { Vec4 v = { x + o.x, y + o.y, z + o.z, w + o.w }; return v; }
+	FINLINE Vec4 operator - ( const Vec4& o ) const { Vec4 v = { x - o.x, y - o.y, z - o.z, w - o.w }; return v; }
+	FINLINE Vec4 operator * ( const Vec4& o ) const { Vec4 v = { x * o.x, y * o.y, z * o.z, w * o.w }; return v; }
+	FINLINE Vec4 operator / ( const Vec4& o ) const { Vec4 v = { x / o.x, y / o.y, z / o.z, w / o.w }; return v; }
+	
+	FINLINE Vec4 operator + ( float f ) const { Vec4 v = { x + f, y + f, z + f, w + f }; return v; }
+	FINLINE Vec4 operator - ( float f ) const { Vec4 v = { x - f, y - f, z - f, w - f }; return v; }
+	FINLINE Vec4 operator * ( float f ) const { Vec4 v = { x * f, y * f, z * f, w * f }; return v; }
+	FINLINE Vec4 operator / ( float f ) const { Vec4 v = { x / f, y / f, z / f, w / f }; return v; }
+	
+	FINLINE Vec4& operator += ( const Vec4& o ){ x += o.x; y += o.y; z += o.z; w += o.w; return *this; }
+	FINLINE Vec4& operator -= ( const Vec4& o ){ x -= o.x; y -= o.y; z -= o.z; w -= o.w; return *this; }
+	FINLINE Vec4& operator *= ( const Vec4& o ){ x *= o.x; y *= o.y; z *= o.z; w *= o.w; return *this; }
+	FINLINE Vec4& operator /= ( const Vec4& o ){ x /= o.x; y /= o.y; z /= o.z; w /= o.w; return *this; }
+	
+	FINLINE Vec4& operator += ( float f ){ x += f; y += f; z += f; w += f; return *this; }
+	FINLINE Vec4& operator -= ( float f ){ x -= f; y -= f; z -= f; w -= f; return *this; }
+	FINLINE Vec4& operator *= ( float f ){ x *= f; y *= f; z *= f; w *= f; return *this; }
+	FINLINE Vec4& operator /= ( float f ){ x /= f; y /= f; z /= f; w /= f; return *this; }
+	
+	FINLINE bool operator == ( const Vec4& o ) const { return x == o.x && y == o.y && z == o.z && w == o.w; }
+	FINLINE bool operator != ( const Vec4& o ) const { return x != o.x || y != o.y || z != o.z || w != o.w; }
+	
+	FINLINE bool IsZero() const { return x == 0 && y == 0 && z == 0 && w == 0; }
+	FINLINE bool NearZero() const { return fabs(x) < SMALL_FLOAT && fabs(y) < SMALL_FLOAT && fabs(z) < SMALL_FLOAT && fabs(w) < SMALL_FLOAT; }
+	FINLINE float LengthSq() const { return x * x + y * y + z * z + w * w; }
+	FINLINE float Length() const { return sqrtf( LengthSq() ); }
+	FINLINE Vec4 Normalized() const
+	{
+		float lensq = LengthSq();
+		if( lensq == 0 )
+		{
+			Vec4 v = { 0, 0, 0, 0 };
+			return v;
+		}
+		float invlen = 1.0f / sqrtf( lensq );
+		Vec4 v = { x * invlen, y * invlen, z * invlen, w * invlen };
+		return v;
+	}
+	FINLINE void Normalize(){ *this = Normalized(); }
+	template< class T > void Serialize( T& arch )
+	{
+		if( T::IsText )
+			arch.marker( "Vec4" );
+		arch << x << y << z << w;
+	}
+	FINLINE void Set( float _x, float _y, float _z, float _w ){ x = _x; y = _y; z = _z; w = _w; }
+#endif
+};
+
+#ifdef USE_VEC4
+FINLINE Vec4 operator + ( float f, const Vec4& v ){ Vec4 out = { f + v.x, f + v.y, f + v.z, f + v.w }; return out; }
+FINLINE Vec4 operator - ( float f, const Vec4& v ){ Vec4 out = { f - v.x, f - v.y, f - v.z, f - v.w }; return out; }
+FINLINE Vec4 operator * ( float f, const Vec4& v ){ Vec4 out = { f * v.x, f * v.y, f * v.z, f * v.w }; return out; }
+FINLINE Vec4 operator / ( float f, const Vec4& v ){ Vec4 out = { f / v.x, f / v.y, f / v.z, f / v.w }; return out; }
+
+FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w; }
 #endif
 
 
@@ -390,6 +497,14 @@ struct EXPORT Mat4
 		m[3][2] = -znear * zfar / ( zfar - znear );
 		m[3][0] = m[3][1] = m[3][3] = 0;
 	}
+	
+	template< class T > void Serialize( T& arch )
+	{
+		if( T::IsText )
+			arch.marker( "Mat4" );
+		for( int i = 0; i < 16; ++i )
+			arch << a[ i ];
+	}
 #endif
 };
 
@@ -418,6 +533,10 @@ struct Handle
 //
 // ARRAY
 //
+
+#ifdef USE_SERIALIZATION
+#define USE_ARRAY
+#endif
 
 #define NOT_FOUND ((size_t)-1)
 
@@ -592,9 +711,20 @@ typedef Array< uint8_t > ByteArray;
 // STRINGS
 //
 
-typedef Array< char > String;
-
 FINLINE size_t StringLength( const char* str ){ const char* o = str; while( *str ) str++; return str - o; }
+
+struct String : Array< char >
+{
+#ifdef USE_ARRAY
+	String() : Array(){}
+	String( const char* str ) : Array( str, StringLength( str ) ){}
+	String( const char* str, size_t size ) : Array( str, size ){}
+	String( const String& s ) : Array( s ){}
+	
+	FINLINE void append( const char* str, size_t sz ){ Array::append( str, sz ); }
+	FINLINE void append( const char* str ){ append( str, StringLength( str ) ); }
+#endif
+};
 
 struct StringView
 {
@@ -613,7 +743,7 @@ struct StringView
 	FINLINE const char* begin() const { return m_str; }
 	FINLINE const char* end() const { return m_str + m_size; }
 	
-	FINLINE char operator [] ( size_t i ) const { assert( i < m_size ); return m_str[ i ]; }
+	FINLINE const char& operator [] ( size_t i ) const { assert( i < m_size ); return m_str[ i ]; }
 	
 	FINLINE bool operator == ( const StringView& sv ) const { return m_size == sv.m_size && !memcmp( m_str, sv.m_str, m_size ); }
 	FINLINE bool operator != ( const StringView& sv ) const { return !( *this == sv ); }
@@ -635,6 +765,15 @@ struct StringView
 			if( m_str[i] == c )
 				return true;
 		return false;
+	}
+	
+	FINLINE StringView part( size_t start, size_t count = NOT_FOUND ) const
+	{
+		if( start > m_size )
+			start = m_size;
+		if( start + count > m_size )
+			count = m_size - start;
+		return StringView( m_str + start, count );
 	}
 	
 	FINLINE StringView from( const StringView& substr ) const
@@ -697,11 +836,15 @@ struct StackString
 typedef StackString< ENGINE_MAX_PATH > StackPath;
 
 
+EXPORT String String_Concat( const StringView& a, const StringView& b );
+EXPORT String String_Replace( const StringView& base, const StringView& sub, const StringView& rep );
+
 //
 // PARSING
 //
 
-EXPORT float String_ParseFloat( const StringView& sv, bool* success = NULL );
+EXPORT int64_t String_ParseInt( const StringView& sv, bool* success = NULL );
+EXPORT double String_ParseFloat( const StringView& sv, bool* success = NULL );
 EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL );
 EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
 
@@ -1027,6 +1170,186 @@ struct HashTable
 };
 
 typedef HashTable< String, String > StringTable;
+
+
+//
+// SERIALIZATION
+//
+
+#ifdef USE_SERIALIZATION
+struct ByteReader
+{
+	ByteReader( ByteArray* ba, size_t p = 0 ) : input( ba ), pos( p ), error( false ){}
+	enum { IsWriter = 0, IsReader = 1, IsText = 0, IsBinary = 1 };
+	FINLINE ByteReader& operator << ( int8_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( uint8_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( int16_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( uint16_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( int32_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( uint32_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( int64_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( uint64_t& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( float& v ){ _read( &v, sizeof(v) ); return *this; }
+	FINLINE ByteReader& operator << ( double& v ){ _read( &v, sizeof(v) ); return *this; }
+	template< class T > ByteReader& operator << ( T& v ){ v.Serialize( *this ); return *this; }
+	FINLINE ByteReader& memory( void* ptr, size_t sz ){ return _read( ptr, sz ); }
+	FINLINE ByteReader& marker( const char* str ){ return marker( str, StringLength( str ) ); }
+	FINLINE ByteReader& marker( const char* ptr, size_t sz )
+	{
+		if( pos >= input->size() || pos + sz > input->size() )
+			error = true;
+		else if( 0 != memcmp( ptr, &input->at( pos ), sz ) )
+			error = true;
+		else
+			pos += sz;
+		return *this;
+	}
+	FINLINE ByteReader& padding( size_t sz )
+	{
+		if( pos >= input->size() || pos + sz > input->size() )
+			error = true;
+		else
+			pos += sz;
+		return *this;
+	}
+	FINLINE ByteReader& _read( void* ptr, size_t sz )
+	{
+		if( pos >= input->size() || pos + sz > input->size() )
+			error = true;
+		else
+		{
+			memcpy( ptr, &input->at( pos ), sz );
+			pos += sz;
+		}
+		return *this;
+	}
+	
+	ByteArray* input;
+	size_t pos;
+	bool error;
+};
+
+struct ByteWriter
+{
+	ByteWriter( ByteArray* str ) : output( str ){}
+	enum { IsWriter = 1, IsReader = 0, IsText = 0, IsBinary = 1 };
+	FINLINE ByteWriter& operator << ( int8_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( uint8_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( int16_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( uint16_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( int32_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( uint32_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( int64_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( uint64_t& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( float& v ){ _write( &v, sizeof(v) ); return *this; }
+	FINLINE ByteWriter& operator << ( double& v ){ _write( &v, sizeof(v) ); return *this; }
+	template< class T > ByteWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
+	FINLINE ByteWriter& memory( void* ptr, size_t sz ){ return _write( ptr, sz ); }
+	FINLINE ByteWriter& marker( const char* str ){ return marker( str, StringLength( str ) ); }
+	FINLINE ByteWriter& marker( const void* ptr, size_t sz ){ output->append( (uint8_t*) ptr, sz ); return *this; }
+	FINLINE ByteWriter& padding( size_t sz ){ output->reserve( output->size() + sz ); while( sz --> 0 ) output->push_back( 0 ); return *this; }
+	FINLINE ByteWriter& _write( const void* ptr, size_t sz ){ output->append( (uint8_t*) ptr, sz ); return *this; }
+	
+	ByteArray* output;
+};
+
+struct TextReader
+{
+	TextReader( String* str, size_t p = 0 ) : input( str ), pos( p ), error( false ){}
+	enum { IsWriter = 0, IsReader = 1, IsText = 1, IsBinary = 0 };
+	FINLINE TextReader& operator << ( int8_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint8_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( int16_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint16_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( int32_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint32_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( int64_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint64_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( float& v ){ v = String_ParseFloat( _read() ); return *this; }
+	FINLINE TextReader& operator << ( double& v ){ v = String_ParseFloat( _read() ); return *this; }
+	template< class T > TextReader& operator << ( T& v ){ v.Serialize( *this ); return *this; }
+	TextReader& memory( void* ptr, size_t sz )
+	{
+		StringView it = _read();
+		if( sz * 2 != it.size() )
+			error = true;
+		else
+		{
+			uint8_t* p = (uint8_t*) ptr;
+			for( size_t i = 0; i < sz; ++i )
+			{
+				int hx0 = gethex( it[ i * 2 ] );
+				int hx1 = gethex( it[ i * 2 + 1 ] );
+				if( hx0 < 0 || hx0 >= 16 || hx1 < 0 || hx1 >= 16 )
+				{
+					error = true;
+					return *this;
+				}
+				p[ i ] = ( hx0 << 4 ) | hx1;
+			}
+		}
+		return *this;
+	}
+	FINLINE TextReader& marker( const char* str ){ return marker( str, StringLength( str ) ); }
+	FINLINE TextReader& marker( const void* ptr, size_t sz ){ if( StringView( (const char*) ptr, sz ) != _read() ) error = true; return *this; }
+	FINLINE TextReader& padding( size_t sz ){ UNUSED( sz ); return *this; }
+	FINLINE StringView _read()
+	{
+		if( pos >= input->size() )
+		{
+			error = true;
+			return StringView();
+		}
+		else
+		{
+			StringView sv = StringView( &input->at( pos ), input->size() - pos ).until( "\n" );
+			if( sv.size() == 0 )
+				error = true;
+			else
+				pos += sv.size() + 1;
+			return sv;
+		}
+	}
+	
+	String* input;
+	size_t pos;
+	bool error;
+};
+
+struct TextWriter
+{
+	TextWriter( String* str ) : output( str ){}
+	enum { IsWriter = 1, IsReader = 0, IsText = 1, IsBinary = 0 };
+	FINLINE TextWriter& operator << ( int8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( int16_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint16_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( int32_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint32_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( int64_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%" PRId64 "\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint64_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%" PRIu64 "\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( float& v ){ char bfr[ 32 ]; sprintf( bfr, "%f\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( double& v ){ char bfr[ 32 ]; sprintf( bfr, "%f\n", v ); _write( bfr ); return *this; }
+	template< class T > TextWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
+	TextWriter& memory( void* ptr, size_t sz )
+	{
+		char bfr[ 32 ];
+		uint8_t* p = (uint8_t*) ptr;
+		for( size_t i = 0; i < sz; ++i )
+		{
+			sprintf( bfr, "%02X", (int) p[ i ] );
+			_write( bfr );
+		}
+		return *this;
+	}
+	FINLINE TextWriter& marker( const char* str ){ return marker( str, StringLength( str ) ); }
+	FINLINE TextWriter& marker( const void* ptr, size_t sz ){ output->append( (char*) ptr, sz ); output->push_back( '\n' ); return *this; }
+	FINLINE TextWriter& padding( size_t sz ){ UNUSED( sz ); return *this; }
+	FINLINE TextWriter& _write( const void* ptr ){ output->append( (char*) ptr, StringLength( (char*) ptr ) ); return *this; }
+	
+	String* output;
+};
+#endif
 
 
 //
