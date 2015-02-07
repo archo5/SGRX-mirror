@@ -119,10 +119,12 @@ struct EXPORT IRenderer
 	
 	virtual bool SetRenderTarget( TextureHandle rt ) = 0;
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex ) = 0;
-	virtual bool SetRenderPasses( SGRX_RenderPass* passes, size_t count ) = 0;
+	virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
 	virtual void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport ) = 0;
 	
 	RenderStats m_stats;
+	RenderSettings m_currSettings;
+	Array< SGRX_RenderPass > m_renderPasses;
 	
 	bool m_inDebugDraw;
 	bool m_debugDrawClipWorld;

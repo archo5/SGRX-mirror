@@ -114,10 +114,7 @@ struct D3D9Texture : SGRX_ITexture
 	{
 		m_isRenderTexture = isRenderTexture;
 	}
-	~D3D9Texture()
-	{
-		SAFE_RELEASE( m_ptr.base );
-	}
+	~D3D9Texture();
 	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
 	{
@@ -147,6 +144,9 @@ struct D3D9Texture : SGRX_ITexture
 		
 		return true;
 	}
+	
+	bool OnDeviceLost(){ return true; } // TODO
+	bool OnDeviceReset(){ return true; }
 };
 
 struct D3D9RenderTexture : D3D9Texture
@@ -210,11 +210,7 @@ struct D3D9Mesh : SGRX_IMesh
 	struct D3D9Renderer* m_renderer;
 	
 	D3D9Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ){}
-	~D3D9Mesh()
-	{
-		SAFE_RELEASE( m_VB );
-		SAFE_RELEASE( m_IB );
-	}
+	~D3D9Mesh();
 	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
 	{
 		return InitVertexBuffer( size ) && UpdateVertexData( data, size, vd, tristrip );
@@ -368,7 +364,7 @@ struct D3D9Renderer : IRenderer
 	
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex );
 	
-	bool SetRenderPasses( SGRX_RenderPass* passes, size_t count );
+	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	
 	void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport );
 	uint32_t _RS_Cull_Camera_MeshList();
@@ -407,12 +403,11 @@ struct D3D9Renderer : IRenderer
 	void MI_ApplyConstants( SGRX_MeshInstance* MI );
 	void Viewport_Apply( int downsample );
 	
+	// state
 	TextureHandle m_currentRT;
 	bool m_dbg_rt;
 	
 	// helpers
-	RenderSettings m_currSettings;
-	Array< SGRX_RenderPass > m_renderPasses;
 	RTData m_drd;
 	
 	SGRX_IShader* m_sh_pp_final;
@@ -420,6 +415,10 @@ struct D3D9Renderer : IRenderer
 	SGRX_IShader* m_sh_pp_blur_h;
 	SGRX_IShader* m_sh_pp_blur_v;
 	SGRX_IShader* m_sh_debug_draw;
+	
+	// storage
+	HashTable< D3D9Texture*, bool > m_ownTextures;
+	HashTable< D3D9Mesh*, bool > m_ownMeshes;
 	
 	// specific
 	IDirect3DDevice9* m_dev;
@@ -607,6 +606,12 @@ void D3D9Renderer::SetViewMatrix( const Mat4& mtx )
 }
 
 
+D3D9Texture::~D3D9Texture()
+{
+	m_renderer->m_ownTextures.unset( this );
+	SAFE_RELEASE( m_ptr.base );
+}
+
 SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 {
 	int mip, side;
@@ -653,6 +658,7 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		T->m_renderer = this;
 		T->m_info = *texinfo;
 		T->m_ptr.tex2d = d3dtex;
+		m_ownTextures.set( T, true );
 		return T;
 	}
 	else if( texinfo->type == TEXTYPE_CUBE )
@@ -692,6 +698,7 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		T->m_renderer = this;
 		T->m_info = *texinfo;
 		T->m_ptr.cube = d3dtex;
+		m_ownTextures.set( T, true );
 		return T;
 	}
 	
@@ -793,6 +800,7 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	RT->DS = DS;
 	RT->DT = DT;
 	RT->DSS = DSS;
+	m_ownTextures.set( RT, true );
 	return RT;
 	
 cleanup:
@@ -972,10 +980,18 @@ SGRX_IVertexDecl* D3D9Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 	
 	D3D9VertexDecl* vdecl = new D3D9VertexDecl;
 	vdecl->m_vdecl = VD;
+	vdecl->m_info = vdinfo;
 	vdecl->m_renderer = this;
 	return vdecl;
 }
 
+
+D3D9Mesh::~D3D9Mesh()
+{
+	m_renderer->m_ownMeshes.unset( this );
+	SAFE_RELEASE( m_VB );
+	SAFE_RELEASE( m_IB );
+}
 
 bool D3D9Mesh::InitVertexBuffer( size_t size )
 {
@@ -1030,7 +1046,8 @@ bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, VertexDeclHandle
 		return false;
 	}
 	
-	return 1;
+	m_vertexDecl = vd;
+	return true;
 }
 
 bool D3D9Mesh::UpdateIndexData( const void* data, size_t size )
@@ -1057,7 +1074,7 @@ bool D3D9Mesh::UpdateIndexData( const void* data, size_t size )
 		return false;
 	}
 	
-	return 1;
+	return true;
 }
 
 bool D3D9Mesh::OnDeviceLost()
@@ -1153,6 +1170,7 @@ SGRX_IMesh* D3D9Renderer::CreateMesh()
 {
 	D3D9Mesh* mesh = new D3D9Mesh;
 	mesh->m_renderer = this;
+	m_ownMeshes.set( mesh, true );
 	return mesh;
 }
 
@@ -1208,14 +1226,33 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 
 
 
-bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, size_t count )
+bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 {
-	// TODO validate
+	for( int i = 0; i < count; ++i )
+	{
+		SGRX_RenderPass& PASS = passes[ i ];
+		if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT && PASS.type != RPT_SCREEN )
+		{
+			LOG_ERROR << "Invalid type for pass " << i;
+			return false;
+		}
+		if( !PASS.shader_name )
+		{
+			LOG_ERROR << "No shader name for pass " << i;
+			return false;
+		}
+	}
 	
 	Array< SGRX_RenderPass > oldpasses = m_renderPasses;
 	m_renderPasses = Array< SGRX_RenderPass >( passes, count );
 	
-	// TODO reload own shader
+	for( int i = 0; i < (int) m_renderPasses.size(); ++i )
+	{
+		SGRX_RenderPass& PASS = m_renderPasses[ i ];
+		if( PASS.type == RPT_SCREEN )
+			PASS._shader = GR_GetShader( PASS.shader_name );
+	}
+	
 	// TODO reload mesh shaders
 	
 	return true;
@@ -1342,7 +1379,7 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	
 	Viewport_Apply( 1 );
 	
-	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0, 1.0f, 0 );
+	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff00ff00, 1.0f, 0 );
 	
 	/* upload unchanged data */
 	VS_SetMat4( 0, CAM.mView );
@@ -1963,15 +2000,51 @@ bool D3D9Renderer::ResetDevice()
 {
 	D3DPRESENT_PARAMETERS npp;
 	
+	for( size_t i = 0; i < m_ownMeshes.size(); ++i )
+	{
+		D3D9Mesh* mesh = m_ownMeshes.item( i ).key;
+		if( !mesh->OnDeviceLost() )
+		{
+			LOG_ERROR << "Failed to prepare for resetting mesh " << mesh << " (" << mesh->m_key << ")";
+		}
+	}
+	for( size_t i = 0; i < m_ownTextures.size(); ++i )
+	{
+		D3D9Texture* tex = m_ownTextures.item( i ).key;
+		if( !tex->OnDeviceLost() )
+		{
+			LOG_ERROR << "Failed to prepare for resetting texture " << tex << " (" << tex->m_key << ")";
+		}
+	}
+	
 	/* reset */
 	npp = m_params;
 	
 	if( FAILED( m_dev->Reset( &npp ) ) )
 	{
 		LOG_ERROR << "Failed to reset D3D9 device";
+		return false;
+	}
+	
+	for( size_t i = 0; i < m_ownMeshes.size(); ++i )
+	{
+		D3D9Mesh* mesh = m_ownMeshes.item( i ).key;
+		if( !mesh->OnDeviceReset() )
+		{
+			LOG_ERROR << "Failed to restore after resetting mesh " << mesh << " (" << mesh->m_key << ")";
+		}
+	}
+	for( size_t i = 0; i < m_ownTextures.size(); ++i )
+	{
+		D3D9Texture* tex = m_ownTextures.item( i ).key;
+		if( !tex->OnDeviceReset() )
+		{
+			LOG_ERROR << "Failed to restore after resetting texture " << tex << " (" << tex->m_key << ")";
+		}
 	}
 	
 	_ss_reset_states( m_dev, m_params.BackBufferWidth, m_params.BackBufferHeight );
+	return true;
 }
 
 void D3D9Renderer::ResetViewport()

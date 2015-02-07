@@ -605,7 +605,7 @@ struct SGRX_RenderPass
 	int16_t maxruns;
 	uint16_t pointlight_count;
 	uint8_t spotlight_count;
-	uint8_t num_inst_textures;
+//	uint8_t num_inst_textures;
 	StringView shader_name;
 	
 	// cache
@@ -678,11 +678,16 @@ EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
 EXPORT SceneHandle GR_CreateScene();
+EXPORT bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count );
 EXPORT void GR_RenderScene( SceneHandle sh, bool enablePostProcessing = true, SGRX_Viewport* viewport = NULL );
+EXPORT RenderStats& GR_GetRenderStats();
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
 EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
 EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+EXPORT void GR2D_SetColor( float r, float g, float b, float a = 1.0f );
+inline void GR2D_SetColor( float x, float a ){ GR2D_SetColor( x, x, x, a ); }
+inline void GR2D_SetColor( float x ){ GR2D_SetColor( x, x, x, x ); }
 EXPORT void GR2D_SetTextCursor( float x, float y );
 EXPORT Vec2 GR2D_GetTextCursor();
 EXPORT int GR2D_DrawTextLine( const StringView& text );

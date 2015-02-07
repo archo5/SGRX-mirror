@@ -319,7 +319,7 @@ String String_Replace( const StringView& base, const StringView& sub, const Stri
 	{
 		out.append( &base[ cur ], at - cur );
 		out.append( rep.data(), rep.size() );
-		cur = at + rep.size();
+		cur = at + sub.size();
 	}
 	if( cur < base.size() )
 		out.append( &base[ cur ], base.size() - cur );

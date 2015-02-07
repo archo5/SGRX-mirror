@@ -332,13 +332,13 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 			i++;
 			cur = it.until( ":" );
 			if( i == 1 )
-				mtl = it;
+				mtl = cur;
 			else if( i == 2 )
-				tpl = it;
+				tpl = cur;
 			else
 			{
 				prepend.append( STRLIT_BUF( "#define " ) );
-				prepend.append( it.data(), it.size() );
+				prepend.append( cur.data(), cur.size() );
 				prepend.append( STRLIT_BUF( "\n" ) );
 			}
 			it.skip( cur.size() + 1 );
@@ -364,7 +364,10 @@ bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, St
 	filename.append( STRLIT_BUF( ".shd" ) );
 	
 	if( !LoadTextFile( filename, outdata ) )
+	{
+		LOG_WARNING << "Failed to load shader file: " << filename << " (type=" << type << ", path=" << path << ")";
 		return false;
+	}
 	return ParseShaderIncludes( type, path, outdata );
 }
 
@@ -479,8 +482,20 @@ bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
 		return false;
 	int i;
 	for( i = 0; i < count; ++i )
+	{
 		m_parts[ i ] = parts[ i ];
-	for( i = 0; i < count; ++i )
+		for( size_t pass_id = 0; pass_id < g_Renderer->m_renderPasses.size(); ++pass_id )
+		{
+			const SGRX_RenderPass& PASS = g_Renderer->m_renderPasses[ pass_id ];
+			if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT )
+				continue;
+			
+			char bfr[ 1000 ] = {0};
+			snprintf( bfr, 999, "mtl:%.*s:%.*s", SHADER_NAME_LENGTH, m_parts[ i ].shader_name, (int) PASS.shader_name.size(), PASS.shader_name.data() );
+			m_parts[ i ].shaders[ pass_id ] = GR_GetShader( bfr );
+		}
+	}
+	for( ; i < count; ++i )
 		m_parts[ i ] = SGRX_MeshPart();
 	m_numParts = count;
 	return true;
@@ -609,9 +624,18 @@ SGRX_Scene::SGRX_Scene() :
 	fogMinDist( 0 ),
 	ambientLightColor( Vec3::Create( 0.1f ) ),
 	dirLightColor( Vec3::Create( 0.8f ) ),
-	dirLightDir( Vec3::Create( 1 ).Normalized() ),
+	dirLightDir( Vec3::Create( -1 ).Normalized() ),
 	m_refcount( 0 )
 {
+	camera.position = Vec3::Create( 10, 10, 10 );
+	camera.direction = -camera.position.Normalized();
+	camera.up = Vec3::Create( 0, 0, 1 );
+	camera.angle = 90;
+	camera.aspect = 1;
+	camera.aamix = 0.5f;
+	camera.znear = 1;
+	camera.zfar = 1000;
+	camera.UpdateMatrices();
 }
 
 SGRX_Scene::~SGRX_Scene()
@@ -767,6 +791,7 @@ ShaderHandle GR_GetShader( const StringView& path )
 	}
 	
 	shd->m_key = path;
+	shd->m_refcount = 0;
 	g_Shaders->set( shd->m_key, shd );
 	
 	LOG << "Loaded shader: " << path;
@@ -842,6 +867,31 @@ MeshHandle GR_GetMesh( const StringView& path )
 		return NULL;
 	}
 	
+	SGRX_MeshPart parts[ MAX_MESH_PARTS ] = {0};
+	for( int i = 0; i < mfd.numParts; ++i )
+	{
+		parts[ i ].vertexOffset = mfd.parts[ i ].vertexOffset;
+		parts[ i ].vertexCount = mfd.parts[ i ].vertexCount;
+		parts[ i ].indexOffset = mfd.parts[ i ].indexOffset;
+		parts[ i ].indexCount = mfd.parts[ i ].indexCount;
+		if( mfd.parts[ i ].materialStringSizes[0] >= SHADER_NAME_LENGTH )
+		{
+			LOG_WARNING << "Shader name for part " << i << " is too long";
+		}
+		else
+		{
+			strncpy( parts[ i ].shader_name, mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] );
+		}
+		for( int tid = 0; tid < mfd.parts[ i ].materialTextureCount; ++tid )
+		{
+			parts[ i ].textures[ tid ] = GR_GetTexture( StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] ) );
+		}
+	}
+	if( !mesh->SetPartData( parts, mfd.numParts ) )
+	{
+		LOG_WARNING << "Failed to set part data";
+	}
+	
 	mesh->m_key = path;
 	g_Meshes->set( mesh->m_key, mesh );
 	
@@ -858,9 +908,19 @@ SceneHandle GR_CreateScene()
 	return scene;
 }
 
+bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
+{
+	g_Renderer->SetRenderPasses( passes, count );
+}
+
 void GR_RenderScene( SceneHandle sh, bool enablePostProcessing, SGRX_Viewport* viewport )
 {
 	g_Renderer->RenderScene( sh, enablePostProcessing, viewport );
+}
+
+RenderStats& GR_GetRenderStats()
+{
+	return g_Renderer->m_stats;
 }
 
 
@@ -878,6 +938,11 @@ void GR2D_SetViewMatrix( const Mat4& mtx )
 bool GR2D_SetFont( const StringView& name, int pxsize )
 {
 	return g_FontRenderer->SetFont( name, pxsize );
+}
+
+void GR2D_SetColor( float r, float g, float b, float a )
+{
+	g_BatchRenderer->Col( r, g, b, a );
 }
 
 void GR2D_SetTextCursor( float x, float y )

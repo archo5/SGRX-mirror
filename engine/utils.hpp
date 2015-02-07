@@ -18,6 +18,7 @@
 #endif
 
 #define SGRX_CAST( t, to, from ) t to = (t) from
+#define SGRX_ARRAY_SIZE( arr ) (sizeof(arr)/sizeof((arr)[0]))
 #define UNUSED( x ) (void) x
 #define STRLIT_LEN( x ) (sizeof(x)-1)
 #define STRLIT_BUF( x ) x, STRLIT_LEN( x )
@@ -765,11 +766,11 @@ struct StringView
 	
 	FINLINE char ch() const { if( m_size ) return *m_str; else return 0; }
 	FINLINE bool contains( const StringView& substr ) const { return find_first_at( substr ) != NOT_FOUND; }
-	FINLINE size_t find_first_at( const StringView& substr, size_t defval = NOT_FOUND ) const
+	FINLINE size_t find_first_at( const StringView& substr, size_t from = 0, size_t defval = NOT_FOUND ) const
 	{
 		if( substr.m_size > m_size )
 			return defval;
-		for( size_t i = 0; i < m_size - substr.m_size; ++i )
+		for( size_t i = from; i < m_size - substr.m_size; ++i )
 			if( !memcmp( m_str + i, substr.m_str, substr.m_size ) )
 				return i;
 		return defval;
@@ -786,26 +787,26 @@ struct StringView
 	{
 		if( start > m_size )
 			start = m_size;
-		if( start + count > m_size )
+		if( count > m_size || start + count > m_size )
 			count = m_size - start;
 		return StringView( m_str + start, count );
 	}
 	
 	FINLINE StringView from( const StringView& substr ) const
 	{
-		size_t pos = find_first_at( substr, m_size );
+		size_t pos = find_first_at( substr, 0, m_size );
 		return StringView( m_str + pos, m_size - pos );
 	}
 	FINLINE StringView after( const StringView& substr ) const
 	{
 		if( substr.m_size > m_size )
 			return StringView( m_str + m_size, 0 );
-		size_t pos = find_first_at( substr, m_size - substr.m_size ) + substr.m_size;
+		size_t pos = find_first_at( substr, 0, m_size - substr.m_size ) + substr.m_size;
 		return StringView( m_str + pos, m_size - pos );
 	}
 	FINLINE StringView until( const StringView& substr ) const
 	{
-		size_t pos = find_first_at( substr, m_size );
+		size_t pos = find_first_at( substr, 0, m_size );
 		return StringView( m_str, pos );
 	}
 	FINLINE StringView until_any( const StringView& chars ) const
