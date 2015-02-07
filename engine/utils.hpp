@@ -257,7 +257,7 @@ FINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 
 struct EXPORT Vec4
 {
-	float x, y, z;
+	float x, y, z, w;
 	
 #ifdef USE_VEC4
 	static FINLINE Vec4 Create( float x ){ Vec4 v = { x, x, x, x }; return v; }

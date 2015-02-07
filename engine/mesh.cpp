@@ -79,39 +79,39 @@ const char* VDeclInfo_Parse( VDeclInfo* info, const char* text )
 	return NULL;
 }
 
-int GetAABBFromVertexData( VDeclInfo* info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax )
+int GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax )
 {
 	int i;
 	const char* vdend;
 	float tmp1, tmp2;
 	Vec3 tmpv;
 	uint8_t* pudata;
-	if( vdsize < info->size )
+	if( vdsize < info.size )
 		goto fail;
 	
-	for( i = 0; i < info->count; ++i )
+	for( i = 0; i < info.count; ++i )
 	{
-		if( info->usages[ i ] == VDECLUSAGE_POSITION )
+		if( info.usages[ i ] == VDECLUSAGE_POSITION )
 			break;
 	}
-	if( i == info->count )
+	if( i == info.count )
 		goto fail;
 	
-	vdata += info->offsets[ i ];
+	vdata += info.offsets[ i ];
 	vdend = vdata + vdsize;
-	switch( info->types[ i ] )
+	switch( info.types[ i ] )
 	{
 	case VDECLTYPE_FLOAT1: /* read 1 float, y;z=0;0 */
 		tmp1 = ((float*) vdata)[0];
 		outMin.Set( tmp1, 0, 0 );
 		outMax.Set( tmp1, 0, 0 );
-		vdata += info->size;
-		while( vdata + info->size <= vdend )
+		vdata += info.size;
+		while( vdata + info.size <= vdend )
 		{
 			tmp1 = ((float*) vdata)[0];
 			if( outMin.x > tmp1 ) outMin.x = tmp1;
 			if( outMax.x < tmp1 ) outMax.x = tmp1;
-			vdata += info->size;
+			vdata += info.size;
 		}
 		break;
 	case VDECLTYPE_FLOAT2: /* read 2 floats, z=0 */
@@ -119,8 +119,8 @@ int GetAABBFromVertexData( VDeclInfo* info, const char* vdata, size_t vdsize, Ve
 		tmp2 = ((float*) vdata)[1];
 		outMin.Set( tmp1, tmp2, 0 );
 		outMax.Set( tmp1, tmp2, 0 );
-		vdata += info->size;
-		while( vdata + info->size <= vdend )
+		vdata += info.size;
+		while( vdata + info.size <= vdend )
 		{
 			tmp1 = ((float*) vdata)[0];
 			tmp2 = ((float*) vdata)[1];
@@ -128,7 +128,7 @@ int GetAABBFromVertexData( VDeclInfo* info, const char* vdata, size_t vdsize, Ve
 			if( outMax.x < tmp1 ) outMax.x = tmp1;
 			if( outMin.y > tmp2 ) outMin.y = tmp2;
 			if( outMax.y < tmp2 ) outMax.y = tmp2;
-			vdata += info->size;
+			vdata += info.size;
 		}
 		break;
 	case VDECLTYPE_FLOAT3:
@@ -136,13 +136,13 @@ int GetAABBFromVertexData( VDeclInfo* info, const char* vdata, size_t vdsize, Ve
 		tmpv = Vec3::CreateFromPtr( (float*) vdata );
 		outMin = tmpv;
 		outMax = tmpv;
-		vdata += info->size;
-		while( vdata + info->size <= vdend )
+		vdata += info.size;
+		while( vdata + info.size <= vdend )
 		{
 			tmpv = Vec3::CreateFromPtr( (float*) vdata );
 			outMin = Vec3::Min( outMin, tmpv );
 			outMax = Vec3::Max( outMax, tmpv );
-			vdata += info->size;
+			vdata += info.size;
 		}
 		break;
 	case VDECLTYPE_BCOL4: /* read u8[3] */
@@ -150,13 +150,13 @@ int GetAABBFromVertexData( VDeclInfo* info, const char* vdata, size_t vdsize, Ve
 		tmpv.Set( pudata[0] * (1.0f/255.0f), pudata[1] * (1.0f/255.0f), pudata[2] * (1.0f/255.0f) );
 		outMin = tmpv;
 		outMax = tmpv;
-		vdata += info->size;
-		while( vdata + info->size <= vdend )
+		vdata += info.size;
+		while( vdata + info.size <= vdend )
 		{
 			tmpv.Set( pudata[0] * (1.0f/255.0f), pudata[1] * (1.0f/255.0f), pudata[2] * (1.0f/255.0f) );
 			outMin = Vec3::Min( outMin, tmpv );
 			outMax = Vec3::Max( outMax, tmpv );
-			vdata += info->size;
+			vdata += info.size;
 		}
 		break;
 	}

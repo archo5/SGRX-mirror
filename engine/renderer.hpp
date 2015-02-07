@@ -24,7 +24,7 @@ EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, void* data, in
 EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );
 
 EXPORT const char* VDeclInfo_Parse( VDeclInfo* info, const char* text );
-EXPORT int GetAABBFromVertexData( VDeclInfo* info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );
+EXPORT int GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );
 
 struct MeshFilePartData
 {
@@ -102,6 +102,7 @@ struct EXPORT IRenderer
 	virtual bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
 	virtual SGRX_IShader* CreateShader( ByteArray& code ) = 0; // StringView for uncompiled, byte buffer for compiled shaders
 	virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
+	virtual SGRX_IMesh* CreateMesh() = 0;
 	
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex ) = 0;
 	

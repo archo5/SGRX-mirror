@@ -202,6 +202,7 @@ struct D3D9Renderer : IRenderer
 	bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors );
 	SGRX_IShader* CreateShader( ByteArray& code );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
+	SGRX_IMesh* CreateMesh();
 	
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex );
 	
@@ -604,6 +605,11 @@ SGRX_IVertexDecl* D3D9Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 	vdecl->m_vdecl = VD;
 	vdecl->m_renderer = this;
 	return vdecl;
+}
+
+SGRX_IMesh* D3D9Renderer::CreateMesh()
+{
+	return NULL;
 }
 
 FINLINE D3DPRIMITIVETYPE conv_prim_type( EPrimitiveType pt )

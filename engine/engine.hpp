@@ -52,6 +52,7 @@ struct EXPORT SGRX_Log
 };
 #define LOG SGRX_Log()
 #define LOG_ERROR SGRX_Log() << "ERROR: "
+#define LOG_WARNING SGRX_Log() << "WARNING: "
 #define PARTIAL_LOG SGRX_Log::Mod_Partial
 #define LOG_DATE SGRX_Log::Spec_Date
 #define LOG_SEP( x ) SGRX_Log::Separator( x )
@@ -127,6 +128,7 @@ struct EXPORT IGame
 	virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
 	virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
 	virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
+	virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
 };
 
 
@@ -209,24 +211,6 @@ struct EXPORT ShaderHandle : Handle< SGRX_IShader >
 	ShaderHandle( SGRX_IShader* shdr ) : Handle( shdr ){}
 };
 
-#define INDEX_16 0
-#define INDEX_32 1
-
-/* mesh data flags */
-#define MDF_INDEX_32      0x01
-#define MDF_TRIANGLESTRIP 0x02
-#define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
-#define MDF_TRANSPARENT   0x10 /* mesh is required to be rendered transparent */
-#define MDF_UNLIT         0x20 /* mesh doesn't require the lighting passes to be applied */
-#define MDF_NOCULL        0x40 /* mesh has culling disabled */
-#define MDF_SKINNED       0x80 /* mesh has bone data (name, offset, parent id) */
-
-#define MDF__PUBFLAGMASK (0x01|0x02|0x10|0x20|0x40|0x80)
-#define MDF__PUBFLAGBASE  0
-
-#define NUM_MATERIAL_TEXTURES 8
-#define MAX_MESH_PARTS 16
-#define MAX_MESH_BONES 32
 #define VDECL_MAX_ITEMS 10
 
 #define VDECLTYPE_FLOAT1 0
@@ -282,6 +266,98 @@ struct EXPORT VertexDeclHandle : Handle< struct SGRX_IVertexDecl >
 	const VDeclInfo& GetInfo();
 };
 
+struct SGRX_Mesh;
+struct SGRX_MeshInstance;
+struct SGRX_Light;
+struct SGRX_Scene;
+
+#define INDEX_16 0
+#define INDEX_32 1
+
+/* mesh data flags */
+#define MDF_INDEX_32      0x01
+#define MDF_TRIANGLESTRIP 0x02
+#define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
+#define MDF_TRANSPARENT   0x10 /* mesh is required to be rendered transparent */
+#define MDF_UNLIT         0x20 /* mesh doesn't require the lighting passes to be applied */
+#define MDF_NOCULL        0x40 /* mesh has culling disabled */
+#define MDF_SKINNED       0x80 /* mesh has bone data (name, offset, parent id) */
+
+#define MDF__PUBFLAGMASK (0x01|0x02|0x10|0x20|0x40|0x80)
+#define MDF__PUBFLAGBASE  0
+
+#define NUM_MATERIAL_TEXTURES 8
+#define MAX_MESH_PARTS 16
+#define MAX_MESH_BONES 32
+
+struct SGRX_MeshPart
+{
+	uint32_t vertexOffset;
+	uint32_t vertexCount;
+	uint32_t indexOffset;
+	uint32_t indexCount;
+	
+	ShaderHandle shaders[ MAX_NUM_PASSES ];
+	ShaderHandle shaders_skin[ MAX_NUM_PASSES ];
+	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
+	char shader_name[ SHADER_NAME_LENGTH ];
+};
+
+struct SGRX_MeshBone
+{
+	String name;
+	Mat4 boneOffset;
+	Mat4 invSkinOffset;
+	int parent_id;
+};
+
+struct SGRX_IMesh
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	
+	SGRX_IMesh();
+	virtual ~SGRX_IMesh(){}
+	virtual void Destroy() = 0;
+	virtual bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
+	virtual bool SetIndexData( const void* data, size_t size, bool i32 ) = 0;
+	virtual bool InitVertexBuffer( size_t size ) = 0;
+	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
+	virtual bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
+	virtual bool UpdateIndexData( const void* data, size_t size ) = 0;
+	
+	bool SetPartData( SGRX_MeshPart* parts, int count );
+	bool SetBoneData( SGRX_MeshBone* bones, int count );
+	bool RecalcBoneMatrices();
+	bool SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd );
+	
+	/* rendering info */
+	uint32_t m_dataFlags;
+	VertexDeclHandle m_vertexDecl;
+	uint32_t m_vertexCount;
+	uint32_t m_vertexDataSize;
+	uint32_t m_indexCount;
+	uint32_t m_indexDataSize;
+	SGRX_MeshPart m_parts[ MAX_MESH_PARTS ];
+	SGRX_MeshBone m_bones[ MAX_MESH_BONES ];
+	int m_numParts;
+	int m_numBones;
+	
+	/* collision detection */
+	Vec3 m_boundsMin;
+	Vec3 m_boundsMax;
+	
+	String m_key;
+	int32_t m_refcount;
+};
+
+struct MeshHandle : Handle< SGRX_IMesh >
+{
+	MeshHandle() : Handle(){}
+	MeshHandle( const MeshHandle& h ) : Handle( h ){}
+	MeshHandle( struct SGRX_IMesh* mesh ) : Handle( mesh ){}
+};
+
 struct EXPORT SGRX_Camera
 {
 	FINLINE void Acquire(){ ++m_refcount; }
@@ -322,63 +398,88 @@ struct SGRX_Viewport
 	int x1, y1, x2, y2;
 };
 
-struct SGRX_Mesh;
-struct SGRX_MeshInstance;
-struct SGRX_Light;
-struct SGRX_Scene;
-
-struct SGRX_MeshPart
+struct SGRX_MeshInstLight
 {
-	uint32_t vertexOffset;
-	uint32_t vertexCount;
-	uint32_t indexOffset;
-	uint32_t indexCount;
-	
-	ShaderHandle shaders[ MAX_NUM_PASSES ];
-	ShaderHandle shaders_skin[ MAX_NUM_PASSES ];
-	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
-	char shader_name[ SHADER_NAME_LENGTH ];
+	SGRX_MeshInstance* MI;
+	SGRX_Light* L;
 };
 
-struct SGRX_MeshBone
+#define LIGHT_POINT  1
+#define LIGHT_SPOT   2
+
+struct EXPORT SGRX_Light
 {
-	String name;
-	Mat4 boneOffset;
-	Mat4 invSkinOffset;
-	int parent_id;
+	FINLINE void Acquire(){ ++_refcount; }
+	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
+	
+	SGRX_Light( SGRX_Scene* s );
+	void RecalcMatrices();
+	
+	SGRX_Scene* _scene;
+	
+	int type;
+	bool enabled;
+	Vec3 position;
+	Vec3 direction;
+	Vec3 updir;
+	Vec3 color;
+	float range;
+	float power;
+	float angle;
+	float aspect;
+	TextureHandle cookieTexture;
+	TextureHandle shadowTexture;
+	Mat4 viewMatrix;
+	Mat4 projMatrix;
+	Mat4 viewProjMatrix;
+	bool hasShadows;
+	
+	/* frame cache */
+	SGRX_MeshInstLight* _mibuf_begin;
+	SGRX_MeshInstLight* _mibuf_end;
+	
+	int32_t _refcount;
 };
 
-struct SGRX_Mesh
+struct EXPORT LightHandle : Handle< SGRX_Light >
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
-	
-	virtual void Destroy() = 0;
-	
-	/* rendering info */
-	uint32_t dataFlags;
-	VertexDeclHandle vertexDecl;
-	uint32_t vertexCount;
-	uint32_t vertexDataSize;
-	uint32_t indexCount;
-	uint32_t indexDataSize;
-	SGRX_MeshPart parts[ MAX_MESH_PARTS ];
-	SGRX_MeshBone bones[ MAX_MESH_BONES ];
-	int numParts;
-	int numBones;
-	
-	/* collision detection */
-	Vec3 boundsMin;
-	Vec3 boundsMax;
-	
-	int32_t m_refcount;
+	LightHandle() : Handle(){}
+	LightHandle( const LightHandle& h ) : Handle( h ){}
+	LightHandle( SGRX_Light* lt ) : Handle( lt ){}
 };
 
-struct MeshHandle : Handle< SGRX_Mesh >
+struct SGRX_MeshInstance
 {
-	MeshHandle() : Handle(){}
-	MeshHandle( const MeshHandle& h ) : Handle( h ){}
-	MeshHandle( struct SGRX_Mesh* mesh ) : Handle( mesh ){}
+	FINLINE void Acquire(){ ++_refcount; }
+	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
+	
+	SGRX_MeshInstance( SGRX_Scene* s );
+	
+	SGRX_Scene* _scene;
+	
+	MeshHandle mesh;
+	Mat4 matrix;
+	Vec4 color;
+	uint32_t enabled : 1;
+	uint32_t cpuskin : 1; /* TODO */
+	
+	TextureHandle textures[ MAX_MI_TEXTURES ];
+	Vec4 constants[ MAX_MI_CONSTANTS ];
+	
+	Array< Mat4 > skin_matrices;
+	
+	/* frame cache */
+	SGRX_MeshInstLight* _lightbuf_begin;
+	SGRX_MeshInstLight* _lightbuf_end;
+	
+	int32_t _refcount;
+};
+
+struct EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
+{
+	MeshInstHandle() : Handle(){}
+	MeshInstHandle( const MeshInstHandle& h ) : Handle( h ){}
+	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
 };
 
 struct SGRX_Scene
@@ -386,13 +487,18 @@ struct SGRX_Scene
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
 	
+	SGRX_Scene();
 	void Destroy();
+	MeshInstHandle CreateMeshInstance();
+	bool RemoveMeshInstance( MeshInstHandle mih );
+	LightHandle CreateLight();
+	bool RemoveLight( LightHandle lh );
 	
-	HashTable< SGRX_MeshInstance*, bool > m_meshInstances;
-	HashTable< SGRX_Light*, bool > m_lights;
+	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
+	HashTable< SGRX_Light*, LightHandle > m_lights;
 	
 //	sgs_VarObj* cullScenes;
-	CameraHandle m_camera;
+	CameraHandle camera;
 	
 	Vec3 fogColor;
 	float fogHeightFactor;
@@ -417,85 +523,20 @@ struct EXPORT SceneHandle : Handle< SGRX_Scene >
 	SceneHandle( struct SGRX_Scene* sc ) : Handle( sc ){}
 };
 
-struct SGRX_MeshInstLight
-{
-	SGRX_MeshInstance* MI;
-	SGRX_Light* L;
-};
+/* render pass constants */
+#define SS3D_RPT_OBJECT     1
+#define SS3D_RPT_SCREEN     2
+#define SS3D_RPT_SHADOWS    3
 
-struct EXPORT SGRX_Light
-{
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
-	
-	void Destroy();
-	
-	SceneHandle m_scene;
-	
-	int type;
-	int enabled;
-	Vec3 position;
-	Vec3 direction;
-	Vec3 updir;
-	Vec3 color;
-	float range;
-	float power;
-	float angle;
-	float aspect;
-	TextureHandle cookieTexture;
-	TextureHandle shadowTexture;
-	Mat4 viewMatrix;
-	Mat4 projMatrix;
-	Mat4 viewProjMatrix;
-	int hasShadows;
-	
-	/* frame cache */
-	SGRX_MeshInstLight* mibuf_begin;
-	SGRX_MeshInstLight* mibuf_end;
-	
-	int32_t m_refcount;
-};
-
-struct EXPORT LightHandle : Handle< SGRX_Light >
-{
-	LightHandle() : Handle(){}
-	LightHandle( const LightHandle& h ) : Handle( h ){}
-	LightHandle( SGRX_Light* lt ) : Handle( lt ){}
-};
-
-struct SGRX_MeshInstance
-{
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
-	
-	void Destroy();
-	
-	SceneHandle m_scene;
-	
-	MeshHandle mesh;
-	Mat4 matrix;
-	Vec4 color;
-	uint32_t enabled : 1;
-	uint32_t cpuskin : 1; /* TODO */
-	
-	TextureHandle textures[ MAX_MI_TEXTURES ];
-	Vec4 constants[ MAX_MI_CONSTANTS ];
-	
-	Array< Mat4 > skin_matrices;
-	
-	/* frame cache */
-	SGRX_MeshInstLight* lightbuf_begin;
-	SGRX_MeshInstLight* lightbuf_end;
-	
-	int32_t m_refcount;
-};
-
-struct EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
-{
-	MeshInstHandle() : Handle(){}
-	MeshInstHandle( const MeshInstHandle& h ) : Handle( h ){}
-	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
-};
+#define SS3D_RPF_OBJ_STATIC      0x01
+#define SS3D_RPF_OBJ_DYNAMIC     0x02
+#define SS3D_RPF_OBJ_ALL        (SS3D_RPF_OBJ_STATIC|SS3D_RPF_OBJ_DYNAMIC)
+#define SS3D_RPF_MTL_SOLID       0x04
+#define SS3D_RPF_MTL_TRANSPARENT 0x08
+#define SS3D_RPF_MTL_ALL        (SS3D_RPF_MTL_SOLID|SS3D_RPF_MTL_TRANSPARENT)
+#define SS3D_RPF_CALC_DIRAMB     0x10
+#define SS3D_RPF_LIGHTOVERLAY    0x20
+#define SS3D_RPF_ENABLED         0x80
 
 struct SGRX_RenderPass
 {
@@ -567,10 +608,12 @@ EXPORT int GR_GetHeight();
 
 EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
-
 EXPORT ShaderHandle GR_GetShader( const StringView& path );
-
 EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
+EXPORT MeshHandle GR_GetMesh( const StringView& path );
+
+EXPORT SceneHandle GR_CreateScene();
+EXPORT void GR_RenderScene( SceneHandle sh );
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
 EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );

@@ -7,6 +7,7 @@
 
 #define USE_VEC2
 #define USE_VEC3
+#define USE_VEC4
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
@@ -36,6 +37,7 @@ uint32_t GetTimeMsec()
 typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
 typedef HashTable< StringView, SGRX_IShader* > ShaderHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
+typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 
 static bool g_Running = true;
 static SDL_Window* g_Window = NULL;
@@ -58,6 +60,7 @@ static FontRenderer* g_FontRenderer = NULL;
 static TextureHashTable* g_Textures = NULL;
 static ShaderHashTable* g_Shaders = NULL;
 static VertexDeclHashTable* g_VertexDecls = NULL;
+static MeshHashTable* g_Meshes = NULL;
 
 
 //
@@ -369,6 +372,19 @@ bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path,
 	return true;
 }
 
+bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
+{
+	if( !key )
+		return false;
+	
+	StringView path = key.until( ":" );
+	
+	if( !LoadBinaryFile( path, outdata ) )
+		return false;
+	
+	return true;
+}
+
 
 void SGRX_ITexture::Destroy()
 {
@@ -433,6 +449,87 @@ const VDeclInfo& VertexDeclHandle::GetInfo()
 }
 
 
+SGRX_IMesh::SGRX_IMesh() :
+	m_dataFlags( 0 ),
+	m_vertexCount( 0 ),
+	m_vertexDataSize( 0 ),
+	m_indexCount( 0 ),
+	m_indexDataSize( 0 ),
+	m_numParts( 0 ),
+	m_numBones( 0 ),
+	m_boundsMin( Vec3::Create( 0 ) ),
+	m_boundsMax( Vec3::Create( 0 ) ),
+	m_refcount( 0 )
+{
+}
+
+bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
+{
+	if( count < 0 || count > MAX_MESH_PARTS )
+		return false;
+	int i;
+	for( i = 0; i < count; ++i )
+		m_parts[ i ] = parts[ i ];
+	for( i = 0; i < count; ++i )
+		m_parts[ i ] = SGRX_MeshPart();
+	m_numParts = count;
+	return true;
+}
+
+bool SGRX_IMesh::SetBoneData( SGRX_MeshBone* bones, int count )
+{
+	if( count < 0 || count > MAX_MESH_BONES )
+		return false;
+	int i;
+	for( i = 0; i < count; ++i )
+		m_bones[ i ] = bones[ i ];
+	for( i = 0; i < count; ++i )
+		m_bones[ i ] = SGRX_MeshBone();
+	m_numBones = count;
+	return RecalcBoneMatrices();
+}
+
+bool SGRX_IMesh::RecalcBoneMatrices()
+{
+	if( !m_numBones )
+	{
+		return true;
+	}
+	
+	for( int b = 0; b < m_numBones; ++b )
+	{
+		if( m_bones[ b ].parent_id < -1 || m_bones[ b ].parent_id >= b )
+		{
+			LOG_WARNING << "RecalcBoneMatrices: each parent_id must point to a previous bone or no bone (-1) [error in bone " << b << "]";
+			return false;
+		}
+	}
+	
+	Mat4 skinOffsets[ MAX_MESH_BONES ];
+	for( int b = 0; b < m_numBones; ++b )
+	{
+		if( m_bones[ b ].parent_id >= 0 )
+			skinOffsets[ b ].Multiply( m_bones[ b ].boneOffset, skinOffsets[ m_bones[ b ].parent_id ] );
+		else
+			skinOffsets[ b ] = m_bones[ b ].boneOffset;
+	}
+	for( int b = 0; b < m_numBones; ++b )
+	{
+		if( !skinOffsets[ b ].InvertTo( m_bones[ b ].invSkinOffset ) )
+		{
+			LOG_WARNING << "RecalcBoneMatrices: failed to invert skin offset matrix #" << b;
+			m_bones[ b ].invSkinOffset.SetIdentity();
+		}
+	}
+	return true;
+}
+
+bool SGRX_IMesh::SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd )
+{
+	return GetAABBFromVertexData( vd.GetInfo(), (const char*) data, size, m_boundsMin, m_boundsMax );
+}
+
+
 void SGRX_Camera::UpdateViewMatrix()
 {
 	mView.LookAt( position, direction, up );
@@ -448,6 +545,94 @@ void SGRX_Camera::UpdateMatrices()
 {
 	UpdateViewMatrix();
 	UpdateProjMatrix();
+}
+
+
+SGRX_Light::SGRX_Light( SGRX_Scene* s ) :
+	_scene( s ),
+	type( LIGHT_POINT ),
+	enabled( true ),
+	position( Vec3::Create( 0 ) ),
+	direction( Vec3::Create( 0, 1, 0 ) ),
+	updir( Vec3::Create( 0, 0, 1 ) ),
+	color( Vec3::Create( 1 ) ),
+	range( 100 ),
+	power( 2 ),
+	angle( 60 ),
+	aspect( 1 ),
+	hasShadows( false ),
+	_mibuf_begin( NULL ),
+	_mibuf_end( NULL ),
+	_refcount( 0 )
+{
+	RecalcMatrices();
+}
+
+void SGRX_Light::RecalcMatrices()
+{
+}
+
+
+SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
+	_scene( s ),
+	color( Vec4::Create( 1 ) ),
+	enabled( true ),
+	cpuskin( false ),
+	_lightbuf_begin( NULL ),
+	_lightbuf_end( NULL ),
+	_refcount( 0 )
+{
+	matrix.SetIdentity();
+	for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
+		constants[ i ] = Vec4::Create( 0 );
+}
+
+
+SGRX_Scene::SGRX_Scene() :
+	fogColor( Vec3::Create( 0.5 ) ),
+	fogHeightFactor( 0 ),
+	fogDensity( 0.01f ),
+	fogHeightDensity( 0 ),
+	fogStartHeight( 0.01f ),
+	fogMinDist( 0 ),
+	ambientLightColor( Vec3::Create( 0.1f ) ),
+	dirLightColor( Vec3::Create( 0.8f ) ),
+	dirLightDir( Vec3::Create( 1 ).Normalized() ),
+	m_refcount( 0 )
+{
+}
+
+void SGRX_Scene::Destroy()
+{
+	delete this;
+}
+
+MeshInstHandle SGRX_Scene::CreateMeshInstance()
+{
+	SGRX_MeshInstance* mi = new SGRX_MeshInstance( this );
+	m_meshInstances.set( mi, mi );
+	return mi;
+}
+
+bool SGRX_Scene::RemoveMeshInstance( MeshInstHandle mih )
+{
+	if( !mih || mih->_scene != this )
+		return false;
+	return m_meshInstances.unset( mih );
+}
+
+LightHandle SGRX_Scene::CreateLight()
+{
+	SGRX_Light* lt = new SGRX_Light( this );
+	m_lights.set( lt, lt );
+	return lt;
+}
+
+bool SGRX_Scene::RemoveLight( LightHandle lh )
+{
+	if( !lh || lh->_scene != this )
+		return false;
+	return m_lights.unset( lh );
 }
 
 
@@ -585,6 +770,63 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 	LOG << "Created vertex declaration: " << vdecl;
 	return VD;
 }
+
+
+MeshHandle GR_GetMesh( const StringView& path )
+{
+	SGRX_IMesh* mesh = g_Meshes->getcopy( path );
+	if( mesh )
+		return mesh;
+	
+	ByteArray meshdata;
+	if( !g_Game->OnLoadMesh( path, meshdata ) )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to access mesh data file";
+		return NULL;
+	}
+	
+	MeshFileData mfd;
+	const char* err = MeshData_Parse( (char*) meshdata.data(), meshdata.size(), &mfd );
+	if( err )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to parse mesh file - " << err;
+		return NULL;
+	}
+	
+	SGRX_MeshBone bones[ MAX_MESH_BONES ];
+	for( int i = 0; i < mfd.numBones; ++i )
+	{
+		bones[ i ].name.append( mfd.bones[ i ].boneName, mfd.bones[ i ].boneNameSize );
+		bones[ i ].boneOffset = mfd.bones[ i ].boneOffset;
+		bones[ i ].parent_id = mfd.bones[ i ].parent_id;
+	}
+	
+	VertexDeclHandle vdh;
+	mesh = g_Renderer->CreateMesh();
+	if( !mesh ||
+		!( vdh = GR_GetVertexDecl( StringView( mfd.formatData, mfd.formatSize ) ) ) ||
+		!mesh->SetVertexData( mfd.vertexData, mfd.vertexDataSize, vdh, ( mfd.dataFlags & MDF_TRIANGLESTRIP ) != 0 ) ||
+		!mesh->SetIndexData( mfd.indexData, mfd.indexDataSize, ( mfd.dataFlags & MDF_INDEX_32 ) != 0 ) ||
+		!mesh->SetBoneData( bones, mfd.numBones ) )
+	{
+		// error already printed
+		return NULL;
+	}
+	
+	mesh->m_key = path;
+	g_Meshes->set( mesh->m_key, mesh );
+	return mesh;
+}
+
+
+SceneHandle GR_CreateScene()
+{
+}
+
+void GR_RenderScene( SceneHandle sh )
+{
+}
+
 
 
 void GR2D_SetWorldMatrix( const Mat4& mtx )
@@ -793,6 +1035,7 @@ static int init_graphics()
 	g_Textures = new TextureHashTable();
 	g_Shaders = new ShaderHashTable();
 	g_VertexDecls = new VertexDeclHashTable();
+	g_Meshes = new MeshHashTable();
 	LOG << LOG_DATE << "  Created renderer resource caches";
 	
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
@@ -812,6 +1055,9 @@ static void free_graphics()
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;
+	
+	delete g_Meshes;
+	g_Meshes = NULL;
 	
 	delete g_VertexDecls;
 	g_VertexDecls = NULL;
