@@ -6,8 +6,10 @@
 #include <d3dx9.h>
 
 #define USE_VEC3
+#define USE_VEC4
 #define USE_MAT4
 #define USE_ARRAY
+#define USE_HASHTABLE
 #define USE_SERIALIZATION
 #include "renderer.hpp"
 
@@ -108,6 +110,10 @@ struct D3D9Texture : SGRX_ITexture
 	m_ptr;
 	struct D3D9Renderer* m_renderer;
 	
+	D3D9Texture( bool isRenderTexture = false )
+	{
+		m_isRenderTexture = isRenderTexture;
+	}
 	~D3D9Texture()
 	{
 		SAFE_RELEASE( m_ptr.base );
@@ -140,6 +146,28 @@ struct D3D9Texture : SGRX_ITexture
 		}
 		
 		return true;
+	}
+};
+
+struct D3D9RenderTexture : D3D9Texture
+{
+	// color texture (CT) = m_ptr.tex2d
+	IDirect3DSurface9* CS; /* color (output 0) surface */
+	IDirect3DTexture9* DT; /* depth (output 2) texture (not used for shadowmaps, such data in CT/CS already) */
+	IDirect3DSurface9* DS; /* depth (output 2) surface (not used for shadowmaps, such data in CT/CS already) */
+	IDirect3DSurface9* DSS; /* depth/stencil surface */
+	int format;
+	
+	D3D9RenderTexture( bool isRenderTexture = false )
+	{
+		m_isRenderTexture = isRenderTexture;
+	}
+	~D3D9RenderTexture()
+	{
+		SAFE_RELEASE( CS );
+		SAFE_RELEASE( DT );
+		SAFE_RELEASE( DS );
+		SAFE_RELEASE( DSS );
 	}
 };
 
@@ -220,6 +248,91 @@ struct RTOutInfo
 	int w, h;
 };
 
+struct RTData
+{
+	IDirect3DTexture9* RTT_OCOL; /* oR, oG, oB, oA, RGBA16F */
+	IDirect3DTexture9* RTT_PARM; /* distX, distY, emissive, oA (blending purposes), RGBA16F */
+	IDirect3DTexture9* RTT_DEPTH; /* depth, R32F */
+	IDirect3DTexture9* RTT_BLOOM_DSHP; /* bloom downsample/high-pass RT, RGBA8 */
+	IDirect3DTexture9* RTT_BLOOM_BLUR1; /* bloom horizontal blur RT, RGBA8 */
+	IDirect3DTexture9* RTT_BLOOM_BLUR2; /* bloom vertical blur RT, RGBA8 */
+	
+	IDirect3DSurface9* RTS_OCOL;
+	IDirect3DSurface9* RTS_PARM;
+	IDirect3DSurface9* RTS_DEPTH;
+	IDirect3DSurface9* RTS_BLOOM_DSHP;
+	IDirect3DSurface9* RTS_BLOOM_BLUR1;
+	IDirect3DSurface9* RTS_BLOOM_BLUR2;
+	IDirect3DSurface9* RTSD;
+	int width, height;
+};
+
+
+static const char* postproc_init( IDirect3DDevice9* dev, RTData* D, int w, int h )
+{
+	HRESULT hr;
+	memset( D, 0, sizeof(*D) );
+	
+	D->width = w;
+	D->height = h;
+	
+	int w4 = w / 4;
+	int h4 = h / 4;
+	
+	/* core */
+	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_OCOL, NULL );
+	if( FAILED( hr ) || !D->RTT_OCOL ) return "failed to create rgba16f render target texture";
+	
+	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_PARM, NULL );
+	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create rgba16f render target texture";
+	
+	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &D->RTT_DEPTH, NULL );
+	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create r32f depth stencil texture";
+	
+	/* bloom */
+	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_DSHP, NULL );
+	if( FAILED( hr ) || !D->RTT_BLOOM_DSHP ) return "failed to create rgba16f render target texture";
+	
+	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_BLUR1, NULL );
+	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR1 ) return "failed to create rgba16f render target texture";
+	
+	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_BLUR2, NULL );
+	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR2 ) return "failed to create rgba16f render target texture";
+	
+	/* depth */
+	hr = dev->CreateDepthStencilSurface( w, h, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &D->RTSD, NULL );
+	if( FAILED( hr ) || !D->RTSD ) return "failed to create d24s8 depth+stencil surface";
+	
+	/* surfaces */
+	D->RTT_OCOL->GetSurfaceLevel( 0, &D->RTS_OCOL );
+	D->RTT_PARM->GetSurfaceLevel( 0, &D->RTS_PARM );
+	D->RTT_DEPTH->GetSurfaceLevel( 0, &D->RTS_DEPTH );
+	D->RTT_BLOOM_DSHP->GetSurfaceLevel( 0, &D->RTS_BLOOM_DSHP );
+	D->RTT_BLOOM_BLUR1->GetSurfaceLevel( 0, &D->RTS_BLOOM_BLUR1 );
+	D->RTT_BLOOM_BLUR2->GetSurfaceLevel( 0, &D->RTS_BLOOM_BLUR2 );
+	
+	return NULL;
+}
+
+static void postproc_free( RTData* D )
+{
+	SAFE_RELEASE( D->RTS_OCOL );
+	SAFE_RELEASE( D->RTS_PARM );
+	SAFE_RELEASE( D->RTS_DEPTH );
+	SAFE_RELEASE( D->RTS_BLOOM_DSHP );
+	SAFE_RELEASE( D->RTS_BLOOM_BLUR1 );
+	SAFE_RELEASE( D->RTS_BLOOM_BLUR2 );
+	SAFE_RELEASE( D->RTT_OCOL );
+	SAFE_RELEASE( D->RTT_PARM );
+	SAFE_RELEASE( D->RTT_DEPTH );
+	SAFE_RELEASE( D->RTT_BLOOM_DSHP );
+	SAFE_RELEASE( D->RTT_BLOOM_BLUR1 );
+	SAFE_RELEASE( D->RTT_BLOOM_BLUR2 );
+	SAFE_RELEASE( D->RTSD );
+	D->width = 0;
+	D->height = 0;
+}
+
 
 RendererInfo g_D3D9RendererInfo =
 {
@@ -230,8 +343,11 @@ RendererInfo g_D3D9RendererInfo =
 
 struct D3D9Renderer : IRenderer
 {
+	D3D9Renderer() : m_dbg_rt( false ){}
 	void Destroy();
 	const RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
+	void LoadInternalResources();
+	void UnloadInternalResources();
 	
 	void Swap();
 	void Modify( const RenderSettings& settings );
@@ -242,28 +358,86 @@ struct D3D9Renderer : IRenderer
 	void SetViewMatrix( const Mat4& mtx );
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
+	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
 	bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors );
 	SGRX_IShader* CreateShader( ByteArray& code );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
 	
+	bool SetRenderTarget( TextureHandle rt );
+	
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex );
 	
-	void PostProcBlit( RTOutInfo* outinfo, int downsample, int ppdata_location );
+	bool SetRenderPasses( SGRX_RenderPass* passes, size_t count );
+	
+	void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport );
+	uint32_t _RS_Cull_Camera_MeshList();
+	uint32_t _RS_Cull_Camera_PointLightList();
+	uint32_t _RS_Cull_Camera_SpotLightList();
+	uint32_t _RS_Cull_SpotLight_MeshList( SGRX_Light* L );
+	void _RS_Compile_MeshLists();
+	void _RS_Render_Shadows();
+	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
+	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
+	void _RS_DebugDraw( IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
+	
+	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
 	
 	bool ResetDevice();
 	void ResetViewport();
-	void SetTexture( int i, SGRX_ITexture* tex );
+	void _SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags );
+	void SetTexture( int slot, SGRX_ITexture* tex );
 	void SetShader( SGRX_IShader* shd );
+	
+	FINLINE void VS_SetVec4Array( int at, Vec4* arr, int size ){ m_dev->SetVertexShaderConstantF( at, &arr->x, size ); }
+	FINLINE void VS_SetVec4Array( int at, float* arr, int size ){ m_dev->SetVertexShaderConstantF( at, arr, size ); }
+	FINLINE void VS_SetVec4( int at, const Vec4& v ){ m_dev->SetVertexShaderConstantF( at, &v.x, 1 ); }
+	FINLINE void VS_SetFloat( int at, float f ){ Vec4 v = {f,f,f,f}; m_dev->SetVertexShaderConstantF( at, &v.x, 1 ); }
+	FINLINE void VS_SetMat4( int at, const Mat4& v ){ m_dev->SetVertexShaderConstantF( at, v.a, 4 ); }
+	
+	FINLINE void PS_SetVec4Array( int at, Vec4* arr, int size ){ m_dev->SetPixelShaderConstantF( at, &arr->x, size ); }
+	FINLINE void PS_SetVec4Array( int at, float* arr, int size ){ m_dev->SetPixelShaderConstantF( at, arr, size ); }
+	FINLINE void PS_SetVec4( int at, const Vec4& v ){ m_dev->SetPixelShaderConstantF( at, &v.x, 1 ); }
+	FINLINE void PS_SetFloat( int at, float f ){ Vec4 v = {f,f,f,f}; m_dev->SetPixelShaderConstantF( at, &v.x, 1 ); }
+	FINLINE void PS_SetMat4( int at, const Mat4& v ){ m_dev->SetPixelShaderConstantF( at, v.a, 4 ); }
 	
 	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
 	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
 	
+	void MI_ApplyConstants( SGRX_MeshInstance* MI );
+	void Viewport_Apply( int downsample );
+	
+	TextureHandle m_currentRT;
+	bool m_dbg_rt;
+	
+	// helpers
+	RenderSettings m_currSettings;
+	Array< SGRX_RenderPass > m_renderPasses;
+	RTData m_drd;
+	
+	SGRX_IShader* m_sh_pp_final;
+	SGRX_IShader* m_sh_pp_dshp;
+	SGRX_IShader* m_sh_pp_blur_h;
+	SGRX_IShader* m_sh_pp_blur_v;
+	SGRX_IShader* m_sh_debug_draw;
+	
+	// specific
 	IDirect3DDevice9* m_dev;
 	D3DPRESENT_PARAMETERS m_params;
-	RenderSettings m_currSettings;
 	IDirect3DSurface9* m_backbuf;
 	IDirect3DSurface9* m_dssurf;
+	
+	// temp data
+	SceneHandle m_currentScene;
+	bool m_enablePostProcessing;
+	SGRX_Viewport* m_viewport;
+	ByteArray m_scratchMem;
+	Array< SGRX_MeshInstance* > m_visible_meshes;
+	Array< SGRX_MeshInstance* > m_visible_spot_meshes;
+	Array< SGRX_Light* > m_visible_point_lights;
+	Array< SGRX_Light* > m_visible_spot_lights;
+	Array< SGRX_MeshInstLight > m_inst_light_buf;
+	Array< SGRX_MeshInstLight > m_light_inst_buf;
 };
 
 extern "C" EXPORT bool Initialize( const char** outname )
@@ -326,14 +500,47 @@ extern "C" EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, voi
 		return NULL;
 	}
 	
+	postproc_init( d3ddev, &R->m_drd, settings.width, settings.height );
+	
 	d3ddev->BeginScene();
 	
 	return R;
 }
 
 
+void D3D9Renderer::LoadInternalResources()
+{
+	ShaderHandle sh_pp_final = GR_GetShader( "testFRpost" );
+	ShaderHandle sh_pp_dshp = GR_GetShader( "pp_bloom_dshp" );
+	ShaderHandle sh_pp_blur_h = GR_GetShader( "pp_bloom_blur_h" );
+	ShaderHandle sh_pp_blur_v = GR_GetShader( "pp_bloom_blur_v" );
+	ShaderHandle sh_debug_draw = GR_GetShader( "debug_draw" );
+	sh_pp_final->Acquire();
+	sh_pp_dshp->Acquire();
+	sh_pp_blur_h->Acquire();
+	sh_pp_blur_v->Acquire();
+	sh_debug_draw->Acquire();
+	m_sh_pp_final = sh_pp_final;
+	m_sh_pp_dshp = sh_pp_dshp;
+	m_sh_pp_blur_h = sh_pp_blur_h;
+	m_sh_pp_blur_v = sh_pp_blur_v;
+	m_sh_debug_draw = sh_debug_draw;
+}
+
+void D3D9Renderer::UnloadInternalResources()
+{
+	m_sh_pp_final->Release();
+	m_sh_pp_dshp->Release();
+	m_sh_pp_blur_h->Release();
+	m_sh_pp_blur_v->Release();
+	m_sh_debug_draw->Release();
+}
+
+
 void D3D9Renderer::Destroy()
 {
+	postproc_free( &m_drd );
+	
 	SAFE_RELEASE( m_backbuf );
 	SAFE_RELEASE( m_dssurf );
 	IDirect3DResource9_Release( m_dev );
@@ -342,7 +549,8 @@ void D3D9Renderer::Destroy()
 
 void D3D9Renderer::Swap()
 {
-	// TODO RT
+	m_currentRT = NULL;
+	
 	m_dev->EndScene();
 	if( m_dev->Present( NULL, NULL, NULL, NULL ) == D3DERR_DEVICELOST )
 	{
@@ -492,6 +700,111 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 }
 
 
+SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
+{
+	D3DFORMAT d3dfmt = (D3DFORMAT) 0;
+	HRESULT hr = 0;
+	int width = texinfo->width, height = texinfo->height, format = texinfo->format;
+	
+	switch( format )
+	{
+	case RT_FORMAT_BACKBUFFER:
+		d3dfmt = D3DFMT_A16B16G16R16F;
+		break;
+	case RT_FORMAT_DEPTH:
+		d3dfmt = D3DFMT_R32F;
+		break;
+	default:
+		LOG_ERROR << "format ID was not recognized / supported: " << format;
+		return NULL;
+	}
+	
+	
+	IDirect3DTexture9 *CT = NULL, *DT = NULL;
+	IDirect3DSurface9 *CS = NULL, *DS = NULL, *DSS = NULL;
+	D3D9RenderTexture* RT = NULL;
+	
+	if( format == RT_FORMAT_DEPTH )
+	{
+		hr = m_dev->CreateTexture( width, height, 1, D3DUSAGE_RENDERTARGET, d3dfmt, D3DPOOL_DEFAULT, &CT, NULL );
+		if( FAILED( hr ) || !CT )
+		{
+			LOG_ERROR << "failed to create D3D9 render target texture (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+		
+		hr = m_dev->CreateDepthStencilSurface( width, height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &DSS, NULL );
+		if( FAILED( hr ) || !DSS )
+		{
+			LOG_ERROR << "failed to create D3D9 d24s8 depth+stencil surface (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+		
+		hr = CT->GetSurfaceLevel( 0, &CS );
+		if( FAILED( hr ) || !CS )
+		{
+			LOG_ERROR << "failed to get surface from D3D9 render target texture (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+	}
+	else
+	{
+		hr = m_dev->CreateTexture( width, height, 1, D3DUSAGE_RENDERTARGET, d3dfmt, D3DPOOL_DEFAULT, &CT, NULL );
+		if( FAILED( hr ) || !CT )
+		{
+			LOG_ERROR << "failed to create D3D9 render target texture (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+		
+		hr = m_dev->CreateTexture( width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &DT, NULL );
+		if( FAILED( hr ) || !DT )
+		{
+			LOG_ERROR << "failed to create D3D9 r32f depth stencil texture (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+		
+		hr = m_dev->CreateDepthStencilSurface( width, height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &DSS, NULL );
+		if( FAILED( hr ) || !DSS )
+		{
+			LOG_ERROR << "failed to create D3D9 d24s8 depth+stencil surface (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+		
+		hr = CT->GetSurfaceLevel( 0, &CS );
+		if( FAILED( hr ) || !CS )
+		{
+			LOG_ERROR << "failed to get surface from D3D9 render target texture (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+		
+		hr = DT->GetSurfaceLevel( 0, &DS );
+		if( FAILED( hr ) || !CS )
+		{
+			LOG_ERROR << "failed to get surface from D3D9 depth stencil texture (HRESULT=" << (void*) hr << ")";
+			goto cleanup;
+		}
+	}
+	
+	RT = new D3D9RenderTexture;
+	RT->m_renderer = this;
+	RT->m_info = *texinfo;
+	RT->m_ptr.tex2d = CT;
+	RT->CS = CS;
+	RT->DS = DS;
+	RT->DT = DT;
+	RT->DSS = DSS;
+	return RT;
+	
+cleanup:
+	SAFE_RELEASE( CS );
+	SAFE_RELEASE( DS );
+	SAFE_RELEASE( DT );
+	SAFE_RELEASE( DSS );
+	SAFE_RELEASE( CT );
+	return NULL;
+}
+
+
 bool D3D9Renderer::CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors )
 {
 	HRESULT hr;
@@ -571,29 +884,38 @@ SGRX_IShader* D3D9Renderer::CreateShader( ByteArray& code )
 	uint8_t* vsbuf = &code[ 8 ];
 	uint8_t* psbuf = &code[ 12 + vslen ];
 	
-	D3D9Shader S( this );
+	IDirect3DVertexShader9* VS = NULL;
+	IDirect3DPixelShader9* PS = NULL;
+	ID3DXConstantTable* VSCT = NULL;
+	ID3DXConstantTable* PSCT = NULL;
+	D3D9Shader* out = NULL;
 	
-	hr = m_dev->CreateVertexShader( (const DWORD*) vsbuf, &S.m_VS );
-	if( FAILED( hr ) )
+	hr = m_dev->CreateVertexShader( (const DWORD*) vsbuf, &VS );
+	if( FAILED( hr ) || !VS )
 		{ LOG << "Failed to create a D3D9 vertex shader"; goto cleanup; }
-	hr = D3DXGetShaderConstantTable( (const DWORD*) vsbuf, &S.m_VSCT );
-	if( FAILED( hr ) )
+	hr = D3DXGetShaderConstantTable( (const DWORD*) vsbuf, &VSCT );
+	if( FAILED( hr ) || !VSCT )
 		{ LOG << "Failed to create a constant table for vertex shader"; goto cleanup; }
 	
-	hr = m_dev->CreatePixelShader( (const DWORD*) psbuf, &S.m_PS );
-	if( FAILED( hr ) )
+	hr = m_dev->CreatePixelShader( (const DWORD*) psbuf, &PS );
+	if( FAILED( hr ) || !PS )
 		{ LOG << "Failed to create a D3D9 pixel shader"; goto cleanup; }
-	hr = D3DXGetShaderConstantTable( (const DWORD*) psbuf, &S.m_PSCT );
-	if( FAILED( hr ) )
+	hr = D3DXGetShaderConstantTable( (const DWORD*) psbuf, &PSCT );
+	if( FAILED( hr ) || !PSCT )
 		{ LOG << "Failed to create a constant table for pixel shader"; goto cleanup; }
 	
-	return new D3D9Shader( S );
+	out = new D3D9Shader( this );
+	out->m_VS = VS;
+	out->m_PS = PS;
+	out->m_VSCT = VSCT;
+	out->m_PSCT = PSCT;
+	return out;
 	
 cleanup:
-	SAFE_RELEASE( S.m_VSCT );
-	SAFE_RELEASE( S.m_PSCT );
-	SAFE_RELEASE( S.m_VS );
-	SAFE_RELEASE( S.m_PS );
+	SAFE_RELEASE( VS );
+	SAFE_RELEASE( PS );
+	SAFE_RELEASE( VSCT );
+	SAFE_RELEASE( PSCT );
 	return NULL;
 }
 
@@ -835,6 +1157,20 @@ SGRX_IMesh* D3D9Renderer::CreateMesh()
 }
 
 
+bool D3D9Renderer::SetRenderTarget( TextureHandle rt )
+{
+	if( rt && !rt->m_isRenderTexture )
+		return false;
+	m_currentRT = rt;
+	D3D9RenderTexture* RTT = rt ? (D3D9RenderTexture*) rt.item : NULL;
+	IDirect3DSurface9* bbsurf = RTT ? RTT->CS : m_backbuf;
+	IDirect3DSurface9* dssurf = RTT ? RTT->DSS : m_dssurf;
+	m_dev->SetRenderTarget( 0, bbsurf );
+	m_dev->SetDepthStencilSurface( dssurf );
+	return true;
+}
+
+
 FINLINE D3DPRIMITIVETYPE conv_prim_type( EPrimitiveType pt )
 {
 	switch( pt )
@@ -871,33 +1207,736 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 }
 
 
-void D3D9Renderer::PostProcBlit( RTOutInfo* outinfo, int downsample, int ppdata_location )
+
+bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, size_t count )
 {
-	int w = outinfo->w, h = outinfo->h;
+	// TODO validate
 	
+	Array< SGRX_RenderPass > oldpasses = m_renderPasses;
+	m_renderPasses = Array< SGRX_RenderPass >( passes, count );
+	
+	// TODO reload own shader
+	// TODO reload mesh shaders
+	
+	return true;
+}
+
+
+
+#define TEXTURE_FLAGS_FULLSCREEN (TEXFLAGS_HASMIPS | TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y)
+
+/*
+	R E N D E R I N G
+	
+	=== CONSTANT INFO ===
+- POINT LIGHT: (total size: 2 constants, max. count: 16)
+	VEC4 [px, py, pz, radius]
+	VEC4 [cr, cg, cb, power]
+- SPOT LIGHT: (total size: 4 constants for each shader, 2 textures, max. count: 4)
+	TEXTURES [cookie, shadowmap]
+[pixel shader]:
+	VEC4 [px, py, pz, radius]
+	VEC4 [cr, cg, cb, power]
+	VEC4 [dx, dy, dz, angle]
+	VEC4 [ux, uy, uz, -]
+[vertex shader]:
+	VEC4x4 [shadow map matrix]
+- AMBIENT + DIRECTIONAL (SUN) LIGHT: (total size: 3 constants)
+	VEC4 [ar, ag, ab, -]
+	VEC4 [dx, dy, dz, -]
+	VEC4 [cr, cg, cb, -]
+	TEXTURES [some number of shadowmaps]
+- DIR. AMBIENT DATA: (total size: 6 constants)
+	VEC4 colorXP, colorXN, colorYP, colorYN, colorZP, colorZN
+- SKY DATA: (total size: 1 constant)
+	VEC4 [skyblend, -, -, -]
+- FOG DATA: (total size: 2 constants)
+	VEC4 [cr, cg, cb, min.dst]
+	VEC4 [h1, d1, h2, d2] (heights, densities)
+- VERTEX SHADER
+	0-3: camera view matrix
+	4-7: camera projection matrix
+	23: light counts (point, spot)
+	24-39: VS spot light data
+- PIXEL SHADER
+	0-3: camera inverse view matrix
+	4: camera position
+	11: sky data
+	12-13: fog data
+	14-19: dir.amb. data
+	20-22: dir. light
+	23: light counts (point, spot)
+	24-39: PS spot light data
+	56-87: point light data
+	---
+	100-115: instance data
+*/
+void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport )
+{
+	if( !scene )
+		return;
+	
+	m_enablePostProcessing = enablePostProcessing;
+	m_viewport = viewport;
+	m_currentScene = scene;
+	const SGRX_Camera& CAM = scene->camera;
+	
+	// PREPARE RT
+	IDirect3DTexture9* tx_depth = m_drd.RTT_DEPTH;
+	IDirect3DSurface9* su_depth = m_drd.RTS_DEPTH;
+	RTOutInfo RTOUT = { NULL, su_depth, NULL, m_currSettings.width, m_currSettings.height };
+	if( m_currentRT )
+	{
+		D3D9RenderTexture* RT = (D3D9RenderTexture*) m_currentRT.item;
+		RTOUT.CS = RT->CS;
+		RTOUT.DS = RT->DS;
+		RTOUT.DSS = RT->DSS;
+		RTOUT.w = RT->m_info.width;
+		RTOUT.h = RT->m_info.height;
+		tx_depth = RT->DT;
+		su_depth = RT->DS;
+	}
+	else
+	{
+		m_dev->GetRenderTarget( 0, &RTOUT.CS );
+		m_dev->GetDepthStencilSurface( &RTOUT.DSS );
+	}
+	int w = RTOUT.w, h = RTOUT.h;
+	
+	m_stats.Reset();
+	// CULLING
+	SGRX_Cull_Camera_Prepare( m_currentScene );
+	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList();
+	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList();
+	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList();
+	
+	// MESH INST/LIGHT RELATIONS
+	_RS_Compile_MeshLists();
+	
+	// RENDERING BEGINS
+	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
+	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, 1 );
+	
+	// RENDER SHADOWS
+	m_dev->SetRenderTarget( 1, NULL );
+	m_dev->SetRenderTarget( 2, NULL );
+	_RS_Render_Shadows();
+	
+	// RENDER PREP
+	if( m_enablePostProcessing )
+	{
+		m_dev->SetRenderTarget( 0, m_drd.RTS_OCOL );
+		m_dev->SetRenderTarget( 1, m_drd.RTS_PARM );
+		m_dev->SetRenderTarget( 2, m_drd.RTS_DEPTH );
+		m_dev->SetDepthStencilSurface( m_drd.RTSD );
+	}
+	else
+	{
+		m_dev->SetRenderTarget( 0, RTOUT.CS );
+		m_dev->SetRenderTarget( 1, NULL );
+		m_dev->SetRenderTarget( 2, RTOUT.DS );
+		m_dev->SetDepthStencilSurface( RTOUT.DSS );
+	}
+	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+	
+	Viewport_Apply( 1 );
+	
+	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0, 1.0f, 0 );
+	
+	/* upload unchanged data */
+	VS_SetMat4( 0, CAM.mView );
+	VS_SetMat4( 4, CAM.mProj );
+	PS_SetMat4( 0, CAM.mInvView );
+	PS_SetMat4( 4, CAM.mProj );
+	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
+	PS_SetVec4( 4, campos4 );
+	
+	Vec4 skydata[ 1 ] =
+	{
+		{ scene->skyTexture ? 1 : 0, 0, 0, 0 },
+	};
+	PS_SetVec4Array( 11, skydata, 1 );
+	Vec3 fogGamma = scene->fogColor.Pow( 2.0 );
+	Vec4 fogdata[ 2 ] =
+	{
+		{ fogGamma.x, fogGamma.y, fogGamma.z, scene->fogHeightFactor },
+		{ scene->fogDensity, scene->fogHeightDensity, scene->fogStartHeight, scene->fogMinDist },
+	};
+	PS_SetVec4Array( 12, fogdata, 2 );
+	
+	Vec3 dirLightViewDir = -CAM.mView.TransformNormal( scene->dirLightDir ).Normalized();
+	Vec4 dirlight[ 3 ] =
+	{
+		{ scene->ambientLightColor.x, scene->ambientLightColor.y, scene->ambientLightColor.z, 1 },
+		{ dirLightViewDir.x, dirLightViewDir.y, dirLightViewDir.z, 0 },
+		{ scene->dirLightColor.x, scene->dirLightColor.y, scene->dirLightColor.z, 1 },
+	};
+	PS_SetVec4Array( 20, dirlight, 3 );
+	
+	// MAIN PASSES
+	for( size_t pass_id = 0; pass_id < m_renderPasses.size(); ++pass_id )
+	{
+		const SGRX_RenderPass& pass = m_renderPasses[ pass_id ];
+		
+		if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
+		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, tx_depth, RTOUT );
+	}
+	
+	// POST-PROCESSING
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
+	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
+	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	
+	if( m_enablePostProcessing )
+	{
+		uint32_t pptexflags = TEXTURE_FLAGS_FULLSCREEN;
+		
+		m_dev->SetRenderTarget( 1, NULL );
+		m_dev->SetRenderTarget( 2, NULL );
+		m_dev->SetDepthStencilSurface( RTOUT.DSS );
+		
+		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_DSHP );
+		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
+		_SetTextureInt( 0, m_drd.RTT_OCOL, pptexflags );
+		SetShader( m_sh_pp_dshp );
+		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
+		
+		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_BLUR1 );
+		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
+		_SetTextureInt( 0, m_drd.RTT_BLOOM_DSHP, pptexflags );
+		SetShader( m_sh_pp_blur_h );
+		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
+		
+		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_BLUR2 );
+		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
+		_SetTextureInt( 0, m_drd.RTT_BLOOM_BLUR1, pptexflags );
+		SetShader( m_sh_pp_blur_v );
+		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
+		
+		m_dev->SetRenderTarget( 0, RTOUT.CS );
+	//	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
+		SetShader( m_sh_pp_final );
+		_SetTextureInt( 0, m_drd.RTT_OCOL, pptexflags );
+		_SetTextureInt( 1, m_drd.RTT_PARM, pptexflags );
+		_SetTextureInt( 2, m_drd.RTT_BLOOM_BLUR2, pptexflags );
+		PostProcBlit( RTOUT.w, RTOUT.h, 1, 0 );
+	}
+	
+	// MANUAL DEBUG DRAWING
+	_RS_DebugDraw( m_enablePostProcessing ? m_drd.RTSD : RTOUT.DSS, RTOUT.DSS );
+	
+	// POST-PROCESS DEBUGGING
+	if( m_currentRT && m_dbg_rt )
+	{
+		RECT srcRect = { 0, 0, w, h };
+		RECT srcRect2 = { 0, 0, w/4, h/4 };
+		RECT dstRect = { 0, h/8, w/8, h/4 };
+		IDirect3DSurface9* surfs[] =
+		{
+			m_drd.RTS_OCOL,
+			m_drd.RTS_PARM,
+	//		m_drd.RTS_BLOOM_DSHP,
+	//		m_drd.RTS_BLOOM_BLUR1,
+			m_drd.RTS_BLOOM_BLUR2,
+		};
+		for( size_t i = 0; i < sizeof(surfs)/sizeof(surfs[0]); ++i )
+		{
+			RECT* sr = ( surfs[i] == m_drd.RTS_BLOOM_DSHP || surfs[i] == m_drd.RTS_BLOOM_BLUR1 || surfs[i] == m_drd.RTS_BLOOM_BLUR2 ) ? &srcRect2 : &srcRect;
+			m_dev->StretchRect( surfs[i], sr, m_backbuf, &dstRect, D3DTEXF_POINT );
+			dstRect.left += w/8;
+			dstRect.right += w/8;
+		}
+	}
+	
+	// RENDERING ENDS
+	SetShader( NULL );
+	_SetTextureInt( 0, NULL, 0 );
+	
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
+	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+	
+	if( m_currentRT )
+	{
+		SAFE_RELEASE( RTOUT.CS );
+		SAFE_RELEASE( RTOUT.DSS );
+	}
+	
+	// RESTORE STATE
+	m_enablePostProcessing = false;
+	m_viewport = NULL;
+	m_currentScene = NULL;
+}
+
+uint32_t D3D9Renderer::_RS_Cull_Camera_MeshList()
+{
+	m_visible_meshes.clear();
+	return SGRX_Cull_Camera_MeshList( m_visible_meshes, m_scratchMem, m_currentScene );
+}
+
+uint32_t D3D9Renderer::_RS_Cull_Camera_PointLightList()
+{
+	m_visible_point_lights.clear();
+	return SGRX_Cull_Camera_PointLightList( m_visible_point_lights, m_scratchMem, m_currentScene );
+}
+
+uint32_t D3D9Renderer::_RS_Cull_Camera_SpotLightList()
+{
+	m_visible_spot_lights.clear();
+	return SGRX_Cull_Camera_SpotLightList( m_visible_spot_lights, m_scratchMem, m_currentScene );
+}
+
+uint32_t D3D9Renderer::_RS_Cull_SpotLight_MeshList( SGRX_Light* L )
+{
+	m_visible_spot_meshes.clear();
+	return SGRX_Cull_SpotLight_MeshList( m_visible_spot_meshes, m_scratchMem, m_currentScene, L );
+}
+
+static int sort_meshinstlight_by_light( const void* p1, const void* p2 )
+{
+	SGRX_MeshInstLight* mil1 = (SGRX_MeshInstLight*) p1;
+	SGRX_MeshInstLight* mil2 = (SGRX_MeshInstLight*) p2;
+	return mil1->L == mil2->L ? 0 : ( mil1->L < mil2->L ? -1 : 1 );
+}
+
+void D3D9Renderer::_RS_Compile_MeshLists()
+{
+	SGRX_Scene* scene = m_currentScene;
+	
+	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
+	{
+		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
+		
+		MI->_lightbuf_begin = NULL;
+		MI->_lightbuf_end = NULL;
+		
+		if( !MI->mesh || !MI->enabled || MI->mesh->m_dataFlags & MDF_UNLIT )
+			continue;
+		MI->_lightbuf_begin = (SGRX_MeshInstLight*) m_inst_light_buf.size();
+		// POINT LIGHTS
+		for( size_t light_id = 0; light_id < m_visible_point_lights.size(); ++light_id )
+		{
+			SGRX_Light* L = m_visible_point_lights[ light_id ];
+			SGRX_MeshInstLight mil = { MI, L };
+			m_inst_light_buf.push_back( mil );
+		}
+		// SPOTLIGHTS
+		for( size_t light_id = 0; light_id < m_visible_spot_lights.size(); ++light_id )
+		{
+			SGRX_Light* L = m_visible_spot_lights[ light_id ];
+			SGRX_MeshInstLight mil = { MI, L };
+			m_inst_light_buf.push_back( mil );
+		}
+		MI->_lightbuf_end = (SGRX_MeshInstLight*) m_inst_light_buf.size();
+	}
+	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
+	{
+		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
+		if( !MI->mesh || !MI->enabled || MI->mesh->m_dataFlags & MDF_UNLIT )
+			continue;
+		MI->_lightbuf_begin = (SGRX_MeshInstLight*)( (uintptr_t) MI->_lightbuf_begin + (uintptr_t) m_inst_light_buf.data() );
+		MI->_lightbuf_end = (SGRX_MeshInstLight*)( (uintptr_t) MI->_lightbuf_end + (uintptr_t) m_inst_light_buf.data() );
+	}
+	
+	/*  insts -> lights  TO  lights -> insts  */
+	m_light_inst_buf = m_inst_light_buf;
+	memcpy( m_light_inst_buf.data(), m_inst_light_buf.data(), m_inst_light_buf.size() );
+	qsort( m_light_inst_buf.data(), m_light_inst_buf.size(), sizeof( SGRX_MeshInstLight ), sort_meshinstlight_by_light );
+	
+	for( size_t light_id = 0; light_id < scene->m_lights.size(); ++light_id )
+	{
+		SGRX_Light* L = scene->m_lights.item( light_id ).key;
+		if( !L->enabled )
+			continue;
+		L->_mibuf_begin = NULL;
+		L->_mibuf_end = NULL;
+	}
+	
+	SGRX_MeshInstLight* pmil = m_light_inst_buf.data();
+	SGRX_MeshInstLight* pmilend = pmil + m_light_inst_buf.size();
+	
+	while( pmil < pmilend )
+	{
+		if( !pmil->L->_mibuf_begin )
+			pmil->L->_mibuf_begin = pmil;
+		pmil->L->_mibuf_end = pmil + 1;
+		pmil++;
+	}
+}
+
+void D3D9Renderer::_RS_Render_Shadows()
+{
+	SGRX_Scene* scene = m_currentScene;
+	
+	for( size_t pass_id = 0; pass_id < m_renderPasses.size(); ++pass_id )
+	{
+		// Only shadow passes
+		if( m_renderPasses[ pass_id ].type != RPT_SHADOWS )
+			continue;
+		
+		for( size_t light_id = 0; light_id < scene->m_lights.size(); ++light_id )
+		{
+			Mat4 m_world_view, m_inv_view;
+			
+			SGRX_Light* L = scene->m_lights.item( light_id ).key;
+			if( !L->enabled || !L->shadowTexture || !L->shadowTexture->m_isRenderTexture )
+				continue;
+			
+			/* CULL */
+			SGRX_Cull_SpotLight_Prepare( scene, L );
+			_RS_Cull_SpotLight_MeshList( L );
+			
+			D3D9RenderTexture* RT = (D3D9RenderTexture*) L->shadowTexture.item;
+			
+			m_dev->SetRenderTarget( 0, RT->CS );
+			m_dev->SetDepthStencilSurface( RT->DSS );
+			m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xffffffff, 1.0f, 0 );
+			
+			VS_SetMat4( 4, L->projMatrix );
+			m_inv_view = L->viewMatrix;
+			m_inv_view.Transpose();
+			PS_SetMat4( 0, m_inv_view );
+			PS_SetMat4( 4, L->projMatrix );
+			
+			for( size_t miid = 0; miid < m_visible_spot_meshes.size(); ++miid )
+			{
+				SGRX_MeshInstance* MI = m_visible_spot_meshes[ miid ];
+				
+				if( !MI->mesh || !MI->enabled )
+					continue; /* mesh not added / instance not enabled */
+				
+				D3D9Mesh* M = (D3D9Mesh*) MI->mesh.item;
+				if( !M->m_vertexDecl )
+					continue; /* mesh not initialized */
+				
+				D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
+				
+				/* if (transparent & want solid) or (solid & want transparent), skip */
+				if( M->m_dataFlags & MDF_TRANSPARENT )
+					continue;
+				
+				MI_ApplyConstants( MI );
+				
+				m_world_view.Multiply( MI->matrix, L->viewMatrix );
+				VS_SetMat4( 0, m_world_view );
+				
+				m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CW );
+				m_dev->SetVertexDeclaration( VD->m_vdecl );
+				m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
+				m_dev->SetIndices( M->m_IB );
+				
+				for( size_t part_id = 0; part_id < M->m_numParts; ++part_id )
+				{
+					SGRX_MeshPart* MP = &M->m_parts[ part_id ];
+					
+					ShaderHandle* shlist = MI->skin_matrices.size() ? MP->shaders_skin : MP->shaders;
+					
+					SetShader( shlist[ pass_id ] );
+					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
+						SetTexture( tex_id, MP->textures[ tex_id ] );
+					
+					if( MP->indexCount < 3 )
+						continue;
+					m_dev->DrawIndexedPrimitive(
+						M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
+						MP->vertexOffset, 0, MP->vertexCount, MP->indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP->indexCount - 2 : MP->indexCount / 3 );
+					m_stats.numDrawCalls++;
+					m_stats.numSDrawCalls++;
+				}
+			}
+		}
+	}
+}
+
+void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )
+{
+	int obj_type = !!( PASS.flags & RPF_OBJ_STATIC ) - !!( PASS.flags & RPF_OBJ_DYNAMIC );
+	int mtl_type = !!( PASS.flags & RPF_MTL_SOLID ) - !!( PASS.flags & RPF_MTL_TRANSPARENT );
+	
+	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, mtl_type >= 0 );
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, mtl_type <= 0 );
+	
+	const SGRX_Camera& CAM = m_currentScene->camera;
+	
+	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
+	{
+		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
+		if( !MI->mesh )
+			continue;
+		
+		D3D9Mesh* M = (D3D9Mesh*) MI->mesh.item;
+		if( !M->m_vertexDecl )
+			continue;
+		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
+		
+		/* if (transparent & want solid) or (solid & want transparent), skip */
+		if( ( ( M->m_dataFlags & MDF_TRANSPARENT ) && mtl_type > 0 ) || ( !( M->m_dataFlags & MDF_TRANSPARENT ) && mtl_type < 0 ) )
+			continue;
+		
+		/* TODO dynamic meshes */
+		if( obj_type < 0 )
+			continue; /* DISABLE them for now... */
+		
+		m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CW );
+		
+		/* -------------------------------------- */
+		do
+		{
+			/* WHILE THERE ARE LIGHTS IN A LIGHT OVERLAY PASS */
+			int pl_count = 0, sl_count = 0;
+			Vec4 lightdata[ 64 ];
+			Vec4 *pldata_it = &lightdata[0];
+			Vec4 *sldata_ps_it = &lightdata[32];
+			Vec4 *sldata_vs_it = &lightdata[48];
+			
+			if( PASS.pointlight_count )
+			{
+				while( pl_count < PASS.pointlight_count && MI->_lightbuf_begin < MI->_lightbuf_end )
+				{
+					int found = 0;
+					SGRX_MeshInstLight* plt = MI->_lightbuf_begin;
+					while( plt < MI->_lightbuf_end )
+					{
+						if( plt->L->type == LIGHT_POINT )
+						{
+							SGRX_Light* light = plt->L;
+							
+							found = 1;
+							
+							// copy data
+							Vec3 viewpos = CAM.mView.TransformPos( light->position );
+							Vec4 newdata[2] =
+							{
+								{ viewpos.x, viewpos.y, viewpos.z, light->range },
+								{ light->color.x, light->color.y, light->color.z, light->power }
+							};
+							memcpy( pldata_it, newdata, sizeof(Vec4)*2 );
+							pldata_it += 2;
+							pl_count++;
+							
+							// extract light from array
+							if( plt > MI->_lightbuf_begin )
+								*plt = *MI->_lightbuf_begin;
+							MI->_lightbuf_begin++;
+							
+							break;
+						}
+						plt++;
+					}
+					if( !found )
+						break;
+				}
+				PS_SetVec4Array( 56, &lightdata[0], 2 * pl_count );
+			}
+			if( PASS.spotlight_count )
+			{
+				while( sl_count < PASS.spotlight_count && MI->_lightbuf_begin < MI->_lightbuf_end )
+				{
+					int found = 0;
+					SGRX_MeshInstLight* plt = MI->_lightbuf_begin;
+					while( plt < MI->_lightbuf_end )
+					{
+						if( plt->L->type == LIGHT_SPOT )
+						{
+							SGRX_Light* light = plt->L;
+							
+							found = 1;
+							
+							// copy data
+							Vec3 viewpos = CAM.mView.TransformPos( light->position );
+							Vec3 viewdir = CAM.mView.TransformPos( light->direction ).Normalized();
+							float tszx = 1, tszy = 1;
+							if( light->shadowTexture )
+							{
+								const TextureInfo& texinfo = light->shadowTexture.GetInfo();
+								tszx = texinfo.width;
+								tszy = texinfo.height;
+							}
+							Vec4 newdata[4] =
+							{
+								{ viewpos.x, viewpos.y, viewpos.z, light->range },
+								{ light->color.x, light->color.y, light->color.z, light->power },
+								{ viewdir.x, viewdir.y, viewdir.z, DEG2RAD( light->angle ) },
+								{ tszx, tszy, 1.0f / tszx, 1.0f / tszy },
+							};
+							memcpy( sldata_ps_it, newdata, sizeof(Vec4)*4 );
+							Mat4 tmp;
+							tmp.Multiply( MI->matrix, light->viewProjMatrix );
+							memcpy( sldata_vs_it, &tmp, sizeof(Mat4) );
+							sldata_ps_it += 4;
+							sldata_vs_it += 4;
+							
+							SetTexture( 8 + sl_count * 2, light->cookieTexture );
+							SetTexture( 8 + sl_count * 2 + 1, light->shadowTexture );
+							sl_count++;
+							
+							// extract light from array
+							if( plt > MI->_lightbuf_begin )
+								*plt = *MI->_lightbuf_begin;
+							MI->_lightbuf_begin++;
+							
+							break;
+						}
+						plt++;
+					}
+					if( !found )
+						break;
+				}
+				VS_SetVec4Array( 24, &lightdata[48], 4 * sl_count );
+				PS_SetVec4Array( 24, &lightdata[32], 4 * sl_count );
+			}
+			
+			if( PASS.flags & RPF_LIGHTOVERLAY && pl_count + sl_count <= 0 )
+				break;
+			
+			if( !( PASS.flags & RPF_LIGHTOVERLAY ) )
+			{
+				for( int i = 0; i < MAX_MI_TEXTURES; ++i )
+					SetTexture( 8 + i, MI->textures[ i ] );
+				m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+			}
+			else
+			{
+				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
+				m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
+			}
+			
+			MI_ApplyConstants( MI );
+			
+			Vec4 lightcounts = { pl_count, sl_count, 0, 0 };
+			VS_SetVec4( 23, lightcounts );
+			PS_SetVec4( 23, lightcounts );
+			
+			Mat4 m_world_view;
+			m_world_view.Multiply( MI->matrix, CAM.mView );
+			VS_SetMat4( 0, m_world_view );
+			
+			m_dev->SetVertexDeclaration( VD->m_vdecl );
+			m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
+			m_dev->SetIndices( M->m_IB );
+			
+			for( size_t part_id = 0; part_id < M->m_numParts; ++part_id )
+			{
+				SGRX_MeshPart* MP = &M->m_parts[ part_id ];
+				
+				ShaderHandle* shlist = MI->skin_matrices.size() ? MP->shaders_skin : MP->shaders;
+				if( !shlist[ pass_id ] )
+					continue;
+				
+				SetShader( shlist[ pass_id ] );
+				for( size_t tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
+					SetTexture( tex_id, MP->textures[ tex_id ] );
+				
+				if( MP->indexCount < 3 )
+					continue;
+				m_dev->DrawIndexedPrimitive(
+					M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
+					MP->vertexOffset, 0, MP->vertexCount, MP->indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP->indexCount - 2 : MP->indexCount / 3 );
+				m_stats.numDrawCalls++;
+				m_stats.numMDrawCalls++;
+			}
+			
+			/* -------------------------------------- */
+		}
+		while( PASS.flags & RPF_LIGHTOVERLAY );
+	}
+}
+
+void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
+{
+	const SGRX_Camera& CAM = m_currentScene->camera;
+	
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
+	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
+	m_dev->SetRenderTarget( 1, NULL );
+	m_dev->SetRenderTarget( 2, NULL );
+	m_dev->SetDepthStencilSurface( NULL );
+	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	
+	_SetTextureInt( 0, tx_depth, TEXTURE_FLAGS_FULLSCREEN );
+	SetTexture( 4, m_currentScene->skyTexture );
+	
+	SetShader( pass._shader );
+	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
+	PS_SetVec4( 4, campos4 );
+	PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
+	
+	if( m_enablePostProcessing )
+	{
+		m_dev->SetRenderTarget( 1, m_drd.RTS_PARM );
+		m_dev->SetRenderTarget( 2, m_drd.RTS_DEPTH );
+		m_dev->SetDepthStencilSurface( m_drd.RTSD );
+	}
+	else
+	{
+		m_dev->SetRenderTarget( 2, RTOUT.DS );
+		m_dev->SetDepthStencilSurface( RTOUT.DSS );
+	}
+	
+	Viewport_Apply( 1 );
+	
+	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
+}
+
+void D3D9Renderer::_RS_DebugDraw( IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
+{
+	// TODO
+	if( false )// R->inh.debugDraw.type != SGS_VT_NULL )
+	{
+		const SGRX_Camera& CAM = m_currentScene->camera;
+		
+		SetShader( m_sh_debug_draw );
+		Mat4 viewProjMatrix;
+		viewProjMatrix.Multiply( CAM.mView, CAM.mProj );
+		VS_SetMat4( 4, viewProjMatrix );
+		
+		m_inDebugDraw = 1;
+		m_dev->SetRenderState( D3DRS_ZENABLE, m_debugDrawClipWorld );
+		m_dev->SetDepthStencilSurface( test_dss );
+		m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
+		m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+		
+		// TODO
+	//	sgs_PushObjectPtr( C, m__myobj );
+	//	if( SGS_CALL_FAILED( sgs_CallP( C, &m_debugDraw, 1, 0 ) ) )
+	//		sgs_Pop( C, 1 );
+		
+		m_inDebugDraw = 0;
+		m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
+		m_dev->SetDepthStencilSurface( orig_dss );
+		m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
+	}
+}
+
+
+void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_location )
+{
 	/* assuming these are validated: */
 	SGRX_Scene* scene = m_currentScene;
-	SGRX_Camera* cam = scene->camera;
+	const SGRX_Camera& CAM = scene->camera;
 	
 	float invQW = 2.0f, invQH = 2.0f, offX = -1.0f, offY = -1.0f, t0x = 0, t0y = 0, t1x = 1, t1y = 1;
-	// TODO
-//	if( R->inh.viewport )
-//	{
-//		SS3D_Viewport* VP = (SS3D_Viewport*) R->inh.viewport->data;
-//		t0x = (float) VP->x1 / (float) w;
-//		t0y = (float) VP->y1 / (float) h;
-//		t1x = (float) VP->x2 / (float) w;
-//		t1y = (float) VP->y2 / (float) h;
-//		viewport_apply( R, downsample );
-//	}
+	if( m_viewport )
+	{
+		SGRX_Viewport* VP = m_viewport;
+		t0x = (float) VP->x1 / (float) w;
+		t0y = (float) VP->y1 / (float) h;
+		t1x = (float) VP->x2 / (float) w;
+		t1y = (float) VP->y2 / (float) h;
+		Viewport_Apply( downsample );
+	}
 	
 	w /= downsample;
 	h /= downsample;
 	
 	float hpox = 0.5f / w;
 	float hpoy = 0.5f / h;
-	float fsx = 1.0f / cam->mProj.m[0][0];
-	float fsy = 1.0f / cam->mProj.m[1][1];
+	float fsx = 1.0f / CAM.mProj.m[0][0];
+	float fsy = 1.0f / CAM.mProj.m[1][1];
 	ScreenSpaceVtx ssVertices[] =
 	{
 		{ offX, offY, 0, t0x+hpox, t1y+hpoy, -fsx, -fsy },
@@ -906,19 +1945,17 @@ void D3D9Renderer::PostProcBlit( RTOutInfo* outinfo, int downsample, int ppdata_
 		{ offX, invQH + offY, 0, t0x+hpox, t0y+hpoy, -fsx, +fsy },
 	};
 	
-	// TODO
-//	if( ppdata_location >= 0 )
-//	{
-//		VEC4 ppdata;
-//		VEC4_Set( ppdata, w, h, 1.0f / w, 1.0f / h );
-//		pshc_set_vec4array( R, ppdata_location, ppdata, 1 );
-//	}
+	if( ppdata_location >= 0 )
+	{
+		Vec4 ppdata = { w, h, 1.0f / w, 1.0f / h };
+		PS_SetVec4( ppdata_location, ppdata );
+	}
 	
 	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX2 );
 	m_dev->DrawPrimitiveUP( D3DPT_TRIANGLEFAN, 2, ssVertices, sizeof(*ssVertices) );
-	// TODO
-//	R->inh.stat_numDrawCalls++;
-//	R->inh.stat_numPDrawCalls++;
+	
+	m_stats.numDrawCalls++;
+	m_stats.numPDrawCalls++;
 }
 
 
@@ -943,13 +1980,11 @@ void D3D9Renderer::ResetViewport()
 	m_dev->SetViewport( &vp );
 }
 
-void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
+void D3D9Renderer::_SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags )
 {
-	SGRX_CAST( D3D9Texture*, T, tex ); 
-	m_dev->SetTexture( slot, T ? T->m_ptr.base : NULL );
-	if( T )
+	m_dev->SetTexture( slot, tex );
+	if( tex )
 	{
-		uint32_t flags = T->m_info.flags;
 		m_dev->SetSamplerState( slot, D3DSAMP_MAGFILTER, ( flags & TEXFLAGS_LERP_X ) ? D3DTEXF_LINEAR : D3DTEXF_POINT );
 		m_dev->SetSamplerState( slot, D3DSAMP_MINFILTER, ( flags & TEXFLAGS_LERP_Y ) ? D3DTEXF_LINEAR : D3DTEXF_POINT );
 		m_dev->SetSamplerState( slot, D3DSAMP_MIPFILTER, ( flags & TEXFLAGS_HASMIPS ) ? D3DTEXF_NONE : D3DTEXF_LINEAR );
@@ -959,10 +1994,44 @@ void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
 	}
 }
 
+void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
+{
+	SGRX_CAST( D3D9Texture*, T, tex ); 
+	if( T )
+		_SetTextureInt( slot, T->m_ptr.base, T->m_info.flags );
+	else
+		_SetTextureInt( slot, NULL, 0 );
+}
+
 void D3D9Renderer::SetShader( SGRX_IShader* shd )
 {
 	SGRX_CAST( D3D9Shader*, S, shd );
 	m_dev->SetPixelShader( S ? S->m_PS : NULL );
 	m_dev->SetVertexShader( S ? S->m_VS : NULL );
+}
+
+void D3D9Renderer::MI_ApplyConstants( SGRX_MeshInstance* MI )
+{
+	if( MI->skin_matrices.size() )
+		VS_SetVec4Array( 40, (Vec4*) &MI->skin_matrices[0], MI->skin_matrices.size() * 4 );
+	PS_SetVec4Array( 100, &MI->constants[0], 16 );
+}
+
+void D3D9Renderer::Viewport_Apply( int downsample )
+{
+	if( m_viewport )
+	{
+		SGRX_Viewport* VP = m_viewport;
+		D3DVIEWPORT9 d3dvp =
+		{
+			VP->x1 / downsample,
+			VP->y1 / downsample,
+			( VP->x2 - VP->x1 ) / downsample,
+			( VP->y2 - VP->y1 ) / downsample,
+			0.0f,
+			1.0f
+		};
+		m_dev->SetViewport( &d3dvp );
+	}
 }
 

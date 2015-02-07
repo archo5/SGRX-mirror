@@ -146,6 +146,19 @@ struct EXPORT RenderSettings
 	bool vsync;
 };
 
+struct EXPORT RenderStats
+{
+	void Reset();
+	
+	uint32_t numVisMeshes;
+	uint32_t numVisPLights; // point lights
+	uint32_t numVisSLights; // spotlights
+	uint32_t numDrawCalls;
+	uint32_t numSDrawCalls; // shadow
+	uint32_t numMDrawCalls; // main
+	uint32_t numPDrawCalls; // post-processing
+};
+
 #define TEXTYPE_2D     1 /* 1 side, width x height */
 #define TEXTYPE_CUBE   2 /* 6 sides, width x width */
 #define TEXTYPE_VOLUME 3 /* 1 side, width x height x depth */
@@ -159,6 +172,9 @@ struct EXPORT RenderSettings
 #define TEXFORMAT_DXT3   13
 #define TEXFORMAT_DXT5   15
 #define TEXFORMAT_ISBLOCK4FORMAT( x ) ((x)==TEXFORMAT_DXT1||(x)==TEXFORMAT_DXT3||(x)==TEXFORMAT_DXT5)
+
+#define RT_FORMAT_BACKBUFFER 0x10000
+#define RT_FORMAT_DEPTH      0x10001
 
 struct TextureInfo
 {
@@ -180,6 +196,7 @@ struct EXPORT SGRX_ITexture
 	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 	
 	TextureInfo m_info;
+	bool m_isRenderTexture;
 	int32_t m_refcount;
 	String m_key;
 };
@@ -360,46 +377,6 @@ struct MeshHandle : Handle< SGRX_IMesh >
 	MeshHandle( struct SGRX_IMesh* mesh ) : Handle( mesh ){}
 };
 
-struct EXPORT SGRX_Camera
-{
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
-	void UpdateViewMatrix();
-	void UpdateProjMatrix();
-	void UpdateMatrices();
-	
-	Vec3 position;
-	Vec3 direction;
-	Vec3 up;
-	float angle;
-	float aspect;
-	float aamix;
-	float znear;
-	float zfar;
-	
-	Mat4 mView;
-	Mat4 mProj;
-	Mat4 mInvView;
-	
-	int32_t m_refcount;
-};
-
-struct EXPORT CameraHandle : Handle< struct SGRX_Camera >
-{
-	CameraHandle() : Handle(){}
-	CameraHandle( const CameraHandle& h ) : Handle( h ){}
-	CameraHandle( struct SGRX_Camera* cam ) : Handle( cam ){}
-	
-	Vec3 WorldToScreen( Vec3 pos );
-	bool GetCursorRay( float x, float y, Vec3 posdir[2] );
-};
-
-struct SGRX_Viewport
-{
-	int x1, y1, x2, y2;
-};
-
 struct SGRX_MeshInstLight
 {
 	SGRX_MeshInstance* MI;
@@ -450,6 +427,59 @@ struct EXPORT LightHandle : Handle< SGRX_Light >
 	LightHandle( SGRX_Light* lt ) : Handle( lt ){}
 };
 
+
+
+struct EXPORT SGRX_CullSceneFrustum
+{
+	Vec3 position;
+	Vec3 direction;
+	Vec3 up;
+	float hangle;
+	float vangle;
+	float znear;
+	float zfar;
+};
+
+struct EXPORT SGRX_CullSceneCamera
+{
+	SGRX_CullSceneFrustum frustum;
+	Mat4 viewProjMatrix;
+	Mat4 invViewProjMatrix;
+};
+
+struct EXPORT SGRX_CullScenePointLight
+{
+	Vec3 position;
+	float radius;
+};
+
+struct EXPORT SGRX_CullSceneMesh
+{
+	Mat4 transform;
+	Vec3 min, max;
+};
+
+struct EXPORT SGRX_CullScene
+{
+	virtual ~SGRX_CullScene();
+	virtual void Camera_Prepare( SGRX_CullSceneCamera* camera ){}
+	virtual bool Camera_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield ){ return false; }
+	virtual bool Camera_PointLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullScenePointLight* lights, uint32_t* outbitfield ){ return false; }
+	virtual bool Camera_SpotLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneFrustum* frusta, Mat4* inv_matrices, uint32_t* outbitfield ){ return false; }
+	virtual void SpotLight_Prepare( SGRX_CullSceneCamera* camera ){ Camera_Prepare( camera ); }
+	virtual bool SpotLight_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield ){ return Camera_MeshList( count, camera, meshes, outbitfield ); }
+};
+
+struct EXPORT SGRX_DefaultCullScene
+{
+	virtual bool Camera_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield );
+	virtual bool Camera_PointLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullScenePointLight* lights, uint32_t* outbitfield );
+	virtual bool Camera_SpotLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneFrustum* frusta, Mat4* inv_matrices, uint32_t* outbitfield );
+	
+	Array< Vec3 > m_aabbCache;
+};
+
+
 struct EXPORT SGRX_MeshInstance
 {
 	FINLINE void Acquire(){ ++_refcount; }
@@ -484,6 +514,34 @@ struct EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
 	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
 };
 
+struct EXPORT SGRX_Camera
+{
+	void UpdateViewMatrix();
+	void UpdateProjMatrix();
+	void UpdateMatrices();
+	
+	Vec3 WorldToScreen( Vec3 pos );
+	bool GetCursorRay( float x, float y, Vec3 posdir[2] );
+	
+	Vec3 position;
+	Vec3 direction;
+	Vec3 up;
+	float angle;
+	float aspect;
+	float aamix;
+	float znear;
+	float zfar;
+	
+	Mat4 mView;
+	Mat4 mProj;
+	Mat4 mInvView;
+};
+
+struct SGRX_Viewport
+{
+	int x1, y1, x2, y2;
+};
+
 struct EXPORT SGRX_Scene
 {
 	FINLINE void Acquire(){ ++m_refcount; }
@@ -499,8 +557,8 @@ struct EXPORT SGRX_Scene
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;
 	
-//	sgs_VarObj* cullScenes;
-	CameraHandle camera;
+	SGRX_CullScene* cullScene;
+	SGRX_Camera camera;
 	
 	Vec3 fogColor;
 	float fogHeightFactor;
@@ -526,19 +584,19 @@ struct EXPORT SceneHandle : Handle< SGRX_Scene >
 };
 
 /* render pass constants */
-#define SS3D_RPT_OBJECT     1
-#define SS3D_RPT_SCREEN     2
-#define SS3D_RPT_SHADOWS    3
+#define RPT_OBJECT     1
+#define RPT_SCREEN     2
+#define RPT_SHADOWS    3
 
-#define SS3D_RPF_OBJ_STATIC      0x01
-#define SS3D_RPF_OBJ_DYNAMIC     0x02
-#define SS3D_RPF_OBJ_ALL        (SS3D_RPF_OBJ_STATIC|SS3D_RPF_OBJ_DYNAMIC)
-#define SS3D_RPF_MTL_SOLID       0x04
-#define SS3D_RPF_MTL_TRANSPARENT 0x08
-#define SS3D_RPF_MTL_ALL        (SS3D_RPF_MTL_SOLID|SS3D_RPF_MTL_TRANSPARENT)
-#define SS3D_RPF_CALC_DIRAMB     0x10
-#define SS3D_RPF_LIGHTOVERLAY    0x20
-#define SS3D_RPF_ENABLED         0x80
+#define RPF_OBJ_STATIC      0x01
+#define RPF_OBJ_DYNAMIC     0x02
+#define RPF_OBJ_ALL        (RPF_OBJ_STATIC|RPF_OBJ_DYNAMIC)
+#define RPF_MTL_SOLID       0x04
+#define RPF_MTL_TRANSPARENT 0x08
+#define RPF_MTL_ALL        (RPF_MTL_SOLID|RPF_MTL_TRANSPARENT)
+#define RPF_CALC_DIRAMB     0x10
+#define RPF_LIGHTOVERLAY    0x20
+#define RPF_ENABLED         0x80
 
 struct SGRX_RenderPass
 {
@@ -548,7 +606,11 @@ struct SGRX_RenderPass
 	uint16_t pointlight_count;
 	uint8_t spotlight_count;
 	uint8_t num_inst_textures;
-	char shname[ SHADER_NAME_LENGTH ];
+	StringView shader_name;
+	
+	// cache
+	ShaderHandle _shader;
+	
 };
 
 enum EPrimitiveType
@@ -610,12 +672,13 @@ EXPORT int GR_GetHeight();
 
 EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 EXPORT TextureHandle GR_GetTexture( const StringView& path );
+EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
 EXPORT ShaderHandle GR_GetShader( const StringView& path );
 EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
 EXPORT SceneHandle GR_CreateScene();
-EXPORT void GR_RenderScene( SceneHandle sh );
+EXPORT void GR_RenderScene( SceneHandle sh, bool enablePostProcessing = true, SGRX_Viewport* viewport = NULL );
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
 EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );

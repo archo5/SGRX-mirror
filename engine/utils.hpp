@@ -227,6 +227,7 @@ struct EXPORT Vec3
 			arch.marker( "Vec3" );
 		arch << x << y << z;
 	}
+	FINLINE Vec3 Pow( float f ){ Vec3 v = { pow( x, f ), pow( y, f ), pow( z, f ) }; return v; }
 	FINLINE void Set( float _x, float _y, float _z ){ x = _x; y = _y; z = _z; }
 #endif
 };
@@ -314,6 +315,7 @@ struct EXPORT Vec4
 		arch << x << y << z << w;
 	}
 	FINLINE void Set( float _x, float _y, float _z, float _w ){ x = _x; y = _y; z = _z; w = _w; }
+	FINLINE Vec3 ToVec3(){ Vec3 v = { x, y, z }; return v; }
 #endif
 };
 

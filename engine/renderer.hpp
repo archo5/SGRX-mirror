@@ -74,6 +74,14 @@ struct MeshFileData
 const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out );
 
 
+EXPORT void SGRX_Cull_Camera_Prepare( SGRX_Scene* S );
+EXPORT uint32_t SGRX_Cull_Camera_MeshList( Array< SGRX_MeshInstance* >& MIBuf, ByteArray& scratchMem, SGRX_Scene* S );
+EXPORT uint32_t SGRX_Cull_Camera_PointLightList( Array< SGRX_Light* >& LIBuf, ByteArray& scratchMem, SGRX_Scene* S );
+EXPORT uint32_t SGRX_Cull_Camera_SpotLightList( Array< SGRX_Light* >& LIBuf, ByteArray& scratchMem, SGRX_Scene* S );
+EXPORT void SGRX_Cull_SpotLight_Prepare( SGRX_Scene* S, SGRX_Light* L );
+EXPORT uint32_t SGRX_Cull_SpotLight_MeshList( Array< SGRX_MeshInstance* >& MIBuf, ByteArray& scratchMem, SGRX_Scene* S, SGRX_Light* L );
+
+
 ///
 /// RENDERER
 ///
@@ -87,8 +95,12 @@ struct RendererInfo
 
 struct EXPORT IRenderer
 {
+	IRenderer() : m_inDebugDraw( false ), m_debugDrawClipWorld( false ){}
+	
 	virtual void Destroy() = 0;
 	virtual const RendererInfo& GetInfo() = 0;
+	virtual void LoadInternalResources() = 0;
+	virtual void UnloadInternalResources() = 0;
 	
 	virtual void Swap() = 0;
 	virtual void Modify( const RenderSettings& settings ) = 0;
@@ -99,14 +111,21 @@ struct EXPORT IRenderer
 	virtual void SetViewMatrix( const Mat4& mtx ) = 0;
 	
 	virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
+	virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;
 	virtual bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
 	virtual SGRX_IShader* CreateShader( ByteArray& code ) = 0; // StringView for uncompiled, byte buffer for compiled shaders
 	virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
 	virtual SGRX_IMesh* CreateMesh() = 0;
 	
+	virtual bool SetRenderTarget( TextureHandle rt ) = 0;
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex ) = 0;
+	virtual bool SetRenderPasses( SGRX_RenderPass* passes, size_t count ) = 0;
+	virtual void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport ) = 0;
 	
-	SceneHandle m_currentScene;
+	RenderStats m_stats;
+	
+	bool m_inDebugDraw;
+	bool m_debugDrawClipWorld;
 	
 //	void set_render_state( int, int, int, int, int ); /* type, arg0, arg1, arg2, arg3 */
 //	void set_matrix( int, float* ); /* type, float[16] */

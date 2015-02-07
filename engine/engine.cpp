@@ -387,6 +387,18 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 }
 
 
+void RenderStats::Reset()
+{
+	numVisMeshes = 0;
+	numVisPLights = 0;
+	numVisSLights = 0;
+	numDrawCalls = 0;
+	numSDrawCalls = 0;
+	numMDrawCalls = 0;
+	numPDrawCalls = 0;
+}
+
+
 SGRX_ITexture::~SGRX_ITexture()
 {
 	g_Textures->unset( m_key );
@@ -588,6 +600,7 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 
 
 SGRX_Scene::SGRX_Scene() :
+	cullScene( NULL ),
 	fogColor( Vec3::Create( 0.5 ) ),
 	fogHeightFactor( 0 ),
 	fogDensity( 0.01f ),
@@ -689,6 +702,23 @@ TextureHandle GR_GetTexture( const StringView& path )
 	g_Textures->set( tex->m_key, tex );
 	
 	LOG << "Loaded texture: " << path;
+	return tex;
+}
+
+TextureHandle GR_CreateRenderTexture( int width, int height, int format )
+{
+	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, 1 };
+	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
+	if( !tex )
+	{
+		// error is already printed
+		return TextureHandle();
+	}
+	
+	tex->m_refcount = 0;
+	tex->m_info = ti;
+	
+	LOG << "Created renderable texture: " << width << "x" << height << ", format=" << format;
 	return tex;
 }
 
@@ -828,8 +858,9 @@ SceneHandle GR_CreateScene()
 	return scene;
 }
 
-void GR_RenderScene( SceneHandle sh )
+void GR_RenderScene( SceneHandle sh, bool enablePostProcessing, SGRX_Viewport* viewport )
 {
+	g_Renderer->RenderScene( sh, enablePostProcessing, viewport );
 }
 
 
@@ -1050,11 +1081,16 @@ static int init_graphics()
 	g_FontRenderer = new FontRenderer();
 	LOG << LOG_DATE << "  Created font renderer";
 	
+	g_Renderer->LoadInternalResources();
+	LOG << LOG_DATE << "  Loaded internal renderer resources";
+	
 	return 0;
 }
 
 static void free_graphics()
 {
+	g_Renderer->UnloadInternalResources();
+	
 	delete g_FontRenderer;
 	g_FontRenderer = NULL;
 	
