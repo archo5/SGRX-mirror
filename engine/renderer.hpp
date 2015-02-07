@@ -106,6 +106,8 @@ struct EXPORT IRenderer
 	
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex ) = 0;
 	
+	SceneHandle m_currentScene;
+	
 //	void set_render_state( int, int, int, int, int ); /* type, arg0, arg1, arg2, arg3 */
 //	void set_matrix( int, float* ); /* type, float[16] */
 //	void set_rt( SS_Texture* tex );

@@ -90,6 +90,7 @@ SGRX_Log& SGRX_Log::operator << ( ESpec_Date )
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Separator& s ){ sep = s.sep; return *this; }
+SGRX_Log& SGRX_Log::operator << ( bool v ){ prelog(); printf( "[%s / %02X]", v ? "true" : "false", (int) v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( int8_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( uint8_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( int16_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
@@ -386,10 +387,9 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 }
 
 
-void SGRX_ITexture::Destroy()
+SGRX_ITexture::~SGRX_ITexture()
 {
 	g_Textures->unset( m_key );
-	delete this;
 }
 
 const TextureInfo& TextureHandle::GetInfo()
@@ -427,17 +427,15 @@ bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, i
 }
 
 
-void SGRX_IShader::Destroy()
+SGRX_IShader::~SGRX_IShader()
 {
 	g_Shaders->unset( m_key );
-	delete this;
 }
 
 
-void SGRX_IVertexDecl::Destroy()
+SGRX_IVertexDecl::~SGRX_IVertexDecl()
 {
 	g_VertexDecls->unset( m_text );
-	delete this;
 }
 
 const VDeclInfo& VertexDeclHandle::GetInfo()
@@ -483,7 +481,7 @@ bool SGRX_IMesh::SetBoneData( SGRX_MeshBone* bones, int count )
 	int i;
 	for( i = 0; i < count; ++i )
 		m_bones[ i ] = bones[ i ];
-	for( i = 0; i < count; ++i )
+	for( ; i < count; ++i )
 		m_bones[ i ] = SGRX_MeshBone();
 	m_numBones = count;
 	return RecalcBoneMatrices();
@@ -500,7 +498,8 @@ bool SGRX_IMesh::RecalcBoneMatrices()
 	{
 		if( m_bones[ b ].parent_id < -1 || m_bones[ b ].parent_id >= b )
 		{
-			LOG_WARNING << "RecalcBoneMatrices: each parent_id must point to a previous bone or no bone (-1) [error in bone " << b << "]";
+			LOG_WARNING << "RecalcBoneMatrices: each parent_id must point to a previous bone or no bone (-1) [error in bone "
+				<< b << ": " << m_bones[ b ].parent_id << "]";
 			return false;
 		}
 	}
@@ -602,9 +601,8 @@ SGRX_Scene::SGRX_Scene() :
 {
 }
 
-void SGRX_Scene::Destroy()
+SGRX_Scene::~SGRX_Scene()
 {
-	delete this;
 }
 
 MeshInstHandle SGRX_Scene::CreateMeshInstance()
@@ -796,9 +794,10 @@ MeshHandle GR_GetMesh( const StringView& path )
 	SGRX_MeshBone bones[ MAX_MESH_BONES ];
 	for( int i = 0; i < mfd.numBones; ++i )
 	{
-		bones[ i ].name.append( mfd.bones[ i ].boneName, mfd.bones[ i ].boneNameSize );
-		bones[ i ].boneOffset = mfd.bones[ i ].boneOffset;
-		bones[ i ].parent_id = mfd.bones[ i ].parent_id;
+		MeshFileBoneData* mfdb = &mfd.bones[ i ];
+		bones[ i ].name.append( mfdb->boneName, mfdb->boneNameSize );
+		bones[ i ].boneOffset = mfdb->boneOffset;
+		bones[ i ].parent_id = mfdb->parent_id == 255 ? -1 : mfdb->parent_id;
 	}
 	
 	VertexDeclHandle vdh;
@@ -815,12 +814,18 @@ MeshHandle GR_GetMesh( const StringView& path )
 	
 	mesh->m_key = path;
 	g_Meshes->set( mesh->m_key, mesh );
+	
+	LOG << "Created mesh: " << path;
 	return mesh;
 }
 
 
 SceneHandle GR_CreateScene()
 {
+	SGRX_Scene* scene = new SGRX_Scene;
+	
+	LOG << "Created scene";
+	return scene;
 }
 
 void GR_RenderScene( SceneHandle sh )

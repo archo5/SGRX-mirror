@@ -108,10 +108,9 @@ struct D3D9Texture : SGRX_ITexture
 	m_ptr;
 	struct D3D9Renderer* m_renderer;
 	
-	void Destroy()
+	~D3D9Texture()
 	{
 		SAFE_RELEASE( m_ptr.base );
-		SGRX_ITexture::Destroy();
 	}
 	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
@@ -147,20 +146,19 @@ struct D3D9Texture : SGRX_ITexture
 
 struct D3D9Shader : SGRX_IShader
 {
-	D3D9Shader( struct D3D9Renderer* r ) : m_VS( NULL ), m_PS( NULL ), m_VSCT( NULL ), m_PSCT( NULL ), m_renderer( r ){}
 	IDirect3DVertexShader9* m_VS;
 	IDirect3DPixelShader9* m_PS;
 	ID3DXConstantTable* m_VSCT;
 	ID3DXConstantTable* m_PSCT;
 	struct D3D9Renderer* m_renderer;
 	
-	void Destroy()
+	D3D9Shader( struct D3D9Renderer* r ) : m_VS( NULL ), m_PS( NULL ), m_VSCT( NULL ), m_PSCT( NULL ), m_renderer( r ){}
+	~D3D9Shader()
 	{
 		SAFE_RELEASE( m_VSCT );
 		SAFE_RELEASE( m_PSCT );
 		SAFE_RELEASE( m_VS );
 		SAFE_RELEASE( m_PS );
-		SGRX_IShader::Destroy();
 	}
 };
 
@@ -170,11 +168,56 @@ struct D3D9VertexDecl : SGRX_IVertexDecl
 	IDirect3DVertexDeclaration9* m_vdecl;
 	struct D3D9Renderer* m_renderer;
 	
-	void Destroy()
+	~D3D9VertexDecl()
 	{
 		SAFE_RELEASE( m_vdecl );
-		SGRX_IVertexDecl::Destroy();
 	}
+};
+
+
+struct D3D9Mesh : SGRX_IMesh
+{
+	IDirect3DVertexBuffer9* m_VB;
+	IDirect3DIndexBuffer9* m_IB;
+	struct D3D9Renderer* m_renderer;
+	
+	D3D9Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ){}
+	~D3D9Mesh()
+	{
+		SAFE_RELEASE( m_VB );
+		SAFE_RELEASE( m_IB );
+	}
+	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
+	{
+		return InitVertexBuffer( size ) && UpdateVertexData( data, size, vd, tristrip );
+	}
+	bool SetIndexData( const void* data, size_t size, bool i32 )
+	{
+		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
+	}
+	bool InitVertexBuffer( size_t size );
+	bool InitIndexBuffer( size_t size, bool i32 );
+	bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip );
+	bool UpdateIndexData( const void* data, size_t size );
+	
+	bool OnDeviceLost();
+	bool OnDeviceReset();
+};
+
+
+struct ScreenSpaceVtx
+{
+	float x, y, z;
+	float u0, v0;
+	float u1, v1;
+};
+
+struct RTOutInfo
+{
+	IDirect3DSurface9* CS;
+	IDirect3DSurface9* DS;
+	IDirect3DSurface9* DSS;
+	int w, h;
 };
 
 
@@ -205,6 +248,8 @@ struct D3D9Renderer : IRenderer
 	SGRX_IMesh* CreateMesh();
 	
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex );
+	
+	void PostProcBlit( RTOutInfo* outinfo, int downsample, int ppdata_location );
 	
 	bool ResetDevice();
 	void ResetViewport();
@@ -446,6 +491,7 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 	return NULL;
 }
 
+
 bool D3D9Renderer::CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors )
 {
 	HRESULT hr;
@@ -551,6 +597,7 @@ cleanup:
 	return NULL;
 }
 
+
 static int vdecltype_to_eltype[] =
 {
 	D3DDECLTYPE_FLOAT1,
@@ -607,10 +654,186 @@ SGRX_IVertexDecl* D3D9Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 	return vdecl;
 }
 
+
+bool D3D9Mesh::InitVertexBuffer( size_t size )
+{
+	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
+	SAFE_RELEASE( m_VB );
+	m_renderer->m_dev->CreateVertexBuffer( size, dyn ? D3DUSAGE_DYNAMIC : 0, 0, dyn ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED, &m_VB, NULL );
+	if( !m_VB )
+	{
+		LOG_ERROR << "failed to create D3D9 vertex buffer (size=" << size << ")";
+		return false;
+	}
+	m_vertexDataSize = size;
+	return true;
+}
+
+bool D3D9Mesh::InitIndexBuffer( size_t size, bool i32 )
+{
+	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
+	SAFE_RELEASE( m_IB );
+	m_renderer->m_dev->CreateIndexBuffer( size, dyn ? D3DUSAGE_DYNAMIC : 0, i32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, dyn ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED, &m_IB, NULL );
+	if( !m_IB )
+	{
+		LOG_ERROR << "failed to create D3D9 index buffer (size=" << size << ", i32=" << i32 << ")";
+		return false;
+	}
+	m_dataFlags = ( m_dataFlags & ~MDF_INDEX_32 ) | ( MDF_INDEX_32 * i32 );
+	m_indexDataSize = size;
+	return true;
+}
+
+bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
+{
+	void* vb_data;
+	
+	if( size > m_vertexDataSize )
+	{
+		LOG_ERROR << "given vertex data is too big";
+		return false;
+	}
+	
+	if( FAILED( m_VB->Lock( 0, 0, &vb_data, D3DLOCK_DISCARD ) ) )
+	{
+		LOG_ERROR << "failed to lock D3D9 vertex buffer";
+		return false;
+	}
+	
+	memcpy( vb_data, data, size );
+	
+	if( FAILED( m_VB->Unlock() ) )
+	{
+		LOG_ERROR << "failed to unlock D3D9 vertex buffer";
+		return false;
+	}
+	
+	return 1;
+}
+
+bool D3D9Mesh::UpdateIndexData( const void* data, size_t size )
+{
+	void* ib_data;
+	
+	if( size > m_vertexDataSize )
+	{
+		LOG_ERROR << "given index data is too big";
+		return false;
+	}
+	
+	if( FAILED( m_IB->Lock( 0, 0, &ib_data, D3DLOCK_DISCARD ) ) )
+	{
+		LOG_ERROR << "failed to lock D3D9 index buffer";
+		return false;
+	}
+	
+	memcpy( ib_data, data, size );
+	
+	if( FAILED( m_IB->Unlock() ) )
+	{
+		LOG_ERROR << "failed to unlock D3D9 index buffer";
+		return false;
+	}
+	
+	return 1;
+}
+
+bool D3D9Mesh::OnDeviceLost()
+{
+	void *src_data, *dst_data;
+	const char* reason = NULL;
+	if( m_dataFlags & MDF_DYNAMIC )
+	{
+		int i32 = m_dataFlags & MDF_INDEX_32;
+		IDirect3DVertexBuffer9* tmpVB = NULL;
+		IDirect3DIndexBuffer9* tmpIB = NULL;
+		
+		if( m_vertexDataSize )
+		{
+			if( FAILED( m_renderer->m_dev->CreateVertexBuffer( m_vertexDataSize, D3DUSAGE_DYNAMIC, 0, D3DPOOL_SYSTEMMEM, &tmpVB, NULL ) ) )
+				{ reason = "failed to create temp. VB"; goto fail; }
+			src_data = dst_data = NULL;
+			if( FAILED( m_VB->Lock( 0, 0, &src_data, 0 ) ) ){ reason = "failed to lock orig. VB"; goto fail; }
+			if( FAILED( tmpVB->Lock( 0, 0, &dst_data, 0 ) ) ){ reason = "failed to lock temp. VB"; goto fail; }
+			memcpy( dst_data, src_data, m_vertexDataSize );
+			if( FAILED( tmpVB->Unlock() ) ){ reason = "failed to unlock orig. VB"; goto fail; }
+			if( FAILED( m_VB->Unlock() ) ){ reason = "failed to unlock temp. VB"; goto fail; }
+		}
+		SAFE_RELEASE( m_VB );
+		m_VB = tmpVB;
+		
+		if( m_indexDataSize )
+		{
+			if( FAILED( m_renderer->m_dev->CreateIndexBuffer( m_indexDataSize, D3DUSAGE_DYNAMIC, i32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_SYSTEMMEM, &tmpIB, NULL ) ) )
+				{ reason = "failed to create temp. IB"; goto fail; }
+			src_data = dst_data = NULL;
+			if( FAILED( m_IB->Lock( 0, 0, &src_data, 0 ) ) ){ reason = "failed to lock orig. IB"; goto fail; }
+			if( FAILED( tmpIB->Lock( 0, 0, &dst_data, 0 ) ) ){ reason = "failed to lock temp. IB"; goto fail; }
+			memcpy( dst_data, src_data, m_indexDataSize );
+			if( FAILED( tmpIB->Unlock() ) ){ reason = "failed to unlock orig. IB"; goto fail; }
+			if( FAILED( m_IB->Unlock() ) ){ reason = "failed to unlock temp. IB"; goto fail; }
+		}
+		SAFE_RELEASE( m_IB );
+		m_IB = tmpIB;
+	}
+	
+	return true;
+	
+fail:
+	LOG_ERROR << "failed to handle lost device mesh: %s" << ( reason ? reason : "<unknown reason>" );
+	return false;
+}
+
+bool D3D9Mesh::OnDeviceReset()
+{
+	void *src_data, *dst_data;
+	if( m_dataFlags & MDF_DYNAMIC )
+	{
+		int i32 = m_dataFlags & MDF_INDEX_32;
+		IDirect3DVertexBuffer9* tmpVB = NULL;
+		IDirect3DIndexBuffer9* tmpIB = NULL;
+		
+		if( m_vertexDataSize )
+		{
+			if( FAILED( m_renderer->m_dev->CreateVertexBuffer( m_vertexDataSize, D3DUSAGE_DYNAMIC, 0, D3DPOOL_DEFAULT, &tmpVB, NULL ) ) ) goto fail;
+			src_data = dst_data = NULL;
+			if( FAILED( m_VB->Lock( 0, 0, &src_data, 0 ) ) ) goto fail;
+			if( FAILED( tmpVB->Lock( 0, 0, &dst_data, D3DLOCK_DISCARD ) ) ) goto fail;
+			memcpy( dst_data, src_data, m_vertexDataSize );
+			if( FAILED( tmpVB->Unlock() ) ) goto fail;
+			if( FAILED( m_VB->Unlock() ) ) goto fail;
+		}
+		SAFE_RELEASE( m_VB );
+		m_VB = tmpVB;
+		
+		if( m_indexDataSize )
+		{
+			if( FAILED( m_renderer->m_dev->CreateIndexBuffer( m_indexDataSize, D3DUSAGE_DYNAMIC, i32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, D3DPOOL_DEFAULT, &tmpIB, NULL ) ) ) goto fail;
+			src_data = dst_data = NULL;
+			if( FAILED( m_IB->Lock( 0, 0, &src_data, 0 ) ) ) goto fail;
+			if( FAILED( tmpIB->Lock( 0, 0, &dst_data, D3DLOCK_DISCARD ) ) ) goto fail;
+			memcpy( dst_data, src_data, m_indexDataSize );
+			if( FAILED( tmpIB->Unlock() ) ) goto fail;
+			if( FAILED( m_IB->Unlock() ) ) goto fail;
+		}
+		SAFE_RELEASE( m_IB );
+		m_IB = tmpIB;
+	}
+	
+	return true;
+	
+fail:
+	LOG_ERROR << "failed to handle reset device mesh";
+	return false;
+}
+
 SGRX_IMesh* D3D9Renderer::CreateMesh()
 {
-	return NULL;
+	D3D9Mesh* mesh = new D3D9Mesh;
+	mesh->m_renderer = this;
+	return mesh;
 }
+
 
 FINLINE D3DPRIMITIVETYPE conv_prim_type( EPrimitiveType pt )
 {
@@ -645,6 +868,57 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 	SetTexture( 0, tex );
 	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_DIFFUSE );
 	m_dev->DrawPrimitiveUP( conv_prim_type( pt ), get_prim_count( pt, count ), verts, sizeof( *verts ) );
+}
+
+
+void D3D9Renderer::PostProcBlit( RTOutInfo* outinfo, int downsample, int ppdata_location )
+{
+	int w = outinfo->w, h = outinfo->h;
+	
+	/* assuming these are validated: */
+	SGRX_Scene* scene = m_currentScene;
+	SGRX_Camera* cam = scene->camera;
+	
+	float invQW = 2.0f, invQH = 2.0f, offX = -1.0f, offY = -1.0f, t0x = 0, t0y = 0, t1x = 1, t1y = 1;
+	// TODO
+//	if( R->inh.viewport )
+//	{
+//		SS3D_Viewport* VP = (SS3D_Viewport*) R->inh.viewport->data;
+//		t0x = (float) VP->x1 / (float) w;
+//		t0y = (float) VP->y1 / (float) h;
+//		t1x = (float) VP->x2 / (float) w;
+//		t1y = (float) VP->y2 / (float) h;
+//		viewport_apply( R, downsample );
+//	}
+	
+	w /= downsample;
+	h /= downsample;
+	
+	float hpox = 0.5f / w;
+	float hpoy = 0.5f / h;
+	float fsx = 1.0f / cam->mProj.m[0][0];
+	float fsy = 1.0f / cam->mProj.m[1][1];
+	ScreenSpaceVtx ssVertices[] =
+	{
+		{ offX, offY, 0, t0x+hpox, t1y+hpoy, -fsx, -fsy },
+		{ invQW + offX, offY, 0, t1x+hpox, t1y+hpoy, +fsx, -fsy },
+		{ invQW + offX, invQH + offY, 0, t1x+hpox, t0y+hpoy, +fsx, +fsy },
+		{ offX, invQH + offY, 0, t0x+hpox, t0y+hpoy, -fsx, +fsy },
+	};
+	
+	// TODO
+//	if( ppdata_location >= 0 )
+//	{
+//		VEC4 ppdata;
+//		VEC4_Set( ppdata, w, h, 1.0f / w, 1.0f / h );
+//		pshc_set_vec4array( R, ppdata_location, ppdata, 1 );
+//	}
+	
+	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX2 );
+	m_dev->DrawPrimitiveUP( D3DPT_TRIANGLEFAN, 2, ssVertices, sizeof(*ssVertices) );
+	// TODO
+//	R->inh.stat_numDrawCalls++;
+//	R->inh.stat_numPDrawCalls++;
 }
 
 

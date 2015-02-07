@@ -33,6 +33,7 @@ struct EXPORT SGRX_Log
 	SGRX_Log& operator << ( const Separator& );
 	SGRX_Log& operator << ( EMod_Partial );
 	SGRX_Log& operator << ( ESpec_Date );
+	SGRX_Log& operator << ( bool );
 	SGRX_Log& operator << ( int8_t );
 	SGRX_Log& operator << ( uint8_t );
 	SGRX_Log& operator << ( int16_t );
@@ -173,9 +174,9 @@ struct TextureInfo
 struct EXPORT SGRX_ITexture
 {
 	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual void Destroy() = 0;
+	virtual ~SGRX_ITexture();
 	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 	
 	TextureInfo m_info;
@@ -196,9 +197,9 @@ struct EXPORT TextureHandle : Handle< SGRX_ITexture >
 struct EXPORT SGRX_IShader
 {
 	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual void Destroy() = 0;
+	virtual ~SGRX_IShader();
 	
 	int32_t m_refcount;
 	String m_key;
@@ -248,9 +249,9 @@ struct VDeclInfo
 struct EXPORT SGRX_IVertexDecl
 {
 	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual void Destroy() = 0;
+	virtual ~SGRX_IVertexDecl();
 	
 	VDeclInfo m_info;
 	int32_t m_refcount;
@@ -305,20 +306,21 @@ struct SGRX_MeshPart
 
 struct SGRX_MeshBone
 {
+	SGRX_MeshBone() : parent_id(-1){}
+	
 	String name;
 	Mat4 boneOffset;
 	Mat4 invSkinOffset;
 	int parent_id;
 };
 
-struct SGRX_IMesh
+struct EXPORT SGRX_IMesh
 {
 	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
 	SGRX_IMesh();
 	virtual ~SGRX_IMesh(){}
-	virtual void Destroy() = 0;
 	virtual bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
 	virtual bool SetIndexData( const void* data, size_t size, bool i32 ) = 0;
 	virtual bool InitVertexBuffer( size_t size ) = 0;
@@ -448,7 +450,7 @@ struct EXPORT LightHandle : Handle< SGRX_Light >
 	LightHandle( SGRX_Light* lt ) : Handle( lt ){}
 };
 
-struct SGRX_MeshInstance
+struct EXPORT SGRX_MeshInstance
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -482,13 +484,13 @@ struct EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
 	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
 };
 
-struct SGRX_Scene
+struct EXPORT SGRX_Scene
 {
 	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) Destroy(); }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
 	SGRX_Scene();
-	void Destroy();
+	~SGRX_Scene();
 	MeshInstHandle CreateMeshInstance();
 	bool RemoveMeshInstance( MeshInstHandle mih );
 	LightHandle CreateLight();
