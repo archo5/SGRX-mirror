@@ -271,7 +271,7 @@ int main( int argc, char* argv[] )
 				  { 0, 1, 0, 0 },
 				  { 0, 0, 1, 0 },
 				  { 0, 0, 0, 1 } },
-				1.0f, lightmap_name, 0
+				1.0f, 1, lightmap_name, 0
 			};
 			
 			if( !last_mesh )
@@ -305,6 +305,7 @@ int main( int argc, char* argv[] )
 					}
 				}
 				else if( !strcmp( key, "importance" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { mi_info.importance = v; } else { perror( "INST: failed to read importance" ); return 1; } }
+				else if( !strcmp( key, "shadow" ) ){ int v = 0; if( fscanf( fp, "%d", &v ) == 1 ) { mi_info.shadow = !!v; } else { perror( "INST: failed to read shadow" ); return 1; } }
 				else if( !strcmp( key, "matrix" ) )
 				{
 					if( fscanf( fp, "%f %f %f %f  %f %f %f %f  %f %f %f %f",
@@ -425,9 +426,9 @@ int main( int argc, char* argv[] )
 			else if( !strcmp( key, "ao_falloff" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.ao_falloff = v; } else { perror( "CONFIG: failed to read ao_falloff" ); return 1; } }
 			else if( !strcmp( key, "ao_effect" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.ao_effect = v; } else { perror( "CONFIG: failed to read ao_effect" ); return 1; } }
 			else if( !strcmp( key, "ao_divergence" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.ao_divergence = v; } else { perror( "CONFIG: failed to read ao_divergence" ); return 1; } }
-			else if( !strcmp( key, "ao_color_rgb" ) )
+			else if( !strcmp( key, "ao_color" ) )
 			{
-				ltr_VEC3 col; if( fscanf( fp, "%f %f %f", &col[0], &col[1], &col[2] ) == 3 ) { memcpy( scene_config.ao_color_rgb, col, sizeof(col) ); } else { perror( "CONFIG: failed to read ao_color_rgb" ); return 1; }
+				ltr_VEC3 col; if( fscanf( fp, "%f %f %f", &col[0], &col[1], &col[2] ) == 3 ) { memcpy( scene_config.ao_color_rgb, col, sizeof(col) ); } else { perror( "CONFIG: failed to read ao_color" ); return 1; }
 			}
 			else if( !strcmp( key, "ao_num_samples" ) ){ int v = 0; if( fscanf( fp, "%d", &v ) == 1 ) { scene_config.ao_num_samples = v; } else { perror( "CONFIG: failed to read ao_num_samples" ); return 1; } }
 			// GAUSSIAN BLUR effect

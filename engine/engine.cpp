@@ -48,7 +48,7 @@ static ActionMap* g_ActionMap;
 static Vec2 g_CursorPos = {0,0};
 static Array< IScreen* > g_OverlayScreens;
 
-static RenderSettings g_RenderSettings = { 1024, 576, false, false, false };
+static RenderSettings g_RenderSettings = { 1024, 576, false, false, true };
 static const char* g_RendererName = "sgrx-render-d3d9";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;
@@ -594,6 +594,14 @@ SGRX_Light::SGRX_Light( SGRX_Scene* s ) :
 	RecalcMatrices();
 }
 
+SGRX_Light::~SGRX_Light()
+{
+	if( _scene )
+	{
+		_scene->m_lights.unset( this );
+	}
+}
+
 void SGRX_Light::RecalcMatrices()
 {
 }
@@ -611,6 +619,14 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	matrix.SetIdentity();
 	for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
 		constants[ i ] = Vec4::Create( 0 );
+}
+
+SGRX_MeshInstance::~SGRX_MeshInstance()
+{
+	if( _scene )
+	{
+		_scene->m_meshInstances.unset( this );
+	}
 }
 
 
@@ -645,30 +661,30 @@ SGRX_Scene::~SGRX_Scene()
 MeshInstHandle SGRX_Scene::CreateMeshInstance()
 {
 	SGRX_MeshInstance* mi = new SGRX_MeshInstance( this );
-	m_meshInstances.set( mi, mi );
+	m_meshInstances.set( mi, NULL );
 	return mi;
 }
 
-bool SGRX_Scene::RemoveMeshInstance( MeshInstHandle mih )
-{
-	if( !mih || mih->_scene != this )
-		return false;
-	return m_meshInstances.unset( mih );
-}
+//bool SGRX_Scene::RemoveMeshInstance( MeshInstHandle mih )
+//{
+//	if( !mih || mih->_scene != this )
+//		return false;
+//	return m_meshInstances.unset( mih );
+//}
 
 LightHandle SGRX_Scene::CreateLight()
 {
 	SGRX_Light* lt = new SGRX_Light( this );
-	m_lights.set( lt, lt );
+	m_lights.set( lt, NULL );
 	return lt;
 }
 
-bool SGRX_Scene::RemoveLight( LightHandle lh )
-{
-	if( !lh || lh->_scene != this )
-		return false;
-	return m_lights.unset( lh );
-}
+//bool SGRX_Scene::RemoveLight( LightHandle lh )
+//{
+//	if( !lh || lh->_scene != this )
+//		return false;
+//	return m_lights.unset( lh );
+//}
 
 
 int GR_GetWidth(){ return g_RenderSettings.width; }
@@ -868,6 +884,8 @@ MeshHandle GR_GetMesh( const StringView& path )
 		return NULL;
 	}
 	
+	mesh->m_dataFlags = mfd.dataFlags;
+	
 	SGRX_MeshPart parts[ MAX_MESH_PARTS ] = {0};
 	for( int i = 0; i < mfd.numParts; ++i )
 	{
@@ -881,6 +899,7 @@ MeshHandle GR_GetMesh( const StringView& path )
 		}
 		else
 		{
+			memset( parts[ i ].shader_name, 0, sizeof( parts[ i ].shader_name ) );
 			strncpy( parts[ i ].shader_name, mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] );
 		}
 		for( int tid = 0; tid < mfd.parts[ i ].materialTextureCount; ++tid )

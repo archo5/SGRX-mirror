@@ -331,7 +331,7 @@ void Convolve_Transpose( float* src, float* dst, u32 width, u32 height, int cone
 	for( u32 y = 0; y < height; ++y )
 	{
 		// write row to temporary buffer, extend data beyond sides
-		memcpy( tmp + conext * 3, src, sizeof(float) * width * 3 );
+		memcpy( tmp + conext * 3, src + y * width * 3, sizeof(float) * width * 3 );
 		for( int i = 0; i < conext; ++i )
 		{
 			tmp[ i * 3 + 0 ] = tmp[ conext * 3 + 0 ];
@@ -344,7 +344,7 @@ void Convolve_Transpose( float* src, float* dst, u32 width, u32 height, int cone
 		// convolve with the kernel
 		for( u32 x = 0; x < width; ++x )
 		{
-			float* src_p = src + ( x + width * y ) * 3;
+			float* src_p = tmp + ( x + conext ) * 3;
 			float* dst_p = dst + ( y + height * x ) * 3;
 			float sum[3] = { 0.0f, 0.0f, 0.0f };
 			for( int i = -conext; i <= conext; ++i )

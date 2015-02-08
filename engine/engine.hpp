@@ -392,6 +392,7 @@ struct EXPORT SGRX_Light
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
 	
 	SGRX_Light( SGRX_Scene* s );
+	~SGRX_Light();
 	void RecalcMatrices();
 	
 	SGRX_Scene* _scene;
@@ -486,6 +487,7 @@ struct EXPORT SGRX_MeshInstance
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
 	
 	SGRX_MeshInstance( SGRX_Scene* s );
+	~SGRX_MeshInstance();
 	
 	SGRX_Scene* _scene;
 	
@@ -550,9 +552,9 @@ struct EXPORT SGRX_Scene
 	SGRX_Scene();
 	~SGRX_Scene();
 	MeshInstHandle CreateMeshInstance();
-	bool RemoveMeshInstance( MeshInstHandle mih );
+//	bool RemoveMeshInstance( MeshInstHandle mih );
 	LightHandle CreateLight();
-	bool RemoveLight( LightHandle lh );
+//	bool RemoveLight( LightHandle lh );
 	
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;

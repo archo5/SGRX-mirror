@@ -1,5 +1,5 @@
 @ECHO OFF
 mkdir build
 cd build
-cmake -G "MinGW Makefiles" ..
+cmake -D CMAKE_BUILD_TYPE=Debug -G "MinGW Makefiles" ..
 cd ..
