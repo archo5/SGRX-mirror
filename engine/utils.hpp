@@ -392,6 +392,17 @@ struct EXPORT Mat4
 		return m;
 	}
 	
+	static FINLINE Mat4 CreateTranslation( float x, float y, float z )
+	{
+		Mat4 out;
+		out.SetIdentity();
+		out.m[3][0] = x;
+		out.m[3][1] = y;
+		out.m[3][2] = z;
+		return out;
+	}
+	static FINLINE Mat4 CreateTranslation( Vec3 v ){ return CreateTranslation( v.x, v.y, v.z ); }
+	
 	static Mat4 CreateLookAt( Vec3 pos, Vec3 dir, Vec3 up )
 	{
 		Mat4 out;
@@ -428,6 +439,7 @@ struct EXPORT Mat4
 	}
 	FINLINE Vec3 TransformNormal( const Vec3& nrm ) const { return Transform( nrm, 0.0f ); }
 	
+#define InvertTo InvertTo_ // linker errors
 	bool InvertTo( Mat4& out );
 	FINLINE void Transpose()
 	{
@@ -629,6 +641,7 @@ struct Array
 	FINLINE void push_front( const T& v ){ insert( 0, v ); }
 	FINLINE void push_back( const T& v ){ insert( size(), v ); }
 	FINLINE void append( const T* v, size_t sz ){ insert( size(), v, sz ); }
+	FINLINE void assign( const T* v, size_t sz ){ clear(); insert( size(), v, sz ); }
 	FINLINE void clear(){ resize( 0 ); }
 	
 	FINLINE void insert( size_t at, const T& v ){ insert( at, &v, 1 ); }

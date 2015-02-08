@@ -712,6 +712,7 @@ TextureHandle GR_GetTexture( const StringView& path )
 		// error is already printed
 		return TextureHandle();
 	}
+	texdata.info.flags = usageflags;
 	
 	SGRX_ITexture* tex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
 	if( !tex )
