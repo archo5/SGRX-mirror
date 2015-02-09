@@ -208,6 +208,8 @@ static void process_overlay_screens( float dt )
 
 void Game_OnEvent( const Event& e )
 {
+	g_Game->OnEvent( e );
+	
 	if( e.type == SDL_MOUSEMOTION )
 	{
 		g_CursorPos.x = e.motion.x;
@@ -237,38 +239,10 @@ void Game_OnEvent( const Event& e )
 	}
 }
 
-TextureHandle metal;
 void Game_Process( float dt )
 {
 	float f[4] = { 0.2f, 0.4f, 0.6f, 1.0f };
 	g_Renderer->Clear( f );
-	
-#if 0
-	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-	
-	BatchRenderer& br = *g_BatchRenderer;
-	br.SetTexture( metal );
-	br.Col( 1 );
-	br.SetPrimitiveType( PT_Triangles );
-	br.Tex( 0, 0 ).Pos( 0, 0 )
-		.Tex( 1, 1 ).Pos( -50, -50 )
-		.Tex( 1, 0 ).Pos( -50, 0 );
-	br.Tex( 0, 0 ).Pos( 0, 0 )
-		.Tex( 1, 1 ).Pos( 200, 200 )
-		.Tex( 1, 0 ).Pos( 200, 0 );
-	
-	GR2D_SetFont( "fonts/lato-regular.ttf", 11 );
-	GR2D_SetTextCursor( 0, 0 );
-	for( int i = 0; i < 249; ++i )
-	{
-		GR2D_DrawTextLine( i % 3 == 0 ? " SomeTextHere" : " TextHere" );
-		if( GR2D_GetTextCursor().x > GR_GetWidth() )
-		{
-			GR2D_SetTextCursor( ( i % 5 ) * 5, GR2D_GetTextCursor().y + 11 );
-		}
-	}
-	br.Flush();
-#endif
 	
 	g_Game->OnTick( dt, g_GameTime );
 	
@@ -1332,7 +1306,6 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		return 16;
 	
 	g_Game->OnInitialize();
-	metal = GR_GetTexture( "metal0.png" );
 	
 	uint32_t prevtime = GetTimeMsec();
 	SDL_Event event;
@@ -1359,7 +1332,6 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		
 		g_Renderer->Swap();
 	}
-	metal = NULL;
 	
 	g_Game->OnDestroy();
 	

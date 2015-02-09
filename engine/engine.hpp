@@ -59,6 +59,8 @@ struct EXPORT SGRX_Log
 #define LOG_SEP( x ) SGRX_Log::Separator( x )
 
 
+EXPORT uint32_t GetTimeMsec();
+
 typedef SDL_Event Event;
 
 
@@ -123,6 +125,7 @@ struct EXPORT IGame
 	virtual void OnConfigure( int argc, char** argv ){}
 	virtual void OnInitialize(){}
 	virtual void OnDestroy(){}
+	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
 	virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
@@ -645,6 +648,7 @@ struct EXPORT BatchRenderer
 	FINLINE BatchRenderer& Col( float r, float g, float b ){ return Col( r, g, b, 1.0f ); }
 	FINLINE BatchRenderer& Col( float r, float g, float b, float a ){ return Colb( r * 255, g * 255, b * 255, a * 255 ); }
 	BatchRenderer& Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+	FINLINE BatchRenderer& Colu( uint32_t c ){ return Colb( COLOR_EXTRACT_R( c ), COLOR_EXTRACT_G( c ), COLOR_EXTRACT_B( c ), COLOR_EXTRACT_A( c ) ); }
 	FINLINE BatchRenderer& Tex( float x, float y ){ m_proto.u = x; m_proto.v = y; return *this; }
 	FINLINE BatchRenderer& Pos( float x, float y, float z = 0.0f ){ m_proto.x = x; m_proto.y = y; m_proto.z = z; AddVertex( m_proto ); return *this; }
 	
