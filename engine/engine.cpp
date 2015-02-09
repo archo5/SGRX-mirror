@@ -39,6 +39,8 @@ typedef HashTable< StringView, SGRX_IShader* > ShaderHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 
+static String g_GameLibName = "game";
+
 static bool g_Running = true;
 static SDL_Window* g_Window = NULL;
 static void* g_GameLib = NULL;
@@ -1110,6 +1112,63 @@ BatchRenderer& BatchRenderer::Flush()
 // INTERNALS
 //
 
+static bool read_config()
+{
+	String text;
+	if( !LoadTextFile( "config.cfg", text ) )
+	{
+		LOG << "Failed to load config.cfg";
+		return false;
+	}
+	
+	StringView it = text;
+	it = it.after_all( SPACE_CHARS );
+	while( it.size() )
+	{
+		StringView key = it.until_any( HSPACE_CHARS );
+		if( key == "#" )
+		{
+			it = it.after( "\n" ).after_all( SPACE_CHARS );
+			continue;
+		}
+		
+		it.skip( key.size() );
+		it.after_all( HSPACE_CHARS );
+		
+		StringView value = it.until( "\n" );
+		it.skip( value.size() );
+		value.trim( SPACE_CHARS );
+		
+		// PARSING
+		if( key == "game" )
+		{
+			if( value.size() )
+			{
+				g_GameLibName = value;
+				LOG << "Game library: " << value;
+			}
+		}
+		else if( key == "dir" )
+		{
+			if( value.size() )
+			{
+				if( !CWDSet( value ) )
+					LOG_ERROR << "FAILED TO SET GAME DIRECTORY";
+				LOG << "Game directory: " << value;
+			}
+		}
+		else
+		{
+			LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
+		}
+		// END PARSING
+		
+		it = it.after_all( SPACE_CHARS );
+	}
+	
+	return true;
+}
+
 static int init_graphics()
 {
 	g_Window = SDL_CreateWindow( "SGRX Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_RenderSettings.width, g_RenderSettings.height, 0 );
@@ -1224,6 +1283,9 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	LOG << LOG_DATE << "  Engine started";
 	
+	if( !read_config() )
+		return 4;
+	
 	/* initialize SDL */
 	if( SDL_Init(
 		SDL_INIT_TIMER | SDL_INIT_VIDEO |
@@ -1238,10 +1300,12 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	g_ActionMap = new ActionMap;
 	
-	g_GameLib = SDL_LoadObject( "game.dll" );
+	g_GameLibName.append( STRLIT_BUF( ".dll" ) );
+	
+	g_GameLib = SDL_LoadObject( StackPath( g_GameLibName ) );
 	if( !g_GameLib )
 	{
-		LOG_ERROR << "Failed to load game.dll";
+		LOG_ERROR << "Failed to load " << g_GameLibName;
 		return 6;
 	}
 	pfnCreateGame cgproc = (pfnCreateGame) SDL_LoadFunction( g_GameLib, "CreateGame" );

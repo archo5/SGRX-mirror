@@ -3,6 +3,10 @@
 #include <utility>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #define USE_VEC3
 #define USE_MAT4
 #define USE_ARRAY
@@ -478,6 +482,30 @@ Hash HashFunc( const char* str, size_t size )
 }
 
 
+#ifdef _WIN32
+template< int N >
+struct StackWString
+{
+	WCHAR str[ N + 1 ];
+	
+	StackWString( const StringView& sv )
+	{
+		int sz = MultiByteToWideChar( CP_UTF8, 0, sv.data(), sv.size(), str, N );
+		str[ sz ] = 0;
+	}
+	operator const WCHAR* (){ return str; }
+};
+#endif
+
+bool CWDSet( const StringView& path )
+{
+#ifdef _WIN32
+	return SetCurrentDirectoryW( StackWString< MAX_PATH >( path ) );
+#else
+	return chdir( StackString< 4096 >( path ) ) == 0;
+#endif
+}
+
 bool LoadBinaryFile( const StringView& path, ByteArray& out )
 {
 	FILE* fp = fopen( StackPath( path ), "rb" );
@@ -543,8 +571,6 @@ bool LoadTextFile( const StringView& path, String& out )
 	return ret;
 }
 
-#define SPACE_CHARS " \t\n"
-#define HSPACE_CHARS " \t"
 bool LoadItemListFile( const StringView& path, ItemList& out )
 {
 	String text;

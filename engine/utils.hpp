@@ -27,6 +27,9 @@
 #define SMALL_FLOAT 0.001f
 #define ENGINE_MAX_PATH 256
 
+#define SPACE_CHARS " \t\n"
+#define HSPACE_CHARS " \t"
+
 #define DEG2RAD( x ) ((x)/180.0f*M_PI)
 #define RAD2DEG( x ) ((x)*180.0f/M_PI)
 
@@ -848,6 +851,16 @@ struct StringView
 		m_size -= n;
 		return true;
 	}
+	FINLINE void trim( const StringView& chars )
+	{
+		while( m_size && chars.is_any( *m_str ) )
+		{
+			m_str++;
+			m_size--;
+		}
+		while( m_size && chars.is_any( m_str[ m_size - 1 ] ) )
+			m_size--;
+	}
 	
 #ifdef USE_ARRAY
 	FINLINE operator String () const { return String( m_str, m_size ); }
@@ -1384,6 +1397,8 @@ struct TextWriter
 //
 // FILES
 //
+
+EXPORT bool CWDSet( const StringView& path );
 
 EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
 EXPORT bool LoadTextFile( const StringView& path, String& out );
