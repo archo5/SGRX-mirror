@@ -14,16 +14,19 @@
 #define EDGUI_EVENT_MOUSELEAVE 12
 #define EDGUI_EVENT_BTNDOWN    13
 #define EDGUI_EVENT_BTNUP      14
+#define EDGUI_EVENT_BTNCLICK   15
 
 #define EDGUI_ITEM_NULL        0
 #define EDGUI_ITEM_FRAME       1
 #define EDGUI_ITEM_LAYOUT_ROW  40
 #define EDGUI_ITEM_LAYOUT_COL  41
+#define EDGUI_ITEM_SPLIT_PANE  42
 #define EDGUI_ITEM_BUTTON      50
-#define EDGUI_ITEM_PROP_BOOL   100
-#define EDGUI_ITEM_PROP_INT    101
-#define EDGUI_ITEM_PROP_FLOAT  102
-#define EDGUI_ITEM_PROP_STRING 103
+#define EDGUI_ITEM_PROP_NULL   100
+#define EDGUI_ITEM_PROP_BOOL   101
+#define EDGUI_ITEM_PROP_INT    102
+#define EDGUI_ITEM_PROP_FLOAT  103
+#define EDGUI_ITEM_PROP_STRING 104
 
 struct EXPORT EDGUIEvent
 {
@@ -53,7 +56,11 @@ struct EXPORT EDGUIItem
 	void Invalidate(){}
 	bool Hit( int x, int y );
 	void BubblingEvent( EDGUIEvent* e );
+	void SetRectFromEvent( EDGUIEvent* e, bool updatesub );
+	void OnChangeLayout();
+	void SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 );
 	
+	const char* tyname;
 	int type;
 	uint32_t uid;
 	uint32_t backColor;
@@ -95,12 +102,31 @@ struct EXPORT EDGUIFrame : EDGUIItem
 
 struct EXPORT EDGUILayoutRow : EDGUIItem
 {
+	EDGUILayoutRow();
 	virtual int OnEvent( EDGUIEvent* e );
 };
 
 struct EXPORT EDGUILayoutColumn : EDGUIItem
 {
+	EDGUILayoutColumn();
 	virtual int OnEvent( EDGUIEvent* e );
+};
+
+struct EXPORT EDGUILayoutSplitPane : EDGUIItem
+{
+	// "vertical" refers to the direction of the split, not the line
+	EDGUILayoutSplitPane( bool vertical, int splitoff, float splitfac );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	void SetPane( bool second, EDGUIItem* item );
+	void SetFirstPane( EDGUIItem* item );
+	void SetSecondPane( EDGUIItem* item );
+	
+	bool m_vertical;
+	int m_splitoff;
+	float m_splitfac;
+	EDGUIItem* m_first;
+	EDGUIItem* m_second;
 };
 
 struct EXPORT EDGUIButton : EDGUIItem
@@ -115,7 +141,11 @@ struct EXPORT EDGUIProperty : EDGUIItem
 	EDGUIProperty();
 	virtual int OnEvent( EDGUIEvent* e );
 	
+	void _Begin( EDGUIEvent* e );
+	void _End( EDGUIEvent* e );
+	
 	bool m_disabled;
+	int m_x0bk;
 };
 
 struct EXPORT EDGUIPropBool : EDGUIProperty

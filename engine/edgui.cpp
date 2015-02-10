@@ -4,19 +4,32 @@
 #include "edgui.hpp"
 
 
+// - core
 #define EDGUI_THEME_MAIN_BACK_COLOR COLOR_RGBA( 40, 40, 40, 255 )
 #define EDGUI_THEME_MAIN_TEXT_COLOR COLOR_RGBA( 220, 220, 220, 255 )
+// - button
 #define EDGUI_THEME_BUTTON_HEIGHT 24
 #define EDGUI_THEME_BUTTON_BACK_COLOR COLOR_RGBA( 60, 60, 60, 255 )
 #define EDGUI_THEME_BUTTON_BACK_COLOR_MOUSEON COLOR_RGBA( 70, 70, 70, 255 )
 #define EDGUI_THEME_BUTTON_BACK_COLOR_CLICKED COLOR_RGBA( 30, 30, 30, 255 )
 #define EDGUI_THEME_BUTTON_TEXT_COLOR COLOR_RGBA( 240, 240, 240, 255 )
+// - split pane
+#define EDGUI_THEME_SPLITPANE_BORDER_SIZE 4
+#define EDGUI_THEME_SPLITPANE_BORDER_COLOR COLOR_RGBA( 120, 120, 120, 255 )
+// - property
+#define EDGUI_THEME_PROPERTY_HEIGHT 24
+// - property/bool
+#define EDGUI_THEME_PROP_BOOL_OFF_ACTIVE_COLOR COLOR_RGBA( 180, 20, 0, 255 )
+#define EDGUI_THEME_PROP_BOOL_OFF_INACTIVE_COLOR COLOR_RGBA( 100, 20, 0, 255 )
+#define EDGUI_THEME_PROP_BOOL_ON_ACTIVE_COLOR COLOR_RGBA( 20, 180, 0, 255 )
+#define EDGUI_THEME_PROP_BOOL_ON_INACTIVE_COLOR COLOR_RGBA( 20, 100, 0, 255 )
 
 #define DOUBLE_CLICK_MSEC 500
 
 
 
 EDGUIItem::EDGUIItem() :
+	tyname( "item" ),
 	type( EDGUI_ITEM_NULL ),
 	uid( 0 ),
 	backColor( EDGUI_THEME_MAIN_BACK_COLOR ),
@@ -53,16 +66,7 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 		return 1;
 		
 	case EDGUI_EVENT_LAYOUT:
-		Invalidate();
-		x0 = e->layout.x0;
-		y0 = e->layout.y0;
-		x1 = e->layout.x1;
-		y1 = e->layout.y1;
-		Invalidate();
-		for( size_t i = 0; i < m_subitems.size(); ++i )
-		{
-			m_subitems[ i ]->OnEvent( e );
-		}
+		SetRectFromEvent( e, true );
 		return 1;
 		
 	case EDGUI_EVENT_HITTEST:
@@ -71,7 +75,16 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_MOUSEENTER: m_mouseOn = true; Invalidate(); return 1;
 	case EDGUI_EVENT_MOUSELEAVE: m_mouseOn = false; Invalidate(); return 1;
 	case EDGUI_EVENT_BTNDOWN: if( e->mouse.button == 0 ) m_clicked = true; Invalidate(); return 1;
-	case EDGUI_EVENT_BTNUP: if( e->mouse.button == 0 ) m_clicked = false; Invalidate(); return 1;
+	case EDGUI_EVENT_BTNUP:
+		if( e->mouse.button == 0 ) m_clicked = false;
+		if( m_mouseOn )
+		{
+			EDGUIEvent se = * e;
+			se.type = EDGUI_EVENT_BTNCLICK;
+			OnEvent( &se );
+		}
+		Invalidate();
+		return 1;
 	}
 	
 	return 1;
@@ -91,13 +104,7 @@ bool EDGUIItem::Add( EDGUIItem* subitem )
 	m_subitems.push_back( subitem );
 	subitem->m_parent = this;
 	
-	EDGUIEvent e = { EDGUI_EVENT_LAYOUT };
-	e.layout.x0 = x0;
-	e.layout.y0 = y0;
-	e.layout.x1 = x1;
-	e.layout.y1 = y1;
-	OnEvent( &e );
-	
+	OnChangeLayout();
 	return true;
 }
 
@@ -108,6 +115,8 @@ bool EDGUIItem::Remove( EDGUIItem* subitem )
 		return false;
 	m_subitems.erase( pos );
 	subitem->m_parent = NULL;
+	
+	OnChangeLayout();
 	return true;
 }
 
@@ -130,6 +139,45 @@ void EDGUIItem::BubblingEvent( EDGUIEvent* e )
 	}
 }
 
+void EDGUIItem::SetRectFromEvent( EDGUIEvent* e, bool updatesub )
+{
+	Invalidate();
+	x0 = e->layout.x0;
+	y0 = e->layout.y0;
+	x1 = e->layout.x1;
+	y1 = e->layout.y1;
+	Invalidate();
+	if( updatesub )
+	{
+		for( size_t i = 0; i < m_subitems.size(); ++i )
+		{
+			m_subitems[ i ]->OnEvent( e );
+		}
+	}
+}
+
+void EDGUIItem::OnChangeLayout()
+{
+	EDGUIEvent e = { EDGUI_EVENT_LAYOUT };
+	e.layout.x0 = x0;
+	e.layout.y0 = y0;
+	e.layout.x1 = x1;
+	e.layout.y1 = y1;
+	LOG << "OC LAYOUT: " << tyname << LOG_SEP(", ") << x0 << y0 << x1 << y1;
+	OnEvent( &e );
+}
+
+void EDGUIItem::SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 )
+{
+	LOG << "SUB LAYOUT: " << tyname << " -> " << subitem->tyname << LOG_SEP(", ") << _x0 << _y0 << _x1 << _y1;
+	EDGUIEvent e = { EDGUI_EVENT_LAYOUT };
+	e.layout.x0 = _x0;
+	e.layout.y0 = _y0;
+	e.layout.x1 = _x1;
+	e.layout.y1 = _y1;
+	subitem->OnEvent( &e );
+}
+
 
 EDGUIFrame::EDGUIFrame() :
 	m_mouseX( 0 ),
@@ -141,6 +189,8 @@ EDGUIFrame::EDGUIFrame() :
 	m_lastClickedButton( -1 ),
 	m_lastClickItem( NULL )
 {
+	tyname = "frame";
+	type = EDGUI_ITEM_FRAME;
 	for( int i = 0; i < 3; ++i )
 	{
 		m_clickTargets[i] = NULL;
@@ -221,12 +271,7 @@ void EDGUIFrame::Resize( int w, int h, int x, int y )
 	x1 = x + w;
 	y1 = y + h;
 	
-	EDGUIEvent e = { EDGUI_EVENT_LAYOUT };
-	e.layout.x0 = x0;
-	e.layout.y0 = y0;
-	e.layout.x1 = x1;
-	e.layout.y1 = y1;
-	OnEvent( &e );
+	OnChangeLayout();
 }
 
 void EDGUIFrame::Draw()
@@ -343,22 +388,23 @@ EDGUIItem* EDGUIFrame::_GetItemAtPosition( int x, int y )
 }
 
 
+EDGUILayoutRow::EDGUILayoutRow()
+{
+	type = EDGUI_ITEM_LAYOUT_ROW;
+	tyname = "layout-row";
+}
+
 int EDGUILayoutRow::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
 	{
 	case EDGUI_EVENT_LAYOUT:
 		{
-			EDGUIItem::OnEvent( e );
+			SetRectFromEvent( e, false );
 			int at = y0;
 			for( size_t i = 0; i < m_subitems.size(); ++i )
 			{
-				EDGUIEvent se = { EDGUI_EVENT_LAYOUT };
-				se.layout.x0 = x0;
-				se.layout.x1 = x1;
-				se.layout.y0 = at;
-				se.layout.y1 = at;
-				m_subitems[ i ]->OnEvent( &se );
+				SetSubitemLayout( m_subitems[ i ], x0, at, x1, at );
 				at = m_subitems[ i ]->y1;
 			}
 			y1 = at;
@@ -379,13 +425,19 @@ int EDGUILayoutRow::OnEvent( EDGUIEvent* e )
 }
 
 
+EDGUILayoutColumn::EDGUILayoutColumn()
+{
+	type = EDGUI_ITEM_LAYOUT_COL;
+	tyname = "layout-col";
+}
+
 int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
 	{
 	case EDGUI_EVENT_LAYOUT:
 		{
-			EDGUIItem::OnEvent( e );
+			SetRectFromEvent( e, false );
 			if( m_subitems.size() )
 			{
 				int pat = x0;
@@ -395,12 +447,7 @@ int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 				for( size_t i = 0; i < m_subitems.size(); ++i )
 				{
 					int cur = at / 65536;
-					EDGUIEvent se = { EDGUI_EVENT_LAYOUT };
-					se.layout.x0 = pat;
-					se.layout.x1 = cur;
-					se.layout.y0 = y0;
-					se.layout.y1 = y0;
-					m_subitems[ i ]->OnEvent( &se );
+					SetSubitemLayout( m_subitems[ i ], pat, y0, cur, y0 );
 					
 					pat = cur;
 					at += delta;
@@ -430,8 +477,94 @@ int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 }
 
 
+EDGUILayoutSplitPane::EDGUILayoutSplitPane( bool vertical, int splitoff, float splitfac ) :
+	m_vertical( vertical ),
+	m_splitoff( splitoff ),
+	m_splitfac( splitfac ),
+	m_first( NULL ),
+	m_second( NULL )
+{
+	type = EDGUI_ITEM_SPLIT_PANE;
+	tyname = "split-pane";
+	backColor = EDGUI_THEME_SPLITPANE_BORDER_COLOR;
+}
+
+int EDGUILayoutSplitPane::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_LAYOUT:
+		{
+			SetRectFromEvent( e, false );
+			if( !m_vertical )
+			{
+				int cx = round( x0 * (1-m_splitfac) + x1 * m_splitfac ) + m_splitoff;
+				int cx0 = cx - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
+				int cx1 = cx0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
+				
+				if( m_first ) SetSubitemLayout( m_first, x0, y0, cx0, y1 );
+				if( m_second ) SetSubitemLayout( m_second, cx1, y0, x1, y1 );
+			}
+			else
+			{
+				int cy = round( y0 * (1-m_splitfac) + y1 * m_splitfac ) + m_splitoff;
+				int cy0 = cy - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
+				int cy1 = cy0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
+				
+				if( m_first ) SetSubitemLayout( m_first, x0, y0, x1, cy0 );
+				if( m_second ) SetSubitemLayout( m_second, x0, cy1, x1, y1 );
+			}
+		}
+		return 1;
+		
+	case EDGUI_EVENT_PAINT:
+		if( backColor )
+		{
+			if( !m_vertical )
+			{
+				int cx = round( x0 * (1-m_splitfac) + x1 * m_splitfac ) + m_splitoff;
+				int cx0 = cx - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
+				int cx1 = cx0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
+				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( cx0, y0, cx1, y1 );
+			}
+			else
+			{
+				int cy = round( y0 * (1-m_splitfac) + y1 * m_splitfac ) + m_splitoff;
+				int cy0 = cy - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
+				int cy1 = cy0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
+				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( x0, cy0, x1, cy1 );
+			}
+		}
+		if( m_first ) m_first->OnEvent( e );
+		if( m_second ) m_second->OnEvent( e );
+		return 1;
+	}
+	return EDGUIItem::OnEvent( e );
+}
+
+void EDGUILayoutSplitPane::SetPane( bool second, EDGUIItem* item )
+{
+	EDGUIItem*& tgtpane = second ? m_second : m_first;
+	if( tgtpane && tgtpane->m_parent == this )
+	{
+		Remove( tgtpane );
+	}
+	tgtpane = item;
+	if( item )
+	{
+		Add( item );
+	}
+	OnChangeLayout();
+}
+
+void EDGUILayoutSplitPane::SetFirstPane( EDGUIItem* item ){ SetPane( false, item ); }
+void EDGUILayoutSplitPane::SetSecondPane( EDGUIItem* item ){ SetPane( true, item ); }
+
+
 EDGUIButton::EDGUIButton()
 {
+	type = EDGUI_ITEM_BUTTON;
+	tyname = "button";
 	backColor = EDGUI_THEME_BUTTON_BACK_COLOR;
 	textColor = EDGUI_THEME_BUTTON_TEXT_COLOR;
 }
@@ -464,6 +597,83 @@ void EDGUIButton::OnChangeState()
 		EDGUI_THEME_BUTTON_BACK_COLOR_CLICKED :
 		( m_mouseOn ? EDGUI_THEME_BUTTON_BACK_COLOR_MOUSEON : EDGUI_THEME_BUTTON_BACK_COLOR );
 	Invalidate();
+}
+
+
+EDGUIProperty::EDGUIProperty()
+{
+	type = EDGUI_ITEM_PROP_NULL;
+	tyname = "property";
+}
+
+int EDGUIProperty::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_LAYOUT:
+		x0 = e->layout.x0;
+		x1 = e->layout.x1;
+		y0 = e->layout.y0;
+		y1 = y0 + EDGUI_THEME_PROPERTY_HEIGHT;
+		return 1;
+	}
+	return EDGUIItem::OnEvent( e );
+}
+
+void EDGUIProperty::_Begin( EDGUIEvent* e )
+{
+	m_x0bk = x0;
+	if( caption.size() )
+	{
+		if( e->type == EDGUI_EVENT_PAINT )
+		{
+			GR2D_GetBatchRenderer().Colu( textColor );
+			GR2D_DrawTextLine( x0, y0, caption );
+		}
+		x0 = ( x0 + x1 ) / 2;
+	}
+}
+
+void EDGUIProperty::_End( EDGUIEvent* e )
+{
+	x0 = m_x0bk;
+}
+
+
+EDGUIPropBool::EDGUIPropBool( bool def ) : m_value( def )
+{
+	type = EDGUI_ITEM_PROP_BOOL;
+	tyname = "property-bool";
+}
+
+int EDGUIPropBool::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+			m_value = e->mouse.x > ( x0 + x1 ) / 2;
+		_End( e );
+		return 1;
+		
+	case EDGUI_EVENT_PAINT:
+		{
+			_Begin( e );
+			int mid = ( x0 + x1 ) / 2;
+			GR2D_GetBatchRenderer().UnsetTexture()
+				.Colu( !m_value ? EDGUI_THEME_PROP_BOOL_OFF_ACTIVE_COLOR : EDGUI_THEME_PROP_BOOL_OFF_INACTIVE_COLOR ).Quad( x0, y0, mid, y1 )
+				.Colu( m_value ? EDGUI_THEME_PROP_BOOL_ON_ACTIVE_COLOR : EDGUI_THEME_PROP_BOOL_ON_INACTIVE_COLOR ).Quad( mid, y0, x1, y1 );
+			
+			GR2D_GetBatchRenderer().Colu( textColor );
+			GR2D_DrawTextLine( x0, y0, "No" );
+			GR2D_DrawTextLine( mid, y0, "Yes" );
+			_End( e );
+		}
+		return 1;
+	}
+	
+	return EDGUIProperty::OnEvent( e );
 }
 
 
