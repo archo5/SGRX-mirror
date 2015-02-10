@@ -657,6 +657,8 @@ struct EXPORT BatchRenderer
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h ){ return Quad( x, y, x + w, y + h ); }
 	FINLINE BatchRenderer& Box( float x, float y, float w, float h ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h ); }
 	BatchRenderer& TurnedBox( float x, float y, float dx, float dy );
+	BatchRenderer& CircleFill( float x, float y, float r, int verts = -1 );
+	BatchRenderer& CircleOutline( float x, float y, float r, int verts = -1 );
 	
 	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
 	bool CheckSetTexture( const TextureHandle& tex );

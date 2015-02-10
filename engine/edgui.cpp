@@ -5,6 +5,7 @@
 
 
 // - core
+#define EDGUI_THEME_OVERLAY_COLOR COLOR_RGBA( 0, 0, 0, 64 )
 #define EDGUI_THEME_MAIN_BACK_COLOR COLOR_RGBA( 40, 40, 40, 255 )
 #define EDGUI_THEME_MAIN_TEXT_COLOR COLOR_RGBA( 220, 220, 220, 255 )
 // - button
@@ -23,6 +24,11 @@
 #define EDGUI_THEME_PROP_BOOL_OFF_INACTIVE_COLOR COLOR_RGBA( 100, 20, 0, 255 )
 #define EDGUI_THEME_PROP_BOOL_ON_ACTIVE_COLOR COLOR_RGBA( 20, 180, 0, 255 )
 #define EDGUI_THEME_PROP_BOOL_ON_INACTIVE_COLOR COLOR_RGBA( 20, 100, 0, 255 )
+// - number wheel
+#define EDGUI_THEME_NUMWHEEL_WHEEL_SIZE 20
+#define EDGUI_THEME_NUMWHEEL_CENTER_SIZE 20
+#define EDGUI_THEME_NUMWHEEL_WHEEL_COLOR COLOR_RGBA( 127, 0, 0, 64 )
+#define EDGUI_THEME_NUMWHEEL_OUTLINE_COLOR COLOR_RGBA( 192, 192, 192, 128 )
 
 #define DOUBLE_CLICK_MSEC 500
 
@@ -31,7 +37,8 @@
 EDGUIItem::EDGUIItem() :
 	tyname( "item" ),
 	type( EDGUI_ITEM_NULL ),
-	uid( 0 ),
+	id1( 0 ),
+	id2( 0 ),
 	backColor( EDGUI_THEME_MAIN_BACK_COLOR ),
 	textColor( EDGUI_THEME_MAIN_TEXT_COLOR ),
 	m_parent( NULL ),
@@ -79,9 +86,10 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 		if( e->mouse.button == 0 ) m_clicked = false;
 		if( m_mouseOn )
 		{
-			EDGUIEvent se = * e;
+			EDGUIEvent se = *e;
 			se.type = EDGUI_EVENT_BTNCLICK;
-			OnEvent( &se );
+			se.target = this;
+			BubblingEvent( &se );
 		}
 		Invalidate();
 		return 1;
@@ -103,6 +111,7 @@ bool EDGUIItem::Add( EDGUIItem* subitem )
 	
 	m_subitems.push_back( subitem );
 	subitem->m_parent = this;
+	subitem->_SetFrame( m_frame );
 	
 	OnChangeLayout();
 	return true;
@@ -115,6 +124,7 @@ bool EDGUIItem::Remove( EDGUIItem* subitem )
 		return false;
 	m_subitems.erase( pos );
 	subitem->m_parent = NULL;
+	subitem->_SetFrame( NULL );
 	
 	OnChangeLayout();
 	return true;
@@ -158,7 +168,7 @@ void EDGUIItem::SetRectFromEvent( EDGUIEvent* e, bool updatesub )
 
 void EDGUIItem::OnChangeLayout()
 {
-	EDGUIEvent e = { EDGUI_EVENT_LAYOUT };
+	EDGUIEvent e = { EDGUI_EVENT_LAYOUT, this };
 	e.layout.x0 = x0;
 	e.layout.y0 = y0;
 	e.layout.x1 = x1;
@@ -170,12 +180,31 @@ void EDGUIItem::OnChangeLayout()
 void EDGUIItem::SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 )
 {
 	LOG << "SUB LAYOUT: " << tyname << " -> " << subitem->tyname << LOG_SEP(", ") << _x0 << _y0 << _x1 << _y1;
-	EDGUIEvent e = { EDGUI_EVENT_LAYOUT };
+	EDGUIEvent e = { EDGUI_EVENT_LAYOUT, this };
 	e.layout.x0 = _x0;
 	e.layout.y0 = _y0;
 	e.layout.x1 = _x1;
 	e.layout.y1 = _y1;
 	subitem->OnEvent( &e );
+}
+
+void EDGUIItem::_SetFrame( EDGUIFrame* frame )
+{
+	m_frame = frame;
+	for( size_t i = 0; i < m_subitems.size(); ++i )
+		m_subitems[ i ]->_SetFrame( frame );
+}
+
+void EDGUIItem::Edited()
+{
+	EDGUIEvent ev = { EDGUI_EVENT_PROPEDIT, this };
+	BubblingEvent( &ev );
+}
+
+void EDGUIItem::Changed()
+{
+	EDGUIEvent ev = { EDGUI_EVENT_PROPCHANGE, this };
+	BubblingEvent( &ev );
 }
 
 
@@ -189,6 +218,7 @@ EDGUIFrame::EDGUIFrame() :
 	m_lastClickedButton( -1 ),
 	m_lastClickItem( NULL )
 {
+	m_frame = this;
 	tyname = "frame";
 	type = EDGUI_ITEM_FRAME;
 	for( int i = 0; i < 3; ++i )
@@ -214,6 +244,13 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 	{
 		m_mouseX = eev->motion.x;
 		m_mouseY = eev->motion.y;
+		if( m_hover )
+		{
+			EDGUIEvent e = { EDGUI_EVENT_MOUSEMOVE, m_hover };
+			e.mouse.x = m_mouseX;
+			e.mouse.y = m_mouseY;
+			m_hover->OnEvent( &e );
+		}
 		_HandleMouseMove( true );
 	}
 	else if( eev->type == SDL_MOUSEBUTTONUP || eev->type == SDL_MOUSEBUTTONDOWN )
@@ -276,7 +313,7 @@ void EDGUIFrame::Resize( int w, int h, int x, int y )
 
 void EDGUIFrame::Draw()
 {
-	EDGUIEvent ev = { EDGUI_EVENT_PAINT };
+	EDGUIEvent ev = { EDGUI_EVENT_PAINT, this };
 	OnEvent( &ev );
 }
 
@@ -316,14 +353,14 @@ void EDGUIFrame::_HandleMouseMove( bool optional )
 				// no common parent, run bubbling event on previous hover, bubbling event on current hover, update all styles
 				if( pphi )
 				{
-					EDGUIEvent e = { EDGUI_EVENT_MOUSELEAVE };
+					EDGUIEvent e = { EDGUI_EVENT_MOUSELEAVE, pphi };
 					e.mouse.x = m_mouseX;
 					e.mouse.y = m_mouseY;
 					pphi->BubblingEvent( &e );
 				}
 				if( m_hover )
 				{
-					EDGUIEvent e = { EDGUI_EVENT_MOUSEENTER };
+					EDGUIEvent e = { EDGUI_EVENT_MOUSEENTER, m_hover };
 					e.mouse.x = m_mouseX;
 					e.mouse.y = m_mouseY;
 					m_hover->BubblingEvent( &e );
@@ -336,6 +373,7 @@ void EDGUIFrame::_HandleMouseMove( bool optional )
 				EDGUIItem *cc, *pcc1, *pcc2;
 				
 				e.type = EDGUI_EVENT_MOUSELEAVE;
+				e.target = prevhover;
 				e.mouse.x = m_mouseX;
 				e.mouse.y = m_mouseY;
 				
@@ -349,6 +387,7 @@ void EDGUIFrame::_HandleMouseMove( bool optional )
 				}
 				
 				e.type = EDGUI_EVENT_MOUSEENTER;
+				e.target = m_hover;
 				e.mouse.x = m_mouseX;
 				e.mouse.y = m_mouseY;
 				
@@ -408,16 +447,18 @@ int EDGUILayoutRow::OnEvent( EDGUIEvent* e )
 				at = m_subitems[ i ]->y1;
 			}
 			y1 = at;
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT };
-			m_parent->OnEvent( &se );
+			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+			if( m_parent )
+				m_parent->OnEvent( &se );
 		}
 		return 1;
 		
 	case EDGUI_EVENT_POSTLAYOUT:
 		{
 			y1 = m_subitems.size() ? m_subitems.last()->y1 : y0;
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT };
-			m_parent->OnEvent( &se );
+			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+			if( m_parent )
+				m_parent->OnEvent( &se );
 		}
 		return 1;
 	}
@@ -455,8 +496,9 @@ int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 						y1 = m_subitems[ i ]->y1;
 				}
 			}
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT };
-			m_parent->OnEvent( &se );
+			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+			if( m_parent )
+				m_parent->OnEvent( &se );
 		}
 		return 1;
 		
@@ -468,8 +510,9 @@ int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 				if( m_subitems[ i ]->y1 > y1 )
 					y1 = m_subitems[ i ]->y1;
 			}
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT };
-			m_parent->OnEvent( &se );
+			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+			if( m_parent )
+				m_parent->OnEvent( &se );
 		}
 		return 1;
 	}
@@ -600,6 +643,109 @@ void EDGUIButton::OnChangeState()
 }
 
 
+EDGUINumberWheel::EDGUINumberWheel( EDGUIItem* owner, double min, double max, int initpwr, int numwheels ) :
+	m_value( 0 ),
+	m_min( min ),
+	m_max( max ),
+	m_cx( 0 ),
+	m_cy( 0 ),
+	m_initpwr( initpwr ),
+	m_numwheels( numwheels ),
+	m_prevMouseX( -1 ),
+	m_prevMouseY( -1 ),
+	m_owner( owner )
+{
+	type = EDGUI_ITEM_NUMWHEEL;
+	tyname = "numberwheel";
+	backColor = EDGUI_THEME_OVERLAY_COLOR;
+}
+
+int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_BTNCLICK:
+		{
+			int prbx = e->mouse.x - m_cx;
+			int prby = e->mouse.y - m_cy;
+			float dist = sqrt( prbx * prbx + prby * prby );
+			if( dist < EDGUI_THEME_NUMWHEEL_CENTER_SIZE && m_curWheel < 0 )
+			{
+				if( m_owner )
+					m_owner->Changed();
+				m_parent->Remove( this );
+			}
+		}
+		return 1;
+	case EDGUI_EVENT_MOUSEMOVE:
+		if( m_prevMouseX >= 0 && m_prevMouseY >= 0 )
+		{
+			if( !m_clicked )
+			{
+				int prbx = ( e->mouse.x + m_prevMouseX ) / 2 - m_cx;
+				int prby = ( e->mouse.y + m_prevMouseY ) / 2 - m_cy;
+				float dist = sqrt( prbx * prbx + prby * prby ) - EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
+				dist /= EDGUI_THEME_NUMWHEEL_WHEEL_SIZE;
+				m_curWheel = floor( dist );
+			}
+			if( m_clicked && m_curWheel >= 0 && m_curWheel < m_numwheels )
+			{
+				float pa = atan2( m_prevMouseY - m_cy, m_prevMouseX - m_cx );
+				float ca = atan2( e->mouse.y - m_cy  , e->mouse.x - m_cx   );
+				if( pa - ca > M_PI ) pa -= M_PI * 2;
+				if( ca - pa > M_PI ) ca -= M_PI * 2;
+				float diff = ca - pa;
+				
+				double prevval = GetValue();
+				m_value += diff * pow( 10, m_initpwr + m_curWheel );
+				if( m_value < m_min ) m_value = m_min;
+				if( m_value > m_max ) m_value = m_max;
+				if( GetValue() != prevval && m_owner )
+					m_owner->Edited();
+			}
+		}
+		m_prevMouseX = e->mouse.x;
+		m_prevMouseY = e->mouse.y;
+		return 1;
+	case EDGUI_EVENT_PAINT:
+		{
+			int rad = m_numwheels * EDGUI_THEME_NUMWHEEL_WHEEL_SIZE + EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
+			BatchRenderer& br = GR2D_GetBatchRenderer();
+			br.UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1 );
+			br.Colu( EDGUI_THEME_NUMWHEEL_WHEEL_COLOR ).CircleFill( m_cx, m_cy, rad );
+			for( int i = 0; i <= m_numwheels; ++i )
+			{
+				rad = i * EDGUI_THEME_NUMWHEEL_WHEEL_SIZE + EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
+				br.Colu( EDGUI_THEME_NUMWHEEL_OUTLINE_COLOR ).CircleOutline( m_cx, m_cy, rad );
+			}
+			int xdif = m_cx - ( m_frame->x0 + m_frame->x1 ) / 2;
+			int ydif = m_cy - ( m_frame->y0 + m_frame->y1 ) / 2;
+			float xfac = ( xdif >= 0 ? -1 : 1 ) * 0.707f;
+			float yfac = ( ydif >= 0 ? -1 : 1 ) * 0.707f;
+			
+			char bfr[ 32 ] = {0};
+			br.Colu( textColor );
+			if( m_curWheel >= 0 && m_curWheel < m_numwheels )
+			{
+				rad = m_curWheel * EDGUI_THEME_NUMWHEEL_WHEEL_SIZE + EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
+				snprintf( bfr, 31, "%g", pow( 10, m_initpwr + m_curWheel ) );
+				GR2D_DrawTextLine( m_cx + xfac * rad, m_cy + yfac * rad, bfr );
+			}
+			snprintf( bfr, 31, "%g", GetValue() );
+			GR2D_DrawTextLine( m_cx, m_cy, bfr );
+		}
+		return 1;
+	}
+	return EDGUIItem::OnEvent( e );
+}
+
+double EDGUINumberWheel::GetValue()
+{
+	double rf = pow( 10, m_initpwr );
+	return round( m_value / rf ) * rf;
+}
+
+
 EDGUIProperty::EDGUIProperty()
 {
 	type = EDGUI_ITEM_PROP_NULL;
@@ -615,6 +761,17 @@ int EDGUIProperty::OnEvent( EDGUIEvent* e )
 		x1 = e->layout.x1;
 		y0 = e->layout.y0;
 		y1 = y0 + EDGUI_THEME_PROPERTY_HEIGHT;
+		_Begin( e );
+		EDGUIEvent se = { EDGUI_EVENT_LAYOUT, e->target };
+		se.layout.x0 = x0;
+		se.layout.y0 = y0;
+		se.layout.x1 = x1;
+		se.layout.y1 = y1;
+		for( size_t i = 0; i < m_subitems.size(); ++i )
+		{
+			m_subitems[ i ]->OnEvent( &se );
+		}
+		_End( e );
 		return 1;
 	}
 	return EDGUIItem::OnEvent( e );
@@ -653,7 +810,15 @@ int EDGUIPropBool::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_BTNCLICK:
 		_Begin( e );
 		if( Hit( e->mouse.x, e->mouse.y ) )
-			m_value = e->mouse.x > ( x0 + x1 ) / 2;
+		{
+			bool newval = e->mouse.x > ( x0 + x1 ) / 2;
+			if( m_value != newval )
+			{
+				m_value = newval;
+				Edited();
+				Changed();
+			}
+		}
 		_End( e );
 		return 1;
 		
@@ -674,6 +839,92 @@ int EDGUIPropBool::OnEvent( EDGUIEvent* e )
 	}
 	
 	return EDGUIProperty::OnEvent( e );
+}
+
+
+EDGUIPropInt::EDGUIPropInt( int32_t def, int32_t min, int32_t max ) :
+	m_value( def ),
+	m_min( min ),
+	m_max( max ),
+	m_numWheel( this, min, max, 0, ceil( log( TMAX( -(double)min, (double)max ) ) / log( 10.0 ) ) )
+{
+	_UpdateButton();
+	Add( &m_button );
+}
+
+int EDGUIPropInt::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		m_value = m_numWheel.GetValue();
+		_UpdateButton();
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			m_numWheel.m_cx = e->mouse.x;
+			m_numWheel.m_cy = e->mouse.y;
+			m_numWheel.m_value = m_value;
+			m_frame->Add( &m_numWheel );
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+void EDGUIPropInt::_UpdateButton()
+{
+	char bfr[ 32 ] = {0};
+	snprintf( bfr, 31, "%" PRId32, m_value );
+	m_button.caption = bfr;
+}
+
+
+EDGUIPropFloat::EDGUIPropFloat( float def, int prec, float min, float max ) :
+	m_value( def ),
+	m_min( min ),
+	m_max( max ),
+	m_numWheel( this, min, max, -prec, ceil( log( TMAX( -min, max ) ) / log( 10.0f ) ) + prec + 1 )
+{
+	_UpdateButton();
+	Add( &m_button );
+}
+
+int EDGUIPropFloat::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		m_value = m_numWheel.GetValue();
+		_UpdateButton();
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			m_numWheel.m_cx = e->mouse.x;
+			m_numWheel.m_cy = e->mouse.y;
+			m_numWheel.m_value = m_value;
+			m_frame->Add( &m_numWheel );
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+void EDGUIPropFloat::_UpdateButton()
+{
+	char bfr[ 32 ] = {0};
+	snprintf( bfr, 31, "%g", m_value );
+	m_button.caption = bfr;
 }
 
 

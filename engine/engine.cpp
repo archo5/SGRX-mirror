@@ -1053,6 +1053,46 @@ BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy )
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, int verts )
+{
+	if( verts < 0 )
+		verts = r * M_PI * 2;
+	if( verts >= 3 )
+	{
+		SetPrimitiveType( PT_TriangleFan );
+		Pos( x, y );
+		float a = 0;
+		float ad = M_PI * 2.0f / verts;
+		for( int i = 0; i < verts; ++i )
+		{
+			Pos( x + sin( a ) * r, y + cos( a ) * r );
+			a += ad;
+		}
+		Flush();
+	}
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, int verts )
+{
+	if( verts < 0 )
+		verts = r * M_PI * 2;
+	if( verts >= 3 )
+	{
+		SetPrimitiveType( PT_LineStrip );
+		float a = 0;
+		float ad = M_PI * 2.0f / verts;
+		for( int i = 0; i < verts; ++i )
+		{
+			Pos( x + sin( a ) * r, y + cos( a ) * r );
+			a += ad;
+		}
+		Prev( verts - 1 );
+		Flush();
+	}
+	return *this;
+}
+
 bool BatchRenderer::CheckSetTexture( const TextureHandle& tex )
 {
 	if( tex != m_texture )
