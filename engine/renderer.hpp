@@ -93,9 +93,11 @@ struct RendererInfo
 	StringView shaderType;
 };
 
+#define RS_ZENABLE 1
+
 struct EXPORT IRenderer
 {
-	IRenderer() : m_inDebugDraw( false ), m_debugDrawClipWorld( false ){}
+	IRenderer() : m_inDebugDraw( false ){}
 	
 	virtual void Destroy() = 0;
 	virtual const RendererInfo& GetInfo() = 0;
@@ -106,6 +108,7 @@ struct EXPORT IRenderer
 	virtual void Modify( const RenderSettings& settings ) = 0;
 	virtual void SetCurrent() = 0;
 	virtual void Clear( float* color_v4f, bool clear_zbuffer = true ) = 0;
+	virtual void SetRenderState( int state, uint32_t val ) = 0;
 	
 	virtual void SetWorldMatrix( const Mat4& mtx ) = 0;
 	virtual void SetViewMatrix( const Mat4& mtx ) = 0;
@@ -120,14 +123,13 @@ struct EXPORT IRenderer
 	virtual bool SetRenderTarget( TextureHandle rt ) = 0;
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex ) = 0;
 	virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
-	virtual void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport ) = 0;
+	virtual void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_DebugDraw* debugDraw ) = 0;
 	
 	RenderStats m_stats;
 	RenderSettings m_currSettings;
 	Array< SGRX_RenderPass > m_renderPasses;
 	
 	bool m_inDebugDraw;
-	bool m_debugDrawClipWorld;
 	
 //	void set_render_state( int, int, int, int, int ); /* type, arg0, arg1, arg2, arg3 */
 //	void set_matrix( int, float* ); /* type, float[16] */

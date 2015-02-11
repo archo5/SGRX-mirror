@@ -106,6 +106,7 @@ SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%f", v ); retur
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"%.*s\"", (int) sv.size(), (int) sv.size(), sv.data() ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const String& sv ){ return *this << (StringView) sv; }
 SGRX_Log& SGRX_Log::operator << ( const Vec2& v )
 {
 	prelog();
@@ -532,6 +533,23 @@ bool SGRX_IMesh::SetAABBFromVertexData( const void* data, size_t size, VertexDec
 }
 
 
+SGRX_Log& SGRX_Log::operator << ( const SGRX_Camera& cam )
+{
+	*this << "CAMERA:";
+	*this << "\n    position = " << cam.position;
+	*this << "\n    direction = " << cam.direction;
+	*this << "\n    up = " << cam.up;
+	*this << "\n    angle = " << cam.angle;
+	*this << "\n    aspect = " << cam.aspect;
+	*this << "\n    aamix = " << cam.aamix;
+	*this << "\n    znear = " << cam.znear;
+	*this << "\n    zfar = " << cam.zfar;
+	*this << "\n    mView = " << cam.mView;
+	*this << "\n    mProj = " << cam.mProj;
+	*this << "\n    mInvView = " << cam.mInvView;
+	return *this;
+}
+
 void SGRX_Camera::UpdateViewMatrix()
 {
 	mView.LookAt( position, direction, up );
@@ -909,9 +927,11 @@ bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
 	g_Renderer->SetRenderPasses( passes, count );
 }
 
-void GR_RenderScene( SceneHandle sh, bool enablePostProcessing, SGRX_Viewport* viewport )
+void GR_RenderScene( SceneHandle sh, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_DebugDraw* debugDraw )
 {
-	g_Renderer->RenderScene( sh, enablePostProcessing, viewport );
+	g_BatchRenderer->Flush();
+	g_BatchRenderer->m_texture = NULL;
+	g_Renderer->RenderScene( sh, enablePostProcessing, viewport, debugDraw );
 }
 
 RenderStats& GR_GetRenderStats()
@@ -1068,6 +1088,7 @@ BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, int verts )
 			Pos( x + sin( a ) * r, y + cos( a ) * r );
 			a += ad;
 		}
+		Prev( verts - 1 );
 		Flush();
 	}
 	return *this;
@@ -1118,6 +1139,12 @@ BatchRenderer& BatchRenderer::Flush()
 		m_verts.clear();
 	}
 	return *this;
+}
+
+
+void SGRX_DebugDraw::_OnEnd()
+{
+	g_BatchRenderer->Flush();
 }
 
 

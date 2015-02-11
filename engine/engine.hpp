@@ -12,6 +12,7 @@ struct SDL_Event;
 #include "utils.hpp"
 
 
+struct Loggable {};
 struct EXPORT SGRX_Log
 {
 	struct Separator
@@ -47,9 +48,12 @@ struct EXPORT SGRX_Log
 	SGRX_Log& operator << ( const void* );
 	SGRX_Log& operator << ( const char* );
 	SGRX_Log& operator << ( const StringView& );
+	SGRX_Log& operator << ( const String& );
 	SGRX_Log& operator << ( const Vec2& );
 	SGRX_Log& operator << ( const Vec3& );
 	SGRX_Log& operator << ( const Mat4& );
+	
+	SGRX_Log& operator << ( const struct SGRX_Camera& );
 };
 #define LOG SGRX_Log()
 #define LOG_ERROR SGRX_Log() << "ERROR: "
@@ -519,8 +523,9 @@ struct EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
 	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
 };
 
-struct EXPORT SGRX_Camera
+struct EXPORT SGRX_Camera : Loggable
 {
+	void Log( SGRX_Log& elog );
 	void UpdateViewMatrix();
 	void UpdateProjMatrix();
 	void UpdateMatrices();
@@ -541,6 +546,7 @@ struct EXPORT SGRX_Camera
 	Mat4 mProj;
 	Mat4 mInvView;
 };
+SGRX_Log& operator << ( SGRX_Log& log, const SGRX_Camera& cam );
 
 struct SGRX_Viewport
 {
@@ -674,6 +680,12 @@ struct EXPORT BatchRenderer
 	Array< Vertex > m_verts;
 };
 
+struct EXPORT SGRX_DebugDraw
+{
+	virtual void DebugDraw() = 0;
+	void _OnEnd();
+};
+
 
 EXPORT int GR_GetWidth();
 EXPORT int GR_GetHeight();
@@ -687,7 +699,7 @@ EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
 EXPORT SceneHandle GR_CreateScene();
 EXPORT bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count );
-EXPORT void GR_RenderScene( SceneHandle sh, bool enablePostProcessing = true, SGRX_Viewport* viewport = NULL );
+EXPORT void GR_RenderScene( SceneHandle sh, bool enablePostProcessing = true, SGRX_Viewport* viewport = NULL, SGRX_DebugDraw* debugDraw = NULL );
 EXPORT RenderStats& GR_GetRenderStats();
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );

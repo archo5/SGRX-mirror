@@ -349,6 +349,7 @@ struct D3D9Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	void Clear( float* color_v4f, bool clear_zbuffer );
+	void SetRenderState( int state, uint32_t val );
 	
 	void SetWorldMatrix( const Mat4& mtx );
 	void SetViewMatrix( const Mat4& mtx );
@@ -366,7 +367,7 @@ struct D3D9Renderer : IRenderer
 	
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	
-	void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport );
+	void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_DebugDraw* debugDraw );
 	uint32_t _RS_Cull_Camera_MeshList();
 	uint32_t _RS_Cull_Camera_PointLightList();
 	uint32_t _RS_Cull_Camera_SpotLightList();
@@ -375,7 +376,7 @@ struct D3D9Renderer : IRenderer
 	void _RS_Render_Shadows();
 	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
 	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
-	void _RS_DebugDraw( IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
+	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
 	
 	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
 	
@@ -409,6 +410,7 @@ struct D3D9Renderer : IRenderer
 	
 	// helpers
 	RTData m_drd;
+	Mat4 m_view, m_proj;
 	
 	SGRX_IShader* m_sh_pp_final;
 	SGRX_IShader* m_sh_pp_dshp;
@@ -590,6 +592,14 @@ void D3D9Renderer::Clear( float* color_v4f, bool clear_zbuffer )
 	m_dev->Clear( 0, NULL, flags, cc, 1.0f, 0 );
 }
 
+void D3D9Renderer::SetRenderState( int state, uint32_t val )
+{
+	if( state == RS_ZENABLE )
+	{
+		m_dev->SetRenderState( D3DRS_ZENABLE, !!val );
+	}
+}
+
 
 void D3D9Renderer::SetWorldMatrix( const Mat4& mtx )
 {
@@ -598,11 +608,13 @@ void D3D9Renderer::SetWorldMatrix( const Mat4& mtx )
 
 void D3D9Renderer::SetViewMatrix( const Mat4& mtx )
 {
+	m_view = Mat4::Identity;
 	float w = GetWidth();
 	float h = GetHeight();
 	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &Mat4::Identity );
 	Mat4 mfx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
-	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) Mat4().Multiply( mtx, mfx ).a );
+	m_proj = Mat4().Multiply( mtx, mfx );
+	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
 }
 
 
@@ -1308,7 +1320,7 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	---
 	100-115: instance data
 */
-void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport )
+void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_DebugDraw* debugDraw )
 {
 	if( !scene )
 		return;
@@ -1461,7 +1473,8 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	}
 	
 	// MANUAL DEBUG DRAWING
-	_RS_DebugDraw( m_enablePostProcessing ? m_drd.RTSD : RTOUT.DSS, RTOUT.DSS );
+	if( debugDraw )
+		_RS_DebugDraw( debugDraw, m_enablePostProcessing ? m_drd.RTSD : RTOUT.DSS, RTOUT.DSS );
 	
 	// POST-PROCESS DEBUGGING
 	if( m_currentRT && m_dbg_rt )
@@ -1499,6 +1512,7 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 		SAFE_RELEASE( RTOUT.CS );
 		SAFE_RELEASE( RTOUT.DSS );
 	}
+	ResetViewport();
 	
 	// RESTORE STATE
 	m_enablePostProcessing = false;
@@ -1918,35 +1932,40 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3D
 	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
 }
 
-void D3D9Renderer::_RS_DebugDraw( IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
+void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
 {
-	// TODO
-	if( false )// R->inh.debugDraw.type != SGS_VT_NULL )
-	{
-		const SGRX_Camera& CAM = m_currentScene->camera;
-		
-		SetShader( m_sh_debug_draw );
-		Mat4 viewProjMatrix;
-		viewProjMatrix.Multiply( CAM.mView, CAM.mProj );
-		VS_SetMat4( 4, viewProjMatrix );
-		
-		m_inDebugDraw = 1;
-		m_dev->SetRenderState( D3DRS_ZENABLE, m_debugDrawClipWorld );
-		m_dev->SetDepthStencilSurface( test_dss );
-		m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
-		m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-		
-		// TODO
-	//	sgs_PushObjectPtr( C, m__myobj );
-	//	if( SGS_CALL_FAILED( sgs_CallP( C, &m_debugDraw, 1, 0 ) ) )
-	//		sgs_Pop( C, 1 );
-		
-		m_inDebugDraw = 0;
-		m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
-		m_dev->SetDepthStencilSurface( orig_dss );
-		m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
-	}
+	const SGRX_Camera& CAM = m_currentScene->camera;
+	m_inDebugDraw = true;
+	
+	SetShader( m_sh_debug_draw );
+	Mat4 worldMatrix, viewProjMatrix;
+	worldMatrix.SetIdentity();
+	viewProjMatrix.Multiply( CAM.mView, CAM.mProj );
+	VS_SetMat4( 0, worldMatrix );
+	VS_SetMat4( 4, viewProjMatrix );
+	SetTexture( 0, NULL );
+	
+	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
+	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	m_dev->SetDepthStencilSurface( test_dss );
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
+	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+	
+	m_dev->SetTexture( 0, NULL );
+	SetShader( NULL );
+	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &CAM.mView );
+	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &CAM.mProj );
+	debugDraw->DebugDraw();
+	debugDraw->_OnEnd();
+	
+	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &m_view );
+	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
+	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
+	m_dev->SetDepthStencilSurface( orig_dss );
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
+	
+	m_inDebugDraw = false;
 }
 
 
