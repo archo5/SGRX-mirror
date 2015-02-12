@@ -836,6 +836,12 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 }
 
 
+MeshHandle GR_CreateMesh()
+{
+	SGRX_IMesh* mesh = g_Renderer->CreateMesh();
+	return mesh;
+}
+
 MeshHandle GR_GetMesh( const StringView& path )
 {
 	SGRX_IMesh* mesh = g_Meshes->getcopy( path );
@@ -980,6 +986,16 @@ int GR2D_DrawTextLine( float x, float y, const StringView& text )
 {
 	g_FontRenderer->SetCursor( x, y );
 	return g_FontRenderer->PutText( g_BatchRenderer, text );
+}
+
+int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign )
+{
+	if( !g_FontRenderer->m_currentFont )
+		return 0;
+	float length = 0;
+	if( halign != 0 )
+		length = g_FontRenderer->GetTextWidth( text );
+	return GR2D_DrawTextLine( x - round( halign * 0.5f * length ), round( y - valign * 0.5f * g_FontRenderer->m_currentFont->key.size ), text );
 }
 
 BatchRenderer& GR2D_GetBatchRenderer()

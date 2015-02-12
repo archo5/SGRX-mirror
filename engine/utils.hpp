@@ -604,6 +604,7 @@ struct Array
 	FINLINE bool operator != ( const Array& other ) const { return !( *this == other ); }
 	
 	FINLINE size_t size() const { return m_size; }
+	FINLINE size_t size_bytes() const { return m_size * sizeof( T ); }
 	FINLINE size_t capacity() const { return m_mem; }
 	FINLINE const T* data() const { return m_data; }
 	FINLINE T* data(){ return m_data; }

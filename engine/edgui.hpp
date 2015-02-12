@@ -6,6 +6,41 @@
 #include "engine.hpp"
 
 
+// - core
+#define EDGUI_THEME_OVERLAY_COLOR COLOR_RGBA( 0, 0, 0, 64 )
+#define EDGUI_THEME_MAIN_BACK_COLOR COLOR_RGBA( 40, 40, 40, 255 )
+#define EDGUI_THEME_MAIN_TEXT_COLOR COLOR_RGBA( 220, 220, 220, 255 )
+// - label
+#define EDGUI_THEME_LABEL_HEIGHT 24
+// - button
+#define EDGUI_THEME_BUTTON_HEIGHT 24
+#define EDGUI_THEME_BUTTON_BACK_COLOR COLOR_RGBA( 60, 60, 60, 255 )
+#define EDGUI_THEME_BUTTON_BACK_COLOR_MOUSEON COLOR_RGBA( 70, 70, 70, 255 )
+#define EDGUI_THEME_BUTTON_BACK_COLOR_CLICKED COLOR_RGBA( 30, 30, 30, 255 )
+#define EDGUI_THEME_BUTTON_BACKHL_COLOR COLOR_RGBA( 120, 60, 60, 255 )
+#define EDGUI_THEME_BUTTON_BACKHL_COLOR_MOUSEON COLOR_RGBA( 120, 70, 70, 255 )
+#define EDGUI_THEME_BUTTON_BACKHL_COLOR_CLICKED COLOR_RGBA( 100, 30, 30, 255 )
+#define EDGUI_THEME_BUTTON_TEXT_COLOR COLOR_RGBA( 240, 240, 240, 255 )
+// - split pane
+#define EDGUI_THEME_SPLITPANE_BORDER_SIZE 4
+#define EDGUI_THEME_SPLITPANE_BORDER_COLOR COLOR_RGBA( 120, 120, 120, 255 )
+// - property
+#define EDGUI_THEME_PROPERTY_HEIGHT 24
+// - property/bool
+#define EDGUI_THEME_PROP_BOOL_OFF_ACTIVE_COLOR COLOR_RGBA( 180, 20, 0, 255 )
+#define EDGUI_THEME_PROP_BOOL_OFF_INACTIVE_COLOR COLOR_RGBA( 100, 20, 0, 255 )
+#define EDGUI_THEME_PROP_BOOL_ON_ACTIVE_COLOR COLOR_RGBA( 20, 180, 0, 255 )
+#define EDGUI_THEME_PROP_BOOL_ON_INACTIVE_COLOR COLOR_RGBA( 20, 100, 0, 255 )
+// - number wheel
+#define EDGUI_THEME_NUMWHEEL_WHEEL_SIZE 20
+#define EDGUI_THEME_NUMWHEEL_CENTER_SIZE 20
+#define EDGUI_THEME_NUMWHEEL_WHEEL_COLOR COLOR_RGBA( 127, 0, 0, 64 )
+#define EDGUI_THEME_NUMWHEEL_OUTLINE_COLOR COLOR_RGBA( 192, 192, 192, 128 )
+
+#define DOUBLE_CLICK_MSEC 500
+
+
+// EVENTS
 #define EDGUI_EVENT_ENGINE     1
 #define EDGUI_EVENT_PAINT      2
 #define EDGUI_EVENT_LAYOUT     3
@@ -20,11 +55,13 @@
 #define EDGUI_EVENT_PROPEDIT   21
 #define EDGUI_EVENT_PROPCHANGE 22
 
+// ITEM TYPES
 #define EDGUI_ITEM_NULL        0
 #define EDGUI_ITEM_FRAME       1
 #define EDGUI_ITEM_LAYOUT_ROW  40
 #define EDGUI_ITEM_LAYOUT_COL  41
 #define EDGUI_ITEM_SPLIT_PANE  42
+#define EDGUI_ITEM_LABEL       48
 #define EDGUI_ITEM_BUTTON      50
 #define EDGUI_ITEM_NUMWHEEL    60
 #define EDGUI_ITEM_PROP_NULL   100
@@ -32,6 +69,8 @@
 #define EDGUI_ITEM_PROP_INT    102
 #define EDGUI_ITEM_PROP_FLOAT  103
 #define EDGUI_ITEM_PROP_STRING 104
+
+
 
 struct EXPORT EDGUIEvent
 {
@@ -140,11 +179,21 @@ struct EXPORT EDGUILayoutSplitPane : EDGUIItem
 };
 
 
+struct EXPORT EDGUILabel : EDGUIItem
+{
+	EDGUILabel();
+	virtual int OnEvent( EDGUIEvent* e );
+};
+
+
 struct EXPORT EDGUIButton : EDGUIItem
 {
 	EDGUIButton();
 	virtual int OnEvent( EDGUIEvent* e );
 	void OnChangeState();
+	void SetHighlight( bool hl );
+	
+	bool m_highlight;
 };
 
 
@@ -194,6 +243,7 @@ struct EXPORT EDGUIPropInt : EDGUIProperty
 	EDGUIPropInt( int32_t def = 0, int32_t min = -0x80000000, int32_t max = 0x7fffffff );
 	virtual int OnEvent( EDGUIEvent* e );
 	void _UpdateButton();
+	void SetValue( int v ){ m_value = v; _UpdateButton(); }
 	
 	int32_t m_value;
 	int32_t m_min;
@@ -208,6 +258,7 @@ struct EXPORT EDGUIPropFloat : EDGUIProperty
 	EDGUIPropFloat( float def = 0, int prec = 2, float min = -FLT_MAX, float max = FLT_MAX );
 	virtual int OnEvent( EDGUIEvent* e );
 	void _UpdateButton();
+	void SetValue( float v ){ m_value = v; _UpdateButton(); }
 	
 	float m_value;
 	float m_min;

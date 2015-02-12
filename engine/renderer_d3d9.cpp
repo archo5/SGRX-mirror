@@ -1066,7 +1066,7 @@ bool D3D9Mesh::UpdateIndexData( const void* data, size_t size )
 {
 	void* ib_data;
 	
-	if( size > m_vertexDataSize )
+	if( size > m_indexDataSize )
 	{
 		LOG_ERROR << "given index data is too big";
 		return false;

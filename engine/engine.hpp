@@ -695,6 +695,7 @@ EXPORT TextureHandle GR_GetTexture( const StringView& path );
 EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
 EXPORT ShaderHandle GR_GetShader( const StringView& path );
 EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
+EXPORT MeshHandle GR_CreateMesh();
 EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
 EXPORT SceneHandle GR_CreateScene();
@@ -712,6 +713,13 @@ EXPORT void GR2D_SetTextCursor( float x, float y );
 EXPORT Vec2 GR2D_GetTextCursor();
 EXPORT int GR2D_DrawTextLine( const StringView& text );
 EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
+#define HALIGN_LEFT 0
+#define HALIGN_CENTER 1
+#define HALIGN_RIGHT 2
+#define VALIGN_TOP 0
+#define VALIGN_CENTER 1
+#define VALIGN_BOTTOM 2
+EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign );
 
 EXPORT BatchRenderer& GR2D_GetBatchRenderer();
 
