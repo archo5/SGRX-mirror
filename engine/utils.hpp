@@ -244,6 +244,8 @@ FINLINE Vec3 operator - ( float f, const Vec3& v ){ Vec3 out = { f - v.x, f - v.
 FINLINE Vec3 operator * ( float f, const Vec3& v ){ Vec3 out = { f * v.x, f * v.y, f * v.z }; return out; }
 FINLINE Vec3 operator / ( float f, const Vec3& v ){ Vec3 out = { f / v.x, f / v.y, f / v.z }; return out; }
 
+FINLINE Vec3 V3( float x ){ Vec3 v = { x, x, x }; return v; }
+FINLINE Vec3 V3( float x, float y, float z ){ Vec3 v = { x, y, z }; return v; }
 FINLINE float Vec3Dot( const Vec3& v1, const Vec3& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
 FINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 {
@@ -321,7 +323,7 @@ struct EXPORT Vec4
 		arch << x << y << z << w;
 	}
 	FINLINE void Set( float _x, float _y, float _z, float _w ){ x = _x; y = _y; z = _z; w = _w; }
-	FINLINE Vec3 ToVec3(){ Vec3 v = { x, y, z }; return v; }
+	FINLINE Vec3 ToVec3() const { Vec3 v = { x, y, z }; return v; }
 #endif
 };
 
@@ -540,6 +542,14 @@ struct EXPORT Mat4
 	}
 #endif
 };
+
+
+
+bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] );
+bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
+bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
+bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
+
 
 
 //

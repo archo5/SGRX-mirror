@@ -534,8 +534,8 @@ struct EXPORT SGRX_Camera : Loggable
 	void UpdateProjMatrix();
 	void UpdateMatrices();
 	
-	Vec3 WorldToScreen( Vec3 pos );
-	bool GetCursorRay( float x, float y, Vec3 posdir[2] );
+	Vec3 WorldToScreen( const Vec3& pos );
+	bool GetCursorRay( float x, float y, Vec3& pos, Vec3& dir );
 	
 	Vec3 position;
 	Vec3 direction;

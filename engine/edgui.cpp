@@ -14,6 +14,7 @@ EDGUIItem::EDGUIItem() :
 	backColor( EDGUI_THEME_MAIN_BACK_COLOR ),
 	textColor( EDGUI_THEME_MAIN_TEXT_COLOR ),
 	m_parent( NULL ),
+	m_frame( NULL ),
 	x0( 0 ), y0( 0 ), x1( 0 ), y1( 0 ),
 	m_mouseOn( false ),
 	m_clicked( false )
@@ -63,6 +64,7 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_BTNDOWN:
 		if( e->mouse.button == 0 )
 			m_clicked = true;
+		if( m_frame->m_keyboardFocus != this )
 		{
 			EDGUIEvent se = { EDGUI_EVENT_SETFOCUS, this };
 			OnEvent( &se );
@@ -118,6 +120,14 @@ bool EDGUIItem::Remove( EDGUIItem* subitem )
 	
 	OnChangeLayout();
 	return true;
+}
+
+void EDGUIItem::SubstChildPtr( const EDGUIItem* find, EDGUIItem* repl )
+{
+	for( size_t i = 0; i < m_subitems.size(); ++i )
+		if( m_subitems[ i ] == find )
+			m_subitems[ i ] = repl;
+	repl->m_parent = this;
 }
 
 bool EDGUIItem::Hit( int x, int y )
@@ -186,6 +196,7 @@ void EDGUIItem::SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1,
 
 void EDGUIItem::_SetFrame( EDGUIFrame* frame )
 {
+	LOG << "SETTING FRAME " << m_frame << " -> " << frame << " at " << tyname;
 	if( !frame && m_frame )
 		m_frame->_Unlink( this );
 	m_frame = frame;
@@ -1095,6 +1106,8 @@ EDGUIPropInt::EDGUIPropInt( int32_t def, int32_t min, int32_t max ) :
 	m_max( max ),
 	m_numWheel( this, min, max, 0, ceil( log( TMAX( -(double)min, (double)max ) ) / log( 10.0 ) ) )
 {
+	tyname = "property-int";
+	type = EDGUI_ITEM_PROP_INT;
 	_UpdateButton();
 	Add( &m_button );
 }
@@ -1144,6 +1157,8 @@ EDGUIPropFloat::EDGUIPropFloat( float def, int prec, float min, float max ) :
 	m_max( max ),
 	m_numWheel( this, min, max, -prec, ceil( log( TMAX( -min, max ) ) / log( 10.0f ) ) + prec + 1 )
 {
+	tyname = "property-float";
+	type = EDGUI_ITEM_PROP_FLOAT;
 	_UpdateButton();
 	Add( &m_button );
 }
@@ -1195,6 +1210,8 @@ EDGUIPropVec2::EDGUIPropVec2( const Vec2& def, int prec, const Vec2& min, const 
 	m_XnumWheel( this, min.x, max.x, -prec, ceil( log( TMAX( -min.x, max.x ) ) / log( 10.0f ) ) + prec + 1 ),
 	m_YnumWheel( this, min.y, max.y, -prec, ceil( log( TMAX( -min.y, max.y ) ) / log( 10.0f ) ) + prec + 1 )
 {
+	tyname = "property-vec2";
+	type = EDGUI_ITEM_PROP_VEC2;
 	_UpdateButton();
 	Add( &m_buttonlist );
 	m_buttonlist.Add( &m_Xbutton );
@@ -1245,6 +1262,18 @@ int EDGUIPropVec2::OnEvent( EDGUIEvent* e )
 	return EDGUIProperty::OnEvent( e );
 }
 
+EDGUIPropVec2& EDGUIPropVec2::operator = ( const EDGUIPropVec2& o )
+{
+	this->~EDGUIPropVec2();
+	new (this) EDGUIPropVec2( o );
+	SubstChildPtr( &o.m_buttonlist, &m_buttonlist );
+	m_buttonlist.SubstChildPtr( &o.m_Xbutton, &m_Xbutton );
+	m_buttonlist.SubstChildPtr( &o.m_Ybutton, &m_Ybutton );
+	m_XnumWheel.m_owner = this;
+	m_YnumWheel.m_owner = this;
+	return *this;
+}
+
 void EDGUIPropVec2::_UpdateButton()
 {
 	char bfr[ 32 ] = {0};
@@ -1263,6 +1292,8 @@ EDGUIPropString::EDGUIPropString( const StringView& def ) :
 	m_fsel_to( -1 ),
 	m_selecting( false )
 {
+	tyname = "property-string";
+	type = EDGUI_ITEM_PROP_STRING;
 	SetText( def );
 }
 

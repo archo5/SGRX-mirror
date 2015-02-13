@@ -8,6 +8,7 @@
 #endif
 
 #define USE_VEC3
+#define USE_VEC4
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
@@ -153,6 +154,86 @@ const Mat4 Mat4::Identity =
 	0, 0, 1, 0,
 	0, 0, 0, 1,
 };
+
+
+
+bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] )
+{
+	/* returns <distance to intersection, signed origin distance from plane>
+			\ <false> on (near-)parallel */
+	float sigdst = Vec3Dot( pos, plane.ToVec3() ) - plane.w;
+	float dirdot = Vec3Dot( dir, plane.ToVec3() );
+	
+	if( fabs( dirdot ) < SMALL_FLOAT )
+	{
+		return false;
+	}
+	else
+	{
+		dsts[0] = -sigdst / dirdot;
+		dsts[1] = sigdst;
+		return true;
+	}
+}
+
+bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane )
+{
+	Vec3 dir = {0,0,0};
+	for( int i = 2; i < pointcount; ++i )
+	{
+		Vec3 nrm = Vec3Cross( points[i-1] - points[0], points[i] - points[0] ).Normalized();
+		dir += nrm;
+	}
+	float lendiff = dir.Length() - ( pointcount - 2 );
+	if( fabs( lendiff ) > SMALL_FLOAT )
+		return false;
+	dir = dir.Normalized();
+	plane.x = dir.x;
+	plane.y = dir.y;
+	plane.z = dir.z;
+	plane.w = Vec3Dot( dir, points[0] );
+	return true;
+}
+
+bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] )
+{
+	float dsts[2];
+	Vec4 plane;
+	if( !PolyGetPlane( points, pointcount, plane ) )
+		return false;
+	if( !RayPlaneIntersect( pos, dir, plane, dsts ) || dsts[0] < 0 )
+		return false;
+	Vec3 isp = pos + dir * dsts[0];
+	Vec3 normal = plane.ToVec3();
+	for( int i = 0; i < pointcount; ++i )
+	{
+		int i1 = ( i + 1 ) % pointcount;
+		Vec3 edir = points[ i1 ] - points[ i ];
+		Vec3 eout = Vec3Cross( edir, normal ).Normalized();
+		if( Vec3Dot( eout, isp ) > 0 )
+			return false;
+	}
+	return true;
+}
+
+bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] )
+{
+	/* vec3 ray_pos, vec3 ray_dir, vec3 sphere_pos, float radius;
+		returns <distance to intersection> \ false on no intersection */
+	Vec3 r2s = spherePos - pos;
+	float a = Vec3Dot( dir, r2s );
+	if( a < 0 )
+	{
+		return false;
+	}
+	float b = Vec3Dot( r2s, r2s ) - a * a;
+	if( b > sphereRadius * sphereRadius )
+	{
+		return false;
+	}
+	dst[0] = a - sqrtf( sphereRadius * sphereRadius - b );
+	return true;
+}
 
 
 

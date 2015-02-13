@@ -590,6 +590,34 @@ void SGRX_Camera::UpdateMatrices()
 	UpdateProjMatrix();
 }
 
+Vec3 SGRX_Camera::WorldToScreen( const Vec3& pos )
+{
+	Vec3 P = mView.TransformPos( pos );
+	P = mProj.TransformPos( P );
+	P.x = P.x * 0.5f + 0.5f;
+	P.y = P.y * -0.5f + 0.5f;
+	return P;
+}
+
+bool SGRX_Camera::GetCursorRay( float x, float y, Vec3& pos, Vec3& dir )
+{
+	Vec3 tPos = { x * 2 - 1, y * -2 + 1, 0 };
+	Vec3 tTgt = { x * 2 - 1, y * -2 + 1, 1 };
+	
+	Mat4 viewProjMatrix, inv;
+	viewProjMatrix.Multiply( mView, mProj );
+	if( !viewProjMatrix.InvertTo( inv ) )
+		return false;
+	
+	tPos = inv.TransformPos( tPos );
+	tTgt = inv.TransformPos( tTgt );
+	Vec3 tDir = ( tTgt - tPos ).Normalized();
+	
+	pos = tPos;
+	dir = tDir;
+	return true;
+}
+
 
 SGRX_Light::SGRX_Light( SGRX_Scene* s ) :
 	_scene( s ),
@@ -835,6 +863,10 @@ ShaderHandle GR_GetShader( const StringView& path )
 
 VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 {
+	SGRX_IVertexDecl* VD = g_VertexDecls->getcopy( vdecl );
+	if( VD )
+		return VD;
+	
 	VDeclInfo vdinfo = {0};
 	const char* err = VDeclInfo_Parse( &vdinfo, StackString< 64 >( vdecl ) );
 	if( err )
@@ -843,7 +875,7 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 		return NULL;
 	}
 	
-	SGRX_IVertexDecl* VD = g_Renderer->CreateVertexDecl( vdinfo );
+	VD = g_Renderer->CreateVertexDecl( vdinfo );
 	if( !VD )
 	{
 		// error already printed in renderer

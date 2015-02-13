@@ -85,6 +85,7 @@
 #define EDGUI_ITEM_PROP_INT    102
 #define EDGUI_ITEM_PROP_FLOAT  103
 #define EDGUI_ITEM_PROP_STRING 104
+#define EDGUI_ITEM_PROP_VEC2   105
 
 
 #define EDGUI_KEY_UNKNOWN   0
@@ -141,6 +142,8 @@ struct EXPORT EDGUIItem
 	
 	bool Add( EDGUIItem* subitem );
 	bool Remove( EDGUIItem* subitem );
+	void Clear(){ m_subitems.clear(); }
+	void SubstChildPtr( const EDGUIItem* find, EDGUIItem* repl );
 	void Invalidate(){}
 	bool Hit( int x, int y );
 	void BubblingEvent( EDGUIEvent* e );
@@ -330,6 +333,7 @@ struct EXPORT EDGUIPropVec2 : EDGUIProperty
 {
 	EDGUIPropVec2( const Vec2& def = Vec2::Create(0), int prec = 2, const Vec2& min = Vec2::Create(-FLT_MAX), const Vec2& max = Vec2::Create(FLT_MAX) );
 	virtual int OnEvent( EDGUIEvent* e );
+	EDGUIPropVec2& operator = ( const EDGUIPropVec2& o );
 	void _UpdateButton();
 	void SetValue( const Vec2& v ){ m_value = v; _UpdateButton(); }
 	
