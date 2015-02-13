@@ -131,6 +131,29 @@ SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
 }
 
 
+
+
+bool Window_HasClipboardText()
+{
+	return SDL_HasClipboardText();
+}
+
+bool Window_GetClipboardText( String& out )
+{
+	char* cbtext = SDL_GetClipboardText();
+	if( !cbtext )
+		return false;
+	out = cbtext;
+	return true;
+}
+
+bool Window_SetClipboardText( const StringView& text )
+{
+	return 0 == SDL_SetClipboardText( String_Concat( text, "\0" ).data() );
+}
+
+
+
 //
 // GAME SYSTEMS
 //
@@ -384,7 +407,7 @@ SGRX_ITexture::~SGRX_ITexture()
 	g_Textures->unset( m_key );
 }
 
-const TextureInfo& TextureHandle::GetInfo()
+const TextureInfo& TextureHandle::GetInfo() const
 {
 	static TextureInfo dummy_info = {0};
 	if( !item )
@@ -975,6 +998,13 @@ void GR2D_SetTextCursor( float x, float y )
 Vec2 GR2D_GetTextCursor()
 {
 	return Vec2::Create( g_FontRenderer->m_cursor_x, g_FontRenderer->m_cursor_y );
+}
+
+int GR2D_GetTextLength( const StringView& text )
+{
+	if( !g_FontRenderer )
+		return 0;
+	return g_FontRenderer->GetTextWidth( text );
 }
 
 int GR2D_DrawTextLine( const StringView& text )

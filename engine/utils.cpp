@@ -310,8 +310,8 @@ String String_Concat( const StringView& a, const StringView& b )
 {
 	String out;
 	out.resize( a.size() + b.size() );
-	memcpy( &out[0], a.data(), a.size() );
-	memcpy( &out[a.size()], b.data(), b.size() );
+	memcpy( out.data(), a.data(), a.size() );
+	memcpy( out.data() + a.size(), b.data(), b.size() );
 	return out;
 }
 

@@ -1,5 +1,6 @@
 
 
+#define USE_VEC2
 #define USE_ARRAY
 #include "edgui.hpp"
 
@@ -43,16 +44,31 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 		}
 		return 1;
 		
+	case EDGUI_EVENT_PRELAYOUT:
+		OnChangeLayout();
+		return 0;
 	case EDGUI_EVENT_LAYOUT:
 		SetRectFromEvent( e, true );
 		return 1;
+		
+	case EDGUI_EVENT_SETFOCUS:
+	case EDGUI_EVENT_LOSEFOCUS:
+		return 0;
 		
 	case EDGUI_EVENT_HITTEST:
 		return e->mouse.x >= x0 && e->mouse.x < x1 && e->mouse.y >= y0 && e->mouse.y < y1;
 		
 	case EDGUI_EVENT_MOUSEENTER: m_mouseOn = true; Invalidate(); return 1;
 	case EDGUI_EVENT_MOUSELEAVE: m_mouseOn = false; Invalidate(); return 1;
-	case EDGUI_EVENT_BTNDOWN: if( e->mouse.button == 0 ) m_clicked = true; Invalidate(); return 1;
+	case EDGUI_EVENT_BTNDOWN:
+		if( e->mouse.button == 0 )
+			m_clicked = true;
+		{
+			EDGUIEvent se = { EDGUI_EVENT_SETFOCUS, this };
+			OnEvent( &se );
+		}
+		Invalidate();
+		return 1;
 	case EDGUI_EVENT_BTNUP:
 		if( e->mouse.button == 0 ) m_clicked = false;
 		if( m_mouseOn )
@@ -83,6 +99,9 @@ bool EDGUIItem::Add( EDGUIItem* subitem )
 	m_subitems.push_back( subitem );
 	subitem->m_parent = this;
 	subitem->_SetFrame( m_frame );
+	
+	EDGUIEvent ev = { EDGUI_EVENT_ADDED, subitem };
+	subitem->OnEvent( &ev );
 	
 	OnChangeLayout();
 	return true;
@@ -148,6 +167,12 @@ void EDGUIItem::OnChangeLayout()
 	OnEvent( &e );
 }
 
+void EDGUIItem::ReshapeLayout()
+{
+	EDGUIEvent e = { EDGUI_EVENT_PRELAYOUT, this };
+	BubblingEvent( &e );
+}
+
 void EDGUIItem::SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 )
 {
 	LOG << "SUB LAYOUT: " << tyname << " -> " << subitem->tyname << LOG_SEP(", ") << _x0 << _y0 << _x1 << _y1;
@@ -161,6 +186,8 @@ void EDGUIItem::SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1,
 
 void EDGUIItem::_SetFrame( EDGUIFrame* frame )
 {
+	if( !frame && m_frame )
+		m_frame->_Unlink( this );
 	m_frame = frame;
 	for( size_t i = 0; i < m_subitems.size(); ++i )
 		m_subitems[ i ]->_SetFrame( frame );
@@ -256,7 +283,7 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 				
 				if( m_clickTargets[ btn ] )
 				{
-					m_clickTargets[ btn ]->BubblingEvent( &ev );
+					m_clickTargets[ btn ]->OnEvent( &ev );
 					m_clickTargets[ btn ] = NULL;
 				}
 				_HandleMouseMove( true );
@@ -266,9 +293,30 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 				m_clickTargets[ btn ] = m_hover;
 				m_clickOffsets[ btn ][0] = m_mouseX - m_hover->x0;
 				m_clickOffsets[ btn ][1] = m_mouseY - m_hover->y0;
-				m_hover->BubblingEvent( &ev );
+				m_hover->OnEvent( &ev );
 			}
 		}
+	}
+	else if( eev->type == SDL_KEYDOWN || eev->type == SDL_KEYUP )
+	{
+		if( !m_keyboardFocus )
+			return;
+		
+		bool down = eev->type == SDL_KEYDOWN;
+		int engkey = eev->key.keysym.sym;
+		int engmod = eev->key.keysym.mod;
+		
+		EDGUIEvent ev = { down ? EDGUI_EVENT_KEYDOWN : EDGUI_EVENT_KEYUP, m_keyboardFocus };
+		ev.key.key = EDGUI_KEY_UNKNOWN;
+		ev.key.engkey = engkey;
+		ev.key.repeat = !!eev->key.repeat;
+		
+		if(0);
+		else if( engkey == SDLK_x && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_CUT; }
+		else if( engkey == SDLK_c && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_COPY; }
+		else if( engkey == SDLK_v && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_PASTE; }
+		
+		m_keyboardFocus->OnEvent( &ev );
 	}
 }
 
@@ -397,6 +445,30 @@ EDGUIItem* EDGUIFrame::_GetItemAtPosition( int x, int y )
 	return atpos;
 }
 
+void EDGUIFrame::_Unlink( EDGUIItem* item )
+{
+	if( m_keyboardFocus == item )
+		m_keyboardFocus = NULL;
+	if( m_clickTargets[0] == item )
+		m_clickTargets[0] = NULL;
+	if( m_clickTargets[1] == item )
+		m_clickTargets[1] = NULL;
+	if( m_clickTargets[2] == item )
+		m_clickTargets[2] = NULL;
+	if( m_lastClickItem == item )
+		m_lastClickItem = NULL;
+}
+
+void EDGUIFrame::_SetFocus( EDGUIItem* item )
+{
+	if( m_keyboardFocus )
+	{
+		EDGUIEvent se = { EDGUI_EVENT_LOSEFOCUS, m_keyboardFocus };
+		m_keyboardFocus->OnEvent( &se );
+	}
+	m_keyboardFocus = item;
+}
+
 
 EDGUILayoutRow::EDGUILayoutRow()
 {
@@ -422,6 +494,9 @@ int EDGUILayoutRow::OnEvent( EDGUIEvent* e )
 			if( m_parent )
 				m_parent->OnEvent( &se );
 		}
+		return 1;
+		
+	case EDGUI_EVENT_PRELAYOUT:
 		return 1;
 		
 	case EDGUI_EVENT_POSTLAYOUT:
@@ -471,6 +546,9 @@ int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 			if( m_parent )
 				m_parent->OnEvent( &se );
 		}
+		return 1;
+		
+	case EDGUI_EVENT_PRELAYOUT:
 		return 1;
 		
 	case EDGUI_EVENT_POSTLAYOUT:
@@ -585,6 +663,8 @@ int EDGUILabel::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
 	{
+	case EDGUI_EVENT_BTNCLICK:
+		return 0;
 	case EDGUI_EVENT_LAYOUT:
 		x0 = e->layout.x0;
 		x1 = e->layout.x1;
@@ -593,6 +673,112 @@ int EDGUILabel::OnEvent( EDGUIEvent* e )
 		return 1;
 	}
 	return EDGUIItem::OnEvent( e );
+}
+
+
+EDGUIGroup::EDGUIGroup( bool open, const StringView& sv ) :
+	m_open( open )
+{
+	type = EDGUI_ITEM_GROUP;
+	tyname = "group";
+	caption = sv;
+	SetOpen( open );
+	_UpdateButton();
+}
+
+int EDGUIGroup::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_MOUSELEAVE:
+		EDGUILayoutRow::OnEvent( e );
+		_UpdateButton();
+		return 1;
+	case EDGUI_EVENT_MOUSEMOVE:
+	case EDGUI_EVENT_MOUSEENTER:
+		{
+			bool prevmon = m_mouseOn;
+			int at = y1;
+			y1 = y0 + EDGUI_THEME_GROUP_HEIGHT;
+			m_mouseOn = Hit( e->mouse.x, e->mouse.y );
+			y1 = at;
+			_UpdateButton();
+			if( m_mouseOn != prevmon )
+				Invalidate();
+		}
+		return 1;
+	case EDGUI_EVENT_BTNDOWN:
+	case EDGUI_EVENT_BTNUP:
+		EDGUILayoutRow::OnEvent( e );
+		_UpdateButton();
+		return 1;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		if( e->target != this )
+			return 0;
+		SetOpen( !m_open );
+		return 0;
+		
+	case EDGUI_EVENT_LAYOUT:
+		{
+			x0 = e->layout.x0;
+			y0 = e->layout.y0;
+			x1 = e->layout.x1;
+			y1 = y0 + EDGUI_THEME_GROUP_HEIGHT;
+			int at = y1;
+			if( m_open )
+			{
+				for( size_t i = 0; i < m_subitems.size(); ++i )
+				{
+					SetSubitemLayout( m_subitems[ i ], x0 + 8, at, x1, at );
+					at = m_subitems[ i ]->y1;
+				}
+				y1 = at;
+			}
+			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+			if( m_parent )
+				m_parent->OnEvent( &se );
+		}
+		return 1;
+		
+	case EDGUI_EVENT_PAINT:
+		{
+			int y1a = y0 + EDGUI_THEME_GROUP_HEIGHT;
+			if( backColor )
+			{
+				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1a );
+			}
+			if( textColor && m_name.size() )
+			{
+				GR2D_GetBatchRenderer().Colu( textColor );
+				GR2D_DrawTextLine( x0 + 2, ( y0 + y1a ) / 2, m_name, HALIGN_LEFT, VALIGN_CENTER );
+			}
+			if( m_open )
+			{
+				for( size_t i = 0; i < m_subitems.size(); ++i )
+				{
+					m_subitems[ i ]->OnEvent( e );
+				}
+			}
+		}
+		return 1;
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
+void EDGUIGroup::SetOpen( bool open )
+{
+	m_open = open;
+	m_name = String_Concat( open ? "[--] " : "[+] ", caption );
+	if( m_parent )
+		m_parent->ReshapeLayout();
+}
+
+void EDGUIGroup::_UpdateButton()
+{
+	backColor = m_clicked ?
+		EDGUI_THEME_GRPLBL_BACK_COLOR_CLICKED :
+		( m_mouseOn ? EDGUI_THEME_GRPLBL_BACK_COLOR_MOUSEON : EDGUI_THEME_GRPLBL_BACK_COLOR );
 }
 
 
@@ -671,6 +857,37 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
 	{
+	case EDGUI_EVENT_ADDED:
+		m_frame->_SetFocus( this );
+		return 1;
+		
+	case EDGUI_EVENT_KEYDOWN:
+		if( e->key.key == EDGUI_KEY_COPY )
+		{
+			char bfr[ 1224 ];
+			snprintf( bfr, sizeof( bfr ), "%.18g", GetValue() );
+			Window_SetClipboardText( bfr );
+		}
+		if( e->key.key == EDGUI_KEY_PASTE )
+		{
+			String text;
+			if( Window_GetClipboardText( text ) )
+			{
+				double prevval = GetValue();
+				m_value = String_ParseFloat( text );
+				if( m_value < m_min ) m_value = m_min;
+				if( m_value > m_max ) m_value = m_max;
+				if( GetValue() != prevval && m_owner )
+				{
+					EDGUIEvent se = { EDGUI_EVENT_PROPEDIT, this };
+					m_owner->BubblingEvent( &se );
+				}
+			}
+			else
+				LOG << "Failed to retrieve text from clipboard";
+		}
+		return 1;
+		
 	case EDGUI_EVENT_BTNCLICK:
 		{
 			int prbx = e->mouse.x - m_cx;
@@ -679,11 +896,15 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 			if( dist < EDGUI_THEME_NUMWHEEL_CENTER_SIZE && m_curWheel < 0 )
 			{
 				if( m_owner )
-					m_owner->Changed();
+				{
+					EDGUIEvent se = { EDGUI_EVENT_PROPCHANGE, this };
+					m_owner->BubblingEvent( &se );
+				}
 				m_parent->Remove( this );
 			}
 		}
 		return 1;
+		
 	case EDGUI_EVENT_MOUSEMOVE:
 		if( m_prevMouseX >= 0 && m_prevMouseY >= 0 )
 		{
@@ -708,12 +929,16 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 				if( m_value < m_min ) m_value = m_min;
 				if( m_value > m_max ) m_value = m_max;
 				if( GetValue() != prevval && m_owner )
-					m_owner->Edited();
+				{
+					EDGUIEvent se = { EDGUI_EVENT_PROPEDIT, this };
+					m_owner->BubblingEvent( &se );
+				}
 			}
 		}
 		m_prevMouseX = e->mouse.x;
 		m_prevMouseY = e->mouse.y;
 		return 1;
+		
 	case EDGUI_EVENT_PAINT:
 		{
 			int rad = m_numwheels * EDGUI_THEME_NUMWHEEL_WHEEL_SIZE + EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
@@ -763,6 +988,10 @@ int EDGUIProperty::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
 	{
+	case EDGUI_EVENT_HITTEST:
+		if( caption.size() && e->mouse.x <= x0 )
+			return 0;
+		break;
 	case EDGUI_EVENT_LAYOUT:
 		{
 			x0 = e->layout.x0;
@@ -876,8 +1105,14 @@ int EDGUIPropInt::OnEvent( EDGUIEvent* e )
 	{
 	case EDGUI_EVENT_PROPEDIT:
 	case EDGUI_EVENT_PROPCHANGE:
-		m_value = m_numWheel.GetValue();
-		_UpdateButton();
+		if( e->target == &m_numWheel )
+		{
+			m_value = m_numWheel.GetValue();
+			_UpdateButton();
+			EDGUIEvent se = { e->type, this };
+			BubblingEvent( &se );
+			return 0;
+		}
 		break;
 		
 	case EDGUI_EVENT_BTNCLICK:
@@ -919,8 +1154,14 @@ int EDGUIPropFloat::OnEvent( EDGUIEvent* e )
 	{
 	case EDGUI_EVENT_PROPEDIT:
 	case EDGUI_EVENT_PROPCHANGE:
-		m_value = m_numWheel.GetValue();
-		_UpdateButton();
+		if( e->target == &m_numWheel )
+		{
+			m_value = m_numWheel.GetValue();
+			_UpdateButton();
+			EDGUIEvent se = { e->type, this };
+			BubblingEvent( &se );
+			return 0;
+		}
 		break;
 		
 	case EDGUI_EVENT_BTNCLICK:
@@ -931,6 +1172,7 @@ int EDGUIPropFloat::OnEvent( EDGUIEvent* e )
 			m_numWheel.m_cy = e->mouse.y;
 			m_numWheel.m_value = m_value;
 			m_frame->Add( &m_numWheel );
+			m_frame->_HandleMouseMove( false );
 		}
 		_End( e );
 		return 1;
@@ -943,6 +1185,350 @@ void EDGUIPropFloat::_UpdateButton()
 	char bfr[ 32 ] = {0};
 	snprintf( bfr, 31, "%g", m_value );
 	m_button.caption = bfr;
+}
+
+
+EDGUIPropVec2::EDGUIPropVec2( const Vec2& def, int prec, const Vec2& min, const Vec2& max ) :
+	m_value( def ),
+	m_min( min ),
+	m_max( max ),
+	m_XnumWheel( this, min.x, max.x, -prec, ceil( log( TMAX( -min.x, max.x ) ) / log( 10.0f ) ) + prec + 1 ),
+	m_YnumWheel( this, min.y, max.y, -prec, ceil( log( TMAX( -min.y, max.y ) ) / log( 10.0f ) ) + prec + 1 )
+{
+	_UpdateButton();
+	Add( &m_buttonlist );
+	m_buttonlist.Add( &m_Xbutton );
+	m_buttonlist.Add( &m_Ybutton );
+}
+
+int EDGUIPropVec2::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		if( e->target == &m_XnumWheel || e->target == &m_YnumWheel )
+		{
+			if( e->target == &m_XnumWheel ) m_value.x = m_XnumWheel.GetValue();
+			if( e->target == &m_YnumWheel ) m_value.y = m_YnumWheel.GetValue();
+			_UpdateButton();
+			EDGUIEvent se = { e->type, this };
+			BubblingEvent( &se );
+			return 0;
+		}
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			if( e->target == &m_Xbutton )
+			{
+				m_XnumWheel.m_cx = e->mouse.x;
+				m_XnumWheel.m_cy = e->mouse.y;
+				m_XnumWheel.m_value = m_value.x;
+				m_frame->Add( &m_XnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+			if( e->target == &m_Ybutton )
+			{
+				m_YnumWheel.m_cx = e->mouse.x;
+				m_YnumWheel.m_cy = e->mouse.y;
+				m_YnumWheel.m_value = m_value.y;
+				m_frame->Add( &m_YnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+void EDGUIPropVec2::_UpdateButton()
+{
+	char bfr[ 32 ] = {0};
+	snprintf( bfr, 31, "%g", m_value.x );
+	m_Xbutton.caption = bfr;
+	snprintf( bfr, 31, "%g", m_value.y );
+	m_Ybutton.caption = bfr;
+}
+
+
+EDGUIPropString::EDGUIPropString( const StringView& def ) :
+	m_sel_from( 0 ),
+	m_sel_to( 0 ),
+	m_offset( 0 ),
+	m_fsel_from( -1 ),
+	m_fsel_to( -1 ),
+	m_selecting( false )
+{
+	SetText( def );
+}
+
+int EDGUIPropString::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_SETFOCUS:
+		m_frame->_SetFocus( this );
+		return 1;
+	case EDGUI_EVENT_LOSEFOCUS:
+		Changed();
+		return 1;
+		
+	case EDGUI_EVENT_BTNDOWN:
+		if( e->mouse.button == 0 )
+		{
+			m_selecting = true;
+			m_sel_to = m_sel_from = _FindOffset( e->mouse.x, e->mouse.y );
+			_UpdateSelOffsets();
+		}
+		return 1;
+	case EDGUI_EVENT_MOUSEMOVE:
+		if( m_frame->m_clickTargets[0] == this && m_selecting )
+		{
+			m_sel_to = _FindOffset( e->mouse.x, e->mouse.y );
+			_UpdateSelOffsets();
+			Invalidate();
+		}
+		return 1;
+	case EDGUI_EVENT_BTNUP:
+		if( e->mouse.button == 0 )
+			m_selecting = false;
+		return 1;
+		
+	case EDGUI_EVENT_PAINT:
+		_Begin( e );
+		{
+			BatchRenderer& br = GR2D_GetBatchRenderer().UnsetTexture();
+			br.Colu( EDGUI_THEME_TEXTBOX_BORDER_COLOR );
+			br.Quad( x0, y0, x1, y1 );
+			br.Colu( EDGUI_THEME_TEXTBOX_CENTER_COLOR );
+			br.Quad( x0 + 2, y0 + 2, x1 - 2, y1 - 2 );
+		}
+		_End( e );
+		return 1;
+		
+		/*
+	else if( event.type == EV_Char )
+	{
+		if( event.uchar > 0x1f && event.uchar != 0x7f )
+		{
+			if( data.sel_from == data.sel_to )
+			{
+				data.chars.insert( data.sel_from, event.uchar );
+				data.updateText( this );
+				UIForm_CtrlEdited( this, event );
+				this.callEvent( "edit", event );
+				data.sel_from++;
+				data.sel_to++;
+			}
+			else
+			{
+				from = data.sel_from;
+				to = data.sel_to;
+				if( from > to )
+				{
+					from = data.sel_to;
+					to = data.sel_from;
+				}
+				data.chars.erase( from, to - 1 );
+				data.chars.insert( from, event.uchar );
+				from++;
+				data.updateText( this );
+				UIForm_CtrlEdited( this, event );
+				this.callEvent( "edit", event );
+				data.sel_from = from;
+				data.sel_to = from;
+			}
+			data.updateSelOffsets( this );
+			this._resetCursorTimer( this.frame );
+		}
+	}
+	else if( event.type == EV_KeyDown || event.type == EV_KeyUp )
+	{
+		key = event.key;
+		mods = key & ~KeyMod_Filter;
+		key &= KeyMod_Filter;
+		down = event.type == EV_KeyDown;
+		
+		if( down )
+		{
+			if( key == Key_Left || key == Key_Right )
+			{
+				if( data.sel_from == data.sel_to || mods & KeyMod_Shift )
+					data.sel_to = data.sel_to + if( key == Key_Right, 1, -1 );
+				else
+					data.sel_to = if( key == Key_Left, min( data.sel_from, data.sel_to ), max( data.sel_from, data.sel_to ) );
+				if( !( mods & KeyMod_Shift ) )
+					data.sel_from = data.sel_to;
+				data.updateSelOffsets( this );
+				this._resetCursorTimer( this.frame );
+				this.invalidateMe();
+			}
+			else if( key == Key_DelLeft || key == Key_DelRight )
+			{
+				if( data.sel_from != data.sel_to )
+				{
+					from = data.sel_from;
+					to = data.sel_to;
+					if( from > to )
+					{
+						from = data.sel_to;
+						to = data.sel_from;
+					}
+					data.chars.erase( from, to - 1 );
+					data.sel_from = from;
+					data.sel_to = from;
+				}
+				else if( key == Key_DelLeft && data.sel_from > 0 )
+				{
+					data.chars.erase( data.sel_from - 1 );
+					data.sel_from--;
+					data.sel_to--;
+				}
+				else if( key == Key_DelRight && data.sel_from < data.chars.size )
+				{
+					data.chars.erase( data.sel_from );
+				}
+				data.updateText( this );
+				UIForm_CtrlEdited( this, event );
+				this.callEvent( "edit", event );
+				data.updateSelOffsets( this );
+				this._resetCursorTimer( this.frame );
+			}
+			else if( key == Key_Cut || key == Key_Copy )
+			{
+				if( this.frame.clipboard_func )
+				{
+					from = data.sel_from;
+					to = data.sel_to;
+					if( from > to )
+					{
+						from = data.sel_to;
+						to = data.sel_from;
+					}
+					this.frame.clipboard_func( string_part( data.text, from, to - from ) );
+					if( key == Key_Cut )
+					{
+						data.chars.erase( from, to - 1 );
+						data.sel_from = from;
+						data.sel_to = from;
+					}
+					data.updateText( this );
+					UIForm_CtrlEdited( this, event );
+					this.callEvent( "edit", event );
+					data.updateSelOffsets( this );
+					this._resetCursorTimer( this.frame );
+				}
+			}
+			else if( key == Key_Paste )
+			{
+				if( this.frame.clipboard_func )
+				{
+					if( data.sel_from != data.sel_to )
+					{
+						from = data.sel_from;
+						to = data.sel_to;
+						if( from > to )
+						{
+							from = data.sel_to;
+							to = data.sel_from;
+						}
+						data.chars.erase( from, to - 1 );
+						data.sel_from = from;
+						data.sel_to = from;
+					}
+					
+					text = this.frame.clipboard_func();
+					at = data.sel_from;
+					utext = string_utf8_decode( text );
+					data.chars = get_concat( data.chars.part( 0, at ), utext, data.chars.part( at ) );
+					data.sel_from = data.sel_to = at + utext.size;
+					data.updateText( this );
+					UIForm_CtrlEdited( this, event );
+					this.callEvent( "edit", event );
+					data.updateSelOffsets( this );
+					this._resetCursorTimer( this.frame );
+				}
+			}
+			else if( key == Key_SelectAll )
+			{
+				data.sel_from = 0;
+				data.sel_to = data.chars.size;
+				data.updateSelOffsets( this );
+				this._resetCursorTimer( this.frame );
+			}
+			else if( key == Key_Enter )
+			{
+				this.frame.setFocus( null );
+				this.callEvent( "submit", event );
+			}
+		}
+	}
+	
+	return this!ocb( event );*/
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+void EDGUIPropString::SetText( const StringView& sv )
+{
+	m_sel_from = sv.size();
+	m_sel_to = sv.size();
+	m_offset = 0;
+	m_fsel_from = -1;
+	m_fsel_to = -1;
+	m_selecting = false;
+	m_value = sv;
+	m_chars = sv; // TODO decode
+	_UpdateSelOffsets();
+}
+
+void EDGUIPropString::_UpdateSelOffsets()
+{
+	m_sel_from = TMAX( 0, TMIN( m_sel_from, (int) m_chars.size() ) );
+	m_sel_to = TMAX( 0, TMIN( m_sel_to, (int) m_chars.size() ) );
+	m_fsel_from = GR2D_GetTextLength( StringView( m_chars.data(), m_sel_from ) );
+	m_fsel_to = GR2D_GetTextLength( StringView( m_chars.data(), m_sel_to ) );
+}
+
+void EDGUIPropString::_UpdateText()
+{
+	m_value = m_chars; // TODO encode
+}
+
+int EDGUIPropString::_FindOffset( int x, int y )
+{
+	x -= x0 - m_offset;
+	y -= y0;
+	
+//	fmin = 0.0;
+//	fmax = 0.0;
+//	pc = null;
+//	for( i = 0; i < m_chars.size(); ++i )
+//	{
+//		ch = m_chars[ i ];
+//		fmax += ctrl._cachedFont.getAdvance( pc, ch );
+//		if( x <= (fmin+fmax)*0.5 )
+//			break;
+//		fmin = fmax;
+//		pc = ch;
+//	}
+//	return i;
+	
+	int lenmin = 0;
+	int lenmax = 0;
+	int i;
+	for( i = 0; i < (int) m_chars.size(); ++i )
+	{
+		lenmax = GR2D_GetTextLength( StringView( m_chars.data(), i ) );
+		if( x <= ( lenmin + lenmax ) / 2 )
+			break;
+		lenmin = lenmax;
+	}
+	return i;
 }
 
 

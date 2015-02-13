@@ -65,6 +65,10 @@ struct EXPORT SGRX_Log
 
 EXPORT uint32_t GetTimeMsec();
 
+EXPORT bool Window_HasClipboardText();
+EXPORT bool Window_GetClipboardText( String& out );
+EXPORT bool Window_SetClipboardText( const StringView& text );
+
 typedef SDL_Event Event;
 
 
@@ -214,7 +218,7 @@ struct EXPORT TextureHandle : Handle< SGRX_ITexture >
 	TextureHandle( const TextureHandle& h ) : Handle( h ){}
 	TextureHandle( SGRX_ITexture* tex ) : Handle( tex ){}
 	
-	const TextureInfo& GetInfo();
+	const TextureInfo& GetInfo() const;
 	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
@@ -711,6 +715,7 @@ inline void GR2D_SetColor( float x, float a ){ GR2D_SetColor( x, x, x, a ); }
 inline void GR2D_SetColor( float x ){ GR2D_SetColor( x, x, x, x ); }
 EXPORT void GR2D_SetTextCursor( float x, float y );
 EXPORT Vec2 GR2D_GetTextCursor();
+EXPORT int GR2D_GetTextLength( const StringView& text );
 EXPORT int GR2D_DrawTextLine( const StringView& text );
 EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 #define HALIGN_LEFT 0

@@ -159,6 +159,8 @@ FINLINE Vec2 operator - ( float f, const Vec2& v ){ Vec2 out = { f - v.x, f - v.
 FINLINE Vec2 operator * ( float f, const Vec2& v ){ Vec2 out = { f * v.x, f * v.y }; return out; }
 FINLINE Vec2 operator / ( float f, const Vec2& v ){ Vec2 out = { f / v.x, f / v.y }; return out; }
 
+FINLINE Vec2 V2( float x ){ Vec2 v = { x, x }; return v; }
+FINLINE Vec2 V2( float x, float y ){ Vec2 v = { x, y }; return v; }
 FINLINE float Vec2Dot( const Vec2& v1, const Vec2& v2 ){ return v1.x * v2.x + v1.y * v2.y; }
 #endif
 
