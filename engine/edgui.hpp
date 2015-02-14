@@ -86,6 +86,7 @@
 #define EDGUI_ITEM_PROP_FLOAT  103
 #define EDGUI_ITEM_PROP_STRING 104
 #define EDGUI_ITEM_PROP_VEC2   105
+#define EDGUI_ITEM_PROP_VEC3   106
 
 
 #define EDGUI_KEY_UNKNOWN   0
@@ -142,7 +143,7 @@ struct EXPORT EDGUIItem
 	
 	bool Add( EDGUIItem* subitem );
 	bool Remove( EDGUIItem* subitem );
-	void Clear(){ m_subitems.clear(); }
+	void Clear();
 	void SubstChildPtr( const EDGUIItem* find, EDGUIItem* repl );
 	void Invalidate(){}
 	bool Hit( int x, int y );
@@ -331,7 +332,7 @@ struct EXPORT EDGUIPropFloat : EDGUIProperty
 
 struct EXPORT EDGUIPropVec2 : EDGUIProperty
 {
-	EDGUIPropVec2( const Vec2& def = Vec2::Create(0), int prec = 2, const Vec2& min = Vec2::Create(-FLT_MAX), const Vec2& max = Vec2::Create(FLT_MAX) );
+	EDGUIPropVec2( const Vec2& def = V2(0), int prec = 2, const Vec2& min = V2(-FLT_MAX), const Vec2& max = V2(FLT_MAX) );
 	virtual int OnEvent( EDGUIEvent* e );
 	EDGUIPropVec2& operator = ( const EDGUIPropVec2& o );
 	void _UpdateButton();
@@ -346,6 +347,27 @@ struct EXPORT EDGUIPropVec2 : EDGUIProperty
 	EDGUIButton m_Xbutton;
 	EDGUINumberWheel m_YnumWheel;
 	EDGUIButton m_Ybutton;
+};
+
+struct EXPORT EDGUIPropVec3 : EDGUIProperty
+{
+	EDGUIPropVec3( const Vec3& def = V3(0), int prec = 2, const Vec3& min = V3(-FLT_MAX), const Vec3& max = V3(FLT_MAX) );
+	virtual int OnEvent( EDGUIEvent* e );
+	EDGUIPropVec3& operator = ( const EDGUIPropVec3& o );
+	void _UpdateButton();
+	void SetValue( const Vec3& v ){ m_value = v; _UpdateButton(); }
+	
+	Vec3 m_value;
+	Vec3 m_min;
+	Vec3 m_max;
+	
+	EDGUILayoutColumn m_buttonlist;
+	EDGUINumberWheel m_XnumWheel;
+	EDGUIButton m_Xbutton;
+	EDGUINumberWheel m_YnumWheel;
+	EDGUIButton m_Ybutton;
+	EDGUINumberWheel m_ZnumWheel;
+	EDGUIButton m_Zbutton;
 };
 
 struct EXPORT EDGUIPropString : EDGUIProperty

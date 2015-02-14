@@ -332,8 +332,8 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 			#
 			for i in range( 2, len( tmpidcs ) ):
 				indices.append( tmpidcs[ 0 ] )
-				indices.append( tmpidcs[ i - 1 ] )
 				indices.append( tmpidcs[ i ] )
+				indices.append( tmpidcs[ i - 1 ] )
 			#
 		#
 		

@@ -216,7 +216,7 @@ bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int
 	Vec4 plane;
 	if( !PolyGetPlane( points, pointcount, plane ) )
 		return false;
-	if( !RayPlaneIntersect( pos, dir, plane, dsts ) || dsts[0] < 0 )
+	if( !RayPlaneIntersect( pos, dir, plane, dsts ) || dsts[0] < 0 || dsts[1] < 0 )
 		return false;
 	Vec3 isp = pos + dir * dsts[0];
 	Vec3 normal = plane.ToVec3();
@@ -228,7 +228,7 @@ bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int
 		if( Vec3Dot( eout, isp ) - Vec3Dot( eout, points[ i ] ) > SMALL_FLOAT )
 			return false;
 	}
-	printf( "%g;%g;%g\n",isp.x,isp.y,isp.z);
+	dst[0] = dsts[0];
 	return true;
 }
 

@@ -1672,7 +1672,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 				m_world_view.Multiply( MI->matrix, L->viewMatrix );
 				VS_SetMat4( 0, m_world_view );
 				
-				m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CW );
+				m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 				m_dev->SetVertexDeclaration( VD->m_vdecl );
 				m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
 				m_dev->SetIndices( M->m_IB );
@@ -1729,7 +1729,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 		if( obj_type < 0 )
 			continue; /* DISABLE them for now... */
 		
-		m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CW );
+		m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 		
 		/* -------------------------------------- */
 		do

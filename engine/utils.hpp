@@ -401,6 +401,29 @@ struct EXPORT Mat4
 		return m;
 	}
 	
+	static Mat4 CreateScale( float x, float y, float z )
+	{
+		Mat4 m = Identity;
+		m.m[0][0] = x;
+		m.m[1][1] = y;
+		m.m[2][2] = z;
+		return m;
+	}
+	static FINLINE Mat4 CreateScale( const Vec3& v ){ return CreateScale( v.x, v.y, v.z ); }
+	static Mat4 CreateRotationDefAxis( int axis0, int axis1, float angle )
+	{
+		float s = sin( angle );
+		float c = cos( angle );
+		Mat4 m = Identity;
+		m.m[ axis0 ][ axis0 ] = c;
+		m.m[ axis0 ][ axis1 ] = -s;
+		m.m[ axis1 ][ axis0 ] = s;
+		m.m[ axis1 ][ axis1 ] = c;
+		return m;
+	}
+	static Mat4 CreateRotationX( float angle ){ return CreateRotationDefAxis( 1, 2, angle ); }
+	static Mat4 CreateRotationY( float angle ){ return CreateRotationDefAxis( 2, 0, angle ); }
+	static Mat4 CreateRotationZ( float angle ){ return CreateRotationDefAxis( 0, 1, angle ); }
 	static FINLINE Mat4 CreateTranslation( float x, float y, float z )
 	{
 		Mat4 out;
@@ -410,7 +433,26 @@ struct EXPORT Mat4
 		out.m[3][2] = z;
 		return out;
 	}
-	static FINLINE Mat4 CreateTranslation( Vec3 v ){ return CreateTranslation( v.x, v.y, v.z ); }
+	static FINLINE Mat4 CreateTranslation( const Vec3& v ){ return CreateTranslation( v.x, v.y, v.z ); }
+	static Mat4 CreateSRT( const Vec3& scale, const Vec3& rot_angles, const Vec3& pos )
+	{
+		Mat4 rx = Mat4::CreateRotationX( rot_angles.x );
+		Mat4 ry = Mat4::CreateRotationY( rot_angles.y );
+		Mat4 rz = Mat4::CreateRotationZ( rot_angles.z );
+		Mat4 rot, rot2;
+		rot2.Multiply( rz, ry );
+		rot.Multiply( rot2, rx );
+		return CreateSXT( scale, rot, pos );
+	}
+	static Mat4 CreateSXT( const Vec3& scale, const Mat4& rot, const Vec3& pos )
+	{
+		Mat4 mscl = Mat4::CreateScale( scale );
+		Mat4 mtrn = Mat4::CreateTranslation( pos );
+		Mat4 mtmp1, mtmp2;
+		mtmp1.Multiply( mscl, rot );
+		mtmp2.Multiply( mtmp1, mtrn );
+		return mtmp2;
+	}
 	
 	static Mat4 CreateLookAt( Vec3 pos, Vec3 dir, Vec3 up )
 	{
@@ -522,7 +564,7 @@ struct EXPORT Mat4
 		float tha = tan( DEG2RAD( angle ) / 2.0f );
 		if( tha < 0.001f ) tha = 0.001f;
 		float itha = 1.0f / tha;
-		float xscale = itha / pow( aspect, aamix );
+		float xscale = -itha / pow( aspect, aamix );
 		float yscale = itha * pow( aspect, 1 - aamix );
 		
 		m[0][0] = xscale;

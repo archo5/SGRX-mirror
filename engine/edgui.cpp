@@ -1,6 +1,7 @@
 
 
 #define USE_VEC2
+#define USE_VEC3
 #define USE_ARRAY
 #include "edgui.hpp"
 
@@ -23,6 +24,9 @@ EDGUIItem::EDGUIItem() :
 
 EDGUIItem::~EDGUIItem()
 {
+	if( m_parent )
+		m_parent->Remove( this );
+	Clear();
 }
 
 int EDGUIItem::OnEvent( EDGUIEvent* e )
@@ -122,6 +126,12 @@ bool EDGUIItem::Remove( EDGUIItem* subitem )
 	return true;
 }
 
+void EDGUIItem::Clear()
+{
+	while( m_subitems.size() )
+		Remove( m_subitems.last() );
+}
+
 void EDGUIItem::SubstChildPtr( const EDGUIItem* find, EDGUIItem* repl )
 {
 	for( size_t i = 0; i < m_subitems.size(); ++i )
@@ -173,7 +183,7 @@ void EDGUIItem::OnChangeLayout()
 	e.layout.y0 = y0;
 	e.layout.x1 = x1;
 	e.layout.y1 = y1;
-	LOG << "OC LAYOUT: " << tyname << LOG_SEP(", ") << x0 << y0 << x1 << y1;
+//	LOG << "OC LAYOUT: " << tyname << LOG_SEP(", ") << x0 << y0 << x1 << y1;
 	OnEvent( &e );
 }
 
@@ -185,7 +195,7 @@ void EDGUIItem::ReshapeLayout()
 
 void EDGUIItem::SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 )
 {
-	LOG << "SUB LAYOUT: " << tyname << " -> " << subitem->tyname << LOG_SEP(", ") << _x0 << _y0 << _x1 << _y1;
+//	LOG << "SUB LAYOUT: " << tyname << " -> " << subitem->tyname << LOG_SEP(", ") << _x0 << _y0 << _x1 << _y1;
 	EDGUIEvent e = { EDGUI_EVENT_LAYOUT, this };
 	e.layout.x0 = _x0;
 	e.layout.y0 = _y0;
@@ -196,7 +206,7 @@ void EDGUIItem::SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1,
 
 void EDGUIItem::_SetFrame( EDGUIFrame* frame )
 {
-	LOG << "SETTING FRAME " << m_frame << " -> " << frame << " at " << tyname;
+//	LOG << "SETTING FRAME " << m_frame << " -> " << frame << " at " << tyname;
 	if( !frame && m_frame )
 		m_frame->_Unlink( this );
 	m_frame = frame;
@@ -408,7 +418,7 @@ void EDGUIFrame::_HandleMouseMove( bool optional )
 				e.mouse.y = m_mouseY;
 				
 				pcc1 = cc = prevhover;
-				while( cc != phi )
+				while( cc && cc != phi )
 				{
 					if( !cc->OnEvent( &e ) )
 						break;
@@ -422,7 +432,7 @@ void EDGUIFrame::_HandleMouseMove( bool optional )
 				e.mouse.y = m_mouseY;
 				
 				pcc2 = cc = m_hover;
-				while( cc != phi )
+				while( cc && cc != phi )
 				{
 					if( !cc->OnEvent( &e ) )
 						break;
@@ -1281,6 +1291,102 @@ void EDGUIPropVec2::_UpdateButton()
 	m_Xbutton.caption = bfr;
 	snprintf( bfr, 31, "%g", m_value.y );
 	m_Ybutton.caption = bfr;
+}
+
+
+EDGUIPropVec3::EDGUIPropVec3( const Vec3& def, int prec, const Vec3& min, const Vec3& max ) :
+	m_value( def ),
+	m_min( min ),
+	m_max( max ),
+	m_XnumWheel( this, min.x, max.x, -prec, ceil( log( TMAX( -min.x, max.x ) ) / log( 10.0f ) ) + prec + 1 ),
+	m_YnumWheel( this, min.y, max.y, -prec, ceil( log( TMAX( -min.y, max.y ) ) / log( 10.0f ) ) + prec + 1 ),
+	m_ZnumWheel( this, min.z, max.z, -prec, ceil( log( TMAX( -min.z, max.z ) ) / log( 10.0f ) ) + prec + 1 )
+{
+	tyname = "property-vec3";
+	type = EDGUI_ITEM_PROP_VEC3;
+	_UpdateButton();
+	Add( &m_buttonlist );
+	m_buttonlist.Add( &m_Xbutton );
+	m_buttonlist.Add( &m_Ybutton );
+	m_buttonlist.Add( &m_Zbutton );
+}
+
+int EDGUIPropVec3::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		if( e->target == &m_XnumWheel || e->target == &m_YnumWheel || e->target == &m_ZnumWheel )
+		{
+			if( e->target == &m_XnumWheel ) m_value.x = m_XnumWheel.GetValue();
+			if( e->target == &m_YnumWheel ) m_value.y = m_YnumWheel.GetValue();
+			if( e->target == &m_ZnumWheel ) m_value.z = m_ZnumWheel.GetValue();
+			_UpdateButton();
+			EDGUIEvent se = { e->type, this };
+			BubblingEvent( &se );
+			return 0;
+		}
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			if( e->target == &m_Xbutton )
+			{
+				m_XnumWheel.m_cx = e->mouse.x;
+				m_XnumWheel.m_cy = e->mouse.y;
+				m_XnumWheel.m_value = m_value.x;
+				m_frame->Add( &m_XnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+			if( e->target == &m_Ybutton )
+			{
+				m_YnumWheel.m_cx = e->mouse.x;
+				m_YnumWheel.m_cy = e->mouse.y;
+				m_YnumWheel.m_value = m_value.y;
+				m_frame->Add( &m_YnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+			if( e->target == &m_Zbutton )
+			{
+				m_ZnumWheel.m_cx = e->mouse.x;
+				m_ZnumWheel.m_cy = e->mouse.y;
+				m_ZnumWheel.m_value = m_value.z;
+				m_frame->Add( &m_ZnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+EDGUIPropVec3& EDGUIPropVec3::operator = ( const EDGUIPropVec3& o )
+{
+	this->~EDGUIPropVec3();
+	new (this) EDGUIPropVec3( o );
+	SubstChildPtr( &o.m_buttonlist, &m_buttonlist );
+	m_buttonlist.SubstChildPtr( &o.m_Xbutton, &m_Xbutton );
+	m_buttonlist.SubstChildPtr( &o.m_Ybutton, &m_Ybutton );
+	m_buttonlist.SubstChildPtr( &o.m_Zbutton, &m_Zbutton );
+	m_XnumWheel.m_owner = this;
+	m_YnumWheel.m_owner = this;
+	m_ZnumWheel.m_owner = this;
+	return *this;
+}
+
+void EDGUIPropVec3::_UpdateButton()
+{
+	char bfr[ 32 ] = {0};
+	snprintf( bfr, 31, "%g", m_value.x );
+	m_Xbutton.caption = bfr;
+	snprintf( bfr, 31, "%g", m_value.y );
+	m_Ybutton.caption = bfr;
+	snprintf( bfr, 31, "%g", m_value.z );
+	m_Zbutton.caption = bfr;
 }
 
 

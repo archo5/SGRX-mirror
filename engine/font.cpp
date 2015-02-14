@@ -68,6 +68,9 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 	float ifw = 1.0f / m_cache.m_pageWidth;
 	float ifh = 1.0f / m_cache.m_pageHeight;
 	
+	FT_Size_Metrics m = m_currentFont->face->size->metrics;
+	float adjusted_y = m_cursor_y - ( ( ( m.ascender + abs( m.descender ) ) >> 6 ) - m.y_ppem ) / 2;
+	
 	StringView it = text;
 	while( it.size() > 0 )
 	{
@@ -90,7 +93,7 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 			float fty0 = node->y0 * ifh, fty1 = node->y1 * ifh;
 			
 			float fx0 = m_cursor_x + node->key.bmoffx;
-			float fy0 = m_cursor_y + m_currentFont->key.size - node->key.bmoffy;
+			float fy0 = adjusted_y + m_currentFont->key.size - node->key.bmoffy;
 			float fx1 = fx0 + node->x1 - node->x0;
 			float fy1 = fy0 + node->y1 - node->y0;
 			
