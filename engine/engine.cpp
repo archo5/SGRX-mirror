@@ -1157,6 +1157,7 @@ BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, int verts )
 		verts = r * M_PI * 2;
 	if( verts >= 3 )
 	{
+		Flush();
 		SetPrimitiveType( PT_TriangleFan );
 		Pos( x, y );
 		float a = 0;
@@ -1178,6 +1179,7 @@ BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, int vert
 		verts = r * M_PI * 2;
 	if( verts >= 3 )
 	{
+		Flush();
 		SetPrimitiveType( PT_LineStrip );
 		float a = 0;
 		float ad = M_PI * 2.0f / verts;

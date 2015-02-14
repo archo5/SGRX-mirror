@@ -157,6 +157,21 @@ const Mat4 Mat4::Identity =
 
 
 
+float PolyArea( const Vec2* points, int pointcount )
+{
+	float area = 0;
+	if( pointcount < 3 )
+		return area;
+	
+	for( int i = 0; i < pointcount; ++i )
+	{
+		int i1 = ( i + 1 ) % pointcount;
+		area += points[i].x * points[i1].y - points[i1].x * points[i].y;
+	}
+	
+	return area * 0.5f;
+}
+
 bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] )
 {
 	/* returns <distance to intersection, signed origin distance from plane>
@@ -210,9 +225,10 @@ bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int
 		int i1 = ( i + 1 ) % pointcount;
 		Vec3 edir = points[ i1 ] - points[ i ];
 		Vec3 eout = Vec3Cross( edir, normal ).Normalized();
-		if( Vec3Dot( eout, isp ) > 0 )
+		if( Vec3Dot( eout, isp ) - Vec3Dot( eout, points[ i ] ) > SMALL_FLOAT )
 			return false;
 	}
+	printf( "%g;%g;%g\n",isp.x,isp.y,isp.z);
 	return true;
 }
 

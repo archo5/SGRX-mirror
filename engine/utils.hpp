@@ -333,6 +333,8 @@ FINLINE Vec4 operator - ( float f, const Vec4& v ){ Vec4 out = { f - v.x, f - v.
 FINLINE Vec4 operator * ( float f, const Vec4& v ){ Vec4 out = { f * v.x, f * v.y, f * v.z, f * v.w }; return out; }
 FINLINE Vec4 operator / ( float f, const Vec4& v ){ Vec4 out = { f / v.x, f / v.y, f / v.z, f / v.w }; return out; }
 
+FINLINE Vec4 V4( float x ){ Vec4 v = { x, x, x, x }; return v; }
+FINLINE Vec4 V4( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; return v; }
 FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w; }
 #endif
 
@@ -520,7 +522,7 @@ struct EXPORT Mat4
 		float tha = tan( DEG2RAD( angle ) / 2.0f );
 		if( tha < 0.001f ) tha = 0.001f;
 		float itha = 1.0f / tha;
-		float xscale = -itha / pow( aspect, aamix );
+		float xscale = itha / pow( aspect, aamix );
 		float yscale = itha * pow( aspect, 1 - aamix );
 		
 		m[0][0] = xscale;
@@ -545,10 +547,11 @@ struct EXPORT Mat4
 
 
 
-bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] );
-bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
-bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
-bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
+EXPORT float PolyArea( const Vec2* points, int pointcount );
+EXPORT bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] );
+EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
+EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
+EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
 
 
 
@@ -654,8 +657,17 @@ struct Array
 		return removed;
 	}
 	
+	FINLINE void reverse()
+	{
+		for( size_t i = 0; i < m_size / 2; ++i )
+		{
+			TSWAP( m_data[ i ], m_data[ m_size - 1 - i ] );
+		}
+	}
+	
 	FINLINE void push_front( const T& v ){ insert( 0, v ); }
 	FINLINE void push_back( const T& v ){ insert( size(), v ); }
+	FINLINE void pop_back(){ erase( size() - 1 ); }
 	FINLINE void append( const T* v, size_t sz ){ insert( size(), v, sz ); }
 	FINLINE void assign( const T* v, size_t sz ){ clear(); insert( size(), v, sz ); }
 	FINLINE void clear(){ resize( 0 ); }
