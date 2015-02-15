@@ -865,6 +865,10 @@ struct StringView
 				return true;
 		return false;
 	}
+	FINLINE bool ends_with( const StringView& substr ) const
+	{
+		return m_size > substr.m_size && !memcmp( m_str + m_size - substr.m_size, substr.m_str, substr.m_size );
+	}
 	
 	FINLINE StringView part( size_t start, size_t count = NOT_FOUND ) const
 	{
@@ -1464,6 +1468,22 @@ struct TextWriter
 //
 // FILES
 //
+
+struct EXPORT DirectoryIterator
+{
+	DirectoryIterator( const StringView& path );
+	~DirectoryIterator();
+	
+	bool Next();
+	StringView Name();
+	bool IsDirectory();
+	
+	struct _IntDirIter* m_int;
+	
+private:
+	DirectoryIterator& operator = ( const DirectoryIterator& );
+	DirectoryIterator( const DirectoryIterator& );
+};
 
 EXPORT bool CWDSet( const StringView& path );
 

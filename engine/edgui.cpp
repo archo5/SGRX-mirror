@@ -214,15 +214,15 @@ void EDGUIItem::_SetFrame( EDGUIFrame* frame )
 		m_subitems[ i ]->_SetFrame( frame );
 }
 
-void EDGUIItem::Edited()
+void EDGUIItem::Edited( EDGUIItem* tgt )
 {
-	EDGUIEvent ev = { EDGUI_EVENT_PROPEDIT, this };
+	EDGUIEvent ev = { EDGUI_EVENT_PROPEDIT, tgt ? tgt : this };
 	BubblingEvent( &ev );
 }
 
-void EDGUIItem::Changed()
+void EDGUIItem::Changed( EDGUIItem* tgt )
 {
-	EDGUIEvent ev = { EDGUI_EVENT_PROPCHANGE, this };
+	EDGUIEvent ev = { EDGUI_EVENT_PROPCHANGE, tgt ? tgt : this };
 	BubblingEvent( &ev );
 }
 
@@ -330,12 +330,24 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 		EDGUIEvent ev = { down ? EDGUI_EVENT_KEYDOWN : EDGUI_EVENT_KEYUP, m_keyboardFocus };
 		ev.key.key = EDGUI_KEY_UNKNOWN;
 		ev.key.engkey = engkey;
+		ev.key.engmod = engmod;
 		ev.key.repeat = !!eev->key.repeat;
 		
 		if(0);
 		else if( engkey == SDLK_x && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_CUT; }
 		else if( engkey == SDLK_c && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_COPY; }
 		else if( engkey == SDLK_v && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_PASTE; }
+		
+		m_keyboardFocus->OnEvent( &ev );
+	}
+	else if( eev->type == SDL_TEXTINPUT )
+	{
+		if( !m_keyboardFocus )
+			return;
+		
+		EDGUIEvent ev = { EDGUI_EVENT_TEXTINPUT, m_keyboardFocus };
+		strncpy( ev.text.text, eev->text.text, 7 );
+		ev.text.text[7] = 0;
 		
 		m_keyboardFocus->OnEvent( &ev );
 	}
@@ -996,6 +1008,204 @@ double EDGUINumberWheel::GetValue()
 {
 	double rf = pow( 10, m_initpwr );
 	return round( m_value / rf ) * rf;
+}
+
+
+EDGUIRsrcPicker::EDGUIRsrcPicker() :
+	m_zoom( 1 ),
+	m_horCount( 0 ),
+	m_scrollOffset( 0 ),
+	m_itemWidth( 0 ),
+	m_itemHeight( 0 ),
+	cx0( 0 ),
+	cy0( 0 ),
+	cx1( 0 ),
+	cy1( 0 ),
+	m_hlfiltered( -1 ),
+	m_picked( 0 ),
+	m_owner( NULL ),
+	m_mouseX( 0 ),
+	m_mouseY( 0 )
+{
+	type = EDGUI_ITEM_RSRCPICKER;
+	tyname = "rsrcpicker";
+	backColor = EDGUI_THEME_OVERLAY_COLOR;
+	_Search( m_searchString );
+	Zoom( m_zoom );
+}
+
+int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_ADDED:
+		m_frame->_SetFocus( this );
+		return 1;
+		
+	case EDGUI_EVENT_LAYOUT:
+		EDGUIItem::OnEvent( e );
+		cx0 = x0 + 32;
+		cy0 = y0 + 64;
+		cx1 = x1 - 32;
+		cy1 = y1 - 32;
+		Zoom( m_zoom );
+		return 1;
+		
+	case EDGUI_EVENT_MOUSEENTER:
+	case EDGUI_EVENT_MOUSEMOVE:
+		m_mouseX = e->mouse.x;
+		m_mouseY = e->mouse.y;
+		_FindHL();
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		if( m_hlfiltered != -1 )
+		{
+			m_picked = m_hlfiltered;
+			m_owner->Edited( this );
+			m_owner->Changed( this );
+			Close();
+			return 1;
+		}
+		break;
+		
+	case EDGUI_EVENT_PAINT:
+		{
+			BatchRenderer& br = GR2D_GetBatchRenderer();
+			br.UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1 );
+			br.Colu( textColor );
+			br.Flush().SetPrimitiveType( PT_LineStrip ).Pos( cx0, cy0 ).Pos( cx1, cy0 ).Pos( cx1, cy1 ).Pos( cx0, cy1 ).Prev(3).Flush();
+			GR2D_DrawTextLine( 32, 32, String_Concat( "Type to search: ", m_searchString ) );
+			if( m_horCount )
+			{
+				for( size_t i = 0; i < m_filtered.size(); ++i )
+				{
+					int tx = i % m_horCount;
+					int ty = i / m_horCount;
+					int rx0 = cx0 + tx * m_itemWidth;
+					int ry0 = cy0 + ty * m_itemHeight;
+					int rx1 = rx0 + m_itemWidth;
+					int ry1 = ry0 + m_itemHeight;
+					br.Colu( m_hlfiltered == m_filtered[ i ] ? EDGUI_THEME_RSRCPICK_ITEM_BACKHL_COLOR : EDGUI_THEME_RSRCPICK_ITEM_BACK_COLOR );
+					br.UnsetTexture().Quad( rx0, ry0, rx1, ry1 );
+					_DrawItem( m_filtered[ i ], rx0, ry0, rx1, ry1 );
+				}
+			}
+		}
+		return 1;
+		
+	case EDGUI_EVENT_KEYDOWN:
+		if( e->key.engkey == SDLK_ESCAPE )
+		{
+			Close();
+			return 1;
+		}
+		if( e->key.engkey == SDLK_BACKSPACE )
+		{
+			while( m_searchString.size() && ( m_searchString.last() & 0xC0 ) == 0x80 )
+				m_searchString.pop_back();
+			if( m_searchString.size() )
+				m_searchString.pop_back();
+			_Search( m_searchString );
+			return 1;
+		}
+	case EDGUI_EVENT_TEXTINPUT:
+		m_searchString.append( e->text.text );
+		_Search( m_searchString );
+		return 1;
+	}
+	return EDGUIItem::OnEvent( e );
+}
+
+void EDGUIRsrcPicker::Open( EDGUIItem* owner, const StringView& val )
+{
+	m_owner = owner;
+	SetValue( val );
+}
+
+void EDGUIRsrcPicker::Close()
+{
+	if( m_parent )
+		m_parent->Remove( this );
+	m_owner = NULL;
+}
+
+void EDGUIRsrcPicker::SetValue( const StringView& sv )
+{
+	// TODO
+}
+
+String EDGUIRsrcPicker::GetValue()
+{
+	if( m_picked >= 0 )
+		return m_options[ m_picked ];
+	return String();
+}
+
+void EDGUIRsrcPicker::Zoom( float z )
+{
+	m_zoom = z;
+	_OnChangeZoom();
+	m_horCount = ( cx1 - cx0 ) / m_itemWidth;
+	int oiw = m_itemWidth;
+	while( m_itemWidth * m_horCount < cx1 - cx0 )
+		m_itemWidth++;
+	m_itemHeight = m_itemHeight * m_itemWidth / oiw;
+}
+
+void EDGUIRsrcPicker::_FindHL()
+{
+	m_hlfiltered = -1;
+	if( m_horCount )
+	{
+		for( size_t i = 0; i < m_filtered.size(); ++i )
+		{
+			int tx = i % m_horCount;
+			int ty = i / m_horCount;
+			int rx0 = cx0 + tx * m_itemWidth;
+			int ry0 = cy0 + ty * m_itemHeight;
+			int rx1 = rx0 + m_itemWidth;
+			int ry1 = ry0 + m_itemHeight;
+			if( m_mouseX >= rx0 && m_mouseX < rx1 &&
+				m_mouseY >= ry0 && m_mouseY < ry1 )
+			{
+				m_hlfiltered = i;
+				break;
+			}
+		}
+	}
+}
+
+void EDGUIRsrcPicker::_Search( const StringView& str )
+{
+	m_filtered.clear();
+	if( !str )
+	{
+		for( size_t i = 0; i < m_options.size(); ++i )
+			m_filtered.push_back( i );
+	}
+	else
+	{
+		for( size_t i = 0; i < m_options.size(); ++i )
+		{
+			if( StringView( m_options[ i ] ).find_first_at( str ) != NOT_FOUND )
+				m_filtered.push_back( i );
+		}
+	}
+	_FindHL();
+}
+
+void EDGUIRsrcPicker::_OnChangeZoom()
+{
+	m_itemWidth = m_zoom * 128;
+	m_itemHeight = m_zoom * 128;
+}
+
+void EDGUIRsrcPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Col( 0.9f, 1.0f );
+	GR2D_DrawTextLine( ( x0 + x1 ) / 2, ( y0 + y1 ) / 2, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
 }
 
 
@@ -1666,6 +1876,51 @@ int EDGUIPropString::_FindOffset( int x, int y )
 		lenmin = lenmax;
 	}
 	return i;
+}
+
+
+EDGUIPropRsrc::EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def ) :
+	m_rsrcPicker( rsrcPicker ),
+	m_value( def )
+{
+	tyname = "property-rsrc";
+	type = EDGUI_ITEM_PROP_RSRC;
+	_UpdateButton();
+	Add( &m_button );
+}
+
+int EDGUIPropRsrc::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		if( e->target == m_rsrcPicker )
+		{
+			m_value = m_rsrcPicker->GetValue();
+			_UpdateButton();
+			EDGUIEvent se = { e->type, this };
+			BubblingEvent( &se );
+			return 0;
+		}
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			m_rsrcPicker->Open( this, m_value );
+			m_frame->Add( m_rsrcPicker );
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+void EDGUIPropRsrc::_UpdateButton()
+{
+	m_button.caption = m_value;
 }
 
 

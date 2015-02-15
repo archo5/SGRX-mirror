@@ -29,6 +29,9 @@
 // - split pane
 #define EDGUI_THEME_SPLITPANE_BORDER_SIZE 4
 #define EDGUI_THEME_SPLITPANE_BORDER_COLOR COLOR_RGBA( 120, 120, 120, 255 )
+// - resource picker
+#define EDGUI_THEME_RSRCPICK_ITEM_BACK_COLOR COLOR_RGBA( 60, 60, 60, 128 )
+#define EDGUI_THEME_RSRCPICK_ITEM_BACKHL_COLOR COLOR_RGBA( 120, 30, 30, 128 )
 // - property
 #define EDGUI_THEME_PROPERTY_HEIGHT 24
 // - property/bool
@@ -80,6 +83,7 @@
 #define EDGUI_ITEM_GROUP       49
 #define EDGUI_ITEM_BUTTON      50
 #define EDGUI_ITEM_NUMWHEEL    60
+#define EDGUI_ITEM_RSRCPICKER  61
 #define EDGUI_ITEM_PROP_NULL   100
 #define EDGUI_ITEM_PROP_BOOL   101
 #define EDGUI_ITEM_PROP_INT    102
@@ -87,6 +91,7 @@
 #define EDGUI_ITEM_PROP_STRING 104
 #define EDGUI_ITEM_PROP_VEC2   105
 #define EDGUI_ITEM_PROP_VEC3   106
+#define EDGUI_ITEM_PROP_RSRC   107
 
 
 #define EDGUI_KEY_UNKNOWN   0
@@ -127,9 +132,12 @@ struct EXPORT EDGUIEvent
 			int x, y, button, clicks;
 		} mouse;
 		struct {
-			int key, engkey;
+			int key, engkey, engmod;
 			bool repeat;
 		} key;
+		struct {
+			char text[8];
+		} text;
 	};
 };
 
@@ -153,8 +161,8 @@ struct EXPORT EDGUIItem
 	void ReshapeLayout();
 	void SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 );
 	void _SetFrame( struct EDGUIFrame* frame );
-	void Edited();
-	void Changed();
+	void Edited( EDGUIItem* tgt = NULL );
+	void Changed( EDGUIItem* tgt = NULL );
 	
 	const char* tyname;
 	int type;
@@ -280,6 +288,38 @@ struct EXPORT EDGUINumberWheel : EDGUIItem
 };
 
 
+struct EXPORT EDGUIRsrcPicker : EDGUIItem
+{
+	EDGUIRsrcPicker();
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	void Open( EDGUIItem* owner, const StringView& val );
+	void Close();
+	void SetValue( const StringView& sv );
+	String GetValue();
+	void Zoom( float z );
+	void _FindHL();
+	void _Search( const StringView& str );
+	virtual void _OnChangeZoom();
+	virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
+	
+	float m_zoom;
+	int m_horCount;
+	int m_scrollOffset;
+	int m_itemWidth;
+	int m_itemHeight;
+	int cx0, cy0, cx1, cy1;
+	int m_hlfiltered;
+	int m_picked;
+	String m_searchString;
+	Array< String > m_options;
+	Array< int > m_filtered;
+	EDGUIItem* m_owner;
+	int m_mouseX;
+	int m_mouseY;
+};
+
+
 struct EXPORT EDGUIProperty : EDGUIItem
 {
 	EDGUIProperty();
@@ -372,7 +412,7 @@ struct EXPORT EDGUIPropVec3 : EDGUIProperty
 
 struct EXPORT EDGUIPropString : EDGUIProperty
 {
-	EDGUIPropString( const StringView& def = String() );
+	EDGUIPropString( const StringView& def = StringView() );
 	virtual int OnEvent( EDGUIEvent* e );
 	
 	StringView GetText(){ return m_value; }
@@ -389,6 +429,19 @@ struct EXPORT EDGUIPropString : EDGUIProperty
 	int m_fsel_to;
 	bool m_selecting;
 	String m_chars;
+};
+
+struct EXPORT EDGUIPropRsrc : EDGUIProperty
+{
+	EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def = StringView() );
+	virtual int OnEvent( EDGUIEvent* e );
+	void _UpdateButton();
+	void SetValue( const StringView& v ){ m_value = v; _UpdateButton(); }
+	
+	String m_value;
+	
+	EDGUIRsrcPicker* m_rsrcPicker;
+	EDGUIButton m_button;
 };
 
 

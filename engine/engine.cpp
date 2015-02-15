@@ -1293,6 +1293,7 @@ static bool read_config()
 static int init_graphics()
 {
 	g_Window = SDL_CreateWindow( "SGRX Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_RenderSettings.width, g_RenderSettings.height, 0 );
+	SDL_StartTextInput();
 	
 	char renderer_dll[ 65 ] = {0};
 	snprintf( renderer_dll, 64, "%s.dll", g_RendererName );

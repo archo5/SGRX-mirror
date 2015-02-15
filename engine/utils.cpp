@@ -594,6 +594,79 @@ struct StackWString
 };
 #endif
 
+
+struct _IntDirIter
+{
+	_IntDirIter( const StringView& path ) :
+		searched( false ),
+		searchdir( path ),
+		utf8file( "" ),
+		hfind( INVALID_HANDLE_VALUE )
+	{
+		if( wcslen( searchdir ) <= MAX_PATH - 2 )
+			wcscat( searchdir.str, L"\\*" );
+	}
+	~_IntDirIter()
+	{
+		if( searched && hfind != INVALID_HANDLE_VALUE )
+			FindClose( hfind );
+	}
+	bool Next()
+	{
+		bool ret;
+		if( searched )
+			ret = FindNextFileW( hfind, &wfd );
+		else
+		{
+			ret = ( hfind = FindFirstFileW( searchdir, &wfd ) ) != INVALID_HANDLE_VALUE;
+			searched = true;
+		}
+		
+		if( ret )
+		{
+			int sz = WideCharToMultiByte( CP_UTF8, 0, wfd.cFileName, wcslen( wfd.cFileName ), utf8file.str, MAX_PATH * 4, NULL, NULL );
+			utf8file.str[ sz ] = 0;
+		}
+		return ret;
+	}
+	bool IsDirectory()
+	{
+		return !!( wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY );
+	}
+	
+	bool searched;
+	StackWString< MAX_PATH > searchdir;
+	StackString< MAX_PATH * 4 > utf8file;
+	WIN32_FIND_DATAW wfd;
+	HANDLE hfind;
+};
+
+DirectoryIterator::DirectoryIterator( const StringView& path )
+{
+	m_int = new _IntDirIter( path );
+}
+
+DirectoryIterator::~DirectoryIterator()
+{
+	delete m_int;
+}
+
+bool DirectoryIterator::Next()
+{
+	return m_int->Next();
+}
+
+StringView DirectoryIterator::Name()
+{
+	return m_int->utf8file.str;
+}
+
+bool DirectoryIterator::IsDirectory()
+{
+	return m_int->IsDirectory();
+}
+
+
 bool CWDSet( const StringView& path )
 {
 #ifdef _WIN32
