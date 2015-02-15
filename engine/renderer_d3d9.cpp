@@ -1391,7 +1391,8 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	
 	Viewport_Apply( 1 );
 	
-	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0 /* 0xff00ff00 */, 1.0f, 0 );
+	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0 // 0xff00ff00
+		, 1.0f, 0 );
 	
 	/* upload unchanged data */
 	VS_SetMat4( 0, CAM.mView );

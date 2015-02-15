@@ -945,6 +945,8 @@ MeshHandle GR_GetMesh( const StringView& path )
 	}
 	
 	mesh->m_dataFlags = mfd.dataFlags;
+	mesh->m_boundsMin = mfd.boundsMin;
+	mesh->m_boundsMax = mfd.boundsMax;
 	
 	SGRX_MeshPart parts[ MAX_MESH_PARTS ] = {0};
 	for( int i = 0; i < mfd.numParts; ++i )
