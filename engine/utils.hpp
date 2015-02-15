@@ -82,6 +82,7 @@ template< class T > void TMEMSET( T* a, size_t c, const T& v )
 		a[ i ] = v;
 }
 template< class T > void TSWAP( T& a, T& b ){ T tmp( a ); a = b; b = tmp; }
+template< class T, class S > T TLERP( const T& a, const T& b, const S& s ){ return a * ( S(1) - s ) + b * s; }
 
 
 //
@@ -141,6 +142,8 @@ struct EXPORT Vec2
 		Vec2 v = { x * invlen, y * invlen };
 		return v;
 	}
+	FINLINE Vec2 Perp() const { return Vec2::Create( y, -x ); }
+	FINLINE Vec2 Perp2() const { return Vec2::Create( -y, x ); }
 	FINLINE void Normalize(){ *this = Normalized(); }
 	FINLINE Vec2 Rotate( float angle ) const { return Rotate( Vec2::Create( cos( angle ), sin( angle ) ) ); }
 	FINLINE Vec2 Rotate( const Vec2& dir ) const { return Vec2::Create( x * dir.x - y * dir.y, x * dir.y + y * dir.x ); }
@@ -774,12 +777,12 @@ void Array<T>::insert( size_t at, const T* v, size_t count )
 		reserve( TMAX( m_size + count, m_mem * 2 ) );
 	if( at < m_size )
 	{
-		size_t i = m_size + count;
-		while( i > m_size )
+		size_t i = m_size;
+		while( i > at )
 		{
 			i--;
-			new (&m_data[ i ]) T( m_data[ i - count ] );
-			m_data[ i - count ].~T();
+			new (&m_data[ i + count ]) T( m_data[ i ] );
+			m_data[ i ].~T();
 		}
 	}
 	for( size_t i = 0; i < count; ++i )

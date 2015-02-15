@@ -748,7 +748,7 @@ int EDGUIGroup::OnEvent( EDGUIEvent* e )
 		
 	case EDGUI_EVENT_BTNCLICK:
 		if( e->target != this )
-			return 0;
+			return 1;
 		SetOpen( !m_open );
 		return 0;
 		
