@@ -348,7 +348,7 @@ struct EXPORT SGRX_IMesh
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
 	SGRX_IMesh();
-	virtual ~SGRX_IMesh(){}
+	virtual ~SGRX_IMesh();
 	virtual bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
 	virtual bool SetIndexData( const void* data, size_t size, bool i32 ) = 0;
 	virtual bool InitVertexBuffer( size_t size ) = 0;

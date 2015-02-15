@@ -476,6 +476,11 @@ SGRX_IMesh::SGRX_IMesh() :
 {
 }
 
+SGRX_IMesh::~SGRX_IMesh()
+{
+	g_Meshes->unset( m_key );
+}
+
 bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
 {
 	if( count < 0 || count > MAX_MESH_PARTS )
