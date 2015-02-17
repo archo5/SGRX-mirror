@@ -238,6 +238,8 @@ struct EXPORT Vec3
 	}
 	FINLINE Vec3 Pow( float f ){ Vec3 v = { pow( x, f ), pow( y, f ), pow( z, f ) }; return v; }
 	FINLINE void Set( float _x, float _y, float _z ){ x = _x; y = _y; z = _z; }
+	FINLINE void SetXY( const Vec2& xy ){ x = xy.x; y = xy.y; }
+	FINLINE Vec2 ToVec2() const { Vec2 v = { x, y }; return v; }
 #endif
 };
 
@@ -427,6 +429,17 @@ struct EXPORT Mat4
 	static Mat4 CreateRotationX( float angle ){ return CreateRotationDefAxis( 1, 2, angle ); }
 	static Mat4 CreateRotationY( float angle ){ return CreateRotationDefAxis( 2, 0, angle ); }
 	static Mat4 CreateRotationZ( float angle ){ return CreateRotationDefAxis( 0, 1, angle ); }
+	static Mat4 CreateRotationXYZ( float x, float y, float z )
+	{
+		Mat4 rx = Mat4::CreateRotationX( x );
+		Mat4 ry = Mat4::CreateRotationY( y );
+		Mat4 rz = Mat4::CreateRotationZ( z );
+		Mat4 rot, rot2;
+		rot2.Multiply( rz, ry );
+		rot.Multiply( rot2, rx );
+		return rot;
+	}
+	static FINLINE Mat4 CreateRotationXYZ( const Vec3& rot_angles ){ return CreateRotationXYZ( rot_angles.x, rot_angles.y, rot_angles.z ); }
 	static FINLINE Mat4 CreateTranslation( float x, float y, float z )
 	{
 		Mat4 out;
@@ -439,13 +452,7 @@ struct EXPORT Mat4
 	static FINLINE Mat4 CreateTranslation( const Vec3& v ){ return CreateTranslation( v.x, v.y, v.z ); }
 	static Mat4 CreateSRT( const Vec3& scale, const Vec3& rot_angles, const Vec3& pos )
 	{
-		Mat4 rx = Mat4::CreateRotationX( rot_angles.x );
-		Mat4 ry = Mat4::CreateRotationY( rot_angles.y );
-		Mat4 rz = Mat4::CreateRotationZ( rot_angles.z );
-		Mat4 rot, rot2;
-		rot2.Multiply( rz, ry );
-		rot.Multiply( rot2, rx );
-		return CreateSXT( scale, rot, pos );
+		return CreateSXT( scale, CreateRotationXYZ( rot_angles ), pos );
 	}
 	static Mat4 CreateSXT( const Vec3& scale, const Mat4& rot, const Vec3& pos )
 	{
@@ -468,6 +475,12 @@ struct EXPORT Mat4
 		Mat4 out;
 		out.Perspective( angle, aspect, aamix, znear, zfar );
 		return out;
+	}
+	
+	Vec3 GetXYZAngles() const
+	{
+		float q = sqrtf( m[2][1] * m[2][1] + m[2][2] * m[2][2] );
+		return V3( atan2( m[2][1], m[2][2] ), atan2( -m[2][0], q ), atan2( m[1][0], m[0][0] ) );
 	}
 	
 	FINLINE Vec3 Transform( const Vec3& v, float w ) const
@@ -736,6 +749,16 @@ struct Array
 			if( what == m_data[ i ] )
 				return &m_data[ i ];
 		return NULL;
+	}
+	
+	template< class TA > void Serialize( TA& arch )
+	{
+		uint64_t sz = m_size;
+		arch << sz;
+		if( TA::IsReader )
+			resize( sz );
+		for( size_t i = 0; i < m_size; ++i )
+			arch << m_data[ i ];
 	}
 #endif
 };
@@ -1297,6 +1320,7 @@ struct ByteReader
 {
 	ByteReader( ByteArray* ba, size_t p = 0 ) : input( ba ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 0, IsBinary = 1 };
+	FINLINE ByteReader& operator << ( char& v ){ _read( &v, sizeof(v) ); return *this; }
 	FINLINE ByteReader& operator << ( int8_t& v ){ _read( &v, sizeof(v) ); return *this; }
 	FINLINE ByteReader& operator << ( uint8_t& v ){ _read( &v, sizeof(v) ); return *this; }
 	FINLINE ByteReader& operator << ( int16_t& v ){ _read( &v, sizeof(v) ); return *this; }
@@ -1349,6 +1373,7 @@ struct ByteWriter
 {
 	ByteWriter( ByteArray* str ) : output( str ){}
 	enum { IsWriter = 1, IsReader = 0, IsText = 0, IsBinary = 1 };
+	FINLINE ByteWriter& operator << ( char& v ){ _write( &v, sizeof(v) ); return *this; }
 	FINLINE ByteWriter& operator << ( int8_t& v ){ _write( &v, sizeof(v) ); return *this; }
 	FINLINE ByteWriter& operator << ( uint8_t& v ){ _write( &v, sizeof(v) ); return *this; }
 	FINLINE ByteWriter& operator << ( int16_t& v ){ _write( &v, sizeof(v) ); return *this; }
@@ -1373,6 +1398,7 @@ struct TextReader
 {
 	TextReader( String* str, size_t p = 0 ) : input( str ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 1, IsBinary = 0 };
+	FINLINE TextReader& operator << ( char& v ){ v = String_ParseInt( _read() ); return *this; }
 	FINLINE TextReader& operator << ( int8_t& v ){ v = String_ParseInt( _read() ); return *this; }
 	FINLINE TextReader& operator << ( uint8_t& v ){ v = String_ParseInt( _read() ); return *this; }
 	FINLINE TextReader& operator << ( int16_t& v ){ v = String_ParseInt( _read() ); return *this; }
@@ -1436,6 +1462,7 @@ struct TextWriter
 {
 	TextWriter( String* str ) : output( str ){}
 	enum { IsWriter = 1, IsReader = 0, IsText = 1, IsBinary = 0 };
+	FINLINE TextWriter& operator << ( char& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( int8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( uint8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( int16_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
@@ -1444,8 +1471,8 @@ struct TextWriter
 	FINLINE TextWriter& operator << ( uint32_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( int64_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%" PRId64 "\n", v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( uint64_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%" PRIu64 "\n", v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( float& v ){ char bfr[ 32 ]; sprintf( bfr, "%f\n", v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( double& v ){ char bfr[ 32 ]; sprintf( bfr, "%f\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( float& v ){ char bfr[ 32 ]; sprintf( bfr, "%.6g\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( double& v ){ char bfr[ 32 ]; sprintf( bfr, "%.18g\n", v ); _write( bfr ); return *this; }
 	template< class T > TextWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
 	TextWriter& memory( void* ptr, size_t sz )
 	{

@@ -885,6 +885,11 @@ int TestSystems()
 	if( tr.error ) return 605;
 	if( src != dst ) return 606;
 	
+	Vec3 rot_angles = DEG2RAD( V3(25,50,75) );
+	Mat4 rot_mtx = Mat4::CreateRotationXYZ( rot_angles );
+	Vec3 out_rot_angles = rot_mtx.GetXYZAngles();
+	if( !( rot_angles - out_rot_angles ).NearZero() ) return 701;
+	
 	return 0;
 }
 
