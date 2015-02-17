@@ -72,6 +72,7 @@
 #define EDGUI_EVENT_KEYUP      42
 #define EDGUI_EVENT_TEXTINPUT  43
 #define EDGUI_EVENT_ADDED      51
+#define EDGUI_EVENT_USER       256
 
 // ITEM TYPES
 #define EDGUI_ITEM_NULL        0
