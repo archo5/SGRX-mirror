@@ -667,6 +667,15 @@ bool DirectoryIterator::IsDirectory()
 }
 
 
+bool DirCreate( const StringView& path )
+{
+#ifdef _WIN32
+	return CreateDirectoryW( StackWString< MAX_PATH >( path ), NULL );
+#else
+	return mkdir( StackString< 4096 >( path ) ) == 0;
+#endif
+}
+
 bool CWDSet( const StringView& path )
 {
 #ifdef _WIN32

@@ -755,7 +755,7 @@ struct Array
 	
 	template< class TA > void Serialize( TA& arch )
 	{
-		uint64_t sz = m_size;
+		uint32_t sz = m_size;
 		arch << sz;
 		if( TA::IsReader )
 			resize( sz );
@@ -1516,6 +1516,8 @@ private:
 	DirectoryIterator& operator = ( const DirectoryIterator& );
 	DirectoryIterator( const DirectoryIterator& );
 };
+
+EXPORT bool DirCreate( const StringView& path );
 
 EXPORT bool CWDSet( const StringView& path );
 
