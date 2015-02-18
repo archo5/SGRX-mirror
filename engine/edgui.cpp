@@ -1039,6 +1039,7 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_ADDED:
+	case EDGUI_EVENT_SETFOCUS:
 		m_frame->_SetFocus( this );
 		return 1;
 		
@@ -1062,9 +1063,8 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 		if( m_hlfiltered != -1 )
 		{
 			m_picked = m_hlfiltered;
-			m_owner->Edited( this );
-			m_owner->Changed( this );
-			Close();
+			m_pickedOption = m_options[ m_picked ];
+			_OnPickResource();
 			return 1;
 		}
 		break;
@@ -1075,6 +1075,8 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			br.UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1 );
 			br.Colu( textColor );
 			br.Flush().SetPrimitiveType( PT_LineStrip ).Pos( cx0, cy0 ).Pos( cx1, cy0 ).Pos( cx1, cy1 ).Pos( cx0, cy1 ).Prev(3).Flush();
+			if( caption.size() )
+				GR2D_DrawTextLine( x1 - 32, y0 + 32, caption, HALIGN_RIGHT, VALIGN_TOP );
 			GR2D_DrawTextLine( 32, 32, String_Concat( "Type to search: ", m_searchString ) );
 			if( m_horCount )
 			{
@@ -1100,7 +1102,13 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			Close();
 			return 1;
 		}
-		if( e->key.engkey == SDLK_BACKSPACE )
+		else if( e->key.engkey == SDLK_RETURN )
+		{
+			m_pickedOption = m_searchString;
+			_OnConfirm();
+			return 1;
+		}
+		else if( e->key.engkey == SDLK_BACKSPACE )
 		{
 			while( m_searchString.size() && ( m_searchString.last() & 0xC0 ) == 0x80 )
 				m_searchString.pop_back();
@@ -1109,6 +1117,8 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			_Search( m_searchString );
 			return 1;
 		}
+		break;
+		
 	case EDGUI_EVENT_TEXTINPUT:
 		m_searchString.append( e->text.text );
 		_Search( m_searchString );
@@ -1132,14 +1142,13 @@ void EDGUIRsrcPicker::Close()
 
 void EDGUIRsrcPicker::SetValue( const StringView& sv )
 {
-	// TODO
+	m_pickedOption = sv;
+	m_picked = m_options.find_first_at( sv );
 }
 
 String EDGUIRsrcPicker::GetValue()
 {
-	if( m_picked >= 0 )
-		return m_options[ m_picked ];
-	return String();
+	return m_pickedOption;
 }
 
 void EDGUIRsrcPicker::Zoom( float z )
@@ -1169,7 +1178,7 @@ void EDGUIRsrcPicker::_FindHL()
 			if( m_mouseX >= rx0 && m_mouseX < rx1 &&
 				m_mouseY >= ry0 && m_mouseY < ry1 )
 			{
-				m_hlfiltered = i;
+				m_hlfiltered = m_filtered[ i ];
 				break;
 			}
 		}
@@ -1201,11 +1210,127 @@ void EDGUIRsrcPicker::_OnChangeZoom()
 	m_itemHeight = m_zoom * 128;
 }
 
+void EDGUIRsrcPicker::_OnPickResource()
+{
+	m_owner->Edited( this );
+	m_owner->Changed( this );
+	Close();
+}
+
+void EDGUIRsrcPicker::_OnConfirm()
+{
+	if( m_filtered.size() == 1 )
+	{
+		m_picked = m_filtered[0];
+		m_pickedOption = m_options[ m_picked ];
+		_OnPickResource();
+	}
+}
+
 void EDGUIRsrcPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Col( 0.9f, 1.0f );
 	GR2D_DrawTextLine( ( x0 + x1 ) / 2, ( y0 + y1 ) / 2, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
+}
+
+
+EDGUIQuestion::EDGUIQuestion() :
+	m_owner( NULL ),
+	m_value( -1 )
+{
+	type = EDGUI_ITEM_QUESTION;
+	tyname = "question";
+	backColor = EDGUI_THEME_OVERLAY_COLOR;
+	m_btnYes.caption = "Yes";
+	m_btnNo.caption = "No";
+	Add( &m_btnYes );
+	Add( &m_btnNo );
+}
+
+int EDGUIQuestion::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_ADDED:
+	case EDGUI_EVENT_SETFOCUS:
+		m_frame->_SetFocus( this );
+		return 1;
+		
+	case EDGUI_EVENT_LAYOUT:
+		EDGUIItem::OnEvent( e );
+		{
+			EDGUIEvent se = { EDGUI_EVENT_LAYOUT, &m_btnYes };
+			se.layout.x0 = ( x0 * 6/9 + x1 * 3/9 );
+			se.layout.x1 = ( x0 * 5/9 + x1 * 4/9 );
+			se.layout.y0 = ( y0 * 4/9 + y1 * 5/9 );
+			se.layout.y1 = ( y0 * 3/9 + y1 * 6/9 );
+			m_btnYes.OnEvent( &se );
+		}
+		{
+			EDGUIEvent se = { EDGUI_EVENT_LAYOUT, &m_btnNo };
+			se.layout.x0 = ( x0 * 4/9 + x1 * 5/9 );
+			se.layout.x1 = ( x0 * 3/9 + x1 * 6/9 );
+			se.layout.y0 = ( y0 * 4/9 + y1 * 5/9 );
+			se.layout.y1 = ( y0 * 3/9 + y1 * 6/9 );
+			m_btnNo.OnEvent( &se );
+		}
+		return 1;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		if( e->target == &m_btnYes )
+		{
+			m_value = 1;
+			_OnChoose();
+		}
+		else if( e->target == &m_btnNo )
+		{
+			m_value = 0;
+			_OnChoose();
+		}
+		return 1;
+		
+	case EDGUI_EVENT_PAINT:
+		{
+			BatchRenderer& br = GR2D_GetBatchRenderer();
+			br.UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1 );
+			br.Colu( textColor );
+			GR2D_DrawTextLine( (x0+x1)/2, y0*4/7+y1*3/7, caption, HALIGN_CENTER, VALIGN_CENTER );
+			m_btnYes.OnEvent( e );
+			m_btnNo.OnEvent( e );
+		}
+		return 1;
+		
+	case EDGUI_EVENT_KEYDOWN:
+		if( e->key.engkey == SDLK_ESCAPE )
+		{
+			m_value = -1;
+			_OnChoose();
+			return 1;
+		}
+		break;
+	}
+	return EDGUIItem::OnEvent( e );
+}
+
+void EDGUIQuestion::Open( EDGUIItem* owner )
+{
+	m_owner = owner;
+	m_value = -1;
+}
+
+void EDGUIQuestion::Close()
+{
+	if( m_parent )
+		m_parent->Remove( this );
+	m_owner = NULL;
+}
+
+void EDGUIQuestion::_OnChoose()
+{
+	m_owner->Edited( this );
+	m_owner->Changed( this );
+	Close();
 }
 
 

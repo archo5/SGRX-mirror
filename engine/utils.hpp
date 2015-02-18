@@ -660,6 +660,8 @@ struct Array
 	~Array(){ clear(); free( m_data ); }
 	Array& operator = ( const Array& a )
 	{
+		if( this == &a )
+			return *this;
 		clear();
 		insert( 0, a.m_data, a.m_size );
 		return *this;
@@ -879,7 +881,7 @@ struct StringView
 	{
 		if( substr.m_size > m_size )
 			return defval;
-		for( size_t i = from; i < m_size - substr.m_size; ++i )
+		for( size_t i = from; i <= m_size - substr.m_size; ++i )
 			if( !memcmp( m_str + i, substr.m_str, substr.m_size ) )
 				return i;
 		return defval;
@@ -1518,7 +1520,9 @@ private:
 EXPORT bool CWDSet( const StringView& path );
 
 EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
+EXPORT bool SaveBinaryFile( const StringView& path, const void* data, size_t size );
 EXPORT bool LoadTextFile( const StringView& path, String& out );
+EXPORT bool SaveTextFile( const StringView& path, const StringView& data );
 
 struct IL_Item
 {

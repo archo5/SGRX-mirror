@@ -698,6 +698,17 @@ bool LoadBinaryFile( const StringView& path, ByteArray& out )
 	return ret;
 }
 
+bool SaveBinaryFile( const StringView& path, const void* data, size_t size )
+{
+	FILE* fp = fopen( StackPath( path ), "wb" );
+	if( !fp )
+		return false;
+	
+	bool ret = fwrite( data, size, 1, fp ) == 1;
+	fclose( fp );
+	return ret;
+}
+
 bool LoadTextFile( const StringView& path, String& out )
 {
 	FILE* fp = fopen( StackPath( path ), "rb" );
@@ -737,6 +748,40 @@ bool LoadTextFile( const StringView& path, String& out )
 		}
 		out.resize( dst - out.data() );
 	}
+	fclose( fp );
+	return ret;
+}
+
+bool SaveTextFile( const StringView& path, const StringView& data )
+{
+	FILE* fp = fopen( StackPath( path ), "wb" );
+	if( !fp )
+		return false;
+	
+#define TXT_WRITE_BUF 1024
+	char buf[ TXT_WRITE_BUF ];
+	char xbuf[ TXT_WRITE_BUF * 2 ];
+	int xbufsz;
+	
+	bool ret = true;
+	StringView it = data;
+	while( it )
+	{
+		int readamount = TMIN( (int) it.size(), TXT_WRITE_BUF );
+		memcpy( buf, it.data(), readamount );
+		it.skip( readamount );
+		
+		xbufsz = 0;
+		for( int i = 0; i < readamount; ++i )
+		{
+			if( buf[ i ] == '\n' )
+				xbuf[ xbufsz++ ] = '\r';
+			xbuf[ xbufsz++ ] = buf[ i ];
+		}
+		
+		ret = ret && fwrite( xbuf, xbufsz, 1, fp ) == 1;
+	}
+	
 	fclose( fp );
 	return ret;
 }

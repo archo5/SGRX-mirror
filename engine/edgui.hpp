@@ -85,6 +85,7 @@
 #define EDGUI_ITEM_BUTTON      50
 #define EDGUI_ITEM_NUMWHEEL    60
 #define EDGUI_ITEM_RSRCPICKER  61
+#define EDGUI_ITEM_QUESTION    62
 #define EDGUI_ITEM_PROP_NULL   100
 #define EDGUI_ITEM_PROP_BOOL   101
 #define EDGUI_ITEM_PROP_INT    102
@@ -302,6 +303,8 @@ struct EXPORT EDGUIRsrcPicker : EDGUIItem
 	void _FindHL();
 	void _Search( const StringView& str );
 	virtual void _OnChangeZoom();
+	virtual void _OnPickResource();
+	virtual void _OnConfirm();
 	virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
 	
 	float m_zoom;
@@ -313,11 +316,28 @@ struct EXPORT EDGUIRsrcPicker : EDGUIItem
 	int m_hlfiltered;
 	int m_picked;
 	String m_searchString;
+	String m_pickedOption;
 	Array< String > m_options;
 	Array< int > m_filtered;
 	EDGUIItem* m_owner;
 	int m_mouseX;
 	int m_mouseY;
+};
+
+
+struct EXPORT EDGUIQuestion : EDGUIItem
+{
+	EDGUIQuestion();
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	void Open( EDGUIItem* owner );
+	void Close();
+	virtual void _OnChoose();
+	
+	EDGUIItem* m_owner;
+	EDGUIButton m_btnYes;
+	EDGUIButton m_btnNo;
+	int m_value;
 };
 
 
