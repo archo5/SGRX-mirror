@@ -98,6 +98,8 @@ struct EXPORT Vec2
 	static FINLINE Vec2 Create( float x, float y ){ Vec2 v = { x, y }; return v; }
 	static FINLINE Vec2 CreateFromAngle( float a, float d = 1.0f ){ Vec2 v = { cos( a ) * d, sin( a ) * d }; return v; }
 	static FINLINE Vec2 CreateFromPtr( const float* x ){ Vec2 v = { x[0], x[1] }; return v; }
+	static FINLINE Vec2 Min( const Vec2& a, const Vec2& b ){ return Create( TMIN( a.x, b.x ), TMIN( a.y, b.y ) ); }
+	static FINLINE Vec2 Max( const Vec2& a, const Vec2& b ){ return Create( TMAX( a.x, b.x ), TMAX( a.y, b.y ) ); }
 	
 	FINLINE Vec2 operator + () const { return *this; }
 	FINLINE Vec2 operator - () const { Vec2 v = { -x, -y }; return v; }
@@ -677,6 +679,18 @@ struct Array
 		return true;
 	}
 	FINLINE bool operator != ( const Array& other ) const { return !( *this == other ); }
+	
+	FINLINE int compare_to( const Array& other ) const
+	{
+		int rv = memcmp( m_data, other.m_data, TMIN( m_size, other.m_size ) );
+		if( rv )
+			return rv;
+		if( m_size < other.m_size )
+			return -1;
+		else if( m_size > other.m_size )
+			return 1;
+		return 0;
+	};
 	
 	FINLINE size_t size() const { return m_size; }
 	FINLINE size_t size_bytes() const { return m_size * sizeof( T ); }
