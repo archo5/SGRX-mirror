@@ -876,6 +876,7 @@ EDGUINumberWheel::EDGUINumberWheel( EDGUIItem* owner, double min, double max, in
 	m_cx( 0 ),
 	m_cy( 0 ),
 	m_initpwr( initpwr ),
+	m_curWheel( 0 ),
 	m_numwheels( numwheels ),
 	m_prevMouseX( -1 ),
 	m_prevMouseY( -1 ),

@@ -197,7 +197,7 @@ float ltr_Scene::VisibilityTest( const Vec3& A, ltr_Light* light )
 		
 		float hit = m_triTree.IntersectRay( mB, mA );
 		if( hit < 1.0f )
-			total += TMIN( ( 1 - hit ) * ( B - A ).Length(), 1.0f );
+			total += TMIN( ( 1 - hit ) * ( B - A ).Length() * 1000.0f, 1.0f );
 	}
 	return 1.0f - total / (float) light->shadow_sample_count;
 }

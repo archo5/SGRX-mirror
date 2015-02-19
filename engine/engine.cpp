@@ -911,7 +911,7 @@ MeshHandle GR_GetMesh( const StringView& path )
 	ByteArray meshdata;
 	if( !g_Game->OnLoadMesh( path, meshdata ) )
 	{
-		LOG_ERROR << LOG_DATE << "  Failed to access mesh data file";
+		LOG_ERROR << LOG_DATE << "  Failed to access mesh data file - " << path;
 		return NULL;
 	}
 	
