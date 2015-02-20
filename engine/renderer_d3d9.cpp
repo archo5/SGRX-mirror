@@ -3,7 +3,7 @@
 #define __STDC_FORMAT_MACROS 1
 #include <inttypes.h>
 #include <d3d9.h>
-#include <d3dx9.h>
+#include "../ext/d3dx/d3dx9.h"
 
 #define USE_VEC3
 #define USE_VEC4

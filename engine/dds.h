@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <stddef.h>
 #include <inttypes.h>
 
 #define DDSRESULT int

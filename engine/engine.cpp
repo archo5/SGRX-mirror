@@ -2,7 +2,11 @@
 
 #include <stdio.h>
 #include <time.h>
+#ifdef __MINGW32__
+#include <x86intrin.h>
+#else
 #include <intrin.h>
+#endif
 #include <windows.h>
 
 #define USE_VEC2
