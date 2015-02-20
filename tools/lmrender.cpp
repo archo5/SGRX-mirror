@@ -463,7 +463,7 @@ int main( int argc, char* argv[] )
 	while( ltr_DoWork( scene, &winfo ) == 0 )
 	{
 		printf( "%s [%d/%d] ... %d%%\n", winfo.stage, (int) winfo.part,
-			(int) winfo.item_count, (int) ( winfo.part * 100 / winfo.item_count ) );
+			(int) winfo.item_count, (int) ( winfo.part * 100 / TMAX( winfo.item_count, 1 ) ) );
 	}
 	
 	// --- RETURN OUTPUT ---

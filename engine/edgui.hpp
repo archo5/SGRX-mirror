@@ -358,6 +358,8 @@ struct EXPORT EDGUIPropBool : EDGUIProperty
 	EDGUIPropBool( bool def = false );
 	virtual int OnEvent( EDGUIEvent* e );
 	
+	template< class T > void Serialize( T& arch ){ arch << m_value; }
+	
 	bool m_value;
 };
 
@@ -367,6 +369,8 @@ struct EXPORT EDGUIPropInt : EDGUIProperty
 	virtual int OnEvent( EDGUIEvent* e );
 	void _UpdateButton();
 	void SetValue( int v ){ m_value = v; _UpdateButton(); }
+	
+	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
 	int32_t m_value;
 	int32_t m_min;
@@ -383,6 +387,8 @@ struct EXPORT EDGUIPropFloat : EDGUIProperty
 	void _UpdateButton();
 	void SetValue( float v ){ m_value = v; _UpdateButton(); }
 	
+	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
+	
 	float m_value;
 	float m_min;
 	float m_max;
@@ -398,6 +404,8 @@ struct EXPORT EDGUIPropVec2 : EDGUIProperty
 	EDGUIPropVec2& operator = ( const EDGUIPropVec2& o );
 	void _UpdateButton();
 	void SetValue( const Vec2& v ){ m_value = v; _UpdateButton(); }
+	
+	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
 	Vec2 m_value;
 	Vec2 m_min;
@@ -417,6 +425,8 @@ struct EXPORT EDGUIPropVec3 : EDGUIProperty
 	EDGUIPropVec3& operator = ( const EDGUIPropVec3& o );
 	void _UpdateButton();
 	void SetValue( const Vec3& v ){ m_value = v; _UpdateButton(); }
+	
+	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
 	Vec3 m_value;
 	Vec3 m_min;
@@ -458,6 +468,8 @@ struct EXPORT EDGUIPropRsrc : EDGUIProperty
 	virtual int OnEvent( EDGUIEvent* e );
 	void _UpdateButton();
 	void SetValue( const StringView& v ){ m_value = v; _UpdateButton(); }
+	
+	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
 	String m_value;
 	

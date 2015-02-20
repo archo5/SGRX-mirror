@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <new>
 
+
+#define USE_VEC3
+
+
 #define ASSERT assert
 #define EXPORT __declspec(dllexport)
 #ifdef _MSC_VER
@@ -347,6 +351,21 @@ FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1
 
 
 //
+// QUAT
+//
+
+struct EXPORT Quat
+{
+	float x, y, z, w;
+	
+	static const Quat Identity;
+	
+#ifdef USE_QUAT
+#endif
+};
+
+
+//
 // MAT4
 //
 
@@ -613,6 +632,82 @@ EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
 EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
 EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
 
+
+//
+// COLOR
+//
+
+// Alt. color interfaces
+// - build from
+inline Vec3 HSV( const Vec3& hsv )
+{
+	Vec3 cor = { fmodf( hsv.x, 1.0f ), hsv.y, hsv.z };
+	int32_t hi = int32_t( floor( cor.x * 6 ) ) % 6;
+	float f = ( cor.x * 6 ) - floor( cor.x * 6 );
+	float p = cor.z * ( 1.0 - cor.y );
+	float q = cor.z * ( 1.0 - ( f * cor.y ) );
+	float t = cor.z * ( 1.0 - ( ( 1.0 - f ) * cor.y ) );
+	switch( hi )
+	{
+	case 0: return V3( cor.z, t, p );
+	case 1: return V3( q, cor.z, p );
+	case 2: return V3( p, cor.z, t );
+	case 3: return V3( p, q, cor.z );
+	case 4: return V3( t, p, cor.z );
+	case 5: return V3( cor.z, p, q );
+	}
+	return V3( 0, 0, 0 );
+}
+// - retrieve properties
+// generics
+inline float GetMax( const Vec3& rgbColor ) { return TMAX( rgbColor.x, TMAX( rgbColor.y, rgbColor.z ) ); }
+inline float GetMin( const Vec3& rgbColor ) { return TMIN( rgbColor.x, TMIN( rgbColor.y, rgbColor.z ) ); }
+inline float GetChroma( const Vec3& rgbColor ) { return GetMax( rgbColor ) - GetMin( rgbColor ); }
+// hue
+inline float GetHue( const Vec3& rgbColor )
+{
+	float M = GetMax( rgbColor );
+	float m = GetMin( rgbColor );
+	float C = M - m;
+	if( C == 0 )
+		return 0; // undefined, mapped to acceptable values
+	float h;
+	if( M == rgbColor.x ) h = fmodf( ( rgbColor.y - rgbColor.z ) / C, 6.0f );
+	else if( M == rgbColor.y ) h = ( rgbColor.z - rgbColor.x ) / C + 2.0f;
+	else if( M == rgbColor.z ) h = ( rgbColor.x - rgbColor.y ) / C + 4.0f;
+	return h / 6.0f;
+}
+// lightness/value/...
+inline float GetIntensity( const Vec3& rgbColor ){ return ( rgbColor.x + rgbColor.y + rgbColor.z ) / 3.0f; }
+inline float GetValue( const Vec3& rgbColor ){ return GetMax( rgbColor ); }
+inline float GetLightness( const Vec3& rgbColor ){ return ( GetMax( rgbColor ) + GetMin( rgbColor ) ) * 0.5f; }
+inline float GetLuma( const Vec3& rgbColor ){ return 0.3f * rgbColor.x + 0.59f * rgbColor.y + 0.11f * rgbColor.z; }
+// saturation
+inline float GetHSVSaturation( const Vec3& rgbColor )
+{
+	float M = GetMax( rgbColor );
+	float m = GetMin( rgbColor );
+	if( M == 0 ) return 0;
+	else return ( M - m ) / M;
+}
+inline float GetHSLSaturation( const Vec3& rgbColor )
+{
+	float M = GetMax( rgbColor );
+	float m = GetMin( rgbColor );
+	float C = M - m;
+	float L = ( M + m ) * 0.5f;
+	if( L == 1 ) return 0;
+	else return C / ( 1 - fabsf( 2 * L - 1 ) );
+}
+inline float GetHSISaturation( const Vec3& rgbColor )
+{
+	float I = GetIntensity( rgbColor );
+	if( I == 0 ) return 0;
+	else return 1 - GetMin( rgbColor ) / I;
+}
+// alt. color spaces
+inline Vec3 GetHSV( const Vec3& rgbColor ){ return V3( GetHue( rgbColor ), GetHSVSaturation( rgbColor ), GetValue( rgbColor ) ); }
+inline Vec3 GetHSL( const Vec3& rgbColor ){ return V3( GetHue( rgbColor ), GetHSLSaturation( rgbColor ), GetLightness( rgbColor ) ); }
 
 
 //

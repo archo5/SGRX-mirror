@@ -17,6 +17,9 @@
 #include "utils.hpp"
 
 
+const Quat Quat::Identity = { 0, 0, 0, 1 };
+
+
 bool Mat4::InvertTo( Mat4& out )
 {
 	float inv[16], det;
@@ -307,6 +310,8 @@ static int strtonum_real( CCH** at, CCH* end, double* outf )
 	double val = 0;
 	double vsign = 1;
 	CCH* str = *at, *teststr;
+	if( str == end )
+		return 0;
 	
 	if( *str == '+' ) str++;
 	else if( *str == '-' ){ vsign = -1; str++; }

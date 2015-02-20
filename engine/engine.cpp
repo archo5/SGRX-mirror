@@ -656,6 +656,21 @@ void SGRX_Light::RecalcMatrices()
 {
 }
 
+#if 0
+void Animator::Prepare( String* new_names, int count )
+{
+	names.assign( new_names, count );
+	position.resize( count );
+	rotation.resize( count );
+	scale.resize( count );
+	for( int i = 0; i < count; ++i )
+	{
+		position[ i ] = V3(0);
+		// TODO
+		scale[ i ] = V3(1);
+	}
+}
+#endif
 
 SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
