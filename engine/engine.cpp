@@ -353,7 +353,7 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 			return false;
 		if( !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
 			return false;
-		outdata = String_Replace( tpl_data, "__CODE__", mtl_data );
+		outdata = String_Concat( prepend, String_Replace( tpl_data, "__CODE__", mtl_data ) );
 		return true;
 	}
 	return OnLoadShaderFile( type, key, outdata );
@@ -500,8 +500,10 @@ bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
 				continue;
 			
 			char bfr[ 1000 ] = {0};
-			snprintf( bfr, 999, "mtl:%.*s:%.*s", SHADER_NAME_LENGTH, m_parts[ i ].shader_name, (int) PASS.shader_name.size(), PASS.shader_name.data() );
+			snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s", SHADER_NAME_LENGTH, m_parts[ i ].shader_name, (int) PASS.shader_name.size(), PASS.shader_name.data() );
 			m_parts[ i ].shaders[ pass_id ] = GR_GetShader( bfr );
+			snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s:SKIN", SHADER_NAME_LENGTH, m_parts[ i ].shader_name, (int) PASS.shader_name.size(), PASS.shader_name.data() );
+			m_parts[ i ].shaders_skin[ pass_id ] = GR_GetShader( bfr );
 		}
 	}
 	for( ; i < count; ++i )
@@ -547,6 +549,7 @@ bool SGRX_IMesh::RecalcBoneMatrices()
 			skinOffsets[ b ].Multiply( m_bones[ b ].boneOffset, skinOffsets[ m_bones[ b ].parent_id ] );
 		else
 			skinOffsets[ b ] = m_bones[ b ].boneOffset;
+		m_bones[ b ].skinOffset = skinOffsets[ b ];
 	}
 	for( int b = 0; b < m_numBones; ++b )
 	{

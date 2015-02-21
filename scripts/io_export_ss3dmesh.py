@@ -143,16 +143,18 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			bone = armdata.bones[ bonename ]
 			print( "Bone found: " + bone.name )
 			write_smallbuf( f, bone.name )
-			m = bone.matrix_local
 			pid = 255
-			if bone.parent == None:
+			m = bone.matrix_local
+			if bone.parent is None:
 				m = m * Matrix.Rotation( -math.pi/2, 4, "X" )
 			else:
+				m = m * bone.parent.matrix_local.inverted()
 				for bpid, pbone in enumerate(boneorder):
 					if bone.parent.name == pbone:
 						pid = bpid
 						break
 			#
+			# print(m)
 			f.write( struct.pack( "B", pid ) )
 			f.write( struct.pack( "4f", m[0][0], m[1][0], m[2][0], m[3][0] ) )
 			f.write( struct.pack( "4f", m[0][1], m[1][1], m[2][1], m[3][1] ) )
@@ -160,6 +162,54 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			f.write( struct.pack( "4f", m[0][3], m[1][3], m[2][3], m[3][3] ) )
 		#
 	#
+	
+	return
+#
+
+def write_anims( f, anims ):
+	
+	print( "--- ANIMATIONS' STATS ---" )
+	print( "Count: %d" % len( anims ) )
+	
+	f.write( bytes( "SS3DANIM", "UTF-8" ) )
+	f.write( struct.pack( "L", len( anims ) ) )
+	
+	i = 0
+	for anim in anims:
+		i += 1
+		print( "Animation #%d: %s" % ( i, anim["name"] ) )
+		
+		a_name = anim["name"]
+		a_frames = anim["frames"]
+		a_tracks = anim["tracks"]
+		a_speed = anim["speed"]
+		
+		animbuf = struct.pack( "B", len(anim["name"]) ) + bytes( a_name, "UTF-8" )
+		animbuf += struct.pack( "LfB", a_frames, a_speed, len( a_tracks ) )
+		
+		for track_name, track_matrices in a_tracks.items():
+			trackbuf = struct.pack( "B", len(track_name) ) + bytes( track_name, "UTF-8" )
+			
+			for fid in range(a_frames):
+				mtx = track_matrices[ fid ]
+				
+				# decompose
+				pos = mtx.to_translation()
+				rot = mtx.to_quaternion()
+				scl = mtx.to_scale()
+				
+				# write
+				trackbuf += struct.pack( "10f",
+					pos.x, pos.y, pos.z,
+					rot.x, rot.y, rot.z, rot.w,
+					scl.x, scl.y, scl.z
+				)
+			#
+			
+			animbuf += struct.pack( "L", len(trackbuf) ) + trackbuf
+		#
+		
+		write_buffer( f, animbuf )
 	
 	return
 #
@@ -453,7 +503,7 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 def parse_armature( node ):
 	for mod in node.modifiers:
 		if mod.type == "ARMATURE":
-			return mod.object.data
+			return mod.object
 	return None
 #
 
@@ -516,21 +566,53 @@ def write_ss3dmesh( ctx, filepath ):
 		materials.append( outmtl )
 	print( "OK!" )
 	
-	armdata = parse_armature( geom_node )
+	armobj = parse_armature( geom_node )
+	armdata = armobj.data
 	boneorder = generate_bone_order( armdata )
 	
 	print( "Generating geometry... ", end="" )
 	meshdata = parse_geometry( geom_node.data, materials, geom_node.vertex_groups if len(geom_node.vertex_groups) else None, boneorder )
 	print( "OK!" )
 	
-	print( "Writing everything... " )
+	print( "Generating animations... " )
+	animations = []
+	oldact = armobj.animation_data.action
+	for action in bpy.data.actions:
+		armobj.animation_data.action = action
+		anim_tracks = {}
+		for bonename in boneorder:
+			anim_tracks[ bonename ] = []
+		frame_begin, frame_end = [ int(x) for x in action.frame_range ]
+		for frame in range( frame_begin, frame_end ):
+			ctx.scene.frame_set( frame )
+			for bonename in boneorder:
+				bone = armobj.pose.bones[ bonename ]
+				track = anim_tracks[ bonename ]
+				track.append( bone.matrix_basis )
+			#
+		#
+		animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": bpy.context.scene.render.fps_base / bpy.context.scene.render.fps })
+	#
+	armobj.animation_data.action = oldact
+	print( "\tOK!" )
+	
+	print( "Writing mesh... " )
 	f = open( filepath, 'wb' )
 	write_mesh( f, meshdata, armdata, boneorder )
 	f.close()
 	
+	if len(animations) == 0:
+		print( "No animations found!" )
+	else:
+		print( "Writing animations... " )
+		f = open( filepath + ".anm", 'wb' )
+		write_anims( f, animations )
+		f.close()
+	#
+	
 	print( "\n\\\\\n>>> Done!\n//\n\n" )
 
-	return {'FINISHED'}
+	return {'CANCELLED'}
 #
 
 # ExportHelper is a helper class, defines filename and
@@ -543,6 +625,7 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	'''SS3DMESH Exporter'''
 	bl_idname = "export.ss3dmesh"
 	bl_label = "Export .ssm"
+	bl_options = {'REGISTER', 'UNDO'}
 
 	# ExportHelper mixin class uses this
 	filename_ext = ".ssm"

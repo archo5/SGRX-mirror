@@ -443,25 +443,44 @@ struct EXPORT Mat4
 		float c = cos( angle );
 		Mat4 m = Identity;
 		m.m[ axis0 ][ axis0 ] = c;
-		m.m[ axis0 ][ axis1 ] = -s;
-		m.m[ axis1 ][ axis0 ] = s;
+		m.m[ axis1 ][ axis0 ] = -s;
+		m.m[ axis0 ][ axis1 ] = s;
 		m.m[ axis1 ][ axis1 ] = c;
 		return m;
 	}
-	static Mat4 CreateRotationX( float angle ){ return CreateRotationDefAxis( 1, 2, angle ); }
-	static Mat4 CreateRotationY( float angle ){ return CreateRotationDefAxis( 2, 0, angle ); }
-	static Mat4 CreateRotationZ( float angle ){ return CreateRotationDefAxis( 0, 1, angle ); }
+	static FINLINE Mat4 CreateRotationX( float angle ){ return CreateRotationDefAxis( 1, 2, angle ); }
+	static FINLINE Mat4 CreateRotationY( float angle ){ return CreateRotationDefAxis( 2, 0, angle ); }
+	static FINLINE Mat4 CreateRotationZ( float angle ){ return CreateRotationDefAxis( 0, 1, angle ); }
 	static Mat4 CreateRotationXYZ( float x, float y, float z )
 	{
 		Mat4 rx = Mat4::CreateRotationX( x );
 		Mat4 ry = Mat4::CreateRotationY( y );
 		Mat4 rz = Mat4::CreateRotationZ( z );
 		Mat4 rot, rot2;
-		rot2.Multiply( rz, ry );
-		rot.Multiply( rot2, rx );
+		rot2.Multiply( rx, ry );
+		rot.Multiply( rot2, rz );
 		return rot;
 	}
 	static FINLINE Mat4 CreateRotationXYZ( const Vec3& rot_angles ){ return CreateRotationXYZ( rot_angles.x, rot_angles.y, rot_angles.z ); }
+	static Mat4 CreateRotationAxisAngle( float x, float y, float z, float angle )
+	{
+		float s = sin( angle );
+		float c = cos( angle );
+		float Ic = 1 - c;
+		
+		Mat4 m = Identity;
+		m.m[0][0] = x * x * Ic + c;
+		m.m[1][0] = y * x * Ic - z * s;
+		m.m[2][0] = z * x * Ic + y * s;
+		m.m[0][1] = x * y * Ic + z * s;
+		m.m[1][1] = y * y * Ic + c;
+		m.m[2][1] = z * y * Ic - x * s;
+		m.m[0][2] = x * z * Ic - y * s;
+		m.m[1][2] = y * z * Ic + x * s;
+		m.m[2][2] = z * z * Ic + c;
+		return m;
+	}
+	static FINLINE Mat4 CreateRotationAxisAngle( const Vec3& axis, float angle ){ return CreateRotationAxisAngle( axis.x, axis.y, axis.z, angle ); }
 	static FINLINE Mat4 CreateTranslation( float x, float y, float z )
 	{
 		Mat4 out;
@@ -501,8 +520,8 @@ struct EXPORT Mat4
 	
 	Vec3 GetXYZAngles() const
 	{
-		float q = sqrtf( m[2][1] * m[2][1] + m[2][2] * m[2][2] );
-		return V3( atan2( m[2][1], m[2][2] ), atan2( -m[2][0], q ), atan2( m[1][0], m[0][0] ) );
+		float q = sqrtf( m[1][2] * m[1][2] + m[2][2] * m[2][2] );
+		return V3( atan2( m[1][2], m[2][2] ), atan2( -m[0][2], q ), atan2( m[0][1], m[0][0] ) );
 	}
 	
 	FINLINE Vec3 Transform( const Vec3& v, float w ) const
@@ -571,6 +590,12 @@ struct EXPORT Mat4
 		m[3][2] = A.m[3][0] * B.m[0][2] + A.m[3][1] * B.m[1][2] + A.m[3][2] * B.m[2][2] + A.m[3][3] * B.m[3][2];
 		m[3][3] = A.m[3][0] * B.m[0][3] + A.m[3][1] * B.m[1][3] + A.m[3][2] * B.m[2][3] + A.m[3][3] * B.m[3][3];
 		return *this;
+	}
+	Mat4 operator * ( const Mat4& o ) const
+	{
+		Mat4 n;
+		n.Multiply( *this, o );
+		return n;
 	}
 	
 	void Scale( Vec3 scale )
