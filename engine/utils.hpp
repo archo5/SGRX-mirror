@@ -1452,7 +1452,6 @@ typedef HashTable< String, String > StringTable;
 // SERIALIZATION
 //
 
-#ifdef USE_SERIALIZATION
 struct ByteReader
 {
 	ByteReader( ByteArray* ba, size_t p = 0 ) : input( ba ), pos( p ), error( false ){}
@@ -1500,6 +1499,7 @@ struct ByteReader
 		}
 		return *this;
 	}
+	FINLINE void* at() const { return &input->at( pos ); }
 	
 	ByteArray* input;
 	size_t pos;
@@ -1629,7 +1629,6 @@ struct TextWriter
 	
 	String* output;
 };
-#endif
 
 
 //

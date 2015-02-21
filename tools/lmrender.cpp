@@ -1,14 +1,11 @@
 
 
-#include <stdio.h>
-#include <string.h>
-
-#include "../ext/src/libpng/png.h"
-#include "../ext/src/lighter/lighter.h"
-
 #define USE_ARRAY
 #include "../engine/utils.hpp"
 #include "../engine/renderer.hpp"
+
+#include "../ext/src/libpng/png.h"
+#include "../ext/src/lighter/lighter.h"
 
 
 #define MAX_HARD_LIGTHMAP_SIZE 8192

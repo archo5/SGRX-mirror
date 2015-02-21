@@ -2,6 +2,7 @@
 
 #pragma once
 #define USE_HASHTABLE
+#define USE_SERIALIZATION
 #include "engine.hpp"
 #include "renderer.hpp"
 

@@ -15,6 +15,7 @@
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
+#define USE_SERIALIZATION
 
 #define INCLUDE_REAL_SDL
 #include "engine_int.hpp"
@@ -1481,6 +1482,13 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	if( init_graphics() )
 		return 16;
+	
+	ByteArray ba;
+	if( !LoadBinaryFile( "meshes/animtest.ssm.anm", ba ) )
+		LOG << "FAILED TO READ ANIM FILE";
+	AnimFileParser afp( ba );
+	LOG << afp.animData;
+	LOG << afp.trackData;
 	
 	g_Game->OnInitialize();
 	

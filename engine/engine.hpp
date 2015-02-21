@@ -52,6 +52,8 @@ struct EXPORT SGRX_Log
 	SGRX_Log& operator << ( const Vec2& );
 	SGRX_Log& operator << ( const Vec3& );
 	SGRX_Log& operator << ( const Mat4& );
+	template< class T > SGRX_Log& operator << ( const Array<T>& arr ){ *this << "ARRAY";
+		for( size_t i = 0; i < arr.size(); ++i ) *this << "\n\t" << i << ": " << arr[i]; return *this; }
 	
 	SGRX_Log& operator << ( const struct SGRX_Camera& );
 };

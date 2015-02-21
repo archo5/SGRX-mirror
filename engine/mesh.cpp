@@ -300,6 +300,54 @@ const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out )
 	return NULL;
 }
 
+
+const char* AnimFileParser::Parse( ByteReader& br )
+{
+	uint32_t numAnims, sectionLength = 0;
+	br.marker( "SS3DANIM" );
+	if( br.error )
+		return "file not SS3DANIM";
+	br << numAnims;
+	for( uint32_t i = 0; i < numAnims; ++i )
+	{
+		br << sectionLength;
+		
+		Anim anim;
+		br << anim.nameSize;
+		anim.name = (char*) br.at();
+		br.padding( anim.nameSize );
+		br << anim.frameCount;
+		br << anim.speed;
+		br << anim.trackCount;
+		anim.trackDataOff = trackData.size();
+		
+		if( br.error )
+			return "failed to read animation data";
+		
+		for( uint8_t t = 0; t < anim.trackCount; ++t )
+		{
+			br << sectionLength;
+			
+			Track track;
+			br << track.nameSize;
+			track.name = (char*) br.at();
+			br.padding( track.nameSize );
+			
+			track.dataPtr = (float*) ((char*)br.at()+2);
+			br.padding( sizeof( float ) * 10 * anim.frameCount );
+			
+			if( br.error )
+				return "failed to read track data";
+			
+			trackData.push_back( track );
+		}
+		
+		animData.push_back( anim );
+	}
+	return NULL;
+}
+
+
 static void _ss3dmesh_extract_vertex( MeshFileData* mfd, VDeclInfo* info, MeshFilePartData* part, uint32_t vidx, Vec3& vout )
 {
 	uint8_t* pudata;

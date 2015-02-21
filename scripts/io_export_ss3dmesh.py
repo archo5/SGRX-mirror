@@ -70,7 +70,7 @@ def write_smallbuf( f, bytebuf ):
 
 def write_buffer( f, bytebuf ):
 	if len( bytebuf ) > 0xffffffff:
-		raise Exception( "smallbuf too big" )
+		raise Exception( "buffer too big" )
 	if type( bytebuf ) == str:
 		bytebuf = bytes( bytebuf, "UTF-8" )
 	f.write( struct.pack( "L", len( bytebuf ) ) )
@@ -184,11 +184,13 @@ def write_anims( f, anims ):
 		a_tracks = anim["tracks"]
 		a_speed = anim["speed"]
 		
-		animbuf = struct.pack( "B", len(anim["name"]) ) + bytes( a_name, "UTF-8" )
+		a_name_bytes = bytes( a_name, "UTF-8" )
+		animbuf = struct.pack( "B", len(a_name_bytes) ) + a_name_bytes
 		animbuf += struct.pack( "LfB", a_frames, a_speed, len( a_tracks ) )
 		
 		for track_name, track_matrices in a_tracks.items():
-			trackbuf = struct.pack( "B", len(track_name) ) + bytes( track_name, "UTF-8" )
+			track_name_bytes = bytes( track_name, "UTF-8" )
+			trackbuf = struct.pack( "B", len(track_name_bytes) ) + track_name_bytes
 			
 			for fid in range(a_frames):
 				mtx = track_matrices[ fid ]
@@ -210,6 +212,7 @@ def write_anims( f, anims ):
 		#
 		
 		write_buffer( f, animbuf )
+	#
 	
 	return
 #

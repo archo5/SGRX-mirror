@@ -1,6 +1,7 @@
 
 
 #pragma once
+#define USE_SERIALIZATION
 #include "engine.hpp"
 
 
@@ -72,6 +73,58 @@ struct MeshFileData
 };
 
 const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out );
+
+
+// ! REQUIRES ByteArray data source to be preserved ! //
+struct AnimFileParser
+{
+	struct Anim
+	{
+		char* name;
+		float speed;
+		uint8_t nameSize;
+		uint8_t trackCount;
+		uint32_t frameCount;
+		uint32_t trackDataOff;
+	};
+	struct Track
+	{
+		char* name;
+		uint8_t nameSize;
+		float* dataPtr; // points to 10 * frameCount floats
+	};
+	
+	AnimFileParser( ByteArray& data )
+	{
+		ByteReader br( &data );
+		error = Parse( br );
+		if( !error && br.error )
+			error = "failed to read data";
+	}
+	
+	const char* Parse( ByteReader& br );
+	
+	const char* error;
+	Array< Track > trackData;
+	Array< Anim > animData;
+};
+inline SGRX_Log& operator << ( SGRX_Log& L, const AnimFileParser::Anim& anim )
+{
+	L << "ANIM";
+	L << "\n\tname = " << StringView( anim.name, anim.nameSize );
+	L << "\n\tspeed = " << anim.speed;
+	L << "\n\ttrackCount = " << anim.trackCount;
+	L << "\n\tframeCount = " << anim.frameCount;
+	L << "\n\ttrackDataOff = " << anim.trackDataOff;
+	return L;
+}
+inline SGRX_Log& operator << ( SGRX_Log& L, const AnimFileParser::Track& track )
+{
+	L << "TRACK";
+	L << "\n\tname = " << StringView( track.name, track.nameSize );
+	L << "\n\tdataPtr = " << track.dataPtr;
+	return L;
+}
 
 
 EXPORT void SGRX_Cull_Camera_Prepare( SGRX_Scene* S );
