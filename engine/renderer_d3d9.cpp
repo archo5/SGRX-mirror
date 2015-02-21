@@ -339,7 +339,7 @@ RendererInfo g_D3D9RendererInfo =
 
 struct D3D9Renderer : IRenderer
 {
-	D3D9Renderer() : m_dbg_rt( false ){}
+	D3D9Renderer() : m_dbg_rt( false ){ m_view.SetIdentity(); m_proj.SetIdentity(); }
 	void Destroy();
 	const RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
 	void LoadInternalResources();

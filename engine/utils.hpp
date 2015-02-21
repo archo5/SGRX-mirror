@@ -362,8 +362,78 @@ struct EXPORT Quat
 	static const Quat Identity;
 	
 #ifdef USE_QUAT
+	static Quat CreateAxisAngle( float x, float y, float z, float a )
+	{
+		float angsin = sinf( a / 2.0f );
+		Quat q =
+		{
+			x * angsin,
+			y * angsin,
+			z * angsin,
+			cosf( a / 2.0f ),
+		};
+		return q.Normalized();
+	}
+	
+	FINLINE Quat operator + ( const Quat& o ) const { Quat q = { x + o.x, y + o.y, z + o.z, w + o.w }; return q; }
+	Quat operator * ( const Quat& o ) const
+	{
+		const Quat& q1 = *this, &q2 = o;
+		Quat q =
+		{
+			 q1.x * q2.w + q1.y * q2.z - q1.z * q2.y + q1.w * q2.x,
+			-q1.x * q2.z + q1.y * q2.w + q1.z * q2.x + q1.w * q2.y,
+			 q1.x * q2.y - q1.y * q2.x + q1.z * q2.w + q1.w * q2.z,
+			-q1.x * q2.x - q1.y * q2.y - q1.z * q2.z + q1.w * q2.w,
+		};
+		return q;
+	}
+	FINLINE Quat operator * ( float f ) const { Quat q = { x * f, y * f, z * f, w * f }; return q; }
+	
+	Vec3 Transform( const Vec3& p ) const
+	{
+		Quat v_ = { p.x, p.y, p.z };
+		Quat qin = Conjugate();
+		Quat q_ = this->Normalized();
+		q_ = v_ * q_;
+		q_ = qin * q_;
+		Vec3 out = { q_.x, q_.y, q_.z };
+		return out;
+	}
+	
+	FINLINE float LengthSq() const { return x * x + y * y + z * z + w * w; }
+	FINLINE float Length() const { return sqrtf( LengthSq() ); }
+	FINLINE Quat Normalized() const
+	{
+		float lensq = LengthSq();
+		if( lensq == 0 )
+		{
+			Quat v = { 0, 0, 0, 0 };
+			return v;
+		}
+		float invlen = 1.0f / sqrtf( lensq );
+		Quat v = { x * invlen, y * invlen, z * invlen, w * invlen };
+		return v;
+	}
+	FINLINE void Normalize(){ *this = Normalized(); }
+	template< class T > void Serialize( T& arch )
+	{
+		if( T::IsText )
+			arch.marker( "Quat" );
+		arch << x << y << z << w;
+	}
+	FINLINE void Set( float _x, float _y, float _z, float _w ){ x = _x; y = _y; z = _z; w = _w; }
+	FINLINE Quat Conjugate() const { Quat q = { -x, -y, -z, w }; return q; }
+	FINLINE Quat Inverted() const { Quat q = { -x, -y, -z, w }; return q; }
 #endif
 };
+	
+#ifdef USE_QUAT
+FINLINE Quat operator * ( float f, const Quat& q ){ Quat out = { f * q.x, f * q.y, f * q.z, f * q.w }; return out; }
+
+FINLINE Quat QUAT( float x, float y, float z, float w ){ Quat q = { x, y, z, w }; return q; }
+template< class S > Quat TLERP( const Quat& a, const Quat& b, const S& s ){ return ( a * ( S(1) - s ) + b * s ).Normalized(); }
+#endif
 
 
 //
@@ -481,6 +551,37 @@ struct EXPORT Mat4
 		return m;
 	}
 	static FINLINE Mat4 CreateRotationAxisAngle( const Vec3& axis, float angle ){ return CreateRotationAxisAngle( axis.x, axis.y, axis.z, angle ); }
+	static Mat4 CreateRotationFromQuat( const Quat& q )
+	{
+		float a = -q.w;
+		float b = q.x;
+		float c = q.y;
+		float d = q.z;
+		float a2 = a*a;
+		float b2 = b*b;
+		float c2 = c*c;
+		float d2 = d*d;
+		
+		Mat4 m;
+		m.m[0][0] = a2 + b2 - c2 - d2;
+		m.m[1][0] = 2*(b*c + a*d);
+		m.m[2][0] = 2*(b*d - a*c);
+		m.m[3][0] = 0.0f;
+		
+		m.m[0][1] = 2*(b*c - a*d);
+		m.m[1][1] = a2 - b2 + c2 - d2;
+		m.m[2][1] = 2*(c*d + a*b);
+		m.m[3][1] = 0.0f;
+		
+		m.m[0][2] = 2*(b*d + a*c);
+		m.m[1][2] = 2*(c*d - a*b);
+		m.m[2][2] = a2 - b2 - c2 + d2;
+		m.m[3][2] = 0.0f;
+		
+		m.m[0][3] = m.m[1][3] = m.m[2][3] = 0.0f;
+		m.m[3][3] = 1.0f;
+		return m;
+	}
 	static FINLINE Mat4 CreateTranslation( float x, float y, float z )
 	{
 		Mat4 out;
@@ -491,9 +592,13 @@ struct EXPORT Mat4
 		return out;
 	}
 	static FINLINE Mat4 CreateTranslation( const Vec3& v ){ return CreateTranslation( v.x, v.y, v.z ); }
-	static Mat4 CreateSRT( const Vec3& scale, const Vec3& rot_angles, const Vec3& pos )
+	static FINLINE Mat4 CreateSRT( const Vec3& scale, const Vec3& rot_angles, const Vec3& pos )
 	{
 		return CreateSXT( scale, CreateRotationXYZ( rot_angles ), pos );
+	}
+	static FINLINE Mat4 CreateSRT( const Vec3& scale, const Quat& rot, const Vec3& pos )
+	{
+		return CreateSXT( scale, CreateRotationFromQuat( rot ), pos );
 	}
 	static Mat4 CreateSXT( const Vec3& scale, const Mat4& rot, const Vec3& pos )
 	{

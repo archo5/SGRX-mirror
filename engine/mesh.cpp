@@ -333,7 +333,7 @@ const char* AnimFileParser::Parse( ByteReader& br )
 			track.name = (char*) br.at();
 			br.padding( track.nameSize );
 			
-			track.dataPtr = (float*) ((char*)br.at()+2);
+			track.dataPtr = (float*) br.at();
 			br.padding( sizeof( float ) * 10 * anim.frameCount );
 			
 			if( br.error )

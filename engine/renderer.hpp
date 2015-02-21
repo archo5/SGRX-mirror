@@ -91,7 +91,7 @@ struct AnimFileParser
 	{
 		char* name;
 		uint8_t nameSize;
-		float* dataPtr; // points to 10 * frameCount floats
+		float* dataPtr; // points to 10 * frameCount floats (AoS)
 	};
 	
 	AnimFileParser( ByteArray& data )

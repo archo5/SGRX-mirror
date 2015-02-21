@@ -11,18 +11,18 @@ struct EXPORT SGRX_Animation
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
 	~SGRX_Animation();
 	
-	struct Track
-	{
-		String name;
-		Vec3* position;
-		Vec3* rotation;
-		Vec3* scale;
-		int frameCount;
-	};
+	Vec3* GetPosition( int track );
+	Quat* GetRotation( int track );
+	Vec3* GetScale( int track );
 	
-	Track* tracks;
-	int trackCount;
+	void GetState( int track, float framePos, Vec3& outpos, Quat& outrot, Vec3& outscl );
+	
+	String name;
+	int frameCount;
 	float speed;
+	size_t nameSize;
+	Array< float > data;
+	Array< String > trackNames;
 	
 	int32_t _refcount;
 };
@@ -34,16 +34,18 @@ struct EXPORT AnimHandle : Handle< SGRX_Animation >
 	AnimHandle( SGRX_Animation* anm ) : Handle( anm ){}
 };
 
-typedef HashTable< AnimHandle, SGRX_Animation::Track** > AnimCache;
+// Track-track mapping for animators to find the matching track indices
+typedef HashTable< AnimHandle, int* > AnimCache;
 
 struct EXPORT Animator
 {
 	virtual void Prepare( String* new_names, int count );
+	bool Prepare( const MeshHandle& mesh );
 	virtual void Advance( float deltaTime ){}
 	
 	Array< String > names;
 	Array< Vec3 > position;
-	Array< Vec3 > rotation;
+	Array< Quat > rotation;
 	Array< Vec3 > scale;
 	Array< float > factor;
 };
@@ -65,7 +67,7 @@ struct EXPORT AnimPlayer : Animator
 	struct Anim
 	{
 		AnimHandle animHandle;
-		SGRX_Animation::Track** animTracks;
+		int* trackIDs;
 		float at;
 		float fadetime;
 		bool once;
@@ -81,5 +83,10 @@ struct EXPORT AnimPlayer : Animator
 	Array< Anim > currentAnims;
 };
 
+
+
+EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
+EXPORT AnimHandle GR_GetAnim( const StringView& name );
+EXPORT bool GR_ApplyAnimator( const Animator& anim, MeshInstHandle mih );
 
 

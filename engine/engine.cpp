@@ -12,6 +12,7 @@
 #define USE_VEC2
 #define USE_VEC3
 #define USE_VEC4
+#define USE_QUAT
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
@@ -19,6 +20,7 @@
 
 #define INCLUDE_REAL_SDL
 #include "engine_int.hpp"
+#include "enganim.hpp"
 #include "renderer.hpp"
 
 
@@ -43,6 +45,7 @@ typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
 typedef HashTable< StringView, SGRX_IShader* > ShaderHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
+typedef HashTable< StringView, AnimHandle > AnimHashTable;
 
 static String g_GameLibName = "game";
 
@@ -68,6 +71,7 @@ static TextureHashTable* g_Textures = NULL;
 static ShaderHashTable* g_Shaders = NULL;
 static VertexDeclHashTable* g_VertexDecls = NULL;
 static MeshHashTable* g_Meshes = NULL;
+static AnimHashTable* g_Anims = NULL;
 
 
 //
@@ -107,7 +111,7 @@ SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ prelog(); printf( "%" PRIu32, v 
 SGRX_Log& SGRX_Log::operator << ( int64_t v ){ prelog(); printf( "%" PRId64, v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ prelog(); printf( "%" PRIu64, v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
-SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%f", v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%g", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"%.*s\"", (int) sv.size(), (int) sv.size(), sv.data() ); return *this; }
@@ -115,23 +119,29 @@ SGRX_Log& SGRX_Log::operator << ( const String& sv ){ return *this << (StringVie
 SGRX_Log& SGRX_Log::operator << ( const Vec2& v )
 {
 	prelog();
-	printf( "Vec2( %f ; %f )", v.x, v.y );
+	printf( "Vec2( %g ; %g )", v.x, v.y );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Vec3& v )
 {
 	prelog();
-	printf( "Vec3( %f ; %f ; %f )", v.x, v.y, v.z );
+	printf( "Vec3( %g ; %g ; %g )", v.x, v.y, v.z );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const Quat& q )
+{
+	prelog();
+	printf( "Quat( %g ; %g ; %g ; w = %g )", q.x, q.y, q.z, q.w );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
 {
 	prelog();
 	printf( "Mat4(\n" );
-	printf( "\t%f\t%f\t%f\t%f\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
-	printf( "\t%f\t%f\t%f\t%f\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
-	printf( "\t%f\t%f\t%f\t%f\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
-	printf( "\t%f\t%f\t%f\t%f\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
+	printf( "\t%g\t%g\t%g\t%g\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
+	printf( "\t%g\t%g\t%g\t%g\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
+	printf( "\t%g\t%g\t%g\t%g\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
+	printf( "\t%g\t%g\t%g\t%g\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
 	return *this;
 }
 
@@ -664,21 +674,6 @@ void SGRX_Light::RecalcMatrices()
 {
 }
 
-#if 0
-void Animator::Prepare( String* new_names, int count )
-{
-	names.assign( new_names, count );
-	position.resize( count );
-	rotation.resize( count );
-	scale.resize( count );
-	for( int i = 0; i < count; ++i )
-	{
-		position[ i ] = V3(0);
-		// TODO
-		scale[ i ] = V3(1);
-	}
-}
-#endif
 
 SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
@@ -1002,6 +997,198 @@ MeshHandle GR_GetMesh( const StringView& path )
 	
 	LOG << "Created mesh: " << path;
 	return mesh;
+}
+
+
+SGRX_Animation::~SGRX_Animation()
+{
+}
+
+Vec3* SGRX_Animation::GetPosition( int track )
+{
+	return (Vec3*) &data[ track * 10 * frameCount ];
+}
+
+Quat* SGRX_Animation::GetRotation( int track )
+{
+	return (Quat*) &data[ track * 10 * frameCount + 3 * frameCount ];
+}
+
+Vec3* SGRX_Animation::GetScale( int track )
+{
+	return (Vec3*) &data[ track * 10 * frameCount + 7 * frameCount ];
+}
+
+void SGRX_Animation::GetState( int track, float framePos, Vec3& outpos, Quat& outrot, Vec3& outscl )
+{
+	Vec3* pos = GetPosition( track );
+	Quat* rot = GetRotation( track );
+	Vec3* scl = GetScale( track );
+	
+	if( framePos < 0 )
+		framePos = 0;
+	else if( framePos > frameCount )
+		framePos = frameCount;
+	
+	int f0 = floor( framePos );
+	int f1 = f0 + 1;
+	if( f1 >= frameCount )
+		f1 = f0;
+	float q = framePos - f0;
+	
+	outpos = TLERP( pos[ f0 ], pos[ f1 ], q );
+	outrot = TLERP( rot[ f0 ], rot[ f1 ], q );
+	outscl = TLERP( scl[ f0 ], scl[ f1 ], q );
+}
+
+static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
+{
+	assert( anim >= 0 && anim < (int) afp->animData.size() );
+	
+	const AnimFileParser::Anim& AN = afp->animData[ anim ];
+	
+	SGRX_Animation* nanim = new SGRX_Animation;
+	nanim->_refcount = 0;
+	
+	nanim->name.assign( AN.name, AN.nameSize );
+	nanim->frameCount = AN.frameCount;
+	nanim->speed = AN.speed;
+	nanim->data.resize( AN.trackCount * 10 * AN.frameCount );
+	for( int t = 0; t < AN.trackCount; ++t )
+	{
+		const AnimFileParser::Track& TRK = afp->trackData[ AN.trackDataOff + t ];
+		nanim->trackNames.push_back( StringView( TRK.name, TRK.nameSize ) );
+		
+		float* indata = TRK.dataPtr;
+		Vec3* posdata = nanim->GetPosition( t );
+		Quat* rotdata = nanim->GetRotation( t );
+		Vec3* scldata = nanim->GetScale( t );
+		
+		for( int f = 0; f < AN.frameCount; ++f )
+		{
+			posdata[ f ].x = indata[ f * 10 + 0 ];
+			posdata[ f ].y = indata[ f * 10 + 1 ];
+			posdata[ f ].z = indata[ f * 10 + 2 ];
+			rotdata[ f ].x = indata[ f * 10 + 3 ];
+			rotdata[ f ].y = indata[ f * 10 + 4 ];
+			rotdata[ f ].z = indata[ f * 10 + 5 ];
+			rotdata[ f ].w = indata[ f * 10 + 6 ];
+			scldata[ f ].x = indata[ f * 10 + 7 ];
+			scldata[ f ].y = indata[ f * 10 + 8 ];
+			scldata[ f ].z = indata[ f * 10 + 9 ];
+		}
+	}
+	
+	return nanim;
+}
+
+void Animator::Prepare( String* new_names, int count )
+{
+	if( new_names )
+		names.assign( new_names, count );
+	else
+	{
+		names.clear();
+		names.resize( count );
+	}
+	position.clear();
+	rotation.clear();
+	scale.clear();
+	factor.clear();
+	position.resize( count );
+	rotation.resize( count );
+	scale.resize( count );
+	factor.resize( count );
+	for( int i = 0; i < count; ++i )
+	{
+		position[ i ] = V3(0);
+		rotation[ i ] = Quat::Identity;
+		scale[ i ] = V3(1);
+		factor[ i ] = 1;
+	}
+}
+
+bool Animator::Prepare( const MeshHandle& mesh )
+{
+	SGRX_IMesh* M = mesh;
+	if( !M )
+		return false;
+	Prepare( NULL, M->m_numBones );
+	if( M->m_numBones )
+	{
+		for( int i = 0; i < M->m_numBones; ++i )
+			names[ i ] = M->m_bones[ i ].name;
+	}
+	return true;
+}
+
+int GR_LoadAnims( const StringView& path, const StringView& prefix )
+{
+	ByteArray ba;
+	if( !LoadBinaryFile( path, ba ) )
+	{
+		LOG << "Failed to load animation file: " << path;
+		return 0;
+	}
+	AnimFileParser afp( ba );
+	if( afp.error )
+	{
+		LOG << "Failed to parse animation file (" << path << ") - " << afp.error;
+		return 0;
+	}
+	
+	int numanims = 0;
+	for( int i = 0; i < (int) afp.animData.size(); ++i )
+	{
+		SGRX_Animation* anim = _create_animation( &afp, i );
+		
+		if( prefix )
+		{
+			anim->name.insert( 0, prefix.data(), prefix.size() );
+		}
+		
+		numanims++;
+		g_Anims->set( anim->name, anim );
+	}
+	
+	LOG << "Loaded " << numanims << " animations from " << path << " with prefix " << prefix;
+	
+	return numanims;
+}
+
+AnimHandle GR_GetAnim( const StringView& name )
+{
+	return g_Anims->getcopy( name );
+}
+
+bool GR_ApplyAnimator( const Animator& anim, MeshInstHandle mih )
+{
+	SGRX_MeshInstance* MI = mih;
+	if( !MI )
+		return false;
+	SGRX_IMesh* mesh = MI->mesh;
+	if( !mesh )
+		return false;
+	size_t sz = MI->skin_matrices.size();
+	if( sz != anim.position.size() )
+		return false;
+	if( sz != mesh->m_numBones )
+		return false;
+	SGRX_MeshBone* MB = mesh->m_bones;
+	
+	for( size_t i = 0; i < sz; ++i )
+	{
+		Mat4& M = MI->skin_matrices[ i ];
+		M = Mat4::CreateSRT( anim.scale[ i ], anim.rotation[ i ], anim.position[ i ] ) * MB[ i ].boneOffset;
+		if( MB[ i ].parent_id >= 0 )
+			M = M * MI->skin_matrices[ MB[ i ].parent_id ];
+	}
+	for( size_t i = 0; i < sz; ++i )
+	{
+		Mat4& M = MI->skin_matrices[ i ];
+		M = MB[ i ].invSkinOffset * M;
+	}
+	return true;
 }
 
 
@@ -1368,6 +1555,7 @@ static int init_graphics()
 	g_Shaders = new ShaderHashTable();
 	g_VertexDecls = new VertexDeclHashTable();
 	g_Meshes = new MeshHashTable();
+	g_Anims = new AnimHashTable();
 	LOG << LOG_DATE << "  Created renderer resource caches";
 	
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
@@ -1392,6 +1580,9 @@ static void free_graphics()
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;
+	
+	delete g_Anims;
+	g_Anims = NULL;
 	
 	delete g_Meshes;
 	g_Meshes = NULL;
@@ -1482,13 +1673,6 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	if( init_graphics() )
 		return 16;
-	
-	ByteArray ba;
-	if( !LoadBinaryFile( "meshes/animtest.ssm.anm", ba ) )
-		LOG << "FAILED TO READ ANIM FILE";
-	AnimFileParser afp( ba );
-	LOG << afp.animData;
-	LOG << afp.trackData;
 	
 	g_Game->OnInitialize();
 	

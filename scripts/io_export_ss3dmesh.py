@@ -587,14 +587,14 @@ def write_ss3dmesh( ctx, filepath ):
 			anim_tracks[ bonename ] = []
 		frame_begin, frame_end = [ int(x) for x in action.frame_range ]
 		for frame in range( frame_begin, frame_end ):
-			ctx.scene.frame_set( frame )
+			bpy.context.scene.frame_set( frame )
 			for bonename in boneorder:
 				bone = armobj.pose.bones[ bonename ]
 				track = anim_tracks[ bonename ]
-				track.append( bone.matrix_basis )
+				track.append( bone.matrix_basis.copy() )
 			#
 		#
-		animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": bpy.context.scene.render.fps_base / bpy.context.scene.render.fps })
+		animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": bpy.context.scene.render.fps / bpy.context.scene.render.fps_base })
 	#
 	armobj.animation_data.action = oldact
 	print( "\tOK!" )
