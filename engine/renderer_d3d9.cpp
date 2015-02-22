@@ -1726,9 +1726,9 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 		if( ( ( M->m_dataFlags & MDF_TRANSPARENT ) && mtl_type > 0 ) || ( !( M->m_dataFlags & MDF_TRANSPARENT ) && mtl_type < 0 ) )
 			continue;
 		
-		/* TODO dynamic meshes */
-		if( obj_type < 0 )
-			continue; /* DISABLE them for now... */
+		/* dynamic meshes */
+		if( ( MI->dynamic && obj_type > 0 ) || ( !MI->dynamic && obj_type < 0 ) )
+			continue;
 		
 		m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 		

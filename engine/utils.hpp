@@ -346,6 +346,7 @@ FINLINE Vec4 operator * ( float f, const Vec4& v ){ Vec4 out = { f * v.x, f * v.
 FINLINE Vec4 operator / ( float f, const Vec4& v ){ Vec4 out = { f / v.x, f / v.y, f / v.z, f / v.w }; return out; }
 
 FINLINE Vec4 V4( float x ){ Vec4 v = { x, x, x, x }; return v; }
+FINLINE Vec4 V4( const Vec3& v3, float w ){ Vec4 v = { v3.x, v3.y, v3.z, w }; return v; }
 FINLINE Vec4 V4( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; return v; }
 FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w; }
 #endif

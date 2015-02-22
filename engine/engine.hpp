@@ -511,6 +511,7 @@ struct EXPORT SGRX_MeshInstance
 	Vec4 color;
 	uint32_t enabled : 1;
 	uint32_t cpuskin : 1; /* TODO */
+	uint32_t dynamic : 1;
 	
 	TextureHandle textures[ MAX_MI_TEXTURES ];
 	Vec4 constants[ MAX_MI_CONSTANTS ];
@@ -600,6 +601,32 @@ struct EXPORT SceneHandle : Handle< SGRX_Scene >
 	SceneHandle() : Handle(){}
 	SceneHandle( const SceneHandle& h ) : Handle( h ){}
 	SceneHandle( struct SGRX_Scene* sc ) : Handle( sc ){}
+};
+
+struct EXPORT LightTree
+{
+	struct Sample
+	{
+		Vec3 pos;
+		Vec3 color[6]; // X,Y,Z / +,-
+		template< class T > void Serialize( T& arch ){ arch << pos; for( int i = 0; i < 6; ++i ) arch << color[i]; }
+	};
+	struct Node
+	{
+		int32_t sample_id;
+		Vec4 plane;
+		int32_t parent;
+		int32_t ch_lft;
+		int32_t ch_rgt;
+	};
+	
+	void Clear(){ m_samples.clear(); m_nodes.clear(); }
+	void InsertSample( const Sample& S );
+	void InsertSamples( const Sample* samples, size_t count );
+	void Interpolate( Sample& S );
+	
+	Array< Sample > m_samples;
+	Array< Node > m_nodes;
 };
 
 /* render pass constants */

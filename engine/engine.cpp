@@ -512,8 +512,12 @@ bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
 			
 			char bfr[ 1000 ] = {0};
 			snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s", SHADER_NAME_LENGTH, m_parts[ i ].shader_name, (int) PASS.shader_name.size(), PASS.shader_name.data() );
+			if( PASS.flags & RPF_OBJ_DYNAMIC )
+				strcat( bfr, ":DYNAMIC" );
+			if( PASS.flags & RPF_OBJ_STATIC )
+				strcat( bfr, ":STATIC" );
 			m_parts[ i ].shaders[ pass_id ] = GR_GetShader( bfr );
-			snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s:SKIN", SHADER_NAME_LENGTH, m_parts[ i ].shader_name, (int) PASS.shader_name.size(), PASS.shader_name.data() );
+			strcat( bfr, ":SKIN" );
 			m_parts[ i ].shaders_skin[ pass_id ] = GR_GetShader( bfr );
 		}
 	}
@@ -680,6 +684,7 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	color( Vec4::Create( 1 ) ),
 	enabled( true ),
 	cpuskin( false ),
+	dynamic( false ),
 	_lightbuf_begin( NULL ),
 	_lightbuf_end( NULL ),
 	_refcount( 0 )
@@ -733,13 +738,6 @@ MeshInstHandle SGRX_Scene::CreateMeshInstance()
 	return mi;
 }
 
-//bool SGRX_Scene::RemoveMeshInstance( MeshInstHandle mih )
-//{
-//	if( !mih || mih->_scene != this )
-//		return false;
-//	return m_meshInstances.unset( mih );
-//}
-
 LightHandle SGRX_Scene::CreateLight()
 {
 	SGRX_Light* lt = new SGRX_Light( this );
@@ -747,12 +745,138 @@ LightHandle SGRX_Scene::CreateLight()
 	return lt;
 }
 
-//bool SGRX_Scene::RemoveLight( LightHandle lh )
-//{
-//	if( !lh || lh->_scene != this )
-//		return false;
-//	return m_lights.unset( lh );
-//}
+
+#define _LT_NEAR_ZERO( x ) (fabsf(x)<SMALL_FLOAT)
+
+static float _lighttree_traverse( LightTree* LT, const Vec3& pos, uint32_t& ionode )
+{
+	for(;;)
+	{
+		const LightTree::Node& N = LT->m_nodes[ ionode ];
+		float dist = Vec3Dot( N.plane.ToVec3(), pos ) - N.plane.w;
+		if( dist <= 0 )
+		{
+			if( N.ch_lft >= 0 )
+			{
+				ionode = N.ch_lft;
+				continue;
+			}
+			else return dist;
+		}
+		else
+		{
+			if( N.ch_rgt >= 0 )
+			{
+				ionode = N.ch_rgt;
+				continue;
+			}
+			else return dist;
+		}
+	}
+}
+
+void LightTree::InsertSample( const Sample& S )
+{
+	if( !m_samples.size() )
+	{
+		m_samples.push_back( S );
+		Node N = { 0, V4(0), -1, -1, -1 };
+		m_nodes.push_back( N );
+		return;
+	}
+	
+	uint32_t node = 0;
+	float whichside = _lighttree_traverse( this, S.pos, node );
+	const Node PN = m_nodes[ node ];
+	
+	if( PN.plane.ToVec3().LengthSq() )
+	{
+		// node has plane, create subplanes
+		if( _LT_NEAR_ZERO( whichside ) )
+		{
+			// on plane, create perpendicular planes
+		}
+		else
+		{
+			// not on plane, create planes from vertex triplets
+		}
+	}
+	else
+	{
+		// node has no plane, allocate new node and try to create plane for it
+		size_t spos = m_samples.size();
+		m_samples.push_back( S );
+		
+		Node N = { spos, V4(0), node, -1, -1 };
+		
+		if( PN.parent >= 0 )
+		{
+			Vec3 pp0 = m_samples[ m_nodes[ PN.parent ].sample_id ].pos;
+			Vec3 pp1 = m_samples[ PN.sample_id ].pos;
+			Vec3 pp2 = S.pos;
+			
+			Vec3 pn = Vec3Cross( pp1 - pp0, pp2 - pp0 );
+			N.plane = V4( pn.x, pn.y, pn.z, Vec3Dot( pn, pp0 ) );
+		}
+		
+		m_nodes[ node ].ch_lft = m_nodes.size();
+		m_nodes.push_back( N );
+	}
+}
+
+void LightTree::InsertSamples( const Sample* samples, size_t count )
+{
+	for( size_t i = 0; i < count; ++i )
+		InsertSample( samples[ i ] );
+}
+
+static inline Vec3 _make_plane( const Vec3& p1, const Vec3& p2, const Vec3& p3 )
+{
+	return Vec3Cross( p2 - p1, p3 - p1 );
+	// return V4( cp.x, cp.y, cp.z, Vec3Dot( cp, p1 ) );
+}
+
+static inline float _clamped_dist( const Vec3& plane, const Vec3& midpt, const Vec3& p0, const Vec3& p1 )
+{
+	float qm = Vec3Dot( plane, midpt );
+	float q0 = Vec3Dot( plane, p0 );
+	float q1 = Vec3Dot( plane, p1 );
+	if( ( q0 <= q1 && qm < q0 ) || ( q0 >= q1 && qm > q0 ) ) return q0;
+	if( ( q1 <= q0 && qm < q1 ) || ( q1 >= q0 && qm > q1 ) ) return q1;
+	return ( qm - q0 ) / ( q1 - q0 );
+}
+
+static inline void _interpolate_s4( LightTree::Sample& out, const LightTree::Sample& p1, const LightTree::Sample& p2, const LightTree::Sample& p3, const LightTree::Sample& p4 )
+{
+	Vec3 plane1 = _make_plane( p2.pos, p3.pos, p4.pos );
+	Vec3 plane2 = _make_plane( p1.pos, p3.pos, p4.pos );
+	Vec3 plane3 = _make_plane( p1.pos, p2.pos, p4.pos );
+	Vec3 plane4 = _make_plane( p1.pos, p2.pos, p3.pos );
+	float q1 = _clamped_dist( plane1, out.pos, p2.pos, p1.pos );
+	float q2 = _clamped_dist( plane2, out.pos, p3.pos, p2.pos );
+	float q3 = _clamped_dist( plane3, out.pos, p4.pos, p3.pos );
+	float q4 = _clamped_dist( plane4, out.pos, p1.pos, p4.pos );
+	for( int i = 0; i < 6; ++i )
+	{
+		out.color[ i ] = p1.color[ i ] * q1 + p2.color[ i ] * q2 + p3.color[ i ] * q3 + p4.color[ i ] * q4;
+	}
+}
+
+void LightTree::Interpolate( Sample& S )
+{
+	if( m_samples.size() == 0 )
+	{
+		for( int i = 0; i < 6; ++i )
+			S.color[ i ] = V3(0);
+		return;
+	}
+	if( m_samples.size() == 1 ){ S = m_samples[0]; return; }
+	if( m_samples.size() == 2 ){ _interpolate_s4( S, m_samples[0], m_samples[1], m_samples[1], m_samples[1] ); return; }
+	if( m_samples.size() == 3 ){ _interpolate_s4( S, m_samples[0], m_samples[1], m_samples[2], m_samples[2] ); return; }
+	if( m_samples.size() == 4 ){ _interpolate_s4( S, m_samples[0], m_samples[1], m_samples[2], m_samples[3] ); return; }
+	
+	// traverse the graph
+}
 
 
 int GR_GetWidth(){ return g_RenderSettings.width; }

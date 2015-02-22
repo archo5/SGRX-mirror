@@ -1,5 +1,6 @@
 
 
+#define USE_VEC3
 #define USE_ARRAY
 #include "../engine/utils.hpp"
 #include "../engine/renderer.hpp"
@@ -143,6 +144,8 @@ int main( int argc, char* argv[] )
 		fprintf( stderr, "file: %s\n", input_file );
 		return 1;
 	}
+	
+	char sample_output_file[ 256 ] = {0};
 	
 	while( !feof( fp ) )
 	{
@@ -294,7 +297,7 @@ int main( int argc, char* argv[] )
 				
 				if( !strcmp( key, "END" ) )
 					break;
-				else if( !strcmp( key, "MESH" ) || !strcmp( key, "INST" ) || !strcmp( key, "LIGHT" ) || !strcmp( key, "CONFIG" ) )
+				else if( !strcmp( key, "MESH" ) || !strcmp( key, "INST" ) || !strcmp( key, "LIGHT" ) || !strcmp( key, "SAMPLE" ) || !strcmp( key, "CONFIG" ) )
 				{
 					fprintf( stderr, "INST: missing 'END' of parameters\n" );
 					return 1;
@@ -364,7 +367,7 @@ int main( int argc, char* argv[] )
 				
 				if( !strcmp( key, "END" ) )
 					break;
-				else if( !strcmp( key, "MESH" ) || !strcmp( key, "INST" ) || !strcmp( key, "LIGHT" ) || !strcmp( key, "CONFIG" ) )
+				else if( !strcmp( key, "MESH" ) || !strcmp( key, "INST" ) || !strcmp( key, "LIGHT" ) || !strcmp( key, "SAMPLE" ) || !strcmp( key, "CONFIG" ) )
 				{
 					fprintf( stderr, "LIGHT: missing 'END' of parameters\n" );
 					return 1;
@@ -396,6 +399,30 @@ int main( int argc, char* argv[] )
 			}
 			
 			ltr_LightAdd( scene, &light_info );
+		}
+		else if( !strcmp( type, "SAMPLE" ) )
+		{
+			puts( "reading SAMPLE" );
+			
+			ltr_VEC3 pos;
+			// easy to remember order: X,Y,Z / +,-
+			ltr_VEC3 sdirs[6] = { {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1} };
+			if( fscanf( fp, "%f %f %f", &pos[0], &pos[1], &pos[2] ) == 3 )
+			{
+				ltr_SampleInfo sampleinfo;
+				memset( &sampleinfo, 0, sizeof(sampleinfo) );
+				memcpy( sampleinfo.position, pos, sizeof(pos) );
+				for( int i = 0; i < 6; ++i )
+				{
+					memcpy( sampleinfo.normal, sdirs[i], sizeof(ltr_VEC3) );
+					ltr_SampleAdd( scene, &sampleinfo );
+				}
+			}
+			else
+			{
+				perror( "SAMPLE: failed to read sample data" );
+				return 1;
+			}
 		}
 		else if( !strcmp( type, "CONFIG" ) )
 		{
@@ -436,6 +463,8 @@ int main( int argc, char* argv[] )
 			else if( !strcmp( key, "ao_num_samples" ) ){ int v = 0; if( fscanf( fp, "%d", &v ) == 1 ) { scene_config.ao_num_samples = v; } else { perror( "CONFIG: failed to read ao_num_samples" ); return 1; } }
 			// GAUSSIAN BLUR effect
 			else if( !strcmp( key, "blur_size" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.blur_size = v; } else { perror( "CONFIG: failed to read blur_size" ); return 1; } }
+			// SAMPLE output file
+			else if( !strcmp( key, "samples_out" ) ){ if( fscanf( fp, "%255s", sample_output_file ) == 1 ) { ; } else { perror( "CONFIG: failed to read samples_out" ); return 1; } }
 			// -
 			else { fprintf( stderr, "unrecognized CONFIG key: %s\n", key ); return 1; }
 		}
@@ -473,6 +502,29 @@ int main( int argc, char* argv[] )
 	ltr_WorkOutput wout;
 	ltr_WorkOutputInfo woutinfo;
 	ltr_GetWorkOutputInfo( scene, &woutinfo );
+	if( *sample_output_file )
+	{
+		ByteArray ba;
+		ByteWriter bw( &ba );
+		uint32_t sample_count = woutinfo.sample_count / 6;
+		bw << sample_count;
+		for( uint32_t i = 0; i < sample_count; ++i )
+		{
+			Vec3 v;
+			v = Vec3::CreateFromPtr( woutinfo.samples[ i * 6 ].position );
+			bw << v;
+			for( int s = 0; s < 6; ++s )
+			{
+				v = Vec3::CreateFromPtr( woutinfo.samples[ i * 6 + s ].out_color );
+				bw << v;
+			}
+		}
+		if( !SaveBinaryFile( sample_output_file, ba.data(), ba.size() ) )
+		{
+			fprintf( stderr, "Failed to save sample file to %s\n", sample_output_file );
+			return 1;
+		}
+	}
 	for( u32 lm = 0; lm < woutinfo.lightmap_count; ++lm )
 	{
 		if( !ltr_GetWorkOutput( scene, lm, &wout ) )

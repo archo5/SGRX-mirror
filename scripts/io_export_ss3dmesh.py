@@ -5,6 +5,8 @@ from mathutils import *
 from pprint import pprint
 import math
 import struct
+import os.path
+import csv
 
 
 """ FORMAT
@@ -147,10 +149,7 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			write_smallbuf( f, bone.name )
 			pid = 255
 			m = bone.matrix_local * magicmtx
-			print(m)
-			if bone.parent is None:
-				m = m # * matscl # Matrix.Rotation( -math.pi/2, 4, "X" )
-			else:
+			if bone.parent is not None:
 				m = ( bone.parent.matrix_local * magicmtx ).inverted() * m
 				for bpid, pbone in enumerate(boneorder):
 					if bone.parent.name == pbone:
@@ -601,7 +600,31 @@ def write_ss3dmesh( ctx, filepath ):
 					track.append( magicmtx.inverted() * bone.matrix_basis.copy() * magicmtx )
 				#
 			#
-			animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": bpy.context.scene.render.fps / bpy.context.scene.render.fps_base })
+			animspeed = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
+			animlistname = os.path.dirname( filepath ) + "/" + action.name + ".animlist.csv"
+			print( "Looking for animation descriptor - " + animlistname )
+			if os.path.isfile( animlistname ):
+				print( "Found it, decoding action..." )
+				try:
+					animlist = csv.reader( open( animlistname, "r" ), delimiter = ",", quotechar = '"' )
+					for anim in animlist:
+						tstart = int(anim[0], 10)
+						tend = int(anim[1], 10)
+						tname = anim[2].strip()
+						anim_sliced_tracks = {}
+						for track_name, track_matrices in anim_tracks.items():
+							anim_sliced_tracks[ track_name ] = track_matrices[ tstart : tend ]
+						animations.append({ "name": tname, "frames": tend - tstart, "tracks": anim_sliced_tracks, "speed": animspeed })
+					#
+				except IOError as e:
+					print( "I/O error({0}): {1}".format(e.errno, e.strerror) )
+				except ValueError:
+					print( "Could not convert data to an integer." )
+				#
+			else:
+				print( "Did not find it, will append the whole action." )
+				animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": animspeed })
+			#
 		#
 		armobj.animation_data.action = oldact
 		print( "\tOK!" )
