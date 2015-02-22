@@ -1342,33 +1342,33 @@ BatchRenderer& BatchRenderer::Prev( int i )
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::Quad( float x0, float y0, float x1, float y1 )
+BatchRenderer& BatchRenderer::Quad( float x0, float y0, float x1, float y1, float z )
 {
 	SetPrimitiveType( PT_Triangles );
-	Tex( 0, 0 ); Pos( x0, y0 );
-	Tex( 1, 0 ); Pos( x1, y0 );
-	Tex( 1, 1 ); Pos( x1, y1 );
+	Tex( 0, 0 ); Pos( x0, y0, z );
+	Tex( 1, 0 ); Pos( x1, y0, z );
+	Tex( 1, 1 ); Pos( x1, y1, z );
 	Prev( 0 );
-	Tex( 0, 1 ); Pos( x0, y1 );
+	Tex( 0, 1 ); Pos( x0, y1, z );
 	Prev( 4 );
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy )
+BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy, float z )
 {
 	float tx = -dy;
 	float ty = dx;
 	SetPrimitiveType( PT_Triangles );
-	Tex( 0, 0 ); Pos( x - dx - tx, y - dy - ty );
-	Tex( 1, 0 ); Pos( x - dx + tx, y - dy + ty );
-	Tex( 1, 1 ); Pos( x + dx + tx, y + dy + ty );
+	Tex( 0, 0 ); Pos( x - dx - tx, y - dy - ty, z );
+	Tex( 1, 0 ); Pos( x - dx + tx, y - dy + ty, z );
+	Tex( 1, 1 ); Pos( x + dx + tx, y + dy + ty, z );
 	Prev( 0 );
-	Tex( 0, 1 ); Pos( x + dx - tx, y + dy - ty );
+	Tex( 0, 1 ); Pos( x + dx - tx, y + dy - ty, z );
 	Prev( 4 );
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, int verts )
+BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, float z, int verts )
 {
 	if( verts < 0 )
 		verts = r * M_PI * 2;
@@ -1376,12 +1376,12 @@ BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, int verts )
 	{
 		Flush();
 		SetPrimitiveType( PT_TriangleFan );
-		Pos( x, y );
+		Pos( x, y, z );
 		float a = 0;
 		float ad = M_PI * 2.0f / verts;
 		for( int i = 0; i < verts; ++i )
 		{
-			Pos( x + sin( a ) * r, y + cos( a ) * r );
+			Pos( x + sin( a ) * r, y + cos( a ) * r, z );
 			a += ad;
 		}
 		Prev( verts - 1 );
@@ -1390,7 +1390,7 @@ BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, int verts )
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, int verts )
+BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, float z, int verts )
 {
 	if( verts < 0 )
 		verts = r * M_PI * 2;
@@ -1402,7 +1402,7 @@ BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, int vert
 		float ad = M_PI * 2.0f / verts;
 		for( int i = 0; i < verts; ++i )
 		{
-			Pos( x + sin( a ) * r, y + cos( a ) * r );
+			Pos( x + sin( a ) * r, y + cos( a ) * r, z );
 			a += ad;
 		}
 		Prev( verts - 1 );
@@ -1703,6 +1703,10 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	}
 	
 	g_Game->OnDestroy();
+	while( g_OverlayScreens.size() )
+	{
+		Game_RemoveOverlayScreen( g_OverlayScreens.last() );
+	}
 	
 	free_graphics();
 	

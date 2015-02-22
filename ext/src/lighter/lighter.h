@@ -119,6 +119,8 @@ typedef struct ltr_Config
 	u32 default_width;
 	u32 default_height;
 	float global_size_factor;
+	float max_correct_dist;
+	float max_correct_angle;
 	// lightmap generation
 	ltr_VEC3 clear_color; /* the color used outside triangles */
 	ltr_VEC3 ambient_color; /* the base color used inside triangles */

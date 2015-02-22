@@ -86,6 +86,8 @@ def write_part( f, part ):
 		write_smallbuf( f, tex )
 #
 
+magicmtx = Matrix.Rotation( -math.pi/2, 4, "X" )
+
 def write_mesh( f, meshdata, armdata, boneorder ):
 	is_transparent = meshdata["is_transparent"]
 	is_unlit = meshdata["is_unlit"]
@@ -144,11 +146,12 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			print( "Bone found: " + bone.name )
 			write_smallbuf( f, bone.name )
 			pid = 255
-			m = bone.matrix_local
+			m = bone.matrix_local * magicmtx
+			print(m)
 			if bone.parent is None:
-				m = m * Matrix.Rotation( -math.pi/2, 4, "X" )
+				m = m # * matscl # Matrix.Rotation( -math.pi/2, 4, "X" )
 			else:
-				m = m * bone.parent.matrix_local.inverted()
+				m = ( bone.parent.matrix_local * magicmtx ).inverted() * m
 				for bpid, pbone in enumerate(boneorder):
 					if bone.parent.name == pbone:
 						pid = bpid
@@ -570,34 +573,39 @@ def write_ss3dmesh( ctx, filepath ):
 	print( "OK!" )
 	
 	armobj = parse_armature( geom_node )
-	armdata = armobj.data
+	if armobj is None:
+		armdata = None
+	else:
+		armdata = armobj.data
 	boneorder = generate_bone_order( armdata )
 	
 	print( "Generating geometry... ", end="" )
 	meshdata = parse_geometry( geom_node.data, materials, geom_node.vertex_groups if len(geom_node.vertex_groups) else None, boneorder )
 	print( "OK!" )
 	
-	print( "Generating animations... " )
 	animations = []
-	oldact = armobj.animation_data.action
-	for action in bpy.data.actions:
-		armobj.animation_data.action = action
-		anim_tracks = {}
-		for bonename in boneorder:
-			anim_tracks[ bonename ] = []
-		frame_begin, frame_end = [ int(x) for x in action.frame_range ]
-		for frame in range( frame_begin, frame_end ):
-			bpy.context.scene.frame_set( frame )
+	if armobj is not None:
+		print( "Generating animations... " )
+		oldact = armobj.animation_data.action
+		for action in bpy.data.actions:
+			armobj.animation_data.action = action
+			anim_tracks = {}
 			for bonename in boneorder:
-				bone = armobj.pose.bones[ bonename ]
-				track = anim_tracks[ bonename ]
-				track.append( bone.matrix_basis.copy() )
+				anim_tracks[ bonename ] = []
+			frame_begin, frame_end = [ int(x) for x in action.frame_range ]
+			for frame in range( frame_begin, frame_end ):
+				bpy.context.scene.frame_set( frame )
+				for bonename in boneorder:
+					bone = armobj.pose.bones[ bonename ]
+					track = anim_tracks[ bonename ]
+					track.append( magicmtx.inverted() * bone.matrix_basis.copy() * magicmtx )
+				#
 			#
+			animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": bpy.context.scene.render.fps / bpy.context.scene.render.fps_base })
 		#
-		animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": bpy.context.scene.render.fps / bpy.context.scene.render.fps_base })
+		armobj.animation_data.action = oldact
+		print( "\tOK!" )
 	#
-	armobj.animation_data.action = oldact
-	print( "\tOK!" )
 	
 	print( "Writing mesh... " )
 	f = open( filepath, 'wb' )

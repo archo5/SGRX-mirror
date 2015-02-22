@@ -112,7 +112,7 @@ struct ltr_Scene
 	LTRCODE Advance();
 	void RasterizeInstance( ltr_MeshInstance* mi, float margin );
 	float VisibilityTest( const Vec3& A, ltr_Light* light );
-	float VisibilityTest( const Vec3& A, const Vec3& B );
+	float VisibilityTest( const Vec3& A, const Vec3& B, Vec3* outnormal = NULL );
 	
 	ltr_Config config;
 	
@@ -202,12 +202,12 @@ float ltr_Scene::VisibilityTest( const Vec3& A, ltr_Light* light )
 	return 1.0f - total / (float) light->shadow_sample_count;
 }
 
-float ltr_Scene::VisibilityTest( const Vec3& A, const Vec3& B )
+float ltr_Scene::VisibilityTest( const Vec3& A, const Vec3& B, Vec3* outnormal )
 {
 	Vec3 diffnorm = ( B - A ).Normalized();
 	Vec3 mA = A + diffnorm * SMALL_FLOAT;
 	Vec3 mB = B - diffnorm * SMALL_FLOAT;
-	return m_triTree.IntersectRay( mA, mB );
+	return m_triTree.IntersectRay( mA, mB, outnormal );
 }
 
 void ltr_Scene::DoWork()
@@ -319,6 +319,7 @@ void ltr_Scene::DoWork()
 		
 	case LTR_WT_SAMPLES:
 		{
+			float corr_min_dot = cosf( config.max_correct_angle / 180.0f * M_PI );
 			ltr_MeshInstance* mi = m_meshInstances[ m_workPart ];
 			
 			if( m_tmpRender1.size() < mi->lm_width * mi->lm_height )
@@ -354,7 +355,24 @@ void ltr_Scene::DoWork()
 				Vec3& N = m_tmpRender2[ i ];
 				if( !N.IsZero() )
 				{
-					mi->m_samples_pos.push_back( m_tmpRender1[ i ] );
+					Vec3 P = m_tmpRender1[ i ];
+					if( config.max_correct_dist )
+					{
+						float md = config.max_correct_dist;
+						Vec3 PEnd = P + N * md;
+						while( md > SMALL_FLOAT )
+						{
+							Vec3 hitnrm = {0,0,0};
+							float q = VisibilityTest( P, PEnd, &hitnrm );
+							if( Vec3Dot( hitnrm, N ) < corr_min_dot )
+								break;
+							if( q == 0 )
+								q = SMALL_FLOAT;
+							P = P * ( 1.0f - q ) + PEnd * q;
+							md *= ( 1.0f - q );
+						}
+					}
+					mi->m_samples_pos.push_back( P );
 					mi->m_samples_nrm.push_back( N );
 					mi->m_samples_loc.push_back( i );
 				}
@@ -627,6 +645,8 @@ void ltr_GetConfig( ltr_Config* cfg, ltr_Scene* opt_scene )
 	cfg->default_width = 64;
 	cfg->default_height = 64;
 	cfg->global_size_factor = 4;
+	cfg->max_correct_dist = 0.1f;
+	cfg->max_correct_angle = 60;
 	
 	LTR_VEC3_SET( cfg->clear_color, 0, 0, 0 );
 	LTR_VEC3_SET( cfg->ambient_color, 0, 0, 0 );

@@ -27,6 +27,12 @@ template<> struct FreeOnEnd< ltr_Scene* >
 #define AUTOFREE( T, p, iv ) T p = iv; FreeOnEnd<T> autofree_##p( p )
 
 
+static FINLINE float cvcompress( float x )
+{
+	return x;
+}
+
+
 int dumpimg( const char* filename, float* buffer, int width, int height )
 {
 	int code = 0;
@@ -82,9 +88,9 @@ int dumpimg( const char* filename, float* buffer, int width, int height )
 		png_bytep prow = row;
 		for( int x = 0; x < width; ++x )
 		{
-			prow[ 0 ] = rgb[ 0 ] * 255.0f;
-			prow[ 1 ] = rgb[ 1 ] * 255.0f;
-			prow[ 2 ] = rgb[ 2 ] * 255.0f;
+			prow[ 0 ] = clamp( cvcompress( rgb[ 0 ] ), 0, 1 ) * 255.0f;
+			prow[ 1 ] = clamp( cvcompress( rgb[ 1 ] ), 0, 1 ) * 255.0f;
+			prow[ 2 ] = clamp( cvcompress( rgb[ 2 ] ), 0, 1 ) * 255.0f;
 			prow += 3;
 			rgb += 3;
 		}

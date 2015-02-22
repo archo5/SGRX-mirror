@@ -320,7 +320,7 @@ struct SGRX_Scene;
 
 #define NUM_MATERIAL_TEXTURES 8
 #define MAX_MESH_PARTS 16
-#define MAX_MESH_BONES 32
+#define MAX_MESH_BONES 64
 
 struct SGRX_MeshPart
 {
@@ -668,12 +668,12 @@ struct EXPORT BatchRenderer
 	FINLINE BatchRenderer& Pos( const Vec3& pos ){ return Pos( pos.x, pos.y, pos.z ); }
 	
 	BatchRenderer& Prev( int i );
-	BatchRenderer& Quad( float x0, float y0, float x1, float y1 );
-	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h ){ return Quad( x, y, x + w, y + h ); }
-	FINLINE BatchRenderer& Box( float x, float y, float w, float h ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h ); }
-	BatchRenderer& TurnedBox( float x, float y, float dx, float dy );
-	BatchRenderer& CircleFill( float x, float y, float r, int verts = -1 );
-	BatchRenderer& CircleOutline( float x, float y, float r, int verts = -1 );
+	BatchRenderer& Quad( float x0, float y0, float x1, float y1, float z = 0 );
+	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
+	FINLINE BatchRenderer& Box( float x, float y, float w, float h, float z = 0 ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h, z ); }
+	BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
+	BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );
+	BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
 	
 	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
 	bool CheckSetTexture( const TextureHandle& tex );
