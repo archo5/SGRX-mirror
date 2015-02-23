@@ -7,6 +7,7 @@
 #include <windows.h>
 #endif
 
+#define USE_VEC2
 #define USE_VEC3
 #define USE_VEC4
 #define USE_MAT4
@@ -159,6 +160,56 @@ const Mat4 Mat4::Identity =
 };
 
 
+
+float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 )
+{
+	Vec3 nrm = Vec3Cross( t1 - t0, t2 - t0 ).Normalized();
+	Vec3 en0 = Vec3Cross( t1 - t0, nrm ).Normalized();
+	Vec3 en1 = Vec3Cross( t2 - t1, nrm ).Normalized();
+	Vec3 en2 = Vec3Cross( t0 - t2, nrm ).Normalized();
+	if( Vec3Dot( en0, en1 ) > 0 )
+	{
+		en0 = -en0;
+		en1 = -en1;
+		en2 = -en2;
+	}
+	float pd = fabsf( Vec3Dot( nrm, pt ) - Vec3Dot( nrm, t0 ) );
+	float ptd0 = Vec3Dot( en0, pt ) - Vec3Dot( en0, t0 );
+	float ptd1 = Vec3Dot( en1, pt ) - Vec3Dot( en1, t1 );
+	float ptd2 = Vec3Dot( en2, pt ) - Vec3Dot( en2, t2 );
+	if( ptd0 > 0 ) return V2( pd, ptd0 ).Length();
+	if( ptd1 > 0 ) return V2( pd, ptd1 ).Length();
+	if( ptd2 > 0 ) return V2( pd, ptd2 ).Length();
+	return pd;
+}
+
+bool TriangleTriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const Vec3& tb0, const Vec3& tb1, const Vec3& tb2 )
+{
+	Vec3 nrma = Vec3Cross( ta1 - ta0, ta2 - ta0 ).Normalized();
+	Vec3 nrmb = Vec3Cross( tb1 - tb0, tb2 - tb0 ).Normalized();
+	Vec3 axes[] =
+	{
+		nrma, Vec3Cross( ta1 - ta0, nrma ).Normalized(), Vec3Cross( ta2 - ta1, nrma ).Normalized(), Vec3Cross( ta0 - ta2, nrma ).Normalized(),
+		nrmb, Vec3Cross( tb1 - tb0, nrmb ).Normalized(), Vec3Cross( tb2 - tb1, nrmb ).Normalized(), Vec3Cross( tb0 - tb2, nrmb ).Normalized(),
+	};
+	for( int i = 0; i < sizeof(axes)/sizeof(axes[0]); ++i )
+	{
+		Vec3 axis = axes[ i ];
+		
+		float qa0 = Vec3Dot( axis, ta0 );
+		float qa1 = Vec3Dot( axis, ta1 );
+		float qa2 = Vec3Dot( axis, ta2 );
+		float qb0 = Vec3Dot( axis, tb0 );
+		float qb1 = Vec3Dot( axis, tb1 );
+		float qb2 = Vec3Dot( axis, tb2 );
+		
+		float mina = TMIN( TMIN( qa0, qa1 ), qa2 ), maxa = TMAX( TMAX( qa0, qa1 ), qa2 );
+		float minb = TMIN( TMIN( qb0, qb1 ), qb2 ), maxb = TMAX( TMAX( qb0, qb1 ), qb2 );
+		if( mina > maxb - SMALL_FLOAT || minb > maxa - SMALL_FLOAT )
+			return false;
+	}
+	return true;
+}
 
 float PolyArea( const Vec2* points, int pointcount )
 {

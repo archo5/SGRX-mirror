@@ -128,6 +128,12 @@ SGRX_Log& SGRX_Log::operator << ( const Vec3& v )
 	printf( "Vec3( %g ; %g ; %g )", v.x, v.y, v.z );
 	return *this;
 }
+SGRX_Log& SGRX_Log::operator << ( const Vec4& v )
+{
+	prelog();
+	printf( "Vec4( %g ; %g ; %g ; %g )", v.x, v.y, v.z, v.w );
+	return *this;
+}
 SGRX_Log& SGRX_Log::operator << ( const Quat& q )
 {
 	prelog();
@@ -748,10 +754,12 @@ LightHandle SGRX_Scene::CreateLight()
 
 #define _LT_NEAR_ZERO( x ) (fabsf(x)<SMALL_FLOAT)
 
-static float _lighttree_traverse( LightTree* LT, const Vec3& pos, uint32_t& ionode )
+static float _lighttree_traverse( LightTree* LT, const Vec3& pos, int32_t& ionode )
 {
+//	LOG << "---" << pos;
 	for(;;)
 	{
+//		LOG << ionode;
 		const LightTree::Node& N = LT->m_nodes[ ionode ];
 		float dist = Vec3Dot( N.plane.ToVec3(), pos ) - N.plane.w;
 		if( dist <= 0 )
@@ -777,51 +785,30 @@ static float _lighttree_traverse( LightTree* LT, const Vec3& pos, uint32_t& iono
 
 void LightTree::InsertSample( const Sample& S )
 {
-	if( !m_samples.size() )
+	int32_t nsid = m_samples.size();
+	m_samples.push_back( S );
+	
+	if( !nsid )
 	{
-		m_samples.push_back( S );
-		Node N = { 0, V4(0), -1, -1, -1 };
+		Vec3 plane_normal = { 0, 0, 1 };
+		Node N = { 0, V4( plane_normal, Vec3Dot( plane_normal, S.pos ) ), -1, -1, -1 };
 		m_nodes.push_back( N );
 		return;
 	}
 	
-	uint32_t node = 0;
+	int32_t node = 0;
 	float whichside = _lighttree_traverse( this, S.pos, node );
 	const Node PN = m_nodes[ node ];
 	
-	if( PN.plane.ToVec3().LengthSq() )
-	{
-		// node has plane, create subplanes
-		if( _LT_NEAR_ZERO( whichside ) )
-		{
-			// on plane, create perpendicular planes
-		}
-		else
-		{
-			// not on plane, create planes from vertex triplets
-		}
-	}
-	else
-	{
-		// node has no plane, allocate new node and try to create plane for it
-		size_t spos = m_samples.size();
-		m_samples.push_back( S );
-		
-		Node N = { spos, V4(0), node, -1, -1 };
-		
-		if( PN.parent >= 0 )
-		{
-			Vec3 pp0 = m_samples[ m_nodes[ PN.parent ].sample_id ].pos;
-			Vec3 pp1 = m_samples[ PN.sample_id ].pos;
-			Vec3 pp2 = S.pos;
-			
-			Vec3 pn = Vec3Cross( pp1 - pp0, pp2 - pp0 );
-			N.plane = V4( pn.x, pn.y, pn.z, Vec3Dot( pn, pp0 ) );
-		}
-		
-		m_nodes[ node ].ch_lft = m_nodes.size();
-		m_nodes.push_back( N );
-	}
+	Vec3 plane_normal = { PN.plane.y, PN.plane.z, PN.plane.x };
+	Node N = { nsid, V4( plane_normal, Vec3Dot( plane_normal, S.pos ) ), node, -1, -1 };
+	int32_t new_node = m_nodes.size();
+	m_nodes.push_back( N );
+	LOG << whichside;
+	if( whichside <= SMALL_FLOAT )
+		m_nodes[ node ].ch_lft = new_node;
+	if( whichside >= -SMALL_FLOAT )
+		m_nodes[ node ].ch_rgt = new_node;
 }
 
 void LightTree::InsertSamples( const Sample* samples, size_t count )
@@ -832,7 +819,7 @@ void LightTree::InsertSamples( const Sample* samples, size_t count )
 
 static inline Vec3 _make_plane( const Vec3& p1, const Vec3& p2, const Vec3& p3 )
 {
-	return Vec3Cross( p2 - p1, p3 - p1 );
+	return Vec3Cross( p2 - p1, p3 - p1 ).Normalized();
 	// return V4( cp.x, cp.y, cp.z, Vec3Dot( cp, p1 ) );
 }
 
@@ -841,13 +828,45 @@ static inline float _clamped_dist( const Vec3& plane, const Vec3& midpt, const V
 	float qm = Vec3Dot( plane, midpt );
 	float q0 = Vec3Dot( plane, p0 );
 	float q1 = Vec3Dot( plane, p1 );
-	if( ( q0 <= q1 && qm < q0 ) || ( q0 >= q1 && qm > q0 ) ) return q0;
-	if( ( q1 <= q0 && qm < q1 ) || ( q1 >= q0 && qm > q1 ) ) return q1;
+//	LOG << "qm = " << qm << ", q0 = " << q0 << ", q1 = " << q1;
+	if( ( q0 <= q1 && qm < q0 ) || ( q0 >= q1 && qm > q0 ) ) return 0;
+	if( ( q1 <= q0 && qm < q1 ) || ( q1 >= q0 && qm > q1 ) ) return 1;
+	if( q0 == q1 ) return 0;
 	return ( qm - q0 ) / ( q1 - q0 );
+}
+
+static inline void _interpolate_s2( LightTree::Sample& out, const LightTree::Sample& p1, const LightTree::Sample& p2 )
+{
+	Vec3 dir = ( p2.pos - p1.pos ).Normalized();
+	float q = _clamped_dist( dir, out.pos, p1.pos, p2.pos );
+	float iq = 1 - q;
+	for( int i = 0; i < 6; ++i )
+	{
+		out.color[ i ] = p1.color[ i ] * iq + p2.color[ i ] * q;
+	}
+}
+
+static inline void _interpolate_s3( LightTree::Sample& out, const LightTree::Sample& p1, const LightTree::Sample& p2, const LightTree::Sample& p3 )
+{
+	LOG << p1.pos << p2.pos << p3.pos;
+	Vec3 normal = _make_plane( p1.pos, p2.pos, p3.pos );
+	Vec3 en1 = Vec3Cross( normal, p2.pos - p1.pos ).Normalized();
+	Vec3 en2 = Vec3Cross( normal, p3.pos - p2.pos ).Normalized();
+	Vec3 en3 = Vec3Cross( normal, p1.pos - p3.pos ).Normalized();
+	LOG << en1 << en2 << en3;
+	float q1 = _clamped_dist( en1, out.pos, p3.pos, p1.pos );
+	float q2 = _clamped_dist( en2, out.pos, p1.pos, p2.pos );
+	float q3 = _clamped_dist( en3, out.pos, p2.pos, p3.pos );
+	LOG << q1 << "|" << q2 << "|" << q3;
+	for( int i = 0; i < 6; ++i )
+	{
+		out.color[ i ] = p1.color[ i ] * q1 + p2.color[ i ] * q2 + p3.color[ i ] * q3;
+	}
 }
 
 static inline void _interpolate_s4( LightTree::Sample& out, const LightTree::Sample& p1, const LightTree::Sample& p2, const LightTree::Sample& p3, const LightTree::Sample& p4 )
 {
+//	LOG << p1.pos << p2.pos << p3.pos << p4.pos;
 	Vec3 plane1 = _make_plane( p2.pos, p3.pos, p4.pos );
 	Vec3 plane2 = _make_plane( p1.pos, p3.pos, p4.pos );
 	Vec3 plane3 = _make_plane( p1.pos, p2.pos, p4.pos );
@@ -856,6 +875,7 @@ static inline void _interpolate_s4( LightTree::Sample& out, const LightTree::Sam
 	float q2 = _clamped_dist( plane2, out.pos, p3.pos, p2.pos );
 	float q3 = _clamped_dist( plane3, out.pos, p4.pos, p3.pos );
 	float q4 = _clamped_dist( plane4, out.pos, p1.pos, p4.pos );
+//	LOG << q1 << "|" << q2 << "|" << q3 << "|" << q4;
 	for( int i = 0; i < 6; ++i )
 	{
 		out.color[ i ] = p1.color[ i ] * q1 + p2.color[ i ] * q2 + p3.color[ i ] * q3 + p4.color[ i ] * q4;
@@ -864,18 +884,48 @@ static inline void _interpolate_s4( LightTree::Sample& out, const LightTree::Sam
 
 void LightTree::Interpolate( Sample& S )
 {
-	if( m_samples.size() == 0 )
+	if( m_samples.size() )
 	{
-		for( int i = 0; i < 6; ++i )
-			S.color[ i ] = V3(0);
-		return;
+		// traverse the graph
+		int32_t node = 0;
+		_lighttree_traverse( this, S.pos, node );
+	//	LOG << node;
+		Sample samples[ 4 ];
+		int numsamples = 0;
+		do
+		{
+			samples[ numsamples++ ] = m_samples[ m_nodes[ node ].sample_id ];
+			node = m_nodes[ node ].parent;
+		}
+		while( node >= 0 && numsamples < 4 );
+		
+		// try to reduce invalid sample sets
+		if( numsamples == 4 )
+		{
+			Vec3 dir = _make_plane( samples[0].pos, samples[1].pos, samples[2].pos );
+			float q0 = Vec3Dot( dir, samples[0].pos );
+			float q1 = Vec3Dot( dir, samples[1].pos );
+			float q2 = Vec3Dot( dir, samples[2].pos );
+			float q3 = Vec3Dot( dir, samples[3].pos );
+			if( q0 == q1 && q1 == q2 && q2 == q3 )
+				numsamples--; // all points are on the same plane
+		}
+		if( numsamples == 3 )
+		{
+			Vec3 dir = ( samples[1].pos - samples[0].pos ).Normalized();
+			Vec3 dir2 = ( samples[2].pos - samples[1].pos ).Normalized();
+			if( fabsf( Vec3Dot( dir, dir2 ) ) > 1 - SMALL_FLOAT )
+				numsamples--; // all points are on the same line
+		}
+		
+		// interpolate samples
+		if( numsamples == 1 ){ S = samples[0]; return; }
+		if( numsamples == 2 ){ _interpolate_s2( S, samples[0], samples[1] ); return; }
+		if( numsamples == 3 ){ _interpolate_s3( S, samples[0], samples[1], samples[2] ); return; }
+		if( numsamples == 4 ){ _interpolate_s4( S, samples[0], samples[1], samples[2], samples[3] ); return; }
 	}
-	if( m_samples.size() == 1 ){ S = m_samples[0]; return; }
-	if( m_samples.size() == 2 ){ _interpolate_s4( S, m_samples[0], m_samples[1], m_samples[1], m_samples[1] ); return; }
-	if( m_samples.size() == 3 ){ _interpolate_s4( S, m_samples[0], m_samples[1], m_samples[2], m_samples[2] ); return; }
-	if( m_samples.size() == 4 ){ _interpolate_s4( S, m_samples[0], m_samples[1], m_samples[2], m_samples[3] ); return; }
-	
-	// traverse the graph
+	for( int i = 0; i < 6; ++i )
+		S.color[ i ] = V3(0);
 }
 
 

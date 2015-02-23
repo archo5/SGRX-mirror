@@ -758,6 +758,8 @@ struct EXPORT Mat4
 
 
 
+EXPORT float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 );
+EXPORT bool TriangleTriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const Vec3& tb0, const Vec3& tb1, const Vec3& tb2 );
 EXPORT float PolyArea( const Vec2* points, int pointcount );
 EXPORT bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] );
 EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
