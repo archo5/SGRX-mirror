@@ -1232,7 +1232,7 @@ void Animator::Prepare( String* new_names, int count )
 	}
 }
 
-bool Animator::Prepare( const MeshHandle& mesh )
+bool Animator::PrepareForMesh( const MeshHandle& mesh )
 {
 	SGRX_IMesh* M = mesh;
 	if( !M )
@@ -1244,6 +1244,131 @@ bool Animator::Prepare( const MeshHandle& mesh )
 			names[ i ] = M->m_bones[ i ].name;
 	}
 	return true;
+}
+
+AnimPlayer::AnimPlayer()
+{
+}
+
+AnimPlayer::~AnimPlayer()
+{
+	_clearAnimCache();
+}
+
+void AnimPlayer::Prepare( String* names, int count )
+{
+	currentAnims.clear();
+	_clearAnimCache();
+	Animator::Prepare( names, count );
+}
+
+void AnimPlayer::Advance( float deltaTime )
+{
+	// process tracks
+	for( size_t i = currentAnims.size(); i > 0; )
+	{
+		--i;
+		
+		Anim& A = currentAnims[ i ];
+		SGRX_Animation* AN = A.anim;
+		A.at += deltaTime;
+		A.fade_at += deltaTime;
+		
+		float animTime = AN->frameCount / AN->speed;
+		if( !A.once )
+		{
+			A.at = fmodf( A.at, animTime );
+			// permanent animation faded fully in, no need to keep previous tracks
+			if( A.fade_at > A.fadetime )
+			{
+				currentAnims.erase( 0, i );
+				break;
+			}
+		}
+		// temporary animation has finished playback
+		else if( A.at >= animTime )
+		{
+			currentAnims.erase( i );
+			continue;
+		}
+	}
+	
+	// generate output
+	for( size_t i = 0; i < names.size(); ++i )
+	{
+		position[ i ] = V3(0);
+		rotation[ i ] = Quat::Identity;
+		scale[ i ] = V3(1);
+		factor[ i ] = 0;
+	}
+	for( size_t an = 0; an < currentAnims.size(); ++an )
+	{
+		Anim& A = currentAnims[ an ];
+		SGRX_Animation* AN = A.anim;
+		
+		Vec3 P = V3(0), S = V3(1);
+		Quat R = Quat::Identity;
+		for( size_t i = 0; i < names.size(); ++i )
+		{
+			int tid = A.trackIDs[ i ];
+			if( tid < 0 )
+				continue;
+			
+			AN->GetState( tid, A.at * AN->speed, P, R, S );
+			float animTime = AN->frameCount / AN->speed;
+			float q = A.once ?
+				smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
+				smoothlerp_oneway( A.fade_at, 0, A.fadetime );
+			if( !factor[ i ] )
+			{
+				position[ i ] = P;
+				rotation[ i ] = R;
+				scale[ i ] = S;
+				factor[ i ] = q;
+			}
+			else
+			{
+				position[ i ] = TLERP( position[ i ], P, q );
+				rotation[ i ] = TLERP( rotation[ i ], R, q );
+				scale[ i ] = TLERP( scale[ i ], S, q );
+				factor[ i ] = TLERP( factor[ i ], 1.0f, q );
+			}
+		}
+	}
+}
+
+void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
+{
+	if( !anim )
+		return;
+	Anim A = { anim, _getTrackIds( anim ), 0, 0, fadetime, once };
+	currentAnims.push_back( A );
+}
+
+int* AnimPlayer::_getTrackIds( const AnimHandle& anim )
+{
+	if( !names.size() )
+		return NULL;
+	int* ids = animCache.getcopy( anim );
+	if( !ids )
+	{
+		ids = new int [ names.size() ];
+		for( size_t i = 0; i < names.size(); ++i )
+		{
+			ids[ i ] = anim->trackNames.find_first_at( names[ i ] );
+		}
+		animCache.set( anim, ids );
+	}
+	return ids;
+}
+
+void AnimPlayer::_clearAnimCache()
+{
+	for( size_t i = 0; i < animCache.size(); ++i )
+	{
+		delete [] animCache.item( i ).value;
+	}
+	animCache.clear();
 }
 
 int GR_LoadAnims( const StringView& path, const StringView& prefix )
@@ -1285,7 +1410,7 @@ AnimHandle GR_GetAnim( const StringView& name )
 	return g_Anims->getcopy( name );
 }
 
-bool GR_ApplyAnimator( const Animator& anim, MeshInstHandle mih )
+bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 {
 	SGRX_MeshInstance* MI = mih;
 	if( !MI )
@@ -1294,7 +1419,7 @@ bool GR_ApplyAnimator( const Animator& anim, MeshInstHandle mih )
 	if( !mesh )
 		return false;
 	size_t sz = MI->skin_matrices.size();
-	if( sz != anim.position.size() )
+	if( sz != animator->position.size() )
 		return false;
 	if( sz != mesh->m_numBones )
 		return false;
@@ -1303,7 +1428,7 @@ bool GR_ApplyAnimator( const Animator& anim, MeshInstHandle mih )
 	for( size_t i = 0; i < sz; ++i )
 	{
 		Mat4& M = MI->skin_matrices[ i ];
-		M = Mat4::CreateSRT( anim.scale[ i ], anim.rotation[ i ], anim.position[ i ] ) * MB[ i ].boneOffset;
+		M = Mat4::CreateSRT( animator->scale[ i ], animator->rotation[ i ], animator->position[ i ] ) * MB[ i ].boneOffset;
 		if( MB[ i ].parent_id >= 0 )
 			M = M * MI->skin_matrices[ MB[ i ].parent_id ];
 	}

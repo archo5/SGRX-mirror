@@ -40,7 +40,7 @@ typedef HashTable< AnimHandle, int* > AnimCache;
 struct EXPORT Animator
 {
 	virtual void Prepare( String* new_names, int count );
-	bool Prepare( const MeshHandle& mesh );
+	bool PrepareForMesh( const MeshHandle& mesh );
 	virtual void Advance( float deltaTime ){}
 	
 	Array< String > names;
@@ -66,18 +66,23 @@ struct EXPORT AnimPlayer : Animator
 {
 	struct Anim
 	{
-		AnimHandle animHandle;
+		AnimHandle anim;
 		int* trackIDs;
 		float at;
+		float fade_at;
 		float fadetime;
 		bool once;
 	};
 	
+	AnimPlayer();
 	~AnimPlayer();
 	virtual void Prepare( String* names, int count );
 	virtual void Advance( float deltaTime );
 	
 	void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
+	
+	int* _getTrackIds( const AnimHandle& anim );
+	void _clearAnimCache();
 	
 	AnimCache animCache;
 	Array< Anim > currentAnims;
@@ -87,6 +92,6 @@ struct EXPORT AnimPlayer : Animator
 
 EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
 EXPORT AnimHandle GR_GetAnim( const StringView& name );
-EXPORT bool GR_ApplyAnimator( const Animator& anim, MeshInstHandle mih );
+EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
 
 

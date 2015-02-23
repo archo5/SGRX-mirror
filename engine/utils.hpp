@@ -1059,6 +1059,8 @@ void Array<T>::insert( size_t at, const T* v, size_t count )
 template< class T >
 void Array<T>::erase( size_t from, size_t count )
 {
+	if( !count )
+		return;
 	ASSERT( from < m_size );
 	ASSERT( from + count <= m_size );
 	for( size_t i = 0; i < count; ++i )
