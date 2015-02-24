@@ -779,12 +779,16 @@ void LightTree::InsertSamples( const Sample* samples, size_t count )
 {
 	Array< int32_t > tris;
 	
+#ifdef VERSION_0
 	// inserted samples
 	for( size_t i = 0; i < count; ++i )
 	{
 		const Sample& S = samples[i];
 		
 		size_t v2 = m_samples.size();
+		for( size_t v0 = 0; v0 < v2; ++v0 )
+			if( S.pos == m_samples[ v0 ].pos )
+				goto bad_sample;
 		m_samples.push_back( S );
 		
 		// v2 not size because we don't want to include the new sample
@@ -793,6 +797,8 @@ void LightTree::InsertSamples( const Sample* samples, size_t count )
 			for( size_t v1 = v0 + 1; v1 < v2; ++v1 )
 			{
 				Vec3 tp0 = m_samples[ v0 ].pos, tp1 = m_samples[ v1 ].pos, tp2 = S.pos;
+				if( Vec3Cross( tp1 - tp0, tp2 - tp0 ).Length() < 0.1f )
+					continue; // triangle area too small to do anything numerically stable with it, must have a better arrangement
 				
 				// check against all inserted triangles
 				tris.clear();
@@ -802,15 +808,97 @@ void LightTree::InsertSamples( const Sample* samples, size_t count )
 					     itp1 = m_samples[ m_tris[t+1] ].pos,
 					     itp2 = m_samples[ m_tris[t+2] ].pos;
 					
-					int num_common_verts = 0;
-					if( v0 == m_tris[t+0] ) num_common_verts++;
-					if( v0 == m_tris[t+1] ) num_common_verts++;
-					if( v0 == m_tris[t+2] ) num_common_verts++;
-					if( v1 == m_tris[t+0] ) num_common_verts++;
-					if( v1 == m_tris[t+1] ) num_common_verts++;
-					if( v1 == m_tris[t+2] ) num_common_verts++;
+				//	int num_common_verts = 0;
+				//	if( v0 == m_tris[t+0] ) num_common_verts++;
+				//	if( v0 == m_tris[t+1] ) num_common_verts++;
+				//	if( v0 == m_tris[t+2] ) num_common_verts++;
+				//	if( v1 == m_tris[t+0] ) num_common_verts++;
+				//	if( v1 == m_tris[t+1] ) num_common_verts++;
+				//	if( v1 == m_tris[t+2] ) num_common_verts++;
+				//	if( v2 == m_tris[t+0] ) num_common_verts++;
+				//	if( v2 == m_tris[t+1] ) num_common_verts++;
+				//	if( v2 == m_tris[t+2] ) num_common_verts++;
 					
-					if( num_common_verts >= 2 || !TriangleIntersect( tp0, tp1, tp2, itp0, itp1, itp2 ) )
+					if( !TriangleIntersect( tp0, tp1, tp2, itp0, itp1, itp2 ) )
+						continue;
+					
+					float comparetris = _compare_tris( tp0, tp1, tp2, itp0, itp1, itp2 );
+					if( comparetris >= 0 )
+					{
+						// second triangle is better, discard this
+						goto bad_tri;
+					}
+					else
+					{
+						// triangles to be removed if this one is good
+						tris.push_back( t );
+					}
+				}
+				
+				if( tris.size() )
+				{
+					goto bad_tri;
+					qsort( tris.data(), tris.size(), sizeof(int32_t), uint32_sort_desc );
+					for( size_t t = 0; t < tris.size(); ++t )
+					{
+						m_tris.erase( tris[ t ], 3 );
+					}
+				}
+				
+				// avoiding goto warning, compiler does not see that nothing uses the variable after label
+				{
+					int32_t nidcs[] = { v0, v1, v2 };
+					m_tris.append( nidcs, 3 );
+				}
+				
+				// done with the triangle
+			bad_tri:;
+			}
+		}
+bad_sample:;
+	}
+#else
+	Array< uint32_t > samples_todo;
+	for( size_t i = 0; i < count; ++i )
+	{
+		samples_todo.push_back( m_samples.size() );
+		m_samples.push_back( samples[ i ] );
+	}
+	// inserted samples
+	while( samples_todo.size() )
+	{
+		size_t v2 = samples_todo.last();
+		const Sample& S = m_samples[ v2 ];
+		samples_todo.pop_back();
+		
+		for( size_t v0 = 0; v0 < m_samples.size(); ++v0 )
+		{
+			for( size_t v1 = v0 + 1; v1 < m_samples.size(); ++v1 )
+			{
+				Vec3 tp0 = m_samples[ v0 ].pos, tp1 = m_samples[ v1 ].pos, tp2 = S.pos;
+				if( Vec3Cross( tp1 - tp0, tp2 - tp0 ).Length() < 0.1f )
+					continue; // triangle area too small to do anything numerically stable with it, must have a better arrangement
+				
+				// check against all inserted triangles
+				tris.clear();
+				for( size_t t = 0; t < m_tris.size(); t += 3 )
+				{
+					Vec3 itp0 = m_samples[ m_tris[t] ].pos,
+					     itp1 = m_samples[ m_tris[t+1] ].pos,
+					     itp2 = m_samples[ m_tris[t+2] ].pos;
+					
+				//	int num_common_verts = 0;
+				//	if( v0 == m_tris[t+0] ) num_common_verts++;
+				//	if( v0 == m_tris[t+1] ) num_common_verts++;
+				//	if( v0 == m_tris[t+2] ) num_common_verts++;
+				//	if( v1 == m_tris[t+0] ) num_common_verts++;
+				//	if( v1 == m_tris[t+1] ) num_common_verts++;
+				//	if( v1 == m_tris[t+2] ) num_common_verts++;
+				//	if( v2 == m_tris[t+0] ) num_common_verts++;
+				//	if( v2 == m_tris[t+1] ) num_common_verts++;
+				//	if( v2 == m_tris[t+2] ) num_common_verts++;
+					
+					if( !TriangleIntersect( tp0, tp1, tp2, itp0, itp1, itp2 ) )
 						continue;
 					
 					float comparetris = _compare_tris( tp0, tp1, tp2, itp0, itp1, itp2 );
@@ -831,7 +919,11 @@ void LightTree::InsertSamples( const Sample* samples, size_t count )
 					qsort( tris.data(), tris.size(), sizeof(int32_t), uint32_sort_desc );
 					for( size_t t = 0; t < tris.size(); ++t )
 					{
-						m_tris.erase( tris[ t ], 3 );
+						size_t tri = tris[ t ];
+						samples_todo.push_back( m_tris[tri] );
+						samples_todo.push_back( m_tris[tri+1] );
+						samples_todo.push_back( m_tris[tri+2] );
+						m_tris.erase( tri, 3 );
 					}
 				}
 				
@@ -846,6 +938,7 @@ void LightTree::InsertSamples( const Sample* samples, size_t count )
 			}
 		}
 	}
+#endif
 	
 	// calculate adjancency
 	m_triadj.clear();
@@ -886,7 +979,7 @@ void LightTree::InsertSamples( const Sample* samples, size_t count )
 			{
 				LOG << "ERROR LIGHTTREE cv=" <<num_common_verts<<"|"<<m_tris[t0at+0]<<","<<m_tris[t0at+1]<<","<<m_tris[t0at+2]<<"|"<<m_tris[t1at+0]<<","<<m_tris[t1at+1]<<","<<m_tris[t1at+2];
 			}
-			if( num_common_verts < 2 )
+			if( num_common_verts < 1 )
 				continue;
 			
 			//// insert adjancency data for triangle 0 ////
@@ -939,11 +1032,11 @@ static inline void _interpolate_s2( LightTree::Sample& out, const LightTree::Sam
 
 static inline void _interpolate_s3( LightTree::Sample& out, const LightTree::Sample& p1, const LightTree::Sample& p2, const LightTree::Sample& p3 )
 {
-//	LOG << p1.pos << p2.pos << p3.pos;
+//	LOG << p1.pos << p2.pos << p3.pos << "|" << out.pos;
 	Vec3 normal = _make_plane( p1.pos, p2.pos, p3.pos );
-	Vec3 en1 = Vec3Cross( normal, p2.pos - p1.pos ).Normalized();
-	Vec3 en2 = Vec3Cross( normal, p3.pos - p2.pos ).Normalized();
-	Vec3 en3 = Vec3Cross( normal, p1.pos - p3.pos ).Normalized();
+	Vec3 en1 = Vec3Cross( normal, p3.pos - p2.pos ).Normalized();
+	Vec3 en2 = Vec3Cross( normal, p1.pos - p3.pos ).Normalized();
+	Vec3 en3 = Vec3Cross( normal, p2.pos - p1.pos ).Normalized();
 //	LOG << en1 << en2 << en3;
 	float q1 = _clamped_dist( en1, out.pos, p3.pos, p1.pos );
 	float q2 = _clamped_dist( en2, out.pos, p1.pos, p2.pos );
@@ -1003,7 +1096,6 @@ void LightTree::Interpolate( Sample& S )
 				}
 			}
 		}
-		LOG << "T" << tri;
 		
 		// point on triangle, interpolate
 	//	if( min_tri_dist < SMALL_FLOAT )

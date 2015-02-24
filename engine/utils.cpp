@@ -190,11 +190,12 @@ bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const
 		nrmb, Vec3Cross( tb1 - tb0, nrmb ).Normalized(), Vec3Cross( tb2 - tb1, nrmb ).Normalized(), Vec3Cross( tb0 - tb2, nrmb ).Normalized(),
 	};
 	// increase plane overlap chance, decrease edge overlap chance
-	float margins[] =
+	static const float margins[] =
 	{
 		SMALL_FLOAT, -SMALL_FLOAT, -SMALL_FLOAT, -SMALL_FLOAT,
 		SMALL_FLOAT, -SMALL_FLOAT, -SMALL_FLOAT, -SMALL_FLOAT,
 	};
+//	float minmargin = 1e8f;
 	for( int i = 0; i < sizeof(axes)/sizeof(axes[0]); ++i )
 	{
 		Vec3 axis = axes[ i ];
@@ -211,7 +212,12 @@ bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const
 		float minb = TMIN( TMIN( qb0, qb1 ), qb2 ), maxb = TMAX( TMAX( qb0, qb1 ), qb2 );
 		if( mina > maxb + margin || minb > maxa + margin )
 			return false;
+//		if( i % 4 != 0 )
+//			minmargin = TMIN( minmargin, TMIN( maxa - minb, maxb - mina ) );
 	}
+//	printf("ISECT minmargin=%f\n",minmargin);
+//	printf("A p0 %g %g %g\nA p1 %g %g %g\nA p2 %g %g %g\n", ta0.x,ta0.y,ta0.z, ta1.x,ta1.y,ta1.z, ta2.x,ta2.y,ta2.z );
+//	printf("B p0 %g %g %g\nB p1 %g %g %g\nB p2 %g %g %g\n", tb0.x,tb0.y,tb0.z, tb1.x,tb1.y,tb1.z, tb2.x,tb2.y,tb2.z );
 	return true;
 }
 
@@ -953,6 +959,7 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 struct _teststr_ { const void* p; int x; };
 inline bool operator == ( const _teststr_& a, const _teststr_& b ){ return a.p == b.p && a.x == b.x; }
 inline Hash HashVar( const _teststr_& v ){ return (int)v.p + v.x; }
+#define CLOSE(a,b) (fabsf((a)-(b))<SMALL_FLOAT)
 
 #define TESTSER_SIZE (1+8+4+(4+4+4))
 struct _testser_
@@ -1003,6 +1010,13 @@ int TestSystems()
 	Mat4 rot_mtx = Mat4::CreateRotationXYZ( rot_angles );
 	Vec3 out_rot_angles = rot_mtx.GetXYZAngles();
 	if( !( rot_angles - out_rot_angles ).NearZero() ) return 701;
+	
+	Vec3 tri0[3] = { V3(0,0,0), V3(2,0,0), V3(0,3,0) };
+	if( PointTriangleDistance( V3(0.5f,0.5f,0), tri0[0], tri0[1], tri0[2] ) != 0.0f ) return 801;
+	if( PointTriangleDistance( V3(0,0,0), tri0[0], tri0[1], tri0[2] ) != 0.0f ) return 802;
+	if( !CLOSE( PointTriangleDistance( V3(-1,-1,0), tri0[0], tri0[1], tri0[2] ), V3(-1,-1,0).Length() ) ) return 803;
+	if( !CLOSE( PointTriangleDistance( V3(-1,0.5f,0), tri0[0], tri0[1], tri0[2] ), 1 ) ) return 804;
+	if( !CLOSE( PointTriangleDistance( V3(0.5f,-1,0), tri0[0], tri0[1], tri0[2] ), 1 ) ) return 805;
 	
 	return 0;
 }
