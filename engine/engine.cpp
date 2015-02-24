@@ -752,69 +752,160 @@ LightHandle SGRX_Scene::CreateLight()
 }
 
 
-#define _LT_NEAR_ZERO( x ) (fabsf(x)<SMALL_FLOAT)
-
-static float _lighttree_traverse( LightTree* LT, const Vec3& pos, int32_t& ionode )
+static float _compare_tris( const Vec3& a0, const Vec3& a1, const Vec3& a2, const Vec3& b0, const Vec3& b1, const Vec3& b2 )
 {
-//	LOG << "---" << pos;
-	for(;;)
-	{
-//		LOG << ionode;
-		const LightTree::Node& N = LT->m_nodes[ ionode ];
-		float dist = Vec3Dot( N.plane.ToVec3(), pos ) - N.plane.w;
-		if( dist <= 0 )
-		{
-			if( N.ch_lft >= 0 )
-			{
-				ionode = N.ch_lft;
-				continue;
-			}
-			else return dist;
-		}
-		else
-		{
-			if( N.ch_rgt >= 0 )
-			{
-				ionode = N.ch_rgt;
-				continue;
-			}
-			else return dist;
-		}
-	}
+	float la0 = ( a1 - a0 ).Length();
+	float la1 = ( a2 - a1 ).Length();
+	float la2 = ( a0 - a2 ).Length();
+	float lb0 = ( b1 - b0 ).Length();
+	float lb1 = ( b2 - b1 ).Length();
+	float lb2 = ( b0 - b2 ).Length();
+	// bigger q = less useful triangle
+	float qa = TMAX( TMAX( la0, la1 ), la2 ) - TMIN( TMIN( la0, la1 ), la2 );
+	float qb = TMAX( TMAX( lb0, lb1 ), lb2 ) - TMIN( TMIN( lb0, lb1 ), lb2 );
+	return qa - qb; // if > 0 (qa>qb), second triangle is better
 }
 
-void LightTree::InsertSample( const Sample& S )
+static int uint32_sort_desc( const void* a, const void* b )
 {
-	int32_t nsid = m_samples.size();
-	m_samples.push_back( S );
-	
-	if( !nsid )
-	{
-		Vec3 plane_normal = { 0, 0, 1 };
-		Node N = { 0, V4( plane_normal, Vec3Dot( plane_normal, S.pos ) ), -1, -1, -1 };
-		m_nodes.push_back( N );
-		return;
-	}
-	
-	int32_t node = 0;
-	float whichside = _lighttree_traverse( this, S.pos, node );
-	const Node PN = m_nodes[ node ];
-	
-	Vec3 plane_normal = { PN.plane.y, PN.plane.z, PN.plane.x };
-	Node N = { nsid, V4( plane_normal, Vec3Dot( plane_normal, S.pos ) ), node, -1, -1 };
-	int32_t new_node = m_nodes.size();
-	m_nodes.push_back( N );
-	LOG << whichside;
-	if( whichside <= SMALL_FLOAT )
-		m_nodes[ node ].ch_lft = new_node;
-	if( whichside >= -SMALL_FLOAT )
-		m_nodes[ node ].ch_rgt = new_node;
+	uint32_t ua = * (const uint32_t*) a;
+	uint32_t ub = * (const uint32_t*) b;
+	if( ua < ub ) return 1;
+	if( ub < ua ) return -1;
+	return 0;
 }
 
 void LightTree::InsertSamples( const Sample* samples, size_t count )
 {
+	Array< int32_t > tris;
+	
+	// inserted samples
 	for( size_t i = 0; i < count; ++i )
-		InsertSample( samples[ i ] );
+	{
+		const Sample& S = samples[i];
+		
+		size_t v2 = m_samples.size();
+		m_samples.push_back( S );
+		
+		// v2 not size because we don't want to include the new sample
+		for( size_t v0 = 0; v0 < v2; ++v0 )
+		{
+			for( size_t v1 = v0 + 1; v1 < v2; ++v1 )
+			{
+				Vec3 tp0 = m_samples[ v0 ].pos, tp1 = m_samples[ v1 ].pos, tp2 = S.pos;
+				
+				// check against all inserted triangles
+				tris.clear();
+				for( size_t t = 0; t < m_tris.size(); t += 3 )
+				{
+					Vec3 itp0 = m_samples[ m_tris[t] ].pos,
+					     itp1 = m_samples[ m_tris[t+1] ].pos,
+					     itp2 = m_samples[ m_tris[t+2] ].pos;
+					
+					int num_common_verts = 0;
+					if( v0 == m_tris[t+0] ) num_common_verts++;
+					if( v0 == m_tris[t+1] ) num_common_verts++;
+					if( v0 == m_tris[t+2] ) num_common_verts++;
+					if( v1 == m_tris[t+0] ) num_common_verts++;
+					if( v1 == m_tris[t+1] ) num_common_verts++;
+					if( v1 == m_tris[t+2] ) num_common_verts++;
+					
+					if( num_common_verts >= 2 || !TriangleIntersect( tp0, tp1, tp2, itp0, itp1, itp2 ) )
+						continue;
+					
+					float comparetris = _compare_tris( tp0, tp1, tp2, itp0, itp1, itp2 );
+					if( comparetris >= 0 )
+					{
+						// second triangle is better, discard this
+						goto bad_tri;
+					}
+					else
+					{
+						// triangles to be removed if this one is good
+						tris.push_back( t );
+					}
+				}
+				
+				if( tris.size() )
+				{
+					qsort( tris.data(), tris.size(), sizeof(int32_t), uint32_sort_desc );
+					for( size_t t = 0; t < tris.size(); ++t )
+					{
+						m_tris.erase( tris[ t ], 3 );
+					}
+				}
+				
+				// avoiding goto warning, compiler does not see that nothing uses the variable after label
+				{
+					int32_t nidcs[] = { v0, v1, v2 };
+					m_tris.append( nidcs, 3 );
+				}
+				
+				// done with the triangle
+			bad_tri:;
+			}
+		}
+	}
+	
+	// calculate adjancency
+	m_triadj.clear();
+	m_adjdata.clear();
+	
+	int32_t nulltriadj[] = { 0, 0 };
+	for( size_t t0 = 0; t0 < m_tris.size(); t0 += 3 )
+		m_triadj.append( nulltriadj, 2 );
+	
+	int32_t tricount = m_tris.size() / 3;
+	for( int32_t t0 = 0; t0 < tricount; ++t0 )
+	{
+		for( int32_t t1 = t0 + 1; t1 < tricount; ++t1 )
+		{
+			int num_common_verts = 0;
+			int32_t t0at = t0 * 3;
+			int32_t t1at = t1 * 3;
+			////////////
+		//	for( int i = 0; i < 3; ++i )
+		//		for( int j = 0; j < 3; ++j )
+		//			if( m_tris[ t0at + i ] == m_tris[ t1at + j ] )
+		//				num_common_verts++;
+			;///////////
+			// UNROLL //
+			if( m_tris[ t0at + 0 ] == m_tris[ t1at + 0 ] ) num_common_verts++;
+			if( m_tris[ t0at + 0 ] == m_tris[ t1at + 1 ] ) num_common_verts++;
+			if( m_tris[ t0at + 0 ] == m_tris[ t1at + 2 ] ) num_common_verts++;
+			if( m_tris[ t0at + 1 ] == m_tris[ t1at + 0 ] ) num_common_verts++;
+			if( m_tris[ t0at + 1 ] == m_tris[ t1at + 1 ] ) num_common_verts++;
+			if( m_tris[ t0at + 1 ] == m_tris[ t1at + 2 ] ) num_common_verts++;
+			if( m_tris[ t0at + 2 ] == m_tris[ t1at + 0 ] ) num_common_verts++;
+			if( m_tris[ t0at + 2 ] == m_tris[ t1at + 1 ] ) num_common_verts++;
+			if( m_tris[ t0at + 2 ] == m_tris[ t1at + 2 ] ) num_common_verts++;
+			////////////
+			
+		//	LOG << num_common_verts;
+			if( num_common_verts >= 3 )
+			{
+				LOG << "ERROR LIGHTTREE cv=" <<num_common_verts<<"|"<<m_tris[t0at+0]<<","<<m_tris[t0at+1]<<","<<m_tris[t0at+2]<<"|"<<m_tris[t1at+0]<<","<<m_tris[t1at+1]<<","<<m_tris[t1at+2];
+			}
+			if( num_common_verts < 2 )
+				continue;
+			
+			//// insert adjancency data for triangle 0 ////
+			m_triadj[ t0 * 2 + 1 ]++; // update own size
+			m_adjdata.insert( m_triadj[ t0 * 2 ], t1 );
+			for( size_t a = t0 * 2 + 2; a < m_triadj.size(); a += 2 )
+				m_triadj[ a ]++; // update following offsets
+			
+			//// insert adjancency data for triangle 1 ////
+			m_triadj[ t1 * 2 + 1 ]++; // update own size
+			m_adjdata.insert( m_triadj[ t1 * 2 ], t0 );
+			for( size_t a = t1 * 2 + 2; a < m_triadj.size(); a += 2 )
+				m_triadj[ a ]++; // update following offsets
+		}
+	}
+	
+	LOG << m_tris;
+	LOG << m_triadj;
+	LOG << m_adjdata;
 }
 
 static inline Vec3 _make_plane( const Vec3& p1, const Vec3& p2, const Vec3& p3 )
@@ -848,16 +939,16 @@ static inline void _interpolate_s2( LightTree::Sample& out, const LightTree::Sam
 
 static inline void _interpolate_s3( LightTree::Sample& out, const LightTree::Sample& p1, const LightTree::Sample& p2, const LightTree::Sample& p3 )
 {
-	LOG << p1.pos << p2.pos << p3.pos;
+//	LOG << p1.pos << p2.pos << p3.pos;
 	Vec3 normal = _make_plane( p1.pos, p2.pos, p3.pos );
 	Vec3 en1 = Vec3Cross( normal, p2.pos - p1.pos ).Normalized();
 	Vec3 en2 = Vec3Cross( normal, p3.pos - p2.pos ).Normalized();
 	Vec3 en3 = Vec3Cross( normal, p1.pos - p3.pos ).Normalized();
-	LOG << en1 << en2 << en3;
+//	LOG << en1 << en2 << en3;
 	float q1 = _clamped_dist( en1, out.pos, p3.pos, p1.pos );
 	float q2 = _clamped_dist( en2, out.pos, p1.pos, p2.pos );
 	float q3 = _clamped_dist( en3, out.pos, p2.pos, p3.pos );
-	LOG << q1 << "|" << q2 << "|" << q3;
+//	LOG << q1 << "|" << q2 << "|" << q3;
 	for( int i = 0; i < 6; ++i )
 	{
 		out.color[ i ] = p1.color[ i ] * q1 + p2.color[ i ] * q2 + p3.color[ i ] * q3;
@@ -884,21 +975,51 @@ static inline void _interpolate_s4( LightTree::Sample& out, const LightTree::Sam
 
 void LightTree::Interpolate( Sample& S )
 {
-	if( m_samples.size() )
+	if( m_samples.size() > 4 )
 	{
-		// traverse the graph
-		int32_t node = 0;
-		_lighttree_traverse( this, S.pos, node );
-	//	LOG << node;
-		Sample samples[ 4 ];
-		int numsamples = 0;
-		do
-		{
-			samples[ numsamples++ ] = m_samples[ m_nodes[ node ].sample_id ];
-			node = m_nodes[ node ].parent;
-		}
-		while( node >= 0 && numsamples < 4 );
+		int32_t prevtri = -1;
+		int32_t tri = 0;
+		float min_tri_dist = PointTriangleDistance( S.pos, m_samples[m_tris[tri*3+0]].pos, m_samples[m_tris[tri*3+1]].pos, m_samples[m_tris[tri*3+2]].pos );
+		bool found = true;
 		
+		// find closest triangle
+		while( min_tri_dist > 0 && found )
+		{
+			// check adjacent triangles
+			int32_t adjstart = m_triadj[ tri * 2 ];
+			int32_t adjend = adjstart + m_triadj[ tri * 2 + 1 ];
+		//	LOG << "A" << adjend - adjstart;
+			found = false;
+			for( int32_t a = adjstart; a < adjend; ++a )
+			{
+				int32_t adjtri = m_adjdata[ a ];
+				float new_tri_dist = PointTriangleDistance( S.pos, m_samples[m_tris[adjtri*3+0]].pos, m_samples[m_tris[adjtri*3+1]].pos, m_samples[m_tris[adjtri*3+2]].pos );
+		//		LOG << "ND" << new_tri_dist << " VS " << min_tri_dist;
+				if( new_tri_dist < min_tri_dist )
+				{
+					tri = adjtri;
+					min_tri_dist = new_tri_dist;
+					found = true;
+				}
+			}
+		}
+		LOG << "T" << tri;
+		
+		// point on triangle, interpolate
+	//	if( min_tri_dist < SMALL_FLOAT )
+		{
+			_interpolate_s3( S, m_samples[m_tris[tri*3+0]], m_samples[m_tris[tri*3+1]], m_samples[m_tris[tri*3+2]] );
+			return;
+		}
+		
+		// TODO TODO TODO
+		
+		// find next closest triangle for last point
+		if( prevtri == -1 )
+		{
+		}
+		
+#if 0
 		// try to reduce invalid sample sets
 		if( numsamples == 4 )
 		{
@@ -923,7 +1044,14 @@ void LightTree::Interpolate( Sample& S )
 		if( numsamples == 2 ){ _interpolate_s2( S, samples[0], samples[1] ); return; }
 		if( numsamples == 3 ){ _interpolate_s3( S, samples[0], samples[1], samples[2] ); return; }
 		if( numsamples == 4 ){ _interpolate_s4( S, samples[0], samples[1], samples[2], samples[3] ); return; }
+#endif
 	}
+	
+	// interpolation-less output
+	if( m_samples.size() == 1 ){ S = m_samples[0]; return; }
+	if( m_samples.size() == 2 ){ _interpolate_s2( S, m_samples[0], m_samples[1] ); return; }
+	if( m_samples.size() == 3 ){ _interpolate_s3( S, m_samples[0], m_samples[1], m_samples[2] ); return; }
+	if( m_samples.size() == 4 ){ _interpolate_s4( S, m_samples[0], m_samples[1], m_samples[2], m_samples[3] ); return; }
 	for( int i = 0; i < 6; ++i )
 		S.color[ i ] = V3(0);
 }

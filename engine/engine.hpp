@@ -612,22 +612,15 @@ struct EXPORT LightTree
 		Vec3 color[6]; // X,Y,Z / +,-
 		template< class T > void Serialize( T& arch ){ arch << pos; for( int i = 0; i < 6; ++i ) arch << color[i]; }
 	};
-	struct Node
-	{
-		int32_t sample_id;
-		Vec4 plane;
-		int32_t parent;
-		int32_t ch_lft;
-		int32_t ch_rgt;
-	};
 	
-	void Clear(){ m_samples.clear(); m_nodes.clear(); }
-	void InsertSample( const Sample& S );
+	void Clear(){ m_samples.clear(); m_tris.clear(); m_triadj.clear(); m_adjdata.clear(); }
 	void InsertSamples( const Sample* samples, size_t count );
 	void Interpolate( Sample& S );
 	
 	Array< Sample > m_samples;
-	Array< Node > m_nodes;
+	Array< int32_t > m_tris; // 3 x triangle count
+	Array< int32_t > m_triadj; // 2 x triangle count (offset,count)
+	Array< int32_t > m_adjdata; // ? indexed by m_triadj
 };
 
 /* render pass constants */
