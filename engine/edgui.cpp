@@ -1075,7 +1075,7 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			BatchRenderer& br = GR2D_GetBatchRenderer();
 			br.UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1 );
 			br.Colu( textColor );
-			br.Flush().SetPrimitiveType( PT_LineStrip ).Pos( cx0, cy0 ).Pos( cx1, cy0 ).Pos( cx1, cy1 ).Pos( cx0, cy1 ).Prev(3).Flush();
+			br.SetPrimitiveType( PT_LineStrip ).Pos( cx0, cy0 ).Pos( cx1, cy0 ).Pos( cx1, cy1 ).Pos( cx0, cy1 ).Prev(3);
 			if( caption.size() )
 				GR2D_DrawTextLine( x1 - 32, y0 + 32, caption, HALIGN_RIGHT, VALIGN_TOP );
 			GR2D_DrawTextLine( 32, 32, String_Concat( "Type to search: ", m_searchString ) );

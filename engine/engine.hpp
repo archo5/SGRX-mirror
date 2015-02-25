@@ -677,6 +677,12 @@ struct EXPORT BatchRenderer
 		uint32_t color;
 		float u, v;
 	};
+	struct State
+	{
+		TextureHandle texture;
+		ShaderHandle shader;
+		EPrimitiveType primType;
+	};
 	
 	BatchRenderer( struct IRenderer* r );
 	~BatchRenderer(){ if( m_renderer ) Flush(); }
@@ -701,24 +707,50 @@ struct EXPORT BatchRenderer
 	BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );
 	BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
 	
-	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
 	bool CheckSetTexture( const TextureHandle& tex );
 	BatchRenderer& SetTexture( const TextureHandle& tex );
+	BatchRenderer& SetShader( const ShaderHandle& shd );
 	BatchRenderer& UnsetTexture(){ return SetTexture( NULL ); }
+	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
 	BatchRenderer& Flush();
+	BatchRenderer& Reset();
+	void _UpdateDiff();
+	
+	Array< Vec4 > ShaderData;
 	
 	IRenderer* m_renderer;
-	TextureHandle m_texture;
-	EPrimitiveType m_primType;
+	State m_currState;
+	State m_nextState;
+	bool m_diff;
 	Vertex m_proto;
 	bool m_swapRB;
 	Array< Vertex > m_verts;
 };
 
+struct EXPORT SGRX_PostDraw
+{
+	virtual void PostDraw() = 0;
+};
+
 struct EXPORT SGRX_DebugDraw
 {
 	virtual void DebugDraw() = 0;
-	void _OnEnd();
+};
+
+struct EXPORT SGRX_RenderScene
+{
+	SGRX_RenderScene( const SceneHandle& sh, bool enablePP = true ) :
+		scene( sh ),
+		enablePostProcessing( enablePP ),
+		viewport( NULL ),
+		postdraw( NULL ),
+		debugdraw( NULL )
+	{}
+	SceneHandle scene;
+	bool enablePostProcessing;
+	SGRX_Viewport* viewport;
+	SGRX_PostDraw* postdraw;
+	SGRX_DebugDraw* debugdraw;
 };
 
 
@@ -735,7 +767,7 @@ EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
 EXPORT SceneHandle GR_CreateScene();
 EXPORT bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count );
-EXPORT void GR_RenderScene( SceneHandle sh, bool enablePostProcessing = true, SGRX_Viewport* viewport = NULL, SGRX_DebugDraw* debugDraw = NULL );
+EXPORT void GR_RenderScene( const SGRX_RenderScene& info );
 EXPORT RenderStats& GR_GetRenderStats();
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );

@@ -996,9 +996,9 @@ bad_sample:;
 		}
 	}
 	
-	LOG << m_tris;
-	LOG << m_triadj;
-	LOG << m_adjdata;
+//	LOG << m_tris;
+//	LOG << m_triadj;
+//	LOG << m_adjdata;
 }
 
 static inline Vec3 _make_plane( const Vec3& p1, const Vec3& p2, const Vec3& p3 )
@@ -1724,11 +1724,11 @@ bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
 	g_Renderer->SetRenderPasses( passes, count );
 }
 
-void GR_RenderScene( SceneHandle sh, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_DebugDraw* debugDraw )
+void GR_RenderScene( const SGRX_RenderScene& info )
 {
 	g_BatchRenderer->Flush();
-	g_BatchRenderer->m_texture = NULL;
-	g_Renderer->RenderScene( sh, enablePostProcessing, viewport, debugDraw );
+	g_BatchRenderer->Reset();
+	g_Renderer->RenderScene( info.scene, info.enablePostProcessing, info.viewport, info.postdraw, info.debugdraw );
 }
 
 RenderStats& GR_GetRenderStats()
@@ -1806,7 +1806,7 @@ BatchRenderer& GR2D_GetBatchRenderer()
 // RENDERING
 //
 
-BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_texture( NULL ), m_primType( PT_None )
+BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( false )
 {
 	m_swapRB = r->GetInfo().swapRB;
 	m_proto.x = 0;
@@ -1827,6 +1827,12 @@ BatchRenderer& BatchRenderer::AddVertices( Vertex* verts, int count )
 
 BatchRenderer& BatchRenderer::AddVertex( const Vertex& vert )
 {
+	if( m_diff )
+	{
+		Flush();
+		m_currState = m_nextState;
+		m_diff = false;
+	}
 	m_verts.push_back( vert );
 	return *this;
 }
@@ -1839,16 +1845,6 @@ BatchRenderer& BatchRenderer::Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a )
 	else
 		col = COLOR_RGBA( r, g, b, a );
 	m_proto.color = col;
-	return *this;
-}
-
-BatchRenderer& BatchRenderer::SetPrimitiveType( EPrimitiveType pt )
-{
-	if( pt != m_primType )
-	{
-		Flush();
-		m_primType = pt;
-	}
 	return *this;
 }
 
@@ -1893,7 +1889,6 @@ BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, float z, in
 		verts = r * M_PI * 2;
 	if( verts >= 3 )
 	{
-		Flush();
 		SetPrimitiveType( PT_TriangleFan );
 		Pos( x, y, z );
 		float a = 0;
@@ -1904,7 +1899,6 @@ BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, float z, in
 			a += ad;
 		}
 		Prev( verts - 1 );
-		Flush();
 	}
 	return *this;
 }
@@ -1915,7 +1909,6 @@ BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, float z,
 		verts = r * M_PI * 2;
 	if( verts >= 3 )
 	{
-		Flush();
 		SetPrimitiveType( PT_LineStrip );
 		float a = 0;
 		float ad = M_PI * 2.0f / verts;
@@ -1925,19 +1918,19 @@ BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, float z,
 			a += ad;
 		}
 		Prev( verts - 1 );
-		Flush();
 	}
 	return *this;
 }
 
 bool BatchRenderer::CheckSetTexture( const TextureHandle& tex )
 {
-	if( tex != m_texture )
+	if( tex != m_nextState.texture )
 	{
-		Flush();
-		m_texture = tex;
+		m_nextState.texture = tex;
+		_UpdateDiff();
 		return true;
 	}
+	_UpdateDiff();
 	return false;
 }
 
@@ -1947,20 +1940,55 @@ BatchRenderer& BatchRenderer::SetTexture( const TextureHandle& tex )
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::SetShader( const ShaderHandle& shd )
+{
+	m_nextState.shader = shd;
+	_UpdateDiff();
+	return *this;
+}
+
+inline bool _is_noncont_primtype( EPrimitiveType pt )
+{
+	return pt == PT_LineStrip || pt == PT_TriangleFan || pt == PT_TriangleStrip;
+}
+
+BatchRenderer& BatchRenderer::SetPrimitiveType( EPrimitiveType pt )
+{
+	if( _is_noncont_primtype( pt ) || _is_noncont_primtype( m_nextState.primType ) )
+		Flush();
+	m_nextState.primType = pt;
+	_UpdateDiff();
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::Flush()
 {
 	if( m_verts.size() )
 	{
-		m_renderer->DrawBatchVertices( m_verts.data(), m_verts.size(), m_primType, m_texture );
+		m_renderer->DrawBatchVertices( m_verts.data(), m_verts.size(), m_currState.primType, m_currState.texture, m_currState.shader, ShaderData.data(), ShaderData.size() );
 		m_verts.clear();
 	}
 	return *this;
 }
 
-
-void SGRX_DebugDraw::_OnEnd()
+BatchRenderer& BatchRenderer::Reset()
 {
-	g_BatchRenderer->Flush();
+	ShaderData.clear();
+	CheckSetTexture( NULL );
+	SetShader( NULL );
+	SetPrimitiveType( PT_None );
+	m_proto.color = 0xffffffff;
+	m_proto.u = 0;
+	m_proto.v = 0;
+	return *this;
+}
+
+void BatchRenderer::_UpdateDiff()
+{
+	m_diff = m_currState.texture != m_nextState.texture
+		|| m_currState.shader != m_nextState.shader
+		|| m_currState.primType != m_nextState.primType
+	;
 }
 
 

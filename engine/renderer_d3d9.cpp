@@ -414,11 +414,11 @@ struct D3D9Renderer : IRenderer
 	
 	bool SetRenderTarget( TextureHandle rt );
 	
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex );
+	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount );
 	
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	
-	void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_DebugDraw* debugDraw );
+	void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_PostDraw* postDraw, SGRX_DebugDraw* debugDraw );
 	uint32_t _RS_Cull_Camera_MeshList();
 	uint32_t _RS_Cull_Camera_PointLightList();
 	uint32_t _RS_Cull_Camera_SpotLightList();
@@ -1289,9 +1289,12 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 	}
 }
 
-void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex )
+void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount )
 {
+	SetShader( shd );
 	SetTexture( 0, tex );
+	VS_SetVec4Array( 0, shdata, shvcount );
+	PS_SetVec4Array( 0, shdata, shvcount );
 	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_DIFFUSE );
 	m_dev->DrawPrimitiveUP( conv_prim_type( pt ), get_prim_count( pt, count ), verts, sizeof( *verts ) );
 }
@@ -1380,7 +1383,7 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	---
 	100-115: instance data
 */
-void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_DebugDraw* debugDraw )
+void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_PostDraw* postDraw, SGRX_DebugDraw* debugDraw )
 {
 	if( !scene )
 		return;
@@ -1493,10 +1496,20 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, tx_depth, RTOUT );
 	}
 	
-	// POST-PROCESSING
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
 	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	
+	if( postDraw )
+	{
+		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE ); // TODO HACK!!!
+		m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
+		postDraw->PostDraw();
+		GR2D_GetBatchRenderer().Flush().Reset();
+		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+	}
+	
+	// POST-PROCESSING
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
 	
 	if( m_enablePostProcessing )
 	{
@@ -2020,7 +2033,7 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &CAM.mView );
 	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &CAM.mProj );
 	debugDraw->DebugDraw();
-	debugDraw->_OnEnd();
+	GR2D_GetBatchRenderer().Flush().Reset();
 	
 	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &m_view );
 	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
