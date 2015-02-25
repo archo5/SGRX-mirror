@@ -152,6 +152,9 @@ struct EXPORT IGame
 // RENDERER DATA
 //
 
+#define ANTIALIAS_NONE 0
+#define ANTIALIAS_MULTISAMPLE 1
+
 struct EXPORT RenderSettings
 {
 	int width;
@@ -159,6 +162,8 @@ struct EXPORT RenderSettings
 	bool fullscreen;
 	bool windowed_fullscreen;
 	bool vsync;
+	int aa_mode;
+	int aa_quality;
 };
 
 struct EXPORT RenderStats

@@ -260,44 +260,52 @@ struct RTData
 	IDirect3DSurface9* RTS_BLOOM_BLUR1;
 	IDirect3DSurface9* RTS_BLOOM_BLUR2;
 	IDirect3DSurface9* RTSD;
+	
+	IDirect3DSurface9* RTS_OCOL_MSAA;
+	IDirect3DSurface9* RTS_PARM_MSAA;
+	IDirect3DSurface9* RTS_DEPTH_MSAA;
+	IDirect3DSurface9* RTSD_MSAA;
+	
 	int width, height;
+	D3DMULTISAMPLE_TYPE mstype;
 };
 
 
-static const char* postproc_init( IDirect3DDevice9* dev, RTData* D, int w, int h )
+static const char* postproc_init( IDirect3DDevice9* dev, RTData* D, int w, int h, D3DMULTISAMPLE_TYPE msaa )
 {
 	HRESULT hr;
 	memset( D, 0, sizeof(*D) );
 	
 	D->width = w;
 	D->height = h;
+	D->mstype = msaa;
 	
 	int w4 = w / 4;
 	int h4 = h / 4;
 	
 	/* core */
 	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_OCOL, NULL );
-	if( FAILED( hr ) || !D->RTT_OCOL ) return "failed to create rgba16f render target texture";
+	if( FAILED( hr ) || !D->RTT_OCOL ) return "failed to create rgba16f render target texture (fs,1)";
 	
 	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_PARM, NULL );
-	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create rgba16f render target texture";
+	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create rgba16f render target texture (fs,2)";
 	
 	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &D->RTT_DEPTH, NULL );
-	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create r32f depth stencil texture";
+	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create r32f depth stencil texture (fs,3)";
 	
 	/* bloom */
 	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_DSHP, NULL );
-	if( FAILED( hr ) || !D->RTT_BLOOM_DSHP ) return "failed to create rgba16f render target texture";
+	if( FAILED( hr ) || !D->RTT_BLOOM_DSHP ) return "failed to create rgba16f render target texture (ds,4)";
 	
 	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_BLUR1, NULL );
-	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR1 ) return "failed to create rgba16f render target texture";
+	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR1 ) return "failed to create rgba16f render target texture (ds,5)";
 	
 	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_BLUR2, NULL );
-	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR2 ) return "failed to create rgba16f render target texture";
+	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR2 ) return "failed to create rgba16f render target texture (ds,6)";
 	
 	/* depth */
 	hr = dev->CreateDepthStencilSurface( w, h, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &D->RTSD, NULL );
-	if( FAILED( hr ) || !D->RTSD ) return "failed to create d24s8 depth+stencil surface";
+	if( FAILED( hr ) || !D->RTSD ) return "failed to create d24s8 depth+stencil surface (fs,7)";
 	
 	/* surfaces */
 	D->RTT_OCOL->GetSurfaceLevel( 0, &D->RTS_OCOL );
@@ -307,11 +315,33 @@ static const char* postproc_init( IDirect3DDevice9* dev, RTData* D, int w, int h
 	D->RTT_BLOOM_BLUR1->GetSurfaceLevel( 0, &D->RTS_BLOOM_BLUR1 );
 	D->RTT_BLOOM_BLUR2->GetSurfaceLevel( 0, &D->RTS_BLOOM_BLUR2 );
 	
+	if( msaa )
+	{
+		hr = dev->CreateRenderTarget( w, h, D3DFMT_A16B16G16R16F, msaa, 0, FALSE, &D->RTS_OCOL_MSAA, NULL );
+		if( FAILED( hr ) || !D->RTS_OCOL_MSAA ) return "failed to create rgba16f render target surface (fs,8,aa,1)";
+		
+		hr = dev->CreateRenderTarget( w, h, D3DFMT_A16B16G16R16F, msaa, 0, FALSE, &D->RTS_PARM_MSAA, NULL );
+		if( FAILED( hr ) || !D->RTS_PARM_MSAA ) return "failed to create rgba16f render target surface (fs,9,aa,2)";
+		
+		hr = dev->CreateRenderTarget( w, h, D3DFMT_R32F, msaa, 0, FALSE, &D->RTS_DEPTH_MSAA, NULL );
+		if( FAILED( hr ) || !D->RTS_DEPTH_MSAA ) return "failed to create rgba16f render target surface (fs,10,aa,3)";
+		
+		hr = dev->CreateDepthStencilSurface( w, h, D3DFMT_D24S8, msaa, 0, TRUE, &D->RTSD_MSAA, NULL );
+		if( FAILED( hr ) || !D->RTSD_MSAA ) return "failed to create d24s8 depth+stencil surface (fs,11,aa,7)";
+		
+		dev->SetRenderState( D3DRS_MULTISAMPLEANTIALIAS, TRUE );
+	}
+	
 	return NULL;
 }
 
 static void postproc_free( RTData* D )
 {
+	SAFE_RELEASE( D->RTS_OCOL_MSAA );
+	SAFE_RELEASE( D->RTS_PARM_MSAA );
+	SAFE_RELEASE( D->RTS_DEPTH_MSAA );
+	SAFE_RELEASE( D->RTSD_MSAA );
+	
 	SAFE_RELEASE( D->RTS_OCOL );
 	SAFE_RELEASE( D->RTS_PARM );
 	SAFE_RELEASE( D->RTS_DEPTH );
@@ -325,8 +355,29 @@ static void postproc_free( RTData* D )
 	SAFE_RELEASE( D->RTT_BLOOM_BLUR1 );
 	SAFE_RELEASE( D->RTT_BLOOM_BLUR2 );
 	SAFE_RELEASE( D->RTSD );
+	
+	D->mstype = D3DMULTISAMPLE_NONE;
 	D->width = 0;
 	D->height = 0;
+}
+
+static IDirect3DSurface9* postproc_get_ocol( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTS_OCOL_MSAA : D->RTS_OCOL; }
+static IDirect3DSurface9* postproc_get_parm( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_PARM; }
+static IDirect3DSurface9* postproc_get_depth( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_DEPTH; }
+static IDirect3DSurface9* postproc_get_dss( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTSD_MSAA : D->RTSD; }
+
+static void postproc_resolve( IDirect3DDevice9* dev, RTData* D )
+{
+	if( !D->mstype )
+		return;
+	
+	dev->EndScene();
+	RECT r = { 0, 0, D->width, D->height };
+	dev->StretchRect( D->RTS_OCOL_MSAA, &r, D->RTS_OCOL, &r, D3DTEXF_NONE );
+	dev->StretchRect( D->RTS_PARM_MSAA, &r, D->RTS_PARM, &r, D3DTEXF_NONE );
+	dev->StretchRect( D->RTS_DEPTH_MSAA, &r, D->RTS_DEPTH, &r, D3DTEXF_NONE );
+//	dev->StretchRect( D->RTSD_MSAA, &r, D->RTSD, &r, D3DTEXF_NONE ); // ?
+	dev->BeginScene();
 }
 
 
@@ -454,6 +505,15 @@ extern "C" EXPORT void Free()
 	g_D3D = NULL;
 }
 
+static D3DMULTISAMPLE_TYPE aa_quality_to_mstype( int aaq )
+{
+	if( aaq <= 0 )
+		return D3DMULTISAMPLE_NONE;
+	if( aaq > 16 )
+		return D3DMULTISAMPLE_16_SAMPLES;
+	return (D3DMULTISAMPLE_TYPE) aaq;
+}
+
 extern "C" EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, void* windowHandle )
 {
 	D3DPRESENT_PARAMETERS d3dpp;
@@ -468,7 +528,7 @@ extern "C" EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, voi
 	d3dpp.BackBufferWidth = settings.width;
 	d3dpp.BackBufferHeight = settings.height;
 	d3dpp.BackBufferFormat = D3DFMT_X8R8G8B8;
-	d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
+	d3dpp.MultiSampleType = settings.aa_mode == ANTIALIAS_MULTISAMPLE ? aa_quality_to_mstype( settings.aa_quality ) : D3DMULTISAMPLE_NONE;
 	d3dpp.PresentationInterval = settings.vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 	
 	if( FAILED( g_D3D->CreateDevice(
@@ -501,7 +561,7 @@ extern "C" EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, voi
 		return NULL;
 	}
 	
-	postproc_init( d3ddev, &R->m_drd, settings.width, settings.height );
+	postproc_init( d3ddev, &R->m_drd, settings.width, settings.height, d3dpp.MultiSampleType );
 	
 	d3ddev->BeginScene();
 	
@@ -1374,10 +1434,10 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	// RENDER PREP
 	if( m_enablePostProcessing )
 	{
-		m_dev->SetRenderTarget( 0, m_drd.RTS_OCOL );
-		m_dev->SetRenderTarget( 1, m_drd.RTS_PARM );
-		m_dev->SetRenderTarget( 2, m_drd.RTS_DEPTH );
-		m_dev->SetDepthStencilSurface( m_drd.RTSD );
+		m_dev->SetRenderTarget( 0, postproc_get_ocol( &m_drd ) );
+		m_dev->SetRenderTarget( 1, postproc_get_parm( &m_drd ) );
+		m_dev->SetRenderTarget( 2, postproc_get_depth( &m_drd ) );
+		m_dev->SetDepthStencilSurface( postproc_get_dss( &m_drd ) );
 	}
 	else
 	{
@@ -1442,6 +1502,8 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	{
 		uint32_t pptexflags = TEXTURE_FLAGS_FULLSCREEN;
 		
+		postproc_resolve( m_dev, &m_drd );
+		
 		m_dev->SetRenderTarget( 1, NULL );
 		m_dev->SetRenderTarget( 2, NULL );
 		m_dev->SetDepthStencilSurface( RTOUT.DSS );
@@ -1475,7 +1537,7 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	
 	// MANUAL DEBUG DRAWING
 	if( debugDraw )
-		_RS_DebugDraw( debugDraw, m_enablePostProcessing ? m_drd.RTSD : RTOUT.DSS, RTOUT.DSS );
+		_RS_DebugDraw( debugDraw, m_enablePostProcessing ? postproc_get_dss( &m_drd ) : RTOUT.DSS, RTOUT.DSS );
 	
 	// POST-PROCESS DEBUGGING
 	if( m_currentRT && m_dbg_rt )
@@ -1918,9 +1980,9 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3D
 	
 	if( m_enablePostProcessing )
 	{
-		m_dev->SetRenderTarget( 1, m_drd.RTS_PARM );
-		m_dev->SetRenderTarget( 2, m_drd.RTS_DEPTH );
-		m_dev->SetDepthStencilSurface( m_drd.RTSD );
+		m_dev->SetRenderTarget( 1, postproc_get_parm( &m_drd ) );
+		m_dev->SetRenderTarget( 2, postproc_get_depth( &m_drd ) );
+		m_dev->SetDepthStencilSurface( postproc_get_dss( &m_drd ) );
 	}
 	else
 	{

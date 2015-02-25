@@ -58,7 +58,7 @@ static ActionMap* g_ActionMap;
 static Vec2 g_CursorPos = {0,0};
 static Array< IScreen* > g_OverlayScreens;
 
-static RenderSettings g_RenderSettings = { 1024, 576, false, false, true };
+static RenderSettings g_RenderSettings = { 1024, 576, false, false, true, ANTIALIAS_MULTISAMPLE, 4 };
 static const char* g_RendererName = "sgrx-render-d3d9";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;
