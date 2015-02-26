@@ -1478,13 +1478,7 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 
 void Animator::Prepare( String* new_names, int count )
 {
-	if( new_names )
-		names.assign( new_names, count );
-	else
-	{
-		names.clear();
-		names.resize( count );
-	}
+	names.assign( new_names, count );
 	position.clear();
 	rotation.clear();
 	scale.clear();
@@ -1498,7 +1492,7 @@ void Animator::Prepare( String* new_names, int count )
 		position[ i ] = V3(0);
 		rotation[ i ] = Quat::Identity;
 		scale[ i ] = V3(1);
-		factor[ i ] = 1;
+		factor[ i ] = 0;
 	}
 }
 
@@ -1507,13 +1501,70 @@ bool Animator::PrepareForMesh( const MeshHandle& mesh )
 	SGRX_IMesh* M = mesh;
 	if( !M )
 		return false;
-	Prepare( NULL, M->m_numBones );
-	if( M->m_numBones )
-	{
-		for( int i = 0; i < M->m_numBones; ++i )
-			names[ i ] = M->m_bones[ i ].name;
-	}
+	Array< String > bonenames;
+	bonenames.resize( M->m_numBones );
+	for( int i = 0; i < M->m_numBones; ++i )
+		bonenames[ i ] = M->m_bones[ i ].name;
+	Prepare( bonenames.data(), bonenames.size() );
 	return true;
+}
+
+AnimMixer::AnimMixer() : layers(NULL), layerCount(0)
+{
+}
+
+AnimMixer::~AnimMixer()
+{
+}
+
+void AnimMixer::Prepare( String* names, int count )
+{
+	Animator::Prepare( names, count );
+	for( int i = 0; i < layerCount; ++i )
+	{
+		layers[ i ].anim->Prepare( names, count );
+	}
+}
+
+void AnimMixer::Advance( float deltaTime )
+{
+	// generate output
+	for( size_t i = 0; i < names.size(); ++i )
+	{
+		position[ i ] = V3(0);
+		rotation[ i ] = Quat::Identity;
+		scale[ i ] = V3(1);
+		factor[ i ] = 0;
+	}
+	
+	for( int layer = 0; layer < layerCount; ++layer )
+	{
+		Animator* AN = layers[ layer ].anim;
+		AN->Advance( deltaTime );
+		
+		for( int i = 0; i < names.size(); ++i )
+		{
+			Vec3 P = AN->position[ i ];
+			Quat R = AN->rotation[ i ];
+			Vec3 S = AN->scale[ i ];
+			float q = AN->factor[ i ] * layers[ layer ].factor;
+			
+			if( !factor[ i ] )
+			{
+				position[ i ] = P;
+				rotation[ i ] = R;
+				scale[ i ] = S;
+				factor[ i ] = q;
+			}
+			else
+			{
+				position[ i ] = TLERP( position[ i ], P, q );
+				rotation[ i ] = TLERP( rotation[ i ], R, q );
+				scale[ i ] = TLERP( scale[ i ], S, q );
+				factor[ i ] = TLERP( factor[ i ], 1.0f, q );
+			}
+		}
+	}
 }
 
 AnimPlayer::AnimPlayer()
@@ -1530,6 +1581,9 @@ void AnimPlayer::Prepare( String* names, int count )
 	currentAnims.clear();
 	_clearAnimCache();
 	Animator::Prepare( names, count );
+	blendFactor.resize( count );
+	for( int i = 0; i < count; ++i )
+		blendFactor[ i ] = 1;
 }
 
 void AnimPlayer::Advance( float deltaTime )
@@ -1605,12 +1659,16 @@ void AnimPlayer::Advance( float deltaTime )
 			}
 		}
 	}
+	for( size_t i = 0; i < names.size(); ++i )
+		factor[ i ] *= blendFactor[ i ];
 }
 
 void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
 {
 	if( !anim )
 		return;
+	if( !once && currentAnims.size() && currentAnims.last().once == false && currentAnims.last().anim == anim )
+		return; // ignore repetitive invocations
 	Anim A = { anim, _getTrackIds( anim ), 0, 0, fadetime, once };
 	currentAnims.push_back( A );
 }
@@ -1639,6 +1697,56 @@ void AnimPlayer::_clearAnimCache()
 		delete [] animCache.item( i ).value;
 	}
 	animCache.clear();
+}
+
+void GR_ClearFactors( Array< float >& out, float factor )
+{
+	TMEMSET( out.data(), out.size(), factor );
+}
+
+void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor )
+{
+	int subbones[ MAX_MESH_BONES ];
+	int numsb = 0;
+	GR_FindBones( subbones, numsb, mesh, name, true );
+	for( int i = 0; i < numsb; ++i )
+	{
+		out[ subbones[ i ] ] = factor;
+	}
+}
+
+void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch )
+{
+	if( !mesh )
+		return;
+	
+	int numbones = mesh->m_numBones;
+	SGRX_MeshBone* mbones = mesh->m_bones;
+	int b = 0;
+	for( ; b < numbones; ++b )
+	{
+		if( mbones[ b ].name == name )
+			break;
+	}
+	if( b >= numbones )
+		return;
+	
+	int sbstart = numsb;
+	subbones[ numsb++ ] = b;
+	if( ch )
+	{
+		for( ; b < numbones; ++b )
+		{
+			for( int sb = sbstart; sb < numsb; ++sb )
+			{
+				if( subbones[ sb ] == mbones[ b ].parent_id )
+				{
+					subbones[ numsb++ ] = b;
+					break;
+				}
+			}
+		}
+	}
 }
 
 int GR_LoadAnims( const StringView& path, const StringView& prefix )

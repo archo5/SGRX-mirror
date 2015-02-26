@@ -5,6 +5,11 @@
 
 
 
+EXPORT void GR_ClearFactors( Array< float >& out, float factor );
+EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor );
+EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch );
+
+
 struct EXPORT SGRX_Animation
 {
 	FINLINE void Acquire(){ ++_refcount; }
@@ -43,6 +48,9 @@ struct EXPORT Animator
 	bool PrepareForMesh( const MeshHandle& mesh );
 	virtual void Advance( float deltaTime ){}
 	
+	void ClearFactors( float f ){ GR_ClearFactors( factor, f ); }
+	void SetFactors( const MeshHandle& mesh, const StringView& name, float f ){ GR_SetFactors( factor, mesh, name, f ); }
+	
 	Array< String > names;
 	Array< Vec3 > position;
 	Array< Quat > rotation;
@@ -54,9 +62,16 @@ struct EXPORT AnimMixer : Animator
 {
 	struct Layer
 	{
+		Layer() : anim(NULL), factor(1){}
+		
 		Animator* anim;
 		float factor;
 	};
+	
+	AnimMixer();
+	~AnimMixer();
+	virtual void Prepare( String* names, int count );
+	virtual void Advance( float deltaTime );
 	
 	Layer* layers;
 	int layerCount;
@@ -86,6 +101,10 @@ struct EXPORT AnimPlayer : Animator
 	
 	AnimCache animCache;
 	Array< Anim > currentAnims;
+	Array< float > blendFactor;
+	
+	void ClearBlendFactors( float f ){ GR_ClearFactors( blendFactor, f ); }
+	void SetBlendFactors( const MeshHandle& mesh, const StringView& name, float f ){ GR_SetFactors( blendFactor, mesh, name, f ); }
 };
 
 
