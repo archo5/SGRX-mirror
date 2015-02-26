@@ -141,6 +141,9 @@ struct EXPORT IGame
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
 	virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
+	virtual void GetShaderCacheFilename( const StringView& type, const StringView& key, String& name );
+	virtual bool GetCompiledShader( const StringView& type, const StringView& key, ByteArray& outdata );
+	virtual bool SetCompiledShader( const StringView& type, const StringView& key, const ByteArray& data );
 	virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
 	virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
 	virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );

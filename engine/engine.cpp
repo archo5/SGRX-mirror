@@ -338,6 +338,51 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	return true;
 }
 
+void IGame::GetShaderCacheFilename( const StringView& type, const StringView& key, String& name )
+{
+	name = "shaders_";
+	name.append( type.data(), type.size() );
+	name.append( "/" );
+	
+	StringView it = key;
+	while( it.size() )
+	{
+		char ch = it.ch();
+		it.skip(1);
+		
+		if( ( ch >= 'a' && ch <= 'z' ) || ( ch >= 'A' && ch <= 'Z' ) || ( ch >= '0' && ch <= '9' ) )
+			name.push_back( ch );
+		else if( name.last() != '_' && name.last() != '$' )
+			name.push_back( '$' );
+	}
+	
+	name.append( ".csh" );
+}
+
+bool IGame::GetCompiledShader( const StringView& type, const StringView& key, ByteArray& outdata )
+{
+	if( !key )
+		return false;
+	
+	String filename;
+	GetShaderCacheFilename( type, key, filename );
+	
+	LOG << "Loading precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
+	return LoadBinaryFile( filename, outdata );
+}
+
+bool IGame::SetCompiledShader( const StringView& type, const StringView& key, const ByteArray& data )
+{
+	if( !key )
+		return false;
+	
+	String filename;
+	GetShaderCacheFilename( type, key, filename );
+	
+	LOG << "Saving precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
+	return SaveBinaryFile( filename, data.data(), data.size() );
+}
+
 bool IGame::OnLoadShader( const StringView& type, const StringView& key, String& outdata )
 {
 	if( !key )
@@ -1228,11 +1273,22 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 
 ShaderHandle GR_GetShader( const StringView& path )
 {
+	String code;
+	String errors;
+	ByteArray comp;
+	
 	SGRX_IShader* shd = g_Shaders->getcopy( path );
 	if( shd )
 		return shd;
 	
-	String code;
+	if( g_Renderer->GetInfo().compileShaders )
+	{
+		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderType, path, comp ) )
+		{
+			goto has_compiled_shader;
+		}
+	}
+	
 	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderType, path, code ) )
 	{
 		LOG_ERROR << LOG_DATE << "  Could not find shader: " << path;
@@ -1241,9 +1297,6 @@ ShaderHandle GR_GetShader( const StringView& path )
 	
 	if( g_Renderer->GetInfo().compileShaders )
 	{
-		String errors;
-		ByteArray comp;
-		
 		if( !g_Renderer->CompileShader( code, comp, errors ) )
 		{
 			LOG_ERROR << LOG_DATE << "  Failed to compile shader: " << path;
@@ -1252,6 +1305,9 @@ ShaderHandle GR_GetShader( const StringView& path )
 			return ShaderHandle();
 		}
 		
+		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderType, path, comp );
+		
+has_compiled_shader:
 		shd = g_Renderer->CreateShader( comp );
 	}
 	else

@@ -98,7 +98,6 @@ struct EXPORT Vec2
 {
 	float x, y;
 	
-#ifdef USE_VEC2
 	static FINLINE Vec2 Create( float x ){ Vec2 v = { x, x }; return v; }
 	static FINLINE Vec2 Create( float x, float y ){ Vec2 v = { x, y }; return v; }
 	static FINLINE Vec2 CreateFromAngle( float a, float d = 1.0f ){ Vec2 v = { cos( a ) * d, sin( a ) * d }; return v; }
@@ -160,10 +159,8 @@ struct EXPORT Vec2
 			arch.marker( "Vec2" );
 		arch << x << y;
 	}
-#endif
 };
 
-#ifdef USE_VEC2
 FINLINE Vec2 operator + ( float f, const Vec2& v ){ Vec2 out = { f + v.x, f + v.y }; return out; }
 FINLINE Vec2 operator - ( float f, const Vec2& v ){ Vec2 out = { f - v.x, f - v.y }; return out; }
 FINLINE Vec2 operator * ( float f, const Vec2& v ){ Vec2 out = { f * v.x, f * v.y }; return out; }
@@ -172,22 +169,16 @@ FINLINE Vec2 operator / ( float f, const Vec2& v ){ Vec2 out = { f / v.x, f / v.
 FINLINE Vec2 V2( float x ){ Vec2 v = { x, x }; return v; }
 FINLINE Vec2 V2( float x, float y ){ Vec2 v = { x, y }; return v; }
 FINLINE float Vec2Dot( const Vec2& v1, const Vec2& v2 ){ return v1.x * v2.x + v1.y * v2.y; }
-#endif
 
 
 //
 // VEC3
 //
 
-#ifdef USE_MAT4
-#define USE_VEC3
-#endif
-
 struct EXPORT Vec3
 {
 	float x, y, z;
 	
-#ifdef USE_VEC3
 	static FINLINE Vec3 Create( float x ){ Vec3 v = { x, x, x }; return v; }
 	static FINLINE Vec3 Create( float x, float y, float z ){ Vec3 v = { x, y, z }; return v; }
 	static FINLINE Vec3 CreateFromPtr( const float* x ){ Vec3 v = { x[0], x[1], x[2] }; return v; }
@@ -247,10 +238,8 @@ struct EXPORT Vec3
 	FINLINE void Set( float _x, float _y, float _z ){ x = _x; y = _y; z = _z; }
 	FINLINE void SetXY( const Vec2& xy ){ x = xy.x; y = xy.y; }
 	FINLINE Vec2 ToVec2() const { Vec2 v = { x, y }; return v; }
-#endif
 };
 
-#ifdef USE_VEC3
 FINLINE Vec3 operator + ( float f, const Vec3& v ){ Vec3 out = { f + v.x, f + v.y, f + v.z }; return out; }
 FINLINE Vec3 operator - ( float f, const Vec3& v ){ Vec3 out = { f - v.x, f - v.y, f - v.z }; return out; }
 FINLINE Vec3 operator * ( float f, const Vec3& v ){ Vec3 out = { f * v.x, f * v.y, f * v.z }; return out; }
@@ -269,7 +258,6 @@ FINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 	};
 	return out;
 }
-#endif
 
 
 //
