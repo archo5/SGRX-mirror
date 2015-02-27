@@ -272,6 +272,16 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 		}
 		_HandleMouseMove( true );
 	}
+	else if( eev->type == SDL_MOUSEWHEEL )
+	{
+		if( m_hover )
+		{
+			EDGUIEvent e = { EDGUI_EVENT_MOUSEWHEEL, m_hover };
+			e.mouse.x = eev->wheel.x;
+			e.mouse.y = eev->wheel.y;
+			m_hover->BubblingEvent( &e );
+		}
+	}
 	else if( eev->type == SDL_MOUSEBUTTONUP || eev->type == SDL_MOUSEBUTTONDOWN )
 	{
 		int btn = eev->button.button;
@@ -367,6 +377,40 @@ void EDGUIFrame::Draw()
 {
 	EDGUIEvent ev = { EDGUI_EVENT_PAINT, this };
 	OnEvent( &ev );
+}
+
+bool EDGUIFrame::PushScissorRect( int _x0, int _y0, int _x1, int _y1 )
+{
+	Rect last;
+	if( m_rects.size() )
+		last = m_rects.last();
+	else
+	{
+		last.x0 = x0;
+		last.y0 = y0;
+		last.x1 = x1;
+		last.y1 = y1;
+	}
+	if( last.x1 <= _x0 || _x1 <= last.x0 || last.y1 <= _y0 || _y1 <= last.y0 )
+		return false;
+	Rect R = { TMAX( _x0, last.x0 ), TMAX( _y0, last.y0 ), TMIN( _x1, last.x1 ), TMIN( _y1, last.y1 ) };
+	m_rects.push_back( R );
+	GR2D_GetBatchRenderer().Flush();
+	GR2D_SetScissorRect( R.x0, R.y0, R.x1, R.y1 );
+	return true;
+}
+
+void EDGUIFrame::PopScissorRect()
+{
+	GR2D_GetBatchRenderer().Flush();
+	m_rects.pop_back();
+	if( m_rects.size() )
+	{
+		Rect last = m_rects.last();
+		GR2D_SetScissorRect( last.x0, last.y0, last.x1, last.y1 );
+	}
+	else
+		GR2D_UnsetScissorRect();
 }
 
 void EDGUIFrame::_HandleMouseMove( bool optional )
@@ -1060,6 +1104,12 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 		_FindHL();
 		break;
 		
+	case EDGUI_EVENT_MOUSEWHEEL:
+		m_scrollOffset -= e->mouse.y * 32;
+		m_scrollOffset = GetScrollOffset();
+		_FindHL();
+		break;
+		
 	case EDGUI_EVENT_BTNCLICK:
 		if( m_hlfiltered != -1 )
 		{
@@ -1072,6 +1122,7 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 		
 	case EDGUI_EVENT_PAINT:
 		{
+			int soff = GetScrollOffset();
 			BatchRenderer& br = GR2D_GetBatchRenderer();
 			br.UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1 );
 			br.Colu( textColor );
@@ -1079,20 +1130,27 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			if( caption.size() )
 				GR2D_DrawTextLine( x1 - 32, y0 + 32, caption, HALIGN_RIGHT, VALIGN_TOP );
 			GR2D_DrawTextLine( 32, 32, String_Concat( "Type to search: ", m_searchString ) );
-			if( m_horCount )
+			if( m_horCount && m_frame->PushScissorRect( cx0, cy0, cx1, cy1 ) )
 			{
-				for( size_t i = 0; i < m_filtered.size(); ++i )
+				size_t i = 0;
+				while( ( i + 1 ) * m_itemHeight < soff )
+					i++;
+				i *= m_horCount;
+				for( ; i < m_filtered.size(); ++i )
 				{
 					int tx = i % m_horCount;
 					int ty = i / m_horCount;
 					int rx0 = cx0 + tx * m_itemWidth;
-					int ry0 = cy0 + ty * m_itemHeight;
+					int ry0 = cy0 + ty * m_itemHeight - soff;
+					if( ry0 > cy1 )
+						break;
 					int rx1 = rx0 + m_itemWidth;
 					int ry1 = ry0 + m_itemHeight;
 					br.Colu( m_hlfiltered == m_filtered[ i ] ? EDGUI_THEME_RSRCPICK_ITEM_BACKHL_COLOR : EDGUI_THEME_RSRCPICK_ITEM_BACK_COLOR );
 					br.UnsetTexture().Quad( rx0, ry0, rx1, ry1 );
 					_DrawItem( m_filtered[ i ], rx0, ry0, rx1, ry1 );
 				}
+				m_frame->PopScissorRect();
 			}
 		}
 		return 1;
@@ -1136,8 +1194,11 @@ void EDGUIRsrcPicker::Open( EDGUIItem* owner, const StringView& val )
 
 void EDGUIRsrcPicker::Close()
 {
+	EDGUIFrame* frame = m_frame;
 	if( m_parent )
 		m_parent->Remove( this );
+	if( frame )
+		frame->_HandleMouseMove( false );
 	m_owner = NULL;
 }
 
@@ -1165,6 +1226,7 @@ void EDGUIRsrcPicker::Zoom( float z )
 
 void EDGUIRsrcPicker::_FindHL()
 {
+	int soff = GetScrollOffset();
 	m_hlfiltered = -1;
 	if( m_horCount )
 	{
@@ -1173,7 +1235,7 @@ void EDGUIRsrcPicker::_FindHL()
 			int tx = i % m_horCount;
 			int ty = i / m_horCount;
 			int rx0 = cx0 + tx * m_itemWidth;
-			int ry0 = cy0 + ty * m_itemHeight;
+			int ry0 = cy0 + ty * m_itemHeight - soff;
 			int rx1 = rx0 + m_itemWidth;
 			int ry1 = ry0 + m_itemHeight;
 			if( m_mouseX >= rx0 && m_mouseX < rx1 &&
@@ -1203,6 +1265,19 @@ void EDGUIRsrcPicker::_Search( const StringView& str )
 		}
 	}
 	_FindHL();
+}
+
+int EDGUIRsrcPicker::GetScrollOffset()
+{
+	if( !m_horCount )
+		return 0;
+	int so = m_scrollOffset;
+	int fullsz = divideup( m_filtered.size(), m_horCount ) * m_itemHeight - ( cy1 - cy0 );
+	if( so > fullsz )
+		so = fullsz;
+	if( so < 0 )
+		so = 0;
+	return so;
 }
 
 void EDGUIRsrcPicker::_OnChangeZoom()

@@ -64,6 +64,7 @@
 #define EDGUI_EVENT_BTNDOWN    13
 #define EDGUI_EVENT_BTNUP      14
 #define EDGUI_EVENT_BTNCLICK   15
+#define EDGUI_EVENT_MOUSEWHEEL 16
 #define EDGUI_EVENT_PROPEDIT   21
 #define EDGUI_EVENT_PROPCHANGE 22
 #define EDGUI_EVENT_SETFOCUS   31
@@ -184,12 +185,17 @@ struct EXPORT EDGUIItem
 
 struct EXPORT EDGUIFrame : EDGUIItem
 {
+	struct Rect { int x0, y0, x1, y1; };
+	
 	EDGUIFrame();
 	virtual int OnEvent( EDGUIEvent* e );
 	
 	void EngineEvent( const Event* eev );
 	void Resize( int w, int h, int x = 0, int y = 0 );
 	void Draw();
+	
+	bool PushScissorRect( int x0, int y0, int x1, int y1 );
+	void PopScissorRect();
 	
 	void _HandleMouseMove( bool optional );
 	EDGUIItem* _GetItemAtPosition( int x, int y );
@@ -207,6 +213,7 @@ struct EXPORT EDGUIFrame : EDGUIItem
 	int m_lastClickedButton;
 	EDGUIItem* m_lastClickItem;
 	Array< EDGUIItem* > m_hoverTrail;
+	Array< Rect > m_rects;
 };
 
 struct EXPORT EDGUILayoutRow : EDGUIItem
@@ -302,6 +309,7 @@ struct EXPORT EDGUIRsrcPicker : EDGUIItem
 	void Zoom( float z );
 	void _FindHL();
 	void _Search( const StringView& str );
+	int GetScrollOffset();
 	virtual void _OnChangeZoom();
 	virtual void _OnPickResource();
 	virtual void _OnConfirm();

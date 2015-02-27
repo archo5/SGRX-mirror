@@ -165,6 +165,8 @@ struct EXPORT IRenderer
 	
 	virtual void SetWorldMatrix( const Mat4& mtx ) = 0;
 	virtual void SetViewMatrix( const Mat4& mtx ) = 0;
+	virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
+	virtual void SetScissorRect( bool enable, int* rect ) = 0;
 	
 	virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
 	virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;

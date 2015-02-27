@@ -404,6 +404,8 @@ struct D3D9Renderer : IRenderer
 	
 	void SetWorldMatrix( const Mat4& mtx );
 	void SetViewMatrix( const Mat4& mtx );
+	void SetViewport( int x0, int y0, int x1, int y1 );
+	void SetScissorRect( bool enable, int* rect );
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
@@ -675,6 +677,22 @@ void D3D9Renderer::SetViewMatrix( const Mat4& mtx )
 	Mat4 mfx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
 	m_proj = Mat4().Multiply( mtx, mfx );
 	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
+}
+
+void D3D9Renderer::SetScissorRect( bool enable, int* rect )
+{
+	m_dev->SetRenderState( D3DRS_SCISSORTESTENABLE, enable );
+	if( rect )
+	{
+		RECT r = { rect[0], rect[1], rect[2], rect[3] };
+		m_dev->SetScissorRect( &r );
+	}
+}
+
+void D3D9Renderer::SetViewport( int x0, int y0, int x1, int y1 )
+{
+	D3DVIEWPORT9 vp = { x0, y0, x1 - x0, y1 - y0, 0.0, 1.0 };
+	m_dev->SetViewport( &vp );
 }
 
 

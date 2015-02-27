@@ -700,6 +700,7 @@ struct EXPORT BatchRenderer
 	FINLINE BatchRenderer& Colu( uint32_t c ){ return Colb( COLOR_EXTRACT_R( c ), COLOR_EXTRACT_G( c ), COLOR_EXTRACT_B( c ), COLOR_EXTRACT_A( c ) ); }
 	FINLINE BatchRenderer& Tex( float x, float y ){ m_proto.u = x; m_proto.v = y; return *this; }
 	FINLINE BatchRenderer& Pos( float x, float y, float z = 0.0f ){ m_proto.x = x; m_proto.y = y; m_proto.z = z; AddVertex( m_proto ); return *this; }
+	FINLINE BatchRenderer& Pos( const Vec2& pos, float z = 0.0f ){ return Pos( pos.x, pos.y, z ); }
 	FINLINE BatchRenderer& Pos( const Vec3& pos ){ return Pos( pos.x, pos.y, pos.z ); }
 	
 	BatchRenderer& Prev( int i );
@@ -707,6 +708,7 @@ struct EXPORT BatchRenderer
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
 	FINLINE BatchRenderer& Box( float x, float y, float w, float h, float z = 0 ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h, z ); }
 	BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
+	BatchRenderer& TexLine( const Vec2& p0, const Vec2& p1, float rad );
 	BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );
 	BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
 	
@@ -775,6 +777,10 @@ EXPORT RenderStats& GR_GetRenderStats();
 
 EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
 EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
+EXPORT void GR2D_SetViewport( int x0, int y0, int x1, int y1 );
+EXPORT void GR2D_UnsetViewport();
+EXPORT void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 );
+EXPORT void GR2D_UnsetScissorRect();
 EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
 EXPORT void GR2D_SetColor( float r, float g, float b, float a = 1.0f );
 inline void GR2D_SetColor( float x, float a ){ GR2D_SetColor( x, x, x, a ); }

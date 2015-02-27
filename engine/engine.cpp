@@ -1912,6 +1912,27 @@ void GR2D_SetViewMatrix( const Mat4& mtx )
 	g_Renderer->SetViewMatrix( mtx );
 }
 
+void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 )
+{
+	int rect[4] = { x0, y0, x1, y1 };
+	g_Renderer->SetScissorRect( true, rect );
+}
+
+void GR2D_SetViewport( int x0, int y0, int x1, int y1 )
+{
+	g_Renderer->SetViewport( x0, y0, x1, y1 );
+}
+
+void GR2D_UnsetViewport()
+{
+	g_Renderer->SetViewport( 0, 0, GR_GetWidth(), GR_GetHeight() );
+}
+
+void GR2D_UnsetScissorRect()
+{
+	g_Renderer->SetScissorRect( false, NULL );
+}
+
 bool GR2D_SetFont( const StringView& name, int pxsize )
 {
 	return g_FontRenderer->SetFont( name, pxsize );
@@ -2044,6 +2065,36 @@ BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy, f
 	Prev( 0 );
 	Tex( 0, 1 ); Pos( x + dx - tx, y + dy - ty, z );
 	Prev( 4 );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::TexLine( const Vec2& p0, const Vec2& p1, float rad )
+{
+	SetPrimitiveType( PT_Triangles );
+	Vec2 D = ( p1 - p0 ).Normalized();
+	Vec2 T = D.Perp();
+	
+	Tex( 0   , 0 ); Pos( p0 + ( -D +T ) * rad );
+	Tex( 0.5f, 0 ); Pos( p0 + (    +T ) * rad );
+	Tex( 0.5f, 1 ); Pos( p0 + (    -T ) * rad );
+	Prev( 0 ); // #4 requesting #3
+	Tex( 0   , 1 ); Pos( p0 + ( -D -T ) * rad );
+	Prev( 4 ); // #6 requesting #1
+	
+	Prev( 4 ); // #7 requesting #2
+	Tex( 0.5f, 0 ); Pos( p1 + (    +T ) * rad );
+	Tex( 0.5f, 1 ); Pos( p1 + (    -T ) * rad );
+	Prev( 0 ); // #10 requesting #9
+	Prev( 7 ); // #11 requesting #3
+	Prev( 9 ); // #12 requesting #2
+	
+	Prev( 4 ); // #13 requesting #8
+	Tex( 1   , 0 ); Pos( p1 + ( +D +T ) * rad );
+	Tex( 1   , 1 ); Pos( p1 + ( +D -T ) * rad );
+	Prev( 0 ); // #16 requesting #15
+	Prev( 7 ); // #17 requesting #9
+	Prev( 9 ); // #18 requesting #8
+	
 	return *this;
 }
 
