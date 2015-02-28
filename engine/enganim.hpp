@@ -114,3 +114,74 @@ EXPORT AnimHandle GR_GetAnim( const StringView& name );
 EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
 
 
+
+struct EXPORT ParticleSystem
+{
+	struct Emitter
+	{
+		struct Curve
+		{
+			enum Mode { Off = 0, Up = 1, Down = 2, Bidi = 3 };
+			
+			Array< Vec2 > values;
+			int mode;
+		};
+		
+		Array< Vec3 > particles_Position;
+		Array< Vec3 > particles_Velocity;
+		Array< Vec2 > particles_Lifetime;
+		Array< Vec2 > particles_RandSizeAngle;
+		Array< Vec4 > particles_RandColor;
+		
+		Curve curve_Size;
+		Curve curve_ColorHue;
+		Curve curve_ColorSat;
+		Curve curve_ColorVal;
+		Curve curve_Opacity;
+		
+		int spawn_MaxCount;
+		int spawn_Count;
+		int spawn_CountExt;
+		Vec2 spawn_TimeExt;
+		int spawn_CurrCount;
+		float spawn_CurrTime;
+		
+		Vec3 create_PosBox;
+		float create_PosRadius;
+		Vec3 create_VelMicroDir;
+		float create_VelMicroDvg;
+		Vec2 create_VelMicroDistExt;
+		Vec3 create_VelMacroDir;
+		float create_VelMacroDvg;
+		Vec2 create_VelMacroDistExt;
+		int create_VelClusterMin;
+		int create_VelClusterMax;
+		Vec2 create_LifetimeExt;
+		Vec2 create_AngleDirDvg;
+		
+		Vec2 tick_AngleVelAcc;
+		
+		TextureHandle render_Texture;
+		ShaderHandle render_Shader;
+		Array< Vec4 > render_ShaderConsts;
+		bool render_Additive;
+		bool render_Stretch;
+		
+		int state_SpawnCount;
+		float state_SpawnTime;
+		
+		void Tick( float dt );
+		void Generate( int count );
+	};
+	
+	MeshHandle m_mesh;
+	MeshInstHandle m_meshInstances;
+	
+	void Tick( float dt );
+	void PreRender();
+	void Trigger();
+	void Play();
+	void Stop();
+};
+
+

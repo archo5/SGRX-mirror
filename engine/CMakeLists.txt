@@ -22,7 +22,7 @@ list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/SDL2.dll
 
 # Engine
 add_library( sgrx-core SHARED
-	engine edgui image font mesh culling utils dds
+	engine enganim edgui image font mesh culling utils dds
 	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
 	../ext/src/libpng1
 	../ext/src/libjpg1 ../ext/src/libjpg2 ../ext/src/libjpg3
