@@ -1,5 +1,6 @@
 
 
+#define USE_VEC4
 #define USE_QUAT
 #define USE_MAT4
 #define USE_ARRAY
@@ -352,5 +353,349 @@ bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 	return true;
 }
 
+
+void ParticleSystem::Emitter::Tick( float dt, const Vec3& accel, const Mat4& mtx )
+{
+	if( state_SpawnCurrCount < state_SpawnTotalCount )
+	{
+		state_SpawnCurrTime = clamp( state_SpawnCurrTime + dt, 0, state_SpawnTotalTime );
+		int currcount = state_SpawnCurrTime / state_SpawnTotalTime * state_SpawnTotalCount;
+		if( state_SpawnCurrCount < currcount )
+		{
+			Generate( currcount - state_SpawnCurrCount, mtx );
+			state_SpawnCurrCount = currcount;
+		}
+	}
+	
+	for( size_t i = 0; i < particles_Position.size(); ++i )
+	{
+		Vec2& LT = particles_Lifetime[ i ];
+		LT.x += LT.y * dt;
+		if( LT.x >= 1 )
+		{
+			// remove particle
+			particles_Position.uerase( i );
+			particles_Velocity.uerase( i );
+			particles_Lifetime.uerase( i );
+			particles_RandSizeAngle.uerase( i );
+			particles_RandColor.uerase( i );
+			i--;
+			continue;
+		}
+		Vec3& P = particles_Position[ i ];
+		Vec3& V = particles_Velocity[ i ];
+		V += accel * dt;
+		P += V * dt;
+	}
+}
+
+
+static FINLINE Vec3 _ps_rotate( const Vec3& v, const Vec3& axis, float angle )
+{
+	// http://en.wikipedia.org/wiki/Axis–angle_representation#Rotating_a_vector
+	
+	float cos_a = cos( angle );
+	float sin_a = sin( angle );
+	Vec3 cross = Vec3Cross( axis, v );
+	float dot = Vec3Dot( axis, v );
+	
+	return cos_a * v + sin_a * cross + ( 1 - cos_a ) * dot * axis;
+}
+
+static FINLINE Vec3 _ps_diverge( const Vec3& dir, float dvg )
+{
+	float baseangle = randf() * M_PI * 2;
+	float rotangle = randf() * M_PI * dvg;
+	Vec3 axis = { cos( baseangle ), sin( baseangle ), 0 };
+	
+	return _ps_rotate( dir, axis, rotangle );
+}
+
+static FINLINE int randi( int x )
+{
+	if( !x )
+		return 0;
+	return rand() % x;
+}
+
+void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
+{
+	Vec3 velMicroDir = create_VelMicroDir.Normalized();
+	Vec3 velMacroDir = create_VelMacroDir.Normalized();
+	
+	int clusterleft = 0;
+	float clusterdist = 0;
+	Vec3 clusteraxis = {0,0,0};
+	float clusterangle = 0;
+	
+	int allocpos = 0;
+	
+	for( int i = 0; i < count; ++i )
+	{
+		if( clusterleft <= 0 )
+		{
+			clusterleft = create_VelCluster + randi( create_VelClusterExt );
+			clusterdist = create_VelMacroDistExt.x + create_VelMacroDistExt.y * randf();
+			Vec3 clusterdir = _ps_diverge( velMacroDir, create_VelMacroDvg );
+			clusteraxis = Vec3Cross( V3(0,0,1), clusterdir ).Normalized();
+			clusterangle = Vec3Dot( V3(0,0,1), clusterdir );
+		}
+		clusterleft--;
+		
+		// Lifetime
+		float LT = create_LifetimeExt.x + create_LifetimeExt.y * randf();
+		if( LT <= 0 )
+			continue;
+		Vec2 LTV = { 0, 1.0f / LT };
+		
+		// Position
+		Vec3 P = create_Pos;
+		P += V3( create_PosBox.x * randf(), create_PosBox.y * randf(), create_PosBox.z * randf() );
+		float pos_ang = randf() * M_PI * 2, pos_zang = randf() * M_PI, pos_len = randf() * create_PosRadius;
+		float cos_zang = cos( pos_zang ), sin_zang = sin( pos_zang );
+		P += V3( cos( pos_ang ) * sin_zang, sin( pos_ang ) * sin_zang, cos_zang );
+		
+		// Velocity
+		Vec3 V = _ps_diverge( velMicroDir, create_VelMicroDvg );
+		V = _ps_rotate( V, clusteraxis, clusterangle );
+		V *= clusterdist + create_VelMicroDistExt.x + create_VelMicroDistExt.y * randf();
+		
+		// Angle
+		float A = create_AngleDirDvg.x + create_AngleDirDvg.y * randf11();
+		
+		// absolute positioning
+		if( absolute )
+		{
+			P = mtx.TransformPos( P );
+			V = mtx.TransformNormal( V );
+		}
+		
+		// size, angle
+		Vec2 randSA = { randf(), create_AngleDirDvg.x + create_AngleDirDvg.y * randf11() };
+		// color [HSV], opacity
+		Vec4 randHSVO = { randf(), randf(), randf(), randf() };
+		
+		if( particles_Position.size() < spawn_MaxCount )
+		{
+			particles_Position.push_back( P );
+			particles_Velocity.push_back( V );
+			particles_Lifetime.push_back( LTV );
+			particles_RandSizeAngle.push_back( randSA );
+			particles_RandColor.push_back( randHSVO );
+		}
+		else
+		{
+			int i = ( allocpos++ ) % spawn_MaxCount;
+			particles_Position[ i ] = P;
+			particles_Velocity[ i ] = V;
+			particles_Lifetime[ i ] = LTV;
+			particles_RandSizeAngle[ i ] = randSA;
+			particles_RandColor[ i ] = randHSVO;
+		}
+	}
+}
+
+void ParticleSystem::Emitter::Trigger( const Mat4& mtx )
+{
+	state_SpawnTotalCount = spawn_Count + randi( spawn_CountExt );
+	state_SpawnCurrCount = 0;
+	state_SpawnTotalTime = spawn_TimeExt.x + spawn_TimeExt.y * randf();
+	state_SpawnCurrTime = 0;
+	if( state_SpawnTotalTime == 0 )
+	{
+		Generate( state_SpawnTotalCount, mtx );
+		state_SpawnCurrCount += state_SpawnTotalCount;
+	}
+}
+
+void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint16_t >& indices, const Mat4& transform, const Vec3 axes[2] )
+{
+	const Vec3 S_X = axes[0];
+	const Vec3 S_Y = axes[1];
+	
+	for( size_t i = 0; i < particles_Position.size(); ++i )
+	{
+		// step 1: extract data
+		Vec3 POS = particles_Position[ i ];
+		Vec3 VEL = particles_Velocity[ i ];
+		Vec2 LFT = particles_Lifetime[ i ];
+		Vec2 RSA = particles_RandSizeAngle[ i ];
+		Vec4 RCO = particles_RandColor[ i ];
+		
+		if( !absolute )
+		{
+			POS = transform.TransformPos( POS );
+			VEL = transform.TransformNormal( VEL );
+		}
+		
+		// step 2: fill in the missing data
+		float q = LFT.x;
+		float t = LFT.x / LFT.y;
+		float ANG = RSA.y + ( tick_AngleVelAcc.x + tick_AngleVelAcc.y * t ) * t;
+		float SIZ = curve_Size.GetValue( q, RSA.x );
+		Vec4 COL = V4
+		(
+			HSV(
+				V3(
+					curve_ColorHue.GetValue( q, RCO.x ),
+					curve_ColorSat.GetValue( q, RCO.y ),
+					curve_ColorVal.GetValue( q, RCO.z )
+				)
+			),
+			curve_Opacity.GetValue( q, RCO.w )
+		);
+		
+		// step 3: generate vertex/index data
+		uint16_t cv = vertices.size();
+		uint16_t idcs[6] = { cv, cv+1, cv+2, cv+2, cv+3, cv };
+		indices.append( idcs, 6 );
+		
+		Vertex verts[4] =
+		{
+			{ POS + ( -S_X -S_Y ) * SIZ, COL,   0,   0, 0 },
+			{ POS + ( +S_X -S_Y ) * SIZ, COL, 255,   0, 0 },
+			{ POS + ( +S_X +S_Y ) * SIZ, COL, 255, 255, 0 },
+			{ POS + ( -S_X +S_Y ) * SIZ, COL,   0, 255, 0 },
+		};
+		vertices.append( verts, 4 );
+	}
+}
+
+
+void ParticleSystem::OnRenderUpdate()
+{
+	if( !m_vdecl )
+		m_vdecl = GR_GetVertexDecl( PARTICLE_VDECL );
+	
+	if( !m_mesh )
+		m_mesh = GR_CreateMesh();
+	
+	m_mesh->m_dataFlags |= MDF_TRANSPARENT;
+	
+	SGRX_MeshPart meshparts[ MAX_MESH_PARTS ];
+	int numparts = 0;
+	
+	for( size_t i = 0; i < emitters.size() && numparts < MAX_MESH_PARTS; ++i )
+	{
+		Emitter& E = emitters[ i ];
+		
+		SGRX_MeshPart MP = { 0, 0, 0, 0 };
+		strncpy( MP.shader_name, E.render_Shader.data(), TMIN( E.render_Shader.size(), (size_t) SHADER_NAME_LENGTH - 1 ) );
+		for( int t = 0; t < NUM_MATERIAL_TEXTURES; ++t )
+			MP.textures[ t ] = E.render_Textures[ t ];
+		
+		meshparts[ numparts++ ] = MP;
+	}
+	
+	m_mesh->SetPartData( meshparts, numparts );
+}
+
+void ParticleSystem::AddToScene( SceneHandle sh )
+{
+	if( !m_vdecl )
+		m_vdecl = GR_GetVertexDecl( PARTICLE_VDECL );
+	
+	m_scene = sh;
+	
+	if( !m_mesh )
+		m_mesh = GR_CreateMesh();
+	
+	if( !m_meshInst )
+	{
+		m_meshInst = sh->CreateMeshInstance();
+		m_meshInst->mesh = m_mesh;
+	}
+}
+
+void ParticleSystem::SetTransform( const Mat4& mtx )
+{
+	ASSERT( m_meshInst );
+	
+	transform = mtx;
+	m_meshInst->matrix = mtx;
+}
+
+void ParticleSystem::Tick( float dt )
+{
+	float prevrt = m_retriggerTime;
+	m_retriggerTime -= dt;
+	if( m_retriggerTime <= 0 && prevrt > 0 )
+	{
+		Trigger();
+		m_retriggerTime = looping ? ( retriggerTimeExt.x + retriggerTimeExt.y * randf() ) : 0;
+	}
+	
+	for( size_t i = 0; i < emitters.size(); ++i )
+	{
+		emitters[ i ].Tick( dt, gravity, transform );
+	}
+}
+
+void ParticleSystem::PreRender()
+{
+	if( !m_scene )
+		return;
+	
+	const Mat4& invmtx = m_scene->camera.mInvView;
+	const Vec3 axes[2] = { invmtx.TransformNormal( V3(1,0,0) ), invmtx.TransformNormal( V3(0,1,0) ) };
+	
+	m_vertices.clear();
+	m_indices.clear();
+	
+	for( size_t i = 0; i < TMIN( emitters.size(), (size_t) MAX_MESH_PARTS ); ++i )
+	{
+		SGRX_MeshPart& MP = m_mesh->m_parts[ i ];
+		MP.vertexOffset = m_vertices.size();
+		MP.indexOffset = m_indices.size();
+		
+		emitters[ i ].PreRender( m_vertices, m_indices, transform, axes );
+		
+		MP.vertexCount = m_vertices.size() - MP.vertexOffset;
+		MP.indexCount = m_indices.size() - MP.indexOffset;
+	}
+	
+	if( m_vertices.size() )
+	{
+		if( m_vertices.size_bytes() > m_mesh->m_vertexDataSize )
+			m_mesh->SetVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
+		else
+			m_mesh->UpdateVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
+		m_mesh->SetAABBFromVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl );
+	}
+	
+	if( m_indices.size() )
+	{
+		if( m_indices.size_bytes() > m_mesh->m_indexDataSize )
+			m_mesh->SetIndexData( m_indices.data(), m_indices.size_bytes(), false );
+		else
+			m_mesh->UpdateIndexData( m_indices.data(), m_indices.size_bytes() );
+	}
+}
+
+void ParticleSystem::Trigger()
+{
+	for( size_t i = 0; i < emitters.size(); ++i )
+	{
+		emitters[ i ].Trigger( transform );
+	}
+}
+
+void ParticleSystem::Play()
+{
+	if( !m_isPlaying )
+	{
+		m_isPlaying = true;
+		m_retriggerTime = 0.00001f;
+	}
+}
+
+void ParticleSystem::Stop()
+{
+	if( m_isPlaying )
+	{
+		m_isPlaying = false;
+		m_retriggerTime = 0;
+	}
+}
 
 

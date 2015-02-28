@@ -947,6 +947,12 @@ struct Array
 			}
 		return removed;
 	}
+	void uerase( size_t i )
+	{
+		if( i < size() - 1 )
+			m_data[ i ] = m_data[ m_size - 1 ];
+		pop_back();
+	}
 	
 	FINLINE void reverse()
 	{

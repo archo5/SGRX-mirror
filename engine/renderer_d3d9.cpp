@@ -1056,7 +1056,8 @@ SGRX_IVertexDecl* D3D9Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		elements[ i ].UsageIndex = vdeclusage_to_elusageindex[ vdinfo.usages[ i ] ];
 		if( vdinfo.usages[ i ] == VDECLUSAGE_BLENDIDX && vdinfo.types[ i ] == VDECLTYPE_BCOL4 )
 			elements[ i ].Type = D3DDECLTYPE_UBYTE4;
-		if( vdinfo.usages[ i ] == VDECLUSAGE_BLENDWT && vdinfo.types[ i ] == VDECLTYPE_BCOL4 )
+		if( ( vdinfo.usages[ i ] == VDECLUSAGE_BLENDWT || elements[ i ].Usage == D3DDECLUSAGE_TEXCOORD )
+			&& vdinfo.types[ i ] == VDECLTYPE_BCOL4 )
 			elements[ i ].Type = D3DDECLTYPE_UBYTE4N;
 	}
 	memcpy( elements + vdinfo.count, end, sizeof(*end) );
