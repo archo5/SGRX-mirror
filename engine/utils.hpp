@@ -1560,6 +1560,7 @@ struct ByteReader
 {
 	ByteReader( ByteArray* ba, size_t p = 0 ) : input( ba ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 0, IsBinary = 1 };
+	FINLINE ByteReader& operator << ( bool& v ){ uint8_t u; _read( &u, sizeof(u) ); v = !!u; return *this; }
 	FINLINE ByteReader& operator << ( char& v ){ _read( &v, sizeof(v) ); return *this; }
 	FINLINE ByteReader& operator << ( int8_t& v ){ _read( &v, sizeof(v) ); return *this; }
 	FINLINE ByteReader& operator << ( uint8_t& v ){ _read( &v, sizeof(v) ); return *this; }
@@ -1614,6 +1615,7 @@ struct ByteWriter
 {
 	ByteWriter( ByteArray* str ) : output( str ){}
 	enum { IsWriter = 1, IsReader = 0, IsText = 0, IsBinary = 1 };
+	FINLINE ByteWriter& operator << ( bool& v ){ uint8_t u = v?1:0; _write( &u, sizeof(u) ); return *this; }
 	FINLINE ByteWriter& operator << ( char& v ){ _write( &v, sizeof(v) ); return *this; }
 	FINLINE ByteWriter& operator << ( int8_t& v ){ _write( &v, sizeof(v) ); return *this; }
 	FINLINE ByteWriter& operator << ( uint8_t& v ){ _write( &v, sizeof(v) ); return *this; }
@@ -1639,6 +1641,7 @@ struct TextReader
 {
 	TextReader( String* str, size_t p = 0 ) : input( str ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 1, IsBinary = 0 };
+	FINLINE TextReader& operator << ( bool& v ){ v = !!String_ParseInt( _read() ); return *this; }
 	FINLINE TextReader& operator << ( char& v ){ v = String_ParseInt( _read() ); return *this; }
 	FINLINE TextReader& operator << ( int8_t& v ){ v = String_ParseInt( _read() ); return *this; }
 	FINLINE TextReader& operator << ( uint8_t& v ){ v = String_ParseInt( _read() ); return *this; }
@@ -1703,6 +1706,7 @@ struct TextWriter
 {
 	TextWriter( String* str ) : output( str ){}
 	enum { IsWriter = 1, IsReader = 0, IsText = 1, IsBinary = 0 };
+	FINLINE TextWriter& operator << ( bool& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", v?1:0 ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( char& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( int8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( uint8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }

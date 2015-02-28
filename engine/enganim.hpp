@@ -116,6 +116,7 @@ EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
 
 
 #define PARTICLE_VDECL "pf3cf40b4"
+#define NUM_PARTICLE_TEXTURES 4
 
 struct EXPORT ParticleSystem
 {
@@ -137,6 +138,13 @@ struct EXPORT ParticleSystem
 			Array< Vec2 > values;
 			Vec2 randomValDvg;
 			Vec2 valueRange;
+			
+			template< class T > void Serialize( T& arch )
+			{
+				arch << values;
+				arch << randomValDvg;
+				arch << valueRange;
+			}
 			
 			FINLINE float GetValue( float t, float r )
 			{
@@ -189,7 +197,7 @@ struct EXPORT ParticleSystem
 		Vec2 tick_AngleVelAcc;
 		bool absolute;
 		
-		TextureHandle render_Textures[ NUM_MATERIAL_TEXTURES ];
+		TextureHandle render_Textures[ NUM_PARTICLE_TEXTURES ];
 		String render_Shader;
 		bool render_Additive;
 		bool render_Stretch;
@@ -198,18 +206,108 @@ struct EXPORT ParticleSystem
 		int state_SpawnCurrCount;
 		float state_SpawnTotalTime;
 		float state_SpawnCurrTime;
+		float state_lastDelta;
 		
 		Emitter() :
 			spawn_MaxCount(100), spawn_Count(10), spawn_CountExt(2), spawn_TimeExt(V2(1,0.2f)),
 			create_Pos(V3(0)), create_PosBox(V3(0)), create_PosRadius(0),
-			create_VelMicroDir(V3(0,0,1)), create_VelMicroDvg(0), create_VelMicroDistExt(V2(1,0.1f)),
+			create_VelMicroDir(V3(0,0,1)), create_VelMicroDvg(0), create_VelMicroDistExt(V2(0)),
 			create_VelMacroDir(V3(0,0,1)), create_VelMacroDvg(0), create_VelMacroDistExt(V2(1,0.1f)),
 			create_VelCluster(1), create_VelClusterExt(0),
-			create_LifetimeExt(V2(10,0.1f)), create_AngleDirDvg(V2(0,M_PI)),
+			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,M_PI)),
 			tick_AngleVelAcc(V2(0)), absolute(false),
 			render_Shader("particle"), render_Additive(false), render_Stretch(false),
-			state_SpawnTotalCount(0), state_SpawnCurrCount(0), state_SpawnTotalTime(0), state_SpawnCurrTime(0)
+			state_SpawnTotalCount(0), state_SpawnCurrCount(0), state_SpawnTotalTime(0), state_SpawnCurrTime(0),
+			state_lastDelta(0)
 		{}
+		
+		template< class T > void Serialize( T& arch, bool incl_state )
+		{
+			arch.marker( "EMITTER" );
+			
+			arch << curve_Size;
+			arch << curve_ColorHue;
+			arch << curve_ColorSat;
+			arch << curve_ColorVal;
+			arch << curve_Opacity;
+			
+			arch << spawn_MaxCount;
+			arch << spawn_Count;
+			arch << spawn_CountExt;
+			arch << spawn_TimeExt;
+			
+			arch << create_Pos;
+			arch << create_PosBox;
+			arch << create_PosRadius;
+			arch << create_VelMicroDir;
+			arch << create_VelMicroDvg;
+			arch << create_VelMicroDistExt;
+			arch << create_VelMacroDir;
+			arch << create_VelMacroDvg;
+			arch << create_VelMacroDistExt;
+			arch << create_VelCluster;
+			arch << create_VelClusterExt;
+			arch << create_LifetimeExt;
+			arch << create_AngleDirDvg;
+			
+			arch << tick_AngleVelAcc;
+			arch << absolute;
+			
+			for( int i = 0; i < NUM_PARTICLE_TEXTURES; ++i )
+			{
+				if( T::IsReader )
+				{
+					bool hastex = false;
+					arch << hastex;
+					if( hastex )
+					{
+						String texname;
+						arch << texname;
+						render_Textures[ i ] = GR_GetTexture( texname );
+					}
+				}
+				else
+				{
+					bool hastex = !!render_Textures[0];
+					arch << hastex;
+					if( hastex )
+						arch << render_Textures[0]->m_key;
+				}
+			}
+			arch << render_Shader;
+			arch << render_Additive;
+			arch << render_Stretch;
+			
+			if( incl_state )
+			{
+				arch << state_SpawnTotalCount;
+				arch << state_SpawnCurrCount;
+				arch << state_SpawnTotalTime;
+				arch << state_SpawnCurrTime;
+				arch << state_lastDelta;
+				
+				arch << particles_Position;
+				arch << particles_Velocity;
+				arch << particles_Lifetime;
+				arch << particles_RandSizeAngle;
+				arch << particles_RandColor;
+			}
+			else if( T::IsReader )
+			{
+				// clear state on read data
+				state_SpawnTotalCount = 0;
+				state_SpawnCurrCount = 0;
+				state_SpawnTotalTime = 0;
+				state_SpawnCurrTime = 0;
+				state_lastDelta = 0;
+				
+				particles_Position.clear();
+				particles_Velocity.clear();
+				particles_Lifetime.clear();
+				particles_RandSizeAngle.clear();
+				particles_RandColor.clear();
+			}
+		}
 		
 		void Tick( float dt, const Vec3& accel, const Mat4& mtx );
 		void Generate( int count, const Mat4& mtx );
@@ -238,6 +336,48 @@ struct EXPORT ParticleSystem
 		gravity(V3(0,0,-10)), transform(Mat4::Identity), looping(true), retriggerTimeExt(V2(1,0.1f)),
 		m_isPlaying(false), m_retriggerTime(0)
 	{}
+	
+	template< class T > void Serialize( T& arch, bool incl_state )
+	{
+		arch.marker( "SGRX_PARTSYS" );
+		
+		uint32_t emcnt = 0;
+		if( T::IsReader )
+		{
+			arch << emcnt;
+			emitters.resize( emcnt );
+		}
+		else
+		{
+			emcnt = emitters.size();
+			arch << emcnt;
+		}
+		for( uint32_t i = 0; i < emcnt; ++i )
+		{
+			emitters[ i ].Serialize( arch, incl_state );
+		}
+		
+		arch << gravity;
+		arch << transform;
+		arch << looping;
+		arch << retriggerTimeExt;
+		
+		if( incl_state )
+		{
+			arch << m_isPlaying;
+			arch << m_retriggerTime;
+		}
+		else if( T::IsReader )
+		{
+			m_isPlaying = false;
+			m_retriggerTime = 0;
+		}
+		
+		if( T::IsReader )
+			OnRenderUpdate();
+	}
+	bool Load( const StringView& sv );
+	bool Save( const StringView& sv );
 	
 	void OnRenderUpdate();
 	void AddToScene( SceneHandle sh );

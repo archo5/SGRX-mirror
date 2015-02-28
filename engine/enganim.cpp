@@ -387,6 +387,8 @@ void ParticleSystem::Emitter::Tick( float dt, const Vec3& accel, const Mat4& mtx
 		V += accel * dt;
 		P += V * dt;
 	}
+	
+	state_lastDelta = dt;
 }
 
 
@@ -438,7 +440,7 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 			clusterdist = create_VelMacroDistExt.x + create_VelMacroDistExt.y * randf();
 			Vec3 clusterdir = _ps_diverge( velMacroDir, create_VelMacroDvg );
 			clusteraxis = Vec3Cross( V3(0,0,1), clusterdir ).Normalized();
-			clusterangle = Vec3Dot( V3(0,0,1), clusterdir );
+			clusterangle = acos( clamp( Vec3Dot( V3(0,0,1), clusterdir ), -1, 1 ) );
 		}
 		clusterleft--;
 		
@@ -512,6 +514,7 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 {
 	const Vec3 S_X = axes[0];
 	const Vec3 S_Y = axes[1];
+	const Vec3 S_Z = Vec3Cross( S_X, S_Y );
 	
 	for( size_t i = 0; i < particles_Position.size(); ++i )
 	{
@@ -546,21 +549,71 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 		);
 		
 		// step 3: generate vertex/index data
-		uint16_t cv = vertices.size();
-		uint16_t idcs[6] = { cv, cv+1, cv+2, cv+2, cv+3, cv };
-		indices.append( idcs, 6 );
-		
-		Vertex verts[4] =
+		if( render_Stretch )
 		{
-			{ POS + ( -S_X -S_Y ) * SIZ, COL,   0,   0, 0 },
-			{ POS + ( +S_X -S_Y ) * SIZ, COL, 255,   0, 0 },
-			{ POS + ( +S_X +S_Y ) * SIZ, COL, 255, 255, 0 },
-			{ POS + ( -S_X +S_Y ) * SIZ, COL,   0, 255, 0 },
-		};
-		vertices.append( verts, 4 );
+			uint16_t cv = vertices.size();
+			uint16_t idcs[18] =
+			{
+				cv+0, cv+2, cv+3, cv+3, cv+1, cv+0,
+				cv+2, cv+4, cv+5, cv+5, cv+3, cv+2,
+				cv+4, cv+6, cv+7, cv+7, cv+5, cv+4,
+			};
+			indices.append( idcs, 18 );
+			
+			Vec3 P_2 = POS - VEL * state_lastDelta * 10;
+			Vec3 DIR3D = ( POS - P_2 ).Normalized();
+			Vec3 D_X = ( DIR3D - Vec3Dot( S_Z, DIR3D ) * S_Z ).Normalized();
+			Vec3 D_Y = -Vec3Cross( S_Z, D_X ).Normalized();
+			
+			Vertex verts[8] =
+			{
+				{ P_2 + ( -S_X -S_Y ) * SIZ, COL,   0,   0, 0 },
+				{ P_2 + ( -S_X +S_Y ) * SIZ, COL,   0, 255, 0 },
+				{ P_2 + (      -S_Y ) * SIZ, COL, 127,   0, 0 },
+				{ P_2 + (      +S_Y ) * SIZ, COL, 127, 255, 0 },
+				{ POS + (      -S_Y ) * SIZ, COL, 127,   0, 0 },
+				{ POS + (      +S_Y ) * SIZ, COL, 127, 255, 0 },
+				{ POS + ( +S_X -S_Y ) * SIZ, COL, 255,   0, 0 },
+				{ POS + ( +S_X +S_Y ) * SIZ, COL, 255, 255, 0 },
+			};
+			vertices.append( verts, 8 );
+		}
+		else
+		{
+			uint16_t cv = vertices.size();
+			uint16_t idcs[6] = { cv, cv+1, cv+2, cv+2, cv+3, cv };
+			indices.append( idcs, 6 );
+			
+			Vertex verts[4] =
+			{
+				{ POS + ( -S_X -S_Y ) * SIZ, COL,   0,   0, 0 },
+				{ POS + ( +S_X -S_Y ) * SIZ, COL, 255,   0, 0 },
+				{ POS + ( +S_X +S_Y ) * SIZ, COL, 255, 255, 0 },
+				{ POS + ( -S_X +S_Y ) * SIZ, COL,   0, 255, 0 },
+			};
+			vertices.append( verts, 4 );
+		}
 	}
 }
 
+
+bool ParticleSystem::Load( const StringView& sv )
+{
+	ByteArray ba;
+	if( !LoadBinaryFile( sv, ba ) )
+		return false;
+	ByteReader br( &ba );
+	Serialize( br, false );
+	return !br.error;
+}
+
+bool ParticleSystem::Save( const StringView& sv )
+{
+	ByteArray ba;
+	ByteWriter bw( &ba );
+	Serialize( bw, false );
+	return SaveBinaryFile( sv, ba.data(), ba.size() );
+}
 
 void ParticleSystem::OnRenderUpdate()
 {
@@ -581,7 +634,7 @@ void ParticleSystem::OnRenderUpdate()
 		
 		SGRX_MeshPart MP = { 0, 0, 0, 0 };
 		strncpy( MP.shader_name, E.render_Shader.data(), TMIN( E.render_Shader.size(), (size_t) SHADER_NAME_LENGTH - 1 ) );
-		for( int t = 0; t < NUM_MATERIAL_TEXTURES; ++t )
+		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
 			MP.textures[ t ] = E.render_Textures[ t ];
 		
 		meshparts[ numparts++ ] = MP;
