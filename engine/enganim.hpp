@@ -129,6 +129,14 @@ struct EXPORT ParticleSystem
 		uint16_t pad;
 	};
 	
+	struct ps_prerender_info
+	{
+		SceneHandle scene;
+		Mat4 transform;
+		Mat4 viewProj;
+		Vec3 basis[3];
+	};
+	
 	struct Emitter
 	{
 		struct Curve
@@ -165,7 +173,7 @@ struct EXPORT ParticleSystem
 		Array< Vec3 > particles_Position;
 		Array< Vec3 > particles_Velocity;
 		Array< Vec2 > particles_Lifetime; // 0-1, increment
-		Array< Vec2 > particles_RandSizeAngle;
+		Array< Vec3 > particles_RandSizeAngVel;
 		Array< Vec4 > particles_RandColor; // HSV, opacity
 		
 		Curve curve_Size;
@@ -192,9 +200,9 @@ struct EXPORT ParticleSystem
 		int create_VelClusterExt;
 		Vec2 create_LifetimeExt;
 		Vec2 create_AngleDirDvg;
+		Vec2 create_AngleVelDvg;
 		
-		// calculated at rendering time using x = x0 + ( v + a * t ) * t
-		Vec2 tick_AngleVelAcc;
+		float tick_AngleAcc;
 		bool absolute;
 		
 		TextureHandle render_Textures[ NUM_PARTICLE_TEXTURES ];
@@ -214,8 +222,8 @@ struct EXPORT ParticleSystem
 			create_VelMicroDir(V3(0,0,1)), create_VelMicroDvg(0), create_VelMicroDistExt(V2(0)),
 			create_VelMacroDir(V3(0,0,1)), create_VelMacroDvg(0), create_VelMacroDistExt(V2(1,0.1f)),
 			create_VelCluster(1), create_VelClusterExt(0),
-			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,M_PI)),
-			tick_AngleVelAcc(V2(0)), absolute(false),
+			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,M_PI)), create_AngleVelDvg(V2(0)),
+			tick_AngleAcc(0), absolute(false),
 			render_Shader("particle"), render_Additive(false), render_Stretch(false),
 			state_SpawnTotalCount(0), state_SpawnCurrCount(0), state_SpawnTotalTime(0), state_SpawnCurrTime(0),
 			state_lastDelta(0)
@@ -249,8 +257,9 @@ struct EXPORT ParticleSystem
 			arch << create_VelClusterExt;
 			arch << create_LifetimeExt;
 			arch << create_AngleDirDvg;
+			arch << create_AngleVelDvg;
 			
-			arch << tick_AngleVelAcc;
+			arch << tick_AngleAcc;
 			arch << absolute;
 			
 			for( int i = 0; i < NUM_PARTICLE_TEXTURES; ++i )
@@ -268,10 +277,10 @@ struct EXPORT ParticleSystem
 				}
 				else
 				{
-					bool hastex = !!render_Textures[0];
+					bool hastex = !!render_Textures[ i ];
 					arch << hastex;
 					if( hastex )
-						arch << render_Textures[0]->m_key;
+						arch << render_Textures[ i ]->m_key;
 				}
 			}
 			arch << render_Shader;
@@ -289,7 +298,7 @@ struct EXPORT ParticleSystem
 				arch << particles_Position;
 				arch << particles_Velocity;
 				arch << particles_Lifetime;
-				arch << particles_RandSizeAngle;
+				arch << particles_RandSizeAngVel;
 				arch << particles_RandColor;
 			}
 			else if( T::IsReader )
@@ -304,7 +313,7 @@ struct EXPORT ParticleSystem
 				particles_Position.clear();
 				particles_Velocity.clear();
 				particles_Lifetime.clear();
-				particles_RandSizeAngle.clear();
+				particles_RandSizeAngVel.clear();
 				particles_RandColor.clear();
 			}
 		}
@@ -313,7 +322,7 @@ struct EXPORT ParticleSystem
 		void Generate( int count, const Mat4& mtx );
 		void Trigger( const Mat4& mtx );
 		
-		void PreRender( Array< Vertex >& vertices, Array< uint16_t >& indices, const Mat4& transform, const Vec3 axes[2] );
+		void PreRender( Array< Vertex >& vertices, Array< uint16_t >& indices, ps_prerender_info& info );
 	};
 	
 	Array< Emitter > emitters;

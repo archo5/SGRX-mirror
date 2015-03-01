@@ -1132,9 +1132,13 @@ struct StringView
 				return true;
 		return false;
 	}
+	FINLINE bool starts_with( const StringView& substr ) const
+	{
+		return m_size >= substr.m_size && !memcmp( m_str, substr.m_str, substr.m_size );
+	}
 	FINLINE bool ends_with( const StringView& substr ) const
 	{
-		return m_size > substr.m_size && !memcmp( m_str + m_size - substr.m_size, substr.m_str, substr.m_size );
+		return m_size >= substr.m_size && !memcmp( m_str + m_size - substr.m_size, substr.m_str, substr.m_size );
 	}
 	
 	FINLINE StringView part( size_t start, size_t count = NOT_FOUND ) const

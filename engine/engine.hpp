@@ -682,6 +682,8 @@ struct EXPORT BatchRenderer
 	};
 	struct State
 	{
+		State() : primType(PT_None){}
+		
 		TextureHandle texture;
 		ShaderHandle shader;
 		EPrimitiveType primType;

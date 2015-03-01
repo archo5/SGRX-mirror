@@ -365,6 +365,7 @@ struct EXPORT EDGUIPropBool : EDGUIProperty
 {
 	EDGUIPropBool( bool def = false );
 	virtual int OnEvent( EDGUIEvent* e );
+	void SetValue( int v ){ m_value = v; }
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; }
 	

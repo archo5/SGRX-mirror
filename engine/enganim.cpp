@@ -377,7 +377,7 @@ void ParticleSystem::Emitter::Tick( float dt, const Vec3& accel, const Mat4& mtx
 			particles_Position.uerase( i );
 			particles_Velocity.uerase( i );
 			particles_Lifetime.uerase( i );
-			particles_RandSizeAngle.uerase( i );
+			particles_RandSizeAngVel.uerase( i );
 			particles_RandColor.uerase( i );
 			i--;
 			continue;
@@ -452,10 +452,10 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 		
 		// Position
 		Vec3 P = create_Pos;
-		P += V3( create_PosBox.x * randf(), create_PosBox.y * randf(), create_PosBox.z * randf() );
+		P += V3( create_PosBox.x * randf11(), create_PosBox.y * randf11(), create_PosBox.z * randf11() );
 		float pos_ang = randf() * M_PI * 2, pos_zang = randf() * M_PI, pos_len = randf() * create_PosRadius;
 		float cos_zang = cos( pos_zang ), sin_zang = sin( pos_zang );
-		P += V3( cos( pos_ang ) * sin_zang, sin( pos_ang ) * sin_zang, cos_zang );
+		P += V3( cos( pos_ang ) * sin_zang, sin( pos_ang ) * sin_zang, cos_zang ) * pos_len;
 		
 		// Velocity
 		Vec3 V = _ps_diverge( velMicroDir, create_VelMicroDvg );
@@ -473,7 +473,12 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 		}
 		
 		// size, angle
-		Vec2 randSA = { randf(), create_AngleDirDvg.x + create_AngleDirDvg.y * randf11() };
+		Vec3 randSAV =
+		{
+			randf(),
+			create_AngleDirDvg.x + create_AngleDirDvg.y * randf11(),
+			create_AngleVelDvg.x + create_AngleVelDvg.y * randf11()
+		};
 		// color [HSV], opacity
 		Vec4 randHSVO = { randf(), randf(), randf(), randf() };
 		
@@ -482,7 +487,7 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 			particles_Position.push_back( P );
 			particles_Velocity.push_back( V );
 			particles_Lifetime.push_back( LTV );
-			particles_RandSizeAngle.push_back( randSA );
+			particles_RandSizeAngVel.push_back( randSAV );
 			particles_RandColor.push_back( randHSVO );
 		}
 		else
@@ -491,7 +496,7 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 			particles_Position[ i ] = P;
 			particles_Velocity[ i ] = V;
 			particles_Lifetime[ i ] = LTV;
-			particles_RandSizeAngle[ i ] = randSA;
+			particles_RandSizeAngVel[ i ] = randSAV;
 			particles_RandColor[ i ] = randHSVO;
 		}
 	}
@@ -510,11 +515,14 @@ void ParticleSystem::Emitter::Trigger( const Mat4& mtx )
 	}
 }
 
-void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint16_t >& indices, const Mat4& transform, const Vec3 axes[2] )
+
+void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint16_t >& indices, ps_prerender_info& info )
 {
-	const Vec3 S_X = axes[0];
-	const Vec3 S_Y = axes[1];
-	const Vec3 S_Z = Vec3Cross( S_X, S_Y );
+	const Vec3 S_X = info.basis[0];
+	const Vec3 S_Y = info.basis[1];
+	const Vec3 S_Z = info.basis[2];
+	
+	size_t bv = vertices.size();
 	
 	for( size_t i = 0; i < particles_Position.size(); ++i )
 	{
@@ -522,20 +530,20 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 		Vec3 POS = particles_Position[ i ];
 		Vec3 VEL = particles_Velocity[ i ];
 		Vec2 LFT = particles_Lifetime[ i ];
-		Vec2 RSA = particles_RandSizeAngle[ i ];
+		Vec3 SAV = particles_RandSizeAngVel[ i ];
 		Vec4 RCO = particles_RandColor[ i ];
 		
 		if( !absolute )
 		{
-			POS = transform.TransformPos( POS );
-			VEL = transform.TransformNormal( VEL );
+			POS = info.transform.TransformPos( POS );
+			VEL = info.transform.TransformNormal( VEL );
 		}
 		
 		// step 2: fill in the missing data
 		float q = LFT.x;
 		float t = LFT.x / LFT.y;
-		float ANG = RSA.y + ( tick_AngleVelAcc.x + tick_AngleVelAcc.y * t ) * t;
-		float SIZ = curve_Size.GetValue( q, RSA.x );
+		float ANG = SAV.y + ( SAV.z + tick_AngleAcc * t ) * t;
+		float SIZ = curve_Size.GetValue( q, SAV.x );
 		Vec4 COL = V4
 		(
 			HSV(
@@ -551,7 +559,7 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 		// step 3: generate vertex/index data
 		if( render_Stretch )
 		{
-			uint16_t cv = vertices.size();
+			uint16_t cv = vertices.size() - bv;
 			uint16_t idcs[18] =
 			{
 				cv+0, cv+2, cv+3, cv+3, cv+1, cv+0,
@@ -560,36 +568,45 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 			};
 			indices.append( idcs, 18 );
 			
-			Vec3 P_2 = POS - VEL * state_lastDelta * 10;
-			Vec3 DIR3D = ( POS - P_2 ).Normalized();
-			Vec3 D_X = ( DIR3D - Vec3Dot( S_Z, DIR3D ) * S_Z ).Normalized();
-			Vec3 D_Y = -Vec3Cross( S_Z, D_X ).Normalized();
+			Vec3 P_2 = POS - VEL * state_lastDelta;
+			
+			Vec2 proj1 = info.viewProj.TransformPos( POS ).ToVec2();
+			Vec2 proj2 = info.viewProj.TransformPos( P_2 ).ToVec2();
+			Vec2 dir2d = ( proj2 - proj1 ).Normalized();
+			
+			// invert Y
+			Vec3 D_X = ( S_X * dir2d.x - S_Y * dir2d.y ).Normalized();
+			Vec3 D_Y = Vec3Cross( S_Z, D_X ).Normalized();
 			
 			Vertex verts[8] =
 			{
-				{ P_2 + ( -S_X -S_Y ) * SIZ, COL,   0,   0, 0 },
-				{ P_2 + ( -S_X +S_Y ) * SIZ, COL,   0, 255, 0 },
-				{ P_2 + (      -S_Y ) * SIZ, COL, 127,   0, 0 },
-				{ P_2 + (      +S_Y ) * SIZ, COL, 127, 255, 0 },
-				{ POS + (      -S_Y ) * SIZ, COL, 127,   0, 0 },
-				{ POS + (      +S_Y ) * SIZ, COL, 127, 255, 0 },
-				{ POS + ( +S_X -S_Y ) * SIZ, COL, 255,   0, 0 },
-				{ POS + ( +S_X +S_Y ) * SIZ, COL, 255, 255, 0 },
+				{ P_2 + ( -D_X -D_Y ) * SIZ, COL,   0,   0, 0 },
+				{ P_2 + ( -D_X +D_Y ) * SIZ, COL,   0, 255, 0 },
+				{ P_2 + (      -D_Y ) * SIZ, COL, 127,   0, 0 },
+				{ P_2 + (      +D_Y ) * SIZ, COL, 127, 255, 0 },
+				{ POS + (      -D_Y ) * SIZ, COL, 127,   0, 0 },
+				{ POS + (      +D_Y ) * SIZ, COL, 127, 255, 0 },
+				{ POS + ( +D_X -D_Y ) * SIZ, COL, 255,   0, 0 },
+				{ POS + ( +D_X +D_Y ) * SIZ, COL, 255, 255, 0 },
 			};
 			vertices.append( verts, 8 );
 		}
 		else
 		{
-			uint16_t cv = vertices.size();
+			uint16_t cv = vertices.size() - bv;
 			uint16_t idcs[6] = { cv, cv+1, cv+2, cv+2, cv+3, cv };
 			indices.append( idcs, 6 );
 			
+			float ang = M_PI + ANG;
+			Vec3 RSX = _ps_rotate( S_X, S_Z, ang );
+			Vec3 RSY = _ps_rotate( S_Y, S_Z, ang );
+			
 			Vertex verts[4] =
 			{
-				{ POS + ( -S_X -S_Y ) * SIZ, COL,   0,   0, 0 },
-				{ POS + ( +S_X -S_Y ) * SIZ, COL, 255,   0, 0 },
-				{ POS + ( +S_X +S_Y ) * SIZ, COL, 255, 255, 0 },
-				{ POS + ( -S_X +S_Y ) * SIZ, COL,   0, 255, 0 },
+				{ POS + ( -RSX -RSY ) * SIZ, COL,   0,   0, 0 },
+				{ POS + ( +RSX -RSY ) * SIZ, COL, 255,   0, 0 },
+				{ POS + ( +RSX +RSY ) * SIZ, COL, 255, 255, 0 },
+				{ POS + ( -RSX +RSY ) * SIZ, COL,   0, 255, 0 },
 			};
 			vertices.append( verts, 4 );
 		}
@@ -690,7 +707,17 @@ void ParticleSystem::PreRender()
 		return;
 	
 	const Mat4& invmtx = m_scene->camera.mInvView;
-	const Vec3 axes[2] = { invmtx.TransformNormal( V3(1,0,0) ), invmtx.TransformNormal( V3(0,1,0) ) };
+	ps_prerender_info info =
+	{
+		m_scene,
+		transform,
+		m_scene->camera.mView * m_scene->camera.mProj,
+		{
+			invmtx.TransformNormal( V3(1,0,0) ),
+			invmtx.TransformNormal( V3(0,1,0) ),
+			invmtx.TransformNormal( V3(0,0,1) )
+		}
+	};
 	
 	m_vertices.clear();
 	m_indices.clear();
@@ -701,7 +728,7 @@ void ParticleSystem::PreRender()
 		MP.vertexOffset = m_vertices.size();
 		MP.indexOffset = m_indices.size();
 		
-		emitters[ i ].PreRender( m_vertices, m_indices, transform, axes );
+		emitters[ i ].PreRender( m_vertices, m_indices, info );
 		
 		MP.vertexCount = m_vertices.size() - MP.vertexOffset;
 		MP.indexCount = m_indices.size() - MP.indexOffset;
