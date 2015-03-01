@@ -623,7 +623,7 @@ struct EXPORT LightTree
 	
 	void Clear(){ m_samples.clear(); m_tris.clear(); m_triadj.clear(); m_adjdata.clear(); }
 	void InsertSamples( const Sample* samples, size_t count );
-	void Interpolate( Sample& S );
+	void Interpolate( Sample& S, int32_t* outlastfound = NULL );
 	
 	Array< Sample > m_samples;
 	Array< int32_t > m_tris; // 3 x triangle count

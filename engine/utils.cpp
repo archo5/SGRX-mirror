@@ -163,20 +163,41 @@ const Mat4 Mat4::Identity =
 
 float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 )
 {
+	// plane
 	Vec3 nrm = Vec3Cross( t1 - t0, t2 - t0 ).Normalized();
+	float pd = fabsf( Vec3Dot( nrm, pt ) - Vec3Dot( nrm, t0 ) );
+	
+	// tangents
+	Vec3 tan0 = ( t1 - t0 ).Normalized();
+	Vec3 tan1 = ( t2 - t1 ).Normalized();
+	Vec3 tan2 = ( t0 - t2 ).Normalized();
+	
+	// bounds
+	float t0p = Vec3Dot( tan0, pt ), t0min = Vec3Dot( tan0, t0 ), t0max = Vec3Dot( tan0, t1 );
+	float t1p = Vec3Dot( tan1, pt ), t1min = Vec3Dot( tan1, t1 ), t1max = Vec3Dot( tan1, t2 );
+	float t2p = Vec3Dot( tan2, pt ), t2min = Vec3Dot( tan2, t2 ), t2max = Vec3Dot( tan2, t0 );
+	
+	// check corners
+	if( t0min >= t0p && t2max <= t2p ) return ( pt - t0 ).Length();
+	if( t1min >= t1p && t0max <= t0p ) return ( pt - t1 ).Length();
+	if( t2min >= t2p && t1max <= t1p ) return ( pt - t2 ).Length();
+	
+	// edge normals
 	Vec3 en0 = Vec3Cross( t1 - t0, nrm ).Normalized();
 	Vec3 en1 = Vec3Cross( t2 - t1, nrm ).Normalized();
 	Vec3 en2 = Vec3Cross( t0 - t2, nrm ).Normalized();
-	float pd = fabsf( Vec3Dot( nrm, pt ) - Vec3Dot( nrm, t0 ) );
+	
+	// signed distances from edges
 	float ptd0 = Vec3Dot( en0, pt ) - Vec3Dot( en0, t0 );
 	float ptd1 = Vec3Dot( en1, pt ) - Vec3Dot( en1, t1 );
 	float ptd2 = Vec3Dot( en2, pt ) - Vec3Dot( en2, t2 );
-	if( ptd0 > 0 && ptd1 > 0 ) return ( pt - t1 ).Length();
-	if( ptd1 > 0 && ptd2 > 0 ) return ( pt - t2 ).Length();
-	if( ptd2 > 0 && ptd0 > 0 ) return ( pt - t0 ).Length();
-	if( ptd0 > 0 ) return V2( pd, ptd0 ).Length();
-	if( ptd1 > 0 ) return V2( pd, ptd1 ).Length();
-	if( ptd2 > 0 ) return V2( pd, ptd2 ).Length();
+	
+	// check edges
+	if( ptd0 >= 0 && t0p >= t0min && t0p <= t0max ) return V2( pd, ptd0 ).Length();
+	if( ptd1 >= 0 && t1p >= t1min && t1p <= t1max ) return V2( pd, ptd1 ).Length();
+	if( ptd2 >= 0 && t2p >= t2min && t2p <= t2max ) return V2( pd, ptd2 ).Length();
+	
+	// inside
 	return pd;
 }
 
@@ -1017,6 +1038,7 @@ int TestSystems()
 	if( !CLOSE( PointTriangleDistance( V3(-1,-1,0), tri0[0], tri0[1], tri0[2] ), V3(-1,-1,0).Length() ) ) return 803;
 	if( !CLOSE( PointTriangleDistance( V3(-1,0.5f,0), tri0[0], tri0[1], tri0[2] ), 1 ) ) return 804;
 	if( !CLOSE( PointTriangleDistance( V3(0.5f,-1,0), tri0[0], tri0[1], tri0[2] ), 1 ) ) return 805;
+	if( !CLOSE( PointTriangleDistance( V3(3,-1,0), tri0[0], tri0[1], tri0[2] ), V3(1,-1,0).Length() ) ) return 806;
 	
 	return 0;
 }

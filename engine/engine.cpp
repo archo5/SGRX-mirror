@@ -1111,7 +1111,7 @@ static inline void _interpolate_s4( LightTree::Sample& out, const LightTree::Sam
 	}
 }
 
-void LightTree::Interpolate( Sample& S )
+void LightTree::Interpolate( Sample& S, int32_t* outlastfound )
 {
 	if( m_samples.size() > 4 )
 	{
@@ -1141,6 +1141,9 @@ void LightTree::Interpolate( Sample& S )
 				}
 			}
 		}
+		
+		if( outlastfound )
+			*outlastfound = tri;
 		
 		// point on triangle, interpolate
 	//	if( min_tri_dist < SMALL_FLOAT )
