@@ -710,9 +710,13 @@ struct EXPORT BatchRenderer
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
 	FINLINE BatchRenderer& Box( float x, float y, float w, float h, float z = 0 ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h, z ); }
 	BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
+	BatchRenderer& Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy );
 	BatchRenderer& TexLine( const Vec2& p0, const Vec2& p1, float rad );
 	BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );
 	BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
+	BatchRenderer& CircleOutline( const Vec3& pos, const Vec3& dx, const Vec3& dy, int verts );
+	BatchRenderer& SphereOutline( const Vec3& pos, float radius, int verts );
+	BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
 	
 	bool CheckSetTexture( const TextureHandle& tex );
 	BatchRenderer& SetTexture( const TextureHandle& tex );

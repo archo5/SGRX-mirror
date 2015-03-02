@@ -1729,6 +1729,18 @@ BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy, f
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy )
+{
+	SetPrimitiveType( PT_Triangles );
+	Tex( 0, 0 ); Pos( pos + dx + dy );
+	Tex( 1, 0 ); Pos( pos - dx + dy );
+	Tex( 1, 1 ); Pos( pos - dx - dy );
+	Prev( 0 );
+	Tex( 0, 1 ); Pos( pos + dx - dy );
+	Prev( 4 );
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::TexLine( const Vec2& p0, const Vec2& p1, float rad )
 {
 	SetPrimitiveType( PT_Triangles );
@@ -1795,6 +1807,50 @@ BatchRenderer& BatchRenderer::CircleOutline( float x, float y, float r, float z,
 		}
 		Prev( verts - 1 );
 	}
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::CircleOutline( const Vec3& pos, const Vec3& dx, const Vec3& dy, int verts )
+{
+	if( verts >= 3 )
+	{
+		SetPrimitiveType( PT_LineStrip );
+		float a = 0;
+		float ad = M_PI * 2.0f / verts;
+		for( int i = 0; i < verts; ++i )
+		{
+			Pos( pos + sin( a ) * dx + cos( a ) * dy );
+			a += ad;
+		}
+		Prev( verts - 1 );
+	}
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::SphereOutline( const Vec3& pos, float radius, int verts )
+{
+	CircleOutline( pos, V3(radius,0,0), V3(0,radius,0), verts );
+	CircleOutline( pos, V3(0,radius,0), V3(0,0,radius), verts );
+	CircleOutline( pos, V3(0,0,radius), V3(radius,0,0), verts );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform )
+{
+	Vec3 pp[8] =
+	{
+		transform.TransformPos( V3(bbmin.x,bbmin.y,bbmin.z) ), transform.TransformPos( V3(bbmax.x,bbmin.y,bbmin.z) ),
+		transform.TransformPos( V3(bbmin.x,bbmax.y,bbmin.z) ), transform.TransformPos( V3(bbmax.x,bbmax.y,bbmin.z) ),
+		transform.TransformPos( V3(bbmin.x,bbmin.y,bbmax.z) ), transform.TransformPos( V3(bbmax.x,bbmin.y,bbmax.z) ),
+		transform.TransformPos( V3(bbmin.x,bbmax.y,bbmax.z) ), transform.TransformPos( V3(bbmax.x,bbmax.y,bbmax.z) ),
+	};
+	SetPrimitiveType( PT_Lines );
+	// X
+	Pos( pp[0] ); Pos( pp[1] ); Pos( pp[2] ); Pos( pp[3] ); Pos( pp[4] ); Pos( pp[5] ); Pos( pp[6] ); Pos( pp[7] );
+	// Y
+	Pos( pp[0] ); Pos( pp[2] ); Pos( pp[1] ); Pos( pp[3] ); Pos( pp[4] ); Pos( pp[6] ); Pos( pp[5] ); Pos( pp[7] );
+	// Z
+	Pos( pp[0] ); Pos( pp[4] ); Pos( pp[1] ); Pos( pp[5] ); Pos( pp[2] ); Pos( pp[6] ); Pos( pp[3] ); Pos( pp[7] );
 	return *this;
 }
 
