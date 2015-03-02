@@ -736,6 +736,9 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	enabled( true ),
 	cpuskin( false ),
 	dynamic( false ),
+	transparent( false ),
+	unlit( false ),
+	additive( false ),
 	_lightbuf_begin( NULL ),
 	_lightbuf_end( NULL ),
 	_refcount( 0 )
@@ -1814,15 +1817,18 @@ BatchRenderer& BatchRenderer::CircleOutline( const Vec3& pos, const Vec3& dx, co
 {
 	if( verts >= 3 )
 	{
-		SetPrimitiveType( PT_LineStrip );
+		SetPrimitiveType( PT_Lines );
 		float a = 0;
 		float ad = M_PI * 2.0f / verts;
 		for( int i = 0; i < verts; ++i )
 		{
+			if( i > 1 )
+				Prev( 0 );
 			Pos( pos + sin( a ) * dx + cos( a ) * dy );
 			a += ad;
 		}
-		Prev( verts - 1 );
+		Prev( 0 );
+		Prev( verts * 2 - 2 );
 	}
 	return *this;
 }
@@ -1832,6 +1838,27 @@ BatchRenderer& BatchRenderer::SphereOutline( const Vec3& pos, float radius, int 
 	CircleOutline( pos, V3(radius,0,0), V3(0,radius,0), verts );
 	CircleOutline( pos, V3(0,radius,0), V3(0,0,radius), verts );
 	CircleOutline( pos, V3(0,0,radius), V3(radius,0,0), verts );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts )
+{
+	if( verts >= 3 )
+	{
+		float q = radius * sin( DEG2RAD( angle ) );
+		Vec3 dx = Vec3Cross(dir,up).Normalized() * q, dy = up.Normalized() * q;
+		
+		SetPrimitiveType( PT_Lines );
+		float a = 0;
+		float ad = M_PI * 2.0f / verts;
+		for( int i = 0; i < verts; ++i )
+		{
+			Pos( pos );
+			Pos( pos + dir * radius + sin( a ) * dx + cos( a ) * dy );
+			a += ad;
+		}
+		CircleOutline( pos + dir * radius, dx, dy, verts );
+	}
 	return *this;
 }
 

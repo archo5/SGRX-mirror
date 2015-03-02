@@ -319,8 +319,6 @@ struct SGRX_Scene;
 #define MDF_INDEX_32      0x01
 #define MDF_TRIANGLESTRIP 0x02
 #define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
-#define MDF_TRANSPARENT   0x10 /* mesh is required to be rendered transparent */
-#define MDF_UNLIT         0x20 /* mesh doesn't require the lighting passes to be applied */
 #define MDF_NOCULL        0x40 /* mesh has culling disabled */
 #define MDF_SKINNED       0x80 /* mesh has bone data (name, offset, parent id) */
 
@@ -521,6 +519,9 @@ struct EXPORT SGRX_MeshInstance
 	uint32_t enabled : 1;
 	uint32_t cpuskin : 1; /* TODO */
 	uint32_t dynamic : 1;
+	uint32_t transparent : 1;
+	uint32_t unlit : 1;
+	uint32_t additive : 1;
 	
 	TextureHandle textures[ MAX_MI_TEXTURES ];
 	Vec4 constants[ MAX_MI_CONSTANTS ];
@@ -716,6 +717,7 @@ struct EXPORT BatchRenderer
 	BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
 	BatchRenderer& CircleOutline( const Vec3& pos, const Vec3& dx, const Vec3& dy, int verts );
 	BatchRenderer& SphereOutline( const Vec3& pos, float radius, int verts );
+	BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts );
 	BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
 	
 	bool CheckSetTexture( const TextureHandle& tex );

@@ -338,8 +338,8 @@ struct EXPORT ParticleSystem
 	Array< uint16_t > m_indices;
 	SceneHandle m_scene;
 	VertexDeclHandle m_vdecl;
-	MeshHandle m_mesh;
-	MeshInstHandle m_meshInst;
+	
+	Array< MeshInstHandle > m_meshInsts;
 	
 	ParticleSystem() :
 		gravity(V3(0,0,-10)), transform(Mat4::Identity), looping(true), retriggerTimeExt(V2(1,0.1f)),

@@ -1657,7 +1657,7 @@ void D3D9Renderer::_RS_Compile_MeshLists()
 		MI->_lightbuf_begin = NULL;
 		MI->_lightbuf_end = NULL;
 		
-		if( !MI->mesh || !MI->enabled || MI->mesh->m_dataFlags & MDF_UNLIT )
+		if( !MI->mesh || !MI->enabled || MI->unlit )
 			continue;
 		MI->_lightbuf_begin = (SGRX_MeshInstLight*) m_inst_light_buf.size();
 		// POINT LIGHTS
@@ -1679,7 +1679,7 @@ void D3D9Renderer::_RS_Compile_MeshLists()
 	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
 	{
 		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
-		if( !MI->mesh || !MI->enabled || MI->mesh->m_dataFlags & MDF_UNLIT )
+		if( !MI->mesh || !MI->enabled || MI->unlit )
 			continue;
 		MI->_lightbuf_begin = (SGRX_MeshInstLight*)( (uintptr_t) MI->_lightbuf_begin + (uintptr_t) m_inst_light_buf.data() );
 		MI->_lightbuf_end = (SGRX_MeshInstLight*)( (uintptr_t) MI->_lightbuf_end + (uintptr_t) m_inst_light_buf.data() );
@@ -1759,7 +1759,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 				D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 				
 				/* if (transparent & want solid) or (solid & want transparent), skip */
-				if( M->m_dataFlags & MDF_TRANSPARENT )
+				if( MI->transparent )
 					continue;
 				
 				MI_ApplyConstants( MI );
@@ -1817,7 +1817,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 		
 		/* if (transparent & want solid) or (solid & want transparent), skip */
-		if( ( ( M->m_dataFlags & MDF_TRANSPARENT ) && mtl_type > 0 ) || ( !( M->m_dataFlags & MDF_TRANSPARENT ) && mtl_type < 0 ) )
+		if( ( MI->transparent && mtl_type > 0 ) || ( !MI->transparent && mtl_type < 0 ) )
 			continue;
 		
 		/* dynamic meshes */
@@ -1940,7 +1940,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			{
 				for( int i = 0; i < MAX_MI_TEXTURES; ++i )
 					SetTexture( 8 + i, MI->textures[ i ] );
-				m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+				m_dev->SetRenderState( D3DRS_DESTBLEND, MI->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
 			}
 			else
 			{

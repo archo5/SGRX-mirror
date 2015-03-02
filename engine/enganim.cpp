@@ -634,30 +634,35 @@ bool ParticleSystem::Save( const StringView& sv )
 
 void ParticleSystem::OnRenderUpdate()
 {
+	if( !m_scene )
+		return;
+	
 	if( !m_vdecl )
 		m_vdecl = GR_GetVertexDecl( PARTICLE_VDECL );
 	
-	if( !m_mesh )
-		m_mesh = GR_CreateMesh();
+	m_meshInsts.resize( emitters.size() );
 	
-	m_mesh->m_dataFlags |= MDF_TRANSPARENT;
-	
-	SGRX_MeshPart meshparts[ MAX_MESH_PARTS ];
-	int numparts = 0;
-	
-	for( size_t i = 0; i < emitters.size() && numparts < MAX_MESH_PARTS; ++i )
+	for( size_t i = 0; i < emitters.size(); ++i )
 	{
 		Emitter& E = emitters[ i ];
+		
+		if( !m_meshInsts[ i ] )
+			m_meshInsts[ i ] = m_scene->CreateMeshInstance();
+		if( !m_meshInsts[ i ]->mesh )
+			m_meshInsts[ i ]->mesh = GR_CreateMesh();
+		
+		m_meshInsts[ i ]->matrix = E.absolute ? transform : Mat4::Identity;
+		m_meshInsts[ i ]->transparent = 1;
+		m_meshInsts[ i ]->additive = E.render_Additive;
+		m_meshInsts[ i ]->unlit = E.render_Additive;
 		
 		SGRX_MeshPart MP = { 0, 0, 0, 0 };
 		strncpy( MP.shader_name, E.render_Shader.data(), TMIN( E.render_Shader.size(), (size_t) SHADER_NAME_LENGTH - 1 ) );
 		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
 			MP.textures[ t ] = E.render_Textures[ t ];
 		
-		meshparts[ numparts++ ] = MP;
+		m_meshInsts[ i ]->mesh->SetPartData( &MP, 1 );
 	}
-	
-	m_mesh->SetPartData( meshparts, numparts );
 }
 
 void ParticleSystem::AddToScene( SceneHandle sh )
@@ -667,22 +672,13 @@ void ParticleSystem::AddToScene( SceneHandle sh )
 	
 	m_scene = sh;
 	
-	if( !m_mesh )
-		m_mesh = GR_CreateMesh();
-	
-	if( !m_meshInst )
-	{
-		m_meshInst = sh->CreateMeshInstance();
-		m_meshInst->mesh = m_mesh;
-	}
+	OnRenderUpdate();
 }
 
 void ParticleSystem::SetTransform( const Mat4& mtx )
 {
-	ASSERT( m_meshInst );
-	
 	transform = mtx;
-	m_meshInst->matrix = mtx;
+	OnRenderUpdate();
 }
 
 void ParticleSystem::Tick( float dt )
@@ -719,36 +715,41 @@ void ParticleSystem::PreRender()
 		}
 	};
 	
-	m_vertices.clear();
-	m_indices.clear();
+	if( m_meshInsts.size() != emitters.size() )
+		OnRenderUpdate();
 	
-	for( size_t i = 0; i < TMIN( emitters.size(), (size_t) MAX_MESH_PARTS ); ++i )
+	for( size_t i = 0; i < emitters.size(); ++i )
 	{
-		SGRX_MeshPart& MP = m_mesh->m_parts[ i ];
-		MP.vertexOffset = m_vertices.size();
-		MP.indexOffset = m_indices.size();
+		MeshHandle mesh = m_meshInsts[ i ]->mesh;
+		
+		m_vertices.clear();
+		m_indices.clear();
+		
+		SGRX_MeshPart& MP = mesh->m_parts[ 0 ];
+		MP.vertexOffset = 0;
+		MP.indexOffset = 0;
 		
 		emitters[ i ].PreRender( m_vertices, m_indices, info );
 		
-		MP.vertexCount = m_vertices.size() - MP.vertexOffset;
-		MP.indexCount = m_indices.size() - MP.indexOffset;
-	}
-	
-	if( m_vertices.size() )
-	{
-		if( m_vertices.size_bytes() > m_mesh->m_vertexDataSize )
-			m_mesh->SetVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
-		else
-			m_mesh->UpdateVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
-		m_mesh->SetAABBFromVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl );
-	}
-	
-	if( m_indices.size() )
-	{
-		if( m_indices.size_bytes() > m_mesh->m_indexDataSize )
-			m_mesh->SetIndexData( m_indices.data(), m_indices.size_bytes(), false );
-		else
-			m_mesh->UpdateIndexData( m_indices.data(), m_indices.size_bytes() );
+		MP.vertexCount = m_vertices.size();
+		MP.indexCount = m_indices.size();
+		
+		if( m_vertices.size() )
+		{
+			if( m_vertices.size_bytes() > mesh->m_vertexDataSize )
+				mesh->SetVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
+			else
+				mesh->UpdateVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
+			mesh->SetAABBFromVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl );
+		}
+		
+		if( m_indices.size() )
+		{
+			if( m_indices.size_bytes() > mesh->m_indexDataSize )
+				mesh->SetIndexData( m_indices.data(), m_indices.size_bytes(), false );
+			else
+				mesh->UpdateIndexData( m_indices.data(), m_indices.size_bytes() );
+		}
 	}
 }
 
