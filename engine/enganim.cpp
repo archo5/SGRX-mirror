@@ -117,15 +117,8 @@ void AnimMixer::Advance( float deltaTime )
 		AN->Advance( deltaTime );
 		
 		int tflags = layers[ layer ].tflags;
-		bool abslayer = ( tflags & TF_Absolute_All ) && mesh;
-		
-		// resolve current state
-		if( abslayer )
-		{
-			GR_ApplyAnimator( this, mesh, m_staging );
-			for( size_t i = 0; i < m_staging.size(); ++i )
-				m_staging[ i ].InvertTo( m_staging[ i ] );
-		}
+		bool abslayer = ( tflags & TF_Absolute_All ) && mesh && mesh->m_numBones == names.size();
+		SGRX_MeshBone* MB = mesh->m_bones;
 		
 		for( int i = 0; i < names.size(); ++i )
 		{
@@ -140,13 +133,25 @@ void AnimMixer::Advance( float deltaTime )
 				Mat4 tfm = Mat4::CreateSRT( S, R, P );
 				
 				// extract diff
-				Mat4 diff = tfm * m_staging[ i ];
-				LOG << diff;
+				Mat4 orig = MB[ i ].boneOffset;
+				if( MB[ i ].parent_id >= 0 )
+				{
+					orig = orig * m_staging[ MB[ i ].parent_id ];
+				}
+				Mat4 inv = Mat4::Identity;
+				orig.InvertTo( inv );
+				Mat4 diff = Mat4::CreateSRT( scale[ i ], rotation[ i ], position[ i ] ) * orig * tfm * inv;
+		//		if( q )
+		//			LOG << i << ":\t" << R;
+			//	if( q )
+			//		LOG << i << ":\t" << diff.GetRotationQuaternion() << rotation[i];
 				
 				// convert back to SRP
 				P = ( tflags & TF_Absolute_Pos ) ? diff.GetTranslation() : position[ i ];
 				R = ( tflags & TF_Absolute_Rot ) ? diff.GetRotationQuaternion() : rotation[ i ];
 				S = ( tflags & TF_Absolute_Scale ) ? diff.GetScale() : scale[ i ];
+				
+				m_staging[ i ] = Mat4::CreateSRT( scale[ i ], rotation[ i ], position[ i ] ) * orig;
 			}
 			
 			if( !factor[ i ] )

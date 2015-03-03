@@ -211,6 +211,7 @@ struct EXPORT Vec3
 	FINLINE bool operator == ( const Vec3& o ) const { return x == o.x && y == o.y && z == o.z; }
 	FINLINE bool operator != ( const Vec3& o ) const { return x != o.x || y != o.y || z != o.z; }
 	
+	FINLINE Vec3 Shuffle() const { Vec3 v = { y, z, -x }; return v; }
 	FINLINE bool IsZero() const { return x == 0 && y == 0 && z == 0; }
 	FINLINE bool NearZero() const { return fabs(x) < SMALL_FLOAT && fabs(y) < SMALL_FLOAT && fabs(z) < SMALL_FLOAT; }
 	FINLINE float LengthSq() const { return x * x + y * y + z * z; }
@@ -257,6 +258,21 @@ FINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 		v1.x * v2.y - v1.y * v2.x,
 	};
 	return out;
+}
+FINLINE float Vec3Angle( const Vec3& v1, const Vec3& v2 ){ return acos( clamp( Vec3Dot( v1.Normalized(), v2.Normalized() ), -1, 1 ) ); }
+inline Vec3 Vec3Slerp( const Vec3& v1, const Vec3& v2, float q )
+{
+	float dot = clamp( Vec3Dot( v1, v2 ), -1, 1 );
+	float ang = acosf( dot ) * q;
+	Vec3 rel = v2 - v1 * dot;
+	rel.Normalize();
+	if( rel.NearZero() )
+	{
+		if( dot > 0 )
+			return TLERP( v1, v2, q );
+		rel = Vec3Cross( rel, rel.Shuffle() ).Normalized();
+	}
+	return v1 * cos( ang ) + rel * sin( ang );
 }
 
 
