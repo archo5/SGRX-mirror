@@ -612,6 +612,19 @@ struct EXPORT Mat4
 		return out;
 	}
 	
+	Vec3 GetTranslation() const
+	{
+		return V3( m[3][0], m[3][1], m[3][2] );
+	}
+	Vec3 GetScale() const
+	{
+		return V3(
+			V3( m[0][0], m[1][0], m[2][0] ).Length(),
+			V3( m[0][1], m[1][1], m[2][1] ).Length(),
+			V3( m[0][2], m[1][2], m[2][2] ).Length()
+		);
+	}
+	Quat GetRotationQuaternion() const;
 	Vec3 GetXYZAngles() const
 	{
 		float q = sqrtf( m[1][2] * m[1][2] + m[2][2] * m[2][2] );

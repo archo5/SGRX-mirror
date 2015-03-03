@@ -93,6 +93,7 @@ AnimMixer::~AnimMixer()
 void AnimMixer::Prepare( String* names, int count )
 {
 	Animator::Prepare( names, count );
+	m_staging.resize( count );
 	for( int i = 0; i < layerCount; ++i )
 	{
 		layers[ i ].anim->Prepare( names, count );
@@ -115,12 +116,38 @@ void AnimMixer::Advance( float deltaTime )
 		Animator* AN = layers[ layer ].anim;
 		AN->Advance( deltaTime );
 		
+		int tflags = layers[ layer ].tflags;
+		bool abslayer = ( tflags & TF_Absolute_All ) && mesh;
+		
+		// resolve current state
+		if( abslayer )
+		{
+			GR_ApplyAnimator( this, mesh, m_staging );
+			for( size_t i = 0; i < m_staging.size(); ++i )
+				m_staging[ i ].InvertTo( m_staging[ i ] );
+		}
+		
 		for( int i = 0; i < names.size(); ++i )
 		{
 			Vec3 P = AN->position[ i ];
 			Quat R = AN->rotation[ i ];
 			Vec3 S = AN->scale[ i ];
 			float q = AN->factor[ i ] * layers[ layer ].factor;
+			
+			if( abslayer )
+			{
+				// to matrix
+				Mat4 tfm = Mat4::CreateSRT( S, R, P );
+				
+				// extract diff
+				Mat4 diff = tfm * m_staging[ i ];
+				LOG << diff;
+				
+				// convert back to SRP
+				P = ( tflags & TF_Absolute_Pos ) ? diff.GetTranslation() : position[ i ];
+				R = ( tflags & TF_Absolute_Rot ) ? diff.GetRotationQuaternion() : rotation[ i ];
+				S = ( tflags & TF_Absolute_Scale ) ? diff.GetScale() : scale[ i ];
+			}
 			
 			if( !factor[ i ] )
 			{
@@ -277,11 +304,11 @@ void GR_ClearFactors( Array< float >& out, float factor )
 	TMEMSET( out.data(), out.size(), factor );
 }
 
-void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor )
+void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch )
 {
 	int subbones[ MAX_MESH_BONES ];
 	int numsb = 0;
-	GR_FindBones( subbones, numsb, mesh, name, true );
+	GR_FindBones( subbones, numsb, mesh, name, ch );
 	for( int i = 0; i < numsb; ++i )
 	{
 		out[ subbones[ i ] ] = factor;
@@ -323,15 +350,12 @@ void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const Stri
 }
 
 
-bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
+bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Array< Mat4 >& out )
 {
-	SGRX_MeshInstance* MI = mih;
-	if( !MI )
-		return false;
-	SGRX_IMesh* mesh = MI->mesh;
+	SGRX_IMesh* mesh = mh;
 	if( !mesh )
 		return false;
-	size_t sz = MI->skin_matrices.size();
+	size_t sz = out.size();
 	if( sz != animator->position.size() )
 		return false;
 	if( sz != mesh->m_numBones )
@@ -340,17 +364,24 @@ bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 	
 	for( size_t i = 0; i < sz; ++i )
 	{
-		Mat4& M = MI->skin_matrices[ i ];
+		Mat4& M = out[ i ];
 		M = Mat4::CreateSRT( animator->scale[ i ], animator->rotation[ i ], animator->position[ i ] ) * MB[ i ].boneOffset;
 		if( MB[ i ].parent_id >= 0 )
-			M = M * MI->skin_matrices[ MB[ i ].parent_id ];
+			M = M * out[ MB[ i ].parent_id ];
 	}
 	for( size_t i = 0; i < sz; ++i )
 	{
-		Mat4& M = MI->skin_matrices[ i ];
+		Mat4& M = out[ i ];
 		M = MB[ i ].invSkinOffset * M;
 	}
 	return true;
+}
+
+bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
+{
+	if( !mih )
+		return false;
+	return GR_ApplyAnimator( animator, mih->mesh, mih->skin_matrices );
 }
 
 

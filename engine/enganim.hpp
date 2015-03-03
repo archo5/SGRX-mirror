@@ -6,7 +6,7 @@
 
 
 EXPORT void GR_ClearFactors( Array< float >& out, float factor );
-EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor );
+EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch = true );
 EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch );
 
 
@@ -49,7 +49,7 @@ struct EXPORT Animator
 	virtual void Advance( float deltaTime ){}
 	
 	void ClearFactors( float f ){ GR_ClearFactors( factor, f ); }
-	void SetFactors( const MeshHandle& mesh, const StringView& name, float f ){ GR_SetFactors( factor, mesh, name, f ); }
+	void SetFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( factor, mesh, name, f, ch ); }
 	
 	Array< String > names;
 	Array< Vec3 > position;
@@ -60,18 +60,31 @@ struct EXPORT Animator
 
 struct EXPORT AnimMixer : Animator
 {
+	enum TransformFlags
+	{
+		TF_None = 0,
+		TF_Absolute_Rot = 0x01,
+		TF_Absolute_Pos = 0x02,
+		TF_Absolute_Scale = 0x04,
+		TF_Absolute_All = (TF_Absolute_Rot|TF_Absolute_Pos|TF_Absolute_Scale),
+	};
+	
 	struct Layer
 	{
-		Layer() : anim(NULL), factor(1){}
+		Layer() : anim(NULL), factor(1), tflags(0){}
 		
 		Animator* anim;
 		float factor;
+		int tflags;
 	};
 	
 	AnimMixer();
 	~AnimMixer();
 	virtual void Prepare( String* names, int count );
 	virtual void Advance( float deltaTime );
+	
+	Array< Mat4 > m_staging;
+	MeshHandle mesh;
 	
 	Layer* layers;
 	int layerCount;
@@ -104,13 +117,14 @@ struct EXPORT AnimPlayer : Animator
 	Array< float > blendFactor;
 	
 	void ClearBlendFactors( float f ){ GR_ClearFactors( blendFactor, f ); }
-	void SetBlendFactors( const MeshHandle& mesh, const StringView& name, float f ){ GR_SetFactors( blendFactor, mesh, name, f ); }
+	void SetBlendFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( blendFactor, mesh, name, f, ch ); }
 };
 
 
 
 EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
 EXPORT AnimHandle GR_GetAnim( const StringView& name );
+EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Array< Mat4 >& out );
 EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
 
 

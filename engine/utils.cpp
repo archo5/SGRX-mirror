@@ -21,6 +21,47 @@
 const Quat Quat::Identity = { 0, 0, 0, 1 };
 
 
+Quat Mat4::GetRotationQuaternion() const
+{
+	Quat Q;
+	float tr = m[0][0] + m[1][1] + m[2][2];
+	
+	if( tr > 0 )
+	{ 
+		float S = sqrtf( tr + 1.0f ) * 2;
+		Q.w = 0.25f * S;
+		Q.x = (m[1][2] - m[2][1]) / S;
+		Q.y = (m[2][0] - m[0][2]) / S; 
+		Q.z = (m[0][1] - m[1][0]) / S; 
+	}
+	else if( ( m[0][0] > m[1][1] ) & ( m[0][0] > m[2][2] ) )
+	{ 
+		float S = sqrtf( 1.0f + m[0][0] - m[1][1] - m[2][2] ) * 2;
+		Q.w = ( m[1][2] - m[2][1] ) / S;
+		Q.x = 0.25f * S;
+		Q.y = ( m[1][0] + m[0][1] ) / S; 
+		Q.z = ( m[2][0] + m[0][2] ) / S; 
+	}
+	else if( m[1][1] > m[2][2] )
+	{ 
+		float S = sqrtf( 1.0f + m[1][1] - m[0][0] - m[2][2] ) * 2;
+		Q.w = ( m[2][0] - m[0][2] ) / S;
+		Q.x = ( m[1][0] + m[0][1] ) / S; 
+		Q.y = 0.25f * S;
+		Q.z = ( m[2][1] + m[1][2] ) / S; 
+	}
+	else
+	{ 
+		float S = sqrtf( 1.0f + m[2][2] - m[0][0] - m[1][1] ) * 2;
+		Q.w = ( m[0][1] - m[1][0] ) / S;
+		Q.x = ( m[2][0] + m[0][2] ) / S;
+		Q.y = ( m[2][1] + m[1][2] ) / S;
+		Q.z = 0.25f * S;
+	}
+	
+	return Q;
+}
+
 bool Mat4::InvertTo( Mat4& out )
 {
 	float inv[16], det;
