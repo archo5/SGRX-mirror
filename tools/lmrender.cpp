@@ -244,6 +244,11 @@ int main( int argc, char* argv[] )
 			for( int i = 0; i < (int) mf_data.numParts; ++i )
 			{
 				const MeshFilePartData& mfpd = mf_data.parts[ i ];
+				if( mfpd.indexCount == 0 || mfpd.vertexCount == 0 )
+				{
+					fprintf( stderr, "[WARNING: mesh has an empty part %d]", i );
+					continue;
+				}
 				
 				ltr_MeshPartInfo mpinfo =
 				{
