@@ -788,6 +788,21 @@ EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& sp
 // COLOR
 //
 
+inline uint32_t Vec4ToCol32( const Vec4& colv4 )
+{
+	return COLOR_RGBA(
+		255 * clamp( colv4.x, 0, 1 ),
+		255 * clamp( colv4.y, 0, 1 ),
+		255 * clamp( colv4.z, 0, 1 ),
+		255 * clamp( colv4.w, 0, 1 )
+	);
+}
+inline Vec4 Col32ToVec4( uint32_t colu32 )
+{
+	Vec4 out = { COLOR_EXTRACT_R( colu32 ), COLOR_EXTRACT_G( colu32 ), COLOR_EXTRACT_B( colu32 ), COLOR_EXTRACT_A( colu32 ) };
+	return out;
+}
+
 // Alt. color interfaces
 // - build from
 inline Vec3 HSV( const Vec3& hsv )
@@ -1098,6 +1113,13 @@ void Array<T>::erase( size_t from, size_t count )
 	m_size -= count;
 }
 #endif
+
+template< class T > void TSWAP( Array<T>& a, Array<T>& b )
+{
+	TSWAP( a.m_data, b.m_data );
+	TSWAP( a.m_size, b.m_size );
+	TSWAP( a.m_mem, b.m_mem );
+}
 
 typedef Array< uint8_t > ByteArray;
 
