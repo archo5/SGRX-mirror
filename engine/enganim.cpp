@@ -355,26 +355,25 @@ void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const Stri
 }
 
 
-bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Array< Mat4 >& out )
+bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz )
 {
 	SGRX_IMesh* mesh = mh;
 	if( !mesh )
 		return false;
-	size_t sz = out.size();
-	if( sz != animator->position.size() )
+	if( outsz != animator->position.size() )
 		return false;
-	if( sz != mesh->m_numBones )
+	if( outsz != mesh->m_numBones )
 		return false;
 	SGRX_MeshBone* MB = mesh->m_bones;
 	
-	for( size_t i = 0; i < sz; ++i )
+	for( size_t i = 0; i < outsz; ++i )
 	{
 		Mat4& M = out[ i ];
 		M = Mat4::CreateSRT( animator->scale[ i ], animator->rotation[ i ], animator->position[ i ] ) * MB[ i ].boneOffset;
 		if( MB[ i ].parent_id >= 0 )
 			M = M * out[ MB[ i ].parent_id ];
 	}
-	for( size_t i = 0; i < sz; ++i )
+	for( size_t i = 0; i < outsz; ++i )
 	{
 		Mat4& M = out[ i ];
 		M = MB[ i ].invSkinOffset * M;
@@ -386,7 +385,7 @@ bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 {
 	if( !mih )
 		return false;
-	return GR_ApplyAnimator( animator, mih->mesh, mih->skin_matrices );
+	return GR_ApplyAnimator( animator, mih->mesh, mih->skin_matrices.data(), mih->skin_matrices.size() );
 }
 
 

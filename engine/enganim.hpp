@@ -124,7 +124,7 @@ struct EXPORT AnimPlayer : Animator
 
 EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
 EXPORT AnimHandle GR_GetAnim( const StringView& name );
-EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Array< Mat4 >& out );
+EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz );
 EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
 
 

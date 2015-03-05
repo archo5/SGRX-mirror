@@ -1,5 +1,7 @@
 
 
+#define USE_QUAT
+#define USE_MAT4
 #define USE_ARRAY
 #include "../engine/renderer.hpp"
 #include "../engine/enganim.hpp"
@@ -22,6 +24,15 @@ struct AMVertex
 	uint8_t indices[4];
 };
 
+struct AMBone
+{
+	String name;
+	Mat4 boneOffset;
+	Mat4 skinOffset;
+	Mat4 invSkinOffset;
+	int parent_id;
+};
+
 
 int main( int argc, char* argv[] )
 {
@@ -41,6 +52,7 @@ int main( int argc, char* argv[] )
 	if( !input_file ){ fprintf( stderr, "no input file (-i) specified" ); return 1; }
 	
 	Array< AMVertex > mesh_vertex_data;
+	Array< AMBone > mesh_bones;
 	MeshFileData mesh_file_data;
 	
 	AUTOFREE( FILE*, fp, fopen( input_file, "r" ) );
@@ -77,6 +89,12 @@ int main( int argc, char* argv[] )
 				return 1;
 			}
 			printf( ", mesh parsed" );
+			
+			if( mesh_file_data.numBones == 0 )
+			{
+				fprintf( stderr, "MESH error - no bones (file: %s)\n", mesh_path );
+				return 1;
+			}
 			
 			VDeclInfo vertex_decl;
 			const char* vdecl_load_error = VDeclInfo_Parse( &vertex_decl, StackString< 256 >( StringView( mesh_file_data.formatData, mesh_file_data.formatSize ) ) );
@@ -124,7 +142,144 @@ int main( int argc, char* argv[] )
 			}
 			printf( ", vertex data extracted" );
 			
+			for( uint8_t i = 0; i < mesh_file_data.numBones; ++i )
+			{
+				AMBone B =
+				{
+					StringView( mesh_file_data.bones[ i ].boneName, mesh_file_data.bones[ i ].boneNameSize ),
+					mesh_file_data.bones[ i ].boneOffset,
+					mesh_file_data.bones[ i ].parent_id == 255 ? -1 : mesh_file_data.bones[ i ].parent_id
+				};
+				mesh_bones.push_back( B );
+			}
+			printf( ", bone data extracted" );
+			
+			int numBones = mesh_bones.size();
+			for( int b = 0; b < numBones; ++b )
+			{
+				if( mesh_bones[ b ].parent_id < -1 || mesh_bones[ b ].parent_id >= b )
+				{
+					fprintf( stderr, "RecalcBoneMatrices: each parent_id must point to a previous bone or no bone (-1) [error in bone %d: %d]", b, mesh_bones[ b ].parent_id );
+					return 1;
+				}
+			}
+			
+			Mat4 skinOffsets[ MAX_MESH_BONES ];
+			for( int b = 0; b < numBones; ++b )
+			{
+				if( mesh_bones[ b ].parent_id >= 0 )
+					skinOffsets[ b ].Multiply( mesh_bones[ b ].boneOffset, skinOffsets[ mesh_bones[ b ].parent_id ] );
+				else
+					skinOffsets[ b ] = mesh_bones[ b ].boneOffset;
+				mesh_bones[ b ].skinOffset = skinOffsets[ b ];
+			}
+			for( int b = 0; b < numBones; ++b )
+			{
+				if( !skinOffsets[ b ].InvertTo( mesh_bones[ b ].invSkinOffset ) )
+				{
+					fprintf( stderr, "RecalcBoneMatrices: failed to invert skin offset matrix #%d\n", b );
+					mesh_bones[ b ].invSkinOffset.SetIdentity();
+				}
+			}
+			
 			puts( " - done" );
+		}
+		else if( !strcmp( type, "ANIM" ) )
+		{
+			printf( "reading ANIM... " );
+			
+			char anim_path[ 1025 ] = {0};
+			char anim_name[ 256 ] = {0};
+			int anim_frame = -1;
+			
+			// READ COMMAND
+			if( fscanf( fp, "%1024s %255s %d", anim_path, anim_name, &anim_frame ) < 3 )
+			{
+				perror( "failed to read ANIM path" );
+				return 1;
+			}
+			
+			// LOAD ANIMATION FILE
+			ByteArray ba;
+			if( !LoadBinaryFile( anim_path, ba ) )
+			{
+				fprintf( stderr, "Failed to load animation file: %s\n", anim_path );
+				return 1;
+			}
+			AnimFileParser afp( ba );
+			if( afp.error )
+			{
+				fprintf( stderr, "Failed to parse animation file (%s) - %s\n", anim_path, afp.error );
+				return 1;
+			}
+			
+			// FIND ANIMATION
+			size_t animID = 0;
+			for( ; animID < afp.animData.size(); ++animID )
+			{
+				if( !strcmp( afp.animData[ animID ].name, anim_name ) )
+					break;
+			}
+			if( animID == afp.animData.size() )
+			{
+				fprintf( stderr, "Animation '%s' was not found in file '%s'\n", anim_path, anim_name );
+				return 1;
+			}
+			AnimFileParser::Anim* anim = &afp.animData[ animID ];
+			
+			if( anim_frame < 0 || anim_frame >= (int) anim->frameCount )
+			{
+				fprintf( stderr, "ANIM frame (%d) out of bounds (0-%d)\n", anim_frame, (int) anim->frameCount - 1 );
+				return 1;
+			}
+			printf( ", animation is loaded" );
+			
+			float* trackData[ MAX_MESH_BONES ] = {0};
+			for( size_t i = 0; i < mesh_bones.size(); ++i )
+			{
+				for( uint8_t t = 0; t < anim->trackCount; ++t )
+				{
+					AnimFileParser::Track& T = afp.trackData[ anim->trackDataOff + t ];
+					if( StringView( T.name, T.nameSize ) == mesh_bones[ i ].name )
+					{
+						trackData[ i ] = T.dataPtr;
+						break;
+					}
+				}
+			}
+			
+			Mat4 matrices[ MAX_MESH_BONES ];
+			// apply animation
+			for( size_t i = 0; i < mesh_bones.size(); ++i )
+			{
+				float* T = trackData[ i ];
+				Vec3 pos = T ? V3( T[ anim_frame * 10 + 0 ], T[ anim_frame * 10 + 1 ], T[ anim_frame * 10 + 2 ] ) : V3(0);
+				Quat rot = T ? QUAT( T[ anim_frame * 10 + 3 ], T[ anim_frame * 10 + 4 ], T[ anim_frame * 10 + 5 ], T[ anim_frame * 10 + 6 ] ) : Quat::Identity;
+				Vec3 scl = T ? V3( T[ anim_frame * 10 + 7 ], T[ anim_frame * 10 + 8 ], T[ anim_frame * 10 + 9 ] ) : V3(0);
+				Mat4& M = matrices[ i ];
+				M = Mat4::CreateSRT( scl, rot, pos ) * mesh_bones[ i ].boneOffset;
+				if( mesh_bones[ i ].parent_id >= 0 )
+					M = M * matrices[ mesh_bones[ i ].parent_id ];
+			}
+			for( size_t i = 0; i < mesh_bones.size(); ++i )
+			{
+				Mat4& M = matrices[ i ];
+				M = mesh_bones[ i ].invSkinOffset * M;
+			}
+			
+			puts( " - done" );
+		}
+		else if( !strcmp( type, "REASSIGN" ) )
+		{
+		}
+		else if( !strcmp( type, "JOINT" ) )
+		{
+		}
+		else if( !strcmp( type, "BODY" ) )
+		{
+		}
+		else if( !strcmp( type, "OUT" ) )
+		{
 		}
 		else
 		{
