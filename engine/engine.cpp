@@ -727,6 +727,9 @@ SGRX_Light::~SGRX_Light()
 
 void SGRX_Light::RecalcMatrices()
 {
+	viewMatrix = Mat4::CreateLookAt( position, direction, updir );
+	projMatrix = Mat4::CreatePerspective( angle, aspect, 0.5, range * 0.001f, range );
+	viewProjMatrix.Multiply( viewMatrix, projMatrix );
 }
 
 

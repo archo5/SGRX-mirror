@@ -158,9 +158,9 @@ struct D3D9RenderTexture : D3D9Texture
 	IDirect3DSurface9* DSS; /* depth/stencil surface */
 	int format;
 	
-	D3D9RenderTexture( bool isRenderTexture = false )
+	D3D9RenderTexture()
 	{
-		m_isRenderTexture = isRenderTexture;
+		m_isRenderTexture = true;
 	}
 	~D3D9RenderTexture()
 	{
@@ -1659,7 +1659,7 @@ void D3D9Renderer::_RS_Compile_MeshLists()
 		
 		if( !MI->mesh || !MI->enabled || MI->unlit )
 			continue;
-		MI->_lightbuf_begin = (SGRX_MeshInstLight*) m_inst_light_buf.size();
+		MI->_lightbuf_begin = (SGRX_MeshInstLight*) m_inst_light_buf.size_bytes();
 		// POINT LIGHTS
 		for( size_t light_id = 0; light_id < m_visible_point_lights.size(); ++light_id )
 		{
@@ -1674,7 +1674,7 @@ void D3D9Renderer::_RS_Compile_MeshLists()
 			SGRX_MeshInstLight mil = { MI, L };
 			m_inst_light_buf.push_back( mil );
 		}
-		MI->_lightbuf_end = (SGRX_MeshInstLight*) m_inst_light_buf.size();
+		MI->_lightbuf_end = (SGRX_MeshInstLight*) m_inst_light_buf.size_bytes();
 	}
 	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
 	{

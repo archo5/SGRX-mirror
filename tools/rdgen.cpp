@@ -27,11 +27,251 @@ struct AMVertex
 struct AMBone
 {
 	String name;
+	String path;
 	Mat4 boneOffset;
 	Mat4 skinOffset;
 	Mat4 invSkinOffset;
+	Mat4 local_to_world;
+	Mat4 world_to_local;
 	int parent_id;
+	
+	uint8_t weight_threshold;
+	Vec3 world_axis1; // general direction
+	Vec3 world_axis2; // second g.d.
+	Vec3 world_center;
 };
+
+bool string_match_pattern( const char* pattern, const StringView& str )
+{
+	if( *pattern == '\0' && str.size() == 0 )
+		return true;
+	
+	if( *pattern == '*' && pattern[1] != '\0' && str.size() == 0 )
+		return false;
+	
+	if( *pattern == '?' || *pattern == str.ch() )
+		return string_match_pattern( pattern + 1, str.part(1) );
+	
+	if( *pattern == '*' )
+		return string_match_pattern( pattern + 1, str ) || string_match_pattern( pattern, str.part(1) );
+	return false;
+}
+
+void bones_recalc_paths( Array< AMBone >& bones )
+{
+	char buf[ 32768 ];
+	for( size_t i = 0; i < bones.size(); ++i )
+	{
+		AMBone& B = bones[ i ];
+		if( B.parent_id >= 0 )
+		{
+			AMBone& P = bones[ B.parent_id ];
+			snprintf( buf, sizeof(buf), "%.*s%.*s/>", (int) P.path.size() - 1, P.path.data(), (int) B.name.size(), B.name.data() );
+		}
+		else
+			snprintf( buf, sizeof(buf), "</%.*s/>", (int) B.name.size(), B.name.data() );
+		B.path = buf;
+	}
+}
+
+void bones_match_pattern( Array< AMBone >& in, const char* pattern, Array< AMBone* >& out )
+{
+	for( size_t i = 0; i < in.size(); ++i )
+	{
+		if( string_match_pattern( pattern, in[i].path ) && out.find_first_at( &in[i] ) == NOT_FOUND )
+			out.push_back( &in[i] );
+	}
+}
+
+int find_bone( Array< AMBone >& in, const char* name )
+{
+	StringView nm = name;
+	for( size_t i = 0; i < in.size(); ++i )
+		if( in[i].name == nm )
+			return i;
+	return -1;
+}
+
+void replace_bone_indices( Array< AMVertex >& verts, int from, int to )
+{
+	for( size_t i = 0; i < verts.size(); ++i )
+	{
+		AMVertex& V = verts[ i ];
+		if( V.weights[0] == from ) V.weights[0] = to;
+		if( V.weights[1] == from ) V.weights[1] = to;
+		if( V.weights[2] == from ) V.weights[2] = to;
+		if( V.weights[3] == from ) V.weights[3] = to;
+	}
+}
+
+void merge_equal_bone_indices( Array< AMVertex >& verts )
+{
+	for( size_t i = 0; i < verts.size(); ++i )
+	{
+		AMVertex& V = verts[ i ];
+		
+		uint8_t weights[4] = {0};
+		uint8_t indices[4] = {0};
+		int wicount = 0;
+		for( int cwi = 0; cwi < 4; ++cwi )
+		{
+			if( !V.weights[ cwi ] )
+				continue;
+			int dwi = 0;
+			for( ; dwi < wicount; ++dwi )
+				if( indices[ dwi ] == V.indices[ cwi ] )
+					break;
+			weights[ dwi ] += V.weights[ cwi ];
+			indices[ dwi ] = V.indices[ cwi ];
+			if( dwi >= wicount )
+				wicount++;
+		}
+		
+		memcpy( V.weights, weights, sizeof(weights) );
+		memcpy( V.indices, indices, sizeof(indices) );
+	}
+}
+
+void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
+{
+	Array< Vec3 > points;
+	
+	// gather related points
+	for( size_t i = 0; i < verts.size(); ++i )
+	{
+		if( ( verts[ i ].indices[0] == bid && verts[ i ].weights[0] >= B.weight_threshold ) ||
+			( verts[ i ].indices[1] == bid && verts[ i ].weights[1] >= B.weight_threshold ) ||
+			( verts[ i ].indices[2] == bid && verts[ i ].weights[2] >= B.weight_threshold ) ||
+			( verts[ i ].indices[3] == bid && verts[ i ].weights[3] >= B.weight_threshold ) )
+		{
+			points.push_back( verts[ i ].pos );
+		}
+	}
+	
+	//
+	// A X I S   1
+	//
+	Vec3 main_center_3d = {0,0,0};
+	{
+		// find longest direction and center
+		Vec3 center = {0,0,0};
+		Vec3 curdir = {0,0,0};
+		float curlen = 0;
+		
+		for( size_t i = 0; i < points.size(); ++i )
+		{
+			center += points[i];
+			for( size_t j = i + 1; j < points.size(); ++j )
+			{
+				Vec3 newdir = points[j] - points[i];
+				float newlen = newdir.LengthSq();
+				if( newlen > curlen )
+				{
+					curdir = newdir;
+					curlen = newlen;
+				}
+			}
+		}
+		center /= points.size();
+		main_center_3d = center;
+	
+		// find centers at both sides of plane
+		Vec3 PN = curdir.Normalized();
+		float PD = Vec3Dot( PN, center );
+		Vec3 cp0 = {0,0,0}, cp1 = {0,0,0};
+		int ci0 = 0, ci1 = 0;
+		
+		for( size_t i = 0; i < points.size(); ++i )
+		{
+			Vec3 P = points[i];
+			if( Vec3Dot( PN, P ) > PD )
+			{
+				cp0 += P;
+				ci0++;
+			}
+			else
+			{
+				cp1 += P;
+				ci1++;
+			}
+		}
+		
+		if( ci0 ) cp0 /= ci0;
+		if( ci1 ) cp1 /= ci1;
+		
+		// axis1 = direction between centers
+		B.world_axis1 = ( cp1 - cp0 ).Normalized();
+	}
+	
+	//
+	// A X I S   2
+	//
+	// pick projection axes
+	Vec3 proj_x = Vec3Cross( B.world_axis1, B.world_axis1.Shuffle() ).Normalized();
+	Vec3 proj_y = Vec3Cross( B.world_axis1, proj_x ).Normalized();
+	
+	// project points into 2D
+	Array< Vec2 > point2ds;
+	point2ds.resize( points.size() );
+	Vec2 proj_center = { Vec3Dot( main_center_3d, proj_x ), Vec3Dot( main_center_3d, proj_y ) };
+	for( size_t i = 0; i < points.size(); ++i )
+	{
+		point2ds[ i ] = V2( Vec3Dot( points[i], proj_x ), Vec3Dot( points[i], proj_y ) ) - proj_center;
+	}
+	
+	{
+		// find longest direction and center
+		Vec2 center = {0,0};
+		Vec2 curdir = {0,0};
+		float curlen = 0;
+		
+		for( size_t i = 0; i < point2ds.size(); ++i )
+		{
+			center += point2ds[i];
+			for( size_t j = i + 1; j < point2ds.size(); ++j )
+			{
+				Vec2 newdir = point2ds[j] - point2ds[i];
+				float newlen = newdir.LengthSq();
+				if( newlen > curlen )
+				{
+					curdir = newdir;
+					curlen = newlen;
+				}
+			}
+		}
+		center /= point2ds.size();
+	
+		// find centers at both sides of plane
+		Vec2 PN = curdir.Normalized();
+		float PD = Vec2Dot( PN, center );
+		Vec2 cp0 = {0,0}, cp1 = {0,0};
+		int ci0 = 0, ci1 = 0;
+		
+		for( size_t i = 0; i < point2ds.size(); ++i )
+		{
+			Vec2 P = point2ds[i];
+			if( Vec2Dot( PN, P ) > PD )
+			{
+				cp0 += P;
+				ci0++;
+			}
+			else
+			{
+				cp1 += P;
+				ci1++;
+			}
+		}
+		
+		if( ci0 ) cp0 /= ci0;
+		if( ci1 ) cp1 /= ci1;
+		
+		// axis1 = direction between centers
+		Vec2 world_axis_2d = ( cp1 - cp0 ).Normalized();
+		B.world_axis2 = world_axis_2d.x * proj_x + world_axis_2d.y * proj_y;
+		
+		B.world_center = main_center_3d + proj_x * center.x + proj_y * center.y;
+	}
+}
 
 
 int main( int argc, char* argv[] )
@@ -146,9 +386,14 @@ int main( int argc, char* argv[] )
 			{
 				AMBone B =
 				{
-					StringView( mesh_file_data.bones[ i ].boneName, mesh_file_data.bones[ i ].boneNameSize ),
-					mesh_file_data.bones[ i ].boneOffset,
-					mesh_file_data.bones[ i ].parent_id == 255 ? -1 : mesh_file_data.bones[ i ].parent_id
+					// name, path
+					StringView( mesh_file_data.bones[ i ].boneName, mesh_file_data.bones[ i ].boneNameSize ), "",
+					// bone, skin, invskin, w2l, l2w
+					mesh_file_data.bones[ i ].boneOffset, Mat4::Identity, Mat4::Identity, Mat4::Identity, Mat4::Identity,
+					// parent ID
+					mesh_file_data.bones[ i ].parent_id == 255 ? -1 : mesh_file_data.bones[ i ].parent_id,
+					// weight, w_axis1, w_axis2, w_center
+					127, V3(0), V3(0), V3(0),
 				};
 				mesh_bones.push_back( B );
 			}
@@ -181,6 +426,10 @@ int main( int argc, char* argv[] )
 					mesh_bones[ b ].invSkinOffset.SetIdentity();
 				}
 			}
+			printf( ", matrices calculated" );
+			
+			bones_recalc_paths( mesh_bones );
+			printf( ", paths generated" );
 			
 			puts( " - done" );
 		}
@@ -264,6 +513,12 @@ int main( int argc, char* argv[] )
 			for( size_t i = 0; i < mesh_bones.size(); ++i )
 			{
 				Mat4& M = matrices[ i ];
+				mesh_bones[ i ].local_to_world = M;
+				if( !M.InvertTo( mesh_bones[ i ].world_to_local ) )
+				{
+					fprintf( stderr, "ANIM: failed to invert animation matrix #%d\n", (int) i );
+					mesh_bones[ i ].world_to_local.SetIdentity();
+				}
 				M = mesh_bones[ i ].invSkinOffset * M;
 			}
 			
@@ -271,6 +526,40 @@ int main( int argc, char* argv[] )
 		}
 		else if( !strcmp( type, "REASSIGN" ) )
 		{
+			char src_pattern[ 1025 ] = {0};
+			char dst_bone[ 256 ] = {0};
+			
+			// READ COMMAND
+			if( fscanf( fp, "%1024s %255s", src_pattern, dst_bone ) < 2 )
+			{
+				perror( "failed to read REASSIGN <pattern> <target>" );
+				return 1;
+			}
+			
+			bool need_parent = !strcmp( dst_bone, "parent" );
+			
+			Array< AMBone* > rebones;
+			
+			bones_match_pattern( mesh_bones, src_pattern, rebones );
+			// bones are already sorted with children after parents
+			
+			printf( "REASSIGN: pattern \"%s\" found %d bones\n", src_pattern, (int) rebones.size() );
+			
+			for( size_t i = rebones.size(); i > 0; )
+			{
+				AMBone* B = rebones[ i ];
+				printf( "- matched \"%.*s\"\n", (int) B->path.size(), B->path.data() );
+				i--;
+				int pos = need_parent ? B->parent_id : find_bone( mesh_bones, dst_bone );
+				if( pos < 0 )
+				{
+					fprintf( stderr, need_parent ? "WARNING: parent bone not found!\n" : "WARNING: bone \"%s\" not found!\n", dst_bone );
+					continue;
+				}
+				replace_bone_indices( mesh_vertex_data, i, pos );
+			}
+			merge_equal_bone_indices( mesh_vertex_data );
+			bones_recalc_paths( mesh_bones );
 		}
 		else if( !strcmp( type, "JOINT" ) )
 		{
@@ -280,6 +569,15 @@ int main( int argc, char* argv[] )
 		}
 		else if( !strcmp( type, "OUT" ) )
 		{
+			char out_path[ 1025 ] = {0};
+			if( fscanf( fp, "%1024s", out_path ) < 1 )
+			{
+				perror( "failed to read OUT <path>" );
+				return 1;
+			}
+			
+			for( size_t i = 0; i < mesh_bones.size(); ++i )
+				calc_bone_volume_info( i, mesh_bones[ i ], mesh_vertex_data );
 		}
 		else
 		{
