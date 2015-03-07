@@ -17,6 +17,14 @@ template<> struct FreeOnEnd< FILE* >
 #define AUTOFREE( T, p, iv ) T p = iv; FreeOnEnd<T> autofree_##p( p )
 
 
+Quat rotation_between_vectors( const Vec3& v1, const Vec3& v2 )
+{
+	Vec3 nv1 = v1.Normalized();
+	Vec3 nv2 = v2.Normalized();
+	return Quat::CreateAxisAngle( Vec3Cross( nv1, nv2 ), Vec3Dot( nv1, nv2 ) );
+}
+
+
 struct AMVertex
 {
 	Vec3 pos;
@@ -36,9 +44,15 @@ struct AMBone
 	int parent_id;
 	
 	uint8_t weight_threshold;
-	Vec3 world_axis1; // general direction
-	Vec3 world_axis2; // second g.d.
+	Vec3 world_axisZ; // general direction (Z)
+	Vec3 world_axisY; // second g.d. (Y)
+	Vec3 world_axisX; // cross product (X)
 	Vec3 world_center;
+	Vec3 world_bb_min;
+	Vec3 world_bb_max;
+	Vec3 world_extents;
+	float capsule_height;
+	float capsule_radius;
 };
 
 bool string_match_pattern( const char* pattern, const StringView& str )
@@ -172,7 +186,8 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 				}
 			}
 		}
-		center /= points.size();
+		if( points.size() )
+			center /= points.size();
 		main_center_3d = center;
 	
 		// find centers at both sides of plane
@@ -200,15 +215,15 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 		if( ci1 ) cp1 /= ci1;
 		
 		// axis1 = direction between centers
-		B.world_axis1 = ( cp1 - cp0 ).Normalized();
+		B.world_axisZ = ( cp1 - cp0 ).Normalized();
 	}
 	
 	//
 	// A X I S   2
 	//
 	// pick projection axes
-	Vec3 proj_x = Vec3Cross( B.world_axis1, B.world_axis1.Shuffle() ).Normalized();
-	Vec3 proj_y = Vec3Cross( B.world_axis1, proj_x ).Normalized();
+	Vec3 proj_x = Vec3Cross( B.world_axisZ, B.world_axisZ.Shuffle() ).Normalized();
+	Vec3 proj_y = Vec3Cross( B.world_axisZ, proj_x ).Normalized();
 	
 	// project points into 2D
 	Array< Vec2 > point2ds;
@@ -239,7 +254,8 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 				}
 			}
 		}
-		center /= point2ds.size();
+		if( point2ds.size() )
+			center /= point2ds.size();
 	
 		// find centers at both sides of plane
 		Vec2 PN = curdir.Normalized();
@@ -267,11 +283,124 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 		
 		// axis1 = direction between centers
 		Vec2 world_axis_2d = ( cp1 - cp0 ).Normalized();
-		B.world_axis2 = world_axis_2d.x * proj_x + world_axis_2d.y * proj_y;
+		B.world_axisY = world_axis_2d.x * proj_x + world_axis_2d.y * proj_y;
+		B.world_axisX = Vec3Cross( B.world_axisZ, B.world_axisY ).Normalized();
 		
 		B.world_center = main_center_3d + proj_x * center.x + proj_y * center.y;
 	}
+	
+	//
+	// O T H E R
+	//
+	Vec3 bbmin = {0,0,0};
+	Vec3 bbmax = {0,0,0};
+	Vec3 C = B.world_center;
+	Vec3 center_dots = { Vec3Dot( B.world_axisX, C ), Vec3Dot( B.world_axisY, C ), Vec3Dot( B.world_axisZ, C ) };
+	for( size_t i = 0; i < points.size(); ++i )
+	{
+		Vec3 P = points[ i ];
+		Vec3 dots = { Vec3Dot( B.world_axisX, P ), Vec3Dot( B.world_axisY, P ), Vec3Dot( B.world_axisZ, P ) };
+		dots -= center_dots;
+		bbmin = Vec3::Min( bbmin, dots );
+		bbmax = Vec3::Max( bbmax, dots );
+	}
+	B.world_bb_min = bbmin;
+	B.world_bb_max = bbmax;
+	B.world_extents = Vec3::Max( -bbmin, bbmax );
+	B.capsule_radius = TMAX( B.world_extents.x, B.world_extents.y );
+	B.capsule_height = TMAX( B.world_extents.z - B.capsule_radius * 2, 0.0f );
+	
+	printf( "Bone %.*s:\n", (int) B.name.size(), B.name.data() );
+	printf( "- center: %g %g %g\n", B.world_center.x, B.world_center.y, B.world_center.z );
+	printf( "- axis-X: %g %g %g\n", B.world_axisX.x, B.world_axisX.y, B.world_axisX.z );
+	printf( "- axis-Y: %g %g %g\n", B.world_axisY.x, B.world_axisY.y, B.world_axisY.z );
+	printf( "- axis-Z: %g %g %g\n", B.world_axisZ.x, B.world_axisZ.y, B.world_axisZ.z );
+	printf( "- bbmin: %g %g %g\n", bbmin.x, bbmin.y, bbmin.z );
+	printf( "- bbmax: %g %g %g\n", bbmax.x, bbmax.y, bbmax.z );
+	printf( "- extents: %g %g %g\n", B.world_extents.x, B.world_extents.y, B.world_extents.z );
+	printf( "- capsule radius: %g, height: %g\n", B.capsule_radius, B.capsule_height );
 }
+
+
+struct SkeletonInfo
+{
+	enum BodyType
+	{
+		BodyType_Capsule = 1
+	};
+	
+	struct HitBox
+	{
+		String name;
+		Quat rotation;
+		Vec3 position;
+		Vec3 extents;
+		float multiplier;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch( name );
+			arch( rotation );
+			arch( position );
+			arch( extents );
+			arch( multiplier );
+		}
+	};
+	
+	struct Body
+	{
+		String name;
+		Quat rotation;
+		Vec3 position;
+		uint8_t type;
+		float capsule_radius;
+		float capsule_height;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch( name );
+			arch( rotation );
+			arch( position );
+			arch( type );
+			if( type == BodyType_Capsule )
+			{
+				arch( capsule_radius );
+				arch( capsule_height );
+			}
+		}
+	};
+	
+	struct Joint
+	{
+		String name1;
+		String name2;
+		Vec3 local_offset1;
+		Vec3 local_offset2;
+		uint8_t type;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch( name1 );
+			arch( name2 );
+			arch( local_offset1 );
+			arch( local_offset2 );
+			arch( type );
+		}
+	};
+	
+	Array< HitBox > hitboxes;
+	Array< Body > bodies;
+	Array< Joint > joints;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.marker( "SGRXSKRI" );
+		SerializeVersionHelper<T> vh( arch, 1 );
+		vh( hitboxes );
+		vh( bodies );
+		vh( joints );
+	}
+};
 
 
 int main( int argc, char* argv[] )
@@ -392,8 +521,12 @@ int main( int argc, char* argv[] )
 					mesh_file_data.bones[ i ].boneOffset, Mat4::Identity, Mat4::Identity, Mat4::Identity, Mat4::Identity,
 					// parent ID
 					mesh_file_data.bones[ i ].parent_id == 255 ? -1 : mesh_file_data.bones[ i ].parent_id,
-					// weight, w_axis1, w_axis2, w_center
+					// weight, w_axisZ, w_axisY, w_axisX
 					127, V3(0), V3(0), V3(0),
+					// w_center, w_min, w_max, w_ext
+					V3(0), V3(0), V3(0), V3(0),
+					// capsule height, radius
+					0, 0,
 				};
 				mesh_bones.push_back( B );
 			}
@@ -425,6 +558,8 @@ int main( int argc, char* argv[] )
 					fprintf( stderr, "RecalcBoneMatrices: failed to invert skin offset matrix #%d\n", b );
 					mesh_bones[ b ].invSkinOffset.SetIdentity();
 				}
+				mesh_bones[ b ].local_to_world = mesh_bones[ b ].skinOffset;
+				mesh_bones[ b ].world_to_local = mesh_bones[ b ].invSkinOffset;
 			}
 			printf( ", matrices calculated" );
 			
@@ -466,12 +601,13 @@ int main( int argc, char* argv[] )
 			size_t animID = 0;
 			for( ; animID < afp.animData.size(); ++animID )
 			{
-				if( !strcmp( afp.animData[ animID ].name, anim_name ) )
+				AnimFileParser::Anim& A = afp.animData[ animID ];
+				if( StringView( A.name, A.nameSize ) == anim_name )
 					break;
 			}
 			if( animID == afp.animData.size() )
 			{
-				fprintf( stderr, "Animation '%s' was not found in file '%s'\n", anim_path, anim_name );
+				fprintf( stderr, "Animation '%s' was not found in file '%s'\n", anim_name, anim_path );
 				return 1;
 			}
 			AnimFileParser::Anim* anim = &afp.animData[ animID ];
@@ -547,16 +683,30 @@ int main( int argc, char* argv[] )
 			
 			for( size_t i = rebones.size(); i > 0; )
 			{
+				i--;
 				AMBone* B = rebones[ i ];
 				printf( "- matched \"%.*s\"\n", (int) B->path.size(), B->path.data() );
-				i--;
 				int pos = need_parent ? B->parent_id : find_bone( mesh_bones, dst_bone );
 				if( pos < 0 )
 				{
 					fprintf( stderr, need_parent ? "WARNING: parent bone not found!\n" : "WARNING: bone \"%s\" not found!\n", dst_bone );
 					continue;
 				}
-				replace_bone_indices( mesh_vertex_data, i, pos );
+				
+				size_t bone_idx = B - mesh_bones.data();
+				if( pos > bone_idx )
+					pos--;
+				replace_bone_indices( mesh_vertex_data, bone_idx, pos );
+				
+				printf( "Removing reassigned bone: \"%.*s\"\n", (int) B->name.size(), B->name.data() );
+				for( size_t j = bone_idx + 1; j < mesh_bones.size(); ++j )
+				{
+					if( mesh_bones[ j ].parent_id == bone_idx )
+						mesh_bones[ j ].parent_id = mesh_bones[ bone_idx ].parent_id;
+					else if( mesh_bones[ j ].parent_id > bone_idx )
+						mesh_bones[ j ].parent_id--;
+				}
+				mesh_bones.erase( bone_idx );
 			}
 			merge_equal_bone_indices( mesh_vertex_data );
 			bones_recalc_paths( mesh_bones );
@@ -578,6 +728,62 @@ int main( int argc, char* argv[] )
 			
 			for( size_t i = 0; i < mesh_bones.size(); ++i )
 				calc_bone_volume_info( i, mesh_bones[ i ], mesh_vertex_data );
+			
+			// REMOVE UNUSED BONES
+			for( size_t i = mesh_bones.size(); i > 0; )
+			{
+				i--;
+				AMBone& B = mesh_bones[ i ];
+				if( B.world_extents.NearZero() )
+				{
+					printf( "Removing unused bone: \"%.*s\"\n", (int) B.name.size(), B.name.data() );
+					for( size_t j = i + 1; j < mesh_bones.size(); ++j )
+					{
+						if( mesh_bones[ j ].parent_id == i )
+							mesh_bones[ j ].parent_id = mesh_bones[ i ].parent_id;
+						else if( mesh_bones[ j ].parent_id > i )
+							mesh_bones[ j ].parent_id--;
+					}
+					mesh_bones.erase( i );
+				}
+			}
+			
+			// SAVE DATA
+			SkeletonInfo skinfo;
+			for( size_t i = 0; i < mesh_bones.size(); ++i )
+			{
+				const AMBone& B = mesh_bones[ i ];
+				const String& name = B.name;
+				Quat rotation = rotation_between_vectors( V3(0,0,1), B.world_to_local.TransformNormal( B.world_axisZ ) );
+				Vec3 position = B.world_to_local.TransformPos( B.world_center );
+				
+				SkeletonInfo::HitBox hbox = { name, rotation, position, B.world_extents, 1 };
+				SkeletonInfo::Body body = { name, rotation, position, SkeletonInfo::BodyType_Capsule, B.capsule_height, B.capsule_radius };
+				
+				skinfo.hitboxes.push_back( hbox );
+				skinfo.bodies.push_back( body );
+				
+				if( B.parent_id >= 0 )
+				{
+					const AMBone& BP = mesh_bones[ B.parent_id ];
+					Vec3 parent_local_pos = BP.world_to_local.TransformPos( B.local_to_world.TransformPos( V3(0) ) );
+					SkeletonInfo::Joint joint = { BP.name, B.name, parent_local_pos, V3(0), 0 };
+				}
+			}
+			
+			ByteArray ba;
+			ByteWriter bw( &ba );
+			bw << skinfo;
+			
+			if( SaveBinaryFile( out_path, ba.data(), ba.size() ) )
+			{
+				printf( "File saved to \"%s\"!\n", out_path );
+			}
+			else
+			{
+				fprintf( stderr, "FAILED to save file \"%s\"!\n", out_path );
+				return 1;
+			}
 		}
 		else
 		{

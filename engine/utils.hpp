@@ -367,6 +367,7 @@ struct EXPORT Quat
 	static const Quat Identity;
 	
 #ifdef USE_QUAT
+	static FINLINE Quat CreateAxisAngle( const Vec3& v, float a ){ return CreateAxisAngle( v.x, v.y, v.z, a ); }
 	static Quat CreateAxisAngle( float x, float y, float z, float a )
 	{
 		float angsin = sinf( a / 2.0f );
@@ -1610,6 +1611,61 @@ typedef HashTable< String, String > StringTable;
 //
 // SERIALIZATION
 //
+
+template< class T > struct SerializeVersionHelper
+{
+	enum { IsWriter = T::IsWriter, IsReader = T::IsReader, IsText = T::IsText, IsBinary = T::IsBinary };
+	
+	SerializeVersionHelper( T& a, uint16_t curver ) : arch( &a ), version( curver )
+	{
+		(*arch) << version;
+	}
+	uint16_t version;
+	T* arch;
+	template< class V > SerializeVersionHelper& _serialize( V& v, bool actually = true, const V& defval = V() )
+	{
+		if( !actually )
+		{
+			if( T::IsReader )
+				v = defval;
+			return *this;
+		}
+		(*arch) << v;
+		return *this;
+	}
+	
+	FINLINE SerializeVersionHelper& memory( void* ptr, size_t sz ){ arch->marker( ptr, sz ); return *this; }
+	FINLINE SerializeVersionHelper& marker( const char* str ){ return marker( str, StringLength( str ) ); }
+	FINLINE SerializeVersionHelper& marker( const char* ptr, size_t sz ){ arch->marker( ptr, sz ); return *this; }
+	
+	FINLINE SerializeVersionHelper& operator () ( bool& v, bool a = true, bool d = 0 ){ _serialize( v, a, d ); return *this; }
+	FINLINE SerializeVersionHelper& operator () ( char& v, bool a = true, char d = 0 ){ _serialize( v, a, d ); return *this; }
+	FINLINE SerializeVersionHelper& operator () ( int8_t& v, bool a = true, const int8_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( uint8_t& v, bool a = true, const uint8_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( int16_t& v, bool a = true, const int16_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( uint16_t& v, bool a = true, const uint16_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( int32_t& v, bool a = true, const int32_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( uint32_t& v, bool a = true, const uint32_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( int64_t& v, bool a = true, const int64_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( uint64_t& v, bool a = true, const uint64_t d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( float& v, bool a = true, const float d = 0 ){ return _serialize( v, a, d ); }
+	FINLINE SerializeVersionHelper& operator () ( double& v, bool a = true, const double d = 0 ){ return _serialize( v, a, d ); }
+	template< class ST > SerializeVersionHelper& operator () ( ST& v ){ v.Serialize( *this ); return *this; }
+	
+	FINLINE SerializeVersionHelper& operator << ( bool& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( char& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( int8_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( uint8_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( int16_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( uint16_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( int32_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( uint32_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( int64_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( uint64_t& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( float& v ){ _serialize( v ); return *this; }
+	FINLINE SerializeVersionHelper& operator << ( double& v ){ _serialize( v ); return *this; }
+	template< class ST > SerializeVersionHelper& operator << ( ST& v ){ v.Serialize( *this ); return *this; }
+};
 
 struct ByteReader
 {
