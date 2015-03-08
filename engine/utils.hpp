@@ -89,6 +89,16 @@ template< class T > void TMEMSET( T* a, size_t c, const T& v )
 template< class T > void TSWAP( T& a, T& b ){ T tmp( a ); a = b; b = tmp; }
 template< class T, class S > T TLERP( const T& a, const T& b, const S& s ){ return a * ( S(1) - s ) + b * s; }
 
+template< class T > struct IVState
+{
+	FINLINE IVState( const T& start ) : prev(start), curr(start) {}
+	FINLINE void Advance( const T& next ){ prev = curr; curr = next; }
+	FINLINE T Get( float q ){ return TLERP( prev, curr, q ); }
+	
+	T prev;
+	T curr;
+};
+
 
 //
 // VEC2
