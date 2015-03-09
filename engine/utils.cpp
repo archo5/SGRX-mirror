@@ -24,40 +24,50 @@ const Quat Quat::Identity = { 0, 0, 0, 1 };
 Quat Mat4::GetRotationQuaternion() const
 {
 	Quat Q;
-	float tr = m[0][0] + m[1][1] + m[2][2];
+	
+	Mat4 usm = *this;
+	Vec3 scale = GetScale();
+	if( scale.x != 0 ) scale.x = 1 / scale.x;
+	if( scale.y != 0 ) scale.y = 1 / scale.y;
+	if( scale.z != 0 ) scale.z = 1 / scale.z;
+	usm = usm * Mat4::CreateScale( scale );
+#define r(x,y) usm.m[x][y]
+	
+	float tr = r(0,0) + r(1,1) + r(2,2);
 	
 	if( tr > 0 )
-	{ 
+	{
 		float S = sqrtf( tr + 1.0f ) * 2;
 		Q.w = 0.25f * S;
-		Q.x = (m[1][2] - m[2][1]) / S;
-		Q.y = (m[2][0] - m[0][2]) / S; 
-		Q.z = (m[0][1] - m[1][0]) / S; 
+		Q.x = (r(1,2) - r(2,1)) / S;
+		Q.y = (r(2,0) - r(0,2)) / S;
+		Q.z = (r(0,1) - r(1,0)) / S;
 	}
-	else if( ( m[0][0] > m[1][1] ) & ( m[0][0] > m[2][2] ) )
-	{ 
-		float S = sqrtf( 1.0f + m[0][0] - m[1][1] - m[2][2] ) * 2;
-		Q.w = ( m[1][2] - m[2][1] ) / S;
+	else if( ( r(0,0) > r(1,1) ) && ( r(0,0) > r(2,2) ) )
+	{
+		float S = sqrtf( 1.0f + r(0,0) - r(1,1) - r(2,2) ) * 2;
+		Q.w = ( r(1,2) - r(2,1) ) / S;
 		Q.x = 0.25f * S;
-		Q.y = ( m[1][0] + m[0][1] ) / S; 
-		Q.z = ( m[2][0] + m[0][2] ) / S; 
+		Q.y = ( r(1,0) + r(0,1) ) / S;
+		Q.z = ( r(2,0) + r(0,2) ) / S;
 	}
-	else if( m[1][1] > m[2][2] )
-	{ 
-		float S = sqrtf( 1.0f + m[1][1] - m[0][0] - m[2][2] ) * 2;
-		Q.w = ( m[2][0] - m[0][2] ) / S;
-		Q.x = ( m[1][0] + m[0][1] ) / S; 
+	else if( r(1,1) > r(2,2) )
+	{
+		float S = sqrtf( 1.0f + r(1,1) - r(0,0) - r(2,2) ) * 2;
+		Q.w = ( r(2,0) - r(0,2) ) / S;
+		Q.x = ( r(1,0) + r(0,1) ) / S;
 		Q.y = 0.25f * S;
-		Q.z = ( m[2][1] + m[1][2] ) / S; 
+		Q.z = ( r(2,1) + r(1,2) ) / S;
 	}
 	else
-	{ 
-		float S = sqrtf( 1.0f + m[2][2] - m[0][0] - m[1][1] ) * 2;
-		Q.w = ( m[0][1] - m[1][0] ) / S;
-		Q.x = ( m[2][0] + m[0][2] ) / S;
-		Q.y = ( m[2][1] + m[1][2] ) / S;
+	{
+		float S = sqrtf( 1.0f + r(2,2) - r(0,0) - r(1,1) ) * 2;
+		Q.w = ( r(0,1) - r(1,0) ) / S;
+		Q.x = ( r(2,0) + r(0,2) ) / S;
+		Q.y = ( r(2,1) + r(1,2) ) / S;
 		Q.z = 0.25f * S;
 	}
+#undef r
 	
 	return Q;
 }

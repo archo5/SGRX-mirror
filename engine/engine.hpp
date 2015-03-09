@@ -284,6 +284,21 @@ struct VDeclInfo
 	uint8_t usages [ VDECL_MAX_ITEMS ];
 	uint8_t count;
 	uint8_t size;
+	
+	int GetOffset( int usage )
+	{
+		for( int i = 0; i < count; ++i )
+			if( usages[ i ] == usage )
+				return offsets[ i ];
+		return -1;
+	}
+	int GetType( int usage )
+	{
+		for( int i = 0; i < count; ++i )
+			if( usages[ i ] == usage )
+				return types[ i ];
+		return -1;
+	}
 };
 
 struct EXPORT SGRX_IVertexDecl
@@ -387,6 +402,10 @@ struct EXPORT SGRX_IMesh
 	/* collision detection */
 	Vec3 m_boundsMin;
 	Vec3 m_boundsMax;
+	
+	/* vertex/index data */
+	ByteArray m_vdata;
+	ByteArray m_idata;
 	
 	String m_key;
 	int32_t m_refcount;

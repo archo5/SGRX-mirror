@@ -1451,6 +1451,8 @@ MeshHandle GR_GetMesh( const StringView& path )
 		LOG_WARNING << "Failed to set part data";
 	}
 	
+	mesh->m_vdata.append( (const uint8_t*) mfd.vertexData, mfd.vertexDataSize );
+	mesh->m_idata.append( (const uint8_t*) mfd.indexData, mfd.indexDataSize );
 	mesh->m_key = path;
 	g_Meshes->set( mesh->m_key, mesh );
 	

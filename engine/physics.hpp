@@ -11,7 +11,8 @@ struct EXPORT SGRX_IPhyShape
 	SGRX_IPhyShape() : _refcount(0), _type(0){}
 	virtual ~SGRX_IPhyShape(){}
 	
-	struct SGRX_IConvexHullPhyShape* GetConvexHull();
+	virtual Vec3 GetScale() const = 0;
+	virtual void SetScale( const Vec3& scale ) = 0;
 	
 	int32_t _refcount;
 	
@@ -47,9 +48,9 @@ struct EXPORT SGRX_IPhyRigidBody
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
 	SGRX_IPhyRigidBody() : _refcount(0){}
 	
-	virtual Vec3 GetPosition() = 0;
+	virtual Vec3 GetPosition() const = 0;
 	virtual void SetPosition( const Vec3& v ) = 0;
-	virtual Quat GetRotation() = 0;
+	virtual Quat GetRotation() const = 0;
 	virtual void SetRotation( const Quat& v ) = 0;
 	
 	int32_t _refcount;
@@ -65,6 +66,7 @@ struct EXPORT SGRX_IPhyWorld
 	virtual ~SGRX_IPhyWorld(){}
 	
 	virtual void Step( float dt ) = 0;
+	virtual void DebugDraw() = 0;
 	
 	virtual PhyRigidBodyHandle CreateRigidBody( const SGRX_PhyRigidBodyInfo& info ) = 0;
 	
@@ -78,5 +80,7 @@ typedef Handle< SGRX_IPhyWorld > PhyWorldHandle;
 
 EXPORT PhyShapeHandle PHY_CreateConvexHullShape( const Vec3* data, size_t count );
 EXPORT PhyShapeHandle PHY_CreateAABBShape( const Vec3& min, const Vec3& max );
+EXPORT PhyShapeHandle PHY_CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false );
+EXPORT PhyShapeHandle PHY_CreateShapeFromMesh( SGRX_IMesh* mesh );
 EXPORT PhyWorldHandle PHY_CreateWorld();
 

@@ -37,6 +37,15 @@ struct BulletPhyShape : SGRX_IPhyShape
 	virtual ~BulletPhyShape(){ delete m_colShape; }
 	void _Init(){ m_colShape->setUserPointer( this ); }
 	
+	virtual Vec3 GetScale() const
+	{
+		return BV2V( m_colShape->getLocalScaling() );
+	}
+	virtual void SetScale( const Vec3& scale )
+	{
+		m_colShape->setLocalScaling( V2BV( scale ) );
+	}
+	
 	btCollisionShape* m_colShape;
 };
 
@@ -45,13 +54,40 @@ struct BulletConvexHullShape : BulletPhyShape
 	BulletConvexHullShape( const Vec3* data, size_t count ){ m_colShape = new btConvexHullShape( &data->x, count, sizeof(Vec3) ); _Init(); }
 };
 
+struct BulletTriMeshShape : BulletPhyShape
+{
+	BulletTriMeshShape( const Vec3* verts, size_t vcount, const void* idata, size_t icount, bool index32 )
+	{
+		if( index32 )
+		{
+			uint32_t* idcs = (uint32_t*) idata;
+			for( size_t i = 0; i < icount; i += 3 )
+			{
+				m_meshIface.addTriangle( V2BV( verts[ idcs[ i+0 ] ] ), V2BV( verts[ idcs[ i+1 ] ] ), V2BV( verts[ idcs[ i+2 ] ] ), true );
+			}
+		}
+		else
+		{
+			uint16_t* idcs = (uint16_t*) idata;
+			for( size_t i = 0; i < icount; i += 3 )
+			{
+				m_meshIface.addTriangle( V2BV( verts[ idcs[ i+0 ] ] ), V2BV( verts[ idcs[ i+1 ] ] ), V2BV( verts[ idcs[ i+2 ] ] ), true );
+			}
+		}
+		m_colShape = new btBvhTriangleMeshShape( &m_meshIface, false, true );
+		_Init();
+	}
+	
+	btTriangleMesh m_meshIface;
+};
+
 
 struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 {
 	BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX_PhyRigidBodyInfo& rbinfo );
 	~BulletPhyRigidBody();
 	
-	virtual Vec3 GetPosition(){ return BV2V( m_body->getCenterOfMassPosition() ); }
+	virtual Vec3 GetPosition() const { return BV2V( m_body->getCenterOfMassPosition() ); }
 	virtual void SetPosition( const Vec3& v )
 	{
 		m_body->getWorldTransform().setOrigin( V2BV( v ) );
@@ -59,7 +95,7 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 		if( m_body->isKinematicObject() )
 			m_body->getMotionState()->setWorldTransform( m_body->getWorldTransform() );
 	}
-	virtual Quat GetRotation(){ return BQ2Q( m_body->getOrientation() ); }
+	virtual Quat GetRotation() const { return BQ2Q( m_body->getOrientation() ); }
 	virtual void SetRotation( const Quat& q )
 	{
 		m_body->getWorldTransform().setRotation( Q2BQ( q ) );
@@ -80,6 +116,7 @@ struct BulletPhyWorld : SGRX_IPhyWorld
 	~BulletPhyWorld();
 	
 	virtual void Step( float dt );
+	virtual void DebugDraw();
 	
 	virtual PhyRigidBodyHandle CreateRigidBody( const SGRX_PhyRigidBodyInfo& info );
 	
@@ -184,6 +221,52 @@ void BulletPhyWorld::Step( float dt )
 	m_world->stepSimulation( dt, 0 );
 }
 
+struct BulletDebugDrawer : btIDebugDraw
+{
+	int m_debugMode;
+	BatchRenderer& br;
+	
+	BulletDebugDrawer() : m_debugMode( DBG_DrawWireframe | DBG_DrawAabb ), br( GR2D_GetBatchRenderer() ){}
+	virtual ~BulletDebugDrawer(){}
+	
+	virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& fromColor, const btVector3& toColor)
+	{
+		br.SetPrimitiveType( PT_Lines );
+		br.Col( fromColor.x(), fromColor.y(), fromColor.z() );
+		br.Pos( BV2V( from ) );
+		br.Col( toColor.x(), toColor.y(), toColor.z() );
+		br.Pos( BV2V( to ) );
+	}
+	virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color){ drawLine( from, to, color, color ); }
+	virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance, int lifeTime, const btVector3& color)
+	{
+		float q = 0.1f;
+		br.SetPrimitiveType( PT_Lines );
+		br.Col(1);
+		br.Pos( PointOnB.x() - q, PointOnB.y(), PointOnB.z() ).Pos( PointOnB.x() + q, PointOnB.y(), PointOnB.z() );
+		br.Pos( PointOnB.x(), PointOnB.y() - q, PointOnB.z() ).Pos( PointOnB.x(), PointOnB.y() + q, PointOnB.z() );
+		br.Pos( PointOnB.x(), PointOnB.y(), PointOnB.z() - q ).Pos( PointOnB.x(), PointOnB.y(), PointOnB.z() + q );
+	}
+	virtual void reportErrorWarning(const char* warningString)
+	{
+		LOG << "BULLET: " << warningString;
+	}
+	virtual void draw3dText(const btVector3& location, const char* textString)
+	{
+	}
+	
+	virtual void setDebugMode( int debugMode ){ m_debugMode = debugMode; }
+	virtual int getDebugMode() const { return m_debugMode; }
+};
+
+void BulletPhyWorld::DebugDraw()
+{
+	BulletDebugDrawer bdd;
+	m_world->setDebugDrawer( &bdd );
+	m_world->debugDrawWorld();
+	m_world->setDebugDrawer( NULL );
+}
+
 PhyRigidBodyHandle BulletPhyWorld::CreateRigidBody( const SGRX_PhyRigidBodyInfo& info )
 {
 	return new BulletPhyRigidBody( this, info );
@@ -214,6 +297,53 @@ PhyShapeHandle PHY_CreateAABBShape( const Vec3& min, const Vec3& max )
 		V3( min.x, max.y, max.z ), V3( max.x, max.y, max.z ),
 	};
 	return new BulletConvexHullShape( pts, 8 );
+}
+
+PhyShapeHandle PHY_CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idata, size_t icount, bool index32 )
+{
+	return new BulletTriMeshShape( verts, vcount, idata, icount, index32 );
+}
+
+PhyShapeHandle PHY_CreateShapeFromMesh( SGRX_IMesh* mesh )
+{
+	int off;
+	if( !mesh ||
+		!mesh->m_vertexDecl ||
+		mesh->m_vertexDecl->m_info.GetType( VDECLUSAGE_POSITION ) != VDECLTYPE_FLOAT3 ||
+		( off = mesh->m_vertexDecl->m_info.GetOffset( VDECLUSAGE_POSITION ) ) < 0 )
+		return NULL;
+	size_t vtxsize = mesh->m_vertexDecl->m_info.size;
+	size_t vcount = mesh->m_vdata.size() / vtxsize;
+	Array< Vec3 > vdata;
+	vdata.resize( vcount );
+	for( size_t i = 0; i < vcount; ++i )
+	{
+		vdata[ i ] = *(Vec3*) &mesh->m_vdata[ i * vtxsize + off ];
+	}
+	
+	bool i32 = !!( mesh->m_dataFlags & MDF_INDEX_32 );
+	if( i32 )
+	{
+		Array< uint32_t > indices;
+		for( int p = 0; p < mesh->m_numParts; ++p )
+		{
+			SGRX_MeshPart& MP = mesh->m_parts[ p ];
+			for( size_t i = MP.indexOffset; i < MP.indexOffset + MP.indexCount; ++i )
+				indices.push_back( *(uint32_t*) &mesh->m_idata[ i * 4 ] + MP.vertexOffset );
+		}
+		return PHY_CreateTriMeshShape( vdata.data(), vdata.size(), indices.data(), indices.size(), i32 );
+	}
+	else
+	{
+		Array< uint16_t > indices;
+		for( int p = 0; p < mesh->m_numParts; ++p )
+		{
+			SGRX_MeshPart& MP = mesh->m_parts[ p ];
+			for( size_t i = MP.indexOffset; i < MP.indexOffset + MP.indexCount; ++i )
+				indices.push_back( *(uint16_t*) &mesh->m_idata[ i * 2 ] + MP.vertexOffset );
+		}
+		return PHY_CreateTriMeshShape( vdata.data(), vdata.size(), indices.data(), indices.size(), i32 );
+	}
 }
 
 PhyWorldHandle PHY_CreateWorld()
