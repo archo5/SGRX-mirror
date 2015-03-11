@@ -276,7 +276,8 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 		// axis1 = direction between centers
 		Vec2 world_axis_2d = ( cp1 - cp0 ).Normalized();
 		B.world_axisY = world_axis_2d.x * proj_x + world_axis_2d.y * proj_y;
-		B.world_axisX = Vec3Cross( B.world_axisZ, B.world_axisY ).Normalized();
+		// this order of cross product arguments is required for matrix->quaternion to work properly
+		B.world_axisX = Vec3Cross( B.world_axisY, B.world_axisZ ).Normalized();
 		
 		B.world_center = main_center_3d + proj_x * center.x + proj_y * center.y;
 	}
