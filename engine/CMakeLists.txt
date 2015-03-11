@@ -45,6 +45,19 @@ set_target_properties( sgrx-physics-bullet PROPERTIES
 	LINK_FLAGS "-m32"
 )
 
+# Scripting - SGScript
+add_library( sgrx-script SHARED script
+	../ext/src/sgscript.c
+)
+target_link_libraries( sgrx-script sgrx-core )
+set_target_properties( sgrx-script PROPERTIES
+	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/src/sgscript"
+	COMPILE_FLAGS "-m32"
+	LINK_FLAGS "-m32"
+)
+
 # Launchers
 add_executable( sgrx-debug launcher )
 add_executable( sgrx launcher )

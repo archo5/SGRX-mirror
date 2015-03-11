@@ -17,14 +17,6 @@ template<> struct FreeOnEnd< FILE* >
 #define AUTOFREE( T, p, iv ) T p = iv; FreeOnEnd<T> autofree_##p( p )
 
 
-Quat rotation_between_vectors( const Vec3& v1, const Vec3& v2 )
-{
-	Vec3 nv1 = v1.Normalized();
-	Vec3 nv2 = v2.Normalized();
-	return Quat::CreateAxisAngle( Vec3Cross( nv1, nv2 ), Vec3Dot( nv1, nv2 ) );
-}
-
-
 struct AMVertex
 {
 	Vec3 pos;
@@ -48,9 +40,9 @@ struct AMBone
 	Vec3 world_axisY; // second g.d. (Y)
 	Vec3 world_axisX; // cross product (X)
 	Vec3 world_center;
-	Vec3 world_bb_min;
-	Vec3 world_bb_max;
-	Vec3 world_extents;
+	Vec3 bb_min;
+	Vec3 bb_max;
+	Vec3 bb_extents;
 	float capsule_height;
 	float capsule_radius;
 };
@@ -199,7 +191,7 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 		for( size_t i = 0; i < points.size(); ++i )
 		{
 			Vec3 P = points[i];
-			if( Vec3Dot( PN, P ) > PD )
+			if( Vec3Dot( PN, P ) < PD )
 			{
 				cp0 += P;
 				ci0++;
@@ -266,7 +258,7 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 		for( size_t i = 0; i < point2ds.size(); ++i )
 		{
 			Vec2 P = point2ds[i];
-			if( Vec2Dot( PN, P ) > PD )
+			if( Vec2Dot( PN, P ) < PD )
 			{
 				cp0 += P;
 				ci0++;
@@ -304,103 +296,24 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 		bbmin = Vec3::Min( bbmin, dots );
 		bbmax = Vec3::Max( bbmax, dots );
 	}
-	B.world_bb_min = bbmin;
-	B.world_bb_max = bbmax;
-	B.world_extents = Vec3::Max( -bbmin, bbmax );
-	B.capsule_radius = TMAX( B.world_extents.x, B.world_extents.y );
-	B.capsule_height = TMAX( B.world_extents.z - B.capsule_radius * 2, 0.0f );
+	Vec3 bbcenter = ( bbmin + bbmax ) * 0.5f;
+	B.world_center += B.world_axisX * bbcenter.x + B.world_axisY * bbcenter.y + B.world_axisZ * bbcenter.z;
+	B.bb_min = bbmin - bbcenter;
+	B.bb_max = bbmax - bbcenter;
+	B.bb_extents = B.bb_max;
+	B.capsule_radius = TMAX( B.bb_extents.x, B.bb_extents.y );
+	B.capsule_height = TMAX( B.bb_extents.z - B.capsule_radius * 2, 0.0f );
 	
 	printf( "Bone %.*s:\n", (int) B.name.size(), B.name.data() );
 	printf( "- center: %g %g %g\n", B.world_center.x, B.world_center.y, B.world_center.z );
 	printf( "- axis-X: %g %g %g\n", B.world_axisX.x, B.world_axisX.y, B.world_axisX.z );
 	printf( "- axis-Y: %g %g %g\n", B.world_axisY.x, B.world_axisY.y, B.world_axisY.z );
 	printf( "- axis-Z: %g %g %g\n", B.world_axisZ.x, B.world_axisZ.y, B.world_axisZ.z );
-	printf( "- bbmin: %g %g %g\n", bbmin.x, bbmin.y, bbmin.z );
-	printf( "- bbmax: %g %g %g\n", bbmax.x, bbmax.y, bbmax.z );
-	printf( "- extents: %g %g %g\n", B.world_extents.x, B.world_extents.y, B.world_extents.z );
+	printf( "- bbmin: %g %g %g\n", B.bb_min.x, B.bb_min.y, B.bb_min.z );
+	printf( "- bbmax: %g %g %g\n", B.bb_max.x, B.bb_max.y, B.bb_max.z );
+	printf( "- extents: %g %g %g\n", B.bb_extents.x, B.bb_extents.y, B.bb_extents.z );
 	printf( "- capsule radius: %g, height: %g\n", B.capsule_radius, B.capsule_height );
 }
-
-
-struct SkeletonInfo
-{
-	enum BodyType
-	{
-		BodyType_Capsule = 1
-	};
-	
-	struct HitBox
-	{
-		String name;
-		Quat rotation;
-		Vec3 position;
-		Vec3 extents;
-		float multiplier;
-		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
-		{
-			arch( name );
-			arch( rotation );
-			arch( position );
-			arch( extents );
-			arch( multiplier );
-		}
-	};
-	
-	struct Body
-	{
-		String name;
-		Quat rotation;
-		Vec3 position;
-		uint8_t type;
-		float capsule_radius;
-		float capsule_height;
-		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
-		{
-			arch( name );
-			arch( rotation );
-			arch( position );
-			arch( type );
-			if( type == BodyType_Capsule )
-			{
-				arch( capsule_radius );
-				arch( capsule_height );
-			}
-		}
-	};
-	
-	struct Joint
-	{
-		String name1;
-		String name2;
-		Vec3 local_offset1;
-		Vec3 local_offset2;
-		uint8_t type;
-		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
-		{
-			arch( name1 );
-			arch( name2 );
-			arch( local_offset1 );
-			arch( local_offset2 );
-			arch( type );
-		}
-	};
-	
-	Array< HitBox > hitboxes;
-	Array< Body > bodies;
-	Array< Joint > joints;
-	
-	template< class T > void Serialize( T& arch )
-	{
-		arch.marker( "SGRXSKRI" );
-		SerializeVersionHelper<T> vh( arch, 1 );
-		vh( hitboxes );
-		vh( bodies );
-		vh( joints );
-	}
-};
 
 
 int main( int argc, char* argv[] )
@@ -632,6 +545,7 @@ int main( int argc, char* argv[] )
 					}
 				}
 			}
+			printf( ", tracks detected" );
 			
 			Mat4 matrices[ MAX_MESH_BONES ];
 			// apply animation
@@ -657,6 +571,19 @@ int main( int argc, char* argv[] )
 				}
 				M = mesh_bones[ i ].invSkinOffset * M;
 			}
+			printf( ", matrices updated" );
+			
+			for( size_t i = 0; i < mesh_vertex_data.size(); ++i )
+			{
+				AMVertex& V = mesh_vertex_data[ i ];
+				V.pos =
+					matrices[ V.indices[0] ].TransformPos( V.pos ) * ( V.weights[0] / 255.0f ) +
+					matrices[ V.indices[1] ].TransformPos( V.pos ) * ( V.weights[1] / 255.0f ) +
+					matrices[ V.indices[2] ].TransformPos( V.pos ) * ( V.weights[2] / 255.0f ) +
+					matrices[ V.indices[3] ].TransformPos( V.pos ) * ( V.weights[3] / 255.0f )
+				;
+			}
+			printf( ", mesh transformed" );
 			
 			puts( " - done" );
 		}
@@ -734,7 +661,7 @@ int main( int argc, char* argv[] )
 			{
 				i--;
 				AMBone& B = mesh_bones[ i ];
-				if( B.world_extents.NearZero() )
+				if( B.bb_extents.NearZero() )
 				{
 					printf( "Removing unused bone: \"%.*s\"\n", (int) B.name.size(), B.name.data() );
 					for( size_t j = i + 1; j < mesh_bones.size(); ++j )
@@ -754,10 +681,19 @@ int main( int argc, char* argv[] )
 			{
 				const AMBone& B = mesh_bones[ i ];
 				const String& name = B.name;
-				Quat rotation = rotation_between_vectors( V3(0,0,1), B.world_to_local.TransformNormal( B.world_axisZ ) );
+			//	Quat rotation = ( Mat4::Basis( B.world_axisX, B.world_axisY, B.world_axisZ ) * B.world_to_local ).GetRotationQuaternion();
+				Vec3 lo1 = B.world_to_local.TransformNormal( B.world_axisX );
+				Vec3 lo2 = B.world_to_local.TransformNormal( B.world_axisY );
+				Vec3 lo3 = B.world_to_local.TransformNormal( B.world_axisZ );
+				printf( "BONE %.*s\n", (int) name.size(), name.data() );
+				printf( "EXTENTS %g %g %g\n", B.bb_extents.x, B.bb_extents.y, B.bb_extents.z );
+				printf( "%g %g %g\n", B.world_axisX.x, B.world_axisX.y, B.world_axisX.z );
+				printf( "%g %g %g\n", B.world_axisY.x, B.world_axisY.y, B.world_axisY.z );
+				printf( "%g %g %g\n", B.world_axisZ.x, B.world_axisZ.y, B.world_axisZ.z );
+				Quat rotation = Mat4::Basis( lo1, lo2, lo3 ).GetRotationQuaternion();
 				Vec3 position = B.world_to_local.TransformPos( B.world_center );
 				
-				SkeletonInfo::HitBox hbox = { name, rotation, position, B.world_extents, 1 };
+				SkeletonInfo::HitBox hbox = { name, rotation, position, lo1, lo2, lo3, B.bb_extents, 1 };
 				SkeletonInfo::Body body = { name, rotation, position, SkeletonInfo::BodyType_Capsule, B.capsule_height, B.capsule_radius };
 				
 				skinfo.hitboxes.push_back( hbox );

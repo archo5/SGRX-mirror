@@ -12,6 +12,7 @@
 
 
 #define USE_VEC3
+#define USE_ARRAY
 
 
 #define ASSERT assert
@@ -24,7 +25,9 @@
 
 #define SGRX_CAST( t, to, from ) t to = (t) from
 #define SGRX_ARRAY_SIZE( arr ) (sizeof(arr)/sizeof((arr)[0]))
-#define UNUSED( x ) (void) x
+#ifndef UNUSED
+#  define UNUSED( x ) (void) x
+#endif
 #define STRLIT_LEN( x ) (sizeof(x)-1)
 #define STRLIT_BUF( x ) x, STRLIT_LEN( x )
 
@@ -636,6 +639,19 @@ struct EXPORT Mat4
 	{
 		Mat4 out;
 		out.Perspective( angle, aspect, aamix, znear, zfar );
+		return out;
+	}
+	static Mat4 Basis( const Vec3& vx, const Vec3& vy, const Vec3& vz, bool cols = false )
+	{
+		Mat4 out =
+		{
+			vx.x, vx.y, vx.z, 0,
+			vy.x, vy.y, vy.z, 0,
+			vz.x, vz.y, vz.z, 0,
+			0, 0, 0, 1
+		};
+		if( cols )
+			out.Transpose();
 		return out;
 	}
 	
@@ -1897,6 +1913,67 @@ struct IL_Item
 typedef Array< IL_Item > ItemList;
 
 EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
+
+
+//
+// LOGGING
+//
+
+
+struct Loggable {};
+struct EXPORT SGRX_Log
+{
+	struct Separator
+	{
+		Separator( const char* s ) : sep( s ){}
+		const char* sep;
+	};
+	enum EMod_Partial { Mod_Partial };
+	enum ESpec_Date { Spec_Date };
+	
+	bool end_newline;
+	bool need_sep;
+	const char* sep;
+	
+	SGRX_Log();
+	~SGRX_Log();
+	void prelog();
+	
+	SGRX_Log& operator << ( const Separator& );
+	SGRX_Log& operator << ( EMod_Partial );
+	SGRX_Log& operator << ( ESpec_Date );
+	SGRX_Log& operator << ( bool );
+	SGRX_Log& operator << ( int8_t );
+	SGRX_Log& operator << ( uint8_t );
+	SGRX_Log& operator << ( int16_t );
+	SGRX_Log& operator << ( uint16_t );
+	SGRX_Log& operator << ( int32_t );
+	SGRX_Log& operator << ( uint32_t );
+	SGRX_Log& operator << ( int64_t );
+	SGRX_Log& operator << ( uint64_t );
+	SGRX_Log& operator << ( float );
+	SGRX_Log& operator << ( double );
+	SGRX_Log& operator << ( const void* );
+	SGRX_Log& operator << ( const char* );
+	SGRX_Log& operator << ( const StringView& );
+	SGRX_Log& operator << ( const String& );
+	SGRX_Log& operator << ( const Vec2& );
+	SGRX_Log& operator << ( const Vec3& );
+	SGRX_Log& operator << ( const Vec4& );
+	SGRX_Log& operator << ( const Quat& );
+	SGRX_Log& operator << ( const Mat4& );
+	template< class T > SGRX_Log& operator << ( const Array<T>& arr ){ *this << "ARRAY";
+		for( size_t i = 0; i < arr.size(); ++i ) *this << "\n\t" << i << ": " << arr[i]; return *this; }
+	
+	SGRX_Log& operator << ( const struct SGRX_Camera& );
+};
+#define LOG SGRX_Log()
+#define LOG_ERROR SGRX_Log() << "ERROR: "
+#define LOG_WARNING SGRX_Log() << "WARNING: "
+#define PARTIAL_LOG SGRX_Log::Mod_Partial
+#define LOG_DATE SGRX_Log::Spec_Date
+#define LOG_SEP( x ) SGRX_Log::Separator( x )
+
 
 
 //

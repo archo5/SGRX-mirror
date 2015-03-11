@@ -2,6 +2,7 @@
 
 #include <utility>
 #include <stdio.h>
+#include <time.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -10,6 +11,7 @@
 #define USE_VEC2
 #define USE_VEC3
 #define USE_VEC4
+#define USE_QUAT
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
@@ -23,6 +25,7 @@ const Quat Quat::Identity = { 0, 0, 0, 1 };
 
 Quat Mat4::GetRotationQuaternion() const
 {
+#if 1
 	Quat Q;
 	
 	Mat4 usm = *this;
@@ -69,7 +72,42 @@ Quat Mat4::GetRotationQuaternion() const
 	}
 #undef r
 	
+	return Q.Normalized();
+#else
+#define r(x,y) m[x][y]
+	float trace = r(0,0) + r(1,1) + r(2,2);
+
+	float temp[4];
+
+	if (trace > float(0.0)) 
+	{
+		float s = sqrtf(trace + float(1.0));
+		temp[3]=(s * float(0.5));
+		s = float(0.5) / s;
+
+		temp[0]=((r(2,1) - r(1,2)) * s);
+		temp[1]=((r(0,2) - r(2,0)) * s);
+		temp[2]=((r(1,0) - r(0,1)) * s);
+	} 
+	else 
+	{
+		int i = r(0,0) < r(1,1) ? 
+			(r(1,1) < r(2,2) ? 2 : 1) :
+			(r(0,0) < r(2,2) ? 2 : 0); 
+		int j = (i + 1) % 3;  
+		int k = (i + 2) % 3;
+
+		float s = sqrtf(r(i,i) - r(j,j) - r(k,k) + float(1.0));
+		temp[i] = s * float(0.5);
+		s = float(0.5) / s;
+
+		temp[3] = (r(k,j) - r(j,k)) * s;
+		temp[j] = (r(j,i) + r(i,j)) * s;
+		temp[k] = (r(k,i) + r(i,k)) * s;
+	}
+	Quat Q = { temp[0], temp[1], temp[2], temp[3] };
 	return Q;
+#endif
 }
 
 bool Mat4::InvertTo( Mat4& out )
@@ -1020,6 +1058,85 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 	}
 	
 	return true;
+}
+
+
+
+//
+// LOGGING
+//
+
+SGRX_Log::SGRX_Log() : end_newline(true), need_sep(false), sep("") {}
+SGRX_Log::~SGRX_Log(){ sep = ""; if( end_newline ) *this << "\n"; }
+
+void SGRX_Log::prelog()
+{
+	if( need_sep )
+		printf( "%s", sep );
+	else
+		need_sep = true;
+}
+
+SGRX_Log& SGRX_Log::operator << ( EMod_Partial ){ end_newline = false; return *this; }
+SGRX_Log& SGRX_Log::operator << ( ESpec_Date )
+{
+	time_t ttv;
+	time( &ttv );
+	struct tm T = *localtime( &ttv );
+	char pbuf[ 256 ] = {0};
+	strftime( pbuf, 255, "%Y-%m-%d %H:%M:%S", &T );
+	printf( pbuf );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const Separator& s ){ sep = s.sep; return *this; }
+SGRX_Log& SGRX_Log::operator << ( bool v ){ prelog(); printf( "[%s / %02X]", v ? "true" : "false", (int) v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( int8_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint8_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( int16_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint16_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( int32_t v ){ prelog(); printf( "%" PRId32, v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ prelog(); printf( "%" PRIu32, v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( int64_t v ){ prelog(); printf( "%" PRId64, v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ prelog(); printf( "%" PRIu64, v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
+SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%g", v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"%.*s\"", (int) sv.size(), (int) sv.size(), sv.data() ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const String& sv ){ return *this << (StringView) sv; }
+SGRX_Log& SGRX_Log::operator << ( const Vec2& v )
+{
+	prelog();
+	printf( "Vec2( %g ; %g )", v.x, v.y );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const Vec3& v )
+{
+	prelog();
+	printf( "Vec3( %g ; %g ; %g )", v.x, v.y, v.z );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const Vec4& v )
+{
+	prelog();
+	printf( "Vec4( %g ; %g ; %g ; %g )", v.x, v.y, v.z, v.w );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const Quat& q )
+{
+	prelog();
+	printf( "Quat( %g ; %g ; %g ; w = %g )", q.x, q.y, q.z, q.w );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
+{
+	prelog();
+	printf( "Mat4(\n" );
+	printf( "\t%g\t%g\t%g\t%g\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
+	printf( "\t%g\t%g\t%g\t%g\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
+	printf( "\t%g\t%g\t%g\t%g\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
+	printf( "\t%g\t%g\t%g\t%g\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
+	return *this;
 }
 
 

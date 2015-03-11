@@ -355,7 +355,7 @@ void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const Stri
 }
 
 
-bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz )
+bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz, bool applyinv, Mat4* base )
 {
 	SGRX_IMesh* mesh = mh;
 	if( !mesh )
@@ -372,11 +372,16 @@ bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_
 		M = Mat4::CreateSRT( animator->scale[ i ], animator->rotation[ i ], animator->position[ i ] ) * MB[ i ].boneOffset;
 		if( MB[ i ].parent_id >= 0 )
 			M = M * out[ MB[ i ].parent_id ];
+		else if( base )
+			M = M * *base;
 	}
-	for( size_t i = 0; i < outsz; ++i )
+	if( applyinv )
 	{
-		Mat4& M = out[ i ];
-		M = MB[ i ].invSkinOffset * M;
+		for( size_t i = 0; i < outsz; ++i )
+		{
+			Mat4& M = out[ i ];
+			M = MB[ i ].invSkinOffset * M;
+		}
 	}
 	return true;
 }
