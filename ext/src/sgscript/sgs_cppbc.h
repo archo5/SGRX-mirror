@@ -3,7 +3,10 @@
 #ifndef __SGS_CPPBC_H__
 #define __SGS_CPPBC_H__
 
-#include <sgscript.h>
+#ifndef HEADER_SGSCRIPT_H
+# define HEADER_SGSCRIPT_H <sgscript.h>
+#endif
+#include HEADER_SGSCRIPT_H
 #include <new>
 #include <assert.h>
 

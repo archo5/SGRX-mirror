@@ -391,7 +391,7 @@ void sgs_WriteErrorInfo( SGS_CTX, int flags, sgs_ErrorOutputFunc func, void* ctx
 	if( flags & SGS_ERRORINFO_STACK )
 	{
 		sgs_StackFrame* p = sgs_GetFramePtr( C, SGS_FALSE );
-		UNUSED( ctx );
+		SGS_UNUSED( ctx );
 		while( p != NULL )
 		{
 			const char* file, *name;
@@ -980,7 +980,7 @@ void sgs_StackFrameInfo( SGS_CTX, sgs_StackFrame* frame, const char** name, cons
 	const char* N = "<non-callable type>";
 	const char* F = "<buffer>";
 
-	UNUSED( C );
+	SGS_UNUSED( C );
 	if( !frame->func )
 	{
 		N = "<main>";

@@ -369,7 +369,7 @@ static int fmt_unpack( SGS_CTX, const char* str,
 		}
 	}
 	sgs_BreakIf( data > dataend );
-	UNUSED( dataend );
+	SGS_UNUSED( dataend );
 	if( si >= 0 && !noarray )
 	{
 		if( SGS_FAILED( sgs_PushArray( C, si ) ) )
@@ -1008,7 +1008,7 @@ static int sgsstd_fmtstream_destroy( SGS_CTX, sgs_VarObj* obj )
 #define SGSFS_IHDR( name ) \
 	sgsstd_fmtstream_t* hdr; \
 	if( !SGS_PARSE_METHOD( C, sgsstd_fmtstream_iface, hdr, fmtstream, name ) ) return 0; \
-	UNUSED( hdr );
+	SGS_UNUSED( hdr );
 
 static int sgsstd_fmtstreamI_read( SGS_CTX )
 {
@@ -1957,7 +1957,7 @@ static int sgsstd_io_file_read( SGS_CTX )
 #define FILE_IHDR( fname ) \
 	void* data; \
 	if( !SGS_PARSE_METHOD( C, sgsstd_file_iface, data, file, name ) ) return 0; \
-	UNUSED( data );
+	SGS_UNUSED( data );
 
 
 static int sgsstd_fileP_offset( SGS_CTX, FILE* fp )
@@ -2186,7 +2186,7 @@ static int sgsstd_file_getindex( SGS_ARGS_GETINDEXFUNC )
 
 static int sgsstd_file_destruct( SGS_CTX, sgs_VarObj* obj )
 {
-	UNUSED( C );
+	SGS_UNUSED( C );
 	if( IFVAR )
 		fclose( IFVAR );
 	return SGS_SUCCESS;
@@ -2194,7 +2194,7 @@ static int sgsstd_file_destruct( SGS_CTX, sgs_VarObj* obj )
 
 static int sgsstd_file_convert( SGS_CTX, sgs_VarObj* obj, int type )
 {
-	UNUSED( obj );
+	SGS_UNUSED( obj );
 	if( type == SGS_VT_BOOL )
 	{
 		sgs_PushBool( C, !!IFVAR );
@@ -2257,7 +2257,7 @@ SGS_DECLARE sgs_ObjInterface sgsstd_dir_iface[1];
 static int sgsstd_dir_destruct( SGS_CTX, sgs_VarObj* data )
 {
 	DIR_HDR;
-	UNUSED( C );
+	SGS_UNUSED( C );
 	if( hdr->dir ) closedir( hdr->dir );
 	sgs_Dealloc( hdr );
 	return SGS_SUCCESS;

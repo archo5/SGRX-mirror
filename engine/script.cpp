@@ -66,6 +66,38 @@ bool ScriptContext::ExecBuffer( const StringView& data )
 	return SGS_SUCCEEDED( sgs_ExecBuffer( C, data.data(), data.size() ) );
 }
 
+void ScriptContext::PushEnv()
+{
+	sgs_Variable cur_env, new_env;
+	
+	sgs_GetEnv( C, &cur_env );
+	sgs_InitDict( C, &new_env, 0 );
+	sgs_ObjSetMetaObj( C, sgs_GetObjectStructP( &new_env ), sgs_GetObjectStructP( &cur_env ) );
+	sgs_SetEnv( C, &new_env );
+	sgs_Release( C, &new_env );
+	sgs_Release( C, &cur_env );
+}
+
+bool ScriptContext::PopEnv()
+{
+	sgs_Variable cur_env;
+	
+	sgs_GetEnv( C, &cur_env );
+	sgs_VarObj* upper_env = sgs_ObjGetMetaObj( sgs_GetObjectStructP( &cur_env ) );
+	if( upper_env )
+		sgs_ObjSetMetaObj( C, sgs_GetObjectStructP( &cur_env ), NULL );
+	sgs_Release( C, &cur_env );
+	if( upper_env )
+	{
+		sgs_Variable new_env;
+		sgs_InitObjectPtr( &new_env, upper_env );
+		sgs_SetEnv( C, &new_env );
+		sgs_Release( C, &new_env );
+		return true;
+	}
+	return false;
+}
+
 ScriptVarIterator ScriptContext::GlobalIterator()
 {
 	sgs_Variable env;

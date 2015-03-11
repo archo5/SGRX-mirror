@@ -2,6 +2,7 @@
 
 #pragma once
 #define __STDC_FORMAT_MACROS 1
+#define HEADER_SGSCRIPT_H "sgscript.h"
 #include "../ext/src/sgscript/sgscript.h"
 #include "../ext/src/sgscript/sgs_cppbc.h"
 
@@ -28,6 +29,11 @@ struct ScriptContext
 	
 	bool ExecFile( const StringView& path );
 	bool ExecBuffer( const StringView& data );
+	
+	// creates a new dict, sets metaobject of current to new, sets new as env
+	void PushEnv();
+	// tries to reverse the operation done by the previous function, returns false if no metaobj
+	bool PopEnv();
 	
 	ScriptVarIterator GlobalIterator();
 	

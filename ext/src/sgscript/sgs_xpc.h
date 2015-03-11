@@ -27,7 +27,7 @@ typedef unsigned __int64 uint64_t;
 #  define SGS_VSPRINTF_LEN( str, args ) vsnprintf( NULL, 0, str, args )
 #endif
 
-#define UNUSED( x ) (void)(x)
+#define SGS_UNUSED( x ) (void)(x)
 
 #if defined(__GNUC__) && ( __GNUC__ > 4 || ( __GNUC__ == 4 && __GNUC_MINOR__ >= 7 ) )
 #  define SGS_ASSUME_ALIGNED __builtin_assume_aligned

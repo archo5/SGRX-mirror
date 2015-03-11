@@ -111,7 +111,7 @@ typedef void* (*sgs_MemFunc)
 */
 static void* sgs_DefaultMemFunc( void* ud, void* ptr, size_t size )
 {
-	UNUSED( ud );
+	SGS_UNUSED( ud );
 	if( ptr && size ) return realloc( ptr, size );
 	else if( size )   return malloc( size );
 	if( ptr )         free( ptr );
@@ -794,13 +794,13 @@ static SGS_INLINE int sgs_Errno( SGS_CTX, int clear )
 
 static SGS_INLINE void sgs_StdOutputFunc( void* userdata, SGS_CTX, const void* ptr, size_t size )
 {
-	UNUSED( C );
+	SGS_UNUSED( C );
 	fwrite( ptr, 1, size, (FILE*) userdata );
 }
 
 static SGS_INLINE void sgs_StdMsgFunc_NoAbort( void* ctx, SGS_CTX, int type, const char* msg )
 {
-	UNUSED( ctx );
+	SGS_UNUSED( ctx );
 	sgs_WriteErrorInfo( C, SGS_ERRORINFO_FULL, (sgs_ErrorOutputFunc) sgs_ErrWritef, C, type, msg );
 }
 
@@ -821,7 +821,7 @@ static SGS_INLINE void sgs_StdMsgFunc( void* ctx, SGS_CTX, int type, const char*
 
 #define SGS_ARGS_GETINDEXFUNC SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop
 #define SGS_ARGS_SETINDEXFUNC SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop
-#define SGS_BEGIN_INDEXFUNC char* str; UNUSED( isprop ); if( sgs_ParseStringP( C, key, &str, NULL ) ){
+#define SGS_BEGIN_INDEXFUNC char* str; SGS_UNUSED( isprop ); if( sgs_ParseStringP( C, key, &str, NULL ) ){
 #define SGS_END_INDEXFUNC } return SGS_ENOTFND;
 #define SGS_CASE( name ) if( !strcmp( str, name ) )
 

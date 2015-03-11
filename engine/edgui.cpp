@@ -2081,6 +2081,7 @@ int EDGUIPropString::_FindOffset( int x, int y )
 
 
 EDGUIPropRsrc::EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def ) :
+	m_requestReload( true ),
 	m_rsrcPicker( rsrcPicker ),
 	m_value( def )
 {
@@ -2110,6 +2111,8 @@ int EDGUIPropRsrc::OnEvent( EDGUIEvent* e )
 		_Begin( e );
 		if( Hit( e->mouse.x, e->mouse.y ) )
 		{
+			if( m_requestReload )
+				m_rsrcPicker->Reload();
 			m_rsrcPicker->Open( this, m_value );
 			m_frame->Add( m_rsrcPicker );
 		}

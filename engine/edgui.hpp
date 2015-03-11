@@ -310,6 +310,7 @@ struct EXPORT EDGUIRsrcPicker : EDGUIItem
 	void _FindHL();
 	void _Search( const StringView& str );
 	int GetScrollOffset();
+	virtual void Reload(){}
 	virtual void _OnChangeZoom();
 	virtual void _OnPickResource();
 	virtual void _OnConfirm();
@@ -481,6 +482,8 @@ struct EXPORT EDGUIPropRsrc : EDGUIProperty
 	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
 	String m_value;
+	
+	bool m_requestReload;
 	
 	EDGUIRsrcPicker* m_rsrcPicker;
 	EDGUIButton m_button;
