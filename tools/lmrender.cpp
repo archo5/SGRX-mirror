@@ -2,6 +2,7 @@
 
 #define USE_VEC3
 #define USE_ARRAY
+#define USE_HASHTABLE
 #include "../engine/utils.hpp"
 #include "../engine/renderer.hpp"
 
@@ -108,6 +109,51 @@ fail:
 }
 
 
+Vec3 GetColorFromTexture( const StringView& path )
+{
+	ByteArray ba;
+	TextureData TD;
+	if( LoadBinaryFile( path, ba ) && TextureData_Load( &TD, ba, path ) )
+	{
+		// TODO
+	}
+	return V3(1);
+}
+
+struct MeshPartKey
+{
+	String meshPath;
+	uint32_t partID;
+	
+	bool operator == ( const MeshPartKey& o ) const
+	{
+		return meshPath == o.meshPath && partID == o.partID;
+	}
+};
+Hash HashVar( const MeshPartKey& mpk )
+{
+	return HashVar( mpk.meshPath ) ^ HashVar( mpk.partID );
+}
+
+HashTable< String, Vec3 > g_TexSamples;
+HashTable< MeshPartKey, String > g_MeshPartTextures;
+
+LTRBOOL Radiosity_Sample_Fn( ltr_Config* config, ltr_SampleRequest* req )
+{
+	MeshPartKey mpk = { String( req->mesh_ident, req->mesh_ident_size ), req->part_id };
+	String* texname = g_MeshPartTextures.getptr( mpk );
+	if( !texname )
+		return 0;
+	
+	Vec3* texsample = g_TexSamples.getptr( *texname );
+	if( !texsample )
+		return 0;
+	
+	req->out_diffuse_color[0] = texsample->x;
+	req->out_diffuse_color[1] = texsample->y;
+	req->out_diffuse_color[2] = texsample->z;
+	return 1;
+}
 
 
 int main( int argc, char* argv[] )
@@ -134,6 +180,7 @@ int main( int argc, char* argv[] )
 	
 	ltr_Config scene_config;
 	ltr_GetConfig( &scene_config, scene );
+	scene_config.sample_fn = Radiosity_Sample_Fn;
 	
 	ltr_Mesh* last_mesh = NULL;
 	
@@ -259,6 +306,12 @@ int main( int argc, char* argv[] )
 					vertex_decl.size, vertex_decl.size, vertex_decl.size, vertex_decl.size, // stride
 					&mesh_indices[ mfpd.indexOffset ], mfpd.vertexCount, mfpd.indexCount, mf_data.dataFlags & MDF_TRIANGLESTRIP != 0 ? 1 : 0,
 				};
+				
+				StringView texname = mfpd.materialTextureCount ? StringView( mfpd.materialStrings[1], mfpd.materialStringSizes[1] ) : StringView();
+				if( !g_TexSamples.getptr( texname ) )
+					g_TexSamples[ texname ] = GetColorFromTexture( texname );
+				MeshPartKey mpk = { mesh_path, i };
+				g_MeshPartTextures[ mpk ] = texname;
 				
 				if( !ltr_MeshAddPart( last_mesh, &mpinfo ) )
 				{
@@ -456,6 +509,9 @@ int main( int argc, char* argv[] )
 			{
 				ltr_VEC3 col; if( fscanf( fp, "%f %f %f", &col[0], &col[1], &col[2] ) == 3 ) { memcpy( scene_config.ambient_color, col, sizeof(col) ); } else { perror( "CONFIG: failed to read ambient_color" ); return 1; }
 			}
+			// RADIOSITY effect
+			else if( !strcmp( key, "bounce_count" ) ){ int v = 0; if( fscanf( fp, "%d", &v ) == 1 ) { scene_config.bounce_count = v; } else { perror( "CONFIG: failed to read bounce_count" ); return 1; } }
+			// AMBIENT OCCLUSION effect
 			else if( !strcmp( key, "ao_distance" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.ao_distance = v; } else { perror( "CONFIG: failed to read ao_distance" ); return 1; } }
 			else if( !strcmp( key, "ao_multiplier" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.ao_multiplier = v; } else { perror( "CONFIG: failed to read ao_multiplier" ); return 1; } }
 			else if( !strcmp( key, "ao_falloff" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.ao_falloff = v; } else { perror( "CONFIG: failed to read ao_falloff" ); return 1; } }

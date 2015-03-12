@@ -2,8 +2,9 @@
 # Lightmap renderer
 add_executable( lmrender
 	lmrender
-	../engine/utils ../engine/mesh
+	../engine/utils ../engine/mesh ../engine/image ../engine/dds
 	../ext/src/lighter/lighter ../ext/src/lighter/lighter_math
+	../ext/src/libjpg1 ../ext/src/libjpg2 ../ext/src/libjpg3
 	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
 	../ext/src/libpng1
 )

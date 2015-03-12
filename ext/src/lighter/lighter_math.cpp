@@ -134,17 +134,37 @@ bool Mat4::InvertTo( Mat4& out )
 }
 
 
+static FORCEINLINE float TriangleArea( float a, float b, float c )
+{
+	float p = ( a + b + c ) * 0.5f;
+	float presqrt = p * ( p - a ) * ( p - b ) * ( p - c );
+	if( presqrt < 0 )
+		return 0;
+	return sqrtf( presqrt );
+}
+
+float TriangleArea( const Vec2& P1, const Vec2& P2, const Vec2& P3 )
+{
+	float a = ( P2 - P1 ).Length();
+	float b = ( P3 - P2 ).Length();
+	float c = ( P1 - P3 ).Length();
+	return TriangleArea( a, b, c );
+}
 
 float TriangleArea( const Vec3& P1, const Vec3& P2, const Vec3& P3 )
 {
 	float a = ( P2 - P1 ).Length();
 	float b = ( P3 - P2 ).Length();
 	float c = ( P1 - P3 ).Length();
-	float p = ( a + b + c ) * 0.5f;
-	float presqrt = p * ( p - a ) * ( p - b ) * ( p - c );
-	if( presqrt < 0 )
-		return 0;
-	return sqrtf( presqrt );
+	return TriangleArea( a, b, c );
+}
+
+float CalculateSampleArea( const Vec2& tex1, const Vec2& tex2, const Vec2& tex3, const Vec3& pos1, const Vec3& pos2, const Vec3& pos3 )
+{
+	float lmarea = TriangleArea( tex1, tex2, tex3 );
+	float coarea = TriangleArea( pos1, pos2, pos3 );
+	
+	return lmarea > 0 ? coarea / lmarea : 0;
 }
 
 
@@ -172,10 +192,10 @@ void TransformNormals( Vec3* out, Vec3* arr, size_t count, const Mat4& matrix )
 //
 void RasterizeTriangle2D( Vec3* image, i32 width, i32 height, const Vec2& p1, const Vec2& p2, const Vec2& p3, const Vec3& va1, const Vec3& va2, const Vec3& va3 )
 {
-	i32 maxX = TMAX( p1.x, TMAX( p2.x, p3.x ) );
-	i32 minX = TMIN( p1.x, TMIN( p2.x, p3.x ) );
-	i32 maxY = TMAX( p1.y, TMAX( p2.y, p3.y ) );
-	i32 minY = TMIN( p1.y, TMIN( p2.y, p3.y ) );
+	i32 maxX = (i32) TMAX( p1.x, TMAX( p2.x, p3.x ) );
+	i32 minX = (i32) TMIN( p1.x, TMIN( p2.x, p3.x ) );
+	i32 maxY = (i32) TMAX( p1.y, TMAX( p2.y, p3.y ) );
+	i32 minY = (i32) TMIN( p1.y, TMIN( p2.y, p3.y ) );
 	
 	if( maxX < 0 || minX >= width || maxY < 0 || minY >= height )
 		return;
@@ -209,15 +229,16 @@ void RasterizeTriangle2D( Vec3* image, i32 width, i32 height, const Vec2& p1, co
 	}
 }
 
-void RasterizeTriangle2D_x2_ex( Vec3* img1, Vec3* img2, i32 width, i32 height, float margin,
+void RasterizeTriangle2D_x2_ex( Vec3* img1, Vec3* img2, Vec4* img3, i32 width, i32 height, float margin,
 	const Vec2& p1, const Vec2& p2, const Vec2& p3,
 	const Vec3& va1, const Vec3& va2, const Vec3& va3,
-	const Vec3& vb1, const Vec3& vb2, const Vec3& vb3 )
+	const Vec3& vb1, const Vec3& vb2, const Vec3& vb3,
+	const Vec4& vc1, const Vec4& vc2, const Vec4& vc3 )
 {
-	i32 maxX = TMAX( p1.x, TMAX( p2.x, p3.x ) ) + margin;
-	i32 minX = TMIN( p1.x, TMIN( p2.x, p3.x ) ) - margin;
-	i32 maxY = TMAX( p1.y, TMAX( p2.y, p3.y ) ) + margin;
-	i32 minY = TMIN( p1.y, TMIN( p2.y, p3.y ) ) - margin;
+	i32 maxX = i32( TMAX( p1.x, TMAX( p2.x, p3.x ) ) + margin );
+	i32 minX = i32( TMIN( p1.x, TMIN( p2.x, p3.x ) ) - margin );
+	i32 maxY = i32( TMAX( p1.y, TMAX( p2.y, p3.y ) ) + margin );
+	i32 minY = i32( TMIN( p1.y, TMIN( p2.y, p3.y ) ) - margin );
 	
 	if( maxX < 0 || minX >= width || maxY < 0 || minY >= height )
 		return;
@@ -242,6 +263,7 @@ void RasterizeTriangle2D_x2_ex( Vec3* img1, Vec3* img2, i32 width, i32 height, f
 	
 	Vec3 va1va2 = va2 - va1, va1va3 = va3 - va1;
 	Vec3 vb1vb2 = vb2 - vb1, vb1vb3 = vb3 - vb1;
+	Vec4 vc1vc2 = vc2 - vc1, vc1vc3 = vc3 - vc1;
 	
 	for( i32 x = minX; x <= maxX; x++ )
 	{
@@ -258,6 +280,7 @@ void RasterizeTriangle2D_x2_ex( Vec3* img1, Vec3* img2, i32 width, i32 height, f
 			{
 				img1[ x + width * y ] = va1 + va1va2 * s + va1va3 * t;
 				img2[ x + width * y ] = vb1 + vb1vb2 * s + vb1vb3 * t;
+				img3[ x + width * y ] = vc1 + vc1vc2 * s + vc1vc3 * t;
 			}
 		}
 	}
@@ -319,7 +342,7 @@ float IntersectLineSegmentTriangle( const Vec3& L1, const Vec3& L2, const Vec3& 
 void Generate_Gaussian_Kernel( float* out, int ext, float radius )
 {
 	float sum = 0.0f;
-	float multconst = 1.0f / sqrtf( 2.0f * M_PI * radius * radius );
+	float multconst = 1.0f / sqrtf( 2.0f * (float) M_PI * radius * radius );
 	for( int i = -ext; i <= ext; ++i )
 		sum += out[ i + ext ] = exp( -0.5f * pow( (float) i / radius, 2.0f ) ) * multconst;
 	for( int i = -ext; i <= ext; ++i )

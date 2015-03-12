@@ -2,6 +2,7 @@
 
 #pragma once
 
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -32,8 +33,11 @@
 #define LTR_WT_COLINFO  1 // generate collision info (* mesh)
 #define LTR_WT_SAMPLES  2 // gather sampled information to compact position/normal/index arrays, allocate color arrays (* mesh)
 #define LTR_WT_LMRENDER 3 // generate colors for samples by rendering lights to lightmaps (* mesh * light)
-#define LTR_WT_AORENDER 4 // generate ambient occlusion for samples (* mesh)
-#define LTR_WT_FINALIZE 5 // push sample data back to lightmaps (* mesh)
+#define LTR_WT_RDGENLNK 4 // calculate sample links
+#define LTR_WT_RDBOUNCE 5 // calculate a bounce between samples
+#define LTR_WT_RDCOMMIT 6 // commit radiosity calculations
+#define LTR_WT_AORENDER 7 // generate ambient occlusion for samples (* mesh)
+#define LTR_WT_FINALIZE 8 // push sample data back to lightmaps (* mesh)
 
 
 FORCEINLINE float randf(){ return (float) rand() / (float) RAND_MAX; }
@@ -119,8 +123,8 @@ struct Vec3
 	static FORCEINLINE Vec3 CreateFromPtr( const float* x ){ Vec3 v = { x[0], x[1], x[2] }; return v; }
 	static FORCEINLINE Vec3 CreateRandomVector( float maxdist )
 	{
-		float a = randf() * M_PI * 2;
-		float b = randf() * M_PI;
+		float a = randf() * (float)M_PI * 2;
+		float b = randf() * (float)M_PI;
 		float d = randf() * maxdist;
 		float ac = cos( a ), as = sin( a );
 		float bc = cos( b ), bs = sin( b );
@@ -198,8 +202,8 @@ FORCEINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 
 Vec3 Vec3::CreateRandomVectorDirDvg( const Vec3& dir, float dvg )
 {
-	float a = randf() * M_PI * 2;
-	float b = randf() * M_PI * dvg;
+	float a = randf() * (float)M_PI * 2;
+	float b = randf() * (float)M_PI * dvg;
 	float ac = cos( a ), as = sin( a );
 	float bc = cos( b ), bs = sin( b );
 	Vec3 diffvec = { dir.y, -dir.z, dir.x };
@@ -208,7 +212,7 @@ Vec3 Vec3::CreateRandomVectorDirDvg( const Vec3& dir, float dvg )
 	return ac * bs * rt + as * bs * up + bc * dir;
 }
 
-#define DEG2RAD( x ) ((x)/180.0f*M_PI)
+#define DEG2RAD( x ) ((x)/180.0f*(float)M_PI)
 Vec3 Vec3::CreateSpiralDirVector( const Vec3& dir, float randoff, int i, int sample_count )
 {
 	float q = ( i + 0.5f ) / sample_count;
@@ -224,6 +228,22 @@ Vec3 Vec3::CreateSpiralDirVector( const Vec3& dir, float randoff, int i, int sam
 	
 	return cos_around * sin_side * rt + sin_around * sin_side * up + cos_side * dir;
 }
+
+
+struct Vec4
+{
+	float x, y, z, w;
+	
+	FORCEINLINE Vec4 operator + ( const Vec4& o ) const { Vec4 v = { x + o.x, y + o.y, z + o.z, w + o.w }; return v; }
+	FORCEINLINE Vec4 operator - ( const Vec4& o ) const { Vec4 v = { x - o.x, y - o.y, z - o.z, w - o.w }; return v; }
+
+	FORCEINLINE Vec4 operator * ( float f ) const { Vec4 v = { x * f, y * f, z * f, w * f }; return v; }
+	
+	Vec3 ToVec3() const { return Vec3::Create( x, y, z ); }
+};
+static FORCEINLINE Vec4 V4( float x ){ Vec4 o = { x, x, x, x }; return o; }
+static FORCEINLINE Vec4 V4( float x, float y, float z, float w ){ Vec4 o = { x, y, z, w }; return o; }
+static FORCEINLINE Vec4 V4( const Vec3& v, float w ){ Vec4 o = { v.x, v.y, v.z, w }; return o; }
 
 
 struct Mat4
@@ -299,19 +319,22 @@ typedef std::vector< u32 > U32Vector;
 typedef std::vector< float > FloatVector;
 typedef std::vector< Vec2 > Vec2Vector;
 typedef std::vector< Vec3 > Vec3Vector;
+typedef std::vector< Vec4 > Vec4Vector;
 typedef std::vector< Mat4 > Mat4Vector;
 typedef std::vector< ltr_WorkOutput > WorkOutputVector;
 
 
 float TriangleArea( const Vec3& P1, const Vec3& P2, const Vec3& P3 );
+float CalculateSampleArea( const Vec2& tex1, const Vec2& tex2, const Vec2& tex3, const Vec3& pos1, const Vec3& pos2, const Vec3& pos3 );
 
 void TransformPositions( Vec3* out, Vec3* arr, size_t count, const Mat4& matrix );
 void TransformNormals( Vec3* out, Vec3* arr, size_t count, const Mat4& matrix );
 void RasterizeTriangle2D( Vec3* image, i32 width, i32 height, const Vec2& p1, const Vec2& p2, const Vec2& p3, const Vec3& v1, const Vec3& v2, const Vec3& v3 );
-void RasterizeTriangle2D_x2_ex( Vec3* img1, Vec3* img2, i32 width, i32 height, float margin,
+void RasterizeTriangle2D_x2_ex( Vec3* img1, Vec3* img2, Vec4* img3, i32 width, i32 height, float margin,
 	const Vec2& p1, const Vec2& p2, const Vec2& p3,
 	const Vec3& va1, const Vec3& va2, const Vec3& va3,
-	const Vec3& vb1, const Vec3& vb2, const Vec3& vb3 );
+	const Vec3& vb1, const Vec3& vb2, const Vec3& vb3,
+	const Vec4& vc1, const Vec4& vc2, const Vec4& vc3 );
 
 
 void Generate_Gaussian_Kernel( float* out, int ext, float radius );
