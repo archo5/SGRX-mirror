@@ -66,6 +66,18 @@ bool ScriptContext::ExecBuffer( const StringView& data )
 	return SGS_SUCCEEDED( sgs_ExecBuffer( C, data.data(), data.size() ) );
 }
 
+sgsVariable ScriptContext::CreateDict( int args )
+{
+	sgsVariable out( C );
+	sgs_InitDict( C, &out.var, args );
+	return out;
+}
+
+bool ScriptContext::GlobalCall( const char* name, int args, int ret )
+{
+	return SGS_SUCCEEDED( sgs_GlobalCall( C, name, args, ret ) );
+}
+
 void ScriptContext::PushEnv()
 {
 	sgs_Variable cur_env, new_env;

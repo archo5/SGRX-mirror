@@ -357,16 +357,21 @@ struct EXPORT EDGUIProperty : EDGUIItem
 	
 	void _Begin( EDGUIEvent* e );
 	void _End( EDGUIEvent* e );
+	virtual bool TakeValue( EDGUIProperty* src ){ return false; }
 	
 	bool m_disabled;
 	int m_x0bk;
 };
+
+#define PROP_INTERFACE( classname ) \
+	virtual bool TakeValue( EDGUIProperty* src ){ if( src->type != type ) return false; m_value = ((classname*)src)->m_value; return true; }
 
 struct EXPORT EDGUIPropBool : EDGUIProperty
 {
 	EDGUIPropBool( bool def = false );
 	virtual int OnEvent( EDGUIEvent* e );
 	void SetValue( int v ){ m_value = v; }
+	PROP_INTERFACE( EDGUIPropBool );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; }
 	
@@ -379,6 +384,7 @@ struct EXPORT EDGUIPropInt : EDGUIProperty
 	virtual int OnEvent( EDGUIEvent* e );
 	void _UpdateButton();
 	void SetValue( int v ){ m_value = v; _UpdateButton(); }
+	PROP_INTERFACE( EDGUIPropInt );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
@@ -396,6 +402,7 @@ struct EXPORT EDGUIPropFloat : EDGUIProperty
 	virtual int OnEvent( EDGUIEvent* e );
 	void _UpdateButton();
 	void SetValue( float v ){ m_value = v; _UpdateButton(); }
+	PROP_INTERFACE( EDGUIPropFloat );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
@@ -414,6 +421,7 @@ struct EXPORT EDGUIPropVec2 : EDGUIProperty
 	EDGUIPropVec2& operator = ( const EDGUIPropVec2& o );
 	void _UpdateButton();
 	void SetValue( const Vec2& v ){ m_value = v; _UpdateButton(); }
+	PROP_INTERFACE( EDGUIPropVec2 );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
@@ -435,6 +443,7 @@ struct EXPORT EDGUIPropVec3 : EDGUIProperty
 	EDGUIPropVec3& operator = ( const EDGUIPropVec3& o );
 	void _UpdateButton();
 	void SetValue( const Vec3& v ){ m_value = v; _UpdateButton(); }
+	PROP_INTERFACE( EDGUIPropVec3 );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	
@@ -455,6 +464,8 @@ struct EXPORT EDGUIPropString : EDGUIProperty
 {
 	EDGUIPropString( const StringView& def = StringView() );
 	virtual int OnEvent( EDGUIEvent* e );
+	
+	PROP_INTERFACE( EDGUIPropString );
 	
 	StringView GetText(){ return m_value; }
 	void SetText( const StringView& sv );
@@ -478,6 +489,7 @@ struct EXPORT EDGUIPropRsrc : EDGUIProperty
 	virtual int OnEvent( EDGUIEvent* e );
 	void _UpdateButton();
 	void SetValue( const StringView& v ){ m_value = v; _UpdateButton(); }
+	PROP_INTERFACE( EDGUIPropRsrc );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	

@@ -30,6 +30,10 @@ struct ScriptContext
 	bool ExecFile( const StringView& path );
 	bool ExecBuffer( const StringView& data );
 	
+	sgsVariable CreateDict( int args = 0 );
+	
+	bool GlobalCall( const char* name, int args = 0, int ret = 0 );
+	
 	// creates a new dict, sets metaobject of current to new, sets new as env
 	void PushEnv();
 	// tries to reverse the operation done by the previous function, returns false if no metaobj
