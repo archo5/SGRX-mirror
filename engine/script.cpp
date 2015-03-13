@@ -26,18 +26,18 @@ void ScriptVarIterator::_Init( SGS_CTX, sgs_Variable* var )
 
 sgsVariable ScriptVarIterator::GetKey()
 {
-	sgs_Variable kv;
-	if( m_iter.C && SGS_SUCCEEDED( sgs_IterGetDataP( m_iter.C, &m_iter.var, &kv, NULL ) ) )
-		return sgsVariable( m_iter.C, &kv );
-	return sgsVariable();
+	sgsVariable out( m_iter.C );
+	if( m_iter.C )
+		sgs_IterGetDataP( m_iter.C, &m_iter.var, &out.var, NULL );
+	return out;
 }
 
 sgsVariable ScriptVarIterator::GetValue()
 {
-	sgs_Variable kv;
-	if( m_iter.C && SGS_SUCCEEDED( sgs_IterGetDataP( m_iter.C, &m_iter.var, NULL, &kv ) ) )
-		return sgsVariable( m_iter.C, &kv );
-	return sgsVariable();
+	sgsVariable out( m_iter.C );
+	if( m_iter.C )
+		sgs_IterGetDataP( m_iter.C, &m_iter.var, NULL, &out.var );
+	return out;
 }
 
 bool ScriptVarIterator::Advance()
@@ -64,6 +64,30 @@ bool ScriptContext::ExecFile( const StringView& path )
 bool ScriptContext::ExecBuffer( const StringView& data )
 {
 	return SGS_SUCCEEDED( sgs_ExecBuffer( C, data.data(), data.size() ) );
+}
+
+String ScriptContext::Serialize( sgsVariable var )
+{
+	String out;
+	sgs_PushVar( C, var );
+	if( SGS_SUCCEEDED( sgs_Serialize( C ) ) )
+	{
+		out = sgs_GetVar<String>()( C, -1 );
+	}
+	sgs_Pop( C, 1 );
+	return out;
+}
+
+sgsVariable ScriptContext::Unserialize( const StringView& sv )
+{
+	sgsVariable out;
+	sgs_PushStringBuf( C, sv.data(), sv.size() );
+	if( SGS_SUCCEEDED( sgs_Serialize( C ) ) )
+	{
+		out = sgs_GetVar<sgsVariable>()( C, -1 );
+	}
+	sgs_Pop( C, 1 );
+	return out;
 }
 
 sgsVariable ScriptContext::CreateDict( int args )

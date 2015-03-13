@@ -47,6 +47,7 @@ struct EXPORT SGRX_IPhyRigidBody
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
 	SGRX_IPhyRigidBody() : _refcount(0){}
+	virtual ~SGRX_IPhyRigidBody(){}
 	
 	virtual Vec3 GetPosition() const = 0;
 	virtual void SetPosition( const Vec3& v ) = 0;

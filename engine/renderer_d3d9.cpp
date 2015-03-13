@@ -1602,7 +1602,7 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
 	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	
-	if( m_currentRT )
+	if( !m_currentRT )
 	{
 		SAFE_RELEASE( RTOUT.CS );
 		SAFE_RELEASE( RTOUT.DSS );

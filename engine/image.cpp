@@ -185,14 +185,15 @@ static bool png_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* con
 		return false;
 	}
 	
+	png_infop info_ptr = NULL;
 	if( setjmp( png_jmpbuf( png_ptr ) ) )
 	{
-		png_destroy_read_struct( &png_ptr, NULL, NULL );
+		png_destroy_read_struct( &png_ptr, info_ptr ? &info_ptr : NULL, NULL );
 	//	LOG_ERROR << "failed to read PNG image: " << filename;
 		return false;
 	}
 	
-	png_infop info_ptr = png_create_info_struct( png_ptr );
+	info_ptr = png_create_info_struct( png_ptr );
 	
 	if( !info_ptr )
 	{

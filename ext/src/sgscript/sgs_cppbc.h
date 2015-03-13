@@ -644,6 +644,7 @@ template< class T > inline void sgs_PushVar( SGS_CTX, T* v ){ sgs_PushClass( C, 
 template< class T > inline void sgs_PushVar( SGS_CTX, sgsMaybe<T> v ){ if( v.isset ) sgs_PushVar( C, v.data ); else sgs_PushNull( C ); }
 template< class T > inline void sgs_PushVar( SGS_CTX, sgsHandle<T> v ){ v.push( C ); }
 template<> inline void sgs_PushVar<sgsVariable>( SGS_CTX, const sgsVariable& v ){ v.push( C ); }
+template<> inline void sgs_PushVar( SGS_CTX, void* v ){ sgs_PushPtr( C, v ); }
 #define SGS_DECL_PUSHVAR( type, parsefn ) template<> inline void sgs_PushVar<type>( SGS_CTX, const type& v ){ parsefn( C, v ); }
 SGS_DECL_PUSHVAR( bool, sgs_PushBool );
 #define SGS_DECL_PUSHVAR_INT( type ) template<> inline void sgs_PushVar<type>( SGS_CTX, const type& v ){ sgs_PushInt( C, (sgs_Int) v ); }
@@ -699,6 +700,8 @@ template<> struct sgs_GetVar<float> { float operator () ( SGS_CTX, sgs_StkIdx it
 	sgs_Real v; if( sgs_ParseReal( C, item, &v ) ) return (float) v; return 0; }};
 template<> struct sgs_GetVar<double> { double operator () ( SGS_CTX, sgs_StkIdx item ){
 	sgs_Real v; if( sgs_ParseReal( C, item, &v ) ) return (double) v; return 0; }};
+template<> struct sgs_GetVar<void*> { void* operator () ( SGS_CTX, sgs_StkIdx item ){
+	void* v; if( sgs_ParsePtr( C, item, &v ) ) return (void*) v; return 0; }};
 template<> struct sgs_GetVar<char*> { char* operator () ( SGS_CTX, sgs_StkIdx item ){
 	char* str = NULL; sgs_ParseString( C, item, &str, NULL ); return str; }};
 template<> struct sgs_GetVar<sgsString> { sgsString operator () ( SGS_CTX, sgs_StkIdx item ){ return sgsString( C, item ); }};
@@ -757,6 +760,8 @@ template<> struct sgs_GetVarP<float> { float operator () ( SGS_CTX, sgs_Variable
 	sgs_Real v; if( sgs_ParseRealP( C, var, &v ) ) return (float) v; return 0; }};
 template<> struct sgs_GetVarP<double> { double operator () ( SGS_CTX, sgs_Variable* var ){
 	sgs_Real v; if( sgs_ParseRealP( C, var, &v ) ) return (double) v; return 0; }};
+template<> struct sgs_GetVarP<void*> { void* operator () ( SGS_CTX, sgs_Variable* var ){
+	void* v; if( sgs_ParsePtrP( C, var, &v ) ) return (void*) v; return 0; }};
 template<> struct sgs_GetVarP<char*> { char* operator () ( SGS_CTX, sgs_Variable* var ){
 	char* str = NULL; sgs_ParseStringP( C, var, &str, NULL ); return str; }};
 template<> struct sgs_GetVarP<sgsString> { sgsString operator () ( SGS_CTX, sgs_Variable* var ){

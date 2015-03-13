@@ -1102,7 +1102,7 @@ SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
 SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%g", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"%.*s\"", (int) sv.size(), (int) sv.size(), sv.data() ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"", (int) sv.size() ); fwrite( sv.data(), sv.size(), 1, stdout ); putchar( '\"' ); return *this; }
 SGRX_Log& SGRX_Log::operator << ( const String& sv ){ return *this << (StringView) sv; }
 SGRX_Log& SGRX_Log::operator << ( const Vec2& v )
 {
