@@ -121,7 +121,7 @@
 
 
 
-struct EXPORT EDGUIEvent
+struct ENGINE_EXPORT EDGUIEvent
 {
 	int type;
 	struct EDGUIItem* target;
@@ -146,7 +146,7 @@ struct EXPORT EDGUIEvent
 
 typedef Array< struct EDGUIItem* > EDGUIItemArray;
 
-struct EXPORT EDGUIItem
+struct ENGINE_EXPORT EDGUIItem
 {
 	EDGUIItem();
 	virtual ~EDGUIItem();
@@ -183,7 +183,7 @@ struct EXPORT EDGUIItem
 	bool m_clicked;
 };
 
-struct EXPORT EDGUIFrame : EDGUIItem
+struct ENGINE_EXPORT EDGUIFrame : EDGUIItem
 {
 	struct Rect { int x0, y0, x1, y1; };
 	
@@ -216,19 +216,19 @@ struct EXPORT EDGUIFrame : EDGUIItem
 	Array< Rect > m_rects;
 };
 
-struct EXPORT EDGUILayoutRow : EDGUIItem
+struct ENGINE_EXPORT EDGUILayoutRow : EDGUIItem
 {
 	EDGUILayoutRow();
 	virtual int OnEvent( EDGUIEvent* e );
 };
 
-struct EXPORT EDGUILayoutColumn : EDGUIItem
+struct ENGINE_EXPORT EDGUILayoutColumn : EDGUIItem
 {
 	EDGUILayoutColumn();
 	virtual int OnEvent( EDGUIEvent* e );
 };
 
-struct EXPORT EDGUILayoutSplitPane : EDGUIItem
+struct ENGINE_EXPORT EDGUILayoutSplitPane : EDGUIItem
 {
 	// "vertical" refers to the direction of the split, not the line
 	EDGUILayoutSplitPane( bool vertical, int splitoff, float splitfac );
@@ -246,14 +246,14 @@ struct EXPORT EDGUILayoutSplitPane : EDGUIItem
 };
 
 
-struct EXPORT EDGUILabel : EDGUIItem
+struct ENGINE_EXPORT EDGUILabel : EDGUIItem
 {
 	EDGUILabel();
 	virtual int OnEvent( EDGUIEvent* e );
 };
 
 
-struct EXPORT EDGUIGroup : EDGUILayoutRow
+struct ENGINE_EXPORT EDGUIGroup : EDGUILayoutRow
 {
 	EDGUIGroup( bool open = true, const StringView& sv = StringView() );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -265,7 +265,7 @@ struct EXPORT EDGUIGroup : EDGUILayoutRow
 };
 
 
-struct EXPORT EDGUIButton : EDGUIItem
+struct ENGINE_EXPORT EDGUIButton : EDGUIItem
 {
 	EDGUIButton();
 	virtual int OnEvent( EDGUIEvent* e );
@@ -276,7 +276,7 @@ struct EXPORT EDGUIButton : EDGUIItem
 };
 
 
-struct EXPORT EDGUINumberWheel : EDGUIItem
+struct ENGINE_EXPORT EDGUINumberWheel : EDGUIItem
 {
 	EDGUINumberWheel( EDGUIItem* owner, double min = -DBL_MAX, double max = DBL_MAX, int initpwr = 0, int numwheels = 9 );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -297,7 +297,7 @@ struct EXPORT EDGUINumberWheel : EDGUIItem
 };
 
 
-struct EXPORT EDGUIRsrcPicker : EDGUIItem
+struct ENGINE_EXPORT EDGUIRsrcPicker : EDGUIItem
 {
 	EDGUIRsrcPicker();
 	virtual int OnEvent( EDGUIEvent* e );
@@ -334,7 +334,7 @@ struct EXPORT EDGUIRsrcPicker : EDGUIItem
 };
 
 
-struct EXPORT EDGUIQuestion : EDGUIItem
+struct ENGINE_EXPORT EDGUIQuestion : EDGUIItem
 {
 	EDGUIQuestion();
 	virtual int OnEvent( EDGUIEvent* e );
@@ -350,7 +350,7 @@ struct EXPORT EDGUIQuestion : EDGUIItem
 };
 
 
-struct EXPORT EDGUIProperty : EDGUIItem
+struct ENGINE_EXPORT EDGUIProperty : EDGUIItem
 {
 	EDGUIProperty();
 	virtual int OnEvent( EDGUIEvent* e );
@@ -364,13 +364,14 @@ struct EXPORT EDGUIProperty : EDGUIItem
 };
 
 #define PROP_INTERFACE( classname ) \
-	virtual bool TakeValue( EDGUIProperty* src ){ if( src->type != type ) return false; m_value = ((classname*)src)->m_value; return true; }
+	virtual bool TakeValue( EDGUIProperty* src ){ if( src->type != type ) return false; m_value = ((classname*)src)->m_value; _UpdateButton(); return true; }
 
-struct EXPORT EDGUIPropBool : EDGUIProperty
+struct ENGINE_EXPORT EDGUIPropBool : EDGUIProperty
 {
 	EDGUIPropBool( bool def = false );
 	virtual int OnEvent( EDGUIEvent* e );
 	void SetValue( int v ){ m_value = v; }
+	void _UpdateButton(){}
 	PROP_INTERFACE( EDGUIPropBool );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; }
@@ -378,7 +379,7 @@ struct EXPORT EDGUIPropBool : EDGUIProperty
 	bool m_value;
 };
 
-struct EXPORT EDGUIPropInt : EDGUIProperty
+struct ENGINE_EXPORT EDGUIPropInt : EDGUIProperty
 {
 	EDGUIPropInt( int32_t def = 0, int32_t min = -0x80000000, int32_t max = 0x7fffffff );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -396,7 +397,7 @@ struct EXPORT EDGUIPropInt : EDGUIProperty
 	EDGUIButton m_button;
 };
 
-struct EXPORT EDGUIPropFloat : EDGUIProperty
+struct ENGINE_EXPORT EDGUIPropFloat : EDGUIProperty
 {
 	EDGUIPropFloat( float def = 0, int prec = 2, float min = -FLT_MAX, float max = FLT_MAX );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -414,7 +415,7 @@ struct EXPORT EDGUIPropFloat : EDGUIProperty
 	EDGUIButton m_button;
 };
 
-struct EXPORT EDGUIPropVec2 : EDGUIProperty
+struct ENGINE_EXPORT EDGUIPropVec2 : EDGUIProperty
 {
 	EDGUIPropVec2( const Vec2& def = V2(0), int prec = 2, const Vec2& min = V2(-FLT_MAX), const Vec2& max = V2(FLT_MAX) );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -436,7 +437,7 @@ struct EXPORT EDGUIPropVec2 : EDGUIProperty
 	EDGUIButton m_Ybutton;
 };
 
-struct EXPORT EDGUIPropVec3 : EDGUIProperty
+struct ENGINE_EXPORT EDGUIPropVec3 : EDGUIProperty
 {
 	EDGUIPropVec3( const Vec3& def = V3(0), int prec = 2, const Vec3& min = V3(-FLT_MAX), const Vec3& max = V3(FLT_MAX) );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -460,11 +461,12 @@ struct EXPORT EDGUIPropVec3 : EDGUIProperty
 	EDGUIButton m_Zbutton;
 };
 
-struct EXPORT EDGUIPropString : EDGUIProperty
+struct ENGINE_EXPORT EDGUIPropString : EDGUIProperty
 {
 	EDGUIPropString( const StringView& def = StringView() );
 	virtual int OnEvent( EDGUIEvent* e );
 	
+	void _UpdateButton(){}
 	PROP_INTERFACE( EDGUIPropString );
 	
 	StringView GetText(){ return m_value; }
@@ -483,7 +485,7 @@ struct EXPORT EDGUIPropString : EDGUIProperty
 	String m_chars;
 };
 
-struct EXPORT EDGUIPropRsrc : EDGUIProperty
+struct ENGINE_EXPORT EDGUIPropRsrc : EDGUIProperty
 {
 	EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def = StringView() );
 	virtual int OnEvent( EDGUIEvent* e );

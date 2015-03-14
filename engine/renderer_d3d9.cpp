@@ -17,6 +17,9 @@
 #define SAFE_RELEASE( x ) if( x ){ (x)->Release(); x = NULL; }
 
 
+#define RENDERER_EXPORT __declspec(dllexport)
+
+
 static IDirect3D9* g_D3D = NULL;
 
 
@@ -494,14 +497,14 @@ struct D3D9Renderer : IRenderer
 	Array< SGRX_MeshInstLight > m_light_inst_buf;
 };
 
-extern "C" EXPORT bool Initialize( const char** outname )
+extern "C" RENDERER_EXPORT bool Initialize( const char** outname )
 {
 	*outname = "Direct3D9";
 	g_D3D = Direct3DCreate9( D3D_SDK_VERSION );
 	return g_D3D != NULL;
 }
 
-extern "C" EXPORT void Free()
+extern "C" RENDERER_EXPORT void Free()
 {
 	g_D3D->Release();
 	g_D3D = NULL;
@@ -516,7 +519,7 @@ static D3DMULTISAMPLE_TYPE aa_quality_to_mstype( int aaq )
 	return (D3DMULTISAMPLE_TYPE) aaq;
 }
 
-extern "C" EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, void* windowHandle )
+extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, void* windowHandle )
 {
 	D3DPRESENT_PARAMETERS d3dpp;
 	IDirect3DDevice9* d3ddev;

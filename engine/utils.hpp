@@ -15,8 +15,15 @@
 #define USE_ARRAY
 
 
-#define ASSERT assert
 #define EXPORT __declspec(dllexport)
+#ifdef ENGINE_BUILDING
+#  define ENGINE_EXPORT __declspec(dllexport)
+#else
+#  define ENGINE_EXPORT __declspec(dllimport)
+#endif
+
+
+#define ASSERT assert
 #ifdef _MSC_VER
 #define FINLINE __forceinline
 #else
@@ -107,7 +114,7 @@ template< class T > struct IVState
 // VEC2
 //
 
-struct EXPORT Vec2
+struct ENGINE_EXPORT Vec2
 {
 	float x, y;
 	
@@ -188,7 +195,7 @@ FINLINE float Vec2Dot( const Vec2& v1, const Vec2& v2 ){ return v1.x * v2.x + v1
 // VEC3
 //
 
-struct EXPORT Vec3
+struct ENGINE_EXPORT Vec3
 {
 	float x, y, z;
 	
@@ -293,7 +300,7 @@ inline Vec3 Vec3Slerp( const Vec3& v1, const Vec3& v2, float q )
 // VEC4
 //
 
-struct EXPORT Vec4
+struct ENGINE_EXPORT Vec4
 {
 	float x, y, z, w;
 	
@@ -373,7 +380,7 @@ FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1
 // QUAT
 //
 
-struct EXPORT Quat
+struct ENGINE_EXPORT Quat
 {
 	float x, y, z, w;
 	
@@ -459,7 +466,7 @@ template< class S > Quat TLERP( const Quat& a, const Quat& b, const S& s ){ retu
 // MAT4
 //
 
-struct EXPORT Mat4
+struct ENGINE_EXPORT Mat4
 {
 	union
 	{
@@ -802,13 +809,13 @@ struct EXPORT Mat4
 
 
 
-EXPORT float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 );
-EXPORT bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const Vec3& tb0, const Vec3& tb1, const Vec3& tb2 );
-EXPORT float PolyArea( const Vec2* points, int pointcount );
-EXPORT bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] );
-EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
-EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
-EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
+ENGINE_EXPORT float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 );
+ENGINE_EXPORT bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const Vec3& tb0, const Vec3& tb1, const Vec3& tb2 );
+ENGINE_EXPORT float PolyArea( const Vec2* points, int pointcount );
+ENGINE_EXPORT bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] );
+ENGINE_EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
+ENGINE_EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
+ENGINE_EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
 
 
 //
@@ -1167,6 +1174,14 @@ struct String : Array< char >
 	
 	FINLINE void append( const char* str, size_t sz ){ Array::append( str, sz ); }
 	FINLINE void append( const char* str ){ append( str, StringLength( str ) ); }
+	template< class TA > void Serialize( TA& arch )
+	{
+		uint32_t sz = m_size;
+		arch << sz;
+		if( TA::IsReader )
+			resize( sz );
+		arch.charbuf( m_data, m_size );
+	}
 #endif
 };
 
@@ -1298,17 +1313,17 @@ struct StackString
 typedef StackString< ENGINE_MAX_PATH > StackPath;
 
 
-EXPORT String String_Concat( const StringView& a, const StringView& b );
-EXPORT String String_Replace( const StringView& base, const StringView& sub, const StringView& rep );
+ENGINE_EXPORT String String_Concat( const StringView& a, const StringView& b );
+ENGINE_EXPORT String String_Replace( const StringView& base, const StringView& sub, const StringView& rep );
 
 //
 // PARSING
 //
 
-EXPORT int64_t String_ParseInt( const StringView& sv, bool* success = NULL );
-EXPORT double String_ParseFloat( const StringView& sv, bool* success = NULL );
-EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL );
-EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
+ENGINE_EXPORT int64_t String_ParseInt( const StringView& sv, bool* success = NULL );
+ENGINE_EXPORT double String_ParseFloat( const StringView& sv, bool* success = NULL );
+ENGINE_EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL );
+ENGINE_EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
 
 
 //
@@ -1321,8 +1336,8 @@ EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
 #define UNICODE_INVCHAR 0xfffd
 #define UNICODE_INVCHAR_STR "\xef\xbf\xbd"
 #define UNICODE_INVCHAR_LEN 3
-EXPORT int UTF8Decode( const char* buf, size_t size, uint32_t* outchar );
-EXPORT int UTF8Encode( uint32_t ch, char* out );
+ENGINE_EXPORT int UTF8Decode( const char* buf, size_t size, uint32_t* outchar );
+ENGINE_EXPORT int UTF8Encode( uint32_t ch, char* out );
 
 
 //
@@ -1330,7 +1345,7 @@ EXPORT int UTF8Encode( uint32_t ch, char* out );
 //
 
 typedef uint32_t Hash;
-EXPORT Hash HashFunc( const char* str, size_t size );
+ENGINE_EXPORT Hash HashFunc( const char* str, size_t size );
 
 inline Hash HashVar( int8_t v ){ return v; }
 inline Hash HashVar( uint8_t v ){ return v; }
@@ -1660,7 +1675,8 @@ template< class T > struct SerializeVersionHelper
 		return *this;
 	}
 	
-	FINLINE SerializeVersionHelper& memory( void* ptr, size_t sz ){ arch->marker( ptr, sz ); return *this; }
+	FINLINE SerializeVersionHelper& memory( void* ptr, size_t sz ){ arch->memory( ptr, sz ); return *this; }
+	FINLINE SerializeVersionHelper& charbuf( char* ptr, size_t sz ){ arch->charbuf( ptr, sz ); return *this; }
 	FINLINE SerializeVersionHelper& marker( const char* str ){ return marker( str, StringLength( str ) ); }
 	FINLINE SerializeVersionHelper& marker( const char* ptr, size_t sz ){ arch->marker( ptr, sz ); return *this; }
 	
@@ -1711,6 +1727,7 @@ struct ByteReader
 	FINLINE ByteReader& operator << ( double& v ){ _read( &v, sizeof(v) ); return *this; }
 	template< class T > ByteReader& operator << ( T& v ){ v.Serialize( *this ); return *this; }
 	FINLINE ByteReader& memory( void* ptr, size_t sz ){ return _read( ptr, sz ); }
+	FINLINE ByteReader& charbuf( char* ptr, size_t sz ){ return _read( ptr, sz ); }
 	FINLINE ByteReader& marker( const char* str ){ return marker( str, StringLength( str ) ); }
 	FINLINE ByteReader& marker( const char* ptr, size_t sz )
 	{
@@ -1766,6 +1783,7 @@ struct ByteWriter
 	FINLINE ByteWriter& operator << ( double& v ){ _write( &v, sizeof(v) ); return *this; }
 	template< class T > ByteWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
 	FINLINE ByteWriter& memory( void* ptr, size_t sz ){ return _write( ptr, sz ); }
+	FINLINE ByteWriter& charbuf( char* ptr, size_t sz ){ return _write( ptr, sz ); }
 	FINLINE ByteWriter& marker( const char* str ){ return marker( str, StringLength( str ) ); }
 	FINLINE ByteWriter& marker( const void* ptr, size_t sz ){ output->append( (uint8_t*) ptr, sz ); return *this; }
 	FINLINE ByteWriter& padding( size_t sz ){ output->reserve( output->size() + sz ); while( sz --> 0 ) output->push_back( 0 ); return *this; }
@@ -1811,6 +1829,36 @@ struct TextReader
 				p[ i ] = ( hx0 << 4 ) | hx1;
 			}
 		}
+		return *this;
+	}
+	TextReader& charbuf( char* ptr, size_t sz )
+	{
+		while( sz && pos < input->size() )
+		{
+			char ch = input->at( pos++ );
+			if( ch == '\\' )
+			{
+				if( pos + 2 >= input->size() )
+				{
+					error = true;
+					break;
+				}
+				char vv0 = input->at( pos++ );
+				char vv1 = input->at( pos++ );
+				if( !hexchar( vv0 ) || !hexchar( vv1 ) )
+				{
+					error = true;
+					break;
+				}
+				ch = ( vv0 << 4 ) | vv1;
+			}
+			*ptr++ = ch;
+			sz--;
+		}
+		if( pos >= input->size() || sz || input->at( pos ) != '\n' )
+			error = true;
+		else
+			pos++;
 		return *this;
 	}
 	FINLINE TextReader& marker( const char* str ){ return marker( str, StringLength( str ) ); }
@@ -1867,10 +1915,29 @@ struct TextWriter
 		}
 		return *this;
 	}
+	TextWriter& charbuf( char* ptr, size_t sz )
+	{
+		for( size_t i = 0; i < sz; ++i )
+		{
+			if( ptr[ i ] > 0x20 && ptr[ i ] < 0x7f && ptr[ i ] != '\\' )
+			{
+				char bfr[2] = { ptr[i], 0 };
+				_write( bfr );
+			}
+			else
+			{
+				char bfr[ 32 ];
+				sprintf( bfr, "\\%02X", (int) ptr[ i ] );
+				_write( bfr );
+			}
+		}
+		_write( "\n" );
+		return *this;
+	}
 	FINLINE TextWriter& marker( const char* str ){ return marker( str, StringLength( str ) ); }
 	FINLINE TextWriter& marker( const void* ptr, size_t sz ){ output->append( (char*) ptr, sz ); output->push_back( '\n' ); return *this; }
 	FINLINE TextWriter& padding( size_t sz ){ UNUSED( sz ); return *this; }
-	FINLINE TextWriter& _write( const void* ptr ){ output->append( (char*) ptr, StringLength( (char*) ptr ) ); return *this; }
+	FINLINE TextWriter& _write( const char* ptr ){ output->append( ptr, StringLength( ptr ) ); return *this; }
 	
 	String* output;
 };
@@ -1880,7 +1947,7 @@ struct TextWriter
 // FILES
 //
 
-struct EXPORT DirectoryIterator
+struct ENGINE_EXPORT DirectoryIterator
 {
 	DirectoryIterator( const StringView& path );
 	~DirectoryIterator();
@@ -1896,14 +1963,14 @@ private:
 	DirectoryIterator( const DirectoryIterator& );
 };
 
-EXPORT bool DirCreate( const StringView& path );
+ENGINE_EXPORT bool DirCreate( const StringView& path );
 
-EXPORT bool CWDSet( const StringView& path );
+ENGINE_EXPORT bool CWDSet( const StringView& path );
 
-EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
-EXPORT bool SaveBinaryFile( const StringView& path, const void* data, size_t size );
-EXPORT bool LoadTextFile( const StringView& path, String& out );
-EXPORT bool SaveTextFile( const StringView& path, const StringView& data );
+ENGINE_EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
+ENGINE_EXPORT bool SaveBinaryFile( const StringView& path, const void* data, size_t size );
+ENGINE_EXPORT bool LoadTextFile( const StringView& path, String& out );
+ENGINE_EXPORT bool SaveTextFile( const StringView& path, const StringView& data );
 
 struct IL_Item
 {
@@ -1912,7 +1979,7 @@ struct IL_Item
 };
 typedef Array< IL_Item > ItemList;
 
-EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
+ENGINE_EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
 
 
 //
@@ -1921,7 +1988,7 @@ EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
 
 
 struct Loggable {};
-struct EXPORT SGRX_Log
+struct ENGINE_EXPORT SGRX_Log
 {
 	struct Separator
 	{

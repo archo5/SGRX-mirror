@@ -5,12 +5,12 @@
 
 
 
-EXPORT void GR_ClearFactors( Array< float >& out, float factor );
-EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch = true );
-EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch );
+ENGINE_EXPORT void GR_ClearFactors( Array< float >& out, float factor );
+ENGINE_EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch = true );
+ENGINE_EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch );
 
 
-struct EXPORT SGRX_Animation
+struct ENGINE_EXPORT SGRX_Animation
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -32,7 +32,7 @@ struct EXPORT SGRX_Animation
 	int32_t _refcount;
 };
 
-struct EXPORT AnimHandle : Handle< SGRX_Animation >
+struct ENGINE_EXPORT AnimHandle : Handle< SGRX_Animation >
 {
 	AnimHandle() : Handle(){}
 	AnimHandle( const AnimHandle& h ) : Handle( h ){}
@@ -42,7 +42,7 @@ struct EXPORT AnimHandle : Handle< SGRX_Animation >
 // Track-track mapping for animators to find the matching track indices
 typedef HashTable< AnimHandle, int* > AnimCache;
 
-struct EXPORT Animator
+struct ENGINE_EXPORT Animator
 {
 	virtual void Prepare( String* new_names, int count );
 	bool PrepareForMesh( const MeshHandle& mesh );
@@ -58,7 +58,7 @@ struct EXPORT Animator
 	Array< float > factor;
 };
 
-struct EXPORT AnimMixer : Animator
+struct ENGINE_EXPORT AnimMixer : Animator
 {
 	enum TransformFlags
 	{
@@ -90,7 +90,7 @@ struct EXPORT AnimMixer : Animator
 	int layerCount;
 };
 
-struct EXPORT AnimPlayer : Animator
+struct ENGINE_EXPORT AnimPlayer : Animator
 {
 	struct Anim
 	{
@@ -122,7 +122,7 @@ struct EXPORT AnimPlayer : Animator
 
 
 
-struct SkeletonInfo
+struct ENGINE_EXPORT SkeletonInfo
 {
 	enum BodyType
 	{
@@ -206,17 +206,17 @@ struct SkeletonInfo
 
 
 
-EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
-EXPORT AnimHandle GR_GetAnim( const StringView& name );
-EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz, bool applyinv = true, Mat4* base = NULL );
-EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
+ENGINE_EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
+ENGINE_EXPORT AnimHandle GR_GetAnim( const StringView& name );
+ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz, bool applyinv = true, Mat4* base = NULL );
+ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
 
 
 
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
 
-struct EXPORT ParticleSystem
+struct ENGINE_EXPORT ParticleSystem
 {
 	struct Vertex
 	{

@@ -11,3 +11,5 @@
 #include "sgscript/sgs_tok.c"
 #include "sgscript/sgs_util.c"
 #include "sgscript/sgs_xpc.c"
+
+#include "sgscript/sgsxgmath.c"

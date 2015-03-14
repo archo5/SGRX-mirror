@@ -12,16 +12,16 @@ struct SDL_Event;
 #include "utils.hpp"
 
 
-EXPORT uint32_t GetTimeMsec();
+ENGINE_EXPORT uint32_t GetTimeMsec();
 
-EXPORT bool Window_HasClipboardText();
-EXPORT bool Window_GetClipboardText( String& out );
-EXPORT bool Window_SetClipboardText( const StringView& text );
+ENGINE_EXPORT bool Window_HasClipboardText();
+ENGINE_EXPORT bool Window_GetClipboardText( String& out );
+ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
 
 typedef SDL_Event Event;
 
 
-struct EXPORT Command
+struct ENGINE_EXPORT Command
 {
 	Command( const StringView& sv, float thr = 0.1f ) :
 		name(sv),
@@ -44,20 +44,20 @@ struct EXPORT Command
 	bool state, prev_state;
 };
 
-struct EXPORT Command_Func : Command
+struct ENGINE_EXPORT Command_Func : Command
 {
 	virtual void Function() = 0;
 	void OnChangeState(){ if( state && !state ) Function(); }
 };
 
-EXPORT void Game_RegisterAction( Command* cmd );
-EXPORT void Game_UnregisterAction( Command* cmd );
-EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
-EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
-EXPORT Vec2 Game_GetCursorPos();
+ENGINE_EXPORT void Game_RegisterAction( Command* cmd );
+ENGINE_EXPORT void Game_UnregisterAction( Command* cmd );
+ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
+ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
+ENGINE_EXPORT Vec2 Game_GetCursorPos();
 
 
-struct EXPORT IScreen
+struct ENGINE_EXPORT IScreen
 {
 	virtual ~IScreen(){}
 	virtual void OnStart(){}
@@ -66,9 +66,9 @@ struct EXPORT IScreen
 	virtual bool Draw( float delta ) = 0; // return value - whether to remove
 };
 
-EXPORT bool Game_HasOverlayScreen( IScreen* screen );
-EXPORT void Game_AddOverlayScreen( IScreen* screen );
-EXPORT void Game_RemoveOverlayScreen( IScreen* screen );
+ENGINE_EXPORT bool Game_HasOverlayScreen( IScreen* screen );
+ENGINE_EXPORT void Game_AddOverlayScreen( IScreen* screen );
+ENGINE_EXPORT void Game_RemoveOverlayScreen( IScreen* screen );
 
 #define TEXFLAGS_SRGB    0x01
 #define TEXFLAGS_HASMIPS 0x02
@@ -77,7 +77,7 @@ EXPORT void Game_RemoveOverlayScreen( IScreen* screen );
 #define TEXFLAGS_CLAMP_X 0x10
 #define TEXFLAGS_CLAMP_Y 0x20
 
-struct EXPORT IGame
+struct ENGINE_EXPORT IGame
 {
 	virtual void OnConfigure( int argc, char** argv ){}
 	virtual void OnInitialize(){}
@@ -103,7 +103,7 @@ struct EXPORT IGame
 #define ANTIALIAS_NONE 0
 #define ANTIALIAS_MULTISAMPLE 1
 
-struct EXPORT RenderSettings
+struct ENGINE_EXPORT RenderSettings
 {
 	int width;
 	int height;
@@ -114,7 +114,7 @@ struct EXPORT RenderSettings
 	int aa_quality;
 };
 
-struct EXPORT RenderStats
+struct ENGINE_EXPORT RenderStats
 {
 	void Reset();
 	
@@ -155,7 +155,7 @@ struct TextureInfo
 	int mipcount;
 };
 
-struct EXPORT SGRX_ITexture
+struct ENGINE_EXPORT SGRX_ITexture
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
@@ -169,7 +169,7 @@ struct EXPORT SGRX_ITexture
 	String m_key;
 };
 
-struct EXPORT TextureHandle : Handle< SGRX_ITexture >
+struct ENGINE_EXPORT TextureHandle : Handle< SGRX_ITexture >
 {
 	TextureHandle() : Handle(){}
 	TextureHandle( const TextureHandle& h ) : Handle( h ){}
@@ -179,7 +179,7 @@ struct EXPORT TextureHandle : Handle< SGRX_ITexture >
 	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
-struct EXPORT SGRX_IShader
+struct ENGINE_EXPORT SGRX_IShader
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
@@ -190,7 +190,7 @@ struct EXPORT SGRX_IShader
 	String m_key;
 };
 
-struct EXPORT ShaderHandle : Handle< SGRX_IShader >
+struct ENGINE_EXPORT ShaderHandle : Handle< SGRX_IShader >
 {
 	ShaderHandle() : Handle(){}
 	ShaderHandle( const ShaderHandle& h ) : Handle( h ){}
@@ -246,7 +246,7 @@ struct VDeclInfo
 	}
 };
 
-struct EXPORT SGRX_IVertexDecl
+struct ENGINE_EXPORT SGRX_IVertexDecl
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
@@ -258,7 +258,7 @@ struct EXPORT SGRX_IVertexDecl
 	String m_text;
 };
 
-struct EXPORT VertexDeclHandle : Handle< struct SGRX_IVertexDecl >
+struct ENGINE_EXPORT VertexDeclHandle : Handle< struct SGRX_IVertexDecl >
 {
 	VertexDeclHandle() : Handle(){}
 	VertexDeclHandle( const VertexDeclHandle& h ) : Handle( h ){}
@@ -313,7 +313,7 @@ struct SGRX_MeshBone
 	int parent_id;
 };
 
-struct EXPORT SGRX_IMesh
+struct ENGINE_EXPORT SGRX_IMesh
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
@@ -372,7 +372,7 @@ struct SGRX_MeshInstLight
 #define LIGHT_POINT  1
 #define LIGHT_SPOT   2
 
-struct EXPORT SGRX_Light
+struct ENGINE_EXPORT SGRX_Light
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -407,7 +407,7 @@ struct EXPORT SGRX_Light
 	int32_t _refcount;
 };
 
-struct EXPORT LightHandle : Handle< SGRX_Light >
+struct ENGINE_EXPORT LightHandle : Handle< SGRX_Light >
 {
 	LightHandle() : Handle(){}
 	LightHandle( const LightHandle& h ) : Handle( h ){}
@@ -416,7 +416,7 @@ struct EXPORT LightHandle : Handle< SGRX_Light >
 
 
 
-struct EXPORT SGRX_CullSceneFrustum
+struct ENGINE_EXPORT SGRX_CullSceneFrustum
 {
 	Vec3 position;
 	Vec3 direction;
@@ -427,26 +427,26 @@ struct EXPORT SGRX_CullSceneFrustum
 	float zfar;
 };
 
-struct EXPORT SGRX_CullSceneCamera
+struct ENGINE_EXPORT SGRX_CullSceneCamera
 {
 	SGRX_CullSceneFrustum frustum;
 	Mat4 viewProjMatrix;
 	Mat4 invViewProjMatrix;
 };
 
-struct EXPORT SGRX_CullScenePointLight
+struct ENGINE_EXPORT SGRX_CullScenePointLight
 {
 	Vec3 position;
 	float radius;
 };
 
-struct EXPORT SGRX_CullSceneMesh
+struct ENGINE_EXPORT SGRX_CullSceneMesh
 {
 	Mat4 transform;
 	Vec3 min, max;
 };
 
-struct EXPORT SGRX_CullScene
+struct ENGINE_EXPORT SGRX_CullScene
 {
 	virtual ~SGRX_CullScene();
 	virtual void Camera_Prepare( SGRX_CullSceneCamera* camera ){}
@@ -457,7 +457,7 @@ struct EXPORT SGRX_CullScene
 	virtual bool SpotLight_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield ){ return Camera_MeshList( count, camera, meshes, outbitfield ); }
 };
 
-struct EXPORT SGRX_DefaultCullScene
+struct ENGINE_EXPORT SGRX_DefaultCullScene
 {
 	virtual bool Camera_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield );
 	virtual bool Camera_PointLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullScenePointLight* lights, uint32_t* outbitfield );
@@ -467,7 +467,7 @@ struct EXPORT SGRX_DefaultCullScene
 };
 
 
-struct EXPORT SGRX_MeshInstance
+struct ENGINE_EXPORT SGRX_MeshInstance
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -499,14 +499,14 @@ struct EXPORT SGRX_MeshInstance
 	int32_t _refcount;
 };
 
-struct EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
+struct ENGINE_EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
 {
 	MeshInstHandle() : Handle(){}
 	MeshInstHandle( const MeshInstHandle& h ) : Handle( h ){}
 	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
 };
 
-struct EXPORT SGRX_Camera : Loggable
+struct ENGINE_EXPORT SGRX_Camera : Loggable
 {
 	void Log( SGRX_Log& elog );
 	void UpdateViewMatrix();
@@ -536,7 +536,7 @@ struct SGRX_Viewport
 	int x1, y1, x2, y2;
 };
 
-struct EXPORT SGRX_Scene
+struct ENGINE_EXPORT SGRX_Scene
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
@@ -570,14 +570,14 @@ struct EXPORT SGRX_Scene
 	int32_t m_refcount;
 };
 
-struct EXPORT SceneHandle : Handle< SGRX_Scene >
+struct ENGINE_EXPORT SceneHandle : Handle< SGRX_Scene >
 {
 	SceneHandle() : Handle(){}
 	SceneHandle( const SceneHandle& h ) : Handle( h ){}
 	SceneHandle( struct SGRX_Scene* sc ) : Handle( sc ){}
 };
 
-struct EXPORT LightTree
+struct ENGINE_EXPORT LightTree
 {
 	struct Sample
 	{
@@ -637,7 +637,7 @@ enum EPrimitiveType
 	PT_TriangleFan,
 };
 
-struct EXPORT BatchRenderer
+struct ENGINE_EXPORT BatchRenderer
 {
 	struct Vertex
 	{
@@ -704,17 +704,17 @@ struct EXPORT BatchRenderer
 	Array< Vertex > m_verts;
 };
 
-struct EXPORT SGRX_PostDraw
+struct ENGINE_EXPORT SGRX_PostDraw
 {
 	virtual void PostDraw() = 0;
 };
 
-struct EXPORT SGRX_DebugDraw
+struct ENGINE_EXPORT SGRX_DebugDraw
 {
 	virtual void DebugDraw() = 0;
 };
 
-struct EXPORT SGRX_RenderScene
+struct ENGINE_EXPORT SGRX_RenderScene
 {
 	SGRX_RenderScene( const SceneHandle& sh, bool enablePP = true ) :
 		scene( sh ),
@@ -731,47 +731,47 @@ struct EXPORT SGRX_RenderScene
 };
 
 
-EXPORT int GR_GetWidth();
-EXPORT int GR_GetHeight();
+ENGINE_EXPORT int GR_GetWidth();
+ENGINE_EXPORT int GR_GetHeight();
 
-EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
-EXPORT TextureHandle GR_GetTexture( const StringView& path );
-EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
-EXPORT ShaderHandle GR_GetShader( const StringView& path );
-EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
-EXPORT MeshHandle GR_CreateMesh();
-EXPORT MeshHandle GR_GetMesh( const StringView& path );
+ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
+ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
+ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
+ENGINE_EXPORT ShaderHandle GR_GetShader( const StringView& path );
+ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
+ENGINE_EXPORT MeshHandle GR_CreateMesh();
+ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
-EXPORT SceneHandle GR_CreateScene();
-EXPORT bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count );
-EXPORT void GR_RenderScene( const SGRX_RenderScene& info );
-EXPORT RenderStats& GR_GetRenderStats();
+ENGINE_EXPORT SceneHandle GR_CreateScene();
+ENGINE_EXPORT bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count );
+ENGINE_EXPORT void GR_RenderScene( const SGRX_RenderScene& info );
+ENGINE_EXPORT RenderStats& GR_GetRenderStats();
 
-EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
-EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
-EXPORT void GR2D_SetViewport( int x0, int y0, int x1, int y1 );
-EXPORT void GR2D_UnsetViewport();
-EXPORT void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 );
-EXPORT void GR2D_UnsetScissorRect();
-EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
-EXPORT void GR2D_SetColor( float r, float g, float b, float a = 1.0f );
+ENGINE_EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );
+ENGINE_EXPORT void GR2D_SetViewMatrix( const Mat4& mtx );
+ENGINE_EXPORT void GR2D_SetViewport( int x0, int y0, int x1, int y1 );
+ENGINE_EXPORT void GR2D_UnsetViewport();
+ENGINE_EXPORT void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 );
+ENGINE_EXPORT void GR2D_UnsetScissorRect();
+ENGINE_EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+ENGINE_EXPORT void GR2D_SetColor( float r, float g, float b, float a = 1.0f );
 inline void GR2D_SetColor( float x, float a ){ GR2D_SetColor( x, x, x, a ); }
 inline void GR2D_SetColor( float x ){ GR2D_SetColor( x, x, x, x ); }
-EXPORT void GR2D_SetTextCursor( float x, float y );
-EXPORT Vec2 GR2D_GetTextCursor();
-EXPORT int GR2D_GetTextLength( const StringView& text );
-EXPORT int GR2D_DrawTextLine( const StringView& text );
-EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
+ENGINE_EXPORT void GR2D_SetTextCursor( float x, float y );
+ENGINE_EXPORT Vec2 GR2D_GetTextCursor();
+ENGINE_EXPORT int GR2D_GetTextLength( const StringView& text );
+ENGINE_EXPORT int GR2D_DrawTextLine( const StringView& text );
+ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 #define HALIGN_LEFT 0
 #define HALIGN_CENTER 1
 #define HALIGN_RIGHT 2
 #define VALIGN_TOP 0
 #define VALIGN_CENTER 1
 #define VALIGN_BOTTOM 2
-EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign );
+ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign );
 
-EXPORT BatchRenderer& GR2D_GetBatchRenderer();
+ENGINE_EXPORT BatchRenderer& GR2D_GetBatchRenderer();
 
 
-extern "C" EXPORT int SGRX_EntryPoint( int argc, char** argv, int debug );
+extern "C" ENGINE_EXPORT int SGRX_EntryPoint( int argc, char** argv, int debug );
 

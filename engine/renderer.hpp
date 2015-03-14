@@ -9,9 +9,9 @@
 /// TEXTURE
 ///
 
-EXPORT size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI );
-EXPORT void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount );
-EXPORT bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo );
+ENGINE_EXPORT size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI );
+ENGINE_EXPORT void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount );
+ENGINE_EXPORT bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo );
 
 struct TextureData
 {
@@ -19,13 +19,13 @@ struct TextureData
 	ByteArray data;
 };
 
-EXPORT bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& filename = "<memory>" );
-EXPORT void TextureData_Free( TextureData* TD );
-EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, void* data, int side, int mip );
-EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );
+ENGINE_EXPORT bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& filename = "<memory>" );
+ENGINE_EXPORT void TextureData_Free( TextureData* TD );
+ENGINE_EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, void* data, int side, int mip );
+ENGINE_EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );
 
-EXPORT const char* VDeclInfo_Parse( VDeclInfo* info, const char* text );
-EXPORT int GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );
+ENGINE_EXPORT const char* VDeclInfo_Parse( VDeclInfo* info, const char* text );
+ENGINE_EXPORT int GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );
 
 struct MeshFilePartData
 {
@@ -72,11 +72,11 @@ struct MeshFileData
 	/* size w/o padding = 1075/1663 + 70/74 x32 = 3315/4031 */
 };
 
-const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out );
+ENGINE_EXPORT const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out );
 
 
 // ! REQUIRES ByteArray data source to be preserved ! //
-struct AnimFileParser
+struct ENGINE_EXPORT AnimFileParser
 {
 	struct Anim
 	{
@@ -127,12 +127,12 @@ inline SGRX_Log& operator << ( SGRX_Log& L, const AnimFileParser::Track& track )
 }
 
 
-EXPORT void SGRX_Cull_Camera_Prepare( SGRX_Scene* S );
-EXPORT uint32_t SGRX_Cull_Camera_MeshList( Array< SGRX_MeshInstance* >& MIBuf, ByteArray& scratchMem, SGRX_Scene* S );
-EXPORT uint32_t SGRX_Cull_Camera_PointLightList( Array< SGRX_Light* >& LIBuf, ByteArray& scratchMem, SGRX_Scene* S );
-EXPORT uint32_t SGRX_Cull_Camera_SpotLightList( Array< SGRX_Light* >& LIBuf, ByteArray& scratchMem, SGRX_Scene* S );
-EXPORT void SGRX_Cull_SpotLight_Prepare( SGRX_Scene* S, SGRX_Light* L );
-EXPORT uint32_t SGRX_Cull_SpotLight_MeshList( Array< SGRX_MeshInstance* >& MIBuf, ByteArray& scratchMem, SGRX_Scene* S, SGRX_Light* L );
+ENGINE_EXPORT void SGRX_Cull_Camera_Prepare( SGRX_Scene* S );
+ENGINE_EXPORT uint32_t SGRX_Cull_Camera_MeshList( Array< SGRX_MeshInstance* >& MIBuf, ByteArray& scratchMem, SGRX_Scene* S );
+ENGINE_EXPORT uint32_t SGRX_Cull_Camera_PointLightList( Array< SGRX_Light* >& LIBuf, ByteArray& scratchMem, SGRX_Scene* S );
+ENGINE_EXPORT uint32_t SGRX_Cull_Camera_SpotLightList( Array< SGRX_Light* >& LIBuf, ByteArray& scratchMem, SGRX_Scene* S );
+ENGINE_EXPORT void SGRX_Cull_SpotLight_Prepare( SGRX_Scene* S, SGRX_Light* L );
+ENGINE_EXPORT uint32_t SGRX_Cull_SpotLight_MeshList( Array< SGRX_MeshInstance* >& MIBuf, ByteArray& scratchMem, SGRX_Scene* S, SGRX_Light* L );
 
 
 ///
@@ -148,7 +148,7 @@ struct RendererInfo
 
 #define RS_ZENABLE 1
 
-struct EXPORT IRenderer
+struct ENGINE_EXPORT IRenderer
 {
 	IRenderer() : m_inDebugDraw( false ){}
 	

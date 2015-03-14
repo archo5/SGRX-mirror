@@ -4,7 +4,14 @@
 #include "engine.hpp"
 
 
-struct EXPORT SGRX_IPhyShape
+#ifdef PHYSICS_BUILDING
+#  define PHYSICS_EXPORT __declspec(dllexport)
+#else
+#  define PHYSICS_EXPORT __declspec(dllimport)
+#endif
+
+
+struct PHYSICS_EXPORT SGRX_IPhyShape
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -42,7 +49,7 @@ struct SGRX_PhyRigidBodyInfo
 	bool canSleep;
 };
 
-struct EXPORT SGRX_IPhyRigidBody
+struct PHYSICS_EXPORT SGRX_IPhyRigidBody
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -59,7 +66,7 @@ struct EXPORT SGRX_IPhyRigidBody
 typedef Handle< SGRX_IPhyRigidBody > PhyRigidBodyHandle;
 
 
-struct EXPORT SGRX_IPhyWorld
+struct PHYSICS_EXPORT SGRX_IPhyWorld
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -79,9 +86,9 @@ struct EXPORT SGRX_IPhyWorld
 typedef Handle< SGRX_IPhyWorld > PhyWorldHandle;
 
 
-EXPORT PhyShapeHandle PHY_CreateConvexHullShape( const Vec3* data, size_t count );
-EXPORT PhyShapeHandle PHY_CreateAABBShape( const Vec3& min, const Vec3& max );
-EXPORT PhyShapeHandle PHY_CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false );
-EXPORT PhyShapeHandle PHY_CreateShapeFromMesh( SGRX_IMesh* mesh );
-EXPORT PhyWorldHandle PHY_CreateWorld();
+PHYSICS_EXPORT PhyShapeHandle PHY_CreateConvexHullShape( const Vec3* data, size_t count );
+PHYSICS_EXPORT PhyShapeHandle PHY_CreateAABBShape( const Vec3& min, const Vec3& max );
+PHYSICS_EXPORT PhyShapeHandle PHY_CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false );
+PHYSICS_EXPORT PhyShapeHandle PHY_CreateShapeFromMesh( SGRX_IMesh* mesh );
+PHYSICS_EXPORT PhyWorldHandle PHY_CreateWorld();
 
