@@ -1850,7 +1850,7 @@ struct TextReader
 					error = true;
 					break;
 				}
-				ch = ( vv0 << 4 ) | vv1;
+				ch = ( gethex( vv0 ) << 4 ) | gethex( vv1 );
 			}
 			*ptr++ = ch;
 			sz--;
@@ -1927,7 +1927,7 @@ struct TextWriter
 			else
 			{
 				char bfr[ 32 ];
-				sprintf( bfr, "\\%02X", (int) ptr[ i ] );
+				sprintf( bfr, "\\%02X", (int) (uint8_t) ptr[ i ] );
 				_write( bfr );
 			}
 		}

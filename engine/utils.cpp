@@ -1150,12 +1150,12 @@ inline bool operator == ( const _teststr_& a, const _teststr_& b ){ return a.p =
 inline Hash HashVar( const _teststr_& v ){ return (int)v.p + v.x; }
 #define CLOSE(a,b) (fabsf((a)-(b))<SMALL_FLOAT)
 
-#define TESTSER_SIZE (1+8+4+(4+4+4))
+#define TESTSER_SIZE (1+8+4+(4+4+4)+(4+15))
 struct _testser_
 {
-	uint8_t a; int64_t b; float c; Vec3 d;
-	bool operator != ( const _testser_& o ) const { return a != o.a || b != o.b || c != o.c || d != o.d; }
-	template< class T > void Serialize( T& arch ){ if( T::IsText ) arch.marker( "TEST" ); arch << a << b << c << d; }
+	uint8_t a; int64_t b; float c; Vec3 d; String e;
+	bool operator != ( const _testser_& o ) const { return a != o.a || b != o.b || c != o.c || d != o.d || e != o.e; }
+	template< class T > void Serialize( T& arch ){ if( T::IsText ) arch.marker( "TEST" ); arch << a << b << c << d << e; }
 };
 
 int TestSystems()
@@ -1179,7 +1179,7 @@ int TestSystems()
 	if( !ht_si.getraw( tskey ) ) return 555; // can find item
 	if( ht_si.getcopy( tskey ) != 12345 ) return 556; // returns right value
 	
-	_testser_ dst, src = { 1, -2, 3, { 4, 5, 6 } };
+	_testser_ dst, src = { 1, -2, 3, { 4, 5, 6 }, String("abC40!\x00\x01\x7f \\!end",15) };
 	ByteArray barr;
 	String carr;
 	ByteWriter( &barr ) << src;

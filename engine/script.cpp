@@ -132,7 +132,7 @@ sgsVariable ScriptContext::Unserialize( const StringView& sv )
 	SGS_SCOPE;
 	sgsVariable out;
 	sgs_PushStringBuf( C, sv.data(), sv.size() );
-	if( SGS_SUCCEEDED( sgs_Serialize( C ) ) )
+	if( SGS_SUCCEEDED( sgs_Unserialize( C ) ) )
 	{
 		out = sgs_GetVar<sgsVariable>()( C, -1 );
 	}
