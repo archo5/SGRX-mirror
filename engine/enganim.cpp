@@ -304,6 +304,48 @@ void AnimPlayer::_clearAnimCache()
 	animCache.clear();
 }
 
+
+AnimInterp::AnimInterp() : animSource( NULL )
+{
+}
+
+void AnimInterp::Prepare( String* names, int count )
+{
+	Animator::Prepare( names, count );
+	prev_position.resize( count );
+	prev_rotation.resize( count );
+	prev_scale.resize( count );
+	if( animSource )
+		animSource->Prepare( names, count );
+}
+
+void AnimInterp::Advance( float deltaTime )
+{
+	Transfer();
+	animSource->Advance( deltaTime );
+}
+
+void AnimInterp::Transfer()
+{
+	for( size_t i = 0; i < names.size(); ++i )
+	{
+		prev_position[ i ] = animSource->position[ i ];
+		prev_rotation[ i ] = animSource->rotation[ i ];
+		prev_scale[ i ] = animSource->scale[ i ];
+	}
+}
+
+void AnimInterp::Interpolate( float deltaTime )
+{
+	for( size_t i = 0; i < names.size(); ++i )
+	{
+		position[ i ] = TLERP( prev_position[ i ], animSource->position[ i ], deltaTime );
+		rotation[ i ] = TLERP( prev_rotation[ i ], animSource->rotation[ i ], deltaTime );
+		scale[ i ] = TLERP( prev_scale[ i ], animSource->scale[ i ], deltaTime );
+	}
+}
+
+
 void GR_ClearFactors( Array< float >& out, float factor )
 {
 	TMEMSET( out.data(), out.size(), factor );

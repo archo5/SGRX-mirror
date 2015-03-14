@@ -120,6 +120,20 @@ struct ENGINE_EXPORT AnimPlayer : Animator
 	void SetBlendFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( blendFactor, mesh, name, f, ch ); }
 };
 
+struct ENGINE_EXPORT AnimInterp : Animator
+{
+	AnimInterp();
+	virtual void Prepare( String* names, int count );
+	virtual void Advance( float deltaTime );
+	void Transfer();
+	void Interpolate( float deltaTime );
+	
+	Array< Vec3 > prev_position;
+	Array< Quat > prev_rotation;
+	Array< Vec3 > prev_scale;
+	Animator* animSource;
+};
+
 
 
 struct ENGINE_EXPORT SkeletonInfo

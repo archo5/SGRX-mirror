@@ -458,7 +458,47 @@ struct ENGINE_EXPORT Quat
 FINLINE Quat operator * ( float f, const Quat& q ){ Quat out = { f * q.x, f * q.y, f * q.z, f * q.w }; return out; }
 
 FINLINE Quat QUAT( float x, float y, float z, float w ){ Quat q = { x, y, z, w }; return q; }
-template< class S > Quat TLERP( const Quat& a, const Quat& b, const S& s ){ return ( a * ( S(1) - s ) + b * s ).Normalized(); }
+inline Quat QuatSlerp( const Quat& qa, const Quat& qo, float t )
+{
+	Quat qb = qo;
+	float coshalfangle = qa.x * qb.x + qa.y * qb.y + qa.z * qb.z + qa.w * qb.w;
+	if( coshalfangle < 0 )
+	{
+		qb.x = -qb.x;
+		qb.y = -qb.y;
+		qb.z = -qb.z;
+		qb.w = -qb.w;
+		coshalfangle = -coshalfangle;
+	}
+	
+	if( fabsf( coshalfangle ) >= 1.0 )
+		return qa;
+	
+	float halfangle = acosf( coshalfangle );
+	float sinhalfangle = sqrtf( 1.0 - coshalfangle * coshalfangle );
+	
+	float fa, fb;
+	if( fabsf( sinhalfangle ) > SMALL_FLOAT )
+	{
+		fa = sinf( ( 1 - t ) * halfangle ) / sinhalfangle;
+		fb = sinf( t * halfangle ) / sinhalfangle; 
+	}
+	else
+	{
+		fa = 1 - t;
+		fb = t;
+	}
+	
+	Quat qout =
+	{
+		qa.x * fa + qb.x * fb,
+		qa.y * fa + qb.y * fb,
+		qa.z * fa + qb.z * fb,
+		qa.w * fa + qb.w * fb,
+	};
+	return qout;
+}
+template< class S > Quat TLERP( const Quat& a, const Quat& b, const S& s ){ return QuatSlerp( a, b, s ); }
 #endif
 
 
