@@ -84,6 +84,8 @@ struct SCRIPT_EXPORT ScriptContext
 	String Serialize( sgsVariable var );
 	sgsVariable Unserialize( const StringView& sv );
 	
+	sgsString CreateString( const StringView& sv );
+	sgsVariable CreateStringVar( const StringView& sv );
 	sgsVariable CreateDict( int args = 0 );
 	sgsVariable CreateVec2( const Vec2& v );
 	sgsVariable CreateVec3( const Vec3& v );

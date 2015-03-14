@@ -50,6 +50,7 @@ bool ScriptVarIterator::Advance()
 ScriptContext::ScriptContext()
 {
 	C = sgs_CreateEngine();
+	xgm_module_entry_point( C );
 }
 
 ScriptContext::~ScriptContext()
@@ -136,6 +137,16 @@ sgsVariable ScriptContext::Unserialize( const StringView& sv )
 		out = sgs_GetVar<sgsVariable>()( C, -1 );
 	}
 	return out;
+}
+
+sgsString ScriptContext::CreateString( const StringView& sv )
+{
+	return sgsString( C, sv.data(), sv.size() );
+}
+
+sgsVariable ScriptContext::CreateStringVar( const StringView& sv )
+{
+	return sgsVariable().set( CreateString( sv ) );
 }
 
 sgsVariable ScriptContext::CreateDict( int args )
