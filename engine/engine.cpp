@@ -1808,6 +1808,15 @@ BatchRenderer& BatchRenderer::AABB( const Vec3& bbmin, const Vec3& bbmax, const 
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::Tick( const Vec3& pos, float radius, const Mat4& transform )
+{
+	SetPrimitiveType( PT_Lines );
+	Pos( transform.TransformPos( pos + V3(-radius,0,0) ) ); Pos( transform.TransformPos( pos + V3(radius,0,0) ) );
+	Pos( transform.TransformPos( pos + V3(0,-radius,0) ) ); Pos( transform.TransformPos( pos + V3(0,radius,0) ) );
+	Pos( transform.TransformPos( pos + V3(0,0,-radius) ) ); Pos( transform.TransformPos( pos + V3(0,0,radius) ) );
+	return *this;
+}
+
 bool BatchRenderer::CheckSetTexture( const TextureHandle& tex )
 {
 	if( tex != m_nextState.texture )

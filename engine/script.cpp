@@ -82,27 +82,82 @@ static int BR_Col( SGS_CTX )
 	GR2D_GetBatchRenderer().Col( v[0], v[1], v[2], v[3] );
 	return 0;
 }
+static int BR_Pos( SGS_CTX )
+{
+	Vec3 pos;
+	SGSFN( "BR_Pos" );
+	if( !sgs_LoadArgs( C, "x", sgs_ArgCheck_Vec3, &pos.x ) )
+		return 0;
+	GR2D_GetBatchRenderer().Pos( pos );
+	return 0;
+}
+static int BR_SphereOutline( SGS_CTX )
+{
+	Vec3 pos;
+	float rad;
+	int32_t verts;
+	SGSFN( "BR_SphereOutline" );
+	if( !sgs_LoadArgs( C, "xfl", sgs_ArgCheck_Vec3, &pos.x, &rad, &verts ) )
+		return 0;
+	GR2D_GetBatchRenderer().SphereOutline( pos, rad, verts );
+	return 0;
+}
 static int BR_AABB( SGS_CTX )
 {
 	Vec3 pmin = {0}, pmax = {0};
 	Mat4 mtx = Mat4::Identity;
 	SGSFN( "BR_AABB" );
-	if( !sgs_LoadArgs( C, "xxx", sgs_ArgCheck_Vec3, &pmin.x, sgs_ArgCheck_Vec3, &pmax.x, sgs_ArgCheck_Mat4, &mtx.a ) )
+	if( !sgs_LoadArgs( C, "xx|x", sgs_ArgCheck_Vec3, &pmin.x, sgs_ArgCheck_Vec3, &pmax.x, sgs_ArgCheck_Mat4, mtx.a ) )
 		return 0;
 	GR2D_GetBatchRenderer().AABB( pmin, pmax, mtx );
+	return 0;
+}
+static int BR_Tick( SGS_CTX )
+{
+	Vec3 pos;
+	float rad;
+	Mat4 mtx = Mat4::Identity;
+	SGSFN( "BR_Tick" );
+	if( !sgs_LoadArgs( C, "xf|x", sgs_ArgCheck_Vec3, &pos.x, &rad, sgs_ArgCheck_Mat4, mtx.a ) )
+		return 0;
+	GR2D_GetBatchRenderer().Tick( pos, rad, mtx );
+	return 0;
+}
+static int BR_SetPrimitiveType( SGS_CTX )
+{
+	int32_t pt = 0;
+	SGSFN( "BR_SetPrimitiveType" );
+	if( !sgs_LoadArgs( C, "l", &pt ) )
+		return 0;
+	GR2D_GetBatchRenderer().SetPrimitiveType( (EPrimitiveType) pt );
 	return 0;
 }
 static sgs_RegFuncConst g_ent_scripted_rfc[] =
 {
 	{ "BR_Reset", BR_Reset },
 	{ "BR_Col", BR_Col },
+	{ "BR_Pos", BR_Pos },
+	{ "BR_SphereOutline", BR_SphereOutline },
 	{ "BR_AABB", BR_AABB },
+	{ "BR_Tick", BR_Tick },
+	{ "BR_SetPrimitiveType", BR_SetPrimitiveType },
 	SGS_RC_END(),
+};
+static sgs_RegIntConst g_ent_scripted_ric[] =
+{
+	{ "PT_Points", PT_Points },
+	{ "PT_Lines", PT_Lines },
+	{ "PT_LineStrip", PT_LineStrip },
+	{ "PT_Triangles", PT_Triangles },
+	{ "PT_TriangleFan", PT_TriangleFan },
+	{ "PT_TriangleStrip", PT_TriangleStrip },
+	{ NULL, 0 },
 };
 
 void ScriptContext::RegisterBatchRenderer()
 {
 	sgs_RegFuncConsts( C, g_ent_scripted_rfc, -1 );
+	sgs_RegIntConsts( C, g_ent_scripted_ric, -1 );
 }
 
 bool ScriptContext::ExecFile( const StringView& path )

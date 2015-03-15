@@ -683,6 +683,7 @@ struct ENGINE_EXPORT BatchRenderer
 	BatchRenderer& SphereOutline( const Vec3& pos, float radius, int verts );
 	BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts );
 	BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
+	BatchRenderer& Tick( const Vec3& pos, float radius, const Mat4& transform = Mat4::Identity );
 	
 	bool CheckSetTexture( const TextureHandle& tex );
 	BatchRenderer& SetTexture( const TextureHandle& tex );
