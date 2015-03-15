@@ -23,6 +23,38 @@
 const Quat Quat::Identity = { 0, 0, 0, 1 };
 
 
+static Quat CalcNearestQuat( const Quat& root, const Quat& qd )
+{
+	Quat diff = root - qd;
+	Quat sum = root + qd;
+	if( QuatDot( diff, diff ) < QuatDot( sum, sum ) )
+		return qd;
+	return -qd;
+}
+
+static void CalcDiffAxisAngleQuaternion( const Quat& orn0, const Quat& orn1a, Vec3& axis, float& angle )
+{
+	Quat orn1 = CalcNearestQuat( orn0, orn1a );
+	Quat dorn = orn1 * orn0.Inverted();
+	angle = dorn.GetAngle();
+	axis = V3( dorn.x, dorn.y, dorn.z );
+	//check for axis length
+	float len = axis.LengthSq();
+	if( len < SMALL_FLOAT * SMALL_FLOAT )
+		axis = V3(1,0,0);
+	else
+		axis /= sqrtf( len );
+}
+
+Vec3 CalcAngularVelocity( const Quat& qa, const Quat& qb )
+{
+	Vec3 axis;
+	float angle;
+	CalcDiffAxisAngleQuaternion( qa, qb, axis, angle );
+	return axis * angle;
+}
+
+
 Quat Mat4::GetRotationQuaternion() const
 {
 #if 1
@@ -238,6 +270,11 @@ bool Mat4::InvertTo( Mat4& out )
 		out.a[ i ] = inv[ i ] * det;
 	
 	return true;
+}
+
+Quat TransformQuaternion( const Quat& q, const Mat4& m )
+{
+	return Quat::CreateAxisAngle( m.TransformNormal( q.GetAxis() ), q.GetAngle() );
 }
 
 const Mat4 Mat4::Identity =

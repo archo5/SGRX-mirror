@@ -67,6 +67,7 @@ struct ENGINE_EXPORT AnimMixer : Animator
 		TF_Absolute_Pos = 0x02,
 		TF_Absolute_Scale = 0x04,
 		TF_Absolute_All = (TF_Absolute_Rot|TF_Absolute_Pos|TF_Absolute_Scale),
+		TF_Additive = 0x10,
 	};
 	
 	struct Layer
@@ -80,7 +81,7 @@ struct ENGINE_EXPORT AnimMixer : Animator
 	
 	AnimMixer();
 	~AnimMixer();
-	virtual void Prepare( String* names, int count );
+	virtual void Prepare( String* new_names, int count );
 	virtual void Advance( float deltaTime );
 	
 	Array< Mat4 > m_staging;
@@ -104,7 +105,7 @@ struct ENGINE_EXPORT AnimPlayer : Animator
 	
 	AnimPlayer();
 	~AnimPlayer();
-	virtual void Prepare( String* names, int count );
+	virtual void Prepare( String* new_names, int count );
 	virtual void Advance( float deltaTime );
 	
 	void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
@@ -123,7 +124,7 @@ struct ENGINE_EXPORT AnimPlayer : Animator
 struct ENGINE_EXPORT AnimInterp : Animator
 {
 	AnimInterp();
-	virtual void Prepare( String* names, int count );
+	virtual void Prepare( String* new_names, int count );
 	virtual void Advance( float deltaTime );
 	void Transfer();
 	void Interpolate( float deltaTime );

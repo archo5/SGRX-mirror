@@ -1,6 +1,7 @@
 
 
 #define USE_QUAT
+#define USE_MAT4
 #define USE_ARRAY
 #include "../ext/src/bullet.hpp"
 
@@ -45,8 +46,24 @@ struct BulletPhyShape : SGRX_IPhyShape
 	{
 		m_colShape->setLocalScaling( V2BV( scale ) );
 	}
+	virtual Vec3 CalcInertia( float mass ) const
+	{
+		btVector3 outi;
+		m_colShape->calculateLocalInertia( mass, outi );
+		return BV2V( outi );
+	}
 	
 	btCollisionShape* m_colShape;
+};
+
+struct BulletSphereShape : BulletPhyShape
+{
+	BulletSphereShape( float radius ){ m_colShape = new btSphereShape( radius ); _Init(); }
+};
+
+struct BulletCapsuleShape : BulletPhyShape
+{
+	BulletCapsuleShape( float radius, float height ){ m_colShape = new btCapsuleShapeZ( radius, height ); _Init(); }
 };
 
 struct BulletConvexHullShape : BulletPhyShape
@@ -87,6 +104,7 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX_PhyRigidBodyInfo& rbinfo );
 	~BulletPhyRigidBody();
 	
+	virtual void SetEnabled( bool enabled );
 	virtual Vec3 GetPosition() const { return BV2V( m_body->getCenterOfMassPosition() ); }
 	virtual void SetPosition( const Vec3& v )
 	{
@@ -103,6 +121,10 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 		if( m_body->isKinematicObject() )
 			m_body->getMotionState()->setWorldTransform( m_body->getWorldTransform() );
 	}
+	virtual Vec3 GetLinearVelocity() const { return BV2V( m_body->getLinearVelocity() ); }
+	virtual void SetLinearVelocity( const Vec3& v ){ m_body->setLinearVelocity( V2BV( v ) ); }
+	virtual Vec3 GetAngularVelocity() const { return BV2V( m_body->getAngularVelocity() ); }
+	virtual void SetAngularVelocity( const Vec3& v ){ m_body->setAngularVelocity( V2BV( v ) ); }
 	
 	struct BulletPhyWorld* m_world;
 	btRigidBody* m_body;
@@ -117,6 +139,13 @@ struct BulletPhyWorld : SGRX_IPhyWorld
 	
 	virtual void Step( float dt );
 	virtual void DebugDraw();
+	
+	virtual PhyShapeHandle CreateSphereShape( float radius );
+	virtual PhyShapeHandle CreateCapsuleShape( float radius, float height );
+	virtual PhyShapeHandle CreateConvexHullShape( const Vec3* data, size_t count );
+	virtual PhyShapeHandle CreateAABBShape( const Vec3& min, const Vec3& max );
+	virtual PhyShapeHandle CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false );
+	virtual PhyShapeHandle CreateShapeFromMesh( SGRX_IMesh* mesh );
 	
 	virtual PhyRigidBodyHandle CreateRigidBody( const SGRX_PhyRigidBodyInfo& info );
 	
@@ -168,7 +197,10 @@ BulletPhyRigidBody::BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX
 	}
 	m_body->setUserPointer( this );
 	m_shape = rbinfo.shape;
-	m_world->m_world->addRigidBody( m_body );
+	if( rbinfo.enabled )
+	{
+		m_world->m_world->addRigidBody( m_body );
+	}
 }
 
 BulletPhyRigidBody::~BulletPhyRigidBody()
@@ -180,6 +212,14 @@ BulletPhyRigidBody::~BulletPhyRigidBody()
 	btMotionState* mstate = m_body->getMotionState();
 	delete m_body;
 	delete mstate;
+}
+
+void BulletPhyRigidBody::SetEnabled( bool enabled )
+{
+	if( enabled && !m_body->isInWorld() )
+		m_world->m_world->addRigidBody( m_body );
+	else if( !enabled && m_body->isInWorld() )
+		m_world->m_world->removeRigidBody( m_body );
 }
 
 
@@ -267,27 +307,22 @@ void BulletPhyWorld::DebugDraw()
 	m_world->setDebugDrawer( NULL );
 }
 
-PhyRigidBodyHandle BulletPhyWorld::CreateRigidBody( const SGRX_PhyRigidBodyInfo& info )
+PhyShapeHandle BulletPhyWorld::CreateSphereShape( float radius )
 {
-	return new BulletPhyRigidBody( this, info );
+	return new BulletSphereShape( radius );
 }
 
-Vec3 BulletPhyWorld::GetGravity()
+PhyShapeHandle BulletPhyWorld::CreateCapsuleShape( float radius, float height )
 {
-	return BV2V( m_world->getGravity() );
+	return new BulletCapsuleShape( radius, height );
 }
 
-void BulletPhyWorld::SetGravity( const Vec3& v )
-{
-	m_world->setGravity( V2BV( v ) );
-}
-
-PhyShapeHandle PHY_CreateConvexHullShape( const Vec3* data, size_t count )
+PhyShapeHandle BulletPhyWorld::CreateConvexHullShape( const Vec3* data, size_t count )
 {
 	return new BulletConvexHullShape( data, count );
 }
 
-PhyShapeHandle PHY_CreateAABBShape( const Vec3& min, const Vec3& max )
+PhyShapeHandle BulletPhyWorld::CreateAABBShape( const Vec3& min, const Vec3& max )
 {
 	Vec3 pts[8] =
 	{
@@ -299,12 +334,12 @@ PhyShapeHandle PHY_CreateAABBShape( const Vec3& min, const Vec3& max )
 	return new BulletConvexHullShape( pts, 8 );
 }
 
-PhyShapeHandle PHY_CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idata, size_t icount, bool index32 )
+PhyShapeHandle BulletPhyWorld::CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idata, size_t icount, bool index32 )
 {
 	return new BulletTriMeshShape( verts, vcount, idata, icount, index32 );
 }
 
-PhyShapeHandle PHY_CreateShapeFromMesh( SGRX_IMesh* mesh )
+PhyShapeHandle BulletPhyWorld::CreateShapeFromMesh( SGRX_IMesh* mesh )
 {
 	int off;
 	if( !mesh ||
@@ -331,7 +366,7 @@ PhyShapeHandle PHY_CreateShapeFromMesh( SGRX_IMesh* mesh )
 			for( size_t i = MP.indexOffset; i < MP.indexOffset + MP.indexCount; ++i )
 				indices.push_back( *(uint32_t*) &mesh->m_idata[ i * 4 ] + MP.vertexOffset );
 		}
-		return PHY_CreateTriMeshShape( vdata.data(), vdata.size(), indices.data(), indices.size(), i32 );
+		return CreateTriMeshShape( vdata.data(), vdata.size(), indices.data(), indices.size(), i32 );
 	}
 	else
 	{
@@ -342,12 +377,29 @@ PhyShapeHandle PHY_CreateShapeFromMesh( SGRX_IMesh* mesh )
 			for( size_t i = MP.indexOffset; i < MP.indexOffset + MP.indexCount; ++i )
 				indices.push_back( *(uint16_t*) &mesh->m_idata[ i * 2 ] + MP.vertexOffset );
 		}
-		return PHY_CreateTriMeshShape( vdata.data(), vdata.size(), indices.data(), indices.size(), i32 );
+		return CreateTriMeshShape( vdata.data(), vdata.size(), indices.data(), indices.size(), i32 );
 	}
 }
+
+PhyRigidBodyHandle BulletPhyWorld::CreateRigidBody( const SGRX_PhyRigidBodyInfo& info )
+{
+	return new BulletPhyRigidBody( this, info );
+}
+
+Vec3 BulletPhyWorld::GetGravity()
+{
+	return BV2V( m_world->getGravity() );
+}
+
+void BulletPhyWorld::SetGravity( const Vec3& v )
+{
+	m_world->setGravity( V2BV( v ) );
+}
+
 
 PhyWorldHandle PHY_CreateWorld()
 {
 	return new BulletPhyWorld;
 }
+
 

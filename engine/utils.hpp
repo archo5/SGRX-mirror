@@ -402,6 +402,7 @@ struct ENGINE_EXPORT Quat
 	}
 	
 	FINLINE Quat operator + ( const Quat& o ) const { Quat q = { x + o.x, y + o.y, z + o.z, w + o.w }; return q; }
+	FINLINE Quat operator - ( const Quat& o ) const { Quat q = { x - o.x, y - o.y, z - o.z, w - o.w }; return q; }
 	Quat operator * ( const Quat& o ) const
 	{
 		const Quat& q1 = *this, &q2 = o;
@@ -415,6 +416,7 @@ struct ENGINE_EXPORT Quat
 		return q;
 	}
 	FINLINE Quat operator * ( float f ) const { Quat q = { x * f, y * f, z * f, w * f }; return q; }
+	FINLINE Quat operator - () const { Quat q = { -x, -y, -z, -w }; return q; }
 	
 	Vec3 Transform( const Vec3& p ) const
 	{
@@ -451,6 +453,15 @@ struct ENGINE_EXPORT Quat
 	FINLINE void Set( float _x, float _y, float _z, float _w ){ x = _x; y = _y; z = _z; w = _w; }
 	FINLINE Quat Conjugate() const { Quat q = { -x, -y, -z, w }; return q; }
 	FINLINE Quat Inverted() const { Quat q = { -x, -y, -z, w }; return q; }
+	FINLINE float GetAngle() const { return 2 * acosf( w ); }
+	inline Vec3 GetAxis() const
+	{
+		float iwsq = 1.0f - w * w;
+		if( iwsq < 10 * SMALL_FLOAT )
+			return V3(1,0,0);
+		float s = 1.0f / iwsq;
+		return V3( x * s, y * s, z * s );
+	}
 #endif
 };
 	
@@ -458,6 +469,7 @@ struct ENGINE_EXPORT Quat
 FINLINE Quat operator * ( float f, const Quat& q ){ Quat out = { f * q.x, f * q.y, f * q.z, f * q.w }; return out; }
 
 FINLINE Quat QUAT( float x, float y, float z, float w ){ Quat q = { x, y, z, w }; return q; }
+FINLINE float QuatDot( const Quat& qa, const Quat& qb ){ return qa.x * qb.x + qa.y * qb.y + qa.z * qb.z + qa.w * qb.w; }
 inline Quat QuatSlerp( const Quat& qa, const Quat& qo, float t )
 {
 	Quat qb = qo;
@@ -500,6 +512,8 @@ inline Quat QuatSlerp( const Quat& qa, const Quat& qo, float t )
 }
 template< class S > Quat TLERP( const Quat& a, const Quat& b, const S& s ){ return QuatSlerp( a, b, s ); }
 #endif
+
+ENGINE_EXPORT Vec3 CalcAngularVelocity( const Quat& qa, const Quat& qb );
 
 
 //
@@ -846,6 +860,8 @@ struct ENGINE_EXPORT Mat4
 	}
 #endif
 };
+
+ENGINE_EXPORT Quat TransformQuaternion( const Quat& q, const Mat4& m );
 
 
 

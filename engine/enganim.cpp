@@ -6,6 +6,7 @@
 #define USE_ARRAY
 #define USE_HASHTABLE
 #include "enganim.hpp"
+#include "physics.hpp"
 
 
 SGRX_Animation::~SGRX_Animation()
@@ -90,13 +91,13 @@ AnimMixer::~AnimMixer()
 {
 }
 
-void AnimMixer::Prepare( String* names, int count )
+void AnimMixer::Prepare( String* new_names, int count )
 {
-	Animator::Prepare( names, count );
+	Animator::Prepare( new_names, count );
 	m_staging.resize( count );
 	for( int i = 0; i < layerCount; ++i )
 	{
-		layers[ i ].anim->Prepare( names, count );
+		layers[ i ].anim->Prepare( new_names, count );
 	}
 }
 
@@ -140,7 +141,9 @@ void AnimMixer::Advance( float deltaTime )
 				}
 				Mat4 inv = Mat4::Identity;
 				orig.InvertTo( inv );
-				Mat4 diff = Mat4::CreateSRT( scale[ i ], rotation[ i ], position[ i ] ) * orig * tfm * inv;
+				Mat4 diff = tflags & TF_Additive ?
+					Mat4::CreateSRT( scale[ i ], rotation[ i ], position[ i ] ) * orig * tfm * inv :
+					tfm * inv;
 		//		if( q )
 		//			LOG << i << ":\t" << R;
 			//	if( q )
@@ -181,11 +184,11 @@ AnimPlayer::~AnimPlayer()
 	_clearAnimCache();
 }
 
-void AnimPlayer::Prepare( String* names, int count )
+void AnimPlayer::Prepare( String* new_names, int count )
 {
 	currentAnims.clear();
 	_clearAnimCache();
-	Animator::Prepare( names, count );
+	Animator::Prepare( new_names, count );
 	blendFactor.resize( count );
 	for( int i = 0; i < count; ++i )
 		blendFactor[ i ] = 1;
@@ -309,14 +312,14 @@ AnimInterp::AnimInterp() : animSource( NULL )
 {
 }
 
-void AnimInterp::Prepare( String* names, int count )
+void AnimInterp::Prepare( String* new_names, int count )
 {
-	Animator::Prepare( names, count );
+	Animator::Prepare( new_names, count );
 	prev_position.resize( count );
 	prev_rotation.resize( count );
 	prev_scale.resize( count );
 	if( animSource )
-		animSource->Prepare( names, count );
+		animSource->Prepare( new_names, count );
 }
 
 void AnimInterp::Advance( float deltaTime )
@@ -861,4 +864,193 @@ void ParticleSystem::Stop()
 	}
 }
 
+
+
+
+//////////////////////
+//  R A G D O L L
+////////////////////
+
+AnimRagdoll::AnimRagdoll() :
+	m_enabled( false ),
+	m_lastTickSize( 0 )
+{
+}
+
+void AnimRagdoll::Initialize( PhyWorldHandle world, MeshHandle mesh, SkeletonInfo* skinfo )
+{
+	m_mesh = mesh;
+	
+	SGRX_PhyRigidBodyInfo rbinfo;
+	rbinfo.enabled = false;
+	rbinfo.friction = 0.8f;
+	rbinfo.restitution = 0.02f;
+	
+	for( size_t bid = 0; bid < skinfo->bodies.size(); ++bid )
+	{
+		SkeletonInfo::Body& SB = skinfo->bodies[ bid ];
+		
+		Body* TB = NULL;
+		for( size_t i = 0; i < m_bones.size(); ++i )
+		{
+			if( names[ i ] == SB.name )
+			{
+				TB = &m_bones[ i ];
+				break;
+			}
+		}
+		if( !TB )
+			continue;
+		
+	//	LOG << SB.name << " > " << SB.capsule_radius << "|" << SB.capsule_height;
+		rbinfo.shape = world->CreateCapsuleShape( SB.capsule_radius, SB.capsule_height );
+		rbinfo.mass = 0;//4.0f / 3.0f * M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_radius + M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_height;
+		
+		rbinfo.inertia = rbinfo.shape->CalcInertia( rbinfo.mass );
+		
+		TB->relPos = SB.position;
+		TB->relRot = SB.rotation;
+		TB->bodyHandle = world->CreateRigidBody( rbinfo );
+	}
+	
+	for( size_t jid = 0; jid < skinfo->joints.size(); ++jid )
+	{
+		SkeletonInfo::Joint& SJ = skinfo->joints[ jid ];
+	}
+}
+
+void AnimRagdoll::Prepare( String* new_names, int count )
+{
+	Animator::Prepare( new_names, count );
+	m_bones.resize( count );
+	for( int i = 0; i < count; ++i )
+	{
+		Body B = { V3(0), Quat::Identity, NULL, V3(0), V3(0), Quat::Identity, Quat::Identity };
+		m_bones[ i ] = B;
+		position[ i ] = V3( 0 );
+		rotation[ i ] = Quat::Identity;
+		scale[ i ] = V3( 1 );
+		factor[ i ] = 1;
+	}
+}
+
+void AnimRagdoll::Advance( float deltaTime )
+{
+	m_lastTickSize = deltaTime;
+	if( m_enabled == false )
+		return;
+	for( size_t i = 0; i < names.size(); ++i )
+	{
+		Body& B = m_bones[ i ];
+		if( B.bodyHandle )
+		{
+			Vec3 pos = B.bodyHandle->GetPosition();
+			Quat rot = B.bodyHandle->GetRotation();
+			Vec3 invRelPos = -B.relPos;
+			Quat invRelRot = B.relRot.Inverted();
+			position[ i ] = invRelRot.Transform( pos - invRelPos );
+			rotation[ i ] = rot * invRelRot;
+		}
+	}
+}
+
+void AnimRagdoll::SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot )
+{
+	ASSERT( bone_id >= 0 && bone_id < (int) names.size() );
+	Body& B = m_bones[ bone_id ];
+	B.prevPos = prev_pos;
+	B.currPos = curr_pos;
+	B.prevRot = prev_rot;
+	B.currRot = curr_rot;
+}
+
+void AnimRagdoll::AdvanceTransforms( Animator* anim )
+{
+	ASSERT( names.size() == anim->names.size() );
+	for( size_t i = 0; i < names.size(); ++i )
+	{
+		Body& B = m_bones[ i ];
+		B.prevPos = B.currPos;
+		B.prevRot = B.currRot;
+		B.currPos = anim->position[ i ];
+		B.currRot = anim->rotation[ i ];
+	}
+}
+
+void AnimRagdoll::EnablePhysics( const Mat4& worldMatrix )
+{
+	if( m_enabled )
+		return;
+	m_enabled = true;
+	
+	Mat4 prev_boneToWorldMatrices[ MAX_MESH_BONES ];
+	Mat4 curr_boneToWorldMatrices[ MAX_MESH_BONES ];
+	SGRX_MeshBone* MB = m_mesh->m_bones;
+	for( size_t i = 0; i < names.size(); ++i )
+	{
+		Body& B = m_bones[ i ];
+		Mat4& prev_M = prev_boneToWorldMatrices[ i ];
+		Mat4& curr_M = curr_boneToWorldMatrices[ i ];
+		prev_M = Mat4::CreateSRT( V3(1), B.prevRot, B.prevPos ) * MB[ i ].boneOffset;
+		curr_M = Mat4::CreateSRT( V3(1), B.currRot, B.currPos ) * MB[ i ].boneOffset;
+		if( MB[ i ].parent_id >= 0 )
+		{
+			prev_M = prev_M * prev_boneToWorldMatrices[ MB[ i ].parent_id ];
+			curr_M = curr_M * curr_boneToWorldMatrices[ MB[ i ].parent_id ];
+		}
+		else
+		{
+			prev_M = prev_M * worldMatrix;
+			curr_M = curr_M * worldMatrix;
+		}
+	}
+	
+	for( size_t i = 0; i < m_bones.size(); ++i )
+	{
+		Body& B = m_bones[ i ];
+		if( B.bodyHandle )
+		{
+			// calculate world transforms
+			Mat4 rtf = Mat4::CreateSRT( V3(1), B.relRot, B.relPos );
+			Mat4 prev_wtf = rtf * prev_boneToWorldMatrices[ i ];
+			Mat4 curr_wtf = rtf * curr_boneToWorldMatrices[ i ];
+			
+			Vec3 prev_wpos = prev_wtf.GetTranslation();
+			Vec3 curr_wpos = curr_wtf.GetTranslation();
+			Quat prev_wrot = prev_wtf.GetRotationQuaternion();
+			Quat curr_wrot = curr_wtf.GetRotationQuaternion();
+			
+			B.bodyHandle->SetPosition( curr_wpos );
+			B.bodyHandle->SetRotation( curr_wrot );
+			if( m_lastTickSize > SMALL_FLOAT )
+			{
+				float speed = 1.0f / m_lastTickSize;
+				B.bodyHandle->SetLinearVelocity( ( curr_wpos - prev_wpos ) * speed );
+				B.bodyHandle->SetAngularVelocity( CalcAngularVelocity( prev_wrot, curr_wrot ) * speed );
+			}
+			B.bodyHandle->SetEnabled( true );
+		}
+	}
+	for( size_t i = 0; i < m_joints.size(); ++i )
+	{
+		m_joints[ i ]->SetEnabled( true );
+	}
+}
+
+void AnimRagdoll::DisablePhysics()
+{
+	if( m_enabled == false )
+		return;
+	m_enabled = false;
+	for( size_t i = 0; i < m_bones.size(); ++i )
+	{
+		Body& B = m_bones[ i ];
+		if( B.bodyHandle )
+			B.bodyHandle->SetEnabled( false );
+	}
+	for( size_t i = 0; i < m_joints.size(); ++i )
+	{
+		m_joints[ i ]->SetEnabled( false );
+	}
+}
 

@@ -303,7 +303,7 @@ void calc_bone_volume_info( int bid, AMBone& B, Array< AMVertex >& verts )
 	B.bb_max = bbmax - bbcenter;
 	B.bb_extents = B.bb_max;
 	B.capsule_radius = TMAX( B.bb_extents.x, B.bb_extents.y );
-	B.capsule_height = TMAX( B.bb_extents.z - B.capsule_radius * 2, 0.0f );
+	B.capsule_height = TMAX( ( B.bb_extents.z - B.capsule_radius ) * 2, 0.0f );
 	
 	printf( "Bone %.*s:\n", (int) B.name.size(), B.name.data() );
 	printf( "- center: %g %g %g\n", B.world_center.x, B.world_center.y, B.world_center.z );
@@ -695,7 +695,7 @@ int main( int argc, char* argv[] )
 				Vec3 position = B.world_to_local.TransformPos( B.world_center );
 				
 				SkeletonInfo::HitBox hbox = { name, rotation, position, lo1, lo2, lo3, B.bb_extents, 1 };
-				SkeletonInfo::Body body = { name, rotation, position, SkeletonInfo::BodyType_Capsule, B.capsule_height, B.capsule_radius };
+				SkeletonInfo::Body body = { name, rotation, position, SkeletonInfo::BodyType_Capsule, B.capsule_radius, B.capsule_height };
 				
 				skinfo.hitboxes.push_back( hbox );
 				skinfo.bodies.push_back( body );
