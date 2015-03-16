@@ -344,9 +344,18 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 		ev.key.repeat = !!eev->key.repeat;
 		
 		if(0);
+		else if( engkey == SDLK_RETURN ) ev.key.key = EDGUI_KEY_ENTER;
+		else if( engkey == SDLK_BACKSPACE ) ev.key.key = EDGUI_KEY_DELLEFT;
+		else if( engkey == SDLK_DELETE ) ev.key.key = EDGUI_KEY_DELRIGHT;
+		else if( engkey == SDLK_LEFT ) ev.key.key = EDGUI_KEY_LEFT;
+		else if( engkey == SDLK_RIGHT ) ev.key.key = EDGUI_KEY_RIGHT;
+		else if( engkey == SDLK_a && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_SELECTALL; }
 		else if( engkey == SDLK_x && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_CUT; }
 		else if( engkey == SDLK_c && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_COPY; }
 		else if( engkey == SDLK_v && engmod & KMOD_CTRL ){ ev.key.key = EDGUI_KEY_PASTE; }
+		
+		if( engmod & KMOD_SHIFT )
+			ev.key.key |= EDGUI_KEYMOD_SHIFT;
 		
 		m_keyboardFocus->OnEvent( &ev );
 	}
@@ -1826,20 +1835,25 @@ int EDGUIPropString::OnEvent( EDGUIEvent* e )
 		return 1;
 		
 	case EDGUI_EVENT_BTNDOWN:
+		_Begin( e );
 		if( e->mouse.button == 0 )
 		{
 			m_selecting = true;
 			m_sel_to = m_sel_from = _FindOffset( e->mouse.x, e->mouse.y );
 			_UpdateSelOffsets();
 		}
-		return 1;
+		_End( e );
+		break;
+		
 	case EDGUI_EVENT_MOUSEMOVE:
+		_Begin( e );
 		if( m_frame->m_clickTargets[0] == this && m_selecting )
 		{
 			m_sel_to = _FindOffset( e->mouse.x, e->mouse.y );
 			_UpdateSelOffsets();
 			Invalidate();
 		}
+		_End( e );
 		return 1;
 	case EDGUI_EVENT_BTNUP:
 		if( e->mouse.button == 0 )
@@ -1850,173 +1864,156 @@ int EDGUIPropString::OnEvent( EDGUIEvent* e )
 		_Begin( e );
 		{
 			BatchRenderer& br = GR2D_GetBatchRenderer().UnsetTexture();
-			br.Colu( EDGUI_THEME_TEXTBOX_BORDER_COLOR );
+			br.Colu( m_frame->m_keyboardFocus == this ? EDGUI_THEME_TEXTBOX_BORDERHL_COLOR : EDGUI_THEME_TEXTBOX_BORDER_COLOR );
 			br.Quad( x0, y0, x1, y1 );
 			br.Colu( EDGUI_THEME_TEXTBOX_CENTER_COLOR );
 			br.Quad( x0 + 2, y0 + 2, x1 - 2, y1 - 2 );
+			br.Colu( EDGUI_THEME_MAIN_TEXT_COLOR );
+			GR2D_DrawTextLine( x0 + 4, ( y0 + y1 ) / 2, m_value, HALIGN_LEFT, VALIGN_CENTER );
+			br.Reset();
+			int fsb = x0 + 4 - m_offset;
+			if( m_sel_to != m_sel_from )
+			{
+				br.Colu( m_frame->m_keyboardFocus == this ? EDGUI_THEME_TEXTBOX_SELHL_COLOR : EDGUI_THEME_TEXTBOX_SEL_COLOR );
+				br.Quad( fsb+m_fsel_from, y0 + 3, fsb+m_fsel_to, y1 - 3 );
+			}
+			if( m_frame->m_keyboardFocus == this )
+			{
+				br.Colu( EDGUI_THEME_TEXTBOX_TICK_COLOR );
+				br.Quad( fsb+m_fsel_to, y0 + 3, fsb+m_fsel_to + 1, y1 - 3 );
+			}
 		}
 		_End( e );
 		return 1;
 		
-		/*
-	else if( event.type == EV_Char )
-	{
-		if( event.uchar > 0x1f && event.uchar != 0x7f )
+	case EDGUI_EVENT_KEYDOWN:
+	case EDGUI_EVENT_KEYUP:
 		{
-			if( data.sel_from == data.sel_to )
+			int key = e->key.key & EDGUI_KEYMOD_FILTER;
+			int mods = e->key.key & ~EDGUI_KEYMOD_FILTER;
+			bool down = e->type == EDGUI_EVENT_KEYDOWN;
+			
+			if( down )
 			{
-				data.chars.insert( data.sel_from, event.uchar );
-				data.updateText( this );
-				UIForm_CtrlEdited( this, event );
-				this.callEvent( "edit", event );
-				data.sel_from++;
-				data.sel_to++;
-			}
-			else
-			{
-				from = data.sel_from;
-				to = data.sel_to;
-				if( from > to )
+				if( key == EDGUI_KEY_LEFT || key == EDGUI_KEY_RIGHT )
 				{
-					from = data.sel_to;
-					to = data.sel_from;
+					if( m_sel_from == m_sel_to || mods & EDGUI_KEYMOD_SHIFT )
+						m_sel_to += key == EDGUI_KEY_RIGHT ? 1 : -1;
+					else
+						m_sel_to = key == EDGUI_KEY_LEFT ? TMIN( m_sel_from, m_sel_to ) : TMAX( m_sel_from, m_sel_to );
+					if( !( mods & EDGUI_KEYMOD_SHIFT ) )
+						m_sel_from = m_sel_to;
+					_UpdateSelOffsets();
 				}
-				data.chars.erase( from, to - 1 );
-				data.chars.insert( from, event.uchar );
-				from++;
-				data.updateText( this );
-				UIForm_CtrlEdited( this, event );
-				this.callEvent( "edit", event );
-				data.sel_from = from;
-				data.sel_to = from;
-			}
-			data.updateSelOffsets( this );
-			this._resetCursorTimer( this.frame );
-		}
-	}
-	else if( event.type == EV_KeyDown || event.type == EV_KeyUp )
-	{
-		key = event.key;
-		mods = key & ~KeyMod_Filter;
-		key &= KeyMod_Filter;
-		down = event.type == EV_KeyDown;
-		
-		if( down )
-		{
-			if( key == Key_Left || key == Key_Right )
-			{
-				if( data.sel_from == data.sel_to || mods & KeyMod_Shift )
-					data.sel_to = data.sel_to + if( key == Key_Right, 1, -1 );
-				else
-					data.sel_to = if( key == Key_Left, min( data.sel_from, data.sel_to ), max( data.sel_from, data.sel_to ) );
-				if( !( mods & KeyMod_Shift ) )
-					data.sel_from = data.sel_to;
-				data.updateSelOffsets( this );
-				this._resetCursorTimer( this.frame );
-				this.invalidateMe();
-			}
-			else if( key == Key_DelLeft || key == Key_DelRight )
-			{
-				if( data.sel_from != data.sel_to )
+				else if( key == EDGUI_KEY_DELLEFT || key == EDGUI_KEY_DELRIGHT )
 				{
-					from = data.sel_from;
-					to = data.sel_to;
-					if( from > to )
+					if( m_sel_from != m_sel_to )
 					{
-						from = data.sel_to;
-						to = data.sel_from;
-					}
-					data.chars.erase( from, to - 1 );
-					data.sel_from = from;
-					data.sel_to = from;
-				}
-				else if( key == Key_DelLeft && data.sel_from > 0 )
-				{
-					data.chars.erase( data.sel_from - 1 );
-					data.sel_from--;
-					data.sel_to--;
-				}
-				else if( key == Key_DelRight && data.sel_from < data.chars.size )
-				{
-					data.chars.erase( data.sel_from );
-				}
-				data.updateText( this );
-				UIForm_CtrlEdited( this, event );
-				this.callEvent( "edit", event );
-				data.updateSelOffsets( this );
-				this._resetCursorTimer( this.frame );
-			}
-			else if( key == Key_Cut || key == Key_Copy )
-			{
-				if( this.frame.clipboard_func )
-				{
-					from = data.sel_from;
-					to = data.sel_to;
-					if( from > to )
-					{
-						from = data.sel_to;
-						to = data.sel_from;
-					}
-					this.frame.clipboard_func( string_part( data.text, from, to - from ) );
-					if( key == Key_Cut )
-					{
-						data.chars.erase( from, to - 1 );
-						data.sel_from = from;
-						data.sel_to = from;
-					}
-					data.updateText( this );
-					UIForm_CtrlEdited( this, event );
-					this.callEvent( "edit", event );
-					data.updateSelOffsets( this );
-					this._resetCursorTimer( this.frame );
-				}
-			}
-			else if( key == Key_Paste )
-			{
-				if( this.frame.clipboard_func )
-				{
-					if( data.sel_from != data.sel_to )
-					{
-						from = data.sel_from;
-						to = data.sel_to;
+						int from = m_sel_from;
+						int to = m_sel_to;
 						if( from > to )
 						{
-							from = data.sel_to;
-							to = data.sel_from;
+							TSWAP( from, to );
 						}
-						data.chars.erase( from, to - 1 );
-						data.sel_from = from;
-						data.sel_to = from;
+						m_chars.erase( from, to - from );
+						m_sel_from = m_sel_to = from;
 					}
-					
-					text = this.frame.clipboard_func();
-					at = data.sel_from;
-					utext = string_utf8_decode( text );
-					data.chars = get_concat( data.chars.part( 0, at ), utext, data.chars.part( at ) );
-					data.sel_from = data.sel_to = at + utext.size;
-					data.updateText( this );
-					UIForm_CtrlEdited( this, event );
-					this.callEvent( "edit", event );
-					data.updateSelOffsets( this );
-					this._resetCursorTimer( this.frame );
+					else if( key == EDGUI_KEY_DELLEFT && m_sel_from > 0 )
+					{
+						m_chars.erase( m_sel_from - 1 );
+						m_sel_from = --m_sel_to;
+					}
+					else if( key == EDGUI_KEY_DELRIGHT && m_sel_from < m_chars.size() )
+					{
+						m_chars.erase( m_sel_from );
+					}
+					_UpdateText();
+					Edited();
+					_UpdateSelOffsets();
+				}
+				else if( key == EDGUI_KEY_CUT || key == EDGUI_KEY_COPY )
+				{
+					int from = m_sel_from;
+					int to = m_sel_to;
+					if( from > to )
+					{
+						TSWAP( from, to );
+					}
+					// TODO encode
+					Window_SetClipboardText( StringView( m_chars ).part( from, to - from ) );
+					if( key == EDGUI_KEY_CUT )
+					{
+						m_chars.erase( from, to - from );
+						m_sel_to = m_sel_from = from;
+						_UpdateText();
+						Edited();
+						_UpdateSelOffsets();
+					}
+				}
+				else if( key == EDGUI_KEY_PASTE )
+				{
+					String cliptext;
+					if( Window_GetClipboardText( cliptext ) )
+					{
+						if( m_sel_from != m_sel_to )
+						{
+							int from = m_sel_from;
+							int to = m_sel_to;
+							if( from > to )
+							{
+								TSWAP( from, to );
+							}
+							m_chars.erase( from, to - from );
+							m_sel_to = m_sel_from = from;
+						}
+						
+						// TODO encode
+						m_chars.insert( m_sel_from, cliptext.data(), cliptext.size() );
+						m_sel_from = m_sel_to += cliptext.size();
+						_UpdateText();
+						Edited();
+						_UpdateSelOffsets();
+					}
+				}
+				else if( key == EDGUI_KEY_SELECTALL )
+				{
+					m_sel_from = 0;
+					m_sel_to = m_chars.size();
+					_UpdateSelOffsets();
+				}
+				else if( key == EDGUI_KEY_ENTER )
+				{
+					m_frame->_SetFocus( NULL );
 				}
 			}
-			else if( key == Key_SelectAll )
-			{
-				data.sel_from = 0;
-				data.sel_to = data.chars.size;
-				data.updateSelOffsets( this );
-				this._resetCursorTimer( this.frame );
-			}
-			else if( key == Key_Enter )
-			{
-				this.frame.setFocus( null );
-				this.callEvent( "submit", event );
-			}
 		}
-	}
-	
-	return this!ocb( event );*/
+		break;
+		
+	case EDGUI_EVENT_TEXTINPUT:
+		if( m_sel_from == m_sel_to )
+		{
+			m_chars.insert( m_sel_from, *e->text.text ); // TODO decode
+			_UpdateText();
+			Edited();
+			m_sel_to = ++m_sel_from;
+		}
+		else
+		{
+			int from = m_sel_from;
+			int to = m_sel_to;
+			if( from > to )
+			{
+				TSWAP( from, to );
+			}
+			m_chars.erase( from, to - from );
+			m_chars.insert( from, *e->text.text );
+			_UpdateText();
+			Edited();
+			m_sel_to = m_sel_from = from + 1;
+		}
+		_UpdateSelOffsets();
+		break;
+		
 	}
 	return EDGUIProperty::OnEvent( e );
 }
@@ -2049,7 +2046,7 @@ void EDGUIPropString::_UpdateText()
 
 int EDGUIPropString::_FindOffset( int x, int y )
 {
-	x -= x0 - m_offset;
+	x -= x0 + 4 - m_offset;
 	y -= y0;
 	
 //	fmin = 0.0;
@@ -2071,7 +2068,7 @@ int EDGUIPropString::_FindOffset( int x, int y )
 	int i;
 	for( i = 0; i < (int) m_chars.size(); ++i )
 	{
-		lenmax = GR2D_GetTextLength( StringView( m_chars.data(), i ) );
+		lenmax = GR2D_GetTextLength( StringView( m_chars.data(), i + 1 ) );
 		if( x <= ( lenmin + lenmax ) / 2 )
 			break;
 		lenmin = lenmax;
