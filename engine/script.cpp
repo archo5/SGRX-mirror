@@ -154,6 +154,12 @@ static sgs_RegIntConst g_ent_scripted_ric[] =
 	{ NULL, 0 },
 };
 
+void ScriptContext::Reset()
+{
+	sgs_DestroyEngine( C );
+	C = sgs_CreateEngine();
+}
+
 void ScriptContext::RegisterBatchRenderer()
 {
 	sgs_RegFuncConsts( C, g_ent_scripted_rfc, -1 );
@@ -168,6 +174,11 @@ bool ScriptContext::ExecFile( const StringView& path )
 bool ScriptContext::ExecBuffer( const StringView& data )
 {
 	return SGS_SUCCEEDED( sgs_ExecBuffer( C, data.data(), data.size() ) );
+}
+
+bool ScriptContext::Include( const char* what, const char* searchpath )
+{
+	return SGS_SUCCEEDED( sgs_IncludeExt( C, what, searchpath ) );
 }
 
 String ScriptContext::Serialize( sgsVariable var )

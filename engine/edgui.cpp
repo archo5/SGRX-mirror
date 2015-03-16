@@ -1820,7 +1820,7 @@ EDGUIPropString::EDGUIPropString( const StringView& def ) :
 {
 	tyname = "property-string";
 	type = EDGUI_ITEM_PROP_STRING;
-	SetText( def );
+	SetValue( def );
 }
 
 int EDGUIPropString::OnEvent( EDGUIEvent* e )
@@ -2018,7 +2018,7 @@ int EDGUIPropString::OnEvent( EDGUIEvent* e )
 	return EDGUIProperty::OnEvent( e );
 }
 
-void EDGUIPropString::SetText( const StringView& sv )
+void EDGUIPropString::SetValue( const StringView& sv )
 {
 	m_sel_from = sv.size();
 	m_sel_to = sv.size();

@@ -473,8 +473,7 @@ struct ENGINE_EXPORT EDGUIPropString : EDGUIProperty
 	void _UpdateButton(){}
 	PROP_INTERFACE( EDGUIPropString );
 	
-	StringView GetText(){ return m_value; }
-	void SetText( const StringView& sv );
+	void SetValue( const StringView& sv );
 	void _UpdateSelOffsets();
 	void _UpdateText();
 	int _FindOffset( int x, int y );

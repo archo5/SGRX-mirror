@@ -76,10 +76,12 @@ struct SCRIPT_EXPORT ScriptContext
 	ScriptContext();
 	~ScriptContext();
 	
+	void Reset();
 	void RegisterBatchRenderer();
 	
 	bool ExecFile( const StringView& path );
 	bool ExecBuffer( const StringView& data );
+	bool Include( const char* what, const char* searchpath = NULL );
 	
 	String Serialize( sgsVariable var );
 	sgsVariable Unserialize( const StringView& sv );

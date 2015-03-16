@@ -92,7 +92,7 @@ bool Window_GetClipboardText( String& out )
 
 bool Window_SetClipboardText( const StringView& text )
 {
-	return 0 == SDL_SetClipboardText( String_Concat( text, "\0" ).data() );
+	return 0 == SDL_SetClipboardText( String_Concat( text, StringView( "\0", 1 ) ).data() );
 }
 
 
