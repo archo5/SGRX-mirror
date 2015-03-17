@@ -138,6 +138,11 @@ Vec2 Game_GetCursorPos()
 	return g_CursorPos;
 }
 
+void Game_SetCursorPos( int x, int y )
+{
+	SDL_WarpMouseInWindow( g_Window, x, y );
+}
+
 
 bool Game_HasOverlayScreen( IScreen* screen )
 {

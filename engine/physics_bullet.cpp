@@ -66,6 +66,11 @@ struct BulletCapsuleShape : BulletPhyShape
 	BulletCapsuleShape( float radius, float height ){ m_colShape = new btCapsuleShapeZ( radius, height ); _Init(); }
 };
 
+struct BulletCylinderShape : BulletPhyShape
+{
+	BulletCylinderShape( const Vec3& extents ){ m_colShape = new btCylinderShapeZ( V2BV( extents ) ); _Init(); }
+};
+
 struct BulletConvexHullShape : BulletPhyShape
 {
 	BulletConvexHullShape( const Vec3* data, size_t count ){ m_colShape = new btConvexHullShape( &data->x, count, sizeof(Vec3) ); _Init(); }
@@ -142,6 +147,7 @@ struct BulletPhyWorld : SGRX_IPhyWorld
 	
 	virtual PhyShapeHandle CreateSphereShape( float radius );
 	virtual PhyShapeHandle CreateCapsuleShape( float radius, float height );
+	virtual PhyShapeHandle CreateCylinderShape( const Vec3& extents );
 	virtual PhyShapeHandle CreateConvexHullShape( const Vec3* data, size_t count );
 	virtual PhyShapeHandle CreateAABBShape( const Vec3& min, const Vec3& max );
 	virtual PhyShapeHandle CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false );
@@ -315,6 +321,11 @@ PhyShapeHandle BulletPhyWorld::CreateSphereShape( float radius )
 PhyShapeHandle BulletPhyWorld::CreateCapsuleShape( float radius, float height )
 {
 	return new BulletCapsuleShape( radius, height );
+}
+
+PhyShapeHandle BulletPhyWorld::CreateCylinderShape( const Vec3& extents )
+{
+	return new BulletCylinderShape( extents );
 }
 
 PhyShapeHandle BulletPhyWorld::CreateConvexHullShape( const Vec3* data, size_t count )

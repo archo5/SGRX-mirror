@@ -55,6 +55,7 @@ ENGINE_EXPORT void Game_UnregisterAction( Command* cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
 ENGINE_EXPORT Vec2 Game_GetCursorPos();
+ENGINE_EXPORT void Game_SetCursorPos( int x, int y );
 
 
 struct ENGINE_EXPORT IScreen
