@@ -158,6 +158,8 @@ struct BulletPhyWorld : SGRX_IPhyWorld
 	virtual Vec3 GetGravity();
 	virtual void SetGravity( const Vec3& v );
 	
+	virtual bool Raycast( const Vec3& from, const Vec3& to, uint16_t group, uint16_t mask, SGRX_PhyRaycastInfo* outinfo );
+	
 	btBroadphaseInterface*
 		m_broadphase;
 	btDefaultCollisionConfiguration*
@@ -405,6 +407,23 @@ Vec3 BulletPhyWorld::GetGravity()
 void BulletPhyWorld::SetGravity( const Vec3& v )
 {
 	m_world->setGravity( V2BV( v ) );
+}
+
+bool BulletPhyWorld::Raycast( const Vec3& from, const Vec3& to, uint16_t group, uint16_t mask, SGRX_PhyRaycastInfo* outinfo )
+{
+	btCollisionWorld::ClosestRayResultCallback crrc( V2BV( from ), V2BV( to ) );
+	crrc.m_collisionFilterGroup = group;
+	crrc.m_collisionFilterMask = mask;
+	m_world->rayTest( crrc.m_rayFromWorld, crrc.m_rayToWorld, crrc );
+	if( crrc.hasHit() && outinfo )
+	{
+		outinfo->factor = crrc.m_closestHitFraction;
+		outinfo->normal = BV2V( crrc.m_hitNormalWorld );
+		outinfo->point = BV2V( crrc.m_hitPointWorld );
+		if( crrc.m_collisionObject->getInternalType() == btCollisionObject::CO_RIGID_BODY && crrc.m_collisionObject->getUserPointer() )
+			outinfo->body = (SGRX_IPhyRigidBody*) crrc.m_collisionObject->getUserPointer();
+	}
+	return crrc.hasHit();
 }
 
 

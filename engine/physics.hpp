@@ -89,6 +89,14 @@ struct PHYSICS_EXPORT SGRX_IPhyJoint
 typedef Handle< SGRX_IPhyJoint > PhyJointHandle;
 
 
+struct SGRX_PhyRaycastInfo
+{
+	float factor;
+	Vec3 point;
+	Vec3 normal;
+	PhyRigidBodyHandle body;
+};
+
 struct PHYSICS_EXPORT SGRX_IPhyWorld
 {
 	FINLINE void Acquire(){ ++_refcount; }
@@ -111,6 +119,8 @@ struct PHYSICS_EXPORT SGRX_IPhyWorld
 	
 	virtual Vec3 GetGravity() = 0;
 	virtual void SetGravity( const Vec3& v ) = 0;
+	
+	virtual bool Raycast( const Vec3& from, const Vec3& to, uint16_t group = 0x01, uint16_t mask = 0xffff, SGRX_PhyRaycastInfo* outinfo = NULL ) = 0;
 	
 	int32_t _refcount;
 };
