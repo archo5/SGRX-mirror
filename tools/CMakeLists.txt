@@ -11,8 +11,8 @@ set_target_properties( lmrender PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/src/zlib"
-	COMPILE_FLAGS "-m32 -DLTR_STATIC"
-	LINK_FLAGS "-m32"
+	COMPILE_FLAGS "-m32 -DLTR_STATIC -O2"
+	LINK_FLAGS "-m32 -O2"
 )
 
 # Ragdoll generator

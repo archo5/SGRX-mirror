@@ -524,18 +524,21 @@ void ltr_Scene::DoWork()
 				{
 					Vec3& SP = mi->m_samples_pos[ i ];
 					Vec3& SN = mi->m_samples_nrm[ i ];
-					float f_ndotl = TMAX( 0.0f, Vec3Dot( -light.direction, SN ) );
-					if( f_ndotl < SMALL_FLOAT )
-						continue;
+					float f_ndotl = 0.0f;
 					float f_vistest = 0.0f;
 					Vec3 ray_origin = SP;
+					float randoff = randf();
 					for( int s = 0; s < num_samples; ++s )
 					{
-						Vec3 ray_dir = Vec3::CreateRandomVectorDirDvg( -light.direction, light.light_radius ) * light.range;
-						float hit = VisibilityTest( ray_origin, ray_origin + ray_dir );
+					//	Vec3 adjdir = Vec3::CreateRandomVectorDirDvg( -light.direction, light.light_radius );
+						Vec3 adjdir = Vec3::CreateSpiralDirVector( -light.direction, randoff, s, num_samples );
+						adjdir += ( (-light.direction) * tan( ( light.light_radius - 0.5f ) * M_PI * 0.999f ) ).Normalized();
+						f_ndotl += TMAX( 0.0f, Vec3Dot( adjdir, SN ) );
+						float hit = VisibilityTest( ray_origin, ray_origin + adjdir * light.range );
 						if( hit < 1.0f )
 							f_vistest += 1.0f;
 					}
+					f_ndotl /= num_samples;
 					f_vistest /= num_samples;
 					f_vistest = 1.0f - f_vistest;
 				//	if( mi->m_samples_loc[ i ] >= 209 + 14 * mi->lm_width &&
