@@ -1777,7 +1777,7 @@ BatchRenderer& BatchRenderer::ConeOutline( const Vec3& pos, const Vec3& dir, con
 {
 	if( verts >= 3 )
 	{
-		float q = radius * sin( DEG2RAD( angle ) );
+		float q = radius * tan( DEG2RAD( angle ) );
 		Vec3 dx = Vec3Cross(dir,up).Normalized() * q, dy = up.Normalized() * q;
 		
 		SetPrimitiveType( PT_Lines );

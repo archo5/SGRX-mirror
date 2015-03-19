@@ -37,7 +37,7 @@ struct SGRX_PhyRigidBodyInfo
 	SGRX_PhyRigidBodyInfo() :
 		position(V3(0)), rotation(Quat::Identity), friction(0.5f), restitution(0.1f),
 		mass(0), inertia(V3(1.0f)), linearDamping(0.01f), angularDamping(0.01f),
-		kinematic(false), canSleep(true), enabled(true)
+		kinematic(false), canSleep(true), enabled(true), group(1), mask(0xffff)
 	{}
 	PhyShapeHandle shape;
 	Vec3 position;
@@ -51,6 +51,8 @@ struct SGRX_PhyRigidBodyInfo
 	bool kinematic;
 	bool canSleep;
 	bool enabled;
+	uint16_t group;
+	uint16_t mask;
 };
 
 struct PHYSICS_EXPORT SGRX_IPhyRigidBody
@@ -121,6 +123,7 @@ struct PHYSICS_EXPORT SGRX_IPhyWorld
 	virtual void SetGravity( const Vec3& v ) = 0;
 	
 	virtual bool Raycast( const Vec3& from, const Vec3& to, uint16_t group = 0x01, uint16_t mask = 0xffff, SGRX_PhyRaycastInfo* outinfo = NULL ) = 0;
+	virtual bool ConvexCast( const PhyShapeHandle& sh, const Vec3& from, const Vec3& to, uint16_t group = 0x01, uint16_t mask = 0xffff, SGRX_PhyRaycastInfo* outinfo = NULL, float depth = 0.0f ) = 0;
 	
 	int32_t _refcount;
 };

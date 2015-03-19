@@ -134,6 +134,8 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	struct BulletPhyWorld* m_world;
 	btRigidBody* m_body;
 	PhyShapeHandle m_shape;
+	uint16_t m_group;
+	uint16_t m_mask;
 };
 
 
@@ -159,6 +161,7 @@ struct BulletPhyWorld : SGRX_IPhyWorld
 	virtual void SetGravity( const Vec3& v );
 	
 	virtual bool Raycast( const Vec3& from, const Vec3& to, uint16_t group, uint16_t mask, SGRX_PhyRaycastInfo* outinfo );
+	virtual bool ConvexCast( const PhyShapeHandle& sh, const Vec3& from, const Vec3& to, uint16_t group, uint16_t mask, SGRX_PhyRaycastInfo* outinfo, float depth );
 	
 	btBroadphaseInterface*
 		m_broadphase;
@@ -188,7 +191,7 @@ static FINLINE void RBInfo2RBCI( const SGRX_PhyRigidBodyInfo& rbinfo, btRBCI& rb
 
 
 BulletPhyRigidBody::BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX_PhyRigidBodyInfo& rbinfo )
-	: m_world( world )
+	: m_world( world ), m_group( rbinfo.group ), m_mask( rbinfo.mask )
 {
 	btRBCI rbci( 0, NULL, NULL );
 	RBInfo2RBCI( rbinfo, rbci );
@@ -207,7 +210,7 @@ BulletPhyRigidBody::BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX
 	m_shape = rbinfo.shape;
 	if( rbinfo.enabled )
 	{
-		m_world->m_world->addRigidBody( m_body );
+		m_world->m_world->addRigidBody( m_body, m_group, m_mask );
 	}
 }
 
@@ -225,7 +228,7 @@ BulletPhyRigidBody::~BulletPhyRigidBody()
 void BulletPhyRigidBody::SetEnabled( bool enabled )
 {
 	if( enabled && !m_body->isInWorld() )
-		m_world->m_world->addRigidBody( m_body );
+		m_world->m_world->addRigidBody( m_body, m_group, m_mask );
 	else if( !enabled && m_body->isInWorld() )
 		m_world->m_world->removeRigidBody( m_body );
 }
@@ -424,6 +427,27 @@ bool BulletPhyWorld::Raycast( const Vec3& from, const Vec3& to, uint16_t group, 
 			outinfo->body = (SGRX_IPhyRigidBody*) crrc.m_collisionObject->getUserPointer();
 	}
 	return crrc.hasHit();
+}
+
+bool BulletPhyWorld::ConvexCast( const PhyShapeHandle& sh, const Vec3& from, const Vec3& to, uint16_t group, uint16_t mask, SGRX_PhyRaycastInfo* outinfo, float depth )
+{
+	btCollisionShape* csh = ((BulletPhyShape*) sh.item)->m_colShape;
+	ASSERT( csh->isConvex() );
+	btCollisionWorld::ClosestConvexResultCallback ccrc( V2BV( from ), V2BV( to ) );
+	ccrc.m_collisionFilterGroup = group;
+	ccrc.m_collisionFilterMask = mask;
+	m_world->convexSweepTest( (btConvexShape*) csh,
+		btTransform( btQuaternion::getIdentity(), ccrc.m_convexFromWorld ),
+		btTransform( btQuaternion::getIdentity(), ccrc.m_convexToWorld ), ccrc, depth );
+	if( ccrc.hasHit() && outinfo )
+	{
+		outinfo->factor = ccrc.m_closestHitFraction;
+		outinfo->normal = BV2V( ccrc.m_hitNormalWorld );
+		outinfo->point = BV2V( ccrc.m_hitPointWorld );
+		if( ccrc.m_hitCollisionObject->getInternalType() == btCollisionObject::CO_RIGID_BODY && ccrc.m_hitCollisionObject->getUserPointer() )
+			outinfo->body = (SGRX_IPhyRigidBody*) ccrc.m_hitCollisionObject->getUserPointer();
+	}
+	return ccrc.hasHit();
 }
 
 

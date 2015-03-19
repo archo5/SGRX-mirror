@@ -623,3 +623,39 @@ void dds_close( dds_info* info )
 	info->data = NULL;
 }
 
+
+int dds_gen_header( dds_byte* out, size_t outsz, int cube, int fmt, int width, int height, int depth, int mips )
+{
+	if( outsz < sizeof(DDS_HEADER) )
+		return 0;
+	int compr = fmt == DDS_FMT_DXT1 || fmt == DDS_FMT_DXT3 || fmt == DDS_FMT_DXT5;
+	int pitch = width * 4; // TODO non-BGRA32
+	DDS_HEADER hdr =
+	{
+		{'D','D','S',' '},
+		124,
+		0x1|0x2|0x4|0x1000|(compr?DDSD_LINEARSIZE:DDSD_PITCH)|(depth>1?DDSD_DEPTH:0)|(mips>1?DDSD_MIPMAPCOUNT:0),
+		height,
+		width,
+		pitch,
+		depth,
+		mips,
+		{
+			32,
+			0x40|0x1, // TODO non-BGRA32
+			0, // TODO FOURCC
+			32,
+			0x00ff0000,
+			0x0000ff00,
+			0x000000ff,
+			0xff000000,
+		},
+		(cube||depth>1||mips>1?0x8:0)|(mips>1?0x400000:0)|0x1000,
+		(cube?(DDSCAPS2_CUBEMAP|DDSCAPS2_CUBEMAP_POSITIVEX|DDSCAPS2_CUBEMAP_NEGATIVEX|DDSCAPS2_CUBEMAP_POSITIVEY
+			|DDSCAPS2_CUBEMAP_NEGATIVEY|DDSCAPS2_CUBEMAP_POSITIVEZ|DDSCAPS2_CUBEMAP_NEGATIVEZ):0)|(depth>1?DDSCAPS2_VOLUME:0),
+		0,0,0
+	};
+	memcpy( out, &hdr, sizeof(hdr) );
+	return sizeof(hdr);
+}
+

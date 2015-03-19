@@ -15,6 +15,16 @@ set_target_properties( lmrender PROPERTIES
 	LINK_FLAGS "-m32 -O2"
 )
 
+# Blender cubemap converter
+add_executable( blendcubedds blendcubedds )
+target_link_libraries( blendcubedds sgrx-core )
+set_target_properties( blendcubedds PROPERTIES
+	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "-m32"
+	LINK_FLAGS "-m32"
+)
+
 # Ragdoll generator
 add_executable( rdgen
 	rdgen

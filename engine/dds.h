@@ -75,3 +75,6 @@ dds_byte* dds_read_all( dds_info* info );
 
 void dds_close( dds_info* info );
 
+#define DDS_HEADER_MAX_SIZE 256
+int dds_gen_header( dds_byte* out, size_t outsz, int cube, int fmt, int width, int height, int depth, int mips );
+
