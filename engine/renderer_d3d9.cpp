@@ -57,7 +57,7 @@ static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, 
 	size_t i, off, copyrowsize = 0, copyrowcount = 0;
 	TextureInfo mipTI;
 	
-	off = TextureData_GetMipDataOffset( texinfo, data, side, mip );
+	off = TextureData_GetMipDataOffset( texinfo, side, mip );
 	ret = TextureInfo_GetMipInfo( texinfo, mip, &mipTI );
 	ASSERT( ret );
 	
@@ -595,6 +595,8 @@ void D3D9Renderer::LoadInternalResources()
 
 void D3D9Renderer::UnloadInternalResources()
 {
+	SetRenderPasses( NULL, 0 );
+	
 	m_sh_pp_final->Release();
 	m_sh_pp_dshp->Release();
 	m_sh_pp_blur_h->Release();

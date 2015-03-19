@@ -21,7 +21,7 @@ struct TextureData
 
 ENGINE_EXPORT bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& filename = "<memory>" );
 ENGINE_EXPORT void TextureData_Free( TextureData* TD );
-ENGINE_EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, void* data, int side, int mip );
+ENGINE_EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, int side, int mip );
 ENGINE_EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );
 
 ENGINE_EXPORT const char* VDeclInfo_Parse( VDeclInfo* info, const char* text );

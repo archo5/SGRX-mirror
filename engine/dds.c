@@ -466,7 +466,7 @@ DDSRESULT dds_load_from_memory( dds_byte* bytes, size_t size, dds_info* out, con
 	
 	out->data = bytes;
 	out->srcsize = size;
-	out->hdrsize = 0;
+	out->hdrsize = sizeof( DDS_HEADER ) + ( header10 ? sizeof( DDS_HEADER_DXT10 ) : 0 );
 	return DDS_SUCCESS;
 }
 
@@ -574,6 +574,7 @@ DDSBOOL dds_read( dds_info* info, void* out )
 {
 	dds_image_info plane;
 	dds_u32 offset = info->hdrsize + info->sideoffsets[ info->side ] + info->mipoffsets[ info->mip ];
+	printf( "%d ---- off\n", offset );
 	dds_getinfo( info, &plane );
 	
 	if( info->flags & DDS_FILE_READER )
@@ -640,6 +641,7 @@ int dds_gen_header( dds_byte* out, size_t outsz, int cube, int fmt, int width, i
 		pitch,
 		depth,
 		mips,
+		{0,0,0,0,0, 0,0,0,0,0, 0},
 		{
 			32,
 			0x40|0x1, // TODO non-BGRA32

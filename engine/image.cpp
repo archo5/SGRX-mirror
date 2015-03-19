@@ -322,13 +322,18 @@ bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& fi
 	
 	// Try to load DDS
 	err = dds_load_from_memory( texdata.data(), texdata.size(), &ddsinfo, dds_supfmt );
-	if( err == DDS_SUCCESS )
+	if( err == DDS_SUCCESS || err == DDS_ENOTSUP )
 	{
+		if( err == DDS_ENOTSUP )
+		{
+			LOG << LOG_DATE << "  Failed to load texture " << filename << " - unsupported DDS image format";
+			return false;
+		}
 		dds_u32 cmf = ddsinfo.flags & DDS_CUBEMAP_FULL;
 		if( cmf && cmf != DDS_CUBEMAP_FULL )
 		{
 			dds_close( &ddsinfo );
-			LOG << LOG_DATE << "  Failed to load texture '" << filename << "' - incomplete cubemap";
+			LOG << LOG_DATE << "  Failed to load texture " << filename << " - incomplete cubemap";
 			return false;
 		}
 		TD->info.type = ddsinfo.flags & DDS_CUBEMAP ? TEXTYPE_CUBE : ( ddsinfo.flags & DDS_VOLUME ? TEXTYPE_VOLUME : TEXTYPE_2D );
@@ -339,7 +344,7 @@ bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& fi
 		TD->info.mipcount = ddsinfo.mipcount;
 		if( !dds_read_all( &ddsinfo, TD->data ) )
 		{
-			LOG << LOG_DATE << "  Failed to load texture '" << filename << "' - unknown DDS read error";
+			LOG << LOG_DATE << "  Failed to load texture " << filename << " - unknown DDS read error";
 			return false;
 		}
 		dds_close( &ddsinfo );
@@ -416,7 +421,7 @@ failure:
 	return false;
 }
 
-size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, void* data, int side, int mip )
+size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, int side, int mip )
 {
 	size_t off = 0;
 	int mipit = mip;
