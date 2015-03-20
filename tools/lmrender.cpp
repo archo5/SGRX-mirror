@@ -5,6 +5,7 @@
 #define USE_HASHTABLE
 #include "../engine/utils.hpp"
 #include "../engine/renderer.hpp"
+#include "../engine/script.hpp"
 
 #include "../ext/src/libpng/png.h"
 #include "../ext/src/lighter/lighter.h"
@@ -192,6 +193,9 @@ int main( int argc, char* argv[] )
 		return 1;
 	}
 	
+	ScriptContext m_scriptCtx;
+	sgsVariable m_textureInfo;
+	
 	char sample_output_file[ 256 ] = {0};
 	
 	while( !feof( fp ) )
@@ -297,6 +301,12 @@ int main( int argc, char* argv[] )
 					continue;
 				}
 				
+				StringView texname = mfpd.materialTextureCount ? StringView( mfpd.materialStrings[1], mfpd.materialStringSizes[1] ) : StringView();
+				if( !g_TexSamples.getptr( texname ) )
+					g_TexSamples[ texname ] = GetColorFromTexture( texname );
+				MeshPartKey mpk = { mesh_path, i };
+				g_MeshPartTextures[ mpk ] = texname;
+				
 				ltr_MeshPartInfo mpinfo =
 				{
 					(float*)( mf_data.vertexData + vertex_decl.size * mfpd.vertexOffset + p_off ), // POSITION
@@ -305,13 +315,8 @@ int main( int argc, char* argv[] )
 					(float*)( mf_data.vertexData + vertex_decl.size * mfpd.vertexOffset + t1_off ), // TEXCOORD1
 					vertex_decl.size, vertex_decl.size, vertex_decl.size, vertex_decl.size, // stride
 					&mesh_indices[ mfpd.indexOffset ], mfpd.vertexCount, mfpd.indexCount, mf_data.dataFlags & MDF_TRIANGLESTRIP != 0 ? 1 : 0,
+					!m_textureInfo.getprop( m_scriptCtx.CreateStringVar( texname ) ).getprop( "noshadow" ).get<bool>()
 				};
-				
-				StringView texname = mfpd.materialTextureCount ? StringView( mfpd.materialStrings[1], mfpd.materialStringSizes[1] ) : StringView();
-				if( !g_TexSamples.getptr( texname ) )
-					g_TexSamples[ texname ] = GetColorFromTexture( texname );
-				MeshPartKey mpk = { mesh_path, i };
-				g_MeshPartTextures[ mpk ] = texname;
 				
 				if( !ltr_MeshAddPart( last_mesh, &mpinfo ) )
 				{
@@ -526,6 +531,20 @@ int main( int argc, char* argv[] )
 			else if( !strcmp( key, "blur_size" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { scene_config.blur_size = v; } else { perror( "CONFIG: failed to read blur_size" ); return 1; } }
 			// SAMPLE output file
 			else if( !strcmp( key, "samples_out" ) ){ if( fscanf( fp, "%255s", sample_output_file ) == 1 ) { ; } else { perror( "CONFIG: failed to read samples_out" ); return 1; } }
+			// TEXTURE specification file
+			else if( !strcmp( key, "texture_spec" ) )
+			{
+				char tex_spec_file[ 256 ] = {0};
+				if( fscanf( fp, "%255s", tex_spec_file ) == 1 )
+				{
+					if( !m_scriptCtx.EvalFile( tex_spec_file, &m_textureInfo ) )
+					{
+						fprintf( stderr, "CONFIG: failed to read from texture_spec file\n" );
+						return 1;
+					}
+				}
+				else { perror( "CONFIG: failed to read texture_spec" ); return 1; }
+			}
 			// -
 			else { fprintf( stderr, "unrecognized CONFIG key: %s\n", key ); return 1; }
 		}

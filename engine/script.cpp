@@ -166,6 +166,26 @@ void ScriptContext::RegisterBatchRenderer()
 	sgs_RegIntConsts( C, g_ent_scripted_ric, -1 );
 }
 
+bool ScriptContext::EvalFile( const StringView& path, sgsVariable* outvar )
+{
+	SGS_SCOPE;
+	int rvc = 0;
+	bool ret = SGS_SUCCEEDED( sgs_EvalFile( C, StackPath( path ), &rvc ) );
+	if( rvc && outvar )
+		*outvar = sgs_GetVar<sgsVariable>()( C, -rvc );
+	return ret;
+}
+
+bool ScriptContext::EvalBuffer( const StringView& data, sgsVariable* outvar )
+{
+	SGS_SCOPE;
+	int rvc = 0;
+	bool ret = SGS_SUCCEEDED( sgs_EvalBuffer( C, data.data(), data.size(), &rvc ) );
+	if( rvc && outvar )
+		*outvar = sgs_GetVar<sgsVariable>()( C, -rvc );
+	return ret;
+}
+
 bool ScriptContext::ExecFile( const StringView& path )
 {
 	return SGS_SUCCEEDED( sgs_ExecFile( C, StackPath( path ) ) );

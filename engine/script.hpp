@@ -79,6 +79,8 @@ struct SCRIPT_EXPORT ScriptContext
 	void Reset();
 	void RegisterBatchRenderer();
 	
+	bool EvalFile( const StringView& path, sgsVariable* outvar = NULL );
+	bool EvalBuffer( const StringView& data, sgsVariable* outvar = NULL );
 	bool ExecFile( const StringView& path );
 	bool ExecBuffer( const StringView& data );
 	bool Include( const char* what, const char* searchpath = NULL );

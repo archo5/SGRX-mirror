@@ -35,6 +35,7 @@ struct ltr_MeshPart
 	u32 m_indexCount;
 	u32 m_indexOffset;
 	int m_tristrip;
+	int m_shadow;
 };
 typedef std::vector< ltr_MeshPart > MeshPartVector;
 
@@ -390,6 +391,8 @@ void ltr_Scene::DoWork()
 			for( u32 part = 0; part < mesh->m_parts.size(); ++part )
 			{
 				const ltr_MeshPart& mp = mesh->m_parts[ part ];
+				if( !mp.m_shadow )
+					continue;
 				const Vec3* vertexBase = &mi->m_vpos[ mp.m_vertexOffset ];
 				const u32* indexBase = &mesh->m_indices[ mp.m_indexOffset ];
 				if( mp.m_tristrip )
@@ -840,16 +843,21 @@ void ltr_Scene::DoWork_LMRender_Inner_Direct( size_t i, dw_lmrender_data* data )
 		float f_ndotl = 0.0f;
 		float f_vistest = 0.0f;
 		Vec3 ray_origin = SP;
-		for( size_t s = 0; s < light.samples.size(); ++s )
+		
+		float randoff = randf();//( sin( SP.x ) + sin( SP.y ) + sin( SP.z ) ) / 6 + 0.5f;
+		
+		for( size_t s = 0; s < light.shadow_sample_count; ++s )
 		{
-			Vec3 adjdir = light.samples[ s ];
+			Vec3 adjdir = Vec3::CreateSpiralDirVector( -light.direction, randoff, s, light.shadow_sample_count );
+			adjdir = ( adjdir + (-light.direction) * tan( ( light.light_radius - 0.5f ) * M_PI * 0.999f ) ).Normalized();
+			
 			f_ndotl += TMAX( 0.0f, Vec3Dot( adjdir, SN ) );
 			float hit = VisibilityTest( ray_origin, ray_origin + adjdir * light.range );
 			if( hit < 1.0f )
 				f_vistest += 1.0f;
 		}
-		f_ndotl /= light.samples.size();
-		f_vistest /= light.samples.size();
+		f_ndotl /= light.shadow_sample_count;
+		f_vistest /= light.shadow_sample_count;
 		f_vistest = 1.0f - f_vistest;
 		mi->m_lightmap[ i ] += light.color_rgb * ( f_ndotl * f_vistest );
 	}
@@ -1148,7 +1156,8 @@ LTRBOOL ltr_MeshAddPart( ltr_Mesh* mesh, ltr_MeshPartInfo* mpinfo )
 		(u32) mesh->m_vpos.size(),
 		mpinfo->index_count,
 		(u32) mesh->m_indices.size(),
-		mpinfo->tristrip
+		mpinfo->tristrip,
+		mpinfo->shadow
 	};
 	
 	if( mpinfo->index_count < 3 && ( mpinfo->tristrip || mpinfo->index_count % 3 != 0 ) )
@@ -1221,7 +1230,7 @@ void ltr_LightAdd( ltr_Scene* scene, ltr_LightInfo* li )
 		{
 		//	Vec3 adjdir = Vec3::CreateRandomVectorDirDvg( -L.direction, L.light_radius );
 			Vec3 adjdir = Vec3::CreateSpiralDirVector( -L.direction, randoff, s, L.shadow_sample_count );
-			adjdir += ( (-L.direction) * tan( ( L.light_radius - 0.5f ) * M_PI * 0.999f ) ).Normalized();
+			adjdir = ( adjdir + (-L.direction) * tan( ( L.light_radius - 0.5f ) * M_PI * 0.999f ) ).Normalized();
 			
 			L.samples.push_back( adjdir );
 		}

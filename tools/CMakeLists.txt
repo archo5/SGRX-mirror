@@ -7,6 +7,7 @@ add_executable( lmrender
 	../ext/src/libpng1
 )
 target_link_libraries( lmrender sgrx-core )
+target_link_libraries( lmrender sgrx-script )
 set_target_properties( lmrender PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"

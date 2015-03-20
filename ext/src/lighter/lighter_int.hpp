@@ -15,6 +15,8 @@
 #ifdef _WIN32
 
 #  define WIN32_LEAN_AND_MEAN
+#  undef _WIN32_WINNT
+#  define _WIN32_WINNT 0x0600
 #  include <windows.h>
 
 #  define ltrthread_sleep( ms ) Sleep( (DWORD) ms )
@@ -99,6 +101,7 @@ struct LTRMutex
 	~LTRMutex(){ ltrmutex_destroy( mutex ); }
 	void Lock(){ ltrmutex_lock( mutex ); }
 	void Unlock(){ ltrmutex_unlock( mutex ); }
+	void SleepCV( CONDITION_VARIABLE* cv ){ SleepConditionVariableCS( cv, &mutex, INFINITE ); }
 	ltrmutex_t mutex;
 };
 struct LTRMutexLock
@@ -132,6 +135,7 @@ struct LTRWorker
 	~LTRWorker()
 	{
 		m_exit = true;
+		WakeAllConditionVariable( &m_hasWork );
 		for( size_t i = 0; i < m_threads.size(); ++i )
 		{
 			ltrthread_join( m_threads[ i ] );
@@ -160,11 +164,13 @@ struct LTRWorker
 		m_numDone = 0;
 		m_workProc = wp;
 		
+		m_mutex.Unlock();
+		WakeAllConditionVariable( &m_hasWork );
+		m_mutex.Lock();
+		
 		while( m_numDone < m_itemCount )
 		{
-			m_mutex.Unlock();
-			ltrthread_sleep( 50 );
-			m_mutex.Lock();
+			m_mutex.SleepCV( &m_hasDone );
 		}
 		
 		m_shared = NULL;
@@ -174,6 +180,7 @@ struct LTRWorker
 		m_nextItem = 0;
 		m_numDone = 0;
 		m_workProc = NULL;
+		
 		m_mutex.Unlock();
 	}
 	
@@ -192,11 +199,15 @@ struct LTRWorker
 				
 				m_mutex.Lock();
 				m_numDone++;
-				continue; // there may be more work
+				if( m_numDone < m_itemCount )
+					continue; // there may be more work
 			}
+			
 			m_mutex.Unlock();
-			ltrthread_sleep( 50 );
+			WakeAllConditionVariable( &m_hasDone );
 			m_mutex.Lock();
+			
+			m_mutex.SleepCV( &m_hasWork );
 		}
 		m_mutex.Unlock();
 	}
@@ -219,6 +230,8 @@ struct LTRWorker
 	std::vector< ltrthread_t > m_threads;
 	LTRMutex m_mutex;
 	volatile bool m_exit;
+	CONDITION_VARIABLE m_hasWork;
+	CONDITION_VARIABLE m_hasDone;
 };
 
 

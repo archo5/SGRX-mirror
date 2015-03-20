@@ -84,6 +84,7 @@ typedef struct ltr_MeshPartInfo
 	u32 vertex_count;
 	u32 index_count;
 	int tristrip;
+	int shadow;
 }
 ltr_MeshPartInfo;
 
