@@ -94,6 +94,8 @@ struct ltr_Light
 	float spot_angle_out;
 	float spot_angle_in;
 	float spot_curve;
+	// positions for point/spot, directions for directional lights
+	std::vector< Vec3 > samples;
 };
 typedef std::vector< ltr_Light > LightVector;
 
@@ -123,9 +125,18 @@ struct ltr_RadLink
 };
 typedef std::vector< ltr_RadLink > RadLinkVector;
 
+struct dw_lmrender_data
+{
+	ltr_MeshInstance* mi;
+	ltr_Light* light;
+	float angle_out_rad;
+	float angle_in_rad;
+	float angle_diff;
+};
+
 struct ltr_Scene
 {
-	ltr_Scene() : m_workType( LTR_WT_PREXFORM ), m_workPart( 0 )
+	ltr_Scene() : m_workType( LTR_WT_PREXFORM ), m_workPart( 0 ), m_num_cpus( ltrnumcpus() )
 	{
 		ltr_GetConfig( &config, NULL );
 		
@@ -147,6 +158,19 @@ struct ltr_Scene
 	}
 	
 	void DoWork();
+	
+	void DoWork_LMRender_Inner_Point( size_t i, dw_lmrender_data* data );
+	void DoWork_LMRender_Inner_Spot( size_t i, dw_lmrender_data* data );
+	void DoWork_LMRender_Inner_Direct( size_t i, dw_lmrender_data* data );
+	static void DoWork_LMRender_JobProc_Point( LTRWorker::IO* io );
+	static void DoWork_LMRender_JobProc_Spot( LTRWorker::IO* io );
+	static void DoWork_LMRender_JobProc_Direct( LTRWorker::IO* io );
+	void DoWork_LMRender();
+	
+	void DoWork_AORender_Inner( size_t i );
+	static void DoWork_AORender_JobProc( LTRWorker::IO* io );
+	void DoWork_AORender();
+	
 	LTRCODE Advance();
 	void RasterizeInstance( ltr_MeshInstance* mi, float margin );
 	float VisibilityTest( const Vec3& A, ltr_Light* light );
@@ -173,6 +197,9 @@ struct ltr_Scene
 	
 	u32 m_workType;
 	u32 m_workPart;
+	
+	int m_num_cpus;
+	LTRWorker m_worker;
 };
 
 
@@ -278,6 +305,8 @@ float ltr_Scene::VisibilityTest( const Vec3& A, const Vec3& B, Vec3* outnormal )
 
 void ltr_Scene::DoWork()
 {
+	m_worker.Init( TMIN( config.max_num_threads, m_num_cpus ) );
+	
 	if( !m_meshInstances.size() || !m_lights.size() )
 		return;
 	
@@ -466,96 +495,7 @@ void ltr_Scene::DoWork()
 		}
 		break;
 		
-	case LTR_WT_LMRENDER:
-		{
-			size_t mi_id = m_workPart / m_lights.size();
-			size_t light_id = m_workPart % m_lights.size();
-			
-			ltr_MeshInstance* mi = m_meshInstances[ mi_id ];
-			ltr_Light& light = m_lights[ light_id ];
-			
-			if( light.type == LTR_LT_POINT )
-			{
-				for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
-				{
-					Vec3& SP = mi->m_samples_pos[ i ];
-					Vec3& SN = mi->m_samples_nrm[ i ];
-					Vec3 sample2light = light.position - SP;
-					float dist = sample2light.Length();
-					if( dist )
-						sample2light /= dist;
-					float f_dist = pow( 1 - TMIN( 1.0f, dist / light.range ), light.power );
-					float f_ndotl = TMAX( 0.0f, Vec3Dot( sample2light, SN ) );
-					if( f_dist * f_ndotl < SMALL_FLOAT )
-						continue;
-					float f_vistest = VisibilityTest( SP, &light );
-					mi->m_lightmap[ i ] += light.color_rgb * ( f_dist * f_ndotl * f_vistest );
-				}
-			}
-			if( light.type == LTR_LT_SPOT )
-			{
-				float angle_out_rad = light.spot_angle_out / 180.0f * (float) M_PI, angle_in_rad = light.spot_angle_in / 180.0f * (float) M_PI;
-				if( angle_in_rad == angle_out_rad )
-					angle_in_rad -= SMALL_FLOAT;
-				float angle_diff = angle_in_rad - angle_out_rad;
-				for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
-				{
-					Vec3& SP = mi->m_samples_pos[ i ];
-					Vec3& SN = mi->m_samples_nrm[ i ];
-					Vec3 sample2light = light.position - SP;
-					float dist = sample2light.Length();
-					if( dist )
-						sample2light /= dist;
-					float f_dist = pow( 1 - TMIN( 1.0f, dist / light.range ), light.power );
-					float f_ndotl = TMAX( 0.0f, Vec3Dot( sample2light, SN ) );
-					float angle = acosf( TMIN( 1.0f, Vec3Dot( sample2light, -light.direction ) ) );
-					float f_dir = TMAX( 0.0f, TMIN( 1.0f, ( angle - angle_out_rad ) / angle_diff ) );
-					f_dir = pow( f_dir, light.spot_curve );
-					if( f_dist * f_ndotl * f_dir < SMALL_FLOAT )
-						continue;
-					float f_vistest = VisibilityTest( SP, &light );
-					mi->m_lightmap[ i ] += light.color_rgb * ( f_dist * f_ndotl * f_dir * f_vistest );
-				}
-			}
-			else if( light.type == LTR_LT_DIRECT )
-			{
-				int num_samples = TMAX( 1, light.shadow_sample_count );
-				for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
-				{
-					Vec3& SP = mi->m_samples_pos[ i ];
-					Vec3& SN = mi->m_samples_nrm[ i ];
-					float f_ndotl = 0.0f;
-					float f_vistest = 0.0f;
-					Vec3 ray_origin = SP;
-					float randoff = randf();
-					for( int s = 0; s < num_samples; ++s )
-					{
-					//	Vec3 adjdir = Vec3::CreateRandomVectorDirDvg( -light.direction, light.light_radius );
-						Vec3 adjdir = Vec3::CreateSpiralDirVector( -light.direction, randoff, s, num_samples );
-						adjdir += ( (-light.direction) * tan( ( light.light_radius - 0.5f ) * M_PI * 0.999f ) ).Normalized();
-						f_ndotl += TMAX( 0.0f, Vec3Dot( adjdir, SN ) );
-						float hit = VisibilityTest( ray_origin, ray_origin + adjdir * light.range );
-						if( hit < 1.0f )
-							f_vistest += 1.0f;
-					}
-					f_ndotl /= num_samples;
-					f_vistest /= num_samples;
-					f_vistest = 1.0f - f_vistest;
-				//	if( mi->m_samples_loc[ i ] >= 209 + 14 * mi->lm_width &&
-				//		mi->m_samples_loc[ i ] <= 211 + 14 * mi->lm_width && mi_id == 0 )
-				//	{
-				//		printf( "PIXEL: %d\n", mi->m_samples_loc[ i ] );
-				//		printf( "VISTEST = %f\n", f_vistest );
-				//		printf( "POS = %f %f %f\n", SP.x, SP.y, SP.z );
-				//		printf( "NRM = %f %f %f\n", SN.x, SN.y, SN.z );
-				//	//	if( mi->m_samples_loc[ i ] == 211 + 14 * mi->lm_width )
-				//	//		exit(0);
-				//	}
-					mi->m_lightmap[ i ] += light.color_rgb * ( f_ndotl * f_vistest );
-				}
-			}
-		}
-		break;
+	case LTR_WT_LMRENDER: DoWork_LMRender(); break;
 		
 	case LTR_WT_RDGENLNK:
 		{
@@ -703,50 +643,7 @@ void ltr_Scene::DoWork()
 		}
 		break;
 		
-	case LTR_WT_AORENDER:
-		{
-			ltr_MeshInstance* mi = m_meshInstances[ m_workPart ];
-		//	float ao_divergence = config.ao_divergence * 0.5f + 0.5f;
-			float ao_distance = config.ao_distance,
-				ao_falloff = config.ao_falloff,
-				ao_multiplier = config.ao_multiplier,
-				ao_effect = config.ao_effect;
-			int num_samples = config.ao_num_samples;
-			Vec3 ao_color = Vec3::CreateFromPtr( config.ao_color_rgb );
-			
-			for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
-			{
-				Vec3& SP = mi->m_samples_pos[ i ];
-				Vec3& SN = mi->m_samples_nrm[ i ];
-				Vec3& OutColor = mi->m_lightmap[ i ];
-				
-				Vec3 ray_origin = SP + SN * ( SMALL_FLOAT * 2 );
-				
-				float ao_factor = 0;
-				float randoff = randf();
-				for( int s = 0; s < num_samples; ++s )
-				{
-					Vec3 ray_dir = Vec3::CreateSpiralDirVector( SN, randoff, s, num_samples ) * ao_distance;
-					float hit = VisibilityTest( ray_origin, ray_origin + ray_dir );
-					if( hit < 1.0f )
-						ao_factor += 1.0f - hit;
-				}
-				ao_factor /= num_samples;
-				ao_factor = TMIN( ao_factor * ao_multiplier, 1.0f );
-				if( ao_falloff )
-					ao_factor = pow( ao_factor, ao_falloff );
-				
-				if( ao_effect >= 0 )
-				{
-					OutColor = OutColor * ( 1 - ao_factor * ( 1 - ao_effect ) ) + ao_color * ao_factor;
-				}
-				else
-				{
-					OutColor = TLERP( OutColor, TLERP( ao_color, ao_color * OutColor, -ao_effect ), ao_factor );
-				}
-			}
-		}
-		break;
+	case LTR_WT_AORENDER: DoWork_AORender(); break;
 		
 	case LTR_WT_FINALIZE:
 		{
@@ -878,6 +775,233 @@ void ltr_Scene::DoWork()
 	}
 }
 
+void ltr_Scene::DoWork_LMRender_Inner_Point( size_t i, dw_lmrender_data* data )
+{
+	ltr_MeshInstance* mi = data->mi;
+	ltr_Light& light = *data->light;
+	
+	// MAY BE THREADED
+	// for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+	{
+		Vec3& SP = mi->m_samples_pos[ i ];
+		Vec3& SN = mi->m_samples_nrm[ i ];
+		Vec3 sample2light = light.position - SP;
+		float dist = sample2light.Length();
+		if( dist )
+			sample2light /= dist;
+		float f_dist = pow( 1 - TMIN( 1.0f, dist / light.range ), light.power );
+		float f_ndotl = TMAX( 0.0f, Vec3Dot( sample2light, SN ) );
+		if( f_dist * f_ndotl < SMALL_FLOAT )
+			return; // continue;
+		float f_vistest = VisibilityTest( SP, &light );
+		mi->m_lightmap[ i ] += light.color_rgb * ( f_dist * f_ndotl * f_vistest );
+	}
+}
+
+void ltr_Scene::DoWork_LMRender_Inner_Spot( size_t i, dw_lmrender_data* data )
+{
+	ltr_MeshInstance* mi = data->mi;
+	ltr_Light& light = *data->light;
+	float angle_out_rad = data->angle_out_rad;
+	float angle_in_rad = data->angle_in_rad;
+	float angle_diff = data->angle_diff;
+	
+	// MAY BE THREADED
+	// for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+	{
+		Vec3& SP = mi->m_samples_pos[ i ];
+		Vec3& SN = mi->m_samples_nrm[ i ];
+		Vec3 sample2light = light.position - SP;
+		float dist = sample2light.Length();
+		if( dist )
+			sample2light /= dist;
+		float f_dist = pow( 1 - TMIN( 1.0f, dist / light.range ), light.power );
+		float f_ndotl = TMAX( 0.0f, Vec3Dot( sample2light, SN ) );
+		float angle = acosf( TMIN( 1.0f, Vec3Dot( sample2light, -light.direction ) ) );
+		float f_dir = TMAX( 0.0f, TMIN( 1.0f, ( angle - angle_out_rad ) / angle_diff ) );
+		f_dir = pow( f_dir, light.spot_curve );
+		if( f_dist * f_ndotl * f_dir < SMALL_FLOAT )
+			return; // continue;
+		float f_vistest = VisibilityTest( SP, &light );
+		mi->m_lightmap[ i ] += light.color_rgb * ( f_dist * f_ndotl * f_dir * f_vistest );
+	}
+}
+
+void ltr_Scene::DoWork_LMRender_Inner_Direct( size_t i, dw_lmrender_data* data )
+{
+	ltr_MeshInstance* mi = data->mi;
+	ltr_Light& light = *data->light;
+	
+	// MAY BE THREADED
+	// for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+	{
+		Vec3& SP = mi->m_samples_pos[ i ];
+		Vec3& SN = mi->m_samples_nrm[ i ];
+		float f_ndotl = 0.0f;
+		float f_vistest = 0.0f;
+		Vec3 ray_origin = SP;
+		for( size_t s = 0; s < light.samples.size(); ++s )
+		{
+			Vec3 adjdir = light.samples[ s ];
+			f_ndotl += TMAX( 0.0f, Vec3Dot( adjdir, SN ) );
+			float hit = VisibilityTest( ray_origin, ray_origin + adjdir * light.range );
+			if( hit < 1.0f )
+				f_vistest += 1.0f;
+		}
+		f_ndotl /= light.samples.size();
+		f_vistest /= light.samples.size();
+		f_vistest = 1.0f - f_vistest;
+		mi->m_lightmap[ i ] += light.color_rgb * ( f_ndotl * f_vistest );
+	}
+}
+
+void ltr_Scene::DoWork_LMRender_JobProc_Point( LTRWorker::IO* io )
+{
+	ltr_Scene* S = (ltr_Scene*) io->shared;
+	dw_lmrender_data* data = (dw_lmrender_data*) io->item;
+	S->DoWork_LMRender_Inner_Point( io->i, data );
+}
+
+void ltr_Scene::DoWork_LMRender_JobProc_Spot( LTRWorker::IO* io )
+{
+	ltr_Scene* S = (ltr_Scene*) io->shared;
+	dw_lmrender_data* data = (dw_lmrender_data*) io->item;
+	S->DoWork_LMRender_Inner_Spot( io->i, data );
+}
+
+void ltr_Scene::DoWork_LMRender_JobProc_Direct( LTRWorker::IO* io )
+{
+	ltr_Scene* S = (ltr_Scene*) io->shared;
+	dw_lmrender_data* data = (dw_lmrender_data*) io->item;
+	S->DoWork_LMRender_Inner_Direct( io->i, data );
+}
+
+void ltr_Scene::DoWork_LMRender()
+{
+	size_t mi_id = m_workPart / m_lights.size();
+	size_t light_id = m_workPart % m_lights.size();
+	
+	ltr_MeshInstance* mi = m_meshInstances[ mi_id ];
+	ltr_Light& light = m_lights[ light_id ];
+	
+	if( light.type == LTR_LT_POINT )
+	{
+		dw_lmrender_data data = { mi, &light };
+		if( config.max_num_threads )
+		{
+			m_worker.DoWork( this, &data, 0, mi->m_lightmap.size(), ltr_Scene::DoWork_LMRender_JobProc_Point );
+		}
+		else
+		{
+			for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+			{
+				DoWork_LMRender_Inner_Point( i, &data );
+			}
+		}
+	}
+	if( light.type == LTR_LT_SPOT )
+	{
+		float angle_out_rad = light.spot_angle_out / 180.0f * (float) M_PI, angle_in_rad = light.spot_angle_in / 180.0f * (float) M_PI;
+		if( angle_in_rad == angle_out_rad )
+			angle_in_rad -= SMALL_FLOAT;
+		float angle_diff = angle_in_rad - angle_out_rad;
+		dw_lmrender_data data = { mi, &light, angle_out_rad, angle_in_rad, angle_diff };
+		if( config.max_num_threads )
+		{
+			m_worker.DoWork( this, &data, 0, mi->m_lightmap.size(), ltr_Scene::DoWork_LMRender_JobProc_Spot );
+		}
+		else
+		{
+			for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+			{
+				DoWork_LMRender_Inner_Spot( i, &data );
+			}
+		}
+	}
+	else if( light.type == LTR_LT_DIRECT )
+	{
+		dw_lmrender_data data = { mi, &light };
+		if( config.max_num_threads )
+		{
+			m_worker.DoWork( this, &data, 0, mi->m_lightmap.size(), ltr_Scene::DoWork_LMRender_JobProc_Direct );
+		}
+		else
+		{
+			for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+			{
+				DoWork_LMRender_Inner_Direct( i, &data );
+			}
+		}
+	}
+}
+
+void ltr_Scene::DoWork_AORender_Inner( size_t i )
+{
+	ltr_MeshInstance* mi = m_meshInstances[ m_workPart ];
+//	float ao_divergence = config.ao_divergence * 0.5f + 0.5f;
+	float ao_distance = config.ao_distance,
+		ao_falloff = config.ao_falloff,
+		ao_multiplier = config.ao_multiplier,
+		ao_effect = config.ao_effect;
+	int num_samples = config.ao_num_samples;
+	Vec3 ao_color = Vec3::CreateFromPtr( config.ao_color_rgb );
+	
+	// MAY BE THREADED
+	// for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+	{
+		Vec3& SP = mi->m_samples_pos[ i ];
+		Vec3& SN = mi->m_samples_nrm[ i ];
+		Vec3& OutColor = mi->m_lightmap[ i ];
+		
+		Vec3 ray_origin = SP + SN * ( SMALL_FLOAT * 2 );
+		
+		float ao_factor = 0;
+		float randoff = randf();
+		for( int s = 0; s < num_samples; ++s )
+		{
+			Vec3 ray_dir = Vec3::CreateSpiralDirVector( SN, randoff, s, num_samples ) * ao_distance;
+			float hit = VisibilityTest( ray_origin, ray_origin + ray_dir );
+			if( hit < 1.0f )
+				ao_factor += 1.0f - hit;
+		}
+		ao_factor /= num_samples;
+		ao_factor = TMIN( ao_factor * ao_multiplier, 1.0f );
+		if( ao_falloff )
+			ao_factor = pow( ao_factor, ao_falloff );
+		
+		if( ao_effect >= 0 )
+		{
+			OutColor = OutColor * ( 1 - ao_factor * ( 1 - ao_effect ) ) + ao_color * ao_factor;
+		}
+		else
+		{
+			OutColor = TLERP( OutColor, TLERP( ao_color, ao_color * OutColor, -ao_effect ), ao_factor );
+		}
+	}
+}
+
+void ltr_Scene::DoWork_AORender_JobProc( LTRWorker::IO* io )
+{
+	ltr_Scene* S = (ltr_Scene*) io->shared;
+	S->DoWork_AORender_Inner( io->i );
+}
+
+void ltr_Scene::DoWork_AORender()
+{
+	ltr_MeshInstance* mi = m_meshInstances[ m_workPart ];
+	if( config.max_num_threads )
+	{
+		m_worker.DoWork( this, NULL, 0, mi->m_lightmap.size(), ltr_Scene::DoWork_AORender_JobProc );
+	}
+	else
+	{
+		for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+		{
+			DoWork_AORender_Inner( i );
+		}
+	}
+}
+
 LTRCODE ltr_Scene::Advance()
 {
 	u32 count = m_meshInstances.size();
@@ -974,6 +1098,7 @@ void ltr_GetConfig( ltr_Config* cfg, ltr_Scene* opt_scene )
 	cfg->userdata = NULL;
 	cfg->size_fn = ltr_DefaultSizeFunc;
 	
+	cfg->max_num_threads = 0x7fff;
 	cfg->max_tree_memory = 128 * 1024 * 1024;
 	cfg->max_lightmap_size = 1024;
 	cfg->default_width = 64;
@@ -1088,6 +1213,23 @@ void ltr_LightAdd( ltr_Scene* scene, ltr_LightInfo* li )
 		li->spot_angle_in,
 		li->spot_curve,
 	};
+	L.samples.reserve( L.shadow_sample_count );
+	float randoff = randf();
+	for( int s = 0; s < L.shadow_sample_count; ++s )
+	{
+		if( L.type == LTR_LT_DIRECT )
+		{
+		//	Vec3 adjdir = Vec3::CreateRandomVectorDirDvg( -L.direction, L.light_radius );
+			Vec3 adjdir = Vec3::CreateSpiralDirVector( -L.direction, randoff, s, L.shadow_sample_count );
+			adjdir += ( (-L.direction) * tan( ( L.light_radius - 0.5f ) * M_PI * 0.999f ) ).Normalized();
+			
+			L.samples.push_back( adjdir );
+		}
+		else
+		{
+			// TODO
+		}
+	}
 	scene->m_lights.push_back( L );
 }
 
