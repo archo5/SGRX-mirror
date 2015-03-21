@@ -574,7 +574,6 @@ DDSBOOL dds_read( dds_info* info, void* out )
 {
 	dds_image_info plane;
 	dds_u32 offset = info->hdrsize + info->sideoffsets[ info->side ] + info->mipoffsets[ info->mip ];
-	printf( "%d ---- off\n", offset );
 	dds_getinfo( info, &plane );
 	
 	if( info->flags & DDS_FILE_READER )
