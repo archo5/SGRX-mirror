@@ -1516,7 +1516,16 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	{
 		const SGRX_RenderPass& pass = m_renderPasses[ pass_id ];
 		
-		if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
+		if( pass.type == RPT_OBJECT )
+		{
+			VS_SetMat4( 0, CAM.mView );
+			VS_SetMat4( 4, CAM.mProj );
+			PS_SetMat4( 0, CAM.mInvView );
+			PS_SetMat4( 4, CAM.mProj );
+			Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
+			PS_SetVec4( 4, campos4 );
+			_RS_RenderPass_Object( pass, pass_id );
+		}
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, tx_depth, RTOUT );
 	}
 	
