@@ -50,10 +50,16 @@ struct ENGINE_EXPORT Command_Func : Command
 	void OnChangeState(){ if( state && !state ) Function(); }
 };
 
+#define SGRX_MB_LEFT 0
+#define SGRX_MB_RIGHT 1
+#define SGRX_MB_MIDDLE 2
+
 ENGINE_EXPORT void Game_RegisterAction( Command* cmd );
 ENGINE_EXPORT void Game_UnregisterAction( Command* cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
+ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, Command* cmd );
+ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, const StringView& cmd );
 ENGINE_EXPORT Vec2 Game_GetCursorPos();
 ENGINE_EXPORT void Game_SetCursorPos( int x, int y );
 

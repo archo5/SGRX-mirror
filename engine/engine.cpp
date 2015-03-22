@@ -125,12 +125,22 @@ void Game_UnregisterAction( Command* cmd )
 
 void Game_BindKeyToAction( uint32_t key, Command* cmd )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE( ACTINPUT_KEY, key ), cmd );
+	g_ActionMap->Map( ACTINPUT_MAKE_KEY( key ), cmd );
 }
 
 void Game_BindKeyToAction( uint32_t key, const StringView& cmd )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE( ACTINPUT_KEY, key ), cmd );
+	g_ActionMap->Map( ACTINPUT_MAKE_KEY( key ), cmd );
+}
+
+void Game_BindMouseButtonToAction( int btn, Command* cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), cmd );
+}
+
+void Game_BindMouseButtonToAction( int btn, const StringView& cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), cmd );
 }
 
 Vec2 Game_GetCursorPos()
@@ -205,9 +215,16 @@ void Game_OnEvent( const Event& e )
 	
 	if( e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP )
 	{
-		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_MOUSE( e.button.button ) );
-		if( cmd )
-			cmd->_SetState( e.button.state );
+		int btn = -1;
+		if( e.button.button == SDL_BUTTON_LEFT ) btn = SGRX_MB_LEFT;
+		if( e.button.button == SDL_BUTTON_RIGHT ) btn = SGRX_MB_RIGHT;
+		if( e.button.button == SDL_BUTTON_MIDDLE ) btn = SGRX_MB_MIDDLE;
+		if( btn >= 0 )
+		{
+			Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_MOUSE( btn ) );
+			if( cmd )
+				cmd->_SetState( e.button.state );
+		}
 	}
 }
 
