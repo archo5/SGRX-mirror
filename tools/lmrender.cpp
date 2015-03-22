@@ -302,6 +302,7 @@ int main( int argc, char* argv[] )
 				}
 				
 				StringView texname = mfpd.materialTextureCount ? StringView( mfpd.materialStrings[1], mfpd.materialStringSizes[1] ) : StringView();
+				String texname_norm = String_Replace( texname, "\\", "/" );
 				if( !g_TexSamples.getptr( texname ) )
 					g_TexSamples[ texname ] = GetColorFromTexture( texname );
 				MeshPartKey mpk = { mesh_path, i };
@@ -315,7 +316,7 @@ int main( int argc, char* argv[] )
 					(float*)( mf_data.vertexData + vertex_decl.size * mfpd.vertexOffset + t1_off ), // TEXCOORD1
 					vertex_decl.size, vertex_decl.size, vertex_decl.size, vertex_decl.size, // stride
 					&mesh_indices[ mfpd.indexOffset ], mfpd.vertexCount, mfpd.indexCount, mf_data.dataFlags & MDF_TRIANGLESTRIP != 0 ? 1 : 0,
-					!m_textureInfo.getprop( m_scriptCtx.CreateStringVar( texname ) ).getprop( "noshadow" ).get<bool>()
+					!m_textureInfo.getprop( m_scriptCtx.CreateStringVar( texname_norm ) ).getprop( "noshadow" ).get<bool>()
 				};
 				
 				if( !ltr_MeshAddPart( last_mesh, &mpinfo ) )
