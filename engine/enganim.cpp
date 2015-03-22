@@ -618,7 +618,7 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 		Vec3 SAV = particles_RandSizeAngVel[ i ];
 		Vec4 RCO = particles_RandColor[ i ];
 		
-		if( !absolute )
+		if( absolute == false )
 		{
 			POS = info.transform.TransformPos( POS );
 			VEL = info.transform.TransformNormal( VEL );
@@ -736,7 +736,7 @@ void ParticleSystem::OnRenderUpdate()
 		if( !m_meshInsts[ i ]->mesh )
 			m_meshInsts[ i ]->mesh = GR_CreateMesh();
 		
-		m_meshInsts[ i ]->matrix = E.absolute ? transform : Mat4::Identity;
+		m_meshInsts[ i ]->matrix = Mat4::Identity; // E.absolute ? Mat4::Identity : m_transform;
 		m_meshInsts[ i ]->transparent = 1;
 		m_meshInsts[ i ]->additive = E.render_Additive;
 		m_meshInsts[ i ]->unlit = E.render_Additive;
@@ -762,7 +762,7 @@ void ParticleSystem::AddToScene( SceneHandle sh )
 
 void ParticleSystem::SetTransform( const Mat4& mtx )
 {
-	transform = mtx;
+	m_transform = mtx;
 	OnRenderUpdate();
 }
 
@@ -778,7 +778,7 @@ void ParticleSystem::Tick( float dt )
 	
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
-		emitters[ i ].Tick( dt, gravity, transform );
+		emitters[ i ].Tick( dt, gravity, m_transform );
 	}
 }
 
@@ -791,7 +791,7 @@ void ParticleSystem::PreRender()
 	ps_prerender_info info =
 	{
 		m_scene,
-		transform,
+		m_transform,
 		m_scene->camera.mView * m_scene->camera.mProj,
 		{
 			invmtx.TransformNormal( V3(1,0,0) ),
@@ -842,7 +842,7 @@ void ParticleSystem::Trigger()
 {
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
-		emitters[ i ].Trigger( transform );
+		emitters[ i ].Trigger( m_transform );
 	}
 }
 

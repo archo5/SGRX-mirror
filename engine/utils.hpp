@@ -1748,7 +1748,17 @@ template< class T > struct SerializeVersionHelper
 	FINLINE SerializeVersionHelper& operator () ( uint64_t& v, bool a = true, const uint64_t d = 0 ){ return _serialize( v, a, d ); }
 	FINLINE SerializeVersionHelper& operator () ( float& v, bool a = true, const float d = 0 ){ return _serialize( v, a, d ); }
 	FINLINE SerializeVersionHelper& operator () ( double& v, bool a = true, const double d = 0 ){ return _serialize( v, a, d ); }
-	template< class ST > SerializeVersionHelper& operator () ( ST& v ){ v.Serialize( *this ); return *this; }
+	template< class ST > SerializeVersionHelper& operator () ( ST& v, bool actually = true, const ST& defval = ST() )
+	{
+		if( !actually )
+		{
+			if( T::IsReader )
+				v = defval;
+			return *this;
+		}
+		v.Serialize( *this );
+		return *this;
+	}
 	
 	FINLINE SerializeVersionHelper& operator << ( bool& v ){ _serialize( v ); return *this; }
 	FINLINE SerializeVersionHelper& operator << ( char& v ){ _serialize( v ); return *this; }

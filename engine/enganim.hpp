@@ -440,12 +440,12 @@ struct ENGINE_EXPORT ParticleSystem
 	
 	Array< Emitter > emitters;
 	Vec3 gravity;
-	Mat4 transform;
 	bool looping;
 	Vec2 retriggerTimeExt;
 	
 	bool m_isPlaying;
 	float m_retriggerTime;
+	Mat4 m_transform;
 	
 	Array< Vertex > m_vertices;
 	Array< uint16_t > m_indices;
@@ -455,7 +455,7 @@ struct ENGINE_EXPORT ParticleSystem
 	Array< MeshInstHandle > m_meshInsts;
 	
 	ParticleSystem() :
-		gravity(V3(0,0,-10)), transform(Mat4::Identity), looping(true), retriggerTimeExt(V2(1,0.1f)),
+		gravity(V3(0,0,-10)), m_transform(Mat4::Identity), looping(true), retriggerTimeExt(V2(1,0.1f)),
 		m_isPlaying(false), m_retriggerTime(0)
 	{}
 	
@@ -463,36 +463,39 @@ struct ENGINE_EXPORT ParticleSystem
 	{
 		arch.marker( "SGRX_PARTSYS" );
 		
+		SerializeVersionHelper<T> svh( arch, 1 );
+		
 		uint32_t emcnt = 0;
 		if( T::IsReader )
 		{
-			arch << emcnt;
+			svh << emcnt;
 			emitters.resize( emcnt );
 		}
 		else
 		{
 			emcnt = emitters.size();
-			arch << emcnt;
+			svh << emcnt;
 		}
 		for( uint32_t i = 0; i < emcnt; ++i )
 		{
-			emitters[ i ].Serialize( arch, incl_state );
+			emitters[ i ].Serialize( svh, incl_state );
 		}
 		
-		arch << gravity;
-		arch << transform;
-		arch << looping;
-		arch << retriggerTimeExt;
+		svh << gravity;
+		svh << looping;
+		svh << retriggerTimeExt;
 		
 		if( incl_state )
 		{
-			arch << m_isPlaying;
-			arch << m_retriggerTime;
+			svh << m_isPlaying;
+			svh << m_retriggerTime;
+			svh << m_transform;
 		}
 		else if( T::IsReader )
 		{
 			m_isPlaying = false;
 			m_retriggerTime = 0;
+			m_transform = Mat4::Identity;
 		}
 		
 		if( T::IsReader )
