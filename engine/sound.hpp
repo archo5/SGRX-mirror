@@ -51,6 +51,7 @@ struct SOUND_EXPORT SGRX_ISoundSystem
 	SGRX_ISoundSystem() : _refcount(0){}
 	virtual ~SGRX_ISoundSystem(){}
 	
+	virtual void Update() = 0;
 	virtual bool Load( const StringView& file, bool async = false ) = 0;
 	virtual bool PreloadEventData( const StringView& name ) = 0;
 	virtual SoundEventInstanceHandle CreateEventInstance( const StringView& name ) = 0;

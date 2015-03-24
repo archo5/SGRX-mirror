@@ -94,6 +94,10 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 		FMOD_Studio_System_Release( m_sys );
 	}
 	
+	void Update()
+	{
+		FMOD_Studio_System_Update( m_sys );
+	}
 	bool Load( const StringView& file, bool async )
 	{
 		FMOD_STUDIO_BANK* outbank = NULL;
@@ -109,7 +113,7 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 	bool PreloadEventData( const StringView& name )
 	{
 		char bfr[ 256 ] = {0};
-		snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ) );
+		snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ), name.data() );
 		
 		FMOD_STUDIO_EVENTDESCRIPTION* desc = NULL;
 		int ret = FMOD_Studio_System_GetEvent( m_sys, bfr, &desc );
@@ -130,7 +134,7 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 	SoundEventInstanceHandle CreateEventInstance( const StringView& name )
 	{
 		char bfr[ 256 ] = {0};
-		snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ) );
+		snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ), name.data() );
 		
 		FMOD_STUDIO_EVENTDESCRIPTION* desc = NULL;
 		int ret = FMOD_Studio_System_GetEvent( m_sys, bfr, &desc );
