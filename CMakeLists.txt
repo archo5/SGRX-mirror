@@ -19,6 +19,22 @@ set_target_properties( SDL2 PROPERTIES
 )
 list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/SDL2.dll" )
 
+# FMOD
+add_library( fmod SHARED IMPORTED )
+set_target_properties( fmod PROPERTIES
+	IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/ext/bin-win32/fmod.dll"
+	IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/ext/lib-win32/libfmod.a"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+)
+list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/fmod.dll" )
+add_library( fmodstudio SHARED IMPORTED )
+set_target_properties( fmodstudio PROPERTIES
+	IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/ext/bin-win32/fmodstudio.dll"
+	IMPORTED_IMPLIB "${CMAKE_SOURCE_DIR}/ext/lib-win32/libfmodstudio.a"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+)
+list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/fmodstudio.dll" )
+
 add_subdirectory( engine )
 add_subdirectory( game-tacstrike )
 add_subdirectory( tools )

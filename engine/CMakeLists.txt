@@ -30,6 +30,17 @@ set_target_properties( sgrx-render-d3d9 PROPERTIES
 	LINK_FLAGS "-m32"
 )
 
+# Sound - FMOD
+add_library( sgrx-sound-fmod SHARED sound_fmod )
+target_link_libraries( sgrx-sound-fmod fmod fmodstudio sgrx-core )
+set_target_properties( sgrx-sound-fmod PROPERTIES
+	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/include/fmod"
+	COMPILE_FLAGS "-m32 -DSOUND_BUILDING"
+	LINK_FLAGS "-m32"
+)
+
 # Physics - Bullet
 add_library( sgrx-physics-bullet SHARED physics_bullet
 	../ext/src/bullet_BulletCollision.cpp
