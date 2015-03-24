@@ -423,7 +423,7 @@ struct D3D9Renderer : IRenderer
 	
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	
-	void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_PostDraw* postDraw, SGRX_DebugDraw* debugDraw );
+	void RenderScene( SGRX_RenderScene* RS );
 	uint32_t _RS_Cull_Camera_MeshList();
 	uint32_t _RS_Cull_Camera_PointLightList();
 	uint32_t _RS_Cull_Camera_SpotLightList();
@@ -1390,8 +1390,10 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	VEC4 [cr, cg, cb, min.dst]
 	VEC4 [h1, d1, h2, d2] (heights, densities)
 - VERTEX SHADER
-	0-3: camera view matrix
+	0-3: world * camera view matrix
 	4-7: camera projection matrix
+	8-11: world matrix
+	12-15: camera view matrix
 	23: light counts (point, spot)
 	24-39: VS spot light data
 - PIXEL SHADER
@@ -1407,13 +1409,14 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	---
 	100-115: instance data
 */
-void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_PostDraw* postDraw, SGRX_DebugDraw* debugDraw )
+void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 {
+	SceneHandle scene = RS->scene;
 	if( !scene )
 		return;
 	
-	m_enablePostProcessing = enablePostProcessing;
-	m_viewport = viewport;
+	m_enablePostProcessing = RS->enablePostProcessing;
+	m_viewport = RS->viewport;
 	m_currentScene = scene;
 	const SGRX_Camera& CAM = scene->camera;
 	
@@ -1484,6 +1487,8 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	/* upload unchanged data */
 	VS_SetMat4( 0, CAM.mView );
 	VS_SetMat4( 4, CAM.mProj );
+	VS_SetMat4( 12, CAM.mView );
+	VS_SetVec4( 16, RS->timevals );
 	PS_SetMat4( 0, CAM.mInvView );
 	PS_SetMat4( 4, CAM.mProj );
 	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
@@ -1520,6 +1525,7 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 		{
 			VS_SetMat4( 0, CAM.mView );
 			VS_SetMat4( 4, CAM.mProj );
+			VS_SetMat4( 12, CAM.mView );
 			PS_SetMat4( 0, CAM.mInvView );
 			PS_SetMat4( 4, CAM.mProj );
 			Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
@@ -1532,11 +1538,11 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
 	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
 	
-	if( postDraw )
+	if( RS->postdraw )
 	{
 		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE ); // TODO HACK!!!
 		m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
-		postDraw->PostDraw();
+		RS->postdraw->PostDraw();
 		GR2D_GetBatchRenderer().Flush().Reset();
 		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	}
@@ -1582,8 +1588,8 @@ void D3D9Renderer::RenderScene( SceneHandle scene, bool enablePostProcessing, SG
 	}
 	
 	// MANUAL DEBUG DRAWING
-	if( debugDraw )
-		_RS_DebugDraw( debugDraw, m_enablePostProcessing ? postproc_get_dss( &m_drd ) : RTOUT.DSS, RTOUT.DSS );
+	if( RS->debugdraw )
+		_RS_DebugDraw( RS->debugdraw, m_enablePostProcessing ? postproc_get_dss( &m_drd ) : RTOUT.DSS, RTOUT.DSS );
 	
 	// POST-PROCESS DEBUGGING
 	if( m_currentRT && m_dbg_rt )
@@ -1971,6 +1977,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			Mat4 m_world_view;
 			m_world_view.Multiply( MI->matrix, CAM.mView );
 			VS_SetMat4( 0, m_world_view );
+			VS_SetMat4( 8, MI->matrix );
 			
 			m_dev->SetVertexDeclaration( VD->m_vdecl );
 			m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
@@ -2080,6 +2087,8 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 
 void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_location )
 {
+	m_dev->SetRenderState( D3DRS_MULTISAMPLEANTIALIAS, 0 );
+	
 	/* assuming these are validated: */
 	SGRX_Scene* scene = m_currentScene;
 	const SGRX_Camera& CAM = scene->camera;
@@ -2121,6 +2130,8 @@ void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_locati
 	
 	m_stats.numDrawCalls++;
 	m_stats.numPDrawCalls++;
+	
+	m_dev->SetRenderState( D3DRS_MULTISAMPLEANTIALIAS, 1 );
 }
 
 

@@ -724,13 +724,16 @@ struct ENGINE_EXPORT SGRX_DebugDraw
 
 struct ENGINE_EXPORT SGRX_RenderScene
 {
-	SGRX_RenderScene( const SceneHandle& sh, bool enablePP = true ) :
+	SGRX_RenderScene( const Vec4& tv, const SceneHandle& sh, bool enablePP = true ) :
+		timevals( tv ),
 		scene( sh ),
 		enablePostProcessing( enablePP ),
 		viewport( NULL ),
 		postdraw( NULL ),
 		debugdraw( NULL )
 	{}
+	
+	Vec4 timevals;
 	SceneHandle scene;
 	bool enablePostProcessing;
 	SGRX_Viewport* viewport;
@@ -752,7 +755,7 @@ ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
 ENGINE_EXPORT SceneHandle GR_CreateScene();
 ENGINE_EXPORT bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count );
-ENGINE_EXPORT void GR_RenderScene( const SGRX_RenderScene& info );
+ENGINE_EXPORT void GR_RenderScene( SGRX_RenderScene& info );
 ENGINE_EXPORT RenderStats& GR_GetRenderStats();
 
 ENGINE_EXPORT void GR2D_SetWorldMatrix( const Mat4& mtx );

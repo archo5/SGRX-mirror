@@ -178,7 +178,7 @@ struct ENGINE_EXPORT IRenderer
 	virtual bool SetRenderTarget( TextureHandle rt ) = 0;
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount ) = 0;
 	virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
-	virtual void RenderScene( SceneHandle scene, bool enablePostProcessing, SGRX_Viewport* viewport, SGRX_PostDraw* postDraw, SGRX_DebugDraw* debugDraw ) = 0;
+	virtual void RenderScene( SGRX_RenderScene* RS ) = 0;
 	
 	RenderStats m_stats;
 	RenderSettings m_currSettings;

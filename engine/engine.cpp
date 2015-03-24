@@ -336,13 +336,21 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 	{
 		int i = 0;
 		String prepend;
-		StringView tpl, mtl, cur, it = key.part( 4 );
+		StringView tpl, mtl, vs, cur, it = key.part( 4 );
 		while( it.size() )
 		{
 			i++;
 			cur = it.until( ":" );
 			if( i == 1 )
+			{
 				mtl = cur;
+				StringView p2 = cur.after( "|" );
+				if( p2 )
+				{
+					mtl = cur.until( "|" );
+					vs = p2;
+				}
+			}
 			else if( i == 2 )
 				tpl = cur;
 			else
@@ -354,12 +362,18 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 			it.skip( cur.size() + 1 );
 		}
 		
-		String tpl_data, mtl_data;
+		String tpl_data, mtl_data, vs_data;
 		if( !OnLoadShaderFile( type, String_Concat( "tpl_", tpl ), tpl_data ) )
 			return false;
 		if( !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
 			return false;
-		outdata = String_Concat( prepend, String_Replace( tpl_data, "__CODE__", mtl_data ) );
+		if( vs )
+		{
+			// vs already prefixed
+			if( !OnLoadShaderFile( type, String_Concat( "vs_", vs ), vs_data ) )
+				return false;
+		}
+		outdata = String_Concat( prepend, String_Replace( String_Replace( tpl_data, "__CODE__", mtl_data ), "__VSCODE__", vs_data ) );
 		return true;
 	}
 	return OnLoadShaderFile( type, key, outdata );
@@ -1501,11 +1515,11 @@ bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
 	g_Renderer->SetRenderPasses( passes, count );
 }
 
-void GR_RenderScene( const SGRX_RenderScene& info )
+void GR_RenderScene( SGRX_RenderScene& info )
 {
 	g_BatchRenderer->Flush();
 	g_BatchRenderer->Reset();
-	g_Renderer->RenderScene( info.scene, info.enablePostProcessing, info.viewport, info.postdraw, info.debugdraw );
+	g_Renderer->RenderScene( &info );
 }
 
 RenderStats& GR_GetRenderStats()
