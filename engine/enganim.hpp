@@ -508,7 +508,7 @@ struct ENGINE_EXPORT ParticleSystem
 	void AddToScene( SceneHandle sh );
 	void SetTransform( const Mat4& mtx );
 	
-	void Tick( float dt );
+	bool Tick( float dt );
 	void PreRender();
 	
 	void Trigger();

@@ -112,10 +112,63 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 	}
 	bool EnumerateSoundEvents( Array< String >& out )
 	{
-		// TODO
-		return false;
+		// can we have more, realistically? not yet.
+#define MAX_ENUM_BANKS 128
+		FMOD_STUDIO_BANK* banks[ MAX_ENUM_BANKS ];
+		int bankeventcounts[ MAX_ENUM_BANKS ];
+		int bankcount = 0;
+		int ret = FMOD_Studio_System_GetBankList( m_sys, banks, MAX_ENUM_BANKS, &bankcount );
+		if( ret != FMOD_OK )
+		{
+			LOG << "Failed to enumerate FMOD banks (error " << ret << ")";
+			return false;
+		}
+		
+		int totaleventcount = 0;
+		for( int i = 0; i < bankcount; ++i )
+		{
+			int eventcount = 0;
+			ret = FMOD_Studio_Bank_GetStringCount( banks[ i ], &eventcount );
+			if( ret != FMOD_OK )
+			{
+				LOG << "Failed to enumerate events of FMOD bank (error " << ret << ")";
+				return false;
+			}
+			bankeventcounts[ i ] = eventcount;
+			totaleventcount += eventcount;
+		}
+		
+		out.clear();
+		out.reserve( totaleventcount );
+		for( int i = 0; i < bankcount; ++i )
+		{
+			for( int j = 0; j < bankeventcounts[ i ]; ++j )
+			{
+				char bfr[ 256 ] = {0};
+				int outsize = 0;
+				ret = FMOD_Studio_Bank_GetStringInfo( banks[ i ], j, NULL, bfr, 256, &outsize );
+			//	LOG << bfr;
+				if( ret == FMOD_ERR_TRUNCATED )
+				{
+					LOG << "Failed to get full string info of FMOD bank string '" << bfr << "' (error " << ret << ")";
+					// can continue but skip the string for now
+				}
+				else if( ret != FMOD_OK )
+				{
+					LOG << "Failed to get string info of FMOD bank (error " << ret << ")";
+					return false;
+				}
+				else if( strncmp( bfr, "event:", 6 ) == 0 )
+				{
+					out.push_back( String() );
+					out.last().append( bfr + 6 );
+				}
+			}
+		}
+		
+		return true;
 	}
-	bool PreloadEventData( const StringView& name )
+	FMOD_STUDIO_EVENTDESCRIPTION* GetEvent( const StringView& name )
 	{
 		char bfr[ 256 ] = {0};
 		snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ), name.data() );
@@ -125,10 +178,17 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 		if( ret != FMOD_OK )
 		{
 			LOG << "Failed to find FMOD event: " << name << " (error " << ret << ")";
-			return false;
+			return NULL;
 		}
+		return desc;
+	}
+	bool PreloadEventData( const StringView& name )
+	{
+		FMOD_STUDIO_EVENTDESCRIPTION* desc = GetEvent( name );
+		if( !desc )
+			return false;
 		
-		ret = FMOD_Studio_EventDescription_LoadSampleData( desc );
+		int ret = FMOD_Studio_EventDescription_LoadSampleData( desc );
 		if( ret != FMOD_OK )
 		{
 			LOG << "Failed to load FMOD sample data for event: " << name << " (error " << ret << ")";
@@ -136,28 +196,45 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 		}
 		return true;
 	}
-	SoundEventInstanceHandle CreateEventInstance( const StringView& name )
+	bool EventIsOneShot( const StringView& name )
 	{
-		char bfr[ 256 ] = {0};
-		snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ), name.data() );
+		FMOD_STUDIO_EVENTDESCRIPTION* desc = GetEvent( name );
+		if( !desc )
+			return false;
 		
-		FMOD_STUDIO_EVENTDESCRIPTION* desc = NULL;
-		int ret = FMOD_Studio_System_GetEvent( m_sys, bfr, &desc );
+		FMOD_BOOL isoneshot = 0;
+		int ret = FMOD_Studio_EventDescription_IsOneshot( desc, &isoneshot );
 		if( ret != FMOD_OK )
 		{
-			LOG << "Failed to find FMOD event: " << name << " (error " << ret << ")";
-			return NULL;
+			LOG << "Failed to load FMOD info for event: " << name << " (error " << ret << ")";
+			return false;
 		}
+		return isoneshot != 0;
+	}
+	SoundEventInstanceHandle CreateEventInstance( const StringView& name )
+	{
+		FMOD_STUDIO_EVENTDESCRIPTION* desc = GetEvent( name );
+		if( !desc )
+			return NULL;
 		
 		FMOD_STUDIO_EVENTINSTANCE* inst = NULL;
-		ret = FMOD_Studio_EventDescription_CreateInstance( desc, &inst );
+		int ret = FMOD_Studio_EventDescription_CreateInstance( desc, &inst );
 		if( ret != FMOD_OK )
 		{
 			LOG << "Failed to create FMOD event instance: " << name << " (error " << ret << ")";
 			return NULL;
 		}
+		FMOD_BOOL isoneshot = 0;
+		ret = FMOD_Studio_EventDescription_IsOneshot( desc, &isoneshot );
+		if( ret != FMOD_OK )
+		{
+			LOG << "Failed to load FMOD info for event: " << name << " (error " << ret << ")";
+			return NULL;
+		}
 		
-		return new FMODSoundEventInstance( inst );
+		FMODSoundEventInstance* evinst = new FMODSoundEventInstance( inst );
+		evinst->isOneShot = isoneshot != 0;
+		return evinst;
 	}
 	void Set3DAttribs( const SGRX_Sound3DAttribs& attribs )
 	{
@@ -167,6 +244,47 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 		fmattr.forward = V2FV( attribs.forward );
 		fmattr.up = V2FV( attribs.up );
 		FMOD_Studio_System_SetListenerAttributes( m_sys, &fmattr );
+	}
+	FMOD_STUDIO_BUS* GetBus( const StringView& name )
+	{
+		char bfr[ 256 ] = {0};
+		snprintf( bfr, sizeof(bfr), "bus:%.*s", TMIN( 240, (int) name.size() ), name.data() );
+		
+		FMOD_STUDIO_BUS* bus = NULL;
+		int ret = FMOD_Studio_System_GetBus( m_sys, bfr, &bus );
+		if( ret != FMOD_OK )
+		{
+			LOG << "Failed to find FMOD bus: " << name << " (error " << ret << ")";
+			return NULL;
+		}
+		return bus;
+	}
+	float GetVolume( const StringView& name )
+	{
+		FMOD_STUDIO_BUS* bus = GetBus( name );
+		if( !bus )
+			return 0;
+		
+		float vol = 0.0f;
+		int ret = FMOD_Studio_Bus_GetFaderLevel( bus, &vol );
+		if( ret != FMOD_OK )
+		{
+			LOG << "Failed to get FMOD bus fader level: " << name << " (error " << ret << ")";
+			return 0.0f;
+		}
+		return vol;
+	}
+	void SetVolume( const StringView& name, float vol )
+	{
+		FMOD_STUDIO_BUS* bus = GetBus( name );
+		if( !bus )
+			return;
+		
+		int ret = FMOD_Studio_Bus_SetFaderLevel( bus, vol );
+		if( ret != FMOD_OK )
+		{
+			LOG << "Failed to get FMOD bus fader level: " << name << " (error " << ret << ")";
+		}
 	}
 	
 	FMOD_STUDIO_SYSTEM* m_sys;

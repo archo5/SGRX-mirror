@@ -766,20 +766,24 @@ void ParticleSystem::SetTransform( const Mat4& mtx )
 	OnRenderUpdate();
 }
 
-void ParticleSystem::Tick( float dt )
+bool ParticleSystem::Tick( float dt )
 {
+	bool retval = false;
+	
 	float prevrt = m_retriggerTime;
 	m_retriggerTime -= dt;
 	if( m_retriggerTime <= 0 && prevrt > 0 )
 	{
 		Trigger();
 		m_retriggerTime = looping ? ( retriggerTimeExt.x + retriggerTimeExt.y * randf() ) : 0;
+		retval = true;
 	}
 	
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
 		emitters[ i ].Tick( dt, gravity, m_transform );
 	}
+	return retval;
 }
 
 void ParticleSystem::PreRender()

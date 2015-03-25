@@ -40,6 +40,7 @@ struct SOUND_EXPORT SGRX_ISoundEventInstance
 	virtual void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ) = 0;
 	
 	int32_t _refcount;
+	bool isOneShot;
 };
 typedef Handle< SGRX_ISoundEventInstance > SoundEventInstanceHandle;
 
@@ -55,8 +56,11 @@ struct SOUND_EXPORT SGRX_ISoundSystem
 	virtual bool Load( const StringView& file, bool async = false ) = 0;
 	virtual bool EnumerateSoundEvents( Array< String >& out ) = 0;
 	virtual bool PreloadEventData( const StringView& name ) = 0;
+	virtual bool EventIsOneShot( const StringView& name ) = 0;
 	virtual SoundEventInstanceHandle CreateEventInstance( const StringView& name ) = 0;
 	virtual void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ) = 0;
+	virtual float GetVolume( const StringView& name ) = 0;
+	virtual void SetVolume( const StringView& name, float vol ) = 0;
 	
 	int32_t _refcount;
 };
