@@ -110,6 +110,11 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 		}
 		return true;
 	}
+	bool EnumerateSoundEvents( Array< String >& out )
+	{
+		// TODO
+		return false;
+	}
 	bool PreloadEventData( const StringView& name )
 	{
 		char bfr[ 256 ] = {0};

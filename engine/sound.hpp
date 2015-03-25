@@ -53,6 +53,7 @@ struct SOUND_EXPORT SGRX_ISoundSystem
 	
 	virtual void Update() = 0;
 	virtual bool Load( const StringView& file, bool async = false ) = 0;
+	virtual bool EnumerateSoundEvents( Array< String >& out ) = 0;
 	virtual bool PreloadEventData( const StringView& name ) = 0;
 	virtual SoundEventInstanceHandle CreateEventInstance( const StringView& name ) = 0;
 	virtual void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ) = 0;
