@@ -36,6 +36,11 @@ uint32_t GetTimeMsec()
 #endif
 }
 
+void Thread_Sleep( uint32_t msec )
+{
+	Sleep( msec );
+}
+
 
 //
 // GLOBALS
@@ -154,6 +159,11 @@ void Game_SetCursorPos( int x, int y )
 }
 
 
+bool Game_HasOverlayScreens()
+{
+	return g_OverlayScreens.size() != 0;
+}
+
 bool Game_HasOverlayScreen( IScreen* screen )
 {
 	return g_OverlayScreens.has( screen );
@@ -238,6 +248,12 @@ void Game_Process( float dt )
 	process_overlay_screens( dt );
 	
 	g_BatchRenderer->Flush();
+}
+
+
+void Game_End()
+{
+	g_Running = false;
 }
 
 

@@ -13,6 +13,7 @@ struct SDL_Event;
 
 
 ENGINE_EXPORT uint32_t GetTimeMsec();
+ENGINE_EXPORT void Thread_Sleep( uint32_t msec );
 
 ENGINE_EXPORT bool Window_HasClipboardText();
 ENGINE_EXPORT bool Window_GetClipboardText( String& out );
@@ -73,9 +74,13 @@ struct ENGINE_EXPORT IScreen
 	virtual bool Draw( float delta ) = 0; // return value - whether to remove
 };
 
+ENGINE_EXPORT bool Game_HasOverlayScreens();
 ENGINE_EXPORT bool Game_HasOverlayScreen( IScreen* screen );
 ENGINE_EXPORT void Game_AddOverlayScreen( IScreen* screen );
 ENGINE_EXPORT void Game_RemoveOverlayScreen( IScreen* screen );
+
+ENGINE_EXPORT void Game_End();
+
 
 #define TEXFLAGS_SRGB    0x01
 #define TEXFLAGS_HASMIPS 0x02

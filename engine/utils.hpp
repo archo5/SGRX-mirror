@@ -98,6 +98,7 @@ template< class T > void TMEMSET( T* a, size_t c, const T& v )
 }
 template< class T > void TSWAP( T& a, T& b ){ T tmp( a ); a = b; b = tmp; }
 template< class T, class S > T TLERP( const T& a, const T& b, const S& s ){ return a * ( S(1) - s ) + b * s; }
+template< class S, class T > S TREVLERP( const T& a, const T& b, const T& s ){ if( a == b ) return a; return ( s - a ) / ( b - a ); }
 
 template< class T > struct IVState
 {
