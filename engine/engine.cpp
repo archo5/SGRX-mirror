@@ -55,6 +55,8 @@ typedef HashTable< StringView, AnimHandle > AnimHashTable;
 static String g_GameLibName = "game";
 
 static bool g_Running = true;
+static bool g_hasFocus = true;
+static bool g_windowVisible = true;
 static SDL_Window* g_Window = NULL;
 static void* g_GameLib = NULL;
 static IGame* g_Game = NULL;
@@ -202,6 +204,17 @@ void Game_OnEvent( const Event& e )
 {
 	g_Game->OnEvent( e );
 	
+	if( e.type == SDL_WINDOWEVENT )
+	{
+		switch( e.window.event )
+		{
+		case SDL_WINDOWEVENT_FOCUS_GAINED: g_hasFocus = true; break;
+		case SDL_WINDOWEVENT_FOCUS_LOST: g_hasFocus = false; break;
+		case SDL_WINDOWEVENT_MINIMIZED: g_windowVisible = false; break;
+		case SDL_WINDOWEVENT_RESTORED: g_windowVisible = true; break;
+		}
+	}
+	
 	if( e.type == SDL_MOUSEMOTION )
 	{
 		g_CursorPos.x = e.motion.x;
@@ -240,6 +253,12 @@ void Game_OnEvent( const Event& e )
 
 void Game_Process( float dt )
 {
+	if( !g_windowVisible || !g_hasFocus )
+	{
+		Thread_Sleep( 40 );
+		return;
+	}
+	
 	float f[4] = { 0.2f, 0.4f, 0.6f, 1.0f };
 	g_Renderer->Clear( f );
 	
@@ -1953,25 +1972,10 @@ static bool read_config()
 		return false;
 	}
 	
-	StringView it = text;
-	it = it.after_all( SPACE_CHARS );
-	while( it.size() )
+	ConfigReader cr( text );
+	StringView key, value;
+	while( cr.Read( key, value ) )
 	{
-		StringView key = it.until_any( HSPACE_CHARS );
-		if( key == "#" )
-		{
-			it = it.after( "\n" ).after_all( SPACE_CHARS );
-			continue;
-		}
-		
-		it.skip( key.size() );
-		it.after_all( HSPACE_CHARS );
-		
-		StringView value = it.until( "\n" );
-		it.skip( value.size() );
-		value.trim( SPACE_CHARS );
-		
-		// PARSING
 		if( key == "game" )
 		{
 			if( value.size() )
@@ -1993,9 +1997,6 @@ static bool read_config()
 		{
 			LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
 		}
-		// END PARSING
-		
-		it = it.after_all( SPACE_CHARS );
 	}
 	
 	return true;
@@ -2100,6 +2101,21 @@ static void free_graphics()
 	
 	SDL_DestroyWindow( g_Window );
 	g_Window = NULL;
+}
+
+
+bool Game_SetVideoMode( const RenderSettings& rs )
+{
+	if( rs.width < 1 || rs.height < 1 )
+		return false;
+	
+	g_RenderSettings = rs;
+	return true;
+}
+
+void Game_GetVideoMode( RenderSettings& rs )
+{
+	rs = g_RenderSettings;
 }
 
 

@@ -5,6 +5,7 @@
 #include <time.h>
 
 #ifdef _WIN32
+#define NOCOMM
 #include <windows.h>
 #endif
 
@@ -641,6 +642,13 @@ String String_Replace( const StringView& base, const StringView& sub, const Stri
 }
 
 
+bool String_ParseBool( const StringView& sv )
+{
+	if( sv == "true" || sv == "TRUE" ) return true;
+	if( sv == "false" || sv == "FALSE" ) return false;
+	return String_ParseInt( sv ) != 0;
+}
+
 int64_t String_ParseInt( const StringView& sv, bool* success )
 {
 	int64_t val = 0;
@@ -880,12 +888,94 @@ bool DirectoryIterator::IsDirectory()
 }
 
 
+InLocalStorage::InLocalStorage( const StringView& path )
+{
+	// retrieve current directory
+	CWDGet( m_path );
+	
+	// retrieve application data directory and go to it
+#ifdef _WIN32
+	WCHAR bfr[ MAX_PATH + 1 ] = {0};
+	GetEnvironmentVariableW( L"APPDATA", bfr, MAX_PATH );
+	bool ret = SetCurrentDirectoryW( bfr );
+#else
+	bool ret = chdir( getenv("HOME") ) == 0;
+#endif
+	if( !ret )
+	{
+		LOG << "Failed to move to application data root";
+		return;
+	}
+	
+	// generate necessary directories
+	StringView it;
+	while( it.size() < path.size() )
+	{
+		it = path.part( 0, path.find_first_at( "/", it.size() + 1, path.size() ) );
+		LOG << it;
+		if( !DirExists( it ) && !DirCreate( it ) )
+		{
+			LOG << "Failed to create an application data subdirectory";
+			CWDSet( m_path );
+			return;
+		}
+	}
+	
+	// set new directory
+	CWDSet( path );
+}
+
+InLocalStorage::~InLocalStorage()
+{
+	CWDSet( m_path );
+}
+
+
+bool DirExists( const StringView& path )
+{
+#ifdef _WIN32
+	DWORD dwAttrib = GetFileAttributesW( StackWString< MAX_PATH >( path ) );
+	return ( dwAttrib != INVALID_FILE_ATTRIBUTES && ( dwAttrib & FILE_ATTRIBUTE_DIRECTORY ) );
+#else
+	struct stat info;
+	if( stat( path, &info ) != 0 )
+		return false;
+	else if( info.st_mode & S_IFDIR )
+		return true;
+	return false;
+#endif
+}
+
 bool DirCreate( const StringView& path )
 {
 #ifdef _WIN32
 	return CreateDirectoryW( StackWString< MAX_PATH >( path ), NULL );
 #else
 	return mkdir( StackString< 4096 >( path ) ) == 0;
+#endif
+}
+
+bool CWDGet( String& path )
+{
+#ifdef _WIN32
+	WCHAR bfr[ MAX_PATH ];
+	DWORD nchars = GetCurrentDirectoryW( MAX_PATH, bfr );
+	if( nchars )
+	{
+		path.resize( nchars * 4 );
+		DWORD cchars = WideCharToMultiByte( CP_UTF8, 0, bfr, nchars, path.data(), path.size(), NULL, NULL );
+		if( cchars )
+		{
+			path.resize( cchars );
+			return true;
+		}
+	}
+	return false;
+#else
+	const char* ret = getcwd( StackString< 4096 >(""), 4096 );
+	if( ret )
+		path = ret;
+	return ret != NULL;
 #endif
 }
 

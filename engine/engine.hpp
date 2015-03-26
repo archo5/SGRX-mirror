@@ -126,6 +126,9 @@ struct ENGINE_EXPORT RenderSettings
 	int aa_quality;
 };
 
+ENGINE_EXPORT bool Game_SetVideoMode( const RenderSettings& rs );
+ENGINE_EXPORT void Game_GetVideoMode( RenderSettings& rs );
+
 struct ENGINE_EXPORT RenderStats
 {
 	void Reset();

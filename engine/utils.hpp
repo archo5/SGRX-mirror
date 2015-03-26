@@ -1359,6 +1359,36 @@ struct StringView
 #endif
 };
 
+struct ConfigReader
+{
+	ConfigReader( const StringView& _it ) : it( _it.after_all( SPACE_CHARS ) ){}
+	bool Read( StringView& key, StringView& value )
+	{
+		while( it.size() )
+		{
+			key = it.until_any( HSPACE_CHARS );
+			if( key == "#" )
+			{
+				it = it.after( "\n" ).after_all( SPACE_CHARS );
+				continue;
+			}
+			
+			it.skip( key.size() );
+			it.after_all( HSPACE_CHARS );
+			
+			value = it.until( "\n" );
+			it.skip( value.size() );
+			value.trim( SPACE_CHARS );
+			
+			it = it.after_all( SPACE_CHARS );
+			
+			return key.size() != 0;
+		}
+		return false;
+	}
+	StringView it;
+};
+
 template< size_t N >
 struct StackString
 {
@@ -1377,6 +1407,7 @@ ENGINE_EXPORT String String_Replace( const StringView& base, const StringView& s
 // PARSING
 //
 
+ENGINE_EXPORT bool String_ParseBool( const StringView& sv );
 ENGINE_EXPORT int64_t String_ParseInt( const StringView& sv, bool* success = NULL );
 ENGINE_EXPORT double String_ParseFloat( const StringView& sv, bool* success = NULL );
 ENGINE_EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL );
@@ -2030,8 +2061,22 @@ private:
 	DirectoryIterator( const DirectoryIterator& );
 };
 
+struct ENGINE_EXPORT InLocalStorage
+{
+	InLocalStorage( const StringView& path );
+	~InLocalStorage();
+	
+	String m_path;
+	
+private:
+	InLocalStorage& operator = ( const InLocalStorage& );
+	InLocalStorage( const InLocalStorage& );
+};
+
+ENGINE_EXPORT bool DirExists( const StringView& path );
 ENGINE_EXPORT bool DirCreate( const StringView& path );
 
+ENGINE_EXPORT bool CWDGet( String& path );
 ENGINE_EXPORT bool CWDSet( const StringView& path );
 
 ENGINE_EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
