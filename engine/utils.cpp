@@ -912,7 +912,7 @@ InLocalStorage::InLocalStorage( const StringView& path )
 	while( it.size() < path.size() )
 	{
 		it = path.part( 0, path.find_first_at( "/", it.size() + 1, path.size() ) );
-		LOG << it;
+	//	LOG << it;
 		if( !DirExists( it ) && !DirCreate( it ) )
 		{
 			LOG << "Failed to create an application data subdirectory";

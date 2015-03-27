@@ -247,11 +247,8 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 	}
 	FMOD_STUDIO_BUS* GetBus( const StringView& name )
 	{
-		char bfr[ 256 ] = {0};
-		snprintf( bfr, sizeof(bfr), "bus:%.*s", TMIN( 240, (int) name.size() ), name.data() );
-		
 		FMOD_STUDIO_BUS* bus = NULL;
-		int ret = FMOD_Studio_System_GetBus( m_sys, bfr, &bus );
+		int ret = FMOD_Studio_System_GetBus( m_sys, StackPath( name ), &bus );
 		if( ret != FMOD_OK )
 		{
 			LOG << "Failed to find FMOD bus: " << name << " (error " << ret << ")";

@@ -2004,7 +2004,12 @@ static bool read_config()
 
 static int init_graphics()
 {
-	g_Window = SDL_CreateWindow( "SGRX Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_RenderSettings.width, g_RenderSettings.height, 0 );
+	int flags = 0;
+	if( g_RenderSettings.fullscreen )
+	{
+		flags |= g_RenderSettings.windowed_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+	}
+	g_Window = SDL_CreateWindow( "SGRX Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_RenderSettings.width, g_RenderSettings.height, flags );
 	SDL_StartTextInput();
 	
 	char renderer_dll[ 65 ] = {0};
