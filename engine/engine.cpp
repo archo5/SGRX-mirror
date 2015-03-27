@@ -1704,6 +1704,18 @@ BatchRenderer& BatchRenderer::Prev( int i )
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::RawQuad( float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float z )
+{
+	SetPrimitiveType( PT_Triangles );
+	Tex( 0, 0 ); Pos( x0, y0, z );
+	Tex( 1, 0 ); Pos( x1, y1, z );
+	Tex( 1, 1 ); Pos( x2, y2, z );
+	Prev( 0 );
+	Tex( 0, 1 ); Pos( x3, y3, z );
+	Prev( 4 );
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::Quad( float x0, float y0, float x1, float y1, float z )
 {
 	SetPrimitiveType( PT_Triangles );
@@ -1713,6 +1725,15 @@ BatchRenderer& BatchRenderer::Quad( float x0, float y0, float x1, float y1, floa
 	Prev( 0 );
 	Tex( 0, 1 ); Pos( x0, y1, z );
 	Prev( 4 );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::QuadFrame( float x0, float y0, float x1, float y1, float ix0, float iy0, float ix1, float iy1, float z )
+{
+	RawQuad( x0, y0, x1, y0, ix1, iy0, ix0, iy0, z );
+	RawQuad( x1, y0, x1, y1, ix1, iy1, ix1, iy0, z );
+	RawQuad( x1, y1, x0, y1, ix0, iy1, ix1, iy1, z );
+	RawQuad( x0, y1, x0, y0, ix0, iy0, ix0, iy1, z );
 	return *this;
 }
 
