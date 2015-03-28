@@ -51,9 +51,25 @@ struct ENGINE_EXPORT Command_Func : Command
 	void OnChangeState(){ if( state && !state ) Function(); }
 };
 
-#define SGRX_MB_LEFT 0
-#define SGRX_MB_RIGHT 1
+#define SGRX_MB_UNKNOWN 0
+#define SGRX_MB_LEFT 1
 #define SGRX_MB_MIDDLE 2
+#define SGRX_MB_RIGHT 3
+#define SGRX_MB_X1 4
+#define SGRX_MB_X2 5
+
+uint32_t SDLButtonToSGRX( uint32_t btn );
+
+typedef uint64_t ActionInput;
+#define ACTINPUT_UNASSIGNED 0
+#define ACTINPUT_KEY 1
+#define ACTINPUT_MOUSE 2
+#define ACTINPUT_JOYSTICK0 3
+#define ACTINPUT_MAKE( type, val ) (((uint64_t)(type)<<32ull)|(val))
+#define ACTINPUT_MAKE_KEY( val ) ACTINPUT_MAKE( ACTINPUT_KEY, val )
+#define ACTINPUT_MAKE_MOUSE( val ) ACTINPUT_MAKE( ACTINPUT_MOUSE, val )
+#define ACTINPUT_GET_TYPE( iid ) (((iid)>>32ull)&0xffffffff)
+#define ACTINPUT_GET_VALUE( iid ) ((iid)&0xffffffff)
 
 ENGINE_EXPORT void Game_RegisterAction( Command* cmd );
 ENGINE_EXPORT void Game_UnregisterAction( Command* cmd );
@@ -61,6 +77,10 @@ ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
 ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, Command* cmd );
 ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, const StringView& cmd );
+ENGINE_EXPORT ActionInput Game_GetActionBinding( Command* cmd );
+ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, Command* cmd );
+ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );
+ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
 ENGINE_EXPORT Vec2 Game_GetCursorPos();
 ENGINE_EXPORT void Game_SetCursorPos( int x, int y );
 

@@ -150,6 +150,57 @@ void Game_BindMouseButtonToAction( int btn, const StringView& cmd )
 	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), cmd );
 }
 
+ActionInput Game_GetActionBinding( Command* cmd )
+{
+	ActionMap::InputCmdMap* icm = &g_ActionMap->m_inputCmdMap;
+	for( size_t i = 0; i < icm->size(); ++i )
+	{
+		if( icm->item(i).value == cmd )
+			return icm->item(i).key;
+	}
+	return 0;
+}
+
+void Game_BindInputToAction( ActionInput iid, Command* cmd )
+{
+	g_ActionMap->Map( iid, cmd );
+}
+
+void Game_UnbindInput( ActionInput iid )
+{
+	g_ActionMap->Unmap( iid );
+}
+
+StringView Game_GetInputName( ActionInput iid )
+{
+	uint32_t kv = ACTINPUT_GET_VALUE( iid );
+	switch( ACTINPUT_GET_TYPE( iid ) )
+	{
+	case ACTINPUT_UNASSIGNED:
+		return "<unassigned>";
+	case ACTINPUT_KEY:
+		{
+			const char* kn = SDL_GetKeyName( kv );
+			if( *kn )
+				return kn;
+		}
+		return "<Unknown key>";
+	case ACTINPUT_MOUSE:
+		switch( kv )
+		{
+		case SGRX_MB_LEFT: return "Left mouse button";
+		case SGRX_MB_RIGHT: return "Right mouse button";
+		case SGRX_MB_MIDDLE: return "Middle mouse button";
+		case SGRX_MB_X1: return "X1 mouse button";
+		case SGRX_MB_X2: return "X2 mouse button";
+		}
+		return "<Unknown mouse btn.>";
+	case ACTINPUT_JOYSTICK0:
+		return "<Unknown ctrl. input>";
+	}
+	return "<Unknown input>";
+}
+
 Vec2 Game_GetCursorPos()
 {
 	return g_CursorPos;

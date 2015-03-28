@@ -301,18 +301,10 @@ inline Hash HashVar( const FontRenderer::CacheKey& ck )
 #endif
 
 
-typedef uint64_t ActionInput;
-#define ACTINPUT_KEY 1
-#define ACTINPUT_MOUSE 2
-#define ACTINPUT_JOYSTICK0 3
-#define ACTINPUT_MAKE( type, val ) (((uint64_t)(type)<<32ull)|(val))
-#define ACTINPUT_MAKE_KEY( val ) ACTINPUT_MAKE( ACTINPUT_KEY, val )
-#define ACTINPUT_MAKE_MOUSE( val ) ACTINPUT_MAKE( ACTINPUT_MOUSE, val )
-
 struct ActionMap
 {
 	typedef HashTable< StringView, Command* > NameCmdMap;
-	typedef HashTable< uint32_t, Command* > InputCmdMap;
+	typedef HashTable< ActionInput, Command* > InputCmdMap;
 	
 	void Register( Command* cmd ){ m_nameCmdMap.set( cmd->name, cmd ); }
 	void Unregister( Command* cmd ){ m_nameCmdMap.unset( cmd->name ); }
