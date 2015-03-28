@@ -1792,7 +1792,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 				m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
 				m_dev->SetIndices( M->m_IB );
 				
-				for( size_t part_id = 0; part_id < M->m_numParts; ++part_id )
+				for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 				{
 					SGRX_MeshPart* MP = &M->m_parts[ part_id ];
 					
@@ -1983,7 +1983,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
 			m_dev->SetIndices( M->m_IB );
 			
-			for( size_t part_id = 0; part_id < M->m_numParts; ++part_id )
+			for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 			{
 				SGRX_MeshPart* MP = &M->m_parts[ part_id ];
 				

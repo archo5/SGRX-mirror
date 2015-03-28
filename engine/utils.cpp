@@ -344,7 +344,7 @@ bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const
 		SMALL_FLOAT, -SMALL_FLOAT, -SMALL_FLOAT, -SMALL_FLOAT,
 	};
 //	float minmargin = 1e8f;
-	for( int i = 0; i < sizeof(axes)/sizeof(axes[0]); ++i )
+	for( size_t i = 0; i < sizeof(axes)/sizeof(axes[0]); ++i )
 	{
 		Vec3 axis = axes[ i ];
 		float margin = margins[ i ];

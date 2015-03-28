@@ -58,8 +58,6 @@ struct ENGINE_EXPORT Command_Func : Command
 #define SGRX_MB_X1 4
 #define SGRX_MB_X2 5
 
-uint32_t SDLButtonToSGRX( uint32_t btn );
-
 typedef uint64_t ActionInput;
 #define ACTINPUT_UNASSIGNED 0
 #define ACTINPUT_KEY 1
@@ -133,22 +131,52 @@ struct ENGINE_EXPORT IGame
 // RENDERER DATA
 //
 
+#define FULLSCREEN_NONE 0
+#define FULLSCREEN_NORMAL 1
+#define FULLSCREEN_WINDOWED 2
+
 #define ANTIALIAS_NONE 0
 #define ANTIALIAS_MULTISAMPLE 1
 
-struct ENGINE_EXPORT RenderSettings
+struct RenderSettings
 {
+	int display;
 	int width;
 	int height;
-	bool fullscreen;
-	bool windowed_fullscreen;
+	int refresh_rate;
+	int fullscreen;
 	bool vsync;
 	int aa_mode;
 	int aa_quality;
 };
 
-ENGINE_EXPORT bool Game_SetVideoMode( const RenderSettings& rs );
-ENGINE_EXPORT void Game_GetVideoMode( RenderSettings& rs );
+struct DisplayMode
+{
+	int width;
+	int height;
+	int refresh_rate;
+	
+	bool operator == ( const DisplayMode& o ) const { return width == o.width && height == o.height && refresh_rate == o.refresh_rate; }
+	void Log( SGRX_Log& L ) const
+	{
+		L << "Display mode (width: " << width << ", height: " << height << ", refresh rate: " << refresh_rate << ")";
+	}
+	typedef SGRX_Log::Loggable< DisplayMode > LogT;
+};
+
+//inline SGRX_Log& SGRX_Log::operator << ( const DisplayMode& dm )
+//{
+//	*this << "Display mode (width: " << dm.width << ", height: " << dm.height << ", refresh rate: " << dm.refresh_rate << ")";
+//	return *this;
+//}
+
+
+ENGINE_EXPORT bool GR_SetVideoMode( const RenderSettings& rs );
+ENGINE_EXPORT void GR_GetVideoMode( RenderSettings& rs );
+
+ENGINE_EXPORT int GR_GetDisplayCount();
+ENGINE_EXPORT const char* GR_GetDisplayName( int id );
+ENGINE_EXPORT bool GR_ListDisplayModes( int display, Array< DisplayMode >& out );
 
 struct ENGINE_EXPORT RenderStats
 {
@@ -542,7 +570,7 @@ struct ENGINE_EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
 	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
 };
 
-struct ENGINE_EXPORT SGRX_Camera : Loggable
+struct ENGINE_EXPORT SGRX_Camera
 {
 	void Log( SGRX_Log& elog );
 	void UpdateViewMatrix();
@@ -565,7 +593,8 @@ struct ENGINE_EXPORT SGRX_Camera : Loggable
 	Mat4 mProj;
 	Mat4 mInvView;
 };
-SGRX_Log& operator << ( SGRX_Log& log, const SGRX_Camera& cam );
+
+ENGINE_EXPORT SGRX_Log& operator << ( SGRX_Log& log, const SGRX_Camera& cam );
 
 struct SGRX_Viewport
 {

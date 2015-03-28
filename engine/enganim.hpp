@@ -455,8 +455,8 @@ struct ENGINE_EXPORT ParticleSystem
 	Array< MeshInstHandle > m_meshInsts;
 	
 	ParticleSystem() :
-		gravity(V3(0,0,-10)), m_transform(Mat4::Identity), looping(true), retriggerTimeExt(V2(1,0.1f)),
-		m_isPlaying(false), m_retriggerTime(0)
+		gravity(V3(0,0,-10)), looping(true), retriggerTimeExt(V2(1,0.1f)),
+		m_isPlaying(false), m_retriggerTime(0), m_transform(Mat4::Identity)
 	{}
 	
 	template< class T > void Serialize( T& arch, bool incl_state )

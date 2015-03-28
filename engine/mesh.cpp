@@ -223,7 +223,7 @@ static int md_parse_smallbuf( char* buf, size_t size, char** outptr, uint8_t* ou
 	if( size < 1 )
 		return 0;
 	memcpy( outsize, buf, 1 );
-	if( size < *outsize + 1 )
+	if( size < (size_t) *outsize + 1 )
 		return 0;
 	*outptr = buf + 1;
 	return 1;
@@ -348,6 +348,7 @@ const char* AnimFileParser::Parse( ByteReader& br )
 }
 
 
+#if 0
 static void _ss3dmesh_extract_vertex( MeshFileData* mfd, VDeclInfo* info, MeshFilePartData* part, uint32_t vidx, Vec3& vout )
 {
 	uint8_t* pudata;
@@ -384,5 +385,5 @@ static void _ss3dmesh_extract_vertex( MeshFileData* mfd, VDeclInfo* info, MeshFi
 		break;
 	}
 }
-
+#endif
 

@@ -147,7 +147,7 @@ static bool dds_read_all( dds_info* info, ByteArray& out )
 	{
 		if( nsz == 6 && !( info->flags & sideflags[ s ] ) )
 			continue;
-		for( m = 0; m < info->mipcount; ++m )
+		for( m = 0; m < (int) info->mipcount; ++m )
 		{
 			if( dds_seek( info, s, m ) != DDS_SUCCESS ||
 				!dds_read( info, out.data() + info->sideoffsets[ s ] + info->mipoffsets[ m ] ) )
@@ -289,7 +289,7 @@ static bool jpg_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* con
 	while( cinfo.output_scanline < cinfo.output_height )
 	{
 		jpeg_read_scanlines( &cinfo, buffer, 1 );
-		for( x = 0; x < cinfo.output_width; ++x )
+		for( x = 0; x < (int) cinfo.output_width; ++x )
 		{
 			imgdata[ x * 4   ] = buffer[0][ x * 3   ];
 			imgdata[ x * 4+1 ] = buffer[0][ x * 3+1 ];

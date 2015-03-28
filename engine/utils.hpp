@@ -121,7 +121,7 @@ struct ENGINE_EXPORT Vec2
 	
 	static FINLINE Vec2 Create( float x ){ Vec2 v = { x, x }; return v; }
 	static FINLINE Vec2 Create( float x, float y ){ Vec2 v = { x, y }; return v; }
-	static FINLINE Vec2 CreateFromAngle( float a, float d = 1.0f ){ Vec2 v = { cos( a ) * d, sin( a ) * d }; return v; }
+	static FINLINE Vec2 CreateFromAngle( float a, float d = 1.0f ){ Vec2 v = { cosf( a ) * d, sinf( a ) * d }; return v; }
 	static FINLINE Vec2 CreateFromPtr( const float* x ){ Vec2 v = { x[0], x[1] }; return v; }
 	static FINLINE Vec2 Min( const Vec2& a, const Vec2& b ){ return Create( TMIN( a.x, b.x ), TMIN( a.y, b.y ) ); }
 	static FINLINE Vec2 Max( const Vec2& a, const Vec2& b ){ return Create( TMAX( a.x, b.x ), TMAX( a.y, b.y ) ); }
@@ -256,7 +256,7 @@ struct ENGINE_EXPORT Vec3
 			arch.marker( "Vec3" );
 		arch << x << y << z;
 	}
-	FINLINE Vec3 Pow( float f ){ Vec3 v = { pow( x, f ), pow( y, f ), pow( z, f ) }; return v; }
+	FINLINE Vec3 Pow( float f ){ Vec3 v = { powf( x, f ), powf( y, f ), powf( z, f ) }; return v; }
 	FINLINE void Set( float _x, float _y, float _z ){ x = _x; y = _y; z = _z; }
 	FINLINE void SetXY( const Vec2& xy ){ x = xy.x; y = xy.y; }
 	FINLINE Vec2 ToVec2() const { Vec2 v = { x, y }; return v; }
@@ -890,7 +890,13 @@ inline uint32_t Vec4ToCol32( const Vec4& colv4 )
 }
 inline Vec4 Col32ToVec4( uint32_t colu32 )
 {
-	Vec4 out = { COLOR_EXTRACT_R( colu32 ), COLOR_EXTRACT_G( colu32 ), COLOR_EXTRACT_B( colu32 ), COLOR_EXTRACT_A( colu32 ) };
+	Vec4 out =
+	{
+		(float) COLOR_EXTRACT_R( colu32 ),
+		(float) COLOR_EXTRACT_G( colu32 ),
+		(float) COLOR_EXTRACT_B( colu32 ),
+		(float) COLOR_EXTRACT_A( colu32 )
+	};
 	return out;
 }
 
@@ -981,7 +987,7 @@ struct Handle
 	Handle( T* v ) : item( v ){ if( item ) item->Acquire(); }
 	Handle( const Handle& h ) : item( h.item ){ if( item ) item->Acquire(); }
 	~Handle(){ if( item ){ item->Release(); item = NULL; } }
-	Handle& operator = ( const Handle& h ){ if( item ) item->Release(); item = h.item; if( item ) item->Acquire(); }
+	Handle& operator = ( const Handle& h ){ if( item ) item->Release(); item = h.item; if( item ) item->Acquire(); return *this; }
 	T* operator -> () const { return item; }
 	T& operator * () const { return *item; }
 	operator T* () const { return item; }
@@ -1646,13 +1652,17 @@ struct HashTable
 				p->key.~K();
 				p->value.~V();
 			}
+			
+			if( m_num_removed > m_var_mem * 0.25 + 16 )
+			{
+				reserve( (size_type) ( m_size * 0.75 + m_var_mem * 0.25 ) );
+				rehash( (size_type) ( m_size * 0.5 + m_var_mem * 0.5 ) );
+			}
+			
+			return true;
 		}
 		
-		if( m_num_removed > m_var_mem * 0.25 + 16 )
-		{
-			reserve( (size_type) ( m_size * 0.75 + m_var_mem * 0.25 ) );
-			rehash( (size_type) ( m_size * 0.5 + m_var_mem * 0.5 ) );
-		}
+		return false;
 	}
 	void rehash( size_type size )
 	{
@@ -1745,7 +1755,7 @@ template< class T > struct SerializeVersionHelper
 {
 	enum { IsWriter = T::IsWriter, IsReader = T::IsReader, IsText = T::IsText, IsBinary = T::IsBinary };
 	
-	SerializeVersionHelper( T& a, uint16_t curver ) : arch( &a ), version( curver )
+	SerializeVersionHelper( T& a, uint16_t curver ) : version( curver ), arch( &a )
 	{
 		(*arch) << version;
 	}
@@ -2099,9 +2109,14 @@ ENGINE_EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
 //
 
 
-struct Loggable {};
 struct ENGINE_EXPORT SGRX_Log
 {
+	template< class T > struct Loggable
+	{
+		Loggable( const T& _v ) : v(_v){}
+		const T& v;
+	};
+	template< class T > static Loggable<T> MakeLoggable( const T& v ){ return Loggable< T >( v ); }
 	struct Separator
 	{
 		Separator( const char* s ) : sep( s ){}
@@ -2141,10 +2156,9 @@ struct ENGINE_EXPORT SGRX_Log
 	SGRX_Log& operator << ( const Vec4& );
 	SGRX_Log& operator << ( const Quat& );
 	SGRX_Log& operator << ( const Mat4& );
+	template< class T > SGRX_Log& operator << ( const Loggable<T>& val ){ val.v.Log( *this ); return *this; }
 	template< class T > SGRX_Log& operator << ( const Array<T>& arr ){ *this << "ARRAY";
 		for( size_t i = 0; i < arr.size(); ++i ) *this << "\n\t" << i << ": " << arr[i]; return *this; }
-	
-	SGRX_Log& operator << ( const struct SGRX_Camera& );
 };
 #define LOG SGRX_Log()
 #define LOG_ERROR SGRX_Log() << "ERROR: "
@@ -2152,6 +2166,7 @@ struct ENGINE_EXPORT SGRX_Log
 #define PARTIAL_LOG SGRX_Log::Mod_Partial
 #define LOG_DATE SGRX_Log::Spec_Date
 #define LOG_SEP( x ) SGRX_Log::Separator( x )
+#define LOG_XTD( x ) SGRX_Log::MakeLoggable( x )
 
 
 

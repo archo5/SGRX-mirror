@@ -118,10 +118,10 @@ void AnimMixer::Advance( float deltaTime )
 		AN->Advance( deltaTime );
 		
 		int tflags = layers[ layer ].tflags;
-		bool abslayer = ( tflags & TF_Absolute_All ) && mesh && mesh->m_numBones == names.size();
+		bool abslayer = ( tflags & TF_Absolute_All ) && mesh && mesh->m_numBones == (int) names.size();
 		SGRX_MeshBone* MB = mesh->m_bones;
 		
-		for( int i = 0; i < names.size(); ++i )
+		for( size_t i = 0; i < names.size(); ++i )
 		{
 			Vec3 P = AN->position[ i ];
 			Quat R = AN->rotation[ i ];
@@ -407,7 +407,7 @@ bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_
 		return false;
 	if( outsz != animator->position.size() )
 		return false;
-	if( outsz != mesh->m_numBones )
+	if( outsz != (size_t) mesh->m_numBones )
 		return false;
 	SGRX_MeshBone* MB = mesh->m_bones;
 	
@@ -481,8 +481,8 @@ static FINLINE Vec3 _ps_rotate( const Vec3& v, const Vec3& axis, float angle )
 {
 	// http://en.wikipedia.org/wiki/Axis–angle_representation#Rotating_a_vector
 	
-	float cos_a = cos( angle );
-	float sin_a = sin( angle );
+	float cos_a = cosf( angle );
+	float sin_a = sinf( angle );
 	Vec3 cross = Vec3Cross( axis, v );
 	float dot = Vec3Dot( axis, v );
 	
@@ -493,7 +493,7 @@ static FINLINE Vec3 _ps_diverge( const Vec3& dir, float dvg )
 {
 	float baseangle = randf() * M_PI * 2;
 	float rotangle = randf() * M_PI * dvg;
-	Vec3 axis = { cos( baseangle ), sin( baseangle ), 0 };
+	Vec3 axis = { cosf( baseangle ), sinf( baseangle ), 0 };
 	
 	return _ps_rotate( dir, axis, rotangle );
 }
@@ -547,9 +547,6 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 		V = _ps_rotate( V, clusteraxis, clusterangle );
 		V *= clusterdist + create_VelMicroDistExt.x + create_VelMicroDistExt.y * randf();
 		
-		// Angle
-		float A = create_AngleDirDvg.x + create_AngleDirDvg.y * randf11();
-		
 		// absolute positioning
 		if( absolute )
 		{
@@ -567,7 +564,7 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 		// color [HSV], opacity
 		Vec4 randHSVO = { randf(), randf(), randf(), randf() };
 		
-		if( particles_Position.size() < spawn_MaxCount )
+		if( particles_Position.size() < (size_t) spawn_MaxCount )
 		{
 			particles_Position.push_back( P );
 			particles_Velocity.push_back( V );
@@ -920,6 +917,7 @@ void AnimRagdoll::Initialize( PhyWorldHandle world, MeshHandle mesh, SkeletonInf
 	for( size_t jid = 0; jid < skinfo->joints.size(); ++jid )
 	{
 		SkeletonInfo::Joint& SJ = skinfo->joints[ jid ];
+		UNUSED( SJ ); // TODO
 	}
 }
 

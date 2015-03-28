@@ -151,6 +151,7 @@ struct RendererInfo
 struct ENGINE_EXPORT IRenderer
 {
 	IRenderer() : m_inDebugDraw( false ){}
+	virtual ~IRenderer(){}
 	
 	virtual void Destroy() = 0;
 	virtual const RendererInfo& GetInfo() = 0;

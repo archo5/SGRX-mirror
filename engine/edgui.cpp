@@ -475,19 +475,18 @@ void EDGUIFrame::_HandleMouseMove( bool optional )
 			{
 				EDGUIEvent e;
 				// found common parent, run events through that (parent gets none), update styles up from parent (not parent itself)
-				EDGUIItem *cc, *pcc1, *pcc2;
+				EDGUIItem *cc;
 				
 				e.type = EDGUI_EVENT_MOUSELEAVE;
 				e.target = prevhover;
 				e.mouse.x = m_mouseX;
 				e.mouse.y = m_mouseY;
 				
-				pcc1 = cc = prevhover;
+				cc = prevhover;
 				while( cc && cc != phi )
 				{
 					if( !cc->OnEvent( &e ) )
 						break;
-					pcc1 = cc;
 					cc = cc->m_parent;
 				}
 				
@@ -496,12 +495,11 @@ void EDGUIFrame::_HandleMouseMove( bool optional )
 				e.mouse.x = m_mouseX;
 				e.mouse.y = m_mouseY;
 				
-				pcc2 = cc = m_hover;
+				cc = m_hover;
 				while( cc && cc != phi )
 				{
 					if( !cc->OnEvent( &e ) )
 						break;
-					pcc2 = cc;
 					cc = cc->m_parent;
 				}
 			}
@@ -929,10 +927,10 @@ EDGUINumberWheel::EDGUINumberWheel( EDGUIItem* owner, double min, double max, in
 	m_cx( 0 ),
 	m_cy( 0 ),
 	m_initpwr( initpwr ),
-	m_curWheel( 0 ),
 	m_numwheels( numwheels ),
 	m_prevMouseX( -1 ),
 	m_prevMouseY( -1 ),
+	m_curWheel( 0 ),
 	m_owner( owner )
 {
 	type = EDGUI_ITEM_NUMWHEEL;
@@ -1142,7 +1140,7 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			if( m_horCount && m_frame->PushScissorRect( cx0, cy0, cx1, cy1 ) )
 			{
 				size_t i = 0;
-				while( ( i + 1 ) * m_itemHeight < soff )
+				while( (int) ( i + 1 ) * m_itemHeight < soff )
 					i++;
 				i *= m_horCount;
 				for( ; i < m_filtered.size(); ++i )
@@ -1923,7 +1921,7 @@ int EDGUIPropString::OnEvent( EDGUIEvent* e )
 						m_chars.erase( m_sel_from - 1 );
 						m_sel_from = --m_sel_to;
 					}
-					else if( key == EDGUI_KEY_DELRIGHT && m_sel_from < m_chars.size() )
+					else if( key == EDGUI_KEY_DELRIGHT && m_sel_from < (int) m_chars.size() )
 					{
 						m_chars.erase( m_sel_from );
 					}
@@ -2078,9 +2076,9 @@ int EDGUIPropString::_FindOffset( int x, int y )
 
 
 EDGUIPropRsrc::EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def ) :
+	m_value( def ),
 	m_requestReload( true ),
-	m_rsrcPicker( rsrcPicker ),
-	m_value( def )
+	m_rsrcPicker( rsrcPicker )
 {
 	tyname = "property-rsrc";
 	type = EDGUI_ITEM_PROP_RSRC;

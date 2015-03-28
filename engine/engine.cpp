@@ -65,7 +65,7 @@ static ActionMap* g_ActionMap;
 static Vec2 g_CursorPos = {0,0};
 static Array< IScreen* > g_OverlayScreens;
 
-static RenderSettings g_RenderSettings = { 1024, 576, false, false, true, ANTIALIAS_MULTISAMPLE, 4 };
+static RenderSettings g_RenderSettings = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_MULTISAMPLE, 4 };
 static const char* g_RendererName = "sgrx-render-d3d9";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;
@@ -683,21 +683,21 @@ bool SGRX_IMesh::SetAABBFromVertexData( const void* data, size_t size, VertexDec
 }
 
 
-SGRX_Log& SGRX_Log::operator << ( const SGRX_Camera& cam )
+SGRX_Log& operator << ( SGRX_Log& L, const SGRX_Camera& cam )
 {
-	*this << "CAMERA:";
-	*this << "\n    position = " << cam.position;
-	*this << "\n    direction = " << cam.direction;
-	*this << "\n    up = " << cam.up;
-	*this << "\n    angle = " << cam.angle;
-	*this << "\n    aspect = " << cam.aspect;
-	*this << "\n    aamix = " << cam.aamix;
-	*this << "\n    znear = " << cam.znear;
-	*this << "\n    zfar = " << cam.zfar;
-	*this << "\n    mView = " << cam.mView;
-	*this << "\n    mProj = " << cam.mProj;
-	*this << "\n    mInvView = " << cam.mInvView;
-	return *this;
+	L << "CAMERA:";
+	L << "\n    position = " << cam.position;
+	L << "\n    direction = " << cam.direction;
+	L << "\n    up = " << cam.up;
+	L << "\n    angle = " << cam.angle;
+	L << "\n    aspect = " << cam.aspect;
+	L << "\n    aamix = " << cam.aamix;
+	L << "\n    znear = " << cam.znear;
+	L << "\n    zfar = " << cam.zfar;
+	L << "\n    mView = " << cam.mView;
+	L << "\n    mProj = " << cam.mProj;
+	L << "\n    mInvView = " << cam.mInvView;
+	return L;
 }
 
 void SGRX_Camera::UpdateViewMatrix()
@@ -1029,7 +1029,7 @@ bad_sample:;
 				
 				// avoiding goto warning, compiler does not see that nothing uses the variable after label
 				{
-					int32_t nidcs[] = { v0, v1, v2 };
+					int32_t nidcs[] = { (int32_t) v0, (int32_t) v1, (int32_t) v2 };
 					m_tris.append( nidcs, 3 );
 				}
 				
@@ -1534,7 +1534,7 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 		Quat* rotdata = nanim->GetRotation( t );
 		Vec3* scldata = nanim->GetScale( t );
 		
-		for( int f = 0; f < AN.frameCount; ++f )
+		for( uint32_t f = 0; f < AN.frameCount; ++f )
 		{
 			posdata[ f ].x = indata[ f * 10 + 0 ];
 			posdata[ f ].y = indata[ f * 10 + 1 ];
@@ -1603,7 +1603,7 @@ SceneHandle GR_CreateScene()
 
 bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
 {
-	g_Renderer->SetRenderPasses( passes, count );
+	return g_Renderer->SetRenderPasses( passes, count );
 }
 
 void GR_RenderScene( SGRX_RenderScene& info )
@@ -1753,7 +1753,7 @@ BatchRenderer& BatchRenderer::Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a )
 
 BatchRenderer& BatchRenderer::Prev( int i )
 {
-	if( i < 0 || i >= m_verts.size() )
+	if( i < 0 || i >= (int) m_verts.size() )
 		AddVertex( m_proto );
 	else
 		AddVertex( m_verts[ m_verts.size() - 1 - i ] );
@@ -2084,7 +2084,7 @@ static int init_graphics()
 	int flags = 0;
 	if( g_RenderSettings.fullscreen )
 	{
-		flags |= g_RenderSettings.windowed_fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+		flags |= g_RenderSettings.fullscreen == FULLSCREEN_WINDOWED ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
 	}
 	g_Window = SDL_CreateWindow( "SGRX Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_RenderSettings.width, g_RenderSettings.height, flags );
 	SDL_StartTextInput();
@@ -2186,7 +2186,7 @@ static void free_graphics()
 }
 
 
-bool Game_SetVideoMode( const RenderSettings& rs )
+bool GR_SetVideoMode( const RenderSettings& rs )
 {
 	if( rs.width < 1 || rs.height < 1 )
 		return false;
@@ -2195,9 +2195,52 @@ bool Game_SetVideoMode( const RenderSettings& rs )
 	return true;
 }
 
-void Game_GetVideoMode( RenderSettings& rs )
+void GR_GetVideoMode( RenderSettings& rs )
 {
 	rs = g_RenderSettings;
+}
+
+
+int GR_GetDisplayCount()
+{
+	return SDL_GetNumVideoDisplays();
+}
+
+const char* GR_GetDisplayName( int id )
+{
+	return SDL_GetDisplayName( id );
+}
+
+bool GR_ListDisplayModes( int display, Array< DisplayMode >& out )
+{
+	out.clear();
+	
+	int numdm = SDL_GetNumDisplayModes( display );
+	if( numdm < 0 )
+	{
+		LOG << "Failed to get display mode count (display=" << display << "): " << SDL_GetError();
+		return false;
+	}
+	LOG << "NUM DM " << numdm;
+	
+	out.reserve( numdm );
+	
+	SDL_DisplayMode dmd;
+	for( int i = 0; i < numdm; ++i )
+	{
+		int err = SDL_GetDisplayMode( display, i, &dmd );
+		if( err < 0 )
+		{
+			LOG << "Failed to get display mode (display=" << display << ", mode = " << i << "): " << SDL_GetError();
+			return false;
+		}
+		
+		DisplayMode dm = { dmd.w, dmd.h, dmd.refresh_rate };
+		if( out.has( dm ) == false )
+			out.push_back( dm );
+	}
+	
+	return true;
 }
 
 
