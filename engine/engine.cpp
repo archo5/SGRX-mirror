@@ -211,6 +211,11 @@ void Game_SetCursorPos( int x, int y )
 	SDL_WarpMouseInWindow( g_Window, x, y );
 }
 
+void Game_ShowCursor( bool show )
+{
+	SDL_ShowCursor( show ? SDL_ENABLE : SDL_DISABLE );
+}
+
 
 bool Game_HasOverlayScreens()
 {

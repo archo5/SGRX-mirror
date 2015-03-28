@@ -83,6 +83,7 @@ ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );
 ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
 ENGINE_EXPORT Vec2 Game_GetCursorPos();
 ENGINE_EXPORT void Game_SetCursorPos( int x, int y );
+ENGINE_EXPORT void Game_ShowCursor( bool show );
 
 
 struct ENGINE_EXPORT IScreen
