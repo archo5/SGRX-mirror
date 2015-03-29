@@ -97,6 +97,7 @@ ENGINE_EXPORT bool Game_HasOverlayScreens();
 ENGINE_EXPORT bool Game_HasOverlayScreen( IScreen* screen );
 ENGINE_EXPORT void Game_AddOverlayScreen( IScreen* screen );
 ENGINE_EXPORT void Game_RemoveOverlayScreen( IScreen* screen );
+ENGINE_EXPORT void Game_RemoveAllOverlayScreens();
 
 ENGINE_EXPORT void Game_End();
 

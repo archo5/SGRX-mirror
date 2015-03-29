@@ -243,6 +243,14 @@ void Game_RemoveOverlayScreen( IScreen* screen )
 	}
 }
 
+void Game_RemoveAllOverlayScreens()
+{
+	while( g_OverlayScreens.size() )
+	{
+		Game_RemoveOverlayScreen( g_OverlayScreens.last() );
+	}
+}
+
 static void process_overlay_screens( float dt )
 {
 	for( size_t i = 0; i < g_OverlayScreens.size(); ++i )
@@ -2412,10 +2420,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	}
 	
 	g_Game->OnDestroy();
-	while( g_OverlayScreens.size() )
-	{
-		Game_RemoveOverlayScreen( g_OverlayScreens.last() );
-	}
+	Game_RemoveAllOverlayScreens();
 	
 	free_graphics();
 	
