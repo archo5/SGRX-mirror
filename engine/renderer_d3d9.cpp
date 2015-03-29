@@ -117,18 +117,19 @@ struct D3D9Texture : SGRX_ITexture
 	{
 		m_isRenderTexture = isRenderTexture;
 	}
-	~D3D9Texture();
+	virtual ~D3D9Texture();
 	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
 	{
 		RECT rct = { x, y, x + w, y + h };
 		D3DLOCKED_RECT lr;
-		HRESULT hr = m_ptr.tex2d->LockRect( mip, &lr, &rct, D3DLOCK_DISCARD );
+		HRESULT hr = m_ptr.tex2d->LockRect( mip, &lr, NULL, 0 );
 		if( FAILED( hr ) )
 		{
 			LOG_ERROR << "failed to lock D3D9 texture";
 			return false;
 		}
+		*(uint8_t**)&lr.pBits += lr.Pitch * y + x * 4;
 		
 		for( int j = 0; j < h; ++j )
 		{
@@ -165,7 +166,7 @@ struct D3D9RenderTexture : D3D9Texture
 	{
 		m_isRenderTexture = true;
 	}
-	~D3D9RenderTexture()
+	virtual ~D3D9RenderTexture()
 	{
 		SAFE_RELEASE( CS );
 		SAFE_RELEASE( DT );
@@ -608,6 +609,16 @@ void D3D9Renderer::UnloadInternalResources()
 
 void D3D9Renderer::Destroy()
 {
+	LOG << "D3D9Renderer::Destroy()";
+	
+	if( m_ownTextures.size() )
+	{
+		LOG << "Unfreed textures: " << m_ownTextures.size();
+	}
+	if( m_ownMeshes.size() )
+	{
+		LOG << "Unfreed meshes: " << m_ownMeshes.size();
+	}
 	postproc_free( &m_drd );
 	
 	SAFE_RELEASE( m_backbuf );

@@ -528,6 +528,7 @@ void RenderStats::Reset()
 
 SGRX_ITexture::~SGRX_ITexture()
 {
+	LOG << "Deleted texture: " << m_key;
 	g_Textures->unset( m_key );
 }
 
@@ -844,6 +845,7 @@ SGRX_Scene::SGRX_Scene() :
 
 SGRX_Scene::~SGRX_Scene()
 {
+	LOG << "Deleted scene: " << this;
 }
 
 MeshInstHandle SGRX_Scene::CreateMeshInstance()
