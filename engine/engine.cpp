@@ -63,6 +63,7 @@ static IGame* g_Game = NULL;
 static uint32_t g_GameTime = 0;
 static ActionMap* g_ActionMap;
 static Vec2 g_CursorPos = {0,0};
+static Vec2 g_CursorScale = {0,0};
 static Array< IScreen* > g_OverlayScreens;
 
 static RenderSettings g_RenderSettings = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_MULTISAMPLE, 4 };
@@ -2040,6 +2041,23 @@ void BatchRenderer::_UpdateDiff()
 // INTERNALS
 //
 
+static void remap_cursor()
+{
+	g_CursorScale = V2(1);
+	
+	SDL_DisplayMode dm;
+	if( g_RenderSettings.fullscreen == FULLSCREEN_WINDOWED )
+	{
+		if( SDL_GetCurrentDisplayMode( g_RenderSettings.display, &dm ) < 0 )
+		{
+			LOG << "Failed to get current display mode for display " << g_RenderSettings.display;
+		}
+		else
+			g_CursorScale = V2( g_RenderSettings.width, g_RenderSettings.height ) / V2( TMAX( 1, dm.w ), TMAX( 1, dm.h ) );
+	}
+	LOG << "CURSOR REMAP: " << g_CursorScale;
+}
+
 static bool read_config()
 {
 	String text;
@@ -2087,6 +2105,7 @@ static int init_graphics()
 		flags |= g_RenderSettings.fullscreen == FULLSCREEN_WINDOWED ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
 	}
 	g_Window = SDL_CreateWindow( "SGRX Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_RenderSettings.width, g_RenderSettings.height, flags );
+	remap_cursor();
 	SDL_StartTextInput();
 	
 	char renderer_dll[ 65 ] = {0};
@@ -2191,7 +2210,51 @@ bool GR_SetVideoMode( const RenderSettings& rs )
 	if( rs.width < 1 || rs.height < 1 )
 		return false;
 	
+	if( g_Window )
+	{
+		int ret;
+		
+		// set fullscreen mode
+		switch( rs.fullscreen )
+		{
+			case FULLSCREEN_NONE: ret = SDL_SetWindowFullscreen( g_Window, 0 ); break;
+			case FULLSCREEN_NORMAL: ret = SDL_SetWindowFullscreen( g_Window, SDL_WINDOW_FULLSCREEN ); break;
+			case FULLSCREEN_WINDOWED: ret = SDL_SetWindowFullscreen( g_Window, SDL_WINDOW_FULLSCREEN_DESKTOP ); break;
+			default: ret = -2;
+		}
+		if( ret < 0 )
+		{
+			if( ret == -2 )
+			{
+				LOG << "Failed to set fullscreen mode: unrecognized mode";
+			}
+			else
+			{
+				LOG << "Failed to set fullscreen mode: " << SDL_GetError();
+			}
+			return false;
+		}
+		
+		// set window size
+		SDL_SetWindowSize( g_Window, rs.width, rs.height );
+		SDL_DisplayMode dm = { SDL_PIXELFORMAT_RGBX8888, rs.width, rs.height, rs.refresh_rate, NULL };
+		ret = SDL_SetWindowDisplayMode( g_Window, &dm );
+		if( ret < 0 )
+		{
+			LOG << "Failed to set display mode: " << SDL_GetError();
+			return false;
+		}
+		
+		if( g_Renderer )
+		{
+			g_Renderer->Modify( rs );
+		}
+	}
+	
 	g_RenderSettings = rs;
+	
+	remap_cursor();
+	
 	return true;
 }
 
@@ -2221,7 +2284,6 @@ bool GR_ListDisplayModes( int display, Array< DisplayMode >& out )
 		LOG << "Failed to get display mode count (display=" << display << "): " << SDL_GetError();
 		return false;
 	}
-	LOG << "NUM DM " << numdm;
 	
 	out.reserve( numdm );
 	
@@ -2323,6 +2385,18 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 				break;
 			}
 			
+			if( event.type == SDL_MOUSEMOTION )
+			{
+				event.motion.x *= g_CursorScale.x;
+				event.motion.y *= g_CursorScale.y;
+				event.motion.xrel *= g_CursorScale.x;
+				event.motion.yrel *= g_CursorScale.y;
+			}
+			if( event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP )
+			{
+				event.button.x *= g_CursorScale.x;
+				event.button.y *= g_CursorScale.y;
+			}
 			Game_OnEvent( event );
 		}
 		

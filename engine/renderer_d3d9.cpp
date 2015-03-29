@@ -148,7 +148,7 @@ struct D3D9Texture : SGRX_ITexture
 		return true;
 	}
 	
-	bool OnDeviceLost(){ return true; } // TODO
+	bool OnDeviceLost(){ if( m_isRenderTexture ){ LOG << "\n\n\n T O D O\n\n\n"; } return true; } // TODO
 	bool OnDeviceReset(){ return true; }
 };
 
@@ -525,7 +525,8 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	IDirect3DDevice9* d3ddev;
 	
 	ZeroMemory( &d3dpp, sizeof(d3dpp) );
-	d3dpp.Windowed = 1;
+	d3dpp.Windowed = settings.fullscreen != FULLSCREEN_NORMAL;
+	d3dpp.FullScreen_RefreshRateInHz = d3dpp.Windowed ? 0 : settings.refresh_rate;
 	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	d3dpp.EnableAutoDepthStencil = 1;
 	d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
@@ -632,13 +633,26 @@ void D3D9Renderer::Swap()
 
 void D3D9Renderer::Modify( const RenderSettings& settings )
 {
-	bool needreset = m_currSettings.width != settings.width || m_currSettings.height != settings.height;
+	bool needreset =
+		m_currSettings.width != settings.width ||
+		m_currSettings.height != settings.height ||
+		m_currSettings.refresh_rate != settings.refresh_rate ||
+		m_currSettings.fullscreen != settings.fullscreen ||
+		m_currSettings.vsync != settings.vsync ||
+		m_currSettings.aa_mode != settings.aa_mode ||
+		m_currSettings.aa_quality != settings.aa_quality;
 	m_currSettings = settings;
 	
 	if( needreset )
 	{
 		m_params.BackBufferWidth = settings.width;
 		m_params.BackBufferHeight = settings.height;
+		m_params.Windowed = settings.fullscreen != FULLSCREEN_NORMAL;
+		m_params.FullScreen_RefreshRateInHz = m_params.Windowed ? 0 : settings.refresh_rate;
+		m_params.PresentationInterval = settings.vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
+		m_params.MultiSampleType = settings.aa_mode == ANTIALIAS_MULTISAMPLE ? aa_quality_to_mstype( settings.aa_quality ) : D3DMULTISAMPLE_NONE;
+		
+		m_dev->EndScene();
 		ResetDevice();
 		ResetViewport();
 		m_dev->BeginScene();
@@ -2155,6 +2169,10 @@ bool D3D9Renderer::ResetDevice()
 			LOG_ERROR << "Failed to prepare for resetting texture " << tex << " (" << tex->m_key << ")";
 		}
 	}
+	postproc_free( &m_drd );
+	SAFE_RELEASE( m_backbuf );
+	SAFE_RELEASE( m_dssurf );
+	
 	
 	/* reset */
 	npp = m_params;
@@ -2164,6 +2182,21 @@ bool D3D9Renderer::ResetDevice()
 		LOG_ERROR << "Failed to reset D3D9 device";
 		return false;
 	}
+	/* ----- */
+	
+	
+	if( FAILED( m_dev->GetRenderTarget( 0, &m_backbuf ) ) )
+	{
+		LOG_ERROR << "Failed to retrieve the original render target";
+		return NULL;
+	}
+	if( FAILED( m_dev->GetDepthStencilSurface( &m_dssurf ) ) )
+	{
+		LOG_ERROR << "Failed to retrieve the original depth/stencil surface";
+		return NULL;
+	}
+	
+	postproc_init( m_dev, &m_drd, m_params.BackBufferWidth, m_params.BackBufferHeight, m_params.MultiSampleType );
 	
 	for( size_t i = 0; i < m_ownMeshes.size(); ++i )
 	{
