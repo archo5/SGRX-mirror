@@ -37,6 +37,7 @@ list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/fmodstud
 
 add_subdirectory( engine )
 add_subdirectory( game-tacstrike )
+add_subdirectory( game-polyflight )
 add_subdirectory( tools )
 
 # Copy external libraries
