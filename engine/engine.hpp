@@ -734,12 +734,7 @@ struct SGRX_RenderPass
 	int16_t maxruns;
 	uint16_t pointlight_count;
 	uint8_t spotlight_count;
-//	uint8_t num_inst_textures;
 	StringView shader_name;
-	
-	// cache
-	ShaderHandle _shader;
-	
 };
 
 enum EPrimitiveType

@@ -30,6 +30,16 @@ set_target_properties( sgrx-render-d3d9 PROPERTIES
 	LINK_FLAGS "-m32"
 )
 
+# Renderer - D3D11
+add_library( sgrx-render-d3d11 SHARED renderer_d3d11 )
+target_link_libraries( sgrx-render-d3d11 d3d11 sgrx-core )
+set_target_properties( sgrx-render-d3d11 PROPERTIES
+	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "-m32 -Wall -Wno-narrowing -Wno-unknown-pragmas -Wno-comment"
+	LINK_FLAGS "-m32 -L${CMAKE_SOURCE_DIR}/ext/d3dx"
+)
+
 # Sound - FMOD
 add_library( sgrx-sound-fmod SHARED sound_fmod )
 target_link_libraries( sgrx-sound-fmod fmod fmodstudio sgrx-core )

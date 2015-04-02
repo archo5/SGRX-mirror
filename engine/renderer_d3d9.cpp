@@ -397,7 +397,6 @@ struct D3D9Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	void Clear( float* color_v4f, bool clear_zbuffer );
-	void SetRenderState( int state, uint32_t val );
 	
 	void SetWorldMatrix( const Mat4& mtx );
 	void SetViewMatrix( const Mat4& mtx );
@@ -569,6 +568,26 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 }
 
 
+void D3D9Renderer::Destroy()
+{
+	LOG << "D3D9Renderer::Destroy()";
+	
+	if( m_ownTextures.size() )
+	{
+		LOG << "Unfreed textures: " << m_ownTextures.size();
+	}
+	if( m_ownMeshes.size() )
+	{
+		LOG << "Unfreed meshes: " << m_ownMeshes.size();
+	}
+	postproc_free( &m_drd );
+	
+	SAFE_RELEASE( m_backbuf );
+	SAFE_RELEASE( m_dssurf );
+	SAFE_RELEASE( m_dev );
+	delete this;
+}
+
 void D3D9Renderer::LoadInternalResources()
 {
 	ShaderHandle sh_pp_final = GR_GetShader( "testFRpost" );
@@ -597,27 +616,6 @@ void D3D9Renderer::UnloadInternalResources()
 	m_sh_pp_blur_h->Release();
 	m_sh_pp_blur_v->Release();
 	m_sh_debug_draw->Release();
-}
-
-
-void D3D9Renderer::Destroy()
-{
-	LOG << "D3D9Renderer::Destroy()";
-	
-	if( m_ownTextures.size() )
-	{
-		LOG << "Unfreed textures: " << m_ownTextures.size();
-	}
-	if( m_ownMeshes.size() )
-	{
-		LOG << "Unfreed meshes: " << m_ownMeshes.size();
-	}
-	postproc_free( &m_drd );
-	
-	SAFE_RELEASE( m_backbuf );
-	SAFE_RELEASE( m_dssurf );
-	IDirect3DResource9_Release( m_dev );
-	delete this;
 }
 
 void D3D9Renderer::Swap()
@@ -663,6 +661,20 @@ void D3D9Renderer::Modify( const RenderSettings& settings )
 	}
 }
 
+
+bool D3D9Renderer::SetRenderTarget( TextureHandle rt )
+{
+	if( rt && !rt->m_isRenderTexture )
+		return false;
+	m_currentRT = rt;
+	D3D9RenderTexture* RTT = rt ? (D3D9RenderTexture*) rt.item : NULL;
+	IDirect3DSurface9* bbsurf = RTT ? RTT->CS : m_backbuf;
+	IDirect3DSurface9* dssurf = RTT ? RTT->DSS : m_dssurf;
+	m_dev->SetRenderTarget( 0, bbsurf );
+	m_dev->SetDepthStencilSurface( dssurf );
+	return true;
+}
+
 void D3D9Renderer::Clear( float* color_v4f, bool clear_zbuffer )
 {
 	uint32_t cc = 0;
@@ -677,29 +689,10 @@ void D3D9Renderer::Clear( float* color_v4f, bool clear_zbuffer )
 	m_dev->Clear( 0, NULL, flags, cc, 1.0f, 0 );
 }
 
-void D3D9Renderer::SetRenderState( int state, uint32_t val )
+void D3D9Renderer::SetViewport( int x0, int y0, int x1, int y1 )
 {
-	if( state == RS_ZENABLE )
-	{
-		m_dev->SetRenderState( D3DRS_ZENABLE, !!val );
-	}
-}
-
-
-void D3D9Renderer::SetWorldMatrix( const Mat4& mtx )
-{
-	m_dev->SetTransform( D3DTS_WORLD, (const D3DMATRIX*) &mtx );
-}
-
-void D3D9Renderer::SetViewMatrix( const Mat4& mtx )
-{
-	m_view = Mat4::Identity;
-	float w = GetWidth();
-	float h = GetHeight();
-	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &Mat4::Identity );
-	Mat4 mfx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
-	m_proj = Mat4().Multiply( mtx, mfx );
-	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
+	D3DVIEWPORT9 vp = { x0, y0, x1 - x0, y1 - y0, 0.0, 1.0 };
+	m_dev->SetViewport( &vp );
 }
 
 void D3D9Renderer::SetScissorRect( bool enable, int* rect )
@@ -710,12 +703,6 @@ void D3D9Renderer::SetScissorRect( bool enable, int* rect )
 		RECT r = { rect[0], rect[1], rect[2], rect[3] };
 		m_dev->SetScissorRect( &r );
 	}
-}
-
-void D3D9Renderer::SetViewport( int x0, int y0, int x1, int y1 )
-{
-	D3DVIEWPORT9 vp = { x0, y0, x1 - x0, y1 - y0, 0.0, 1.0 };
-	m_dev->SetViewport( &vp );
 }
 
 
@@ -1289,19 +1276,23 @@ SGRX_IMesh* D3D9Renderer::CreateMesh()
 }
 
 
-bool D3D9Renderer::SetRenderTarget( TextureHandle rt )
+void D3D9Renderer::SetMatrix( bool view, const Mat4& mtx )
 {
-	if( rt && !rt->m_isRenderTexture )
-		return false;
-	m_currentRT = rt;
-	D3D9RenderTexture* RTT = rt ? (D3D9RenderTexture*) rt.item : NULL;
-	IDirect3DSurface9* bbsurf = RTT ? RTT->CS : m_backbuf;
-	IDirect3DSurface9* dssurf = RTT ? RTT->DSS : m_dssurf;
-	m_dev->SetRenderTarget( 0, bbsurf );
-	m_dev->SetDepthStencilSurface( dssurf );
-	return true;
+	if( view )
+	{
+		m_view = Mat4::Identity;
+		float w = GetWidth();
+		float h = GetHeight();
+		m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &Mat4::Identity );
+		Mat4 mfx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
+		m_proj = Mat4().Multiply( mtx, mfx );
+		m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
+	}
+	else
+	{
+		m_dev->SetTransform( D3DTS_WORLD, (const D3DMATRIX*) &mtx );
+	}
 }
-
 
 FINLINE D3DPRIMITIVETYPE conv_prim_type( EPrimitiveType pt )
 {
@@ -1499,8 +1490,8 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	
 	Viewport_Apply( 1 );
 	
-	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0 // 0xff00ff00
-		, 1.0f, 0 );
+//	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0 // 0xff00ff00
+//		, 1.0f, 0 );
 	
 	/* upload unchanged data */
 	VS_SetMat4( 0, CAM.mView );

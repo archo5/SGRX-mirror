@@ -157,15 +157,12 @@ struct ENGINE_EXPORT IRenderer
 	virtual const RendererInfo& GetInfo() = 0;
 	virtual void LoadInternalResources() = 0;
 	virtual void UnloadInternalResources() = 0;
-	
 	virtual void Swap() = 0;
 	virtual void Modify( const RenderSettings& settings ) = 0;
 	virtual void SetCurrent() = 0;
-	virtual void Clear( float* color_v4f, bool clear_zbuffer = true ) = 0;
-	virtual void SetRenderState( int state, uint32_t val ) = 0;
 	
-	virtual void SetWorldMatrix( const Mat4& mtx ) = 0;
-	virtual void SetViewMatrix( const Mat4& mtx ) = 0;
+	virtual bool SetRenderTarget( TextureHandle rt ) = 0;
+	virtual void Clear( float* color_v4f, bool clear_zbuffer = true ) = 0;
 	virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
 	virtual void SetScissorRect( bool enable, int* rect ) = 0;
 	
@@ -176,8 +173,9 @@ struct ENGINE_EXPORT IRenderer
 	virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
 	virtual SGRX_IMesh* CreateMesh() = 0;
 	
-	virtual bool SetRenderTarget( TextureHandle rt ) = 0;
+	virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
 	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount ) = 0;
+	
 	virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
 	virtual void RenderScene( SGRX_RenderScene* RS ) = 0;
 	

@@ -69,7 +69,7 @@ static Vec2 g_CursorScale = {0,0};
 static Array< IScreen* > g_OverlayScreens;
 
 static RenderSettings g_RenderSettings = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_MULTISAMPLE, 4 };
-static const char* g_RendererName = "sgrx-render-d3d9";
+static const char* g_RendererName = "sgrx-render-d3d11";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;
 static pfnRndFree g_RfnFree = NULL;
@@ -1670,7 +1670,13 @@ SceneHandle GR_CreateScene()
 
 bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
 {
-	return g_Renderer->SetRenderPasses( passes, count );
+	if( g_Renderer->SetRenderPasses( passes, count ) )
+	{
+		for( size_t i = 0; i < g_SurfShaders->size(); ++i )
+			g_SurfShaders->item( i ).value->ReloadShaders();
+		return true;
+	}
+	return false;
 }
 
 void GR_RenderScene( SGRX_RenderScene& info )
@@ -1689,12 +1695,12 @@ RenderStats& GR_GetRenderStats()
 
 void GR2D_SetWorldMatrix( const Mat4& mtx )
 {
-	g_Renderer->SetWorldMatrix( mtx );
+	g_Renderer->SetMatrix( false, mtx );
 }
 
 void GR2D_SetViewMatrix( const Mat4& mtx )
 {
-	g_Renderer->SetViewMatrix( mtx );
+	g_Renderer->SetMatrix( true, mtx );
 }
 
 void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 )
