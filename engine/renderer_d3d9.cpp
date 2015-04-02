@@ -121,7 +121,7 @@ struct D3D9Texture : SGRX_ITexture
 	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
 	{
-		RECT rct = { x, y, x + w, y + h };
+	//	RECT rct = { x, y, x + w, y + h };
 		D3DLOCKED_RECT lr;
 		HRESULT hr = m_ptr.tex2d->LockRect( mip, &lr, NULL, 0 );
 		if( FAILED( hr ) )
@@ -215,14 +215,7 @@ struct D3D9Mesh : SGRX_IMesh
 	
 	D3D9Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ){}
 	~D3D9Mesh();
-	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
-	{
-		return InitVertexBuffer( size ) && UpdateVertexData( data, size, vd, tristrip );
-	}
-	bool SetIndexData( const void* data, size_t size, bool i32 )
-	{
-		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
-	}
+	
 	bool InitVertexBuffer( size_t size );
 	bool InitIndexBuffer( size_t size, bool i32 );
 	bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip );
@@ -1820,15 +1813,28 @@ void D3D9Renderer::_RS_Render_Shadows()
 				for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 				{
 					SGRX_MeshPart* MP = &M->m_parts[ part_id ];
+					SGRX_Material* MTL = MP->material;
+					if( !MTL )
+						continue;
+					SGRX_SurfaceShader* SSH = MTL->shader;
+					if( !SSH )
+						continue;
 					
-					ShaderHandle* shlist = MI->skin_matrices.size() ? MP->shaders_skin : MP->shaders;
+					bool transparent = MI->transparent || MTL->transparent;
+					if( transparent )
+						continue;
 					
-					SetShader( shlist[ pass_id ] );
-					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
-						SetTexture( tex_id, MP->textures[ tex_id ] );
+					ShaderHandle SHD = SSH->m_shaders[ ( MI->skin_matrices.size() ? m_renderPasses.size() : 0 ) + pass_id ];
+					if( !SHD )
+						continue;
 					
 					if( MP->indexCount < 3 )
 						continue;
+					
+					SetShader( SHD );
+					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
+						SetTexture( tex_id, MTL->textures[ tex_id ] );
+					
 					m_dev->DrawIndexedPrimitive(
 						M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
 						MP->vertexOffset, 0, MP->vertexCount, MP->indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP->indexCount - 2 : MP->indexCount / 3 );
@@ -1845,9 +1851,6 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 	int obj_type = !!( PASS.flags & RPF_OBJ_STATIC ) - !!( PASS.flags & RPF_OBJ_DYNAMIC );
 	int mtl_type = !!( PASS.flags & RPF_MTL_SOLID ) - !!( PASS.flags & RPF_MTL_TRANSPARENT );
 	
-	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, mtl_type >= 0 );
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, mtl_type <= 0 );
-	
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	
 	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
@@ -1861,8 +1864,8 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			continue;
 		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 		
-		/* if (transparent & want solid) or (solid & want transparent), skip */
-		if( ( MI->transparent && mtl_type > 0 ) || ( !MI->transparent && mtl_type < 0 ) )
+		/* if (fully transparent & want solid), skip */
+		if( MI->transparent && mtl_type > 0 )
 			continue;
 		
 		/* dynamic meshes */
@@ -1981,18 +1984,9 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			if( PASS.flags & RPF_LIGHTOVERLAY && pl_count + sl_count <= 0 )
 				break;
 			
-			if( !( PASS.flags & RPF_LIGHTOVERLAY ) )
-			{
-				for( int i = 0; i < MAX_MI_TEXTURES; ++i )
-					SetTexture( 8 + i, MI->textures[ i ] );
-				m_dev->SetRenderState( D3DRS_DESTBLEND, MI->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
-			}
-			else
-			{
-				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
-				m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-			}
-			
+			// PER-INSTANCE DATA
+			for( int i = 0; i < MAX_MI_TEXTURES; ++i )
+				SetTexture( 8 + i, MI->textures[ i ] );
 			MI_ApplyConstants( MI );
 			
 			Vec4 lightcounts = { pl_count, sl_count, 0, 0 };
@@ -2011,17 +2005,32 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 			{
 				SGRX_MeshPart* MP = &M->m_parts[ part_id ];
-				
-				ShaderHandle* shlist = MI->skin_matrices.size() ? MP->shaders_skin : MP->shaders;
-				if( !shlist[ pass_id ] )
+				SGRX_Material* MTL = MP->material;
+				if( !MTL )
+					continue;
+				SGRX_SurfaceShader* SSH = MTL->shader;
+				if( !SSH )
 					continue;
 				
-				SetShader( shlist[ pass_id ] );
-				for( size_t tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
-					SetTexture( tex_id, MP->textures[ tex_id ] );
+				bool transparent = MI->transparent || MTL->transparent;
+				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
+					continue;
+				
+				ShaderHandle SHD = SSH->m_shaders[ ( MI->skin_matrices.size() ? m_renderPasses.size() : 0 ) + pass_id ];
+				if( !SHD )
+					continue;
 				
 				if( MP->indexCount < 3 )
 					continue;
+				
+				m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent ) == false );
+				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
+				m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
+				
+				SetShader( SHD );
+				for( size_t tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
+					SetTexture( tex_id, MTL->textures[ tex_id ] );
+				
 				m_dev->DrawIndexedPrimitive(
 					M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
 					MP->vertexOffset, 0, MP->vertexCount, MP->indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP->indexCount - 2 : MP->indexCount / 3 );

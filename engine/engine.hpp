@@ -323,13 +323,60 @@ struct ENGINE_EXPORT SGRX_IVertexDecl
 	String m_text;
 };
 
-struct ENGINE_EXPORT VertexDeclHandle : Handle< struct SGRX_IVertexDecl >
+struct ENGINE_EXPORT VertexDeclHandle : Handle< SGRX_IVertexDecl >
 {
 	VertexDeclHandle() : Handle(){}
 	VertexDeclHandle( const VertexDeclHandle& h ) : Handle( h ){}
-	VertexDeclHandle( struct SGRX_IVertexDecl* vd ) : Handle( vd ){}
+	VertexDeclHandle( SGRX_IVertexDecl* vd ) : Handle( vd ){}
 	
 	const VDeclInfo& GetInfo();
+};
+
+struct ENGINE_EXPORT SGRX_SurfaceShader
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	~SGRX_SurfaceShader();
+	
+	void ReloadShaders();
+	
+	Array< ShaderHandle > m_shaders;
+	
+	int32_t m_refcount;
+	String m_key;
+};
+
+struct ENGINE_EXPORT SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
+{
+	SurfaceShaderHandle() : Handle(){}
+	SurfaceShaderHandle( const SurfaceShaderHandle& h ) : Handle( h ){}
+	SurfaceShaderHandle( SGRX_SurfaceShader* shdr ) : Handle( shdr ){}
+};
+
+#define NUM_MATERIAL_TEXTURES 8
+struct ENGINE_EXPORT SGRX_Material
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	SGRX_Material();
+	~SGRX_Material();
+	
+	SurfaceShaderHandle shader;
+	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
+	
+	uint32_t transparent : 1;
+	uint32_t unlit : 1;
+	uint32_t additive : 1;
+	
+	int32_t m_refcount;
+	String m_key;
+};
+
+struct ENGINE_EXPORT MaterialHandle : Handle< SGRX_Material >
+{
+	MaterialHandle() : Handle(){}
+	MaterialHandle( const MaterialHandle& h ) : Handle( h ){}
+	MaterialHandle( SGRX_Material* shdr ) : Handle( shdr ){}
 };
 
 struct SGRX_Mesh;
@@ -350,7 +397,6 @@ struct SGRX_Scene;
 #define MDF__PUBFLAGMASK (0x01|0x02|0x10|0x20|0x40|0x80)
 #define MDF__PUBFLAGBASE  0
 
-#define NUM_MATERIAL_TEXTURES 8
 #define MAX_MESH_PARTS 16
 #define MAX_MESH_BONES 64
 
@@ -360,11 +406,7 @@ struct SGRX_MeshPart
 	uint32_t vertexCount;
 	uint32_t indexOffset;
 	uint32_t indexCount;
-	
-	ShaderHandle shaders[ MAX_NUM_PASSES ];
-	ShaderHandle shaders_skin[ MAX_NUM_PASSES ];
-	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
-	char shader_name[ SHADER_NAME_LENGTH ];
+	MaterialHandle material;
 };
 
 struct SGRX_MeshBone
@@ -385,8 +427,7 @@ struct ENGINE_EXPORT SGRX_IMesh
 	
 	SGRX_IMesh();
 	virtual ~SGRX_IMesh();
-	virtual bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
-	virtual bool SetIndexData( const void* data, size_t size, bool i32 ) = 0;
+	
 	virtual bool InitVertexBuffer( size_t size ) = 0;
 	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
 	virtual bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
@@ -396,6 +437,15 @@ struct ENGINE_EXPORT SGRX_IMesh
 	bool SetBoneData( SGRX_MeshBone* bones, int count );
 	bool RecalcBoneMatrices();
 	bool SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd );
+	
+	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
+	{
+		return InitVertexBuffer( size ) && UpdateVertexData( data, size, vd, tristrip );
+	}
+	bool SetIndexData( const void* data, size_t size, bool i32 )
+	{
+		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
+	}
 	
 	/* rendering info */
 	uint32_t m_dataFlags;
@@ -550,7 +600,7 @@ struct ENGINE_EXPORT SGRX_MeshInstance
 	uint32_t dynamic : 1;
 	uint32_t transparent : 1;
 	uint32_t unlit : 1;
-	uint32_t additive : 1;
+//	uint32_t additive : 1;
 	
 	TextureHandle textures[ MAX_MI_TEXTURES ];
 	Vec4 constants[ MAX_MI_CONSTANTS ];
@@ -810,6 +860,8 @@ ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format,
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
 ENGINE_EXPORT ShaderHandle GR_GetShader( const StringView& path );
+ENGINE_EXPORT SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name );
+ENGINE_EXPORT MaterialHandle GR_CreateMaterial();
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 ENGINE_EXPORT MeshHandle GR_CreateMesh();
 ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );

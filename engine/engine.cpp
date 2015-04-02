@@ -48,6 +48,8 @@ void Thread_Sleep( uint32_t msec )
 
 typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
 typedef HashTable< StringView, SGRX_IShader* > ShaderHashTable;
+typedef HashTable< StringView, SGRX_SurfaceShader* > SurfShaderHashTable;
+typedef HashTable< StringView, SGRX_Material* > MaterialHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
@@ -77,6 +79,8 @@ static BatchRenderer* g_BatchRenderer = NULL;
 static FontRenderer* g_FontRenderer = NULL;
 static TextureHashTable* g_Textures = NULL;
 static ShaderHashTable* g_Shaders = NULL;
+static SurfShaderHashTable* g_SurfShaders = NULL;
+static MaterialHashTable* g_Materials = NULL;
 static VertexDeclHashTable* g_VertexDecls = NULL;
 static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
@@ -587,6 +591,50 @@ const VDeclInfo& VertexDeclHandle::GetInfo()
 }
 
 
+SGRX_SurfaceShader::~SGRX_SurfaceShader()
+{
+	g_SurfShaders->unset( m_key );
+}
+
+void SGRX_SurfaceShader::ReloadShaders()
+{
+	// prevent deallocation
+	Array< ShaderHandle > newshaders;
+	newshaders.resize( g_Renderer->m_renderPasses.size() * 2 );
+	
+	for( size_t pass_id = 0; pass_id < g_Renderer->m_renderPasses.size(); ++pass_id )
+	{
+		const SGRX_RenderPass& PASS = g_Renderer->m_renderPasses[ pass_id ];
+		if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT )
+			continue;
+		
+		char bfr[ 1000 ] = {0};
+		snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s", (int) m_key.size(), m_key.data(), (int) PASS.shader_name.size(), PASS.shader_name.data() );
+		if( PASS.flags & RPF_OBJ_DYNAMIC )
+			strcat( bfr, ":DYNAMIC" );
+		if( PASS.flags & RPF_OBJ_STATIC )
+			strcat( bfr, ":STATIC" );
+		newshaders[ pass_id ] = GR_GetShader( bfr );
+		strcat( bfr, ":SKIN" );
+		newshaders[ pass_id + g_Renderer->m_renderPasses.size() ] = GR_GetShader( bfr );
+	}
+	
+	m_shaders = newshaders;
+}
+
+
+SGRX_Material::SGRX_Material() :
+	transparent(0), unlit(0), additive(0),
+	m_refcount(0)
+{
+}
+
+SGRX_Material::~SGRX_Material()
+{
+	g_Materials->unset( m_key );
+}
+
+
 SGRX_IMesh::SGRX_IMesh() :
 	m_dataFlags( 0 ),
 	m_vertexCount( 0 ),
@@ -612,25 +660,7 @@ bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
 		return false;
 	int i;
 	for( i = 0; i < count; ++i )
-	{
 		m_parts[ i ] = parts[ i ];
-		for( size_t pass_id = 0; pass_id < g_Renderer->m_renderPasses.size(); ++pass_id )
-		{
-			const SGRX_RenderPass& PASS = g_Renderer->m_renderPasses[ pass_id ];
-			if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT )
-				continue;
-			
-			char bfr[ 1000 ] = {0};
-			snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s", SHADER_NAME_LENGTH, m_parts[ i ].shader_name, (int) PASS.shader_name.size(), PASS.shader_name.data() );
-			if( PASS.flags & RPF_OBJ_DYNAMIC )
-				strcat( bfr, ":DYNAMIC" );
-			if( PASS.flags & RPF_OBJ_STATIC )
-				strcat( bfr, ":STATIC" );
-			m_parts[ i ].shaders[ pass_id ] = GR_GetShader( bfr );
-			strcat( bfr, ":SKIN" );
-			m_parts[ i ].shaders_skin[ pass_id ] = GR_GetShader( bfr );
-		}
-	}
 	for( ; i < count; ++i )
 		m_parts[ i ] = SGRX_MeshPart();
 	m_numParts = count;
@@ -800,7 +830,7 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	dynamic( false ),
 	transparent( false ),
 	unlit( false ),
-	additive( false ),
+//	additive( false ),
 	_lightbuf_begin( NULL ),
 	_lightbuf_end( NULL ),
 	_refcount( 0 )
@@ -1403,6 +1433,30 @@ has_compiled_shader:
 }
 
 
+SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
+{
+	SGRX_SurfaceShader* ssh = g_SurfShaders->getcopy( name );
+	if( ssh )
+		return ssh;
+	
+	ssh = new SGRX_SurfaceShader;
+	ssh->m_refcount = 0;
+	ssh->m_key = name;
+	ssh->ReloadShaders();
+	g_SurfShaders->set( ssh->m_key, ssh );
+	
+	LOG << "Created surface shader: " << name;
+	return ssh;
+}
+
+
+MaterialHandle GR_CreateMaterial()
+{
+	SGRX_Material* mtl = new SGRX_Material;
+	return mtl;
+}
+
+
 VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 {
 	SGRX_IVertexDecl* VD = g_VertexDecls->getcopy( vdecl );
@@ -1492,19 +1546,21 @@ MeshHandle GR_GetMesh( const StringView& path )
 		parts[ i ].vertexCount = mfd.parts[ i ].vertexCount;
 		parts[ i ].indexOffset = mfd.parts[ i ].indexOffset;
 		parts[ i ].indexCount = mfd.parts[ i ].indexCount;
+		
+		MaterialHandle mh = GR_CreateMaterial();
 		if( mfd.parts[ i ].materialStringSizes[0] >= SHADER_NAME_LENGTH )
 		{
 			LOG_WARNING << "Shader name for part " << i << " is too long";
 		}
 		else
 		{
-			memset( parts[ i ].shader_name, 0, sizeof( parts[ i ].shader_name ) );
-			strncpy( parts[ i ].shader_name, mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] );
+			mh->shader = GR_GetSurfaceShader( StringView( mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] ) );
 		}
 		for( int tid = 0; tid < mfd.parts[ i ].materialTextureCount; ++tid )
 		{
-			parts[ i ].textures[ tid ] = GR_GetTexture( StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] ) );
+			mh->textures[ tid ] = GR_GetTexture( StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] ) );
 		}
+		parts[ i ].material = mh;
 	}
 	if( !mesh->SetPartData( parts, mfd.numParts ) )
 	{
@@ -2159,6 +2215,8 @@ static int init_graphics()
 	
 	g_Textures = new TextureHashTable();
 	g_Shaders = new ShaderHashTable();
+	g_SurfShaders = new SurfShaderHashTable();
+	g_Materials = new MaterialHashTable();
 	g_VertexDecls = new VertexDeclHashTable();
 	g_Meshes = new MeshHashTable();
 	g_Anims = new AnimHashTable();
@@ -2195,6 +2253,12 @@ static void free_graphics()
 	
 	delete g_VertexDecls;
 	g_VertexDecls = NULL;
+	
+	delete g_Materials;
+	g_Materials = NULL;
+	
+	delete g_SurfShaders;
+	g_SurfShaders = NULL;
 	
 	delete g_Shaders;
 	g_Shaders = NULL;

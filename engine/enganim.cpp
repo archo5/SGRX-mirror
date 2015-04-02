@@ -734,14 +734,20 @@ void ParticleSystem::OnRenderUpdate()
 			m_meshInsts[ i ]->mesh = GR_CreateMesh();
 		
 		m_meshInsts[ i ]->matrix = Mat4::Identity; // E.absolute ? Mat4::Identity : m_transform;
-		m_meshInsts[ i ]->transparent = 1;
-		m_meshInsts[ i ]->additive = E.render_Additive;
-		m_meshInsts[ i ]->unlit = E.render_Additive;
+	//	m_meshInsts[ i ]->transparent = 1;
+	//	m_meshInsts[ i ]->additive = E.render_Additive;
+	//	m_meshInsts[ i ]->unlit = E.render_Additive;
 		
 		SGRX_MeshPart MP = { 0, 0, 0, 0 };
-		strncpy( MP.shader_name, E.render_Shader.data(), TMIN( E.render_Shader.size(), (size_t) SHADER_NAME_LENGTH - 1 ) );
+		
+		MaterialHandle mh = GR_CreateMaterial();
+		mh->transparent = 1;
+		mh->additive = E.render_Additive;
+		mh->unlit = E.render_Additive;
+		mh->shader = GR_GetSurfaceShader( E.render_Shader );
 		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
-			MP.textures[ t ] = E.render_Textures[ t ];
+			mh->textures[ t ] = E.render_Textures[ t ];
+		MP.material = mh;
 		
 		m_meshInsts[ i ]->mesh->SetPartData( &MP, 1 );
 	}
