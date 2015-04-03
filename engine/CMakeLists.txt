@@ -24,7 +24,7 @@ set_target_properties( sgrx-core PROPERTIES
 add_library( sgrx-render-d3d9 SHARED renderer_d3d9 )
 target_link_libraries( sgrx-render-d3d9 d3d9 d3dx9 sgrx-core )
 set_target_properties( sgrx-render-d3d9 PROPERTIES
-	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
+	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g -DENABLE_SHADER_COMPILING"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "-m32 -Wall -Wno-narrowing -Wno-unknown-pragmas -Wno-comment"
 	LINK_FLAGS "-m32"
@@ -32,9 +32,9 @@ set_target_properties( sgrx-render-d3d9 PROPERTIES
 
 # Renderer - D3D11
 add_library( sgrx-render-d3d11 SHARED renderer_d3d11 )
-target_link_libraries( sgrx-render-d3d11 d3d11 sgrx-core )
+target_link_libraries( sgrx-render-d3d11 d3d11 d3dcompiler_42 sgrx-core )
 set_target_properties( sgrx-render-d3d11 PROPERTIES
-	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
+	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g -DENABLE_SHADER_COMPILING"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "-m32 -Wall -Wno-narrowing -Wno-unknown-pragmas -Wno-comment"
 	LINK_FLAGS "-m32 -L${CMAKE_SOURCE_DIR}/ext/d3dx"

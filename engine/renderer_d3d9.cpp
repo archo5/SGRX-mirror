@@ -393,10 +393,9 @@ struct D3D9Renderer : IRenderer
 	void Swap();
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
-	void Clear( float* color_v4f, bool clear_zbuffer );
 	
-	void SetWorldMatrix( const Mat4& mtx );
-	void SetViewMatrix( const Mat4& mtx );
+	bool SetRenderTarget( TextureHandle rt );
+	void Clear( float* color_v4f, bool clear_zbuffer );
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( bool enable, int* rect );
 	
@@ -407,12 +406,10 @@ struct D3D9Renderer : IRenderer
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
 	
-	bool SetRenderTarget( TextureHandle rt );
-	
+	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount );
 	
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
-	
 	void RenderScene( SGRX_RenderScene* RS );
 	uint32_t _RS_Cull_Camera_MeshList();
 	uint32_t _RS_Cull_Camera_PointLightList();
@@ -421,7 +418,7 @@ struct D3D9Renderer : IRenderer
 	void _RS_Compile_MeshLists();
 	void _RS_Render_Shadows();
 	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
-	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
+	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
 	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
 	
 	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
@@ -463,6 +460,7 @@ struct D3D9Renderer : IRenderer
 	SGRX_IShader* m_sh_pp_blur_h;
 	SGRX_IShader* m_sh_pp_blur_v;
 	SGRX_IShader* m_sh_debug_draw;
+	Array< ShaderHandle > m_pass_shaders;
 	
 	// storage
 	HashTable< D3D9Texture*, bool > m_ownTextures;
@@ -1347,17 +1345,16 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 		}
 	}
 	
-	Array< SGRX_RenderPass > oldpasses = m_renderPasses;
-	m_renderPasses = Array< SGRX_RenderPass >( passes, count );
+	m_renderPasses.assign( passes, count );
+	Array< ShaderHandle > psh = m_pass_shaders;
+	m_pass_shaders.clear();
+	m_pass_shaders.reserve( count );
 	
 	for( int i = 0; i < (int) m_renderPasses.size(); ++i )
 	{
 		SGRX_RenderPass& PASS = m_renderPasses[ i ];
-		if( PASS.type == RPT_SCREEN )
-			PASS._shader = GR_GetShader( PASS.shader_name );
+		m_pass_shaders.push_back( PASS.type == RPT_SCREEN ? GR_GetShader( PASS.shader_name ) : ShaderHandle() );
 	}
-	
-	// TODO reload mesh shaders
 	
 	return true;
 }
@@ -1537,7 +1534,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 			PS_SetVec4( 4, campos4 );
 			_RS_RenderPass_Object( pass, pass_id );
 		}
-		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, tx_depth, RTOUT );
+		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, tx_depth, RTOUT );
 	}
 	
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
@@ -2031,8 +2028,9 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 	}
 }
 
-void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
+void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
 {
+	UNUSED( pass );
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	
 	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
@@ -2047,7 +2045,7 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, IDirect3D
 	_SetTextureInt( 0, tx_depth, TEXTURE_FLAGS_FULLSCREEN );
 	SetTexture( 4, m_currentScene->skyTexture );
 	
-	SetShader( pass._shader );
+	SetShader( m_pass_shaders[ pass_id ] );
 	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
 	PS_SetVec4( 4, campos4 );
 	PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );

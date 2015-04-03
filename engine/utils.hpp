@@ -39,6 +39,9 @@
 #define STRLIT_BUF( x ) x, STRLIT_LEN( x )
 
 
+ENGINE_EXPORT void NOP( int x );
+
+
 #define SMALL_FLOAT 0.001f
 #define ENGINE_MAX_PATH 256
 

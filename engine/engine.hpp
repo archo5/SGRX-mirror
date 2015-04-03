@@ -432,8 +432,8 @@ struct ENGINE_EXPORT SGRX_IMesh
 	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
 	virtual bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
 	virtual bool UpdateIndexData( const void* data, size_t size ) = 0;
+	virtual bool SetPartData( SGRX_MeshPart* parts, int count );
 	
-	bool SetPartData( SGRX_MeshPart* parts, int count );
 	bool SetBoneData( SGRX_MeshBone* bones, int count );
 	bool RecalcBoneMatrices();
 	bool SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd );

@@ -21,6 +21,9 @@
 #include "utils.hpp"
 
 
+void NOP( int x ){}
+
+
 const Quat Quat::Identity = { 0, 0, 0, 1 };
 
 
