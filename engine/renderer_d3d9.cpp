@@ -162,10 +162,7 @@ struct D3D9RenderTexture : D3D9Texture
 	IDirect3DSurface9* DSS; /* depth/stencil surface */
 	int format;
 	
-	D3D9RenderTexture()
-	{
-		m_isRenderTexture = true;
-	}
+	D3D9RenderTexture() : D3D9Texture(true){}
 	virtual ~D3D9RenderTexture()
 	{
 		SAFE_RELEASE( CS );
@@ -714,7 +711,6 @@ D3D9Texture::~D3D9Texture()
 
 SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 {
-	int mip, side;
 	HRESULT hr;
 	// TODO: filter unsupported formats / dimensions
 	
@@ -733,7 +729,7 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		if( data )
 		{
 			// load all mip levels into it
-			for( mip = 0; mip < texinfo->mipcount; ++mip )
+			for( int mip = 0; mip < texinfo->mipcount; ++mip )
 			{
 				D3DLOCKED_RECT lr;
 				hr = d3dtex->LockRect( mip, &lr, NULL, D3DLOCK_DISCARD );
@@ -770,9 +766,9 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		if( data )
 		{
 			// load all mip levels into it
-			for( side = 0; side < 6; ++side )
+			for( int side = 0; side < 6; ++side )
 			{
-				for( mip = 0; mip < texinfo->mipcount; ++mip )
+				for( int mip = 0; mip < texinfo->mipcount; ++mip )
 				{
 					D3DLOCKED_RECT lr;
 					hr = d3dtex->LockRect( (D3DCUBEMAP_FACES) side, mip, &lr, NULL, D3DLOCK_DISCARD );
