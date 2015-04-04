@@ -387,7 +387,7 @@ struct D3D9Renderer : IRenderer
 	D3D9Renderer() : m_dbg_rt( false ){ m_view.SetIdentity(); m_proj.SetIdentity(); }
 	void Destroy();
 	const RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
-	void LoadInternalResources();
+	bool LoadInternalResources();
 	void UnloadInternalResources();
 	
 	void Swap();
@@ -583,13 +583,21 @@ void D3D9Renderer::Destroy()
 	delete this;
 }
 
-void D3D9Renderer::LoadInternalResources()
+bool D3D9Renderer::LoadInternalResources()
 {
-	ShaderHandle sh_pp_final = GR_GetShader( "testFRpost" );
+	ShaderHandle sh_pp_final = GR_GetShader( "pp_final" );
 	ShaderHandle sh_pp_dshp = GR_GetShader( "pp_bloom_dshp" );
 	ShaderHandle sh_pp_blur_h = GR_GetShader( "pp_bloom_blur_h" );
 	ShaderHandle sh_pp_blur_v = GR_GetShader( "pp_bloom_blur_v" );
 	ShaderHandle sh_debug_draw = GR_GetShader( "debug_draw" );
+	if( !sh_pp_final ||
+		!sh_pp_dshp ||
+		!sh_pp_blur_h ||
+		!sh_pp_blur_v ||
+		!sh_debug_draw )
+	{
+		return false;
+	}
 	sh_pp_final->Acquire();
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
@@ -600,6 +608,7 @@ void D3D9Renderer::LoadInternalResources()
 	m_sh_pp_blur_h = sh_pp_blur_h;
 	m_sh_pp_blur_v = sh_pp_blur_v;
 	m_sh_debug_draw = sh_debug_draw;
+	return true;
 }
 
 void D3D9Renderer::UnloadInternalResources()

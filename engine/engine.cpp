@@ -2235,7 +2235,11 @@ static int init_graphics()
 	g_FontRenderer = new FontRenderer();
 	LOG << LOG_DATE << "  Created font renderer";
 	
-	g_Renderer->LoadInternalResources();
+	if( !g_Renderer->LoadInternalResources() )
+	{
+		LOG_ERROR << "Failed to load renderer (" << rendername << ") internal resources";
+		return 106;
+	}
 	LOG << LOG_DATE << "  Loaded internal renderer resources";
 	
 	return 0;

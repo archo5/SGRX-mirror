@@ -155,7 +155,7 @@ struct ENGINE_EXPORT IRenderer
 	
 	virtual void Destroy() = 0;
 	virtual const RendererInfo& GetInfo() = 0;
-	virtual void LoadInternalResources() = 0;
+	virtual bool LoadInternalResources() = 0;
 	virtual void UnloadInternalResources() = 0;
 	virtual void Swap() = 0;
 	virtual void Modify( const RenderSettings& settings ) = 0;

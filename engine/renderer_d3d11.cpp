@@ -94,7 +94,7 @@ static int create_buf( ID3D11Device* device, size_t numbytes, bool dyn, D3D11_BI
 	dbd.ByteWidth = numbytes;
 	dbd.Usage = dyn ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
 	dbd.BindFlags = bindtype;
-	dbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	dbd.CPUAccessFlags = dyn ? D3D11_CPU_ACCESS_WRITE : 0;
 	
 	D3D11_SUBRESOURCE_DATA srd;
 	memset( &srd, 0, sizeof(srd) );
@@ -110,19 +110,26 @@ static int create_buf( ID3D11Device* device, size_t numbytes, bool dyn, D3D11_BI
 	return 0;
 }
 
-static int upload_buf( ID3D11DeviceContext* ctx, ID3D11Buffer* buf, bool discard, const void* data, size_t size )
+static int upload_buf( ID3D11DeviceContext* ctx, ID3D11Buffer* buf, bool dyn, bool discard, const void* data, size_t size )
 {
-	D3D11_MAPPED_SUBRESOURCE msr;
-	HRESULT hr = ctx->Map( buf, 0, discard ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
-	if( FAILED( hr ) )
+	if( dyn )
 	{
-		LOG_ERROR << "failed to lock D3D11 buffer";
-		return -1;
+		D3D11_MAPPED_SUBRESOURCE msr;
+		HRESULT hr = ctx->Map( buf, 0, discard ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to lock D3D11 buffer";
+			return -1;
+		}
+		
+		memcpy( msr.pData, data, size );
+		
+		ctx->Unmap( buf, 0 );
 	}
-	
-	memcpy( msr.pData, data, size );
-	
-	ctx->Unmap( buf, 0 );
+	else
+	{
+		ctx->UpdateSubresource( buf, 0, NULL, data, size, 0 );
+	}
 	return 0;
 }
 
@@ -232,7 +239,7 @@ struct D3D11Renderer : IRenderer
 	D3D11Renderer() : m_dbg_rt( false ){}
 	void Destroy();
 	const RendererInfo& GetInfo(){ return g_D3D11RendererInfo; }
-	void LoadInternalResources();
+	bool LoadInternalResources();
 	void UnloadInternalResources();
 	
 	void Swap();
@@ -414,7 +421,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	}
 	
 	// Depth/stencil buffer
-	NOP( DXGI_FORMAT_D24_UNORM_S8_UINT ); // GCC is just amazing
+//	NOP( DXGI_FORMAT_D24_UNORM_S8_UINT ); // GCC is just amazing
 	if( create_rtt( device, settings.width, settings.height, msamples, DXGI_FORMAT_D24_UNORM_S8_UINT, true, &depthBuffer, &dsView ) )
 		return NULL;
 	
@@ -429,7 +436,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	R->m_rtView = rtView;
 	R->m_dsView = dsView;
 	
-	NOP( (int) &R->m_cbdata_vs_batchverts ); // did I mention GCC is just superb?
+//	NOP( (int) &R->m_cbdata_vs_batchverts ); // did I mention GCC is just superb?
 	if( create_buf( device, sizeof(R->m_cbdata_vs_batchverts), true, D3D11_BIND_CONSTANT_BUFFER, &R->m_cbdata_vs_batchverts, &R->m_cbuf_vs_batchverts ) )
 		return NULL;
 	
@@ -450,13 +457,21 @@ void D3D11Renderer::Destroy()
 	delete this;
 }
 
-void D3D11Renderer::LoadInternalResources()
+bool D3D11Renderer::LoadInternalResources()
 {
-	ShaderHandle sh_pp_final = GR_GetShader( "testFRpost" );
+	ShaderHandle sh_pp_final = GR_GetShader( "pp_final" );
 	ShaderHandle sh_pp_dshp = GR_GetShader( "pp_bloom_dshp" );
 	ShaderHandle sh_pp_blur_h = GR_GetShader( "pp_bloom_blur_h" );
 	ShaderHandle sh_pp_blur_v = GR_GetShader( "pp_bloom_blur_v" );
 	ShaderHandle sh_debug_draw = GR_GetShader( "debug_draw" );
+	if( !sh_pp_final ||
+		!sh_pp_dshp ||
+		!sh_pp_blur_h ||
+		!sh_pp_blur_v ||
+		!sh_debug_draw )
+	{
+		return false;
+	}
 	sh_pp_final->Acquire();
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
@@ -467,6 +482,7 @@ void D3D11Renderer::LoadInternalResources()
 	m_sh_pp_blur_h = sh_pp_blur_h;
 	m_sh_pp_blur_v = sh_pp_blur_v;
 	m_sh_debug_draw = sh_debug_draw;
+	return true;
 }
 
 void D3D11Renderer::UnloadInternalResources()
@@ -523,26 +539,39 @@ D3D11Texture::~D3D11Texture()
 
 bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
 {
-	D3D11_MAPPED_SUBRESOURCE msr;
+	// sure, we copied... nothing
+	if( !w || !h )
+		return true;
 	
-	bool whole = x == 0 && y == 0 && w == m_info.width && h == m_info.height;
-	HRESULT hr = m_renderer->m_ctx->Map( m_ptr.res, mip, whole ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
-	if( FAILED( hr ) )
+	bool dyn = false;
+	if( dyn )
 	{
-		LOG_ERROR << "failed to map D3D11 texture";
-		return false;
+		D3D11_MAPPED_SUBRESOURCE msr;
+		
+		bool whole = x == 0 && y == 0 && w == m_info.width && h == m_info.height;
+		HRESULT hr = m_renderer->m_ctx->Map( m_ptr.res, mip, whole ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to map D3D11 texture";
+			return false;
+		}
+		*(uint8_t**)&msr.pData += msr.RowPitch * y + x * 4;
+		
+		for( int j = 0; j < h; ++j )
+		{
+			uint8_t* dst = (uint8_t*)msr.pData + msr.RowPitch * j;
+			memcpy( dst, ((uint32_t*)data) + w * j, w * 4 );
+	//		if( m_info.format == TEXFORMAT_RGBA8 )
+	//			swap4b2ms( (uint32_t*) dst, w, 0xff0000, 16, 0xff, 16 );
+		}
+		
+		m_renderer->m_ctx->Unmap( m_ptr.res, mip );
 	}
-	*(uint8_t**)&msr.pData += msr.RowPitch * y + x * 4;
-	
-	for( int j = 0; j < h; ++j )
+	else
 	{
-		uint8_t* dst = (uint8_t*)msr.pData + msr.RowPitch * j;
-		memcpy( dst, ((uint32_t*)data) + w * j, w * 4 );
-//		if( m_info.format == TEXFORMAT_RGBA8 )
-//			swap4b2ms( (uint32_t*) dst, w, 0xff0000, 16, 0xff, 16 );
+		D3D11_BOX box = { x, y, 0, x + w, y + h, 1 };
+		m_renderer->m_ctx->UpdateSubresource( m_ptr.res, mip, &box, data, w * 4, 0 );
 	}
-	
-	m_renderer->m_ctx->Unmap( m_ptr.res, mip );
 	
 	return true;
 }
@@ -683,7 +712,7 @@ bool D3D11Renderer::CompileShader( const StringView& code, ByteArray& outcomp, S
 	
 	int32_t shsize;
 	
-	hr = D3DCompile( code.data(), code.size(), "source", vsmacros, NULL, "main", "vs_3_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
+	hr = D3DCompile( code.data(), code.size(), "source", vsmacros, NULL, "main", "vs_4_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
 	if( FAILED( hr ) )
 	{
 		if( outerr )
@@ -708,7 +737,7 @@ bool D3D11Renderer::CompileShader( const StringView& code, ByteArray& outcomp, S
 	SAFE_RELEASE( outbuf );
 	SAFE_RELEASE( outerr );
 	
-	hr = D3DCompile( code.data(), code.size(), "source", psmacros, NULL, "main", "ps_3_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
+	hr = D3DCompile( code.data(), code.size(), "source", psmacros, NULL, "main", "ps_4_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
 	if( FAILED( hr ) )
 	{
 		if( outerr )
@@ -877,7 +906,8 @@ bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, VertexDeclHandl
 		return false;
 	}
 	
-	upload_buf( m_renderer->m_ctx, m_VB, true, data, size );
+	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
+	upload_buf( m_renderer->m_ctx, m_VB, dyn, true, data, size );
 	
 	m_vertexDecl = vd;
 	m_dataFlags = ( m_dataFlags & ~MDF_TRIANGLESTRIP ) | ( MDF_TRIANGLESTRIP * tristrip );
@@ -895,7 +925,8 @@ bool D3D11Mesh::UpdateIndexData( const void* data, size_t size )
 		return false;
 	}
 	
-	upload_buf( m_renderer->m_ctx, m_IB, true, data, size );
+	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
+	upload_buf( m_renderer->m_ctx, m_IB, dyn, true, data, size );
 	
 	return true;
 }
@@ -960,7 +991,7 @@ void D3D11Renderer::SetMatrix( bool view, const Mat4& mtx )
 		m_cbdata_vs_batchverts.view = mtx;
 	else
 		m_cbdata_vs_batchverts.world = mtx;
-	upload_buf( m_ctx, m_cbuf_vs_batchverts, true, &m_cbdata_vs_batchverts, sizeof(m_cbdata_vs_batchverts) );
+	upload_buf( m_ctx, m_cbuf_vs_batchverts, true, true, &m_cbdata_vs_batchverts, sizeof(m_cbdata_vs_batchverts) );
 }
 
 void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount )
