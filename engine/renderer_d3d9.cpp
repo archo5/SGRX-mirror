@@ -1324,7 +1324,6 @@ FINLINE D3DPRIMITIVETYPE conv_prim_type( EPrimitiveType pt )
 	case PT_LineStrip: return D3DPT_LINESTRIP;
 	case PT_Triangles: return D3DPT_TRIANGLELIST;
 	case PT_TriangleStrip: return D3DPT_TRIANGLESTRIP;
-	case PT_TriangleFan: return D3DPT_TRIANGLEFAN;
 	default: return (D3DPRIMITIVETYPE) 0;
 	}
 }
@@ -1338,7 +1337,6 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 	case PT_LineStrip: if( numverts < 2 ) return 0; return numverts - 1;
 	case PT_Triangles: return numverts / 3;
 	case PT_TriangleStrip:
-	case PT_TriangleFan: if( numverts < 3 ) return 0; return numverts - 2;
 	default: return 0;
 	}
 }

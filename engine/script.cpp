@@ -149,7 +149,6 @@ static sgs_RegIntConst g_ent_scripted_ric[] =
 	{ "PT_Lines", PT_Lines },
 	{ "PT_LineStrip", PT_LineStrip },
 	{ "PT_Triangles", PT_Triangles },
-	{ "PT_TriangleFan", PT_TriangleFan },
 	{ "PT_TriangleStrip", PT_TriangleStrip },
 	{ NULL, 0 },
 };

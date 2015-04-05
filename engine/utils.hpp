@@ -1238,6 +1238,7 @@ struct String : Array< char >
 	String( const char* str, size_t size ) : Array( str, size ){}
 	String( const String& s ) : Array( s ){}
 	
+	FINLINE void append( const struct StringView& sv );
 	FINLINE void append( const char* str, size_t sz ){ Array::append( str, sz ); }
 	FINLINE void append( const char* str ){ append( str, StringLength( str ) ); }
 	template< class TA > void Serialize( TA& arch )
@@ -1284,6 +1285,20 @@ struct StringView
 				return i;
 		return defval;
 	}
+	FINLINE size_t substr_end( const StringView& substr ) const { return m_size - TMIN( m_size, substr.m_size ); }
+	FINLINE size_t find_last_at( const StringView& substr, size_t from, size_t defval = NOT_FOUND ) const
+	{
+		if( substr.m_size > m_size )
+			return defval;
+		for( size_t i = from; i <= m_size - substr.m_size; ++i )
+			if( !memcmp( m_str + i, substr.m_str, substr.m_size ) )
+				return i;
+		return defval;
+	}
+	FINLINE size_t find_last_at( const StringView& substr ) const
+	{
+		return find_last_at( substr, substr_end( substr ) );
+	}
 	FINLINE bool is_any( char c ) const
 	{
 		for( size_t i = 0; i < m_size; ++i )
@@ -1326,6 +1341,16 @@ struct StringView
 		size_t pos = find_first_at( substr, 0, m_size );
 		return StringView( m_str, pos );
 	}
+	FINLINE StringView until_last( const StringView& substr ) const
+	{
+		size_t pos = find_last_at( substr, m_size - 1, 0 );
+		return StringView( m_str, pos );
+	}
+	FINLINE StringView up_to_last( const StringView& substr ) const
+	{
+		size_t pos = find_last_at( substr );
+		return pos == NOT_FOUND ? StringView( m_str, 0 ) : StringView( m_str, pos + substr.size() );
+	}
 	FINLINE StringView until_any( const StringView& chars ) const
 	{
 		const char *ptr = m_str, *end = m_str + m_size;
@@ -1367,6 +1392,11 @@ struct StringView
 	FINLINE operator String () const { return String( m_str, m_size ); }
 #endif
 };
+
+FINLINE void String::append( const StringView& sv )
+{
+	append( sv.m_str, sv.m_size );
+}
 
 struct ConfigReader
 {

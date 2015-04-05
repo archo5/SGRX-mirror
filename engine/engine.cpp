@@ -520,6 +520,35 @@ bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, St
 
 bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata )
 {
+	String basepath = path.up_to_last( "/" );
+	String nstr;
+	StringView it = outdata, inc;
+	while( ( inc = it.from( "#include" ) ) != StringView() )
+	{
+		// generate path
+		String incstr = inc.after( "\"" ).until( "\"" );
+		String incpath = String_Concat( basepath, incstr );
+		
+		// append prior data
+		nstr.append( it.data(), inc.data() - it.data() );
+		
+		// comment pointing to file name
+		nstr.append( "// " );
+		nstr.append( incpath );
+		nstr.append( "\n" );
+		
+		// contents of new file
+		String incfiledata;
+		if( !OnLoadShaderFile( type, incpath, incfiledata ) )
+			return false;
+		nstr.append( incfiledata );
+		
+		// continue
+		it = inc.after( "\"" ).after( "\"" );
+	}
+	nstr.append( it );
+	
+	outdata = nstr;
 	return true;
 }
 
@@ -2024,16 +2053,19 @@ BatchRenderer& BatchRenderer::CircleFill( float x, float y, float r, float z, in
 		verts = r * M_PI * 2;
 	if( verts >= 3 )
 	{
-		SetPrimitiveType( PT_TriangleFan );
-		Pos( x, y, z );
-		float a = 0;
+		SetPrimitiveType( PT_Triangles );
 		float ad = M_PI * 2.0f / verts;
+		float a = ad, ps = 0, pc = 1;
 		for( int i = 0; i < verts; ++i )
 		{
-			Pos( x + sin( a ) * r, y + cos( a ) * r, z );
+			float cs = sin( a ), cc = cos( a );
+			Pos( x + ps * r, y + pc * r, z );
+			Pos( x + cs * r, y + cc * r, z );
+			Pos( x, y, z );
+			pc = cc;
+			ps = cs;
 			a += ad;
 		}
-		Prev( verts - 1 );
 	}
 	return *this;
 }
@@ -2161,7 +2193,7 @@ BatchRenderer& BatchRenderer::SetShader( const PixelShaderHandle& shd )
 
 inline bool _is_noncont_primtype( EPrimitiveType pt )
 {
-	return pt == PT_LineStrip || pt == PT_TriangleFan || pt == PT_TriangleStrip;
+	return pt == PT_LineStrip || pt == PT_TriangleStrip;
 }
 
 BatchRenderer& BatchRenderer::SetPrimitiveType( EPrimitiveType pt )

@@ -81,7 +81,7 @@ static int create_rtt_( ID3D11Device* device, int width, int height, int msample
 }
 #define create_rtt( dev, w, h, ms, fmt, ds, outtex, outview ) create_rtt_( dev, w, h, ms, fmt, ds, outtex, (void**) outview )
 
-static int create_buf( ID3D11Device* device, size_t numbytes, bool dyn, D3D11_BIND_FLAG bindtype, void* data, ID3D11Buffer** out )
+static int create_buf( ID3D11Device* device, size_t numbytes, bool dyn, D3D11_BIND_FLAG bindtype, const void* data, ID3D11Buffer** out )
 {
 	const char* what = "?";
 	if( bindtype == D3D11_BIND_VERTEX_BUFFER ) what = "vertex";
@@ -134,6 +134,53 @@ static int upload_buf( ID3D11DeviceContext* ctx, ID3D11Buffer* buf, bool dyn, bo
 }
 
 
+struct D3D11DynBuffer
+{
+	D3D11DynBuffer() : buffer( NULL ), currSize( 0 ){}
+	~D3D11DynBuffer()
+	{
+		if( buffer )
+			LOG << "UNFREED DYNAMIC BUFFER";
+	}
+	void Free()
+	{
+		SAFE_RELEASE( buffer );
+	}
+	void Upload( ID3D11Device* dev, ID3D11DeviceContext* ctx, D3D11_BIND_FLAG bindtype, const void* data, size_t size )
+	{
+		if( !size )
+			return;
+		if( size > currSize )
+		{
+			SAFE_RELEASE( buffer );
+			create_buf( dev, size, true, bindtype, data, &buffer );
+			currSize = size;
+		}
+		else
+			upload_buf( ctx, buffer, true, true, data, size );
+	}
+	
+	operator ID3D11Buffer* () const { return buffer; }
+	ID3D11Buffer** PPBuf() { return &buffer; }
+	
+	ID3D11Buffer* buffer;
+	size_t currSize;
+	
+private:
+	D3D11DynBuffer( const D3D11DynBuffer& );
+	D3D11DynBuffer& operator = ( const D3D11DynBuffer& );
+};
+
+
+struct BackupVertexData
+{
+	Vec4 color;
+	Vec4 tangent;
+	Vec4 tex[4];
+};
+static BackupVertexData g_initial_backup_vertex_data = {0};
+
+
 struct D3D11Texture : SGRX_ITexture
 {
 	union
@@ -143,9 +190,10 @@ struct D3D11Texture : SGRX_ITexture
 		ID3D11Resource* res;
 	}
 	m_ptr;
+	ID3D11ShaderResourceView* m_rsrcView;
 	struct D3D11Renderer* m_renderer;
 	
-	D3D11Texture( bool isRenderTexture = false )
+	D3D11Texture( bool isRenderTexture = false ) : m_rsrcView(NULL), m_renderer(NULL)
 	{
 		m_isRenderTexture = isRenderTexture;
 	}
@@ -202,6 +250,7 @@ struct D3D11PixelShader : SGRX_IPixelShader
 struct D3D11VertexDecl : SGRX_IVertexDecl
 {
 	D3D11_INPUT_ELEMENT_DESC m_elements[ VDECL_MAX_ITEMS ];
+	int m_elemCount;
 	struct D3D11Renderer* m_renderer;
 };
 
@@ -318,12 +367,13 @@ struct D3D11Renderer : IRenderer
 	// helpers
 //	RTData m_drd;
 	
+	SGRX_IVertexShader* m_sh_bv_vs;
+	SGRX_IPixelShader* m_sh_bv_ps;
 	SGRX_IVertexShader* m_sh_pp_vs;
 	SGRX_IPixelShader* m_sh_pp_final;
 	SGRX_IPixelShader* m_sh_pp_dshp;
 	SGRX_IPixelShader* m_sh_pp_blur_h;
 	SGRX_IPixelShader* m_sh_pp_blur_v;
-	SGRX_IPixelShader* m_sh_debug_draw;
 	Array< PixelShaderHandle > m_pass_shaders;
 	
 	// storage
@@ -340,8 +390,12 @@ struct D3D11Renderer : IRenderer
 	ID3D11DepthStencilView* m_dsView;
 	
 	// rendering data
+	ID3D11InputLayout* m_inputLayout_batchverts;
+	ID3D11Buffer* m_vertbuf_defaults;
 	cb_vs_batchverts m_cbdata_vs_batchverts;
 	ID3D11Buffer* m_cbuf_vs_batchverts;
+	D3D11DynBuffer m_vertbuf_batchverts;
+	D3D11DynBuffer m_cbuf_ps_batchverts;
 	
 	// temp data
 	SceneHandle m_currentScene;
@@ -434,7 +488,6 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	}
 	
 	// Depth/stencil buffer
-//	NOP( DXGI_FORMAT_D24_UNORM_S8_UINT ); // GCC is just amazing
 	if( create_rtt( device, settings.width, settings.height, msamples, DXGI_FORMAT_D24_UNORM_S8_UINT, true, &depthBuffer, &dsView ) )
 		return NULL;
 	
@@ -449,15 +502,20 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	R->m_rtView = rtView;
 	R->m_dsView = dsView;
 	
-//	NOP( (int) &R->m_cbdata_vs_batchverts ); // did I mention GCC is just superb?
 	if( create_buf( device, sizeof(R->m_cbdata_vs_batchverts), true, D3D11_BIND_CONSTANT_BUFFER, &R->m_cbdata_vs_batchverts, &R->m_cbuf_vs_batchverts ) )
 		return NULL;
+	
+	if( create_buf( device, sizeof(g_initial_backup_vertex_data), false, D3D11_BIND_VERTEX_BUFFER, &g_initial_backup_vertex_data, &R->m_vertbuf_defaults ) )
+		return NULL;
+	
+	R->SetViewport( 0, 0, settings.width, settings.height );
 	
 	return R;
 }
 
 void D3D11Renderer::Destroy()
 {
+	SAFE_RELEASE( m_vertbuf_defaults );
 	SAFE_RELEASE( m_cbuf_vs_batchverts );
 	
 	SAFE_RELEASE( m_dsView );
@@ -472,33 +530,54 @@ void D3D11Renderer::Destroy()
 
 bool D3D11Renderer::LoadInternalResources()
 {
-	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "pp_vs" );
-	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "pp_final" );
-	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "pp_bloom_dshp" );
-	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "pp_bloom_blur_h" );
-	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "pp_bloom_blur_v" );
-	PixelShaderHandle sh_debug_draw = GR_GetPixelShader( "debug_draw" );
-	if( !sh_pp_vs ||
+	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
+	PixelShaderHandle sh_bv_ps = GR_GetPixelShader( "sys_bv_ps" );
+	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "sys_pp_vs" );
+	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "sys_pp_final" );
+	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "sys_pp_bloom_dshp" );
+	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "sys_pp_bloom_blur_h" );
+	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "sys_pp_bloom_blur_v" );
+	if( !sh_bv_vs ||
+		!sh_bv_ps ||
+		!sh_pp_vs ||
 		!sh_pp_final ||
 		!sh_pp_dshp ||
 		!sh_pp_blur_h ||
-		!sh_pp_blur_v ||
-		!sh_debug_draw )
+		!sh_pp_blur_v )
 	{
 		return false;
 	}
+	sh_bv_vs->Acquire();
+	sh_bv_ps->Acquire();
 	sh_pp_vs->Acquire();
 	sh_pp_final->Acquire();
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
 	sh_pp_blur_v->Acquire();
-	sh_debug_draw->Acquire();
+	m_sh_bv_vs = sh_bv_vs;
+	m_sh_bv_ps = sh_bv_ps;
 	m_sh_pp_vs = sh_pp_vs;
 	m_sh_pp_final = sh_pp_final;
 	m_sh_pp_dshp = sh_pp_dshp;
 	m_sh_pp_blur_h = sh_pp_blur_h;
 	m_sh_pp_blur_v = sh_pp_blur_v;
-	m_sh_debug_draw = sh_debug_draw;
+	
+	SetVertexShader( m_sh_bv_vs );
+	
+	D3D11_INPUT_ELEMENT_DESC bv_elems[3] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	SGRX_CAST( D3D11VertexShader*, VS, m_sh_bv_vs );
+	HRESULT hr = m_dev->CreateInputLayout( bv_elems, SGRX_ARRAY_SIZE(bv_elems), VS->m_VSBC.data(), VS->m_VSBC.size(), &m_inputLayout_batchverts );
+	if( FAILED( hr ) || !m_inputLayout_batchverts )
+	{
+		LOG_ERROR << "Failed to create D3D11 batch vertex input layout";
+		return false;
+	}
+	
 	return true;
 }
 
@@ -506,12 +585,18 @@ void D3D11Renderer::UnloadInternalResources()
 {
 	SetRenderPasses( NULL, 0 );
 	
+	SAFE_RELEASE( m_inputLayout_batchverts );
+	
+	m_sh_bv_vs->Release();
+	m_sh_bv_ps->Release();
 	m_sh_pp_vs->Release();
 	m_sh_pp_final->Release();
 	m_sh_pp_dshp->Release();
 	m_sh_pp_blur_h->Release();
 	m_sh_pp_blur_v->Release();
-	m_sh_debug_draw->Release();
+	
+	m_vertbuf_batchverts.Free();
+	m_cbuf_ps_batchverts.Free();
 }
 
 void D3D11Renderer::Swap()
@@ -552,6 +637,7 @@ void D3D11Renderer::SetScissorRect( bool enable, int* rect )
 D3D11Texture::~D3D11Texture()
 {
 	m_renderer->m_ownTextures.unset( this );
+	SAFE_RELEASE( m_rsrcView );
 	SAFE_RELEASE( m_ptr.res );
 }
 
@@ -603,6 +689,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 	{
 		int at = 0, sides = texinfo->type == TEXTYPE_CUBE ? 6 : 1;
 		ID3D11Texture2D* tex2d = NULL;
+		ID3D11ShaderResourceView* srv = NULL;
 		
 		D3D11_TEXTURE2D_DESC dtd;
 		memset( &dtd, 0, sizeof(dtd) );
@@ -614,6 +701,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		dtd.Usage = D3D11_USAGE_DEFAULT;
 		dtd.CPUAccessFlags = 0;
 		dtd.SampleDesc.Count = 1;
+		dtd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		
 		D3D11_SUBRESOURCE_DATA srd[ 128 ];
 		memset( &srd, 0, sizeof(srd) );
@@ -644,10 +732,20 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 			return NULL;
 		}
 		
+		hr = m_dev->CreateShaderResourceView( tex2d, NULL, &srv );
+		if( FAILED( hr ) || !srv )
+		{
+			LOG_ERROR << "could not create D3D11 shader resource view for texture (type: 2D, w: " << texinfo->width << ", h: " <<
+				texinfo->height << ", mips: " << texinfo->mipcount << ", fmt: " << texinfo->format << ", d3dfmt: " << texfmt2d3d( texinfo->format );
+			SAFE_RELEASE( tex2d );
+			return NULL;
+		}
+		
 		D3D11Texture* T = new D3D11Texture;
 		T->m_renderer = this;
 		T->m_info = *texinfo;
 		T->m_ptr.tex2d = tex2d;
+		T->m_rsrcView = srv;
 		m_ownTextures.set( T, true );
 		return T;
 	}
@@ -679,6 +777,7 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	ID3D11Texture2D *CT = NULL, *DT = NULL;
 	ID3D11RenderTargetView *CRV = NULL;
 	ID3D11DepthStencilView *DSV = NULL;
+	ID3D11ShaderResourceView* CSRV = NULL;
 	D3D11RenderTexture* RT = NULL;
 	
 	if( format == RT_FORMAT_DEPTH )
@@ -697,10 +796,21 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 			goto cleanup;
 	}
 	
+	// shader resource view
+	{
+		HRESULT hr = m_dev->CreateShaderResourceView( CT, NULL, &CSRV );
+		if( FAILED( hr ) || !CSRV )
+		{
+			LOG_ERROR << "Failed to create D3D11 shader resource view for renderable texture";
+			goto cleanup;
+		}
+	}
+	
 	RT = new D3D11RenderTexture;
 	RT->m_renderer = this;
 	RT->m_info = *texinfo;
 	RT->m_ptr.tex2d = CT;
+	RT->m_rsrcView = CSRV;
 	RT->CRV = CRV;
 	RT->DSV = DSV;
 	RT->DT = DT;
@@ -875,8 +985,15 @@ static DXGI_FORMAT vdecltype_to_format[] =
 
 SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 {
+	int i;
+	bool hascolor = false;
+	bool hastan = false;
+	bool hastex0 = false;
+	bool hastex1 = false;
+	bool hastex2 = false;
+	bool hastex3 = false;
 	D3D11_INPUT_ELEMENT_DESC elements[ VDECL_MAX_ITEMS + 1 ];
-	for( int i = 0; i < vdinfo.count; ++i )
+	for( i = 0; i < vdinfo.count; ++i )
 	{
 		elements[ i ].SemanticName = vdeclusage_to_semtype[ vdinfo.usages[ i ] ];
 		elements[ i ].SemanticIndex = vdeclusage_to_semindex[ vdinfo.usages[ i ] ];
@@ -885,6 +1002,19 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		elements[ i ].AlignedByteOffset = vdinfo.offsets[ i ];
 		elements[ i ].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
 		elements[ i ].InstanceDataStepRate = 0;
+		
+		if( vdinfo.usages[ i ] == VDECLUSAGE_COLOR )
+			hascolor = true;
+		if( vdinfo.usages[ i ] == VDECLUSAGE_TANGENT )
+			hastan = true;
+		if( vdinfo.usages[ i ] == VDECLUSAGE_TEXTURE0 )
+			hastex0 = true;
+		if( vdinfo.usages[ i ] == VDECLUSAGE_TEXTURE1 )
+			hastex1 = true;
+		if( vdinfo.usages[ i ] == VDECLUSAGE_TEXTURE2 )
+			hastex2 = true;
+		if( vdinfo.usages[ i ] == VDECLUSAGE_TEXTURE3 )
+			hastex3 = true;
 		
 		if( vdinfo.usages[ i ] == VDECLUSAGE_BLENDIDX && vdinfo.types[ i ] == VDECLTYPE_BCOL4 )
 			elements[ i ].Format = DXGI_FORMAT_R8G8B8A8_UINT;
@@ -897,9 +1027,77 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 			elements[ i ].Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	}
 	
+	if( !hascolor )
+	{
+		elements[ i ].SemanticName = "COLOR";
+		elements[ i ].SemanticIndex = 0;
+		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		elements[ i ].InputSlot = 1;
+		elements[ i ].AlignedByteOffset = 0;
+		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+		elements[ i ].InstanceDataStepRate = 0;
+		i++;
+	}
+	if( !hastan )
+	{
+		elements[ i ].SemanticName = "TANGENT";
+		elements[ i ].SemanticIndex = 0;
+		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		elements[ i ].InputSlot = 1;
+		elements[ i ].AlignedByteOffset = 16;
+		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+		elements[ i ].InstanceDataStepRate = 0;
+		i++;
+	}
+	if( !hastex0 )
+	{
+		elements[ i ].SemanticName = "TEXCOORD";
+		elements[ i ].SemanticIndex = 0;
+		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		elements[ i ].InputSlot = 1;
+		elements[ i ].AlignedByteOffset = 32;
+		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+		elements[ i ].InstanceDataStepRate = 0;
+		i++;
+	}
+	if( !hastex1 )
+	{
+		elements[ i ].SemanticName = "TEXCOORD";
+		elements[ i ].SemanticIndex = 1;
+		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		elements[ i ].InputSlot = 1;
+		elements[ i ].AlignedByteOffset = 48;
+		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+		elements[ i ].InstanceDataStepRate = 0;
+		i++;
+	}
+	if( !hastex2 )
+	{
+		elements[ i ].SemanticName = "TEXCOORD";
+		elements[ i ].SemanticIndex = 2;
+		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		elements[ i ].InputSlot = 1;
+		elements[ i ].AlignedByteOffset = 64;
+		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+		elements[ i ].InstanceDataStepRate = 0;
+		i++;
+	}
+	if( !hastex3 )
+	{
+		elements[ i ].SemanticName = "TEXCOORD";
+		elements[ i ].SemanticIndex = 3;
+		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		elements[ i ].InputSlot = 1;
+		elements[ i ].AlignedByteOffset = 80;
+		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+		elements[ i ].InstanceDataStepRate = 0;
+		i++;
+	}
+	
 	D3D11VertexDecl* vdecl = new D3D11VertexDecl;
 	memset( &vdecl->m_elements, 0, sizeof(vdecl->m_elements) );
-	memcpy( &vdecl->m_elements, elements, sizeof(elements[0]) * vdinfo.count );
+	memcpy( &vdecl->m_elements, elements, sizeof(elements[0]) * i );
+	vdecl->m_elemCount = i;
 	vdecl->m_info = vdinfo;
 	vdecl->m_renderer = this;
 	return vdecl;
@@ -995,10 +1193,10 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 		if( !SHD )
 			continue;
 		
-		HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_info.count, SHD->m_VSBC.data(), SHD->m_VSBC.size(), &m_inputLayouts[ i ] );
+		HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD->m_VSBC.data(), SHD->m_VSBC.size(), &m_inputLayouts[ i ] );
 		if( FAILED( hr ) || !m_inputLayouts[ i ] )
 		{
-			LOG_ERROR << "Failed to create an input layout (mesh=" << m_key << ", part=" << i << ")";
+			LOG_ERROR << "Failed to create an input layout (mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD->m_key << ", v.d.key=" << VD->m_text << ")";
 		}
 	}
 }
@@ -1021,8 +1219,42 @@ void D3D11Renderer::SetMatrix( bool view, const Mat4& mtx )
 	upload_buf( m_ctx, m_cbuf_vs_batchverts, true, true, &m_cbdata_vs_batchverts, sizeof(m_cbdata_vs_batchverts) );
 }
 
+FINLINE D3D11_PRIMITIVE_TOPOLOGY conv_prim_type( EPrimitiveType pt )
+{
+	switch( pt )
+	{
+	case PT_Points: return D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+	case PT_Lines: return D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+	case PT_LineStrip: return D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
+	case PT_Triangles: return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	case PT_TriangleStrip: return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+	default: return D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED;
+	}
+}
+
 void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
 {
+	SetVertexShader( m_sh_bv_vs );
+	SetPixelShader( shd ? shd : m_sh_bv_ps );
+	
+	m_vertbuf_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_VERTEX_BUFFER, verts, sizeof(*verts) * count );
+	if( shdata && shvcount )
+		m_cbuf_ps_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, shdata, sizeof(*shdata) * shvcount );
+	
+	m_ctx->VSSetConstantBuffers( 0, 1, &m_cbuf_vs_batchverts );
+	
+	m_ctx->PSSetConstantBuffers( 0, 1, m_cbuf_ps_batchverts.PPBuf() );
+	ID3D11ShaderResourceView* srvs[] = { tex ? ((D3D11Texture*)tex)->m_rsrcView : NULL };
+	m_ctx->PSSetShaderResources( 0, 1, srvs );
+	
+	m_ctx->IASetPrimitiveTopology( conv_prim_type( pt ) );
+	m_ctx->IASetInputLayout( m_inputLayout_batchverts );
+	ID3D11Buffer* vbufs[2] = { m_vertbuf_batchverts, m_vertbuf_defaults };
+	static const UINT strides[2] = { sizeof(BatchRenderer::Vertex), sizeof(BackupVertexData) };
+	static const UINT offsets[2] = { 0, 0 };
+	m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
+	
+	m_ctx->Draw( count, 0 );
 }
 
 
@@ -1059,6 +1291,19 @@ bool D3D11Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 
 void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 {
+}
+
+
+void D3D11Renderer::SetVertexShader( SGRX_IVertexShader* shd )
+{
+	SGRX_CAST( D3D11VertexShader*, S, shd );
+	m_ctx->VSSetShader( S ? S->m_VS : NULL, NULL, 0 );
+}
+
+void D3D11Renderer::SetPixelShader( SGRX_IPixelShader* shd )
+{
+	SGRX_CAST( D3D11PixelShader*, S, shd );
+	m_ctx->PSSetShader( S ? S->m_PS : NULL, NULL, 0 );
 }
 
 

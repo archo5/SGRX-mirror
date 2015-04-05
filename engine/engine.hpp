@@ -764,7 +764,6 @@ enum EPrimitiveType
 	PT_LineStrip,
 	PT_Triangles,
 	PT_TriangleStrip,
-	PT_TriangleFan,
 };
 
 struct ENGINE_EXPORT BatchRenderer
