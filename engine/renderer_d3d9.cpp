@@ -173,20 +173,26 @@ struct D3D9RenderTexture : D3D9Texture
 };
 
 
-struct D3D9Shader : SGRX_IShader
+struct D3D9VertexShader : SGRX_IVertexShader
 {
 	IDirect3DVertexShader9* m_VS;
-	IDirect3DPixelShader9* m_PS;
-	ID3DXConstantTable* m_VSCT;
-	ID3DXConstantTable* m_PSCT;
 	struct D3D9Renderer* m_renderer;
 	
-	D3D9Shader( struct D3D9Renderer* r ) : m_VS( NULL ), m_PS( NULL ), m_VSCT( NULL ), m_PSCT( NULL ), m_renderer( r ){}
-	~D3D9Shader()
+	D3D9VertexShader( struct D3D9Renderer* r ) : m_VS( NULL ), m_renderer( r ){}
+	~D3D9VertexShader()
 	{
-		SAFE_RELEASE( m_VSCT );
-		SAFE_RELEASE( m_PSCT );
 		SAFE_RELEASE( m_VS );
+	}
+};
+
+struct D3D9PixelShader : SGRX_IPixelShader
+{
+	IDirect3DPixelShader9* m_PS;
+	struct D3D9Renderer* m_renderer;
+	
+	D3D9PixelShader( struct D3D9Renderer* r ) : m_PS( NULL ), m_renderer( r ){}
+	~D3D9PixelShader()
+	{
 		SAFE_RELEASE( m_PS );
 	}
 };
@@ -384,7 +390,7 @@ RendererInfo g_D3D9RendererInfo =
 
 struct D3D9Renderer : IRenderer
 {
-	D3D9Renderer() : m_dbg_rt( false ){ m_view.SetIdentity(); m_proj.SetIdentity(); }
+	D3D9Renderer() : m_dbg_rt( false ){ m_world.SetIdentity(); m_view.SetIdentity(); }
 	void Destroy();
 	const RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
 	bool LoadInternalResources();
@@ -401,13 +407,14 @@ struct D3D9Renderer : IRenderer
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
-	bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors );
-	SGRX_IShader* CreateShader( ByteArray& code );
+	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
+	SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code );
+	SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
 	
 	void SetMatrix( bool view, const Mat4& mtx );
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount );
+	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
 	
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	void RenderScene( SGRX_RenderScene* RS );
@@ -427,7 +434,8 @@ struct D3D9Renderer : IRenderer
 	void ResetViewport();
 	void _SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags );
 	void SetTexture( int slot, SGRX_ITexture* tex );
-	void SetShader( SGRX_IShader* shd );
+	void SetVertexShader( SGRX_IVertexShader* shd );
+	void SetPixelShader( SGRX_IPixelShader* shd );
 	
 	FINLINE void VS_SetVec4Array( int at, Vec4* arr, int size ){ m_dev->SetVertexShaderConstantF( at, &arr->x, size ); }
 	FINLINE void VS_SetVec4Array( int at, float* arr, int size ){ m_dev->SetVertexShaderConstantF( at, arr, size ); }
@@ -453,14 +461,16 @@ struct D3D9Renderer : IRenderer
 	
 	// helpers
 	RTData m_drd;
-	Mat4 m_view, m_proj;
+	Mat4 m_world;
+	Mat4 m_view;
 	
-	SGRX_IShader* m_sh_pp_final;
-	SGRX_IShader* m_sh_pp_dshp;
-	SGRX_IShader* m_sh_pp_blur_h;
-	SGRX_IShader* m_sh_pp_blur_v;
-	SGRX_IShader* m_sh_debug_draw;
-	Array< ShaderHandle > m_pass_shaders;
+	SGRX_IVertexShader* m_sh_bv_vs;
+	SGRX_IVertexShader* m_sh_pp_vs;
+	SGRX_IPixelShader* m_sh_pp_final;
+	SGRX_IPixelShader* m_sh_pp_dshp;
+	SGRX_IPixelShader* m_sh_pp_blur_h;
+	SGRX_IPixelShader* m_sh_pp_blur_v;
+	Array< PixelShaderHandle > m_pass_shaders;
 	
 	// storage
 	HashTable< D3D9Texture*, bool > m_ownTextures;
@@ -585,29 +595,35 @@ void D3D9Renderer::Destroy()
 
 bool D3D9Renderer::LoadInternalResources()
 {
-	ShaderHandle sh_pp_final = GR_GetShader( "pp_final" );
-	ShaderHandle sh_pp_dshp = GR_GetShader( "pp_bloom_dshp" );
-	ShaderHandle sh_pp_blur_h = GR_GetShader( "pp_bloom_blur_h" );
-	ShaderHandle sh_pp_blur_v = GR_GetShader( "pp_bloom_blur_v" );
-	ShaderHandle sh_debug_draw = GR_GetShader( "debug_draw" );
-	if( !sh_pp_final ||
+	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
+	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "sys_pp_vs" );
+	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "sys_pp_final" );
+	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "sys_pp_bloom_dshp" );
+	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "sys_pp_bloom_blur_h" );
+	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "sys_pp_bloom_blur_v" );
+	if( !sh_bv_vs ||
+		!sh_pp_vs ||
+		!sh_pp_final ||
 		!sh_pp_dshp ||
 		!sh_pp_blur_h ||
-		!sh_pp_blur_v ||
-		!sh_debug_draw )
+		!sh_pp_blur_v )
 	{
 		return false;
 	}
+	sh_bv_vs->Acquire();
+	sh_pp_vs->Acquire();
 	sh_pp_final->Acquire();
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
 	sh_pp_blur_v->Acquire();
-	sh_debug_draw->Acquire();
+	m_sh_bv_vs = sh_bv_vs;
+	m_sh_pp_vs = sh_pp_vs;
 	m_sh_pp_final = sh_pp_final;
 	m_sh_pp_dshp = sh_pp_dshp;
 	m_sh_pp_blur_h = sh_pp_blur_h;
 	m_sh_pp_blur_v = sh_pp_blur_v;
-	m_sh_debug_draw = sh_debug_draw;
+	
+	SetVertexShader( m_sh_bv_vs );
 	return true;
 }
 
@@ -615,11 +631,12 @@ void D3D9Renderer::UnloadInternalResources()
 {
 	SetRenderPasses( NULL, 0 );
 	
+	m_sh_bv_vs->Release();
+	m_sh_pp_vs->Release();
 	m_sh_pp_final->Release();
 	m_sh_pp_dshp->Release();
 	m_sh_pp_blur_h->Release();
 	m_sh_pp_blur_v->Release();
-	m_sh_debug_draw->Release();
 }
 
 void D3D9Renderer::Swap()
@@ -916,7 +933,7 @@ cleanup:
 }
 
 
-bool D3D9Renderer::CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors )
+bool D3D9Renderer::CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors )
 {
 	HRESULT hr;
 	ID3DXBuffer *outbuf = NULL, *outerr = NULL;
@@ -925,54 +942,50 @@ bool D3D9Renderer::CompileShader( const StringView& code, ByteArray& outcomp, St
 	static const D3DXMACRO psmacros[] = { { "PS", "1" }, { NULL, NULL } };
 	
 	ByteWriter bw( &outcomp );
-	bw.marker( "CSH\x7f", 4 );
 	
-	int32_t shsize;
+	const D3DXMACRO* macros = NULL;
+	const char* tyname = "unknown";
+	const char* profile = "---";
+	switch( shadertype )
+	{
+	case ShaderType_Vertex:
+		macros = vsmacros;
+		tyname = "vertex";
+		profile = "vs_3_0";
+		bw.marker( "CVSH\x7f", 5 );
+		break;
+	case ShaderType_Pixel:
+		macros = psmacros;
+		tyname = "pixel";
+		profile = "ps_3_0";
+		bw.marker( "CPSH\x7f", 5 );
+		break;
+	}
 	
-	hr = D3DXCompileShader( code.data(), code.size(), vsmacros, NULL, "main", "vs_3_0", D3DXSHADER_OPTIMIZATION_LEVEL3, &outbuf, &outerr, NULL );
+	hr = D3DXCompileShader( code.data(), code.size(), macros, NULL, "main", profile, D3DXSHADER_OPTIMIZATION_LEVEL3, &outbuf, &outerr, NULL );
 	if( FAILED( hr ) )
 	{
 		if( outerr )
 		{
 			const char* errtext = (const char*) outerr->GetBufferPointer();
-			outerrors.append( STRLIT_BUF( "Errors in vertex shader compilation:\n" ) );
-			outerrors.append( errtext, strlen( errtext ) );
+			outerrors.append( STRLIT_BUF( "Errors in " ) );
+			outerrors.append( tyname, strlen( tyname ) );
+			outerrors.append( STRLIT_BUF( " shader compilation:\n" ) );
+			outerrors.append( errtext, TMIN( strlen( errtext ), (size_t) outerr->GetBufferSize() ) );
 		}
 		else
-			outerrors.append( STRLIT_BUF( "Unknown error in vertex shader compilation" ) );
+		{
+			outerrors.append( STRLIT_BUF( "Unknown error in " ) );
+			outerrors.append( tyname, strlen( tyname ) );
+			outerrors.append( STRLIT_BUF( " shader compilation" ) );
+		}
 		
 		SAFE_RELEASE( outbuf );
 		SAFE_RELEASE( outerr );
 		return false;
 	}
 	
-	shsize = outbuf->GetBufferSize();
-	
-	bw << shsize;
-	bw.memory( outbuf->GetBufferPointer(), shsize );
-	
-	SAFE_RELEASE( outbuf );
-	SAFE_RELEASE( outerr );
-	
-	hr = D3DXCompileShader( code.data(), code.size(), psmacros, NULL, "main", "ps_3_0", D3DXSHADER_OPTIMIZATION_LEVEL3, &outbuf, &outerr, NULL );
-	if( FAILED( hr ) )
-	{
-		if( outerr )
-		{
-			const char* errtext = (const char*) outerr->GetBufferPointer();
-			outerrors.append( STRLIT_BUF( "Errors in pixel shader compilation:\n" ) );
-			outerrors.append( errtext, strlen( errtext ) );
-		}
-		else
-			outerrors.append( STRLIT_BUF( "Unknown error in pixel shader compilation" ) );
-		
-		SAFE_RELEASE( outbuf );
-		SAFE_RELEASE( outerr );
-		return false;
-	}
-	
-	shsize = outbuf->GetBufferSize();
-	
+	int32_t shsize = outbuf->GetBufferSize();
 	bw << shsize;
 	bw.memory( outbuf->GetBufferPointer(), shsize );
 	
@@ -982,51 +995,59 @@ bool D3D9Renderer::CompileShader( const StringView& code, ByteArray& outcomp, St
 	return true;
 }
 
-SGRX_IShader* D3D9Renderer::CreateShader( ByteArray& code )
+SGRX_IVertexShader* D3D9Renderer::CreateVertexShader( const StringView& path, ByteArray& code )
 {
 	HRESULT hr;
 	ByteReader br( &code );
-	br.marker( "CSH\x7f", 4 );
+	br.marker( "CVSH\x7f", 5 );
+	
+	int32_t len = 0;
+	br << len;
+	uint8_t* buf = &code[ 9 ];
 	if( br.error )
 		return NULL;
 	
-	int32_t vslen = 0;
-	br << vslen;
-	uint8_t* vsbuf = &code[ 8 ];
-	uint8_t* psbuf = &code[ 12 + vslen ];
-	
 	IDirect3DVertexShader9* VS = NULL;
-	IDirect3DPixelShader9* PS = NULL;
-	ID3DXConstantTable* VSCT = NULL;
-	ID3DXConstantTable* PSCT = NULL;
-	D3D9Shader* out = NULL;
+	D3D9VertexShader* out = NULL;
 	
-	hr = m_dev->CreateVertexShader( (const DWORD*) vsbuf, &VS );
+	hr = m_dev->CreateVertexShader( (const DWORD*) buf, &VS );
 	if( FAILED( hr ) || !VS )
-		{ LOG << "Failed to create a D3D9 vertex shader"; goto cleanup; }
-	hr = D3DXGetShaderConstantTable( (const DWORD*) vsbuf, &VSCT );
-	if( FAILED( hr ) || !VSCT )
-		{ LOG << "Failed to create a constant table for vertex shader"; goto cleanup; }
+		{ LOG << "Failed to create a D3D9 vertex shader - " << path; goto cleanup; }
 	
-	hr = m_dev->CreatePixelShader( (const DWORD*) psbuf, &PS );
-	if( FAILED( hr ) || !PS )
-		{ LOG << "Failed to create a D3D9 pixel shader"; goto cleanup; }
-	hr = D3DXGetShaderConstantTable( (const DWORD*) psbuf, &PSCT );
-	if( FAILED( hr ) || !PSCT )
-		{ LOG << "Failed to create a constant table for pixel shader"; goto cleanup; }
-	
-	out = new D3D9Shader( this );
+	out = new D3D9VertexShader( this );
 	out->m_VS = VS;
-	out->m_PS = PS;
-	out->m_VSCT = VSCT;
-	out->m_PSCT = PSCT;
 	return out;
 	
 cleanup:
 	SAFE_RELEASE( VS );
+	return NULL;
+}
+
+SGRX_IPixelShader* D3D9Renderer::CreatePixelShader( const StringView& path, ByteArray& code )
+{
+	HRESULT hr;
+	ByteReader br( &code );
+	br.marker( "CPSH\x7f", 5 );
+	
+	int32_t len = 0;
+	br << len;
+	uint8_t* buf = &code[ 9 ];
+	if( br.error )
+		return NULL;
+	
+	IDirect3DPixelShader9* PS = NULL;
+	D3D9PixelShader* out = NULL;
+	
+	hr = m_dev->CreatePixelShader( (const DWORD*) buf, &PS );
+	if( FAILED( hr ) || !PS )
+		{ LOG << "Failed to create a D3D9 pixel shader - " << path; goto cleanup; }
+	
+	out = new D3D9PixelShader( this );
+	out->m_PS = PS;
+	return out;
+	
+cleanup:
 	SAFE_RELEASE( PS );
-	SAFE_RELEASE( VSCT );
-	SAFE_RELEASE( PSCT );
 	return NULL;
 }
 
@@ -1283,17 +1304,14 @@ void D3D9Renderer::SetMatrix( bool view, const Mat4& mtx )
 {
 	if( view )
 	{
-		m_view = Mat4::Identity;
 		float w = GetWidth();
 		float h = GetHeight();
-		m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &Mat4::Identity );
 		Mat4 mfx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
-		m_proj = Mat4().Multiply( mtx, mfx );
-		m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
+		m_view = Mat4().Multiply( mtx, mfx );
 	}
 	else
 	{
-		m_dev->SetTransform( D3DTS_WORLD, (const D3DMATRIX*) &mtx );
+		m_world = mtx;
 	}
 }
 
@@ -1325,11 +1343,13 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 	}
 }
 
-void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount )
+void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
 {
-	SetShader( shd );
+	SetVertexShader( m_sh_bv_vs );
+	SetPixelShader( shd );
+	VS_SetMat4( 0, m_world );
+	VS_SetMat4( 4, m_view );
 	SetTexture( 0, tex );
-	VS_SetVec4Array( 0, shdata, shvcount );
 	PS_SetVec4Array( 0, shdata, shvcount );
 	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_DIFFUSE );
 	m_dev->DrawPrimitiveUP( conv_prim_type( pt ), get_prim_count( pt, count ), verts, sizeof( *verts ) );
@@ -1355,14 +1375,14 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	}
 	
 	m_renderPasses.assign( passes, count );
-	Array< ShaderHandle > psh = m_pass_shaders;
+	Array< PixelShaderHandle > psh = m_pass_shaders;
 	m_pass_shaders.clear();
 	m_pass_shaders.reserve( count );
 	
 	for( int i = 0; i < (int) m_renderPasses.size(); ++i )
 	{
 		SGRX_RenderPass& PASS = m_renderPasses[ i ];
-		m_pass_shaders.push_back( PASS.type == RPT_SCREEN ? GR_GetShader( PASS.shader_name ) : ShaderHandle() );
+		m_pass_shaders.push_back( PASS.type == RPT_SCREEN ? GR_GetPixelShader( PASS.shader_name ) : PixelShaderHandle() );
 	}
 	
 	return true;
@@ -1492,8 +1512,8 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	
 	Viewport_Apply( 1 );
 	
-//	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0 // 0xff00ff00
-//		, 1.0f, 0 );
+	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0 // 0xff00ff00
+		, 1.0f, 0 );
 	
 	/* upload unchanged data */
 	VS_SetMat4( 0, CAM.mView );
@@ -1574,24 +1594,25 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_DSHP );
 		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
 		_SetTextureInt( 0, m_drd.RTT_OCOL, pptexflags );
-		SetShader( m_sh_pp_dshp );
+		SetVertexShader( m_sh_pp_vs );
+		SetPixelShader( m_sh_pp_dshp );
 		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
 		
 		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_BLUR1 );
 		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
 		_SetTextureInt( 0, m_drd.RTT_BLOOM_DSHP, pptexflags );
-		SetShader( m_sh_pp_blur_h );
+		SetPixelShader( m_sh_pp_blur_h );
 		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
 		
 		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_BLUR2 );
 		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
 		_SetTextureInt( 0, m_drd.RTT_BLOOM_BLUR1, pptexflags );
-		SetShader( m_sh_pp_blur_v );
+		SetPixelShader( m_sh_pp_blur_v );
 		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
 		
 		m_dev->SetRenderTarget( 0, RTOUT.CS );
 	//	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
-		SetShader( m_sh_pp_final );
+		SetPixelShader( m_sh_pp_final );
 		_SetTextureInt( 0, m_drd.RTT_OCOL, pptexflags );
 		_SetTextureInt( 1, m_drd.RTT_PARM, pptexflags );
 		_SetTextureInt( 2, m_drd.RTT_BLOOM_BLUR2, pptexflags );
@@ -1626,7 +1647,8 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	}
 	
 	// RENDERING ENDS
-	SetShader( NULL );
+	SetVertexShader( m_sh_bv_vs );
+	SetPixelShader( NULL );
 	_SetTextureInt( 0, NULL, 0 );
 	
 	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
@@ -1806,6 +1828,8 @@ void D3D9Renderer::_RS_Render_Shadows()
 				for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 				{
 					SGRX_MeshPart* MP = &M->m_parts[ part_id ];
+					if( !MP->vertexShader )
+						continue;
 					SGRX_Material* MTL = MP->material;
 					if( !MTL )
 						continue;
@@ -1817,14 +1841,15 @@ void D3D9Renderer::_RS_Render_Shadows()
 					if( transparent )
 						continue;
 					
-					ShaderHandle SHD = SSH->m_shaders[ ( MI->skin_matrices.size() ? m_renderPasses.size() : 0 ) + pass_id ];
+					SGRX_IPixelShader* SHD = SSH->m_shaders[ pass_id ];
 					if( !SHD )
 						continue;
 					
 					if( MP->indexCount < 3 )
 						continue;
 					
-					SetShader( SHD );
+					SetVertexShader( MP->vertexShader );
+					SetPixelShader( SHD );
 					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
 						SetTexture( tex_id, MTL->textures[ tex_id ] );
 					
@@ -1998,6 +2023,8 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 			{
 				SGRX_MeshPart* MP = &M->m_parts[ part_id ];
+				if( !MP->vertexShader )
+					continue;
 				SGRX_Material* MTL = MP->material;
 				if( !MTL )
 					continue;
@@ -2009,7 +2036,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 					continue;
 				
-				ShaderHandle SHD = SSH->m_shaders[ ( MI->skin_matrices.size() ? m_renderPasses.size() : 0 ) + pass_id ];
+				PixelShaderHandle SHD = SSH->m_shaders[ pass_id ];
 				if( !SHD )
 					continue;
 				
@@ -2020,7 +2047,8 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
 				m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
 				
-				SetShader( SHD );
+				SetVertexShader( MP->vertexShader );
+				SetPixelShader( SHD );
 				for( size_t tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
 					SetTexture( tex_id, MTL->textures[ tex_id ] );
 				
@@ -2054,7 +2082,8 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pa
 	_SetTextureInt( 0, tx_depth, TEXTURE_FLAGS_FULLSCREEN );
 	SetTexture( 4, m_currentScene->skyTexture );
 	
-	SetShader( m_pass_shaders[ pass_id ] );
+	SetVertexShader( m_sh_pp_vs );
+	SetPixelShader( m_pass_shaders[ pass_id ] );
 	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
 	PS_SetVec4( 4, campos4 );
 	PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
@@ -2081,12 +2110,14 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	m_inDebugDraw = true;
 	
-	SetShader( m_sh_debug_draw );
+	Mat4 origWorld = m_world, origView = m_view;
 	Mat4 worldMatrix, viewProjMatrix;
 	worldMatrix.SetIdentity();
 	viewProjMatrix.Multiply( CAM.mView, CAM.mProj );
-	VS_SetMat4( 0, worldMatrix );
-	VS_SetMat4( 4, viewProjMatrix );
+//	VS_SetMat4( 0, worldMatrix );
+//	VS_SetMat4( 4, viewProjMatrix );
+	m_world = worldMatrix;
+	m_view = viewProjMatrix;
 	SetTexture( 0, NULL );
 	
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
@@ -2097,17 +2128,18 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	
 	m_dev->SetTexture( 0, NULL );
-	SetShader( NULL );
-	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &CAM.mView );
-	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &CAM.mProj );
+	SetPixelShader( NULL );
 	debugDraw->DebugDraw();
 	GR2D_GetBatchRenderer().Flush().Reset();
 	
-	m_dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) &m_view );
-	m_dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) &m_proj );
+//	VS_SetMat4( 0, m_world );
+//	VS_SetMat4( 4, m_view );
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
 	m_dev->SetDepthStencilSurface( orig_dss );
 	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
+	
+	m_world = origWorld;
+	m_view = origView;
 	
 	m_inDebugDraw = false;
 }
@@ -2262,11 +2294,16 @@ void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
 		_SetTextureInt( slot, NULL, 0 );
 }
 
-void D3D9Renderer::SetShader( SGRX_IShader* shd )
+void D3D9Renderer::SetVertexShader( SGRX_IVertexShader* shd )
 {
-	SGRX_CAST( D3D9Shader*, S, shd );
-	m_dev->SetPixelShader( S ? S->m_PS : NULL );
+	SGRX_CAST( D3D9VertexShader*, S, shd );
 	m_dev->SetVertexShader( S ? S->m_VS : NULL );
+}
+
+void D3D9Renderer::SetPixelShader( SGRX_IPixelShader* shd )
+{
+	SGRX_CAST( D3D9PixelShader*, S, shd );
+	m_dev->SetPixelShader( S ? S->m_PS : NULL );
 }
 
 void D3D9Renderer::MI_ApplyConstants( SGRX_MeshInstance* MI )

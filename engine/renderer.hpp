@@ -143,7 +143,13 @@ struct RendererInfo
 {
 	bool swapRB;
 	bool compileShaders;
-	StringView shaderType;
+	StringView shaderTarget;
+};
+
+enum EShaderType
+{
+	ShaderType_Vertex,
+	ShaderType_Pixel,
 };
 
 #define RS_ZENABLE 1
@@ -168,13 +174,14 @@ struct ENGINE_EXPORT IRenderer
 	
 	virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
 	virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;
-	virtual bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
-	virtual SGRX_IShader* CreateShader( ByteArray& code ) = 0; // StringView for uncompiled, byte buffer for compiled shaders
+	virtual bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
+	virtual SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code ) = 0;
+	virtual SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code ) = 0;
 	virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
 	virtual SGRX_IMesh* CreateMesh() = 0;
 	
 	virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
-	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount ) = 0;
+	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
 	
 	virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
 	virtual void RenderScene( SGRX_RenderScene* RS ) = 0;

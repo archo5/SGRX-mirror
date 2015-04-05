@@ -244,22 +244,40 @@ struct ENGINE_EXPORT TextureHandle : Handle< SGRX_ITexture >
 	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
-struct ENGINE_EXPORT SGRX_IShader
+struct ENGINE_EXPORT SGRX_IVertexShader
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual ~SGRX_IShader();
+	virtual ~SGRX_IVertexShader();
 	
 	int32_t m_refcount;
 	String m_key;
 };
 
-struct ENGINE_EXPORT ShaderHandle : Handle< SGRX_IShader >
+struct ENGINE_EXPORT VertexShaderHandle : Handle< SGRX_IVertexShader >
 {
-	ShaderHandle() : Handle(){}
-	ShaderHandle( const ShaderHandle& h ) : Handle( h ){}
-	ShaderHandle( SGRX_IShader* shdr ) : Handle( shdr ){}
+	VertexShaderHandle() : Handle(){}
+	VertexShaderHandle( const VertexShaderHandle& h ) : Handle( h ){}
+	VertexShaderHandle( SGRX_IVertexShader* shdr ) : Handle( shdr ){}
+};
+
+struct ENGINE_EXPORT SGRX_IPixelShader
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	
+	virtual ~SGRX_IPixelShader();
+	
+	int32_t m_refcount;
+	String m_key;
+};
+
+struct ENGINE_EXPORT PixelShaderHandle : Handle< SGRX_IPixelShader >
+{
+	PixelShaderHandle() : Handle(){}
+	PixelShaderHandle( const PixelShaderHandle& h ) : Handle( h ){}
+	PixelShaderHandle( SGRX_IPixelShader* shdr ) : Handle( shdr ){}
 };
 
 #define VDECL_MAX_ITEMS 10
@@ -340,7 +358,7 @@ struct ENGINE_EXPORT SGRX_SurfaceShader
 	
 	void ReloadShaders();
 	
-	Array< ShaderHandle > m_shaders;
+	Array< PixelShaderHandle > m_shaders;
 	
 	int32_t m_refcount;
 	String m_key;
@@ -407,6 +425,7 @@ struct SGRX_MeshPart
 	uint32_t indexOffset;
 	uint32_t indexCount;
 	MaterialHandle material;
+	VertexShaderHandle vertexShader;
 };
 
 struct SGRX_MeshBone
@@ -761,7 +780,7 @@ struct ENGINE_EXPORT BatchRenderer
 		State() : primType(PT_None){}
 		
 		TextureHandle texture;
-		ShaderHandle shader;
+		PixelShaderHandle shader;
 		EPrimitiveType primType;
 	};
 	
@@ -800,7 +819,7 @@ struct ENGINE_EXPORT BatchRenderer
 	
 	bool CheckSetTexture( const TextureHandle& tex );
 	BatchRenderer& SetTexture( const TextureHandle& tex );
-	BatchRenderer& SetShader( const ShaderHandle& shd );
+	BatchRenderer& SetShader( const PixelShaderHandle& shd );
 	BatchRenderer& UnsetTexture(){ return SetTexture( NULL ); }
 	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
 	BatchRenderer& Flush();
@@ -854,7 +873,8 @@ ENGINE_EXPORT int GR_GetHeight();
 ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
-ENGINE_EXPORT ShaderHandle GR_GetShader( const StringView& path );
+ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
+ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
 ENGINE_EXPORT SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name );
 ENGINE_EXPORT MaterialHandle GR_CreateMaterial();
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );

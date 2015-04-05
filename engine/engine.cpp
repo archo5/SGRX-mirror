@@ -47,7 +47,8 @@ void Thread_Sleep( uint32_t msec )
 //
 
 typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
-typedef HashTable< StringView, SGRX_IShader* > ShaderHashTable;
+typedef HashTable< StringView, SGRX_IVertexShader* > VertexShaderHashTable;
+typedef HashTable< StringView, SGRX_IPixelShader* > PixelShaderHashTable;
 typedef HashTable< StringView, SGRX_SurfaceShader* > SurfShaderHashTable;
 typedef HashTable< StringView, SGRX_Material* > MaterialHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
@@ -55,6 +56,7 @@ typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
 
 static String g_GameLibName = "game";
+static String g_RendererName = "d3d11";
 
 static bool g_Running = true;
 static bool g_hasFocus = true;
@@ -69,7 +71,7 @@ static Vec2 g_CursorScale = {0,0};
 static Array< IScreen* > g_OverlayScreens;
 
 static RenderSettings g_RenderSettings = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_MULTISAMPLE, 4 };
-static const char* g_RendererName = "sgrx-render-d3d11";
+static const char* g_RendererPrefix = "sgrx-render-";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;
 static pfnRndFree g_RfnFree = NULL;
@@ -78,7 +80,8 @@ static IRenderer* g_Renderer = NULL;
 static BatchRenderer* g_BatchRenderer = NULL;
 static FontRenderer* g_FontRenderer = NULL;
 static TextureHashTable* g_Textures = NULL;
-static ShaderHashTable* g_Shaders = NULL;
+static VertexShaderHashTable* g_VertexShaders = NULL;
+static PixelShaderHashTable* g_PixelShaders = NULL;
 static SurfShaderHashTable* g_SurfShaders = NULL;
 static MaterialHashTable* g_Materials = NULL;
 static VertexDeclHashTable* g_VertexDecls = NULL;
@@ -398,9 +401,9 @@ void IGame::GetShaderCacheFilename( const StringView& type, const StringView& ke
 		char ch = it.ch();
 		it.skip(1);
 		
-		if( ( ch >= 'a' && ch <= 'z' ) || ( ch >= 'A' && ch <= 'Z' ) || ( ch >= '0' && ch <= '9' ) )
+		if( ( ch >= 'a' && ch <= 'z' ) || ( ch >= 'A' && ch <= 'Z' ) || ( ch >= '0' && ch <= '9' ) || ch == '_' )
 			name.push_back( ch );
-		else if( name.last() != '_' && name.last() != '$' )
+		else if( name.last() != '$' )
 			name.push_back( '$' );
 	}
 	
@@ -440,21 +443,13 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 	{
 		int i = 0;
 		String prepend;
-		StringView tpl, mtl, vs, cur, it = key.part( 4 );
+		StringView tpl, mtl, cur, it = key.part( 4 );
 		while( it.size() )
 		{
 			i++;
 			cur = it.until( ":" );
 			if( i == 1 )
-			{
 				mtl = cur;
-				StringView p2 = cur.after( "|" );
-				if( p2 )
-				{
-					mtl = cur.until( "|" );
-					vs = p2;
-				}
-			}
 			else if( i == 2 )
 				tpl = cur;
 			else
@@ -466,18 +461,42 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 			it.skip( cur.size() + 1 );
 		}
 		
-		String tpl_data, mtl_data, vs_data;
-		if( !OnLoadShaderFile( type, String_Concat( "tpl_", tpl ), tpl_data ) )
+		String tpl_data, mtl_data;
+		if( !OnLoadShaderFile( type, String_Concat( "tpl_ps_", tpl ), tpl_data ) )
 			return false;
-		if( !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
+		if( mtl.size() && !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
 			return false;
-		if( vs )
+		outdata = String_Concat( prepend, String_Replace( tpl_data, "__CODE__", mtl_data ) );
+		return true;
+	}
+	if( key.part( 0, 3 ) == "vs:" )
+	{
+		int i = 0;
+		String prepend;
+		StringView tpl, vs, cur, it = key.part( 3 );
+		while( it.size() )
 		{
-			// vs already prefixed
-			if( !OnLoadShaderFile( type, String_Concat( "vs_", vs ), vs_data ) )
-				return false;
+			i++;
+			cur = it.until( ":" );
+			if( i == 1 )
+				vs = cur;
+			else if( i == 2 )
+				tpl = cur;
+			else
+			{
+				prepend.append( STRLIT_BUF( "#define " ) );
+				prepend.append( cur.data(), cur.size() );
+				prepend.append( STRLIT_BUF( "\n" ) );
+			}
+			it.skip( cur.size() + 1 );
 		}
-		outdata = String_Concat( prepend, String_Replace( String_Replace( tpl_data, "__CODE__", mtl_data ), "__VSCODE__", vs_data ) );
+		
+		String tpl_data, vs_data;
+		if( !OnLoadShaderFile( type, String_Concat( "tpl_vs_", tpl ), tpl_data ) )
+			return false;
+		if( vs.size() && !OnLoadShaderFile( type, String_Concat( "vs_", vs ), vs_data ) )
+			return false;
+		outdata = String_Concat( prepend, String_Replace( tpl_data, "__VSCODE__", vs_data ) );
 		return true;
 	}
 	return OnLoadShaderFile( type, key, outdata );
@@ -571,9 +590,14 @@ bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, i
 }
 
 
-SGRX_IShader::~SGRX_IShader()
+SGRX_IVertexShader::~SGRX_IVertexShader()
 {
-	g_Shaders->unset( m_key );
+	g_VertexShaders->unset( m_key );
+}
+
+SGRX_IPixelShader::~SGRX_IPixelShader()
+{
+	g_PixelShaders->unset( m_key );
 }
 
 
@@ -599,8 +623,8 @@ SGRX_SurfaceShader::~SGRX_SurfaceShader()
 void SGRX_SurfaceShader::ReloadShaders()
 {
 	// prevent deallocation
-	Array< ShaderHandle > newshaders;
-	newshaders.resize( g_Renderer->m_renderPasses.size() * 2 );
+	Array< PixelShaderHandle > newshaders;
+	newshaders.resize( g_Renderer->m_renderPasses.size() );
 	
 	for( size_t pass_id = 0; pass_id < g_Renderer->m_renderPasses.size(); ++pass_id )
 	{
@@ -614,9 +638,7 @@ void SGRX_SurfaceShader::ReloadShaders()
 			strcat( bfr, ":DYNAMIC" );
 		if( PASS.flags & RPF_OBJ_STATIC )
 			strcat( bfr, ":STATIC" );
-		newshaders[ pass_id ] = GR_GetShader( bfr );
-		strcat( bfr, ":SKIN" );
-		newshaders[ pass_id + g_Renderer->m_renderPasses.size() ] = GR_GetShader( bfr );
+		newshaders[ pass_id ] = GR_GetPixelShader( bfr );
 	}
 	
 	m_shaders = newshaders;
@@ -1370,44 +1392,44 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 }
 
 
-ShaderHandle GR_GetShader( const StringView& path )
+VertexShaderHandle GR_GetVertexShader( const StringView& path )
 {
 	String code;
 	String errors;
 	ByteArray comp;
 	
-	SGRX_IShader* shd = g_Shaders->getcopy( path );
+	SGRX_IVertexShader* shd = g_VertexShaders->getcopy( path );
 	if( shd )
 		return shd;
 	
 	if( g_Renderer->GetInfo().compileShaders )
 	{
-		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderType, path, comp ) )
+		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp ) )
 		{
 			goto has_compiled_shader;
 		}
 	}
 	
-	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderType, path, code ) )
+	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderTarget, path, code ) )
 	{
-		LOG_ERROR << LOG_DATE << "  Could not find shader: " << path;
-		return ShaderHandle();
+		LOG_ERROR << LOG_DATE << "  Could not find vertex shader: " << path;
+		return VertexShaderHandle();
 	}
 	
 	if( g_Renderer->GetInfo().compileShaders )
 	{
-		if( !g_Renderer->CompileShader( code, comp, errors ) )
+		if( !g_Renderer->CompileShader( path, ShaderType_Vertex, code, comp, errors ) )
 		{
-			LOG_ERROR << LOG_DATE << "  Failed to compile shader: " << path;
+			LOG_ERROR << LOG_DATE << "  Failed to compile vertex shader: " << path;
 			LOG << errors;
 			LOG << "---";
-			return ShaderHandle();
+			return VertexShaderHandle();
 		}
 		
-		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderType, path, comp );
+		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp );
 		
 has_compiled_shader:
-		shd = g_Renderer->CreateShader( comp );
+		shd = g_Renderer->CreateVertexShader( path, comp );
 	}
 	else
 	{
@@ -1415,7 +1437,7 @@ has_compiled_shader:
 		ByteArray bcode;
 		bcode.resize( code.size() );
 		memcpy( bcode.data(), code.data(), code.size() );
-		shd = g_Renderer->CreateShader( bcode );
+		shd = g_Renderer->CreateVertexShader( path, bcode );
 	}
 	
 	if( !shd )
@@ -1426,9 +1448,71 @@ has_compiled_shader:
 	
 	shd->m_key = path;
 	shd->m_refcount = 0;
-	g_Shaders->set( shd->m_key, shd );
+	g_VertexShaders->set( shd->m_key, shd );
 	
-	LOG << "Loaded shader: " << path;
+	LOG << "Loaded vertex shader: " << path;
+	return shd;
+}
+
+PixelShaderHandle GR_GetPixelShader( const StringView& path )
+{
+	String code;
+	String errors;
+	ByteArray comp;
+	
+	SGRX_IPixelShader* shd = g_PixelShaders->getcopy( path );
+	if( shd )
+		return shd;
+	
+	if( g_Renderer->GetInfo().compileShaders )
+	{
+		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp ) )
+		{
+			goto has_compiled_shader;
+		}
+	}
+	
+	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderTarget, path, code ) )
+	{
+		LOG_ERROR << LOG_DATE << "  Could not find pixel shader: " << path;
+		return PixelShaderHandle();
+	}
+	
+	if( g_Renderer->GetInfo().compileShaders )
+	{
+		if( !g_Renderer->CompileShader( path, ShaderType_Pixel, code, comp, errors ) )
+		{
+			LOG_ERROR << LOG_DATE << "  Failed to compile pixel shader: " << path;
+			LOG << errors;
+			LOG << "---";
+			return PixelShaderHandle();
+		}
+		
+		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp );
+		
+has_compiled_shader:
+		shd = g_Renderer->CreatePixelShader( path, comp );
+	}
+	else
+	{
+		// TODO: I know...
+		ByteArray bcode;
+		bcode.resize( code.size() );
+		memcpy( bcode.data(), code.data(), code.size() );
+		shd = g_Renderer->CreatePixelShader( path, bcode );
+	}
+	
+	if( !shd )
+	{
+		// error already printed in renderer
+		return NULL;
+	}
+	
+	shd->m_key = path;
+	shd->m_refcount = 0;
+	g_PixelShaders->set( shd->m_key, shd );
+	
+	LOG << "Loaded pixel shader: " << path;
 	return shd;
 }
 
@@ -1547,6 +1631,12 @@ MeshHandle GR_GetMesh( const StringView& path )
 		parts[ i ].indexOffset = mfd.parts[ i ].indexOffset;
 		parts[ i ].indexCount = mfd.parts[ i ].indexCount;
 		
+		StringView mtltext( mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] );
+		StringView mtlname = mtltext.until( "|" );
+		StringView vsname = mtltext.after( "|" );
+		
+		// LOAD MATERIAL
+		//
 		MaterialHandle mh = GR_CreateMaterial();
 		if( mfd.parts[ i ].materialStringSizes[0] >= SHADER_NAME_LENGTH )
 		{
@@ -1554,13 +1644,19 @@ MeshHandle GR_GetMesh( const StringView& path )
 		}
 		else
 		{
-			mh->shader = GR_GetSurfaceShader( StringView( mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] ) );
+			mh->shader = GR_GetSurfaceShader( mtlname );
 		}
 		for( int tid = 0; tid < mfd.parts[ i ].materialTextureCount; ++tid )
 		{
 			mh->textures[ tid ] = GR_GetTexture( StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] ) );
 		}
 		parts[ i ].material = mh;
+		
+		// LOAD VERTEX SHADER
+		//
+		char vsbfr[ 256 ] = {0};
+		snprintf( vsbfr, 255, "vs:%.*s:base%s", TMIN( 200, (int) vsname.size() ), vsname.data(), mfd.numBones ? ":SKIN" : "" );
+		parts[ i ].vertexShader = GR_GetVertexShader( vsbfr );
 	}
 	if( !mesh->SetPartData( parts, mfd.numParts ) )
 	{
@@ -2056,7 +2152,7 @@ BatchRenderer& BatchRenderer::SetTexture( const TextureHandle& tex )
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::SetShader( const ShaderHandle& shd )
+BatchRenderer& BatchRenderer::SetShader( const PixelShaderHandle& shd )
 {
 	m_nextState.shader = shd;
 	_UpdateDiff();
@@ -2160,6 +2256,14 @@ static bool read_config()
 				LOG << "Game directory: " << value;
 			}
 		}
+		else if( key == "renderer" )
+		{
+			if( value.size() )
+			{
+				g_RendererName = value;
+				LOG << "Renderer: " << value;
+			}
+		}
 		else
 		{
 			LOG_WARNING << "Unknown key (" << key << " = " << value << ")";
@@ -2180,8 +2284,8 @@ static int init_graphics()
 	remap_cursor();
 	SDL_StartTextInput();
 	
-	char renderer_dll[ 65 ] = {0};
-	snprintf( renderer_dll, 64, "%s.dll", g_RendererName );
+	char renderer_dll[ 257 ] = {0};
+	snprintf( renderer_dll, 256, "%s%.*s.dll", g_RendererPrefix, TMIN( (int) g_RendererName.size(), 200 ), g_RendererName.data() );
 	g_RenderLib = SDL_LoadObject( renderer_dll );
 	if( !g_RenderLib )
 	{
@@ -2196,7 +2300,8 @@ static int init_graphics()
 		LOG_ERROR << "Failed to load functions from renderer (" << renderer_dll << ")";
 		return 102;
 	}
-	const char* rendername = g_RendererName;
+	StackPath rennamesp( g_RendererName );
+	const char* rendername = rennamesp;
 	if( !g_RfnInitialize( &rendername ) )
 	{
 		LOG_ERROR << "Failed to load renderer (" << rendername << ")";
@@ -2220,7 +2325,8 @@ static int init_graphics()
 	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
 	
 	g_Textures = new TextureHashTable();
-	g_Shaders = new ShaderHashTable();
+	g_VertexShaders = new VertexShaderHashTable();
+	g_PixelShaders = new PixelShaderHashTable();
 	g_SurfShaders = new SurfShaderHashTable();
 	g_Materials = new MaterialHashTable();
 	g_VertexDecls = new VertexDeclHashTable();
@@ -2270,8 +2376,11 @@ static void free_graphics()
 	delete g_SurfShaders;
 	g_SurfShaders = NULL;
 	
-	delete g_Shaders;
-	g_Shaders = NULL;
+	delete g_PixelShaders;
+	g_PixelShaders = NULL;
+	
+	delete g_VertexShaders;
+	g_VertexShaders = NULL;
 	
 	delete g_Textures;
 	g_Textures = NULL;

@@ -748,6 +748,7 @@ void ParticleSystem::OnRenderUpdate()
 		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
 			mh->textures[ t ] = E.render_Textures[ t ];
 		MP.material = mh;
+		MP.vertexShader = GR_GetVertexShader( "vs_int_particle" );
 		
 		m_meshInsts[ i ]->mesh->SetPartData( &MP, 1 );
 	}

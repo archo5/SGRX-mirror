@@ -172,18 +172,28 @@ struct D3D11RenderTexture : D3D11Texture
 };
 
 
-struct D3D11Shader : SGRX_IShader
+struct D3D11VertexShader : SGRX_IVertexShader
 {
 	ID3D11VertexShader* m_VS;
-	ID3D11PixelShader* m_PS;
 	ByteArray m_VSBC; // bytecode
-	ByteArray m_PSBC;
 	struct D3D11Renderer* m_renderer;
 	
-	D3D11Shader( struct D3D11Renderer* r ) : m_VS( NULL ), m_PS( NULL ), m_renderer( r ){}
-	~D3D11Shader()
+	D3D11VertexShader( struct D3D11Renderer* r ) : m_VS( NULL ), m_renderer( r ){}
+	~D3D11VertexShader()
 	{
 		SAFE_RELEASE( m_VS );
+	}
+};
+
+struct D3D11PixelShader : SGRX_IPixelShader
+{
+	ID3D11PixelShader* m_PS;
+	ByteArray m_PSBC; // bytecode
+	struct D3D11Renderer* m_renderer;
+	
+	D3D11PixelShader( struct D3D11Renderer* r ) : m_PS( NULL ), m_renderer( r ){}
+	~D3D11PixelShader()
+	{
 		SAFE_RELEASE( m_PS );
 	}
 };
@@ -253,13 +263,14 @@ struct D3D11Renderer : IRenderer
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
-	bool CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors );
-	SGRX_IShader* CreateShader( ByteArray& code );
+	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
+	SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code );
+	SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
 	
 	void SetMatrix( bool view, const Mat4& mtx );
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount );
+	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
 	
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	void RenderScene( SGRX_RenderScene* RS );
@@ -279,7 +290,8 @@ struct D3D11Renderer : IRenderer
 	void ResetViewport();
 //	void _SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags );
 	void SetTexture( int slot, SGRX_ITexture* tex );
-	void SetShader( SGRX_IShader* shd );
+	void SetVertexShader( SGRX_IVertexShader* shd );
+	void SetPixelShader( SGRX_IPixelShader* shd );
 	
 //	FINLINE void VS_SetVec4Array( int at, Vec4* arr, int size ){ m_dev->SetVertexShaderConstantF( at, &arr->x, size ); }
 //	FINLINE void VS_SetVec4Array( int at, float* arr, int size ){ m_dev->SetVertexShaderConstantF( at, arr, size ); }
@@ -306,12 +318,13 @@ struct D3D11Renderer : IRenderer
 	// helpers
 //	RTData m_drd;
 	
-	SGRX_IShader* m_sh_pp_final;
-	SGRX_IShader* m_sh_pp_dshp;
-	SGRX_IShader* m_sh_pp_blur_h;
-	SGRX_IShader* m_sh_pp_blur_v;
-	SGRX_IShader* m_sh_debug_draw;
-	Array< ShaderHandle > m_pass_shaders;
+	SGRX_IVertexShader* m_sh_pp_vs;
+	SGRX_IPixelShader* m_sh_pp_final;
+	SGRX_IPixelShader* m_sh_pp_dshp;
+	SGRX_IPixelShader* m_sh_pp_blur_h;
+	SGRX_IPixelShader* m_sh_pp_blur_v;
+	SGRX_IPixelShader* m_sh_debug_draw;
+	Array< PixelShaderHandle > m_pass_shaders;
 	
 	// storage
 	HashTable< D3D11Texture*, bool > m_ownTextures;
@@ -459,12 +472,14 @@ void D3D11Renderer::Destroy()
 
 bool D3D11Renderer::LoadInternalResources()
 {
-	ShaderHandle sh_pp_final = GR_GetShader( "pp_final" );
-	ShaderHandle sh_pp_dshp = GR_GetShader( "pp_bloom_dshp" );
-	ShaderHandle sh_pp_blur_h = GR_GetShader( "pp_bloom_blur_h" );
-	ShaderHandle sh_pp_blur_v = GR_GetShader( "pp_bloom_blur_v" );
-	ShaderHandle sh_debug_draw = GR_GetShader( "debug_draw" );
-	if( !sh_pp_final ||
+	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "pp_vs" );
+	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "pp_final" );
+	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "pp_bloom_dshp" );
+	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "pp_bloom_blur_h" );
+	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "pp_bloom_blur_v" );
+	PixelShaderHandle sh_debug_draw = GR_GetPixelShader( "debug_draw" );
+	if( !sh_pp_vs ||
+		!sh_pp_final ||
 		!sh_pp_dshp ||
 		!sh_pp_blur_h ||
 		!sh_pp_blur_v ||
@@ -472,11 +487,13 @@ bool D3D11Renderer::LoadInternalResources()
 	{
 		return false;
 	}
+	sh_pp_vs->Acquire();
 	sh_pp_final->Acquire();
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
 	sh_pp_blur_v->Acquire();
 	sh_debug_draw->Acquire();
+	m_sh_pp_vs = sh_pp_vs;
 	m_sh_pp_final = sh_pp_final;
 	m_sh_pp_dshp = sh_pp_dshp;
 	m_sh_pp_blur_h = sh_pp_blur_h;
@@ -489,6 +506,7 @@ void D3D11Renderer::UnloadInternalResources()
 {
 	SetRenderPasses( NULL, 0 );
 	
+	m_sh_pp_vs->Release();
 	m_sh_pp_final->Release();
 	m_sh_pp_dshp->Release();
 	m_sh_pp_blur_h->Release();
@@ -698,7 +716,7 @@ cleanup:
 	return NULL;
 }
 
-bool D3D11Renderer::CompileShader( const StringView& code, ByteArray& outcomp, String& outerrors )
+bool D3D11Renderer::CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors )
 {
 #ifdef ENABLE_SHADER_COMPILING
 	HRESULT hr;
@@ -708,54 +726,50 @@ bool D3D11Renderer::CompileShader( const StringView& code, ByteArray& outcomp, S
 	static const D3D_SHADER_MACRO psmacros[] = { { "PS", "1" }, { NULL, NULL } };
 	
 	ByteWriter bw( &outcomp );
-	bw.marker( "CSH\x7f", 4 );
 	
-	int32_t shsize;
+	const D3D_SHADER_MACRO* macros = NULL;
+	const char* tyname = "unknown";
+	const char* profile = "---";
+	switch( shadertype )
+	{
+	case ShaderType_Vertex:
+		macros = vsmacros;
+		tyname = "vertex";
+		profile = "vs_4_0";
+		bw.marker( "CVSH\x7f", 5 );
+		break;
+	case ShaderType_Pixel:
+		macros = psmacros;
+		tyname = "pixel";
+		profile = "ps_4_0";
+		bw.marker( "CPSH\x7f", 5 );
+		break;
+	}
 	
-	hr = D3DCompile( code.data(), code.size(), "source", vsmacros, NULL, "main", "vs_4_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
+	hr = D3DCompile( code.data(), code.size(), StackPath( path ), macros, NULL, "main", profile, D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
 	if( FAILED( hr ) )
 	{
 		if( outerr )
 		{
 			const char* errtext = (const char*) outerr->GetBufferPointer();
-			outerrors.append( STRLIT_BUF( "Errors in vertex shader compilation:\n" ) );
-			outerrors.append( errtext, strlen( errtext ) );
+			outerrors.append( STRLIT_BUF( "Errors in " ) );
+			outerrors.append( tyname, strlen( tyname ) );
+			outerrors.append( STRLIT_BUF( " shader compilation:\n" ) );
+			outerrors.append( errtext, TMIN( strlen( errtext ), (size_t) outerr->GetBufferSize() ) );
 		}
 		else
-			outerrors.append( STRLIT_BUF( "Unknown error in vertex shader compilation" ) );
+		{
+			outerrors.append( STRLIT_BUF( "Unknown error in " ) );
+			outerrors.append( tyname, strlen( tyname ) );
+			outerrors.append( STRLIT_BUF( " shader compilation" ) );
+		}
 		
 		SAFE_RELEASE( outbuf );
 		SAFE_RELEASE( outerr );
 		return false;
 	}
 	
-	shsize = outbuf->GetBufferSize();
-	
-	bw << shsize;
-	bw.memory( outbuf->GetBufferPointer(), shsize );
-	
-	SAFE_RELEASE( outbuf );
-	SAFE_RELEASE( outerr );
-	
-	hr = D3DCompile( code.data(), code.size(), "source", psmacros, NULL, "main", "ps_4_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
-	if( FAILED( hr ) )
-	{
-		if( outerr )
-		{
-			const char* errtext = (const char*) outerr->GetBufferPointer();
-			outerrors.append( STRLIT_BUF( "Errors in pixel shader compilation:\n" ) );
-			outerrors.append( errtext, strlen( errtext ) );
-		}
-		else
-			outerrors.append( STRLIT_BUF( "Unknown error in pixel shader compilation" ) );
-		
-		SAFE_RELEASE( outbuf );
-		SAFE_RELEASE( outerr );
-		return false;
-	}
-	
-	shsize = outbuf->GetBufferSize();
-	
+	int32_t shsize = outbuf->GetBufferSize();
 	bw << shsize;
 	bw.memory( outbuf->GetBufferPointer(), shsize );
 	
@@ -764,48 +778,72 @@ bool D3D11Renderer::CompileShader( const StringView& code, ByteArray& outcomp, S
 	
 	return true;
 #else
-	LOG << "D3D11 SHADER COMPILATION IS NOT ALLOWED IN THIS BUILD";
+	LOG << "<<< D3D11 SHADER COMPILATION IS NOT ALLOWED IN THIS BUILD >>>";
+	LOG << "Uncompiled shader: " << path;
 	return false;
 #endif // ENABLE_SHADER_COMPILING
 }
 
-SGRX_IShader* D3D11Renderer::CreateShader( ByteArray& code )
+SGRX_IVertexShader* D3D11Renderer::CreateVertexShader( const StringView& path, ByteArray& code )
 {
 	HRESULT hr;
 	ByteReader br( &code );
-	br.marker( "CSH\x7f", 4 );
+	br.marker( "CVSH\x7f", 5 );
 	
-	int32_t vslen = 0, pslen = 0;
-	br << vslen;
-	br.padding( vslen );
-	br << pslen;
-	br.padding( pslen );
+	int32_t len = 0;
+	br << len;
 	if( br.error )
+	{
+		LOG_ERROR << "Failed to load bytecode for D3D11 vertex shader - " << path;
 		return NULL;
+	}
 	
-	uint8_t* vsbuf = &code[ 8 ];
-	uint8_t* psbuf = &code[ 12 + vslen ];
+	uint8_t* buf = &code[ 9 ];
 	ID3D11VertexShader* VS = NULL;
-	ID3D11PixelShader* PS = NULL;
-	D3D11Shader* out = NULL;
+	D3D11VertexShader* out = NULL;
 	
-	hr = m_dev->CreateVertexShader( vsbuf, vslen, NULL, &VS );
+	hr = m_dev->CreateVertexShader( buf, len, NULL, &VS );
 	if( FAILED( hr ) || !VS )
-		{ LOG_ERROR << "Failed to create a D3D11 vertex shader"; goto cleanup; }
+		{ LOG_ERROR << "Failed to create a D3D11 vertex shader - " << path; goto cleanup; }
 	
-	hr = m_dev->CreatePixelShader( psbuf, pslen, NULL, &PS );
-	if( FAILED( hr ) || !PS )
-		{ LOG_ERROR << "Failed to create a D3D11 pixel shader"; goto cleanup; }
-	
-	out = new D3D11Shader( this );
+	out = new D3D11VertexShader( this );
 	out->m_VS = VS;
-	out->m_PS = PS;
-	out->m_VSBC.append( vsbuf, vslen );
-	out->m_PSBC.append( psbuf, pslen );
+	out->m_VSBC.append( buf, len );
 	return out;
 	
 cleanup:
 	SAFE_RELEASE( VS );
+	return NULL;
+}
+
+SGRX_IPixelShader* D3D11Renderer::CreatePixelShader( const StringView& path, ByteArray& code )
+{
+	HRESULT hr;
+	ByteReader br( &code );
+	br.marker( "CPSH\x7f", 5 );
+	
+	int32_t len = 0;
+	br << len;
+	if( br.error )
+	{
+		LOG_ERROR << "Failed to load bytecode for D3D11 pixel shader - " << path;
+		return NULL;
+	}
+	
+	uint8_t* buf = &code[ 9 ];
+	ID3D11PixelShader* PS = NULL;
+	D3D11PixelShader* out = NULL;
+	
+	hr = m_dev->CreatePixelShader( buf, len, NULL, &PS );
+	if( FAILED( hr ) || !PS )
+		{ LOG_ERROR << "Failed to create a D3D11 pixel shader - " << path; goto cleanup; }
+	
+	out = new D3D11PixelShader( this );
+	out->m_PS = PS;
+	out->m_PSBC.append( buf, len );
+	return out;
+	
+cleanup:
 	SAFE_RELEASE( PS );
 	return NULL;
 }
@@ -953,25 +991,14 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 	
 	for( int i = 0; i < m_numParts; ++i )
 	{
-		SGRX_Material* MTL = m_parts[ i ].material;
-		if( !MTL )
-			continue;
-		SGRX_SurfaceShader* SSH = MTL->shader;
-		if( !SSH )
-			continue;
-		D3D11Shader* SHD = NULL;
-		for( size_t s = 0; s < SSH->m_shaders.size(); ++s )
-		{
-			if( SSH->m_shaders[ s ] )
-				SHD = (D3D11Shader*) SSH->m_shaders[ s ].item;
-		}
+		D3D11VertexShader* SHD = (D3D11VertexShader*) m_parts[ i ].vertexShader.item;
 		if( !SHD )
 			continue;
 		
 		HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_info.count, SHD->m_VSBC.data(), SHD->m_VSBC.size(), &m_inputLayouts[ i ] );
 		if( FAILED( hr ) || !m_inputLayouts[ i ] )
 		{
-			LOG_ERROR << "Failed to create an input layout (mesh=" << m_key << ")";
+			LOG_ERROR << "Failed to create an input layout (mesh=" << m_key << ", part=" << i << ")";
 		}
 	}
 }
@@ -994,7 +1021,7 @@ void D3D11Renderer::SetMatrix( bool view, const Mat4& mtx )
 	upload_buf( m_ctx, m_cbuf_vs_batchverts, true, true, &m_cbdata_vs_batchverts, sizeof(m_cbdata_vs_batchverts) );
 }
 
-void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IShader* shd, Vec4* shdata, size_t shvcount )
+void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
 {
 }
 
@@ -1017,14 +1044,14 @@ bool D3D11Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	}
 	
 	m_renderPasses.assign( passes, count );
-	Array< ShaderHandle > psh = m_pass_shaders;
+	Array< PixelShaderHandle > psh = m_pass_shaders;
 	m_pass_shaders.clear();
 	m_pass_shaders.reserve( count );
 	
 	for( int i = 0; i < (int) m_renderPasses.size(); ++i )
 	{
 		SGRX_RenderPass& PASS = m_renderPasses[ i ];
-		m_pass_shaders.push_back( PASS.type == RPT_SCREEN ? GR_GetShader( PASS.shader_name ) : ShaderHandle() );
+		m_pass_shaders.push_back( PASS.type == RPT_SCREEN ? GR_GetPixelShader( PASS.shader_name ) : PixelShaderHandle() );
 	}
 	
 	return true;
