@@ -806,7 +806,7 @@ void ltr_Scene::DoWork_LMRender_Inner_Spot( size_t i, dw_lmrender_data* data )
 	ltr_MeshInstance* mi = data->mi;
 	ltr_Light& light = *data->light;
 	float angle_out_rad = data->angle_out_rad;
-	float angle_in_rad = data->angle_in_rad;
+//	float angle_in_rad = data->angle_in_rad;
 	float angle_diff = data->angle_diff;
 	
 	// MAY BE THREADED
@@ -846,7 +846,7 @@ void ltr_Scene::DoWork_LMRender_Inner_Direct( size_t i, dw_lmrender_data* data )
 		
 		float randoff = randf();//( sin( SP.x ) + sin( SP.y ) + sin( SP.z ) ) / 6 + 0.5f;
 		
-		for( size_t s = 0; s < light.shadow_sample_count; ++s )
+		for( int s = 0; s < light.shadow_sample_count; ++s )
 		{
 			Vec3 adjdir = Vec3::CreateSpiralDirVector( -light.direction, randoff, s, light.shadow_sample_count );
 			adjdir = ( adjdir + (-light.direction) * tan( ( light.light_radius - 0.5f ) * M_PI * 0.999f ) ).Normalized();
@@ -1264,7 +1264,7 @@ void ltr_GetWorkOutputInfo( ltr_Scene* scene, ltr_WorkOutputInfo* woutinfo )
 
 LTRBOOL ltr_GetWorkOutput( ltr_Scene* scene, u32 which, ltr_WorkOutput* wout )
 {
-	if( which < 0 || which >= scene->m_workOutput.size() )
+	if( which >= scene->m_workOutput.size() )
 		return 0;
 	*wout = scene->m_workOutput[ which ];
 	return 1;

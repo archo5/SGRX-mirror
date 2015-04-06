@@ -873,6 +873,11 @@ void SGRX_Light::RecalcMatrices()
 }
 
 
+SGRX_CullScene::~SGRX_CullScene()
+{
+}
+
+
 SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
 	color( Vec4::Create( 1 ) ),

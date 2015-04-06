@@ -48,6 +48,7 @@ struct ENGINE_EXPORT Command
 struct ENGINE_EXPORT Command_Func : Command
 {
 	virtual void Function() = 0;
+	Command_Func( const StringView& sv, float thr = 0.1f ) : Command( sv, thr ){}
 	void OnChangeState(){ if( state && !state ) Function(); }
 };
 

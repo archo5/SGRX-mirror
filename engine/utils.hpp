@@ -564,7 +564,7 @@ struct ENGINE_EXPORT Mat4
 			size / aspect, 0, 0, 0,
 			0, -size, 0, 0,
 			0, 0, size, 0,
-			-x, y, 0.5f * size, 1
+			-x, y, 0.5f * size, 1,
 		};
 		return m;
 	}
@@ -937,7 +937,7 @@ inline float GetHue( const Vec3& rgbColor )
 	float C = M - m;
 	if( C == 0 )
 		return 0; // undefined, mapped to acceptable values
-	float h;
+	float h = 0;
 	if( M == rgbColor.x ) h = fmodf( ( rgbColor.y - rgbColor.z ) / C, 6.0f );
 	else if( M == rgbColor.y ) h = ( rgbColor.z - rgbColor.x ) / C + 2.0f;
 	else if( M == rgbColor.z ) h = ( rgbColor.x - rgbColor.y ) / C + 4.0f;
@@ -1543,6 +1543,7 @@ struct HashTable
 	{
 		this->~HashTable();
 		new (this) HashTable( ht );
+		return *this;
 	}
 	
 	void clear()

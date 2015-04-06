@@ -1215,7 +1215,7 @@ SGRX_Log& SGRX_Log::operator << ( ESpec_Date )
 	struct tm T = *localtime( &ttv );
 	char pbuf[ 256 ] = {0};
 	strftime( pbuf, 255, "%Y-%m-%d %H:%M:%S", &T );
-	printf( pbuf );
+	printf( "%s", pbuf );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Separator& s ){ sep = s.sep; return *this; }

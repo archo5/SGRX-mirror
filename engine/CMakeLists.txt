@@ -2,16 +2,6 @@
 cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
-set(PF_CORE_FLAGS "-m32")
-set(CORE_FLAGS "${PF_CORE_FLAGS} -Wall -Wno-narrowing -g")
-if(NOT WIN32)
-	set(CORE_FLAGS "${CORE_FLAGS} -fPIC")
-endif(NOT WIN32)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
-set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-rtti -fno-exceptions")
-
 # Engine
 add_library( sgrx-core SHARED
 	engine enganim edgui image font mesh culling utils dds
@@ -43,7 +33,8 @@ add_library( sgrx-render-d3d11 SHARED renderer_d3d11 )
 target_link_libraries( sgrx-render-d3d11 d3d11 d3dcompiler_42 sgrx-core )
 set_target_properties( sgrx-render-d3d11 PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
-	COMPILE_FLAGS "${CORE_FLAGS} -DENABLE_SHADER_COMPILING"
+	INCLUDE_DIRECTORIES "D:/DXSDK/Include"
+	COMPILE_FLAGS "${CORE_FLAGS} -Wno-unknown-pragmas -DENABLE_SHADER_COMPILING"
 	LINK_FLAGS "${CORE_FLAGS} -L${CMAKE_SOURCE_DIR}/ext/d3dx"
 )
 

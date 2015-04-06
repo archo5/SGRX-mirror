@@ -17,6 +17,8 @@
 #  define WIN32_LEAN_AND_MEAN
 #  undef _WIN32_WINNT
 #  define _WIN32_WINNT 0x0600
+#  undef WINVER
+#  define WINVER 0x0600
 #  include <windows.h>
 
 #  define ltrthread_sleep( ms ) Sleep( (DWORD) ms )
@@ -122,14 +124,14 @@ struct LTRWorker
 	typedef void (*WorkProc) (IO*);
 	
 	LTRWorker() :
-		m_exit( false ),
 		m_shared( NULL ),
 		m_items( NULL ),
 		m_itemSize( 0 ),
 		m_itemCount( 0 ),
 		m_nextItem( 0 ),
 		m_numDone( 0 ),
-		m_workProc( NULL )
+		m_workProc( NULL ),
+		m_exit( false )
 	{
 	}
 	~LTRWorker()

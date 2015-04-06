@@ -272,8 +272,8 @@ struct ENGINE_EXPORT ParticleSystem
 				if( values.size() == 0 )
 					return valueRange.x;
 				size_t end = values.size() - 1;
+				if( t < 0 ) t = 0;
 				size_t i = t * end;
-				if( i < 0 ) i = 0;
 				if( i >= end ) i = end;
 				size_t i1 = i + 1;
 				if( i1 >= end ) i1 = end;
