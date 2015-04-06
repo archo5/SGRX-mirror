@@ -1587,7 +1587,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		
 		m_dev->SetRenderTarget( 1, NULL );
 		m_dev->SetRenderTarget( 2, NULL );
-		m_dev->SetDepthStencilSurface( RTOUT.DSS );
+		m_dev->SetDepthStencilSurface( NULL );
 		
 		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_DSHP );
 		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
@@ -1615,6 +1615,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		_SetTextureInt( 1, m_drd.RTT_PARM, pptexflags );
 		_SetTextureInt( 2, m_drd.RTT_BLOOM_BLUR2, pptexflags );
 		PostProcBlit( RTOUT.w, RTOUT.h, 1, 0 );
+		m_dev->SetDepthStencilSurface( RTOUT.DSS );
 	}
 	
 	// MANUAL DEBUG DRAWING
@@ -1622,7 +1623,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		_RS_DebugDraw( RS->debugdraw, m_enablePostProcessing ? postproc_get_dss( &m_drd ) : RTOUT.DSS, RTOUT.DSS );
 	
 	// POST-PROCESS DEBUGGING
-	if( m_currentRT && m_dbg_rt )
+	if( !m_currentRT && m_dbg_rt )
 	{
 		RECT srcRect = { 0, 0, w, h };
 		RECT srcRect2 = { 0, 0, w/4, h/4 };
@@ -1631,8 +1632,8 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		{
 			m_drd.RTS_OCOL,
 			m_drd.RTS_PARM,
-	//		m_drd.RTS_BLOOM_DSHP,
-	//		m_drd.RTS_BLOOM_BLUR1,
+			m_drd.RTS_BLOOM_DSHP,
+			m_drd.RTS_BLOOM_BLUR1,
 			m_drd.RTS_BLOOM_BLUR2,
 		};
 		for( size_t i = 0; i < sizeof(surfs)/sizeof(surfs[0]); ++i )
