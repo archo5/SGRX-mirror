@@ -448,9 +448,9 @@ struct ENGINE_EXPORT SGRX_IMesh
 	SGRX_IMesh();
 	virtual ~SGRX_IMesh();
 	
-	virtual bool InitVertexBuffer( size_t size ) = 0;
+	virtual bool InitVertexBuffer( size_t size, VertexDeclHandle vd ) = 0;
 	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
-	virtual bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip ) = 0;
+	virtual bool UpdateVertexData( const void* data, size_t size, bool tristrip ) = 0;
 	virtual bool UpdateIndexData( const void* data, size_t size ) = 0;
 	virtual bool SetPartData( SGRX_MeshPart* parts, int count );
 	
@@ -460,7 +460,7 @@ struct ENGINE_EXPORT SGRX_IMesh
 	
 	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
 	{
-		return InitVertexBuffer( size ) && UpdateVertexData( data, size, vd, tristrip );
+		return InitVertexBuffer( size, vd ) && UpdateVertexData( data, size, tristrip );
 	}
 	bool SetIndexData( const void* data, size_t size, bool i32 )
 	{

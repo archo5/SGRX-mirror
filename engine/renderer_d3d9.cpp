@@ -219,9 +219,9 @@ struct D3D9Mesh : SGRX_IMesh
 	D3D9Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ){}
 	~D3D9Mesh();
 	
-	bool InitVertexBuffer( size_t size );
+	bool InitVertexBuffer( size_t size, VertexDeclHandle vd );
 	bool InitIndexBuffer( size_t size, bool i32 );
-	bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip );
+	bool UpdateVertexData( const void* data, size_t size, bool tristrip );
 	bool UpdateIndexData( const void* data, size_t size );
 	
 	bool OnDeviceLost();
@@ -1106,7 +1106,7 @@ D3D9Mesh::~D3D9Mesh()
 	SAFE_RELEASE( m_IB );
 }
 
-bool D3D9Mesh::InitVertexBuffer( size_t size )
+bool D3D9Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 {
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	SAFE_RELEASE( m_VB );
@@ -1117,6 +1117,7 @@ bool D3D9Mesh::InitVertexBuffer( size_t size )
 		return false;
 	}
 	m_vertexDataSize = size;
+	m_vertexDecl = vd;
 	return true;
 }
 
@@ -1135,7 +1136,7 @@ bool D3D9Mesh::InitIndexBuffer( size_t size, bool i32 )
 	return true;
 }
 
-bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
+bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 {
 	void* vb_data;
 	
@@ -1159,7 +1160,6 @@ bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, VertexDeclHandle
 		return false;
 	}
 	
-	m_vertexDecl = vd;
 	return true;
 }
 

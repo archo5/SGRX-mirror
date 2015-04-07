@@ -358,18 +358,21 @@ struct D3D11Mesh : SGRX_IMesh
 	ID3D11Buffer* m_VB;
 	ID3D11Buffer* m_IB;
 	struct D3D11Renderer* m_renderer;
+	int m_origVertexSize;
+	int m_realVertexSize;
+	size_t m_realVertexDataSize;
 	
 	ID3D11InputLayout* m_inputLayouts[ MAX_MESH_PARTS ];
 	
-	D3D11Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL )
+	D3D11Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ), m_origVertexSize(0), m_realVertexSize(0), m_realVertexDataSize(0)
 	{
 		memset( m_inputLayouts, 0, sizeof(m_inputLayouts) );
 	}
 	~D3D11Mesh();
 	
-	bool InitVertexBuffer( size_t size );
+	bool InitVertexBuffer( size_t size, VertexDeclHandle vd );
 	bool InitIndexBuffer( size_t size, bool i32 );
-	bool UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip );
+	bool UpdateVertexData( const void* data, size_t size, bool tristrip );
 	bool UpdateIndexData( const void* data, size_t size );
 	bool SetPartData( SGRX_MeshPart* parts, int count );
 	
@@ -1302,13 +1305,23 @@ D3D11Mesh::~D3D11Mesh()
 		SAFE_RELEASE( m_inputLayouts[ i ] );
 }
 
-bool D3D11Mesh::InitVertexBuffer( size_t size )
+bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 {
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	SAFE_RELEASE( m_VB );
-	if( create_buf( m_renderer->m_dev, size, dyn, D3D11_BIND_VERTEX_BUFFER, NULL, &m_VB ) )
-		return false;
+	
+	m_origVertexSize = vd->m_info.size;
+	m_realVertexSize = divideup( m_origVertexSize, 16 ) * 16;
 	m_vertexDataSize = size;
+	m_realVertexDataSize = divideup( size, m_origVertexSize ) * m_realVertexSize;
+	
+	if( create_buf( m_renderer->m_dev, m_realVertexDataSize, dyn, D3D11_BIND_VERTEX_BUFFER, NULL, &m_VB ) )
+		return false;
+	
+	m_vertexDecl = vd;
+	
+	_UpdatePartInputLayouts();
+	
 	return true;
 }
 
@@ -1323,7 +1336,7 @@ bool D3D11Mesh::InitIndexBuffer( size_t size, bool i32 )
 	return true;
 }
 
-bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
+bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 {
 	if( size > m_vertexDataSize )
 	{
@@ -1331,13 +1344,29 @@ bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, VertexDeclHandl
 		return false;
 	}
 	
+	LOG << m_origVertexSize;
+	if( m_origVertexSize != m_realVertexSize )
+	{
+		LOG << "RELOADEEEEED " << m_origVertexSize << "," << m_realVertexSize;
+		ByteArray& scratch = m_renderer->m_scratchMem;
+		size_t xsize = divideup( size, m_origVertexSize ) * m_realVertexSize;
+		scratch.resize( xsize );
+		memset( scratch.data(), 0, scratch.size() );
+		for( size_t i = 0; i < size / m_origVertexSize; ++i )
+		{
+			memcpy( &scratch[ i * m_realVertexSize ], (uint8_t*)data + i * m_origVertexSize, m_origVertexSize );
+		}
+		if( size % m_origVertexSize != 0 )
+			memcpy( &scratch[ size / m_origVertexSize * m_realVertexSize ], (uint8_t*)data + size / m_origVertexSize * m_origVertexSize, size % m_origVertexSize );
+		
+		data = scratch.data();
+		size = scratch.size();
+	}
+	
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	upload_buf( m_renderer->m_ctx, m_VB, dyn, true, data, size );
 	
-	m_vertexDecl = vd;
 	m_dataFlags = ( m_dataFlags & ~MDF_TRIANGLESTRIP ) | ( MDF_TRIANGLESTRIP * tristrip );
-	
-	_UpdatePartInputLayouts();
 	
 	return true;
 }
@@ -1531,6 +1560,11 @@ void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 		if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, /*tx_depth,*/ RTOUT );
 	}
+	
+	// RESTORE STATE
+	m_enablePostProcessing = false;
+	m_viewport = NULL;
+	m_currentScene = NULL;
 }
 
 void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )
@@ -1560,7 +1594,6 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 		D3D11Mesh* M = (D3D11Mesh*) MI->mesh.item;
 		if( !M->m_vertexDecl )
 			continue;
-		D3D11VertexDecl* VD = (D3D11VertexDecl*) M->m_vertexDecl.item;
 		
 		/* if (fully transparent & want solid), skip */
 		if( MI->transparent && mtl_type > 0 )
@@ -1713,7 +1746,7 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 			m_ctx->PSSetSamplers( 8, 4, smps + 8 );
 			
 			ID3D11Buffer* vbufs[2] = { M->m_VB, m_vertbuf_defaults };
-			static const UINT strides[2] = { sizeof(VD->m_info.size), sizeof(BackupVertexData) };
+			static const UINT strides[2] = { M->m_realVertexSize, sizeof(BackupVertexData) };
 			static const UINT offsets[2] = { 0, 0 };
 			m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
 			m_ctx->IASetIndexBuffer( M->m_IB, M->m_dataFlags & MDF_INDEX_32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0 );

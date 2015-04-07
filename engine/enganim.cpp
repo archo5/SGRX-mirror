@@ -832,7 +832,7 @@ void ParticleSystem::PreRender()
 			if( m_vertices.size_bytes() > mesh->m_vertexDataSize )
 				mesh->SetVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
 			else
-				mesh->UpdateVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl, false );
+				mesh->UpdateVertexData( m_vertices.data(), m_vertices.size_bytes(), false );
 			mesh->SetAABBFromVertexData( m_vertices.data(), m_vertices.size_bytes(), m_vdecl );
 		}
 		
