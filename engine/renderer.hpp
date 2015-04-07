@@ -186,26 +186,29 @@ struct ENGINE_EXPORT IRenderer
 	virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
 	virtual void RenderScene( SGRX_RenderScene* RS ) = 0;
 	
+	// culling helpers
+	void _RS_Cull_Camera_Prepare( SGRX_Scene* scene );
+	uint32_t _RS_Cull_Camera_MeshList( SGRX_Scene* scene );
+	uint32_t _RS_Cull_Camera_PointLightList( SGRX_Scene* scene );
+	uint32_t _RS_Cull_Camera_SpotLightList( SGRX_Scene* scene );
+	uint32_t _RS_Cull_SpotLight_MeshList( SGRX_Scene* scene, SGRX_Light* L );
+	void _RS_Compile_MeshLists( SGRX_Scene* scene );
+	
+	// common data
 	RenderStats m_stats;
 	RenderSettings m_currSettings;
 	Array< SGRX_RenderPass > m_renderPasses;
 	
 	bool m_inDebugDraw;
 	
-//	void set_render_state( int, int, int, int, int ); /* type, arg0, arg1, arg2, arg3 */
-//	void set_matrix( int, float* ); /* type, float[16] */
-//	void set_rt( SS_Texture* tex );
-//	
-//	int create_texture_argb8( SS_Texture*, SS_Image*, uint32_t );
-//	int create_texture_a8( SS_Texture*, uint8_t*, int, int, int ); /* data, width, height, pitch */
-//	int create_texture_rnd( SS_Texture*, int, int, uint32_t ); /* width, height, flags */
-//	int destroy_texture( SS_Texture* );
-//	int apply_texture( SS_Texture* );
-//	
-//	int init_vertex_format( SS_VertexFormat* );
-//	int free_vertex_format( SS_VertexFormat* );
-//	int draw_basic_vertices( void*, uint32_t, int ); /* SS_BasicVertex*, count, ptype */
-//	int draw_ext( SS_VertexFormat*, void*, uint32_t, void*, uint32_t, int, uint32_t, uint32_t, int );
+	// culling data
+	ByteArray m_scratchMem;
+	Array< SGRX_MeshInstance* > m_visible_meshes;
+	Array< SGRX_MeshInstance* > m_visible_spot_meshes;
+	Array< SGRX_Light* > m_visible_point_lights;
+	Array< SGRX_Light* > m_visible_spot_lights;
+	Array< SGRX_MeshInstLight > m_inst_light_buf;
+	Array< SGRX_MeshInstLight > m_light_inst_buf;
 };
 typedef bool (*pfnRndInitialize) ( const char** );
 typedef void (*pfnRndFree) ();

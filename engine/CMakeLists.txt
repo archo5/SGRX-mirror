@@ -4,7 +4,7 @@ set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 # Engine
 add_library( sgrx-core SHARED
-	engine enganim edgui image font mesh culling utils dds
+	engine engrender enganim edgui image font mesh culling utils dds
 	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
 	../ext/src/libpng1
 	../ext/src/libjpg1 ../ext/src/libjpg2 ../ext/src/libjpg3

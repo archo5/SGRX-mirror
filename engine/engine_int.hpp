@@ -92,7 +92,7 @@ struct RasterCache
 	}
 	Node* _AllocItem( int32_t frame, const K& key, int32_t w, int32_t h )
 	{
-		for( int i = 0; i < m_pages.size(); ++i )
+		for( size_t i = 0; i < m_pages.size(); ++i )
 		{
 			Node* node = _NodeAlloc( i, 0, w, h );
 			if( node )
@@ -133,7 +133,7 @@ struct RasterCache
 		uint32_t largestafd = 0;
 		int lastpage = -1; 
 		
-		for( int i = 0; i < m_pages.size(); ++i )
+		for( size_t i = 0; i < m_pages.size(); ++i )
 		{
 			_AvgFrameDiff( i, curframe );
 			if( m_pages[ i ].framediff > largestafd )
@@ -180,7 +180,7 @@ struct RasterCache
 	{
 		NodePos np = { -1, 0 };
 		np = m_keyNodeMap.getcopy( key, np );
-		if( np.page == -1 )
+		if( np.page == (uint32_t) -1 )
 			return NULL;
 		Node* node = &m_pages[ np.page ].tree[ np.node ];
 		node->lastframe = frame;
@@ -207,7 +207,7 @@ struct RasterCache
 	}
 	TextureHandle GetPageTexture( int page )
 	{
-		if( page < 0 || page >= m_pages.size() )
+		if( page < 0 || page >= (int) m_pages.size() )
 			return TextureHandle();
 		return m_pages[ page ].texture;
 	}

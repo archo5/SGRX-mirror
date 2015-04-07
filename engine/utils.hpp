@@ -26,8 +26,10 @@
 #define ASSERT assert
 #ifdef _MSC_VER
 #define FINLINE __forceinline
+#define ALIGN16(a) __declspec(align(16)) a
 #else
 #define FINLINE inline __attribute__((__always_inline__))
+#define ALIGN16(a) a __attribute__ ((aligned (16)))
 #endif
 
 #define SGRX_CAST( t, to, from ) t to = (t) from
@@ -1559,8 +1561,8 @@ struct HashTable
 	}
 	
 	FINLINE size_t size() const { return m_size; }
-	FINLINE Var& item( size_t i ){ ASSERT( i < m_size ); return m_vars[ i ]; }
-	FINLINE const Var& item( size_t i ) const { ASSERT( i < m_size ); return m_vars[ i ]; }
+	FINLINE Var& item( size_t i ){ ASSERT( (size_type) i < m_size ); return m_vars[ i ]; }
+	FINLINE const Var& item( size_t i ) const { ASSERT( (size_type) i < m_size ); return m_vars[ i ]; }
 	FINLINE V getcopy( const K& key, const V& defval = V() ) const { const Var* raw = getraw( key ); return raw ? raw->value : defval; }
 	FINLINE V* getptr( const K& key, V* defval = NULL ){ Var* raw = getraw( key ); return raw ? &raw->value : defval; }
 	FINLINE const V* getptr( const K& key, const V* defval = NULL ) const { const Var* raw = getraw( key ); return raw ? &raw->value : defval; }

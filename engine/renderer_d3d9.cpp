@@ -418,11 +418,6 @@ struct D3D9Renderer : IRenderer
 	
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	void RenderScene( SGRX_RenderScene* RS );
-	uint32_t _RS_Cull_Camera_MeshList();
-	uint32_t _RS_Cull_Camera_PointLightList();
-	uint32_t _RS_Cull_Camera_SpotLightList();
-	uint32_t _RS_Cull_SpotLight_MeshList( SGRX_Light* L );
-	void _RS_Compile_MeshLists();
 	void _RS_Render_Shadows();
 	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
 	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
@@ -486,13 +481,6 @@ struct D3D9Renderer : IRenderer
 	SceneHandle m_currentScene;
 	bool m_enablePostProcessing;
 	SGRX_Viewport* m_viewport;
-	ByteArray m_scratchMem;
-	Array< SGRX_MeshInstance* > m_visible_meshes;
-	Array< SGRX_MeshInstance* > m_visible_spot_meshes;
-	Array< SGRX_Light* > m_visible_point_lights;
-	Array< SGRX_Light* > m_visible_spot_lights;
-	Array< SGRX_MeshInstLight > m_inst_light_buf;
-	Array< SGRX_MeshInstLight > m_light_inst_buf;
 };
 
 extern "C" RENDERER_EXPORT bool Initialize( const char** outname )
@@ -1473,13 +1461,13 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	
 	m_stats.Reset();
 	// CULLING
-	SGRX_Cull_Camera_Prepare( m_currentScene );
-	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList();
-	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList();
-	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList();
+	_RS_Cull_Camera_Prepare( m_currentScene );
+	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList( m_currentScene );
+	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList( m_currentScene );
+	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList( m_currentScene );
 	
 	// MESH INST/LIGHT RELATIONS
-	_RS_Compile_MeshLists();
+	_RS_Compile_MeshLists( m_currentScene );
 	
 	// RENDERING BEGINS
 	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
@@ -1667,102 +1655,6 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	m_currentScene = NULL;
 }
 
-uint32_t D3D9Renderer::_RS_Cull_Camera_MeshList()
-{
-	m_visible_meshes.clear();
-	return SGRX_Cull_Camera_MeshList( m_visible_meshes, m_scratchMem, m_currentScene );
-}
-
-uint32_t D3D9Renderer::_RS_Cull_Camera_PointLightList()
-{
-	m_visible_point_lights.clear();
-	return SGRX_Cull_Camera_PointLightList( m_visible_point_lights, m_scratchMem, m_currentScene );
-}
-
-uint32_t D3D9Renderer::_RS_Cull_Camera_SpotLightList()
-{
-	m_visible_spot_lights.clear();
-	return SGRX_Cull_Camera_SpotLightList( m_visible_spot_lights, m_scratchMem, m_currentScene );
-}
-
-uint32_t D3D9Renderer::_RS_Cull_SpotLight_MeshList( SGRX_Light* L )
-{
-	m_visible_spot_meshes.clear();
-	return SGRX_Cull_SpotLight_MeshList( m_visible_spot_meshes, m_scratchMem, m_currentScene, L );
-}
-
-static int sort_meshinstlight_by_light( const void* p1, const void* p2 )
-{
-	SGRX_MeshInstLight* mil1 = (SGRX_MeshInstLight*) p1;
-	SGRX_MeshInstLight* mil2 = (SGRX_MeshInstLight*) p2;
-	return mil1->L == mil2->L ? 0 : ( mil1->L < mil2->L ? -1 : 1 );
-}
-
-void D3D9Renderer::_RS_Compile_MeshLists()
-{
-	SGRX_Scene* scene = m_currentScene;
-	
-	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
-	{
-		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
-		
-		MI->_lightbuf_begin = NULL;
-		MI->_lightbuf_end = NULL;
-		
-		if( !MI->mesh || !MI->enabled || MI->unlit )
-			continue;
-		MI->_lightbuf_begin = (SGRX_MeshInstLight*) m_inst_light_buf.size_bytes();
-		// POINT LIGHTS
-		for( size_t light_id = 0; light_id < m_visible_point_lights.size(); ++light_id )
-		{
-			SGRX_Light* L = m_visible_point_lights[ light_id ];
-			SGRX_MeshInstLight mil = { MI, L };
-			m_inst_light_buf.push_back( mil );
-		}
-		// SPOTLIGHTS
-		for( size_t light_id = 0; light_id < m_visible_spot_lights.size(); ++light_id )
-		{
-			SGRX_Light* L = m_visible_spot_lights[ light_id ];
-			SGRX_MeshInstLight mil = { MI, L };
-			m_inst_light_buf.push_back( mil );
-		}
-		MI->_lightbuf_end = (SGRX_MeshInstLight*) m_inst_light_buf.size_bytes();
-	}
-	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
-	{
-		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
-		if( !MI->mesh || !MI->enabled || MI->unlit )
-			continue;
-		MI->_lightbuf_begin = (SGRX_MeshInstLight*)( (uintptr_t) MI->_lightbuf_begin + (uintptr_t) m_inst_light_buf.data() );
-		MI->_lightbuf_end = (SGRX_MeshInstLight*)( (uintptr_t) MI->_lightbuf_end + (uintptr_t) m_inst_light_buf.data() );
-	}
-	
-	/*  insts -> lights  TO  lights -> insts  */
-	m_light_inst_buf = m_inst_light_buf;
-	memcpy( m_light_inst_buf.data(), m_inst_light_buf.data(), m_inst_light_buf.size() );
-	qsort( m_light_inst_buf.data(), m_light_inst_buf.size(), sizeof( SGRX_MeshInstLight ), sort_meshinstlight_by_light );
-	
-	for( size_t light_id = 0; light_id < scene->m_lights.size(); ++light_id )
-	{
-		SGRX_Light* L = scene->m_lights.item( light_id ).key;
-		if( !L->enabled )
-			continue;
-		L->_mibuf_begin = NULL;
-		L->_mibuf_end = NULL;
-	}
-	
-	SGRX_MeshInstLight* pmil = m_light_inst_buf.data();
-	SGRX_MeshInstLight* pmilend = pmil + m_light_inst_buf.size();
-	
-	while( pmil < pmilend )
-	{
-		if( !pmil->L->_mibuf_begin )
-			pmil->L->_mibuf_begin = pmil;
-		pmil->L->_mibuf_end = pmil + 1;
-		pmil++;
-	}
-}
-
 void D3D9Renderer::_RS_Render_Shadows()
 {
 	SGRX_Scene* scene = m_currentScene;
@@ -1782,8 +1674,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 				continue;
 			
 			/* CULL */
-			SGRX_Cull_SpotLight_Prepare( scene, L );
-			_RS_Cull_SpotLight_MeshList( L );
+			_RS_Cull_SpotLight_MeshList( scene, L );
 			
 			D3D9RenderTexture* RT = (D3D9RenderTexture*) L->shadowTexture.item;
 			
