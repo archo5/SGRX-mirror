@@ -1175,6 +1175,23 @@ static DXGI_FORMAT vdecltype_to_format[] =
 	DXGI_FORMAT_R8G8B8A8_UNORM,
 };
 
+static const char* format_to_str( DXGI_FORMAT fmt )
+{
+	static char bfr[32];
+	switch( fmt )
+	{
+	case DXGI_FORMAT_R32_FLOAT: return "r32 float [1]";
+	case DXGI_FORMAT_R32G32_FLOAT: return "rg32 float [2]";
+	case DXGI_FORMAT_R32G32B32_FLOAT: return "rgb32 float [3]";
+	case DXGI_FORMAT_R32G32B32A32_FLOAT: return "rgba32 float [4]";
+	case DXGI_FORMAT_R8G8B8A8_UNORM: return "rgba8 unorm";
+	case DXGI_FORMAT_R8G8B8A8_UINT: return "rgba8 uint";
+	default:
+		sprintf( bfr, "<! Unknown: %d>", (int) fmt );
+		return bfr;
+	}
+}
+
 SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 {
 	int i;
@@ -1312,6 +1329,7 @@ bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 	
 	m_origVertexSize = vd->m_info.size;
 	m_realVertexSize = divideup( m_origVertexSize, 16 ) * 16;
+	LOG << "VERTEX SIZE CHANGE: " << m_origVertexSize << " => " << m_realVertexSize;
 	m_vertexDataSize = size;
 	m_realVertexDataSize = divideup( size, m_origVertexSize ) * m_realVertexSize;
 	
@@ -1344,10 +1362,9 @@ bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 		return false;
 	}
 	
-	LOG << m_origVertexSize;
 	if( m_origVertexSize != m_realVertexSize )
 	{
-		LOG << "RELOADEEEEED " << m_origVertexSize << "," << m_realVertexSize;
+		LOG << "Refitting vertex data from size=" << m_origVertexSize << " to size=" << m_realVertexSize;
 		ByteArray& scratch = m_renderer->m_scratchMem;
 		size_t xsize = divideup( size, m_origVertexSize ) * m_realVertexSize;
 		scratch.resize( xsize );
@@ -1411,6 +1428,22 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 		if( !SHD )
 			continue;
 		
+#if 0
+		D3D11_INPUT_ELEMENT_DESC* elements = VD->m_elements;
+	LOG << "CREATING INPUT LAYOUT";
+	for( int v = 0; v < VD->m_elemCount; ++v )
+	{
+		LOG << "--- " << v << " ---";
+		LOG << "\tSemanticName: " << elements[ v ].SemanticName;
+		LOG << "\tSemanticIndex: " << elements[ v ].SemanticIndex;
+		LOG << "\tFormat: " << format_to_str( elements[ v ].Format );
+		LOG << "\tInputSlot: " << elements[ v ].InputSlot;
+		LOG << "\tAlignedByteOffset: " << elements[ v ].AlignedByteOffset;
+		LOG << "\tInputSlotClass: " << elements[ v ].InputSlotClass;
+		LOG << "\tInstanceDataStepRate: " << elements[ v ].InstanceDataStepRate;
+	}
+#endif
+	
 		HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD->m_VSBC.data(), SHD->m_VSBC.size(), &m_inputLayouts[ i ] );
 		if( FAILED( hr ) || !m_inputLayouts[ i ] )
 		{

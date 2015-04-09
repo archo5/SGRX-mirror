@@ -2,6 +2,7 @@
 
 #pragma once
 #define __STDC_FORMAT_MACROS 1
+#define _USE_MATH_DEFINES
 #include <inttypes.h>
 #include <assert.h>
 #include <math.h>

@@ -80,9 +80,9 @@ bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinf
 	TextureInfo info = *TI;
 	if( mip >= TI->mipcount )
 		return false;
-	info.width /= pow( 2, mip ); if( info.width < 1 ) info.width = 1;
-	info.height /= pow( 2, mip ); if( info.height < 1 ) info.height = 1;
-	info.depth /= pow( 2, mip ); if( info.depth < 1 ) info.depth = 1;
+	info.width /= powf( 2, mip ); if( info.width < 1 ) info.width = 1;
+	info.height /= powf( 2, mip ); if( info.height < 1 ) info.height = 1;
+	info.depth /= powf( 2, mip ); if( info.depth < 1 ) info.depth = 1;
 	info.mipcount -= mip;
 	*outinfo = info;
 	return true;

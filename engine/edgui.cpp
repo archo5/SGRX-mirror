@@ -977,7 +977,7 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 		{
 			int prbx = e->mouse.x - m_cx;
 			int prby = e->mouse.y - m_cy;
-			float dist = sqrt( prbx * prbx + prby * prby );
+			float dist = sqrtf( prbx * prbx + prby * prby );
 			if( dist < EDGUI_THEME_NUMWHEEL_CENTER_SIZE && m_curWheel < 0 )
 			{
 				if( m_owner )
@@ -997,20 +997,20 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 			{
 				int prbx = ( e->mouse.x + m_prevMouseX ) / 2 - m_cx;
 				int prby = ( e->mouse.y + m_prevMouseY ) / 2 - m_cy;
-				float dist = sqrt( prbx * prbx + prby * prby ) - EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
+				float dist = sqrtf( prbx * prbx + prby * prby ) - EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
 				dist /= EDGUI_THEME_NUMWHEEL_WHEEL_SIZE;
 				m_curWheel = floor( dist );
 			}
 			if( m_clicked && m_curWheel >= 0 && m_curWheel < m_numwheels )
 			{
-				float pa = atan2( m_prevMouseY - m_cy, m_prevMouseX - m_cx );
-				float ca = atan2( e->mouse.y - m_cy  , e->mouse.x - m_cx   );
+				float pa = atan2f( m_prevMouseY - m_cy, m_prevMouseX - m_cx );
+				float ca = atan2f( e->mouse.y - m_cy  , e->mouse.x - m_cx   );
 				if( pa - ca > M_PI ) pa -= M_PI * 2;
 				if( ca - pa > M_PI ) ca -= M_PI * 2;
 				float diff = ca - pa;
 				
 				double prevval = GetValue();
-				m_value += diff * pow( 10, m_initpwr + m_curWheel );
+				m_value += diff * powf( 10, m_initpwr + m_curWheel );
 				if( m_value < m_min ) m_value = m_min;
 				if( m_value > m_max ) m_value = m_max;
 				if( GetValue() != prevval && m_owner )
@@ -1045,7 +1045,7 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 			if( m_curWheel >= 0 && m_curWheel < m_numwheels )
 			{
 				rad = m_curWheel * EDGUI_THEME_NUMWHEEL_WHEEL_SIZE + EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
-				snprintf( bfr, 31, "%g", pow( 10, m_initpwr + m_curWheel ) );
+				snprintf( bfr, 31, "%g", powf( 10, m_initpwr + m_curWheel ) );
 				GR2D_DrawTextLine( m_cx + xfac * rad, m_cy + yfac * rad, bfr );
 			}
 			snprintf( bfr, 31, "%g", GetValue() );
@@ -1058,7 +1058,7 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 
 double EDGUINumberWheel::GetValue()
 {
-	double rf = pow( 10, m_initpwr );
+	double rf = powf( 10, m_initpwr );
 	return round( m_value / rf ) * rf;
 }
 

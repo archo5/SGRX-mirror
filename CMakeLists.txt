@@ -2,15 +2,17 @@
 cmake_minimum_required( VERSION 2.8 )
 
 
-set(PF_CORE_FLAGS "-m32")
-set(CORE_FLAGS "${PF_CORE_FLAGS} -Wall -Wno-narrowing -Wno-missing-braces -g")
-if(NOT WIN32)
-	set(CORE_FLAGS "${CORE_FLAGS} -fPIC")
-endif(NOT WIN32)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
-set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-rtti -fno-exceptions")
+if(NOT MSVC)
+	set(PF_CORE_FLAGS "-m32")
+	set(CORE_FLAGS "${PF_CORE_FLAGS} -Wall -Wno-narrowing -Wno-missing-braces -g")
+	if(NOT WIN32)
+		set(CORE_FLAGS "${CORE_FLAGS} -fPIC")
+	endif(NOT WIN32)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
+	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-rtti -fno-exceptions")
+endif()
 
 
 # Direct3D9
