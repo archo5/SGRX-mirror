@@ -23,6 +23,30 @@
 
 void NOP( int x ){}
 
+int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen )
+{
+	if( len == 0 )
+		return -1;
+	len--;
+	if( len > ilen )
+		len = ilen;
+	memcpy( buf, str, len );
+	buf[ len ] = 0;
+	return 0;
+}
+
+int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... )
+{
+	if( len == 0 )
+		return -1;
+	va_list args;
+	va_start( args, fmt );
+	int ret = vsnprintf( buf, len, fmt, args );
+	va_end( args );
+	buf[ len - 1 ] = 0;
+	return ret;
+}
+
 
 const Quat Quat::Identity = { 0, 0, 0, 1 };
 
@@ -667,7 +691,7 @@ double String_ParseFloat( const StringView& sv, bool* success )
 {
 	double val = 0;
 	const char* begin = sv.begin(), *end = sv.end();
-	bool suc = strtonum_real( &begin, end, &val );
+	bool suc = strtonum_real( &begin, end, &val ) != 0;
 	if( success )
 		*success = suc;
 	return val;
@@ -837,7 +861,7 @@ struct _IntDirIter
 	}
 	bool Next()
 	{
-		bool ret;
+		BOOL ret;
 		if( searched )
 			ret = FindNextFileW( hfind, &wfd );
 		else
@@ -851,7 +875,7 @@ struct _IntDirIter
 			int sz = WideCharToMultiByte( CP_UTF8, 0, wfd.cFileName, wcslen( wfd.cFileName ), utf8file.str, MAX_PATH * 4, NULL, NULL );
 			utf8file.str[ sz ] = 0;
 		}
-		return ret;
+		return ret != FALSE;
 	}
 	bool IsDirectory()
 	{
@@ -900,7 +924,7 @@ InLocalStorage::InLocalStorage( const StringView& path )
 #ifdef _WIN32
 	WCHAR bfr[ MAX_PATH + 1 ] = {0};
 	GetEnvironmentVariableW( L"APPDATA", bfr, MAX_PATH );
-	bool ret = SetCurrentDirectoryW( bfr );
+	bool ret = SetCurrentDirectoryW( bfr ) != FALSE;
 #else
 	bool ret = chdir( getenv("HOME") ) == 0;
 #endif
@@ -952,7 +976,7 @@ bool DirExists( const StringView& path )
 bool DirCreate( const StringView& path )
 {
 #ifdef _WIN32
-	return CreateDirectoryW( StackWString< MAX_PATH >( path ), NULL );
+	return CreateDirectoryW( StackWString< MAX_PATH >( path ), NULL ) != FALSE;
 #else
 	return mkdir( StackString< 4096 >( path ) ) == 0;
 #endif
@@ -985,7 +1009,7 @@ bool CWDGet( String& path )
 bool CWDSet( const StringView& path )
 {
 #ifdef _WIN32
-	return SetCurrentDirectoryW( StackWString< MAX_PATH >( path ) );
+	return SetCurrentDirectoryW( StackWString< MAX_PATH >( path ) ) != FALSE;
 #else
 	return chdir( StackString< 4096 >( path ) ) == 0;
 #endif
@@ -1290,6 +1314,10 @@ struct _testser_
 
 int TestSystems()
 {
+	char bfr[ 4 ];
+	sgrx_snprintf( bfr, 4, "abcd" );
+	if( bfr[ 3 ] != '\0' ) return 101; // sgrx_snprintf not null-terminating
+
 	HashTable< int, int > ht_ii;
 	if( ht_ii.size() != 0 ) return 501; // empty
 	if( ht_ii.getcopy( 0, 0 ) ) return 502; // miss

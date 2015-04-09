@@ -12,7 +12,7 @@
 #endif
 
 
-struct PHYSICS_EXPORT SGRX_IPhyShape
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyShape
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -55,7 +55,7 @@ struct SGRX_PhyRigidBodyInfo
 	uint16_t mask;
 };
 
-struct PHYSICS_EXPORT SGRX_IPhyRigidBody
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -77,7 +77,7 @@ struct PHYSICS_EXPORT SGRX_IPhyRigidBody
 typedef Handle< SGRX_IPhyRigidBody > PhyRigidBodyHandle;
 
 
-struct PHYSICS_EXPORT SGRX_IPhyJoint
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyJoint
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -99,7 +99,7 @@ struct SGRX_PhyRaycastInfo
 	PhyRigidBodyHandle body;
 };
 
-struct PHYSICS_EXPORT SGRX_IPhyWorld
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
@@ -133,7 +133,7 @@ typedef Handle< SGRX_IPhyWorld > PhyWorldHandle;
 PHYSICS_EXPORT PhyWorldHandle PHY_CreateWorld();
 
 
-struct ENGINE_EXPORT AnimRagdoll : Animator
+struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 {
 	struct Body
 	{
@@ -146,15 +146,15 @@ struct ENGINE_EXPORT AnimRagdoll : Animator
 		Quat currRot;
 	};
 	
-	AnimRagdoll();
-	void Initialize( PhyWorldHandle world, MeshHandle mesh, struct SkeletonInfo* skinfo );
-	virtual void Prepare( String* new_names, int count );
-	virtual void Advance( float deltaTime );
+	ENGINE_EXPORT AnimRagdoll();
+	ENGINE_EXPORT void Initialize( PhyWorldHandle world, MeshHandle mesh, struct SkeletonInfo* skinfo );
+	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
-	void SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot );
-	void AdvanceTransforms( Animator* anim );
-	void EnablePhysics( const Mat4& worldMatrix );
-	void DisablePhysics();
+	ENGINE_EXPORT void SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot );
+	ENGINE_EXPORT void AdvanceTransforms( Animator* anim );
+	ENGINE_EXPORT void EnablePhysics( const Mat4& worldMatrix );
+	ENGINE_EXPORT void DisablePhysics();
 	
 	bool m_enabled;
 	float m_lastTickSize;

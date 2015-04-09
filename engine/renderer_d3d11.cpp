@@ -2,6 +2,7 @@
 
 #define __STDC_FORMAT_MACROS 1
 #include <inttypes.h>
+#ifndef __in
 #define __in
 #define __out
 #define __inout
@@ -17,6 +18,7 @@
 #define __in_ecount(x)
 #define __out_ecount(x)
 #define __in_range(x,y)
+#endif
 #include <d3d11.h>
 #ifdef ENABLE_SHADER_COMPILING
 #  include <d3dcompiler.h>

@@ -36,12 +36,12 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_PAINT:
 		if( backColor )
 		{
-			GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1 );
+			GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( float(x0), float(y0), float(x1), float(y1) );
 		}
 		if( textColor && caption.size() )
 		{
 			GR2D_GetBatchRenderer().Colu( textColor );
-			GR2D_DrawTextLine( ( x0 + x1 ) / 2, ( y0 + y1 ) / 2, caption, HALIGN_CENTER, VALIGN_CENTER );
+			GR2D_DrawTextLine( ( x0 + x1 ) / 2.0f, ( y0 + y1 ) / 2.0f, caption, HALIGN_CENTER, VALIGN_CENTER );
 		}
 		for( size_t i = 0; i < m_subitems.size(); ++i )
 		{
@@ -365,7 +365,7 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 			return;
 		
 		EDGUIEvent ev = { EDGUI_EVENT_TEXTINPUT, m_keyboardFocus };
-		strncpy( ev.text.text, eev->text.text, 7 );
+		sgrx_sncopy( ev.text.text, 8, eev->text.text );
 		ev.text.text[7] = 0;
 		
 		m_keyboardFocus->OnEvent( &ev );
@@ -674,7 +674,7 @@ int EDGUILayoutSplitPane::OnEvent( EDGUIEvent* e )
 			SetRectFromEvent( e, false );
 			if( !m_vertical )
 			{
-				int cx = round( x0 * (1-m_splitfac) + x1 * m_splitfac ) + m_splitoff;
+				int cx = (int) round( x0 * (1-m_splitfac) + x1 * m_splitfac ) + m_splitoff;
 				int cx0 = cx - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
 				int cx1 = cx0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
 				
@@ -683,7 +683,7 @@ int EDGUILayoutSplitPane::OnEvent( EDGUIEvent* e )
 			}
 			else
 			{
-				int cy = round( y0 * (1-m_splitfac) + y1 * m_splitfac ) + m_splitoff;
+				int cy = (int) round( y0 * (1-m_splitfac) + y1 * m_splitfac ) + m_splitoff;
 				int cy0 = cy - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
 				int cy1 = cy0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
 				
@@ -698,17 +698,17 @@ int EDGUILayoutSplitPane::OnEvent( EDGUIEvent* e )
 		{
 			if( !m_vertical )
 			{
-				int cx = round( x0 * (1-m_splitfac) + x1 * m_splitfac ) + m_splitoff;
+				int cx = (int) round( x0 * (1-m_splitfac) + x1 * m_splitfac ) + m_splitoff;
 				int cx0 = cx - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
 				int cx1 = cx0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
-				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( cx0, y0, cx1, y1 );
+				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( float(cx0), float(y0), float(cx1), float(y1) );
 			}
 			else
 			{
-				int cy = round( y0 * (1-m_splitfac) + y1 * m_splitfac ) + m_splitoff;
+				int cy = (int) round( y0 * (1-m_splitfac) + y1 * m_splitfac ) + m_splitoff;
 				int cy0 = cy - EDGUI_THEME_SPLITPANE_BORDER_SIZE / 2;
 				int cy1 = cy0 + EDGUI_THEME_SPLITPANE_BORDER_SIZE;
-				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( x0, cy0, x1, cy1 );
+				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( float(x0), float(cy0), float(x1), float(cy1) );
 			}
 		}
 		if( m_first ) m_first->OnEvent( e );
@@ -830,12 +830,12 @@ int EDGUIGroup::OnEvent( EDGUIEvent* e )
 			int y1a = y0 + EDGUI_THEME_GROUP_HEIGHT;
 			if( backColor )
 			{
-				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( x0, y0, x1, y1a );
+				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( float(x0), float(y0), float(x1), float(y1a) );
 			}
 			if( textColor && m_name.size() )
 			{
 				GR2D_GetBatchRenderer().Colu( textColor );
-				GR2D_DrawTextLine( x0 + 2, ( y0 + y1a ) / 2, m_name, HALIGN_LEFT, VALIGN_CENTER );
+				GR2D_DrawTextLine( x0 + 2.0f, ( y0 + y1a ) / 2.0f, m_name, HALIGN_LEFT, VALIGN_CENTER );
 			}
 			if( m_open )
 			{
@@ -950,7 +950,7 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 		if( e->key.key == EDGUI_KEY_COPY )
 		{
 			char bfr[ 1224 ];
-			snprintf( bfr, sizeof( bfr ), "%.18g", GetValue() );
+			sgrx_snprintf( bfr, sizeof( bfr ), "%.18g", GetValue() );
 			Window_SetClipboardText( bfr );
 		}
 		if( e->key.key == EDGUI_KEY_PASTE )
@@ -977,7 +977,7 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 		{
 			int prbx = e->mouse.x - m_cx;
 			int prby = e->mouse.y - m_cy;
-			float dist = sqrtf( prbx * prbx + prby * prby );
+			float dist = sqrtf( float( prbx * prbx + prby * prby ) );
 			if( dist < EDGUI_THEME_NUMWHEEL_CENTER_SIZE && m_curWheel < 0 )
 			{
 				if( m_owner )
@@ -997,20 +997,20 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 			{
 				int prbx = ( e->mouse.x + m_prevMouseX ) / 2 - m_cx;
 				int prby = ( e->mouse.y + m_prevMouseY ) / 2 - m_cy;
-				float dist = sqrtf( prbx * prbx + prby * prby ) - EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
+				float dist = sqrtf( float( prbx * prbx + prby * prby ) ) - EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
 				dist /= EDGUI_THEME_NUMWHEEL_WHEEL_SIZE;
-				m_curWheel = floor( dist );
+				m_curWheel = (int) floor( dist );
 			}
 			if( m_clicked && m_curWheel >= 0 && m_curWheel < m_numwheels )
 			{
-				float pa = atan2f( m_prevMouseY - m_cy, m_prevMouseX - m_cx );
-				float ca = atan2f( e->mouse.y - m_cy  , e->mouse.x - m_cx   );
-				if( pa - ca > M_PI ) pa -= M_PI * 2;
-				if( ca - pa > M_PI ) ca -= M_PI * 2;
+				float pa = atan2f( float(m_prevMouseY - m_cy), float(m_prevMouseX - m_cx) );
+				float ca = atan2f( float(e->mouse.y - m_cy  ), float(e->mouse.x - m_cx  ) );
+				if( pa - ca > M_PI ) pa -= (float) M_PI * 2.0f;
+				if( ca - pa > M_PI ) ca -= (float) M_PI * 2.0f;
 				float diff = ca - pa;
 				
 				double prevval = GetValue();
-				m_value += diff * powf( 10, m_initpwr + m_curWheel );
+				m_value += diff * powf( 10.0f, float(m_initpwr + m_curWheel) );
 				if( m_value < m_min ) m_value = m_min;
 				if( m_value > m_max ) m_value = m_max;
 				if( GetValue() != prevval && m_owner )
@@ -1045,10 +1045,10 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 			if( m_curWheel >= 0 && m_curWheel < m_numwheels )
 			{
 				rad = m_curWheel * EDGUI_THEME_NUMWHEEL_WHEEL_SIZE + EDGUI_THEME_NUMWHEEL_CENTER_SIZE;
-				snprintf( bfr, 31, "%g", powf( 10, m_initpwr + m_curWheel ) );
+				sgrx_snprintf( bfr, 31, "%g", powf( 10, m_initpwr + m_curWheel ) );
 				GR2D_DrawTextLine( m_cx + xfac * rad, m_cy + yfac * rad, bfr );
 			}
-			snprintf( bfr, 31, "%g", GetValue() );
+			sgrx_snprintf( bfr, 31, "%g", GetValue() );
 			GR2D_DrawTextLine( m_cx, m_cy, bfr, HALIGN_CENTER, VALIGN_CENTER );
 		}
 		return 1;
@@ -1289,8 +1289,8 @@ int EDGUIRsrcPicker::GetScrollOffset()
 
 void EDGUIRsrcPicker::_OnChangeZoom()
 {
-	m_itemWidth = m_zoom * 128;
-	m_itemHeight = m_zoom * 128;
+	m_itemWidth = int(m_zoom * 128);
+	m_itemHeight = int(m_zoom * 128);
 }
 
 void EDGUIRsrcPicker::_OnPickResource()
@@ -1574,7 +1574,7 @@ int EDGUIPropInt::OnEvent( EDGUIEvent* e )
 void EDGUIPropInt::_UpdateButton()
 {
 	char bfr[ 32 ] = {0};
-	snprintf( bfr, 31, "%" PRId32, m_value );
+	sgrx_snprintf( bfr, 31, "%" PRId32, m_value );
 	m_button.caption = bfr;
 }
 
@@ -1626,7 +1626,7 @@ int EDGUIPropFloat::OnEvent( EDGUIEvent* e )
 void EDGUIPropFloat::_UpdateButton()
 {
 	char bfr[ 32 ] = {0};
-	snprintf( bfr, 31, "%g", m_value );
+	sgrx_snprintf( bfr, 31, "%g", m_value );
 	m_button.caption = bfr;
 }
 
@@ -1705,9 +1705,9 @@ EDGUIPropVec2& EDGUIPropVec2::operator = ( const EDGUIPropVec2& o )
 void EDGUIPropVec2::_UpdateButton()
 {
 	char bfr[ 32 ] = {0};
-	snprintf( bfr, 31, "%g", m_value.x );
+	sgrx_snprintf( bfr, 31, "%g", m_value.x );
 	m_Xbutton.caption = bfr;
-	snprintf( bfr, 31, "%g", m_value.y );
+	sgrx_snprintf( bfr, 31, "%g", m_value.y );
 	m_Ybutton.caption = bfr;
 }
 
@@ -1799,11 +1799,11 @@ EDGUIPropVec3& EDGUIPropVec3::operator = ( const EDGUIPropVec3& o )
 void EDGUIPropVec3::_UpdateButton()
 {
 	char bfr[ 32 ] = {0};
-	snprintf( bfr, 31, "%g", m_value.x );
+	sgrx_snprintf( bfr, 31, "%g", m_value.x );
 	m_Xbutton.caption = bfr;
-	snprintf( bfr, 31, "%g", m_value.y );
+	sgrx_snprintf( bfr, 31, "%g", m_value.y );
 	m_Ybutton.caption = bfr;
-	snprintf( bfr, 31, "%g", m_value.z );
+	sgrx_snprintf( bfr, 31, "%g", m_value.z );
 	m_Zbutton.caption = bfr;
 }
 

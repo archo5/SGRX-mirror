@@ -13,6 +13,9 @@
 
 
 #define USE_VEC3
+#define USE_VEC4
+#define USE_QUAT
+#define USE_MAT4
 #define USE_ARRAY
 
 
@@ -26,9 +29,13 @@
 
 #define ASSERT assert
 #ifdef _MSC_VER
+#define IF_GCC(x)
+#define IF_MSVC(x) x
 #define FINLINE __forceinline
 #define ALIGN16(a) __declspec(align(16)) a
 #else
+#define IF_GCC(x) x
+#define IF_MSVC(x)
 #define FINLINE inline __attribute__((__always_inline__))
 #define ALIGN16(a) a __attribute__ ((aligned (16)))
 #endif
@@ -42,7 +49,10 @@
 #define STRLIT_BUF( x ) x, STRLIT_LEN( x )
 
 
+// compiler/toolchain padding
 ENGINE_EXPORT void NOP( int x );
+ENGINE_EXPORT int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen = (size_t) -1 );
+ENGINE_EXPORT int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... );
 
 
 #define SMALL_FLOAT 0.001f
@@ -51,9 +61,10 @@ ENGINE_EXPORT void NOP( int x );
 #define SPACE_CHARS " \t\n"
 #define HSPACE_CHARS " \t"
 
-#define DEG2RAD( x ) ((x)/180.0f*M_PI)
-#define RAD2DEG( x ) ((x)*180.0f/M_PI)
+#define DEG2RAD( x ) ((x)/180.0f*(float)M_PI)
+#define RAD2DEG( x ) ((x)*180.0f/(float)M_PI)
 
+#define COLOR_F2B( x ) (uint8_t( clamp( x, 0, 1 ) * 255 ))
 #define COLOR_RGBA(r,g,b,a) ((uint32_t)((((int)(a)&0xff)<<24)|(((int)(b)&0xff)<<16)|(((int)(g)&0xff)<<8)|((int)(r)&0xff)))
 #define COLOR_RGB(r,g,b,a) COLOR_RGBA(r,g,b,0xff)
 #define COLOR_EXTRACT_( c, off ) (((c)>>(off))&0xff)
@@ -67,14 +78,14 @@ inline size_t divideup( size_t x, int d ){ return ( x + d - 1 ) / d; }
 #define IIF( cond, a, b ) ((cond)?(a):(b))
 inline float clamp( float v, float vmin, float vmax ){ return IIF( v < vmin, vmin, IIF( v > vmax, vmax, v ) ); }
 inline float lerp( float a, float b, float t ){ return a * (1.0f-t) + b * t; }
-inline float sign( float x ){ return IIF( x == 0, 0, IIF( x < 0, -1, 1 ) ); }
-inline float normalize_angle( float x ){ x = fmodf( x, M_PI * 2 ); return IIF( x < 0, x + M_PI*2, x ); }
-inline float saturate( float x ){ return IIF( x < 0, 0, IIF( x > 1, 1, x ) ); }
-inline float smoothstep( float x ){ return x * x * ( 3 - 2 * x ); }
+inline float sign( float x ){ return IIF( x == 0.0f, 0.0f, IIF( x < 0.0f, -1.0f, 1.0f ) ); }
+inline float normalize_angle( float x ){ x = fmodf( x, (float) M_PI * 2.0f ); return IIF( x < 0.0f, x + (float) M_PI*2.0f, x ); }
+inline float saturate( float x ){ return IIF( x < 0.0f, 0.0f, IIF( x > 1.0f, 1.0f, x ) ); }
+inline float smoothstep( float x ){ return x * x * ( 3.0f - 2.0f * x ); }
 inline float smoothlerp_oneway( float t, float a, float b ){ if( b == a ) return 1.0f; return smoothstep( saturate( ( t - a ) / ( b - a ) ) ); }
 inline float smoothlerp_range( float t, float a, float b, float c, float d ){ return smoothlerp_oneway( t, a, b ) * smoothlerp_oneway( t, d, c ); }
 inline float randf(){ return (float) rand() / (float) RAND_MAX; }
-inline float randf11(){ return randf() * 2 - 1; }
+inline float randf11(){ return randf() * 2.0f - 1.0f; }
 
 
 inline bool hexchar( char c )
@@ -425,6 +436,9 @@ struct ENGINE_EXPORT Quat
 	FINLINE Quat operator * ( float f ) const { Quat q = { x * f, y * f, z * f, w * f }; return q; }
 	FINLINE Quat operator - () const { Quat q = { -x, -y, -z, -w }; return q; }
 	
+	FINLINE bool operator == ( const Quat& o ) const { return x == o.x && y == o.y && z == o.z && w == o.w; }
+	FINLINE bool operator != ( const Quat& o ) const { return x != o.x && y != o.y && z != o.z && w != o.w; }
+	
 	Vec3 Transform( const Vec3& p ) const
 	{
 		Quat v_ = { p.x, p.y, p.z };
@@ -764,6 +778,15 @@ struct ENGINE_EXPORT Mat4
 		return out * q;
 	}
 	FINLINE Vec3 TransformNormal( const Vec3& nrm ) const { return Transform( nrm, 0.0f ); }
+
+	FINLINE bool operator == ( const Mat4& o ) const
+	{
+		for( int i = 0; i < 16; ++i )
+			if( a[ i ] != o.a[ i ] )
+				return false;
+		return true;
+	}
+	FINLINE bool operator != ( const Mat4& o ) const { return !( *this == o ); }
 	
 #define InvertTo InvertTo_ // linker errors
 	bool InvertTo( Mat4& out );
@@ -913,9 +936,9 @@ inline Vec3 HSV( const Vec3& hsv )
 	Vec3 cor = { fmodf( hsv.x, 1.0f ), hsv.y, hsv.z };
 	int32_t hi = int32_t( floor( cor.x * 6 ) ) % 6;
 	float f = ( cor.x * 6 ) - floor( cor.x * 6 );
-	float p = cor.z * ( 1.0 - cor.y );
-	float q = cor.z * ( 1.0 - ( f * cor.y ) );
-	float t = cor.z * ( 1.0 - ( ( 1.0 - f ) * cor.y ) );
+	float p = cor.z * ( 1.0f - cor.y );
+	float q = cor.z * ( 1.0f - ( f * cor.y ) );
+	float t = cor.z * ( 1.0f - ( ( 1.0f - f ) * cor.y ) );
 	switch( hi )
 	{
 	case 0: return V3( cor.z, t, p );
@@ -1483,8 +1506,8 @@ inline Hash HashVar( int16_t v ){ return v; }
 inline Hash HashVar( uint16_t v ){ return v; }
 inline Hash HashVar( int32_t v ){ return v; }
 inline Hash HashVar( uint32_t v ){ return v; }
-inline Hash HashVar( int64_t v ){ return v; }
-inline Hash HashVar( uint64_t v ){ return v; }
+inline Hash HashVar( int64_t v ){ return (Hash) v; }
+inline Hash HashVar( uint64_t v ){ return (Hash) v; }
 inline Hash HashVar( void* v ){ return (Hash) v; }
 inline Hash HashVar( const String& s ){ return HashFunc( s.m_data, s.m_size ); }
 inline Hash HashVar( const StringView& sv ){ return HashFunc( sv.m_str, sv.m_size ); }
@@ -1942,16 +1965,16 @@ struct TextReader
 	TextReader( String* str, size_t p = 0 ) : input( str ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 1, IsBinary = 0 };
 	FINLINE TextReader& operator << ( bool& v ){ v = !!String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( char& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( int8_t& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( uint8_t& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( int16_t& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( uint16_t& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( int32_t& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( uint32_t& v ){ v = String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( char& v ){ v = (char) String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( int8_t& v ){ v = (int8_t) String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint8_t& v ){ v = (uint8_t) String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( int16_t& v ){ v = (int16_t) String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint16_t& v ){ v = (uint16_t) String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( int32_t& v ){ v = (int32_t) String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint32_t& v ){ v = (uint32_t) String_ParseInt( _read() ); return *this; }
 	FINLINE TextReader& operator << ( int64_t& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( uint64_t& v ){ v = String_ParseInt( _read() ); return *this; }
-	FINLINE TextReader& operator << ( float& v ){ v = String_ParseFloat( _read() ); return *this; }
+	FINLINE TextReader& operator << ( uint64_t& v ){ v = (uint64_t) String_ParseInt( _read() ); return *this; }
+	FINLINE TextReader& operator << ( float& v ){ v = (float) String_ParseFloat( _read() ); return *this; }
 	FINLINE TextReader& operator << ( double& v ){ v = String_ParseFloat( _read() ); return *this; }
 	template< class T > TextReader& operator << ( T& v ){ v.Serialize( *this ); return *this; }
 	TextReader& memory( void* ptr, size_t sz )
@@ -2036,18 +2059,18 @@ struct TextWriter
 {
 	TextWriter( String* str ) : output( str ){}
 	enum { IsWriter = 1, IsReader = 0, IsText = 1, IsBinary = 0 };
-	FINLINE TextWriter& operator << ( bool& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", v?1:0 ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( char& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( int8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( uint8_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( int16_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( uint16_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( int32_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%d\n", (int)v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( uint32_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( int64_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%" PRId64 "\n", v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( uint64_t& v ){ char bfr[ 32 ]; sprintf( bfr, "%" PRIu64 "\n", v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( float& v ){ char bfr[ 32 ]; sprintf( bfr, "%.6g\n", v ); _write( bfr ); return *this; }
-	FINLINE TextWriter& operator << ( double& v ){ char bfr[ 32 ]; sprintf( bfr, "%.18g\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( bool& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%u\n", v?1:0 ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( char& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%d\n", (int)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( int8_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%d\n", (int)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint8_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( int16_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%d\n", (int)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint16_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( int32_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%d\n", (int)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint32_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%u\n", (unsigned)v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( int64_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%" PRId64 "\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( uint64_t& v ){ char bfr[ 32 ]; sgrx_snprintf( bfr, 32, "%" PRIu64 "\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( float& v ){ char bfr[ 1500 ]; sgrx_snprintf( bfr, 1500, "%.6g\n", v ); _write( bfr ); return *this; }
+	FINLINE TextWriter& operator << ( double& v ){ char bfr[ 1500 ]; sgrx_snprintf( bfr, 1500, "%.18g\n", v ); _write( bfr ); return *this; }
 	template< class T > TextWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
 	TextWriter& memory( void* ptr, size_t sz )
 	{
@@ -2055,7 +2078,7 @@ struct TextWriter
 		uint8_t* p = (uint8_t*) ptr;
 		for( size_t i = 0; i < sz; ++i )
 		{
-			sprintf( bfr, "%02X", (int) p[ i ] );
+			sgrx_snprintf( bfr, 32, "%02X", (int) p[ i ] );
 			_write( bfr );
 		}
 		return *this;
@@ -2072,7 +2095,7 @@ struct TextWriter
 			else
 			{
 				char bfr[ 32 ];
-				sprintf( bfr, "\\%02X", (int) (uint8_t) ptr[ i ] );
+				sgrx_snprintf( bfr, 32, "\\%02X", (int) (uint8_t) ptr[ i ] );
 				_write( bfr );
 			}
 		}
@@ -2108,10 +2131,10 @@ private:
 	DirectoryIterator( const DirectoryIterator& );
 };
 
-struct ENGINE_EXPORT InLocalStorage
+struct InLocalStorage
 {
-	InLocalStorage( const StringView& path );
-	~InLocalStorage();
+	ENGINE_EXPORT InLocalStorage( const StringView& path );
+	ENGINE_EXPORT ~InLocalStorage();
 	
 	String m_path;
 	

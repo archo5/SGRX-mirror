@@ -125,7 +125,7 @@
 
 
 
-struct ENGINE_EXPORT EDGUIEvent
+struct IF_GCC(ENGINE_EXPORT) EDGUIEvent
 {
 	int type;
 	struct EDGUIItem* target;
@@ -150,26 +150,26 @@ struct ENGINE_EXPORT EDGUIEvent
 
 typedef Array< struct EDGUIItem* > EDGUIItemArray;
 
-struct ENGINE_EXPORT EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUIItem
 {
-	EDGUIItem();
-	virtual ~EDGUIItem();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIItem();
+	ENGINE_EXPORT virtual ~EDGUIItem();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
-	bool Add( EDGUIItem* subitem );
-	bool Remove( EDGUIItem* subitem );
-	void Clear();
-	void SubstChildPtr( const EDGUIItem* find, EDGUIItem* repl );
+	ENGINE_EXPORT bool Add( EDGUIItem* subitem );
+	ENGINE_EXPORT bool Remove( EDGUIItem* subitem );
+	ENGINE_EXPORT void Clear();
+	ENGINE_EXPORT void SubstChildPtr( const EDGUIItem* find, EDGUIItem* repl );
 	void Invalidate(){}
-	bool Hit( int x, int y );
-	void BubblingEvent( EDGUIEvent* e );
-	void SetRectFromEvent( EDGUIEvent* e, bool updatesub );
-	void OnChangeLayout();
-	void ReshapeLayout();
-	void SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 );
-	void _SetFrame( struct EDGUIFrame* frame );
-	void Edited( EDGUIItem* tgt = NULL );
-	void Changed( EDGUIItem* tgt = NULL );
+	ENGINE_EXPORT bool Hit( int x, int y );
+	ENGINE_EXPORT void BubblingEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void SetRectFromEvent( EDGUIEvent* e, bool updatesub );
+	ENGINE_EXPORT void OnChangeLayout();
+	ENGINE_EXPORT void ReshapeLayout();
+	ENGINE_EXPORT void SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 );
+	ENGINE_EXPORT void _SetFrame( struct EDGUIFrame* frame );
+	ENGINE_EXPORT void Edited( EDGUIItem* tgt = NULL );
+	ENGINE_EXPORT void Changed( EDGUIItem* tgt = NULL );
 	
 	const char* tyname;
 	int type;
@@ -187,24 +187,24 @@ struct ENGINE_EXPORT EDGUIItem
 	bool m_clicked;
 };
 
-struct ENGINE_EXPORT EDGUIFrame : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUIFrame : EDGUIItem
 {
 	struct Rect { int x0, y0, x1, y1; };
 	
-	EDGUIFrame();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIFrame();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
-	void EngineEvent( const Event* eev );
-	void Resize( int w, int h, int x = 0, int y = 0 );
-	void Draw();
+	ENGINE_EXPORT void EngineEvent( const Event* eev );
+	ENGINE_EXPORT void Resize( int w, int h, int x = 0, int y = 0 );
+	ENGINE_EXPORT void Draw();
 	
-	bool PushScissorRect( int x0, int y0, int x1, int y1 );
-	void PopScissorRect();
+	ENGINE_EXPORT bool PushScissorRect( int x0, int y0, int x1, int y1 );
+	ENGINE_EXPORT void PopScissorRect();
 	
-	void _HandleMouseMove( bool optional );
-	EDGUIItem* _GetItemAtPosition( int x, int y );
-	void _Unlink( EDGUIItem* item );
-	void _SetFocus( EDGUIItem* item );
+	ENGINE_EXPORT void _HandleMouseMove( bool optional );
+	ENGINE_EXPORT EDGUIItem* _GetItemAtPosition( int x, int y );
+	ENGINE_EXPORT void _Unlink( EDGUIItem* item );
+	ENGINE_EXPORT void _SetFocus( EDGUIItem* item );
 	
 	int m_mouseX;
 	int m_mouseY;
@@ -220,27 +220,27 @@ struct ENGINE_EXPORT EDGUIFrame : EDGUIItem
 	Array< Rect > m_rects;
 };
 
-struct ENGINE_EXPORT EDGUILayoutRow : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUILayoutRow : EDGUIItem
 {
-	EDGUILayoutRow();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUILayoutRow();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 };
 
-struct ENGINE_EXPORT EDGUILayoutColumn : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUILayoutColumn : EDGUIItem
 {
-	EDGUILayoutColumn();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUILayoutColumn();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 };
 
-struct ENGINE_EXPORT EDGUILayoutSplitPane : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUILayoutSplitPane : EDGUIItem
 {
 	// "vertical" refers to the direction of the split, not the line
-	EDGUILayoutSplitPane( bool vertical, int splitoff, float splitfac );
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUILayoutSplitPane( bool vertical, int splitoff, float splitfac );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
-	void SetPane( bool second, EDGUIItem* item );
-	void SetFirstPane( EDGUIItem* item );
-	void SetSecondPane( EDGUIItem* item );
+	ENGINE_EXPORT void SetPane( bool second, EDGUIItem* item );
+	ENGINE_EXPORT void SetFirstPane( EDGUIItem* item );
+	ENGINE_EXPORT void SetSecondPane( EDGUIItem* item );
 	
 	bool m_vertical;
 	int m_splitoff;
@@ -250,42 +250,42 @@ struct ENGINE_EXPORT EDGUILayoutSplitPane : EDGUIItem
 };
 
 
-struct ENGINE_EXPORT EDGUILabel : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUILabel : EDGUIItem
 {
-	EDGUILabel();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUILabel();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 };
 
 
-struct ENGINE_EXPORT EDGUIGroup : EDGUILayoutRow
+struct IF_GCC(ENGINE_EXPORT) EDGUIGroup : EDGUILayoutRow
 {
-	EDGUIGroup( bool open = true, const StringView& sv = StringView() );
-	virtual int OnEvent( EDGUIEvent* e );
-	void SetOpen( bool open );
-	void _UpdateButton();
+	ENGINE_EXPORT EDGUIGroup( bool open = true, const StringView& sv = StringView() );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void SetOpen( bool open );
+	ENGINE_EXPORT void _UpdateButton();
 	
 	bool m_open;
 	String m_name;
 };
 
 
-struct ENGINE_EXPORT EDGUIButton : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUIButton : EDGUIItem
 {
-	EDGUIButton();
-	virtual int OnEvent( EDGUIEvent* e );
-	void OnChangeState();
-	void SetHighlight( bool hl );
+	ENGINE_EXPORT EDGUIButton();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void OnChangeState();
+	ENGINE_EXPORT void SetHighlight( bool hl );
 	
 	bool m_highlight;
 };
 
 
-struct ENGINE_EXPORT EDGUINumberWheel : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUINumberWheel : EDGUIItem
 {
-	EDGUINumberWheel( EDGUIItem* owner, double min = -DBL_MAX, double max = DBL_MAX, int initpwr = 0, int numwheels = 9 );
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUINumberWheel( EDGUIItem* owner, double min = -DBL_MAX, double max = DBL_MAX, int initpwr = 0, int numwheels = 9 );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
-	double GetValue();
+	ENGINE_EXPORT double GetValue();
 	
 	double m_value;
 	double m_min;
@@ -301,24 +301,24 @@ struct ENGINE_EXPORT EDGUINumberWheel : EDGUIItem
 };
 
 
-struct ENGINE_EXPORT EDGUIRsrcPicker : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUIRsrcPicker : EDGUIItem
 {
-	EDGUIRsrcPicker();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIRsrcPicker();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
-	void Open( EDGUIItem* owner, const StringView& val );
-	void Close();
-	void SetValue( const StringView& sv );
-	String GetValue();
-	void Zoom( float z );
-	void _FindHL();
-	void _Search( const StringView& str );
-	int GetScrollOffset();
+	ENGINE_EXPORT void Open( EDGUIItem* owner, const StringView& val );
+	ENGINE_EXPORT void Close();
+	ENGINE_EXPORT void SetValue( const StringView& sv );
+	ENGINE_EXPORT String GetValue();
+	ENGINE_EXPORT void Zoom( float z );
+	ENGINE_EXPORT void _FindHL();
+	ENGINE_EXPORT void _Search( const StringView& str );
+	ENGINE_EXPORT int GetScrollOffset();
 	virtual void Reload(){}
-	virtual void _OnChangeZoom();
-	virtual void _OnPickResource();
-	virtual void _OnConfirm();
-	virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
+	ENGINE_EXPORT virtual void _OnChangeZoom();
+	ENGINE_EXPORT virtual void _OnPickResource();
+	ENGINE_EXPORT virtual void _OnConfirm();
+	ENGINE_EXPORT virtual void _DrawItem( int i, int x0, int y0, int x1, int y1 );
 	
 	float m_zoom;
 	int m_horCount;
@@ -338,14 +338,14 @@ struct ENGINE_EXPORT EDGUIRsrcPicker : EDGUIItem
 };
 
 
-struct ENGINE_EXPORT EDGUIQuestion : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUIQuestion : EDGUIItem
 {
-	EDGUIQuestion();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIQuestion();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
-	void Open( EDGUIItem* owner );
-	void Close();
-	virtual void _OnChoose();
+	ENGINE_EXPORT void Open( EDGUIItem* owner );
+	ENGINE_EXPORT void Close();
+	ENGINE_EXPORT virtual void _OnChoose();
 	
 	EDGUIItem* m_owner;
 	EDGUIButton m_btnYes;
@@ -354,13 +354,13 @@ struct ENGINE_EXPORT EDGUIQuestion : EDGUIItem
 };
 
 
-struct ENGINE_EXPORT EDGUIProperty : EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUIProperty : EDGUIItem
 {
-	EDGUIProperty();
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIProperty();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
-	void _Begin( EDGUIEvent* e );
-	void _End( EDGUIEvent* e );
+	ENGINE_EXPORT void _Begin( EDGUIEvent* e );
+	ENGINE_EXPORT void _End( EDGUIEvent* e );
 	virtual bool TakeValue( EDGUIProperty* src ){ return false; }
 	
 	bool m_disabled;
@@ -370,11 +370,11 @@ struct ENGINE_EXPORT EDGUIProperty : EDGUIItem
 #define PROP_INTERFACE( classname ) \
 	virtual bool TakeValue( EDGUIProperty* src ){ if( src->type != type ) return false; m_value = ((classname*)src)->m_value; _UpdateButton(); return true; }
 
-struct ENGINE_EXPORT EDGUIPropBool : EDGUIProperty
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropBool : EDGUIProperty
 {
-	EDGUIPropBool( bool def = false );
-	virtual int OnEvent( EDGUIEvent* e );
-	void SetValue( int v ){ m_value = v; }
+	ENGINE_EXPORT EDGUIPropBool( bool def = false );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	void SetValue( int v ){ m_value = v != 0; }
 	void _UpdateButton(){}
 	PROP_INTERFACE( EDGUIPropBool );
 	
@@ -383,11 +383,11 @@ struct ENGINE_EXPORT EDGUIPropBool : EDGUIProperty
 	bool m_value;
 };
 
-struct ENGINE_EXPORT EDGUIPropInt : EDGUIProperty
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropInt : EDGUIProperty
 {
-	EDGUIPropInt( int32_t def = 0, int32_t min = -0x80000000, int32_t max = 0x7fffffff );
-	virtual int OnEvent( EDGUIEvent* e );
-	void _UpdateButton();
+	ENGINE_EXPORT EDGUIPropInt( int32_t def = 0, int32_t min = (int32_t) 0x80000000, int32_t max = (int32_t) 0x7fffffff );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void _UpdateButton();
 	void SetValue( int v ){ m_value = v; _UpdateButton(); }
 	PROP_INTERFACE( EDGUIPropInt );
 	
@@ -401,11 +401,11 @@ struct ENGINE_EXPORT EDGUIPropInt : EDGUIProperty
 	EDGUIButton m_button;
 };
 
-struct ENGINE_EXPORT EDGUIPropFloat : EDGUIProperty
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropFloat : EDGUIProperty
 {
-	EDGUIPropFloat( float def = 0, int prec = 2, float min = -FLT_MAX, float max = FLT_MAX );
-	virtual int OnEvent( EDGUIEvent* e );
-	void _UpdateButton();
+	ENGINE_EXPORT EDGUIPropFloat( float def = 0, int prec = 2, float min = -FLT_MAX, float max = FLT_MAX );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void _UpdateButton();
 	void SetValue( float v ){ m_value = v; _UpdateButton(); }
 	PROP_INTERFACE( EDGUIPropFloat );
 	
@@ -419,12 +419,12 @@ struct ENGINE_EXPORT EDGUIPropFloat : EDGUIProperty
 	EDGUIButton m_button;
 };
 
-struct ENGINE_EXPORT EDGUIPropVec2 : EDGUIProperty
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropVec2 : EDGUIProperty
 {
-	EDGUIPropVec2( const Vec2& def = V2(0), int prec = 2, const Vec2& min = V2(-FLT_MAX), const Vec2& max = V2(FLT_MAX) );
-	virtual int OnEvent( EDGUIEvent* e );
-	EDGUIPropVec2& operator = ( const EDGUIPropVec2& o );
-	void _UpdateButton();
+	ENGINE_EXPORT EDGUIPropVec2( const Vec2& def = V2(0), int prec = 2, const Vec2& min = V2(-FLT_MAX), const Vec2& max = V2(FLT_MAX) );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIPropVec2& operator = ( const EDGUIPropVec2& o );
+	ENGINE_EXPORT void _UpdateButton();
 	void SetValue( const Vec2& v ){ m_value = v; _UpdateButton(); }
 	PROP_INTERFACE( EDGUIPropVec2 );
 	
@@ -441,12 +441,12 @@ struct ENGINE_EXPORT EDGUIPropVec2 : EDGUIProperty
 	EDGUIButton m_Ybutton;
 };
 
-struct ENGINE_EXPORT EDGUIPropVec3 : EDGUIProperty
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropVec3 : EDGUIProperty
 {
-	EDGUIPropVec3( const Vec3& def = V3(0), int prec = 2, const Vec3& min = V3(-FLT_MAX), const Vec3& max = V3(FLT_MAX) );
-	virtual int OnEvent( EDGUIEvent* e );
-	EDGUIPropVec3& operator = ( const EDGUIPropVec3& o );
-	void _UpdateButton();
+	ENGINE_EXPORT EDGUIPropVec3( const Vec3& def = V3(0), int prec = 2, const Vec3& min = V3(-FLT_MAX), const Vec3& max = V3(FLT_MAX) );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIPropVec3& operator = ( const EDGUIPropVec3& o );
+	ENGINE_EXPORT void _UpdateButton();
 	void SetValue( const Vec3& v ){ m_value = v; _UpdateButton(); }
 	PROP_INTERFACE( EDGUIPropVec3 );
 	
@@ -465,18 +465,18 @@ struct ENGINE_EXPORT EDGUIPropVec3 : EDGUIProperty
 	EDGUIButton m_Zbutton;
 };
 
-struct ENGINE_EXPORT EDGUIPropString : EDGUIProperty
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropString : EDGUIProperty
 {
-	EDGUIPropString( const StringView& def = StringView() );
-	virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIPropString( const StringView& def = StringView() );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
 	void _UpdateButton(){}
 	PROP_INTERFACE( EDGUIPropString );
 	
-	void SetValue( const StringView& sv );
-	void _UpdateSelOffsets();
-	void _UpdateText();
-	int _FindOffset( int x, int y );
+	ENGINE_EXPORT void SetValue( const StringView& sv );
+	ENGINE_EXPORT void _UpdateSelOffsets();
+	ENGINE_EXPORT void _UpdateText();
+	ENGINE_EXPORT int _FindOffset( int x, int y );
 	
 	String m_value;
 	int m_sel_from;
@@ -488,11 +488,11 @@ struct ENGINE_EXPORT EDGUIPropString : EDGUIProperty
 	String m_chars;
 };
 
-struct ENGINE_EXPORT EDGUIPropRsrc : EDGUIProperty
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropRsrc : EDGUIProperty
 {
-	EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def = StringView() );
-	virtual int OnEvent( EDGUIEvent* e );
-	void _UpdateButton();
+	ENGINE_EXPORT EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def = StringView() );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void _UpdateButton();
 	void SetValue( const StringView& v ){ m_value = v; _UpdateButton(); }
 	PROP_INTERFACE( EDGUIPropRsrc );
 	

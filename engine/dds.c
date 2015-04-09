@@ -383,7 +383,7 @@ DDSRESULT dds_load_info( dds_info* out, size_t size, DDS_HEADER* hdr, DDS_HEADER
 {
 	static const dds_u32 sideflags[6] = { DDS_CUBEMAP_PX, DDS_CUBEMAP_NX, DDS_CUBEMAP_PY, DDS_CUBEMAP_NY, DDS_CUBEMAP_PZ, DDS_CUBEMAP_NZ };
 	
-	int i;
+	unsigned i;
 	dds_u32 sum, sum2;
 	dds_image_info plane;
 	
@@ -522,7 +522,7 @@ DDSRESULT dds_seek( dds_info* info, int side, int mip )
 {
 	static const dds_u32 sideflags[6] = { DDS_CUBEMAP_PX, DDS_CUBEMAP_NX, DDS_CUBEMAP_PY, DDS_CUBEMAP_NY, DDS_CUBEMAP_PZ, DDS_CUBEMAP_NZ };
 	
-	if( mip < 0 || mip >= info->mipcount )
+	if( mip < 0 || mip >= (int) info->mipcount )
 		return DDS_ENOTFND;
 	
 	if( info->flags & DDS_CUBEMAP )
@@ -545,7 +545,7 @@ DDSRESULT dds_seek( dds_info* info, int side, int mip )
 
 void dds_getinfo( dds_info* info, dds_image_info* plane )
 {
-	int mippwr = pow( 2, info->mip );
+	int mippwr = powf( 2, info->mip );
 	int fmt = info->image.format;
 	
 	*plane = info->image;
@@ -601,7 +601,7 @@ dds_byte* dds_read_all( dds_info* info )
 	{
 		if( nsz == 6 && !( info->flags & sideflags[ s ] ) )
 			continue;
-		for( m = 0; m < info->mipcount; ++m )
+		for( m = 0; m < (int) info->mipcount; ++m )
 		{
 			if( dds_seek( info, s, m ) != DDS_SUCCESS ||
 				!dds_read( info, out + info->sideoffsets[ s ] + info->mipoffsets[ m ] ) )

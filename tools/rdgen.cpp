@@ -72,10 +72,10 @@ void bones_recalc_paths( Array< AMBone >& bones )
 		if( B.parent_id >= 0 )
 		{
 			AMBone& P = bones[ B.parent_id ];
-			snprintf( buf, sizeof(buf), "%.*s%.*s/>", (int) P.path.size() - 1, P.path.data(), (int) B.name.size(), B.name.data() );
+			sgrx_snprintf( buf, sizeof(buf), "%.*s%.*s/>", (int) P.path.size() - 1, P.path.data(), (int) B.name.size(), B.name.data() );
 		}
 		else
-			snprintf( buf, sizeof(buf), "</%.*s/>", (int) B.name.size(), B.name.data() );
+			sgrx_snprintf( buf, sizeof(buf), "</%.*s/>", (int) B.name.size(), B.name.data() );
 		B.path = buf;
 	}
 }
@@ -621,7 +621,7 @@ int main( int argc, char* argv[] )
 					continue;
 				}
 				
-				size_t bone_idx = B - mesh_bones.data();
+				int bone_idx = B - mesh_bones.data();
 				if( pos > bone_idx )
 					pos--;
 				replace_bone_indices( mesh_vertex_data, bone_idx, pos );
@@ -669,7 +669,7 @@ int main( int argc, char* argv[] )
 					{
 						if( mesh_bones[ j ].parent_id == i )
 							mesh_bones[ j ].parent_id = mesh_bones[ i ].parent_id;
-						else if( mesh_bones[ j ].parent_id > i )
+						else if( mesh_bones[ j ].parent_id > (int) i )
 							mesh_bones[ j ].parent_id--;
 					}
 					mesh_bones.erase( i );

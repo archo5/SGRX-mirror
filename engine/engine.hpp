@@ -22,7 +22,7 @@ ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
 typedef SDL_Event Event;
 
 
-struct ENGINE_EXPORT Command
+struct Command
 {
 	Command( const StringView& sv, float thr = 0.1f ) :
 		name(sv),
@@ -36,8 +36,8 @@ struct ENGINE_EXPORT Command
 	FINLINE bool IsPressed() const { return state && !prev_state; }
 	FINLINE bool IsReleased() const { return !state && prev_state; }
 	
-	void _SetState( float x );
-	void _Advance();
+	ENGINE_EXPORT void _SetState( float x );
+	ENGINE_EXPORT void _Advance();
 	
 	StringView name;
 	float threshold;
@@ -45,7 +45,7 @@ struct ENGINE_EXPORT Command
 	bool state, prev_state;
 };
 
-struct ENGINE_EXPORT Command_Func : Command
+struct Command_Func : Command
 {
 	virtual void Function() = 0;
 	Command_Func( const StringView& sv, float thr = 0.1f ) : Command( sv, thr ){}
@@ -221,13 +221,13 @@ struct TextureInfo
 	int mipcount;
 };
 
-struct ENGINE_EXPORT SGRX_ITexture
+struct IF_GCC(ENGINE_EXPORT) SGRX_ITexture
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual ~SGRX_ITexture();
-	virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
+	ENGINE_EXPORT virtual ~SGRX_ITexture();
+	ENGINE_EXPORT virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 	
 	TextureInfo m_info;
 	bool m_isRenderTexture;
@@ -235,46 +235,46 @@ struct ENGINE_EXPORT SGRX_ITexture
 	String m_key;
 };
 
-struct ENGINE_EXPORT TextureHandle : Handle< SGRX_ITexture >
+struct TextureHandle : Handle< SGRX_ITexture >
 {
 	TextureHandle() : Handle(){}
 	TextureHandle( const TextureHandle& h ) : Handle( h ){}
 	TextureHandle( SGRX_ITexture* tex ) : Handle( tex ){}
 	
-	const TextureInfo& GetInfo() const;
-	bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
+	ENGINE_EXPORT const TextureInfo& GetInfo() const;
+	ENGINE_EXPORT bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
-struct ENGINE_EXPORT SGRX_IVertexShader
+struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexShader
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual ~SGRX_IVertexShader();
+	ENGINE_EXPORT virtual ~SGRX_IVertexShader();
 	
 	int32_t m_refcount;
 	String m_key;
 };
 
-struct ENGINE_EXPORT VertexShaderHandle : Handle< SGRX_IVertexShader >
+struct VertexShaderHandle : Handle< SGRX_IVertexShader >
 {
 	VertexShaderHandle() : Handle(){}
 	VertexShaderHandle( const VertexShaderHandle& h ) : Handle( h ){}
 	VertexShaderHandle( SGRX_IVertexShader* shdr ) : Handle( shdr ){}
 };
 
-struct ENGINE_EXPORT SGRX_IPixelShader
+struct IF_GCC(ENGINE_EXPORT) SGRX_IPixelShader
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual ~SGRX_IPixelShader();
+	ENGINE_EXPORT virtual ~SGRX_IPixelShader();
 	
 	int32_t m_refcount;
 	String m_key;
 };
 
-struct ENGINE_EXPORT PixelShaderHandle : Handle< SGRX_IPixelShader >
+struct PixelShaderHandle : Handle< SGRX_IPixelShader >
 {
 	PixelShaderHandle() : Handle(){}
 	PixelShaderHandle( const PixelShaderHandle& h ) : Handle( h ){}
@@ -330,34 +330,34 @@ struct VDeclInfo
 	}
 };
 
-struct ENGINE_EXPORT SGRX_IVertexDecl
+struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	virtual ~SGRX_IVertexDecl();
+	ENGINE_EXPORT virtual ~SGRX_IVertexDecl();
 	
 	VDeclInfo m_info;
 	int32_t m_refcount;
 	String m_text;
 };
 
-struct ENGINE_EXPORT VertexDeclHandle : Handle< SGRX_IVertexDecl >
+struct VertexDeclHandle : Handle< SGRX_IVertexDecl >
 {
 	VertexDeclHandle() : Handle(){}
 	VertexDeclHandle( const VertexDeclHandle& h ) : Handle( h ){}
 	VertexDeclHandle( SGRX_IVertexDecl* vd ) : Handle( vd ){}
 	
-	const VDeclInfo& GetInfo();
+	ENGINE_EXPORT const VDeclInfo& GetInfo();
 };
 
-struct ENGINE_EXPORT SGRX_SurfaceShader
+struct SGRX_SurfaceShader
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	~SGRX_SurfaceShader();
+	ENGINE_EXPORT ~SGRX_SurfaceShader();
 	
-	void ReloadShaders();
+	ENGINE_EXPORT void ReloadShaders();
 	
 	Array< PixelShaderHandle > m_shaders;
 	
@@ -365,7 +365,7 @@ struct ENGINE_EXPORT SGRX_SurfaceShader
 	String m_key;
 };
 
-struct ENGINE_EXPORT SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
+struct SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
 {
 	SurfaceShaderHandle() : Handle(){}
 	SurfaceShaderHandle( const SurfaceShaderHandle& h ) : Handle( h ){}
@@ -373,12 +373,12 @@ struct ENGINE_EXPORT SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
 };
 
 #define NUM_MATERIAL_TEXTURES 8
-struct ENGINE_EXPORT SGRX_Material
+struct SGRX_Material
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	SGRX_Material();
-	~SGRX_Material();
+	ENGINE_EXPORT SGRX_Material();
+	ENGINE_EXPORT ~SGRX_Material();
 	
 	SurfaceShaderHandle shader;
 	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
@@ -391,7 +391,7 @@ struct ENGINE_EXPORT SGRX_Material
 	String m_key;
 };
 
-struct ENGINE_EXPORT MaterialHandle : Handle< SGRX_Material >
+struct MaterialHandle : Handle< SGRX_Material >
 {
 	MaterialHandle() : Handle(){}
 	MaterialHandle( const MaterialHandle& h ) : Handle( h ){}
@@ -440,23 +440,23 @@ struct SGRX_MeshBone
 	int parent_id;
 };
 
-struct ENGINE_EXPORT SGRX_IMesh
+struct SGRX_IMesh
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	SGRX_IMesh();
-	virtual ~SGRX_IMesh();
+	ENGINE_EXPORT SGRX_IMesh();
+	ENGINE_EXPORT virtual ~SGRX_IMesh();
 	
 	virtual bool InitVertexBuffer( size_t size, VertexDeclHandle vd ) = 0;
 	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
 	virtual bool UpdateVertexData( const void* data, size_t size, bool tristrip ) = 0;
 	virtual bool UpdateIndexData( const void* data, size_t size ) = 0;
-	virtual bool SetPartData( SGRX_MeshPart* parts, int count );
+	ENGINE_EXPORT virtual bool SetPartData( SGRX_MeshPart* parts, int count );
 	
-	bool SetBoneData( SGRX_MeshBone* bones, int count );
-	bool RecalcBoneMatrices();
-	bool SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd );
+	ENGINE_EXPORT bool SetBoneData( SGRX_MeshBone* bones, int count );
+	ENGINE_EXPORT bool RecalcBoneMatrices();
+	ENGINE_EXPORT bool SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd );
 	
 	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
 	{
@@ -507,14 +507,14 @@ struct SGRX_MeshInstLight
 #define LIGHT_POINT  1
 #define LIGHT_SPOT   2
 
-struct ENGINE_EXPORT SGRX_Light
+struct SGRX_Light
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
 	
-	SGRX_Light( SGRX_Scene* s );
-	~SGRX_Light();
-	void RecalcMatrices();
+	ENGINE_EXPORT SGRX_Light( SGRX_Scene* s );
+	ENGINE_EXPORT ~SGRX_Light();
+	ENGINE_EXPORT void RecalcMatrices();
 	
 	SGRX_Scene* _scene;
 	
@@ -542,7 +542,7 @@ struct ENGINE_EXPORT SGRX_Light
 	int32_t _refcount;
 };
 
-struct ENGINE_EXPORT LightHandle : Handle< SGRX_Light >
+struct LightHandle : Handle< SGRX_Light >
 {
 	LightHandle() : Handle(){}
 	LightHandle( const LightHandle& h ) : Handle( h ){}
@@ -551,7 +551,7 @@ struct ENGINE_EXPORT LightHandle : Handle< SGRX_Light >
 
 
 
-struct ENGINE_EXPORT SGRX_CullSceneFrustum
+struct SGRX_CullSceneFrustum
 {
 	Vec3 position;
 	Vec3 direction;
@@ -562,28 +562,28 @@ struct ENGINE_EXPORT SGRX_CullSceneFrustum
 	float zfar;
 };
 
-struct ENGINE_EXPORT SGRX_CullSceneCamera
+struct SGRX_CullSceneCamera
 {
 	SGRX_CullSceneFrustum frustum;
 	Mat4 viewProjMatrix;
 	Mat4 invViewProjMatrix;
 };
 
-struct ENGINE_EXPORT SGRX_CullScenePointLight
+struct SGRX_CullScenePointLight
 {
 	Vec3 position;
 	float radius;
 };
 
-struct ENGINE_EXPORT SGRX_CullSceneMesh
+struct SGRX_CullSceneMesh
 {
 	Mat4 transform;
 	Vec3 min, max;
 };
 
-struct ENGINE_EXPORT SGRX_CullScene
+struct SGRX_CullScene
 {
-	virtual ~SGRX_CullScene();
+	ENGINE_EXPORT virtual ~SGRX_CullScene();
 	virtual void Camera_Prepare( SGRX_CullSceneCamera* camera ){}
 	virtual bool Camera_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield ){ return false; }
 	virtual bool Camera_PointLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullScenePointLight* lights, uint32_t* outbitfield ){ return false; }
@@ -592,23 +592,23 @@ struct ENGINE_EXPORT SGRX_CullScene
 	virtual bool SpotLight_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield ){ return Camera_MeshList( count, camera, meshes, outbitfield ); }
 };
 
-struct ENGINE_EXPORT SGRX_DefaultCullScene
+struct SGRX_DefaultCullScene : SGRX_CullScene
 {
-	virtual bool Camera_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield );
-	virtual bool Camera_PointLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullScenePointLight* lights, uint32_t* outbitfield );
-	virtual bool Camera_SpotLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneFrustum* frusta, Mat4* inv_matrices, uint32_t* outbitfield );
+	ENGINE_EXPORT virtual bool Camera_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield );
+	ENGINE_EXPORT virtual bool Camera_PointLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullScenePointLight* lights, uint32_t* outbitfield );
+	ENGINE_EXPORT virtual bool Camera_SpotLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneFrustum* frusta, Mat4* inv_matrices, uint32_t* outbitfield );
 	
 	Array< Vec3 > m_aabbCache;
 };
 
 
-struct ENGINE_EXPORT SGRX_MeshInstance
+struct SGRX_MeshInstance
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
 	
-	SGRX_MeshInstance( SGRX_Scene* s );
-	~SGRX_MeshInstance();
+	ENGINE_EXPORT SGRX_MeshInstance( SGRX_Scene* s );
+	ENGINE_EXPORT ~SGRX_MeshInstance();
 	
 	SGRX_Scene* _scene;
 	
@@ -634,22 +634,22 @@ struct ENGINE_EXPORT SGRX_MeshInstance
 	int32_t _refcount;
 };
 
-struct ENGINE_EXPORT MeshInstHandle : Handle< SGRX_MeshInstance >
+struct MeshInstHandle : Handle< SGRX_MeshInstance >
 {
 	MeshInstHandle() : Handle(){}
 	MeshInstHandle( const MeshInstHandle& h ) : Handle( h ){}
 	MeshInstHandle( SGRX_MeshInstance* mi ) : Handle( mi ){}
 };
 
-struct ENGINE_EXPORT SGRX_Camera
+struct SGRX_Camera
 {
-	void Log( SGRX_Log& elog );
-	void UpdateViewMatrix();
-	void UpdateProjMatrix();
-	void UpdateMatrices();
+	ENGINE_EXPORT void Log( SGRX_Log& elog );
+	ENGINE_EXPORT void UpdateViewMatrix();
+	ENGINE_EXPORT void UpdateProjMatrix();
+	ENGINE_EXPORT void UpdateMatrices();
 	
-	Vec3 WorldToScreen( const Vec3& pos );
-	bool GetCursorRay( float x, float y, Vec3& pos, Vec3& dir );
+	ENGINE_EXPORT Vec3 WorldToScreen( const Vec3& pos );
+	ENGINE_EXPORT bool GetCursorRay( float x, float y, Vec3& pos, Vec3& dir );
 	
 	Vec3 position;
 	Vec3 direction;
@@ -672,17 +672,17 @@ struct SGRX_Viewport
 	int x1, y1, x2, y2;
 };
 
-struct ENGINE_EXPORT SGRX_Scene
+struct SGRX_Scene
 {
 	FINLINE void Acquire(){ ++m_refcount; }
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	
-	SGRX_Scene();
-	~SGRX_Scene();
-	MeshInstHandle CreateMeshInstance();
-//	bool RemoveMeshInstance( MeshInstHandle mih );
-	LightHandle CreateLight();
-//	bool RemoveLight( LightHandle lh );
+	ENGINE_EXPORT SGRX_Scene();
+	ENGINE_EXPORT ~SGRX_Scene();
+	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
+//	ENGINE_EXPORT bool RemoveMeshInstance( MeshInstHandle mih );
+	ENGINE_EXPORT LightHandle CreateLight();
+//	ENGINE_EXPORT bool RemoveLight( LightHandle lh );
 	
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;
@@ -706,14 +706,14 @@ struct ENGINE_EXPORT SGRX_Scene
 	int32_t m_refcount;
 };
 
-struct ENGINE_EXPORT SceneHandle : Handle< SGRX_Scene >
+struct SceneHandle : Handle< SGRX_Scene >
 {
 	SceneHandle() : Handle(){}
 	SceneHandle( const SceneHandle& h ) : Handle( h ){}
 	SceneHandle( struct SGRX_Scene* sc ) : Handle( sc ){}
 };
 
-struct ENGINE_EXPORT LightTree
+struct LightTree
 {
 	struct Sample
 	{
@@ -723,8 +723,8 @@ struct ENGINE_EXPORT LightTree
 	};
 	
 	void Clear(){ m_samples.clear(); m_tris.clear(); m_triadj.clear(); m_adjdata.clear(); }
-	void InsertSamples( const Sample* samples, size_t count );
-	void Interpolate( Sample& S, int32_t* outlastfound = NULL );
+	ENGINE_EXPORT void InsertSamples( const Sample* samples, size_t count );
+	ENGINE_EXPORT void Interpolate( Sample& S, int32_t* outlastfound = NULL );
 	
 	Array< Sample > m_samples;
 	Array< int32_t > m_tris; // 3 x triangle count
@@ -767,7 +767,7 @@ enum EPrimitiveType
 	PT_TriangleStrip,
 };
 
-struct ENGINE_EXPORT BatchRenderer
+struct BatchRenderer
 {
 	struct Vertex
 	{
@@ -784,47 +784,47 @@ struct ENGINE_EXPORT BatchRenderer
 		EPrimitiveType primType;
 	};
 	
-	BatchRenderer( struct IRenderer* r );
+	ENGINE_EXPORT BatchRenderer( struct IRenderer* r );
 	~BatchRenderer(){ if( m_renderer ) Flush(); }
 	
-	BatchRenderer& AddVertices( Vertex* verts, int count );
-	BatchRenderer& AddVertex( const Vertex& vert );
+	ENGINE_EXPORT BatchRenderer& AddVertices( Vertex* verts, int count );
+	ENGINE_EXPORT BatchRenderer& AddVertex( const Vertex& vert );
 	FINLINE BatchRenderer& Col( float x ){ return Col( x, x, x, x ); }
 	FINLINE BatchRenderer& Col( float x, float a ){ return Col( x, x, x, a ); }
 	FINLINE BatchRenderer& Col( float r, float g, float b ){ return Col( r, g, b, 1.0f ); }
-	FINLINE BatchRenderer& Col( float r, float g, float b, float a ){ return Colb( r * 255, g * 255, b * 255, a * 255 ); }
-	BatchRenderer& Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+	FINLINE BatchRenderer& Col( float r, float g, float b, float a ){ return Colb( COLOR_F2B( r ), COLOR_F2B( g ), COLOR_F2B( b ), COLOR_F2B( a ) ); }
+	ENGINE_EXPORT BatchRenderer& Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
 	FINLINE BatchRenderer& Colu( uint32_t c ){ return Colb( COLOR_EXTRACT_R( c ), COLOR_EXTRACT_G( c ), COLOR_EXTRACT_B( c ), COLOR_EXTRACT_A( c ) ); }
 	FINLINE BatchRenderer& Tex( float x, float y ){ m_proto.u = x; m_proto.v = y; return *this; }
 	FINLINE BatchRenderer& Pos( float x, float y, float z = 0.0f ){ m_proto.x = x; m_proto.y = y; m_proto.z = z; AddVertex( m_proto ); return *this; }
 	FINLINE BatchRenderer& Pos( const Vec2& pos, float z = 0.0f ){ return Pos( pos.x, pos.y, z ); }
 	FINLINE BatchRenderer& Pos( const Vec3& pos ){ return Pos( pos.x, pos.y, pos.z ); }
 	
-	BatchRenderer& Prev( int i );
-	BatchRenderer& RawQuad( float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float z = 0 );
-	BatchRenderer& Quad( float x0, float y0, float x1, float y1, float z = 0 );
-	BatchRenderer& QuadFrame( float x0, float y0, float x1, float y1, float ix0, float iy0, float ix1, float iy1, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& Prev( int i );
+	ENGINE_EXPORT BatchRenderer& RawQuad( float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& Quad( float x0, float y0, float x1, float y1, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& QuadFrame( float x0, float y0, float x1, float y1, float ix0, float iy0, float ix1, float iy1, float z = 0 );
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
 	FINLINE BatchRenderer& Box( float x, float y, float w, float h, float z = 0 ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h, z ); }
-	BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
-	BatchRenderer& Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy );
-	BatchRenderer& TexLine( const Vec2& p0, const Vec2& p1, float rad );
-	BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );
-	BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
-	BatchRenderer& CircleOutline( const Vec3& pos, const Vec3& dx, const Vec3& dy, int verts );
-	BatchRenderer& SphereOutline( const Vec3& pos, float radius, int verts );
-	BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts );
-	BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
-	BatchRenderer& Tick( const Vec3& pos, float radius, const Mat4& transform = Mat4::Identity );
+	ENGINE_EXPORT BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy );
+	ENGINE_EXPORT BatchRenderer& TexLine( const Vec2& p0, const Vec2& p1, float rad );
+	ENGINE_EXPORT BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );
+	ENGINE_EXPORT BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
+	ENGINE_EXPORT BatchRenderer& CircleOutline( const Vec3& pos, const Vec3& dx, const Vec3& dy, int verts );
+	ENGINE_EXPORT BatchRenderer& SphereOutline( const Vec3& pos, float radius, int verts );
+	ENGINE_EXPORT BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts );
+	ENGINE_EXPORT BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
+	ENGINE_EXPORT BatchRenderer& Tick( const Vec3& pos, float radius, const Mat4& transform = Mat4::Identity );
 	
-	bool CheckSetTexture( const TextureHandle& tex );
-	BatchRenderer& SetTexture( const TextureHandle& tex );
-	BatchRenderer& SetShader( const PixelShaderHandle& shd );
-	BatchRenderer& UnsetTexture(){ return SetTexture( NULL ); }
-	BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
-	BatchRenderer& Flush();
-	BatchRenderer& Reset();
-	void _UpdateDiff();
+	ENGINE_EXPORT bool CheckSetTexture( const TextureHandle& tex );
+	ENGINE_EXPORT BatchRenderer& SetTexture( const TextureHandle& tex );
+	ENGINE_EXPORT BatchRenderer& SetShader( const PixelShaderHandle& shd );
+	FINLINE BatchRenderer& UnsetTexture(){ return SetTexture( NULL ); }
+	ENGINE_EXPORT BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
+	ENGINE_EXPORT BatchRenderer& Flush();
+	ENGINE_EXPORT BatchRenderer& Reset();
+	ENGINE_EXPORT void _UpdateDiff();
 	
 	Array< Vec4 > ShaderData;
 	
@@ -847,7 +847,7 @@ struct ENGINE_EXPORT SGRX_DebugDraw
 	virtual void DebugDraw() = 0;
 };
 
-struct ENGINE_EXPORT SGRX_RenderScene
+struct SGRX_RenderScene
 {
 	SGRX_RenderScene( const Vec4& tv, const SceneHandle& sh, bool enablePP = true ) :
 		timevals( tv ),

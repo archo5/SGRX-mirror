@@ -25,7 +25,7 @@ ENGINE_EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, int sid
 ENGINE_EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );
 
 ENGINE_EXPORT const char* VDeclInfo_Parse( VDeclInfo* info, const char* text );
-ENGINE_EXPORT int GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );
+ENGINE_EXPORT bool GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax );
 
 struct MeshFilePartData
 {
@@ -76,7 +76,7 @@ ENGINE_EXPORT const char* MeshData_Parse( char* buf, size_t size, MeshFileData* 
 
 
 // ! REQUIRES ByteArray data source to be preserved ! //
-struct ENGINE_EXPORT AnimFileParser
+struct AnimFileParser
 {
 	struct Anim
 	{
@@ -102,7 +102,7 @@ struct ENGINE_EXPORT AnimFileParser
 			error = "failed to read data";
 	}
 	
-	const char* Parse( ByteReader& br );
+	ENGINE_EXPORT const char* Parse( ByteReader& br );
 	
 	const char* error;
 	Array< Track > trackData;
@@ -154,45 +154,45 @@ enum EShaderType
 
 #define RS_ZENABLE 1
 
-struct ENGINE_EXPORT IRenderer
+struct IRenderer
 {
 	IRenderer() : m_inDebugDraw( false ){}
 	virtual ~IRenderer(){}
 	
-	virtual void Destroy() = 0;
-	virtual const RendererInfo& GetInfo() = 0;
-	virtual bool LoadInternalResources() = 0;
-	virtual void UnloadInternalResources() = 0;
-	virtual void Swap() = 0;
-	virtual void Modify( const RenderSettings& settings ) = 0;
-	virtual void SetCurrent() = 0;
+	ENGINE_EXPORT virtual void Destroy() = 0;
+	ENGINE_EXPORT virtual const RendererInfo& GetInfo() = 0;
+	ENGINE_EXPORT virtual bool LoadInternalResources() = 0;
+	ENGINE_EXPORT virtual void UnloadInternalResources() = 0;
+	ENGINE_EXPORT virtual void Swap() = 0;
+	ENGINE_EXPORT virtual void Modify( const RenderSettings& settings ) = 0;
+	ENGINE_EXPORT virtual void SetCurrent() = 0;
 	
-	virtual bool SetRenderTarget( TextureHandle rt ) = 0;
-	virtual void Clear( float* color_v4f, bool clear_zbuffer = true ) = 0;
-	virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
-	virtual void SetScissorRect( bool enable, int* rect ) = 0;
+	ENGINE_EXPORT virtual bool SetRenderTarget( TextureHandle rt ) = 0;
+	ENGINE_EXPORT virtual void Clear( float* color_v4f, bool clear_zbuffer = true ) = 0;
+	ENGINE_EXPORT virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
+	ENGINE_EXPORT virtual void SetScissorRect( bool enable, int* rect ) = 0;
 	
-	virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
-	virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;
-	virtual bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
-	virtual SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code ) = 0;
-	virtual SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code ) = 0;
-	virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
-	virtual SGRX_IMesh* CreateMesh() = 0;
+	ENGINE_EXPORT virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
+	ENGINE_EXPORT virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;
+	ENGINE_EXPORT virtual bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
+	ENGINE_EXPORT virtual SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code ) = 0;
+	ENGINE_EXPORT virtual SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code ) = 0;
+	ENGINE_EXPORT virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
+	ENGINE_EXPORT virtual SGRX_IMesh* CreateMesh() = 0;
 	
-	virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
-	virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
+	ENGINE_EXPORT virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
+	ENGINE_EXPORT virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
 	
-	virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
-	virtual void RenderScene( SGRX_RenderScene* RS ) = 0;
+	ENGINE_EXPORT virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
+	ENGINE_EXPORT virtual void RenderScene( SGRX_RenderScene* RS ) = 0;
 	
 	// culling helpers
-	void _RS_Cull_Camera_Prepare( SGRX_Scene* scene );
-	uint32_t _RS_Cull_Camera_MeshList( SGRX_Scene* scene );
-	uint32_t _RS_Cull_Camera_PointLightList( SGRX_Scene* scene );
-	uint32_t _RS_Cull_Camera_SpotLightList( SGRX_Scene* scene );
-	uint32_t _RS_Cull_SpotLight_MeshList( SGRX_Scene* scene, SGRX_Light* L );
-	void _RS_Compile_MeshLists( SGRX_Scene* scene );
+	ENGINE_EXPORT void _RS_Cull_Camera_Prepare( SGRX_Scene* scene );
+	ENGINE_EXPORT uint32_t _RS_Cull_Camera_MeshList( SGRX_Scene* scene );
+	ENGINE_EXPORT uint32_t _RS_Cull_Camera_PointLightList( SGRX_Scene* scene );
+	ENGINE_EXPORT uint32_t _RS_Cull_Camera_SpotLightList( SGRX_Scene* scene );
+	ENGINE_EXPORT uint32_t _RS_Cull_SpotLight_MeshList( SGRX_Scene* scene, SGRX_Light* L );
+	ENGINE_EXPORT void _RS_Compile_MeshLists( SGRX_Scene* scene );
 	
 	// common data
 	RenderStats m_stats;

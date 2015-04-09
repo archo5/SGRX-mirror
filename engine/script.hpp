@@ -58,53 +58,53 @@ template<> struct sgs_GetVarP<Mat4> { Mat4 operator () ( SGS_CTX, sgs_Variable* 
 	Mat4 m = Mat4::Identity; sgs_ParseMat4P( C, val, m.a ); return m; }};
 
 
-struct SCRIPT_EXPORT ScriptVarIterator
+struct ScriptVarIterator
 {
-	ScriptVarIterator( SGS_CTX, sgs_Variable* var );
-	ScriptVarIterator( sgsVariable& var );
-	void _Init( SGS_CTX, sgs_Variable* var );
+	SCRIPT_EXPORT ScriptVarIterator( SGS_CTX, sgs_Variable* var );
+	SCRIPT_EXPORT ScriptVarIterator( sgsVariable& var );
+	SCRIPT_EXPORT void _Init( SGS_CTX, sgs_Variable* var );
 	
-	sgsVariable GetKey();
-	sgsVariable GetValue();
-	bool Advance();
+	SCRIPT_EXPORT sgsVariable GetKey();
+	SCRIPT_EXPORT sgsVariable GetValue();
+	SCRIPT_EXPORT bool Advance();
 	
 	sgsVariable m_iter;
 };
 
-struct SCRIPT_EXPORT ScriptContext
+struct ScriptContext
 {
-	ScriptContext();
-	~ScriptContext();
+	SCRIPT_EXPORT ScriptContext();
+	SCRIPT_EXPORT ~ScriptContext();
 	
-	void Reset();
-	void RegisterBatchRenderer();
+	SCRIPT_EXPORT void Reset();
+	SCRIPT_EXPORT void RegisterBatchRenderer();
 	
-	bool EvalFile( const StringView& path, sgsVariable* outvar = NULL );
-	bool EvalBuffer( const StringView& data, sgsVariable* outvar = NULL );
-	bool ExecFile( const StringView& path );
-	bool ExecBuffer( const StringView& data );
-	bool Include( const char* what, const char* searchpath = NULL );
+	SCRIPT_EXPORT bool EvalFile( const StringView& path, sgsVariable* outvar = NULL );
+	SCRIPT_EXPORT bool EvalBuffer( const StringView& data, sgsVariable* outvar = NULL );
+	SCRIPT_EXPORT bool ExecFile( const StringView& path );
+	SCRIPT_EXPORT bool ExecBuffer( const StringView& data );
+	SCRIPT_EXPORT bool Include( const char* what, const char* searchpath = NULL );
 	
-	String Serialize( sgsVariable var );
-	sgsVariable Unserialize( const StringView& sv );
+	SCRIPT_EXPORT String Serialize( sgsVariable var );
+	SCRIPT_EXPORT sgsVariable Unserialize( const StringView& sv );
 	
-	sgsString CreateString( const StringView& sv );
-	sgsVariable CreateStringVar( const StringView& sv );
-	sgsVariable CreateDict( int args = 0 );
-	sgsVariable CreateVec2( const Vec2& v );
-	sgsVariable CreateVec3( const Vec3& v );
+	SCRIPT_EXPORT sgsString CreateString( const StringView& sv );
+	SCRIPT_EXPORT sgsVariable CreateStringVar( const StringView& sv );
+	SCRIPT_EXPORT sgsVariable CreateDict( int args = 0 );
+	SCRIPT_EXPORT sgsVariable CreateVec2( const Vec2& v );
+	SCRIPT_EXPORT sgsVariable CreateVec3( const Vec3& v );
 	
 	template< class T > void Push( const T& v ){ sgs_PushVar( C, v ); }
 	
-	bool Call( sgsVariable func, int args = 0, int ret = 1 );
-	bool GlobalCall( const char* name, int args = 0, int ret = 0 );
+	SCRIPT_EXPORT bool Call( sgsVariable func, int args = 0, int ret = 1 );
+	SCRIPT_EXPORT bool GlobalCall( const char* name, int args = 0, int ret = 0 );
 	
 	// creates a new dict, sets metaobject of current to new, sets new as env
-	void PushEnv();
+	SCRIPT_EXPORT void PushEnv();
 	// tries to reverse the operation done by the previous function, returns false if no metaobj
-	bool PopEnv();
+	SCRIPT_EXPORT bool PopEnv();
 	
-	ScriptVarIterator GlobalIterator();
+	SCRIPT_EXPORT ScriptVarIterator GlobalIterator();
 	
 	SGS_CTX;
 };

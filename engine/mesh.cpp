@@ -79,7 +79,7 @@ const char* VDeclInfo_Parse( VDeclInfo* info, const char* text )
 	return NULL;
 }
 
-int GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax )
+bool GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsize, Vec3& outMin, Vec3& outMax )
 {
 	int i;
 	const char* vdend;
@@ -161,12 +161,12 @@ int GetAABBFromVertexData( const VDeclInfo& info, const char* vdata, size_t vdsi
 		break;
 	}
 	
-	return 1;
+	return true;
 	
 fail:
 	outMin.Set( 0, 0, 0 );
 	outMax.Set( 0, 0, 0 );
-	return 0;
+	return false;
 }
 
 

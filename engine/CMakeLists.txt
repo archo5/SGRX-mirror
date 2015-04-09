@@ -1,10 +1,12 @@
 
 cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
+link_directories( D:/DXSDK/Lib/x86 ${CMAKE_SOURCE_DIR}/ext/d3dx )
 
 # Engine
 add_library( sgrx-core SHARED
-	engine engrender enganim edgui image font mesh culling utils dds
+	engine.cpp engine.hpp engrender.cpp enganim.cpp enganim.hpp edgui.cpp edgui.hpp
+	image.cpp font.cpp mesh.cpp culling.cpp renderer.hpp utils.cpp utils.hpp dds.c dds.h
 	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
 	../ext/src/libpng1
 	../ext/src/libjpg1 ../ext/src/libjpg2 ../ext/src/libjpg3
@@ -14,7 +16,6 @@ target_link_libraries( sgrx-core SDL2 )
 set_target_properties( sgrx-core PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/include;${CMAKE_SOURCE_DIR}/ext/include/freetype;${CMAKE_SOURCE_DIR}/ext/src/zlib"
-	LINKER_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/lib-win32"
 	COMPILE_FLAGS "${CORE_FLAGS} -DENGINE_BUILDING"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -24,18 +25,23 @@ add_library( sgrx-render-d3d9 SHARED renderer_d3d9 )
 target_link_libraries( sgrx-render-d3d9 d3d9 d3dx9 sgrx-core )
 set_target_properties( sgrx-render-d3d9 PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
-	COMPILE_FLAGS "${CORE_FLAGS} -Wno-unknown-pragmas -Wno-comment"
+	COMPILE_FLAGS "${CORE_FLAGS} ${MINGW_D3D_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
 # Renderer - D3D11
+if(MSVC)
+	set(D3DCOMPILER_LIB d3dcompiler)
+else()
+	set(D3DCOMPILER_LIB d3dcompiler_42)
+endif()
 add_library( sgrx-render-d3d11 SHARED renderer_d3d11 )
-target_link_libraries( sgrx-render-d3d11 d3d11 d3dcompiler_42 sgrx-core )
+target_link_libraries( sgrx-render-d3d11 d3d11 ${D3DCOMPILER_LIB} sgrx-core )
 set_target_properties( sgrx-render-d3d11 PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "D:/DXSDK/Include"
-	COMPILE_FLAGS "${CORE_FLAGS} -Wno-unknown-pragmas -DENABLE_SHADER_COMPILING"
-	LINK_FLAGS "${CORE_FLAGS} -L${CMAKE_SOURCE_DIR}/ext/d3dx"
+	COMPILE_FLAGS "${CORE_FLAGS} ${MINGW_D3D_FLAGS} -DENABLE_SHADER_COMPILING"
+	LINK_FLAGS "${CORE_FLAGS}"
 )
 
 # Sound - FMOD
@@ -82,11 +88,11 @@ target_link_libraries( sgrx sgrx-core )
 set_target_properties( sgrx-debug PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
-	LINK_FLAGS "${CORE_FLAGS} -s"
+	LINK_FLAGS "${CORE_FLAGS} ${LINK_STRIP_FLAG}"
 )
 set_target_properties( sgrx PROPERTIES
 	COMPILE_DEFINITIONS "SGRX_RELEASE=1"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
-	LINK_FLAGS "${CORE_FLAGS} -s -mwindows"
+	LINK_FLAGS "${CORE_FLAGS} ${LINK_STRIP_FLAG} ${LINK_WINDOWS_FLAG}"
 )

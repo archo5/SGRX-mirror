@@ -10,17 +10,17 @@ ENGINE_EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, c
 ENGINE_EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch );
 
 
-struct ENGINE_EXPORT SGRX_Animation
+struct IF_GCC(ENGINE_EXPORT) SGRX_Animation
 {
 	FINLINE void Acquire(){ ++_refcount; }
 	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	~SGRX_Animation();
+	ENGINE_EXPORT ~SGRX_Animation();
 	
-	Vec3* GetPosition( int track );
-	Quat* GetRotation( int track );
-	Vec3* GetScale( int track );
+	ENGINE_EXPORT Vec3* GetPosition( int track );
+	ENGINE_EXPORT Quat* GetRotation( int track );
+	ENGINE_EXPORT Vec3* GetScale( int track );
 	
-	void GetState( int track, float framePos, Vec3& outpos, Quat& outrot, Vec3& outscl );
+	ENGINE_EXPORT void GetState( int track, float framePos, Vec3& outpos, Quat& outrot, Vec3& outscl );
 	
 	String name;
 	int frameCount;
@@ -32,7 +32,7 @@ struct ENGINE_EXPORT SGRX_Animation
 	int32_t _refcount;
 };
 
-struct ENGINE_EXPORT AnimHandle : Handle< SGRX_Animation >
+struct AnimHandle : Handle< SGRX_Animation >
 {
 	AnimHandle() : Handle(){}
 	AnimHandle( const AnimHandle& h ) : Handle( h ){}
@@ -42,10 +42,10 @@ struct ENGINE_EXPORT AnimHandle : Handle< SGRX_Animation >
 // Track-track mapping for animators to find the matching track indices
 typedef HashTable< AnimHandle, int* > AnimCache;
 
-struct ENGINE_EXPORT Animator
+struct IF_GCC(ENGINE_EXPORT) Animator
 {
-	virtual void Prepare( String* new_names, int count );
-	bool PrepareForMesh( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT bool PrepareForMesh( const MeshHandle& mesh );
 	virtual void Advance( float deltaTime ){}
 	
 	void ClearFactors( float f ){ GR_ClearFactors( factor, f ); }
@@ -58,7 +58,7 @@ struct ENGINE_EXPORT Animator
 	Array< float > factor;
 };
 
-struct ENGINE_EXPORT AnimMixer : Animator
+struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
 {
 	enum TransformFlags
 	{
@@ -79,10 +79,10 @@ struct ENGINE_EXPORT AnimMixer : Animator
 		int tflags;
 	};
 	
-	AnimMixer();
-	~AnimMixer();
-	virtual void Prepare( String* new_names, int count );
-	virtual void Advance( float deltaTime );
+	ENGINE_EXPORT AnimMixer();
+	ENGINE_EXPORT ~AnimMixer();
+	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
 	Array< Mat4 > m_staging;
 	MeshHandle mesh;
@@ -91,7 +91,7 @@ struct ENGINE_EXPORT AnimMixer : Animator
 	int layerCount;
 };
 
-struct ENGINE_EXPORT AnimPlayer : Animator
+struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 {
 	struct Anim
 	{
@@ -103,15 +103,15 @@ struct ENGINE_EXPORT AnimPlayer : Animator
 		bool once;
 	};
 	
-	AnimPlayer();
-	~AnimPlayer();
-	virtual void Prepare( String* new_names, int count );
-	virtual void Advance( float deltaTime );
+	ENGINE_EXPORT AnimPlayer();
+	ENGINE_EXPORT ~AnimPlayer();
+	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
-	void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
+	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
 	
-	int* _getTrackIds( const AnimHandle& anim );
-	void _clearAnimCache();
+	ENGINE_EXPORT int* _getTrackIds( const AnimHandle& anim );
+	ENGINE_EXPORT void _clearAnimCache();
 	
 	AnimCache animCache;
 	Array< Anim > currentAnims;
@@ -121,13 +121,13 @@ struct ENGINE_EXPORT AnimPlayer : Animator
 	void SetBlendFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( blendFactor, mesh, name, f, ch ); }
 };
 
-struct ENGINE_EXPORT AnimInterp : Animator
+struct IF_GCC(ENGINE_EXPORT) AnimInterp : Animator
 {
-	AnimInterp();
-	virtual void Prepare( String* new_names, int count );
-	virtual void Advance( float deltaTime );
-	void Transfer();
-	void Interpolate( float deltaTime );
+	ENGINE_EXPORT AnimInterp();
+	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT virtual void Advance( float deltaTime );
+	ENGINE_EXPORT void Transfer();
+	ENGINE_EXPORT void Interpolate( float deltaTime );
 	
 	Array< Vec3 > prev_position;
 	Array< Quat > prev_rotation;
@@ -137,7 +137,7 @@ struct ENGINE_EXPORT AnimInterp : Animator
 
 
 
-struct ENGINE_EXPORT SkeletonInfo
+struct SkeletonInfo
 {
 	enum BodyType
 	{
@@ -231,7 +231,7 @@ ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mi
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
 
-struct ENGINE_EXPORT ParticleSystem
+struct IF_GCC(ENGINE_EXPORT) ParticleSystem
 {
 	struct Vertex
 	{
@@ -335,7 +335,7 @@ struct ENGINE_EXPORT ParticleSystem
 			create_VelMicroDir(V3(0,0,1)), create_VelMicroDvg(0), create_VelMicroDistExt(V2(0)),
 			create_VelMacroDir(V3(0,0,1)), create_VelMacroDvg(0), create_VelMacroDistExt(V2(1,0.1f)),
 			create_VelCluster(1), create_VelClusterExt(0),
-			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,M_PI)), create_AngleVelDvg(V2(0)),
+			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,(float)M_PI)), create_AngleVelDvg(V2(0)),
 			tick_AngleAcc(0), absolute(false),
 			render_Shader("particle"), render_Additive(false), render_Stretch(false),
 			state_SpawnTotalCount(0), state_SpawnCurrCount(0), state_SpawnTotalTime(0), state_SpawnCurrTime(0),
@@ -501,19 +501,19 @@ struct ENGINE_EXPORT ParticleSystem
 		if( T::IsReader )
 			OnRenderUpdate();
 	}
-	bool Load( const StringView& sv );
-	bool Save( const StringView& sv );
+	ENGINE_EXPORT bool Load( const StringView& sv );
+	ENGINE_EXPORT bool Save( const StringView& sv );
 	
-	void OnRenderUpdate();
-	void AddToScene( SceneHandle sh );
-	void SetTransform( const Mat4& mtx );
+	ENGINE_EXPORT void OnRenderUpdate();
+	ENGINE_EXPORT void AddToScene( SceneHandle sh );
+	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
-	bool Tick( float dt );
-	void PreRender();
+	ENGINE_EXPORT bool Tick( float dt );
+	ENGINE_EXPORT void PreRender();
 	
-	void Trigger();
-	void Play();
-	void Stop();
+	ENGINE_EXPORT void Trigger();
+	ENGINE_EXPORT void Play();
+	ENGINE_EXPORT void Stop();
 };
 
 

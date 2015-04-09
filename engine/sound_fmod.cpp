@@ -171,7 +171,7 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 	FMOD_STUDIO_EVENTDESCRIPTION* GetEvent( const StringView& name )
 	{
 		char bfr[ 256 ] = {0};
-		snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ), name.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), "event:%.*s", TMIN( 240, (int) name.size() ), name.data() );
 		
 		FMOD_STUDIO_EVENTDESCRIPTION* desc = NULL;
 		int ret = FMOD_Studio_System_GetEvent( m_sys, bfr, &desc );

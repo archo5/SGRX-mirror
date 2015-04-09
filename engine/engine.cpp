@@ -93,7 +93,7 @@ static AnimHashTable* g_Anims = NULL;
 
 bool Window_HasClipboardText()
 {
-	return SDL_HasClipboardText();
+	return SDL_HasClipboardText() != 0;
 }
 
 bool Window_GetClipboardText( String& out )
@@ -662,7 +662,7 @@ void SGRX_SurfaceShader::ReloadShaders()
 			continue;
 		
 		char bfr[ 1000 ] = {0};
-		snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s", (int) m_key.size(), m_key.data(), (int) PASS.shader_name.size(), PASS.shader_name.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s", (int) m_key.size(), m_key.data(), (int) PASS.shader_name.size(), PASS.shader_name.data() );
 		if( PASS.flags & RPF_OBJ_DYNAMIC )
 			strcat( bfr, ":DYNAMIC" );
 		if( PASS.flags & RPF_OBJ_STATIC )
@@ -1689,7 +1689,7 @@ MeshHandle GR_GetMesh( const StringView& path )
 		// LOAD VERTEX SHADER
 		//
 		char vsbfr[ 256 ] = {0};
-		snprintf( vsbfr, 255, "vs:%.*s:base%s", TMIN( 200, (int) vsname.size() ), vsname.data(), mfd.numBones ? ":SKIN" : "" );
+		sgrx_snprintf( vsbfr, 255, "vs:%.*s:base%s", TMIN( 200, (int) vsname.size() ), vsname.data(), mfd.numBones ? ":SKIN" : "" );
 		parts[ i ].vertexShader = GR_GetVertexShader( vsbfr );
 	}
 	if( !mesh->SetPartData( parts, mfd.numParts ) )
@@ -2322,7 +2322,7 @@ static int init_graphics()
 	SDL_StartTextInput();
 	
 	char renderer_dll[ 257 ] = {0};
-	snprintf( renderer_dll, 256, "%s%.*s.dll", g_RendererPrefix, TMIN( (int) g_RendererName.size(), 200 ), g_RendererName.data() );
+	sgrx_snprintf( renderer_dll, 256, "%s%.*s.dll", g_RendererPrefix, TMIN( (int) g_RendererName.size(), 200 ), g_RendererName.data() );
 	g_RenderLib = SDL_LoadObject( renderer_dll );
 	if( !g_RenderLib )
 	{

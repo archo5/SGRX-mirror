@@ -402,7 +402,7 @@ public:
 		case SGS_VT_STRING: { uint32_t minsize =
 			var.data.S->size < h.var.data.S->size ? var.data.S->size : h.var.data.S->size;
 			int diff = memcmp( sgs_var_cstr( &var ), sgs_var_cstr( &h.var ), minsize );
-			if( diff ) return diff;
+			if( diff ) return diff < 0;
 			return var.data.S->size < h.var.data.S->size; }
 		case SGS_VT_FUNC: return var.data.F < h.var.data.F;
 		case SGS_VT_CFUNC: return var.data.C < h.var.data.C;
