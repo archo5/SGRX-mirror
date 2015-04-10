@@ -471,7 +471,7 @@
 
 /* Memory model/platform independent fns */
 #ifndef PNG_ABORT
-#  ifdef _WINDOWS_
+#  if defined(_WINDOWS_) && !(WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP)
 #    define PNG_ABORT() ExitProcess(0)
 #  else
 #    define PNG_ABORT() abort()

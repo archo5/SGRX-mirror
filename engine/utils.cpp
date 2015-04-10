@@ -866,7 +866,7 @@ struct _IntDirIter
 			ret = FindNextFileW( hfind, &wfd );
 		else
 		{
-			ret = ( hfind = FindFirstFileW( searchdir, &wfd ) ) != INVALID_HANDLE_VALUE;
+			ret = ( hfind = FindFirstFileExW( searchdir, FindExInfoStandard, &wfd, FindExSearchNameMatch, NULL, 0 ) ) != INVALID_HANDLE_VALUE;
 			searched = true;
 		}
 		
@@ -917,6 +917,9 @@ bool DirectoryIterator::IsDirectory()
 
 InLocalStorage::InLocalStorage( const StringView& path )
 {
+#if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+	// TODO
+#else
 	// retrieve current directory
 	CWDGet( m_path );
 	
@@ -950,19 +953,26 @@ InLocalStorage::InLocalStorage( const StringView& path )
 	
 	// set new directory
 	CWDSet( path );
+#endif
 }
 
 InLocalStorage::~InLocalStorage()
 {
+#if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+	// TODO
+#else
 	CWDSet( m_path );
+#endif
 }
 
 
 bool DirExists( const StringView& path )
 {
 #ifdef _WIN32
-	DWORD dwAttrib = GetFileAttributesW( StackWString< MAX_PATH >( path ) );
-	return ( dwAttrib != INVALID_FILE_ATTRIBUTES && ( dwAttrib & FILE_ATTRIBUTE_DIRECTORY ) );
+	WIN32_FILE_ATTRIBUTE_DATA attribs;
+	if( GetFileAttributesExW( StackWString< MAX_PATH >( path ), GetFileExInfoStandard, &attribs ) == FALSE )
+		return false;
+	return ( attribs.dwFileAttributes != INVALID_FILE_ATTRIBUTES && ( attribs.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) );
 #else
 	struct stat info;
 	if( stat( path, &info ) != 0 )
@@ -984,7 +994,9 @@ bool DirCreate( const StringView& path )
 
 bool CWDGet( String& path )
 {
-#ifdef _WIN32
+#if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+	return false;
+#elif defined(_WIN32)
 	WCHAR bfr[ MAX_PATH ];
 	DWORD nchars = GetCurrentDirectoryW( MAX_PATH, bfr );
 	if( nchars )
@@ -1008,7 +1020,9 @@ bool CWDGet( String& path )
 
 bool CWDSet( const StringView& path )
 {
-#ifdef _WIN32
+#if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+	return false;
+#elif defined(_WIN32)
 	return SetCurrentDirectoryW( StackWString< MAX_PATH >( path ) ) != FALSE;
 #else
 	return chdir( StackString< 4096 >( path ) ) == 0;

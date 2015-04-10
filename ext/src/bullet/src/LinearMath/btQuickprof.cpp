@@ -47,6 +47,10 @@ static btClock gProfileClock;
 
 #include <time.h>
 
+#if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+#define GetTickCount GetTickCount64
+#endif
+
 
 #else //_WIN32
 #include <sys/time.h>

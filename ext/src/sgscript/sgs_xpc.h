@@ -68,12 +68,16 @@ typedef unsigned __int64 uint64_t;
 #  include <sys/stat.h>
 
 #  ifdef _WIN32
-#    include <direct.h>
-#    define getcwd _getcwd
-#    define mkdir _mkdir
-#    define rmdir _rmdir
-#    define stat _stat
-#    include "sgs_msvc_dirent.h"
+#    if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP)
+#      include <windows.h>
+#    else
+#      include <direct.h>
+#      define getcwd _getcwd
+#      define mkdir _mkdir
+#      define rmdir _rmdir
+#      define stat _stat
+#      include "sgs_msvc_dirent.h"
+#    endif
 #  else
 #    include <unistd.h>
 #    include <dirent.h>

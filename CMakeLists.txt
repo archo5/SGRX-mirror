@@ -32,6 +32,12 @@ else()
 	set(MINGW_D3D_FLAGS "")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL WindowsPhone OR CMAKE_SYSTEM_NAME STREQUAL WindowsStore)
+	set(RESTRICTED TRUE)
+else()
+	set(RESTRICTED FALSE)
+endif()
+
 
 # Direct3D9
 #add_library( d3dx9 SHARED IMPORTED )
@@ -70,7 +76,10 @@ list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/fmodstud
 add_subdirectory( engine )
 add_subdirectory( game-tacstrike )
 add_subdirectory( game-polyflight )
+
+if(NOT RESTRICTED)
 add_subdirectory( tools )
+endif()
 
 # Copy external libraries
 message( STATUS "Copying shared libraries." )

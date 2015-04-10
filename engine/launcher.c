@@ -25,7 +25,10 @@ int main( int argc, char* argv[] )
 {
 	int ret;
 	
-#if defined _WIN32 && defined SGRX_RELEASE
+#if (WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP) && defined SGRX_RELEASE
+	int argc = 1;
+	char* argv[] = { "<app>" };
+#elif defined _WIN32 && defined SGRX_RELEASE
 	int i, argc, totalsize = 0;
 	char** argv = NULL, *p;
 	LPWSTR *argv_w;

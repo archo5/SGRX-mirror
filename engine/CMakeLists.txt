@@ -20,6 +20,7 @@ set_target_properties( sgrx-core PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL WindowsPhone OR CMAKE_SYSTEM_NAME STREQUAL WindowsStore))
 # Renderer - D3D9
 add_library( sgrx-render-d3d9 SHARED renderer_d3d9 )
 target_link_libraries( sgrx-render-d3d9 d3d9 d3dx9 sgrx-core )
@@ -28,6 +29,7 @@ set_target_properties( sgrx-render-d3d9 PROPERTIES
 	COMPILE_FLAGS "${CORE_FLAGS} ${MINGW_D3D_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
+endif()
 
 # Renderer - D3D11
 if(MSVC)

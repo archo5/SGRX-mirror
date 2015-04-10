@@ -33,6 +33,10 @@ typedef unsigned char boolean;
 #define HAVE_BOOLEAN		/* prevent jmorecfg.h from redefining it */
 #endif
 
+#if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
+#define NO_GETENV 1
+#endif
+
 
 #ifdef JPEG_INTERNALS
 #undef RIGHT_SHIFT_IS_UNSIGNED
