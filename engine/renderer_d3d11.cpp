@@ -1331,7 +1331,6 @@ bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 	
 	m_origVertexSize = vd->m_info.size;
 	m_realVertexSize = divideup( m_origVertexSize, 16 ) * 16;
-	LOG << "VERTEX SIZE CHANGE: " << m_origVertexSize << " => " << m_realVertexSize;
 	m_vertexDataSize = size;
 	m_realVertexDataSize = divideup( size, m_origVertexSize ) * m_realVertexSize;
 	
@@ -1366,7 +1365,6 @@ bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 	
 	if( m_origVertexSize != m_realVertexSize )
 	{
-		LOG << "Refitting vertex data from size=" << m_origVertexSize << " to size=" << m_realVertexSize;
 		ByteArray& scratch = m_renderer->m_scratchMem;
 		size_t xsize = divideup( size, m_origVertexSize ) * m_realVertexSize;
 		scratch.resize( xsize );
@@ -1781,8 +1779,8 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 			m_ctx->PSSetSamplers( 8, 4, smps + 8 );
 			
 			ID3D11Buffer* vbufs[2] = { M->m_VB, m_vertbuf_defaults };
-			static const UINT strides[2] = { M->m_realVertexSize, sizeof(BackupVertexData) };
-			static const UINT offsets[2] = { 0, 0 };
+			const UINT strides[2] = { M->m_realVertexSize, sizeof(BackupVertexData) };
+			const UINT offsets[2] = { 0, 0 };
 			m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
 			m_ctx->IASetIndexBuffer( M->m_IB, M->m_dataFlags & MDF_INDEX_32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0 );
 			m_ctx->IASetPrimitiveTopology( M->m_dataFlags & MDF_TRIANGLESTRIP ? D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
