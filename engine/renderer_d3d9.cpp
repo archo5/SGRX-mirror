@@ -1718,8 +1718,6 @@ void D3D9Renderer::_RS_Render_Shadows()
 				for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 				{
 					SGRX_MeshPart* MP = &M->m_parts[ part_id ];
-					if( !MP->vertexShader )
-						continue;
 					SGRX_Material* MTL = MP->material;
 					if( !MTL )
 						continue;
@@ -1731,14 +1729,17 @@ void D3D9Renderer::_RS_Render_Shadows()
 					if( transparent )
 						continue;
 					
-					SGRX_IPixelShader* SHD = SSH->m_shaders[ pass_id ];
+					SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
+					if( !VSH )
+						continue;
+					SGRX_IPixelShader* SHD = SSH->m_pixelShaders[ pass_id ];
 					if( !SHD )
 						continue;
 					
 					if( MP->indexCount < 3 )
 						continue;
 					
-					SetVertexShader( MP->vertexShader );
+					SetVertexShader( VSH );
 					SetPixelShader( SHD );
 					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
 						SetTexture( tex_id, MTL->textures[ tex_id ] );
@@ -1913,8 +1914,6 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 			{
 				SGRX_MeshPart* MP = &M->m_parts[ part_id ];
-				if( !MP->vertexShader )
-					continue;
 				SGRX_Material* MTL = MP->material;
 				if( !MTL )
 					continue;
@@ -1926,7 +1925,10 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 					continue;
 				
-				PixelShaderHandle SHD = SSH->m_shaders[ pass_id ];
+				SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
+				if( !VSH )
+					continue;
+				PixelShaderHandle SHD = SSH->m_pixelShaders[ pass_id ];
 				if( !SHD )
 					continue;
 				
@@ -1937,7 +1939,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
 				m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
 				
-				SetVertexShader( MP->vertexShader );
+				SetVertexShader( VSH );
 				SetPixelShader( SHD );
 				for( size_t tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
 					SetTexture( tex_id, MTL->textures[ tex_id ] );

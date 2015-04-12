@@ -389,7 +389,7 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	return true;
 }
 
-void IGame::GetShaderCacheFilename( const StringView& type, const StringView& key, String& name )
+void IGame::GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name )
 {
 	name = "shaders_";
 	name.append( type.data(), type.size() );
@@ -407,28 +407,29 @@ void IGame::GetShaderCacheFilename( const StringView& type, const StringView& ke
 			name.push_back( '$' );
 	}
 	
+	name.append( sfx );
 	name.append( ".csh" );
 }
 
-bool IGame::GetCompiledShader( const StringView& type, const StringView& key, ByteArray& outdata )
+bool IGame::GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata )
 {
 	if( !key )
 		return false;
 	
 	String filename;
-	GetShaderCacheFilename( type, key, filename );
+	GetShaderCacheFilename( type, sfx, key, filename );
 	
 	LOG << "Loading precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
 	return LoadBinaryFile( filename, outdata );
 }
 
-bool IGame::SetCompiledShader( const StringView& type, const StringView& key, const ByteArray& data )
+bool IGame::SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data )
 {
 	if( !key )
 		return false;
 	
 	String filename;
-	GetShaderCacheFilename( type, key, filename );
+	GetShaderCacheFilename( type, sfx, key, filename );
 	
 	LOG << "Saving precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
 	return SaveBinaryFile( filename, data.data(), data.size() );
@@ -443,13 +444,28 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 	{
 		int i = 0;
 		String prepend;
-		StringView tpl, mtl, cur, it = key.part( 4 );
+		StringView tpl, mtl, vs, defs, cur, it = key.part( 4 );
 		while( it.size() )
 		{
 			i++;
 			cur = it.until( ":" );
 			if( i == 1 )
-				mtl = cur;
+			{
+				StringView defs = cur.after( "+" );
+				StringView spec = cur.until( "+" );
+				mtl = spec.until( "|" );
+				vs = spec.after( "|" );
+				
+				StringView def = defs.until( "+" );
+				while( def.size() )
+				{
+					prepend.append( STRLIT_BUF( "#define " ) );
+					prepend.append( def.data(), def.size() );
+					prepend.append( STRLIT_BUF( "\n" ) );
+					defs = defs.after( "+" );
+					def = defs.until( "+" );
+				}
+			}
 			else if( i == 2 )
 				tpl = cur;
 			else
@@ -461,42 +477,14 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 			it.skip( cur.size() + 1 );
 		}
 		
-		String tpl_data, mtl_data;
-		if( !OnLoadShaderFile( type, String_Concat( "tpl_ps_", tpl ), tpl_data ) )
+		String tpl_data, mtl_data, vs_data;
+		if( !OnLoadShaderFile( type, String_Concat( "tpl_", tpl ), tpl_data ) )
 			return false;
 		if( mtl.size() && !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
 			return false;
-		outdata = String_Concat( prepend, String_Replace( tpl_data, "__CODE__", mtl_data ) );
-		return true;
-	}
-	if( key.part( 0, 3 ) == "vs:" )
-	{
-		int i = 0;
-		String prepend;
-		StringView tpl, vs, cur, it = key.part( 3 );
-		while( it.size() )
-		{
-			i++;
-			cur = it.until( ":" );
-			if( i == 1 )
-				vs = cur;
-			else if( i == 2 )
-				tpl = cur;
-			else
-			{
-				prepend.append( STRLIT_BUF( "#define " ) );
-				prepend.append( cur.data(), cur.size() );
-				prepend.append( STRLIT_BUF( "\n" ) );
-			}
-			it.skip( cur.size() + 1 );
-		}
-		
-		String tpl_data, vs_data;
-		if( !OnLoadShaderFile( type, String_Concat( "tpl_vs_", tpl ), tpl_data ) )
-			return false;
 		if( vs.size() && !OnLoadShaderFile( type, String_Concat( "vs_", vs ), vs_data ) )
 			return false;
-		outdata = String_Concat( prepend, String_Replace( tpl_data, "__VSCODE__", vs_data ) );
+		outdata = String_Concat( prepend, String_Replace( String_Replace( tpl_data, "__CODE__", mtl_data ), "__VSCODE__", vs_data ) );
 		return true;
 	}
 	return OnLoadShaderFile( type, key, outdata );
@@ -652,8 +640,12 @@ SGRX_SurfaceShader::~SGRX_SurfaceShader()
 void SGRX_SurfaceShader::ReloadShaders()
 {
 	// prevent deallocation
-	Array< PixelShaderHandle > newshaders;
-	newshaders.resize( g_Renderer->m_renderPasses.size() );
+	Array< VertexShaderHandle > newshaders_vb;
+	Array< VertexShaderHandle > newshaders_vs;
+	Array< PixelShaderHandle > newshaders_px;
+	newshaders_vb.resize( g_Renderer->m_renderPasses.size() );
+	newshaders_vs.resize( g_Renderer->m_renderPasses.size() );
+	newshaders_px.resize( g_Renderer->m_renderPasses.size() );
 	
 	for( size_t pass_id = 0; pass_id < g_Renderer->m_renderPasses.size(); ++pass_id )
 	{
@@ -667,10 +659,15 @@ void SGRX_SurfaceShader::ReloadShaders()
 			strcat( bfr, ":DYNAMIC" );
 		if( PASS.flags & RPF_OBJ_STATIC )
 			strcat( bfr, ":STATIC" );
-		newshaders[ pass_id ] = GR_GetPixelShader( bfr );
+		newshaders_px[ pass_id ] = GR_GetPixelShader( bfr );
+		newshaders_vb[ pass_id ] = GR_GetVertexShader( bfr );
+		strcat( bfr, ":SKIN" );
+		newshaders_vs[ pass_id ] = GR_GetVertexShader( bfr );
 	}
 	
-	m_shaders = newshaders;
+	m_basicVertexShaders = newshaders_vb;
+	m_skinVertexShaders = newshaders_vs;
+	m_pixelShaders = newshaders_px;
 }
 
 
@@ -1438,7 +1435,7 @@ VertexShaderHandle GR_GetVertexShader( const StringView& path )
 	
 	if( g_Renderer->GetInfo().compileShaders )
 	{
-		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp ) )
+		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".vs", path, comp ) )
 		{
 			goto has_compiled_shader;
 		}
@@ -1460,7 +1457,7 @@ VertexShaderHandle GR_GetVertexShader( const StringView& path )
 			return VertexShaderHandle();
 		}
 		
-		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp );
+		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".vs", path, comp );
 		
 has_compiled_shader:
 		shd = g_Renderer->CreateVertexShader( path, comp );
@@ -1500,7 +1497,7 @@ PixelShaderHandle GR_GetPixelShader( const StringView& path )
 	
 	if( g_Renderer->GetInfo().compileShaders )
 	{
-		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp ) )
+		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".ps", path, comp ) )
 		{
 			goto has_compiled_shader;
 		}
@@ -1522,7 +1519,7 @@ PixelShaderHandle GR_GetPixelShader( const StringView& path )
 			return PixelShaderHandle();
 		}
 		
-		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, path, comp );
+		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".ps", path, comp );
 		
 has_compiled_shader:
 		shd = g_Renderer->CreatePixelShader( path, comp );
@@ -1549,7 +1546,6 @@ has_compiled_shader:
 	LOG << "Loaded pixel shader: " << path;
 	return shd;
 }
-
 
 SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
 {
@@ -1666,8 +1662,6 @@ MeshHandle GR_GetMesh( const StringView& path )
 		parts[ i ].indexCount = mfd.parts[ i ].indexCount;
 		
 		StringView mtltext( mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] );
-		StringView mtlname = mtltext.until( "|" );
-		StringView vsname = mtltext.after( "|" );
 		
 		// LOAD MATERIAL
 		//
@@ -1678,19 +1672,13 @@ MeshHandle GR_GetMesh( const StringView& path )
 		}
 		else
 		{
-			mh->shader = GR_GetSurfaceShader( mtlname );
+			mh->shader = GR_GetSurfaceShader( mtltext );
 		}
 		for( int tid = 0; tid < mfd.parts[ i ].materialTextureCount; ++tid )
 		{
 			mh->textures[ tid ] = GR_GetTexture( StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] ) );
 		}
 		parts[ i ].material = mh;
-		
-		// LOAD VERTEX SHADER
-		//
-		char vsbfr[ 256 ] = {0};
-		sgrx_snprintf( vsbfr, 255, "vs:%.*s:base%s", TMIN( 200, (int) vsname.size() ), vsname.data(), mfd.numBones ? ":SKIN" : "" );
-		parts[ i ].vertexShader = GR_GetVertexShader( vsbfr );
 	}
 	if( !mesh->SetPartData( parts, mfd.numParts ) )
 	{

@@ -119,9 +119,9 @@ struct ENGINE_EXPORT IGame
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
 	virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
-	virtual void GetShaderCacheFilename( const StringView& type, const StringView& key, String& name );
-	virtual bool GetCompiledShader( const StringView& type, const StringView& key, ByteArray& outdata );
-	virtual bool SetCompiledShader( const StringView& type, const StringView& key, const ByteArray& data );
+	virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
+	virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
+	virtual bool SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data );
 	virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
 	virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
 	virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
@@ -359,7 +359,9 @@ struct SGRX_SurfaceShader
 	
 	ENGINE_EXPORT void ReloadShaders();
 	
-	Array< PixelShaderHandle > m_shaders;
+	Array< VertexShaderHandle > m_basicVertexShaders;
+	Array< VertexShaderHandle > m_skinVertexShaders;
+	Array< PixelShaderHandle > m_pixelShaders;
 	
 	int32_t m_refcount;
 	String m_key;
@@ -426,7 +428,6 @@ struct SGRX_MeshPart
 	uint32_t indexOffset;
 	uint32_t indexCount;
 	MaterialHandle material;
-	VertexShaderHandle vertexShader;
 };
 
 struct SGRX_MeshBone
@@ -873,8 +874,8 @@ ENGINE_EXPORT int GR_GetHeight();
 ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
-ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
 ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
+ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
 ENGINE_EXPORT SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name );
 ENGINE_EXPORT MaterialHandle GR_CreateMaterial();
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );

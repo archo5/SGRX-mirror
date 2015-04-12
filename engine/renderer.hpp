@@ -154,7 +154,7 @@ enum EShaderType
 
 #define RS_ZENABLE 1
 
-struct IRenderer
+struct IF_GCC(ENGINE_EXPORT) IRenderer
 {
 	IRenderer() : m_inDebugDraw( false ){}
 	virtual ~IRenderer(){}

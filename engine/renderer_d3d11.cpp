@@ -19,10 +19,13 @@
 #define __out_ecount(x)
 #define __in_range(x,y)
 #endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
 #include <d3d11.h>
 #ifdef ENABLE_SHADER_COMPILING
 #  include <d3dcompiler.h>
 #endif
+#pragma GCC diagnostic pop
 
 #define USE_VEC3
 #define USE_VEC4
@@ -364,11 +367,13 @@ struct D3D11Mesh : SGRX_IMesh
 	int m_realVertexSize;
 	size_t m_realVertexDataSize;
 	
-	ID3D11InputLayout* m_inputLayouts[ MAX_MESH_PARTS ];
+	ID3D11InputLayout* m_basicInputLayouts[ MAX_MESH_PARTS ];
+	ID3D11InputLayout* m_skinInputLayouts[ MAX_MESH_PARTS ];
 	
 	D3D11Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ), m_origVertexSize(0), m_realVertexSize(0), m_realVertexDataSize(0)
 	{
-		memset( m_inputLayouts, 0, sizeof(m_inputLayouts) );
+		memset( m_basicInputLayouts, 0, sizeof(m_basicInputLayouts) );
+		memset( m_skinInputLayouts, 0, sizeof(m_skinInputLayouts) );
 	}
 	~D3D11Mesh();
 	
@@ -1321,7 +1326,10 @@ D3D11Mesh::~D3D11Mesh()
 	SAFE_RELEASE( m_VB );
 	SAFE_RELEASE( m_IB );
 	for( int i = 0; i < MAX_MESH_PARTS; ++i )
-		SAFE_RELEASE( m_inputLayouts[ i ] );
+	{
+		SAFE_RELEASE( m_basicInputLayouts[ i ] );
+		SAFE_RELEASE( m_skinInputLayouts[ i ] );
+	}
 }
 
 bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
@@ -1416,7 +1424,10 @@ bool D3D11Mesh::SetPartData( SGRX_MeshPart* parts, int count )
 void D3D11Mesh::_UpdatePartInputLayouts()
 {
 	for( int i = 0; i < MAX_MESH_PARTS; ++i )
-		SAFE_RELEASE( m_inputLayouts[ i ] );
+	{
+		SAFE_RELEASE( m_basicInputLayouts[ i ] );
+		SAFE_RELEASE( m_skinInputLayouts[ i ] );
+	}
 	
 	if( !m_vertexDecl )
 		return;
@@ -1424,30 +1435,59 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 	
 	for( int i = 0; i < m_numParts; ++i )
 	{
-		D3D11VertexShader* SHD = (D3D11VertexShader*) m_parts[ i ].vertexShader.item;
-		if( !SHD )
+		SGRX_Material* MTL = m_parts[ i ].material.item;
+		if( !MTL )
 			continue;
+		SGRX_SurfaceShader* SSH = MTL->shader;
+		if( !SSH )
+			continue;
+		
+		D3D11VertexShader* SHD_VB = NULL;
+		for( size_t j = 0; j < SSH->m_basicVertexShaders.size(); ++j )
+		{
+			if( SSH->m_basicVertexShaders[ j ] )
+				SHD_VB = (D3D11VertexShader*) SSH->m_basicVertexShaders[ j ].item;
+		}
+		
+		D3D11VertexShader* SHD_VS = NULL;
+		for( size_t j = 0; j < SSH->m_skinVertexShaders.size(); ++j )
+		{
+			if( SSH->m_skinVertexShaders[ j ] )
+				SHD_VS = (D3D11VertexShader*) SSH->m_skinVertexShaders[ j ].item;
+		}
 		
 #if 0
 		D3D11_INPUT_ELEMENT_DESC* elements = VD->m_elements;
-	LOG << "CREATING INPUT LAYOUT";
-	for( int v = 0; v < VD->m_elemCount; ++v )
-	{
-		LOG << "--- " << v << " ---";
-		LOG << "\tSemanticName: " << elements[ v ].SemanticName;
-		LOG << "\tSemanticIndex: " << elements[ v ].SemanticIndex;
-		LOG << "\tFormat: " << format_to_str( elements[ v ].Format );
-		LOG << "\tInputSlot: " << elements[ v ].InputSlot;
-		LOG << "\tAlignedByteOffset: " << elements[ v ].AlignedByteOffset;
-		LOG << "\tInputSlotClass: " << elements[ v ].InputSlotClass;
-		LOG << "\tInstanceDataStepRate: " << elements[ v ].InstanceDataStepRate;
-	}
-#endif
-	
-		HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD->m_VSBC.data(), SHD->m_VSBC.size(), &m_inputLayouts[ i ] );
-		if( FAILED( hr ) || !m_inputLayouts[ i ] )
+		LOG << "CREATING INPUT LAYOUT";
+		for( int v = 0; v < VD->m_elemCount; ++v )
 		{
-			LOG_ERROR << "Failed to create an input layout (mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD->m_key << ", v.d.key=" << VD->m_text << ")";
+			LOG << "--- " << v << " ---";
+			LOG << "\tSemanticName: " << elements[ v ].SemanticName;
+			LOG << "\tSemanticIndex: " << elements[ v ].SemanticIndex;
+			LOG << "\tFormat: " << format_to_str( elements[ v ].Format );
+			LOG << "\tInputSlot: " << elements[ v ].InputSlot;
+			LOG << "\tAlignedByteOffset: " << elements[ v ].AlignedByteOffset;
+			LOG << "\tInputSlotClass: " << elements[ v ].InputSlotClass;
+			LOG << "\tInstanceDataStepRate: " << elements[ v ].InstanceDataStepRate;
+		}
+#endif
+		
+		if( SHD_VB )
+		{
+			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VB->m_VSBC.data(), SHD_VB->m_VSBC.size(), &m_basicInputLayouts[ i ] );
+			if( FAILED( hr ) || !m_basicInputLayouts[ i ] )
+			{
+				LOG_ERROR << "Failed to create an input layout (basic, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VB->m_key << ", v.d.key=" << VD->m_text << ")";
+			}
+		}
+		
+		if( SHD_VS )
+		{
+			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VS->m_VSBC.data(), SHD_VS->m_VSBC.size(), &m_skinInputLayouts[ i ] );
+			if( FAILED( hr ) || !m_skinInputLayouts[ i ] )
+			{
+				LOG_ERROR << "Failed to create an input layout (skinned, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VS->m_key << ", v.d.key=" << VD->m_text << ")";
+			}
 		}
 	}
 }
@@ -1788,8 +1828,6 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 			for( int part_id = 0; part_id < M->m_numParts; ++part_id )
 			{
 				SGRX_MeshPart* MP = &M->m_parts[ part_id ];
-				if( !MP->vertexShader )
-					continue;
 				SGRX_Material* MTL = MP->material;
 				if( !MTL )
 					continue;
@@ -1801,21 +1839,17 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 					continue;
 				
-				PixelShaderHandle SHD = SSH->m_shaders[ pass_id ];
-				if( !SHD )
-					continue;
-				
 				if( MP->indexCount < 3 )
 					continue;
 				
-				m_ctx->IASetInputLayout( M->m_inputLayouts[ part_id ] );
+				m_ctx->IASetInputLayout( MI->skin_matrices.size() ? M->m_skinInputLayouts[ part_id ] : M->m_basicInputLayouts[ part_id ] );
 				
 			//	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent ) == false );
 			//	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
 			//	m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
 				
-				SetVertexShader( MP->vertexShader );
-				SetPixelShader( SHD );
+				SetVertexShader( MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ part_id ] : SSH->m_basicVertexShaders[ part_id ] );
+				SetPixelShader( SSH->m_pixelShaders[ part_id ] );
 				
 				for( int i = 0; i < NUM_MATERIAL_TEXTURES; ++i )
 				{

@@ -744,11 +744,10 @@ void ParticleSystem::OnRenderUpdate()
 		mh->transparent = 1;
 		mh->additive = E.render_Additive;
 		mh->unlit = E.render_Additive;
-		mh->shader = GR_GetSurfaceShader( E.render_Shader );
+		mh->shader = GR_GetSurfaceShader( String_Concat( E.render_Shader, "+PARTICLE" ) );
 		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
 			mh->textures[ t ] = E.render_Textures[ t ];
 		MP.material = mh;
-		MP.vertexShader = GR_GetVertexShader( "vs_int_particle" );
 		
 		m_meshInsts[ i ]->mesh->SetPartData( &MP, 1 );
 	}
