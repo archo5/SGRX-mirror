@@ -91,12 +91,12 @@ static void _ss_reset_states( IDirect3DDevice9* dev, int w, int h )
 	dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
 	dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	{
-		float wm[ 16 ] = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
-		float vm[ 16 ] = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 100,  0, 0, 0, 1 };
-		float pm[ 16 ] = { 2.0f/(float)w, 0, 0, 0,  0, 2.0f/(float)h, 0, 0,  0, 0, 1.0f/999.0f, 1.0f/-999.0f,  0, 0, 0, 1 };
-		dev->SetTransform( D3DTS_WORLD, (D3DMATRIX*) wm );
-		dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) vm );
-		dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) pm );
+//		float wm[ 16 ] = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
+//		float vm[ 16 ] = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 100,  0, 0, 0, 1 };
+//		float pm[ 16 ] = { 2.0f/(float)w, 0, 0, 0,  0, 2.0f/(float)h, 0, 0,  0, 0, 1.0f/999.0f, 1.0f/-999.0f,  0, 0, 0, 1 };
+//		dev->SetTransform( D3DTS_WORLD, (D3DMATRIX*) wm );
+//		dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) vm );
+//		dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) pm );
 	}
 }
 
@@ -1683,6 +1683,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 			m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xffffffff, 1.0f, 0 );
 			
 			VS_SetMat4( 4, L->projMatrix );
+			VS_SetMat4( 12, L->viewMatrix );
 			m_inv_view = L->viewMatrix;
 			m_inv_view.Transpose();
 			PS_SetMat4( 0, m_inv_view );
@@ -1709,6 +1710,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 				
 				m_world_view.Multiply( MI->matrix, L->viewMatrix );
 				VS_SetMat4( 0, m_world_view );
+				VS_SetMat4( 8, MI->matrix );
 				
 				m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 				m_dev->SetVertexDeclaration( VD->m_vdecl );
@@ -1864,14 +1866,14 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 								{ tszx, tszy, 1.0f / tszx, 1.0f / tszy },
 							};
 							memcpy( sldata_ps_it, newdata, sizeof(Vec4)*4 );
-							Mat4 tmp;
-							tmp.Multiply( MI->matrix, light->viewProjMatrix );
+							Mat4 tmp = light->viewProjMatrix;
+						//	tmp.Multiply( MI->matrix, light->viewProjMatrix );
 							memcpy( sldata_vs_it, &tmp, sizeof(Mat4) );
 							sldata_ps_it += 4;
 							sldata_vs_it += 4;
 							
-							SetTexture( 8 + sl_count * 2, light->cookieTexture );
-							SetTexture( 8 + sl_count * 2 + 1, light->shadowTexture );
+							SetTexture( 12 + sl_count * 2, light->cookieTexture );
+							SetTexture( 12 + sl_count * 2 + 1, light->shadowTexture );
 							sl_count++;
 							
 							// extract light from array
