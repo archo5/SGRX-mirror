@@ -428,7 +428,11 @@ void ltr_Scene::DoWork()
 			float corr_min_dot = cosf( config.max_correct_angle / 180.0f * (float) M_PI );
 			ltr_MeshInstance* mi = m_meshInstances[ m_workPart ];
 			if( mi->m_samplecont )
+			{
+				for( size_t i = 0; i < mi->m_lightmap.size(); ++i )
+					mi->m_lightmap[ i ] = Vec3::CreateFromPtr( config.ambient_color );
 				break;
+			}
 			
 			if( m_tmpRender1.size() < mi->lm_width * mi->lm_height )
 				m_tmpRender1.resize( mi->lm_width * mi->lm_height );
