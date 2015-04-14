@@ -87,7 +87,7 @@ int main( int argc, char* argv[] )
 		return 1;
 	}
 	
-	if( WIDTH * WIDTH * 4 != sz / 6 )
+	if( size_t(WIDTH * WIDTH * 4) != sz / 6 )
 	{
 		fprintf( stderr, "unsupported input format\n" );
 		return 1;

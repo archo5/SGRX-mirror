@@ -419,6 +419,7 @@ struct D3D9Renderer : IRenderer
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	void RenderScene( SGRX_RenderScene* RS );
 	void _RS_Render_Shadows();
+	void _RS_RenderPass_Projectors();
 	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
 	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
 	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
@@ -1348,7 +1349,7 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	for( int i = 0; i < count; ++i )
 	{
 		SGRX_RenderPass& PASS = passes[ i ];
-		if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT && PASS.type != RPT_SCREEN )
+		if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT && PASS.type != RPT_SCREEN && PASS.type != RPT_PROJECTORS )
 		{
 			LOG_ERROR << "Invalid type for pass " << i;
 			return false;
@@ -1538,7 +1539,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	{
 		const SGRX_RenderPass& pass = m_renderPasses[ pass_id ];
 		
-		if( pass.type == RPT_OBJECT )
+		if( pass.type == RPT_OBJECT || pass.type == RPT_PROJECTORS )
 		{
 			VS_SetMat4( 0, CAM.mView );
 			VS_SetMat4( 4, CAM.mProj );
@@ -1547,7 +1548,8 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 			PS_SetMat4( 4, CAM.mProj );
 			Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
 			PS_SetVec4( 4, campos4 );
-			_RS_RenderPass_Object( pass, pass_id );
+			if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
+			if( pass.type == RPT_PROJECTORS ) _RS_RenderPass_Projectors();
 		}
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, tx_depth, RTOUT );
 	}
@@ -1755,6 +1757,11 @@ void D3D9Renderer::_RS_Render_Shadows()
 			}
 		}
 	}
+}
+
+void D3D9Renderer::_RS_RenderPass_Projectors()
+{
+	// TODO
 }
 
 void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )

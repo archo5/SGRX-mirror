@@ -507,6 +507,7 @@ struct SGRX_MeshInstLight
 
 #define LIGHT_POINT  1
 #define LIGHT_SPOT   2
+#define LIGHT_PROJ   3
 
 struct SGRX_Light
 {
@@ -535,6 +536,7 @@ struct SGRX_Light
 	Mat4 projMatrix;
 	Mat4 viewProjMatrix;
 	bool hasShadows;
+	Array< SGRX_MeshInstance* > exclInsts;
 	
 	/* frame cache */
 	SGRX_MeshInstLight* _mibuf_begin;
@@ -737,6 +739,7 @@ struct LightTree
 #define RPT_OBJECT     1
 #define RPT_SCREEN     2
 #define RPT_SHADOWS    3
+#define RPT_PROJECTORS 4
 
 #define RPF_OBJ_STATIC      0x01
 #define RPF_OBJ_DYNAMIC     0x02
