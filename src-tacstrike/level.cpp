@@ -729,7 +729,7 @@ bool GameLevel::Load( const StringView& levelname )
 	char bfr[ 256 ];
 	snprintf( bfr, sizeof(bfr), "levels/%.*s/cache", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 	ByteArray ba;
-	if( !LoadBinaryFile( bfr, ba ) )
+	if( !FS_LoadBinaryFile( bfr, ba ) )
 		return false;
 	
 	ClearLevel();

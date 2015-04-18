@@ -74,8 +74,9 @@ set_target_properties( fmodstudio PROPERTIES
 list( APPEND ExternalSharedLibraries "${CMAKE_SOURCE_DIR}/ext/bin-win32/fmodstudio.dll" )
 
 add_subdirectory( engine )
-add_subdirectory( game-tacstrike )
-add_subdirectory( game-polyflight )
+add_subdirectory( src-common )
+add_subdirectory( src-tacstrike )
+add_subdirectory( src-polyflight )
 
 if(NOT RESTRICTED)
 add_subdirectory( tools )

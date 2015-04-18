@@ -151,7 +151,7 @@ struct TmpPlayer : Entity
 		anTopPlayer.Play( GR_GetAnim( "run" ) );
 		
 		ByteArray ba;
-		LoadBinaryFile( "test.rdd", ba );
+		FS_LoadBinaryFile( "test.rdd", ba );
 		ByteReader br( &ba );
 		br << skinfo;
 		anRagdoll.Initialize( g_PhyWorld, meshInst->mesh, &skinfo );
@@ -443,7 +443,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		E.create_VelMacroDvg = 0.05f;
 		E.create_VelMacroDistExt = V2( 10, 0.1f );
 		E.render_Stretch = true;
-		E.render_Textures[0] = GR_GetTexture( "sprites/spark_hs.png" );
+		E.render_Textures[0] = GR_GetTexture( "textures/particles/spark_fast.png" );
 		PS->Save( "pssavetest" );
 		PS->Load( "pssavetest" );
 		PS->OnRenderUpdate();

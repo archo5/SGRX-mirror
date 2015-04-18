@@ -57,6 +57,7 @@ typedef HashTable< StringView, AnimHandle > AnimHashTable;
 
 static String g_GameLibName = "game";
 static String g_GameDir = ".";
+static String g_GameDir2 = "";
 static String g_RendererName = "d3d11";
 
 static bool g_Running = true;
@@ -375,7 +376,7 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	
 	StringView path = key.until( ":" );
 	
-	if( !LoadBinaryFile( path, outdata ) )
+	if( !FS_LoadBinaryFile( path, outdata ) )
 		return false;
 	
 	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y;
@@ -393,7 +394,7 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 
 void IGame::GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name )
 {
-	name = "shaders_";
+	name = "shadercache_";
 	name.append( type.data(), type.size() );
 	name.append( "/" );
 	
@@ -422,7 +423,7 @@ bool IGame::GetCompiledShader( const StringView& type, const char* sfx, const St
 	GetShaderCacheFilename( type, sfx, key, filename );
 	
 	LOG << "Loading precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
-	return LoadBinaryFile( filename, outdata );
+	return FS_LoadBinaryFile( filename, outdata );
 }
 
 bool IGame::SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data )
@@ -434,7 +435,7 @@ bool IGame::SetCompiledShader( const StringView& type, const char* sfx, const St
 	GetShaderCacheFilename( type, sfx, key, filename );
 	
 	LOG << "Saving precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
-	return SaveBinaryFile( filename, data.data(), data.size() );
+	return FS_SaveBinaryFile( filename, data.data(), data.size() );
 }
 
 bool IGame::OnLoadShader( const StringView& type, const StringView& key, String& outdata )
@@ -500,7 +501,7 @@ bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, St
 	filename.append( path.data(), path.size() );
 	filename.append( STRLIT_BUF( ".shd" ) );
 	
-	if( !LoadTextFile( filename, outdata ) )
+	if( !FS_LoadTextFile( filename, outdata ) )
 	{
 		LOG_WARNING << "Failed to load shader file: " << filename << " (type=" << type << ", path=" << path << ")";
 		return false;
@@ -549,7 +550,7 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 	
 	StringView path = key.until( ":" );
 	
-	if( !LoadBinaryFile( path, outdata ) )
+	if( !FS_LoadBinaryFile( path, outdata ) )
 		return false;
 	
 	return true;
@@ -564,13 +565,10 @@ IFileSystem::~IFileSystem()
 {
 }
 
-Array< FileSysHandle >& Game_FileSystems()
-{
-	return g_FileSystems;
-}
-
 BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root)
 {
+	if( m_fileRoot.size() && m_fileRoot.last() != '/' )
+		m_fileRoot.push_back( '/' );
 }
 
 bool BasicFileSystem::LoadBinaryFile( const StringView& path, ByteArray& out )
@@ -591,6 +589,43 @@ bool BasicFileSystem::LoadTextFile( const StringView& path, String& out )
 bool BasicFileSystem::SaveTextFile( const StringView& path, const StringView& data )
 {
 	return ::SaveTextFile( String_Concat( m_fileRoot, path ), data );
+}
+
+Array< FileSysHandle >& Game_FileSystems()
+{
+	return g_FileSystems;
+}
+
+bool FS_LoadBinaryFile( const StringView& path, ByteArray& out )
+{
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( g_FileSystems[ i ]->LoadBinaryFile( path, out ) )
+			return true;
+	return false;
+}
+
+bool FS_SaveBinaryFile( const StringView& path, const void* data, size_t size )
+{
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( g_FileSystems[ i ]->SaveBinaryFile( path, data, size ) )
+			return true;
+	return false;
+}
+
+bool FS_LoadTextFile( const StringView& path, String& out )
+{
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( g_FileSystems[ i ]->LoadTextFile( path, out ) )
+			return true;
+	return false;
+}
+
+bool FS_SaveTextFile( const StringView& path, const StringView& data )
+{
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( g_FileSystems[ i ]->SaveTextFile( path, data ) )
+			return true;
+	return false;
 }
 
 
@@ -1880,7 +1915,7 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 int GR_LoadAnims( const StringView& path, const StringView& prefix )
 {
 	ByteArray ba;
-	if( !LoadBinaryFile( path, ba ) )
+	if( !FS_LoadBinaryFile( path, ba ) )
 	{
 		LOG << "Failed to load animation file: " << path;
 		return 0;
@@ -2420,6 +2455,14 @@ static bool read_config()
 				LOG << "CONFIG: Game directory: " << value;
 			}
 		}
+		else if( key == "dir2" )
+		{
+			if( value.size() )
+			{
+				g_GameDir2 = value;
+				LOG << "CONFIG: Game directory #2: " << value;
+			}
+		}
 		else if( key == "renderer" )
 		{
 			if( value.size() )
@@ -2689,15 +2732,20 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		{
 			if( !strcmp( argv[i], "-game" ) ){ g_GameLibName = argv[++i]; LOG << "ARG: Game library: " << g_GameLibName; }
 			else if( !strcmp( argv[i], "-dir" ) ){ g_GameDir = argv[++i]; LOG << "ARG: Game directory: " << g_GameDir; }
+			else if( !strcmp( argv[i], "-dir2" ) ){ g_GameDir = argv[++i]; LOG << "ARG: Game directory #2: " << g_GameDir2; }
 			else if( !strcmp( argv[i], "-renderer" ) ){ g_RendererName = argv[++i]; LOG << "ARG: Renderer: " << g_RendererName; }
 		}
 	}
 	
-	if( !CWDSet( g_GameDir ) )
-	{
-		LOG_ERROR << "FAILED TO SET GAME DIRECTORY";
-		return 12;
-	}
+	g_FileSystems.push_back( new BasicFileSystem( g_GameDir ) );
+	if( g_GameDir2.size() )
+		g_FileSystems.push_back( new BasicFileSystem( g_GameDir2 ) );
+	
+//	if( !CWDSet( g_GameDir ) )
+//	{
+//		LOG_ERROR << "FAILED TO SET GAME DIRECTORY";
+//		return 12;
+//	}
 	
 	/* initialize SDL */
 	if( SDL_Init(

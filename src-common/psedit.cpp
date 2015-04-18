@@ -1152,7 +1152,7 @@ struct EDGUIMainFrame : EDGUIFrame
 		char bfr[ 256 ];
 		sgrx_snprintf( bfr, sizeof(bfr), "psys/%.*s.psy", TMIN( (int) str.size(), 200 ), str.data() );
 		ByteArray data;
-		if( !LoadBinaryFile( bfr, data ) )
+		if( !FS_LoadBinaryFile( bfr, data ) )
 		{
 			LOG_ERROR << "FAILED TO LOAD PSYS FILE: " << bfr;
 			return;

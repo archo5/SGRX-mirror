@@ -156,6 +156,11 @@ struct IF_GCC(ENGINE_EXPORT) BasicFileSystem : IFileSystem
 typedef Handle< IFileSystem > FileSysHandle;
 ENGINE_EXPORT Array< FileSysHandle >& Game_FileSystems();
 
+ENGINE_EXPORT bool FS_LoadBinaryFile( const StringView& path, ByteArray& out );
+ENGINE_EXPORT bool FS_SaveBinaryFile( const StringView& path, const void* data, size_t size );
+ENGINE_EXPORT bool FS_LoadTextFile( const StringView& path, String& out );
+ENGINE_EXPORT bool FS_SaveTextFile( const StringView& path, const StringView& data );
+
 
 //
 // RENDERER DATA

@@ -691,7 +691,7 @@ bool LevelCache::SaveCache( const StringView& path )
 	svh.marker( "SAMPLES" );
 	
 	ByteArray sample_data;
-	if( !LoadBinaryFile( String_Concat( path, "/samples" ), sample_data ) )
+	if( !FS_LoadBinaryFile( String_Concat( path, "/samples" ), sample_data ) )
 	{
 		LOG_ERROR << "FAILED to read from /samples";
 		return false;

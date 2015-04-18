@@ -699,7 +699,7 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 bool ParticleSystem::Load( const StringView& sv )
 {
 	ByteArray ba;
-	if( !LoadBinaryFile( sv, ba ) )
+	if( !FS_LoadBinaryFile( sv, ba ) )
 		return false;
 	ByteReader br( &ba );
 	Serialize( br, false );
@@ -711,7 +711,7 @@ bool ParticleSystem::Save( const StringView& sv )
 	ByteArray ba;
 	ByteWriter bw( &ba );
 	Serialize( bw, false );
-	return SaveBinaryFile( sv, ba.data(), ba.size() );
+	return FS_SaveBinaryFile( sv, ba.data(), ba.size() );
 }
 
 void ParticleSystem::OnRenderUpdate()
