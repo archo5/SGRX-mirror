@@ -1,0 +1,33 @@
+
+#ifdef VS
+
+void main
+(
+	float4 ipos : POSITION0,
+	float2 itex0 : TEXCOORD0,
+	out float4 opos : POSITION0,
+	out float2 otex : TEXCOORD0
+)
+{
+	opos = ipos;
+	otex = itex0;
+}
+
+#elif defined(PS)
+
+Texture2D TexOCOL : register(t0);
+SamplerState SampFS
+{
+	Filter = MIN_MAG_MIP_LINEAR;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+float4 main( float2 itex : TEXCOORD0 ) : SV_TARGET0
+{
+	float3 ocol = TexOCOL.Sample( SampFS, itex ).rgb;
+	ocol = max( 0, ocol - 1 );
+	return float4( ocol, 1 );
+}
+
+#endif

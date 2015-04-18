@@ -1,0 +1,128 @@
+
+float4x4 mWorldView : register(c0);
+float4x4 mProj : register(c4);
+float4x4 mWorld : register(c8);
+float4x4 mView : register(c12);
+float time : register(c16);
+
+
+#if NUMSPOTLIGHTS > 0
+float4x4 mSpotLight[ NUMSPOTLIGHTS ] : register(c24);
+#endif
+
+
+#ifdef PARTICLE
+void main
+(
+	float4 ipos : POSITION0,
+	float4 icol : COLOR0,
+	float4 itex0 : TEXCOORD0,
+	out float4 opos : POSITION0,
+	out float4 otfpos : TEXCOORD4,
+	out float4 oT : TEXCOORD6,
+	out float3 oN : TEXCOORD7,
+	out float4 ocol : COLOR0,
+	out float4 otex0 : TEXCOORD0,
+	out float4 otex1 : TEXCOORD1
+)
+{
+	float4 viewPos = mul( mWorldView, ipos );
+	opos = mul( mProj, viewPos );
+	otfpos = viewPos;
+	oN = float3(0,0,-1);
+	oT = float4(1,0,0,1);
+	ocol = icol;
+	otex0 = itex0;
+	otex1 = itex0;
+}
+#else
+
+#ifdef SKIN
+float4x4 mSkin[64] : register(c40); /* :c167 */
+#endif
+
+void main
+(
+	float3 vpos : POSITION0,
+	float3 inrm : NORMAL0,
+	float4 itan : TANGENT0,
+	float4 icol : COLOR0,
+#ifdef SKIN
+	float4 iwts : BLENDWEIGHT0,
+	int4 idcs : BLENDINDICES0,
+#endif
+	float4 itex0 : TEXCOORD0,
+	float4 itex1 : TEXCOORD1,
+	out float4 opos : POSITION0,
+	out float4 otfpos : TEXCOORD4,
+	out float4 oT : TEXCOORD6,
+	out float3 oN : TEXCOORD7,
+#if NUMSPOTLIGHTS > 0
+	out float4 oSLPPos0 : TEXCOORD8,
+#if NUMSPOTLIGHTS > 1
+	out float4 oSLPPos1 : TEXCOORD9,
+#if NUMSPOTLIGHTS > 2
+	out float4 oSLPPos2 : TEXCOORD10,
+#if NUMSPOTLIGHTS > 3
+	out float4 oSLPPos3 : TEXCOORD11,
+#endif
+#endif
+#endif
+#endif
+	out float4 ocol : COLOR0,
+	out float4 otex0 : TEXCOORD0,
+	out float4 otex1 : TEXCOORD1
+)
+{
+	float4 ipos = float4( vpos, 1 );
+#ifdef SKIN
+	ipos =
+		mul( mSkin[ idcs[0] ], ipos ) * iwts[0] +
+		mul( mSkin[ idcs[1] ], ipos ) * iwts[1] +
+		mul( mSkin[ idcs[2] ], ipos ) * iwts[2] +
+		mul( mSkin[ idcs[3] ], ipos ) * iwts[3]
+	;
+	itan.xyz =
+		mul( mSkin[ idcs[0] ], itan.xyz ) * iwts[0] +
+		mul( mSkin[ idcs[1] ], itan.xyz ) * iwts[1] +
+		mul( mSkin[ idcs[2] ], itan.xyz ) * iwts[2] +
+		mul( mSkin[ idcs[3] ], itan.xyz ) * iwts[3]
+	;
+	inrm =
+		mul( mSkin[ idcs[0] ], inrm ) * iwts[0] +
+		mul( mSkin[ idcs[1] ], inrm ) * iwts[1] +
+		mul( mSkin[ idcs[2] ], inrm ) * iwts[2] +
+		mul( mSkin[ idcs[3] ], inrm ) * iwts[3]
+	;
+#endif
+	
+	float4 worldPos = mul( mWorld, ipos );
+	oT = float4( mul( mWorld, float4( itan.xyz, 0 ) ).xyz, itan.w );
+	oN = mul( mWorld, float4( inrm, 0 ) ).xyz;
+	ocol = icol;
+	otex0 = itex0;
+	otex1 = itex1;
+	{
+__VSCODE__
+	}
+	oN = mul( mView, oN );
+	oT = mul( mView, oT );
+	float4 viewPos = mul( mView, worldPos );
+	opos = mul( mProj, viewPos );
+	otfpos = viewPos;
+#if NUMSPOTLIGHTS > 0
+	oSLPPos0 = mul( mSpotLight[0], worldPos );
+#if NUMSPOTLIGHTS > 1
+	oSLPPos1 = mul( mSpotLight[1], worldPos );
+#if NUMSPOTLIGHTS > 2
+	oSLPPos2 = mul( mSpotLight[2], worldPos );
+#if NUMSPOTLIGHTS > 3
+	oSLPPos3 = mul( mSpotLight[3], worldPos );
+#endif
+#endif
+#endif
+#endif
+}
+
+#endif
+

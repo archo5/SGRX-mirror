@@ -1,0 +1,22 @@
+float4 diff = Tex0.Sample( Samp0, inTex0.xy );
+diff.rgb = diff.rgb * diff.rgb;// * icol;
+float3 normal = Tex1.Sample( Samp1, inTex0.xy ).rgb * 2 - 1;
+outDiffuseColor = diff.rgb;
+outOpacity = diff.a;
+clip( outOpacity - 0.5 );
+float fresnel = 1 - abs( dot( inNormal, normalize(viewPos) ) );
+outSpecularColor = float3( 0.1, 0.1, 0.1 ) * ( fresnel * fresnel );
+outSpecularPower = 64;
+outNormal = inNormal;//mul( normal, TBN );
+#ifdef DYNAMIC
+float3 LN = mul( mInvView, inNormal );
+float qxp = saturate( LN.x ), qxn = saturate( -LN.x );
+float qyp = saturate( LN.y ), qyn = saturate( -LN.y );
+float qzp = saturate( LN.z ), qzn = saturate( -LN.z );
+outAmbientDiffuseLight = 2*(
+	qxp * gInstanceData[10] + qxn * gInstanceData[11] +
+	qyp * gInstanceData[12] + qyn * gInstanceData[13] +
+	qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
+#else
+outAmbientDiffuseLight = InstTex0.Sample( InstSamp0, inTex1.xy ) * 2;
+#endif

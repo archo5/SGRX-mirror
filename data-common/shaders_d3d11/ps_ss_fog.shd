@@ -1,0 +1,60 @@
+
+#include "tpl_common"
+
+Texture2D texDEPTH : register(t0);
+TextureCube texSKY : register(t4);
+SamplerState TexSamp
+{
+	Filter = MIN_MAG_MIP_LINEAR;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+cbuffer env_data : register(b1)
+{
+	float4 skyDATA;
+	float4 fogRGBS;
+	float4 fogDATA;
+};
+
+float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : SV_TARGET0
+{
+	float fogMinDist = fogDATA.w;
+	float fogHeightFactor = fogRGBS.w;
+	float fogDensity = fogDATA.x;
+	float fogHeightStart = fogDATA.z;
+	float fogHeightDensity = fogDATA.y;
+	float3 fogColor = fogRGBS.rgb;
+	
+	float distance = texDEPTH.Sample( TexSamp, itex ).r;
+	
+	float vdistance;
+	float3 rayPos = cameraPos;
+	float3 dir = mul( mInvView, float4( fpos, 1, 0 ) * distance ).xyz;
+	float3 rayEnd = cameraPos + dir;
+	float fogEntryZ = min( fogHeightStart, rayPos.z );
+	if( rayEnd.z < fogEntryZ ) // ray going down
+	{
+		vdistance = fogEntryZ - rayEnd.z;
+	}
+	else // ray going up, possibly exiting fog halfspace
+	{
+		float fogExitZ = min( fogHeightStart, rayEnd.z );
+		vdistance = max( 0, fogExitZ - fogEntryZ );
+	}
+	vdistance /= abs( rayEnd.z - rayPos.z );
+	vdistance *= length( dir );
+	
+//	float totalFogDensity = fogDensity + max( 0, 1 - exp( -sqrt( vdistance ) * fogHeightDensity ) );
+	float fogfactor = saturate( 1 - exp( -distance * fogDensity - pow( vdistance * fogHeightDensity, 2 ) ) );
+	if( distance <= 0 )
+	{
+		float3 sbcoord = normalize( mul( mInvView, float4( fpos, 1, 0 ) ).xyz );
+		sbcoord = sbcoord.xzy;
+		float3 skycolor = texSKY.Sample( TexSamp, float4( sbcoord, 0 ) ).rgb;
+		fogColor = lerp( fogColor, skycolor, skyDATA.x );
+		fogfactor = 1;
+	}
+	return float4( fogColor, fogfactor );
+}
+

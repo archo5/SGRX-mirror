@@ -1,0 +1,29 @@
+
+sampler2D texOCOL : register(s0);
+sampler2D texPARM : register(s1);
+sampler2D texBLOOM : register(s2);
+
+float4 main( float2 itex : TEXCOORD0 ) : COLOR0
+{
+	float3 parm = tex2D( texPARM, itex ).rgb;
+	itex += parm.xy;
+	float3 ocol = tex2D( texOCOL, itex ).rgb;
+	float3 bloom = tex2D( texBLOOM, itex ).rgb;
+	ocol += pow(bloom,1/2.0) * 0.5;
+	ocol -= 1;
+	ocol *= 1.02;
+	ocol += 1;
+	if(0){
+		float3 avg = dot( ocol, 0.333333 );
+		ocol = lerp( avg, ocol, 1.3 );
+	}
+	ocol = max( 0, ocol );
+	ocol = pow( ocol, 1.0 / 2.0 );
+	if(0){
+		float3 avg = dot( ocol, 0.333333 );
+		ocol = lerp( avg, ocol, 1.3 );
+		ocol = max( 0, ocol );
+	}
+	return float4(ocol,1);
+}
+

@@ -1,0 +1,61 @@
+
+#include "tpl_common.shd"
+
+void main
+(
+	float4 ipos : POSITION0,
+	float3 inrm : NORMAL0,
+	float4 itan : TANGENT0,
+	float4 icol : COLOR0,
+#ifdef SKIN
+	float4 iwts : BLENDWEIGHT0,
+	int4 idcs : BLENDINDICES0,
+#endif
+	float4 itex0 : TEXCOORD0,
+	float4 itex1 : TEXCOORD1,
+	out float4 otfpos : TEXCOORD4,
+	out float4 oT : TEXCOORD6,
+	out float3 oN : TEXCOORD7,
+	out float4 ocol : COLOR0,
+	out float4 otex0 : TEXCOORD0,
+	out float4 otex1 : TEXCOORD1,
+	out float4 opos : SV_POSITION
+)
+{
+#ifdef SKIN
+	ipos =
+		mul( mSkin[ idcs[0] ], ipos ) * iwts[0] +
+		mul( mSkin[ idcs[1] ], ipos ) * iwts[1] +
+		mul( mSkin[ idcs[2] ], ipos ) * iwts[2] +
+		mul( mSkin[ idcs[3] ], ipos ) * iwts[3]
+	;
+	itan.xyz =
+		mul( mSkin[ idcs[0] ], itan.xyz ) * iwts[0] +
+		mul( mSkin[ idcs[1] ], itan.xyz ) * iwts[1] +
+		mul( mSkin[ idcs[2] ], itan.xyz ) * iwts[2] +
+		mul( mSkin[ idcs[3] ], itan.xyz ) * iwts[3]
+	;
+	inrm =
+		mul( mSkin[ idcs[0] ], inrm ) * iwts[0] +
+		mul( mSkin[ idcs[1] ], inrm ) * iwts[1] +
+		mul( mSkin[ idcs[2] ], inrm ) * iwts[2] +
+		mul( mSkin[ idcs[3] ], inrm ) * iwts[3]
+	;
+#endif
+	
+	float4 worldPos = mul( mWorld, ipos );
+	oT = float4( mul( mWorld, float4( itan.xyz, 0 ) ).xyz, itan.w );
+	oN = mul( mWorld, float4( inrm, 0 ) ).xyz;
+	ocol = icol;
+	otex0 = itex0;
+	otex1 = itex1;
+	{
+__VSCODE__
+	}
+	oN = mul( mView, oN );
+	oT = mul( mView, oT );
+	float4 viewPos = mul( mView, worldPos );
+	opos = mul( mProj, viewPos );
+	otfpos = viewPos;
+}
+

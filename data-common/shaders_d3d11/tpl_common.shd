@@ -1,0 +1,58 @@
+
+cbuffer core_data : register(b0)
+{
+	matrix mView;
+	matrix mProj;
+	matrix mInvView;
+	float3 cameraPos;
+	float4 timeVals;
+	
+	float3 gAmbLightColor;
+	float3 gDirLightDir;
+	float3 gDirLightColor;
+};
+
+cbuffer instance_data : register(b1)
+{
+	matrix mWorld;
+	matrix mWorldView;
+	float2 gLightCounts;
+	float4 gInstanceData[16];
+};
+
+#ifdef VS
+#  ifdef SKIN
+cbuffer skin_matrices : register(b2)
+{
+	matrix mSkin[32];
+};
+#  endif
+#endif
+
+cbuffer point_lights : register(b3)
+{
+	struct PointLight
+	{
+		float3 viewPos;
+		float range;
+		float3 color;
+		float power;
+	};
+	PointLight gPLights[16];
+};
+
+cbuffer spot_lights : register(b4)
+{
+	struct SpotLight
+	{
+		float3 viewPos;
+		float range;
+		float3 color;
+		float power;
+		float3 viewDir;
+		float angle;
+		float2 smSize;
+		float2 smInvSize;
+	};
+	SpotLight gSLights[4];
+};

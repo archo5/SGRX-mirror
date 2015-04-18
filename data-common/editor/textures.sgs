@@ -1,0 +1,6 @@
+return
+{
+	"textures/props/spruce_leaf.png" = { noshadow = true },
+	"textures/clip.png" = { noshadow = true },
+	"textures/glass0.png" = { noshadow = true },
+};

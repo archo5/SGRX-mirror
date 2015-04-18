@@ -1,0 +1,262 @@
+
+function ED_ENT_player_start( eptr )
+{
+	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
+	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
+	{
+		BR_Reset();
+		BR_Col( 0.9, 0.2, 0.1, 0.8 );
+		BR_SetPrimitiveType( PT_Lines );
+		BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
+	});
+}
+
+function ED_ENT_camera_start( eptr )
+{
+	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
+	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
+	{
+		BR_Reset();
+		BR_Col( 0.9, 0.2, 0.1, 0.8 );
+		BR_SetPrimitiveType( PT_Lines );
+		BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
+	});
+}
+
+function ED_ENT_solidbox( eptr )
+{
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_SetDebugDrawFunc( eptr, function SolidBox_onDebugDraw( eptr, data )
+	{
+		BR_Reset();
+		BR_Col( 0.2, 0.3, 0.8, 0.8 );
+		BR_AABB( -1, 1, EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position ) );
+	});
+}
+
+function ED_ENT_trigger( eptr )
+{
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_AddFieldScrFn( eptr, "func", "Script function", "" );
+	EE_AddFieldString( eptr, "target", "Target object", "" );
+	EE_AddFieldBool( eptr, "once", "Call once", false );
+	EE_SetDebugDrawFunc( eptr, function Trigger_onDebugDraw( eptr, data )
+	{
+		BR_Reset();
+		BR_Col( 0.2, 0.8, 0.1, 0.8 );
+		BR_AABB( -1, 1, EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position ) );
+	});
+}
+
+function ED_ENT_trigger_prox( eptr )
+{
+	EE_AddFieldFloat( eptr, "distance", "Test distance", 1, 2, 0.01, 100 );
+	EE_AddFieldScrFn( eptr, "func", "Script function", "" );
+	EE_AddFieldString( eptr, "target", "Target object", "" );
+	EE_AddFieldBool( eptr, "once", "Call once", false );
+	EE_SetDebugDrawFunc( eptr, function TriggerProx_onDebugDraw( eptr, data )
+	{
+		BR_Reset();
+		BR_Col( 0.2, 0.6, 0.1, 0.8 );
+		BR_Tick( data.position, data.scan_distance );
+		BR_SphereOutline( data.position, data.scan_distance, 32 );
+	});
+}
+
+function ED_ENT_m3sh( eptr )
+{
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	EE_AddFieldFloat( eptr, "lmquality", "Lightmap quality", 1, 2, 0.01, 100 );
+	EE_AddFieldBool( eptr, "solid", "Solid", true );
+	EE_AddFieldBool( eptr, "dynlit", "Dyn.lighting", false );
+	EE_AddFieldBool( eptr, "castlms", "Casts lightmap shadow (dyn)", true );
+	EE_SetChangeFunc( eptr, function Mesh_onChange( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+		EE_SetMeshInstanceCount( eptr, 1 );
+		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+	});
+	EE_SetDebugDrawFunc( eptr, function Mesh_onDebugDraw( eptr, data )
+	{
+		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+		
+		BR_Reset();
+		BR_Col( 0.2, 0.7, 0.9, 0.8 );
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		BR_AABB( bbmin, bbmax, mtx );
+	});
+	EE_SetGatherFunc( eptr, function MeshArray_onGather( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		EE_Gather_Mesh( eptr, "meshes/" $ data.mesh $ ".ssm", mtx, data.lmquality, data.solid, data.dynlit, data.castlms );
+	});
+}
+
+function ED_ENT_mesharray( eptr )
+{
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	EE_AddFieldVec3( eptr, "offset", "Relative offset", vec3(0,0,1), 2, -128, 128 );
+	EE_AddFieldInt( eptr, "count", "Count", 1, 1, 128 );
+	EE_SetChangeFunc( eptr, function MeshArray_onChange( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+		EE_SetMeshInstanceCount( eptr, data.count );
+		for( i = 0; i < data.count; ++i )
+		{
+			suboff = data.offset * i;
+			submtx = mat4().translate_v3( suboff ).multiply( mtx );
+			EE_SetMeshInstanceMatrix( eptr, i, submtx );
+		}
+	});
+	EE_SetDebugDrawFunc( eptr, function MeshArray_onDebugDraw( eptr, data )
+	{
+		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+		
+		BR_Reset();
+		BR_Col( 0.2, 0.7, 0.9, 0.8 );
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		for( i = 0; i < data.count; ++i )
+		{
+			suboff = data.offset * i;
+			submtx = mat4().translate_v3( suboff ).multiply( mtx );
+			BR_AABB( bbmin, bbmax, submtx );
+		}
+	});
+	EE_SetGatherFunc( eptr, function MeshArray_onGather( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		for( i = 0; i < data.count; ++i )
+		{
+			suboff = data.offset * i;
+			submtx = mat4().translate_v3( suboff ).multiply( mtx );
+			EE_Gather_Mesh( eptr, "meshes/" $ data.mesh $ ".ssm", submtx );
+		}
+	});
+}
+
+function ED_ENT_door_slide( eptr )
+{
+	EE_AddFieldString( eptr, "name", "Name", "" );
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	EE_AddFieldFloat( eptr, "open_time", "Opening time", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "open_offset", "Opening offset", vec3(0,0,1), 2, -128, 128 );
+	EE_AddFieldVec3( eptr, "open_rot_angles", "Opening rotation", 0, 2, 0, 360 );
+	EE_AddFieldBool( eptr, "is_switch", "Is switchable", false );
+	EE_AddFieldScrFn( eptr, "pred", "Switch test function", "" );
+	EE_AddFieldScrFn( eptr, "func", "Target function", "" );
+	EE_AddFieldString( eptr, "target", "Target object", "" );
+	EE_AddFieldBool( eptr, "once", "Call once", false );
+	EE_SetChangeFunc( eptr, function DoorSlideProx_onChange( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+		EE_SetMeshInstanceCount( eptr, 1 );
+		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+	});
+	EE_SetDebugDrawFunc( eptr, function DoorSlideProx_onDebugDraw( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+		BR_Reset();
+		BR_Col( 0.2, 0.8, 0.1, 0.8 );
+		BR_AABB( bbmin, bbmax, mtx );
+		BR_Col( 0.7, 0.1, 0.1, 0.8 );
+		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( data.open_offset ) );
+	});
+}
+
+function ED_ENT_door_slide_prox( eptr )
+{
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	EE_AddFieldFloat( eptr, "open_time", "Opening time", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "open_offset", "Opening offset", vec3(0,0,1), 2, -128, 128 );
+	EE_AddFieldVec3( eptr, "scan_offset", "Scanner offset", vec3(0,0,0), 2, -128, 128 );
+	EE_AddFieldFloat( eptr, "scan_distance", "Scanner distance", 1, 2, 0.01, 100 );
+	EE_SetChangeFunc( eptr, function DoorSlideProx_onChange( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+		EE_SetMeshInstanceCount( eptr, 1 );
+		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+	});
+	EE_SetDebugDrawFunc( eptr, function DoorSlideProx_onDebugDraw( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+		BR_Reset();
+		BR_Col( 0.2, 0.8, 0.1, 0.8 );
+		BR_AABB( bbmin, bbmax, mtx );
+		BR_Col( 0.2, 0.6, 0.1, 0.8 );
+		wsp = mtx.transform_pos( data.scan_offset );
+		BR_Tick( wsp, data.scan_distance );
+		BR_SphereOutline( wsp, data.scan_distance, 32 );
+		BR_Col( 0.7, 0.1, 0.1, 0.8 );
+		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( data.open_offset ) );
+	});
+}
+
+function ED_ENT_particle_fx( eptr )
+{
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_AddFieldPartSys( eptr, "partsys", "Particle system", "" );
+	EE_AddFieldSound( eptr, "soundevent", "Sound event", "" );
+	EE_AddFieldString( eptr, "name", "Name", "" );
+	EE_AddFieldBool( eptr, "start", "Play on startup", true );
+	EE_SetDebugDrawFunc( eptr, function Trigger_onDebugDraw( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		BR_Reset();
+		BR_Col( 0.2, 0.8, 0.1, 0.8 );
+		BR_AABB( -1, 1, mtx );
+		BR_Col( 0.7, 0.1, 0.1, 0.8 );
+		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( vec3(0,0,1) ) );
+	});
+}
+
+function ED_ENT_pickup( eptr )
+{
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	EE_AddFieldString( eptr, "name", "Name", "" );
+	EE_AddFieldString( eptr, "id", "ID", "" );
+	EE_AddFieldInt( eptr, "count", "Count", 1, 1, 10000 );
+	EE_SetChangeFunc( eptr, function Mesh_onChange( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+		EE_SetMeshInstanceCount( eptr, 1 );
+		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+	});
+	EE_SetDebugDrawFunc( eptr, function Mesh_onDebugDraw( eptr, data )
+	{
+		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+		
+		BR_Reset();
+		BR_Col( 0.2, 0.7, 0.9, 0.8 );
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		BR_AABB( bbmin, bbmax, mtx );
+	});
+}
+

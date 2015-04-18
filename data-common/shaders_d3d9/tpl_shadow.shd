@@ -1,0 +1,66 @@
+
+#if VS
+#include "tpl_vs_base"
+#elif PS
+
+sampler2D Tex0 : register(s0);
+sampler2D Tex1 : register(s1);
+sampler2D Tex2 : register(s2);
+sampler2D Tex3 : register(s3);
+sampler2D Tex4 : register(s4);
+sampler2D Tex5 : register(s5);
+sampler2D Tex6 : register(s6);
+sampler2D Tex7 : register(s7);
+sampler2D InstTex0 : register(s8);
+samplerCUBE InstTex1 : register(s9);
+samplerCUBE InstTex2 : register(s10);
+samplerCUBE InstTex3 : register(s11);
+
+float4x4 mInvView : register(c0);
+float4x4 mProj : register(c4);
+
+float4 gInstanceData[16] : register(c100); /* :c115 */
+
+float4 main
+(
+	float4 inViewPos : TEXCOORD4,
+	float4 inTangentSign : TEXCOORD6,
+	float3 inNormal : TEXCOORD7,
+	float4 icol : COLOR0,
+	float4 inTex0 : TEXCOORD0,
+	float4 inTex1 : TEXCOORD1
+) : COLOR0
+{
+	float RdotV, specAmount;
+	
+	float3 viewPos = inViewPos.xyz;
+	float4 projPos = mul( mProj, inViewPos );
+	float3 viewDir = normalize( viewPos );
+	
+	float3 T = inTangentSign.xyz;
+	float3 B = cross( inNormal, inTangentSign.xyz ) * inTangentSign.w;
+	float3 N = inNormal;
+	
+	float3x3 TBN = float3x3( T, B, N );
+	
+	float3 outDiffuseColor = float3( 0.7, 0.7, 0.7 );
+	float outOpacity = 1.0;
+	float3 outSpecularColor = float3( 0.3, 0.3, 0.3 );
+	float outSpecularPower = 32;
+	float3 outNormal = inNormal;
+	float2 outDistortion = float2( 0, 0 );
+	float3 outAmbientDiffuseLight = float3( 0, 0, 0 );
+	float3 outAmbientSpecularLight = float3( 0, 0, 0 );
+	float3 outEmissiveLight = float3( 0, 0, 0 );
+	{
+__CODE__
+	}
+	
+	float dval = projPos.z / projPos.w;
+	dval += 0.0001;
+	dval += ( abs( ddx( dval ) ) + abs( ddy( dval ) ) ) * 0.2;
+	return float4( dval, 0, 0, 1 );
+}
+
+#endif
+
