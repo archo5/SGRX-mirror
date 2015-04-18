@@ -129,6 +129,34 @@ struct ENGINE_EXPORT IGame
 };
 
 
+struct IF_GCC(ENGINE_EXPORT) IFileSystem
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	
+	ENGINE_EXPORT IFileSystem();
+	ENGINE_EXPORT virtual ~IFileSystem();
+	ENGINE_EXPORT virtual bool LoadBinaryFile( const StringView& path, ByteArray& out ) = 0;
+	ENGINE_EXPORT virtual bool SaveBinaryFile( const StringView& path, const void* data, size_t size ) = 0;
+	ENGINE_EXPORT virtual bool LoadTextFile( const StringView& path, String& out ) = 0;
+	ENGINE_EXPORT virtual bool SaveTextFile( const StringView& path, const StringView& data ) = 0;
+	
+	int32_t m_refcount;
+};
+struct IF_GCC(ENGINE_EXPORT) BasicFileSystem : IFileSystem
+{
+	ENGINE_EXPORT BasicFileSystem( const StringView& root );
+	ENGINE_EXPORT virtual bool LoadBinaryFile( const StringView& path, ByteArray& out );
+	ENGINE_EXPORT virtual bool SaveBinaryFile( const StringView& path, const void* data, size_t size );
+	ENGINE_EXPORT virtual bool LoadTextFile( const StringView& path, String& out );
+	ENGINE_EXPORT virtual bool SaveTextFile( const StringView& path, const StringView& data );
+	
+	String m_fileRoot;
+};
+typedef Handle< IFileSystem > FileSysHandle;
+ENGINE_EXPORT Array< FileSysHandle >& Game_FileSystems();
+
+
 //
 // RENDERER DATA
 //
@@ -314,14 +342,14 @@ struct VDeclInfo
 	uint8_t count;
 	uint8_t size;
 	
-	int GetOffset( int usage )
+	int GetOffset( int usage ) const
 	{
 		for( int i = 0; i < count; ++i )
 			if( usages[ i ] == usage )
 				return offsets[ i ];
 		return -1;
 	}
-	int GetType( int usage )
+	int GetType( int usage ) const
 	{
 		for( int i = 0; i < count; ++i )
 			if( usages[ i ] == usage )
@@ -468,6 +496,8 @@ struct SGRX_IMesh
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
+	ENGINE_EXPORT void Clip( const Mat4& mtx, ByteArray& outverts );
+	
 	/* rendering info */
 	uint32_t m_dataFlags;
 	VertexDeclHandle m_vertexDecl;
@@ -537,6 +567,7 @@ struct SGRX_Light
 	Mat4 viewProjMatrix;
 	bool hasShadows;
 	Array< SGRX_MeshInstance* > exclInsts;
+	uint32_t layers;
 	
 	/* frame cache */
 	SGRX_MeshInstLight* _mibuf_begin;
@@ -618,6 +649,7 @@ struct SGRX_MeshInstance
 	MeshHandle mesh;
 	Mat4 matrix;
 	Vec4 color;
+	uint32_t layers;
 	uint32_t enabled : 1;
 	uint32_t cpuskin : 1; /* TODO */
 	uint32_t dynamic : 1;
@@ -686,6 +718,8 @@ struct SGRX_Scene
 //	ENGINE_EXPORT bool RemoveMeshInstance( MeshInstHandle mih );
 	ENGINE_EXPORT LightHandle CreateLight();
 //	ENGINE_EXPORT bool RemoveLight( LightHandle lh );
+	
+	ENGINE_EXPORT void GatherMeshes( const SGRX_Camera& cam, Array< SGRX_MeshInstance* >& found, uint32_t layers );
 	
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;

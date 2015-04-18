@@ -56,6 +56,7 @@ typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
 
 static String g_GameLibName = "game";
+static String g_GameDir = ".";
 static String g_RendererName = "d3d11";
 
 static bool g_Running = true;
@@ -69,6 +70,7 @@ static ActionMap* g_ActionMap;
 static Vec2 g_CursorPos = {0,0};
 static Vec2 g_CursorScale = {0,0};
 static Array< IScreen* > g_OverlayScreens;
+static Array< FileSysHandle > g_FileSystems;
 
 static RenderSettings g_RenderSettings = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_MULTISAMPLE, 4 };
 static const char* g_RendererPrefix = "sgrx-render-";
@@ -554,6 +556,44 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 }
 
 
+IFileSystem::IFileSystem() : m_refcount(0)
+{
+}
+
+IFileSystem::~IFileSystem()
+{
+}
+
+Array< FileSysHandle >& Game_FileSystems()
+{
+	return g_FileSystems;
+}
+
+BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root)
+{
+}
+
+bool BasicFileSystem::LoadBinaryFile( const StringView& path, ByteArray& out )
+{
+	return ::LoadBinaryFile( String_Concat( m_fileRoot, path ), out );
+}
+
+bool BasicFileSystem::SaveBinaryFile( const StringView& path, const void* data, size_t size )
+{
+	return ::SaveBinaryFile( String_Concat( m_fileRoot, path ), data, size );
+}
+
+bool BasicFileSystem::LoadTextFile( const StringView& path, String& out )
+{
+	return ::LoadTextFile( String_Concat( m_fileRoot, path ), out );
+}
+
+bool BasicFileSystem::SaveTextFile( const StringView& path, const StringView& data )
+{
+	return ::SaveTextFile( String_Concat( m_fileRoot, path ), data );
+}
+
+
 void RenderStats::Reset()
 {
 	numVisMeshes = 0;
@@ -768,6 +808,106 @@ bool SGRX_IMesh::RecalcBoneMatrices()
 bool SGRX_IMesh::SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd )
 {
 	return GetAABBFromVertexData( vd.GetInfo(), (const char*) data, size, m_boundsMin, m_boundsMax );
+}
+
+void VD_ExtractPos3( const VDeclInfo& vdinfo, int vcount, const void** vertptrs, Vec3* outpos )
+{
+	int ty = vdinfo.GetType( VDECLUSAGE_POSITION ), ofs = vdinfo.GetOffset( VDECLUSAGE_POSITION );
+	if( ty == -1 || ofs == -1 )
+		return;
+	
+	switch( ty )
+	{
+	case VDECLTYPE_FLOAT1: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), 0, 0 ); break;
+	case VDECLTYPE_FLOAT2: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), *(float*)((uint8_t*)vertptrs[i]+ofs+4), 0 ); break;
+	case VDECLTYPE_FLOAT3:
+	case VDECLTYPE_FLOAT4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = *(Vec3*)((uint8_t*)vertptrs[i]+ofs); break;
+	case VDECLTYPE_BCOL4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *((uint8_t*)vertptrs[i]+ofs)/255.0f, *((uint8_t*)vertptrs[i]+ofs+1)/255.0f, *((uint8_t*)vertptrs[i]+ofs+2)/255.0f ); break;
+	}
+}
+
+FINLINE int GEN_CLIP_CODES( const Vec4& p )
+{
+	return
+		( p.x < -p.w ? 0x01 : 0 ) |
+		( p.x > p.w ? 0x02 : 0 ) |
+		( p.y < -p.w ? 0x04 : 0 ) |
+		( p.y > p.w ? 0x08 : 0 ) |
+		( p.z < 0 ? 0x10 : 0 ) | // -p.w ?
+		( p.z > p.w ? 0x20 : 0 ) |
+		( p.w <= 0 ? 0x40 : 0 )
+	;
+}
+
+void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SGRX_IVertexDecl* vdecl, const void* v1, const void* v2, const void* v3 )
+{
+	const void* verts[3] = { v1, v2, v3 };
+	Vec3 pos[3] = {0};
+	VD_ExtractPos3( vdecl->m_info, 3, verts, pos );
+	
+	Vec4 pts[6] =
+	{
+		mtx.Transform( V4( pos[0], 1.0f ) ),
+		mtx.Transform( V4( pos[1], 1.0f ) ),
+		mtx.Transform( V4( pos[2], 1.0f ) ),
+		V4(0), V4(0), V4(0)
+	};
+	int clipcodes[3] =
+	{
+		GEN_CLIP_CODES( pts[0] ),
+		GEN_CLIP_CODES( pts[1] ),
+		GEN_CLIP_CODES( pts[2] ),
+	};
+	float ppdiffs[6];
+	int pcount = 3;
+}
+
+template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, ByteArray& outverts )
+{
+	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
+	if( ( mesh->m_dataFlags & MDF_TRIANGLESTRIP ) == 0 )
+	{
+		for( int part_id = 0; part_id < mesh->m_numParts; ++part_id )
+		{
+			SGRX_MeshPart& MP = mesh->m_parts[ part_id ];
+			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
+			{
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, outverts, mesh->m_vertexDecl
+					, &mesh->m_vdata[ MP.vertexOffset + indices[ tri ] ]
+					, &mesh->m_vdata[ MP.vertexOffset + indices[ tri + 1 ] ]
+					, &mesh->m_vdata[ MP.vertexOffset + indices[ tri + 2 ] ]
+				);
+			}
+		}
+	}
+	else
+	{
+		for( int part_id = 0; part_id < mesh->m_numParts; ++part_id )
+		{
+			SGRX_MeshPart& MP = mesh->m_parts[ part_id ];
+			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
+			{
+				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, outverts, mesh->m_vertexDecl
+					, &mesh->m_vdata[ MP.vertexOffset + indices[ i1 ] ]
+					, &mesh->m_vdata[ MP.vertexOffset + indices[ i2 ] ]
+					, &mesh->m_vdata[ MP.vertexOffset + indices[ i3 ] ]
+				);
+			}
+		}
+	}
+}
+
+void SGRX_IMesh::Clip( const Mat4& mtx, ByteArray& outverts )
+{
+	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
+	{
+		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, outverts );
+	}
+	else
+	{
+		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, outverts );
+	}
 }
 
 
@@ -2269,16 +2409,15 @@ static bool read_config()
 			if( value.size() )
 			{
 				g_GameLibName = value;
-				LOG << "Game library: " << value;
+				LOG << "CONFIG: Game library: " << value;
 			}
 		}
 		else if( key == "dir" )
 		{
 			if( value.size() )
 			{
-				if( !CWDSet( value ) )
-					LOG_ERROR << "FAILED TO SET GAME DIRECTORY";
-				LOG << "Game directory: " << value;
+				g_GameDir = value;
+				LOG << "CONFIG: Game directory: " << value;
 			}
 		}
 		else if( key == "renderer" )
@@ -2286,7 +2425,7 @@ static bool read_config()
 			if( value.size() )
 			{
 				g_RendererName = value;
-				LOG << "Renderer: " << value;
+				LOG << "CONFIG: Renderer: " << value;
 			}
 		}
 		else
@@ -2544,6 +2683,22 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	if( !read_config() )
 		return 4;
 	
+	for( int i = 1; i < argc; ++i )
+	{
+		if( i + 1 < argc )
+		{
+			if( !strcmp( argv[i], "-game" ) ){ g_GameLibName = argv[++i]; LOG << "ARG: Game library: " << g_GameLibName; }
+			else if( !strcmp( argv[i], "-dir" ) ){ g_GameDir = argv[++i]; LOG << "ARG: Game directory: " << g_GameDir; }
+			else if( !strcmp( argv[i], "-renderer" ) ){ g_RendererName = argv[++i]; LOG << "ARG: Renderer: " << g_RendererName; }
+		}
+	}
+	
+	if( !CWDSet( g_GameDir ) )
+	{
+		LOG_ERROR << "FAILED TO SET GAME DIRECTORY";
+		return 12;
+	}
+	
 	/* initialize SDL */
 	if( SDL_Init(
 		SDL_INIT_TIMER | SDL_INIT_VIDEO |
@@ -2553,7 +2708,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	) < 0 )
 	{
 		LOG_ERROR << "Couldn't initialize SDL: " << SDL_GetError();
-		return 5;
+		return 15;
 	}
 	
 	g_ActionMap = new ActionMap;
@@ -2564,19 +2719,19 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	if( !g_GameLib )
 	{
 		LOG_ERROR << "Failed to load " << g_GameLibName;
-		return 6;
+		return 26;
 	}
 	pfnCreateGame cgproc = (pfnCreateGame) SDL_LoadFunction( g_GameLib, "CreateGame" );
 	if( !cgproc )
 	{
 		LOG_ERROR << "Failed to find entry point";
-		return 7;
+		return 37;
 	}
 	g_Game = cgproc();
 	if( !g_Game )
 	{
 		LOG_ERROR << "Failed to create the game";
-		return 8;
+		return 48;
 	}
 	
 	g_Game->OnConfigure( argc, argv );
@@ -2587,7 +2742,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 	
 	if( init_graphics() )
-		return 16;
+		return 56;
 	
 	g_Game->OnInitialize();
 	
