@@ -540,7 +540,7 @@ void ObjectiveSystem::DrawUI()
 BulletSystem::BulletSystem( DamageSystem* dmgsys ) :
 	m_damageSystem( dmgsys )
 {
-	m_tx_bullet = GR_GetTexture( "sprites/bullet.png" );
+	m_tx_bullet = GR_GetTexture( "textures/particles/bullet.png" );
 }
 
 void BulletSystem::Tick( float deltaTime )
@@ -1019,7 +1019,7 @@ void GameLevel::StartLevel()
 		Player* P = new Player
 		(
 			m_playerSpawnInfo[0]
-#ifdef BRSD4GAME
+#if defined(BRSD4GAME) || defined(LD32GAME)
 			,m_playerSpawnInfo[1]
 #endif
 		);

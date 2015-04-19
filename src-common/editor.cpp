@@ -81,7 +81,7 @@ struct EDGUISnapProps : EDGUILayoutRow
 void SP_Snap( EDGUISnapProps& SP, Vec2& pos );
 
 
-struct EDGUISurfTexPicker : EDGUIRsrcPicker
+struct EDGUISurfTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUISurfTexPicker()
 	{
@@ -93,21 +93,18 @@ struct EDGUISurfTexPicker : EDGUIRsrcPicker
 		LOG << "Reloading textures";
 		m_options.clear();
 		m_textures.clear();
-		DirectoryIterator tdi( "textures" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() )
-			{
-				if( fn.ends_with( ".png" ) )
-				{
-					m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-					m_textures.push_back( GR_GetTexture( String_Concat( "textures/", fn ) ) );
-				}
-			}
-		}
+		FS_IterateDirectory( "textures", this );
 		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[T]: " << name;
+		if( !isdir && name.ends_with( ".png" ) )
+		{
+			m_options.push_back( name.part( 0, name.size() - 4 ) );
+			m_textures.push_back( GR_GetTexture( String_Concat( "textures/", name ) ) );
+		}
+		return true;
 	}
 	void _DrawItem( int i, int x0, int y0, int x1, int y1 )
 	{
@@ -125,7 +122,7 @@ struct EDGUISurfTexPicker : EDGUIRsrcPicker
 };
 
 
-struct EDGUIMeshPicker : EDGUIRsrcPicker
+struct EDGUIMeshPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUIMeshPicker() :
 		m_scene( GR_CreateScene() )
@@ -140,21 +137,18 @@ struct EDGUIMeshPicker : EDGUIRsrcPicker
 		LOG << "Reloading meshes";
 		m_options.clear();
 		m_meshes.clear();
-		DirectoryIterator tdi( "meshes" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() )
-			{
-				if( fn.ends_with( ".ssm" ) )
-				{
-					m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-					m_meshes.push_back( GR_GetMesh( String_Concat( "meshes/", fn ) ) );
-				}
-			}
-		}
+		FS_IterateDirectory( "meshes", this );
 		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[M]: " << name;
+		if( !isdir && name.ends_with( ".ssm" ) )
+		{
+			m_options.push_back( name.part( 0, name.size() - 4 ) );
+			m_meshes.push_back( GR_GetMesh( String_Concat( "meshes/", name ) ) );
+		}
+		return true;
 	}
 	void _DrawItem( int i, int x0, int y0, int x1, int y1 )
 	{
@@ -186,7 +180,7 @@ struct EDGUIMeshPicker : EDGUIRsrcPicker
 };
 
 
-struct EDGUIPartSysPicker : EDGUIRsrcPicker
+struct EDGUIPartSysPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUIPartSysPicker()
 	{
@@ -202,20 +196,17 @@ struct EDGUIPartSysPicker : EDGUIRsrcPicker
 	{
 		LOG << "Reloading particle systems";
 		m_options.clear();
-		DirectoryIterator tdi( "psys" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() )
-			{
-				if( fn.ends_with( ".psy" ) )
-				{
-					m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-				}
-			}
-		}
+		FS_IterateDirectory( "psys", this );
 		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[P]: " << name;
+		if( !isdir && name.ends_with( ".psy" ) )
+		{
+			m_options.push_back( name.part( 0, name.size() - 4 ) );
+		}
+		return true;
 	}
 };
 
@@ -291,24 +282,24 @@ struct EDGUIScrFnPicker : EDGUIRsrcPicker
 };
 
 
-struct EDGUILevelPicker : EDGUIRsrcPicker
+struct EDGUILevelPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUILevelPicker(){ Reload(); }
 	void Reload()
 	{
 		LOG << "Reloading levels";
 		m_options.clear();
-		DirectoryIterator tdi( "levels" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() && fn.ends_with( ".tle" ) )
-			{
-				m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-			}
-		}
+		FS_IterateDirectory( "levels", this );
 		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[L]: " << name;
+		if( !isdir && name.ends_with( ".tle" ) )
+		{
+			m_options.push_back( name.part( 0, name.size() - 4 ) );
+		}
+		return true;
 	}
 	virtual void _OnChangeZoom()
 	{
@@ -3338,7 +3329,7 @@ struct EDGUIMainFrame : EDGUIFrame
 		char bfr[ 256 ];
 		snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
 		String data;
-		if( !LoadTextFile( bfr, data ) )
+		if( !FS_LoadTextFile( bfr, data ) )
 		{
 			LOG_ERROR << "FAILED TO LOAD LEVEL FILE: " << bfr;
 			return;
@@ -3366,7 +3357,7 @@ struct EDGUIMainFrame : EDGUIFrame
 		
 		char bfr[ 256 ];
 		snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
-		if( !SaveTextFile( bfr, data ) )
+		if( !FS_SaveTextFile( bfr, data ) )
 		{
 			LOG_ERROR << "FAILED TO SAVE LEVEL FILE: " << bfr;
 			return;
@@ -3399,7 +3390,7 @@ struct EDGUIMainFrame : EDGUIFrame
 			L.type = LM_LIGHT_DIRECT;
 			L.range = 1024;
 			Vec2 dir = g_EdWorld->m_ctlDirLightDir.m_value;
-			L.dir = V3( dir.x, dir.y, -1 ).Normalized();
+			L.dir = -V3( dir.x, dir.y, -1 ).Normalized();
 			L.color = HSV( g_EdWorld->m_ctlDirLightColor.m_value );
 			L.light_radius = g_EdWorld->m_ctlDirLightDivergence.m_value / 180.0f;
 			L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;

@@ -643,12 +643,12 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnul
 	
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, sizeof(bfr), "%.*s/%d.ssm", TMIN( (int) path.size(), 200 ), path.data(), mid );
-	return SaveBinaryFile( bfr, ba.data(), ba.size() );
+	return FS_SaveBinaryFile( bfr, ba.data(), ba.size() );
 }
 
 bool LevelCache::SaveCache( const StringView& path )
 {
-	DirCreate( path );
+	FS_DirCreate( path );
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
@@ -698,7 +698,7 @@ bool LevelCache::SaveCache( const StringView& path )
 	}
 	svh.memory( sample_data.data(), sample_data.size() );
 	
-	return SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
+	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
 }
 
 static LC_MeshInst* lm_sort_res = NULL;
@@ -827,14 +827,12 @@ void LevelCache::GenerateLightmaps( const StringView& path )
 		lm_cmds.append( appbuf );
 	}
 	
-	SaveTextFile( "lmjob", lm_cmds );
+	FS_SaveTextFile( "lmjob", lm_cmds );
 	
 	LOG << "Rendering lightmaps...";
-#ifdef _WIN32
-	system( "..\\bin\\lmrender -i lmjob" );
-#else
-	system( "../bin/lmrender -i lmjob" );
-#endif
+	sgrx_snprintf( bfr, sizeof(bfr), "lmrender -i %.*s/lmjob", (int) Game_GetDir().size(), Game_GetDir().data() );
+	LOG << "Command line: " << bfr;
+	system( bfr );
 	
 	LOG << "\nFinished!";
 }

@@ -79,6 +79,8 @@ inline size_t divideup( size_t x, int d ){ return ( x + d - 1 ) / d; }
 inline float clamp( float v, float vmin, float vmax ){ return IIF( v < vmin, vmin, IIF( v > vmax, vmax, v ) ); }
 inline float lerp( float a, float b, float t ){ return a * (1.0f-t) + b * t; }
 inline float sign( float x ){ return IIF( x == 0.0f, 0.0f, IIF( x < 0.0f, -1.0f, 1.0f ) ); }
+inline int safe_idiv( int x, int y ){ if( y == 0 ) return 0; return x / y; }
+inline float safe_fdiv( float x, float y ){ if( y == 0 ) return 0; return x / y; }
 inline float normalize_angle( float x ){ x = fmodf( x, (float) M_PI * 2.0f ); return IIF( x < 0.0f, x + (float) M_PI*2.0f, x ); }
 inline float saturate( float x ){ return IIF( x < 0.0f, 0.0f, IIF( x > 1.0f, 1.0f, x ) ); }
 inline float smoothstep( float x ){ return x * x * ( 3.0f - 2.0f * x ); }
@@ -1327,9 +1329,14 @@ struct StringView
 	{
 		if( substr.m_size > m_size )
 			return defval;
-		for( size_t i = from; i <= m_size - substr.m_size; ++i )
+		for( size_t i = from;; )
+		{
 			if( !memcmp( m_str + i, substr.m_str, substr.m_size ) )
 				return i;
+			if( i == 0 )
+				break;
+			i--;
+		}
 		return defval;
 	}
 	FINLINE size_t find_last_at( const StringView& substr ) const

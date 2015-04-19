@@ -10,14 +10,6 @@
 #include "game.hpp"
 
 
-static float safe_div( float x, float y )
-{
-	if( y == 0 )
-		return 0;
-	return x / y;
-}
-
-
 GameLevel* g_GameLevel = NULL;
 bool g_Paused = false;
 PhyWorldHandle g_PhyWorld;
@@ -684,7 +676,7 @@ struct GraphicsOptionsMenuScreen : IScreen
 		{
 			if( resolutions[ i ].width == rndset.width && resolutions[ i ].height == rndset.height )
 			{
-				menu.controls[2].sl_value = safe_div( i, (float) ( resolutions.size() - 1 ) );
+				menu.controls[2].sl_value = safe_fdiv( i, (float) ( resolutions.size() - 1 ) );
 			}
 		}
 	}
@@ -710,7 +702,7 @@ struct GraphicsOptionsMenuScreen : IScreen
 		{
 			if( refrates[ i ] == wanted_refresh_rate )
 			{
-				menu.controls[3].sl_value = safe_div( i, (float) ( refrates.size() - 1 ) );
+				menu.controls[3].sl_value = safe_fdiv( i, (float) ( refrates.size() - 1 ) );
 				found = true;
 				break;
 			}
@@ -722,7 +714,7 @@ struct GraphicsOptionsMenuScreen : IScreen
 			{
 				if( refrates[ i ] >= 60 )
 				{
-					menu.controls[3].sl_value = safe_div( i, (float) ( refrates.size() - 1 ) );
+					menu.controls[3].sl_value = safe_fdiv( i, (float) ( refrates.size() - 1 ) );
 					found = true;
 					break;
 				}
@@ -735,7 +727,7 @@ struct GraphicsOptionsMenuScreen : IScreen
 			{
 				if( refrates[ i ] < 60 )
 				{
-					menu.controls[3].sl_value = safe_div( i, (float) ( refrates.size() - 1 ) );
+					menu.controls[3].sl_value = safe_fdiv( i, (float) ( refrates.size() - 1 ) );
 					found = true;
 					break;
 				}
@@ -777,7 +769,7 @@ struct GraphicsOptionsMenuScreen : IScreen
 		menu.controls[0].sb_option = rndset.fullscreen;
 		menu.controls[0].value_text = Opt2ModeName( menu.controls[0].sb_option );
 		
-		menu.controls[1].sl_value = clamp( safe_div( rndset.display, float( num_displays - 1 ) ), 0, 1 );
+		menu.controls[1].sl_value = clamp( safe_fdiv( rndset.display, float( num_displays - 1 ) ), 0, 1 );
 		menu.controls[1].value_text = Slid2MonName( menu.controls[1].sl_value );
 		
 		OnDisplayChange();
@@ -1866,8 +1858,6 @@ struct FlagGame : IGame
 		g_PhyWorld->SetGravity( V3( 0, 0, -9.81f ) );
 		
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
-		
-		GR_GetVertexDecl( "pf3tf2" );
 		
 		Game_RegisterAction( &MOVE_LEFT );
 		Game_RegisterAction( &MOVE_RIGHT );

@@ -128,6 +128,10 @@ struct ENGINE_EXPORT IGame
 	virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
 };
 
+struct IF_GCC(ENGINE_EXPORT) IDirEntryHandler
+{
+	ENGINE_EXPORT virtual bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir ) = 0;
+};
 
 struct IF_GCC(ENGINE_EXPORT) IFileSystem
 {
@@ -141,9 +145,12 @@ struct IF_GCC(ENGINE_EXPORT) IFileSystem
 	ENGINE_EXPORT virtual bool LoadTextFile( const StringView& path, String& out ) = 0;
 	ENGINE_EXPORT virtual bool SaveTextFile( const StringView& path, const StringView& data ) = 0;
 	ENGINE_EXPORT virtual bool FileExists( const StringView& path ) = 0;
+	ENGINE_EXPORT virtual bool DirCreate( const StringView& path ) = 0;
+	ENGINE_EXPORT virtual void IterateDirectory( const StringView& path, IDirEntryHandler* deh ) = 0;
 	
 	int32_t m_refcount;
 };
+
 struct IF_GCC(ENGINE_EXPORT) BasicFileSystem : IFileSystem
 {
 	ENGINE_EXPORT BasicFileSystem( const StringView& root );
@@ -152,10 +159,14 @@ struct IF_GCC(ENGINE_EXPORT) BasicFileSystem : IFileSystem
 	ENGINE_EXPORT virtual bool LoadTextFile( const StringView& path, String& out );
 	ENGINE_EXPORT virtual bool SaveTextFile( const StringView& path, const StringView& data );
 	ENGINE_EXPORT virtual bool FileExists( const StringView& path );
+	ENGINE_EXPORT virtual bool DirCreate( const StringView& path );
+	ENGINE_EXPORT virtual void IterateDirectory( const StringView& path, IDirEntryHandler* deh );
 	
 	String m_fileRoot;
 };
 typedef Handle< IFileSystem > FileSysHandle;
+
+ENGINE_EXPORT StringView Game_GetDir();
 ENGINE_EXPORT Array< FileSysHandle >& Game_FileSystems();
 
 ENGINE_EXPORT bool FS_LoadBinaryFile( const StringView& path, ByteArray& out );
@@ -163,6 +174,8 @@ ENGINE_EXPORT bool FS_SaveBinaryFile( const StringView& path, const void* data, 
 ENGINE_EXPORT bool FS_LoadTextFile( const StringView& path, String& out );
 ENGINE_EXPORT bool FS_SaveTextFile( const StringView& path, const StringView& data );
 ENGINE_EXPORT bool FS_FileExists( const StringView& path );
+ENGINE_EXPORT bool FS_DirCreate( const StringView& path );
+ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh );
 
 
 //

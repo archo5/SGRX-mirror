@@ -41,7 +41,7 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 		if( textColor && caption.size() )
 		{
 			GR2D_GetBatchRenderer().Colu( textColor );
-			GR2D_DrawTextLine( ( x0 + x1 ) / 2.0f, ( y0 + y1 ) / 2.0f, caption, HALIGN_CENTER, VALIGN_CENTER );
+			GR2D_DrawTextLine( round(( x0 + x1 ) / 2.0f), round(( y0 + y1 ) / 2.0f), caption, HALIGN_CENTER, VALIGN_CENTER );
 		}
 		for( size_t i = 0; i < m_subitems.size(); ++i )
 		{
@@ -835,7 +835,7 @@ int EDGUIGroup::OnEvent( EDGUIEvent* e )
 			if( textColor && m_name.size() )
 			{
 				GR2D_GetBatchRenderer().Colu( textColor );
-				GR2D_DrawTextLine( x0 + 2.0f, ( y0 + y1a ) / 2.0f, m_name, HALIGN_LEFT, VALIGN_CENTER );
+				GR2D_DrawTextLine( round(x0 + 2.0f), round(( y0 + y1a ) / 2.0f), m_name, HALIGN_LEFT, VALIGN_CENTER );
 			}
 			if( m_open )
 			{

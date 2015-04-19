@@ -193,6 +193,15 @@ int main( int argc, char* argv[] )
 		return 1;
 	}
 	
+	StringView cwd = StringView( input_file ).up_to_last( "/" );
+	LOG << "current directory: " << cwd << StringView( input_file ) << StringView( input_file ).find_last_at( "/" );
+	if( !CWDSet( cwd ) )
+	{
+		perror( "failed to change current directory" );
+		return 1;
+	}
+	Game_FileSystems().push_back( new BasicFileSystem( "" ) );
+	
 	ScriptContext m_scriptCtx;
 	sgsVariable m_textureInfo;
 	

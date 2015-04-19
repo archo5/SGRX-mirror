@@ -596,6 +596,26 @@ bool BasicFileSystem::FileExists( const StringView& path )
 	return ::FileExists( String_Concat( m_fileRoot, path ) );
 }
 
+bool BasicFileSystem::DirCreate( const StringView& path )
+{
+	return ::DirCreate( String_Concat( m_fileRoot, path ) );
+}
+
+void BasicFileSystem::IterateDirectory( const StringView& path, IDirEntryHandler* deh )
+{
+	DirectoryIterator tdi( String_Concat( m_fileRoot, path ) );
+	while( tdi.Next() )
+	{
+		if( !deh->HandleDirEntry( path, tdi.Name(), tdi.IsDirectory() ) )
+			return;
+	}
+}
+
+
+StringView Game_GetDir()
+{
+	return g_GameDir;
+}
 
 Array< FileSysHandle >& Game_FileSystems()
 {
@@ -640,6 +660,20 @@ bool FS_FileExists( const StringView& path )
 		if( g_FileSystems[ i ]->FileExists( path ) )
 			return true;
 	return false;
+}
+
+bool FS_DirCreate( const StringView& path )
+{
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( g_FileSystems[ i ]->DirCreate( path ) )
+			return true;
+	return false;
+}
+
+void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh )
+{
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		g_FileSystems[ i ]->IterateDirectory( path, deh );
 }
 
 
