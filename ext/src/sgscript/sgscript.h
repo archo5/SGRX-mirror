@@ -61,7 +61,6 @@ typedef int64_t sgs_Int;
 typedef double  sgs_Real;
 typedef int32_t sgs_SizeVal;
 typedef int32_t sgs_StkIdx;
-typedef struct _LNTable sgs_LNTable;
 typedef struct _sgs_Context sgs_Context;
 typedef struct _sgs_Variable sgs_Variable;
 typedef struct _sgs_StackFrame sgs_StackFrame;
@@ -150,6 +149,27 @@ typedef void (*sgs_HookFunc) (
 	void* /* userdata */,
 	sgs_Context* /* ctx / SGS_CTX */,
 	int /* event_id */
+);
+
+
+/* Script file system */
+typedef struct _sgs_ScriptFSData
+{
+	void* userhandle;
+	const char* filename;
+	void* output;
+	size_t size;
+}
+sgs_ScriptFSData;
+#define SGS_SFS_FILE_EXISTS 1
+#define SGS_SFS_FILE_OPEN 2
+#define SGS_SFS_FILE_READ 3
+#define SGS_SFS_FILE_CLOSE 4
+typedef SGSRESULT (*sgs_ScriptFSFunc) (
+	void* /* userdata */,
+	sgs_Context* /* ctx / SGS_CTX */,
+	int /* op */,
+	sgs_ScriptFSData* /* data */
 );
 
 
@@ -366,6 +386,9 @@ SGS_APIFUNC void sgs_PushErrorInfo( SGS_CTX, int flags, int type, const char* ms
 
 SGS_APIFUNC SGSBOOL sgs_GetHookFunc( SGS_CTX, sgs_HookFunc* outf, void** outc );
 SGS_APIFUNC void sgs_SetHookFunc( SGS_CTX, sgs_HookFunc func, void* ctx );
+
+SGS_APIFUNC SGSBOOL sgs_GetScriptFSFunc( SGS_CTX, sgs_ScriptFSFunc* outf, void** outc );
+SGS_APIFUNC void sgs_SetScriptFSFunc( SGS_CTX, sgs_ScriptFSFunc func, void* ctx );
 
 SGS_APIFUNC void* sgs_Memory( SGS_CTX, void* ptr, size_t size );
 #define sgs_Malloc( C, size ) sgs_Memory( C, NULL, size )
@@ -809,6 +832,47 @@ static SGS_INLINE void sgs_StdMsgFunc( void* ctx, SGS_CTX, int type, const char*
 	sgs_StdMsgFunc_NoAbort( ctx, C, type, msg );
 	if( type >= SGS_ERROR )
 		sgs_Abort( C );
+}
+
+static SGS_INLINE SGSRESULT sgs_StdScriptFSFunc( void* ctx, SGS_CTX, int op, sgs_ScriptFSData* data )
+{
+	SGS_UNUSED( ctx );
+	SGS_UNUSED( C );
+	switch( op )
+	{
+	case SGS_SFS_FILE_EXISTS:
+		{
+			FILE* f = fopen( data->filename, "rb" );
+			if( f )
+				fclose( f );
+			return f ? SGS_SUCCESS : SGS_ENOTFND;
+		}
+	case SGS_SFS_FILE_OPEN:
+		{
+			long sz;
+			FILE* f = fopen( data->filename, "rb" );
+			if( f == NULL )
+				return SGS_ENOTFND;
+			fseek( f, 0, SEEK_END );
+			sz = ftell( f );
+			if( sz < 0 )
+			{
+				fclose( f );
+				return SGS_EINPROC;
+			}
+			data->userhandle = f;
+			data->size = sz;
+			return SGS_SUCCESS;
+		}
+	case SGS_SFS_FILE_READ:
+		fseek( (FILE*) data->userhandle, 0, SEEK_SET );
+		return fread( data->output, 1, data->size, (FILE*) data->userhandle ) == data->size ? SGS_SUCCESS : SGS_EINPROC;
+	case SGS_SFS_FILE_CLOSE:
+		fclose( (FILE*) data->userhandle );
+		data->userhandle = NULL;
+		return SGS_SUCCESS;
+	}
+	return SGS_ENOTSUP;
 }
 
 

@@ -19,7 +19,8 @@ void InitializeFontRendering()
 
 FontRenderer::Font::~Font()
 {
-	FT_Done_Face( face );
+	if( face )
+		FT_Done_Face( face );
 }
 
 FontRenderer::FontRenderer( int pagecount, int pagesize ) :
@@ -140,12 +141,21 @@ FontRenderer::Font* FontRenderer::_GetOrCreateFont( const FontKey& fk )
 	Font* font = m_fonts.getcopy( fk, NULL );
 	if( !font )
 	{
-		FT_Face face;
-		StackString< ENGINE_MAX_PATH > path( fk.name );
-		if( FT_New_Face( g_FTLib, path, 0, &face ) )
-			return NULL;
-		FT_Set_Pixel_Sizes( face, fk.size, 0 );
 		font = new Font;
+		FT_Face face;
+		if( FS_LoadBinaryFile( fk.name, font->data ) == false )
+		{
+			LOG_ERROR << LOG_DATE << "  Could not find font file: " << fk.name;
+			delete font;
+			return NULL;
+		}
+		if( FT_New_Memory_Face( g_FTLib, font->data.data(), font->data.size(), 0, &face ) != 0 )
+		{
+			LOG_ERROR << LOG_DATE << "  Could not initialize FreeType font: " << fk.name << " (size " << fk.size << ")";
+			delete font;
+			return NULL;
+		}
+		FT_Set_Pixel_Sizes( face, fk.size, 0 );
 		font->key = fk;
 		font->face = face;
 		m_fonts.set( fk, font );

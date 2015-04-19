@@ -2889,13 +2889,12 @@ static int _find_includable_file( SGS_CTX, sgs_MemBuf* tmp, char* ps,
 		( fnsize > 1 && *fn == '/' ) )
 #endif
 	{
-		FILE* f;
 		sgs_membuf_setstrbuf( tmp, C, fn, fnsize );
-		if( ( f = fopen( tmp->ptr, "rb" ) ) != NULL )
-		{
-			fclose( f );
+		
+		sgs_ScriptFSData fsd = {0};
+		fsd.filename = tmp->ptr;
+		if( SGS_SUCCEEDED( C->sfs_fn( C->sfs_ctx, C, SGS_SFS_FILE_EXISTS, &fsd ) ) )
 			return 1;
-		}
 	}
 	else
 	{
@@ -2905,7 +2904,6 @@ static int _find_includable_file( SGS_CTX, sgs_MemBuf* tmp, char* ps,
 		{
 			if( ps == pse || *ps == ';' )
 			{
-				FILE* f;
 				sgs_membuf_resize( tmp, C, 0 );
 				while( psc < ps )
 				{
@@ -2936,11 +2934,11 @@ static int _find_includable_file( SGS_CTX, sgs_MemBuf* tmp, char* ps,
 					psc++;
 				}
 				sgs_membuf_appchr( tmp, C, 0 );
-				if( ( f = fopen( tmp->ptr, "rb" ) ) != NULL )
-				{
-					fclose( f );
+				
+				sgs_ScriptFSData fsd = {0};
+				fsd.filename = tmp->ptr;
+				if( SGS_SUCCEEDED( C->sfs_fn( C->sfs_ctx, C, SGS_SFS_FILE_EXISTS, &fsd ) ) )
 					return 1;
-				}
 notthispath:
 				psc++;
 			}

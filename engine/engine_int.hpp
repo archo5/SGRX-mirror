@@ -243,9 +243,11 @@ struct FontRenderer
 	};
 	struct Font
 	{
+		Font() : face(NULL){}
 		~Font();
 		
 		FontKey key;
+		ByteArray data;
 		FT_FACE_TYPE face;
 	};
 	typedef HashTable< FontKey, Font* > FontTable;

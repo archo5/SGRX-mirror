@@ -47,10 +47,9 @@ bool ScriptVarIterator::Advance()
 }
 
 
-ScriptContext::ScriptContext()
+ScriptContext::ScriptContext() : C(NULL)
 {
-	C = sgs_CreateEngine();
-	xgm_module_entry_point( C );
+	Reset();
 }
 
 ScriptContext::~ScriptContext()
@@ -153,10 +152,48 @@ static sgs_RegIntConst g_ent_scripted_ric[] =
 	{ NULL, 0 },
 };
 
+static SGSRESULT sgs_scriptfs_sgrx( void* ud, SGS_CTX, int op, sgs_ScriptFSData* fsd )
+{
+	switch( op )
+	{
+	case SGS_SFS_FILE_EXISTS:
+		return FS_FileExists( fsd->filename ) ? SGS_SUCCESS : SGS_ENOTFND;
+	case SGS_SFS_FILE_OPEN:
+		{
+			ByteArray* data = new ByteArray;
+			if( !FS_LoadBinaryFile( fsd->filename, *data ) )
+			{
+				delete data;
+				return SGS_ENOTFND;
+			}
+			fsd->userhandle = data;
+			fsd->size = data->size();
+			return SGS_SUCCESS;
+		}
+	case SGS_SFS_FILE_READ:
+		{
+			SGRX_CAST( ByteArray*, data, fsd->userhandle );
+			if( fsd->size > data->size() )
+				return SGS_EINPROC;
+			memcpy( fsd->output, data->data(), fsd->size );
+			return SGS_SUCCESS;
+		}
+	case SGS_SFS_FILE_CLOSE:
+		{
+			SGRX_CAST( ByteArray*, data, fsd->userhandle );
+			delete data;
+			fsd->userhandle = NULL;
+		}
+	}
+	return SGS_ENOTSUP;
+}
+
 void ScriptContext::Reset()
 {
-	sgs_DestroyEngine( C );
+	if( C ) sgs_DestroyEngine( C );
 	C = sgs_CreateEngine();
+	xgm_module_entry_point( C );
+	sgs_SetScriptFSFunc( C, sgs_scriptfs_sgrx, NULL );
 }
 
 void ScriptContext::RegisterBatchRenderer()

@@ -2164,6 +2164,7 @@ ENGINE_EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
 ENGINE_EXPORT bool SaveBinaryFile( const StringView& path, const void* data, size_t size );
 ENGINE_EXPORT bool LoadTextFile( const StringView& path, String& out );
 ENGINE_EXPORT bool SaveTextFile( const StringView& path, const StringView& data );
+ENGINE_EXPORT bool FileExists( const StringView& path );
 
 struct IL_Item
 {

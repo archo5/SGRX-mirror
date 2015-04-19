@@ -591,6 +591,12 @@ bool BasicFileSystem::SaveTextFile( const StringView& path, const StringView& da
 	return ::SaveTextFile( String_Concat( m_fileRoot, path ), data );
 }
 
+bool BasicFileSystem::FileExists( const StringView& path )
+{
+	return ::FileExists( String_Concat( m_fileRoot, path ) );
+}
+
+
 Array< FileSysHandle >& Game_FileSystems()
 {
 	return g_FileSystems;
@@ -624,6 +630,14 @@ bool FS_SaveTextFile( const StringView& path, const StringView& data )
 {
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveTextFile( path, data ) )
+			return true;
+	return false;
+}
+
+bool FS_FileExists( const StringView& path )
+{
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( g_FileSystems[ i ]->FileExists( path ) )
 			return true;
 	return false;
 }

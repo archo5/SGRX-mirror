@@ -1139,6 +1139,15 @@ bool SaveTextFile( const StringView& path, const StringView& data )
 	return ret;
 }
 
+bool FileExists( const StringView& path )
+{
+	FILE* fp = fopen( StackPath( path ), "rb" );
+	if( !fp )
+		return false;
+	fclose( fp );
+	return path;
+}
+
 bool LoadItemListFile( const StringView& path, ItemList& out )
 {
 	String text;
