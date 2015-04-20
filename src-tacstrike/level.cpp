@@ -11,6 +11,10 @@
 #include "game.hpp"
 
 
+Entity::Entity() : m_typeName("<unknown>")
+{
+}
+
 Entity::~Entity()
 {
 	g_GameLevel->UnmapEntityByName( this );
@@ -656,6 +660,26 @@ static int ObjectiveSetState( SGS_CTX )
 	g_GameLevel->m_objectiveSystem.m_objectives[ which ].state = (OSObjective::State) state;
 	return 0;
 }
+#ifdef LD32GAME
+static int EnemyDefine( SGS_CTX )
+{
+	SGSFN( "EnemyDefine" );
+	String name = sgs_GetVar<String>()( C, 0 );
+	Enemy* enemy = (Enemy*) g_GameLevel->FindEntityByName( name );
+	if( !enemy )
+		return sgs_Msg( C, SGS_WARNING, "failed to find enemy entity: %.*s", (int) name.size(), name.data() );
+	if( strcmp( enemy->m_typeName, "enemy" ) != 0 )
+		return sgs_Msg( C, SGS_WARNING, "found entity is not 'enemy': %.*s", (int) name.size(), name.data() );
+	LD32ParseTaskArray( enemy->m_patrolTasks, sgs_GetVar<sgsVariable>()( C, 1 ) );
+	if( sgs_StackSize( C ) > 2 )
+	{
+		enemy->m_disturbActionName = sgs_GetVar<String>()( C, 2 );
+		LD32ParseTaskArray( enemy->m_disturbTasks, sgs_GetVar<sgsVariable>()( C, 3 ) );
+	}
+	enemy->UpdateTask();
+	return 0;
+}
+#endif
 
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
@@ -667,6 +691,9 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	{ "ObjectiveGetText", ObjectiveGetText },
 	{ "ObjectiveGetState", ObjectiveGetState },
 	{ "ObjectiveSetState", ObjectiveSetState },
+#ifdef LD32GAME
+	{ "EnemyDefine", EnemyDefine },
+#endif
 	SGS_RC_END(),
 };
 
@@ -680,6 +707,11 @@ static sgs_RegIntConst g_gameapi_ric[] =
 	{ "OS_Done", OSObjective::Done },
 	{ "OS_Failed", OSObjective::Failed },
 	{ "OS_Cancelled", OSObjective::Cancelled },
+#ifdef LD32GAME
+	{ "TT_Wait", TT_Wait },
+	{ "TT_Turn", TT_Turn },
+	{ "TT_Walk", TT_Walk },
+#endif
 	{ NULL, 0 },
 };
 
@@ -846,6 +878,21 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 		m_playerSpawnInfo[1] = data.getprop("viewdir").get<Vec3>().Normalized();
 		return;
 	}
+	
+#ifdef LD32GAME
+	///////////////////////////
+	if( type == "enemy_start" )
+	{
+		Enemy* E = new Enemy
+		(
+			data.getprop("name").get<String>(),
+			data.getprop("position").get<Vec3>(),
+			data.getprop("viewdir").get<Vec3>()
+		);
+		m_entities.push_back( E );
+		return;
+	}
+#endif
 	
 	///////////////////////////
 	if( type == "camera_start" )
@@ -1235,6 +1282,11 @@ void GameLevel::MapEntityByName( Entity* e )
 void GameLevel::UnmapEntityByName( Entity* e )
 {
 	m_entNameMap.unset( e->m_name );
+}
+
+Entity* GameLevel::FindEntityByName( const StringView& name )
+{
+	return m_entNameMap.getcopy( name );
 }
 
 void GameLevel::CallEntityByName( const StringView& name, const StringView& action )

@@ -130,6 +130,10 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	virtual void SetLinearVelocity( const Vec3& v ){ m_body->setLinearVelocity( V2BV( v ) ); }
 	virtual Vec3 GetAngularVelocity() const { return BV2V( m_body->getAngularVelocity() ); }
 	virtual void SetAngularVelocity( const Vec3& v ){ m_body->setAngularVelocity( V2BV( v ) ); }
+	virtual Vec3 GetLinearFactor() const { return BV2V( m_body->getLinearFactor() ); }
+	virtual void SetLinearFactor( const Vec3& v ){ m_body->setLinearFactor( V2BV( v ) ); }
+	virtual Vec3 GetAngularFactor() const { return BV2V( m_body->getAngularFactor() ); }
+	virtual void SetAngularFactor( const Vec3& v ){ m_body->setAngularFactor( V2BV( v ) ); }
 	
 	struct BulletPhyWorld* m_world;
 	btRigidBody* m_body;
@@ -206,6 +210,8 @@ BulletPhyRigidBody::BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX
 	{
 		m_body->setActivationState( DISABLE_DEACTIVATION );
 	}
+	m_body->setLinearFactor( V2BV( rbinfo.linearFactor ) );
+	m_body->setAngularFactor( V2BV( rbinfo.angularFactor ) );
 	m_body->setUserPointer( this );
 	m_shape = rbinfo.shape;
 	if( rbinfo.enabled )

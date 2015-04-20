@@ -35,8 +35,8 @@ typedef Handle< SGRX_IPhyShape > PhyShapeHandle;
 struct SGRX_PhyRigidBodyInfo
 {
 	SGRX_PhyRigidBodyInfo() :
-		position(V3(0)), rotation(Quat::Identity), friction(0.5f), restitution(0.1f),
-		mass(0), inertia(V3(1.0f)), linearDamping(0.01f), angularDamping(0.01f),
+		position(V3(0)), rotation(Quat::Identity), friction(0.5f), restitution(0.1f), mass(0), inertia(V3(1.0f)),
+		linearDamping(0.01f), angularDamping(0.01f), linearFactor(V3(1)), angularFactor(V3(1)),
 		kinematic(false), canSleep(true), enabled(true), group(1), mask(0xffff)
 	{}
 	PhyShapeHandle shape;
@@ -48,6 +48,8 @@ struct SGRX_PhyRigidBodyInfo
 	Vec3 inertia;
 	float linearDamping;
 	float angularDamping;
+	Vec3 linearFactor;
+	Vec3 angularFactor;
 	bool kinematic;
 	bool canSleep;
 	bool enabled;
@@ -71,6 +73,10 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody
 	virtual void SetLinearVelocity( const Vec3& v ) = 0;
 	virtual Vec3 GetAngularVelocity() const = 0;
 	virtual void SetAngularVelocity( const Vec3& v ) = 0;
+	virtual Vec3 GetLinearFactor() const = 0;
+	virtual void SetLinearFactor( const Vec3& v ) = 0;
+	virtual Vec3 GetAngularFactor() const = 0;
+	virtual void SetAngularFactor( const Vec3& v ) = 0;
 	
 	int32_t _refcount;
 };

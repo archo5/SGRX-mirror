@@ -31,9 +31,11 @@ bool Game_IsPaused();
 
 struct Entity
 {
+	const char* m_typeName;
 	String m_name;
 	String m_viewName;
 	
+	Entity();
 	virtual ~Entity();
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
@@ -405,20 +407,46 @@ struct Player : Entity
 
 #elif defined(LD32GAME)
 
-struct Player : Entity
+enum LD32TaskType
 {
+	TT_Wait,
+	TT_Turn,
+	TT_Walk,
+};
+struct LD32Task
+{
+	LD32TaskType type;
+	float timeout;
+	Vec2 target;
+};
+typedef Array< LD32Task > LD32TaskArray;
+void LD32ParseTaskArray( LD32TaskArray& out, sgsVariable var );
+
+struct LD32Char : Entity
+{
+	LD32Char( const Vec3& pos, const Vec3& dir, const Vec4& color );
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
+	MeshInstHandle m_meshInst;
+	AnimPlayer m_anMainPlayer;
+	AnimInterp m_anEnd;
 	
-	Vec2 m_angles;
-	float m_jumpTimeout;
-	float m_canJumpTimeout;
 	float m_footstepTime;
-	bool m_isOnGround;
-	float m_isCrouching;
-	
+	bool m_isCrouching;
 	IVState< Vec3 > m_ivPos;
+	IVState< Quat > m_ivDir;
 	
+	Vec2 m_position;
+	Vec2 m_moveDir;
+	float m_turnAngle;
+};
+
+struct Player : LD32Char
+{
+	Vec2 m_angles;
 	Vec2 inCursorMove;
 	
 	Entity* m_targetII;
@@ -435,6 +463,24 @@ struct Player : Entity
 	
 	bool AddItem( const StringView& item, int count );
 	bool HasItem( const StringView& item, int count = 1 );
+};
+
+struct Enemy : LD32Char
+{
+	LD32TaskArray m_patrolTasks;
+	LD32TaskArray m_disturbTasks;
+	float m_taskTimeout;
+	int m_curTaskID;
+	bool m_curTaskMode;
+	String m_disturbActionName;
+	
+	float m_turnAngleStart;
+	float m_turnAngleEnd;
+	
+	Enemy( const StringView& name, const Vec3& pos, const Vec3& dir );
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	void UpdateTask();
 };
 
 #else
@@ -491,6 +537,7 @@ struct GameLevel : SGRX_PostDraw
 	
 	void MapEntityByName( Entity* e );
 	void UnmapEntityByName( Entity* e );
+	Entity* FindEntityByName( const StringView& name );
 	void CallEntityByName( const StringView& name, const StringView& action );
 	
 	void LightMesh( MeshInstHandle mih, int32_t* outlastfound = NULL );

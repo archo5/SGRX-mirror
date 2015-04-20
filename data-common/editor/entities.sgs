@@ -11,6 +11,19 @@ function ED_ENT_player_start( eptr )
 	});
 }
 
+function ED_ENT_enemy_start( eptr )
+{
+	EE_AddFieldString( eptr, "name", "Name", "" );
+	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
+	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
+	{
+		BR_Reset();
+		BR_Col( 0.9, 0.2, 0.1, 0.8 );
+		BR_SetPrimitiveType( PT_Lines );
+		BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
+	});
+}
+
 function ED_ENT_camera_start( eptr )
 {
 	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
@@ -20,6 +33,17 @@ function ED_ENT_camera_start( eptr )
 		BR_Col( 0.9, 0.2, 0.1, 0.8 );
 		BR_SetPrimitiveType( PT_Lines );
 		BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
+	});
+}
+
+function ED_ENT_marker( eptr )
+{
+	EE_AddFieldString( eptr, "name", "Name", "" );
+	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
+	{
+		BR_Reset();
+		BR_Col( 0.9, 0.2, 0.1, 0.8 );
+		BR_Tick( data.position, 0.1 );
 	});
 }
 
