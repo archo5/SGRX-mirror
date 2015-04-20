@@ -186,7 +186,13 @@ void Player::FixedTick( float deltaTime )
 	
 	m_moveDir = md * 1.4f;
 	
-	m_anMainPlayer.Play( GR_GetAnim( m_moveDir.Length() ? "walk" : "stand_anim" ) );
+	bool moving = m_moveDir.Length() > 0.1f;
+	const char* animname =
+		m_isCrouching
+		? ( moving ? "crouch_walk" : "crouch" )
+		: ( moving ? "walk" : "stand_anim" )
+	;
+	m_anMainPlayer.Play( GR_GetAnim( animname ) );
 	
 	if( md.Length() > 0.1f )
 	{
@@ -202,6 +208,11 @@ void Player::FixedTick( float deltaTime )
 
 void Player::Tick( float deltaTime, float blendFactor )
 {
+	if( CROUCH.IsPressed() )
+	{
+		m_isCrouching = !m_isCrouching;
+	}
+	
 	LD32Char::Tick( deltaTime, blendFactor );
 	
 	m_angles += inCursorMove * V2(-0.01f);
