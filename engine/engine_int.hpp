@@ -308,6 +308,11 @@ struct ActionMap
 	typedef HashTable< StringView, Command* > NameCmdMap;
 	typedef HashTable< ActionInput, Command* > InputCmdMap;
 	
+	void Advance()
+	{
+		for( size_t i = 0; i < m_inputCmdMap.size(); ++i )
+			m_inputCmdMap.item( i ).value->_Advance();
+	}
 	void Register( Command* cmd ){ m_nameCmdMap.set( cmd->name, cmd ); }
 	void Unregister( Command* cmd ){ m_nameCmdMap.unset( cmd->name ); }
 	Command* FindAction( const StringView& sv ){ return m_nameCmdMap.getcopy( sv ); }

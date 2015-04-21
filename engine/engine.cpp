@@ -2846,6 +2846,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	SDL_Event event;
 	while( g_Running )
 	{
+		g_ActionMap->Advance();
 		while( SDL_PollEvent( &event ) )
 		{
 			if( event.type == SDL_QUIT )

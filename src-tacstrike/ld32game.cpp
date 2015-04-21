@@ -184,13 +184,13 @@ void Player::FixedTick( float deltaTime )
 	md.Normalize();
 	md = -realdir * md.y - perpdir * md.x;
 	
-	m_moveDir = md * 1.4f;
+	m_moveDir = md * 1.1f;
 	
 	bool moving = m_moveDir.Length() > 0.1f;
 	const char* animname =
 		m_isCrouching
 		? ( moving ? "crouch_walk" : "crouch" )
-		: ( moving ? "walk" : "stand_anim" )
+		: ( moving ? "sneak" : "stand_anim" )
 	;
 	m_anMainPlayer.Play( GR_GetAnim( animname ) );
 	
@@ -304,7 +304,7 @@ void Enemy::FixedTick( float deltaTime )
 			break;
 		case TT_Walk:
 			m_moveDir = ( T.target - m_position ).Normalized();
-			m_anMainPlayer.Play( GR_GetAnim( "walk" ) );
+			m_anMainPlayer.Play( GR_GetAnim( "march" ) );
 			break;
 		}
 	//	LOG << "TASK " << T.type << "|" << T.timeout << "|" << T.target;
