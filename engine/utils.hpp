@@ -79,8 +79,8 @@ inline size_t divideup( size_t x, int d ){ return ( x + d - 1 ) / d; }
 inline float clamp( float v, float vmin, float vmax ){ return IIF( v < vmin, vmin, IIF( v > vmax, vmax, v ) ); }
 inline float lerp( float a, float b, float t ){ return a * (1.0f-t) + b * t; }
 inline float sign( float x ){ return IIF( x == 0.0f, 0.0f, IIF( x < 0.0f, -1.0f, 1.0f ) ); }
-inline int safe_idiv( int x, int y ){ if( y == 0 ) return 0; return x / y; }
-inline float safe_fdiv( float x, float y ){ if( y == 0 ) return 0; return x / y; }
+FINLINE int safe_idiv( int x, int y ){ if( y == 0 ) return 0; return x / y; }
+FINLINE float safe_fdiv( float x, float y ){ if( y == 0 ) return 0; return x / y; }
 inline float normalize_angle( float x ){ x = fmodf( x, (float) M_PI * 2.0f ); return IIF( x < 0.0f, x + (float) M_PI*2.0f, x ); }
 inline float saturate( float x ){ return IIF( x < 0.0f, 0.0f, IIF( x > 1.0f, 1.0f, x ) ); }
 inline float smoothstep( float x ){ return x * x * ( 3.0f - 2.0f * x ); }
@@ -394,6 +394,20 @@ FINLINE Vec4 V4( const Vec3& v3, float w ){ Vec4 v = { v3.x, v3.y, v3.z, w }; re
 FINLINE Vec4 V4( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; return v; }
 FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w; }
 #endif
+
+// for interpolating color values only
+static const float INV_255F = 1.0f / 255.0f;
+struct BVec4
+{
+	union
+	{
+		uint8_t v[4];
+		struct { uint8_t x, y, z, w; };
+	};
+	BVec4( const Vec4& v ) : x(v.x * 255.0f), y(v.y * 255.0f), z(v.z * 255.0f), w(v.w * 255.0f){}
+	FINLINE Vec4 operator * ( float f ) const { f *= INV_255F; Vec4 v = { x * f, y * f, z * f, w * f }; return v; }
+};
+FINLINE Vec4 operator * ( float f, const BVec4& v ){ Vec4 out = { f * v.x, f * v.y, f * v.z, f * v.w }; return out; }
 
 
 //

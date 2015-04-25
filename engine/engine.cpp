@@ -909,17 +909,80 @@ void VD_ExtractPos3( const VDeclInfo& vdinfo, int vcount, const void** vertptrs,
 	}
 }
 
-FINLINE int GEN_CLIP_CODES( const Vec4& p )
+void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factors, const void* v1, const void* v2, const void* v3 )
 {
-	return
-		( p.x < -p.w ? 0x01 : 0 ) |
-		( p.x > p.w ? 0x02 : 0 ) |
-		( p.y < -p.w ? 0x04 : 0 ) |
-		( p.y > p.w ? 0x08 : 0 ) |
-		( p.z < 0 ? 0x10 : 0 ) | // -p.w ?
-		( p.z > p.w ? 0x20 : 0 ) |
-		( p.w <= 0 ? 0x40 : 0 )
-	;
+	SGRX_CAST( char*, coutbuf, outbuf );
+	SGRX_CAST( const char*, cv1, v1 );
+	SGRX_CAST( const char*, cv2, v2 );
+	SGRX_CAST( const char*, cv3, v3 );
+	for( int i = 0; i < vdinfo.count; ++i )
+	{
+		int off = vdinfo.offsets[ i ];
+		char* ocoutbuf = coutbuf + off;
+		const char *ocv1 = cv1 + off, *ocv2 = cv2 + off, *ocv3 = cv3 + off;
+		
+		switch( vdinfo.types[ i ] )
+		{
+		case VDECLTYPE_FLOAT1:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ i ];
+				*(float*)( ocoutbuf + v * vdinfo.size ) = *(float*)ocv1 * f.x + *(float*)ocv2 * f.y + *(float*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_FLOAT2:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ i ];
+				*(Vec2*)( ocoutbuf + v * vdinfo.size ) = *(Vec2*)ocv1 * f.x + *(Vec2*)ocv2 * f.y + *(Vec2*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_FLOAT3:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ i ];
+				*(Vec3*)( ocoutbuf + v * vdinfo.size ) = *(Vec3*)ocv1 * f.x + *(Vec3*)ocv2 * f.y + *(Vec3*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_FLOAT4:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ i ];
+				*(Vec4*)( ocoutbuf + v * vdinfo.size ) = *(Vec4*)ocv1 * f.x + *(Vec4*)ocv2 * f.y + *(Vec4*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_BCOL4:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ i ];
+				*(BVec4*)( ocoutbuf + v * vdinfo.size ) = *(BVec4*)ocv1 * f.x + *(BVec4*)ocv2 * f.y + *(BVec4*)ocv3 * f.z;
+			}
+			break;
+		}
+	}
+}
+
+template< typename T, typename T2 > void sa2_insert( T* arr, T2* arr2, int& count, int& at, const T& val, const T2& val2 )
+{
+	for( int i = count; i > at; )
+	{
+		i--;
+		arr[ i + 1 ] = arr[ i ];
+		arr2[ i + 1 ] = arr2[ i ];
+	}
+	arr2[ at ] = val2;
+	arr[ at++ ] = val;
+	count++;
+}
+template< typename T, typename T2 > void sa2_remove( T* arr, T2* arr2, int& count, int& at )
+{
+	count--;
+	for( int i = at; i < count; ++i )
+	{
+		arr[ i ] = arr[ i + 1 ];
+		arr2[ i ] = arr2[ i + 1 ];
+	}
+	at--;
 }
 
 void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SGRX_IVertexDecl* vdecl, const void* v1, const void* v2, const void* v3 )
@@ -928,21 +991,67 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SG
 	Vec3 pos[3] = {0};
 	VD_ExtractPos3( vdecl->m_info, 3, verts, pos );
 	
-	Vec4 pts[6] =
+	Vec4 pts[9] =
 	{
 		mtx.Transform( V4( pos[0], 1.0f ) ),
 		mtx.Transform( V4( pos[1], 1.0f ) ),
 		mtx.Transform( V4( pos[2], 1.0f ) ),
+		V4(0), V4(0), V4(0),
 		V4(0), V4(0), V4(0)
 	};
-	int clipcodes[3] =
+	Vec3 fcs[9] =
 	{
-		GEN_CLIP_CODES( pts[0] ),
-		GEN_CLIP_CODES( pts[1] ),
-		GEN_CLIP_CODES( pts[2] ),
+		V3(1,0,0), V3(0,1,0), V3(0,0,1),
+		V3(0), V3(0), V3(0),
+		V3(0), V3(0), V3(0)
 	};
-	float ppdiffs[6];
 	int pcount = 3;
+	
+#define IMCCCT_CLIP_Pred( initsd, loopsd )           \
+	{                                                \
+		Vec4 prevpt = pts[ pcount - 1 ];             \
+		Vec3 prevfc = fcs[ pcount - 1 ];             \
+		float prevsd = /* = 1 */ initsd /* */;       \
+		for( int i = 0; i < pcount; ++i )            \
+		{                                            \
+			Vec4 currpt = pts[ i ];                  \
+			Vec3 currfc = fcs[ i ];                  \
+			float currsd = /* = 2 */ loopsd /* */;   \
+			if( prevsd * currsd < 0 )                \
+			{                                        \
+				/* insert intersection point */      \
+				float f = safe_fdiv( -prevsd,        \
+					( currsd - prevsd ) );           \
+				sa2_insert( pts, fcs, pcount, i,     \
+					TLERP( prevpt, currpt, f ),      \
+					TLERP( prevfc, currfc, f ) );    \
+			}                                        \
+			if( currsd >= 0 )                        \
+			{                                        \
+				sa2_remove( pts, fcs, pcount, i );   \
+			}                                        \
+			prevpt = currpt;                         \
+			prevfc = currfc;                         \
+		}                                            \
+	}
+	IMCCCT_CLIP_Pred( SMALL_FLOAT - prevpt.w, SMALL_FLOAT - currpt.w ); // clip W <= 0
+	IMCCCT_CLIP_Pred( prevpt.x - prevpt.w, currpt.x - currpt.w ); // clip X > W
+	IMCCCT_CLIP_Pred( -prevpt.x - prevpt.w, -currpt.x - currpt.w ); // clip X < -W
+	IMCCCT_CLIP_Pred( prevpt.y - prevpt.w, currpt.y - currpt.w ); // clip Y > W
+	IMCCCT_CLIP_Pred( -prevpt.y - prevpt.w, -currpt.y - currpt.w ); // clip Y < -W
+	IMCCCT_CLIP_Pred( prevpt.z - prevpt.w, currpt.z - currpt.w ); // clip Z > W
+	IMCCCT_CLIP_Pred( -prevpt.z - prevpt.w, -currpt.z - currpt.w ); // clip Z < -W
+	
+	// interpolate vertices
+	uint8_t vbuf[ 256 * 9 ];
+	memset( vbuf, 0, sizeof(vbuf) );
+	int stride = vdecl->m_info.size;
+	VD_LerpTri( vdecl->m_info, pcount, vbuf, fcs, v1, v2, v3 );
+	for( int i = 1; i < pcount - 1; ++i )
+	{
+		outverts.append( vbuf, stride );
+		outverts.append( vbuf + i * stride, stride * 2 );
+	}
 }
 
 template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, ByteArray& outverts )
