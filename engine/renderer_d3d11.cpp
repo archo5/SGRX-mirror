@@ -360,6 +360,14 @@ struct D3D11VertexDecl : SGRX_IVertexDecl
 
 struct D3D11Mesh : SGRX_IMesh
 {
+	struct InputLayouts
+	{
+		ID3D11InputLayout* basic;
+		ID3D11InputLayout* skin;
+		
+		FINLINE void Reset(){ basic = NULL; skin = NULL; }
+	};
+	
 	ID3D11Buffer* m_VB;
 	ID3D11Buffer* m_IB;
 	struct D3D11Renderer* m_renderer;
@@ -367,13 +375,10 @@ struct D3D11Mesh : SGRX_IMesh
 	int m_realVertexSize;
 	size_t m_realVertexDataSize;
 	
-	ID3D11InputLayout* m_basicInputLayouts[ MAX_MESH_PARTS ];
-	ID3D11InputLayout* m_skinInputLayouts[ MAX_MESH_PARTS ];
+	Array< InputLayouts > m_inputLayouts;
 	
 	D3D11Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ), m_origVertexSize(0), m_realVertexSize(0), m_realVertexDataSize(0)
 	{
-		memset( m_basicInputLayouts, 0, sizeof(m_basicInputLayouts) );
-		memset( m_skinInputLayouts, 0, sizeof(m_skinInputLayouts) );
 	}
 	~D3D11Mesh();
 	
@@ -1325,10 +1330,10 @@ D3D11Mesh::~D3D11Mesh()
 	m_renderer->m_ownMeshes.unset( this );
 	SAFE_RELEASE( m_VB );
 	SAFE_RELEASE( m_IB );
-	for( int i = 0; i < MAX_MESH_PARTS; ++i )
+	for( size_t i = 0; i < m_inputLayouts.size(); ++i )
 	{
-		SAFE_RELEASE( m_basicInputLayouts[ i ] );
-		SAFE_RELEASE( m_skinInputLayouts[ i ] );
+		SAFE_RELEASE( m_inputLayouts[ i ].basic );
+		SAFE_RELEASE( m_inputLayouts[ i ].skin );
 	}
 }
 
@@ -1423,19 +1428,23 @@ bool D3D11Mesh::SetPartData( SGRX_MeshPart* parts, int count )
 
 void D3D11Mesh::_UpdatePartInputLayouts()
 {
-	for( int i = 0; i < MAX_MESH_PARTS; ++i )
+	for( size_t i = 0; i < m_inputLayouts.size(); ++i )
 	{
-		SAFE_RELEASE( m_basicInputLayouts[ i ] );
-		SAFE_RELEASE( m_skinInputLayouts[ i ] );
+		SAFE_RELEASE( m_inputLayouts[ i ].basic );
+		SAFE_RELEASE( m_inputLayouts[ i ].skin );
 	}
+	m_inputLayouts.clear();
 	
 	if( !m_vertexDecl )
 		return;
 	D3D11VertexDecl* VD = (D3D11VertexDecl*) m_vertexDecl.item;
 	
-	for( int i = 0; i < m_numParts; ++i )
+	m_inputLayouts.resize( m_meshParts.size() );
+	for( size_t i = 0; i < m_meshParts.size(); ++i )
 	{
-		SGRX_Material* MTL = m_parts[ i ].material.item;
+		m_inputLayouts[i].Reset();
+		
+		SGRX_Material* MTL = m_meshParts[ i ].material.item;
 		if( !MTL )
 			continue;
 		SGRX_SurfaceShader* SSH = MTL->shader;
@@ -1474,8 +1483,8 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 		
 		if( SHD_VB )
 		{
-			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VB->m_VSBC.data(), SHD_VB->m_VSBC.size(), &m_basicInputLayouts[ i ] );
-			if( FAILED( hr ) || !m_basicInputLayouts[ i ] )
+			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VB->m_VSBC.data(), SHD_VB->m_VSBC.size(), &m_inputLayouts[i].basic );
+			if( FAILED( hr ) || !m_inputLayouts[i].basic )
 			{
 				LOG_ERROR << "Failed to create an input layout (basic, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VB->m_key << ", v.d.key=" << VD->m_text << ")";
 			}
@@ -1483,8 +1492,8 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 		
 		if( SHD_VS )
 		{
-			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VS->m_VSBC.data(), SHD_VS->m_VSBC.size(), &m_skinInputLayouts[ i ] );
-			if( FAILED( hr ) || !m_skinInputLayouts[ i ] )
+			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VS->m_VSBC.data(), SHD_VS->m_VSBC.size(), &m_inputLayouts[i].skin );
+			if( FAILED( hr ) || !m_inputLayouts[i].skin )
 			{
 				LOG_ERROR << "Failed to create an input layout (skinned, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VS->m_key << ", v.d.key=" << VD->m_text << ")";
 			}
@@ -1825,9 +1834,9 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 			m_ctx->IASetIndexBuffer( M->m_IB, M->m_dataFlags & MDF_INDEX_32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0 );
 			m_ctx->IASetPrimitiveTopology( M->m_dataFlags & MDF_TRIANGLESTRIP ? D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 			
-			for( int part_id = 0; part_id < M->m_numParts; ++part_id )
+			for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
 			{
-				SGRX_MeshPart* MP = &M->m_parts[ part_id ];
+				SGRX_MeshPart* MP = &M->m_meshParts[ part_id ];
 				SGRX_Material* MTL = MP->material;
 				if( !MTL )
 					continue;
@@ -1842,7 +1851,7 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 				if( MP->indexCount < 3 )
 					continue;
 				
-				m_ctx->IASetInputLayout( MI->skin_matrices.size() ? M->m_skinInputLayouts[ part_id ] : M->m_basicInputLayouts[ part_id ] );
+				m_ctx->IASetInputLayout( MI->skin_matrices.size() ? M->m_inputLayouts[ part_id ].basic : M->m_inputLayouts[ part_id ].skin );
 				
 			//	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent ) == false );
 			//	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );

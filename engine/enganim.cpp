@@ -817,7 +817,7 @@ void ParticleSystem::PreRender()
 		m_vertices.clear();
 		m_indices.clear();
 		
-		SGRX_MeshPart& MP = mesh->m_parts[ 0 ];
+		SGRX_MeshPart& MP = mesh->m_meshParts[ 0 ];
 		MP.vertexOffset = 0;
 		MP.indexOffset = 0;
 		

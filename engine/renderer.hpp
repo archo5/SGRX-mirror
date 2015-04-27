@@ -49,6 +49,7 @@ struct MeshFileBoneData
 	/* size w/o padding = 66+[4/8] = 70/74 */
 };
 
+#define MAX_MESH_FILE_PARTS 16
 struct MeshFileData
 {
 	uint32_t dataFlags;
@@ -66,7 +67,7 @@ struct MeshFileData
 	uint8_t formatSize;
 	/* size w/o padding = 39+[12/24] = 51/63 */
 	
-	MeshFilePartData parts[ MAX_MESH_PARTS ];
+	MeshFilePartData parts[ MAX_MESH_FILE_PARTS ];
 	/* size w/o padding = 51/63 + 64/100 x16 = 1075/1663 */
 	MeshFileBoneData bones[ MAX_MESH_BONES ];
 	/* size w/o padding = 1075/1663 + 70/74 x32 = 3315/4031 */

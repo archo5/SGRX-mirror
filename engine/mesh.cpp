@@ -251,7 +251,7 @@ const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out )
 	if( off >= size )
 		return "mesh incomplete (missing part data)";
 	out->numParts = (uint8_t) buf[ off++ ];
-	if( out->numParts > MAX_MESH_PARTS )
+	if( out->numParts > MAX_MESH_FILE_PARTS )
 		return "invalid part count";
 	for( p = 0; p < out->numParts; ++p )
 	{

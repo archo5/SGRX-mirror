@@ -15,6 +15,10 @@
 
 
 
+#define MAX_BLOCK_POLYGONS 32
+
+
+
 ScriptContext* g_ScriptCtx;
 struct EDGUIMainFrame* g_UIFrame;
 SceneHandle g_EdScene;
@@ -552,7 +556,7 @@ struct EdBlock
 	
 	void RegenerateMesh()
 	{
-		if( poly.size() < 3 || poly.size() > MAX_MESH_PARTS - 2 )
+		if( poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
 			return;
 		
 		if( !cached_mesh )
@@ -570,7 +574,7 @@ struct EdBlock
 		VertexDeclHandle vd = GR_GetVertexDecl( EdVtx_DECL );
 		Array< EdVtx > vertices;
 		Array< uint16_t > indices;
-		SGRX_MeshPart meshparts[ MAX_MESH_PARTS ];
+		SGRX_MeshPart meshparts[ MAX_BLOCK_POLYGONS ];
 		int numparts = 0;
 		
 		// SIDES
@@ -675,13 +679,13 @@ struct EdBlock
 	}
 	void GenerateMesh( LevelCache& LC )
 	{
-		if( poly.size() < 3 || poly.size() > MAX_MESH_PARTS - 2 )
+		if( poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
 			return;
 		
 		// GENERATE PLANES
-		Vec3 toppoly[ MAX_MESH_PARTS ];
+		Vec3 toppoly[ MAX_BLOCK_POLYGONS ];
 		int topverts = 0;
-		Vec4 planes[ MAX_MESH_PARTS ];
+		Vec4 planes[ MAX_BLOCK_POLYGONS ];
 		int numplanes = 0;
 		
 		planes[ numplanes++ ] = V4( 0, 0, -1, -z0 );
@@ -725,7 +729,7 @@ struct EdBlock
 		
 		// TOP
 		{
-			LevelCache::Vertex verts[ MAX_MESH_PARTS - 2 ];
+			LevelCache::Vertex verts[ MAX_BLOCK_POLYGONS - 2 ];
 			Vec3 tgx, tgy;
 			_GetTexVecs( poly.size(), tgx, tgy );
 			for( size_t i = 0; i < poly.size(); ++i )
@@ -735,7 +739,7 @@ struct EdBlock
 		
 		// BOTTOM
 		{
-			LevelCache::Vertex verts[ MAX_MESH_PARTS - 2 ];
+			LevelCache::Vertex verts[ MAX_BLOCK_POLYGONS - 2 ];
 			Vec3 tgx, tgy;
 			_GetTexVecs( poly.size() + 1, tgx, tgy );
 			for( size_t i = 0; i < poly.size(); ++i )

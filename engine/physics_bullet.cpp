@@ -382,9 +382,9 @@ PhyShapeHandle BulletPhyWorld::CreateShapeFromMesh( SGRX_IMesh* mesh )
 	if( i32 )
 	{
 		Array< uint32_t > indices;
-		for( int p = 0; p < mesh->m_numParts; ++p )
+		for( size_t p = 0; p < mesh->m_meshParts.size(); ++p )
 		{
-			SGRX_MeshPart& MP = mesh->m_parts[ p ];
+			SGRX_MeshPart& MP = mesh->m_meshParts[ p ];
 			for( size_t i = MP.indexOffset; i < MP.indexOffset + MP.indexCount; ++i )
 				indices.push_back( *(uint32_t*) &mesh->m_idata[ i * 4 ] + MP.vertexOffset );
 		}
@@ -393,9 +393,9 @@ PhyShapeHandle BulletPhyWorld::CreateShapeFromMesh( SGRX_IMesh* mesh )
 	else
 	{
 		Array< uint16_t > indices;
-		for( int p = 0; p < mesh->m_numParts; ++p )
+		for( size_t p = 0; p < mesh->m_meshParts.size(); ++p )
 		{
-			SGRX_MeshPart& MP = mesh->m_parts[ p ];
+			SGRX_MeshPart& MP = mesh->m_meshParts[ p ];
 			for( size_t i = MP.indexOffset; i < MP.indexOffset + MP.indexCount; ++i )
 				indices.push_back( *(uint16_t*) &mesh->m_idata[ i * 2 ] + MP.vertexOffset );
 		}

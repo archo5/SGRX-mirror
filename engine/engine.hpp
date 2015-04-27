@@ -467,7 +467,6 @@ struct SGRX_Scene;
 #define MDF__PUBFLAGMASK (0x01|0x02|0x10|0x20|0x40|0x80)
 #define MDF__PUBFLAGBASE  0
 
-#define MAX_MESH_PARTS 16
 #define MAX_MESH_BONES 64
 
 struct SGRX_MeshPart
@@ -517,7 +516,7 @@ struct SGRX_IMesh
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
-	ENGINE_EXPORT void Clip( const Mat4& mtx, ByteArray& outverts );
+	ENGINE_EXPORT void Clip( const Mat4& mtx, bool decal, ByteArray& outverts );
 	
 	/* rendering info */
 	uint32_t m_dataFlags;
@@ -526,9 +525,8 @@ struct SGRX_IMesh
 	uint32_t m_vertexDataSize;
 	uint32_t m_indexCount;
 	uint32_t m_indexDataSize;
-	SGRX_MeshPart m_parts[ MAX_MESH_PARTS ];
+	Array< SGRX_MeshPart > m_meshParts;
 	SGRX_MeshBone m_bones[ MAX_MESH_BONES ];
-	int m_numParts;
 	int m_numBones;
 	
 	/* collision detection */
