@@ -22,6 +22,12 @@ ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
 typedef SDL_Event Event;
 
 
+struct IF_GCC(ENGINE_EXPORT) IProcessor
+{
+	ENGINE_EXPORT virtual void Process( void* data ) = 0;
+};
+
+
 struct Command
 {
 	Command( const StringView& sv, float thr = 0.1f ) :
@@ -379,6 +385,8 @@ struct VDeclInfo
 	}
 };
 
+#define SGRX_VDECL_DECAL "pf3nf30f2tf4"
+
 struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl
 {
 	FINLINE void Acquire(){ ++m_refcount; }
@@ -566,6 +574,7 @@ struct SGRX_Light
 	ENGINE_EXPORT SGRX_Light( SGRX_Scene* s );
 	ENGINE_EXPORT ~SGRX_Light();
 	ENGINE_EXPORT void RecalcMatrices();
+	ENGINE_EXPORT void GenerateCamera( struct SGRX_Camera& outcam );
 	
 	SGRX_Scene* _scene;
 	
@@ -585,8 +594,8 @@ struct SGRX_Light
 	Mat4 projMatrix;
 	Mat4 viewProjMatrix;
 	bool hasShadows;
-	Array< SGRX_MeshInstance* > exclInsts;
 	uint32_t layers;
+	MaterialHandle projectionMaterial;
 	
 	/* frame cache */
 	SGRX_MeshInstLight* _mibuf_begin;
@@ -726,6 +735,18 @@ struct SGRX_Viewport
 	int x1, y1, x2, y2;
 };
 
+ENGINE_EXPORT uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& writeoffset, const uint8_t* vertex, size_t vertsize );
+ENGINE_EXPORT void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices, size_t offset, size_t stride );
+struct IF_GCC(ENGINE_EXPORT) SGRX_ProjectionMeshProcessor : IProcessor
+{
+	ByteArray* outVertices;
+	UInt32Array* outIndices;
+	Mat4 viewProjMatrix;
+	
+	SGRX_ProjectionMeshProcessor( ByteArray* verts, UInt32Array* indices, const Mat4& mtx ) : outVertices( verts ), outIndices( indices ), viewProjMatrix( mtx ){}
+	ENGINE_EXPORT virtual void Process( void* data );
+};
+
 struct SGRX_Scene
 {
 	FINLINE void Acquire(){ ++m_refcount; }
@@ -738,7 +759,8 @@ struct SGRX_Scene
 	ENGINE_EXPORT LightHandle CreateLight();
 //	ENGINE_EXPORT bool RemoveLight( LightHandle lh );
 	
-	ENGINE_EXPORT void GatherMeshes( const SGRX_Camera& cam, Array< SGRX_MeshInstance* >& found, uint32_t layers );
+	ENGINE_EXPORT void GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc, uint32_t layers = 0xffffffff );
+	ENGINE_EXPORT void GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outverts, UInt32Array& outindices, uint32_t layers = 0xffffffff );
 	
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;

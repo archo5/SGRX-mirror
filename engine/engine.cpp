@@ -1205,6 +1205,7 @@ SGRX_Light::SGRX_Light( SGRX_Scene* s ) :
 	angle( 60 ),
 	aspect( 1 ),
 	hasShadows( false ),
+	layers( 0x1 ),
 	_mibuf_begin( NULL ),
 	_mibuf_end( NULL ),
 	_refcount( 0 )
@@ -1227,6 +1228,19 @@ void SGRX_Light::RecalcMatrices()
 	viewProjMatrix.Multiply( viewMatrix, projMatrix );
 }
 
+void SGRX_Light::GenerateCamera( SGRX_Camera& outcam )
+{
+	outcam.position = position;
+	outcam.direction = direction;
+	outcam.up = updir;
+	outcam.angle = angle;
+	outcam.aspect = aspect;
+	outcam.aamix = 0.5f;
+	outcam.znear = range * 0.001f;
+	outcam.zfar = range;
+	outcam.UpdateMatrices();
+}
+
 
 SGRX_CullScene::~SGRX_CullScene()
 {
@@ -1236,6 +1250,7 @@ SGRX_CullScene::~SGRX_CullScene()
 SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
 	color( Vec4::Create( 1 ) ),
+	layers( 0x1 ),
 	enabled( true ),
 	cpuskin( false ),
 	dynamic( false ),
@@ -1256,6 +1271,62 @@ SGRX_MeshInstance::~SGRX_MeshInstance()
 	if( _scene )
 	{
 		_scene->m_meshInstances.unset( this );
+	}
+}
+
+
+uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& writeoffset, const uint8_t* vertex, size_t vertsize )
+{
+	for( size_t i = searchoffset; i < vertbuf.size(); i += vertsize )
+	{
+		if( 0 == memcmp( &vertbuf[ searchoffset ], vertex, vertsize ) )
+			return ( i - searchoffset ) / vertsize;
+	}
+	uint32_t out = ( writeoffset - searchoffset ) / vertsize;
+	memcpy( &vertbuf[ writeoffset ], vertex, vertsize );
+	writeoffset += vertsize;
+	return out;
+}
+
+void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices, size_t offset, size_t stride )
+{
+	// <= 1 tri
+	if( vertices.size() <= offset + stride * 3 )
+		return;
+	
+	uint8_t trivertdata[ 256 * 3 ];
+	size_t end = ( ( vertices.size() - offset ) / (stride*3) ) * stride * 3;
+	size_t writeoffset = offset;
+	size_t readoffset = offset;
+	while( readoffset < end )
+	{
+		// extract a triangle
+		memcpy( trivertdata, &vertices[ readoffset ], stride * 3 );
+		readoffset += stride * 3;
+		
+		// insert each vertex/index
+		uint32_t idcs[3] =
+		{
+			SGRX_FindOrAddVertex( vertices, offset, writeoffset, trivertdata, stride ),
+			SGRX_FindOrAddVertex( vertices, offset, writeoffset, trivertdata + stride, stride ),
+			SGRX_FindOrAddVertex( vertices, offset, writeoffset, trivertdata + stride * 2, stride ),
+		};
+		indices.append( idcs, 3 );
+	}
+	// remove unused data
+	vertices.resize( writeoffset );
+}
+
+void SGRX_ProjectionMeshProcessor::Process( void* data )
+{
+	SGRX_CAST( SGRX_MeshInstance*, MI, data );
+	
+	SGRX_IMesh* M = MI->mesh;
+	if( M )
+	{
+		size_t vertoff = outVertices->size();
+		M->Clip( MI->matrix * viewProjMatrix, true, *outVertices );
+		SGRX_DoIndexTriangleMeshVertices( *outIndices, *outVertices, vertoff, 48 );
 	}
 }
 
@@ -1301,6 +1372,23 @@ LightHandle SGRX_Scene::CreateLight()
 	SGRX_Light* lt = new SGRX_Light( this );
 	m_lights.set( lt, NULL );
 	return lt;
+}
+
+void SGRX_Scene::GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc, uint32_t layers )
+{
+	// TODO use cullscene
+	for( size_t i = 0; i < m_meshInstances.size(); ++i )
+	{
+		SGRX_MeshInstance* mi = m_meshInstances.item( i ).key;
+		if( mi->layers & layers )
+			meshInstProc->Process( mi );
+	}
+}
+
+void SGRX_Scene::GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outverts, UInt32Array& outindices, uint32_t layers )
+{
+	SGRX_ProjectionMeshProcessor pmp( &outverts, &outindices, cam.mView * cam.mProj );
+	GatherMeshes( cam, &pmp, layers );
 }
 
 

@@ -431,6 +431,7 @@ struct LD32Char : Entity
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
 	MeshInstHandle m_meshInst;
+	LightHandle m_shadowInst;
 	AnimPlayer m_anMainPlayer;
 	AnimInterp m_anEnd;
 	

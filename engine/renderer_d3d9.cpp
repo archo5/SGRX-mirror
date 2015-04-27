@@ -39,6 +39,11 @@ static D3DFORMAT texfmt2d3d( int fmt )
 	return (D3DFORMAT) 0;
 }
 
+static DWORD F2DW( float f )
+{
+	return *(DWORD*)&f;
+}
+
 static void swap4b2ms( uint32_t* data, int size, int mask1, int shift1R, int mask2, int shift2L )
 {
 	int i;
@@ -419,7 +424,7 @@ struct D3D9Renderer : IRenderer
 	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	void RenderScene( SGRX_RenderScene* RS );
 	void _RS_Render_Shadows();
-	void _RS_RenderPass_Projectors();
+	void _RS_RenderPass_Projectors( size_t pass_id );
 	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
 	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
 	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
@@ -584,6 +589,9 @@ void D3D9Renderer::Destroy()
 
 bool D3D9Renderer::LoadInternalResources()
 {
+	if( !_RS_ProjectorInit() )
+		return false;
+	
 	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
 	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "sys_pp_vs" );
 	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "sys_pp_final" );
@@ -626,6 +634,8 @@ void D3D9Renderer::UnloadInternalResources()
 	m_sh_pp_dshp->Release();
 	m_sh_pp_blur_h->Release();
 	m_sh_pp_blur_v->Release();
+	
+	_RS_ProjectorFree();
 }
 
 void D3D9Renderer::Swap()
@@ -1549,7 +1559,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 			Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
 			PS_SetVec4( 4, campos4 );
 			if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
-			if( pass.type == RPT_PROJECTORS ) _RS_RenderPass_Projectors();
+			if( pass.type == RPT_PROJECTORS ) _RS_RenderPass_Projectors( pass_id );
 		}
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, tx_depth, RTOUT );
 	}
@@ -1759,9 +1769,62 @@ void D3D9Renderer::_RS_Render_Shadows()
 	}
 }
 
-void D3D9Renderer::_RS_RenderPass_Projectors()
+void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 {
-	// TODO
+	const SGRX_Camera& CAM = m_currentScene->camera;
+	Mat4 camViewProj = CAM.mView * CAM.mProj;
+	
+	_RS_UpdateProjectorMesh( m_currentScene );
+	
+	D3D9Mesh* M = (D3D9Mesh*) m_projectorMesh.item;
+	if( !M->m_vertexDecl )
+		return; /* mesh not initialized */
+	D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
+	
+	VS_SetMat4( 0, camViewProj );
+	VS_SetMat4( 8, Mat4::Identity );
+	
+	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	m_dev->SetVertexDeclaration( VD->m_vdecl );
+	m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
+	m_dev->SetIndices( M->m_IB );
+	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, FALSE );
+	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( -0.01f ) );
+	
+	for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
+	{
+		SGRX_MeshPart* MP = &M->m_meshParts[ part_id ];
+		SGRX_Material* MTL = MP->material;
+		if( !MTL )
+			continue;
+		SGRX_SurfaceShader* SSH = MTL->shader;
+		if( !SSH )
+			continue;
+		
+		SGRX_IVertexShader* VSH = SSH->m_basicVertexShaders[ pass_id ];
+		if( !VSH )
+			continue;
+		SGRX_IPixelShader* SHD = SSH->m_pixelShaders[ pass_id ];
+		if( !SHD )
+			continue;
+		
+		if( MP->indexCount < 3 )
+			continue;
+		
+		SetVertexShader( VSH );
+		SetPixelShader( SHD );
+		for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
+			SetTexture( tex_id, MTL->textures[ tex_id ] );
+		
+		m_dev->DrawIndexedPrimitive(
+			M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
+			MP->vertexOffset, 0, MP->vertexCount, MP->indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP->indexCount - 2 : MP->indexCount / 3 );
+		m_stats.numDrawCalls++;
+		m_stats.numSDrawCalls++;
+	}
+	
+	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, TRUE );
+	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( 0 ) );
 }
 
 void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )

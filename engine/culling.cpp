@@ -218,7 +218,7 @@ uint32_t SGRX_Cull_Camera_SpotLightList( Array< SGRX_Light* >& LIBuf, ByteArray&
 	{
 		SGRX_CullSceneCamera light_frustum;
 		SGRX_Light* L = (SGRX_Light*) S->m_lights.item( light_id ).key;
-		if( !L->enabled || L->type != LIGHT_SPOT )
+		if( !L->enabled || ( L->type != LIGHT_SPOT && L->type != LIGHT_PROJ ) )
 			continue;
 		
 		get_frustum_from_light( L, &light_frustum );

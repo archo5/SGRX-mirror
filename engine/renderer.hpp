@@ -210,6 +210,18 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	Array< SGRX_Light* > m_visible_spot_lights;
 	Array< SGRX_MeshInstLight > m_inst_light_buf;
 	Array< SGRX_MeshInstLight > m_light_inst_buf;
+	
+	// projector interface
+	bool _RS_ProjectorInit();
+	void _RS_ProjectorFree();
+	void _RS_UpdateProjectorMesh( SGRX_Scene* scene );
+	
+	// projector data
+	ByteArray m_projectorVertices;
+	UInt32Array m_projectorIndices;
+	Array< SGRX_MeshPart > m_projectorMeshParts;
+	MeshHandle m_projectorMesh;
+	VertexDeclHandle m_projectorVertexDecl;
 };
 typedef bool (*pfnRndInitialize) ( const char** );
 typedef void (*pfnRndFree) ();

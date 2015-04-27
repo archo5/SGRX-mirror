@@ -43,6 +43,7 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
+	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
@@ -99,11 +100,21 @@ LD32Char::LD32Char( const Vec3& pos, const Vec3& dir, const Vec4& color ) :
 	
 	m_meshInst = g_GameLevel->m_scene->CreateMeshInstance();
 	m_meshInst->dynamic = 1;
+	m_meshInst->layers = 0x2;
 	m_meshInst->mesh = GR_GetMesh( "meshes/charmodel2.ssm" );
 	m_meshInst->matrix = Mat4::CreateSRT( V3(1), m_ivDir.curr, pos );
 	g_GameLevel->LightMesh( m_meshInst );
 	m_meshInst->constants[ 0 ] = color;
 	m_meshInst->skin_matrices.resize( m_meshInst->mesh->m_numBones );
+	
+	m_shadowInst = g_GameLevel->m_scene->CreateLight();
+	m_shadowInst->type = LIGHT_PROJ;
+	m_shadowInst->direction = V3(0,0,-1);
+	m_shadowInst->updir = V3(0,1,0);
+	m_shadowInst->angle = 45;
+	m_shadowInst->range = 10;
+	m_shadowInst->RecalcMatrices();
+	m_shadowInst->projectionMaterial = m_meshInst->mesh->m_meshParts[0].material;
 	
 	m_anEnd.animSource = &m_anMainPlayer;
 	m_anEnd.PrepareForMesh( m_meshInst->mesh );
@@ -160,6 +171,7 @@ void LD32Char::Tick( float deltaTime, float blendFactor )
 	Quat rdir = m_ivDir.Get( blendFactor ).Normalized();
 	
 	m_meshInst->matrix = Mat4::CreateSRT( V3(1), rdir, pos );
+	m_shadowInst->position = pos + V3(0,0,1);
 	
 	g_GameLevel->LightMesh( m_meshInst );
 	

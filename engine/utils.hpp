@@ -1275,6 +1275,8 @@ template< class T > void TSWAP( Array<T>& a, Array<T>& b )
 }
 
 typedef Array< uint8_t > ByteArray;
+typedef Array< uint16_t > UInt16Array;
+typedef Array< uint32_t > UInt32Array;
 
 
 //
