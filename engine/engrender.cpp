@@ -81,7 +81,6 @@ void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene )
 	
 	/*  insts -> lights  TO  lights -> insts  */
 	m_light_inst_buf = m_inst_light_buf;
-	memcpy( m_light_inst_buf.data(), m_inst_light_buf.data(), m_inst_light_buf.size() );
 	qsort( m_light_inst_buf.data(), m_light_inst_buf.size(), sizeof( SGRX_MeshInstLight ), sort_meshinstlight_by_light );
 	
 	for( size_t light_id = 0; light_id < scene->m_lights.size(); ++light_id )
@@ -136,6 +135,7 @@ void IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 		SGRX_Light* L = m_visible_spot_lights[ i ];
 		if( L->type != LIGHT_PROJ || !L->projectionShader )
 			continue;
+		LOG << L->_mibuf_end - L->_mibuf_begin;
 		SGRX_MeshPart mp = { m_projectorVertices.size() / stride, 0, m_projectorIndices.size(), 0 };
 		
 		SGRX_Camera lightcam;
@@ -144,6 +144,9 @@ void IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 		
 		mp.vertexCount = m_projectorVertices.size() / stride - mp.vertexOffset;
 		mp.indexCount = m_projectorIndices.size() - mp.indexOffset;
+		for( size_t ipos = mp.indexOffset; ipos < m_projectorIndices.size(); ++ipos )
+			m_projectorIndices[ ipos ] -= mp.vertexOffset;
+		
 		m_projectorMeshParts.push_back( mp );
 		m_projectorList.push_back( L );
 	}

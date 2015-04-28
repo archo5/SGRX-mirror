@@ -920,35 +920,35 @@ void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factor
 		case VDECLTYPE_FLOAT1:
 			for( int v = 0; v < vcount; ++v )
 			{
-				const Vec3& f = factors[ i ];
+				const Vec3& f = factors[ v ];
 				*(float*)( ocoutbuf + v * vdinfo.size ) = *(float*)ocv1 * f.x + *(float*)ocv2 * f.y + *(float*)ocv3 * f.z;
 			}
 			break;
 		case VDECLTYPE_FLOAT2:
 			for( int v = 0; v < vcount; ++v )
 			{
-				const Vec3& f = factors[ i ];
+				const Vec3& f = factors[ v ];
 				*(Vec2*)( ocoutbuf + v * vdinfo.size ) = *(Vec2*)ocv1 * f.x + *(Vec2*)ocv2 * f.y + *(Vec2*)ocv3 * f.z;
 			}
 			break;
 		case VDECLTYPE_FLOAT3:
 			for( int v = 0; v < vcount; ++v )
 			{
-				const Vec3& f = factors[ i ];
+				const Vec3& f = factors[ v ];
 				*(Vec3*)( ocoutbuf + v * vdinfo.size ) = *(Vec3*)ocv1 * f.x + *(Vec3*)ocv2 * f.y + *(Vec3*)ocv3 * f.z;
 			}
 			break;
 		case VDECLTYPE_FLOAT4:
 			for( int v = 0; v < vcount; ++v )
 			{
-				const Vec3& f = factors[ i ];
+				const Vec3& f = factors[ v ];
 				*(Vec4*)( ocoutbuf + v * vdinfo.size ) = *(Vec4*)ocv1 * f.x + *(Vec4*)ocv2 * f.y + *(Vec4*)ocv3 * f.z;
 			}
 			break;
 		case VDECLTYPE_BCOL4:
 			for( int v = 0; v < vcount; ++v )
 			{
-				const Vec3& f = factors[ i ];
+				const Vec3& f = factors[ v ];
 				*(BVec4*)( ocoutbuf + v * vdinfo.size ) = *(BVec4*)ocv1 * f.x + *(BVec4*)ocv2 * f.y + *(BVec4*)ocv3 * f.z;
 			}
 			break;
@@ -979,17 +979,21 @@ template< typename T, typename T2 > void sa2_remove( T* arr, T2* arr2, int& coun
 	at--;
 }
 
-void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SGRX_IVertexDecl* vdecl, bool decal, const void* v1, const void* v2, const void* v3 )
+void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, SGRX_IVertexDecl* vdecl, bool decal, const void* v1, const void* v2, const void* v3 )
 {
 	const void* verts[3] = { v1, v2, v3 };
 	Vec3 pos[3] = {0};
 	VD_ExtractVec3( vdecl->m_info, 3, verts, pos );
 	
+	pos[0] = mtx.TransformPos( pos[0] );
+	pos[1] = mtx.TransformPos( pos[1] );
+	pos[2] = mtx.TransformPos( pos[2] );
+	
 	Vec4 tpos[3] =
 	{
-		mtx.Transform( V4( pos[0], 1.0f ) ),
-		mtx.Transform( V4( pos[1], 1.0f ) ),
-		mtx.Transform( V4( pos[2], 1.0f ) ),
+		vpmtx.Transform( V4( pos[0], 1.0f ) ),
+		vpmtx.Transform( V4( pos[1], 1.0f ) ),
+		vpmtx.Transform( V4( pos[2], 1.0f ) ),
 	};
 	Vec4 pts[9] =
 	{
@@ -1030,29 +1034,44 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SG
 			}                                        \
 			prevpt = currpt;                         \
 			prevfc = currfc;                         \
+			prevsd = currsd;                         \
 		}                                            \
 	}
-//	IMCCCT_CLIP_Pred( SMALL_FLOAT - prevpt.w, SMALL_FLOAT - currpt.w ); // clip W <= 0
-//	IMCCCT_CLIP_Pred( prevpt.x - prevpt.w, currpt.x - currpt.w ); // clip X > W
-//	IMCCCT_CLIP_Pred( -prevpt.x - prevpt.w, -currpt.x - currpt.w ); // clip X < -W
-//	IMCCCT_CLIP_Pred( prevpt.y - prevpt.w, currpt.y - currpt.w ); // clip Y > W
-//	IMCCCT_CLIP_Pred( -prevpt.y - prevpt.w, -currpt.y - currpt.w ); // clip Y < -W
+	IMCCCT_CLIP_Pred( SMALL_FLOAT - prevpt.w, SMALL_FLOAT - currpt.w ); // clip W <= 0
+	IMCCCT_CLIP_Pred( prevpt.x - prevpt.w, currpt.x - currpt.w ); // clip X > W
+	IMCCCT_CLIP_Pred( -prevpt.x - prevpt.w, -currpt.x - currpt.w ); // clip X < -W
+	IMCCCT_CLIP_Pred( prevpt.y - prevpt.w, currpt.y - currpt.w ); // clip Y > W
+	IMCCCT_CLIP_Pred( -prevpt.y - prevpt.w, -currpt.y - currpt.w ); // clip Y < -W
 //	IMCCCT_CLIP_Pred( prevpt.z - prevpt.w, currpt.z - currpt.w ); // clip Z > W
 //	IMCCCT_CLIP_Pred( -prevpt.z - prevpt.w, -currpt.z - currpt.w ); // clip Z < -W
-	
+	// LOG << "VCOUNT: " << pcount;
+	// for(int i = 0; i < pcount;++i) LOG << pts[i] << fcs[i];
 	if( pcount < 3 )
 		return;
 	
-	VDeclInfo* VDI = &vdecl->m_info;
+	const VDeclInfo* VDI = &vdecl->m_info;
 	// convert vertices, fill in missing data
 	uint8_t decalvertbuf[ 48 * 3 ];
 	if( decal )
 	{
+		static const VDeclInfo decalvdi =
+		{
+			{ 0, 12, 24, 32, 0,0,0,0,0,0 },
+			{ VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT2, VDECLTYPE_FLOAT4, 0,0,0,0,0,0 },
+			{ VDECLUSAGE_POSITION, VDECLUSAGE_NORMAL, VDECLUSAGE_TEXTURE0, VDECLUSAGE_TANGENT, 0,0,0,0,0,0 },
+			4, 48
+		};
+		VDI = &decalvdi;
+		
 		// pf3nf30f2tf4, 48 bytes
-		// positions and normals are extracted from source, texcoords are generated and tangents are nullified
+		// positions and normals are extracted from source and moved to world space, texcoords are generated and tangents are nullified
 		
 		Vec3 nrm[3] = {0};
 		VD_ExtractVec3( vdecl->m_info, 3, verts, nrm, VDECLUSAGE_NORMAL );
+		
+		nrm[0] = mtx.TransformNormal( nrm[0] );
+		nrm[1] = mtx.TransformNormal( nrm[1] );
+		nrm[2] = mtx.TransformNormal( nrm[2] );
 		
 		for( int i = 0; i < 3; ++i )
 		{
@@ -1080,7 +1099,7 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SG
 	}
 }
 
-template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, bool decal, ByteArray& outverts )
+template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, const Mat4& vpmtx, bool decal, ByteArray& outverts )
 {
 	size_t stride = mesh->m_vertexDecl.GetInfo().size;
 	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
@@ -1091,7 +1110,7 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, outverts, mesh->m_vertexDecl, decal
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
@@ -1107,7 +1126,7 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
 			{
 				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, outverts, mesh->m_vertexDecl, decal
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i1 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i2 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i3 ] ) * stride ]
@@ -1117,15 +1136,15 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 	}
 }
 
-void SGRX_IMesh::Clip( const Mat4& mtx, bool decal, ByteArray& outverts )
+void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, bool decal, ByteArray& outverts )
 {
 	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
 	{
-		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, decal, outverts );
+		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, outverts );
 	}
 	else
 	{
-		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, decal, outverts );
+		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, vpmtx, decal, outverts );
 	}
 }
 
@@ -1292,6 +1311,13 @@ uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& 
 
 void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices, size_t offset, size_t stride )
 {
+	while( offset < vertices.size() )
+	{
+		indices.push_back( offset / stride );
+		offset += stride;
+	}
+	return;
+	
 	// <= 1 tri
 	if( vertices.size() <= offset + stride * 3 )
 		return;
@@ -1327,7 +1353,7 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 	if( M )
 	{
 		size_t vertoff = outVertices->size();
-		M->Clip( MI->matrix * viewProjMatrix, true, *outVertices );
+		M->Clip( MI->matrix, viewProjMatrix, true, *outVertices );
 		SGRX_DoIndexTriangleMeshVertices( *outIndices, *outVertices, vertoff, 48 );
 	}
 }

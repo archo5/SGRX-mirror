@@ -524,7 +524,7 @@ struct SGRX_IMesh
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
-	ENGINE_EXPORT void Clip( const Mat4& mtx, bool decal, ByteArray& outverts );
+	ENGINE_EXPORT void Clip( const Mat4& mtx, const Mat4& vpmtx, bool decal, ByteArray& outverts );
 	
 	/* rendering info */
 	uint32_t m_dataFlags;
