@@ -465,6 +465,7 @@ struct D3D9Renderer : IRenderer
 	Mat4 m_world;
 	Mat4 m_view;
 	
+	SGRX_IVertexShader* m_sh_proj_vs;
 	SGRX_IVertexShader* m_sh_bv_vs;
 	SGRX_IVertexShader* m_sh_pp_vs;
 	SGRX_IPixelShader* m_sh_pp_final;
@@ -592,6 +593,7 @@ bool D3D9Renderer::LoadInternalResources()
 	if( !_RS_ProjectorInit() )
 		return false;
 	
+	VertexShaderHandle sh_proj_vs = GR_GetVertexShader( "sys_proj_vs" );
 	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
 	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "sys_pp_vs" );
 	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "sys_pp_final" );
@@ -607,12 +609,14 @@ bool D3D9Renderer::LoadInternalResources()
 	{
 		return false;
 	}
+	sh_proj_vs->Acquire();
 	sh_bv_vs->Acquire();
 	sh_pp_vs->Acquire();
 	sh_pp_final->Acquire();
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
 	sh_pp_blur_v->Acquire();
+	m_sh_proj_vs = sh_proj_vs;
 	m_sh_bv_vs = sh_bv_vs;
 	m_sh_pp_vs = sh_pp_vs;
 	m_sh_pp_final = sh_pp_final;
@@ -628,6 +632,7 @@ void D3D9Renderer::UnloadInternalResources()
 {
 	SetRenderPasses( NULL, 0 );
 	
+	m_sh_proj_vs->Release();
 	m_sh_bv_vs->Release();
 	m_sh_pp_vs->Release();
 	m_sh_pp_final->Release();
@@ -1789,32 +1794,24 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 	m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
 	m_dev->SetIndices( M->m_IB );
 	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, FALSE );
-	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( -0.01f ) );
+	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( -0.001f ) );
+	SetVertexShader( m_sh_proj_vs );
 	
 	for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
 	{
 		SGRX_MeshPart* MP = &M->m_meshParts[ part_id ];
-		SGRX_Material* MTL = MP->material;
-		if( !MTL )
-			continue;
-		SGRX_SurfaceShader* SSH = MTL->shader;
-		if( !SSH )
-			continue;
+		SGRX_Light* L = m_projectorList[ part_id ];
 		
-		SGRX_IVertexShader* VSH = SSH->m_basicVertexShaders[ pass_id ];
-		if( !VSH )
-			continue;
-		SGRX_IPixelShader* SHD = SSH->m_pixelShaders[ pass_id ];
+		SGRX_IPixelShader* SHD = L->projectionShader;
 		if( !SHD )
 			continue;
 		
 		if( MP->indexCount < 3 )
 			continue;
 		
-		SetVertexShader( VSH );
 		SetPixelShader( SHD );
 		for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
-			SetTexture( tex_id, MTL->textures[ tex_id ] );
+			SetTexture( tex_id, L->projectionTextures[ tex_id ] );
 		
 		m_dev->DrawIndexedPrimitive(
 			M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,

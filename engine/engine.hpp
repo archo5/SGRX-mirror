@@ -595,7 +595,8 @@ struct SGRX_Light
 	Mat4 viewProjMatrix;
 	bool hasShadows;
 	uint32_t layers;
-	MaterialHandle projectionMaterial;
+	PixelShaderHandle projectionShader;
+	TextureHandle projectionTextures[ NUM_MATERIAL_TEXTURES ];
 	
 	/* frame cache */
 	SGRX_MeshInstLight* _mibuf_begin;

@@ -127,15 +127,16 @@ void IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 	m_projectorVertices.clear();
 	m_projectorIndices.clear();
 	m_projectorMeshParts.clear();
+	m_projectorList.clear();
 	size_t stride = m_projectorVertexDecl.GetInfo().size;
 	
 	// generate vertex data
 	for( size_t i = 0; i < m_visible_spot_lights.size(); ++i )
 	{
 		SGRX_Light* L = m_visible_spot_lights[ i ];
-		if( L->type != LIGHT_PROJ || !L->projectionMaterial )
+		if( L->type != LIGHT_PROJ || !L->projectionShader )
 			continue;
-		SGRX_MeshPart mp = { m_projectorVertices.size() / stride, 0, m_projectorIndices.size(), 0, L->projectionMaterial };
+		SGRX_MeshPart mp = { m_projectorVertices.size() / stride, 0, m_projectorIndices.size(), 0 };
 		
 		SGRX_Camera lightcam;
 		L->GenerateCamera( lightcam );
@@ -144,11 +145,12 @@ void IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 		mp.vertexCount = m_projectorVertices.size() / stride - mp.vertexOffset;
 		mp.indexCount = m_projectorIndices.size() - mp.indexOffset;
 		m_projectorMeshParts.push_back( mp );
+		m_projectorList.push_back( L );
 	}
 	
 	// apply new data
-	m_projectorMesh->SetVertexData( m_projectorVertices.data(), m_projectorVertices.size(), m_projectorVertexDecl, false );
-	m_projectorMesh->SetIndexData( m_projectorIndices.data(), m_projectorIndices.size(), true );
+	m_projectorMesh->SetVertexData( m_projectorVertices.data(), m_projectorVertices.size_bytes(), m_projectorVertexDecl, false );
+	m_projectorMesh->SetIndexData( m_projectorIndices.data(), m_projectorIndices.size_bytes(), true );
 	m_projectorMesh->SetPartData( m_projectorMeshParts.data(), m_projectorMeshParts.size() );
 }
 

@@ -1032,13 +1032,13 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SG
 			prevfc = currfc;                         \
 		}                                            \
 	}
-	IMCCCT_CLIP_Pred( SMALL_FLOAT - prevpt.w, SMALL_FLOAT - currpt.w ); // clip W <= 0
-	IMCCCT_CLIP_Pred( prevpt.x - prevpt.w, currpt.x - currpt.w ); // clip X > W
-	IMCCCT_CLIP_Pred( -prevpt.x - prevpt.w, -currpt.x - currpt.w ); // clip X < -W
-	IMCCCT_CLIP_Pred( prevpt.y - prevpt.w, currpt.y - currpt.w ); // clip Y > W
-	IMCCCT_CLIP_Pred( -prevpt.y - prevpt.w, -currpt.y - currpt.w ); // clip Y < -W
-	IMCCCT_CLIP_Pred( prevpt.z - prevpt.w, currpt.z - currpt.w ); // clip Z > W
-	IMCCCT_CLIP_Pred( -prevpt.z - prevpt.w, -currpt.z - currpt.w ); // clip Z < -W
+//	IMCCCT_CLIP_Pred( SMALL_FLOAT - prevpt.w, SMALL_FLOAT - currpt.w ); // clip W <= 0
+//	IMCCCT_CLIP_Pred( prevpt.x - prevpt.w, currpt.x - currpt.w ); // clip X > W
+//	IMCCCT_CLIP_Pred( -prevpt.x - prevpt.w, -currpt.x - currpt.w ); // clip X < -W
+//	IMCCCT_CLIP_Pred( prevpt.y - prevpt.w, currpt.y - currpt.w ); // clip Y > W
+//	IMCCCT_CLIP_Pred( -prevpt.y - prevpt.w, -currpt.y - currpt.w ); // clip Y < -W
+//	IMCCCT_CLIP_Pred( prevpt.z - prevpt.w, currpt.z - currpt.w ); // clip Z > W
+//	IMCCCT_CLIP_Pred( -prevpt.z - prevpt.w, -currpt.z - currpt.w ); // clip Z < -W
 	
 	if( pcount < 3 )
 		return;
@@ -1082,6 +1082,7 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, ByteArray& outverts, SG
 
 template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, bool decal, ByteArray& outverts )
 {
+	size_t stride = mesh->m_vertexDecl.GetInfo().size;
 	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
 	if( ( mesh->m_dataFlags & MDF_TRIANGLESTRIP ) == 0 )
 	{
@@ -1091,9 +1092,9 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
 				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, outverts, mesh->m_vertexDecl, decal
-					, &mesh->m_vdata[ MP.vertexOffset + indices[ tri ] ]
-					, &mesh->m_vdata[ MP.vertexOffset + indices[ tri + 1 ] ]
-					, &mesh->m_vdata[ MP.vertexOffset + indices[ tri + 2 ] ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
 				);
 			}
 		}
@@ -1107,9 +1108,9 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			{
 				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
 				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, outverts, mesh->m_vertexDecl, decal
-					, &mesh->m_vdata[ MP.vertexOffset + indices[ i1 ] ]
-					, &mesh->m_vdata[ MP.vertexOffset + indices[ i2 ] ]
-					, &mesh->m_vdata[ MP.vertexOffset + indices[ i3 ] ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i1 ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i2 ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i3 ] ) * stride ]
 				);
 			}
 		}
@@ -1277,12 +1278,13 @@ SGRX_MeshInstance::~SGRX_MeshInstance()
 
 uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& writeoffset, const uint8_t* vertex, size_t vertsize )
 {
-	for( size_t i = searchoffset; i < vertbuf.size(); i += vertsize )
+	const size_t idxoffset = 0;
+	for( size_t i = searchoffset; i < writeoffset; i += vertsize )
 	{
-		if( 0 == memcmp( &vertbuf[ searchoffset ], vertex, vertsize ) )
-			return ( i - searchoffset ) / vertsize;
+		if( 0 == memcmp( &vertbuf[ i ], vertex, vertsize ) )
+			return ( i - idxoffset ) / vertsize;
 	}
-	uint32_t out = ( writeoffset - searchoffset ) / vertsize;
+	uint32_t out = ( writeoffset - idxoffset ) / vertsize;
 	memcpy( &vertbuf[ writeoffset ], vertex, vertsize );
 	writeoffset += vertsize;
 	return out;

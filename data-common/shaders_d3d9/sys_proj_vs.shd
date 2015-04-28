@@ -1,0 +1,2 @@
+#define __VSCODE__
+#include "tpl_vs_base"

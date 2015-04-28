@@ -220,6 +220,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	ByteArray m_projectorVertices;
 	UInt32Array m_projectorIndices;
 	Array< SGRX_MeshPart > m_projectorMeshParts;
+	Array< SGRX_Light* > m_projectorList;
 	MeshHandle m_projectorMesh;
 	VertexDeclHandle m_projectorVertexDecl;
 };
