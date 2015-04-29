@@ -1201,7 +1201,11 @@ void GameLevel::Draw2D()
 		br.Flush();
 		
 		br.Reset().SetTexture( NULL ).Col( 0.2f, 0.4f, 0.8f );
+#ifdef LD32GAME
+		Vec2 pos = m_player->m_position;
+#else
 		Vec2 pos = m_scene->camera.position.ToVec2();
+#endif
 		Mat4 lookat = Mat4::CreateLookAt( V3( pos.x, pos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
 		GR2D_SetViewMatrix( lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 ) );
 		

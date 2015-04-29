@@ -385,7 +385,7 @@ struct VDeclInfo
 	}
 };
 
-#define SGRX_VDECL_DECAL "pf3nf30f2tf4"
+#define SGRX_VDECL_DECAL "pf3nf30f3tf3"
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl
 {
@@ -524,7 +524,7 @@ struct SGRX_IMesh
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
-	ENGINE_EXPORT void Clip( const Mat4& mtx, const Mat4& vpmtx, bool decal, ByteArray& outverts );
+	ENGINE_EXPORT void Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, bool decal = false, float inv_zn2zf = 0 );
 	
 	/* rendering info */
 	uint32_t m_dataFlags;
@@ -743,8 +743,9 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ProjectionMeshProcessor : IProcessor
 	ByteArray* outVertices;
 	UInt32Array* outIndices;
 	Mat4 viewProjMatrix;
+	float invZNearToZFar;
 	
-	SGRX_ProjectionMeshProcessor( ByteArray* verts, UInt32Array* indices, const Mat4& mtx ) : outVertices( verts ), outIndices( indices ), viewProjMatrix( mtx ){}
+	SGRX_ProjectionMeshProcessor( ByteArray* verts, UInt32Array* indices, const Mat4& mtx, float zn2zf );
 	ENGINE_EXPORT virtual void Process( void* data );
 };
 

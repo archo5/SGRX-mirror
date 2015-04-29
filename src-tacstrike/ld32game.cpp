@@ -111,11 +111,12 @@ LD32Char::LD32Char( const Vec3& pos, const Vec3& dir, const Vec4& color ) :
 	m_shadowInst->type = LIGHT_PROJ;
 	m_shadowInst->direction = V3(0,0,-1);
 	m_shadowInst->updir = V3(0,1,0);
-	m_shadowInst->angle = 45;
-	m_shadowInst->range = 10;
+	m_shadowInst->angle = 60;
+	m_shadowInst->range = 1.5f;
 	m_shadowInst->RecalcMatrices();
 	m_shadowInst->projectionShader = GR_GetPixelShader( "mtl:proj_default:base_proj" );
-	m_shadowInst->projectionTextures[0] = GR_GetTexture( "textures/fx/blobshadow2.png" );//GR_GetTexture( "textures/unit.png" );
+	m_shadowInst->projectionTextures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
+	m_shadowInst->projectionTextures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
 	
 	m_anEnd.animSource = &m_anMainPlayer;
 	m_anEnd.PrepareForMesh( m_meshInst->mesh );

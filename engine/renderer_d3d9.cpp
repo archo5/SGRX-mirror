@@ -1779,7 +1779,8 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	Mat4 camViewProj = CAM.mView * CAM.mProj;
 	
-	_RS_UpdateProjectorMesh( m_currentScene );
+	if( !_RS_UpdateProjectorMesh( m_currentScene ) )
+		return;
 	
 	D3D9Mesh* M = (D3D9Mesh*) m_projectorMesh.item;
 	if( !M->m_vertexDecl )

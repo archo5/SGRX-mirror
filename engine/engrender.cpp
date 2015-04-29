@@ -44,6 +44,7 @@ static int sort_meshinstlight_by_light( const void* p1, const void* p2 )
 
 void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene )
 {
+	m_inst_light_buf.clear();
 	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
 	{
 		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
@@ -120,7 +121,7 @@ void IRenderer::_RS_ProjectorFree()
 	m_projectorMeshParts.clear();
 }
 
-void IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
+bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 {
 	// clear all
 	m_projectorVertices.clear();
@@ -135,12 +136,33 @@ void IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 		SGRX_Light* L = m_visible_spot_lights[ i ];
 		if( L->type != LIGHT_PROJ || !L->projectionShader )
 			continue;
-		LOG << L->_mibuf_end - L->_mibuf_begin;
+		
+		L->RecalcMatrices();
+		
 		SGRX_MeshPart mp = { m_projectorVertices.size() / stride, 0, m_projectorIndices.size(), 0 };
 		
-		SGRX_Camera lightcam;
-		L->GenerateCamera( lightcam );
-		scene->GenerateProjectionMesh( lightcam, m_projectorVertices, m_projectorIndices, L->layers );
+	//	SGRX_Camera lightcam;
+	//	L->GenerateCamera( lightcam );
+	//	scene->GenerateProjectionMesh( lightcam, m_projectorVertices, m_projectorIndices, L->layers );
+		
+		float invZNearToZFar = safe_fdiv( 1.0f, L->range * 0.999f );
+		
+		SGRX_MeshInstLight* mil = L->_mibuf_begin, *milend = L->_mibuf_end;
+		while( mil < milend )
+		{
+			SGRX_MeshInstance* MI = mil->MI;
+			if( ( MI->layers & L->layers ) != 0 && MI->skin_matrices.size() == 0 )
+			{
+				SGRX_IMesh* M = MI->mesh;
+				if( M )
+				{
+					size_t vertoff = m_projectorVertices.size();
+					M->Clip( MI->matrix, L->viewProjMatrix, m_projectorVertices, true, invZNearToZFar );
+					SGRX_DoIndexTriangleMeshVertices( m_projectorIndices, m_projectorVertices, vertoff, 48 );
+				}
+			}
+			mil++;
+		}
 		
 		mp.vertexCount = m_projectorVertices.size() / stride - mp.vertexOffset;
 		mp.indexCount = m_projectorIndices.size() - mp.indexOffset;
@@ -152,8 +174,14 @@ void IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 	}
 	
 	// apply new data
-	m_projectorMesh->SetVertexData( m_projectorVertices.data(), m_projectorVertices.size_bytes(), m_projectorVertexDecl, false );
-	m_projectorMesh->SetIndexData( m_projectorIndices.data(), m_projectorIndices.size_bytes(), true );
-	m_projectorMesh->SetPartData( m_projectorMeshParts.data(), m_projectorMeshParts.size() );
+	bool apply = m_projectorVertices.size() && m_projectorIndices.size() && m_projectorMeshParts.size();
+	if( apply )
+	{
+		m_projectorMesh->SetVertexData( m_projectorVertices.data(), m_projectorVertices.size_bytes(), m_projectorVertexDecl, false );
+		m_projectorMesh->SetIndexData( m_projectorIndices.data(), m_projectorIndices.size_bytes(), true );
+		m_projectorMesh->SetPartData( m_projectorMeshParts.data(), m_projectorMeshParts.size() );
+	}
+	
+	return apply;
 }
 

@@ -979,7 +979,7 @@ template< typename T, typename T2 > void sa2_remove( T* arr, T2* arr2, int& coun
 	at--;
 }
 
-void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, SGRX_IVertexDecl* vdecl, bool decal, const void* v1, const void* v2, const void* v3 )
+void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, SGRX_IVertexDecl* vdecl, bool decal, float inv_zn2zf, const void* v1, const void* v2, const void* v3 )
 {
 	const void* verts[3] = { v1, v2, v3 };
 	Vec3 pos[3] = {0};
@@ -1042,8 +1042,8 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 	IMCCCT_CLIP_Pred( -prevpt.x - prevpt.w, -currpt.x - currpt.w ); // clip X < -W
 	IMCCCT_CLIP_Pred( prevpt.y - prevpt.w, currpt.y - currpt.w ); // clip Y > W
 	IMCCCT_CLIP_Pred( -prevpt.y - prevpt.w, -currpt.y - currpt.w ); // clip Y < -W
-//	IMCCCT_CLIP_Pred( prevpt.z - prevpt.w, currpt.z - currpt.w ); // clip Z > W
-//	IMCCCT_CLIP_Pred( -prevpt.z - prevpt.w, -currpt.z - currpt.w ); // clip Z < -W
+	IMCCCT_CLIP_Pred( prevpt.z - prevpt.w, currpt.z - currpt.w ); // clip Z > W
+	IMCCCT_CLIP_Pred( -prevpt.z - prevpt.w, -currpt.z - currpt.w ); // clip Z < -W
 	// LOG << "VCOUNT: " << pcount;
 	// for(int i = 0; i < pcount;++i) LOG << pts[i] << fcs[i];
 	if( pcount < 3 )
@@ -1056,14 +1056,14 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 	{
 		static const VDeclInfo decalvdi =
 		{
-			{ 0, 12, 24, 32, 0,0,0,0,0,0 },
-			{ VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT2, VDECLTYPE_FLOAT4, 0,0,0,0,0,0 },
+			{ 0, 12, 24, 36, 0,0,0,0,0,0 },
+			{ VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, 0,0,0,0,0,0 },
 			{ VDECLUSAGE_POSITION, VDECLUSAGE_NORMAL, VDECLUSAGE_TEXTURE0, VDECLUSAGE_TANGENT, 0,0,0,0,0,0 },
 			4, 48
 		};
 		VDI = &decalvdi;
 		
-		// pf3nf30f2tf4, 48 bytes
+		// pf3nf30f3tf3, 48 bytes
 		// positions and normals are extracted from source and moved to world space, texcoords are generated and tangents are nullified
 		
 		Vec3 nrm[3] = {0};
@@ -1077,9 +1077,12 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 		{
 			memcpy( decalvertbuf + i * 48 +  0, &pos[i], 12 );
 			memcpy( decalvertbuf + i * 48 + 12, &nrm[i], 12 );
-			*(float*)(decalvertbuf + i * 48 + 24) = safe_fdiv( tpos[i].x, tpos[i].w ) * 0.5f + 0.5f;
-			*(float*)(decalvertbuf + i * 48 + 28) = safe_fdiv( tpos[i].y, tpos[i].w ) * 0.5f + 0.5f;
-			*(Vec4*)(decalvertbuf + i * 48 + 32) = V4(0);
+		//	*(float*)(decalvertbuf + i * 48 + 24) = safe_fdiv( tpos[i].x, tpos[i].w ) * 0.5f + 0.5f;
+		//	*(float*)(decalvertbuf + i * 48 + 28) = safe_fdiv( tpos[i].y, tpos[i].w ) * 0.5f + 0.5f;
+		//	*(float*)(decalvertbuf + i * 48 + 32) = safe_fdiv( tpos[i].y, tpos[i].w ) * 0.5f + 0.5f;
+		//	*(Vec4*)(decalvertbuf + i * 48 + 32) = V4(0);
+			*(Vec3*)(decalvertbuf + i * 48 + 24) = V3(0);
+			*(Vec3*)(decalvertbuf + i * 48 + 36) = V3(0);
 		}
 		
 		v1 = decalvertbuf+0;
@@ -1092,6 +1095,16 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 	memset( vbuf, 0, sizeof(vbuf) );
 	int stride = VDI->size;
 	VD_LerpTri( *VDI, pcount, vbuf, fcs, v1, v2, v3 );
+	if( decal )
+	{
+		for( int i = 0; i < pcount; ++i )
+		{
+			Vec4 vtp = vpmtx.Transform( V4( *(Vec3*)(vbuf + i * 48), 1.0f ) );
+			*(float*)(vbuf + i * 48 + 24) = safe_fdiv( vtp.x, vtp.w ) * 0.5f + 0.5f;
+			*(float*)(vbuf + i * 48 + 28) = safe_fdiv( vtp.y, vtp.w ) * 0.5f + 0.5f;
+			*(float*)(vbuf + i * 48 + 32) = vtp.z * inv_zn2zf;
+		}
+	}
 	for( int i = 1; i < pcount - 1; ++i )
 	{
 		outverts.append( vbuf, stride );
@@ -1099,7 +1112,7 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 	}
 }
 
-template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, const Mat4& vpmtx, bool decal, ByteArray& outverts )
+template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, const Mat4& vpmtx, bool decal, float inv_zn2zf, ByteArray& outverts )
 {
 	size_t stride = mesh->m_vertexDecl.GetInfo().size;
 	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
@@ -1110,7 +1123,7 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
@@ -1126,7 +1139,7 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
 			{
 				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i1 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i2 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i3 ] ) * stride ]
@@ -1136,15 +1149,15 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 	}
 }
 
-void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, bool decal, ByteArray& outverts )
+void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, bool decal, float inv_zn2zf )
 {
 	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
 	{
-		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, outverts );
+		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts );
 	}
 	else
 	{
-		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, vpmtx, decal, outverts );
+		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts );
 	}
 }
 
@@ -1311,19 +1324,20 @@ uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& 
 
 void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices, size_t offset, size_t stride )
 {
+#if 0
 	while( offset < vertices.size() )
 	{
 		indices.push_back( offset / stride );
 		offset += stride;
 	}
 	return;
-	
+#endif
 	// <= 1 tri
 	if( vertices.size() <= offset + stride * 3 )
 		return;
 	
 	uint8_t trivertdata[ 256 * 3 ];
-	size_t end = ( ( vertices.size() - offset ) / (stride*3) ) * stride * 3;
+	size_t end = ( ( vertices.size() - offset ) / (stride*3) ) * stride * 3 + offset;
 	size_t writeoffset = offset;
 	size_t readoffset = offset;
 	while( readoffset < end )
@@ -1345,6 +1359,11 @@ void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices
 	vertices.resize( writeoffset );
 }
 
+SGRX_ProjectionMeshProcessor::SGRX_ProjectionMeshProcessor( ByteArray* verts, UInt32Array* indices, const Mat4& mtx, float zn2zf ) :
+	outVertices( verts ), outIndices( indices ), viewProjMatrix( mtx ), invZNearToZFar( safe_fdiv( 1.0f, zn2zf ) )
+{
+}
+
 void SGRX_ProjectionMeshProcessor::Process( void* data )
 {
 	SGRX_CAST( SGRX_MeshInstance*, MI, data );
@@ -1353,7 +1372,7 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 	if( M )
 	{
 		size_t vertoff = outVertices->size();
-		M->Clip( MI->matrix, viewProjMatrix, true, *outVertices );
+		M->Clip( MI->matrix, viewProjMatrix, *outVertices, true, invZNearToZFar );
 		SGRX_DoIndexTriangleMeshVertices( *outIndices, *outVertices, vertoff, 48 );
 	}
 }
@@ -1415,7 +1434,7 @@ void SGRX_Scene::GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc,
 
 void SGRX_Scene::GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outverts, UInt32Array& outindices, uint32_t layers )
 {
-	SGRX_ProjectionMeshProcessor pmp( &outverts, &outindices, cam.mView * cam.mProj );
+	SGRX_ProjectionMeshProcessor pmp( &outverts, &outindices, cam.mView * cam.mProj, cam.zfar - cam.znear );
 	GatherMeshes( cam, &pmp, layers );
 }
 

@@ -214,7 +214,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	// projector interface
 	bool _RS_ProjectorInit();
 	void _RS_ProjectorFree();
-	void _RS_UpdateProjectorMesh( SGRX_Scene* scene );
+	bool _RS_UpdateProjectorMesh( SGRX_Scene* scene );
 	
 	// projector data
 	ByteArray m_projectorVertices;
