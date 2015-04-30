@@ -784,9 +784,9 @@ struct SGRX_SceneTree
 		XFItemHandle item;
 	};
 	
-	size_t _NormalizeIndex( size_t id ){ return id < nodes.size() : id : NOT_FOUND; }
+	size_t _NormalizeIndex( size_t id ){ return id < nodes.size() ? id : NOT_FOUND; }
 	Node* FindNodeByName( const StringView& name ){ size_t id = FindNodeIDByName( name ); return id < nodes.size() ? &nodes[ id ] : NULL; }
-	Node* FindNodeByPath( const StringView& path ){ size_t id = FindNodeIDByPath( name ); return id < nodes.size() ? &nodes[ id ] : NULL; }
+	Node* FindNodeByPath( const StringView& path ){ size_t id = FindNodeIDByPath( path ); return id < nodes.size() ? &nodes[ id ] : NULL; }
 	ENGINE_EXPORT size_t FindNodeIDByName( const StringView& name );
 	ENGINE_EXPORT size_t FindNodeIDByPath( const StringView& path );
 	ENGINE_EXPORT void UpdateTransforms();
