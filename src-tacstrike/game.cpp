@@ -262,7 +262,7 @@ struct TmpPlayer : Entity
 		Vec3 camdir = V3(0,-3,-3);// V3(0,0,-8);
 		g_GameLevel->m_scene->camera.position = POS - camdir;
 		g_GameLevel->m_scene->camera.direction = camdir.Normalized();
-		g_GameLevel->m_scene->camera.up = V3(0,-1,0);
+		g_GameLevel->m_scene->camera.updir = V3(0,-1,0);
 		g_GameLevel->m_scene->camera.aspect = 1024.0f / 576.0f;
 		g_GameLevel->m_scene->camera.angle = 90; // 30;
 		g_GameLevel->m_scene->camera.UpdateMatrices();
@@ -464,7 +464,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mylight1->cookieTexture = GR_GetTexture( "textures/cookies/default.png" );
 		mylight1->shadowTexture = GR_CreateRenderTexture( 128, 128, RT_FORMAT_DEPTH );
 		mylight1->hasShadows = true;
-		mylight1->RecalcMatrices();
+		mylight1->UpdateTransform();
 		
 		mytable = new TmpTable( V3(2,2,7), Quat::CreateAxisAngle( V3(1,0,0), 1.5f) );
 	}

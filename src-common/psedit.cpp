@@ -984,7 +984,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 		
 		float c_hangle = cos( hangle ), s_hangle = sin( hangle ), c_vangle = cos( vangle ), s_vangle = sin( vangle );
 		Vec3 dir = { c_hangle * c_vangle, s_hangle * c_vangle, s_vangle };
-		Vec3 up = g_EdScene->camera.up;
+		Vec3 up = g_EdScene->camera.updir;
 		Vec3 rgt = Vec3Cross( dir, up ).Normalized();
 		g_EdScene->camera.direction = dir;
 		g_EdScene->camera.position += ( dir * ( movefwd - movebwd ) + rgt * ( movergt - movelft ) + up * ( moveup - movedn ) ) * speed;

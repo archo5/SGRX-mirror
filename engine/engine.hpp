@@ -27,6 +27,28 @@ struct IF_GCC(ENGINE_EXPORT) IProcessor
 	ENGINE_EXPORT virtual void Process( void* data ) = 0;
 };
 
+struct SGRX_RefCounted
+{
+	SGRX_RefCounted() : m_refcount(0){}
+	virtual ~SGRX_RefCounted(){}
+	
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	int32_t m_refcount;
+};
+
+struct SGRX_RCRsrc : SGRX_RefCounted
+{
+	String m_key; // [storage for] hash table key
+};
+
+struct SGRX_RCXFItem : SGRX_RefCounted
+{
+	virtual void SetTransform( const Mat4& mtx ) = 0;
+};
+
+typedef Handle< SGRX_RCXFItem > XFItemHandle;
+
 
 struct Command
 {
@@ -276,18 +298,13 @@ struct TextureInfo
 	int mipcount;
 };
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_ITexture
+struct IF_GCC(ENGINE_EXPORT) SGRX_ITexture : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT virtual ~SGRX_ITexture();
 	ENGINE_EXPORT virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 	
 	TextureInfo m_info;
 	bool m_isRenderTexture;
-	int32_t m_refcount;
-	String m_key;
 };
 
 struct TextureHandle : Handle< SGRX_ITexture >
@@ -300,15 +317,9 @@ struct TextureHandle : Handle< SGRX_ITexture >
 	ENGINE_EXPORT bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexShader
+struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexShader : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT virtual ~SGRX_IVertexShader();
-	
-	int32_t m_refcount;
-	String m_key;
 };
 
 struct VertexShaderHandle : Handle< SGRX_IVertexShader >
@@ -318,15 +329,9 @@ struct VertexShaderHandle : Handle< SGRX_IVertexShader >
 	VertexShaderHandle( SGRX_IVertexShader* shdr ) : Handle( shdr ){}
 };
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_IPixelShader
+struct IF_GCC(ENGINE_EXPORT) SGRX_IPixelShader : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT virtual ~SGRX_IPixelShader();
-	
-	int32_t m_refcount;
-	String m_key;
 };
 
 struct PixelShaderHandle : Handle< SGRX_IPixelShader >
@@ -387,16 +392,11 @@ struct VDeclInfo
 
 #define SGRX_VDECL_DECAL "pf3nf30f3tf3"
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl
+struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT virtual ~SGRX_IVertexDecl();
 	
 	VDeclInfo m_info;
-	int32_t m_refcount;
-	String m_text;
 };
 
 struct VertexDeclHandle : Handle< SGRX_IVertexDecl >
@@ -408,10 +408,8 @@ struct VertexDeclHandle : Handle< SGRX_IVertexDecl >
 	ENGINE_EXPORT const VDeclInfo& GetInfo();
 };
 
-struct SGRX_SurfaceShader
+struct SGRX_SurfaceShader : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	ENGINE_EXPORT ~SGRX_SurfaceShader();
 	
 	ENGINE_EXPORT void ReloadShaders();
@@ -419,9 +417,6 @@ struct SGRX_SurfaceShader
 	Array< VertexShaderHandle > m_basicVertexShaders;
 	Array< VertexShaderHandle > m_skinVertexShaders;
 	Array< PixelShaderHandle > m_pixelShaders;
-	
-	int32_t m_refcount;
-	String m_key;
 };
 
 struct SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
@@ -432,10 +427,8 @@ struct SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
 };
 
 #define NUM_MATERIAL_TEXTURES 8
-struct SGRX_Material
+struct SGRX_Material : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	ENGINE_EXPORT SGRX_Material();
 	ENGINE_EXPORT ~SGRX_Material();
 	
@@ -445,9 +438,6 @@ struct SGRX_Material
 	uint32_t transparent : 1;
 	uint32_t unlit : 1;
 	uint32_t additive : 1;
-	
-	int32_t m_refcount;
-	String m_key;
 };
 
 struct MaterialHandle : Handle< SGRX_Material >
@@ -497,11 +487,8 @@ struct SGRX_MeshBone
 	int parent_id;
 };
 
-struct SGRX_IMesh
+struct SGRX_IMesh : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT SGRX_IMesh();
 	ENGINE_EXPORT virtual ~SGRX_IMesh();
 	
@@ -544,9 +531,6 @@ struct SGRX_IMesh
 	/* vertex/index data */
 	ByteArray m_vdata;
 	ByteArray m_idata;
-	
-	String m_key;
-	int32_t m_refcount;
 };
 
 struct MeshHandle : Handle< SGRX_IMesh >
@@ -566,18 +550,17 @@ struct SGRX_MeshInstLight
 #define LIGHT_SPOT   2
 #define LIGHT_PROJ   3
 
-struct SGRX_Light
+struct SGRX_Light : SGRX_RCXFItem
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT SGRX_Light( SGRX_Scene* s );
-	ENGINE_EXPORT ~SGRX_Light();
-	ENGINE_EXPORT void RecalcMatrices();
+	ENGINE_EXPORT virtual ~SGRX_Light();
+	ENGINE_EXPORT void UpdateTransform();
 	ENGINE_EXPORT void GenerateCamera( struct SGRX_Camera& outcam );
+	ENGINE_EXPORT virtual void SetTransform( const Mat4& mtx );
 	
 	SGRX_Scene* _scene;
 	
+	// inputs
 	int type;
 	bool enabled;
 	Vec3 position;
@@ -590,19 +573,24 @@ struct SGRX_Light
 	float aspect;
 	TextureHandle cookieTexture;
 	TextureHandle shadowTexture;
-	Mat4 viewMatrix;
-	Mat4 projMatrix;
-	Mat4 viewProjMatrix;
 	bool hasShadows;
 	uint32_t layers;
 	PixelShaderHandle projectionShader;
 	TextureHandle projectionTextures[ NUM_MATERIAL_TEXTURES ];
+	Mat4 matrix;
+	
+	// cache
+	Vec3 _tf_position;
+	Vec3 _tf_direction;
+	Vec3 _tf_updir;
+	float _tf_range;
+	Mat4 viewMatrix;
+	Mat4 projMatrix;
+	Mat4 viewProjMatrix;
 	
 	/* frame cache */
 	SGRX_MeshInstLight* _mibuf_begin;
 	SGRX_MeshInstLight* _mibuf_end;
-	
-	int32_t _refcount;
 };
 
 struct LightHandle : Handle< SGRX_Light >
@@ -618,7 +606,7 @@ struct SGRX_CullSceneFrustum
 {
 	Vec3 position;
 	Vec3 direction;
-	Vec3 up;
+	Vec3 updir;
 	float hangle;
 	float vangle;
 	float znear;
@@ -665,13 +653,11 @@ struct SGRX_DefaultCullScene : SGRX_CullScene
 };
 
 
-struct SGRX_MeshInstance
+struct SGRX_MeshInstance : SGRX_RCXFItem
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT SGRX_MeshInstance( SGRX_Scene* s );
-	ENGINE_EXPORT ~SGRX_MeshInstance();
+	ENGINE_EXPORT virtual ~SGRX_MeshInstance();
+	ENGINE_EXPORT virtual void SetTransform( const Mat4& mtx );
 	
 	SGRX_Scene* _scene;
 	
@@ -694,8 +680,6 @@ struct SGRX_MeshInstance
 	/* frame cache */
 	SGRX_MeshInstLight* _lightbuf_begin;
 	SGRX_MeshInstLight* _lightbuf_end;
-	
-	int32_t _refcount;
 };
 
 struct MeshInstHandle : Handle< SGRX_MeshInstance >
@@ -717,7 +701,7 @@ struct SGRX_Camera
 	
 	Vec3 position;
 	Vec3 direction;
-	Vec3 up;
+	Vec3 updir;
 	float angle;
 	float aspect;
 	float aamix;
@@ -749,17 +733,12 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ProjectionMeshProcessor : IProcessor
 	ENGINE_EXPORT virtual void Process( void* data );
 };
 
-struct SGRX_Scene
+struct SGRX_Scene : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
 	ENGINE_EXPORT SGRX_Scene();
-	ENGINE_EXPORT ~SGRX_Scene();
+	ENGINE_EXPORT virtual ~SGRX_Scene();
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
-//	ENGINE_EXPORT bool RemoveMeshInstance( MeshInstHandle mih );
 	ENGINE_EXPORT LightHandle CreateLight();
-//	ENGINE_EXPORT bool RemoveLight( LightHandle lh );
 	
 	ENGINE_EXPORT void GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc, uint32_t layers = 0xffffffff );
 	ENGINE_EXPORT void GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outverts, UInt32Array& outindices, uint32_t layers = 0xffffffff );
@@ -782,8 +761,6 @@ struct SGRX_Scene
 	Vec3 dirLightDir;
 	
 	TextureHandle skyTexture;
-	
-	int32_t m_refcount;
 };
 
 struct SceneHandle : Handle< SGRX_Scene >
@@ -791,6 +768,32 @@ struct SceneHandle : Handle< SGRX_Scene >
 	SceneHandle() : Handle(){}
 	SceneHandle( const SceneHandle& h ) : Handle( h ){}
 	SceneHandle( struct SGRX_Scene* sc ) : Handle( sc ){}
+};
+
+struct SGRX_SceneTree
+{
+	struct Node
+	{
+		size_t parent_id;
+		String name;
+		Mat4 transform;
+	};
+	struct Item
+	{
+		size_t node_id;
+		XFItemHandle item;
+	};
+	
+	size_t _NormalizeIndex( size_t id ){ return id < nodes.size() : id : NOT_FOUND; }
+	Node* FindNodeByName( const StringView& name ){ size_t id = FindNodeIDByName( name ); return id < nodes.size() ? &nodes[ id ] : NULL; }
+	Node* FindNodeByPath( const StringView& path ){ size_t id = FindNodeIDByPath( name ); return id < nodes.size() ? &nodes[ id ] : NULL; }
+	ENGINE_EXPORT size_t FindNodeIDByName( const StringView& name );
+	ENGINE_EXPORT size_t FindNodeIDByPath( const StringView& path );
+	ENGINE_EXPORT void UpdateTransforms();
+	
+	Array< Node > nodes;
+	Array< Mat4 > transforms;
+	Array< Item > items;
 };
 
 struct LightTree

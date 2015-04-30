@@ -743,7 +743,7 @@ SGRX_IPixelShader::~SGRX_IPixelShader()
 
 SGRX_IVertexDecl::~SGRX_IVertexDecl()
 {
-	g_VertexDecls->unset( m_text );
+	g_VertexDecls->unset( m_key );
 }
 
 const VDeclInfo& VertexDeclHandle::GetInfo()
@@ -795,8 +795,7 @@ void SGRX_SurfaceShader::ReloadShaders()
 
 
 SGRX_Material::SGRX_Material() :
-	transparent(0), unlit(0), additive(0),
-	m_refcount(0)
+	transparent(0), unlit(0), additive(0)
 {
 }
 
@@ -814,8 +813,7 @@ SGRX_IMesh::SGRX_IMesh() :
 	m_indexDataSize( 0 ),
 	m_numBones( 0 ),
 	m_boundsMin( Vec3::Create( 0 ) ),
-	m_boundsMax( Vec3::Create( 0 ) ),
-	m_refcount( 0 )
+	m_boundsMax( Vec3::Create( 0 ) )
 {
 }
 
@@ -1167,7 +1165,7 @@ SGRX_Log& operator << ( SGRX_Log& L, const SGRX_Camera& cam )
 	L << "CAMERA:";
 	L << "\n    position = " << cam.position;
 	L << "\n    direction = " << cam.direction;
-	L << "\n    up = " << cam.up;
+	L << "\n    updir = " << cam.updir;
 	L << "\n    angle = " << cam.angle;
 	L << "\n    aspect = " << cam.aspect;
 	L << "\n    aamix = " << cam.aamix;
@@ -1181,7 +1179,7 @@ SGRX_Log& operator << ( SGRX_Log& L, const SGRX_Camera& cam )
 
 void SGRX_Camera::UpdateViewMatrix()
 {
-	mView.LookAt( position, direction, up );
+	mView.LookAt( position, direction, updir );
 	mView.InvertTo( mInvView );
 }
 
@@ -1239,11 +1237,15 @@ SGRX_Light::SGRX_Light( SGRX_Scene* s ) :
 	aspect( 1 ),
 	hasShadows( false ),
 	layers( 0x1 ),
+	matrix( Mat4::Identity ),
+	_tf_position( Vec3::Create( 0 ) ),
+	_tf_direction( Vec3::Create( 0, 1, 0 ) ),
+	_tf_updir( Vec3::Create( 0, 0, 1 ) ),
+	_tf_range( 100 ),
 	_mibuf_begin( NULL ),
-	_mibuf_end( NULL ),
-	_refcount( 0 )
+	_mibuf_end( NULL )
 {
-	RecalcMatrices();
+	UpdateTransform();
 }
 
 SGRX_Light::~SGRX_Light()
@@ -1254,24 +1256,33 @@ SGRX_Light::~SGRX_Light()
 	}
 }
 
-void SGRX_Light::RecalcMatrices()
+void SGRX_Light::UpdateTransform()
 {
-	viewMatrix = Mat4::CreateLookAt( position, direction, updir );
-	projMatrix = Mat4::CreatePerspective( angle, aspect, 0.5, range * 0.001f, range );
+	_tf_position = matrix.TransformPos( position );
+	_tf_direction = matrix.TransformNormal( direction );
+	_tf_updir = matrix.TransformNormal( updir );
+	_tf_range = matrix.TransformNormal( V3( sqrtf( range * range / 3 ) ) ).Length();
+	viewMatrix = Mat4::CreateLookAt( _tf_position, _tf_direction, _tf_updir );
+	projMatrix = Mat4::CreatePerspective( angle, aspect, 0.5, _tf_range * 0.001f, _tf_range );
 	viewProjMatrix.Multiply( viewMatrix, projMatrix );
 }
 
 void SGRX_Light::GenerateCamera( SGRX_Camera& outcam )
 {
-	outcam.position = position;
-	outcam.direction = direction;
-	outcam.up = updir;
+	outcam.position = _tf_position;
+	outcam.direction = _tf_direction;
+	outcam.updir = _tf_updir;
 	outcam.angle = angle;
 	outcam.aspect = aspect;
 	outcam.aamix = 0.5f;
-	outcam.znear = range * 0.001f;
-	outcam.zfar = range;
+	outcam.znear = _tf_range * 0.001f;
+	outcam.zfar = _tf_range;
 	outcam.UpdateMatrices();
+}
+
+void SGRX_Light::SetTransform( const Mat4& mtx )
+{
+	matrix = mtx;
 }
 
 
@@ -1291,8 +1302,7 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	unlit( false ),
 //	additive( false ),
 	_lightbuf_begin( NULL ),
-	_lightbuf_end( NULL ),
-	_refcount( 0 )
+	_lightbuf_end( NULL )
 {
 	matrix.SetIdentity();
 	for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
@@ -1305,6 +1315,11 @@ SGRX_MeshInstance::~SGRX_MeshInstance()
 	{
 		_scene->m_meshInstances.unset( this );
 	}
+}
+
+void SGRX_MeshInstance::SetTransform( const Mat4& mtx )
+{
+	matrix = mtx;
 }
 
 
@@ -1388,12 +1403,11 @@ SGRX_Scene::SGRX_Scene() :
 	fogMinDist( 0 ),
 	ambientLightColor( Vec3::Create( 0.1f ) ),
 	dirLightColor( Vec3::Create( 0.8f ) ),
-	dirLightDir( Vec3::Create( -1 ).Normalized() ),
-	m_refcount( 0 )
+	dirLightDir( Vec3::Create( -1 ).Normalized() )
 {
 	camera.position = Vec3::Create( 10, 10, 10 );
 	camera.direction = -camera.position.Normalized();
-	camera.up = Vec3::Create( 0, 0, 1 );
+	camera.updir = Vec3::Create( 0, 0, 1 );
 	camera.angle = 90;
 	camera.aspect = 1;
 	camera.aamix = 0.5f;
@@ -1436,6 +1450,51 @@ void SGRX_Scene::GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outv
 {
 	SGRX_ProjectionMeshProcessor pmp( &outverts, &outindices, cam.mView * cam.mProj, cam.zfar - cam.znear );
 	GatherMeshes( cam, &pmp, layers );
+}
+
+
+size_t SGRX_SceneTree::FindNodeIDByName( const StringView& name )
+{
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		const Node& N = nodes[ i ];
+		if( N.name == name )
+			return i;
+	}
+	return NOT_FOUND;
+}
+
+size_t SGRX_SceneTree::FindNodeIDByPath( const StringView& path )
+{
+	StringView it;
+	bool rooted = it.ch() == '/';
+	it.skip( 1 );
+	
+	size_t pos = 0;
+	while( it )
+	{
+		StringView curr = it.until( "/" );
+		it.skip( curr.size() + 1 );
+	}
+	return _NormalizeIndex( 0 );
+}
+
+void SGRX_SceneTree::UpdateTransforms()
+{
+	transforms.resize( nodes.size() );
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		const Node& N = nodes[ i ];
+		if( N.parent_id < i )
+			transforms[ i ] = N.transform * transforms[ N.parent_id ];
+		else
+			transforms[ i ] = N.transform;
+	}
+	for( size_t i = 0; i < items.size(); ++i )
+	{
+		Item& I = items[ i ];
+		I.item->SetTransform( I.node_id < nodes.size() ? transforms[ I.node_id ] : Mat4::Identity );
+	}
 }
 
 
@@ -2085,9 +2144,9 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 		return NULL;
 	}
 	
-	VD->m_text = vdecl;
+	VD->m_key = vdecl;
 	VD->m_refcount = 0;
-	g_VertexDecls->set( VD->m_text, VD );
+	g_VertexDecls->set( VD->m_key, VD );
 	
 	LOG << "Created vertex declaration: " << vdecl;
 	return VD;

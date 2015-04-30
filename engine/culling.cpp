@@ -27,7 +27,7 @@ static void get_frustum_from_camera( const SGRX_Camera* CAM, SGRX_CullSceneCamer
 {
 	out->frustum.position = CAM->position;
 	out->frustum.direction = CAM->direction;
-	out->frustum.up = CAM->up;
+	out->frustum.updir = CAM->updir;
 	SGRX_PerspectiveAngles( CAM->angle, CAM->aspect, CAM->aamix, &out->frustum.hangle, &out->frustum.vangle );
 	out->frustum.znear = CAM->znear;
 	out->frustum.zfar = CAM->zfar;
@@ -38,12 +38,12 @@ static void get_frustum_from_camera( const SGRX_Camera* CAM, SGRX_CullSceneCamer
 
 static void get_frustum_from_light( const SGRX_Light* L, SGRX_CullSceneCamera* out )
 {
-	out->frustum.position = L->position;
-	out->frustum.direction = L->direction;
-	out->frustum.up = L->updir;
+	out->frustum.position = L->_tf_position;
+	out->frustum.direction = L->_tf_direction;
+	out->frustum.updir = L->_tf_updir;
 	SGRX_PerspectiveAngles( L->angle, L->aspect, 0.5, &out->frustum.hangle, &out->frustum.vangle );
-	out->frustum.znear = L->range * 0.001f;
-	out->frustum.zfar = L->range;
+	out->frustum.znear = L->_tf_range * 0.001f;
+	out->frustum.zfar = L->_tf_range;
 	out->viewProjMatrix = L->viewProjMatrix;
 	out->invViewProjMatrix.SetIdentity();
 	out->viewProjMatrix.InvertTo( out->invViewProjMatrix );
@@ -161,8 +161,8 @@ uint32_t SGRX_Cull_Camera_PointLightList( Array< SGRX_Light* >& LIBuf, ByteArray
 			continue;
 		
 		light_instances[ data_size ] = L;
-		light_bounds[ data_size ].position = L->position;
-		light_bounds[ data_size ].radius = L->range;
+		light_bounds[ data_size ].position = L->_tf_position;
+		light_bounds[ data_size ].radius = L->_tf_range;
 		data_size++;
 	}
 	

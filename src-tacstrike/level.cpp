@@ -1114,7 +1114,7 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	{
 		m_scene->camera.position = m_levelCameraInfo[0];
 		m_scene->camera.direction = m_levelCameraInfo[1];
-		m_scene->camera.up = V3(0,0,1);
+		m_scene->camera.updir = V3(0,0,1);
 		m_scene->camera.aspect = GR_GetWidth() / (float) GR_GetHeight();
 		m_scene->camera.UpdateMatrices();
 	}

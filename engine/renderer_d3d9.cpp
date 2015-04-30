@@ -1879,10 +1879,10 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 							found = 1;
 							
 							// copy data
-							Vec3 viewpos = CAM.mView.TransformPos( light->position );
+							Vec3 viewpos = CAM.mView.TransformPos( light->_tf_position );
 							Vec4 newdata[2] =
 							{
-								{ viewpos.x, viewpos.y, viewpos.z, light->range },
+								{ viewpos.x, viewpos.y, viewpos.z, light->_tf_range },
 								{ light->color.x, light->color.y, light->color.z, light->power }
 							};
 							memcpy( pldata_it, newdata, sizeof(Vec4)*2 );
@@ -1918,8 +1918,8 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 							found = 1;
 							
 							// copy data
-							Vec3 viewpos = CAM.mView.TransformPos( light->position );
-							Vec3 viewdir = CAM.mView.TransformPos( light->direction ).Normalized();
+							Vec3 viewpos = CAM.mView.TransformPos( light->_tf_position );
+							Vec3 viewdir = CAM.mView.TransformPos( light->_tf_direction ).Normalized();
 							float tszx = 1, tszy = 1;
 							if( light->shadowTexture )
 							{
@@ -1929,7 +1929,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 							}
 							Vec4 newdata[4] =
 							{
-								{ viewpos.x, viewpos.y, viewpos.z, light->range },
+								{ viewpos.x, viewpos.y, viewpos.z, light->_tf_range },
 								{ light->color.x, light->color.y, light->color.z, light->power },
 								{ viewdir.x, viewdir.y, viewdir.z, DEG2RAD( light->angle ) },
 								{ tszx, tszy, 1.0f / tszx, 1.0f / tszy },

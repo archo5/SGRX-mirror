@@ -159,7 +159,7 @@ struct GameLevel
 		
 		m_scene->camera.position = m_shipPos;
 		m_scene->camera.direction = ( V3(0,m_shipPos.y + 100,0) - m_shipPos ).Normalized();
-		m_scene->camera.up = V3(0,0,1);
+		m_scene->camera.updir = V3(0,0,1);
 		m_scene->camera.aspect = GR_GetWidth() / (float) GR_GetHeight();
 		m_scene->camera.UpdateMatrices();
 	}

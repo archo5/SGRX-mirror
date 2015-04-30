@@ -24,5 +24,16 @@ set_target_properties( psedit PROPERTIES
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
+
+# Cutscene editor
+add_library( csedit SHARED csedit )
+target_link_libraries( csedit sgrx-core )
+set_target_properties( csedit PROPERTIES
+	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
+	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/engine"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "${CORE_FLAGS}"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
 endif()
 

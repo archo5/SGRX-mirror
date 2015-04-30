@@ -1486,7 +1486,7 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VB->m_VSBC.data(), SHD_VB->m_VSBC.size(), &m_inputLayouts[i].basic );
 			if( FAILED( hr ) || !m_inputLayouts[i].basic )
 			{
-				LOG_ERROR << "Failed to create an input layout (basic, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VB->m_key << ", v.d.key=" << VD->m_text << ")";
+				LOG_ERROR << "Failed to create an input layout (basic, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VB->m_key << ", v.d.key=" << VD->m_key << ")";
 			}
 		}
 		
@@ -1495,7 +1495,7 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VS->m_VSBC.data(), SHD_VS->m_VSBC.size(), &m_inputLayouts[i].skin );
 			if( FAILED( hr ) || !m_inputLayouts[i].skin )
 			{
-				LOG_ERROR << "Failed to create an input layout (skinned, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VS->m_key << ", v.d.key=" << VD->m_text << ")";
+				LOG_ERROR << "Failed to create an input layout (skinned, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VS->m_key << ", v.d.key=" << VD->m_key << ")";
 			}
 		}
 	}

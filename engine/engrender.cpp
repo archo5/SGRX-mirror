@@ -137,7 +137,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 		if( L->type != LIGHT_PROJ || !L->projectionShader )
 			continue;
 		
-		L->RecalcMatrices();
+		L->UpdateTransform();
 		
 		SGRX_MeshPart mp = { m_projectorVertices.size() / stride, 0, m_projectorIndices.size(), 0 };
 		
