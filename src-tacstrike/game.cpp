@@ -6,7 +6,7 @@
 #define USE_QUAT
 #define USE_MAT4
 #define USE_ARRAY
-#include "game.hpp"
+#include "level.hpp"
 
 
 GameLevel* g_GameLevel = NULL;
@@ -22,6 +22,7 @@ Command SHOOT( "shoot" );
 Command RELOAD( "reload" );
 Command SLOW_WALK( "slow_walk" );
 Command SPRINT( "sprint" );
+Command CROUCH( "crouch" );
 Command SHOW_OBJECTIVES( "show_objectives" );
 
 
@@ -427,12 +428,13 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		g_GameLevel->Load( "test" );
 		
+		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
 		GR_LoadAnims( "meshes/tstest.ssm.anm" );
 		myanim = GR_GetAnim( "run" );
 	//	myanim = GR_GetAnim( "my_jiggle" );
 		
-		myplayer = new TmpPlayer;
+	//	myplayer = new TmpPlayer;
 		PS = new ParticleSystem;
 		PS->emitters.push_back( ParticleSystem::Emitter() );
 		ParticleSystem::Emitter& E = PS->emitters[0];
@@ -467,6 +469,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mylight1->UpdateTransform();
 		
 		mytable = new TmpTable( V3(2,2,7), Quat::CreateAxisAngle( V3(1,0,0), 1.5f) );
+		
+		g_GameLevel->StartLevel();
 	}
 	void OnDestroy()
 	{
@@ -476,8 +480,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mylight1 = NULL;
 		delete PS;
 		PS = NULL;
-		delete myplayer;
-		myplayer = NULL;
+	//	delete myplayer;
+	//	myplayer = NULL;
 		delete g_GameLevel;
 		g_GameLevel = NULL;
 		
@@ -490,8 +494,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_PhyWorld->Step( dt );
 		g_GameLevel->FixedTick( dt );
 		
+	//	myplayer->FixedTick( dt );
 		mytable->FixedTick( dt );
-		myplayer->FixedTick( dt );
 	}
 	void Game_Tick( float dt, float bf )
 	{
@@ -502,7 +506,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		//
 		PS->Tick( dt );
 		PS->PreRender();
-		myplayer->Tick( dt, bf );
+	//	myplayer->Tick( dt, bf );
 		mytable->Tick( dt, bf );
 	}
 	void Game_Render()
@@ -590,7 +594,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//		}
 	//	}
 	//	br.Flush();
-		myplayer->DebugDraw();
+//		myplayer->DebugDraw();
 	}
 	void DrawTick( const Mat4& mtx )
 	{
@@ -606,7 +610,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	
 	AnimHandle myanim;
 	LightHandle mylight1;
-	TmpPlayer* myplayer;
+//	TmpPlayer* myplayer;
 	TmpTable* mytable;
 	ParticleSystem* PS;
 }

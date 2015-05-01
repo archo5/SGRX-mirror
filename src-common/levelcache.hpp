@@ -61,6 +61,7 @@ struct LC_Light
 		arch << spotcurve;
 	}
 };
+typedef Array< LC_Light > LCLightArray;
 
 struct LC_ScriptedEntity
 {

@@ -7,7 +7,7 @@
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
-#include "game.hpp"
+#include "level.hpp"
 
 
 #define MAX_HEALTH 1000
@@ -156,7 +156,7 @@ int Weapon::Tick( float deltaTime, Vec2 pos, Vec2 dir, float speed )
 }
 
 
-
+#if 0
 Character::Character( bool isplayer, Vec2 pos, float angle, const StringView& sprite ) :
 	m_is_player( isplayer ),
 	m_weapon( NULL ),
@@ -403,5 +403,6 @@ bool Player::HasItem( const StringView& item, int count )
 	int* ic = m_items.getptr( item );
 	return ic && *ic >= count;
 }
+#endif
 
 

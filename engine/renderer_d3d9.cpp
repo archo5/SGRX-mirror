@@ -1791,12 +1791,13 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 	VS_SetMat4( 8, Mat4::Identity );
 	
 	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
+	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, FALSE );
+	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( -1e-5f ) );
 	m_dev->SetVertexDeclaration( VD->m_vdecl );
 	m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
 	m_dev->SetIndices( M->m_IB );
-	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, FALSE );
-	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( -1e-5f ) );
 	SetVertexShader( m_sh_proj_vs );
 	
 	for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )

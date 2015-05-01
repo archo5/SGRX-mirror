@@ -1149,6 +1149,9 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 
 void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, bool decal, float inv_zn2zf )
 {
+	if( m_vdata.size() == 0 || m_idata.size() == 0 )
+		return;
+	
 	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
 	{
 		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts );

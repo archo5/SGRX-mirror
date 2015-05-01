@@ -5,42 +5,8 @@
 #include <sound.hpp>
 #include <physics.hpp>
 #include <script.hpp>
+#include "systems.hpp"
 
-#include "levelcache.hpp"
-
-
-extern struct GameLevel* g_GameLevel;
-extern PhyWorldHandle g_PhyWorld;
-extern SoundSystemHandle g_SoundSys;
-
-
-extern Command MOVE_LEFT;
-extern Command MOVE_RIGHT;
-extern Command MOVE_UP;
-extern Command MOVE_DOWN;
-extern Command SHOOT;
-extern Command RELOAD;
-extern Command SLOW_WALK;
-extern Command SPRINT;
-extern Command SHOW_OBJECTIVES;
-
-
-void Game_SetPaused( bool paused );
-bool Game_IsPaused();
-
-
-struct Entity
-{
-	const char* m_typeName;
-	String m_name;
-	String m_viewName;
-	
-	Entity();
-	virtual ~Entity();
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
-	virtual void OnEvent( const StringView& type ){}
-};
 
 struct Trigger : Entity
 {
@@ -151,124 +117,7 @@ struct ParticleFX : Entity
 };
 
 
-#define IEST_InteractiveItem 0x0001
-#define IEST_HeatSource      0x0002
-#define IEST_Player          0x0004
 
-struct InfoEmissionSystem
-{
-	struct Data
-	{
-		Vec3 pos;
-		float radius;
-		uint32_t types;
-	};
-	
-	HashTable< Entity*, Data > m_emissionData;
-	
-	void UpdateEmitter( Entity* e, const Data& data );
-	void RemoveEmitter( Entity* e );
-	bool QueryAny( const Vec3& pos, float rad, uint32_t types );
-	bool QueryBB( const Mat4& mtx, uint32_t types );
-	Entity* QueryOneRay( const Vec3& from, const Vec3& to, uint32_t types );
-};
-
-struct MSMessage
-{
-	enum Type
-	{
-		Continued,
-		Info,
-		Warning,
-	};
-	
-	Type type;
-	String text;
-	float tmlength;
-	float position;
-};
-
-struct MessagingSystem
-{
-	Array< MSMessage > m_messages;
-	
-	MessagingSystem();
-	void AddMessage( MSMessage::Type type, const StringView& sv, float tmlength = 3 );
-	void Tick( float dt );
-	void DrawUI();
-	
-	TextureHandle m_tx_icon_info;
-	TextureHandle m_tx_icon_warning;
-	TextureHandle m_tx_icon_cont;
-};
-
-struct OSObjective
-{
-	enum State
-	{
-		Hidden = 0,
-		Open,
-		Done,
-		Failed,
-		Cancelled,
-	};
-	
-	String text;
-	State state;
-};
-
-struct ObjectiveSystem
-{
-	Array< OSObjective > m_objectives;
-	
-	float m_alpha;
-	
-	ObjectiveSystem();
-	int AddObjective( const StringView& sv, OSObjective::State state );
-	void Tick( float dt );
-	void DrawUI();
-	
-	TextureHandle m_tx_icon_open;
-	TextureHandle m_tx_icon_done;
-	TextureHandle m_tx_icon_failed;
-};
-
-
-struct DamageSystem
-{
-	void Tick( float deltaTime ){}
-	void Draw2D(){}
-	
-	void Clear(){}
-	
-	int todo;
-};
-
-
-struct BulletSystem
-{
-	struct Bullet
-	{
-		Vec2 position;
-		Vec2 velocity;
-		Vec2 dir;
-		float timeleft;
-		float damage;
-	};
-	typedef Array< Bullet > BulletArray;
-	
-	BulletSystem( DamageSystem* dmgsys );
-	
-	void Tick( float deltaTime );
-	void Draw2D();
-	
-	void Add( const Vec2& pos, const Vec2& vel, float timeleft, float dmg );
-	void Clear();
-	
-	BulletArray m_bullets;
-	TextureHandle m_tx_bullet;
-	DamageSystem* m_damageSystem;
-};
 
 
 // max_clip - clip capacity
@@ -334,6 +183,7 @@ struct Weapon
 #define ENTGROUP_GOODGUYS_DEAD 3
 #define ENTGROUP_BADGUYS_DEAD 4
 
+#if 0
 struct Character
 {
 	bool m_is_player;
@@ -369,6 +219,7 @@ struct Character
 	void MoveChar( Vec2 move, float deltaTime );
 	void DrawChar2D();
 };
+#endif
 
 
 #ifdef BRSD4GAME
@@ -486,6 +337,7 @@ struct Enemy : LD32Char
 
 #else
 
+#if 0
 struct Player : Character
 {
 	TextureHandle m_tex_crosshair;
@@ -505,79 +357,93 @@ struct Player : Character
 	bool AddItem( const StringView& item, int count );
 	bool HasItem( const StringView& item, int count = 1 );
 };
+#endif
 
 #endif
 
 
-typedef StackString<16> StackShortName;
 
-typedef Array< LC_Light > LightArray;
+#ifdef TSGAME
 
-typedef Array< Entity* > EntityArray;
-typedef Array< MeshInstHandle > MeshInstArray;
-typedef Array< PhyRigidBodyHandle > PhyBodyArray;
+#define Player TSPlayer
 
-
-struct GameLevel : SGRX_PostDraw
+enum TSTaskType
 {
-	GameLevel();
-	virtual ~GameLevel();
-	
-	bool Load( const StringView& levelname );
-	void ClearLevel();
-	void CreateEntity( const StringView& type, const StringView& sgsparams );
-	StackShortName GenerateName();
-	void StartLevel();
-	void EndLevel();
-	
+	TT_Wait,
+	TT_Turn,
+	TT_Walk,
+};
+struct TSTask
+{
+	TSTaskType type;
+	float timeout;
+	Vec2 target;
+};
+typedef Array< TSTask > TSTaskArray;
+void TSParseTaskArray( TSTaskArray& out, sgsVariable var );
+
+struct TSCharacter : Entity
+{
+	TSCharacter( const Vec3& pos, const Vec3& dir, const Vec4& color );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
-	void Draw2D();
-	void PostDraw();
-	void Draw();
 	
-	void MapEntityByName( Entity* e );
-	void UnmapEntityByName( Entity* e );
-	Entity* FindEntityByName( const StringView& name );
-	void CallEntityByName( const StringView& name, const StringView& action );
+	PhyRigidBodyHandle m_bodyHandle;
+	PhyShapeHandle m_shapeHandle;
+	MeshInstHandle m_meshInst;
+	LightHandle m_shadowInst;
+	AnimPlayer m_anMainPlayer;
+	AnimInterp m_anEnd;
 	
-	void LightMesh( MeshInstHandle mih, int32_t* outlastfound = NULL );
+	float m_footstepTime;
+	bool m_isCrouching;
+	IVState< Vec3 > m_ivPos;
+	IVState< Quat > m_ivDir;
 	
-	// UTILITIES
-	ScriptContext m_scriptCtx;
-	uint32_t m_nameIDGen;
-	
-	// SYSTEMS
-	HashTable< StringView, Entity* > m_entNameMap;
-	InfoEmissionSystem m_infoEmitters;
-	DamageSystem m_damageSystem;
-	BulletSystem m_bulletSystem;
-	MessagingSystem m_messageSystem;
-	ObjectiveSystem m_objectiveSystem;
-	
-	// LEVEL DATA
-	bool m_paused;
-	float m_endFactor;
-	double m_levelTime;
-	EntityArray m_entities;
-	MeshInstArray m_meshInsts;
-	PhyBodyArray m_levelBodies;
-	LightArray m_lights;
-	Array< Vec2 > m_lines;
-	LightTree m_ltSamples;
-	SceneHandle m_scene;
-	Player* m_player;
-	Vec3 m_playerSpawnInfo[2]; // position, direction
-	Vec3 m_levelCameraInfo[2]; // position, direction
-	
-	// HELPER DATA
-	Vec3 m_cachedCameraInfo[2];
-	bool m_cameraInfoCached;
-	
-	// COMMON DATA
-	PixelShaderHandle m_ps_flare;
-	TextureHandle m_tex_flare;
-	TextureHandle m_tex_mapline;
-	TextureHandle m_tex_mapframe;
+	Vec2 m_position;
+	Vec2 m_moveDir;
+	float m_turnAngle;
 };
+
+struct TSPlayer : TSCharacter
+{
+	Vec2 m_angles;
+	Vec2 inCursorMove;
+	
+	Entity* m_targetII;
+	bool m_targetTriggered;
+	
+	HashTable< String, int > m_items;
+	
+	TextureHandle m_tex_interact_icon;
+	
+	TSPlayer( const Vec3& pos, const Vec3& dir );
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	void DrawUI();
+	
+	bool AddItem( const StringView& item, int count );
+	bool HasItem( const StringView& item, int count = 1 );
+};
+
+struct TSEnemy : TSCharacter
+{
+	TSTaskArray m_patrolTasks;
+	TSTaskArray m_disturbTasks;
+	float m_taskTimeout;
+	int m_curTaskID;
+	bool m_curTaskMode;
+	String m_disturbActionName;
+	
+	float m_turnAngleStart;
+	float m_turnAngleEnd;
+	
+	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir );
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	void UpdateTask();
+};
+
+#endif
+
 

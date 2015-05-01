@@ -7,7 +7,7 @@
 #define USE_MAT4
 #define USE_ARRAY
 #define USE_HASHTABLE
-#include "game.hpp"
+#include "level.hpp"
 
 
 GameLevel* g_GameLevel = NULL;
