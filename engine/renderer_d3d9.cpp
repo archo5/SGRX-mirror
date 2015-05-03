@@ -1340,7 +1340,7 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 	case PT_Lines: return numverts / 2;
 	case PT_LineStrip: if( numverts < 2 ) return 0; return numverts - 1;
 	case PT_Triangles: return numverts / 3;
-	case PT_TriangleStrip:
+	case PT_TriangleStrip: if( numverts < 3 ) return 0; return numverts - 2;
 	default: return 0;
 	}
 }
