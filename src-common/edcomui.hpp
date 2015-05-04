@@ -1,5 +1,6 @@
 
 
+#pragma once
 #define USE_VEC2
 #define USE_VEC3
 #define USE_VEC4
@@ -13,7 +14,7 @@
 
 
 // nullifies mesh lighting
-static void lmm_prepmeshinst( MeshInstHandle mih )
+inline void lmm_prepmeshinst( MeshInstHandle mih )
 {
 	mih->dynamic = 1;
 	for( int i = 10; i < 16; ++i )
