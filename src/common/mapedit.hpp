@@ -5,8 +5,13 @@
 #include "edcomui.hpp"
 
 
-#define MAX_BLOCK_POLYGONS 32
+// v0: initial
+// v1: added surface.lmquality
+// v2: added ent[light].flareoffset
+// v3: added surface.xfit/yfit
+#define MAP_FILE_VERSION 3
 
+#define MAX_BLOCK_POLYGONS 32
 
 #define EDGUI_EVENT_SETENTITY EDGUI_EVENT_USER + 1
 
@@ -63,8 +68,15 @@ struct EdSurface
 	float scale, aspect;
 	float angle;
 	float lmquality;
+	int xfit, yfit;
 	
-	EdSurface() : texgenmode( ED_TEXGEN_COORDS ), xoff( 0 ), yoff( 0 ), scale( 1 ), aspect( 1 ), angle( 0 ), lmquality( 1 ){}
+	EdSurface() :
+		texgenmode( ED_TEXGEN_COORDS ),
+		xoff( 0 ), yoff( 0 ),
+		scale( 1 ), aspect( 1 ),
+		angle( 0 ), lmquality( 1 ),
+		xfit( 0 ), yfit( 0 )
+	{}
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -75,6 +87,8 @@ struct EdSurface
 		arch << scale << aspect;
 		arch << angle;
 		arch( lmquality, arch.version >= 1, 1.0f );
+		arch( xfit, arch.version >= 3, 0 );
+		arch( yfit, arch.version >= 3, 0 );
 		
 		if( T::IsReader ) Precache();
 	}
@@ -133,6 +147,7 @@ struct EdBlock
 	
 	void _GetTexVecs( int surf, Vec3& tgx, Vec3& tgy );
 	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< EdVtx >& vertices, uint16_t voff );
+	void _PostFitTexcoords( const EdSurface& S, EdVtx* vertices, size_t vcount );
 	
 	void GenCenterPos( EDGUISnapProps& SP );
 	
@@ -194,6 +209,8 @@ struct EDGUISurfaceProps : EDGUILayoutRow
 	EDGUIPropVec2 m_scaleasp;
 	EDGUIPropFloat m_angle;
 	EDGUIPropFloat m_lmquality;
+	EDGUIPropInt m_xfit;
+	EDGUIPropInt m_yfit;
 };
 
 struct EDGUIBlockProps : EDGUILayoutRow
@@ -511,7 +528,7 @@ struct EdWorld : EDGUILayoutRow
 	template< class T > void Serialize( T& arch )
 	{
 		arch.marker( "WORLD" );
-		SerializeVersionHelper<T> svh( arch, 2 );
+		SerializeVersionHelper<T> svh( arch, MAP_FILE_VERSION );
 		
 		svh << m_ctlAmbientColor;
 		svh << m_ctlDirLightDir;

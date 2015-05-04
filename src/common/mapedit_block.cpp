@@ -10,18 +10,18 @@ void EdBlock::_GetTexVecs( int surf, Vec3& tgx, Vec3& tgy )
 	{
 		size_t v0 = surf, v1 = ( surf + 1 ) % poly.size(); 
 		Vec2 edgedir = ( poly[ v1 ] - poly[ v0 ] ).ToVec2().Normalized();
-		tgx = Vec3::Create( edgedir.x, edgedir.y, 0 );
-		tgy = Vec3::Create( 0, 0, -1 );
+		tgx = V3( edgedir.x, edgedir.y, 0 );
+		tgy = V3( 0, 0, -1 );
 	}
 	else if( surf == (int) poly.size() )
 	{
-		tgx = Vec3::Create( -1, 0, 0 );
-		tgy = Vec3::Create( 0, 1, 0 );
+		tgx = V3( -1, 0, 0 );
+		tgy = V3( 0, 1, 0 );
 	}
 	else
 	{
-		tgx = Vec3::Create( -1, 0, 0 );
-		tgy = Vec3::Create( 0, -1, 0 );
+		tgx = V3( -1, 0, 0 );
+		tgy = V3( 0, -1, 0 );
 	}
 }
 
@@ -29,14 +29,55 @@ uint16_t EdBlock::_AddVtx( const Vec3& vpos, float z, const EdSurface& S, const 
 {
 	EdVtx V = { { vpos.x, vpos.y, z }, {0,0,1}, 0, 0, 0, 0 };
 	
-	V.tx0 = Vec3Dot( V.pos + V3( position.x, position.y, 0 ), tgx ) / S.scale + S.xoff;
-	V.ty0 = Vec3Dot( V.pos + V3( position.x, position.y, 0 ), tgy ) / S.scale * S.aspect + S.yoff;
+	Vec2 tx =
+	{
+		Vec3Dot( V.pos + V3( position.x, position.y, 0 ), tgx ),
+		Vec3Dot( V.pos + V3( position.x, position.y, 0 ), tgy )
+	};
+	tx = tx.Rotate( DEG2RAD( S.angle ) );
+	V.tx0 = tx.x / S.scale + S.xoff;
+	V.ty0 = tx.y / S.scale * S.aspect + S.yoff;
+	
 	
 	size_t off = vertices.find_first_at( V, voff );
 	if( off != NOT_FOUND )
 		return (uint16_t) off - voff;
 	vertices.push_back( V );
 	return (uint16_t) vertices.size() - 1 - voff;
+}
+
+void EdBlock::_PostFitTexcoords( const EdSurface& S, EdVtx* vertices, size_t vcount )
+{
+	float xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
+	for( size_t i = 0; i < vcount; ++i )
+	{
+		float x = vertices[ i ].tx0;
+		float y = vertices[ i ].ty0;
+		if( xmin > x ) xmin = x;
+		if( xmax < x ) xmax = x;
+		if( ymin > y ) ymin = y;
+		if( ymax < y ) ymax = y;
+	}
+	float xdst = xmax - xmin, ydst = ymax - ymin;
+	for( size_t i = 0; i < vcount; ++i )
+	{
+		if( S.xfit )
+		{
+			vertices[ i ].tx0 = safe_fdiv( vertices[ i ].tx0 - xmin, xdst ) * S.xfit / S.scale + S.xoff;
+			if( S.yfit == 0 )
+			{
+				vertices[ i ].ty0 = safe_fdiv( vertices[ i ].ty0, xdst ) * S.xfit / S.scale * S.aspect + S.yoff;
+			}
+		}
+		if( S.yfit )
+		{
+			vertices[ i ].ty0 = safe_fdiv( vertices[ i ].ty0 - ymin, ydst ) * S.yfit / S.scale * S.aspect + S.yoff;
+			if( S.xfit == 0 )
+			{
+				vertices[ i ].tx0 = safe_fdiv( vertices[ i ].tx0, ydst ) * S.yfit / S.scale + S.xoff;
+			}
+		}
+	}
 }
 
 void EdBlock::GenCenterPos( EDGUISnapProps& SP )
@@ -142,6 +183,7 @@ void EdBlock::RegenerateMesh()
 			uint16_t v2 = _AddVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
 			uint16_t v3 = _AddVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
 			uint16_t v4 = _AddVtx( poly[i1], z0, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
+			_PostFitTexcoords( surfaces[i], &vertices[ vertices.size() - 4 ], 4 );
 			indices.push_back( v1 );
 			indices.push_back( v2 );
 			indices.push_back( v3 );
@@ -169,6 +211,7 @@ void EdBlock::RegenerateMesh()
 		_GetTexVecs( poly.size(), tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
 			_AddVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy, vertices, mp.vertexOffset );
+		_PostFitTexcoords( surfaces[ poly.size() ], &vertices[ vertices.size() - poly.size() ], poly.size() );
 		for( size_t i = 2; i < poly.size(); ++i )
 		{
 			indices.push_back( 0 );
@@ -195,6 +238,7 @@ void EdBlock::RegenerateMesh()
 		_GetTexVecs( poly.size() + 1, tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
 			_AddVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy, vertices, mp.vertexOffset );
+		_PostFitTexcoords( surfaces[ poly.size() + 1 ], &vertices[ vertices.size() - poly.size() ], poly.size() );
 		for( size_t i = 2; i < poly.size(); ++i )
 		{
 			indices.push_back( 0 );
@@ -391,7 +435,9 @@ EDGUISurfaceProps::EDGUISurfaceProps() :
 	m_off( V2(0), 2, V2(0), V2(1) ),
 	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
 	m_angle( 0, 1, 0, 360 ),
-	m_lmquality( 1, 2, 0.01f, 100.0f )
+	m_lmquality( 1, 2, 0.01f, 100.0f ),
+	m_xfit( 0, 0, 100 ),
+	m_yfit( 0, 0, 100 )
 {
 	tyname = "surfaceprops";
 	m_group.caption = "Surface properties";
@@ -400,12 +446,16 @@ EDGUISurfaceProps::EDGUISurfaceProps() :
 	m_scaleasp.caption = "Scale/Aspect";
 	m_angle.caption = "Angle";
 	m_lmquality.caption = "Lightmap quality";
+	m_xfit.caption = "Fit count on X";
+	m_yfit.caption = "Fit count on Y";
 	
 	m_group.Add( &m_tex );
 	m_group.Add( &m_off );
 	m_group.Add( &m_scaleasp );
 	m_group.Add( &m_angle );
 	m_group.Add( &m_lmquality );
+	m_group.Add( &m_xfit );
+	m_group.Add( &m_yfit );
 	m_group.SetOpen( true );
 	Add( &m_group );
 }
@@ -431,6 +481,8 @@ void EDGUISurfaceProps::LoadParams( EdSurface& S, const char* name )
 	m_scaleasp.SetValue( V2( S.scale, S.aspect ) );
 	m_angle.SetValue( S.angle );
 	m_lmquality.SetValue( S.lmquality );
+	m_xfit.SetValue( S.xfit );
+	m_yfit.SetValue( S.yfit );
 }
 
 void EDGUISurfaceProps::BounceBack( EdSurface& S )
@@ -442,6 +494,8 @@ void EDGUISurfaceProps::BounceBack( EdSurface& S )
 	S.aspect = m_scaleasp.m_value.y;
 	S.angle = m_angle.m_value;
 	S.lmquality = m_lmquality.m_value;
+	S.xfit = m_xfit.m_value;
+	S.yfit = m_yfit.m_value;
 }
 
 int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
@@ -449,7 +503,15 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_PROPEDIT:
-		if( m_out && ( e->target == &m_tex || e->target == &m_off || e->target == &m_scaleasp || e->target == &m_angle || e->target == &m_lmquality ) )
+		if( m_out && (
+			e->target == &m_tex ||
+			e->target == &m_off ||
+			e->target == &m_scaleasp ||
+			e->target == &m_angle ||
+			e->target == &m_lmquality ||
+			e->target == &m_xfit ||
+			e->target == &m_yfit
+		) )
 		{
 			if( e->target == &m_tex )
 			{
@@ -472,6 +534,14 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 			else if( e->target == &m_lmquality )
 			{
 				m_out->surfaces[ m_sid ].lmquality = m_lmquality.m_value;
+			}
+			else if( e->target == &m_xfit )
+			{
+				m_out->surfaces[ m_sid ].xfit = m_xfit.m_value;
+			}
+			else if( e->target == &m_yfit )
+			{
+				m_out->surfaces[ m_sid ].yfit = m_yfit.m_value;
 			}
 			m_out->RegenerateMesh();
 		}
