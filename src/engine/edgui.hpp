@@ -472,6 +472,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIPropString : EDGUIProperty
 	
 	void _UpdateButton(){}
 	PROP_INTERFACE( EDGUIPropString );
+	template< class T > void Serialize( T& arch ){ arch << m_value; }
 	
 	ENGINE_EXPORT void SetValue( const StringView& sv );
 	ENGINE_EXPORT void _UpdateSelOffsets();
@@ -495,6 +496,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIPropRsrc : EDGUIProperty
 	ENGINE_EXPORT void _UpdateButton();
 	void SetValue( const StringView& v ){ m_value = v; _UpdateButton(); }
 	PROP_INTERFACE( EDGUIPropRsrc );
+	ENGINE_EXPORT virtual void OnReload( bool after );
 	
 	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
 	

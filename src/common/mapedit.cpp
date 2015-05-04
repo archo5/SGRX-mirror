@@ -5,6 +5,315 @@
 
 
 
+EDGUIPropRsrc_PickParentGroup::EDGUIPropRsrc_PickParentGroup( int32_t id, EDGUIGroupPicker* gp, const StringView& value ) :
+	EDGUIPropRsrc( gp, value ),
+	m_id( id )
+{
+}
+
+void EDGUIPropRsrc_PickParentGroup::OnReload( bool after )
+{
+	SGRX_CAST( EDGUIGroupPicker*, gp, m_rsrcPicker );
+	gp->m_ignoreID = after ? -1 : m_id;
+}
+
+EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, const StringView& name ) :
+	m_refcount( 0 ),
+	m_groupMgr( groupMgr ),
+	m_id( id ),
+	m_parent_id( pid ),
+	m_needsMtxUpdate( true ),
+	m_mtxLocal( Mat4::Identity ),
+	m_mtxCombined( Mat4::Identity ),
+	m_needsPathUpdate( true ),
+	m_group( true, "Group" ),
+	m_ctlName( name ),
+	m_ctlParent( id, &groupMgr->m_grpPicker, id ? groupMgr->GetPath( pid ) : StringView() ),
+	m_ctlPos( V3(0), 2, V3(-8192), V3(8192) ),
+	m_ctlAngles( V3(0), 2, V3(0), V3(360) ),
+	m_ctlScaleUni( 1, 2, 0.01f, 100.0f )
+{
+	m_ctlName.caption = "Name";
+	m_ctlParent.caption = "Parent";
+	m_ctlPos.caption = "Position";
+	m_ctlAngles.caption = "Rotation";
+	m_ctlScaleUni.caption = "Scale (uniform)";
+	m_addChild.caption = "Add child";
+	m_deleteDisownParent.caption = "Delete group and subobjects -> parent";
+	m_deleteDisownRoot.caption = "Delete group and subobjects -> root";
+	m_deleteRecursive.caption = "Delete group and destroy subobjects";
+	
+	m_group.Add( &m_ctlName );
+	if( m_id )
+	{
+		m_group.Add( &m_ctlParent );
+	}
+	m_group.Add( &m_ctlPos );
+	m_group.Add( &m_ctlAngles );
+	m_group.Add( &m_ctlScaleUni );
+	m_group.Add( &m_addChild );
+	if( m_id )
+	{
+		m_group.Add( &m_deleteDisownParent );
+		m_group.Add( &m_deleteDisownRoot );
+		m_group.Add( &m_deleteRecursive );
+	}
+	
+	Add( &m_group );
+}
+
+int EdGroup::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_BTNCLICK:
+		if( e->target == &m_addChild )
+		{
+			m_groupMgr->PrepareEditGroup( m_groupMgr->AddGroup( m_id ) );
+		}
+		if( e->target == &m_deleteDisownParent )
+		{
+			g_EdWorld->TransferObjectsToGroup( m_id, m_parent_id );
+			m_groupMgr->TransferGroupsToGroup( m_id, m_parent_id );
+			m_groupMgr->QueueDestroy( this );
+		}
+		if( e->target == &m_deleteDisownRoot )
+		{
+			g_EdWorld->TransferObjectsToGroup( m_id, 0 );
+			m_groupMgr->TransferGroupsToGroup( m_id, 0 );
+			m_groupMgr->QueueDestroy( this );
+		}
+		if( e->target == &m_deleteRecursive )
+		{
+			m_groupMgr->QueueDestroy( this );
+		}
+		break;
+	case EDGUI_EVENT_PROPEDIT:
+		if( e->target == &m_ctlPos || e->target == &m_ctlAngles || e->target == &m_ctlScaleUni || e->target == &m_ctlParent )
+		{
+			m_needsMtxUpdate = true;
+		}
+		break;
+	case EDGUI_EVENT_PROPCHANGE:
+		if( e->target == &m_ctlParent )
+		{
+			m_parent_id = m_groupMgr->FindGroupByPath( m_ctlParent.m_value )->m_id;
+		}
+		if( e->target == &m_ctlName || e->target == &m_ctlParent )
+		{
+			m_groupMgr->PathInvalidate( m_id );
+			m_groupMgr->m_editedGroup.SetValue( GetPath() );
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
+Mat4 EdGroup::GetMatrix()
+{
+	if( m_needsMtxUpdate )
+	{
+		m_mtxCombined = m_mtxLocal = Mat4::CreateSRT( V3( m_ctlScaleUni.m_value ), DEG2RAD( m_ctlAngles.m_value ), m_ctlPos.m_value );
+		if( m_parent_id )
+		{
+			m_mtxCombined = m_mtxCombined * m_groupMgr->GetTransformMatrix( m_parent_id );
+		}
+	}
+	return m_mtxCombined;
+}
+
+StringView EdGroup::GetPath()
+{
+	if( m_needsPathUpdate )
+	{
+		m_path.clear();
+		if( m_id )
+		{
+			m_path = m_groupMgr->GetPath( m_parent_id );
+			m_path.append( "/" );
+		}
+		m_path.append( Name() );
+	}
+	return m_path;
+}
+
+
+void EDGUIGroupPicker::Reload()
+{
+	m_options.clear();
+	for( size_t i = 0; i < m_groupMgr->m_groups.size(); ++i )
+	{
+		EdGroup* grp = m_groupMgr->m_groups.item( i ).value;
+		if( grp->m_id != m_ignoreID && m_groupMgr->GroupHasParent( grp->m_id, m_ignoreID ) == false )
+			m_options.push_back( grp->GetPath() );
+	}
+	_Search( m_searchString );
+}
+
+
+EdGroupManager::EdGroupManager() :
+	m_grpPicker( this ),
+	m_lastGroupID(-1),
+	m_editedGroup( &m_grpPicker )
+{
+	m_gotoRoot.caption = "Go to root";
+	m_editedGroup.caption = "Edited group";
+}
+
+int EdGroupManager::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_BTNCLICK:
+		if( e->target == &m_gotoRoot )
+		{
+			PrepareEditGroup( FindGroupByID( 0 ) );
+		}
+		break;
+	case EDGUI_EVENT_PROPCHANGE:
+		if( e->target == &m_editedGroup )
+		{
+			PrepareCurrentEditGroup();
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
+void EdGroupManager::AddRootGroup()
+{
+	_AddGroup( 0, 0, "root" );
+}
+
+Mat4 EdGroupManager::GetTransformMatrix( int32_t id )
+{
+	EdGroup* grp = m_groups.getcopy( id );
+	ASSERT( grp );
+	return grp->GetMatrix();
+}
+
+StringView EdGroupManager::GetPath( int32_t id )
+{
+	EdGroup* grp = m_groups.getcopy( id );
+	ASSERT( grp );
+	return grp->GetPath();
+}
+
+EdGroup* EdGroupManager::AddGroup( int32_t parent_id, StringView name, int32_t id )
+{
+	char bfr[ 32 ];
+	if( id < 0 )
+		id = m_lastGroupID + 1;
+	if( !name )
+	{
+		sgrx_snprintf( bfr, 32, "group%d", id );
+		name = bfr;
+	}
+	return _AddGroup( id, parent_id, name );
+}
+
+EdGroup* EdGroupManager::_AddGroup( int32_t id, int32_t parent_id, StringView name )
+{
+	EdGroup* grp = new EdGroup( this, id, parent_id, name );
+	m_groups[ id ] = grp;
+	if( m_lastGroupID < id )
+		m_lastGroupID = id;
+	return grp;
+}
+
+EdGroup* EdGroupManager::FindGroupByID( int32_t id )
+{
+	return m_groups.getcopy( id );
+}
+
+EdGroup* EdGroupManager::FindGroupByPath( StringView path )
+{
+	for( size_t i = 0; i < m_groups.size(); ++i )
+	{
+		EdGroup* grp = m_groups.item( i ).value;
+		if( grp->GetPath() == path )
+			return grp;
+	}
+	return NULL;
+}
+
+bool EdGroupManager::GroupHasParent( int32_t id, int32_t parent_id )
+{
+	while( id != 0 )
+	{
+		id = FindGroupByID( id )->m_parent_id;
+		if( id == parent_id )
+			return true;
+	}
+	return false;
+}
+
+void EdGroupManager::PrepareEditGroup( EdGroup* grp )
+{
+	Clear();
+	Add( &m_gotoRoot );
+	Add( &m_editedGroup );
+	if( grp )
+	{
+		m_editedGroup.SetValue( grp->GetPath() );
+		Add( grp );
+	}
+	else
+		m_editedGroup.SetValue( "" );
+}
+
+void EdGroupManager::PrepareCurrentEditGroup()
+{
+	PrepareEditGroup( FindGroupByPath( m_editedGroup.m_value ) );
+}
+
+void EdGroupManager::TransferGroupsToGroup( int32_t from, int32_t to )
+{
+	for( size_t i = 0; i < m_groups.size(); ++i )
+	{
+		EdGroup* grp = m_groups.item( i ).value;
+		if( grp->m_parent_id == from )
+		{
+			grp->m_parent_id = to;
+			PathInvalidate( grp->m_id );
+		}
+	}
+}
+
+void EdGroupManager::QueueDestroy( EdGroup* grp )
+{
+	m_destroyQueue.push_back( grp );
+	m_groups.unset( grp->m_id );
+}
+
+void EdGroupManager::ProcessDestroyQueue()
+{
+	for( size_t i = 0; i < m_destroyQueue.size(); ++i )
+	{
+		g_EdWorld->DeleteObjectsInGroup( m_destroyQueue[ i ]->m_id );
+		for( size_t j = 0; j < m_groups.size(); ++j )
+		{
+			EdGroup* grp = m_groups.item( j ).value;
+			if( grp->m_parent_id == m_destroyQueue[ i ]->m_id )
+				m_destroyQueue.push_back( grp );
+		}
+	}
+	m_destroyQueue.clear();
+}
+
+void EdGroupManager::PathInvalidate( int32_t id )
+{
+	FindGroupByID( id )->m_needsPathUpdate = true;
+	for( size_t i = 0; i < m_groups.size(); ++i )
+	{
+		EdGroup* grp = m_groups.item( i ).value;
+		if( grp->m_parent_id == id )
+			PathInvalidate( grp->m_id ); // TODO: might need to fix algorithm for performance?
+	}
+}
+
+
+
 EdWorld::EdWorld() :
 	m_ctlGroup( true, "Level properties" ),
 	m_ctlAmbientColor( V3(0,0,0.1f), 2, V3(0), V3(1,1,100) ),
@@ -72,6 +381,8 @@ void EdWorld::Reset()
 
 void EdWorld::TestData()
 {
+	m_groupMgr.AddRootGroup();
+	
 	EdBlock b1;
 	
 	b1.position = V2(0);
@@ -299,6 +610,16 @@ bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int search
 	return curent != -1;
 }
 
+void EdWorld::TransferObjectsToGroup( int32_t grpfrom, int32_t grpto )
+{
+	/*TODO*/
+}
+
+void EdWorld::DeleteObjectsInGroup( int32_t grp )
+{
+	/*TODO*/
+}
+
 
 
 EDGUIMainFrame::EDGUIMainFrame() :
@@ -343,6 +664,7 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_MBPaintSurfs.caption = "Paint surfaces";
 	m_MBAddEntity.caption = "Add Entity";
 	m_MBEditEntity.caption = "Edit Entity";
+	m_MBEditGroups.caption = "Edit groups";
 	m_MBLevelInfo.caption = "Level Info";
 	m_newBlockPropZ0.caption = "Bottom Z";
 	m_newBlockPropZ1.caption = "Top Z";
@@ -358,6 +680,7 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuButtons.Add( &m_MBPaintSurfs );
 	m_UIMenuButtons.Add( &m_MBAddEntity );
 	m_UIMenuButtons.Add( &m_MBEditEntity );
+	m_UIMenuButtons.Add( &m_MBEditGroups );
 	m_UIMenuButtons.Add( &m_MBLevelInfo );
 	
 	m_entityProps = m_entGroup.m_buttons[0].m_ent_handle;
@@ -385,6 +708,7 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_MBPaintSurfs ) SetMode( ED_PaintSurfs );
 		else if( e->target == &m_MBAddEntity ) SetMode( ED_AddEntity );
 		else if( e->target == &m_MBEditEntity ) SetMode( ED_EditEntity );
+		else if( e->target == &m_MBEditGroups ) SetMode( ED_EditGroups );
 		else if( e->target == &m_MBLevelInfo ) SetMode( ED_EditLevel );
 		
 		return 1;
@@ -1087,6 +1411,7 @@ void EDGUIMainFrame::SetMode( ED_EditMode newmode )
 	m_MBEditBlock.SetHighlight( newmode == ED_EditBlock );
 	m_MBAddEntity.SetHighlight( newmode == ED_AddEntity );
 	m_MBEditEntity.SetHighlight( newmode == ED_EditEntity );
+	m_MBEditGroups.SetHighlight( newmode == ED_EditGroups );
 	m_MBLevelInfo.SetHighlight( newmode == ED_EditLevel );
 	ClearParamList();
 	if( newmode == ED_DrawBlock )
@@ -1122,6 +1447,11 @@ void EDGUIMainFrame::SetMode( ED_EditMode newmode )
 		m_hlEnt = -1;
 		m_selEnt = -1;
 		m_grabbed = false;
+	}
+	else if( newmode == ED_EditGroups )
+	{
+		g_EdWorld->m_groupMgr.PrepareCurrentEditGroup();
+		AddToParamList( &g_EdWorld->m_groupMgr );
 	}
 	else if( newmode == ED_EditLevel )
 	{

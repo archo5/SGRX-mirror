@@ -21,6 +21,23 @@
 #include "utils.hpp"
 
 
+void sgrx_assert_func( const char* code, const char* file, int line )
+{
+	fprintf( stderr, "\n== Error detected: \"%s\", file: %s, line %d ==\n", code, file, line );
+#if defined( _MSC_VER )
+	__debugbreak();
+#elif defined( __GNUC__ )
+#  if defined(i386)
+	__asm__( "int $3" );
+#  else
+	__builtin_trap();
+#  endif
+#else
+	assert( 0 );
+#endif
+}
+
+
 void NOP( int x ){}
 
 int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen )

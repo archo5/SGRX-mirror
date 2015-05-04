@@ -2107,7 +2107,11 @@ int EDGUIPropRsrc::OnEvent( EDGUIEvent* e )
 		if( Hit( e->mouse.x, e->mouse.y ) )
 		{
 			if( m_requestReload )
+			{
+				OnReload( false );
 				m_rsrcPicker->Reload();
+				OnReload( true );
+			}
 			m_rsrcPicker->Open( this, m_value );
 			m_frame->Add( m_rsrcPicker );
 		}
@@ -2120,6 +2124,11 @@ int EDGUIPropRsrc::OnEvent( EDGUIEvent* e )
 void EDGUIPropRsrc::_UpdateButton()
 {
 	m_button.caption = m_value;
+}
+
+void EDGUIPropRsrc::OnReload( bool after )
+{
+	UNUSED( after );
 }
 
 

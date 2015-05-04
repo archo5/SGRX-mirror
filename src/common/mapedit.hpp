@@ -1,6 +1,7 @@
 
 
 #pragma once
+#define USE_HASHTABLE
 #include "compiler.hpp"
 #include "edcomui.hpp"
 
@@ -8,7 +9,7 @@
 // v0: initial
 // v1: added surface.lmquality
 // v2: added ent[light].flareoffset
-// v3: added surface.xfit/yfit
+// v3: added surface.xfit/yfit, added groups
 #define MAP_FILE_VERSION 3
 
 #define MAX_BLOCK_POLYGONS 32
@@ -23,6 +24,7 @@ enum ED_EditMode
 	ED_PaintSurfs,
 	ED_AddEntity,
 	ED_EditEntity,
+	ED_EditGroups,
 	ED_EditLevel,
 };
 
@@ -50,6 +52,145 @@ MAPEDIT_GLOBAL struct EDGUIScrFnPicker* g_UIScrFnPicker;
 MAPEDIT_GLOBAL struct EDGUILevelOpenPicker* g_UILevelOpenPicker;
 MAPEDIT_GLOBAL struct EDGUILevelSavePicker* g_UILevelSavePicker;
 MAPEDIT_GLOBAL struct EDGUIEntList* g_EdEntList;
+
+
+
+//
+// GROUPS
+//
+
+struct EDGUIPropRsrc_PickParentGroup : EDGUIPropRsrc
+{
+	EDGUIPropRsrc_PickParentGroup( int32_t id, struct EDGUIGroupPicker* gp, const StringView& value );
+	virtual void OnReload( bool after );
+	int32_t m_id;
+};
+
+struct EdGroup : EDGUILayoutRow
+{
+	// REFCOUNTED
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	int32_t m_refcount;
+	// REFCOUNTED END
+	
+	EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, const StringView& name );
+	virtual int OnEvent( EDGUIEvent* e );
+	Mat4 GetMatrix();
+	StringView GetPath();
+	
+	StringView Name(){ return m_ctlName.m_value; }
+	
+	template< class T > void Serialize( T& arch )
+	{
+		m_ctlPos.Serialize( arch );
+		m_ctlAngles.Serialize( arch );
+		m_ctlScaleUni.Serialize( arch );
+	}
+	
+	EdGroupManager* m_groupMgr;
+	int32_t m_id;
+	int32_t m_parent_id;
+	bool m_needsMtxUpdate;
+	Mat4 m_mtxLocal;
+	Mat4 m_mtxCombined;
+	bool m_needsPathUpdate;
+	String m_path;
+	
+	EDGUIGroup m_group;
+	EDGUIPropString m_ctlName;
+	EDGUIPropRsrc_PickParentGroup m_ctlParent;
+	EDGUIPropVec3 m_ctlPos;
+	EDGUIPropVec3 m_ctlAngles;
+	EDGUIPropFloat m_ctlScaleUni;
+	
+	EDGUIButton m_addChild;
+	EDGUIButton m_deleteDisownParent;
+	EDGUIButton m_deleteDisownRoot;
+	EDGUIButton m_deleteRecursive;
+};
+typedef Handle< EdGroup > EdGroupHandle;
+typedef HashTable< int32_t, EdGroupHandle > EdGroupHandleMap;
+
+struct EDGUIGroupPicker : EDGUIRsrcPicker
+{
+	EDGUIGroupPicker( EdGroupManager* groupMgr ) : m_groupMgr( groupMgr )
+	{
+		caption = "Pick a group";
+		Reload();
+	}
+	virtual void _OnChangeZoom()
+	{
+		EDGUIRsrcPicker::_OnChangeZoom();
+		m_itemHeight /= 4;
+	}
+	void Reload();
+	EdGroupManager* m_groupMgr;
+	int32_t m_ignoreID;
+};
+
+struct EdGroupManager : EDGUILayoutRow
+{
+	EdGroupManager();
+	virtual int OnEvent( EDGUIEvent* e );
+	void AddRootGroup();
+	Mat4 GetTransformMatrix( int32_t id );
+	StringView GetPath( int32_t id );
+	EdGroup* AddGroup( int32_t parent_id = 0, StringView name = "", int32_t id = -1 );
+	EdGroup* _AddGroup( int32_t id, int32_t parent_id, StringView name );
+	EdGroup* FindGroupByID( int32_t id );
+	EdGroup* FindGroupByPath( StringView path );
+	bool GroupHasParent( int32_t id, int32_t parent_id );
+	void PrepareEditGroup( EdGroup* grp );
+	void PrepareCurrentEditGroup();
+	void TransferGroupsToGroup( int32_t from, int32_t to );
+	void QueueDestroy( EdGroup* grp );
+	void ProcessDestroyQueue();
+	void PathInvalidate( int32_t id );
+	
+	template< class T > void Serialize( T& arch )
+	{
+		if( arch.version >= 3 )
+		{
+			arch.marker( "GRPLST" );
+			{
+				EdGroup* grp;
+				int32_t groupcount = m_groups.size();
+				arch << groupcount;
+				for( int32_t i = 0; i < groupcount; ++i )
+				{
+					arch.marker( "GROUP" );
+					if( T::IsWriter )
+					{
+						grp = m_groups.item( i ).value;
+						arch << grp->m_id;
+						arch << grp->m_parent_id;
+						grp->m_ctlName.Serialize( arch );
+					}
+					else
+					{
+						int32_t id = 0, pid = 0;
+						String name;
+						arch << id;
+						arch << pid;
+						arch << name;
+						grp = _AddGroup( id, pid, name );
+					}
+					arch << *grp;
+				}
+			}
+		}
+		else
+			AddRootGroup();
+	}
+	
+	Array< EdGroupHandle > m_destroyQueue;
+	EdGroupHandleMap m_groups;
+	EDGUIGroupPicker m_grpPicker;
+	int32_t m_lastGroupID;
+	EDGUIButton m_gotoRoot;
+	EDGUIPropRsrc m_editedGroup;
+};
 
 
 
@@ -582,6 +723,9 @@ struct EdWorld : EDGUILayoutRow
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
 	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
 	
+	void TransferObjectsToGroup( int32_t grpfrom, int32_t grpto );
+	void DeleteObjectsInGroup( int32_t grp );
+	
 	EDGUIItem* GetBlockProps( size_t bid )
 	{
 		m_ctlBlockProps.Prepare( m_blocks[ bid ] );
@@ -606,6 +750,7 @@ struct EdWorld : EDGUILayoutRow
 	
 	Array< EdBlock > m_blocks;
 	Array< EdEntityHandle > m_entities;
+	EdGroupManager m_groupMgr;
 	
 	EDGUIGroup m_ctlGroup;
 	EDGUIPropVec3 m_ctlAmbientColor;
@@ -728,6 +873,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBPaintSurfs;
 	EDGUIButton m_MBAddEntity;
 	EDGUIButton m_MBEditEntity;
+	EDGUIButton m_MBEditGroups;
 	EDGUIButton m_MBLevelInfo;
 	
 	// entity list

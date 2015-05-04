@@ -27,7 +27,8 @@
 #endif
 
 
-#define ASSERT assert
+ENGINE_EXPORT void sgrx_assert_func( const char* code, const char* file, int line );
+#define ASSERT( x ) do{ if(!(x)) sgrx_assert_func( #x, __FILE__, __LINE__ ); }while(0)
 #ifdef _MSC_VER
 #define IF_GCC(x)
 #define IF_MSVC(x) x
