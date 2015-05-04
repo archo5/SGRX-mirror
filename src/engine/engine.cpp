@@ -2366,32 +2366,38 @@ RenderStats& GR_GetRenderStats()
 
 void GR2D_SetWorldMatrix( const Mat4& mtx )
 {
+	g_BatchRenderer->Flush();
 	g_Renderer->SetMatrix( false, mtx );
 }
 
 void GR2D_SetViewMatrix( const Mat4& mtx )
 {
+	g_BatchRenderer->Flush();
 	g_Renderer->SetMatrix( true, mtx );
 }
 
 void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 )
 {
+	g_BatchRenderer->Flush();
 	int rect[4] = { x0, y0, x1, y1 };
 	g_Renderer->SetScissorRect( true, rect );
 }
 
 void GR2D_SetViewport( int x0, int y0, int x1, int y1 )
 {
+	g_BatchRenderer->Flush();
 	g_Renderer->SetViewport( x0, y0, x1, y1 );
 }
 
 void GR2D_UnsetViewport()
 {
+	g_BatchRenderer->Flush();
 	g_Renderer->SetViewport( 0, 0, GR_GetWidth(), GR_GetHeight() );
 }
 
 void GR2D_UnsetScissorRect()
 {
+	g_BatchRenderer->Flush();
 	g_Renderer->SetScissorRect( false, NULL );
 }
 

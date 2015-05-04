@@ -36,22 +36,22 @@ enum ED_BlockDrawMode
 
 
 #ifdef MAPEDIT_DEFINE_GLOBALS
-#  define MAPEDIT_GLOBAL
+#  define MAPEDIT_GLOBAL( x ) x = NULL
 #else
-#  define MAPEDIT_GLOBAL extern
+#  define MAPEDIT_GLOBAL( x ) extern x
 #endif
-MAPEDIT_GLOBAL ScriptContext* g_ScriptCtx;
-MAPEDIT_GLOBAL struct EDGUIMainFrame* g_UIFrame;
-MAPEDIT_GLOBAL SceneHandle g_EdScene;
-MAPEDIT_GLOBAL struct EdWorld* g_EdWorld;
-MAPEDIT_GLOBAL struct EDGUISurfTexPicker* g_UISurfTexPicker;
-MAPEDIT_GLOBAL struct EDGUIMeshPicker* g_UIMeshPicker;
-MAPEDIT_GLOBAL struct EDGUIPartSysPicker* g_UIPartSysPicker;
-MAPEDIT_GLOBAL struct EDGUISoundPicker* g_UISoundPicker;
-MAPEDIT_GLOBAL struct EDGUIScrFnPicker* g_UIScrFnPicker;
-MAPEDIT_GLOBAL struct EDGUILevelOpenPicker* g_UILevelOpenPicker;
-MAPEDIT_GLOBAL struct EDGUILevelSavePicker* g_UILevelSavePicker;
-MAPEDIT_GLOBAL struct EDGUIEntList* g_EdEntList;
+MAPEDIT_GLOBAL( ScriptContext* g_ScriptCtx );
+MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
+MAPEDIT_GLOBAL( SceneHandle g_EdScene );
+MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
+MAPEDIT_GLOBAL( struct EDGUISurfTexPicker* g_UISurfTexPicker );
+MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
+MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
+MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );
+MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
+MAPEDIT_GLOBAL( struct EDGUILevelOpenPicker* g_UILevelOpenPicker );
+MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
+MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
 
 
 
@@ -100,6 +100,7 @@ struct EdGroup : EDGUILayoutRow
 	EDGUIGroup m_group;
 	EDGUIPropString m_ctlName;
 	EDGUIPropRsrc_PickParentGroup m_ctlParent;
+	EDGUIPropVec3 m_ctlOrigin;
 	EDGUIPropVec3 m_ctlPos;
 	EDGUIPropVec3 m_ctlAngles;
 	EDGUIPropFloat m_ctlScaleUni;
@@ -108,6 +109,7 @@ struct EdGroup : EDGUILayoutRow
 	EDGUIButton m_deleteDisownParent;
 	EDGUIButton m_deleteDisownRoot;
 	EDGUIButton m_deleteRecursive;
+	EDGUIButton m_recalcOrigin;
 };
 typedef Handle< EdGroup > EdGroupHandle;
 typedef HashTable< int32_t, EdGroupHandle > EdGroupHandleMap;
@@ -134,7 +136,7 @@ struct EdGroupManager : EDGUILayoutRow
 	EdGroupManager();
 	virtual int OnEvent( EDGUIEvent* e );
 	void AddRootGroup();
-	Mat4 GetTransformMatrix( int32_t id );
+	Mat4 GetMatrix( int32_t id );
 	StringView GetPath( int32_t id );
 	EdGroup* AddGroup( int32_t parent_id = 0, StringView name = "", int32_t id = -1 );
 	EdGroup* _AddGroup( int32_t id, int32_t parent_id, StringView name );
@@ -146,6 +148,7 @@ struct EdGroupManager : EDGUILayoutRow
 	void TransferGroupsToGroup( int32_t from, int32_t to );
 	void QueueDestroy( EdGroup* grp );
 	void ProcessDestroyQueue();
+	void MatrixInvalidate( int32_t id );
 	void PathInvalidate( int32_t id );
 	
 	template< class T > void Serialize( T& arch )
@@ -264,9 +267,10 @@ struct EdVtx
 
 struct EdBlock
 {
-	EdBlock() : position(V2(0)), z0(0), z1(1){}
+	EdBlock() : group(0), position(V3(0)), z0(0), z1(1){}
 	
-	Vec2 position;
+	int group;
+	Vec3 position;
 	float z0, z1;
 	
 	Array< Vec3 > poly;
@@ -278,7 +282,18 @@ struct EdBlock
 	template< class T > void Serialize( T& arch )
 	{
 		arch.marker( "BLOCK" );
-		arch << position;
+		if( arch.version >= 3 )
+		{
+			arch << group;
+			arch << position;
+		}
+		else
+		{
+			group = 0;
+			Vec2 pos = { position.x, position.y };
+			arch << pos;
+			position = V3( pos.x, pos.y, 0 );
+		}
 		arch << z0 << z1;
 		arch << poly;
 		arch << surfaces;
@@ -365,7 +380,8 @@ struct EDGUIBlockProps : EDGUILayoutRow
 	EDGUIGroup m_vertGroup;
 	EDGUIPropFloat m_z0;
 	EDGUIPropFloat m_z1;
-	EDGUIPropVec2 m_pos;
+	EDGUIPropVec3 m_pos;
+	EDGUIPropRsrc m_blkGroup;
 	Array< EDGUIPropVec3 > m_vertProps;
 	Array< EDGUISurfaceProps > m_surfProps;
 };
@@ -723,6 +739,7 @@ struct EdWorld : EDGUILayoutRow
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
 	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
 	
+	void FixTransformsOfGroup( int32_t grp );
 	void TransferObjectsToGroup( int32_t grpfrom, int32_t grpto );
 	void DeleteObjectsInGroup( int32_t grp );
 	

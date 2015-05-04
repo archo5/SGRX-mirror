@@ -31,8 +31,8 @@ uint16_t EdBlock::_AddVtx( const Vec3& vpos, float z, const EdSurface& S, const 
 	
 	Vec2 tx =
 	{
-		Vec3Dot( V.pos + V3( position.x, position.y, 0 ), tgx ),
-		Vec3Dot( V.pos + V3( position.x, position.y, 0 ), tgy )
+		Vec3Dot( V.pos + position, tgx ),
+		Vec3Dot( V.pos + position, tgy )
 	};
 	tx = tx.Rotate( DEG2RAD( S.angle ) );
 	V.tx0 = tx.x / S.scale + S.xoff;
@@ -85,15 +85,16 @@ void EdBlock::GenCenterPos( EDGUISnapProps& SP )
 	if( !poly.size() )
 		return;
 	
-	Vec2 cp = {0,0}, oldpos = position;
+	Vec2 cp = {0,0}, oldpos = position.ToVec2(); // TODO_FULL_TRANSFORM ?
 	for( size_t i = 0; i < poly.size(); ++i )
 		cp += poly[i].ToVec2();
 	cp /= poly.size();
-	cp += position;
+	cp += position.ToVec2(); // TODO_FULL_TRANSFORM ?
 	
 	SP.Snap( cp );
 	
-	position = cp;
+	position.x = cp.x; // TODO_FULL_TRANSFORM ?
+	position.y = cp.y;
 	for( size_t i = 0; i < poly.size(); ++i )
 		poly[i].SetXY( poly[i].ToVec2() - cp - oldpos );
 }
@@ -103,10 +104,12 @@ bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], 
 	Vec3 pts[16];
 	int pcount = poly.size();
 	
+	Mat4 tf = g_EdWorld->m_groupMgr.GetMatrix( group );
+	
 	// TOP
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		pts[i] = V3( poly[i].x + position.x, poly[i].y + position.y, z1 );
+		pts[i] = tf.TransformPos( V3( poly[i].x + position.x, poly[i].y + position.y, poly[i].z + z1 + position.z ) );
 	}
 	if( RayPolyIntersect( rpos, dir, pts, pcount, outdst ) )
 	{
@@ -118,7 +121,7 @@ bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], 
 	// BOTTOM
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		pts[ poly.size() - i - 1 ] = V3( poly[i].x + position.x, poly[i].y + position.y, z0 );
+		pts[ poly.size() - i - 1 ] = tf.TransformPos( V3( poly[i].x + position.x, poly[i].y + position.y, z0 + position.z ) );
 	}
 	if( RayPolyIntersect( rpos, dir, pts, pcount, outdst ) )
 	{
@@ -132,10 +135,10 @@ bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], 
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
 		size_t i1 = ( i + 1 ) % poly.size();
-		pts[0] = V3( poly[i].x + position.x, poly[i].y + position.y, z1 );
-		pts[1] = V3( poly[i].x + position.x, poly[i].y + position.y, z0 );
-		pts[2] = V3( poly[i1].x + position.x, poly[i1].y + position.y, z0 );
-		pts[3] = V3( poly[i1].x + position.x, poly[i1].y + position.y, z1 );
+		pts[0] = tf.TransformPos( V3( poly[i].x + position.x, poly[i].y + position.y, z1 + position.z ) );
+		pts[1] = tf.TransformPos( V3( poly[i].x + position.x, poly[i].y + position.y, z0 + position.z ) );
+		pts[2] = tf.TransformPos( V3( poly[i1].x + position.x, poly[i1].y + position.y, z0 + position.z ) );
+		pts[3] = tf.TransformPos( V3( poly[i1].x + position.x, poly[i1].y + position.y, z1 + position.z ) );
 		if( RayPolyIntersect( rpos, dir, pts, pcount, outdst ) )
 		{
 			if( outsurf )
@@ -148,7 +151,7 @@ bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], 
 
 void EdBlock::RegenerateMesh()
 {
-	if( poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
+	if( !g_EdWorld || poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
 		return;
 	
 	if( !cached_mesh )
@@ -159,7 +162,7 @@ void EdBlock::RegenerateMesh()
 		cached_meshinst->mesh = cached_mesh;
 		lmm_prepmeshinst( cached_meshinst );
 	}
-	cached_meshinst->matrix = Mat4::CreateTranslation( position.x, position.y, 0 );
+	cached_meshinst->matrix = Mat4::CreateTranslation( position ) * g_EdWorld->m_groupMgr.GetMatrix( group );
 	for( size_t i = 0; i < surfaces.size(); ++i )
 		surfaces[ i ].Precache();
 	
@@ -183,6 +186,11 @@ void EdBlock::RegenerateMesh()
 			uint16_t v2 = _AddVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
 			uint16_t v3 = _AddVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
 			uint16_t v4 = _AddVtx( poly[i1], z0, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
+			if( vertices.size() < mp.vertexOffset + 4 )
+			{
+				vertices.resize( mp.vertexOffset );
+				continue;
+			}
 			_PostFitTexcoords( surfaces[i], &vertices[ vertices.size() - 4 ], 4 );
 			indices.push_back( v1 );
 			indices.push_back( v2 );
@@ -204,6 +212,7 @@ void EdBlock::RegenerateMesh()
 	}
 	
 	// TOP
+	for(;;)
 	{
 		SGRX_MeshPart mp = { vertices.size(), 0, indices.size(), 0 };
 		
@@ -211,7 +220,12 @@ void EdBlock::RegenerateMesh()
 		_GetTexVecs( poly.size(), tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
 			_AddVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy, vertices, mp.vertexOffset );
-		_PostFitTexcoords( surfaces[ poly.size() ], &vertices[ vertices.size() - poly.size() ], poly.size() );
+		if( vertices.size() < mp.vertexOffset + 3 )
+		{
+			vertices.resize( mp.vertexOffset );
+			break;
+		}
+		_PostFitTexcoords( surfaces[ poly.size() ], &vertices[ mp.vertexOffset ], vertices.size() - mp.vertexOffset );
 		for( size_t i = 2; i < poly.size(); ++i )
 		{
 			indices.push_back( 0 );
@@ -228,9 +242,11 @@ void EdBlock::RegenerateMesh()
 		mp.material = mh;
 		
 		meshparts[ numparts++ ] = mp;
+		break;
 	}
 	
 	// BOTTOM
+	for(;;)
 	{
 		SGRX_MeshPart mp = { vertices.size(), 0, indices.size(), 0 };
 		
@@ -238,7 +254,12 @@ void EdBlock::RegenerateMesh()
 		_GetTexVecs( poly.size() + 1, tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
 			_AddVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy, vertices, mp.vertexOffset );
-		_PostFitTexcoords( surfaces[ poly.size() + 1 ], &vertices[ vertices.size() - poly.size() ], poly.size() );
+		if( vertices.size() < mp.vertexOffset + 3 )
+		{
+			vertices.resize( mp.vertexOffset );
+			break;
+		}
+		_PostFitTexcoords( surfaces[ poly.size() + 1 ], &vertices[ mp.vertexOffset ], vertices.size() - mp.vertexOffset );
 		for( size_t i = 2; i < poly.size(); ++i )
 		{
 			indices.push_back( 0 );
@@ -255,6 +276,7 @@ void EdBlock::RegenerateMesh()
 		mp.material = mh;
 		
 		meshparts[ numparts++ ] = mp;
+		break;
 	}
 	
 	cached_mesh->SetAABBFromVertexData( vertices.data(), vertices.size_bytes(), vd );
@@ -265,7 +287,7 @@ void EdBlock::RegenerateMesh()
 
 LevelCache::Vertex EdBlock::_MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy )
 {
-	LevelCache::Vertex V = { { vpos.x + position.x, vpos.y + position.y, z }, { 0, 0, 1 }, 0xffffffff, 0, 0, 0, 0 };
+	LevelCache::Vertex V = { { vpos.x + position.x, vpos.y + position.y, z + position.z }, { 0, 0, 1 }, 0xffffffff, 0, 0, 0, 0 };
 	
 	V.tx0 = Vec3Dot( V.pos, tgx ) / S.scale + S.xoff;
 	V.ty0 = Vec3Dot( V.pos, tgy ) / S.scale * S.aspect + S.yoff;
@@ -287,16 +309,16 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 	planes[ numplanes++ ] = V4( 0, 0, -1, -z0 );
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		Vec2 vpos = poly[ i ].ToVec2() + position;
+		Vec3 vpos = poly[ i ] + position;
 		
 		size_t i1 = ( i + 1 ) % poly.size();
 		Vec2 dir = ( poly[ i1 ] - poly[ i ] ).ToVec2().Perp().Normalized();
 		if( !dir.NearZero() )
 		{
-			planes[ numplanes++ ] = V4( dir.x, dir.y, 0, Vec2Dot( vpos, dir ) );
+			planes[ numplanes++ ] = V4( dir.x, dir.y, 0, Vec2Dot( vpos.ToVec2(), dir ) );
 		}
 		
-		toppoly[ topverts++ ] = V3( vpos.x, vpos.y, z1 + poly[i].z );
+		toppoly[ topverts++ ] = vpos + V3( 0, 0, z1 );
 	}
 	if( PolyGetPlane( toppoly, topverts, planes[ numplanes ] ) )
 		numplanes++;
@@ -557,21 +579,26 @@ EDGUIBlockProps::EDGUIBlockProps() :
 	m_vertGroup( false, "Vertices" ),
 	m_z0( 0, 2, -8192, 8192 ),
 	m_z1( 2, 2, -8192, 8192 ),
-	m_pos( V2(0), 2, V2(-8192), V2(8192) )
+	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
+	m_blkGroup( NULL )
 {
 	tyname = "blockprops";
 	m_z0.caption = "Bottom height";
 	m_z1.caption = "Top height";
 	m_pos.caption = "Position";
+	m_blkGroup.caption = "Group";
 }
 
 void EDGUIBlockProps::Prepare( EdBlock& B )
 {
 	m_out = &B;
+	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
 	
 	Clear();
 	
 	Add( &m_group );
+	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( B.group ) );
+	m_group.Add( &m_blkGroup );
 	m_z0.SetValue( B.z0 );
 	m_group.Add( &m_z0 );
 	m_z1.SetValue( B.z1 );
@@ -606,7 +633,7 @@ int EDGUIBlockProps::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_z0 || e->target == &m_z1 || e->target == &m_pos )
+		if( e->target == &m_z0 || e->target == &m_z1 || e->target == &m_pos || e->target == &m_blkGroup )
 		{
 			if( e->target == &m_z0 )
 			{
@@ -619,6 +646,12 @@ int EDGUIBlockProps::OnEvent( EDGUIEvent* e )
 			else if( e->target == &m_pos )
 			{
 				m_out->position = m_pos.m_value;
+			}
+			else if( e->target == &m_blkGroup )
+			{
+				EdGroup* grp = g_EdWorld->m_groupMgr.FindGroupByPath( m_blkGroup.m_value );
+				if( grp )
+					m_out->group = grp->m_id;
 			}
 			m_out->RegenerateMesh();
 		}

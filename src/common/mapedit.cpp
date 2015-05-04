@@ -29,12 +29,14 @@ EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, cons
 	m_group( true, "Group" ),
 	m_ctlName( name ),
 	m_ctlParent( id, &groupMgr->m_grpPicker, id ? groupMgr->GetPath( pid ) : StringView() ),
+	m_ctlOrigin( V3(0), 2, V3(-8192), V3(8192) ),
 	m_ctlPos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_ctlAngles( V3(0), 2, V3(0), V3(360) ),
 	m_ctlScaleUni( 1, 2, 0.01f, 100.0f )
 {
 	m_ctlName.caption = "Name";
 	m_ctlParent.caption = "Parent";
+	m_ctlOrigin.caption = "Origin";
 	m_ctlPos.caption = "Position";
 	m_ctlAngles.caption = "Rotation";
 	m_ctlScaleUni.caption = "Scale (uniform)";
@@ -42,12 +44,14 @@ EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, cons
 	m_deleteDisownParent.caption = "Delete group and subobjects -> parent";
 	m_deleteDisownRoot.caption = "Delete group and subobjects -> root";
 	m_deleteRecursive.caption = "Delete group and destroy subobjects";
+	m_recalcOrigin.caption = "Recalculate origin";
 	
 	m_group.Add( &m_ctlName );
 	if( m_id )
 	{
 		m_group.Add( &m_ctlParent );
 	}
+	m_group.Add( &m_ctlOrigin );
 	m_group.Add( &m_ctlPos );
 	m_group.Add( &m_ctlAngles );
 	m_group.Add( &m_ctlScaleUni );
@@ -58,6 +62,7 @@ EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, cons
 		m_group.Add( &m_deleteDisownRoot );
 		m_group.Add( &m_deleteRecursive );
 	}
+	m_group.Add( &m_recalcOrigin );
 	
 	Add( &m_group );
 }
@@ -89,9 +94,13 @@ int EdGroup::OnEvent( EDGUIEvent* e )
 		}
 		break;
 	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_ctlPos || e->target == &m_ctlAngles || e->target == &m_ctlScaleUni || e->target == &m_ctlParent )
+		if( e->target == &m_ctlOrigin ||
+			e->target == &m_ctlPos ||
+			e->target == &m_ctlAngles ||
+			e->target == &m_ctlScaleUni ||
+			e->target == &m_ctlParent )
 		{
-			m_needsMtxUpdate = true;
+			m_groupMgr->MatrixInvalidate( m_id );
 		}
 		break;
 	case EDGUI_EVENT_PROPCHANGE:
@@ -113,10 +122,11 @@ Mat4 EdGroup::GetMatrix()
 {
 	if( m_needsMtxUpdate )
 	{
-		m_mtxCombined = m_mtxLocal = Mat4::CreateSRT( V3( m_ctlScaleUni.m_value ), DEG2RAD( m_ctlAngles.m_value ), m_ctlPos.m_value );
-		if( m_parent_id )
+		m_mtxCombined = m_mtxLocal = Mat4::CreateTranslation( -m_ctlOrigin.m_value ) *
+			Mat4::CreateSRT( V3( m_ctlScaleUni.m_value ), DEG2RAD( m_ctlAngles.m_value ), m_ctlPos.m_value + m_ctlOrigin.m_value );
+		if( m_id )
 		{
-			m_mtxCombined = m_mtxCombined * m_groupMgr->GetTransformMatrix( m_parent_id );
+			m_mtxCombined = m_mtxCombined * m_groupMgr->GetMatrix( m_parent_id );
 		}
 	}
 	return m_mtxCombined;
@@ -185,7 +195,7 @@ void EdGroupManager::AddRootGroup()
 	_AddGroup( 0, 0, "root" );
 }
 
-Mat4 EdGroupManager::GetTransformMatrix( int32_t id )
+Mat4 EdGroupManager::GetMatrix( int32_t id )
 {
 	EdGroup* grp = m_groups.getcopy( id );
 	ASSERT( grp );
@@ -301,13 +311,25 @@ void EdGroupManager::ProcessDestroyQueue()
 	m_destroyQueue.clear();
 }
 
+void EdGroupManager::MatrixInvalidate( int32_t id )
+{
+	FindGroupByID( id )->m_needsMtxUpdate = true;
+	g_EdWorld->FixTransformsOfGroup( id );
+	for( size_t i = 0; i < m_groups.size(); ++i )
+	{
+		EdGroup* grp = m_groups.item( i ).value;
+		if( grp->m_id && grp->m_parent_id == id )
+			MatrixInvalidate( grp->m_id ); // TODO: might need to fix algorithm for performance?
+	}
+}
+
 void EdGroupManager::PathInvalidate( int32_t id )
 {
 	FindGroupByID( id )->m_needsPathUpdate = true;
 	for( size_t i = 0; i < m_groups.size(); ++i )
 	{
 		EdGroup* grp = m_groups.item( i ).value;
-		if( grp->m_parent_id == id )
+		if( grp->m_id && grp->m_parent_id == id )
 			PathInvalidate( grp->m_id ); // TODO: might need to fix algorithm for performance?
 	}
 }
@@ -385,7 +407,7 @@ void EdWorld::TestData()
 	
 	EdBlock b1;
 	
-	b1.position = V2(0);
+	b1.position = V3(0);
 	b1.z0 = 0;
 	b1.z1 = 2;
 	
@@ -399,7 +421,7 @@ void EdWorld::TestData()
 	
 	m_blocks.push_back( b1 );
 	b1.z1 = 1;
-	b1.position = V2( 0.1f, 1 );
+	b1.position = V3( 0.1f, 1, 0.5f );
 	m_blocks.push_back( b1 );
 	
 	RegenerateMeshes();
@@ -418,6 +440,8 @@ void EdWorld::DrawWires_Blocks( int hlblock, int selblock )
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
 	for( size_t i = 0; i < m_blocks.size(); ++i )
 	{
+		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( m_blocks[ i ].group ) );
+		
 		if( (int) i == selblock )
 			br.Col( 0.9f, 0.5, 0.1f, 1 );
 		else if( (int) i == hlblock )
@@ -430,24 +454,24 @@ void EdWorld::DrawWires_Blocks( int hlblock, int selblock )
 		{
 			size_t v1 = ( v + 1 ) % B.poly.size();
 			
-			br.Pos( B.position.x + B.poly[ v ].x,  B.position.y + B.poly[ v ].y, B.z0 );
-			br.Pos( B.position.x + B.poly[ v1 ].x, B.position.y + B.poly[ v1 ].y, B.z0 );
+			br.Pos( B.position.x + B.poly[ v ].x,  B.position.y + B.poly[ v ].y, B.z0 + B.position.z );
+			br.Pos( B.position.x + B.poly[ v1 ].x, B.position.y + B.poly[ v1 ].y, B.z0 + B.position.z );
 			
-			br.Pos( B.position.x + B.poly[ v ].x,  B.position.y + B.poly[ v ].y, B.z1 );
-			br.Pos( B.position.x + B.poly[ v1 ].x, B.position.y + B.poly[ v1 ].y, B.z1 );
+			br.Pos( B.position.x + B.poly[ v ].x,  B.position.y + B.poly[ v ].y, B.poly[ v ].z + B.z1 + B.position.z );
+			br.Pos( B.position.x + B.poly[ v1 ].x, B.position.y + B.poly[ v1 ].y, B.poly[ v1 ].z + B.z1 + B.position.z );
 			
 			br.Prev( 3 ).Prev( 2 );
 		}
 	}
 	
 	br.Flush();
+	GR2D_SetWorldMatrix( Mat4::Identity );
 }
 
 void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	br.Flush();
 	br.SetPrimitiveType( PT_TriangleStrip ).UnsetTexture();
 	
 	if( sel )
@@ -456,6 +480,7 @@ void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 		br.Col( 0.1f, 0.5, 0.9f, 0.1f );
 	
 	const EdBlock& B = m_blocks[ block ];
+	GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
 	if( surf == (int) B.poly.size() )
 	{
 		for( size_t i = 0; i < B.poly.size(); ++i )
@@ -465,7 +490,7 @@ void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 				v = i / 2;
 			else
 				v = B.poly.size() - 1 - i / 2;
-			br.Pos( B.poly[ v ].x + B.position.x, B.poly[ v ].y + B.position.y, B.z1 );
+			br.Pos( B.poly[ v ].x + B.position.x, B.poly[ v ].y + B.position.y, B.poly[ v ].z + B.z1 + B.position.z );
 		}
 //		br.Prev( B.poly.size() - 1 );
 	}
@@ -479,21 +504,22 @@ void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 				v = i / 2;
 			else
 				v = B.poly.size() - 1 - i / 2;
-			br.Pos( B.poly[ v ].x + B.position.x, B.poly[ v ].y + B.position.y, B.z0 );
+			br.Pos( B.poly[ v ].x + B.position.x, B.poly[ v ].y + B.position.y, B.z0 + B.position.z );
 		}
 //		br.Prev( B.poly.size() - 1 );
 	}
 	else
 	{
 		size_t v = surf, v1 = ( surf + 1 ) % B.poly.size();
-		br.Pos( B.position.x + B.poly[ v ].x,  B.position.y + B.poly[ v ].y, B.z0 );
-		br.Pos( B.position.x + B.poly[ v1 ].x, B.position.y + B.poly[ v1 ].y, B.z0 );
+		br.Pos( B.position.x + B.poly[ v ].x,  B.position.y + B.poly[ v ].y, B.z0 + B.position.z );
+		br.Pos( B.position.x + B.poly[ v1 ].x, B.position.y + B.poly[ v1 ].y, B.z0 + B.position.z );
 		
-		br.Pos( B.position.x + B.poly[ v ].x, B.position.y + B.poly[ v ].y, B.z1 );
-		br.Pos( B.position.x + B.poly[ v1 ].x,  B.position.y + B.poly[ v1 ].y, B.z1 );
+		br.Pos( B.position.x + B.poly[ v ].x, B.position.y + B.poly[ v ].y, B.z1 + B.position.z );
+		br.Pos( B.position.x + B.poly[ v1 ].x,  B.position.y + B.poly[ v1 ].y, B.z1 + B.position.z );
 	}
 	
 	br.Flush();
+	GR2D_SetWorldMatrix( Mat4::Identity );
 }
 
 void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
@@ -508,7 +534,8 @@ void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
 		br.Col( 0.1f, 0.5, 0.9f, 0.5f );
 	
 	const EdBlock& B = m_blocks[ block ];
-	Vec3 P = V3( B.poly[ vert ].x + B.position.x, B.poly[ vert ].y + B.position.y, B.z0 );
+	GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
+	Vec3 P = V3( B.poly[ vert ].x + B.position.x, B.poly[ vert ].y + B.position.y, B.z0 + B.position.z );
 	
 	float s = 0.5f;
 	br.Pos( P - V3(s,0,0) ).Pos( P + V3(0,0,s) ).Prev(0).Pos( P + V3(s,0,0) ).Prev(0).Pos( P - V3(0,0,s) ).Prev(0).Prev(6);
@@ -610,14 +637,39 @@ bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int search
 	return curent != -1;
 }
 
+void EdWorld::FixTransformsOfGroup( int32_t grp )
+{
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		if( m_blocks[ i ].group == grp )
+			m_blocks[ i ].RegenerateMesh();
+	}
+	/*TODO ENTITIES*/
+}
+
 void EdWorld::TransferObjectsToGroup( int32_t grpfrom, int32_t grpto )
 {
-	/*TODO*/
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		if( m_blocks[ i ].group == grpfrom )
+		{
+			m_blocks[ i ].group = grpto;
+			m_blocks[ i ].RegenerateMesh();
+		}
+	}
+	/*TODO ENTITIES*/
 }
 
 void EdWorld::DeleteObjectsInGroup( int32_t grp )
 {
-	/*TODO*/
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		if( m_blocks[ i ].group == grp )
+		{
+			m_blocks.uerase( i-- );
+		}
+	}
+	/*TODO ENTITIES*/
 }
 
 
@@ -846,7 +898,7 @@ void EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 				m_hlVert = -1;
 				for( size_t i = 0; i < B.poly.size(); ++i )
 				{
-					if( RaySphereIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, V3( B.poly[i].x + B.position.x, B.poly[i].y + B.position.y, B.z0 ), 0.2f, outdst ) && outdst[0] < mindst )
+					if( RaySphereIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, V3( B.poly[i].x + B.position.x, B.poly[i].y + B.position.y, B.z0 + B.position.z ), 0.2f, outdst ) && outdst[0] < mindst )
 					{
 						mindst = outdst[0];
 						m_hlVert = i;
@@ -896,7 +948,7 @@ void EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 					}
 				}
 				else
-					B.position = tgtpos;
+					B.position = V3(tgtpos.x,tgtpos.y,B.position.z); // TODO_FULL_TRANSFORM
 				g_EdWorld->m_blocks[ m_selBlock ].RegenerateMesh();
 				_ReloadBlockProps();
 			}
@@ -917,7 +969,7 @@ void EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 				m_cpdiff = m_origPos - m_cursorWorldPos;
 			}
 			else
-				m_cpdiff = B.position - m_cursorWorldPos;
+				m_cpdiff = B.position.ToVec2() - m_cursorWorldPos; // TODO_FULL_TRANSFORM
 			m_dragAdjacent = ( e->key.engmod & KMOD_CTRL ) != 0;
 			m_grabbed = true;
 		}
@@ -966,7 +1018,7 @@ void EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 			B.cached_meshinst = NULL;
 			B.RegenerateMesh();
 			g_EdWorld->m_blocks.push_back( B );
-			m_cpdiff = B.position - m_cursorWorldPos;
+			m_cpdiff = B.position.ToVec2() - m_cursorWorldPos; // TODO_FULL_TRANSFORM
 			m_grabbed = true;
 			AddToParamList( g_EdWorld->GetBlockProps( m_selBlock ) );
 		}
@@ -1473,7 +1525,7 @@ void EDGUIMainFrame::SetEntityType( const EdEntityHandle& eh )
 void EDGUIMainFrame::_AddNewBlock()
 {
 	EdBlock B;
-	B.position = V2(0,0);
+	B.position = V3(0);
 	B.z0 = m_newBlockPropZ0.m_value;
 	B.z1 = m_newBlockPropZ1.m_value;
 	B.poly.resize( m_drawnVerts.size() );
@@ -1542,6 +1594,7 @@ struct TACStrikeEditor : IGame
 		g_EdScene->camera.position = Vec3::Create(3,3,3);
 		g_EdScene->camera.UpdateMatrices();
 		g_EdWorld = new EdWorld();
+		g_EdWorld->RegenerateMeshes();
 		g_UIFrame = new EDGUIMainFrame();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
@@ -1575,6 +1628,7 @@ struct TACStrikeEditor : IGame
 	void OnEvent( const Event& e )
 	{
 		g_UIFrame->EngineEvent( &e );
+		g_EdWorld->m_groupMgr.ProcessDestroyQueue();
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
