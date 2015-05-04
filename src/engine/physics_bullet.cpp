@@ -3,7 +3,7 @@
 #define USE_QUAT
 #define USE_MAT4
 #define USE_ARRAY
-#include "../ext/src/bullet.hpp"
+#include <bullet.hpp>
 
 #include "physics.hpp"
 

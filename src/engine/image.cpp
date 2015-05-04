@@ -4,8 +4,8 @@
 extern "C" {
 #include "dds.h"
 }
-#include "../ext/src/libpng/png.h"
-#include "../ext/src/libjpg/jpeglib.h"
+#include <libpng/png.h>
+#include <libjpg/jpeglib.h>
 
 
 #define USE_ARRAY

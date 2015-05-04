@@ -4,9 +4,9 @@
 #define SGS_DLL 1
 #define __STDC_FORMAT_MACROS 1
 #define HEADER_SGSCRIPT_H "sgscript.h"
-#include "../ext/src/sgscript/sgscript.h"
-#include "../ext/src/sgscript/sgsxgmath.h"
-#include "../ext/src/sgscript/sgs_cppbc.h"
+#include "../../ext/src/sgscript/sgscript.h"
+#include "../../ext/src/sgscript/sgsxgmath.h"
+#include "../../ext/src/sgscript/sgs_cppbc.h"
 
 #define USE_QUAT
 #define USE_MAT4

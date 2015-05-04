@@ -2,15 +2,15 @@
 # Lightmap renderer
 add_executable( lmrender
 	lmrender
-	../ext/src/lighter/lighter ../ext/src/lighter/lighter_math
-	../ext/src/zlib1 ../ext/src/zlib2 ../ext/src/zlib3
-	../ext/src/libpng1
+	${EXTDIR}/src/lighter/lighter ${EXTDIR}/src/lighter/lighter_math
+	${EXTDIR}/src/zlib1 ${EXTDIR}/src/zlib2 ${EXTDIR}/src/zlib3
+	${EXTDIR}/src/libpng1
 )
 target_link_libraries( lmrender sgrx-core )
 target_link_libraries( lmrender sgrx-script )
 set_target_properties( lmrender PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
-	INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/ext/src/zlib"
+	INCLUDE_DIRECTORIES "${EXTDIR}/src;${EXTDIR}/src/zlib"
 	COMPILE_FLAGS "${CORE_FLAGS} -DLTR_STATIC -O2"
 	LINK_FLAGS "${CORE_FLAGS} -O2"
 )

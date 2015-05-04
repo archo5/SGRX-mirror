@@ -7,8 +7,8 @@
 #include "../engine/renderer.hpp"
 #include "../engine/script.hpp"
 
-#include "../ext/src/libpng/png.h"
-#include "../ext/src/lighter/lighter.h"
+#include <libpng/png.h>
+#include <lighter/lighter.h>
 
 
 #define MAX_HARD_LIGTHMAP_SIZE 8192
