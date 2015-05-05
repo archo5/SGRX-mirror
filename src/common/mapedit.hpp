@@ -3,6 +3,7 @@
 #pragma once
 #define USE_HASHTABLE
 #include "compiler.hpp"
+#include "edutils.hpp"
 #include "edcomui.hpp"
 
 
@@ -78,11 +79,13 @@ struct EdGroup : EDGUILayoutRow
 	virtual int OnEvent( EDGUIEvent* e );
 	Mat4 GetMatrix();
 	StringView GetPath();
+	EdGroup* Clone();
 	
 	StringView Name(){ return m_ctlName.m_value; }
 	
 	template< class T > void Serialize( T& arch )
 	{
+		m_ctlOrigin.Serialize( arch );
 		m_ctlPos.Serialize( arch );
 		m_ctlAngles.Serialize( arch );
 		m_ctlScaleUni.Serialize( arch );
@@ -110,6 +113,9 @@ struct EdGroup : EDGUILayoutRow
 	EDGUIButton m_deleteDisownRoot;
 	EDGUIButton m_deleteRecursive;
 	EDGUIButton m_recalcOrigin;
+	EDGUIButton m_cloneGroup;
+	EDGUIButton m_cloneGroupWithSub;
+	EDGUIButton m_exportObj;
 };
 typedef Handle< EdGroup > EdGroupHandle;
 typedef HashTable< int32_t, EdGroupHandle > EdGroupHandleMap;
@@ -135,6 +141,7 @@ struct EdGroupManager : EDGUILayoutRow
 {
 	EdGroupManager();
 	virtual int OnEvent( EDGUIEvent* e );
+	void DrawGroups();
 	void AddRootGroup();
 	Mat4 GetMatrix( int32_t id );
 	StringView GetPath( int32_t id );
@@ -306,6 +313,7 @@ struct EdBlock
 	void _PostFitTexcoords( const EdSurface& S, EdVtx* vertices, size_t vcount );
 	
 	void GenCenterPos( EDGUISnapProps& SP );
+	Vec3 FindCenter();
 	
 	bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf = NULL );
 	
@@ -313,6 +321,7 @@ struct EdBlock
 	
 	LevelCache::Vertex _MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy );
 	void GenerateMesh( LevelCache& LC );
+	void Export( OBJExporter& objex );
 };
 
 
@@ -739,9 +748,12 @@ struct EdWorld : EDGUILayoutRow
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
 	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
 	
+	Vec3 FindCenterOfGroup( int32_t grp );
 	void FixTransformsOfGroup( int32_t grp );
+	void CopyObjectsToGroup( int32_t grpfrom, int32_t grpto );
 	void TransferObjectsToGroup( int32_t grpfrom, int32_t grpto );
 	void DeleteObjectsInGroup( int32_t grp );
+	void ExportGroupAsOBJ( int32_t grp, const StringView& name );
 	
 	EDGUIItem* GetBlockProps( size_t bid )
 	{

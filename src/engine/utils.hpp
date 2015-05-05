@@ -1172,6 +1172,16 @@ struct Array
 	void resize( size_t sz );
 	void reserve( size_t sz );
 	void insert( size_t at, const T* v, size_t count );
+	size_t find_or_add( const T& what, size_t from = 0 )
+	{
+		size_t id = find_first_at( what, from );
+		if( id == NOT_FOUND )
+		{
+			id = m_size;
+			push_back( what );
+		}
+		return id;
+	}
 	
 	size_t find_first_at( const T& what, size_t from = 0 ) const
 	{

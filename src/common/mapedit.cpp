@@ -45,6 +45,9 @@ EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, cons
 	m_deleteDisownRoot.caption = "Delete group and subobjects -> root";
 	m_deleteRecursive.caption = "Delete group and destroy subobjects";
 	m_recalcOrigin.caption = "Recalculate origin";
+	m_cloneGroup.caption = "Clone group only";
+	m_cloneGroupWithSub.caption = "Clone group with subobjects";
+	m_exportObj.caption = "Export group as .obj";
 	
 	m_group.Add( &m_ctlName );
 	if( m_id )
@@ -63,6 +66,12 @@ EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, cons
 		m_group.Add( &m_deleteRecursive );
 	}
 	m_group.Add( &m_recalcOrigin );
+	if( m_id )
+	{
+		m_group.Add( &m_cloneGroup );
+		m_group.Add( &m_cloneGroupWithSub );
+	}
+	m_group.Add( &m_exportObj );
 	
 	Add( &m_group );
 }
@@ -91,6 +100,25 @@ int EdGroup::OnEvent( EDGUIEvent* e )
 		if( e->target == &m_deleteRecursive )
 		{
 			m_groupMgr->QueueDestroy( this );
+		}
+		if( e->target == &m_recalcOrigin )
+		{
+			m_ctlOrigin.SetValue( g_EdWorld->FindCenterOfGroup( m_id ) );
+		}
+		if( e->target == &m_cloneGroup )
+		{
+			EdGroup* grp = Clone();
+			m_groupMgr->PrepareEditGroup( grp );
+		}
+		if( e->target == &m_cloneGroupWithSub )
+		{
+			EdGroup* grp = Clone();
+			g_EdWorld->CopyObjectsToGroup( m_id, grp->m_id );
+			m_groupMgr->PrepareEditGroup( grp );
+		}
+		if( e->target == &m_exportObj )
+		{
+			g_EdWorld->ExportGroupAsOBJ( m_id, "group.obj" );
 		}
 		break;
 	case EDGUI_EVENT_PROPEDIT:
@@ -147,6 +175,16 @@ StringView EdGroup::GetPath()
 	return m_path;
 }
 
+EdGroup* EdGroup::Clone()
+{
+	EdGroup* grp = m_groupMgr->AddGroup( m_parent_id );
+	grp->m_ctlOrigin.SetValue( m_ctlOrigin.m_value );
+	grp->m_ctlPos.SetValue( m_ctlPos.m_value );
+	grp->m_ctlAngles.SetValue( m_ctlAngles.m_value );
+	grp->m_ctlScaleUni.SetValue( m_ctlScaleUni.m_value );
+	return grp;
+}
+
 
 void EDGUIGroupPicker::Reload()
 {
@@ -188,6 +226,26 @@ int EdGroupManager::OnEvent( EDGUIEvent* e )
 		break;
 	}
 	return EDGUILayoutRow::OnEvent( e );
+}
+
+void EdGroupManager::DrawGroups()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	EdGroup* grp = FindGroupByPath( m_editedGroup.m_value );
+	while( grp )
+	{
+		Mat4 parent_mtx = grp->m_id ? GetMatrix( grp->m_parent_id ) : Mat4::Identity;
+		
+		br.Col( 0.8f, 0.05f, 0.01f );
+		br.Tick( grp->m_ctlPos.m_value + grp->m_ctlOrigin.m_value, 0.1f, parent_mtx );
+		br.Col( 0.05f, 0.8f, 0.01f );
+		br.Tick( grp->m_ctlPos.m_value, 0.1f, parent_mtx );
+		
+		if( grp->m_id == 0 )
+			break;
+		grp = FindGroupByID( grp->m_parent_id );
+	}
 }
 
 void EdGroupManager::AddRootGroup()
@@ -637,12 +695,48 @@ bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int search
 	return curent != -1;
 }
 
+Vec3 EdWorld::FindCenterOfGroup( int32_t grp )
+{
+	Vec3 cp = V3(0);
+	int count = 0;
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		if( m_blocks[ i ].group == grp )
+		{
+			cp += m_blocks[ i ].FindCenter();
+			count++;
+		}
+	}
+	/*TODO ENTITIES*/
+	if( count )
+		cp /= count;
+	return cp;
+}
+
 void EdWorld::FixTransformsOfGroup( int32_t grp )
 {
 	for( size_t i = 0; i < m_blocks.size(); ++i )
 	{
 		if( m_blocks[ i ].group == grp )
 			m_blocks[ i ].RegenerateMesh();
+	}
+	/*TODO ENTITIES*/
+}
+
+void EdWorld::CopyObjectsToGroup( int32_t grpfrom, int32_t grpto )
+{
+	size_t oldsize = m_blocks.size();
+	for( size_t i = 0; i < oldsize; ++i )
+	{
+		if( m_blocks[ i ].group == grpfrom )
+		{
+			EdBlock blk = m_blocks[ i ];
+			blk.group = grpto;
+			blk.cached_mesh = NULL;
+			blk.cached_meshinst = NULL;
+			blk.RegenerateMesh();
+			m_blocks.push_back( blk );
+		}
 	}
 	/*TODO ENTITIES*/
 }
@@ -670,6 +764,19 @@ void EdWorld::DeleteObjectsInGroup( int32_t grp )
 		}
 	}
 	/*TODO ENTITIES*/
+}
+
+void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
+{
+	OBJExporter objex;
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		if( m_blocks[ i ].group == grp )
+		{
+			m_blocks[ i ].Export( objex );
+		}
+	}
+	objex.Save( name, "Exported from SGRX editor" );
 }
 
 
@@ -1291,6 +1398,10 @@ void EDGUIMainFrame::DebugDraw()
 		g_EdWorld->DrawWires_Entities( m_hlEnt, m_selEnt );
 		if( m_grabbed )
 			DrawCursor( false );
+	}
+	else if( m_mode == ED_EditGroups )
+	{
+		g_EdWorld->m_groupMgr.DrawGroups();
 	}
 	br.Flush();
 }

@@ -99,6 +99,18 @@ void EdBlock::GenCenterPos( EDGUISnapProps& SP )
 		poly[i].SetXY( poly[i].ToVec2() - cp - oldpos );
 }
 
+Vec3 EdBlock::FindCenter()
+{
+	Vec3 center = V3(0);
+	for( size_t i = 0; i < poly.size(); ++i )
+		center += V3( poly[ i ].x, poly[ i ].y, poly[ i ].z * 0.5f );
+	if( poly.size() )
+		center /= poly.size();
+	center += position;
+	center.z += ( z0 + z1 ) * 0.5f;
+	return center;
+}
+
 bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf )
 {
 	Vec3 pts[16];
@@ -364,6 +376,11 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 			verts[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy );
 		LC.AddPoly( verts, poly.size(), surfaces[ poly.size() + 1 ].texname, surfaces[ poly.size() + 1 ].lmquality, solid );
 	}
+}
+
+void EdBlock::Export( OBJExporter& objex )
+{
+	// TODO
 }
 
 
