@@ -380,7 +380,62 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 
 void EdBlock::Export( OBJExporter& objex )
 {
-	// TODO
+	// GENERATE MESH
+	if( z0 != z1 )
+	{
+		for( size_t i = 0; i < poly.size(); ++i )
+		{
+			Vec3 tgx, tgy;
+			_GetTexVecs( i, tgx, tgy );
+			Vec3 nrm = -Vec3Cross( tgx, tgy ).Normalized();
+			size_t i1 = ( i + 1 ) % poly.size();
+			LevelCache::Vertex verts[] =
+			{
+				_MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy ),
+				_MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy ),
+				_MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy ),
+				_MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy ),
+			};
+			objex.AddVertex( verts[0].pos, V2( verts[0].tx0, verts[0].ty0 ), nrm );
+			objex.AddVertex( verts[1].pos, V2( verts[1].tx0, verts[1].ty0 ), nrm );
+			objex.AddVertex( verts[2].pos, V2( verts[2].tx0, verts[2].ty0 ), nrm );
+			objex.AddVertex( verts[2].pos, V2( verts[2].tx0, verts[2].ty0 ), nrm );
+			objex.AddVertex( verts[3].pos, V2( verts[3].tx0, verts[3].ty0 ), nrm );
+			objex.AddVertex( verts[0].pos, V2( verts[0].tx0, verts[0].ty0 ), nrm );
+		}
+	}
+	
+	// TOP
+	{
+		LevelCache::Vertex verts[ MAX_BLOCK_POLYGONS - 2 ];
+		Vec3 tgx, tgy;
+		_GetTexVecs( poly.size(), tgx, tgy );
+		Vec3 nrm = -Vec3Cross( tgx, tgy ).Normalized();
+		for( size_t i = 0; i < poly.size(); ++i )
+			verts[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
+		for( size_t i = 1; i < poly.size() - 1; ++i )
+		{
+			objex.AddVertex( verts[0].pos, V2( verts[0].tx0, verts[0].ty0 ), nrm );
+			objex.AddVertex( verts[i].pos, V2( verts[i].tx0, verts[i].ty0 ), nrm );
+			objex.AddVertex( verts[i+1].pos, V2( verts[i+1].tx0, verts[i+1].ty0 ), nrm );
+		}
+	}
+	
+	// BOTTOM
+	{
+		LevelCache::Vertex verts[ MAX_BLOCK_POLYGONS - 2 ];
+		Vec3 tgx, tgy;
+		_GetTexVecs( poly.size() + 1, tgx, tgy );
+		Vec3 nrm = -Vec3Cross( tgx, tgy ).Normalized();
+		for( size_t i = 0; i < poly.size(); ++i )
+			verts[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy );
+		for( size_t i = 1; i < poly.size() - 1; ++i )
+		{
+			objex.AddVertex( verts[0].pos, V2( verts[0].tx0, verts[0].ty0 ), nrm );
+			objex.AddVertex( verts[i].pos, V2( verts[i].tx0, verts[i].ty0 ), nrm );
+			objex.AddVertex( verts[i+1].pos, V2( verts[i+1].tx0, verts[i+1].ty0 ), nrm );
+		}
+	}
 }
 
 
