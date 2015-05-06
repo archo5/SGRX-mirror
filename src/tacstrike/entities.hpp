@@ -384,19 +384,30 @@ void TSParseTaskArray( TSTaskArray& out, sgsVariable var );
 
 struct TSCharacter : Entity
 {
-	TSCharacter( const Vec3& pos, const Vec3& dir, const Vec4& color );
+	TSCharacter( const Vec3& pos, const Vec3& dir );
+	void InitializeMesh( const StringView& path );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
+	void HandleMovementPhysics( float deltaTime );
+	void TurnTo( const Vec2& turnDir, float speedDelta );
 	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
 	MeshInstHandle m_meshInst;
 	LightHandle m_shadowInst;
+	
+	SkeletonInfo m_skelInfo;
 	AnimPlayer m_anMainPlayer;
+	AnimPlayer m_anTopPlayer;
+	Animator m_anRootTurner;
+	AnimMixer m_anMixer;
+	AnimMixer::Layer m_anLayers[4];
 	AnimInterp m_anEnd;
+	AnimRagdoll m_anRagdoll;
 	
 	float m_footstepTime;
 	bool m_isCrouching;
+	bool m_isOnGround;
 	IVState< Vec3 > m_ivPos;
 	IVState< Quat > m_ivDir;
 	

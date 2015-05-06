@@ -412,6 +412,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_RegisterAction( &RELOAD );
 		Game_RegisterAction( &SLOW_WALK );
 		Game_RegisterAction( &SPRINT );
+		Game_RegisterAction( &CROUCH );
 		
 		Game_BindKeyToAction( SDLK_a, &MOVE_LEFT );
 		Game_BindKeyToAction( SDLK_d, &MOVE_RIGHT );
@@ -419,8 +420,9 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindKeyToAction( SDLK_s, &MOVE_DOWN );
 		Game_BindKeyToAction( SDLK_g, &SHOOT );
 		Game_BindKeyToAction( SDLK_r, &RELOAD );
-		Game_BindKeyToAction( SDLK_LCTRL, &SLOW_WALK );
+	//	Game_BindKeyToAction( SDLK_LCTRL, &SLOW_WALK );
 		Game_BindKeyToAction( SDLK_LSHIFT, &SPRINT );
+		Game_BindKeyToAction( SDLK_LCTRL, &CROUCH );
 		
 		g_GameLevel = new GameLevel();
 		
@@ -428,9 +430,9 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		g_GameLevel->Load( "test" );
 		
-		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
 		GR_LoadAnims( "meshes/tstest.ssm.anm" );
+//		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		myanim = GR_GetAnim( "run" );
 	//	myanim = GR_GetAnim( "my_jiggle" );
 		
