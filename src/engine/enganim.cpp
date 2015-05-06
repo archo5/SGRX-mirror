@@ -1062,3 +1062,144 @@ void AnimRagdoll::DisablePhysics()
 	}
 }
 
+
+
+DecalSystem::DecalSystem() : m_vbSize(0)
+{
+}
+
+DecalSystem::~DecalSystem()
+{
+	Free();
+}
+
+void DecalSystem::Init( TextureHandle texDecal, TextureHandle texFalloff, DecalMapPartInfo* decalCoords, int numDecals )
+{
+	m_vertexDecl = GR_GetVertexDecl( SGRX_VDECL_DECAL );
+	m_mesh = GR_CreateMesh();
+	m_decalBounds.assign( decalCoords, numDecals );
+	m_material = GR_CreateMaterial(); // TODO: pass loaded material when there is something to load
+	m_material->transparent = true;
+	m_material->shader = GR_GetSurfaceShader( "default" );
+	m_material->textures[0] = texDecal;
+	m_material->textures[1] = texFalloff;
+}
+
+void DecalSystem::Free()
+{
+	ClearAllDecals();
+	m_mesh = NULL;
+	m_decalBounds.clear();
+	m_vbSize = 0;
+}
+
+void DecalSystem::SetSize( uint32_t vbSize )
+{
+	m_vbSize = vbSize;
+}
+
+void DecalSystem::Upload()
+{
+	// cut excess decals
+	size_t cutsize = 0, vbsize = m_vertexData.size(), cutcount = 0;
+	while( vbsize - cutsize > m_vbSize )
+	{
+		cutsize += m_decals[ cutcount++ ];
+	}
+	if( cutcount )
+	{
+		m_vertexData.erase( 0, cutsize );
+		m_decals.erase( 0, cutcount );
+	}
+	
+	// generate indices
+	m_indexData.clear();
+	SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, 0, 48 );
+	
+	// apply data
+	m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl, true );
+	m_mesh->SetIndexData( m_indexData.data(), m_indexData.size_bytes(), true );
+	SGRX_MeshPart mp = { 0, m_vertexData.size() / 48, 0, m_indexData.size(), m_material };
+	m_mesh->SetPartData( &mp, 1 );
+}
+
+void DecalSystem::AddDecal( int decalID, SGRX_IMesh* m_targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
+{
+	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
+	
+	float inv_zn2zf;
+	Mat4 vpmtx;
+	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
+	
+	size_t origsize = m_vertexData.size();
+	m_targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf );
+	if( m_vertexData.size() > origsize )
+	{
+		_ScaleDecalTexcoords( origsize, decalID );
+		m_decals.push_back( m_vertexData.size() - origsize );
+	}
+}
+
+void DecalSystem::AddDecal( int decalID, SGRX_IMesh* m_targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
+{
+	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
+	
+	float inv_zn2zf;
+	Mat4 vpmtx;
+	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
+	
+	size_t origsize = m_vertexData.size();
+	m_targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, partID, 1 );
+	if( m_vertexData.size() > origsize )
+	{
+		_ScaleDecalTexcoords( origsize, decalID );
+		m_decals.push_back( m_vertexData.size() - origsize );
+	}
+}
+
+void DecalSystem::ClearAllDecals()
+{
+	m_vertexData.clear();
+	m_indexData.clear();
+	m_decals.clear();
+}
+
+void DecalSystem::_ScaleDecalTexcoords( size_t vbfrom, int decalID )
+{
+	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
+	
+	SGRX_CAST( SGRX_Vertex_Decal*, vdata, m_vertexData.data() );
+	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size();
+	vdata += vbfrom / 48;
+	while( vdata < vdend )
+	{
+		vdata->texcoord.x = TLERP( DMPI.bbox.x, DMPI.bbox.z, vdata->texcoord.x );
+		vdata->texcoord.y = TLERP( DMPI.bbox.y, DMPI.bbox.w, vdata->texcoord.y );
+		vdata++;
+	}
+}
+
+void DecalSystem::_GenDecalMatrix( int decalID, DecalProjectionInfo* projInfo, Mat4* outVPM, float* out_invzn2zf )
+{
+	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
+	
+	Mat4 projMtx, viewMtx = Mat4::CreateLookAt( projInfo->pos, projInfo->dir, projInfo->up );
+	float znear = 0, dist = DMPI.size.z * projInfo->distanceScale;
+	if( projInfo->perspective )
+	{
+		float aspect = DMPI.size.x / DMPI.size.y * projInfo->aspectMult;
+		znear = dist * 0.001f;
+		projMtx = Mat4::CreatePerspective( projInfo->fovAngleDeg, aspect, projInfo->aamix, znear, dist );
+	}
+	else
+	{
+		Vec2 psz = DMPI.size.ToVec2() * 0.5f * projInfo->orthoScale;
+		projMtx = Mat4::CreateOrtho( V3( -psz.x, -psz.y, 0 ), V3( psz.x, psz.y, DMPI.size.z * projInfo->distanceScale ) );
+	}
+	*outVPM = viewMtx * projMtx;
+	*out_invzn2zf = safe_fdiv( 1, dist - znear );
+}
+
+
+
+

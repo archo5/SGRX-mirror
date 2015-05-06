@@ -740,6 +740,12 @@ struct ENGINE_EXPORT Mat4
 		out.Perspective( angle, aspect, aamix, znear, zfar );
 		return out;
 	}
+	static Mat4 CreateOrtho( const Vec3& bmin, const Vec3& bmax )
+	{
+		Mat4 out;
+		out.Ortho( bmin, bmax );
+		return out;
+	}
 	static Mat4 Basis( const Vec3& vx, const Vec3& vy, const Vec3& vz, bool cols = false )
 	{
 		Mat4 out =
@@ -907,6 +913,20 @@ struct ENGINE_EXPORT Mat4
 		m[2][0] = m[2][1] = 0; m[2][3] = 1;
 		m[3][2] = -znear * zfar / ( zfar - znear );
 		m[3][0] = m[3][1] = m[3][3] = 0;
+	}
+	
+	void Ortho( const Vec3& bmin, const Vec3& bmax )
+	{
+		m[0][0] = 2.0f / ( bmax.x - bmin.x );
+		m[0][1] = m[0][2] = m[0][3] = 0;
+		m[1][1] = 2.0f / ( bmax.y - bmin.y );
+		m[1][0] = m[1][2] = m[1][3] = 0;
+		m[2][2] = 1.0f / ( bmax.z - bmin.z );
+		m[2][0] = m[2][1] = m[2][3] = 0;
+		m[3][0] = ( bmin.x + bmax.x ) / ( bmin.x - bmax.x );
+		m[3][1] = ( bmin.y + bmax.y ) / ( bmin.y - bmax.y );
+		m[3][2] = ( bmin.z + bmax.z ) / ( bmin.z - bmax.z );
+		m[3][3] = 1;
 	}
 	
 	template< class T > void Serialize( T& arch )

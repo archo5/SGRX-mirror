@@ -391,6 +391,13 @@ struct VDeclInfo
 };
 
 #define SGRX_VDECL_DECAL "pf3nf30f3tf3"
+struct SGRX_Vertex_Decal
+{
+	Vec3 position;
+	Vec3 normal;
+	Vec3 texcoord;
+	Vec3 tangent;
+};
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl : SGRX_RCRsrc
 {
@@ -511,7 +518,15 @@ struct SGRX_IMesh : SGRX_RCRsrc
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
-	ENGINE_EXPORT void Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, bool decal = false, float inv_zn2zf = 0 );
+	ENGINE_EXPORT void Clip(
+		const Mat4& mtx,
+		const Mat4& vpmtx,
+		ByteArray& outverts,
+		bool decal = false,
+		float inv_zn2zf = 0,
+		size_t firstPart = 0,
+		size_t numParts = (size_t)-1
+	);
 	
 	/* rendering info */
 	uint32_t m_dataFlags;

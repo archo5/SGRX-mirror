@@ -1110,13 +1110,13 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 	}
 }
 
-template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, const Mat4& vpmtx, bool decal, float inv_zn2zf, ByteArray& outverts )
+template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, const Mat4& vpmtx, bool decal, float inv_zn2zf, ByteArray& outverts, size_t fp, size_t ep )
 {
 	size_t stride = mesh->m_vertexDecl.GetInfo().size;
 	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
 	if( ( mesh->m_dataFlags & MDF_TRIANGLESTRIP ) == 0 )
 	{
-		for( size_t part_id = 0; part_id < mesh->m_meshParts.size(); ++part_id )
+		for( size_t part_id = fp; part_id < ep; ++part_id )
 		{
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
@@ -1131,7 +1131,7 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 	}
 	else
 	{
-		for( size_t part_id = 0; part_id < mesh->m_meshParts.size(); ++part_id )
+		for( size_t part_id = fp; part_id < ep; ++part_id )
 		{
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
@@ -1147,18 +1147,21 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 	}
 }
 
-void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, bool decal, float inv_zn2zf )
+void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, bool decal, float inv_zn2zf, size_t firstPart, size_t numParts )
 {
 	if( m_vdata.size() == 0 || m_idata.size() == 0 )
 		return;
 	
+	size_t MPC = m_meshParts.size();
+	firstPart = TMIN( firstPart, MPC - 1 );
+	size_t oneOverLastPart = TMIN( firstPart + TMIN( numParts, MPC ), MPC );
 	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
 	{
-		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts );
+		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts, firstPart, oneOverLastPart );
 	}
 	else
 	{
-		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts );
+		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts, firstPart, oneOverLastPart );
 	}
 }
 

@@ -517,3 +517,57 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem
 };
 
 
+
+struct DecalMapPartInfo
+{
+	Vec4 bbox; // left, top, right, bottom / x0,y0,x1,y1
+	Vec3 size; // width / height / depth
+};
+
+struct DecalProjectionInfo
+{
+	DecalProjectionInfo() : pos(V3(0)), dir(V3(0,1,0)), up(V3(0,0,1)),
+		fovAngleDeg(90), orthoScale(1), aspectMult(1), aamix(0.5f),
+		distanceScale(1.0f), perspective(false)
+	{}
+	
+	Vec3 pos;
+	Vec3 dir;
+	Vec3 up;
+	float fovAngleDeg; // perspective only
+	float orthoScale; // ortho only
+	float aspectMult; // perspective only
+	float aamix; // perspective only
+	float distanceScale;
+	bool perspective;
+};
+
+struct IF_GCC(ENGINE_EXPORT) DecalSystem
+{
+	ENGINE_EXPORT DecalSystem();
+	ENGINE_EXPORT ~DecalSystem();
+	
+	ENGINE_EXPORT void Init( TextureHandle texDecal, TextureHandle texFalloff, DecalMapPartInfo* decalCoords, int numDecals );
+	ENGINE_EXPORT void Free();
+	ENGINE_EXPORT void SetSize( uint32_t vbSize );
+	
+	ENGINE_EXPORT void Upload();
+	
+	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* m_targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
+	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* m_targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
+	ENGINE_EXPORT void ClearAllDecals();
+	
+	ENGINE_EXPORT void _ScaleDecalTexcoords( size_t vbfrom, int decalID );
+	ENGINE_EXPORT void _GenDecalMatrix( int decalID, DecalProjectionInfo* projInfo, Mat4* outVPM, float* out_invzn2zf );
+	
+	Array< DecalMapPartInfo > m_decalBounds;
+	VertexDeclHandle m_vertexDecl;
+	MaterialHandle m_material;
+	MeshHandle m_mesh;
+	ByteArray m_vertexData;
+	UInt32Array m_indexData;
+	Array< uint32_t > m_decals;
+	uint32_t m_vbSize;
+};
+
+
