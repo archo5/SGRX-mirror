@@ -493,7 +493,12 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	
 	void Game_FixedTick( float dt )
 	{
-		g_PhyWorld->Step( dt );
+		int ITERS = 10;
+		if( !g_GameLevel->m_paused )
+		{
+			for( int i = 0; i < ITERS; ++i )
+				g_PhyWorld->Step( dt / ITERS );
+		}
 		g_GameLevel->FixedTick( dt );
 		
 	//	myplayer->FixedTick( dt );
