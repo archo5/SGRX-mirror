@@ -764,7 +764,7 @@ struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback
 };
 struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Closest : SceneRaycastCallback
 {
-	SceneRaycastCallback_Closest();
+	ENGINE_EXPORT SceneRaycastCallback_Closest();
 	ENGINE_EXPORT virtual void AddResult( SceneRaycastInfo* info );
 	
 	bool m_hit;
@@ -772,7 +772,7 @@ struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Closest : SceneRaycastCallback
 };
 struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Sorting : SceneRaycastCallback
 {
-	SceneRaycastCallback_Sorting( Array< SceneRaycastInfo >* sortarea );
+	ENGINE_EXPORT SceneRaycastCallback_Sorting( Array< SceneRaycastInfo >* sortarea );
 	ENGINE_EXPORT virtual void AddResult( SceneRaycastInfo* info );
 	
 	Array< SceneRaycastInfo >* m_sortarea;

@@ -1117,10 +1117,13 @@ void DecalSystem::Upload()
 	SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, 0, 48 );
 	
 	// apply data
-	m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl, true );
-	m_mesh->SetIndexData( m_indexData.data(), m_indexData.size_bytes(), true );
-	SGRX_MeshPart mp = { 0, m_vertexData.size() / 48, 0, m_indexData.size(), m_material };
-	m_mesh->SetPartData( &mp, 1 );
+	if( m_vertexData.size() )
+	{
+		m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl, true );
+		m_mesh->SetIndexData( m_indexData.data(), m_indexData.size_bytes(), true );
+		SGRX_MeshPart mp = { 0, m_vertexData.size() / 48, 0, m_indexData.size(), m_material };
+		m_mesh->SetPartData( &mp, 1 );
+	}
 }
 
 void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
@@ -1169,7 +1172,7 @@ void DecalSystem::_ScaleDecalTexcoords( size_t vbfrom, int decalID )
 	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
 	
 	SGRX_CAST( SGRX_Vertex_Decal*, vdata, m_vertexData.data() );
-	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size();
+	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size() / 48;
 	vdata += vbfrom / 48;
 	while( vdata < vdend )
 	{

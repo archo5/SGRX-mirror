@@ -515,6 +515,13 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		PS->PreRender();
 	//	myplayer->Tick( dt, bf );
 		mytable->Tick( dt, bf );
+		
+		Vec3 CP, CD;
+		if( SHOOT.value && g_GameLevel->m_scene->camera.GetCursorRay(
+			Game_GetCursorPos().x / GR_GetWidth(), Game_GetCursorPos().y / GR_GetHeight(), CP, CD ) )
+		{
+			g_GameLevel->m_bulletSystem.Add( CP, CD * 10, 1, 1 );
+		}
 	}
 	void Game_Render()
 	{

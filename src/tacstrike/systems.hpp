@@ -140,8 +140,8 @@ struct DamageSystem
 	void Init( SceneHandle scene );
 	void Free();
 	void Tick( float deltaTime );
-	void AddBulletDecal( const StringView& type, SGRX_IMesh* m_targetMesh,
-		int partID, const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, float scale = 1.0f );
+	void AddBulletDamage( const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
+		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
 	void Clear();
 	
 	DecalSystem m_bulletDecalSys;

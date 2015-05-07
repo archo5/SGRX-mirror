@@ -967,6 +967,9 @@ void SGRX_IMesh_RaycastAll_Core_TestTriangle( const Vec3& rpos, const Vec3& rdir
 	{
 		srci->factor = dist[0] / rlen;
 		srci->normal = Vec3Cross( pos[1] - pos[0], pos[2] - pos[0] ).Normalized();
+		if( srci->meshinst )
+			srci->normal = srci->meshinst->matrix.TransformNormal( srci->normal );
+		LOG << "NOPE?" << srci->factor << srci->normal;
 		// TODO u/v
 		cb->AddResult( srci );
 	}
@@ -1503,6 +1506,40 @@ SceneRaycastCallback_Sorting::SceneRaycastCallback_Sorting( Array< SceneRaycastI
 
 void SceneRaycastCallback_Sorting::AddResult( SceneRaycastInfo* info )
 {
+	if( m_sortarea->size() == 0 )
+	{
+		m_sortarea->push_back( *info );
+		return;
+	}
+	
+	int lowerBound = 0;
+	int upperBound = m_sortarea->size() - 1;
+	int pos = 0;
+	for(;;)
+	{
+		pos = (upperBound + lowerBound) / 2;
+		if( m_sortarea->at(pos).factor == info->factor )
+		{
+			break;
+		}
+		else if( m_sortarea->at(pos).factor < info->factor )
+		{
+			lowerBound = pos + 1;
+			if( lowerBound > upperBound )
+			{
+				pos++;
+				break;
+			}
+		}
+		else
+		{
+			upperBound = pos - 1;
+			if( lowerBound > upperBound )
+				break;
+		}
+	}
+	
+	m_sortarea->insert( pos, *info );
 }
 
 
@@ -1569,7 +1606,7 @@ void SGRX_Scene::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallb
 		{
 			Vec3 tffrom = inv.TransformPos( from );
 			Vec3 tfto = inv.TransformPos( to );
-			mi->mesh->RaycastAll( tffrom, tfto, cb );
+			mi->mesh->RaycastAll( tffrom, tfto, cb, mi );
 		}
 	}
 }

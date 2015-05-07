@@ -217,6 +217,7 @@ void DamageSystem::Init( SceneHandle scene )
 {
 	DecalMapPartInfo dmpi[] = { V4(0,0,1,1), V3(2) };
 	m_bulletDecalSys.Init( GR_GetTexture( "textures/clip.png" ), GR_GetTexture( "textures/fx/projfalloff2.png" ), dmpi, 1 );
+	m_bulletDecalSys.SetSize( 48 * 1024 * 10 ); // random size
 	m_bulletDecalMesh = scene->CreateMeshInstance();
 	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
 }
@@ -232,8 +233,8 @@ void DamageSystem::Tick( float deltaTime )
 	m_bulletDecalSys.Upload();
 }
 
-void DamageSystem::AddBulletDecal( const StringView& type, SGRX_IMesh* targetMesh,
-	int partID, const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, float scale )
+void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMesh, int partID,
+	const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale )
 {
 	// TODO handle type
 	int decalID = 0;
@@ -286,16 +287,34 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 			{
 				SceneRaycastInfo& HIT = m_tmpStore[ hitid ];
 				float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
+				
+				// apply damage to hit point
+				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
+				LOG << hitpoint;
+				m_damageSystem->AddBulletDamage( "TODO",
+					HIT.meshinst->mesh, -1, HIT.meshinst->matrix,
+					hitpoint, B.dir, HIT.normal );
+				
+				// handling wall penetration
 				B.numSolidRefs += entryIfL0 < 0 ? 1 : -1;
 				if( B.numSolidRefs == 1 )
 				{
 					// entry into solid
-					B.intersectStart = TLERP( p1, p2, HIT.factor );
+					B.intersectStart = hitpoint;
 				}
 				else if( B.numSolidRefs == 0 )
 				{
 					// genuine exit, calculate penetration
-					// TODO
+					float dist = ( hitpoint - B.intersectStart ).Length();
+					float q = dist * 50;
+					float speedScale = q < 1 ? 1 : 1 / q;
+					speedScale = ( speedScale - 1 ) * 1.15f + 1;
+					if( speedScale < 0 )
+					{
+						remb = true;
+						break;
+					}
+					B.velocity * speedScale;
 				}
 				else if( B.numSolidRefs < 0 )
 				{
