@@ -141,7 +141,7 @@ int Weapon::Tick( float deltaTime, Vec2 pos, Vec2 dir, float speed )
 		Vec2 bullet_start = m_position + bullet_dir * 12;
 		Vec2 bullet_velocity = bullet_dir.Rotate( randf11() * DEG2RAD( GetSpread() ) ) * m_type->bullet_speed;
 		
-		m_bulletSystem->Add( bullet_start, bullet_velocity, m_type->bullet_time, m_type->damage + randf11() * m_type->damage_rand );
+// TODO		m_bulletSystem->Add( bullet_start, bullet_velocity, m_type->bullet_time, m_type->damage + randf11() * m_type->damage_rand );
 // TODO 	g_World.add_entity( Bullet_create( bullet_start, bullet_velocity, m_type->bullet_time, m_type->damage + randf11() * m_type->damage_rand ) );
 		
 // TODO 	g_AIDB.emit_sound( bullet_start, AI_SOUND_GUNFIRE, 0.5, 600, m_emit_id );

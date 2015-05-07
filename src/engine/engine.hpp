@@ -518,6 +518,8 @@ struct SGRX_IMesh : SGRX_RCRsrc
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
+	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
+	
 	ENGINE_EXPORT void Clip(
 		const Mat4& mtx,
 		const Mat4& vpmtx,
@@ -748,12 +750,48 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ProjectionMeshProcessor : IProcessor
 	ENGINE_EXPORT virtual void Process( void* data );
 };
 
-struct SGRX_Scene : SGRX_RefCounted
+struct SceneRaycastInfo
+{
+	float factor;
+	Vec3 normal;
+	float u, v;
+	int partID, triID;
+	MeshInstHandle meshinst;
+};
+struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback
+{
+	virtual void AddResult( SceneRaycastInfo* info ) = 0;
+};
+struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Closest : SceneRaycastCallback
+{
+	SceneRaycastCallback_Closest();
+	ENGINE_EXPORT virtual void AddResult( SceneRaycastInfo* info );
+	
+	bool m_hit;
+	SceneRaycastInfo m_closest;
+};
+struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Sorting : SceneRaycastCallback
+{
+	SceneRaycastCallback_Sorting( Array< SceneRaycastInfo >* sortarea );
+	ENGINE_EXPORT virtual void AddResult( SceneRaycastInfo* info );
+	
+	Array< SceneRaycastInfo >* m_sortarea;
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 {
 	ENGINE_EXPORT SGRX_Scene();
 	ENGINE_EXPORT virtual ~SGRX_Scene();
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
 	ENGINE_EXPORT LightHandle CreateLight();
+	
+	// finds closest match and returns only that
+	ENGINE_EXPORT bool RaycastOne( const Vec3& from, const Vec3& to, SceneRaycastInfo* outinfo = NULL, uint32_t layers = 0xffffffff );
+	// finds all matches and returns them in random order
+	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, uint32_t layers = 0xffffffff );
+	// - sorted
+	ENGINE_EXPORT void RaycastAllSort( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb,
+		uint32_t layers = 0xffffffff, Array< SceneRaycastInfo >* tmpstore = NULL );
 	
 	ENGINE_EXPORT void GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc, uint32_t layers = 0xffffffff );
 	ENGINE_EXPORT void GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outverts, UInt32Array& outindices, uint32_t layers = 0xffffffff );

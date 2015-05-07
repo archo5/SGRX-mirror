@@ -152,6 +152,8 @@ GameLevel::GameLevel() :
 	m_scene->camera.aspect = 1024.0f / 576.0f;
 	m_scene->camera.UpdateMatrices();
 	
+	m_damageSystem.Init( m_scene );
+	
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
 	m_tex_mapline = GR_GetTexture( "ui/mapline.png" );
@@ -163,6 +165,7 @@ GameLevel::GameLevel() :
 GameLevel::~GameLevel()
 {
 	ClearLevel();
+	m_damageSystem.Free();
 }
 
 
@@ -530,7 +533,7 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	if( !m_paused )
 	{
 		m_damageSystem.Tick( deltaTime );
-		m_bulletSystem.Tick( deltaTime );
+		m_bulletSystem.Tick( m_scene, deltaTime );
 		if( m_player )
 			m_player->Tick( deltaTime, blendFactor );
 		for( size_t i = 0; i < m_entities.size(); ++i )
@@ -563,8 +566,6 @@ void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
-	m_bulletSystem.Draw2D();
-	m_damageSystem.Draw2D();
 	m_messageSystem.DrawUI();
 	m_objectiveSystem.DrawUI();
 //	if( m_player )

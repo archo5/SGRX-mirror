@@ -1123,7 +1123,7 @@ void DecalSystem::Upload()
 	m_mesh->SetPartData( &mp, 1 );
 }
 
-void DecalSystem::AddDecal( int decalID, SGRX_IMesh* m_targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
+void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
 {
 	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
 	
@@ -1132,7 +1132,7 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* m_targetMesh, const Mat4& w
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
 	
 	size_t origsize = m_vertexData.size();
-	m_targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf );
+	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf );
 	if( m_vertexData.size() > origsize )
 	{
 		_ScaleDecalTexcoords( origsize, decalID );
@@ -1140,7 +1140,7 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* m_targetMesh, const Mat4& w
 	}
 }
 
-void DecalSystem::AddDecal( int decalID, SGRX_IMesh* m_targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
+void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
 {
 	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
 	
@@ -1149,7 +1149,7 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* m_targetMesh, int partID, c
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
 	
 	size_t origsize = m_vertexData.size();
-	m_targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, partID, 1 );
+	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, partID, 1 );
 	if( m_vertexData.size() > origsize )
 	{
 		_ScaleDecalTexcoords( origsize, decalID );

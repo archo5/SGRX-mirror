@@ -755,6 +755,76 @@ const VDeclInfo& VertexDeclHandle::GetInfo()
 }
 
 
+void VD_ExtractVec3( const VDeclInfo& vdinfo, int vcount, const void** vertptrs, Vec3* outpos, int usage = VDECLUSAGE_POSITION )
+{
+	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage );
+	if( ty == -1 || ofs == -1 )
+		return;
+	
+	switch( ty )
+	{
+	case VDECLTYPE_FLOAT1: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), 0, 0 ); break;
+	case VDECLTYPE_FLOAT2: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), *(float*)((uint8_t*)vertptrs[i]+ofs+4), 0 ); break;
+	case VDECLTYPE_FLOAT3:
+	case VDECLTYPE_FLOAT4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = *(Vec3*)((uint8_t*)vertptrs[i]+ofs); break;
+	case VDECLTYPE_BCOL4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *((uint8_t*)vertptrs[i]+ofs)/255.0f, *((uint8_t*)vertptrs[i]+ofs+1)/255.0f, *((uint8_t*)vertptrs[i]+ofs+2)/255.0f ); break;
+	}
+}
+
+void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factors, const void* v1, const void* v2, const void* v3 )
+{
+	SGRX_CAST( char*, coutbuf, outbuf );
+	SGRX_CAST( const char*, cv1, v1 );
+	SGRX_CAST( const char*, cv2, v2 );
+	SGRX_CAST( const char*, cv3, v3 );
+	for( int i = 0; i < vdinfo.count; ++i )
+	{
+		int off = vdinfo.offsets[ i ];
+		char* ocoutbuf = coutbuf + off;
+		const char *ocv1 = cv1 + off, *ocv2 = cv2 + off, *ocv3 = cv3 + off;
+		
+		switch( vdinfo.types[ i ] )
+		{
+		case VDECLTYPE_FLOAT1:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ v ];
+				*(float*)( ocoutbuf + v * vdinfo.size ) = *(float*)ocv1 * f.x + *(float*)ocv2 * f.y + *(float*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_FLOAT2:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ v ];
+				*(Vec2*)( ocoutbuf + v * vdinfo.size ) = *(Vec2*)ocv1 * f.x + *(Vec2*)ocv2 * f.y + *(Vec2*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_FLOAT3:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ v ];
+				*(Vec3*)( ocoutbuf + v * vdinfo.size ) = *(Vec3*)ocv1 * f.x + *(Vec3*)ocv2 * f.y + *(Vec3*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_FLOAT4:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ v ];
+				*(Vec4*)( ocoutbuf + v * vdinfo.size ) = *(Vec4*)ocv1 * f.x + *(Vec4*)ocv2 * f.y + *(Vec4*)ocv3 * f.z;
+			}
+			break;
+		case VDECLTYPE_BCOL4:
+			for( int v = 0; v < vcount; ++v )
+			{
+				const Vec3& f = factors[ v ];
+				*(BVec4*)( ocoutbuf + v * vdinfo.size ) = *(BVec4*)ocv1 * f.x + *(BVec4*)ocv2 * f.y + *(BVec4*)ocv3 * f.z;
+			}
+			break;
+		}
+	}
+}
+
+
 SGRX_SurfaceShader::~SGRX_SurfaceShader()
 {
 	g_SurfShaders->unset( m_key );
@@ -885,72 +955,85 @@ bool SGRX_IMesh::SetAABBFromVertexData( const void* data, size_t size, VertexDec
 	return GetAABBFromVertexData( vd.GetInfo(), (const char*) data, size, m_boundsMin, m_boundsMax );
 }
 
-void VD_ExtractVec3( const VDeclInfo& vdinfo, int vcount, const void** vertptrs, Vec3* outpos, int usage = VDECLUSAGE_POSITION )
+void SGRX_IMesh_RaycastAll_Core_TestTriangle( const Vec3& rpos, const Vec3& rdir, float rlen,
+	SceneRaycastCallback* cb, SceneRaycastInfo* srci, VDeclInfo* vdinfo, const void* v1, const void* v2, const void* v3 )
 {
-	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage );
-	if( ty == -1 || ofs == -1 )
-		return;
+	const void* verts[3] = { v1, v2, v3 };
+	Vec3 pos[3] = {0};
+	VD_ExtractVec3( *vdinfo, 3, verts, pos );
 	
-	switch( ty )
+	float dist[1];
+	if( RayPolyIntersect( rpos, rdir, pos, 3, dist ) && dist[0] >= 0 && dist[0] < rlen )
 	{
-	case VDECLTYPE_FLOAT1: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), 0, 0 ); break;
-	case VDECLTYPE_FLOAT2: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), *(float*)((uint8_t*)vertptrs[i]+ofs+4), 0 ); break;
-	case VDECLTYPE_FLOAT3:
-	case VDECLTYPE_FLOAT4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = *(Vec3*)((uint8_t*)vertptrs[i]+ofs); break;
-	case VDECLTYPE_BCOL4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *((uint8_t*)vertptrs[i]+ofs)/255.0f, *((uint8_t*)vertptrs[i]+ofs+1)/255.0f, *((uint8_t*)vertptrs[i]+ofs+2)/255.0f ); break;
+		srci->factor = dist[0] / rlen;
+		srci->normal = Vec3Cross( pos[1] - pos[0], pos[2] - pos[0] ).Normalized();
+		// TODO u/v
+		cb->AddResult( srci );
 	}
 }
 
-void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factors, const void* v1, const void* v2, const void* v3 )
+template< class IdxType > void SGRX_IMesh_RaycastAll_Core( SGRX_IMesh* mesh, const Vec3& from, const Vec3& to,
+	SceneRaycastCallback* cb, SceneRaycastInfo* srci, size_t fp, size_t ep )
 {
-	SGRX_CAST( char*, coutbuf, outbuf );
-	SGRX_CAST( const char*, cv1, v1 );
-	SGRX_CAST( const char*, cv2, v2 );
-	SGRX_CAST( const char*, cv3, v3 );
-	for( int i = 0; i < vdinfo.count; ++i )
+	size_t stride = mesh->m_vertexDecl.GetInfo().size;
+	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
+	
+	Vec3 dtdir = to - from;
+	float rlen = dtdir.Length();
+	dtdir /= rlen;
+	
+	if( ( mesh->m_dataFlags & MDF_TRIANGLESTRIP ) == 0 )
 	{
-		int off = vdinfo.offsets[ i ];
-		char* ocoutbuf = coutbuf + off;
-		const char *ocv1 = cv1 + off, *ocv2 = cv2 + off, *ocv3 = cv3 + off;
-		
-		switch( vdinfo.types[ i ] )
+		for( size_t part_id = fp; part_id < ep; ++part_id )
 		{
-		case VDECLTYPE_FLOAT1:
-			for( int v = 0; v < vcount; ++v )
+			srci->partID = part_id;
+			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+			
+			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
-				const Vec3& f = factors[ v ];
-				*(float*)( ocoutbuf + v * vdinfo.size ) = *(float*)ocv1 * f.x + *(float*)ocv2 * f.y + *(float*)ocv3 * f.z;
+				srci->triID = tri / 3;
+				SGRX_IMesh_RaycastAll_Core_TestTriangle( from, dtdir, rlen, cb, srci, &mesh->m_vertexDecl->m_info
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
+				);
 			}
-			break;
-		case VDECLTYPE_FLOAT2:
-			for( int v = 0; v < vcount; ++v )
-			{
-				const Vec3& f = factors[ v ];
-				*(Vec2*)( ocoutbuf + v * vdinfo.size ) = *(Vec2*)ocv1 * f.x + *(Vec2*)ocv2 * f.y + *(Vec2*)ocv3 * f.z;
-			}
-			break;
-		case VDECLTYPE_FLOAT3:
-			for( int v = 0; v < vcount; ++v )
-			{
-				const Vec3& f = factors[ v ];
-				*(Vec3*)( ocoutbuf + v * vdinfo.size ) = *(Vec3*)ocv1 * f.x + *(Vec3*)ocv2 * f.y + *(Vec3*)ocv3 * f.z;
-			}
-			break;
-		case VDECLTYPE_FLOAT4:
-			for( int v = 0; v < vcount; ++v )
-			{
-				const Vec3& f = factors[ v ];
-				*(Vec4*)( ocoutbuf + v * vdinfo.size ) = *(Vec4*)ocv1 * f.x + *(Vec4*)ocv2 * f.y + *(Vec4*)ocv3 * f.z;
-			}
-			break;
-		case VDECLTYPE_BCOL4:
-			for( int v = 0; v < vcount; ++v )
-			{
-				const Vec3& f = factors[ v ];
-				*(BVec4*)( ocoutbuf + v * vdinfo.size ) = *(BVec4*)ocv1 * f.x + *(BVec4*)ocv2 * f.y + *(BVec4*)ocv3 * f.z;
-			}
-			break;
 		}
+	}
+	else
+	{
+		for( size_t part_id = fp; part_id < ep; ++part_id )
+		{
+			srci->partID = part_id;
+			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+			
+			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
+			{
+				srci->triID = tri - 2;
+				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
+				SGRX_IMesh_RaycastAll_Core_TestTriangle( from, dtdir, rlen, cb, srci, &mesh->m_vertexDecl->m_info
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i1 ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i2 ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i3 ] ) * stride ]
+				);
+			}
+		}
+	}
+}
+
+void SGRX_IMesh::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi )
+{
+	if( !m_vdata.size() || !m_idata.size() || !m_meshParts.size() )
+		return;
+	
+	SceneRaycastInfo srci = { 0, V3(0), 0, 0, 0, 0, cbmi };
+	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
+	{
+		SGRX_IMesh_RaycastAll_Core< uint32_t >( this, from, to, cb, &srci, 0, m_meshParts.size() );
+	}
+	else
+	{
+		SGRX_IMesh_RaycastAll_Core< uint16_t >( this, from, to, cb, &srci, 0, m_meshParts.size() );
 	}
 }
 
@@ -1399,6 +1482,31 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 }
 
 
+SceneRaycastCallback_Closest::SceneRaycastCallback_Closest() : m_hit(false)
+{
+	SceneRaycastInfo srci = { 1.0f + SMALL_FLOAT, V3(0), 0, 0, 0, 0, NULL };
+	m_closest = srci;
+}
+
+void SceneRaycastCallback_Closest::AddResult( SceneRaycastInfo* info )
+{
+	m_hit = true;
+	if( info->factor < m_closest.factor )
+		m_closest = *info;
+}
+
+SceneRaycastCallback_Sorting::SceneRaycastCallback_Sorting( Array< SceneRaycastInfo >* sortarea )
+	: m_sortarea( sortarea )
+{
+	sortarea->clear();
+}
+
+void SceneRaycastCallback_Sorting::AddResult( SceneRaycastInfo* info )
+{
+}
+
+
+
 SGRX_Scene::SGRX_Scene() :
 	cullScene( NULL ),
 	fogColor( Vec3::Create( 0.5 ) ),
@@ -1439,6 +1547,44 @@ LightHandle SGRX_Scene::CreateLight()
 	SGRX_Light* lt = new SGRX_Light( this );
 	m_lights.set( lt, NULL );
 	return lt;
+}
+
+bool SGRX_Scene::RaycastOne( const Vec3& from, const Vec3& to, SceneRaycastInfo* outinfo, uint32_t layers )
+{
+	SceneRaycastCallback_Closest cb;
+	RaycastAll( from, to, &cb, layers );
+	if( cb.m_hit )
+		*outinfo = cb.m_closest;
+	return cb.m_hit;
+}
+
+void SGRX_Scene::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, uint32_t layers )
+{
+	// TODO: broadphase
+	Mat4 inv;
+	for( size_t i = 0; i < m_meshInstances.size(); ++i )
+	{
+		SGRX_MeshInstance* mi = m_meshInstances.item( i ).key;
+		if( mi->layers & layers && mi->matrix.InvertTo( inv ) )
+		{
+			Vec3 tffrom = inv.TransformPos( from );
+			Vec3 tfto = inv.TransformPos( to );
+			mi->mesh->RaycastAll( tffrom, tfto, cb );
+		}
+	}
+}
+
+void SGRX_Scene::RaycastAllSort( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, uint32_t layers, Array< SceneRaycastInfo >* tmpstore )
+{
+	Array< SceneRaycastInfo > mystore;
+	if( !tmpstore )
+		tmpstore = &mystore;
+	SceneRaycastCallback_Sorting mycb( tmpstore );
+	RaycastAll( from, to, &mycb, layers );
+	for( size_t i = 0; i < tmpstore->size(); ++i )
+	{
+		cb->AddResult( &tmpstore->at(i) );
+	}
 }
 
 void SGRX_Scene::GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc, uint32_t layers )

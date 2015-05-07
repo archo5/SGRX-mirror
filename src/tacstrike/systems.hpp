@@ -137,12 +137,15 @@ struct ObjectiveSystem
 
 struct DamageSystem
 {
-	void Tick( float deltaTime ){}
-	void Draw2D(){}
+	void Init( SceneHandle scene );
+	void Free();
+	void Tick( float deltaTime );
+	void AddBulletDecal( const StringView& type, SGRX_IMesh* m_targetMesh,
+		int partID, const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, float scale = 1.0f );
+	void Clear();
 	
-	void Clear(){}
-	
-	int todo;
+	DecalSystem m_bulletDecalSys;
+	MeshInstHandle m_bulletDecalMesh;
 };
 
 
@@ -150,25 +153,28 @@ struct BulletSystem
 {
 	struct Bullet
 	{
-		Vec2 position;
-		Vec2 velocity;
-		Vec2 dir;
+		Vec3 position;
+		Vec3 velocity;
+		Vec3 dir;
 		float timeleft;
 		float damage;
+		// penetration depth calculations
+		Vec3 intersectStart;
+		int numSolidRefs;
 	};
 	typedef Array< Bullet > BulletArray;
 	
 	BulletSystem( DamageSystem* dmgsys );
 	
-	void Tick( float deltaTime );
-	void Draw2D();
+	void Tick( SGRX_Scene* scene, float deltaTime );
 	
-	void Add( const Vec2& pos, const Vec2& vel, float timeleft, float dmg );
+	void Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg );
 	void Clear();
 	
 	BulletArray m_bullets;
-	TextureHandle m_tx_bullet;
 	DamageSystem* m_damageSystem;
+	
+	Array< SceneRaycastInfo > m_tmpStore;
 };
 
 

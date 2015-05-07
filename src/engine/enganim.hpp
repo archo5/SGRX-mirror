@@ -526,11 +526,11 @@ struct DecalMapPartInfo
 
 struct DecalProjectionInfo
 {
-	DecalProjectionInfo() : pos(V3(0)), dir(V3(0,1,0)), up(V3(0,0,1)),
-		fovAngleDeg(90), orthoScale(1), aspectMult(1), aamix(0.5f),
-		distanceScale(1.0f), perspective(false)
-	{}
-	
+//	DecalProjectionInfo() : pos(V3(0)), dir(V3(0,1,0)), up(V3(0,0,1)),
+//		fovAngleDeg(90), orthoScale(1), aspectMult(1), aamix(0.5f),
+//		distanceScale(1.0f), perspective(false)
+//	{}
+//	
 	Vec3 pos;
 	Vec3 dir;
 	Vec3 up;
@@ -553,8 +553,8 @@ struct IF_GCC(ENGINE_EXPORT) DecalSystem
 	
 	ENGINE_EXPORT void Upload();
 	
-	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* m_targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
-	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* m_targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
+	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
+	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
 	ENGINE_EXPORT void ClearAllDecals();
 	
 	ENGINE_EXPORT void _ScaleDecalTexcoords( size_t vbfrom, int decalID );

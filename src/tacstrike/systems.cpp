@@ -213,13 +213,54 @@ void ObjectiveSystem::DrawUI()
 }
 
 
+void DamageSystem::Init( SceneHandle scene )
+{
+	DecalMapPartInfo dmpi[] = { V4(0,0,1,1), V3(2) };
+	m_bulletDecalSys.Init( GR_GetTexture( "textures/clip.png" ), GR_GetTexture( "textures/fx/projfalloff2.png" ), dmpi, 1 );
+	m_bulletDecalMesh = scene->CreateMeshInstance();
+	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
+}
+
+void DamageSystem::Free()
+{
+	m_bulletDecalSys.Free();
+}
+
+void DamageSystem::Tick( float deltaTime )
+{
+	UNUSED( deltaTime );
+	m_bulletDecalSys.Upload();
+}
+
+void DamageSystem::AddBulletDecal( const StringView& type, SGRX_IMesh* targetMesh,
+	int partID, const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, float scale )
+{
+	// TODO handle type
+	int decalID = 0;
+	
+	DecalProjectionInfo projInfo =
+	{
+		pos, dir, fabsf( Vec3Dot( dir, V3(0,0,1) ) ) > 0.99f ? V3(0,1,0) : V3(0,0,1),
+		0, scale, 1, 0.5f, scale, false
+	};
+	if( partID < 0 )
+		m_bulletDecalSys.AddDecal( decalID, targetMesh, worldMatrix, &projInfo );
+	else
+		m_bulletDecalSys.AddDecal( decalID, targetMesh, partID, worldMatrix, &projInfo );
+}
+
+void DamageSystem::Clear()
+{
+	m_bulletDecalSys.ClearAllDecals();
+}
+
+
 BulletSystem::BulletSystem( DamageSystem* dmgsys ) :
 	m_damageSystem( dmgsys )
 {
-	m_tx_bullet = GR_GetTexture( "textures/particles/bullet.png" );
 }
 
-void BulletSystem::Tick( float deltaTime )
+void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 {
 	for( size_t i = 0; i < m_bullets.size(); ++i )
 	{
@@ -231,37 +272,48 @@ void BulletSystem::Tick( float deltaTime )
 			m_bullets.erase( i-- );
 			break;
 		}
-		Vec2 p1 = B.position;
-		Vec2 p2 = p1 + B.velocity * deltaTime;
-		bool rcr = false; // g_ColWorld.raycast( p1.x, p1.y, p2.x, p2.y );
-		if( rcr )
+		Vec3 p1 = B.position;
+		Vec3 p2 = p1 + B.velocity * deltaTime;
+		
+		SceneRaycastCallback_Sorting cb( &m_tmpStore );
+		scene->RaycastAll( p1, p2, &cb, 0xffffffff );
+		
+		// sorted list of raycast hits
+		bool remb = false;
+		if( m_tmpStore.size() )
 		{
-			m_bullets.erase( i-- );
-	//		if( rcr.eid >= 0 )                   TODO RAYCAST
-	//		{
-	//			g_World.send_message( rcr.eid, "bullet_hit", [B.dmg * B.velocity, rcr.pos, rcr.normal] );
-	//		}
-	//		else
-	//			g_World.add_entity( EntityBuilder.build( "fx_wall_hit", { x = rcr.pos.x, y = rcr.pos.y, nx = rcr.normal.x, ny = rcr.normal.y } ) );
+			for( size_t hitid = 0; hitid < m_tmpStore.size(); ++hitid )
+			{
+				SceneRaycastInfo& HIT = m_tmpStore[ hitid ];
+				float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
+				B.numSolidRefs += entryIfL0 < 0 ? 1 : -1;
+				if( B.numSolidRefs == 1 )
+				{
+					// entry into solid
+					B.intersectStart = TLERP( p1, p2, HIT.factor );
+				}
+				else if( B.numSolidRefs == 0 )
+				{
+					// genuine exit, calculate penetration
+					// TODO
+				}
+				else if( B.numSolidRefs < 0 )
+				{
+					// fake exit, abort all
+					remb = true;
+					break;
+				}
+			}
 		}
+		
+		if( remb )
+			m_bullets.erase( i-- );
 		else
 			B.position = p2;
 	}
 }
 
-void BulletSystem::Draw2D()
-{
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	br.SetTexture( m_tx_bullet );
-	br.Col( 1 );
-	for( size_t i = 0; i < m_bullets.size(); ++i )
-	{
-		const Bullet& B = m_bullets[i];
-		br.TurnedBox( B.position.x, B.position.y, B.dir.x * 2, B.dir.y * 2 );
-	}
-}
-
-void BulletSystem::Add( const Vec2& pos, const Vec2& vel, float timeleft, float dmg )
+void BulletSystem::Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg )
 {
 	Bullet B = { pos, vel, vel.Normalized(), timeleft, dmg };
 	m_bullets.push_back( B );
