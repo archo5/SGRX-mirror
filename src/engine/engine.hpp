@@ -390,13 +390,15 @@ struct VDeclInfo
 	}
 };
 
-#define SGRX_VDECL_DECAL "pf3nf30f3tf3"
+#define SGRX_VDECL_DECAL "pf3nf30f3tb4cb4xb4"
 struct SGRX_Vertex_Decal
 {
 	Vec3 position;
 	Vec3 normal;
 	Vec3 texcoord;
-	Vec3 tangent;
+	uint32_t tangent;
+	uint32_t color;
+	uint32_t padding0;
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl : SGRX_RCRsrc
@@ -685,6 +687,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	uint32_t enabled : 1;
 	uint32_t cpuskin : 1; /* TODO */
 	uint32_t dynamic : 1;
+	uint32_t decal : 1;
 	uint32_t transparent : 1;
 	uint32_t unlit : 1;
 //	uint32_t additive : 1;
@@ -882,6 +885,7 @@ struct LightTree
 #define RPF_MTL_ALL        (RPF_MTL_SOLID|RPF_MTL_TRANSPARENT)
 #define RPF_CALC_DIRAMB     0x10
 #define RPF_LIGHTOVERLAY    0x20
+#define RPF_DECALS          0x40
 #define RPF_ENABLED         0x80
 
 struct SGRX_RenderPass

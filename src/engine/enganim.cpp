@@ -1101,27 +1101,30 @@ void DecalSystem::SetSize( uint32_t vbSize )
 void DecalSystem::Upload()
 {
 	// cut excess decals
-	size_t cutsize = 0, vbsize = m_vertexData.size(), cutcount = 0;
-	while( vbsize - cutsize > m_vbSize )
+	size_t vbcutsize = 0, vbsize = m_vertexData.size(), ibcutsize = 0, cutcount = 0;
+	while( vbsize > m_vbSize + vbcutsize )
 	{
-		cutsize += m_decals[ cutcount++ ];
+		vbcutsize += m_decals[ cutcount++ ];
+		ibcutsize += m_decals[ cutcount++ ];
 	}
 	if( cutcount )
 	{
-		m_vertexData.erase( 0, cutsize );
+		m_vertexData.erase( 0, vbcutsize );
+		m_indexData.erase( 0, ibcutsize );
 		m_decals.erase( 0, cutcount );
+		uint32_t iboff = vbcutsize / sizeof(SGRX_Vertex_Decal);
+		for( size_t i = 0; i < m_indexData.size(); ++i )
+		{
+			m_indexData[ i ] -= iboff;
+		}
 	}
-	
-	// generate indices
-	m_indexData.clear();
-	SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, 0, 48 );
 	
 	// apply data
 	if( m_vertexData.size() )
 	{
 		m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl, true );
 		m_mesh->SetIndexData( m_indexData.data(), m_indexData.size_bytes(), true );
-		SGRX_MeshPart mp = { 0, m_vertexData.size() / 48, 0, m_indexData.size(), m_material };
+		SGRX_MeshPart mp = { 0, m_vertexData.size() / sizeof(SGRX_Vertex_Decal), 0, m_indexData.size(), m_material };
 		m_mesh->SetPartData( &mp, 1 );
 	}
 }
@@ -1134,12 +1137,14 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& wor
 	Mat4 vpmtx;
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
 	
-	size_t origsize = m_vertexData.size();
+	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf );
-	if( m_vertexData.size() > origsize )
+	if( m_vertexData.size() > origvbsize )
 	{
-		_ScaleDecalTexcoords( origsize, decalID );
-		m_decals.push_back( m_vertexData.size() - origsize );
+		_ScaleDecalTexcoords( origvbsize, decalID );
+		SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, origvbsize, sizeof(SGRX_Vertex_Decal) );
+		m_decals.push_back( m_vertexData.size() - origvbsize );
+		m_decals.push_back( m_indexData.size() - origibsize );
 	}
 }
 
@@ -1151,12 +1156,14 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, con
 	Mat4 vpmtx;
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
 	
-	size_t origsize = m_vertexData.size();
+	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, partID, 1 );
-	if( m_vertexData.size() > origsize )
+	if( m_vertexData.size() > origvbsize )
 	{
-		_ScaleDecalTexcoords( origsize, decalID );
-		m_decals.push_back( m_vertexData.size() - origsize );
+		_ScaleDecalTexcoords( origvbsize, decalID );
+		SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, origvbsize, sizeof(SGRX_Vertex_Decal) );
+		m_decals.push_back( m_vertexData.size() - origvbsize );
+		m_decals.push_back( m_indexData.size() - origibsize );
 	}
 }
 
@@ -1172,8 +1179,8 @@ void DecalSystem::_ScaleDecalTexcoords( size_t vbfrom, int decalID )
 	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
 	
 	SGRX_CAST( SGRX_Vertex_Decal*, vdata, m_vertexData.data() );
-	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size() / 48;
-	vdata += vbfrom / 48;
+	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size() / sizeof(SGRX_Vertex_Decal);
+	vdata += vbfrom / sizeof(SGRX_Vertex_Decal);
 	while( vdata < vdend )
 	{
 		vdata->texcoord.x = TLERP( DMPI.bbox.x, DMPI.bbox.z, vdata->texcoord.x );
@@ -1186,8 +1193,10 @@ void DecalSystem::_GenDecalMatrix( int decalID, DecalProjectionInfo* projInfo, M
 {
 	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
 	
-	Mat4 projMtx, viewMtx = Mat4::CreateLookAt( projInfo->pos, projInfo->dir, projInfo->up );
 	float znear = 0, dist = DMPI.size.z * projInfo->distanceScale;
+	Mat4 projMtx, viewMtx = Mat4::CreateLookAt(
+		projInfo->pos - projInfo->dir * projInfo->pushBack * dist,
+		projInfo->dir, projInfo->up );
 	if( projInfo->perspective )
 	{
 		float aspect = DMPI.size.x / DMPI.size.y * projInfo->aspectMult;

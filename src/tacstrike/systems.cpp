@@ -215,10 +215,11 @@ void ObjectiveSystem::DrawUI()
 
 void DamageSystem::Init( SceneHandle scene )
 {
-	DecalMapPartInfo dmpi[] = { V4(0,0,1,1), V3(2) };
-	m_bulletDecalSys.Init( GR_GetTexture( "textures/clip.png" ), GR_GetTexture( "textures/fx/projfalloff2.png" ), dmpi, 1 );
+	DecalMapPartInfo dmpi[] = { V4(0,0,1,1), V3(0.2f) };
+	m_bulletDecalSys.Init( GR_GetTexture( "textures/fx/decals.png" ), GR_GetTexture( "textures/fx/projfalloff2.png" ), dmpi, 1 );
 	m_bulletDecalSys.SetSize( 48 * 1024 * 10 ); // random size
 	m_bulletDecalMesh = scene->CreateMeshInstance();
+	m_bulletDecalMesh->decal = true;
 	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
 }
 
@@ -242,7 +243,7 @@ void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMe
 	DecalProjectionInfo projInfo =
 	{
 		pos, dir, fabsf( Vec3Dot( dir, V3(0,0,1) ) ) > 0.99f ? V3(0,1,0) : V3(0,0,1),
-		0, scale, 1, 0.5f, scale, false
+		0, scale, 1, 0.5f, scale, 0.5f, false
 	};
 	if( partID < 0 )
 		m_bulletDecalSys.AddDecal( decalID, targetMesh, worldMatrix, &projInfo );
@@ -290,7 +291,6 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 				
 				// apply damage to hit point
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
-				LOG << hitpoint;
 				m_damageSystem->AddBulletDamage( "TODO",
 					HIT.meshinst->mesh, -1, HIT.meshinst->matrix,
 					hitpoint, B.dir, HIT.normal );

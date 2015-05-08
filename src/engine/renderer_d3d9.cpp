@@ -1720,7 +1720,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 				D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 				
 				/* if (transparent & want solid) or (solid & want transparent), skip */
-				if( MI->transparent )
+				if( MI->transparent || MI->decal )
 					continue;
 				
 				MI_ApplyConstants( MI );
@@ -1744,8 +1744,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 					if( !SSH )
 						continue;
 					
-					bool transparent = MI->transparent || MTL->transparent;
-					if( transparent )
+					if( MTL->transparent )
 						continue;
 					
 					SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
@@ -1831,6 +1830,9 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 {
 	int obj_type = !!( PASS.flags & RPF_OBJ_STATIC ) - !!( PASS.flags & RPF_OBJ_DYNAMIC );
 	int mtl_type = !!( PASS.flags & RPF_MTL_SOLID ) - !!( PASS.flags & RPF_MTL_TRANSPARENT );
+	bool draw_decals = !!( PASS.flags & RPF_DECALS );
+	
+	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( draw_decals ? -1e-5f : 0 ) );
 	
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	
@@ -1851,6 +1853,10 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 		
 		/* dynamic meshes */
 		if( ( MI->dynamic && obj_type > 0 ) || ( !MI->dynamic && obj_type < 0 ) )
+			continue;
+		
+		/* decals */
+		if( ( draw_decals && MI->decal == 0 ) || ( draw_decals == false && MI->decal ) )
 			continue;
 		
 		m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
@@ -2007,7 +2013,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				if( MP->indexCount < 3 )
 					continue;
 				
-				m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent ) == false );
+				m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & (RPF_LIGHTOVERLAY|RPF_DECALS) ) || transparent ) == false );
 				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
 				m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
 				

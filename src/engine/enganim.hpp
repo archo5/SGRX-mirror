@@ -539,6 +539,7 @@ struct DecalProjectionInfo
 	float aspectMult; // perspective only
 	float aamix; // perspective only
 	float distanceScale;
+	float pushBack;
 	bool perspective;
 };
 

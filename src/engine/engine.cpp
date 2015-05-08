@@ -958,7 +958,7 @@ bool SGRX_IMesh::SetAABBFromVertexData( const void* data, size_t size, VertexDec
 void SGRX_IMesh_RaycastAll_Core_TestTriangle( const Vec3& rpos, const Vec3& rdir, float rlen,
 	SceneRaycastCallback* cb, SceneRaycastInfo* srci, VDeclInfo* vdinfo, const void* v1, const void* v2, const void* v3 )
 {
-	const void* verts[3] = { v1, v2, v3 };
+	const void* verts[3] = { v1, v3, v2 }; // order swapped for RayPolyIntersect
 	Vec3 pos[3] = {0};
 	VD_ExtractVec3( *vdinfo, 3, verts, pos );
 	
@@ -969,7 +969,7 @@ void SGRX_IMesh_RaycastAll_Core_TestTriangle( const Vec3& rpos, const Vec3& rdir
 		srci->normal = Vec3Cross( pos[1] - pos[0], pos[2] - pos[0] ).Normalized();
 		if( srci->meshinst )
 			srci->normal = srci->meshinst->matrix.TransformNormal( srci->normal );
-		LOG << "NOPE?" << srci->factor << srci->normal;
+		
 		// TODO u/v
 		cb->AddResult( srci );
 	}
@@ -1147,9 +1147,6 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 		};
 		VDI = &decalvdi;
 		
-		// pf3nf30f3tf3, 48 bytes
-		// positions and normals are extracted from source and moved to world space, texcoords are generated and tangents are nullified
-		
 		Vec3 nrm[3] = {0};
 		VD_ExtractVec3( vdecl->m_info, 3, verts, nrm, VDECLUSAGE_NORMAL );
 		
@@ -1157,16 +1154,15 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 		nrm[1] = mtx.TransformNormal( nrm[1] );
 		nrm[2] = mtx.TransformNormal( nrm[2] );
 		
+		SGRX_CAST( SGRX_Vertex_Decal*, dvs, decalvertbuf );
 		for( int i = 0; i < 3; ++i )
 		{
-			memcpy( decalvertbuf + i * 48 +  0, &pos[i], 12 );
-			memcpy( decalvertbuf + i * 48 + 12, &nrm[i], 12 );
-		//	*(float*)(decalvertbuf + i * 48 + 24) = safe_fdiv( tpos[i].x, tpos[i].w ) * 0.5f + 0.5f;
-		//	*(float*)(decalvertbuf + i * 48 + 28) = safe_fdiv( tpos[i].y, tpos[i].w ) * 0.5f + 0.5f;
-		//	*(float*)(decalvertbuf + i * 48 + 32) = safe_fdiv( tpos[i].y, tpos[i].w ) * 0.5f + 0.5f;
-		//	*(Vec4*)(decalvertbuf + i * 48 + 32) = V4(0);
-			*(Vec3*)(decalvertbuf + i * 48 + 24) = V3(0);
-			*(Vec3*)(decalvertbuf + i * 48 + 36) = V3(0);
+			dvs[i].position = pos[ i ];
+			dvs[i].normal = nrm[ i ];
+			dvs[i].texcoord = V3(0);
+			dvs[i].tangent = 0x007f7f7f;
+			dvs[i].color = 0xffffffff;
+			dvs[i].padding0 = 0;
 		}
 		
 		v1 = decalvertbuf+0;
@@ -1181,12 +1177,16 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 	VD_LerpTri( *VDI, pcount, vbuf, fcs, v1, v2, v3 );
 	if( decal )
 	{
+		SGRX_CAST( SGRX_Vertex_Decal*, dvs, vbuf );
 		for( int i = 0; i < pcount; ++i )
 		{
 			Vec4 vtp = vpmtx.Transform( V4( *(Vec3*)(vbuf + i * 48), 1.0f ) );
-			*(float*)(vbuf + i * 48 + 24) = safe_fdiv( vtp.x, vtp.w ) * 0.5f + 0.5f;
-			*(float*)(vbuf + i * 48 + 28) = safe_fdiv( vtp.y, vtp.w ) * 0.5f + 0.5f;
-			*(float*)(vbuf + i * 48 + 32) = vtp.z * inv_zn2zf;
+			dvs[ i ].texcoord = V3
+			(
+				safe_fdiv( vtp.x, vtp.w ) * 0.5f + 0.5f,
+				safe_fdiv( vtp.y, vtp.w ) * 0.5f + 0.5f,
+				vtp.z * inv_zn2zf
+			);
 		}
 	}
 	for( int i = 1; i < pcount - 1; ++i )
@@ -1390,6 +1390,7 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	enabled( true ),
 	cpuskin( false ),
 	dynamic( false ),
+	decal( false ),
 	transparent( false ),
 	unlit( false ),
 //	additive( false ),
