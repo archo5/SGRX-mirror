@@ -2744,6 +2744,32 @@ BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy, f
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::Poly( const void* data, int count, float z, int stride )
+{
+	SGRX_CAST( const uint8_t*, bp, data );
+	SetPrimitiveType( PT_TriangleStrip );
+	for( int i = 0; i < count; ++i )
+	{
+		int v;
+		if( i % 2 == 0 )
+			v = i / 2;
+		else
+			v = count - 1 - i / 2;
+		Pos( *(float*)(bp+v*stride), *(float*)(bp+v*stride+4), stride >= 12 ? *(float*)(bp+i*stride+8) : z );
+	}
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::PolyOutline( const void* data, int count, float z, int stride )
+{
+	SGRX_CAST( const uint8_t*, bp, data );
+	SetPrimitiveType( PT_LineStrip );
+	for( int i = 0; i < count; ++i )
+		Pos( *(float*)(bp+i*stride), *(float*)(bp+i*stride+4), stride >= 12 ? *(float*)(bp+i*stride+8) : z );
+	Prev( count - 1 );
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy )
 {
 	SetPrimitiveType( PT_Triangles );

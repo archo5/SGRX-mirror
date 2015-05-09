@@ -948,6 +948,8 @@ struct BatchRenderer
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
 	FINLINE BatchRenderer& Box( float x, float y, float w, float h, float z = 0 ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h, z ); }
 	ENGINE_EXPORT BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& Poly( const void* data, int count, float z = 0, int stride = sizeof(Vec2) );
+	ENGINE_EXPORT BatchRenderer& PolyOutline( const void* data, int count, float z = 0, int stride = sizeof(Vec2) );
 	ENGINE_EXPORT BatchRenderer& Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy );
 	ENGINE_EXPORT BatchRenderer& TexLine( const Vec2& p0, const Vec2& p1, float rad );
 	ENGINE_EXPORT BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );

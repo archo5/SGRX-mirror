@@ -782,22 +782,7 @@ void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
 
 
 EDGUIMainFrame::EDGUIMainFrame() :
-	m_cursorAim( false ),
-	m_blockDrawMode( BD_Polygon ),
-	m_newBlockPropZ0( 0, 2, -8192, 8192 ),
-	m_newBlockPropZ1( 2, 2, -8192, 8192 ),
-	m_hlBlock( -1 ),
-	m_selBlock( -1 ),
-	m_hlSurf( -1 ),
-	m_selSurf( -1 ),
-	m_hlVert( -1 ),
-	m_selVert( -1 ),
-	m_dragAdjacent( false ),
-	m_paintBlock( -1 ),
-	m_paintSurf( -1 ),
-	m_isPainting( false ),
-	m_hlEnt( -1 ),
-	m_selEnt( -1 ),
+	m_editMode( NULL ),
 	m_UIMenuSplit( true, 26, 0 ),
 	m_UIParamSplit( false, 0, 0.7f ),
 	m_UIRenderView( g_EdScene, this )
@@ -825,8 +810,6 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_MBEditEntity.caption = "Edit Entity";
 	m_MBEditGroups.caption = "Edit groups";
 	m_MBLevelInfo.caption = "Level Info";
-	m_newBlockPropZ0.caption = "Bottom Z";
-	m_newBlockPropZ1.caption = "Top Z";
 	m_UIMenuButtons.Add( &m_MB_Cat0 );
 	m_UIMenuButtons.Add( &m_MBNew );
 	m_UIMenuButtons.Add( &m_MBOpen );
@@ -842,11 +825,12 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuButtons.Add( &m_MBEditGroups );
 	m_UIMenuButtons.Add( &m_MBLevelInfo );
 	
-	m_entityProps = m_entGroup.m_buttons[0].m_ent_handle;
-	
 	m_txMarker = GR_GetTexture( "editor/marker.png" );
-	
-	SetMode( ED_EditLevel );
+}
+
+void EDGUIMainFrame::PostInit()
+{
+	SetEditMode( &m_emEditLevel );
 }
 
 int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
@@ -862,18 +846,14 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_MBSaveAs ) Level_SaveAs();
 		else if( e->target == &m_MBCompile ) Level_Compile();
 		
-		else if( e->target == &m_MBDrawBlock ) SetMode( ED_DrawBlock );
-		else if( e->target == &m_MBEditBlock ) SetMode( ED_EditBlock );
-		else if( e->target == &m_MBPaintSurfs ) SetMode( ED_PaintSurfs );
-		else if( e->target == &m_MBAddEntity ) SetMode( ED_AddEntity );
-		else if( e->target == &m_MBEditEntity ) SetMode( ED_EditEntity );
-		else if( e->target == &m_MBEditGroups ) SetMode( ED_EditGroups );
-		else if( e->target == &m_MBLevelInfo ) SetMode( ED_EditLevel );
+		else if( e->target == &m_MBDrawBlock ) SetEditMode( &m_emDrawBlock );
+		else if( e->target == &m_MBEditBlock ) SetEditMode( &m_emEditBlock );
+		else if( e->target == &m_MBPaintSurfs ) SetEditMode( &m_emPaintSurfs );
+		else if( e->target == &m_MBAddEntity ) SetEditMode( &m_emAddEntity );
+		else if( e->target == &m_MBEditEntity ) SetEditMode( &m_emEditEntity );
+		else if( e->target == &m_MBEditGroups ) SetEditMode( &m_emEditGroup );
+		else if( e->target == &m_MBLevelInfo ) SetEditMode( &m_emEditLevel );
 		
-		return 1;
-		
-	case EDGUI_EVENT_SETENTITY:
-		SetEntityType( ((EDGUIEntButton*)e->target)->m_ent_handle );
 		return 1;
 		
 	case EDGUI_EVENT_PROPCHANGE:
@@ -885,389 +865,29 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 		{
 			Level_Real_Save( g_UILevelSavePicker->GetValue() );
 		}
-		if( e->target == &m_newBlockPropZ0 )
-		{
-			m_UIRenderView.crplaneheight = m_newBlockPropZ0.m_value;
-		}
-		if( e->target == &m_entityProps->m_ctlPos )
-		{
-			m_UIRenderView.crplaneheight = m_entityProps->Pos().z;
-		}
-		if( m_selEnt >= 0 && e->target == &g_EdWorld->m_entities[ m_selEnt ]->m_ctlPos )
-		{
-			m_UIRenderView.crplaneheight = g_EdWorld->m_entities[ m_selEnt ]->Pos().z;
-		}
 		return 1;
+	}
+	if( m_editMode )
+	{
+		if( m_editMode->OnUIEvent( e ) )
+			return 1;
 	}
 	return EDGUIFrame::OnEvent( e );
 }
 
 void EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 {
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
-	{
-		m_cursorAim = m_UIRenderView.cursor_aim;
-		m_cursorWorldPos = m_UIRenderView.cursor_hpos;
-		m_snapProps.Snap( m_cursorWorldPos );
-	}
-	
-	if( m_mode == ED_DrawBlock )
-	{
-		if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 && m_cursorAim && m_drawnVerts.size() < 14 )
-		{
-			m_drawnVerts.push_back( m_cursorWorldPos );
-		}
-		if( e->type == EDGUI_EVENT_KEYUP )
-		{
-			if( e->key.engkey == SDLK_RETURN )
-			{
-				if( m_blockDrawMode == BD_Polygon )
-				{
-					if( m_drawnVerts.size() >= 3 && m_drawnVerts.size() <= 14 )
-					{
-						_AddNewBlock();
-						m_drawnVerts.clear();
-					}
-				}
-				else if( m_blockDrawMode == BD_BoxStrip )
-				{
-					if( m_drawnVerts.size() >= 2 )
-					{
-						Array< Vec2 > verts;
-						TSWAP( verts, m_drawnVerts );
-						for( size_t i = 1; i < verts.size(); ++i )
-						{
-							Vec2 p0 = verts[ i - 1 ];
-							Vec2 p1 = verts[ i ];
-							m_drawnVerts.push_back( V2( p0.x, p0.y ) );
-							m_drawnVerts.push_back( V2( p1.x, p0.y ) );
-							m_drawnVerts.push_back( V2( p1.x, p1.y ) );
-							m_drawnVerts.push_back( V2( p0.x, p1.y ) );
-							_AddNewBlock();
-							m_drawnVerts.clear();
-						}
-					}
-				}
-			}
-			if( e->key.engkey == SDLK_ESCAPE )
-			{
-				m_drawnVerts.clear();
-			}
-			if( e->key.engkey == SDLK_BACKSPACE && m_drawnVerts.size() )
-			{
-				m_drawnVerts.pop_back();
-			}
-			if( e->key.engkey == SDLK_1 ) m_blockDrawMode = BD_Polygon;
-			if( e->key.engkey == SDLK_2 ) m_blockDrawMode = BD_BoxStrip;
-		}
-	}
-	else if( m_mode == ED_EditBlock )
-	{
-		if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
-		{
-			if( m_selBlock != -1 && m_hlVert != -1 )
-			{
-				if( m_selVert == m_hlVert )
-					m_selVert = -1;
-				else
-				{
-					m_selVert = m_hlVert;
-					m_selSurf = -1;
-				}
-			}
-			else if( m_selBlock != -1 && m_hlSurf != -1 )
-			{
-				if( m_selSurf == m_hlSurf )
-					m_selSurf = -1;
-				else
-				{
-					m_selSurf = m_hlSurf;
-					m_selVert = -1;
-				}
-			}
-			else
-			{
-				m_selBlock = m_hlBlock;
-				m_selSurf = -1;
-				m_selVert = -1;
-			}
-			_ReloadBlockProps();
-			m_frame->_HandleMouseMove( false );
-		}
-		if( e->type == EDGUI_EVENT_MOUSEMOVE )
-		{
-			float outdst[1];
-			int outblock[1];
-			if( m_selBlock >= 0 )
-			{
-				EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-				float mindst = FLT_MAX;
-				m_hlVert = -1;
-				for( size_t i = 0; i < B.poly.size(); ++i )
-				{
-					if( RaySphereIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, V3( B.poly[i].x + B.position.x, B.poly[i].y + B.position.y, B.z0 + B.position.z ), 0.2f, outdst ) && outdst[0] < mindst )
-					{
-						mindst = outdst[0];
-						m_hlVert = i;
-					}
-				}
-				m_hlSurf = -1;
-				if( B.RayIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, outdst, outblock ) && outdst[0] < mindst )
-				{
-					m_hlSurf = outblock[0];
-					m_hlVert = -1;
-				}
-			}
-			if( m_selBlock < 0 || ( m_hlVert < 0 && m_hlSurf < 0 ) )
-			{
-				m_hlBlock = -1;
-				if( g_EdWorld->RayBlocksIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, m_selBlock, outdst, outblock ) )
-					m_hlBlock = outblock[0];
-			}
-			if( m_grabbed && m_selBlock >= 0 )
-			{
-				EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-				Vec2 tgtpos = m_cursorWorldPos + m_cpdiff;
-				int selvert = m_selVert;
-				bool itssurf = false;
-				if( selvert < 0 && m_selSurf < (int) B.poly.size() )
-				{
-					selvert = m_selSurf;
-					itssurf = true;
-				}
-				if( selvert >= 0 )
-				{
-					m_snapProps.Snap( tgtpos );
-					B.poly[ selvert ].SetXY( tgtpos );
-					if( m_dragAdjacent || itssurf )
-					{
-						size_t bps = B.poly.size();
-						Vec2 edgeNrm0 = ( m_origPos - m_origPos0 ).Perp().Normalized();
-						Vec2 edgeNrm1 = ( m_origPos1 - m_origPos ).Perp().Normalized();
-						Vec2 diff = tgtpos - m_origPos;
-						if( itssurf )
-						{
-							diff = edgeNrm1 * Vec2Dot( edgeNrm1, diff );
-							B.poly[ selvert ].SetXY( m_origPos + edgeNrm1 * Vec2Dot( edgeNrm1, diff ) );
-						}
-						B.poly[ ( selvert + bps - 1 ) % bps ].SetXY( m_origPos0 + edgeNrm0 * Vec2Dot( edgeNrm0, diff ) );
-						B.poly[ ( selvert + 1 ) % bps ].SetXY( m_origPos1 + edgeNrm1 * Vec2Dot( edgeNrm1, diff ) );
-					}
-				}
-				else
-					B.position = V3(tgtpos.x,tgtpos.y,B.position.z); // TODO_FULL_TRANSFORM
-				g_EdWorld->m_blocks[ m_selBlock ].RegenerateMesh();
-				_ReloadBlockProps();
-			}
-		}
-		// GRAB
-		if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_g && !e->key.repeat && m_selBlock >= 0 && m_cursorAim )
-		{
-			EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-			int selvert = m_selVert;
-			if( selvert < 0 && m_selSurf < (int) B.poly.size() )
-				selvert = m_selSurf;
-			if( selvert >= 0 )
-			{
-				size_t bps = B.poly.size();
-				m_origPos = B.poly[ selvert ].ToVec2();
-				m_origPos0 = B.poly[ ( selvert + bps - 1 ) % bps ].ToVec2();
-				m_origPos1 = B.poly[ ( selvert + 1 ) % bps ].ToVec2();
-				m_cpdiff = m_origPos - m_cursorWorldPos;
-			}
-			else
-				m_cpdiff = B.position.ToVec2() - m_cursorWorldPos; // TODO_FULL_TRANSFORM
-			m_dragAdjacent = ( e->key.engmod & KMOD_CTRL ) != 0;
-			m_grabbed = true;
-		}
-		if( e->type == EDGUI_EVENT_KEYUP && ( e->key.engkey == SDLK_g || e->key.engkey == SDLK_d ) && m_grabbed )
-		{
-			m_grabbed = false;
-		}
-		// DELETE
-		if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_DELETE && m_selBlock >= 0 )
-		{
-			ClearParamList();
-			if( m_selVert >= 0 )
-			{
-				g_EdWorld->m_ctlVertProps.m_out = NULL; // just in case
-				EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-				B.poly.erase( m_selVert );
-				B.surfaces.erase( m_selVert );
-				if( m_hlVert == m_selVert )
-					m_hlVert = -1;
-				m_hlSurf = -1;
-				m_selSurf = -1;
-				m_selVert = -1;
-				B.RegenerateMesh();
-			}
-			else
-			{
-				g_EdWorld->m_ctlBlockProps.m_out = NULL; // just in case
-				g_EdWorld->m_blocks.erase( m_selBlock );
-				if( m_hlBlock == m_selBlock )
-					m_hlBlock = -1;
-				m_selBlock = -1;
-				m_selVert = -1;
-				m_selSurf = -1;
-			}
-		}
-		// DUPLICATE
-		if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_d && !e->key.repeat && ( e->key.engmod & KMOD_CTRL ) && m_selBlock >= 0 )
-		{
-			ClearParamList();
-			g_EdWorld->m_ctlBlockProps.m_out = NULL; // just in case
-			EdBlock B = g_EdWorld->m_blocks[ m_selBlock ];
-			m_selBlock = g_EdWorld->m_blocks.size();
-			m_selVert = -1;
-			m_selSurf = -1;
-			B.cached_mesh = NULL;
-			B.cached_meshinst = NULL;
-			B.RegenerateMesh();
-			g_EdWorld->m_blocks.push_back( B );
-			m_cpdiff = B.position.ToVec2() - m_cursorWorldPos; // TODO_FULL_TRANSFORM
-			m_grabbed = true;
-			AddToParamList( g_EdWorld->GetBlockProps( m_selBlock ) );
-		}
-	}
-	else if( m_mode == ED_PaintSurfs )
-	{
-		bool dopaint = false;
-		if( e->type == EDGUI_EVENT_BTNDOWN && e->mouse.button == 0 )
-		{
-			m_isPainting = true;
-			dopaint = true;
-		}
-		if( e->type == EDGUI_EVENT_BTNUP && e->mouse.button == 0 ) m_isPainting = false;
-		if( e->type == EDGUI_EVENT_MOUSEMOVE )
-		{
-			float outdst[1];
-			int outblock[1];
-			m_paintBlock = -1;
-			if( g_EdWorld->RayBlocksIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, m_paintBlock, outdst, outblock ) )
-				m_paintBlock = outblock[0];
-			m_paintSurf = -1;
-			if( m_paintBlock >= 0 && g_EdWorld->m_blocks[ m_paintBlock ].RayIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, outdst, outblock ) )
-				m_paintSurf = outblock[0];
-			if( m_isPainting )
-				dopaint = true;
-		}
-		if( e->type == EDGUI_EVENT_KEYDOWN && !e->key.repeat && e->key.engkey == SDLK_g && m_paintBlock >= 0 && m_paintSurf >= 0 )
-		{
-			m_paintSurfProps.LoadParams( g_EdWorld->m_blocks[ m_paintBlock ].surfaces[ m_paintSurf ] );
-		}
-		if( dopaint && m_paintBlock >= 0 && m_paintSurf >= 0 )
-		{
-			m_paintSurfProps.BounceBack( g_EdWorld->m_blocks[ m_paintBlock ].surfaces[ m_paintSurf ] );
-			g_EdWorld->m_blocks[ m_paintBlock ].RegenerateMesh();
-		}
-	}
-	else if( m_mode == ED_AddEntity )
-	{
-		if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 && m_cursorAim )
-		{
-			_AddNewEntity();
-		}
-	}
-	else if( m_mode == ED_EditEntity )
-	{
-		if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
-		{
-			m_grabbed = false;
-			m_selEnt = m_hlEnt;
-			_ReloadEntityProps();
-		}
-		if( e->type == EDGUI_EVENT_MOUSEMOVE )
-		{
-			float outdst[1];
-			int outmesh[1];
-			m_hlEnt = -1;
-			if( g_EdWorld->RayEntitiesIntersect( m_UIRenderView.crpos, m_UIRenderView.crdir, m_selEnt, outdst, outmesh ) )
-				m_hlEnt = outmesh[0];
-			if( m_grabbed && m_selEnt >= 0 )
-			{
-				EdEntity* N = g_EdWorld->m_entities[ m_selEnt ];
-				N->SetPosition( V3( m_cursorWorldPos.x + m_cpdiff.x, m_cursorWorldPos.y + m_cpdiff.y, N->Pos().z ) );
-				N->RegenerateMesh();
-				_ReloadEntityProps();
-			}
-		}
-		// GRAB
-		if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_g && !e->key.repeat && m_selEnt >= 0 && m_cursorAim )
-		{
-			Vec3 P = g_EdWorld->m_entities[ m_selEnt ]->Pos();
-			m_cpdiff = V2(P.x,P.y) - m_cursorWorldPos;
-			m_grabbed = true;
-		}
-		if( e->type == EDGUI_EVENT_KEYUP && ( e->key.engkey == SDLK_g || e->key.engkey == SDLK_d ) && m_grabbed )
-		{
-			m_grabbed = false;
-		}
-		// DELETE
-		if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_DELETE && m_selEnt >= 0 )
-		{
-			ClearParamList();
-			g_EdWorld->m_entities.erase( m_selEnt );
-			if( m_hlEnt == m_selEnt )
-				m_hlEnt = -1;
-			m_selEnt = -1;
-		}
-		// DUPLICATE
-		if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_d && !e->key.repeat && ( e->key.engmod & KMOD_CTRL ) && m_selEnt >= 0 )
-		{
-			EdEntity* N = g_EdWorld->m_entities[ m_selEnt ]->Clone();
-			m_selEnt = g_EdWorld->m_entities.size();
-			N->RegenerateMesh();
-			g_EdWorld->m_entities.push_back( N );
-			Vec3 P = N->Pos();
-			m_cpdiff = V2(P.x,P.y) - m_cursorWorldPos;
-			m_grabbed = true;
-			_ReloadEntityProps();
-		}
-	}
-}
-
-void EDGUIMainFrame::_ReloadBlockProps()
-{
-	ClearParamList();
-	if( m_selBlock >= 0 )
-	{
-		m_UIRenderView.crplaneheight = g_EdWorld->m_blocks[ m_selBlock ].z0;
-		if( m_selVert >= 0 )
-		{
-			AddToParamList( g_EdWorld->GetVertProps( m_selBlock, m_selVert ) );
-		}
-		else if( m_selSurf >= 0 )
-			AddToParamList( g_EdWorld->GetSurfProps( m_selBlock, m_selSurf ) );
-		else
-			AddToParamList( g_EdWorld->GetBlockProps( m_selBlock ) );
-	}
-}
-
-void EDGUIMainFrame::_ReloadEntityProps()
-{
-	ClearParamList();
-	if( m_selEnt >= 0 )
-	{
-		m_UIRenderView.crplaneheight = g_EdWorld->m_entities[ m_selEnt ]->Pos().z;
-		AddToParamList( g_EdWorld->GetEntityProps( m_selEnt ) );
-	}
+	if( m_editMode )
+		m_editMode->OnViewEvent( e );
 }
 
 void EDGUIMainFrame::_DrawCursor( bool drawimg, float height )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.UnsetTexture();
-	if( m_cursorAim )
+	if( IsCursorAiming() )
 	{
-		Vec2 pos = m_cursorWorldPos;
-		if( m_drawnVerts.size() > 1 )
-		{
-			br.Col( 0.9f, 0.1f, 0, 0.4f ).SetPrimitiveType( PT_LineStrip );
-			br.Pos( m_drawnVerts.last().x, m_drawnVerts.last().y, height );
-			br.Pos( pos.x, pos.y, height );
-			br.Pos( m_drawnVerts[0].x, m_drawnVerts[0].y, height );
-		}
+		Vec2 pos = GetCursorPlanePos();
 		if( drawimg )
 		{
 			br.SetTexture( m_txMarker ).Col( 0.9f, 0.1f, 0, 0.9f );
@@ -1301,110 +921,10 @@ void EDGUIMainFrame::DrawCursor( bool drawimg )
 
 void EDGUIMainFrame::DebugDraw()
 {
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	if( m_mode == ED_DrawBlock )
-	{
-		br.UnsetTexture();
-		if( m_blockDrawMode == BD_Polygon && m_drawnVerts.size() >= 3 )
-		{
-			br.Flush();
-			br.Col( 0.9f, 0.1f, 0, 0.3f ).SetPrimitiveType( PT_TriangleStrip );
-			for( size_t i = 0; i < m_drawnVerts.size(); ++i )
-			{
-				size_t v;
-				if( i % 2 == 0 )
-					v = i / 2;
-				else
-					v = m_drawnVerts.size() - 1 - i / 2;
-				br.Pos( m_drawnVerts[v].x, m_drawnVerts[v].y, m_UIRenderView.crplaneheight );
-			}
-			br.Flush();
-		}
-		if( m_blockDrawMode == BD_BoxStrip )
-		{
-			for( size_t i = 1; i < m_drawnVerts.size(); ++i )
-			{
-				br.Col( 0.9f, 0.1f, 0, 0.3f ).SetPrimitiveType( PT_TriangleStrip );
-				Vec2 p0 = m_drawnVerts[ i - 1 ];
-				Vec2 p1 = m_drawnVerts[ i ];
-				float z = m_UIRenderView.crplaneheight;
-				br.Pos( p0.x, p0.y, z );
-				br.Pos( p1.x, p0.y, z );
-				br.Pos( p0.x, p1.y, z );
-				br.Pos( p1.x, p1.y, z );
-				br.Flush();
-			}
-		}
-		if( m_drawnVerts.size() >= 2 )
-		{
-			br.Flush();
-			br.Col( 0.9f, 0.1f, 0, 0.7f ).SetPrimitiveType( PT_LineStrip );
-			for( size_t i = 0; i < m_drawnVerts.size(); ++i )
-				br.Pos( m_drawnVerts[i].x, m_drawnVerts[i].y, m_UIRenderView.crplaneheight );
-			br.Pos( m_drawnVerts[0].x, m_drawnVerts[0].y, m_UIRenderView.crplaneheight );
-			br.Flush();
-		}
-		for( size_t i = 0; i < m_drawnVerts.size(); ++i )
-		{
-			br.Col( 0.9f, 0.1f, 0, 0.8f );
-			br.CircleOutline( m_drawnVerts[i].x, m_drawnVerts[i].y, 0.02f, m_UIRenderView.crplaneheight, 16 );
-		}
-		if( m_blockDrawMode == BD_Polygon && m_cursorAim )
-		{
-			Vec2 pos = m_cursorWorldPos;
-			if( m_drawnVerts.size() > 1 )
-			{
-				br.Flush();
-				br.Col( 0.9f, 0.1f, 0, 0.4f ).SetPrimitiveType( PT_LineStrip );
-				br.Pos( m_drawnVerts.last().x, m_drawnVerts.last().y, m_UIRenderView.crplaneheight );
-				br.Pos( pos.x, pos.y, m_UIRenderView.crplaneheight );
-				br.Pos( m_drawnVerts[0].x, m_drawnVerts[0].y, m_UIRenderView.crplaneheight );
-				br.Flush();
-			}
-		}
-		DrawCursor();
-	}
-	else if( m_mode == ED_EditBlock )
-	{
-		g_EdWorld->DrawWires_Blocks( m_hlBlock, m_selBlock );
-		if( m_selBlock >= 0 )
-		{
-			if( m_selSurf >= 0 )
-				g_EdWorld->DrawPoly_BlockSurf( m_selBlock, m_selSurf, true );
-			if( m_hlSurf >= 0 )
-				g_EdWorld->DrawPoly_BlockSurf( m_selBlock, m_hlSurf, false );
-			if( m_selVert >= 0 )
-				g_EdWorld->DrawPoly_BlockVertex( m_selBlock, m_selVert, true );
-			if( m_hlVert >= 0 )
-				g_EdWorld->DrawPoly_BlockVertex( m_selBlock, m_hlVert, true );
-		}
-		if( m_grabbed )
-			DrawCursor( false );
-	}
-	else if( m_mode == ED_PaintSurfs )
-	{
-		if( m_paintBlock >= 0 && m_paintSurf >= 0 )
-		{
-			g_EdWorld->DrawPoly_BlockSurf( m_paintBlock, m_paintSurf, m_isPainting );
-		}
-	}
-	else if( m_mode == ED_AddEntity )
-	{
-		g_EdWorld->DrawWires_Entities( -1, -1 );
-		DrawCursor( false );
-	}
-	else if( m_mode == ED_EditEntity )
-	{
-		g_EdWorld->DrawWires_Entities( m_hlEnt, m_selEnt );
-		if( m_grabbed )
-			DrawCursor( false );
-	}
-	else if( m_mode == ED_EditGroups )
-	{
-		g_EdWorld->m_groupMgr.DrawGroups();
-	}
-	br.Flush();
+	if( m_editMode )
+		m_editMode->Draw();
 }
+
 
 void EDGUIMainFrame::AddToParamList( EDGUIItem* item )
 {
@@ -1417,17 +937,69 @@ void EDGUIMainFrame::ClearParamList()
 		m_UIParamList.Remove( m_UIParamList.m_subitems.last() );
 }
 
+void EDGUIMainFrame::RefreshMouse()
+{
+	m_frame->_HandleMouseMove( false );
+}
+
+Vec3 EDGUIMainFrame::GetCursorRayPos()
+{
+	return m_UIRenderView.crpos;
+}
+
+Vec3 EDGUIMainFrame::GetCursorRayDir()
+{
+	return m_UIRenderView.crdir;
+}
+
+Vec2 EDGUIMainFrame::GetCursorPlanePos()
+{
+	return Snapped( m_UIRenderView.cursor_hpos );
+}
+
+float EDGUIMainFrame::GetCursorPlaneHeight()
+{
+	return m_UIRenderView.crplaneheight;
+}
+
+void EDGUIMainFrame::SetCursorPlaneHeight( float z )
+{
+	m_UIRenderView.crplaneheight = z;
+}
+
+bool EDGUIMainFrame::IsCursorAiming()
+{
+	return m_UIRenderView.cursor_aim;
+}
+
+void EDGUIMainFrame::Snap( Vec2& v )
+{
+	m_snapProps.Snap( v );
+}
+
+void EDGUIMainFrame::Snap( Vec3& v )
+{
+	m_snapProps.Snap( v );
+}
+
+Vec2 EDGUIMainFrame::Snapped( const Vec2& v )
+{
+	Vec2 o = v;
+	Snap( o );
+	return o;
+}
+
+Vec3 EDGUIMainFrame::Snapped( const Vec3& v )
+{
+	Vec3 o = v;
+	Snap( o );
+	return o;
+}
+
+
 void EDGUIMainFrame::ResetEditorState()
 {
-	ClearParamList();
-	m_hlBlock = -1;
-	m_selBlock = -1;
-	m_hlVert = -1;
-	m_selVert = -1;
-	m_hlSurf = -1;
-	m_selSurf = -1;
-	m_hlEnt = -1;
-	m_selEnt = -1;
+	PostInit();
 }
 
 void EDGUIMainFrame::Level_New()
@@ -1567,100 +1139,23 @@ void EDGUIMainFrame::Level_Real_Compile()
 		LOG << "Level is compiled";
 }
 
-void EDGUIMainFrame::SetMode( ED_EditMode newmode )
+void EDGUIMainFrame::SetEditMode( EdEditMode* em )
 {
-	m_mode = newmode;
-	m_MBDrawBlock.SetHighlight( newmode == ED_DrawBlock );
-	m_MBEditBlock.SetHighlight( newmode == ED_EditBlock );
-	m_MBAddEntity.SetHighlight( newmode == ED_AddEntity );
-	m_MBEditEntity.SetHighlight( newmode == ED_EditEntity );
-	m_MBEditGroups.SetHighlight( newmode == ED_EditGroups );
-	m_MBLevelInfo.SetHighlight( newmode == ED_EditLevel );
+	if( m_editMode )
+		m_editMode->OnExit();
+	m_editMode = em;
 	ClearParamList();
-	if( newmode == ED_DrawBlock )
-	{
-		m_UIRenderView.crplaneheight = m_newBlockPropZ0.m_value;
-		m_drawnVerts.clear();
-		AddToParamList( &m_snapProps );
-		AddToParamList( &m_newBlockPropZ0 );
-		AddToParamList( &m_newBlockPropZ1 );
-		AddToParamList( &m_newSurfProps );
-	}
-	else if( newmode == ED_EditBlock )
-	{
-		m_hlBlock = -1;
-		m_selBlock = -1;
-		m_grabbed = false;
-	}
-	else if( newmode == ED_PaintSurfs )
-	{
-		m_paintBlock = -1;
-		m_paintSurf = -1;
-		m_isPainting = false;
-		AddToParamList( &m_paintSurfProps );
-	}
-	else if( newmode == ED_AddEntity )
-	{
-		m_UIRenderView.crplaneheight = m_entityProps->Pos().z;
-		AddToParamList( &m_entGroup );
-		AddToParamList( m_entityProps );
-	}
-	else if( newmode == ED_EditEntity )
-	{
-		m_hlEnt = -1;
-		m_selEnt = -1;
-		m_grabbed = false;
-	}
-	else if( newmode == ED_EditGroups )
-	{
-		g_EdWorld->m_groupMgr.PrepareCurrentEditGroup();
-		AddToParamList( &g_EdWorld->m_groupMgr );
-	}
-	else if( newmode == ED_EditLevel )
-	{
-		AddToParamList( g_EdWorld );
-	}
+	em->OnEnter();
 }
 
-void EDGUIMainFrame::SetEntityType( const EdEntityHandle& eh )
+void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 {
-	m_entityProps = eh;
-	if( m_mode == ED_AddEntity )
-	{
-		ClearParamList();
-		AddToParamList( &m_entGroup );
-		AddToParamList( m_entityProps );
-	}
-}
-
-void EDGUIMainFrame::_AddNewBlock()
-{
-	EdBlock B;
-	B.position = V3(0);
-	B.z0 = m_newBlockPropZ0.m_value;
-	B.z1 = m_newBlockPropZ1.m_value;
-	B.poly.resize( m_drawnVerts.size() );
-	for( size_t i = 0; i < m_drawnVerts.size(); ++i )
-		B.poly[ i ] = V3( m_drawnVerts[ i ].x, m_drawnVerts[ i ].y, 0 );
-	if( PolyArea( m_drawnVerts.data(), m_drawnVerts.size() ) < 0 )
-		B.poly.reverse();
-	B.GenCenterPos( m_snapProps );
-	for( size_t i = 0; i < m_drawnVerts.size() + 2; ++i )
-	{
-		EdSurface S;
-		m_newSurfProps.BounceBack( S );
-		B.surfaces.push_back( S );
-	}
-	B.RegenerateMesh();
-	g_EdWorld->m_blocks.push_back( B );
-}
-
-void EDGUIMainFrame::_AddNewEntity()
-{
-	EdEntity* N = m_entityProps->Clone();
-	N->SetPosition( V3( m_cursorWorldPos.x, m_cursorWorldPos.y, N->Pos().z ) );
-	N->RegenerateMesh();
-	g_EdWorld->m_entities.push_back( N );
+	m_MBDrawBlock.SetHighlight( mybtn == &m_MBDrawBlock );
+	m_MBEditBlock.SetHighlight( mybtn == &m_MBEditBlock );
+	m_MBAddEntity.SetHighlight( mybtn == &m_MBAddEntity );
+	m_MBEditEntity.SetHighlight( mybtn == &m_MBEditEntity );
+	m_MBEditGroups.SetHighlight( mybtn == &m_MBEditGroups );
+	m_MBLevelInfo.SetHighlight( mybtn == &m_MBLevelInfo );
 }
 
 
@@ -1707,6 +1202,7 @@ struct TACStrikeEditor : IGame
 		g_EdWorld = new EdWorld();
 		g_EdWorld->RegenerateMeshes();
 		g_UIFrame = new EDGUIMainFrame();
+		g_UIFrame->PostInit();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
 		// param area

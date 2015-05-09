@@ -4,7 +4,7 @@ set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 if(NOT RESTRICTED)
 # Editor
-add_library( editor SHARED mapedit mapedit_ent mapedit_block compiler )
+add_library( editor SHARED mapedit mapedit_ent mapedit_block mapedit_edit compiler )
 target_link_libraries( editor sgrx-core sgrx-script sgrx-sound-fmod )
 set_target_properties( editor PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"

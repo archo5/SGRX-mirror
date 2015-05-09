@@ -18,24 +18,6 @@
 #define EDGUI_EVENT_SETENTITY EDGUI_EVENT_USER + 1
 
 
-enum ED_EditMode
-{
-	ED_DrawBlock,
-	ED_EditBlock,
-	ED_PaintSurfs,
-	ED_AddEntity,
-	ED_EditEntity,
-	ED_EditGroups,
-	ED_EditLevel,
-};
-
-enum ED_BlockDrawMode
-{
-	BD_Polygon = 1,
-	BD_BoxStrip = 2,
-};
-
-
 #ifdef MAPEDIT_DEFINE_GLOBALS
 #  define MAPEDIT_GLOBAL( x ) x = NULL
 #else
@@ -805,21 +787,150 @@ struct EdWorld : EDGUILayoutRow
 };
 
 
+struct EdEditMode
+{
+	virtual void OnEnter(){}
+	virtual void OnExit(){}
+	virtual int OnUIEvent( EDGUIEvent* e ){ return 0; }
+	virtual void OnViewEvent( EDGUIEvent* e ){}
+	virtual void Draw(){}
+};
+
+struct EdDrawBlockEditMode : EdEditMode
+{
+	enum ED_BlockDrawMode
+	{
+		BD_Polygon = 1,
+		BD_BoxStrip = 2,
+	};
+
+	EdDrawBlockEditMode();
+	void OnEnter();
+	int OnUIEvent( EDGUIEvent* e );
+	void OnViewEvent( EDGUIEvent* e );
+	void Draw();
+	void _AddNewBlock();
+	
+	ED_BlockDrawMode m_blockDrawMode;
+	Array< Vec2 > m_drawnVerts;
+	EDGUIPropFloat m_newBlockPropZ0;
+	EDGUIPropFloat m_newBlockPropZ1;
+	EDGUISurfaceProps m_newSurfProps;
+};
+
+struct EdEditBlockEditMode : EdEditMode
+{
+	EdEditBlockEditMode();
+	void OnEnter();
+	void OnViewEvent( EDGUIEvent* e );
+	void Draw();
+	void _ReloadBlockProps();
+	
+	int m_hlBlock;
+	int m_selBlock;
+	int m_hlSurf;
+	int m_selSurf;
+	int m_hlVert;
+	int m_selVert;
+	bool m_dragAdjacent;
+	
+	Vec2 m_cpdiff;
+	bool m_grabbed;
+	Vec2 m_origPos;
+	Vec2 m_origPos0;
+	Vec2 m_origPos1;
+};
+
+struct EdEditVertexEditMode : EdEditMode
+{
+	void OnEnter();
+	void OnViewEvent( EDGUIEvent* e );
+	void Draw();
+};
+
+struct EdPaintSurfsEditMode : EdEditMode
+{
+	EdPaintSurfsEditMode();
+	void OnEnter();
+	void OnViewEvent( EDGUIEvent* e );
+	void Draw();
+	
+	int m_paintBlock;
+	int m_paintSurf;
+	bool m_isPainting;
+	EDGUISurfaceProps m_paintSurfProps;
+};
+
+struct EdAddEntityEditMode : EdEditMode
+{
+	EdAddEntityEditMode();
+	void OnEnter();
+	int OnUIEvent( EDGUIEvent* e );
+	void OnViewEvent( EDGUIEvent* e );
+	void Draw();
+	void SetEntityType( const EdEntityHandle& eh );
+	void _AddNewEntity();
+	
+	EdEntityHandle m_entityProps;
+	EDGUIEntList m_entGroup;
+};
+
+struct EdEditEntityEditMode : EdEditMode
+{
+	EdEditEntityEditMode();
+	void OnEnter();
+	int OnUIEvent( EDGUIEvent* e );
+	void OnViewEvent( EDGUIEvent* e );
+	void Draw();
+	void _ReloadEntityProps();
+	
+	int m_hlEnt;
+	int m_selEnt;
+	
+	Vec2 m_cpdiff;
+	bool m_grabbed;
+	Vec2 m_origPos;
+};
+
+struct EdEditGroupEditMode : EdEditMode
+{
+	void OnEnter();
+	void Draw();
+};
+
+struct EdEditLevelEditMode : EdEditMode
+{
+	void OnEnter();
+};
+
+
 //
 // MAIN FRAME
 //
 struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 {
 	EDGUIMainFrame();
+	void PostInit();
 	int OnEvent( EDGUIEvent* e );
 	void ViewEvent( EDGUIEvent* e );
-	void _ReloadBlockProps();
-	void _ReloadEntityProps();
 	void _DrawCursor( bool drawimg, float height );
 	void DrawCursor( bool drawimg = true );
 	void DebugDraw();
+	
 	void AddToParamList( EDGUIItem* item );
 	void ClearParamList();
+	void RefreshMouse();
+	Vec3 GetCursorRayPos();
+	Vec3 GetCursorRayDir();
+	Vec2 GetCursorPlanePos();
+	float GetCursorPlaneHeight();
+	void SetCursorPlaneHeight( float z );
+	bool IsCursorAiming();
+	void Snap( Vec2& v );
+	void Snap( Vec3& v );
+	Vec2 Snapped( const Vec2& v );
+	Vec3 Snapped( const Vec3& v );
+	
 	void ResetEditorState();
 	void Level_New();
 	void Level_Open();
@@ -829,58 +940,25 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	void Level_Real_Open( const String& str );
 	void Level_Real_Save( const String& str );
 	void Level_Real_Compile();
-	void SetMode( ED_EditMode newmode );
-	void SetEntityType( const EdEntityHandle& eh );
-	void _AddNewBlock();
-	void _AddNewEntity();
+	void SetEditMode( EdEditMode* em );
+	void SetModeHighlight( EDGUIButton* mybtn );
 	
 	String m_fileName;
 	
-	ED_EditMode m_mode;
+	// EDIT MODES
+	EdEditMode* m_editMode;
+	EdDrawBlockEditMode m_emDrawBlock;
+	EdEditBlockEditMode m_emEditBlock;
+	EdEditVertexEditMode m_emEditVertex;
+	EdPaintSurfsEditMode m_emPaintSurfs;
+	EdAddEntityEditMode m_emAddEntity;
+	EdEditEntityEditMode m_emEditEntity;
+	EdEditGroupEditMode m_emEditGroup;
+	EdEditLevelEditMode m_emEditLevel;
 	
-	// UNIVERSAL
+	// extra edit data
 	TextureHandle m_txMarker;
 	EDGUISnapProps m_snapProps;
-	bool m_cursorAim;
-	Vec2 m_cursorWorldPos;
-	Vec2 m_cpdiff;
-	bool m_grabbed;
-	Vec2 m_origPos;
-	Vec2 m_origPos0;
-	Vec2 m_origPos1;
-	// --
-	
-	// DRAW BLOCK
-	ED_BlockDrawMode m_blockDrawMode;
-	Array< Vec2 > m_drawnVerts;
-	EDGUIPropFloat m_newBlockPropZ0;
-	EDGUIPropFloat m_newBlockPropZ1;
-	EDGUISurfaceProps m_newSurfProps;
-	// --
-	
-	// EDIT BLOCK
-	int m_hlBlock;
-	int m_selBlock;
-	int m_hlSurf;
-	int m_selSurf;
-	int m_hlVert;
-	int m_selVert;
-	bool m_dragAdjacent;
-	// --
-	
-	// PAINT BLOCK
-	int m_paintBlock;
-	int m_paintSurf;
-	bool m_isPainting;
-	EDGUISurfaceProps m_paintSurfProps;
-	
-	// ADD ENTITY
-	EdEntityHandle m_entityProps;
-	
-	// EDIT ENTITY
-	int m_hlEnt;
-	int m_selEnt;
-	// --
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;
@@ -904,9 +982,6 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBEditEntity;
 	EDGUIButton m_MBEditGroups;
 	EDGUIButton m_MBLevelInfo;
-	
-	// entity list
-	EDGUIEntList m_entGroup;
 };
 
 
