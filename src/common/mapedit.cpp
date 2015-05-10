@@ -498,16 +498,21 @@ void EdWorld::DrawWires_Blocks( int hlblock, int selblock )
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
 	for( size_t i = 0; i < m_blocks.size(); ++i )
 	{
-		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( m_blocks[ i ].group ) );
-		
-		if( (int) i == selblock )
-			br.Col( 0.9f, 0.5, 0.1f, 1 );
-		else if( (int) i == hlblock )
-			br.Col( 0.1f, 0.5, 0.9f, 0.9f );
-		else
-			br.Col( 0.1f, 0.5, 0.9f, 0.5f );
-		
 		const EdBlock& B = m_blocks[ i ];
+		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
+		
+		if( (int) i == selblock || B.selected )
+		{
+			if( (int) i == hlblock )
+				br.Col( 0.9f, 0.2f, 0.1f, 1 );
+			else
+				br.Col( 0.9f, 0.5f, 0.1f, 1 );
+		}
+		else if( (int) i == hlblock )
+			br.Col( 0.1f, 0.8f, 0.9f, 0.9f );
+		else
+			br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
+		
 		for( size_t v = 0; v < B.poly.size(); ++v )
 		{
 			size_t v1 = ( v + 1 ) % B.poly.size();
@@ -663,8 +668,8 @@ bool EdWorld::RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfr
 			mindst = ndst[0];
 		}
 	}
-	outdst[0] = mindst;
-	outblock[0] = curblk;
+	if( outdst ) outdst[0] = mindst;
+	if( outblock ) outblock[0] = curblk;
 	return curblk != -1;
 }
 
@@ -693,6 +698,48 @@ bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int search
 	outdst[0] = mindst;
 	outent[0] = curent;
 	return curent != -1;
+}
+
+int EdWorld::GetNumSelectedBlocks()
+{
+	// no specific perf requirements currently
+	int ns = 0;
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+		if( m_blocks[ i ].selected )
+			ns++;
+	return ns;
+}
+
+int EdWorld::GetOnlySelectedBlock()
+{
+	int sb = -1;
+	int ns = 0;
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		if( m_blocks[ i ].selected )
+		{
+			if( ns++ )
+				return -1;
+			sb = i;
+		}
+	}
+	return sb;
+}
+
+void EdWorld::SelectBlock( int block, bool mod )
+{
+	if( mod )
+	{
+		if( block != -1 )
+			m_blocks[ block ].selected = !m_blocks[ block ].selected;
+	}
+	else
+	{
+		for( size_t i = 0; i < m_blocks.size(); ++i )
+			m_blocks[ i ].selected = false;
+		if( block != -1 )
+			m_blocks[ block ].selected = true;
+	}
 }
 
 Vec3 EdWorld::FindCenterOfGroup( int32_t grp )
@@ -782,7 +829,9 @@ void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
 
 
 EDGUIMainFrame::EDGUIMainFrame() :
+	m_editTF( NULL ),
 	m_editMode( NULL ),
+	m_keyMod( 0 ),
 	m_UIMenuSplit( true, 26, 0 ),
 	m_UIParamSplit( false, 0, 0.7f ),
 	m_UIRenderView( g_EdScene, this )
@@ -875,10 +924,38 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 	return EDGUIFrame::OnEvent( e );
 }
 
-void EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
+bool EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 {
+	if( e->type == EDGUI_EVENT_KEYDOWN || e->type == EDGUI_EVENT_KEYUP )
+	{
+		int mod = 0;
+		switch( e->key.engkey )
+		{
+		case SDLK_LSHIFT: mod = KMOD_LSHIFT; break;
+		case SDLK_RSHIFT: mod = KMOD_RSHIFT; break;
+		case SDLK_LCTRL: mod = KMOD_LCTRL; break;
+		case SDLK_RCTRL: mod = KMOD_RCTRL; break;
+		case SDLK_LALT: mod = KMOD_LALT; break;
+		case SDLK_RALT: mod = KMOD_RALT; break;
+		case SDLK_LGUI: mod = KMOD_LGUI; break;
+		case SDLK_RGUI: mod = KMOD_RGUI; break;
+		}
+		if( e->type == EDGUI_EVENT_KEYDOWN )
+			m_keyMod |= mod;
+		else
+			m_keyMod &= ~mod;
+	}
+	
+	if( m_editTF )
+	{
+		if( m_editTF->OnViewEvent( e ) )
+			return false;
+	}
+	
 	if( m_editMode )
 		m_editMode->OnViewEvent( e );
+	
+	return true;
 }
 
 void EDGUIMainFrame::_DrawCursor( bool drawimg, float height )
@@ -923,6 +1000,8 @@ void EDGUIMainFrame::DebugDraw()
 {
 	if( m_editMode )
 		m_editMode->Draw();
+	if( m_editTF )
+		m_editTF->Draw();
 }
 
 
@@ -1148,10 +1227,18 @@ void EDGUIMainFrame::SetEditMode( EdEditMode* em )
 	em->OnEnter();
 }
 
+void EDGUIMainFrame::SetEditTransform( EdEditTransform* et )
+{
+	if( m_editTF )
+		m_editTF->OnExit();
+	m_editTF = et && et->OnEnter() ? et : NULL;
+}
+
 void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 {
 	m_MBDrawBlock.SetHighlight( mybtn == &m_MBDrawBlock );
 	m_MBEditBlock.SetHighlight( mybtn == &m_MBEditBlock );
+	m_MBPaintSurfs.SetHighlight( mybtn == &m_MBPaintSurfs );
 	m_MBAddEntity.SetHighlight( mybtn == &m_MBAddEntity );
 	m_MBEditEntity.SetHighlight( mybtn == &m_MBEditEntity );
 	m_MBEditGroups.SetHighlight( mybtn == &m_MBEditGroups );

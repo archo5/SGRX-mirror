@@ -256,8 +256,9 @@ struct EdVtx
 
 struct EdBlock
 {
-	EdBlock() : group(0), position(V3(0)), z0(0), z1(1){}
+	EdBlock() : selected(false), group(0), position(V3(0)), z0(0), z1(1){}
 	
+	bool selected;
 	int group;
 	Vec3 position;
 	float z0, z1;
@@ -730,6 +731,10 @@ struct EdWorld : EDGUILayoutRow
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
 	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
 	
+	int GetNumSelectedBlocks();
+	int GetOnlySelectedBlock();
+	void SelectBlock( int block, bool mod );
+	
 	Vec3 FindCenterOfGroup( int32_t grp );
 	void FixTransformsOfGroup( int32_t grp );
 	void CopyObjectsToGroup( int32_t grpfrom, int32_t grpto );
@@ -787,6 +792,77 @@ struct EdWorld : EDGUILayoutRow
 };
 
 
+struct EdEditTransform
+{
+	virtual bool OnEnter()
+	{
+		m_startCursorPos = GetCursorPos();
+		SaveState();
+		RecalcTransform();
+		ApplyTransform();
+		return true;
+	}
+	virtual void OnExit(){}
+	virtual int OnViewEvent( EDGUIEvent* e ){ return 0; }
+	virtual void Draw(){}
+	
+	virtual void SaveState(){}
+	virtual void RestoreState(){}
+	virtual void ApplyTransform(){}
+	virtual void RecalcTransform(){}
+	
+	// projection space without Z
+	Vec2 GetCursorPos();
+	Vec2 GetScreenPos( const Vec3& p );
+	
+	Vec2 m_startCursorPos;
+};
+
+struct EdBasicEditTransform : EdEditTransform
+{
+	virtual int OnViewEvent( EDGUIEvent* e );
+};
+
+struct EdBlockEditTransform : EdBasicEditTransform
+{
+	enum ConstraintMode
+	{
+		Camera,
+		XAxis,
+		XPlane,
+		YAxis,
+		YPlane,
+		ZAxis,
+		ZPlane,
+	};
+	struct SavedBlock
+	{
+		int id;
+		EdBlock data;
+	};
+	
+	virtual bool OnEnter();
+	virtual int OnViewEvent( EDGUIEvent* e );
+	virtual void SaveState();
+	virtual void RestoreState();
+	Vec3 GetMovementVector( const Vec2& a, const Vec2& b );
+	
+	Array< SavedBlock > m_blocks;
+	ConstraintMode m_cmode;
+	Vec3 m_origin;
+};
+
+struct EdBlockMoveTransform : EdBlockEditTransform
+{
+	virtual int OnViewEvent( EDGUIEvent* e );
+	virtual void Draw();
+	virtual void ApplyTransform();
+	virtual void RecalcTransform();
+	
+	Vec3 m_transform;
+};
+
+
 struct EdEditMode
 {
 	virtual void OnEnter(){}
@@ -839,6 +915,8 @@ struct EdEditBlockEditMode : EdEditMode
 	Vec2 m_origPos;
 	Vec2 m_origPos0;
 	Vec2 m_origPos1;
+	
+	EdBlockMoveTransform m_transform;
 };
 
 struct EdEditVertexEditMode : EdEditMode
@@ -912,7 +990,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIMainFrame();
 	void PostInit();
 	int OnEvent( EDGUIEvent* e );
-	void ViewEvent( EDGUIEvent* e );
+	bool ViewEvent( EDGUIEvent* e );
 	void _DrawCursor( bool drawimg, float height );
 	void DrawCursor( bool drawimg = true );
 	void DebugDraw();
@@ -941,11 +1019,13 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	void Level_Real_Save( const String& str );
 	void Level_Real_Compile();
 	void SetEditMode( EdEditMode* em );
+	void SetEditTransform( EdEditTransform* et );
 	void SetModeHighlight( EDGUIButton* mybtn );
 	
 	String m_fileName;
 	
 	// EDIT MODES
+	EdEditTransform* m_editTF;
 	EdEditMode* m_editMode;
 	EdDrawBlockEditMode m_emDrawBlock;
 	EdEditBlockEditMode m_emEditBlock;
@@ -959,6 +1039,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	// extra edit data
 	TextureHandle m_txMarker;
 	EDGUISnapProps m_snapProps;
+	int m_keyMod;
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;

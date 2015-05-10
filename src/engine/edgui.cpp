@@ -285,9 +285,9 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 	else if( eev->type == SDL_MOUSEBUTTONUP || eev->type == SDL_MOUSEBUTTONDOWN )
 	{
 		int btn = eev->button.button;
-		if( btn == 1 ) btn = 0;
-		else if( btn == 3 ) btn = 1;
-		else if( btn == 2 ) btn = 2;
+		if( btn == SGRX_MB_LEFT ) btn = EDGUI_MB_LEFT;
+		else if( btn == SGRX_MB_RIGHT ) btn = EDGUI_MB_RIGHT;
+		else if( btn == SGRX_MB_MIDDLE ) btn = EDGUI_MB_MIDDLE;
 		else
 			btn = -1;
 		if( btn >= 0 )

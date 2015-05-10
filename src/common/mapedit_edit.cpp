@@ -4,6 +4,212 @@
 
 
 
+Vec2 EdEditTransform::GetCursorPos()
+{
+	Vec2 cp = Game_GetCursorPos();
+	return V2
+	(
+		cp.x / GR_GetWidth() * 2 - 1,
+		cp.y / GR_GetHeight() * -2 + 1
+	);
+}
+
+Vec2 EdEditTransform::GetScreenPos( const Vec3& p )
+{
+	Vec3 tp = g_EdScene->camera.WorldToScreen( p );
+	return V2
+	(
+		tp.x * 2 - 1,
+		tp.y * -2 + 1
+	);
+}
+
+int EdBasicEditTransform::OnViewEvent( EDGUIEvent* e )
+{
+	if( e->type == EDGUI_EVENT_MOUSEMOVE )
+	{
+		RecalcTransform();
+		ApplyTransform();
+	}
+	if( e->type == EDGUI_EVENT_BTNCLICK )
+	{
+		if( e->mouse.button == EDGUI_MB_RIGHT )
+			RestoreState();
+		g_UIFrame->SetEditTransform( NULL );
+	}
+	return 1;
+}
+
+bool EdBlockEditTransform::OnEnter()
+{
+	if( g_EdWorld->GetNumSelectedBlocks() == 0 )
+		return false;
+	m_cmode = Camera;
+	return EdEditTransform::OnEnter();
+}
+
+int EdBlockEditTransform::OnViewEvent( EDGUIEvent* e )
+{
+	if( e->type == EDGUI_EVENT_KEYDOWN )
+	{
+		switch( e->key.engkey )
+		{
+		case SDLK_x:
+			if( m_cmode == XAxis ) m_cmode = XPlane;
+			else if( m_cmode == XPlane ) m_cmode = Camera;
+			else m_cmode = XAxis;
+			break;
+		case SDLK_y:
+			if( m_cmode == YAxis ) m_cmode = YPlane;
+			else if( m_cmode == YPlane ) m_cmode = Camera;
+			else m_cmode = YAxis;
+			break;
+		case SDLK_z:
+			if( m_cmode == ZAxis ) m_cmode = ZPlane;
+			else if( m_cmode == ZPlane ) m_cmode = Camera;
+			else m_cmode = ZAxis;
+			break;
+		}
+		RecalcTransform();
+		ApplyTransform();
+	}
+	return EdBasicEditTransform::OnViewEvent( e );
+}
+
+void EdBlockEditTransform::SaveState()
+{
+	Vec3 cp = V3(0);
+	int cpc = 0;
+	m_blocks.clear();
+	for( size_t i = 0; i < g_EdWorld->m_blocks.size(); ++i )
+	{
+		EdBlock& B = g_EdWorld->m_blocks[ i ];
+		if( B.selected == false )
+			continue;
+		m_blocks.push_back(SavedBlock());
+		SavedBlock& SB = m_blocks.last();
+		SB.id = i;
+		SB.data = B;
+		SB.data.cached_mesh = NULL;
+		SB.data.cached_meshinst = NULL;
+		
+		cp += SB.data.FindCenter();
+		cpc++;
+	}
+	m_origin = g_UIFrame->Snapped( cp / cpc );
+}
+
+void EdBlockEditTransform::RestoreState()
+{
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		SavedBlock& SB = m_blocks[ i ];
+		g_EdWorld->m_blocks[ SB.id ] = SB.data;
+		g_EdWorld->m_blocks[ SB.id ].RegenerateMesh();
+	}
+}
+
+Vec3 EdBlockEditTransform::GetMovementVector( const Vec2& a, const Vec2& b )
+{
+	Vec3 axis = V3(0);
+	switch( m_cmode )
+	{
+	case Camera: axis = g_EdScene->camera.direction.Normalized(); break;
+	case XAxis:
+	case XPlane: axis = V3(1,0,0); break;
+	case YAxis:
+	case YPlane: axis = V3(0,1,0); break;
+	case ZAxis:
+	case ZPlane: axis = V3(0,0,1); break;
+	}
+	// plane, raycast both points
+	if( m_cmode == Camera || m_cmode == XPlane || m_cmode == YPlane || m_cmode == ZPlane )
+	{
+		Vec4 plane = V4( axis, Vec3Dot( axis, m_origin ) );
+		Vec3 ap, ad, bp, bd;
+		float aid[2], bid[2];
+		if( g_EdScene->camera.GetCursorRay( a.x * 0.5f + 0.5f, a.y * -0.5f + 0.5f, ap, ad ) &&
+			g_EdScene->camera.GetCursorRay( b.x * 0.5f + 0.5f, b.y * -0.5f + 0.5f, bp, bd ) &&
+			RayPlaneIntersect( ap, ad, plane, aid ) &&
+			RayPlaneIntersect( bp, bd, plane, bid ) )
+		{
+			return bp + bd * bid[0] - ( ap + ad * aid[0] );
+		}
+	}
+	// axis
+	else if( m_cmode == XAxis || m_cmode == YAxis || m_cmode == ZAxis )
+	{
+	}
+	return V3(0);
+}
+
+int EdBlockMoveTransform::OnViewEvent( EDGUIEvent* e )
+{
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		int x0 = g_UIFrame->m_UIRenderView.x0;
+		int y1 = g_UIFrame->m_UIRenderView.y1;
+		char bfr[ 1024 ];
+		sgrx_snprintf( bfr, 1024, "Moving blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
+	}
+	return EdBlockEditTransform::OnViewEvent( e );
+}
+
+void EdBlockMoveTransform::Draw()
+{
+	float D = 16;
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.SetPrimitiveType( PT_Lines );
+	if( m_cmode == XAxis || m_cmode == YPlane || m_cmode == ZPlane )
+	{
+		br.Col(1,0,0,0).Pos( m_origin - V3(D,0,0) );
+		br.Col(1,0,0,1).Pos( m_origin ).Prev(0);
+		br.Col(1,0,0,0).Pos( m_origin + V3(D,0,0) );
+		br.Col(1,0,0,0).Pos( m_origin + m_transform - V3(D,0,0) );
+		br.Col(1,0,0,1).Pos( m_origin + m_transform ).Prev(0);
+		br.Col(1,0,0,0).Pos( m_origin + m_transform + V3(D,0,0) );
+	}
+	if( m_cmode == YAxis || m_cmode == XPlane || m_cmode == ZPlane )
+	{
+		br.Col(0,1,0,0).Pos( m_origin - V3(0,D,0) );
+		br.Col(0,1,0,1).Pos( m_origin ).Prev(0);
+		br.Col(0,1,0,0).Pos( m_origin + V3(0,D,0) );
+		br.Col(0,1,0,0).Pos( m_origin + m_transform - V3(0,D,0) );
+		br.Col(0,1,0,1).Pos( m_origin + m_transform ).Prev(0);
+		br.Col(0,1,0,0).Pos( m_origin + m_transform + V3(0,D,0) );
+	}
+	if( m_cmode == ZAxis || m_cmode == XPlane || m_cmode == YPlane )
+	{
+		br.Col(0,0,1,0).Pos( m_origin - V3(0,0,D) );
+		br.Col(0,0,1,1).Pos( m_origin ).Prev(0);
+		br.Col(0,0,1,0).Pos( m_origin + V3(0,0,D) );
+		br.Col(0,0,1,0).Pos( m_origin + m_transform - V3(0,0,D) );
+		br.Col(0,0,1,1).Pos( m_origin + m_transform ).Prev(0);
+		br.Col(0,0,1,0).Pos( m_origin + m_transform + V3(0,0,D) );
+	}
+}
+
+void EdBlockMoveTransform::ApplyTransform()
+{
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		SavedBlock& SB = m_blocks[ i ];
+		EdBlock& B = g_EdWorld->m_blocks[ SB.id ];
+		B = SB.data;
+		B.position += m_transform;
+		B.RegenerateMesh();
+	}
+}
+
+void EdBlockMoveTransform::RecalcTransform()
+{
+	m_transform = g_UIFrame->Snapped( GetMovementVector( m_startCursorPos, GetCursorPos() ) );
+}
+
+
+
 EdDrawBlockEditMode::EdDrawBlockEditMode() :
 	m_blockDrawMode( BD_Polygon ),
 	m_newBlockPropZ0( 0, 2, -8192, 8192 ),
@@ -15,6 +221,7 @@ EdDrawBlockEditMode::EdDrawBlockEditMode() :
 
 void EdDrawBlockEditMode::OnEnter()
 {
+	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBDrawBlock );
 	g_UIFrame->SetCursorPlaneHeight( m_newBlockPropZ0.m_value );
 	m_drawnVerts.clear();
 	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
@@ -170,6 +377,7 @@ EdEditBlockEditMode::EdEditBlockEditMode() :
 
 void EdEditBlockEditMode::OnEnter()
 {
+	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditBlock );
 	m_hlBlock = -1;
 	m_selBlock = -1;
 	m_grabbed = false;
@@ -182,6 +390,21 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	Vec2 cursorPlanePos = g_UIFrame->GetCursorPlanePos();
 	bool cursorAim = g_UIFrame->IsCursorAiming();
 	
+	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
+	{
+		g_EdWorld->SelectBlock( m_hlBlock, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
+		m_selBlock = g_EdWorld->GetOnlySelectedBlock();
+		_ReloadBlockProps();
+	}
+	if( e->type == EDGUI_EVENT_MOUSEMOVE )
+	{
+		g_EdWorld->RayBlocksIntersect( cursorRayPos, cursorRayDir, m_selBlock, NULL, &m_hlBlock );
+	}
+	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_g )
+	{
+		g_UIFrame->SetEditTransform( &m_transform );
+	}
+#if 0
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
 	{
 		if( m_selBlock != -1 && m_hlVert != -1 )
@@ -349,6 +572,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		m_grabbed = true;
 		g_UIFrame->AddToParamList( g_EdWorld->GetBlockProps( m_selBlock ) );
 	}
+#endif
 }
 
 void EdEditBlockEditMode::Draw()
@@ -407,6 +631,7 @@ EdPaintSurfsEditMode::EdPaintSurfsEditMode() :
 
 void EdPaintSurfsEditMode::OnEnter()
 {
+	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBPaintSurfs );
 	m_paintBlock = -1;
 	m_paintSurf = -1;
 	m_isPainting = false;
@@ -464,6 +689,7 @@ EdAddEntityEditMode::EdAddEntityEditMode()
 
 void EdAddEntityEditMode::OnEnter()
 {
+	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBAddEntity );
 	g_UIFrame->SetCursorPlaneHeight( m_entityProps->Pos().z );
 	g_UIFrame->AddToParamList( &m_entGroup );
 	g_UIFrame->AddToParamList( m_entityProps );
@@ -528,6 +754,7 @@ EdEditEntityEditMode::EdEditEntityEditMode() :
 
 void EdEditEntityEditMode::OnEnter()
 {
+	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditEntity );
 	m_hlEnt = -1;
 	m_selEnt = -1;
 	m_grabbed = false;
@@ -628,6 +855,7 @@ void EdEditEntityEditMode::_ReloadEntityProps()
 
 void EdEditGroupEditMode::OnEnter()
 {
+	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditGroups );
 	g_EdWorld->m_groupMgr.PrepareCurrentEditGroup();
 	g_UIFrame->AddToParamList( &g_EdWorld->m_groupMgr );
 }

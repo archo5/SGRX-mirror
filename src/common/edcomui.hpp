@@ -367,7 +367,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 {
 	struct FrameInterface
 	{
-		virtual void ViewEvent( EDGUIEvent* e ) = 0;
+		virtual bool ViewEvent( EDGUIEvent* e ) = 0;
 		virtual void DebugDraw() = 0;
 	};
 	
@@ -407,6 +407,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 		case EDGUI_EVENT_LAYOUT:
 			EDGUIItem::OnEvent( e );
 			m_edScene->camera.aspect = ( x1 - x0 ) / (float) ( y1 - y0 );
+			EventToFrame( e );
 			return 1;
 		case EDGUI_EVENT_PAINT:
 			{
@@ -416,6 +417,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 				rsinfo.debugdraw = this;
 				GR_RenderScene( rsinfo );
 			}
+			EventToFrame( e );
 			return 1;
 		case EDGUI_EVENT_SETFOCUS:
 			m_frame->_SetFocus( this );
@@ -432,6 +434,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 			return 1;
 		case EDGUI_EVENT_KEYDOWN:
 		case EDGUI_EVENT_KEYUP:
+			if( EventToFrame( e ) )
 			{
 				bool down = e->type == EDGUI_EVENT_KEYDOWN && !( e->key.engmod & KMOD_CTRL );
 				if( e->key.engkey == SDLK_w ) movefwd = down;
@@ -442,16 +445,27 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 				if( e->key.engkey == SDLK_q ) moveup = down;
 				if( e->key.engkey == SDLK_z ) movedn = down;
 			}
-			EventToFrame( e );
+			else
+			{
+				movefwd = false;
+				movebwd = false;
+				movelft = false;
+				movergt = false;
+				movefast = false;
+				moveup = false;
+				movedn = false;
+			}
 			return 1;
 		case EDGUI_EVENT_BTNDOWN:
 		case EDGUI_EVENT_BTNUP:
+			if( EventToFrame( e ) )
 			{
 				bool down = e->type == EDGUI_EVENT_BTNDOWN;
 				if( e->mouse.button == 1 ) look = down;
 				prevcp = Game_GetCursorPos();
 			}
-			EventToFrame( e );
+			else
+				look = false;
 			break;
 		case EDGUI_EVENT_BTNCLICK:
 			EventToFrame( e );
@@ -471,6 +485,9 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 					}
 				}
 			}
+			EventToFrame( e );
+			break;
+		default:
 			EventToFrame( e );
 			break;
 		}
@@ -502,7 +519,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 		
 		m_edScene->camera.UpdateMatrices();
 	}
-	void EventToFrame( EDGUIEvent* e ){ m_mainframe->ViewEvent( e ); }
+	bool EventToFrame( EDGUIEvent* e ){ return m_mainframe->ViewEvent( e ); }
 	void DebugDraw(){ m_mainframe->DebugDraw(); }
 	
 	Vec2 prevcp;

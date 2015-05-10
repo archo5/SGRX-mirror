@@ -120,8 +120,13 @@
 #define EDGUI_KEY_ENTER     16
 #define EDGUI_KEY_ACTIVATE  17
 
+#define EDGUI_MB_LEFT 0
+#define EDGUI_MB_RIGHT 1
+#define EDGUI_MB_MIDDLE 2
+
 #define EDGUI_KEYMOD_FILTER 0x0FF
 #define EDGUI_KEYMOD_SHIFT  0x100
+
 
 
 
