@@ -2554,12 +2554,16 @@ RenderStats& GR_GetRenderStats()
 void GR2D_SetWorldMatrix( const Mat4& mtx )
 {
 	g_BatchRenderer->Flush();
+	g_BatchRenderer->worldMatrix = mtx;
+	g_BatchRenderer->_RecalcMatrices();
 	g_Renderer->SetMatrix( false, mtx );
 }
 
 void GR2D_SetViewMatrix( const Mat4& mtx )
 {
 	g_BatchRenderer->Flush();
+	g_BatchRenderer->viewMatrix = mtx;
+	g_BatchRenderer->_RecalcMatrices();
 	g_Renderer->SetMatrix( true, mtx );
 }
 
@@ -2655,6 +2659,8 @@ BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( f
 	m_proto.u = 0;
 	m_proto.v = 0;
 	m_proto.color = 0xffffffff;
+	worldMatrix = Mat4::Identity;
+	viewMatrix = Mat4::Identity;
 }
 
 BatchRenderer& BatchRenderer::AddVertices( Vertex* verts, int count )
@@ -2780,6 +2786,13 @@ BatchRenderer& BatchRenderer::Sprite( const Vec3& pos, const Vec3& dx, const Vec
 	Tex( 0, 1 ); Pos( pos + dx - dy );
 	Prev( 4 );
 	return *this;
+}
+
+BatchRenderer& BatchRenderer::Sprite( const Vec3& pos, float sx, float sy )
+{
+	Vec3 dx = invMatrix.TransformNormal( V3( 1, 0, 0 ) ).Normalized() * sx;
+	Vec3 dy = invMatrix.TransformNormal( V3( 0, 1, 0 ) ).Normalized() * sy;
+	return Sprite( pos, dx, dy );
 }
 
 BatchRenderer& BatchRenderer::TexLine( const Vec2& p0, const Vec2& p1, float rad )
@@ -2998,6 +3011,12 @@ void BatchRenderer::_UpdateDiff()
 		|| m_currState.shader != m_nextState.shader
 		|| m_currState.primType != m_nextState.primType
 	;
+}
+
+void BatchRenderer::_RecalcMatrices()
+{
+	invMatrix = Mat4::Identity;
+	( worldMatrix * viewMatrix ).InvertTo( invMatrix );
 }
 
 

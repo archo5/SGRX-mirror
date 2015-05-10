@@ -315,6 +315,16 @@ inline Vec3 Vec3Slerp( const Vec3& v1, const Vec3& v2, float q )
 	}
 	return v1 * cos( ang ) + rel * sin( ang );
 }
+inline Vec3 TLERP( const Vec3& a, const Vec3& b, const Vec3& s ){ return a * ( V3(1) - s ) + b * s; }
+inline Vec3 TREVLERP( const Vec3& a, const Vec3& b, const Vec3& s )
+{
+	return V3
+	(
+		a.x == b.x ? a.x : ( s.x - a.x ) / ( b.x - a.x ),
+		a.y == b.y ? a.y : ( s.y - a.y ) / ( b.y - a.y ),
+		a.z == b.z ? a.z : ( s.z - a.z ) / ( b.z - a.z )
+	);
+}
 
 
 //

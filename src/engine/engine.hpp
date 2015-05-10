@@ -951,6 +951,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& Poly( const void* data, int count, float z = 0, int stride = sizeof(Vec2) );
 	ENGINE_EXPORT BatchRenderer& PolyOutline( const void* data, int count, float z = 0, int stride = sizeof(Vec2) );
 	ENGINE_EXPORT BatchRenderer& Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy );
+	ENGINE_EXPORT BatchRenderer& Sprite( const Vec3& pos, float sx, float sy );
 	ENGINE_EXPORT BatchRenderer& TexLine( const Vec2& p0, const Vec2& p1, float rad );
 	ENGINE_EXPORT BatchRenderer& CircleFill( float x, float y, float r, float z = 0, int verts = -1 );
 	ENGINE_EXPORT BatchRenderer& CircleOutline( float x, float y, float r, float z = 0, int verts = -1 );
@@ -968,6 +969,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& Flush();
 	ENGINE_EXPORT BatchRenderer& Reset();
 	ENGINE_EXPORT void _UpdateDiff();
+	ENGINE_EXPORT void _RecalcMatrices();
 	
 	Array< Vec4 > ShaderData;
 	
@@ -978,6 +980,9 @@ struct BatchRenderer
 	Vertex m_proto;
 	bool m_swapRB;
 	Array< Vertex > m_verts;
+	Mat4 worldMatrix;
+	Mat4 viewMatrix;
+	Mat4 invMatrix;
 };
 
 struct ENGINE_EXPORT SGRX_PostDraw

@@ -4,6 +4,24 @@
 
 
 
+Vec3 EdBlock::GetLocalVertex( int i )
+{
+	Vec3 vp = poly[ i % poly.size() ];
+	if( i < (int) poly.size() )
+		vp.z = z0;
+	else
+		vp.z += z1;
+	return vp + position;
+}
+
+void EdBlock::ScaleVertices( const Vec3& f )
+{
+	for( size_t i = 0; i < poly.size(); ++i )
+		poly[ i ] *= f;
+	z0 *= f.z;
+	z1 *= f.z;
+}
+
 void EdBlock::_GetTexVecs( int surf, Vec3& tgx, Vec3& tgy )
 {
 	if( surf < (int) poly.size() )

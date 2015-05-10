@@ -752,6 +752,28 @@ int EdWorld::GetOnlySelectedBlock()
 	return sb;
 }
 
+bool EdWorld::GetSelectedBlockAABB( Vec3 outaabb[2] )
+{
+	bool ret = false;
+	outaabb[0] = V3(FLT_MAX);
+	outaabb[1] = V3(-FLT_MAX);
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		EdBlock& B = m_blocks[ i ];
+		if( B.selected == false )
+			continue;
+		Mat4 gwm = m_groupMgr.GetMatrix( B.group );
+		for( int v = 0; v < B.GetNumVerts(); ++v )
+		{
+			Vec3 p = gwm.TransformPos( B.GetLocalVertex( v ) );
+			outaabb[0] = Vec3::Min( outaabb[0], p );
+			outaabb[1] = Vec3::Max( outaabb[1], p );
+		}
+		ret = B.GetNumVerts() != 0;
+	}
+	return ret;
+}
+
 void EdWorld::SelectBlock( int block, bool mod )
 {
 	if( mod )
@@ -1256,7 +1278,11 @@ void EDGUIMainFrame::SetEditMode( EdEditMode* em )
 void EDGUIMainFrame::SetEditTransform( EdEditTransform* et )
 {
 	if( m_editTF )
+	{
 		m_editTF->OnExit();
+		if( m_editMode )
+			m_editMode->OnTransformEnd();
+	}
 	m_editTF = et && et->OnEnter() ? et : NULL;
 }
 

@@ -2077,6 +2077,7 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pa
 
 void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
 {
+	BatchRenderer& br = GR2D_GetBatchRenderer();
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	m_inDebugDraw = true;
 	
@@ -2086,8 +2087,9 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	viewProjMatrix.Multiply( CAM.mView, CAM.mProj );
 //	VS_SetMat4( 0, worldMatrix );
 //	VS_SetMat4( 4, viewProjMatrix );
-	m_world = worldMatrix;
-	m_view = viewProjMatrix;
+	br.worldMatrix = m_world = worldMatrix;
+	br.viewMatrix = m_view = viewProjMatrix;
+	br._RecalcMatrices();
 	SetTexture( 0, NULL );
 	
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
@@ -2108,8 +2110,9 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	m_dev->SetDepthStencilSurface( orig_dss );
 	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
 	
-	m_world = origWorld;
-	m_view = origView;
+	br.worldMatrix = m_world = origWorld;
+	br.viewMatrix = m_view = origView;
+	br._RecalcMatrices();
 	
 	m_inDebugDraw = false;
 }

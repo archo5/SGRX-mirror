@@ -4,33 +4,40 @@
 
 
 
-Vec2 EdEditTransform::GetCursorPos()
+Vec2 ED_GetCursorPos()
 {
-	Vec2 cp = Game_GetCursorPos();
+	EDGUIRenderView& rv = g_UIFrame->m_UIRenderView;
+	Vec2 cp = Game_GetCursorPos() - V2( rv.x0, rv.y0 );
 	return V2
 	(
-		cp.x / GR_GetWidth() * 2 - 1,
-		cp.y / GR_GetHeight() * -2 + 1
+		cp.x / ( rv.x1 - rv.x0 ) * 2 - 1,
+		cp.y / ( rv.y1 - rv.y0 ) * -2 + 1
 	);
 }
 
-Vec2 EdEditTransform::GetScreenPos( const Vec3& p )
+Vec2 ED_GetScreenPos( const Vec3& p )
 {
 	return g_EdScene->camera.mProj.TransformPos(
 		g_EdScene->camera.mView.TransformPos( p ) ).ToVec2();
 }
 
-Vec2 EdEditTransform::GetScreenDir( const Vec3& d )
+Vec2 ED_GetScreenDir( const Vec3& d )
 {
 	return g_EdScene->camera.mProj.TransformNormal(
 		g_EdScene->camera.mView.TransformNormal( d ) ).ToVec2().Normalized();
 }
 
-Vec2 EdEditTransform::MovePointOnLine( const Vec2& p, const Vec2& lo, const Vec2& ld )
+Vec2 ED_MovePointOnLine( const Vec2& p, const Vec2& lo, const Vec2& ld )
 {
 	Vec2 normal = ld.Perp();
 	return p + normal * ( Vec2Dot( lo, normal ) - Vec2Dot( p, normal ) );
 }
+
+Vec3 ED_RemapPos( const Vec3& p, Vec3 bbfrom[2], Vec3 bbto[2] )
+{
+	return TLERP( bbto[0], bbto[1], TREVLERP( bbfrom[0], bbfrom[1], p ) );
+}
+
 
 int EdBasicEditTransform::OnViewEvent( EDGUIEvent* e )
 {
@@ -138,7 +145,7 @@ Vec3 EdBlockEditTransform::GetMovementVector( const Vec2& a, const Vec2& b )
 		axis = Vec3Cross( axis, Vec3Cross( axis, g_EdScene->camera.direction ) ).Normalized();
 	}
 	
-	Vec2 sso = GetScreenPos( m_origin );
+	Vec2 sso = ED_GetScreenPos( m_origin );
 	Vec2 ra = sso;
 	Vec2 rb = sso - a + b;
 	Vec4 plane = V4( axis, Vec3Dot( axis, m_origin ) );
@@ -162,7 +169,15 @@ int EdBlockMoveTransform::OnViewEvent( EDGUIEvent* e )
 		int x0 = g_UIFrame->m_UIRenderView.x0;
 		int y1 = g_UIFrame->m_UIRenderView.y1;
 		char bfr[ 1024 ];
-		sgrx_snprintf( bfr, 1024, "Moving blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
+		if( m_extend )
+		{
+			// TODO: more detail?
+			sgrx_snprintf( bfr, 1024, "Extending blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
+		}
+		else
+		{
+			sgrx_snprintf( bfr, 1024, "Moving blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
+		}
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
 	}
@@ -177,7 +192,7 @@ void EdBlockMoveTransform::Draw()
 	if( m_cmode == XAxis || m_cmode == YPlane || m_cmode == ZPlane )
 	{
 		br.Col(1,0,0,0).Pos( m_origin - V3(D,0,0) );
-		br.Col(1,0,0,1).Pos( m_origin ).Prev(0);
+		br.Col(1,0,0,0.5f).Pos( m_origin ).Prev(0);
 		br.Col(1,0,0,0).Pos( m_origin + V3(D,0,0) );
 		br.Col(1,0,0,0).Pos( m_origin + m_transform - V3(D,0,0) );
 		br.Col(1,0,0,1).Pos( m_origin + m_transform ).Prev(0);
@@ -186,7 +201,7 @@ void EdBlockMoveTransform::Draw()
 	if( m_cmode == YAxis || m_cmode == XPlane || m_cmode == ZPlane )
 	{
 		br.Col(0,1,0,0).Pos( m_origin - V3(0,D,0) );
-		br.Col(0,1,0,1).Pos( m_origin ).Prev(0);
+		br.Col(0,1,0,0.5f).Pos( m_origin ).Prev(0);
 		br.Col(0,1,0,0).Pos( m_origin + V3(0,D,0) );
 		br.Col(0,1,0,0).Pos( m_origin + m_transform - V3(0,D,0) );
 		br.Col(0,1,0,1).Pos( m_origin + m_transform ).Prev(0);
@@ -195,7 +210,7 @@ void EdBlockMoveTransform::Draw()
 	if( m_cmode == ZAxis || m_cmode == XPlane || m_cmode == YPlane )
 	{
 		br.Col(0,0,1,0).Pos( m_origin - V3(0,0,D) );
-		br.Col(0,0,1,1).Pos( m_origin ).Prev(0);
+		br.Col(0,0,1,0.5f).Pos( m_origin ).Prev(0);
 		br.Col(0,0,1,0).Pos( m_origin + V3(0,0,D) );
 		br.Col(0,0,1,0).Pos( m_origin + m_transform - V3(0,0,D) );
 		br.Col(0,0,1,1).Pos( m_origin + m_transform ).Prev(0);
@@ -210,14 +225,27 @@ void EdBlockMoveTransform::ApplyTransform()
 		SavedBlock& SB = m_blocks[ i ];
 		EdBlock& B = g_EdWorld->m_blocks[ SB.id ];
 		B = SB.data;
-		B.position += m_transform;
+		if( m_extend )
+		{
+			Vec3 dstbb[2] = { m_xtdAABB[0], m_xtdAABB[1] };
+			if( m_xtdMask.x == 0 ) dstbb[0].x += m_transform.x; else if( m_xtdMask.x == 1 ) dstbb[1].x += m_transform.x;
+			if( m_xtdMask.y == 0 ) dstbb[0].y += m_transform.y; else if( m_xtdMask.y == 1 ) dstbb[1].y += m_transform.y;
+			if( m_xtdMask.z == 0 ) dstbb[0].z += m_transform.z; else if( m_xtdMask.z == 1 ) dstbb[1].z += m_transform.z;
+			B.position = ED_RemapPos( B.position, m_xtdAABB, dstbb );
+			B.ScaleVertices( TREVLERP( V3(0), m_xtdAABB[1] - m_xtdAABB[0], dstbb[1] - dstbb[0] ) );
+		}
+		else
+		{
+			// simple translation only
+			B.position += m_transform;
+		}
 		B.RegenerateMesh();
 	}
 }
 
 void EdBlockMoveTransform::RecalcTransform()
 {
-	m_transform = g_UIFrame->Snapped( GetMovementVector( m_startCursorPos, GetCursorPos() ) );
+	m_transform = g_UIFrame->Snapped( GetMovementVector( m_startCursorPos, ED_GetCursorPos() ) );
 }
 
 
@@ -389,10 +417,18 @@ EdEditBlockEditMode::EdEditBlockEditMode() :
 
 void EdEditBlockEditMode::OnEnter()
 {
+	m_numSel = g_EdWorld->GetNumSelectedBlocks();
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditBlock );
+	g_EdWorld->GetSelectedBlockAABB( m_selAABB );
 	m_hlBlock = -1;
 	m_selBlock = -1;
 	m_grabbed = false;
+	m_hlBBEl = -1;
+}
+
+void EdEditBlockEditMode::OnTransformEnd()
+{
+	_ReloadBlockProps();
 }
 
 void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
@@ -405,17 +441,29 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
 	{
 		g_EdWorld->SelectBlock( m_hlBlock, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
+		m_numSel = g_EdWorld->GetNumSelectedBlocks();
 		m_selBlock = g_EdWorld->GetOnlySelectedBlock();
 		_ReloadBlockProps();
 	}
 	if( e->type == EDGUI_EVENT_MOUSEMOVE )
 	{
 		g_EdWorld->RayBlocksIntersect( cursorRayPos, cursorRayDir, m_selBlock, NULL, &m_hlBlock );
+		m_hlBBEl = GetClosestActivePoint();
 	}
 	if( e->type == EDGUI_EVENT_KEYDOWN )
 	{
+		m_hlBBEl = GetClosestActivePoint();
 		if( e->key.engkey == SDLK_g )
 		{
+			m_transform.m_extend = false;
+			g_UIFrame->SetEditTransform( &m_transform );
+		}
+		if( e->key.engkey == SDLK_e && m_hlBBEl != -1 )
+		{
+			m_transform.m_extend = true;
+			m_transform.m_xtdAABB[0] = m_selAABB[0];
+			m_transform.m_xtdAABB[1] = m_selAABB[1];
+			m_transform.m_xtdMask = GetActivePointFactor( m_hlBBEl );
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
 		if( e->key.engkey == SDLK_DELETE )
@@ -431,8 +479,21 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			{
 				m_selBlock = g_EdWorld->GetOnlySelectedBlock();
 				_ReloadBlockProps();
+				m_transform.m_extend = false;
 				g_UIFrame->SetEditTransform( &m_transform );
 			}
+		}
+	}
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		if( m_numSel && m_hlBBEl != -1 )
+		{
+			int x0 = g_UIFrame->m_UIRenderView.x0;
+			int y0 = g_UIFrame->m_UIRenderView.y0;
+			char bfr[ 1024 ];
+			sgrx_snprintf( bfr, 1024, "Press E to extend selection along %s", GetActivePointExtName( m_hlBBEl ) );
+			GR2D_SetColor( 1, 1 );
+			GR2D_DrawTextLine( x0, y0, bfr, HALIGN_LEFT, VALIGN_TOP );
 		}
 	}
 #if 0
@@ -622,10 +683,31 @@ void EdEditBlockEditMode::Draw()
 	}
 	if( m_grabbed )
 		g_UIFrame->DrawCursor( false );
+	
+	// if any block is selected..
+	if( m_numSel && g_UIFrame->m_editTF == NULL )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		for( int i = 0; i < NUM_AABB_ACTIVE_POINTS; ++i )
+		{
+			if( i == m_hlBBEl )
+				br.Col( 0.9f, 0.5f, 0.1f, 1 );
+			else
+				br.Col( 0.1f, 0.2f, 0.4f, 1 );
+			if( IsActivePointSelectable( i ) )
+			{
+				Vec3 pp = GetActivePoint( i );
+				br.Sprite( pp, 0.05f, 0.05f );
+			}
+		}
+	}
 }
 
 void EdEditBlockEditMode::_ReloadBlockProps()
 {
+	g_EdWorld->GetSelectedBlockAABB( m_selAABB );
+	m_hlBBEl = GetClosestActivePoint();
+	
 	g_UIFrame->ClearParamList();
 	if( m_selBlock >= 0 )
 	{
@@ -640,6 +722,107 @@ void EdEditBlockEditMode::_ReloadBlockProps()
 			g_UIFrame->AddToParamList( g_EdWorld->GetBlockProps( m_selBlock ) );
 	}
 }
+
+Vec3 EdEditBlockEditMode::GetActivePointFactor( int i )
+{
+	ASSERT( i >= 0 && i < NUM_AABB_ACTIVE_POINTS );
+	static const Vec3 aplerpfacs[ NUM_AABB_ACTIVE_POINTS ] =
+	{
+		V3(0,0,0), V3(0.5f,0,0), V3(1,0,0), V3(0,0.5f,0), V3(0.5f,0.5f,0), V3(1,0.5f,0), V3(0,1,0), V3(0.5f,1,0), V3(1,1,0),
+		V3(0,0,0.5f), V3(0.5f,0,0.5f), V3(1,0,0.5f), V3(0,0.5f,0.5f), /*V3(0.5f,0.5f,0.5f),*/
+			V3(1,0.5f,0.5f), V3(0,1,0.5f), V3(0.5f,1,0.5f), V3(1,1,0.5f),
+		V3(0,0,1), V3(0.5f,0,1), V3(1,0,1), V3(0,0.5f,1), V3(0.5f,0.5f,1), V3(1,0.5f,1), V3(0,1,1), V3(0.5f,1,1), V3(1,1,1),
+	};
+	return aplerpfacs[ i ];
+}
+
+Vec3 EdEditBlockEditMode::GetActivePoint( int i )
+{
+	Vec3 fac = GetActivePointFactor( i );
+	return V3
+	(
+		TLERP( m_selAABB[0].x, m_selAABB[1].x, fac.x ),
+		TLERP( m_selAABB[0].y, m_selAABB[1].y, fac.y ),
+		TLERP( m_selAABB[0].z, m_selAABB[1].z, fac.z )
+	);
+}
+
+const char* EdEditBlockEditMode::GetActivePointExtName( int i )
+{
+	ASSERT( i >= 0 && i < NUM_AABB_ACTIVE_POINTS );
+	static const char* apenames[ NUM_AABB_ACTIVE_POINTS ] =
+	{
+		"X/Y/Z", "Y/Z", "X/Y/Z",  "X/Z", "Z", "X/Z",  "X/Y/Z", "Y/Z", "X/Y/Z",
+		"X/Y", "Y", "X/Y",  "X", /* "-", */ "X",  "X/Y", "Y", "X/Y",
+		"X/Y/Z", "Y/Z", "X/Y/Z",  "X/Z", "Z", "X/Z",  "X/Y/Z", "Y/Z", "X/Y/Z",
+	};
+	return apenames[ i ];
+}
+
+bool EdEditBlockEditMode::IsActivePointSelectable( int i )
+{
+	static const float APDF = 0.1f;
+	ASSERT( i >= 0 && i < NUM_AABB_ACTIVE_POINTS );
+	
+	Vec3 cp = g_EdScene->camera.position;
+	Vec3 pos = GetActivePoint( i );
+	Vec3 dir = ( pos - cp ).Normalized();
+	dir = Vec3::Max( dir, -dir ); // abs
+	
+	static const char apsmasks[ NUM_AABB_ACTIVE_POINTS ] =
+	{
+		1|2|4, 2|4, 1|2|4,  1|4, 4, 1|4,  1|2|4, 2|4, 1|2|4,
+		1|2, 2, 1|2,  1, /* 0, */ 1,  1|2, 2, 1|2,
+		1|2|4, 2|4, 1|2|4,  1|4, 4, 1|4,  1|2|4, 2|4, 1|2|4,
+	};
+	char mask = apsmasks[ i ];
+	if( ( m_selAABB[0].x == m_selAABB[1].x
+		|| m_selAABB[0].y == m_selAABB[1].y
+		|| m_selAABB[0].z == m_selAABB[1].z ) &&
+		mask != 1 && mask != 2 && mask != 4 )
+	{
+		// disable edges/corners on zero-volume AABB
+		return false;
+	}
+	switch( mask )
+	{
+	case 1: return dir.x < 1-APDF;
+	case 2: return dir.y < 1-APDF;
+	case 3: return dir.z > APDF;
+	case 4: return dir.z < 1-APDF;
+	case 5: return dir.y > APDF;
+	case 6: return dir.x > APDF;
+	case 7: return dir.x < 1-APDF && dir.y < 1-APDF && dir.z < 1-APDF;
+	}
+	return false;
+}
+
+int EdEditBlockEditMode::GetClosestActivePoint()
+{
+	int np = -1;
+	float minxydist = FLT_MAX;
+	Vec2 scp = ED_GetCursorPos();
+	Vec3 campos = g_EdScene->camera.position;
+	Vec3 camdir = g_EdScene->camera.direction;
+	for( int i = 0; i < NUM_AABB_ACTIVE_POINTS; ++i )
+	{
+		if( IsActivePointSelectable( i ) == false )
+			continue;
+		
+		Vec3 ap = GetActivePoint( i );
+		Vec2 sap = ED_GetScreenPos( ap );
+		
+		float curxydist = ( scp - sap ).Length();
+		float curzdist = Vec3Dot( ap, camdir ) - Vec3Dot( campos, camdir );
+		if( curzdist > 0 && curxydist < minxydist )
+		{
+			np = i;
+			minxydist = curxydist;
+		}
+	}
+	return np;
+}
+
 
 void EdEditVertexEditMode::OnEnter()
 {

@@ -291,6 +291,10 @@ struct EdBlock
 		if( T::IsReader ) RegenerateMesh();
 	}
 	
+	int GetNumVerts(){ return poly.size() * 2; }
+	Vec3 GetLocalVertex( int i );
+	void ScaleVertices( const Vec3& f );
+	
 	void _GetTexVecs( int surf, Vec3& tgx, Vec3& tgy );
 	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< EdVtx >& vertices, uint16_t voff );
 	void _PostFitTexcoords( const EdSurface& S, EdVtx* vertices, size_t vcount );
@@ -736,6 +740,7 @@ struct EdWorld : EDGUILayoutRow
 	bool DuplicateSelectedBlocksAndMoveSelection();
 	int GetNumSelectedBlocks();
 	int GetOnlySelectedBlock();
+	bool GetSelectedBlockAABB( Vec3 outaabb[2] );
 	void SelectBlock( int block, bool mod );
 	
 	Vec3 FindCenterOfGroup( int32_t grp );
@@ -795,11 +800,18 @@ struct EdWorld : EDGUILayoutRow
 };
 
 
+// projection space without Z
+Vec2 ED_GetCursorPos();
+Vec2 ED_GetScreenPos( const Vec3& p );
+Vec2 ED_GetScreenDir( const Vec3& d );
+Vec2 ED_MovePointOnLine( const Vec2& p, const Vec2& lo, const Vec2& ld );
+
+
 struct EdEditTransform
 {
 	virtual bool OnEnter()
 	{
-		m_startCursorPos = GetCursorPos();
+		m_startCursorPos = ED_GetCursorPos();
 		SaveState();
 		RecalcTransform();
 		ApplyTransform();
@@ -813,12 +825,6 @@ struct EdEditTransform
 	virtual void RestoreState(){}
 	virtual void ApplyTransform(){}
 	virtual void RecalcTransform(){}
-	
-	// projection space without Z
-	Vec2 GetCursorPos();
-	Vec2 GetScreenPos( const Vec3& p );
-	Vec2 GetScreenDir( const Vec3& d );
-	Vec2 MovePointOnLine( const Vec2& p, const Vec2& lo, const Vec2& ld );
 	
 	Vec2 m_startCursorPos;
 };
@@ -855,6 +861,11 @@ struct EdBlockEditTransform : EdBasicEditTransform
 	Array< SavedBlock > m_blocks;
 	ConstraintMode m_cmode;
 	Vec3 m_origin;
+	
+	// extending
+	bool m_extend;
+	Vec3 m_xtdAABB[2];
+	Vec3 m_xtdMask;
 };
 
 struct EdBlockMoveTransform : EdBlockEditTransform
@@ -872,6 +883,7 @@ struct EdEditMode
 {
 	virtual void OnEnter(){}
 	virtual void OnExit(){}
+	virtual void OnTransformEnd(){}
 	virtual int OnUIEvent( EDGUIEvent* e ){ return 0; }
 	virtual void OnViewEvent( EDGUIEvent* e ){}
 	virtual void Draw(){}
@@ -899,13 +911,20 @@ struct EdDrawBlockEditMode : EdEditMode
 	EDGUISurfaceProps m_newSurfProps;
 };
 
+#define NUM_AABB_ACTIVE_POINTS 26
 struct EdEditBlockEditMode : EdEditMode
 {
 	EdEditBlockEditMode();
 	void OnEnter();
+	void OnTransformEnd();
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
 	void _ReloadBlockProps();
+	static Vec3 GetActivePointFactor( int i );
+	Vec3 GetActivePoint( int i );
+	bool IsActivePointSelectable( int i );
+	int GetClosestActivePoint();
+	static const char* GetActivePointExtName( int i );
 	
 	int m_hlBlock;
 	int m_selBlock;
@@ -920,6 +939,10 @@ struct EdEditBlockEditMode : EdEditMode
 	Vec2 m_origPos;
 	Vec2 m_origPos0;
 	Vec2 m_origPos1;
+	
+	Vec3 m_selAABB[2];
+	int m_numSel;
+	int m_hlBBEl;
 	
 	EdBlockMoveTransform m_transform;
 };
