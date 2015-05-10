@@ -731,6 +731,9 @@ struct EdWorld : EDGUILayoutRow
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
 	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
 	
+	void DeleteSelectedBlocks();
+	// returns if there were any selected blocks
+	bool DuplicateSelectedBlocksAndMoveSelection();
 	int GetNumSelectedBlocks();
 	int GetOnlySelectedBlock();
 	void SelectBlock( int block, bool mod );
@@ -814,6 +817,8 @@ struct EdEditTransform
 	// projection space without Z
 	Vec2 GetCursorPos();
 	Vec2 GetScreenPos( const Vec3& p );
+	Vec2 GetScreenDir( const Vec3& d );
+	Vec2 MovePointOnLine( const Vec2& p, const Vec2& lo, const Vec2& ld );
 	
 	Vec2 m_startCursorPos;
 };

@@ -700,6 +700,32 @@ bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int search
 	return curent != -1;
 }
 
+void EdWorld::DeleteSelectedBlocks()
+{
+	size_t i = m_blocks.size();
+	while( i > 0 )
+	{
+		i--;
+		if( m_blocks[ i ].selected )
+			m_blocks.uerase( i );
+	}
+}
+
+bool EdWorld::DuplicateSelectedBlocksAndMoveSelection()
+{
+	size_t sz = m_blocks.size();
+	for( size_t i = 0; i < sz; ++i )
+	{
+		if( m_blocks[ i ].selected )
+		{
+			EdBlock B = m_blocks[ i ];
+			m_blocks[ i ].selected = false;
+			m_blocks.push_back( B );
+		}
+	}
+	return m_blocks.size() != sz;
+}
+
 int EdWorld::GetNumSelectedBlocks()
 {
 	// no specific perf requirements currently

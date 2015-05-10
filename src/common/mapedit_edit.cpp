@@ -16,12 +16,20 @@ Vec2 EdEditTransform::GetCursorPos()
 
 Vec2 EdEditTransform::GetScreenPos( const Vec3& p )
 {
-	Vec3 tp = g_EdScene->camera.WorldToScreen( p );
-	return V2
-	(
-		tp.x * 2 - 1,
-		tp.y * -2 + 1
-	);
+	return g_EdScene->camera.mProj.TransformPos(
+		g_EdScene->camera.mView.TransformPos( p ) ).ToVec2();
+}
+
+Vec2 EdEditTransform::GetScreenDir( const Vec3& d )
+{
+	return g_EdScene->camera.mProj.TransformNormal(
+		g_EdScene->camera.mView.TransformNormal( d ) ).ToVec2().Normalized();
+}
+
+Vec2 EdEditTransform::MovePointOnLine( const Vec2& p, const Vec2& lo, const Vec2& ld )
+{
+	Vec2 normal = ld.Perp();
+	return p + normal * ( Vec2Dot( lo, normal ) - Vec2Dot( p, normal ) );
 }
 
 int EdBasicEditTransform::OnViewEvent( EDGUIEvent* e )
@@ -112,34 +120,38 @@ void EdBlockEditTransform::RestoreState()
 Vec3 EdBlockEditTransform::GetMovementVector( const Vec2& a, const Vec2& b )
 {
 	Vec3 axis = V3(0);
+	Vec3 mult = V3(1);
 	switch( m_cmode )
 	{
 	case Camera: axis = g_EdScene->camera.direction.Normalized(); break;
-	case XAxis:
-	case XPlane: axis = V3(1,0,0); break;
-	case YAxis:
-	case YPlane: axis = V3(0,1,0); break;
-	case ZAxis:
-	case ZPlane: axis = V3(0,0,1); break;
+	case XAxis: mult = axis = V3(1,0,0); break;
+	case XPlane: axis = V3(1,0,0); mult = V3(0,1,1); break;
+	case YAxis: mult = axis = V3(0,1,0); break;
+	case YPlane: axis = V3(0,1,0); mult = V3(1,0,1); break;
+	case ZAxis: mult = axis = V3(0,0,1); break;
+	case ZPlane: axis = V3(0,0,1); mult = V3(1,1,0); break;
 	}
-	// plane, raycast both points
-	if( m_cmode == Camera || m_cmode == XPlane || m_cmode == YPlane || m_cmode == ZPlane )
+	
+	// generate a special plane
+	if( m_cmode == XAxis || m_cmode == YAxis || m_cmode == ZAxis )
 	{
-		Vec4 plane = V4( axis, Vec3Dot( axis, m_origin ) );
-		Vec3 ap, ad, bp, bd;
-		float aid[2], bid[2];
-		if( g_EdScene->camera.GetCursorRay( a.x * 0.5f + 0.5f, a.y * -0.5f + 0.5f, ap, ad ) &&
-			g_EdScene->camera.GetCursorRay( b.x * 0.5f + 0.5f, b.y * -0.5f + 0.5f, bp, bd ) &&
-			RayPlaneIntersect( ap, ad, plane, aid ) &&
-			RayPlaneIntersect( bp, bd, plane, bid ) )
-		{
-			return bp + bd * bid[0] - ( ap + ad * aid[0] );
-		}
+		axis = Vec3Cross( axis, Vec3Cross( axis, g_EdScene->camera.direction ) ).Normalized();
 	}
-	// axis
-	else if( m_cmode == XAxis || m_cmode == YAxis || m_cmode == ZAxis )
+	
+	Vec2 sso = GetScreenPos( m_origin );
+	Vec2 ra = sso;
+	Vec2 rb = sso - a + b;
+	Vec4 plane = V4( axis, Vec3Dot( axis, m_origin ) );
+	Vec3 ap, ad, bp, bd;
+	float aid[2], bid[2];
+	if( g_EdScene->camera.GetCursorRay( ra.x * 0.5f + 0.5f, ra.y * -0.5f + 0.5f, ap, ad ) &&
+		g_EdScene->camera.GetCursorRay( rb.x * 0.5f + 0.5f, rb.y * -0.5f + 0.5f, bp, bd ) &&
+		RayPlaneIntersect( ap, ad, plane, aid ) &&
+		RayPlaneIntersect( bp, bd, plane, bid ) )
 	{
+		return ( bp + bd * bid[0] - ( ap + ad * aid[0] ) ) * mult + V3(0); // 0 added to prevent "-0"
 	}
+	
 	return V3(0);
 }
 
@@ -400,9 +412,28 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	{
 		g_EdWorld->RayBlocksIntersect( cursorRayPos, cursorRayDir, m_selBlock, NULL, &m_hlBlock );
 	}
-	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_g )
+	if( e->type == EDGUI_EVENT_KEYDOWN )
 	{
-		g_UIFrame->SetEditTransform( &m_transform );
+		if( e->key.engkey == SDLK_g )
+		{
+			g_UIFrame->SetEditTransform( &m_transform );
+		}
+		if( e->key.engkey == SDLK_DELETE )
+		{
+			g_EdWorld->DeleteSelectedBlocks();
+			m_selBlock = -1;
+			_ReloadBlockProps();
+			g_UIFrame->RefreshMouse();
+		}
+		if( e->key.engkey == SDLK_d && e->key.engmod & KMOD_CTRL )
+		{
+			if( g_EdWorld->DuplicateSelectedBlocksAndMoveSelection() )
+			{
+				m_selBlock = g_EdWorld->GetOnlySelectedBlock();
+				_ReloadBlockProps();
+				g_UIFrame->SetEditTransform( &m_transform );
+			}
+		}
 	}
 #if 0
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
