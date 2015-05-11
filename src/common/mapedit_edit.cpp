@@ -249,6 +249,34 @@ void EdBlockMoveTransform::RecalcTransform()
 }
 
 
+int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
+{
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		int x0 = g_UIFrame->m_UIRenderView.x0;
+		int y1 = g_UIFrame->m_UIRenderView.y1;
+		char bfr[ 1024 ];
+		sgrx_snprintf( bfr, 1024, "Moving vertices: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
+		return 1;
+	}
+	return EdBlockMoveTransform::OnViewEvent( e );
+}
+
+void EdBlockVertexMoveTransform::ApplyTransform()
+{
+	for( size_t i = 0; i < m_blocks.size(); ++i )
+	{
+		SavedBlock& SB = m_blocks[ i ];
+		EdBlock& B = g_EdWorld->m_blocks[ SB.id ];
+		B = SB.data;
+		B.MoveSelectedVertices( m_transform );
+		B.RegenerateMesh();
+	}
+}
+
+
 
 EdDrawBlockEditMode::EdDrawBlockEditMode() :
 	m_blockDrawMode( BD_Polygon ),
@@ -871,6 +899,12 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 	{
 		m_hlAP = GetClosestActivePoint();
 		
+		// GRAB (MOVE)
+		if( e->key.engkey == SDLK_g )
+		{
+			m_transform.m_extend = false;
+			g_UIFrame->SetEditTransform( &m_transform );
+		}
 		// TO BLOCK MODE
 		if( e->key.engkey == SDLK_b && e->key.engmod & KMOD_ALT )
 		{

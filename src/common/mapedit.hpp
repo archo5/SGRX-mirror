@@ -300,6 +300,7 @@ struct EdBlock
 	int GetNumVerts(){ return poly.size() * 2; }
 	Vec3 GetLocalVertex( int i );
 	void ScaleVertices( const Vec3& f );
+	void MoveSelectedVertices( const Vec3& t );
 	int GetNumSurfs(){ return poly.size() + 2; }
 	Vec3 GetSurfaceCenter( int i );
 	int GetNumElements(){ return GetNumVerts() + GetNumSurfs(); }
@@ -897,6 +898,12 @@ struct EdBlockMoveTransform : EdBlockEditTransform
 	Vec3 m_transform;
 };
 
+struct EdBlockVertexMoveTransform : EdBlockMoveTransform
+{
+	virtual int OnViewEvent( EDGUIEvent* e );
+	virtual void ApplyTransform();
+};
+
 
 struct EdEditMode
 {
@@ -984,6 +991,7 @@ struct EdEditVertexEditMode : EdEditMode
 	
 	ActivePoint m_hlAP;
 	Array< int > m_selBlocks;
+	EdBlockVertexMoveTransform m_transform;
 };
 
 struct EdPaintSurfsEditMode : EdEditMode

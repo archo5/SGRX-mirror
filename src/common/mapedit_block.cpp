@@ -22,6 +22,51 @@ void EdBlock::ScaleVertices( const Vec3& f )
 	z1 *= f.z;
 }
 
+void EdBlock::MoveSelectedVertices( const Vec3& tfv )
+{
+	int numbottom = 0, numtop = 0;
+	int pc = poly.size();
+	for( int i = 0; i < pc; ++i )
+	{
+		if( subsel[ i ] ) numbottom++;
+		if( subsel[ i + pc ] ) numtop++;
+	}
+	
+	Vec3 t = tfv;
+	
+	if( numbottom || IsSurfaceSelected( GetNumSurfs() - 2 ) )
+		z0 += t.z;
+	if( numtop == pc || IsSurfaceSelected( GetNumSurfs() - 1 ) )
+	{
+		z1 += t.z;
+		t.z = 0;
+	}
+	if( numtop == 0 )
+		t.z = 0;
+	
+	// either top or bottom is fully selected
+	if( numtop == pc || numbottom == pc || 
+		IsSurfaceSelected( GetNumSurfs() - 2 ) ||
+		IsSurfaceSelected( GetNumSurfs() - 1 ) )
+	{
+		position += t;
+		return;
+	}
+	
+	for( int i = 0; i < pc; ++i )
+	{
+		if( subsel[ i ] || // bottom vertex
+			subsel[ i + pc ] || // top vertex
+			subsel[ i + pc + pc ] || // following surface
+			subsel[ ( i + pc - 1 ) % pc + pc + pc ] || // preceding surface
+			subsel[ pc + pc + pc ] || // bottom surface
+			subsel[ pc + pc + pc + 1 ] )
+		{
+			poly[ i ] += t;
+		}
+	}
+}
+
 Vec3 EdBlock::GetSurfaceCenter( int i )
 {
 	if( i < (int) poly.size() )
