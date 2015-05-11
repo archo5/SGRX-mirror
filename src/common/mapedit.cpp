@@ -476,6 +476,8 @@ void EdWorld::TestData()
 	surf.texname = "metal0";
 	for( int i = 0; i < 6; ++i )
 		b1.surfaces.push_back( surf );
+	b1.subsel.resize( b1.GetNumElements() );
+	b1.ClearSelection();
 	
 	m_blocks.push_back( b1 );
 	b1.z1 = 1;

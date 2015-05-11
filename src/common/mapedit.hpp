@@ -265,6 +265,7 @@ struct EdBlock
 	
 	Array< Vec3 > poly;
 	Array< EdSurface > surfaces;
+	Array< bool > subsel;
 	
 	MeshHandle cached_mesh;
 	MeshInstHandle cached_meshinst;
@@ -288,12 +289,30 @@ struct EdBlock
 		arch << poly;
 		arch << surfaces;
 		
-		if( T::IsReader ) RegenerateMesh();
+		if( T::IsReader )
+		{
+			subsel.resize( GetNumVerts() + GetNumSurfs() );
+			TMEMSET( subsel.data(), subsel.size(), false );
+			RegenerateMesh();
+		}
 	}
 	
 	int GetNumVerts(){ return poly.size() * 2; }
 	Vec3 GetLocalVertex( int i );
 	void ScaleVertices( const Vec3& f );
+	int GetNumSurfs(){ return poly.size() + 2; }
+	Vec3 GetSurfaceCenter( int i );
+	int GetNumElements(){ return GetNumVerts() + GetNumSurfs(); }
+	Vec3 GetElementPoint( int i );
+	
+	bool IsVertexSelected( int i );
+	void SelectVertex( int i, bool sel );
+	bool IsSurfaceSelected( int i );
+	void SelectSurface( int i, bool sel );
+	bool IsElementSelected( int i );
+	void SelectElement( int i, bool sel );
+	void UISelectElement( int i, bool mod );
+	void ClearSelection();
 	
 	void _GetTexVecs( int surf, Vec3& tgx, Vec3& tgy );
 	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< EdVtx >& vertices, uint16_t voff );
@@ -949,9 +968,22 @@ struct EdEditBlockEditMode : EdEditMode
 
 struct EdEditVertexEditMode : EdEditMode
 {
+	struct ActivePoint
+	{
+		int block;
+		int point;
+	};
+	
 	void OnEnter();
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
+	
+	int GetNumBlockActivePoints( int b );
+	Vec3 GetActivePoint( int b, int i );
+	ActivePoint GetClosestActivePoint();
+	
+	ActivePoint m_hlAP;
+	Array< int > m_selBlocks;
 };
 
 struct EdPaintSurfsEditMode : EdEditMode

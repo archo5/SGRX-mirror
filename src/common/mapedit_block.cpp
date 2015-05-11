@@ -22,6 +22,101 @@ void EdBlock::ScaleVertices( const Vec3& f )
 	z1 *= f.z;
 }
 
+Vec3 EdBlock::GetSurfaceCenter( int i )
+{
+	if( i < (int) poly.size() )
+	{
+		int i1 = ( i + 1 ) % poly.size();
+		return ( GetLocalVertex( i ) + GetLocalVertex( i1 ) +
+			GetLocalVertex( i + poly.size() ) + GetLocalVertex( i1 + poly.size() ) ) * 0.25f;
+	}
+	else if( i == (int) poly.size() )
+	{
+		Vec3 c = V3(0);
+		for( size_t i = 0; i < poly.size(); ++i )
+			c += V3( poly[ i ].x, poly[ i ].y, 0 );
+		c /= poly.size();
+		return c + position + V3( 0, 0, z0 );
+	}
+	else // i == (int) poly.size() + 1
+	{
+		Vec3 c = V3(0);
+		for( size_t i = 0; i < poly.size(); ++i )
+			c += poly[ i ];
+		c /= poly.size();
+		return c + position + V3( 0, 0, z1 );
+	}
+}
+
+Vec3 EdBlock::GetElementPoint( int i )
+{
+	int nverts = GetNumVerts();
+	if( i < nverts )
+		return GetLocalVertex( i );
+	else
+		return GetSurfaceCenter( i - nverts );
+}
+
+
+bool EdBlock::IsVertexSelected( int i )
+{
+	ASSERT( i >= 0 && i < GetNumVerts() );
+	return subsel[ i ];
+}
+
+void EdBlock::SelectVertex( int i, bool sel )
+{
+	ASSERT( i >= 0 && i < GetNumVerts() );
+	subsel[ i ] = sel;
+}
+
+bool EdBlock::IsSurfaceSelected( int i )
+{
+	ASSERT( i >= 0 && i < GetNumSurfs() );
+	return subsel[ i + GetNumVerts() ];
+}
+
+void EdBlock::SelectSurface( int i, bool sel )
+{
+	ASSERT( i >= 0 && i < GetNumSurfs() );
+	subsel[ i + GetNumVerts() ] = sel;
+}
+
+bool EdBlock::IsElementSelected( int i )
+{
+	ASSERT( i >= 0 && i < GetNumElements() );
+	return subsel[ i ];
+}
+
+void EdBlock::SelectElement( int i, bool sel )
+{
+	ASSERT( i >= 0 && i < GetNumElements() );
+	subsel[ i ] = sel;
+}
+
+void EdBlock::UISelectElement( int i, bool mod )
+{
+	if( i >= 0 && i < GetNumElements() )
+	{
+		if( mod )
+			subsel[ i ] = !subsel[ i ];
+		else
+		{
+			ClearSelection();
+			subsel[ i ] = true;
+		}
+		
+	}
+	else if( mod == false )
+		ClearSelection();
+}
+
+void EdBlock::ClearSelection()
+{
+	TMEMSET( subsel.data(), subsel.size(), false );
+}
+
+
 void EdBlock::_GetTexVecs( int surf, Vec3& tgx, Vec3& tgy )
 {
 	if( surf < (int) poly.size() )

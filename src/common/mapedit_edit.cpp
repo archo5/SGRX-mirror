@@ -399,6 +399,8 @@ void EdDrawBlockEditMode::_AddNewBlock()
 		m_newSurfProps.BounceBack( S );
 		B.surfaces.push_back( S );
 	}
+	B.subsel.resize( B.GetNumElements() );
+	B.ClearSelection();
 	B.RegenerateMesh();
 	g_EdWorld->m_blocks.push_back( B );
 }
@@ -453,11 +455,13 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	if( e->type == EDGUI_EVENT_KEYDOWN )
 	{
 		m_hlBBEl = GetClosestActivePoint();
+		// GRAB (MOVE)
 		if( e->key.engkey == SDLK_g )
 		{
 			m_transform.m_extend = false;
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
+		// EXTEND
 		if( e->key.engkey == SDLK_e && m_hlBBEl != -1 )
 		{
 			m_transform.m_extend = true;
@@ -466,6 +470,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			m_transform.m_xtdMask = GetActivePointFactor( m_hlBBEl );
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
+		// DELETE
 		if( e->key.engkey == SDLK_DELETE )
 		{
 			g_EdWorld->DeleteSelectedBlocks();
@@ -473,6 +478,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			_ReloadBlockProps();
 			g_UIFrame->RefreshMouse();
 		}
+		// DUPLICATE
 		if( e->key.engkey == SDLK_d && e->key.engmod & KMOD_CTRL )
 		{
 			if( g_EdWorld->DuplicateSelectedBlocksAndMoveSelection() )
@@ -482,6 +488,11 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 				m_transform.m_extend = false;
 				g_UIFrame->SetEditTransform( &m_transform );
 			}
+		}
+		// TO VERTEX MODE
+		if( e->key.engkey == SDLK_v && e->key.engmod & KMOD_ALT )
+		{
+			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
 		}
 	}
 	if( e->type == EDGUI_EVENT_PAINT )
@@ -691,7 +702,7 @@ void EdEditBlockEditMode::Draw()
 		for( int i = 0; i < NUM_AABB_ACTIVE_POINTS; ++i )
 		{
 			if( i == m_hlBBEl )
-				br.Col( 0.9f, 0.5f, 0.1f, 1 );
+				br.Col( 0.1f, 0.8f, 0.9f, 1 );
 			else
 				br.Col( 0.1f, 0.2f, 0.4f, 1 );
 			if( IsActivePointSelectable( i ) )
@@ -779,7 +790,8 @@ bool EdEditBlockEditMode::IsActivePointSelectable( int i )
 	if( ( m_selAABB[0].x == m_selAABB[1].x
 		|| m_selAABB[0].y == m_selAABB[1].y
 		|| m_selAABB[0].z == m_selAABB[1].z ) &&
-		mask != 1 && mask != 2 && mask != 4 )
+		mask != 1 && mask != 2 && mask != 4 &&
+		( mask == (1|2) && m_selAABB[0].x != m_selAABB[1].x && m_selAABB[0].y != m_selAABB[1].y ) == false )
 	{
 		// disable edges/corners on zero-volume AABB
 		return false;
@@ -826,15 +838,121 @@ int EdEditBlockEditMode::GetClosestActivePoint()
 
 void EdEditVertexEditMode::OnEnter()
 {
+	m_hlAP.block = -1;
+	m_hlAP.point = -1;
+	
+	m_selBlocks.clear();
+	for( size_t i = 0; i < g_EdWorld->m_blocks.size(); ++i )
+	{
+		if( g_EdWorld->m_blocks[ i ].selected == false )
+			continue;
+		m_selBlocks.push_back( i );
+	}
 }
 
 void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 {
+	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
+	{
+		for( size_t b = 0; b < m_selBlocks.size(); ++b )
+		{
+			int bid = m_selBlocks[ b ];
+			if( bid == m_hlAP.block )
+				g_EdWorld->m_blocks[ bid ].UISelectElement( m_hlAP.point, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
+			else if( ( g_UIFrame->m_keyMod & KMOD_CTRL ) == 0 )
+				g_EdWorld->m_blocks[ bid ].ClearSelection();
+		}
+	}
+	if( e->type == EDGUI_EVENT_MOUSEMOVE )
+	{
+		m_hlAP = GetClosestActivePoint();
+	}
+	if( e->type == EDGUI_EVENT_KEYDOWN )
+	{
+		m_hlAP = GetClosestActivePoint();
+		
+		// TO BLOCK MODE
+		if( e->key.engkey == SDLK_b && e->key.engmod & KMOD_ALT )
+		{
+			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditBlock );
+		}
+	}
 }
 
 void EdEditVertexEditMode::Draw()
 {
+	if( g_UIFrame->m_editTF == NULL )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		for( size_t b = 0; b < m_selBlocks.size(); ++b )
+		{
+			int bid = m_selBlocks[ b ];
+			int bpcount = GetNumBlockActivePoints( bid );
+			for( int i = 0; i < bpcount; ++i )
+			{
+				if( g_EdWorld->m_blocks[ bid ].IsElementSelected( i ) )
+				{
+					if( bid == m_hlAP.block && i == m_hlAP.point )
+						br.Col( 0.9f, 0.8f, 0.1f, 1 );
+					else
+						br.Col( 0.9f, 0.5f, 0.1f, 1 );
+				}
+				else
+				{
+					if( bid == m_hlAP.block && i == m_hlAP.point )
+						br.Col( 0.1f, 0.8f, 0.9f, 1 );
+					else
+						br.Col( 0.1f, 0.2f, 0.4f, 1 );
+				}
+				
+				Vec3 pp = GetActivePoint( bid, i );
+				br.Sprite( pp, 0.05f, 0.05f );
+			}
+		}
+	}
 }
+
+int EdEditVertexEditMode::GetNumBlockActivePoints( int b )
+{
+	EdBlock& B = g_EdWorld->m_blocks[ b ];
+	return B.GetNumElements();
+}
+
+Vec3 EdEditVertexEditMode::GetActivePoint( int b, int i )
+{
+	EdBlock& B = g_EdWorld->m_blocks[ b ];
+	return B.GetElementPoint( i );
+}
+
+EdEditVertexEditMode::ActivePoint EdEditVertexEditMode::GetClosestActivePoint()
+{
+	ActivePoint np = { -1, -1 };
+	float minxydist = FLT_MAX;
+	Vec2 scp = ED_GetCursorPos();
+	Vec3 campos = g_EdScene->camera.position;
+	Vec3 camdir = g_EdScene->camera.direction;
+	for( size_t b = 0; b < m_selBlocks.size(); ++b )
+	{
+		int bid = m_selBlocks[ b ];
+		int bpcount = GetNumBlockActivePoints( bid );
+		for( int i = 0; i < bpcount; ++i )
+		{
+			Vec3 ap = GetActivePoint( bid, i );
+			Vec2 sap = ED_GetScreenPos( ap );
+			
+			float curxydist = ( scp - sap ).Length();
+			float curzdist = Vec3Dot( ap, camdir ) - Vec3Dot( campos, camdir );
+			if( curzdist > 0 && curxydist < minxydist )
+			{
+				np.block = bid;
+				np.point = i;
+				minxydist = curxydist;
+			}
+		}
+	}
+	return np;
+}
+
 
 EdPaintSurfsEditMode::EdPaintSurfsEditMode() :
 	m_paintBlock( -1 ),
