@@ -883,13 +883,16 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_editMode( NULL ),
 	m_keyMod( 0 ),
 	m_UIMenuSplit( true, 26, 0 ),
+	m_UIMenuLRSplit( false, 0, 0.4f ),
 	m_UIParamSplit( false, 0, 0.7f ),
 	m_UIRenderView( g_EdScene, this )
 {
 	tyname = "mainframe";
 	
 	Add( &m_UIMenuSplit );
-	m_UIMenuSplit.SetFirstPane( &m_UIMenuButtons );
+	m_UIMenuLRSplit.SetFirstPane( &m_UIMenuButtonsLft );
+	m_UIMenuLRSplit.SetSecondPane( &m_UIMenuButtonsRgt );
+	m_UIMenuSplit.SetFirstPane( &m_UIMenuLRSplit );
 	m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
 	m_UIParamSplit.SetFirstPane( &m_UIRenderView );
 	m_UIParamSplit.SetSecondPane( &m_UIParamList );
@@ -904,25 +907,27 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_MB_Cat1.caption = "Edit:";
 	m_MBDrawBlock.caption = "Draw Block";
 	m_MBEditBlock.caption = "Edit Block";
-	m_MBPaintSurfs.caption = "Paint surfaces";
+	m_MBEditPatch.caption = "Edit Patch";
+	m_MBPaintSurfs.caption = "Paint Surface";
 	m_MBAddEntity.caption = "Add Entity";
 	m_MBEditEntity.caption = "Edit Entity";
 	m_MBEditGroups.caption = "Edit groups";
 	m_MBLevelInfo.caption = "Level Info";
-	m_UIMenuButtons.Add( &m_MB_Cat0 );
-	m_UIMenuButtons.Add( &m_MBNew );
-	m_UIMenuButtons.Add( &m_MBOpen );
-	m_UIMenuButtons.Add( &m_MBSave );
-	m_UIMenuButtons.Add( &m_MBSaveAs );
-	m_UIMenuButtons.Add( &m_MBCompile );
-	m_UIMenuButtons.Add( &m_MB_Cat1 );
-	m_UIMenuButtons.Add( &m_MBDrawBlock );
-	m_UIMenuButtons.Add( &m_MBEditBlock );
-	m_UIMenuButtons.Add( &m_MBPaintSurfs );
-	m_UIMenuButtons.Add( &m_MBAddEntity );
-	m_UIMenuButtons.Add( &m_MBEditEntity );
-	m_UIMenuButtons.Add( &m_MBEditGroups );
-	m_UIMenuButtons.Add( &m_MBLevelInfo );
+	m_UIMenuButtonsLft.Add( &m_MB_Cat0 );
+	m_UIMenuButtonsLft.Add( &m_MBNew );
+	m_UIMenuButtonsLft.Add( &m_MBOpen );
+	m_UIMenuButtonsLft.Add( &m_MBSave );
+	m_UIMenuButtonsLft.Add( &m_MBSaveAs );
+	m_UIMenuButtonsLft.Add( &m_MBCompile );
+	m_UIMenuButtonsRgt.Add( &m_MB_Cat1 );
+	m_UIMenuButtonsRgt.Add( &m_MBDrawBlock );
+	m_UIMenuButtonsRgt.Add( &m_MBEditBlock );
+	m_UIMenuButtonsRgt.Add( &m_MBEditPatch );
+	m_UIMenuButtonsRgt.Add( &m_MBPaintSurfs );
+	m_UIMenuButtonsRgt.Add( &m_MBAddEntity );
+	m_UIMenuButtonsRgt.Add( &m_MBEditEntity );
+	m_UIMenuButtonsRgt.Add( &m_MBEditGroups );
+	m_UIMenuButtonsRgt.Add( &m_MBLevelInfo );
 	
 	m_txMarker = GR_GetTexture( "editor/marker.png" );
 }

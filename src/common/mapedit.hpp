@@ -15,6 +15,9 @@
 
 #define MAX_BLOCK_POLYGONS 32
 
+#define MAX_PATCH_WIDTH 16
+#define MAX_PATCH_LAYERS 4
+
 #define EDGUI_EVENT_SETENTITY EDGUI_EVENT_USER + 1
 
 
@@ -288,6 +291,7 @@ struct EdBlock
 	void MoveSelectedVertices( const Vec3& t );
 	int GetNumSurfs(){ return poly.size() + 2; }
 	Vec3 GetSurfaceCenter( int i );
+	int GetSurfaceNumVerts( int i );
 	int GetNumElements(){ return GetNumVerts() + GetNumSurfs(); }
 	Vec3 GetElementPoint( int i );
 	
@@ -316,6 +320,7 @@ struct EdBlock
 	
 	LevelCache::Vertex _MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy );
 	void GenerateMesh( LevelCache& LC );
+	int GenerateSurface( LCVertex* outbuf, int sid );
 	void Export( OBJExporter& objex );
 };
 
@@ -389,6 +394,118 @@ struct EDGUIBlockProps : EDGUILayoutRow
 	Array< EDGUIPropVec3 > m_vertProps;
 	Array< EDGUISurfaceProps > m_surfProps;
 };
+
+
+
+//
+// PATCHES
+//
+
+struct EdPatchVtx
+{
+	Vec3 pos;
+	Vec2 tex[ MAX_PATCH_LAYERS ];
+	uint32_t col[ MAX_PATCH_LAYERS ];
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << pos;
+		for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+		{
+			arch << tex[ i ];
+			arch << col[ i ];
+		}
+	}
+};
+
+struct EdPatchLayerInfo
+{
+	EdPatchLayerInfo() : xoff(0), yoff(0), scale(1), aspect(1), angle(0){}
+	
+	void Precache()
+	{
+		char bfr[ 128 ];
+		snprintf( bfr, sizeof(bfr), "textures/%.*s.png", (int) texname.size(), texname.data() );
+		cached_texture = GR_GetTexture( bfr );
+	}
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << texname;
+		arch << xoff << yoff;
+		arch << scale << aspect;
+		arch << angle;
+	}
+	
+	String texname;
+	float xoff, yoff;
+	float scale, aspect;
+	float angle;
+	
+	TextureHandle cached_texture;
+	MeshHandle cached_mesh;
+	MeshInstHandle cached_meshinst;
+};
+
+struct EdPatch
+{
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	int32_t m_refcount;
+	
+	EdPatch() : selected(false), group(0), xsize(0), ysize(0), blend(0)
+	{
+		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
+		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
+	}
+	
+	bool InsertXLine( int at );
+	bool InsertYLine( int at );
+	bool RemoveXLine( int at );
+	bool RemoveYLine( int at );
+	static void _InterpolateVertex( EdPatchVtx* out, EdPatchVtx* v0, EdPatchVtx* v1, float s );
+	
+	void RegenerateMesh();
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.marker( "PATCH" );
+		arch << group;
+		arch << position;
+		arch << xsize << ysize;
+		arch << blend;
+		for( int y = 0; y < ysize; ++y )
+		{
+			for( int x = 0; x < xsize; ++x )
+				arch << vertices[ x + xsize * y ];
+		}
+		for( int y = 0; y < ysize; ++y )
+			arch << edgeflip[ y ];
+		for( int l = 0; l < MAX_PATCH_LAYERS; ++l )
+			arch << layers[ l ];
+		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
+	}
+	
+	static EdPatch* CreatePatchFromSurface( EdBlock& B, int sid );
+	
+	bool selected;
+	int group;
+	Vec3 position;
+	EdPatchVtx vertices[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
+	uint16_t edgeflip[ MAX_PATCH_WIDTH ];
+	uint16_t vertsel[ MAX_PATCH_WIDTH ];
+	int8_t xsize;
+	int8_t ysize;
+	uint8_t blend;
+	EdPatchLayerInfo layers[ MAX_PATCH_LAYERS ];
+};
+
+typedef Handle< EdPatch > EdPatchHandle;
+
+struct EdPatchProps
+{
+};
+
 
 
 //
@@ -718,6 +835,13 @@ struct EdWorld : EDGUILayoutRow
 			{
 				ENT_Serialize( svh, m_entities[ i ] );
 			}
+			
+			int32_t numpatches = m_patches.size();
+			svh << numpatches;
+			for( size_t i = 0; i < m_patches.size(); ++i )
+			{
+				svh << *m_patches[ i ].item;
+			}
 		}
 		else
 		{
@@ -729,6 +853,16 @@ struct EdWorld : EDGUILayoutRow
 				EdEntity* e = ENT_Unserialize( svh );
 				if( e )
 					m_entities.push_back( e );
+			}
+			
+			int32_t numpatches;
+			svh << numpatches;
+			m_patches.clear();
+			for( int32_t i = 0; i < numpatches; ++i )
+			{
+				EdPatch* patch = new EdPatch;
+				svh << *patch;
+				m_patches.push_back( patch );
 			}
 		}
 	}
@@ -782,6 +916,7 @@ struct EdWorld : EDGUILayoutRow
 	
 	Array< EdBlock > m_blocks;
 	Array< EdEntityHandle > m_entities;
+	Array< EdPatchHandle > m_patches;
 	EdGroupManager m_groupMgr;
 	
 	EDGUIGroup m_ctlGroup;
@@ -1101,8 +1236,10 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;
+	EDGUILayoutSplitPane m_UIMenuLRSplit;
 	EDGUILayoutSplitPane m_UIParamSplit;
-	EDGUILayoutColumn m_UIMenuButtons;
+	EDGUILayoutColumn m_UIMenuButtonsLft;
+	EDGUILayoutColumn m_UIMenuButtonsRgt;
 	EDGUILayoutRow m_UIParamList;
 	EDGUIRenderView m_UIRenderView;
 
@@ -1116,6 +1253,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUILabel m_MB_Cat1;
 	EDGUIButton m_MBDrawBlock;
 	EDGUIButton m_MBEditBlock;
+	EDGUIButton m_MBEditPatch;
 	EDGUIButton m_MBPaintSurfs;
 	EDGUIButton m_MBAddEntity;
 	EDGUIButton m_MBEditEntity;

@@ -93,6 +93,14 @@ Vec3 EdBlock::GetSurfaceCenter( int i )
 	}
 }
 
+int EdBlock::GetSurfaceNumVerts( int i )
+{
+	if( i < (int) poly.size() )
+		return 4;
+	else
+		return poly.size();
+}
+
 Vec3 EdBlock::GetElementPoint( int i )
 {
 	int nverts = GetNumVerts();
@@ -539,46 +547,56 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 	size_t solid = LC.AddSolid( planes, numplanes );
 	
 	// GENERATE MESH
+	LevelCache::Vertex verts[ MAX_BLOCK_POLYGONS - 2 ];
 	if( z0 != z1 )
 	{
 		for( size_t i = 0; i < poly.size(); ++i )
 		{
-			Vec3 tgx, tgy;
-			_GetTexVecs( i, tgx, tgy );
-			size_t i1 = ( i + 1 ) % poly.size();
-			LevelCache::Vertex verts[] =
-			{
-				_MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy ),
-				_MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy ),
-				_MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy ),
-				_MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy ),
-			};
-			_PostFitTexcoords( surfaces[i], verts, 4 );
-			LC.AddPoly( verts, 4, surfaces[ i ].texname, surfaces[ i ].lmquality, solid );
+			LC.AddPoly( verts, GenerateSurface( verts, i ), surfaces[ i ].texname, surfaces[ i ].lmquality, solid );
 		}
 	}
 	
 	// TOP
 	{
-		LevelCache::Vertex verts[ MAX_BLOCK_POLYGONS - 2 ];
-		Vec3 tgx, tgy;
-		_GetTexVecs( poly.size(), tgx, tgy );
-		for( size_t i = 0; i < poly.size(); ++i )
-			verts[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
-		_PostFitTexcoords( surfaces[ poly.size() ], verts, poly.size() );
-		LC.AddPoly( verts, poly.size(), surfaces[ poly.size() ].texname, surfaces[ poly.size() ].lmquality, solid );
+		int i = poly.size();
+		LC.AddPoly( verts, GenerateSurface( verts, i ), surfaces[ i ].texname, surfaces[ i ].lmquality, solid );
 	}
 	
 	// BOTTOM
 	{
-		LevelCache::Vertex verts[ MAX_BLOCK_POLYGONS - 2 ];
-		Vec3 tgx, tgy;
-		_GetTexVecs( poly.size() + 1, tgx, tgy );
-		for( size_t i = 0; i < poly.size(); ++i )
-			verts[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy );
-		_PostFitTexcoords( surfaces[ poly.size() + 1 ], verts, poly.size() );
-		LC.AddPoly( verts, poly.size(), surfaces[ poly.size() + 1 ].texname, surfaces[ poly.size() + 1 ].lmquality, solid );
+		int i = poly.size() + 1;
+		LC.AddPoly( verts, GenerateSurface( verts, i ), surfaces[ i ].texname, surfaces[ i ].lmquality, solid );
 	}
+}
+
+int EdBlock::GenerateSurface( LCVertex* outbuf, int sid )
+{
+	Vec3 tgx, tgy;
+	_GetTexVecs( sid, tgx, tgy );
+	int retval = 4;
+	if( sid < (int) poly.size() )
+	{
+		int i = sid;
+		size_t i1 = ( i + 1 ) % poly.size();
+		outbuf[0] = _MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy );
+		outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy );
+		outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy );
+		outbuf[3] = _MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy );
+	}
+	else if( sid == (int) poly.size() )
+	{
+		for( size_t i = 0; i < poly.size(); ++i )
+			outbuf[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
+		retval = poly.size();
+	}
+	else // if( sid == (int) poly.size() + 1 )
+	{
+		for( size_t i = 0; i < poly.size(); ++i )
+			outbuf[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy );
+		retval = poly.size();
+	}
+	_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
+	return retval;
 }
 
 void EdBlock::Export( OBJExporter& objex )
