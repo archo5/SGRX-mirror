@@ -465,8 +465,6 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 {
 	Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
 	Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
-	Vec2 cursorPlanePos = g_UIFrame->GetCursorPlanePos();
-	bool cursorAim = g_UIFrame->IsCursorAiming();
 	
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
 	{
@@ -876,6 +874,8 @@ void EdEditVertexEditMode::OnEnter()
 			continue;
 		m_selBlocks.push_back( i );
 	}
+	
+	_ReloadVertSurfProps();
 }
 
 void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
@@ -885,11 +885,15 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		for( size_t b = 0; b < m_selBlocks.size(); ++b )
 		{
 			int bid = m_selBlocks[ b ];
+			EdBlock& B = g_EdWorld->m_blocks[ bid ];
+			
 			if( bid == m_hlAP.block )
-				g_EdWorld->m_blocks[ bid ].UISelectElement( m_hlAP.point, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
+				B.UISelectElement( m_hlAP.point, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
 			else if( ( g_UIFrame->m_keyMod & KMOD_CTRL ) == 0 )
-				g_EdWorld->m_blocks[ bid ].ClearSelection();
+				B.ClearSelection();
 		}
+		
+		_ReloadVertSurfProps();
 	}
 	if( e->type == EDGUI_EVENT_MOUSEMOVE )
 	{
@@ -944,6 +948,59 @@ void EdEditVertexEditMode::Draw()
 			}
 		}
 	}
+}
+
+void EdEditVertexEditMode::_ReloadVertSurfProps()
+{
+	int numsurfselblocks = 0;
+	int numsurfexblocks = 0;
+	ActivePoint surfprops = { -1, -1 };
+	ActivePoint vertprops = { -1, -1 };
+	for( size_t b = 0; b < m_selBlocks.size(); ++b )
+	{
+		int bid = m_selBlocks[ b ];
+		EdBlock& B = g_EdWorld->m_blocks[ bid ];
+		
+		int nss = B.GetNumSelectedSurfs();
+		numsurfselblocks += nss == 1;
+		numsurfexblocks += nss == 0 || nss == 1;
+		
+		int surf = B.GetOnlySelectedSurface();
+		if( surf != -1 )
+		{
+			if( surfprops.block == -1 && surfprops.point == -1 )
+			{
+				surfprops.block = bid;
+				surfprops.point = surf;
+			}
+			else
+			{
+				surfprops.block = -1;
+			}
+		}
+		
+		int vert = B.GetOnlySelectedVertex();
+		if( vert != -1 )
+		{
+			if( vertprops.block == -1 && vertprops.point == -1 )
+			{
+				vertprops.block = bid;
+				vertprops.point = vert;
+			}
+			else
+			{
+				vertprops.block = -1;
+			}
+		}
+	}
+	
+	m_canExtendSurfs = numsurfexblocks && numsurfselblocks;
+	
+	g_UIFrame->ClearParamList();
+	if( surfprops.block != -1 )
+		g_UIFrame->AddToParamList( g_EdWorld->GetSurfProps( surfprops.block, surfprops.point ) );
+	if( vertprops.block != -1 )
+		g_UIFrame->AddToParamList( g_EdWorld->GetVertProps( vertprops.block, vertprops.point ) );
 }
 
 int EdEditVertexEditMode::GetNumBlockActivePoints( int b )

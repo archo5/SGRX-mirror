@@ -236,23 +236,8 @@ struct EdSurface
 	}
 };
 
-#define EdVtx_DECL "pf3nf30f21f2"
-struct EdVtx
-{
-	Vec3 pos;
-	Vec3 dummynrm;
-	float tx0, ty0;
-	float tx1, ty1;
-	
-	bool operator == ( const EdVtx& o ) const
-	{
-		return pos == o.pos
-			&& tx0 == o.tx0
-			&& ty0 == o.ty0
-			&& tx1 == o.tx1
-			&& ty1 == o.ty1;
-	}
-};
+
+typedef LevelCache::Vertex LCVertex;
 
 struct EdBlock
 {
@@ -308,16 +293,19 @@ struct EdBlock
 	
 	bool IsVertexSelected( int i );
 	void SelectVertex( int i, bool sel );
+	int GetOnlySelectedVertex();
 	bool IsSurfaceSelected( int i );
 	void SelectSurface( int i, bool sel );
+	int GetNumSelectedSurfs();
+	int GetOnlySelectedSurface();
 	bool IsElementSelected( int i );
 	void SelectElement( int i, bool sel );
 	void UISelectElement( int i, bool mod );
 	void ClearSelection();
 	
 	void _GetTexVecs( int surf, Vec3& tgx, Vec3& tgy );
-	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< EdVtx >& vertices, uint16_t voff );
-	void _PostFitTexcoords( const EdSurface& S, EdVtx* vertices, size_t vcount );
+	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< LCVertex >& vertices, uint16_t voff );
+	void _PostFitTexcoords( const EdSurface& S, LCVertex* vertices, size_t vcount );
 	
 	void GenCenterPos( EDGUISnapProps& SP );
 	Vec3 FindCenter();
@@ -984,11 +972,13 @@ struct EdEditVertexEditMode : EdEditMode
 	void OnEnter();
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
+	void _ReloadVertSurfProps();
 	
 	int GetNumBlockActivePoints( int b );
 	Vec3 GetActivePoint( int b, int i );
 	ActivePoint GetClosestActivePoint();
 	
+	bool m_canExtendSurfs;
 	ActivePoint m_hlAP;
 	Array< int > m_selBlocks;
 	EdBlockVertexMoveTransform m_transform;

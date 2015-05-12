@@ -79,17 +79,17 @@ Vec3 EdBlock::GetSurfaceCenter( int i )
 	{
 		Vec3 c = V3(0);
 		for( size_t i = 0; i < poly.size(); ++i )
-			c += V3( poly[ i ].x, poly[ i ].y, 0 );
+			c += poly[ i ];
 		c /= poly.size();
-		return c + position + V3( 0, 0, z0 );
+		return c + position + V3( 0, 0, z1 );
 	}
 	else // i == (int) poly.size() + 1
 	{
 		Vec3 c = V3(0);
 		for( size_t i = 0; i < poly.size(); ++i )
-			c += poly[ i ];
+			c += V3( poly[ i ].x, poly[ i ].y, 0 );
 		c /= poly.size();
-		return c + position + V3( 0, 0, z1 );
+		return c + position + V3( 0, 0, z0 );
 	}
 }
 
@@ -115,6 +115,23 @@ void EdBlock::SelectVertex( int i, bool sel )
 	subsel[ i ] = sel;
 }
 
+int EdBlock::GetOnlySelectedVertex()
+{
+	int sel = -1;
+	int num = GetNumVerts();
+	for( int i = 0; i < num; ++i )
+	{
+		if( IsVertexSelected( i ) )
+		{
+			if( sel == -1 )
+				sel = i;
+			else
+				return -1;
+		}
+	}
+	return sel;
+}
+
 bool EdBlock::IsSurfaceSelected( int i )
 {
 	ASSERT( i >= 0 && i < GetNumSurfs() );
@@ -125,6 +142,35 @@ void EdBlock::SelectSurface( int i, bool sel )
 {
 	ASSERT( i >= 0 && i < GetNumSurfs() );
 	subsel[ i + GetNumVerts() ] = sel;
+}
+
+int EdBlock::GetNumSelectedSurfs()
+{
+	int from = GetNumVerts(), num = 0;
+	int to = from + GetNumSurfs();
+	for( int i = from; i < to; ++i )
+	{
+		if( subsel[ i ] )
+			num++;
+	}
+	return num;
+}
+
+int EdBlock::GetOnlySelectedSurface()
+{
+	int sel = -1;
+	int num = GetNumSurfs();
+	for( int i = 0; i < num; ++i )
+	{
+		if( IsSurfaceSelected( i ) )
+		{
+			if( sel == -1 )
+				sel = i;
+			else
+				return -1;
+		}
+	}
+	return sel;
 }
 
 bool EdBlock::IsElementSelected( int i )
@@ -183,19 +229,9 @@ void EdBlock::_GetTexVecs( int surf, Vec3& tgx, Vec3& tgy )
 	}
 }
 
-uint16_t EdBlock::_AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< EdVtx >& vertices, uint16_t voff )
+uint16_t EdBlock::_AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< LCVertex >& vertices, uint16_t voff )
 {
-	EdVtx V = { { vpos.x, vpos.y, z }, {0,0,1}, 0, 0, 0, 0 };
-	
-	Vec2 tx =
-	{
-		Vec3Dot( V.pos + position, tgx ),
-		Vec3Dot( V.pos + position, tgy )
-	};
-	tx = tx.Rotate( DEG2RAD( S.angle ) );
-	V.tx0 = tx.x / S.scale + S.xoff;
-	V.ty0 = tx.y / S.scale * S.aspect + S.yoff;
-	
+	LCVertex V = _MakeGenVtx( vpos, z, S, tgx, tgy );
 	
 	size_t off = vertices.find_first_at( V, voff );
 	if( off != NOT_FOUND )
@@ -204,7 +240,7 @@ uint16_t EdBlock::_AddVtx( const Vec3& vpos, float z, const EdSurface& S, const 
 	return (uint16_t) vertices.size() - 1 - voff;
 }
 
-void EdBlock::_PostFitTexcoords( const EdSurface& S, EdVtx* vertices, size_t vcount )
+void EdBlock::_PostFitTexcoords( const EdSurface& S, LCVertex* vertices, size_t vcount )
 {
 	float xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
 	for( size_t i = 0; i < vcount; ++i )
@@ -332,12 +368,12 @@ void EdBlock::RegenerateMesh()
 		cached_meshinst->mesh = cached_mesh;
 		lmm_prepmeshinst( cached_meshinst );
 	}
-	cached_meshinst->matrix = Mat4::CreateTranslation( position ) * g_EdWorld->m_groupMgr.GetMatrix( group );
+	cached_meshinst->matrix = g_EdWorld->m_groupMgr.GetMatrix( group );
 	for( size_t i = 0; i < surfaces.size(); ++i )
 		surfaces[ i ].Precache();
 	
-	VertexDeclHandle vd = GR_GetVertexDecl( EdVtx_DECL );
-	Array< EdVtx > vertices;
+	VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
+	Array< LCVertex > vertices;
 	Array< uint16_t > indices;
 	SGRX_MeshPart meshparts[ MAX_BLOCK_POLYGONS ];
 	int numparts = 0;
@@ -459,8 +495,14 @@ LevelCache::Vertex EdBlock::_MakeGenVtx( const Vec3& vpos, float z, const EdSurf
 {
 	LevelCache::Vertex V = { { vpos.x + position.x, vpos.y + position.y, z + position.z }, { 0, 0, 1 }, 0xffffffff, 0, 0, 0, 0 };
 	
-	V.tx0 = Vec3Dot( V.pos, tgx ) / S.scale + S.xoff;
-	V.ty0 = Vec3Dot( V.pos, tgy ) / S.scale * S.aspect + S.yoff;
+	Vec2 tx =
+	{
+		Vec3Dot( V.pos, tgx ),
+		Vec3Dot( V.pos, tgy )
+	};
+	tx = tx.Rotate( DEG2RAD( S.angle ) );
+	V.tx0 = tx.x / S.scale + S.xoff;
+	V.ty0 = tx.y / S.scale * S.aspect + S.yoff;
 	
 	return V;
 }
@@ -511,6 +553,7 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 				_MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy ),
 				_MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy ),
 			};
+			_PostFitTexcoords( surfaces[i], verts, 4 );
 			LC.AddPoly( verts, 4, surfaces[ i ].texname, surfaces[ i ].lmquality, solid );
 		}
 	}
@@ -522,6 +565,7 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 		_GetTexVecs( poly.size(), tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
 			verts[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
+		_PostFitTexcoords( surfaces[ poly.size() ], verts, poly.size() );
 		LC.AddPoly( verts, poly.size(), surfaces[ poly.size() ].texname, surfaces[ poly.size() ].lmquality, solid );
 	}
 	
@@ -532,6 +576,7 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 		_GetTexVecs( poly.size() + 1, tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
 			verts[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy );
+		_PostFitTexcoords( surfaces[ poly.size() + 1 ], verts, poly.size() );
 		LC.AddPoly( verts, poly.size(), surfaces[ poly.size() + 1 ].texname, surfaces[ poly.size() + 1 ].lmquality, solid );
 	}
 }
@@ -617,6 +662,8 @@ EDGUIVertexProps::EDGUIVertexProps() :
 
 void EDGUIVertexProps::Prepare( EdBlock& B, int vid )
 {
+	vid %= B.poly.size();
+	
 	m_out = &B;
 	m_vid = vid;
 	
@@ -665,11 +712,16 @@ int EDGUIVertexProps::OnEvent( EDGUIEvent* e )
 				mid += edge_normal;
 			Vec3 mid_fin = { mid.x, mid.y, ( m_out->poly[ befat ].z + m_out->poly[ insat ].z ) * 0.5f };
 			
+			size_t oldpolysize = m_out->poly.size();
 			EdSurface Scopy = m_out->surfaces[ befat ];
 			m_out->poly.insert( insat, mid_fin );
 			if( (int) insat < m_vid )
 				m_vid++;
 			m_out->surfaces.insert( insat, Scopy );
+			
+			m_out->subsel.insert( oldpolysize * 2 + insat, false );
+			m_out->subsel.insert( oldpolysize + insat, false );
+			m_out->subsel.insert( insat, false );
 			
 			m_out->RegenerateMesh();
 			return 1;

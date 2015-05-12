@@ -430,7 +430,7 @@ EdWorld::EdWorld() :
 //	m_ctlAODivergence.caption = "AO divergence";
 	m_ctlAOColor.caption = "AO color";
 	m_ctlAONumSamples.caption = "AO sample count";
-	m_vd = GR_GetVertexDecl( EdVtx_DECL );
+	m_vd = GR_GetVertexDecl( LCVertex_DECL );
 	
 	Add( &m_ctlGroup );
 	m_ctlGroup.Add( &m_ctlAmbientColor );

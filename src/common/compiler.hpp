@@ -40,6 +40,7 @@ struct RectPacker
 };
 
 
+#define LCVertex_DECL "pf3nf3cb40f21f2"
 
 struct LevelCache
 {
@@ -73,6 +74,17 @@ struct LevelCache
 			arch << color;
 			arch << tx0 << ty0;
 			arch << tx1 << ty1;
+		}
+		
+		bool operator == ( const Vertex& o ) const
+		{
+			return pos == o.pos
+				&& nrm == o.nrm
+				&& color == o.color
+				&& tx0 == o.tx0
+				&& ty0 == o.ty0
+				&& tx1 == o.tx1
+				&& ty1 == o.ty1;
 		}
 	};
 	

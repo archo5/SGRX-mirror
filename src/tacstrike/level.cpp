@@ -661,11 +661,14 @@ void GameLevel::PostDraw()
 	br.ShaderData.push_back( V4(1) );
 	for( size_t i = 0; i < m_lights.size(); ++i )
 	{
-		Vec3 flarepos = m_lights[ i ].pos + m_lights[ i ].flareoffset;
-		float flaresize = m_lights[ i ].flaresize;
+		LC_Light& L = m_lights[ i ];
+		if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT )
+			continue;
+		Vec3 flarepos = L.pos + L.flareoffset;
+		float flaresize = L.flaresize;
 		if( flaresize <= 0 )
 			continue;
-		br.ShaderData[1] = V4( m_lights[ i ].color, 0.1f / ( ( flarepos - m_scene->camera.position ).Length() + 1 ) );
+		br.ShaderData[1] = V4( L.color, 0.1f / ( ( flarepos - m_scene->camera.position ).Length() + 1 ) );
 		Vec3 screenpos = m_scene->camera.WorldToScreen( flarepos );
 		if( Vec3Dot( flarepos, m_scene->camera.direction ) < Vec3Dot( m_scene->camera.position, m_scene->camera.direction ) )
 			continue;
