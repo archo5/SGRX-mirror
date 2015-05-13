@@ -128,22 +128,23 @@ void EdPatch::RegenerateMesh()
 			lmm_prepmeshinst( LI.cached_meshinst );
 		}
 		LI.cached_meshinst->matrix = g_EdWorld->m_groupMgr.GetMatrix( group );
+		LI.cached_meshinst->decal = blend;
 		
 		MaterialHandle mh = GR_CreateMaterial();
+		mh->transparent = true;
 		mh->shader = GR_GetSurfaceShader( "default" );
 		mh->textures[ 0 ] = LI.cached_texture;
 		
 		outverts.clear();
 		outidcs.clear();
-		int i = 0;
 		for( int y = 0; y < (int) ysize; ++y )
 		{
 			for( int x = 0; x < (int) xsize; ++x )
 			{
-				Vec2 tx = vertices[ i ].tex[ layer ];
-				LCVertex vert = { vertices[ i ].pos, V3(0,0,1), vertices[ i ].col[ layer ], tx.x, tx.y, 0, 0 };
+				EdPatchVtx& V = vertices[ x + y * MAX_PATCH_WIDTH ];
+				Vec2 tx = V.tex[ layer ];
+				LCVertex vert = { V.pos, V3(0,0,1), V.col[ layer ], tx.x, tx.y, 0, 0 };
 				outverts.push_back( vert );
-				i++;
 			}
 		}
 		for( int y = 0; y < (int) ysize - 1; ++y )
@@ -173,8 +174,10 @@ void EdPatch::RegenerateMesh()
 				}
 			}
 		}
-		
 		SGRX_MeshPart mp = { 0, outverts.size(), 0, outidcs.size(), mh };
+		
+		LI.cached_mesh->SetVertexData( outverts.data(), outverts.size_bytes(), vd, false );
+		LI.cached_mesh->SetIndexData( outidcs.data(), outidcs.size_bytes(), false );
 		LI.cached_mesh->SetPartData( &mp, 1 );
 	}
 }
@@ -198,6 +201,193 @@ EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 		pverts[ i ].tex[0] = V2( verts[ i ].tx0, verts[ i ].ty0 );
 		pverts[ i ].col[0] = 0xffffffff;
 	}
+	// input comes in polygon order, we need Z (scanline)
+	patch->vertices[0] = pverts[0];
+	patch->vertices[1] = pverts[1];
+	patch->vertices[1+MAX_PATCH_WIDTH] = pverts[2];
+	patch->vertices[0+MAX_PATCH_WIDTH] = pverts[3];
+	EdSurface& S = B.surfaces[ sid ];
+	patch->layers[0].texname = S.texname;
+	patch->layers[0].xoff = S.xoff;
+	patch->layers[0].yoff = S.yoff;
+	patch->layers[0].scale = S.scale;
+	patch->layers[0].aspect = S.aspect;
 	return patch;
+}
+
+
+EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
+	m_out( NULL ),
+	m_lid( 0 ),
+	m_tex( g_UISurfTexPicker, "metal0" ),
+	m_off( V2(0), 2, V2(0), V2(1) ),
+	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
+	m_angle( 0, 1, 0, 360 ),
+	m_lmquality( 1, 2, 0.01f, 100.0f )
+{
+	tyname = "patchlayerprops";
+	m_group.caption = "Surface properties";
+	m_tex.caption = "Texture";
+	m_off.caption = "Offset";
+	m_scaleasp.caption = "Scale/Aspect";
+	m_angle.caption = "Angle";
+	m_lmquality.caption = "Lightmap quality";
+	m_genNatural.caption = "Gen.: Natural";
+	m_genPlanar.caption = "Gen.: Planar";
+	
+	m_group.Add( &m_tex );
+	m_group.Add( &m_off );
+	m_group.Add( &m_scaleasp );
+	m_group.Add( &m_angle );
+	m_group.Add( &m_lmquality );
+	m_group.Add( &m_genNatural );
+	m_group.Add( &m_genPlanar );
+	m_group.SetOpen( true );
+	Add( &m_group );
+}
+
+void EDGUIPatchLayerProps::Prepare( EdPatch& P, int lid )
+{
+	m_out = &P;
+	m_lid = lid;
+	EdPatchLayerInfo& L = P.layers[ lid ];
+	
+	char bfr[ 32 ];
+	snprintf( bfr, sizeof(bfr), "Layer #%d", lid );
+	LoadParams( L, bfr );
+}
+
+void EDGUIPatchLayerProps::LoadParams( EdPatchLayerInfo& L, const char* name )
+{
+	m_group.caption = name;
+	m_group.SetOpen( true );
+	
+	m_tex.SetValue( L.texname );
+	m_off.SetValue( V2( L.xoff, L.yoff ) );
+	m_scaleasp.SetValue( V2( L.scale, L.aspect ) );
+	m_angle.SetValue( L.angle );
+	m_lmquality.SetValue( L.lmquality );
+}
+
+void EDGUIPatchLayerProps::BounceBack( EdPatchLayerInfo& L )
+{
+	L.texname = m_tex.m_value;
+	L.xoff = m_off.m_value.x;
+	L.yoff = m_off.m_value.y;
+	L.scale = m_scaleasp.m_value.x;
+	L.aspect = m_scaleasp.m_value.y;
+	L.angle = m_angle.m_value;
+	L.lmquality = m_lmquality.m_value;
+}
+
+int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_BTNCLICK:
+		if( m_out )
+		{
+			if( e->target == &m_genNatural )
+			{
+				// map 1x1, fix aspect ratio
+			}
+			if( e->target == &m_genPlanar )
+			{
+				// find avg.nrm. to tangents and map on those
+			}
+		}
+		break;
+		
+	case EDGUI_EVENT_PROPEDIT:
+		if( m_out && (
+			e->target == &m_tex ||
+			e->target == &m_off ||
+			e->target == &m_scaleasp ||
+			e->target == &m_angle ||
+			e->target == &m_lmquality
+		) )
+		{
+			if( e->target == &m_tex )
+			{
+				m_out->layers[ m_lid ].texname = m_tex.m_value;
+			}
+			else if( e->target == &m_off )
+			{
+				m_out->layers[ m_lid ].xoff = m_off.m_value.x;
+				m_out->layers[ m_lid ].yoff = m_off.m_value.y;
+			}
+			else if( e->target == &m_scaleasp )
+			{
+				m_out->layers[ m_lid ].scale = m_scaleasp.m_value.x;
+				m_out->layers[ m_lid ].aspect = m_scaleasp.m_value.y;
+			}
+			else if( e->target == &m_angle )
+			{
+				m_out->layers[ m_lid ].angle = m_angle.m_value;
+			}
+			else if( e->target == &m_lmquality )
+			{
+				m_out->layers[ m_lid ].lmquality = m_lmquality.m_value;
+			}
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
+
+EDGUIPatchProps::EDGUIPatchProps() :
+	m_out( NULL ),
+	m_group( true, "Block properties" ),
+	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
+	m_blkGroup( NULL )
+{
+	tyname = "blockprops";
+	m_pos.caption = "Position";
+	m_blkGroup.caption = "Group";
+}
+
+void EDGUIPatchProps::Prepare( EdPatch& P )
+{
+	m_out = &P;
+	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
+	
+	Clear();
+	
+	Add( &m_group );
+	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( P.group ) );
+	m_group.Add( &m_blkGroup );
+	m_pos.SetValue( P.position );
+	m_group.Add( &m_pos );
+	
+	for( size_t i = 0; i < MAX_PATCH_LAYERS; ++i )
+	{
+		m_layerProps[ i ].Prepare( P, i );
+		m_group.Add( &m_layerProps[ i ] );
+	}
+}
+
+int EDGUIPatchProps::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+		if( e->target == &m_pos || e->target == &m_blkGroup )
+		{
+			if( e->target == &m_pos )
+			{
+				m_out->position = m_pos.m_value;
+			}
+			else if( e->target == &m_blkGroup )
+			{
+				EdGroup* grp = g_EdWorld->m_groupMgr.FindGroupByPath( m_blkGroup.m_value );
+				if( grp )
+					m_out->group = grp->m_id;
+			}
+			m_out->RegenerateMesh();
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
 }
 

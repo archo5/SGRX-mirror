@@ -376,6 +376,8 @@ struct EDGUISurfaceProps : EDGUILayoutRow
 	EDGUIPropFloat m_lmquality;
 	EDGUIPropInt m_xfit;
 	EDGUIPropInt m_yfit;
+	EDGUIButton m_makeBlendPatch;
+	EDGUIButton m_convertToPatch;
 };
 
 struct EDGUIBlockProps : EDGUILayoutRow
@@ -435,12 +437,14 @@ struct EdPatchLayerInfo
 		arch << xoff << yoff;
 		arch << scale << aspect;
 		arch << angle;
+		arch << lmquality;
 	}
 	
 	String texname;
 	float xoff, yoff;
 	float scale, aspect;
 	float angle;
+	float lmquality;
 	
 	TextureHandle cached_texture;
 	MeshHandle cached_mesh;
@@ -453,7 +457,7 @@ struct EdPatch
 	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
 	int32_t m_refcount;
 	
-	EdPatch() : selected(false), group(0), xsize(0), ysize(0), blend(0)
+	EdPatch() : m_refcount(0), selected(false), group(0), xsize(0), ysize(0), blend(0)
 	{
 		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
 		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
@@ -502,8 +506,37 @@ struct EdPatch
 
 typedef Handle< EdPatch > EdPatchHandle;
 
-struct EdPatchProps
+struct EDGUIPatchLayerProps : EDGUILayoutRow
 {
+	EDGUIPatchLayerProps();
+	void Prepare( EdPatch& P, int lid );
+	void LoadParams( EdPatchLayerInfo& L, const char* name = "Layer" );
+	void BounceBack( EdPatchLayerInfo& L );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EdPatch* m_out;
+	int m_lid;
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_tex;
+	EDGUIPropVec2 m_off;
+	EDGUIPropVec2 m_scaleasp;
+	EDGUIPropFloat m_angle;
+	EDGUIPropFloat m_lmquality;
+	EDGUIButton m_genNatural;
+	EDGUIButton m_genPlanar;
+};
+
+struct EDGUIPatchProps : EDGUILayoutRow
+{
+	EDGUIPatchProps();
+	void Prepare( EdPatch& P );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EdPatch* m_out;
+	EDGUIGroup m_group;
+	EDGUIPropVec3 m_pos;
+	EDGUIPropRsrc m_blkGroup;
+	EDGUIPatchLayerProps m_layerProps[4];
 };
 
 
@@ -907,6 +940,11 @@ struct EdWorld : EDGUILayoutRow
 		m_ctlSurfProps.Prepare( m_blocks[ bid ], sid );
 		return &m_ctlSurfProps;
 	}
+	EDGUIItem* GetPatchProps( size_t pid )
+	{
+		m_ctlPatchProps.Prepare( *m_patches[ pid ] );
+		return &m_ctlPatchProps;
+	}
 	EDGUIItem* GetEntityProps( size_t mid )
 	{
 		return m_entities[ mid ];
@@ -940,6 +978,7 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;
 	EDGUISurfaceProps m_ctlSurfProps;
+	EDGUIPatchProps m_ctlPatchProps;
 };
 
 

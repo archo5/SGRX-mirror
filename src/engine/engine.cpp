@@ -852,6 +852,8 @@ void SGRX_SurfaceShader::ReloadShaders()
 			strcat( bfr, ":DYNAMIC" );
 		if( PASS.flags & RPF_OBJ_STATIC )
 			strcat( bfr, ":STATIC" );
+		if( PASS.flags & RPF_DECALS )
+			strcat( bfr, ":DECALS" );
 		newshaders_px[ pass_id ] = GR_GetPixelShader( bfr );
 		newshaders_vb[ pass_id ] = GR_GetVertexShader( bfr );
 		strcat( bfr, ":SKIN" );

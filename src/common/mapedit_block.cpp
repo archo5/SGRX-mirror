@@ -770,6 +770,8 @@ EDGUISurfaceProps::EDGUISurfaceProps() :
 	m_lmquality.caption = "Lightmap quality";
 	m_xfit.caption = "Fit count on X";
 	m_yfit.caption = "Fit count on Y";
+	m_makeBlendPatch.caption = "Make blend patch from surf.";
+	m_convertToPatch.caption = "Convert block to patch";
 	
 	m_group.Add( &m_tex );
 	m_group.Add( &m_off );
@@ -778,6 +780,8 @@ EDGUISurfaceProps::EDGUISurfaceProps() :
 	m_group.Add( &m_lmquality );
 	m_group.Add( &m_xfit );
 	m_group.Add( &m_yfit );
+	m_group.Add( &m_makeBlendPatch );
+	m_group.Add( &m_convertToPatch );
 	m_group.SetOpen( true );
 	Add( &m_group );
 }
@@ -824,6 +828,24 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
 	{
+	case EDGUI_EVENT_BTNCLICK:
+		if( m_out && ( e->target == &m_makeBlendPatch || e->target == &m_convertToPatch ) )
+		{
+			EdPatch* p = EdPatch::CreatePatchFromSurface( *m_out, m_sid );
+			if( p )
+			{
+				if( e->target == &m_makeBlendPatch )
+					p->blend = true;
+				else
+				{
+					// DELETE BLOCK
+				}
+				p->RegenerateMesh();
+				g_EdWorld->m_patches.push_back( p );
+			}
+		}
+		break;
+		
 	case EDGUI_EVENT_PROPEDIT:
 		if( m_out && (
 			e->target == &m_tex ||
