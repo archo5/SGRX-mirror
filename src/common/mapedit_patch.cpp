@@ -114,16 +114,16 @@ bool EdPatch::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] )
 			if( edgeflip[ y ] & ( 1 << x ) )
 			{
 				pts[0] = pts[5] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
-				pts[1] = vertices[ x + y * MAX_PATCH_WIDTH ].pos;
+				pts[4] = vertices[ x + y * MAX_PATCH_WIDTH ].pos;
 				pts[2] = pts[3] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos;
-				pts[4] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+				pts[1] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
 			}
 			else
 			{
 				pts[0] = pts[5] = vertices[ x + y * MAX_PATCH_WIDTH ].pos;
-				pts[1] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos;
+				pts[4] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos;
 				pts[2] = pts[3] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
-				pts[4] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+				pts[1] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
 			}
 			if( RayPolyIntersect( rpos, dir, pts, 3, ndst ) && ndst[0] < mindst )
 				mindst = ndst[0];
@@ -167,7 +167,7 @@ void EdPatch::RegenerateMesh()
 			lmm_prepmeshinst( LI.cached_meshinst );
 		}
 		LI.cached_meshinst->matrix = g_EdWorld->m_groupMgr.GetMatrix( group );
-		LI.cached_meshinst->decal = blend;
+		LI.cached_meshinst->decal = true;
 		
 		MaterialHandle mh = GR_CreateMaterial();
 		mh->transparent = true;
@@ -263,6 +263,24 @@ void EdPatch::MoveSelectedVertices( const Vec3& t )
 				vertices[ x + y * MAX_PATCH_WIDTH ].pos += t;
 		}
 	}
+}
+
+void EdPatch::GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol )
+{
+	ASSERT( v >= 0 && v < xsize * ysize );
+	ASSERT( layer >= 0 && layer < MAX_PATCH_LAYERS );
+	EdPatchVtx& pv = vertices[ ( v % xsize ) + v / xsize * MAX_PATCH_WIDTH ];
+	outpos = pv.pos;
+	outcol = Col32ToVec4( pv.col[ layer ] );
+}
+
+void EdPatch::SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col )
+{
+	ASSERT( v >= 0 && v < xsize * ysize );
+	ASSERT( layer >= 0 && layer < MAX_PATCH_LAYERS );
+	EdPatchVtx& pv = vertices[ ( v % xsize ) + v / xsize * MAX_PATCH_WIDTH ];
+	pv.pos = pos;
+	pv.col[ layer ] = Vec4ToCol32( col );
 }
 
 EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
@@ -421,7 +439,7 @@ int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
 
 EDGUIPatchProps::EDGUIPatchProps() :
 	m_out( NULL ),
-	m_group( true, "Block properties" ),
+	m_group( true, "Patch properties" ),
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_blkGroup( NULL )
 {
@@ -473,4 +491,5 @@ int EDGUIPatchProps::OnEvent( EDGUIEvent* e )
 	}
 	return EDGUILayoutRow::OnEvent( e );
 }
+
 

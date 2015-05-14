@@ -827,7 +827,7 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 					p->blend = true;
 				else
 				{
-					// DELETE BLOCK
+					g_EdWorld->DeleteObject( m_out );
 				}
 				g_EdWorld->AddObject( p );
 			}

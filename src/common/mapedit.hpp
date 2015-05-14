@@ -240,6 +240,9 @@ struct EdObject
 	virtual Vec3 GetLocalVertex( int i ) const = 0;
 	virtual void ScaleVertices( const Vec3& scale ) = 0;
 	virtual void MoveSelectedVertices( const Vec3& t ) = 0;
+	virtual int GetNumPaintVerts() const { return 0; }
+	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol ){}
+	virtual void SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col ){}
 	
 	// temp interface to block, TODO refactor into ^^^
 	virtual int GetOnlySelectedVertex(){ return -1; }
@@ -255,6 +258,31 @@ struct EdObject
 };
 
 typedef Handle< EdObject > EdObjectHandle;
+
+struct EDGUIPaintProps : EDGUILayoutRow
+{
+	EDGUIPaintProps();
+	
+	int GetLayerNum(){ return m_ctlLayerNum.m_value; }
+	float GetDistanceFactor( const Vec3& vpos, const Vec3& bpos );
+	void Paint( Vec3& vpos, const Vec3& nrm, Vec4& vcol, float factor );
+	int OnEvent( EDGUIEvent* e );
+	void _UpdateColor();
+	
+	EDGUIGroup m_ctlGroup;
+	EDGUIPropInt m_ctlLayerNum;
+	EDGUIPropBool m_ctlPaintPos;
+	EDGUIPropBool m_ctlPaintColor;
+	EDGUIPropBool m_ctlPaintAlpha;
+	EDGUIPropFloat m_ctlRadius;
+	EDGUIPropFloat m_ctlFalloff;
+	EDGUIPropFloat m_ctlSculptSpeed;
+	EDGUIPropFloat m_ctlPaintSpeed;
+	EDGUIPropVec3 m_ctlColorHSV;
+	EDGUIPropFloat m_ctlAlpha;
+	
+	Vec4 m_tgtColor;
+};
 
 
 
@@ -497,7 +525,7 @@ struct EdPatchVtx
 
 struct EdPatchLayerInfo
 {
-	EdPatchLayerInfo() : xoff(0), yoff(0), scale(1), aspect(1), angle(0){}
+	EdPatchLayerInfo() : xoff(0), yoff(0), scale(1), aspect(1), angle(0), lmquality(1){}
 	
 	void Precache()
 	{
@@ -560,6 +588,9 @@ struct EdPatch : EdObject
 	virtual Vec3 GetLocalVertex( int i ) const { return vertices[ ( i % xsize ) + i / xsize * MAX_PATCH_WIDTH ].pos + position; }
 	virtual void ScaleVertices( const Vec3& f );
 	virtual void MoveSelectedVertices( const Vec3& t );
+	virtual int GetNumPaintVerts() const { return xsize * ysize; }
+	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol );
+	virtual void SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col );
 	
 	template< class T > void SerializeT( T& arch )
 	{
@@ -716,6 +747,7 @@ struct EdEntMesh : EdEntity
 	
 	template< class T > void SerializeT( T& arch )
 	{
+		arch << m_ctlPos;
 		arch << m_ctlAngles;
 		arch << m_ctlScaleUni;
 		arch << m_ctlScaleSep;
@@ -765,6 +797,7 @@ struct EdEntLight : EdEntity
 	
 	template< class T > void SerializeT( T& arch )
 	{
+		arch << m_ctlPos;
 		arch << m_ctlRange;
 		arch << m_ctlPower;
 		arch << m_ctlColorHSV;
@@ -807,10 +840,14 @@ struct EdEntLightSample : EdEntity
 	EdEntLightSample& operator = ( const EdEntLightSample& o );
 	virtual EdEntity* CloneEntity();
 	
-	virtual void Serialize( SVHTR& arch ){}
-	virtual void Serialize( SVHTW& arch ){}
-	virtual void Serialize( SVHBR& arch ){}
-	virtual void Serialize( SVHBW& arch ){}
+	template< class T > void SerializeT( T& arch )
+	{
+		arch << m_ctlPos;
+	}
+	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	
 	virtual void UpdateCache( LevelCache& LC );
 };
@@ -901,18 +938,15 @@ template< class T > void ENT_Serialize( T& arch, EdEntity* e )
 	
 	arch.marker( "ENTITY" );
 	arch << ty;
-	arch << e->m_ctlPos;
 	arch << *e;
 }
 
 template< class T > EdEntity* ENT_Unserialize( T& arch )
 {
 	String ty;
-	Vec3 p;
 	
 	arch.marker( "ENTITY" );
 	arch << ty;
-	arch << p;
 	
 	EdEntity* e = ENT_FindProtoByName( StackString< 128 >( ty ) );
 	if( !e )
@@ -921,7 +955,6 @@ template< class T > EdEntity* ENT_Unserialize( T& arch )
 		return NULL;
 	}
 	e = e->CloneEntity();
-	e->m_ctlPos.SetValue( p );
 	e->Serialize( arch );
 	e->RegenerateMesh();
 	
@@ -1030,6 +1063,7 @@ struct EdWorld : EDGUILayoutRow
 	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
 	
 	void AddObject( EdObject* obj );
+	void DeleteObject( EdObject* obj );
 	
 	void DeleteSelectedObjects();
 	// returns if there were any selected blocks
@@ -1214,8 +1248,9 @@ struct EdEditMode
 	virtual void OnEnter(){}
 	virtual void OnExit(){}
 	virtual void OnTransformEnd(){}
+	virtual void OnDeleteObject( int oid ){ OnEnter(); }
 	virtual int OnUIEvent( EDGUIEvent* e ){ return 0; }
-	virtual void OnViewEvent( EDGUIEvent* e ){}
+	virtual void OnViewEvent( EDGUIEvent* e );
 	virtual void Draw(){}
 };
 
@@ -1289,6 +1324,27 @@ struct EdEditVertexEditMode : EdEditMode
 	EdBlockVertexMoveTransform m_transform;
 };
 
+struct EdPaintVertsEditMode : EdEditMode
+{
+	struct PaintVertex
+	{
+		Vec3 pos;
+		Vec4 col;
+		float factor;
+	};
+	
+	EdPaintVertsEditMode();
+	void OnEnter();
+	void OnViewEvent( EDGUIEvent* e );
+	void _TakeSnapshot();
+	void _DoPaint();
+	
+	bool m_isPainting;
+	Array< int > m_selObjList;
+	Array< PaintVertex > m_originalVerts;
+	EDGUIPaintProps m_ctlPaintProps;
+};
+
 struct EdPaintSurfsEditMode : EdEditMode
 {
 	EdPaintSurfsEditMode();
@@ -1314,23 +1370,6 @@ struct EdAddEntityEditMode : EdEditMode
 	
 	EdEntityHandle m_entityProps;
 	EDGUIEntList m_entGroup;
-};
-
-struct EdEditEntityEditMode : EdEditMode
-{
-	EdEditEntityEditMode();
-	void OnEnter();
-	int OnUIEvent( EDGUIEvent* e );
-	void OnViewEvent( EDGUIEvent* e );
-	void Draw();
-	void _ReloadEntityProps();
-	
-	int m_hlEnt;
-	int m_selEnt;
-	
-	Vec2 m_cpdiff;
-	bool m_grabbed;
-	Vec2 m_origPos;
 };
 
 struct EdEditGroupEditMode : EdEditMode
@@ -1391,11 +1430,11 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EdEditTransform* m_editTF;
 	EdEditMode* m_editMode;
 	EdDrawBlockEditMode m_emDrawBlock;
-	EdEditBlockEditMode m_emEditBlock;
+	EdEditBlockEditMode m_emEditObjs;
 	EdEditVertexEditMode m_emEditVertex;
+	EdPaintVertsEditMode m_emPaintVerts;
 	EdPaintSurfsEditMode m_emPaintSurfs;
 	EdAddEntityEditMode m_emAddEntity;
-	EdEditEntityEditMode m_emEditEntity;
 	EdEditGroupEditMode m_emEditGroup;
 	EdEditLevelEditMode m_emEditLevel;
 	
@@ -1422,11 +1461,9 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBCompile;
 	EDGUILabel m_MB_Cat1;
 	EDGUIButton m_MBDrawBlock;
-	EDGUIButton m_MBEditBlock;
-	EDGUIButton m_MBEditPatch;
+	EDGUIButton m_MBEditObjects;
 	EDGUIButton m_MBPaintSurfs;
 	EDGUIButton m_MBAddEntity;
-	EDGUIButton m_MBEditEntity;
 	EDGUIButton m_MBEditGroups;
 	EDGUIButton m_MBLevelInfo;
 };

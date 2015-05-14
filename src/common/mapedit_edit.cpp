@@ -281,6 +281,14 @@ void EdBlockVertexMoveTransform::ApplyTransform()
 
 
 
+void EdEditMode::OnViewEvent( EDGUIEvent* e )
+{
+	if( e->type == EDGUI_EVENT_DELOBJECT )
+	{
+		OnDeleteObject( e->key.key );
+	}
+}
+
 EdDrawBlockEditMode::EdDrawBlockEditMode() :
 	m_blockDrawMode( BD_Polygon ),
 	m_newBlockPropZ0( 0, 2, -8192, 8192 ),
@@ -364,6 +372,8 @@ void EdDrawBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		if( e->key.engkey == SDLK_1 ) m_blockDrawMode = BD_Polygon;
 		if( e->key.engkey == SDLK_2 ) m_blockDrawMode = BD_BoxStrip;
 	}
+	
+	EdEditMode::OnViewEvent( e );
 }
 
 void EdDrawBlockEditMode::Draw()
@@ -444,7 +454,7 @@ EdEditBlockEditMode::EdEditBlockEditMode() :
 void EdEditBlockEditMode::OnEnter()
 {
 	m_numSel = g_EdWorld->GetNumSelectedObjects();
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditBlock );
+	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditObjects );
 	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
 	m_hlObj = -1;
 	m_curObj = -1;
@@ -515,6 +525,11 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
 		}
+		// TO PAINT MODE
+		if( e->key.engkey == SDLK_p && e->key.engmod & KMOD_ALT )
+		{
+			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
+		}
 	}
 	if( e->type == EDGUI_EVENT_PAINT )
 	{
@@ -528,6 +543,8 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			GR2D_DrawTextLine( x0, y0, bfr, HALIGN_LEFT, VALIGN_TOP );
 		}
 	}
+	
+	EdEditMode::OnViewEvent( e );
 }
 
 void EdEditBlockEditMode::Draw()
@@ -717,9 +734,16 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		// TO BLOCK MODE
 		if( e->key.engkey == SDLK_b && e->key.engmod & KMOD_ALT )
 		{
-			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditBlock );
+			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
+		}
+		// TO PAINT MODE
+		if( e->key.engkey == SDLK_p && e->key.engmod & KMOD_ALT )
+		{
+			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
 		}
 	}
+	
+	EdEditMode::OnViewEvent( e );
 }
 
 void EdEditVertexEditMode::Draw()
@@ -850,6 +874,120 @@ EdEditVertexEditMode::ActivePoint EdEditVertexEditMode::GetClosestActivePoint()
 }
 
 
+EdPaintVertsEditMode::EdPaintVertsEditMode() :
+	m_isPainting( false )
+{
+}
+
+void EdPaintVertsEditMode::OnEnter()
+{
+	m_isPainting = false;
+	
+	m_selObjList.clear();
+	int pcount = 0;
+	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+	{
+		if( g_EdWorld->m_objects[ i ]->selected == false )
+			continue;
+		pcount += g_EdWorld->m_objects[ i ]->GetNumPaintVerts();
+		m_selObjList.push_back( i );
+	}
+	m_originalVerts.resize( pcount );
+	
+	_TakeSnapshot();
+	
+	g_UIFrame->ClearParamList();
+	g_UIFrame->AddToParamList( &m_ctlPaintProps );
+}
+
+void EdPaintVertsEditMode::OnViewEvent( EDGUIEvent* e )
+{
+	bool dopaint = false;
+	if( e->type == EDGUI_EVENT_BTNDOWN && e->mouse.button == 0 )
+	{
+		m_isPainting = true;
+		dopaint = true;
+	}
+	if( e->type == EDGUI_EVENT_BTNUP && e->mouse.button == 0 )
+	{
+		m_isPainting = false;
+		_TakeSnapshot();
+	}
+	if( e->type == EDGUI_EVENT_MOUSEMOVE )
+	{
+		if( m_isPainting )
+			dopaint = true;
+	}
+	if( e->type == EDGUI_EVENT_KEYDOWN )
+	{
+		// TO BLOCK MODE
+		if( e->key.engkey == SDLK_b && e->key.engmod & KMOD_ALT )
+		{
+			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
+		}
+		// TO VERTEX MODE
+		if( e->key.engkey == SDLK_v && e->key.engmod & KMOD_ALT )
+		{
+			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
+		}
+	}
+	
+	if( dopaint )
+		_DoPaint();
+	
+	EdEditMode::OnViewEvent( e );
+}
+
+void EdPaintVertsEditMode::_TakeSnapshot()
+{
+	int layer_id = m_ctlPaintProps.GetLayerNum();
+	int off = 0;
+	for( size_t i = 0; i < m_selObjList.size(); ++i )
+	{
+		EdObject* obj = g_EdWorld->m_objects[ m_selObjList[ i ] ];
+		int vcount = obj->GetNumPaintVerts();
+		for( int v = 0; v < vcount; ++v )
+		{
+			PaintVertex pv = { V3(0), 0xffffffff, 0 };
+			obj->GetPaintVertex( v, layer_id, pv.pos, pv.col );
+			m_originalVerts[ off++ ] = pv;
+		}
+	}
+}
+
+void EdPaintVertsEditMode::_DoPaint()
+{
+	Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
+	Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
+	
+	float outdst[1];
+	if( g_EdWorld->RayPatchesIntersect( cursorRayPos, cursorRayDir, -1, outdst, NULL ) )
+	{
+		Vec3 pos = cursorRayPos + cursorRayDir * outdst[0];
+		int layer_id = m_ctlPaintProps.GetLayerNum();
+		int off = 0;
+		for( size_t i = 0; i < m_selObjList.size(); ++i )
+		{
+			EdObject* obj = g_EdWorld->m_objects[ m_selObjList[ i ] ];
+			int vcount = obj->GetNumPaintVerts();
+			for( int v = 0; v < vcount; ++v )
+			{
+				Vec3 vpos;
+				Vec4 vcol;
+				obj->GetPaintVertex( v, layer_id, vpos, vcol );
+				PaintVertex& PV = m_originalVerts[ off++ ];
+				PV.factor += m_ctlPaintProps.GetDistanceFactor( vpos, pos ) / 60.0f; // assuming FPS limit - TODO FIX
+				vpos = PV.pos;
+				vcol = PV.col;
+				m_ctlPaintProps.Paint( vpos, -cursorRayDir, vcol, PV.factor );
+				obj->SetPaintVertex( v, layer_id, vpos, vcol );
+			}
+			obj->RegenerateMesh();
+		}
+	}
+}
+
+
 EdPaintSurfsEditMode::EdPaintSurfsEditMode() :
 	m_paintBlock( -1 ),
 	m_paintSurf( -1 ),
@@ -900,6 +1038,8 @@ void EdPaintSurfsEditMode::OnViewEvent( EDGUIEvent* e )
 		m_paintSurfProps.BounceBack( g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
 		g_EdWorld->m_blocks[ m_paintBlock ]->RegenerateMesh();
 	}
+	
+	EdEditMode::OnViewEvent( e );
 }
 
 void EdPaintSurfsEditMode::Draw()
@@ -947,6 +1087,8 @@ void EdAddEntityEditMode::OnViewEvent( EDGUIEvent* e )
 	{
 		_AddNewEntity();
 	}
+	
+	EdEditMode::OnViewEvent( e );
 }
 
 void EdAddEntityEditMode::Draw()
@@ -970,114 +1112,6 @@ void EdAddEntityEditMode::_AddNewEntity()
 	EdEntity* N = m_entityProps->CloneEntity();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
 	g_EdWorld->AddObject( N );
-}
-
-EdEditEntityEditMode::EdEditEntityEditMode() :
-	m_hlEnt( -1 ),
-	m_selEnt( -1 ),
-	m_grabbed( false )
-{
-}
-
-void EdEditEntityEditMode::OnEnter()
-{
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditEntity );
-	m_hlEnt = -1;
-	m_selEnt = -1;
-	m_grabbed = false;
-}
-
-int EdEditEntityEditMode::OnUIEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( m_selEnt >= 0 && e->target == &g_EdWorld->m_entities[ m_selEnt ]->m_ctlPos )
-		{
-			g_UIFrame->SetCursorPlaneHeight( g_EdWorld->m_entities[ m_selEnt ]->Pos().z );
-		}
-		return 1;
-	}
-	return EdEditMode::OnUIEvent( e );
-}
-
-void EdEditEntityEditMode::OnViewEvent( EDGUIEvent* e )
-{
-	Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
-	Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
-	Vec2 cursorPlanePos = g_UIFrame->GetCursorPlanePos();
-	bool cursorAim = g_UIFrame->IsCursorAiming();
-	
-	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
-	{
-		m_grabbed = false;
-		m_selEnt = m_hlEnt;
-		_ReloadEntityProps();
-	}
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
-	{
-		float outdst[1];
-		int outmesh[1];
-		m_hlEnt = -1;
-		if( g_EdWorld->RayEntitiesIntersect( cursorRayPos, cursorRayDir, m_selEnt, outdst, outmesh ) )
-			m_hlEnt = outmesh[0];
-		if( m_grabbed && m_selEnt >= 0 )
-		{
-			EdEntity* N = g_EdWorld->m_entities[ m_selEnt ];
-			N->SetPosition( V3( cursorPlanePos.x + m_cpdiff.x, cursorPlanePos.y + m_cpdiff.y, N->Pos().z ) );
-			N->RegenerateMesh();
-			_ReloadEntityProps();
-		}
-	}
-	// GRAB
-	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_g && !e->key.repeat && m_selEnt >= 0 && cursorAim )
-	{
-		Vec3 P = g_EdWorld->m_entities[ m_selEnt ]->Pos();
-		m_cpdiff = V2(P.x,P.y) - cursorPlanePos;
-		m_grabbed = true;
-	}
-	if( e->type == EDGUI_EVENT_KEYUP && ( e->key.engkey == SDLK_g || e->key.engkey == SDLK_d ) && m_grabbed )
-	{
-		m_grabbed = false;
-	}
-	// DELETE
-	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_DELETE && m_selEnt >= 0 )
-	{
-		g_UIFrame->ClearParamList();
-		g_EdWorld->m_entities.erase( m_selEnt );
-		if( m_hlEnt == m_selEnt )
-			m_hlEnt = -1;
-		m_selEnt = -1;
-	}
-	// DUPLICATE
-	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_d && !e->key.repeat && ( e->key.engmod & KMOD_CTRL ) && m_selEnt >= 0 )
-	{
-		EdEntity* N = g_EdWorld->m_entities[ m_selEnt ]->CloneEntity();
-		m_selEnt = g_EdWorld->m_entities.size();
-		N->RegenerateMesh();
-		g_EdWorld->m_entities.push_back( N );
-		Vec3 P = N->Pos();
-		m_cpdiff = V2(P.x,P.y) - cursorPlanePos;
-		m_grabbed = true;
-		_ReloadEntityProps();
-	}
-}
-
-void EdEditEntityEditMode::Draw()
-{
-	g_EdWorld->DrawWires_Entities( m_hlEnt, m_selEnt );
-	if( m_grabbed )
-		g_UIFrame->DrawCursor( false );
-}
-
-void EdEditEntityEditMode::_ReloadEntityProps()
-{
-	g_UIFrame->ClearParamList();
-	if( m_selEnt >= 0 )
-	{
-		g_UIFrame->SetCursorPlaneHeight( g_EdWorld->m_entities[ m_selEnt ]->Pos().z );
-		g_UIFrame->AddToParamList( g_EdWorld->GetEntityProps( m_selEnt ) );
-	}
 }
 
 void EdEditGroupEditMode::OnEnter()

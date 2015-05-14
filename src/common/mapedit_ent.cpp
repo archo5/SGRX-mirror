@@ -348,6 +348,7 @@ void EdEntScripted::Fields2Data()
 
 void EdEntScripted::Serialize( SVHTR& arch )
 {
+	arch << m_ctlPos;
 	String data;
 	arch << data;
 	m_data = g_ScriptCtx->Unserialize( data );
@@ -356,6 +357,7 @@ void EdEntScripted::Serialize( SVHTR& arch )
 
 void EdEntScripted::Serialize( SVHTW& arch )
 {
+	arch << m_ctlPos;
 	String data;
 	data = g_ScriptCtx->Serialize( m_data );
 	arch << data;
@@ -364,6 +366,7 @@ void EdEntScripted::Serialize( SVHTW& arch )
 
 void EdEntScripted::Serialize( SVHBR& arch )
 {
+	arch << m_ctlPos;
 	String data;
 	arch << data;
 	m_data = g_ScriptCtx->Unserialize( data );
@@ -372,6 +375,7 @@ void EdEntScripted::Serialize( SVHBR& arch )
 
 void EdEntScripted::Serialize( SVHBW& arch )
 {
+	arch << m_ctlPos;
 	String data;
 	data = g_ScriptCtx->Serialize( m_data );
 	arch << data;

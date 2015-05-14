@@ -405,6 +405,7 @@ FINLINE Vec4 V4( const Vec3& v3, float w ){ Vec4 v = { v3.x, v3.y, v3.z, w }; re
 FINLINE Vec4 V4( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; return v; }
 FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w; }
 #endif
+inline Vec4 TLERP( const Vec4& a, const Vec4& b, const Vec4& s ){ return a * ( V4(1) - s ) + b * s; }
 
 // for interpolating color values only
 static const float INV_255F = 1.0f / 255.0f;
@@ -979,10 +980,10 @@ inline Vec4 Col32ToVec4( uint32_t colu32 )
 {
 	Vec4 out =
 	{
-		(float) COLOR_EXTRACT_R( colu32 ),
-		(float) COLOR_EXTRACT_G( colu32 ),
-		(float) COLOR_EXTRACT_B( colu32 ),
-		(float) COLOR_EXTRACT_A( colu32 )
+		INV_255F * (float) COLOR_EXTRACT_R( colu32 ),
+		INV_255F * (float) COLOR_EXTRACT_G( colu32 ),
+		INV_255F * (float) COLOR_EXTRACT_B( colu32 ),
+		INV_255F * (float) COLOR_EXTRACT_A( colu32 )
 	};
 	return out;
 }

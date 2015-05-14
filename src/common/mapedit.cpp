@@ -412,6 +412,80 @@ void EdObject::UISelectElement( int i, bool mod )
 }
 
 
+EDGUIPaintProps::EDGUIPaintProps() :
+	m_ctlGroup( true, "Painting properties" ),
+	m_ctlLayerNum( 0, 0, 3 ),
+	m_ctlPaintPos( true ),
+	m_ctlPaintColor( true ),
+	m_ctlPaintAlpha( true ),
+	m_ctlRadius( 1.0f, 2, 0.0f, 64.0f ),
+	m_ctlFalloff( 1.0f, 2, 0.01f, 100.0f ),
+	m_ctlSculptSpeed( 1.0f, 2, 0.01f, 100.0f ),
+	m_ctlPaintSpeed( 1.0f, 2, 0.01f, 100.0f ),
+	m_ctlColorHSV( V3(0,0,1), 2, V3(0), V3(1,1,1) ),
+	m_ctlAlpha( 1.0f, 2, 0.0f, 1.0f )
+{
+	m_ctlPaintPos.caption = "Sculpt?";
+	m_ctlPaintColor.caption = "Paint color?";
+	m_ctlPaintAlpha.caption = "Paint alpha?";
+	m_ctlRadius.caption = "Brush radius";
+	m_ctlFalloff.caption = "Brush falloff";
+	m_ctlSculptSpeed.caption = "Sculpt speed";
+	m_ctlPaintSpeed.caption = "Paint speed";
+	m_ctlColorHSV.caption = "Color (HSV)";
+	m_ctlAlpha.caption = "Alpha";
+	
+	m_ctlGroup.Add( &m_ctlPaintPos );
+	m_ctlGroup.Add( &m_ctlPaintColor );
+	m_ctlGroup.Add( &m_ctlPaintAlpha );
+	m_ctlGroup.Add( &m_ctlRadius );
+	m_ctlGroup.Add( &m_ctlFalloff );
+	m_ctlGroup.Add( &m_ctlSculptSpeed );
+	m_ctlGroup.Add( &m_ctlPaintSpeed );
+	m_ctlGroup.Add( &m_ctlColorHSV );
+	m_ctlGroup.Add( &m_ctlAlpha );
+	Add( &m_ctlGroup );
+	
+	_UpdateColor();
+}
+
+float EDGUIPaintProps::GetDistanceFactor( const Vec3& vpos, const Vec3& bpos )
+{
+	float dist = ( vpos - bpos ).Length();
+	return powf( 1 - clamp( dist / m_ctlRadius.m_value, 0, 1 ), m_ctlFalloff.m_value );
+}
+
+void EDGUIPaintProps::Paint( Vec3& vpos, const Vec3& nrm, Vec4& vcol, float factor )
+{
+	if( m_ctlPaintPos.m_value )
+	{
+		vpos += nrm * factor * m_ctlSculptSpeed.m_value;
+	}
+	if( m_ctlPaintColor.m_value || m_ctlPaintAlpha.m_value )
+	{
+		Vec4 cf = V4( V3( m_ctlPaintColor.m_value ), m_ctlPaintAlpha.m_value ) * clamp( m_ctlPaintSpeed.m_value * factor, 0, 1 );
+		vcol = TLERP( vcol, m_tgtColor, cf );
+	}
+}
+
+int EDGUIPaintProps::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+		if( e->target == &m_ctlColorHSV || e->target == &m_ctlAlpha )
+			_UpdateColor();
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
+void EDGUIPaintProps::_UpdateColor()
+{
+	m_tgtColor = V4( HSV( m_ctlColorHSV.m_value ), m_ctlAlpha.m_value );
+}
+
+
 
 EdWorld::EdWorld() :
 	m_ctlGroup( true, "Level properties" ),
@@ -746,6 +820,37 @@ void EdWorld::AddObject( EdObject* obj )
 	obj->RegenerateMesh();
 }
 
+void EdWorld::DeleteObject( EdObject* obj )
+{
+	size_t at = m_objects.find_first_at( obj );
+	m_objects.uerase( at );
+	
+	EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
+	e.key.key = at;
+	g_UIFrame->ViewEvent( &e );
+	
+	if( obj->m_type == ObjType_Block )
+	{
+		at = m_blocks.find_first_at( (EdBlock*) obj );
+		if( at != NOT_FOUND )
+			m_blocks.uerase( at );
+	}
+	
+	if( obj->m_type == ObjType_Patch )
+	{
+		at = m_patches.find_first_at( (EdPatch*) obj );
+		if( at != NOT_FOUND )
+			m_patches.uerase( at );
+	}
+	
+	if( obj->m_type == ObjType_Entity )
+	{
+		at = m_entities.find_first_at( (EdEntity*) obj );
+		if( at != NOT_FOUND )
+			m_entities.uerase( at );
+	}
+}
+
 void EdWorld::DeleteSelectedObjects()
 {
 	size_t i = m_objects.size();
@@ -756,8 +861,33 @@ void EdWorld::DeleteSelectedObjects()
 		{
 			m_objects.uerase( i );
 			EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
+			e.key.key = i;
 			g_UIFrame->ViewEvent( &e );
 		}
+	}
+	
+	i = m_blocks.size();
+	while( i > 0 )
+	{
+		i--;
+		if( m_blocks[ i ]->selected )
+			m_blocks.uerase( i );
+	}
+	
+	i = m_patches.size();
+	while( i > 0 )
+	{
+		i--;
+		if( m_patches[ i ]->selected )
+			m_patches.uerase( i );
+	}
+	
+	i = m_entities.size();
+	while( i > 0 )
+	{
+		i--;
+		if( m_entities[ i ]->selected )
+			m_entities.uerase( i );
 	}
 }
 
@@ -947,11 +1077,9 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_MBCompile.caption = "Compile";
 	m_MB_Cat1.caption = "Edit:";
 	m_MBDrawBlock.caption = "Draw Block";
-	m_MBEditBlock.caption = "Edit Block";
-	m_MBEditPatch.caption = "Edit Patch";
-	m_MBPaintSurfs.caption = "Paint Surface";
+	m_MBEditObjects.caption = "Edit Objects";
+	m_MBPaintSurfs.caption = "Paint Surfaces";
 	m_MBAddEntity.caption = "Add Entity";
-	m_MBEditEntity.caption = "Edit Entity";
 	m_MBEditGroups.caption = "Edit groups";
 	m_MBLevelInfo.caption = "Level Info";
 	m_UIMenuButtonsLft.Add( &m_MB_Cat0 );
@@ -962,11 +1090,9 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuButtonsLft.Add( &m_MBCompile );
 	m_UIMenuButtonsRgt.Add( &m_MB_Cat1 );
 	m_UIMenuButtonsRgt.Add( &m_MBDrawBlock );
-	m_UIMenuButtonsRgt.Add( &m_MBEditBlock );
-	m_UIMenuButtonsRgt.Add( &m_MBEditPatch );
+	m_UIMenuButtonsRgt.Add( &m_MBEditObjects );
 	m_UIMenuButtonsRgt.Add( &m_MBPaintSurfs );
 	m_UIMenuButtonsRgt.Add( &m_MBAddEntity );
-	m_UIMenuButtonsRgt.Add( &m_MBEditEntity );
 	m_UIMenuButtonsRgt.Add( &m_MBEditGroups );
 	m_UIMenuButtonsRgt.Add( &m_MBLevelInfo );
 	
@@ -992,10 +1118,9 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_MBCompile ) Level_Compile();
 		
 		else if( e->target == &m_MBDrawBlock ) SetEditMode( &m_emDrawBlock );
-		else if( e->target == &m_MBEditBlock ) SetEditMode( &m_emEditBlock );
+		else if( e->target == &m_MBEditObjects ) SetEditMode( &m_emEditObjs );
 		else if( e->target == &m_MBPaintSurfs ) SetEditMode( &m_emPaintSurfs );
 		else if( e->target == &m_MBAddEntity ) SetEditMode( &m_emAddEntity );
-		else if( e->target == &m_MBEditEntity ) SetEditMode( &m_emEditEntity );
 		else if( e->target == &m_MBEditGroups ) SetEditMode( &m_emEditGroup );
 		else if( e->target == &m_MBLevelInfo ) SetEditMode( &m_emEditLevel );
 		
@@ -1337,10 +1462,9 @@ void EDGUIMainFrame::SetEditTransform( EdEditTransform* et )
 void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 {
 	m_MBDrawBlock.SetHighlight( mybtn == &m_MBDrawBlock );
-	m_MBEditBlock.SetHighlight( mybtn == &m_MBEditBlock );
+	m_MBEditObjects.SetHighlight( mybtn == &m_MBEditObjects );
 	m_MBPaintSurfs.SetHighlight( mybtn == &m_MBPaintSurfs );
 	m_MBAddEntity.SetHighlight( mybtn == &m_MBAddEntity );
-	m_MBEditEntity.SetHighlight( mybtn == &m_MBEditEntity );
 	m_MBEditGroups.SetHighlight( mybtn == &m_MBEditGroups );
 	m_MBLevelInfo.SetHighlight( mybtn == &m_MBLevelInfo );
 }
