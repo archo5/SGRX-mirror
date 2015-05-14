@@ -96,6 +96,45 @@ void EdPatch::_InterpolateVertex( EdPatchVtx* out, EdPatchVtx* v0, EdPatchVtx* v
 	}
 }
 
+EdObject* EdPatch::Clone()
+{
+	EdObject* obj = new EdPatch( *this );
+	return obj;
+}
+
+bool EdPatch::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const
+{
+	float mindst = FLT_MAX;
+	for( int y = 0; y < ysize - 1; ++y )
+	{
+		for( int x = 0; x < xsize - 1; ++x )
+		{
+			float ndst[1];
+			Vec3 pts[6];
+			if( edgeflip[ y ] & ( 1 << x ) )
+			{
+				pts[0] = pts[5] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+				pts[1] = vertices[ x + y * MAX_PATCH_WIDTH ].pos;
+				pts[2] = pts[3] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos;
+				pts[4] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+			}
+			else
+			{
+				pts[0] = pts[5] = vertices[ x + y * MAX_PATCH_WIDTH ].pos;
+				pts[1] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos;
+				pts[2] = pts[3] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+				pts[4] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+			}
+			if( RayPolyIntersect( rpos, dir, pts, 3, ndst ) && ndst[0] < mindst )
+				mindst = ndst[0];
+			if( RayPolyIntersect( rpos, dir, pts+3, 3, ndst ) && ndst[0] < mindst )
+				mindst = ndst[0];
+		}
+	}
+	if( outdst ) outdst[0] = mindst;
+	return mindst < FLT_MAX;
+}
+
 void EdPatch::RegenerateMesh()
 {
 	if( !g_EdWorld )
@@ -179,6 +218,50 @@ void EdPatch::RegenerateMesh()
 		LI.cached_mesh->SetVertexData( outverts.data(), outverts.size_bytes(), vd, false );
 		LI.cached_mesh->SetIndexData( outidcs.data(), outidcs.size_bytes(), false );
 		LI.cached_mesh->SetPartData( &mp, 1 );
+	}
+}
+
+Vec3 EdPatch::FindCenter() const
+{
+	Vec3 c = V3(0);
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			c += vertices[ x + y * MAX_PATCH_WIDTH ].pos;
+		}
+	}
+	return c / ( xsize * ysize ) + position;
+}
+
+void EdPatch::SelectElement( int i, bool sel )
+{
+	if( sel )
+		vertsel[ i / xsize ] |= ( 1 << ( i % xsize ) );
+	else
+		vertsel[ i / xsize ] &= ~( 1 << ( i % xsize ) );
+}
+
+void EdPatch::ScaleVertices( const Vec3& f )
+{
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			vertices[ x + y * MAX_PATCH_WIDTH ].pos *= f;
+		}
+	}
+}
+
+void EdPatch::MoveSelectedVertices( const Vec3& t )
+{
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			if( vertsel[ y ] & ( 1 << x ) )
+				vertices[ x + y * MAX_PATCH_WIDTH ].pos += t;
+		}
 	}
 }
 

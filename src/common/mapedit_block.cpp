@@ -4,7 +4,7 @@
 
 
 
-Vec3 EdBlock::GetLocalVertex( int i )
+Vec3 EdBlock::GetLocalVertex( int i ) const
 {
 	Vec3 vp = poly[ i % poly.size() ];
 	if( i < (int) poly.size() )
@@ -67,7 +67,7 @@ void EdBlock::MoveSelectedVertices( const Vec3& tfv )
 	}
 }
 
-Vec3 EdBlock::GetSurfaceCenter( int i )
+Vec3 EdBlock::GetSurfaceCenter( int i ) const
 {
 	if( i < (int) poly.size() )
 	{
@@ -101,7 +101,7 @@ int EdBlock::GetSurfaceNumVerts( int i )
 		return poly.size();
 }
 
-Vec3 EdBlock::GetElementPoint( int i )
+Vec3 EdBlock::GetElementPoint( int i ) const
 {
 	int nverts = GetNumVerts();
 	if( i < nverts )
@@ -181,7 +181,7 @@ int EdBlock::GetOnlySelectedSurface()
 	return sel;
 }
 
-bool EdBlock::IsElementSelected( int i )
+bool EdBlock::IsElementSelected( int i ) const
 {
 	ASSERT( i >= 0 && i < GetNumElements() );
 	return subsel[ i ];
@@ -191,23 +191,6 @@ void EdBlock::SelectElement( int i, bool sel )
 {
 	ASSERT( i >= 0 && i < GetNumElements() );
 	subsel[ i ] = sel;
-}
-
-void EdBlock::UISelectElement( int i, bool mod )
-{
-	if( i >= 0 && i < GetNumElements() )
-	{
-		if( mod )
-			subsel[ i ] = !subsel[ i ];
-		else
-		{
-			ClearSelection();
-			subsel[ i ] = true;
-		}
-		
-	}
-	else if( mod == false )
-		ClearSelection();
 }
 
 void EdBlock::ClearSelection()
@@ -301,7 +284,7 @@ void EdBlock::GenCenterPos( EDGUISnapProps& SP )
 		poly[i].SetXY( poly[i].ToVec2() - cp - oldpos );
 }
 
-Vec3 EdBlock::FindCenter()
+Vec3 EdBlock::FindCenter() const
 {
 	Vec3 center = V3(0);
 	for( size_t i = 0; i < poly.size(); ++i )
@@ -313,7 +296,13 @@ Vec3 EdBlock::FindCenter()
 	return center;
 }
 
-bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf )
+EdObject* EdBlock::Clone()
+{
+	EdObject* obj = new EdBlock( *this );
+	return obj;
+}
+
+bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf ) const
 {
 	Vec3 pts[16];
 	int pcount = poly.size();
@@ -840,8 +829,7 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 				{
 					// DELETE BLOCK
 				}
-				p->RegenerateMesh();
-				g_EdWorld->m_patches.push_back( p );
+				g_EdWorld->AddObject( p );
 			}
 		}
 		break;

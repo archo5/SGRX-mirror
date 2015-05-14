@@ -19,6 +19,7 @@
 #define MAX_PATCH_LAYERS 4
 
 #define EDGUI_EVENT_SETENTITY EDGUI_EVENT_USER + 1
+#define EDGUI_EVENT_DELOBJECT EDGUI_EVENT_USER + 2
 
 
 #ifdef MAPEDIT_DEFINE_GLOBALS
@@ -190,6 +191,74 @@ struct EdGroupManager : EDGUILayoutRow
 
 
 //
+// OBJECT
+//
+
+enum EObjectType
+{
+	ObjType_Block = 1,
+	ObjType_Entity = 2,
+	ObjType_Patch = 3,
+};
+
+typedef SerializeVersionHelper<TextReader> SVHTR;
+typedef SerializeVersionHelper<TextWriter> SVHTW;
+typedef SerializeVersionHelper<ByteReader> SVHBR;
+typedef SerializeVersionHelper<ByteWriter> SVHBW;
+
+struct EdObject
+{
+	EdObject( uint8_t ty ) : m_refcount(0), m_type(ty), selected(false), group(0) {}
+	EdObject( const EdObject& o ) : m_refcount(0), m_type(o.m_type), selected(o.selected), group(o.group) {}
+	virtual ~EdObject(){}
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	int32_t m_refcount;
+	uint8_t m_type;
+	bool selected;
+	int32_t group;
+	
+	virtual EdObject* Clone() = 0;
+	virtual void Serialize( SVHTR& arch ) = 0;
+	virtual void Serialize( SVHTW& arch ) = 0;
+	virtual void Serialize( SVHBR& arch ) = 0;
+	virtual void Serialize( SVHBW& arch ) = 0;
+	virtual Vec3 GetPosition() const = 0;
+	virtual void SetPosition( const Vec3& p ) = 0;
+	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const = 0;
+	virtual void RegenerateMesh() = 0;
+	virtual Vec3 FindCenter() const = 0;
+	virtual void Export( OBJExporter& objex ){}
+	
+	// subelement editing
+	virtual int GetNumElements() const = 0;
+	virtual Vec3 GetElementPoint( int i ) const = 0;
+	virtual bool IsElementSelected( int i ) const = 0;
+	virtual void SelectElement( int i, bool sel ) = 0;
+	virtual void ClearSelection() = 0;
+	virtual int GetNumVerts() const = 0;
+	virtual Vec3 GetLocalVertex( int i ) const = 0;
+	virtual void ScaleVertices( const Vec3& scale ) = 0;
+	virtual void MoveSelectedVertices( const Vec3& t ) = 0;
+	
+	// temp interface to block, TODO refactor into ^^^
+	virtual int GetOnlySelectedVertex(){ return -1; }
+	virtual int GetNumSelectedSurfs(){ return 0; }
+	virtual int GetOnlySelectedSurface(){ return -1; }
+	
+	// utility functions
+	void Serialize( TextReader& arch ){ SerializeVersionHelper<TextReader> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
+	void Serialize( TextWriter& arch ){ SerializeVersionHelper<TextWriter> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
+	void Serialize( ByteReader& arch ){ SerializeVersionHelper<ByteReader> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
+	void Serialize( ByteWriter& arch ){ SerializeVersionHelper<ByteWriter> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
+	void UISelectElement( int i, bool mod );
+};
+
+typedef Handle< EdObject > EdObjectHandle;
+
+
+
+//
 // BLOCKS
 //
 
@@ -242,12 +311,10 @@ struct EdSurface
 
 typedef LevelCache::Vertex LCVertex;
 
-struct EdBlock
+struct EdBlock : EdObject
 {
-	EdBlock() : selected(false), group(0), position(V3(0)), z0(0), z1(1){}
+	EdBlock() : EdObject( ObjType_Block ), position(V3(0)), z0(0), z1(1){}
 	
-	bool selected;
-	int group;
 	Vec3 position;
 	float z0, z1;
 	
@@ -258,7 +325,7 @@ struct EdBlock
 	MeshHandle cached_mesh;
 	MeshInstHandle cached_meshinst;
 	
-	template< class T > void Serialize( T& arch )
+	template< class T > void SerializeT( T& arch )
 	{
 		arch.marker( "BLOCK" );
 		if( arch.version >= 3 )
@@ -285,15 +352,17 @@ struct EdBlock
 		}
 	}
 	
-	int GetNumVerts(){ return poly.size() * 2; }
-	Vec3 GetLocalVertex( int i );
-	void ScaleVertices( const Vec3& f );
-	void MoveSelectedVertices( const Vec3& t );
-	int GetNumSurfs(){ return poly.size() + 2; }
-	Vec3 GetSurfaceCenter( int i );
+	virtual int GetNumVerts() const { return poly.size() * 2; }
+	virtual Vec3 GetLocalVertex( int i ) const;
+	virtual Vec3 GetPosition() const { return position; }
+	virtual void SetPosition( const Vec3& p ){ position = p; }
+	virtual void ScaleVertices( const Vec3& f );
+	virtual void MoveSelectedVertices( const Vec3& t );
+	int GetNumSurfs() const { return poly.size() + 2; }
+	Vec3 GetSurfaceCenter( int i ) const;
 	int GetSurfaceNumVerts( int i );
-	int GetNumElements(){ return GetNumVerts() + GetNumSurfs(); }
-	Vec3 GetElementPoint( int i );
+	virtual int GetNumElements() const { return GetNumVerts() + GetNumSurfs(); }
+	virtual Vec3 GetElementPoint( int i ) const;
 	
 	bool IsVertexSelected( int i );
 	void SelectVertex( int i, bool sel );
@@ -302,27 +371,33 @@ struct EdBlock
 	void SelectSurface( int i, bool sel );
 	int GetNumSelectedSurfs();
 	int GetOnlySelectedSurface();
-	bool IsElementSelected( int i );
-	void SelectElement( int i, bool sel );
-	void UISelectElement( int i, bool mod );
-	void ClearSelection();
+	virtual bool IsElementSelected( int i ) const;
+	virtual void SelectElement( int i, bool sel );
+	virtual void ClearSelection();
 	
 	void _GetTexVecs( int surf, Vec3& tgx, Vec3& tgy );
 	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< LCVertex >& vertices, uint16_t voff );
 	void _PostFitTexcoords( const EdSurface& S, LCVertex* vertices, size_t vcount );
 	
 	void GenCenterPos( EDGUISnapProps& SP );
-	Vec3 FindCenter();
+	virtual Vec3 FindCenter() const;
 	
-	bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf = NULL );
-	
-	void RegenerateMesh();
+	virtual EdObject* Clone();
+	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
+	bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf ) const;
+	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const { return RayIntersect( rpos, dir, outdst, NULL ); }
+	virtual void RegenerateMesh();
 	
 	LevelCache::Vertex _MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy );
 	void GenerateMesh( LevelCache& LC );
 	int GenerateSurface( LCVertex* outbuf, int sid );
 	void Export( OBJExporter& objex );
 };
+
+typedef Handle< EdBlock > EdBlockHandle;
 
 
 
@@ -451,13 +526,9 @@ struct EdPatchLayerInfo
 	MeshInstHandle cached_meshinst;
 };
 
-struct EdPatch
+struct EdPatch : EdObject
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	int32_t m_refcount;
-	
-	EdPatch() : m_refcount(0), selected(false), group(0), xsize(0), ysize(0), blend(0)
+	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0), blend(0)
 	{
 		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
 		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
@@ -469,9 +540,28 @@ struct EdPatch
 	bool RemoveYLine( int at );
 	static void _InterpolateVertex( EdPatchVtx* out, EdPatchVtx* v0, EdPatchVtx* v1, float s );
 	
-	void RegenerateMesh();
+	virtual EdObject* Clone();
+	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
+	virtual Vec3 GetPosition() const { return position; }
+	virtual void SetPosition( const Vec3& p ){ position = p; }
+	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const;
+	virtual void RegenerateMesh();
+	virtual Vec3 FindCenter() const;
 	
-	template< class T > void Serialize( T& arch )
+	virtual int GetNumElements() const { return GetNumVerts(); }
+	virtual Vec3 GetElementPoint( int i ) const { return GetLocalVertex( i ); }
+	virtual bool IsElementSelected( int i ) const { return 0 != ( vertsel[ i / xsize ] & ( 1 << ( i % xsize ) ) ); }
+	virtual void SelectElement( int i, bool sel );
+	virtual void ClearSelection(){ TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 ); }
+	virtual int GetNumVerts() const { return xsize * ysize; }
+	virtual Vec3 GetLocalVertex( int i ) const { return vertices[ ( i % xsize ) + i / xsize * MAX_PATCH_WIDTH ].pos + position; }
+	virtual void ScaleVertices( const Vec3& f );
+	virtual void MoveSelectedVertices( const Vec3& t );
+	
+	template< class T > void SerializeT( T& arch )
 	{
 		arch.marker( "PATCH" );
 		arch << group;
@@ -492,8 +582,6 @@ struct EdPatch
 	
 	static EdPatch* CreatePatchFromSurface( EdBlock& B, int sid );
 	
-	bool selected;
-	int group;
 	Vec3 position;
 	EdPatchVtx vertices[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
 	uint16_t edgeflip[ MAX_PATCH_WIDTH ];
@@ -545,17 +633,10 @@ struct EDGUIPatchProps : EDGUILayoutRow
 // ENTITIES
 //
 
-typedef SerializeVersionHelper<TextReader> SVHTR;
-typedef SerializeVersionHelper<TextWriter> SVHTW;
-
-struct EdEntity : EDGUILayoutRow
+struct EdEntity : EDGUILayoutRow, EdObject
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	int32_t m_refcount;
-	
 	EdEntity( bool isproto ) :
-		m_refcount( 0 ),
+		EdObject( ObjType_Entity ),
 		m_isproto( isproto ),
 		m_group( true, "Entity properties" ),
 		m_ctlPos( V3(0), 2, V3(-8192), V3(8192) )
@@ -568,21 +649,33 @@ struct EdEntity : EDGUILayoutRow
 	void LoadIcon();
 	
 	const Vec3& Pos() const { return m_ctlPos.m_value; }
-	void SetPosition( const Vec3& pos ){ m_ctlPos.SetValue( pos ); }
+	virtual Vec3 GetPosition() const { return Pos(); }
+	virtual void SetPosition( const Vec3& pos ){ m_ctlPos.SetValue( pos ); }
+	virtual void ScaleVertices( const Vec3& ){}
 	
 	virtual int OnEvent( EDGUIEvent* e ){ return EDGUILayoutRow::OnEvent( e ); }
 	
-	virtual void Serialize( SVHTR& arch ) = 0;
-	virtual void Serialize( SVHTW& arch ) = 0;
 	virtual void UpdateCache( LevelCache& LC ){}
 	
-	virtual EdEntity* Clone() = 0;
-	virtual bool RayIntersect( const Vec3& rpos, const Vec3& rdir, float outdst[1] )
+	virtual EdEntity* CloneEntity() = 0;
+	
+	virtual EdObject* Clone(){ return CloneEntity(); }
+	virtual bool RayIntersect( const Vec3& rpos, const Vec3& rdir, float outdst[1] ) const
 	{
 		return RaySphereIntersect( rpos, rdir, Pos(), 0.2f, outdst );
 	}
+	virtual Vec3 FindCenter() const { return Pos(); }
 	virtual void RegenerateMesh(){}
 	virtual void DebugDraw(){}
+	
+	virtual int GetNumElements() const { return 0; }
+	virtual Vec3 GetElementPoint( int i ) const { return GetLocalVertex( i ); }
+	virtual bool IsElementSelected( int i ) const { return false; }
+	virtual void SelectElement( int i, bool sel ){}
+	virtual void ClearSelection(){}
+	virtual int GetNumVerts() const { return 1; }
+	virtual Vec3 GetLocalVertex( int ) const { return Pos(); }
+	virtual void MoveSelectedVertices( const Vec3& t ){ /* NO VERTICES BY DEFAULT */ }
 	
 	bool m_isproto;
 	EDGUIGroup m_group;
@@ -619,7 +712,7 @@ struct EdEntMesh : EdEntity
 	Mat4 Matrix() const { return Mat4::CreateSRT( m_ctlScaleSep.m_value * m_ctlScaleUni.m_value, DEG2RAD( m_ctlAngles.m_value ), m_ctlPos.m_value ); }
 	
 	EdEntMesh& operator = ( const EdEntMesh& o );
-	virtual EdEntity* Clone();
+	virtual EdEntity* CloneEntity();
 	
 	template< class T > void SerializeT( T& arch )
 	{
@@ -630,6 +723,8 @@ struct EdEntMesh : EdEntity
 	}
 	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	
 	virtual void UpdateCache( LevelCache& LC );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -666,7 +761,7 @@ struct EdEntLight : EdEntity
 	Vec3 SpotUp() const { return SpotMatrix().TransformNormal( V3(0,-1,0) ).Normalized(); }
 	
 	EdEntLight& operator = ( const EdEntLight& o );
-	virtual EdEntity* Clone();
+	virtual EdEntity* CloneEntity();
 	
 	template< class T > void SerializeT( T& arch )
 	{
@@ -686,6 +781,8 @@ struct EdEntLight : EdEntity
 	}
 	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	
 	virtual void DebugDraw();
 	virtual void UpdateCache( LevelCache& LC );
@@ -708,10 +805,12 @@ struct EdEntLightSample : EdEntity
 {
 	EdEntLightSample( bool isproto = true );
 	EdEntLightSample& operator = ( const EdEntLightSample& o );
-	virtual EdEntity* Clone();
+	virtual EdEntity* CloneEntity();
 	
 	virtual void Serialize( SVHTR& arch ){}
 	virtual void Serialize( SVHTW& arch ){}
+	virtual void Serialize( SVHBR& arch ){}
+	virtual void Serialize( SVHBW& arch ){}
 	
 	virtual void UpdateCache( LevelCache& LC );
 };
@@ -728,13 +827,15 @@ struct EdEntScripted : EdEntity
 	~EdEntScripted();
 	
 	EdEntScripted& operator = ( const EdEntScripted& o );
-	virtual EdEntity* Clone();
+	virtual EdEntity* CloneEntity();
 	
 	void Data2Fields();
 	void Fields2Data();
 	
 	virtual void Serialize( SVHTR& arch );
 	virtual void Serialize( SVHTW& arch );
+	virtual void Serialize( SVHBR& arch );
+	virtual void Serialize( SVHBW& arch );
 	
 	virtual void UpdateCache( LevelCache& LC );
 	
@@ -819,7 +920,7 @@ template< class T > EdEntity* ENT_Unserialize( T& arch )
 		LOG_ERROR << "FAILED TO FIND ENTITY: " << ty;
 		return NULL;
 	}
-	e = e->Clone();
+	e = e->CloneEntity();
 	e->m_ctlPos.SetValue( p );
 	e->Serialize( arch );
 	e->RegenerateMesh();
@@ -858,10 +959,15 @@ struct EdWorld : EDGUILayoutRow
 		svh << m_ctlAOColor;
 		svh << m_ctlAONumSamples;
 		
-		svh << m_blocks;
-		
 		if( T::IsWriter )
 		{
+			int32_t numblocks = m_blocks.size();
+			svh << numblocks;
+			for( size_t i = 0; i < m_blocks.size(); ++i )
+			{
+				svh << *m_blocks[ i ].item;
+			}
+			
 			int32_t numents = m_entities.size();
 			svh << numents;
 			for( size_t i = 0; i < m_entities.size(); ++i )
@@ -878,6 +984,16 @@ struct EdWorld : EDGUILayoutRow
 		}
 		else
 		{
+			int32_t numblocks;
+			svh << numblocks;
+			m_blocks.clear();
+			for( int32_t i = 0; i < numblocks; ++i )
+			{
+				EdBlock* block = new EdBlock;
+				svh << *block;
+				AddObject( block );
+			}
+			
 			int32_t numents;
 			svh << numents;
 			m_entities.clear();
@@ -885,7 +1001,7 @@ struct EdWorld : EDGUILayoutRow
 			{
 				EdEntity* e = ENT_Unserialize( svh );
 				if( e )
-					m_entities.push_back( e );
+					AddObject( e );
 			}
 			
 			int32_t numpatches;
@@ -895,7 +1011,7 @@ struct EdWorld : EDGUILayoutRow
 			{
 				EdPatch* patch = new EdPatch;
 				svh << *patch;
-				m_patches.push_back( patch );
+				AddObject( patch );
 			}
 		}
 	}
@@ -903,20 +1019,25 @@ struct EdWorld : EDGUILayoutRow
 	void Reset();
 	void TestData();
 	void RegenerateMeshes();
+	void DrawWires_Objects( int hlobj, int selobj );
 	void DrawWires_Blocks( int hlblock, int selblock );
 	void DrawPoly_BlockSurf( int block, int surf, bool sel );
 	void DrawPoly_BlockVertex( int block, int vert, bool sel );
 	void DrawWires_Entities( int hlmesh, int selmesh );
+	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1] );
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
 	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
+	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
 	
-	void DeleteSelectedBlocks();
+	void AddObject( EdObject* obj );
+	
+	void DeleteSelectedObjects();
 	// returns if there were any selected blocks
-	bool DuplicateSelectedBlocksAndMoveSelection();
-	int GetNumSelectedBlocks();
-	int GetOnlySelectedBlock();
-	bool GetSelectedBlockAABB( Vec3 outaabb[2] );
-	void SelectBlock( int block, bool mod );
+	bool DuplicateSelectedObjectsAndMoveSelection();
+	int GetNumSelectedObjects();
+	int GetOnlySelectedObject();
+	bool GetSelectedObjectAABB( Vec3 outaabb[2] );
+	void SelectObject( int oid, bool mod );
 	
 	Vec3 FindCenterOfGroup( int32_t grp );
 	void FixTransformsOfGroup( int32_t grp );
@@ -927,17 +1048,17 @@ struct EdWorld : EDGUILayoutRow
 	
 	EDGUIItem* GetBlockProps( size_t bid )
 	{
-		m_ctlBlockProps.Prepare( m_blocks[ bid ] );
+		m_ctlBlockProps.Prepare( *m_blocks[ bid ] );
 		return &m_ctlBlockProps;
 	}
 	EDGUIItem* GetVertProps( size_t bid, size_t vid )
 	{
-		m_ctlVertProps.Prepare( m_blocks[ bid ], vid );
+		m_ctlVertProps.Prepare( *m_blocks[ bid ], vid );
 		return &m_ctlVertProps;
 	}
 	EDGUIItem* GetSurfProps( size_t bid, size_t sid )
 	{
-		m_ctlSurfProps.Prepare( m_blocks[ bid ], sid );
+		m_ctlSurfProps.Prepare( *m_blocks[ bid ], sid );
 		return &m_ctlSurfProps;
 	}
 	EDGUIItem* GetPatchProps( size_t pid )
@@ -949,12 +1070,32 @@ struct EdWorld : EDGUILayoutRow
 	{
 		return m_entities[ mid ];
 	}
+	EDGUIItem* GetObjProps( size_t oid )
+	{
+		EdObject* obj = m_objects[ oid ];
+		if( obj->m_type == ObjType_Block )
+		{
+			m_ctlBlockProps.Prepare( *(EdBlock*) obj );
+			return &m_ctlBlockProps;
+		}
+		if( obj->m_type == ObjType_Entity )
+		{
+			return (EdEntity*) obj;
+		}
+		if( obj->m_type == ObjType_Patch )
+		{
+			m_ctlPatchProps.Prepare( *(EdPatch*) obj );
+			return &m_ctlPatchProps;
+		}
+		return NULL;
+	}
 	
 	VertexDeclHandle m_vd;
 	
-	Array< EdBlock > m_blocks;
+	Array< EdBlockHandle > m_blocks;
 	Array< EdEntityHandle > m_entities;
 	Array< EdPatchHandle > m_patches;
+	Array< EdObjectHandle > m_objects;
 	EdGroupManager m_groupMgr;
 	
 	EDGUIGroup m_ctlGroup;
@@ -1028,10 +1169,10 @@ struct EdBlockEditTransform : EdBasicEditTransform
 		ZAxis,
 		ZPlane,
 	};
-	struct SavedBlock
+	struct SavedObject
 	{
 		int id;
-		EdBlock data;
+		int offset;
 	};
 	
 	virtual bool OnEnter();
@@ -1040,7 +1181,8 @@ struct EdBlockEditTransform : EdBasicEditTransform
 	virtual void RestoreState();
 	Vec3 GetMovementVector( const Vec2& a, const Vec2& b );
 	
-	Array< SavedBlock > m_blocks;
+	Array< SavedObject > m_objStateMap;
+	ByteArray m_objectStateData;
 	ConstraintMode m_cmode;
 	Vec3 m_origin;
 	
@@ -1114,19 +1256,8 @@ struct EdEditBlockEditMode : EdEditMode
 	int GetClosestActivePoint();
 	static const char* GetActivePointExtName( int i );
 	
-	int m_hlBlock;
-	int m_selBlock;
-	int m_hlSurf;
-	int m_selSurf;
-	int m_hlVert;
-	int m_selVert;
-	bool m_dragAdjacent;
-	
-	Vec2 m_cpdiff;
-	bool m_grabbed;
-	Vec2 m_origPos;
-	Vec2 m_origPos0;
-	Vec2 m_origPos1;
+	int m_hlObj;
+	int m_curObj;
 	
 	Vec3 m_selAABB[2];
 	int m_numSel;
@@ -1148,13 +1279,13 @@ struct EdEditVertexEditMode : EdEditMode
 	void Draw();
 	void _ReloadVertSurfProps();
 	
-	int GetNumBlockActivePoints( int b );
+	int GetNumObjectActivePoints( int b );
 	Vec3 GetActivePoint( int b, int i );
 	ActivePoint GetClosestActivePoint();
 	
 	bool m_canExtendSurfs;
 	ActivePoint m_hlAP;
-	Array< int > m_selBlocks;
+	Array< int > m_selObjList;
 	EdBlockVertexMoveTransform m_transform;
 };
 

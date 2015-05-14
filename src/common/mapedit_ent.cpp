@@ -47,7 +47,7 @@ EdEntMesh& EdEntMesh::operator = ( const EdEntMesh& o )
 	return *this;
 }
 
-EdEntity* EdEntMesh::Clone()
+EdEntity* EdEntMesh::CloneEntity()
 {
 	EdEntMesh* N = new EdEntMesh( false );
 	*N = *this;
@@ -172,7 +172,7 @@ EdEntLight& EdEntLight::operator = ( const EdEntLight& o )
 	return *this;
 }
 
-EdEntity* EdEntLight::Clone()
+EdEntity* EdEntLight::CloneEntity()
 {
 	EdEntLight* N = new EdEntLight( false );
 	*N = *this;
@@ -239,7 +239,7 @@ EdEntLightSample& EdEntLightSample::operator = ( const EdEntLightSample& o )
 	return *this;
 }
 
-EdEntity* EdEntLightSample::Clone()
+EdEntity* EdEntLightSample::CloneEntity()
 {
 	EdEntLightSample* N = new EdEntLightSample( false );
 	*N = *this;
@@ -278,6 +278,7 @@ EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 	
 	Fields2Data();
 }
+
 EdEntScripted::~EdEntScripted()
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
@@ -299,7 +300,7 @@ EdEntScripted& EdEntScripted::operator = ( const EdEntScripted& o )
 	return *this;
 }
 
-EdEntity* EdEntScripted::Clone()
+EdEntity* EdEntScripted::CloneEntity()
 {
 	EdEntScripted* N = new EdEntScripted( tyname, false );
 	*N = *this;
@@ -324,6 +325,7 @@ void EdEntScripted::Data2Fields()
 		}
 	}
 }
+
 void EdEntScripted::Fields2Data()
 {
 	sgsVariable data = g_ScriptCtx->CreateDict();
@@ -353,6 +355,22 @@ void EdEntScripted::Serialize( SVHTR& arch )
 }
 
 void EdEntScripted::Serialize( SVHTW& arch )
+{
+	String data;
+	data = g_ScriptCtx->Serialize( m_data );
+	arch << data;
+	Fields2Data();
+}
+
+void EdEntScripted::Serialize( SVHBR& arch )
+{
+	String data;
+	arch << data;
+	m_data = g_ScriptCtx->Unserialize( data );
+	Data2Fields();
+}
+
+void EdEntScripted::Serialize( SVHBW& arch )
 {
 	String data;
 	data = g_ScriptCtx->Serialize( m_data );

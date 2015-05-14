@@ -57,7 +57,7 @@ int EdBasicEditTransform::OnViewEvent( EDGUIEvent* e )
 
 bool EdBlockEditTransform::OnEnter()
 {
-	if( g_EdWorld->GetNumSelectedBlocks() == 0 )
+	if( g_EdWorld->GetNumSelectedObjects() == 0 )
 		return false;
 	m_cmode = Camera;
 	return EdEditTransform::OnEnter();
@@ -95,20 +95,20 @@ void EdBlockEditTransform::SaveState()
 {
 	Vec3 cp = V3(0);
 	int cpc = 0;
-	m_blocks.clear();
-	for( size_t i = 0; i < g_EdWorld->m_blocks.size(); ++i )
+	m_objStateMap.clear();
+	m_objectStateData.clear();
+	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
 	{
-		EdBlock& B = g_EdWorld->m_blocks[ i ];
-		if( B.selected == false )
+		EdObject* obj = g_EdWorld->m_objects[ i ];
+		if( obj->selected == false )
 			continue;
-		m_blocks.push_back(SavedBlock());
-		SavedBlock& SB = m_blocks.last();
-		SB.id = i;
-		SB.data = B;
-		SB.data.cached_mesh = NULL;
-		SB.data.cached_meshinst = NULL;
 		
-		cp += SB.data.FindCenter();
+		SavedObject SO = { i, m_objectStateData.size() };
+		m_objStateMap.push_back( SO );
+		ByteWriter bw( &m_objectStateData );
+		obj->Serialize( bw );
+		
+		cp += obj->FindCenter();
 		cpc++;
 	}
 	m_origin = g_UIFrame->Snapped( cp / cpc );
@@ -116,11 +116,12 @@ void EdBlockEditTransform::SaveState()
 
 void EdBlockEditTransform::RestoreState()
 {
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
-		SavedBlock& SB = m_blocks[ i ];
-		g_EdWorld->m_blocks[ SB.id ] = SB.data;
-		g_EdWorld->m_blocks[ SB.id ].RegenerateMesh();
+		const SavedObject& SO = m_objStateMap[ i ];
+		ByteReader br( &m_objectStateData, SO.offset );
+		g_EdWorld->m_objects[ SO.id ]->Serialize( br );
+		g_EdWorld->m_objects[ SO.id ]->RegenerateMesh();
 	}
 }
 
@@ -220,26 +221,27 @@ void EdBlockMoveTransform::Draw()
 
 void EdBlockMoveTransform::ApplyTransform()
 {
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
-		SavedBlock& SB = m_blocks[ i ];
-		EdBlock& B = g_EdWorld->m_blocks[ SB.id ];
-		B = SB.data;
+		const SavedObject& SO = m_objStateMap[ i ];
+		EdObject* obj = g_EdWorld->m_objects[ SO.id ];
+		ByteReader br( &m_objectStateData, SO.offset );
+		obj->Serialize( br );
 		if( m_extend )
 		{
 			Vec3 dstbb[2] = { m_xtdAABB[0], m_xtdAABB[1] };
 			if( m_xtdMask.x == 0 ) dstbb[0].x += m_transform.x; else if( m_xtdMask.x == 1 ) dstbb[1].x += m_transform.x;
 			if( m_xtdMask.y == 0 ) dstbb[0].y += m_transform.y; else if( m_xtdMask.y == 1 ) dstbb[1].y += m_transform.y;
 			if( m_xtdMask.z == 0 ) dstbb[0].z += m_transform.z; else if( m_xtdMask.z == 1 ) dstbb[1].z += m_transform.z;
-			B.position = ED_RemapPos( B.position, m_xtdAABB, dstbb );
-			B.ScaleVertices( TREVLERP( V3(0), m_xtdAABB[1] - m_xtdAABB[0], dstbb[1] - dstbb[0] ) );
+			obj->SetPosition( ED_RemapPos( obj->GetPosition(), m_xtdAABB, dstbb ) );
+			obj->ScaleVertices( TREVLERP( V3(0), m_xtdAABB[1] - m_xtdAABB[0], dstbb[1] - dstbb[0] ) );
 		}
 		else
 		{
 			// simple translation only
-			B.position += m_transform;
+			obj->SetPosition( obj->GetPosition() + m_transform );
 		}
-		B.RegenerateMesh();
+		obj->RegenerateMesh();
 	}
 }
 
@@ -266,13 +268,14 @@ int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
 
 void EdBlockVertexMoveTransform::ApplyTransform()
 {
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
-		SavedBlock& SB = m_blocks[ i ];
-		EdBlock& B = g_EdWorld->m_blocks[ SB.id ];
-		B = SB.data;
-		B.MoveSelectedVertices( m_transform );
-		B.RegenerateMesh();
+		const SavedObject& SO = m_objStateMap[ i ];
+		EdObject* obj = g_EdWorld->m_objects[ SO.id ];
+		ByteReader br( &m_objectStateData, SO.offset );
+		obj->Serialize( br );
+		obj->MoveSelectedVertices( m_transform );
+		obj->RegenerateMesh();
 	}
 }
 
@@ -429,30 +432,22 @@ void EdDrawBlockEditMode::_AddNewBlock()
 	}
 	B.subsel.resize( B.GetNumElements() );
 	B.ClearSelection();
-	B.RegenerateMesh();
-	g_EdWorld->m_blocks.push_back( B );
+	g_EdWorld->AddObject( B.Clone() );
 }
 
 
 EdEditBlockEditMode::EdEditBlockEditMode() :
-	m_hlBlock( -1 ),
-	m_selBlock( -1 ),
-	m_hlSurf( -1 ),
-	m_selSurf( -1 ),
-	m_hlVert( -1 ),
-	m_selVert( -1 ),
-	m_dragAdjacent( false ),
-	m_grabbed( false )
+	m_hlObj( -1 ),
+	m_curObj( -1 )
 {}
 
 void EdEditBlockEditMode::OnEnter()
 {
-	m_numSel = g_EdWorld->GetNumSelectedBlocks();
+	m_numSel = g_EdWorld->GetNumSelectedObjects();
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditBlock );
-	g_EdWorld->GetSelectedBlockAABB( m_selAABB );
-	m_hlBlock = -1;
-	m_selBlock = -1;
-	m_grabbed = false;
+	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
+	m_hlObj = -1;
+	m_curObj = -1;
 	m_hlBBEl = -1;
 }
 
@@ -468,14 +463,14 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
 	{
-		g_EdWorld->SelectBlock( m_hlBlock, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
-		m_numSel = g_EdWorld->GetNumSelectedBlocks();
-		m_selBlock = g_EdWorld->GetOnlySelectedBlock();
+		g_EdWorld->SelectObject( m_hlObj, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
+		m_numSel = g_EdWorld->GetNumSelectedObjects();
+		m_curObj = g_EdWorld->GetOnlySelectedObject();
 		_ReloadBlockProps();
 	}
 	if( e->type == EDGUI_EVENT_MOUSEMOVE )
 	{
-		g_EdWorld->RayBlocksIntersect( cursorRayPos, cursorRayDir, m_selBlock, NULL, &m_hlBlock );
+		g_EdWorld->RayObjectsIntersect( cursorRayPos, cursorRayDir, m_curObj, NULL, &m_hlObj );
 		m_hlBBEl = GetClosestActivePoint();
 	}
 	if( e->type == EDGUI_EVENT_KEYDOWN )
@@ -499,17 +494,17 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		// DELETE
 		if( e->key.engkey == SDLK_DELETE )
 		{
-			g_EdWorld->DeleteSelectedBlocks();
-			m_selBlock = -1;
+			g_EdWorld->DeleteSelectedObjects();
+			m_curObj = -1;
 			_ReloadBlockProps();
 			g_UIFrame->RefreshMouse();
 		}
 		// DUPLICATE
 		if( e->key.engkey == SDLK_d && e->key.engmod & KMOD_CTRL )
 		{
-			if( g_EdWorld->DuplicateSelectedBlocksAndMoveSelection() )
+			if( g_EdWorld->DuplicateSelectedObjectsAndMoveSelection() )
 			{
-				m_selBlock = g_EdWorld->GetOnlySelectedBlock();
+				m_curObj = g_EdWorld->GetOnlySelectedObject();
 				_ReloadBlockProps();
 				m_transform.m_extend = false;
 				g_UIFrame->SetEditTransform( &m_transform );
@@ -533,198 +528,16 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			GR2D_DrawTextLine( x0, y0, bfr, HALIGN_LEFT, VALIGN_TOP );
 		}
 	}
-#if 0
-	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
-	{
-		if( m_selBlock != -1 && m_hlVert != -1 )
-		{
-			if( m_selVert == m_hlVert )
-				m_selVert = -1;
-			else
-			{
-				m_selVert = m_hlVert;
-				m_selSurf = -1;
-			}
-		}
-		else if( m_selBlock != -1 && m_hlSurf != -1 )
-		{
-			if( m_selSurf == m_hlSurf )
-				m_selSurf = -1;
-			else
-			{
-				m_selSurf = m_hlSurf;
-				m_selVert = -1;
-			}
-		}
-		else
-		{
-			m_selBlock = m_hlBlock;
-			m_selSurf = -1;
-			m_selVert = -1;
-		}
-		_ReloadBlockProps();
-		g_UIFrame->RefreshMouse();
-	}
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
-	{
-		float outdst[1];
-		int outblock[1];
-		if( m_selBlock >= 0 )
-		{
-			EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-			float mindst = FLT_MAX;
-			m_hlVert = -1;
-			for( size_t i = 0; i < B.poly.size(); ++i )
-			{
-				if( RaySphereIntersect( cursorRayPos, cursorRayDir, V3( B.poly[i].x + B.position.x, B.poly[i].y + B.position.y, B.z0 + B.position.z ), 0.2f, outdst )
-					&& outdst[0] < mindst )
-				{
-					mindst = outdst[0];
-					m_hlVert = i;
-				}
-			}
-			m_hlSurf = -1;
-			if( B.RayIntersect( cursorRayPos, cursorRayDir, outdst, outblock ) && outdst[0] < mindst )
-			{
-				m_hlSurf = outblock[0];
-				m_hlVert = -1;
-			}
-		}
-		if( m_selBlock < 0 || ( m_hlVert < 0 && m_hlSurf < 0 ) )
-		{
-			m_hlBlock = -1;
-			if( g_EdWorld->RayBlocksIntersect( cursorRayPos, cursorRayDir, m_selBlock, outdst, outblock ) )
-				m_hlBlock = outblock[0];
-		}
-		if( m_grabbed && m_selBlock >= 0 )
-		{
-			EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-			Vec2 tgtpos = cursorPlanePos + m_cpdiff;
-			int selvert = m_selVert;
-			bool itssurf = false;
-			if( selvert < 0 && m_selSurf < (int) B.poly.size() )
-			{
-				selvert = m_selSurf;
-				itssurf = true;
-			}
-			if( selvert >= 0 )
-			{
-				g_UIFrame->Snap( tgtpos );
-				B.poly[ selvert ].SetXY( tgtpos );
-				if( m_dragAdjacent || itssurf )
-				{
-					size_t bps = B.poly.size();
-					Vec2 edgeNrm0 = ( m_origPos - m_origPos0 ).Perp().Normalized();
-					Vec2 edgeNrm1 = ( m_origPos1 - m_origPos ).Perp().Normalized();
-					Vec2 diff = tgtpos - m_origPos;
-					if( itssurf )
-					{
-						diff = edgeNrm1 * Vec2Dot( edgeNrm1, diff );
-						B.poly[ selvert ].SetXY( m_origPos + edgeNrm1 * Vec2Dot( edgeNrm1, diff ) );
-					}
-					B.poly[ ( selvert + bps - 1 ) % bps ].SetXY( m_origPos0 + edgeNrm0 * Vec2Dot( edgeNrm0, diff ) );
-					B.poly[ ( selvert + 1 ) % bps ].SetXY( m_origPos1 + edgeNrm1 * Vec2Dot( edgeNrm1, diff ) );
-				}
-			}
-			else
-				B.position = V3(tgtpos.x,tgtpos.y,B.position.z); // TODO_FULL_TRANSFORM
-			g_EdWorld->m_blocks[ m_selBlock ].RegenerateMesh();
-			_ReloadBlockProps();
-		}
-	}
-	// GRAB
-	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_g && !e->key.repeat && m_selBlock >= 0 && cursorAim )
-	{
-		EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-		int selvert = m_selVert;
-		if( selvert < 0 && m_selSurf < (int) B.poly.size() )
-			selvert = m_selSurf;
-		if( selvert >= 0 )
-		{
-			size_t bps = B.poly.size();
-			m_origPos = B.poly[ selvert ].ToVec2();
-			m_origPos0 = B.poly[ ( selvert + bps - 1 ) % bps ].ToVec2();
-			m_origPos1 = B.poly[ ( selvert + 1 ) % bps ].ToVec2();
-			m_cpdiff = m_origPos - cursorPlanePos;
-		}
-		else
-			m_cpdiff = B.position.ToVec2() - cursorPlanePos; // TODO_FULL_TRANSFORM
-		m_dragAdjacent = ( e->key.engmod & KMOD_CTRL ) != 0;
-		m_grabbed = true;
-	}
-	if( e->type == EDGUI_EVENT_KEYUP && ( e->key.engkey == SDLK_g || e->key.engkey == SDLK_d ) && m_grabbed )
-	{
-		m_grabbed = false;
-	}
-	// DELETE
-	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_DELETE && m_selBlock >= 0 )
-	{
-		g_UIFrame->ClearParamList();
-		if( m_selVert >= 0 )
-		{
-			g_EdWorld->m_ctlVertProps.m_out = NULL; // just in case
-			EdBlock& B = g_EdWorld->m_blocks[ m_selBlock ];
-			B.poly.erase( m_selVert );
-			B.surfaces.erase( m_selVert );
-			if( m_hlVert == m_selVert )
-				m_hlVert = -1;
-			m_hlSurf = -1;
-			m_selSurf = -1;
-			m_selVert = -1;
-			B.RegenerateMesh();
-		}
-		else
-		{
-			g_EdWorld->m_ctlBlockProps.m_out = NULL; // just in case
-			g_EdWorld->m_blocks.erase( m_selBlock );
-			if( m_hlBlock == m_selBlock )
-				m_hlBlock = -1;
-			m_selBlock = -1;
-			m_selVert = -1;
-			m_selSurf = -1;
-		}
-	}
-	// DUPLICATE
-	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_d && !e->key.repeat && ( e->key.engmod & KMOD_CTRL ) && m_selBlock >= 0 )
-	{
-		g_UIFrame->ClearParamList();
-		g_EdWorld->m_ctlBlockProps.m_out = NULL; // just in case
-		EdBlock B = g_EdWorld->m_blocks[ m_selBlock ];
-		m_selBlock = g_EdWorld->m_blocks.size();
-		m_selVert = -1;
-		m_selSurf = -1;
-		B.cached_mesh = NULL;
-		B.cached_meshinst = NULL;
-		B.RegenerateMesh();
-		g_EdWorld->m_blocks.push_back( B );
-		m_cpdiff = B.position.ToVec2() - cursorPlanePos; // TODO_FULL_TRANSFORM
-		m_grabbed = true;
-		g_UIFrame->AddToParamList( g_EdWorld->GetBlockProps( m_selBlock ) );
-	}
-#endif
 }
 
 void EdEditBlockEditMode::Draw()
 {
-	g_EdWorld->DrawWires_Blocks( m_hlBlock, m_selBlock );
-	if( m_selBlock >= 0 )
-	{
-		if( m_selSurf >= 0 )
-			g_EdWorld->DrawPoly_BlockSurf( m_selBlock, m_selSurf, true );
-		if( m_hlSurf >= 0 )
-			g_EdWorld->DrawPoly_BlockSurf( m_selBlock, m_hlSurf, false );
-		if( m_selVert >= 0 )
-			g_EdWorld->DrawPoly_BlockVertex( m_selBlock, m_selVert, true );
-		if( m_hlVert >= 0 )
-			g_EdWorld->DrawPoly_BlockVertex( m_selBlock, m_hlVert, true );
-	}
-	if( m_grabbed )
-		g_UIFrame->DrawCursor( false );
+	g_EdWorld->DrawWires_Objects( m_hlObj, m_curObj );
 	
 	// if any block is selected..
 	if( m_numSel && g_UIFrame->m_editTF == NULL )
 	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 		for( int i = 0; i < NUM_AABB_ACTIVE_POINTS; ++i )
 		{
 			if( i == m_hlBBEl )
@@ -742,21 +555,13 @@ void EdEditBlockEditMode::Draw()
 
 void EdEditBlockEditMode::_ReloadBlockProps()
 {
-	g_EdWorld->GetSelectedBlockAABB( m_selAABB );
+	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
 	m_hlBBEl = GetClosestActivePoint();
 	
 	g_UIFrame->ClearParamList();
-	if( m_selBlock >= 0 )
+	if( m_curObj >= 0 )
 	{
-		g_UIFrame->m_UIRenderView.crplaneheight = g_EdWorld->m_blocks[ m_selBlock ].z0;
-		if( m_selVert >= 0 )
-		{
-			g_UIFrame->AddToParamList( g_EdWorld->GetVertProps( m_selBlock, m_selVert ) );
-		}
-		else if( m_selSurf >= 0 )
-			g_UIFrame->AddToParamList( g_EdWorld->GetSurfProps( m_selBlock, m_selSurf ) );
-		else
-			g_UIFrame->AddToParamList( g_EdWorld->GetBlockProps( m_selBlock ) );
+		g_UIFrame->AddToParamList( g_EdWorld->GetObjProps( m_curObj ) );
 	}
 }
 
@@ -867,12 +672,12 @@ void EdEditVertexEditMode::OnEnter()
 	m_hlAP.block = -1;
 	m_hlAP.point = -1;
 	
-	m_selBlocks.clear();
-	for( size_t i = 0; i < g_EdWorld->m_blocks.size(); ++i )
+	m_selObjList.clear();
+	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
 	{
-		if( g_EdWorld->m_blocks[ i ].selected == false )
+		if( g_EdWorld->m_objects[ i ]->selected == false )
 			continue;
-		m_selBlocks.push_back( i );
+		m_selObjList.push_back( i );
 	}
 	
 	_ReloadVertSurfProps();
@@ -882,15 +687,15 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 {
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
 	{
-		for( size_t b = 0; b < m_selBlocks.size(); ++b )
+		for( size_t b = 0; b < m_selObjList.size(); ++b )
 		{
-			int bid = m_selBlocks[ b ];
-			EdBlock& B = g_EdWorld->m_blocks[ bid ];
+			int oid = m_selObjList[ b ];
+			EdObject* obj = g_EdWorld->m_objects[ oid ];
 			
-			if( bid == m_hlAP.block )
-				B.UISelectElement( m_hlAP.point, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
+			if( oid == m_hlAP.block )
+				obj->UISelectElement( m_hlAP.point, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
 			else if( ( g_UIFrame->m_keyMod & KMOD_CTRL ) == 0 )
-				B.ClearSelection();
+				obj->ClearSelection();
 		}
 		
 		_ReloadVertSurfProps();
@@ -922,28 +727,28 @@ void EdEditVertexEditMode::Draw()
 	if( g_UIFrame->m_editTF == NULL )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer();
-		for( size_t b = 0; b < m_selBlocks.size(); ++b )
+		for( size_t b = 0; b < m_selObjList.size(); ++b )
 		{
-			int bid = m_selBlocks[ b ];
-			int bpcount = GetNumBlockActivePoints( bid );
+			int oid = m_selObjList[ b ];
+			int bpcount = GetNumObjectActivePoints( oid );
 			for( int i = 0; i < bpcount; ++i )
 			{
-				if( g_EdWorld->m_blocks[ bid ].IsElementSelected( i ) )
+				if( g_EdWorld->m_objects[ oid ]->IsElementSelected( i ) )
 				{
-					if( bid == m_hlAP.block && i == m_hlAP.point )
+					if( oid == m_hlAP.block && i == m_hlAP.point )
 						br.Col( 0.9f, 0.8f, 0.1f, 1 );
 					else
 						br.Col( 0.9f, 0.5f, 0.1f, 1 );
 				}
 				else
 				{
-					if( bid == m_hlAP.block && i == m_hlAP.point )
+					if( oid == m_hlAP.block && i == m_hlAP.point )
 						br.Col( 0.1f, 0.8f, 0.9f, 1 );
 					else
 						br.Col( 0.1f, 0.2f, 0.4f, 1 );
 				}
 				
-				Vec3 pp = GetActivePoint( bid, i );
+				Vec3 pp = GetActivePoint( oid, i );
 				br.Sprite( pp, 0.05f, 0.05f );
 			}
 		}
@@ -956,21 +761,21 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 	int numsurfexblocks = 0;
 	ActivePoint surfprops = { -1, -1 };
 	ActivePoint vertprops = { -1, -1 };
-	for( size_t b = 0; b < m_selBlocks.size(); ++b )
+	for( size_t b = 0; b < m_selObjList.size(); ++b )
 	{
-		int bid = m_selBlocks[ b ];
-		EdBlock& B = g_EdWorld->m_blocks[ bid ];
+		int oid = m_selObjList[ b ];
+		EdObject* obj = g_EdWorld->m_objects[ oid ];
 		
-		int nss = B.GetNumSelectedSurfs();
+		int nss = obj->GetNumSelectedSurfs();
 		numsurfselblocks += nss == 1;
 		numsurfexblocks += nss == 0 || nss == 1;
 		
-		int surf = B.GetOnlySelectedSurface();
+		int surf = obj->GetOnlySelectedSurface();
 		if( surf != -1 )
 		{
 			if( surfprops.block == -1 && surfprops.point == -1 )
 			{
-				surfprops.block = bid;
+				surfprops.block = oid;
 				surfprops.point = surf;
 			}
 			else
@@ -979,12 +784,12 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 			}
 		}
 		
-		int vert = B.GetOnlySelectedVertex();
+		int vert = obj->GetOnlySelectedVertex();
 		if( vert != -1 )
 		{
 			if( vertprops.block == -1 && vertprops.point == -1 )
 			{
-				vertprops.block = bid;
+				vertprops.block = oid;
 				vertprops.point = vert;
 			}
 			else
@@ -1003,16 +808,16 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 		g_UIFrame->AddToParamList( g_EdWorld->GetVertProps( vertprops.block, vertprops.point ) );
 }
 
-int EdEditVertexEditMode::GetNumBlockActivePoints( int b )
+int EdEditVertexEditMode::GetNumObjectActivePoints( int b )
 {
-	EdBlock& B = g_EdWorld->m_blocks[ b ];
-	return B.GetNumElements();
+	EdObject* obj = g_EdWorld->m_objects[ b ];
+	return obj->GetNumElements();
 }
 
 Vec3 EdEditVertexEditMode::GetActivePoint( int b, int i )
 {
-	EdBlock& B = g_EdWorld->m_blocks[ b ];
-	return B.GetElementPoint( i );
+	EdObject* obj = g_EdWorld->m_objects[ b ];
+	return obj->GetElementPoint( i );
 }
 
 EdEditVertexEditMode::ActivePoint EdEditVertexEditMode::GetClosestActivePoint()
@@ -1022,20 +827,20 @@ EdEditVertexEditMode::ActivePoint EdEditVertexEditMode::GetClosestActivePoint()
 	Vec2 scp = ED_GetCursorPos();
 	Vec3 campos = g_EdScene->camera.position;
 	Vec3 camdir = g_EdScene->camera.direction;
-	for( size_t b = 0; b < m_selBlocks.size(); ++b )
+	for( size_t b = 0; b < m_selObjList.size(); ++b )
 	{
-		int bid = m_selBlocks[ b ];
-		int bpcount = GetNumBlockActivePoints( bid );
+		int oid = m_selObjList[ b ];
+		int bpcount = GetNumObjectActivePoints( oid );
 		for( int i = 0; i < bpcount; ++i )
 		{
-			Vec3 ap = GetActivePoint( bid, i );
+			Vec3 ap = GetActivePoint( oid, i );
 			Vec2 sap = ED_GetScreenPos( ap );
 			
 			float curxydist = ( scp - sap ).Length();
 			float curzdist = Vec3Dot( ap, camdir ) - Vec3Dot( campos, camdir );
 			if( curzdist > 0 && curxydist < minxydist )
 			{
-				np.block = bid;
+				np.block = oid;
 				np.point = i;
 				minxydist = curxydist;
 			}
@@ -1081,19 +886,19 @@ void EdPaintSurfsEditMode::OnViewEvent( EDGUIEvent* e )
 		if( g_EdWorld->RayBlocksIntersect( cursorRayPos, cursorRayDir, m_paintBlock, outdst, outblock ) )
 			m_paintBlock = outblock[0];
 		m_paintSurf = -1;
-		if( m_paintBlock >= 0 && g_EdWorld->m_blocks[ m_paintBlock ].RayIntersect( cursorRayPos, cursorRayDir, outdst, outblock ) )
+		if( m_paintBlock >= 0 && g_EdWorld->m_blocks[ m_paintBlock ]->RayIntersect( cursorRayPos, cursorRayDir, outdst, outblock ) )
 			m_paintSurf = outblock[0];
 		if( m_isPainting )
 			dopaint = true;
 	}
 	if( e->type == EDGUI_EVENT_KEYDOWN && !e->key.repeat && e->key.engkey == SDLK_g && m_paintBlock >= 0 && m_paintSurf >= 0 )
 	{
-		m_paintSurfProps.LoadParams( g_EdWorld->m_blocks[ m_paintBlock ].surfaces[ m_paintSurf ] );
+		m_paintSurfProps.LoadParams( g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
 	}
 	if( dopaint && m_paintBlock >= 0 && m_paintSurf >= 0 )
 	{
-		m_paintSurfProps.BounceBack( g_EdWorld->m_blocks[ m_paintBlock ].surfaces[ m_paintSurf ] );
-		g_EdWorld->m_blocks[ m_paintBlock ].RegenerateMesh();
+		m_paintSurfProps.BounceBack( g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
+		g_EdWorld->m_blocks[ m_paintBlock ]->RegenerateMesh();
 	}
 }
 
@@ -1162,10 +967,9 @@ void EdAddEntityEditMode::_AddNewEntity()
 {
 	Vec2 pos = g_UIFrame->GetCursorPlanePos();
 	
-	EdEntity* N = m_entityProps->Clone();
+	EdEntity* N = m_entityProps->CloneEntity();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
-	N->RegenerateMesh();
-	g_EdWorld->m_entities.push_back( N );
+	g_EdWorld->AddObject( N );
 }
 
 EdEditEntityEditMode::EdEditEntityEditMode() :
@@ -1248,7 +1052,7 @@ void EdEditEntityEditMode::OnViewEvent( EDGUIEvent* e )
 	// DUPLICATE
 	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_d && !e->key.repeat && ( e->key.engmod & KMOD_CTRL ) && m_selEnt >= 0 )
 	{
-		EdEntity* N = g_EdWorld->m_entities[ m_selEnt ]->Clone();
+		EdEntity* N = g_EdWorld->m_entities[ m_selEnt ]->CloneEntity();
 		m_selEnt = g_EdWorld->m_entities.size();
 		N->RegenerateMesh();
 		g_EdWorld->m_entities.push_back( N );

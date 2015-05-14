@@ -394,6 +394,25 @@ void EdGroupManager::PathInvalidate( int32_t id )
 
 
 
+void EdObject::UISelectElement( int i, bool mod )
+{
+	if( i >= 0 && i < GetNumElements() )
+	{
+		if( mod )
+			SelectElement( i, !IsElementSelected( i ) );
+		else
+		{
+			ClearSelection();
+			SelectElement( i, true );
+		}
+		
+	}
+	else if( mod == false )
+		ClearSelection();
+}
+
+
+
 EdWorld::EdWorld() :
 	m_ctlGroup( true, "Level properties" ),
 	m_ctlAmbientColor( V3(0,0,0.1f), 2, V3(0), V3(1,1,100) ),
@@ -479,18 +498,32 @@ void EdWorld::TestData()
 	b1.subsel.resize( b1.GetNumElements() );
 	b1.ClearSelection();
 	
-	m_blocks.push_back( b1 );
+	AddObject( b1.Clone() );
 	b1.z1 = 1;
 	b1.position = V3( 0.1f, 1, 0.5f );
-	m_blocks.push_back( b1 );
+	AddObject( b1.Clone() );
 	
 	RegenerateMeshes();
 }
 
 void EdWorld::RegenerateMeshes()
 {
-	for( size_t i = 0; i < m_blocks.size(); ++i )
-		m_blocks[ i ].RegenerateMesh();
+	for( size_t i = 0; i < m_objects.size(); ++i )
+		m_objects[ i ]->RegenerateMesh();
+}
+
+void EdWorld::DrawWires_Objects( int hlobj, int selobj )
+{
+	EdObject* ohl = hlobj >= 0 ? m_objects[ hlobj ].item : NULL;
+	EdObject* osel = selobj >= 0 ? m_objects[ selobj ].item : NULL;
+	DrawWires_Blocks(
+		m_blocks.find_first_at( (EdBlock*) ohl ),
+		m_blocks.find_first_at( (EdBlock*) osel )
+	);
+	DrawWires_Entities(
+		m_entities.find_first_at( (EdEntity*) ohl ),
+		m_entities.find_first_at( (EdEntity*) osel )
+	);
 }
 
 void EdWorld::DrawWires_Blocks( int hlblock, int selblock )
@@ -500,7 +533,7 @@ void EdWorld::DrawWires_Blocks( int hlblock, int selblock )
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
 	for( size_t i = 0; i < m_blocks.size(); ++i )
 	{
-		const EdBlock& B = m_blocks[ i ];
+		const EdBlock& B = *m_blocks[ i ];
 		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
 		
 		if( (int) i == selblock || B.selected )
@@ -544,7 +577,7 @@ void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 	else
 		br.Col( 0.1f, 0.5, 0.9f, 0.1f );
 	
-	const EdBlock& B = m_blocks[ block ];
+	const EdBlock& B = *m_blocks[ block ];
 	GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
 	if( surf == (int) B.poly.size() )
 	{
@@ -598,7 +631,7 @@ void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
 	else
 		br.Col( 0.1f, 0.5, 0.9f, 0.5f );
 	
-	const EdBlock& B = m_blocks[ block ];
+	const EdBlock& B = *m_blocks[ block ];
 	GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
 	Vec3 P = V3( B.poly[ vert ].x + B.position.x, B.poly[ vert ].y + B.position.y, B.z0 + B.position.z );
 	
@@ -648,103 +681,118 @@ void EdWorld::DrawWires_Entities( int hlmesh, int selmesh )
 	br.Flush();
 }
 
-bool EdWorld::RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] )
+
+template< typename T > bool _RayIntersect( T& item, const Vec3& pos, const Vec3& dir, float outdst[1] )
+{
+	return item->RayIntersect( pos, dir, outdst );
+}
+bool _RayIntersect( EdBlock& B, const Vec3& pos, const Vec3& dir, float outdst[1] ){ return B.RayIntersect( pos, dir, outdst ); }
+template< class T > bool RayItemsIntersect( T& items, const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outitem[1] )
 {
 	float ndst[1], mindst = FLT_MAX;
 	int curblk = -1;
 	if( searchfrom < 0 )
-		searchfrom = m_blocks.size();
+		searchfrom = items.size();
 	for( int i = searchfrom - 1; i >= 0; --i )
 	{
-		if( m_blocks[ i ].RayIntersect( pos, dir, ndst ) && ndst[0] < mindst )
+		if( _RayIntersect( items[ i ], pos, dir, ndst ) && ndst[0] < mindst )
 		{
 			curblk = i;
 			mindst = ndst[0];
 		}
 	}
-	for( int i = m_blocks.size() - 1; i >= searchfrom; --i )
+	for( int i = items.size() - 1; i >= searchfrom; --i )
 	{
-		if( m_blocks[ i ].RayIntersect( pos, dir, ndst ) && ndst[0] < mindst )
+		if( _RayIntersect( items[ i ], pos, dir, ndst ) && ndst[0] < mindst )
 		{
 			curblk = i;
 			mindst = ndst[0];
 		}
 	}
 	if( outdst ) outdst[0] = mindst;
-	if( outblock ) outblock[0] = curblk;
+	if( outitem ) outitem[0] = curblk;
 	return curblk != -1;
+}
+
+bool EdWorld::RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1] )
+{
+	return RayItemsIntersect( m_objects, pos, dir, searchfrom, outdst, outobj );
+}
+
+bool EdWorld::RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] )
+{
+	return RayItemsIntersect( m_blocks, pos, dir, searchfrom, outdst, outblock );
 }
 
 bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] )
 {
-	float ndst[1], mindst = FLT_MAX;
-	int curent = -1;
-	if( searchfrom < 0 )
-		searchfrom = m_entities.size();
-	for( int i = searchfrom - 1; i >= 0; --i )
-	{
-		if( m_entities[ i ]->RayIntersect( pos, dir, ndst ) && ndst[0] < mindst )
-		{
-			curent = i;
-			mindst = ndst[0];
-		}
-	}
-	for( int i = m_entities.size() - 1; i >= searchfrom; --i )
-	{
-		if( m_entities[ i ]->RayIntersect( pos, dir, ndst ) && ndst[0] < mindst )
-		{
-			curent = i;
-			mindst = ndst[0];
-		}
-	}
-	outdst[0] = mindst;
-	outent[0] = curent;
-	return curent != -1;
+	return RayItemsIntersect( m_entities, pos, dir, searchfrom, outdst, outent );
 }
 
-void EdWorld::DeleteSelectedBlocks()
+bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] )
 {
-	size_t i = m_blocks.size();
+	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent );
+}
+
+void EdWorld::AddObject( EdObject* obj )
+{
+	m_objects.push_back( obj );
+	if( obj->m_type == ObjType_Block )
+		m_blocks.push_back( (EdBlock*) obj );
+	if( obj->m_type == ObjType_Entity )
+		m_entities.push_back( (EdEntity*) obj );
+	if( obj->m_type == ObjType_Patch )
+		m_patches.push_back( (EdPatch*) obj );
+	obj->RegenerateMesh();
+}
+
+void EdWorld::DeleteSelectedObjects()
+{
+	size_t i = m_objects.size();
 	while( i > 0 )
 	{
 		i--;
-		if( m_blocks[ i ].selected )
-			m_blocks.uerase( i );
-	}
-}
-
-bool EdWorld::DuplicateSelectedBlocksAndMoveSelection()
-{
-	size_t sz = m_blocks.size();
-	for( size_t i = 0; i < sz; ++i )
-	{
-		if( m_blocks[ i ].selected )
+		if( m_objects[ i ]->selected )
 		{
-			EdBlock B = m_blocks[ i ];
-			m_blocks[ i ].selected = false;
-			m_blocks.push_back( B );
+			m_objects.uerase( i );
+			EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
+			g_UIFrame->ViewEvent( &e );
 		}
 	}
-	return m_blocks.size() != sz;
 }
 
-int EdWorld::GetNumSelectedBlocks()
+bool EdWorld::DuplicateSelectedObjectsAndMoveSelection()
+{
+	size_t sz = m_objects.size();
+	for( size_t i = 0; i < sz; ++i )
+	{
+		if( m_objects[ i ]->selected )
+		{
+			EdObject* obj = m_objects[ i ]->Clone();
+			m_objects[ i ]->selected = false;
+			AddObject( obj );
+		}
+	}
+	return m_objects.size() != sz;
+}
+
+int EdWorld::GetNumSelectedObjects()
 {
 	// no specific perf requirements currently
 	int ns = 0;
-	for( size_t i = 0; i < m_blocks.size(); ++i )
-		if( m_blocks[ i ].selected )
+	for( size_t i = 0; i < m_objects.size(); ++i )
+		if( m_objects[ i ]->selected )
 			ns++;
 	return ns;
 }
 
-int EdWorld::GetOnlySelectedBlock()
+int EdWorld::GetOnlySelectedObject()
 {
 	int sb = -1;
 	int ns = 0;
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
-		if( m_blocks[ i ].selected )
+		if( m_objects[ i ]->selected )
 		{
 			if( ns++ )
 				return -1;
@@ -754,41 +802,41 @@ int EdWorld::GetOnlySelectedBlock()
 	return sb;
 }
 
-bool EdWorld::GetSelectedBlockAABB( Vec3 outaabb[2] )
+bool EdWorld::GetSelectedObjectAABB( Vec3 outaabb[2] )
 {
 	bool ret = false;
 	outaabb[0] = V3(FLT_MAX);
 	outaabb[1] = V3(-FLT_MAX);
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
-		EdBlock& B = m_blocks[ i ];
-		if( B.selected == false )
+		EdObject* obj = m_objects[ i ];
+		if( obj->selected == false )
 			continue;
-		Mat4 gwm = m_groupMgr.GetMatrix( B.group );
-		for( int v = 0; v < B.GetNumVerts(); ++v )
+		Mat4 gwm = m_groupMgr.GetMatrix( obj->group );
+		for( int v = 0; v < obj->GetNumVerts(); ++v )
 		{
-			Vec3 p = gwm.TransformPos( B.GetLocalVertex( v ) );
+			Vec3 p = gwm.TransformPos( obj->GetLocalVertex( v ) );
 			outaabb[0] = Vec3::Min( outaabb[0], p );
 			outaabb[1] = Vec3::Max( outaabb[1], p );
 		}
-		ret = B.GetNumVerts() != 0;
+		ret = obj->GetNumVerts() != 0;
 	}
 	return ret;
 }
 
-void EdWorld::SelectBlock( int block, bool mod )
+void EdWorld::SelectObject( int oid, bool mod )
 {
 	if( mod )
 	{
-		if( block != -1 )
-			m_blocks[ block ].selected = !m_blocks[ block ].selected;
+		if( oid != -1 )
+			m_objects[ oid ]->selected = !m_objects[ oid ]->selected;
 	}
 	else
 	{
-		for( size_t i = 0; i < m_blocks.size(); ++i )
-			m_blocks[ i ].selected = false;
-		if( block != -1 )
-			m_blocks[ block ].selected = true;
+		for( size_t i = 0; i < m_objects.size(); ++i )
+			m_objects[ i ]->selected = false;
+		if( oid != -1 )
+			m_objects[ oid ]->selected = true;
 	}
 }
 
@@ -796,15 +844,14 @@ Vec3 EdWorld::FindCenterOfGroup( int32_t grp )
 {
 	Vec3 cp = V3(0);
 	int count = 0;
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
-		if( m_blocks[ i ].group == grp )
+		if( m_objects[ i ]->group == grp )
 		{
-			cp += m_blocks[ i ].FindCenter();
+			cp += m_objects[ i ]->FindCenter();
 			count++;
 		}
 	}
-	/*TODO ENTITIES*/
 	if( count )
 		cp /= count;
 	return cp;
@@ -812,65 +859,59 @@ Vec3 EdWorld::FindCenterOfGroup( int32_t grp )
 
 void EdWorld::FixTransformsOfGroup( int32_t grp )
 {
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
-		if( m_blocks[ i ].group == grp )
-			m_blocks[ i ].RegenerateMesh();
+		if( m_objects[ i ]->group == grp )
+			m_objects[ i ]->RegenerateMesh();
 	}
-	/*TODO ENTITIES*/
 }
 
 void EdWorld::CopyObjectsToGroup( int32_t grpfrom, int32_t grpto )
 {
-	size_t oldsize = m_blocks.size();
+	size_t oldsize = m_objects.size();
 	for( size_t i = 0; i < oldsize; ++i )
 	{
-		if( m_blocks[ i ].group == grpfrom )
+		if( m_objects[ i ]->group == grpfrom )
 		{
-			EdBlock blk = m_blocks[ i ];
-			blk.group = grpto;
-			blk.cached_mesh = NULL;
-			blk.cached_meshinst = NULL;
-			blk.RegenerateMesh();
-			m_blocks.push_back( blk );
+			EdObject* obj = m_objects[ i ]->Clone();
+			obj->group = grpto;
+			obj->RegenerateMesh();
+			m_objects.push_back( obj );
 		}
 	}
-	/*TODO ENTITIES*/
 }
 
 void EdWorld::TransferObjectsToGroup( int32_t grpfrom, int32_t grpto )
 {
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
-		if( m_blocks[ i ].group == grpfrom )
+		if( m_objects[ i ]->group == grpfrom )
 		{
-			m_blocks[ i ].group = grpto;
-			m_blocks[ i ].RegenerateMesh();
+			m_objects[ i ]->group = grpto;
+			m_objects[ i ]->RegenerateMesh();
 		}
 	}
-	/*TODO ENTITIES*/
 }
 
 void EdWorld::DeleteObjectsInGroup( int32_t grp )
 {
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
-		if( m_blocks[ i ].group == grp )
+		if( m_objects[ i ]->group == grp )
 		{
-			m_blocks.uerase( i-- );
+			m_objects.uerase( i-- );
 		}
 	}
-	/*TODO ENTITIES*/
 }
 
 void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
 {
 	OBJExporter objex;
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
-		if( m_blocks[ i ].group == grp )
+		if( m_objects[ i ]->group == grp )
 		{
-			m_blocks[ i ].Export( objex );
+			m_objects[ i ]->Export( objex );
 		}
 	}
 	objex.Save( name, "Exported from SGRX editor" );
@@ -1259,7 +1300,7 @@ void EDGUIMainFrame::Level_Real_Compile()
 	}
 	
 	for( size_t i = 0; i < g_EdWorld->m_blocks.size(); ++i )
-		g_EdWorld->m_blocks[ i ].GenerateMesh( lcache );
+		g_EdWorld->m_blocks[ i ]->GenerateMesh( lcache );
 	
 	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
 		g_EdWorld->m_entities[ i ]->UpdateCache( lcache );
