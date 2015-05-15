@@ -111,7 +111,7 @@ Vec3 EdBlock::GetElementPoint( int i ) const
 }
 
 
-bool EdBlock::IsVertexSelected( int i )
+bool EdBlock::IsVertexSelected( int i ) const
 {
 	ASSERT( i >= 0 && i < GetNumVerts() );
 	return subsel[ i ];
@@ -123,7 +123,7 @@ void EdBlock::SelectVertex( int i, bool sel )
 	subsel[ i ] = sel;
 }
 
-int EdBlock::GetOnlySelectedVertex()
+int EdBlock::GetOnlySelectedVertex() const
 {
 	int sel = -1;
 	int num = GetNumVerts();
@@ -298,8 +298,10 @@ Vec3 EdBlock::FindCenter() const
 
 EdObject* EdBlock::Clone()
 {
-	EdObject* obj = new EdBlock( *this );
-	return obj;
+	EdBlock* blk = new EdBlock( *this );
+	blk->cached_meshinst = NULL;
+	blk->cached_mesh = NULL;
+	return blk;
 }
 
 bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf ) const
@@ -654,8 +656,8 @@ EDGUIVertexProps::EDGUIVertexProps() :
 	m_vid( 0 ),
 	m_pos( V3(0), 2, V3(-8192), V3(8192) )
 {
-	tyname = "surfaceprops";
-	m_group.caption = "Vertex properties";
+	tyname = "blockvertprops";
+	m_group.caption = "Block vertex properties";
 	m_pos.caption = "Offset";
 	m_insbef.caption = "Insert before";
 	m_insaft.caption = "Insert after";
@@ -667,11 +669,11 @@ EDGUIVertexProps::EDGUIVertexProps() :
 	Add( &m_group );
 }
 
-void EDGUIVertexProps::Prepare( EdBlock& B, int vid )
+void EDGUIVertexProps::Prepare( EdBlock* block, int vid )
 {
-	vid %= B.poly.size();
+	vid %= block->poly.size();
 	
-	m_out = &B;
+	m_out = block;
 	m_vid = vid;
 	
 	char bfr[ 32 ];
@@ -679,7 +681,7 @@ void EDGUIVertexProps::Prepare( EdBlock& B, int vid )
 	m_group.caption = bfr;
 	m_group.SetOpen( true );
 	
-	m_pos.SetValue( B.poly[ vid ] );
+	m_pos.SetValue( block->poly[ vid ] );
 }
 
 int EDGUIVertexProps::OnEvent( EDGUIEvent* e )
@@ -775,11 +777,11 @@ EDGUISurfaceProps::EDGUISurfaceProps() :
 	Add( &m_group );
 }
 
-void EDGUISurfaceProps::Prepare( EdBlock& B, int sid )
+void EDGUISurfaceProps::Prepare( EdBlock* block, int sid )
 {
-	m_out = &B;
+	m_out = block;
 	m_sid = sid;
-	EdSurface& S = B.surfaces[ sid ];
+	EdSurface& S = block->surfaces[ sid ];
 	
 	char bfr[ 32 ];
 	snprintf( bfr, sizeof(bfr), "Surface #%d", sid );
@@ -901,41 +903,41 @@ EDGUIBlockProps::EDGUIBlockProps() :
 	m_blkGroup.caption = "Group";
 }
 
-void EDGUIBlockProps::Prepare( EdBlock& B )
+void EDGUIBlockProps::Prepare( EdBlock* block )
 {
-	m_out = &B;
+	m_out = block;
 	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
 	
 	Clear();
 	
 	Add( &m_group );
-	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( B.group ) );
+	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( block->group ) );
 	m_group.Add( &m_blkGroup );
-	m_z0.SetValue( B.z0 );
+	m_z0.SetValue( block->z0 );
 	m_group.Add( &m_z0 );
-	m_z1.SetValue( B.z1 );
+	m_z1.SetValue( block->z1 );
 	m_group.Add( &m_z1 );
-	m_pos.SetValue( B.position );
+	m_pos.SetValue( block->position );
 	m_group.Add( &m_pos );
 	m_group.Add( &m_vertGroup );
 	
 	m_vertProps.clear();
-	m_vertProps.resize( B.poly.size() );
-	for( size_t i = 0; i < B.poly.size(); ++i )
+	m_vertProps.resize( block->poly.size() );
+	for( size_t i = 0; i < block->poly.size(); ++i )
 	{
 		char bfr[ 4 ];
 		snprintf( bfr, sizeof(bfr), "#%d", (int) i );
-		m_vertProps[ i ] = EDGUIPropVec3( B.poly[ i ], 2, V3(-8192), V3(8192) );
+		m_vertProps[ i ] = EDGUIPropVec3( block->poly[ i ], 2, V3(-8192), V3(8192) );
 		m_vertProps[ i ].caption = bfr;
 		m_vertProps[ i ].id1 = i;
 		m_vertGroup.Add( &m_vertProps[ i ] );
 	}
 	
 	m_surfProps.clear();
-	m_surfProps.resize( B.surfaces.size() );
-	for( size_t i = 0; i < B.surfaces.size(); ++i )
+	m_surfProps.resize( block->surfaces.size() );
+	for( size_t i = 0; i < block->surfaces.size(); ++i )
 	{
-		m_surfProps[ i ].Prepare( B, i );
+		m_surfProps[ i ].Prepare( block, i );
 		m_group.Add( &m_surfProps[ i ] );
 	}
 }

@@ -100,8 +100,13 @@ void EdPatch::_InterpolateVertex( EdPatchVtx* out, EdPatchVtx* v0, EdPatchVtx* v
 
 EdObject* EdPatch::Clone()
 {
-	EdObject* obj = new EdPatch( *this );
-	return obj;
+	EdPatch* ptc = new EdPatch( *this );
+	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+	{
+		ptc->layers[ i ].cached_mesh = NULL;
+		ptc->layers[ i ].cached_meshinst = NULL;
+	}
+	return ptc;
 }
 
 bool EdPatch::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const
@@ -255,6 +260,25 @@ void EdPatch::ScaleVertices( const Vec3& f )
 	}
 }
 
+int EdPatch::GetOnlySelectedVertex() const
+{
+	int sel = -1;
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			if( vertsel[ y ] & ( 1 << x ) )
+			{
+				if( sel == -1 )
+					sel = x + y * xsize;
+				else
+					return -1;
+			}
+		}
+	}
+	return sel;
+}
+
 void EdPatch::MoveSelectedVertices( const Vec3& t )
 {
 	for( int y = 0; y < ysize; ++y )
@@ -381,6 +405,88 @@ EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 }
 
 
+EDGUIPatchVertProps::EDGUIPatchVertProps() :
+	m_out( NULL ),
+	m_vid( 0 ),
+	m_pos( V3(0), 2, V3(-8192), V3(8192) )
+{
+	tyname = "patchvertprops";
+	m_group.caption = "Patch vertex properties";
+	m_pos.caption = "Offset";
+	
+	m_group.Add( &m_pos );
+	char bfr[ 64 ];
+	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+	{
+		m_col[ i ] = EDGUIPropVec4( V4(0), 2, V4(0), V4(1) );
+		sgrx_snprintf( bfr, 64, "Color #%d", i );
+		m_col[ i ].caption = bfr;
+		m_group.Add( &m_col[ i ] );
+	}
+	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+	{
+		m_tex[ i ] = EDGUIPropVec2( V2(0), 2, V2(-8192), V2(8192) );
+		sgrx_snprintf( bfr, 64, "Texcoord #%d", i );
+		m_tex[ i ].caption = bfr;
+		m_group.Add( &m_tex[ i ] );
+	}
+	m_group.SetOpen( true );
+	Add( &m_group );
+}
+
+void EDGUIPatchVertProps::Prepare( EdPatch* patch, int vid )
+{
+	m_out = patch;
+	m_vid = vid % patch->xsize + vid / patch->xsize * MAX_PATCH_WIDTH;
+	
+	char bfr[ 32 ];
+	snprintf( bfr, sizeof(bfr), "Vertex #%d", vid );
+	m_group.caption = bfr;
+	m_group.SetOpen( true );
+	
+	m_pos.SetValue( patch->vertices[ m_vid ].pos );
+	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+	{
+		m_tex[ i ].SetValue( patch->vertices[ m_vid ].tex[ i ] );
+		m_col[ i ].SetValue( Col32ToVec4( patch->vertices[ m_vid ].col[ i ] ) );
+	}
+}
+
+int EDGUIPatchVertProps::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+		if( m_out && (
+			e->target == &m_pos ||
+			e->target == &m_col[0] ||
+			e->target == &m_col[1] ||
+			e->target == &m_col[2] ||
+			e->target == &m_col[3] ||
+			e->target == &m_tex[0] ||
+			e->target == &m_tex[1] ||
+			e->target == &m_tex[2] ||
+			e->target == &m_tex[3]
+			) )
+		{
+			EdPatchVtx& V = m_out->vertices[ m_vid ];
+			if( e->target == &m_pos ) V.pos = m_pos.m_value;
+			else if( e->target == &m_col[0] ) V.col[0] = Vec4ToCol32( m_col[0].m_value );
+			else if( e->target == &m_col[1] ) V.col[1] = Vec4ToCol32( m_col[1].m_value );
+			else if( e->target == &m_col[2] ) V.col[2] = Vec4ToCol32( m_col[2].m_value );
+			else if( e->target == &m_col[3] ) V.col[3] = Vec4ToCol32( m_col[3].m_value );
+			else if( e->target == &m_tex[0] ) V.tex[0] = m_tex[0].m_value;
+			else if( e->target == &m_tex[1] ) V.tex[1] = m_tex[1].m_value;
+			else if( e->target == &m_tex[2] ) V.tex[2] = m_tex[2].m_value;
+			else if( e->target == &m_tex[3] ) V.tex[3] = m_tex[3].m_value;
+			m_out->RegenerateMesh();
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
+
 EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
 	m_out( NULL ),
 	m_lid( 0 ),
@@ -411,11 +517,11 @@ EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
 	Add( &m_group );
 }
 
-void EDGUIPatchLayerProps::Prepare( EdPatch& P, int lid )
+void EDGUIPatchLayerProps::Prepare( EdPatch* patch, int lid )
 {
-	m_out = &P;
+	m_out = patch;
 	m_lid = lid;
-	EdPatchLayerInfo& L = P.layers[ lid ];
+	EdPatchLayerInfo& L = patch->layers[ lid ];
 	
 	char bfr[ 32 ];
 	snprintf( bfr, sizeof(bfr), "Layer #%d", lid );
@@ -513,22 +619,22 @@ EDGUIPatchProps::EDGUIPatchProps() :
 	m_blkGroup.caption = "Group";
 }
 
-void EDGUIPatchProps::Prepare( EdPatch& P )
+void EDGUIPatchProps::Prepare( EdPatch* patch )
 {
-	m_out = &P;
+	m_out = patch;
 	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
 	
 	Clear();
 	
 	Add( &m_group );
-	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( P.group ) );
+	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( patch->group ) );
 	m_group.Add( &m_blkGroup );
-	m_pos.SetValue( P.position );
+	m_pos.SetValue( patch->position );
 	m_group.Add( &m_pos );
 	
 	for( size_t i = 0; i < MAX_PATCH_LAYERS; ++i )
 	{
-		m_layerProps[ i ].Prepare( P, i );
+		m_layerProps[ i ].Prepare( patch, i );
 		m_group.Add( &m_layerProps[ i ] );
 	}
 }

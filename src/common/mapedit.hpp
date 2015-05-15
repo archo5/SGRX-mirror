@@ -247,6 +247,7 @@ struct EdObject
 	virtual void ClearSelection() = 0;
 	virtual int GetNumVerts() const = 0;
 	virtual Vec3 GetLocalVertex( int i ) const = 0;
+	virtual int GetOnlySelectedVertex() const { return -1; }
 	virtual void ScaleVertices( const Vec3& scale ) = 0;
 	virtual void MoveSelectedVertices( const Vec3& t ) = 0;
 	virtual int GetNumPaintVerts() const { return 0; }
@@ -255,7 +256,6 @@ struct EdObject
 	virtual void SpecialAction( ESpecialAction act ){}
 	
 	// temp interface to block, TODO refactor into ^^^
-	virtual int GetOnlySelectedVertex(){ return -1; }
 	virtual int GetNumSelectedSurfs(){ return 0; }
 	virtual int GetOnlySelectedSurface(){ return -1; }
 	
@@ -401,9 +401,9 @@ struct EdBlock : EdObject
 	virtual int GetNumElements() const { return GetNumVerts() + GetNumSurfs(); }
 	virtual Vec3 GetElementPoint( int i ) const;
 	
-	bool IsVertexSelected( int i );
+	bool IsVertexSelected( int i ) const;
 	void SelectVertex( int i, bool sel );
-	int GetOnlySelectedVertex();
+	virtual int GetOnlySelectedVertex() const;
 	bool IsSurfaceSelected( int i );
 	void SelectSurface( int i, bool sel );
 	int GetNumSelectedSurfs();
@@ -458,7 +458,7 @@ inline int intersect_lines( const Vec2& l1a, const Vec2& l1b, const Vec2& l2a, c
 struct EDGUIVertexProps : EDGUILayoutRow
 {
 	EDGUIVertexProps();
-	void Prepare( EdBlock& B, int vid );
+	void Prepare( EdBlock* block, int vid );
 	virtual int OnEvent( EDGUIEvent* e );
 	
 	EdBlock* m_out;
@@ -473,7 +473,7 @@ struct EDGUIVertexProps : EDGUILayoutRow
 struct EDGUISurfaceProps : EDGUILayoutRow
 {
 	EDGUISurfaceProps();
-	void Prepare( EdBlock& B, int sid );
+	void Prepare( EdBlock* block, int sid );
 	void LoadParams( EdSurface& S, const char* name = "Surface" );
 	void BounceBack( EdSurface& S );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -495,7 +495,7 @@ struct EDGUISurfaceProps : EDGUILayoutRow
 struct EDGUIBlockProps : EDGUILayoutRow
 {
 	EDGUIBlockProps();
-	void Prepare( EdBlock& B );
+	void Prepare( EdBlock* block );
 	virtual int OnEvent( EDGUIEvent* e );
 	
 	EdBlock* m_out;
@@ -595,6 +595,7 @@ struct EdPatch : EdObject
 	virtual void ClearSelection(){ TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 ); }
 	virtual int GetNumVerts() const { return xsize * ysize; }
 	virtual Vec3 GetLocalVertex( int i ) const { return vertices[ ( i % xsize ) + i / xsize * MAX_PATCH_WIDTH ].pos + position; }
+	virtual int GetOnlySelectedVertex() const;
 	virtual void ScaleVertices( const Vec3& f );
 	virtual void MoveSelectedVertices( const Vec3& t );
 	virtual int GetNumPaintVerts() const { return xsize * ysize; }
@@ -643,10 +644,25 @@ struct EdPatch : EdObject
 
 typedef Handle< EdPatch > EdPatchHandle;
 
+
+struct EDGUIPatchVertProps : EDGUILayoutRow
+{
+	EDGUIPatchVertProps();
+	void Prepare( EdPatch* patch, int vid );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EdPatch* m_out;
+	int m_vid;
+	EDGUIGroup m_group;
+	EDGUIPropVec3 m_pos;
+	EDGUIPropVec2 m_tex[ MAX_PATCH_LAYERS ];
+	EDGUIPropVec4 m_col[ MAX_PATCH_LAYERS ];
+};
+
 struct EDGUIPatchLayerProps : EDGUILayoutRow
 {
 	EDGUIPatchLayerProps();
-	void Prepare( EdPatch& P, int lid );
+	void Prepare( EdPatch* patch, int lid );
 	void LoadParams( EdPatchLayerInfo& L, const char* name = "Layer" );
 	void BounceBack( EdPatchLayerInfo& L );
 	virtual int OnEvent( EDGUIEvent* e );
@@ -666,7 +682,7 @@ struct EDGUIPatchLayerProps : EDGUILayoutRow
 struct EDGUIPatchProps : EDGUILayoutRow
 {
 	EDGUIPatchProps();
-	void Prepare( EdPatch& P );
+	void Prepare( EdPatch* patch );
 	virtual int OnEvent( EDGUIEvent* e );
 	
 	EdPatch* m_out;
@@ -1099,36 +1115,12 @@ struct EdWorld : EDGUILayoutRow
 	void DeleteObjectsInGroup( int32_t grp );
 	void ExportGroupAsOBJ( int32_t grp, const StringView& name );
 	
-	EDGUIItem* GetBlockProps( size_t bid )
-	{
-		m_ctlBlockProps.Prepare( *m_blocks[ bid ] );
-		return &m_ctlBlockProps;
-	}
-	EDGUIItem* GetVertProps( size_t bid, size_t vid )
-	{
-		m_ctlVertProps.Prepare( *m_blocks[ bid ], vid );
-		return &m_ctlVertProps;
-	}
-	EDGUIItem* GetSurfProps( size_t bid, size_t sid )
-	{
-		m_ctlSurfProps.Prepare( *m_blocks[ bid ], sid );
-		return &m_ctlSurfProps;
-	}
-	EDGUIItem* GetPatchProps( size_t pid )
-	{
-		m_ctlPatchProps.Prepare( *m_patches[ pid ] );
-		return &m_ctlPatchProps;
-	}
-	EDGUIItem* GetEntityProps( size_t mid )
-	{
-		return m_entities[ mid ];
-	}
 	EDGUIItem* GetObjProps( size_t oid )
 	{
 		EdObject* obj = m_objects[ oid ];
 		if( obj->m_type == ObjType_Block )
 		{
-			m_ctlBlockProps.Prepare( *(EdBlock*) obj );
+			m_ctlBlockProps.Prepare( (EdBlock*) obj );
 			return &m_ctlBlockProps;
 		}
 		if( obj->m_type == ObjType_Entity )
@@ -1137,8 +1129,33 @@ struct EdWorld : EDGUILayoutRow
 		}
 		if( obj->m_type == ObjType_Patch )
 		{
-			m_ctlPatchProps.Prepare( *(EdPatch*) obj );
+			m_ctlPatchProps.Prepare( (EdPatch*) obj );
 			return &m_ctlPatchProps;
+		}
+		return NULL;
+	}
+	EDGUIItem* GetVertProps( size_t oid, size_t vid )
+	{
+		EdObject* obj = m_objects[ oid ];
+		if( obj->m_type == ObjType_Block )
+		{
+			m_ctlVertProps.Prepare( (EdBlock*) obj, vid );
+			return &m_ctlVertProps;
+		}
+		if( obj->m_type == ObjType_Patch )
+		{
+			m_ctlPatchVertProps.Prepare( (EdPatch*) obj, vid );
+			return &m_ctlPatchVertProps;
+		}
+		return NULL;
+	}
+	EDGUIItem* GetSurfProps( size_t oid, size_t sid )
+	{
+		EdObject* obj = m_objects[ oid ];
+		if( obj->m_type == ObjType_Block )
+		{
+			m_ctlSurfProps.Prepare( (EdBlock*) obj, sid );
+			return &m_ctlSurfProps;
 		}
 		return NULL;
 	}
@@ -1173,6 +1190,7 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIVertexProps m_ctlVertProps;
 	EDGUISurfaceProps m_ctlSurfProps;
 	EDGUIPatchProps m_ctlPatchProps;
+	EDGUIPatchVertProps m_ctlPatchVertProps;
 };
 
 

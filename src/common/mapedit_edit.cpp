@@ -486,6 +486,16 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	if( e->type == EDGUI_EVENT_KEYDOWN )
 	{
 		m_hlBBEl = GetClosestActivePoint();
+		
+		// SELECT ALL/NONE
+		if( e->key.engkey == SDLK_a && e->key.engmod & KMOD_CTRL )
+		{
+			bool sel = ( e->key.engmod & KMOD_ALT ) == 0;
+			for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+			{
+				g_EdWorld->m_objects[ i ]->selected = sel;
+			}
+		}
 		// GRAB (MOVE)
 		if( e->key.engkey == SDLK_g )
 		{
@@ -735,6 +745,20 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 			for( size_t b = 0; b < m_selObjList.size(); ++b )
 			{
 				g_EdWorld->m_objects[ m_selObjList[ b ] ]->SpecialAction( satype );
+			}
+		}
+		
+		// SELECT ALL/NONE
+		if( e->key.engkey == SDLK_a && e->key.engmod & KMOD_CTRL )
+		{
+			bool sel = ( e->key.engmod & KMOD_ALT ) == 0;
+			for( size_t b = 0; b < m_selObjList.size(); ++b )
+			{
+				int oid = m_selObjList[ b ];
+				EdObject* obj = g_EdWorld->m_objects[ oid ];
+				int numels = obj->GetNumElements();
+				for( int i = 0; i < numels; ++i )
+					obj->SelectElement( i, sel );
 			}
 		}
 		

@@ -1808,6 +1808,118 @@ void EDGUIPropVec3::_UpdateButton()
 }
 
 
+EDGUIPropVec4::EDGUIPropVec4( const Vec4& def, int prec, const Vec4& min, const Vec4& max ) :
+	m_value( def ),
+	m_min( min ),
+	m_max( max ),
+	m_XnumWheel( this, min.x, max.x, -prec, ceil( log( TMAX( -min.x, max.x ) ) / log( 10.0f ) ) + prec + 1 ),
+	m_YnumWheel( this, min.y, max.y, -prec, ceil( log( TMAX( -min.y, max.y ) ) / log( 10.0f ) ) + prec + 1 ),
+	m_ZnumWheel( this, min.z, max.z, -prec, ceil( log( TMAX( -min.z, max.z ) ) / log( 10.0f ) ) + prec + 1 ),
+	m_WnumWheel( this, min.w, max.w, -prec, ceil( log( TMAX( -min.w, max.w ) ) / log( 10.0f ) ) + prec + 1 )
+{
+	tyname = "property-vec4";
+	type = EDGUI_ITEM_PROP_VEC4;
+	_UpdateButton();
+	Add( &m_buttonlist );
+	m_buttonlist.Add( &m_Xbutton );
+	m_buttonlist.Add( &m_Ybutton );
+	m_buttonlist.Add( &m_Zbutton );
+	m_buttonlist.Add( &m_Wbutton );
+}
+
+int EDGUIPropVec4::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		if( e->target == &m_XnumWheel || e->target == &m_YnumWheel ||
+			e->target == &m_ZnumWheel || e->target == &m_WnumWheel )
+		{
+			if( e->target == &m_XnumWheel ) m_value.x = m_XnumWheel.GetValue();
+			if( e->target == &m_YnumWheel ) m_value.y = m_YnumWheel.GetValue();
+			if( e->target == &m_ZnumWheel ) m_value.z = m_ZnumWheel.GetValue();
+			if( e->target == &m_WnumWheel ) m_value.w = m_WnumWheel.GetValue();
+			_UpdateButton();
+			EDGUIEvent se = { e->type, this };
+			BubblingEvent( &se );
+			return 0;
+		}
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			if( e->target == &m_Xbutton )
+			{
+				m_XnumWheel.m_cx = e->mouse.x;
+				m_XnumWheel.m_cy = e->mouse.y;
+				m_XnumWheel.m_value = m_value.x;
+				m_frame->Add( &m_XnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+			if( e->target == &m_Ybutton )
+			{
+				m_YnumWheel.m_cx = e->mouse.x;
+				m_YnumWheel.m_cy = e->mouse.y;
+				m_YnumWheel.m_value = m_value.y;
+				m_frame->Add( &m_YnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+			if( e->target == &m_Zbutton )
+			{
+				m_ZnumWheel.m_cx = e->mouse.x;
+				m_ZnumWheel.m_cy = e->mouse.y;
+				m_ZnumWheel.m_value = m_value.z;
+				m_frame->Add( &m_ZnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+			if( e->target == &m_Wbutton )
+			{
+				m_WnumWheel.m_cx = e->mouse.x;
+				m_WnumWheel.m_cy = e->mouse.y;
+				m_WnumWheel.m_value = m_value.z;
+				m_frame->Add( &m_WnumWheel );
+				m_frame->_HandleMouseMove( false );
+			}
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+EDGUIPropVec4& EDGUIPropVec4::operator = ( const EDGUIPropVec4& o )
+{
+	this->~EDGUIPropVec4();
+	new (this) EDGUIPropVec4( o );
+	SubstChildPtr( &o.m_buttonlist, &m_buttonlist );
+	m_buttonlist.SubstChildPtr( &o.m_Xbutton, &m_Xbutton );
+	m_buttonlist.SubstChildPtr( &o.m_Ybutton, &m_Ybutton );
+	m_buttonlist.SubstChildPtr( &o.m_Zbutton, &m_Zbutton );
+	m_buttonlist.SubstChildPtr( &o.m_Wbutton, &m_Wbutton );
+	m_XnumWheel.m_owner = this;
+	m_YnumWheel.m_owner = this;
+	m_ZnumWheel.m_owner = this;
+	m_WnumWheel.m_owner = this;
+	return *this;
+}
+
+void EDGUIPropVec4::_UpdateButton()
+{
+	char bfr[ 32 ] = {0};
+	sgrx_snprintf( bfr, 31, "%g", m_value.x );
+	m_Xbutton.caption = bfr;
+	sgrx_snprintf( bfr, 31, "%g", m_value.y );
+	m_Ybutton.caption = bfr;
+	sgrx_snprintf( bfr, 31, "%g", m_value.z );
+	m_Zbutton.caption = bfr;
+	sgrx_snprintf( bfr, 31, "%g", m_value.w );
+	m_Wbutton.caption = bfr;
+}
+
+
 EDGUIPropString::EDGUIPropString( const StringView& def ) :
 	m_sel_from( 0 ),
 	m_sel_to( 0 ),

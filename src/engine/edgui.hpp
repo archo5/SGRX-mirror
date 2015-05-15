@@ -98,7 +98,8 @@
 #define EDGUI_ITEM_PROP_STRING 104
 #define EDGUI_ITEM_PROP_VEC2   105
 #define EDGUI_ITEM_PROP_VEC3   106
-#define EDGUI_ITEM_PROP_RSRC   107
+#define EDGUI_ITEM_PROP_VEC4   107
+#define EDGUI_ITEM_PROP_RSRC   108
 
 
 #define EDGUI_KEY_UNKNOWN   0
@@ -468,6 +469,32 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIPropVec3 : EDGUIProperty
 	EDGUIButton m_Ybutton;
 	EDGUINumberWheel m_ZnumWheel;
 	EDGUIButton m_Zbutton;
+};
+
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropVec4 : EDGUIProperty
+{
+	ENGINE_EXPORT EDGUIPropVec4( const Vec4& def = V4(0), int prec = 2, const Vec4& min = V4(-FLT_MAX), const Vec4& max = V4(FLT_MAX) );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT EDGUIPropVec4& operator = ( const EDGUIPropVec4& o );
+	ENGINE_EXPORT void _UpdateButton();
+	void SetValue( const Vec4& v ){ m_value = v; _UpdateButton(); }
+	PROP_INTERFACE( EDGUIPropVec4 );
+	
+	template< class T > void Serialize( T& arch ){ arch << m_value; if( T::IsReader ) SetValue( m_value ); }
+	
+	Vec4 m_value;
+	Vec4 m_min;
+	Vec4 m_max;
+	
+	EDGUILayoutColumn m_buttonlist;
+	EDGUINumberWheel m_XnumWheel;
+	EDGUIButton m_Xbutton;
+	EDGUINumberWheel m_YnumWheel;
+	EDGUIButton m_Ybutton;
+	EDGUINumberWheel m_ZnumWheel;
+	EDGUIButton m_Zbutton;
+	EDGUINumberWheel m_WnumWheel;
+	EDGUIButton m_Wbutton;
 };
 
 struct IF_GCC(ENGINE_EXPORT) EDGUIPropString : EDGUIProperty
