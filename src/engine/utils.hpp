@@ -1201,6 +1201,7 @@ struct Array
 	FINLINE void insert( size_t at, const T& v ){ insert( at, &v, 1 ); }
 	void erase( size_t from, size_t count = 1 );
 	void resize( size_t sz );
+	void resize_using( size_t sz, const T& val );
 	void reserve( size_t sz );
 	void insert( size_t at, const T* v, size_t count );
 	size_t find_or_add( const T& what, size_t from = 0 )
@@ -1248,6 +1249,16 @@ void Array<T>::resize( size_t sz )
 	reserve( sz );
 	while( sz > m_size )
 		new (&m_data[ m_size++ ]) T();
+	while( sz < m_size )
+		m_data[ --m_size ].~T();
+}
+
+template< class T >
+void Array<T>::resize_using( size_t sz, const T& val )
+{
+	reserve( sz );
+	while( sz > m_size )
+		new (&m_data[ m_size++ ]) T( val );
 	while( sz < m_size )
 		m_data[ --m_size ].~T();
 }

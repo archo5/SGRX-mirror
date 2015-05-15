@@ -823,11 +823,13 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 			EdPatch* p = EdPatch::CreatePatchFromSurface( *m_out, m_sid );
 			if( p )
 			{
+				p->selected = true;
 				if( e->target == &m_makeBlendPatch )
 					p->blend = true;
 				else
 				{
 					g_EdWorld->DeleteObject( m_out );
+					g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 				}
 				g_EdWorld->AddObject( p );
 			}

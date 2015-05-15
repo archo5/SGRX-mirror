@@ -425,6 +425,7 @@ EDGUIPaintProps::EDGUIPaintProps() :
 	m_ctlColorHSV( V3(0,0,1), 2, V3(0), V3(1,1,1) ),
 	m_ctlAlpha( 1.0f, 2, 0.0f, 1.0f )
 {
+	m_ctlLayerNum.caption = "Color layer [0-3]";
 	m_ctlPaintPos.caption = "Sculpt?";
 	m_ctlPaintColor.caption = "Paint color?";
 	m_ctlPaintAlpha.caption = "Paint alpha?";
@@ -435,6 +436,7 @@ EDGUIPaintProps::EDGUIPaintProps() :
 	m_ctlColorHSV.caption = "Color (HSV)";
 	m_ctlAlpha.caption = "Alpha";
 	
+	m_ctlGroup.Add( &m_ctlLayerNum );
 	m_ctlGroup.Add( &m_ctlPaintPos );
 	m_ctlGroup.Add( &m_ctlPaintColor );
 	m_ctlGroup.Add( &m_ctlPaintAlpha );
@@ -586,21 +588,14 @@ void EdWorld::RegenerateMeshes()
 		m_objects[ i ]->RegenerateMesh();
 }
 
-void EdWorld::DrawWires_Objects( int hlobj, int selobj )
+void EdWorld::DrawWires_Objects( EdObject* hl )
 {
-	EdObject* ohl = hlobj >= 0 ? m_objects[ hlobj ].item : NULL;
-	EdObject* osel = selobj >= 0 ? m_objects[ selobj ].item : NULL;
-	DrawWires_Blocks(
-		m_blocks.find_first_at( (EdBlock*) ohl ),
-		m_blocks.find_first_at( (EdBlock*) osel )
-	);
-	DrawWires_Entities(
-		m_entities.find_first_at( (EdEntity*) ohl ),
-		m_entities.find_first_at( (EdEntity*) osel )
-	);
+	DrawWires_Blocks( hl );
+	DrawWires_Patches( hl );
+	DrawWires_Entities( hl );
 }
 
-void EdWorld::DrawWires_Blocks( int hlblock, int selblock )
+void EdWorld::DrawWires_Blocks( EdObject* hl )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
@@ -610,14 +605,14 @@ void EdWorld::DrawWires_Blocks( int hlblock, int selblock )
 		const EdBlock& B = *m_blocks[ i ];
 		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
 		
-		if( (int) i == selblock || B.selected )
+		if( B.selected )
 		{
-			if( (int) i == hlblock )
+			if( &B == hl )
 				br.Col( 0.9f, 0.2f, 0.1f, 1 );
 			else
 				br.Col( 0.9f, 0.5f, 0.1f, 1 );
 		}
-		else if( (int) i == hlblock )
+		else if( &B == hl )
 			br.Col( 0.1f, 0.8f, 0.9f, 0.9f );
 		else
 			br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
@@ -715,22 +710,80 @@ void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
 	br.Pos( P - V3(s,0,0) ).Pos( P + V3(0,s,0) ).Prev(0).Pos( P + V3(s,0,0) ).Prev(0).Pos( P - V3(0,s,0) ).Prev(0).Prev(6);
 }
 
-void EdWorld::DrawWires_Entities( int hlmesh, int selmesh )
+void EdWorld::DrawWires_Patches( EdObject* hl )
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	
+	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
+	for( size_t i = 0; i < m_patches.size(); ++i )
+	{
+		EdPatch* ptc = m_patches[ i ];
+		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( ptc->group ) );
+		
+		if( ptc->selected )
+			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
+		else if( ptc == hl )
+			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
+		else
+			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
+		
+		// grid lines
+		for( int y = 0; y < ptc->ysize; ++y )
+		{
+			for( int x = 0; x < ptc->xsize - 1; ++x )
+			{
+				br.Pos( ptc->vertices[ x + y * MAX_PATCH_WIDTH ].pos + ptc->position );
+				br.Pos( ptc->vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos + ptc->position );
+			}
+		}
+		for( int x = 0; x < ptc->xsize; ++x )
+		{
+			for( int y = 0; y < ptc->ysize - 1; ++y )
+			{
+				br.Pos( ptc->vertices[ x + y * MAX_PATCH_WIDTH ].pos + ptc->position );
+				br.Pos( ptc->vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos + ptc->position );
+			}
+		}
+		// inner edges
+		for( int y = 0; y < ptc->ysize - 1; ++y )
+		{
+			for( int x = 0; x < ptc->xsize - 1; ++x )
+			{
+				if( ptc->edgeflip[ y ] & ( 1 << x ) )
+				{
+					br.Pos( ptc->vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos + ptc->position );
+					br.Pos( ptc->vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos + ptc->position );
+				}
+				else
+				{
+					br.Pos( ptc->vertices[ x + y * MAX_PATCH_WIDTH ].pos + ptc->position );
+					br.Pos( ptc->vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos + ptc->position );
+				}
+			}
+		}
+	}
+	
+	br.Flush();
+	GR2D_SetWorldMatrix( Mat4::Identity );
+}
+
+void EdWorld::DrawWires_Entities( EdObject* hl )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
 	for( size_t i = 0; i < m_entities.size(); ++i )
 	{
-		if( (int) i == selmesh )
+		EdEntity* ent = m_entities[ i ];
+		if( ent->selected )
 			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
-		else if( (int) i == hlmesh )
+		else if( ent == hl )
 			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
 		else
 			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
 		
 		float q = 0.2f;
-		Vec3 P = m_entities[ i ]->Pos();
+		Vec3 P = ent->Pos();
 		br.Pos( P - V3(q,0,0) ).Pos( P + V3(0,0,q) ).Prev(0).Pos( P + V3(q,0,0) ).Prev(0).Pos( P - V3(0,0,q) ).Prev(0).Prev(6);
 		br.Pos( P - V3(0,q,0) ).Pos( P + V3(0,0,q) ).Prev(0).Pos( P + V3(0,q,0) ).Prev(0).Pos( P - V3(0,0,q) ).Prev(0).Prev(6);
 		br.Pos( P - V3(q,0,0) ).Pos( P + V3(0,q,0) ).Prev(0).Pos( P + V3(q,0,0) ).Prev(0).Pos( P - V3(0,q,0) ).Prev(0).Prev(6);
@@ -747,10 +800,14 @@ void EdWorld::DrawWires_Entities( int hlmesh, int selmesh )
 	}
 	
 	// debug draw highlighted/selected entities
-	if( selmesh >= 0 )
-		m_entities[ selmesh ]->DebugDraw();
-	if( hlmesh >= 0 && hlmesh != selmesh )
-		m_entities[ hlmesh ]->DebugDraw();
+	for( size_t i = 0; i < m_entities.size(); ++i )
+	{
+		EdEntity* ent = m_entities[ i ];
+		if( ent->selected )
+			m_entities[ i ]->DebugDraw();
+	}
+	if( hl && hl->selected == false && hl->m_type == ObjType_Entity )
+		((EdEntity*)hl)->DebugDraw();
 	
 	br.Flush();
 }

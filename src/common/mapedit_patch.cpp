@@ -16,11 +16,11 @@ static const uint16_t ones_mask[ 16 ] = { 0,
 static uint16_t insert_zero_bit( uint16_t v, int at )
 {
 	uint16_t msk = ones_mask[ at ];
-	return ( v & msk ) | ( ( v & msk ) << 1 );
+	return ( v & msk ) | ( ( v & ~msk ) << 1 );
 }
 static uint16_t remove_bit( uint16_t v, int at )
 {
-	return ( v & ones_mask[ at ] ) | ( ( v & ones_mask[ at + 1 ] ) >> 1 );
+	return ( v & ones_mask[ at ] ) | ( ( v & ~ones_mask[ at + 1 ] ) >> 1 );
 }
 
 
@@ -31,8 +31,8 @@ bool EdPatch::InsertXLine( int at )
 	for( int i = 0; i < (int) ysize; ++i )
 	{
 		EdPatchVtx* vp = vertices + MAX_PATCH_WIDTH * i + at;
+		memmove( vp + 1, vp, sizeof(*vp) * ( xsize - at ) );
 		_InterpolateVertex( vp, vp-1, vp+1, 0.5f );
-		memmove( vp + 1, vp, sizeof(*vertices) * ( xsize - at - 1 ) );
 		edgeflip[ i ] = insert_zero_bit( edgeflip[ i ], at );
 		vertsel[ i ] = insert_zero_bit( vertsel[ i ], at );
 	}
@@ -46,9 +46,11 @@ bool EdPatch::InsertYLine( int at )
 		return false;
 	memmove( vertices + MAX_PATCH_WIDTH * ( at + 1 ),
 		vertices + MAX_PATCH_WIDTH * at,
-		sizeof(*vertices) * MAX_PATCH_WIDTH * ( MAX_PATCH_WIDTH - at - 1 ) );
-	memmove( edgeflip + at + 1, edgeflip + at, sizeof(*edgeflip) * ( MAX_PATCH_WIDTH - at - 1 ) );
-	memmove( vertsel + at + 1, vertsel + at, sizeof(*vertsel) * ( MAX_PATCH_WIDTH - at - 1 ) );
+		sizeof(*vertices) * MAX_PATCH_WIDTH * ( ysize - at ) );
+	memmove( edgeflip + at + 1, edgeflip + at, sizeof(*edgeflip) * ( ysize - at ) );
+	memmove( vertsel + at + 1, vertsel + at, sizeof(*vertsel) * ( ysize - at ) );
+	TMEMSET<uint16_t>( edgeflip + at, 1, 0 );
+	TMEMSET<uint16_t>( vertsel + at, 1, 0 );
 	for( int i = 0; i < (int) xsize; ++i )
 	{
 		EdPatchVtx* vp = vertices + MAX_PATCH_WIDTH * at + i;
@@ -92,7 +94,7 @@ void EdPatch::_InterpolateVertex( EdPatchVtx* out, EdPatchVtx* v0, EdPatchVtx* v
 	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
 	{
 		out->tex[ i ] = TLERP( v0->tex[ i ], v1->tex[ i ], s );
-		out->col[ i ] = TLERP( v0->col[ i ], v1->col[ i ], s );
+		out->col[ i ] = Vec4ToCol32( *(BVec4*)&v0->col[ i ] * (1-s) + *(BVec4*)&v1->col[ i ] * s );
 	}
 }
 
@@ -113,17 +115,17 @@ bool EdPatch::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] )
 			Vec3 pts[6];
 			if( edgeflip[ y ] & ( 1 << x ) )
 			{
-				pts[0] = pts[5] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
-				pts[4] = vertices[ x + y * MAX_PATCH_WIDTH ].pos;
-				pts[2] = pts[3] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos;
-				pts[1] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+				pts[0] = pts[5] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos + position;
+				pts[4] = vertices[ x + y * MAX_PATCH_WIDTH ].pos + position;
+				pts[2] = pts[3] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos + position;
+				pts[1] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos + position;
 			}
 			else
 			{
-				pts[0] = pts[5] = vertices[ x + y * MAX_PATCH_WIDTH ].pos;
-				pts[4] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos;
-				pts[2] = pts[3] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
-				pts[1] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos;
+				pts[0] = pts[5] = vertices[ x + y * MAX_PATCH_WIDTH ].pos + position;
+				pts[4] = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos + position;
+				pts[2] = pts[3] = vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos + position;
+				pts[1] = vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos + position;
 			}
 			if( RayPolyIntersect( rpos, dir, pts, 3, ndst ) && ndst[0] < mindst )
 				mindst = ndst[0];
@@ -182,7 +184,7 @@ void EdPatch::RegenerateMesh()
 			{
 				EdPatchVtx& V = vertices[ x + y * MAX_PATCH_WIDTH ];
 				Vec2 tx = V.tex[ layer ];
-				LCVertex vert = { V.pos, V3(0,0,1), V.col[ layer ], tx.x, tx.y, 0, 0 };
+				LCVertex vert = { V.pos + position, V3(0,0,1), V.col[ layer ], tx.x, tx.y, 0, 0 };
 				outverts.push_back( vert );
 			}
 		}
@@ -283,6 +285,65 @@ void EdPatch::SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col )
 	pv.col[ layer ] = Vec4ToCol32( col );
 }
 
+void EdPatch::SpecialAction( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_Invert:
+		for( int y = 0; y < ysize; ++y )
+		{
+			for( int x = 0; x < xsize / 2; ++x )
+			{
+				TSWAP( vertices[ y * MAX_PATCH_WIDTH + x ], vertices[ y * MAX_PATCH_WIDTH + xsize - 1 - x ] );
+			}
+		}
+		break;
+	case SA_Subdivide:
+		for( int y = 0; y < ysize; ++y )
+		{
+			for( int x = 0; x < xsize - 1; ++x )
+			{
+				if( IsXEdgeSel( x, y ) )
+					InsertXLine( x + 1 );
+			}
+		}
+		for( int y = 0; y < ysize - 1; ++y )
+		{
+			for( int x = 0; x < xsize; ++x )
+			{
+				if( IsYEdgeSel( x, y ) )
+					InsertYLine( y + 1 );
+			}
+		}
+		break;
+	case SA_Unsubdivide:
+		for( int y = 0; y < ysize - 1; ++y )
+		{
+			for( int x = 0; x < xsize - 1; ++x )
+			{
+				bool remx = x > 0 && IsYEdgeSel( x, y );
+				bool remy = y > 0 && IsXEdgeSel( x, y );
+				if( remx ) RemoveXLine( x );
+				if( remy ) RemoveYLine( y );
+			}
+		}
+		break;
+	case SA_EdgeFlip:
+		for( int y = 0; y < ysize - 1; ++y )
+		{
+			for( int x = 0; x < xsize - 1; ++x )
+			{
+				if( IsQuadSel( x, y ) )
+					edgeflip[ y ] ^= ( 1 << x );
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	RegenerateMesh();
+}
+
 EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 {
 	if( B.GetSurfaceNumVerts( sid ) != 4 )
@@ -298,9 +359,12 @@ EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 	memset( pverts, 0, sizeof(pverts) );
 	for( int i = 0; i < 4; ++i )
 	{
-		pverts[ i ].pos = verts[ i ].pos;
-		pverts[ i ].tex[0] = V2( verts[ i ].tx0, verts[ i ].ty0 );
-		pverts[ i ].col[0] = 0xffffffff;
+		pverts[ i ].pos = verts[ i ].pos - B.position;
+		for( int ll = 0; ll < MAX_PATCH_LAYERS; ++ll )
+		{
+			pverts[ i ].tex[ ll ] = V2( verts[ i ].tx0, verts[ i ].ty0 );
+			pverts[ i ].col[ ll ] = 0xffffffff;
+		}
 	}
 	// input comes in polygon order, we need Z (scanline)
 	patch->vertices[0] = pverts[0];
@@ -411,6 +475,7 @@ int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
 			if( e->target == &m_tex )
 			{
 				m_out->layers[ m_lid ].texname = m_tex.m_value;
+				m_out->RegenerateMesh();
 			}
 			else if( e->target == &m_off )
 			{

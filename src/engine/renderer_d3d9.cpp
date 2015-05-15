@@ -1062,7 +1062,7 @@ static int vdecltype_to_eltype[] =
 	D3DDECLTYPE_FLOAT2,
 	D3DDECLTYPE_FLOAT3,
 	D3DDECLTYPE_FLOAT4,
-	D3DDECLTYPE_D3DCOLOR,
+	D3DDECLTYPE_UBYTE4N, // D3DCOLOR with R/B fixed
 };
 
 static int vdeclusage_to_elusage[] =

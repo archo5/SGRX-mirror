@@ -549,7 +549,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 
 void EdEditBlockEditMode::Draw()
 {
-	g_EdWorld->DrawWires_Objects( m_hlObj, m_curObj );
+	g_EdWorld->DrawWires_Objects( m_hlObj != -1 ? (EdObject*) g_EdWorld->m_objects[ m_hlObj ] : NULL );
 	
 	// if any block is selected..
 	if( m_numSel && g_UIFrame->m_editTF == NULL )
@@ -725,6 +725,19 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 	{
 		m_hlAP = GetClosestActivePoint();
 		
+		ESpecialAction satype = SA_None;
+		if( e->key.engkey == SDLK_i && e->key.engmod & KMOD_CTRL ) satype = SA_Invert;
+		if( e->key.engkey == SDLK_RIGHTBRACKET ) satype = SA_Subdivide;
+		if( e->key.engkey == SDLK_LEFTBRACKET ) satype = SA_Unsubdivide;
+		if( e->key.engkey == SDLK_f ) satype = SA_EdgeFlip;
+		if( satype != SA_None )
+		{
+			for( size_t b = 0; b < m_selObjList.size(); ++b )
+			{
+				g_EdWorld->m_objects[ m_selObjList[ b ] ]->SpecialAction( satype );
+			}
+		}
+		
 		// GRAB (MOVE)
 		if( e->key.engkey == SDLK_g )
 		{
@@ -748,6 +761,8 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 
 void EdEditVertexEditMode::Draw()
 {
+	g_EdWorld->DrawWires_Objects( m_hlAP.block != -1 ? (EdObject*) g_EdWorld->m_objects[ m_hlAP.block ] : NULL );
+	
 	if( g_UIFrame->m_editTF == NULL )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer();
@@ -1093,7 +1108,7 @@ void EdAddEntityEditMode::OnViewEvent( EDGUIEvent* e )
 
 void EdAddEntityEditMode::Draw()
 {
-	g_EdWorld->DrawWires_Entities( -1, -1 );
+	g_EdWorld->DrawWires_Entities( NULL );
 	g_UIFrame->DrawCursor( false );
 }
 

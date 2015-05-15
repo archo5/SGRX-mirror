@@ -201,6 +201,15 @@ enum EObjectType
 	ObjType_Patch = 3,
 };
 
+enum ESpecialAction
+{
+	SA_None = 0,
+	SA_Invert = 1,
+	SA_Subdivide = 2,
+	SA_Unsubdivide = 3,
+	SA_EdgeFlip = 4,
+};
+
 typedef SerializeVersionHelper<TextReader> SVHTR;
 typedef SerializeVersionHelper<TextWriter> SVHTW;
 typedef SerializeVersionHelper<ByteReader> SVHBR;
@@ -243,6 +252,7 @@ struct EdObject
 	virtual int GetNumPaintVerts() const { return 0; }
 	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol ){}
 	virtual void SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col ){}
+	virtual void SpecialAction( ESpecialAction act ){}
 	
 	// temp interface to block, TODO refactor into ^^^
 	virtual int GetOnlySelectedVertex(){ return -1; }
@@ -374,8 +384,7 @@ struct EdBlock : EdObject
 		
 		if( T::IsReader )
 		{
-			subsel.resize( GetNumVerts() + GetNumSurfs() );
-			TMEMSET( subsel.data(), subsel.size(), false );
+			subsel.resize_using( GetNumVerts() + GetNumSurfs(), false );
 			RegenerateMesh();
 		}
 	}
@@ -581,7 +590,7 @@ struct EdPatch : EdObject
 	
 	virtual int GetNumElements() const { return GetNumVerts(); }
 	virtual Vec3 GetElementPoint( int i ) const { return GetLocalVertex( i ); }
-	virtual bool IsElementSelected( int i ) const { return 0 != ( vertsel[ i / xsize ] & ( 1 << ( i % xsize ) ) ); }
+	virtual bool IsElementSelected( int i ) const { return IsVertSel( i % xsize, i / xsize ); }
 	virtual void SelectElement( int i, bool sel );
 	virtual void ClearSelection(){ TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 ); }
 	virtual int GetNumVerts() const { return xsize * ysize; }
@@ -591,6 +600,16 @@ struct EdPatch : EdObject
 	virtual int GetNumPaintVerts() const { return xsize * ysize; }
 	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol );
 	virtual void SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col );
+	virtual void SpecialAction( ESpecialAction act );
+	
+	bool IsVertSel( int x, int y ) const { return 0 != ( vertsel[ y ] & ( 1 << x ) ); }
+	bool IsXEdgeSel( int x, int y ) const { return IsVertSel( x, y ) && IsVertSel( x + 1, y ); }
+	bool IsYEdgeSel( int x, int y ) const { return IsVertSel( x, y ) && IsVertSel( x, y + 1 ); }
+	bool IsQuadSel( int x, int y ) const
+	{
+		return IsVertSel( x, y ) && IsVertSel( x + 1, y )
+			&& IsVertSel( x, y + 1 ) && IsVertSel( x + 1, y + 1 );
+	}
 	
 	template< class T > void SerializeT( T& arch )
 	{
@@ -602,20 +621,19 @@ struct EdPatch : EdObject
 		for( int y = 0; y < ysize; ++y )
 		{
 			for( int x = 0; x < xsize; ++x )
-				arch << vertices[ x + xsize * y ];
+				arch << vertices[ x + y * MAX_PATCH_WIDTH ];
 		}
 		for( int y = 0; y < ysize; ++y )
 			arch << edgeflip[ y ];
 		for( int l = 0; l < MAX_PATCH_LAYERS; ++l )
 			arch << layers[ l ];
-		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
 	}
 	
 	static EdPatch* CreatePatchFromSurface( EdBlock& B, int sid );
 	
 	Vec3 position;
 	EdPatchVtx vertices[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
-	uint16_t edgeflip[ MAX_PATCH_WIDTH ];
+	uint16_t edgeflip[ MAX_PATCH_WIDTH ]; // 0 - [\], 1 - [/]
 	uint16_t vertsel[ MAX_PATCH_WIDTH ];
 	int8_t xsize;
 	int8_t ysize;
@@ -1052,11 +1070,12 @@ struct EdWorld : EDGUILayoutRow
 	void Reset();
 	void TestData();
 	void RegenerateMeshes();
-	void DrawWires_Objects( int hlobj, int selobj );
-	void DrawWires_Blocks( int hlblock, int selblock );
+	void DrawWires_Objects( EdObject* hl );
+	void DrawWires_Blocks( EdObject* hl );
 	void DrawPoly_BlockSurf( int block, int surf, bool sel );
 	void DrawPoly_BlockVertex( int block, int vert, bool sel );
-	void DrawWires_Entities( int hlmesh, int selmesh );
+	void DrawWires_Patches( EdObject* hl );
+	void DrawWires_Entities( EdObject* hl );
 	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1] );
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
 	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
