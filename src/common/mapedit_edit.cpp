@@ -251,6 +251,10 @@ void EdBlockMoveTransform::RecalcTransform()
 }
 
 
+EdBlockVertexMoveTransform::EdBlockVertexMoveTransform() : m_project(false)
+{
+}
+
 int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
 {
 	if( e->type == EDGUI_EVENT_PAINT )
@@ -258,10 +262,16 @@ int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
 		int x0 = g_UIFrame->m_UIRenderView.x0;
 		int y1 = g_UIFrame->m_UIRenderView.y1;
 		char bfr[ 1024 ];
-		sgrx_snprintf( bfr, 1024, "Moving vertices: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
+		sgrx_snprintf( bfr, 1024, "Projection: [%s] | Moving vertices: %g ; %g ; %g",
+			m_project ? "ON" : "OFF", m_transform.x, m_transform.y, m_transform.z );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
 		return 1;
+	}
+	if( e->type == EDGUI_EVENT_KEYDOWN )
+	{
+		if( e->key.engkey == SDLK_p )
+			m_project = !m_project;
 	}
 	return EdBlockMoveTransform::OnViewEvent( e );
 }
@@ -275,6 +285,10 @@ void EdBlockVertexMoveTransform::ApplyTransform()
 		ByteReader br( &m_objectStateData, SO.offset );
 		obj->Serialize( br );
 		obj->MoveSelectedVertices( m_transform );
+		if( m_project )
+		{
+			obj->ProjectSelectedVertices();
+		}
 		obj->RegenerateMesh();
 	}
 }
@@ -454,11 +468,13 @@ EdEditBlockEditMode::EdEditBlockEditMode() :
 void EdEditBlockEditMode::OnEnter()
 {
 	m_numSel = g_EdWorld->GetNumSelectedObjects();
+	m_curObj = g_EdWorld->GetOnlySelectedObject();
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditObjects );
 	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
+	m_hlBBEl = GetClosestActivePoint();
 	m_hlObj = -1;
-	m_curObj = -1;
-	m_hlBBEl = -1;
+	g_EdWorld->RayObjectsIntersect( g_UIFrame->GetCursorRayPos(), g_UIFrame->GetCursorRayDir(), m_curObj, NULL, &m_hlObj );
+	_ReloadBlockProps();
 }
 
 void EdEditBlockEditMode::OnTransformEnd()
@@ -586,6 +602,7 @@ void EdEditBlockEditMode::_ReloadBlockProps()
 	m_hlBBEl = GetClosestActivePoint();
 	
 	g_UIFrame->ClearParamList();
+	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
 	if( m_curObj >= 0 )
 	{
 		g_UIFrame->AddToParamList( g_EdWorld->GetObjProps( m_curObj ) );
@@ -865,6 +882,7 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 	m_canExtendSurfs = numsurfexblocks && numsurfselblocks;
 	
 	g_UIFrame->ClearParamList();
+	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
 	if( surfprops.block != -1 )
 		g_UIFrame->AddToParamList( g_EdWorld->GetSurfProps( surfprops.block, surfprops.point ) );
 	if( vertprops.block != -1 )
@@ -1015,7 +1033,8 @@ void EdPaintVertsEditMode::_DoPaint()
 				Vec4 vcol;
 				obj->GetPaintVertex( v, layer_id, vpos, vcol );
 				PaintVertex& PV = m_originalVerts[ off++ ];
-				PV.factor += m_ctlPaintProps.GetDistanceFactor( vpos, pos ) / 60.0f; // assuming FPS limit - TODO FIX
+				float q = m_ctlPaintProps.GetDistanceFactor( vpos, pos ) / 60.0f; // assuming FPS limit - TODO FIX
+				PV.factor += q;
 				vpos = PV.pos;
 				vcol = PV.col;
 				m_ctlPaintProps.Paint( vpos, -cursorRayDir, vcol, PV.factor );

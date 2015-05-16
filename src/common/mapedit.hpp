@@ -247,6 +247,8 @@ struct EdObject
 	virtual void ClearSelection() = 0;
 	virtual int GetNumVerts() const = 0;
 	virtual Vec3 GetLocalVertex( int i ) const = 0;
+	virtual void SetLocalVertex( int i, const Vec3& pos ) = 0;
+	virtual bool IsVertexSelected( int i ) const { return false; }
 	virtual int GetOnlySelectedVertex() const { return -1; }
 	virtual void ScaleVertices( const Vec3& scale ) = 0;
 	virtual void MoveSelectedVertices( const Vec3& t ) = 0;
@@ -265,6 +267,7 @@ struct EdObject
 	void Serialize( ByteReader& arch ){ SerializeVersionHelper<ByteReader> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
 	void Serialize( ByteWriter& arch ){ SerializeVersionHelper<ByteWriter> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
 	void UISelectElement( int i, bool mod );
+	void ProjectSelectedVertices();
 };
 
 typedef Handle< EdObject > EdObjectHandle;
@@ -391,6 +394,7 @@ struct EdBlock : EdObject
 	
 	virtual int GetNumVerts() const { return poly.size() * 2; }
 	virtual Vec3 GetLocalVertex( int i ) const;
+	virtual void SetLocalVertex( int i, const Vec3& pos );
 	virtual Vec3 GetPosition() const { return position; }
 	virtual void SetPosition( const Vec3& p ){ position = p; }
 	virtual void ScaleVertices( const Vec3& f );
@@ -401,7 +405,7 @@ struct EdBlock : EdObject
 	virtual int GetNumElements() const { return GetNumVerts() + GetNumSurfs(); }
 	virtual Vec3 GetElementPoint( int i ) const;
 	
-	bool IsVertexSelected( int i ) const;
+	virtual bool IsVertexSelected( int i ) const;
 	void SelectVertex( int i, bool sel );
 	virtual int GetOnlySelectedVertex() const;
 	bool IsSurfaceSelected( int i );
@@ -588,13 +592,15 @@ struct EdPatch : EdObject
 	virtual void RegenerateMesh();
 	virtual Vec3 FindCenter() const;
 	
-	virtual int GetNumElements() const { return GetNumVerts(); }
-	virtual Vec3 GetElementPoint( int i ) const { return GetLocalVertex( i ); }
-	virtual bool IsElementSelected( int i ) const { return IsVertSel( i % xsize, i / xsize ); }
+	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads(); }
+	virtual Vec3 GetElementPoint( int i ) const;
+	virtual bool IsElementSelected( int i ) const { return i < xsize * ysize && IsVertexSelected( i ); }
 	virtual void SelectElement( int i, bool sel );
 	virtual void ClearSelection(){ TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 ); }
 	virtual int GetNumVerts() const { return xsize * ysize; }
 	virtual Vec3 GetLocalVertex( int i ) const { return vertices[ ( i % xsize ) + i / xsize * MAX_PATCH_WIDTH ].pos + position; }
+	virtual void SetLocalVertex( int i, const Vec3& pos ){ vertices[ ( i % xsize ) + i / xsize * MAX_PATCH_WIDTH ].pos = pos - position; }
+	virtual bool IsVertexSelected( int i ) const { return IsVertSel( i % xsize, i / xsize ); }
 	virtual int GetOnlySelectedVertex() const;
 	virtual void ScaleVertices( const Vec3& f );
 	virtual void MoveSelectedVertices( const Vec3& t );
@@ -603,6 +609,8 @@ struct EdPatch : EdObject
 	virtual void SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col );
 	virtual void SpecialAction( ESpecialAction act );
 	
+	int GetNumQuads() const { return ( xsize - 1 ) * ( ysize - 1 ); }
+	Vec3 GetQuadCenter( int i ) const;
 	bool IsVertSel( int x, int y ) const { return 0 != ( vertsel[ y ] & ( 1 << x ) ); }
 	bool IsXEdgeSel( int x, int y ) const { return IsVertSel( x, y ) && IsVertSel( x + 1, y ); }
 	bool IsYEdgeSel( int x, int y ) const { return IsVertSel( x, y ) && IsVertSel( x, y + 1 ); }
@@ -675,6 +683,10 @@ struct EDGUIPatchLayerProps : EDGUILayoutRow
 	EDGUIPropVec2 m_scaleasp;
 	EDGUIPropFloat m_angle;
 	EDGUIPropFloat m_lmquality;
+	EDGUILayoutColumn m_texGenCol;
+	EDGUILabel m_texGenLbl;
+	EDGUIButton m_genFit;
+	EDGUIButton m_genFitNat;
 	EDGUIButton m_genNatural;
 	EDGUIButton m_genPlanar;
 };
@@ -740,6 +752,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	virtual void ClearSelection(){}
 	virtual int GetNumVerts() const { return 1; }
 	virtual Vec3 GetLocalVertex( int ) const { return Pos(); }
+	virtual void SetLocalVertex( int i, const Vec3& pos ){}
 	virtual void MoveSelectedVertices( const Vec3& t ){ /* NO VERTICES BY DEFAULT */ }
 	
 	bool m_isproto;
@@ -1006,6 +1019,9 @@ struct EdWorld : EDGUILayoutRow
 	
 	template< class T > void Serialize( T& arch )
 	{
+		if( T::IsReader )
+			Reset();
+		
 		arch.marker( "WORLD" );
 		SerializeVersionHelper<T> svh( arch, MAP_FILE_VERSION );
 		
@@ -1053,7 +1069,6 @@ struct EdWorld : EDGUILayoutRow
 		{
 			int32_t numblocks;
 			svh << numblocks;
-			m_blocks.clear();
 			for( int32_t i = 0; i < numblocks; ++i )
 			{
 				EdBlock* block = new EdBlock;
@@ -1063,7 +1078,6 @@ struct EdWorld : EDGUILayoutRow
 			
 			int32_t numents;
 			svh << numents;
-			m_entities.clear();
 			for( int32_t i = 0; i < numents; ++i )
 			{
 				EdEntity* e = ENT_Unserialize( svh );
@@ -1073,7 +1087,6 @@ struct EdWorld : EDGUILayoutRow
 			
 			int32_t numpatches;
 			svh << numpatches;
-			m_patches.clear();
 			for( int32_t i = 0; i < numpatches; ++i )
 			{
 				EdPatch* patch = new EdPatch;
@@ -1092,10 +1105,10 @@ struct EdWorld : EDGUILayoutRow
 	void DrawPoly_BlockVertex( int block, int vert, bool sel );
 	void DrawWires_Patches( EdObject* hl );
 	void DrawWires_Entities( EdObject* hl );
-	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1] );
-	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1] );
-	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
-	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1] );
+	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1], EdObject** skip = NULL );
+	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1], EdObject** skip = NULL );
+	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip = NULL );
+	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip = NULL );
 	
 	void AddObject( EdObject* obj );
 	void DeleteObject( EdObject* obj );
@@ -1275,8 +1288,11 @@ struct EdBlockMoveTransform : EdBlockEditTransform
 
 struct EdBlockVertexMoveTransform : EdBlockMoveTransform
 {
+	EdBlockVertexMoveTransform();
 	virtual int OnViewEvent( EDGUIEvent* e );
 	virtual void ApplyTransform();
+	
+	bool m_project;
 };
 
 

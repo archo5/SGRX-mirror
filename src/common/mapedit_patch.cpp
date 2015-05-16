@@ -241,12 +241,55 @@ Vec3 EdPatch::FindCenter() const
 	return c / ( xsize * ysize ) + position;
 }
 
+Vec3 EdPatch::GetElementPoint( int i ) const
+{
+	if( i < xsize * ysize )
+		return GetLocalVertex( i );
+	else
+		return GetQuadCenter( i - xsize * ysize );
+}
+
+Vec3 EdPatch::GetQuadCenter( int i ) const
+{
+	int x = i % ( xsize - 1 );
+	int y = i / ( xsize - 1 );
+	return (
+		vertices[ x + y * MAX_PATCH_WIDTH ].pos +
+		vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos +
+		vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos +
+		vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos
+	) * 0.25f;
+}
+
 void EdPatch::SelectElement( int i, bool sel )
 {
-	if( sel )
-		vertsel[ i / xsize ] |= ( 1 << ( i % xsize ) );
+	if( i < xsize * ysize )
+	{
+		if( sel )
+			vertsel[ i / xsize ] |= ( 1 << ( i % xsize ) );
+		else
+			vertsel[ i / xsize ] &= ~( 1 << ( i % xsize ) );
+	}
 	else
-		vertsel[ i / xsize ] &= ~( 1 << ( i % xsize ) );
+	{
+		i -= xsize * ysize;
+		int x = i % ( xsize - 1 );
+		int y = i / ( xsize - 1 );
+		if( sel )
+		{
+			vertsel[ y ] |= ( 1 << x );
+			vertsel[ y ] |= ( 1 << ( x + 1 ) );
+			vertsel[ y + 1 ] |= ( 1 << x );
+			vertsel[ y + 1 ] |= ( 1 << ( x + 1 ) );
+		}
+		else
+		{
+			vertsel[ y ] &= ~( 1 << x );
+			vertsel[ y ] &= ~( 1 << ( x + 1 ) );
+			vertsel[ y + 1 ] &= ~( 1 << x );
+			vertsel[ y + 1 ] &= ~( 1 << ( x + 1 ) );
+		}
+	}
 }
 
 void EdPatch::ScaleVertices( const Vec3& f )
@@ -503,16 +546,25 @@ EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
 	m_scaleasp.caption = "Scale/Aspect";
 	m_angle.caption = "Angle";
 	m_lmquality.caption = "Lightmap quality";
-	m_genNatural.caption = "Gen.: Natural";
-	m_genPlanar.caption = "Gen.: Planar";
+	
+	m_texGenLbl.caption = "TexGen:";
+	m_genFit.caption = "Fit";
+	m_genFitNat.caption = "Fit/Ntrl.";
+	m_genNatural.caption = "Natural";
+	m_genPlanar.caption = "Planar";
+	
+	m_texGenCol.Add( &m_texGenLbl );
+	m_texGenCol.Add( &m_genFit );
+	m_texGenCol.Add( &m_genFitNat );
+	m_texGenCol.Add( &m_genNatural );
+	m_texGenCol.Add( &m_genPlanar );
 	
 	m_group.Add( &m_tex );
 	m_group.Add( &m_off );
 	m_group.Add( &m_scaleasp );
 	m_group.Add( &m_angle );
 	m_group.Add( &m_lmquality );
-	m_group.Add( &m_genNatural );
-	m_group.Add( &m_genPlanar );
+	m_group.Add( &m_texGenCol );
 	m_group.SetOpen( true );
 	Add( &m_group );
 }
@@ -556,16 +608,97 @@ int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_BTNCLICK:
-		if( m_out )
+		if( m_out && (
+			e->target == &m_genFit ||
+			e->target == &m_genFitNat ||
+			e->target == &m_genNatural ||
+			e->target == &m_genPlanar ) )
 		{
-			if( e->target == &m_genNatural )
+			Vec2 total_xy_length = V2(0);
+			
+			if( e->target == &m_genFit || e->target == &m_genFitNat || e->target == &m_genNatural )
 			{
-				// map 1x1, fix aspect ratio
+				// map 1x1
+				// - X
+				for( int y = 0; y < m_out->ysize; ++y )
+				{
+					float total_length = 0;
+					for( int x = 1; x < m_out->xsize; ++x )
+					{
+						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
+						total_length += diff.Length();
+					}
+					m_out->vertices[ y * MAX_PATCH_WIDTH ].tex[ m_lid ].x = 0;
+					float curr_length = 0;
+					for( int x = 1; x < m_out->xsize; ++x )
+					{
+						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
+						curr_length += diff.Length();
+						m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ].x = safe_fdiv( curr_length, total_length );
+					}
+					total_xy_length.x += total_length;
+				}
+				// - Y
+				for( int x = 0; x < m_out->xsize; ++x )
+				{
+					float total_length = 0;
+					for( int y = 1; y < m_out->ysize; ++y )
+					{
+						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
+						total_length += diff.Length();
+					}
+					m_out->vertices[ x ].tex[ m_lid ].y = 0;
+					float curr_length = 0;
+					for( int y = 1; y < m_out->ysize; ++y )
+					{
+						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
+						curr_length += diff.Length();
+						m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ].y = safe_fdiv( curr_length, total_length );
+					}
+					total_xy_length.y += total_length;
+				}
+				
+				// divided by number of samples
+				total_xy_length /= V2( m_out->ysize, m_out->xsize );
 			}
+			
+			if( e->target == &m_genNatural || e->target == &m_genFitNat )
+			{
+				if( e->target == &m_genFitNat )
+				{
+					float minl = TMIN( total_xy_length.x, total_xy_length.y );
+					total_xy_length.x = safe_fdiv( total_xy_length.x, minl );
+					total_xy_length.y = safe_fdiv( total_xy_length.y, minl );
+				}
+				
+				// map 1x1 (prev 'if'), fix aspect ratio
+				for( int y = 0; y < m_out->ysize; ++y )
+				{
+					for( int x = 0; x < m_out->xsize; ++x )
+					{
+						m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ] *= total_xy_length;
+					}
+				}
+			}
+			
 			if( e->target == &m_genPlanar )
 			{
 				// find avg.nrm. to tangents and map on those
 			}
+			
+			// apply post-processing
+			EdPatchLayerInfo& L = m_out->layers[ m_lid ];
+			for( int y = 0; y < m_out->ysize; ++y )
+			{
+				for( int x = 0; x < m_out->xsize; ++x )
+				{
+					Vec2& vtx = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ];
+					Vec2 txa = vtx.Rotate( DEG2RAD( L.angle ) );
+					vtx = V2( txa.x / L.scale + L.xoff, txa.y / L.scale * L.aspect + L.yoff );
+				}
+			}
+			
+			m_out->RegenerateMesh();
 		}
 		break;
 		

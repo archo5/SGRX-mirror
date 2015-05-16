@@ -14,6 +14,19 @@ Vec3 EdBlock::GetLocalVertex( int i ) const
 	return vp + position;
 }
 
+void EdBlock::SetLocalVertex( int i, const Vec3& pos )
+{
+	Vec3& dest = poly[ i % poly.size() ];
+	Vec3 vp = pos - position;
+	if( i < (int) poly.size() )
+	{
+		dest = V3( vp.x, vp.y, 0 );
+		z1 = vp.z;
+	}
+	else
+		dest = vp - V3( 0, 0, z1 );
+}
+
 void EdBlock::ScaleVertices( const Vec3& f )
 {
 	for( size_t i = 0; i < poly.size(); ++i )
