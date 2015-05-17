@@ -727,6 +727,18 @@ void EdEditVertexEditMode::OnEnter()
 	_ReloadVertSurfProps();
 }
 
+bool EdEditVertexEditMode::_CanDo( ESpecialAction act )
+{
+	for( size_t b = 0; b < m_selObjList.size(); ++b )
+	{
+		int oid = m_selObjList[ b ];
+		EdObject* obj = g_EdWorld->m_objects[ oid ];
+		if( obj->CanDoSpecialAction( act ) )
+			return true;
+	}
+	return false;
+}
+
 void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 {
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
@@ -795,6 +807,22 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
 		}
+	}
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		int x0 = g_UIFrame->m_UIRenderView.x0;
+		int y0 = g_UIFrame->m_UIRenderView.y0;
+		String actlist;
+		if( _CanDo( SA_Invert ) ) actlist.append( ", Invert patch [I]" );
+		if( _CanDo( SA_Subdivide ) ) actlist.append( ", Subdivide [']']" );
+		if( _CanDo( SA_Unsubdivide ) ) actlist.append( ", Unsubdivide [']']" );
+		if( _CanDo( SA_EdgeFlip ) ) actlist.append( ", Edge flip [F]" );
+		if( _CanDo( SA_Extrude ) ) actlist.append( ", Extrude [E]" );
+		if( _CanDo( SA_Remove ) ) actlist.append( ", Remove [Del]" );
+		if( _CanDo( SA_ExtractPart ) ) actlist.append( ", Extract part [X]" );
+		if( _CanDo( SA_DuplicatePart ) ) actlist.append( ", Duplicate part [Ctrl+D]" );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( x0, y0, StringView( actlist ).part( 2 ), HALIGN_LEFT, VALIGN_TOP );
 	}
 	
 	EdEditMode::OnViewEvent( e );

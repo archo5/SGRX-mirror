@@ -4,11 +4,11 @@
 
 
 
-static const uint16_t ones_mask[ 16 ] = { 0,
+static const uint16_t ones_mask[ 17 ] = { 0,
 	0x0001, 0x0003, 0x0007, 0x000f,
 	0x001f, 0x003f, 0x007f, 0x00ff,
 	0x01ff, 0x03ff, 0x07ff, 0x0fff,
-	0x1fff, 0x3fff, 0x7fff,
+	0x1fff, 0x3fff, 0x7fff, 0xffff,
 };
 
 
@@ -243,10 +243,22 @@ Vec3 EdPatch::FindCenter() const
 
 Vec3 EdPatch::GetElementPoint( int i ) const
 {
-	if( i < xsize * ysize )
+	int vcount = xsize * ysize;
+	int fcount = GetNumQuads();
+	int numxe = GetNumXEdges();
+	int numye = GetNumYEdges();
+	if( i < vcount )
 		return GetLocalVertex( i );
-	else
-		return GetQuadCenter( i - xsize * ysize );
+	i -= vcount;
+	if( i < fcount )
+		return GetQuadCenter( i );
+	i -= fcount;
+	if( i < numxe )
+		return GetXEdgeCenter( i );
+	i -= numxe;
+	if( i < numye )
+		return GetYEdgeCenter( i );
+	return V3(0);
 }
 
 Vec3 EdPatch::GetQuadCenter( int i ) const
@@ -258,21 +270,40 @@ Vec3 EdPatch::GetQuadCenter( int i ) const
 		vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos +
 		vertices[ x + 1 + ( y + 1 ) * MAX_PATCH_WIDTH ].pos +
 		vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos
-	) * 0.25f;
+	) * 0.25f + position;
+}
+
+Vec3 EdPatch::GetXEdgeCenter( int i ) const
+{
+	int x = i % ( xsize - 1 );
+	int y = i / ( xsize - 1 );
+	return ( vertices[ x + y * MAX_PATCH_WIDTH ].pos + vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos ) * 0.5f + position;
+}
+
+Vec3 EdPatch::GetYEdgeCenter( int i ) const
+{
+	int x = i % xsize;
+	int y = i / xsize;
+	return ( vertices[ x + y * MAX_PATCH_WIDTH ].pos + vertices[ x + ( y + 1 ) * MAX_PATCH_WIDTH ].pos ) * 0.5f + position;
 }
 
 void EdPatch::SelectElement( int i, bool sel )
 {
-	if( i < xsize * ysize )
+	int vcount = xsize * ysize;
+	int fcount = GetNumQuads();
+	int numxe = GetNumXEdges();
+	int numye = GetNumYEdges();
+	if( i < vcount )
 	{
 		if( sel )
 			vertsel[ i / xsize ] |= ( 1 << ( i % xsize ) );
 		else
 			vertsel[ i / xsize ] &= ~( 1 << ( i % xsize ) );
+		return;
 	}
-	else
+	i -= vcount;
+	if( i < fcount )
 	{
-		i -= xsize * ysize;
 		int x = i % ( xsize - 1 );
 		int y = i / ( xsize - 1 );
 		if( sel )
@@ -289,6 +320,30 @@ void EdPatch::SelectElement( int i, bool sel )
 			vertsel[ y + 1 ] &= ~( 1 << x );
 			vertsel[ y + 1 ] &= ~( 1 << ( x + 1 ) );
 		}
+		return;
+	}
+	i -= fcount;
+	if( i < numxe )
+	{
+		i /= xsize - 1;
+		for( int x = 0; x < xsize; ++x )
+		{
+			vertsel[ i ] = sel ? 0xffff : 0;
+		}
+		return;
+	}
+	i -= numxe;
+	if( i < numye )
+	{
+		i %= xsize;
+		for( int y = 0; y < ysize; ++y )
+		{
+			if( sel )
+				vertsel[ y ] |= 1 << i;
+			else
+				vertsel[ y ] &= ~( 1 << i );
+		}
+		return;
 	}
 }
 
@@ -405,10 +460,201 @@ void EdPatch::SpecialAction( ESpecialAction act )
 			}
 		}
 		break;
+	case SA_Extrude:
+		break;
+	case SA_Remove:
+		break;
+	case SA_ExtractPart:
+		break;
+	case SA_DuplicatePart:
+		break;
 	default:
 		break;
 	}
 	RegenerateMesh();
+}
+
+bool EdPatch::CanDoSpecialAction( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_EdgeFlip:
+		for( int y = 0; y < ysize - 1; ++y )
+		{
+			for( int x = 0; x < xsize - 1; ++x )
+			{
+				if( IsQuadSel( x, y ) )
+					return true;
+			}
+		}
+		return false;
+		
+	case SA_Subdivide:
+		for( int y = 0; y < ysize; ++y )
+		{
+			for( int x = 0; x < xsize - 1; ++x )
+			{
+				if( IsXEdgeSel( x, y ) ) return true;
+			}
+		}
+		for( int y = 0; y < ysize - 1; ++y )
+		{
+			for( int x = 0; x < xsize; ++x )
+			{
+				if( IsYEdgeSel( x, y ) ) return true;
+			}
+		}
+			
+		return false;
+		
+	case SA_Unsubdivide:
+		for( int y = 0; y < ysize - 1; ++y )
+		{
+			for( int x = 0; x < xsize - 1; ++x )
+			{
+				if( x > 0 && IsYEdgeSel( x, y ) ) return true;
+				if( y > 0 && IsXEdgeSel( x, y ) ) return true;
+			}
+		}
+		return false;
+		
+	case SA_Extrude:
+		{
+			int acount = 0, bcount = 0, ccount = 0, dcount = 0;
+			for( int y = 0; y < ysize; ++y )
+			{
+				for( int x = 0; x < xsize; ++x )
+				{
+					bool vsel = IsVertSel( x, y );
+					if( vsel == ( y == 0 ) ) acount++;
+					if( vsel == ( y == ysize - 1 ) ) bcount++;
+					if( vsel == ( x == 0 ) ) ccount++;
+					if( vsel == ( x == xsize - 1 ) ) dcount++;
+				}
+			}
+			int tc = xsize * ysize;
+			return acount == tc || bcount == tc || ccount == tc || dcount == tc;
+		}
+		return false;
+		
+	case SA_Remove:
+		return IsAnySideSel( false );
+		
+	case SA_ExtractPart:
+		return IsAnySideSel( true );
+		
+	case SA_DuplicatePart:
+		{
+			int dims[2] = {0, 0};
+			return IsAnyRectSel( false, dims ) && dims[0] >= 2 && dims[1] >= 2;
+		}
+		
+	default:
+		return true;
+	}
+}
+
+bool EdPatch::IsAnyRectSel( bool invert, int outdims[2] ) const
+{
+	int xdims = -1, ydims = -1;
+	for( int y = 0; y < ysize; ++y )
+	{
+		int numins = 0;
+		bool prev = false;
+		int start = -1;
+		for( int x = 0; x < xsize; ++x )
+		{
+			bool cur = IsVertSel( x, y ) ^ invert;
+			if( cur && prev == false )
+			{
+				numins++;
+				start = x;
+			}
+			else if( cur == false && prev )
+			{
+				xdims = x - start;
+				start = -1;
+			}
+			prev = cur;
+		}
+		if( numins > 1 )
+			return false;
+		if( start != -1 )
+			xdims = xsize - start;
+	}
+	if( xdims == -1 )
+		return false;
+	for( int x = 0; x < xsize; ++x )
+	{
+		int numins = 0;
+		bool prev = false;
+		int start = -1;
+		for( int y = 0; y < ysize; ++y )
+		{
+			bool cur = IsVertSel( x, y ) ^ invert;
+			if( cur && prev == false )
+			{
+				numins++;
+				start = y;
+			}
+			else if( cur == false && prev )
+			{
+				ydims = y - start;
+				start = -1;
+			}
+			prev = cur;
+		}
+		if( numins > 1 )
+			return false;
+		if( start != -1 )
+			ydims = ysize - start;
+	}
+	if( ydims == -1 )
+		return false;
+	if( outdims )
+	{
+		outdims[0] = xdims;
+		outdims[1] = ydims;
+	}
+	return true;
+}
+
+bool EdPatch::IsAnySideSel( bool bothpatches ) const
+{
+	int dims[2];
+	if( !IsAnyRectSel( true, dims ) || dims[0] < 2 || dims[1] < 2 )
+		return false;
+	
+	if( !IsAnyRectSel( false, dims ) )
+		return false;
+	
+	if( bothpatches && ( dims[0] < 2 || dims[1] < 2 ) )
+		return false;
+	
+	return true;
+}
+
+uint16_t EdPatch::GetXSelMask( int i ) const
+{
+	ASSERT( i >= 0 && i < xsize );
+	uint16_t out = 0;
+	for( int y = 0; y < ysize; ++y )
+		out |= ( ( vertsel[ y ] >> i ) & 1 ) << y;
+	return out;
+}
+
+uint16_t EdPatch::GetYSelMask( int i ) const
+{
+	ASSERT( i >= 0 && i < ysize );
+	return vertsel[ i ] & ones_mask[ xsize ];
+}
+
+bool EdPatch::IsAllSel() const
+{
+	for( int i = 0; i < ysize; ++i )
+		if( ( vertsel[ i ] & ones_mask[ xsize ] ) != ones_mask[ xsize ] )
+			return false;
+	return true;
 }
 
 EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )

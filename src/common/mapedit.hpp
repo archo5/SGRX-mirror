@@ -204,10 +204,14 @@ enum EObjectType
 enum ESpecialAction
 {
 	SA_None = 0,
-	SA_Invert = 1,
-	SA_Subdivide = 2,
-	SA_Unsubdivide = 3,
-	SA_EdgeFlip = 4,
+	SA_Invert,
+	SA_Subdivide,
+	SA_Unsubdivide,
+	SA_EdgeFlip,
+	SA_Extrude,
+	SA_Remove,
+	SA_ExtractPart,
+	SA_DuplicatePart,
 };
 
 typedef SerializeVersionHelper<TextReader> SVHTR;
@@ -243,6 +247,7 @@ struct EdObject
 	virtual int GetNumElements() const = 0;
 	virtual Vec3 GetElementPoint( int i ) const = 0;
 	virtual bool IsElementSelected( int i ) const = 0;
+	virtual bool IsElementSpecial( int i ) const { return false; }
 	virtual void SelectElement( int i, bool sel ) = 0;
 	virtual void ClearSelection() = 0;
 	virtual int GetNumVerts() const = 0;
@@ -256,6 +261,7 @@ struct EdObject
 	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol ){}
 	virtual void SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col ){}
 	virtual void SpecialAction( ESpecialAction act ){}
+	virtual bool CanDoSpecialAction( ESpecialAction act ){ return false; }
 	
 	// temp interface to block, TODO refactor into ^^^
 	virtual int GetNumSelectedSurfs(){ return 0; }
@@ -592,9 +598,10 @@ struct EdPatch : EdObject
 	virtual void RegenerateMesh();
 	virtual Vec3 FindCenter() const;
 	
-	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads(); }
+	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads() + GetNumXEdges() + GetNumYEdges(); }
 	virtual Vec3 GetElementPoint( int i ) const;
 	virtual bool IsElementSelected( int i ) const { return i < xsize * ysize && IsVertexSelected( i ); }
+	virtual bool IsElementSpecial( int i ) const { return i < GetNumVerts() + GetNumQuads(); }
 	virtual void SelectElement( int i, bool sel );
 	virtual void ClearSelection(){ TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 ); }
 	virtual int GetNumVerts() const { return xsize * ysize; }
@@ -608,9 +615,14 @@ struct EdPatch : EdObject
 	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol );
 	virtual void SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col );
 	virtual void SpecialAction( ESpecialAction act );
+	virtual bool CanDoSpecialAction( ESpecialAction act );
 	
 	int GetNumQuads() const { return ( xsize - 1 ) * ( ysize - 1 ); }
 	Vec3 GetQuadCenter( int i ) const;
+	int GetNumXEdges() const { return ( xsize - 1 ) * ysize; }
+	Vec3 GetXEdgeCenter( int i ) const;
+	int GetNumYEdges() const { return xsize * ( ysize - 1 ); }
+	Vec3 GetYEdgeCenter( int i ) const;
 	bool IsVertSel( int x, int y ) const { return 0 != ( vertsel[ y ] & ( 1 << x ) ); }
 	bool IsXEdgeSel( int x, int y ) const { return IsVertSel( x, y ) && IsVertSel( x + 1, y ); }
 	bool IsYEdgeSel( int x, int y ) const { return IsVertSel( x, y ) && IsVertSel( x, y + 1 ); }
@@ -619,6 +631,11 @@ struct EdPatch : EdObject
 		return IsVertSel( x, y ) && IsVertSel( x + 1, y )
 			&& IsVertSel( x, y + 1 ) && IsVertSel( x + 1, y + 1 );
 	}
+	bool IsAnyRectSel( bool invert = false, int outdims[2] = NULL ) const;
+	bool IsAnySideSel( bool bothpatches = false ) const;
+	uint16_t GetXSelMask( int i ) const;
+	uint16_t GetYSelMask( int i ) const;
+	bool IsAllSel() const;
 	
 	template< class T > void SerializeT( T& arch )
 	{
@@ -1363,6 +1380,7 @@ struct EdEditVertexEditMode : EdEditMode
 	};
 	
 	void OnEnter();
+	bool _CanDo( ESpecialAction act );
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
 	void _ReloadVertSurfProps();
