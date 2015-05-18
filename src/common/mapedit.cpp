@@ -613,10 +613,10 @@ void EdWorld::RegenerateMeshes()
 		m_objects[ i ]->RegenerateMesh();
 }
 
-void EdWorld::DrawWires_Objects( EdObject* hl )
+void EdWorld::DrawWires_Objects( EdObject* hl, bool tonedown )
 {
 	DrawWires_Blocks( hl );
-	DrawWires_Patches( hl );
+	DrawWires_Patches( hl, tonedown );
 	DrawWires_Entities( hl );
 }
 
@@ -735,8 +735,9 @@ void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
 	br.Pos( P - V3(s,0,0) ).Pos( P + V3(0,s,0) ).Prev(0).Pos( P + V3(s,0,0) ).Prev(0).Pos( P - V3(0,s,0) ).Prev(0).Prev(6);
 }
 
-void EdWorld::DrawWires_Patches( EdObject* hl )
+void EdWorld::DrawWires_Patches( EdObject* hl, bool tonedown )
 {
+	float ga = tonedown ? 0.5f : 1;
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
@@ -746,11 +747,11 @@ void EdWorld::DrawWires_Patches( EdObject* hl )
 		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( ptc->group ) );
 		
 		if( ptc->selected )
-			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
+			br.Col( 0.9f, 0.5, 0.1f, 0.9f * ga );
 		else if( ptc == hl )
-			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
+			br.Col( 0.1f, 0.5, 0.9f, 0.7f * ga );
 		else
-			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
+			br.Col( 0.1f, 0.5, 0.9f, 0.25f * ga );
 		
 		// grid lines
 		for( int y = 0; y < ptc->ysize; ++y )

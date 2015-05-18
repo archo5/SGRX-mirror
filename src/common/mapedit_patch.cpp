@@ -26,64 +26,89 @@ static uint16_t remove_bit( uint16_t v, int at )
 
 bool EdPatch::InsertXLine( int at )
 {
-	if( at < 1 || at > (int) xsize - 1 || xsize >= MAX_PATCH_WIDTH )
+	if( at < 0 || at > (int) xsize || xsize >= MAX_PATCH_WIDTH )
 		return false;
+	
+	int befoff = at == 0 ? 1 : -1;
+	int aftoff = at == xsize ? -1 : 1;
 	for( int i = 0; i < (int) ysize; ++i )
 	{
 		EdPatchVtx* vp = vertices + MAX_PATCH_WIDTH * i + at;
-		memmove( vp + 1, vp, sizeof(*vp) * ( xsize - at ) );
-		_InterpolateVertex( vp, vp-1, vp+1, 0.5f );
+		if( at < xsize )
+			memmove( vp + 1, vp, sizeof(*vp) * ( xsize - at ) );
+		
+		_InterpolateVertex( vp, vp + befoff, vp + aftoff, 0.5f );
+		
 		edgeflip[ i ] = insert_zero_bit( edgeflip[ i ], at );
 		vertsel[ i ] = insert_zero_bit( vertsel[ i ], at );
 	}
+	
 	xsize++;
 	return true;
 }
 
 bool EdPatch::InsertYLine( int at )
 {
-	if( at < 1 || at > (int) ysize - 1 || ysize >= MAX_PATCH_WIDTH )
+	if( at < 0 || at > (int) ysize || ysize >= MAX_PATCH_WIDTH )
 		return false;
-	memmove( vertices + MAX_PATCH_WIDTH * ( at + 1 ),
-		vertices + MAX_PATCH_WIDTH * at,
-		sizeof(*vertices) * MAX_PATCH_WIDTH * ( ysize - at ) );
-	memmove( edgeflip + at + 1, edgeflip + at, sizeof(*edgeflip) * ( ysize - at ) );
-	memmove( vertsel + at + 1, vertsel + at, sizeof(*vertsel) * ( ysize - at ) );
-	TMEMSET<uint16_t>( edgeflip + at, 1, 0 );
-	TMEMSET<uint16_t>( vertsel + at, 1, 0 );
+	
+	if( at < ysize )
+	{
+		memmove( vertices + MAX_PATCH_WIDTH * ( at + 1 ),
+			vertices + MAX_PATCH_WIDTH * at,
+			sizeof(*vertices) * MAX_PATCH_WIDTH * ( ysize - at ) );
+		memmove( edgeflip + at + 1, edgeflip + at, sizeof(*edgeflip) * ( ysize - at ) );
+		memmove( vertsel + at + 1, vertsel + at, sizeof(*vertsel) * ( ysize - at ) );
+	}
+	edgeflip[ at ] = 0;
+	vertsel[ at ] = 0;
+	
+	int befoff = at == 0 ? MAX_PATCH_WIDTH : -MAX_PATCH_WIDTH;
+	int aftoff = at == ysize ? -MAX_PATCH_WIDTH : MAX_PATCH_WIDTH;
 	for( int i = 0; i < (int) xsize; ++i )
 	{
 		EdPatchVtx* vp = vertices + MAX_PATCH_WIDTH * at + i;
-		_InterpolateVertex( vp, vp - MAX_PATCH_WIDTH, vp + MAX_PATCH_WIDTH, 0.5f );
+		_InterpolateVertex( vp, vp + befoff, vp + aftoff, 0.5f );
 	}
+	
 	ysize++;
 	return true;
 }
 
 bool EdPatch::RemoveXLine( int at )
 {
-	if( at < 1 || at >= (int) xsize - 1 || xsize <= 2 )
+	if( at < 0 || at >= (int) xsize || xsize <= 2 )
 		return false;
-	for( int i = 0; i < (int) ysize; ++i )
+	
+	if( at < xsize - 1 )
 	{
-		EdPatchVtx* vp = vertices + MAX_PATCH_WIDTH * i + at;
-		memmove( vp, vp + 1, sizeof(*vertices) * ( xsize - at - 1 ) );
-		edgeflip[ i ] = remove_bit( edgeflip[ i ], at );
-		vertsel[ i ] = remove_bit( vertsel[ i ], at );
+		for( int i = 0; i < (int) ysize; ++i )
+		{
+			EdPatchVtx* vp = vertices + MAX_PATCH_WIDTH * i + at;
+			memmove( vp, vp + 1, sizeof(*vertices) * ( xsize - at - 1 ) );
+			edgeflip[ i ] = remove_bit( edgeflip[ i ], at );
+			vertsel[ i ] = remove_bit( vertsel[ i ], at );
+		}
 	}
+	
 	xsize--;
 	return true;
 }
 
 bool EdPatch::RemoveYLine( int at )
 {
-	if( at < 1 || at > (int) ysize - 1 || ysize >= MAX_PATCH_WIDTH )
+	if( at < 0 || at >= (int) ysize || ysize <= 2 )
 		return false;
-	memmove( vertices + MAX_PATCH_WIDTH * at,
-		vertices + MAX_PATCH_WIDTH * ( at + 1 ),
-		sizeof(*vertices) * MAX_PATCH_WIDTH * ( MAX_PATCH_WIDTH - at - 1 ) );
-	memmove( edgeflip + at, edgeflip + at + 1, sizeof(*edgeflip) * ( MAX_PATCH_WIDTH - at - 1 ) );
-	memmove( vertsel + at, vertsel + at + 1, sizeof(*vertsel) * ( MAX_PATCH_WIDTH - at - 1 ) );
+	
+	if( at < ysize - 1 )
+	{
+		memmove( vertices + MAX_PATCH_WIDTH * at,
+			vertices + MAX_PATCH_WIDTH * ( at + 1 ),
+			sizeof(*vertices) * MAX_PATCH_WIDTH * ( MAX_PATCH_WIDTH - at - 1 ) );
+		memmove( edgeflip + at, edgeflip + at + 1, sizeof(*edgeflip) * ( MAX_PATCH_WIDTH - at - 1 ) );
+		memmove( vertsel + at, vertsel + at + 1, sizeof(*vertsel) * ( MAX_PATCH_WIDTH - at - 1 ) );
+	}
+	
 	ysize--;
 	return true;
 }
@@ -394,7 +419,7 @@ void EdPatch::GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol )
 	ASSERT( v >= 0 && v < xsize * ysize );
 	ASSERT( layer >= 0 && layer < MAX_PATCH_LAYERS );
 	EdPatchVtx& pv = vertices[ ( v % xsize ) + v / xsize * MAX_PATCH_WIDTH ];
-	outpos = pv.pos;
+	outpos = pv.pos + position;
 	outcol = Col32ToVec4( pv.col[ layer ] );
 }
 
@@ -403,9 +428,15 @@ void EdPatch::SetPaintVertex( int v, int layer, const Vec3& pos, Vec4 col )
 	ASSERT( v >= 0 && v < xsize * ysize );
 	ASSERT( layer >= 0 && layer < MAX_PATCH_LAYERS );
 	EdPatchVtx& pv = vertices[ ( v % xsize ) + v / xsize * MAX_PATCH_WIDTH ];
-	pv.pos = pos;
+	pv.pos = pos - position;
 	pv.col[ layer ] = Vec4ToCol32( col );
 }
+
+#define PATCH_SELECT_VERTS( cond ) \
+	do{ for( int y = 0; y < ysize; ++y ) \
+		for( int x = 0; x < xsize; ++x ) \
+			SelectElement( x + y * xsize, cond ); \
+	}while(0)
 
 void EdPatch::SpecialAction( ESpecialAction act )
 {
@@ -460,14 +491,61 @@ void EdPatch::SpecialAction( ESpecialAction act )
 			}
 		}
 		break;
-	case SA_Extrude:
+	case SA_Extend:
+		{
+			int acount = 0, bcount = 0, ccount = 0, dcount = 0;
+			for( int y = 0; y < ysize; ++y )
+			{
+				for( int x = 0; x < xsize; ++x )
+				{
+					bool vsel = IsVertSel( x, y );
+					if( vsel == ( y == 0 ) ) acount++;
+					if( vsel == ( y == ysize - 1 ) ) bcount++;
+					if( vsel == ( x == 0 ) ) ccount++;
+					if( vsel == ( x == xsize - 1 ) ) dcount++;
+				}
+			}
+			int tc = xsize * ysize;
+			if( xsize == MAX_PATCH_WIDTH ){ ccount = 0; dcount = 0; }
+			if( ysize == MAX_PATCH_WIDTH ){ acount = 0; bcount = 0; }
+			if( acount == tc )
+			{
+				InsertYLine( 0 );
+				PATCH_SELECT_VERTS( y == 0 );
+			}
+			else if( bcount == tc )
+			{
+				InsertYLine( ysize );
+				PATCH_SELECT_VERTS( y == ysize - 1 );
+			}
+			else if( ccount == tc )
+			{
+				InsertXLine( 0 );
+				PATCH_SELECT_VERTS( x == 0 );
+			}
+			else if( dcount == tc )
+			{
+				InsertXLine( xsize );
+				PATCH_SELECT_VERTS( x == xsize - 1 );
+			}
+		}
 		break;
+		
 	case SA_Remove:
+		while( IsXLineSel( 0 ) ) RemoveXLine( 0 );
+		while( IsXLineSel( xsize - 1 ) ) RemoveXLine( xsize - 1 );
+		while( IsYLineSel( 0 ) ) RemoveYLine( 0 );
+		while( IsYLineSel( ysize - 1 ) ) RemoveYLine( ysize - 1 );
 		break;
+		
 	case SA_ExtractPart:
+		if( !CanDoSpecialAction( act ) ) return;
 		break;
+		
 	case SA_DuplicatePart:
+		if( !CanDoSpecialAction( act ) ) return;
 		break;
+		
 	default:
 		break;
 	}
@@ -518,7 +596,7 @@ bool EdPatch::CanDoSpecialAction( ESpecialAction act )
 		}
 		return false;
 		
-	case SA_Extrude:
+	case SA_Extend:
 		{
 			int acount = 0, bcount = 0, ccount = 0, dcount = 0;
 			for( int y = 0; y < ysize; ++y )
@@ -533,6 +611,8 @@ bool EdPatch::CanDoSpecialAction( ESpecialAction act )
 				}
 			}
 			int tc = xsize * ysize;
+			if( xsize == MAX_PATCH_WIDTH ){ ccount = 0; dcount = 0; }
+			if( ysize == MAX_PATCH_WIDTH ){ acount = 0; bcount = 0; }
 			return acount == tc || bcount == tc || ccount == tc || dcount == tc;
 		}
 		return false;
@@ -580,7 +660,11 @@ bool EdPatch::IsAnyRectSel( bool invert, int outdims[2] ) const
 		if( numins > 1 )
 			return false;
 		if( start != -1 )
+		{
+			if( xdims != -1 && xdims != xsize - start )
+				return false;
 			xdims = xsize - start;
+		}
 	}
 	if( xdims == -1 )
 		return false;
@@ -607,7 +691,11 @@ bool EdPatch::IsAnyRectSel( bool invert, int outdims[2] ) const
 		if( numins > 1 )
 			return false;
 		if( start != -1 )
+		{
+			if( ydims != -1 && ydims != ysize - start )
+				return false;
 			ydims = ysize - start;
+		}
 	}
 	if( ydims == -1 )
 		return false;
@@ -622,7 +710,8 @@ bool EdPatch::IsAnyRectSel( bool invert, int outdims[2] ) const
 bool EdPatch::IsAnySideSel( bool bothpatches ) const
 {
 	int dims[2];
-	if( !IsAnyRectSel( true, dims ) || dims[0] < 2 || dims[1] < 2 )
+	int space = bothpatches ? 1 : 2;
+	if( !IsAnyRectSel( true, dims ) || dims[0] < space || dims[1] < space )
 		return false;
 	
 	if( !IsAnyRectSel( false, dims ) )
@@ -647,6 +736,16 @@ uint16_t EdPatch::GetYSelMask( int i ) const
 {
 	ASSERT( i >= 0 && i < ysize );
 	return vertsel[ i ] & ones_mask[ xsize ];
+}
+
+bool EdPatch::IsXLineSel( int i ) const
+{
+	return GetXSelMask( i ) == ones_mask[ ysize ];
+}
+
+bool EdPatch::IsYLineSel( int i ) const
+{
+	return GetYSelMask( i ) == ones_mask[ xsize ];
 }
 
 bool EdPatch::IsAllSel() const

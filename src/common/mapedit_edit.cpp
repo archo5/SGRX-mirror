@@ -188,7 +188,7 @@ int EdBlockMoveTransform::OnViewEvent( EDGUIEvent* e )
 void EdBlockMoveTransform::Draw()
 {
 	float D = 16;
-	BatchRenderer& br = GR2D_GetBatchRenderer();
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	br.SetPrimitiveType( PT_Lines );
 	if( m_cmode == XAxis || m_cmode == YPlane || m_cmode == ZPlane )
 	{
@@ -392,8 +392,7 @@ void EdDrawBlockEditMode::OnViewEvent( EDGUIEvent* e )
 
 void EdDrawBlockEditMode::Draw()
 {
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	br.UnsetTexture();
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
 	float planeHeight = g_UIFrame->GetCursorPlaneHeight();
 	
@@ -739,6 +738,43 @@ bool EdEditVertexEditMode::_CanDo( ESpecialAction act )
 	return false;
 }
 
+void EdEditVertexEditMode::_Do( ESpecialAction act )
+{
+	for( size_t b = 0; b < m_selObjList.size(); ++b )
+	{
+		int oid = m_selObjList[ b ];
+		EdObject* obj = g_EdWorld->m_objects[ oid ];
+		switch( act )
+		{
+		case SA_Extend:
+			// move afterwards
+			obj->SpecialAction( act );
+			if( obj->CanDoSpecialAction( act ) )
+			{
+				m_transform.m_extend = false;
+				g_UIFrame->SetEditTransform( &m_transform );
+			}
+			else
+				obj->selected = false;
+			OnEnter(); // refresh selection
+			break;
+			
+		case SA_ExtractPart:
+		case SA_DuplicatePart:
+			// do only for one
+			if( obj->CanDoSpecialAction( act ) )
+			{
+				obj->SpecialAction( act );
+				return;
+			}
+			
+		default:
+			obj->SpecialAction( act );
+			break;
+		}
+	}
+}
+
 void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 {
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
@@ -791,6 +827,27 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 			}
 		}
 		
+		// EXTEND
+		if( e->key.engkey == SDLK_e )
+		{
+			_Do( SA_Extend );
+		}
+		// REMOVE
+		if( e->key.engkey == SDLK_DELETE )
+		{
+			_Do( SA_Remove );
+		}
+		// EXTRACT PART
+		if( e->key.engkey == SDLK_x )
+		{
+			_Do( SA_ExtractPart );
+		}
+		// DUPLICATE PART
+		if( e->key.engkey == SDLK_d && e->key.engmod & KMOD_CTRL )
+		{
+			_Do( SA_DuplicatePart );
+		}
+		
 		// GRAB (MOVE)
 		if( e->key.engkey == SDLK_g )
 		{
@@ -812,17 +869,19 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 	{
 		int x0 = g_UIFrame->m_UIRenderView.x0;
 		int y0 = g_UIFrame->m_UIRenderView.y0;
-		String actlist;
+		const char* acts0 = "Block mode [Alt+B], Paint mode [Alt+P], Select all [Ctrl+A], Select none [Ctrl+Alt+A]";
+		String actlist = "Grab [G]";
 		if( _CanDo( SA_Invert ) ) actlist.append( ", Invert patch [I]" );
 		if( _CanDo( SA_Subdivide ) ) actlist.append( ", Subdivide [']']" );
 		if( _CanDo( SA_Unsubdivide ) ) actlist.append( ", Unsubdivide [']']" );
 		if( _CanDo( SA_EdgeFlip ) ) actlist.append( ", Edge flip [F]" );
-		if( _CanDo( SA_Extrude ) ) actlist.append( ", Extrude [E]" );
+		if( _CanDo( SA_Extend ) ) actlist.append( ", Extend [E]" );
 		if( _CanDo( SA_Remove ) ) actlist.append( ", Remove [Del]" );
 		if( _CanDo( SA_ExtractPart ) ) actlist.append( ", Extract part [X]" );
 		if( _CanDo( SA_DuplicatePart ) ) actlist.append( ", Duplicate part [Ctrl+D]" );
 		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( x0, y0, StringView( actlist ).part( 2 ), HALIGN_LEFT, VALIGN_TOP );
+		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
+		GR2D_DrawTextLine( x0, y0 + 16, actlist, HALIGN_LEFT, VALIGN_TOP );
 	}
 	
 	EdEditMode::OnViewEvent( e );
@@ -834,7 +893,7 @@ void EdEditVertexEditMode::Draw()
 	
 	if( g_UIFrame->m_editTF == NULL )
 	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 		for( size_t b = 0; b < m_selObjList.size(); ++b )
 		{
 			int oid = m_selObjList[ b ];
@@ -1023,6 +1082,51 @@ void EdPaintVertsEditMode::OnViewEvent( EDGUIEvent* e )
 	EdEditMode::OnViewEvent( e );
 }
 
+int EdPaintVertsEditMode::OnUIEvent( EDGUIEvent* e )
+{
+	if( e->type == EDGUI_EVENT_PROPEDIT && e->target == &m_ctlPaintProps.m_ctlLayerNum )
+	{
+		_TakeSnapshot();
+	}
+	return EdEditMode::OnUIEvent( e );
+}
+
+int EdPaintVertsEditMode::GetNumObjectActivePoints( int b )
+{
+	EdObject* obj = g_EdWorld->m_objects[ b ];
+	return obj->GetNumElements();
+}
+
+Vec3 EdPaintVertsEditMode::GetActivePoint( int b, int i )
+{
+	EdObject* obj = g_EdWorld->m_objects[ b ];
+	return obj->GetElementPoint( i );
+}
+
+void EdPaintVertsEditMode::Draw()
+{
+	g_EdWorld->DrawWires_Objects( NULL, true );
+	
+	if( g_UIFrame->m_editTF == NULL )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		for( size_t b = 0; b < m_selObjList.size(); ++b )
+		{
+			int oid = m_selObjList[ b ];
+			int bpcount = GetNumObjectActivePoints( oid );
+			for( int i = 0; i < bpcount; ++i )
+			{
+				if( g_EdWorld->m_objects[ oid ]->IsElementSpecial( i ) )
+					continue;
+				
+				br.Col( 0.1f, 0.2f, 0.4f, 1 );
+				Vec3 pp = GetActivePoint( oid, i );
+				br.Sprite( pp, 0.02f, 0.02f );
+			}
+		}
+	}
+}
+
 void EdPaintVertsEditMode::_TakeSnapshot()
 {
 	int layer_id = m_ctlPaintProps.GetLayerNum();
@@ -1164,7 +1268,7 @@ int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
 		}
 		break;
 	}
-	return EdEditMode::OnUIEvent( e );	
+	return EdEditMode::OnUIEvent( e );
 }
 
 void EdAddEntityEditMode::OnViewEvent( EDGUIEvent* e )

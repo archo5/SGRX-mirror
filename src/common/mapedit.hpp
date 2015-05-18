@@ -208,7 +208,7 @@ enum ESpecialAction
 	SA_Subdivide,
 	SA_Unsubdivide,
 	SA_EdgeFlip,
-	SA_Extrude,
+	SA_Extend,
 	SA_Remove,
 	SA_ExtractPart,
 	SA_DuplicatePart,
@@ -601,7 +601,7 @@ struct EdPatch : EdObject
 	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads() + GetNumXEdges() + GetNumYEdges(); }
 	virtual Vec3 GetElementPoint( int i ) const;
 	virtual bool IsElementSelected( int i ) const { return i < xsize * ysize && IsVertexSelected( i ); }
-	virtual bool IsElementSpecial( int i ) const { return i < GetNumVerts() + GetNumQuads(); }
+	virtual bool IsElementSpecial( int i ) const { return i >= GetNumVerts(); }
 	virtual void SelectElement( int i, bool sel );
 	virtual void ClearSelection(){ TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 ); }
 	virtual int GetNumVerts() const { return xsize * ysize; }
@@ -635,6 +635,8 @@ struct EdPatch : EdObject
 	bool IsAnySideSel( bool bothpatches = false ) const;
 	uint16_t GetXSelMask( int i ) const;
 	uint16_t GetYSelMask( int i ) const;
+	bool IsXLineSel( int i ) const;
+	bool IsYLineSel( int i ) const;
 	bool IsAllSel() const;
 	
 	template< class T > void SerializeT( T& arch )
@@ -1116,11 +1118,11 @@ struct EdWorld : EDGUILayoutRow
 	void Reset();
 	void TestData();
 	void RegenerateMeshes();
-	void DrawWires_Objects( EdObject* hl );
+	void DrawWires_Objects( EdObject* hl, bool tonedown = false );
 	void DrawWires_Blocks( EdObject* hl );
 	void DrawPoly_BlockSurf( int block, int surf, bool sel );
 	void DrawPoly_BlockVertex( int block, int vert, bool sel );
-	void DrawWires_Patches( EdObject* hl );
+	void DrawWires_Patches( EdObject* hl, bool tonedown = false );
 	void DrawWires_Entities( EdObject* hl );
 	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1], EdObject** skip = NULL );
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1], EdObject** skip = NULL );
@@ -1381,6 +1383,7 @@ struct EdEditVertexEditMode : EdEditMode
 	
 	void OnEnter();
 	bool _CanDo( ESpecialAction act );
+	void _Do( ESpecialAction act );
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
 	void _ReloadVertSurfProps();
@@ -1407,8 +1410,13 @@ struct EdPaintVertsEditMode : EdEditMode
 	EdPaintVertsEditMode();
 	void OnEnter();
 	void OnViewEvent( EDGUIEvent* e );
+	int OnUIEvent( EDGUIEvent* e );
+	void Draw();
 	void _TakeSnapshot();
 	void _DoPaint();
+	
+	int GetNumObjectActivePoints( int b );
+	Vec3 GetActivePoint( int b, int i );
 	
 	bool m_isPainting;
 	Array< int > m_selObjList;
