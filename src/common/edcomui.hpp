@@ -22,59 +22,6 @@ inline void lmm_prepmeshinst( MeshInstHandle mih )
 }
 
 
-struct EDGUISnapProps : EDGUILayoutRow
-{
-	EDGUISnapProps() :
-		m_group( true, "Snapping properties" ),
-		m_enableSnap( true ),
-		m_snapVerts( true ),
-		m_snapRange( 0.2f, 2, 0.01f, 1.0f ),
-		m_snapGrid( 0.1f, 2, 0.01f, 100.0f )
-	{
-		tyname = "snapprops";
-		
-		m_enableSnap.caption = "Enable snapping";
-		m_snapVerts.caption = "Snap to vertices";
-		m_snapRange.caption = "Max. distance";
-		m_snapGrid.caption = "Grid unit size";
-		
-		m_group.Add( &m_enableSnap );
-		m_group.Add( &m_snapVerts );
-		m_group.Add( &m_snapRange );
-		m_group.Add( &m_snapGrid );
-		Add( &m_group );
-	}
-	
-	bool IsSnapEnabled(){ return m_enableSnap.m_value; }
-	bool IsSnapVertices(){ return m_snapVerts.m_value; }
-	float GetSnapMaxDist(){ return m_snapRange.m_value; }
-	float GetSnapGridSize(){ return m_snapGrid.m_value; }
-	
-	static float Round( float v ){ return round( v ); }
-	static Vec2 Round( Vec2 v ){ return V2( Round( v.x ), Round( v.y ) ); }
-	static Vec3 Round( Vec3 v ){ return V3( Round( v.x ), Round( v.y ), Round( v.z ) ); }
-	template< class T > void Snap( T& pos )
-	{
-		if( !m_enableSnap.m_value )
-			return;
-		
-		if( m_snapVerts.m_value )
-		{
-		}
-		
-		pos /= m_snapGrid.m_value;
-		pos = Round( pos );
-		pos *= m_snapGrid.m_value;
-	}
-	
-	EDGUIGroup m_group;
-	EDGUIPropBool m_enableSnap;
-	EDGUIPropBool m_snapVerts;
-	EDGUIPropFloat m_snapRange;
-	EDGUIPropFloat m_snapGrid;
-};
-
-
 
 struct EDGUISurfTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
@@ -436,7 +383,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 		case EDGUI_EVENT_KEYUP:
 			if( EventToFrame( e ) )
 			{
-				bool down = e->type == EDGUI_EVENT_KEYDOWN && !( e->key.engmod & KMOD_CTRL );
+				bool down = e->type == EDGUI_EVENT_KEYDOWN && !( e->key.engmod & (KMOD_CTRL|KMOD_ALT) );
 				if( e->key.engkey == SDLK_w ) movefwd = down;
 				if( e->key.engkey == SDLK_s ) movebwd = down;
 				if( e->key.engkey == SDLK_a ) movelft = down;

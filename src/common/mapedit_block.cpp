@@ -211,6 +211,50 @@ void EdBlock::ClearSelection()
 	TMEMSET( subsel.data(), subsel.size(), false );
 }
 
+void EdBlock::SpecialAction( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_SurfsToPatches:
+		{
+			int numsurfs = GetNumSurfs();
+			for( int i = 0; i < numsurfs; ++i )
+			{
+				if( IsSurfaceSelected( i ) )
+				{
+					EdPatch* p = EdPatch::CreatePatchFromSurface( *this, i );
+					g_EdWorld->AddObject( p );
+				}
+			}
+		}
+		break;
+		
+	default:
+		break;
+	}
+}
+
+bool EdBlock::CanDoSpecialAction( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_SurfsToPatches:
+		{
+			int numsurfs = GetNumSurfs();
+			for( int i = 0; i < numsurfs; ++i )
+			{
+				if( IsSurfaceSelected( i ) )
+					return true;
+			}
+		}
+		break;
+		
+	default:
+		break;
+	}
+	return false;
+}
+
 
 void EdBlock::_GetTexVecs( int surf, Vec3& tgx, Vec3& tgy )
 {

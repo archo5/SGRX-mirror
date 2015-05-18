@@ -430,7 +430,10 @@ void EdObject::ProjectSelectedVertices()
 		if( g_EdWorld->RayPatchesIntersect( origin, dir, -1, &ndst, NULL, skiplist ) && ndst < dst ) dst = ndst;
 		
 		if( dst < FLT_MAX )
+		{
+			dst -= g_UIFrame->m_snapProps.m_projDist.m_value;
 			SetLocalVertex( i, origin + dir * dst );
+		}
 	}
 }
 
@@ -853,9 +856,16 @@ template< typename T > bool _RayIntersect( T& item, const Vec3& pos, const Vec3&
 {
 	return item->RayIntersect( pos, dir, outdst );
 }
-bool _RayIntersect( EdBlock& B, const Vec3& pos, const Vec3& dir, float outdst[1] ){ return B.RayIntersect( pos, dir, outdst ); }
+int Obj2Mask( EdObject* obj )
+{
+	if( obj->m_type == ObjType_Block ) return SelMask_Blocks;
+	if( obj->m_type == ObjType_Patch ) return SelMask_Patches;
+	if( obj->m_type == ObjType_Entity ) return SelMask_Entities;
+	return 0;
+}
+//bool _RayIntersect( EdBlock& B, const Vec3& pos, const Vec3& dir, float outdst[1] ){ return B.RayIntersect( pos, dir, outdst ); }
 template< class T > bool RayItemsIntersect( T& items,
-	const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outitem[1], EdObject** skip )
+	const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outitem[1], EdObject** skip, int mask )
 {
 	float ndst[1], mindst = FLT_MAX;
 	int curblk = -1;
@@ -864,6 +874,8 @@ template< class T > bool RayItemsIntersect( T& items,
 	for( int i = searchfrom - 1; i >= 0; --i )
 	{
 		if( skip && ObjInArray( items[ i ], skip ) )
+			continue;
+		if( ( Obj2Mask( items[ i ] ) & mask ) == 0 )
 			continue;
 		if( _RayIntersect( items[ i ], pos, dir, ndst ) && ndst[0] < mindst )
 		{
@@ -874,6 +886,8 @@ template< class T > bool RayItemsIntersect( T& items,
 	for( int i = items.size() - 1; i >= searchfrom; --i )
 	{
 		if( skip && ObjInArray( items[ i ], skip ) )
+			continue;
+		if( ( Obj2Mask( items[ i ] ) & mask ) == 0 )
 			continue;
 		if( _RayIntersect( items[ i ], pos, dir, ndst ) && ndst[0] < mindst )
 		{
@@ -886,24 +900,24 @@ template< class T > bool RayItemsIntersect( T& items,
 	return curblk != -1;
 }
 
-bool EdWorld::RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1], EdObject** skip )
+bool EdWorld::RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1], EdObject** skip, int mask )
 {
-	return RayItemsIntersect( m_objects, pos, dir, searchfrom, outdst, outobj, skip );
+	return RayItemsIntersect( m_objects, pos, dir, searchfrom, outdst, outobj, skip, mask );
 }
 
-bool EdWorld::RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1], EdObject** skip )
+bool EdWorld::RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1], EdObject** skip, int mask )
 {
-	return RayItemsIntersect( m_blocks, pos, dir, searchfrom, outdst, outblock, skip );
+	return RayItemsIntersect( m_blocks, pos, dir, searchfrom, outdst, outblock, skip, mask );
 }
 
-bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip )
+bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip, int mask )
 {
-	return RayItemsIntersect( m_entities, pos, dir, searchfrom, outdst, outent, skip );
+	return RayItemsIntersect( m_entities, pos, dir, searchfrom, outdst, outent, skip, mask );
 }
 
-bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip )
+bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip, int mask )
 {
-	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent, skip );
+	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent, skip, mask );
 }
 
 void EdWorld::AddObject( EdObject* obj )

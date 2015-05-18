@@ -1879,7 +1879,7 @@ int EDGUIPropVec4::OnEvent( EDGUIEvent* e )
 			{
 				m_WnumWheel.m_cx = e->mouse.x;
 				m_WnumWheel.m_cy = e->mouse.y;
-				m_WnumWheel.m_value = m_value.z;
+				m_WnumWheel.m_value = m_value.w;
 				m_frame->Add( &m_WnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}

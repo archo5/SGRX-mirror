@@ -42,6 +42,64 @@ MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
 
 
 
+struct EDGUISnapProps : EDGUILayoutRow
+{
+	EDGUISnapProps() :
+		m_group( true, "Snapping properties" ),
+		m_enableSnap( true ),
+		m_snapVerts( true ),
+		m_snapRange( 0.2f, 2, 0.01f, 1.0f ),
+		m_snapGrid( 0.1f, 2, 0.01f, 100.0f ),
+		m_projDist( 0.01f, 2, 0, 1 )
+	{
+		tyname = "snapprops";
+		
+		m_enableSnap.caption = "Enable snapping";
+		m_snapVerts.caption = "Snap to vertices";
+		m_snapRange.caption = "Max. distance";
+		m_snapGrid.caption = "Grid unit size";
+		m_projDist.caption = "Proj. distance";
+		
+		m_group.Add( &m_enableSnap );
+		m_group.Add( &m_snapVerts );
+		m_group.Add( &m_snapRange );
+		m_group.Add( &m_snapGrid );
+		m_group.Add( &m_projDist );
+		Add( &m_group );
+	}
+	
+	bool IsSnapEnabled(){ return m_enableSnap.m_value; }
+	bool IsSnapVertices(){ return m_snapVerts.m_value; }
+	float GetSnapMaxDist(){ return m_snapRange.m_value; }
+	float GetSnapGridSize(){ return m_snapGrid.m_value; }
+	
+	static float Round( float v ){ return round( v ); }
+	static Vec2 Round( Vec2 v ){ return V2( Round( v.x ), Round( v.y ) ); }
+	static Vec3 Round( Vec3 v ){ return V3( Round( v.x ), Round( v.y ), Round( v.z ) ); }
+	template< class T > void Snap( T& pos )
+	{
+		if( !m_enableSnap.m_value )
+			return;
+		
+		if( m_snapVerts.m_value )
+		{
+		}
+		
+		pos /= m_snapGrid.m_value;
+		pos = Round( pos );
+		pos *= m_snapGrid.m_value;
+	}
+	
+	EDGUIGroup m_group;
+	EDGUIPropBool m_enableSnap;
+	EDGUIPropBool m_snapVerts;
+	EDGUIPropFloat m_snapRange;
+	EDGUIPropFloat m_snapGrid;
+	EDGUIPropFloat m_projDist;
+};
+
+
+
 //
 // GROUPS
 //
@@ -212,6 +270,7 @@ enum ESpecialAction
 	SA_Remove,
 	SA_ExtractPart,
 	SA_DuplicatePart,
+	SA_SurfsToPatches,
 };
 
 typedef SerializeVersionHelper<TextReader> SVHTR;
@@ -421,6 +480,8 @@ struct EdBlock : EdObject
 	virtual bool IsElementSelected( int i ) const;
 	virtual void SelectElement( int i, bool sel );
 	virtual void ClearSelection();
+	virtual void SpecialAction( ESpecialAction act );
+	virtual bool CanDoSpecialAction( ESpecialAction act );
 	
 	void _GetTexVecs( int surf, Vec3& tgx, Vec3& tgy );
 	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< LCVertex >& vertices, uint16_t voff );
@@ -1032,6 +1093,14 @@ template< class T > EdEntity* ENT_Unserialize( T& arch )
 // WORLD
 //
 
+enum SelectionMask
+{
+	SelMask_Blocks = 0x1,
+	SelMask_Patches = 0x2,
+	SelMask_Entities = 0x4,
+	SelMask_ALL = 0xf
+};
+
 struct EdWorld : EDGUILayoutRow
 {
 	EdWorld();
@@ -1124,10 +1193,14 @@ struct EdWorld : EDGUILayoutRow
 	void DrawPoly_BlockVertex( int block, int vert, bool sel );
 	void DrawWires_Patches( EdObject* hl, bool tonedown = false );
 	void DrawWires_Entities( EdObject* hl );
-	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1], EdObject** skip = NULL );
-	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1], EdObject** skip = NULL );
-	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip = NULL );
-	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip = NULL );
+	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
+		float outdst[1], int outobj[1], EdObject** skip = NULL, int mask = SelMask_ALL );
+	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
+		float outdst[1], int outblock[1], EdObject** skip = NULL, int mask = SelMask_ALL );
+	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
+		float outdst[1], int outent[1], EdObject** skip = NULL, int mask = SelMask_ALL );
+	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
+		float outdst[1], int outent[1], EdObject** skip = NULL, int mask = SelMask_ALL );
 	
 	void AddObject( EdObject* obj );
 	void DeleteObject( EdObject* obj );
@@ -1356,6 +1429,7 @@ struct EdEditBlockEditMode : EdEditMode
 	void OnTransformEnd();
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
+	void _MouseMove();
 	void _ReloadBlockProps();
 	static Vec3 GetActivePointFactor( int i );
 	Vec3 GetActivePoint( int i );
@@ -1363,6 +1437,7 @@ struct EdEditBlockEditMode : EdEditMode
 	int GetClosestActivePoint();
 	static const char* GetActivePointExtName( int i );
 	
+	int m_selMask;
 	int m_hlObj;
 	int m_curObj;
 	

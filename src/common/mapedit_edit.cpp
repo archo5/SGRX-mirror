@@ -262,7 +262,7 @@ int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
 		int x0 = g_UIFrame->m_UIRenderView.x0;
 		int y1 = g_UIFrame->m_UIRenderView.y1;
 		char bfr[ 1024 ];
-		sgrx_snprintf( bfr, 1024, "Projection: [%s] | Moving vertices: %g ; %g ; %g",
+		sgrx_snprintf( bfr, 1024, "(P)rojection: [%s] | Moving vertices: %g ; %g ; %g",
 			m_project ? "ON" : "OFF", m_transform.x, m_transform.y, m_transform.z );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
@@ -460,6 +460,7 @@ void EdDrawBlockEditMode::_AddNewBlock()
 
 
 EdEditBlockEditMode::EdEditBlockEditMode() :
+	m_selMask( 0xf ),
 	m_hlObj( -1 ),
 	m_curObj( -1 )
 {}
@@ -470,9 +471,6 @@ void EdEditBlockEditMode::OnEnter()
 	m_curObj = g_EdWorld->GetOnlySelectedObject();
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditObjects );
 	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
-	m_hlBBEl = GetClosestActivePoint();
-	m_hlObj = -1;
-	g_EdWorld->RayObjectsIntersect( g_UIFrame->GetCursorRayPos(), g_UIFrame->GetCursorRayDir(), m_curObj, NULL, &m_hlObj );
 	_ReloadBlockProps();
 }
 
@@ -483,9 +481,6 @@ void EdEditBlockEditMode::OnTransformEnd()
 
 void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 {
-	Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
-	Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
-	
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
 	{
 		g_EdWorld->SelectObject( m_hlObj, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
@@ -495,8 +490,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	}
 	if( e->type == EDGUI_EVENT_MOUSEMOVE )
 	{
-		g_EdWorld->RayObjectsIntersect( cursorRayPos, cursorRayDir, m_curObj, NULL, &m_hlObj );
-		m_hlBBEl = GetClosestActivePoint();
+		_MouseMove();
 	}
 	if( e->type == EDGUI_EVENT_KEYDOWN )
 	{
@@ -545,27 +539,45 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 				g_UIFrame->SetEditTransform( &m_transform );
 			}
 		}
+		
+		// SELECTION
+		int sm = m_selMask;
+		if( e->key.engkey == SDLK_1 ) m_selMask ^= SelMask_Blocks;
+		if( e->key.engkey == SDLK_2 ) m_selMask ^= SelMask_Patches;
+		if( e->key.engkey == SDLK_3 ) m_selMask ^= SelMask_Entities;
+		if( sm != m_selMask )
+		{
+			_MouseMove();
+		}
+		
 		// TO VERTEX MODE
 		if( e->key.engkey == SDLK_v && e->key.engmod & KMOD_ALT )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
 		}
 		// TO PAINT MODE
-		if( e->key.engkey == SDLK_p && e->key.engmod & KMOD_ALT )
+		if( e->key.engkey == SDLK_q && e->key.engmod & KMOD_ALT )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
 		}
 	}
 	if( e->type == EDGUI_EVENT_PAINT )
 	{
+		int x0 = g_UIFrame->m_UIRenderView.x0;
+		int y0 = g_UIFrame->m_UIRenderView.y0;
+		char bfr[ 1024 ];
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( x0, y0, "Vertex mode [Alt+V], Paint mode [Alt+Q], "
+			"Select all [Ctrl+A], Select none [Ctrl+Alt+A]", HALIGN_LEFT, VALIGN_TOP );
+		sgrx_snprintf( bfr, 1024, "Selection mask: [blocks: %s, patches: %s, entities: %s]",
+			( m_selMask & SelMask_Blocks ) ? "YES" : "NO",
+			( m_selMask & SelMask_Patches ) ? "YES" : "NO",
+			( m_selMask & SelMask_Entities ) ? "YES" : "NO" );
+		GR2D_DrawTextLine( x0, y0 + 16, bfr, HALIGN_LEFT, VALIGN_TOP );
 		if( m_numSel && m_hlBBEl != -1 )
 		{
-			int x0 = g_UIFrame->m_UIRenderView.x0;
-			int y0 = g_UIFrame->m_UIRenderView.y0;
-			char bfr[ 1024 ];
 			sgrx_snprintf( bfr, 1024, "Press E to extend selection along %s", GetActivePointExtName( m_hlBBEl ) );
-			GR2D_SetColor( 1, 1 );
-			GR2D_DrawTextLine( x0, y0, bfr, HALIGN_LEFT, VALIGN_TOP );
+			GR2D_DrawTextLine( x0, y0 + 32, bfr, HALIGN_LEFT, VALIGN_TOP );
 		}
 	}
 	
@@ -593,6 +605,12 @@ void EdEditBlockEditMode::Draw()
 			}
 		}
 	}
+}
+
+void EdEditBlockEditMode::_MouseMove()
+{
+	g_EdWorld->RayObjectsIntersect( g_UIFrame->GetCursorRayPos(), g_UIFrame->GetCursorRayDir(), m_curObj, NULL, &m_hlObj, NULL, m_selMask );
+	m_hlBBEl = GetClosestActivePoint();
 }
 
 void EdEditBlockEditMode::_ReloadBlockProps()
@@ -801,7 +819,7 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		m_hlAP = GetClosestActivePoint();
 		
 		ESpecialAction satype = SA_None;
-		if( e->key.engkey == SDLK_i && e->key.engmod & KMOD_CTRL ) satype = SA_Invert;
+		if( e->key.engkey == SDLK_i ) satype = SA_Invert;
 		if( e->key.engkey == SDLK_RIGHTBRACKET ) satype = SA_Subdivide;
 		if( e->key.engkey == SDLK_LEFTBRACKET ) satype = SA_Unsubdivide;
 		if( e->key.engkey == SDLK_f ) satype = SA_EdgeFlip;
@@ -847,6 +865,11 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		{
 			_Do( SA_DuplicatePart );
 		}
+		// SURFS TO PATCHES
+		if( e->key.engkey == SDLK_s && e->key.engmod & KMOD_ALT )
+		{
+			_Do( SA_SurfsToPatches );
+		}
 		
 		// GRAB (MOVE)
 		if( e->key.engkey == SDLK_g )
@@ -860,7 +883,7 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 		}
 		// TO PAINT MODE
-		if( e->key.engkey == SDLK_p && e->key.engmod & KMOD_ALT )
+		if( e->key.engkey == SDLK_q && e->key.engmod & KMOD_ALT )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
 		}
@@ -869,7 +892,7 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 	{
 		int x0 = g_UIFrame->m_UIRenderView.x0;
 		int y0 = g_UIFrame->m_UIRenderView.y0;
-		const char* acts0 = "Block mode [Alt+B], Paint mode [Alt+P], Select all [Ctrl+A], Select none [Ctrl+Alt+A]";
+		const char* acts0 = "Block mode [Alt+B], Paint mode [Alt+Q], Select all [Ctrl+A], Select none [Ctrl+Alt+A]";
 		String actlist = "Grab [G]";
 		if( _CanDo( SA_Invert ) ) actlist.append( ", Invert patch [I]" );
 		if( _CanDo( SA_Subdivide ) ) actlist.append( ", Subdivide [']']" );
@@ -879,6 +902,7 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		if( _CanDo( SA_Remove ) ) actlist.append( ", Remove [Del]" );
 		if( _CanDo( SA_ExtractPart ) ) actlist.append( ", Extract part [X]" );
 		if( _CanDo( SA_DuplicatePart ) ) actlist.append( ", Duplicate part [Ctrl+D]" );
+		if( _CanDo( SA_SurfsToPatches ) ) actlist.append( ", Surfaces to patches [Alt+S]" );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
 		GR2D_DrawTextLine( x0, y0 + 16, actlist, HALIGN_LEFT, VALIGN_TOP );
@@ -1074,6 +1098,14 @@ void EdPaintVertsEditMode::OnViewEvent( EDGUIEvent* e )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
 		}
+	}
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		int x0 = g_UIFrame->m_UIRenderView.x0;
+		int y0 = g_UIFrame->m_UIRenderView.y0;
+		const char* acts0 = "Block mode [Alt+B], Vertex mode [Alt+V], Hold Alt to reverse painting";
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
 	}
 	
 	if( dopaint )
