@@ -1,4 +1,12 @@
 
+function ED_ENT_see( eptr )
+{
+}
+function ED_ENT_setest( eptr )
+{
+	EE_AddButtonSubent( eptr, "see" );
+}
+
 function ED_ENT_player_start( eptr )
 {
 	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );

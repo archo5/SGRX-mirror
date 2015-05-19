@@ -632,6 +632,8 @@ void EdEditBlockEditMode::_ReloadBlockProps()
 	
 	g_UIFrame->ClearParamList();
 	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
+	m_moprops.Prepare( false );
+	g_UIFrame->AddToParamList( &m_moprops );
 	if( m_curObj >= 0 )
 	{
 		g_UIFrame->AddToParamList( g_EdWorld->GetObjProps( m_curObj ) );
@@ -1010,6 +1012,8 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 	
 	g_UIFrame->ClearParamList();
 	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
+	m_moprops.Prepare( true );
+	g_UIFrame->AddToParamList( &m_moprops );
 	if( surfprops.block != -1 )
 		g_UIFrame->AddToParamList( g_EdWorld->GetSurfProps( surfprops.block, surfprops.point ) );
 	if( vertprops.block != -1 )

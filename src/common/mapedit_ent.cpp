@@ -3,6 +3,39 @@
 #include "mapedit.hpp"
 
 
+
+template< class T > void SerializeSubentities( EdEntity* E, T& arch )
+{
+	int32_t size = E->m_subEnts.size();
+	arch( size, arch.version >= 4, 0 );
+	if( T::IsReader )
+	{
+		E->m_subEnts.resize( size );
+		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
+			E->m_subEnts[ i ] = ENT_Unserialize( arch );
+	}
+	else
+	{
+		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
+			ENT_Serialize( arch, E->m_subEnts[ i ] );
+	}
+}
+
+
+
+void EdEntity::BeforeDelete()
+{
+	if( m_ownerEnt )
+	{
+		m_ownerEnt->m_subEnts.uerase( m_ownerEnt->m_subEnts.find_first_at( this ) );
+	}
+	m_ownerEnt = NULL;
+	while( m_subEnts.size() )
+	{
+		g_EdWorld->DeleteObject( m_subEnts[0] );
+	}
+}
+
 void EdEntity::LoadIcon()
 {
 	char bfr[ 256 ];
@@ -254,6 +287,7 @@ void EdEntLightSample::UpdateCache( LevelCache& LC )
 
 EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 	EdEntity( isproto ),
+	m_subEntAddBtn( NULL ),
 	m_levelCache( NULL )
 {
 	strncpy( m_typename, enttype, 63 );
@@ -287,6 +321,8 @@ EdEntScripted::~EdEntScripted()
 			continue;
 		delete m_fields[ i ].property;
 	}
+	if( m_subEntAddBtn )
+		delete m_subEntAddBtn;
 }
 
 EdEntScripted& EdEntScripted::operator = ( const EdEntScripted& o )
@@ -417,8 +453,27 @@ int EdEntScripted::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_PROPEDIT:
-		if( !m_isproto )
+		if( m_isproto == false )
 			RegenerateMesh();
+		break;
+	case EDGUI_EVENT_BTNCLICK:
+		if( m_isproto == false && e->target == m_subEntAddBtn )
+		{
+			EdEntity* E = ENT_FindProtoByName( StackString<128>( m_subEntProto ) );
+			if( E == NULL )
+				break;
+			EdEntity* copy = E->CloneEntity();
+			g_EdWorld->AddObject( copy );
+			copy->m_ownerEnt = this;
+			m_subEnts.push_back( copy );
+			
+			// grab it
+			copy->selected = true;
+			selected = false;
+			g_UIFrame->SetEditTransform( &g_UIFrame->m_emEditObjs.m_transform );
+			copy->selected = false;
+			selected = true;
+		}
 		break;
 	}
 	return EdEntity::OnEvent( e );
@@ -496,6 +551,22 @@ void EdEntScripted::AddFieldRsrc( sgsString key, sgsString name, EDGUIRsrcPicker
 	Field F = { StringView( key.c_str(), key.size() ), prop };
 	m_fields.push_back( F );
 	m_group.Add( prop );
+}
+
+void EdEntScripted::AddButtonSubent( sgsString type )
+{
+	if( m_subEntAddBtn )
+	{
+		LOG_WARNING << "CAN ONLY ADD ONE SUBENTITY BUTTON";
+		return;
+	}
+	char buf[ 64 ];
+	sgrx_snprintf( buf, 64, "ADD SUBENT.: %.*s", TMIN( 50, (int) type.size() ), type.c_str() );
+	EDGUIButton* btn = new EDGUIButton();
+	btn->caption = buf;
+	m_subEntAddBtn = btn;
+	m_group.Add( btn );
+	m_subEntProto = StringView( type.c_str(), type.size() );
 }
 
 void EdEntScripted::SetMesh( sgsString name )
@@ -633,6 +704,13 @@ static int EE_AddFieldScrFn( SGS_CTX )
 	E->AddFieldRsrc( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), g_UIScrFnPicker, sgs_GetVar<sgsString>()( C, 3 ) );
 	return 0;
 }
+static int EE_AddButtonSubent( SGS_CTX )
+{
+	SGSFN( "EE_AddButtonSubent" );
+	EdEntScripted* E = (EdEntScripted*) sgs_GetVar<void*>()( C, 0 );
+	E->AddButtonSubent( sgs_GetVar<sgsString>()( C, 1 ) );
+	return 0;
+}
 
 static int EE_SetMesh( SGS_CTX )
 {
@@ -725,6 +803,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldPartSys", EE_AddFieldPartSys },
 	{ "EE_AddFieldSound", EE_AddFieldSound },
 	{ "EE_AddFieldScrFn", EE_AddFieldScrFn },
+	{ "EE_AddButtonSubent", EE_AddButtonSubent },
 	{ "EE_SetMesh", EE_SetMesh },
 	{ "EE_SetMeshInstanceCount", EE_SetMeshInstanceCount },
 	{ "EE_SetMeshInstanceMatrix", EE_SetMeshInstanceMatrix },

@@ -574,8 +574,15 @@ EdWorld::EdWorld() :
 	TestData();
 }
 
+EdWorld::~EdWorld()
+{
+	Reset();
+}
+
 void EdWorld::Reset()
 {
+	while( m_objects.size() )
+		DeleteObject( m_objects.last() );
 	m_blocks.clear();
 	m_entities.clear();
 	m_patches.clear();
@@ -937,9 +944,12 @@ void EdWorld::DeleteObject( EdObject* obj )
 	size_t at = m_objects.find_first_at( obj );
 	m_objects.uerase( at );
 	
-	EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
-	e.key.key = at;
-	g_UIFrame->ViewEvent( &e );
+	if( g_UIFrame )
+	{
+		EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
+		e.key.key = at;
+		g_UIFrame->ViewEvent( &e );
+	}
 	
 	if( obj->m_type == ObjType_Block )
 	{
@@ -957,7 +967,9 @@ void EdWorld::DeleteObject( EdObject* obj )
 	
 	if( obj->m_type == ObjType_Entity )
 	{
-		at = m_entities.find_first_at( (EdEntity*) obj );
+		SGRX_CAST( EdEntity*, E, obj );
+		E->BeforeDelete();
+		at = m_entities.find_first_at( E );
 		if( at != NOT_FOUND )
 			m_entities.uerase( at );
 	}
@@ -972,9 +984,12 @@ void EdWorld::DeleteSelectedObjects()
 		if( m_objects[ i ]->selected )
 		{
 			m_objects.uerase( i );
-			EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
-			e.key.key = i;
-			g_UIFrame->ViewEvent( &e );
+			if( g_UIFrame )
+			{
+				EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
+				e.key.key = i;
+				g_UIFrame->ViewEvent( &e );
+			}
 		}
 	}
 	
@@ -999,7 +1014,10 @@ void EdWorld::DeleteSelectedObjects()
 	{
 		i--;
 		if( m_entities[ i ]->selected )
+		{
+			((EdEntity*)m_entities[ i ])->BeforeDelete();
 			m_entities.uerase( i );
+		}
 	}
 }
 
@@ -1157,6 +1175,101 @@ void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
 		}
 	}
 	objex.Save( name, "Exported from SGRX editor" );
+}
+
+
+
+EDGUIMultiObjectProps::EDGUIMultiObjectProps() :
+	m_group( true, "Multiple objects" ),
+	m_tex( g_UISurfTexPicker, "" ),
+	m_selsurf( false )
+{
+	m_tex.caption = "Texture";
+	m_group.Add( &m_tex );
+	Add( &m_group );
+}
+
+void EDGUIMultiObjectProps::Prepare( bool selsurf )
+{
+	m_selsurf = selsurf;
+	String tex;
+	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+	{
+		EdObject* obj = g_EdWorld->m_objects[ i ];
+		if( obj->selected == false )
+			continue;
+		if( obj->m_type == ObjType_Block )
+		{
+			SGRX_CAST( EdBlock*, B, obj );
+			for( size_t s = 0; s < B->surfaces.size(); ++s )
+			{
+				if( selsurf && B->IsSurfaceSelected( s ) == false )
+					continue;
+				StringView tt = B->surfaces[ s ].texname;
+				if( tt && tex != tt )
+				{
+					if( tex.size() )
+					{
+						m_tex.SetValue( "" );
+						return;
+					}
+					tex = tt;
+				}
+			}
+		}
+		else if( obj->m_type == ObjType_Patch )
+		{
+			SGRX_CAST( EdPatch*, P, obj );
+			StringView tt = P->layers[0].texname;
+			if( tt && tex != tt )
+			{
+				if( tex.size() )
+				{
+					m_tex.SetValue( "" );
+					return;
+				}
+				tex = tt;
+			}
+		}
+	}
+	m_tex.SetValue( tex );
+}
+
+int EDGUIMultiObjectProps::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+		if( e->target == &m_tex )
+		{
+			for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+			{
+				EdObject* obj = g_EdWorld->m_objects[ i ];
+				if( obj->selected == false )
+					continue;
+				if( obj->m_type == ObjType_Block )
+				{
+					SGRX_CAST( EdBlock*, B, obj );
+					for( size_t s = 0; s < B->surfaces.size(); ++s )
+					{
+						if( m_selsurf && B->IsSurfaceSelected( s ) == false )
+							continue;
+						B->surfaces[ s ].texname = m_tex.m_value;
+					}
+					obj->RegenerateMesh();
+				}
+				else if( obj->m_type == ObjType_Patch )
+				{
+					SGRX_CAST( EdPatch*, P, obj );
+					P->layers[0].texname = m_tex.m_value;
+					obj->RegenerateMesh();
+				}
+			}
+			g_UIFrame->SetEditMode( g_UIFrame->m_editMode );
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
 }
 
 

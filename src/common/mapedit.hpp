@@ -11,7 +11,7 @@
 // v1: added surface.lmquality
 // v2: added ent[light].flareoffset
 // v3: added surface.xfit/yfit, added groups
-#define MAP_FILE_VERSION 3
+#define MAP_FILE_VERSION 4
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -810,6 +810,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 		m_ctlPos.caption = "Position";
 	}
 	
+	void BeforeDelete();
 	void LoadIcon();
 	
 	const Vec3& Pos() const { return m_ctlPos.m_value; }
@@ -846,6 +847,9 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	EDGUIGroup m_group;
 	EDGUIPropVec3 m_ctlPos;
 	TextureHandle m_iconTex;
+	
+	Handle< EdEntity > m_ownerEnt;
+	Array< Handle< EdEntity > > m_subEnts;
 };
 
 typedef Handle< EdEntity > EdEntityHandle;
@@ -1022,6 +1026,7 @@ struct EdEntScripted : EdEntity
 	void AddFieldVec3( sgsString key, sgsString name, Vec3 def = V3(0), int prec = 2, Vec3 min = V3(-FLT_MAX), Vec3 max = V3(FLT_MAX) );
 	void AddFieldString( sgsString key, sgsString name, sgsString def );
 	void AddFieldRsrc( sgsString key, sgsString name, EDGUIRsrcPicker* rsrcPicker, sgsString def );
+	void AddButtonSubent( sgsString type );
 	void SetMesh( sgsString name );
 	void SetMeshInstanceCount( int count );
 	void SetMeshInstanceMatrix( int which, const Mat4& mtx );
@@ -1033,6 +1038,8 @@ struct EdEntScripted : EdEntity
 	sgsVariable onDebugDraw;
 	sgsVariable onGather;
 	Array< Field > m_fields;
+	String m_subEntProto;
+	EDGUIButton* m_subEntAddBtn;
 	
 	LevelCache* m_levelCache;
 	
@@ -1111,6 +1118,7 @@ enum SelectionMask
 struct EdWorld : EDGUILayoutRow
 {
 	EdWorld();
+	~EdWorld();
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -1305,6 +1313,17 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIPatchVertProps m_ctlPatchVertProps;
 };
 
+struct EDGUIMultiObjectProps : EDGUILayoutRow
+{
+	EDGUIMultiObjectProps();
+	void Prepare( bool selsurf = false );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_tex;
+	bool m_selsurf;
+};
+
 
 // projection space without Z
 Vec2 ED_GetCursorPos();
@@ -1453,6 +1472,7 @@ struct EdEditBlockEditMode : EdEditMode
 	int m_hlBBEl;
 	
 	EdBlockMoveTransform m_transform;
+	EDGUIMultiObjectProps m_moprops;
 };
 
 struct EdEditVertexEditMode : EdEditMode
@@ -1478,6 +1498,7 @@ struct EdEditVertexEditMode : EdEditMode
 	ActivePoint m_hlAP;
 	Array< int > m_selObjList;
 	EdVertexMoveTransform m_transform;
+	EDGUIMultiObjectProps m_moprops;
 };
 
 struct EdPaintVertsEditMode : EdEditMode

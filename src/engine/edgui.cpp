@@ -1190,6 +1190,10 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			_Search( m_searchString );
 			return 1;
 		}
+		else if( e->key.engkey == SDLK_r && e->key.engmod & KMOD_CTRL )
+		{
+			Reload();
+		}
 		break;
 		
 	case EDGUI_EVENT_TEXTINPUT:
@@ -2196,7 +2200,7 @@ int EDGUIPropString::_FindOffset( int x, int y )
 
 EDGUIPropRsrc::EDGUIPropRsrc( EDGUIRsrcPicker* rsrcPicker, const StringView& def ) :
 	m_value( def ),
-	m_requestReload( true ),
+	m_requestReload( false ),
 	m_rsrcPicker( rsrcPicker )
 {
 	tyname = "property-rsrc";
