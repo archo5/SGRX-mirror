@@ -674,7 +674,7 @@ bool LevelCache::SaveCache( const StringView& path )
 	ByteWriter bw( &ba );
 	
 	bw.marker( "COMPILED" );
-	SerializeVersionHelper<ByteWriter> svh( bw, 2 );
+	SerializeVersionHelper<ByteWriter> svh( bw, LC_FILE_VERSION );
 	
 	svh.marker( "SCRENTS" );
 	svh << m_scriptents;

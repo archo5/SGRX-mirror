@@ -574,7 +574,7 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 	Vec4 planes[ MAX_BLOCK_POLYGONS ];
 	int numplanes = 0;
 	
-	planes[ numplanes++ ] = V4( 0, 0, -1, -z0 );
+	planes[ numplanes++ ] = V4( 0, 0, -1, - position.z - z0 );
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
 		Vec3 vpos = poly[ i ] + position;
@@ -590,6 +590,8 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 	}
 	if( PolyGetPlane( toppoly, topverts, planes[ numplanes ] ) )
 		numplanes++;
+	else
+		LOG_WARNING << "NO PLANE FOR TOP POLY at " << position;
 	
 	// ADD SOLID
 	size_t solid = LC.AddSolid( planes, numplanes );

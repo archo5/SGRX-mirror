@@ -887,10 +887,17 @@ int EDGUIButton::OnEvent( EDGUIEvent* e )
 		
 	case EDGUI_EVENT_MOUSEENTER:
 	case EDGUI_EVENT_MOUSELEAVE:
-	case EDGUI_EVENT_BTNDOWN:
-	case EDGUI_EVENT_BTNUP:
 		EDGUIItem::OnEvent( e );
 		OnChangeState();
+		return 1;
+		
+	case EDGUI_EVENT_BTNDOWN:
+	case EDGUI_EVENT_BTNUP:
+		if( e->mouse.button == EDGUI_MB_LEFT )
+		{
+			EDGUIItem::OnEvent( e );
+			OnChangeState();
+		}
 		return 1;
 	}
 	return EDGUIItem::OnEvent( e );

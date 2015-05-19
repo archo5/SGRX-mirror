@@ -226,6 +226,7 @@ void DamageSystem::Init( SceneHandle scene )
 void DamageSystem::Free()
 {
 	m_bulletDecalSys.Free();
+	m_bulletDecalMesh = NULL;
 }
 
 void DamageSystem::Tick( float deltaTime )

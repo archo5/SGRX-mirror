@@ -756,6 +756,136 @@ bool EdPatch::IsAllSel() const
 	return true;
 }
 
+
+Vec2 EdPatch::TexGenFit( int layer )
+{
+	Vec2 total_xy_length = V2(0);
+	
+	// map 1x1
+	// - X
+	for( int y = 0; y < ysize; ++y )
+	{
+		float total_length = 0;
+		for( int x = 1; x < xsize; ++x )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
+			total_length += diff.Length();
+		}
+		vertices[ y * MAX_PATCH_WIDTH ].tex[ layer ].x = 0;
+		float curr_length = 0;
+		for( int x = 1; x < xsize; ++x )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
+			curr_length += diff.Length();
+			vertices[ y * MAX_PATCH_WIDTH + x ].tex[ layer ].x = safe_fdiv( curr_length, total_length );
+		}
+		total_xy_length.x += total_length;
+	}
+	// - Y
+	for( int x = 0; x < xsize; ++x )
+	{
+		float total_length = 0;
+		for( int y = 1; y < ysize; ++y )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
+			total_length += diff.Length();
+		}
+		vertices[ x ].tex[ layer ].y = 0;
+		float curr_length = 0;
+		for( int y = 1; y < ysize; ++y )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
+			curr_length += diff.Length();
+			vertices[ y * MAX_PATCH_WIDTH + x ].tex[ layer ].y = safe_fdiv( curr_length, total_length );
+		}
+		total_xy_length.y += total_length;
+	}
+	
+	// divided by number of samples
+	total_xy_length /= V2( ysize, xsize );
+	return total_xy_length;
+}
+
+void EdPatch::TexGenScale( int layer, const Vec2& scale )
+{
+	// map 1x1 (prev 'if'), fix aspect ratio
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			vertices[ y * MAX_PATCH_WIDTH + x ].tex[ layer ] *= scale;
+		}
+	}
+}
+
+void EdPatch::TexGenFitNat( int layer )
+{
+	Vec2 total_xy_length = TexGenFit( layer );
+	float minl = TMIN( total_xy_length.x, total_xy_length.y );
+	total_xy_length.x = safe_fdiv( total_xy_length.x, minl );
+	total_xy_length.y = safe_fdiv( total_xy_length.y, minl );
+	TexGenScale( layer, total_xy_length );
+}
+
+void EdPatch::TexGenNatural( int layer )
+{
+	Vec2 total_xy_length = TexGenFit( layer );
+	TexGenScale( layer, total_xy_length );
+}
+
+void EdPatch::TexGenPlanar( int layer )
+{
+	// find avg.nrm. to tangents and map on those
+	Vec3 avgt1 = V3(0);
+	Vec3 avgt2 = V3(0);
+	for( int y = 0; y < ysize; ++y )
+	{
+		avgt1 += vertices[ y * MAX_PATCH_WIDTH + xsize - 1 ].pos - vertices[ y * MAX_PATCH_WIDTH ].pos;
+	}
+	for( int x = 0; x < xsize; ++x )
+	{
+		avgt2 += vertices[ ( ysize - 1 ) * MAX_PATCH_WIDTH + x ].pos - vertices[ x ].pos;
+	}
+	avgt1.Normalize();
+	avgt2.Normalize();
+	
+	Vec3 normal = -Vec3Cross( avgt1, avgt2 ).Normalized();
+	if( fabsf( Vec3Dot( normal, V3(0,0,1) ) ) > 0.707f )
+	{
+		avgt1 = V3( 1, 0, 0 );
+	}
+	else
+	{
+		Vec2 side = normal.ToVec2().Normalized().Perp();
+		avgt1 = V3( side.x, side.y, 0 );
+	}
+	avgt2 = Vec3Cross( avgt1, normal ).Normalized();
+	
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			EdPatchVtx& PV = vertices[ y * MAX_PATCH_WIDTH + x ];
+			PV.tex[ layer ] = V2( Vec3Dot( PV.pos + position, avgt1 ), Vec3Dot( PV.pos + position, avgt2 ) );
+		}
+	}
+}
+
+void EdPatch::TexGenPostProc( int layer )
+{
+	EdPatchLayerInfo& L = layers[ layer ];
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			Vec2& vtx = vertices[ y * MAX_PATCH_WIDTH + x ].tex[ layer ];
+			Vec2 txa = vtx.Rotate( DEG2RAD( L.angle ) );
+			vtx = V2( txa.x / L.scale + L.xoff, txa.y / L.scale * L.aspect + L.yoff );
+		}
+	}
+}
+
+
 EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 {
 	if( B.GetSurfaceNumVerts( sid ) != 4 )
@@ -959,89 +1089,12 @@ int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
 			e->target == &m_genNatural ||
 			e->target == &m_genPlanar ) )
 		{
-			Vec2 total_xy_length = V2(0);
+			if( e->target == &m_genFit ) m_out->TexGenFit( m_lid );
+			else if( e->target == &m_genFitNat ) m_out->TexGenFitNat( m_lid );
+			else if( e->target == &m_genNatural ) m_out->TexGenNatural( m_lid );
+			else if( e->target == &m_genPlanar ) m_out->TexGenPlanar( m_lid );
 			
-			if( e->target == &m_genFit || e->target == &m_genFitNat || e->target == &m_genNatural )
-			{
-				// map 1x1
-				// - X
-				for( int y = 0; y < m_out->ysize; ++y )
-				{
-					float total_length = 0;
-					for( int x = 1; x < m_out->xsize; ++x )
-					{
-						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
-						total_length += diff.Length();
-					}
-					m_out->vertices[ y * MAX_PATCH_WIDTH ].tex[ m_lid ].x = 0;
-					float curr_length = 0;
-					for( int x = 1; x < m_out->xsize; ++x )
-					{
-						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
-						curr_length += diff.Length();
-						m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ].x = safe_fdiv( curr_length, total_length );
-					}
-					total_xy_length.x += total_length;
-				}
-				// - Y
-				for( int x = 0; x < m_out->xsize; ++x )
-				{
-					float total_length = 0;
-					for( int y = 1; y < m_out->ysize; ++y )
-					{
-						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
-						total_length += diff.Length();
-					}
-					m_out->vertices[ x ].tex[ m_lid ].y = 0;
-					float curr_length = 0;
-					for( int y = 1; y < m_out->ysize; ++y )
-					{
-						Vec3 diff = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].pos - m_out->vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
-						curr_length += diff.Length();
-						m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ].y = safe_fdiv( curr_length, total_length );
-					}
-					total_xy_length.y += total_length;
-				}
-				
-				// divided by number of samples
-				total_xy_length /= V2( m_out->ysize, m_out->xsize );
-			}
-			
-			if( e->target == &m_genNatural || e->target == &m_genFitNat )
-			{
-				if( e->target == &m_genFitNat )
-				{
-					float minl = TMIN( total_xy_length.x, total_xy_length.y );
-					total_xy_length.x = safe_fdiv( total_xy_length.x, minl );
-					total_xy_length.y = safe_fdiv( total_xy_length.y, minl );
-				}
-				
-				// map 1x1 (prev 'if'), fix aspect ratio
-				for( int y = 0; y < m_out->ysize; ++y )
-				{
-					for( int x = 0; x < m_out->xsize; ++x )
-					{
-						m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ] *= total_xy_length;
-					}
-				}
-			}
-			
-			if( e->target == &m_genPlanar )
-			{
-				// find avg.nrm. to tangents and map on those
-			}
-			
-			// apply post-processing
-			EdPatchLayerInfo& L = m_out->layers[ m_lid ];
-			for( int y = 0; y < m_out->ysize; ++y )
-			{
-				for( int x = 0; x < m_out->xsize; ++x )
-				{
-					Vec2& vtx = m_out->vertices[ y * MAX_PATCH_WIDTH + x ].tex[ m_lid ];
-					Vec2 txa = vtx.Rotate( DEG2RAD( L.angle ) );
-					vtx = V2( txa.x / L.scale + L.xoff, txa.y / L.scale * L.aspect + L.yoff );
-				}
-			}
+			m_out->TexGenPostProc( m_lid );
 			
 			m_out->RegenerateMesh();
 		}

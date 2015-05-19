@@ -3,14 +3,19 @@
 #include <utils.hpp>
 
 
+#define LC_FILE_VERSION 3
+
+
 #define LM_MESHINST_SOLID 0x0001
 #define LM_MESHINST_DYNLIT 0x0002
 #define LM_MESHINST_CASTLMS 0x0004
+#define LM_MESHINST_DECAL 0x0008
 struct LC_MeshInst
 {
 	String m_meshname;
 	Mat4 m_mtx;
 	uint32_t m_flags;
+	uint8_t m_decalLayer;
 	
 	// editor use only, not serialized
 	float lmquality;
@@ -20,6 +25,7 @@ struct LC_MeshInst
 		arch << m_meshname;
 		arch << m_mtx;
 		arch( m_flags, arch.version >= 1, LM_MESHINST_SOLID );
+		arch( m_decalLayer, arch.version >= 3, 0 );
 	}
 };
 

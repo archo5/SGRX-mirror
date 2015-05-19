@@ -700,6 +700,13 @@ struct EdPatch : EdObject
 	bool IsYLineSel( int i ) const;
 	bool IsAllSel() const;
 	
+	Vec2 TexGenFit( int layer );
+	void TexGenScale( int layer, const Vec2& scale );
+	void TexGenFitNat( int layer );
+	void TexGenNatural( int layer );
+	void TexGenPlanar( int layer );
+	void TexGenPostProc( int layer );
+	
 	template< class T > void SerializeT( T& arch )
 	{
 		arch.marker( "PATCH" );
@@ -1378,9 +1385,9 @@ struct EdBlockMoveTransform : EdBlockEditTransform
 	Vec3 m_transform;
 };
 
-struct EdBlockVertexMoveTransform : EdBlockMoveTransform
+struct EdVertexMoveTransform : EdBlockMoveTransform
 {
-	EdBlockVertexMoveTransform();
+	EdVertexMoveTransform();
 	virtual int OnViewEvent( EDGUIEvent* e );
 	virtual void ApplyTransform();
 	
@@ -1470,7 +1477,7 @@ struct EdEditVertexEditMode : EdEditMode
 	bool m_canExtendSurfs;
 	ActivePoint m_hlAP;
 	Array< int > m_selObjList;
-	EdBlockVertexMoveTransform m_transform;
+	EdVertexMoveTransform m_transform;
 };
 
 struct EdPaintVertsEditMode : EdEditMode

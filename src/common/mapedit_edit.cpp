@@ -179,6 +179,10 @@ int EdBlockMoveTransform::OnViewEvent( EDGUIEvent* e )
 		{
 			sgrx_snprintf( bfr, 1024, "Moving blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
 		}
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		br.Col( 0, 0.5f ).Quad( x0, y1 - 16, g_UIFrame->m_UIRenderView.x1, y1 );
+		
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
 	}
@@ -251,11 +255,11 @@ void EdBlockMoveTransform::RecalcTransform()
 }
 
 
-EdBlockVertexMoveTransform::EdBlockVertexMoveTransform() : m_project(false)
+EdVertexMoveTransform::EdVertexMoveTransform() : m_project(false)
 {
 }
 
-int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
+int EdVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
 {
 	if( e->type == EDGUI_EVENT_PAINT )
 	{
@@ -264,6 +268,10 @@ int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
 		char bfr[ 1024 ];
 		sgrx_snprintf( bfr, 1024, "(P)rojection: [%s] | Moving vertices: %g ; %g ; %g",
 			m_project ? "ON" : "OFF", m_transform.x, m_transform.y, m_transform.z );
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		br.Col( 0, 0.5f ).Quad( x0, y1 - 16, g_UIFrame->m_UIRenderView.x1, y1 );
+		
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
 		return 1;
@@ -276,7 +284,7 @@ int EdBlockVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
 	return EdBlockMoveTransform::OnViewEvent( e );
 }
 
-void EdBlockVertexMoveTransform::ApplyTransform()
+void EdVertexMoveTransform::ApplyTransform()
 {
 	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
@@ -566,6 +574,10 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		int x0 = g_UIFrame->m_UIRenderView.x0;
 		int y0 = g_UIFrame->m_UIRenderView.y0;
 		char bfr[ 1024 ];
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 32 + ( m_numSel && m_hlBBEl != -1 ? 16 : 0 ) );
+		
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y0, "Vertex mode [Alt+V], Paint mode [Alt+Q], "
 			"Select all [Ctrl+A], Select none [Ctrl+Alt+A]", HALIGN_LEFT, VALIGN_TOP );
@@ -903,6 +915,10 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		if( _CanDo( SA_ExtractPart ) ) actlist.append( ", Extract part [X]" );
 		if( _CanDo( SA_DuplicatePart ) ) actlist.append( ", Duplicate part [Ctrl+D]" );
 		if( _CanDo( SA_SurfsToPatches ) ) actlist.append( ", Surfaces to patches [Alt+S]" );
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 32 );
+		
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
 		GR2D_DrawTextLine( x0, y0 + 16, actlist, HALIGN_LEFT, VALIGN_TOP );
@@ -940,7 +956,7 @@ void EdEditVertexEditMode::Draw()
 				}
 				
 				Vec3 pp = GetActivePoint( oid, i );
-				br.Sprite( pp, 0.05f, 0.05f );
+				br.Sprite( pp, 0.02f, 0.02f );
 			}
 		}
 	}
@@ -1104,6 +1120,10 @@ void EdPaintVertsEditMode::OnViewEvent( EDGUIEvent* e )
 		int x0 = g_UIFrame->m_UIRenderView.x0;
 		int y0 = g_UIFrame->m_UIRenderView.y0;
 		const char* acts0 = "Block mode [Alt+B], Vertex mode [Alt+V], Hold Alt to reverse painting";
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 16 );
+		
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
 	}
@@ -1142,18 +1162,35 @@ void EdPaintVertsEditMode::Draw()
 	if( g_UIFrame->m_editTF == NULL )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		for( size_t b = 0; b < m_selObjList.size(); ++b )
+		
+		Vec3 pos = V3(FLT_MAX);
+		Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
+		Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
+		float outdst[1];
+		if( g_EdWorld->RayPatchesIntersect( cursorRayPos, cursorRayDir, -1, outdst, NULL ) )
 		{
-			int oid = m_selObjList[ b ];
-			int bpcount = GetNumObjectActivePoints( oid );
-			for( int i = 0; i < bpcount; ++i )
+			pos = cursorRayPos + cursorRayDir * outdst[0];
+			br.Col( 0.9f, 0.1f, 0.01f, 0.5f );
+			br.SphereOutline( pos, m_ctlPaintProps.m_ctlRadius.m_value * powf( 0.5f, m_ctlPaintProps.m_ctlFalloff.m_value ), 32 );
+			br.Col( 0.9f, 0.1f, 0.01f );
+			br.SphereOutline( pos, m_ctlPaintProps.m_ctlRadius.m_value, 32 );
+		}
+		
+		for( size_t i = 0; i < m_selObjList.size(); ++i )
+		{
+			EdObject* obj = g_EdWorld->m_objects[ m_selObjList[ i ] ];
+			int vcount = obj->GetNumPaintVerts();
+			for( int v = 0; v < vcount; ++v )
 			{
-				if( g_EdWorld->m_objects[ oid ]->IsElementSpecial( i ) )
-					continue;
-				
-				br.Col( 0.1f, 0.2f, 0.4f, 1 );
-				Vec3 pp = GetActivePoint( oid, i );
-				br.Sprite( pp, 0.02f, 0.02f );
+				Vec3 vpos;
+				Vec4 vcol;
+				obj->GetPaintVertex( v, 0, vpos, vcol );
+				float q = m_ctlPaintProps.GetDistanceFactor( vpos, pos );
+				if( q > 0 )
+					br.Col( q, 0, 0, 1 );
+				else
+					br.Col( 0.1f, 0.2f, 0.4f, 1 );
+				br.Sprite( vpos, 0.02f, 0.02f );
 			}
 		}
 	}

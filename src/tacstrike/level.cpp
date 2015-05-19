@@ -185,7 +185,7 @@ bool GameLevel::Load( const StringView& levelname )
 	ByteReader br( &ba );
 	
 	br.marker( "COMPILED" );
-	SerializeVersionHelper<ByteReader> svh( br, 1 );
+	SerializeVersionHelper<ByteReader> svh( br, LC_FILE_VERSION );
 	
 	svh.marker( "SCRENTS" );
 	Array< LC_ScriptedEntity > screntdefs;

@@ -429,7 +429,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		Game_AddOverlayScreen( &g_SplashScreen );
 		
-		g_GameLevel->Load( "ver3" );
+		g_GameLevel->Load( "v3decotest" );
 		
 		GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
 		GR_LoadAnims( "meshes/tstest.ssm.anm" );
