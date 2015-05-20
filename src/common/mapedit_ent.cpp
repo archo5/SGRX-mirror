@@ -4,25 +4,6 @@
 
 
 
-template< class T > void SerializeSubentities( EdEntity* E, T& arch )
-{
-	int32_t size = E->m_subEnts.size();
-	arch( size, arch.version >= 4, 0 );
-	if( T::IsReader )
-	{
-		E->m_subEnts.resize( size );
-		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
-			E->m_subEnts[ i ] = ENT_Unserialize( arch );
-	}
-	else
-	{
-		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
-			ENT_Serialize( arch, E->m_subEnts[ i ] );
-	}
-}
-
-
-
 void EdEntity::BeforeDelete()
 {
 	if( m_ownerEnt )
@@ -43,6 +24,31 @@ void EdEntity::LoadIcon()
 	m_iconTex = GR_GetTexture( bfr );
 	if( !m_iconTex )
 		m_iconTex = GR_GetTexture( "editor/icons/default.png" );
+}
+
+void EdEntity::DebugDraw()
+{
+	if( m_subEnts.size() )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		if( m_subEnts.size() >= 2 )
+		{
+			br.Col( 0.0f, 0.1f, 0.9f ).SetPrimitiveType( PT_LineStrip );
+			br.Pos( m_subEnts.last()->Pos() );
+			for( size_t i = 0; i < m_subEnts.size(); ++i )
+			{
+				br.Pos( m_subEnts[ i ]->Pos() );
+			}
+		}
+		br.SetPrimitiveType( PT_Lines );
+		for( size_t i = 0; i < m_subEnts.size(); ++i )
+		{
+			br.Col( 0.0f, 0.4f, 0.9f ).Pos( Pos() );
+			br.Col( 0.0f, 0.1f, 0.9f ).Pos( m_subEnts[ i ]->Pos() );
+		}
+	}
+	if( m_ownerEnt && m_ownerEnt->selected == false )
+		m_ownerEnt->DebugDraw();
 }
 
 
@@ -112,6 +118,7 @@ int EdEntMesh::OnEvent( EDGUIEvent* e )
 
 void EdEntMesh::DebugDraw()
 {
+	EdEntity::DebugDraw();
 	if( cached_mesh )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer();
@@ -214,6 +221,7 @@ EdEntity* EdEntLight::CloneEntity()
 
 void EdEntLight::DebugDraw()
 {
+	EdEntity::DebugDraw();
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Reset();
 	if( IsSpotlight() )
@@ -463,6 +471,7 @@ int EdEntScripted::OnEvent( EDGUIEvent* e )
 			if( E == NULL )
 				break;
 			EdEntity* copy = E->CloneEntity();
+			copy->m_ctlPos.SetValue( Pos() );
 			g_EdWorld->AddObject( copy );
 			copy->m_ownerEnt = this;
 			m_subEnts.push_back( copy );
@@ -481,6 +490,7 @@ int EdEntScripted::OnEvent( EDGUIEvent* e )
 
 void EdEntScripted::DebugDraw()
 {
+	EdEntity::DebugDraw();
 	if( !onDebugDraw.not_null() )
 		return;
 	

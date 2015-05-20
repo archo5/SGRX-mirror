@@ -487,6 +487,20 @@ void EdEditBlockEditMode::OnTransformEnd()
 	_ReloadBlockProps();
 }
 
+static void YesNoText( bool yes )
+{
+	if( yes )
+	{
+		GR2D_SetColor( 0.1f, 1, 0 );
+		GR2D_DrawTextLine( "YES" );
+	}
+	else
+	{
+		GR2D_SetColor( 1, 0.1f, 0 );
+		GR2D_DrawTextLine( "NO" );
+	}
+}
+
 void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 {
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
@@ -548,6 +562,11 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			}
 		}
 		
+		// MOVE BACK
+		if( e->key.engkey == SDLK_UP && e->key.engmod & KMOD_ALT ) _Do( SA_MoveBack );
+		// MOVE FORWARD
+		if( e->key.engkey == SDLK_DOWN && e->key.engmod & KMOD_ALT ) _Do( SA_MoveFwd );
+		
 		// SELECTION
 		int sm = m_selMask;
 		if( e->key.engkey == SDLK_1 ) m_selMask ^= SelMask_Blocks;
@@ -576,19 +595,58 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		char bfr[ 1024 ];
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 32 + ( m_numSel && m_hlBBEl != -1 ? 16 : 0 ) );
+		
+		for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
+		{
+			SGRX_CAST( EdEntity*, curent, g_EdWorld->m_entities[ i ] );
+			if( curent->selected == false )
+				continue;
+			if( curent->m_ownerEnt == NULL && curent->m_subEnts.size() == 0 )
+				continue;
+			
+			EdEntity* rootent = curent;
+			if( rootent->m_ownerEnt )
+				rootent = rootent->m_ownerEnt;
+			
+			for( size_t i = 0; i < rootent->m_subEnts.size(); ++i )
+			{
+				EdEntity* ent = rootent->m_subEnts[ i ];
+				Vec3 spos = g_EdScene->camera.WorldToScreen( ent->Pos() );
+				int x = TLERP( g_UIFrame->m_UIRenderView.x0, g_UIFrame->m_UIRenderView.x1, spos.x );
+				int y = TLERP( g_UIFrame->m_UIRenderView.y0, g_UIFrame->m_UIRenderView.y1, spos.y );
+				int which = ent->m_ownerEnt ? ent->m_ownerEnt->m_subEnts.find_first_at( ent ) : -1;
+				
+				sgrx_snprintf( bfr, 32, "%d", which );
+				int textlen = GR2D_GetTextLength( bfr );
+				br.Reset().Col( 0, 0.5f ).Quad( x, y, x + textlen, y + 16 );
+				br.Col( 1 );
+				GR2D_DrawTextLine( x, y, bfr, HALIGN_LEFT, VALIGN_TOP );
+			}
+		}
+		
+		br.Reset().Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 32 + ( m_numSel && m_hlBBEl != -1 ? 16 : 0 ) );
 		
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y0, "Vertex mode [Alt+V], Paint mode [Alt+Q], "
 			"Select all [Ctrl+A], Select none [Ctrl+Alt+A]", HALIGN_LEFT, VALIGN_TOP );
-		sgrx_snprintf( bfr, 1024, "Selection mask: [blocks: %s, patches: %s, entities: %s]",
-			( m_selMask & SelMask_Blocks ) ? "YES" : "NO",
-			( m_selMask & SelMask_Patches ) ? "YES" : "NO",
-			( m_selMask & SelMask_Entities ) ? "YES" : "NO" );
-		GR2D_DrawTextLine( x0, y0 + 16, bfr, HALIGN_LEFT, VALIGN_TOP );
-		if( m_numSel && m_hlBBEl != -1 )
+		GR2D_SetTextCursor( x0, y0 + 16 );
+		GR2D_DrawTextLine( "Selection mask: [Blocks: " );
+		YesNoText( m_selMask & SelMask_Blocks );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( ", Patches: " );
+		YesNoText( m_selMask & SelMask_Patches );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( ", Entities: " );
+		YesNoText( m_selMask & SelMask_Entities );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( "]" );
+		
+		if( m_numSel )
 		{
-			sgrx_snprintf( bfr, 1024, "Press E to extend selection along %s", GetActivePointExtName( m_hlBBEl ) );
+			sgrx_snprintf( bfr, 1024, "Press E to extend selection along %s%s%s",
+				GetActivePointExtName( m_hlBBEl ),
+				_CanDo( SA_MoveBack ) ? ", Move back [Alt+Up]" : "",
+				_CanDo( SA_MoveFwd ) ? ", Move forward [Alt+Down]" : "" );
 			GR2D_DrawTextLine( x0, y0 + 32, bfr, HALIGN_LEFT, VALIGN_TOP );
 		}
 	}
@@ -616,6 +674,52 @@ void EdEditBlockEditMode::Draw()
 				br.Sprite( pp, 0.05f, 0.05f );
 			}
 		}
+	}
+}
+
+bool EdEditBlockEditMode::_CanDo( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_MoveBack:
+	case SA_MoveFwd:
+		for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
+			if( g_EdWorld->m_entities[ i ]->selected )
+				return true;
+		break;
+		
+	default:
+		break;
+	}
+	return false;
+}
+
+void EdEditBlockEditMode::_Do( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_MoveBack:
+	case SA_MoveFwd:
+		for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
+		{
+			EdEntity* ent = g_EdWorld->m_entities[ i ];
+			if( ent->selected == false || ent->m_ownerEnt == NULL )
+				continue;
+			size_t at = ent->m_ownerEnt->m_subEnts.find_first_at( ent );
+			ASSERT( at != NOT_FOUND );
+			if( act == SA_MoveBack && at > 0 )
+			{
+				TSWAP( ent->m_ownerEnt->m_subEnts[ at - 1 ], ent->m_ownerEnt->m_subEnts[ at ] );
+			}
+			else if( act == SA_MoveFwd && at < ent->m_ownerEnt->m_subEnts.size() - 1 )
+			{
+				TSWAP( ent->m_ownerEnt->m_subEnts[ at + 1 ], ent->m_ownerEnt->m_subEnts[ at ] );
+			}
+		}
+		break;
+		
+	default:
+		break;
 	}
 }
 

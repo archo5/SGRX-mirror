@@ -10,7 +10,8 @@
 // v0: initial
 // v1: added surface.lmquality
 // v2: added ent[light].flareoffset
-// v3: added surface.xfit/yfit, added groups
+// v3: added surface.xfit/yfit, added groups, added block.position
+// v4: added subentities
 #define MAP_FILE_VERSION 4
 
 #define MAX_BLOCK_POLYGONS 32
@@ -262,6 +263,7 @@ enum EObjectType
 enum ESpecialAction
 {
 	SA_None = 0,
+	// patch actions
 	SA_Invert,
 	SA_Subdivide,
 	SA_Unsubdivide,
@@ -271,6 +273,9 @@ enum ESpecialAction
 	SA_ExtractPart,
 	SA_DuplicatePart,
 	SA_SurfsToPatches,
+	// entity actions
+	SA_MoveBack,
+	SA_MoveFwd,
 };
 
 typedef SerializeVersionHelper<TextReader> SVHTR;
@@ -831,7 +836,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	}
 	virtual Vec3 FindCenter() const { return Pos(); }
 	virtual void RegenerateMesh(){}
-	virtual void DebugDraw(){}
+	virtual void DebugDraw();
 	
 	virtual int GetNumElements() const { return 0; }
 	virtual Vec3 GetElementPoint( int i ) const { return GetLocalVertex( i ); }
@@ -1073,13 +1078,38 @@ struct EDGUIEntList : EDGUIGroup
 
 EdEntity* ENT_FindProtoByName( const char* name );
 
+inline void World_AddObject( EdObject* obj );
+
+template< class T > void ENT_SerializeSubentities( EdEntity* E, T& arch )
+{
+	int32_t size = E->m_subEnts.size();
+	arch( size, arch.version >= 4, 0 );
+	if( T::IsReader )
+	{
+		E->m_subEnts.resize( size );
+		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
+		{
+			EdEntity* ent = ENT_Unserialize( arch );
+			ent->m_ownerEnt = E;
+			E->m_subEnts[ i ] = ent;
+			World_AddObject( ent );
+		}
+	}
+	else
+	{
+		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
+			ENT_Serialize( arch, E->m_subEnts[ i ] );
+	}
+}
+
 template< class T > void ENT_Serialize( T& arch, EdEntity* e )
 {
 	String ty = e->tyname;
 	
 	arch.marker( "ENTITY" );
 	arch << ty;
-	arch << *e;
+	e->Serialize( arch );
+	ENT_SerializeSubentities( e, arch );
 }
 
 template< class T > EdEntity* ENT_Unserialize( T& arch )
@@ -1097,6 +1127,7 @@ template< class T > EdEntity* ENT_Unserialize( T& arch )
 	}
 	e = e->CloneEntity();
 	e->Serialize( arch );
+	ENT_SerializeSubentities( e, arch );
 	e->RegenerateMesh();
 	
 	return e;
@@ -1154,11 +1185,15 @@ struct EdWorld : EDGUILayoutRow
 				svh << *m_blocks[ i ].item;
 			}
 			
-			int32_t numents = m_entities.size();
+			int32_t numents = 0;
+			for( size_t i = 0; i < m_entities.size(); ++i )
+				if( m_entities[ i ]->m_ownerEnt == NULL )
+					numents++;
 			svh << numents;
 			for( size_t i = 0; i < m_entities.size(); ++i )
 			{
-				ENT_Serialize( svh, m_entities[ i ] );
+				if( m_entities[ i ]->m_ownerEnt == NULL )
+					ENT_Serialize( svh, m_entities[ i ] );
 			}
 			
 			int32_t numpatches = m_patches.size();
@@ -1313,6 +1348,8 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIPatchVertProps m_ctlPatchVertProps;
 };
 
+inline void World_AddObject( EdObject* obj ){ g_EdWorld->AddObject( obj ); }
+
 struct EDGUIMultiObjectProps : EDGUILayoutRow
 {
 	EDGUIMultiObjectProps();
@@ -1455,6 +1492,8 @@ struct EdEditBlockEditMode : EdEditMode
 	void OnTransformEnd();
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
+	bool _CanDo( ESpecialAction act );
+	void _Do( ESpecialAction act );
 	void _MouseMove();
 	void _ReloadBlockProps();
 	static Vec3 GetActivePointFactor( int i );

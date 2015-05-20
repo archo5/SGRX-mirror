@@ -807,7 +807,7 @@ void EdWorld::DrawWires_Entities( EdObject* hl )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
-	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
+	br.SetPrimitiveType( PT_Lines );
 	for( size_t i = 0; i < m_entities.size(); ++i )
 	{
 		EdEntity* ent = m_entities[ i ];
