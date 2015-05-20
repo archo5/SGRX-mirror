@@ -137,12 +137,6 @@ struct LevelCache
 		m_samples.push_back( p );
 	}
 	
-	void AddScriptedEntity( const StringView& tyname, const StringView& params )
-	{
-		LC_ScriptedEntity SE = { tyname, params };
-		m_scriptents.push_back( SE );
-	}
-	
 	static bool TexNull( const StringView& tex )
 	{
 		return tex == "textures/null.png" || tex == "textures/clip.png";

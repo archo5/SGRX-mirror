@@ -426,11 +426,25 @@ void EdEntScripted::Serialize( SVHBW& arch )
 	Fields2Data();
 }
 
+void EdEntScripted::AddSelfToSEA( Array< LC_ScriptedEntity >& sea )
+{
+	String data = g_ScriptCtx->Serialize( m_data );
+	sea.push_back( LC_ScriptedEntity() );
+	LC_ScriptedEntity& me = sea.last();
+	me.type = m_typename;
+	me.serialized_params = data;
+	for( size_t i = 0; i < m_subEnts.size(); ++i )
+	{
+		if( m_subEnts[ i ]->IsScriptedEnt() == false )
+			continue;
+		SGRX_CAST( EdEntScripted*, scrent, m_subEnts[ i ].item );
+		scrent->AddSelfToSEA( me.subentities );
+	}
+}
+
 void EdEntScripted::UpdateCache( LevelCache& LC )
 {
-	String data;
-	data = g_ScriptCtx->Serialize( m_data );
-	LC.AddScriptedEntity( m_typename, data );
+	AddSelfToSEA( LC.m_scriptents );
 	
 	if( onGather.not_null() )
 	{

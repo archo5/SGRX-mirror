@@ -693,10 +693,14 @@ bool LevelCache::SaveCache( const StringView& path )
 	ByteArray sample_data;
 	if( !FS_LoadBinaryFile( String_Concat( path, "/samples" ), sample_data ) )
 	{
-		LOG_ERROR << "FAILED to read from /samples";
-		return false;
+		LOG_WARNING << "FAILED to read from /samples, will insert zero";
+		int32_t zero = 0;
+		svh << zero;
 	}
-	svh.memory( sample_data.data(), sample_data.size() );
+	else
+	{
+		svh.memory( sample_data.data(), sample_data.size() );
+	}
 	
 	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
 }

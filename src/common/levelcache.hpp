@@ -3,7 +3,7 @@
 #include <utils.hpp>
 
 
-#define LC_FILE_VERSION 3
+#define LC_FILE_VERSION 4
 
 
 #define LM_MESHINST_SOLID 0x0001
@@ -73,11 +73,13 @@ struct LC_ScriptedEntity
 {
 	String type;
 	String serialized_params;
+	Array< LC_ScriptedEntity > subentities;
 	
 	template< class T > void Serialize( T& arch )
 	{
 		arch << type;
 		arch << serialized_params;
+		arch( subentities, arch.version >= 4 );
 	}
 };
 

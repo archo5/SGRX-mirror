@@ -825,6 +825,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	
 	virtual int OnEvent( EDGUIEvent* e ){ return EDGUILayoutRow::OnEvent( e ); }
 	
+	virtual bool IsScriptedEnt(){ return false; }
 	virtual void UpdateCache( LevelCache& LC ){}
 	
 	virtual EdEntity* CloneEntity() = 0;
@@ -1017,6 +1018,8 @@ struct EdEntScripted : EdEntity
 	virtual void Serialize( SVHBR& arch );
 	virtual void Serialize( SVHBW& arch );
 	
+	void AddSelfToSEA( Array< LC_ScriptedEntity >& sea );
+	virtual bool IsScriptedEnt(){ return true; }
 	virtual void UpdateCache( LevelCache& LC );
 	
 	virtual void RegenerateMesh();
