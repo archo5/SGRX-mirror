@@ -639,6 +639,8 @@ struct EdPatchLayerInfo
 	MeshInstHandle cached_meshinst;
 };
 
+#define PATCH_IS_SOLID 0x80
+
 struct EdPatch : EdObject
 {
 	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0), blend(0)
@@ -793,6 +795,8 @@ struct EDGUIPatchProps : EDGUILayoutRow
 	EDGUIGroup m_group;
 	EDGUIPropVec3 m_pos;
 	EDGUIPropRsrc m_blkGroup;
+	EDGUIPropBool m_isSolid;
+	EDGUIPropInt m_layerStart;
 	EDGUIPatchLayerProps m_layerProps[4];
 };
 

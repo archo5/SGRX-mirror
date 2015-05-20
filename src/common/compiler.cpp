@@ -76,32 +76,33 @@ int RectPacker::_NodeAlloc( int startnode, int w, int h )
 
 #define LINE_HEIGHT 0.45f
 
-void LevelCache::_AddPoly( Mesh& M, Part& P, const Vec3& center, const Vertex* verts, int vcount, float lmquality, size_t fromsolid )
-{
-	M.m_pos += center;
-	M.m_div++;
-	
-	for( int i = 0; i < vcount; ++i )
-	{
-		M.m_boundsMin = Vec3::Min( M.m_boundsMin, verts[ i ].pos );
-		M.m_boundsMax = Vec3::Max( M.m_boundsMax, verts[ i ].pos );
-	}
-	
-	P.m_vertices.append( verts, vcount );
-	P.m_polysizes.push_back( vcount );
-	P.m_polylmq.push_back( lmquality );
-	P.m_solids.push_back( fromsolid );
-}
-
-void LevelCache::AddPoly( const Vertex* verts, int vcount, const String& texname_short, float lmquality, size_t fromsolid )
+void LevelCache::AddPart( const Vertex* verts, int vcount, const String& texname_short, size_t fromsolid, bool isSolid, bool isTransparent )
 {
 	if( vcount < 3 )
 		return;
 	
 	char texbfr[ 256 ];
 	sgrx_snprintf( texbfr, sizeof(texbfr), "textures/%.*s.png", TMIN( (int) texname_short.size(), 200 ), texname_short.data() );
-	StringView texname = texbfr;
 	
+	m_meshParts.push_back( Part() );
+	Part& P = m_meshParts.last();
+	P.m_vertices.assign( verts, vcount );
+	P.m_solid = fromsolid;
+	P.m_texname = texbfr;
+	P.m_lmalloc = -1;
+	P.m_isSolid = isSolid;
+	P.m_isTransparent = isTransparent;
+	
+	Vec2 t2min = V2(FLT_MAX), t2max = V2(-FLT_MAX);
+	for( int i = 0; i < vcount; ++i )
+	{
+		Vec2 tc = V2( verts[ i ].tx1, verts[ i ].ty1 );
+		t2min = Vec2::Min( t2min, tc );
+		t2max = Vec2::Max( t2max, tc );
+	}
+	P.m_lmrect = t2max - t2min;
+	
+#if 0
 	Vec3 center = V3(0);
 	for( int i = 0; i < vcount; ++i )
 		center += verts[ i ].pos;
@@ -152,6 +153,7 @@ void LevelCache::AddPoly( const Vertex* verts, int vcount, const String& texname
 	char bfr[ 32 ];
 	sprintf( bfr, "~/%d.ssm", (int) m_meshes.size() - 1 );
 	AddMeshInst( bfr, Mat4::Identity );
+#endif
 }
 
 size_t LevelCache::AddSolid( const Vec4* planes, int count )
@@ -282,96 +284,86 @@ void LevelCache::RemoveHiddenSurfaces()
 	Array< PartPoly > m_inprog;
 	Array< PartPoly > m_cutinprog;
 	
-	for( size_t m = 0; m < m_meshes.size(); ++m )
+	for( size_t p = 0; p < m_meshParts.size(); ++p )
 	{
-		Mesh& M = m_meshes[ m ];
-		for( size_t p = 0; p < M.m_parts.size(); ++p )
+		Part& P = m_meshParts[ p ];
+		
+		// load the polygons
+		m_polies.clear();
+		for( size_t v = 0; v + 2 < P.m_vertices.size(); v += 3 )
 		{
-			Part& P = M.m_parts[ p ];
+			PPstage.assign( &P.m_vertices[ v ], 3 );
+			PPstage.m_solid = P.m_solid;
+			m_polies.push_back( PPstage );
+		}
+		
+	//	LOG << "CSG mesh " << m << " plane " << p << " in: " << m_polies.size();
+		
+		// cut polygons
+		for( size_t s = 0; s < m_solids.size() && m_polies.size(); ++s )
+		{
+			m_cutpolies.clear();
+			const Solid& S = m_solids[ s ];
 			
-			// load the polygons
-			m_polies.clear();
-			int ofs = 0;
-			for( size_t q = 0; q < P.m_polysizes.size(); ++q )
+		//	size_t ops = m_polies.size();
+			while( m_polies.size() )
 			{
-				PPstage.clear();
-				PPstage.m_solid = P.m_solids[ q ];
-				for( int i = 0; i < P.m_polysizes[ q ]; ++i )
-					PPstage.push_back( P.m_vertices[ ofs++ ] );
-				m_polies.push_back( PPstage );
-			}
-			
-		//	LOG << "CSG mesh " << m << " plane " << p << " in: " << m_polies.size();
-			
-			// cut polygons
-			for( size_t s = 0; s < m_solids.size() && m_polies.size(); ++s )
-			{
-				m_cutpolies.clear();
-				const Solid& S = m_solids[ s ];
-				
-			//	size_t ops = m_polies.size();
-				while( m_polies.size() )
+				PartPoly LPP = m_polies.last();
+				if( LPP.m_solid == s )
 				{
-					PartPoly LPP = m_polies.last();
-					if( LPP.m_solid == s )
-					{
-						// skip this polygon / solid combo (same source)
-						m_cutpolies.push_back( LPP );
-						m_polies.pop_back();
-						continue;
-					}
-					
-					// take one source polygon
-					m_cutinprog.clear();
-					m_inprog.clear();
-					m_inprog.push_back( LPP );
+					// skip this polygon / solid combo (same source)
+					m_cutpolies.push_back( LPP );
 					m_polies.pop_back();
-					
-					// cut by all planes of a solid
-					for( size_t sp = 0; sp < S.size(); ++sp )
-					{
-						const Vec4 plane = S[ sp ];
-						
-						for( size_t pip = 0; pip < m_inprog.size(); ++pip )
-						{
-							_CutPoly( m_inprog[ pip ], plane, m_cutinprog );
-						}
-						m_inprog.clear();
-						TSWAP( m_inprog, m_cutinprog );
-					}
-					
-					// remove inside polygons
-				//	SOLID = s;
-					size_t oipsize = m_inprog.size();
-					for( size_t pip = 0; pip < m_inprog.size(); ++pip )
-						if( _PolyInside( m_inprog[ pip ], S ) )
-							m_inprog.uerase( pip-- );
-					
-					if( oipsize == m_inprog.size() )
-						m_cutpolies.push_back( LPP );
-					else
-						m_cutpolies.append( m_inprog.data(), m_inprog.size() );
+					continue;
 				}
-		//		LOG << "csg trimmed by solid " << s << " from " << ops << " to " << m_cutpolies.size();
 				
-				TSWAP( m_polies, m_cutpolies );
+				// take one source polygon
+				m_cutinprog.clear();
+				m_inprog.clear();
+				m_inprog.push_back( LPP );
+				m_polies.pop_back();
+				
+				// cut by all planes of a solid
+				for( size_t sp = 0; sp < S.size(); ++sp )
+				{
+					const Vec4 plane = S[ sp ];
+					
+					for( size_t pip = 0; pip < m_inprog.size(); ++pip )
+					{
+						_CutPoly( m_inprog[ pip ], plane, m_cutinprog );
+					}
+					m_inprog.clear();
+					TSWAP( m_inprog, m_cutinprog );
+				}
+				
+				// remove inside polygons
+			//	SOLID = s;
+				size_t oipsize = m_inprog.size();
+				for( size_t pip = 0; pip < m_inprog.size(); ++pip )
+					if( _PolyInside( m_inprog[ pip ], S ) )
+						m_inprog.uerase( pip-- );
+				
+				if( oipsize == m_inprog.size() )
+					m_cutpolies.push_back( LPP );
+				else
+					m_cutpolies.append( m_inprog.data(), m_inprog.size() );
 			}
+	//		LOG << "csg trimmed by solid " << s << " from " << ops << " to " << m_cutpolies.size();
 			
-			// put polygons back
-			P.m_vertices.clear();
-			P.m_solids.clear();
-			P.m_polysizes.clear();
-			
-			P.m_solids.reserve( m_polies.size() );
-			P.m_polysizes.reserve( m_polies.size() );
-			
-			for( size_t cp = 0; cp < m_polies.size(); ++cp )
+			TSWAP( m_polies, m_cutpolies );
+		}
+		
+		// put polygons back
+		P.m_vertices.clear();
+		
+		for( size_t cp = 0; cp < m_polies.size(); ++cp )
+		{
+			PartPoly& PP = m_polies[ cp ];
+			for( size_t cpv = 1; cpv + 1 < PP.size(); ++cpv )
 			{
-				PartPoly& PP = m_polies[ cp ];
-				P.m_polysizes.push_back( PP.size() );
-				P.m_solids.push_back( PP.m_solid );
-				for( size_t cpv = 0; cpv < PP.size(); ++cpv )
-					P.m_vertices.push_back( PP[ cpv ] );
+				P.m_vertices.push_back( PP[ 0 ] );
+				P.m_vertices.push_back( PP[ cpv ] );
+				P.m_vertices.push_back( PP[ cpv + 1 ] );
 			}
 		}
 	}
@@ -379,59 +371,54 @@ void LevelCache::RemoveHiddenSurfaces()
 
 void LevelCache::GenerateLines()
 {
-	for( size_t m = 0; m < m_meshes.size(); ++m )
+	for( size_t p = 0; p < m_meshParts.size(); ++p )
 	{
-		Mesh& M = m_meshes[ m ];
-		for( size_t p = 0; p < M.m_parts.size(); ++p )
+		Part& P = m_meshParts[ p ];
+		
+		for( size_t mpv = 0; mpv + 2 < P.m_vertices.size(); mpv += 3 )
 		{
-			Part& P = M.m_parts[ p ];
+			Vertex* verts = &P.m_vertices[ mpv ];
+			int vcount = 3;
 			
-			int ofs = 0;
-			for( size_t pp = 0; pp < P.m_polysizes.size(); ++pp )
+			// ADD LINES
+			Vec3 isps[ 2 ];
+			int ispc = 0;
+			for( int i = 0; i < vcount && ispc < 2; ++i )
 			{
-				Vertex* verts = &P.m_vertices[ ofs ];
-				int vcount = P.m_polysizes[ pp ];
-				ofs += vcount;
-				
-				// ADD LINES
-				Vec3 isps[ 2 ];
-				int ispc = 0;
-				for( int i = 0; i < vcount && ispc < 2; ++i )
+				Vec3 v0 = verts[ i ].pos;
+				Vec3 v1 = verts[ ( i + 1 ) % vcount ].pos;
+				if( ( v0.z <= LINE_HEIGHT && v1.z >= LINE_HEIGHT ) ||
+					( v0.z >= LINE_HEIGHT && v1.z <= LINE_HEIGHT ) )
 				{
-					Vec3 v0 = verts[ i ].pos;
-					Vec3 v1 = verts[ ( i + 1 ) % vcount ].pos;
-					if( ( v0.z <= LINE_HEIGHT && v1.z >= LINE_HEIGHT ) ||
-						( v0.z >= LINE_HEIGHT && v1.z <= LINE_HEIGHT ) )
+					if( v1.z == v0.z )
 					{
-						if( v1.z == v0.z )
+						break; // going to be easier (less code dup) to insert these separately (polygons are closed)
+					}
+					else
+					{
+						Vec3 isp = TLERP( v0, v1, ( LINE_HEIGHT - v0.z ) / ( v1.z - v0.z ) );
+						int at = 0;
+						for( ; at < ispc; ++at )
+							if( ( isps[ at ] - isp ).LengthSq() < SMALL_FLOAT )
+								break;
+						if( at == ispc )
 						{
-							break; // going to be easier (less code dup) to insert these separately (polygons are closed)
-						}
-						else
-						{
-							Vec3 isp = TLERP( v0, v1, ( LINE_HEIGHT - v0.z ) / ( v1.z - v0.z ) );
-							int at = 0;
-							for( ; at < ispc; ++at )
-								if( ( isps[ at ] - isp ).LengthSq() < SMALL_FLOAT )
-									break;
-							if( at == ispc )
-							{
-								isps[ ispc++ ] = isp;
-							}
+							isps[ ispc++ ] = isp;
 						}
 					}
 				}
-				if( ispc == 2 )
-				{
-					Vec2 line[] = { isps[0].ToVec2(), isps[1].ToVec2() };
-					m_lines.append( line, 2 );
-				}
+			}
+			if( ispc == 2 )
+			{
+				Vec2 line[] = { isps[0].ToVec2(), isps[1].ToVec2() };
+				m_lines.append( line, 2 );
 			}
 		}
 	}
 }
 
 
+#if 0
 void LevelCache::_GenerateLightmapPolys( Part& P )
 {
 	if( TexNoLight( P.m_texname ) )
@@ -497,6 +484,7 @@ void LevelCache::_GenerateLightmapPolys( Part& P )
 		at += polysize;
 	}
 }
+#endif
 
 bool LevelCache::_PackLightmapPolys( Mesh& M, int curwidth )
 {
@@ -506,41 +494,32 @@ bool LevelCache::_PackLightmapPolys( Mesh& M, int curwidth )
 		Part& P = M.m_parts[ i ];
 		if( TexNoLight( P.m_texname ) )
 			continue;
-		for( size_t i = 0; i < P.m_lmrects.size(); ++i )
-		{
-			int szx = ceil( P.m_lmrects[ i ].x ) + 4; // padding
-			int szy = ceil( P.m_lmrects[ i ].y ) + 4;
-			int pos = rp.Alloc( szx, szy );
-		//	LOG << "x = " << szx << " , y = " << szy << " , pos = " << pos;
-			if( pos < 0 )
-				return false;
-			P.m_lmallocs[ i ] = pos;
-		}
+		
+		int szx = ceil( P.m_lmrect.x ) + 4; // padding
+		int szy = ceil( P.m_lmrect.y ) + 4;
+		int pos = rp.Alloc( szx, szy );
+	//	LOG << "x = " << szx << " , y = " << szy << " , pos = " << pos;
+		if( pos < 0 )
+			return false;
+		P.m_lmalloc = pos;
 	}
 	
 	// if not returned here by now, fix coords
 	float scale = 1.0f / curwidth;
 	for( size_t i = 0; i < M.m_parts.size(); ++i )
 	{
-		size_t at = 0;
 		Part& P = M.m_parts[ i ];
-		for( size_t i = 0; i < P.m_polysizes.size(); ++i )
+		
+		int off[2] = {0,0};
+		rp.GetOffset( P.m_lmalloc, off );
+		off[0] += 2; // use half the padding
+		off[1] += 2;
+		
+		for( size_t v = 0; v < P.m_vertices.size(); ++v )
 		{
-			int polysize = P.m_polysizes[ i ];
-			
-			int off[2] = {0,0};
-			rp.GetOffset( P.m_lmallocs[ i ], off );
-			off[0] += 1; // use half the padding
-			off[1] += 1;
-			
-			for( int v = 0; v < polysize; ++v )
-			{
-				Vertex& V = P.m_vertices[ at + v ];
-				V.tx1 = ( P.m_lmverts[ at + v ].x + off[0] ) * scale;
-				V.ty1 = ( P.m_lmverts[ at + v ].y + off[1] ) * scale;
-			}
-			
-			at += polysize;
+			Vertex& V = P.m_vertices[ v ];
+			V.tx1 = ( V.tx1 + off[0] ) * scale;
+			V.ty1 = ( V.ty1 + off[1] ) * scale;
 		}
 	}
 	
@@ -549,9 +528,11 @@ bool LevelCache::_PackLightmapPolys( Mesh& M, int curwidth )
 
 void LevelCache::GenerateLightmapCoords( Mesh& M )
 {
+#if 0
 	// generate 2D polygons
 	for( size_t i = 0; i < M.m_parts.size(); ++i )
 		_GenerateLightmapPolys( M.m_parts[ i ] );
+#endif
 	
 	// try to pack all polygons
 	static const int widths[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };

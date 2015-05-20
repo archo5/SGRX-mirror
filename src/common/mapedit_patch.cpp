@@ -1143,23 +1143,31 @@ EDGUIPatchProps::EDGUIPatchProps() :
 	m_out( NULL ),
 	m_group( true, "Patch properties" ),
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
-	m_blkGroup( NULL )
+	m_blkGroup( NULL ),
+	m_isSolid( false ),
+	m_layerStart( 0 )
 {
 	tyname = "blockprops";
 	m_pos.caption = "Position";
 	m_blkGroup.caption = "Group";
+	m_isSolid.caption = "Is solid?";
+	m_layerStart.caption = "Layer start";
 }
 
 void EDGUIPatchProps::Prepare( EdPatch* patch )
 {
 	m_out = patch;
 	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
+	m_isSolid.SetValue( ( patch->blend & PATCH_IS_SOLID ) != 0 );
+	m_layerStart.SetValue( patch->blend & ~PATCH_IS_SOLID );
 	
 	Clear();
 	
 	Add( &m_group );
 	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( patch->group ) );
 	m_group.Add( &m_blkGroup );
+	m_group.Add( &m_isSolid );
+	m_group.Add( &m_layerStart );
 	m_pos.SetValue( patch->position );
 	m_group.Add( &m_pos );
 	
@@ -1186,6 +1194,13 @@ int EDGUIPatchProps::OnEvent( EDGUIEvent* e )
 				EdGroup* grp = g_EdWorld->m_groupMgr.FindGroupByPath( m_blkGroup.m_value );
 				if( grp )
 					m_out->group = grp->m_id;
+			}
+			else if( e->target == &m_isSolid || e->target == &m_layerStart )
+			{
+				uint8_t blend = m_layerStart.m_value;
+				if( m_isSolid.m_value )
+					blend |= PATCH_IS_SOLID;
+				m_out->blend = blend;
 			}
 			m_out->RegenerateMesh();
 		}

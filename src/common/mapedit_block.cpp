@@ -885,10 +885,9 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 			if( p )
 			{
 				p->selected = true;
-				if( e->target == &m_makeBlendPatch )
-					p->blend = true;
-				else
+				if( e->target != &m_makeBlendPatch )
 				{
+					p->blend = PATCH_IS_SOLID;
 					g_EdWorld->DeleteObject( m_out );
 					g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 				}
