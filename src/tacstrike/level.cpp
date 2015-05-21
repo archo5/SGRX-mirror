@@ -213,6 +213,9 @@ bool GameLevel::Load( const StringView& levelname )
 //	m_ltSamples.InsertSample( lt_samples[ 10 ] );
 	m_ltSamples.InsertSamples( lt_samples.data(), lt_samples.size() );
 	
+	svh.marker( "PHYMESH" );
+	LC_PhysicsMesh phy_mesh;
+	svh( phy_mesh, svh.version >= 5 );
 	
 	// CREATE STATIC GEOMETRY
 	SGRX_PhyRigidBodyInfo rbinfo;

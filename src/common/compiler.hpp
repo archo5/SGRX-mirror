@@ -99,14 +99,16 @@ struct LevelCache
 		size_t m_solid;
 		String m_texname;
 		Vec2 m_lmrect;
+		Vec2 m_lmmin;
 		int m_lmalloc;
 		bool m_isSolid;
-		bool m_isTransparent;
+		int m_decalLayer; // -1 if none
 	};
 	
 	struct Mesh
 	{
-		Array< Part > m_parts;
+		Array< size_t > m_partIDs;
+		Array< String > m_texnames;
 		Vec3 m_boundsMin;
 		Vec3 m_boundsMax;
 		Vec3 m_pos;
@@ -115,12 +117,12 @@ struct LevelCache
 	
 	struct Solid : Array< Vec4 > {};
 	
-	void AddPart( const Vertex* verts, int vcount, const String& texname_short, size_t fromsolid, bool isSolid, bool isTransparent );
+	void AddPart( const Vertex* verts, int vcount, const StringView& texname_short, size_t fromsolid, bool solid, int decalLayer );
 	size_t AddSolid( const Vec4* planes, int count );
 	
 	void AddMeshInst( const String& meshname, const Mat4& mtx, float lmquality = 1.0f, bool solid = true, bool dynlit = false, bool castlms = true )
 	{
-		LC_MeshInst MI = { meshname, mtx, ( solid * LM_MESHINST_SOLID ) | ( dynlit * LM_MESHINST_DYNLIT ) | ( castlms * LM_MESHINST_CASTLMS ), lmquality };
+		LC_MeshInst MI = { meshname, mtx, ( solid * LM_MESHINST_SOLID ) | ( dynlit * LM_MESHINST_DYNLIT ) | ( castlms * LM_MESHINST_CASTLMS ), 0, lmquality };
 		m_meshinst.push_back( MI );
 	}
 	
@@ -147,19 +149,22 @@ struct LevelCache
 	bool _PolyInside( const PartPoly& PP, const Solid& S );
 	void RemoveHiddenSurfaces();
 	void GenerateLines();
+	void CombineParts();
 //	void _GenerateLightmapPolys( Part& P );
 	bool _PackLightmapPolys( Mesh& M, int curwidth );
+	void GatherMeshes();
 	void GenerateLightmapCoords( Mesh& M );
 	bool SaveMesh( int mid, Mesh& M, const StringView& path, bool remnull );
 	bool SaveCache( const StringView& path );
 	void GenerateLightmaps( const StringView& path );
 	
 	Array< Solid > m_solids;
-	// Array< Mesh > m_meshes;
+	Array< Mesh > m_meshes;
 	Array< Part > m_meshParts;
 	Array< LC_MeshInst > m_meshinst;
 	Array< LC_Light > m_lights;
 	Array< LC_ScriptedEntity > m_scriptents;
+	LC_PhysicsMesh m_phyMesh;
 	Array< Vec3 > m_samples;
 	Array< Vec2 > m_lines;
 	

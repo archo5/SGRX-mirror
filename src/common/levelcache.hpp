@@ -3,7 +3,12 @@
 #include <utils.hpp>
 
 
-#define LC_FILE_VERSION 4
+// 1: added mesh instance flags
+// 2: added flare offset
+// 3: added decal layer
+// 4: added subentities
+// 5: added physics mesh
+#define LC_FILE_VERSION 5
 
 
 #define LM_MESHINST_SOLID 0x0001
@@ -85,5 +90,19 @@ struct LC_ScriptedEntity
 
 // LINE = Vec2 x2
 // SAMPLE = Vec3
+
+struct LC_PhysicsMesh
+{
+	Array< String > materials;
+	Array< Vec3 > positions;
+	Array< uint32_t > indices; // array of 4 indices (v0,v1,v2,mtl)
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << materials;
+		arch << positions;
+		arch << indices;
+	}
+};
 
 

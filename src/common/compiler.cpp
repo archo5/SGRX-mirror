@@ -76,31 +76,43 @@ int RectPacker::_NodeAlloc( int startnode, int w, int h )
 
 #define LINE_HEIGHT 0.45f
 
-void LevelCache::AddPart( const Vertex* verts, int vcount, const String& texname_short, size_t fromsolid, bool isSolid, bool isTransparent )
+void LevelCache::AddPart( const Vertex* verts, int vcount, const StringView& texname_short, size_t fromsolid, bool solid, int decalLayer )
 {
-	if( vcount < 3 )
-		return;
+	ASSERT( vcount >= 3 && vcount % 3 == 0 );
 	
 	char texbfr[ 256 ];
 	sgrx_snprintf( texbfr, sizeof(texbfr), "textures/%.*s.png", TMIN( (int) texname_short.size(), 200 ), texname_short.data() );
 	
 	m_meshParts.push_back( Part() );
 	Part& P = m_meshParts.last();
-	P.m_vertices.assign( verts, vcount );
+	
+	for( int i = 0; i + 2 < vcount; i += 3 )
+	{
+		if( TriangleArea( verts[ i+0 ].pos, verts[ i+1 ].pos, verts[ i+2 ].pos ) < SMALL_FLOAT )
+			continue;
+		P.m_vertices.append( &verts[ i ], 3 );
+	}
+	if( P.m_vertices.size() == 0 )
+	{
+		m_meshParts.pop_back();
+		return;
+	}
+	
 	P.m_solid = fromsolid;
 	P.m_texname = texbfr;
 	P.m_lmalloc = -1;
-	P.m_isSolid = isSolid;
-	P.m_isTransparent = isTransparent;
+	P.m_isSolid = solid;
+	P.m_decalLayer = decalLayer;
 	
 	Vec2 t2min = V2(FLT_MAX), t2max = V2(-FLT_MAX);
 	for( int i = 0; i < vcount; ++i )
 	{
-		Vec2 tc = V2( verts[ i ].tx1, verts[ i ].ty1 );
+		Vec2 tc = V2( P.m_vertices[ i ].tx1, P.m_vertices[ i ].ty1 );
 		t2min = Vec2::Min( t2min, tc );
 		t2max = Vec2::Max( t2max, tc );
 	}
 	P.m_lmrect = t2max - t2min;
+	P.m_lmmin = t2min;
 	
 #if 0
 	Vec3 center = V3(0);
@@ -489,9 +501,9 @@ void LevelCache::_GenerateLightmapPolys( Part& P )
 bool LevelCache::_PackLightmapPolys( Mesh& M, int curwidth )
 {
 	RectPacker rp( curwidth, curwidth );
-	for( size_t i = 0; i < M.m_parts.size(); ++i )
+	for( size_t i = 0; i < M.m_partIDs.size(); ++i )
 	{
-		Part& P = M.m_parts[ i ];
+		Part& P = m_meshParts[ M.m_partIDs[ i ] ];
 		if( TexNoLight( P.m_texname ) )
 			continue;
 		
@@ -506,9 +518,19 @@ bool LevelCache::_PackLightmapPolys( Mesh& M, int curwidth )
 	
 	// if not returned here by now, fix coords
 	float scale = 1.0f / curwidth;
-	for( size_t i = 0; i < M.m_parts.size(); ++i )
+	for( size_t i = 0; i < M.m_partIDs.size(); ++i )
 	{
-		Part& P = M.m_parts[ i ];
+		Part& P = m_meshParts[ M.m_partIDs[ i ] ];
+		if( TexNoLight( P.m_texname ) )
+		{
+			for( size_t v = 0; v < P.m_vertices.size(); ++v )
+			{
+				Vertex& V = P.m_vertices[ v ];
+				V.tx1 = 0;
+				V.ty1 = 0;
+			}
+			continue;
+		}
 		
 		int off[2] = {0,0};
 		rp.GetOffset( P.m_lmalloc, off );
@@ -518,12 +540,99 @@ bool LevelCache::_PackLightmapPolys( Mesh& M, int curwidth )
 		for( size_t v = 0; v < P.m_vertices.size(); ++v )
 		{
 			Vertex& V = P.m_vertices[ v ];
-			V.tx1 = ( V.tx1 + off[0] ) * scale;
-			V.ty1 = ( V.ty1 + off[1] ) * scale;
+			V.tx1 = ( V.tx1 - P.m_lmmin.x + off[0] ) * scale;
+			V.ty1 = ( V.ty1 - P.m_lmmin.y + off[1] ) * scale;
 		}
 	}
 	
 	return true;
+}
+
+static int sort_part_by_texture( const void* a, const void* b )
+{
+	SGRX_CAST( LevelCache::Part*, pa, a );
+	SGRX_CAST( LevelCache::Part*, pb, b );
+	return pa->m_texname.compare_to( pb->m_texname );
+}
+
+void LevelCache::GatherMeshes()
+{
+	qsort( m_meshParts.data(), m_meshParts.size(), sizeof(Part), sort_part_by_texture );
+	
+	for( size_t pid = 0; pid < m_meshParts.size(); ++pid )
+	{
+		Part& P = m_meshParts[ pid ];
+		
+		// mesh combination
+		Vec3 pcenter = V3(0), pmin = V3(FLT_MAX), pmax = V3(-FLT_MAX);
+		for( size_t v = 0; v < P.m_vertices.size(); ++v )
+		{
+			Vec3 p = P.m_vertices[ v ].pos;
+			pcenter += p;
+			pmin = Vec3::Min( pmin, p );
+			pmax = Vec3::Max( pmax, p );
+		}
+		pcenter /= P.m_vertices.size();
+		
+		Mesh* TM = NULL;
+		
+		for( size_t mid = 0; mid < m_meshes.size(); ++mid )
+		{
+			Mesh& M = m_meshes[ mid ];
+			
+			// wrong decal layer ID
+			if( m_meshParts[ M.m_partIDs[ 0 ] ].m_decalLayer != P.m_decalLayer )
+				continue;
+			
+			// no more space
+			if( M.m_texnames.size() >= 8 && M.m_texnames.find_first_at( P.m_texname ) == NOT_FOUND )
+				continue;
+			
+			// too far
+			Vec3 curpos = M.m_pos / M.m_div;
+			if( ( curpos - pcenter ).Length() > 20 )
+				continue;
+			
+			TM = &m_meshes[ mid ];
+			break;
+		}
+		
+		if( !TM )
+		{
+			m_meshes.push_back( Mesh() );
+			TM = &m_meshes.last();
+			TM->m_pos = V3(0);
+			TM->m_div = 0;
+			TM->m_boundsMin = V3(FLT_MAX);
+			TM->m_boundsMax = V3(-FLT_MAX);
+			
+			// add instance for new mesh
+			char bfr[ 32 ];
+			sprintf( bfr, "~/%d.ssm", (int) m_meshes.size() - 1 );
+			AddMeshInst( bfr, Mat4::Identity );
+		}
+		
+		TM->m_pos += pcenter;
+		TM->m_div++;
+		TM->m_texnames.find_or_add( P.m_texname );
+		TM->m_partIDs.push_back( pid );
+		TM->m_boundsMin = Vec3::Min( TM->m_boundsMin, pmin );
+		TM->m_boundsMax = Vec3::Max( TM->m_boundsMax, pmax );
+		
+		// physics mesh generation
+		if( P.m_isSolid )
+		{
+			uint32_t phy_mtl_id = m_phyMesh.materials.find_or_add( P.m_texname );
+			
+			for( size_t v = 0; v + 2 < P.m_vertices.size(); v += 3 )
+			{
+				m_phyMesh.indices.push_back( m_phyMesh.positions.find_or_add( P.m_vertices[ v + 0 ].pos ) );
+				m_phyMesh.indices.push_back( m_phyMesh.positions.find_or_add( P.m_vertices[ v + 1 ].pos ) );
+				m_phyMesh.indices.push_back( m_phyMesh.positions.find_or_add( P.m_vertices[ v + 2 ].pos ) );
+				m_phyMesh.indices.push_back( phy_mtl_id );
+			}
+		}
+	}
 }
 
 void LevelCache::GenerateLightmapCoords( Mesh& M )
@@ -556,29 +665,31 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnul
 	Array< uint16_t > indices;
 	Array< PartRangeData > parts;
 	
-	for( size_t pid = 0; pid < M.m_parts.size(); ++pid )
+	for( size_t pid = 0; pid < M.m_partIDs.size(); )
 	{
-		const Part& P = M.m_parts[ pid ];
+		const Part& P = m_meshParts[ M.m_partIDs[ pid ] ];
 		if( remnull && TexNull( P.m_texname ) )
-			continue;
-		
-		PartRangeData PRD = { verts.size(), P.m_vertices.size(), indices.size(), 0, pid };
-		verts.append( P.m_vertices.data(), P.m_vertices.size() );
-		
-		size_t at = 0;
-		for( size_t p = 0; p < P.m_polysizes.size(); ++p )
 		{
-			int psz = P.m_polysizes[ p ];
-			PRD.indexCount += ( psz - 2 ) * 3;
-			
-			for( int i = 2; i < psz; ++i )
-			{
-				indices.push_back( at );
-				indices.push_back( at + i - 1 );
-				indices.push_back( at + i );
-			}
-			at += psz;
+			pid++;
+			continue;
 		}
+		
+		PartRangeData PRD = { verts.size(), 0, indices.size(), 0, M.m_partIDs[ pid ] };
+		// the sorting of paths allows us to concatenate them
+		StringView texName = P.m_texname;
+		while( pid < M.m_partIDs.size() && m_meshParts[ M.m_partIDs[ pid ] ].m_texname == texName )
+		{
+			const Part& SOP = m_meshParts[ M.m_partIDs[ pid ] ];
+			for( size_t v = 0; v + 2 < SOP.m_vertices.size(); v += 3 )
+			{
+				indices.push_back( verts.find_or_add( SOP.m_vertices[ v + 0 ], PRD.vertexOffset ) - PRD.vertexOffset );
+				indices.push_back( verts.find_or_add( SOP.m_vertices[ v + 1 ], PRD.vertexOffset ) - PRD.vertexOffset );
+				indices.push_back( verts.find_or_add( SOP.m_vertices[ v + 2 ], PRD.vertexOffset ) - PRD.vertexOffset );
+			}
+			pid++;
+		}
+		PRD.vertexCount = verts.size() - PRD.vertexOffset;
+		PRD.indexCount = indices.size() - PRD.indexOffset;
 		parts.push_back( PRD );
 	}
 	
@@ -616,7 +727,7 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnul
 		vu8 = sizeof(EDMESH_SHADER) - 1; // shader name length
 		bw << vu8;
 		bw.marker( EDMESH_SHADER );
-		LevelCache::Part& MP = M.m_parts[ parts[ i ].part_id ];
+		LevelCache::Part& MP = m_meshParts[ parts[ i ].part_id ];
 		vu8 = MP.m_texname.size(); // texture name length
 		bw << vu8;
 		bw.memory( MP.m_texname.data(), MP.m_texname.size() );
@@ -630,6 +741,8 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnul
 bool LevelCache::SaveCache( const StringView& path )
 {
 	FS_DirCreate( path );
+	
+	GatherMeshes();
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
@@ -682,6 +795,9 @@ bool LevelCache::SaveCache( const StringView& path )
 	{
 		svh.memory( sample_data.data(), sample_data.size() );
 	}
+	
+	svh.marker( "PHYMESH" );
+	svh( m_phyMesh, svh.version >= 5 );
 	
 	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
 }

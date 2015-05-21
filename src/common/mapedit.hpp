@@ -283,6 +283,8 @@ typedef SerializeVersionHelper<TextWriter> SVHTW;
 typedef SerializeVersionHelper<ByteReader> SVHBR;
 typedef SerializeVersionHelper<ByteWriter> SVHBW;
 
+typedef LevelCache::Vertex LCVertex;
+
 struct EdObject
 {
 	EdObject( uint8_t ty ) : m_refcount(0), m_type(ty), selected(false), group(0) {}
@@ -419,8 +421,6 @@ struct EdSurface
 	}
 };
 
-
-typedef LevelCache::Vertex LCVertex;
 
 struct EdBlock : EdObject
 {
@@ -665,6 +665,7 @@ struct EdPatch : EdObject
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const;
 	virtual void RegenerateMesh();
 	virtual Vec3 FindCenter() const;
+	void GenerateMesh( LevelCache& LC );
 	
 	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads() + GetNumXEdges() + GetNumYEdges(); }
 	virtual Vec3 GetElementPoint( int i ) const;

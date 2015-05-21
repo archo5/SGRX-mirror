@@ -1652,6 +1652,9 @@ void EDGUIMainFrame::Level_Real_Compile()
 	for( size_t i = 0; i < g_EdWorld->m_blocks.size(); ++i )
 		g_EdWorld->m_blocks[ i ]->GenerateMesh( lcache );
 	
+	for( size_t i = 0; i < g_EdWorld->m_patches.size(); ++i )
+		g_EdWorld->m_patches[ i ]->GenerateMesh( lcache );
+	
 	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
 		g_EdWorld->m_entities[ i ]->UpdateCache( lcache );
 	

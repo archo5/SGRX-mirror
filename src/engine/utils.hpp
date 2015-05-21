@@ -957,6 +957,8 @@ ENGINE_EXPORT Quat TransformQuaternion( const Quat& q, const Mat4& m );
 ENGINE_EXPORT float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 );
 ENGINE_EXPORT bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const Vec3& tb0, const Vec3& tb1, const Vec3& tb2 );
 ENGINE_EXPORT float PolyArea( const Vec2* points, int pointcount );
+ENGINE_EXPORT float TriangleArea( float a, float b, float c );
+ENGINE_EXPORT float TriangleArea( const Vec3& p0, const Vec3& p1, const Vec3& p2 );
 ENGINE_EXPORT bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] );
 ENGINE_EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
 ENGINE_EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );

@@ -428,6 +428,16 @@ float PolyArea( const Vec2* points, int pointcount )
 	return area * 0.5f;
 }
 
+float TriangleArea( float a, float b, float c )
+{
+	return 0.25f * sqrtf( ( a + b + c ) * ( b + c - a ) * ( c + a - b ) * ( a + b - c ) );
+}
+
+float TriangleArea( const Vec3& p0, const Vec3& p1, const Vec3& p2 )
+{
+	return TriangleArea( ( p1 - p0 ).Length(), ( p2 - p1 ).Length(), ( p0 - p2 ).Length() );
+}
+
 bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Vec4& plane, float dsts[2] )
 {
 	/* returns <distance to intersection, signed origin distance from plane>

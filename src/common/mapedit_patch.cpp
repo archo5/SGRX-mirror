@@ -266,6 +266,13 @@ Vec3 EdPatch::FindCenter() const
 	return c / ( xsize * ysize ) + position;
 }
 
+void EdPatch::GenerateMesh( LevelCache& LC )
+{
+	Array< LCVertex > outverts;
+	Array< uint16_t > outidcs;
+	// TODO
+}
+
 Vec3 EdPatch::GetElementPoint( int i ) const
 {
 	int vcount = xsize * ysize;
