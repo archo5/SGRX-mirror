@@ -154,7 +154,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 			if( ( MI->layers & L->layers ) != 0 && MI->skin_matrices.size() == 0 )
 			{
 				SGRX_IMesh* M = MI->mesh;
-				if( M )
+				if( MI->transparent == false && M )
 				{
 					size_t vertoff = m_projectorVertices.size();
 					M->Clip( MI->matrix, L->viewProjMatrix, m_projectorVertices, true, invZNearToZFar );

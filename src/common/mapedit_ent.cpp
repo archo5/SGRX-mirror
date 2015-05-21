@@ -97,7 +97,7 @@ void EdEntMesh::UpdateCache( LevelCache& LC )
 {
 	char bfr[ 256 ];
 	snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( (int) Mesh().size(), 200 ), Mesh().data() );
-	LC.AddMeshInst( bfr, Matrix() );
+	LC.AddMeshInst( bfr, Matrix(), 1.0f, true, false, true, -1 );
 }
 
 int EdEntMesh::OnEvent( EDGUIEvent* e )
@@ -799,7 +799,7 @@ static int EE_Gather_Mesh( SGS_CTX )
 	bool dynlit = sgs_StackSize( C ) > 5 ? sgs_GetVar<bool>()( C, 5 ) : false;
 	bool castlms = sgs_StackSize( C ) > 6 ? sgs_GetVar<bool>()( C, 6 ) : true;
 	if( E->m_levelCache )
-		E->m_levelCache->AddMeshInst( sgs_GetVar<String>()( C, 1 ), sgs_GetVar<Mat4>()( C, 2 ), lmquality, solid, dynlit, castlms );
+		E->m_levelCache->AddMeshInst( sgs_GetVar<String>()( C, 1 ), sgs_GetVar<Mat4>()( C, 2 ), lmquality, solid, dynlit, castlms, -1 );
 	return 0;
 }
 

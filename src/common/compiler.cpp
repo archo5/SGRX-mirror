@@ -609,7 +609,7 @@ void LevelCache::GatherMeshes()
 			// add instance for new mesh
 			char bfr[ 32 ];
 			sprintf( bfr, "~/%d.ssm", (int) m_meshes.size() - 1 );
-			AddMeshInst( bfr, Mat4::Identity );
+			AddMeshInst( bfr, Mat4::Identity, 1, false, false, true, P.m_decalLayer );
 		}
 		
 		TM->m_pos += pcenter;

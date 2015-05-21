@@ -208,43 +208,7 @@ void EdPatch::RegenerateMesh()
 		
 		outverts.clear();
 		outidcs.clear();
-		for( int y = 0; y < (int) ysize; ++y )
-		{
-			for( int x = 0; x < (int) xsize; ++x )
-			{
-				EdPatchVtx& V = vertices[ x + y * MAX_PATCH_WIDTH ];
-				Vec2 tx = V.tex[ layer ];
-				LCVertex vert = { V.pos + position, V3(0,0,1), V.col[ layer ], tx.x, tx.y, 0, 0 };
-				outverts.push_back( vert );
-			}
-		}
-		for( int y = 0; y < (int) ysize - 1; ++y )
-		{
-			for( int x = 0; x < (int) xsize - 1; ++x )
-			{
-				int bv = y * xsize + x;
-				if( edgeflip[ y ] & ( 1 << x ) )
-				{
-					// split: [/]
-					uint16_t idcs[6] =
-					{
-						bv + xsize, bv, bv + 1,
-						bv + 1, bv + 1 + xsize, bv + xsize
-					};
-					outidcs.append( idcs, 6 );
-				}
-				else
-				{
-					// split: [\]
-					uint16_t idcs[6] =
-					{
-						bv, bv + 1, bv + 1 + xsize,
-						bv + 1 + xsize, bv + xsize, bv
-					};
-					outidcs.append( idcs, 6 );
-				}
-			}
-		}
+		GenerateMeshData( outverts, outidcs, layer );
 		SGRX_MeshPart mp = { 0, outverts.size(), 0, outidcs.size(), mh };
 		
 		LI.cached_mesh->SetVertexData( outverts.data(), outverts.size_bytes(), vd, false );
@@ -266,11 +230,116 @@ Vec3 EdPatch::FindCenter() const
 	return c / ( xsize * ysize ) + position;
 }
 
+void EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer )
+{
+	// generate lightmap coords
+	Vec2 lmverts[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
+	
+	Vec2 total_xy_length = V2(0);
+	// map 1x1
+	// - X
+	for( int y = 0; y < ysize; ++y )
+	{
+		float total_length = 0;
+		for( int x = 1; x < xsize; ++x )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
+			total_length += diff.Length();
+		}
+		lmverts[ y * MAX_PATCH_WIDTH ].x = 0;
+		float curr_length = 0;
+		for( int x = 1; x < xsize; ++x )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ y * MAX_PATCH_WIDTH + x - 1 ].pos;
+			curr_length += diff.Length();
+			lmverts[ y * MAX_PATCH_WIDTH + x ].x = safe_fdiv( curr_length, total_length );
+		}
+		total_xy_length.x += total_length;
+	}
+	// - Y
+	for( int x = 0; x < xsize; ++x )
+	{
+		float total_length = 0;
+		for( int y = 1; y < ysize; ++y )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
+			total_length += diff.Length();
+		}
+		lmverts[ x ].y = 0;
+		float curr_length = 0;
+		for( int y = 1; y < ysize; ++y )
+		{
+			Vec3 diff = vertices[ y * MAX_PATCH_WIDTH + x ].pos - vertices[ ( y - 1 ) * MAX_PATCH_WIDTH + x ].pos;
+			curr_length += diff.Length();
+			lmverts[ y * MAX_PATCH_WIDTH + x ].y = safe_fdiv( curr_length, total_length );
+		}
+		total_xy_length.y += total_length;
+	}
+	
+	// divided by number of samples
+	total_xy_length /= V2( ysize, xsize );
+	
+	// generate vertices
+	for( int y = 0; y < (int) ysize; ++y )
+	{
+		for( int x = 0; x < (int) xsize; ++x )
+		{
+			EdPatchVtx& V = vertices[ x + y * MAX_PATCH_WIDTH ];
+			Vec2 LMV = lmverts[ x + y * MAX_PATCH_WIDTH ] * total_xy_length;
+			Vec2 tx = V.tex[ layer ];
+			LCVertex vert = { V.pos + position, V3(0,0,1), V.col[ layer ], tx.x, tx.y, LMV.x, LMV.y };
+			outverts.push_back( vert );
+		}
+	}
+	for( int y = 0; y < (int) ysize - 1; ++y )
+	{
+		for( int x = 0; x < (int) xsize - 1; ++x )
+		{
+			int bv = y * xsize + x;
+			if( edgeflip[ y ] & ( 1 << x ) )
+			{
+				// split: [/]
+				uint16_t idcs[6] =
+				{
+					bv + xsize, bv, bv + 1,
+					bv + 1, bv + 1 + xsize, bv + xsize
+				};
+				outidcs.append( idcs, 6 );
+			}
+			else
+			{
+				// split: [\]
+				uint16_t idcs[6] =
+				{
+					bv, bv + 1, bv + 1 + xsize,
+					bv + 1 + xsize, bv + xsize, bv
+				};
+				outidcs.append( idcs, 6 );
+			}
+		}
+	}
+}
+
 void EdPatch::GenerateMesh( LevelCache& LC )
 {
 	Array< LCVertex > outverts;
 	Array< uint16_t > outidcs;
-	// TODO
+	Array< LCVertex > outresolved;
+	bool first = true;
+	for( int layer = 0; layer < MAX_PATCH_LAYERS; ++layer )
+	{
+		if( layers[ layer ].texname.size() == 0 )
+			continue;
+		outverts.clear();
+		outidcs.clear();
+		outresolved.clear();
+		GenerateMeshData( outverts, outidcs, layer );
+		for( size_t i = 0; i < outidcs.size(); ++i )
+			outresolved.push_back( outverts[ outidcs[ i ] ] );
+		LC.AddPart( outresolved.data(), outresolved.size(), layers[ layer ].texname, NOT_FOUND,
+			(blend & PATCH_IS_SOLID), (blend & PATCH_IS_SOLID) && first ? -1 : (blend & ~PATCH_IS_SOLID) + layer );
+		first = false;
+	}
 }
 
 Vec3 EdPatch::GetElementPoint( int i ) const

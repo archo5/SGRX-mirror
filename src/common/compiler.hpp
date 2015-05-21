@@ -120,9 +120,18 @@ struct LevelCache
 	void AddPart( const Vertex* verts, int vcount, const StringView& texname_short, size_t fromsolid, bool solid, int decalLayer );
 	size_t AddSolid( const Vec4* planes, int count );
 	
-	void AddMeshInst( const String& meshname, const Mat4& mtx, float lmquality = 1.0f, bool solid = true, bool dynlit = false, bool castlms = true )
+	void AddMeshInst( const String& meshname, const Mat4& mtx, float lmquality, bool solid, bool dynlit, bool castlms, int decalLayer )
 	{
-		LC_MeshInst MI = { meshname, mtx, ( solid * LM_MESHINST_SOLID ) | ( dynlit * LM_MESHINST_DYNLIT ) | ( castlms * LM_MESHINST_CASTLMS ), 0, lmquality };
+		uint32_t flags = 0;
+		if( solid ) flags |= LM_MESHINST_SOLID;
+		if( dynlit ) flags |= LM_MESHINST_DYNLIT;
+		if( castlms ) flags |= LM_MESHINST_CASTLMS;
+		LC_MeshInst MI = { meshname, mtx, flags, 0, lmquality };
+		if( decalLayer != -1 )
+		{
+			MI.m_flags |= LM_MESHINST_DECAL;
+			MI.m_decalLayer = decalLayer;
+		}
 		m_meshinst.push_back( MI );
 	}
 	

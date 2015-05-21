@@ -1479,7 +1479,7 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 	SGRX_CAST( SGRX_MeshInstance*, MI, data );
 	
 	SGRX_IMesh* M = MI->mesh;
-	if( M )
+	if( MI->transparent == false && M )
 	{
 		size_t vertoff = outVertices->size();
 		M->Clip( MI->matrix, viewProjMatrix, *outVertices, true, invZNearToZFar );

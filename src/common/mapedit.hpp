@@ -665,6 +665,7 @@ struct EdPatch : EdObject
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const;
 	virtual void RegenerateMesh();
 	virtual Vec3 FindCenter() const;
+	void GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer );
 	void GenerateMesh( LevelCache& LC );
 	
 	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads() + GetNumXEdges() + GetNumYEdges(); }

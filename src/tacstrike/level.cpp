@@ -220,6 +220,17 @@ bool GameLevel::Load( const StringView& levelname )
 	// CREATE STATIC GEOMETRY
 	SGRX_PhyRigidBodyInfo rbinfo;
 	
+	// TODO: temporarily ignore material data
+	Array< uint32_t > fixedidcs;
+	for( size_t i = 0; i < phy_mesh.indices.size(); i += 4 )
+	{
+		fixedidcs.append( &phy_mesh.indices[ i ], 3 );
+	}
+	rbinfo.shape = g_PhyWorld->CreateTriMeshShape(
+		phy_mesh.positions.data(), phy_mesh.positions.size(),
+		fixedidcs.data(), fixedidcs.size(), true );
+	m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
+	
 	for( size_t i = 0; i < mesh_inst_defs.size(); ++i )
 	{
 		char subbfr[ 512 ];
@@ -242,6 +253,12 @@ bool GameLevel::Load( const StringView& levelname )
 		{
 			MI->dynamic = true;
 			LightMesh( MI );
+		}
+		
+		if( mesh_inst_defs[ i ].m_flags & LM_MESHINST_DECAL )
+		{
+			MI->decal = true;
+			MI->transparent = true;
 		}
 		
 		m_meshInsts.push_back( MI );
