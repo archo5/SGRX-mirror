@@ -547,6 +547,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		{
 			g_EdWorld->DeleteSelectedObjects();
 			m_curObj = -1;
+			_MouseMove();
 			_ReloadBlockProps();
 			g_UIFrame->RefreshMouse();
 		}

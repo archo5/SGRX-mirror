@@ -465,8 +465,8 @@ int main( int argc, char* argv[] )
 				else if( !strcmp( key, "power" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { light_info.power = v; } else { perror( "LIGHT: failed to read power" ); return 1; } }
 				else if( !strcmp( key, "light_radius" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { light_info.light_radius = v; } else { perror( "LIGHT: failed to read light_radius" ); return 1; } }
 				else if( !strcmp( key, "shadow_sample_count" ) ){ int v = 0; if( fscanf( fp, "%d", &v ) == 1 ) { light_info.shadow_sample_count = v; } else { perror( "LIGHT: failed to read shadow_sample_count" ); return 1; } }
-				else if( !strcmp( key, "spot_angle_out" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { light_info.spot_angle_out = v; } else { perror( "LIGHT: failed to read spot_angle_out" ); return 1; } }
-				else if( !strcmp( key, "spot_angle_in" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { light_info.spot_angle_in = v; } else { perror( "LIGHT: failed to read spot_angle_in" ); return 1; } }
+				else if( !strcmp( key, "spot_angle_out" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { light_info.spot_angle_out = v * 0.5f; } else { perror( "LIGHT: failed to read spot_angle_out" ); return 1; } }
+				else if( !strcmp( key, "spot_angle_in" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { light_info.spot_angle_in = v * 0.5f; } else { perror( "LIGHT: failed to read spot_angle_in" ); return 1; } }
 				else if( !strcmp( key, "spot_curve" ) ){ float v = 0; if( fscanf( fp, "%f", &v ) == 1 ) { light_info.spot_curve = v; } else { perror( "LIGHT: failed to read spot_curve" ); return 1; } }
 				else { fprintf( stderr, "unrecognized LIGHT key: %s\n", key ); return 1; }
 			}

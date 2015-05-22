@@ -2901,8 +2901,10 @@ BatchRenderer& BatchRenderer::ConeOutline( const Vec3& pos, const Vec3& dir, con
 {
 	if( verts >= 3 )
 	{
-		float q = radius * tan( DEG2RAD( angle ) / 2 );
-		Vec3 dx = Vec3Cross(dir,up).Normalized() * q, dy = up.Normalized() * q;
+		float hra = DEG2RAD( angle ) / 2.0f;
+		float rc = radius * cosf( hra );
+		float rs = radius * sinf( hra );
+		Vec3 dx = Vec3Cross(dir,up).Normalized() * rs, dy = up.Normalized() * rs;
 		
 		SetPrimitiveType( PT_Lines );
 		float a = 0;
@@ -2910,10 +2912,10 @@ BatchRenderer& BatchRenderer::ConeOutline( const Vec3& pos, const Vec3& dir, con
 		for( int i = 0; i < verts; ++i )
 		{
 			Pos( pos );
-			Pos( pos + dir * radius + sin( a ) * dx + cos( a ) * dy );
+			Pos( pos + dir * rc + sin( a ) * dx + cos( a ) * dy );
 			a += ad;
 		}
-		CircleOutline( pos + dir * radius, dx, dy, verts );
+		CircleOutline( pos + dir * rc, dx, dy, verts );
 	}
 	return *this;
 }

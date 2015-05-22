@@ -386,6 +386,8 @@ void LevelCache::GenerateLines()
 	for( size_t p = 0; p < m_meshParts.size(); ++p )
 	{
 		Part& P = m_meshParts[ p ];
+		if( TexNull( P.m_texname ) )
+			continue;
 		
 		for( size_t mpv = 0; mpv + 2 < P.m_vertices.size(); mpv += 3 )
 		{
