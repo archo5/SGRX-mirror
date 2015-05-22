@@ -35,6 +35,8 @@ struct EDGUISurfTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 		LOG << "Reloading textures";
 		m_options.clear();
 		m_textures.clear();
+		m_options.push_back( "" );
+		m_textures.push_back( TextureHandle() );
 		FS_IterateDirectory( "textures", this );
 		_Search( m_searchString );
 	}

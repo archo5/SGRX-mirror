@@ -971,8 +971,8 @@ EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 	patch->xsize = 2;
 	patch->ysize = 2;
 	patch->position = B.position;
-	LCVertex verts[4];
-	B.GenerateSurface( verts, sid );
+	LCVertex verts[100];
+	B.GenerateSurface( verts, sid, false );
 	EdPatchVtx pverts[4];
 	memset( pverts, 0, sizeof(pverts) );
 	for( int i = 0; i < 4; ++i )
@@ -1221,7 +1221,7 @@ EDGUIPatchProps::EDGUIPatchProps() :
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_blkGroup( NULL ),
 	m_isSolid( false ),
-	m_layerStart( 0 )
+	m_layerStart( 0, 0, 255 )
 {
 	tyname = "blockprops";
 	m_pos.caption = "Position";

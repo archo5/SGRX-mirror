@@ -770,7 +770,8 @@ Vec3 EdEditBlockEditMode::GetActivePoint( int i )
 
 const char* EdEditBlockEditMode::GetActivePointExtName( int i )
 {
-	ASSERT( i >= 0 && i < NUM_AABB_ACTIVE_POINTS );
+	if( i < 0 || i >= NUM_AABB_ACTIVE_POINTS )
+		return "-";
 	static const char* apenames[ NUM_AABB_ACTIVE_POINTS ] =
 	{
 		"X/Y/Z", "Y/Z", "X/Y/Z",  "X/Z", "Z", "X/Z",  "X/Y/Z", "Y/Z", "X/Y/Z",
@@ -783,7 +784,8 @@ const char* EdEditBlockEditMode::GetActivePointExtName( int i )
 bool EdEditBlockEditMode::IsActivePointSelectable( int i )
 {
 	static const float APDF = 0.1f;
-	ASSERT( i >= 0 && i < NUM_AABB_ACTIVE_POINTS );
+	if( i < 0 || i >= NUM_AABB_ACTIVE_POINTS )
+		return false;
 	
 	Vec3 cp = g_EdScene->camera.position;
 	Vec3 pos = GetActivePoint( i );

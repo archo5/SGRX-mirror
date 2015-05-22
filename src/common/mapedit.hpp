@@ -506,7 +506,7 @@ struct EdBlock : EdObject
 	
 	LevelCache::Vertex _MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy );
 	void GenerateMesh( LevelCache& LC );
-	int GenerateSurface( LCVertex* outbuf, int sid );
+	int GenerateSurface( LCVertex* outbuf, int sid, bool tri );
 	void Export( OBJExporter& objex );
 };
 
@@ -836,7 +836,13 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	
 	virtual EdEntity* CloneEntity() = 0;
 	
-	virtual EdObject* Clone(){ return CloneEntity(); }
+	virtual EdObject* Clone()
+	{
+		EdObject* obj = CloneEntity();
+		obj->selected = selected;
+		obj->group = group;
+		return obj;
+	}
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& rdir, float outdst[1] ) const
 	{
 		return RaySphereIntersect( rpos, rdir, Pos(), 0.2f, outdst );

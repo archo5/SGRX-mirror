@@ -599,58 +599,94 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 	LevelCache::Vertex verts[ ( ( MAX_BLOCK_POLYGONS - 2 ) - 2 ) * 3 ];
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		LC.AddPart( verts, GenerateSurface( verts, i ), surfaces[ i ].texname, solid, true, -1 );
+		LC.AddPart( verts, GenerateSurface( verts, i, true ), surfaces[ i ].texname, solid, true, -1 );
 	}
 	
 	// TOP
 	{
 		int i = poly.size();
-		LC.AddPart( verts, GenerateSurface( verts, i ), surfaces[ i ].texname, solid, true, -1 );
+		LC.AddPart( verts, GenerateSurface( verts, i, true ), surfaces[ i ].texname, solid, true, -1 );
 	}
 	
 	// BOTTOM
 	{
 		int i = poly.size() + 1;
-		LC.AddPart( verts, GenerateSurface( verts, i ), surfaces[ i ].texname, solid, true, -1 );
+		LC.AddPart( verts, GenerateSurface( verts, i, true ), surfaces[ i ].texname, solid, true, -1 );
 	}
 }
 
-int EdBlock::GenerateSurface( LCVertex* outbuf, int sid )
+int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri )
 {
-	Vec3 tgx, tgy;
-	_GetTexVecs( sid, tgx, tgy );
-	int retval = 6;
-	if( sid < (int) poly.size() )
+	if( tri )
 	{
-		int i = sid;
-		size_t i1 = ( i + 1 ) % poly.size();
-		outbuf[5] = outbuf[0] = _MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy );
-		outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy );
-		outbuf[3] = outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy );
-		outbuf[4] = _MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy );
-	}
-	else if( sid == (int) poly.size() )
-	{
-		for( size_t i = 1; i + 1 < poly.size(); ++i )
+		Vec3 tgx, tgy;
+		_GetTexVecs( sid, tgx, tgy );
+		int retval = 6;
+		if( sid < (int) poly.size() )
 		{
-			outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z1 + poly[0].z, surfaces[ poly.size() ], tgx, tgy );
-			outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
-			outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i+1], z1 + poly[i+1].z, surfaces[ poly.size() ], tgx, tgy );
+			int i = sid;
+			size_t i1 = ( i + 1 ) % poly.size();
+			outbuf[5] = outbuf[0] = _MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy );
+			outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy );
+			outbuf[3] = outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy );
+			outbuf[4] = _MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy );
 		}
-		retval = ( poly.size() - 2 ) * 3;
-	}
-	else // if( sid == (int) poly.size() + 1 )
-	{
-		for( size_t i = 1; i + 1 < poly.size(); ++i )
+		else if( sid == (int) poly.size() )
 		{
-			outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z0, surfaces[ poly.size() ], tgx, tgy );
-			outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() ], tgx, tgy );
-			outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i+1], z0, surfaces[ poly.size() ], tgx, tgy );
+			for( size_t i = 1; i + 1 < poly.size(); ++i )
+			{
+				outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z1 + poly[0].z, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i+1], z1 + poly[i+1].z, surfaces[ poly.size() ], tgx, tgy );
+			}
+			retval = ( poly.size() - 2 ) * 3;
 		}
-		retval = ( poly.size() - 2 ) * 3;
+		else // if( sid == (int) poly.size() + 1 )
+		{
+			for( size_t i = 1; i + 1 < poly.size(); ++i )
+			{
+				outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z0, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i+1], z0, surfaces[ poly.size() ], tgx, tgy );
+			}
+			retval = ( poly.size() - 2 ) * 3;
+		}
+		_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
+		return retval;
 	}
-	_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
-	return retval;
+	else
+	{
+		Vec3 tgx, tgy;
+		_GetTexVecs( sid, tgx, tgy );
+		int retval = 4;
+		if( sid < (int) poly.size() )
+		{
+			int i = sid;
+			size_t i1 = ( i + 1 ) % poly.size();
+			outbuf[0] = _MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy );
+			outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy );
+			outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy );
+			outbuf[3] = _MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy );
+		}
+		else if( sid == (int) poly.size() )
+		{
+			for( size_t i = 0; i < poly.size(); ++i )
+			{
+				outbuf[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
+			}
+			retval = poly.size();
+		}
+		else // if( sid == (int) poly.size() + 1 )
+		{
+			for( size_t i = 0; i < poly.size(); ++i )
+			{
+				outbuf[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() ], tgx, tgy );
+			}
+			retval = poly.size();
+		}
+		_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
+		return retval;
+	}
 }
 
 void EdBlock::Export( OBJExporter& objex )

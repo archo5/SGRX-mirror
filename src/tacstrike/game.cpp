@@ -32,7 +32,8 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_ENABLED, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_DYNAMIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
@@ -437,6 +438,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		myanim = GR_GetAnim( "run" );
 	//	myanim = GR_GetAnim( "my_jiggle" );
 		
+#ifdef TESTOBJS
 	//	myplayer = new TmpPlayer;
 		PS = new ParticleSystem;
 		PS->emitters.push_back( ParticleSystem::Emitter() );
@@ -472,11 +474,13 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mylight1->UpdateTransform();
 		
 		mytable = new TmpTable( V3(2,2,7), Quat::CreateAxisAngle( V3(1,0,0), 1.5f) );
+#endif
 		
 		g_GameLevel->StartLevel();
 	}
 	void OnDestroy()
 	{
+#ifdef TESTOBJS
 		delete mytable;
 		mytable = NULL;
 		
@@ -485,6 +489,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		PS = NULL;
 	//	delete myplayer;
 	//	myplayer = NULL;
+#endif
+		
 		delete g_GameLevel;
 		g_GameLevel = NULL;
 		
@@ -502,13 +508,16 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		}
 		g_GameLevel->FixedTick( dt );
 		
+#ifdef TESTOBJS
 	//	myplayer->FixedTick( dt );
 		mytable->FixedTick( dt );
+#endif
 	}
 	void Game_Tick( float dt, float bf )
 	{
 		g_GameLevel->Tick( dt, bf );
 		
+#ifdef TESTOBJS
 		//
 		// TEST
 		//
@@ -516,6 +525,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		PS->PreRender();
 	//	myplayer->Tick( dt, bf );
 		mytable->Tick( dt, bf );
+#endif
 		
 		Vec3 CP, CD;
 		if( SHOOT.value && g_GameLevel->m_scene->camera.GetCursorRay(
@@ -624,10 +634,12 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	float m_accum;
 	
 	AnimHandle myanim;
+#ifdef TESTOBJS
 	LightHandle mylight1;
 //	TmpPlayer* myplayer;
 	TmpTable* mytable;
 	ParticleSystem* PS;
+#endif
 }
 g_Game;
 
