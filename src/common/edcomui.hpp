@@ -18,7 +18,7 @@ inline void lmm_prepmeshinst( MeshInstHandle mih )
 {
 	mih->dynamic = 1;
 	for( int i = 10; i < 16; ++i )
-		mih->constants[ i ] = V4(0.5f);
+		mih->constants[ i ] = V4(0.15f);
 }
 
 
