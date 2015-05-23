@@ -1601,6 +1601,7 @@ bool SGRX_Scene::RaycastOne( const Vec3& from, const Vec3& to, SceneRaycastInfo*
 void SGRX_Scene::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, uint32_t layers )
 {
 	// TODO: broadphase
+//	double A = sgrx_hqtime();
 	Mat4 inv;
 	for( size_t i = 0; i < m_meshInstances.size(); ++i )
 	{
@@ -1609,9 +1610,14 @@ void SGRX_Scene::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallb
 		{
 			Vec3 tffrom = inv.TransformPos( from );
 			Vec3 tfto = inv.TransformPos( to );
-			mi->mesh->RaycastAll( tffrom, tfto, cb, mi );
+			if( SegmentAABBIntersect( tffrom, tfto, mi->mesh->m_boundsMin, mi->mesh->m_boundsMax ) )
+			{
+				mi->mesh->RaycastAll( tffrom, tfto, cb, mi );
+			}
 		}
 	}
+//	double B = sgrx_hqtime();
+//	LOG << "RaycastAll: " << (B-A)*1000 << " ms";
 }
 
 void SGRX_Scene::RaycastAllSort( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, uint32_t layers, Array< SceneRaycastInfo >* tmpstore )

@@ -55,6 +55,9 @@ ENGINE_EXPORT void NOP( int x );
 ENGINE_EXPORT int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen = (size_t) -1 );
 ENGINE_EXPORT int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... );
 
+// RT system padding
+ENGINE_EXPORT double sgrx_hqtime();
+
 
 #define SMALL_FLOAT 0.001f
 #define ENGINE_MAX_PATH 256
@@ -276,6 +279,7 @@ struct ENGINE_EXPORT Vec3
 			arch.marker( "Vec3" );
 		arch << x << y << z;
 	}
+	FINLINE Vec3 Abs() const { Vec3 v = { fabsf( x ), fabsf( y ), fabsf( z ) }; return v; }
 	FINLINE Vec3 Pow( float f ){ Vec3 v = { powf( x, f ), powf( y, f ), powf( z, f ) }; return v; }
 	FINLINE void Set( float _x, float _y, float _z ){ x = _x; y = _y; z = _z; }
 	FINLINE void SetXY( const Vec2& xy ){ x = xy.x; y = xy.y; }
@@ -963,6 +967,7 @@ ENGINE_EXPORT bool RayPlaneIntersect( const Vec3& pos, const Vec3& dir, const Ve
 ENGINE_EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane );
 ENGINE_EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
 ENGINE_EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
+ENGINE_EXPORT bool SegmentAABBIntersect( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, const Vec3& bbmax );
 
 
 //

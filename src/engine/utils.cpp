@@ -7,6 +7,8 @@
 #ifdef _WIN32
 #define NOCOMM
 #include <windows.h>
+#else
+#include <sys/time.h>
 #endif
 
 #define USE_VEC2
@@ -62,6 +64,22 @@ int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... )
 	va_end( args );
 	buf[ len - 1 ] = 0;
 	return ret;
+}
+
+
+double sgrx_hqtime()
+{
+#ifdef _WIN32
+	LARGE_INTEGER c, f;
+	QueryPerformanceCounter( &c );
+	QueryPerformanceFrequency( &f );
+	return double(c.QuadPart) / double(f.QuadPart);
+#else
+	timespec ts;
+	clock_gettime( CLOCK_MONOTONIC, &ts );
+	static const double S2NS = 1.0 / 1000000000.0;
+	return ts.tv_sec + S2NS * ts.tv_nsec;
+#endif
 }
 
 
@@ -514,6 +532,27 @@ bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos
 		return false;
 	}
 	dst[0] = a - sqrtf( sphereRadius * sphereRadius - b );
+	return true;
+}
+
+bool SegmentAABBIntersect( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, const Vec3& bbmax )
+{
+	Vec3 bbcenter = ( bbmin + bbmax ) * 0.5f;
+	Vec3 bbext = bbmax - bbcenter;
+	
+	Vec3 sdir = ( p2 - p1 ) * 0.5f;
+	Vec3 sabsdir = sdir.Abs();
+	Vec3 diff = ( 0.5f * ( p2 + p1 ) ) - bbcenter;
+	
+	if( fabsf( diff.x ) > bbext.x + sabsdir.x ) return false;
+	if( fabsf( diff.y ) > bbext.y + sabsdir.y ) return false;
+	if( fabsf( diff.z ) > bbext.z + sabsdir.z ) return false;
+	
+	float f;
+	f = sdir.y * diff.z - sdir.z * diff.y; if( fabsf( f ) > bbext.y * sabsdir.z + bbext.z * sabsdir.y ) return false;
+	f = sdir.z * diff.x - sdir.x * diff.z; if( fabsf( f ) > bbext.x * sabsdir.z + bbext.z * sabsdir.x ) return false;
+	f = sdir.x * diff.y - sdir.y * diff.x; if( fabsf( f ) > bbext.x * sabsdir.y + bbext.y * sabsdir.x ) return false;
+	
 	return true;
 }
 
