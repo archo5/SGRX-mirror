@@ -1525,7 +1525,7 @@ struct ConfigReader
 	{
 		while( it.size() )
 		{
-			key = it.until_any( HSPACE_CHARS );
+			key = it.until_any( SPACE_CHARS );
 			if( key == "#" )
 			{
 				it = it.after( "\n" ).after_all( SPACE_CHARS );
@@ -1545,6 +1545,24 @@ struct ConfigReader
 		}
 		return false;
 	}
+	StringView it;
+};
+
+struct CmdListReader
+{
+	CmdListReader();
+	bool Read( StringView& cmd )
+	{
+		// TODO
+		return false;
+	}
+	bool GetParam( StringView& key, StringView& value )
+	{
+		// TODO
+		return false;
+	}
+	int GetParamCount() const { return params.size() / 2; }
+	Array< String > params;
 	StringView it;
 };
 
@@ -1571,6 +1589,7 @@ ENGINE_EXPORT int64_t String_ParseInt( const StringView& sv, bool* success = NUL
 ENGINE_EXPORT double String_ParseFloat( const StringView& sv, bool* success = NULL );
 ENGINE_EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL );
 ENGINE_EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
+ENGINE_EXPORT Vec4 String_ParseVec4( const StringView& sv, bool* success = NULL );
 
 
 //

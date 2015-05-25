@@ -137,13 +137,24 @@ struct ObjectiveSystem
 
 struct DamageSystem
 {
-	void Init( SceneHandle scene );
+	struct Material : SGRX_RefCounted
+	{
+		String match;
+		Array< int > decalIDs;
+		ParticleSystem particles;
+		String sound;
+	};
+	typedef Handle< Material > MtlHandle;
+	
+	const char* Init( SceneHandle scene );
 	void Free();
 	void Tick( float deltaTime );
 	void AddBulletDamage( const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
 		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
 	void Clear();
 	
+	Array< MtlHandle > m_bulletDecalMaterials;
+	Array< DecalMapPartInfo > m_bulletDecalInfo;
 	DecalSystem m_bulletDecalSys;
 	MeshInstHandle m_bulletDecalMesh;
 };

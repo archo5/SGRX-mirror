@@ -152,7 +152,11 @@ GameLevel::GameLevel() :
 	m_scene->camera.aspect = 1024.0f / 576.0f;
 	m_scene->camera.UpdateMatrices();
 	
-	m_damageSystem.Init( m_scene );
+	const char* err = m_damageSystem.Init( m_scene );
+	if( err )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
+	}
 	
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );

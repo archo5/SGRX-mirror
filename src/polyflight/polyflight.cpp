@@ -208,7 +208,7 @@ struct PolyFlightGame : IGame
 	{
 	}
 	
-	void OnInitialize()
+	bool OnInitialize()
 	{
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 		
@@ -228,6 +228,8 @@ struct PolyFlightGame : IGame
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		g_GameLevel = new GameLevel;
+		
+		return true;
 	}
 	void OnDestroy()
 	{

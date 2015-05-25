@@ -801,6 +801,31 @@ Vec3 String_ParseVec3( const StringView& sv, bool* success )
 	return out;
 }
 
+Vec4 String_ParseVec4( const StringView& sv, bool* success )
+{
+	bool suc = true;
+	Vec4 out = {0,0,0,0};
+	StringView substr = ";";
+	if( success ) *success = true;
+	
+	out.x = String_ParseFloat( sv.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	StringView tmp = sv.after( substr );
+	out.y = String_ParseFloat( tmp.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	tmp = tmp.after( substr );
+	out.z = String_ParseFloat( tmp.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	tmp = tmp.after( substr );
+	out.w = String_ParseFloat( tmp.until( substr ), &suc );
+	if( success ) *success = *success && suc;
+	
+	return out;
+}
+
 
 
 #define U8NFL( x ) ((x&0xC0)!=0x80)

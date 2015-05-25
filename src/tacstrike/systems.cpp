@@ -213,14 +213,84 @@ void ObjectiveSystem::DrawUI()
 }
 
 
-void DamageSystem::Init( SceneHandle scene )
+const char* DamageSystem::Init( SceneHandle scene )
 {
-	DecalMapPartInfo dmpi[] = { V4(0,0,1,1), V3(0.2f) };
-	m_bulletDecalSys.Init( GR_GetTexture( "textures/fx/decals.png" ), GR_GetTexture( "textures/fx/projfalloff2.png" ), dmpi, 1 );
+	static char errbfr[ 350 ];
+	
+	String mtlconfig;
+	if( FS_LoadTextFile( "data/damage.dat", mtlconfig ) == false )
+		return( "Failed to load data/damage.dat" );
+	
+	// defaults
+	String decal_base_tex = "textures/fx/decals.png";
+	String decal_falloff_tex = "textures/fx/projfalloff2.png";
+	MtlHandle cur_mtl;
+	
+	ConfigReader cfgrd( mtlconfig );
+	StringView key, value;
+	while( cfgrd.Read( key, value ) )
+	{
+		if( key == "decal_base_tex" ){ decal_base_tex = value; continue; }
+		if( key == "decal_falloff_tex" ){ decal_falloff_tex = value; continue; }
+		if( key == "material" )
+		{
+			cur_mtl = new Material;
+			cur_mtl->match = value;
+			m_bulletDecalMaterials.push_back( cur_mtl );
+			continue;
+		}
+		if( key.part( 0, 4 ) == "mtl_" )
+		{
+			// error handling
+			if( cur_mtl == NULL )
+				return "mtl_ command has no material";
+		}
+		if( key == "mtl_decal" )
+		{
+			int id = m_bulletDecalInfo.size();
+			bool suc = false;
+			Vec4 tex_aabb = String_ParseVec4( value.until( "|" ), &suc );
+			if( suc == false )
+				return "mtl_decal - cannot parse coord rect";
+			
+			float decal_size = String_ParseFloat( value.after( "|" ), &suc );
+			if( suc == false )
+				return "mtl_decal - cannot parse size";
+			
+			DecalMapPartInfo dmpi = { tex_aabb, V3(decal_size) };
+			m_bulletDecalInfo.push_back( dmpi );
+			cur_mtl->decalIDs.push_back( id );
+			
+			continue;
+		}
+		if( key == "mtl_particles" )
+		{
+			if( cur_mtl->particles.Load( value ) == false )
+			{
+				sgrx_snprintf( errbfr, 350, "Failed to load particle system '%.*s' while parsing "
+					"data/damage.dat", TMIN( 250, (int) value.size() ), value.data() );
+				return( errbfr );
+			}
+			continue;
+		}
+		if( key == "mtl_sound" )
+		{
+			cur_mtl->sound = value;
+			// TODO validate
+		}
+	}
+	
+	m_bulletDecalSys.Init(
+		GR_GetTexture( decal_base_tex ),
+		GR_GetTexture( decal_falloff_tex ),
+		m_bulletDecalInfo.data(), m_bulletDecalInfo.size() );
 	m_bulletDecalSys.SetSize( 48 * 1024 * 10 ); // random size
 	m_bulletDecalMesh = scene->CreateMeshInstance();
 	m_bulletDecalMesh->decal = true;
 	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
+	
+	LOG << LOG_DATE << "  Damage system initialized successfully";
+	return NULL;
 }
 
 void DamageSystem::Free()

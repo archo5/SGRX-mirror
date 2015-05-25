@@ -1715,7 +1715,7 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 
 struct TACStrikeEditor : IGame
 {
-	void OnInitialize()
+	bool OnInitialize()
 	{
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 		
@@ -1749,6 +1749,8 @@ struct TACStrikeEditor : IGame
 		
 		// param area
 		g_UIFrame->AddToParamList( g_EdWorld );
+		
+		return true;
 	}
 	void OnDestroy()
 	{

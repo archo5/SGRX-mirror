@@ -14,6 +14,7 @@ struct SDL_Event;
 
 ENGINE_EXPORT uint32_t GetTimeMsec();
 ENGINE_EXPORT void Thread_Sleep( uint32_t msec );
+ENGINE_EXPORT void Sys_FatalError( const StringView& err );
 
 ENGINE_EXPORT bool Window_HasClipboardText();
 ENGINE_EXPORT bool Window_GetClipboardText( String& out );
@@ -140,8 +141,8 @@ ENGINE_EXPORT void Game_End();
 
 struct ENGINE_EXPORT IGame
 {
-	virtual void OnConfigure( int argc, char** argv ){}
-	virtual void OnInitialize(){}
+	virtual bool OnConfigure( int argc, char** argv ){ return true; }
+	virtual bool OnInitialize(){ return true; }
 	virtual void OnDestroy(){}
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;

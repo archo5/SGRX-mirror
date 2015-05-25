@@ -530,7 +530,7 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 
 struct CSEditor : IGame
 {
-	void OnInitialize()
+	bool OnInitialize()
 	{
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 		
@@ -549,6 +549,8 @@ struct CSEditor : IGame
 		
 		// param area
 	//	g_UIFrame->AddToParamList( g_EdPS->GetSystem() );
+		
+		return true;
 	}
 	void OnDestroy()
 	{

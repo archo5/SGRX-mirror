@@ -395,7 +395,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	{
 	}
 	
-	void OnInitialize()
+	bool OnInitialize()
 	{
 		g_SoundSys = SND_CreateSystem();
 		
@@ -477,6 +477,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 #endif
 		
 		g_GameLevel->StartLevel();
+		
+		return true;
 	}
 	void OnDestroy()
 	{

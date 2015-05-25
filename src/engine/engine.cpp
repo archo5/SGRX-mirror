@@ -42,6 +42,14 @@ void Thread_Sleep( uint32_t msec )
 }
 
 
+void Sys_FatalError( const StringView& err )
+{
+	LOG_ERROR << LOG_DATE << "  " << err;
+	SDL_ShowSimpleMessageBox( SDL_MESSAGEBOX_ERROR, "SGRX Engine", StackString<4096>(err), NULL );
+	exit( EXIT_FAILURE );
+}
+
+
 //
 // GLOBALS
 //
@@ -3408,7 +3416,8 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		return 48;
 	}
 	
-	g_Game->OnConfigure( argc, argv );
+	if( g_Game->OnConfigure( argc, argv ) == false )
+		return 51;
 	
 	SDL_GL_SetAttribute( SDL_GL_RED_SIZE, 8 );
 	SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 );
@@ -3418,7 +3427,8 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	if( init_graphics() )
 		return 56;
 	
-	g_Game->OnInitialize();
+	if( g_Game->OnInitialize() == false )
+		return 63;
 	
 	uint32_t prevtime = GetTimeMsec();
 	SDL_Event event;

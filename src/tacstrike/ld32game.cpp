@@ -396,7 +396,7 @@ struct LD32Game : IGame
 	{
 	}
 	
-	void OnConfigure( int argc, char** argv )
+	bool OnConfigure( int argc, char** argv )
 	{
 		RenderSettings rs = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 4 };
 		
@@ -456,9 +456,11 @@ struct LD32Game : IGame
 		// TODO override with command line params
 		
 		GR_SetVideoMode( rs );
+		
+		return true;
 	}
 	
-	void OnInitialize()
+	bool OnInitialize()
 	{
 	//	g_SoundSys = SND_CreateSystem();
 		
@@ -503,6 +505,8 @@ struct LD32Game : IGame
 		g_GameLevel->Load( "test1" );
 		g_GameLevel->Tick( 0, 0 );
 		g_GameLevel->StartLevel();
+		
+		return true;
 	}
 	void OnDestroy()
 	{
