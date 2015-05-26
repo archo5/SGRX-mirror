@@ -1729,7 +1729,7 @@ struct TACStrikeEditor : IGame
 		g_ScriptCtx->ExecFile( "editor/entities.sgs" );
 		LOG << "\nLoading completed\n\n";
 		
-		g_UISurfTexPicker = new EDGUISurfTexPicker;
+		g_UISurfTexPicker = new EDGUISDTexPicker;
 		g_UIMeshPicker = new EDGUIMeshPicker;
 		g_UIPartSysPicker = new EDGUIPartSysPicker;
 		g_UISoundPicker = new EDGUISoundPicker;

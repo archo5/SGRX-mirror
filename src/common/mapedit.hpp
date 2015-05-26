@@ -32,7 +32,7 @@ MAPEDIT_GLOBAL( ScriptContext* g_ScriptCtx );
 MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
-MAPEDIT_GLOBAL( struct EDGUISurfTexPicker* g_UISurfTexPicker );
+MAPEDIT_GLOBAL( struct EDGUISDTexPicker* g_UISurfTexPicker );
 MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
 MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );

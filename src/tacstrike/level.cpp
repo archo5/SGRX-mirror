@@ -556,12 +556,12 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	
 	if( !m_paused )
 	{
-		m_damageSystem.Tick( deltaTime );
-		m_bulletSystem.Tick( m_scene, deltaTime );
 		if( m_player )
 			m_player->Tick( deltaTime, blendFactor );
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->Tick( deltaTime, blendFactor );
+		m_damageSystem.Tick( deltaTime );
+		m_bulletSystem.Tick( m_scene, deltaTime );
 	}
 	
 	m_messageSystem.Tick( deltaTime );

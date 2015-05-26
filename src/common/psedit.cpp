@@ -9,63 +9,19 @@
 #include <engine.hpp>
 #include <enganim.hpp>
 #include <edgui.hpp>
+#include "edcomui.hpp"
 
 
 struct EDGUIMainFrame* g_UIFrame;
 SceneHandle g_EdScene;
 struct EdParticleSystem* g_EdPS;
 struct EdDualGraph* g_UIGraphEd;
-struct EDGUITexPicker* g_UITexPicker;
+struct EDGUISDTexPicker* g_UITexPicker;
 struct EDGUIShaderPicker* g_UIShaderPicker;
 struct EDGUIMeshPicker* g_UIMeshPicker;
 struct EDGUIPSOpenPicker* g_UIPSOpenPicker;
 struct EDGUIPSSavePicker* g_UIPSSavePicker;
 
-
-
-struct EDGUITexPicker : EDGUIRsrcPicker
-{
-	EDGUITexPicker()
-	{
-		Reload();
-	}
-	void Reload()
-	{
-		LOG << "Reloading textures";
-		m_options.clear();
-		m_textures.clear();
-		m_options.push_back( "" );
-		m_textures.push_back( TextureHandle() );
-		DirectoryIterator tdi( "textures/particles" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() )
-			{
-				if( fn.ends_with( ".png" ) )
-				{
-					m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-					m_textures.push_back( GR_GetTexture( String_Concat( "textures/particles/", fn ) ) );
-				}
-			}
-		}
-		_Search( m_searchString );
-	}
-	void _DrawItem( int i, int x0, int y0, int x1, int y1 )
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		
-		br.Col( 1 );
-		br.SetTexture( m_textures[ i ] );
-		br.Quad( x0 + 10, y0 + 4, x1 - 10, y1 - 16 );
-		
-		br.Col( 0.9f, 1.0f );
-		GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
-	}
-	
-	Array< TextureHandle > m_textures;
-};
 
 
 struct EDGUIShaderPicker : EDGUIRsrcPicker
@@ -96,83 +52,24 @@ struct EDGUIShaderPicker : EDGUIRsrcPicker
 };
 
 
-struct EDGUIMeshPicker : EDGUIRsrcPicker
-{
-	EDGUIMeshPicker() :
-		m_scene( GR_CreateScene() )
-	{
-		m_meshinst = m_scene->CreateMeshInstance();
-		m_meshinst->textures[0] = GR_GetTexture( "textures/white.png" );
-		Reload();
-	}
-	void Reload()
-	{
-		LOG << "Reloading meshes";
-		m_options.clear();
-		m_meshes.clear();
-		DirectoryIterator tdi( "meshes" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() )
-			{
-				if( fn.ends_with( ".ssm" ) )
-				{
-					m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-					m_meshes.push_back( GR_GetMesh( String_Concat( "meshes/", fn ) ) );
-				}
-			}
-		}
-		_Search( m_searchString );
-	}
-	void _DrawItem( int i, int x0, int y0, int x1, int y1 )
-	{
-		SGRX_Viewport vp = { x0 + 10, y0 + 4, x1 - 10, y1 - 16 };
-		
-		if( m_meshes[ i ] )
-		{
-			SGRX_IMesh* M = m_meshes[ i ];
-			m_meshinst->mesh = m_meshes[ i ];
-			m_scene->camera.position = M->m_boundsMax + ( M->m_boundsMax - M->m_boundsMin ) * 0.5f + V3(0.1f);
-			m_scene->camera.direction = ( M->m_boundsMin - M->m_boundsMax ).Normalized();
-			m_scene->camera.znear = 0.1f;
-			m_scene->camera.angle = 60;
-			m_scene->camera.UpdateMatrices();
-			
-			SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
-			rsinfo.viewport = &vp;
-			GR_RenderScene( rsinfo );
-		}
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		br.Col( 0.9f, 1.0f );
-		GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
-	}
-	
-	Array< MeshHandle > m_meshes;
-	SceneHandle m_scene;
-	MeshInstHandle m_meshinst;
-};
-
-struct EDGUIPSPicker : EDGUIRsrcPicker
+struct EDGUIPSPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUIPSPicker(){ Reload(); }
 	void Reload()
 	{
 		LOG << "Reloading particle systems";
 		m_options.clear();
-		DirectoryIterator tdi( "psys" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() && fn.ends_with( ".psy" ) )
-			{
-				m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-			}
-		}
+		FS_IterateDirectory( "psys", this );
 		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[P]: " << name;
+		if( !isdir && name.ends_with( ".psy" ) )
+		{
+			m_options.push_back( name.part( 0, name.size() - 4 ) );
+		}
+		return true;
 	}
 	virtual void _OnChangeZoom()
 	{
@@ -862,162 +759,13 @@ struct EdParticleSystem : EDGUILayoutRow
 
 
 
-struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
-{
-	EDGUIRenderView() :
-		movefwd( false ),
-		movebwd( false ),
-		movelft( false ),
-		movergt( false ),
-		movefast( false ),
-		moveup( false ),
-		movedn( false ),
-		look( false ),
-		hangle( 0 ),
-		vangle( 0 ),
-		cursor_aim(false),
-		cursor_hpos(V2(0)),
-		crplaneheight( 0 )
-	{
-		type = 100000000;
-		tyname = "renderview";
-		backColor = COLOR_RGBA( 10, 10, 10, 255 );
-		
-		Vec3 dir = g_EdScene->camera.direction;
-		Vec2 dir2 = V2( dir.x, dir.y ).Normalized();
-		hangle = atan2( dir2.y, dir2.x );
-		vangle = asin( g_EdScene->camera.direction.z );
-		g_EdScene->camera.znear = 0.1f;
-	}
-	int OnEvent( EDGUIEvent* e )
-	{
-		switch( e->type )
-		{
-		case EDGUI_EVENT_LAYOUT:
-			EDGUIItem::OnEvent( e );
-			g_EdScene->camera.aspect = ( x1 - x0 ) / (float) ( y1 - y0 );
-			return 1;
-		case EDGUI_EVENT_PAINT:
-			{
-				SGRX_Viewport vp = { x0, y0, x1, y1 };
-				SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ),g_EdScene );
-				rsinfo.viewport = &vp;
-				rsinfo.debugdraw = this;
-				GR_RenderScene( rsinfo );
-			}
-			return 1;
-		case EDGUI_EVENT_SETFOCUS:
-			m_frame->_SetFocus( this );
-			return 1;
-		case EDGUI_EVENT_LOSEFOCUS:
-			movefwd = false;
-			movebwd = false;
-			movelft = false;
-			movergt = false;
-			movefast = false;
-			moveup = false;
-			movedn = false;
-			look = false;
-			return 1;
-		case EDGUI_EVENT_KEYDOWN:
-		case EDGUI_EVENT_KEYUP:
-			{
-				bool down = e->type == EDGUI_EVENT_KEYDOWN && !( e->key.engmod & KMOD_CTRL );
-				if( e->key.engkey == SDLK_w ) movefwd = down;
-				if( e->key.engkey == SDLK_s ) movebwd = down;
-				if( e->key.engkey == SDLK_a ) movelft = down;
-				if( e->key.engkey == SDLK_d ) movergt = down;
-				if( e->key.engkey == SDLK_LSHIFT ) movefast = down;
-				if( e->key.engkey == SDLK_q ) moveup = down;
-				if( e->key.engkey == SDLK_z ) movedn = down;
-			}
-			EventToFrame( e );
-			return 1;
-		case EDGUI_EVENT_BTNDOWN:
-		case EDGUI_EVENT_BTNUP:
-			{
-				bool down = e->type == EDGUI_EVENT_BTNDOWN;
-				if( e->mouse.button == 1 ) look = down;
-				prevcp = Game_GetCursorPos();
-			}
-			EventToFrame( e );
-			break;
-		case EDGUI_EVENT_BTNCLICK:
-			EventToFrame( e );
-			break;
-		case EDGUI_EVENT_MOUSEMOVE:
-			{
-				cursor_aim = false;
-				Vec2 cp = { e->mouse.x, e->mouse.y };
-				if( g_EdScene->camera.GetCursorRay( ( cp.x - x0 ) / ( x1 - x0 ), ( cp.y - y0 ) / ( y1 - y0 ), crpos, crdir ) )
-				{
-					float dsts[2];
-					if( RayPlaneIntersect( crpos, crdir, V4(0,0,1,crplaneheight), dsts ) && dsts[0] > 0 )
-					{
-						Vec3 isp = crpos + crdir * dsts[0];
-						cursor_hpos = V2( isp.x, isp.y );
-						cursor_aim = true;
-					}
-				}
-			}
-			EventToFrame( e );
-			break;
-		}
-		return EDGUIItem::OnEvent( e );
-	}
-	void UpdateCamera( float deltaTime )
-	{
-		float speed = 1;
-		if( movefast )
-			speed *= 5;
-		speed *= deltaTime;
-		
-		Vec2 cp = Game_GetCursorPos();
-		if( look )
-		{
-			Vec2 diff = ( cp - prevcp );
-			hangle -= diff.x * 0.01f;
-			vangle -= diff.y * 0.01f;
-			vangle = clamp( vangle, -M_PI * 0.49f, M_PI * 0.49f );
-		}
-		prevcp = cp;
-		
-		float c_hangle = cos( hangle ), s_hangle = sin( hangle ), c_vangle = cos( vangle ), s_vangle = sin( vangle );
-		Vec3 dir = { c_hangle * c_vangle, s_hangle * c_vangle, s_vangle };
-		Vec3 up = g_EdScene->camera.updir;
-		Vec3 rgt = Vec3Cross( dir, up ).Normalized();
-		g_EdScene->camera.direction = dir;
-		g_EdScene->camera.position += ( dir * ( movefwd - movebwd ) + rgt * ( movergt - movelft ) + up * ( moveup - movedn ) ) * speed;
-		
-		g_EdScene->camera.UpdateMatrices();
-	}
-	void EventToFrame( EDGUIEvent* e );
-	void DebugDraw();
-	
-	Vec2 prevcp;
-	bool movefwd;
-	bool movebwd;
-	bool movelft;
-	bool movergt;
-	bool movefast;
-	bool moveup;
-	bool movedn;
-	bool look;
-	float hangle;
-	float vangle;
-	
-	Vec3 crpos, crdir;
-	bool cursor_aim;
-	Vec2 cursor_hpos;
-	float crplaneheight;
-};
-
-struct EDGUIMainFrame : EDGUIFrame
+struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 {
 	EDGUIMainFrame() :
 		m_UIMenuSplit( true, 26, 0 ),
 		m_UIGraphSplit( true, 0, 0.7f ),
-		m_UIParamSplit( false, 0, 0.7f )
+		m_UIParamSplit( false, 0, 0.7f ),
+		m_UIRenderView( g_EdScene, this )
 	{
 		tyname = "mainframe";
 		
@@ -1094,8 +842,9 @@ struct EDGUIMainFrame : EDGUIFrame
 		return EDGUIFrame::OnEvent( e );
 	}
 	
-	void ViewEvent( EDGUIEvent* e )
+	bool ViewEvent( EDGUIEvent* e )
 	{
+		return true;
 	}
 	
 	void DebugDraw()
@@ -1181,7 +930,7 @@ struct EDGUIMainFrame : EDGUIFrame
 		
 		char bfr[ 256 ];
 		sgrx_snprintf( bfr, sizeof(bfr), "psys/%.*s.psy", TMIN( (int) str.size(), 200 ), str.data() );
-		if( !SaveBinaryFile( bfr, data.data(), data.size() ) )
+		if( !FS_SaveBinaryFile( bfr, data.data(), data.size() ) )
 		{
 			LOG_ERROR << "FAILED TO SAVE PSYS FILE: " << bfr;
 			return;
@@ -1221,16 +970,6 @@ void EdParticleSystem::EditEmitter( size_t which )
 	g_UIFrame->AddToParamList( GetEmitter( which ) );
 }
 
-void EDGUIRenderView::EventToFrame( EDGUIEvent* e )
-{
-	g_UIFrame->ViewEvent( e );
-}
-
-void EDGUIRenderView::DebugDraw()
-{
-	g_UIFrame->DebugDraw();
-}
-
 
 
 
@@ -1251,7 +990,7 @@ struct PSEditor : IGame
 		
 		GR2D_SetFont( "fonts/lato-regular.ttf", 12 );
 		
-		g_UITexPicker = new EDGUITexPicker;
+		g_UITexPicker = new EDGUISDTexPicker( "textures/particles" );
 		g_UIShaderPicker = new EDGUIShaderPicker;
 		g_UIMeshPicker = new EDGUIMeshPicker;
 		g_UIPSOpenPicker = new EDGUIPSOpenPicker;

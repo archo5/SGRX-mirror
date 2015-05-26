@@ -23,9 +23,9 @@ inline void lmm_prepmeshinst( MeshInstHandle mih )
 
 
 
-struct EDGUISurfTexPicker : EDGUIRsrcPicker, IDirEntryHandler
+struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
-	EDGUISurfTexPicker()
+	EDGUISDTexPicker( const StringView& dir = "textures" ) : m_dir( String_Concat( dir, "/" ) )
 	{
 		caption = "Pick a texture";
 		Reload();
@@ -37,7 +37,7 @@ struct EDGUISurfTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 		m_textures.clear();
 		m_options.push_back( "" );
 		m_textures.push_back( TextureHandle() );
-		FS_IterateDirectory( "textures", this );
+		FS_IterateDirectory( StringView(m_dir).until_last("/"), this );
 		_Search( m_searchString );
 	}
 	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
@@ -46,7 +46,7 @@ struct EDGUISurfTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 		if( !isdir && name.ends_with( ".png" ) )
 		{
 			m_options.push_back( name.part( 0, name.size() - 4 ) );
-			m_textures.push_back( GR_GetTexture( String_Concat( "textures/", name ) ) );
+			m_textures.push_back( GR_GetTexture( String_Concat( m_dir, name ) ) );
 		}
 		return true;
 	}
@@ -62,6 +62,7 @@ struct EDGUISurfTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 		GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
 	}
 	
+	String m_dir;
 	Array< TextureHandle > m_textures;
 };
 

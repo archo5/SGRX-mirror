@@ -143,6 +143,8 @@ struct DamageSystem
 		Array< int > decalIDs;
 		ParticleSystem particles;
 		String sound;
+		
+		bool CheckMatch( const StringView& test ) const { return match.size() == 0 || test.contains( match ); }
 	};
 	typedef Handle< Material > MtlHandle;
 	

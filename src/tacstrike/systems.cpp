@@ -271,6 +271,7 @@ const char* DamageSystem::Init( SceneHandle scene )
 					"data/damage.dat", TMIN( 250, (int) value.size() ), value.data() );
 				return( errbfr );
 			}
+			cur_mtl->particles.AddToScene( scene );
 			continue;
 		}
 		if( key == "mtl_sound" )
@@ -303,23 +304,54 @@ void DamageSystem::Tick( float deltaTime )
 {
 	UNUSED( deltaTime );
 	m_bulletDecalSys.Upload();
+	for( size_t i = 0; i < m_bulletDecalMaterials.size(); ++i )
+	{
+		Material* mtl = m_bulletDecalMaterials[ i ];
+		mtl->particles.Tick( deltaTime );
+		mtl->particles.PreRender();
+	}
 }
 
 void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMesh, int partID,
 	const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale )
 {
-	// TODO handle type
-	int decalID = 0;
-	
-	DecalProjectionInfo projInfo =
+	int decalID = -1;
+	for( size_t i = 0; i < m_bulletDecalMaterials.size(); ++i )
 	{
-		pos, dir, fabsf( Vec3Dot( dir, V3(0,0,1) ) ) > 0.99f ? V3(0,1,0) : V3(0,0,1),
-		0, scale, 1, 0.5f, scale, 0.5f, false
-	};
-	if( partID < 0 )
-		m_bulletDecalSys.AddDecal( decalID, targetMesh, worldMatrix, &projInfo );
-	else
-		m_bulletDecalSys.AddDecal( decalID, targetMesh, partID, worldMatrix, &projInfo );
+		Material* mtl = m_bulletDecalMaterials[ i ];
+		if( mtl->CheckMatch( type ) )
+		{
+			// decal
+			if( mtl->decalIDs.size() )
+				decalID = mtl->decalIDs[ rand() % mtl->decalIDs.size() ];
+			
+			// particles
+			Mat4 tf = Mat4::CreateScale( V3(0.2f) )
+				* Mat4::CreateRotationZ( randf() * M_PI * 2 )
+				* Mat4::CreateRotationBetweenVectors( V3(0,0,1), nrm )
+				* Mat4::CreateTranslation( pos );
+			mtl->particles.SetTransform( tf );
+			mtl->particles.Trigger();
+			
+			// sound
+			// TODO
+			
+			break;
+		}
+	}
+	
+	if( decalID != -1 )
+	{
+		DecalProjectionInfo projInfo =
+		{
+			pos, dir, fabsf( Vec3Dot( dir, V3(0,0,1) ) ) > 0.99f ? V3(0,1,0) : V3(0,0,1),
+			0, scale, 1, 0.5f, scale, 0.5f, false
+		};
+		if( partID < 0 )
+			m_bulletDecalSys.AddDecal( decalID, targetMesh, worldMatrix, &projInfo );
+		else
+			m_bulletDecalSys.AddDecal( decalID, targetMesh, partID, worldMatrix, &projInfo );
+	}
 }
 
 void DamageSystem::Clear()

@@ -733,7 +733,7 @@ void ParticleSystem::OnRenderUpdate()
 		if( !m_meshInsts[ i ]->mesh )
 			m_meshInsts[ i ]->mesh = GR_CreateMesh();
 		
-		m_meshInsts[ i ]->matrix = Mat4::Identity; // E.absolute ? Mat4::Identity : m_transform;
+	//	m_meshInsts[ i ]->matrix = Mat4::Identity; // E.absolute ? Mat4::Identity : m_transform;
 	//	m_meshInsts[ i ]->transparent = 1;
 	//	m_meshInsts[ i ]->additive = E.render_Additive;
 	//	m_meshInsts[ i ]->unlit = E.render_Additive;
@@ -766,7 +766,6 @@ void ParticleSystem::AddToScene( SceneHandle sh )
 void ParticleSystem::SetTransform( const Mat4& mtx )
 {
 	m_transform = mtx;
-	OnRenderUpdate();
 }
 
 bool ParticleSystem::Tick( float dt )
