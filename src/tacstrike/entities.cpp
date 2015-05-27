@@ -337,7 +337,7 @@ void ParticleFX::OnEvent( const StringView& _type )
 TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivDir( Quat::CreateAxisAngle( V3(0,0,1), atan2( dir.y, dir.x ) ) ),
-	m_position( pos.ToVec2() ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) )
+	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) )
 {
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
@@ -540,6 +540,7 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ), inCursorMove( V2(0) ),
 	m_targetII( NULL ), m_targetTriggered( false )
 {
+	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
 }
 
 void TSPlayer::FixedTick( float deltaTime )
@@ -553,7 +554,7 @@ void TSPlayer::FixedTick( float deltaTime )
 	
 	m_moveDir = md * 1.1f;
 	
-	bool moving = m_moveDir.Length() > 0.1f;
+	//	bool moving = m_moveDir.Length() > 0.1f;
 //	const char* animname =
 //		m_isCrouching
 //		? ( moving ? "crouch_walk" : "crouch" )
@@ -607,6 +608,7 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	
 	Vec3 pos = m_ivPos.Get( blendFactor );
 	Vec3 dir = V3( ch * cv, sh * cv, sv );
+	m_position = pos;
 	
 	g_GameLevel->m_scene->camera.znear = 0.1f;
 	g_GameLevel->m_scene->camera.angle = 90;
@@ -621,13 +623,24 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 
 void TSPlayer::DrawUI()
 {
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
+	Vec2 cursor_pos = Game_GetCursorPos();
+	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
+	
 	if( m_targetII )
 	{
-		float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
 		float x = GR_GetWidth() / 2.0f;
 		float y = GR_GetHeight() / 2.0f;
-		GR2D_GetBatchRenderer().Reset().Col(1).SetTexture( m_tex_interact_icon ).QuadWH( x, y, bsz / 10, bsz / 10 );
+		br.Reset().SetTexture( m_tex_interact_icon ).QuadWH( x, y, bsz / 10, bsz / 10 );
 	}
+	
+	float cursor_size = bsz / 20;
+	float cursor_angle = ( cursor_pos - player_pos ).Angle() + M_PI;
+	br.Reset().SetTexture( m_tex_cursor ).TurnedBox(
+		cursor_pos.x, cursor_pos.y, cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
 }
 
 bool TSPlayer::AddItem( const StringView& item, int count )
@@ -691,13 +704,13 @@ void TSEnemy::FixedTick( float deltaTime )
 			m_anMainPlayer.Play( GR_GetAnim( "turn" ) );
 			break;
 		case TT_Walk:
-			m_moveDir = ( T.target - m_position ).Normalized();
+			m_moveDir = ( T.target - m_position.ToVec2() ).Normalized();
 			m_anMainPlayer.Play( GR_GetAnim( "march" ) );
 			break;
 		}
 	//	LOG << "TASK " << T.type << "|" << T.timeout << "|" << T.target;
 		
-		if( m_taskTimeout <= 0 || ( T.target - m_position ).Length() < 0.5f )
+		if( m_taskTimeout <= 0 || ( T.target - m_position.ToVec2() ).Length() < 0.5f )
 		{
 			m_curTaskID++;
 			if( m_curTaskID >= (int) ta->size() )
@@ -724,7 +737,7 @@ void TSEnemy::UpdateTask()
 		m_taskTimeout = T.timeout;
 		if( T.type == TT_Turn )
 		{
-			Vec2 td = ( T.target - m_position ).Normalized();
+			Vec2 td = ( T.target - m_position.ToVec2() ).Normalized();
 			m_turnAngleEnd = normalize_angle( atan2( td.y, td.x ) );
 			m_turnAngleStart = normalize_angle( m_turnAngle );
 			if( fabs( m_turnAngleEnd - m_turnAngleStart ) > M_PI )

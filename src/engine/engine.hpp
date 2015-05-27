@@ -1015,6 +1015,33 @@ struct SGRX_RenderScene
 	SGRX_DebugDraw* debugdraw;
 };
 
+struct SGRX_FontSettings
+{
+	String font;
+	int size;
+	float letterspacing;
+};
+
+struct SGRX_GlyphInfo
+{
+	uint32_t glyph_kern_id;
+	int16_t bmsizex;
+	int16_t bmsizey;
+	int16_t bmoffx;
+	int16_t bmoffy;
+	int16_t advx;
+	int16_t advy;
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IFont : SGRX_RCRsrc
+{
+	virtual void LoadGlyphInfo( int pxsize, uint32_t ch, SGRX_GlyphInfo* info ) = 0;
+	virtual void GetGlyphBitmap( uint32_t* out, int pitch ) = 0;
+	virtual int GetKerning( uint32_t ch1, uint32_t ch2 ){ return 0; }
+	virtual int GetYOffset( int pxsize ){ return 0; }
+};
+typedef Handle< SGRX_IFont > FontHandle;
+
 
 ENGINE_EXPORT int GR_GetWidth();
 ENGINE_EXPORT int GR_GetHeight();
@@ -1041,11 +1068,19 @@ ENGINE_EXPORT void GR2D_SetViewport( int x0, int y0, int x1, int y1 );
 ENGINE_EXPORT void GR2D_UnsetViewport();
 ENGINE_EXPORT void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 );
 ENGINE_EXPORT void GR2D_UnsetScissorRect();
-ENGINE_EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+
 ENGINE_EXPORT void GR2D_SetColor( float r, float g, float b, float a = 1.0f );
 inline void GR2D_SetColor( float x, float a ){ GR2D_SetColor( x, x, x, a ); }
 inline void GR2D_SetColor( float x ){ GR2D_SetColor( x, x, x, x ); }
-ENGINE_EXPORT void GR2D_SetTextCursor( float x, float y );
+
+ENGINE_EXPORT bool GR2D_LoadFont( const StringView& key, const StringView& path );
+ENGINE_EXPORT bool GR2D_LoadSVGIconFont( const StringView& key, const StringView& path );
+ENGINE_EXPORT FontHandle GR2D_GetFont( const StringView& key );
+ENGINE_EXPORT void GR2D_GetFontSettings( SGRX_FontSettings* settings );
+ENGINE_EXPORT void GR2D_SetFontSettings( SGRX_FontSettings* settings );
+ENGINE_EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+ENGINE_EXPORT void GR2D_SetTextCursor( const Vec2& pos );
+inline void GR2D_SetTextCursor( float x, float y ){ GR2D_SetTextCursor( V2( x, y ) ); }
 ENGINE_EXPORT Vec2 GR2D_GetTextCursor();
 ENGINE_EXPORT int GR2D_GetTextLength( const StringView& text );
 ENGINE_EXPORT int GR2D_DrawTextLine( const StringView& text );

@@ -1719,7 +1719,8 @@ struct TACStrikeEditor : IGame
 	{
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 		
-		GR2D_SetFont( "fonts/lato-regular.ttf", 12 );
+		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
+		GR2D_SetFont( "core", 12 );
 		
 		g_ScriptCtx = new ScriptContext;
 		g_ScriptCtx->RegisterBatchRenderer();

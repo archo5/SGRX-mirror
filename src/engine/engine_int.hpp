@@ -224,42 +224,52 @@ struct RasterCache
 };
 
 
-#ifdef FT_INCLUDED
+#ifdef FREETYPE_INCLUDED
 #  define FT_FACE_TYPE FT_Face
 #else
 #  define FT_FACE_TYPE void*
 #endif
 
-void InitializeFontRendering();
+void sgrx_int_InitializeFontRendering();
+
+
+struct FTFont : SGRX_IFont
+{
+	FTFont();
+	~FTFont();
+	void LoadGlyphInfo( int pxsize, uint32_t ch, SGRX_GlyphInfo* info );
+	void GetGlyphBitmap( uint32_t* out, int pitch );
+	int GetKerning( uint32_t ic1, uint32_t ic2 );
+	int GetYOffset( int pxsize );
+	void _Resize( int pxsize );
+	
+	ByteArray data;
+	FT_FACE_TYPE face;
+	int rendersize;
+};
+
+struct SVGIconFont : SGRX_IFont
+{
+	typedef HashTable< uint32_t, struct NSVGimage* > IconTable;
+	
+	void LoadGlyphInfo( int pxsize, uint32_t ch, SGRX_GlyphInfo* info );
+	void GetGlyphBitmap( uint32_t* out, int pitch );
+	
+	IconTable icons;
+	int rendersize;
+};
+
+FTFont* sgrx_int_CreateFont( const StringView& path );
+SVGIconFont* sgrx_int_CreateSVGIconFont( const StringView& path );
+
 
 struct FontRenderer
 {
-	struct FontKey
-	{
-		String name;
-		int size;
-		
-		bool operator == ( const FontKey& key ) const { return name == key.name && size == key.size; }
-	};
-	struct Font
-	{
-		Font() : face(NULL){}
-		~Font();
-		
-		FontKey key;
-		ByteArray data;
-		FT_FACE_TYPE face;
-	};
-	typedef HashTable< FontKey, Font* > FontTable;
 	struct CacheKey
 	{
-		Font* font;
+		FontHandle font;
 		uint32_t codepoint;
-		uint32_t ft_glyph_id;
-		int16_t bmoffx;
-		int16_t bmoffy;
-		int16_t advx;
-		int16_t advy;
+		SGRX_GlyphInfo info;
 		
 		bool operator == ( const CacheKey& other ) const { return font == other.font && codepoint == other.codepoint; }
 	};
@@ -270,7 +280,7 @@ struct FontRenderer
 	
 	// core features
 	bool SetFont( const StringView& name, int pxsize );
-	void SetCursor( float x, float y );
+	void SetCursor( const Vec2& pos );
 	
 	int PutText( BatchRenderer* br, const StringView& text );
 	int SkipText( const StringView& text );
@@ -280,25 +290,19 @@ struct FontRenderer
 	// TODO
 	
 	// internal
-	Font* _GetOrCreateFont( const FontKey& fk );
-	GlyphCache::Node* _GetGlyph( Font* font, uint32_t ch );
+	GlyphCache::Node* _GetGlyph( SGRX_IFont* font, uint32_t ch );
 	
-	float m_cursor_x;
-	float m_cursor_y;
-	Font* m_currentFont;
+	Vec2 m_cursor;
+	FontHandle m_currentFont;
+	int m_currentSize;
 	GlyphCache m_cache;
 	int32_t m_cache_frame;
-	FontTable m_fonts;
 };
 
 #ifdef USE_HASHTABLE
-inline Hash HashVar( const FontRenderer::FontKey& fk )
-{
-	return HashVar( fk.name ) + fk.size;
-}
 inline Hash HashVar( const FontRenderer::CacheKey& ck )
 {
-	return (Hash)( ck.font ) + ck.codepoint;
+	return (Hash)( ck.font.item ) + ck.codepoint;
 }
 #endif
 

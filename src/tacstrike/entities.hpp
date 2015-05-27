@@ -411,7 +411,7 @@ struct TSCharacter : Entity
 	IVState< Vec3 > m_ivPos;
 	IVState< Quat > m_ivDir;
 	
-	Vec2 m_position;
+	Vec3 m_position;
 	Vec2 m_moveDir;
 	float m_turnAngle;
 };
@@ -427,6 +427,7 @@ struct TSPlayer : TSCharacter
 	HashTable< String, int > m_items;
 	
 	TextureHandle m_tex_interact_icon;
+	TextureHandle m_tex_cursor;
 	
 	TSPlayer( const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );

@@ -636,6 +636,8 @@ void GameLevel::Draw2D()
 		br.Reset().SetTexture( NULL ).Col( 0.2f, 0.4f, 0.8f );
 #ifdef LD32GAME
 		Vec2 pos = m_player->m_position;
+#elif defined(TSGAME)
+		Vec2 pos = m_player->m_bodyHandle->GetPosition().ToVec2();
 #else
 		Vec2 pos = m_scene->camera.position.ToVec2();
 #endif

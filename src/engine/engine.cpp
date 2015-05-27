@@ -62,6 +62,7 @@ typedef HashTable< StringView, SGRX_Material* > MaterialHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
+typedef HashTable< StringView, FontHandle > FontHashTable;
 
 static String g_GameLibName = "game";
 static String g_GameDir = ".";
@@ -98,6 +99,7 @@ static MaterialHashTable* g_Materials = NULL;
 static VertexDeclHashTable* g_VertexDecls = NULL;
 static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
+static FontHashTable* g_LoadedFonts = NULL;
 
 
 
@@ -2608,24 +2610,70 @@ void GR2D_UnsetScissorRect()
 	g_Renderer->SetScissorRect( false, NULL );
 }
 
-bool GR2D_SetFont( const StringView& name, int pxsize )
-{
-	return g_FontRenderer->SetFont( name, pxsize );
-}
 
 void GR2D_SetColor( float r, float g, float b, float a )
 {
 	g_BatchRenderer->Col( r, g, b, a );
 }
 
-void GR2D_SetTextCursor( float x, float y )
+
+bool GR2D_LoadFont( const StringView& key, const StringView& path )
 {
-	g_FontRenderer->SetCursor( x, y );
+	SGRX_IFont* fif = NULL;
+	if( ( fif = sgrx_int_CreateFont( path ) ) == NULL )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load font: " << path;
+		return false;
+	}
+	fif->m_key = key;
+	g_LoadedFonts->set( fif->m_key, fif );
+	return true;
+}
+
+bool GR2D_LoadSVGIconFont( const StringView& key, const StringView& path )
+{
+	SGRX_IFont* fif = NULL;
+	if( ( fif = sgrx_int_CreateSVGIconFont( path ) ) == NULL )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load SVG icon font: " << path;
+		return false;
+	}
+	fif->m_key = key;
+	g_LoadedFonts->set( fif->m_key, fif );
+	return true;
+}
+
+FontHandle GR2D_GetFont( const StringView& key )
+{
+	return g_LoadedFonts->getcopy( key );
+}
+
+void GR2D_GetFontSettings( SGRX_FontSettings* settings )
+{
+	SGRX_IFont* fnt = g_FontRenderer->m_currentFont;
+	settings->font = fnt ? fnt->m_key : "";
+	settings->size = g_FontRenderer->m_currentSize;
+	settings->letterspacing = 0;
+}
+
+void GR2D_SetFontSettings( SGRX_FontSettings* settings )
+{
+	GR2D_SetFont( settings->font, settings->size );
+}
+
+bool GR2D_SetFont( const StringView& name, int pxsize )
+{
+	return g_FontRenderer->SetFont( name, pxsize );
+}
+
+void GR2D_SetTextCursor( const Vec2& pos )
+{
+	g_FontRenderer->SetCursor( pos );
 }
 
 Vec2 GR2D_GetTextCursor()
 {
-	return Vec2::Create( g_FontRenderer->m_cursor_x, g_FontRenderer->m_cursor_y );
+	return g_FontRenderer->m_cursor;
 }
 
 int GR2D_GetTextLength( const StringView& text )
@@ -2642,7 +2690,7 @@ int GR2D_DrawTextLine( const StringView& text )
 
 int GR2D_DrawTextLine( float x, float y, const StringView& text )
 {
-	g_FontRenderer->SetCursor( x, y );
+	g_FontRenderer->SetCursor( V2( x, y ) );
 	return g_FontRenderer->PutText( g_BatchRenderer, text );
 }
 
@@ -2653,7 +2701,7 @@ int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int
 	float length = 0;
 	if( halign != 0 )
 		length = g_FontRenderer->GetTextWidth( text );
-	return GR2D_DrawTextLine( x - round( halign * 0.5f * length ), round( y - valign * 0.5f * g_FontRenderer->m_currentFont->key.size ), text );
+	return GR2D_DrawTextLine( x - round( halign * 0.5f * length ), round( y - valign * 0.5f * g_FontRenderer->m_currentSize ), text );
 }
 
 BatchRenderer& GR2D_GetBatchRenderer()
@@ -3173,12 +3221,13 @@ static int init_graphics()
 	g_VertexDecls = new VertexDeclHashTable();
 	g_Meshes = new MeshHashTable();
 	g_Anims = new AnimHashTable();
+	g_LoadedFonts = new FontHashTable();
 	LOG << LOG_DATE << "  Created renderer resource caches";
 	
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
 	LOG << LOG_DATE << "  Created batch renderer";
 	
-	InitializeFontRendering();
+	sgrx_int_InitializeFontRendering();
 	g_FontRenderer = new FontRenderer();
 	LOG << LOG_DATE << "  Created font renderer";
 	
@@ -3201,6 +3250,9 @@ static void free_graphics()
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;
+	
+	delete g_LoadedFonts;
+	g_LoadedFonts = NULL;
 	
 	delete g_Anims;
 	g_Anims = NULL;
