@@ -231,6 +231,7 @@ struct RasterCache
 #endif
 
 void sgrx_int_InitializeFontRendering();
+void sgrx_int_FreeFontRendering();
 
 
 struct FTFont : SGRX_IFont
@@ -252,11 +253,18 @@ struct SVGIconFont : SGRX_IFont
 {
 	typedef HashTable< uint32_t, struct NSVGimage* > IconTable;
 	
+	SVGIconFont();
+	~SVGIconFont();
 	void LoadGlyphInfo( int pxsize, uint32_t ch, SGRX_GlyphInfo* info );
 	void GetGlyphBitmap( uint32_t* out, int pitch );
+	int GetYOffset( int pxsize ){ return -pxsize; }
+	bool _LoadGlyph( uint32_t ch, const StringView& path );
 	
-	IconTable icons;
-	int rendersize;
+	IconTable m_icons;
+	struct NSVGimage* m_loaded_img;
+	int m_loaded_width;
+	int m_loaded_height;
+	int m_rendersize;
 };
 
 FTFont* sgrx_int_CreateFont( const StringView& path );
@@ -268,10 +276,11 @@ struct FontRenderer
 	struct CacheKey
 	{
 		FontHandle font;
+		int size;
 		uint32_t codepoint;
 		SGRX_GlyphInfo info;
 		
-		bool operator == ( const CacheKey& other ) const { return font == other.font && codepoint == other.codepoint; }
+		bool operator == ( const CacheKey& other ) const { return font == other.font && size == other.size && codepoint == other.codepoint; }
 	};
 	typedef RasterCache< CacheKey > GlyphCache;
 	
@@ -290,7 +299,7 @@ struct FontRenderer
 	// TODO
 	
 	// internal
-	GlyphCache::Node* _GetGlyph( SGRX_IFont* font, uint32_t ch );
+	GlyphCache::Node* _GetGlyph( uint32_t ch );
 	
 	Vec2 m_cursor;
 	FontHandle m_currentFont;

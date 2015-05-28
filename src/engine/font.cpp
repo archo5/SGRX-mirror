@@ -3,7 +3,9 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#define NANOSVG_IMPLEMENTATION
 #include <nanosvg/nanosvg.h>
+#define NANOSVGRAST_IMPLEMENTATION
 #include <nanosvg/nanosvgrast.h>
 
 #define USE_ARRAY
@@ -15,10 +17,18 @@
 
 
 static FT_Library g_FTLib;
+static NSVGrasterizer* g_NSVGRasterizer;
 
 void sgrx_int_InitializeFontRendering()
 {
 	FT_Init_FreeType( &g_FTLib );
+	g_NSVGRasterizer = nsvgCreateRasterizer();
+}
+
+void sgrx_int_FreeFontRendering()
+{
+	nsvgDeleteRasterizer( g_NSVGRasterizer );
+	g_NSVGRasterizer = NULL;
 }
 
 
@@ -110,9 +120,116 @@ FTFont* sgrx_int_CreateFont( const StringView& path )
 	return font;
 }
 
+
+SVGIconFont::SVGIconFont() : m_loaded_img(NULL), m_loaded_width(0), m_loaded_height(0), m_rendersize(0)
+{
+}
+
+SVGIconFont::~SVGIconFont()
+{
+	for( size_t i = 0; i < m_icons.size(); ++i )
+	{
+		nsvgDelete( m_icons.item( i ).value );
+	}
+}
+
+void SVGIconFont::LoadGlyphInfo( int pxsize, uint32_t ch, SGRX_GlyphInfo* info )
+{
+	m_rendersize = pxsize;
+	
+	// common data
+	info->glyph_kern_id = 0;
+	info->bmoffx = 0;
+	info->bmoffy = 0;
+	
+	// image or no image
+	NSVGimage* img = m_icons.getcopy( ch );
+	m_loaded_img = img;
+	if( img == NULL )
+	{
+		info->bmsizex = 0;
+		info->bmsizey = 0;
+		info->advx = pxsize;
+		info->advy = pxsize;
+		return;
+	}
+	
+	if( img->width > img->height )
+	{
+		m_loaded_width = pxsize;
+		m_loaded_height = pxsize * img->height / img->width;
+	}
+	else
+	{
+		m_loaded_width = pxsize * img->width / img->height;
+		m_loaded_height = pxsize;
+	}
+	info->advx = info->bmsizex = m_loaded_width;
+	info->advy = info->bmsizey = m_loaded_height;
+}
+
+void SVGIconFont::GetGlyphBitmap( uint32_t* out, int pitch )
+{
+	NSVGimage* img = m_loaded_img;
+	if( img )
+	{
+		float scale = img->width > img->height ?
+			m_loaded_width / float(img->width) :
+			m_loaded_height / float(img->height);
+		nsvgRasterize( g_NSVGRasterizer, m_loaded_img, 0, 0, scale,
+			(uint8_t*) out, m_loaded_width, m_loaded_height, pitch * 4 );
+	}
+}
+
+bool SVGIconFont::_LoadGlyph( uint32_t ch, const StringView& path )
+{
+	String svgdata;
+	if( FS_LoadTextFile( path, svgdata ) == false )
+	{
+		LOG_ERROR << LOG_DATE << "  Could not read SVG file: " << path;
+		return false;
+	}
+	
+	// need null-terminated for func.
+	svgdata.push_back(0);
+	NSVGimage* img = nsvgParse( svgdata.data(), "px", 96 );
+	if( img == NULL )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to parse SVG file: " << path;
+		return false;
+	}
+	
+	m_icons[ ch ] = img;
+	return true;
+}
+
 SVGIconFont* sgrx_int_CreateSVGIconFont( const StringView& path )
 {
-	return NULL;
+	char bfr[ 256 ];
+	String confdata;
+	if( FS_LoadTextFile( path, confdata ) == false )
+	{
+		LOG_ERROR << LOG_DATE << "  Could not read SVG icon font config: " << path;
+		return NULL;
+	}
+	StringView basedir = path.up_to_last( "/" );
+	
+	SVGIconFont* sif = new SVGIconFont;
+	ConfigReader cfgrd( confdata );
+	StringView key, value;
+	while( cfgrd.Read( key, value ) )
+	{
+		sgrx_snprintf( bfr, 256, "%.*s%.*s",
+			(int) basedir.size(), basedir.data(),
+			(int) value.size(), value.data() );
+		if( sif->_LoadGlyph( String_ParseInt( key ), bfr ) == false )
+		{
+			delete sif;
+			return NULL;
+		}
+	}
+	
+	return sif;
 }
 
 
@@ -167,7 +284,7 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		ret = abs( ret );
 		it.skip( ret );
 		
-		GlyphCache::Node* node = _GetGlyph( m_currentFont, cp );
+		GlyphCache::Node* node = _GetGlyph( cp );
 		if( node && br )
 		{
 			if( prev_glyph_id != NOT_FOUND )
@@ -219,15 +336,15 @@ float FontRenderer::GetTextWidth( const StringView& text )
 }
 
 
-FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( SGRX_IFont* font, uint32_t ch )
+FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( uint32_t ch )
 {
-	CacheKey ckey = { font, ch };
+	CacheKey ckey = { m_currentFont, m_currentSize, ch };
 	GlyphCache::Node* node = m_cache.Find( m_cache_frame, ckey );
 	if( node )
 		return node;
 	
 	// load glyph
-	font->LoadGlyphInfo( m_currentSize, ch, &ckey.info );
+	m_currentFont->LoadGlyphInfo( m_currentSize, ch, &ckey.info );
 	int width = ckey.info.bmsizex;
 	int height = ckey.info.bmsizey;
 	node = m_cache.Alloc( m_cache_frame, ckey, width, height );
@@ -241,7 +358,7 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( SGRX_IFont* font, uint3
 	
 	Array< uint32_t > bitmap;
 	bitmap.resize( width * height );
-	font->GetGlyphBitmap( bitmap.data(), width );
+	m_currentFont->GetGlyphBitmap( bitmap.data(), width );
 	m_cache.GetPageTexture( node->page ).UploadRGBA8Part( bitmap.data(), 0, width, height, node->x0, node->y0 );
 	
 	return node;

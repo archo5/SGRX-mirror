@@ -2694,6 +2694,14 @@ int GR2D_DrawTextLine( float x, float y, const StringView& text )
 	return g_FontRenderer->PutText( g_BatchRenderer, text );
 }
 
+int GR2D_DrawTextLine( const StringView& text, int halign, int valign )
+{
+	Vec2 pos = GR2D_GetTextCursor();
+	int ret = GR2D_DrawTextLine( pos.x, pos.y, text, halign, valign );
+	GR2D_SetTextCursor( GR2D_GetTextCursor().x, pos.y );
+	return ret;
+}
+
 int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign )
 {
 	if( !g_FontRenderer->m_currentFont )
@@ -3247,6 +3255,7 @@ static void free_graphics()
 	
 	delete g_FontRenderer;
 	g_FontRenderer = NULL;
+	sgrx_int_FreeFontRendering();
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;

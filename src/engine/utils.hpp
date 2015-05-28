@@ -1535,7 +1535,7 @@ struct ConfigReader
 		while( it.size() )
 		{
 			key = it.until_any( SPACE_CHARS );
-			if( key == "#" )
+			if( key.ch() == '#' )
 			{
 				it = it.after( "\n" ).after_all( SPACE_CHARS );
 				continue;

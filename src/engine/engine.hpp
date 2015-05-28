@@ -1091,6 +1091,7 @@ ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 #define VALIGN_TOP 0
 #define VALIGN_CENTER 1
 #define VALIGN_BOTTOM 2
+ENGINE_EXPORT int GR2D_DrawTextLine( const StringView& text, int halign, int valign );
 ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign );
 
 ENGINE_EXPORT BatchRenderer& GR2D_GetBatchRenderer();

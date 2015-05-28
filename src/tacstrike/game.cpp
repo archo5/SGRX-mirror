@@ -398,6 +398,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	bool OnInitialize()
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
+		GR2D_LoadSVGIconFont( "tsicons", "ui/tsicons.svf" );
 		GR2D_SetFont( "core", 12 );
 		
 		g_SoundSys = SND_CreateSystem();
@@ -555,7 +556,21 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		GR2D_SetColor( 1 );
 		char bfr[ 1204 ];
 		sprintf( bfr, "meshes: %d, draw calls: %d", (int) GR_GetRenderStats().numVisMeshes, (int) GR_GetRenderStats().numMDrawCalls );
-	//	GR2D_DrawTextLine( 128, 128, bfr );
+	//	GR2D_SetFont( "core", 24 );
+	//	GR2D_DrawTextLine( bfr );
+		
+		GR2D_SetFont( "tsicons", 24 );
+		GR2D_DrawTextLine( 64, 64, "i" );
+		GR2D_SetFont( "tsicons", 48 );
+		GR2D_DrawTextLine( "#", HALIGN_LEFT, VALIGN_CENTER );
+		GR2D_SetFont( "core", 24 );
+		GR2D_DrawTextLine( " test: press " );
+		GR2D_SetFont( "tsicons", 24 );
+		GR2D_DrawTextLine( "t" );
+		GR2D_SetFont( "core", 24 );
+		GR2D_DrawTextLine( " to act " );
+		GR2D_SetFont( "tsicons", 24 );
+		GR2D_DrawTextLine( "!" );
 		
 	//	BatchRenderer& br = GR2D_GetBatchRenderer();
 	//	const LightTree& LT = g_GameLevel->m_ltSamples;
