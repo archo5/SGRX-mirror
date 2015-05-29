@@ -494,7 +494,7 @@ static int xgm_v3_serialize( SGS_CTX, sgs_VarObj* data )
 	return sgs_SerializeObject( C, 3, "vec3" );
 }
 
-static int xgm_v3_dump( SGS_CTX, sgs_VarObj* data, int SGS_unused )
+static int xgm_v3_dump( SGS_CTX, sgs_VarObj* data, int unused )
 {
 	return xgm_v3_convert( C, data, SGS_VT_STRING );
 }
@@ -742,7 +742,7 @@ static int xgm_v4_serialize( SGS_CTX, sgs_VarObj* data )
 	return sgs_SerializeObject( C, 4, "vec4" );
 }
 
-static int xgm_v4_dump( SGS_CTX, sgs_VarObj* data, int SGS_unused )
+static int xgm_v4_dump( SGS_CTX, sgs_VarObj* data, int unused )
 {
 	return xgm_v4_convert( C, data, SGS_VT_STRING );
 }
@@ -1295,7 +1295,7 @@ static int xgm_col_serialize( SGS_CTX, sgs_VarObj* data )
 	return sgs_SerializeObject( C, 4, "color" );
 }
 
-static int xgm_col_dump( SGS_CTX, sgs_VarObj* data, int SGS_unused )
+static int xgm_col_dump( SGS_CTX, sgs_VarObj* data, int unused )
 {
 	return xgm_col_convert( C, data, SGS_VT_STRING );
 }
@@ -2112,7 +2112,7 @@ static int xgm_quat_serialize( SGS_CTX, sgs_VarObj* data )
 	return sgs_SerializeObject( C, 4, "quat" );
 }
 
-static int xgm_quat_dump( SGS_CTX, sgs_VarObj* data, int SGS_unused )
+static int xgm_quat_dump( SGS_CTX, sgs_VarObj* data, int unused )
 {
 	return xgm_quat_convert( C, data, SGS_VT_STRING );
 }

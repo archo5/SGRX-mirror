@@ -22,6 +22,9 @@
 #ifndef STDLIB_WARN
 #  define STDLIB_WARN( warn ) return sgs_Msg( C, SGS_WARNING, warn );
 #endif
+#ifndef STDLIB_ERR
+#  define STDLIB_ERR( err ) return sgs_Msg( C, SGS_ERROR, err );
+#endif
 
 
 SGS_DECLARE sgs_ObjInterface sgsstd_file_iface[1];

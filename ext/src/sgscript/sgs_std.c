@@ -2935,10 +2935,12 @@ static int _find_includable_file( SGS_CTX, sgs_MemBuf* tmp, char* ps,
 				}
 				sgs_membuf_appchr( tmp, C, 0 );
 				
-				sgs_ScriptFSData fsd = {0};
-				fsd.filename = tmp->ptr;
-				if( SGS_SUCCEEDED( C->sfs_fn( C->sfs_ctx, C, SGS_SFS_FILE_EXISTS, &fsd ) ) )
-					return 1;
+				{
+					sgs_ScriptFSData fsd = {0};
+					fsd.filename = tmp->ptr;
+					if( SGS_SUCCEEDED( C->sfs_fn( C->sfs_ctx, C, SGS_SFS_FILE_EXISTS, &fsd ) ) )
+						return 1;
+				}
 notthispath:
 				psc++;
 			}

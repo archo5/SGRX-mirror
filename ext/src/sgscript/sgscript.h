@@ -861,7 +861,7 @@ static SGS_INLINE SGSRESULT sgs_StdScriptFSFunc( void* ctx, SGS_CTX, int op, sgs
 				return SGS_EINPROC;
 			}
 			data->userhandle = f;
-			data->size = sz;
+			data->size = (size_t) sz;
 			return SGS_SUCCESS;
 		}
 	case SGS_SFS_FILE_READ:
