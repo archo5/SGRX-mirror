@@ -284,7 +284,6 @@ struct ENGINE_EXPORT Vec3
 	FINLINE void Set( float _x, float _y, float _z ){ x = _x; y = _y; z = _z; }
 	FINLINE void SetXY( const Vec2& xy ){ x = xy.x; y = xy.y; }
 	FINLINE Vec2 ToVec2() const { Vec2 v = { x, y }; return v; }
-	FINLINE Vec3 Perp() const { Vec3 v = { -y, z, x }; return v; }
 };
 
 FINLINE Vec3 operator + ( float f, const Vec3& v ){ Vec3 out = { f + v.x, f + v.y, f + v.z }; return out; }
@@ -690,7 +689,7 @@ struct ENGINE_EXPORT Mat4
 		float angle = acosf( clamp( Vec3Dot( a, b ), -1, 1 ) );
 		Vec3 axis = Vec3Cross( a, b );
 		if( axis.LengthSq() < SMALL_FLOAT )
-			axis = Vec3Cross( a, a.Perp() );
+			axis = Vec3Cross( a, a.Shuffle() );
 		return CreateRotationAxisAngle( axis.Normalized(), angle );
 	}
 	static Mat4 CreateRotationFromQuat( const Quat& q )
