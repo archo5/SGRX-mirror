@@ -13,7 +13,7 @@ if(NOT MSVC)
 	else()
 		set(MINGW_D3D_FLAGS "-Wno-unknown-pragmas -Wno-comment")
 	endif(NOT WIN32)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -fno-exceptions -g")
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
 	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fno-rtti -fno-exceptions")
 	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fno-rtti -fno-exceptions")
@@ -74,6 +74,10 @@ set_target_properties( fmodstudio PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 )
 list( APPEND ExternalSharedLibraries "${EXTDIR}/bin-win32/fmodstudio.dll" )
+
+# Recast / Detour
+add_subdirectory( ext/src/recast/Recast/Source )
+add_subdirectory( ext/src/recast/Detour/Source )
 
 add_subdirectory( src/engine )
 add_subdirectory( src/common )
