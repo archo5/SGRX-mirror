@@ -8,7 +8,8 @@
 // 3: added decal layer
 // 4: added subentities
 // 5: added physics mesh
-#define LC_FILE_VERSION 5
+// 6: added navmesh
+#define LC_FILE_VERSION 6
 
 
 #define LM_MESHINST_SOLID 0x0001

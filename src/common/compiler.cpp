@@ -764,7 +764,9 @@ bool LevelCache::SaveCache( const StringView& path )
 	}
 	
 	GenerateLightmaps( path );
-	GenerateNavmesh( path );
+	
+	ByteArray navmesh;
+	GenerateNavmesh( path, navmesh );
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
@@ -805,6 +807,9 @@ bool LevelCache::SaveCache( const StringView& path )
 	
 	svh.marker( "PHYMESH" );
 	svh( m_phyMesh, svh.version >= 5 );
+	
+	svh.marker( "NAVMESH" );
+	svh( navmesh, svh.version >= 6 );
 	
 	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
 }
@@ -953,7 +958,7 @@ enum SamplePartitionType
 	SAMPLE_PARTITION_LAYERS,
 };
 
-bool LevelCache::GenerateNavmesh( const StringView& path )
+bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 {
 	if( m_phyMesh.positions.size() == 0 ||
 		m_phyMesh.indices.size() == 0 )
@@ -982,6 +987,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	const int* tris = indices.data();
 	const int ntris = m_phyMesh.indices.size() / 4;
 	
+	bool retval = true;
 	unsigned char* triareas = NULL;
 	rcHeightfield* rchf = NULL;
 	dtNavMesh* dtnavmsh = NULL;
@@ -1013,7 +1019,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	
 	// Init build configuration from GUI
 	rcConfig cfg;
-	memset(&cfg, 0, sizeof(cfg));
+	memset( &cfg, 0, sizeof(cfg) );
 	cfg.cs = cellSize;
 	cfg.ch = cellHeight;
 	cfg.walkableSlopeAngle = agentMaxSlope;
@@ -1031,9 +1037,9 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	// Set the area where the navigation will be build.
 	// Here the bounds of the input mesh are used, but the
 	// area could be specified by an user defined box, etc.
-	rcVcopy(cfg.bmin, &bmin.x);
-	rcVcopy(cfg.bmax, &bmax.x);
-	rcCalcGridSize(cfg.bmin, cfg.bmax, cfg.cs, &cfg.width, &cfg.height);
+	rcVcopy( cfg.bmin, &bmin.x );
+	rcVcopy( cfg.bmax, &bmax.x );
+	rcCalcGridSize( cfg.bmin, cfg.bmax, cfg.cs, &cfg.width, &cfg.height );
 	
 	// Reset build times gathering.
 	double time_total_begin = sgrx_hqtime(), time_total_end;
@@ -1048,12 +1054,12 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	
 	// Allocate voxel heightfield where we rasterize our input data to.
 	rchf = rcAllocHeightfield();
-	if (!rchf)
+	if( !rchf )
 	{
 		LOG_ERROR << "buildNavigation: Out of memory 'rchf'.";
 		goto fail;
 	}
-	if (!rcCreateHeightfield(prcctx, *rchf, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch))
+	if( !rcCreateHeightfield( prcctx, *rchf, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch ) )
 	{
 		LOG_ERROR << "buildNavigation: Could not create solid heightfield.";
 		goto fail;
@@ -1062,8 +1068,8 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	// Allocate array that can hold triangle area types.
 	// If you have multiple meshes you need to process, allocate
 	// and array which can hold the max number of triangles you need to process.
-	triareas = new unsigned char[ntris];
-	if (!triareas)
+	triareas = new unsigned char[ ntris ];
+	if( !triareas )
 	{
 		LOG_ERROR << "buildNavigation: Out of memory 'triareas' (" << ntris << ").";
 		goto fail;
@@ -1072,9 +1078,9 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	// Find triangles which are walkable based on their slope and rasterize them.
 	// If your input data is multiple meshes, you can transform them here, calculate
 	// the are type for each of the meshes and rasterize them.
-	memset(triareas, 0, ntris*sizeof(unsigned char));
-	rcMarkWalkableTriangles(prcctx, cfg.walkableSlopeAngle, verts, nverts, tris, ntris, triareas);
-	rcRasterizeTriangles(prcctx, verts, nverts, tris, triareas, ntris, *rchf, cfg.walkableClimb);
+	memset( triareas, 0, ntris*sizeof(unsigned char) );
+	rcMarkWalkableTriangles( prcctx, cfg.walkableSlopeAngle, verts, nverts, tris, ntris, triareas );
+	rcRasterizeTriangles( prcctx, verts, nverts, tris, triareas, ntris, *rchf, cfg.walkableClimb );
 	
 	delete [] triareas;
 	triareas = 0;
@@ -1086,9 +1092,9 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	// Once all geoemtry is rasterized, we do initial pass of filtering to
 	// remove unwanted overhangs caused by the conservative rasterization
 	// as well as filter spans where the character cannot possibly stand.
-	rcFilterLowHangingWalkableObstacles(prcctx, cfg.walkableClimb, *rchf);
-	rcFilterLedgeSpans(prcctx, cfg.walkableHeight, cfg.walkableClimb, *rchf);
-	rcFilterWalkableLowHeightSpans(prcctx, cfg.walkableHeight, *rchf);
+	rcFilterLowHangingWalkableObstacles( prcctx, cfg.walkableClimb, *rchf );
+	rcFilterLedgeSpans( prcctx, cfg.walkableHeight, cfg.walkableClimb, *rchf );
+	rcFilterWalkableLowHeightSpans( prcctx, cfg.walkableHeight, *rchf );
 	
 	
 	//
@@ -1099,22 +1105,22 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	// This will result more cache coherent data as well as the neighbours
 	// between walkable cells will be calculated.
 	cchf = rcAllocCompactHeightfield();
-	if (!cchf)
+	if( !cchf )
 	{
 		LOG_ERROR << "buildNavigation: Out of memory 'cchf'.";
 		goto fail;
 	}
-	if (!rcBuildCompactHeightfield(prcctx, cfg.walkableHeight, cfg.walkableClimb, *rchf, *cchf))
+	if( !rcBuildCompactHeightfield( prcctx, cfg.walkableHeight, cfg.walkableClimb, *rchf, *cchf ) )
 	{
 		LOG_ERROR << "buildNavigation: Could not build compact data.";
 		goto fail;
 	}
 	
-	rcFreeHeightField(rchf);
+	rcFreeHeightField( rchf );
 	rchf = NULL;
 		
 	// Erode the walkable area by agent radius.
-	if (!rcErodeWalkableArea(prcctx, cfg.walkableRadius, *cchf))
+	if( !rcErodeWalkableArea( prcctx, cfg.walkableRadius, *cchf ) )
 	{
 		LOG_ERROR << "buildNavigation: Could not erode.";
 		goto fail;
@@ -1155,27 +1161,27 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	//     if you have large open areas with small obstacles (not a problem if you use tiles)
 	//   * good choice to use for tiled navmesh with medium and small sized tiles
 	
-	if (partitionType == SAMPLE_PARTITION_WATERSHED)
+	if( partitionType == SAMPLE_PARTITION_WATERSHED )
 	{
 		// Prepare for region partitioning, by calculating distance field along the walkable surface.
-		if (!rcBuildDistanceField(prcctx, *cchf))
+		if( !rcBuildDistanceField( prcctx, *cchf ) )
 		{
 			LOG_ERROR << "buildNavigation: Could not build distance field.";
 			goto fail;
 		}
 		
 		// Partition the walkable surface into simple regions without holes.
-		if (!rcBuildRegions(prcctx, *cchf, 0, cfg.minRegionArea, cfg.mergeRegionArea))
+		if( !rcBuildRegions( prcctx, *cchf, 0, cfg.minRegionArea, cfg.mergeRegionArea ) )
 		{
 			LOG_ERROR << "buildNavigation: Could not build watershed regions.";
 			goto fail;
 		}
 	}
-	else if (partitionType == SAMPLE_PARTITION_MONOTONE)
+	else if( partitionType == SAMPLE_PARTITION_MONOTONE )
 	{
 		// Partition the walkable surface into simple regions without holes.
 		// Monotone partitioning does not need distancefield.
-		if (!rcBuildRegionsMonotone(prcctx, *cchf, 0, cfg.minRegionArea, cfg.mergeRegionArea))
+		if( !rcBuildRegionsMonotone( prcctx, *cchf, 0, cfg.minRegionArea, cfg.mergeRegionArea ) )
 		{
 			LOG_ERROR << "buildNavigation: Could not build monotone regions.";
 			goto fail;
@@ -1184,7 +1190,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	else // SAMPLE_PARTITION_LAYERS
 	{
 		// Partition the walkable surface into simple regions without holes.
-		if (!rcBuildLayerRegions(prcctx, *cchf, 0, cfg.minRegionArea))
+		if( !rcBuildLayerRegions( prcctx, *cchf, 0, cfg.minRegionArea ) )
 		{
 			LOG_ERROR << "buildNavigation: Could not build layer regions.";
 			goto fail;
@@ -1197,12 +1203,12 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	
 	// Create contours.
 	cset = rcAllocContourSet();
-	if (!cset)
+	if( !cset )
 	{
 		LOG_ERROR << "buildNavigation: Out of memory 'cset'.";
 		goto fail;
 	}
-	if (!rcBuildContours(prcctx, *cchf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset))
+	if( !rcBuildContours( prcctx, *cchf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset ) )
 	{
 		LOG_ERROR << "buildNavigation: Could not create contours.";
 		goto fail;
@@ -1214,12 +1220,12 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	
 	// Build polygon navmesh from the contours.
 	pmesh = rcAllocPolyMesh();
-	if (!pmesh)
+	if( !pmesh )
 	{
 		LOG_ERROR << "buildNavigation: Out of memory 'pmesh'.";
 		goto fail;
 	}
-	if (!rcBuildPolyMesh(prcctx, *cset, cfg.maxVertsPerPoly, *pmesh))
+	if( !rcBuildPolyMesh( prcctx, *cset, cfg.maxVertsPerPoly, *pmesh ) )
 	{
 		LOG_ERROR << "buildNavigation: Could not triangulate contours.";
 		goto fail;
@@ -1230,21 +1236,21 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	//
 	
 	dmesh = rcAllocPolyMeshDetail();
-	if (!dmesh)
+	if( !dmesh )
 	{
 		LOG_ERROR << "buildNavigation: Out of memory 'pmdtl'.";
 		goto fail;
 	}
 	
-	if (!rcBuildPolyMeshDetail(prcctx, *pmesh, *cchf, cfg.detailSampleDist, cfg.detailSampleMaxError, *dmesh))
+	if( !rcBuildPolyMeshDetail( prcctx, *pmesh, *cchf, cfg.detailSampleDist, cfg.detailSampleMaxError, *dmesh ) )
 	{
 		LOG_ERROR << "buildNavigation: Could not build detail mesh.";
 		goto fail;
 	}
 	
-	rcFreeCompactHeightfield(cchf);
+	rcFreeCompactHeightfield( cchf );
 	cchf = NULL;
-	rcFreeContourSet(cset);
+	rcFreeContourSet( cset );
 	cset = NULL;
 	
 	// At this point the navigation mesh data is ready, you can access it from pmesh.
@@ -1288,7 +1294,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 #endif
 		
 		dtNavMeshCreateParams params;
-		memset(&params, 0, sizeof(params));
+		memset( &params, 0, sizeof(params) );
 		params.verts = pmesh->verts;
 		params.vertCount = pmesh->nverts;
 		params.polys = pmesh->polys;
@@ -1312,23 +1318,23 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 		params.offMeshConUserID = m_geom->getOffMeshConnectionId();
 		params.offMeshConCount = m_geom->getOffMeshConnectionCount();
 #endif
-		
 		params.walkableHeight = agentHeight;
 		params.walkableRadius = agentRadius;
 		params.walkableClimb = agentMaxClimb;
-		rcVcopy(params.bmin, pmesh->bmin);
-		rcVcopy(params.bmax, pmesh->bmax);
+		rcVcopy( params.bmin, pmesh->bmin );
+		rcVcopy( params.bmax, pmesh->bmax );
 		params.cs = cfg.cs;
 		params.ch = cfg.ch;
 		params.buildBvTree = true;
 		
-		if (!dtCreateNavMeshData(&params, &navData, &navDataSize))
+		if( !dtCreateNavMeshData( &params, &navData, &navDataSize ) )
 		{
 			LOG_ERROR << "Could not build Detour navmesh.";
 			goto fail;
 		}
 		
-		// TODO: take it!
+		outData.assign( navData, navDataSize );
+		dtFree( navData );
 		
 #if 0
 		TODO
@@ -1365,16 +1371,18 @@ bool LevelCache::GenerateNavmesh( const StringView& path )
 	LOG << ">> Polymesh: " << pmesh->nverts << " vertices  " << pmesh->npolys << " polygons";
 	LOG << "--- TIME: " << ( time_total_end - time_total_begin );
 	
-	return true;
-	
-fail:
+ending:
 	if( rchf ) rcFreeHeightField( rchf );
 	if( dtnavmsh ) dtFreeNavMesh( dtnavmsh );
 	if( cchf ) rcFreeCompactHeightfield( cchf );
 	if( cset ) rcFreeContourSet( cset );
 	if( pmesh ) rcFreePolyMesh( pmesh );
 	if( dmesh ) rcFreePolyMeshDetail( dmesh );
-	return false;
+	return retval;
+	
+fail:
+	retval = false;
+	goto ending;
 }
 
 

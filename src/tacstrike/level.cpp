@@ -221,6 +221,13 @@ bool GameLevel::Load( const StringView& levelname )
 	LC_PhysicsMesh phy_mesh;
 	svh( phy_mesh, svh.version >= 5 );
 	
+	ByteArray navmesh;
+	if( svh.version >= 6 )
+	{
+		svh.marker( "NAVMESH" );
+		svh( navmesh );
+	}
+	
 	// CREATE STATIC GEOMETRY
 	SGRX_PhyRigidBodyInfo rbinfo;
 	

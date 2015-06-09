@@ -524,7 +524,7 @@ EdWorld::EdWorld() :
 	m_ctlDirLightNumSamples( 15, 0, 256 ),
 	m_ctlLightmapClearColor( V3(0,0,0), 2, V3(0), V3(1,1,100) ),
 	m_ctlRADNumBounces( 2, 0, 256 ),
-	m_ctlLightmapDetail( 1, 2, 0.01f, 10 ),
+	m_ctlLightmapDetail( 1, 2, 0.01f, 16 ),
 	m_ctlLightmapBlurSize( 1, 2, 0, 10 ),
 	m_ctlAODistance( 2, 2, 0, 100 ),
 	m_ctlAOMultiplier( 1, 2, 0, 2 ),

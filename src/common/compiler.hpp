@@ -166,7 +166,7 @@ struct LevelCache
 	bool SaveMesh( int mid, Mesh& M, const StringView& path, bool remnull );
 	bool SaveCache( const StringView& path );
 	void GenerateLightmaps( const StringView& path );
-	bool GenerateNavmesh( const StringView& path );
+	bool GenerateNavmesh( const StringView& path, ByteArray& outData );
 	
 	Array< Solid > m_solids;
 	Array< Mesh > m_meshes;
