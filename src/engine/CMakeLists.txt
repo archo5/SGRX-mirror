@@ -57,6 +57,16 @@ set_target_properties( sgrx-sound-fmod PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
+# Pathfinding - Detour
+add_library( sgrx-pathfinding STATIC pathfinding )
+target_link_libraries( sgrx-pathfinding detour rcd_debug )
+set_target_properties( sgrx-pathfinding PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	INCLUDE_DIRECTORIES "${EXTDIR}/src/recast/Detour/Include;${EXTDIR}/src/recast/DetourTileCache/Include"
+	COMPILE_FLAGS "${PF_CORE_FLAGS} -DPATHFINDING_BUILDING"
+	LINK_FLAGS "${PF_CORE_FLAGS}"
+)
+
 # Physics - Bullet
 add_library( sgrx-physics-bullet SHARED physics_bullet
 	${EXTDIR}/src/bullet_BulletCollision.cpp

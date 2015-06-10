@@ -227,6 +227,7 @@ bool GameLevel::Load( const StringView& levelname )
 		svh.marker( "NAVMESH" );
 		svh( navmesh );
 	}
+	m_aidbSystem.Load( navmesh );
 	
 	// CREATE STATIC GEOMETRY
 	SGRX_PhyRigidBodyInfo rbinfo;
@@ -680,6 +681,11 @@ void GameLevel::Draw2D()
 		m_player->DrawUI();
 }
 
+void GameLevel::DebugDraw()
+{
+	m_aidbSystem.m_pathfinder.DebugDraw();
+}
+
 void GameLevel::PostDraw()
 {
 //	return;
@@ -718,7 +724,7 @@ void GameLevel::PostDraw()
 void GameLevel::Draw()
 {
 	SGRX_RenderScene rsinfo( V4( m_levelTime ), m_scene );
-//	rsinfo.debugdraw = this;
+	rsinfo.debugdraw = this;
 	rsinfo.postdraw = this;
 	GR_RenderScene( rsinfo );
 }

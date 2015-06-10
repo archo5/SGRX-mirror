@@ -2771,7 +2771,10 @@ BatchRenderer& BatchRenderer::Prev( int i )
 	if( i < 0 || i >= (int) m_verts.size() )
 		AddVertex( m_proto );
 	else
-		AddVertex( m_verts[ m_verts.size() - 1 - i ] );
+	{
+		Vertex v = m_verts[ m_verts.size() - 1 - i ];
+		AddVertex( v );
+	}
 	return *this;
 }
 
@@ -3057,6 +3060,31 @@ BatchRenderer& BatchRenderer::SetPrimitiveType( EPrimitiveType pt )
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::QuadsToTris()
+{
+	if( m_nextState.primType == PT_Triangles && m_verts.size() % 4 == 0 )
+	{
+		size_t oldsize = m_verts.size();
+		size_t newsize = oldsize / 4 * 6;
+		m_verts.resize( newsize );
+		for( size_t i = oldsize, j = newsize; i > 0; )
+		{
+			i -= 4;
+			j -= 6;
+			Vertex vts[4] = { m_verts[ i ], m_verts[ i + 1 ], m_verts[ i + 2 ], m_verts[ i + 3 ] };
+			m_verts[ j+0 ] = vts[0];
+			m_verts[ j+1 ] = vts[1];
+			m_verts[ j+2 ] = vts[2];
+			m_verts[ j+3 ] = vts[2];
+			m_verts[ j+4 ] = vts[4];
+			m_verts[ j+5 ] = vts[0];
+		}
+	}
+	else
+		LOG_ERROR << __FUNCTION__ << " - incorrect vertex count: " << m_verts.size();
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::Flush()
 {
 	if( m_verts.size() )
@@ -3182,7 +3210,7 @@ static int init_graphics()
 	SDL_StartTextInput();
 	
 	char renderer_dll[ 257 ] = {0};
-	sgrx_snprintf( renderer_dll, 256, "%s%.*s.dll", g_RendererPrefix, TMIN( (int) g_RendererName.size(), 200 ), g_RendererName.data() );
+	sgrx_snprintf( renderer_dll, 256, "%s%s.dll", g_RendererPrefix, StackString<200>( g_RendererName ).str );
 	g_RenderLib = SDL_LoadObject( renderer_dll );
 	if( !g_RenderLib )
 	{

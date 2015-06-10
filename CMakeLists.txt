@@ -78,6 +78,7 @@ list( APPEND ExternalSharedLibraries "${EXTDIR}/bin-win32/fmodstudio.dll" )
 # Recast / Detour
 add_subdirectory( ext/src/recast/Recast/Source )
 add_subdirectory( ext/src/recast/Detour/Source )
+add_subdirectory( ext/src/recast/DebugUtils/Source )
 
 add_subdirectory( src/engine )
 add_subdirectory( src/common )

@@ -626,7 +626,7 @@ void LevelCache::GatherMeshes()
 		TM->m_boundsMax = Vec3::Max( TM->m_boundsMax, pmax );
 		
 		// physics mesh generation
-		if( P.m_isSolid )
+		if( P.m_isSolid && TexNoSolid( P.m_texname ) == false )
 		{
 			uint32_t phy_mtl_id = m_phyMesh.materials.find_or_add( P.m_texname );
 			
@@ -968,11 +968,15 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	}
 	
 	Vec3 bmin = V3(FLT_MAX), bmax = V3(-FLT_MAX);
+	Array< Vec3 > recastVerts;
+	recastVerts.resize( m_phyMesh.positions.size() );
 	for( size_t i = 0; i < m_phyMesh.positions.size(); ++i )
 	{
 		Vec3 p = m_phyMesh.positions[ i ];
-		bmin = Vec3::Min( bmin, p );
-		bmax = Vec3::Max( bmax, p );
+		Vec3 pconv = V3( p.x, p.z, p.y );
+		recastVerts[ i ] = pconv;
+		bmin = Vec3::Min( bmin, pconv );
+		bmax = Vec3::Max( bmax, pconv );
 	}
 	
 	Array< int > indices;
@@ -982,8 +986,8 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 		indices.append( idcs, 3 );
 	}
 	
-	const float* verts = &m_phyMesh.positions[0].x;
-	const int nverts = m_phyMesh.positions.size();
+	const float* verts = &recastVerts[0].x;
+	const int nverts = recastVerts.size();
 	const int* tris = indices.data();
 	const int ntris = m_phyMesh.indices.size() / 4;
 	
@@ -1004,17 +1008,17 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	//
 	float cellSize = 0.3f;
 	float cellHeight = 0.2f;
-	float agentHeight = 2.0f;
-	float agentRadius = 0.6f;
-	float agentMaxClimb = 0.9f;
+	float agentHeight = 1.0f;
+	float agentRadius = 0.3f;
+	float agentMaxClimb = 0.4f;
 	float agentMaxSlope = 45.0f;
-	int regionMinSize = 8;
-	int regionMergeSize = 20;
+	int regionMinSize = 2;
+	int regionMergeSize = 10;
 	float edgeMaxLen = 12.0f;
-	float edgeMaxError = 1.3f;
+	float edgeMaxError = 0.3f;
 	float vertsPerPoly = 6.0f;
-	float detailSampleDist = 6.0f;
-	float detailSampleMaxError = 1.0f;
+	float detailSampleDist = 3.0f;
+	float detailSampleMaxError = 0.5f;
 	SamplePartitionType partitionType = SAMPLE_PARTITION_WATERSHED;
 	
 	// Init build configuration from GUI

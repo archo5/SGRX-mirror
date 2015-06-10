@@ -153,6 +153,10 @@ struct LevelCache
 	{
 		return TexNull( tex ) || tex == "textures/black.png";
 	}
+	static bool TexNoSolid( const StringView& tex )
+	{
+		return TexNoLight( tex );
+	}
 	
 	void _CutPoly( const PartPoly& PP, const Vec4& plane, Array< PartPoly >& outpolies );
 	bool _PolyInside( const PartPoly& PP, const Solid& S );

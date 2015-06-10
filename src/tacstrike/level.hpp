@@ -6,7 +6,7 @@
 
 typedef StackString<16> StackShortName;
 
-struct GameLevel : SGRX_PostDraw
+struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw
 {
 	GameLevel();
 	virtual ~GameLevel();
@@ -21,6 +21,7 @@ struct GameLevel : SGRX_PostDraw
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void Draw2D();
+	void DebugDraw();
 	void PostDraw();
 	void Draw();
 	
@@ -42,6 +43,7 @@ struct GameLevel : SGRX_PostDraw
 	BulletSystem m_bulletSystem;
 	MessagingSystem m_messageSystem;
 	ObjectiveSystem m_objectiveSystem;
+	AIDBSystem m_aidbSystem;
 	
 	// LEVEL DATA
 	bool m_paused;

@@ -447,3 +447,10 @@ void BulletSystem::Clear()
 }
 
 
+
+void AIDBSystem::Load( ByteArray& data )
+{
+	m_pathfinder.Load( data );
+}
+
+

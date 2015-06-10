@@ -608,6 +608,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	}
 	void DebugDraw()
 	{
+		g_GameLevel->DebugDraw();
+		
 //		g_PhyWorld->DebugDraw();
 	//	SGRX_MeshBone* bones = animtest->mesh->m_bones;
 	//	for( int i = 0; i < animtest->mesh->m_numBones; ++i )

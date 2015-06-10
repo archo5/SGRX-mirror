@@ -191,3 +191,11 @@ struct BulletSystem
 };
 
 
+struct AIDBSystem
+{
+	void Load( ByteArray& data );
+	
+	SGRX_Pathfinder m_pathfinder;
+};
+
+

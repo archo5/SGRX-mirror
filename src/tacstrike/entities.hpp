@@ -2,6 +2,7 @@
 
 #include <engine.hpp>
 #include <enganim.hpp>
+#include <pathfinding.hpp>
 #include <sound.hpp>
 #include <physics.hpp>
 #include <script.hpp>

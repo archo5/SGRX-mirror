@@ -967,6 +967,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& SetShader( const PixelShaderHandle& shd );
 	FINLINE BatchRenderer& UnsetTexture(){ return SetTexture( NULL ); }
 	ENGINE_EXPORT BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
+	ENGINE_EXPORT BatchRenderer& QuadsToTris();
 	ENGINE_EXPORT BatchRenderer& Flush();
 	ENGINE_EXPORT BatchRenderer& Reset();
 	ENGINE_EXPORT void _UpdateDiff();
