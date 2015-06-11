@@ -684,6 +684,17 @@ void GameLevel::Draw2D()
 void GameLevel::DebugDraw()
 {
 	m_aidbSystem.m_pathfinder.DebugDraw();
+	
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Reset().Col( 1, 0, 0 );
+	
+	Array< Vec3 > path;
+	if( m_aidbSystem.m_pathfinder.FindPath( V3(-2.4f,10,1), V3(2.6f,-1.4f,1), path ) && path.size() >= 2 )
+	{
+		br.SetPrimitiveType( PT_LineStrip );
+		for( size_t i = 0; i < path.size(); ++i )
+			br.Pos( path[ i ] );
+	}
 }
 
 void GameLevel::PostDraw()

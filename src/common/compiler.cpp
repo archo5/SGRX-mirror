@@ -1272,30 +1272,10 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 		int navDataSize = 0;
 		
 		// Update poly flags from areas.
-#if 0
-		TODO
-		
 		for (int i = 0; i < pmesh->npolys; ++i)
 		{
-			if (pmesh->areas[i] == RC_WALKABLE_AREA)
-				pmesh->areas[i] = SAMPLE_POLYAREA_GROUND;
-				
-			if (pmesh->areas[i] == SAMPLE_POLYAREA_GROUND ||
-				pmesh->areas[i] == SAMPLE_POLYAREA_GRASS ||
-				pmesh->areas[i] == SAMPLE_POLYAREA_ROAD)
-			{
-				pmesh->flags[i] = SAMPLE_POLYFLAGS_WALK;
-			}
-			else if (pmesh->areas[i] == SAMPLE_POLYAREA_WATER)
-			{
-				pmesh->flags[i] = SAMPLE_POLYFLAGS_SWIM;
-			}
-			else if (pmesh->areas[i] == SAMPLE_POLYAREA_DOOR)
-			{
-				pmesh->flags[i] = SAMPLE_POLYFLAGS_WALK | SAMPLE_POLYFLAGS_DOOR;
-			}
+			pmesh->flags[i] = 1;
 		}
-#endif
 		
 		dtNavMeshCreateParams params;
 		memset( &params, 0, sizeof(params) );

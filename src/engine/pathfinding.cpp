@@ -10,9 +10,16 @@
 #include <../../DebugUtils/Include/DetourDebugDraw.h>
 
 
+#define MAX_PATH_POLYS 128
+
+
+inline Vec3 RC2SGRX( const Vec3& v ){ return V3( v.x, v.z, v.y ); }
+inline Vec3 SGRX2RC( const Vec3& v ){ return V3( v.x, v.z, v.y ); }
+
+
 struct DetourDebugDraw : duDebugDraw
 {
-	DetourDebugDraw() : br( GR2D_GetBatchRenderer() ){}
+	DetourDebugDraw() : br( GR2D_GetBatchRenderer().Reset() ){}
 	virtual void depthMask( bool state )
 	{
 		// TODO ?
@@ -101,6 +108,68 @@ bool SGRX_Pathfinder::Load( const ByteArray& data )
 	}
 	
 	return true;
+}
+
+uint64_t SGRX_Pathfinder::FindPoly( const Vec3& pt, Vec3* outpt, const Vec3& ext )
+{
+	dtQueryFilter qfilter;
+	
+	Vec3 rc_pt = SGRX2RC( pt );
+	Vec3 rc_ext = SGRX2RC( ext );
+	
+	dtPolyRef out = 0;
+	m_navQuery->findNearestPoly( &rc_pt.x, &rc_ext.x, &qfilter, &out, outpt ? &outpt->x : NULL );
+	if( outpt )
+		*outpt = RC2SGRX( *outpt );
+	return out;
+}
+
+bool SGRX_Pathfinder::FindPath( const Vec3& from, uint64_t frompoly,
+	const Vec3& to, uint64_t topoly, Array< Vec3 >& pts )
+{
+	dtQueryFilter qfilter;
+	
+	int numpoly = 0;
+	dtPolyRef polylist[ MAX_PATH_POLYS ];
+	int numpoints = 0;
+	
+	pts.clear();
+	pts.resize( MAX_PATH_POLYS );
+	
+	Vec3 rc_from = SGRX2RC( from );
+	Vec3 rc_to = SGRX2RC( to );
+	
+	m_navQuery->findPath( frompoly, topoly, &rc_from.x, &rc_to.x, &qfilter, polylist, &numpoly, MAX_PATH_POLYS );
+	if( numpoly )
+	{
+		// In case of partial path, make sure the end point is clamped to the last polygon.
+		Vec3 epos = rc_to;
+		if( polylist[ numpoly - 1 ] != topoly )
+			m_navQuery->closestPointOnPoly( polylist[ numpoly - 1 ], &rc_to.x, &epos.x, NULL );
+		
+		if( dtStatusSucceed( m_navQuery->findStraightPath( &rc_from.x, &epos.x,
+			polylist, numpoly, &pts[0].x, NULL, NULL, &numpoints, MAX_PATH_POLYS, 0 ) ) )
+		{
+			pts.resize( numpoints );
+			for( size_t i = 0; i < pts.size(); ++i )
+				pts[ i ] = RC2SGRX( pts[ i ] );
+			return true;
+		}
+		pts.clear();
+	}
+	return false;
+}
+
+bool SGRX_Pathfinder::FindPath( const Vec3& from, const Vec3& to, Array< Vec3 >& pts )
+{
+	Vec3 fxfrom = from, fxto = to;
+	uint64_t pfrom = FindPoly( from, &fxfrom );
+	if( !pfrom )
+		return false;
+	uint64_t pto = FindPoly( to, &fxto );
+	if( !pto )
+		return false;
+	return FindPath( fxfrom, pfrom, fxto, pto, pts );
 }
 
 void SGRX_Pathfinder::DebugDraw()

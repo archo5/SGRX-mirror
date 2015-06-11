@@ -805,7 +805,7 @@ void ltr_Scene::DoWork_LMRender_Inner_Point( size_t i, dw_lmrender_data* data )
 			sample2light /= dist;
 		float f_dist = pow( 1 - TMIN( 1.0f, dist / light.range ), light.power );
 		float f_ndotl = TMAX( 0.0f, Vec3Dot( sample2light, SN ) );
-		if( f_dist * f_ndotl < SMALL_FLOAT )
+		if( f_dist * f_ndotl <= 0 )
 			return; // continue;
 		float f_vistest = VisibilityTest( SP, &light );
 		mi->m_lightmap[ i ] += light.color_rgb * ( f_dist * f_ndotl * f_vistest );
@@ -834,7 +834,7 @@ void ltr_Scene::DoWork_LMRender_Inner_Spot( size_t i, dw_lmrender_data* data )
 		float angle = acosf( TMIN( 1.0f, Vec3Dot( sample2light, -light.direction ) ) );
 		float f_dir = TMAX( 0.0f, TMIN( 1.0f, ( angle - angle_out_rad ) / angle_diff ) );
 		f_dir = pow( f_dir, light.spot_curve );
-		if( f_dist * f_ndotl * f_dir < SMALL_FLOAT )
+		if( f_dist * f_ndotl * f_dir <= 0 )
 			return; // continue;
 		float f_vistest = VisibilityTest( SP, &light );
 		mi->m_lightmap[ i ] += light.color_rgb * ( f_dist * f_ndotl * f_dir * f_vistest );

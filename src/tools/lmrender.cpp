@@ -194,8 +194,8 @@ int main( int argc, char* argv[] )
 	}
 	
 	StringView cwd = StringView( input_file ).up_to_last( "/" );
-	LOG << "current directory: " << cwd << StringView( input_file ) << StringView( input_file ).find_last_at( "/" );
-	if( !CWDSet( cwd ) )
+//	LOG << "current directory: " << cwd << StringView( input_file ) << StringView( input_file ).find_last_at( "/" );
+	if( cwd && !CWDSet( cwd ) )
 	{
 		perror( "failed to change current directory" );
 		return 1;

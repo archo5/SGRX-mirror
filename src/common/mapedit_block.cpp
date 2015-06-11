@@ -549,7 +549,8 @@ void EdBlock::RegenerateMesh()
 
 LevelCache::Vertex EdBlock::_MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy )
 {
-	LevelCache::Vertex V = { { vpos.x + position.x, vpos.y + position.y, z + position.z }, { 0, 0, 1 }, 0xffffffff, 0, 0, 0, 0 };
+	Vec3 nrm = -Vec3Cross( tgx, tgy ).Normalized();
+	LevelCache::Vertex V = { { vpos.x + position.x, vpos.y + position.y, z + position.z }, nrm, 0xffffffff, 0, 0, 0, 0 };
 	
 	float tdx = Vec3Dot( V.pos, tgx ), tdy = Vec3Dot( V.pos, tgy );
 	Vec2 tx = V2( tdx, tdy );

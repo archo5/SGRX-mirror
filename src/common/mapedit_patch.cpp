@@ -284,10 +284,27 @@ void EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& 
 	{
 		for( int x = 0; x < (int) xsize; ++x )
 		{
+			Vec3 xnrm, ynrm;
+			if( x == 0 )
+				xnrm = vertices[ 1 + y * MAX_PATCH_WIDTH ].pos - vertices[ y * MAX_PATCH_WIDTH ].pos;
+			else if( x == xsize - 1 )
+				xnrm = vertices[ x + y * MAX_PATCH_WIDTH ].pos - vertices[ x - 1 + y * MAX_PATCH_WIDTH ].pos;
+			else
+				xnrm = vertices[ x + 1 + y * MAX_PATCH_WIDTH ].pos - vertices[ x - 1 + y * MAX_PATCH_WIDTH ].pos;
+			
+			if( y == 0 )
+				ynrm = vertices[ x + 1 * MAX_PATCH_WIDTH ].pos - vertices[ x + y * MAX_PATCH_WIDTH ].pos;
+			else if( y == ysize - 1 )
+				ynrm = vertices[ x + y * MAX_PATCH_WIDTH ].pos - vertices[ x + (y - 1) * MAX_PATCH_WIDTH ].pos;
+			else
+				ynrm = vertices[ x + (y + 1) * MAX_PATCH_WIDTH ].pos - vertices[ x + (y - 1) * MAX_PATCH_WIDTH ].pos;
+			
+			Vec3 nrm = -Vec3Cross( xnrm, ynrm ).Normalized();
+			
 			EdPatchVtx& V = vertices[ x + y * MAX_PATCH_WIDTH ];
 			Vec2 LMV = lmverts[ x + y * MAX_PATCH_WIDTH ] * total_xy_length;
 			Vec2 tx = V.tex[ layer ];
-			LCVertex vert = { V.pos + position, V3(0,0,1), V.col[ layer ], tx.x, tx.y, LMV.x, LMV.y };
+			LCVertex vert = { V.pos + position, nrm, V.col[ layer ], tx.x, tx.y, LMV.x, LMV.y };
 			outverts.push_back( vert );
 		}
 	}
