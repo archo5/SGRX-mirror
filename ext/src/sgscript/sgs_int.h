@@ -225,6 +225,8 @@ sgs_CompFunc;
 
 
 /* - bytecode generator */
+SGS_APIFUNC sgs_iFunc* sgsBC_ConvertFunc( SGS_CTX, sgs_CompFunc* nf,
+	const char* funcname, size_t fnsize, sgs_LineNum lnum );
 SGS_APIFUNC sgs_CompFunc* sgsBC_Generate( SGS_CTX, sgs_FTNode* tree );
 SGS_APIFUNC void sgsBC_Dump( sgs_CompFunc* func );
 SGS_APIFUNC void sgsBC_DumpEx( const char* constptr, size_t constsize,
@@ -390,8 +392,8 @@ struct _sgs_iFunc
 	uint8_t numclsr;
 	sgs_LineNum linenum;
 	sgs_LineNum* lineinfo;
-	sgs_MemBuf funcname;
-	sgs_MemBuf filename;
+	sgs_iStr* sfuncname;
+	sgs_iStr* sfilename;
 };
 
 SGS_CASSERT( sizeof(sgs_Variable) % 4 == 0, variable_object_chaining_issue );
@@ -413,6 +415,11 @@ struct _sgs_Closure
 };
 
 
+typedef struct _sgs_ShCtx sgs_ShCtx;
+#define SGS_SHCTX sgs_ShCtx* S
+#define SGS_SHCTX_USE SGS_SHCTX = C->shared
+
+
 /* VM interface */
 void sgsVM_VarCreateString( SGS_CTX, sgs_Variable* out, const char* str, sgs_SizeVal len );
 void sgsVM_VarDestroyObject( SGS_CTX, sgs_VarObj* O );
@@ -422,9 +429,7 @@ void sgsVM_VarDump( const sgs_Variable* var );
 
 void sgsVM_StackDump( SGS_CTX );
 
-int sgsVM_ExecFn( SGS_CTX, int numtmp, void* code, size_t codesize,
-	void* data, size_t datasize, int clean, uint16_t* T );
-int sgsVM_VarCall( SGS_CTX, sgs_Variable* var, int args, int clsr, int expect, int gotthis );
+int sgsVM_VarCall( SGS_CTX, sgs_Variable* var, int args, int clsr, int* outrvc, int gotthis );
 void sgsVM_PushClosures( SGS_CTX, sgs_Closure** cls, int num );
 
 
@@ -476,9 +481,45 @@ sgs_ObjPoolItem;
 
 typedef sgs_Variable* sgs_VarPtr;
 
-struct _sgs_Context
+struct _sgs_ShCtx
 {
 	uint32_t      version;
+	sgs_Context*  state_list;
+	int32_t       statecount;
+	
+	/* script file system */
+	sgs_ScriptFSFunc sfs_fn;
+	void*         sfs_ctx;
+	
+	/* memory */
+	sgs_MemFunc   memfunc;
+	void*         mfuserdata;
+	size_t        memsize;
+	size_t        numallocs;
+	size_t        numfrees;
+	size_t        numblocks;
+	
+	/* > object info */
+	sgs_VarObj*   objs;
+	int32_t       objcount;
+	/* >> object GC */
+	uint8_t       redblue;
+	uint16_t      gcrun;
+	/* >> object pool */
+	sgs_ObjPoolItem* objpool_data;
+	int32_t       objpool_size;
+	
+	/* tables / cache */
+	sgs_VHTable   typetable; /* type interface table */
+	sgs_VHTable   stringtable; /* string constant caching hash table */
+	sgs_VHTable   ifacetable; /* interface generator => object table */
+};
+
+struct _sgs_Context
+{
+	sgs_ShCtx*    shared;
+	sgs_Context*  prev;
+	sgs_Context*  next;
 	
 	/* output */
 	sgs_OutputFunc output_fn; /* output function */
@@ -497,18 +538,6 @@ struct _sgs_Context
 	/* hook */
 	sgs_HookFunc  hook_fn;
 	void*         hook_ctx;
-	
-	/* script file system */
-	sgs_ScriptFSFunc sfs_fn;
-	void*         sfs_ctx;
-	
-	/* memory */
-	sgs_MemFunc   memfunc;
-	void*         mfuserdata;
-	size_t        memsize;
-	size_t        numallocs;
-	size_t        numfrees;
-	size_t        numblocks;
 	
 	/* compilation */
 	uint32_t      state;
@@ -537,23 +566,6 @@ struct _sgs_Context
 	
 	/* > _G (global variable dictionary) */
 	sgs_VarObj*   _G;
-	
-	/* > object info */
-	sgs_VarObj*   objs;
-	int32_t       objcount;
-	/* >> object GC */
-	uint8_t       redblue;
-	sgs_VarPtr    gclist;
-	uint16_t      gclist_size;
-	uint16_t      gcrun;
-	/* >> object pool */
-	sgs_ObjPoolItem* objpool_data;
-	int32_t       objpool_size;
-	
-	/* tables / cache */
-	sgs_VHTable   typetable; /* type interface table */
-	sgs_VHTable   stringtable; /* string constant caching hash table */
-	sgs_VHTable   ifacetable; /* interface generator => object table */
 };
 
 #define SGS_STACKFRAMESIZE ((sgs_StkIdx)(C->stack_top - C->stack_off))

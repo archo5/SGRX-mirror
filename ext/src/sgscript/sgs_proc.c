@@ -81,13 +81,13 @@ static int _call_metamethod( SGS_CTX, sgs_VarObj* obj, const char* name, size_t 
 - return the index of the first found item with the right size or just after the right size
 - if all sizes are less than specified, return the size of the object pool
 */
-static int32_t objpool_binary_search( SGS_CTX, uint32_t appsize )
+static int32_t objpool_binary_search( SGS_SHCTX, uint32_t appsize )
 {
-	int32_t pmin = 0, pmax = C->objpool_size - 1;
+	int32_t pmin = 0, pmax = S->objpool_size - 1;
 	while( pmin <= pmax )
 	{
 		int32_t pos = ( pmax + pmin ) / 2;
-		uint32_t ssize = C->objpool_data[ pos ].appsize;
+		uint32_t ssize = S->objpool_data[ pos ].appsize;
 		if( ssize == appsize )
 			return pos;
 		else if( ssize < appsize )
@@ -100,17 +100,18 @@ static int32_t objpool_binary_search( SGS_CTX, uint32_t appsize )
 
 static void var_free_object( SGS_CTX, sgs_VarObj* O )
 {
+	SGS_SHCTX_USE;
 	if( O->is_iface )
 	{
-		sgs_VHTVar* p = C->ifacetable.vars;
-		sgs_VHTVar* pend = p + C->ifacetable.size;
+		sgs_VHTVar* p = S->ifacetable.vars;
+		sgs_VHTVar* pend = p + S->ifacetable.size;
 		while( p < pend )
 		{
 			if( p->val.type == SGS_VT_OBJECT && p->val.data.O == O )
 			{
 				sgs_Variable K = p->key;
 				O->refcount = 2;
-				sgs_vht_unset( &C->ifacetable, C, &K );
+				sgs_vht_unset( &S->ifacetable, C, &K );
 				break;
 			}
 			p++;
@@ -118,36 +119,36 @@ static void var_free_object( SGS_CTX, sgs_VarObj* O )
 	}
 	if( O->prev ) O->prev->next = O->next;
 	if( O->next ) O->next->prev = O->prev;
-	if( C->objs == O )
-		C->objs = O->next;
+	if( S->objs == O )
+		S->objs = O->next;
 #if SGS_OBJPOOL_SIZE > 0
 	if( O->appsize <= SGS_OBJPOOL_MAX_APPMEM )
 	{
 		int32_t pos = 0;
-		if( C->objpool_size )
+		if( S->objpool_size )
 		{
-			pos = objpool_binary_search( C, O->appsize );
-			if( C->objpool_size < SGS_OBJPOOL_SIZE && pos < C->objpool_size )
+			pos = objpool_binary_search( S, O->appsize );
+			if( S->objpool_size < SGS_OBJPOOL_SIZE && pos < S->objpool_size )
 			{
-				memmove( C->objpool_data + pos + 1, C->objpool_data + pos,
-					sizeof( sgs_ObjPoolItem ) * (size_t) ( C->objpool_size - pos ) );
+				memmove( S->objpool_data + pos + 1, S->objpool_data + pos,
+					sizeof( sgs_ObjPoolItem ) * (size_t) ( S->objpool_size - pos ) );
 			}
 			if( pos >= SGS_OBJPOOL_SIZE )
 				pos = SGS_OBJPOOL_SIZE - 1;
-			if( C->objpool_size >= SGS_OBJPOOL_SIZE )
-				sgs_Dealloc( C->objpool_data[ pos ].obj );
+			if( S->objpool_size >= SGS_OBJPOOL_SIZE )
+				sgs_Dealloc( S->objpool_data[ pos ].obj );
 		}
-		C->objpool_data[ pos ].obj = O;
-		C->objpool_data[ pos ].appsize = O->appsize;
-		if( C->objpool_size < SGS_OBJPOOL_SIZE )
-			C->objpool_size++;
+		S->objpool_data[ pos ].obj = O;
+		S->objpool_data[ pos ].appsize = O->appsize;
+		if( S->objpool_size < SGS_OBJPOOL_SIZE )
+			S->objpool_size++;
 	}
 	else
 		sgs_Dealloc( O );
 #else
 	sgs_Dealloc( O );
 #endif
-	C->objcount--;
+	S->objcount--;
 }
 
 static void var_destruct_object( SGS_CTX, sgs_VarObj* O )
@@ -174,34 +175,35 @@ void sgsVM_VarDestroyObject( SGS_CTX, sgs_VarObj* O )
 	var_free_object( C, O );
 }
 
-static void var_destroy_string( SGS_CTX, sgs_iStr* S )
+static void var_destroy_string( SGS_CTX, sgs_iStr* str )
 {
 #if SGS_STRINGTABLE_MAXLEN >= 0
-	if( S->size <= SGS_STRINGTABLE_MAXLEN )
+	if( str->size <= SGS_STRINGTABLE_MAXLEN )
 	{
+		SGS_SHCTX_USE;
 		sgs_VHTVar* p;
 		sgs_Variable tmp;
 		tmp.type = SGS_VT_STRING;
-		tmp.data.S = S;
-		p = sgs_vht_get( &C->stringtable, &tmp );
+		tmp.data.S = str;
+		p = sgs_vht_get( &S->stringtable, &tmp );
 		if( p )
 		{
 #  if SGS_DEBUG && SGS_DEBUG_EXTRA
-			if( p->key.data.S != S )
+			if( p->key.data.S != str )
 			{
 				printf( "WATWATWAT: (%d) |my>| [%d,%d] %d,%s |st>| [%d,%d] %d,%s\n",
-					(int) sgs_HashFunc( sgs_str_cstr( S ), S->size ),
-					(int) S->refcount, (int) S->hash, (int) S->size, sgs_str_cstr( S ),
+					(int) sgs_HashFunc( sgs_str_cstr( str ), str->size ),
+					(int) str->refcount, (int) str->hash, (int) str->size, sgs_str_cstr( str ),
 					(int) p->key.data.S->refcount, (int) p->key.data.S->hash, (int) p->key.data.S->size, sgs_str_cstr( p->key.data.S ) );
 			}
 #  endif
-			sgs_BreakIf( p->key.data.S != S );
-			S->refcount = 2; /* the 'less code' way to avoid double free */
-			sgs_vht_unset( &C->stringtable, C, &tmp );
+			sgs_BreakIf( p->key.data.S != str );
+			str->refcount = 2; /* the 'less code' way to avoid double free */
+			sgs_vht_unset( &S->stringtable, C, &tmp );
 		}
 	}
 #endif
-	sgs_Dealloc( S );
+	sgs_Dealloc( str );
 }
 
 static void var_release( SGS_CTX, sgs_VarPtr p );
@@ -214,8 +216,8 @@ static void var_destroy_func( SGS_CTX, sgs_iFunc* F )
 		var++;
 	}
 	sgs_Dealloc( F->lineinfo );
-	sgs_membuf_destroy( &F->funcname, C );
-	sgs_membuf_destroy( &F->filename, C );
+	if( --F->sfuncname->refcount <= 0 ) var_destroy_string( C, F->sfuncname );
+	if( --F->sfilename->refcount <= 0 ) var_destroy_string( C, F->sfilename );
 	sgs_Dealloc( F );
 }
 
@@ -257,6 +259,7 @@ void sgsVM_VarCreateString( SGS_CTX, sgs_Variable* out, const char* str, sgs_Siz
 {
 	sgs_Hash hash;
 	uint32_t ulen;
+	SGS_SHCTX_USE;
 	sgs_BreakIf( !str && len );
 	
 	ulen = (uint32_t) len; /* WP: string limit */
@@ -265,7 +268,7 @@ void sgsVM_VarCreateString( SGS_CTX, sgs_Variable* out, const char* str, sgs_Siz
 #if SGS_STRINGTABLE_MAXLEN >= 0
 	if( ulen <= SGS_STRINGTABLE_MAXLEN )
 	{
-		sgs_VHTVar* var = sgs_vht_get_str( &C->stringtable, str, ulen, hash );
+		sgs_VHTVar* var = sgs_vht_get_str( &S->stringtable, str, ulen, hash );
 		if( var )
 		{
 			*out = var->key;
@@ -281,7 +284,7 @@ void sgsVM_VarCreateString( SGS_CTX, sgs_Variable* out, const char* str, sgs_Siz
 	
 	if( (int32_t) ulen <= SGS_STRINGTABLE_MAXLEN )
 	{
-		sgs_vht_set( &C->stringtable, C, out, NULL );
+		sgs_vht_set( &S->stringtable, C, out, NULL );
 		out->data.S->refcount--;
 	}
 }
@@ -300,6 +303,7 @@ static void var_finalize_str( SGS_CTX, sgs_Variable* out )
 	char* str;
 	sgs_Hash hash;
 	uint32_t ulen;
+	SGS_SHCTX_USE;
 	
 	str = sgs_str_cstr( out->data.S );
 	ulen = out->data.S->size;
@@ -308,7 +312,7 @@ static void var_finalize_str( SGS_CTX, sgs_Variable* out )
 #if SGS_STRINGTABLE_MAXLEN >= 0
 	if( ulen <= SGS_STRINGTABLE_MAXLEN )
 	{
-		sgs_VHTVar* var = sgs_vht_get_str( &C->stringtable, str, ulen, hash );
+		sgs_VHTVar* var = sgs_vht_get_str( &S->stringtable, str, ulen, hash );
 		if( var )
 		{
 			sgs_Dealloc( out->data.S ); /* avoid querying the string table here */
@@ -323,26 +327,27 @@ static void var_finalize_str( SGS_CTX, sgs_Variable* out )
 	
 	if( (int32_t) ulen <= SGS_STRINGTABLE_MAXLEN )
 	{
-		sgs_vht_set( &C->stringtable, C, out, NULL );
+		sgs_vht_set( &S->stringtable, C, out, NULL );
 		out->data.S->refcount--;
 	}
 }
 
 static void var_create_obj( SGS_CTX, sgs_Variable* out, void* data, sgs_ObjInterface* iface, uint32_t xbytes )
 {
+	SGS_SHCTX_USE;
 	sgs_VarObj* obj = NULL;
 #if SGS_OBJPOOL_SIZE > 0
 	if( xbytes <= SGS_OBJPOOL_MAX_APPMEM )
 	{
-		int32_t pos = objpool_binary_search( C, xbytes );
-		if( pos < C->objpool_size && C->objpool_data[ pos ].appsize == xbytes )
+		int32_t pos = objpool_binary_search( S, xbytes );
+		if( pos < S->objpool_size && S->objpool_data[ pos ].appsize == xbytes )
 		{
-			obj = C->objpool_data[ pos ].obj;
-			C->objpool_size--;
-			if( pos < C->objpool_size )
+			obj = S->objpool_data[ pos ].obj;
+			S->objpool_size--;
+			if( pos < S->objpool_size )
 			{
-				memmove( C->objpool_data + pos, C->objpool_data + pos + 1,
-					sizeof( sgs_ObjPoolItem ) * (size_t) ( C->objpool_size - pos ) );
+				memmove( S->objpool_data + pos, S->objpool_data + pos + 1,
+					sizeof( sgs_ObjPoolItem ) * (size_t) ( S->objpool_size - pos ) );
 			}
 		}
 	}
@@ -354,8 +359,8 @@ static void var_create_obj( SGS_CTX, sgs_Variable* out, void* data, sgs_ObjInter
 	if( xbytes )
 		obj->data = ((char*)obj) + sizeof( sgs_VarObj );
 	obj->iface = iface;
-	obj->redblue = C->redblue;
-	obj->next = C->objs;
+	obj->redblue = S->redblue;
+	obj->next = S->objs;
 	obj->prev = NULL;
 	obj->refcount = 1;
 	if( obj->next ) /* ! */
@@ -364,8 +369,8 @@ static void var_create_obj( SGS_CTX, sgs_Variable* out, void* data, sgs_ObjInter
 	obj->mm_enable = SGS_FALSE;
 	obj->in_setindex = SGS_FALSE;
 	obj->is_iface = SGS_FALSE;
-	C->objcount++;
-	C->objs = obj;
+	S->objcount++;
+	S->objs = obj;
 	
 	out->type = SGS_VT_OBJECT;
 	out->data.O = obj;
@@ -397,16 +402,27 @@ static int vm_frame_push( SGS_CTX, sgs_Variable* func, uint16_t* T, sgs_instr_t*
 			C->sf_cached = F;
 	}
 	C->sf_count++;
-	F->func = func;
+	if( func )
+	{
+		F->func = *func;
+		VAR_ACQUIRE( &F->func );
+	}
+	else
+		sgs_InitNull( &F->func );
 	F->code = code;
 	F->iptr = code;
 	F->lptr = code;
 	F->iend = code + icnt;
+	F->cptr = NULL;
+	F->constcount = 0;
 	if( func && func->type == SGS_VT_FUNC )
 	{
 		sgs_iFunc* fn = func->data.F;
 		F->lptr = F->iptr = F->code = sgs_func_bytecode( fn );
 		F->iend = F->iptr + ( ( fn->size - fn->instr_off ) / sizeof( sgs_instr_t ) );
+		/* WP: const limit */
+		F->constcount = (int32_t) ( fn->instr_off / sizeof( sgs_Variable* ) );
+		F->cptr = sgs_func_consts( fn );
 	}
 	F->lntable = T;
 	F->nfname = NULL;
@@ -414,6 +430,7 @@ static int vm_frame_push( SGS_CTX, sgs_Variable* func, uint16_t* T, sgs_instr_t*
 	F->next = NULL;
 	F->prev = C->sf_last;
 	F->errsup = 0;
+	F->flags = 0;
 	if( C->sf_last )
 	{
 		F->errsup = C->sf_last->errsup;
@@ -432,6 +449,7 @@ static int vm_frame_push( SGS_CTX, sgs_Variable* func, uint16_t* T, sgs_instr_t*
 static void vm_frame_pop( SGS_CTX )
 {
 	sgs_StackFrame* F = C->sf_last;
+	VAR_RELEASE( &F->func );
 	
 	if( C->hook_fn )
 		C->hook_fn( C->hook_ctx, C, SGS_HOOK_EXIT );
@@ -636,6 +654,15 @@ static void stk_pop2( SGS_CTX )
 	VAR_RELEASE( C->stack_top );
 	VAR_RELEASE( C->stack_top + 1 );
 }
+
+static void stk_deltasize( SGS_CTX, int diff )
+{
+	if( diff < 0 )
+		stk_pop( C, -diff );
+	else
+		stk_push_nulls( C, diff );
+}
+#define stk_resize_expected( C, expect, rvc ) stk_deltasize( C, expect - rvc )
 
 static void varr_reverse( sgs_Variable* beg, sgs_Variable* end )
 {
@@ -1266,8 +1293,9 @@ static SGSRESULT vm_gettype( SGS_CTX, StkIdx item )
 
 static SGSRESULT vm_gcmark( SGS_CTX, sgs_Variable* var )
 {
+	SGS_SHCTX_USE;
 	if( var->type != SGS_VT_OBJECT ||
-		var->data.O->redblue == C->redblue ||
+		var->data.O->redblue == S->redblue ||
 		!var->data.O->iface->gcmark )
 		return SGS_SUCCESS;
 	else
@@ -1275,7 +1303,7 @@ static SGSRESULT vm_gcmark( SGS_CTX, sgs_Variable* var )
 		int ret;
 		sgs_VarObj* O = var->data.O;
 		_STACK_PREPARE;
-		O->redblue = C->redblue;
+		O->redblue = S->redblue;
 		_STACK_PROTECT;
 		ret = O->iface->gcmark( C, O );
 		_STACK_UNPROTECT;
@@ -1294,7 +1322,7 @@ static SGSRESULT vm_gcmark( SGS_CTX, sgs_Variable* var )
 
 int sgs_specfn_call( SGS_CTX )
 {
-	int ret;
+	int ret, rvc = 0;
 	int method_call = sgs_Method( C );
 	SGSFN( "call" );
 	if( !sgs_IsCallable( C, 0 ) )
@@ -1308,16 +1336,16 @@ int sgs_specfn_call( SGS_CTX )
 	}
 	
 	sgs_PushItem( C, 0 );
-	ret = sgs_ThisCall( C, sgs_StackSize( C ) - 3, C->sf_last->expected );
+	ret = sgs_XThisCall( C, sgs_StackSize( C ) - 3, &rvc );
 	if( SGS_FAILED( ret ) )
 		return sgs_Msg( C, SGS_WARNING, "failed with error %d (%s)", ret,
 			sgs_CodeString( SGS_CODE_ER, ret ) );
-	return C->sf_last->expected;
+	return rvc;
 }
 
 int sgs_specfn_apply( SGS_CTX )
 {
-	int ret;
+	int ret, rvc = 0;
 	int method_call = sgs_Method( C );
 	sgs_SizeVal i, asize;
 	SGSFN( "apply" );
@@ -1336,11 +1364,11 @@ int sgs_specfn_apply( SGS_CTX )
 	for( i = 0; i < asize; ++i )
 		sgs_PushNumIndex( C, 2, i );
 	sgs_PushItem( C, 0 );
-	ret = sgs_ThisCall( C, asize, C->sf_last->expected );
+	ret = sgs_XThisCall( C, asize, &rvc );
 	if( SGS_FAILED( ret ) )
 		return sgs_Msg( C, SGS_WARNING, "failed with error %d (%s)", ret,
 			sgs_CodeString( SGS_CODE_ER, ret ) );
-	return C->sf_last->expected;
+	return rvc;
 }
 
 
@@ -2419,7 +2447,7 @@ static void vm_make_closure( SGS_CTX, int args, sgs_Variable* func, int16_t outp
 }
 
 
-static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount );
+static int vm_exec( SGS_CTX );
 
 
 /*
@@ -2433,7 +2461,7 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount );
 	- return value count is checked against the active range at the moment of return
 	- upon return, this function replaces [this][args] with [expect]
 */
-static int vm_call( SGS_CTX, int args, int clsr, int gotthis, int expect, sgs_Variable* func )
+static int vm_call( SGS_CTX, int args, int clsr, int gotthis, int* outrvc, sgs_Variable* func, int can_reenter )
 {
 	sgs_Variable V = *func;
 	ptrdiff_t stkcallbase,
@@ -2451,14 +2479,14 @@ static int vm_call( SGS_CTX, int args, int clsr, int gotthis, int expect, sgs_Va
 	
 	if( allowed )
 	{
-		/* WP (x2): stack size limit */
+		/* WP (x4): stack size limit */
 		C->sf_last->argbeg = (StkIdx) stkcallbase;
 		C->sf_last->argend = (StkIdx) ( C->stack_top - C->stack_base );
+		C->sf_last->stkoff = (StkIdx) stkoff;
+		C->sf_last->clsoff = (StkIdx) clsoff;
 		/* WP: argument count limit */
 		C->sf_last->argcount = (uint8_t) args;
 		C->sf_last->inexp = (uint8_t) args;
-		/* WP: returned value count limit */
-		C->sf_last->expected = (uint8_t) expect;
 		C->sf_last->flags = gotthis ? SGS_SF_METHOD : 0;
 		
 		if( V.type == SGS_VT_CFUNC )
@@ -2514,9 +2542,19 @@ static int vm_call( SGS_CTX, int args, int clsr, int gotthis, int expect, sgs_Va
 
 			if( F->gotthis && gotthis ) C->stack_off--;
 			{
-				/* WP: const limit */
-				sgs_rcpos_t constcnt = (sgs_rcpos_t) ( F->instr_off / sizeof( sgs_Variable* ) );
-				rvc = vm_exec( C, sgs_func_consts( F ), constcnt );
+				if( can_reenter )
+				{
+					C->sf_last->flags |= SGS_SF_REENTER;
+					return -2;
+				}
+				
+				rvc = vm_exec( C );
+				if( C->state & SGS_STATE_PAUSED )
+				{
+					if( outrvc )
+						*outrvc = rvc;
+					return ret;
+				}
 			}
 			if( F->gotthis && gotthis ) C->stack_off++;
 		}
@@ -2540,8 +2578,8 @@ static int vm_call( SGS_CTX, int args, int clsr, int gotthis, int expect, sgs_Va
 						sgs_InsertVariable( C, 0, &V );
 						gotthis = 1;
 					}
-					if( vm_call( C, args, clsr, gotthis, expect, &objfunc ) )
-						rvc = expect;
+					if( vm_call( C, args, clsr, gotthis, &rvc, &objfunc, 0 ) )
+						;
 					else
 						rvc = SGS_EINPROC;
 					sgs_Release( C, &objfunc );
@@ -2591,13 +2629,52 @@ static int vm_call( SGS_CTX, int args, int clsr, int gotthis, int expect, sgs_Va
 		vm_frame_pop( C );
 	}
 	
+	if( outrvc )
+		*outrvc = rvc;
 	C->num_last_returned = rvc;
-	if( rvc > expect )
-		stk_pop( C, rvc - expect );
-	else
-		stk_push_nulls( C, expect - rvc );
 	
 	return ret;
+}
+
+static void vm_postcall( SGS_CTX, int rvc )
+{
+	sgs_StackFrame* sf = C->sf_last;
+	int expect;
+	int gotthis = sf->flags & SGS_SF_METHOD ? 1 : 0;
+	sgs_StkIdx stkcallbase = sf->argbeg;
+	sgs_StkIdx stkoff = sf->stkoff;
+	sgs_StkIdx clsoff = sf->clsoff;
+	sgs_StkIdx args_from = sf->argsfrom;
+	sgs_iFunc* F = sf->func.data.F; // assuming reentrance only applies to SGS functions
+	
+	if( F->gotthis && gotthis ) C->stack_off++;
+	
+	/* remove all stack items before the returned ones */
+	stk_clean( C, C->stack_base + stkcallbase, C->stack_top - rvc );
+	C->stack_off = C->stack_base + stkoff;
+	
+	/* remove all closures used in the function */
+	clstk_clean( C, C->clstk_off, C->clstk_top );
+	C->clstk_off = C->clstk_base + clsoff;
+	
+	vm_frame_pop( C );
+	C->num_last_returned = rvc;
+	if( C->sf_last )
+	{
+		sf = C->sf_last; /* current function change */
+		
+		sgs_BreakIf( SGS_INSTR_GET_OP( *sf->iptr ) != SGS_SI_CALL );
+		expect = SGS_INSTR_GET_A( *sf->iptr );
+		stk_resize_expected( C, expect, rvc );
+		
+		if( expect )
+		{
+			int i;
+			for( i = expect - 1; i >= 0; --i )
+				stk_setlvar( C, args_from + i, C->stack_top - expect + i );
+			stk_pop( C, expect );
+		}
+	}
 }
 
 
@@ -2612,43 +2689,45 @@ static SGS_INLINE sgs_Variable* const_getvar( sgs_Variable* consts, sgs_rcpos_t 
 /*
 	Main VM execution loop
 */
-static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
+static int vm_exec( SGS_CTX )
 {
-	sgs_StackFrame* SF = C->sf_last;
-	int32_t ret = 0;
-	sgs_Variable* cptr = consts;
-	const sgs_instr_t* pend = SF->iend;
-
+	sgs_StackFrame* SF;
+	int32_t ret;
+	
 #if SGS_DEBUG && SGS_DEBUG_VALIDATE
-	ptrdiff_t stkoff = C->stack_top - C->stack_off;
-#  define RESVAR( v ) ( SGS_CONSTVAR(v) ? const_getvar( cptr, constcount, SGS_CONSTDEC(v) ) : stk_getlpos( C, (v) ) )
+#  define RESVAR( v ) ( SGS_CONSTVAR(v) ? const_getvar( SF->cptr, SF->constcount, SGS_CONSTDEC(v) ) : stk_getlpos( C, (v) ) )
 #else
-#  define RESVAR( v ) ( SGS_CONSTVAR(v) ? ( cptr + SGS_CONSTDEC(v) ) : stk_getlpos( C, (v) ) )
+#  define RESVAR( v ) ( SGS_CONSTVAR(v) ? ( SF->cptr + SGS_CONSTDEC(v) ) : stk_getlpos( C, (v) ) )
 #endif
-	SGS_UNUSED( constcount );
-
-#if SGS_DEBUG && SGS_DEBUG_INSTR
-	{
-		const char *name, *file;
-		sgs_StackFrameInfo( C, SF, &name, &file, NULL );
-		printf( ">>>\n\t'%s' in %s\n>>>\n", name, file );
-	}
-#endif
-
-	while( SF->iptr < pend )
-	{
-		const sgs_instr_t I = *SF->iptr;
+	
 #define pp SF->iptr
+#define pend SF->iend
 #define instr SGS_INSTR_GET_OP(I)
 #define argA SGS_INSTR_GET_A(I)
 #define argB SGS_INSTR_GET_B(I)
 #define argC SGS_INSTR_GET_C(I)
 #define argE SGS_INSTR_GET_E(I)
+	
+restart_loop:
+	SF = C->sf_last;
+	ret = 0;
+	
+#if SGS_DEBUG && SGS_DEBUG_INSTR
+	{
+		const char *name, *file;
+		sgs_StackFrameInfo( C, SF, &name, &file, NULL );
+		printf( ">>>\n\t'%s' in %s @ %p [sz:%d]\n>>>\n", name, file, SF, (int) SGS_STACKFRAMESIZE );
+	}
+#endif
+	
+	while( SF->iptr < pend )
+	{
+		const sgs_instr_t I = *SF->iptr;
 		const sgs_VarPtr p1 = C->stack_off + argA;
 
 #if SGS_DEBUG
 #  if SGS_DEBUG_INSTR
-		printf( "*** [at 0x%04X] %s ***\n", pp - SF->code, sgs_OpNames[ instr ] );
+		printf( "*** [at 0x%04X] %s [sz:%d] ***\n", pp - SF->code, sgs_OpNames[ instr ], (int) SGS_STACKFRAMESIZE );
 #  endif
 #  if SGS_DEBUG_STATE
 		sgsVM_StackDump( C );
@@ -2684,8 +2763,6 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
 		case SGS_SI_RETN:
 		{
 			ret = argA;
-			sgs_BreakIf( ( C->stack_top - C->stack_off ) - stkoff < ret &&
-				"internal error: stack was corrupted" );
 			pp = pend;
 			break;
 		}
@@ -2726,7 +2803,7 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
 		case SGS_SI_CALL:
 		{
 			sgs_Variable fnvar = *stk_getlpos( C, argC );
-			int i, expect = argA, args_from = argB & 0xff, args_to = argC;
+			int i, rvc = 0, expect = argA, args_from = argB & 0xff, args_to = argC;
 			int gotthis = ( argB & 0x100 ) != 0;
 			
 			stk_makespace( C, args_to - args_from );
@@ -2736,7 +2813,18 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
 				VAR_ACQUIRE( C->stack_off + i );
 			}
 			
-			vm_call( C, args_to - args_from - gotthis, 0, gotthis, expect, &fnvar );
+			if( vm_call( C, args_to - args_from - gotthis, 0, gotthis, &rvc, &fnvar, 1 ) == -2 )
+			{
+				C->sf_last->argsfrom = args_from;
+				goto restart_loop;
+			}
+			
+			if( C->state & SGS_STATE_PAUSED )
+			{
+				return rvc;
+			}
+			
+			stk_resize_expected( C, expect, rvc );
 			
 			if( expect )
 			{
@@ -2744,6 +2832,7 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
 					stk_setlvar( C, args_from + i, C->stack_top - expect + i );
 				stk_pop( C, expect );
 			}
+			
 			break;
 		}
 
@@ -2766,7 +2855,7 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
 #define a1 argA
 #define ARGS_2 const sgs_VarPtr p2 = RESVAR( argB );
 #define ARGS_3 const sgs_VarPtr p2 = RESVAR( argB ), p3 = RESVAR( argC );
-		case SGS_SI_LOADCONST: { stk_setlvar( C, argC, cptr + argE ); break; }
+		case SGS_SI_LOADCONST: { stk_setlvar( C, argC, SF->cptr + argE ); break; }
 		case SGS_SI_GETVAR: { ARGS_2; sgsSTD_GlobalGet( C, p1, p2 ); break; }
 		case SGS_SI_SETVAR: { ARGS_3; sgsSTD_GlobalSet( C, p2, p3 ); break; }
 		case SGS_SI_GETPROP: { ARGS_3; vm_getprop_safe( C, a1, p2, p3, SGS_TRUE ); break; }
@@ -2832,13 +2921,13 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
 #undef ARGS_3
 #undef a1
 #undef RESVAR
+#undef pend
 #undef pp
 
 		default:
 			sgs_Msg( C, SGS_ERROR, "Illegal instruction executed: 0x%08X", I );
 			break;
 		}
-		sgs_BreakIf( SGS_STACKFRAMESIZE < stkoff );
 		
 		SF->lptr = ++SF->iptr;
 	}
@@ -2847,15 +2936,57 @@ static int vm_exec( SGS_CTX, sgs_Variable* consts, sgs_rcpos_t constcount )
 	/* TODO restore memcheck */
 	sgsVM_StackDump( C );
 #endif
+	
+	if( SF->flags & SGS_SF_REENTER )
+	{
+		vm_postcall( C, ret );
+		C->sf_last->lptr = ++C->sf_last->iptr;
+		goto restart_loop;
+	}
+	
 	return ret;
 }
 
 
 /* INTERNAL INERFACE */
 
+SGSBOOL sgs_ResumeStateRet( SGS_CTX, int args, int* outrvc )
+{
+	int rvc = 0;
+	if( !( C->state & SGS_STATE_PAUSED ) )
+		return SGS_FALSE; /* already running, may not return the expected data */
+	sgs_BreakIf( C->sf_last == NULL );
+	
+	/* TODO validate state corruption */
+	sgs_BreakIf( SGS_INSTR_GET_OP( *C->sf_last->iptr ) != SGS_SI_CALL );
+	{
+		int i, expect = SGS_INSTR_GET_A( *C->sf_last->iptr );
+		int args_from = SGS_INSTR_GET_B( *C->sf_last->iptr ) & 0xff;
+		stk_resize_expected( C, expect, args );
+		
+		if( expect )
+		{
+			for( i = expect - 1; i >= 0; --i )
+				stk_setlvar( C, args_from + i, C->stack_top - expect + i );
+			stk_pop( C, expect );
+		}
+	}
+	
+	C->sf_last->lptr = ++C->sf_last->iptr;
+	
+	C->state &= ~(uint32_t)SGS_STATE_PAUSED;
+	rvc = vm_exec( C );
+	if( ( C->state & SGS_STATE_PAUSED ) == 0 )
+		vm_postcall( C, rvc );
+	if( outrvc )
+		*outrvc = rvc;
+	
+	return SGS_TRUE;
+}
+
 static size_t funct_size( const sgs_iFunc* f )
 {
-	size_t sz = f->size + f->funcname.mem + f->filename.mem;
+	size_t sz = f->size + sizeof( sgs_iStr ) * 2 + f->sfuncname->size + f->sfilename->size;
 	const sgs_Variable* beg = (const sgs_Variable*) (const void*) sgs_func_c_consts( f );
 	const sgs_Variable* end = (const sgs_Variable*) (const void*) SGS_ASSUME_ALIGNED( sgs_func_c_bytecode( f ), 4 );
 	while( beg < end )
@@ -2914,33 +3045,9 @@ void sgsVM_StackDump( SGS_CTX )
 	printf( "--\n" );
 }
 
-int sgsVM_ExecFn( SGS_CTX, int numtmp, void* code, size_t codesize, void* data, size_t datasize, int clean, uint16_t* T )
+int sgsVM_VarCall( SGS_CTX, sgs_Variable* var, int args, int clsr, int* outrvc, int gotthis )
 {
-	ptrdiff_t stkoff = C->stack_off - C->stack_base;
-	int rvc = 0, allowed;
-	allowed = vm_frame_push( C, NULL, T, (sgs_instr_t*) code, codesize / sizeof( sgs_instr_t ) );
-	stk_push_nulls( C, numtmp );
-	if( allowed )
-	{
-		/* WP: const limit */
-		rvc = vm_exec( C, (sgs_Variable*) data, (sgs_rcpos_t) ( datasize / sizeof( sgs_Variable* ) ) );
-	}
-	C->stack_off = C->stack_base + stkoff;
-	if( clean )
-		stk_pop( C, (StkIdx) ( C->stack_top - C->stack_off ) ); /* WP: stack limit */
-	else
-	{
-		/* keep only returned values */
-		stk_clean( C, C->stack_off, C->stack_top - rvc );
-	}
-	if( allowed )
-		vm_frame_pop( C );
-	return rvc;
-}
-
-int sgsVM_VarCall( SGS_CTX, sgs_Variable* var, int args, int clsr, int expect, int gotthis )
-{
-	return vm_call( C, args, clsr, gotthis, expect, var );
+	return vm_call( C, args, clsr, gotthis, outrvc, var, 0 );
 }
 
 
@@ -3048,6 +3155,12 @@ SGSRESULT sgs_InitMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal numitems )
 SGSONE sgs_PushNull( SGS_CTX )
 {
 	stk_push_null( C );
+	return 1;
+}
+
+SGSONE sgs_PushNulls( SGS_CTX, int count )
+{
+	stk_push_nulls( C, count );
 	return 1;
 }
 
@@ -4257,14 +4370,15 @@ StkIdx sgs_StackSize( SGS_CTX )
 
 SGSRESULT sgs_SetStackSize( SGS_CTX, StkIdx size )
 {
-	StkIdx diff;
-	if( size < 0 )
+	return sgs_SetDeltaSize( C, size - SGS_STACKFRAMESIZE );
+}
+
+SGSRESULT sgs_SetDeltaSize( SGS_CTX, sgs_StkIdx diff )
+{
+	StkIdx tgtsize = SGS_STACKFRAMESIZE + diff;
+	if( tgtsize < 0 )
 		return SGS_EINVAL;
-	diff = SGS_STACKFRAMESIZE - size;
-	if( diff > 0 )
-		stk_pop( C, diff );
-	else
-		stk_push_nulls( C, -diff );
+	stk_deltasize( C, diff );
 	return SGS_SUCCESS;
 }
 
@@ -4417,17 +4531,17 @@ SGSRESULT sgs_ClSetItem( SGS_CTX, sgs_StkIdx item, sgs_Variable* var )
 
 */
 
-SGSRESULT sgs_FCallP( SGS_CTX, sgs_Variable* callable, int args, int expect, int gotthis )
+SGSRESULT sgs_XFCallP( SGS_CTX, sgs_Variable* callable, int args, int* outrvc, int gotthis )
 {
 	int ret;
 	if( SGS_STACKFRAMESIZE < args + ( gotthis ? 1 : 0 ) )
 		return SGS_EINVAL;
-	ret = vm_call( C, args, 0, gotthis, expect, callable );
+	ret = vm_call( C, args, 0, gotthis, outrvc, callable, 0 );
 	if( ret == -1 ) return SGS_SUCABRT;
 	return ret ? SGS_SUCCESS : SGS_EINPROC;
 }
 
-SGSRESULT sgs_FCall( SGS_CTX, int args, int expect, int gotthis )
+SGSRESULT sgs_XFCall( SGS_CTX, int args, int* outrvc, int gotthis )
 {
 	int ret;
 	sgs_Variable func;
@@ -4438,10 +4552,41 @@ SGSRESULT sgs_FCall( SGS_CTX, int args, int expect, int gotthis )
 	
 	func = *stk_getpos( C, -1 );
 	stk_pop1nr( C );
-	ret = vm_call( C, args, 0, gotthis, expect, &func );
+	ret = vm_call( C, args, 0, gotthis, outrvc, &func, 0 );
 	VAR_RELEASE( &func );
 	if( ret == -1 ) return SGS_SUCABRT;
 	return ret ? SGS_SUCCESS : SGS_EINPROC;
+}
+
+SGSRESULT sgs_FCallP( SGS_CTX, sgs_Variable* callable, int args, int expect, int gotthis )
+{
+	int ret, rvc;
+	if( SGS_STACKFRAMESIZE < args + ( gotthis ? 1 : 0 ) )
+		return SGS_EINVAL;
+	ret = vm_call( C, args, 0, gotthis, &rvc, callable, 0 );
+	if( ret == -1 ) return SGS_SUCABRT;
+	if( ret == 0 ) return SGS_EINPROC;
+	stk_resize_expected( C, expect, rvc );
+	return SGS_SUCCESS;
+}
+
+SGSRESULT sgs_FCall( SGS_CTX, int args, int expect, int gotthis )
+{
+	int ret, rvc;
+	sgs_Variable func;
+	int stksize = sgs_StackSize( C );
+	gotthis = gotthis ? 1 : 0;
+	if( stksize < args + gotthis + 1 )
+		return SGS_EINVAL;
+	
+	func = *stk_getpos( C, -1 );
+	stk_pop1nr( C );
+	ret = vm_call( C, args, 0, gotthis, &rvc, &func, 0 );
+	VAR_RELEASE( &func );
+	if( ret == -1 ) return SGS_SUCABRT;
+	if( ret == 0 ) return SGS_EINPROC;
+	stk_resize_expected( C, expect, rvc );
+	return SGS_SUCCESS;
 }
 
 SGSRESULT sgs_GlobalCall( SGS_CTX, const char* name, int args, int expect )
@@ -4526,22 +4671,22 @@ SGSRESULT sgs_DumpVar( SGS_CTX, int maxdepth )
 				sgs_MemBuf mb = sgs_membuf_create();
 				sgs_iFunc* F = var->data.F;
 				
-				const char* str1 = F->funcname.size ? "SGS function '" : "SGS function <anonymous>";
-				const char* str2 = F->funcname.size ? "' defined at " : " defined at ";
+				const char* str1 = F->sfuncname->size ? "SGS function '" : "SGS function <anonymous>";
+				const char* str2 = F->sfuncname->size ? "' defined at " : " defined at ";
 				const char* str3 = "'";
 				
 				sgs_membuf_appbuf( &mb, C, str1, strlen(str1) );
-				if( F->funcname.size )
-					sgs_membuf_appbuf( &mb, C, F->funcname.ptr, F->funcname.size );
-				if( F->filename.size )
+				if( F->sfuncname->size )
+					sgs_membuf_appbuf( &mb, C, sgs_str_cstr( F->sfuncname ), F->sfuncname->size );
+				if( F->sfilename->size )
 				{
 					char lnbuf[ 32 ];
 					sgs_membuf_appbuf( &mb, C, str2, strlen(str2) );
-					sgs_membuf_appbuf( &mb, C, F->filename.ptr, F->filename.size );
+					sgs_membuf_appbuf( &mb, C, sgs_str_cstr( F->sfilename ), F->sfilename->size );
 					sprintf( lnbuf, ":%d", (int) F->linenum );
 					sgs_membuf_appbuf( &mb, C, lnbuf, strlen(lnbuf) );
 				}
-				else if( F->funcname.size )
+				else if( F->sfuncname->size )
 					sgs_membuf_appbuf( &mb, C, str3, strlen(str3) );
 				
 				/* WP: various limits */
@@ -4602,59 +4747,63 @@ SGSRESULT sgs_DumpVar( SGS_CTX, int maxdepth )
 	}
 }
 
-SGSRESULT sgs_GCExecute( SGS_CTX )
+static SGSRESULT sgsVM_GCExecute( SGS_SHCTX )
 {
 	int ret = SGS_SUCCESS;
 	sgs_VarPtr vbeg, vend;
 	sgs_VarObj* p;
-
-	C->redblue = !C->redblue;
-	C->gcrun = SGS_TRUE;
-
-	/* -- MARK -- */
-	/* GCLIST / currently executed "main" function */
-	vbeg = C->gclist; vend = vbeg + C->gclist_size;
-	while( vbeg < vend ){
-		ret = vm_gcmark( C, vbeg );
-		if( SGS_FAILED( ret ) )
-			goto end;
-		vbeg++;
+	
+	S->redblue = !S->redblue;
+	S->gcrun = SGS_TRUE;
+	
+	SGS_CTX = S->state_list;
+	while( C )
+	{
+		/* -- MARK -- */
+		/* STACK */
+		vbeg = C->stack_base; vend = C->stack_top;
+		while( vbeg < vend ){
+			ret = vm_gcmark( C, vbeg++ );
+			if( SGS_FAILED( ret ) )
+				goto end;
+		}
+		
+		/* GLOBALS */
+		sgsSTD_GlobalGC( C );
+		
+		C = C->next;
 	}
-
-	/* STACK */
-	vbeg = C->stack_base; vend = C->stack_top;
-	while( vbeg < vend ){
-		ret = vm_gcmark( C, vbeg++ );
-		if( SGS_FAILED( ret ) )
-			goto end;
-	}
-
-	/* GLOBALS */
-	sgsSTD_GlobalGC( C );
-
+	
 	/* -- SWEEP -- */
+	C = S->state_list; // any context is good enough here
 	/* destruct objects */
-	p = C->objs;
+	p = S->objs;
 	while( p ){
 		sgs_VarObj* pn = p->next;
-		if( p->redblue != C->redblue ){
+		if( p->redblue != S->redblue ){
 			var_destruct_object( C, p );
 		}
 		p = pn;
 	}
-
+	
 	/* free variables */
-	p = C->objs;
+	p = S->objs;
 	while( p ){
 		sgs_VarObj* pn = p->next;
-		if( p->redblue != C->redblue )
+		if( p->redblue != S->redblue )
 			var_free_object( C, p );
 		p = pn;
 	}
-
+	
 end:
-	C->gcrun = SGS_FALSE;
+	S->gcrun = SGS_FALSE;
 	return ret;
+}
+
+SGSRESULT sgs_GCExecute( SGS_CTX )
+{
+	SGS_SHCTX_USE;
+	return sgsVM_GCExecute( S );
 }
 
 
@@ -4812,6 +4961,7 @@ static int _serialize_function( SGS_CTX, sgs_iFunc* func, sgs_MemBuf* out )
 
 static int _unserialize_function( SGS_CTX, const char* buf, size_t sz, sgs_iFunc** outfn )
 {
+	sgs_Variable strvar;
 	sgs_iFunc* F;
 	sgs_CompFunc* nf = NULL;
 	if( sgsBC_ValidateHeader( buf, sz ) < SGS_HEADER_SIZE )
@@ -4835,9 +4985,11 @@ static int _unserialize_function( SGS_CTX, const char* buf, size_t sz, sgs_iFunc
 		F->lineinfo = sgs_Alloc_n( sgs_LineNum, lnc );
 		memcpy( F->lineinfo, nf->lnbuf.ptr, nf->lnbuf.size );
 	}
-	F->funcname = sgs_membuf_create();
+	var_create_str( C, &strvar, "", 0 );
+	F->sfuncname = strvar.data.S;
 	F->linenum = 0;
-	F->filename = sgs_membuf_create();
+	VAR_ACQUIRE( &strvar );
+	F->sfilename = strvar.data.S;
 	/* set from current if possible? */
 	
 	memcpy( sgs_func_consts( F ), nf->consts.ptr, nf->consts.size );
@@ -6154,7 +6306,8 @@ void sgs_AcquireArray( SGS_CTX, sgs_Variable* var, sgs_SizeVal count )
 
 void sgs_Release( SGS_CTX, sgs_Variable* var )
 {
-	if( var->type == SGS_VT_OBJECT && C->gcrun )
+	SGS_SHCTX_USE;
+	if( var->type == SGS_VT_OBJECT && S->gcrun )
 	{
 		/* if running GC, dereference without destroying */
 		(*var->data.pRC) -= 1;

@@ -679,7 +679,31 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir ) :
 	
 	UpdateTask();
 	
+	{
+		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
+		if( g_GameLevel->m_scriptCtx.GlobalCall( "TSEnemy_Create", 0, 1 ) == false )
+		{
+			LOG_ERROR << "FAILED to create enemy state";
+		}
+		m_enemyState = sgsVariable( g_GameLevel->m_scriptCtx.C, -1 );
+	}
+	
+	// initialize ESO
+	{
+		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
+		m_enemyState.thiscall( "init" );
+	}
+	
 	g_GameLevel->MapEntityByName( this );
+}
+
+TSEnemy::~TSEnemy()
+{
+	// destroy ESO
+	{
+		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
+		m_enemyState.thiscall( "destroy" );
+	}
 }
 
 void TSEnemy::FixedTick( float deltaTime )
@@ -720,6 +744,13 @@ void TSEnemy::FixedTick( float deltaTime )
 			}
 			UpdateTask();
 		}
+	}
+	
+	// tick ESO
+	{
+		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
+		g_GameLevel->m_scriptCtx.Push( deltaTime );
+		m_enemyState.thiscall( "tick", 1 );
 	}
 }
 

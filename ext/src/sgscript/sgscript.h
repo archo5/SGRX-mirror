@@ -5,8 +5,8 @@
 
 #define SGS_VERSION_MAJOR 0
 #define SGS_VERSION_MINOR 9
-#define SGS_VERSION_INCR  6
-#define SGS_VERSION "0.9.6"
+#define SGS_VERSION_INCR  7
+#define SGS_VERSION "0.9.7"
 
 #define SGS_VERSION_OFFSET 8
 #define SGS_VERSION_INT ( ( ( ( SGS_VERSION_MAJOR << SGS_VERSION_OFFSET ) | \
@@ -68,33 +68,6 @@ typedef int (*sgs_CFunc) ( sgs_Context* );
 
 #define sgs_Integer sgs_Int
 #define sgs_Float sgs_Real
-
-
-#define SGS_SF_METHOD  0x01
-#define SGS_SF_HASTHIS 0x02
-#define SGS_SF_ABORTED 0x04
-
-struct _sgs_StackFrame
-{
-	sgs_Variable*   func;
-	uint16_t*       lntable;
-	const uint32_t* code;
-	const uint32_t* iptr;
-	const uint32_t* iend;
-	const uint32_t* lptr;
-	const char*     nfname;
-	const char*     filename;
-	sgs_StackFrame* prev;
-	sgs_StackFrame* next;
-	sgs_StackFrame* cached;
-	sgs_StkIdx argbeg;
-	sgs_StkIdx argend;
-	int32_t errsup;
-	uint8_t argcount;
-	uint8_t inexp;
-	uint8_t expected;
-	uint8_t flags;
-};
 
 
 /* Memory management */
@@ -178,10 +151,12 @@ typedef SGSRESULT (*sgs_ScriptFSFunc) (
 #define SGS_HAS_ERRORS          0x00010000
 #define SGS_MUST_STOP          (0x00020000 | SGS_HAS_ERRORS)
 #define SGS_SERIALIZE_MODE2     0x0004
+#define SGS_STATE_PAUSED        0x0008
 
 
 /* Statistics / debugging */
 #define SGS_STAT_VERSION      0
+#define SGS_STAT_STATECOUNT   1
 #define SGS_STAT_OBJCOUNT     2
 #define SGS_STAT_MEMSIZE      3
 #define SGS_STAT_NUMALLOCS    4
@@ -209,6 +184,7 @@ typedef SGSRESULT (*sgs_ScriptFSFunc) (
 #define SGS_CNTL_GET_ERRSUP 11
 #define SGS_CNTL_SERIALMODE 12
 #define SGS_CNTL_NUMRETVALS 13
+#define SGS_CNTL_GET_PAUSED 14
 
 
 /* Object actions */
@@ -312,6 +288,38 @@ struct _sgs_Variable
 };
 
 
+#define SGS_SF_METHOD  0x01
+#define SGS_SF_HASTHIS 0x02
+#define SGS_SF_ABORTED 0x04
+#define SGS_SF_REENTER 0x08
+
+struct _sgs_StackFrame
+{
+	sgs_Variable    func;
+	uint16_t*       lntable;
+	const uint32_t* code;
+	const uint32_t* iptr;
+	const uint32_t* iend;
+	const uint32_t* lptr;
+	sgs_Variable*   cptr;
+	const char*     nfname;
+	const char*     filename;
+	sgs_StackFrame* prev;
+	sgs_StackFrame* next;
+	sgs_StackFrame* cached;
+	sgs_StkIdx argbeg;
+	sgs_StkIdx argend;
+	sgs_StkIdx argsfrom;
+	sgs_StkIdx stkoff;
+	sgs_StkIdx clsoff;
+	int32_t constcount;
+	int32_t errsup;
+	uint8_t argcount;
+	uint8_t inexp;
+	uint8_t flags;
+};
+
+
 /* parameter flags / special values */
 #define SGS_GETNEXT_KEY   0x01
 #define SGS_GETNEXT_VALUE 0x02
@@ -350,6 +358,13 @@ static SGS_INLINE sgs_Context* sgs_CreateEngine()
 	{ return sgs_CreateEngineExt( sgs_DefaultMemFunc, NULL ); }
 
 SGS_APIFUNC void sgs_DestroyEngine( SGS_CTX );
+
+SGS_APIFUNC sgs_Context* sgs_ForkState( SGS_CTX, int copystate );
+SGS_APIFUNC void sgs_FreeState( SGS_CTX );
+SGS_APIFUNC SGSBOOL sgs_PauseState( SGS_CTX );
+SGS_APIFUNC SGSBOOL sgs_ResumeStateRet( SGS_CTX, int args, int* outrvc );
+SGS_APIFUNC SGSBOOL sgs_ResumeStateExp( SGS_CTX, int args, int expect );
+#define sgs_ResumeState( C ) sgs_ResumeStateExp( C, 0, 0 )
 
 
 #define SGS_CODE_ER 0 /* error codes */
@@ -401,8 +416,8 @@ SGS_APIFUNC void* sgs_Memory( SGS_CTX, void* ptr, size_t size );
 #define sgs_Dealloc( ptr ) sgs_Free( C, ptr )
 
 
-SGS_APIFUNC SGSRESULT sgs_EvalBuffer( SGS_CTX, const char* buf, size_t size, int* rvc );
-SGS_APIFUNC SGSRESULT sgs_EvalFile( SGS_CTX, const char* file, int* rvc );
+SGS_APIFUNC SGSRESULT sgs_EvalBuffer( SGS_CTX, const char* buf, size_t size, int* outrvc );
+SGS_APIFUNC SGSRESULT sgs_EvalFile( SGS_CTX, const char* file, int* outrvc );
 SGS_APIFUNC SGSBOOL sgs_IncludeExt( SGS_CTX, const char* name, const char* searchpath );
 SGS_APIFUNC SGSRESULT sgs_Compile( SGS_CTX, const char* buf, size_t size, char** outbuf, size_t* outsize );
 
@@ -421,7 +436,7 @@ SGS_APIFUNC sgs_StackFrame* sgs_GetFramePtr( SGS_CTX, int end );
 
 #define sgs_ExecBuffer( C, buf, sz ) sgs_EvalBuffer( C, buf, sz, NULL )
 #define sgs_ExecString( C, str ) sgs_ExecBuffer( C, str, SGS_STRINGLENGTHFUNC( str ) )
-#define sgs_EvalString( C, str, rvc ) sgs_EvalBuffer( C, str, SGS_STRINGLENGTHFUNC( str ), rvc )
+#define sgs_EvalString( C, str, outrvc ) sgs_EvalBuffer( C, str, SGS_STRINGLENGTHFUNC( str ), outrvc )
 #define sgs_ExecFile( C, str ) sgs_EvalFile( C, str, NULL )
 #define sgs_Include( C, str ) sgs_IncludeExt( C, str, NULL )
 #define sgs_WriteStr( C, str ) sgs_Write( C, str, SGS_STRINGLENGTHFUNC( str ) )
@@ -504,6 +519,7 @@ SGS_APIFUNC SGSRESULT sgs_InitMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal numit
 	STACK & SUB-ITEMS
 */
 SGS_APIFUNC SGSONE sgs_PushNull( SGS_CTX );
+SGS_APIFUNC SGSONE sgs_PushNulls( SGS_CTX, int count );
 SGS_APIFUNC SGSONE sgs_PushBool( SGS_CTX, sgs_Bool value );
 SGS_APIFUNC SGSONE sgs_PushInt( SGS_CTX, sgs_Int value );
 SGS_APIFUNC SGSONE sgs_PushReal( SGS_CTX, sgs_Real value );
@@ -619,6 +635,7 @@ SGS_APIFUNC SGSRESULT sgs_PopSkip( SGS_CTX, sgs_StkIdx count, sgs_StkIdx skip );
 
 SGS_APIFUNC sgs_StkIdx sgs_StackSize( SGS_CTX );
 SGS_APIFUNC SGSRESULT sgs_SetStackSize( SGS_CTX, sgs_StkIdx size );
+SGS_APIFUNC SGSRESULT sgs_SetDeltaSize( SGS_CTX, sgs_StkIdx diff );
 SGS_APIFUNC sgs_StkIdx sgs_AbsIndex( SGS_CTX, sgs_StkIdx item );
 SGS_APIFUNC SGSBOOL sgs_IsValidIndex( SGS_CTX, sgs_StkIdx item );
 SGS_APIFUNC SGSBOOL sgs_PeekStackItem( SGS_CTX, sgs_StkIdx item, sgs_Variable* out );
@@ -643,6 +660,12 @@ SGS_APIFUNC SGSRESULT sgs_ClSetItem( SGS_CTX, sgs_StkIdx item, sgs_Variable* var
 /*
 	OPERATIONS
 */
+SGS_APIFUNC SGSRESULT sgs_XFCallP( SGS_CTX, sgs_Variable* callable, int args, int* outrvc, int gotthis );
+#define sgs_XCallP( C, callable, args, outrvc ) sgs_XFCallP( C, callable, args, outrvc, 0 )
+#define sgs_XThisCallP( C, callable, args, outrvc ) sgs_XFCallP( C, callable, args, outrvc, 1 )
+SGS_APIFUNC SGSRESULT sgs_XFCall( SGS_CTX, int args, int* outrvc, int gotthis );
+#define sgs_XCall( C, args, outrvc ) sgs_XFCall( C, args, outrvc, 0 )
+#define sgs_XThisCall( C, args, outrvc ) sgs_XFCall( C, args, outrvc, 1 )
 SGS_APIFUNC SGSRESULT sgs_FCallP( SGS_CTX, sgs_Variable* callable, int args, int expect, int gotthis );
 #define sgs_CallP( C, callable, args, expect ) sgs_FCallP( C, callable, args, expect, 0 )
 #define sgs_ThisCallP( C, callable, args, expect ) sgs_FCallP( C, callable, args, expect, 1 )

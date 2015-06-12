@@ -451,7 +451,10 @@ struct TSEnemy : TSCharacter
 	float m_turnAngleStart;
 	float m_turnAngleEnd;
 	
+	sgsVariable m_enemyState;
+	
 	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir );
+	~TSEnemy();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void UpdateTask();

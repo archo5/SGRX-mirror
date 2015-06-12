@@ -183,6 +183,8 @@ bool GameLevel::Load( const StringView& levelname )
 	
 	ClearLevel();
 	
+	m_scriptCtx.Include( "data/enemy" );
+	
 	snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 	m_scriptCtx.Include( bfr );
 	
@@ -324,11 +326,16 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 		return;
 	}
 	
-#ifdef LD32GAME
+#if defined(LD32GAME) || defined(TSGAME)
 	///////////////////////////
 	if( type == "enemy_start" )
 	{
+#ifdef LD32GAME
 		Enemy* E = new Enemy
+#endif
+#ifdef TSGAME
+		TSEnemy* E = new TSEnemy
+#endif
 		(
 			data.getprop("name").get<String>(),
 			data.getprop("position").get<Vec3>(),
