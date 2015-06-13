@@ -348,6 +348,8 @@ class sgsVariable
 {
 public:
 	
+	enum EPickAndPop { PickAndPop };
+	
 	sgsVariable() : C(NULL) { var.type = SGS_VT_NULL; };
 	sgsVariable( const sgsVariable& h ) : var(h.var), C(h.C)
 	{
@@ -364,6 +366,13 @@ public:
 		var.type = SGS_VT_NULL;
 		sgs_PeekStackItem( C, item, &var );
 		_acquire();
+	}
+	sgsVariable( sgs_Context* c, EPickAndPop ) : C(c)
+	{
+		var.type = SGS_VT_NULL;
+		sgs_PeekStackItem( C, -1, &var );
+		_acquire();
+		sgs_Pop( C, 1 );
 	}
 	sgsVariable( sgs_Context* c, sgs_Variable* v ) : C(c)
 	{

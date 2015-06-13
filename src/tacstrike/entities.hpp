@@ -392,6 +392,9 @@ struct TSCharacter : Entity
 	void HandleMovementPhysics( float deltaTime );
 	void TurnTo( const Vec2& turnDir, float speedDelta );
 	
+	Vec3 GetPosition();
+	Vec3 GetViewDir();
+	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
 	MeshInstHandle m_meshInst;
@@ -415,6 +418,9 @@ struct TSCharacter : Entity
 	Vec3 m_position;
 	Vec2 m_moveDir;
 	float m_turnAngle;
+	
+	bool i_crouch;
+	Vec2 i_move;
 };
 
 struct TSPlayer : TSCharacter

@@ -337,7 +337,8 @@ void ParticleFX::OnEvent( const StringView& _type )
 TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivDir( Quat::CreateAxisAngle( V3(0,0,1), atan2( dir.y, dir.x ) ) ),
-	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) )
+	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
+	i_crouch( false ), i_move( V2(0) )
 {
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
@@ -439,7 +440,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	
 	Vec3 pos = m_bodyHandle->GetPosition();
 	
-	m_isCrouching = CROUCH.value;
+	m_isCrouching = i_crouch;
 	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
 		g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
@@ -485,12 +486,9 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	}
 	m_isOnGround = ground;
 	
-	Vec2 realdir = V2( 0, -1 ); // { cos( m_angles.x ), sin( m_angles.x ) };
-	Vec2 perpdir = realdir.Perp();
-	
-	Vec2 md = { MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value };
-	md.Normalize();
-	md = -realdir * md.y - perpdir * md.x;
+	Vec2 md = i_move;
+	if( md.LengthSq() > 1 )
+		md.Normalize();
 	
 	Vec2 lvel2 = lvel.ToVec2();
 	
@@ -534,6 +532,16 @@ void TSCharacter::TurnTo( const Vec2& turnDir, float speedDelta )
 	m_turnAngle = angstart + sign( angend - angstart ) * TMIN( fabsf( angend - angstart ), speedDelta );
 }
 
+Vec3 TSCharacter::GetPosition()
+{
+	return m_bodyHandle->GetPosition();
+}
+
+Vec3 TSCharacter::GetViewDir()
+{
+	return V3( cos( m_turnAngle ), sin( m_turnAngle ), 0 );
+}
+
 
 TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	TSCharacter( pos-V3(0,0,1), dir ),
@@ -545,14 +553,7 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 
 void TSPlayer::FixedTick( float deltaTime )
 {
-	Vec2 realdir = V2( 0, -1 );//{ cos( m_angles.x ), sin( m_angles.x ) };
-	Vec2 perpdir = realdir.Perp();
-	
-	Vec2 md = { MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value };
-	md.Normalize();
-	md = -realdir * md.y - perpdir * md.x;
-	
-	m_moveDir = md * 1.1f;
+	i_move = V2( MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value );
 	
 	//	bool moving = m_moveDir.Length() > 0.1f;
 //	const char* animname =
@@ -562,10 +563,12 @@ void TSPlayer::FixedTick( float deltaTime )
 //	;
 //	m_anMainPlayer.Play( GR_GetAnim( animname ) );
 	
-	if( md.Length() > 0.1f )
+	if( i_move.Length() > 0.1f )
 	{
-		TurnTo( md, deltaTime * 8 );
+		TurnTo( i_move, deltaTime * 8 );
 	}
+	
+//	i_crouch = CROUCH.value;
 	
 	TSCharacter::FixedTick( deltaTime );
 	
@@ -586,7 +589,7 @@ void TSPlayer::FixedTick( float deltaTime )
 			m_anRootTurner.rotation[ i ] = toprot;
 	}
 	
-	m_anMainPlayer.Play( GR_GetAnim( md.Length() ? animname : "standing_idle" ), false, 0.2f );
+	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "standing_idle" ), false, 0.2f );
 	m_anEnd.Advance( deltaTime );
 	m_anRagdoll.AdvanceTransforms( &m_anEnd );
 }
@@ -595,7 +598,7 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 {
 	if( CROUCH.IsPressed() )
 	{
-		m_isCrouching = !m_isCrouching;
+		i_crouch = !i_crouch;
 	}
 	
 	TSCharacter::Tick( deltaTime, blendFactor );
@@ -610,11 +613,17 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	Vec3 dir = V3( ch * cv, sh * cv, sv );
 	m_position = pos;
 	
+	float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
+	Vec2 cursor_pos = Game_GetCursorPos();
+	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
+	Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
+	
 	g_GameLevel->m_scene->camera.znear = 0.1f;
 	g_GameLevel->m_scene->camera.angle = 90;
 	g_GameLevel->m_scene->camera.updir = V3(0,-1,0);
-	g_GameLevel->m_scene->camera.direction = V3(0,0,-1);
-	g_GameLevel->m_scene->camera.position = pos + V3(0,0,1) * 6;
+	g_GameLevel->m_scene->camera.direction = V3(-diff.x,diff.y,-5);
+	g_GameLevel->m_scene->camera.position = pos + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
 	g_GameLevel->m_scene->camera.UpdateMatrices();
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
@@ -679,19 +688,17 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir ) :
 	
 	UpdateTask();
 	
+	// create ESO (enemy scripted object)
 	{
 		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-		if( g_GameLevel->m_scriptCtx.GlobalCall( "TSEnemy_Create", 0, 1 ) == false )
+		g_GameLevel->m_scriptCtx.Push( (void*) this );
+		g_GameLevel->m_scriptCtx.Push( m_position );
+		g_GameLevel->m_scriptCtx.Push( GetViewDir() );
+		if( g_GameLevel->m_scriptCtx.GlobalCall( "TSEnemy_Create", 3, 1 ) == false )
 		{
 			LOG_ERROR << "FAILED to create enemy state";
 		}
 		m_enemyState = sgsVariable( g_GameLevel->m_scriptCtx.C, -1 );
-	}
-	
-	// initialize ESO
-	{
-		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-		m_enemyState.thiscall( "init" );
 	}
 	
 	g_GameLevel->MapEntityByName( this );
@@ -708,8 +715,6 @@ TSEnemy::~TSEnemy()
 
 void TSEnemy::FixedTick( float deltaTime )
 {
-	TSCharacter::FixedTick( deltaTime );
-	
 	TSTaskArray* ta = m_curTaskMode ? &m_disturbTasks : &m_patrolTasks;
 	if( ta->size() )
 	{
@@ -748,10 +753,41 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	// tick ESO
 	{
+		g_GameLevel->m_scriptCtx.Push( GetPosition() );
+		m_enemyState.setprop( "position", sgsVariable( g_GameLevel->m_scriptCtx.C, sgsVariable::PickAndPop ) );
+		g_GameLevel->m_scriptCtx.Push( GetViewDir() );
+		m_enemyState.setprop( "viewdir", sgsVariable( g_GameLevel->m_scriptCtx.C, sgsVariable::PickAndPop ) );
+		
 		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
 		g_GameLevel->m_scriptCtx.Push( deltaTime );
 		m_enemyState.thiscall( "tick", 1 );
+		
+		i_crouch = m_enemyState[ "i_crouch" ].get<bool>();
+		i_move = m_enemyState[ "i_move" ].get<Vec2>();
 	}
+	
+	TSCharacter::FixedTick( deltaTime );
+	
+	//
+	Vec2 rundir = {1,0};
+	Vec2 m_aimdir = {1,0};
+	const char* animname = "run";
+	//
+	
+	Quat mainrot = Quat::CreateAxisAngle( 0, 0, 1, atan2( rundir.y, rundir.x ) - M_PI / 2 );
+	Quat toprot = Quat::CreateAxisAngle( 0, 0, 1, atan2( m_aimdir.y, m_aimdir.x ) - M_PI / 2 );
+	toprot = toprot * mainrot.Inverted();
+	for( size_t i = 0; i < m_anRootTurner.names.size(); ++i )
+	{
+		if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine") )
+			m_anRootTurner.rotation[ i ] = mainrot;
+		else if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine1") )
+			m_anRootTurner.rotation[ i ] = toprot;
+	}
+	
+	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "standing_idle" ), false, 0.2f );
+	m_anEnd.Advance( deltaTime );
+	m_anRagdoll.AdvanceTransforms( &m_anEnd );
 }
 
 void TSEnemy::Tick( float deltaTime, float blendFactor )

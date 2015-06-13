@@ -690,6 +690,7 @@ void GameLevel::Draw2D()
 
 void GameLevel::DebugDraw()
 {
+	return;
 	m_aidbSystem.m_pathfinder.DebugDraw();
 	
 	BatchRenderer& br = GR2D_GetBatchRenderer();

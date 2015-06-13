@@ -553,6 +553,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		//
 		// TEST
 		//
+#if 0
 		GR2D_SetColor( 1 );
 		char bfr[ 1204 ];
 		sprintf( bfr, "meshes: %d, draw calls: %d", (int) GR_GetRenderStats().numVisMeshes, (int) GR_GetRenderStats().numMDrawCalls );
@@ -571,7 +572,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		GR2D_DrawTextLine( " to act " );
 		GR2D_SetFont( "tsicons", 24 );
 		GR2D_DrawTextLine( "!" );
-		
+#endif
 	//	BatchRenderer& br = GR2D_GetBatchRenderer();
 	//	const LightTree& LT = g_GameLevel->m_ltSamples;
 	//		GR2D_SetFont( "fonts/lato-regular.ttf", 12 );
