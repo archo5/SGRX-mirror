@@ -110,6 +110,8 @@ ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, Command* cmd );
 ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );
 ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
 ENGINE_EXPORT Vec2 Game_GetCursorPos();
+ENGINE_EXPORT Vec2 Game_GetScreenSize();
+ENGINE_EXPORT Vec2 Game_GetCursorPosNormalized();
 ENGINE_EXPORT void Game_SetCursorPos( int x, int y );
 ENGINE_EXPORT void Game_ShowCursor( bool show );
 

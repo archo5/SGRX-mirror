@@ -227,6 +227,16 @@ Vec2 Game_GetCursorPos()
 	return g_CursorPos;
 }
 
+Vec2 Game_GetScreenSize()
+{
+	return V2( GR_GetWidth(), GR_GetHeight() );
+}
+
+Vec2 Game_GetCursorPosNormalized()
+{
+	return Game_GetCursorPos() / Game_GetScreenSize();
+}
+
 void Game_SetCursorPos( int x, int y )
 {
 	SDL_WarpMouseInWindow( g_Window, x, y );

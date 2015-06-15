@@ -421,6 +421,8 @@ struct TSCharacter : Entity
 	
 	bool i_crouch;
 	Vec2 i_move;
+	bool i_aim_at;
+	Vec3 i_aim_target;
 };
 
 struct TSPlayer : TSCharacter
@@ -440,6 +442,8 @@ struct TSPlayer : TSCharacter
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
+	
+	Vec3 FindTargetPosition();
 	
 	bool AddItem( const StringView& item, int count );
 	bool HasItem( const StringView& item, int count = 1 );

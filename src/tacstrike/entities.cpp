@@ -338,7 +338,7 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivDir( Quat::CreateAxisAngle( V3(0,0,1), atan2( dir.y, dir.x ) ) ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
-	i_crouch( false ), i_move( V2(0) )
+	i_crouch( false ), i_move( V2(0) ), i_aim_at( false ), i_aim_target( V3(0) )
 {
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
@@ -409,15 +409,37 @@ void TSCharacter::FixedTick( float deltaTime )
 	HandleMovementPhysics( deltaTime );
 	
 	m_ivDir.Advance( Quat::CreateAxisAngle( V3(0,0,1), m_turnAngle ) );
-//	m_anEnd.Advance( deltaTime );
+	
+	//
+	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
+	Vec2 aimdir = rundir;
+	if( i_aim_at )
+	{
+		aimdir = ( i_aim_target - GetPosition() ).ToVec2();
+	}
+	//
+	
+	Quat mainrot = Quat::CreateAxisAngle( 0, 0, 1, atan2( rundir.y, rundir.x ) - M_PI / 2 );
+	Quat toprot = Quat::CreateAxisAngle( 0, 0, 1, atan2( aimdir.y, aimdir.x ) - M_PI / 2 );
+	toprot = toprot * mainrot.Inverted();
+	for( size_t i = 0; i < m_anRootTurner.names.size(); ++i )
+	{
+		if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine") )
+			m_anRootTurner.rotation[ i ] = mainrot;
+		else if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine1") )
+			m_anRootTurner.rotation[ i ] = toprot;
+	}
+	
+	m_anEnd.Advance( deltaTime );
+	m_anRagdoll.AdvanceTransforms( &m_anEnd );
 }
 
 void TSCharacter::Tick( float deltaTime, float blendFactor )
 {
 	Vec3 pos = m_ivPos.Get( blendFactor );
-	Quat rdir = m_ivDir.Get( blendFactor ).Normalized();
+//	Quat rdir = m_ivDir.Get( blendFactor ).Normalized();
 	
-	m_meshInst->matrix = Mat4::CreateSRT( V3(1), rdir, pos );
+	m_meshInst->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
 	m_shadowInst->position = pos + V3(0,0,1);
 	
 	g_GameLevel->LightMesh( m_meshInst );
@@ -539,7 +561,7 @@ Vec3 TSCharacter::GetPosition()
 
 Vec3 TSCharacter::GetViewDir()
 {
-	return V3( cos( m_turnAngle ), sin( m_turnAngle ), 0 );
+	return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 );
 }
 
 
@@ -549,11 +571,13 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	m_targetII( NULL ), m_targetTriggered( false )
 {
 	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
+	i_aim_at = true;
 }
 
 void TSPlayer::FixedTick( float deltaTime )
 {
 	i_move = V2( MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value );
+	i_aim_target = FindTargetPosition();
 	
 	//	bool moving = m_moveDir.Length() > 0.1f;
 //	const char* animname =
@@ -570,28 +594,10 @@ void TSPlayer::FixedTick( float deltaTime )
 	
 //	i_crouch = CROUCH.value;
 	
-	TSCharacter::FixedTick( deltaTime );
-	
-	//
-	Vec2 rundir = {1,0};
-	Vec2 m_aimdir = {1,0};
 	const char* animname = "run";
-	//
-	
-	Quat mainrot = Quat::CreateAxisAngle( 0, 0, 1, atan2( rundir.y, rundir.x ) - M_PI / 2 );
-	Quat toprot = Quat::CreateAxisAngle( 0, 0, 1, atan2( m_aimdir.y, m_aimdir.x ) - M_PI / 2 );
-	toprot = toprot * mainrot.Inverted();
-	for( size_t i = 0; i < m_anRootTurner.names.size(); ++i )
-	{
-		if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine") )
-			m_anRootTurner.rotation[ i ] = mainrot;
-		else if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine1") )
-			m_anRootTurner.rotation[ i ] = toprot;
-	}
-	
 	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "standing_idle" ), false, 0.2f );
-	m_anEnd.Advance( deltaTime );
-	m_anRagdoll.AdvanceTransforms( &m_anEnd );
+	
+	TSCharacter::FixedTick( deltaTime );
 }
 
 void TSPlayer::Tick( float deltaTime, float blendFactor )
@@ -606,8 +612,8 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	m_angles += inCursorMove * V2(-0.01f);
 	m_angles.y = clamp( m_angles.y, (float) -M_PI/2 + SMALL_FLOAT, (float) M_PI/2 - SMALL_FLOAT );
 	
-	float ch = cos( m_angles.x ), sh = sin( m_angles.x );
-	float cv = cos( m_angles.y ), sv = sin( m_angles.y );
+	float ch = cosf( m_angles.x ), sh = sinf( m_angles.x );
+	float cv = cosf( m_angles.y ), sv = sinf( m_angles.y );
 	
 	Vec3 pos = m_ivPos.Get( blendFactor );
 	Vec3 dir = V3( ch * cv, sh * cv, sv );
@@ -650,6 +656,36 @@ void TSPlayer::DrawUI()
 	float cursor_angle = ( cursor_pos - player_pos ).Angle() + M_PI;
 	br.Reset().SetTexture( m_tex_cursor ).TurnedBox(
 		cursor_pos.x, cursor_pos.y, cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
+}
+
+Vec3 TSPlayer::FindTargetPosition()
+{
+	Vec3 crpos, crdir;
+	Vec2 crsp = Game_GetCursorPosNormalized();
+	g_GameLevel->m_scene->camera.GetCursorRay( crsp.x, crsp.y, crpos, crdir );
+	Vec3 crtgt = crpos + crdir * 100;
+	
+	SGRX_PhyRaycastInfo rcinfo;
+	if( g_PhyWorld->Raycast( crpos, crtgt, 0x1, 0xffff, &rcinfo ) )
+	{
+		bool atwall = 0.707f > Vec3Dot( rcinfo.normal, V3(0,0,1) ); // > ~45deg to up vector
+		bool frontface = Vec3Dot( rcinfo.normal, crdir ) < 0; 
+		if( atwall && frontface )
+			return rcinfo.point;
+		
+		// must adjust target height above ground
+		if( frontface )
+			return rcinfo.point + V3(0,0,1.5f);
+	}
+	
+	// backup same level plane test if aiming into nothing
+	float dsts[2];
+	if( RayPlaneIntersect( crpos, crdir, V4(0,0,1,GetPosition().z), dsts ) )
+	{
+		return crpos + crdir * dsts[0];
+	}
+	
+	return V3(0);
 }
 
 bool TSPlayer::AddItem( const StringView& item, int count )
@@ -766,28 +802,15 @@ void TSEnemy::FixedTick( float deltaTime )
 		i_move = m_enemyState[ "i_move" ].get<Vec2>();
 	}
 	
-	TSCharacter::FixedTick( deltaTime );
-	
-	//
-	Vec2 rundir = {1,0};
-	Vec2 m_aimdir = {1,0};
-	const char* animname = "run";
-	//
-	
-	Quat mainrot = Quat::CreateAxisAngle( 0, 0, 1, atan2( rundir.y, rundir.x ) - M_PI / 2 );
-	Quat toprot = Quat::CreateAxisAngle( 0, 0, 1, atan2( m_aimdir.y, m_aimdir.x ) - M_PI / 2 );
-	toprot = toprot * mainrot.Inverted();
-	for( size_t i = 0; i < m_anRootTurner.names.size(); ++i )
+	if( i_move.Length() > 0.5f )
 	{
-		if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine") )
-			m_anRootTurner.rotation[ i ] = mainrot;
-		else if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine1") )
-			m_anRootTurner.rotation[ i ] = toprot;
+		TurnTo( i_move, deltaTime * 8 );
 	}
 	
+	const char* animname = "run";
 	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "standing_idle" ), false, 0.2f );
-	m_anEnd.Advance( deltaTime );
-	m_anRagdoll.AdvanceTransforms( &m_anEnd );
+	
+	TSCharacter::FixedTick( deltaTime );
 }
 
 void TSEnemy::Tick( float deltaTime, float blendFactor )
