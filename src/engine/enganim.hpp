@@ -137,6 +137,156 @@ struct IF_GCC(ENGINE_EXPORT) AnimInterp : Animator
 
 
 
+struct AnimCharacter
+{
+	enum BodyType
+	{
+		BodyType_None = 0,
+		BodyType_Sphere = 1,
+		BodyType_Capsule = 2,
+		BodyType_Box = 3,
+	};
+	enum JointType
+	{
+		JointType_None = 0,
+		JointType_Hinge = 1,
+	};
+	enum TransformType
+	{
+		TransformType_None = 0,
+		TransformType_Move = 1,
+		TransformType_Rotate = 2,
+	};
+	
+	struct HitBox
+	{
+		Quat rotation;
+		Vec3 position;
+		Vec3 extents;
+		float multiplier;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "HITBOX" );
+			arch( rotation );
+			arch( position );
+			arch( extents );
+			arch( multiplier );
+		}
+	};
+	struct Body
+	{
+		Quat rotation;
+		Vec3 position;
+		uint8_t type;
+		Vec3 size; // x = radius, z = capsule height
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "BODY" );
+			arch( type );
+			arch( rotation );
+			arch( position );
+			arch( size );
+		}
+	};
+	struct Joint
+	{
+		String parent_name;
+		uint8_t type;
+		Vec3 local_offset1;
+		Vec3 local_offset2;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "JOINT" );
+			arch( type );
+			arch( parent_name );
+			arch( local_offset1 );
+			arch( local_offset2 );
+		}
+	};
+	
+	struct BoneInfo
+	{
+		String name;
+		HitBox hitbox;
+		Body body;
+		Joint joint;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "BONEINFO" );
+			arch( name );
+			arch( hitbox );
+			arch( body );
+			arch( joint );
+		}
+	};
+	
+	struct Attachment
+	{
+		String name;
+		String bone;
+		Quat rotation;
+		Vec3 position;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "ATTACHMENT" );
+			arch( name );
+			arch( bone );
+			arch( rotation );
+			arch( position );
+		}
+	};
+	
+	struct LayerTransform
+	{
+		String bone;
+		TransformType type;
+		Vec3 posaxis; // offset for 'move', axis for 'rotate'
+		float angle; // only for rotation
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "LAYERXF" );
+			arch( type );
+			arch( bone );
+			arch( posaxis );
+			arch( angle );
+		}
+	};
+	struct Layer
+	{
+		String name;
+		Array< LayerTransform > transforms;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "LAYER" );
+			arch( name );
+			arch( transforms );
+		}
+	};
+	
+	String mesh;
+	Array< BoneInfo > bones;
+	Array< Attachment > attachments;
+	Array< Layer > layers;
+	
+	template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+	{
+		arch.marker( "SGRXCHAR" );
+		arch( mesh );
+		arch( bones );
+		arch( attachments );
+		arch( layers );
+	}
+};
+
+
+
 struct SkeletonInfo
 {
 	enum BodyType

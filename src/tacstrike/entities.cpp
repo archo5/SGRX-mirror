@@ -808,7 +808,7 @@ void TSEnemy::FixedTick( float deltaTime )
 	}
 	
 	const char* animname = "run";
-	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "standing_idle" ), false, 0.2f );
+	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : "standing_idle" ), false, 0.2f );
 	
 	TSCharacter::FixedTick( deltaTime );
 }
