@@ -69,7 +69,8 @@ struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 
 struct EDGUIMeshPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
-	EDGUIMeshPicker() :
+	EDGUIMeshPicker( bool fullpaths = false ) :
+		m_fullpaths( fullpaths ),
 		m_scene( GR_CreateScene() )
 	{
 		caption = "Pick a mesh";
@@ -90,7 +91,10 @@ struct EDGUIMeshPicker : EDGUIRsrcPicker, IDirEntryHandler
 		LOG << "[M]: " << name;
 		if( !isdir && name.ends_with( ".ssm" ) )
 		{
-			m_options.push_back( name.part( 0, name.size() - 4 ) );
+			if( m_fullpaths )
+				m_options.push_back( String_Concat( "meshes/", name ) );
+			else
+				m_options.push_back( name.part( 0, name.size() - 4 ) );
 			m_meshes.push_back( GR_GetMesh( String_Concat( "meshes/", name ) ) );
 		}
 		return true;
@@ -119,6 +123,7 @@ struct EDGUIMeshPicker : EDGUIRsrcPicker, IDirEntryHandler
 		GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
 	}
 	
+	bool m_fullpaths;
 	Array< MeshHandle > m_meshes;
 	SceneHandle m_scene;
 	MeshInstHandle m_meshinst;

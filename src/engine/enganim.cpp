@@ -439,6 +439,61 @@ bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 }
 
 
+
+bool AnimCharacter::Load( const StringView& sv )
+{
+	ByteArray ba;
+	if( !FS_LoadBinaryFile( sv, ba ) )
+		return false;
+	ByteReader br( &ba );
+	Serialize( br );
+	return !br.error;
+}
+
+bool AnimCharacter::Save( const StringView& sv )
+{
+	ByteArray ba;
+	ByteWriter bw( &ba );
+	Serialize( bw );
+	return FS_SaveBinaryFile( sv, ba.data(), ba.size() );
+}
+
+void AnimCharacter::OnRenderUpdate()
+{
+	if( m_scene == NULL )
+		return;
+	
+	if( m_cachedMeshInst == NULL )
+	{
+		m_cachedMeshInst = m_scene->CreateMeshInstance();
+	}
+	m_cachedMesh = GR_GetMesh( mesh );
+	m_cachedMeshInst->mesh = m_cachedMesh;
+}
+
+void AnimCharacter::AddToScene( SceneHandle sh )
+{
+	m_scene = sh;
+	
+	OnRenderUpdate();
+}
+
+void AnimCharacter::SetTransform( const Mat4& mtx )
+{
+	if( m_cachedMeshInst )
+		m_cachedMeshInst->matrix = mtx;
+}
+
+void AnimCharacter::Tick( float dt )
+{
+}
+
+void AnimCharacter::PreRender()
+{
+}
+
+
+
 void ParticleSystem::Emitter::Tick( float dt, const Vec3& accel, const Mat4& mtx )
 {
 	if( state_SpawnCurrCount < state_SpawnTotalCount )

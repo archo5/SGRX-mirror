@@ -178,7 +178,7 @@ struct AnimCharacter
 	{
 		Quat rotation;
 		Vec3 position;
-		uint8_t type;
+		uint8_t type; // BodyType
 		Vec3 size; // x = radius, z = capsule height
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
@@ -193,7 +193,7 @@ struct AnimCharacter
 	struct Joint
 	{
 		String parent_name;
-		uint8_t type;
+		uint8_t type; // JointType
 		Vec3 local_offset1;
 		Vec3 local_offset2;
 		
@@ -220,7 +220,7 @@ struct AnimCharacter
 			arch( name );
 			arch( hitbox );
 			arch( body );
-			arch( joint );
+		//	arch( joint );
 		}
 	};
 	
@@ -244,7 +244,7 @@ struct AnimCharacter
 	struct LayerTransform
 	{
 		String bone;
-		TransformType type;
+		uint8_t type; // TransformType
 		Vec3 posaxis; // offset for 'move', axis for 'rotate'
 		float angle; // only for rotation
 		
@@ -270,19 +270,38 @@ struct AnimCharacter
 		}
 	};
 	
-	String mesh;
-	Array< BoneInfo > bones;
-	Array< Attachment > attachments;
-	Array< Layer > layers;
-	
-	template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+	template< class T > void Serialize( T& basearch )
 	{
-		arch.marker( "SGRXCHAR" );
+		basearch.marker( "SGRXCHAR" );
+		
+		SerializeVersionHelper<T> arch( basearch, 1 );
+		
 		arch( mesh );
 		arch( bones );
 		arch( attachments );
 		arch( layers );
 	}
+	
+	AnimCharacter(){}
+	
+	ENGINE_EXPORT bool Load( const StringView& sv );
+	ENGINE_EXPORT bool Save( const StringView& sv );
+	
+	ENGINE_EXPORT void OnRenderUpdate();
+	ENGINE_EXPORT void AddToScene( SceneHandle sh );
+	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
+	
+	ENGINE_EXPORT void Tick( float dt );
+	ENGINE_EXPORT void PreRender();
+	
+	String mesh;
+	Array< BoneInfo > bones;
+	Array< Attachment > attachments;
+	Array< Layer > layers;
+	
+	SceneHandle m_scene;
+	MeshHandle m_cachedMesh;
+	MeshInstHandle m_cachedMeshInst;
 };
 
 
