@@ -20,6 +20,17 @@ AnimCharacter* g_AnimChar;
 
 inline Quat EA2Q( Vec3 v ){ return Mat4::CreateRotationXYZ( v ).GetRotationQuaternion(); }
 inline Vec3 Q2EA( Quat q ){ return Mat4::CreateRotationFromQuat( q ).GetXYZAngles(); }
+inline StringView BodyType2String( uint8_t t )
+{
+	switch( t )
+	{
+	case AnimCharacter::BodyType_None: return "None";
+	case AnimCharacter::BodyType_Sphere: return "Sphere";
+	case AnimCharacter::BodyType_Capsule: return "Capsule";
+	case AnimCharacter::BodyType_Box: return "Box";
+	default: return "None";
+	}
+}
 
 
 struct EDGUICharPicker : EDGUIRsrcPicker
@@ -175,7 +186,8 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_hbox_multiplier( 1, 2, 0.01f, 100.0f ),
 		m_body_rotangles( V3(0), 2, V3(0), V3(360) ),
 		m_body_offset( V3(0), 2, V3(-8192), V3(8192) ),
-		m_body_type( g_UIBodyType, "None" )
+		m_body_type( g_UIBodyType, "None" ),
+		m_bid( -1 )
 	{
 		m_hbox_rotangles.caption = "Rotation (angles)";
 		m_hbox_offset.caption = "Offset";
@@ -202,6 +214,21 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		Add( &m_group );
 	}
 	
+	void Prepare( int which )
+	{
+		m_bid = which;
+		AnimCharacter::BoneInfo& B = g_AnimChar->bones[ m_bid ];
+		
+		m_hbox_rotangles.SetValue( Q2EA( B.hitbox.rotation ) );
+		m_hbox_offset.SetValue( B.hitbox.position );
+		m_hbox_extents.SetValue( B.hitbox.extents );
+		m_hbox_multiplier.SetValue( B.hitbox.multiplier );
+		m_body_rotangles.SetValue( Q2EA( B.body.rotation ) );
+		m_body_offset.SetValue( B.body.position );
+		m_body_type.SetValue( BodyType2String( B.body.type ) );
+		m_body_size.SetValue( B.body.size );
+	}
+	
 	EDGUIGroup m_group;
 	EDGUIGroup m_group_hbox;
 	EDGUIGroup m_group_body;
@@ -213,17 +240,16 @@ struct EDGUIBoneProps : EDGUILayoutRow
 	EDGUIPropVec3 m_body_offset;
 	EDGUIPropRsrc m_body_type;
 	EDGUIPropVec3 m_body_size;
+	int m_bid;
 };
 
 
+void FC_EditBone( int which );
 struct EDGUIBoneListProps : EDGUILayoutRow
 {
 	EDGUIBoneListProps() :
 		m_group( true, "Bones" )
 	{
-		m_btnAdd.caption = "Add bone";
-		
-		Add( &m_btnAdd );
 		Add( &m_group );
 	}
 	
@@ -239,8 +265,23 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 		}
 	}
 	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_BTNCLICK:
+			if( e->target >= (EDGUIItem*) &m_boneButtons[0] &&
+				e->target <= (EDGUIItem*) &m_boneButtons.last() )
+			{
+				FC_EditBone( e->target - (EDGUIItem*) &m_boneButtons[0] );
+				return 1;
+			}
+			break;
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
 	EDGUIGroup m_group;
-	EDGUIButton m_btnAdd;
 	Array< EDGUIButton > m_boneButtons;
 };
 
@@ -418,6 +459,26 @@ struct EDGUICharProps : EDGUILayoutRow
 				LOG << "Picked MESH: " << m_mesh.m_value;
 				g_AnimChar->mesh = m_mesh.m_value;
 				g_AnimChar->OnRenderUpdate();
+				SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
+				if( M )
+				{
+					for( int i = 0; i < M->m_numBones; ++i )
+					{
+						StringView name = M->m_bones[ i ].name;
+						size_t j = 0;
+						for( ; j < g_AnimChar->bones.size(); ++j )
+						{
+							if( g_AnimChar->bones[ j ].name == name )
+								break;
+						}
+						if( j == g_AnimChar->bones.size() )
+						{
+							AnimCharacter::BoneInfo B;
+							B.name = name;
+							g_AnimChar->bones.push_back( B );
+						}
+					}
+				}
 				lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
 				g_UIBonePicker->Reload();
 			}
@@ -553,6 +614,12 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			m_UIParamList.Remove( m_UIParamList.m_subitems.last() );
 	}
 	
+	void EditBone( int which )
+	{
+		ClearParamList();
+		m_boneProps.Prepare( which );
+		AddToParamList( &m_boneProps );
+	}
 	void EditAttachment( int which )
 	{
 		ClearParamList();
@@ -658,6 +725,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBEditLayers;
 };
 
+void FC_EditBone( int which ){ g_UIFrame->EditBone( which ); }
 void FC_EditAttachment( int which ){ g_UIFrame->EditAttachment( which ); }
 
 

@@ -165,6 +165,9 @@ struct AnimCharacter
 		Vec3 extents;
 		float multiplier;
 		
+		HitBox() : rotation( Quat::Identity ), position( V3(0) ),
+			extents( V3(1) ), multiplier( 1 ){}
+		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
 			arch.marker( "HITBOX" );
@@ -181,6 +184,9 @@ struct AnimCharacter
 		uint8_t type; // BodyType
 		Vec3 size; // x = radius, z = capsule height
 		
+		Body() : rotation( Quat::Identity ), position( V3(0) ),
+			type( BodyType_None ), size( V3(1) ){}
+		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
 			arch.marker( "BODY" );
@@ -196,6 +202,9 @@ struct AnimCharacter
 		uint8_t type; // JointType
 		Vec3 local_offset1;
 		Vec3 local_offset2;
+		
+		Joint() : type( JointType_None ), local_offset1( V3(0) ),
+			local_offset2( V3(0) ){}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
@@ -231,6 +240,8 @@ struct AnimCharacter
 		Quat rotation;
 		Vec3 position;
 		
+		Attachment() : rotation( Quat::Identity ), position( V3(0) ){}
+		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
 			arch.marker( "ATTACHMENT" );
@@ -247,6 +258,9 @@ struct AnimCharacter
 		uint8_t type; // TransformType
 		Vec3 posaxis; // offset for 'move', axis for 'rotate'
 		float angle; // only for rotation
+		
+		LayerTransform() : type( TransformType_None ), posaxis( V3(0,0,1) ),
+			angle( 0 ){}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
