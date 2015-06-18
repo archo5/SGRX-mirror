@@ -109,7 +109,7 @@ bool EDGUIItem::Add( EDGUIItem* subitem )
 	EDGUIEvent ev = { EDGUI_EVENT_ADDED, subitem };
 	subitem->OnEvent( &ev );
 	
-	OnChangeLayout();
+	ReshapeLayout();
 	return true;
 }
 
@@ -122,7 +122,7 @@ bool EDGUIItem::Remove( EDGUIItem* subitem )
 	subitem->m_parent = NULL;
 	subitem->_SetFrame( NULL );
 	
-	OnChangeLayout();
+	ReshapeLayout();
 	return true;
 }
 
@@ -737,6 +737,80 @@ void EDGUILayoutSplitPane::SetFirstPane( EDGUIItem* item ){ SetPane( false, item
 void EDGUILayoutSplitPane::SetSecondPane( EDGUIItem* item ){ SetPane( true, item ); }
 
 
+EDGUIVScroll::EDGUIVScroll( float ipos ) : m_offset( ipos ), m_length( 0 )
+{
+	type = EDGUI_ITEM_VSCROLL;
+	tyname = "vscroll";
+}
+
+int EDGUIVScroll::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_LAYOUT:
+		{
+			int off = GetScrollOffset();
+			SetRectFromEvent( e, false );
+			m_length = 0;
+			for( size_t i = 0; i < m_subitems.size(); ++i )
+			{
+				SetSubitemLayout( m_subitems[ i ],
+					e->layout.x0, e->layout.y0 - off,
+					e->layout.x1, e->layout.y1 - off );
+				m_length = TMAX( m_length, float(m_subitems[ i ]->y1 - m_subitems[ i ]->y0) );
+			}
+			// HACK
+			off = GetScrollOffset();
+			for( size_t i = 0; i < m_subitems.size(); ++i )
+			{
+				SetSubitemLayout( m_subitems[ i ],
+					e->layout.x0, e->layout.y0 - off,
+					e->layout.x1, e->layout.y1 - off );
+			}
+			return 1;
+		}
+	case EDGUI_EVENT_MOUSEWHEEL:
+		m_offset -= e->mouse.y * 32;
+		m_offset = GetScrollOffset();
+		OnChangeLayout();
+		break;
+	case EDGUI_EVENT_PAINT:
+		{
+			float ht = y1 - y0;
+			float maxoff = TMAX( m_length - ht, 0.0f );
+			if( m_frame->PushScissorRect( x0, y0, x1, y1 ) )
+			{
+				for( size_t i = 0; i < m_subitems.size(); ++i )
+				{
+					m_subitems[ i ]->OnEvent( e );
+				}
+				if( maxoff )
+				{
+					float off = GetScrollOffset();
+					int sw = TMAX( 0, TMIN( 4, x1 - x0 ) );
+					int x1a = x1 - sw;
+					GR2D_GetBatchRenderer().Reset().Colu( EDGUI_THEME_SCROLL_BACK_COLOR )
+						.Quad( float(x1a), float(y0), float(x1), float(y1) );
+					int sy0 = (int) TLERP( float(y0), float(y1), safe_fdiv( off, maxoff + ht ) );
+					int sy1 = (int) TLERP( float(y0), float(y1), safe_fdiv( off + ht, maxoff + ht ) );
+					GR2D_GetBatchRenderer().Reset().Colu( EDGUI_THEME_SCROLL_BAR_COLOR )
+						.Quad( float(x1a), float(sy0), float(x1), float(sy1) );
+				}
+				m_frame->PopScissorRect();
+			}
+		}
+		return 1;
+	}
+	return EDGUIItem::OnEvent( e );
+}
+
+float EDGUIVScroll::GetScrollOffset()
+{
+	float maxoff = TMAX( m_length - ( y1 - y0 ), 0.0f );
+	return clamp( m_offset, 0, maxoff );
+}
+
+
 EDGUILabel::EDGUILabel()
 {
 	type = EDGUI_ITEM_LABEL;
@@ -830,11 +904,11 @@ int EDGUIGroup::OnEvent( EDGUIEvent* e )
 			int y1a = y0 + EDGUI_THEME_GROUP_HEIGHT;
 			if( backColor )
 			{
-				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( float(x0), float(y0), float(x1), float(y1a) );
+				GR2D_GetBatchRenderer().Reset().Colu( backColor ).Quad( float(x0), float(y0), float(x1), float(y1a) );
 			}
 			if( textColor && m_name.size() )
 			{
-				GR2D_GetBatchRenderer().Colu( textColor );
+				GR2D_GetBatchRenderer().Reset().Colu( textColor );
 				GR2D_DrawTextLine( round(x0 + 2.0f), round(( y0 + y1a ) / 2.0f), m_name, HALIGN_LEFT, VALIGN_CENTER );
 			}
 			if( m_open )

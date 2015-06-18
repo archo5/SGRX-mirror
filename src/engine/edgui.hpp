@@ -29,6 +29,9 @@
 // - split pane
 #define EDGUI_THEME_SPLITPANE_BORDER_SIZE 4
 #define EDGUI_THEME_SPLITPANE_BORDER_COLOR COLOR_RGBA( 120, 120, 120, 255 )
+// - scrollbar colors
+#define EDGUI_THEME_SCROLL_BACK_COLOR COLOR_RGBA( 0, 0, 0, 64 )
+#define EDGUI_THEME_SCROLL_BAR_COLOR COLOR_RGBA( 255, 255, 255, 64 )
 // - resource picker
 #define EDGUI_THEME_RSRCPICK_ITEM_BACK_COLOR COLOR_RGBA( 60, 60, 60, 128 )
 #define EDGUI_THEME_RSRCPICK_ITEM_BACKHL_COLOR COLOR_RGBA( 120, 30, 30, 128 )
@@ -85,6 +88,7 @@
 #define EDGUI_ITEM_LAYOUT_ROW  40
 #define EDGUI_ITEM_LAYOUT_COL  41
 #define EDGUI_ITEM_SPLIT_PANE  42
+#define EDGUI_ITEM_VSCROLL     45
 #define EDGUI_ITEM_LABEL       48
 #define EDGUI_ITEM_GROUP       49
 #define EDGUI_ITEM_BUTTON      50
@@ -253,6 +257,18 @@ struct IF_GCC(ENGINE_EXPORT) EDGUILayoutSplitPane : EDGUIItem
 	float m_splitfac;
 	EDGUIItem* m_first;
 	EDGUIItem* m_second;
+};
+
+
+struct IF_GCC(ENGINE_EXPORT) EDGUIVScroll : EDGUIItem
+{
+	ENGINE_EXPORT EDGUIVScroll( float ipos = 0 );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	
+	ENGINE_EXPORT float GetScrollOffset();
+	
+	float m_offset; // 0 (at the top) to ( <m_length> - height(y1-y0) ) (at bottom)
+	float m_length;
 };
 
 

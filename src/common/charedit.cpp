@@ -24,12 +24,19 @@ inline StringView BodyType2String( uint8_t t )
 {
 	switch( t )
 	{
-	case AnimCharacter::BodyType_None: return "None";
 	case AnimCharacter::BodyType_Sphere: return "Sphere";
 	case AnimCharacter::BodyType_Capsule: return "Capsule";
 	case AnimCharacter::BodyType_Box: return "Box";
+	case AnimCharacter::BodyType_None:
 	default: return "None";
 	}
+}
+inline uint8_t String2BodyType( const StringView& s )
+{
+	if( s == "Sphere" ) return AnimCharacter::BodyType_Sphere;
+	if( s == "Capsule" ) return AnimCharacter::BodyType_Capsule;
+	if( s == "Box" ) return AnimCharacter::BodyType_Box;
+	return AnimCharacter::BodyType_None;
 }
 
 
@@ -183,7 +190,7 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_hbox_rotangles( V3(0), 2, V3(0), V3(360) ),
 		m_hbox_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_hbox_extents( V3(0.1f), 2, V3(0), V3(100) ),
-		m_hbox_multiplier( 1, 2, 0.01f, 100.0f ),
+		m_hbox_multiplier( 1, 2, 0, 100.0f ),
 		m_body_rotangles( V3(0), 2, V3(0), V3(360) ),
 		m_body_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_body_type( g_UIBodyType, "None" ),
@@ -217,16 +224,43 @@ struct EDGUIBoneProps : EDGUILayoutRow
 	void Prepare( int which )
 	{
 		m_bid = which;
-		AnimCharacter::BoneInfo& B = g_AnimChar->bones[ m_bid ];
+		AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ m_bid ];
 		
-		m_hbox_rotangles.SetValue( Q2EA( B.hitbox.rotation ) );
-		m_hbox_offset.SetValue( B.hitbox.position );
-		m_hbox_extents.SetValue( B.hitbox.extents );
-		m_hbox_multiplier.SetValue( B.hitbox.multiplier );
-		m_body_rotangles.SetValue( Q2EA( B.body.rotation ) );
-		m_body_offset.SetValue( B.body.position );
-		m_body_type.SetValue( BodyType2String( B.body.type ) );
-		m_body_size.SetValue( B.body.size );
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "Bone props: %s", StackString<240>( BI.name ).str );
+		m_group.caption = bfr;
+		m_group.SetOpen( true ); // update caption
+		
+		m_hbox_rotangles.SetValue( Q2EA( BI.hitbox.rotation ) );
+		m_hbox_offset.SetValue( BI.hitbox.position );
+		m_hbox_extents.SetValue( BI.hitbox.extents );
+		m_hbox_multiplier.SetValue( BI.hitbox.multiplier );
+		m_body_rotangles.SetValue( Q2EA( BI.body.rotation ) );
+		m_body_offset.SetValue( BI.body.position );
+		m_body_type.SetValue( BodyType2String( BI.body.type ) );
+		m_body_size.SetValue( BI.body.size );
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_bid >= 0 )
+		{
+			AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ m_bid ];
+			switch( e->type )
+			{
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_hbox_rotangles ) BI.hitbox.rotation = EA2Q( m_hbox_rotangles.m_value );
+				else if( e->target == &m_hbox_offset ) BI.hitbox.position = m_hbox_offset.m_value;
+				else if( e->target == &m_hbox_extents ) BI.hitbox.extents = m_hbox_extents.m_value;
+				else if( e->target == &m_hbox_multiplier ) BI.hitbox.multiplier = m_hbox_multiplier.m_value;
+				else if( e->target == &m_body_rotangles ) BI.body.rotation = EA2Q( m_body_rotangles.m_value );
+				else if( e->target == &m_body_offset ) BI.body.position = m_body_offset.m_value;
+				else if( e->target == &m_body_type ) BI.body.type = String2BodyType( m_body_type.m_value );
+				else if( e->target == &m_body_size ) BI.body.size = m_body_size.m_value;
+				break;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
 	}
 	
 	EDGUIGroup m_group;
@@ -479,6 +513,7 @@ struct EDGUICharProps : EDGUILayoutRow
 						}
 					}
 				}
+				g_AnimChar->RecalcBoneIDs();
 				lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
 				g_UIBonePicker->Reload();
 			}
@@ -505,7 +540,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_UIMenuSplit.SetFirstPane( &m_UIMenuButtons );
 		m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
 		m_UIParamSplit.SetFirstPane( &m_UIRenderView );
-		m_UIParamSplit.SetSecondPane( &m_UIParamList );
+		m_UIParamSplit.SetSecondPane( &m_UIParamScroll );
+		m_UIParamScroll.Add( &m_UIParamList );
 		
 		// menu
 		m_MB_Cat0.caption = "File:";
@@ -602,6 +638,27 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	void DebugDraw()
 	{
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		
+		if( g_AnimChar && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
+		{
+			// draw hitboxes
+			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			{
+				Mat4 wm;
+				Vec3 ext;
+				if( g_AnimChar->GetHitboxOBB( i, wm, ext ) )
+				{
+					if( i == m_boneProps.m_bid )
+						br.Col( 0.1f, 0.8f, 0.9f, 0.8f );
+					else
+						br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
+					br.AABB( -ext, ext, wm );
+				}
+			}
+			
+			// draw attachments
+		}
 	}
 	
 	void AddToParamList( EDGUIItem* item )
@@ -709,6 +766,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUILayoutSplitPane m_UIMenuSplit;
 	EDGUILayoutSplitPane m_UIParamSplit;
 	EDGUILayoutColumn m_UIMenuButtons;
+	EDGUIVScroll m_UIParamScroll;
 	EDGUILayoutRow m_UIParamList;
 	EDGUIRenderView m_UIRenderView;
 	

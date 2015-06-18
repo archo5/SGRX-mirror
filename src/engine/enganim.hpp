@@ -166,7 +166,7 @@ struct AnimCharacter
 		float multiplier;
 		
 		HitBox() : rotation( Quat::Identity ), position( V3(0) ),
-			extents( V3(1) ), multiplier( 1 ){}
+			extents( V3(0.1f) ), multiplier( 1 ){}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
@@ -223,6 +223,10 @@ struct AnimCharacter
 		Body body;
 		Joint joint;
 		
+		int bone_id;
+		
+		BoneInfo() : bone_id(-1){}
+		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
 			arch.marker( "BONEINFO" );
@@ -240,7 +244,9 @@ struct AnimCharacter
 		Quat rotation;
 		Vec3 position;
 		
-		Attachment() : rotation( Quat::Identity ), position( V3(0) ){}
+		int bone_id;
+		
+		Attachment() : rotation( Quat::Identity ), position( V3(0) ), bone_id(-1){}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
@@ -259,8 +265,10 @@ struct AnimCharacter
 		Vec3 posaxis; // offset for 'move', axis for 'rotate'
 		float angle; // only for rotation
 		
+		int bone_id;
+		
 		LayerTransform() : type( TransformType_None ), posaxis( V3(0,0,1) ),
-			angle( 0 ){}
+			angle( 0 ), bone_id(-1){}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
@@ -296,7 +304,7 @@ struct AnimCharacter
 		arch( layers );
 	}
 	
-	AnimCharacter(){}
+	ENGINE_EXPORT AnimCharacter();
 	
 	ENGINE_EXPORT bool Load( const StringView& sv );
 	ENGINE_EXPORT bool Save( const StringView& sv );
@@ -307,6 +315,10 @@ struct AnimCharacter
 	
 	ENGINE_EXPORT void Tick( float dt );
 	ENGINE_EXPORT void PreRender();
+	
+	ENGINE_EXPORT int _FindBone( const StringView& name );
+	ENGINE_EXPORT void RecalcBoneIDs();
+	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
 	
 	String mesh;
 	Array< BoneInfo > bones;

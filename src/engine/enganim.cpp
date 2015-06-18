@@ -440,6 +440,10 @@ bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 
 
 
+AnimCharacter::AnimCharacter()
+{
+}
+
 bool AnimCharacter::Load( const StringView& sv )
 {
 	ByteArray ba;
@@ -447,7 +451,12 @@ bool AnimCharacter::Load( const StringView& sv )
 		return false;
 	ByteReader br( &ba );
 	Serialize( br );
-	return !br.error;
+	if( br.error )
+		return false;
+	
+	m_cachedMesh = GR_GetMesh( mesh );
+	RecalcBoneIDs();
+	return true;
 }
 
 bool AnimCharacter::Save( const StringView& sv )
@@ -469,6 +478,7 @@ void AnimCharacter::OnRenderUpdate()
 	}
 	m_cachedMesh = GR_GetMesh( mesh );
 	m_cachedMeshInst->mesh = m_cachedMesh;
+	RecalcBoneIDs();
 }
 
 void AnimCharacter::AddToScene( SceneHandle sh )
@@ -490,6 +500,66 @@ void AnimCharacter::Tick( float dt )
 
 void AnimCharacter::PreRender()
 {
+}
+
+int AnimCharacter::_FindBone( const StringView& name )
+{
+	if( !m_cachedMesh )
+		return -1;
+	int bid = 0;
+	for( ; bid < m_cachedMesh->m_numBones; ++bid )
+	{
+		if( m_cachedMesh->m_bones[ bid ].name == name )
+			break;
+	}
+	return bid < m_cachedMesh->m_numBones ? bid : -1;
+}
+
+void AnimCharacter::RecalcBoneIDs()
+{
+	for( size_t i = 0; i < bones.size(); ++i )
+	{
+		BoneInfo& BI = bones[ i ];
+		BI.bone_id = _FindBone( BI.name );
+	}
+	for( size_t i = 0; i < attachments.size(); ++i )
+	{
+		Attachment& AT = attachments[ i ];
+		AT.bone_id = _FindBone( AT.bone );
+	}
+	for( size_t i = 0; i < layers.size(); ++i )
+	{
+		Layer& LY = layers[ i ];
+		for( size_t j = 0; j < LY.transforms.size(); ++j )
+		{
+			LayerTransform& LT = LY.transforms[ j ];
+			LT.bone_id = _FindBone( LT.bone );
+		}
+	}
+}
+
+bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
+{
+	if( !m_cachedMesh || !m_cachedMeshInst )
+		return false;
+	if( which < 0 || which >= (int) bones.size() )
+		return false;
+	BoneInfo& BI = bones[ which ];
+	if( BI.bone_id < 0 )
+		return false;
+	if( BI.hitbox.multiplier == 0 )
+		return false; // a way to disable it
+	
+	outwm = m_cachedMeshInst->matrix;
+	if( m_cachedMeshInst->skin_matrices.size() )
+	{
+		outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
+	}
+	outwm = m_cachedMesh->m_bones[ BI.bone_id ].skinOffset * outwm;
+	outwm = Mat4::CreateRotationFromQuat( BI.hitbox.rotation ) *
+		Mat4::CreateTranslation( BI.hitbox.position ) * outwm;
+	outext = BI.hitbox.extents;
+	return true;
 }
 
 
