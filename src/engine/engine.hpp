@@ -719,7 +719,7 @@ struct SGRX_Camera
 	ENGINE_EXPORT void UpdateProjMatrix();
 	ENGINE_EXPORT void UpdateMatrices();
 	
-	ENGINE_EXPORT Vec3 WorldToScreen( const Vec3& pos );
+	ENGINE_EXPORT Vec3 WorldToScreen( const Vec3& pos, bool* infront = NULL );
 	ENGINE_EXPORT bool GetCursorRay( float x, float y, Vec3& pos, Vec3& dir );
 	
 	Vec3 position;

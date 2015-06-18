@@ -18,8 +18,8 @@ struct EDGUITransformType* g_UITransformType;
 AnimCharacter* g_AnimChar;
 
 
-inline Quat EA2Q( Vec3 v ){ return Mat4::CreateRotationXYZ( v ).GetRotationQuaternion(); }
-inline Vec3 Q2EA( Quat q ){ return Mat4::CreateRotationFromQuat( q ).GetXYZAngles(); }
+inline Quat EA2Q( Vec3 v ){ return Mat4::CreateRotationXYZ( DEG2RAD( v ) ).GetRotationQuaternion(); }
+inline Vec3 Q2EA( Quat q ){ return RAD2DEG( Mat4::CreateRotationFromQuat( q ).GetXYZAngles() ); }
 inline StringView BodyType2String( uint8_t t )
 {
 	switch( t )
@@ -40,24 +40,40 @@ inline uint8_t String2BodyType( const StringView& s )
 }
 
 
-struct EDGUICharPicker : EDGUIRsrcPicker
+static void YesNoText( bool yes )
+{
+	uint32_t origcol = GR2D_GetBatchRenderer().m_proto.color;
+	if( yes )
+	{
+		GR2D_SetColor( 0.1f, 1, 0 );
+		GR2D_DrawTextLine( "YES" );
+	}
+	else
+	{
+		GR2D_SetColor( 1, 0.1f, 0 );
+		GR2D_DrawTextLine( "NO" );
+	}
+	GR2D_GetBatchRenderer().Colu( origcol );
+}
+
+
+struct EDGUICharPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUICharPicker(){ Reload(); }
 	void Reload()
 	{
 		LOG << "Reloading chars";
 		m_options.clear();
-		DirectoryIterator tdi( "chars" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() && fn.ends_with( ".chr" ) )
-			{
-				m_options.push_back( fn.part( 0, fn.size() - 4 ) );
-			}
-		}
+		FS_IterateDirectory( "chars", this );
 		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		if( isdir == false && name.ends_with( ".chr" ) )
+		{
+			m_options.push_back( name.part( 0, name.size() - 4 ) );
+		}
+		return true;
 	}
 	virtual void _OnChangeZoom()
 	{
@@ -154,6 +170,7 @@ struct EDGUIBodyType : EDGUIRsrcPicker
 		m_options.push_back( "Sphere" );
 		m_options.push_back( "Capsule" );
 		m_options.push_back( "Box" );
+		_Search( m_searchString );
 	}
 };
 
@@ -165,6 +182,7 @@ struct EDGUIJointType : EDGUIRsrcPicker
 		caption = "Pick a joint type";
 		m_options.push_back( "None" );
 		m_options.push_back( "Hinge" );
+		_Search( m_searchString );
 	}
 };
 
@@ -177,6 +195,7 @@ struct EDGUITransformType : EDGUIRsrcPicker
 		m_options.push_back( "None" );
 		m_options.push_back( "Move" );
 		m_options.push_back( "Rotate" );
+		_Search( m_searchString );
 	}
 };
 
@@ -194,6 +213,7 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_body_rotangles( V3(0), 2, V3(0), V3(360) ),
 		m_body_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_body_type( g_UIBodyType, "None" ),
+		m_body_size( V3(0.1f), 2, V3(0), V3(100) ),
 		m_bid( -1 )
 	{
 		m_hbox_rotangles.caption = "Rotation (angles)";
@@ -362,7 +382,11 @@ struct EDGUIAttachmentProps : EDGUILayoutRow
 			{
 			case EDGUI_EVENT_PROPEDIT:
 				if( e->target == &m_name ) A.name = m_name.m_value;
-				else if( e->target == &m_bone ) A.bone = m_bone.m_value;
+				else if( e->target == &m_bone )
+				{
+					A.bone = m_bone.m_value;
+					A.bone_id = g_AnimChar->_FindBone( A.bone );
+				}
 				else if( e->target == &m_rotangles ) A.rotation = EA2Q( m_rotangles.m_value );
 				else if( e->target == &m_offset ) A.position = m_offset.m_value;
 				break;
@@ -530,6 +554,9 @@ struct EDGUICharProps : EDGUILayoutRow
 struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 {
 	EDGUIMainFrame() :
+		m_showBodies( true ),
+		m_showHitboxes( true ),
+		m_showAttachments( true ),
 		m_UIMenuSplit( true, 26, 0 ),
 		m_UIParamSplit( false, 0, 0.6f ),
 		m_UIRenderView( g_EdScene, this )
@@ -633,6 +660,60 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	bool ViewEvent( EDGUIEvent* e )
 	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_PAINT:
+			{
+				int rx0 = m_UIRenderView.x0;
+				int ry0 = m_UIRenderView.y0;
+				int rx1 = m_UIRenderView.x1;
+				int ry1 = m_UIRenderView.y1;
+				
+				if( m_showAttachments && PushScissorRect( rx0, ry0, rx1, ry1 ) )
+				{
+					GR2D_GetBatchRenderer().Reset().Col( 1 );
+					
+					for( size_t i = 0; i < g_AnimChar->attachments.size(); ++i )
+					{
+						Mat4 wm;
+						if( g_AnimChar->GetAttachmentMatrix( i, wm ) )
+						{
+							bool infront = true;
+							Vec3 spos = g_EdScene->camera.WorldToScreen( wm.TransformPos( V3(0,0,0) ), &infront );
+							if( infront )
+							{
+								int tx = TLERP( rx0, rx1, spos.x );
+								int ty = TLERP( ry0, ry1, spos.y );
+								GR2D_DrawTextLine( tx, ty, g_AnimChar->attachments[ i ].name );
+							}
+						}
+					}
+					PopScissorRect();
+				}
+				
+				GR2D_GetBatchRenderer().Reset().Col( 0, 0.5f ).Quad( rx0, ry0, rx1, ry0 + 16 );
+				
+				GR2D_SetTextCursor( rx0, ry0 );
+				
+				GR2D_SetColor( 1, 1 );
+				GR2D_DrawTextLine( "Render items: [Bodies: " );
+				YesNoText( m_showBodies );
+				GR2D_DrawTextLine( ", Hitboxes: " );
+				YesNoText( m_showHitboxes );
+				GR2D_DrawTextLine( ", Attachments: " );
+				YesNoText( m_showAttachments );
+				GR2D_DrawTextLine( "]" );
+			}
+			break;
+		case EDGUI_EVENT_KEYDOWN:
+			if( e->key.repeat == false && e->key.engkey == SDLK_1 )
+				m_showBodies = !m_showBodies;
+			if( e->key.repeat == false && e->key.engkey == SDLK_2 )
+				m_showHitboxes = !m_showHitboxes;
+			if( e->key.repeat == false && e->key.engkey == SDLK_3 )
+				m_showAttachments = !m_showAttachments;
+			break;
+		}
 		return true;
 	}
 	
@@ -642,22 +723,58 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		
 		if( g_AnimChar && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
 		{
-			// draw hitboxes
-			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			if( m_showBodies )
 			{
-				Mat4 wm;
-				Vec3 ext;
-				if( g_AnimChar->GetHitboxOBB( i, wm, ext ) )
+				br.Reset();
+			}
+			
+			if( m_showHitboxes )
+			{
+				br.Reset();
+				for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
 				{
-					if( i == m_boneProps.m_bid )
-						br.Col( 0.1f, 0.8f, 0.9f, 0.8f );
-					else
-						br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
-					br.AABB( -ext, ext, wm );
+					Mat4 wm;
+					Vec3 ext;
+					if( g_AnimChar->GetHitboxOBB( i, wm, ext ) )
+					{
+						if( (int) i == m_boneProps.m_bid )
+							br.Col( 0.1f, 0.8f, 0.9f, 0.8f );
+						else
+							br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
+						br.AABB( -ext, ext, wm );
+					}
 				}
 			}
 			
 			// draw attachments
+			if( m_showAttachments )
+			{
+				br.Reset();
+				br.SetPrimitiveType( PT_Lines );
+				for( size_t i = 0; i < g_AnimChar->attachments.size(); ++i )
+				{
+					Mat4 wm;
+					if( g_AnimChar->GetAttachmentMatrix( i, wm ) )
+					{
+						float a, d = 0.8f;
+						if( (int) i == m_atchProps.m_aid )
+							br.Col( 0.9f, 0.9f, 0.9f, a = 0.8f );
+						else
+							br.Col( 0.6f, 0.6f, 0.6f, a = 0.5f );
+						br.Pos( wm.TransformPos( V3(0,0,0) ) );
+						br.Col( 1, 0, 0, a );
+						br.Pos( wm.TransformPos( V3(d,0,0) ) );
+						
+						br.Prev( 1 );
+						br.Col( 0, 1, 0, a );
+						br.Pos( wm.TransformPos( V3(0,d,0) ) );
+						
+						br.Prev( 1 );
+						br.Col( 0, 0, 1, a );
+						br.Pos( wm.TransformPos( V3(0,0,d) ) );
+					}
+				}
+			}
 		}
 	}
 	
@@ -686,6 +803,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	void ResetEditorState()
 	{
+		if( g_AnimChar->m_cachedMeshInst )
+			lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
 		g_UIBonePicker->Reload();
 		
 		ClearParamList();
@@ -729,7 +848,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		LOG << "Trying to open character: " << str;
 		char bfr[ 256 ];
 		sgrx_snprintf( bfr, sizeof(bfr), "chars/%.*s.chr", TMIN( (int) str.size(), 200 ), str.data() );
-		if( !g_AnimChar->Load( str ) )
+		if( !g_AnimChar->Load( bfr ) )
 		{
 			LOG_ERROR << "FAILED TO LOAD CHAR FILE: " << bfr;
 			return;
@@ -742,7 +861,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		LOG << "Trying to save character: " << str;
 		char bfr[ 256 ];
 		sgrx_snprintf( bfr, sizeof(bfr), "chars/%.*s.chr", TMIN( (int) str.size(), 200 ), str.data() );
-		if( !g_AnimChar->Save( str ) )
+		if( !g_AnimChar->Save( bfr ) )
 		{
 			LOG_ERROR << "FAILED TO SAVE CHAR FILE: " << bfr;
 			return;
@@ -751,6 +870,10 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	}
 	
 	String m_fileName;
+	
+	bool m_showBodies;
+	bool m_showHitboxes;
+	bool m_showAttachments;
 	
 	// property blocks
 	EDGUIBoneProps m_boneProps;

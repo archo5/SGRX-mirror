@@ -1308,12 +1308,15 @@ void SGRX_Camera::UpdateMatrices()
 	UpdateProjMatrix();
 }
 
-Vec3 SGRX_Camera::WorldToScreen( const Vec3& pos )
+Vec3 SGRX_Camera::WorldToScreen( const Vec3& pos, bool* infront )
 {
 	Vec3 P = mView.TransformPos( pos );
-	P = mProj.TransformPos( P );
+	Vec4 psP = mProj.Transform( V4( P, 1 ) );
+	P = psP.ToVec3() * ( 1.0f / psP.w );
 	P.x = P.x * 0.5f + 0.5f;
 	P.y = P.y * -0.5f + 0.5f;
+	if( infront )
+		*infront = psP.w > 0;
 	return P;
 }
 

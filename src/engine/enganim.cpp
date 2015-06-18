@@ -454,8 +454,13 @@ bool AnimCharacter::Load( const StringView& sv )
 	if( br.error )
 		return false;
 	
-	m_cachedMesh = GR_GetMesh( mesh );
-	RecalcBoneIDs();
+	if( m_scene )
+		OnRenderUpdate();
+	else
+	{
+		m_cachedMesh = GR_GetMesh( mesh );
+		RecalcBoneIDs();
+	}
 	return true;
 }
 
@@ -545,20 +550,43 @@ bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 	if( which < 0 || which >= (int) bones.size() )
 		return false;
 	BoneInfo& BI = bones[ which ];
-	if( BI.bone_id < 0 )
-		return false;
 	if( BI.hitbox.multiplier == 0 )
 		return false; // a way to disable it
 	
 	outwm = m_cachedMeshInst->matrix;
-	if( m_cachedMeshInst->skin_matrices.size() )
+	if( BI.bone_id >= 0 )
 	{
-		outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
+		if( m_cachedMeshInst->skin_matrices.size() )
+		{
+			outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
+		}
+		outwm = m_cachedMesh->m_bones[ BI.bone_id ].skinOffset * outwm;
 	}
-	outwm = m_cachedMesh->m_bones[ BI.bone_id ].skinOffset * outwm;
 	outwm = Mat4::CreateRotationFromQuat( BI.hitbox.rotation ) *
 		Mat4::CreateTranslation( BI.hitbox.position ) * outwm;
 	outext = BI.hitbox.extents;
+	return true;
+}
+
+bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm )
+{
+	if( !m_cachedMesh || !m_cachedMeshInst )
+		return false;
+	if( which < 0 || which >= (int) attachments.size() )
+		return false;
+	Attachment& AT = attachments[ which ];
+	
+	outwm = m_cachedMeshInst->matrix;
+	if( AT.bone_id >= 0 )
+	{
+		if( m_cachedMeshInst->skin_matrices.size() )
+		{
+			outwm = m_cachedMeshInst->skin_matrices[ AT.bone_id ] * outwm;
+		}
+		outwm = m_cachedMesh->m_bones[ AT.bone_id ].skinOffset * outwm;
+	}
+	outwm = Mat4::CreateRotationFromQuat( AT.rotation ) *
+		Mat4::CreateTranslation( AT.position ) * outwm;
 	return true;
 }
 

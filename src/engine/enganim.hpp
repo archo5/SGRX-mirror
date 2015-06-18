@@ -185,7 +185,7 @@ struct AnimCharacter
 		Vec3 size; // x = radius, z = capsule height
 		
 		Body() : rotation( Quat::Identity ), position( V3(0) ),
-			type( BodyType_None ), size( V3(1) ){}
+			type( BodyType_None ), size( V3(0.1f) ){}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
@@ -319,6 +319,7 @@ struct AnimCharacter
 	ENGINE_EXPORT int _FindBone( const StringView& name );
 	ENGINE_EXPORT void RecalcBoneIDs();
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
+	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm );
 	
 	String mesh;
 	Array< BoneInfo > bones;
