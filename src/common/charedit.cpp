@@ -726,6 +726,31 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			if( m_showBodies )
 			{
 				br.Reset();
+				for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+				{
+					Mat4 wm;
+					if( g_AnimChar->GetBodyMatrix( i, wm ) )
+					{
+						Vec3 size = g_AnimChar->bones[ i ].body.size;
+						if( (int) i == m_boneProps.m_bid )
+							br.Col( 0.8f, 0.1f, 0.9f, 0.8f );
+						else
+							br.Col( 0.5f, 0.1f, 0.9f, 0.5f );
+						switch( g_AnimChar->bones[ i ].body.type )
+						{
+						case AnimCharacter::BodyType_Sphere:
+							br.SphereOutline( wm.TransformPos( V3(0) ), size.x, 32 );
+							break;
+						case AnimCharacter::BodyType_Capsule:
+							br.CapsuleOutline( wm.TransformPos( V3(0) ), size.x,
+								wm.TransformNormal( V3(0,0,1) ).Normalized(), size.z, 32 );
+							break;
+						case AnimCharacter::BodyType_Box:
+							br.AABB( -size, size, wm );
+							break;
+						}
+					}
+				}
 			}
 			
 			if( m_showHitboxes )
@@ -914,6 +939,7 @@ void FC_EditAttachment( int which ){ g_UIFrame->EditAttachment( which ); }
 
 SGRX_RenderPass g_RenderPasses_Main[] =
 {
+	{ RPT_SCREEN, RPF_ENABLED, 1, 0, 0, "ps_ss_fog" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 0, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 0, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 0, 0, "base" },
@@ -941,6 +967,7 @@ struct CSEditor : IGame
 		g_EdScene = GR_CreateScene();
 		g_EdScene->camera.position = V3(3);
 		g_EdScene->camera.UpdateMatrices();
+		g_EdScene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 		g_AnimChar = new AnimCharacter;
 		g_AnimChar->AddToScene( g_EdScene );
 		g_UIFrame = new EDGUIMainFrame();

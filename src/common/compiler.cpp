@@ -109,7 +109,7 @@ void LevelCache::AddPart( const Vertex* verts, int vcount, const StringView& tex
 	P.m_decalLayer = decalLayer;
 	
 	Vec2 t2min = V2(FLT_MAX), t2max = V2(-FLT_MAX);
-	for( int i = 0; i < vcount; ++i )
+	for( int i = 0; i < (int) P.m_vertices.size(); ++i )
 	{
 		Vec2 tc = V2( P.m_vertices[ i ].tx1, P.m_vertices[ i ].ty1 );
 		t2min = Vec2::Min( t2min, tc );

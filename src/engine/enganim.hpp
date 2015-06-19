@@ -318,6 +318,7 @@ struct AnimCharacter
 	
 	ENGINE_EXPORT int _FindBone( const StringView& name );
 	ENGINE_EXPORT void RecalcBoneIDs();
+	ENGINE_EXPORT bool GetBodyMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
 	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm );
 	

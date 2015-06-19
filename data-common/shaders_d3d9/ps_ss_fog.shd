@@ -11,12 +11,13 @@ float4 fogDATA : register(c13);
 
 float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : COLOR0
 {
+	float fogColorSCALE = 0.25;
 	float fogMinDist = fogDATA.w;
 	float fogHeightFactor = fogRGBS.w;
 	float fogDensity = fogDATA.x;
 	float fogHeightStart = fogDATA.z;
 	float fogHeightDensity = fogDATA.y;
-	float3 fogColor = fogRGBS.rgb;
+	float3 fogColor = fogRGBS.rgb * fogColorSCALE;
 	
 	float distance = tex2D( texDEPTH, itex ).r;
 	
@@ -43,7 +44,7 @@ float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : COLOR0
 	{
 		float3 sbcoord = normalize( mul( mInvView, float4( fpos, 1, 0 ) ).xyz );
 		sbcoord = sbcoord.xzy;
-		float3 skycolor = texCUBElod( texSKY, float4( sbcoord, 0 ) ).rgb;
+		float3 skycolor = texCUBElod( texSKY, float4( sbcoord, 0 ) ).rgb * fogColorSCALE;
 		fogColor = lerp( fogColor, skycolor, skyDATA.x );
 		fogfactor = 1;
 	}

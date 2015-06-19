@@ -543,6 +543,28 @@ void AnimCharacter::RecalcBoneIDs()
 	}
 }
 
+bool AnimCharacter::GetBodyMatrix( int which, Mat4& outwm )
+{
+	if( !m_cachedMesh || !m_cachedMeshInst )
+		return false;
+	if( which < 0 || which >= (int) bones.size() )
+		return false;
+	BoneInfo& BI = bones[ which ];
+	
+	outwm = m_cachedMeshInst->matrix;
+	if( BI.bone_id >= 0 )
+	{
+		if( m_cachedMeshInst->skin_matrices.size() )
+		{
+			outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
+		}
+		outwm = m_cachedMesh->m_bones[ BI.bone_id ].skinOffset * outwm;
+	}
+	outwm = Mat4::CreateRotationFromQuat( BI.body.rotation ) *
+		Mat4::CreateTranslation( BI.body.position ) * outwm;
+	return true;
+}
+
 bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 {
 	if( !m_cachedMesh || !m_cachedMeshInst )

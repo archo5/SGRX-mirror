@@ -2975,11 +2975,64 @@ BatchRenderer& BatchRenderer::CircleOutline( const Vec3& pos, const Vec3& dx, co
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::HalfCircleOutline( const Vec3& pos, const Vec3& dx, const Vec3& dy, int verts )
+{
+	if( verts >= 3 )
+	{
+		SetPrimitiveType( PT_Lines );
+		float a = 0;
+		float ad = M_PI / ( verts - 1 );
+		for( int i = 0; i < verts; ++i )
+		{
+			if( i > 1 )
+				Prev( 0 );
+			Pos( pos + sin( a ) * dy + cos( a ) * dx );
+			a += ad;
+		}
+	}
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::SphereOutline( const Vec3& pos, float radius, int verts )
 {
 	CircleOutline( pos, V3(radius,0,0), V3(0,radius,0), verts );
 	CircleOutline( pos, V3(0,radius,0), V3(0,0,radius), verts );
 	CircleOutline( pos, V3(0,0,radius), V3(radius,0,0), verts );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::CapsuleOutline( const Vec3& pos, float radius, const Vec3& nrm, float ht, int verts )
+{
+	Vec3 N = nrm.Normalized();
+	if( N.LengthSq() < SMALL_FLOAT )
+		return SphereOutline( pos, radius, verts );
+	
+	Vec3 refdir = V3( 0, 0, nrm.z >= 0 ? 1 : -1 );
+	Vec3 rotaxis = Vec3Cross( N, refdir );
+	float rotangle = acosf( clamp( Vec3Dot( N, refdir ), -1, 1 ) );
+	
+	Mat4 rot = Mat4::CreateRotationAxisAngle( rotaxis, rotangle );
+	Vec3 T = rot.TransformNormal( V3(1,0,0) );
+	Vec3 B = rot.TransformNormal( V3(0,1,0) );
+	Vec3 Tr = T * radius, Br = B * radius, Nr = N * radius;
+	
+	Vec3 p0 = pos - N * ht, p1 = pos + N * ht;
+	
+	HalfCircleOutline( p1, Tr, Nr, verts / 2 );
+	HalfCircleOutline( p1, Br, Nr, verts / 2 );
+	HalfCircleOutline( p0, Tr, -Nr, verts / 2 );
+	HalfCircleOutline( p0, Br, -Nr, verts / 2 );
+	CircleOutline( p0, Tr, Br, verts );
+	if( ht )
+	{
+		CircleOutline( p1, Tr, Br, verts );
+		SetPrimitiveType( PT_Lines );
+		Pos( p0 - Tr ); Pos( p1 - Tr );
+		Pos( p0 + Tr ); Pos( p1 + Tr );
+		Pos( p0 - Br ); Pos( p1 - Br );
+		Pos( p0 + Br ); Pos( p1 + Br );
+	}
+	
 	return *this;
 }
 
