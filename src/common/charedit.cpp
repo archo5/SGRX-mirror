@@ -40,6 +40,298 @@ inline uint8_t String2BodyType( const StringView& s )
 }
 
 
+
+struct AMVertex
+{
+	Vec3 pos;
+	uint8_t weights[4];
+	uint8_t indices[4];
+};
+Array< AMVertex > g_MeshVertices;
+
+struct AMBone
+{
+	// IN
+	int id;
+	String name;
+	uint8_t weight_threshold;
+	// OUT
+	Vec3 world_axisZ; // general direction (Z)
+	Vec3 world_axisY; // second g.d. (Y)
+	Vec3 world_axisX; // cross product (X)
+	Vec3 world_center;
+	Vec3 bb_min;
+	Vec3 bb_max;
+	Vec3 bb_extents;
+	float capsule_halfheight;
+	float capsule_radius;
+};
+
+void reload_mesh_vertices()
+{
+	Array< AMVertex >& outverts = g_MeshVertices;
+	
+	
+	LOG << "Reloading mesh vertices...";
+	outverts.clear();
+	if( g_AnimChar )
+	{
+		SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
+		if( M && M->m_vdata.size() && M->m_vertexDecl )
+		{
+			const VDeclInfo& VDI = M->m_vertexDecl.GetInfo();
+			int off_p = VDI.GetOffset( VDECLUSAGE_POSITION );
+			int off_i = VDI.GetOffset( VDECLUSAGE_BLENDIDX );
+			int off_w = VDI.GetOffset( VDECLUSAGE_BLENDWT );
+			if( off_p != -1 && off_i != -1 && off_w != -1 &&
+				VDI.GetType( VDECLUSAGE_POSITION ) == VDECLTYPE_FLOAT3 &&
+				VDI.GetType( VDECLUSAGE_BLENDIDX ) == VDECLTYPE_BCOL4 &&
+				VDI.GetType( VDECLUSAGE_BLENDWT ) == VDECLTYPE_BCOL4 )
+			{
+				AMVertex vtx;
+				size_t vcount = M->m_vdata.size() / VDI.size;
+				for( size_t i = 0; i < vcount; ++i )
+				{
+					size_t boff = i * VDI.size;
+					memcpy( &vtx.pos, &M->m_vdata[ boff + off_p ], sizeof(vtx.pos) );
+					memcpy( vtx.weights, &M->m_vdata[ boff + off_w ], sizeof(vtx.weights) );
+					memcpy( vtx.indices, &M->m_vdata[ boff + off_i ], sizeof(vtx.indices) );
+					outverts.push_back( vtx );
+				}
+				LOG << "RELOADED VERTICES: " << outverts.size();
+			}
+		}
+	}
+}
+
+void calc_bone_volume_info( AMBone& B )
+{
+	Array< AMVertex >& verts = g_MeshVertices;
+	
+	
+	Array< Vec3 > points;
+	
+	// gather related points
+	for( size_t i = 0; i < verts.size(); ++i )
+	{
+		if( ( verts[ i ].indices[0] == B.id && verts[ i ].weights[0] >= B.weight_threshold ) ||
+			( verts[ i ].indices[1] == B.id && verts[ i ].weights[1] >= B.weight_threshold ) ||
+			( verts[ i ].indices[2] == B.id && verts[ i ].weights[2] >= B.weight_threshold ) ||
+			( verts[ i ].indices[3] == B.id && verts[ i ].weights[3] >= B.weight_threshold ) )
+		{
+			points.push_back( verts[ i ].pos );
+		}
+	}
+	
+	//
+	// A X I S   1
+	//
+	Vec3 main_center_3d = {0,0,0};
+	{
+		// find longest direction and center
+		Vec3 center = {0,0,0};
+		Vec3 curdir = {0,0,0};
+		float curlen = 0;
+		
+		for( size_t i = 0; i < points.size(); ++i )
+		{
+			center += points[i];
+			for( size_t j = i + 1; j < points.size(); ++j )
+			{
+				Vec3 newdir = points[j] - points[i];
+				float newlen = newdir.LengthSq();
+				if( newlen > curlen )
+				{
+					curdir = newdir;
+					curlen = newlen;
+				}
+			}
+		}
+		if( points.size() )
+			center /= points.size();
+		main_center_3d = center;
+	
+		// find centers at both sides of plane
+		Vec3 PN = curdir.Normalized();
+		float PD = Vec3Dot( PN, center );
+		Vec3 cp0 = {0,0,0}, cp1 = {0,0,0};
+		int ci0 = 0, ci1 = 0;
+		
+		for( size_t i = 0; i < points.size(); ++i )
+		{
+			Vec3 P = points[i];
+			if( Vec3Dot( PN, P ) < PD )
+			{
+				cp0 += P;
+				ci0++;
+			}
+			else
+			{
+				cp1 += P;
+				ci1++;
+			}
+		}
+		
+		if( ci0 ) cp0 /= ci0;
+		if( ci1 ) cp1 /= ci1;
+		
+		// axis1 = direction between centers
+		B.world_axisZ = ( cp1 - cp0 ).Normalized();
+	}
+	
+	//
+	// A X I S   2
+	//
+	// pick projection axes
+	Vec3 proj_x = Vec3Cross( B.world_axisZ, B.world_axisZ.Shuffle() ).Normalized();
+	Vec3 proj_y = Vec3Cross( B.world_axisZ, proj_x ).Normalized();
+	
+	// project points into 2D
+	Array< Vec2 > point2ds;
+	point2ds.resize( points.size() );
+	Vec2 proj_center = { Vec3Dot( main_center_3d, proj_x ), Vec3Dot( main_center_3d, proj_y ) };
+	for( size_t i = 0; i < points.size(); ++i )
+	{
+		point2ds[ i ] = V2( Vec3Dot( points[i], proj_x ), Vec3Dot( points[i], proj_y ) ) - proj_center;
+	}
+	
+	{
+		// find longest direction and center
+		Vec2 center = {0,0};
+		Vec2 curdir = {0,0};
+		float curlen = 0;
+		
+		for( size_t i = 0; i < point2ds.size(); ++i )
+		{
+			center += point2ds[i];
+			for( size_t j = i + 1; j < point2ds.size(); ++j )
+			{
+				Vec2 newdir = point2ds[j] - point2ds[i];
+				float newlen = newdir.LengthSq();
+				if( newlen > curlen )
+				{
+					curdir = newdir;
+					curlen = newlen;
+				}
+			}
+		}
+		if( point2ds.size() )
+			center /= point2ds.size();
+	
+		// find centers at both sides of plane
+		Vec2 PN = curdir.Normalized();
+		float PD = Vec2Dot( PN, center );
+		Vec2 cp0 = {0,0}, cp1 = {0,0};
+		int ci0 = 0, ci1 = 0;
+		
+		for( size_t i = 0; i < point2ds.size(); ++i )
+		{
+			Vec2 P = point2ds[i];
+			if( Vec2Dot( PN, P ) < PD )
+			{
+				cp0 += P;
+				ci0++;
+			}
+			else
+			{
+				cp1 += P;
+				ci1++;
+			}
+		}
+		
+		if( ci0 ) cp0 /= ci0;
+		if( ci1 ) cp1 /= ci1;
+		
+		// axis1 = direction between centers
+		Vec2 world_axis_2d = ( cp1 - cp0 ).Normalized();
+		B.world_axisY = world_axis_2d.x * proj_x + world_axis_2d.y * proj_y;
+		// this order of cross product arguments is required for matrix->quaternion to work properly
+		B.world_axisX = Vec3Cross( B.world_axisY, B.world_axisZ ).Normalized();
+		
+		B.world_center = main_center_3d + proj_x * center.x + proj_y * center.y;
+	}
+	
+	//
+	// O T H E R
+	//
+	Vec3 bbmin = {0,0,0};
+	Vec3 bbmax = {0,0,0};
+	Vec3 C = B.world_center;
+	Vec3 center_dots = { Vec3Dot( B.world_axisX, C ), Vec3Dot( B.world_axisY, C ), Vec3Dot( B.world_axisZ, C ) };
+	for( size_t i = 0; i < points.size(); ++i )
+	{
+		Vec3 P = points[ i ];
+		Vec3 dots = { Vec3Dot( B.world_axisX, P ), Vec3Dot( B.world_axisY, P ), Vec3Dot( B.world_axisZ, P ) };
+		dots -= center_dots;
+		bbmin = Vec3::Min( bbmin, dots );
+		bbmax = Vec3::Max( bbmax, dots );
+	}
+	Vec3 bbcenter = ( bbmin + bbmax ) * 0.5f;
+	B.world_center += B.world_axisX * bbcenter.x + B.world_axisY * bbcenter.y + B.world_axisZ * bbcenter.z;
+	B.bb_min = bbmin - bbcenter;
+	B.bb_max = bbmax - bbcenter;
+	B.bb_extents = B.bb_max;
+	B.capsule_radius = TMAX( B.bb_extents.x, B.bb_extents.y );
+	B.capsule_halfheight = TMAX( ( B.bb_extents.z - B.capsule_radius ), 0.0f );
+	
+	printf( "Bone %.*s:\n", (int) B.name.size(), B.name.data() );
+	printf( "- center: %g %g %g\n", B.world_center.x, B.world_center.y, B.world_center.z );
+	printf( "- axis-X: %g %g %g\n", B.world_axisX.x, B.world_axisX.y, B.world_axisX.z );
+	printf( "- axis-Y: %g %g %g\n", B.world_axisY.x, B.world_axisY.y, B.world_axisY.z );
+	printf( "- axis-Z: %g %g %g\n", B.world_axisZ.x, B.world_axisZ.y, B.world_axisZ.z );
+	printf( "- bbmin: %g %g %g\n", B.bb_min.x, B.bb_min.y, B.bb_min.z );
+	printf( "- bbmax: %g %g %g\n", B.bb_max.x, B.bb_max.y, B.bb_max.z );
+	printf( "- extents: %g %g %g\n", B.bb_extents.x, B.bb_extents.y, B.bb_extents.z );
+	printf( "- capsule radius: %g, height: %g\n", B.capsule_radius, B.capsule_halfheight );
+}
+
+void calc_char_bone_info( int bid, int thres, int mask )
+{
+	if( g_AnimChar == NULL || bid < 0 || bid >= (int) g_AnimChar->bones.size() )
+	{
+		LOG_ERROR << "Cannot calculate bone info for bone " << bid << " at this time";
+		return;
+	}
+	AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ bid ];
+	AMBone B = { BI.bone_id, BI.name, (uint8_t) thres };
+	
+	calc_bone_volume_info( B );
+	
+	Mat4 world_to_local = BI.bone_id < 0 ? Mat4::Identity :
+		g_AnimChar->m_cachedMesh->m_bones[ BI.bone_id ].invSkinOffset;
+	Vec3 local_pos = world_to_local.TransformPos( B.world_center );
+	Vec3 lo1 = world_to_local.TransformNormal( B.world_axisX );
+	Vec3 lo2 = world_to_local.TransformNormal( B.world_axisY );
+	Vec3 lo3 = world_to_local.TransformNormal( B.world_axisZ );
+	Quat local_rot = Mat4::Basis( lo1, lo2, lo3 ).GetRotationQuaternion();
+	
+	if( mask & 1 )
+	{
+		BI.body.position = local_pos;
+		BI.body.rotation = local_rot;
+		switch( BI.body.type )
+		{
+		case AnimCharacter::BodyType_Capsule:
+			BI.body.size = V3( B.capsule_radius, 0, B.capsule_halfheight );
+			break;
+		case AnimCharacter::BodyType_Sphere:
+			BI.body.size = V3( Vec3Dot( B.bb_extents, V3(1.0f/3.0f) ) );
+			break;
+		default:
+			BI.body.size = B.bb_extents;
+			break;
+		}
+	}
+	if( mask & 2 )
+	{
+		BI.hitbox.position = local_pos;
+		BI.hitbox.rotation = local_rot;
+		BI.hitbox.extents = B.bb_extents;
+	}
+}
+
+
+
 static void YesNoText( bool yes )
 {
 	uint32_t origcol = GR2D_GetBatchRenderer().m_proto.color;
@@ -206,14 +498,16 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_group( true, "Bone properties" ),
 		m_group_hbox( true, "Hitbox" ),
 		m_group_body( true, "Body" ),
-		m_hbox_rotangles( V3(0), 2, V3(0), V3(360) ),
+		m_group_recalc( true, "Recalculate shapes" ),
+		m_hbox_rotangles( V3(0), 2, V3(-360), V3(360) ),
 		m_hbox_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_hbox_extents( V3(0.1f), 2, V3(0), V3(100) ),
 		m_hbox_multiplier( 1, 2, 0, 100.0f ),
-		m_body_rotangles( V3(0), 2, V3(0), V3(360) ),
+		m_body_rotangles( V3(0), 2, V3(-360), V3(360) ),
 		m_body_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_body_type( g_UIBodyType, "None" ),
 		m_body_size( V3(0.1f), 2, V3(0), V3(100) ),
+		m_recalc_thres( 96, 0, 255 ),
 		m_bid( -1 )
 	{
 		m_hbox_rotangles.caption = "Rotation (angles)";
@@ -226,6 +520,11 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_body_type.caption = "Body types";
 		m_body_size.caption = "Body size";
 		
+		m_recalc_thres.caption = "Threshold";
+		m_btn_recalc_body.caption = "Recalculate body";
+		m_btn_recalc_hitbox.caption = "Recalculate hitbox";
+		m_btn_recalc_both.caption = "Recalculate both";
+		
 		m_group_hbox.Add( &m_hbox_rotangles );
 		m_group_hbox.Add( &m_hbox_offset );
 		m_group_hbox.Add( &m_hbox_extents );
@@ -236,8 +535,14 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_group_body.Add( &m_body_type );
 		m_group_body.Add( &m_body_size );
 		
+		m_group_recalc.Add( &m_recalc_thres );
+		m_group_recalc.Add( &m_btn_recalc_body );
+		m_group_recalc.Add( &m_btn_recalc_hitbox );
+		m_group_recalc.Add( &m_btn_recalc_both );
+		
 		m_group.Add( &m_group_hbox );
 		m_group.Add( &m_group_body );
+		m_group.Add( &m_group_recalc );
 		Add( &m_group );
 	}
 	
@@ -268,6 +573,23 @@ struct EDGUIBoneProps : EDGUILayoutRow
 			AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ m_bid ];
 			switch( e->type )
 			{
+			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btn_recalc_body )
+				{
+					calc_char_bone_info( m_bid, m_recalc_thres.m_value, 1 );
+					Prepare( m_bid );
+				}
+				if( e->target == &m_btn_recalc_hitbox )
+				{
+					calc_char_bone_info( m_bid, m_recalc_thres.m_value, 2 );
+					Prepare( m_bid );
+				}
+				if( e->target == &m_btn_recalc_both )
+				{
+					calc_char_bone_info( m_bid, m_recalc_thres.m_value, 1|2 );
+					Prepare( m_bid );
+				}
+				break;
 			case EDGUI_EVENT_PROPEDIT:
 				if( e->target == &m_hbox_rotangles ) BI.hitbox.rotation = EA2Q( m_hbox_rotangles.m_value );
 				else if( e->target == &m_hbox_offset ) BI.hitbox.position = m_hbox_offset.m_value;
@@ -286,6 +608,7 @@ struct EDGUIBoneProps : EDGUILayoutRow
 	EDGUIGroup m_group;
 	EDGUIGroup m_group_hbox;
 	EDGUIGroup m_group_body;
+	EDGUIGroup m_group_recalc;
 	EDGUIPropVec3 m_hbox_rotangles;
 	EDGUIPropVec3 m_hbox_offset;
 	EDGUIPropVec3 m_hbox_extents;
@@ -294,6 +617,10 @@ struct EDGUIBoneProps : EDGUILayoutRow
 	EDGUIPropVec3 m_body_offset;
 	EDGUIPropRsrc m_body_type;
 	EDGUIPropVec3 m_body_size;
+	EDGUIPropInt m_recalc_thres;
+	EDGUIButton m_btn_recalc_body;
+	EDGUIButton m_btn_recalc_hitbox;
+	EDGUIButton m_btn_recalc_both;
 	int m_bid;
 };
 
@@ -302,8 +629,21 @@ void FC_EditBone( int which );
 struct EDGUIBoneListProps : EDGUILayoutRow
 {
 	EDGUIBoneListProps() :
-		m_group( true, "Bones" )
+		m_group( true, "Bones" ),
+		m_group_recalc( false, "Recalculate shapes" ),
+		m_recalc_thres( 96, 0, 255 )
 	{
+		m_recalc_thres.caption = "Threshold";
+		m_btn_recalc_body.caption = "Recalculate body";
+		m_btn_recalc_hitbox.caption = "Recalculate hitbox";
+		m_btn_recalc_both.caption = "Recalculate both";
+		
+		m_group_recalc.Add( &m_recalc_thres );
+		m_group_recalc.Add( &m_btn_recalc_body );
+		m_group_recalc.Add( &m_btn_recalc_hitbox );
+		m_group_recalc.Add( &m_btn_recalc_both );
+		
+		Add( &m_group_recalc );
 		Add( &m_group );
 	}
 	
@@ -324,7 +664,10 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 		switch( e->type )
 		{
 		case EDGUI_EVENT_BTNCLICK:
-			if( e->target >= (EDGUIItem*) &m_boneButtons[0] &&
+			if( e->target == &m_btn_recalc_body ) _Recalc(1);
+			else if( e->target == &m_btn_recalc_hitbox ) _Recalc(2);
+			else if( e->target == &m_btn_recalc_both ) _Recalc(1|2);
+			else if( e->target >= (EDGUIItem*) &m_boneButtons[0] &&
 				e->target <= (EDGUIItem*) &m_boneButtons.last() )
 			{
 				FC_EditBone( e->target - (EDGUIItem*) &m_boneButtons[0] );
@@ -335,8 +678,19 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 		return EDGUILayoutRow::OnEvent( e );
 	}
 	
+	void _Recalc( int mask )
+	{
+		for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			calc_char_bone_info( i, m_recalc_thres.m_value, mask );
+	}
+	
 	EDGUIGroup m_group;
 	Array< EDGUIButton > m_boneButtons;
+	EDGUIGroup m_group_recalc;
+	EDGUIPropInt m_recalc_thres;
+	EDGUIButton m_btn_recalc_body;
+	EDGUIButton m_btn_recalc_hitbox;
+	EDGUIButton m_btn_recalc_both;
 };
 
 
@@ -345,7 +699,7 @@ struct EDGUIAttachmentProps : EDGUILayoutRow
 	EDGUIAttachmentProps() :
 		m_group( true, "Attachment" ),
 		m_bone( g_UIBonePicker, "" ),
-		m_rotangles( V3(0), 2, V3(0), V3(360) ),
+		m_rotangles( V3(0), 2, V3(-360), V3(360) ),
 		m_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_aid( -1 )
 	{
@@ -537,6 +891,7 @@ struct EDGUICharProps : EDGUILayoutRow
 						}
 					}
 				}
+				reload_mesh_vertices();
 				g_AnimChar->RecalcBoneIDs();
 				lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
 				g_UIBonePicker->Reload();
@@ -828,6 +1183,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	void ResetEditorState()
 	{
+		reload_mesh_vertices();
 		if( g_AnimChar->m_cachedMeshInst )
 			lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
 		g_UIBonePicker->Reload();
