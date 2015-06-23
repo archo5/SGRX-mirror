@@ -23,34 +23,6 @@ ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
 typedef SDL_Event Event;
 
 
-struct IF_GCC(ENGINE_EXPORT) IProcessor
-{
-	ENGINE_EXPORT virtual void Process( void* data ) = 0;
-};
-
-struct SGRX_RefCounted
-{
-	SGRX_RefCounted() : m_refcount(0){}
-	virtual ~SGRX_RefCounted(){}
-	
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	int32_t m_refcount;
-};
-
-struct SGRX_RCRsrc : SGRX_RefCounted
-{
-	String m_key; // [storage for] hash table key
-};
-
-struct SGRX_RCXFItem : SGRX_RefCounted
-{
-	virtual void SetTransform( const Mat4& mtx ) = 0;
-};
-
-typedef Handle< SGRX_RCXFItem > XFItemHandle;
-
-
 struct Command
 {
 	Command( const StringView& sv, float thr = 0.1f ) :

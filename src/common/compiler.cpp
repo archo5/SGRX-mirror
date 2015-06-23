@@ -5,6 +5,7 @@
 #define USE_VEC4
 #define USE_ARRAY
 #define USE_MAT4
+#define USE_HASHTABLE
 #include <engine.hpp>
 #include "compiler.hpp"
 
@@ -76,6 +77,46 @@ int RectPacker::_NodeAlloc( int startnode, int w, int h )
 	return _NodeAlloc( me->child0, w, h );
 }
 
+
+
+LevelCache::LevelCache()
+{
+	LOG << "Loading materials...";
+	{
+		String material_data;
+		if( FS_LoadTextFile( "editor/materials.txt", material_data ) )
+		{
+			MapMaterial mmdummy;
+			MapMaterial* mmtl = &mmdummy;
+			ConfigReader cfgread( material_data );
+			StringView key, value;
+			while( cfgread.Read( key, value ) )
+			{
+				if( key == "material" )
+				{
+					mmtl = new MapMaterial;
+					mmtl->name = value;
+					mmtl->texcount = 0;
+					m_mapMtls.set( mmtl->name, mmtl );
+				}
+				else if( key == "shader" ) mmtl->shader = value;
+				else if( key == "0" ){ mmtl->texture[0] = value; mmtl->texcount = TMAX( mmtl->texcount, 0+1 ); }
+				else if( key == "1" ){ mmtl->texture[1] = value; mmtl->texcount = TMAX( mmtl->texcount, 1+1 ); }
+				else if( key == "2" ){ mmtl->texture[2] = value; mmtl->texcount = TMAX( mmtl->texcount, 2+1 ); }
+				else if( key == "3" ){ mmtl->texture[3] = value; mmtl->texcount = TMAX( mmtl->texcount, 3+1 ); }
+				else if( key == "4" ){ mmtl->texture[4] = value; mmtl->texcount = TMAX( mmtl->texcount, 4+1 ); }
+				else if( key == "5" ){ mmtl->texture[5] = value; mmtl->texcount = TMAX( mmtl->texcount, 5+1 ); }
+				else if( key == "6" ){ mmtl->texture[6] = value; mmtl->texcount = TMAX( mmtl->texcount, 6+1 ); }
+				else if( key == "7" ){ mmtl->texture[7] = value; mmtl->texcount = TMAX( mmtl->texcount, 7+1 ); }
+			}
+			LOG << "Loading completed";
+		}
+		else
+		{
+			LOG_ERROR << "FAILED to open editor/materials.txt";
+		}
+	}
+}
 
 
 #define LINE_HEIGHT 0.45f
@@ -724,19 +765,42 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnul
 	bw << vu8;
 	for( size_t i = 0; i < parts.size(); ++i )
 	{
+		LevelCache::Part& MP = m_meshParts[ parts[ i ].part_id ];
+		
 		bw << parts[ i ].vertexOffset;
 		bw << parts[ i ].vertexCount;
 		bw << parts[ i ].indexOffset;
 		bw << parts[ i ].indexCount;
-		vu8 = 1; // texture count
-		bw << vu8;
-		vu8 = sizeof(EDMESH_SHADER) - 1; // shader name length
-		bw << vu8;
-		bw.marker( EDMESH_SHADER );
-		LevelCache::Part& MP = m_meshParts[ parts[ i ].part_id ];
-		vu8 = MP.m_texname.size(); // texture name length
-		bw << vu8;
-		bw.memory( MP.m_texname.data(), MP.m_texname.size() );
+		
+		StringView tn = MP.m_texname;
+		if( tn.starts_with( "textures/" ) ) tn = tn.part( 9 );
+		if( tn.ends_with( ".png" ) ) tn = tn.part( 0, tn.size() - 4 );
+		MapMaterial* mmtl = m_mapMtls.getcopy( tn );
+		if( mmtl )
+		{
+			vu8 = mmtl->texcount;
+			bw << vu8;
+			vu8 = TMIN( mmtl->shader.size(), size_t(255) );
+			bw << vu8;
+			bw.memory( mmtl->shader.data(), vu8 );
+			for( int i = 0; i < mmtl->texcount; ++i )
+			{
+				vu8 = TMIN( mmtl->texture[ i ].size(), size_t(255) );
+				bw << vu8;
+				bw.memory( mmtl->texture[ i ].data(), vu8 );
+			}
+		}
+		else
+		{
+			vu8 = 1; // texture count
+			bw << vu8;
+			vu8 = sizeof(EDMESH_SHADER) - 1; // shader name length
+			bw << vu8;
+			bw.marker( EDMESH_SHADER );
+			vu8 = MP.m_texname.size(); // texture name length
+			bw << vu8;
+			bw.memory( MP.m_texname.data(), MP.m_texname.size() );
+		}
 	}
 	
 	char bfr[ 256 ];
@@ -886,9 +950,10 @@ void LevelCache::GenerateLightmaps( const StringView& path )
 				lm_cmds.append( lastmesh.data(), lastmesh.size() );
 			lm_cmds.append( "\n" );
 		}
-		sgrx_snprintf( bfr, sizeof(bfr), "INST lightmap %.*s/%d.png importance %g matrix  %g %g %g %g  %g %g %g %g  %g %g %g %g  END\n"
+		sgrx_snprintf( bfr, sizeof(bfr), "INST lightmap %.*s/%d.png importance %g shadow %d matrix  %g %g %g %g  %g %g %g %g  %g %g %g %g  END\n"
 			, TMIN( 260, (int) path.size() ), path.data(), instidcs[ i ]
 			, MI.lmquality * ( ( MI.m_flags & LM_MESHINST_DYNLIT ) ? 0 : 1 )  *  2.0f // magic factor
+			, MI.m_flags & LM_MESHINST_DECAL ? 0 : 1
 			, MI.m_mtx.m[0][0], MI.m_mtx.m[1][0], MI.m_mtx.m[2][0], MI.m_mtx.m[3][0]
 			, MI.m_mtx.m[0][1], MI.m_mtx.m[1][1], MI.m_mtx.m[2][1], MI.m_mtx.m[3][1]
 			, MI.m_mtx.m[0][2], MI.m_mtx.m[1][2], MI.m_mtx.m[2][2], MI.m_mtx.m[3][2] );

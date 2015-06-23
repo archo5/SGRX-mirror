@@ -286,6 +286,8 @@ void RasterizeTriangle2D_x2_ex( Vec3* img1, Vec3* img2, Vec4* img3, i32 width, i
 			
 			float s = Vec2Cross( q, p1p3 ) / vcross;
 			float t = Vec2Cross( p1p2, q ) / vcross;
+			s = TMAX( TMIN( s, 1.0f - SMALL_FLOAT ), SMALL_FLOAT );
+			t = TMAX( TMIN( t, 1.0f - SMALL_FLOAT ), SMALL_FLOAT );
 			
 			Vec2 p = { (float) x, (float) y };
 			float pd1 = Vec2Dot( p, n1 ), pd2 = Vec2Dot( p, n2 ), pd3 = Vec2Dot( p, n3 );

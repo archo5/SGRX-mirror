@@ -5,6 +5,19 @@
 
 
 
+#define MAX_MATERIAL_TEXTURES 8
+struct MapMaterial : SGRX_RefCounted
+{
+	String name;
+	String shader;
+	String texture[ MAX_MATERIAL_TEXTURES ];
+	int texcount;
+};
+typedef Handle< MapMaterial > MapMaterialHandle;
+typedef HashTable< StringView, MapMaterialHandle > MapMaterialMap;
+
+
+
 struct RectPacker
 {
 	struct Node
@@ -117,6 +130,8 @@ struct LevelCache
 	
 	struct Solid : Array< Vec4 > {};
 	
+	LevelCache();
+	
 	void AddPart( const Vertex* verts, int vcount, const StringView& texname_short, size_t fromsolid, bool solid, int decalLayer );
 	size_t AddSolid( const Vec4* planes, int count );
 	
@@ -172,6 +187,7 @@ struct LevelCache
 	void GenerateLightmaps( const StringView& path );
 	bool GenerateNavmesh( const StringView& path, ByteArray& outData );
 	
+	MapMaterialMap m_mapMtls;
 	Array< Solid > m_solids;
 	Array< Mesh > m_meshes;
 	Array< Part > m_meshParts;

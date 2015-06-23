@@ -1526,6 +1526,35 @@ FINLINE void String::append( const StringView& sv )
 	append( sv.m_str, sv.m_size );
 }
 
+
+struct IF_GCC(ENGINE_EXPORT) IProcessor
+{
+	ENGINE_EXPORT virtual void Process( void* data ) = 0;
+};
+
+struct SGRX_RefCounted
+{
+	SGRX_RefCounted() : m_refcount(0){}
+	virtual ~SGRX_RefCounted(){}
+	
+	FINLINE void Acquire(){ ++m_refcount; }
+	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
+	int32_t m_refcount;
+};
+
+struct SGRX_RCRsrc : SGRX_RefCounted
+{
+	String m_key; // [storage for] hash table key
+};
+
+struct SGRX_RCXFItem : SGRX_RefCounted
+{
+	virtual void SetTransform( const Mat4& mtx ) = 0;
+};
+
+typedef Handle< SGRX_RCXFItem > XFItemHandle;
+
+
 struct ConfigReader
 {
 	ConfigReader( const StringView& _it ) : it( _it.after_all( SPACE_CHARS ) ){}
@@ -1541,7 +1570,6 @@ struct ConfigReader
 			}
 			
 			it.skip( key.size() );
-			it.after_all( HSPACE_CHARS );
 			
 			value = it.until( "\n" );
 			it.skip( value.size() );

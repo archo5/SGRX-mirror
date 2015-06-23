@@ -22,14 +22,10 @@ inline Quat EA2Q( Vec3 v ){ return Mat4::CreateRotationXYZ( DEG2RAD( v ) ).GetRo
 inline Vec3 Q2EA( Quat q ){ return RAD2DEG( Mat4::CreateRotationFromQuat( q ).GetXYZAngles() ); }
 inline StringView BodyType2String( uint8_t t )
 {
-	switch( t )
-	{
-	case AnimCharacter::BodyType_Sphere: return "Sphere";
-	case AnimCharacter::BodyType_Capsule: return "Capsule";
-	case AnimCharacter::BodyType_Box: return "Box";
-	case AnimCharacter::BodyType_None:
-	default: return "None";
-	}
+	if( t == AnimCharacter::BodyType_Sphere ) return "Sphere";
+	if( t == AnimCharacter::BodyType_Capsule ) return "Capsule";
+	if( t == AnimCharacter::BodyType_Box ) return "Box";
+	return "None";
 }
 inline uint8_t String2BodyType( const StringView& s )
 {
@@ -37,6 +33,18 @@ inline uint8_t String2BodyType( const StringView& s )
 	if( s == "Capsule" ) return AnimCharacter::BodyType_Capsule;
 	if( s == "Box" ) return AnimCharacter::BodyType_Box;
 	return AnimCharacter::BodyType_None;
+}
+inline StringView TransformType2String( uint8_t t )
+{
+	if( t == AnimCharacter::TransformType_Move ) return "Move";
+	if( t == AnimCharacter::TransformType_Rotate ) return "Rotate";
+	return "None";
+}
+inline uint8_t String2TransformType( const StringView& s )
+{
+	if( s == "Move" ) return AnimCharacter::TransformType_Move;
+	if( s == "Rotate" ) return AnimCharacter::TransformType_Rotate;
+	return AnimCharacter::TransformType_None;
 }
 
 
@@ -492,6 +500,44 @@ struct EDGUITransformType : EDGUIRsrcPicker
 };
 
 
+#define LI_SUBBTN_WIDTH 24
+struct EDGUIListItemButton : EDGUIButton
+{
+	EDGUIListItemButton()
+	{
+		tyname = "btn_item";
+		m_up.tyname = "btn_up";
+		m_dn.tyname = "btn_dn";
+		m_del.tyname = "btn_del";
+		
+		m_up.caption = "[up]";
+		m_dn.caption = "[dn]";
+		m_del.caption = "[x]";
+		
+		Add( &m_up );
+		Add( &m_dn );
+		Add( &m_del );
+	}
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_LAYOUT:
+			EDGUIButton::OnEvent( e );
+			SetSubitemLayout( &m_up, x1 - LI_SUBBTN_WIDTH * 3, y0, x1 - LI_SUBBTN_WIDTH * 2, y1 );
+			SetSubitemLayout( &m_dn, x1 - LI_SUBBTN_WIDTH * 2, y0, x1 - LI_SUBBTN_WIDTH * 1, y1 );
+			SetSubitemLayout( &m_del, x1 - LI_SUBBTN_WIDTH * 1, y0, x1 - LI_SUBBTN_WIDTH * 0, y1 );
+			return 0;
+		}
+		return EDGUIButton::OnEvent( e );
+	}
+	
+	EDGUIButton m_up;
+	EDGUIButton m_dn;
+	EDGUIButton m_del;
+};
+
+
 struct EDGUIBoneProps : EDGUILayoutRow
 {
 	EDGUIBoneProps() :
@@ -814,31 +860,257 @@ struct EDGUIAttachmentListProps : EDGUILayoutRow
 
 struct EDGUILayerTransformProps : EDGUILayoutRow
 {
-	/*
-		bone
-		type
-		offset / axis
-		angle
-	*/
-};
-
-
-struct EDGUILayerProps : EDGUILayoutRow
-{
-	/*
-		name
-		layer transform list
-	*/
-};
-
-
-struct EDGUILayerListProps : EDGUILayoutRow
-{
-	void Prepare()
+	EDGUILayerTransformProps() :
+		m_group( true, "<unset>" ),
+		m_bone( g_UIBonePicker ),
+		m_type( g_UITransformType ),
+		m_offaxis( V3(0,0,1), 2, V3(-100), V3(100) ),
+		m_angle( 0, 2, -9999, 9999 ),
+		m_lid( -1 ),
+		m_tid( -1 )
 	{
+		m_bone.caption = "Bone";
+		m_type.caption = "Type";
+		m_offaxis.caption = "Offset/axis";
+		m_angle.caption = "Angle";
+		
+		m_group.Add( &m_bone );
+		m_group.Add( &m_type );
+		m_group.Add( &m_offaxis );
+		m_group.Add( &m_angle );
+		
+		Add( &m_group );
 	}
 	
-	// layer list
+	void Prepare( int lid, int tid )
+	{
+		m_lid = lid;
+		m_tid = tid;
+		
+		AnimCharacter::LayerTransform& LT = g_AnimChar->layers[ lid ].transforms[ tid ];
+		
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "Layer %s transform %d",
+			StackString<200>( g_AnimChar->layers[ lid ].name ).str, tid );
+		m_group.caption = bfr;
+		m_group.SetOpen( true );
+		
+		m_bone.SetValue( LT.bone );
+		m_type.SetValue( TransformType2String( LT.type ) );
+		m_offaxis.SetValue( LT.posaxis );
+		m_angle.SetValue( LT.angle );
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_lid >= 0 && m_tid >= 0 )
+		{
+			AnimCharacter::LayerTransform& LT = g_AnimChar->layers[ m_lid ].transforms[ m_tid ];
+			
+			switch( e->type )
+			{
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_bone )
+				{
+					LT.bone = m_bone.m_value;
+					LT.bone_id = g_AnimChar->_FindBone( LT.bone );
+				}
+				else if( e->target == &m_type ) LT.type = String2TransformType( m_type.m_value );
+				else if( e->target == &m_offaxis ) LT.posaxis = m_offaxis.m_value;
+				else if( e->target == &m_angle ) LT.angle = m_angle.m_value;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_bone;
+	EDGUIPropRsrc m_type;
+	EDGUIPropVec3 m_offaxis;
+	EDGUIPropFloat m_angle;
+	int m_lid;
+	int m_tid;
+};
+
+
+void FC_EditLayerTransform( int lid, int tid );
+struct EDGUILayerProps : EDGUILayoutRow
+{
+	EDGUILayerProps() :
+		m_group( true, "Transforms" ),
+		m_lid( -1 )
+	{
+		m_name.caption = "Name";
+		m_btnAdd.caption = "Add transform";
+		
+		Add( &m_name );
+		Add( &m_btnAdd );
+		Add( &m_group );
+	}
+	
+	void Prepare( int lid )
+	{
+		m_lid = lid;
+		AnimCharacter::Layer& L = g_AnimChar->layers[ m_lid ];
+		
+		m_name.SetValue( L.name );
+		
+		m_group.Clear();
+		m_ltfButtons.clear();
+		m_ltfButtons.resize( L.transforms.size() );
+		for( size_t i = 0; i < L.transforms.size(); ++i )
+		{
+			char bfr[ 256 ];
+			AnimCharacter::LayerTransform& LT = L.transforms[ i ];
+			switch( LT.type )
+			{
+			case AnimCharacter::TransformType_None:
+				sgrx_snprintf( bfr, 256, "#%d, disabled", (int) i );
+				break;
+			case AnimCharacter::TransformType_Move:
+				{
+					Vec3& O = LT.posaxis;
+					sgrx_snprintf( bfr, 256, "#%d, move by %g;%g;%g", (int) i, O.x, O.y, O.z );
+				}
+				break;
+			case AnimCharacter::TransformType_Rotate:
+				{
+					Vec3& A = LT.posaxis;
+					sgrx_snprintf( bfr, 256, "#%d, rotate by %g degrees around %g;%g;%g",
+						(int) i, LT.angle, A.x, A.y, A.z );
+				}
+				break;
+			default:
+				sgrx_snprintf( bfr, 256, "#%d, unknown? (type=%d)", (int) i, (int) LT.type );
+				break;
+			}
+			m_ltfButtons[ i ].caption = bfr;
+			m_group.Add( &m_ltfButtons[ i ] );
+		}
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_lid >= 0 )
+		{
+			AnimCharacter::Layer& L = g_AnimChar->layers[ m_lid ];
+			
+			switch( e->type )
+			{
+			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btnAdd )
+				{
+					L.transforms.push_back( AnimCharacter::LayerTransform() );
+					Prepare( m_lid );
+					return 1;
+				}
+				if( m_ltfButtons.size() &&
+					e->target >= (EDGUIItem*) &m_ltfButtons[0] &&
+					e->target <= (EDGUIItem*) &m_ltfButtons.last() )
+				{
+					FC_EditLayerTransform( m_lid, e->target - (EDGUIItem*) &m_ltfButtons[0] );
+					return 1;
+				}
+				break;
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_name )
+				{
+					L.name = m_name.m_value;
+				}
+				break;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIPropString m_name;
+	EDGUIGroup m_group;
+	EDGUIButton m_btnAdd;
+	Array< EDGUIButton > m_ltfButtons;
+	int m_lid;
+};
+
+
+void FC_EditLayer( int which );
+struct EDGUILayerListProps : EDGUILayoutRow
+{
+	EDGUILayerListProps() :
+		m_group( true, "Layers" )
+	{
+		m_btnAdd.caption = "Add layer";
+		
+		Add( &m_btnAdd );
+		Add( &m_group );
+	}
+	
+	void Prepare()
+	{
+		m_group.Clear();
+		m_layerButtons.clear();
+		m_layerButtons.resize( g_AnimChar->layers.size() );
+		for( size_t i = 0; i < g_AnimChar->layers.size(); ++i )
+		{
+			m_layerButtons[ i ].caption = g_AnimChar->layers[ i ].name;
+			m_group.Add( &m_layerButtons[ i ] );
+		}
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_BTNCLICK:
+			if( e->target == &m_btnAdd )
+			{
+				g_AnimChar->layers.push_back( AnimCharacter::Layer() );
+				g_AnimChar->layers.last().name = "<unnamed>";
+				Prepare();
+				return 1;
+			}
+			if( m_layerButtons.size() && !strcmp( e->target->tyname, "btn_item" ) &&
+				e->target >= (EDGUIItem*) &m_layerButtons[0] &&
+				e->target <= (EDGUIItem*) &m_layerButtons.last() )
+			{
+				FC_EditLayer( e->target - (EDGUIItem*) &m_layerButtons[0] );
+				return 1;
+			}
+			if( m_layerButtons.size() && !strcmp( e->target->tyname, "btn_up" ) &&
+				e->target >= (EDGUIItem*) &m_layerButtons[0].m_up &&
+				e->target <= (EDGUIItem*) &m_layerButtons.last().m_up )
+			{
+				size_t i = e->target - (EDGUIItem*) &m_layerButtons[0].m_up;
+				if( i > 0 )
+					TSWAP( g_AnimChar->layers[ i ], g_AnimChar->layers[ i - 1 ] );
+				Prepare();
+				return 1;
+			}
+			if( m_layerButtons.size() && !strcmp( e->target->tyname, "btn_dn" ) &&
+				e->target >= (EDGUIItem*) &m_layerButtons[0].m_dn &&
+				e->target <= (EDGUIItem*) &m_layerButtons.last().m_dn )
+			{
+				size_t i = e->target - (EDGUIItem*) &m_layerButtons[0].m_dn;
+				if( i < g_AnimChar->layers.size() - 1 )
+					TSWAP( g_AnimChar->layers[ i ], g_AnimChar->layers[ i + 1 ] );
+				Prepare();
+				return 1;
+			}
+			if( m_layerButtons.size() && !strcmp( e->target->tyname, "btn_del" ) &&
+				e->target >= (EDGUIItem*) &m_layerButtons[0].m_del &&
+				e->target <= (EDGUIItem*) &m_layerButtons.last().m_del )
+			{
+				size_t i = e->target - (EDGUIItem*) &m_layerButtons[0].m_del;
+				g_AnimChar->layers.erase( i );
+				Prepare();
+				return 1;
+			}
+			break;
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIGroup m_group;
+	EDGUIButton m_btnAdd;
+	Array< EDGUIListItemButton > m_layerButtons;
 };
 
 
@@ -1180,6 +1452,18 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_atchProps.Prepare( which );
 		AddToParamList( &m_atchProps );
 	}
+	void EditLayerTransform( int lid, int tid )
+	{
+		ClearParamList();
+		m_layerXfProps.Prepare( lid, tid );
+		AddToParamList( &m_layerXfProps );
+	}
+	void EditLayer( int which )
+	{
+		ClearParamList();
+		m_layerProps.Prepare( which );
+		AddToParamList( &m_layerProps );
+	}
 	
 	void ResetEditorState()
 	{
@@ -1289,6 +1573,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 
 void FC_EditBone( int which ){ g_UIFrame->EditBone( which ); }
 void FC_EditAttachment( int which ){ g_UIFrame->EditAttachment( which ); }
+void FC_EditLayerTransform( int lid, int tid ){ g_UIFrame->EditLayerTransform( lid, tid ); }
+void FC_EditLayer( int which ){ g_UIFrame->EditLayer( which ); }
 
 
 

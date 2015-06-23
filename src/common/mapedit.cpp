@@ -1642,7 +1642,7 @@ void EDGUIMainFrame::Level_Real_Compile()
 		L.type = LM_LIGHT_DIRECT;
 		L.range = 1024;
 		Vec2 dir = g_EdWorld->m_ctlDirLightDir.m_value;
-		L.dir = V3( dir.x, dir.y, -1 ).Normalized();
+		L.dir = -V3( dir.x, dir.y, -1 ).Normalized();
 		L.color = HSV( g_EdWorld->m_ctlDirLightColor.m_value );
 		L.light_radius = g_EdWorld->m_ctlDirLightDivergence.m_value / 180.0f;
 		L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;
