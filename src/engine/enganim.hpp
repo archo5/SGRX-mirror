@@ -318,8 +318,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT void AddToScene( SceneHandle sh );
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
-	ENGINE_EXPORT void Tick( float dt );
-	ENGINE_EXPORT void PreRender();
+	ENGINE_EXPORT void FixedTick( float deltaTime );
+	ENGINE_EXPORT void PreRender( float blendFactor );
+	ENGINE_EXPORT void RecalcLayerState();
 	
 	ENGINE_EXPORT int _FindBone( const StringView& name );
 	ENGINE_EXPORT void RecalcBoneIDs();
@@ -337,6 +338,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	SceneHandle m_scene;
 	MeshHandle m_cachedMesh;
 	MeshInstHandle m_cachedMeshInst;
+	Animator m_layerAnimator;
+	AnimMixer m_anMixer;
+	AnimInterp m_anEnd;
 };
 
 

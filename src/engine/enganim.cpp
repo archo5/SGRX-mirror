@@ -442,6 +442,7 @@ bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 
 AnimCharacter::AnimCharacter()
 {
+	m_anEnd.animSource = &m_anMixer;
 }
 
 bool AnimCharacter::Load( const StringView& sv )
@@ -483,7 +484,13 @@ void AnimCharacter::OnRenderUpdate()
 	}
 	m_cachedMesh = GR_GetMesh( mesh );
 	m_cachedMeshInst->mesh = m_cachedMesh;
+	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh ? m_cachedMesh->m_numBones : 0 );
 	RecalcBoneIDs();
+	m_anMixer.mesh = m_cachedMesh;
+	m_anEnd.PrepareForMesh( m_cachedMesh );
+	if( m_cachedMesh && (int) m_layerAnimator.names.size() != m_cachedMesh->m_numBones )
+		m_layerAnimator.PrepareForMesh( m_cachedMesh );
+	m_layerAnimator.ClearFactors( 1.0f );
 }
 
 void AnimCharacter::AddToScene( SceneHandle sh )
@@ -499,12 +506,55 @@ void AnimCharacter::SetTransform( const Mat4& mtx )
 		m_cachedMeshInst->matrix = mtx;
 }
 
-void AnimCharacter::Tick( float dt )
+void AnimCharacter::FixedTick( float deltaTime )
 {
+	m_anEnd.Advance( deltaTime );
 }
 
-void AnimCharacter::PreRender()
+void AnimCharacter::PreRender( float blendFactor )
 {
+	m_anEnd.Interpolate( blendFactor );
+	GR_ApplyAnimator( &m_anEnd, m_cachedMeshInst );
+}
+
+void AnimCharacter::RecalcLayerState()
+{
+	if( m_cachedMesh == NULL )
+		return;
+	
+	TMEMSET( m_layerAnimator.position.data(), m_layerAnimator.position.size(), V3(0) );
+	TMEMSET( m_layerAnimator.rotation.data(), m_layerAnimator.rotation.size(), Quat::Identity );
+	for( size_t i = 0; i < layers.size(); ++i )
+	{
+		Layer& L = layers[ i ];
+		for( size_t j = 0; j < L.transforms.size(); ++j )
+		{
+			LayerTransform& LT = L.transforms[ j ];
+			if( LT.bone_id < 0 )
+				continue;
+			switch( LT.type )
+			{
+			case TransformType_UndoParent:
+				{
+					int parent_id = m_cachedMesh->m_bones[ LT.bone_id ].parent_id;
+					if( parent_id >= 0 )
+					{
+						m_layerAnimator.position[ LT.bone_id ] -= m_layerAnimator.position[ parent_id ];
+						m_layerAnimator.rotation[ LT.bone_id ] =
+							m_layerAnimator.rotation[ LT.bone_id ] * m_layerAnimator.rotation[ parent_id ].Inverted();
+					}
+				}
+				break;
+			case TransformType_Move:
+				m_layerAnimator.position[ LT.bone_id ] += LT.posaxis * L.amount;
+				break;
+			case TransformType_Rotate:
+				m_layerAnimator.rotation[ LT.bone_id ] = m_layerAnimator.rotation[ LT.bone_id ]
+					* Quat::CreateAxisAngle( LT.posaxis.Normalized(), DEG2RAD( LT.angle ) * L.amount );
+				break;
+			}
+		}
+	}
 }
 
 int AnimCharacter::_FindBone( const StringView& name )

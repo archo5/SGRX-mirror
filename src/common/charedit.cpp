@@ -16,6 +16,7 @@ struct EDGUIBodyType* g_UIBodyType;
 struct EDGUIJointType* g_UIJointType;
 struct EDGUITransformType* g_UITransformType;
 AnimCharacter* g_AnimChar;
+AnimMixer::Layer g_AnimMixLayers[1];
 
 
 inline Quat EA2Q( Vec3 v ){ return Mat4::CreateRotationXYZ( DEG2RAD( v ) ).GetRotationQuaternion(); }
@@ -976,6 +977,7 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 struct EDGUILayerProps : EDGUILayoutRow
 {
 	EDGUILayerProps() :
+		m_testFactor( 1.0f, 2, -100, 100 ),
 		m_group( true, "Transforms" ),
 		m_lid( -1 )
 	{
@@ -1701,6 +1703,10 @@ struct CSEditor : IGame
 		g_EdScene->camera.UpdateMatrices();
 		g_EdScene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 		g_AnimChar = new AnimCharacter;
+		g_AnimMixLayers[ 0 ].anim = &g_AnimChar->m_layerAnimator;
+		g_AnimMixLayers[ 0 ].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
+		g_AnimChar->m_anMixer.layers = g_AnimMixLayers;
+		g_AnimChar->m_anMixer.layerCount = sizeof(g_AnimMixLayers) / sizeof(g_AnimMixLayers[0]);
 		g_AnimChar->AddToScene( g_EdScene );
 		g_UIFrame = new EDGUIMainFrame();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
@@ -1740,8 +1746,9 @@ struct CSEditor : IGame
 	{
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
-		g_AnimChar->Tick( dt );
-		g_AnimChar->PreRender();
+		g_AnimChar->RecalcLayerState();
+		g_AnimChar->FixedTick( dt );
+		g_AnimChar->PreRender( 1 );
 		g_UIFrame->Draw();
 	}
 }
