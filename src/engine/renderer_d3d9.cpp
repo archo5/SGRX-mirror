@@ -575,11 +575,36 @@ void D3D9Renderer::Destroy()
 	if( m_ownTextures.size() )
 	{
 		LOG << "Unfreed textures: " << m_ownTextures.size();
+		for( size_t i = 0; i < m_ownTextures.size(); ++i )
+			LOG << "> " << m_ownTextures.item( i ).key->m_key;
 	}
 	if( m_ownMeshes.size() )
 	{
 		LOG << "Unfreed meshes: " << m_ownMeshes.size();
+		for( size_t i = 0; i < m_ownMeshes.size(); ++i )
+		{
+			SGRX_IMesh* M = m_ownMeshes.item( i ).key;
+			LOG << "> " << M->m_key << " (" << M->m_meshParts.size() << " parts)";
+			for( size_t p = 0; p < M->m_meshParts.size(); ++p )
+			{
+				SGRX_Material* MTL = M->m_meshParts[ p ].material;
+				if( MTL )
+				{
+					SGRX_ITexture* TEX = MTL->textures[ 0 ];
+					if( TEX )
+						LOG << "Part " << p << " texture 0: " << TEX->m_key;
+					else
+						LOG << "Part " << p << " - material has no texture";
+				}
+				else
+					LOG << "Part " << p << " - no material";
+			}
+		}
 	}
+	
+	m_ownMeshes.clear();
+	m_ownTextures.clear();
+	
 	postproc_free( &m_drd );
 	
 	SAFE_RELEASE( m_backbuf );

@@ -431,6 +431,12 @@ struct MaterialHandle : Handle< SGRX_Material >
 	MaterialHandle( SGRX_Material* shdr ) : Handle( shdr ){}
 };
 
+struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
+{
+	virtual ~IMeshRaycast(){}
+	virtual void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL ) = 0;
+};
+
 struct SGRX_Mesh;
 struct SGRX_MeshInstance;
 struct SGRX_Light;
@@ -471,7 +477,7 @@ struct SGRX_MeshBone
 	int parent_id;
 };
 
-struct SGRX_IMesh : SGRX_RCRsrc
+struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 {
 	ENGINE_EXPORT SGRX_IMesh();
 	ENGINE_EXPORT virtual ~SGRX_IMesh();
@@ -495,7 +501,7 @@ struct SGRX_IMesh : SGRX_RCRsrc
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
-	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
+	ENGINE_EXPORT virtual void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
 	
 	ENGINE_EXPORT void Clip(
 		const Mat4& mtx,
@@ -656,6 +662,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	SGRX_Scene* _scene;
 	
 	MeshHandle mesh;
+	IMeshRaycast* raycastOverride;
 	Mat4 matrix;
 	Vec4 color;
 	uint32_t layers;
@@ -733,7 +740,7 @@ struct SceneRaycastInfo
 	float factor;
 	Vec3 normal;
 	float u, v;
-	int partID, triID;
+	int partID, triID, boneID;
 	MeshInstHandle meshinst;
 };
 struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback

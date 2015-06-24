@@ -556,6 +556,41 @@ bool SegmentAABBIntersect( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, co
 	return true;
 }
 
+bool SegmentAABBIntersect2( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, const Vec3& bbmax, float dst[1] )
+{
+	const Vec3& rorg = p1;
+	float rlen = ( p2 - p1 ).Length();
+	Vec3 rdir = ( p2 - p1 ).Normalized();
+	
+	Vec3 dirfrac =
+	{
+		safe_fdiv( 1.0f, rdir.x ),
+		safe_fdiv( 1.0f, rdir.y ),
+		safe_fdiv( 1.0f, rdir.z ),
+	};
+	
+	float t1 = ( bbmin.x - rorg.x ) * dirfrac.x;
+	float t2 = ( bbmax.x - rorg.x ) * dirfrac.x;
+	float t3 = ( bbmin.y - rorg.y ) * dirfrac.y;
+	float t4 = ( bbmax.y - rorg.y ) * dirfrac.y;
+	float t5 = ( bbmin.z - rorg.z ) * dirfrac.z;
+	float t6 = ( bbmax.z - rorg.z ) * dirfrac.z;
+	
+	float tmin = TMAX( TMAX( TMIN( t1, t2 ), TMIN( t3, t4 ) ), TMIN( t5, t6 ) );
+	float tmax = TMIN( TMIN( TMAX( t1, t2 ), TMAX( t3, t4 ) ), TMAX( t5, t6 ) );
+	
+	// if tmax < 0, ray (line) is intersecting AABB, but whole AABB is behing us
+	if( tmax < 0 )
+		return false;
+	
+	// if tmin > tmax, ray doesn't intersect AABB
+	if( tmin > tmax )
+		return false;
+	
+	dst[0] = safe_fdiv( tmin, rlen );
+	return true;
+}
+
 
 
 /* string -> number conversion */

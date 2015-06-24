@@ -976,6 +976,7 @@ ENGINE_EXPORT bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane
 ENGINE_EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec3* points, int pointcount, float dst[1] );
 ENGINE_EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
 ENGINE_EXPORT bool SegmentAABBIntersect( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, const Vec3& bbmax );
+ENGINE_EXPORT bool SegmentAABBIntersect2( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, const Vec3& bbmax, float dst[1] );
 
 
 //

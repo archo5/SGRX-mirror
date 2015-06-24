@@ -1051,7 +1051,7 @@ void SGRX_IMesh::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallb
 	if( !m_vdata.size() || !m_idata.size() || !m_meshParts.size() )
 		return;
 	
-	SceneRaycastInfo srci = { 0, V3(0), 0, 0, 0, 0, cbmi };
+	SceneRaycastInfo srci = { 0, V3(0), 0, 0, -1, -1, -1, cbmi };
 	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
 	{
 		SGRX_IMesh_RaycastAll_Core< uint32_t >( this, from, to, cb, &srci, 0, m_meshParts.size() );
@@ -1410,6 +1410,7 @@ SGRX_CullScene::~SGRX_CullScene()
 
 SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
+	raycastOverride( NULL ),
 	color( Vec4::Create( 1 ) ),
 	layers( 0x1 ),
 	enabled( true ),
@@ -1513,7 +1514,7 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 
 SceneRaycastCallback_Closest::SceneRaycastCallback_Closest() : m_hit(false)
 {
-	SceneRaycastInfo srci = { 1.0f + SMALL_FLOAT, V3(0), 0, 0, 0, 0, NULL };
+	SceneRaycastInfo srci = { 1.0f + SMALL_FLOAT, V3(0), 0, 0, -1, -1, -1, NULL };
 	m_closest = srci;
 }
 
@@ -1629,13 +1630,14 @@ void SGRX_Scene::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallb
 	for( size_t i = 0; i < m_meshInstances.size(); ++i )
 	{
 		SGRX_MeshInstance* mi = m_meshInstances.item( i ).key;
-		if( mi->layers & layers && mi->matrix.InvertTo( inv ) )
+		if( mi->mesh && ( mi->layers & layers ) && mi->matrix.InvertTo( inv ) )
 		{
 			Vec3 tffrom = inv.TransformPos( from );
 			Vec3 tfto = inv.TransformPos( to );
 			if( SegmentAABBIntersect( tffrom, tfto, mi->mesh->m_boundsMin, mi->mesh->m_boundsMax ) )
 			{
-				mi->mesh->RaycastAll( tffrom, tfto, cb, mi );
+				IMeshRaycast* mrc = mi->raycastOverride ? mi->raycastOverride : mi->mesh;
+				mrc->RaycastAll( tffrom, tfto, cb, mi );
 			}
 		}
 	}

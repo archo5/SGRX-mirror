@@ -226,6 +226,11 @@ void EDGUIItem::Changed( EDGUIItem* tgt )
 	BubblingEvent( &ev );
 }
 
+void EDGUIItem::SetCaption( const StringView& text )
+{
+	caption = text;
+}
+
 
 EDGUIFrame::EDGUIFrame() :
 	m_mouseX( 0 ),
@@ -998,6 +1003,95 @@ void EDGUIButton::SetHighlight( bool hl )
 {
 	m_highlight = hl;
 	OnChangeState();
+}
+
+
+EDGUIBtnList::EDGUIBtnList()
+{
+	type = EDGUI_ITEM_BTNLIST;
+	tyname = "btnlist";
+	backColor = EDGUI_THEME_BUTTON_BACK_COLOR;
+	textColor = EDGUI_THEME_BUTTON_TEXT_COLOR;
+}
+
+int EDGUIBtnList::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_LAYOUT:
+		x0 = e->layout.x0;
+		x1 = e->layout.x1;
+		y0 = e->layout.y0;
+		y1 = y0 + EDGUI_THEME_BUTTON_HEIGHT * m_options.size();
+		{
+			int hl = m_highlight;
+			int cy0 = ( hl >= 0 ? hl : m_options.size() ) * EDGUI_THEME_BUTTON_HEIGHT;
+			for( size_t i = 0; i < m_subitems.size(); ++i )
+			{
+				SetSubitemLayout( m_subitems[ i ], x0, cy0, x1, cy0 + EDGUI_THEME_BUTTON_HEIGHT );
+			}
+		}
+		return 1;
+		
+	case EDGUI_EVENT_MOUSEENTER:
+	case EDGUI_EVENT_MOUSEMOVE:
+		SetHighlight( ( e->mouse.y - y0 ) / EDGUI_THEME_BUTTON_HEIGHT );
+		break;
+		
+	case EDGUI_EVENT_PAINT:
+		if( textColor )
+		{
+			GR2D_GetBatchRenderer().Reset().Colu( textColor );
+			for( size_t i = 0; i < m_options.size(); ++i )
+			{
+				GR2D_DrawTextLine( x0 + 2,
+					y0 + EDGUI_THEME_BUTTON_HEIGHT / 2 + i * EDGUI_THEME_BUTTON_HEIGHT,
+					m_options[ i ], HALIGN_LEFT, VALIGN_CENTER );
+			}
+		}
+		if( m_highlight >= 0 )
+		{
+			for( size_t i = 0; i < m_subitems.size(); ++i )
+			{
+				m_subitems[ i ]->OnEvent( e );
+			}
+		}
+		return 1;
+		
+	}
+	return EDGUIItem::OnEvent( e );
+}
+
+void EDGUIBtnList::UpdateOptions()
+{
+	OnChangeLayout();
+	SetHighlight( -1 );
+	EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+	if( m_parent )
+		m_parent->OnEvent( &se );
+}
+
+void EDGUIBtnList::SetHighlight( int hl )
+{
+	if( hl < -1 || hl >= (int) m_options.size() )
+		hl = -1;
+	m_highlight = hl;
+	int cy0 = y0 + ( hl >= 0 ? hl : m_options.size() ) * EDGUI_THEME_BUTTON_HEIGHT;
+	for( size_t i = 0; i < m_subitems.size(); ++i )
+	{
+		SetSubitemLayout( m_subitems[ i ], x0, cy0, x1, cy0 + EDGUI_THEME_BUTTON_HEIGHT );
+		m_subitems[ i ]->SetCaption( hl >= 0 ? m_options[ hl ] : "" );
+		_RecursiveSetID2( m_subitems[ i ], hl );
+	}
+}
+
+void EDGUIBtnList::_RecursiveSetID2( EDGUIItem* item, int val )
+{
+	item->id2 = val;
+	for( size_t i = 0; i < item->m_subitems.size(); ++i )
+	{
+		_RecursiveSetID2( item->m_subitems[ i ], val );
+	}
 }
 
 

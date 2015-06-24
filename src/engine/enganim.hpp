@@ -137,7 +137,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimInterp : Animator
 
 
 
-struct AnimCharacter
+struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 {
 	enum BodyType
 	{
@@ -154,8 +154,9 @@ struct AnimCharacter
 	enum TransformType
 	{
 		TransformType_None = 0,
-		TransformType_Move = 1,
-		TransformType_Rotate = 2,
+		TransformType_UndoParent = 1,
+		TransformType_Move = 2,
+		TransformType_Rotate = 3,
 	};
 	
 	struct HitBox
@@ -284,6 +285,10 @@ struct AnimCharacter
 		String name;
 		Array< LayerTransform > transforms;
 		
+		float amount;
+		
+		Layer() : amount( 0 ){}
+		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
 			arch.marker( "LAYER" );
@@ -321,6 +326,8 @@ struct AnimCharacter
 	ENGINE_EXPORT bool GetBodyMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
 	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm );
+	
+	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
 	
 	String mesh;
 	Array< BoneInfo > bones;

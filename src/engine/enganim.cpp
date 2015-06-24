@@ -612,6 +612,42 @@ bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm )
 	return true;
 }
 
+void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi )
+{
+	UNUSED( cbmi ); // always use own mesh instance
+	if( !m_cachedMesh || !m_cachedMeshInst )
+		return;
+	for( size_t i = 0; i < bones.size(); ++i )
+	{
+		BoneInfo& BI = bones[ i ];
+		Mat4 bxf = Mat4::CreateRotationFromQuat( BI.hitbox.rotation ) *
+			Mat4::CreateTranslation( BI.hitbox.position );
+		if( BI.bone_id >= 0 )
+		{
+			bxf = bxf * m_cachedMesh->m_bones[ BI.bone_id ].skinOffset;
+			if( m_cachedMeshInst->skin_matrices.size() )
+			{
+				bxf = bxf * m_cachedMeshInst->skin_matrices[ BI.bone_id ];
+			}
+		}
+		bxf = bxf * m_cachedMeshInst->matrix;
+		
+		Mat4 inv;
+		if( bxf.InvertTo( inv ) )
+		{
+			Vec3 p0 = inv.TransformPos( from );
+			Vec3 p1 = inv.TransformPos( to );
+			float dst[1];
+			if( SegmentAABBIntersect2( p0, p1, -BI.hitbox.extents, BI.hitbox.extents, dst ) )
+			{
+				Vec3 N = ( from - to ).Normalized();
+				SceneRaycastInfo srci = { dst[0], N, 0, 0, -1, -1, BI.bone_id, m_cachedMeshInst };
+				cb->AddResult( &srci );
+			}
+		}
+	}
+}
+
 
 
 void ParticleSystem::Emitter::Tick( float dt, const Vec3& accel, const Mat4& mtx )

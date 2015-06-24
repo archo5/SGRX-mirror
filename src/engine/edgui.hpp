@@ -92,6 +92,7 @@
 #define EDGUI_ITEM_LABEL       48
 #define EDGUI_ITEM_GROUP       49
 #define EDGUI_ITEM_BUTTON      50
+#define EDGUI_ITEM_BTNLIST     51
 #define EDGUI_ITEM_NUMWHEEL    60
 #define EDGUI_ITEM_RSRCPICKER  61
 #define EDGUI_ITEM_QUESTION    62
@@ -180,6 +181,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIItem
 	ENGINE_EXPORT void _SetFrame( struct EDGUIFrame* frame );
 	ENGINE_EXPORT void Edited( EDGUIItem* tgt = NULL );
 	ENGINE_EXPORT void Changed( EDGUIItem* tgt = NULL );
+	ENGINE_EXPORT virtual void SetCaption( const StringView& text );
 	
 	const char* tyname;
 	int type;
@@ -299,6 +301,19 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIButton : EDGUIItem
 	ENGINE_EXPORT void SetHighlight( bool hl );
 	
 	bool m_highlight;
+};
+
+
+struct IF_GCC(ENGINE_EXPORT) EDGUIBtnList : EDGUIItem
+{
+	ENGINE_EXPORT EDGUIBtnList();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void UpdateOptions();
+	ENGINE_EXPORT void SetHighlight( int hl );
+	ENGINE_EXPORT void _RecursiveSetID2( EDGUIItem* item, int val );
+	
+	int m_highlight;
+	Array< String > m_options;
 };
 
 
