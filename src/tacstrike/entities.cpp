@@ -363,45 +363,35 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_shadowInst->projectionTextures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
 	m_shadowInst->projectionTextures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
 	
-	InitializeMesh( "meshes/tstest.ssm" );
+	m_anLayers[0].anim = &m_anMainPlayer;
+	m_anLayers[1].anim = &m_anTopPlayer;
+	m_anLayers[2].anim = &m_animChar.m_layerAnimator;
+	m_anLayers[2].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
+//	m_anLayers[3].anim = &m_anRagdoll;
+//	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
+//	m_anLayers[3].factor = 0;
+	m_animChar.m_anMixer.layers = m_anLayers;
+	m_animChar.m_anMixer.layerCount = 3;
+	
+	InitializeMesh( "chars/tstest.chr" );
 }
 
 void TSCharacter::InitializeMesh( const StringView& path )
 {
-	m_meshInst = g_GameLevel->m_scene->CreateMeshInstance();
-	m_meshInst->mesh = GR_GetMesh( path );
-	m_meshInst->skin_matrices.resize( m_meshInst->mesh->m_numBones );
-	m_meshInst->dynamic = 1;
-	m_meshInst->layers = 0x2;
-	m_meshInst->matrix = Mat4::CreateSRT( V3(1), m_ivDir.curr, m_ivPos.curr );
-	g_GameLevel->LightMesh( m_meshInst );
+	m_animChar.Load( path );
+	m_animChar.AddToScene( g_GameLevel->m_scene );
 	
-	m_anLayers[0].anim = &m_anMainPlayer;
-	m_anLayers[1].anim = &m_anTopPlayer;
-	m_anLayers[2].anim = &m_anRootTurner;
-	m_anLayers[2].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
-	m_anLayers[3].anim = &m_anRagdoll;
-	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
-	m_anLayers[3].factor = 0;
-	m_anMixer.layers = m_anLayers;
-	m_anMixer.layerCount = sizeof(m_anLayers) / sizeof(m_anLayers[0]);
-	m_anEnd.animSource = &m_anMixer;
-	m_anEnd.PrepareForMesh( m_meshInst->mesh );
+	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
+	MI->dynamic = 1;
+	MI->layers = 0x2;
+	MI->matrix = Mat4::CreateSRT( V3(1), m_ivDir.curr, m_ivPos.curr );
+	g_GameLevel->LightMesh( MI );
+	
 	m_anTopPlayer.ClearBlendFactors( 0.0f );
-//	m_anTopPlayer.SetBlendFactors( m_meshInst->mesh, "Bip01 Spine1", 1.0f );
-	m_anRootTurner.ClearFactors( 0.0f );
-	m_anRootTurner.SetFactors( m_meshInst->mesh, "Bip01 Spine", 1.0f, false );
-	m_anRootTurner.SetFactors( m_meshInst->mesh, "Bip01 Spine1", 1.0f, false );
-	m_anMixer.mesh = m_meshInst->mesh;
+//	m_animChar.ApplyMask( "top", &m_anTopPlayer );
 	
 	m_anMainPlayer.Play( GR_GetAnim( "standing_idle" ) );
 	m_anTopPlayer.Play( GR_GetAnim( "run" ) );
-	
-	ByteArray ba;
-	FS_LoadBinaryFile( "test.rdd", ba );
-	ByteReader br( &ba );
-	br << m_skelInfo;
-	m_anRagdoll.Initialize( g_PhyWorld, m_meshInst->mesh, &m_skelInfo );
 }
 
 void TSCharacter::FixedTick( float deltaTime )
@@ -419,19 +409,19 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 	//
 	
-	Quat mainrot = Quat::CreateAxisAngle( 0, 0, 1, atan2( rundir.y, rundir.x ) - M_PI / 2 );
-	Quat toprot = Quat::CreateAxisAngle( 0, 0, 1, atan2( aimdir.y, aimdir.x ) - M_PI / 2 );
-	toprot = toprot * mainrot.Inverted();
-	for( size_t i = 0; i < m_anRootTurner.names.size(); ++i )
+	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
+	float f_turn_top = ( atan2( aimdir.y, aimdir.x ) - M_PI / 2 ) / ( M_PI * 2 );
+	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
 	{
-		if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine") )
-			m_anRootTurner.rotation[ i ] = mainrot;
-		else if( m_anRootTurner.names[ i ] == StringView("Bip01 Spine1") )
-			m_anRootTurner.rotation[ i ] = toprot;
+		AnimCharacter::Layer& L = m_animChar.layers[ i ];
+		if( L.name == StringView("turn_bottom") )
+			L.amount = f_turn_btm;
+		else if( L.name == StringView("turn_top") )
+			L.amount = f_turn_top;
 	}
+	m_animChar.RecalcLayerState();
 	
-	m_anEnd.Advance( deltaTime );
-	m_anRagdoll.AdvanceTransforms( &m_anEnd );
+	m_animChar.FixedTick( deltaTime );
 }
 
 void TSCharacter::Tick( float deltaTime, float blendFactor )
@@ -439,13 +429,13 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	Vec3 pos = m_ivPos.Get( blendFactor );
 //	Quat rdir = m_ivDir.Get( blendFactor ).Normalized();
 	
-	m_meshInst->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
+	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
+	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
 	m_shadowInst->position = pos + V3(0,0,1);
 	
-	g_GameLevel->LightMesh( m_meshInst );
+	g_GameLevel->LightMesh( MI );
 	
-	m_anEnd.Interpolate( blendFactor );
-	GR_ApplyAnimator( &m_anEnd, m_meshInst );
+	m_animChar.PreRender( blendFactor );
 }
 
 void TSCharacter::HandleMovementPhysics( float deltaTime )

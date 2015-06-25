@@ -50,6 +50,7 @@ struct IF_GCC(ENGINE_EXPORT) Animator
 	
 	void ClearFactors( float f ){ GR_ClearFactors( factor, f ); }
 	void SetFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( factor, mesh, name, f, ch ); }
+	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
 	
 	Array< String > names;
 	Array< Vec3 > position;
@@ -119,6 +120,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	
 	void ClearBlendFactors( float f ){ GR_ClearFactors( blendFactor, f ); }
 	void SetBlendFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( blendFactor, mesh, name, f, ch ); }
+	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimInterp : Animator

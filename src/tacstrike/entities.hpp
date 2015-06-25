@@ -397,17 +397,12 @@ struct TSCharacter : Entity
 	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
-	MeshInstHandle m_meshInst;
 	LightHandle m_shadowInst;
 	
-	SkeletonInfo m_skelInfo;
+	AnimCharacter m_animChar;
 	AnimPlayer m_anMainPlayer;
 	AnimPlayer m_anTopPlayer;
-	Animator m_anRootTurner;
-	AnimMixer m_anMixer;
 	AnimMixer::Layer m_anLayers[4];
-	AnimInterp m_anEnd;
-	AnimRagdoll m_anRagdoll;
 	
 	float m_footstepTime;
 	bool m_isCrouching;

@@ -83,6 +83,12 @@ bool Animator::PrepareForMesh( const MeshHandle& mesh )
 	return true;
 }
 
+Array< float >& Animator::GetBlendFactorArray()
+{
+	return factor;
+}
+
+
 AnimMixer::AnimMixer() : layers(NULL), layerCount(0)
 {
 }
@@ -305,6 +311,11 @@ void AnimPlayer::_clearAnimCache()
 		delete [] animCache.item( i ).value;
 	}
 	animCache.clear();
+}
+
+Array< float >& AnimPlayer::GetBlendFactorArray()
+{
+	return blendFactor;
 }
 
 
@@ -673,11 +684,12 @@ bool AnimCharacter::ApplyMask( const StringView& name, Animator* tgt )
 		if( M.name != name )
 			continue;
 		
-		tgt->ClearFactors( 0 );
+		Array< float >& factors = tgt->GetBlendFactorArray();
+		GR_ClearFactors( factors, 0 );
 		for( size_t j = 0; j < M.cmds.size(); ++j )
 		{
 			MaskCmd& MC = M.cmds[ j ];
-			tgt->SetFactors( m_cachedMesh, MC.bone, MC.weight, MC.children );
+			GR_SetFactors( factors, m_cachedMesh, MC.bone, MC.weight, MC.children );
 		}
 		return true;
 	}
