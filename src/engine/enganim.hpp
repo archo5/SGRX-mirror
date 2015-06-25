@@ -297,16 +297,48 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 		}
 	};
 	
+	struct MaskCmd
+	{
+		String bone;
+		float weight;
+		bool children;
+		
+		MaskCmd() : weight( 0 ), children( true ){}
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "MASKCMD" );
+			arch( bone );
+			arch( weight );
+			arch( children );
+		}
+	};
+	struct Mask
+	{
+		String name;
+		Array< MaskCmd > cmds;
+		
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch.marker( "MASK" );
+			arch( name );
+			arch( cmds );
+		}
+	};
+	
 	template< class T > void Serialize( T& basearch )
 	{
 		basearch.marker( "SGRXCHAR" );
 		
-		SerializeVersionHelper<T> arch( basearch, 1 );
+		// 1: initial
+		// 2: added masks
+		SerializeVersionHelper<T> arch( basearch, 2 );
 		
 		arch( mesh );
 		arch( bones );
 		arch( attachments );
 		arch( layers );
+		arch( masks, arch.version >= 2 );
 	}
 	
 	ENGINE_EXPORT AnimCharacter();
@@ -327,6 +359,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT bool GetBodyMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
 	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm );
+	ENGINE_EXPORT bool ApplyMask( const StringView& name, Animator* tgt );
 	
 	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
 	
@@ -334,6 +367,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	Array< BoneInfo > bones;
 	Array< Attachment > attachments;
 	Array< Layer > layers;
+	Array< Mask > masks;
 	
 	SceneHandle m_scene;
 	MeshHandle m_cachedMesh;

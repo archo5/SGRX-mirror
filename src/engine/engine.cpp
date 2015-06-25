@@ -1274,6 +1274,16 @@ void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, 
 }
 
 
+bool SGRX_IMesh::IsBoneUnder( int bone, int parent )
+{
+	while( bone != parent && bone != -1 )
+	{
+		bone = m_bones[ bone ].parent_id;
+	}
+	return bone == parent;
+}
+
+
 SGRX_Log& operator << ( SGRX_Log& L, const SGRX_Camera& cam )
 {
 	L << "CAMERA:";

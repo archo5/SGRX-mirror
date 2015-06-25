@@ -662,6 +662,28 @@ bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm )
 	return true;
 }
 
+bool AnimCharacter::ApplyMask( const StringView& name, Animator* tgt )
+{
+	if( !m_cachedMesh )
+		return false;
+	
+	for( size_t i = 0; i < masks.size(); ++i )
+	{
+		Mask& M = masks[ i ];
+		if( M.name != name )
+			continue;
+		
+		tgt->ClearFactors( 0 );
+		for( size_t j = 0; j < M.cmds.size(); ++j )
+		{
+			MaskCmd& MC = M.cmds[ j ];
+			tgt->SetFactors( m_cachedMesh, MC.bone, MC.weight, MC.children );
+		}
+		return true;
+	}
+	return false;
+}
+
 void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi )
 {
 	UNUSED( cbmi ); // always use own mesh instance

@@ -513,6 +513,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 		size_t numParts = (size_t)-1
 	);
 	
+	ENGINE_EXPORT bool IsBoneUnder( int bone, int parent );
+	
 	/* rendering info */
 	uint32_t m_dataFlags;
 	VertexDeclHandle m_vertexDecl;

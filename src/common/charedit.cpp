@@ -507,7 +507,7 @@ struct EDGUITransformType : EDGUIRsrcPicker
 #define LI_SUBBTN_WIDTH 30
 struct EDGUIListItemButton : EDGUIButton
 {
-	EDGUIListItemButton()
+	EDGUIListItemButton( bool ordered = true )
 	{
 		tyname = "btn_item";
 		m_up.tyname = "btn_up";
@@ -520,8 +520,11 @@ struct EDGUIListItemButton : EDGUIButton
 		
 		m_del.SetHighlight( true );
 		
-		Add( &m_up );
-		Add( &m_dn );
+		if( ordered )
+		{
+			Add( &m_up );
+			Add( &m_dn );
+		}
 		Add( &m_del );
 	}
 	virtual int OnEvent( EDGUIEvent* e )
@@ -1190,6 +1193,264 @@ struct EDGUILayerListProps : EDGUILayoutRow
 };
 
 
+/////////////////
+//  M A S K S  //
+/////////////////
+
+
+void FC_EditMaskCmd( int mid, int cid );
+void FC_EditMask( int which );
+
+struct EDGUIMaskCmdProps : EDGUILayoutRow
+{
+	EDGUIMaskCmdProps() :
+		m_group( true, "<unset>" ),
+		m_bone( g_UIBonePicker ),
+		m_weight( 0, 3, 0, 1 ),
+		m_mid( -1 ),
+		m_cid( -1 )
+	{
+		m_btnBack.caption = "Back to mask <which?>";
+		m_bone.caption = "Bone";
+		m_weight.caption = "Weight";
+		m_children.caption = "Incl. children?";
+		
+		m_group.Add( &m_bone );
+		m_group.Add( &m_weight );
+		m_group.Add( &m_children );
+		
+		Add( &m_btnBack );
+		Add( &m_group );
+	}
+	
+	void Prepare( int mid, int cid )
+	{
+		m_mid = mid;
+		m_cid = cid;
+		
+		AnimCharacter::MaskCmd& MC = g_AnimChar->masks[ mid ].cmds[ cid ];
+		StackString<200> maskname( g_AnimChar->masks[ mid ].name );
+		
+		char bfr[ 256 ];
+		
+		sgrx_snprintf( bfr, 256, "Back to mask: %s", maskname.str );
+		m_btnBack.caption = bfr;
+		
+		sgrx_snprintf( bfr, 256, "Mask %s command %d", maskname.str, cid );
+		m_group.caption = bfr;
+		m_group.SetOpen( true );
+		
+		m_bone.SetValue( MC.bone );
+		m_weight.SetValue( MC.weight );
+		m_children.SetValue( MC.children );
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_mid >= 0 && m_cid >= 0 )
+		{
+			AnimCharacter::MaskCmd& MC = g_AnimChar->masks[ m_mid ].cmds[ m_cid ];
+			
+			switch( e->type )
+			{
+			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btnBack )
+				{
+					FC_EditMask( m_mid );
+					return 1;
+				}
+				break;
+				
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_bone ) MC.bone = m_bone.m_value;
+				else if( e->target == &m_weight ) MC.weight = m_weight.m_value;
+				else if( e->target == &m_children ) MC.children = m_children.m_value;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIButton m_btnBack;
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_bone;
+	EDGUIPropFloat m_weight;
+	EDGUIPropBool m_children;
+	int m_mid;
+	int m_cid;
+};
+
+
+struct EDGUIMaskProps : EDGUILayoutRow
+{
+	EDGUIMaskProps() :
+		m_group( true, "Commands" ),
+		m_previewSize( 0.04f, 3, 0.001f, 1 ),
+		m_mid( -1 )
+	{
+		m_previewSize.caption = "Preview bone tick size";
+		m_name.caption = "Name";
+		m_btnAdd.caption = "Add command";
+		
+		m_mcmdButtons.Add( &m_editButton );
+		m_group.Add( &m_mcmdButtons );
+		
+		Add( &m_previewSize );
+		Add( &m_name );
+		Add( &m_btnAdd );
+		Add( &m_group );
+	}
+	~EDGUIMaskProps()
+	{
+		m_mid = -1;
+	}
+	
+	void Prepare( int mid )
+	{
+		m_mid = mid;
+		AnimCharacter::Mask& M = g_AnimChar->masks[ m_mid ];
+		
+		m_name.SetValue( M.name );
+		
+		m_mcmdButtons.m_options.clear();
+		m_mcmdButtons.m_options.resize( M.cmds.size() );
+		for( size_t i = 0; i < M.cmds.size(); ++i )
+		{
+			char bfr[ 256 ];
+			AnimCharacter::MaskCmd& MC = M.cmds[ i ];
+			StackString<200> bname( MC.bone );
+			sgrx_snprintf( bfr, 256, "#%d, %f @ %s%s", (int) i,
+				MC.weight, bname.str, MC.children ? ", incl. children" : "" );
+			m_mcmdButtons.m_options[ i ] = bfr;
+		}
+		m_mcmdButtons.UpdateOptions();
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_mid >= 0 )
+		{
+			AnimCharacter::Mask& M = g_AnimChar->masks[ m_mid ];
+			
+			switch( e->type )
+			{
+			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btnAdd )
+				{
+					M.cmds.push_back( AnimCharacter::MaskCmd() );
+					Prepare( m_mid );
+					return 1;
+				}
+				if( e->target == &m_editButton )
+				{
+					FC_EditMaskCmd( m_mid, m_editButton.id2 );
+					return 1;
+				}
+				if( e->target == &m_editButton.m_up )
+				{
+					size_t i = m_editButton.id2;
+					if( i > 0 )
+						TSWAP( M.cmds[ i ], M.cmds[ i - 1 ] );
+					Prepare( m_mid );
+					return 1;
+				}
+				if( e->target == &m_editButton.m_dn )
+				{
+					size_t i = m_editButton.id2;
+					if( i < M.cmds.size() - 1 )
+						TSWAP( M.cmds[ i ], M.cmds[ i + 1 ] );
+					Prepare( m_mid );
+					return 1;
+				}
+				if( e->target == &m_editButton.m_del )
+				{
+					M.cmds.erase( m_editButton.id2 );
+					Prepare( m_mid );
+					return 1;
+				}
+				break;
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_name )
+				{
+					M.name = m_name.m_value;
+				}
+				break;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIPropString m_name;
+	EDGUIGroup m_group;
+	EDGUIButton m_btnAdd;
+	EDGUIBtnList m_mcmdButtons;
+	EDGUIListItemButton m_editButton;
+	EDGUIPropFloat m_previewSize;
+	int m_mid;
+};
+
+
+struct EDGUIMaskListProps : EDGUILayoutRow
+{
+	EDGUIMaskListProps() :
+		m_group( true, "Masks" ),
+		m_editButton( false )
+	{
+		m_btnAdd.caption = "Add mask";
+		
+		m_maskButtons.Add( &m_editButton );
+		m_group.Add( &m_maskButtons );
+		
+		Add( &m_btnAdd );
+		Add( &m_group );
+	}
+	
+	void Prepare()
+	{
+		m_maskButtons.m_options.clear();
+		m_maskButtons.m_options.resize( g_AnimChar->masks.size() );
+		for( size_t i = 0; i < g_AnimChar->masks.size(); ++i )
+		{
+			m_maskButtons.m_options[ i ] = g_AnimChar->masks[ i ].name;
+		}
+		m_maskButtons.UpdateOptions();
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_BTNCLICK:
+			if( e->target == &m_btnAdd )
+			{
+				g_AnimChar->masks.push_back( AnimCharacter::Mask() );
+				g_AnimChar->masks.last().name = "<unnamed>";
+				Prepare();
+				return 1;
+			}
+			if( e->target == &m_editButton )
+			{
+				FC_EditMask( m_editButton.id2 );
+				return 1;
+			}
+			if( e->target == &m_editButton.m_del )
+			{
+				size_t i = m_editButton.id2;
+				g_AnimChar->masks.erase( i );
+				Prepare();
+				return 1;
+			}
+			break;
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIGroup m_group;
+	EDGUIButton m_btnAdd;
+	EDGUIBtnList m_maskButtons;
+	EDGUIListItemButton m_editButton;
+};
+
+
 struct EDGUICharProps : EDGUILayoutRow
 {
 	EDGUICharProps() :
@@ -1260,6 +1521,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_showBodies( true ),
 		m_showHitboxes( true ),
 		m_showAttachments( true ),
+		m_showMasks( true ),
 		m_UIMenuSplit( true, 26, 0 ),
 		m_UIParamSplit( false, 0, 0.6f ),
 		m_UIRenderView( g_EdScene, this )
@@ -1284,6 +1546,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_MBEditBones.caption = "Edit bones";
 		m_MBEditAttachments.caption = "Edit attachments";
 		m_MBEditLayers.caption = "Edit layers";
+		m_MBEditMasks.caption = "Edit masks";
 		m_UIMenuButtons.Add( &m_MB_Cat0 );
 		m_UIMenuButtons.Add( &m_MBNew );
 		m_UIMenuButtons.Add( &m_MBOpen );
@@ -1294,6 +1557,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_UIMenuButtons.Add( &m_MBEditBones );
 		m_UIMenuButtons.Add( &m_MBEditAttachments );
 		m_UIMenuButtons.Add( &m_MBEditLayers );
+		m_UIMenuButtons.Add( &m_MBEditMasks );
 	}
 	
 	int OnEvent( EDGUIEvent* e )
@@ -1336,6 +1600,13 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				AddToParamList( &m_layerListProps );
 				SetActiveMode( e->target );
 			}
+			else if( e->target == &m_MBEditMasks )
+			{
+				ClearParamList();
+				m_maskListProps.Prepare();
+				AddToParamList( &m_maskListProps );
+				SetActiveMode( e->target );
+			}
 			
 			return 1;
 			
@@ -1359,6 +1630,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_MBEditBones.SetHighlight( &m_MBEditBones == btn );
 		m_MBEditAttachments.SetHighlight( &m_MBEditAttachments == btn );
 		m_MBEditLayers.SetHighlight( &m_MBEditLayers == btn );
+		m_MBEditMasks.SetHighlight( &m_MBEditMasks == btn );
 	}
 	
 	bool ViewEvent( EDGUIEvent* e )
@@ -1399,12 +1671,14 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				GR2D_SetTextCursor( rx0, ry0 );
 				
 				GR2D_SetColor( 1, 1 );
-				GR2D_DrawTextLine( "Render items: [Bodies: " );
+				GR2D_DrawTextLine( "Render items: [Bodies (1): " );
 				YesNoText( m_showBodies );
-				GR2D_DrawTextLine( ", Hitboxes: " );
+				GR2D_DrawTextLine( ", Hitboxes (2): " );
 				YesNoText( m_showHitboxes );
-				GR2D_DrawTextLine( ", Attachments: " );
+				GR2D_DrawTextLine( ", Attachments (3): " );
 				YesNoText( m_showAttachments );
+				GR2D_DrawTextLine( ", Masks (4): " );
+				YesNoText( m_showMasks );
 				GR2D_DrawTextLine( "]" );
 			}
 			break;
@@ -1415,6 +1689,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				m_showHitboxes = !m_showHitboxes;
 			if( e->key.repeat == false && e->key.engkey == SDLK_3 )
 				m_showAttachments = !m_showAttachments;
+			if( e->key.repeat == false && e->key.engkey == SDLK_4 )
+				m_showMasks = !m_showMasks;
 			break;
 		}
 		return true;
@@ -1519,6 +1795,51 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 					}
 				}
 			}
+			
+			// draw current mask
+			if( m_showMasks && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
+			{
+				br.Reset();
+				
+				for( size_t i = 0; i < g_AnimChar->masks.size(); ++i )
+				{
+					if( (int) i != m_maskProps.m_mid )
+						continue; // displaying more than one at a time would lead to excessive noise
+					
+					float maskdata[ MAX_MESH_BONES ] = {0};
+					
+					AnimCharacter::Mask& M = g_AnimChar->masks[ i ];
+					for( size_t j = 0; j < M.cmds.size(); ++j )
+					{
+						AnimCharacter::MaskCmd& MC = M.cmds[ j ];
+						int bone_id = g_AnimChar->_FindBone( MC.bone );
+						if( bone_id >= 0 )
+						{
+							maskdata[ bone_id ] = MC.weight;
+							if( MC.children )
+							{
+								for( int b = 0; b < g_AnimChar->m_cachedMesh->m_numBones; ++b )
+								{
+									if( g_AnimChar->m_cachedMesh->IsBoneUnder( b, bone_id ) )
+										maskdata[ b ] = MC.weight;
+								}
+							}
+						}
+					}
+					
+					for( int bone_id = 0; bone_id < g_AnimChar->m_cachedMesh->m_numBones; ++bone_id )
+					{
+						Mat4 bmtx = g_AnimChar->m_cachedMeshInst->matrix;
+						if( g_AnimChar->m_cachedMeshInst->skin_matrices.size() )
+							bmtx = g_AnimChar->m_cachedMeshInst->skin_matrices[ bone_id ] * bmtx;
+						bmtx = g_AnimChar->m_cachedMesh->m_bones[ bone_id ].skinOffset * bmtx;
+						
+						Vec3 pos = bmtx.TransformPos( V3(0) );
+						br.Col( 0.1f + ( 1 - maskdata[ bone_id ] ) * 0.8f, 0.1f + maskdata[ bone_id ] * 0.8f, 0.1f );
+						br.Tick( pos, m_maskProps.m_previewSize.m_value );
+					}
+				}
+			}
 		}
 	}
 	
@@ -1555,6 +1876,18 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		ClearParamList();
 		m_layerProps.Prepare( which );
 		AddToParamList( &m_layerProps );
+	}
+	void EditMaskCmd( int mid, int cid )
+	{
+		ClearParamList();
+		m_maskCmdProps.Prepare( mid, cid );
+		AddToParamList( &m_maskCmdProps );
+	}
+	void EditMask( int which )
+	{
+		ClearParamList();
+		m_maskProps.Prepare( which );
+		AddToParamList( &m_maskProps );
 	}
 	
 	void ResetEditorState()
@@ -1631,6 +1964,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	bool m_showBodies;
 	bool m_showHitboxes;
 	bool m_showAttachments;
+	bool m_showMasks;
 	
 	// property blocks
 	EDGUIBoneProps m_boneProps;
@@ -1640,6 +1974,9 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUILayerTransformProps m_layerXfProps;
 	EDGUILayerProps m_layerProps;
 	EDGUILayerListProps m_layerListProps;
+	EDGUIMaskCmdProps m_maskCmdProps;
+	EDGUIMaskProps m_maskProps;
+	EDGUIMaskListProps m_maskListProps;
 	EDGUICharProps m_charProps;
 	
 	// core layout
@@ -1661,12 +1998,15 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBEditBones;
 	EDGUIButton m_MBEditAttachments;
 	EDGUIButton m_MBEditLayers;
+	EDGUIButton m_MBEditMasks;
 };
 
 void FC_EditBone( int which ){ g_UIFrame->EditBone( which ); }
 void FC_EditAttachment( int which ){ g_UIFrame->EditAttachment( which ); }
 void FC_EditLayerTransform( int lid, int tid ){ g_UIFrame->EditLayerTransform( lid, tid ); }
 void FC_EditLayer( int which ){ g_UIFrame->EditLayer( which ); }
+void FC_EditMaskCmd( int mid, int cid ){ g_UIFrame->EditMaskCmd( mid, cid ); }
+void FC_EditMask( int which ){ g_UIFrame->EditMask( which ); }
 
 
 
