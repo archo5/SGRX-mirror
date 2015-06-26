@@ -135,6 +135,12 @@ struct ObjectiveSystem
 };
 
 
+struct MeshInstInfo
+{
+	const char* typeOverride;
+};
+
+
 struct DamageSystem
 {
 	struct Material : SGRX_RefCounted

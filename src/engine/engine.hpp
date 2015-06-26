@@ -665,6 +665,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	
 	MeshHandle mesh;
 	IMeshRaycast* raycastOverride;
+	void* userData;
 	Mat4 matrix;
 	Vec4 color;
 	uint32_t layers;

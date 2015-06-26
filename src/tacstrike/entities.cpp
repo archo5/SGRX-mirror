@@ -340,6 +340,8 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
 	i_crouch( false ), i_move( V2(0) ), i_aim_at( false ), i_aim_target( V3(0) )
 {
+	m_meshInstInfo.typeOverride = "*human*";
+	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
 	rbinfo.restitution = 0;
@@ -382,6 +384,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	m_animChar.AddToScene( g_GameLevel->m_scene );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
+	MI->userData = &m_meshInstInfo;
 	MI->dynamic = 1;
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( V3(1), m_ivDir.curr, m_ivPos.curr );

@@ -391,10 +391,15 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 			{
 				SceneRaycastInfo& HIT = m_tmpStore[ hitid ];
 				float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
+				MeshInstInfo* mii = (MeshInstInfo*) HIT.meshinst->userData;
+				
+				StringView decalType = "TODO";
+				if( mii && mii->typeOverride )
+					decalType = mii->typeOverride;
 				
 				// apply damage to hit point
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
-				m_damageSystem->AddBulletDamage( "TODO",
+				m_damageSystem->AddBulletDamage( decalType,
 					HIT.meshinst->mesh, -1, HIT.meshinst->matrix,
 					hitpoint, B.dir, HIT.normal );
 				
