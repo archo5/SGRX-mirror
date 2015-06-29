@@ -424,7 +424,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindKeyToAction( SDLK_d, &MOVE_RIGHT );
 		Game_BindKeyToAction( SDLK_w, &MOVE_UP );
 		Game_BindKeyToAction( SDLK_s, &MOVE_DOWN );
-		Game_BindKeyToAction( SDLK_g, &SHOOT );
+	//	Game_BindKeyToAction( SDLK_g, &SHOOT );
+		Game_BindMouseButtonToAction( SGRX_MB_LEFT, &SHOOT );
 		Game_BindKeyToAction( SDLK_r, &RELOAD );
 	//	Game_BindKeyToAction( SDLK_LCTRL, &SLOW_WALK );
 		Game_BindKeyToAction( SDLK_LSHIFT, &SPRINT );
@@ -533,12 +534,14 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mytable->Tick( dt, bf );
 #endif
 		
+#ifdef TESTSHOOT
 		Vec3 CP, CD;
 		if( SHOOT.value && g_GameLevel->m_scene->camera.GetCursorRay(
 			Game_GetCursorPos().x / GR_GetWidth(), Game_GetCursorPos().y / GR_GetHeight(), CP, CD ) )
 		{
 			g_GameLevel->m_bulletSystem.Add( CP, CD * 10, 1, 1 );
 		}
+#endif
 	}
 	void Game_Render()
 	{

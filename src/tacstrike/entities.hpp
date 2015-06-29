@@ -394,6 +394,8 @@ struct TSCharacter : Entity
 	
 	Vec3 GetPosition();
 	Vec3 GetViewDir();
+	Vec3 GetAimDir();
+	Mat4 GetBulletOutputMatrix();
 	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
@@ -433,6 +435,7 @@ struct TSPlayer : TSCharacter
 	
 	TextureHandle m_tex_interact_icon;
 	TextureHandle m_tex_cursor;
+	ParticleSystem m_shootPS;
 	
 	TSPlayer( const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );

@@ -557,14 +557,44 @@ Vec3 TSCharacter::GetViewDir()
 	return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 );
 }
 
+Vec3 TSCharacter::GetAimDir()
+{
+	Vec3 aimdir = V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 );
+	if( i_aim_at )
+	{
+		aimdir = ( i_aim_target - GetPosition() );
+	}
+	return aimdir;
+}
+
+Mat4 TSCharacter::GetBulletOutputMatrix()
+{
+	Mat4 out = m_animChar.m_cachedMeshInst->matrix;
+	for( size_t i = 0; i < m_animChar.attachments.size(); ++i )
+	{
+		if( m_animChar.attachments[ i ].name == StringView("gun_barrel") )
+		{
+			m_animChar.GetAttachmentMatrix( i, out );
+			break;
+		}
+	}
+	return out;
+}
+
 
 TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	TSCharacter( pos-V3(0,0,1), dir ),
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ), inCursorMove( V2(0) ),
 	m_targetII( NULL ), m_targetTriggered( false )
 {
+	m_meshInstInfo.ownerType = GAT_Player;
+	
 	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
 	i_aim_at = true;
+	
+	m_shootPS.Load( "psys/fastspark.psy" );
+	m_shootPS.AddToScene( g_GameLevel->m_scene );
+	m_shootPS.OnRenderUpdate();
 }
 
 void TSPlayer::FixedTick( float deltaTime )
@@ -580,17 +610,34 @@ void TSPlayer::FixedTick( float deltaTime )
 //	;
 //	m_anMainPlayer.Play( GR_GetAnim( animname ) );
 	
+	const char* animname = "run";
+	Vec2 md = i_move.Normalized();
+	if( Vec2Dot( md, GetAimDir().ToVec2() ) < 0 )
+	{
+		md = -md;
+		animname = "run_bw";
+	}
 	if( i_move.Length() > 0.1f )
 	{
-		TurnTo( i_move, deltaTime * 8 );
+		TurnTo( md, deltaTime * 8 );
 	}
 	
 //	i_crouch = CROUCH.value;
 	
-	const char* animname = "run";
 	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "standing_idle" ), false, 0.2f );
 	
 	TSCharacter::FixedTick( deltaTime );
+	
+	if( SHOOT.value )
+	{
+		Mat4 mtx = GetBulletOutputMatrix();
+		Vec3 origin = mtx.TransformPos( V3(0) );
+		Vec3 dir = ( i_aim_target - origin ).Normalized();
+		LOG << dir;
+		g_GameLevel->m_bulletSystem.Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
+		m_shootPS.SetTransform( Mat4::CreateScale( V3(0.1f) ) * mtx );
+		m_shootPS.Trigger();
+	}
 }
 
 void TSPlayer::Tick( float deltaTime, float blendFactor )
@@ -627,6 +674,9 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
 	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	
+	m_shootPS.Tick( deltaTime );
+	m_shootPS.PreRender();
 }
 
 void TSPlayer::DrawUI()
@@ -714,6 +764,8 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir ) :
 {
 	m_typeName = "enemy";
 	m_name = name;
+	
+	m_meshInstInfo.ownerType = GAT_Enemy;
 	
 	UpdateTask();
 	

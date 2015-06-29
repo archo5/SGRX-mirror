@@ -392,6 +392,8 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 				SceneRaycastInfo& HIT = m_tmpStore[ hitid ];
 				float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
 				MeshInstInfo* mii = (MeshInstInfo*) HIT.meshinst->userData;
+				if( mii && mii->ownerType == B.ownerType )
+					continue;
 				
 				StringView decalType = "TODO";
 				if( mii && mii->typeOverride )
@@ -440,9 +442,9 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 	}
 }
 
-void BulletSystem::Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg )
+void BulletSystem::Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, GameActorType ownerType )
 {
-	Bullet B = { pos, vel, vel.Normalized(), timeleft, dmg };
+	Bullet B = { pos, vel, vel.Normalized(), timeleft, dmg, ownerType };
 	m_bullets.push_back( B );
 }
 

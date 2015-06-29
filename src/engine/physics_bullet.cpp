@@ -418,9 +418,35 @@ void BulletPhyWorld::SetGravity( const Vec3& v )
 	m_world->setGravity( V2BV( v ) );
 }
 
+struct ClosestRayResultCallbackDIR : btCollisionWorld::ClosestRayResultCallback
+{
+	ClosestRayResultCallbackDIR( const btVector3& rayFromWorld, const btVector3& rayToWorld )
+		: ClosestRayResultCallback( rayFromWorld, rayToWorld )
+	{
+		m_rayDir = ( rayToWorld - rayFromWorld ).normalized();
+	}
+	virtual	btScalar addSingleResult( btCollisionWorld::LocalRayResult& rayResult, bool normalInWorldSpace )
+	{
+		if( normalInWorldSpace )
+		{
+			m_hitNormalWorld = rayResult.m_hitNormalLocal;
+		}
+		else
+		{
+			m_hitNormalWorld = m_collisionObject->getWorldTransform().getBasis()
+				* rayResult.m_hitNormalLocal;
+		}
+		if( m_hitNormalWorld.dot( m_rayDir ) <= 0 )
+			return 1;
+		return btCollisionWorld::ClosestRayResultCallback::addSingleResult( rayResult, normalInWorldSpace );
+	}
+	
+	btVector3 m_rayDir;
+};
+
 bool BulletPhyWorld::Raycast( const Vec3& from, const Vec3& to, uint16_t group, uint16_t mask, SGRX_PhyRaycastInfo* outinfo )
 {
-	btCollisionWorld::ClosestRayResultCallback crrc( V2BV( from ), V2BV( to ) );
+	ClosestRayResultCallbackDIR crrc( V2BV( from ), V2BV( to ) );
 	crrc.m_collisionFilterGroup = group;
 	crrc.m_collisionFilterMask = mask;
 	m_world->rayTest( crrc.m_rayFromWorld, crrc.m_rayToWorld, crrc );
