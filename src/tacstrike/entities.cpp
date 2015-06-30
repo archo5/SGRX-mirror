@@ -703,6 +703,30 @@ void TSPlayer::DrawUI()
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	
+	bool infront;
+	Vec2 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( V3(0,0,1), &infront ).ToVec2() * screen_size;
+	if( infront )
+	{
+		Vec2 dir = V2( 2, -1 ).Normalized();
+		Vec2 clp0 = screenpos + dir * 12;
+		Vec2 clp1 = screenpos + dir * 64;
+		Vec2 cline[2] = { clp0, clp1 };
+		Vec2 addX = V2( 0, -48 ), addY = V2( 120, 0 );
+		Vec2 irect[4] = { clp1, clp1 + addY, clp1 + addX + addY, clp1 + addX };
+		
+		br.Reset();
+		br.Col( 0, 0.5f ).QuadWH( clp1.x, clp1.y, 120, -48 );
+		br.Col( 0.905f, 1 ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
+		br.AAStroke( cline, 2, 2, false );
+		br.AAStroke( irect, 4, 2, true );
+		
+		SGRX_FontSettings fs;
+		GR2D_GetFontSettings( &fs );
+		GR2D_SetFont( "core", 16 );
+		GR2D_DrawTextLine( clp1.x + 4, clp1.y - 48 + 4, "Testing..." );
+		GR2D_SetFontSettings( &fs );
+	}
+	
 	if( m_targetII )
 	{
 		float x = GR_GetWidth() / 2.0f;

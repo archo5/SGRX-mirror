@@ -3100,6 +3100,175 @@ BatchRenderer& BatchRenderer::Tick( const Vec3& pos, float radius, const Mat4& t
 	return *this;
 }
 
+const float cos135deg = cosf( M_PI * 0.75f );
+BatchRenderer& BatchRenderer::AAPoly( const Vec2* polydata, size_t polysize, float z )
+{
+	if( polysize < 3 )
+		return *this;
+	
+	Vec2 center = V2(0);
+	for( size_t i = 0; i < polysize; ++i )
+		center += polydata[ i ];
+	center /= polysize;
+	
+	uint32_t colorf = m_proto.color;
+	uint32_t colora = colorf & 0x00ffffff;
+	Vec2 prev_n;
+	SetPrimitiveType( PT_Triangles );
+	for( size_t i = 0; i <= polysize; ++i )
+	{
+		size_t i0 = ( i + polysize - 1 ) % polysize;
+		size_t i1 = i % polysize;
+		size_t i2 = ( i + 1 ) % polysize;
+		Vec2 p0 = polydata[ i0 ];
+		Vec2 p1 = polydata[ i1 ];
+		Vec2 p2 = polydata[ i2 ];
+		Vec2 d01 = ( p1 - p0 ).Normalized();
+		Vec2 d12 = ( p2 - p1 ).Normalized();
+		float dot = clamp( Vec2Dot( d01, d12 ), -1, 1 );
+		Vec2 n;
+		if( dot < cos135deg )
+		{
+			// TODO MAYBE FIX
+			n = V2(0);
+		}
+		else
+		{
+			n = ( d12 + d01 ).Normalized().Perp2() / cosf( 0.5f * acosf( dot ) );
+		}
+		
+		n *= 0.5f; // half in each direction for a full pixel in both
+		if( i != 0 )
+		{
+			Vec2 curr_n = n;
+			Vec2 i0in = p0 - prev_n, i0out = p0 + prev_n;
+			Vec2 i1in = p1 - curr_n, i1out = p1 + curr_n;
+			
+			// 3 triangles: (center, in = opaque, out = transparent)
+			// - center, i0in, i1in
+			// - i0out, i1out, i0in(3)
+			// - i1out(1), i1in(4), i0in(2)
+			
+			m_proto.color = colorf; Pos( center, z ); Pos( i0in, z ); Pos( i1in, z );
+			m_proto.color = colora; Pos( i0out, z ); Pos( i1out, z ); Prev( 3 );
+			Prev( 1 ); Prev( 4 ); Prev( 2 );
+		}
+		prev_n = n;
+	}
+	m_proto.color = colorf;
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::AACircle( float x, float y, float r, float z, int verts )
+{
+	if( verts < 0 )
+		verts = r * M_PI * 2;
+	if( verts >= 3 )
+	{
+		m_polyCache.clear();
+		m_polyCache.resize( verts );
+		float ad = M_PI * 2.0f / verts;
+		float a = ad;
+		for( int i = 0; i < verts; ++i )
+		{
+			float cs = sinf( a ), cc = cosf( a );
+			m_polyCache[ i ] = V2( x + cs * r, y + cc * r );
+			a += ad;
+		}
+		AAPoly( m_polyCache.data(), m_polyCache.size(), z );
+	}
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::AAStroke( const Vec2* linedata, size_t linesize, float width, bool closed, float z )
+{
+	if( linesize < 2 )
+		return *this;
+	
+	float width0 = width - 1;
+	float width1 = width + 1;
+	uint32_t colorf = m_proto.color;
+	uint32_t colora = colorf & 0x00ffffff;
+	Vec2 prev_n;
+	SetPrimitiveType( PT_Triangles );
+	for( size_t i = 0; i < linesize + (closed?1:0); ++i )
+	{
+		size_t i0 = ( i + linesize - 1 ) % linesize;
+		size_t i1 = i % linesize;
+		size_t i2 = ( i + 1 ) % linesize;
+		if( closed == false )
+		{
+			if( i1 == 0 ) i0 = i1;
+			if( i1 == linesize - 1 ) i2 = i1;
+		}
+		Vec2 p0 = linedata[ i0 ];
+		Vec2 p1 = linedata[ i1 ];
+		Vec2 p2 = linedata[ i2 ];
+		Vec2 d01 = ( p1 - p0 ).Normalized();
+		Vec2 d12 = ( p2 - p1 ).Normalized();
+		float dot = clamp( Vec2Dot( d01, d12 ), -1, 1 );
+		Vec2 n;
+		if( dot < cos135deg )
+		{
+			// TODO MAYBE FIX
+			n = V2(0);
+		}
+		else
+		{
+			n = ( d12 + d01 ).Normalized().Perp2() / cosf( 0.5f * acosf( dot ) );
+		}
+		
+		n *= 0.5f; // half in each direction for a full pixel in both
+		if( i != 0 )
+		{
+			Vec2 curr_n = n;
+			Vec2 pin0 = p0 + prev_n * width0, pout0 = p0 + prev_n * width1;
+			Vec2 pin1 = p1 + curr_n * width0, pout1 = p1 + curr_n * width1;
+			Vec2 nin0 = p0 - prev_n * width0, nout0 = p0 - prev_n * width1;
+			Vec2 nin1 = p1 - curr_n * width0, nout1 = p1 - curr_n * width1;
+			
+			// 6 triangles: (in = opaque, out = transparent)
+			// - pout0, pout1, pin1
+			// - pin1(0), pin0, pout0(4)
+			// - nout0, nout1, nin1
+			// - nin1(0), nin0, nout0(4)
+			// - pin0(7), pin1(9), nin1(4)
+			// - nin1(0), nin0(5), pin0(4)
+			
+			m_proto.color = colora; Pos( pout0 ); Pos( pout1 );
+			m_proto.color = colorf; Pos( pin1 ); Prev( 0 ); Pos( pin0 ); Prev( 4 );
+			m_proto.color = colora; Pos( nout0 ); Pos( nout1 );
+			m_proto.color = colorf; Pos( nin1 ); Prev( 0 ); Pos( nin0 ); Prev( 4 );
+			Prev( 7 ); Prev( 9 ); Prev( 4 );
+			Prev( 0 ); Prev( 5 ); Prev( 4 );
+		}
+		prev_n = n;
+	}
+	m_proto.color = colorf;
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::AACircleOutline( float x, float y, float r, float width, float z, int verts )
+{
+	if( verts < 0 )
+		verts = r * M_PI * 2;
+	if( verts >= 3 )
+	{
+		m_polyCache.clear();
+		m_polyCache.resize( verts );
+		float ad = M_PI * 2.0f / verts;
+		float a = ad;
+		for( int i = 0; i < verts; ++i )
+		{
+			float cs = sinf( a ), cc = cosf( a );
+			m_polyCache[ i ] = V2( x + cs * r, y + cc * r );
+			a += ad;
+		}
+		AAStroke( m_polyCache.data(), m_polyCache.size(), width, true, z );
+	}
+	return *this;
+}
+
 bool BatchRenderer::CheckSetTexture( const TextureHandle& tex )
 {
 	if( tex != m_nextState.texture )
