@@ -26,7 +26,7 @@ void InfoEmissionSystem::RemoveEmitter( Entity* e )
 	m_emissionData.unset( e );
 }
 
-bool InfoEmissionSystem::QueryAny( const Vec3& pos, float rad, uint32_t types )
+bool InfoEmissionSystem::QuerySphereAny( const Vec3& pos, float rad, uint32_t types )
 {
 	for( size_t i = 0; i < m_emissionData.size(); ++i )
 	{
@@ -38,6 +38,26 @@ bool InfoEmissionSystem::QueryAny( const Vec3& pos, float rad, uint32_t types )
 			return true;
 	}
 	return false;
+}
+
+bool InfoEmissionSystem::QuerySphereAll( IESProcessor* proc, const Vec3& pos, float rad, uint32_t types )
+{
+	bool ret = false;
+	for( size_t i = 0; i < m_emissionData.size(); ++i )
+	{
+		const Data& D = m_emissionData.item( i ).value;
+		if( !( D.types & types ) )
+			continue;
+		
+		float dst = rad + D.radius;
+		if( ( D.pos - pos ).LengthSq() >= dst * dst )
+			continue;
+		
+		ret = true;
+		if( proc->Process( m_emissionData.item( i ).key, D ) == false )
+			return true;
+	}
+	return ret;
 }
 
 bool InfoEmissionSystem::QueryBB( const Mat4& mtx, uint32_t types )

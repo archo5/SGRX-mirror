@@ -9,6 +9,7 @@
 #define USE_HASHTABLE
 #define USE_SERIALIZATION
 #include "level.hpp"
+#include "entities.hpp"
 
 
 static int SendMessage( SGS_CTX )
@@ -601,6 +602,28 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	}
 }
 
+#ifdef TSGAME
+struct EnemyDraw : InfoEmissionSystem::IESProcessor
+{
+	bool Process( Entity* E, const InfoEmissionSystem::Data& D )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		SGRX_CAST( TSEnemy*, EE, E );
+		Vec2 viewpos = EE->GetInterpPos().ToVec2();
+		Vec2 viewdir = EE->GetInterpAimDir().ToVec2().Normalized();
+		Vec2 viewtan = viewdir.Perp();
+		LOG << viewdir;
+		br.Reset().Col( 0.9f, 0 )
+			.SetPrimitiveType( PT_Triangles )
+			.Pos( viewpos + viewdir * 10 - viewtan * 8 )
+			.Pos( viewpos + viewdir * 10 + viewtan * 8 )
+			.Col( 0.9f, 0.5f ).Pos( viewpos );
+		br.Reset().SetTexture( g_GameLevel->m_tex_mapline ).Col( 0.95f, 0.1f, 0.05f ).Box( D.pos.x, D.pos.y, 1, 1 );
+		return true;
+	}
+};
+#endif
+
 void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
@@ -669,6 +692,11 @@ void GameLevel::Draw2D()
 			
 			br.TexLine( l0, l1, 0.1f );
 		}
+		
+#ifdef TSGAME
+		EnemyDraw ed;
+		m_infoEmitters.QuerySphereAll( &ed, V3( pos.x, pos.y, 1 ), 100, IEST_Enemy );
+#endif
 		
 		br.Reset().SetTexture( m_tex_mapline ).Col( 0.2f, 0.9f, 0.1f ).Box( pos.x, pos.y, 1, 1 );
 		

@@ -55,6 +55,7 @@ typedef Array< Entity* > EntityArray;
 #define IEST_InteractiveItem 0x0001
 #define IEST_HeatSource      0x0002
 #define IEST_Player          0x0004
+#define IEST_Enemy           0x0008
 
 struct InfoEmissionSystem
 {
@@ -64,12 +65,17 @@ struct InfoEmissionSystem
 		float radius;
 		uint32_t types;
 	};
+	struct IESProcessor
+	{
+		virtual bool Process( Entity*, const Data& ) = 0;
+	};
 	
 	HashTable< Entity*, Data > m_emissionData;
 	
 	void UpdateEmitter( Entity* e, const Data& data );
 	void RemoveEmitter( Entity* e );
-	bool QueryAny( const Vec3& pos, float rad, uint32_t types );
+	bool QuerySphereAny( const Vec3& pos, float rad, uint32_t types );
+	bool QuerySphereAll( IESProcessor* proc, const Vec3& pos, float rad, uint32_t types );
 	bool QueryBB( const Mat4& mtx, uint32_t types );
 	Entity* QueryOneRay( const Vec3& from, const Vec3& to, uint32_t types );
 };

@@ -54,7 +54,7 @@ ProximityTrigger::ProximityTrigger( const StringView& fn, const StringView& tgt,
 
 void ProximityTrigger::FixedTick( float deltaTime )
 {
-	Update( g_GameLevel->m_infoEmitters.QueryAny( m_position, m_radius, IEST_Player ) );
+	Update( g_GameLevel->m_infoEmitters.QuerySphereAny( m_position, m_radius, IEST_Player ) );
 }
 
 
@@ -581,6 +581,16 @@ Mat4 TSCharacter::GetBulletOutputMatrix()
 	return out;
 }
 
+Vec3 TSCharacter::GetInterpPos()
+{
+	return m_ivPos.Get( 1 );
+}
+
+Vec3 TSCharacter::GetInterpAimDir()
+{
+	return GetAimDir();
+}
+
 
 TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	TSCharacter( pos-V3(0,0,1), dir ),
@@ -595,6 +605,7 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	m_shootPS.Load( "psys/fastspark.psy" );
 	m_shootPS.AddToScene( g_GameLevel->m_scene );
 	m_shootPS.OnRenderUpdate();
+	m_shootTimeout = 0;
 }
 
 void TSPlayer::FixedTick( float deltaTime )
@@ -624,19 +635,23 @@ void TSPlayer::FixedTick( float deltaTime )
 	
 //	i_crouch = CROUCH.value;
 	
-	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "standing_idle" ), false, 0.2f );
+	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "stand_with_gun_up" ), false, 0.2f );
 	
 	TSCharacter::FixedTick( deltaTime );
 	
-	if( SHOOT.value )
+	while( m_shootTimeout > 0 )
+		m_shootTimeout -= deltaTime;
+	if( SHOOT.value && m_shootTimeout <= 0 )
 	{
 		Mat4 mtx = GetBulletOutputMatrix();
 		Vec3 origin = mtx.TransformPos( V3(0) );
 		Vec3 dir = ( i_aim_target - origin ).Normalized();
+		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
 		LOG << dir;
 		g_GameLevel->m_bulletSystem.Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
 		m_shootPS.SetTransform( Mat4::CreateScale( V3(0.1f) ) * mtx );
 		m_shootPS.Trigger();
+		m_shootTimeout += 0.1f;
 	}
 }
 
@@ -856,6 +871,9 @@ void TSEnemy::FixedTick( float deltaTime )
 	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : "standing_idle" ), false, 0.2f );
 	
 	TSCharacter::FixedTick( deltaTime );
+	
+	InfoEmissionSystem::Data D = { GetPosition(), 0.5f, IEST_Enemy };
+	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
 }
 
 void TSEnemy::Tick( float deltaTime, float blendFactor )

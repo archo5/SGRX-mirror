@@ -1,5 +1,7 @@
 
 
+#pragma once
+
 #include "entities.hpp"
 #include "levelcache.hpp"
 

@@ -1,5 +1,7 @@
 
 
+#pragma once
+
 #include <engine.hpp>
 #include <enganim.hpp>
 #include <pathfinding.hpp>
@@ -397,6 +399,9 @@ struct TSCharacter : Entity
 	Vec3 GetAimDir();
 	Mat4 GetBulletOutputMatrix();
 	
+	Vec3 GetInterpPos();
+	Vec3 GetInterpAimDir();
+	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
 	LightHandle m_shadowInst;
@@ -436,6 +441,7 @@ struct TSPlayer : TSCharacter
 	TextureHandle m_tex_interact_icon;
 	TextureHandle m_tex_cursor;
 	ParticleSystem m_shootPS;
+	float m_shootTimeout;
 	
 	TSPlayer( const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );

@@ -436,6 +436,8 @@ struct ClosestRayResultCallbackDIR : btCollisionWorld::ClosestRayResultCallback
 			m_hitNormalWorld = m_collisionObject->getWorldTransform().getBasis()
 				* rayResult.m_hitNormalLocal;
 		}
+		// this is strange, but I can't seem to be able
+		// to change triangle winding to make this direction correct
 		if( m_hitNormalWorld.dot( m_rayDir ) <= 0 )
 			return 1;
 		return btCollisionWorld::ClosestRayResultCallback::addSingleResult( rayResult, normalInWorldSpace );
