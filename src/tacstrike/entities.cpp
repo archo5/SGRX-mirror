@@ -647,7 +647,6 @@ void TSPlayer::FixedTick( float deltaTime )
 		Vec3 origin = mtx.TransformPos( V3(0) );
 		Vec3 dir = ( i_aim_target - origin ).Normalized();
 		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-		LOG << dir;
 		g_GameLevel->m_bulletSystem.Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
 		m_shootPS.SetTransform( Mat4::CreateScale( V3(0.1f) ) * mtx );
 		m_shootPS.Trigger();
@@ -703,28 +702,45 @@ void TSPlayer::DrawUI()
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	
-	bool infront;
-	Vec2 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( V3(0,0,1), &infront ).ToVec2() * screen_size;
-	if( infront )
+	IESItemGather ies_gather;
+	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, m_position, 10, IEST_InteractiveItem );
+	if( ies_gather.items.size() )
 	{
-		Vec2 dir = V2( 2, -1 ).Normalized();
-		Vec2 clp0 = screenpos + dir * 12;
-		Vec2 clp1 = screenpos + dir * 64;
-		Vec2 cline[2] = { clp0, clp1 };
-		Vec2 addX = V2( 0, -48 ), addY = V2( 120, 0 );
-		Vec2 irect[4] = { clp1, clp1 + addY, clp1 + addX + addY, clp1 + addX };
-		
-		br.Reset();
-		br.Col( 0, 0.5f ).QuadWH( clp1.x, clp1.y, 120, -48 );
-		br.Col( 0.905f, 1 ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
-		br.AAStroke( cline, 2, 2, false );
-		br.AAStroke( irect, 4, 2, true );
-		
-		SGRX_FontSettings fs;
-		GR2D_GetFontSettings( &fs );
-		GR2D_SetFont( "core", 16 );
-		GR2D_DrawTextLine( clp1.x + 4, clp1.y - 48 + 4, "Testing..." );
-		GR2D_SetFontSettings( &fs );
+		ies_gather.DistanceSort( m_position );
+		for( size_t i = ies_gather.items.size(); i > 0; )
+		{
+			i--;
+			Entity* E = ies_gather.items[ i ].E;
+			Vec3 pos = ies_gather.items[ i ].D.pos;
+			bool infront;
+			Vec2 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
+			if( infront )
+			{
+				bool activate = i == 0 && ( m_position - pos ).Length() < 1;
+				Vec2 dir = V2( 2, -1 ).Normalized();
+				Vec2 clp0 = screenpos + dir * 12;
+				Vec2 clp1 = screenpos + dir * 64;
+				Vec2 cline[2] = { clp0, clp1 };
+				Vec2 addX = V2( 0, -48 ), addY = V2( 120, 0 );
+				Vec2 irect[4] = { clp1, clp1 + addY, clp1 + addX + addY, clp1 + addX };
+				
+				br.Reset();
+				if( activate )
+				{
+					br.Col( 0.9f, 0.1f, 0, 0.5f ).CircleFill( screenpos.x, screenpos.y, 12 );
+				}
+				br.Col( 0, 0.5f ).QuadWH( clp1.x, clp1.y, 120, -48 );
+				br.Col( 0.905f, 1 ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
+				br.AAStroke( cline, 2, 2, false );
+				br.AAStroke( irect, 4, 2, true );
+				
+				SGRX_FontSettings fs;
+				GR2D_GetFontSettings( &fs );
+				GR2D_SetFont( "core", 16 );
+				GR2D_DrawTextLine( clp1.x + 4, clp1.y - 48 + 4, E->m_viewName );
+				GR2D_SetFontSettings( &fs );
+			}
+		}
 	}
 	
 	if( m_targetII )

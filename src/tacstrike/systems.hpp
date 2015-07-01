@@ -35,6 +35,25 @@ typedef Array< MeshInstHandle > MeshInstArray;
 typedef Array< PhyRigidBodyHandle > PhyBodyArray;
 
 
+enum EInteractionType
+{
+	IT_None = 0,
+	IT_Button,
+	IT_Pickup,
+	IT_Investigate,
+	IT_PickLock,
+};
+
+struct InteractInfo
+{
+	EInteractionType type;
+	Vec3 placePos; // placement
+	Vec3 placeDir;
+	float timeEstimate;
+	float timeActual;
+};
+
+
 struct Entity
 {
 	const char* m_typeName;
@@ -46,6 +65,7 @@ struct Entity
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual void OnEvent( const StringView& type ){}
+	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
 };
 
 typedef Array< Entity* > EntityArray;
@@ -78,6 +98,42 @@ struct InfoEmissionSystem
 	bool QuerySphereAll( IESProcessor* proc, const Vec3& pos, float rad, uint32_t types );
 	bool QueryBB( const Mat4& mtx, uint32_t types );
 	Entity* QueryOneRay( const Vec3& from, const Vec3& to, uint32_t types );
+};
+
+struct IESItemGather : InfoEmissionSystem::IESProcessor
+{
+	struct Item
+	{
+		Entity* E;
+		InfoEmissionSystem::Data D;
+		float sortkey;
+	};
+	
+	bool Process( Entity* E, const InfoEmissionSystem::Data& D )
+	{
+		Item item = { E, D, 0 };
+		items.push_back( item );
+		return true;
+	}
+	
+	static int sort_func( const void* A, const void* B )
+	{
+		SGRX_CAST( Item*, a, A );
+		SGRX_CAST( Item*, b, B );
+		return a->sortkey == b->sortkey ? 0 : ( a->sortkey < b->sortkey ? -1 : 1 );
+	}
+	void Sort()
+	{
+		qsort( items.data(), items.size(), sizeof(Item), sort_func );
+	}
+	void DistanceSort( Vec3 pos )
+	{
+		for( size_t i = 0; i < items.size(); ++i )
+			items[ i ].sortkey = ( items[ i ].D.pos - pos ).LengthSq();
+		Sort();
+	}
+	
+	Array< Item > items;
 };
 
 struct MSMessage

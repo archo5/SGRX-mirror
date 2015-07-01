@@ -612,7 +612,6 @@ struct EnemyDraw : InfoEmissionSystem::IESProcessor
 		Vec2 viewpos = EE->GetInterpPos().ToVec2();
 		Vec2 viewdir = EE->GetInterpAimDir().ToVec2().Normalized();
 		Vec2 viewtan = viewdir.Perp();
-		LOG << viewdir;
 		br.Reset().Col( 0.9f, 0 )
 			.SetPrimitiveType( PT_Triangles )
 			.Pos( viewpos + viewdir * 10 - viewtan * 8 )
