@@ -941,6 +941,7 @@ void EdWorld::AddObject( EdObject* obj )
 
 void EdWorld::DeleteObject( EdObject* obj )
 {
+	obj->Acquire();
 	size_t at = m_objects.find_first_at( obj );
 	m_objects.uerase( at );
 	
@@ -973,6 +974,7 @@ void EdWorld::DeleteObject( EdObject* obj )
 		if( at != NOT_FOUND )
 			m_entities.uerase( at );
 	}
+	obj->Release();
 }
 
 void EdWorld::DeleteSelectedObjects()
