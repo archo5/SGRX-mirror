@@ -24,6 +24,7 @@ Command SLOW_WALK( "slow_walk" );
 Command SPRINT( "sprint" );
 Command CROUCH( "crouch" );
 Command SHOW_OBJECTIVES( "show_objectives" );
+Command DO_ACTION( "do_action" );
 
 
 SGRX_RenderPass g_RenderPasses_Main[] =
@@ -419,6 +420,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_RegisterAction( &SLOW_WALK );
 		Game_RegisterAction( &SPRINT );
 		Game_RegisterAction( &CROUCH );
+		Game_RegisterAction( &DO_ACTION );
 		
 		Game_BindKeyToAction( SDLK_a, &MOVE_LEFT );
 		Game_BindKeyToAction( SDLK_d, &MOVE_RIGHT );
@@ -430,6 +432,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	Game_BindKeyToAction( SDLK_LCTRL, &SLOW_WALK );
 		Game_BindKeyToAction( SDLK_LSHIFT, &SPRINT );
 		Game_BindKeyToAction( SDLK_LCTRL, &CROUCH );
+		Game_BindKeyToAction( SDLK_SPACE, &DO_ACTION );
 		
 		g_GameLevel = new GameLevel();
 		

@@ -43,6 +43,7 @@ enum EInteractionType
 	IT_Investigate,
 	IT_PickLock,
 };
+#define IA_NEEDS_LONG_END(t) ((t)==IT_Investigate||(t)==IT_PickLock)
 
 struct InteractInfo
 {
@@ -66,6 +67,7 @@ struct Entity
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual void OnEvent( const StringView& type ){}
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
+	virtual bool CanInterruptAction( float progress ){ return false; }
 };
 
 typedef Array< Entity* > EntityArray;

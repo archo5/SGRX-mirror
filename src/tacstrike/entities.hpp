@@ -100,9 +100,11 @@ struct PickupItem : Entity
 {
 	MeshInstHandle m_meshInst;
 	int m_count;
+	Vec3 m_pos;
 	
 	PickupItem( const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl );
 	virtual void OnEvent( const StringView& type );
+	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
 };
 
 
@@ -368,6 +370,8 @@ struct Player : Character
 
 #ifdef TSGAME
 
+extern Command DO_ACTION;
+
 #define Player TSPlayer
 
 enum TSTaskType
@@ -387,12 +391,30 @@ void TSParseTaskArray( TSTaskArray& out, sgsVariable var );
 
 struct TSCharacter : Entity
 {
+	struct ActionState
+	{
+		ActionState() : timeoutMoveToStart(0), timeoutEnding(0),
+			progress(0), target(NULL){}
+		
+		float timeoutMoveToStart;
+		float timeoutEnding;
+		float progress;
+		Entity* target;
+		InteractInfo info;
+	};
+	
 	TSCharacter( const Vec3& pos, const Vec3& dir );
 	void InitializeMesh( const StringView& path );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void HandleMovementPhysics( float deltaTime );
 	void TurnTo( const Vec2& turnDir, float speedDelta );
+	void PushTo( const Vec3& pos, float speedDelta );
+	void BeginClosestAction( float maxdist );
+	bool BeginAction( Entity* E );
+	bool IsInAction();
+	bool CanInterruptAction();
+	void InterruptAction( bool force );
 	
 	Vec3 GetPosition();
 	Vec3 GetViewDir();
@@ -421,6 +443,8 @@ struct TSCharacter : Entity
 	Vec3 m_position;
 	Vec2 m_moveDir;
 	float m_turnAngle;
+	
+	ActionState m_actState;
 	
 	bool i_crouch;
 	Vec2 i_move;

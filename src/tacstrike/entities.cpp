@@ -220,7 +220,7 @@ void SlidingDoor::OnEvent( const StringView& type )
 
 
 PickupItem::PickupItem( const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
-	m_count( count )
+	m_count( count ), m_pos( pos )
 {
 	m_name = id;
 	m_viewName = name;
@@ -249,6 +249,16 @@ void PickupItem::OnEvent( const StringView& type )
 		sprintf( bfr, "Picked up %.*s", TMIN( 240, (int) m_viewName.size() ), m_viewName.data() );
 		g_GameLevel->m_messageSystem.AddMessage( MSMessage::Info, bfr );
 	}
+}
+
+bool PickupItem::GetInteractionInfo( Vec3 pos, InteractInfo* out )
+{
+	out->type = IT_Pickup;
+	out->placePos = m_pos;
+	out->placeDir = V3(0);
+	out->timeEstimate = 0.5f;
+	out->timeActual = 0.5f;
+	return true;
 }
 
 
@@ -391,14 +401,82 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	g_GameLevel->LightMesh( MI );
 	
 	m_anTopPlayer.ClearBlendFactors( 0.0f );
-//	m_animChar.ApplyMask( "top", &m_anTopPlayer );
+	m_animChar.ApplyMask( "top", &m_anTopPlayer );
 	
 	m_anMainPlayer.Play( GR_GetAnim( "standing_idle" ) );
-	m_anTopPlayer.Play( GR_GetAnim( "run" ) );
+//	m_anTopPlayer.Play( GR_GetAnim( "run" ) );
 }
 
 void TSCharacter::FixedTick( float deltaTime )
 {
+	if( IsInAction() )
+	{
+		i_move = V2(0);
+		if( m_actState.timeoutMoveToStart > 0 )
+		{
+			m_anMainPlayer.Play( GR_GetAnim( "stand_with_gun_up" ), false, 0.2f );
+			
+			m_bodyHandle->SetLinearVelocity( V3(0) );
+			if( ( m_actState.info.placePos - GetPosition() ).ToVec2().Length() < 0.1f )
+			{
+				m_actState.timeoutMoveToStart = 0;
+			}
+			else
+			{
+				PushTo( m_actState.info.placePos, deltaTime );
+				m_actState.timeoutMoveToStart -= deltaTime;
+			}
+		}
+		else if( m_actState.progress < m_actState.info.timeActual )
+		{
+			float pp = m_actState.progress;
+			float cp = pp + deltaTime;
+			
+			// <<< TODO EVENTS >>>
+			if( pp < 0.01f && 0.01f <= cp )
+			{
+				m_anMainPlayer.Play( GR_GetAnim( "kneeling" ) );
+			}
+			if( pp < 0.5f && 0.5f <= cp )
+			{
+				m_actState.target->OnEvent( "trigger_switch" );
+			}
+			
+			m_actState.progress = cp;
+			if( m_actState.progress >= m_actState.info.timeActual )
+			{
+				// end of action
+				m_actState.timeoutEnding = IA_NEEDS_LONG_END( m_actState.info.type ) ? 1 : 0;
+			}
+		}
+		else
+		{
+			m_actState.timeoutEnding -= deltaTime;
+			if( m_actState.timeoutEnding <= 0 )
+			{
+				// end of action ending
+				InterruptAction( true );
+			}
+		}
+	}
+	else
+	{
+		// animate character
+		const char* animname = "run";
+		Vec2 md = i_move.Normalized();
+		if( Vec2Dot( md, GetAimDir().ToVec2() ) < 0 )
+		{
+			md = -md;
+			animname = "run_bw";
+		}
+		if( i_move.Length() > 0.1f )
+		{
+			TurnTo( md, deltaTime * 8 );
+		}
+		
+		m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : "stand_with_gun_up" ), false, 0.2f );
+	}
+	
 	HandleMovementPhysics( deltaTime );
 	
 	m_ivDir.Advance( Quat::CreateAxisAngle( V3(0,0,1), m_turnAngle ) );
@@ -547,6 +625,61 @@ void TSCharacter::TurnTo( const Vec2& turnDir, float speedDelta )
 	m_turnAngle = angstart + sign( angend - angstart ) * TMIN( fabsf( angend - angstart ), speedDelta );
 }
 
+void TSCharacter::PushTo( const Vec3& pos, float speedDelta )
+{
+	Vec2 diff = pos.ToVec2() - GetPosition().ToVec2();
+	diff = diff.Normalized() * TMIN( speedDelta, diff.Length() );
+	m_bodyHandle->SetPosition( GetPosition() + V3( diff.x, diff.y, 0 ) );
+}
+
+void TSCharacter::BeginClosestAction( float maxdist )
+{
+	if( IsInAction() )
+		return;
+	
+	IESItemGather ies_gather;
+	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, m_position, 10, IEST_InteractiveItem );
+	if( ies_gather.items.size() )
+	{
+		ies_gather.DistanceSort( m_position );
+		if( ( ies_gather.items[ 0 ].D.pos - m_position ).Length() < maxdist )
+			BeginAction( ies_gather.items[ 0 ].E );
+	}
+}
+
+bool TSCharacter::BeginAction( Entity* E )
+{
+	if( !E || IsInAction() )
+		return false;
+	
+	if( E->GetInteractionInfo( GetPosition(), &m_actState.info ) == false )
+		return false;
+	
+	m_actState.timeoutMoveToStart = 1;
+	m_actState.progress = 0;
+	m_actState.target = E;
+	return true;
+}
+
+bool TSCharacter::IsInAction()
+{
+	return m_actState.target;
+}
+
+bool TSCharacter::CanInterruptAction()
+{
+	return IsInAction() && m_actState.target->CanInterruptAction( m_actState.progress );
+}
+
+void TSCharacter::InterruptAction( bool force )
+{
+	if( force == false && CanInterruptAction() == false )
+		return;
+	
+	m_actState.progress = 0;
+	m_actState.target = NULL;
+}
+
 Vec3 TSCharacter::GetPosition()
 {
 	return m_bodyHandle->GetPosition();
@@ -612,30 +745,12 @@ void TSPlayer::FixedTick( float deltaTime )
 {
 	i_move = V2( MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value );
 	i_aim_target = FindTargetPosition();
-	
-	//	bool moving = m_moveDir.Length() > 0.1f;
-//	const char* animname =
-//		m_isCrouching
-//		? ( moving ? "crouch_walk" : "crouch" )
-//		: ( moving ? "sneak" : "stand_anim" )
-//	;
-//	m_anMainPlayer.Play( GR_GetAnim( animname ) );
-	
-	const char* animname = "run";
-	Vec2 md = i_move.Normalized();
-	if( Vec2Dot( md, GetAimDir().ToVec2() ) < 0 )
-	{
-		md = -md;
-		animname = "run_bw";
-	}
-	if( i_move.Length() > 0.1f )
-	{
-		TurnTo( md, deltaTime * 8 );
-	}
-	
 //	i_crouch = CROUCH.value;
 	
-	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() ? animname : "stand_with_gun_up" ), false, 0.2f );
+	if( DO_ACTION.value )
+	{
+		BeginClosestAction( 1 );
+	}
 	
 	TSCharacter::FixedTick( deltaTime );
 	
@@ -906,9 +1021,6 @@ void TSEnemy::FixedTick( float deltaTime )
 	{
 		TurnTo( i_move, deltaTime * 8 );
 	}
-	
-	const char* animname = "run";
-	m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : "standing_idle" ), false, 0.2f );
 	
 	TSCharacter::FixedTick( deltaTime );
 	
