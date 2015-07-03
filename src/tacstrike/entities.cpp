@@ -262,6 +262,44 @@ bool PickupItem::GetInteractionInfo( Vec3 pos, InteractInfo* out )
 }
 
 
+Actionable::Actionable( const StringView& name, const StringView& mesh,
+	const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir )
+{
+	Mat4 mtx = Mat4::CreateSRT( scl, rot, pos );
+	
+	m_info.type = IT_Investigate;
+	m_info.placePos = mtx.TransformPos( placeoff );
+	m_info.placeDir = mtx.TransformNormal( placedir ).Normalized();
+	m_info.timeEstimate = 0.5f;
+	m_info.timeActual = 0.5f;
+	
+//	m_name = id;
+	m_viewName = name;
+	m_meshInst = g_GameLevel->m_scene->CreateMeshInstance();
+	m_meshInst->dynamic = 1;
+	
+	char bfr[ 256 ] = {0};
+	snprintf( bfr, 255, "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
+	m_meshInst->mesh = GR_GetMesh( bfr );
+	m_meshInst->matrix = mtx;
+	g_GameLevel->LightMesh( m_meshInst );
+	
+	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_InteractiveItem };
+	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+}
+
+void Actionable::OnEvent( const StringView& type )
+{
+	// TODO call script function
+}
+
+bool Actionable::GetInteractionInfo( Vec3 pos, InteractInfo* out )
+{
+	*out = m_info;
+	return true;
+}
+
+
 ParticleFX::ParticleFX( const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start ) :
 	m_soundEventName( sndev ), m_position( pos )
 {

@@ -1,53 +1,95 @@
 
-function ED_ENT_see( eptr )
+// --- BASE PROPS ---
+
+function ENTBASE_named( eptr )
 {
+	EE_AddFieldString( eptr, "name", "Name", "" );
 }
-function ED_ENT_setest( eptr )
+
+function ENTBASE_xform( eptr )
 {
-	EE_AddButtonSubent( eptr, "see" );
+	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
+	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
 }
+
+function ENTBASE_xfmesh( eptr )
+{
+	ENTBASE_xform( eptr );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+}
+
+function ENTBASE_trigger( eptr )
+{
+	EE_AddFieldScrFn( eptr, "func", "Script function", "" );
+	EE_AddFieldString( eptr, "target", "Target object", "" );
+	EE_AddFieldBool( eptr, "once", "Call once", false );
+}
+
+function ENTBASE_viewdir( eptr )
+{
+	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
+}
+
+// --- CALLBACK FUNCS ---
+
+function ENTCHG_xfmesh( eptr, data )
+{
+	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+	EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+	EE_SetMeshInstanceCount( eptr, 1 );
+	EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+}
+
+function ENTGTH_xfmesh( eptr, data )
+{
+	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+	EE_Gather_Mesh( eptr, "meshes/" $ data.mesh $ ".ssm", mtx, data.lmquality, data.solid, data.dynlit, data.castlms );
+}
+
+function ENTDD_xfmesh( eptr, data )
+{
+	(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+	
+	BR_Reset();
+	BR_Col( 0.2, 0.7, 0.9, 0.8 );
+	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+	BR_AABB( bbmin, bbmax, mtx );
+}
+
+function ENTDD_startpos( eptr, data )
+{
+	BR_Reset();
+	BR_Col( 0.9, 0.2, 0.1, 0.8 );
+	BR_SetPrimitiveType( PT_Lines );
+	BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
+}
+
+// --- ENTITIES ---
 
 function ED_ENT_player_start( eptr )
 {
-	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
-	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
-	{
-		BR_Reset();
-		BR_Col( 0.9, 0.2, 0.1, 0.8 );
-		BR_SetPrimitiveType( PT_Lines );
-		BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
-	});
+	ENTBASE_viewdir( eptr );
+	EE_SetDebugDrawFunc( eptr, ENTDD_startpos );
 }
 
 function ED_ENT_enemy_start( eptr )
 {
-	EE_AddFieldString( eptr, "name", "Name", "" );
-	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
-	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
-	{
-		BR_Reset();
-		BR_Col( 0.9, 0.2, 0.1, 0.8 );
-		BR_SetPrimitiveType( PT_Lines );
-		BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
-	});
+	ENTBASE_named( eptr );
+	ENTBASE_viewdir( eptr );
+	EE_SetDebugDrawFunc( eptr, ENTDD_startpos );
 }
 
 function ED_ENT_camera_start( eptr )
 {
-	EE_AddFieldVec3( eptr, "viewdir", "Initial view direction", vec3(1,0,0), 2, -100, 100 );
-	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
-	{
-		BR_Reset();
-		BR_Col( 0.9, 0.2, 0.1, 0.8 );
-		BR_SetPrimitiveType( PT_Lines );
-		BR_Pos( data.position ); BR_Pos( data.position + data.viewdir );
-	});
+	ENTBASE_viewdir( eptr );
+	EE_SetDebugDrawFunc( eptr, ENTDD_startpos );
 }
 
 function ED_ENT_marker( eptr )
 {
-	EE_AddFieldString( eptr, "name", "Name", "" );
-	EE_SetDebugDrawFunc( eptr, function PlayerStart_onDebugDraw( eptr, data )
+	ENTBASE_named( eptr );
+	EE_SetDebugDrawFunc( eptr, function Marker_onDebugDraw( eptr, data )
 	{
 		BR_Reset();
 		BR_Col( 0.9, 0.2, 0.1, 0.8 );
@@ -57,9 +99,7 @@ function ED_ENT_marker( eptr )
 
 function ED_ENT_solidbox( eptr )
 {
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	ENTBASE_xform( eptr );
 	EE_SetDebugDrawFunc( eptr, function SolidBox_onDebugDraw( eptr, data )
 	{
 		BR_Reset();
@@ -70,12 +110,8 @@ function ED_ENT_solidbox( eptr )
 
 function ED_ENT_trigger( eptr )
 {
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
-	EE_AddFieldScrFn( eptr, "func", "Script function", "" );
-	EE_AddFieldString( eptr, "target", "Target object", "" );
-	EE_AddFieldBool( eptr, "once", "Call once", false );
+	ENTBASE_xform( eptr );
+	ENTBASE_trigger( eptr );
 	EE_SetDebugDrawFunc( eptr, function Trigger_onDebugDraw( eptr, data )
 	{
 		BR_Reset();
@@ -87,9 +123,7 @@ function ED_ENT_trigger( eptr )
 function ED_ENT_trigger_prox( eptr )
 {
 	EE_AddFieldFloat( eptr, "distance", "Test distance", 1, 2, 0.01, 100 );
-	EE_AddFieldScrFn( eptr, "func", "Script function", "" );
-	EE_AddFieldString( eptr, "target", "Target object", "" );
-	EE_AddFieldBool( eptr, "once", "Call once", false );
+	ENTBASE_trigger( eptr );
 	EE_SetDebugDrawFunc( eptr, function TriggerProx_onDebugDraw( eptr, data )
 	{
 		BR_Reset();
@@ -101,43 +135,19 @@ function ED_ENT_trigger_prox( eptr )
 
 function ED_ENT_m3sh( eptr )
 {
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
-	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	ENTBASE_xfmesh( eptr );
 	EE_AddFieldFloat( eptr, "lmquality", "Lightmap quality", 1, 2, 0.01, 100 );
 	EE_AddFieldBool( eptr, "solid", "Solid", true );
 	EE_AddFieldBool( eptr, "dynlit", "Dyn.lighting", false );
 	EE_AddFieldBool( eptr, "castlms", "Casts lightmap shadow (dyn)", true );
-	EE_SetChangeFunc( eptr, function Mesh_onChange( eptr, data )
-	{
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
-		EE_SetMeshInstanceCount( eptr, 1 );
-		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
-	});
-	EE_SetDebugDrawFunc( eptr, function Mesh_onDebugDraw( eptr, data )
-	{
-		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
-		
-		BR_Reset();
-		BR_Col( 0.2, 0.7, 0.9, 0.8 );
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		BR_AABB( bbmin, bbmax, mtx );
-	});
-	EE_SetGatherFunc( eptr, function MeshArray_onGather( eptr, data )
-	{
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		EE_Gather_Mesh( eptr, "meshes/" $ data.mesh $ ".ssm", mtx, data.lmquality, data.solid, data.dynlit, data.castlms );
-	});
+	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
+	EE_SetDebugDrawFunc( eptr, ENTDD_xfmesh );
+	EE_SetGatherFunc( eptr, ENTGTH_xfmesh );
 }
 
 function ED_ENT_mesharray( eptr )
 {
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
-	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	ENTBASE_xfmesh( eptr );
 	EE_AddFieldVec3( eptr, "offset", "Relative offset", vec3(0,0,1), 2, -128, 128 );
 	EE_AddFieldInt( eptr, "count", "Count", 1, 1, 128 );
 	EE_SetChangeFunc( eptr, function MeshArray_onChange( eptr, data )
@@ -180,26 +190,15 @@ function ED_ENT_mesharray( eptr )
 
 function ED_ENT_door_slide( eptr )
 {
-	EE_AddFieldString( eptr, "name", "Name", "" );
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
-	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	ENTBASE_named( eptr );
+	ENTBASE_xfmesh( eptr );
 	EE_AddFieldFloat( eptr, "open_time", "Opening time", 1, 2, 0.01, 100 );
 	EE_AddFieldVec3( eptr, "open_offset", "Opening offset", vec3(0,0,1), 2, -128, 128 );
 	EE_AddFieldVec3( eptr, "open_rot_angles", "Opening rotation", 0, 2, 0, 360 );
 	EE_AddFieldBool( eptr, "is_switch", "Is switchable", false );
 	EE_AddFieldScrFn( eptr, "pred", "Switch test function", "" );
-	EE_AddFieldScrFn( eptr, "func", "Target function", "" );
-	EE_AddFieldString( eptr, "target", "Target object", "" );
-	EE_AddFieldBool( eptr, "once", "Call once", false );
-	EE_SetChangeFunc( eptr, function DoorSlideProx_onChange( eptr, data )
-	{
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
-		EE_SetMeshInstanceCount( eptr, 1 );
-		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
-	});
+	ENTBASE_trigger( eptr );
+	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
 	EE_SetDebugDrawFunc( eptr, function DoorSlideProx_onDebugDraw( eptr, data )
 	{
 		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
@@ -208,27 +207,19 @@ function ED_ENT_door_slide( eptr )
 		BR_Col( 0.2, 0.8, 0.1, 0.8 );
 		BR_AABB( bbmin, bbmax, mtx );
 		BR_Col( 0.7, 0.1, 0.1, 0.8 );
+		BR_SetPrimitiveType( PT_Lines );
 		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( data.open_offset ) );
 	});
 }
 
 function ED_ENT_door_slide_prox( eptr )
 {
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
-	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
+	ENTBASE_xfmesh( eptr );
 	EE_AddFieldFloat( eptr, "open_time", "Opening time", 1, 2, 0.01, 100 );
 	EE_AddFieldVec3( eptr, "open_offset", "Opening offset", vec3(0,0,1), 2, -128, 128 );
 	EE_AddFieldVec3( eptr, "scan_offset", "Scanner offset", vec3(0,0,0), 2, -128, 128 );
 	EE_AddFieldFloat( eptr, "scan_distance", "Scanner distance", 1, 2, 0.01, 100 );
-	EE_SetChangeFunc( eptr, function DoorSlideProx_onChange( eptr, data )
-	{
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
-		EE_SetMeshInstanceCount( eptr, 1 );
-		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
-	});
+	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
 	EE_SetDebugDrawFunc( eptr, function DoorSlideProx_onDebugDraw( eptr, data )
 	{
 		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
@@ -241,18 +232,17 @@ function ED_ENT_door_slide_prox( eptr )
 		BR_Tick( wsp, data.scan_distance );
 		BR_SphereOutline( wsp, data.scan_distance, 32 );
 		BR_Col( 0.7, 0.1, 0.1, 0.8 );
+		BR_SetPrimitiveType( PT_Lines );
 		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( data.open_offset ) );
 	});
 }
 
 function ED_ENT_particle_fx( eptr )
 {
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
+	ENTBASE_xform( eptr );
 	EE_AddFieldPartSys( eptr, "partsys", "Particle system", "" );
 	EE_AddFieldSound( eptr, "soundevent", "Sound event", "" );
-	EE_AddFieldString( eptr, "name", "Name", "" );
+	ENTBASE_named( eptr );
 	EE_AddFieldBool( eptr, "start", "Play on startup", true );
 	EE_SetDebugDrawFunc( eptr, function Trigger_onDebugDraw( eptr, data )
 	{
@@ -261,34 +251,41 @@ function ED_ENT_particle_fx( eptr )
 		BR_Col( 0.2, 0.8, 0.1, 0.8 );
 		BR_AABB( -1, 1, mtx );
 		BR_Col( 0.7, 0.1, 0.1, 0.8 );
+		BR_SetPrimitiveType( PT_Lines );
 		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( vec3(0,0,1) ) );
 	});
 }
 
 function ED_ENT_pickup( eptr )
 {
-	EE_AddFieldVec3( eptr, "rot_angles", "Rotation", 0, 2, 0, 360 );
-	EE_AddFieldFloat( eptr, "scale_uni", "Scale (uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "scale_sep", "Scale (separate)", 1, 2, 0.01, 100 );
-	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
-	EE_AddFieldString( eptr, "name", "Name", "" );
+	ENTBASE_xfmesh( eptr );
+	ENTBASE_named( eptr );
 	EE_AddFieldString( eptr, "id", "ID", "" );
 	EE_AddFieldInt( eptr, "count", "Count", 1, 1, 10000 );
-	EE_SetChangeFunc( eptr, function Mesh_onChange( eptr, data )
+	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
+	EE_SetDebugDrawFunc( eptr, ENTDD_xfmesh );
+}
+
+function ED_ENT_actionable( eptr )
+{
+	ENTBASE_xfmesh( eptr );
+	ENTBASE_named( eptr );
+	EE_AddFieldVec3( eptr, "place_offset", "Placement offset", vec3(0,0,0), 2, -128, 128 );
+	EE_AddFieldVec3( eptr, "place_dir", "Placement direction", vec3(0,0,0), 2, -128, 128 );
+	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
+	EE_SetDebugDrawFunc( eptr, function Actionable_onDebugDraw( eptr, data )
 	{
 		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
-		EE_SetMeshInstanceCount( eptr, 1 );
-		EE_SetMeshInstanceMatrix( eptr, 0, mtx );
-	});
-	EE_SetDebugDrawFunc( eptr, function Mesh_onDebugDraw( eptr, data )
-	{
-		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
-		
+		poff = mtx.transform_pos( data.place_offset );
+		pdiroff = mtx.transform_pos( data.place_offset + data.place_dir );
 		BR_Reset();
-		BR_Col( 0.2, 0.7, 0.9, 0.8 );
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		BR_AABB( bbmin, bbmax, mtx );
+		BR_Col( 0.9, 0.2, 0.1, 0.8 );
+		BR_Tick( data.position, 0.1 );
+		BR_Col( 0.5, 0.2, 0.1, 0.8 );
+		BR_Tick( poff, 0.08 );
+		BR_Col( 0.1, 0.2, 0.1, 0.8 );
+		BR_SetPrimitiveType( PT_Lines );
+		BR_Pos( poff ); BR_Pos( pdiroff );
 	});
 }
 

@@ -475,6 +475,23 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	}
 	
 	///////////////////////////
+	if( type == "actionable" )
+	{
+		Actionable* AC = new Actionable
+		(
+			data.getprop("name").get<String>(),
+			data.getprop("mesh").get<String>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			data.getprop("place_offset").get<Vec3>(),
+			data.getprop("place_dir").get<Vec3>()
+		);
+		m_entities.push_back( AC );
+		return;
+	}
+	
+	///////////////////////////
 	if( type == "particle_fx" )
 	{
 		ParticleFX* PF = new ParticleFX

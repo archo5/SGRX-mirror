@@ -1293,7 +1293,8 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuSplit.SetFirstPane( &m_UIMenuLRSplit );
 	m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
 	m_UIParamSplit.SetFirstPane( &m_UIRenderView );
-	m_UIParamSplit.SetSecondPane( &m_UIParamList );
+	m_UIParamSplit.SetSecondPane( &m_UIParamScroll );
+	m_UIParamScroll.Add( &m_UIParamList );
 	
 	// menu
 	m_MB_Cat0.caption = "File:";
@@ -1501,11 +1502,15 @@ bool EDGUIMainFrame::IsCursorAiming()
 
 void EDGUIMainFrame::Snap( Vec2& v )
 {
+	if( m_keyMod & KMOD_ALT )
+		return;
 	m_snapProps.Snap( v );
 }
 
 void EDGUIMainFrame::Snap( Vec3& v )
 {
+	if( m_keyMod & KMOD_ALT )
+		return;
 	m_snapProps.Snap( v );
 }
 

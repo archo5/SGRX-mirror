@@ -1685,6 +1685,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUILayoutSplitPane m_UIParamSplit;
 	EDGUILayoutColumn m_UIMenuButtonsLft;
 	EDGUILayoutColumn m_UIMenuButtonsRgt;
+	EDGUIVScroll m_UIParamScroll;
 	EDGUILayoutRow m_UIParamList;
 	EDGUIRenderView m_UIRenderView;
 
