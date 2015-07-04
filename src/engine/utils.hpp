@@ -4,6 +4,7 @@
 #define __STDC_FORMAT_MACROS 1
 #define _USE_MATH_DEFINES
 #include <inttypes.h>
+#include <float.h>
 #include <assert.h>
 #include <math.h>
 #include <string.h>
@@ -54,6 +55,9 @@ ENGINE_EXPORT void sgrx_assert_func( const char* code, const char* file, int lin
 ENGINE_EXPORT void NOP( int x );
 ENGINE_EXPORT int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen = (size_t) -1 );
 ENGINE_EXPORT int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... );
+ENGINE_EXPORT uint32_t sgrx_crc32( const void* buf, size_t len, uint32_t in_crc );
+ENGINE_EXPORT void sgrx_quicksort( void* array, size_t length, size_t size,
+	int(*compare)(const void *, const void *, void*), void* userdata);
 
 // RT system padding
 ENGINE_EXPORT double sgrx_hqtime();

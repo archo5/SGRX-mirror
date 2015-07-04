@@ -837,23 +837,35 @@ struct SGRX_SceneTree
 	Array< Item > items;
 };
 
-struct LightTree
+struct IF_GCC(ENGINE_EXPORT) LightTree
 {
-	struct Sample
+	struct Colors
+	{
+		Vec3 color[6]; // X,Y,Z / +,-
+		void Clear(){ for( int i = 0; i < 6; ++i ) color[ i ] = V3(0); }
+	};
+	struct Sample : Colors
 	{
 		Vec3 pos;
-		Vec3 color[6]; // X,Y,Z / +,-
 		template< class T > void Serialize( T& arch ){ arch << pos; for( int i = 0; i < 6; ++i ) arch << color[i]; }
 	};
+	struct Node // size = 8(3+3+2) * 4(float/int32)
+	{
+		Vec3 bbmin;
+		Vec3 bbmax;
+		int32_t ch; // ch0 = ch, ch1 = ch + 1
+		int32_t sdo; // sample data offset
+	};
 	
-	void Clear(){ m_samples.clear(); m_tris.clear(); m_triadj.clear(); m_adjdata.clear(); }
-	ENGINE_EXPORT void InsertSamples( const Sample* samples, size_t count );
-	ENGINE_EXPORT void Interpolate( Sample& S, int32_t* outlastfound = NULL );
+	ENGINE_EXPORT void SetSamples( Sample* samples, size_t count );
+	ENGINE_EXPORT void GetColors( Vec3 pos, Colors* out );
 	
-	Array< Sample > m_samples;
-	Array< int32_t > m_tris; // 3 x triangle count
-	Array< int32_t > m_triadj; // 2 x triangle count (offset,count)
-	Array< int32_t > m_adjdata; // ? indexed by m_triadj
+	// samples
+	Array< Vec3 > m_pos;
+	Array< Colors > m_colors;
+	// BVH
+	Array< Node > m_nodes;
+	Array< int32_t > m_sampidx; // format: <count> [ <tri> x count ], ...
 };
 
 /* render pass constants */

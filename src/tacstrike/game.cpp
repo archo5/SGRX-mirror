@@ -271,7 +271,7 @@ struct TmpPlayer : Entity
 		g_GameLevel->m_scene->camera.angle = 90; // 30;
 		g_GameLevel->m_scene->camera.UpdateMatrices();
 		
-		g_GameLevel->LightMesh( meshInst, &spos );
+		g_GameLevel->LightMesh( meshInst );
 		
 		anEnd.Interpolate( bf );
 		GR_ApplyAnimator( &anEnd, meshInst );
@@ -310,7 +310,6 @@ struct TmpPlayer : Entity
 	}
 	
 	SkeletonInfo skinfo;
-	int32_t spos;
 	MeshInstHandle meshInst;
 	
 	PhyRigidBodyHandle rigidBody;
@@ -368,14 +367,14 @@ struct TmpTable
 		Quat R = state_Rot.Get( bf );
 		
 		meshInst->matrix = Mat4::CreateSRT( V3(0.5f), R, P );
-		LightTree::Sample SMP = { P };
-		g_GameLevel->m_ltSamples.Interpolate( SMP );
-		meshInst->constants[10] = V4( SMP.color[0], 1 );
-		meshInst->constants[11] = V4( SMP.color[1], 1 );
-		meshInst->constants[12] = V4( SMP.color[2], 1 );
-		meshInst->constants[13] = V4( SMP.color[3], 1 );
-		meshInst->constants[14] = V4( SMP.color[4], 1 );
-		meshInst->constants[15] = V4( SMP.color[5], 1 );
+		LightTree::Colors COL;
+		g_GameLevel->m_ltSamples.GetColors( P, &COL );
+		meshInst->constants[10] = V4( COL.color[0], 1 );
+		meshInst->constants[11] = V4( COL.color[1], 1 );
+		meshInst->constants[12] = V4( COL.color[2], 1 );
+		meshInst->constants[13] = V4( COL.color[3], 1 );
+		meshInst->constants[14] = V4( COL.color[4], 1 );
+		meshInst->constants[15] = V4( COL.color[5], 1 );
 	}
 	
 	PhyRigidBodyHandle rigidBody;
@@ -579,20 +578,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		GR2D_SetFont( "tsicons", 24 );
 		GR2D_DrawTextLine( "!" );
 #endif
-	//	BatchRenderer& br = GR2D_GetBatchRenderer();
-	//	const LightTree& LT = g_GameLevel->m_ltSamples;
-	//		GR2D_SetFont( "fonts/lato-regular.ttf", 12 );
-	//	for( size_t i = 0; i < LT.m_tris.size(); i += 3 )
-	//	{
-	//		Vec3 p0 = LT.m_samples[ LT.m_tris[ i+0 ] ].pos;
-	//		Vec3 p1 = LT.m_samples[ LT.m_tris[ i+1 ] ].pos;
-	//		Vec3 p2 = LT.m_samples[ LT.m_tris[ i+2 ] ].pos;
-	//		Vec3 pos = g_GameLevel->m_scene->camera.WorldToScreen( (p0+p1+p2)/3 );
-	//		char dstbfr[ 2000 ];
-	//		sprintf( dstbfr, "%g", PointTriangleDistance( myplayer->m_pos, p0, p1, p2 ) );
-	//		GR2D_DrawTextLine( pos.x*1024, pos.y*576, dstbfr );
-	//	}
-	//	br.Flush();
 	}
 	
 	void OnTick( float dt, uint32_t gametime )
@@ -622,32 +607,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	for( int i = 0; i < animtest->mesh->m_numBones; ++i )
 	//		DrawTick( bones[ i ].skinOffset );
 		
-	//	BatchRenderer& br = GR2D_GetBatchRenderer();
-	//	br.Reset().SetPrimitiveType( PT_Triangles );
-	//	const LightTree& LT = g_GameLevel->m_ltSamples;
-	//	for( size_t i = 0; i < LT.m_tris.size(); i += 3 )
-	//	{
-	//		float q = myplayer->spos == i / 3 ? 0.5f : 0;
-	//		br.Col( 1,q,q, 0.5f ).Pos( LT.m_samples[ LT.m_tris[ i+0 ] ].pos );
-	//		br.Col( q,1,q, 0.5f ).Pos( LT.m_samples[ LT.m_tris[ i+1 ] ].pos );
-	//		br.Col( q,q,1, 0.5f ).Pos( LT.m_samples[ LT.m_tris[ i+2 ] ].pos );
-	//	}
-	//	br.SetPrimitiveType( PT_Lines );
-	//	br.Col( 0.5f, 0.5f );
-	//	for( size_t i = 0; i < LT.m_triadj.size() / 2; ++i )
-	//	{
-	//		Vec3 posA = ( LT.m_samples[ LT.m_tris[ i*3+0 ] ].pos + LT.m_samples[ LT.m_tris[ i*3+1 ] ].pos + LT.m_samples[ LT.m_tris[ i*3+2 ] ].pos ) / 3;
-	//		for( size_t a = LT.m_triadj[ i*2 ]; a < LT.m_triadj[ i*2 ] + LT.m_triadj[ i*2+1 ]; ++a )
-	//		{
-	//			size_t j = LT.m_adjdata[ a ];
-	//			if( j > i )
-	//			{
-	//				Vec3 posB = ( LT.m_samples[ LT.m_tris[ j*3+0 ] ].pos + LT.m_samples[ LT.m_tris[ j*3+1 ] ].pos + LT.m_samples[ LT.m_tris[ j*3+2 ] ].pos ) / 3;
-	//				br.Pos( posA ).Pos( posB );
-	//			}
-	//		}
-	//	}
-	//	br.Flush();
 //		myplayer->DebugDraw();
 	}
 	void DrawTick( const Mat4& mtx )

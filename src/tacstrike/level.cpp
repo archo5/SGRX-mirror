@@ -213,12 +213,7 @@ bool GameLevel::Load( const StringView& levelname )
 	svh << lt_samples;
 	
 	// LOAD LIGHT SAMPLES
-//	for( size_t i = 0; i < lt_samples.size(); ++i )
-//	{
-//		LOG << lt_samples[i].pos << "|" << lt_samples[i].color[0] << lt_samples[i].color[1] << lt_samples[i].color[2] << lt_samples[i].color[3] << lt_samples[i].color[4] << lt_samples[i].color[5];
-//	}
-//	m_ltSamples.InsertSample( lt_samples[ 10 ] );
-	m_ltSamples.InsertSamples( lt_samples.data(), lt_samples.size() );
+	m_ltSamples.SetSamples( lt_samples.data(), lt_samples.size() );
 	
 	svh.marker( "PHYMESH" );
 	LC_PhysicsMesh phy_mesh;
@@ -302,7 +297,7 @@ bool GameLevel::Load( const StringView& levelname )
 void GameLevel::ClearLevel()
 {
 	EndLevel();
-	m_ltSamples.Clear();
+	m_ltSamples.SetSamples( NULL, 0 );
 	m_damageSystem.Clear();
 	m_bulletSystem.Clear();
 	m_lights.clear();
@@ -815,15 +810,15 @@ void GameLevel::CallEntityByName( const StringView& name, const StringView& acti
 }
 
 
-void GameLevel::LightMesh( MeshInstHandle mih, int32_t* outlastfound )
+void GameLevel::LightMesh( MeshInstHandle mih )
 {
-	LightTree::Sample SMP = { mih->matrix.TransformPos( V3(0) ) };
-	m_ltSamples.Interpolate( SMP, outlastfound );
-	mih->constants[10] = V4( SMP.color[0], 1 );
-	mih->constants[11] = V4( SMP.color[1], 1 );
-	mih->constants[12] = V4( SMP.color[2], 1 );
-	mih->constants[13] = V4( SMP.color[3], 1 );
-	mih->constants[14] = V4( SMP.color[4], 1 );
-	mih->constants[15] = V4( SMP.color[5], 1 );
+	LightTree::Colors COL;
+	m_ltSamples.GetColors( mih->matrix.TransformPos( V3(0) ), &COL );
+	mih->constants[10] = V4( COL.color[0], 1 );
+	mih->constants[11] = V4( COL.color[1], 1 );
+	mih->constants[12] = V4( COL.color[2], 1 );
+	mih->constants[13] = V4( COL.color[3], 1 );
+	mih->constants[14] = V4( COL.color[4], 1 );
+	mih->constants[15] = V4( COL.color[5], 1 );
 }
 
