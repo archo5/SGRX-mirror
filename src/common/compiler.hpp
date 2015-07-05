@@ -52,6 +52,29 @@ struct RectPacker
 	Array< Node > m_tree;
 };
 
+struct VoxelBlock
+{
+	// blocks of 4x4x4, stored into uint64 array
+	VoxelBlock( Vec3 bbmin, Vec3 bbmax, float stepsize );
+	void RasterizeTriangle( Vec3 p1, Vec3 p2, Vec3 p3 );
+	void RasterizeSolid( Vec4* planes, size_t count );
+	Vec3 GetPosition( int32_t x, int32_t y, int32_t z );
+	
+	bool Get( int32_t x, int32_t y, int32_t z );
+	void Set1( int32_t x, int32_t y, int32_t z );
+	void Set0( int32_t x, int32_t y, int32_t z );
+	bool _FindBlock( int32_t x, int32_t y, int32_t z, uint64_t** outblk, int* outbit );
+	bool _FindAABB( Vec3 bbmin, Vec3 bbmax, int32_t outbb[6] ); // X,Y,Z | min,max
+	void _PosToCoord( Vec3 p, int32_t outco[3] );
+	
+	int32_t m_xsize, m_ysize, m_zsize;
+	int32_t m_xbcnt, m_ybcnt, m_zbcnt;
+	Vec3 m_bbmin;
+	Vec3 m_bbmax;
+	float m_stepsize;
+	uint64_t* m_data;
+};
+
 
 #define LCVertex_DECL "pf3nf3cb40f21f2"
 
@@ -134,6 +157,7 @@ struct LevelCache
 	
 	void AddPart( const Vertex* verts, int vcount, const StringView& texname_short, size_t fromsolid, bool solid, int decalLayer );
 	size_t AddSolid( const Vec4* planes, int count );
+	void GenerateSamples( float stepsize );
 	
 	void AddMeshInst( const String& meshname, const Mat4& mtx, float lmquality, bool solid, bool dynlit, bool castlms, int decalLayer )
 	{

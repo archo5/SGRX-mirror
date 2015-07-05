@@ -78,6 +78,147 @@ int RectPacker::_NodeAlloc( int startnode, int w, int h )
 }
 
 
+inline int32_t divideup( int32_t x, int d ){ return ( x + d - 1 ) / d; }
+
+VoxelBlock::VoxelBlock( Vec3 bbmin, Vec3 bbmax, float stepsize )
+{
+	m_stepsize = stepsize;
+	Vec3 bbsize = bbmax - bbmin;
+	m_xsize = ceilf( bbsize.x / stepsize );
+	m_ysize = ceilf( bbsize.y / stepsize );
+	m_zsize = ceilf( bbsize.z / stepsize );
+	m_xbcnt = divideup( m_xsize, 4 );
+	m_ybcnt = divideup( m_ysize, 4 );
+	m_zbcnt = divideup( m_zsize, 4 );
+	int32_t total = m_xbcnt * m_ybcnt * m_zbcnt;
+	m_data = new uint64_t[ total ];
+	TMEMSET( m_data, total, uint64_t(0) );
+	m_bbmin = bbmin;
+	// avoid conversion issues:
+	m_bbmax = bbmin + V3( m_xsize, m_ysize, m_zsize ) * stepsize;
+}
+
+void VoxelBlock::RasterizeTriangle( Vec3 p1, Vec3 p2, Vec3 p3 )
+{
+	int32_t cobb[6];
+	Vec3 bbmin = Vec3::Min( p1, Vec3::Min( p2, p3 ) );
+	Vec3 bbmax = Vec3::Max( p1, Vec3::Max( p2, p3 ) );
+	if( !_FindAABB( bbmin, bbmax, cobb ) )
+		return;
+	
+	Vec3 vbext = V3( m_stepsize * 0.5f );
+	for( int32_t z = cobb[2]; z <= cobb[5]; ++z )
+	{
+		for( int32_t y = cobb[1]; y <= cobb[4]; ++y )
+		{
+			for( int32_t x = cobb[0]; x <= cobb[3]; ++x )
+			{
+				Vec3 vbpos = GetPosition( x, y, z );
+				if( TriangleAABBIntersect( p1, p2, p3, vbpos - vbext, vbpos + vbext ) )
+				{
+					Set1( x, y, z );
+				}
+			}
+		}
+	}
+}
+
+void VoxelBlock::RasterizeSolid( Vec4* planes, size_t count )
+{
+	// TOOD MAYBE optimize
+	for( int32_t z = 0; z <= m_zsize; ++z )
+	{
+		for( int32_t y = 0; y <= m_ysize; ++y )
+		{
+			for( int32_t x = 0; x <= m_xsize; ++x )
+			{
+				Vec3 vbpos = GetPosition( x, y, z );
+				size_t i;
+				for( i = 0; i < count; ++i )
+					if( Vec3Dot( planes[ i ].ToVec3(), vbpos ) > planes[ i ].w + SMALL_FLOAT )
+						break;
+				if( i == count )
+					Set1( x, y, z );
+			}
+		}
+	}
+}
+
+Vec3 VoxelBlock::GetPosition( int32_t x, int32_t y, int32_t z )
+{
+	Vec3 q =
+	{
+		safe_fdiv( x + 0.5f, m_xsize ),
+		safe_fdiv( y + 0.5f, m_ysize ),
+		safe_fdiv( z + 0.5f, m_zsize )
+	};
+	return TLERP( m_bbmin, m_bbmax, q );
+}
+
+bool VoxelBlock::Get( int32_t x, int32_t y, int32_t z )
+{
+	uint64_t* blk;
+	int bit;
+	if( !_FindBlock( x, y, z, &blk, &bit ) )
+		return false;
+	return ( *blk & ( uint64_t(1) << bit ) ) != 0;
+}
+
+void VoxelBlock::Set1( int32_t x, int32_t y, int32_t z )
+{
+	uint64_t* blk;
+	int bit;
+	if( !_FindBlock( x, y, z, &blk, &bit ) )
+		return;
+	*blk |= uint64_t(1) << bit;
+}
+
+void VoxelBlock::Set0( int32_t x, int32_t y, int32_t z )
+{
+	uint64_t* blk;
+	int bit;
+	if( !_FindBlock( x, y, z, &blk, &bit ) )
+		return;
+	*blk &= ~( uint64_t(1) << bit );
+}
+
+bool VoxelBlock::_FindBlock( int32_t x, int32_t y, int32_t z, uint64_t** outblk, int* outbit )
+{
+	if( x < 0 || y < 0 || z < 0 ||
+		x >= m_xsize || y >= m_ysize || z >= m_zsize )
+		return false;
+	int32_t bx = x / 4, by = y / 4, bz = z / 4;
+	x -= bx * 4;
+	y -= by * 4;
+	z -= bz * 4;
+	*outblk = m_data + ( bx + by * m_xbcnt + bz * m_xbcnt * m_ybcnt );
+	*outbit = x + y * 4 + z * 4 * 4;
+	return true;
+}
+
+bool VoxelBlock::_FindAABB( Vec3 bbmin, Vec3 bbmax, int32_t outbb[6] )
+{
+	if( bbmin.x > m_bbmax.x || bbmin.y > m_bbmax.y || bbmin.z > m_bbmax.z ||
+		bbmax.x < m_bbmin.x || bbmax.y < m_bbmin.y || bbmax.z < m_bbmin.z )
+		return false;
+	_PosToCoord( bbmin, outbb + 0 );
+	_PosToCoord( bbmax, outbb + 3 );
+	outbb[0] = TMAX( 0, TMIN( m_xsize - 1, outbb[0] ) );
+	outbb[1] = TMAX( 0, TMIN( m_ysize - 1, outbb[1] ) );
+	outbb[2] = TMAX( 0, TMIN( m_zsize - 1, outbb[2] ) );
+	outbb[3] = TMAX( 0, TMIN( m_xsize - 1, outbb[3] ) );
+	outbb[4] = TMAX( 0, TMIN( m_ysize - 1, outbb[4] ) );
+	outbb[5] = TMAX( 0, TMIN( m_zsize - 1, outbb[5] ) );
+	return true;
+}
+
+void VoxelBlock::_PosToCoord( Vec3 p, int32_t outco[3] )
+{
+	outco[0] = TREVLERP<float>( m_bbmin.x, m_bbmax.x, p.x ) * m_xsize;
+	outco[1] = TREVLERP<float>( m_bbmin.y, m_bbmax.y, p.y ) * m_ysize;
+	outco[2] = TREVLERP<float>( m_bbmin.z, m_bbmax.z, p.z ) * m_zsize;
+}
+
 
 LevelCache::LevelCache()
 {
@@ -158,59 +299,6 @@ void LevelCache::AddPart( const Vertex* verts, int vcount, const StringView& tex
 	}
 	P.m_lmrect = t2max - t2min;
 	P.m_lmmin = t2min;
-	
-#if 0
-	Vec3 center = V3(0);
-	for( int i = 0; i < vcount; ++i )
-		center += verts[ i ].pos;
-	center /= vcount;
-	
-	for( size_t mid = 0; mid < m_meshes.size(); ++mid )
-	{
-		Mesh& M = m_meshes[ mid ];
-		
-		Vec3 curpos = M.m_pos / M.m_div;
-		if( ( curpos - center ).Length() > 100 )
-			continue;
-		
-		for( size_t pid = 0; pid < M.m_parts.size(); ++pid )
-		{
-			Part& P = M.m_parts[ pid ];
-			if( P.m_texname == texname )
-			{
-				_AddPoly( M, P, center, verts, vcount, lmquality, fromsolid );
-				return;
-			}
-		}
-		
-		if( M.m_parts.size() < 16 )
-		{
-			M.m_parts.push_back( Part() );
-			Part& P = M.m_parts.last();
-			P.m_texname = texname;
-			
-			_AddPoly( M, P, center, verts, vcount, lmquality, fromsolid );
-			return;
-		}
-	}
-	
-	// add new mesh
-	m_meshes.push_back( Mesh() );
-	Mesh& M = m_meshes.last();
-	M.m_pos = V3(0);
-	M.m_boundsMin = V3(FLT_MAX);
-	M.m_boundsMax = V3(-FLT_MAX);
-	M.m_div = 0;
-	M.m_parts.push_back( Part() );
-	Part& P = M.m_parts.last();
-	P.m_texname = texname;
-	_AddPoly( M, P, center, verts, vcount, lmquality, fromsolid );
-	
-	// add instance for new mesh
-	char bfr[ 32 ];
-	sprintf( bfr, "~/%d.ssm", (int) m_meshes.size() - 1 );
-	AddMeshInst( bfr, Mat4::Identity );
-#endif
 }
 
 size_t LevelCache::AddSolid( const Vec4* planes, int count )
@@ -222,12 +310,73 @@ size_t LevelCache::AddSolid( const Vec4* planes, int count )
 }
 
 
-FINLINE float safediv( float a, float b )
+void LevelCache::GenerateSamples( float stepsize )
 {
-	if( !b )
-		return 0;
-	return a / b;
+	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
+	for( size_t i = 0; i < m_meshParts.size(); ++i )
+	{
+		Part& P = m_meshParts[ i ];
+		for( size_t j = 0; j < P.m_vertices.size(); ++j )
+		{
+			bbmin = Vec3::Min( bbmin, P.m_vertices[ j ].pos );
+			bbmax = Vec3::Max( bbmax, P.m_vertices[ j ].pos );
+		}
+	}
+	
+	LOG << "Generating samples for " << bbmin << " - " << bbmax << " area with step size: " << stepsize;
+	
+	VoxelBlock VB( bbmin, bbmax, stepsize );
+	LOG << "- voxel count: " << ( VB.m_xsize * VB.m_ysize * VB.m_zsize );
+	LOG << "- rasterizing blocks...";
+	// rasterize blocks
+	for( size_t i = 0; i < m_meshParts.size(); ++i )
+	{
+		Part& P = m_meshParts[ i ];
+		for( size_t j = 0; j + 2 < P.m_vertices.size(); j += 3 )
+		{
+			VB.RasterizeTriangle( P.m_vertices[ j ].pos,
+				P.m_vertices[ j + 1 ].pos, P.m_vertices[ j + 2 ].pos );
+		}
+	}
+	LOG << "- rasterizing solids...";
+	// rasterize solids
+	for( size_t i = 0; i < m_solids.size(); ++i )
+	{
+		VB.RasterizeSolid( m_solids[ i ].data(), m_solids[ i ].size() );
+	}
+	LOG << "- rasterizing meshes...";
+	// rasterize meshes
+	// - TODO
+	
+	LOG << "- generating samples...";
+	size_t osc = m_samples.size();
+	// generate samples (1 on every side, 0.125 per voxel otherwise - 1 in each 2x2 block)
+	for( int32_t z = 0; z < VB.m_zsize; ++z )
+	{
+		for( int32_t y = 0; y < VB.m_ysize; ++y )
+		{
+			for( int32_t x = 0; x < VB.m_xsize; ++x )
+			{
+				if( VB.Get( x, y, z ) )
+					continue; // canoot put samples into geometry
+				
+				bool putsample = ( x % 2 == 0 ) && ( y % 2 == 0 ) && ( z % 2 == 0 );
+				if( !putsample )
+				{
+					// check for nearby blocks
+					if( VB.Get( x - 1, y, z ) || VB.Get( x + 1, y, z ) ||
+						VB.Get( x, y - 1, z ) || VB.Get( x, y + 1, z ) ||
+						VB.Get( x, y, z - 1 ) || VB.Get( x, y, z + 1 ) )
+						putsample = true;
+				}
+				if( putsample )
+					AddSample( VB.GetPosition( x, y, z ) );
+			}
+		}
+	}
+	LOG << "- done, generated sample count: " << ( m_samples.size() - osc );
 }
+
 
 void LevelCache::_CutPoly( const PartPoly& PP, const Vec4& plane, Array< PartPoly >& outpolies )
 {
@@ -255,7 +404,7 @@ void LevelCache::_CutPoly( const PartPoly& PP, const Vec4& plane, Array< PartPol
 		if( sigdist < -SMALL_FLOAT )
 		{
 			PPB.push_back( PPV );
-			Vertex IPV = PPV.Interpolate( PP[ p1 ], safediv( 0 - sigdist, sigdist2 - sigdist ) );
+			Vertex IPV = PPV.Interpolate( PP[ p1 ], safe_fdiv( 0 - sigdist, sigdist2 - sigdist ) );
 			if( sigdist2 > SMALL_FLOAT )
 			{
 				PPB.push_back( IPV );
@@ -265,7 +414,7 @@ void LevelCache::_CutPoly( const PartPoly& PP, const Vec4& plane, Array< PartPol
 		else if( sigdist > SMALL_FLOAT )
 		{
 			PPF.push_back( PPV );
-			Vertex IPV = PPV.Interpolate( PP[ p1 ], safediv( 0 - sigdist, sigdist2 - sigdist ) );
+			Vertex IPV = PPV.Interpolate( PP[ p1 ], safe_fdiv( 0 - sigdist, sigdist2 - sigdist ) );
 			if( sigdist2 < -SMALL_FLOAT )
 			{
 				PPB.push_back( IPV );

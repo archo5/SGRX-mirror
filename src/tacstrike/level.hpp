@@ -32,7 +32,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw
 	Entity* FindEntityByName( const StringView& name );
 	void CallEntityByName( const StringView& name, const StringView& action );
 	
-	void LightMesh( MeshInstHandle mih );
+	void LightMesh( MeshInstHandle mih, Vec3 off = V3(0) );
 	
 	// UTILITIES
 	ScriptContext m_scriptCtx;

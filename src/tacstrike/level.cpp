@@ -213,6 +213,7 @@ bool GameLevel::Load( const StringView& levelname )
 	svh << lt_samples;
 	
 	// LOAD LIGHT SAMPLES
+	LOG << "LEVEL: Loading samples: " << lt_samples.size();
 	m_ltSamples.SetSamples( lt_samples.data(), lt_samples.size() );
 	
 	svh.marker( "PHYMESH" );
@@ -729,10 +730,16 @@ void GameLevel::Draw2D()
 
 void GameLevel::DebugDraw()
 {
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	return;
+	br.Reset().Col( 0, 1, 0 );
+	for( size_t i = 0; i < m_ltSamples.m_pos.size(); ++i )
+		br.Tick( m_ltSamples.m_pos[ i ], 0.1f );
+	
 	return;
 	m_aidbSystem.m_pathfinder.DebugDraw();
 	
-	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Reset().Col( 1, 0, 0 );
 	
 	Array< Vec3 > path;
@@ -810,10 +817,10 @@ void GameLevel::CallEntityByName( const StringView& name, const StringView& acti
 }
 
 
-void GameLevel::LightMesh( MeshInstHandle mih )
+void GameLevel::LightMesh( MeshInstHandle mih, Vec3 off )
 {
 	LightTree::Colors COL;
-	m_ltSamples.GetColors( mih->matrix.TransformPos( V3(0) ), &COL );
+	m_ltSamples.GetColors( mih->matrix.TransformPos( off ), &COL );
 	mih->constants[10] = V4( COL.color[0], 1 );
 	mih->constants[11] = V4( COL.color[1], 1 );
 	mih->constants[12] = V4( COL.color[2], 1 );

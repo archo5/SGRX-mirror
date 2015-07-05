@@ -436,7 +436,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	MI->dynamic = 1;
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( V3(1), m_ivDir.curr, m_ivPos.curr );
-	g_GameLevel->LightMesh( MI );
+	g_GameLevel->LightMesh( MI, V3(1) );
 	
 	m_anTopPlayer.ClearBlendFactors( 0.0f );
 	m_animChar.ApplyMask( "top", &m_anTopPlayer );
@@ -552,7 +552,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
 	m_shadowInst->position = pos + V3(0,0,1);
 	
-	g_GameLevel->LightMesh( MI );
+	g_GameLevel->LightMesh( MI, V3(1) );
 	
 	m_animChar.PreRender( blendFactor );
 }
@@ -675,12 +675,13 @@ void TSCharacter::BeginClosestAction( float maxdist )
 	if( IsInAction() )
 		return;
 	
+	Vec3 QP = GetQueryPosition();
 	IESItemGather ies_gather;
-	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, m_position, 10, IEST_InteractiveItem );
+	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
 	if( ies_gather.items.size() )
 	{
-		ies_gather.DistanceSort( m_position );
-		if( ( ies_gather.items[ 0 ].D.pos - m_position ).Length() < maxdist )
+		ies_gather.DistanceSort( QP );
+		if( ( ies_gather.items[ 0 ].D.pos - QP ).Length() < maxdist )
 			BeginAction( ies_gather.items[ 0 ].E );
 	}
 }
@@ -690,7 +691,7 @@ bool TSCharacter::BeginAction( Entity* E )
 	if( !E || IsInAction() )
 		return false;
 	
-	if( E->GetInteractionInfo( GetPosition(), &m_actState.info ) == false )
+	if( E->GetInteractionInfo( GetQueryPosition(), &m_actState.info ) == false )
 		return false;
 	
 	m_actState.timeoutMoveToStart = 1;
@@ -716,6 +717,11 @@ void TSCharacter::InterruptAction( bool force )
 	
 	m_actState.progress = 0;
 	m_actState.target = NULL;
+}
+
+Vec3 TSCharacter::GetQueryPosition()
+{
+	return GetPosition() + V3(0,0,0.5f);
 }
 
 Vec3 TSCharacter::GetPosition()
@@ -787,7 +793,7 @@ void TSPlayer::FixedTick( float deltaTime )
 	
 	if( DO_ACTION.value )
 	{
-		BeginClosestAction( 1 );
+		BeginClosestAction( 2 );
 	}
 	
 	TSCharacter::FixedTick( deltaTime );
@@ -855,11 +861,12 @@ void TSPlayer::DrawUI()
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	
+	Vec3 QP = GetQueryPosition();
 	IESItemGather ies_gather;
-	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, m_position, 10, IEST_InteractiveItem );
+	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
 	if( ies_gather.items.size() )
 	{
-		ies_gather.DistanceSort( m_position );
+		ies_gather.DistanceSort( QP );
 		for( size_t i = ies_gather.items.size(); i > 0; )
 		{
 			i--;
@@ -869,7 +876,7 @@ void TSPlayer::DrawUI()
 			Vec2 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
 			if( infront )
 			{
-				bool activate = i == 0 && ( m_position - pos ).Length() < 1;
+				bool activate = i == 0 && ( QP - pos ).Length() < 2;
 				Vec2 dir = V2( 2, -1 ).Normalized();
 				Vec2 clp0 = screenpos + dir * 12;
 				Vec2 clp1 = screenpos + dir * 64;
@@ -890,7 +897,7 @@ void TSPlayer::DrawUI()
 				SGRX_FontSettings fs;
 				GR2D_GetFontSettings( &fs );
 				GR2D_SetFont( "core", 16 );
-				GR2D_DrawTextLine( clp1.x + 4, clp1.y - 48 + 4, E->m_viewName );
+				GR2D_DrawTextLine( round( clp1.x + 4 ), round( clp1.y - 48 + 4 ), E->m_viewName );
 				GR2D_SetFontSettings( &fs );
 			}
 		}

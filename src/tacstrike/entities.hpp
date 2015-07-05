@@ -426,6 +426,7 @@ struct TSCharacter : Entity
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
 	
+	Vec3 GetQueryPosition();
 	Vec3 GetPosition();
 	Vec3 GetViewDir();
 	Vec3 GetAimDir();

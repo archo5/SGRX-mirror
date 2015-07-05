@@ -726,6 +726,54 @@ bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const
 	return true;
 }
 
+bool TriangleAABBIntersect( const Vec3& t0, const Vec3& t1, const Vec3& t2, const Vec3& bbmin, const Vec3& bbmax )
+{
+	// aabb-aabb test first
+	Vec3 tmin = Vec3::Min( t0, Vec3::Min( t1, t2 ) );
+	Vec3 tmax = Vec3::Max( t0, Vec3::Max( t1, t2 ) );
+	if( tmin.x > bbmax.x || tmin.y > bbmax.y || tmin.z > bbmax.z ||
+		tmax.x < bbmin.x || tmax.y < bbmin.y || tmax.z < bbmin.z )
+		return false;
+	
+	// SAT on triangle axes
+	Vec3 tN = Vec3Cross( t1 - t0, t2 - t0 ).Normalized();
+	Vec3 tEN0 = Vec3Cross( t1 - t0, tN ).Normalized();
+	Vec3 tEN1 = Vec3Cross( t2 - t1, tN ).Normalized();
+	Vec3 tEN2 = Vec3Cross( t0 - t2, tN ).Normalized();
+	Vec3 bpts[8] =
+	{
+		V3( bbmin.x, bbmin.y, bbmin.z ),
+		V3( bbmax.x, bbmin.y, bbmin.z ),
+		V3( bbmin.x, bbmax.y, bbmin.z ),
+		V3( bbmax.x, bbmax.y, bbmin.z ),
+		V3( bbmin.x, bbmin.y, bbmax.z ),
+		V3( bbmax.x, bbmin.y, bbmax.z ),
+		V3( bbmin.x, bbmax.y, bbmax.z ),
+		V3( bbmax.x, bbmax.y, bbmax.z ),
+	};
+	Vec3 xtdaxes[4] = { tN, tEN0, tEN1, tEN2 };
+	
+	for( int axis_id = 0; axis_id < 4; ++axis_id )
+	{
+		Vec3 axis = xtdaxes[ axis_id ];
+		float bpmin = FLT_MAX, bpmax = -FLT_MAX;
+		for( int bp = 0; bp < 8; ++bp )
+		{
+			float bpproj = Vec3Dot( bpts[ bp ], axis );
+			bpmin = TMIN( bpmin, bpproj );
+			bpmax = TMAX( bpmax, bpproj );
+		}
+		float tp0 = Vec3Dot( t0, axis );
+		float tp1 = Vec3Dot( t1, axis );
+		float tp2 = Vec3Dot( t2, axis );
+		float tpmin = TMIN( tp0, TMIN( tp1, tp2 ) );
+		float tpmax = TMAX( tp0, TMAX( tp1, tp2 ) );
+		if( tpmin > bpmax || tpmax < bpmin )
+			return false;
+	}
+	return true;
+}
+
 float PolyArea( const Vec2* points, int pointcount )
 {
 	float area = 0;

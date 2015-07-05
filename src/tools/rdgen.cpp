@@ -667,7 +667,7 @@ int main( int argc, char* argv[] )
 					printf( "Removing unused bone: \"%.*s\"\n", (int) B.name.size(), B.name.data() );
 					for( size_t j = i + 1; j < mesh_bones.size(); ++j )
 					{
-						if( mesh_bones[ j ].parent_id == i )
+						if( mesh_bones[ j ].parent_id == (int) i )
 							mesh_bones[ j ].parent_id = mesh_bones[ i ].parent_id;
 						else if( mesh_bones[ j ].parent_id > (int) i )
 							mesh_bones[ j ].parent_id--;

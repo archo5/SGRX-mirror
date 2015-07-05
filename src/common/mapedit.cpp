@@ -1665,6 +1665,8 @@ void EDGUIMainFrame::Level_Real_Compile()
 	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
 		g_EdWorld->m_entities[ i ]->UpdateCache( lcache );
 	
+	lcache.GenerateSamples( 1.0f );
+	
 	char bfr[ 256 ];
 	snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
 	
