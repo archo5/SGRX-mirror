@@ -801,6 +801,7 @@ struct IF_GCC(ENGINE_EXPORT) DecalSystem
 	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
 	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
 	ENGINE_EXPORT void ClearAllDecals();
+	ENGINE_EXPORT void GenerateCamera( int decalID, DecalProjectionInfo& projInfo, SGRX_Camera* out );
 	
 	ENGINE_EXPORT void _ScaleDecalTexcoords( size_t vbfrom, int decalID );
 	ENGINE_EXPORT void _GenDecalMatrix( int decalID, DecalProjectionInfo* projInfo, Mat4* outVPM, float* out_invzn2zf );

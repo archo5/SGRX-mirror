@@ -233,12 +233,15 @@ struct DamageSystem
 	void Tick( float deltaTime );
 	void AddBulletDamage( const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
 		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
+	void AddBlood( Vec3 pos, Vec3 dir );
 	void Clear();
 	
 	Array< MtlHandle > m_bulletDecalMaterials;
 	Array< DecalMapPartInfo > m_bulletDecalInfo;
 	DecalSystem m_bulletDecalSys;
 	MeshInstHandle m_bulletDecalMesh;
+	DecalSystem m_bloodDecalSys;
+	MeshInstHandle m_bloodDecalMesh;
 };
 
 

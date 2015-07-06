@@ -310,6 +310,16 @@ const char* DamageSystem::Init( SceneHandle scene )
 	m_bulletDecalMesh->decal = true;
 	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
 	
+	DecalMapPartInfo blood_dmpi = { V4(0,0,1,1), V3(1,1,10) };
+	m_bloodDecalSys.Init(
+		GR_GetTexture( "textures/particles/blood.png" ),
+		GR_GetTexture( decal_falloff_tex ),
+		&blood_dmpi, 1 );
+	m_bloodDecalSys.SetSize( 48 * 1024 * 10 ); // random size
+	m_bloodDecalMesh = scene->CreateMeshInstance();
+	m_bloodDecalMesh->decal = true;
+	m_bloodDecalMesh->mesh = m_bloodDecalSys.m_mesh;
+	
 	LOG << LOG_DATE << "  Damage system initialized successfully";
 	return NULL;
 }
@@ -318,12 +328,15 @@ void DamageSystem::Free()
 {
 	m_bulletDecalSys.Free();
 	m_bulletDecalMesh = NULL;
+	m_bloodDecalSys.Free();
+	m_bloodDecalMesh = NULL;
 }
 
 void DamageSystem::Tick( float deltaTime )
 {
 	UNUSED( deltaTime );
 	m_bulletDecalSys.Upload();
+	m_bloodDecalSys.Upload();
 	for( size_t i = 0; i < m_bulletDecalMaterials.size(); ++i )
 	{
 		Material* mtl = m_bulletDecalMaterials[ i ];
@@ -374,9 +387,47 @@ void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMe
 	}
 }
 
+struct DmgSys_GenBlood : IProcessor
+{
+	void Process( void* data )
+	{
+		SGRX_CAST( SGRX_MeshInstance*, MI, data );
+		if( MI->mesh == NULL || MI->raycastOverride )
+			return;
+		DS->m_bloodDecalSys.AddDecal( decalID, MI->mesh, MI->matrix, &projInfo );
+	}
+	
+	DamageSystem* DS;
+	int decalID;
+	DecalProjectionInfo projInfo;
+};
+
+void DamageSystem::AddBlood( Vec3 pos, Vec3 dir )
+{
+	int decalID = 0;
+	if( decalID != -1 )
+	{
+		DecalProjectionInfo projInfo =
+		{
+			pos, dir, fabsf( Vec3Dot( dir, V3(0,0,1) ) ) > 0.99f ? V3(0,1,0) : V3(0,0,1),
+			45.0f, 1, 1, 0.5f, 1, 0, true
+		};
+		SGRX_Camera cam;
+		m_bloodDecalSys.GenerateCamera( decalID, projInfo, &cam );
+		DmgSys_GenBlood gb;
+		{
+			gb.DS = this;
+			gb.decalID = decalID;
+			gb.projInfo = projInfo;
+		}
+		m_bloodDecalMesh->_scene->GatherMeshes( cam, &gb );
+	}
+}
+
 void DamageSystem::Clear()
 {
 	m_bulletDecalSys.ClearAllDecals();
+	m_bloodDecalSys.ClearAllDecals();
 }
 
 
@@ -424,6 +475,12 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 				m_damageSystem->AddBulletDamage( decalType,
 					HIT.meshinst->mesh, -1, HIT.meshinst->matrix,
 					hitpoint, B.dir, HIT.normal );
+				
+				// blood?
+				if( decalType == "*human*" )
+				{
+					m_damageSystem->AddBlood( hitpoint, B.dir );
+				}
 				
 				// handling wall penetration
 				B.numSolidRefs += entryIfL0 < 0 ? 1 : -1;

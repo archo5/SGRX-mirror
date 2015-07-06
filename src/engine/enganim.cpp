@@ -1468,6 +1468,28 @@ void DecalSystem::ClearAllDecals()
 	m_decals.clear();
 }
 
+void DecalSystem::GenerateCamera( int decalID, DecalProjectionInfo& projInfo, SGRX_Camera* out )
+{
+	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
+	
+	// TODO for now...
+	ASSERT( projInfo.perspective );
+	
+	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
+	float dist = DMPI.size.z * projInfo.distanceScale;
+	
+	out->position = projInfo.pos - projInfo.dir * projInfo.pushBack * dist;
+	out->direction = projInfo.dir;
+	out->updir = projInfo.up;
+	out->angle = projInfo.fovAngleDeg;
+	out->aspect = projInfo.aspectMult;
+	out->aamix = projInfo.aamix;
+	out->znear = dist * 0.001f;
+	out->zfar = dist;
+	
+	out->UpdateMatrices();
+}
+
 void DecalSystem::_ScaleDecalTexcoords( size_t vbfrom, int decalID )
 {
 	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
