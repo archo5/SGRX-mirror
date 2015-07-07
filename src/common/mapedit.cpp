@@ -1741,6 +1741,7 @@ struct TACStrikeEditor : IGame
 		
 		g_UISurfTexPicker = new EDGUISDTexPicker;
 		g_UIMeshPicker = new EDGUIMeshPicker;
+		g_UICharPicker = new EDGUICharUsePicker;
 		g_UIPartSysPicker = new EDGUIPartSysPicker;
 		g_UISoundPicker = new EDGUISoundPicker;
 		g_UIScrFnPicker = new EDGUIScrFnPicker( g_ScriptCtx );

@@ -595,7 +595,12 @@ void EdEntScripted::AddButtonSubent( sgsString type )
 
 void EdEntScripted::SetMesh( sgsString name )
 {
-	cached_mesh = GR_GetMesh( StringView( name.c_str(), name.size() ) );
+	SetMesh( StringView( name.c_str(), name.size() ) );
+}
+
+void EdEntScripted::SetMesh( StringView name )
+{
+	cached_mesh = GR_GetMesh( name );
 	for( size_t i = 0; i < cached_meshinsts.size(); ++i )
 		cached_meshinsts[ i ]->mesh = cached_mesh;
 }
@@ -707,6 +712,13 @@ static int EE_AddFieldTex( SGS_CTX )
 	E->AddFieldRsrc( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), g_UISurfTexPicker, sgs_GetVar<sgsString>()( C, 3 ) );
 	return 0;
 }
+static int EE_AddFieldChar( SGS_CTX )
+{
+	SGSFN( "EE_AddFieldChar" );
+	EdEntScripted* E = (EdEntScripted*) sgs_GetVar<void*>()( C, 0 );
+	E->AddFieldRsrc( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), g_UICharPicker, sgs_GetVar<sgsString>()( C, 3 ) );
+	return 0;
+}
 static int EE_AddFieldPartSys( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldPartSys" );
@@ -741,6 +753,14 @@ static int EE_SetMesh( SGS_CTX )
 	SGSFN( "EE_SetMesh" );
 	EdEntScripted* E = (EdEntScripted*) sgs_GetVar<void*>()( C, 0 );
 	E->SetMesh( sgs_GetVar<sgsString>()( C, 1 ) );
+	return 0;
+}
+static int EE_SetMeshFromChar( SGS_CTX )
+{
+	SGSFN( "EE_SetMeshFromChar" );
+	EdEntScripted* E = (EdEntScripted*) sgs_GetVar<void*>()( C, 0 );
+	sgsString charpath = sgs_GetVar<sgsString>()( C, 1 );
+	E->SetMesh( ED_GetMeshFromChar( StringView( charpath.c_str(), charpath.size() ) ) );
 	return 0;
 }
 static int EE_SetMeshInstanceCount( SGS_CTX )
@@ -824,11 +844,13 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldString", EE_AddFieldString },
 	{ "EE_AddFieldMesh", EE_AddFieldMesh },
 	{ "EE_AddFieldTex", EE_AddFieldTex },
+	{ "EE_AddFieldChar", EE_AddFieldChar },
 	{ "EE_AddFieldPartSys", EE_AddFieldPartSys },
 	{ "EE_AddFieldSound", EE_AddFieldSound },
 	{ "EE_AddFieldScrFn", EE_AddFieldScrFn },
 	{ "EE_AddButtonSubent", EE_AddButtonSubent },
 	{ "EE_SetMesh", EE_SetMesh },
+	{ "EE_SetMeshFromChar", EE_SetMeshFromChar },
 	{ "EE_SetMeshInstanceCount", EE_SetMeshInstanceCount },
 	{ "EE_SetMeshInstanceMatrix", EE_SetMeshInstanceMatrix },
 	{ "EE_GetMeshAABB", EE_GetMeshAABB },

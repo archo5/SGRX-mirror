@@ -85,7 +85,7 @@ def write_part( f, part ):
 	f.write( struct.pack( "LLLLB", part["voff"], part["vcount"], part["ioff"], part["icount"], len( part["textures"] ) ) )
 	write_smallbuf( f, bytes( part["shader"], "UTF-8" ) )
 	for tex in part["textures"]:
-		write_smallbuf( f, tex )
+		write_smallbuf( f, tex.replace("\\", "/") )
 #
 
 magicmtx = Matrix.Rotation( -math.pi/2, 4, "X" )
@@ -583,7 +583,7 @@ def write_ss3dmesh( ctx, filepath ):
 	print( "OK!" )
 	
 	animations = []
-	if armobj is not None:
+	if armobj is not None and armobj.animation_data is not None:
 		print( "Generating animations... " )
 		oldact = armobj.animation_data.action
 		for action in bpy.data.actions:

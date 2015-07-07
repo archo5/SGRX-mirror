@@ -67,37 +67,12 @@ struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 };
 
 
-struct EDGUIMeshPicker : EDGUIRsrcPicker, IDirEntryHandler
+struct EDGUIMeshPickerCore : EDGUIRsrcPicker
 {
-	EDGUIMeshPicker( bool fullpaths = false ) :
-		m_fullpaths( fullpaths ),
-		m_scene( GR_CreateScene() )
+	EDGUIMeshPickerCore() : m_scene( GR_CreateScene() )
 	{
-		caption = "Pick a mesh";
 		m_meshinst = m_scene->CreateMeshInstance();
 		lmm_prepmeshinst( m_meshinst );
-		Reload();
-	}
-	void Reload()
-	{
-		LOG << "Reloading meshes";
-		m_options.clear();
-		m_meshes.clear();
-		FS_IterateDirectory( "meshes", this );
-		_Search( m_searchString );
-	}
-	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
-	{
-		LOG << "[M]: " << name;
-		if( !isdir && name.ends_with( ".ssm" ) )
-		{
-			if( m_fullpaths )
-				m_options.push_back( String_Concat( "meshes/", name ) );
-			else
-				m_options.push_back( name.part( 0, name.size() - 4 ) );
-			m_meshes.push_back( GR_GetMesh( String_Concat( "meshes/", name ) ) );
-		}
-		return true;
 	}
 	void _DrawItem( int i, int x0, int y0, int x1, int y1 )
 	{
@@ -123,10 +98,95 @@ struct EDGUIMeshPicker : EDGUIRsrcPicker, IDirEntryHandler
 		GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
 	}
 	
-	bool m_fullpaths;
 	Array< MeshHandle > m_meshes;
 	SceneHandle m_scene;
 	MeshInstHandle m_meshinst;
+};
+
+struct EDGUIMeshPicker : EDGUIMeshPickerCore, IDirEntryHandler
+{
+	EDGUIMeshPicker( bool fullpaths = false ) :
+		m_fullpaths( fullpaths )
+	{
+		caption = "Pick a mesh";
+		Reload();
+	}
+	void Reload()
+	{
+		LOG << "Reloading meshes";
+		m_options.clear();
+		m_meshes.clear();
+		FS_IterateDirectory( "meshes", this );
+		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[M]: " << name;
+		if( !isdir && name.ends_with( ".ssm" ) )
+		{
+			if( m_fullpaths )
+				m_options.push_back( String_Concat( "meshes/", name ) );
+			else
+				m_options.push_back( name.part( 0, name.size() - 4 ) );
+			m_meshes.push_back( GR_GetMesh( String_Concat( "meshes/", name ) ) );
+		}
+		return true;
+	}
+	
+	bool m_fullpaths;
+};
+
+inline String ED_GetMeshFromChar( const StringView& charpath )
+{
+	ByteArray ba;
+	if( FS_LoadBinaryFile( charpath, ba ) == false )
+		return String();
+	
+	// basic unserialization to retrieve mesh
+	ByteReader br( &ba );
+	br.marker( "SGRXCHAR" );
+	SerializeVersionHelper<ByteReader> arch( br, 2 );
+	String mesh;
+	arch( mesh );
+	return mesh;
+}
+
+struct EDGUICharUsePicker : EDGUIMeshPickerCore, IDirEntryHandler
+{
+	EDGUICharUsePicker( bool fullpaths = false ) :
+		m_fullpaths( fullpaths )
+	{
+		caption = "Pick a char";
+		Reload();
+	}
+	void Reload()
+	{
+		LOG << "Reloading chars";
+		m_options.clear();
+		m_meshes.clear();
+		FS_IterateDirectory( "chars", this );
+		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[Ch]: " << name;
+		if( !isdir && name.ends_with( ".chr" ) )
+		{
+			String fullpath = String_Concat( "chars/", name );
+			String mesh = ED_GetMeshFromChar( fullpath );
+			if( mesh.size() == 0 )
+				return true;
+			
+			if( m_fullpaths )
+				m_options.push_back( fullpath );
+			else
+				m_options.push_back( name.part( 0, name.size() - 4 ) );
+			m_meshes.push_back( GR_GetMesh( mesh ) );
+		}
+		return true;
+	}
+	
+	bool m_fullpaths;
 };
 
 

@@ -19,6 +19,12 @@ function ENTBASE_xfmesh( eptr )
 	EE_AddFieldMesh( eptr, "mesh", "Mesh", "" );
 }
 
+function ENTBASE_xfchar( eptr )
+{
+	ENTBASE_xform( eptr );
+	EE_AddFieldChar( eptr, "char", "Character", "" );
+}
+
 function ENTBASE_trigger( eptr )
 {
 	EE_AddFieldScrFn( eptr, "func", "Script function", "" );
@@ -37,6 +43,14 @@ function ENTCHG_xfmesh( eptr, data )
 {
 	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
 	EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+	EE_SetMeshInstanceCount( eptr, 1 );
+	EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+}
+
+function ENTCHG_xfchar( eptr, data )
+{
+	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+	EE_SetMeshFromChar( eptr, "chars/" $ data.char $ ".chr" );
 	EE_SetMeshInstanceCount( eptr, 1 );
 	EE_SetMeshInstanceMatrix( eptr, 0, mtx );
 }
@@ -264,6 +278,25 @@ function ED_ENT_pickup( eptr )
 	EE_AddFieldInt( eptr, "count", "Count", 1, 1, 10000 );
 	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
 	EE_SetDebugDrawFunc( eptr, ENTDD_xfmesh );
+}
+
+function ED_ENT_camera( eptr )
+{
+	ENTBASE_xfchar( eptr );
+	ENTBASE_named( eptr );
+	EE_AddFieldVec3( eptr, "dir0", "Direction 0", vec3(1,0.5,-1), 2, -128, 128 );
+	EE_AddFieldVec3( eptr, "dir1", "Direction 1", vec3(1,-0.5,-1), 2, -128, 128 );
+	EE_SetChangeFunc( eptr, ENTCHG_xfchar );
+	EE_SetDebugDrawFunc( eptr, function Camera_onDebugDraw( eptr, data )
+	{
+		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
+		BR_Reset();
+		BR_SetPrimitiveType( PT_Lines );
+		BR_Col( 0.1, 0.5, 0.1, 0.9 );
+		BR_Pos( mtx.transform_pos(vec3(0)) ); BR_Pos( mtx.transform_pos(data.dir0) );
+		BR_Col( 0.1, 0.9, 0.1, 0.9 );
+		BR_Pos( mtx.transform_pos(vec3(0)) ); BR_Pos( mtx.transform_pos(data.dir1) );
+	});
 }
 
 function ED_ENT_actionable( eptr )

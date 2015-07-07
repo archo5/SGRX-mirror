@@ -34,6 +34,7 @@ MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EDGUISDTexPicker* g_UISurfTexPicker );
 MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
+MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
 MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
 MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );
 MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
@@ -1048,6 +1049,7 @@ struct EdEntScripted : EdEntity
 	void AddFieldRsrc( sgsString key, sgsString name, EDGUIRsrcPicker* rsrcPicker, sgsString def );
 	void AddButtonSubent( sgsString type );
 	void SetMesh( sgsString name );
+	void SetMesh( StringView name );
 	void SetMeshInstanceCount( int count );
 	void SetMeshInstanceMatrix( int which, const Mat4& mtx );
 	void GetMeshAABB( Vec3 out[2] );
