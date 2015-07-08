@@ -382,6 +382,87 @@ void ParticleFX::OnEvent( const StringView& _type )
 #ifdef TSGAME
 
 
+TSCamera::TSCamera(
+	const StringView& name,
+	const StringView& charname,
+	const Vec3& pos,
+	const Quat& rot,
+	const Vec3& scl,
+	const Vec3& dir0,
+	const Vec3& dir1
+) :
+	m_curDir( YP( dir0 ) ), m_timeout( 0 ), m_state( 0 ),
+	m_dir0( YP( dir0 ) ), m_dir1( YP( dir1 ) ),
+	m_moveTime( 3.0f ), m_pauseTime( 2.0f )
+{
+	m_name = name;
+	
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "chars/%s.chr", StackString<200>( charname ).str );
+	
+	m_anLayers[0].anim = &m_animChar.m_layerAnimator;
+	m_anLayers[0].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
+	m_animChar.m_anMixer.layers = m_anLayers;
+	m_animChar.m_anMixer.layerCount = 1;
+	m_animChar.Load( bfr );
+	m_animChar.AddToScene( g_GameLevel->m_scene );
+	
+	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
+	MI->dynamic = 1;
+	MI->layers = 0x2;
+	MI->matrix = Mat4::CreateSRT( scl, rot, pos );
+	g_GameLevel->LightMesh( MI );
+	
+	g_GameLevel->MapEntityByName( this );
+}
+
+void TSCamera::FixedTick( float deltaTime )
+{
+	switch( m_state )
+	{
+	case 0:
+	case 2: // move
+	{
+		YawPitch tgt = m_state == 2 ? m_dir1 : m_dir0;
+		m_curDir.TurnTo( tgt, YawPitchDist( m_dir0, m_dir1 ).Abs().Scaled( safe_fdiv( deltaTime, m_moveTime ) ) );
+		LOG << m_curDir.yaw << "|" << m_curDir.pitch;
+		if( YawPitchAlmostEqual( m_curDir, tgt ) )
+		{
+			m_state = ( m_state + 1 ) % 4;
+			m_timeout = m_pauseTime;
+		}
+		break;
+	}
+	case 1:
+	case 3: // wait
+		m_timeout -= deltaTime;
+		if( m_timeout <= 0 )
+		{
+			m_state = ( m_state + 1 ) % 4;
+		}
+		break;
+	}
+	
+	float f_turn_h = m_curDir.yaw / M_PI;
+	float f_turn_v = m_curDir.pitch / M_PI;
+	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
+	{
+		AnimCharacter::Layer& L = m_animChar.layers[ i ];
+		if( L.name == StringView("turn_h") )
+			L.amount = f_turn_h;
+		else if( L.name == StringView("turn_v") )
+			L.amount = f_turn_v;
+	}
+	m_animChar.RecalcLayerState();
+	m_animChar.FixedTick( deltaTime );
+}
+
+void TSCamera::Tick( float deltaTime, float blendFactor )
+{
+	m_animChar.PreRender( blendFactor );
+}
+
+
 TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivDir( Quat::CreateAxisAngle( V3(0,0,1), atan2( dir.y, dir.x ) ) ),

@@ -471,6 +471,25 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	}
 	
 	///////////////////////////
+#ifdef TSGAME
+	if( type == "camera" )
+	{
+		TSCamera* CAM = new TSCamera
+		(
+			data.getprop("name").get<String>(),
+			data.getprop("char").get<String>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			data.getprop("dir0").get<Vec3>(),
+			data.getprop("dir1").get<Vec3>()
+		);
+		m_entities.push_back( CAM );
+		return;
+	}
+#endif
+	
+	///////////////////////////
 	if( type == "actionable" )
 	{
 		Actionable* AC = new Actionable
