@@ -425,7 +425,6 @@ void TSCamera::FixedTick( float deltaTime )
 	{
 		YawPitch tgt = m_state == 2 ? m_dir1 : m_dir0;
 		m_curDir.TurnTo( tgt, YawPitchDist( m_dir0, m_dir1 ).Abs().Scaled( safe_fdiv( deltaTime, m_moveTime ) ) );
-		LOG << m_curDir.yaw << "|" << m_curDir.pitch;
 		if( YawPitchAlmostEqual( m_curDir, tgt ) )
 		{
 			m_state = ( m_state + 1 ) % 4;
@@ -460,6 +459,17 @@ void TSCamera::FixedTick( float deltaTime )
 void TSCamera::Tick( float deltaTime, float blendFactor )
 {
 	m_animChar.PreRender( blendFactor );
+	for( size_t i = 0; i < m_animChar.attachments.size(); ++i )
+	{
+		AnimCharacter::Attachment& AT = m_animChar.attachments[ i ];
+		if( AT.name != StringView("light") )
+			continue;
+		Mat4 mtx;
+		if( m_animChar.GetAttachmentMatrix( i, mtx ) == false )
+			break;
+		FSFlare FD = { mtx.TransformPos( V3(0) ), V3( 0, 1, 0 ), 1, true };
+		g_GameLevel->m_flareSystem.UpdateFlare( this, FD );
+	}
 }
 
 

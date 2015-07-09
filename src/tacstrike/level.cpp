@@ -159,8 +159,6 @@ GameLevel::GameLevel() :
 		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
 	}
 	
-	m_ps_flare = GR_GetPixelShader( "flare" );
-	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
 	m_tex_mapline = GR_GetTexture( "ui/mapline.png" );
 	m_tex_mapframe = GR_GetTexture( "ui/mapframe.png" );
 	
@@ -207,6 +205,16 @@ bool GameLevel::Load( const StringView& levelname )
 	
 	svh.marker( "LIGHTS" );
 	svh << m_lights;
+	
+	// LOAD FLARES
+	for( size_t i = 0; i < m_lights.size(); ++i )
+	{
+		LC_Light& L = m_lights[ i ];
+		if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT )
+			continue;
+		FSFlare FD = { L.pos + L.flareoffset, L.color, L.flaresize, true };
+		m_flareSystem.UpdateFlare( &m_lights[ i ], FD );
+	}
 	
 	svh.marker( "SAMPLES" );
 	Array< LightTree::Sample > lt_samples;
@@ -301,6 +309,7 @@ void GameLevel::ClearLevel()
 	m_ltSamples.SetSamples( NULL, 0 );
 	m_damageSystem.Clear();
 	m_bulletSystem.Clear();
+	m_flareSystem.Clear();
 	m_lights.clear();
 	m_meshInsts.clear();
 	m_levelBodies.clear();
@@ -773,36 +782,7 @@ void GameLevel::DebugDraw()
 void GameLevel::PostDraw()
 {
 //	return;
-	
-	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-	
-	float W = GR_GetWidth();
-	float H = GR_GetHeight();
-	float sz = TMIN( W, H ) * 0.2f;
-	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().SetShader( m_ps_flare ).SetTexture( m_tex_flare );
-	br.ShaderData.push_back( V4( W, H, 1.0f / W, 1.0f / H ) );
-	br.ShaderData.push_back( V4(1) );
-	for( size_t i = 0; i < m_lights.size(); ++i )
-	{
-		LC_Light& L = m_lights[ i ];
-		if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT )
-			continue;
-		Vec3 flarepos = L.pos + L.flareoffset;
-		float flaresize = L.flaresize;
-		if( flaresize <= 0 )
-			continue;
-		br.ShaderData[1] = V4( L.color, 0.1f / ( ( flarepos - m_scene->camera.position ).Length() + 1 ) );
-		Vec3 screenpos = m_scene->camera.WorldToScreen( flarepos );
-		if( Vec3Dot( flarepos, m_scene->camera.direction ) < Vec3Dot( m_scene->camera.position, m_scene->camera.direction ) )
-			continue;
-		if( g_PhyWorld->Raycast( flarepos, m_scene->camera.position, 1, 1 ) )
-			continue;
-	//	LOG << screenpos.z;
-		float dx = cos(0.1f)*0.5f*sz * flaresize;
-		float dy = sin(0.1f)*0.5f*sz * flaresize;
-		br.TurnedBox( screenpos.x * W, screenpos.y * H, dx, dy );
-		br.Flush();
-	}
+	m_flareSystem.Draw( m_scene->camera );
 }
 
 void GameLevel::Draw()

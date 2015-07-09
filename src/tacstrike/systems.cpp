@@ -233,6 +233,57 @@ void ObjectiveSystem::DrawUI()
 }
 
 
+FlareSystem::FlareSystem()
+{
+	m_ps_flare = GR_GetPixelShader( "flare" );
+	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
+}
+
+void FlareSystem::Clear()
+{
+	m_flares.clear();
+}
+
+void FlareSystem::UpdateFlare( void* handle, const FSFlare& flare )
+{
+	m_flares.set( handle, flare );
+}
+
+bool FlareSystem::RemoveFlare( void* handle )
+{
+	return m_flares.unset( handle );
+}
+
+void FlareSystem::Draw( SGRX_Camera& cam )
+{
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+	
+	float W = GR_GetWidth();
+	float H = GR_GetHeight();
+	float sz = TMIN( W, H ) * 0.2f;
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().SetShader( m_ps_flare ).SetTexture( m_tex_flare );
+	br.ShaderData.push_back( V4( W, H, 1.0f / W, 1.0f / H ) );
+	br.ShaderData.push_back( V4(1) );
+	for( size_t i = 0; i < m_flares.size(); ++i )
+	{
+		FSFlare& FD = m_flares.item( i ).value;
+		if( FD.enabled == false || FD.size <= 0 )
+			continue;
+		br.ShaderData[1] = V4( FD.color, 0.1f / ( ( FD.pos - cam.position ).Length() + 1 ) );
+		Vec3 screenpos = cam.WorldToScreen( FD.pos );
+		if( Vec3Dot( FD.pos, cam.direction ) < Vec3Dot( cam.position, cam.direction ) )
+			continue;
+		if( g_PhyWorld->Raycast( FD.pos, cam.position, 1, 1 ) )
+			continue;
+	//	LOG << screenpos.z;
+		float dx = cos(0.1f)*0.5f*sz * FD.size;
+		float dy = sin(0.1f)*0.5f*sz * FD.size;
+		br.TurnedBox( screenpos.x * W, screenpos.y * H, dx, dy );
+		br.Flush();
+	}
+}
+
+
 const char* DamageSystem::Init( SceneHandle scene )
 {
 	static char errbfr[ 350 ];

@@ -45,6 +45,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw
 	BulletSystem m_bulletSystem;
 	MessagingSystem m_messageSystem;
 	ObjectiveSystem m_objectiveSystem;
+	FlareSystem m_flareSystem;
 	AIDBSystem m_aidbSystem;
 	
 	// LEVEL DATA
@@ -67,8 +68,6 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw
 	bool m_cameraInfoCached;
 	
 	// COMMON DATA
-	PixelShaderHandle m_ps_flare;
-	TextureHandle m_tex_flare;
 	TextureHandle m_tex_mapline;
 	TextureHandle m_tex_mapframe;
 };

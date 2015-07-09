@@ -198,6 +198,27 @@ struct ObjectiveSystem
 	TextureHandle m_tx_icon_failed;
 };
 
+struct FSFlare
+{
+	Vec3 pos;
+	Vec3 color;
+	float size;
+	bool enabled;
+};
+
+struct FlareSystem
+{
+	FlareSystem();
+	void Clear();
+	void UpdateFlare( void* handle, const FSFlare& flare );
+	bool RemoveFlare( void* handle );
+	void Draw( SGRX_Camera& cam );
+	
+	HashTable< void*, FSFlare > m_flares;
+	PixelShaderHandle m_ps_flare;
+	TextureHandle m_tex_flare;
+};
+
 
 enum GameActorType
 {
