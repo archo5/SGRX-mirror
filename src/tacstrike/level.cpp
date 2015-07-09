@@ -91,6 +91,24 @@ static int EnemyDefine( SGS_CTX )
 	return 0;
 }
 #endif
+#ifdef TSGAME
+static int EntitySetProperties( SGS_CTX )
+{
+	SGSFN( "EntitySetProperties" );
+	String name = sgs_GetVar<String>()( C, 0 );
+	Entity* E = (Entity*) g_GameLevel->FindEntityByName( name );
+	if( !E )
+		return sgs_Msg( C, SGS_WARNING, "failed to find enemy entity: %.*s", (int) name.size(), name.data() );
+	sgs_StkIdx ssz = sgs_StackSize( C );
+	for( sgs_StkIdx i = 1; i + 1 < ssz; i += 2 )
+	{
+		sgsString key = sgs_GetVar<sgsString>()( C, i + 0 );
+		sgsVariable value = sgs_GetVar<sgsVariable>()( C, i + 1 );
+		E->SetProperty( StringView( key.c_str(), key.size() ), value );
+	}
+	return 0;
+}
+#endif
 
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
@@ -104,6 +122,9 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	{ "ObjectiveSetState", ObjectiveSetState },
 #ifdef LD32GAME
 	{ "EnemyDefine", EnemyDefine },
+#endif
+#ifdef TSGAME
+	{ "EntitySetProperties", EntitySetProperties },
 #endif
 	SGS_RC_END(),
 };

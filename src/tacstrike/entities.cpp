@@ -472,6 +472,12 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 	}
 }
 
+void TSCamera::SetProperty( const StringView& name, sgsVariable value )
+{
+	if( name == "moveTime" ) m_moveTime = value.get<float>();
+	else if( name == "pauseTime" ) m_pauseTime = value.get<float>();
+}
+
 
 TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
@@ -967,21 +973,23 @@ void TSPlayer::DrawUI()
 			Vec2 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
 			if( infront )
 			{
-				bool activate = i == 0 && ( QP - pos ).Length() < 2;
+				float dst = ( QP - pos ).Length();
+				bool activate = i == 0 && dst < 2;
 				Vec2 dir = V2( 2, -1 ).Normalized();
 				Vec2 clp0 = screenpos + dir * 12;
 				Vec2 clp1 = screenpos + dir * 64;
 				Vec2 cline[2] = { clp0, clp1 };
 				Vec2 addX = V2( 0, -48 ), addY = V2( 120, 0 );
 				Vec2 irect[4] = { clp1, clp1 + addY, clp1 + addX + addY, clp1 + addX };
+				float a = smoothlerp_oneway( dst, 5.0f, 4.0f );
 				
 				br.Reset();
 				if( activate )
 				{
-					br.Col( 0.9f, 0.1f, 0, 0.5f ).CircleFill( screenpos.x, screenpos.y, 12 );
+					br.Col( 0.9f, 0.1f, 0, 0.5f * a ).CircleFill( screenpos.x, screenpos.y, 12 );
 				}
-				br.Col( 0, 0.5f ).QuadWH( clp1.x, clp1.y, 120, -48 );
-				br.Col( 0.905f, 1 ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
+				br.Col( 0, 0.5f * a ).QuadWH( clp1.x, clp1.y, 120, -48 );
+				br.Col( 0.905f, 1 * a ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
 				br.AAStroke( cline, 2, 2, false );
 				br.AAStroke( irect, 4, 2, true );
 				

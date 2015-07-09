@@ -66,6 +66,7 @@ struct Entity
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual void OnEvent( const StringView& type ){}
+	virtual void SetProperty( const StringView& name, sgsVariable value ){}
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
 	virtual bool CanInterruptAction( float progress ){ return false; }
 };

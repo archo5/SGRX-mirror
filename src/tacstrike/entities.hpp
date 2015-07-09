@@ -453,6 +453,7 @@ struct TSCamera : Entity
 	);
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
+	void SetProperty( const StringView& name, sgsVariable value );
 	
 	AnimCharacter m_animChar;
 	AnimMixer::Layer m_anLayers[1];
