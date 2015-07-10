@@ -507,7 +507,7 @@ struct EdBlock : EdObject
 	
 	LevelCache::Vertex _MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy );
 	void GenerateMesh( LevelCache& LC );
-	int GenerateSurface( LCVertex* outbuf, int sid, bool tri );
+	int GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit = true );
 	void Export( OBJExporter& objex );
 };
 
@@ -565,6 +565,8 @@ struct EDGUISurfaceProps : EDGUILayoutRow
 	EDGUIPropFloat m_lmquality;
 	EDGUIPropInt m_xfit;
 	EDGUIPropInt m_yfit;
+	EDGUIButton m_resetOffScaleAsp;
+	EDGUIButton m_applyFit;
 	EDGUIButton m_makeBlendPatch;
 	EDGUIButton m_convertToPatch;
 };

@@ -616,7 +616,7 @@ void EdBlock::GenerateMesh( LevelCache& LC )
 	}
 }
 
-int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri )
+int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit )
 {
 	if( tri )
 	{
@@ -652,7 +652,8 @@ int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri )
 			}
 			retval = ( poly.size() - 2 ) * 3;
 		}
-		_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
+		if( fit )
+			_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
 		return retval;
 	}
 	else
@@ -685,7 +686,8 @@ int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri )
 			}
 			retval = poly.size();
 		}
-		_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
+		if( fit )
+			_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
 		return retval;
 	}
 }
@@ -861,6 +863,8 @@ EDGUISurfaceProps::EDGUISurfaceProps() :
 	m_lmquality.caption = "Lightmap quality";
 	m_xfit.caption = "Fit count on X";
 	m_yfit.caption = "Fit count on Y";
+	m_resetOffScaleAsp.caption = "Reset offset/scale/aspect";
+	m_applyFit.caption = "Apply fit";
 	m_makeBlendPatch.caption = "Make blend patch from surf.";
 	m_convertToPatch.caption = "Convert block to patch";
 	
@@ -871,6 +875,8 @@ EDGUISurfaceProps::EDGUISurfaceProps() :
 	m_group.Add( &m_lmquality );
 	m_group.Add( &m_xfit );
 	m_group.Add( &m_yfit );
+	m_group.Add( &m_resetOffScaleAsp );
+	m_group.Add( &m_applyFit );
 	m_group.Add( &m_makeBlendPatch );
 	m_group.Add( &m_convertToPatch );
 	m_group.SetOpen( true );
@@ -934,6 +940,54 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 				}
 				g_EdWorld->AddObject( p );
 			}
+		}
+		if( m_out && e->target == &m_resetOffScaleAsp )
+		{
+			EdSurface& S = m_out->surfaces[ m_sid ];
+			S.xoff = 0;
+			S.yoff = 0;
+			S.scale = 1;
+			S.aspect = 1;
+			m_out->RegenerateMesh();
+			Prepare( m_out, m_sid );
+		}
+		if( m_out && e->target == &m_applyFit )
+		{
+			EdSurface& S = m_out->surfaces[ m_sid ];
+			float xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
+			LCVertex vertices[ MAX_BLOCK_POLYGONS ];
+			int vcount = m_out->GenerateSurface( vertices, m_sid, false, false );
+			for( int i = 0; i < vcount; ++i )
+			{
+				float x = vertices[ i ].tx0;
+				float y = vertices[ i ].ty0;
+				if( xmin > x ) xmin = x;
+				if( xmax < x ) xmax = x;
+				if( ymin > y ) ymin = y;
+				if( ymax < y ) ymax = y;
+			}
+			float xdst = xmax - xmin, ydst = ymax - ymin;
+			if( S.xfit )
+			{
+				S.scale *= xdst;
+				S.xoff -= xmin / S.scale;
+				if( S.yfit != 0 )
+					S.aspect *= xdst;
+			}
+			if( S.yfit )
+			{
+				if( S.xfit == 0 )
+					S.scale *= ydst;
+				else
+					S.aspect /= ydst;
+				S.yoff -= ymin / S.scale * S.aspect;
+			}
+			S.xoff = fmodf( S.xoff, 1 ); if( S.xoff < 0 ) S.xoff++;
+			S.yoff = fmodf( S.yoff, 1 ); if( S.yoff < 0 ) S.yoff++;
+			S.xfit = 0;
+			S.yfit = 0;
+			m_out->RegenerateMesh();
+			Prepare( m_out, m_sid );
 		}
 		break;
 		
