@@ -665,21 +665,45 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 }
 
 #ifdef TSGAME
-struct EnemyDraw : InfoEmissionSystem::IESProcessor
+struct MapItemDraw : InfoEmissionSystem::IESProcessor
 {
 	bool Process( Entity* E, const InfoEmissionSystem::Data& D )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer();
-		SGRX_CAST( TSEnemy*, EE, E );
-		Vec2 viewpos = EE->GetInterpPos().ToVec2();
-		Vec2 viewdir = EE->GetInterpAimDir().ToVec2().Normalized();
-		Vec2 viewtan = viewdir.Perp();
-		br.Reset().Col( 0.9f, 0 )
-			.SetPrimitiveType( PT_Triangles )
-			.Pos( viewpos + viewdir * 10 - viewtan * 8 )
-			.Pos( viewpos + viewdir * 10 + viewtan * 8 )
-			.Col( 0.9f, 0.5f ).Pos( viewpos );
-		br.Reset().SetTexture( g_GameLevel->m_tex_mapline ).Col( 0.95f, 0.1f, 0.05f ).Box( D.pos.x, D.pos.y, 1, 1 );
+		MapItemInfo mii;
+		if( E->GetMapItemInfo( &mii ) == false )
+			return true;
+		if( mii.type & (MI_Object_Enemy | MI_Object_Camera) )
+		{
+			uint32_t viewcol = 0xffffffff;
+			uint32_t dotcol = COLOR_RGB( 245, 20, 10 );
+			switch( mii.type & MI_Mask_State )
+			{
+			case MI_State_Normal:
+				viewcol = mii.type & MI_Object_Enemy ?
+					COLOR_RGB( 230, 230, 230 ) : COLOR_RGB( 180, 230, 180 );
+				break;
+			case MI_State_Suspicious:
+				viewcol = COLOR_RGB( 170, 170, 100 );
+				break;
+			case MI_State_Alerted:
+				viewcol = COLOR_RGB( 170, 100, 100 );
+				break;
+			}
+			viewcol &= 0x7fffffff;
+			uint32_t viewcol_a0 = viewcol & 0x00ffffff;
+			Vec2 viewpos = mii.position.ToVec2();
+			Vec2 viewdir = mii.direction.ToVec2().Normalized();
+			Vec2 viewtan = viewdir.Perp();
+			br.Reset().Colu( viewcol_a0 )
+				.SetPrimitiveType( PT_Triangles )
+				.Pos( viewpos + viewdir * mii.sizeFwd - viewtan * mii.sizeRight )
+				.Pos( viewpos + viewdir * mii.sizeFwd + viewtan * mii.sizeRight )
+				.Colu( viewcol ).Pos( viewpos );
+			
+			br.Reset().SetTexture( g_GameLevel->m_tex_mapline )
+				.Colu( dotcol ).Box( viewpos.x, viewpos.y, 1, 1 );
+		}
 		return true;
 	}
 };
@@ -708,15 +732,15 @@ void GameLevel::Draw2D()
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Reset();
 	
+#ifndef BRSD4GAME
 	int size_x = GR_GetWidth();
 	int size_y = GR_GetHeight();
 //	float aspect = size_x / (float) size_y;
+	
 	int sqr = TMIN( size_x, size_y );
 //	int margin_x = ( size_x - sqr ) / 2;
 //	int margin_y = ( size_y - sqr ) / 2;
 	int safe_margin = sqr * 1 / 16;
-	
-#ifndef BRSD4GAME
 	// MAP
 	{
 		int mapsize_x = sqr * 4 / 10;
@@ -755,8 +779,8 @@ void GameLevel::Draw2D()
 		}
 		
 #ifdef TSGAME
-		EnemyDraw ed;
-		m_infoEmitters.QuerySphereAll( &ed, V3( pos.x, pos.y, 1 ), 100, IEST_Enemy );
+		MapItemDraw ed;
+		m_infoEmitters.QuerySphereAll( &ed, V3( pos.x, pos.y, 1 ), 100, IEST_MapItem );
 #endif
 		
 		br.Reset().SetTexture( m_tex_mapline ).Col( 0.2f, 0.9f, 0.1f ).Box( pos.x, pos.y, 1, 1 );

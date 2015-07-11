@@ -454,9 +454,11 @@ struct TSCamera : Entity
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void SetProperty( const StringView& name, sgsVariable value );
+	bool GetMapItemInfo( MapItemInfo* out );
 	
 	AnimCharacter m_animChar;
 	AnimMixer::Layer m_anLayers[1];
+	int m_viewAttachmentID;
 	
 	YawPitch m_curDir;
 	float m_timeout;
@@ -596,6 +598,7 @@ struct TSEnemy : TSCharacter
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void UpdateTask();
+	bool GetMapItemInfo( MapItemInfo* out );
 };
 
 #endif

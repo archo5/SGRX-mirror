@@ -406,6 +406,8 @@ TSCamera::TSCamera(
 	m_animChar.m_anMixer.layerCount = 1;
 	m_animChar.Load( bfr );
 	m_animChar.AddToScene( g_GameLevel->m_scene );
+	StringView atchlist[] = { "view", "origin", "light" };
+	m_animChar.SortEnsureAttachments( atchlist, 3 );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->dynamic = 1;
@@ -454,28 +456,40 @@ void TSCamera::FixedTick( float deltaTime )
 	}
 	m_animChar.RecalcLayerState();
 	m_animChar.FixedTick( deltaTime );
+	
+	InfoEmissionSystem::Data D = {
+		m_animChar.m_cachedMeshInst->matrix.TransformPos( V3(0) ), 0.5f, IEST_MapItem };
+	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
 }
 
 void TSCamera::Tick( float deltaTime, float blendFactor )
 {
 	m_animChar.PreRender( blendFactor );
-	for( size_t i = 0; i < m_animChar.attachments.size(); ++i )
-	{
-		AnimCharacter::Attachment& AT = m_animChar.attachments[ i ];
-		if( AT.name != StringView("light") )
-			continue;
-		Mat4 mtx;
-		if( m_animChar.GetAttachmentMatrix( i, mtx ) == false )
-			break;
-		FSFlare FD = { mtx.TransformPos( V3(0) ), V3( 0, 1, 0 ), 1, true };
-		g_GameLevel->m_flareSystem.UpdateFlare( this, FD );
-	}
+	Mat4 mtx;
+	bool res = m_animChar.GetAttachmentMatrix( 2, mtx );
+	ASSERT( res && "TSCamera / GetAttachmentMatrix - bad char" );
+	FSFlare FD = { mtx.TransformPos( V3(0) ), V3( 0, 1, 0 ), 1, true };
+	g_GameLevel->m_flareSystem.UpdateFlare( this, FD );
 }
 
 void TSCamera::SetProperty( const StringView& name, sgsVariable value )
 {
 	if( name == "moveTime" ) m_moveTime = value.get<float>();
 	else if( name == "pauseTime" ) m_pauseTime = value.get<float>();
+}
+
+bool TSCamera::GetMapItemInfo( MapItemInfo* out )
+{
+	Mat4 mtx;
+	bool res = m_animChar.GetAttachmentMatrix( 0, mtx );
+	ASSERT( res && "TSCamera / GetAttachmentMatrix - bad char" );
+	
+	out->type = MI_Object_Camera | MI_State_Normal;
+	out->position = mtx.TransformPos( V3(0) );
+	out->direction = mtx.TransformNormal( V3(1,0,0) );
+	out->sizeFwd = 10;
+	out->sizeRight = 6;
+	return true;
 }
 
 
@@ -922,11 +936,11 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	m_angles += inCursorMove * V2(-0.01f);
 	m_angles.y = clamp( m_angles.y, (float) -M_PI/2 + SMALL_FLOAT, (float) M_PI/2 - SMALL_FLOAT );
 	
-	float ch = cosf( m_angles.x ), sh = sinf( m_angles.x );
-	float cv = cosf( m_angles.y ), sv = sinf( m_angles.y );
+//	float ch = cosf( m_angles.x ), sh = sinf( m_angles.x );
+//	float cv = cosf( m_angles.y ), sv = sinf( m_angles.y );
 	
 	Vec3 pos = m_ivPos.Get( blendFactor );
-	Vec3 dir = V3( ch * cv, sh * cv, sv );
+//	Vec3 dir = V3( ch * cv, sh * cv, sv );
 	m_position = pos;
 	
 	float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
@@ -1168,7 +1182,7 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	TSCharacter::FixedTick( deltaTime );
 	
-	InfoEmissionSystem::Data D = { GetPosition(), 0.5f, IEST_Enemy };
+	InfoEmissionSystem::Data D = { GetPosition(), 0.5f, IEST_MapItem };
 	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
 }
 
@@ -1193,6 +1207,16 @@ void TSEnemy::UpdateTask()
 				m_turnAngleStart += m_turnAngleEnd > m_turnAngleStart ? M_PI * 2 : -M_PI * 2;
 		}
 	}
+}
+
+bool TSEnemy::GetMapItemInfo( MapItemInfo* out )
+{
+	out->type = MI_Object_Enemy | MI_State_Normal;
+	out->position = GetInterpPos();
+	out->direction = GetInterpAimDir();
+	out->sizeFwd = 10;
+	out->sizeRight = 8;
+	return true;
 }
 
 void TSParseTaskArray( TSTaskArray& out, sgsVariable var )

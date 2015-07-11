@@ -696,6 +696,43 @@ bool AnimCharacter::ApplyMask( const StringView& name, Animator* tgt )
 	return false;
 }
 
+int AnimCharacter::FindAttachment( const StringView& name )
+{
+	for( size_t i = 0; i < attachments.size(); ++i )
+	{
+		if( attachments[ i ].name == name )
+			return i;
+	}
+	return -1;
+}
+
+void AnimCharacter::SortEnsureAttachments( const StringView* atchnames, int count )
+{
+	for( int i = 0; i < count; ++i )
+	{
+		int aid = -1;
+		for( size_t j = i; j < attachments.size(); ++j )
+		{
+			if( attachments[ i ].name == atchnames[ i ] )
+			{
+				aid = j;
+				break;
+			}
+		}
+		if( aid == i )
+			continue; // at the right place already
+		if( aid != -1 )
+		{
+			TMEMSWAP( attachments[ i ], attachments[ aid ] );
+		}
+		else
+		{
+			attachments.insert( i, Attachment() );
+			attachments[ i ].name = atchnames[ i ];
+		}
+	}
+}
+
 void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi )
 {
 	UNUSED( cbmi ); // always use own mesh instance

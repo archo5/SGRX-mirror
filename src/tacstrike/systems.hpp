@@ -54,6 +54,26 @@ struct InteractInfo
 	float timeActual;
 };
 
+enum EMapItemType
+{
+	MI_None = 0,
+	MI_Mask_State = 0x00ff,
+	MI_Object_Enemy = 0x0100,
+	MI_Object_Camera = 0x0200,
+	MI_State_Normal = 0x0001,
+	MI_State_Suspicious = 0x0002,
+	MI_State_Alerted = 0x0003,
+};
+
+struct MapItemInfo
+{
+	int type; // EMapItemType combo
+	Vec3 position;
+	Vec3 direction;
+	float sizeFwd;
+	float sizeRight;
+};
+
 
 struct Entity
 {
@@ -69,6 +89,7 @@ struct Entity
 	virtual void SetProperty( const StringView& name, sgsVariable value ){}
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
 	virtual bool CanInterruptAction( float progress ){ return false; }
+	virtual bool GetMapItemInfo( MapItemInfo* out ){ return false; }
 };
 
 typedef Array< Entity* > EntityArray;
@@ -78,7 +99,7 @@ typedef Array< Entity* > EntityArray;
 #define IEST_InteractiveItem 0x0001
 #define IEST_HeatSource      0x0002
 #define IEST_Player          0x0004
-#define IEST_Enemy           0x0008
+#define IEST_MapItem         0x0008
 
 struct InfoEmissionSystem
 {

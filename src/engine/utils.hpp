@@ -74,7 +74,7 @@ ENGINE_EXPORT double sgrx_hqtime();
 
 #define COLOR_F2B( x ) (uint8_t( clamp( x, 0, 1 ) * 255 ))
 #define COLOR_RGBA(r,g,b,a) ((uint32_t)((((int)(a)&0xff)<<24)|(((int)(b)&0xff)<<16)|(((int)(g)&0xff)<<8)|((int)(r)&0xff)))
-#define COLOR_RGB(r,g,b,a) COLOR_RGBA(r,g,b,0xff)
+#define COLOR_RGB(r,g,b) COLOR_RGBA(r,g,b,0xff)
 #define COLOR_EXTRACT_( c, off ) (((c)>>(off))&0xff)
 #define COLOR_EXTRACT_R( c ) COLOR_EXTRACT_( c, 0 )
 #define COLOR_EXTRACT_G( c ) COLOR_EXTRACT_( c, 8 )
@@ -124,6 +124,13 @@ template< class T > void TMEMSET( T* a, size_t c, const T& v )
 		a[ i ] = v;
 }
 template< class T > void TSWAP( T& a, T& b ){ T tmp( a ); a = b; b = tmp; }
+template< class T > void TMEMSWAP( T& a, T& b )
+{
+	char tmp[ sizeof(T) ];
+	memcpy( tmp, &a, sizeof(T) );
+	memcpy( &a, &b, sizeof(T) );
+	memcpy( &b, tmp, sizeof(T) );
+}
 template< class T, class S > T TLERP( const T& a, const T& b, const S& s ){ return a * ( S(1) - s ) + b * s; }
 template< class S, class T > S TREVLERP( const T& a, const T& b, const T& s ){ if( a == b ) return a; return ( s - a ) / ( b - a ); }
 
