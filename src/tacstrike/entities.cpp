@@ -495,7 +495,7 @@ bool TSCamera::GetMapItemInfo( MapItemInfo* out )
 
 TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
-	m_ivPos( pos ), m_ivDir( Quat::CreateAxisAngle( V3(0,0,1), atan2( dir.y, dir.x ) ) ),
+	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
 	i_crouch( false ), i_move( V2(0) ), i_aim_at( false ), i_aim_target( V3(0) )
 {
@@ -546,7 +546,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	MI->userData = &m_meshInstInfo;
 	MI->dynamic = 1;
 	MI->layers = 0x2;
-	MI->matrix = Mat4::CreateSRT( V3(1), m_ivDir.curr, m_ivPos.curr );
+	MI->matrix = Mat4::CreateSRT( V3(1), Quat::Identity, m_ivPos.curr );
 	g_GameLevel->LightMesh( MI, V3(1) );
 	
 	m_anTopPlayer.ClearBlendFactors( 0.0f );
@@ -628,8 +628,6 @@ void TSCharacter::FixedTick( float deltaTime )
 	
 	HandleMovementPhysics( deltaTime );
 	
-	m_ivDir.Advance( Quat::CreateAxisAngle( V3(0,0,1), m_turnAngle ) );
-	
 	//
 	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
 	Vec2 aimdir = rundir;
@@ -637,6 +635,7 @@ void TSCharacter::FixedTick( float deltaTime )
 	{
 		aimdir = ( i_aim_target - GetPosition() ).ToVec2();
 	}
+	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
 	//
 	
 	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
@@ -657,7 +656,6 @@ void TSCharacter::FixedTick( float deltaTime )
 void TSCharacter::Tick( float deltaTime, float blendFactor )
 {
 	Vec3 pos = m_ivPos.Get( blendFactor );
-//	Quat rdir = m_ivDir.Get( blendFactor ).Normalized();
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
@@ -666,6 +664,8 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	g_GameLevel->LightMesh( MI, V3(1) );
 	
 	m_animChar.PreRender( blendFactor );
+	m_interpPos = m_ivPos.Get( blendFactor );
+	m_interpAimDir = m_ivAimDir.Get( blendFactor );
 }
 
 void TSCharacter::HandleMovementPhysics( float deltaTime )
@@ -871,19 +871,20 @@ Mat4 TSCharacter::GetBulletOutputMatrix()
 
 Vec3 TSCharacter::GetInterpPos()
 {
-	return m_ivPos.Get( 1 );
+	return m_interpPos;
 }
 
 Vec3 TSCharacter::GetInterpAimDir()
 {
-	return GetAimDir();
+	return m_interpAimDir;
 }
 
 
 TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	TSCharacter( pos-V3(0,0,1), dir ),
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ), inCursorMove( V2(0) ),
-	m_targetII( NULL ), m_targetTriggered( false )
+	m_targetII( NULL ), m_targetTriggered( false ),
+	m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 )
 {
 	m_meshInstInfo.ownerType = GAT_Player;
 	
@@ -926,10 +927,23 @@ void TSPlayer::FixedTick( float deltaTime )
 
 void TSPlayer::Tick( float deltaTime, float blendFactor )
 {
+	m_crouchIconShowTimeout -= deltaTime;
+	m_standIconShowTimeout -= deltaTime;
 	if( CROUCH.IsPressed() )
 	{
 		i_crouch = !i_crouch;
+#if 1
+		m_crouchIconShowTimeout = i_crouch ? 2 : 0;
+		m_standIconShowTimeout = i_crouch ? 0 : 2;
+#else
+		if( i_crouch )
+			m_crouchIconShowTimeout = 2;
+		else
+			m_standIconShowTimeout = 2;
+#endif
 	}
+	m_crouchIconShowTimeout = TMAX( m_crouchIconShowTimeout, i_crouch ? 1.0f : 0.0f );
+	m_standIconShowTimeout = TMAX( m_standIconShowTimeout, i_crouch ? 0.0f : 1.0f );
 	
 	TSCharacter::Tick( deltaTime, blendFactor );
 	
@@ -965,6 +979,9 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 
 void TSPlayer::DrawUI()
 {
+	SGRX_FontSettings fs;
+	GR2D_GetFontSettings( &fs );
+	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
@@ -1007,11 +1024,8 @@ void TSPlayer::DrawUI()
 				br.AAStroke( cline, 2, 2, false );
 				br.AAStroke( irect, 4, 2, true );
 				
-				SGRX_FontSettings fs;
-				GR2D_GetFontSettings( &fs );
-				GR2D_SetFont( "core", 16 );
+				GR2D_SetFont( "mono", 15 );
 				GR2D_DrawTextLine( round( clp1.x + 4 ), round( clp1.y - 48 + 4 ), E->m_viewName );
-				GR2D_SetFontSettings( &fs );
 			}
 		}
 	}
@@ -1027,6 +1041,14 @@ void TSPlayer::DrawUI()
 	float cursor_angle = ( cursor_pos - player_pos ).Angle() + M_PI;
 	br.Reset().SetTexture( m_tex_cursor ).TurnedBox(
 		cursor_pos.x, cursor_pos.y, cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
+	
+	GR2D_SetFont( "tsicons", bsz * 0.2f );
+	br.Col( 1, 0.25f * m_crouchIconShowTimeout );
+	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "-", HALIGN_LEFT, VALIGN_BOTTOM );
+	br.Col( 1, 0.25f * m_standIconShowTimeout );
+	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "^", HALIGN_LEFT, VALIGN_BOTTOM );
+	
+	GR2D_SetFontSettings( &fs );
 }
 
 Vec3 TSPlayer::FindTargetPosition()

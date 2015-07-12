@@ -539,7 +539,9 @@ struct TSCharacter : Entity
 	bool m_isCrouching;
 	bool m_isOnGround;
 	IVState< Vec3 > m_ivPos;
-	IVState< Quat > m_ivDir;
+	IVState< Vec3 > m_ivAimDir;
+	Vec3 m_interpPos;
+	Vec3 m_interpAimDir;
 	
 	Vec3 m_position;
 	Vec2 m_moveDir;
@@ -567,6 +569,8 @@ struct TSPlayer : TSCharacter
 	TextureHandle m_tex_cursor;
 	ParticleSystem m_shootPS;
 	float m_shootTimeout;
+	float m_crouchIconShowTimeout;
+	float m_standIconShowTimeout;
 	
 	TSPlayer( const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );

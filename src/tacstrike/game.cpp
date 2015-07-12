@@ -398,6 +398,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	bool OnInitialize()
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
+		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf" );
 		GR2D_LoadSVGIconFont( "tsicons", "ui/tsicons.svf" );
 		GR2D_SetFont( "core", 12 );
 		
