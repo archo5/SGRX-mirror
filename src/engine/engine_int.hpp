@@ -316,6 +316,18 @@ inline Hash HashVar( const FontRenderer::CacheKey& ck )
 #endif
 
 
+struct SGRX_Joystick : SGRX_RCRsrc
+{
+	SGRX_Joystick( int which );
+	~SGRX_Joystick();
+	
+	int m_id;
+	SDLSTRUCT SDL_Joystick* m_joystick;
+	SDLSTRUCT SDL_GameController* m_gamectrl;
+};
+typedef Handle< SGRX_Joystick > JoystickHandle;
+
+
 struct ActionMap
 {
 	typedef HashTable< StringView, Command* > NameCmdMap;

@@ -4,6 +4,9 @@
 #include "level.hpp"
 
 
+extern Vec2 CURSOR_POS;
+
+
 Trigger::Trigger( const StringView& fn, const StringView& tgt, bool once, bool laststate ) :
 	m_func( fn ), m_target( tgt ), m_once( once ), m_done( false ), m_lastState( laststate ), m_currState( false )
 {
@@ -239,7 +242,7 @@ PickupItem::PickupItem( const StringView& id, const StringView& name, int count,
 
 void PickupItem::OnEvent( const StringView& type )
 {
-	if( type == "trigger_switch" && g_GameLevel->m_player )
+	if( ( type == "trigger_switch" || type == "action_end" ) && g_GameLevel->m_player )
 	{
 		g_GameLevel->m_player->AddItem( m_name, m_count );
 		g_GameLevel->m_infoEmitters.RemoveEmitter( this );
@@ -273,7 +276,7 @@ Actionable::Actionable( const StringView& name, const StringView& mesh,
 	m_info.timeEstimate = 0.5f;
 	m_info.timeActual = 0.5f;
 	
-//	m_name = id;
+	m_name = name;
 	m_viewName = name;
 	m_meshInst = g_GameLevel->m_scene->CreateMeshInstance();
 	m_meshInst->dynamic = 1;
@@ -286,17 +289,44 @@ Actionable::Actionable( const StringView& name, const StringView& mesh,
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_InteractiveItem };
 	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	
+	g_GameLevel->MapEntityByName( this );
 }
 
 void Actionable::OnEvent( const StringView& type )
 {
-	// TODO call script function
+	if( type == "action_start" )
+	{
+		// start animation?
+	}
+	else if( type == "action_end" )
+	{
+		// end animation?
+		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
+		g_GameLevel->m_scriptCtx.Push( m_name );
+		if( m_onSuccess.call( 1, 1 ) )
+		{
+			bool keep = sgsVariable( g_GameLevel->m_scriptCtx.C, -1 ).get<bool>();
+			if( keep == false )
+			{
+				g_GameLevel->m_infoEmitters.RemoveEmitter( this );
+			}
+		}
+	}
 }
 
 bool Actionable::GetInteractionInfo( Vec3 pos, InteractInfo* out )
 {
 	*out = m_info;
 	return true;
+}
+
+void Actionable::SetProperty( const StringView& name, sgsVariable value )
+{
+	if( name == "viewName" ) m_viewName = value.get<String>();
+	else if( name == "timeEstimate" ) m_info.timeEstimate = value.get<float>();
+	else if( name == "timeActual" ) m_info.timeActual = value.get<float>();
+	else if( name == "callback" ) m_onSuccess = value;
 }
 
 
@@ -585,16 +615,17 @@ void TSCharacter::FixedTick( float deltaTime )
 			if( pp < 0.01f && 0.01f <= cp )
 			{
 				m_anMainPlayer.Play( GR_GetAnim( "kneeling" ) );
+				m_actState.target->OnEvent( "action_start" );
 			}
-			if( pp < 0.5f && 0.5f <= cp )
-			{
-				m_actState.target->OnEvent( "trigger_switch" );
-			}
+		//	if( pp < 0.5f && 0.5f <= cp )
+		//	{
+		//	}
 			
 			m_actState.progress = cp;
 			if( m_actState.progress >= m_actState.info.timeActual )
 			{
 				// end of action
+				m_actState.target->OnEvent( "action_end" );
 				m_actState.timeoutEnding = IA_NEEDS_LONG_END( m_actState.info.type ) ? 1 : 0;
 			}
 		}
@@ -899,7 +930,11 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 
 void TSPlayer::FixedTick( float deltaTime )
 {
-	i_move = V2( MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value );
+	i_move = V2
+	(
+		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
+		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
+	);
 	i_aim_target = FindTargetPosition();
 //	i_crouch = CROUCH.value;
 	
@@ -958,7 +993,7 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	m_position = pos;
 	
 	float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
-	Vec2 cursor_pos = Game_GetCursorPos();
+	Vec2 cursor_pos = CURSOR_POS;
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
@@ -985,7 +1020,7 @@ void TSPlayer::DrawUI()
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
-	Vec2 cursor_pos = Game_GetCursorPos();
+	Vec2 cursor_pos = CURSOR_POS;
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	
@@ -1054,7 +1089,7 @@ void TSPlayer::DrawUI()
 Vec3 TSPlayer::FindTargetPosition()
 {
 	Vec3 crpos, crdir;
-	Vec2 crsp = Game_GetCursorPosNormalized();
+	Vec2 crsp = CURSOR_POS / Game_GetScreenSize();
 	g_GameLevel->m_scene->camera.GetCursorRay( crsp.x, crsp.y, crpos, crdir );
 	Vec3 crtgt = crpos + crdir * 100;
 	

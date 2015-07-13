@@ -18,6 +18,10 @@ Command MOVE_LEFT( "move_left" );
 Command MOVE_RIGHT( "move_right" );
 Command MOVE_UP( "move_up" );
 Command MOVE_DOWN( "move_down" );
+Command MOVE_X( "move_x" );
+Command MOVE_Y( "move_y" );
+Command AIM_X( "aim_x" );
+Command AIM_Y( "aim_y" );
 Command SHOOT( "shoot" );
 Command RELOAD( "reload" );
 Command SLOW_WALK( "slow_walk" );
@@ -25,6 +29,7 @@ Command SPRINT( "sprint" );
 Command CROUCH( "crouch" );
 Command SHOW_OBJECTIVES( "show_objectives" );
 Command DO_ACTION( "do_action" );
+Vec2 CURSOR_POS = V2(0);
 
 
 SGRX_RenderPass g_RenderPasses_Main[] =
@@ -434,6 +439,15 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindKeyToAction( SDLK_LCTRL, &CROUCH );
 		Game_BindKeyToAction( SDLK_SPACE, &DO_ACTION );
 		
+		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_LEFTX, &MOVE_X );
+		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_LEFTY, &MOVE_Y );
+		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_RIGHTX, &AIM_X );
+		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_RIGHTY, &AIM_Y );
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, &SHOOT );
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_Y, &RELOAD );
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_A, &CROUCH );
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &DO_ACTION );
+		
 		g_GameLevel = new GameLevel();
 		
 		Game_AddOverlayScreen( &g_SplashScreen );
@@ -506,6 +520,14 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		g_PhyWorld = NULL;
 		g_SoundSys = NULL;
+	}
+	
+	void OnEvent( const Event& e )
+	{
+		if( e.type == SDL_MOUSEMOTION )
+		{
+			CURSOR_POS = Game_GetCursorPos();
+		}
 	}
 	
 	void Game_FixedTick( float dt )
@@ -583,6 +605,10 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	
 	void OnTick( float dt, uint32_t gametime )
 	{
+		CURSOR_POS += V2( AIM_X.value, AIM_Y.value ) * TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.03f;
+		CURSOR_POS.x = clamp( CURSOR_POS.x, 0, GR_GetWidth() );
+		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
+		
 		g_SoundSys->Update();
 		
 		if( dt > MAX_TICK_SIZE )

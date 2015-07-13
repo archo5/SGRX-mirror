@@ -4,10 +4,13 @@
 #ifdef INCLUDE_REAL_SDL
 #  include <SDL2/SDL.h>
 #  include <SDL2/SDL_syswm.h>
+#  define SDLSTRUCT
 #elif defined NO_SDL
 struct SDL_Event;
+#  define SDLSTRUCT struct
 #else
 #  include "sdl_events_min.h"
+#  define SDLSTRUCT struct
 #endif
 #include "utils.hpp"
 
@@ -25,7 +28,7 @@ typedef SDL_Event Event;
 
 struct Command
 {
-	Command( const StringView& sv, float thr = 0.1f ) :
+	Command( const StringView& sv, float thr = 0.25f ) :
 		name(sv),
 		threshold(thr),
 		value(0), prev_value(0),
@@ -64,10 +67,14 @@ typedef uint64_t ActionInput;
 #define ACTINPUT_UNASSIGNED 0
 #define ACTINPUT_KEY 1
 #define ACTINPUT_MOUSE 2
-#define ACTINPUT_JOYSTICK0 3
+#define ACTINPUT_GAMEPAD 3
+#define ACTINPUT_TYPE_BUTTON 0x0000
+#define ACTINPUT_TYPE_AXIS 0x2000
 #define ACTINPUT_MAKE( type, val ) (((uint64_t)(type)<<32ull)|(val))
 #define ACTINPUT_MAKE_KEY( val ) ACTINPUT_MAKE( ACTINPUT_KEY, val )
 #define ACTINPUT_MAKE_MOUSE( val ) ACTINPUT_MAKE( ACTINPUT_MOUSE, val )
+#define ACTINPUT_MAKE_GPADBTN( val ) ACTINPUT_MAKE( ACTINPUT_GAMEPAD, ACTINPUT_TYPE_BUTTON + val )
+#define ACTINPUT_MAKE_GPADAXIS( val ) ACTINPUT_MAKE( ACTINPUT_GAMEPAD, ACTINPUT_TYPE_AXIS + val )
 #define ACTINPUT_GET_TYPE( iid ) (((iid)>>32ull)&0xffffffff)
 #define ACTINPUT_GET_VALUE( iid ) ((iid)&0xffffffff)
 
@@ -77,6 +84,10 @@ ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
 ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, Command* cmd );
 ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, const StringView& cmd );
+ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, Command* cmd );
+ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, const StringView& cmd );
+ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, Command* cmd );
+ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, const StringView& cmd );
 ENGINE_EXPORT ActionInput Game_GetActionBinding( Command* cmd );
 ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, Command* cmd );
 ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );

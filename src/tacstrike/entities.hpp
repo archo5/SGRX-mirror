@@ -111,10 +111,12 @@ struct Actionable : Entity
 {
 	MeshInstHandle m_meshInst;
 	InteractInfo m_info;
+	sgsVariable m_onSuccess;
 	
 	Actionable( const StringView& name, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir );
 	virtual void OnEvent( const StringView& type );
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
+	virtual void SetProperty( const StringView& name, sgsVariable value );
 };
 
 

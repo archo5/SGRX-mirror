@@ -78,7 +78,7 @@ static int EnemyDefine( SGS_CTX )
 	String name = sgs_GetVar<String>()( C, 0 );
 	Enemy* enemy = (Enemy*) g_GameLevel->FindEntityByName( name );
 	if( !enemy )
-		return sgs_Msg( C, SGS_WARNING, "failed to find enemy entity: %.*s", (int) name.size(), name.data() );
+		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
 	if( strcmp( enemy->m_typeName, "enemy" ) != 0 )
 		return sgs_Msg( C, SGS_WARNING, "found entity is not 'enemy': %.*s", (int) name.size(), name.data() );
 	LD32ParseTaskArray( enemy->m_patrolTasks, sgs_GetVar<sgsVariable>()( C, 1 ) );
@@ -96,9 +96,9 @@ static int EntitySetProperties( SGS_CTX )
 {
 	SGSFN( "EntitySetProperties" );
 	String name = sgs_GetVar<String>()( C, 0 );
-	Entity* E = (Entity*) g_GameLevel->FindEntityByName( name );
+	Entity* E = g_GameLevel->FindEntityByName( name );
 	if( !E )
-		return sgs_Msg( C, SGS_WARNING, "failed to find enemy entity: %.*s", (int) name.size(), name.data() );
+		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
 	sgs_StkIdx ssz = sgs_StackSize( C );
 	for( sgs_StkIdx i = 1; i + 1 < ssz; i += 2 )
 	{

@@ -63,6 +63,7 @@ typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
 typedef HashTable< StringView, FontHandle > FontHashTable;
+typedef HashTable< int, JoystickHandle > JoystickHashTable;
 
 static String g_GameLibName = "game";
 static String g_GameDir = ".";
@@ -100,6 +101,7 @@ static VertexDeclHashTable* g_VertexDecls = NULL;
 static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
 static FontHashTable* g_LoadedFonts = NULL;
+static JoystickHashTable* g_Joysticks = NULL;
 
 
 
@@ -125,14 +127,32 @@ bool Window_SetClipboardText( const StringView& text )
 
 
 
+SGRX_Joystick::SGRX_Joystick( int which ) : m_id( which ), m_gamectrl( NULL )
+{
+	m_joystick = SDL_JoystickOpen( which );
+	if( SDL_IsGameController( which ) )
+		m_gamectrl = SDL_GameControllerOpen( which );
+}
+
+SGRX_Joystick::~SGRX_Joystick()
+{
+	if( m_gamectrl )
+		SDL_GameControllerClose( m_gamectrl );
+	if( m_joystick )
+		SDL_JoystickClose( m_joystick );
+}
+
+
+
 //
 // GAME SYSTEMS
 //
 
 void Command::_SetState( float x )
 {
-	value = x;
-	state = x >= threshold;
+	x = clamp( x, -1, 1 );
+	state = fabsf( x ) >= threshold;
+	value = state ? x : 0;
 }
 
 void Command::_Advance()
@@ -169,6 +189,26 @@ void Game_BindMouseButtonToAction( int btn, Command* cmd )
 void Game_BindMouseButtonToAction( int btn, const StringView& cmd )
 {
 	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), cmd );
+}
+
+void Game_BindGamepadButtonToAction( int btn, Command* cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_GPADBTN( btn ), cmd );
+}
+
+void Game_BindGamepadButtonToAction( int btn, const StringView& cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_GPADBTN( btn ), cmd );
+}
+
+void Game_BindGamepadAxisToAction( int axis, Command* cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_GPADAXIS( axis ), cmd );
+}
+
+void Game_BindGamepadAxisToAction( int axis, const StringView& cmd )
+{
+	g_ActionMap->Map( ACTINPUT_MAKE_GPADAXIS( axis ), cmd );
 }
 
 ActionInput Game_GetActionBinding( Command* cmd )
@@ -216,7 +256,7 @@ StringView Game_GetInputName( ActionInput iid )
 		case SGRX_MB_X2: return "X2 mouse button";
 		}
 		return "<Unknown mouse btn.>";
-	case ACTINPUT_JOYSTICK0:
+	case ACTINPUT_GAMEPAD:
 		return "<Unknown ctrl. input>";
 	}
 	return "<Unknown input>";
@@ -295,10 +335,18 @@ static void process_overlay_screens( float dt )
 	}
 }
 
+inline float ctrldeadzone( float x, float deadzone )
+{
+	x = clamp( x / 32767.0f, -1, 1 );
+	float sgn = sign( x );
+	float dst = fabsf( x );
+	if( dst < deadzone )
+		dst = 0;
+	return sgn * dst;
+}
+
 void Game_OnEvent( const Event& e )
 {
-	g_Game->OnEvent( e );
-	
 	if( e.type == SDL_WINDOWEVENT )
 	{
 		switch( e.window.event )
@@ -310,11 +358,22 @@ void Game_OnEvent( const Event& e )
 		}
 	}
 	
+	if( e.type == SDL_CONTROLLERDEVICEADDED )
+	{
+		g_Joysticks->set( e.cdevice.which, new SGRX_Joystick( e.cdevice.which ) );
+	}
+	else if( e.type == SDL_CONTROLLERDEVICEREMOVED )
+	{
+		g_Joysticks->unset( e.cdevice.which );
+	}
+	
 	if( e.type == SDL_MOUSEMOTION )
 	{
 		g_CursorPos.x = e.motion.x;
 		g_CursorPos.y = e.motion.y;
 	}
+	
+	g_Game->OnEvent( e );
 	
 	for( size_t i = g_OverlayScreens.size(); i > 0; )
 	{
@@ -322,6 +381,19 @@ void Game_OnEvent( const Event& e )
 		IScreen* screen = g_OverlayScreens[ i ];
 		if( screen->OnEvent( e ) )
 			return; // event inhibited
+	}
+	
+	if( e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_CONTROLLERBUTTONUP )
+	{
+		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADBTN( e.cbutton.button ) );
+		if( cmd )
+			cmd->_SetState( e.cbutton.state );
+	}
+	else if( e.type == SDL_CONTROLLERAXISMOTION )
+	{
+		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADAXIS( e.caxis.axis ) );
+		if( cmd )
+			cmd->_SetState( e.caxis.value / 32767.0f );
 	}
 	
 	if( e.type == SDL_KEYDOWN || e.type == SDL_KEYUP )
@@ -2471,6 +2543,7 @@ static int init_graphics()
 	g_Meshes = new MeshHashTable();
 	g_Anims = new AnimHashTable();
 	g_LoadedFonts = new FontHashTable();
+	g_Joysticks = new JoystickHashTable();
 	LOG << LOG_DATE << "  Created renderer resource caches";
 	
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
@@ -2500,6 +2573,9 @@ static void free_graphics()
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;
+	
+	delete g_Joysticks;
+	g_Joysticks = NULL;
 	
 	delete g_LoadedFonts;
 	g_LoadedFonts = NULL;
@@ -2694,6 +2770,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		LOG_ERROR << "Couldn't initialize SDL: " << SDL_GetError();
 		return 15;
 	}
+	SDL_JoystickEventState( SDL_ENABLE );
 	
 	g_ActionMap = new ActionMap;
 	
@@ -2737,6 +2814,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	while( g_Running )
 	{
 		g_ActionMap->Advance();
+		SDL_JoystickUpdate();
 		while( SDL_PollEvent( &event ) )
 		{
 			if( event.type == SDL_QUIT )
