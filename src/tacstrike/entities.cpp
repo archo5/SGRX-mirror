@@ -642,19 +642,23 @@ void TSCharacter::FixedTick( float deltaTime )
 	else
 	{
 		// animate character
-		const char* animname = "run";
+		const char* anim_stand = i_crouch ? "crouch" : "stand_with_gun_up";
+		const char* anim_run_fw = i_crouch ? "crouch_walk" : "run";
+		const char* anim_run_bw = i_crouch ? "crouch_walk_bw" : "run_bw";
+		
+		const char* animname = anim_run_fw;
 		Vec2 md = i_move.Normalized();
 		if( Vec2Dot( md, GetAimDir().ToVec2() ) < 0 )
 		{
 			md = -md;
-			animname = "run_bw";
+			animname = anim_run_bw;
 		}
 		if( i_move.Length() > 0.1f )
 		{
 			TurnTo( md, deltaTime * 8 );
 		}
 		
-		m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : "stand_with_gun_up" ), false, 0.2f );
+		m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : anim_stand ), false, 0.2f );
 	}
 	
 	HandleMovementPhysics( deltaTime );

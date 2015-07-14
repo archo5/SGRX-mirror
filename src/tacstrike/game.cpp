@@ -20,8 +20,8 @@ Command MOVE_UP( "move_up" );
 Command MOVE_DOWN( "move_down" );
 Command MOVE_X( "move_x" );
 Command MOVE_Y( "move_y" );
-Command AIM_X( "aim_x" );
-Command AIM_Y( "aim_y" );
+Command AIM_X( "aim_x", 0 );
+Command AIM_Y( "aim_y", 0 );
 Command SHOOT( "shoot" );
 Command RELOAD( "reload" );
 Command SLOW_WALK( "slow_walk" );
@@ -528,6 +528,13 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		{
 			CURSOR_POS = Game_GetCursorPos();
 		}
+		else if( e.type == SDL_CONTROLLERAXISMOTION )
+		{
+			float rad = TMAX( GR_GetWidth(), GR_GetHeight() ) * 0.5f;
+			Vec2 off = V2( AIM_X.value, AIM_Y.value );
+			if( off.Length() > 0.1f )
+				CURSOR_POS = Game_GetScreenSize() * 0.5f + off * rad;
+		}
 	}
 	
 	void Game_FixedTick( float dt )
@@ -605,7 +612,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	
 	void OnTick( float dt, uint32_t gametime )
 	{
-		CURSOR_POS += V2( AIM_X.value, AIM_Y.value ) * TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.03f;
+	//	CURSOR_POS += V2( AIM_X.value, AIM_Y.value ) * TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.03f;
 		CURSOR_POS.x = clamp( CURSOR_POS.x, 0, GR_GetWidth() );
 		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
 		
