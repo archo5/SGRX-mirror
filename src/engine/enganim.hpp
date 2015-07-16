@@ -719,7 +719,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 		gravity(V3(0,0,-10)), maxGroupCount(10), looping(true),
 		retriggerTimeExt(V2(1,0.1f)),
 		m_isPlaying(false), m_retriggerTime(0), m_nextGroup(0),
-		m_transform(Mat4::Identity), m_lightSampler(this)
+		m_transform(Mat4::Identity), m_lightSampler(NULL)
 	{}
 	
 	template< class T > void Serialize( T& arch, bool incl_state )

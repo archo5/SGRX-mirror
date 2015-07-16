@@ -366,10 +366,10 @@ struct EdEmitter : EDGUILayoutRow
 		grpVelocity( false, "Initial velocity" ),
 		create_VelMicroDir( V3(0), 2, V3(-MAX_NORMAL), V3(MAX_NORMAL) ),
 		create_VelMicroDvg( 0, 2, 0, 1 ),
-		create_VelMicroDistExt( V2(0), 2, V2(0), V2(MAX_VEL) ),
+		create_VelMicroDistExt( V2(0), 2, V2(-MAX_VEL), V2(MAX_VEL) ),
 		create_VelMacroDir( V3(0), 2, V3(-MAX_NORMAL), V3(MAX_NORMAL) ),
 		create_VelMacroDvg( 0, 2, 0, 1 ),
-		create_VelMacroDistExt( V2(0), 2, V2(0), V2(MAX_VEL) ),
+		create_VelMacroDistExt( V2(0), 2, V2(-MAX_VEL), V2(MAX_VEL) ),
 		create_VelCluster( 0, 0, MAX_PARTICLES ),
 		create_VelClusterExt( 0, 0, MAX_PARTICLES ),
 		

@@ -411,8 +411,7 @@ void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMe
 				decalID = mtl->decalIDs[ rand() % mtl->decalIDs.size() ];
 			
 			// particles
-			Mat4 tf = Mat4::CreateScale( V3(0.2f) )
-				* Mat4::CreateRotationZ( randf() * M_PI * 2 )
+			Mat4 tf = Mat4::CreateRotationZ( randf() * M_PI * 2 )
 				* Mat4::CreateRotationBetweenVectors( V3(0,0,1), nrm )
 				* Mat4::CreateTranslation( pos );
 			mtl->particles.SetTransform( tf );
@@ -444,7 +443,10 @@ struct DmgSys_GenBlood : IProcessor
 	void Process( void* data )
 	{
 		SGRX_CAST( SGRX_MeshInstance*, MI, data );
-		if( MI->mesh == NULL || MI->raycastOverride || MI->skin_matrices.size() )
+		if( MI->mesh == NULL ||
+			MI->raycastOverride ||
+			MI->skin_matrices.size() ||
+			MI->decal )
 			return;
 		DS->m_bloodDecalSys.AddDecal( decalID, MI->mesh, MI->matrix, &projInfo );
 	}

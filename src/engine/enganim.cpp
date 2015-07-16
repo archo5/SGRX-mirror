@@ -777,7 +777,7 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt, const Vec3& ac
 	{
 		uint16_t group = PS->maxGroupCount;
 		PS->m_groups.resize( group + 1 );
-		PS->m_lightSampler->SampleLight(
+		( PS->m_lightSampler ? PS->m_lightSampler : PS )->SampleLight(
 			mtx.TransformPos( V3(0) ), PS->m_groups[ group ].color );
 		
 		state_SpawnCurrTime = clamp( state_SpawnCurrTime + dt, 0, state_SpawnTotalTime );
@@ -1198,7 +1198,8 @@ void ParticleSystem::Trigger()
 	uint16_t group = m_nextGroup++;
 	m_nextGroup %= maxGroupCount;
 	// TODO: pick more accurate position
-	m_lightSampler->SampleLight( m_transform.TransformPos( V3(0) ), m_groups[ group ].color );
+	( m_lightSampler ? m_lightSampler : this )->SampleLight(
+		m_transform.TransformPos( V3(0) ), m_groups[ group ].color );
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
 		emitters[ i ].Trigger( m_transform, group );
