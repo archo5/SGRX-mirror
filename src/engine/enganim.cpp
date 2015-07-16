@@ -771,15 +771,20 @@ void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCa
 
 
 
-void ParticleSystem::Emitter::Tick( float dt, const Vec3& accel, const Mat4& mtx )
+void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt, const Vec3& accel, const Mat4& mtx )
 {
 	if( state_SpawnCurrCount < state_SpawnTotalCount )
 	{
+		uint16_t group = PS->maxGroupCount;
+		PS->m_groups.resize( group + 1 );
+		PS->m_lightSampler->SampleLight(
+			mtx.TransformPos( V3(0) ), PS->m_groups[ group ].color );
+		
 		state_SpawnCurrTime = clamp( state_SpawnCurrTime + dt, 0, state_SpawnTotalTime );
 		int currcount = state_SpawnCurrTime / state_SpawnTotalTime * state_SpawnTotalCount;
 		if( state_SpawnCurrCount < currcount )
 		{
-			Generate( currcount - state_SpawnCurrCount, mtx );
+			Generate( currcount - state_SpawnCurrCount, mtx, group );
 			state_SpawnCurrCount = currcount;
 		}
 	}
@@ -837,7 +842,7 @@ static FINLINE int randi( int x )
 	return rand() % x;
 }
 
-void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
+void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx, uint16_t group )
 {
 	Vec3 velMicroDir = create_VelMicroDir.Normalized();
 	Vec3 velMacroDir = create_VelMacroDir.Normalized();
@@ -903,6 +908,7 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 			particles_Lifetime.push_back( LTV );
 			particles_RandSizeAngVel.push_back( randSAV );
 			particles_RandColor.push_back( randHSVO );
+			particles_Group.push_back( group );
 		}
 		else
 		{
@@ -912,11 +918,12 @@ void ParticleSystem::Emitter::Generate( int count, const Mat4& mtx )
 			particles_Lifetime[ i ] = LTV;
 			particles_RandSizeAngVel[ i ] = randSAV;
 			particles_RandColor[ i ] = randHSVO;
+			particles_Group[ i ] = group;
 		}
 	}
 }
 
-void ParticleSystem::Emitter::Trigger( const Mat4& mtx )
+void ParticleSystem::Emitter::Trigger( const Mat4& mtx, uint16_t group )
 {
 	state_SpawnTotalCount = spawn_Count + randi( spawn_CountExt );
 	state_SpawnCurrCount = 0;
@@ -924,19 +931,19 @@ void ParticleSystem::Emitter::Trigger( const Mat4& mtx )
 	state_SpawnCurrTime = 0;
 	if( state_SpawnTotalTime == 0 )
 	{
-		Generate( state_SpawnTotalCount, mtx );
+		Generate( state_SpawnTotalCount, mtx, group );
 		state_SpawnCurrCount += state_SpawnTotalCount;
 	}
 }
 
 
-void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint16_t >& indices, ps_prerender_info& info )
+void ParticleSystem::Emitter::PreRender( ParticleSystem* PS, ps_prerender_info& info )
 {
 	const Vec3 S_X = info.basis[0];
 	const Vec3 S_Y = info.basis[1];
 	const Vec3 S_Z = info.basis[2];
 	
-	size_t bv = vertices.size();
+	size_t bv = PS->m_vertices.size();
 	
 	for( size_t i = 0; i < particles_Position.size(); ++i )
 	{
@@ -946,6 +953,7 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 		Vec2 LFT = particles_Lifetime[ i ];
 		Vec3 SAV = particles_RandSizeAngVel[ i ];
 		Vec4 RCO = particles_RandColor[ i ];
+		uint16_t GRP = particles_Group[ i ];
 		
 		if( absolute == false )
 		{
@@ -970,17 +978,25 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 			curve_Opacity.GetValue( q, RCO.w )
 		);
 		
+		if( render_Additive == false )
+		{
+			Vec3 color = PS->m_groups[ GRP ].color;
+			COL.x *= color.x;
+			COL.y *= color.y;
+			COL.z *= color.z;
+		}
+		
 		// step 3: generate vertex/index data
 		if( render_Stretch )
 		{
-			uint16_t cv = vertices.size() - bv;
+			uint16_t cv = PS->m_vertices.size() - bv;
 			uint16_t idcs[18] =
 			{
 				cv+0, cv+2, cv+3, cv+3, cv+1, cv+0,
 				cv+2, cv+4, cv+5, cv+5, cv+3, cv+2,
 				cv+4, cv+6, cv+7, cv+7, cv+5, cv+4,
 			};
-			indices.append( idcs, 18 );
+			PS->m_indices.append( idcs, 18 );
 			
 			Vec3 P_2 = POS - VEL * state_lastDelta;
 			
@@ -1003,13 +1019,13 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 				{ POS + ( +D_X -D_Y ) * SIZ, COL, 255,   0, 0 },
 				{ POS + ( +D_X +D_Y ) * SIZ, COL, 255, 255, 0 },
 			};
-			vertices.append( verts, 8 );
+			PS->m_vertices.append( verts, 8 );
 		}
 		else
 		{
-			uint16_t cv = vertices.size() - bv;
+			uint16_t cv = PS->m_vertices.size() - bv;
 			uint16_t idcs[6] = { cv, cv+1, cv+2, cv+2, cv+3, cv };
-			indices.append( idcs, 6 );
+			PS->m_indices.append( idcs, 6 );
 			
 			float ang = M_PI + ANG;
 			Vec3 RSX = _ps_rotate( S_X, S_Z, ang );
@@ -1022,7 +1038,7 @@ void ParticleSystem::Emitter::PreRender( Array< Vertex >& vertices, Array< uint1
 				{ POS + ( +RSX +RSY ) * SIZ, COL, 255, 255, 0 },
 				{ POS + ( -RSX +RSY ) * SIZ, COL,   0, 255, 0 },
 			};
-			vertices.append( verts, 4 );
+			PS->m_vertices.append( verts, 4 );
 		}
 	}
 }
@@ -1115,7 +1131,7 @@ bool ParticleSystem::Tick( float dt )
 	
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
-		emitters[ i ].Tick( dt, gravity, m_transform );
+		emitters[ i ].Tick( this, dt, gravity, m_transform );
 	}
 	return retval;
 }
@@ -1152,7 +1168,7 @@ void ParticleSystem::PreRender()
 		MP.vertexOffset = 0;
 		MP.indexOffset = 0;
 		
-		emitters[ i ].PreRender( m_vertices, m_indices, info );
+		emitters[ i ].PreRender( this, info );
 		
 		MP.vertexCount = m_vertices.size();
 		MP.indexCount = m_indices.size();
@@ -1178,9 +1194,14 @@ void ParticleSystem::PreRender()
 
 void ParticleSystem::Trigger()
 {
+	m_groups.resize( maxGroupCount + 1 );
+	uint16_t group = m_nextGroup++;
+	m_nextGroup %= maxGroupCount;
+	// TODO: pick more accurate position
+	m_lightSampler->SampleLight( m_transform.TransformPos( V3(0) ), m_groups[ group ].color );
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
-		emitters[ i ].Trigger( m_transform );
+		emitters[ i ].Trigger( m_transform, group );
 	}
 }
 

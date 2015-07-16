@@ -462,14 +462,19 @@ struct TSCamera : Entity
 	AnimMixer::Layer m_anLayers[1];
 	int m_viewAttachmentID;
 	
+	bool m_playerVisible;
+	YawPitch m_lastSeenPlayerDir;
 	YawPitch m_curDir;
 	float m_timeout;
 	int m_state;
+	float m_alertTimeout;
+	float m_noticeTimeout;
 	
 	YawPitch m_dir0;
 	YawPitch m_dir1;
 	float m_moveTime;
 	float m_pauseTime;
+	float m_fov;
 };
 
 extern Command DO_ACTION;

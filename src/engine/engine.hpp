@@ -848,7 +848,7 @@ struct SGRX_SceneTree
 	Array< Item > items;
 };
 
-struct IF_GCC(ENGINE_EXPORT) LightTree
+struct IF_GCC(ENGINE_EXPORT) SGRX_LightTree
 {
 	struct Colors
 	{
@@ -877,6 +877,26 @@ struct IF_GCC(ENGINE_EXPORT) LightTree
 	// BVH
 	Array< Node > m_nodes;
 	Array< int32_t > m_sampidx; // format: <count> [ <tri> x count ], ...
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_LightSampler
+{
+	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3& outcolor );
+	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] ) = 0;
+	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor );
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_DummyLightSampler : SGRX_LightSampler
+{
+	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3& outcolor );
+	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] );
+	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor );
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_LightTreeSampler : SGRX_LightSampler
+{
+	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] );
+	SGRX_LightTree* m_lightTree;
 };
 
 /* render pass constants */
@@ -1000,6 +1020,20 @@ struct BatchRenderer
 	Mat4 worldMatrix;
 	Mat4 viewMatrix;
 	Mat4 invMatrix;
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_LineSet
+{
+	struct Point
+	{
+		Vec3 pos;
+		uint32_t color;
+	};
+	
+	ENGINE_EXPORT void DrawLine( const Vec3& p1, const Vec3& p2, uint32_t col = COLOR_RGB(255,0,0) );
+	ENGINE_EXPORT void Flush();
+	
+	Array< Point > m_lines;
 };
 
 struct ENGINE_EXPORT SGRX_PostDraw

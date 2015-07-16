@@ -200,7 +200,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 
 struct _LightTree_SortIndices_Data
 {
-	LightTree* LT;
+	SGRX_LightTree* LT;
 	Vec3 splitnrm;
 };
 
@@ -215,10 +215,10 @@ int _LightTree_SortIndices( const void* A, const void* B, void* UD )
 	return dot_a == dot_b ? 0 : ( dot_a < dot_b ? -1 : 1 );
 }
 
-void _LightTree_MakeNode( LightTree* LT, int32_t node,
+void _LightTree_MakeNode( SGRX_LightTree* LT, int32_t node,
                           int32_t* sampidx_data, size_t sampidx_count, int depth )
 {
-	LightTree::Node& N = LT->m_nodes[ node ];
+	SGRX_LightTree::Node& N = LT->m_nodes[ node ];
 	
 	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
 	for( size_t i = 0; i < sampidx_count; ++i )
@@ -252,8 +252,8 @@ void _LightTree_MakeNode( LightTree* LT, int32_t node,
 		size_t mid = sampidx_count / 2;
 		
 		// -- DO NOT TOUCH <N> ANYMORE --
-		LT->m_nodes.push_back( LightTree::Node() );
-		LT->m_nodes.push_back( LightTree::Node() );
+		LT->m_nodes.push_back( SGRX_LightTree::Node() );
+		LT->m_nodes.push_back( SGRX_LightTree::Node() );
 		_LightTree_MakeNode( LT, ch + 0, subsampidx.data(), mid, depth + 1 );
 		_LightTree_MakeNode( LT, ch + 1, &subsampidx[ mid ], sampidx_count - mid, depth + 1 );
 	}
@@ -267,10 +267,10 @@ void _LightTree_MakeNode( LightTree* LT, int32_t node,
 	}
 }
 
-void _LightTree_TestNode( LightTree* LT, int32_t node, const Vec3 qbb[3],
-                          LightTree::Colors* outaddcol, float* outaddwt )
+void _LightTree_TestNode( SGRX_LightTree* LT, int32_t node, const Vec3 qbb[3],
+                          SGRX_LightTree::Colors* outaddcol, float* outaddwt )
 {
-	LightTree::Node& N = LT->m_nodes[ node ];
+	SGRX_LightTree::Node& N = LT->m_nodes[ node ];
 	if( qbb[0].x > N.bbmax.x || qbb[1].x < N.bbmin.x ||
 		qbb[0].y > N.bbmax.y || qbb[1].y < N.bbmin.y ||
 		qbb[0].z > N.bbmax.z || qbb[1].z < N.bbmin.z )
@@ -299,7 +299,7 @@ void _LightTree_TestNode( LightTree* LT, int32_t node, const Vec3 qbb[3],
 	}
 }
 
-void LightTree::SetSamples( Sample* samples, size_t count )
+void SGRX_LightTree::SetSamples( Sample* samples, size_t count )
 {
 	m_pos.clear();
 	m_colors.clear();
@@ -327,7 +327,7 @@ void LightTree::SetSamples( Sample* samples, size_t count )
 	_LightTree_MakeNode( this, 0, sampidx.data(), sampidx.size(), 0 );
 }
 
-void LightTree::GetColors( Vec3 pos, Colors* out )
+void SGRX_LightTree::GetColors( Vec3 pos, Colors* out )
 {
 	Vec3 qbb[3] =
 	{
@@ -352,6 +352,77 @@ void LightTree::GetColors( Vec3 pos, Colors* out )
 	
 	*out = col;
 }
+
+
+void SGRX_LightSampler::SampleLight( const Vec3& pos, Vec3& outcolor )
+{
+	Vec3 outcolors[6];
+	SampleLight( pos, outcolors );
+	Vec3 oc = V3(0);
+	for( int i = 0; i < 6; ++i )
+		oc += outcolors[ i ];
+	outcolor = oc / 6;
+}
+
+static const Vec3 LightSampler_Dir[6] =
+{
+	V3(1,0,0), V3(-1,0,0),
+	V3(0,1,0), V3(0,-1,0),
+	V3(0,0,1), V3(0,0,-1),
+};
+
+void SGRX_LightSampler::SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor )
+{
+	if( dir.NearZero() )
+	{
+		SampleLight( pos, outcolor );
+		return;
+	}
+	Vec3 outcolors[6];
+	SampleLight( pos, outcolors );
+	Vec3 oc = V3(0);
+	float sum = 0;
+	for( int i = 0; i < 6; ++i )
+	{
+		float factor = Vec3Dot( dir, LightSampler_Dir[ i ] );
+		oc += outcolors[ i ] * factor;
+		sum += factor;
+	}
+	outcolor = oc / sum;
+}
+
+void SGRX_DummyLightSampler::SampleLight( const Vec3& pos, Vec3& outcolor )
+{
+	outcolor = V3(1);
+}
+
+void SGRX_DummyLightSampler::SampleLight( const Vec3& pos, Vec3 outcolors[6] )
+{
+	for( int i = 0; i < 6; ++i )
+		outcolors[ i ] = V3(1);
+}
+
+void SGRX_DummyLightSampler::SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor )
+{
+	outcolor = V3(1);
+}
+
+void SGRX_LightTreeSampler::SampleLight( const Vec3& pos, Vec3 outcolors[6] )
+{
+	SGRX_LightTree::Colors cols;
+	if( m_lightTree )
+	{
+		m_lightTree->GetColors( pos, &cols );
+		for( int i = 0; i < 6; ++i )
+			outcolors[ i ] = cols.color[ i ];
+	}
+	else
+	{
+		for( int i = 0; i < 6; ++i )
+			outcolors[ i ] = V3(1);
+	}
+}
+
 
 
 
@@ -983,6 +1054,26 @@ void BatchRenderer::_RecalcMatrices()
 {
 	invMatrix = Mat4::Identity;
 	( worldMatrix * viewMatrix ).InvertTo( invMatrix );
+}
+
+
+void SGRX_LineSet::DrawLine( const Vec3& p1, const Vec3& p2, uint32_t col )
+{
+	Point pt1 = { p1, col };
+	Point pt2 = { p2, col };
+	m_lines.push_back( pt1 );
+	m_lines.push_back( pt2 );
+}
+
+void SGRX_LineSet::Flush()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().SetPrimitiveType( PT_Lines );
+	for( size_t i = 0; i < m_lines.size(); ++i )
+	{
+		br.Colu( m_lines[ i ].color ).Pos( m_lines[ i ].pos );
+	}
+	br.Flush();
+	m_lines.clear();
 }
 
 

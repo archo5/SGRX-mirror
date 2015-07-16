@@ -273,7 +273,7 @@ void FlareSystem::Draw( SGRX_Camera& cam )
 		Vec3 screenpos = cam.WorldToScreen( FD.pos );
 		if( Vec3Dot( FD.pos, cam.direction ) < Vec3Dot( cam.position, cam.direction ) )
 			continue;
-		if( g_PhyWorld->Raycast( FD.pos, cam.position, 1, 1 ) )
+		if( g_PhyWorld->Raycast( cam.position, FD.pos, 1, 1 ) )
 			continue;
 	//	LOG << screenpos.z;
 		float dx = cos(0.1f)*0.5f*sz * FD.size;
@@ -284,7 +284,7 @@ void FlareSystem::Draw( SGRX_Camera& cam )
 }
 
 
-const char* DamageSystem::Init( SceneHandle scene )
+const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 {
 	static char errbfr[ 350 ];
 	
@@ -342,6 +342,7 @@ const char* DamageSystem::Init( SceneHandle scene )
 					"data/damage.dat", TMIN( 250, (int) value.size() ), value.data() );
 				return( errbfr );
 			}
+			cur_mtl->particles.m_lightSampler = sampler;
 			cur_mtl->particles.AddToScene( scene );
 			continue;
 		}
@@ -424,7 +425,7 @@ void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMe
 		}
 	}
 	
-	if( decalID != -1 )
+	if( decalID != -1 && targetMesh )
 	{
 		DecalProjectionInfo projInfo =
 		{
@@ -443,7 +444,7 @@ struct DmgSys_GenBlood : IProcessor
 	void Process( void* data )
 	{
 		SGRX_CAST( SGRX_MeshInstance*, MI, data );
-		if( MI->mesh == NULL || MI->raycastOverride )
+		if( MI->mesh == NULL || MI->raycastOverride || MI->skin_matrices.size() )
 			return;
 		DS->m_bloodDecalSys.AddDecal( decalID, MI->mesh, MI->matrix, &projInfo );
 	}
@@ -524,8 +525,8 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 				// apply damage to hit point
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
 				m_damageSystem->AddBulletDamage( decalType,
-					HIT.meshinst->mesh, -1, HIT.meshinst->matrix,
-					hitpoint, B.dir, HIT.normal );
+					HIT.meshinst->skin_matrices.size() ? NULL : HIT.meshinst->mesh,
+					-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );
 				
 				// blood?
 				if( decalType == "*human*" )

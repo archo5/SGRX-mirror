@@ -412,6 +412,11 @@ void ParticleFX::OnEvent( const StringView& _type )
 #ifdef TSGAME
 
 
+#define MAGNUM_CAMERA_NOTICE_TIME 2
+#define MAGNUM_CAMERA_ALERT_TIME 5
+#define MAGNUM_CAMERA_VIEW_DIST 6.0f
+
+
 TSCamera::TSCamera(
 	const StringView& name,
 	const StringView& charname,
@@ -421,9 +426,12 @@ TSCamera::TSCamera(
 	const Vec3& dir0,
 	const Vec3& dir1
 ) :
+	m_playerVisible( false ), m_lastSeenPlayerDir( YP(0) ),
 	m_curDir( YP( dir0 ) ), m_timeout( 0 ), m_state( 0 ),
+	m_alertTimeout( 0 ), m_noticeTimeout( 0 ),
 	m_dir0( YP( dir0 ) ), m_dir1( YP( dir1 ) ),
-	m_moveTime( 3.0f ), m_pauseTime( 2.0f )
+	m_moveTime( 3.0f ), m_pauseTime( 2.0f ),
+	m_fov( 30.0f )
 {
 	m_name = name;
 	
@@ -450,32 +458,86 @@ TSCamera::TSCamera(
 
 void TSCamera::FixedTick( float deltaTime )
 {
-	switch( m_state )
+	m_playerVisible = false;
+	if( g_GameLevel->m_player )
 	{
-	case 0:
-	case 2: // move
-	{
-		YawPitch tgt = m_state == 2 ? m_dir1 : m_dir0;
-		m_curDir.TurnTo( tgt, YawPitchDist( m_dir0, m_dir1 ).Abs().Scaled( safe_fdiv( deltaTime, m_moveTime ) ) );
-		if( YawPitchAlmostEqual( m_curDir, tgt ) )
+		Vec3 ppos = g_GameLevel->m_player->GetPosition();
+		Mat4 viewmtx, originmtx, invviewmtx = Mat4::Identity, invoriginmtx = Mat4::Identity;
+		m_animChar.GetAttachmentMatrix( 0, viewmtx );
+		m_animChar.GetAttachmentMatrix( 1, originmtx );
+		viewmtx.InvertTo( invviewmtx );
+		originmtx.InvertTo( invoriginmtx );
+		
+		Vec3 viewpos = invviewmtx.TransformPos( ppos );
+		Vec3 viewdir = viewpos.Normalized();
+		float viewangle = acosf( clamp( Vec3Dot( viewdir, V3(1,0,0) ), -1, 1 ) );
+		if( viewpos.Length() < MAGNUM_CAMERA_VIEW_DIST && viewangle < DEG2RAD( m_fov ) )
 		{
-			m_state = ( m_state + 1 ) % 4;
-			m_timeout = m_pauseTime;
+			Vec3 viewpos = viewmtx.TransformPos( V3(0) );
+			bool isect = g_PhyWorld->Raycast( viewpos, ppos, 1, 1 );
+			if( isect == false )
+			{
+				Vec3 origindir = invoriginmtx.TransformPos( ppos ).Normalized();
+				m_playerVisible = true;
+				m_lastSeenPlayerDir = YP( origindir );
+			}
 		}
-		break;
-	}
-	case 1:
-	case 3: // wait
-		m_timeout -= deltaTime;
-		if( m_timeout <= 0 )
-		{
-			m_state = ( m_state + 1 ) % 4;
-		}
-		break;
 	}
 	
-	float f_turn_h = m_curDir.yaw / M_PI;
-	float f_turn_v = m_curDir.pitch / M_PI;
+	if( m_alertTimeout > 0 )
+	{
+		if( m_playerVisible )
+			m_alertTimeout = MAGNUM_CAMERA_ALERT_TIME;
+		else
+			m_alertTimeout -= deltaTime;
+		m_curDir.TurnTo( m_lastSeenPlayerDir, YP(deltaTime * 2) );
+	}
+	else if( m_playerVisible )
+	{
+		m_curDir.TurnTo( m_lastSeenPlayerDir, YP(deltaTime) );
+		m_noticeTimeout += deltaTime;
+		if( m_noticeTimeout > MAGNUM_CAMERA_NOTICE_TIME )
+		{
+			m_noticeTimeout = 0;
+			m_alertTimeout = MAGNUM_CAMERA_ALERT_TIME;
+		}
+	}
+	else if( m_noticeTimeout > 0 )
+	{
+		m_curDir.TurnTo( m_lastSeenPlayerDir, YP(deltaTime) );
+		m_noticeTimeout -= deltaTime;
+	}
+	else
+	{
+		switch( m_state )
+		{
+		case 0:
+		case 2: // move
+		{
+			YawPitch tgt = m_state == 2 ? m_dir1 : m_dir0;
+			YawPitch dst = YawPitchDist( m_dir0, m_dir1 ).Abs();
+			float fdst = TMAX( dst.yaw, dst.pitch ) * safe_fdiv( deltaTime, m_moveTime );
+			m_curDir.TurnTo( tgt, YP( fdst ) );
+			if( YawPitchAlmostEqual( m_curDir, tgt ) )
+			{
+				m_state = ( m_state + 1 ) % 4;
+				m_timeout = m_pauseTime;
+			}
+			break;
+		}
+		case 1:
+		case 3: // wait
+			m_timeout -= deltaTime;
+			if( m_timeout <= 0 )
+			{
+				m_state = ( m_state + 1 ) % 4;
+			}
+			break;
+		}
+	}
+	
+	float f_turn_h = clamp( normalize_angle2( m_curDir.yaw ), -M_PI * 0.4f, M_PI * 0.4f ) / M_PI;
+	float f_turn_v = clamp( normalize_angle2( m_curDir.pitch ), -M_PI * 0.25f, M_PI * 0.25f ) / M_PI;
 	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
 	{
 		AnimCharacter::Layer& L = m_animChar.layers[ i ];
@@ -496,9 +558,19 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 {
 	m_animChar.PreRender( blendFactor );
 	Mat4 mtx;
-	bool res = m_animChar.GetAttachmentMatrix( 2, mtx );
-	ASSERT( res && "TSCamera / GetAttachmentMatrix - bad char" );
-	FSFlare FD = { mtx.TransformPos( V3(0) ), V3( 0, 1, 0 ), 1, true };
+	m_animChar.GetAttachmentMatrix( 2, mtx );
+	
+	Vec3 color = V3(0,1,0);
+	if( m_alertTimeout > 0 )
+	{
+		color = V3(1,0,0);
+		if( m_playerVisible == false && fmodf( m_alertTimeout, 0.4f ) < 0.2f )
+			color = V3(0);
+	}
+	else if( m_noticeTimeout > 0 )
+		color = V3(1,1,0);
+	FSFlare FD = { mtx.TransformPos( V3(0) ), color, 1, true };
+	
 	g_GameLevel->m_flareSystem.UpdateFlare( this, FD );
 }
 
@@ -506,15 +578,19 @@ void TSCamera::SetProperty( const StringView& name, sgsVariable value )
 {
 	if( name == "moveTime" ) m_moveTime = value.get<float>();
 	else if( name == "pauseTime" ) m_pauseTime = value.get<float>();
+	else if( name == "fov" ) m_fov = value.get<float>();
 }
 
 bool TSCamera::GetMapItemInfo( MapItemInfo* out )
 {
 	Mat4 mtx;
-	bool res = m_animChar.GetAttachmentMatrix( 0, mtx );
-	ASSERT( res && "TSCamera / GetAttachmentMatrix - bad char" );
+	m_animChar.GetAttachmentMatrix( 0, mtx );
 	
-	out->type = MI_Object_Camera | MI_State_Normal;
+	out->type = MI_Object_Camera;
+	if( m_alertTimeout > 0 ) out->type |= MI_State_Alerted;
+	else if( m_noticeTimeout > 0 ) out->type |= MI_State_Suspicious;
+	else out->type |= MI_State_Normal;
+	
 	out->position = mtx.TransformPos( V3(0) );
 	out->direction = mtx.TransformNormal( V3(1,0,0) );
 	out->sizeFwd = 10;
@@ -717,12 +793,21 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	
 	Vec3 pos = m_bodyHandle->GetPosition();
 	
+	bool prevCrouch = m_isCrouching;
 	m_isCrouching = i_crouch;
 	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
 		g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
 	{
 		m_isCrouching = 1;
+	}
+	
+	if( prevCrouch != m_isCrouching )
+	{
+		float diff = prevCrouch - m_isCrouching;
+		Vec3 chg = V3( 0, 0, 0.7f * diff );
+		pos += chg;
+		m_bodyHandle->SetPosition( pos );
 	}
 	
 	float cheight = m_isCrouching ? 0.6f : 1.3f;

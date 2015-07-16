@@ -14,6 +14,7 @@
 extern struct GameLevel* g_GameLevel;
 extern PhyWorldHandle g_PhyWorld;
 extern SoundSystemHandle g_SoundSys;
+extern SGRX_LineSet g_DebugLines;
 
 extern Command MOVE_LEFT;
 extern Command MOVE_RIGHT;
@@ -275,7 +276,7 @@ struct DamageSystem
 	};
 	typedef Handle< Material > MtlHandle;
 	
-	const char* Init( SceneHandle scene );
+	const char* Init( SceneHandle scene, SGRX_LightSampler* sampler );
 	void Free();
 	void Tick( float deltaTime );
 	void AddBulletDamage( const StringView& type, SGRX_IMesh* m_targetMesh, int partID,

@@ -13,6 +13,7 @@ GameLevel* g_GameLevel = NULL;
 bool g_Paused = false;
 PhyWorldHandle g_PhyWorld;
 SoundSystemHandle g_SoundSys;
+SGRX_LineSet g_DebugLines;
 
 Command MOVE_LEFT( "move_left" );
 Command MOVE_RIGHT( "move_right" );
@@ -372,7 +373,7 @@ struct TmpTable
 		Quat R = state_Rot.Get( bf );
 		
 		meshInst->matrix = Mat4::CreateSRT( V3(0.5f), R, P );
-		LightTree::Colors COL;
+		SGRX_LightTree::Colors COL;
 		g_GameLevel->m_ltSamples.GetColors( P, &COL );
 		meshInst->constants[10] = V4( COL.color[0], 1 );
 		meshInst->constants[11] = V4( COL.color[1], 1 );
@@ -635,6 +636,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	void DebugDraw()
 	{
 		g_GameLevel->DebugDraw();
+		g_DebugLines.Flush();
 		
 //		g_PhyWorld->DebugDraw();
 	//	SGRX_MeshBone* bones = animtest->mesh->m_bones;

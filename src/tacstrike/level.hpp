@@ -8,7 +8,7 @@
 
 typedef StackString<16> StackShortName;
 
-struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw
+struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 {
 	GameLevel();
 	virtual ~GameLevel();
@@ -57,7 +57,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw
 	PhyBodyArray m_levelBodies;
 	LCLightArray m_lights;
 	Array< Vec2 > m_lines;
-	LightTree m_ltSamples;
+	SGRX_LightTree m_ltSamples;
 	SceneHandle m_scene;
 	Player* m_player;
 	Vec3 m_playerSpawnInfo[2]; // position, direction

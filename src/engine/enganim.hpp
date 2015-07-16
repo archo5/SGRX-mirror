@@ -474,10 +474,14 @@ ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mi
 
 
 
+#define PARTICLESYSTEM_VERSION 2
+// 1: initial version
+// 2: added group count
+
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
 
-struct IF_GCC(ENGINE_EXPORT) ParticleSystem
+struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 {
 	struct Vertex
 	{
@@ -494,6 +498,11 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem
 		Mat4 transform;
 		Mat4 viewProj;
 		Vec3 basis[3];
+	};
+	
+	struct Group
+	{
+		Vec3 color;
 	};
 	
 	struct Emitter
@@ -534,6 +543,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem
 		Array< Vec2 > particles_Lifetime; // 0-1, increment
 		Array< Vec3 > particles_RandSizeAngVel;
 		Array< Vec4 > particles_RandColor; // HSV, opacity
+		Array< uint16_t > particles_Group;
 		
 		Curve curve_Size;
 		Curve curve_ColorHue;
@@ -674,25 +684,30 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem
 				particles_Lifetime.clear();
 				particles_RandSizeAngVel.clear();
 				particles_RandColor.clear();
+				particles_Group.clear();
 			}
 		}
 		
-		void Tick( float dt, const Vec3& accel, const Mat4& mtx );
-		void Generate( int count, const Mat4& mtx );
-		void Trigger( const Mat4& mtx );
+		void Tick( ParticleSystem* PS, float dt, const Vec3& accel, const Mat4& mtx );
+		void Generate( int count, const Mat4& mtx, uint16_t group );
+		void Trigger( const Mat4& mtx, uint16_t group );
 		
-		void PreRender( Array< Vertex >& vertices, Array< uint16_t >& indices, ps_prerender_info& info );
+		void PreRender( ParticleSystem* PS, ps_prerender_info& info );
 	};
 	
 	Array< Emitter > emitters;
 	Vec3 gravity;
+	uint16_t maxGroupCount;
 	bool looping;
 	Vec2 retriggerTimeExt;
 	
 	bool m_isPlaying;
 	float m_retriggerTime;
+	uint16_t m_nextGroup;
 	Mat4 m_transform;
+	SGRX_LightSampler* m_lightSampler;
 	
+	Array< Group > m_groups;
 	Array< Vertex > m_vertices;
 	Array< uint16_t > m_indices;
 	SceneHandle m_scene;
@@ -701,15 +716,17 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem
 	Array< MeshInstHandle > m_meshInsts;
 	
 	ParticleSystem() :
-		gravity(V3(0,0,-10)), looping(true), retriggerTimeExt(V2(1,0.1f)),
-		m_isPlaying(false), m_retriggerTime(0), m_transform(Mat4::Identity)
+		gravity(V3(0,0,-10)), maxGroupCount(10), looping(true),
+		retriggerTimeExt(V2(1,0.1f)),
+		m_isPlaying(false), m_retriggerTime(0), m_nextGroup(0),
+		m_transform(Mat4::Identity), m_lightSampler(this)
 	{}
 	
 	template< class T > void Serialize( T& arch, bool incl_state )
 	{
 		arch.marker( "SGRX_PARTSYS" );
 		
-		SerializeVersionHelper<T> svh( arch, 1 );
+		SerializeVersionHelper<T> svh( arch, PARTICLESYSTEM_VERSION );
 		
 		uint32_t emcnt = 0;
 		if( T::IsReader )
@@ -728,6 +745,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem
 		}
 		
 		svh << gravity;
+		svh( maxGroupCount, svh.version >= 2, 10 );
 		svh << looping;
 		svh << retriggerTimeExt;
 		

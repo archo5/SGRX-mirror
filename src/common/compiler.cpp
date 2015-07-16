@@ -823,8 +823,8 @@ void LevelCache::GatherMeshes()
 			for( size_t v = 0; v + 2 < P.m_vertices.size(); v += 3 )
 			{
 				m_phyMesh.indices.push_back( m_phyMesh.positions.find_or_add( P.m_vertices[ v + 0 ].pos ) );
-				m_phyMesh.indices.push_back( m_phyMesh.positions.find_or_add( P.m_vertices[ v + 1 ].pos ) );
 				m_phyMesh.indices.push_back( m_phyMesh.positions.find_or_add( P.m_vertices[ v + 2 ].pos ) );
+				m_phyMesh.indices.push_back( m_phyMesh.positions.find_or_add( P.m_vertices[ v + 1 ].pos ) );
 				m_phyMesh.indices.push_back( phy_mtl_id );
 			}
 		}

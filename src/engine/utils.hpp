@@ -90,6 +90,7 @@ inline float sign( float x ){ return IIF( x == 0.0f, 0.0f, IIF( x < 0.0f, -1.0f,
 FINLINE int safe_idiv( int x, int y ){ if( y == 0 ) return 0; return x / y; }
 FINLINE float safe_fdiv( float x, float y ){ if( y == 0 ) return 0; return x / y; }
 inline float normalize_angle( float x ){ x = fmodf( x, (float) M_PI * 2.0f ); return IIF( x < 0.0f, x + (float) M_PI*2.0f, x ); }
+inline float normalize_angle2( float x ){ x = normalize_angle( x ); if( x >= M_PI ) x -= M_PI * 2; return x; }
 inline float saturate( float x ){ return IIF( x < 0.0f, 0.0f, IIF( x > 1.0f, 1.0f, x ) ); }
 inline float smoothstep( float x ){ return x * x * ( 3.0f - 2.0f * x ); }
 inline float smoothlerp_oneway( float t, float a, float b ){ if( b == a ) return 1.0f; return smoothstep( saturate( ( t - a ) / ( b - a ) ) ); }

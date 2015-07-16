@@ -163,6 +163,8 @@ GameLevel::GameLevel() :
 	m_levelTime( 0 ),
 	m_player( NULL )
 {
+	m_lightTree = &m_ltSamples;
+	
 	m_playerSpawnInfo[0] = V3(0);
 	m_levelCameraInfo[0] = V3(0);
 	m_playerSpawnInfo[1] = V3(1,0,0);
@@ -174,7 +176,7 @@ GameLevel::GameLevel() :
 	m_scene->camera.aspect = 1024.0f / 576.0f;
 	m_scene->camera.UpdateMatrices();
 	
-	const char* err = m_damageSystem.Init( m_scene );
+	const char* err = m_damageSystem.Init( m_scene, this );
 	if( err )
 	{
 		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
@@ -238,7 +240,7 @@ bool GameLevel::Load( const StringView& levelname )
 	}
 	
 	svh.marker( "SAMPLES" );
-	Array< LightTree::Sample > lt_samples;
+	Array< SGRX_LightTree::Sample > lt_samples;
 	svh << lt_samples;
 	
 	// LOAD LIGHT SAMPLES
@@ -863,7 +865,7 @@ void GameLevel::CallEntityByName( const StringView& name, const StringView& acti
 
 void GameLevel::LightMesh( MeshInstHandle mih, Vec3 off )
 {
-	LightTree::Colors COL;
+	SGRX_LightTree::Colors COL;
 	m_ltSamples.GetColors( mih->matrix.TransformPos( off ), &COL );
 	mih->constants[10] = V4( COL.color[0], 1 );
 	mih->constants[11] = V4( COL.color[1], 1 );
