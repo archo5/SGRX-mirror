@@ -75,7 +75,7 @@ static int ObjectiveSetState( SGS_CTX )
 static int EnemyDefine( SGS_CTX )
 {
 	SGSFN( "EnemyDefine" );
-	String name = sgs_GetVar<String>()( C, 0 );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
 	Enemy* enemy = (Enemy*) g_GameLevel->FindEntityByName( name );
 	if( !enemy )
 		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
@@ -84,31 +84,54 @@ static int EnemyDefine( SGS_CTX )
 	LD32ParseTaskArray( enemy->m_patrolTasks, sgs_GetVar<sgsVariable>()( C, 1 ) );
 	if( sgs_StackSize( C ) > 2 )
 	{
-		enemy->m_disturbActionName = sgs_GetVar<String>()( C, 2 );
+		enemy->m_disturbActionName = sgs_GetVar<StringView>()( C, 2 );
 		LD32ParseTaskArray( enemy->m_disturbTasks, sgs_GetVar<sgsVariable>()( C, 3 ) );
 	}
 	enemy->UpdateTask();
 	return 0;
 }
 #endif
-#ifdef TSGAME
 static int EntitySetProperties( SGS_CTX )
 {
 	SGSFN( "EntitySetProperties" );
-	String name = sgs_GetVar<String>()( C, 0 );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
 	Entity* E = g_GameLevel->FindEntityByName( name );
 	if( !E )
 		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
 	sgs_StkIdx ssz = sgs_StackSize( C );
 	for( sgs_StkIdx i = 1; i + 1 < ssz; i += 2 )
 	{
-		sgsString key = sgs_GetVar<sgsString>()( C, i + 0 );
+		StringView key = sgs_GetVar<StringView>()( C, i + 0 );
 		sgsVariable value = sgs_GetVar<sgsVariable>()( C, i + 1 );
-		E->SetProperty( StringView( key.c_str(), key.size() ), value );
+		E->SetProperty( key, value );
 	}
 	return 0;
 }
-#endif
+static int EntityGetProperties( SGS_CTX )
+{
+	SGSFN( "EntityGetProperties" );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	Entity* E = g_GameLevel->FindEntityByName( name );
+	if( !E )
+		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
+	sgs_StkIdx ssz = sgs_StackSize( C );
+	for( sgs_StkIdx i = 1; i < ssz; ++i )
+	{
+		StringView key = sgs_GetVar<StringView>()( C, i );
+		g_GameLevel->m_scriptCtx.Push( E->GetProperty( key ) );
+	}
+	return ssz - 1;
+}
+static int GetNamedPosition( SGS_CTX )
+{
+	SGSFN( "GetNamedPosition" );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	Vec3* pos = g_GameLevel->m_markerMap.getptr( name );
+	if( pos == NULL )
+		return sgs_Msg( C, SGS_WARNING, "failed to find named position: %.*s", (int) name.size(), name.data() );
+	g_GameLevel->m_scriptCtx.Push( *pos );
+	return 1;
+}
 
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
@@ -123,9 +146,9 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 #ifdef LD32GAME
 	{ "EnemyDefine", EnemyDefine },
 #endif
-#ifdef TSGAME
 	{ "EntitySetProperties", EntitySetProperties },
-#endif
+	{ "EntityGetProperties", EntityGetProperties },
+	{ "GetNamedPosition", GetNamedPosition },
 	SGS_RC_END(),
 };
 
@@ -380,6 +403,13 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		m_levelCameraInfo[0] = data.getprop("position").get<Vec3>();
 		m_levelCameraInfo[1] = data.getprop("viewdir").get<Vec3>().Normalized();
+		return;
+	}
+	
+	///////////////////////////
+	if( type == "marker" )
+	{
+		m_markerMap.set( data.getprop("name").get<String>(), data.getprop("position").get<Vec3>() );
 		return;
 	}
 	

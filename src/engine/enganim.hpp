@@ -826,6 +826,7 @@ struct IF_GCC(ENGINE_EXPORT) DecalSystem
 	ENGINE_EXPORT void _ScaleDecalTexcoords( size_t vbfrom, int decalID );
 	ENGINE_EXPORT void _GenDecalMatrix( int decalID, DecalProjectionInfo* projInfo, Mat4* outVPM, float* out_invzn2zf );
 	
+	SGRX_LightSampler* m_lightSampler;
 	Array< DecalMapPartInfo > m_decalBounds;
 	VertexDeclHandle m_vertexDecl;
 	MaterialHandle m_material;

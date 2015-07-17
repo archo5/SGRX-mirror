@@ -1017,6 +1017,25 @@ inline Vec4 Col32ToVec4( uint32_t colu32 )
 	return out;
 }
 
+inline uint32_t Vec3ToCol32( const Vec3& colv3 )
+{
+	return COLOR_RGB(
+		255 * clamp( colv3.x, 0, 1 ),
+		255 * clamp( colv3.y, 0, 1 ),
+		255 * clamp( colv3.z, 0, 1 )
+	);
+}
+inline Vec3 Col32ToVec3( uint32_t colu32 )
+{
+	Vec3 out =
+	{
+		INV_255F * (float) COLOR_EXTRACT_R( colu32 ),
+		INV_255F * (float) COLOR_EXTRACT_G( colu32 ),
+		INV_255F * (float) COLOR_EXTRACT_B( colu32 )
+	};
+	return out;
+}
+
 // Alt. color interfaces
 // - build from
 inline Vec3 HSV( const Vec3& hsv )

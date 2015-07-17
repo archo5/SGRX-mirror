@@ -520,6 +520,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 		ByteArray& outverts,
 		bool decal = false,
 		float inv_zn2zf = 0,
+		uint32_t color = 0xffffffff,
 		size_t firstPart = 0,
 		size_t numParts = (size_t)-1
 	);
@@ -884,6 +885,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LightSampler
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3& outcolor );
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] ) = 0;
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor );
+	Vec3 SampleLight( const Vec3& pos ){ Vec3 out; SampleLight( pos, out ); return out; }
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_DummyLightSampler : SGRX_LightSampler

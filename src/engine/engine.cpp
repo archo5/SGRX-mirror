@@ -1157,7 +1157,16 @@ template< typename T, typename T2 > void sa2_remove( T* arr, T2* arr2, int& coun
 	at--;
 }
 
-void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, SGRX_IVertexDecl* vdecl, bool decal, float inv_zn2zf, const void* v1, const void* v2, const void* v3 )
+void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
+	                                    const Mat4& vpmtx,
+	                                    ByteArray& outverts,
+	                                    SGRX_IVertexDecl* vdecl,
+	                                    bool decal,
+	                                    float inv_zn2zf,
+	                                    uint32_t color,
+	                                    const void* v1,
+	                                    const void* v2,
+	                                    const void* v3 )
 {
 	const void* verts[3] = { v1, v2, v3 };
 	Vec3 pos[3] = {0};
@@ -1255,7 +1264,7 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 			dvs[i].normal = nrm[ i ];
 			dvs[i].texcoord = V3(0);
 			dvs[i].tangent = 0x007f7f7f;
-			dvs[i].color = 0xffffffff;
+			dvs[i].color = color;
 			dvs[i].padding0 = 0;
 		}
 		
@@ -1290,7 +1299,16 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx, const Mat4& vpmtx, Byte
 	}
 }
 
-template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat4& mtx, const Mat4& vpmtx, bool decal, float inv_zn2zf, ByteArray& outverts, size_t fp, size_t ep )
+template< class IdxType >
+void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh,
+	                       const Mat4& mtx,
+	                       const Mat4& vpmtx,
+	                       bool decal,
+	                       float inv_zn2zf,
+	                       uint32_t color,
+	                       ByteArray& outverts,
+	                       size_t fp,
+	                       size_t ep )
 {
 	size_t stride = mesh->m_vertexDecl.GetInfo().size;
 	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
@@ -1301,7 +1319,7 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
@@ -1317,7 +1335,7 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
 			{
 				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i1 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i2 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i3 ] ) * stride ]
@@ -1327,7 +1345,14 @@ template< class IdxType > void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh, const Mat
 	}
 }
 
-void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, bool decal, float inv_zn2zf, size_t firstPart, size_t numParts )
+void SGRX_IMesh::Clip( const Mat4& mtx,
+	                   const Mat4& vpmtx,
+	                   ByteArray& outverts,
+	                   bool decal,
+	                   float inv_zn2zf,
+	                   uint32_t color,
+	                   size_t firstPart,
+	                   size_t numParts )
 {
 	if( m_vdata.size() == 0 || m_idata.size() == 0 )
 		return;
@@ -1337,11 +1362,11 @@ void SGRX_IMesh::Clip( const Mat4& mtx, const Mat4& vpmtx, ByteArray& outverts, 
 	size_t oneOverLastPart = TMIN( firstPart + TMIN( numParts, MPC ), MPC );
 	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
 	{
-		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts, firstPart, oneOverLastPart );
+		SGRX_IMesh_Clip_Core< uint32_t >( this, mtx, vpmtx, decal, inv_zn2zf, color, outverts, firstPart, oneOverLastPart );
 	}
 	else
 	{
-		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, vpmtx, decal, inv_zn2zf, outverts, firstPart, oneOverLastPart );
+		SGRX_IMesh_Clip_Core< uint16_t >( this, mtx, vpmtx, decal, inv_zn2zf, color, outverts, firstPart, oneOverLastPart );
 	}
 }
 

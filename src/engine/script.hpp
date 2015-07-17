@@ -28,6 +28,13 @@ template<> struct sgs_GetVar<String> { String operator () ( SGS_CTX, sgs_StkIdx 
 template<> struct sgs_GetVarP<String> { String operator () ( SGS_CTX, sgs_Variable* var ){
 	char* str; sgs_SizeVal size; if( sgs_ParseStringP( C, var, &str, &size ) )
 		return String( str, (size_t) size ); return String(); }};
+template<> inline void sgs_PushVar<StringView>( SGS_CTX, const StringView& v ){ sgs_PushStringBuf( C, v.data(), (sgs_SizeVal) v.size() ); }
+template<> struct sgs_GetVar<StringView> { StringView operator () ( SGS_CTX, sgs_StkIdx item ){
+	char* str; sgs_SizeVal size; if( sgs_ParseString( C, item, &str, &size ) )
+		return StringView( str, (size_t) size ); return StringView(); }};
+template<> struct sgs_GetVarP<StringView> { StringView operator () ( SGS_CTX, sgs_Variable* var ){
+	char* str; sgs_SizeVal size; if( sgs_ParseStringP( C, var, &str, &size ) )
+		return StringView( str, (size_t) size ); return StringView(); }};
 
 // Vec2 interface
 template<> inline void sgs_PushVar<Vec2>( SGS_CTX, const Vec2& v ){ sgs_PushVec2( C, v.x, v.y ); }

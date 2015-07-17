@@ -40,6 +40,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entNameMap;
+	HashTable< String, Vec3 > m_markerMap;
 	InfoEmissionSystem m_infoEmitters;
 	DamageSystem m_damageSystem;
 	BulletSystem m_bulletSystem;

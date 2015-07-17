@@ -1417,7 +1417,7 @@ void AnimRagdoll::DisablePhysics()
 
 
 
-DecalSystem::DecalSystem() : m_vbSize(0)
+DecalSystem::DecalSystem() : m_lightSampler(NULL), m_vbSize(0)
 {
 }
 
@@ -1489,9 +1489,11 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& wor
 	float inv_zn2zf;
 	Mat4 vpmtx;
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
+	uint32_t color = Vec3ToCol32( m_lightSampler ?
+		m_lightSampler->SampleLight( projInfo->pos ) : V3(0.25f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
-	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf );
+	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color );
 	if( m_vertexData.size() > origvbsize )
 	{
 		_ScaleDecalTexcoords( origvbsize, decalID );
@@ -1508,9 +1510,11 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, con
 	float inv_zn2zf;
 	Mat4 vpmtx;
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
+	uint32_t color = Vec3ToCol32( m_lightSampler ?
+		m_lightSampler->SampleLight( projInfo->pos ) : V3(0.25f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
-	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, partID, 1 );
+	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color, partID, 1 );
 	if( m_vertexData.size() > origvbsize )
 	{
 		_ScaleDecalTexcoords( origvbsize, decalID );
