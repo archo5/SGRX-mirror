@@ -474,9 +474,10 @@ ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mi
 
 
 
-#define PARTICLESYSTEM_VERSION 2
+#define PARTICLESYSTEM_VERSION 3
 // 1: initial version
 // 2: added group count
+// 3: added global scale
 
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
@@ -688,9 +689,9 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 			}
 		}
 		
-		void Tick( ParticleSystem* PS, float dt, const Vec3& accel, const Mat4& mtx );
-		void Generate( int count, const Mat4& mtx, uint16_t group );
-		void Trigger( const Mat4& mtx, uint16_t group );
+		void Tick( ParticleSystem* PS, float dt );
+		void Generate( ParticleSystem* PS, int count, uint16_t group );
+		void Trigger( ParticleSystem* PS, uint16_t group );
 		
 		void PreRender( ParticleSystem* PS, ps_prerender_info& info );
 	};
@@ -698,6 +699,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 	Array< Emitter > emitters;
 	Vec3 gravity;
 	uint16_t maxGroupCount;
+	float globalScale;
 	bool looping;
 	Vec2 retriggerTimeExt;
 	
@@ -716,8 +718,8 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 	Array< MeshInstHandle > m_meshInsts;
 	
 	ParticleSystem() :
-		gravity(V3(0,0,-10)), maxGroupCount(10), looping(true),
-		retriggerTimeExt(V2(1,0.1f)),
+		gravity(V3(0,0,-10)), maxGroupCount(10), globalScale(1),
+		looping(true), retriggerTimeExt(V2(1,0.1f)),
 		m_isPlaying(false), m_retriggerTime(0), m_nextGroup(0),
 		m_transform(Mat4::Identity), m_lightSampler(NULL)
 	{}
@@ -746,6 +748,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 		
 		svh << gravity;
 		svh( maxGroupCount, svh.version >= 2, 10 );
+		svh( globalScale, svh.version >= 3, 1 );
 		svh << looping;
 		svh << retriggerTimeExt;
 		

@@ -590,9 +590,34 @@ void BulletSystem::Clear()
 
 
 
+bool AIDBSystem::CanHearSound( Vec3 pos, int i )
+{
+	AISound& S = m_sounds[ i ];
+	return ( pos - S.position ).Length() < S.radius;
+}
+
 void AIDBSystem::Load( ByteArray& data )
 {
 	m_pathfinder.Load( data );
+}
+
+void AIDBSystem::AddSound( Vec3 pos, float rad, float timeout, AISoundType type )
+{
+	AISound S = { pos, rad, timeout, type };
+	m_sounds.push_back( S );
+}
+
+void AIDBSystem::Tick( float deltaTime )
+{
+	for( size_t i = 0; i < m_sounds.size(); ++i )
+	{
+		AISound& S = m_sounds[ i ];
+		S.timeout -= deltaTime;
+		if( S.timeout <= 0 )
+		{
+			m_sounds.uerase( i-- );
+		}
+	}
 }
 
 

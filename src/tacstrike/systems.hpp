@@ -324,11 +324,32 @@ struct BulletSystem
 };
 
 
+enum AISoundType
+{
+	AIS_Unknown = 0,
+	AIS_Footstep,
+};
+
+struct AISound
+{
+	Vec3 position;
+	float radius;
+	float timeout;
+	AISoundType type;
+};
+
 struct AIDBSystem
 {
+	int GetNumSounds(){ return m_sounds.size(); }
+	bool CanHearSound( Vec3 pos, int i );
+	AISound GetSoundInfo( int i ){ return m_sounds[ i ]; }
+	
 	void Load( ByteArray& data );
+	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
+	void Tick( float deltaTime );
 	
 	SGRX_Pathfinder m_pathfinder;
+	Array< AISound > m_sounds;
 };
 
 

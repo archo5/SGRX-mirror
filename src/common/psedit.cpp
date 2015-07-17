@@ -614,6 +614,8 @@ struct EdParticleSystem : EDGUILayoutRow
 	EdParticleSystem() :
 		m_ctlGroup( true, "Particle system properties" ),
 		m_ctlGravity( V3(0,0,-10), 2, V3(-8192), V3(8192) ),
+		m_ctlMaxGroupCount( 10, 1, 128 ),
+		m_ctlGlobalScale( 1, 2, 0.001f, 1000.0f ),
 		m_ctlLooping( true ),
 		m_ctlRetriggerTime( V2(1,0.1f), 2, V2(0), V2(1000) )
 	{
@@ -621,6 +623,8 @@ struct EdParticleSystem : EDGUILayoutRow
 		
 		m_ctlGroup.caption = "Particle system properties";
 		m_ctlGravity.caption = "Gravity";
+		m_ctlMaxGroupCount.caption = "# lighting groups";
+		m_ctlGlobalScale.caption = "Global scale";
 		m_ctlLooping.caption = "Looping";
 		m_ctlRetriggerTime.caption = "Retrigger time/ext.";
 		m_ctlAddEmitter.caption = "- Add emitter -";
@@ -655,6 +659,8 @@ struct EdParticleSystem : EDGUILayoutRow
 			}
 		case EDGUI_EVENT_PROPEDIT:
 			if( e->target == &m_ctlGravity ) m_psys.gravity = m_ctlGravity.m_value;
+			if( e->target == &m_ctlMaxGroupCount ) m_psys.maxGroupCount = m_ctlMaxGroupCount.m_value;
+			if( e->target == &m_ctlGlobalScale ) m_psys.globalScale = m_ctlGlobalScale.m_value;
 			if( e->target == &m_ctlLooping ) m_psys.looping = m_ctlLooping.m_value;
 			if( e->target == &m_ctlRetriggerTime ) m_psys.retriggerTimeExt = m_ctlRetriggerTime.m_value;
 			return 1;
@@ -673,10 +679,14 @@ struct EdParticleSystem : EDGUILayoutRow
 		m_ctlGroup.Clear();
 		
 		m_ctlGravity.SetValue( m_psys.gravity );
+		m_ctlMaxGroupCount.SetValue( m_psys.maxGroupCount );
+		m_ctlGlobalScale.SetValue( m_psys.globalScale );
 		m_ctlLooping.SetValue( m_psys.looping );
 		m_ctlRetriggerTime.SetValue( m_psys.retriggerTimeExt );
 		
 		m_ctlGroup.Add( &m_ctlGravity );
+		m_ctlGroup.Add( &m_ctlMaxGroupCount );
+		m_ctlGroup.Add( &m_ctlGlobalScale );
 		m_ctlGroup.Add( &m_ctlLooping );
 		m_ctlGroup.Add( &m_ctlRetriggerTime );
 		
@@ -751,6 +761,8 @@ struct EdParticleSystem : EDGUILayoutRow
 	
 	EDGUIGroup m_ctlGroup;
 	EDGUIPropVec3 m_ctlGravity;
+	EDGUIPropInt m_ctlMaxGroupCount;
+	EDGUIPropFloat m_ctlGlobalScale;
 	EDGUIPropBool m_ctlLooping;
 	EDGUIPropVec2 m_ctlRetriggerTime;
 	Array< EDGUIButton > m_ctlEmEditBtns;
