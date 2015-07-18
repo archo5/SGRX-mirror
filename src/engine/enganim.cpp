@@ -775,17 +775,11 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 {
 	if( state_SpawnCurrCount < state_SpawnTotalCount )
 	{
-		uint16_t group = PS->maxGroupCount;
-		if( PS->m_groups.size() < (size_t) group + 1 )
-			PS->m_groups.resize( group + 1 );
-		( PS->m_lightSampler ? PS->m_lightSampler : PS )->SampleLight(
-			PS->m_transform.TransformPos( V3(0) ), PS->m_groups[ group ].color );
-		
 		state_SpawnCurrTime = clamp( state_SpawnCurrTime + dt, 0, state_SpawnTotalTime );
 		int currcount = state_SpawnCurrTime / state_SpawnTotalTime * state_SpawnTotalCount;
 		if( state_SpawnCurrCount < currcount )
 		{
-			Generate( PS, currcount - state_SpawnCurrCount, group );
+			Generate( PS, currcount - state_SpawnCurrCount );
 			state_SpawnCurrCount = currcount;
 		}
 	}
@@ -803,6 +797,7 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 			particles_Lifetime.uerase( i );
 			particles_RandSizeAngVel.uerase( i );
 			particles_RandColor.uerase( i );
+			particles_Group.uerase( i );
 			i--;
 			continue;
 		}
@@ -844,8 +839,11 @@ static FINLINE int randi( int x )
 	return rand() % x;
 }
 
-void ParticleSystem::Emitter::Generate( ParticleSystem* PS, int count, uint16_t group )
+void ParticleSystem::Emitter::Generate( ParticleSystem* PS, int count )
 {
+	if( count == 0 )
+		return;
+	
 	Vec3 velMicroDir = create_VelMicroDir.Normalized();
 	Vec3 velMacroDir = create_VelMacroDir.Normalized();
 	
@@ -913,7 +911,7 @@ void ParticleSystem::Emitter::Generate( ParticleSystem* PS, int count, uint16_t 
 			particles_Lifetime.push_back( LTV );
 			particles_RandSizeAngVel.push_back( randSAV );
 			particles_RandColor.push_back( randHSVO );
-			particles_Group.push_back( group );
+			particles_Group.push_back( PS->m_nextGroup );
 		}
 		else
 		{
@@ -923,12 +921,12 @@ void ParticleSystem::Emitter::Generate( ParticleSystem* PS, int count, uint16_t 
 			particles_Lifetime[ i ] = LTV;
 			particles_RandSizeAngVel[ i ] = randSAV;
 			particles_RandColor[ i ] = randHSVO;
-			particles_Group[ i ] = group;
+			particles_Group[ i ] = PS->m_nextGroup;
 		}
 	}
 }
 
-void ParticleSystem::Emitter::Trigger( ParticleSystem* PS, uint16_t group )
+void ParticleSystem::Emitter::Trigger( ParticleSystem* PS )
 {
 	state_SpawnTotalCount = spawn_Count + randi( spawn_CountExt );
 	state_SpawnCurrCount = 0;
@@ -936,7 +934,7 @@ void ParticleSystem::Emitter::Trigger( ParticleSystem* PS, uint16_t group )
 	state_SpawnCurrTime = 0;
 	if( state_SpawnTotalTime == 0 )
 	{
-		Generate( PS, state_SpawnTotalCount, group );
+		Generate( PS, state_SpawnTotalCount );
 		state_SpawnCurrCount += state_SpawnTotalCount;
 	}
 }
@@ -1199,16 +1197,17 @@ void ParticleSystem::PreRender()
 
 void ParticleSystem::Trigger()
 {
-	if( m_groups.size() < (size_t) maxGroupCount + 1 )
-		m_groups.resize( maxGroupCount + 1 );
-	uint16_t group = m_nextGroup++;
+	if( m_groups.size() < (size_t) maxGroupCount )
+		m_groups.resize( maxGroupCount );
+	m_nextGroup++;
 	m_nextGroup %= maxGroupCount;
 	// TODO: pick more accurate position
 	( m_lightSampler ? m_lightSampler : this )->SampleLight(
-		m_transform.TransformPos( V3(0) ), m_groups[ group ].color );
+		m_transform.TransformPos( V3(0) ), m_groups[ m_nextGroup ].color );
+	
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
-		emitters[ i ].Trigger( this, group );
+		emitters[ i ].Trigger( this );
 	}
 }
 
@@ -1496,7 +1495,7 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& wor
 	Mat4 vpmtx;
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
 	uint32_t color = Vec3ToCol32( m_lightSampler ?
-		m_lightSampler->SampleLight( projInfo->pos ) : V3(0.25f) );
+		m_lightSampler->SampleLight( projInfo->pos ) * 0.25f : V3(0.25f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color );
@@ -1517,7 +1516,7 @@ void DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, con
 	Mat4 vpmtx;
 	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
 	uint32_t color = Vec3ToCol32( m_lightSampler ?
-		m_lightSampler->SampleLight( projInfo->pos ) : V3(0.25f) );
+		m_lightSampler->SampleLight( projInfo->pos ) * 0.5f : V3(0.5f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color, partID, 1 );

@@ -690,8 +690,8 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 		}
 		
 		void Tick( ParticleSystem* PS, float dt );
-		void Generate( ParticleSystem* PS, int count, uint16_t group );
-		void Trigger( ParticleSystem* PS, uint16_t group );
+		void Generate( ParticleSystem* PS, int count );
+		void Trigger( ParticleSystem* PS );
 		
 		void PreRender( ParticleSystem* PS, ps_prerender_info& info );
 	};

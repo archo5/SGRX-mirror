@@ -361,7 +361,7 @@ void SGRX_LightSampler::SampleLight( const Vec3& pos, Vec3& outcolor )
 	Vec3 oc = V3(0);
 	for( int i = 0; i < 6; ++i )
 		oc += outcolors[ i ];
-	outcolor = oc / 6;
+	outcolor = oc; // ??? / 6;
 }
 
 static const Vec3 LightSampler_Dir[6] =

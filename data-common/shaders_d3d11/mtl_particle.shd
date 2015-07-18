@@ -14,5 +14,5 @@ outAmbientDiffuseLight = 2*(
 	qyp * gInstanceData[12] + qyn * gInstanceData[13] +
 	qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
 #else
-outAmbientDiffuseLight = float3(1,1,1);
+outAmbientDiffuseLight = float3(2,2,2);
 #endif
