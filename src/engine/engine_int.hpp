@@ -247,6 +247,7 @@ struct FTFont : SGRX_IFont
 	ByteArray data;
 	FT_FACE_TYPE face;
 	int rendersize;
+	bool nohint;
 };
 
 struct SVGIconFont : SGRX_IFont

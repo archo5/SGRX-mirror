@@ -784,7 +784,7 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 		}
 	}
 	
-	Vec3 accel = PS->gravity; // ??? * PS->globalScale;
+	Vec3 accel = PS->gravity * tick_GravityMult; // ??? * PS->globalScale;
 	for( size_t i = 0; i < particles_Position.size(); ++i )
 	{
 		Vec2& LT = particles_Lifetime[ i ];

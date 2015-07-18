@@ -378,6 +378,7 @@ struct EdEmitter : EDGUILayoutRow
 		create_AngleDirDvg( V2(0), 2, V2(0,0), V2(360,180) ),
 		create_AngleVelDvg( V2(0), 2, V2(-1000), V2(1000) ),
 		tick_AngleAcc( 0, 2, -10000, 10000 ),
+		tick_GravityMult( 1, 2, 0, 100 ),
 		absolute( true ),
 		
 		grpSizeColor( false, "Size/color curves" ),
@@ -420,6 +421,7 @@ struct EdEmitter : EDGUILayoutRow
 		create_AngleDirDvg.caption = "Angle / divergence";
 		create_AngleVelDvg.caption = "Angular velocity / divergence";
 		tick_AngleAcc.caption = "Angle - acceleration";
+		tick_GravityMult.caption = "Gravity mulitplier";
 		absolute.caption = "World space";
 		
 		render_Texture0.caption = "Texture #1";
@@ -455,6 +457,7 @@ struct EdEmitter : EDGUILayoutRow
 		grpMisc.Add( &create_AngleDirDvg );
 		grpMisc.Add( &create_AngleVelDvg );
 		grpMisc.Add( &tick_AngleAcc );
+		grpMisc.Add( &tick_GravityMult );
 		grpMisc.Add( &absolute );
 		Add( &grpMisc );
 		
@@ -499,6 +502,7 @@ struct EdEmitter : EDGUILayoutRow
 			if( e->target == &create_AngleDirDvg ){ m_emitter->create_AngleDirDvg = DEG2RAD( create_AngleDirDvg.m_value ); _U(false); }
 			if( e->target == &create_AngleVelDvg ){ m_emitter->create_AngleVelDvg = DEG2RAD( create_AngleVelDvg.m_value ); _U(false); }
 			if( e->target == &tick_AngleAcc ){ m_emitter->tick_AngleAcc = DEG2RAD( tick_AngleAcc.m_value ); _U(false); }
+			if( e->target == &tick_GravityMult ){ m_emitter->tick_GravityMult = tick_GravityMult.m_value; _U(false); }
 			if( e->target == &absolute ){ m_emitter->absolute = absolute.m_value; _U(false); }
 			if( e->target == &render_Texture0 ){ m_emitter->render_Textures[0] = GetParticleTexHandle( render_Texture0.m_value ); _U(true); }
 			if( e->target == &render_Texture1 ){ m_emitter->render_Textures[1] = GetParticleTexHandle( render_Texture1.m_value ); _U(true); }
@@ -544,6 +548,7 @@ struct EdEmitter : EDGUILayoutRow
 		create_AngleDirDvg.SetValue( RAD2DEG( m_emitter->create_AngleDirDvg ) );
 		create_AngleVelDvg.SetValue( RAD2DEG( m_emitter->create_AngleVelDvg ) );
 		tick_AngleAcc.SetValue( RAD2DEG( m_emitter->tick_AngleAcc ) );
+		tick_GravityMult.SetValue( m_emitter->tick_GravityMult );
 		absolute.SetValue( m_emitter->absolute );
 		
 		curve_Size.SetValue( m_emitter->curve_Size );
@@ -587,6 +592,7 @@ struct EdEmitter : EDGUILayoutRow
 	EDGUIPropVec2 create_AngleDirDvg;
 	EDGUIPropVec2 create_AngleVelDvg;
 	EDGUIPropFloat tick_AngleAcc;
+	EDGUIPropFloat tick_GravityMult;
 	EDGUIPropBool absolute;
 	
 	EDGUIGroup grpSizeColor;

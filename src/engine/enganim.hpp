@@ -474,10 +474,11 @@ ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mi
 
 
 
-#define PARTICLESYSTEM_VERSION 3
+#define PARTICLESYSTEM_VERSION 4
 // 1: initial version
 // 2: added group count
 // 3: added global scale
+// 4: added gravity multiplier
 
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
@@ -573,6 +574,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 		Vec2 create_AngleVelDvg;
 		
 		float tick_AngleAcc;
+		float tick_GravityMult;
 		bool absolute;
 		
 		TextureHandle render_Textures[ NUM_PARTICLE_TEXTURES ];
@@ -593,7 +595,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 			create_VelMacroDir(V3(0,0,1)), create_VelMacroDvg(0), create_VelMacroDistExt(V2(1,0.1f)),
 			create_VelCluster(1), create_VelClusterExt(0),
 			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,(float)M_PI)), create_AngleVelDvg(V2(0)),
-			tick_AngleAcc(0), absolute(false),
+			tick_AngleAcc(0), tick_GravityMult(1), absolute(false),
 			render_Shader("particle"), render_Additive(false), render_Stretch(false),
 			state_SpawnTotalCount(0), state_SpawnCurrCount(0), state_SpawnTotalTime(0), state_SpawnCurrTime(0),
 			state_lastDelta(0)
@@ -630,6 +632,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 			arch << create_AngleVelDvg;
 			
 			arch << tick_AngleAcc;
+			arch( tick_GravityMult, arch.version >= 4, 1 );
 			arch << absolute;
 			
 			for( int i = 0; i < NUM_PARTICLE_TEXTURES; ++i )

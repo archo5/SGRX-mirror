@@ -33,7 +33,7 @@ void sgrx_int_FreeFontRendering()
 
 
 
-FTFont::FTFont() : face(NULL), rendersize(0)
+FTFont::FTFont() : face(NULL), rendersize(0), nohint(false)
 {
 }
 
@@ -47,9 +47,11 @@ void FTFont::LoadGlyphInfo( int pxsize, uint32_t ch, SGRX_GlyphInfo* info )
 {
 	_Resize( pxsize );
 	
-	FT_Load_Char( face, ch, 0 );
+	int flags = FT_LOAD_RENDER;
+	if( nohint )
+		flags |= FT_LOAD_NO_HINTING;
+	FT_Load_Char( face, ch, flags );
 	FT_GlyphSlot glyph = face->glyph;
-	FT_Render_Glyph( glyph, FT_RENDER_MODE_NORMAL );
 	
 	info->glyph_kern_id = FT_Get_Char_Index( face, ch );
 	info->bmsizex = glyph->bitmap.width;
@@ -101,9 +103,13 @@ void FTFont::_Resize( int pxsize )
 
 FTFont* sgrx_int_CreateFont( const StringView& path )
 {
+	StringView filename = path.until( ":" );
+	StringView flagdata = path.from( ":" );
+	
 	FTFont* font = new FTFont;
+	font->nohint = flagdata.contains( ":nohint" );
 	FT_Face face;
-	if( FS_LoadBinaryFile( path, font->data ) == false )
+	if( FS_LoadBinaryFile( filename, font->data ) == false )
 	{
 		LOG_ERROR << LOG_DATE << "  Could not find font file: " << path;
 		delete font;
@@ -205,14 +211,16 @@ bool SVGIconFont::_LoadGlyph( uint32_t ch, const StringView& path )
 
 SVGIconFont* sgrx_int_CreateSVGIconFont( const StringView& path )
 {
+	StringView filename = path.until( ":" );
+	
 	char bfr[ 256 ];
 	String confdata;
-	if( FS_LoadTextFile( path, confdata ) == false )
+	if( FS_LoadTextFile( filename, confdata ) == false )
 	{
 		LOG_ERROR << LOG_DATE << "  Could not read SVG icon font config: " << path;
 		return NULL;
 	}
-	StringView basedir = path.up_to_last( "/" );
+	StringView basedir = filename.up_to_last( "/" );
 	
 	SVGIconFont* sif = new SVGIconFont;
 	ConfigReader cfgrd( confdata );
