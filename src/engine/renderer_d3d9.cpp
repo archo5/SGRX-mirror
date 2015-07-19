@@ -1851,6 +1851,13 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( 0 ) );
 }
 
+static bool meshinst_sortbyidx( const void* a, const void* b, void* )
+{
+	SGRX_CAST( SGRX_MeshInstance**, MIa, a );
+	SGRX_CAST( SGRX_MeshInstance**, MIb, b );
+	return (*MIa)->sortidx < (*MIb)->sortidx;
+}
+
 void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )
 {
 	int obj_type = !!( PASS.flags & RPF_OBJ_STATIC ) - !!( PASS.flags & RPF_OBJ_DYNAMIC );
@@ -1861,6 +1868,8 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 	
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	
+	sgrx_combsort( m_visible_meshes.data(), m_visible_meshes.size(),
+		sizeof(m_visible_meshes[0]), meshinst_sortbyidx, NULL );
 	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
 	{
 		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];

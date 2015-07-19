@@ -1011,7 +1011,7 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
 	i_aim_at = true;
 	
-	m_shootPS.Load( "psys/fastspark.psy" );
+	m_shootPS.Load( "psys/gunflash.psy" );
 	m_shootPS.AddToScene( g_GameLevel->m_scene );
 	m_shootPS.OnRenderUpdate();
 	m_shootTimeout = 0;
@@ -1043,7 +1043,7 @@ void TSPlayer::FixedTick( float deltaTime )
 		Vec3 dir = ( i_aim_target - origin ).Normalized();
 		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
 		g_GameLevel->m_bulletSystem.Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
-		m_shootPS.SetTransform( Mat4::CreateScale( V3(0.1f) ) * mtx );
+		m_shootPS.SetTransform( mtx );
 		m_shootPS.Trigger();
 		m_shootTimeout += 0.1f;
 	}

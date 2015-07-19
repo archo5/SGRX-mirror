@@ -57,7 +57,9 @@ ENGINE_EXPORT int sgrx_sncopy( char* buf, size_t len, const char* str, size_t il
 ENGINE_EXPORT int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... );
 ENGINE_EXPORT uint32_t sgrx_crc32( const void* buf, size_t len, uint32_t in_crc );
 ENGINE_EXPORT void sgrx_quicksort( void* array, size_t length, size_t size,
-	int(*compare)(const void *, const void *, void*), void* userdata);
+	int(*compare)(const void*, const void*, void*), void* userdata );
+ENGINE_EXPORT void sgrx_combsort( void* array, size_t length, size_t size,
+	bool(*compless)(const void*, const void*, void*), void* userdata );
 
 // RT system padding
 ENGINE_EXPORT double sgrx_hqtime();

@@ -361,6 +361,48 @@ void sgrx_quicksort( void* array, size_t length, size_t size,
 /**** END CUSTOM QSORT CODE ****/
 
 
+void memswap( void* a, void* b, size_t size )
+{
+	char* ca = (char*) a;
+	char* cb = (char*) b;
+	char* ea = ca + size;
+	for( ; ca != ea; ++ca, ++cb )
+	{
+		char tmp = *ca;
+		*ca = *cb;
+		*cb = tmp;
+	}
+}
+
+void sgrx_combsort( void* array, size_t length, size_t size,
+	bool(*compless)(const void*, const void*, void*), void* userdata )
+{
+	char* first = (char*) array;
+	char* end = first + length * size;
+	static const double shrink_factor = 1.247330950103979;
+	ptrdiff_t dist = length;
+	bool swaps = true;
+	while( dist > 1 || swaps )
+	{
+		if( dist > 1 )
+			dist = ptrdiff_t( double( dist ) / shrink_factor );
+		swaps = false;
+		char* left = first;
+		char* right = first + dist * size;
+		while( right != end )
+		{
+			if( compless( right, left, userdata ) )
+			{
+				memswap( left, right, size );
+				swaps = true;
+			}
+			left += size;
+			right += size;
+		}
+	}
+}
+
+
 
 double sgrx_hqtime()
 {
@@ -1804,11 +1846,21 @@ struct _testser_
 	template< class T > void Serialize( T& arch ){ if( T::IsText ) arch.marker( "TEST" ); arch << a << b << c << d << e; }
 };
 
+bool complessint( const void* a, const void* b, void* )
+{
+	return *(int*)a < *(int*)b;
+}
+
 int TestSystems()
 {
 	char bfr[ 4 ];
 	sgrx_snprintf( bfr, 4, "abcd" );
 	if( bfr[ 3 ] != '\0' ) return 101; // sgrx_snprintf not null-terminating
+	
+	int arr1a[] = { 3, 1, 2 };
+	int arr1b[] = { 1, 2, 3 };
+	sgrx_combsort( arr1a, 3, sizeof(int), complessint, NULL );
+	for( int i = 0; i < 3; ++i ) if( arr1a[i] != arr1b[i] ) return 151;
 
 	HashTable< int, int > ht_ii;
 	if( ht_ii.size() != 0 ) return 501; // empty

@@ -688,6 +688,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	uint32_t transparent : 1;
 	uint32_t unlit : 1;
 //	uint32_t additive : 1;
+	uint8_t sortidx;
 	
 	TextureHandle textures[ MAX_MI_TEXTURES ];
 	Vec4 constants[ MAX_MI_CONSTANTS ];

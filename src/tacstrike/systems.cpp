@@ -361,6 +361,7 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 	m_bulletDecalSys.SetSize( 48 * 1024 * 10 ); // random size
 	m_bulletDecalMesh = scene->CreateMeshInstance();
 	m_bulletDecalMesh->decal = true;
+	m_bulletDecalMesh->sortidx = 202;
 	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
 	m_bulletDecalMesh->textures[0] = GR_GetTexture( "textures/white.png" );
 	
@@ -373,6 +374,7 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 	m_bloodDecalSys.SetSize( 48 * 1024 * 10 ); // random size
 	m_bloodDecalMesh = scene->CreateMeshInstance();
 	m_bloodDecalMesh->decal = true;
+	m_bloodDecalMesh->sortidx = 201;
 	m_bloodDecalMesh->mesh = m_bloodDecalSys.m_mesh;
 	m_bloodDecalMesh->textures[0] = GR_GetTexture( "textures/white.png" );
 	

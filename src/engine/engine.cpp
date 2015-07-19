@@ -1527,6 +1527,7 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	decal( false ),
 	transparent( false ),
 	unlit( false ),
+	sortidx( 0 ),
 //	additive( false ),
 	_lightbuf_begin( NULL ),
 	_lightbuf_end( NULL )

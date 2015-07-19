@@ -298,9 +298,11 @@ bool GameLevel::Load( const StringView& levelname )
 	
 	for( size_t i = 0; i < mesh_inst_defs.size(); ++i )
 	{
+		LC_MeshInst& MID = mesh_inst_defs[ i ];
+		
 		char subbfr[ 512 ];
 		MeshInstHandle MI = m_scene->CreateMeshInstance();
-		StringView src = mesh_inst_defs[ i ].m_meshname;
+		StringView src = MID.m_meshname;
 		if( src.ch() == '~' )
 		{
 			snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
@@ -312,23 +314,24 @@ bool GameLevel::Load( const StringView& levelname )
 		snprintf( subbfr, sizeof(subbfr), "levels/%.*s/%d.png", TMIN( (int) levelname.size(), 200 ), levelname.data(), (int) i );
 		MI->textures[0] = GR_GetTexture( subbfr );
 		
-		MI->matrix = mesh_inst_defs[ i ].m_mtx;
+		MI->matrix = MID.m_mtx;
 		
-		if( mesh_inst_defs[ i ].m_flags & LM_MESHINST_DYNLIT )
+		if( MID.m_flags & LM_MESHINST_DYNLIT )
 		{
 			MI->dynamic = true;
 			LightMesh( MI );
 		}
 		
-		if( mesh_inst_defs[ i ].m_flags & LM_MESHINST_DECAL )
+		if( MID.m_flags & LM_MESHINST_DECAL )
 		{
 			MI->decal = true;
 			MI->transparent = true;
+			MI->sortidx = MID.m_decalLayer;
 		}
 		
 		m_meshInsts.push_back( MI );
 		
-		if( mesh_inst_defs[ i ].m_flags & LM_MESHINST_SOLID )
+		if( MID.m_flags & LM_MESHINST_SOLID )
 		{
 			rbinfo.shape = g_PhyWorld->CreateShapeFromMesh( MI->mesh );
 			rbinfo.shape->SetScale( MI->matrix.GetScale() );
