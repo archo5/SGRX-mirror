@@ -57,6 +57,8 @@ static void swap4b2ms( uint32_t* data, int size, int mask1, int shift1R, int mas
 
 static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, int side, int mip )
 {
+	LOG_FUNCTION;
+	
 	int ret;
 	uint8_t *src, *dst;
 	size_t i, off, copyrowsize = 0, copyrowcount = 0;
@@ -126,6 +128,8 @@ struct D3D9Texture : SGRX_ITexture
 	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
 	{
+		LOG_FUNCTION;
+		
 	//	RECT rct = { x, y, x + w, y + h };
 		D3DLOCKED_RECT lr;
 		HRESULT hr = m_ptr.tex2d->LockRect( mip, &lr, NULL, 0 );
@@ -278,6 +282,8 @@ struct RTData
 
 static const char* postproc_init( IDirect3DDevice9* dev, RTData* D, int w, int h, D3DMULTISAMPLE_TYPE msaa )
 {
+	LOG_FUNCTION;
+	
 	HRESULT hr;
 	memset( D, 0, sizeof(*D) );
 	
@@ -514,6 +520,8 @@ static D3DMULTISAMPLE_TYPE aa_quality_to_mstype( int aaq )
 
 extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, void* windowHandle )
 {
+	LOG_FUNCTION;
+	
 	D3DPRESENT_PARAMETERS d3dpp;
 	IDirect3DDevice9* d3ddev;
 	
@@ -570,14 +578,10 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 
 void D3D9Renderer::Destroy()
 {
+	LOG_FUNCTION;
+	
 	LOG << "D3D9Renderer::Destroy()";
 	
-	if( m_ownTextures.size() )
-	{
-		LOG << "Unfreed textures: " << m_ownTextures.size();
-		for( size_t i = 0; i < m_ownTextures.size(); ++i )
-			LOG << "> " << m_ownTextures.item( i ).key->m_key;
-	}
 	if( m_ownMeshes.size() )
 	{
 		LOG << "Unfreed meshes: " << m_ownMeshes.size();
@@ -601,6 +605,12 @@ void D3D9Renderer::Destroy()
 			}
 		}
 	}
+	if( m_ownTextures.size() )
+	{
+		LOG << "Unfreed textures: " << m_ownTextures.size();
+		for( size_t i = 0; i < m_ownTextures.size(); ++i )
+			LOG << "> " << m_ownTextures.item( i ).key->m_key;
+	}
 	
 	m_ownMeshes.clear();
 	m_ownTextures.clear();
@@ -615,6 +625,8 @@ void D3D9Renderer::Destroy()
 
 bool D3D9Renderer::LoadInternalResources()
 {
+	LOG_FUNCTION;
+	
 	if( !_RS_ProjectorInit() )
 		return false;
 	
@@ -655,6 +667,8 @@ bool D3D9Renderer::LoadInternalResources()
 
 void D3D9Renderer::UnloadInternalResources()
 {
+	LOG_FUNCTION;
+	
 	SetRenderPasses( NULL, 0 );
 	
 	m_sh_proj_vs->Release();
@@ -764,6 +778,8 @@ D3D9Texture::~D3D9Texture()
 
 SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 {
+	LOG_FUNCTION;
+	
 	HRESULT hr;
 	// TODO: filter unsupported formats / dimensions
 	
@@ -858,6 +874,8 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 
 SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 {
+	LOG_FUNCTION;
+	
 	D3DFORMAT d3dfmt = (D3DFORMAT) 0;
 	HRESULT hr = 0;
 	int width = texinfo->width, height = texinfo->height, format = texinfo->format;
@@ -964,6 +982,8 @@ cleanup:
 
 bool D3D9Renderer::CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors )
 {
+	LOG_FUNCTION;
+	
 	HRESULT hr;
 	ID3DXBuffer *outbuf = NULL, *outerr = NULL;
 	
@@ -1026,6 +1046,8 @@ bool D3D9Renderer::CompileShader( const StringView& path, EShaderType shadertype
 
 SGRX_IVertexShader* D3D9Renderer::CreateVertexShader( const StringView& path, ByteArray& code )
 {
+	LOG_FUNCTION;
+	
 	HRESULT hr;
 	ByteReader br( &code );
 	br.marker( "CVSH\x7f", 5 );
@@ -1054,6 +1076,8 @@ cleanup:
 
 SGRX_IPixelShader* D3D9Renderer::CreatePixelShader( const StringView& path, ByteArray& code )
 {
+	LOG_FUNCTION;
+	
 	HRESULT hr;
 	ByteReader br( &code );
 	br.marker( "CPSH\x7f", 5 );
@@ -1108,6 +1132,8 @@ static int vdeclusage_to_elusageindex[] = { 0, 0, 0, 0, 0, 0, 0, 1, 2, 3 };
 
 SGRX_IVertexDecl* D3D9Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 {
+	LOG_FUNCTION;
+	
 	D3DVERTEXELEMENT9 elements[ VDECL_MAX_ITEMS + 1 ], end[1] = { D3DDECL_END() };
 	for( int i = 0; i < vdinfo.count; ++i )
 	{
@@ -1149,6 +1175,8 @@ D3D9Mesh::~D3D9Mesh()
 
 bool D3D9Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 {
+	LOG_FUNCTION;
+	
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	SAFE_RELEASE( m_VB );
 	m_renderer->m_dev->CreateVertexBuffer( size, dyn ? D3DUSAGE_DYNAMIC : 0, 0, dyn ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED, &m_VB, NULL );
@@ -1164,6 +1192,8 @@ bool D3D9Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 
 bool D3D9Mesh::InitIndexBuffer( size_t size, bool i32 )
 {
+	LOG_FUNCTION;
+	
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	SAFE_RELEASE( m_IB );
 	m_renderer->m_dev->CreateIndexBuffer( size, dyn ? D3DUSAGE_DYNAMIC : 0, i32 ? D3DFMT_INDEX32 : D3DFMT_INDEX16, dyn ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED, &m_IB, NULL );
@@ -1179,6 +1209,8 @@ bool D3D9Mesh::InitIndexBuffer( size_t size, bool i32 )
 
 bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 {
+	LOG_FUNCTION;
+	
 	void* vb_data;
 	
 	if( size > m_vertexDataSize )
@@ -1206,6 +1238,8 @@ bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 
 bool D3D9Mesh::UpdateIndexData( const void* data, size_t size )
 {
+	LOG_FUNCTION;
+	
 	void* ib_data;
 	
 	if( size > m_indexDataSize )
@@ -1233,6 +1267,8 @@ bool D3D9Mesh::UpdateIndexData( const void* data, size_t size )
 
 bool D3D9Mesh::OnDeviceLost()
 {
+	LOG_FUNCTION;
+	
 	void *src_data, *dst_data;
 	const char* reason = NULL;
 	if( m_dataFlags & MDF_DYNAMIC )
@@ -1279,6 +1315,8 @@ fail:
 
 bool D3D9Mesh::OnDeviceReset()
 {
+	LOG_FUNCTION;
+	
 	void *src_data, *dst_data;
 	if( m_dataFlags & MDF_DYNAMIC )
 	{
@@ -1322,6 +1360,8 @@ fail:
 
 SGRX_IMesh* D3D9Renderer::CreateMesh()
 {
+	LOG_FUNCTION;
+	
 	D3D9Mesh* mesh = new D3D9Mesh;
 	mesh->m_renderer = this;
 	m_ownMeshes.set( mesh, true );
@@ -1386,6 +1426,8 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 
 bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 {
+	LOG_FUNCTION;
+	
 	for( int i = 0; i < count; ++i )
 	{
 		SGRX_RenderPass& PASS = passes[ i ];
@@ -1469,6 +1511,8 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 */
 void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 {
+	LOG_FUNCTION;
+	
 	SceneHandle scene = RS->scene;
 	if( !scene )
 		return;

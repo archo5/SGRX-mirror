@@ -21,11 +21,8 @@ struct SGRX_Sound3DAttribs
 };
 
 
-struct SOUND_EXPORT SGRX_ISoundEventInstance
+struct IF_GCC(ENGINE_EXPORT) SGRX_ISoundEventInstance : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	SGRX_ISoundEventInstance() : _refcount(0){}
 	virtual ~SGRX_ISoundEventInstance(){}
 	
 	virtual void Start() = 0;
@@ -39,17 +36,14 @@ struct SOUND_EXPORT SGRX_ISoundEventInstance
 	virtual bool SetParameter( const StringView& name, float value ) = 0;
 	virtual void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ) = 0;
 	
-	int32_t _refcount;
 	bool isOneShot;
+	bool isReal;
 };
 typedef Handle< SGRX_ISoundEventInstance > SoundEventInstanceHandle;
 
 
-struct SOUND_EXPORT SGRX_ISoundSystem
+struct IF_GCC(ENGINE_EXPORT) SGRX_ISoundSystem : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	SGRX_ISoundSystem() : _refcount(0){}
 	virtual ~SGRX_ISoundSystem(){}
 	
 	virtual void Update() = 0;
@@ -57,12 +51,11 @@ struct SOUND_EXPORT SGRX_ISoundSystem
 	virtual bool EnumerateSoundEvents( Array< String >& out ) = 0;
 	virtual bool PreloadEventData( const StringView& name ) = 0;
 	virtual bool EventIsOneShot( const StringView& name ) = 0;
-	virtual SoundEventInstanceHandle CreateEventInstance( const StringView& name ) = 0;
+	ENGINE_EXPORT SoundEventInstanceHandle CreateEventInstance( const StringView& name );
+	virtual SoundEventInstanceHandle CreateEventInstanceRaw( const StringView& name ) = 0;
 	virtual void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ) = 0;
 	virtual float GetVolume( const StringView& name ) = 0;
 	virtual void SetVolume( const StringView& name, float vol ) = 0;
-	
-	int32_t _refcount;
 };
 typedef Handle< SGRX_ISoundSystem > SoundSystemHandle;
 

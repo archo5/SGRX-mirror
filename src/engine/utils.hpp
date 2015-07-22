@@ -42,6 +42,25 @@ ENGINE_EXPORT void sgrx_assert_func( const char* code, const char* file, int lin
 #define ALIGN16(a) a __attribute__ ((aligned (16)))
 #endif
 
+#ifndef THREAD_LOCAL
+# if __STDC_VERSION__ >= 201112 && !defined __STDC_NO_THREADS__
+#  define THREAD_LOCAL _Thread_local
+# elif defined _WIN32 && ( \
+       defined _MSC_VER || \
+       defined __ICL || \
+       defined __DMC__ || \
+       defined __BORLANDC__ )
+#  define THREAD_LOCAL __declspec(thread) 
+/* note that ICC (linux) and Clang are covered by __GNUC__ */
+# elif defined __GNUC__ || \
+       defined __SUNPRO_C || \
+       defined __xlC__
+#  define THREAD_LOCAL __thread
+# else
+#  error "Cannot define THREAD_LOCAL"
+# endif
+#endif
+
 #define SGRX_CAST( t, to, from ) t to = (t) from
 #define SGRX_ARRAY_SIZE( arr ) (sizeof(arr)/sizeof((arr)[0]))
 #ifndef UNUSED
@@ -2369,10 +2388,24 @@ struct ENGINE_EXPORT SGRX_Log
 	};
 	enum EMod_Partial { Mod_Partial };
 	enum ESpec_Date { Spec_Date };
+	enum ESpec_CallStack { Spec_CallStack };
+	struct RegFunc
+	{
+		RegFunc( const char* func, const char* file, int ln ) :
+			funcname( func ), filename( file ), linenum( ln ), prev( lastfunc )
+		{ lastfunc = this; }
+		~RegFunc(){ lastfunc = prev; }
+		const char* funcname;
+		const char* filename;
+		int linenum;
+		RegFunc* prev;
+	};
 	
 	bool end_newline;
 	bool need_sep;
 	const char* sep;
+	
+	static THREAD_LOCAL RegFunc* lastfunc;
 	
 	SGRX_Log();
 	~SGRX_Log();
@@ -2381,6 +2414,7 @@ struct ENGINE_EXPORT SGRX_Log
 	SGRX_Log& operator << ( const Separator& );
 	SGRX_Log& operator << ( EMod_Partial );
 	SGRX_Log& operator << ( ESpec_Date );
+	SGRX_Log& operator << ( ESpec_CallStack );
 	SGRX_Log& operator << ( bool );
 	SGRX_Log& operator << ( int8_t );
 	SGRX_Log& operator << ( uint8_t );
@@ -2406,12 +2440,14 @@ struct ENGINE_EXPORT SGRX_Log
 		for( size_t i = 0; i < arr.size(); ++i ) *this << "\n\t" << i << ": " << arr[i]; return *this; }
 };
 #define LOG SGRX_Log()
-#define LOG_ERROR SGRX_Log() << "ERROR: "
+#define LOG_ERROR SGRX_Log() << LOG_CALLSTACK << "\n!!! ERROR: "
 #define LOG_WARNING SGRX_Log() << "WARNING: "
 #define PARTIAL_LOG SGRX_Log::Mod_Partial
 #define LOG_DATE SGRX_Log::Spec_Date
+#define LOG_CALLSTACK SGRX_Log::Spec_CallStack
 #define LOG_SEP( x ) SGRX_Log::Separator( x )
 #define LOG_XTD( x ) SGRX_Log::MakeLoggable( x )
+#define LOG_FUNCTION SGRX_Log::RegFunc __regfn( __FUNCTION__, __FILE__, __LINE__ )
 
 
 

@@ -22,6 +22,7 @@
 #include "engine_int.hpp"
 #include "enganim.hpp"
 #include "renderer.hpp"
+#include "sound.hpp"
 
 
 uint32_t GetTimeMsec()
@@ -103,6 +104,43 @@ static AnimHashTable* g_Anims = NULL;
 static FontHashTable* g_LoadedFonts = NULL;
 static JoystickHashTable* g_Joysticks = NULL;
 
+
+
+
+struct FakeSoundEventInstance : SGRX_ISoundEventInstance
+{
+	FakeSoundEventInstance( bool oneshot ) :
+		m_paused(false), m_volume(1), m_pitch(1)
+	{
+		m_refcount = 1;
+		isOneShot = oneshot;
+		isReal = false;
+	}
+	void Start(){ m_paused = false; }
+	void Stop( bool immediate = false ){}
+	bool GetPaused(){ return m_paused; }
+	void SetPaused( bool paused ){ m_paused = paused; }
+	float GetVolume(){ return m_volume; }
+	void SetVolume( float v ){ m_volume = v; }
+	float GetPitch(){ return m_pitch; }
+	void SetPitch( float v ){ m_pitch = v; }
+	bool SetParameter( const StringView& name, float value ){ return false; }
+	void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ){}
+	
+	bool m_paused;
+	float m_volume;
+	float m_pitch;
+}
+g_FakeSoundEventInstanceOS( true ),
+g_FakeSoundEventInstanceC( false );
+
+SoundEventInstanceHandle SGRX_ISoundSystem::CreateEventInstance( const StringView& name )
+{
+	SoundEventInstanceHandle seih = CreateEventInstanceRaw( name );
+	if( seih != NULL )
+		return seih;
+	return new FakeSoundEventInstance( true );
+}
 
 
 
@@ -300,12 +338,14 @@ bool Game_HasOverlayScreen( IScreen* screen )
 
 void Game_AddOverlayScreen( IScreen* screen )
 {
+	LOG_FUNCTION;
 	g_OverlayScreens.push_back( screen );
 	screen->OnStart();
 }
 
 void Game_RemoveOverlayScreen( IScreen* screen )
 {
+	LOG_FUNCTION;
 	if( g_OverlayScreens.has( screen ) )
 	{
 		screen->OnEnd();
@@ -315,6 +355,7 @@ void Game_RemoveOverlayScreen( IScreen* screen )
 
 void Game_RemoveAllOverlayScreens()
 {
+	LOG_FUNCTION;
 	while( g_OverlayScreens.size() )
 	{
 		Game_RemoveOverlayScreen( g_OverlayScreens.last() );
@@ -323,6 +364,7 @@ void Game_RemoveAllOverlayScreens()
 
 static void process_overlay_screens( float dt )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_OverlayScreens.size(); ++i )
 	{
 		IScreen* scr = g_OverlayScreens[ i ];
@@ -347,6 +389,7 @@ inline float ctrldeadzone( float x, float deadzone )
 
 void Game_OnEvent( const Event& e )
 {
+	LOG_FUNCTION;
 	if( e.type == SDL_WINDOWEVENT )
 	{
 		switch( e.window.event )
@@ -420,6 +463,7 @@ void Game_OnEvent( const Event& e )
 
 void Game_Process( float dt )
 {
+	LOG_FUNCTION;
 	if( !g_windowVisible || !g_hasFocus )
 	{
 		Thread_Sleep( 40 );
@@ -463,6 +507,8 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 
 bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags )
 {
+	LOG_FUNCTION;
+	
 	if( !key )
 		return false;
 	
@@ -486,6 +532,8 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 
 void IGame::GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name )
 {
+	LOG_FUNCTION;
+	
 	name = "shadercache_";
 	name.append( type.data(), type.size() );
 	name.append( "/" );
@@ -508,6 +556,8 @@ void IGame::GetShaderCacheFilename( const StringView& type, const char* sfx, con
 
 bool IGame::GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata )
 {
+	LOG_FUNCTION;
+	
 	if( !key )
 		return false;
 	
@@ -520,6 +570,8 @@ bool IGame::GetCompiledShader( const StringView& type, const char* sfx, const St
 
 bool IGame::SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data )
 {
+	LOG_FUNCTION;
+	
 	if( !key )
 		return false;
 	
@@ -532,6 +584,8 @@ bool IGame::SetCompiledShader( const StringView& type, const char* sfx, const St
 
 bool IGame::OnLoadShader( const StringView& type, const StringView& key, String& outdata )
 {
+	LOG_FUNCTION;
+	
 	if( !key )
 		return false;
 	
@@ -587,6 +641,8 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 
 bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata )
 {
+	LOG_FUNCTION;
+	
 	String filename = "shaders_";
 	filename.append( type.data(), type.size() );
 	filename.push_back( '/' );
@@ -603,6 +659,8 @@ bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, St
 
 bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata )
 {
+	LOG_FUNCTION;
+	
 	String basepath = path.up_to_last( "/" );
 	String nstr;
 	StringView it = outdata, inc;
@@ -637,6 +695,8 @@ bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path,
 
 bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 {
+	LOG_FUNCTION;
+	
 	if( !key )
 		return false;
 	
@@ -665,36 +725,43 @@ BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root)
 
 bool BasicFileSystem::LoadBinaryFile( const StringView& path, ByteArray& out )
 {
+	LOG_FUNCTION;
 	return ::LoadBinaryFile( String_Concat( m_fileRoot, path ), out );
 }
 
 bool BasicFileSystem::SaveBinaryFile( const StringView& path, const void* data, size_t size )
 {
+	LOG_FUNCTION;
 	return ::SaveBinaryFile( String_Concat( m_fileRoot, path ), data, size );
 }
 
 bool BasicFileSystem::LoadTextFile( const StringView& path, String& out )
 {
+	LOG_FUNCTION;
 	return ::LoadTextFile( String_Concat( m_fileRoot, path ), out );
 }
 
 bool BasicFileSystem::SaveTextFile( const StringView& path, const StringView& data )
 {
+	LOG_FUNCTION;
 	return ::SaveTextFile( String_Concat( m_fileRoot, path ), data );
 }
 
 bool BasicFileSystem::FileExists( const StringView& path )
 {
+	LOG_FUNCTION;
 	return ::FileExists( String_Concat( m_fileRoot, path ) );
 }
 
 bool BasicFileSystem::DirCreate( const StringView& path )
 {
+	LOG_FUNCTION;
 	return ::DirCreate( String_Concat( m_fileRoot, path ) );
 }
 
 void BasicFileSystem::IterateDirectory( const StringView& path, IDirEntryHandler* deh )
 {
+	LOG_FUNCTION;
 	DirectoryIterator tdi( String_Concat( m_fileRoot, path ) );
 	while( tdi.Next() )
 	{
@@ -716,6 +783,7 @@ Array< FileSysHandle >& Game_FileSystems()
 
 bool FS_LoadBinaryFile( const StringView& path, ByteArray& out )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->LoadBinaryFile( path, out ) )
 			return true;
@@ -724,6 +792,7 @@ bool FS_LoadBinaryFile( const StringView& path, ByteArray& out )
 
 bool FS_SaveBinaryFile( const StringView& path, const void* data, size_t size )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveBinaryFile( path, data, size ) )
 			return true;
@@ -732,6 +801,7 @@ bool FS_SaveBinaryFile( const StringView& path, const void* data, size_t size )
 
 bool FS_LoadTextFile( const StringView& path, String& out )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->LoadTextFile( path, out ) )
 			return true;
@@ -740,6 +810,7 @@ bool FS_LoadTextFile( const StringView& path, String& out )
 
 bool FS_SaveTextFile( const StringView& path, const StringView& data )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveTextFile( path, data ) )
 			return true;
@@ -748,6 +819,7 @@ bool FS_SaveTextFile( const StringView& path, const StringView& data )
 
 bool FS_FileExists( const StringView& path )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->FileExists( path ) )
 			return true;
@@ -756,6 +828,7 @@ bool FS_FileExists( const StringView& path )
 
 bool FS_DirCreate( const StringView& path )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->DirCreate( path ) )
 			return true;
@@ -764,6 +837,7 @@ bool FS_DirCreate( const StringView& path )
 
 void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh )
 {
+	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		g_FileSystems[ i ]->IterateDirectory( path, deh );
 }
@@ -797,6 +871,8 @@ const TextureInfo& TextureHandle::GetInfo() const
 
 bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )
 {
+	LOG_FUNCTION;
+	
 	if( !item )
 		return false;
 	
@@ -924,6 +1000,8 @@ SGRX_SurfaceShader::~SGRX_SurfaceShader()
 
 void SGRX_SurfaceShader::ReloadShaders()
 {
+	LOG_FUNCTION;
+	
 	// prevent deallocation
 	Array< VertexShaderHandle > newshaders_vb;
 	Array< VertexShaderHandle > newshaders_vs;
@@ -1609,6 +1687,8 @@ SGRX_ProjectionMeshProcessor::SGRX_ProjectionMeshProcessor( ByteArray* verts, UI
 
 void SGRX_ProjectionMeshProcessor::Process( void* data )
 {
+	LOG_FUNCTION;
+	
 	SGRX_CAST( SGRX_MeshInstance*, MI, data );
 	
 	SGRX_IMesh* M = MI->mesh;
@@ -1620,6 +1700,15 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 	}
 }
 
+
+SceneRaycastCallback_Any::SceneRaycastCallback_Any() : m_hit(false)
+{
+}
+
+void SceneRaycastCallback_Any::AddResult( SceneRaycastInfo* )
+{
+	m_hit = true;
+}
 
 SceneRaycastCallback_Closest::SceneRaycastCallback_Closest() : m_hit(false)
 {
@@ -1837,6 +1926,8 @@ int GR_GetHeight(){ return g_RenderSettings.height; }
 
 TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 {
+	LOG_FUNCTION;
+	
 	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, mips };
 	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, NULL );
 	if( !tex )
@@ -1854,6 +1945,8 @@ TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 
 TextureHandle GR_GetTexture( const StringView& path )
 {
+	LOG_FUNCTION;
+	
 	SGRX_ITexture* tx = g_Textures->getcopy( path );
 	if( tx )
 		return tx;
@@ -1892,6 +1985,8 @@ TextureHandle GR_GetTexture( const StringView& path )
 
 TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 {
+	LOG_FUNCTION;
+	
 	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, 1 };
 	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
 	if( !tex )
@@ -1910,6 +2005,8 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 
 VertexShaderHandle GR_GetVertexShader( const StringView& path )
 {
+	LOG_FUNCTION;
+	
 	String code;
 	String errors;
 	ByteArray comp;
@@ -1972,6 +2069,8 @@ has_compiled_shader:
 
 PixelShaderHandle GR_GetPixelShader( const StringView& path )
 {
+	LOG_FUNCTION;
+	
 	String code;
 	String errors;
 	ByteArray comp;
@@ -2034,6 +2133,8 @@ has_compiled_shader:
 
 SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
 {
+	LOG_FUNCTION;
+	
 	SGRX_SurfaceShader* ssh = g_SurfShaders->getcopy( name );
 	if( ssh )
 		return ssh;
@@ -2051,6 +2152,8 @@ SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
 
 MaterialHandle GR_CreateMaterial()
 {
+	LOG_FUNCTION;
+	
 	SGRX_Material* mtl = new SGRX_Material;
 	return mtl;
 }
@@ -2058,6 +2161,8 @@ MaterialHandle GR_CreateMaterial()
 
 VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 {
+	LOG_FUNCTION;
+	
 	SGRX_IVertexDecl* VD = g_VertexDecls->getcopy( vdecl );
 	if( VD )
 		return VD;
@@ -2088,12 +2193,16 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 
 MeshHandle GR_CreateMesh()
 {
+	LOG_FUNCTION;
+	
 	SGRX_IMesh* mesh = g_Renderer->CreateMesh();
 	return mesh;
 }
 
 MeshHandle GR_GetMesh( const StringView& path )
 {
+	LOG_FUNCTION;
+	
 	SGRX_IMesh* mesh = g_Meshes->getcopy( path );
 	if( mesh )
 		return mesh;
@@ -2130,7 +2239,8 @@ MeshHandle GR_GetMesh( const StringView& path )
 		!mesh->SetIndexData( mfd.indexData, mfd.indexDataSize, ( mfd.dataFlags & MDF_INDEX_32 ) != 0 ) ||
 		!mesh->SetBoneData( bones, mfd.numBones ) )
 	{
-		// error already printed
+		LOG << "...while trying to create mesh: " << path;
+		delete mesh;
 		return NULL;
 	}
 	
@@ -2181,6 +2291,8 @@ MeshHandle GR_GetMesh( const StringView& path )
 
 static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 {
+	LOG_FUNCTION;
+	
 	assert( anim >= 0 && anim < (int) afp->animData.size() );
 	
 	const AnimFileParser::Anim& AN = afp->animData[ anim ];
@@ -2222,6 +2334,8 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 
 int GR_LoadAnims( const StringView& path, const StringView& prefix )
 {
+	LOG_FUNCTION;
+	
 	ByteArray ba;
 	if( !FS_LoadBinaryFile( path, ba ) )
 	{
@@ -2263,6 +2377,8 @@ AnimHandle GR_GetAnim( const StringView& name )
 
 SceneHandle GR_CreateScene()
 {
+	LOG_FUNCTION;
+	
 	SGRX_Scene* scene = new SGRX_Scene;
 	
 	LOG << "Created scene";
@@ -2271,6 +2387,8 @@ SceneHandle GR_CreateScene()
 
 bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
 {
+	LOG_FUNCTION;
+	
 	if( g_Renderer->SetRenderPasses( passes, count ) )
 	{
 		for( size_t i = 0; i < g_SurfShaders->size(); ++i )
@@ -2458,6 +2576,8 @@ static void remap_cursor()
 
 static bool read_config()
 {
+	LOG_FUNCTION;
+	
 	String text;
 	if( !LoadTextFile( "config.cfg", text ) )
 	{
@@ -2512,6 +2632,8 @@ static bool read_config()
 
 static int init_graphics()
 {
+	LOG_FUNCTION;
+	
 	int flags = 0;
 	if( g_RenderSettings.fullscreen )
 	{
@@ -2592,6 +2714,8 @@ static int init_graphics()
 
 static void free_graphics()
 {
+	LOG_FUNCTION;
+	
 	g_Renderer->UnloadInternalResources();
 	
 	delete g_FontRenderer;
@@ -2646,6 +2770,8 @@ static void free_graphics()
 
 bool GR_SetVideoMode( const RenderSettings& rs )
 {
+	LOG_FUNCTION;
+	
 	if( rs.width < 1 || rs.height < 1 )
 		return false;
 	
@@ -2715,6 +2841,8 @@ const char* GR_GetDisplayName( int id )
 
 bool GR_ListDisplayModes( int display, Array< DisplayMode >& out )
 {
+	LOG_FUNCTION;
+	
 	out.clear();
 	
 	int numdm = SDL_GetNumDisplayModes( display );
@@ -2749,6 +2877,8 @@ typedef IGame* (*pfnCreateGame) ();
 
 int SGRX_EntryPoint( int argc, char** argv, int debug )
 {
+	LOG_FUNCTION;
+	
 #if 1
 	LOG << "Engine self-test...";
 	int ret = TestSystems();

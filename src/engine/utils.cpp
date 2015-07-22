@@ -1754,6 +1754,8 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 // LOGGING
 //
 
+THREAD_LOCAL SGRX_Log::RegFunc* SGRX_Log::lastfunc = NULL;
+
 SGRX_Log::SGRX_Log() : end_newline(true), need_sep(false), sep("") {}
 SGRX_Log::~SGRX_Log(){ sep = ""; if( end_newline ) *this << "\n"; }
 
@@ -1774,6 +1776,20 @@ SGRX_Log& SGRX_Log::operator << ( ESpec_Date )
 	char pbuf[ 256 ] = {0};
 	strftime( pbuf, 255, "%Y-%m-%d %H:%M:%S", &T );
 	printf( "%s", pbuf );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( ESpec_CallStack )
+{
+	printf( "--- CALL STACK ---\n" );
+	RegFunc* curr = lastfunc;
+	if( curr == NULL )
+		printf( "    === empty ===\n" );
+	while( curr )
+	{
+		printf( "> %s (%s:%d)\n", curr->funcname, curr->filename, curr->linenum );
+		curr = curr->prev;
+	}
+	printf( "--- ---------- ---" );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Separator& s ){ sep = s.sep; return *this; }
@@ -1853,6 +1869,9 @@ bool complessint( const void* a, const void* b, void* )
 
 int TestSystems()
 {
+	LOG_FUNCTION;
+	LOG << LOG_CALLSTACK;
+	
 	char bfr[ 4 ];
 	sgrx_snprintf( bfr, 4, "abcd" );
 	if( bfr[ 3 ] != '\0' ) return 101; // sgrx_snprintf not null-terminating

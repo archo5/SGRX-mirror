@@ -12,19 +12,15 @@
 #endif
 
 
-struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyShape
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyShape : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	SGRX_IPhyShape() : _refcount(0), _type(0){}
+	SGRX_IPhyShape() : _type(0){}
 	virtual ~SGRX_IPhyShape(){}
 	
 	virtual Vec3 GetScale() const = 0;
 	virtual void SetScale( const Vec3& scale ) = 0;
 	
 	virtual Vec3 CalcInertia( float mass ) const = 0;
-	
-	int32_t _refcount;
 	
 protected:
 	int _type;
@@ -57,11 +53,9 @@ struct SGRX_PhyRigidBodyInfo
 	uint16_t mask;
 };
 
-struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	SGRX_IPhyRigidBody() : _refcount(0){}
+	SGRX_IPhyRigidBody(){}
 	virtual ~SGRX_IPhyRigidBody(){}
 	
 	virtual void SetEnabled( bool enabled ) = 0;
@@ -77,22 +71,16 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody
 	virtual void SetLinearFactor( const Vec3& v ) = 0;
 	virtual Vec3 GetAngularFactor() const = 0;
 	virtual void SetAngularFactor( const Vec3& v ) = 0;
-	
-	int32_t _refcount;
 };
 typedef Handle< SGRX_IPhyRigidBody > PhyRigidBodyHandle;
 
 
-struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyJoint
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyJoint : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	SGRX_IPhyJoint() : _refcount(0){}
+	SGRX_IPhyJoint(){}
 	virtual ~SGRX_IPhyJoint(){}
 	
 	virtual void SetEnabled( bool enabled ) = 0;
-	
-	int32_t _refcount;
 };
 typedef Handle< SGRX_IPhyJoint > PhyJointHandle;
 
@@ -105,11 +93,9 @@ struct SGRX_PhyRaycastInfo
 	PhyRigidBodyHandle body;
 };
 
-struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
-	SGRX_IPhyWorld() : _refcount(0){}
+	SGRX_IPhyWorld(){}
 	virtual ~SGRX_IPhyWorld(){}
 	
 	virtual void Step( float dt ) = 0;
@@ -130,8 +116,6 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld
 	
 	virtual bool Raycast( const Vec3& from, const Vec3& to, uint16_t group = 0x01, uint16_t mask = 0xffff, SGRX_PhyRaycastInfo* outinfo = NULL ) = 0;
 	virtual bool ConvexCast( const PhyShapeHandle& sh, const Vec3& from, const Vec3& to, uint16_t group = 0x01, uint16_t mask = 0xffff, SGRX_PhyRaycastInfo* outinfo = NULL, float depth = 0.0f ) = 0;
-	
-	int32_t _refcount;
 };
 typedef Handle< SGRX_IPhyWorld > PhyWorldHandle;
 

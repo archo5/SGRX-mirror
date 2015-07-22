@@ -211,7 +211,7 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 		}
 		return isoneshot != 0;
 	}
-	SoundEventInstanceHandle CreateEventInstance( const StringView& name )
+	SoundEventInstanceHandle CreateEventInstanceRaw( const StringView& name )
 	{
 		FMOD_STUDIO_EVENTDESCRIPTION* desc = GetEvent( name );
 		if( !desc )

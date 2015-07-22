@@ -273,7 +273,9 @@ void FlareSystem::Draw( SGRX_Camera& cam )
 		Vec3 screenpos = cam.WorldToScreen( FD.pos );
 		if( Vec3Dot( FD.pos, cam.direction ) < Vec3Dot( cam.position, cam.direction ) )
 			continue;
-		if( g_PhyWorld->Raycast( cam.position, FD.pos, 1, 1 ) )
+		SceneRaycastCallback_Any srcb;
+		g_GameLevel->m_scene->RaycastAll( cam.position, FD.pos, &srcb );
+		if( srcb.m_hit )
 			continue;
 	//	LOG << screenpos.z;
 		float dx = cos(0.1f)*0.5f*sz * FD.size;

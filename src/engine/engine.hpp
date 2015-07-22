@@ -505,10 +505,12 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	
 	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
 	{
+		LOG_FUNCTION;
 		return InitVertexBuffer( size, vd ) && UpdateVertexData( data, size, tristrip );
 	}
 	bool SetIndexData( const void* data, size_t size, bool i32 )
 	{
+		LOG_FUNCTION;
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
 	}
 	
@@ -762,6 +764,13 @@ struct SceneRaycastInfo
 struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback
 {
 	virtual void AddResult( SceneRaycastInfo* info ) = 0;
+};
+struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Any : SceneRaycastCallback
+{
+	ENGINE_EXPORT SceneRaycastCallback_Any();
+	ENGINE_EXPORT virtual void AddResult( SceneRaycastInfo* info );
+	
+	bool m_hit;
 };
 struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Closest : SceneRaycastCallback
 {
