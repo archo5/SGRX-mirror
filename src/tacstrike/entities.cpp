@@ -1014,6 +1014,14 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	m_shootPS.Load( "psys/gunflash.psy" );
 	m_shootPS.AddToScene( g_GameLevel->m_scene );
 	m_shootPS.OnRenderUpdate();
+	m_shootLT = g_GameLevel->m_scene->CreateLight();
+	m_shootLT->type = LIGHT_POINT;
+	m_shootLT->enabled = false;
+	m_shootLT->position = pos;
+	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
+	m_shootLT->range = 4;
+	m_shootLT->power = 4;
+	m_shootLT->UpdateTransform();
 	m_shootTimeout = 0;
 }
 
@@ -1033,20 +1041,6 @@ void TSPlayer::FixedTick( float deltaTime )
 	}
 	
 	TSCharacter::FixedTick( deltaTime );
-	
-	while( m_shootTimeout > 0 )
-		m_shootTimeout -= deltaTime;
-	if( SHOOT.value && m_shootTimeout <= 0 )
-	{
-		Mat4 mtx = GetBulletOutputMatrix();
-		Vec3 origin = mtx.TransformPos( V3(0) );
-		Vec3 dir = ( i_aim_target - origin ).Normalized();
-		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-		g_GameLevel->m_bulletSystem.Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
-		m_shootPS.SetTransform( mtx );
-		m_shootPS.Trigger();
-		m_shootTimeout += 0.1f;
-	}
 }
 
 void TSPlayer::Tick( float deltaTime, float blendFactor )
@@ -1096,6 +1090,27 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
 	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	
+	
+	m_shootLT->enabled = false;
+	if( m_shootTimeout > 0 )
+		m_shootTimeout -= deltaTime;
+	if( SHOOT.value && m_shootTimeout <= 0 )
+	{
+		Mat4 mtx = GetBulletOutputMatrix();
+		Vec3 origin = mtx.TransformPos( V3(0) );
+		Vec3 dir = ( i_aim_target - origin ).Normalized();
+		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
+		g_GameLevel->m_bulletSystem.Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
+		m_shootPS.SetTransform( mtx );
+		m_shootPS.Trigger();
+		m_shootLT->position = origin;
+		m_shootLT->UpdateTransform();
+		m_shootLT->enabled = true;
+		m_shootTimeout += 0.1f;
+	}
+	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
+	
 	
 	m_shootPS.Tick( deltaTime );
 	m_shootPS.PreRender();

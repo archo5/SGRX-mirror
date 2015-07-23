@@ -13,9 +13,25 @@ void TSMenuTheme::DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info
 {
 	if( ctrl.style == MCS_BigTopLink )
 	{
+		DrawBigTopLinkButton( ctrl, info );
 		return;
 	}
 	MenuTheme::DrawControl( ctrl, info );
+}
+
+void TSMenuTheme::DrawBigTopLinkButton( const MenuControl& ctrl, const MenuCtrlInfo& info )
+{
+	MENUTHEME_PREP;
+	Colors col;
+	_GetCtrlColors( ctrl, info, true, col );
+	
+	GR2D_SetFont( "fancy", info.minw / 30 );
+	
+	br.Reset().Col( col.fgcol.x, col.fgcol.y, col.fgcol.z, col.fgcol.w * info.menu->opacity );
+	GR2D_DrawTextLine(
+		round((ax0+ax1)/2),
+		round((ay0+ay1)/2),
+		ctrl.caption, HALIGN_CENTER, VALIGN_CENTER );
 }
 
 
@@ -126,7 +142,7 @@ bool TSQuestionScreen::Draw( float delta )
 	br.Quad( 0, menu.y0, GR_GetWidth(), GR_GetHeight() );
 	
 	br.Col( 0.8f, menu.opacity );
-	GR2D_SetFont( "fonts/lato-regular.ttf", (menu.y1 - menu.y0) / 30 );
+	GR2D_SetFont( "core", (menu.y1 - menu.y0) / 30 );
 	GR2D_DrawTextLine( TLERP(menu.x0,menu.x1,0.5f), TLERP(menu.y0,menu.y1,0.3f), question, HALIGN_CENTER, VALIGN_CENTER );
 	
 	menu.Draw( delta );
@@ -159,10 +175,14 @@ TSPauseMenuScreen::TSPauseMenuScreen() : notfirst(false)
 	pausemenu.theme = &g_TSMenuTheme;
 	objmenu.theme = &g_TSMenuTheme;
 	
+	topmenu.AddButton( "MENU", MCS_BigTopLink, 0.2f, 0.0f, 0.4f, 0.14f, 1 );
+	topmenu.AddButton( "OBJECTIVES", MCS_BigTopLink, 0.4f, 0.0f, 0.6f, 0.14f, 2 );
+	
 	float bm = 0.05f;
 	int bc = 3;
 	float bsz = ( 1.0f - ( bc + 1 ) * bm ) / bc;
 	float x = bm;
+	
 	pausemenu.AddButton( "Resume", MCS_Link, x, 0.8f, x + bsz, 0.9f ); x += bsz + bm;
 	pausemenu.AddButton( "Options", MCS_Link, x, 0.8f, x + bsz, 0.9f ); x += bsz + bm;
 	pausemenu.AddButton( "Exit", MCS_Link, x, 0.8f, x + bsz, 0.9f ); x += bsz + bm;
@@ -203,6 +223,11 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 		return true;
 	}
 	
+	// TOP MENU
+	{
+		int sel = topmenu.OnEvent( e );
+	}
+	
 	// PAUSE MENU
 	{
 		int sel = pausemenu.OnEvent( e );
@@ -227,6 +252,11 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 		}
 	}
 	
+	// OBJECTIVE MENU
+	{
+		int sel = objmenu.OnEvent( e );
+	}
+	
 	notfirst = true;
 	return true;
 }
@@ -238,10 +268,10 @@ bool TSPauseMenuScreen::Draw( float delta )
 	br.Col( 0, 0.5f );
 	br.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
 	
-	topmenu.RecalcSize( GR_GetWidth(), GR_GetHeight(), 16.0f/9.0f );
+	topmenu.RecalcSize( GR_GetWidth(), GR_GetHeight(), 4.0f/3.0f );
 	pausemenu.RecalcSize( GR_GetWidth(), GR_GetHeight(), 16.0f/9.0f );
 	objmenu.RecalcSize( GR_GetWidth(), GR_GetHeight(), 16.0f/9.0f );
-	float ref = topmenu.GetMinw();
+	float ref = pausemenu.GetMinw();
 	
 	br.Reset();
 	br.Col( 0.9f, topmenu.opacity * 0.5f );

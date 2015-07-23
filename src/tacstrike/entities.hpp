@@ -575,6 +575,7 @@ struct TSPlayer : TSCharacter
 	TextureHandle m_tex_interact_icon;
 	TextureHandle m_tex_cursor;
 	ParticleSystem m_shootPS;
+	LightHandle m_shootLT;
 	float m_shootTimeout;
 	float m_crouchIconShowTimeout;
 	float m_standIconShowTimeout;

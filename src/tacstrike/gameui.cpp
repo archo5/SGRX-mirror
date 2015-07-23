@@ -33,7 +33,7 @@ void MenuTheme::DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info )
 	}
 }
 
-void MenuTheme::_GetCtrlColors( const MenuControl& ctrl, const MenuCtrlInfo& info, Colors& col )
+void MenuTheme::_GetCtrlColors( const MenuControl& ctrl, const MenuCtrlInfo& info, bool link, Colors& col )
 {
 	col.bgcol = V4( 0.1f, 0.1f, 0.1f, 0 );
 	col.fgcol = V4( 0.8f, 0.8f, 0.8f, 1 );
@@ -41,12 +41,7 @@ void MenuTheme::_GetCtrlColors( const MenuControl& ctrl, const MenuCtrlInfo& inf
 	{
 		col.fgcol.w = 0.5f;
 	}
-	if( ctrl.style != MCS_Link || ctrl.type == MCT_Slider )
-	{
-		if( info.selected || ( info.anysel == false && info.highlighted ) )
-			col.bgcol = V4( 0.6f, 0.1f, 0.05f, 0.5f );
-	}
-	else
+	if( link )
 	{
 		if( info.highlighted )
 		{
@@ -56,6 +51,11 @@ void MenuTheme::_GetCtrlColors( const MenuControl& ctrl, const MenuCtrlInfo& inf
 		{
 			col.fgcol = V4( 0.6f, 0.1f, 0.05f, 1 );
 		}
+	}
+	else
+	{
+		if( info.selected || ( info.anysel == false && info.highlighted ) )
+			col.bgcol = V4( 0.6f, 0.1f, 0.05f, 0.5f );
 	}
 	
 	float ctlalpha = info.selected || ( info.anysel == false && info.highlighted ) ? 1.0f : 0.9f;
@@ -80,7 +80,7 @@ void MenuTheme::DrawDefaultButton( const MenuControl& ctrl, const MenuCtrlInfo& 
 {
 	MENUTHEME_PREP;
 	Colors col;
-	_GetCtrlColors( ctrl, info, col );
+	_GetCtrlColors( ctrl, info, false, col );
 	
 	_DrawButtonCore( ctrl, info, col );
 	
@@ -100,7 +100,7 @@ void MenuTheme::DrawLinkButton( const MenuControl& ctrl, const MenuCtrlInfo& inf
 {
 	MENUTHEME_PREP;
 	Colors col;
-	_GetCtrlColors( ctrl, info, col );
+	_GetCtrlColors( ctrl, info, true, col );
 	
 	GR2D_SetFont( "core", info.minw / 30 );
 	
@@ -115,7 +115,7 @@ void MenuTheme::DrawDefaultSlider( const MenuControl& ctrl, const MenuCtrlInfo& 
 {
 	MENUTHEME_PREP;
 	Colors col;
-	_GetCtrlColors( ctrl, info, col );
+	_GetCtrlColors( ctrl, info, false, col );
 	
 	_DrawButtonCore( ctrl, info, col );
 	

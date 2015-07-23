@@ -19,6 +19,7 @@ enum TSMenuCtrlStyle
 struct TSMenuTheme : MenuTheme
 {
 	virtual void DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info );
+	void DrawBigTopLinkButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
 };
 
 

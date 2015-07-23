@@ -62,7 +62,7 @@ struct MenuTheme
 	
 	virtual ~MenuTheme(){}
 	virtual void DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info );
-	virtual void _GetCtrlColors( const MenuControl& ctrl, const MenuCtrlInfo& info, Colors& col );
+	virtual void _GetCtrlColors( const MenuControl& ctrl, const MenuCtrlInfo& info, bool link, Colors& col );
 	virtual void _DrawButtonCore( const MenuControl& ctrl, const MenuCtrlInfo& info, const Colors& col );
 	virtual void DrawDefaultButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
 	virtual void DrawLinkButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
