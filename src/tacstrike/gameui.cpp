@@ -18,6 +18,12 @@ MenuControl::MenuControl() :
 }
 
 
+MenuTheme::MenuTheme() :
+	color_hl(V4( 0.9f, 0.2f, 0.1f, 1 )),
+	color_sel(V4( 0.6f, 0.1f, 0.05f, 1 ))
+{
+}
+
 void MenuTheme::DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info )
 {
 	if( ctrl.type == MCT_Slider )
@@ -45,17 +51,17 @@ void MenuTheme::_GetCtrlColors( const MenuControl& ctrl, const MenuCtrlInfo& inf
 	{
 		if( info.highlighted )
 		{
-			col.fgcol = V4( 0.9f, 0.2f, 0.1f, 1 );
+			col.fgcol = color_hl;
 		}
 		if( info.selected )
 		{
-			col.fgcol = V4( 0.6f, 0.1f, 0.05f, 1 );
+			col.fgcol = color_sel;
 		}
 	}
 	else
 	{
 		if( info.selected || ( info.anysel == false && info.highlighted ) )
-			col.bgcol = V4( 0.6f, 0.1f, 0.05f, 0.5f );
+			col.bgcol = color_sel * V4( 1, 1, 1, 0.5f );
 	}
 	
 	float ctlalpha = info.selected || ( info.anysel == false && info.highlighted ) ? 1.0f : 0.9f;

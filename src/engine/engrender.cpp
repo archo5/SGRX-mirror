@@ -846,6 +846,13 @@ BatchRenderer& BatchRenderer::AAPoly( const Vec2* polydata, size_t polysize, flo
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::AARect( float x0, float y0, float x1, float y1, float z )
+{
+	Vec2 verts[] = { V2(x0,y0), V2(x1,y0), V2(x1,y1), V2(x0,y1) };
+	AAPoly( verts, 4, z );
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::AACircle( float x, float y, float r, float z, int verts )
 {
 	if( verts < 0 )

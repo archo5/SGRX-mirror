@@ -9,6 +9,12 @@ TSQuitGameQuestionScreen g_QuitGameQuestionScreen;
 TSPauseMenuScreen g_PauseMenu;
 
 
+TSMenuTheme::TSMenuTheme()
+{
+	color_hl = V4( 35, 148, 215, 1 ) * V4(1.0f/255.0f,1);
+	color_sel = V4( 25, 128, 185, 1 ) * V4(1.0f/255.0f,1);
+}
+
 void TSMenuTheme::DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info )
 {
 	if( ctrl.style == MCS_BigTopLink )
@@ -169,14 +175,14 @@ bool TSQuitGameQuestionScreen::Action( int mode )
 }
 
 
-TSPauseMenuScreen::TSPauseMenuScreen() : notfirst(false)
+TSPauseMenuScreen::TSPauseMenuScreen() : notfirst(false), show_objectives(false)
 {
 	topmenu.theme = &g_TSMenuTheme;
 	pausemenu.theme = &g_TSMenuTheme;
 	objmenu.theme = &g_TSMenuTheme;
 	
-	topmenu.AddButton( "MENU", MCS_BigTopLink, 0.2f, 0.0f, 0.4f, 0.14f, 1 );
-	topmenu.AddButton( "OBJECTIVES", MCS_BigTopLink, 0.4f, 0.0f, 0.6f, 0.14f, 2 );
+	topmenu.AddButton( "MENU", MCS_BigTopLink, 0.2f, 0.0f, 0.4f, 0.14f );
+	topmenu.AddButton( "OBJECTIVES", MCS_BigTopLink, 0.4f, 0.0f, 0.6f, 0.14f );
 	
 	float bm = 0.05f;
 	int bc = 3;
@@ -226,9 +232,12 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 	// TOP MENU
 	{
 		int sel = topmenu.OnEvent( e );
+		if( sel == 0 ) show_objectives = false;
+		else if( sel == 1 ) show_objectives = true;
 	}
 	
 	// PAUSE MENU
+	if( show_objectives == false )
 	{
 		int sel = pausemenu.OnEvent( e );
 		if( sel >= 0 )
@@ -253,6 +262,7 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 	}
 	
 	// OBJECTIVE MENU
+	if( show_objectives )
 	{
 		int sel = objmenu.OnEvent( e );
 	}
@@ -273,14 +283,34 @@ bool TSPauseMenuScreen::Draw( float delta )
 	objmenu.RecalcSize( GR_GetWidth(), GR_GetHeight(), 16.0f/9.0f );
 	float ref = pausemenu.GetMinw();
 	
-	br.Reset();
-	br.Col( 0.9f, topmenu.opacity * 0.5f );
+	br.Reset().Col( 0.9f, topmenu.opacity * 0.5f );
 	GR2D_SetFont( "fancy", ref / 30 );
 	GR2D_DrawTextLine( ref / 20, ref / 20, "PAUSED", HALIGN_LEFT, VALIGN_TOP );
 	
 	topmenu.Draw( delta );
-	pausemenu.Draw( delta );
-	objmenu.Draw( delta );
+	if( show_objectives == false )
+	{
+		pausemenu.Draw( delta );
+	}
+	if( show_objectives )
+	{
+		br.Reset().Col( 0.976f, objmenu.opacity );
+		br.AARect(
+			objmenu.IX(435.0f/1280.0f), objmenu.IY(134.0f/720.0f),
+			objmenu.IX(439.0f/1280.0f), objmenu.IY(168.0f/720.0f) );
+		br.AARect(
+			objmenu.IX(477.0f/1280.0f), objmenu.IY(155.0f/720.0f),
+			objmenu.IX(481.0f/1280.0f), objmenu.IY(168.0f/720.0f) );
+		br.AARect(
+			objmenu.IX(510.0f/1280.0f), objmenu.IY(170.0f/720.0f),
+			objmenu.IX(514.0f/1280.0f), objmenu.IY(590.0f/720.0f) );
+		GR2D_SetFont( "mono", objmenu.GetMinw() * 16 / 720.f );
+		GR2D_DrawTextLine( round(objmenu.IX(426/1280.f)), round(objmenu.IY(121/720.f)),
+			"Required", HALIGN_LEFT, VALIGN_CENTER );
+		GR2D_DrawTextLine( round(objmenu.IX(468/1280.f)), round(objmenu.IY(141/720.f)),
+			"Location", HALIGN_LEFT, VALIGN_CENTER );
+		objmenu.Draw( delta );
+	}
 	
 	return false;
 }

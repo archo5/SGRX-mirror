@@ -1004,6 +1004,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& Tick( const Vec3& pos, float radius, const Mat4& transform = Mat4::Identity );
 	
 	ENGINE_EXPORT BatchRenderer& AAPoly( const Vec2* polydata, size_t polysize, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& AARect( float x0, float y0, float x1, float y1, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& AACircle( float x, float y, float r, float z = 0, int verts = -1 );
 	ENGINE_EXPORT BatchRenderer& AAStroke( const Vec2* linedata, size_t linesize, float width, bool closed, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& AACircleOutline( float x, float y, float r, float width = 1, float z = 0, int verts = -1 );

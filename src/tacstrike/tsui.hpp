@@ -18,6 +18,7 @@ enum TSMenuCtrlStyle
 
 struct TSMenuTheme : MenuTheme
 {
+	TSMenuTheme();
 	virtual void DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info );
 	void DrawBigTopLinkButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
 };
@@ -73,6 +74,7 @@ struct TSPauseMenuScreen : IScreen
 	ScreenMenu topmenu;
 	ScreenMenu pausemenu;
 	ScreenMenu objmenu;
+	bool show_objectives;
 };
 
 
