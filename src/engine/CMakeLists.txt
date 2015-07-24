@@ -5,8 +5,8 @@ link_directories( D:/DXSDK/Lib/x86 ${EXTDIR}/d3dx )
 
 # Engine
 add_library( sgrx-core SHARED
-	engine.cpp engine.hpp engrender.cpp enganim.cpp enganim.hpp edgui.cpp edgui.hpp
-	image.cpp font.cpp mesh.cpp culling.cpp renderer.hpp utils.cpp utils.hpp dds.c dds.h
+	engine engrender enganim engext edgui
+	image font mesh culling utils dds
 	${EXTDIR}/src/zlib1 ${EXTDIR}/src/zlib2 ${EXTDIR}/src/zlib3
 	${EXTDIR}/src/libpng1
 	${EXTDIR}/src/libjpg1 ${EXTDIR}/src/libjpg2 ${EXTDIR}/src/libjpg3

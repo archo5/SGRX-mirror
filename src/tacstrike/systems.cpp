@@ -180,6 +180,20 @@ int ObjectiveSystem::AddObjective( const StringView& sv, OSObjective::State stat
 	return out;
 }
 
+OSObjStats ObjectiveSystem::GetStats()
+{
+	OSObjStats out = { m_objectives.size(), 0, 0, 0, 0, 0 };
+	for( size_t i = 0; i < m_objectives.size(); ++i )
+	{
+		if( m_objectives[ i ].state == OSObjective::Hidden ) out.numHidden++;
+		if( m_objectives[ i ].state == OSObjective::Open ) out.numOpen++;
+		if( m_objectives[ i ].state == OSObjective::Done ) out.numDone++;
+		if( m_objectives[ i ].state == OSObjective::Failed ) out.numFailed++;
+		if( m_objectives[ i ].state == OSObjective::Cancelled ) out.numCancelled++;
+	}
+	return out;
+}
+
 void ObjectiveSystem::Tick( float dt )
 {
 	float tgt = SHOW_OBJECTIVES.value ? 1 : 0;
@@ -515,6 +529,9 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 		
 		SceneRaycastCallback_Sorting cb( &m_tmpStore );
 		scene->RaycastAll( p1, p2, &cb, 0xffffffff );
+		#ifdef TSGAME
+		g_DebugLines.DrawLine( p1, p2, m_tmpStore.size() ? COLOR_RGB(255,0,0) : COLOR_RGB(255,255,0) );
+		#endif
 		
 		// sorted list of raycast hits
 		bool remb = false;

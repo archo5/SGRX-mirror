@@ -1,6 +1,7 @@
 
 
 #include "tsui.hpp"
+#include "level.hpp"
 
 
 TSMenuTheme g_TSMenuTheme;
@@ -22,6 +23,11 @@ void TSMenuTheme::DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info
 		DrawBigTopLinkButton( ctrl, info );
 		return;
 	}
+	if( ctrl.style == MCS_ObjectiveItem )
+	{
+		DrawObjectiveItemButton( ctrl, info );
+		return;
+	}
 	MenuTheme::DrawControl( ctrl, info );
 }
 
@@ -38,6 +44,29 @@ void TSMenuTheme::DrawBigTopLinkButton( const MenuControl& ctrl, const MenuCtrlI
 		round((ax0+ax1)/2),
 		round((ay0+ay1)/2),
 		ctrl.caption, HALIGN_CENTER, VALIGN_CENTER );
+}
+
+void TSMenuTheme::DrawObjectiveItemButton( const MenuControl& ctrl, const MenuCtrlInfo& info )
+{
+	MENUTHEME_PREP;
+	Colors col;
+	_GetCtrlColors( ctrl, info, true, col );
+	if( ctrl.style == MCS_ObjectiveItem )
+	{
+		col.fgcol = V4( 153/255.f, 1 );
+		if( info.selected )
+			col.fgcol = V4( 0.97f, 1 );
+		else if( info.highlighted )
+			col.fgcol = V4( 193/255.f, 1 );
+	}
+	
+	GR2D_SetFont( "mono", info.minw * 20 / 720.f );
+	
+	br.Reset().Col( col.fgcol.x, col.fgcol.y, col.fgcol.z, col.fgcol.w * info.menu->opacity );
+	GR2D_DrawTextLine(
+		round(TLERP(ax0, ax1, 0.8f)),
+		round((ay0+ay1)/2),
+		ctrl.caption, HALIGN_RIGHT, VALIGN_CENTER );
 }
 
 
@@ -181,8 +210,9 @@ TSPauseMenuScreen::TSPauseMenuScreen() : notfirst(false), show_objectives(false)
 	pausemenu.theme = &g_TSMenuTheme;
 	objmenu.theme = &g_TSMenuTheme;
 	
-	topmenu.AddButton( "MENU", MCS_BigTopLink, 0.2f, 0.0f, 0.4f, 0.14f );
-	topmenu.AddButton( "OBJECTIVES", MCS_BigTopLink, 0.4f, 0.0f, 0.6f, 0.14f );
+	topmenu.AddRadioBtn( "MENU", MCS_BigTopLink, 0.2f, 0.0f, 0.4f, 0.14f, 0 );
+	topmenu.AddRadioBtn( "OBJECTIVES", MCS_BigTopLink, 0.4f, 0.0f, 0.6f, 0.14f, 0 );
+	topmenu.SelectInGroup( 0, 0 );
 	
 	float bm = 0.05f;
 	int bc = 3;
@@ -199,6 +229,17 @@ void TSPauseMenuScreen::OnStart()
 	topmenu.OnStart();
 	pausemenu.OnStart();
 	objmenu.OnStart();
+	
+	objmenu.Clear();
+	Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+	for( size_t i = 0; i < objlist.size(); ++i )
+	{
+		OSObjective& OBJ = objlist[ i ];
+		float q = i * 37;
+		objmenu.AddRadioBtn( OBJ.state == OSObjective::Hidden ? "???" : OBJ.text,
+			MCS_ObjectiveItem, 50/1280.f, (170+q)/720.f, 500/1280.f, (207+q)/720.f, 0 );
+	}
+	objmenu.SelectInGroup( 0, 0 );
 	
 	Game_ShowCursor( true );
 	notfirst = false;
@@ -232,6 +273,16 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 	// TOP MENU
 	{
 		int sel = topmenu.OnEvent( e );
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_p )
+		{
+			topmenu.SelectInGroup( 0, 0 );
+			sel = 0;
+		}
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_o )
+		{
+			topmenu.SelectInGroup( 0, 1 );
+			sel = 1;
+		}
 		if( sel == 0 ) show_objectives = false;
 		else if( sel == 1 ) show_objectives = true;
 	}
@@ -265,6 +316,10 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 	if( show_objectives )
 	{
 		int sel = objmenu.OnEvent( e );
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_UP )
+			sel = objmenu.SelectPrevInGroup( 0 );
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_DOWN )
+			sel = objmenu.SelectNextInGroup( 0 );
 	}
 	
 	notfirst = true;
@@ -294,6 +349,8 @@ bool TSPauseMenuScreen::Draw( float delta )
 	}
 	if( show_objectives )
 	{
+		OSObjStats stats = g_GameLevel->m_objectiveSystem.GetStats();
+		
 		br.Reset().Col( 0.976f, objmenu.opacity );
 		br.AARect(
 			objmenu.IX(435.0f/1280.0f), objmenu.IY(134.0f/720.0f),
@@ -304,11 +361,69 @@ bool TSPauseMenuScreen::Draw( float delta )
 		br.AARect(
 			objmenu.IX(510.0f/1280.0f), objmenu.IY(170.0f/720.0f),
 			objmenu.IX(514.0f/1280.0f), objmenu.IY(590.0f/720.0f) );
+		
 		GR2D_SetFont( "mono", objmenu.GetMinw() * 16 / 720.f );
 		GR2D_DrawTextLine( round(objmenu.IX(426/1280.f)), round(objmenu.IY(121/720.f)),
 			"Required", HALIGN_LEFT, VALIGN_CENTER );
 		GR2D_DrawTextLine( round(objmenu.IX(468/1280.f)), round(objmenu.IY(141/720.f)),
 			"Location", HALIGN_LEFT, VALIGN_CENTER );
+		
+		GR2D_SetFont( "mono", objmenu.GetMinw() * 20 / 720.f );
+		// draw "in progress"
+		{
+			char bfr[32];
+			sgrx_snprintf( bfr, sizeof(bfr), "(%d/%d)", stats.numOpen, stats.numTotal );
+			int szx1 = GR2D_GetTextLength( "IN PROGRESS: " );
+			int szx2 = GR2D_GetTextLength( bfr );
+			
+			br.Colb( 35, 148, 215 );
+			GR2D_DrawTextLine(
+				round(objmenu.IX(1210/1280.f)) - szx1 - szx2,
+				round(objmenu.IY(85/720.f)),
+				"IN PROGRESS: ", HALIGN_LEFT, VALIGN_CENTER );
+			br.Colb( 35, 148, 215, 191 );
+			GR2D_DrawTextLine(
+				round(objmenu.IX(1210/1280.f)) - szx2,
+				round(objmenu.IY(85/720.f)),
+				bfr, HALIGN_LEFT, VALIGN_CENTER );
+		}
+		// draw "unknown"
+		{
+			char bfr[32];
+			sgrx_snprintf( bfr, sizeof(bfr), "(%d/%d)", stats.numHidden, stats.numTotal );
+			int szx1 = GR2D_GetTextLength( "UNKNOWN: " );
+			int szx2 = GR2D_GetTextLength( bfr );
+			
+			br.Colb( 35, 148, 215 );
+			GR2D_DrawTextLine(
+				round(objmenu.IX(1210/1280.f)) - szx1 - szx2,
+				round(objmenu.IY(113/720.f)),
+				"UNKNOWN: ", HALIGN_LEFT, VALIGN_CENTER );
+			br.Colb( 35, 148, 215, 191 );
+			GR2D_DrawTextLine(
+				round(objmenu.IX(1210/1280.f)) - szx2,
+				round(objmenu.IY(113/720.f)),
+				bfr, HALIGN_LEFT, VALIGN_CENTER );
+		}
+		// draw "completed"
+		{
+			char bfr[32];
+			sgrx_snprintf( bfr, sizeof(bfr), "(%d/%d)", stats.numDone, stats.numTotal );
+			int szx1 = GR2D_GetTextLength( "COMPLETED: " );
+			int szx2 = GR2D_GetTextLength( bfr );
+			
+			br.Colb( 35, 148, 215 );
+			GR2D_DrawTextLine(
+				round(objmenu.IX(1210/1280.f)) - szx1 - szx2,
+				round(objmenu.IY(141/720.f)),
+				"COMPLETED: ", HALIGN_LEFT, VALIGN_CENTER );
+			br.Colb( 35, 148, 215, 191 );
+			GR2D_DrawTextLine(
+				round(objmenu.IX(1210/1280.f)) - szx2,
+				round(objmenu.IY(141/720.f)),
+				bfr, HALIGN_LEFT, VALIGN_CENTER );
+		}
+		
 		objmenu.Draw( delta );
 	}
 	

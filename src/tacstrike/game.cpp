@@ -31,6 +31,7 @@ Command SPRINT( "sprint" );
 Command CROUCH( "crouch" );
 Command SHOW_OBJECTIVES( "show_objectives" );
 Command DO_ACTION( "do_action" );
+Command SLOWDOWN_TEST( "slowdown_test" );
 Vec2 CURSOR_POS = V2(0);
 
 
@@ -383,6 +384,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindKeyToAction( SDLK_LSHIFT, &SPRINT );
 		Game_BindKeyToAction( SDLK_LCTRL, &CROUCH );
 		Game_BindKeyToAction( SDLK_SPACE, &DO_ACTION );
+		Game_BindKeyToAction( SDLK_TAB, &SLOWDOWN_TEST );
 		
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_LEFTX, &MOVE_X );
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_LEFTY, &MOVE_Y );
@@ -395,7 +397,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		g_GameLevel = new GameLevel();
 		
-		Game_AddOverlayScreen( &g_PauseMenu );
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
 		g_GameLevel->Load( "v3decotest" );
@@ -446,6 +447,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		g_GameLevel->StartLevel();
 		
+		Game_AddOverlayScreen( &g_PauseMenu );
 		return true;
 	}
 	void OnDestroy()
@@ -566,6 +568,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		if( dt > MAX_TICK_SIZE )
 			dt = MAX_TICK_SIZE;
+		if( SLOWDOWN_TEST.value )
+			dt *= 0.25f;
 		
 		m_accum += dt;
 		while( m_accum >= 0 )

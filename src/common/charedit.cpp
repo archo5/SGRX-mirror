@@ -2,6 +2,7 @@
 
 #include <engine.hpp>
 #include <enganim.hpp>
+#include <engext.hpp>
 #include <edgui.hpp>
 #include "edcomui.hpp"
 

@@ -974,7 +974,7 @@ struct BatchRenderer
 	FINLINE BatchRenderer& Col( float x, float a ){ return Col( x, x, x, a ); }
 	FINLINE BatchRenderer& Col( float r, float g, float b ){ return Col( r, g, b, 1.0f ); }
 	FINLINE BatchRenderer& Col( float r, float g, float b, float a ){ return Colb( COLOR_F2B( r ), COLOR_F2B( g ), COLOR_F2B( b ), COLOR_F2B( a ) ); }
-	ENGINE_EXPORT BatchRenderer& Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+	ENGINE_EXPORT BatchRenderer& Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff );
 	FINLINE BatchRenderer& Colu( uint32_t c ){ return Colb( COLOR_EXTRACT_R( c ), COLOR_EXTRACT_G( c ), COLOR_EXTRACT_B( c ), COLOR_EXTRACT_A( c ) ); }
 	FINLINE BatchRenderer& Tex( float x, float y ){ m_proto.u = x; m_proto.v = y; return *this; }
 	FINLINE BatchRenderer& Pos( float x, float y, float z = 0.0f ){ m_proto.x = x; m_proto.y = y; m_proto.z = z; AddVertex( m_proto ); return *this; }

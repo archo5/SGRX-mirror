@@ -123,33 +123,3 @@ typedef Handle< SGRX_IPhyWorld > PhyWorldHandle;
 PHYSICS_EXPORT PhyWorldHandle PHY_CreateWorld();
 
 
-struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
-{
-	struct Body
-	{
-		Vec3 relPos;
-		Quat relRot;
-		PhyRigidBodyHandle bodyHandle;
-		Vec3 prevPos;
-		Vec3 currPos;
-		Quat prevRot;
-		Quat currRot;
-	};
-	
-	ENGINE_EXPORT AnimRagdoll();
-	ENGINE_EXPORT void Initialize( PhyWorldHandle world, MeshHandle mesh, struct SkeletonInfo* skinfo );
-	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
-	ENGINE_EXPORT virtual void Advance( float deltaTime );
-	
-	ENGINE_EXPORT void SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot );
-	ENGINE_EXPORT void AdvanceTransforms( Animator* anim );
-	ENGINE_EXPORT void EnablePhysics( const Mat4& worldMatrix );
-	ENGINE_EXPORT void DisablePhysics();
-	
-	bool m_enabled;
-	float m_lastTickSize;
-	MeshHandle m_mesh;
-	Array< Body > m_bones;
-	Array< PhyJointHandle > m_joints;
-};
-

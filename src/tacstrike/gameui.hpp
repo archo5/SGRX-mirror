@@ -14,6 +14,7 @@ enum MenuCtrlType
 {
 	MCT_Null = 0,
 	MCT_Button,
+	MCT_RadioBtn,
 	MCT_Slider,
 };
 
@@ -43,7 +44,9 @@ struct MenuControl
 	float x0, y0, x1, y1;
 	bool visible;
 	bool enabled;
+	bool selected;
 	int id;
+	int group;
 	
 	String value_text;
 	float sl_value;
@@ -92,7 +95,15 @@ struct ScreenMenu
 	void FindHL( float x, float y );
 	void RecalcSize( float w, float h, float aspect = 1.0f );
 	void AddButton( const StringView& caption, int style, float x0, float y0, float x1, float y1, int id = 0 );
+	void AddRadioBtn( const StringView& caption, int style, float x0, float y0, float x1, float y1, int group, int id = 0 );
 	void AddSlider( const StringView& caption, int style, float x0, float y0, float x1, float y1, int id = 0 );
+	void Clear();
+	
+	int GetCountInGroup( int group );
+	int GetSelectedInGroup( int group );
+	int SelectInGroup( int group, int which ); // returns control number in array
+	int SelectNextInGroup( int group );
+	int SelectPrevInGroup( int group );
 	
 	float GetMinw(){ return TMIN( x1 - x0, y1 - y0 ); }
 	float IX( float v ) const { return TLERP( x0, x1, v ); }

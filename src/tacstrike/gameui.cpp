@@ -2,6 +2,7 @@
 
 #include <sound.hpp>
 #include "gameui.hpp"
+#include "level.hpp"
 
 
 //
@@ -13,7 +14,8 @@ MenuTheme g_DefaultMenuTheme;
 
 MenuControl::MenuControl() :
 	type(MCT_Null), style(MCS_Default), x0(0), y0(0), x1(0), y1(0),
-	visible(true), enabled(true), id(0), sl_value(0), sb_option(0)
+	visible(true), enabled(true), selected(false),
+	id(0), group(-1), sl_value(0), sb_option(0)
 {
 }
 
@@ -202,7 +204,15 @@ int ScreenMenu::OnEvent( const Event& e )
 	case SDL_MOUSEBUTTONUP:
 		ret = UpdateCtrl( EV_MBUp );
 		if( m_selected >= 0 && m_HL == m_selected )
+		{
+			for( int i = 0; i < (int) controls.size(); ++i )
+			{
+				if( i != m_selected && controls[ i ].group == controls[ m_selected ].group )
+					controls[ i ].selected = false;
+			}
+			controls[ m_selected ].selected = true;
 			ret = m_selected;
+		}
 		if( m_selected >= 0 )
 			g_SoundSys->CreateEventInstance( "/ui/buttonup" )->Start();
 		m_selected = -1;
@@ -236,7 +246,7 @@ void ScreenMenu::Draw( float delta )
 		MenuCtrlInfo mcinfo =
 		{
 			ax0, ay0, ax1, ay1,
-			i, i == m_HL, i == m_selected, m_selected >= 0,
+			i, i == m_HL, ctrl.selected || i == m_selected, m_selected >= 0,
 			this,
 			TMIN( x1 - x0, y1 - y0 ),
 		};
@@ -302,6 +312,21 @@ void ScreenMenu::AddButton( const StringView& caption, int style, float x0, floa
 	ctrl.id = id;
 }
 
+void ScreenMenu::AddRadioBtn( const StringView& caption, int style, float x0, float y0, float x1, float y1, int group, int id )
+{
+	controls.push_back( MenuControl() );
+	MenuControl& ctrl = controls.last();
+	ctrl.type = MCT_RadioBtn;
+	ctrl.style = style;
+	ctrl.caption = caption;
+	ctrl.x0 = x0;
+	ctrl.y0 = y0;
+	ctrl.x1 = x1;
+	ctrl.y1 = y1;
+	ctrl.group = group;
+	ctrl.id = id;
+}
+
 void ScreenMenu::AddSlider( const StringView& caption, int style, float x0, float y0, float x1, float y1, int id )
 {
 	controls.push_back( MenuControl() );
@@ -314,6 +339,76 @@ void ScreenMenu::AddSlider( const StringView& caption, int style, float x0, floa
 	ctrl.x1 = x1;
 	ctrl.y1 = y1;
 	ctrl.id = id;
+}
+
+void ScreenMenu::Clear()
+{
+	controls.clear();
+	m_selected = -1;
+	m_HL = -1;
+}
+
+int ScreenMenu::GetCountInGroup( int group )
+{
+	int count = 0;
+	for( size_t i = 0; i < controls.size(); ++i )
+		if( controls[ i ].group == group )
+			count++;
+	return count;
+}
+
+int ScreenMenu::GetSelectedInGroup( int group )
+{
+	int at = 0;
+	for( size_t i = 0; i < controls.size(); ++i )
+	{
+		if( controls[ i ].group == group )
+		{
+			if( controls[ i ].selected )
+				return at;
+			at++;
+		}
+	}
+	return -1;
+}
+
+int ScreenMenu::SelectInGroup( int group, int which )
+{
+	int at = 0, ret = -1;
+	for( size_t i = 0; i < controls.size(); ++i )
+	{
+		if( controls[ i ].group == group )
+		{
+			controls[ i ].selected = false;
+			if( which == at )
+			{
+				controls[ i ].selected = true;
+				ret = i;
+			}
+			at++;
+		}
+	}
+	return ret;
+}
+
+int ScreenMenu::SelectNextInGroup( int group )
+{
+	int count = GetCountInGroup( group );
+	int which = GetSelectedInGroup( group );
+	if( count )
+		return SelectInGroup( group, ( TMAX( 0, TMIN( count - 1, which ) ) + 1 ) % count );
+	else
+		return SelectInGroup( group, -1 );
+}
+
+int ScreenMenu::SelectPrevInGroup( int group )
+{
+	int count = GetCountInGroup( group );
+	int which = GetSelectedInGroup( group );
+	if( count )
+		return SelectInGroup( group, ( TMAX( 0, TMIN( count - 1, which ) ) + count - 1 ) % count );
+	else
+		return SelectInGroup( group, -1 );
 }
 
 

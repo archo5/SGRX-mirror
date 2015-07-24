@@ -1,10 +1,13 @@
 
 
+#pragma once
 #include <engine.hpp>
 #include <enganim.hpp>
+#include <engext.hpp>
 #include <sound.hpp>
 #include <physics.hpp>
 #include <script.hpp>
+#include "pathfinding.hpp"
 
 
 
@@ -210,6 +213,16 @@ struct OSObjective
 	State state;
 };
 
+struct OSObjStats
+{
+	int numTotal;
+	int numHidden;
+	int numOpen;
+	int numDone;
+	int numFailed;
+	int numCancelled;
+};
+
 struct ObjectiveSystem
 {
 	Array< OSObjective > m_objectives;
@@ -218,6 +231,7 @@ struct ObjectiveSystem
 	
 	ObjectiveSystem();
 	int AddObjective( const StringView& sv, OSObjective::State state );
+	OSObjStats GetStats();
 	void Tick( float dt );
 	void DrawUI();
 	
@@ -287,9 +301,9 @@ struct DamageSystem
 	
 	Array< MtlHandle > m_bulletDecalMaterials;
 	Array< DecalMapPartInfo > m_bulletDecalInfo;
-	DecalSystem m_bulletDecalSys;
+	SGRX_DecalSystem m_bulletDecalSys;
 	MeshInstHandle m_bulletDecalMesh;
-	DecalSystem m_bloodDecalSys;
+	SGRX_DecalSystem m_bloodDecalSys;
 	MeshInstHandle m_bloodDecalMesh;
 };
 

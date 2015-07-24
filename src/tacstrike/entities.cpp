@@ -1198,21 +1198,21 @@ Vec3 TSPlayer::FindTargetPosition()
 	Vec3 crtgt = crpos + crdir * 100;
 	
 	SGRX_PhyRaycastInfo rcinfo;
-	if( g_PhyWorld->Raycast( crpos, crtgt, 0x1, 0xffff, &rcinfo ) )
+	if( g_PhyWorld->Raycast( crpos, crtgt, 0x1, 0x1, &rcinfo ) )
 	{
-		bool atwall = 0.707f > Vec3Dot( rcinfo.normal, V3(0,0,1) ); // > ~45deg to up vector
+		bool atwall = 0.707f > fabsf(Vec3Dot( rcinfo.normal, V3(0,0,1) )); // > ~45deg to up vector
 		bool frontface = Vec3Dot( rcinfo.normal, crdir ) < 0; 
 		if( atwall && frontface )
 			return rcinfo.point;
 		
 		// must adjust target height above ground
 		if( frontface )
-			return rcinfo.point + V3(0,0,1.5f);
+			return rcinfo.point + V3(0,0,1.1f);
 	}
 	
 	// backup same level plane test if aiming into nothing
 	float dsts[2];
-	if( RayPlaneIntersect( crpos, crdir, V4(0,0,1,GetPosition().z), dsts ) )
+	if( RayPlaneIntersect( crpos, crdir, V4(0,0,1.1f,GetPosition().z), dsts ) )
 	{
 		return crpos + crdir * dsts[0];
 	}

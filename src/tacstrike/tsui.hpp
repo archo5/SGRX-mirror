@@ -2,6 +2,7 @@
 
 #pragma once
 #include "gameui.hpp"
+#include "systems.hpp"
 
 
 extern struct TSMenuTheme g_TSMenuTheme;
@@ -13,6 +14,7 @@ extern struct TSPauseMenuScreen g_PauseMenu;
 enum TSMenuCtrlStyle
 {
 	MCS_BigTopLink = 100,
+	MCS_ObjectiveItem,
 };
 
 
@@ -21,6 +23,7 @@ struct TSMenuTheme : MenuTheme
 	TSMenuTheme();
 	virtual void DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info );
 	void DrawBigTopLinkButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
+	void DrawObjectiveItemButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
 };
 
 

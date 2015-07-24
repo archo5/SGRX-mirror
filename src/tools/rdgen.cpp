@@ -5,6 +5,7 @@
 #define USE_ARRAY
 #include "../engine/renderer.hpp"
 #include "../engine/enganim.hpp"
+#include "../engine/engext.hpp"
 
 
 template< class T > struct FreeOnEnd {};
