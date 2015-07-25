@@ -895,6 +895,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LightSampler
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3& outcolor );
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] ) = 0;
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor );
+	ENGINE_EXPORT void LightMeshAt( SGRX_MeshInstance* MI, Vec3 pos, int constoff = 10 );
+	ENGINE_EXPORT void LightMesh( SGRX_MeshInstance* MI, Vec3 off = V3(0), int constoff = 10 );
 	Vec3 SampleLight( const Vec3& pos ){ Vec3 out; SampleLight( pos, out ); return out; }
 };
 
@@ -904,6 +906,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_DummyLightSampler : SGRX_LightSampler
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] );
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor );
 };
+ENGINE_EXPORT SGRX_DummyLightSampler& GR_GetDummyLightSampler();
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_LightTreeSampler : SGRX_LightSampler
 {

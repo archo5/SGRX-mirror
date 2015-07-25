@@ -61,6 +61,8 @@ ENGINE_EXPORT void sgrx_assert_func( const char* code, const char* file, int lin
 # endif
 #endif
 
+#define SGRX_STR_EXPAND( tok ) #tok
+#define SGRX_STR( tok ) SGRX_STR_EXPAND( tok )
 #define SGRX_CAST( t, to, from ) t to = (t) from
 #define SGRX_ARRAY_SIZE( arr ) (sizeof(arr)/sizeof((arr)[0]))
 #ifndef UNUSED

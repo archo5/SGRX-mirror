@@ -25,17 +25,6 @@ Command CROUCH( "crouch" );
 Command SHOW_OBJECTIVES( "show_objectives" );
 
 
-static void resetcontrols()
-{
-	MOVE_LEFT.value = 0;
-	MOVE_RIGHT.value = 0;
-	MOVE_UP.value = 0;
-	MOVE_DOWN.value = 0;
-	INTERACT.value = 0;
-	CROUCH.value = 0;
-}
-
-
 SGRX_RenderPass g_RenderPasses_Main[] =
 {
 	{ RPT_SHADOWS, RPF_ENABLED, 1, 0, 0, "shadow" },

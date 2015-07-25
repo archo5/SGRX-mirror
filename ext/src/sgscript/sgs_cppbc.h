@@ -531,7 +531,7 @@ public:
 	}
 	bool thiscall( sgsVariable func, int args = 0, int ret = 0 )
 	{
-		return C &&
+		return C && func.not_null() &&
 			sgs_InsertVariable( C, -args - 1, &var ) == SGS_SUCCESS &&
 			SGS_SUCCEEDED( sgs_ThisCallP( C, &func.var, args, ret ) );
 	}

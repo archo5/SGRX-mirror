@@ -292,6 +292,14 @@ sgsVariable ScriptContext::CreateVec3( const Vec3& v )
 	return out;
 }
 
+sgsVariable ScriptContext::GetGlobal( const StringView& name )
+{
+	sgsVariable key = sgsString( C, name.data(), name.size() ).get_variable();
+	sgsVariable out( C );
+	sgs_GetGlobalPP( C, &key.var, &out.var );
+	return out;
+}
+
 bool ScriptContext::Call( sgsVariable func, int args, int ret )
 {
 	return SGS_SUCCEEDED( sgs_CallP( C, &func.var, args, ret ) );

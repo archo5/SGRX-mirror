@@ -8,6 +8,7 @@
 #include <physics.hpp>
 #include <script.hpp>
 #include "pathfinding.hpp"
+#include "../common/scritem.hpp"
 
 
 
@@ -269,12 +270,11 @@ enum GameActorType
 	GAT_Enemy = 2,
 };
 
-struct MeshInstInfo
+struct MeshInstInfo : SGRX_MeshInstUserData
 {
-	MeshInstInfo() : typeOverride( NULL ), ownerType( GAT_None ){}
+	MeshInstInfo() : typeOverride( NULL ){ ownerType = GAT_None; }
 	
 	const char* typeOverride;
-	GameActorType ownerType;
 };
 
 
@@ -317,7 +317,7 @@ struct BulletSystem
 		Vec3 dir;
 		float timeleft;
 		float damage;
-		GameActorType ownerType;
+		uint32_t ownerType; // GameActorType
 		// penetration depth calculations
 		Vec3 intersectStart;
 		int numSolidRefs;
@@ -328,7 +328,7 @@ struct BulletSystem
 	
 	void Tick( SGRX_Scene* scene, float deltaTime );
 	
-	void Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, GameActorType ownerType );
+	void Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, uint32_t ownerType );
 	void Clear();
 	
 	BulletArray m_bullets;

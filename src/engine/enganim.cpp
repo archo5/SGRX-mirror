@@ -882,7 +882,7 @@ void ParticleSystem::Trigger()
 	m_nextGroup++;
 	m_nextGroup %= maxGroupCount;
 	// TODO: pick more accurate position
-	( m_lightSampler ? m_lightSampler : this )->SampleLight(
+	( m_lightSampler ? m_lightSampler : &GR_GetDummyLightSampler() )->SampleLight(
 		m_transform.TransformPos( V3(0) ), m_groups[ m_nextGroup ].color );
 	
 	for( size_t i = 0; i < emitters.size(); ++i )

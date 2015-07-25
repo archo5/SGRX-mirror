@@ -209,6 +209,8 @@ GameLevel::GameLevel() :
 	m_tex_mapframe = GR_GetTexture( "ui/mapframe.png" );
 	
 	InitGameAPI( m_scriptCtx.C );
+	m_scriptCtx.Include( "data/enemy" );
+	m_scriptCtx.Include( "data/scritems" );
 }
 
 GameLevel::~GameLevel()
@@ -227,8 +229,6 @@ bool GameLevel::Load( const StringView& levelname )
 		return false;
 	
 	ClearLevel();
-	
-	m_scriptCtx.Include( "data/enemy" );
 	
 	snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 	m_scriptCtx.Include( bfr );

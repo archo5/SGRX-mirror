@@ -445,6 +445,13 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mytable = new TmpTable( V3(2,2,7), Quat::CreateAxisAngle( V3(1,0,0), 1.5f) );
 #endif
 		
+		myscritem = SGRX_ScriptedItem::Create(
+			g_GameLevel->m_scene,
+			g_GameLevel->m_scriptCtx.C,
+			g_GameLevel->m_scriptCtx.GetGlobal( "SCRITEM_CREATE_testbox" )
+		);
+		myscritem->SetLightSampler( g_GameLevel );
+		
 		g_GameLevel->StartLevel();
 		
 		Game_AddOverlayScreen( &g_PauseMenu );
@@ -462,6 +469,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	delete myplayer;
 	//	myplayer = NULL;
 #endif
+		myscritem->Release();
+		myscritem = NULL;
 		
 		delete g_GameLevel;
 		g_GameLevel = NULL;
@@ -513,6 +522,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	myplayer->Tick( dt, bf );
 		mytable->Tick( dt, bf );
 #endif
+		myscritem->Tick( dt );
+		myscritem->PreRender();
 		
 #ifdef TESTSHOOT
 		Vec3 CP, CD;
@@ -613,6 +624,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	TmpTable* mytable;
 	ParticleSystem* PS;
 #endif
+	SGRX_ScriptedItem* myscritem;
 }
 g_Game;
 

@@ -155,7 +155,7 @@ ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mi
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
 
-struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
+struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 {
 	struct Vertex
 	{
@@ -457,6 +457,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_DummyLightSampler
 	ENGINE_EXPORT void Play();
 	ENGINE_EXPORT void Stop();
 };
+typedef Handle< ParticleSystem > PartSysHandle;
 
 
 

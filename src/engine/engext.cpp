@@ -523,11 +523,10 @@ SGRX_DecalSystem::~SGRX_DecalSystem()
 	Free();
 }
 
-void SGRX_DecalSystem::Init( TextureHandle texDecal, TextureHandle texFalloff, DecalMapPartInfo* decalCoords, int numDecals )
+void SGRX_DecalSystem::Init( TextureHandle texDecal, TextureHandle texFalloff )
 {
 	m_vertexDecl = GR_GetVertexDecl( SGRX_VDECL_DECAL );
 	m_mesh = GR_CreateMesh();
-	m_decalBounds.assign( decalCoords, numDecals );
 	m_material = GR_CreateMaterial(); // TODO: pass loaded material when there is something to load
 	m_material->transparent = true;
 	m_material->shader = GR_GetSurfaceShader( "default" );
@@ -539,7 +538,6 @@ void SGRX_DecalSystem::Free()
 {
 	ClearAllDecals();
 	m_mesh = NULL;
-	m_decalBounds.clear();
 	m_vbSize = 0;
 }
 
@@ -579,42 +577,38 @@ void SGRX_DecalSystem::Upload()
 	}
 }
 
-void SGRX_DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
+void SGRX_DecalSystem::AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh* targetMesh, const Mat4& worldMatrix )
 {
-	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
-	
 	float inv_zn2zf;
 	Mat4 vpmtx;
-	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
+	_GenDecalMatrix( projInfo, &vpmtx, &inv_zn2zf );
 	uint32_t color = Vec3ToCol32( m_lightSampler ?
-		m_lightSampler->SampleLight( projInfo->pos ) * 0.25f : V3(0.25f) );
+		m_lightSampler->SampleLight( projInfo.pos ) * 0.25f : V3(0.25f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color );
 	if( m_vertexData.size() > origvbsize )
 	{
-		_ScaleDecalTexcoords( origvbsize, decalID );
+		_ScaleDecalTexcoords( projInfo, origvbsize );
 		SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, origvbsize, sizeof(SGRX_Vertex_Decal) );
 		m_decals.push_back( m_vertexData.size() - origvbsize );
 		m_decals.push_back( m_indexData.size() - origibsize );
 	}
 }
 
-void SGRX_DecalSystem::AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo )
+void SGRX_DecalSystem::AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh* targetMesh, int partID, const Mat4& worldMatrix )
 {
-	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
-	
 	float inv_zn2zf;
 	Mat4 vpmtx;
-	_GenDecalMatrix( decalID, projInfo, &vpmtx, &inv_zn2zf );
+	_GenDecalMatrix( projInfo, &vpmtx, &inv_zn2zf );
 	uint32_t color = Vec3ToCol32( m_lightSampler ?
-		m_lightSampler->SampleLight( projInfo->pos ) * 0.5f : V3(0.5f) );
+		m_lightSampler->SampleLight( projInfo.pos ) * 0.5f : V3(0.5f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color, partID, 1 );
 	if( m_vertexData.size() > origvbsize )
 	{
-		_ScaleDecalTexcoords( origvbsize, decalID );
+		_ScaleDecalTexcoords( projInfo, origvbsize );
 		SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, origvbsize, sizeof(SGRX_Vertex_Decal) );
 		m_decals.push_back( m_vertexData.size() - origvbsize );
 		m_decals.push_back( m_indexData.size() - origibsize );
@@ -628,14 +622,12 @@ void SGRX_DecalSystem::ClearAllDecals()
 	m_decals.clear();
 }
 
-void SGRX_DecalSystem::GenerateCamera( int decalID, DecalProjectionInfo& projInfo, SGRX_Camera* out )
+void SGRX_DecalSystem::GenerateCamera( const DecalProjectionInfo& projInfo, SGRX_Camera* out )
 {
-	ASSERT( decalID >= 0 && decalID < (int) m_decalBounds.size() );
-	
 	// TODO for now...
 	ASSERT( projInfo.perspective );
 	
-	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
+	const DecalMapPartInfo& DMPI = projInfo.decalInfo;
 	float dist = DMPI.size.z * projInfo.distanceScale;
 	
 	out->position = projInfo.pos - projInfo.dir * projInfo.pushBack * dist;
@@ -650,9 +642,9 @@ void SGRX_DecalSystem::GenerateCamera( int decalID, DecalProjectionInfo& projInf
 	out->UpdateMatrices();
 }
 
-void SGRX_DecalSystem::_ScaleDecalTexcoords( size_t vbfrom, int decalID )
+void SGRX_DecalSystem::_ScaleDecalTexcoords( const DecalProjectionInfo& projInfo, size_t vbfrom )
 {
-	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
+	const DecalMapPartInfo& DMPI = projInfo.decalInfo;
 	
 	SGRX_CAST( SGRX_Vertex_Decal*, vdata, m_vertexData.data() );
 	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size() / sizeof(SGRX_Vertex_Decal);
@@ -665,24 +657,24 @@ void SGRX_DecalSystem::_ScaleDecalTexcoords( size_t vbfrom, int decalID )
 	}
 }
 
-void SGRX_DecalSystem::_GenDecalMatrix( int decalID, DecalProjectionInfo* projInfo, Mat4* outVPM, float* out_invzn2zf )
+void SGRX_DecalSystem::_GenDecalMatrix( const DecalProjectionInfo& projInfo, Mat4* outVPM, float* out_invzn2zf )
 {
-	DecalMapPartInfo& DMPI = m_decalBounds[ decalID ];
+	const DecalMapPartInfo& DMPI = projInfo.decalInfo;
 	
-	float znear = 0, dist = DMPI.size.z * projInfo->distanceScale;
+	float znear = 0, dist = DMPI.size.z * projInfo.distanceScale;
 	Mat4 projMtx, viewMtx = Mat4::CreateLookAt(
-		projInfo->pos - projInfo->dir * projInfo->pushBack * dist,
-		projInfo->dir, projInfo->up );
-	if( projInfo->perspective )
+		projInfo.pos - projInfo.dir * projInfo.pushBack * dist,
+		projInfo.dir, projInfo.up );
+	if( projInfo.perspective )
 	{
-		float aspect = DMPI.size.x / DMPI.size.y * projInfo->aspectMult;
+		float aspect = DMPI.size.x / DMPI.size.y * projInfo.aspectMult;
 		znear = dist * 0.001f;
-		projMtx = Mat4::CreatePerspective( projInfo->fovAngleDeg, aspect, projInfo->aamix, znear, dist );
+		projMtx = Mat4::CreatePerspective( projInfo.fovAngleDeg, aspect, projInfo.aamix, znear, dist );
 	}
 	else
 	{
-		Vec2 psz = DMPI.size.ToVec2() * 0.5f * projInfo->orthoScale;
-		projMtx = Mat4::CreateOrtho( V3( -psz.x, -psz.y, 0 ), V3( psz.x, psz.y, DMPI.size.z * projInfo->distanceScale ) );
+		Vec2 psz = DMPI.size.ToVec2() * 0.5f * projInfo.orthoScale;
+		projMtx = Mat4::CreateOrtho( V3( -psz.x, -psz.y, 0 ), V3( psz.x, psz.y, DMPI.size.z * projInfo.distanceScale ) );
 	}
 	*outVPM = viewMtx * projMtx;
 	*out_invzn2zf = safe_fdiv( 1, dist - znear );

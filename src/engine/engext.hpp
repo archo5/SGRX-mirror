@@ -389,29 +389,29 @@ struct DecalProjectionInfo
 	float distanceScale;
 	float pushBack;
 	bool perspective;
+	DecalMapPartInfo decalInfo;
 };
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_DecalSystem
+struct IF_GCC(ENGINE_EXPORT) SGRX_DecalSystem : SGRX_RefCounted
 {
 	ENGINE_EXPORT SGRX_DecalSystem();
 	ENGINE_EXPORT ~SGRX_DecalSystem();
 	
-	ENGINE_EXPORT void Init( TextureHandle texDecal, TextureHandle texFalloff, DecalMapPartInfo* decalCoords, int numDecals );
+	ENGINE_EXPORT void Init( TextureHandle texDecal, TextureHandle texFalloff );
 	ENGINE_EXPORT void Free();
 	ENGINE_EXPORT void SetSize( uint32_t vbSize );
 	
 	ENGINE_EXPORT void Upload();
 	
-	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* targetMesh, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
-	ENGINE_EXPORT void AddDecal( int decalID, SGRX_IMesh* targetMesh, int partID, const Mat4& worldMatrix, DecalProjectionInfo* projInfo );
+	ENGINE_EXPORT void AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh* targetMesh, const Mat4& worldMatrix );
+	ENGINE_EXPORT void AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh* targetMesh, int partID, const Mat4& worldMatrix );
 	ENGINE_EXPORT void ClearAllDecals();
-	ENGINE_EXPORT void GenerateCamera( int decalID, DecalProjectionInfo& projInfo, SGRX_Camera* out );
+	ENGINE_EXPORT void GenerateCamera( const DecalProjectionInfo& projInfo, SGRX_Camera* out );
 	
-	ENGINE_EXPORT void _ScaleDecalTexcoords( size_t vbfrom, int decalID );
-	ENGINE_EXPORT void _GenDecalMatrix( int decalID, DecalProjectionInfo* projInfo, Mat4* outVPM, float* out_invzn2zf );
+	ENGINE_EXPORT void _ScaleDecalTexcoords( const DecalProjectionInfo& projInfo, size_t vbfrom );
+	ENGINE_EXPORT void _GenDecalMatrix( const DecalProjectionInfo& projInfo, Mat4* outVPM, float* out_invzn2zf );
 	
 	SGRX_LightSampler* m_lightSampler;
-	Array< DecalMapPartInfo > m_decalBounds;
 	VertexDeclHandle m_vertexDecl;
 	MaterialHandle m_material;
 	MeshHandle m_mesh;
