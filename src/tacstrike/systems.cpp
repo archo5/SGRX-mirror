@@ -416,7 +416,8 @@ void DamageSystem::Tick( float deltaTime )
 	}
 }
 
-void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMesh, int partID,
+void DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
+	const StringView& type, SGRX_IMesh* targetMesh, int partID,
 	const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale )
 {
 	int decalID = -1;
@@ -451,10 +452,12 @@ void DamageSystem::AddBulletDamage( const StringView& type, SGRX_IMesh* targetMe
 			0, scale, 1, 0.5f, scale, 0.5f, false,
 			m_bulletDecalInfo[ decalID ]
 		};
+		if( dmgDecalSysOverride == NULL )
+			dmgDecalSysOverride = &m_bulletDecalSys;
 		if( partID < 0 )
-			m_bulletDecalSys.AddDecal( projInfo, targetMesh, worldMatrix );
+			dmgDecalSysOverride->AddDecal( projInfo, targetMesh, worldMatrix );
 		else
-			m_bulletDecalSys.AddDecal( projInfo, targetMesh, partID, worldMatrix );
+			dmgDecalSysOverride->AddDecal( projInfo, targetMesh, partID, worldMatrix );
 	}
 }
 
@@ -548,7 +551,8 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 				
 				// apply damage to hit point
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
-				m_damageSystem->AddBulletDamage( decalType,
+				SGRX_DecalSystem* dmgDecalSys = mii ? mii->dmgDecalSysOverride : NULL;
+				m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
 					HIT.meshinst->skin_matrices.size() ? NULL : HIT.meshinst->mesh,
 					-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );
 				

@@ -1828,7 +1828,7 @@ void SGRX_Scene::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallb
 	for( size_t i = 0; i < m_meshInstances.size(); ++i )
 	{
 		SGRX_MeshInstance* mi = m_meshInstances.item( i ).key;
-		if( mi->mesh && mi->decal == 0 &&
+		if( mi->enabled && mi->mesh && mi->decal == 0 &&
 			( mi->layers & layers ) && mi->matrix.InvertTo( inv ) )
 		{
 			Vec3 tffrom = inv.TransformPos( from );

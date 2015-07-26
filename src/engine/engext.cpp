@@ -514,7 +514,7 @@ void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCa
 
 
 
-SGRX_DecalSystem::SGRX_DecalSystem() : m_lightSampler(NULL), m_vbSize(0)
+SGRX_DecalSystem::SGRX_DecalSystem() : m_lightSampler(NULL), m_ownMatrix(NULL), m_vbSize(0)
 {
 }
 
@@ -572,9 +572,9 @@ void SGRX_DecalSystem::Upload()
 	{
 		m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl, true );
 		m_mesh->SetIndexData( m_indexData.data(), m_indexData.size_bytes(), true );
-		SGRX_MeshPart mp = { 0, m_vertexData.size() / sizeof(SGRX_Vertex_Decal), 0, m_indexData.size(), m_material };
-		m_mesh->SetPartData( &mp, 1 );
 	}
+	SGRX_MeshPart mp = { 0, m_vertexData.size() / sizeof(SGRX_Vertex_Decal), 0, m_indexData.size(), m_material };
+	m_mesh->SetPartData( &mp, 1 );
 }
 
 void SGRX_DecalSystem::AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh* targetMesh, const Mat4& worldMatrix )
@@ -590,6 +590,7 @@ void SGRX_DecalSystem::AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh
 	if( m_vertexData.size() > origvbsize )
 	{
 		_ScaleDecalTexcoords( projInfo, origvbsize );
+		_InvTransformDecals( origvbsize );
 		SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, origvbsize, sizeof(SGRX_Vertex_Decal) );
 		m_decals.push_back( m_vertexData.size() - origvbsize );
 		m_decals.push_back( m_indexData.size() - origibsize );
@@ -602,13 +603,14 @@ void SGRX_DecalSystem::AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh
 	Mat4 vpmtx;
 	_GenDecalMatrix( projInfo, &vpmtx, &inv_zn2zf );
 	uint32_t color = Vec3ToCol32( m_lightSampler ?
-		m_lightSampler->SampleLight( projInfo.pos ) * 0.5f : V3(0.5f) );
+		m_lightSampler->SampleLight( projInfo.pos ) * 0.25f : V3(0.25f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color, partID, 1 );
 	if( m_vertexData.size() > origvbsize )
 	{
 		_ScaleDecalTexcoords( projInfo, origvbsize );
+		_InvTransformDecals( origvbsize );
 		SGRX_DoIndexTriangleMeshVertices( m_indexData, m_vertexData, origvbsize, sizeof(SGRX_Vertex_Decal) );
 		m_decals.push_back( m_vertexData.size() - origvbsize );
 		m_decals.push_back( m_indexData.size() - origibsize );
@@ -653,6 +655,24 @@ void SGRX_DecalSystem::_ScaleDecalTexcoords( const DecalProjectionInfo& projInfo
 	{
 		vdata->texcoord.x = TLERP( DMPI.bbox.x, DMPI.bbox.z, vdata->texcoord.x );
 		vdata->texcoord.y = TLERP( DMPI.bbox.y, DMPI.bbox.w, vdata->texcoord.y );
+		vdata++;
+	}
+}
+
+void SGRX_DecalSystem::_InvTransformDecals( size_t vbfrom )
+{
+	if( m_ownMatrix == NULL )
+		return;
+	
+	Mat4 inv = Mat4::Identity;
+	m_ownMatrix->InvertTo( inv );
+	
+	SGRX_CAST( SGRX_Vertex_Decal*, vdata, m_vertexData.data() );
+	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size() / sizeof(SGRX_Vertex_Decal);
+	vdata += vbfrom / sizeof(SGRX_Vertex_Decal);
+	while( vdata < vdend )
+	{
+		vdata->position = inv.TransformPos( vdata->position );
 		vdata++;
 	}
 }

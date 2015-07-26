@@ -2,6 +2,7 @@
 
 #pragma once
 #include <enganim.hpp>
+#include <engext.hpp>
 #include <physics.hpp>
 #include <script.hpp>
 #include <sound.hpp>
@@ -15,9 +16,10 @@ enum MeshInstEvent
 
 struct SGRX_MeshInstUserData
 {
-	SGRX_MeshInstUserData() : ownerType(0){}
+	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL), ownerType(0){}
 	virtual ~SGRX_MeshInstUserData(){}
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, float amt ){}
+	SGRX_DecalSystem* dmgDecalSysOverride;
 	uint32_t ownerType;
 };
 
@@ -47,20 +49,31 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop );
 	SGS_IFUNC( SETINDEX ) int _setindex(
 		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop );
+	
+	// - common
 	SGS_METHOD void SetMatrix( Mat4 mtx );
 	
-	SGS_METHOD void CreateMeshInst( int i, StringView path );
-	SGS_METHOD void DestroyMeshInst( int i );
-	SGS_METHOD void SetMesh( int i, StringView path );
-	SGS_METHOD void SetMeshInstMatrix( int i, Mat4 mtx );
+	// - mesh instance
+	SGS_METHOD void MICreate( int i, StringView path );
+	SGS_METHOD void MIDestroy( int i );
+	SGS_METHOD void MISetMesh( int i, StringView path );
+	SGS_METHOD void MISetEnabled( int i, bool enabled );
+	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
 	
-	SGS_METHOD void CreatePartSys( int i, StringView path );
-	SGS_METHOD void DestroyPartSys( int i );
-	SGS_METHOD void LoadPartSys( int i, StringView path );
-	SGS_METHOD void SetPartSysMatrix( int i, Mat4 mtx );
-	SGS_METHOD void PartSysPlay( int i );
-	SGS_METHOD void PartSysStop( int i );
-	SGS_METHOD void PartSysTrigger( int i );
+	// - particle system
+	SGS_METHOD void PSCreate( int i, StringView path );
+	SGS_METHOD void PSDestroy( int i );
+	SGS_METHOD void PSLoad( int i, StringView path );
+	SGS_METHOD void PSSetMatrix( int i, Mat4 mtx );
+	SGS_METHOD void PSPlay( int i );
+	SGS_METHOD void PSStop( int i );
+	SGS_METHOD void PSTrigger( int i );
+	
+	// - decal system
+	SGS_METHOD void DSCreate( StringView texDecalPath, StringView texFalloffPath, uint32_t size );
+	SGS_METHOD void DSDestroy();
+	SGS_METHOD void DSResize( uint32_t size );
+	SGS_METHOD void DSClear();
 	// ---
 	
 	sgsVariable m_variable;
@@ -68,6 +81,8 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SceneHandle m_scene;
 	SGRX_LightSampler* m_lightSampler;
 	
+	DecalSysHandle m_decalSys;
+	MeshInstHandle m_decalSysMI;
 	MeshInstHandle m_meshes[ SCRITEM_NUM_SLOTS ];
 	PartSysHandle m_partSys[ SCRITEM_NUM_SLOTS ];
 //	LightHandle m_lights[ SCRITEM_NUM_SLOTS ];

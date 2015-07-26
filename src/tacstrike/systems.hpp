@@ -294,7 +294,8 @@ struct DamageSystem
 	const char* Init( SceneHandle scene, SGRX_LightSampler* sampler );
 	void Free();
 	void Tick( float deltaTime );
-	void AddBulletDamage( const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
+	void AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
+		const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
 		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
 	void AddBlood( Vec3 pos, Vec3 dir );
 	void Clear();

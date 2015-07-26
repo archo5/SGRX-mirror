@@ -1,6 +1,6 @@
 // SGS/CPP-BC
 // warning: do not modify this file, it may be regenerated during any build
-// generated: 07/25/15 20:16:47
+// generated: 07/26/15 13:16:31
 
 #include "scritem.hpp"
 
@@ -10,70 +10,100 @@ static int _sgs_method__SGRX_ScriptedItem__SetMatrix( SGS_CTX )
 	data->SetMatrix( sgs_GetVar<Mat4>()(C,0) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__CreateMeshInst( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__MICreate( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, CreateMeshInst ) ) return 0;
-	data->CreateMeshInst( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, MICreate ) ) return 0;
+	data->MICreate( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__DestroyMeshInst( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__MIDestroy( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, DestroyMeshInst ) ) return 0;
-	data->DestroyMeshInst( sgs_GetVar<int>()(C,0) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, MIDestroy ) ) return 0;
+	data->MIDestroy( sgs_GetVar<int>()(C,0) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__SetMesh( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__MISetMesh( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, SetMesh ) ) return 0;
-	data->SetMesh( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, MISetMesh ) ) return 0;
+	data->MISetMesh( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__SetMeshInstMatrix( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__MISetEnabled( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, SetMeshInstMatrix ) ) return 0;
-	data->SetMeshInstMatrix( sgs_GetVar<int>()(C,0), sgs_GetVar<Mat4>()(C,1) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, MISetEnabled ) ) return 0;
+	data->MISetEnabled( sgs_GetVar<int>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__CreatePartSys( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__MISetMatrix( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, CreatePartSys ) ) return 0;
-	data->CreatePartSys( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, MISetMatrix ) ) return 0;
+	data->MISetMatrix( sgs_GetVar<int>()(C,0), sgs_GetVar<Mat4>()(C,1) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__DestroyPartSys( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__PSCreate( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, DestroyPartSys ) ) return 0;
-	data->DestroyPartSys( sgs_GetVar<int>()(C,0) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PSCreate ) ) return 0;
+	data->PSCreate( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__LoadPartSys( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__PSDestroy( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, LoadPartSys ) ) return 0;
-	data->LoadPartSys( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PSDestroy ) ) return 0;
+	data->PSDestroy( sgs_GetVar<int>()(C,0) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__SetPartSysMatrix( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__PSLoad( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, SetPartSysMatrix ) ) return 0;
-	data->SetPartSysMatrix( sgs_GetVar<int>()(C,0), sgs_GetVar<Mat4>()(C,1) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PSLoad ) ) return 0;
+	data->PSLoad( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__PartSysPlay( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__PSSetMatrix( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PartSysPlay ) ) return 0;
-	data->PartSysPlay( sgs_GetVar<int>()(C,0) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PSSetMatrix ) ) return 0;
+	data->PSSetMatrix( sgs_GetVar<int>()(C,0), sgs_GetVar<Mat4>()(C,1) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__PartSysStop( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__PSPlay( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PartSysStop ) ) return 0;
-	data->PartSysStop( sgs_GetVar<int>()(C,0) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PSPlay ) ) return 0;
+	data->PSPlay( sgs_GetVar<int>()(C,0) ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__PartSysTrigger( SGS_CTX )
+static int _sgs_method__SGRX_ScriptedItem__PSStop( SGS_CTX )
 {
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PartSysTrigger ) ) return 0;
-	data->PartSysTrigger( sgs_GetVar<int>()(C,0) ); return 0;
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PSStop ) ) return 0;
+	data->PSStop( sgs_GetVar<int>()(C,0) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__PSTrigger( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, PSTrigger ) ) return 0;
+	data->PSTrigger( sgs_GetVar<int>()(C,0) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__DSCreate( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, DSCreate ) ) return 0;
+	data->DSCreate( sgs_GetVar<StringView>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVar<uint32_t>()(C,2) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__DSDestroy( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, DSDestroy ) ) return 0;
+	data->DSDestroy(  ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__DSResize( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, DSResize ) ) return 0;
+	data->DSResize( sgs_GetVar<uint32_t>()(C,0) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__DSClear( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, DSClear ) ) return 0;
+	data->DSClear(  ); return 0;
 }
 
 int SGRX_ScriptedItem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -91,17 +121,22 @@ int SGRX_ScriptedItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "SetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__SetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "CreateMeshInst" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__CreateMeshInst ); return SGS_SUCCESS; }
-		SGS_CASE( "DestroyMeshInst" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DestroyMeshInst ); return SGS_SUCCESS; }
-		SGS_CASE( "SetMesh" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__SetMesh ); return SGS_SUCCESS; }
-		SGS_CASE( "SetMeshInstMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__SetMeshInstMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "CreatePartSys" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__CreatePartSys ); return SGS_SUCCESS; }
-		SGS_CASE( "DestroyPartSys" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DestroyPartSys ); return SGS_SUCCESS; }
-		SGS_CASE( "LoadPartSys" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__LoadPartSys ); return SGS_SUCCESS; }
-		SGS_CASE( "SetPartSysMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__SetPartSysMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "PartSysPlay" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PartSysPlay ); return SGS_SUCCESS; }
-		SGS_CASE( "PartSysStop" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PartSysStop ); return SGS_SUCCESS; }
-		SGS_CASE( "PartSysTrigger" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PartSysTrigger ); return SGS_SUCCESS; }
+		SGS_CASE( "MICreate" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MICreate ); return SGS_SUCCESS; }
+		SGS_CASE( "MIDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MIDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetMesh" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetMesh ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetEnabled ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetMatrix ); return SGS_SUCCESS; }
+		SGS_CASE( "PSCreate" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSCreate ); return SGS_SUCCESS; }
+		SGS_CASE( "PSDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "PSLoad" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSLoad ); return SGS_SUCCESS; }
+		SGS_CASE( "PSSetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSSetMatrix ); return SGS_SUCCESS; }
+		SGS_CASE( "PSPlay" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSPlay ); return SGS_SUCCESS; }
+		SGS_CASE( "PSStop" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSStop ); return SGS_SUCCESS; }
+		SGS_CASE( "PSTrigger" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSTrigger ); return SGS_SUCCESS; }
+		SGS_CASE( "DSCreate" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSCreate ); return SGS_SUCCESS; }
+		SGS_CASE( "DSDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "DSResize" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSResize ); return SGS_SUCCESS; }
+		SGS_CASE( "DSClear" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSClear ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

@@ -409,9 +409,12 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_DecalSystem : SGRX_RefCounted
 	ENGINE_EXPORT void GenerateCamera( const DecalProjectionInfo& projInfo, SGRX_Camera* out );
 	
 	ENGINE_EXPORT void _ScaleDecalTexcoords( const DecalProjectionInfo& projInfo, size_t vbfrom );
+	ENGINE_EXPORT void _InvTransformDecals( size_t vbfrom );
 	ENGINE_EXPORT void _GenDecalMatrix( const DecalProjectionInfo& projInfo, Mat4* outVPM, float* out_invzn2zf );
 	
 	SGRX_LightSampler* m_lightSampler;
+	Mat4* m_ownMatrix;
+	
 	VertexDeclHandle m_vertexDecl;
 	MaterialHandle m_material;
 	MeshHandle m_mesh;
@@ -420,6 +423,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_DecalSystem : SGRX_RefCounted
 	Array< uint32_t > m_decals;
 	uint32_t m_vbSize;
 };
+typedef Handle< SGRX_DecalSystem > DecalSysHandle;
 
 
 

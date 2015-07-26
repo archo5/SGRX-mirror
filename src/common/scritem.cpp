@@ -10,6 +10,8 @@
 	sgs_Msg( C, SGS_WARNING, "no mesh at offset %d", (int)(i) ); return; }
 #define SCRITEM_PSYSCHK( i ) if( m_partSys[ i ] == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no part.sys at offset %d", (int)(i) ); return; }
+#define SCRITEM_DSYSCHK() if( m_decalSys == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no decal sys" ); return; }
 
 SGRX_ScriptedItem* SGRX_ScriptedItem::Create( SGRX_Scene* scene, SGS_CTX, sgsVariable func )
 {
@@ -76,6 +78,8 @@ void SGRX_ScriptedItem::PreRender()
 		if( m_partSys[ i ] )
 			m_partSys[ i ]->PreRender();
 	}
+	if( m_decalSys )
+		m_decalSys->Upload();
 }
 
 void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, float amt )
@@ -123,6 +127,8 @@ int SGRX_ScriptedItem::_setindex(
 void SGRX_ScriptedItem::SetMatrix( Mat4 mtx )
 {
 	m_transform = mtx;
+	if( m_decalSysMI )
+		m_decalSysMI->matrix = mtx;
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
 	{
 		if( m_meshes[ i ] )
@@ -132,7 +138,7 @@ void SGRX_ScriptedItem::SetMatrix( Mat4 mtx )
 	}
 }
 
-void SGRX_ScriptedItem::CreateMeshInst( int i, StringView path )
+void SGRX_ScriptedItem::MICreate( int i, StringView path )
 {
 	SCRITEM_OFSCHK( i );
 	m_meshes[ i ] = m_scene->CreateMeshInstance();
@@ -143,20 +149,27 @@ void SGRX_ScriptedItem::CreateMeshInst( int i, StringView path )
 		m_meshes[ i ]->mesh = GR_GetMesh( path );
 }
 
-void SGRX_ScriptedItem::DestroyMeshInst( int i )
+void SGRX_ScriptedItem::MIDestroy( int i )
 {
 	SCRITEM_OFSCHK( i );
 	m_meshes[ i ] = NULL;
 }
 
-void SGRX_ScriptedItem::SetMesh( int i, StringView path )
+void SGRX_ScriptedItem::MISetMesh( int i, StringView path )
 {
 	SCRITEM_OFSCHK( i );
 	SCRITEM_MESHCHK( i );
 	m_meshes[ i ]->mesh = GR_GetMesh( path );
 }
 
-void SGRX_ScriptedItem::SetMeshInstMatrix( int i, Mat4 mtx )
+void SGRX_ScriptedItem::MISetEnabled( int i, bool enabled )
+{
+	SCRITEM_OFSCHK( i );
+	SCRITEM_MESHCHK( i );
+	m_meshes[ i ]->enabled = enabled;
+}
+
+void SGRX_ScriptedItem::MISetMatrix( int i, Mat4 mtx )
 {
 	SCRITEM_OFSCHK( i );
 	SCRITEM_MESHCHK( i );
@@ -164,7 +177,7 @@ void SGRX_ScriptedItem::SetMeshInstMatrix( int i, Mat4 mtx )
 	m_meshes[ i ]->matrix = mtx * m_transform;
 }
 
-void SGRX_ScriptedItem::CreatePartSys( int i, StringView path )
+void SGRX_ScriptedItem::PSCreate( int i, StringView path )
 {
 	SCRITEM_OFSCHK( i );
 	m_partSys[ i ] = new ParticleSystem;
@@ -174,20 +187,20 @@ void SGRX_ScriptedItem::CreatePartSys( int i, StringView path )
 	m_partSys[ i ]->SetTransform( m_partSysMatrices[ i ] * m_transform );
 }
 
-void SGRX_ScriptedItem::DestroyPartSys( int i )
+void SGRX_ScriptedItem::PSDestroy( int i )
 {
 	SCRITEM_OFSCHK( i );
 	m_partSys[ i ] = NULL;
 }
 
-void SGRX_ScriptedItem::LoadPartSys( int i, StringView path )
+void SGRX_ScriptedItem::PSLoad( int i, StringView path )
 {
 	SCRITEM_OFSCHK( i );
 	SCRITEM_PSYSCHK( i );
 	m_partSys[ i ]->Load( path );
 }
 
-void SGRX_ScriptedItem::SetPartSysMatrix( int i, Mat4 mtx )
+void SGRX_ScriptedItem::PSSetMatrix( int i, Mat4 mtx )
 {
 	SCRITEM_OFSCHK( i );
 	SCRITEM_PSYSCHK( i );
@@ -195,25 +208,63 @@ void SGRX_ScriptedItem::SetPartSysMatrix( int i, Mat4 mtx )
 	m_partSys[ i ]->SetTransform( mtx * m_transform );
 }
 
-void SGRX_ScriptedItem::PartSysPlay( int i )
+void SGRX_ScriptedItem::PSPlay( int i )
 {
 	SCRITEM_OFSCHK( i );
 	SCRITEM_PSYSCHK( i );
 	m_partSys[ i ]->Play();
 }
 
-void SGRX_ScriptedItem::PartSysStop( int i )
+void SGRX_ScriptedItem::PSStop( int i )
 {
 	SCRITEM_OFSCHK( i );
 	SCRITEM_PSYSCHK( i );
 	m_partSys[ i ]->Stop();
 }
 
-void SGRX_ScriptedItem::PartSysTrigger( int i )
+void SGRX_ScriptedItem::PSTrigger( int i )
 {
 	SCRITEM_OFSCHK( i );
 	SCRITEM_PSYSCHK( i );
 	m_partSys[ i ]->Trigger();
+}
+
+void SGRX_ScriptedItem::DSCreate( StringView texDecalPath, StringView texFalloffPath, uint32_t size )
+{
+	if( sgs_StackSize( C ) < 3 )
+		size = 16*1024;
+	
+	m_decalSys = new SGRX_DecalSystem;
+	m_decalSys->Init( GR_GetTexture( texDecalPath ), GR_GetTexture( texFalloffPath ) );
+	m_decalSys->SetSize( size );
+	m_decalSys->m_ownMatrix = &m_transform;
+	
+	m_decalSysMI = m_scene->CreateMeshInstance();
+	m_decalSysMI->mesh = m_decalSys->m_mesh;
+	m_decalSysMI->matrix = m_transform;
+	m_decalSysMI->dynamic = 1;
+	m_decalSysMI->decal = 1;
+	
+	dmgDecalSysOverride = m_decalSys;
+}
+
+void SGRX_ScriptedItem::DSDestroy()
+{
+	m_decalSys = NULL;
+	m_decalSysMI = NULL;
+	dmgDecalSysOverride = NULL;
+}
+
+void SGRX_ScriptedItem::DSResize( uint32_t size )
+{
+	SCRITEM_DSYSCHK();
+	m_decalSys->SetSize( size );
+}
+
+void SGRX_ScriptedItem::DSClear()
+{
+	SCRITEM_DSYSCHK();
+	m_decalSys->ClearAllDecals();
 }
 
 

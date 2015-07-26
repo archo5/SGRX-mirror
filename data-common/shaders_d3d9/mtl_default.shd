@@ -18,8 +18,10 @@ outAmbientDiffuseLight = 2*(
 	qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
 #else
 outAmbientDiffuseLight = tex2D( InstTex0, inTex1.xy ) * 2;
+# if defined(DECALS)
+outAmbientDiffuseLight *= icol;
+# endif
 #endif
 #if defined(DECALS)
-outAmbientDiffuseLight *= icol;
 outOpacity *= icol.a;
 #endif
