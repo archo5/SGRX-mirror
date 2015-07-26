@@ -170,13 +170,22 @@ ObjectiveSystem::ObjectiveSystem() :
 	m_tx_icon_failed = GR_GetTexture( "ui/obj_failed.png" );
 }
 
-int ObjectiveSystem::AddObjective( const StringView& sv, OSObjective::State state )
+int ObjectiveSystem::AddObjective(
+	const StringView& title,
+	OSObjective::State state,
+	const StringView& desc,
+	bool required,
+	Vec3* location )
 {
 	int out = m_objectives.size();
 	m_objectives.push_back( OSObjective() );
 	OSObjective& obj = m_objectives.last();
-	obj.text = sv;
+	obj.title = title;
 	obj.state = state;
+	obj.desc = desc;
+	obj.required = required;
+	obj.hasLocation = location != NULL;
+	obj.location = location ? *location : V3(0);
 	return out;
 }
 
@@ -235,12 +244,12 @@ void ObjectiveSystem::DrawUI()
 			br.Quad( 210, y, 240, y + 30 );
 		}
 		
-		GR2D_DrawTextLine( 250, y+15, obj.text, HALIGN_LEFT, VALIGN_CENTER );
+		GR2D_DrawTextLine( 250, y+15, obj.title, HALIGN_LEFT, VALIGN_CENTER );
 		if( obj.state == OSObjective::Cancelled )
 		{
 			br.Reset();
 			br.Col( 1, m_alpha );
-			br.Quad( 250, y + 17, 250 + GR2D_GetTextLength( obj.text ), y + 19 );
+			br.Quad( 250, y + 17, 250 + GR2D_GetTextLength( obj.title ), y + 19 );
 		}
 		y += 30;
 	}
@@ -540,6 +549,9 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 			for( size_t hitid = 0; hitid < m_tmpStore.size(); ++hitid )
 			{
 				SceneRaycastInfo& HIT = m_tmpStore[ hitid ];
+				if( HIT.meshinst->enabled == false )
+					continue;
+				
 				float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
 				MeshInstInfo* mii = (MeshInstInfo*) HIT.meshinst->userData;
 				if( mii && mii->ownerType == B.ownerType )

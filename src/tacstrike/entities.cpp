@@ -1183,9 +1183,9 @@ void TSPlayer::DrawUI()
 	
 	GR2D_SetFont( "tsicons", bsz * 0.2f );
 	br.Col( 1, 0.25f * m_crouchIconShowTimeout );
-	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "-", HALIGN_LEFT, VALIGN_BOTTOM );
+	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0a", HALIGN_LEFT, VALIGN_BOTTOM );
 	br.Col( 1, 0.25f * m_standIconShowTimeout );
-	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "^", HALIGN_LEFT, VALIGN_BOTTOM );
+	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0b", HALIGN_LEFT, VALIGN_BOTTOM );
 	
 	GR2D_SetFontSettings( &fs );
 }

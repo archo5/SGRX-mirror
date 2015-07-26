@@ -210,8 +210,12 @@ struct OSObjective
 		Cancelled,
 	};
 	
-	String text;
+	String title;
+	String desc;
 	State state;
+	bool required;
+	bool hasLocation;
+	Vec3 location;
 };
 
 struct OSObjStats
@@ -231,7 +235,12 @@ struct ObjectiveSystem
 	float m_alpha;
 	
 	ObjectiveSystem();
-	int AddObjective( const StringView& sv, OSObjective::State state );
+	int AddObjective(
+		const StringView& title,
+		OSObjective::State state,
+		const StringView& desc = "",
+		bool required = false,
+		Vec3* location = NULL );
 	OSObjStats GetStats();
 	void Tick( float dt );
 	void DrawUI();

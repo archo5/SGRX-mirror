@@ -236,7 +236,7 @@ void TSPauseMenuScreen::OnStart()
 	{
 		OSObjective& OBJ = objlist[ i ];
 		float q = i * 37;
-		objmenu.AddRadioBtn( OBJ.state == OSObjective::Hidden ? "???" : OBJ.text,
+		objmenu.AddRadioBtn( OBJ.state == OSObjective::Hidden ? "???" : OBJ.title,
 			MCS_ObjectiveItem, 50/1280.f, (170+q)/720.f, 500/1280.f, (207+q)/720.f, 0 );
 	}
 	objmenu.SelectInGroup( 0, 0 );

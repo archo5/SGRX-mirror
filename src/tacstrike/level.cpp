@@ -40,8 +40,33 @@ static int PlayerHasItem( SGS_CTX )
 static int ObjectiveAdd( SGS_CTX )
 {
 	SGSFN( "ObjectiveAdd" );
-	sgs_PushVar<int>( C, g_GameLevel->m_objectiveSystem.AddObjective( sgs_GetVar<String>()( C, 0 ), (OSObjective::State) sgs_GetVar<int>()( C, 1 ) ) );
+	Vec3 loc = sgs_GetVar<Vec3>()( C, 4 );
+	sgs_PushVar<int>( C, g_GameLevel->m_objectiveSystem.AddObjective(
+		sgs_GetVar<StringView>()( C, 0 ),
+		(OSObjective::State) sgs_GetVar<int>()( C, 1 ),
+		sgs_GetVar<StringView>()( C, 2 ),
+		sgs_GetVar<bool>()( C, 3 ),
+		sgs_TypeOf( C, 4 ) == SGS_VT_NULL ? NULL : &loc
+	) );
 	return 1;
+}
+static int ObjectiveGetTitle( SGS_CTX )
+{
+	SGSFN( "ObjectiveGetTitle" );
+	int which = sgs_GetVar<int>()( C, 0 );
+	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
+		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
+	sgs_PushVar( C, g_GameLevel->m_objectiveSystem.m_objectives[ which ].title );
+	return 1;
+}
+static int ObjectiveSetTitle( SGS_CTX )
+{
+	SGSFN( "ObjectiveSetTitle" );
+	int which = sgs_GetVar<int>()( C, 0 );
+	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
+		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
+	g_GameLevel->m_objectiveSystem.m_objectives[ which ].title = sgs_GetVar<StringView>()( C, 1 );
+	return 0;
 }
 static int ObjectiveGetState( SGS_CTX )
 {
@@ -50,15 +75,6 @@ static int ObjectiveGetState( SGS_CTX )
 	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
 		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
 	sgs_PushVar<int>( C, g_GameLevel->m_objectiveSystem.m_objectives[ which ].state );
-	return 1;
-}
-static int ObjectiveGetText( SGS_CTX )
-{
-	SGSFN( "ObjectiveGetText" );
-	int which = sgs_GetVar<int>()( C, 0 );
-	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
-		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
-	sgs_PushVar( C, g_GameLevel->m_objectiveSystem.m_objectives[ which ].text );
 	return 1;
 }
 static int ObjectiveSetState( SGS_CTX )
@@ -140,7 +156,8 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	{ "CallEntity", CallEntity },
 	{ "PlayerHasItem", PlayerHasItem },
 	{ "ObjectiveAdd", ObjectiveAdd },
-	{ "ObjectiveGetText", ObjectiveGetText },
+	{ "ObjectiveGetTitle", ObjectiveGetTitle },
+	{ "ObjectiveSetTitle", ObjectiveSetTitle },
 	{ "ObjectiveGetState", ObjectiveGetState },
 	{ "ObjectiveSetState", ObjectiveSetState },
 #ifdef LD32GAME
@@ -767,6 +784,11 @@ void GameLevel::Draw2D()
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Reset();
 	
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+	
+	if( m_player )
+		m_player->DrawUI();
+	
 #ifndef BRSD4GAME
 	int size_x = GR_GetWidth();
 	int size_y = GR_GetHeight();
@@ -829,11 +851,6 @@ void GameLevel::Draw2D()
 		br.Reset().SetTexture( m_tex_mapframe ).Quad( x0 - msm, y0 - msm, x1 + msm, y1 + msm ).Flush();
 	}
 #endif
-	
-	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-	
-	if( m_player )
-		m_player->DrawUI();
 }
 
 void GameLevel::DebugDraw()
