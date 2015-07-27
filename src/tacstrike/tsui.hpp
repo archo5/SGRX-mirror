@@ -15,6 +15,7 @@ enum TSMenuCtrlStyle
 {
 	MCS_BigTopLink = 100,
 	MCS_ObjectiveItem,
+	MCS_ObjectiveIconLink,
 };
 
 
@@ -24,6 +25,7 @@ struct TSMenuTheme : MenuTheme
 	virtual void DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info );
 	void DrawBigTopLinkButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
 	void DrawObjectiveItemButton( const MenuControl& ctrl, const MenuCtrlInfo& info );
+	void DrawObjectiveIconLink( const MenuControl& ctrl, const MenuCtrlInfo& info );
 };
 
 

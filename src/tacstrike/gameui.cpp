@@ -205,12 +205,15 @@ int ScreenMenu::OnEvent( const Event& e )
 		ret = UpdateCtrl( EV_MBUp );
 		if( m_selected >= 0 && m_HL == m_selected )
 		{
-			for( int i = 0; i < (int) controls.size(); ++i )
+			if( controls[ m_selected ].type == MCT_RadioBtn )
 			{
-				if( i != m_selected && controls[ i ].group == controls[ m_selected ].group )
-					controls[ i ].selected = false;
+				for( int i = 0; i < (int) controls.size(); ++i )
+				{
+					if( i != m_selected && controls[ i ].group == controls[ m_selected ].group )
+						controls[ i ].selected = false;
+				}
+				controls[ m_selected ].selected = true;
 			}
-			controls[ m_selected ].selected = true;
 			ret = m_selected;
 		}
 		if( m_selected >= 0 )

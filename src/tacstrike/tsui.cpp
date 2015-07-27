@@ -28,6 +28,11 @@ void TSMenuTheme::DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info
 		DrawObjectiveItemButton( ctrl, info );
 		return;
 	}
+	if( ctrl.style == MCS_ObjectiveIconLink )
+	{
+		DrawObjectiveIconLink( ctrl, info );
+		return;
+	}
 	MenuTheme::DrawControl( ctrl, info );
 }
 
@@ -67,6 +72,24 @@ void TSMenuTheme::DrawObjectiveItemButton( const MenuControl& ctrl, const MenuCt
 		round(TLERP(ax0, ax1, 0.8f)),
 		round((ay0+ay1)/2),
 		ctrl.caption, HALIGN_RIGHT, VALIGN_CENTER );
+}
+
+void TSMenuTheme::DrawObjectiveIconLink( const MenuControl& ctrl, const MenuCtrlInfo& info )
+{
+	MENUTHEME_PREP;
+	
+	Vec4 col = V4( 153/255.f, 1 );
+	if( info.selected )
+		col = V4( 0.97f, 1 );
+	else if( info.highlighted )
+		col = V4( 193/255.f, 1 );
+	
+	br.Reset().Col( col.x, col.y, col.z, col.w * info.menu->opacity );
+	GR2D_SetFont( "tsicons", info.minw * 32 / 720.f );
+	GR2D_DrawTextLine(
+		round((ax0+ax1)/2),
+		round((ay0+ay1)/2),
+		ctrl.caption, HALIGN_CENTER, VALIGN_CENTER );
 }
 
 
@@ -231,6 +254,10 @@ void TSPauseMenuScreen::OnStart()
 	objmenu.OnStart();
 	
 	objmenu.Clear();
+	objmenu.AddButton( "\x12", MCS_ObjectiveIconLink,
+		260/1280.f, 130/720.f, 292/1280.f, 162/720.f, 1 );
+	objmenu.AddButton( "\x13", MCS_ObjectiveIconLink,
+		260/1280.f, 595/720.f, 292/1280.f, 627/720.f, 1 );
 	Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
 	for( size_t i = 0; i < objlist.size(); ++i )
 	{

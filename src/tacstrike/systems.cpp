@@ -539,7 +539,7 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 		SceneRaycastCallback_Sorting cb( &m_tmpStore );
 		scene->RaycastAll( p1, p2, &cb, 0xffffffff );
 		#ifdef TSGAME
-		g_DebugLines.DrawLine( p1, p2, m_tmpStore.size() ? COLOR_RGB(255,0,0) : COLOR_RGB(255,255,0) );
+	//	g_DebugLines.DrawLine( p1, p2, m_tmpStore.size() ? COLOR_RGB(255,0,0) : COLOR_RGB(255,255,0) );
 		#endif
 		
 		// sorted list of raycast hits
