@@ -4,16 +4,18 @@
 
 
 
-#define SCRITEM_OFSCHK( i ) if( (i) < 0 || (i) >= 4 ){ \
-	sgs_Msg( C, SGS_WARNING, "wrong offset: %d outside " SCRITEM_RANGE_STR, (int)(i) ); return; }
-#define SCRITEM_MESHCHK( i ) if( m_meshes[ i ] == NULL ){ \
-	sgs_Msg( C, SGS_WARNING, "no mesh at offset %d", (int)(i) ); return; }
-#define SCRITEM_PSYSCHK( i ) if( m_partSys[ i ] == NULL ){ \
-	sgs_Msg( C, SGS_WARNING, "no part.sys at offset %d", (int)(i) ); return; }
-#define SCRITEM_DSYSCHK() if( m_decalSys == NULL ){ \
-	sgs_Msg( C, SGS_WARNING, "no decal sys" ); return; }
+#define SCRITEM_OFSCHK( i, ret ) if( (i) < 0 || (i) >= 4 ){ \
+	sgs_Msg( C, SGS_WARNING, "wrong offset: %d outside " SCRITEM_RANGE_STR, (int)(i) ); ret; }
+#define SCRITEM_MESHCHK( i, ret ) if( m_meshes[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no mesh at offset %d", (int)(i) ); ret; }
+#define SCRITEM_PSYSCHK( i, ret ) if( m_partSys[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no part.sys at offset %d", (int)(i) ); ret; }
+#define SCRITEM_BODYCHK( i, ret ) if( m_bodies[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no body at offset %d", (int)(i) ); ret; }
+#define SCRITEM_DSYSCHK( ret ) if( m_decalSys == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
 
-SGRX_ScriptedItem* SGRX_ScriptedItem::Create( SGRX_Scene* scene, SGS_CTX, sgsVariable func )
+SGRX_ScriptedItem* SGRX_ScriptedItem::Create( SGRX_Scene* scene, SGRX_IPhyWorld* phyWorld, SGS_CTX, sgsVariable func )
 {
 	SGRX_ScriptedItem* SI = SGS_PUSHCLASS( C, SGRX_ScriptedItem, () );
 	sgs_ObjAcquire( C, SI->m_sgsObject );
@@ -21,6 +23,7 @@ SGRX_ScriptedItem* SGRX_ScriptedItem::Create( SGRX_Scene* scene, SGS_CTX, sgsVar
 	SI->m_variable.C = C;
 	sgs_InitDict( C, &SI->m_variable.var, 0 );
 	SI->m_scene = scene;
+	SI->m_phyWorld = phyWorld;
 	SI->m_lightSampler = &GR_GetDummyLightSampler();
 	SI->m_transform = Mat4::Identity;
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
@@ -140,7 +143,7 @@ void SGRX_ScriptedItem::SetMatrix( Mat4 mtx )
 
 void SGRX_ScriptedItem::MICreate( int i, StringView path )
 {
-	SCRITEM_OFSCHK( i );
+	SCRITEM_OFSCHK( i, return );
 	m_meshes[ i ] = m_scene->CreateMeshInstance();
 	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * m_transform;
 	m_meshes[ i ]->dynamic = 1;
@@ -151,35 +154,41 @@ void SGRX_ScriptedItem::MICreate( int i, StringView path )
 
 void SGRX_ScriptedItem::MIDestroy( int i )
 {
-	SCRITEM_OFSCHK( i );
+	SCRITEM_OFSCHK( i, return );
 	m_meshes[ i ] = NULL;
+}
+
+bool SGRX_ScriptedItem::MIExists( int i )
+{
+	SCRITEM_OFSCHK( i, return false );
+	return m_meshes[ i ] != NULL;
 }
 
 void SGRX_ScriptedItem::MISetMesh( int i, StringView path )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_MESHCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_MESHCHK( i, return );
 	m_meshes[ i ]->mesh = GR_GetMesh( path );
 }
 
 void SGRX_ScriptedItem::MISetEnabled( int i, bool enabled )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_MESHCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_MESHCHK( i, return );
 	m_meshes[ i ]->enabled = enabled;
 }
 
 void SGRX_ScriptedItem::MISetMatrix( int i, Mat4 mtx )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_MESHCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_MESHCHK( i, return );
 	m_meshMatrices[ i ] = mtx;
 	m_meshes[ i ]->matrix = mtx * m_transform;
 }
 
 void SGRX_ScriptedItem::PSCreate( int i, StringView path )
 {
-	SCRITEM_OFSCHK( i );
+	SCRITEM_OFSCHK( i, return );
 	m_partSys[ i ] = new ParticleSystem;
 	m_partSys[ i ]->AddToScene( m_scene );
 	if( path )
@@ -189,43 +198,68 @@ void SGRX_ScriptedItem::PSCreate( int i, StringView path )
 
 void SGRX_ScriptedItem::PSDestroy( int i )
 {
-	SCRITEM_OFSCHK( i );
+	SCRITEM_OFSCHK( i, return );
 	m_partSys[ i ] = NULL;
+}
+
+bool SGRX_ScriptedItem::PSExists( int i )
+{
+	SCRITEM_OFSCHK( i, return false );
+	return m_partSys[ i ] != NULL;
 }
 
 void SGRX_ScriptedItem::PSLoad( int i, StringView path )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_PSYSCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_PSYSCHK( i, return );
 	m_partSys[ i ]->Load( path );
 }
 
 void SGRX_ScriptedItem::PSSetMatrix( int i, Mat4 mtx )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_PSYSCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_PSYSCHK( i, return );
+	m_partSysMatrices[ i ] = mtx;
+	m_partSys[ i ]->SetTransform( mtx * m_transform );
+}
+
+void SGRX_ScriptedItem::PSSetMatrixFromMeshAABB( int i, int mi )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_PSYSCHK( i, return );
+	SCRITEM_OFSCHK( mi, return );
+	SCRITEM_MESHCHK( mi, return );
+	SGRX_IMesh* M = m_meshes[ mi ]->mesh;
+	if( M == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "mesh is not loaded" );
+		return;
+	}
+	Vec3 diff = M->m_boundsMax - M->m_boundsMin;
+	Vec3 off = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f;
+	Mat4 mtx = Mat4::CreateScale( diff * 0.5f ) * Mat4::CreateTranslation( off );
 	m_partSysMatrices[ i ] = mtx;
 	m_partSys[ i ]->SetTransform( mtx * m_transform );
 }
 
 void SGRX_ScriptedItem::PSPlay( int i )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_PSYSCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_PSYSCHK( i, return );
 	m_partSys[ i ]->Play();
 }
 
 void SGRX_ScriptedItem::PSStop( int i )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_PSYSCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_PSYSCHK( i, return );
 	m_partSys[ i ]->Stop();
 }
 
 void SGRX_ScriptedItem::PSTrigger( int i )
 {
-	SCRITEM_OFSCHK( i );
-	SCRITEM_PSYSCHK( i );
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_PSYSCHK( i, return );
 	m_partSys[ i ]->Trigger();
 }
 
@@ -257,14 +291,78 @@ void SGRX_ScriptedItem::DSDestroy()
 
 void SGRX_ScriptedItem::DSResize( uint32_t size )
 {
-	SCRITEM_DSYSCHK();
+	SCRITEM_DSYSCHK( return );
 	m_decalSys->SetSize( size );
 }
 
 void SGRX_ScriptedItem::DSClear()
 {
-	SCRITEM_DSYSCHK();
+	SCRITEM_DSYSCHK( return );
 	m_decalSys->ClearAllDecals();
+}
+
+SGRX_SIRigidBodyInfo::Handle SGRX_ScriptedItem::RBMakeInfo()
+{
+	return SGRX_SIRigidBodyInfo::Handle( SGS_PUSHCLASS( C, SGRX_SIRigidBodyInfo, () ) );
+}
+
+void SGRX_ScriptedItem::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_OFSCHK( mi, return );
+	SCRITEM_MESHCHK( mi, return );
+	SGRX_IMesh* M = m_meshes[ mi ]->mesh;
+	if( M == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "mesh is not loaded" );
+		return;
+	}
+	SGRX_PhyRigidBodyInfo rbi;
+	if( spec )
+		rbi = *spec;
+	rbi.shape = m_phyWorld->CreateShapeFromMesh( M );
+	m_bodies[ i ] = m_phyWorld->CreateRigidBody( rbi );
+}
+
+void SGRX_ScriptedItem::RBDestroy( int i )
+{
+	SCRITEM_OFSCHK( i, return );
+	m_bodies[ i ] = NULL;
+}
+
+bool SGRX_ScriptedItem::RBExists( int i )
+{
+	SCRITEM_OFSCHK( i, return false );
+	return m_bodies[ i ] != NULL;
+}
+
+void SGRX_ScriptedItem::RBSetEnabled( int i, bool enabled )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_BODYCHK( i, return );
+	m_bodies[ i ]->SetEnabled( enabled );
+}
+
+Vec3 SGRX_ScriptedItem::RBGetPosition( int i )
+{
+	SCRITEM_OFSCHK( i, return V3(0) );
+	SCRITEM_BODYCHK( i, return V3(0) );
+	return m_bodies[ i ]->GetPosition();
+}
+
+void SGRX_ScriptedItem::RBSetPosition( int i, Vec3 v )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_BODYCHK( i, return );
+	m_bodies[ i ]->SetPosition( v );
+}
+
+Mat4 SGRX_ScriptedItem::RBGetMatrix( int i )
+{
+	SCRITEM_OFSCHK( i, return Mat4::Identity );
+	SCRITEM_BODYCHK( i, return Mat4::Identity );
+	return Mat4::CreateRotationFromQuat( m_bodies[ i ]->GetRotation() )
+		* Mat4::CreateTranslation( m_bodies[ i ]->GetPosition() );
 }
 
 

@@ -447,6 +447,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		myscritem = SGRX_ScriptedItem::Create(
 			g_GameLevel->m_scene,
+			g_PhyWorld,
 			g_GameLevel->m_scriptCtx.C,
 			g_GameLevel->m_scriptCtx.GetGlobal( "SCRITEM_CREATE_testbox" )
 		);

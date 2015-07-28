@@ -25,6 +25,31 @@ struct SGRX_MeshInstUserData
 
 
 
+struct SGRX_SIRigidBodyInfo : SGRX_PhyRigidBodyInfo
+{
+	typedef sgsHandle< SGRX_SIRigidBodyInfo > Handle;
+	
+	SGS_OBJECT;
+	
+	SGS_PROPERTY SGS_ALIAS( Vec3 position );
+	SGS_PROPERTY SGS_ALIAS( Quat rotation );
+	SGS_PROPERTY SGS_ALIAS( float friction );
+	SGS_PROPERTY SGS_ALIAS( float restitution );
+	SGS_PROPERTY SGS_ALIAS( float mass );
+	SGS_PROPERTY SGS_ALIAS( Vec3 inertia );
+	SGS_PROPERTY SGS_ALIAS( float linearDamping );
+	SGS_PROPERTY SGS_ALIAS( float angularDamping );
+	SGS_PROPERTY SGS_ALIAS( Vec3 linearFactor );
+	SGS_PROPERTY SGS_ALIAS( Vec3 angularFactor );
+	SGS_PROPERTY SGS_ALIAS( bool kinematic );
+	SGS_PROPERTY SGS_ALIAS( bool canSleep );
+	SGS_PROPERTY SGS_ALIAS( bool enabled );
+	SGS_PROPERTY SGS_ALIAS( uint16_t group );
+	SGS_PROPERTY SGS_ALIAS( uint16_t mask );
+};
+
+
+
 #define SCRITEM_NUM_SLOTS 4
 #define SCRITEM_RANGE_STR "[0-3]"
 
@@ -34,7 +59,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	
 	SGS_OBJECT;
 	
-	static SGRX_ScriptedItem* Create( SGRX_Scene* scene, SGS_CTX, sgsVariable func );
+	static SGRX_ScriptedItem* Create( SGRX_Scene* scene, SGRX_IPhyWorld* phyWorld, SGS_CTX, sgsVariable func );
 	void Acquire();
 	void Release();
 	
@@ -56,6 +81,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	// - mesh instance
 	SGS_METHOD void MICreate( int i, StringView path );
 	SGS_METHOD void MIDestroy( int i );
+	SGS_METHOD bool MIExists( int i );
 	SGS_METHOD void MISetMesh( int i, StringView path );
 	SGS_METHOD void MISetEnabled( int i, bool enabled );
 	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
@@ -63,8 +89,10 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	// - particle system
 	SGS_METHOD void PSCreate( int i, StringView path );
 	SGS_METHOD void PSDestroy( int i );
+	SGS_METHOD bool PSExists( int i );
 	SGS_METHOD void PSLoad( int i, StringView path );
 	SGS_METHOD void PSSetMatrix( int i, Mat4 mtx );
+	SGS_METHOD void PSSetMatrixFromMeshAABB( int i, int mi );
 	SGS_METHOD void PSPlay( int i );
 	SGS_METHOD void PSStop( int i );
 	SGS_METHOD void PSTrigger( int i );
@@ -74,17 +102,29 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD void DSDestroy();
 	SGS_METHOD void DSResize( uint32_t size );
 	SGS_METHOD void DSClear();
+	
+	// - rigid bodies
+	SGS_METHOD SGRX_SIRigidBodyInfo::Handle RBMakeInfo(); // tmp. misplaced?
+	SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec );
+	SGS_METHOD void RBDestroy( int i );
+	SGS_METHOD bool RBExists( int i );
+	SGS_METHOD void RBSetEnabled( int i, bool enabled );
+	SGS_METHOD Vec3 RBGetPosition( int i );
+	SGS_METHOD void RBSetPosition( int i, Vec3 v );
+	SGS_METHOD Mat4 RBGetMatrix( int i );
 	// ---
 	
 	sgsVariable m_variable;
 	
 	SceneHandle m_scene;
+	PhyWorldHandle m_phyWorld;
 	SGRX_LightSampler* m_lightSampler;
 	
 	DecalSysHandle m_decalSys;
 	MeshInstHandle m_decalSysMI;
 	MeshInstHandle m_meshes[ SCRITEM_NUM_SLOTS ];
 	PartSysHandle m_partSys[ SCRITEM_NUM_SLOTS ];
+	PhyRigidBodyHandle m_bodies[ SCRITEM_NUM_SLOTS ];
 //	LightHandle m_lights[ SCRITEM_NUM_SLOTS ];
 	
 	Mat4 m_transform;
