@@ -55,6 +55,7 @@ void Sys_FatalError( const StringView& err )
 // GLOBALS
 //
 
+typedef HashTable< StringView, SGRX_ConvexPointSet* > ConvexPointSetHashTable;
 typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
 typedef HashTable< StringView, SGRX_IVertexShader* > VertexShaderHashTable;
 typedef HashTable< StringView, SGRX_IPixelShader* > PixelShaderHashTable;
@@ -93,6 +94,7 @@ static pfnRndCreateRenderer g_RfnCreateRenderer = NULL;
 static IRenderer* g_Renderer = NULL;
 static BatchRenderer* g_BatchRenderer = NULL;
 static FontRenderer* g_FontRenderer = NULL;
+static ConvexPointSetHashTable* g_CPSets = NULL;
 static TextureHashTable* g_Textures = NULL;
 static VertexShaderHashTable* g_VertexShaders = NULL;
 static PixelShaderHashTable* g_PixelShaders = NULL;
@@ -840,6 +842,52 @@ void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh )
 	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		g_FileSystems[ i ]->IterateDirectory( path, deh );
+}
+
+
+SGRX_ConvexPointSet::~SGRX_ConvexPointSet()
+{
+	LOG << "Deleted convex point set: " << m_key;
+	g_CPSets->unset( m_key );
+}
+
+SGRX_ConvexPointSet* SGRX_ConvexPointSet::Create( const StringView& path )
+{
+	ByteArray data;
+	if( FS_LoadBinaryFile( path, data ) == false )
+	{
+		LOG_ERROR << LOG_DATE << "  Convex point set file not found: " << path;
+		return NULL;
+	}
+	SGRX_ConvexPointSet* cps = new SGRX_ConvexPointSet;
+	ByteReader br( &data );
+	cps->Serialize( br );
+	if( cps->data.points.size() == 0 )
+	{
+		LOG_ERROR << LOG_DATE << "  Convex point set invalid or empty: " << path;
+		delete cps;
+	}
+	return cps;
+}
+
+ConvexPointSetHandle GP_GetConvexPointSet( const StringView& path )
+{
+	LOG_FUNCTION;
+	
+	SGRX_ConvexPointSet* cps = g_CPSets->getcopy( path );
+	if( cps )
+		return cps;
+	
+	cps = SGRX_ConvexPointSet::Create( path );
+	if( cps == NULL )
+	{
+		// error already printed
+		return ConvexPointSetHandle();
+	}
+	cps->m_refcount = 0;
+	cps->m_key = path;
+	g_CPSets->set( cps->m_key, cps );
+	return cps;
 }
 
 
@@ -2683,6 +2731,7 @@ static int init_graphics()
 	}
 	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
 	
+	g_CPSets = new ConvexPointSetHashTable();
 	g_Textures = new TextureHashTable();
 	g_VertexShaders = new VertexShaderHashTable();
 	g_PixelShaders = new PixelShaderHashTable();
@@ -2754,6 +2803,9 @@ static void free_graphics()
 	
 	delete g_Textures;
 	g_Textures = NULL;
+	
+	delete g_CPSets;
+	g_CPSets = NULL;
 	
 	g_Renderer->Destroy();
 	g_Renderer = NULL;

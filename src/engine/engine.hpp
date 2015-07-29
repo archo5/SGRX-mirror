@@ -193,6 +193,34 @@ ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler
 
 
 //
+// PHYSICS DATA
+//
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_ConvexPointSet : SGRX_RCRsrc
+{
+	struct Data
+	{
+		template< class T > void Serialize( T& arch )
+		{
+			arch.marker( "SGRXCPST" );
+			arch << points;
+		}
+		
+		Array< Vec3 > points;
+	};
+	
+	ENGINE_EXPORT ~SGRX_ConvexPointSet();
+	ENGINE_EXPORT static SGRX_ConvexPointSet* Create( const StringView& path );
+	template< class T > void Serialize( T& arch ){ data.Serialize( arch ); }
+	
+	Data data;
+};
+typedef Handle< SGRX_ConvexPointSet > ConvexPointSetHandle;
+
+ENGINE_EXPORT ConvexPointSetHandle GP_GetConvexPointSet( const StringView& path );
+
+
+//
 // RENDERER DATA
 //
 

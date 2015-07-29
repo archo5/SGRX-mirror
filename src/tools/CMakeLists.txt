@@ -15,6 +15,17 @@ set_target_properties( lmrender PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS} -O2"
 )
 
+# Mesh processor
+add_executable( meshproc
+	meshproc
+)
+target_link_libraries( meshproc sgrx-core )
+set_target_properties( meshproc PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "${CORE_FLAGS}"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+
 # Blender cubemap converter
 add_executable( blendcubedds blendcubedds )
 target_link_libraries( blendcubedds sgrx-core )
