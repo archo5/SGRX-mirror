@@ -18,10 +18,12 @@ set_target_properties( lmrender PROPERTIES
 # Mesh processor
 add_executable( meshproc
 	meshproc
+	${EXTDIR}/src/bullet_LinearMath.cpp
 )
 target_link_libraries( meshproc sgrx-core )
 set_target_properties( meshproc PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	INCLUDE_DIRECTORIES "${EXTDIR}/src"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )

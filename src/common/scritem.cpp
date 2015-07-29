@@ -324,6 +324,22 @@ void SGRX_ScriptedItem::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* s
 	m_bodies[ i ] = m_phyWorld->CreateRigidBody( rbi );
 }
 
+void SGRX_ScriptedItem::RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec )
+{
+	SCRITEM_OFSCHK( i, return );
+	ConvexPointSetHandle cpsh = GP_GetConvexPointSet( cpset );
+	if( cpsh == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "failed to load convex point set" );
+		return;
+	}
+	SGRX_PhyRigidBodyInfo rbi;
+	if( spec )
+		rbi = *spec;
+	rbi.shape = m_phyWorld->CreateConvexHullShape( cpsh->data.points.data(), cpsh->data.points.size() );
+	m_bodies[ i ] = m_phyWorld->CreateRigidBody( rbi );
+}
+
 void SGRX_ScriptedItem::RBDestroy( int i )
 {
 	SCRITEM_OFSCHK( i, return );

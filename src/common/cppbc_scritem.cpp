@@ -1,6 +1,6 @@
 // SGS/CPP-BC
 // warning: do not modify this file, it may be regenerated during any build
-// generated: 07/28/15 09:30:07
+// generated: 07/29/15 23:23:15
 
 #include "scritem.hpp"
 
@@ -226,6 +226,12 @@ static int _sgs_method__SGRX_ScriptedItem__RBCreateFromMesh( SGS_CTX )
 	data->RBCreateFromMesh( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_SIRigidBodyInfo>()(C,2) ); return 0;
 }
 
+static int _sgs_method__SGRX_ScriptedItem__RBCreateFromConvexPointSet( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBCreateFromConvexPointSet ) ) return 0;
+	data->RBCreateFromConvexPointSet( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVarObj<SGRX_SIRigidBodyInfo>()(C,2) ); return 0;
+}
+
 static int _sgs_method__SGRX_ScriptedItem__RBDestroy( SGS_CTX )
 {
 	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBDestroy ) ) return 0;
@@ -298,6 +304,7 @@ int SGRX_ScriptedItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "DSClear" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSClear ); return SGS_SUCCESS; }
 		SGS_CASE( "RBMakeInfo" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBMakeInfo ); return SGS_SUCCESS; }
 		SGS_CASE( "RBCreateFromMesh" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromMesh ); return SGS_SUCCESS; }
+		SGS_CASE( "RBCreateFromConvexPointSet" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromConvexPointSet ); return SGS_SUCCESS; }
 		SGS_CASE( "RBDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBDestroy ); return SGS_SUCCESS; }
 		SGS_CASE( "RBExists" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBExists ); return SGS_SUCCESS; }
 		SGS_CASE( "RBSetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetEnabled ); return SGS_SUCCESS; }

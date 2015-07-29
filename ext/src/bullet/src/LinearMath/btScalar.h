@@ -277,12 +277,12 @@ typedef __m128 btSimdFloat4;
 #ifdef _WIN32
 
 #ifndef BT_NAN
-static int btNanMask = 0x7F800001;
+static const int btNanMask = 0x7F800001;
 #define BT_NAN (*(float*)&btNanMask)
 #endif
 
 #ifndef BT_INFINITY
-static  int btInfinityMask = 0x7F800000;
+static const int btInfinityMask = 0x7F800000;
 #define BT_INFINITY (*(float*)&btInfinityMask)
 #endif
 
@@ -334,7 +334,7 @@ inline __m128 operator * (const __m128 A, const __m128 B)
 #else//BT_USE_NEON
 
 	#ifndef BT_INFINITY
-	static  int btInfinityMask = 0x7F800000;
+	static const int btInfinityMask = 0x7F800000;
 	#define BT_INFINITY (*(float*)&btInfinityMask)
 	#endif
 #endif//BT_USE_NEON

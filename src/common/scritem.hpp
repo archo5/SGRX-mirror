@@ -106,6 +106,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	// - rigid bodies
 	SGS_METHOD SGRX_SIRigidBodyInfo::Handle RBMakeInfo(); // tmp. misplaced?
 	SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec );
+	SGS_METHOD void RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec );
 	SGS_METHOD void RBDestroy( int i );
 	SGS_METHOD bool RBExists( int i );
 	SGS_METHOD void RBSetEnabled( int i, bool enabled );
