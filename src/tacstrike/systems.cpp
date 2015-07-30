@@ -311,6 +311,8 @@ void FlareSystem::Draw( SGRX_Camera& cam )
 
 const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 {
+	this->scene = scene;
+	
 	static char errbfr[ 350 ];
 	
 	String mtlconfig;
@@ -478,6 +480,7 @@ struct DmgSys_GenBlood : IProcessor
 		if( MI->mesh == NULL ||
 			MI->raycastOverride ||
 			MI->skin_matrices.size() ||
+			MI->dynamic ||
 			MI->decal )
 			return;
 		DS->m_bloodDecalSys.AddDecal( projInfo, MI->mesh, MI->matrix );
@@ -564,8 +567,10 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 				// apply damage to hit point
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
 				SGRX_DecalSystem* dmgDecalSys = mii ? mii->dmgDecalSysOverride : NULL;
+				bool needDecal = HIT.meshinst->dynamic == false &&
+					HIT.meshinst->skin_matrices.size() == 0;
 				m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
-					HIT.meshinst->skin_matrices.size() ? NULL : HIT.meshinst->mesh,
+					needDecal ? HIT.meshinst->mesh : NULL,
 					-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );
 				
 				// blood?

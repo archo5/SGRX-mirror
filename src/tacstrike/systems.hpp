@@ -287,7 +287,7 @@ struct MeshInstInfo : SGRX_MeshInstUserData
 };
 
 
-struct DamageSystem
+struct DamageSystem : SGRX_ScenePSRaycast
 {
 	struct Material : SGRX_RefCounted
 	{
@@ -308,6 +308,11 @@ struct DamageSystem
 		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
 	void AddBlood( Vec3 pos, Vec3 dir );
 	void Clear();
+	
+	void DoFX( const Vec3& pos, const Vec3& nrm, uint32_t fx )
+	{
+		if( fx == 1 ){ AddBlood( pos + nrm, -nrm ); }
+	}
 	
 	Array< MtlHandle > m_bulletDecalMaterials;
 	Array< DecalMapPartInfo > m_bulletDecalInfo;

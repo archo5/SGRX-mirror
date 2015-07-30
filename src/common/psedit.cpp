@@ -5,6 +5,7 @@
 #define USE_VEC4
 #define USE_MAT4
 #define USE_ARRAY
+#define USE_HASHTABLE
 #define USE_SERIALIZATION
 #include <engine.hpp>
 #include <enganim.hpp>
@@ -21,6 +22,7 @@ struct EDGUIShaderPicker* g_UIShaderPicker;
 struct EDGUIMeshPicker* g_UIMeshPicker;
 struct EDGUIPSOpenPicker* g_UIPSOpenPicker;
 struct EDGUIPSSavePicker* g_UIPSSavePicker;
+struct EDGUIPSISFXPicker* g_UIPSISFXPicker;
 
 
 
@@ -129,6 +131,71 @@ struct EDGUIPSSavePicker : EDGUIPSPicker
 		_OnPickResource();
 	}
 };
+
+struct EDGUIPSISFXPicker : EDGUIRsrcPicker
+{
+	EDGUIPSISFXPicker()
+	{
+		caption = "Pick a particle intersection effect";
+		Reload();
+	}
+	void Reload()
+	{
+		LOG << "Reloading particle intersection effects";
+		
+		Name2FXID.clear();
+		FXID2Name.clear();
+		m_options.clear();
+		
+		String isfx_data;
+		if( FS_LoadTextFile( "editor/psys_isfx.txt", isfx_data ) == false )
+		{
+			LOG_ERROR << LOG_DATE << "  Failed to load editor/psys_isfx.txt";
+			_Search( m_searchString );
+			return;
+		}
+		ConfigReader cr( isfx_data );
+		StringView key, value;
+		while( cr.Read( key, value ) )
+		{
+			int id = String_ParseInt( key );
+			char bfr[ 32 ];
+			sgrx_snprintf( bfr, 32, "%d: ", id );
+			String name = bfr;
+			name.append( value );
+			
+			Name2FXID.set( name, id );
+			FXID2Name.set( id, name );
+			m_options.push_back( name );
+		}
+		
+		LOG << "Loaded " << m_options.size() << " effects!";
+		
+		_Search( m_searchString );
+	}
+	
+	static int GetFXIDFromName( const StringView& name )
+	{
+		int* ptr = Name2FXID.getptr( name );
+		if( ptr )
+			return *ptr;
+		return String_ParseInt( name.until( ":" ) );
+	}
+	static String GetNameFromFXID( int id )
+	{
+		String* ptr = FXID2Name.getptr( id );
+		if( ptr )
+			return *ptr;
+		char bfr[ 32 ];
+		sgrx_snprintf( bfr, 32, "%d: --unknown--" );
+		return bfr;
+	}
+	
+	static HashTable< String, int > Name2FXID;
+	static HashTable< int, String > FXID2Name;
+};
+HashTable< String, int > EDGUIPSISFXPicker::Name2FXID;
+HashTable< int, String > EDGUIPSISFXPicker::FXID2Name;
 
 
 struct EdDualGraph : EDGUIItem
@@ -381,6 +448,13 @@ struct EdEmitter : EDGUILayoutRow
 		tick_GravityMult( 1, 2, 0, 100 ),
 		absolute( true ),
 		
+		grpIsect( false, "Intersection" ),
+		isect_Limit( 0, 0, MAX_PARTICLES ),
+		isect_Friction( 0, 2, 0, 1 ),
+		isect_Bounce( 0, 2, 0, 1 ),
+		isect_FX( g_UIPSISFXPicker, EDGUIPSISFXPicker::GetNameFromFXID( 0 ) ),
+		isect_Remove( false ),
+		
 		grpSizeColor( false, "Size/color curves" ),
 		curve_Size( false, "Size" ),
 		curve_ColorHue( false, "Color - hue" ),
@@ -424,6 +498,12 @@ struct EdEmitter : EDGUILayoutRow
 		tick_GravityMult.caption = "Gravity mulitplier";
 		absolute.caption = "World space";
 		
+		isect_Limit.caption = "Limit";
+		isect_Friction.caption = "Friction";
+		isect_Bounce.caption = "Bounce";
+		isect_FX.caption = "Hit FX";
+		isect_Remove.caption = "Remove on hit";
+		
 		render_Texture0.caption = "Texture #1";
 		render_Texture1.caption = "Texture #2";
 		render_Texture2.caption = "Texture #3";
@@ -461,6 +541,13 @@ struct EdEmitter : EDGUILayoutRow
 		grpMisc.Add( &absolute );
 		Add( &grpMisc );
 		
+		grpIsect.Add( &isect_Limit );
+		grpIsect.Add( &isect_Friction );
+		grpIsect.Add( &isect_Bounce );
+		grpIsect.Add( &isect_FX );
+		grpIsect.Add( &isect_Remove );
+		Add( &grpIsect );
+		
 		grpSizeColor.Add( &curve_Size );
 		grpSizeColor.Add( &curve_ColorHue );
 		grpSizeColor.Add( &curve_ColorSat );
@@ -487,9 +574,11 @@ struct EdEmitter : EDGUILayoutRow
 			if( e->target == &spawn_Count ){ m_emitter->spawn_Count = spawn_Count.m_value; _U(false); }
 			if( e->target == &spawn_CountExt ){ m_emitter->spawn_CountExt = spawn_CountExt.m_value; _U(false); }
 			if( e->target == &spawn_TimeExt ){ m_emitter->spawn_TimeExt = spawn_TimeExt.m_value; _U(false); }
+			
 			if( e->target == &create_Pos ){ m_emitter->create_Pos = create_Pos.m_value; _U(false); }
 			if( e->target == &create_PosBox ){ m_emitter->create_PosBox = create_PosBox.m_value; _U(false); }
 			if( e->target == &create_PosRadius ){ m_emitter->create_PosRadius = create_PosRadius.m_value; _U(false); }
+			
 			if( e->target == &create_VelMicroDir ){ m_emitter->create_VelMicroDir = create_VelMicroDir.m_value; _U(false); }
 			if( e->target == &create_VelMicroDvg ){ m_emitter->create_VelMicroDvg = create_VelMicroDvg.m_value; _U(false); }
 			if( e->target == &create_VelMicroDistExt ){ m_emitter->create_VelMicroDistExt = create_VelMicroDistExt.m_value; _U(false); }
@@ -498,12 +587,20 @@ struct EdEmitter : EDGUILayoutRow
 			if( e->target == &create_VelMacroDistExt ){ m_emitter->create_VelMacroDistExt = create_VelMacroDistExt.m_value; _U(false); }
 			if( e->target == &create_VelCluster ){ m_emitter->create_VelCluster = create_VelCluster.m_value; _U(false); }
 			if( e->target == &create_VelClusterExt ){ m_emitter->create_VelClusterExt = create_VelClusterExt.m_value; _U(false); }
+			
 			if( e->target == &create_LifetimeExt ){ m_emitter->create_LifetimeExt = create_LifetimeExt.m_value; _U(false); }
 			if( e->target == &create_AngleDirDvg ){ m_emitter->create_AngleDirDvg = DEG2RAD( create_AngleDirDvg.m_value ); _U(false); }
 			if( e->target == &create_AngleVelDvg ){ m_emitter->create_AngleVelDvg = DEG2RAD( create_AngleVelDvg.m_value ); _U(false); }
 			if( e->target == &tick_AngleAcc ){ m_emitter->tick_AngleAcc = DEG2RAD( tick_AngleAcc.m_value ); _U(false); }
 			if( e->target == &tick_GravityMult ){ m_emitter->tick_GravityMult = tick_GravityMult.m_value; _U(false); }
 			if( e->target == &absolute ){ m_emitter->absolute = absolute.m_value; _U(false); }
+			
+			if( e->target == &isect_Limit ){ m_emitter->isect_Limit = isect_Limit.m_value; _U(false); }
+			if( e->target == &isect_Friction ){ m_emitter->isect_Friction = isect_Friction.m_value; _U(false); }
+			if( e->target == &isect_Bounce ){ m_emitter->isect_Bounce = isect_Bounce.m_value; _U(false); }
+			if( e->target == &isect_FX ){ m_emitter->isect_FX = EDGUIPSISFXPicker::GetFXIDFromName( isect_FX.m_value ); _U(false); }
+			if( e->target == &isect_Remove ){ m_emitter->isect_Remove = isect_Remove.m_value; _U(false); }
+			
 			if( e->target == &render_Texture0 ){ m_emitter->render_Textures[0] = GetParticleTexHandle( render_Texture0.m_value ); _U(true); }
 			if( e->target == &render_Texture1 ){ m_emitter->render_Textures[1] = GetParticleTexHandle( render_Texture1.m_value ); _U(true); }
 			if( e->target == &render_Texture2 ){ m_emitter->render_Textures[2] = GetParticleTexHandle( render_Texture2.m_value ); _U(true); }
@@ -551,6 +648,12 @@ struct EdEmitter : EDGUILayoutRow
 		tick_GravityMult.SetValue( m_emitter->tick_GravityMult );
 		absolute.SetValue( m_emitter->absolute );
 		
+		isect_Limit.SetValue( m_emitter->isect_Limit );
+		isect_Friction.SetValue( m_emitter->isect_Friction );
+		isect_Bounce.SetValue( m_emitter->isect_Bounce );
+		isect_FX.SetValue( EDGUIPSISFXPicker::GetNameFromFXID( m_emitter->isect_FX ) );
+		isect_Remove.SetValue( m_emitter->isect_Remove );
+		
 		curve_Size.SetValue( m_emitter->curve_Size );
 		curve_ColorHue.SetValue( m_emitter->curve_ColorHue );
 		curve_ColorSat.SetValue( m_emitter->curve_ColorSat );
@@ -594,6 +697,13 @@ struct EdEmitter : EDGUILayoutRow
 	EDGUIPropFloat tick_AngleAcc;
 	EDGUIPropFloat tick_GravityMult;
 	EDGUIPropBool absolute;
+	
+	EDGUIGroup grpIsect;
+	EDGUIPropInt isect_Limit;
+	EDGUIPropFloat isect_Friction;
+	EDGUIPropFloat isect_Bounce;
+	EDGUIPropRsrc isect_FX;
+	EDGUIPropBool isect_Remove;
 	
 	EDGUIGroup grpSizeColor;
 	EdEmitCurve curve_Size;
@@ -791,11 +901,12 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		
 		Add( &m_UIMenuSplit );
 		m_UIMenuSplit.SetFirstPane( &m_UIMenuButtons );
-		m_UIMenuSplit.SetSecondPane( &m_UIGraphSplit );
-		m_UIGraphSplit.SetFirstPane( &m_UIParamSplit );
+		m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
+		m_UIParamSplit.SetFirstPane( &m_UIGraphSplit );
+		m_UIParamSplit.SetSecondPane( &m_UIParamScroll );
+		m_UIGraphSplit.SetFirstPane( &m_UIRenderView );
 		m_UIGraphSplit.SetSecondPane( &m_UIGraph );
-		m_UIParamSplit.SetFirstPane( &m_UIRenderView );
-		m_UIParamSplit.SetSecondPane( &m_UIParamList );
+		m_UIParamScroll.Add( &m_UIParamList );
 		
 		// menu
 		m_MB_Cat0.caption = "File:";
@@ -964,6 +1075,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUILayoutSplitPane m_UIGraphSplit;
 	EDGUILayoutSplitPane m_UIParamSplit;
 	EDGUILayoutColumn m_UIMenuButtons;
+	EDGUIVScroll m_UIParamScroll;
 	EDGUILayoutRow m_UIParamList;
 	EDGUIRenderView m_UIRenderView;
 	EdDualGraph m_UIGraph;
@@ -1014,6 +1126,7 @@ struct PSEditor : IGame
 		g_UIMeshPicker = new EDGUIMeshPicker;
 		g_UIPSOpenPicker = new EDGUIPSOpenPicker;
 		g_UIPSSavePicker = new EDGUIPSSavePicker;
+		g_UIPSISFXPicker = new EDGUIPSISFXPicker;
 		
 		// core layout
 		g_EdScene = GR_CreateScene();
@@ -1030,6 +1143,8 @@ struct PSEditor : IGame
 	}
 	void OnDestroy()
 	{
+		delete g_UIPSISFXPicker;
+		g_UIPSISFXPicker = NULL;
 		delete g_UIPSSavePicker;
 		g_UIPSSavePicker = NULL;
 		delete g_UIPSOpenPicker;

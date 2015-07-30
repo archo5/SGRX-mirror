@@ -64,6 +64,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	void Release();
 	
 	void SetLightSampler( SGRX_LightSampler* sampler );
+	void SetPSRaycast( SGRX_IPSRaycast* psrc );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void PreRender();
@@ -85,6 +86,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD bool MIExists( int i );
 	SGS_METHOD void MISetMesh( int i, StringView path );
 	SGS_METHOD void MISetEnabled( int i, bool enabled );
+	SGS_METHOD void MISetDynamic( int i, bool dynamic );
 	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
 	
 	// - particle system
@@ -121,6 +123,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SceneHandle m_scene;
 	PhyWorldHandle m_phyWorld;
 	SGRX_LightSampler* m_lightSampler;
+	SGRX_IPSRaycast* m_psRaycast;
 	
 	DecalSysHandle m_decalSys;
 	MeshInstHandle m_decalSysMI;

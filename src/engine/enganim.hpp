@@ -173,11 +173,12 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ScenePSRaycast : SGRX_IPSRaycast
 	uint32_t layers;
 };
 
-#define PARTICLESYSTEM_VERSION 4
+#define PARTICLESYSTEM_VERSION 5
 // 1: initial version
 // 2: added group count
 // 3: added global scale
 // 4: added gravity multiplier
+// 5: added intersection attribs [limit, friction, bounce, fx, remove]
 
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
@@ -276,6 +277,12 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 		float tick_GravityMult;
 		bool absolute;
 		
+		int isect_Limit;
+		float isect_Friction;
+		float isect_Bounce;
+		uint32_t isect_FX;
+		bool isect_Remove;
+		
 		TextureHandle render_Textures[ NUM_PARTICLE_TEXTURES ];
 		String render_Shader;
 		bool render_Additive;
@@ -295,6 +302,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 			create_VelCluster(1), create_VelClusterExt(0),
 			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,(float)M_PI)), create_AngleVelDvg(V2(0)),
 			tick_AngleAcc(0), tick_GravityMult(1), absolute(false),
+			isect_Limit(0), isect_Friction(0), isect_Bounce(1), isect_FX(0), isect_Remove(false),
 			render_Shader("particle"), render_Additive(false), render_Stretch(false),
 			state_SpawnTotalCount(0), state_SpawnCurrCount(0), state_SpawnTotalTime(0), state_SpawnCurrTime(0),
 			state_lastDelta(0)
@@ -333,6 +341,12 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 			arch << tick_AngleAcc;
 			arch( tick_GravityMult, arch.version >= 4, 1 );
 			arch << absolute;
+			
+			arch( isect_Limit, arch.version >= 5, 0 );
+			arch( isect_Friction, arch.version >= 5, 0.0f );
+			arch( isect_Bounce, arch.version >= 5, 1.0f );
+			arch( isect_FX, arch.version >= 5, 0 );
+			arch( isect_Remove, arch.version >= 5, false );
 			
 			for( int i = 0; i < NUM_PARTICLE_TEXTURES; ++i )
 			{
@@ -410,6 +424,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 	uint16_t m_nextGroup;
 	Mat4 m_transform;
 	SGRX_LightSampler* m_lightSampler;
+	SGRX_IPSRaycast* m_psRaycast;
 	
 	Array< Group > m_groups;
 	Array< Vertex > m_vertices;
@@ -423,7 +438,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 		gravity(V3(0,0,-10)), maxGroupCount(10), globalScale(1),
 		looping(true), retriggerTimeExt(V2(1,0.1f)),
 		m_isPlaying(false), m_retriggerTime(0), m_nextGroup(0),
-		m_transform(Mat4::Identity), m_lightSampler(NULL)
+		m_transform(Mat4::Identity), m_lightSampler(NULL), m_psRaycast(NULL)
 	{}
 	
 	template< class T > void Serialize( T& arch, bool incl_state )

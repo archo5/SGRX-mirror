@@ -58,6 +58,16 @@ void SGRX_ScriptedItem::SetLightSampler( SGRX_LightSampler* sampler )
 	}
 }
 
+void SGRX_ScriptedItem::SetPSRaycast( SGRX_IPSRaycast* psrc )
+{
+	m_psRaycast = psrc;
+	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
+	{
+		if( m_partSys[ i ] )
+			m_partSys[ i ]->m_psRaycast = m_psRaycast;
+	}
+}
+
 void SGRX_ScriptedItem::FixedTick( float deltaTime )
 {
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
@@ -206,6 +216,13 @@ void SGRX_ScriptedItem::MISetEnabled( int i, bool enabled )
 	m_meshes[ i ]->enabled = enabled;
 }
 
+void SGRX_ScriptedItem::MISetDynamic( int i, bool dynamic )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_MESHCHK( i, return );
+	m_meshes[ i ]->dynamic = dynamic;
+}
+
 void SGRX_ScriptedItem::MISetMatrix( int i, Mat4 mtx )
 {
 	SCRITEM_OFSCHK( i, return );
@@ -222,6 +239,8 @@ void SGRX_ScriptedItem::PSCreate( int i, StringView path )
 	if( path )
 		m_partSys[ i ]->Load( path );
 	m_partSys[ i ]->SetTransform( m_partSysMatrices[ i ] * m_transform );
+	m_partSys[ i ]->m_lightSampler = m_lightSampler;
+	m_partSys[ i ]->m_psRaycast = m_psRaycast;
 }
 
 void SGRX_ScriptedItem::PSDestroy( int i )

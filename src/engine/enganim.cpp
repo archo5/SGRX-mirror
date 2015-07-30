@@ -491,6 +491,8 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 		}
 	}
 	
+	int isectlim = isect_Limit;
+	
 	Vec3 accel = PS->gravity * tick_GravityMult; // ??? * PS->globalScale;
 	for( size_t i = 0; i < particles_Position.size(); ++i )
 	{
@@ -498,6 +500,7 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 		LT.x += LT.y * dt;
 		if( LT.x >= 1 )
 		{
+particle_remove:
 			// remove particle
 			particles_Position.uerase( i );
 			particles_Velocity.uerase( i );
@@ -511,23 +514,36 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 		Vec3& P = particles_Position[ i ];
 		Vec3& V = particles_Velocity[ i ];
 		V += accel * dt;
-	//	P += V * dt;
 		
-		Vec3 P1 = P + V * dt;
-		
-		// TODO optimize and make configurable
-		
-		SGRX_ScenePSRaycast rcsys;
-		rcsys.scene = PS->m_scene;
-		SGRX_IPSRaycast::DATA_IN din = { P, P1, 0 };
-		SGRX_IPSRaycast::DATA_OUT dout;
-		rcsys.Raycast( &din, &dout, 1 );
-		if( dout.factor <= 0 )
-			P = P1;
+		if( isectlim > 0 )
+		{
+			Vec3 P1 = P + V * dt;
+			
+			// TODO optimize
+			SGRX_ScenePSRaycast rcsys;
+			rcsys.scene = PS->m_scene;
+			SGRX_IPSRaycast* PSRC = PS->m_psRaycast ? PS->m_psRaycast : &rcsys;
+			
+			SGRX_IPSRaycast::DATA_IN din = { P, P1, isect_FX };
+			SGRX_IPSRaycast::DATA_OUT dout;
+			PSRC->Raycast( &din, &dout, 1 );
+			if( dout.factor <= 0 )
+				P = P1;
+			else
+			{
+				if( isect_Remove )
+					goto particle_remove;
+				
+				Vec3 NV = Vec3Dot( V, dout.normal ) * dout.normal;
+				Vec3 TV = V - NV;
+				V = -NV * isect_Bounce + TV * ( 1 - isect_Friction );
+				P = TLERP( P, P1, dout.factor ) + V * dt * ( 1 - dout.factor );
+			}
+			isectlim--;
+		}
 		else
 		{
-			V = Vec3Reflect( V, dout.normal );
-			P = TLERP( P, P1, dout.factor ) + V * dt * ( 1 - dout.factor );
+			P += V * dt;
 		}
 	}
 	

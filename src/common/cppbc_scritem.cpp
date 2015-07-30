@@ -1,6 +1,6 @@
 // SGS/CPP-BC
 // warning: do not modify this file, it may be regenerated during any build
-// generated: 07/29/15 23:23:15
+// generated: 07/30/15 23:22:44
 
 #include "scritem.hpp"
 
@@ -128,6 +128,12 @@ static int _sgs_method__SGRX_ScriptedItem__MISetEnabled( SGS_CTX )
 {
 	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, MISetEnabled ) ) return 0;
 	data->MISetEnabled( sgs_GetVar<int>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__MISetDynamic( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, MISetDynamic ) ) return 0;
+	data->MISetDynamic( sgs_GetVar<int>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
 }
 
 static int _sgs_method__SGRX_ScriptedItem__MISetMatrix( SGS_CTX )
@@ -288,6 +294,7 @@ int SGRX_ScriptedItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "MIExists" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MIExists ); return SGS_SUCCESS; }
 		SGS_CASE( "MISetMesh" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetMesh ); return SGS_SUCCESS; }
 		SGS_CASE( "MISetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetEnabled ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetDynamic" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetDynamic ); return SGS_SUCCESS; }
 		SGS_CASE( "MISetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetMatrix ); return SGS_SUCCESS; }
 		SGS_CASE( "PSCreate" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSCreate ); return SGS_SUCCESS; }
 		SGS_CASE( "PSDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSDestroy ); return SGS_SUCCESS; }

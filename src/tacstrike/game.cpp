@@ -452,6 +452,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 			g_GameLevel->m_scriptCtx.GetGlobal( "SCRITEM_CREATE_testbox" )
 		);
 		myscritem->SetLightSampler( g_GameLevel );
+		myscritem->SetPSRaycast( &g_GameLevel->m_damageSystem );
 		
 		g_GameLevel->StartLevel();
 		
