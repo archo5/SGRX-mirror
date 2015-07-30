@@ -146,6 +146,33 @@ ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mi
 
 
 
+struct IF_GCC(ENGINE_EXPORT) SGRX_IPSRaycast
+{
+	struct DATA_IN
+	{
+		Vec3 p1;
+		Vec3 p2;
+		uint32_t isect_fx;
+	};
+	struct DATA_OUT
+	{
+		Vec3 normal;
+		float factor;
+	};
+	
+	ENGINE_EXPORT virtual void Raycast( DATA_IN* rays, DATA_OUT* isects, size_t count ) = 0;
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_ScenePSRaycast : SGRX_IPSRaycast
+{
+	ENGINE_EXPORT SGRX_ScenePSRaycast();
+	ENGINE_EXPORT virtual void Raycast( DATA_IN* rays, DATA_OUT* isects, size_t count );
+	ENGINE_EXPORT virtual void DoFX( const Vec3& pos, const Vec3& nrm, uint32_t fx ); // empty
+	
+	SceneHandle scene;
+	uint32_t layers;
+};
+
 #define PARTICLESYSTEM_VERSION 4
 // 1: initial version
 // 2: added group count

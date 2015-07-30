@@ -58,17 +58,45 @@ void SGRX_ScriptedItem::SetLightSampler( SGRX_LightSampler* sampler )
 	}
 }
 
-void SGRX_ScriptedItem::Tick( float dt )
+void SGRX_ScriptedItem::FixedTick( float deltaTime )
 {
+	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
+	{
+		if( m_bodies[ i ] )
+		{
+			m_bodyPos[ i ].Advance( m_bodies[ i ]->GetPosition() );
+			m_bodyRot[ i ].Advance( m_bodies[ i ]->GetRotation() );
+		}
+	}
+	// fixed update event
 	{
 		SGS_SCOPE;
-		sgs_PushReal( C, dt );
-		Handle( this ).get_variable().thiscall( "update", 1 );
+		sgs_PushReal( C, deltaTime );
+		Handle( this ).get_variable().thiscall( "fixedupdate", 1 );
+	}
+}
+
+void SGRX_ScriptedItem::Tick( float deltaTime, float blendFactor )
+{
+	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
+	{
+		if( m_bodies[ i ] )
+		{
+			m_bodyPosLerp[ i ] = m_bodyPos[ i ].Get( blendFactor );
+			m_bodyRotLerp[ i ] = m_bodyRot[ i ].Get( blendFactor );
+		}
+	}
+	// update event
+	{
+		SGS_SCOPE;
+		sgs_PushReal( C, deltaTime );
+		sgs_PushReal( C, blendFactor );
+		Handle( this ).get_variable().thiscall( "update", 2 );
 	}
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
 	{
 		if( m_partSys[ i ] )
-			m_partSys[ i ]->Tick( dt );
+			m_partSys[ i ]->Tick( deltaTime );
 	}
 }
 
@@ -322,6 +350,8 @@ void SGRX_ScriptedItem::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* s
 		rbi = *spec;
 	rbi.shape = m_phyWorld->CreateShapeFromMesh( M );
 	m_bodies[ i ] = m_phyWorld->CreateRigidBody( rbi );
+	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = rbi.position );
+	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = rbi.rotation );
 }
 
 void SGRX_ScriptedItem::RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec )
@@ -338,6 +368,8 @@ void SGRX_ScriptedItem::RBCreateFromConvexPointSet( int i, StringView cpset, SGR
 		rbi = *spec;
 	rbi.shape = m_phyWorld->CreateConvexHullShape( cpsh->data.points.data(), cpsh->data.points.size() );
 	m_bodies[ i ] = m_phyWorld->CreateRigidBody( rbi );
+	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = rbi.position );
+	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = rbi.rotation );
 }
 
 void SGRX_ScriptedItem::RBDestroy( int i )
@@ -363,22 +395,23 @@ Vec3 SGRX_ScriptedItem::RBGetPosition( int i )
 {
 	SCRITEM_OFSCHK( i, return V3(0) );
 	SCRITEM_BODYCHK( i, return V3(0) );
-	return m_bodies[ i ]->GetPosition();
+	return m_bodyPosLerp[ i ]; // m_bodies[ i ]->GetPosition();
 }
 
 void SGRX_ScriptedItem::RBSetPosition( int i, Vec3 v )
 {
 	SCRITEM_OFSCHK( i, return );
 	SCRITEM_BODYCHK( i, return );
-	m_bodies[ i ]->SetPosition( v );
+	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = v );
+//	m_bodies[ i ]->SetPosition( v );
 }
 
 Mat4 SGRX_ScriptedItem::RBGetMatrix( int i )
 {
 	SCRITEM_OFSCHK( i, return Mat4::Identity );
 	SCRITEM_BODYCHK( i, return Mat4::Identity );
-	return Mat4::CreateRotationFromQuat( m_bodies[ i ]->GetRotation() )
-		* Mat4::CreateTranslation( m_bodies[ i ]->GetPosition() );
+	return Mat4::CreateRotationFromQuat( m_bodyRotLerp[ i ] ) // m_bodies[ i ]->GetRotation() )
+		* Mat4::CreateTranslation( m_bodyPosLerp[ i ] ); // m_bodies[ i ]->GetPosition() );
 }
 
 

@@ -509,6 +509,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	myplayer->FixedTick( dt );
 		mytable->FixedTick( dt );
 #endif
+		myscritem->FixedTick( dt );
 	}
 	void Game_Tick( float dt, float bf )
 	{
@@ -523,7 +524,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	myplayer->Tick( dt, bf );
 		mytable->Tick( dt, bf );
 #endif
-		myscritem->Tick( dt );
+		myscritem->Tick( dt, bf );
 		myscritem->PreRender();
 		
 #ifdef TESTSHOOT

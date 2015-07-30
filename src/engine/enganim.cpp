@@ -451,6 +451,33 @@ bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 
 
 
+SGRX_ScenePSRaycast::SGRX_ScenePSRaycast() : layers(0xffffffff)
+{
+}
+
+void SGRX_ScenePSRaycast::Raycast( DATA_IN* rays, DATA_OUT* isects, size_t count )
+{
+	SceneRaycastInfo info;
+	for( size_t i = 0; i < count; ++i )
+	{
+		DATA_IN& R = rays[ i ];
+		DATA_OUT& IS = isects[ i ];
+		if( scene->RaycastOne( R.p1, R.p2, &info, layers ) )
+		{
+			IS.factor = info.factor;
+			IS.normal = info.normal;
+			DoFX( TLERP( R.p1, R.p2, info.factor ), info.normal, R.isect_fx );
+		}
+		else
+			IS.factor = -1;
+	}
+}
+
+void SGRX_ScenePSRaycast::DoFX( const Vec3& pos, const Vec3& nrm, uint32_t fx )
+{
+}
+
+
 void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 {
 	if( state_SpawnCurrCount < state_SpawnTotalCount )
@@ -484,7 +511,24 @@ void ParticleSystem::Emitter::Tick( ParticleSystem* PS, float dt )
 		Vec3& P = particles_Position[ i ];
 		Vec3& V = particles_Velocity[ i ];
 		V += accel * dt;
-		P += V * dt;
+	//	P += V * dt;
+		
+		Vec3 P1 = P + V * dt;
+		
+		// TODO optimize and make configurable
+		
+		SGRX_ScenePSRaycast rcsys;
+		rcsys.scene = PS->m_scene;
+		SGRX_IPSRaycast::DATA_IN din = { P, P1, 0 };
+		SGRX_IPSRaycast::DATA_OUT dout;
+		rcsys.Raycast( &din, &dout, 1 );
+		if( dout.factor <= 0 )
+			P = P1;
+		else
+		{
+			V = Vec3Reflect( V, dout.normal );
+			P = TLERP( P, P1, dout.factor ) + V * dt * ( 1 - dout.factor );
+		}
 	}
 	
 	state_lastDelta = dt;
@@ -518,6 +562,7 @@ static FINLINE int randi( int x )
 		return 0;
 	return rand() % x;
 }
+
 
 void ParticleSystem::Emitter::Generate( ParticleSystem* PS, int count )
 {

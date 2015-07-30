@@ -158,8 +158,11 @@ template< class T > void TMEMSWAP( T& a, T& b )
 template< class T, class S > T TLERP( const T& a, const T& b, const S& s ){ return a * ( S(1) - s ) + b * s; }
 template< class S, class T > S TREVLERP( const T& a, const T& b, const T& s ){ if( a == b ) return a; return ( s - a ) / ( b - a ); }
 
+template< class T > inline T DefaultValue(){ return (T)0; }
+
 template< class T > struct IVState
 {
+	FINLINE IVState() : prev(DefaultValue<T>()), curr(DefaultValue<T>()) {}
 	FINLINE IVState( const T& start ) : prev(start), curr(start) {}
 	FINLINE void Advance( const T& next ){ prev = curr; curr = next; }
 	FINLINE T Get( float q ){ return TLERP( prev, curr, q ); }
@@ -248,6 +251,8 @@ FINLINE Vec2 operator / ( float f, const Vec2& v ){ Vec2 out = { f / v.x, f / v.
 FINLINE Vec2 V2( float x ){ Vec2 v = { x, x }; return v; }
 FINLINE Vec2 V2( float x, float y ){ Vec2 v = { x, y }; return v; }
 FINLINE float Vec2Dot( const Vec2& v1, const Vec2& v2 ){ return v1.x * v2.x + v1.y * v2.y; }
+
+template<> inline Vec2 DefaultValue<Vec2>(){ return V2(0); }
 
 
 //
@@ -354,6 +359,10 @@ inline Vec3 Vec3Slerp( const Vec3& v1, const Vec3& v2, float q )
 	}
 	return v1 * cos( ang ) + rel * sin( ang );
 }
+FINLINE Vec3 Vec3Reflect( const Vec3& dir, const Vec3& nrm )
+{
+	return dir - 2 * nrm * Vec3Dot( dir, nrm );
+}
 inline Vec3 TLERP( const Vec3& a, const Vec3& b, const Vec3& s ){ return a * ( V3(1) - s ) + b * s; }
 inline Vec3 TREVLERP( const Vec3& a, const Vec3& b, const Vec3& s )
 {
@@ -364,6 +373,8 @@ inline Vec3 TREVLERP( const Vec3& a, const Vec3& b, const Vec3& s )
 		a.z == b.z ? a.z : ( s.z - a.z ) / ( b.z - a.z )
 	);
 }
+
+template<> inline Vec3 DefaultValue<Vec3>(){ return V3(0); }
 
 
 //
@@ -446,6 +457,8 @@ FINLINE Vec4 V4( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; 
 FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w; }
 #endif
 inline Vec4 TLERP( const Vec4& a, const Vec4& b, const Vec4& s ){ return a * ( V4(1) - s ) + b * s; }
+
+template<> inline Vec4 DefaultValue<Vec4>(){ return V4(0); }
 
 // for interpolating color values only
 static const float INV_255F = 1.0f / 255.0f;
@@ -603,6 +616,8 @@ template< class S > Quat TLERP( const Quat& a, const Quat& b, const S& s ){ retu
 #endif
 
 ENGINE_EXPORT Vec3 CalcAngularVelocity( const Quat& qa, const Quat& qb );
+
+template<> inline Quat DefaultValue<Quat>(){ return Quat::Identity; }
 
 
 //

@@ -64,7 +64,8 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	void Release();
 	
 	void SetLightSampler( SGRX_LightSampler* sampler );
-	void Tick( float dt );
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
 	void PreRender();
 	
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, float amt );
@@ -126,6 +127,10 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	MeshInstHandle m_meshes[ SCRITEM_NUM_SLOTS ];
 	PartSysHandle m_partSys[ SCRITEM_NUM_SLOTS ];
 	PhyRigidBodyHandle m_bodies[ SCRITEM_NUM_SLOTS ];
+	IVState< Vec3 > m_bodyPos[ SCRITEM_NUM_SLOTS ];
+	IVState< Quat > m_bodyRot[ SCRITEM_NUM_SLOTS ];
+	Vec3 m_bodyPosLerp[ SCRITEM_NUM_SLOTS ];
+	Quat m_bodyRotLerp[ SCRITEM_NUM_SLOTS ];
 //	LightHandle m_lights[ SCRITEM_NUM_SLOTS ];
 	
 	Mat4 m_transform;
