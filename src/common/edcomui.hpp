@@ -246,6 +246,49 @@ struct EDGUISoundPicker : EDGUIRsrcPicker
 };
 
 
+struct EDGUIScrItemPicker : EDGUIRsrcPicker
+{
+	EDGUIScrItemPicker( ScriptContext* sctx ) : m_scriptCtx( sctx )
+	{
+		caption = "Pick a scripted item";
+		Reload();
+	}
+	virtual void _OnChangeZoom()
+	{
+		EDGUIRsrcPicker::_OnChangeZoom();
+		m_itemHeight /= 4;
+	}
+	void Reload()
+	{
+		LOG << "Reloading scripted items";
+		m_options.clear();
+		m_options.push_back( "" );
+		
+		m_scriptCtx->PushEnv();
+		if( m_scriptCtx->ExecFile( "data/scritems.sgs" ) )
+		{
+			ScriptVarIterator iter = m_scriptCtx->GlobalIterator();
+			while( iter.Advance() )
+			{
+				sgsString sgsstr = iter.GetKey().get_string();
+				StringView str( sgsstr.c_str(), sgsstr.size() );
+				if( str.starts_with( "SCRITEM_CREATE_" ) )
+				{
+					StringView name = str.part( sizeof("SCRITEM_CREATE_") - 1 );
+					LOG << "[SI]: " << name;
+					m_options.push_back( name );
+				}
+			}
+		}
+		m_scriptCtx->PopEnv();
+		
+		_Search( m_searchString );
+	}
+	
+	ScriptContext* m_scriptCtx;
+};
+
+
 // returns level name or empty string if level is not saved yet
 struct EDGUIScrFnPicker : EDGUIRsrcPicker
 {

@@ -452,7 +452,8 @@ struct EdEmitter : EDGUILayoutRow
 		isect_Limit( 0, 0, MAX_PARTICLES ),
 		isect_Friction( 0, 2, 0, 1 ),
 		isect_Bounce( 0, 2, 0, 1 ),
-		isect_FX( g_UIPSISFXPicker, EDGUIPSISFXPicker::GetNameFromFXID( 0 ) ),
+		isect_FXID( g_UIPSISFXPicker, EDGUIPSISFXPicker::GetNameFromFXID( 0 ) ),
+		isect_FXChance( 0, 2, 0, 1 ),
 		isect_Remove( false ),
 		
 		grpSizeColor( false, "Size/color curves" ),
@@ -501,7 +502,8 @@ struct EdEmitter : EDGUILayoutRow
 		isect_Limit.caption = "Limit";
 		isect_Friction.caption = "Friction";
 		isect_Bounce.caption = "Bounce";
-		isect_FX.caption = "Hit FX";
+		isect_FXID.caption = "Hit FX";
+		isect_FXChance.caption = "Hit FX chance";
 		isect_Remove.caption = "Remove on hit";
 		
 		render_Texture0.caption = "Texture #1";
@@ -544,7 +546,8 @@ struct EdEmitter : EDGUILayoutRow
 		grpIsect.Add( &isect_Limit );
 		grpIsect.Add( &isect_Friction );
 		grpIsect.Add( &isect_Bounce );
-		grpIsect.Add( &isect_FX );
+		grpIsect.Add( &isect_FXID );
+		grpIsect.Add( &isect_FXChance );
 		grpIsect.Add( &isect_Remove );
 		Add( &grpIsect );
 		
@@ -598,7 +601,8 @@ struct EdEmitter : EDGUILayoutRow
 			if( e->target == &isect_Limit ){ m_emitter->isect_Limit = isect_Limit.m_value; _U(false); }
 			if( e->target == &isect_Friction ){ m_emitter->isect_Friction = isect_Friction.m_value; _U(false); }
 			if( e->target == &isect_Bounce ){ m_emitter->isect_Bounce = isect_Bounce.m_value; _U(false); }
-			if( e->target == &isect_FX ){ m_emitter->isect_FX = EDGUIPSISFXPicker::GetFXIDFromName( isect_FX.m_value ); _U(false); }
+			if( e->target == &isect_FXID ){ m_emitter->isect_FXID = EDGUIPSISFXPicker::GetFXIDFromName( isect_FXID.m_value ); _U(false); }
+			if( e->target == &isect_FXChance ){ m_emitter->isect_FXChance = isect_FXChance.m_value; _U(false); }
 			if( e->target == &isect_Remove ){ m_emitter->isect_Remove = isect_Remove.m_value; _U(false); }
 			
 			if( e->target == &render_Texture0 ){ m_emitter->render_Textures[0] = GetParticleTexHandle( render_Texture0.m_value ); _U(true); }
@@ -651,7 +655,8 @@ struct EdEmitter : EDGUILayoutRow
 		isect_Limit.SetValue( m_emitter->isect_Limit );
 		isect_Friction.SetValue( m_emitter->isect_Friction );
 		isect_Bounce.SetValue( m_emitter->isect_Bounce );
-		isect_FX.SetValue( EDGUIPSISFXPicker::GetNameFromFXID( m_emitter->isect_FX ) );
+		isect_FXID.SetValue( EDGUIPSISFXPicker::GetNameFromFXID( m_emitter->isect_FXID ) );
+		isect_FXChance.SetValue( m_emitter->isect_FXChance );
 		isect_Remove.SetValue( m_emitter->isect_Remove );
 		
 		curve_Size.SetValue( m_emitter->curve_Size );
@@ -702,7 +707,8 @@ struct EdEmitter : EDGUILayoutRow
 	EDGUIPropInt isect_Limit;
 	EDGUIPropFloat isect_Friction;
 	EDGUIPropFloat isect_Bounce;
-	EDGUIPropRsrc isect_FX;
+	EDGUIPropRsrc isect_FXID;
+	EDGUIPropFloat isect_FXChance;
 	EDGUIPropBool isect_Remove;
 	
 	EDGUIGroup grpSizeColor;

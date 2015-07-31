@@ -5,6 +5,7 @@
 #include "compiler.hpp"
 #include "edutils.hpp"
 #include "edcomui.hpp"
+#include "scritem.hpp"
 
 
 // v0: initial
@@ -37,6 +38,7 @@ MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
 MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
 MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );
+MAPEDIT_GLOBAL( struct EDGUIScrItemPicker* g_UIScrItemPicker );
 MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelOpenPicker* g_UILevelOpenPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
@@ -1054,6 +1056,8 @@ struct EdEntScripted : EdEntity
 	void SetMesh( StringView name );
 	void SetMeshInstanceCount( int count );
 	void SetMeshInstanceMatrix( int which, const Mat4& mtx );
+	void SetScriptedItem( sgsString name, const Mat4& mtx );
+	void SetScriptedItem( StringView name, const Mat4& mtx );
 	void GetMeshAABB( Vec3 out[2] );
 	
 	char m_typename[ 64 ];
@@ -1069,6 +1073,8 @@ struct EdEntScripted : EdEntity
 	
 	MeshHandle cached_mesh;
 	Array< MeshInstHandle > cached_meshinsts;
+	
+	SGRX_ScriptedItem* cached_scritem;
 };
 
 

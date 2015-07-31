@@ -524,7 +524,8 @@ particle_remove:
 			rcsys.scene = PS->m_scene;
 			SGRX_IPSRaycast* PSRC = PS->m_psRaycast ? PS->m_psRaycast : &rcsys;
 			
-			SGRX_IPSRaycast::DATA_IN din = { P, P1, isect_FX };
+			uint32_t fxid = isect_FXChance >= randf() ? isect_FXID : 0;
+			SGRX_IPSRaycast::DATA_IN din = { P, P1, fxid };
 			SGRX_IPSRaycast::DATA_OUT dout;
 			PSRC->Raycast( &din, &dout, 1 );
 			if( dout.factor <= 0 )

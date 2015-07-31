@@ -179,6 +179,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ScenePSRaycast : SGRX_IPSRaycast
 // 3: added global scale
 // 4: added gravity multiplier
 // 5: added intersection attribs [limit, friction, bounce, fx, remove]
+// 6: added intersection FX chance
 
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
@@ -280,7 +281,8 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 		int isect_Limit;
 		float isect_Friction;
 		float isect_Bounce;
-		uint32_t isect_FX;
+		uint32_t isect_FXID;
+		float isect_FXChance;
 		bool isect_Remove;
 		
 		TextureHandle render_Textures[ NUM_PARTICLE_TEXTURES ];
@@ -302,7 +304,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 			create_VelCluster(1), create_VelClusterExt(0),
 			create_LifetimeExt(V2(3,0.1f)), create_AngleDirDvg(V2(0,(float)M_PI)), create_AngleVelDvg(V2(0)),
 			tick_AngleAcc(0), tick_GravityMult(1), absolute(false),
-			isect_Limit(0), isect_Friction(0), isect_Bounce(1), isect_FX(0), isect_Remove(false),
+			isect_Limit(0), isect_Friction(0), isect_Bounce(1), isect_FXID(0), isect_FXChance(1), isect_Remove(false),
 			render_Shader("particle"), render_Additive(false), render_Stretch(false),
 			state_SpawnTotalCount(0), state_SpawnCurrCount(0), state_SpawnTotalTime(0), state_SpawnCurrTime(0),
 			state_lastDelta(0)
@@ -345,7 +347,8 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 			arch( isect_Limit, arch.version >= 5, 0 );
 			arch( isect_Friction, arch.version >= 5, 0.0f );
 			arch( isect_Bounce, arch.version >= 5, 1.0f );
-			arch( isect_FX, arch.version >= 5, 0 );
+			arch( isect_FXID, arch.version >= 5, 0 );
+			arch( isect_FXChance, arch.version >= 6, 1.0f );
 			arch( isect_Remove, arch.version >= 5, false );
 			
 			for( int i = 0; i < NUM_PARTICLE_TEXTURES; ++i )

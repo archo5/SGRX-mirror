@@ -1735,8 +1735,8 @@ struct TACStrikeEditor : IGame
 		g_ScriptCtx->RegisterBatchRenderer();
 		sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
 		
-		LOG << "\n\nLoading scripted entities:\n\n";
-		g_ScriptCtx->ExecFile( "editor/entities.sgs" );
+		LOG << "\n\nLoading scripted entities:";
+		LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
 		LOG << "\nLoading completed\n\n";
 		
 		g_UISurfTexPicker = new EDGUISDTexPicker;
@@ -1744,6 +1744,7 @@ struct TACStrikeEditor : IGame
 		g_UICharPicker = new EDGUICharUsePicker;
 		g_UIPartSysPicker = new EDGUIPartSysPicker;
 		g_UISoundPicker = new EDGUISoundPicker;
+		g_UIScrItemPicker = new EDGUIScrItemPicker( g_ScriptCtx );
 		g_UIScrFnPicker = new EDGUIScrFnPicker( g_ScriptCtx );
 		g_UILevelOpenPicker = new EDGUILevelOpenPicker;
 		g_UILevelSavePicker = new EDGUILevelSavePicker;
@@ -1769,6 +1770,8 @@ struct TACStrikeEditor : IGame
 		g_UILevelSavePicker = NULL;
 		delete g_UILevelOpenPicker;
 		g_UILevelOpenPicker = NULL;
+		delete g_UIScrItemPicker;
+		g_UIScrItemPicker = NULL;
 		delete g_UIScrFnPicker;
 		g_UIScrFnPicker = NULL;
 		delete g_UIPartSysPicker;

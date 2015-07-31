@@ -22,6 +22,7 @@ void ScriptVarIterator::_Init( SGS_CTX, sgs_Variable* var )
 	if( SGS_SUCCEEDED( sgs_GetIteratorP( C, var, &it ) ) )
 	{
 		m_iter = sgsVariable( C, &it );
+		sgs_Release( C, &it );
 	}
 }
 
@@ -329,16 +330,17 @@ bool ScriptContext::PopEnv()
 	sgs_GetEnv( C, &cur_env );
 	sgs_VarObj* upper_env = sgs_ObjGetMetaObj( sgs_GetObjectStructP( &cur_env ) );
 	if( upper_env )
-		sgs_ObjSetMetaObj( C, sgs_GetObjectStructP( &cur_env ), NULL );
-	sgs_Release( C, &cur_env );
-	if( upper_env )
 	{
 		sgs_Variable new_env;
 		sgs_InitObjectPtr( &new_env, upper_env );
+		
+		sgs_ObjSetMetaObj( C, sgs_GetObjectStructP( &cur_env ), NULL );
+		
 		sgs_SetEnv( C, &new_env );
 		sgs_Release( C, &new_env );
 		return true;
 	}
+	sgs_Release( C, &cur_env );
 	return false;
 }
 

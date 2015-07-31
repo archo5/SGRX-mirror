@@ -296,7 +296,8 @@ void EdEntLightSample::UpdateCache( LevelCache& LC )
 EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 	EdEntity( isproto ),
 	m_subEntAddBtn( NULL ),
-	m_levelCache( NULL )
+	m_levelCache( NULL ),
+	cached_scritem( NULL )
 {
 	strncpy( m_typename, enttype, 63 );
 	m_typename[ 63 ] = 0;
@@ -323,6 +324,8 @@ EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 
 EdEntScripted::~EdEntScripted()
 {
+	if( cached_scritem )
+		delete cached_scritem;
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		if( m_fields[ i ].property == &m_ctlPos )
@@ -605,6 +608,16 @@ void EdEntScripted::SetMesh( StringView name )
 		cached_meshinsts[ i ]->mesh = cached_mesh;
 }
 
+void EdEntScripted::SetScriptedItem( sgsString name, const Mat4& mtx )
+{
+	SetScriptedItem( StringView( name.c_str(), name.size() ), mtx );
+}
+
+void EdEntScripted::SetScriptedItem( StringView name, const Mat4& mtx )
+{
+	// TODO
+}
+
 void EdEntScripted::SetMeshInstanceCount( int count )
 {
 	int i = cached_meshinsts.size();
@@ -733,6 +746,13 @@ static int EE_AddFieldSound( SGS_CTX )
 	E->AddFieldRsrc( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), g_UISoundPicker, sgs_GetVar<sgsString>()( C, 3 ) );
 	return 0;
 }
+static int EE_AddFieldScrItem( SGS_CTX )
+{
+	SGSFN( "EE_AddFieldScrItem" );
+	EdEntScripted* E = (EdEntScripted*) sgs_GetVar<void*>()( C, 0 );
+	E->AddFieldRsrc( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), g_UIScrItemPicker, sgs_GetVar<sgsString>()( C, 3 ) );
+	return 0;
+}
 static int EE_AddFieldScrFn( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldScrFn" );
@@ -847,6 +867,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldChar", EE_AddFieldChar },
 	{ "EE_AddFieldPartSys", EE_AddFieldPartSys },
 	{ "EE_AddFieldSound", EE_AddFieldSound },
+	{ "EE_AddFieldScrItem", EE_AddFieldScrItem },
 	{ "EE_AddFieldScrFn", EE_AddFieldScrFn },
 	{ "EE_AddButtonSubent", EE_AddButtonSubent },
 	{ "EE_SetMesh", EE_SetMesh },
@@ -880,9 +901,9 @@ EDGUIEntList::EDGUIEntList() :
 	{
 		sgsString str = globals.GetKey().get_string();
 		StringView key( str.c_str(), str.size() );
-		if( key.part( 0, 7 ) == "ED_ENT_" )
+		if( key.starts_with( "ED_ENT_" ) )
 		{
-			key = key.part( 7 );
+			key = key.part( sizeof("ED_ENT_") - 1 );
 			Decl decl = { key.data(), new EdEntScripted( key.data() ) };
 			ents.push_back( decl );
 		}
