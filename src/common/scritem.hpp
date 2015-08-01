@@ -14,11 +14,17 @@ enum MeshInstEvent
 	MIEVT_BulletHit = 1,
 };
 
+struct MI_BulletHit_Data
+{
+	Vec3 pos;
+	Vec3 vel;
+};
+
 struct SGRX_MeshInstUserData
 {
 	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL), ownerType(0){}
 	virtual ~SGRX_MeshInstUserData(){}
-	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, float amt ){}
+	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data ){}
 	SGRX_DecalSystem* dmgDecalSysOverride;
 	uint32_t ownerType;
 };
@@ -49,6 +55,14 @@ struct SGRX_SIRigidBodyInfo : SGRX_PhyRigidBodyInfo
 };
 
 
+#define SCRITEM_ForceType_Velocity PFT_Velocity
+#define SCRITEM_ForceType_Impulse PFT_Impulse
+#define SCRITEM_ForceType_Acceleration PFT_Acceleration
+#define SCRITEM_ForceType_Force PFT_Force
+
+void ScrItem_InstallAPI( SGS_CTX );
+
+
 
 #define SCRITEM_NUM_SLOTS 4
 #define SCRITEM_RANGE_STR "[0-3]"
@@ -59,7 +73,12 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	
 	SGS_OBJECT;
 	
-	static SGRX_ScriptedItem* Create( SGRX_Scene* scene, SGRX_IPhyWorld* phyWorld, SGS_CTX, sgsVariable func );
+	static SGRX_ScriptedItem* Create(
+		SGRX_Scene* scene,
+		SGRX_IPhyWorld* phyWorld,
+		SGS_CTX,
+		sgsVariable func,
+		sgsVariable args );
 	void Acquire();
 	void Release();
 	
@@ -69,7 +88,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	void Tick( float deltaTime, float blendFactor );
 	void PreRender();
 	
-	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, float amt );
+	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	
 	// ---
 	SGS_IFUNC( GETINDEX ) int _getindex(
@@ -107,7 +126,6 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD void DSClear();
 	
 	// - rigid bodies
-	SGS_METHOD SGRX_SIRigidBodyInfo::Handle RBMakeInfo(); // tmp. misplaced?
 	SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec );
 	SGS_METHOD void RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec );
 	SGS_METHOD void RBDestroy( int i );
@@ -115,7 +133,10 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD void RBSetEnabled( int i, bool enabled );
 	SGS_METHOD Vec3 RBGetPosition( int i );
 	SGS_METHOD void RBSetPosition( int i, Vec3 v );
+	SGS_METHOD Quat RBGetRotation( int i );
+	SGS_METHOD void RBSetRotation( int i, Quat v );
 	SGS_METHOD Mat4 RBGetMatrix( int i );
+	SGS_METHOD void RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p );
 	// ---
 	
 	sgsVariable m_variable;

@@ -1,6 +1,6 @@
 // SGS/CPP-BC
 // warning: do not modify this file, it may be regenerated during any build
-// generated: 07/30/15 23:22:44
+// generated: 08/01/15 10:49:29
 
 #include "scritem.hpp"
 
@@ -220,12 +220,6 @@ static int _sgs_method__SGRX_ScriptedItem__DSClear( SGS_CTX )
 	data->DSClear(  ); return 0;
 }
 
-static int _sgs_method__SGRX_ScriptedItem__RBMakeInfo( SGS_CTX )
-{
-	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBMakeInfo ) ) return 0;
-	sgs_PushVar(C,data->RBMakeInfo(  )); return 1;
-}
-
 static int _sgs_method__SGRX_ScriptedItem__RBCreateFromMesh( SGS_CTX )
 {
 	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBCreateFromMesh ) ) return 0;
@@ -268,10 +262,28 @@ static int _sgs_method__SGRX_ScriptedItem__RBSetPosition( SGS_CTX )
 	data->RBSetPosition( sgs_GetVar<int>()(C,0), sgs_GetVar<Vec3>()(C,1) ); return 0;
 }
 
+static int _sgs_method__SGRX_ScriptedItem__RBGetRotation( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBGetRotation ) ) return 0;
+	sgs_PushVar(C,data->RBGetRotation( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__RBSetRotation( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBSetRotation ) ) return 0;
+	data->RBSetRotation( sgs_GetVar<int>()(C,0), sgs_GetVar<Quat>()(C,1) ); return 0;
+}
+
 static int _sgs_method__SGRX_ScriptedItem__RBGetMatrix( SGS_CTX )
 {
 	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBGetMatrix ) ) return 0;
 	sgs_PushVar(C,data->RBGetMatrix( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__RBApplyForce( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, RBApplyForce ) ) return 0;
+	data->RBApplyForce( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3) ); return 0;
 }
 
 int SGRX_ScriptedItem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -309,7 +321,6 @@ int SGRX_ScriptedItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "DSDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSDestroy ); return SGS_SUCCESS; }
 		SGS_CASE( "DSResize" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSResize ); return SGS_SUCCESS; }
 		SGS_CASE( "DSClear" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSClear ); return SGS_SUCCESS; }
-		SGS_CASE( "RBMakeInfo" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBMakeInfo ); return SGS_SUCCESS; }
 		SGS_CASE( "RBCreateFromMesh" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromMesh ); return SGS_SUCCESS; }
 		SGS_CASE( "RBCreateFromConvexPointSet" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromConvexPointSet ); return SGS_SUCCESS; }
 		SGS_CASE( "RBDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBDestroy ); return SGS_SUCCESS; }
@@ -317,7 +328,10 @@ int SGRX_ScriptedItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "RBSetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetEnabled ); return SGS_SUCCESS; }
 		SGS_CASE( "RBGetPosition" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBGetPosition ); return SGS_SUCCESS; }
 		SGS_CASE( "RBSetPosition" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetPosition ); return SGS_SUCCESS; }
+		SGS_CASE( "RBGetRotation" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBGetRotation ); return SGS_SUCCESS; }
+		SGS_CASE( "RBSetRotation" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetRotation ); return SGS_SUCCESS; }
 		SGS_CASE( "RBGetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBGetMatrix ); return SGS_SUCCESS; }
+		SGS_CASE( "RBApplyForce" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBApplyForce ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

@@ -134,6 +134,8 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	virtual void SetLinearFactor( const Vec3& v ){ m_body->setLinearFactor( V2BV( v ) ); }
 	virtual Vec3 GetAngularFactor() const { return BV2V( m_body->getAngularFactor() ); }
 	virtual void SetAngularFactor( const Vec3& v ){ m_body->setAngularFactor( V2BV( v ) ); }
+	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v );
+	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p );
 	
 	struct BulletPhyWorld* m_world;
 	btRigidBody* m_body;
@@ -237,6 +239,53 @@ void BulletPhyRigidBody::SetEnabled( bool enabled )
 		m_world->m_world->addRigidBody( m_body, m_group, m_mask );
 	else if( !enabled && m_body->isInWorld() )
 		m_world->m_world->removeRigidBody( m_body );
+}
+
+void BulletPhyRigidBody::ApplyCentralForce( EPhyForceType type, const Vec3& v )
+{
+	float mass = m_body->getInvMass();
+	if( mass == 0 )
+		return;
+	mass = 1.0f / mass;
+	switch( type )
+	{
+	case PFT_Velocity:
+		m_body->applyCentralImpulse( V2BV( v ) * mass );
+		break;
+	case PFT_Impulse:
+		m_body->applyCentralImpulse( V2BV( v ) );
+		break;
+	case PFT_Acceleration:
+		m_body->applyCentralForce( V2BV( v ) * mass );
+		break;
+	case PFT_Force:
+		m_body->applyCentralForce( V2BV( v ) );
+		break;
+	}
+}
+
+void BulletPhyRigidBody::ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p )
+{
+	float mass = m_body->getInvMass();
+	if( mass == 0 )
+		return;
+	mass = 1.0f / mass;
+	btVector3 relPos = m_body->getCenterOfMassTransform().invXform( V2BV( p ) );
+	switch( type )
+	{
+	case PFT_Velocity:
+		m_body->applyImpulse( V2BV( v ) * mass, relPos );
+		break;
+	case PFT_Impulse:
+		m_body->applyImpulse( V2BV( v ), relPos );
+		break;
+	case PFT_Acceleration:
+		m_body->applyForce( V2BV( v ) * mass, relPos );
+		break;
+	case PFT_Force:
+		m_body->applyForce( V2BV( v ), relPos );
+		break;
+	}
 }
 
 

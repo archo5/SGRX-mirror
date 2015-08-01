@@ -53,6 +53,14 @@ struct SGRX_PhyRigidBodyInfo
 	uint16_t mask;
 };
 
+enum EPhyForceType
+{
+	PFT_Velocity,
+	PFT_Impulse, // velocity += impulse * invMass
+	PFT_Acceleration,
+	PFT_Force, // acceleration += force * invMass
+};
+
 struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 {
 	SGRX_IPhyRigidBody(){}
@@ -71,6 +79,8 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 	virtual void SetLinearFactor( const Vec3& v ) = 0;
 	virtual Vec3 GetAngularFactor() const = 0;
 	virtual void SetAngularFactor( const Vec3& v ) = 0;
+	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v ) = 0;
+	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p ) = 0;
 };
 typedef Handle< SGRX_IPhyRigidBody > PhyRigidBodyHandle;
 

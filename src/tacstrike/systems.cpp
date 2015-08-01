@@ -582,7 +582,8 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 				// send event
 				if( mii )
 				{
-					mii->OnEvent( HIT.meshinst, MIEVT_BulletHit, B.velocity.Length() );
+					MI_BulletHit_Data data = { hitpoint, B.velocity };
+					mii->OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
 				}
 				
 				// handling wall penetration

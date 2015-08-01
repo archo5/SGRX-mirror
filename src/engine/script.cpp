@@ -293,6 +293,13 @@ sgsVariable ScriptContext::CreateVec3( const Vec3& v )
 	return out;
 }
 
+sgsVariable ScriptContext::CreateQuat( const Quat& v )
+{
+	sgsVariable out( C );
+	sgs_InitQuat( C, &out.var, v.x, v.y, v.z, v.w );
+	return out;
+}
+
 sgsVariable ScriptContext::GetGlobal( const StringView& name )
 {
 	sgsVariable key = sgsString( C, name.data(), name.size() ).get_variable();

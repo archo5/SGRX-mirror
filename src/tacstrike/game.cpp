@@ -445,11 +445,16 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mytable = new TmpTable( V3(2,2,7), Quat::CreateAxisAngle( V3(1,0,0), 1.5f) );
 #endif
 		
+		sgsVariable args = g_GameLevel->m_scriptCtx.CreateDict();
+		args.setprop( "position", g_GameLevel->m_scriptCtx.CreateVec3( V3(2,-2,1) ) );
+		args.setprop( "rotation", g_GameLevel->m_scriptCtx.CreateQuat(
+			Quat::CreateAxisAngle(0,0,1,DEG2RAD(45)) ) );
 		myscritem = SGRX_ScriptedItem::Create(
 			g_GameLevel->m_scene,
 			g_PhyWorld,
 			g_GameLevel->m_scriptCtx.C,
-			g_GameLevel->m_scriptCtx.GetGlobal( "SCRITEM_CREATE_testbox" )
+			g_GameLevel->m_scriptCtx.GetGlobal( "SCRITEM_CREATE_testbox" ),
+			args
 		);
 		myscritem->SetLightSampler( g_GameLevel );
 		myscritem->SetPSRaycast( &g_GameLevel->m_damageSystem );

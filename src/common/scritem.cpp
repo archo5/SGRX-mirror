@@ -4,6 +4,34 @@
 
 
 
+static int SIRigidBodyInfo( SGS_CTX )
+{
+	SGS_PUSHCLASS( C, SGRX_SIRigidBodyInfo, () );
+	return 1;
+}
+
+static sgs_RegIntConst scritem_intconsts[] =
+{
+	{ "SCRITEM_ForceType_Velocity", SCRITEM_ForceType_Velocity },
+	{ "SCRITEM_ForceType_Impulse", SCRITEM_ForceType_Impulse },
+	{ "SCRITEM_ForceType_Acceleration", SCRITEM_ForceType_Acceleration },
+	{ "SCRITEM_ForceType_Force", SCRITEM_ForceType_Force },
+	{ NULL, 0 },
+};
+
+static sgs_RegFuncConst scritem_funcconsts[] =
+{
+	{ "SIRigidBodyInfo", SIRigidBodyInfo },
+	{ NULL, NULL },
+};
+
+void ScrItem_InstallAPI( SGS_CTX )
+{
+	sgs_RegIntConsts( C, scritem_intconsts, -1 );
+	sgs_RegFuncConsts( C, scritem_funcconsts, -1 );
+}
+
+
 #define SCRITEM_OFSCHK( i, ret ) if( (i) < 0 || (i) >= 4 ){ \
 	sgs_Msg( C, SGS_WARNING, "wrong offset: %d outside " SCRITEM_RANGE_STR, (int)(i) ); ret; }
 #define SCRITEM_MESHCHK( i, ret ) if( m_meshes[ i ] == NULL ){ \
@@ -15,7 +43,12 @@
 #define SCRITEM_DSYSCHK( ret ) if( m_decalSys == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
 
-SGRX_ScriptedItem* SGRX_ScriptedItem::Create( SGRX_Scene* scene, SGRX_IPhyWorld* phyWorld, SGS_CTX, sgsVariable func )
+SGRX_ScriptedItem* SGRX_ScriptedItem::Create(
+	SGRX_Scene* scene,
+	SGRX_IPhyWorld* phyWorld,
+	SGS_CTX,
+	sgsVariable func,
+	sgsVariable args )
 {
 	SGRX_ScriptedItem* SI = SGS_PUSHCLASS( C, SGRX_ScriptedItem, () );
 	sgs_ObjAcquire( C, SI->m_sgsObject );
@@ -33,7 +66,11 @@ SGRX_ScriptedItem* SGRX_ScriptedItem::Create( SGRX_Scene* scene, SGRX_IPhyWorld*
 	}
 	
 	// call the initialization function
-	obj.thiscall( func );
+	{
+		SGS_SCOPE;
+		args.push( C );
+		obj.thiscall( func, 1 );
+	}
 	
 	return SI;
 }
@@ -123,12 +160,14 @@ void SGRX_ScriptedItem::PreRender()
 		m_decalSys->Upload();
 }
 
-void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, float amt )
+void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 {
 	if( evid == MIEVT_BulletHit )
 	{
+		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
 		SGS_SCOPE;
-		sgs_PushReal( C, amt );
+		sgs_PushVec3p( C, &bhinfo->pos.x );
+		sgs_PushVec3p( C, &bhinfo->vel.x );
 		int i = 0;
 		for( ; i < SCRITEM_NUM_SLOTS; ++i )
 		{
@@ -140,7 +179,7 @@ void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, float amt
 		}
 		if( i == SCRITEM_NUM_SLOTS )
 			sgs_PushInt( C, -1 ); // wat
-		Handle( this ).get_variable().thiscall( "onhit", 2 );
+		Handle( this ).get_variable().thiscall( "onhit", 3 );
 	}
 }
 
@@ -348,11 +387,6 @@ void SGRX_ScriptedItem::DSClear()
 	m_decalSys->ClearAllDecals();
 }
 
-SGRX_SIRigidBodyInfo::Handle SGRX_ScriptedItem::RBMakeInfo()
-{
-	return SGRX_SIRigidBodyInfo::Handle( SGS_PUSHCLASS( C, SGRX_SIRigidBodyInfo, () ) );
-}
-
 void SGRX_ScriptedItem::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec )
 {
 	SCRITEM_OFSCHK( i, return );
@@ -422,7 +456,22 @@ void SGRX_ScriptedItem::RBSetPosition( int i, Vec3 v )
 	SCRITEM_OFSCHK( i, return );
 	SCRITEM_BODYCHK( i, return );
 	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = v );
-//	m_bodies[ i ]->SetPosition( v );
+	m_bodies[ i ]->SetPosition( v );
+}
+
+Quat SGRX_ScriptedItem::RBGetRotation( int i )
+{
+	SCRITEM_OFSCHK( i, return Quat::Identity );
+	SCRITEM_BODYCHK( i, return Quat::Identity );
+	return m_bodyRotLerp[ i ]; // m_bodies[ i ]->GetRotation();
+}
+
+void SGRX_ScriptedItem::RBSetRotation( int i, Quat v )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_BODYCHK( i, return );
+	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = v );
+	m_bodies[ i ]->SetRotation( v );
 }
 
 Mat4 SGRX_ScriptedItem::RBGetMatrix( int i )
@@ -431,6 +480,16 @@ Mat4 SGRX_ScriptedItem::RBGetMatrix( int i )
 	SCRITEM_BODYCHK( i, return Mat4::Identity );
 	return Mat4::CreateRotationFromQuat( m_bodyRotLerp[ i ] ) // m_bodies[ i ]->GetRotation() )
 		* Mat4::CreateTranslation( m_bodyPosLerp[ i ] ); // m_bodies[ i ]->GetPosition() );
+}
+
+void SGRX_ScriptedItem::RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_BODYCHK( i, return );
+	if( sgs_StackSize( C ) >= 4 )
+		m_bodies[ i ]->ApplyForce( (EPhyForceType) type, v, p );
+	else
+		m_bodies[ i ]->ApplyCentralForce( (EPhyForceType) type, v );
 }
 
 

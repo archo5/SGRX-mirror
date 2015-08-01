@@ -191,6 +191,9 @@ static int InitGameAPI( SGS_CTX )
 {
 	sgs_RegFuncConsts( C, g_gameapi_rfc, -1 );
 	sgs_RegIntConsts( C, g_gameapi_ric, -1 );
+#ifdef TSGAME
+	ScrItem_InstallAPI( C );
+#endif
 	return 0;
 }
 
