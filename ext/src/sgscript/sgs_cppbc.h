@@ -382,6 +382,17 @@ public:
 			_acquire();
 		}
 	}
+	sgsVariable( const sgsString& s ) : C(s.C)
+	{
+		if( s.str != NULL )
+		{
+			var.type = SGS_VT_STRING;
+			var.data.S = s.str;
+			_acquire();
+		}
+		else
+			var.type = SGS_VT_NULL;
+	}
 	~sgsVariable(){ _release(); }
 	
 	const sgsVariable& operator = ( const sgsVariable& h )

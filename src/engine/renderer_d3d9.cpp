@@ -57,8 +57,6 @@ static void swap4b2ms( uint32_t* data, int size, int mask1, int shift1R, int mas
 
 static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, int side, int mip )
 {
-	LOG_FUNCTION;
-	
 	int ret;
 	uint8_t *src, *dst;
 	size_t i, off, copyrowsize = 0, copyrowcount = 0;

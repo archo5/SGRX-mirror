@@ -1993,7 +1993,7 @@ TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 
 TextureHandle GR_GetTexture( const StringView& path )
 {
-	LOG_FUNCTION;
+	LOG_FUNCTION_ARG( path );
 	
 	SGRX_ITexture* tx = g_Textures->getcopy( path );
 	if( tx )
@@ -2053,7 +2053,7 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 
 VertexShaderHandle GR_GetVertexShader( const StringView& path )
 {
-	LOG_FUNCTION;
+	LOG_FUNCTION_ARG( path );
 	
 	String code;
 	String errors;
@@ -2117,7 +2117,7 @@ has_compiled_shader:
 
 PixelShaderHandle GR_GetPixelShader( const StringView& path )
 {
-	LOG_FUNCTION;
+	LOG_FUNCTION_ARG( path );
 	
 	String code;
 	String errors;
@@ -2181,7 +2181,7 @@ has_compiled_shader:
 
 SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
 {
-	LOG_FUNCTION;
+	LOG_FUNCTION_ARG( name );
 	
 	SGRX_SurfaceShader* ssh = g_SurfShaders->getcopy( name );
 	if( ssh )
@@ -2209,7 +2209,7 @@ MaterialHandle GR_CreateMaterial()
 
 VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 {
-	LOG_FUNCTION;
+	LOG_FUNCTION_ARG( vdecl );
 	
 	SGRX_IVertexDecl* VD = g_VertexDecls->getcopy( vdecl );
 	if( VD )
@@ -2249,7 +2249,7 @@ MeshHandle GR_CreateMesh()
 
 MeshHandle GR_GetMesh( const StringView& path )
 {
-	LOG_FUNCTION;
+	LOG_FUNCTION_ARG( path );
 	
 	SGRX_IMesh* mesh = g_Meshes->getcopy( path );
 	if( mesh )

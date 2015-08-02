@@ -11,6 +11,8 @@
 #define USAGE_PADDING 723
 const char* VDeclInfo_Parse( VDeclInfo* info, const char* text )
 {
+	LOG_FUNCTION;
+	
 	int offset = 0, count = 0, align32 = 0;
 	if( *text == '|' )
 	{

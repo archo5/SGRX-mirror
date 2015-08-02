@@ -193,6 +193,7 @@ void ScriptContext::Reset()
 {
 	if( C ) sgs_DestroyEngine( C );
 	C = sgs_CreateEngine();
+	sgs_LoadLib_Math( C );
 	xgm_module_entry_point( C );
 	sgs_SetScriptFSFunc( C, sgs_scriptfs_sgrx, NULL );
 }

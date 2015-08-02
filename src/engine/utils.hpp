@@ -2390,6 +2390,7 @@ ENGINE_EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
 // LOGGING
 //
 
+// #define GATHER_STATS
 
 struct ENGINE_EXPORT SGRX_Log
 {
@@ -2407,15 +2408,32 @@ struct ENGINE_EXPORT SGRX_Log
 	enum EMod_Partial { Mod_Partial };
 	enum ESpec_Date { Spec_Date };
 	enum ESpec_CallStack { Spec_CallStack };
-	struct RegFunc
+	struct IF_GCC(ENGINE_EXPORT) RegFunc
 	{
-		RegFunc( const char* func, const char* file, int ln ) :
-			funcname( func ), filename( file ), linenum( ln ), prev( lastfunc )
-		{ lastfunc = this; }
-		~RegFunc(){ lastfunc = prev; }
+#ifdef GATHER_STATS
+		struct IF_GCC(ENGINE_EXPORT) STATS
+		{
+			FILE* f;
+			ENGINE_EXPORT STATS();
+			ENGINE_EXPORT ~STATS();
+		};
+		static STATS stats;
+		double time;
+		ENGINE_EXPORT void WriteStat( double dt );
+#  define GTHST_BEGIN time = sgrx_hqtime();
+#  define GTHST_END WriteStat( sgrx_hqtime() - time );
+#else
+#  define GTHST_BEGIN
+#  define GTHST_END
+#endif
+		RegFunc( const char* func, const char* file, int ln, StringView a = StringView() ) :
+			funcname( func ), filename( file ), linenum( ln ), arg( a ), prev( lastfunc )
+		{ lastfunc = this; GTHST_BEGIN; }
+		~RegFunc(){ GTHST_END; lastfunc = prev; }
 		const char* funcname;
 		const char* filename;
 		int linenum;
+		StringView arg;
 		RegFunc* prev;
 	};
 	
@@ -2423,6 +2441,9 @@ struct ENGINE_EXPORT SGRX_Log
 	bool need_sep;
 	const char* sep;
 	
+	struct init { init(); ~init(); };
+	static init _init;
+	static FILE* out;
 	static THREAD_LOCAL RegFunc* lastfunc;
 	
 	SGRX_Log();
@@ -2466,6 +2487,7 @@ struct ENGINE_EXPORT SGRX_Log
 #define LOG_SEP( x ) SGRX_Log::Separator( x )
 #define LOG_XTD( x ) SGRX_Log::MakeLoggable( x )
 #define LOG_FUNCTION SGRX_Log::RegFunc __regfn( __FUNCTION__, __FILE__, __LINE__ )
+#define LOG_FUNCTION_ARG( x ) SGRX_Log::RegFunc __regfn( __FUNCTION__, __FILE__, __LINE__, x )
 
 
 

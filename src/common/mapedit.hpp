@@ -1013,22 +1013,55 @@ struct EdEntLightSample : EdEntity
 	virtual void UpdateCache( LevelCache& LC );
 };
 
-struct EdEntScripted : EdEntity
+
+#define EDGUI_ITEM_PROP_SCRITEM 1001
+
+struct SGSPropInterface
 {
 	struct Field
 	{
-		String key;
+		sgsString key;
 		EDGUIProperty* property;
 	};
 	
+	SGSPropInterface();
+	virtual ~SGSPropInterface();
+	
+	void Data2Fields();
+	void Fields2Data();
+	SGSPropInterface* GetPropInterface(){ return this; } // instead of casting away multiple inheritance..
+	
+	void AddField( sgsString key, StringView name, EDGUIProperty* prop );
+	
+	virtual EDGUIGroup& GetGroup() = 0;
+	virtual bool IsScrEnt(){ return false; }
+	
+	sgsVariable m_data;
+	Array< Field > m_fields;
+};
+
+struct EDGUIPropScrItem : EDGUIProperty, SGSPropInterface
+{
+	EDGUIPropScrItem( const StringView& def = "" );
+	~EDGUIPropScrItem();
+	
+	void SetProps( sgsVariable var ){ m_data = var; Data2Fields(); }
+	sgsVariable GetProps(){ return m_data; }
+	
+	// SGSPropInterface
+	EDGUIGroup& GetGroup(){ return m_group; }
+	
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_ctlScrItem;
+};
+
+struct EdEntScripted : EdEntity, SGSPropInterface
+{
 	EdEntScripted( const char* enttype, bool isproto = true );
 	~EdEntScripted();
 	
 	EdEntScripted& operator = ( const EdEntScripted& o );
 	virtual EdEntity* CloneEntity();
-	
-	void Data2Fields();
-	void Fields2Data();
 	
 	virtual void Serialize( SVHTR& arch );
 	virtual void Serialize( SVHTW& arch );
@@ -1044,28 +1077,23 @@ struct EdEntScripted : EdEntity
 	virtual int OnEvent( EDGUIEvent* e );
 	virtual void DebugDraw();
 	
-	void AddFieldBool( sgsString key, sgsString name, bool def );
-	void AddFieldInt( sgsString key, sgsString name, int32_t def = 0, int32_t min = (int32_t) 0x80000000, int32_t max = (int32_t) 0x7fffffff );
-	void AddFieldFloat( sgsString key, sgsString name, float def = 0, int prec = 2, float min = -FLT_MAX, float max = FLT_MAX );
-	void AddFieldVec2( sgsString key, sgsString name, Vec2 def = V2(0), int prec = 2, Vec2 min = V2(-FLT_MAX), Vec2 max = V2(FLT_MAX) );
-	void AddFieldVec3( sgsString key, sgsString name, Vec3 def = V3(0), int prec = 2, Vec3 min = V3(-FLT_MAX), Vec3 max = V3(FLT_MAX) );
-	void AddFieldString( sgsString key, sgsString name, sgsString def );
-	void AddFieldRsrc( sgsString key, sgsString name, EDGUIRsrcPicker* rsrcPicker, sgsString def );
-	void AddButtonSubent( sgsString type );
-	void SetMesh( sgsString name );
+	void AddButtonSubent( StringView type );
 	void SetMesh( StringView name );
 	void SetMeshInstanceCount( int count );
 	void SetMeshInstanceMatrix( int which, const Mat4& mtx );
-	void SetScriptedItem( sgsString name, const Mat4& mtx );
 	void SetScriptedItem( StringView name, const Mat4& mtx );
 	void GetMeshAABB( Vec3 out[2] );
 	
+	// SGSPropInterface
+	EDGUIGroup& GetGroup(){ return m_group; }
+	bool IsScrEnt(){ return true; }
+	
 	char m_typename[ 64 ];
-	sgsVariable m_data;
+	
 	sgsVariable onChange;
 	sgsVariable onDebugDraw;
 	sgsVariable onGather;
-	Array< Field > m_fields;
+	
 	String m_subEntProto;
 	EDGUIButton* m_subEntAddBtn;
 	

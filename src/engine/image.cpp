@@ -176,6 +176,8 @@ static void _png_memread( png_structp png_ptr, png_bytep data, png_size_t size )
 
 static bool png_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* const */ ByteArray& texdata, const StringView& filename )
 {
+	LOG_FUNCTION;
+	
 	// png_structp png_ptr = png_create_read_struct_2( PNG_LIBPNG_VER_STRING, NULL, NULL, NULL, C, &_ss_png_alloc, &_ss_png_free );
 	png_structp png_ptr = png_create_read_struct( PNG_LIBPNG_VER_STRING, NULL, NULL, NULL );
 	
@@ -260,6 +262,8 @@ static void _jpg_error_exit( j_common_ptr cinfo )
 
 static bool jpg_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* const */ ByteArray& texdata, const StringView& filename )
 {
+	LOG_FUNCTION;
+	
 	struct jpeg_decompress_struct cinfo;
 	jpg_error_mgr jerr;
 	
@@ -312,6 +316,8 @@ static bool jpg_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* con
 
 bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& filename )
 {
+	LOG_FUNCTION_ARG( filename );
+	
 	unsigned w, h;
 	int err;
 	
@@ -383,6 +389,8 @@ bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& fi
 success_genmips:
 	if( TD->info.type == TEXTYPE_2D && ( TD->info.format == TEXFORMAT_RGBA8 || TD->info.format == TEXFORMAT_BGRA8 ) )
 	{
+		LOG_FUNCTION_ARG( "GENERATE_MIPMAPS" );
+		
 		size_t addspace = 0;
 		unsigned char* cur;
 		

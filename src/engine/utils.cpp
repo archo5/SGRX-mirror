@@ -1754,6 +1754,60 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 // LOGGING
 //
 
+// #define LOG_TO_STDOUT
+#define LOG_TO_FILE
+
+
+#ifdef GATHER_STATS
+SGRX_Log::RegFunc::STATS SGRX_Log::RegFunc::stats;
+
+SGRX_Log::RegFunc::STATS::STATS()
+{
+	f = fopen( "stats.txt", "a" );
+}
+
+SGRX_Log::RegFunc::STATS::~STATS()
+{
+	fclose( f );
+}
+
+void SGRX_Log::RegFunc::WriteStat( double dt )
+{
+	RegFunc* curr = lastfunc;
+	while( curr )
+	{
+		fprintf( stats.f, "%s(", curr->funcname );
+		if( curr->arg )
+			fprintf( stats.f, "\"%s\"", StackString< 200 >( curr->arg ).str );
+		fprintf( stats.f, ")" );
+		curr = curr->prev;
+		if( curr )
+			fprintf( stats.f, "<-" );
+	}
+	fprintf( stats.f, ": %f\n", dt );
+}
+#endif
+
+
+SGRX_Log::init::init()
+{
+#ifdef LOG_TO_STDOUT
+	out = stdout;
+#endif
+#ifdef LOG_TO_FILE
+	out = fopen( "log.txt", "w" );
+#endif
+}
+
+SGRX_Log::init::~init()
+{
+#ifdef LOG_TO_FILE
+	fclose( out );
+#endif
+}
+
+SGRX_Log::init SGRX_Log::_init;
+FILE* SGRX_Log::out = NULL;
 THREAD_LOCAL SGRX_Log::RegFunc* SGRX_Log::lastfunc = NULL;
 
 SGRX_Log::SGRX_Log() : end_newline(true), need_sep(false), sep("") {}
@@ -1761,8 +1815,9 @@ SGRX_Log::~SGRX_Log(){ sep = ""; if( end_newline ) *this << "\n"; }
 
 void SGRX_Log::prelog()
 {
+	if( !out ) return;
 	if( need_sep )
-		printf( "%s", sep );
+		fprintf( out, "%s", sep );
 	else
 		need_sep = true;
 }
@@ -1770,76 +1825,81 @@ void SGRX_Log::prelog()
 SGRX_Log& SGRX_Log::operator << ( EMod_Partial ){ end_newline = false; return *this; }
 SGRX_Log& SGRX_Log::operator << ( ESpec_Date )
 {
+	if( !out ) return *this;
 	time_t ttv;
 	time( &ttv );
 	struct tm T = *localtime( &ttv );
 	char pbuf[ 256 ] = {0};
 	strftime( pbuf, 255, "%Y-%m-%d %H:%M:%S", &T );
-	printf( "%s", pbuf );
+	fprintf( out, "%s", pbuf );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( ESpec_CallStack )
 {
-	printf( "--- CALL STACK ---\n" );
+	if( !out ) return *this;
+	fprintf( out, "--- CALL STACK ---\n" );
 	RegFunc* curr = lastfunc;
 	if( curr == NULL )
-		printf( "    === empty ===\n" );
+		fprintf( out, "    === empty ===\n" );
 	while( curr )
 	{
-		printf( "> %s (%s:%d)\n", curr->funcname, curr->filename, curr->linenum );
+		fprintf( out, "> %s(", curr->funcname );
+		if( curr->arg )
+			fprintf( out, "\"%s\"", StackString< 200 >( curr->arg ).str );
+		fprintf( out, ") (%s:%d)\n", curr->filename, curr->linenum );
 		curr = curr->prev;
 	}
-	printf( "--- ---------- ---" );
+	fprintf( out, "--- ---------- ---" );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Separator& s ){ sep = s.sep; return *this; }
-SGRX_Log& SGRX_Log::operator << ( bool v ){ prelog(); printf( "[%s / %02X]", v ? "true" : "false", (int) v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( int8_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint8_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( int16_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint16_t v ){ prelog(); printf( "%d", (int) v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( int32_t v ){ prelog(); printf( "%" PRId32, v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ prelog(); printf( "%" PRIu32, v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( int64_t v ){ prelog(); printf( "%" PRId64, v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ prelog(); printf( "%" PRIu64, v ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( bool v ){ if( out ){ prelog(); fprintf( out, "[%s / %02X]", v ? "true" : "false", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int8_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint8_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int16_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint16_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int32_t v ){ if( out ){ prelog(); fprintf( out, "%" PRId32, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ if( out ){ prelog(); fprintf( out, "%" PRIu32, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int64_t v ){ if( out ){ prelog(); fprintf( out, "%" PRId64, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ if( out ){ prelog(); fprintf( out, "%" PRIu64, v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
-SGRX_Log& SGRX_Log::operator << ( double v ){ prelog(); printf( "%g", v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( const void* v ){ prelog(); printf( "[%p]", v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( const char* v ){ prelog(); printf( "%s", v ); return *this; }
-SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ prelog(); printf( "[%d]\"", (int) sv.size() ); fwrite( sv.data(), sv.size(), 1, stdout ); putchar( '\"' ); return *this; }
+SGRX_Log& SGRX_Log::operator << ( double v ){ if( out ){ prelog(); fprintf( out, "%g", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( const void* v ){ if( out ){ prelog(); fprintf( out, "[%p]", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( const char* v ){ if( out ){ prelog(); fprintf( out, "%s", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ if( out ){ prelog(); fprintf( out, "[%d]\"", (int) sv.size() ); fwrite( sv.data(), sv.size(), 1, out ); fputc( '\"', out ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( const String& sv ){ return *this << (StringView) sv; }
 SGRX_Log& SGRX_Log::operator << ( const Vec2& v )
 {
 	prelog();
-	printf( "Vec2( %g ; %g )", v.x, v.y );
+	if( out ) fprintf( out, "Vec2( %g ; %g )", v.x, v.y );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Vec3& v )
 {
 	prelog();
-	printf( "Vec3( %g ; %g ; %g )", v.x, v.y, v.z );
+	if( out ) fprintf( out, "Vec3( %g ; %g ; %g )", v.x, v.y, v.z );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Vec4& v )
 {
 	prelog();
-	printf( "Vec4( %g ; %g ; %g ; %g )", v.x, v.y, v.z, v.w );
+	if( out ) fprintf( out, "Vec4( %g ; %g ; %g ; %g )", v.x, v.y, v.z, v.w );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Quat& q )
 {
 	prelog();
-	printf( "Quat( %g ; %g ; %g ; w = %g )", q.x, q.y, q.z, q.w );
+	if( out ) fprintf( out, "Quat( %g ; %g ; %g ; w = %g )", q.x, q.y, q.z, q.w );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
 {
 	prelog();
-	printf( "Mat4(\n" );
-	printf( "\t%g\t%g\t%g\t%g\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
-	printf( "\t%g\t%g\t%g\t%g\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
-	printf( "\t%g\t%g\t%g\t%g\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
-	printf( "\t%g\t%g\t%g\t%g\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
+	if( out ) fprintf( out, "Mat4(\n" );
+	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
+	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
+	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
+	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
 	return *this;
 }
 
