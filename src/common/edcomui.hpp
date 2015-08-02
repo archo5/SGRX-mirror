@@ -264,8 +264,8 @@ struct EDGUIScrItemPicker : EDGUIRsrcPicker
 		m_options.clear();
 		m_options.push_back( "" );
 		
-		m_scriptCtx->PushEnv();
-		if( m_scriptCtx->ExecFile( "data/scritems.sgs" ) )
+	//	m_scriptCtx->PushEnv();
+	//	if( m_scriptCtx->ExecFile( "data/scritems.sgs" ) )
 		{
 			ScriptVarIterator iter = m_scriptCtx->GlobalIterator();
 			while( iter.Advance() )
@@ -280,7 +280,7 @@ struct EDGUIScrItemPicker : EDGUIRsrcPicker
 				}
 			}
 		}
-		m_scriptCtx->PopEnv();
+	//	m_scriptCtx->PopEnv();
 		
 		_Search( m_searchString );
 	}

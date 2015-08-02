@@ -32,6 +32,7 @@
 MAPEDIT_GLOBAL( ScriptContext* g_ScriptCtx );
 MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
+MAPEDIT_GLOBAL( PhyWorldHandle g_EdPhyWorld );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EDGUISDTexPicker* g_UISurfTexPicker );
 MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
@@ -1027,6 +1028,7 @@ struct SGSPropInterface
 	SGSPropInterface();
 	virtual ~SGSPropInterface();
 	
+	virtual void ClearFields();
 	void Data2Fields();
 	void Fields2Data();
 	SGSPropInterface* GetPropInterface(){ return this; } // instead of casting away multiple inheritance..
@@ -1042,23 +1044,30 @@ struct SGSPropInterface
 
 struct EDGUIPropScrItem : EDGUIProperty, SGSPropInterface
 {
-	EDGUIPropScrItem( const StringView& def = "" );
+	EDGUIPropScrItem( EDGUIPropVec3* posprop, const StringView& def = "" );
 	~EDGUIPropScrItem();
+	virtual void ClearFields();
+	virtual int OnEvent( EDGUIEvent* e );
+	virtual bool TakeValue( EDGUIProperty* src );
 	
-	void SetProps( sgsVariable var ){ m_data = var; Data2Fields(); }
-	sgsVariable GetProps(){ return m_data; }
+	void SetProps( sgsVariable var );
+	sgsVariable GetProps();
+	
+	void OnTypeChange();
 	
 	// SGSPropInterface
 	EDGUIGroup& GetGroup(){ return m_group; }
 	
 	EDGUIGroup m_group;
 	EDGUIPropRsrc m_ctlScrItem;
+	EDGUIPropVec3* m_pctlPos;
 };
 
 struct EdEntScripted : EdEntity, SGSPropInterface
 {
 	EdEntScripted( const char* enttype, bool isproto = true );
 	~EdEntScripted();
+	void ClearFields();
 	
 	EdEntScripted& operator = ( const EdEntScripted& o );
 	virtual EdEntity* CloneEntity();
@@ -1081,8 +1090,8 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 	void SetMesh( StringView name );
 	void SetMeshInstanceCount( int count );
 	void SetMeshInstanceMatrix( int which, const Mat4& mtx );
-	void SetScriptedItem( StringView name, const Mat4& mtx );
 	void GetMeshAABB( Vec3 out[2] );
+	void SetScriptedItem( StringView name, sgsVariable args );
 	
 	// SGSPropInterface
 	EDGUIGroup& GetGroup(){ return m_group; }

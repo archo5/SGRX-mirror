@@ -412,20 +412,24 @@ void SGRX_LightSampler::LightMesh( SGRX_MeshInstance* MI, Vec3 off, int constoff
 	LightMeshAt( MI, MI->matrix.TransformPos( off ), constoff );
 }
 
+SGRX_DummyLightSampler::SGRX_DummyLightSampler() : defval(0.25f)
+{
+}
+
 void SGRX_DummyLightSampler::SampleLight( const Vec3& pos, Vec3& outcolor )
 {
-	outcolor = V3(1);
+	outcolor = V3(defval);
 }
 
 void SGRX_DummyLightSampler::SampleLight( const Vec3& pos, Vec3 outcolors[6] )
 {
 	for( int i = 0; i < 6; ++i )
-		outcolors[ i ] = V3(1);
+		outcolors[ i ] = V3(defval);
 }
 
 void SGRX_DummyLightSampler::SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor )
 {
-	outcolor = V3(1);
+	outcolor = V3(defval);
 }
 
 SGRX_DummyLightSampler& GR_GetDummyLightSampler()

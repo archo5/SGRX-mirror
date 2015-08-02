@@ -299,6 +299,11 @@ SGSPropInterface::SGSPropInterface()
 
 SGSPropInterface::~SGSPropInterface()
 {
+	ClearFields();
+}
+
+void SGSPropInterface::ClearFields()
+{
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		delete m_fields[ i ].property;
@@ -311,7 +316,10 @@ void SGSPropInterface::Data2Fields()
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		Field& F = m_fields[ i ];
-		sgsVariable val = m_data.getprop( F.key );
+		SGSRESULT res = SGS_ENOTFND;
+		sgsVariable val = m_data.getprop( F.key, &res );
+		if( res == SGS_ENOTFND )
+			continue;
 		switch( F.property->type )
 		{
 		case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*) F.property)->SetValue( val.get<bool>() ); break;
@@ -349,25 +357,131 @@ void SGSPropInterface::Fields2Data()
 
 void SGSPropInterface::AddField( sgsString key, StringView name, EDGUIProperty* prop )
 {
-	prop->caption = name;
+	if( prop->type == EDGUI_ITEM_PROP_SCRITEM )
+	{
+		SGRX_CAST( EDGUIPropScrItem*, psi, prop );
+		psi->m_group.caption = name;
+		psi->m_group.SetOpen( true );
+	}
+	else
+	{
+		prop->caption = name;
+	}
 	Field F = { key, prop };
 	m_fields.push_back( F );
 	GetGroup().Add( prop );
 }
 
 
-EDGUIPropScrItem::EDGUIPropScrItem( const StringView& def ) :
+EDGUIPropScrItem::EDGUIPropScrItem( EDGUIPropVec3* posprop, const StringView& def ) :
 	m_group( true, "Scripted item" ),
-	m_ctlScrItem( g_UIScrItemPicker, def )
+	m_ctlScrItem( g_UIScrItemPicker, def ),
+	m_pctlPos( posprop )
 {
 	type = EDGUI_ITEM_PROP_SCRITEM;
 	tyname = "scritem";
 	
+	m_ctlScrItem.caption = "Scr.item name";
+	
 	Add( &m_group );
+	OnTypeChange();
 }
 
 EDGUIPropScrItem::~EDGUIPropScrItem()
 {
+}
+
+void EDGUIPropScrItem::ClearFields()
+{
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		if( m_fields[ i ].property == &m_ctlScrItem ||
+			m_fields[ i ].property == m_pctlPos )
+			continue;
+		delete m_fields[ i ].property;
+	}
+	m_fields.clear();
+}
+
+void EDGUIPropScrItem::OnTypeChange()
+{
+	ClearFields();
+	m_group.Clear();
+	
+	m_group.Add( &m_ctlScrItem );
+	
+	Field typef = { sgsString( g_ScriptCtx->C, "__type" ), &m_ctlScrItem };
+	m_fields.push_back( typef );
+	
+	// add fields
+	{
+		SGS_CSCOPE( g_ScriptCtx->C );
+		g_ScriptCtx->Push( (void*) GetPropInterface() );
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "SCRITEM_ARGS_%s", StackString<240>(m_ctlScrItem.m_value).str );
+		g_ScriptCtx->GlobalCall( bfr, 1, 0 );
+	}
+	
+	Data2Fields();
+	Fields2Data();
+	m_data.setprop( g_ScriptCtx->CreateString( "position" ),
+		g_ScriptCtx->CreateVec3( m_pctlPos->m_value ) );
+}
+
+int EDGUIPropScrItem::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+		Fields2Data();
+		if( e->target == &m_ctlScrItem )
+			OnTypeChange();
+		break;
+		
+	case EDGUI_EVENT_LAYOUT:
+		{
+			x0 = e->layout.x0;
+			y0 = e->layout.y0;
+			x1 = e->layout.x1;
+			y1 = y0;
+			int at = y1;
+			for( size_t i = 0; i < m_subitems.size(); ++i )
+			{
+				SetSubitemLayout( m_subitems[ i ], x0, at, x1, at );
+				at = m_subitems[ i ]->y1;
+			}
+			y1 = at;
+			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+			if( m_parent )
+				m_parent->OnEvent( &se );
+		}
+		return 1;
+		
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+bool EDGUIPropScrItem::TakeValue( EDGUIProperty* src )
+{
+	if( src->type != type )
+		return false;
+	SGRX_CAST( EDGUIPropScrItem*, psi, src );
+	m_ctlScrItem.TakeValue( &psi->m_ctlScrItem );
+	SetProps( psi->m_data );
+	return true;
+}
+
+void EDGUIPropScrItem::SetProps( sgsVariable var )
+{
+	m_data = var;
+	OnTypeChange();
+}
+
+sgsVariable EDGUIPropScrItem::GetProps()
+{
+	m_data.setprop( g_ScriptCtx->CreateString( "position" ),
+		g_ScriptCtx->CreateVec3( m_pctlPos->m_value ) );
+	return m_data;
 }
 
 
@@ -377,14 +491,13 @@ EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 	m_levelCache( NULL ),
 	cached_scritem( NULL )
 {
-	strncpy( m_typename, enttype, 63 );
-	m_typename[ 63 ] = 0;
+	sgrx_snprintf( m_typename, 64, "%s", enttype );
 	tyname = m_typename;
 	LoadIcon();
 	
 	char bfr[ 256 ];
 	
-	sprintf( bfr, "%.240s properties", enttype );
+	sgrx_snprintf( bfr, 256, "%s properties", StackString<240>(enttype).str );
 	m_group.caption = bfr;
 	m_group.SetOpen( true );
 	m_group.Add( &m_ctlPos );
@@ -393,9 +506,12 @@ EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 	Field posf = { sgsString( g_ScriptCtx->C, "position" ), &m_ctlPos };
 	m_fields.push_back( posf );
 	
-	g_ScriptCtx->Push( (void*) GetPropInterface() );
-	sprintf( bfr, "ED_ENT_%.240s", enttype );
-	g_ScriptCtx->GlobalCall( bfr, 1, 0 );
+	{
+		SGS_CSCOPE( g_ScriptCtx->C );
+		g_ScriptCtx->Push( (void*) GetPropInterface() );
+		sgrx_snprintf( bfr, 256, "ED_ENT_%s", StackString<240>(enttype).str );
+		g_ScriptCtx->GlobalCall( bfr, 1, 0 );
+	}
 	
 	Fields2Data();
 }
@@ -403,16 +519,20 @@ EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 EdEntScripted::~EdEntScripted()
 {
 	if( cached_scritem )
-		delete cached_scritem;
+		cached_scritem->Release();
+	if( m_subEntAddBtn )
+		delete m_subEntAddBtn;
+}
+
+void EdEntScripted::ClearFields()
+{
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		if( m_fields[ i ].property == &m_ctlPos )
 			continue;
 		delete m_fields[ i ].property;
 	}
-	m_fields.clear(); // AVOID EXCESSIVE DESTRUCTION @ SGSPropInterface
-	if( m_subEntAddBtn )
-		delete m_subEntAddBtn;
+	m_fields.clear();
 }
 
 EdEntScripted& EdEntScripted::operator = ( const EdEntScripted& o )
@@ -580,11 +700,6 @@ void EdEntScripted::SetMesh( StringView name )
 		cached_meshinsts[ i ]->mesh = cached_mesh;
 }
 
-void EdEntScripted::SetScriptedItem( StringView name, const Mat4& mtx )
-{
-	// TODO
-}
-
 void EdEntScripted::SetMeshInstanceCount( int count )
 {
 	int i = cached_meshinsts.size();
@@ -618,6 +733,27 @@ void EdEntScripted::GetMeshAABB( Vec3 out[2] )
 		out[0] = V3(-1);
 		out[1] = V3(1);
 	}
+}
+
+void EdEntScripted::SetScriptedItem( StringView name, sgsVariable args )
+{
+	SGRX_ScriptedItem* nsi = NULL;
+	
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "SCRITEM_CREATE_%s", StackString<200>(name).str );
+	sgsVariable func = g_ScriptCtx->GetGlobal( bfr );
+	if( func.not_null() )
+	{
+		nsi = SGRX_ScriptedItem::Create(
+			g_EdScene, g_EdPhyWorld, g_ScriptCtx->C,
+			func, args );
+		nsi->SetLightSampler( &GR_GetDummyLightSampler() );
+		nsi->PreRender();
+	}
+	
+	if( cached_scritem )
+		cached_scritem->Release();
+	cached_scritem = nsi;
 }
 
 static int EE_AddFieldBool( SGS_CTX )
@@ -760,10 +896,13 @@ static int EE_AddFieldScrItem( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldScrItem" );
 	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	EDGUIPropVec3* posprop = E->IsScrEnt() ?
+		&((EdEntScripted*)E)->m_ctlPos :
+		((EDGUIPropScrItem*)E)->m_pctlPos;
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropScrItem( sgs_GetVar<StringView>()( C, 3 ) ) );
+		new EDGUIPropScrItem( posprop, sgs_GetVar<StringView>()( C, 3 ) ) );
 	return 0;
 }
 static int EE_AddButtonSubent( SGS_CTX )
@@ -829,6 +968,16 @@ static int EE_GetMeshAABB( SGS_CTX )
 	sgs_PushVar( C, aabb[0] );
 	sgs_PushVar( C, aabb[1] );
 	return 2;
+}
+static int EE_SetScriptedItem( SGS_CTX )
+{
+	SGSFN( "EE_SetScriptedItem" );
+	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	if( PI->IsScrEnt() == false )
+		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
+	SGRX_CAST( EdEntScripted*, E, PI );
+	E->SetScriptedItem( sgs_GetVar<StringView>()( C, 1 ), sgsVariable( C, 2 ) );
+	return 0;
 }
 
 static int EE_SetChangeFunc( SGS_CTX )
@@ -910,6 +1059,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_SetMeshInstanceCount", EE_SetMeshInstanceCount },
 	{ "EE_SetMeshInstanceMatrix", EE_SetMeshInstanceMatrix },
 	{ "EE_GetMeshAABB", EE_GetMeshAABB },
+	{ "EE_SetScriptedItem", EE_SetScriptedItem },
 	{ "EE_SetChangeFunc", EE_SetChangeFunc },
 	{ "EE_SetDebugDrawFunc", EE_SetDebugDrawFunc },
 	{ "EE_SetGatherFunc", EE_SetGatherFunc },

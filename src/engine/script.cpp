@@ -59,6 +59,28 @@ ScriptContext::~ScriptContext()
 }
 
 
+static int euler2quat( SGS_CTX )
+{
+	Vec3 angles;
+	if( !sgs_LoadArgs( C, "x", sgs_ArgCheck_Vec3, &angles.x ) )
+		return 0;
+	Quat rot = ( Quat::CreateAxisAngle( 1,0,0, angles.x ) *
+		Quat::CreateAxisAngle( 0,1,0, angles.y ) ) *
+		Quat::CreateAxisAngle( 0,0,1, angles.z );
+	sgs_PushQuat( C, rot.x, rot.y, rot.z, rot.w );
+	return 1;
+}
+static sgs_RegFuncConst g_sgrxmath_rfc[] =
+{
+	{ "euler2quat", euler2quat },
+	SGS_RC_END(),
+};
+static void sgrx_math_lib( SGS_CTX )
+{
+	sgs_RegFuncConsts( C, g_sgrxmath_rfc, -1 );
+}
+
+
 static int BR_Reset( SGS_CTX )
 {
 	SGSFN( "BR_Reset" );
@@ -132,7 +154,7 @@ static int BR_SetPrimitiveType( SGS_CTX )
 	GR2D_GetBatchRenderer().SetPrimitiveType( (EPrimitiveType) pt );
 	return 0;
 }
-static sgs_RegFuncConst g_ent_scripted_rfc[] =
+static sgs_RegFuncConst g_batchrenderer_rfc[] =
 {
 	{ "BR_Reset", BR_Reset },
 	{ "BR_Col", BR_Col },
@@ -143,7 +165,7 @@ static sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "BR_SetPrimitiveType", BR_SetPrimitiveType },
 	SGS_RC_END(),
 };
-static sgs_RegIntConst g_ent_scripted_ric[] =
+static sgs_RegIntConst g_batchrenderer_ric[] =
 {
 	{ "PT_Points", PT_Points },
 	{ "PT_Lines", PT_Lines },
@@ -195,13 +217,14 @@ void ScriptContext::Reset()
 	C = sgs_CreateEngine();
 	sgs_LoadLib_Math( C );
 	xgm_module_entry_point( C );
+	sgrx_math_lib( C );
 	sgs_SetScriptFSFunc( C, sgs_scriptfs_sgrx, NULL );
 }
 
 void ScriptContext::RegisterBatchRenderer()
 {
-	sgs_RegFuncConsts( C, g_ent_scripted_rfc, -1 );
-	sgs_RegIntConsts( C, g_ent_scripted_ric, -1 );
+	sgs_RegFuncConsts( C, g_batchrenderer_rfc, -1 );
+	sgs_RegIntConsts( C, g_batchrenderer_ric, -1 );
 }
 
 bool ScriptContext::EvalFile( const StringView& path, sgsVariable* outvar )

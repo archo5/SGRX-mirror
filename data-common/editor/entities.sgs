@@ -81,6 +81,15 @@ function ENTDD_startpos( eptr, data )
 
 // --- ENTITIES ---
 
+function ED_ENT_scritem( eptr )
+{
+	EE_AddFieldScrItem( eptr, "scritem", "Scripted item", "" );
+	EE_SetChangeFunc( eptr, function ScrItem_onChange( eptr, data )
+	{
+		EE_SetScriptedItem( eptr, data.scritem.__type, data.scritem );
+	});
+}
+
 function ED_ENT_player_start( eptr )
 {
 	ENTBASE_viewdir( eptr );

@@ -930,9 +930,11 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LightSampler
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_DummyLightSampler : SGRX_LightSampler
 {
+	ENGINE_EXPORT SGRX_DummyLightSampler();
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3& outcolor );
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] );
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, const Vec3& dir, Vec3& outcolor );
+	float defval;
 };
 ENGINE_EXPORT SGRX_DummyLightSampler& GR_GetDummyLightSampler();
 

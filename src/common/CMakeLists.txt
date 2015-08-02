@@ -4,8 +4,10 @@ set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 if(NOT RESTRICTED)
 # Editor
-add_library( editor SHARED mapedit mapedit_ent mapedit_block mapedit_patch mapedit_edit compiler )
-target_link_libraries( editor sgrx-core sgrx-script sgrx-sound-fmod recast detour )
+add_library( editor SHARED
+	mapedit mapedit_ent mapedit_block mapedit_patch mapedit_edit
+	compiler scritem cppbc_scritem )
+target_link_libraries( editor sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod recast detour )
 set_target_properties( editor PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC"
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src/recast/Recast/Include;${EXTDIR}/src/recast/Detour/Include"

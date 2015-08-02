@@ -1734,9 +1734,12 @@ struct TACStrikeEditor : IGame
 		g_ScriptCtx = new ScriptContext;
 		g_ScriptCtx->RegisterBatchRenderer();
 		sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
+		ScrItem_InstallAPI( g_ScriptCtx->C );
 		
-		LOG << "\n\nLoading scripted entities:";
+		LOG << "\nLoading scripted entities:";
 		LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
+		LOG << "\nLoading scripted items:";
+		LOG << g_ScriptCtx->ExecFile( "data/scritems.sgs" );
 		LOG << "\nLoading completed\n\n";
 		
 		g_UISurfTexPicker = new EDGUISDTexPicker;
@@ -1753,6 +1756,7 @@ struct TACStrikeEditor : IGame
 		g_EdScene = GR_CreateScene();
 		g_EdScene->camera.position = Vec3::Create(3,3,3);
 		g_EdScene->camera.UpdateMatrices();
+		g_EdPhyWorld = PHY_CreateWorld();
 		g_EdWorld = new EdWorld();
 		g_EdWorld->RegenerateMeshes();
 		g_UIFrame = new EDGUIMainFrame();
@@ -1786,6 +1790,7 @@ struct TACStrikeEditor : IGame
 		g_UIFrame = NULL;
 		delete g_EdWorld;
 		g_EdWorld = NULL;
+		g_EdPhyWorld = NULL;
 		g_EdScene = NULL;
 		delete g_ScriptCtx;
 		g_ScriptCtx = NULL;
