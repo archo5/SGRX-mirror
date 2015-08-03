@@ -40,7 +40,7 @@ void ScrItem_InstallAPI( SGS_CTX )
 	sgs_Msg( C, SGS_WARNING, "no part.sys at offset %d", (int)(i) ); ret; }
 #define SCRITEM_BODYCHK( i, ret ) if( m_bodies[ i ] == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no body at offset %d", (int)(i) ); ret; }
-#define SCRITEM_DSYSCHK( ret ) if( m_decalSys == NULL ){ \
+#define SCRITEM_DSYSCHK( ret ) if( m_dmgDecalSys == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
 
 SGRX_ScriptedItem* SGRX_ScriptedItem::Create(
@@ -156,8 +156,14 @@ void SGRX_ScriptedItem::PreRender()
 		if( m_partSys[ i ] )
 			m_partSys[ i ]->PreRender();
 	}
-	if( m_decalSys )
-		m_decalSys->Upload();
+	if( m_dmgDecalSys )
+		m_dmgDecalSys->Upload();
+	if( m_ovrDecalSys )
+		m_ovrDecalSys->Upload();
+	if( m_dmgDecalSysMI )
+		m_lightSampler->LightMesh( m_dmgDecalSysMI );
+	if( m_ovrDecalSysMI )
+		m_lightSampler->LightMesh( m_ovrDecalSysMI );
 }
 
 void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
@@ -207,8 +213,10 @@ int SGRX_ScriptedItem::_setindex(
 void SGRX_ScriptedItem::SetMatrix( Mat4 mtx )
 {
 	m_transform = mtx;
-	if( m_decalSysMI )
-		m_decalSysMI->matrix = mtx;
+	if( m_dmgDecalSysMI )
+		m_dmgDecalSysMI->matrix = mtx;
+	if( m_ovrDecalSysMI )
+		m_ovrDecalSysMI->matrix = mtx;
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
 	{
 		if( m_meshes[ i ] )
@@ -349,42 +357,61 @@ void SGRX_ScriptedItem::PSTrigger( int i )
 	m_partSys[ i ]->Trigger();
 }
 
-void SGRX_ScriptedItem::DSCreate( StringView texDecalPath, StringView texFalloffPath, uint32_t size )
+void SGRX_ScriptedItem::DSCreate( StringView texDmgDecalPath,
+	StringView texOvrDecalPath, StringView texFalloffPath, uint32_t size )
 {
-	if( sgs_StackSize( C ) < 3 )
-		size = 16*1024;
+	if( sgs_StackSize( C ) < 4 )
+		size = 64*1024;
 	
-	m_decalSys = new SGRX_DecalSystem;
-	m_decalSys->Init( GR_GetTexture( texDecalPath ), GR_GetTexture( texFalloffPath ) );
-	m_decalSys->SetSize( size );
-	m_decalSys->m_ownMatrix = &m_transform;
+	m_dmgDecalSys = new SGRX_DecalSystem;
+	m_dmgDecalSys->Init( GR_GetTexture( texDmgDecalPath ), GR_GetTexture( texFalloffPath ) );
+	m_dmgDecalSys->SetSize( size );
+	m_dmgDecalSys->m_ownMatrix = &m_transform;
 	
-	m_decalSysMI = m_scene->CreateMeshInstance();
-	m_decalSysMI->mesh = m_decalSys->m_mesh;
-	m_decalSysMI->matrix = m_transform;
-	m_decalSysMI->dynamic = 1;
-	m_decalSysMI->decal = 1;
+	m_dmgDecalSysMI = m_scene->CreateMeshInstance();
+	m_dmgDecalSysMI->mesh = m_dmgDecalSys->m_mesh;
+	m_dmgDecalSysMI->matrix = m_transform;
+	m_dmgDecalSysMI->dynamic = 1;
+	m_dmgDecalSysMI->decal = 1;
 	
-	dmgDecalSysOverride = m_decalSys;
+	dmgDecalSysOverride = m_dmgDecalSys;
+	
+	m_ovrDecalSys = new SGRX_DecalSystem;
+	m_ovrDecalSys->Init( GR_GetTexture( texOvrDecalPath ), GR_GetTexture( texFalloffPath ) );
+	m_ovrDecalSys->SetSize( size );
+	m_ovrDecalSys->m_ownMatrix = &m_transform;
+	
+	m_ovrDecalSysMI = m_scene->CreateMeshInstance();
+	m_ovrDecalSysMI->mesh = m_ovrDecalSys->m_mesh;
+	m_ovrDecalSysMI->matrix = m_transform;
+	m_ovrDecalSysMI->dynamic = 1;
+	m_ovrDecalSysMI->decal = 1;
+	
+	ovrDecalSysOverride = m_ovrDecalSys;
 }
 
 void SGRX_ScriptedItem::DSDestroy()
 {
-	m_decalSys = NULL;
-	m_decalSysMI = NULL;
+	m_dmgDecalSys = NULL;
+	m_dmgDecalSysMI = NULL;
+	m_ovrDecalSys = NULL;
+	m_ovrDecalSysMI = NULL;
 	dmgDecalSysOverride = NULL;
+	ovrDecalSysOverride = NULL;
 }
 
 void SGRX_ScriptedItem::DSResize( uint32_t size )
 {
 	SCRITEM_DSYSCHK( return );
-	m_decalSys->SetSize( size );
+	m_dmgDecalSys->SetSize( size );
+	m_ovrDecalSys->SetSize( size );
 }
 
 void SGRX_ScriptedItem::DSClear()
 {
 	SCRITEM_DSYSCHK( return );
-	m_decalSys->ClearAllDecals();
+	m_dmgDecalSys->ClearAllDecals();
+	m_ovrDecalSys->ClearAllDecals();
 }
 
 void SGRX_ScriptedItem::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec )

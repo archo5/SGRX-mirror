@@ -1,6 +1,6 @@
 // SGS/CPP-BC
 // warning: do not modify this file, it may be regenerated during any build
-// generated: 08/01/15 10:49:29
+// generated: 08/03/15 21:52:03
 
 #include "scritem.hpp"
 
@@ -199,7 +199,7 @@ static int _sgs_method__SGRX_ScriptedItem__PSTrigger( SGS_CTX )
 static int _sgs_method__SGRX_ScriptedItem__DSCreate( SGS_CTX )
 {
 	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, DSCreate ) ) return 0;
-	data->DSCreate( sgs_GetVar<StringView>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVar<uint32_t>()(C,2) ); return 0;
+	data->DSCreate( sgs_GetVar<StringView>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVar<StringView>()(C,2), sgs_GetVar<uint32_t>()(C,3) ); return 0;
 }
 
 static int _sgs_method__SGRX_ScriptedItem__DSDestroy( SGS_CTX )

@@ -529,7 +529,7 @@ void SGRX_DecalSystem::Init( TextureHandle texDecal, TextureHandle texFalloff )
 	m_mesh = GR_CreateMesh();
 	m_material = GR_CreateMaterial(); // TODO: pass loaded material when there is something to load
 	m_material->transparent = true;
-	m_material->shader = GR_GetSurfaceShader( "default" );
+	m_material->shader = GR_GetSurfaceShader( "decal" );
 	m_material->textures[0] = texDecal;
 	m_material->textures[1] = texFalloff;
 }
@@ -673,6 +673,7 @@ void SGRX_DecalSystem::_InvTransformDecals( size_t vbfrom )
 	while( vdata < vdend )
 	{
 		vdata->position = inv.TransformPos( vdata->position );
+		vdata->normal = inv.TransformNormal( vdata->normal );
 		vdata++;
 	}
 }

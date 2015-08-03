@@ -22,10 +22,11 @@ struct MI_BulletHit_Data
 
 struct SGRX_MeshInstUserData
 {
-	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL), ownerType(0){}
+	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL), ovrDecalSysOverride(NULL), ownerType(0){}
 	virtual ~SGRX_MeshInstUserData(){}
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data ){}
 	SGRX_DecalSystem* dmgDecalSysOverride;
+	SGRX_DecalSystem* ovrDecalSysOverride;
 	uint32_t ownerType;
 };
 
@@ -120,7 +121,8 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD void PSTrigger( int i );
 	
 	// - decal system
-	SGS_METHOD void DSCreate( StringView texDecalPath, StringView texFalloffPath, uint32_t size );
+	SGS_METHOD void DSCreate( StringView texDmgDecalPath,
+		StringView texOvrDecalPath, StringView texFalloffPath, uint32_t size );
 	SGS_METHOD void DSDestroy();
 	SGS_METHOD void DSResize( uint32_t size );
 	SGS_METHOD void DSClear();
@@ -146,8 +148,11 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGRX_LightSampler* m_lightSampler;
 	SGRX_IPSRaycast* m_psRaycast;
 	
-	DecalSysHandle m_decalSys;
-	MeshInstHandle m_decalSysMI;
+	DecalSysHandle m_dmgDecalSys;
+	MeshInstHandle m_dmgDecalSysMI;
+	DecalSysHandle m_ovrDecalSys;
+	MeshInstHandle m_ovrDecalSysMI;
+	
 	MeshInstHandle m_meshes[ SCRITEM_NUM_SLOTS ];
 	PartSysHandle m_partSys[ SCRITEM_NUM_SLOTS ];
 	PhyRigidBodyHandle m_bodies[ SCRITEM_NUM_SLOTS ];
