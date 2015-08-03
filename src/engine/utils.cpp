@@ -1763,7 +1763,7 @@ SGRX_Log::RegFunc::STATS SGRX_Log::RegFunc::stats;
 
 SGRX_Log::RegFunc::STATS::STATS()
 {
-	f = fopen( "stats.txt", "a" );
+	f = fopen( "stats.txt", "w" );
 }
 
 SGRX_Log::RegFunc::STATS::~STATS()

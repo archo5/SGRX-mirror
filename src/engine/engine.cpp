@@ -516,7 +516,9 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	
 	StringView path = key.until( ":" );
 	
-	if( !FS_LoadBinaryFile( path, outdata ) )
+	// try .stx (optimized) before original
+	if( FS_LoadBinaryFile( String_Concat( path, ".stx" ), outdata ) == false &&
+		FS_LoadBinaryFile( path, outdata ) == false )
 		return false;
 	
 	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y;
@@ -1976,7 +1978,7 @@ TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 {
 	LOG_FUNCTION;
 	
-	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, mips };
+	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format, 0 };
 	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, NULL );
 	if( !tex )
 	{
@@ -2035,7 +2037,7 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 {
 	LOG_FUNCTION;
 	
-	TextureInfo ti = { 0, TEXTYPE_2D, width, height, 1, format, 1 };
+	TextureInfo ti = { TEXTYPE_2D, 1, width, height, 1, format, 0 };
 	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
 	if( !tex )
 	{

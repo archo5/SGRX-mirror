@@ -326,6 +326,21 @@ bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& fi
 	
 	memset( TD, 0, sizeof(*TD) );
 	
+	// Try to load STX
+	if( texdata.size() > 8 + sizeof(TextureInfo) && memcmp( texdata.data(), "STX\0", 4 ) == 0 )
+	{
+		uint32_t size = 0;
+		memcpy( &size, &texdata[ 4 + sizeof(TextureInfo) ], 4 );
+		if( texdata.size() != size + 8 + sizeof(TextureInfo) )
+		{
+			LOG << LOG_DATE << "  Failed to load texture " << filename << " - incomplete data";
+			return false;
+		}
+		memcpy( &TD->info, &texdata[ 4 ], sizeof(TextureInfo) );
+		TD->data.assign( &texdata[ 8 + sizeof(TextureInfo) ], size );
+		goto success;
+	}
+	
 	// Try to load DDS
 	err = dds_load_from_memory( texdata.data(), texdata.size(), &ddsinfo, dds_supfmt );
 	if( err == DDS_SUCCESS || err == DDS_ENOTSUP )

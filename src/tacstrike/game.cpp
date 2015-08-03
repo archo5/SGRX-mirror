@@ -446,9 +446,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 #endif
 		
 		sgsVariable args = g_GameLevel->m_scriptCtx.CreateDict();
-		args.setprop( "position", g_GameLevel->m_scriptCtx.CreateVec3( V3(2,-2,1) ) );
-		args.setprop( "rotation", g_GameLevel->m_scriptCtx.CreateQuat(
-			Quat::CreateAxisAngle(0,0,1,DEG2RAD(45)) ) );
+		args.setprop( "position", g_GameLevel->m_scriptCtx.CreateVec3( V3(2,-2,0) ) );
+		args.setprop( "rot_angles", g_GameLevel->m_scriptCtx.CreateVec3( V3(0,0,0) ) );
 		myscritem = SGRX_ScriptedItem::Create(
 			g_GameLevel->m_scene,
 			g_PhyWorld,

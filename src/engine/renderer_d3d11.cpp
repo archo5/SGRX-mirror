@@ -691,7 +691,7 @@ void D3D11Renderer::Destroy()
 bool D3D11Renderer::LoadInternalResources()
 {
 	// default texture (white)
-	TextureInfo tinfo = { 0, TEXTYPE_2D, 1, 1, 1, TEXFORMAT_RGBA8, 1 };
+	TextureInfo tinfo = { TEXTYPE_2D, 1, 1, 1, 1, TEXFORMAT_RGBA8, 0 };
 	uint32_t tdata = 0xffffffff;
 	m_defaultTexture = (D3D11Texture*) CreateTexture( &tinfo, &tdata );
 	if( m_defaultTexture == NULL )

@@ -1281,6 +1281,7 @@ struct Array
 	FINLINE void push_front( const T& v ){ insert( 0, v ); }
 	FINLINE void push_back( const T& v ){ insert( size(), v ); }
 	FINLINE void pop_back(){ erase( size() - 1 ); }
+	FINLINE void append( const Array& a ){ append( a.m_data, a.m_size ); }
 	FINLINE void append( const T* v, size_t sz ){ insert( size(), v, sz ); }
 	FINLINE void assign( const T* v, size_t sz ){ clear(); insert( size(), v, sz ); }
 	FINLINE void clear(){ resize( 0 ); }
@@ -1414,9 +1415,20 @@ template< class T > void TSWAP( Array<T>& a, Array<T>& b )
 	TSWAP( a.m_mem, b.m_mem );
 }
 
-typedef Array< uint8_t > ByteArray;
+typedef Array< uint8_t > UInt8Array;
 typedef Array< uint16_t > UInt16Array;
 typedef Array< uint32_t > UInt32Array;
+
+struct ByteArray : UInt8Array
+{
+	ByteArray() : UInt8Array(){}
+	ByteArray( const ByteArray& a ) : UInt8Array(a){}
+	ByteArray( const void* v, size_t sz ) : UInt8Array( (const uint8_t*) v, sz ){}
+	void insert( size_t at, const void* data, size_t size ){ UInt8Array::insert( at, (const uint8_t*) data, size ); }
+	void assign( const void* data, size_t size ){ UInt8Array::assign( (const uint8_t*) data, size ); }
+	void append( const void* data, size_t size ){ UInt8Array::append( (const uint8_t*) data, size ); }
+	void append( const ByteArray& a ){ append( a.m_data, a.m_size ); }
+};
 
 
 //

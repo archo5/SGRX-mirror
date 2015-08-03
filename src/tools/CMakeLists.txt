@@ -28,6 +28,18 @@ set_target_properties( meshproc PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
+# Texture processor
+add_executable( texproc
+	texproc
+)
+target_link_libraries( texproc sgrx-core )
+set_target_properties( texproc PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	INCLUDE_DIRECTORIES "${EXTDIR}/src"
+	COMPILE_FLAGS "${CORE_FLAGS}"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+
 # Blender cubemap converter
 add_executable( blendcubedds blendcubedds )
 target_link_libraries( blendcubedds sgrx-core )

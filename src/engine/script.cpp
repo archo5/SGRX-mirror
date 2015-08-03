@@ -64,6 +64,7 @@ static int euler2quat( SGS_CTX )
 	Vec3 angles;
 	if( !sgs_LoadArgs( C, "x", sgs_ArgCheck_Vec3, &angles.x ) )
 		return 0;
+	angles = DEG2RAD( angles );
 	Quat rot = ( Quat::CreateAxisAngle( 1,0,0, angles.x ) *
 		Quat::CreateAxisAngle( 0,1,0, angles.y ) ) *
 		Quat::CreateAxisAngle( 0,0,1, angles.z );

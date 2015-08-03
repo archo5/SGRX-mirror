@@ -206,6 +206,8 @@ GameLevel::GameLevel() :
 	m_levelTime( 0 ),
 	m_player( NULL )
 {
+	LOG_FUNCTION;
+	
 	m_lightTree = &m_ltSamples;
 	
 	m_playerSpawnInfo[0] = V3(0);
@@ -242,35 +244,49 @@ GameLevel::~GameLevel()
 
 bool GameLevel::Load( const StringView& levelname )
 {
-	char bfr[ 256 ];
-	snprintf( bfr, sizeof(bfr), "levels/%.*s/cache", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+	LOG_FUNCTION_ARG( levelname );
+	
 	ByteArray ba;
-	if( !FS_LoadBinaryFile( bfr, ba ) )
-		return false;
 	
-	ClearLevel();
-	
-	snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
-	m_scriptCtx.Include( bfr );
+	// load level file & scripts, clear previous data
+	{
+		LOG_FUNCTION_ARG( "CORE/CLEAR/SCRIPT" );
+		
+		char bfr[ 256 ];
+		snprintf( bfr, sizeof(bfr), "levels/%.*s/cache", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		if( !FS_LoadBinaryFile( bfr, ba ) )
+			return false;
+		
+		ClearLevel();
+		
+		snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		m_scriptCtx.Include( bfr );
+	}
 	
 	ByteReader br( &ba );
+	
+	Array< LC_ScriptedEntity > screntdefs;
+	Array< LC_MeshInst > mesh_inst_defs;
 	
 	br.marker( "COMPILED" );
 	SerializeVersionHelper<ByteReader> svh( br, LC_FILE_VERSION );
 	
-	svh.marker( "SCRENTS" );
-	Array< LC_ScriptedEntity > screntdefs;
-	svh << screntdefs;
-	
-	svh.marker( "INST" );
-	Array< LC_MeshInst > mesh_inst_defs;
-	svh << mesh_inst_defs;
-	
-	svh.marker( "LINES" );
-	svh << m_lines;
-	
-	svh.marker( "LIGHTS" );
-	svh << m_lights;
+	// load basic data
+	{
+		LOG_FUNCTION_ARG( "UNSER_CORE" );
+		
+		svh.marker( "SCRENTS" );
+		svh << screntdefs;
+		
+		svh.marker( "INST" );
+		svh << mesh_inst_defs;
+		
+		svh.marker( "LINES" );
+		svh << m_lines;
+		
+		svh.marker( "LIGHTS" );
+		svh << m_lights;
+	}
 	
 	// LOAD FLARES
 	for( size_t i = 0; i < m_lights.size(); ++i )
@@ -282,90 +298,115 @@ bool GameLevel::Load( const StringView& levelname )
 		m_flareSystem.UpdateFlare( &m_lights[ i ], FD );
 	}
 	
-	svh.marker( "SAMPLES" );
-	Array< SGRX_LightTree::Sample > lt_samples;
-	svh << lt_samples;
-	
 	// LOAD LIGHT SAMPLES
-	LOG << "LEVEL: Loading samples: " << lt_samples.size();
-	m_ltSamples.SetSamples( lt_samples.data(), lt_samples.size() );
-	
-	svh.marker( "PHYMESH" );
-	LC_PhysicsMesh phy_mesh;
-	svh( phy_mesh, svh.version >= 5 );
-	
-	ByteArray navmesh;
-	if( svh.version >= 6 )
 	{
-		svh.marker( "NAVMESH" );
-		svh( navmesh );
-	}
-	m_aidbSystem.Load( navmesh );
-	
-	// CREATE STATIC GEOMETRY
-	SGRX_PhyRigidBodyInfo rbinfo;
-	
-	// TODO: temporarily ignore material data
-	Array< uint32_t > fixedidcs;
-	for( size_t i = 0; i < phy_mesh.indices.size(); i += 4 )
-	{
-		fixedidcs.append( &phy_mesh.indices[ i ], 3 );
-	}
-	rbinfo.shape = g_PhyWorld->CreateTriMeshShape(
-		phy_mesh.positions.data(), phy_mesh.positions.size(),
-		fixedidcs.data(), fixedidcs.size(), true );
-	m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
-	
-	for( size_t i = 0; i < mesh_inst_defs.size(); ++i )
-	{
-		LC_MeshInst& MID = mesh_inst_defs[ i ];
+		LOG_FUNCTION_ARG( "SAMPLES" );
 		
-		char subbfr[ 512 ];
-		MeshInstHandle MI = m_scene->CreateMeshInstance();
-		StringView src = MID.m_meshname;
-		if( src.ch() == '~' )
-		{
-			snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
-			MI->mesh = GR_GetMesh( subbfr );
-		}
-		else
-			MI->mesh = GR_GetMesh( src );
+		svh.marker( "SAMPLES" );
+		Array< SGRX_LightTree::Sample > lt_samples;
+		svh << lt_samples;
 		
-		snprintf( subbfr, sizeof(subbfr), "levels/%.*s/%d.png", TMIN( (int) levelname.size(), 200 ), levelname.data(), (int) i );
-		MI->textures[0] = GR_GetTexture( subbfr );
-		
-		MI->matrix = MID.m_mtx;
-		
-		if( MID.m_flags & LM_MESHINST_DYNLIT )
-		{
-			MI->dynamic = true;
-			LightMesh( MI );
-		}
-		
-		if( MID.m_flags & LM_MESHINST_DECAL )
-		{
-			MI->decal = true;
-			MI->transparent = true;
-			MI->sortidx = MID.m_decalLayer;
-		}
-		
-		m_meshInsts.push_back( MI );
-		
-		if( MID.m_flags & LM_MESHINST_SOLID )
-		{
-			rbinfo.shape = g_PhyWorld->CreateShapeFromMesh( MI->mesh );
-			rbinfo.shape->SetScale( MI->matrix.GetScale() );
-			rbinfo.position = MI->matrix.GetTranslation();
-			rbinfo.rotation = MI->matrix.GetRotationQuaternion();
-			m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
-		}
+		LOG << "LEVEL: Loading samples: " << lt_samples.size();
+		m_ltSamples.SetSamples( lt_samples.data(), lt_samples.size() );
 	}
 	
-	
-	// CREATE ENTITIES
-	for( size_t i = 0; i < screntdefs.size(); ++i )
+	// create static geometry
 	{
-		CreateEntity( screntdefs[ i ].type, screntdefs[ i ].serialized_params );
+		LOG_FUNCTION_ARG( "PHY_MESH" );
+		
+		svh.marker( "PHYMESH" );
+		SGRX_PhyRigidBodyInfo rbinfo;
+		LC_PhysicsMesh phy_mesh;
+		svh( phy_mesh, svh.version >= 5 );
+		
+		// TODO: temporarily ignore material data
+		Array< uint32_t > fixedidcs;
+		for( size_t i = 0; i < phy_mesh.indices.size(); i += 4 )
+		{
+			fixedidcs.append( &phy_mesh.indices[ i ], 3 );
+		}
+		rbinfo.shape = g_PhyWorld->CreateTriMeshShape(
+			phy_mesh.positions.data(), phy_mesh.positions.size(),
+			fixedidcs.data(), fixedidcs.size(), true );
+		m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
+	}
+	
+	// initialize AI DB
+	{
+		LOG_FUNCTION_ARG( "AI_DB" );
+		
+		ByteArray navmesh;
+		if( svh.version >= 6 )
+		{
+			svh.marker( "NAVMESH" );
+			svh( navmesh );
+		}
+		m_aidbSystem.Load( navmesh );
+	}
+	
+	// load mesh instances
+	{
+		LOG_FUNCTION_ARG( "MESH_INSTS" );
+		
+		for( size_t i = 0; i < mesh_inst_defs.size(); ++i )
+		{
+			LC_MeshInst& MID = mesh_inst_defs[ i ];
+			
+			LOG_FUNCTION_ARG( MID.m_meshname );
+			
+			char subbfr[ 512 ];
+			MeshInstHandle MI = m_scene->CreateMeshInstance();
+			StringView src = MID.m_meshname;
+			if( src.ch() == '~' )
+			{
+				snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
+				MI->mesh = GR_GetMesh( subbfr );
+			}
+			else
+				MI->mesh = GR_GetMesh( src );
+			
+			snprintf( subbfr, sizeof(subbfr), "levels/%.*s/%d.png", TMIN( (int) levelname.size(), 200 ), levelname.data(), (int) i );
+			MI->textures[0] = GR_GetTexture( subbfr );
+			
+			MI->matrix = MID.m_mtx;
+			
+			if( MID.m_flags & LM_MESHINST_DYNLIT )
+			{
+				MI->dynamic = true;
+				LightMesh( MI );
+			}
+			
+			if( MID.m_flags & LM_MESHINST_DECAL )
+			{
+				MI->decal = true;
+				MI->transparent = true;
+				MI->sortidx = MID.m_decalLayer;
+			}
+			
+			m_meshInsts.push_back( MI );
+			
+			if( MID.m_flags & LM_MESHINST_SOLID )
+			{
+				LOG_FUNCTION_ARG( "MI_BODY" );
+				
+				SGRX_PhyRigidBodyInfo rbinfo;
+				rbinfo.shape = g_PhyWorld->CreateShapeFromMesh( MI->mesh );
+				rbinfo.shape->SetScale( MI->matrix.GetScale() );
+				rbinfo.position = MI->matrix.GetTranslation();
+				rbinfo.rotation = MI->matrix.GetRotationQuaternion();
+				m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
+			}
+		}
+	}
+	
+	// create entities
+	{
+		LOG_FUNCTION_ARG( "ENTITIES" );
+		
+		for( size_t i = 0; i < screntdefs.size(); ++i )
+		{
+			CreateEntity( screntdefs[ i ].type, screntdefs[ i ].serialized_params );
+		}
 	}
 	
 	

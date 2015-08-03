@@ -301,15 +301,15 @@ struct ENGINE_EXPORT RenderStats
 #define RT_FORMAT_BACKBUFFER 0x10000
 #define RT_FORMAT_DEPTH      0x10001
 
-struct TextureInfo
+struct TextureInfo /* 16 bytes */
 {
+	uint8_t type; /* TEXTYPE */
+	uint8_t mipcount;
+	uint16_t width;
+	uint16_t height;
+	uint16_t depth;
+	uint32_t format; /* TEXFORMAT */
 	uint32_t flags; /* TEXFLAGS */
-	int type; /* TEXTYPE */
-	int width;
-	int height;
-	int depth;
-	int format; /* TEXFORMAT */
-	int mipcount;
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_ITexture : SGRX_RCRsrc
