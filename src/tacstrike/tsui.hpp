@@ -15,6 +15,7 @@ enum TSMenuCtrlStyle
 {
 	MCS_BigTopLink = 100,
 	MCS_ObjectiveItem,
+	MCS_ObjectiveItemDone,
 	MCS_ObjectiveIconLink,
 };
 
@@ -66,6 +67,9 @@ struct TSQuitGameQuestionScreen : TSQuestionScreen
 };
 
 
+#define PMS_OBJ_SCROLLUP 10000
+#define PMS_OBJ_SCROLLDN 10001
+
 struct TSPauseMenuScreen : IScreen
 {
 	TSPauseMenuScreen();
@@ -75,11 +79,16 @@ struct TSPauseMenuScreen : IScreen
 	bool OnEvent( const Event& e );
 	bool Draw( float delta );
 	
+	void ReloadObjMenu();
+	int ScrollObjMenu( int amount );
+	
 	bool notfirst;
 	ScreenMenu topmenu;
 	ScreenMenu pausemenu;
 	ScreenMenu objmenu;
 	bool show_objectives;
+	int selobj_id;
+	int firstobj;
 	OSObjective selected_objective;
 };
 

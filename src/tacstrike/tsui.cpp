@@ -23,7 +23,8 @@ void TSMenuTheme::DrawControl( const MenuControl& ctrl, const MenuCtrlInfo& info
 		DrawBigTopLinkButton( ctrl, info );
 		return;
 	}
-	if( ctrl.style == MCS_ObjectiveItem )
+	if( ctrl.style == MCS_ObjectiveItem ||
+		ctrl.style == MCS_ObjectiveItemDone )
 	{
 		DrawObjectiveItemButton( ctrl, info );
 		return;
@@ -56,7 +57,8 @@ void TSMenuTheme::DrawObjectiveItemButton( const MenuControl& ctrl, const MenuCt
 	MENUTHEME_PREP;
 	Colors col;
 	_GetCtrlColors( ctrl, info, true, col );
-	if( ctrl.style == MCS_ObjectiveItem )
+	if( ctrl.style == MCS_ObjectiveItem ||
+		ctrl.style == MCS_ObjectiveItemDone )
 	{
 		col.fgcol = V4( 153/255.f, 1 );
 		if( info.selected )
@@ -68,10 +70,19 @@ void TSMenuTheme::DrawObjectiveItemButton( const MenuControl& ctrl, const MenuCt
 	GR2D_SetFont( "mono", info.minw * 20 / 720.f );
 	
 	br.Reset().Col( col.fgcol.x, col.fgcol.y, col.fgcol.z, col.fgcol.w * info.menu->opacity );
-	GR2D_DrawTextLine(
-		round(TLERP(ax0, ax1, 0.8f)),
-		round((ay0+ay1)/2),
+	float rtpos = round(TLERP(ax0, ax1, 0.8f));
+	float yht = round((ay0+ay1)/2);
+	GR2D_DrawTextLine( rtpos, yht,
 		ctrl.caption, HALIGN_RIGHT, VALIGN_CENTER );
+	
+	if( ctrl.style == MCS_ObjectiveItemDone )
+	{
+		int width = GR2D_GetTextLength( ctrl.caption );
+		float solht = info.minw * 1 / 720.f;
+		br.Reset().Col( col.fgcol.x, col.fgcol.y, col.fgcol.z,
+			col.fgcol.w * info.menu->opacity );
+		br.AARect( rtpos - width, yht + solht * 2, rtpos, yht + solht * 3 );
+	}
 }
 
 void TSMenuTheme::DrawObjectiveIconLink( const MenuControl& ctrl, const MenuCtrlInfo& info )
@@ -229,6 +240,9 @@ bool TSQuitGameQuestionScreen::Action( int mode )
 
 TSPauseMenuScreen::TSPauseMenuScreen() : notfirst(false), show_objectives(false)
 {
+	selobj_id = 0;
+	firstobj = 0;
+	
 	topmenu.theme = &g_TSMenuTheme;
 	pausemenu.theme = &g_TSMenuTheme;
 	objmenu.theme = &g_TSMenuTheme;
@@ -253,21 +267,7 @@ void TSPauseMenuScreen::OnStart()
 	pausemenu.OnStart();
 	objmenu.OnStart();
 	
-	objmenu.Clear();
-	objmenu.AddButton( "\x12", MCS_ObjectiveIconLink,
-		260/1280.f, 130/720.f, 292/1280.f, 162/720.f, 1 );
-	objmenu.AddButton( "\x13", MCS_ObjectiveIconLink,
-		260/1280.f, 595/720.f, 292/1280.f, 627/720.f, 1 );
-	Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
-	for( size_t i = 0; i < objlist.size(); ++i )
-	{
-		OSObjective& OBJ = objlist[ i ];
-		float q = i * 37;
-		objmenu.AddRadioBtn( OBJ.state == OSObjective::Hidden ? "???" : OBJ.title,
-			MCS_ObjectiveItem, 50/1280.f, (170+q)/720.f, 500/1280.f, (207+q)/720.f, 0, i );
-	}
-	objmenu.SelectInGroup( 0, 0 );
-	selected_objective = objlist[ 0 ];
+	ReloadObjMenu();
 	
 	Game_ShowCursor( true );
 	notfirst = false;
@@ -343,15 +343,42 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 	// OBJECTIVE MENU
 	if( show_objectives )
 	{
+		Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
 		int sel = objmenu.OnEvent( e );
-		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_UP )
-			sel = objmenu.SelectPrevInGroup( 0 );
-		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_DOWN )
-			sel = objmenu.SelectNextInGroup( 0 );
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_UP ) sel = ScrollObjMenu( -1 );
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_DOWN ) sel = ScrollObjMenu( 1 );
+		if( e.type == SDL_MOUSEWHEEL && e.wheel.y != 0 )
+		{
+			if( e.wheel.y > 0 )
+			{
+				firstobj = TMAX( 0, firstobj - 1 );
+				ReloadObjMenu();
+			}
+			else
+			{
+				firstobj = TMIN( firstobj + 1, (int) objlist.size() - 11 );
+				ReloadObjMenu();
+			}
+		}
 		if( sel >= 0 )
 		{
-			Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
-			selected_objective = objlist[ objmenu.controls[ sel ].id ];
+			int cid = objmenu.controls[ sel ].id;
+			
+			if( objmenu.controls[ sel ].group == 0 )
+			{
+				selobj_id = cid;
+				selected_objective = objlist[ selobj_id ];
+			}
+			if( cid == PMS_OBJ_SCROLLUP )
+			{
+				firstobj = TMAX( 0, firstobj - 1 );
+				ReloadObjMenu();
+			}
+			if( cid == PMS_OBJ_SCROLLDN )
+			{
+				firstobj = TMIN( firstobj + 1, (int) objlist.size() - 11 );
+				ReloadObjMenu();
+			}
 		}
 	}
 	
@@ -398,20 +425,23 @@ bool TSPauseMenuScreen::Draw( float delta )
 		// icons
 		GR2D_SetFont( "tsicons", objmenu.GetMinw() * 32 / 720.f );
 		Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
-		for( size_t i = 0; i < objlist.size(); ++i )
+		for( int i = firstobj; i < TMIN( (int) objlist.size(), firstobj + 11 ); ++i )
 		{
 			OSObjective& OBJ = objlist[ i ];
-			float q = i * 37;
+			
+			float q = ( i - firstobj ) * 37;
 			br.Reset();
+			uint8_t c_a = i == selobj_id ? 255 : 192;
 			if( OBJ.required )
 			{
+				br.Colb( 100, 119, 223, c_a );
 				GR2D_DrawTextLine( round(objmenu.IX(438/1280.f)),
 					round(objmenu.IY((190+q)/720.f)),
 					"\x14", HALIGN_CENTER, VALIGN_CENTER );
 			}
-			if( OBJ.hasLocation )
+			if( OBJ.hasLocation && OBJ.state != OSObjective::Hidden )
 			{
-				br.Colb( 55, 162, 46 );
+				br.Colb( 55, 162, 46, c_a );
 				GR2D_DrawTextLine( round(objmenu.IX(480/1280.f)),
 					round(objmenu.IY((190+q)/720.f)),
 					"\x15", HALIGN_CENTER, VALIGN_CENTER );
@@ -426,24 +456,59 @@ bool TSPauseMenuScreen::Draw( float delta )
 			"Location", HALIGN_LEFT, VALIGN_CENTER );
 		
 		GR2D_SetFont( "mono", objmenu.GetMinw() * 20 / 720.f );
-		// draw objective title and description
+		// draw objective title, description, state, info
 		{
+			OSObjective& OBJ = selected_objective;
+			
 			StringView title = "???", desc = "Objective not discovered yet.";
-			if( selected_objective.state != OSObjective::Hidden )
+			if( OBJ.state != OSObjective::Hidden )
 			{
-				title = selected_objective.title;
-				desc = selected_objective.desc;
+				title = OBJ.title;
+				desc = OBJ.desc;
 			}
 			
 			br.Reset();
 			GR2D_DrawTextLine( round(objmenu.IX(530/1280.f)), round(objmenu.IY(190/720.f)),
 				title, HALIGN_LEFT, VALIGN_CENTER );
-			if( selected_objective.state == OSObjective::Hidden )
+			if( OBJ.state == OSObjective::Hidden )
 				br.Col( 0.7f, 1 );
 			GR2D_DrawTextLine( round(objmenu.IX(530/1280.f)), round(objmenu.IY(240/720.f)),
 				desc, HALIGN_LEFT, VALIGN_CENTER );
+			
+			// state
+			br.Col( 1, 0.5f );
+			StringView status;
+			if( OBJ.state == OSObjective::Open ) status = "IN PROGRESS";
+			else if( OBJ.state == OSObjective::Done ) status = "DONE";
+			else if( OBJ.state == OSObjective::Failed ) status = "FAILED";
+			else if( OBJ.state == OSObjective::Cancelled ) status = "CANCELLED";
+			GR2D_DrawTextLine( round(objmenu.IX(1130/1280.f)), round(objmenu.IY(190/720.f)),
+				status, HALIGN_RIGHT, VALIGN_CENTER );
+			
+			// icons
+			GR2D_SetFont( "tsicons", objmenu.GetMinw() * 32 / 720.f );
+			
+			if( OBJ.required )
+				br.Colb( 100, 119, 223 );
+			else
+				br.Col( 0.5f, 0.5f );
+			GR2D_DrawTextLine( round(objmenu.IX(1154/1280.f)),
+				round(objmenu.IY(190/720.f)),
+				"\x16", HALIGN_CENTER, VALIGN_CENTER );
+			
+			if( OBJ.state != OSObjective::Hidden )
+			{
+				if( OBJ.hasLocation )
+					br.Colb( 55, 162, 46 );
+				else
+					br.Col( 0.5f, 0.5f );
 				
+				GR2D_DrawTextLine( round(objmenu.IX(1194/1280.f)),
+					round(objmenu.IY(190/720.f)),
+					"\x17", HALIGN_CENTER, VALIGN_CENTER );
+			}
 		}
+		GR2D_SetFont( "mono", objmenu.GetMinw() * 20 / 720.f );
 		// draw "in progress"
 		{
 			char bfr[32];
@@ -503,6 +568,83 @@ bool TSPauseMenuScreen::Draw( float delta )
 	}
 	
 	return false;
+}
+
+void TSPauseMenuScreen::ReloadObjMenu()
+{
+	Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+	selobj_id = TMIN( (int) objlist.size() - 1,
+		TMIN( firstobj + 11 - 1, TMAX( firstobj, selobj_id ) ) );
+	
+	objmenu.Clear();
+	if( objlist.size() > 11 )
+	{
+		if( firstobj > 0 )
+		{
+			objmenu.AddButton( "\x12", MCS_ObjectiveIconLink,
+				260/1280.f, 130/720.f, 292/1280.f, 162/720.f, PMS_OBJ_SCROLLUP );
+		}
+		if( firstobj < (int)objlist.size() - 11 )
+		{
+			objmenu.AddButton( "\x13", MCS_ObjectiveIconLink,
+				260/1280.f, 595/720.f, 292/1280.f, 627/720.f, PMS_OBJ_SCROLLDN );
+		}
+	}
+	for( int i = firstobj; i < TMIN( (int) objlist.size(), firstobj + 11 ); ++i )
+	{
+		OSObjective& OBJ = objlist[ i ];
+		float q = ( i - firstobj ) * 37;
+		objmenu.AddRadioBtn( OBJ.state == OSObjective::Hidden ? "???" : OBJ.title,
+			OBJ.state == OSObjective::Done ? MCS_ObjectiveItemDone : MCS_ObjectiveItem,
+			50/1280.f, (170+q)/720.f, 500/1280.f, (207+q)/720.f, 0, i );
+	}
+	objmenu.SelectInGroup( 0, selobj_id - firstobj );
+	objmenu.ReselectHL();
+	selected_objective = objlist[ selobj_id ];
+}
+
+int TSPauseMenuScreen::ScrollObjMenu( int amount )
+{
+	int sel = -1;
+	Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+	while( amount != 0 )
+	{
+		if( amount < 0 )
+		{
+			if( selobj_id == firstobj )
+			{
+				firstobj--;
+				selobj_id--;
+				if( firstobj < 0 )
+				{
+					firstobj = objlist.size() - 11;
+					selobj_id = objlist.size() - 1;
+				}
+				ReloadObjMenu();
+			}
+			else
+				sel = objmenu.SelectPrevInGroup( 0 );
+		}
+		else // amount > 0
+		{
+			if( selobj_id == firstobj + 11 - 1 )
+			{
+				firstobj++;
+				selobj_id++;
+				if( firstobj > (int) objlist.size() - 11 )
+				{
+					firstobj = 0;
+					selobj_id = 0;
+				}
+				ReloadObjMenu();
+			}
+			else
+				sel = objmenu.SelectNextInGroup( 0 );
+		}
+		
+		amount -= amount > 0 ? 1 : -1;
+	}
+	return sel;
 }
 
 

@@ -93,6 +93,7 @@ struct ScreenMenu
 	int OnEvent( const Event& e );
 	void Draw( float delta );
 	void FindHL( float x, float y );
+	void ReselectHL(){ FindHL( m_mouseX, m_mouseY ); }
 	void RecalcSize( float w, float h, float aspect = 1.0f );
 	void AddButton( const StringView& caption, int style, float x0, float y0, float x1, float y1, int id = 0 );
 	void AddRadioBtn( const StringView& caption, int style, float x0, float y0, float x1, float y1, int group, int id = 0 );
