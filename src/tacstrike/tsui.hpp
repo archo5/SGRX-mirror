@@ -80,6 +80,7 @@ struct TSPauseMenuScreen : IScreen
 	ScreenMenu pausemenu;
 	ScreenMenu objmenu;
 	bool show_objectives;
+	OSObjective selected_objective;
 };
 
 

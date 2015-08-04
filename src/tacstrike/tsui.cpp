@@ -264,9 +264,10 @@ void TSPauseMenuScreen::OnStart()
 		OSObjective& OBJ = objlist[ i ];
 		float q = i * 37;
 		objmenu.AddRadioBtn( OBJ.state == OSObjective::Hidden ? "???" : OBJ.title,
-			MCS_ObjectiveItem, 50/1280.f, (170+q)/720.f, 500/1280.f, (207+q)/720.f, 0 );
+			MCS_ObjectiveItem, 50/1280.f, (170+q)/720.f, 500/1280.f, (207+q)/720.f, 0, i );
 	}
 	objmenu.SelectInGroup( 0, 0 );
+	selected_objective = objlist[ 0 ];
 	
 	Game_ShowCursor( true );
 	notfirst = false;
@@ -347,6 +348,11 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 			sel = objmenu.SelectPrevInGroup( 0 );
 		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_DOWN )
 			sel = objmenu.SelectNextInGroup( 0 );
+		if( sel >= 0 )
+		{
+			Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+			selected_objective = objlist[ objmenu.controls[ sel ].id ];
+		}
 	}
 	
 	notfirst = true;
@@ -389,6 +395,30 @@ bool TSPauseMenuScreen::Draw( float delta )
 			objmenu.IX(510.0f/1280.0f), objmenu.IY(170.0f/720.0f),
 			objmenu.IX(514.0f/1280.0f), objmenu.IY(590.0f/720.0f) );
 		
+		// icons
+		GR2D_SetFont( "tsicons", objmenu.GetMinw() * 32 / 720.f );
+		Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+		for( size_t i = 0; i < objlist.size(); ++i )
+		{
+			OSObjective& OBJ = objlist[ i ];
+			float q = i * 37;
+			br.Reset();
+			if( OBJ.required )
+			{
+				GR2D_DrawTextLine( round(objmenu.IX(438/1280.f)),
+					round(objmenu.IY((190+q)/720.f)),
+					"\x14", HALIGN_CENTER, VALIGN_CENTER );
+			}
+			if( OBJ.hasLocation )
+			{
+				br.Colb( 55, 162, 46 );
+				GR2D_DrawTextLine( round(objmenu.IX(480/1280.f)),
+					round(objmenu.IY((190+q)/720.f)),
+					"\x15", HALIGN_CENTER, VALIGN_CENTER );
+			}
+		}
+		
+		br.Reset();
 		GR2D_SetFont( "mono", objmenu.GetMinw() * 16 / 720.f );
 		GR2D_DrawTextLine( round(objmenu.IX(426/1280.f)), round(objmenu.IY(121/720.f)),
 			"Required", HALIGN_LEFT, VALIGN_CENTER );
@@ -396,6 +426,24 @@ bool TSPauseMenuScreen::Draw( float delta )
 			"Location", HALIGN_LEFT, VALIGN_CENTER );
 		
 		GR2D_SetFont( "mono", objmenu.GetMinw() * 20 / 720.f );
+		// draw objective title and description
+		{
+			StringView title = "???", desc = "Objective not discovered yet.";
+			if( selected_objective.state != OSObjective::Hidden )
+			{
+				title = selected_objective.title;
+				desc = selected_objective.desc;
+			}
+			
+			br.Reset();
+			GR2D_DrawTextLine( round(objmenu.IX(530/1280.f)), round(objmenu.IY(190/720.f)),
+				title, HALIGN_LEFT, VALIGN_CENTER );
+			if( selected_objective.state == OSObjective::Hidden )
+				br.Col( 0.7f, 1 );
+			GR2D_DrawTextLine( round(objmenu.IX(530/1280.f)), round(objmenu.IY(240/720.f)),
+				desc, HALIGN_LEFT, VALIGN_CENTER );
+				
+		}
 		// draw "in progress"
 		{
 			char bfr[32];

@@ -46,7 +46,7 @@ static int ObjectiveAdd( SGS_CTX )
 		(OSObjective::State) sgs_GetVar<int>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
 		sgs_GetVar<bool>()( C, 3 ),
-		sgs_TypeOf( C, 4 ) == SGS_VT_NULL ? NULL : &loc
+		sgs_ItemType( C, 4 ) == SGS_VT_NULL ? NULL : &loc
 	) );
 	return 1;
 }
