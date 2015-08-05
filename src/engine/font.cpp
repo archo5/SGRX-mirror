@@ -343,6 +343,26 @@ float FontRenderer::GetTextWidth( const StringView& text )
 	return rv;
 }
 
+float FontRenderer::GetAdvanceX( uint32_t cpprev, uint32_t cpcurr )
+{
+	if( m_currentFont == NULL )
+		return 0;
+	
+	GlyphCache::Node* prevnode = cpprev != 0 ? _GetGlyph( cpprev ) : NULL;
+	GlyphCache::Node* currnode = _GetGlyph( cpcurr );
+	if( !currnode )
+		return 0;
+	
+	float adv = currnode->key.info.advx;
+	if( prevnode )
+	{
+		adv += m_currentFont->GetKerning(
+			prevnode->key.info.glyph_kern_id,
+			currnode->key.info.glyph_kern_id );
+	}
+	return adv;
+}
+
 
 FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( uint32_t ch )
 {

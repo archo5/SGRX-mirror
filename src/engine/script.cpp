@@ -216,6 +216,7 @@ void ScriptContext::Reset()
 {
 	if( C ) sgs_DestroyEngine( C );
 	C = sgs_CreateEngine();
+	sgs_LoadLib_String( C );
 	sgs_LoadLib_Math( C );
 	xgm_module_entry_point( C );
 	sgrx_math_lib( C );

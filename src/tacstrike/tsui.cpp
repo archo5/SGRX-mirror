@@ -472,8 +472,11 @@ bool TSPauseMenuScreen::Draw( float delta )
 				title, HALIGN_LEFT, VALIGN_CENTER );
 			if( OBJ.state == OSObjective::Hidden )
 				br.Col( 0.7f, 1 );
-			GR2D_DrawTextLine( round(objmenu.IX(530/1280.f)), round(objmenu.IY(240/720.f)),
-				desc, HALIGN_LEFT, VALIGN_CENTER );
+		//	GR2D_DrawTextLine( round(objmenu.IX(530/1280.f)), round(objmenu.IY(240/720.f)),
+		//		desc, HALIGN_LEFT, VALIGN_CENTER );
+			GR2D_DrawTextRect( objmenu.IX(530/1280.f), objmenu.IY(230/720.f),
+				objmenu.IX(1210/1280.f), objmenu.IY(590/720.f),
+				desc, HALIGN_LEFT, VALIGN_TOP );
 			
 			// state
 			br.Col( 1, 0.5f );
@@ -600,7 +603,13 @@ void TSPauseMenuScreen::ReloadObjMenu()
 	}
 	objmenu.SelectInGroup( 0, selobj_id - firstobj );
 	objmenu.ReselectHL();
-	selected_objective = objlist[ selobj_id ];
+	if( selobj_id >= 0 )
+		selected_objective = objlist[ selobj_id ];
+	else
+	{
+		selected_objective.state = OSObjective::Hidden;
+		selected_objective.required = false;
+	}
 }
 
 int TSPauseMenuScreen::ScrollObjMenu( int amount )

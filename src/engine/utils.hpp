@@ -1725,6 +1725,20 @@ ENGINE_EXPORT Vec4 String_ParseVec4( const StringView& sv, bool* success = NULL 
 ENGINE_EXPORT int UTF8Decode( const char* buf, size_t size, uint32_t* outchar );
 ENGINE_EXPORT int UTF8Encode( uint32_t ch, char* out );
 
+struct UTF8Iterator
+{
+	UTF8Iterator( const StringView& text ) :
+		offset(0), codepoint(0), m_nextoff(0), m_text(text){}
+	bool Advance();
+	void SetOffset( size_t off );
+	
+	size_t offset;
+	uint32_t codepoint;
+	
+	size_t m_nextoff;
+	StringView m_text;
+};
+
 
 //
 // HASH TABLE

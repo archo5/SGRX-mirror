@@ -1116,6 +1116,12 @@ struct SGRX_FontSettings
 	String font;
 	int size;
 	float letterspacing;
+	float lineheight; // +px, -size factor
+	
+	float CalcLineHeight() const
+	{
+		return lineheight >= 0 ? lineheight : -lineheight * size;
+	}
 };
 
 struct SGRX_GlyphInfo
@@ -1175,6 +1181,8 @@ ENGINE_EXPORT FontHandle GR2D_GetFont( const StringView& key );
 ENGINE_EXPORT void GR2D_GetFontSettings( SGRX_FontSettings* settings );
 ENGINE_EXPORT void GR2D_SetFontSettings( SGRX_FontSettings* settings );
 ENGINE_EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );
+ENGINE_EXPORT void GR2D_SetLetterSpacing( float lsp );
+ENGINE_EXPORT void GR2D_SetLineHeight( float lht );
 ENGINE_EXPORT void GR2D_SetTextCursor( const Vec2& pos );
 inline void GR2D_SetTextCursor( float x, float y ){ GR2D_SetTextCursor( V2( x, y ) ); }
 ENGINE_EXPORT Vec2 GR2D_GetTextCursor();
@@ -1189,6 +1197,8 @@ ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 #define VALIGN_BOTTOM 2
 ENGINE_EXPORT int GR2D_DrawTextLine( const StringView& text, int halign, int valign );
 ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign );
+ENGINE_EXPORT void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
+	const StringView& text, int halign, int valign );
 
 ENGINE_EXPORT BatchRenderer& GR2D_GetBatchRenderer();
 

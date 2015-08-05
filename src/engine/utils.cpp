@@ -1324,6 +1324,23 @@ int UTF8Encode( uint32_t ch, char* out )
 	return 0;
 }
 
+bool UTF8Iterator::Advance()
+{
+	offset = m_nextoff;
+	StringView curchr = m_text.part( m_nextoff );
+	codepoint = 0;
+	int ret = UTF8Decode( curchr.data(), curchr.size(), &codepoint );
+	ret = abs( ret );
+	m_nextoff += ret;
+	return ret != 0;
+}
+
+void UTF8Iterator::SetOffset( size_t off )
+{
+	offset = off;
+	m_nextoff = off;
+}
+
 
 Hash HashFunc( const char* str, size_t size )
 {
