@@ -34,9 +34,14 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	
 	void LightMesh( MeshInstHandle mih, Vec3 off = V3(0) );
 	
+	TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
+	TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
+	
 	// UTILITIES
 	ScriptContext m_scriptCtx;
 	uint32_t m_nameIDGen;
+	double m_currentTickTime;
+	double m_currentPhyTime;
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entNameMap;

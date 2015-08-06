@@ -200,6 +200,8 @@ static int InitGameAPI( SGS_CTX )
 
 GameLevel::GameLevel() :
 	m_nameIDGen( 0 ),
+	m_currentTickTime( 0 ),
+	m_currentPhyTime( 0 ),
 	m_bulletSystem( &m_damageSystem ),
 	m_paused( false ),
 	m_endFactor( -1 ),
@@ -415,6 +417,8 @@ bool GameLevel::Load( const StringView& levelname )
 
 void GameLevel::ClearLevel()
 {
+	m_currentTickTime = 0;
+	m_currentPhyTime = 0;
 	EndLevel();
 	m_ltSamples.SetSamples( NULL, 0 );
 	m_damageSystem.Clear();
@@ -669,6 +673,8 @@ StackShortName GameLevel::GenerateName()
 
 void GameLevel::StartLevel()
 {
+	m_currentTickTime = 0;
+	m_currentPhyTime = 0;
 	m_endFactor = -1;
 	m_cameraInfoCached = false;
 	m_levelTime = 0;
@@ -703,6 +709,7 @@ void GameLevel::FixedTick( float deltaTime )
 {
 	if( !m_paused )
 	{
+		m_currentTickTime += deltaTime;
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->FixedTick( deltaTime );
 		if( m_player )
@@ -730,6 +737,8 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	
 	if( !m_paused )
 	{
+		m_currentPhyTime += deltaTime;
+		
 		if( m_player )
 			m_player->Tick( deltaTime, blendFactor );
 		for( size_t i = 0; i < m_entities.size(); ++i )

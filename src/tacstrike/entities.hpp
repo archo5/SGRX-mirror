@@ -591,6 +591,47 @@ struct TSPlayer : TSCharacter
 	bool HasItem( const StringView& item, int count = 1 );
 };
 
+struct TSFactStorage
+{
+	enum FactType
+	{
+		FT_Unknown = 0,
+		FT_Sound_Noise,
+		FT_Sound_Footstep,
+		FT_Sight_ObjectState,
+		FT_Sight_Friend,
+		FT_Sight_Foe,
+		FT_Position_Friend,
+		FT_Position_Foe,
+	};
+	
+	struct Fact
+	{
+		uint32_t id;
+		uint32_t ref;
+		FactType type;
+		Vec3 position;
+		TimeVal created;
+		TimeVal expires;
+	};
+	
+	TSFactStorage();
+	void Process( TimeVal curTime );
+	void Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	bool Update( FactType type, Vec3 pos, float rad,
+		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	void InsertOrUpdate( FactType type, Vec3 pos, float rad,
+		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	bool MovingUpdate( FactType type, Vec3 pos, float movespeed,
+		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	void MovingInsertOrUpdate( FactType type, Vec3 pos, float movespeed,
+		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	
+	Array< Fact > facts;
+	uint32_t last_mod_id;
+	uint32_t m_next_fact_id;
+};
+
 struct TSEnemy : TSCharacter
 {
 	TSTaskArray m_patrolTasks;
@@ -604,6 +645,7 @@ struct TSEnemy : TSCharacter
 	float m_turnAngleEnd;
 	
 	sgsVariable m_enemyState;
+	TSFactStorage m_factStorage;
 	
 	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir );
 	~TSEnemy();

@@ -12,6 +12,13 @@
 
 
 
+typedef uint32_t TimeVal;
+typedef uint32_t EntityID;
+
+#define ENTID_NONE ((EntityID)0)
+
+
+
 //
 // GLOBAL INTERFACE
 //

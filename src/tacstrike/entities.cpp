@@ -1247,6 +1247,105 @@ bool TSPlayer::HasItem( const StringView& item, int count )
 }
 
 
+TSFactStorage::TSFactStorage() : last_mod_id(0), m_next_fact_id(1)
+{
+}
+
+static int sort_facts_desc( const void* pa, const void* pb )
+{
+	SGRX_CAST( TSFactStorage::Fact*, fa, pa );
+	SGRX_CAST( TSFactStorage::Fact*, fb, pb );
+	if( fa->created == fb->created ) return 0;
+	return fa->created < fb->created ? 1 : -1; // desc
+}
+
+void TSFactStorage::Process( TimeVal curTime )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( facts[ i ].expires < curTime )
+		{
+			facts.uerase( i-- );
+			break;
+		}
+	}
+	
+	// TODO sort descending and remove last over limit
+	if( facts.size() > 256 )
+	{
+		qsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_desc );
+		facts.resize( 256 );
+	}
+}
+
+void TSFactStorage::Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
+{
+	Fact F = { m_next_fact_id++, ref, type, pos, created, expires };
+	printf( "FACT: type %d, pos: %g;%g;%g, created: %d, expires: %d\n",
+		(int)type, pos.x,pos.y,pos.z, (int)created, (int)expires );
+	facts.push_back( F );
+	last_mod_id = F.id;
+}
+
+bool TSFactStorage::Update( FactType type, Vec3 pos, float rad,
+	TimeVal created, TimeVal expires, uint32_t ref )
+{
+	float rad2 = rad * rad;
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( facts[ i ].type == type &&
+			( facts[ i ].position - pos ).LengthSq() < rad2 )
+		{
+			facts[ i ].position = pos;
+			facts[ i ].created = created;
+			facts[ i ].expires = expires;
+			facts[ i ].ref = ref;
+			last_mod_id = facts[ i ].id;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+void TSFactStorage::InsertOrUpdate( FactType type, Vec3 pos, float rad,
+	TimeVal created, TimeVal expires, uint32_t ref )
+{
+	if( Update( type, pos, rad, created, expires, ref ) == false )
+		Insert( type, pos, created, expires, ref );
+}
+
+bool TSFactStorage::MovingUpdate( FactType type, Vec3 pos, float movespeed,
+	TimeVal created, TimeVal expires, uint32_t ref )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( facts[ i ].type != type )
+			continue;
+		
+		float rad = ( created - facts[ i ].created ) * 0.001f * movespeed;
+		if( ( facts[ i ].position - pos ).LengthSq() < rad * rad )
+		{
+			facts[ i ].position = pos;
+			facts[ i ].created = created;
+			facts[ i ].expires = expires;
+			facts[ i ].ref = ref;
+			last_mod_id = facts[ i ].id;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+void TSFactStorage::MovingInsertOrUpdate( FactType type, Vec3 pos, float movespeed,
+	TimeVal created, TimeVal expires, uint32_t ref )
+{
+	if( MovingUpdate( type, pos, movespeed, created, expires, ref ) == false )
+		Insert( type, pos, created, expires, ref );
+}
+
+
 TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir ) :
 	TSCharacter( pos, dir ),
 	m_taskTimeout( 0 ), m_curTaskID( 0 ), m_curTaskMode( false ), m_turnAngleStart(0), m_turnAngleEnd(0)
@@ -1282,6 +1381,28 @@ TSEnemy::~TSEnemy()
 		m_enemyState.thiscall( "destroy" );
 	}
 }
+
+struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
+{
+	bool Process( Entity* ent, const InfoEmissionSystem::Data& data )
+	{
+		// TODO time-based radius, friendlies
+		TSFactStorage& FS = enemy->m_factStorage;
+		
+		// fact of seeing
+		FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Foe,
+			data.pos, 10, curtime, curtime + 5*1000 );
+		
+		// fact of position
+		FS.MovingInsertOrUpdate( TSFactStorage::FT_Position_Foe,
+			data.pos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
+		
+		return true;
+	}
+	
+	TimeVal curtime;
+	TSEnemy* enemy;
+};
 
 void TSEnemy::FixedTick( float deltaTime )
 {
@@ -1320,6 +1441,15 @@ void TSEnemy::FixedTick( float deltaTime )
 			UpdateTask();
 		}
 	}
+	
+	// process facts
+	m_factStorage.Process( g_GameLevel->GetPhyTime() );
+	printf( "fact count: %d\n", (int)m_factStorage.facts.size() );
+	
+	IESEnemyViewProc evp;
+	evp.curtime = g_GameLevel->GetPhyTime();
+	evp.enemy = this;
+	g_GameLevel->m_infoEmitters.QuerySphereAll( &evp, GetPosition(), 10.0f, IEST_Player );
 	
 	// tick ESO
 	{
