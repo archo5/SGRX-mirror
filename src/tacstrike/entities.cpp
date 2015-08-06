@@ -1291,8 +1291,8 @@ void TSFactStorage::Process( TimeVal curTime )
 void TSFactStorage::Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
 {
 	Fact F = { m_next_fact_id++, ref, type, pos, created, expires };
-	printf( "INSERT FACT: type %d, pos: %g;%g;%g, created: %d, expires: %d\n",
-		(int)type, pos.x,pos.y,pos.z, (int)created, (int)expires );
+//	printf( "INSERT FACT: type %d, pos: %g;%g;%g, created: %d, expires: %d\n",
+//		(int)type, pos.x,pos.y,pos.z, (int)created, (int)expires );
 	facts.push_back( F );
 	last_mod_id = F.id;
 }
@@ -1467,7 +1467,6 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	// process facts
 	m_factStorage.Process( g_GameLevel->GetPhyTime() );
-	printf( "fact count: %d\n", (int)m_factStorage.facts.size() );
 	
 	IESEnemyViewProc evp;
 	evp.curtime = g_GameLevel->GetPhyTime();
@@ -1592,6 +1591,17 @@ void TSEnemy::DebugDrawUI()
 	GR2D_SetFont( "mono", 12 );
 	
 	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
+	sgrx_snprintf( bfr, 256, "count: %d, mod id: %d, next: %d",
+		int(m_factStorage.facts.size()), int(m_factStorage.last_mod_id),
+		int(m_factStorage.m_next_fact_id) );
+	
+	int len = GR2D_GetTextLength( bfr );
+	br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
+	br.Col( 1.0f );
+	GR2D_DrawTextLine( x, y, bfr );
+	
+	y += 13;
+	
 	for( size_t i = 0; i < count; ++i )
 	{
 		TSFactStorage::Fact& F = m_factStorage.facts[ i ];
@@ -1599,17 +1609,18 @@ void TSEnemy::DebugDrawUI()
 		switch( F.type )
 		{
 		case TSFactStorage::FT_Unknown: type = "unknown"; break;
-		case TSFactStorage::FT_Sound_Noise: type = "sound-noise"; break;
-		case TSFactStorage::FT_Sound_Footstep: type = "sound-footstep"; break;
-		case TSFactStorage::FT_Sight_ObjectState: type = "sight-object-state"; break;
+		case TSFactStorage::FT_Sound_Noise: type = "snd-noise"; break;
+		case TSFactStorage::FT_Sound_Footstep: type = "snd-step"; break;
+		case TSFactStorage::FT_Sight_ObjectState: type = "sight-state"; break;
 		case TSFactStorage::FT_Sight_Friend: type = "sight-friend"; break;
 		case TSFactStorage::FT_Sight_Foe: type = "sight-foe"; break;
 		case TSFactStorage::FT_Position_Friend: type = "pos-friend"; break;
 		case TSFactStorage::FT_Position_Foe: type = "pos-foe"; break;
 		}
 		
-		sgrx_snprintf( bfr, 256, "Fact <%s> at %g;%g;%g created: %d, expires: %d",
-			type, F.position.x, F.position.y, F.position.z, int(F.created), int(F.expires) );
+		sgrx_snprintf( bfr, 256, "Fact #%d (ref=%d) <%s> @ %.4g;%.4g;%.4g cr: %d, exp: %d",
+			int(F.id), int(F.ref), type, F.position.x, F.position.y, F.position.z,
+			int(F.created), int(F.expires) );
 		
 		int len = GR2D_GetTextLength( bfr );
 		br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
