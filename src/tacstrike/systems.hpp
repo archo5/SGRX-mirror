@@ -107,6 +107,8 @@ struct Entity
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
 	virtual bool CanInterruptAction( float progress ){ return false; }
 	virtual bool GetMapItemInfo( MapItemInfo* out ){ return false; }
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
 };
 
 typedef Array< Entity* > EntityArray;

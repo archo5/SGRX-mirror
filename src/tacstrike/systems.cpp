@@ -129,7 +129,7 @@ void MessagingSystem::Tick( float dt )
 void MessagingSystem::DrawUI()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
-	GR2D_SetFont( "fonts/lato-regular.ttf", 16 );
+	GR2D_SetFont( "core", 16 );
 	
 	float y = 0;
 	
@@ -215,7 +215,7 @@ void ObjectiveSystem::DrawUI()
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
 	BatchRenderer& br = GR2D_GetBatchRenderer();
-	GR2D_SetFont( "fonts/lato-regular.ttf", 16 );
+	GR2D_SetFont( "core", 16 );
 	
 	br.Reset();
 	br.Col( 0, 0.5f * m_alpha );

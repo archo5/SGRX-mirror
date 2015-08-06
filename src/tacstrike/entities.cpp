@@ -1251,12 +1251,23 @@ TSFactStorage::TSFactStorage() : last_mod_id(0), m_next_fact_id(1)
 {
 }
 
-static int sort_facts_desc( const void* pa, const void* pb )
+static bool sort_facts_created_desc( const void* pa, const void* pb, void* )
 {
 	SGRX_CAST( TSFactStorage::Fact*, fa, pa );
 	SGRX_CAST( TSFactStorage::Fact*, fb, pb );
-	if( fa->created == fb->created ) return 0;
-	return fa->created < fb->created ? 1 : -1; // desc
+	return fa->created > fb->created;
+}
+
+void TSFactStorage::SortCreatedDesc()
+{
+	sgrx_combsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_created_desc, NULL );
+}
+
+static bool sort_facts_expires_desc( const void* pa, const void* pb, void* )
+{
+	SGRX_CAST( TSFactStorage::Fact*, fa, pa );
+	SGRX_CAST( TSFactStorage::Fact*, fb, pb );
+	return fa->expires > fb->expires;
 }
 
 void TSFactStorage::Process( TimeVal curTime )
@@ -1270,10 +1281,9 @@ void TSFactStorage::Process( TimeVal curTime )
 		}
 	}
 	
-	// TODO sort descending and remove last over limit
 	if( facts.size() > 256 )
 	{
-		qsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_desc );
+		sgrx_combsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_expires_desc, NULL );
 		facts.resize( 256 );
 	}
 }
@@ -1281,7 +1291,7 @@ void TSFactStorage::Process( TimeVal curTime )
 void TSFactStorage::Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
 {
 	Fact F = { m_next_fact_id++, ref, type, pos, created, expires };
-	printf( "FACT: type %d, pos: %g;%g;%g, created: %d, expires: %d\n",
+	printf( "INSERT FACT: type %d, pos: %g;%g;%g, created: %d, expires: %d\n",
 		(int)type, pos.x,pos.y,pos.z, (int)created, (int)expires );
 	facts.push_back( F );
 	last_mod_id = F.id;
@@ -1386,16 +1396,29 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 {
 	bool Process( Entity* ent, const InfoEmissionSystem::Data& data )
 	{
-		// TODO time-based radius, friendlies
+		Vec3 enemypos = data.pos + V3(0,0,1); // FIXME MAYBE?
+		
+		// verify the find
+		Vec3 vieworigin = enemy->GetPosition();
+		Vec3 viewdir = enemy->GetViewDir();
+		Vec3 view2pos = enemypos - vieworigin;
+		float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
+		if( vpdot < cosf(DEG2RAD(40.0f)) )
+			return true; // outside view cone
+		
+		if( g_PhyWorld->Raycast( vieworigin, enemypos, 1, 1 ) )
+			return true; // behind wall
+		
+		// TODO friendlies
 		TSFactStorage& FS = enemy->m_factStorage;
 		
 		// fact of seeing
 		FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Foe,
-			data.pos, 10, curtime, curtime + 5*1000 );
+			enemypos, 10, curtime, curtime + 5*1000 );
 		
 		// fact of position
 		FS.MovingInsertOrUpdate( TSFactStorage::FT_Position_Foe,
-			data.pos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
+			enemypos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
 		
 		return true;
 	}
@@ -1534,6 +1557,66 @@ void TSParseTaskArray( TSTaskArray& out, sgsVariable var )
 				ntask.timeout = p_time.get<float>();
 		}
 		out.push_back( ntask );
+	}
+}
+
+void TSEnemy::DebugDrawWorld()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
+	Vec3 pos = GetPosition();
+	
+	m_factStorage.SortCreatedDesc();
+	
+	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
+	for( size_t i = 0; i < count; ++i )
+	{
+		TSFactStorage::Fact& F = m_factStorage.facts[ i ];
+		br.SetPrimitiveType( PT_Lines );
+		br.Pos( pos ).Pos( F.position );
+		br.Tick( F.position, 0.1f );
+	}
+}
+
+void TSEnemy::DebugDrawUI()
+{
+	char bfr[ 256 ];
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	Vec3 pos = GetPosition();
+	bool infront;
+	Vec3 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( pos, &infront );
+	if( !infront )
+		return;
+	int x = screenpos.x * GR_GetWidth();
+	int y = screenpos.y * GR_GetHeight();
+	
+	GR2D_SetFont( "mono", 12 );
+	
+	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
+	for( size_t i = 0; i < count; ++i )
+	{
+		TSFactStorage::Fact& F = m_factStorage.facts[ i ];
+		const char* type = "type?";
+		switch( F.type )
+		{
+		case TSFactStorage::FT_Unknown: type = "unknown"; break;
+		case TSFactStorage::FT_Sound_Noise: type = "sound-noise"; break;
+		case TSFactStorage::FT_Sound_Footstep: type = "sound-footstep"; break;
+		case TSFactStorage::FT_Sight_ObjectState: type = "sight-object-state"; break;
+		case TSFactStorage::FT_Sight_Friend: type = "sight-friend"; break;
+		case TSFactStorage::FT_Sight_Foe: type = "sight-foe"; break;
+		case TSFactStorage::FT_Position_Friend: type = "pos-friend"; break;
+		case TSFactStorage::FT_Position_Foe: type = "pos-foe"; break;
+		}
+		
+		sgrx_snprintf( bfr, 256, "Fact <%s> at %g;%g;%g created: %d, expires: %d",
+			type, F.position.x, F.position.y, F.position.z, int(F.created), int(F.expires) );
+		
+		int len = GR2D_GetTextLength( bfr );
+		br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
+		br.Col( 1.0f );
+		GR2D_DrawTextLine( x, y, bfr );
+		
+		y += 13;
 	}
 }
 

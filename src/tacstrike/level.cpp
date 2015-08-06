@@ -904,11 +904,17 @@ void GameLevel::Draw2D()
 		br.Reset().SetTexture( m_tex_mapframe ).Quad( x0 - msm, y0 - msm, x1 + msm, y1 + msm ).Flush();
 	}
 #endif
+	
+	for( size_t i = 0; i < m_entities.size(); ++i )
+		m_entities[ i ]->DebugDrawUI();
 }
 
 void GameLevel::DebugDraw()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	for( size_t i = 0; i < m_entities.size(); ++i )
+		m_entities[ i ]->DebugDrawWorld();
 	
 	return;
 	br.Reset().Col( 0, 1, 0 );

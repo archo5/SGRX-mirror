@@ -616,6 +616,7 @@ struct TSFactStorage
 	};
 	
 	TSFactStorage();
+	void SortCreatedDesc();
 	void Process( TimeVal curTime );
 	void Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
 	bool Update( FactType type, Vec3 pos, float rad,
@@ -653,6 +654,8 @@ struct TSEnemy : TSCharacter
 	void Tick( float deltaTime, float blendFactor );
 	void UpdateTask();
 	bool GetMapItemInfo( MapItemInfo* out );
+	void DebugDrawWorld();
+	void DebugDrawUI();
 };
 
 #endif
