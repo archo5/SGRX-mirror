@@ -449,6 +449,13 @@ struct SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
 	SurfaceShaderHandle( SGRX_SurfaceShader* shdr ) : Handle( shdr ){}
 };
 
+#define MFL_UNLIT    0x01
+#define MFL_NOCULL   0x02
+#define MBM_NONE     0
+#define MBM_BASIC    1 // alpha blending
+#define MBM_ADDITIVE 2
+#define MBM_MULTIPLY 3
+
 #define NUM_MATERIAL_TEXTURES 8
 struct SGRX_Material : SGRX_RCRsrc
 {
@@ -458,9 +465,8 @@ struct SGRX_Material : SGRX_RCRsrc
 	SurfaceShaderHandle shader;
 	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
 	
-	uint32_t transparent : 1;
-	uint32_t unlit : 1;
-	uint32_t additive : 1;
+	uint8_t flags;
+	uint8_t blendMode;
 };
 
 struct MaterialHandle : Handle< SGRX_Material >
@@ -488,10 +494,10 @@ struct SGRX_Scene;
 #define MDF_INDEX_32      0x01
 #define MDF_TRIANGLESTRIP 0x02
 #define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
-#define MDF_NOCULL        0x40 /* mesh has culling disabled */
 #define MDF_SKINNED       0x80 /* mesh has bone data (name, offset, parent id) */
+#define MDF_MTLINFO      0x100 /* mesh has material info (flags, blend mode) */
 
-#define MDF__PUBFLAGMASK (0x01|0x02|0x10|0x20|0x40|0x80)
+#define MDF__PUBFLAGMASK (0x01|0x02|0x80|0x100)
 #define MDF__PUBFLAGBASE  0
 
 #define MAX_MESH_BONES 64

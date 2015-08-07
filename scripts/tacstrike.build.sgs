@@ -4,6 +4,7 @@ directory( "../data-tacstrike" );
 // convex point sets
 process( ["meshproc", "--convex", "-i", "$IN", "-o", "$OUT"], {
 	"meshes/woodbox1.ssm" = "meshes/woodbox1.cps",
+	"meshes/window1.ssm" = "meshes/window1.cps",
 });
 
 // textures

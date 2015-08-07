@@ -202,7 +202,7 @@ void EdPatch::RegenerateMesh()
 		LI.cached_meshinst->decal = true;
 		
 		MaterialHandle mh = GR_CreateMaterial();
-		mh->transparent = true;
+		mh->blendMode = MBM_BASIC;
 		mh->shader = GR_GetSurfaceShader( "default" );
 		mh->textures[ 0 ] = LI.cached_texture;
 		

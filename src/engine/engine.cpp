@@ -1088,7 +1088,7 @@ void SGRX_SurfaceShader::ReloadShaders()
 
 
 SGRX_Material::SGRX_Material() :
-	transparent(0), unlit(0), additive(0)
+	flags(0), blendMode(0)
 {
 }
 
@@ -2314,6 +2314,8 @@ MeshHandle GR_GetMesh( const StringView& path )
 		// LOAD MATERIAL
 		//
 		MaterialHandle mh = GR_CreateMaterial();
+		mh->flags = mfd.parts[ i ].flags;
+		mh->blendMode = mfd.parts[ i ].blendMode;
 		if( mfd.parts[ i ].materialStringSizes[0] >= SHADER_NAME_LENGTH )
 		{
 			LOG_WARNING << "Shader name for part " << i << " is too long";

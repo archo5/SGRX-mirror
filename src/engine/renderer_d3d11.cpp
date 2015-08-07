@@ -1844,7 +1844,7 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 				if( !SSH )
 					continue;
 				
-				bool transparent = MI->transparent || MTL->transparent;
+				bool transparent = MI->transparent || MTL->blendMode != 0;
 				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 					continue;
 				

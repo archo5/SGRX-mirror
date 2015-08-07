@@ -259,7 +259,14 @@ const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out )
 	{
 		MeshFilePartData* pout = out->parts + p;
 		memset( pout, 0, sizeof(*pout) );
-		if( off + 19 > size )
+		if( out->dataFlags & MDF_MTLINFO )
+		{
+			if( off + 20 > size )
+				return "mesh incomplete (corrupted part data)";
+			pout->flags = buf[ off++ ];
+			pout->blendMode = buf[ off++ ];
+		}
+		if( off + 18 > size )
 			return "mesh incomplete (corrupted part data)";
 		memcpy( &pout->vertexOffset, buf + off, 4 ); off += 4;
 		memcpy( &pout->vertexCount, buf + off, 4 ); off += 4;

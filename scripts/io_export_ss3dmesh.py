@@ -19,12 +19,13 @@ import csv
 	- uint8 size
 	- uint8 data[size]
 	
-	PART: (min size = 19)
+	PART: (min size = 20)
+	- uint8 flags
+	- uint8 blendmode
 	- uint32 voff
 	- uint32 vcount
 	- uint32 ioff
 	- uint32 icount
-	- uint16 flags
 	- uint8 texcount
 	- smallbuf shader
 	- smallbuf textures[texcount]
@@ -49,7 +50,7 @@ import csv
 bl_info = {
 	"name": "SS3DMESH Mesh Format (.ssm)",
 	"author": "Arvīds Kokins",
-	"version": (0, 4, 2),
+	"version": (0, 5, 2),
 	"blender": (2, 6, 9),
 	"api": 38019,
 	"location": "File > Export > SS3DMESH (.ssm)",
@@ -82,7 +83,9 @@ def write_buffer( f, bytebuf ):
 def write_part( f, part ):
 	if len( part["textures"] ) > 8:
 		raise Exception( "too many textures (max. 8 allowed)" )
-	f.write( struct.pack( "LLLLB", part["voff"], part["vcount"], part["ioff"], part["icount"], len( part["textures"] ) ) )
+	f.write( struct.pack( "=BBLLLLB", part["flags"], part["blendmode"],
+		part["voff"], part["vcount"], part["ioff"], part["icount"],
+		len( part["textures"] ) ) )
 	write_smallbuf( f, bytes( part["shader"], "UTF-8" ) )
 	for tex in part["textures"]:
 		write_smallbuf( f, tex.replace("\\", "/") )
@@ -91,9 +94,6 @@ def write_part( f, part ):
 magicmtx = Matrix.Rotation( -math.pi/2, 4, "X" )
 
 def write_mesh( f, meshdata, armdata, boneorder ):
-	is_transparent = meshdata["is_transparent"]
-	is_unlit = meshdata["is_unlit"]
-	is_nocull = meshdata["is_nocull"]
 	is_skinned = armdata != None
 	bbmin = meshdata["bbmin"]
 	bbmax = meshdata["bbmax"]
@@ -108,18 +108,19 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 	is_i32 = len( vertices ) > 65535
 	
 	print( "--- MESH STATS ---" )
-	print( "Transparent: %s" % ( "true" if is_transparent else "false" ) )
-	print( "Unlit: %s" % ( "true" if is_unlit else "false" ) )
-	print( "No culling: %s" % ( "true" if is_nocull else "false" ) )
 	print( "Vertex count: %d" % ( len(vertices) ) )
 	print( "Index count: %d" % ( len(indices) ) )
 	print( "Format string: " + format )
 	print( "Part count: %d" % ( len(parts) ) )
 	for part_id, part in enumerate( parts ):
-		print( "- part %d: voff=%d vcount=%d ioff=%d icount=%d texcount=%d shader='%s'" % ( part_id, part["voff"], part["vcount"], part["ioff"], part["icount"], len( part["textures"] ), part["shader"] ) )
+		print( "- part %d: voff=%d vcount=%d ioff=%d icount=%d flags=%d blendmode=%d texcount=%d shader='%s'" % (
+			part_id, part["voff"], part["vcount"], part["ioff"], part["icount"],
+			part["flags"], part["blendmode"], len( part["textures"] ), part["shader"] ) )
 	
 	f.write( bytes( "SS3DMESH", "UTF-8" ) )
-	f.write( struct.pack( "L", (1 if is_i32 else 0) * 0x01 + (1 if is_transparent else 0) * 0x10 + (1 if is_unlit else 0) * 0x20 + (1 if is_nocull else 0) * 0x40 + (1 if is_skinned else 0) * 0x80 ) ) # flags
+	f.write( struct.pack( "L", 0x100 + # mesh data flags, 0x100 = extended mtl data
+		(1 if is_i32 else 0) * 0x01 + \
+		(1 if is_skinned else 0) * 0x80 ) )
 	f.write( struct.pack( "6f", bbmin.x, bbmin.y, bbmin.z, bbmax.x, bbmax.y, bbmax.z ) )
 	
 	vdata = bytes()
@@ -361,7 +362,16 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 		mtl_num += 1
 		mtl_id = foundMIDs[ mtl_num ]
 		vroot = len(vertices)
-		outpart = { "voff": len(vertices), "vcount": 0, "ioff": len(indices), "icount": 0, "shader": materials[ mtl_id ]["shader"], "textures": materials[ mtl_id ]["textures"] }
+		outpart = {
+			"voff": len(vertices),
+			"vcount": 0,
+			"ioff": len(indices),
+			"icount": 0,
+			"flags": materials[ mtl_id ]["flags"],
+			"blendmode": materials[ mtl_id ]["blendmode"],
+			"shader": materials[ mtl_id ]["shader"],
+			"textures": materials[ mtl_id ]["textures"]
+		}
 		
 		for face in part:
 			tmpidcs = []
@@ -498,10 +508,9 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 	#
 	
 	return {
-		"is_transparent": find_in_userdata( MESH, "transparent", False ) != False,
-		"is_unlit": find_in_userdata( MESH, "unlit", False ) != False,
-		"is_nocull": find_in_userdata( MESH, "nocull", False ) != False,
-		"bbmin": bbmin, "bbmax": bbmax, "vertices": vertices, "indices": indices, "format": format, "parts": parts
+		"bbmin": bbmin, "bbmax": bbmax,
+		"vertices": vertices, "indices": indices,
+		"format": format, "parts": parts
 	}
 #
 
@@ -531,7 +540,7 @@ def generate_bone_order( armdata ):
 #
 
 def write_ss3dmesh( ctx, filepath ):
-	print( "\n\\\\\n>>> SS3DMESH Exporter v0.4!\n//\n\n" )
+	print( "\n\\\\\n>>> SS3DMESH Exporter v0.5!\n//\n\n" )
 	print( "Exporting..." )
 	
 	textures = {}
@@ -560,7 +569,7 @@ def write_ss3dmesh( ctx, filepath ):
 	materials = []
 	print( "Parsing materials... ", end="" )
 	for mtl in geom_node.data.materials:
-		outmtl = { "textures": [], "shader": "default" }
+		outmtl = { "textures": [], "shader": "default", "flags": 0, "blendmode": 0 }
 		for tex in  mtl.texture_slots:
 			outmtl["textures"].append( textures[ tex.name ] if tex != None else "" )
 		while len(outmtl["textures"]) and outmtl["textures"][-1] == "":
@@ -568,6 +577,20 @@ def write_ss3dmesh( ctx, filepath ):
 		shdr = find_in_userdata( mtl, "shader" )
 		if type( shdr ) == str:
 			outmtl["shader"] = shdr
+		bmode = find_in_userdata( mtl, "blendmode" )
+		if type( bmode ) == str:
+			if bmode == "none":
+				outmtl["blendmode"] = 0
+			if bmode == "basic":
+				outmtl["blendmode"] = 1
+			if bmode == "additive":
+				outmtl["blendmode"] = 2
+			if bmode == "multiply":
+				outmtl["blendmode"] = 3
+		if find_in_userdata( mtl, "unlit", False ):
+			outmtl["flags"] |= 1
+		if find_in_userdata( mtl, "nocull", False ):
+			outmtl["flags"] |= 2
 		materials.append( outmtl )
 	print( "OK!" )
 	

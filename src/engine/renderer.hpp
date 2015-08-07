@@ -34,6 +34,9 @@ struct MeshFilePartData
 	uint32_t indexOffset;
 	uint32_t indexCount;
 	
+	uint8_t flags;
+	uint8_t blendMode;
+	
 	uint8_t materialTextureCount; /* 0 - 8 */
 	uint8_t materialStringSizes[ NUM_MATERIAL_TEXTURES + 1 ];
 	char* materialStrings[ NUM_MATERIAL_TEXTURES + 1 ];

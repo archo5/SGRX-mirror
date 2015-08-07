@@ -1796,7 +1796,6 @@ void D3D9Renderer::_RS_Render_Shadows()
 				VS_SetMat4( 0, m_world_view );
 				VS_SetMat4( 8, MI->matrix );
 				
-				m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 				m_dev->SetVertexDeclaration( VD->m_vdecl );
 				m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
 				m_dev->SetIndices( M->m_IB );
@@ -1811,7 +1810,7 @@ void D3D9Renderer::_RS_Render_Shadows()
 					if( !SSH )
 						continue;
 					
-					if( MTL->transparent )
+					if( MTL->blendMode )
 						continue;
 					
 					SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
@@ -1828,6 +1827,8 @@ void D3D9Renderer::_RS_Render_Shadows()
 					SetPixelShader( SHD );
 					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
 						SetTexture( tex_id, MTL->textures[ tex_id ] );
+					
+					m_dev->SetRenderState( D3DRS_CULLMODE, MTL->flags & MFL_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 					
 					m_dev->DrawIndexedPrimitive(
 						M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
@@ -1934,8 +1935,6 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 		/* decals */
 		if( ( draw_decals && MI->decal == 0 ) || ( draw_decals == false && MI->decal ) )
 			continue;
-		
-		m_dev->SetRenderState( D3DRS_CULLMODE, M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 		
 		/* -------------------------------------- */
 		do
@@ -2075,7 +2074,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				if( !SSH )
 					continue;
 				
-				bool transparent = MI->transparent || MTL->transparent;
+				bool transparent = MI->transparent || MTL->blendMode != 0;
 				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 					continue;
 				
@@ -2089,9 +2088,24 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				if( MP->indexCount < 3 )
 					continue;
 				
+				m_dev->SetRenderState( D3DRS_CULLMODE, MTL->flags & MFL_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 				m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & (RPF_LIGHTOVERLAY|RPF_DECALS) ) || transparent ) == false );
 				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
-				m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
+				if( ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->blendMode == MBM_ADDITIVE )
+				{
+					m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+					m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
+				}
+				else if( MTL->blendMode == MBM_MULTIPLY )
+				{
+					m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_ZERO );
+					m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR );
+				}
+				else
+				{
+					m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+					m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+				}
 				
 				SetVertexShader( VSH );
 				SetPixelShader( SHD );
