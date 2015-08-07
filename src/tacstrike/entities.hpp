@@ -598,6 +598,7 @@ struct TSFactStorage
 		FT_Unknown = 0,
 		FT_Sound_Noise,
 		FT_Sound_Footstep,
+		FT_Sound_Shot,
 		FT_Sight_ObjectState,
 		FT_Sight_Friend,
 		FT_Sight_Foe,

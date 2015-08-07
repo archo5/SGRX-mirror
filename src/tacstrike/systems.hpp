@@ -366,6 +366,7 @@ enum AISoundType
 {
 	AIS_Unknown = 0,
 	AIS_Footstep,
+	AIS_Shot,
 };
 
 struct AISound

@@ -745,6 +745,7 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 			m_entities[ i ]->Tick( deltaTime, blendFactor );
 		m_damageSystem.Tick( deltaTime );
 		m_bulletSystem.Tick( m_scene, deltaTime );
+		m_aidbSystem.Tick( deltaTime );
 	}
 	
 	m_messageSystem.Tick( deltaTime );

@@ -1108,6 +1108,7 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 		m_shootLT->UpdateTransform();
 		m_shootLT->enabled = true;
 		m_shootTimeout += 0.1f;
+		g_GameLevel->m_aidbSystem.AddSound( GetPosition(), 10, 0.2f, AIS_Shot );
 	}
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
@@ -1334,7 +1335,7 @@ bool TSFactStorage::MovingUpdate( FactType type, Vec3 pos, float movespeed,
 			continue;
 		
 		float rad = ( created - facts[ i ].created ) * 0.001f * movespeed;
-		if( ( facts[ i ].position - pos ).LengthSq() < rad * rad )
+		if( ( facts[ i ].position - pos ).LengthSq() <= rad * rad + SMALL_FLOAT )
 		{
 			facts[ i ].position = pos;
 			facts[ i ].created = created;
@@ -1465,13 +1466,46 @@ void TSEnemy::FixedTick( float deltaTime )
 		}
 	}
 	
-	// process facts
-	m_factStorage.Process( g_GameLevel->GetPhyTime() );
+	TimeVal curTime = g_GameLevel->GetPhyTime();
 	
+	// process facts
+	m_factStorage.Process( curTime );
+	// - vision
 	IESEnemyViewProc evp;
-	evp.curtime = g_GameLevel->GetPhyTime();
+	evp.curtime = curTime;
 	evp.enemy = this;
 	g_GameLevel->m_infoEmitters.QuerySphereAll( &evp, GetPosition(), 10.0f, IEST_Player );
+	// - sounds
+	for( int i = 0; i < g_GameLevel->m_aidbSystem.GetNumSounds(); ++i )
+	{
+		if( g_GameLevel->m_aidbSystem.CanHearSound( GetPosition(), i ) == false )
+			continue;
+		AISound S = g_GameLevel->m_aidbSystem.GetSoundInfo( i );
+		
+		if( S.type == AIS_Footstep || S.type == AIS_Shot )
+		{
+			TSFactStorage::FactType sndtype = TSFactStorage::FT_Sound_Footstep;
+			if( S.type == AIS_Shot )
+				sndtype = TSFactStorage::FT_Sound_Shot;
+			
+			m_factStorage.MovingInsertOrUpdate( sndtype,
+				S.position, 10, curTime, curTime + 1*1000 );
+			
+			int lastid = m_factStorage.last_mod_id;
+			bool found_friend = m_factStorage.MovingUpdate( TSFactStorage::FT_Position_Friend,
+				S.position, 10, curTime, curTime + 30*1000, lastid );
+			if( found_friend == false )
+			{
+				m_factStorage.MovingUpdate( TSFactStorage::FT_Position_Foe,
+					S.position, 10, curTime, curTime + 30*1000, lastid );
+			}
+		}
+		else
+		{
+			m_factStorage.InsertOrUpdate( TSFactStorage::FT_Sound_Noise,
+				S.position, 1, curTime, curTime + 1*1000 );
+		}
+	}
 	
 	// tick ESO
 	{
@@ -1611,6 +1645,7 @@ void TSEnemy::DebugDrawUI()
 		case TSFactStorage::FT_Unknown: type = "unknown"; break;
 		case TSFactStorage::FT_Sound_Noise: type = "snd-noise"; break;
 		case TSFactStorage::FT_Sound_Footstep: type = "snd-step"; break;
+		case TSFactStorage::FT_Sound_Shot: type = "snd-shot"; break;
 		case TSFactStorage::FT_Sight_ObjectState: type = "sight-state"; break;
 		case TSFactStorage::FT_Sight_Friend: type = "sight-friend"; break;
 		case TSFactStorage::FT_Sight_Foe: type = "sight-foe"; break;
