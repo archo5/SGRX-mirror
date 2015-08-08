@@ -1,7 +1,6 @@
-float2 texcoord = float2( dot( T, viewPos ), dot( B, viewPos ) );
-float4 diff = float4(frac(texcoord),0,1);//tex2Dbias( Tex0, float4( texcoord, 0, -0.5 ) );
+float4 diff = tex2Dbias( Tex0, float4( inTex0.xy, 0, -0.5 ) );
 diff = diff * diff; // * gInstanceData[0]; // TODO
-float3 normal = tex2D( Tex1, texcoord ).rgb * 2 - 1;
+float3 normal = tex2D( Tex1, inTex0.xy ).rgb * 2 - 1;
 outDiffuseColor = diff.rgb;
 outOpacity = diff.a;
 float fresnel = 1 - abs( dot( inNormal, normalize(viewPos) ) );

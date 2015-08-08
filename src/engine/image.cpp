@@ -89,12 +89,19 @@ bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinf
 }
 
 
+static const float inv255 = 1.0f / 255.0f;
 static uint32_t _avg_col4( uint32_t a, uint32_t b, uint32_t c, uint32_t d )
 {
+	float alphapow = 2.2f;
 	uint32_t ocr = ( COLOR_EXTRACT_R( a ) + COLOR_EXTRACT_R( b ) + COLOR_EXTRACT_R( c ) + COLOR_EXTRACT_R( d ) ) / 4;
 	uint32_t ocg = ( COLOR_EXTRACT_G( a ) + COLOR_EXTRACT_G( b ) + COLOR_EXTRACT_G( c ) + COLOR_EXTRACT_G( d ) ) / 4;
 	uint32_t ocb = ( COLOR_EXTRACT_B( a ) + COLOR_EXTRACT_B( b ) + COLOR_EXTRACT_B( c ) + COLOR_EXTRACT_B( d ) ) / 4;
-	uint32_t oca = ( COLOR_EXTRACT_A( a ) + COLOR_EXTRACT_A( b ) + COLOR_EXTRACT_A( c ) + COLOR_EXTRACT_A( d ) ) / 4;
+	uint32_t oca = powf( 0.25f * (
+		powf( COLOR_EXTRACT_A( a ) * inv255, alphapow ) +
+		powf( COLOR_EXTRACT_A( b ) * inv255, alphapow ) +
+		powf( COLOR_EXTRACT_A( c ) * inv255, alphapow ) +
+		powf( COLOR_EXTRACT_A( d ) * inv255, alphapow )
+	), 1.0f / alphapow ) * 255.0f;
 	return COLOR_RGBA( ocr, ocg, ocb, oca );
 }
 

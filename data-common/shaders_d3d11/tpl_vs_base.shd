@@ -52,8 +52,8 @@ void main
 	{
 __VSCODE__
 	}
-	oN = mul( mView, oN );
-	oT = mul( mView, oT );
+	oN = mul( mView, float4( oN, 0 ) );
+	oT.xyz = mul( mView, float4( oT.xyz, 0 ) );
 	float4 viewPos = mul( mView, worldPos );
 	opos = mul( mProj, viewPos );
 	otfpos = viewPos;

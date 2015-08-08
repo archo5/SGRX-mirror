@@ -1,0 +1,3 @@
+float3 B = normalize( cross( oN, oT.xyz ) * oT.w );
+otex0.x = dot( normalize( oT.xyz ), worldPos.xyz );
+otex0.y = dot( B, worldPos.xyz );

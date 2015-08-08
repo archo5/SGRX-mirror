@@ -633,6 +633,7 @@ void ParticleSystem::Emitter::Generate( ParticleSystem* PS, int count )
 		if( absolute )
 		{
 			P = PS->m_transform.TransformPos( P );
+			V /= PS->m_transform.GetScale();
 			V = PS->m_transform.TransformNormal( V );
 		}
 		
