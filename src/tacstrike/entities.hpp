@@ -537,7 +537,7 @@ struct TSCharacter : Entity
 	LightHandle m_shadowInst;
 	
 	AnimCharacter m_animChar;
-	MeshInstInfo m_meshInstInfo;
+	SGRX_MeshInstUserData m_meshInstInfo;
 	AnimPlayer m_anMainPlayer;
 	AnimPlayer m_anTopPlayer;
 	AnimMixer::Layer m_anLayers[4];

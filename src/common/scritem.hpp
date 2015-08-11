@@ -22,12 +22,14 @@ struct MI_BulletHit_Data
 
 struct SGRX_MeshInstUserData
 {
-	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL), ovrDecalSysOverride(NULL), ownerType(0){}
+	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL),
+		ovrDecalSysOverride(NULL), ownerType(0), typeOverride(NULL){}
 	virtual ~SGRX_MeshInstUserData(){}
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data ){}
 	SGRX_DecalSystem* dmgDecalSysOverride;
 	SGRX_DecalSystem* ovrDecalSysOverride;
 	uint32_t ownerType;
+	const char* typeOverride;
 };
 
 

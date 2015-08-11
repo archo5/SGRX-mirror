@@ -281,18 +281,11 @@ struct FlareSystem
 };
 
 
-enum GameActorType
+enum GameActorType // = SGRX_MeshInstUserData::ownerType
 {
 	GAT_None = 0,
 	GAT_Player = 1,
 	GAT_Enemy = 2,
-};
-
-struct MeshInstInfo : SGRX_MeshInstUserData
-{
-	MeshInstInfo() : typeOverride( NULL ){ ownerType = GAT_None; }
-	
-	const char* typeOverride;
 };
 
 

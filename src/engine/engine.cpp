@@ -1214,6 +1214,10 @@ template< class IdxType > void SGRX_IMesh_RaycastAll_Core( SGRX_IMesh* mesh, con
 		{
 			srci->partID = part_id;
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+			if( MP.material &&
+				MP.material->blendMode != MBM_NONE &&
+				MP.material->blendMode != MBM_BASIC )
+				continue;
 			
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
@@ -1232,6 +1236,10 @@ template< class IdxType > void SGRX_IMesh_RaycastAll_Core( SGRX_IMesh* mesh, con
 		{
 			srci->partID = part_id;
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+			if( MP.material &&
+				MP.material->blendMode != MBM_NONE &&
+				MP.material->blendMode != MBM_BASIC )
+				continue;
 			
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
 			{
@@ -1446,6 +1454,10 @@ void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh,
 		for( size_t part_id = fp; part_id < ep; ++part_id )
 		{
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+			if( MP.material &&
+				MP.material->blendMode != MBM_NONE &&
+				MP.material->blendMode != MBM_BASIC )
+				continue;
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
 				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
@@ -1461,6 +1473,10 @@ void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh,
 		for( size_t part_id = fp; part_id < ep; ++part_id )
 		{
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+			if( MP.material &&
+				MP.material->blendMode != MBM_NONE &&
+				MP.material->blendMode != MBM_BASIC )
+				continue;
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
 			{
 				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;

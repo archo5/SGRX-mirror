@@ -320,7 +320,7 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 		return( "Failed to load data/damage.dat" );
 	
 	// defaults
-	String decal_base_tex = "textures/fx/decals.png";
+	String decal_base_tex = "textures/fx/impact_decals.png";
 	String decal_falloff_tex = "textures/fx/projfalloff2.png";
 	MtlHandle cur_mtl;
 	
@@ -482,7 +482,7 @@ struct DmgSys_GenBlood : IProcessor
 			MI->skin_matrices.size() ||
 			MI->decal )
 			return;
-		SGRX_CAST( MeshInstInfo*, mii, MI->userData );
+		SGRX_CAST( SGRX_MeshInstUserData*, mii, MI->userData );
 		if( mii && mii->ovrDecalSysOverride )
 		{
 			mii->ovrDecalSysOverride->AddDecal( projInfo, MI->mesh, MI->matrix );
@@ -563,13 +563,31 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 					continue;
 				
 				float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
-				MeshInstInfo* mii = (MeshInstInfo*) HIT.meshinst->userData;
+				SGRX_MeshInstUserData* mii = (SGRX_MeshInstUserData*) HIT.meshinst->userData;
 				if( mii && mii->ownerType == B.ownerType )
 					continue;
 				
-				StringView decalType = "TODO";
+				StringView decalType = "unknown";
 				if( mii && mii->typeOverride )
+				{
 					decalType = mii->typeOverride;
+				}
+				else
+				{
+					SGRX_IMesh* mesh = HIT.meshinst->mesh;
+					if( HIT.partID >= 0 && HIT.partID < (int) mesh->m_meshParts.size() )
+					{
+						SGRX_MeshPart& MP = mesh->m_meshParts[ HIT.partID ];
+						if( MP.material &&
+							MP.material->textures[0] &&
+							( MP.material->blendMode == MBM_NONE ||
+							MP.material->blendMode == MBM_BASIC ) )
+						{
+							decalType = MP.material->textures[0]->m_key;
+						//	printf("%s\n", StackString<256>(decalType).str);
+						}
+					}
+				}
 				
 				// apply damage to hit point
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
