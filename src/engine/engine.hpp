@@ -1208,6 +1208,7 @@ ENGINE_EXPORT void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 
 ENGINE_EXPORT BatchRenderer& GR2D_GetBatchRenderer();
 
+ENGINE_EXPORT void SGRX_Swap();
 
 extern "C" ENGINE_EXPORT int SGRX_EntryPoint( int argc, char** argv, int debug );
 

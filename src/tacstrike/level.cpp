@@ -244,9 +244,69 @@ GameLevel::~GameLevel()
 }
 
 
+
+
+
+struct LoadingScreen
+{
+	LoadingScreen() : m_running(true)
+	{
+		m_thread.Start( _Proc, this );
+	}
+	~LoadingScreen()
+	{
+		m_running = false;
+	}
+	
+	void Run()
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		float t = 0;
+		double prevt = sgrx_hqtime();
+		while( m_running )
+		{
+			sgrx_sleep( 10 );
+			double newt = sgrx_hqtime();
+			
+			float minw = TMIN( GR_GetWidth(), GR_GetHeight() );
+			GR2D_SetFont( "fancy", minw / 20 );
+			
+			GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+			br.Reset().Col( 0, 1 ).Quad( 0, 0, 999999, 999999 );
+			
+		//	br.Reset().Col( 1, 1 ).SetPrimitiveType(PT_Lines)
+		//		.Pos( V2(0,0) ).Pos( 0+cosf(t)*50, 0+sinf(t)*50);
+			
+			br.Reset().Col( 1.0f, 0.5f );
+			int textlen = int( t * 37 ) % 100;
+			StringView text = "LOADING...";
+			text = text.part( 0, textlen );
+			GR2D_DrawTextLine( minw / 20, GR_GetHeight() - minw / 20,
+				text, HALIGN_LEFT, VALIGN_BOTTOM );
+			
+			br.Flush();
+			SGRX_Swap();
+			t += ( newt - prevt );
+			prevt = newt;
+		}
+	}
+	
+	static void _Proc( void* data )
+	{
+		((LoadingScreen*)data)->Run();
+	}
+	
+	SGRX_Thread m_thread;
+	volatile bool m_running;
+};
+
+
+
 bool GameLevel::Load( const StringView& levelname )
 {
 	LOG_FUNCTION_ARG( levelname );
+	
+	LoadingScreen LS;
 	
 	ByteArray ba;
 	

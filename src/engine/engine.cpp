@@ -115,7 +115,6 @@ struct FakeSoundEventInstance : SGRX_ISoundEventInstance
 	FakeSoundEventInstance( bool oneshot ) :
 		m_paused(false), m_volume(1), m_pitch(1)
 	{
-		m_refcount = 1;
 		isOneShot = oneshot;
 		isReal = false;
 	}
@@ -133,9 +132,7 @@ struct FakeSoundEventInstance : SGRX_ISoundEventInstance
 	bool m_paused;
 	float m_volume;
 	float m_pitch;
-}
-g_FakeSoundEventInstanceOS( true ),
-g_FakeSoundEventInstanceC( false );
+};
 
 SoundEventInstanceHandle SGRX_ISoundSystem::CreateEventInstance( const StringView& name )
 {
@@ -887,7 +884,6 @@ ConvexPointSetHandle GP_GetConvexPointSet( const StringView& path )
 		// error already printed
 		return ConvexPointSetHandle();
 	}
-	cps->m_refcount = 0;
 	cps->m_key = path;
 	g_CPSets->set( cps->m_key, cps );
 	return cps;
@@ -2003,7 +1999,6 @@ TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
 		return TextureHandle();
 	}
 	
-	tex->m_refcount = 0;
 	tex->m_info = ti;
 	
 	LOG << "Created 2D texture: " << width << "x" << height << ", format=" << format << ", mips=" << mips;
@@ -2042,7 +2037,6 @@ TextureHandle GR_GetTexture( const StringView& path )
 	}
 	
 	tex->m_info = texdata.info;
-	tex->m_refcount = 0;
 	tex->m_key.append( path.data(), path.size() );
 	g_Textures->set( tex->m_key, tex );
 	
@@ -2062,7 +2056,6 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 		return TextureHandle();
 	}
 	
-	tex->m_refcount = 0;
 	tex->m_info = ti;
 	
 	LOG << "Created renderable texture: " << width << "x" << height << ", format=" << format;
@@ -2127,7 +2120,6 @@ has_compiled_shader:
 	}
 	
 	shd->m_key = path;
-	shd->m_refcount = 0;
 	g_VertexShaders->set( shd->m_key, shd );
 	
 	LOG << "Loaded vertex shader: " << path;
@@ -2191,7 +2183,6 @@ has_compiled_shader:
 	}
 	
 	shd->m_key = path;
-	shd->m_refcount = 0;
 	g_PixelShaders->set( shd->m_key, shd );
 	
 	LOG << "Loaded pixel shader: " << path;
@@ -2207,7 +2198,6 @@ SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
 		return ssh;
 	
 	ssh = new SGRX_SurfaceShader;
-	ssh->m_refcount = 0;
 	ssh->m_key = name;
 	ssh->ReloadShaders();
 	g_SurfShaders->set( ssh->m_key, ssh );
@@ -2250,7 +2240,6 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 	}
 	
 	VD->m_key = vdecl;
-	VD->m_refcount = 0;
 	g_VertexDecls->set( VD->m_key, VD );
 	
 	LOG << "Created vertex declaration: " << vdecl;
@@ -2521,11 +2510,6 @@ void GR2D_UnsetScissorRect()
 	g_Renderer->SetScissorRect( false, NULL );
 }
 
-BatchRenderer& GR2D_GetBatchRenderer()
-{
-	return *g_BatchRenderer;
-}
-
 bool GR2D_LoadFont( const StringView& key, const StringView& path )
 {
 	SGRX_IFont* fif = NULL;
@@ -2782,6 +2766,18 @@ void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 		GR2D_DrawTextLine( x, y, textpart );
 		y += lineheight;
 	}
+}
+
+
+BatchRenderer& GR2D_GetBatchRenderer()
+{
+	return *g_BatchRenderer;
+}
+
+
+void SGRX_Swap()
+{
+	g_Renderer->Swap();
 }
 
 

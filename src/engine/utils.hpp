@@ -86,6 +86,54 @@ ENGINE_EXPORT void sgrx_combsort( void* array, size_t length, size_t size,
 ENGINE_EXPORT double sgrx_hqtime();
 
 
+//
+// THREADING
+//
+
+
+ENGINE_EXPORT int32_t sgrx_atomic_inc( volatile int32_t* ptr );
+ENGINE_EXPORT int32_t sgrx_atomic_dec( volatile int32_t* ptr );
+ENGINE_EXPORT int32_t sgrx_atomic_cmpxchg( volatile int32_t* ptr, int32_t test, int32_t val );
+
+ENGINE_EXPORT void sgrx_sleep( uint32_t ms );
+ENGINE_EXPORT int sgrx_numcpus();
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_Thread
+{
+	typedef void (*Proc)(void*);
+	ENGINE_EXPORT SGRX_Thread();
+	ENGINE_EXPORT ~SGRX_Thread();
+	ENGINE_EXPORT void Start( Proc fn, void* data );
+	ENGINE_EXPORT void Join();
+	
+	void* handle;
+	Proc m_nextproc;
+	void* m_nextdata;
+};
+
+struct SGRX_Mutex
+{
+	SGRX_Mutex() : lock(0){}
+	bool TryLock(){ return 0 == sgrx_atomic_cmpxchg( &lock, 0, 1 ); }
+	void Lock(){ while( TryLock() ); }
+	void Unlock(){ sgrx_atomic_cmpxchg( &lock, 1, 0 ); }
+	
+	volatile int32_t lock;
+};
+
+struct SGRX_ScopedMtxLock
+{
+	SGRX_ScopedMtxLock( SGRX_Mutex* mtx ) : m_mutex( mtx ) { mtx->Lock(); }
+	~SGRX_ScopedMtxLock(){ m_mutex->Unlock(); }
+	SGRX_Mutex* m_mutex;
+};
+
+
+//
+// MATH etc
+//
+
+
 #define SMALL_FLOAT 0.001f
 #define ENGINE_MAX_PATH 256
 
@@ -1621,9 +1669,11 @@ struct SGRX_RefCounted
 	SGRX_RefCounted() : m_refcount(0){}
 	virtual ~SGRX_RefCounted(){}
 	
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	int32_t m_refcount;
+	FINLINE void Acquire(){ sgrx_atomic_inc( &m_refcount ); }
+	FINLINE void Release(){ if( sgrx_atomic_dec( &m_refcount ) <= 0 ) delete this; }
+	
+private:
+	volatile int32_t m_refcount;
 };
 
 struct SGRX_RCRsrc : SGRX_RefCounted

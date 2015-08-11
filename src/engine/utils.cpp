@@ -5,11 +5,19 @@
 #include <time.h>
 
 #ifdef _WIN32
-#define NOCOMM
-#include <windows.h>
+#  define WIN32_LEAN_AND_MEAN
+#  undef _WIN32_WINNT
+#  define _WIN32_WINNT 0x0600
+#  undef WINVER
+#  define WINVER 0x0600
+#  define NOCOMM
+#  include <windows.h>
 #else
-#include <sys/time.h>
+#  include <sys/time.h>
+#  include <unistd.h>
+#  include <pthread.h>
 #endif
+
 
 #define USE_VEC2
 #define USE_VEC3
@@ -418,6 +426,151 @@ double sgrx_hqtime()
 	return ts.tv_sec + S2NS * ts.tv_nsec;
 #endif
 }
+
+
+
+//
+// THREADING
+//
+
+
+#ifdef __GNUC__
+#  define atomic_inc32(ptr) __sync_add_and_fetch((ptr),1)
+#  define atomic_dec32(ptr) __sync_sub_and_fetch((ptr),1)
+#  define atomic_cmpxchg(ptr,test,val) __sync_val_compare_and_swap((ptr),(test),(val))
+#elif defined (_WIN32)
+#  define atomic_inc32(ptr) InterlockedIncrement((ptr))
+#  define atomic_dec32(ptr) InterlockedDecrement((ptr))
+#  define atomic_cmpxchg(ptr,test,val) InterlockedCompareExchange((ptr),(val),(test))
+#else
+#  error "no support for interlocked ops?"
+#endif
+
+int32_t sgrx_atomic_inc( volatile int32_t* ptr ){ return atomic_inc32( ptr ); }
+int32_t sgrx_atomic_dec( volatile int32_t* ptr ){ return atomic_dec32( ptr ); }
+int32_t sgrx_atomic_cmpxchg( volatile int32_t* ptr, int32_t test, int32_t val )
+{
+	return atomic_cmpxchg( ptr, test, val );
+}
+
+
+struct _ThreadData
+{
+	SGRX_Thread::Proc fn;
+	void* data;
+};
+
+
+#ifdef _WIN32
+
+void sgrx_sleep( uint32_t ms )
+{
+	Sleep( ms );
+}
+
+int sgrx_numcpus()
+{
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo( &sysinfo );
+	return sysinfo.dwNumberOfProcessors;
+}
+
+SGRX_Thread::SGRX_Thread() : handle(NULL), m_nextproc(NULL), m_nextdata(NULL)
+{
+}
+
+SGRX_Thread::~SGRX_Thread()
+{
+	Join();
+}
+
+static DWORD __stdcall _ThreadProc( void* data )
+{
+	SGRX_CAST( SGRX_Thread*, T, data );
+	T->m_nextproc( T->m_nextdata );
+	return 0;
+}
+
+void SGRX_Thread::Start( Proc fn, void* data )
+{
+	ASSERT( handle == NULL && "cannot start a thread that is already started" );
+	m_nextproc = fn;
+	m_nextdata = data;
+	handle = CreateThread( NULL, 1024, _ThreadProc, this, 0, NULL );
+	ASSERT( handle && "failed to create a thread" );
+}
+
+void SGRX_Thread::Join()
+{
+	if( !handle )
+		return;
+	HANDLE T = (HANDLE) handle;
+	WaitForMultipleObjects( 1, &T, TRUE, INFINITE );
+	CloseHandle( T );
+	handle = NULL;
+}
+
+
+#else
+
+void sgrx_sleep( uint32_t ms )
+{
+	if( ms >= 1000 )
+	{
+		sleep( ms / 1000 );
+		ms %= 1000;
+	}
+	if( ms > 0 )
+	{
+		usleep( ms * 1000 );
+	}
+}
+
+int sgrx_numcpus()
+{
+	return sysconf( _SC_NPROCESSORS_ONLN );
+}
+
+SGRX_Thread::SGRX_Thread() : handle(NULL), m_nextproc(NULL), m_nextdata(NULL)
+{
+}
+
+SGRX_Thread::~SGRX_Thread()
+{
+	Join();
+}
+
+static void* _ThreadProc( void* data )
+{
+	SGRX_CAST( SGRX_Thread*, T, data );
+	T->m_nextproc( T->m_nextdata );
+	return 0;
+}
+
+void SGRX_Thread::Start( Proc fn, void* data )
+{
+	ASSERT( handle && "cannot start a thread that is already started" );
+	pthread_t T;
+	m_nextproc = fn;
+	m_nextdata = data;
+	if( pthread_create( &T, NULL, _ThreadProc, this ) )
+		handle = T;
+	else
+		ASSERT( !"failed to create a thread" );
+}
+
+void SGRX_Thread::Join()
+{
+	if( !handle )
+		return;
+	pthread_t T = (pthread_t) handle;
+	pthread_join( T, NULL );
+	handle = NULL;
+}
+
+
+#endif
+
 
 
 const Quat Quat::Identity = { 0, 0, 0, 1 };
