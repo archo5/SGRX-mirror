@@ -15,7 +15,8 @@ set_target_properties( game PROPERTIES
 )
 
 # BRSD 4 Game
-add_library( jmpgame SHARED brsd4game level entities systems )
+add_library( jmpgame SHARED brsd4game level entities systems
+	../common/scritem ../common/cppbc_scritem )
 target_link_libraries( jmpgame sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( jmpgame PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"
@@ -26,7 +27,8 @@ set_target_properties( jmpgame PROPERTIES
 )
 
 # LD32 Game
-add_library( ld32game SHARED ld32game level entities systems )
+add_library( ld32game SHARED ld32game level entities systems
+	../common/scritem ../common/cppbc_scritem )
 target_link_libraries( ld32game sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( ld32game PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-rtti -fno-exceptions -g"

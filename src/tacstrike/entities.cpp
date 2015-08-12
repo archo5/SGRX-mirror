@@ -407,6 +407,47 @@ void ParticleFX::OnEvent( const StringView& _type )
 
 
 
+ScriptedItem::ScriptedItem( const StringView& name, sgsVariable args ) : m_scrItem(NULL)
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "SCRITEM_CREATE_%s", StackString<200>(name).str );
+	sgsVariable func = g_GameLevel->m_scriptCtx.GetGlobal( bfr );
+	if( func.not_null() )
+	{
+		m_scrItem = SGRX_ScriptedItem::Create(
+			g_GameLevel->m_scene, g_PhyWorld, g_GameLevel->m_scriptCtx.C,
+			func, args );
+		m_scrItem->SetLightSampler( g_GameLevel );
+		m_scrItem->PreRender();
+	}
+}
+
+ScriptedItem::~ScriptedItem()
+{
+	if( m_scrItem )
+		m_scrItem->Release();
+}
+
+void ScriptedItem::FixedTick( float deltaTime )
+{
+	if( m_scrItem )
+	{
+		m_scrItem->FixedTick( deltaTime );
+	}
+}
+
+void ScriptedItem::Tick( float deltaTime, float blendFactor )
+{
+	if( m_scrItem )
+	{
+		m_scrItem->Tick( deltaTime, blendFactor );
+		m_scrItem->PreRender();
+	}
+}
+
+
+
+
 
 
 #ifdef TSGAME

@@ -134,6 +134,17 @@ struct ParticleFX : Entity
 };
 
 
+struct ScriptedItem : Entity
+{
+	SGRX_ScriptedItem* m_scrItem;
+	
+	ScriptedItem( const StringView& name, sgsVariable args );
+	~ScriptedItem();
+	virtual void FixedTick( float deltaTime );
+	virtual void Tick( float deltaTime, float blendFactor );
+};
+
+
 
 
 

@@ -560,6 +560,8 @@ void EdEntScripted::Serialize( SVHTR& arch )
 	arch << data;
 	m_data = g_ScriptCtx->Unserialize( data );
 	Data2Fields();
+	_OnChange();
+	Data2Fields();
 }
 
 void EdEntScripted::Serialize( SVHTW& arch )
@@ -577,6 +579,8 @@ void EdEntScripted::Serialize( SVHBR& arch )
 	String data;
 	arch << data;
 	m_data = g_ScriptCtx->Unserialize( data );
+	Data2Fields();
+	_OnChange();
 	Data2Fields();
 }
 
@@ -620,10 +624,8 @@ void EdEntScripted::UpdateCache( LevelCache& LC )
 	}
 }
 
-void EdEntScripted::RegenerateMesh()
+void EdEntScripted::_OnChange()
 {
-	Fields2Data();
-	
 	if( onChange.not_null() )
 	{
 		SGS_CSCOPE( g_ScriptCtx->C );
@@ -631,6 +633,12 @@ void EdEntScripted::RegenerateMesh()
 		g_ScriptCtx->Push( m_data );
 		g_ScriptCtx->Call( onChange, 2 );
 	}
+}
+
+void EdEntScripted::RegenerateMesh()
+{
+	Fields2Data();
+	_OnChange();
 }
 
 int EdEntScripted::OnEvent( EDGUIEvent* e )

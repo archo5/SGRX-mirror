@@ -1081,6 +1081,7 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 	virtual bool IsScriptedEnt(){ return true; }
 	virtual void UpdateCache( LevelCache& LC );
 	
+	void _OnChange();
 	virtual void RegenerateMesh();
 	
 	virtual int OnEvent( EDGUIEvent* e );

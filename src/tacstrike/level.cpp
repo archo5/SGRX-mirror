@@ -517,7 +517,7 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 		TSEnemy* E = new TSEnemy
 #endif
 		(
-			data.getprop("name").get<String>(),
+			data.getprop("name").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			data.getprop("viewdir").get<Vec3>()
 		);
@@ -537,7 +537,7 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	///////////////////////////
 	if( type == "marker" )
 	{
-		m_markerMap.set( data.getprop("name").get<String>(), data.getprop("position").get<Vec3>() );
+		m_markerMap.set( data.getprop("name").get<StringView>(), data.getprop("position").get<Vec3>() );
 		return;
 	}
 	
@@ -560,8 +560,8 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		BoxTrigger* BT = new BoxTrigger
 		(
-			data.getprop("func").get<String>(),
-			data.getprop("target").get<String>(),
+			data.getprop("func").get<StringView>(),
+			data.getprop("target").get<StringView>(),
 			data.getprop("once").get<bool>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
@@ -576,8 +576,8 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		ProximityTrigger* PT = new ProximityTrigger
 		(
-			data.getprop("func").get<String>(),
-			data.getprop("target").get<String>(),
+			data.getprop("func").get<StringView>(),
+			data.getprop("target").get<StringView>(),
 			data.getprop("once").get<bool>(),
 			data.getprop("position").get<Vec3>(),
 			data.getprop("distance").get<float>()
@@ -591,8 +591,8 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		SlidingDoor* SD = new SlidingDoor
 		(
-			data.getprop("name").get<String>(),
-			data.getprop("mesh").get<String>(),
+			data.getprop("name").get<StringView>(),
+			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
@@ -603,9 +603,9 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 			data.getprop("open_time").get<float>(),
 			false,
 			data.getprop("is_switch").get<bool>(),
-			data.getprop("pred").get<String>(),
-			data.getprop("func").get<String>(),
-			data.getprop("target").get<String>(),
+			data.getprop("pred").get<StringView>(),
+			data.getprop("func").get<StringView>(),
+			data.getprop("target").get<StringView>(),
 			data.getprop("once").get<bool>()
 		);
 		m_entities.push_back( SD );
@@ -620,7 +620,7 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 		SlidingDoor* SD = new SlidingDoor
 		(
 			name.str,
-			data.getprop("mesh").get<String>(),
+			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
@@ -648,10 +648,10 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		PickupItem* PI = new PickupItem
 		(
-			data.getprop("id").get<String>(),
-			data.getprop("name").get<String>(),
+			data.getprop("id").get<StringView>(),
+			data.getprop("name").get<StringView>(),
 			data.getprop("count").get<int>(),
-			data.getprop("mesh").get<String>(),
+			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
@@ -666,8 +666,8 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		TSCamera* CAM = new TSCamera
 		(
-			data.getprop("name").get<String>(),
-			data.getprop("char").get<String>(),
+			data.getprop("name").get<StringView>(),
+			data.getprop("char").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
@@ -684,8 +684,8 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		Actionable* AC = new Actionable
 		(
-			data.getprop("name").get<String>(),
-			data.getprop("mesh").get<String>(),
+			data.getprop("name").get<StringView>(),
+			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
@@ -701,15 +701,28 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		ParticleFX* PF = new ParticleFX
 		(
-			data.getprop("name").get<String>(),
-			data.getprop("partsys").get<String>(),
-			data.getprop("soundevent").get<String>(),
+			data.getprop("name").get<StringView>(),
+			data.getprop("partsys").get<StringView>(),
+			data.getprop("soundevent").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
 			data.getprop("start").get<bool>()
 		);
 		m_entities.push_back( PF );
+		return;
+	}
+	
+	///////////////////////////
+	if( type == "scritem" )
+	{
+		sgsVariable scritem = data.getprop("scritem");
+		ScriptedItem* SI = new ScriptedItem
+		(
+			scritem.getprop("__type").get<StringView>(),
+			scritem
+		);
+		m_entities.push_back( SI );
 		return;
 	}
 	

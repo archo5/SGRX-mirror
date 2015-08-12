@@ -242,6 +242,12 @@ int main( int argc, char* argv[] )
 			}
 			printf( ", mesh parsed" );
 			
+			if( mf_data.dataFlags & MDF_TRIANGLESTRIP )
+			{
+				fprintf( stderr, "meshes with MDF_TRIANGLESTRIP flag are unsupported (file: %s)\n", mesh_path );
+				return 1;
+			}
+			
 			VDeclInfo vertex_decl;
 			const char* vdecl_load_error = VDeclInfo_Parse( &vertex_decl, StackString< 256 >( StringView( mf_data.formatData, mf_data.formatSize ) ) );
 			if( vdecl_load_error )
@@ -324,7 +330,7 @@ int main( int argc, char* argv[] )
 					(float*)( mf_data.vertexData + vertex_decl.size * mfpd.vertexOffset + t0_off ), // TEXCOORD0
 					(float*)( mf_data.vertexData + vertex_decl.size * mfpd.vertexOffset + t1_off ), // TEXCOORD1
 					vertex_decl.size, vertex_decl.size, vertex_decl.size, vertex_decl.size, // stride
-					&mesh_indices[ mfpd.indexOffset ], mfpd.vertexCount, mfpd.indexCount, ( mf_data.dataFlags & MDF_TRIANGLESTRIP ) != 0 ? 1 : 0,
+					&mesh_indices[ mfpd.indexOffset ], mfpd.vertexCount, mfpd.indexCount,
 					!m_textureInfo.getprop( m_scriptCtx.CreateStringVar( texname_norm ) ).getprop( "noshadow" ).get<bool>()
 				};
 				
@@ -581,12 +587,19 @@ int main( int argc, char* argv[] )
 	}
 	
 	// --- DO WORK ---
-	ltr_WorkInfo winfo;
-	while( ltr_DoWork( scene, &winfo ) == 0 )
+	ltr_WorkStatus wstatus;
+	double ta = sgrx_hqtime();
+	ltr_Start( scene );
+	printf( "\n" );
+	while( ltr_GetStatus( scene, &wstatus ) )
 	{
-		printf( "%s [%d/%d] ... %d%%\n", winfo.stage, (int) winfo.part,
-			(int) winfo.item_count, (int) ( winfo.part * 100 / TMAX( winfo.item_count, 1 ) ) );
+		double tt = sgrx_hqtime();
+		printf( "\r%5.1f %s ... %d%%                          ", // extra spaces to overwrite stuff
+			(tt - ta), wstatus.stage, int(wstatus.completion * 100) );
+		ltr_Sleep( 100 );
 	}
+	double tb = sgrx_hqtime();
+	printf( "\n\ntime taken: %f\n", (tb-ta) );
 	
 	// --- RETURN OUTPUT ---
 	ltr_WorkOutput wout;

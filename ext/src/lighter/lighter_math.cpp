@@ -397,6 +397,33 @@ void Convolve_Transpose( float* src, float* dst, u32 width, u32 height, int cone
 	}
 }
 
+void Downsample2X( float* dst, unsigned dstW, unsigned dstH, float* src, unsigned srcW, unsigned srcH )
+{
+	unsigned x, y, sx0, sy0, sx1, sy1;
+	Vec3 c00, c10, c01, c11, avg;
+	for( y = 0; y < dstH; ++y )
+	{
+		for( x = 0; x < dstW; ++x )
+		{
+			sx0 = ( x * 2 ) % srcW;
+			sy0 = ( y * 2 ) % srcH;
+			sx1 = ( x * 2 + 1 ) % srcW;
+			sy1 = ( y * 2 + 1 ) % srcH;
+			
+			c00 = V3P( src + ( sx0 + sy0 * srcW ) * 3 );
+			c10 = V3P( src + ( sx1 + sy0 * srcW ) * 3 );
+			c01 = V3P( src + ( sx0 + sy1 * srcW ) * 3 );
+			c11 = V3P( src + ( sx1 + sy1 * srcW ) * 3 );
+			avg = ( c00 + c10 + c01 + c11 ) * 0.25f;
+			
+			dst[ ( x + y * dstW ) * 3 + 0 ] = avg.x;
+			dst[ ( x + y * dstW ) * 3 + 1 ] = avg.y;
+			dst[ ( x + y * dstW ) * 3 + 2 ] = avg.z;
+		}
+	}
+}
+
+
 
 #define BSP_NO_HIT 2.0f
 #define BSP_MAX_NODE_COUNT 16
@@ -413,14 +440,14 @@ void BSPNode::Split( int depth )
 			back_node = new BSPNode;
 			for( size_t i = 0; i < triangles.size(); ++i )
 				AddTriangleSplit( &triangles[i] );
-			BSPTriVector().swap( triangles );
+			TriVector().swap( triangles );
 			front_node->Split( depth + 1 );
 			back_node->Split( depth + 1 );
 		}
 	}
 }
 
-void BSPNode::AddTriangleSplit( BSPTriangle* tri )
+void BSPNode::AddTriangleSplit( Triangle* tri )
 {
 	Vec3 P1 = tri->P1;
 	Vec3 P2 = tri->P2;
@@ -479,10 +506,10 @@ float BSPNode::IntersectRay( const Vec3& from, const Vec3& to, Vec3* outnormal )
 	else
 	{
 		float closest_hit = BSP_NO_HIT;
-		BSPTriangle* closest_tri = NULL;
+		Triangle* closest_tri = NULL;
 		for( size_t i = 0; i < triangles.size(); ++i )
 		{
-			BSPTriangle& T = triangles[i];
+			Triangle& T = triangles[i];
 			float hit = IntersectLineSegmentTriangle( from, to, T.P1, T.P2, T.P3 );
 			if( hit < closest_hit )
 			{
@@ -517,7 +544,7 @@ bool BSPNode::PickSplitPlane()
 	Vec3Vector points;
 	for( size_t i = 0; i < triangles.size(); ++i )
 	{
-		BSPTriangle& T = triangles[i];
+		Triangle& T = triangles[i];
 		TFINDADD( points, T.P1 );
 		TFINDADD( points, T.P2 );
 		TFINDADD( points, T.P3 );
@@ -555,7 +582,7 @@ bool BSPNode::PickSplitPlane()
 	float d1, d2, d3;
 	for( size_t i = 0; i < triangles.size(); ++i )
 	{
-		BSPTriangle& T = triangles[i];
+		Triangle& T = triangles[i];
 		d1 = Vec3Dot( T.P1, N ) - D;
 		d2 = Vec3Dot( T.P2, N ) - D;
 		d3 = Vec3Dot( T.P3, N ) - D;
@@ -579,6 +606,338 @@ bool BSPNode::PickSplitPlane()
 		return q < 3.0f;
 	}
 	return false;
+}
+
+
+
+bool RayAABBTest( const Vec3& ro, const Vec3& inv_n, float len, const Vec3& bbmin, const Vec3& bbmax )
+{
+	float tmin = -FLT_MAX, tmax = FLT_MAX;
+	
+	if( inv_n.x != 0.0f )
+	{
+		float tx1 = ( bbmin.x - ro.x ) * inv_n.x;
+		float tx2 = ( bbmax.x - ro.x ) * inv_n.x;
+		
+		tmin = TMAX( tmin, TMIN( tx1, tx2 ) );
+		tmax = TMIN( tmax, TMAX( tx1, tx2 ) );
+	}
+	
+	if( inv_n.y != 0.0f )
+	{
+		float ty1 = ( bbmin.y - ro.y ) * inv_n.y;
+		float ty2 = ( bbmax.y - ro.y ) * inv_n.y;
+		
+		tmin = TMAX( tmin, TMIN( ty1, ty2 ) );
+		tmax = TMIN( tmax, TMAX( ty1, ty2 ) );
+	}
+	
+	if( inv_n.z != 0.0f )
+	{
+		float tz1 = ( bbmin.z - ro.z ) * inv_n.z;
+		float tz2 = ( bbmax.z - ro.z ) * inv_n.z;
+		
+		tmin = TMAX( tmin, TMIN( tz1, tz2 ) );
+		tmax = TMIN( tmax, TMAX( tz1, tz2 ) );
+	}
+	
+	return tmax >= tmin && len >= tmin;
+}
+
+
+#define AABBTREE_MIN_SPLIT_SIZE 4
+#define AABBTREE_MAX_SPLIT_DEPTH 16
+#define AABBTREE_SIZE_SPLIT_FACTOR 3
+
+struct _AABBTree_SortIndices
+{
+	AABB3* aabbs;
+	Vec3 splitnrm;
+	
+	bool operator () ( int32_t idx_a, int32_t idx_b )
+	{
+		float dot_a = Vec3Dot( splitnrm, aabbs[ idx_a ].Center() );
+		float dot_b = Vec3Dot( splitnrm, aabbs[ idx_b ].Center() );
+		return dot_a < dot_b;
+	}
+};
+
+void AABBTree::SetAABBs( AABB3* aabbs, size_t count )
+{
+	m_nodes.clear();
+	m_itemidx.clear();
+	m_nodes.push_back( Node() );
+	m_nodes[0].bbmin = V3(FLT_MAX);
+	m_nodes[0].bbmax = V3(-FLT_MAX);
+	m_nodes[0].ch = -1;
+	m_nodes[0].ido = -1;
+	if( count == 0 )
+		return;
+	
+	// BVH generation...
+	std::vector< int32_t > sampidx;
+	for( size_t i = 0; i < count; ++i )
+	{
+		if( aabbs[ i ].Valid() )
+			sampidx.push_back( i );
+	}
+	_MakeNode( 0, aabbs, VDATA( sampidx ), sampidx.size(), 0 );
+}
+
+void AABBTree::_MakeNode( int32_t node, AABB3* aabbs, int32_t* sampidx_data, size_t sampidx_count, int depth )
+{
+	AABBTree::Node& N = m_nodes[ node ];
+	
+	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
+	for( size_t i = 0; i < sampidx_count; ++i )
+	{
+		AABB3& bb = aabbs[ sampidx_data[ i ] ];
+		bbmin = Vec3::Min( bbmin, bb.bbmin );
+		bbmax = Vec3::Max( bbmax, bb.bbmax );
+	}
+	N.bbmin = bbmin;
+	N.bbmax = bbmax;
+	AABB3 Nbb = { bbmin, bbmax };
+	float Nbbvol = Nbb.Volume();
+	
+	if( sampidx_count > AABBTREE_MIN_SPLIT_SIZE &&
+		depth < AABBTREE_MAX_SPLIT_DEPTH )
+	{
+		// split
+		N.ido = -1;
+		N.ch = -1;
+		int numsplittable = 0;
+		
+		Vec3 sbbmin = V3(FLT_MAX), sbbmax = V3(-FLT_MAX);
+		for( size_t i = 0; i < sampidx_count; ++i )
+		{
+			AABB3& bb = aabbs[ sampidx_data[ i ] ];
+			if( bb.Volume() * AABBTREE_SIZE_SPLIT_FACTOR < Nbbvol )
+			{
+				numsplittable++;
+				sbbmin = Vec3::Min( sbbmin, bb.bbmin );
+				sbbmax = Vec3::Max( sbbmax, bb.bbmax );
+			}
+		}
+		Vec3 sbbsize = sbbmax - sbbmin;
+		Vec3 splitnrm = V3(0,0,1);
+		if( sbbsize.x > sbbsize.y && sbbsize.x > sbbsize.z ) splitnrm = V3(1,0,0);
+		else if( sbbsize.y > sbbsize.x && sbbsize.y > sbbsize.z ) splitnrm = V3(0,1,0);
+		
+		if( numsplittable < AABBTREE_MIN_SPLIT_SIZE )
+			goto actually_make_leaf;
+		
+		std::vector< int32_t > subsampidx_self, subsampidx_split;
+		for( size_t i = 0; i < sampidx_count; ++i )
+		{
+			AABB3& bb = aabbs[ sampidx_data[ i ] ];
+			if( bb.Volume() * AABBTREE_SIZE_SPLIT_FACTOR < Nbbvol )
+				subsampidx_split.push_back( sampidx_data[ i ] );
+			else
+				subsampidx_self.push_back( sampidx_data[ i ] );
+		}
+		
+		if( subsampidx_self.size() )
+		{
+			// add big items directly to node
+			N.ido = m_itemidx.size();
+			m_itemidx.push_back( subsampidx_self.size() );
+			m_itemidx.reserve( m_itemidx.size() + subsampidx_self.size() );
+			for( size_t i = 0; i < subsampidx_self.size(); ++i )
+				m_itemidx.push_back( subsampidx_self[ i ] );
+		}
+		
+		_AABBTree_SortIndices ABTSI = { aabbs, splitnrm };
+		std::sort( subsampidx_split.begin(), subsampidx_split.end(), ABTSI );
+		size_t mid = subsampidx_split.size() / 2;
+		
+		// -- DO NOT TOUCH <N> ANYMORE --
+		m_nodes.push_back( AABBTree::Node() );
+		_MakeNode( m_nodes.size() - 1, aabbs, VDATA( subsampidx_split ), mid, depth + 1 );
+		m_nodes[ node ].ch = m_nodes.size();
+		m_nodes.push_back( AABBTree::Node() );
+		_MakeNode( m_nodes.size() - 1, aabbs, VDATA( subsampidx_split, mid ), subsampidx_split.size() - mid, depth + 1 );
+	}
+	else
+	{
+actually_make_leaf:
+		// make leaf
+		N.ido = m_itemidx.size();
+		N.ch = -1;
+		m_itemidx.push_back( sampidx_count );
+		m_itemidx.reserve( m_itemidx.size() + sampidx_count );
+		for( size_t i = 0; i < sampidx_count; ++i )
+			m_itemidx.push_back( sampidx_data[ i ] );
+	}
+}
+
+
+
+void TriTree::SetTris( Triangle* tris, size_t count )
+{
+	m_tris.clear();
+	std::vector< AABB3 > bbs;
+	for( size_t i = 0; i < count; ++i )
+	{
+		if( tris[ i ].CheckIsUseful() )
+		{
+			AABB3 bb;
+			tris[ i ].GetAABB( bb );
+			bbs.push_back( bb );
+			m_tris.push_back( tris[ i ] );
+		}
+	}
+	
+	m_bbTree.SetAABBs( VDATA( bbs ), bbs.size() );
+}
+
+
+struct AnyHitRayQuery : BaseRayQuery
+{
+	AnyHitRayQuery( Triangle* ta, const Vec3& r0, const Vec3& r1 ) : hit(false), tris( ta ), ray_end( r1 )
+	{
+		SetRay( r0, r1 );
+	}
+	bool operator () ( int32_t* ids, int32_t count )
+	{
+		for( int32_t i = 0; i < count; ++i )
+		{
+			Triangle& T = tris[ ids[ i ] ];
+			hit = IntersectLineSegmentTriangle( ray_origin, ray_end, T.P1, T.P2, T.P3 ) < 1.0f;
+			if( hit )
+				return false;
+		}
+		return true;
+	}
+	
+	bool hit;
+	Triangle* tris;
+	Vec3 ray_end;
+};
+
+bool TriTree::IntersectRay( const Vec3& from, const Vec3& to )
+{
+	AnyHitRayQuery query( VDATA( m_tris ), from, to );
+	m_bbTree.RayQuery( query );
+	return query.hit;
+}
+
+
+struct ClosestHitRayQuery : BaseRayQuery
+{
+	ClosestHitRayQuery( Triangle* ta, const Vec3& r0, const Vec3& r1 ) : closest(2), hitid(-1), tris( ta ), ray_end( r1 )
+	{
+		SetRay( r0, r1 );
+	}
+	bool operator () ( int32_t* ids, int32_t count )
+	{
+		for( int32_t i = 0; i < count; ++i )
+		{
+			Triangle& T = tris[ ids[ i ] ];
+			float dist = IntersectLineSegmentTriangle( ray_origin, ray_end, T.P1, T.P2, T.P3 );
+			if( dist < closest )
+			{
+				closest = dist;
+				hitid = ids[ i ];
+			}
+		}
+		return true;
+	}
+	
+	float closest;
+	int32_t hitid;
+	Triangle* tris;
+	Vec3 ray_end;
+};
+
+float TriTree::IntersectRayDist( const Vec3& from, const Vec3& to, int32_t* outtid )
+{
+	ClosestHitRayQuery query( VDATA( m_tris ), from, to );
+	m_bbTree.RayQuery( query );
+	if( query.hitid != -1 && outtid )
+	{
+		*outtid = query.hitid;
+	}
+	return query.closest;
+}
+
+
+
+static float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 )
+{
+	// plane
+	Vec3 nrm = Vec3Cross( t1 - t0, t2 - t0 ).Normalized();
+	float pd = fabsf( Vec3Dot( nrm, pt ) - Vec3Dot( nrm, t0 ) );
+	
+	// tangents
+	Vec3 tan0 = ( t1 - t0 ).Normalized();
+	Vec3 tan1 = ( t2 - t1 ).Normalized();
+	Vec3 tan2 = ( t0 - t2 ).Normalized();
+	
+	// bounds
+	float t0p = Vec3Dot( tan0, pt ), t0min = Vec3Dot( tan0, t0 ), t0max = Vec3Dot( tan0, t1 );
+	float t1p = Vec3Dot( tan1, pt ), t1min = Vec3Dot( tan1, t1 ), t1max = Vec3Dot( tan1, t2 );
+	float t2p = Vec3Dot( tan2, pt ), t2min = Vec3Dot( tan2, t2 ), t2max = Vec3Dot( tan2, t0 );
+	
+	// check corners
+	if( t0min >= t0p && t2max <= t2p ) return ( pt - t0 ).Length();
+	if( t1min >= t1p && t0max <= t0p ) return ( pt - t1 ).Length();
+	if( t2min >= t2p && t1max <= t1p ) return ( pt - t2 ).Length();
+	
+	// edge normals
+	Vec3 en0 = Vec3Cross( t1 - t0, nrm ).Normalized();
+	Vec3 en1 = Vec3Cross( t2 - t1, nrm ).Normalized();
+	Vec3 en2 = Vec3Cross( t0 - t2, nrm ).Normalized();
+	
+	// signed distances from edges
+	float ptd0 = Vec3Dot( en0, pt ) - Vec3Dot( en0, t0 );
+	float ptd1 = Vec3Dot( en1, pt ) - Vec3Dot( en1, t1 );
+	float ptd2 = Vec3Dot( en2, pt ) - Vec3Dot( en2, t2 );
+	
+	// check edges
+	if( ptd0 >= 0 && t0p >= t0min && t0p <= t0max ) return V2( pd, ptd0 ).Length();
+	if( ptd1 >= 0 && t1p >= t1min && t1p <= t1max ) return V2( pd, ptd1 ).Length();
+	if( ptd2 >= 0 && t2p >= t2min && t2p <= t2max ) return V2( pd, ptd2 ).Length();
+	
+	// inside
+	return pd;
+}
+
+struct DistanceBBQuery
+{
+	DistanceBBQuery( Triangle* ta, const Vec3& p, float d ) : pos( p ), dist( d ), tris( ta ){ RecalcBB(); }
+	
+	void operator () ( int32_t* ids, int32_t count )
+	{
+		for( int32_t i = 0; i < count; ++i )
+		{
+			Triangle& T = tris[ ids[ i ] ];
+			float ndst = PointTriangleDistance( pos, T.P1, T.P2, T.P3 );
+			if( ndst < dist )
+			{
+				dist = ndst;
+				RecalcBB();
+			}
+		}
+	}
+	
+	FORCEINLINE void RecalcBB()
+	{
+		bbmin = pos - V3(dist);
+		bbmax = pos + V3(dist);
+	}
+	
+	Vec3 bbmin, bbmax;
+	Vec3 pos;
+	float dist;
+	Triangle* tris;
+};
+
+float TriTree::GetDistance( const Vec3& p, float dist )
+{
+	DistanceBBQuery query( VDATA( m_tris ), p, dist );
+	m_bbTree.DynBBQuery( query );
+	return query.dist;
 }
 
 
