@@ -133,14 +133,15 @@ struct InfoEmissionSystem
 		virtual bool Process( Entity*, const Data& ) = 0;
 	};
 	
-	HashTable< Entity*, Data > m_emissionData;
-	
+	void Clear();
 	void UpdateEmitter( Entity* e, const Data& data );
 	void RemoveEmitter( Entity* e );
 	bool QuerySphereAny( const Vec3& pos, float rad, uint32_t types );
 	bool QuerySphereAll( IESProcessor* proc, const Vec3& pos, float rad, uint32_t types );
 	bool QueryBB( const Mat4& mtx, uint32_t types );
 	Entity* QueryOneRay( const Vec3& from, const Vec3& to, uint32_t types );
+	
+	HashTable< Entity*, Data > m_emissionData;
 };
 
 struct IESItemGather : InfoEmissionSystem::IESProcessor

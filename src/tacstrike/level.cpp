@@ -16,7 +16,7 @@ static int SendMessage( SGS_CTX )
 {
 	SGSFN( "SendMessage" );
 	int ssz = sgs_StackSize( C );
-	g_GameLevel->m_messageSystem.AddMessage( (MSMessage::Type) sgs_GetVar<int>()( C, 0 ), sgs_GetVar<String>()( C, 1 ), ssz < 3 ? 3.0f : sgs_GetVar<float>()( C, 2 ) );
+	g_GameLevel->m_messageSystem.AddMessage( (MSMessage::Type) sgs_GetVar<int>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ), ssz < 3 ? 3.0f : sgs_GetVar<float>()( C, 2 ) );
 	return 0;
 }
 static int EndLevel( SGS_CTX )
@@ -25,16 +25,22 @@ static int EndLevel( SGS_CTX )
 	g_GameLevel->m_endFactor = 0;
 	return 0;
 }
+static int SetLevel( SGS_CTX )
+{
+	SGSFN( "SetLevel" );
+	g_GameLevel->SetNextLevel( sgs_GetVar<StringView>()( C, 0 ) );
+	return 0;
+}
 static int CallEntity( SGS_CTX )
 {
 	SGSFN( "CallEntity" );
-	g_GameLevel->CallEntityByName( sgs_GetVar<String>()( C, 0 ), sgs_GetVar<String>()( C, 1 ) );
+	g_GameLevel->CallEntityByName( sgs_GetVar<StringView>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ) );
 	return 0;
 }
 static int PlayerHasItem( SGS_CTX )
 {
 	SGSFN( "PlayerHasItem" );
-	sgs_PushVar<bool>( C, g_GameLevel->m_player && g_GameLevel->m_player->HasItem( sgs_GetVar<String>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) ) );
+	sgs_PushVar<bool>( C, g_GameLevel->m_player && g_GameLevel->m_player->HasItem( sgs_GetVar<StringView>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) ) );
 	return 1;
 }
 static int ObjectiveAdd( SGS_CTX )
@@ -153,6 +159,7 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 {
 	{ "SendMessage", SendMessage },
 	{ "EndLevel", EndLevel },
+	{ "SetLevel", SetLevel },
 	{ "CallEntity", CallEntity },
 	{ "PlayerHasItem", PlayerHasItem },
 	{ "ObjectiveAdd", ObjectiveAdd },
@@ -239,7 +246,7 @@ GameLevel::GameLevel() :
 
 GameLevel::~GameLevel()
 {
-	ClearLevel();
+	EndLevel();
 	m_damageSystem.Free();
 }
 
@@ -249,12 +256,15 @@ GameLevel::~GameLevel()
 
 struct LoadingScreen
 {
-	LoadingScreen() : m_running(true)
+	LoadingScreen() : m_running(true), m_alpha(0), m_alphaTgt(1)
 	{
 		m_thread.Start( _Proc, this );
+		sgrx_sleep( 500 );
 	}
 	~LoadingScreen()
 	{
+		m_alphaTgt = 0;
+		sgrx_sleep( 500 );
 		m_running = false;
 	}
 	
@@ -277,7 +287,7 @@ struct LoadingScreen
 		//	br.Reset().Col( 1, 1 ).SetPrimitiveType(PT_Lines)
 		//		.Pos( V2(0,0) ).Pos( 0+cosf(t)*50, 0+sinf(t)*50);
 			
-			br.Reset().Col( 1.0f, 0.5f );
+			br.Reset().Col( 1.0f, 0.5f * m_alpha );
 			int textlen = int( t * 37 ) % 100;
 			StringView text = "LOADING...";
 			text = text.part( 0, textlen );
@@ -286,8 +296,13 @@ struct LoadingScreen
 			
 			br.Flush();
 			SGRX_Swap();
-			t += ( newt - prevt );
+			
+			float delta = ( newt - prevt );
+			t += delta;
 			prevt = newt;
+			
+			float alpha_dt = m_alphaTgt - m_alpha;
+			m_alpha += sign( alpha_dt ) * TMIN( fabsf( alpha_dt ), delta * 2 );
 		}
 	}
 	
@@ -298,6 +313,8 @@ struct LoadingScreen
 	
 	SGRX_Thread m_thread;
 	volatile bool m_running;
+	volatile float m_alpha;
+	volatile float m_alphaTgt;
 };
 
 
@@ -319,7 +336,7 @@ bool GameLevel::Load( const StringView& levelname )
 		if( !FS_LoadBinaryFile( bfr, ba ) )
 			return false;
 		
-		ClearLevel();
+		EndLevel();
 		
 		snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		m_scriptCtx.Include( bfr );
@@ -473,20 +490,6 @@ bool GameLevel::Load( const StringView& levelname )
 	
 	
 	return true;
-}
-
-void GameLevel::ClearLevel()
-{
-	m_currentTickTime = 0;
-	m_currentPhyTime = 0;
-	EndLevel();
-	m_ltSamples.SetSamples( NULL, 0 );
-	m_damageSystem.Clear();
-	m_bulletSystem.Clear();
-	m_flareSystem.Clear();
-	m_lights.clear();
-	m_meshInsts.clear();
-	m_levelBodies.clear();
 }
 
 void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparams )
@@ -765,6 +768,9 @@ void GameLevel::StartLevel()
 
 void GameLevel::EndLevel()
 {
+	m_currentTickTime = 0;
+	m_currentPhyTime = 0;
+	
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		delete m_entities[ i ];
 	m_entities.clear();
@@ -775,6 +781,26 @@ void GameLevel::EndLevel()
 	{
 		delete m_player;
 		m_player = NULL;
+	}
+	
+	m_ltSamples.SetSamples( NULL, 0 );
+	m_infoEmitters.Clear();
+	m_damageSystem.Clear();
+	m_bulletSystem.Clear();
+	m_flareSystem.Clear();
+	m_lights.clear();
+	m_meshInsts.clear();
+	m_levelBodies.clear();
+}
+
+void GameLevel::ProcessEvents()
+{
+	if( m_nextLevel.size() != 0 )
+	{
+		EndLevel();
+		Load( m_nextLevel );
+		StartLevel();
+		m_nextLevel = "";
 	}
 }
 
@@ -1021,6 +1047,11 @@ void GameLevel::Draw()
 	rsinfo.debugdraw = this;
 	rsinfo.postdraw = this;
 	GR_RenderScene( rsinfo );
+}
+
+void GameLevel::SetNextLevel( const StringView& name )
+{
+	m_nextLevel = name;
 }
 
 void GameLevel::MapEntityByName( Entity* e )

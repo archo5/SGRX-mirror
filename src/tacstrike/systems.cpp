@@ -16,6 +16,11 @@ Entity::~Entity()
 
 
 
+void InfoEmissionSystem::Clear()
+{
+	m_emissionData.clear();
+}
+
 void InfoEmissionSystem::UpdateEmitter( Entity* e, const Data& data )
 {
 	m_emissionData[ e ] = data;

@@ -14,12 +14,12 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	virtual ~GameLevel();
 	
 	bool Load( const StringView& levelname );
-	void ClearLevel();
 	void CreateEntity( const StringView& type, const StringView& sgsparams );
 	StackShortName GenerateName();
 	void StartLevel();
 	void EndLevel();
 	
+	void ProcessEvents();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void Draw2D();
@@ -27,6 +27,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	void PostDraw();
 	void Draw();
 	
+	void SetNextLevel( const StringView& name );
 	void MapEntityByName( Entity* e );
 	void UnmapEntityByName( Entity* e );
 	Entity* FindEntityByName( const StringView& name );
@@ -72,6 +73,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	// HELPER DATA
 	Vec3 m_cachedCameraInfo[2];
 	bool m_cameraInfoCached;
+	String m_nextLevel;
 	
 	// COMMON DATA
 	TextureHandle m_tex_mapline;

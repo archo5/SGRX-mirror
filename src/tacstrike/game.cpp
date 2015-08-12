@@ -583,6 +583,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
 		
 		g_SoundSys->Update();
+		g_GameLevel->ProcessEvents();
 		
 		if( dt > MAX_TICK_SIZE )
 			dt = MAX_TICK_SIZE;
