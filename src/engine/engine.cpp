@@ -2356,7 +2356,6 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 	const AnimFileParser::Anim& AN = afp->animData[ anim ];
 	
 	SGRX_Animation* nanim = new SGRX_Animation;
-	nanim->_refcount = 0;
 	
 	nanim->name.assign( AN.name, AN.nameSize );
 	nanim->frameCount = AN.frameCount;
@@ -2385,6 +2384,14 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 			scldata[ f ].y = indata[ f * 10 + 8 ];
 			scldata[ f ].z = indata[ f * 10 + 9 ];
 		}
+	}
+	nanim->markers.resize( AN.markerCount );
+	for( int m = 0; m < AN.markerCount; ++m )
+	{
+		const AnimFileParser::Marker& MRK = afp->markerData[ AN.markerDataOff + m ];
+		SGRX_Animation::Marker& MOUT = nanim->markers[ m ];
+		memcpy( MOUT.name, MRK.name, MAX_ANIM_MARKER_NAME_LENGTH );
+		MOUT.frame = MRK.frame;
 	}
 	
 	return nanim;

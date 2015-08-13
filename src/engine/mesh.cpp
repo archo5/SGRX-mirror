@@ -329,6 +329,8 @@ const char* AnimFileParser::Parse( ByteReader& br )
 		br << anim.speed;
 		br << anim.trackCount;
 		anim.trackDataOff = trackData.size();
+		br << anim.markerCount;
+		anim.markerDataOff = markerData.size();
 		
 		if( br.error )
 			return "failed to read animation data";
@@ -349,6 +351,19 @@ const char* AnimFileParser::Parse( ByteReader& br )
 				return "failed to read track data";
 			
 			trackData.push_back( track );
+		}
+		
+		for( uint8_t m = 0; m < anim.markerCount; ++m )
+		{
+			Marker marker;
+			
+			br.memory( marker.name, MAX_ANIM_MARKER_NAME_LENGTH );
+			br << marker.frame;
+			
+			if( br.error )
+				return "failed to read marker data";
+			
+			markerData.push_back( marker );
 		}
 		
 		animData.push_back( anim );

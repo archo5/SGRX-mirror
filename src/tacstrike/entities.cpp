@@ -802,6 +802,16 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 	m_animChar.RecalcLayerState();
 	
+	if( m_anMainPlayer.CheckMarker( "step" ) )
+	{
+		Vec3 pos = m_bodyHandle->GetPosition();
+		Vec3 lvel = m_bodyHandle->GetLinearVelocity();
+		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
+		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
+		fsev->Set3DAttribs( s3dattr );
+		fsev->Start();
+	}
+	
 	m_animChar.FixedTick( deltaTime );
 }
 

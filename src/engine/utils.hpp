@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <new>
 
 
@@ -74,13 +75,43 @@ ENGINE_EXPORT void sgrx_assert_func( const char* code, const char* file, int lin
 
 // compiler/toolchain padding
 ENGINE_EXPORT void NOP( int x );
-ENGINE_EXPORT int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen = (size_t) -1 );
-ENGINE_EXPORT int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... );
 ENGINE_EXPORT uint32_t sgrx_crc32( const void* buf, size_t len, uint32_t in_crc );
 ENGINE_EXPORT void sgrx_quicksort( void* array, size_t length, size_t size,
 	int(*compare)(const void*, const void*, void*), void* userdata );
 ENGINE_EXPORT void sgrx_combsort( void* array, size_t length, size_t size,
 	bool(*compless)(const void*, const void*, void*), void* userdata );
+
+inline size_t sgrx_snlen( const char* str, size_t ilen = (size_t) -1 )
+{
+	for( size_t i = 0; i < ilen; ++i )
+		if( str[ i ] == '\0' )
+			return i;
+	return ilen;
+}
+
+inline int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen = (size_t) -1 )
+{
+	if( len == 0 )
+		return -1;
+	len--;
+	if( len > ilen )
+		len = ilen;
+	memcpy( buf, str, len );
+	buf[ len ] = 0;
+	return 0;
+}
+
+inline int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... )
+{
+	if( len == 0 )
+		return -1;
+	va_list args;
+	va_start( args, fmt );
+	int ret = vsnprintf( buf, len, fmt, args );
+	va_end( args );
+	buf[ len - 1 ] = 0;
+	return ret;
+}
 
 // RT system padding
 ENGINE_EXPORT double sgrx_hqtime();

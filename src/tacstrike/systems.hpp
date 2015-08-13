@@ -200,6 +200,7 @@ struct MessagingSystem
 	Array< MSMessage > m_messages;
 	
 	MessagingSystem();
+	void Clear();
 	void AddMessage( MSMessage::Type type, const StringView& sv, float tmlength = 3 );
 	void Tick( float dt );
 	void DrawUI();

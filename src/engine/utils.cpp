@@ -50,30 +50,6 @@ void sgrx_assert_func( const char* code, const char* file, int line )
 
 void NOP( int x ){}
 
-int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen )
-{
-	if( len == 0 )
-		return -1;
-	len--;
-	if( len > ilen )
-		len = ilen;
-	memcpy( buf, str, len );
-	buf[ len ] = 0;
-	return 0;
-}
-
-int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... )
-{
-	if( len == 0 )
-		return -1;
-	va_list args;
-	va_start( args, fmt );
-	int ret = vsnprintf( buf, len, fmt, args );
-	va_end( args );
-	buf[ len - 1 ] = 0;
-	return ret;
-}
-
 
 
 /*------------------------------------------------------------*\

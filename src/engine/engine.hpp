@@ -380,6 +380,8 @@ struct PixelShaderHandle : Handle< SGRX_IPixelShader >
 #define MAX_MI_TEXTURES    4
 #define MAX_MI_CONSTANTS   16
 
+#define MAX_ANIM_MARKER_NAME_LENGTH 16
+
 struct VDeclInfo
 {
 	uint8_t offsets[ VDECL_MAX_ITEMS ];

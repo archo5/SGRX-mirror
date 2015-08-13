@@ -50,6 +50,18 @@ void SGRX_Animation::GetState( int track, float framePos, Vec3& outpos, Quat& ou
 	outscl = TLERP( scl[ f0 ], scl[ f1 ], q );
 }
 
+bool SGRX_Animation::CheckMarker( const StringView& name, float fp0, float fp1 )
+{
+	for( size_t i = 0; i < markers.size(); ++i )
+	{
+		if( markers[ i ].GetName() == name &&
+			fp0 <= float(markers[ i ].frame) &&
+			fp1 > float(markers[ i ].frame) )
+			return true;
+	}
+	return false;
+}
+
 void Animator::Prepare( String* new_names, int count )
 {
 	names.assign( new_names, count );
@@ -210,6 +222,7 @@ void AnimPlayer::Advance( float deltaTime )
 		Anim& A = currentAnims[ i ];
 		SGRX_Animation* AN = A.anim;
 		A.at += deltaTime;
+		A.prev_fade_at = A.fade_at;
 		A.fade_at += deltaTime;
 		
 		float animTime = AN->frameCount / AN->speed;
@@ -283,8 +296,37 @@ void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
 		return;
 	if( !once && currentAnims.size() && currentAnims.last().once == false && currentAnims.last().anim == anim )
 		return; // ignore repetitive invocations
-	Anim A = { anim, _getTrackIds( anim ), 0, 0, fadetime, once };
+	Anim A = { anim, _getTrackIds( anim ), 0, 0, 0, fadetime, once };
 	currentAnims.push_back( A );
+}
+
+bool AnimPlayer::CheckMarker( const StringView& name )
+{
+	for( size_t i = 0; i < currentAnims.size(); ++i )
+	{
+		Anim& A = currentAnims[ i ];
+		SGRX_Animation* AN = A.anim;
+		float fp0 = A.prev_fade_at * AN->speed;
+		float fp1 = A.fade_at * AN->speed;
+		if( fp0 == fp1 )
+			continue; // prevent 'thrilling' markers
+		if( A.once == false )
+		{
+			float pfp1 = fmodf( fp1, AN->frameCount );
+			fp0 += ( pfp1 - fp1 );
+			fp1 = pfp1;
+			// fp1 is inside [0;frameCount), fp0 may be < 0
+			if( fp0 < 0 )
+			{
+				// check +frameCount range as well
+				if( AN->CheckMarker( name, fp0 + AN->frameCount, fp1 + AN->frameCount ) )
+					return true;
+			}
+		}
+		if( AN->CheckMarker( name, fp0, fp1 ) )
+			return true;
+	}
+	return false;
 }
 
 int* AnimPlayer::_getTrackIds( const AnimHandle& anim )

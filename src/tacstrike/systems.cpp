@@ -107,6 +107,11 @@ MessagingSystem::MessagingSystem()
 	m_tx_icon_cont = GR_GetTexture( "ui/icon_cont.png" );
 }
 
+void MessagingSystem::Clear()
+{
+	m_messages.clear();
+}
+
 void MessagingSystem::AddMessage( MSMessage::Type type, const StringView& sv, float tmlength )
 {
 	m_messages.push_back( MSMessage() );

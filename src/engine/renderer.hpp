@@ -88,14 +88,21 @@ struct AnimFileParser
 		float speed;
 		uint8_t nameSize;
 		uint8_t trackCount;
+		uint8_t markerCount;
 		uint32_t frameCount;
 		uint32_t trackDataOff;
+		uint16_t markerDataOff;
 	};
 	struct Track
 	{
 		char* name;
 		uint8_t nameSize;
 		float* dataPtr; // points to 10 * frameCount floats (AoS)
+	};
+	struct Marker
+	{
+		char name[ MAX_ANIM_MARKER_NAME_LENGTH ]; // engine.hpp
+		int frame;
 	};
 	
 	AnimFileParser( ByteArray& data )
@@ -109,6 +116,7 @@ struct AnimFileParser
 	ENGINE_EXPORT const char* Parse( ByteReader& br );
 	
 	const char* error;
+	Array< Marker > markerData;
 	Array< Track > trackData;
 	Array< Anim > animData;
 };
@@ -127,6 +135,13 @@ inline SGRX_Log& operator << ( SGRX_Log& L, const AnimFileParser::Track& track )
 	L << "TRACK";
 	L << "\n\tname = " << StringView( track.name, track.nameSize );
 	L << "\n\tdataPtr = " << track.dataPtr;
+	return L;
+}
+inline SGRX_Log& operator << ( SGRX_Log& L, const AnimFileParser::Marker& marker )
+{
+	L << "MARKER";
+	L << "\n\tname = " << StringView( marker.name, sgrx_snlen( marker.name, MAX_ANIM_MARKER_NAME_LENGTH ) );
+	L << "\n\tframe = " << marker.frame;
 	return L;
 }
 

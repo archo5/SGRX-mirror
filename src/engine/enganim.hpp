@@ -10,10 +10,20 @@ ENGINE_EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, c
 ENGINE_EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch );
 
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_Animation
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_Animation : SGRX_RCRsrc
 {
-	FINLINE void Acquire(){ ++_refcount; }
-	FINLINE void Release(){ --_refcount; if( _refcount <= 0 ) delete this; }
+	struct Marker
+	{
+		char name[ MAX_ANIM_MARKER_NAME_LENGTH ]; // engine.hpp
+		int frame;
+		
+		StringView GetName()
+		{
+			return StringView( name, sgrx_snlen( name, MAX_ANIM_MARKER_NAME_LENGTH ) );
+		}
+	};
+	
 	ENGINE_EXPORT ~SGRX_Animation();
 	
 	ENGINE_EXPORT Vec3* GetPosition( int track );
@@ -21,6 +31,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Animation
 	ENGINE_EXPORT Vec3* GetScale( int track );
 	
 	ENGINE_EXPORT void GetState( int track, float framePos, Vec3& outpos, Quat& outrot, Vec3& outscl );
+	ENGINE_EXPORT bool CheckMarker( const StringView& name, float fp0, float fp1 );
 	
 	String name;
 	int frameCount;
@@ -28,8 +39,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Animation
 	size_t nameSize;
 	Array< float > data;
 	Array< String > trackNames;
-	
-	int32_t _refcount;
+	Array< Marker > markers;
 };
 
 struct AnimHandle : Handle< SGRX_Animation >
@@ -100,6 +110,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 		int* trackIDs;
 		float at;
 		float fade_at;
+		float prev_fade_at;
 		float fadetime;
 		bool once;
 	};
@@ -110,6 +121,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
 	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
+	ENGINE_EXPORT bool CheckMarker( const StringView& name );
 	
 	ENGINE_EXPORT int* _getTrackIds( const AnimHandle& anim );
 	ENGINE_EXPORT void _clearAnimCache();

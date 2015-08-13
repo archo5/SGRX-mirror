@@ -185,11 +185,12 @@ def write_anims( f, anims ):
 		a_name = anim["name"]
 		a_frames = anim["frames"]
 		a_tracks = anim["tracks"]
+		a_markers = anim["markers"]
 		a_speed = anim["speed"]
 		
 		a_name_bytes = bytes( a_name, "UTF-8" )
 		animbuf = struct.pack( "B", len(a_name_bytes) ) + a_name_bytes
-		animbuf += struct.pack( "LfB", a_frames, a_speed, len( a_tracks ) )
+		animbuf += struct.pack( "=LfBB", a_frames, a_speed, len( a_tracks ), len( a_markers ) )
 		
 		for track_name, track_matrices in a_tracks.items():
 			track_name_bytes = bytes( track_name, "UTF-8" )
@@ -213,6 +214,9 @@ def write_anims( f, anims ):
 			
 			animbuf += struct.pack( "L", len(trackbuf) ) + trackbuf
 		#
+		
+		for marker in a_markers:
+			animbuf += struct.pack( "=16sL", bytes( marker["name"], "UTF-8" ), marker["frame"] )
 		
 		write_buffer( f, animbuf )
 	#
@@ -623,6 +627,10 @@ def write_ss3dmesh( ctx, filepath ):
 					track.append( magicmtx.inverted() * bone.matrix_basis.copy() * magicmtx )
 				#
 			#
+			anim_markers = []
+			for pmrk in action.pose_markers:
+				anim_markers.append({ "name": pmrk.name, "frame": pmrk.frame })
+			#
 			animspeed = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
 			animlistname = os.path.dirname( filepath ) + "/" + action.name + ".animlist.csv"
 			print( "Looking for animation descriptor - " + animlistname )
@@ -646,7 +654,7 @@ def write_ss3dmesh( ctx, filepath ):
 				#
 			else:
 				print( "Did not find it, will append the whole action." )
-				animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "speed": animspeed })
+				animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "markers" : anim_markers, "speed": animspeed })
 			#
 		#
 		armobj.animation_data.action = oldact
