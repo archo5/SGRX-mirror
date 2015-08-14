@@ -1942,7 +1942,7 @@ SGRX_Log::init::init()
 #endif
 #ifdef LOG_TO_FILE
 	out = fopen( "log.txt", "w" );
-	setvbuf( out, NULL, _IOLBF, 1024 );
+	setvbuf( out, NULL, _IONBF, 1024 );
 #endif
 }
 

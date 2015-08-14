@@ -394,6 +394,141 @@ void EdGroupManager::PathInvalidate( int32_t id )
 
 
 
+EdLevelGraphicsCont::EdLevelGraphicsCont()
+	: m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1)
+{
+}
+
+void EdLevelGraphicsCont::Reset()
+{
+	m_nextMeshID = 1;
+	m_nextSurfID = 1;
+	m_nextLightID = 1;
+	m_meshes.clear();
+	m_surfaces.clear();
+	m_lights.clear();
+}
+
+uint32_t EdLevelGraphicsCont::CreateMesh( EdLGCMeshInfo* info )
+{
+	uint32_t id = m_nextMeshID++;
+	ASSERT( id );
+	RequestMesh( id, info );
+	return id;
+}
+
+void EdLevelGraphicsCont::RequestMesh( uint32_t id, EdLGCMeshInfo* info )
+{
+	ASSERT( m_meshes.isset( id ) == false );
+	Mesh M;
+	M.meshInst = g_EdScene->CreateMeshInstance();
+	m_meshes.set( id, M );
+	UpdateMesh( id, LGC_CHANGE_ALL, info );
+}
+
+void EdLevelGraphicsCont::DeleteMesh( uint32_t id )
+{
+	ASSERT( m_meshes.isset( id ) );
+	m_meshes.unset( id );
+}
+
+static EdLGCMeshInfo g_defMeshInfo;
+void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshInfo* info )
+{
+	if( info == NULL )
+		info = &g_defMeshInfo;
+	ASSERT( m_meshes.isset( id ) );
+	Mesh& M = m_meshes[ id ];
+	if( changes & LGC_MESH_CHANGE_PATH )
+	{
+		M.meshInst->mesh = GR_GetMesh( info->path );
+	}
+	if( changes & LGC_CHANGE_XFORM )
+	{
+		M.meshInst->matrix = info->xform;
+	}
+	if( changes & LGC_CHANGE_RSPEC )
+	{
+		M.info = *info;
+		M.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
+		M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
+		lmm_prepmeshinst( M.meshInst );
+	}
+}
+
+uint32_t EdLevelGraphicsCont::CreateSurface( EdLGCSurfaceInfo* info )
+{
+	uint32_t id = m_nextSurfID++;
+	ASSERT( id );
+	RequestSurface( id, info );
+	return id;
+}
+
+void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
+{
+	ASSERT( m_surfaces.isset( id ) == false );
+	Mesh M;
+	M.meshInst = g_EdScene->CreateMeshInstance();
+	m_surfaces.set( id, M );
+	UpdateSurface( id, LGC_CHANGE_ALL, info );
+}
+
+void EdLevelGraphicsCont::DeleteSurface( uint32_t id )
+{
+	m_surfaces.unset( id );
+}
+
+static EdLGCSurfaceInfo g_defSurfInfo;
+void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSurfaceInfo* info )
+{
+	if( info == NULL )
+		info = &g_defSurfInfo;
+	ASSERT( m_surfaces.isset( id ) );
+	Mesh& M = m_surfaces[ id ];
+	if( changes & LGC_CHANGE_XFORM )
+	{
+		M.meshInst->matrix = info->xform;
+	}
+	if( changes & LGC_CHANGE_RSPEC )
+	{
+		M.info = *info;
+		M.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
+		M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
+	}
+}
+
+uint32_t EdLevelGraphicsCont::CreateLight( EdLGCLightInfo* info )
+{
+	uint32_t id = m_nextLightID++;
+	ASSERT( id );
+	RequestLight( id, info );
+	return id;
+}
+
+void EdLevelGraphicsCont::RequestLight( uint32_t id, EdLGCLightInfo* info )
+{
+	ASSERT( m_lights.isset( id ) == false );
+	Light L;
+	m_lights.set( id, L );
+	UpdateLight( id, LGC_CHANGE_ALL, info );
+}
+
+void EdLevelGraphicsCont::DeleteLight( uint32_t id )
+{
+	m_lights.unset( id );
+}
+
+static EdLGCLightInfo g_defLightInfo;
+void EdLevelGraphicsCont::UpdateLight( uint32_t id, uint32_t changes, EdLGCLightInfo* info )
+{
+	if( info == NULL )
+		info = &g_defLightInfo;
+	ASSERT( m_lights.isset( id ) );
+	Light& L = m_lights[ id ];
+}
+
+
+
 void EdObject::UISelectElement( int i, bool mod )
 {
 	if( i >= 0 && i < GetNumElements() )
@@ -587,6 +722,7 @@ void EdWorld::Reset()
 	m_entities.clear();
 	m_patches.clear();
 	m_objects.clear();
+	g_EdLGCont->Reset();
 }
 
 void EdWorld::TestData()
@@ -927,6 +1063,29 @@ bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchf
 	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent, skip, mask );
 }
 
+EdEntity* EdWorld::CreateScriptedEntity( const StringView& name, sgsVariable params )
+{
+	EdEntity* e = ENT_FindProtoByName( StackString< 128 >( name ) );
+	if( e == NULL )
+		return NULL;
+	
+	e = e->CloneEntity();
+	if( e == NULL )
+		return NULL;
+	
+	if( e->IsScriptedEnt() == false )
+	{
+		delete e;
+		return NULL;
+	}
+	
+	SGRX_CAST( EdEntScripted*, es, e );
+	es->m_data = params;
+	es->Data2Fields();
+	es->Fields2Data();
+	return es;
+}
+
 void EdWorld::AddObject( EdObject* obj )
 {
 	m_objects.push_back( obj );
@@ -1178,6 +1337,28 @@ void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
 	}
 	objex.Save( name, "Exported from SGRX editor" );
 }
+
+
+
+static int edscrAddScriptedEntity( SGS_CTX )
+{
+	SGSFN( "AddScriptedEntity" );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	sgsVariable params = sgs_GetVar<sgsVariable>()( C, 1 );
+	if( name == "Mesh" || name == "Light" || name == "Light sample" )
+		return sgs_Msg( C, SGS_WARNING, "Requested entity is not scripted: %s", StackString<128>(name).str );
+	EdObject* E = g_EdWorld->CreateScriptedEntity( name, params );
+	if( E == NULL )
+		return sgs_Msg( C, SGS_WARNING, "Could not find entity: %s", StackString<128>(name).str );
+	g_EdWorld->AddObject( E );
+	return 0;
+}
+
+static sgs_RegFuncConst g_editor_rfc[] =
+{
+	{ "AddScriptedEntity", edscrAddScriptedEntity },
+	{ NULL, NULL },
+};
 
 
 
@@ -1734,6 +1915,7 @@ struct TACStrikeEditor : IGame
 		g_ScriptCtx = new ScriptContext;
 		g_ScriptCtx->RegisterBatchRenderer();
 		sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
+		sgs_RegFuncConsts( g_ScriptCtx->C, g_editor_rfc, -1 );
 		ScrItem_InstallAPI( g_ScriptCtx->C );
 		
 		LOG << "\nLoading scripted entities:";
@@ -1753,6 +1935,7 @@ struct TACStrikeEditor : IGame
 		g_UILevelSavePicker = new EDGUILevelSavePicker;
 		
 		// core layout
+		g_EdLGCont = new EdLevelGraphicsCont;
 		g_EdScene = GR_CreateScene();
 		g_EdScene->camera.position = Vec3::Create(3,3,3);
 		g_EdScene->camera.UpdateMatrices();
@@ -1782,6 +1965,8 @@ struct TACStrikeEditor : IGame
 		g_UIPartSysPicker = NULL;
 		delete g_UISoundPicker;
 		g_UISoundPicker = NULL;
+		delete g_UICharPicker;
+		g_UICharPicker = NULL;
 		delete g_UIMeshPicker;
 		g_UIMeshPicker = NULL;
 		delete g_UISurfTexPicker;
@@ -1792,6 +1977,8 @@ struct TACStrikeEditor : IGame
 		g_EdWorld = NULL;
 		g_EdPhyWorld = NULL;
 		g_EdScene = NULL;
+		delete g_EdLGCont;
+		g_EdLGCont = NULL;
 		delete g_ScriptCtx;
 		g_ScriptCtx = NULL;
 	}

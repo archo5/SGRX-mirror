@@ -1684,6 +1684,9 @@ struct StringView
 #endif
 };
 
+// shorthand single arg autoconversion
+FINLINE StringView SV( const StringView& sv ){ return sv; }
+
 FINLINE void String::append( const StringView& sv )
 {
 	append( sv.m_str, sv.m_size );
@@ -1953,6 +1956,10 @@ struct HashTable
 			return &m_vars[ m_pairs[ i ] ];
 		else
 			return NULL;
+	}
+	bool isset( const K& key ) const
+	{
+		return _get_pair_id( key, HashVar( key ) ) >= 0;
 	}
 	Var* set( const K& key, const V& val )
 	{

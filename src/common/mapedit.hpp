@@ -13,7 +13,8 @@
 // v2: added ent[light].flareoffset
 // v3: added surface.xfit/yfit, added groups, added block.position
 // v4: added subentities
-#define MAP_FILE_VERSION 4
+// v5: level graphics container IDs
+#define MAP_FILE_VERSION 5
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -34,6 +35,7 @@ MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( PhyWorldHandle g_EdPhyWorld );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
+MAPEDIT_GLOBAL( struct EdLevelGraphicsCont* g_EdLGCont );
 MAPEDIT_GLOBAL( struct EDGUISDTexPicker* g_UISurfTexPicker );
 MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
@@ -254,6 +256,136 @@ struct EdGroupManager : EDGUILayoutRow
 
 
 //
+// LEVEL GRAPHICS CONTAINER
+//
+
+typedef LevelCache::Vertex LCVertex;
+
+// note:
+//  2-step invalidation
+// some changes in meshes/surfaces invalidate lights also
+// invalidated lights must invalidate all intersecting meshes as well
+
+#define LGC_CHANGE_ALL 0xffffffff
+
+#define LGC_CHANGE_XFORM 0x01
+#define LGC_CHANGE_RSPEC 0x02
+
+#define LGC_MESH_CHANGE_PATH 0x04
+
+struct EdLCGRenderInfo
+{
+	EdLCGRenderInfo() :
+		rflags(LM_MESHINST_SOLID|LM_MESHINST_CASTLMS),
+		lmdetail(1),
+		decalLayer(0){}
+	
+	uint32_t rflags; // LM_MESHINST_*
+	float lmdetail;
+	uint8_t decalLayer;
+};
+
+struct EdLCGDrawableInfo : EdLCGRenderInfo
+{
+	EdLCGDrawableInfo() : xform(Mat4::Identity){}
+	
+	Mat4 xform;
+};
+
+struct EdLGCMeshInfo : EdLCGDrawableInfo
+{
+	String path;
+};
+
+#define LGC_SURF_CHANGE_VIDATA 0x04
+#define LGC_SURF_CHANGE_MTLDATA 0x08
+
+struct EdLGCSurfaceInfo : EdLCGDrawableInfo
+{
+	EdLGCSurfaceInfo() :
+		verts(NULL), vcount(0),
+		indices(NULL), icount(0),
+		lmsize(V2(0)){}
+	
+	LCVertex* verts;
+	uint32_t vcount;
+	uint16_t* indices;
+	uint32_t icount;
+	String mtlname;
+	Vec2 lmsize;
+};
+
+#define LGC_LIGHT_CHANGE_TYPE 0x04
+#define LGC_LIGHT_CHANGE_SPEC 0x08
+
+struct EdLGCLightInfo : LC_Light
+{
+	EdLGCLightInfo()
+	{
+		type = LM_LIGHT_POINT;
+		pos = V3(0);
+		dir = V3(0,0,-1);
+		up = V3(0,1,0);
+		range = 0;
+		power = 1;
+		light_radius = 0;
+		color = V3(1);
+		num_shadow_samples = 1;
+		flaresize = 0;
+		flareoffset = V3(0);
+		innerangle = 30;
+		outerangle = 45;
+		spotcurve = 1;
+	}
+};
+
+struct EdLevelGraphicsCont
+{
+	struct Mesh
+	{
+		EdLCGRenderInfo info;
+		MeshInstHandle meshInst;
+		Vec2 surfLMSize;
+	};
+	struct Light
+	{
+		EdLGCLightInfo info;
+		LightHandle dynLight;
+	};
+	
+	typedef HashTable< uint32_t, Mesh > MeshTable;
+	typedef HashTable< uint32_t, Light > LightTable;
+	
+	EdLevelGraphicsCont();
+	void Reset();
+	
+	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
+	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
+	void DeleteMesh( uint32_t id );
+	void UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshInfo* info );
+	
+	uint32_t CreateSurface( EdLGCSurfaceInfo* info = NULL );
+	void RequestSurface( uint32_t id, EdLGCSurfaceInfo* info = NULL );
+	void DeleteSurface( uint32_t id );
+	void UpdateSurface( uint32_t id, uint32_t changes, EdLGCSurfaceInfo* info );
+	
+	uint32_t CreateLight( EdLGCLightInfo* info = NULL );
+	void RequestLight( uint32_t id, EdLGCLightInfo* info = NULL );
+	void DeleteLight( uint32_t id );
+	void UpdateLight( uint32_t id, uint32_t changes, EdLGCLightInfo* info );
+	
+	uint32_t m_nextMeshID;
+	uint32_t m_nextSurfID;
+	uint32_t m_nextLightID;
+	
+	MeshTable m_meshes;
+	MeshTable m_surfaces;
+	LightTable m_lights;
+};
+
+
+
+//
 // OBJECT
 //
 
@@ -286,8 +418,6 @@ typedef SerializeVersionHelper<TextReader> SVHTR;
 typedef SerializeVersionHelper<TextWriter> SVHTW;
 typedef SerializeVersionHelper<ByteReader> SVHBR;
 typedef SerializeVersionHelper<ByteWriter> SVHBW;
-
-typedef LevelCache::Vertex LCVertex;
 
 struct EdObject
 {
@@ -909,6 +1039,15 @@ struct EdEntMesh : EdEntity
 	
 	template< class T > void SerializeT( T& arch )
 	{
+		uint32_t oldmid = m_meshID;
+		arch( m_meshID, arch.version >= 5 );
+		if( oldmid != m_meshID )
+		{
+			if( oldmid )
+				g_EdLGCont->DeleteMesh( oldmid );
+			if( m_meshID )
+				g_EdLGCont->RequestMesh( m_meshID );
+		}
 		arch << m_ctlPos;
 		arch << m_ctlAngles;
 		arch << m_ctlScaleUni;
@@ -930,8 +1069,7 @@ struct EdEntMesh : EdEntity
 	EDGUIPropVec3 m_ctlScaleSep;
 	EDGUIPropRsrc m_ctlMesh;
 	
-	MeshHandle cached_mesh;
-	MeshInstHandle cached_meshinst;
+	uint32_t m_meshID;
 };
 
 struct EdEntLight : EdEntity
@@ -1026,9 +1164,8 @@ struct SGSPropInterface
 	};
 	
 	SGSPropInterface();
-	virtual ~SGSPropInterface();
 	
-	virtual void ClearFields();
+	virtual void ClearFields() = 0;
 	void Data2Fields();
 	void Fields2Data();
 	SGSPropInterface* GetPropInterface(){ return this; } // instead of casting away multiple inheritance..
@@ -1145,21 +1282,26 @@ inline void World_AddObject( EdObject* obj );
 
 template< class T > void ENT_SerializeSubentities( EdEntity* E, T& arch )
 {
-	int32_t size = E->m_subEnts.size();
+	int32_t size = E ? E->m_subEnts.size() : 0;
 	arch( size, arch.version >= 4, 0 );
 	if( T::IsReader )
 	{
-		E->m_subEnts.resize( size );
-		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
+		if( E )
+			E->m_subEnts.resize( size );
+		for( int32_t i = 0; i < size; ++i )
 		{
 			EdEntity* ent = ENT_Unserialize( arch );
-			ent->m_ownerEnt = E;
-			E->m_subEnts[ i ] = ent;
+			if( E )
+			{
+				ent->m_ownerEnt = E;
+				E->m_subEnts[ i ] = ent;
+			}
 			World_AddObject( ent );
 		}
 	}
 	else
 	{
+		ASSERT( E && "need entity for serialization" );
 		for( size_t i = 0; i < E->m_subEnts.size(); ++i )
 			ENT_Serialize( arch, E->m_subEnts[ i ] );
 	}
@@ -1175,7 +1317,7 @@ template< class T > void ENT_Serialize( T& arch, EdEntity* e )
 	ENT_SerializeSubentities( e, arch );
 }
 
-template< class T > EdEntity* ENT_Unserialize( T& arch )
+template< class T > EdEntity* ENT_Unserialize( T& arch, bool fixMissing = false )
 {
 	String ty;
 	
@@ -1185,7 +1327,32 @@ template< class T > EdEntity* ENT_Unserialize( T& arch )
 	EdEntity* e = ENT_FindProtoByName( StackString< 128 >( ty ) );
 	if( !e )
 	{
-		LOG_ERROR << "FAILED TO FIND ENTITY: " << ty;
+		if( fixMissing && ty != SV("Mesh") && ty != SV("Light") && ty != SV("Light sample") )
+		{
+			LOG_WARNING << "Failed to find entity, will try to fix: " << ty;
+			SGS_CSCOPE( g_ScriptCtx->C );
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "ED_FIXENT_%s", StackString< 128 >( ty ).str );
+			sgsVariable func = g_ScriptCtx->GetGlobal( bfr );
+			if( func.not_null() )
+			{
+				Vec3 entpos;
+				arch << entpos;
+				String data;
+				arch << data;
+				g_ScriptCtx->Push( g_ScriptCtx->Unserialize( data ) );
+				g_ScriptCtx->Call( func, 1 );
+				ENT_SerializeSubentities( NULL, arch );
+			}
+			else
+			{
+				LOG_ERROR << "Could not find fixing function: " << bfr;
+			}
+		}
+		else
+		{
+			LOG_ERROR << "FAILED TO FIND ENTITY: " << ty;
+		}
 		return NULL;
 	}
 	e = e->CloneEntity();
@@ -1281,7 +1448,7 @@ struct EdWorld : EDGUILayoutRow
 			svh << numents;
 			for( int32_t i = 0; i < numents; ++i )
 			{
-				EdEntity* e = ENT_Unserialize( svh );
+				EdEntity* e = ENT_Unserialize( svh, true );
 				if( e )
 					AddObject( e );
 			}
@@ -1315,6 +1482,7 @@ struct EdWorld : EDGUILayoutRow
 	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
 		float outdst[1], int outent[1], EdObject** skip = NULL, int mask = SelMask_ALL );
 	
+	EdEntity* CreateScriptedEntity( const StringView& name, sgsVariable params );
 	void AddObject( EdObject* obj );
 	void DeleteObject( EdObject* obj );
 	

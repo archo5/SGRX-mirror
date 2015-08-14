@@ -57,7 +57,8 @@ EdEntMesh::EdEntMesh( bool isproto ) :
 	m_ctlAngles( V3(0), 2, V3(0), V3(360) ),
 	m_ctlScaleUni( 1, 2, 0.01f, 100.0f ),
 	m_ctlScaleSep( V3(1), 2, V3(0.01f), V3(100.0f) ),
-	m_ctlMesh( g_UIMeshPicker, "test_table" )
+	m_ctlMesh( g_UIMeshPicker, "test_table" ),
+	m_meshID( 0 )
 {
 	tyname = "mesh";
 	LoadIcon();
@@ -74,6 +75,11 @@ EdEntMesh::EdEntMesh( bool isproto ) :
 	m_group.Add( &m_ctlScaleSep );
 	m_group.Add( &m_ctlMesh );
 	Add( &m_group );
+	
+	if( isproto == false )
+	{
+		m_meshID = g_EdLGCont->CreateMesh();
+	}
 }
 
 EdEntMesh& EdEntMesh::operator = ( const EdEntMesh& o )
@@ -105,10 +111,12 @@ int EdEntMesh::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_PROPEDIT:
+#if 0 && TODO
 		if( e->target == &m_ctlMesh )
 		{
 			cached_mesh = NULL;
 		}
+#endif
 		if( !m_isproto )
 			RegenerateMesh();
 		break;
@@ -119,6 +127,7 @@ int EdEntMesh::OnEvent( EDGUIEvent* e )
 void EdEntMesh::DebugDraw()
 {
 	EdEntity::DebugDraw();
+#if 0 && TODO
 	if( cached_mesh )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer();
@@ -126,10 +135,12 @@ void EdEntMesh::DebugDraw()
 		br.Col( 0.1f, 0.3f, 0.8f, 0.5f );
 		br.AABB( cached_mesh->m_boundsMin, cached_mesh->m_boundsMax, Matrix() );
 	}
+#endif
 }
 
 void EdEntMesh::RegenerateMesh()
 {
+#if 0 && TODO
 	if( !cached_mesh )
 	{
 		char bfr[ 128 ];
@@ -143,6 +154,16 @@ void EdEntMesh::RegenerateMesh()
 	}
 	cached_meshinst->mesh = cached_mesh;
 	cached_meshinst->matrix = Matrix();
+#endif
+	EdLGCMeshInfo M;
+	M.xform = Matrix();
+	char bfr[ 128 ];
+	snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", (int) Mesh().size(), Mesh().data() );
+	M.path = bfr;
+	if( m_meshID )
+		g_EdLGCont->UpdateMesh( m_meshID, LGC_CHANGE_ALL, &M );
+	else
+		m_meshID = g_EdLGCont->CreateMesh( &M );
 }
 
 
@@ -297,20 +318,6 @@ SGSPropInterface::SGSPropInterface()
 {
 }
 
-SGSPropInterface::~SGSPropInterface()
-{
-	ClearFields();
-}
-
-void SGSPropInterface::ClearFields()
-{
-	for( size_t i = 0; i < m_fields.size(); ++i )
-	{
-		delete m_fields[ i ].property;
-	}
-	m_fields.clear();
-}
-
 void SGSPropInterface::Data2Fields()
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
@@ -389,6 +396,7 @@ EDGUIPropScrItem::EDGUIPropScrItem( EDGUIPropVec3* posprop, const StringView& de
 
 EDGUIPropScrItem::~EDGUIPropScrItem()
 {
+	ClearFields();
 }
 
 void EDGUIPropScrItem::ClearFields()
@@ -518,6 +526,7 @@ EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 
 EdEntScripted::~EdEntScripted()
 {
+	ClearFields();
 	if( cached_scritem )
 		cached_scritem->Release();
 	if( m_subEntAddBtn )
