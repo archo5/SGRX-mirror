@@ -318,8 +318,7 @@ struct EdLGCSurfaceInfo : EdLCGDrawableInfo
 	String mtlname;
 };
 
-#define LGC_LIGHT_CHANGE_TYPE 0x04
-#define LGC_LIGHT_CHANGE_SPEC 0x08
+#define LGC_LIGHT_CHANGE_SPEC 0x04
 
 struct EdLGCLightInfo : LC_Light
 {
@@ -364,14 +363,24 @@ struct EdLevelGraphicsCont
 		EdLGCLightInfo info;
 		LightHandle dynLight;
 	};
+	struct LMap : SGRX_RefCounted
+	{
+		uint16_t width;
+		uint16_t height;
+		Array< Vec3 > lmdata;
+		TextureHandle tex;
+	};
+	typedef Handle< LMap > LMapHandle;
 	
 	typedef HashTable< uint32_t, Mesh > MeshTable;
 	typedef HashTable< uint32_t, Surface > SurfaceTable;
 	typedef HashTable< uint32_t, Light > LightTable;
+	typedef HashTable< uint32_t, LMapHandle > LMapTable;
 	
 	EdLevelGraphicsCont();
 	void Reset();
 	void LightMesh( SGRX_MeshInstance* MI );
+	void CreateLightmap( uint32_t lmid );
 	
 	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
 	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
@@ -396,6 +405,7 @@ struct EdLevelGraphicsCont
 	MeshTable m_meshes;
 	SurfaceTable m_surfaces;
 	LightTable m_lights;
+	LMapTable m_lightmaps;
 };
 
 
@@ -1117,6 +1127,15 @@ struct EdEntLight : EdEntity
 	
 	template< class T > void SerializeT( T& arch )
 	{
+		uint32_t oldltid = m_lightID;
+		arch( m_lightID, arch.version >= 5 );
+		if( m_lightID != oldltid )
+		{
+			if( oldltid )
+				g_EdLGCont->DeleteLight( oldltid );
+			if( m_lightID )
+				g_EdLGCont->RequestLight( m_lightID );
+		}
 		arch << m_ctlPos;
 		arch << m_ctlRange;
 		arch << m_ctlPower;
@@ -1139,6 +1158,8 @@ struct EdEntLight : EdEntity
 	
 	virtual void DebugDraw();
 	virtual void UpdateCache( LevelCache& LC );
+	virtual int OnEvent( EDGUIEvent* e );
+	virtual void RegenerateMesh();
 	
 	EDGUIPropFloat m_ctlRange;
 	EDGUIPropFloat m_ctlPower;
@@ -1152,6 +1173,8 @@ struct EdEntLight : EdEntity
 	EDGUIPropFloat m_ctlSpotInnerAngle;
 	EDGUIPropFloat m_ctlSpotOuterAngle;
 	EDGUIPropFloat m_ctlSpotCurve;
+	
+	uint32_t m_lightID;
 };
 
 struct EdEntLightSample : EdEntity

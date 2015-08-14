@@ -145,7 +145,8 @@ EdEntLight::EdEntLight( bool isproto ) :
 	m_ctlSpotRotation( V3(0), 2, V3(0), V3(360) ),
 	m_ctlSpotInnerAngle( 0, 2, 0, 180 ),
 	m_ctlSpotOuterAngle( 45, 2, 0, 180 ),
-	m_ctlSpotCurve( 1, 2, 0.01f, 100.0f )
+	m_ctlSpotCurve( 1, 2, 0.01f, 100.0f ),
+	m_lightID( 0 )
 {
 	tyname = "light";
 	LoadIcon();
@@ -246,6 +247,42 @@ void EdEntLight::UpdateCache( LevelCache& LC )
 	L.outerangle = SpotOuterAngle();
 	L.spotcurve = SpotCurve();
 	LC.AddLight( L );
+}
+
+int EdEntLight::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+		if( !m_isproto )
+			RegenerateMesh();
+		break;
+	}
+	return EdEntity::OnEvent( e );
+}
+
+void EdEntLight::RegenerateMesh()
+{
+	EdLGCLightInfo L;
+	L.type = IsSpotlight() ? LM_LIGHT_SPOT : LM_LIGHT_POINT;
+	L.pos = Pos();
+	L.dir = SpotDir();
+	L.up = SpotUp();
+	L.range = Range();
+	L.power = Power();
+	L.color = HSV( ColorHSV() );
+	L.light_radius = LightRadius();
+	L.num_shadow_samples = ShadowSampleCount();
+	L.flaresize = FlareSize();
+	L.flareoffset = FlareOffset();
+	L.innerangle = SpotInnerAngle();
+	L.outerangle = SpotOuterAngle();
+	L.spotcurve = SpotCurve();
+	
+	if( m_lightID )
+		g_EdLGCont->UpdateLight( m_lightID, LGC_CHANGE_ALL, &L );
+	else
+		m_lightID = g_EdLGCont->CreateLight( &L );
 }
 
 

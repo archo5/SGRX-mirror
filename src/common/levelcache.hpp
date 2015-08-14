@@ -39,6 +39,8 @@ struct LC_MeshInst
 #define LM_LIGHT_POINT 0
 #define LM_LIGHT_SPOT 1
 #define LM_LIGHT_DIRECT 2
+#define LM_LIGHT_DYN_POINT 10
+#define LM_LIGHT_DYN_SPOT 11
 struct LC_Light
 {
 	int type;

@@ -394,6 +394,10 @@ void EdGroupManager::PathInvalidate( int32_t id )
 
 
 
+#define LGC_IS_VALID_ID( x ) ( (x) != 0 && (x) < uint32_t(0x80000000) )
+#define LGC_MESH_LMID( x ) (x)
+#define LGC_SURF_LMID( x ) ((x)|0x80000000)
+
 EdLevelGraphicsCont::EdLevelGraphicsCont()
 	: m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1)
 {
@@ -418,10 +422,18 @@ void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI )
 		MI->constants[ i ] = V4(0.15f);
 }
 
+void EdLevelGraphicsCont::CreateLightmap( uint32_t lmid )
+{
+	LMap* LM = new LMap;
+	LM->width = 0;
+	LM->height = 0;
+	m_lightmaps[ lmid ] = LM;
+}
+
 uint32_t EdLevelGraphicsCont::CreateMesh( EdLGCMeshInfo* info )
 {
 	uint32_t id = m_nextMeshID++;
-	ASSERT( id );
+	ASSERT( LGC_IS_VALID_ID( id ) );
 	RequestMesh( id, info );
 	return id;
 }
@@ -432,12 +444,14 @@ void EdLevelGraphicsCont::RequestMesh( uint32_t id, EdLGCMeshInfo* info )
 	Mesh M;
 	M.meshInst = g_EdScene->CreateMeshInstance();
 	m_meshes.set( id, M );
+	CreateLightmap( LGC_MESH_LMID( id ) );
 	UpdateMesh( id, LGC_CHANGE_ALL, info );
 }
 
 void EdLevelGraphicsCont::DeleteMesh( uint32_t id )
 {
 	ASSERT( m_meshes.isset( id ) );
+	m_lightmaps.unset( LGC_MESH_LMID( id ) );
 	m_meshes.unset( id );
 	if( id == m_nextMeshID - 1 )
 		m_nextMeshID--;
@@ -482,7 +496,7 @@ bool EdLevelGraphicsCont::GetMeshAABB( uint32_t id, Vec3 out[2] )
 uint32_t EdLevelGraphicsCont::CreateSurface( EdLGCSurfaceInfo* info )
 {
 	uint32_t id = m_nextSurfID++;
-	ASSERT( id );
+	ASSERT( LGC_IS_VALID_ID( id ) );
 	RequestSurface( id, info );
 	return id;
 }
@@ -496,12 +510,14 @@ void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
 	S.material = GR_CreateMaterial();
 	S.material->shader = GR_GetSurfaceShader( "default" );
 	m_surfaces.set( id, S );
+	CreateLightmap( LGC_SURF_LMID( id ) );
 	UpdateSurface( id, LGC_CHANGE_ALL, info );
 }
 
 void EdLevelGraphicsCont::DeleteSurface( uint32_t id )
 {
 	ASSERT( m_surfaces.isset( id ) );
+	m_lightmaps.unset( LGC_SURF_LMID( id ) );
 	m_surfaces.unset( id );
 	if( id == m_nextSurfID - 1 )
 		m_nextSurfID--;
@@ -559,7 +575,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 uint32_t EdLevelGraphicsCont::CreateLight( EdLGCLightInfo* info )
 {
 	uint32_t id = m_nextLightID++;
-	ASSERT( id );
+	ASSERT( LGC_IS_VALID_ID( id ) );
 	RequestLight( id, info );
 	return id;
 }
@@ -587,6 +603,36 @@ void EdLevelGraphicsCont::UpdateLight( uint32_t id, uint32_t changes, EdLGCLight
 		info = &g_defLightInfo;
 	ASSERT( m_lights.isset( id ) );
 	Light& L = m_lights[ id ];
+	if( changes & LGC_LIGHT_CHANGE_SPEC )
+	{
+		L.info = *info;
+		if( info->type == LM_LIGHT_DYN_POINT || info->type == LM_LIGHT_DYN_SPOT )
+		{
+			if( L.dynLight == NULL )
+				L.dynLight = g_EdScene->CreateLight();
+			
+			if( info->type == LM_LIGHT_DYN_POINT )
+				L.dynLight->type = LIGHT_POINT;
+			else
+				L.dynLight->type = LIGHT_SPOT;
+			L.dynLight->position = info->pos;
+			L.dynLight->direction = info->dir;
+			L.dynLight->updir = info->up;
+			L.dynLight->range = info->range;
+			L.dynLight->power = info->power;
+			L.dynLight->color = info->color;
+		//	L.dynLight-> = info->flaresize;
+		//	L.dynLight-> = info->flareoffset;
+		//	L.dynLight-> = info->innerangle;
+			L.dynLight->angle = info->outerangle;
+		//	L.dynLight-> = info->spotcurve;
+			if( L.dynLight->cookieTexture == NULL )
+				L.dynLight->cookieTexture = GR_GetTexture( "textures/cookies/default.png" );
+			L.dynLight->UpdateTransform();
+		}
+		else
+			L.dynLight = NULL;
+	}
 }
 
 
@@ -1956,13 +2002,15 @@ void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 
 SGRX_RenderPass g_RenderPasses_Main[] =
 {
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 0, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 0, 0, "base" },
+	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
 	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_DYNAMIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 0, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 0, 0, "base" },
+	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
 };
 
 struct TACStrikeEditor : IGame
