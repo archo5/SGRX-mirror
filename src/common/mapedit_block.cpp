@@ -411,83 +411,95 @@ bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], 
 	return false;
 }
 
+Vec2 CalcLMSizeAndNormalize( Array< LCVertex >& verts )
+{
+	Vec2 ltmin = V2(FLT_MAX), ltmax = V2(-FLT_MAX);
+	for( size_t i = 0; i < verts.size(); ++i )
+	{
+		Vec2 lt = V2( verts[ i ].tx1, verts[ i ].ty1 );
+		ltmin = Vec2::Min( ltmin, lt );
+		ltmax = Vec2::Max( ltmax, lt );
+	}
+	Vec2 sz = ltmax - ltmin;
+	Vec2 invsz = V2( safe_fdiv( 1, sz.x ), safe_fdiv( 1, sz.y ) );
+	for( size_t i = 0; i < verts.size(); ++i )
+	{
+		verts[ i ].tx1 = ( verts[ i ].tx1 - ltmin.x ) * invsz.x;
+		verts[ i ].ty1 = ( verts[ i ].ty1 - ltmin.y ) * invsz.y;
+	}
+	return sz;
+}
+
 void EdBlock::RegenerateMesh()
 {
 	if( !g_EdWorld || poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
 		return;
 	
-	if( !cached_mesh )
-		cached_mesh = GR_CreateMesh();
-	if( !cached_meshinst )
-	{
-		cached_meshinst = g_EdScene->CreateMeshInstance();
-		cached_meshinst->mesh = cached_mesh;
-		lmm_prepmeshinst( cached_meshinst );
-	}
-	cached_meshinst->matrix = g_EdWorld->m_groupMgr.GetMatrix( group );
-	for( size_t i = 0; i < surfaces.size(); ++i )
-		surfaces[ i ].Precache();
+	Mat4 mtx = g_EdWorld->m_groupMgr.GetMatrix( group );
 	
-	VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
 	Array< LCVertex > vertices;
 	Array< uint16_t > indices;
-	SGRX_MeshPart meshparts[ MAX_BLOCK_POLYGONS ];
-	int numparts = 0;
 	
 	// SIDES
-	if( z0 != z1 )
+	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		for( size_t i = 0; i < poly.size(); ++i )
+		EdSurface& BS = surfaces[ i ];
+		
+		vertices.clear();
+		indices.clear();
+		
+		Vec3 tgx, tgy;
+		_GetTexVecs( i, tgx, tgy );
+		size_t i1 = ( i + 1 ) % poly.size();
+		uint16_t v1 = _AddVtx( poly[i], z0, BS, tgx, tgy, vertices, 0 );
+		uint16_t v2 = _AddVtx( poly[i], z1 + poly[i].z, BS, tgx, tgy, vertices, 0 );
+		uint16_t v3 = _AddVtx( poly[i1], z1 + poly[i1].z, BS, tgx, tgy, vertices, 0 );
+		uint16_t v4 = _AddVtx( poly[i1], z0, BS, tgx, tgy, vertices, 0 );
+		if( vertices.size() < 3 )
+			continue;
+		_PostFitTexcoords( BS, vertices.data(), vertices.size() );
+		indices.push_back( v1 );
+		indices.push_back( v2 );
+		indices.push_back( v3 );
+		if( vertices.size() == 4 )
 		{
-			SGRX_MeshPart mp = { vertices.size(), 0, indices.size(), 0 };
-			
-			Vec3 tgx, tgy;
-			_GetTexVecs( i, tgx, tgy );
-			size_t i1 = ( i + 1 ) % poly.size();
-			uint16_t v1 = _AddVtx( poly[i], z0, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
-			uint16_t v2 = _AddVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
-			uint16_t v3 = _AddVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
-			uint16_t v4 = _AddVtx( poly[i1], z0, surfaces[i], tgx, tgy, vertices, mp.vertexOffset );
-			if( vertices.size() < mp.vertexOffset + 4 )
-			{
-				vertices.resize( mp.vertexOffset );
-				continue;
-			}
-			_PostFitTexcoords( surfaces[i], &vertices[ vertices.size() - 4 ], 4 );
-			indices.push_back( v1 );
-			indices.push_back( v2 );
-			indices.push_back( v3 );
 			indices.push_back( v3 );
 			indices.push_back( v4 );
 			indices.push_back( v1 );
-			
-			mp.vertexCount = vertices.size() - mp.vertexOffset;
-			mp.indexCount = indices.size() - mp.indexOffset;
-			
-			MaterialHandle mh = GR_CreateMaterial();
-			mh->shader = GR_GetSurfaceShader( "default" );
-			mh->textures[ 0 ] = surfaces[ i ].cached_texture;
-			mp.material = mh;
-			
-			meshparts[ numparts++ ] = mp;
 		}
+		
+		EdLGCSurfaceInfo S;
+		S.vdata = vertices.data();
+		S.vcount = vertices.size();
+		S.idata = indices.data();
+		S.icount = indices.size();
+		S.mtlname = surfaces[0].texname;
+		S.lmsize = CalcLMSizeAndNormalize( vertices );
+		S.xform = mtx;
+		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
+		S.lmdetail = BS.lmquality;
+		
+		if( BS.surface_id )
+			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
+		else
+			BS.surface_id = g_EdLGCont->CreateSurface( &S );
 	}
 	
 	// TOP
 	for(;;)
 	{
-		SGRX_MeshPart mp = { vertices.size(), 0, indices.size(), 0 };
+		EdSurface& BS = surfaces[ poly.size() ];
+		
+		vertices.clear();
+		indices.clear();
 		
 		Vec3 tgx, tgy;
 		_GetTexVecs( poly.size(), tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
-			_AddVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy, vertices, mp.vertexOffset );
-		if( vertices.size() < mp.vertexOffset + 3 )
-		{
-			vertices.resize( mp.vertexOffset );
+			_AddVtx( poly[i], z1 + poly[i].z, BS, tgx, tgy, vertices, 0 );
+		if( vertices.size() < 3 )
 			break;
-		}
-		_PostFitTexcoords( surfaces[ poly.size() ], &vertices[ mp.vertexOffset ], vertices.size() - mp.vertexOffset );
+		_PostFitTexcoords( BS, vertices.data(), vertices.size() );
 		for( size_t i = 2; i < poly.size(); ++i )
 		{
 			indices.push_back( 0 );
@@ -495,33 +507,39 @@ void EdBlock::RegenerateMesh()
 			indices.push_back( i - 1 );
 		}
 		
-		mp.vertexCount = vertices.size() - mp.vertexOffset;
-		mp.indexCount = indices.size() - mp.indexOffset;
+		EdLGCSurfaceInfo S;
+		S.vdata = vertices.data();
+		S.vcount = vertices.size();
+		S.idata = indices.data();
+		S.icount = indices.size();
+		S.mtlname = surfaces[0].texname;
+		S.lmsize = CalcLMSizeAndNormalize( vertices );
+		S.xform = mtx;
+		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
+		S.lmdetail = BS.lmquality;
 		
-		MaterialHandle mh = GR_CreateMaterial();
-		mh->shader = GR_GetSurfaceShader( "default" );
-		mh->textures[ 0 ] = surfaces[ poly.size() ].cached_texture;
-		mp.material = mh;
-		
-		meshparts[ numparts++ ] = mp;
+		if( BS.surface_id )
+			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
+		else
+			BS.surface_id = g_EdLGCont->CreateSurface( &S );
 		break;
 	}
 	
 	// BOTTOM
 	for(;;)
 	{
-		SGRX_MeshPart mp = { vertices.size(), 0, indices.size(), 0 };
+		EdSurface& BS = surfaces[ poly.size() + 1 ];
+		
+		vertices.clear();
+		indices.clear();
 		
 		Vec3 tgx, tgy;
 		_GetTexVecs( poly.size() + 1, tgx, tgy );
 		for( size_t i = 0; i < poly.size(); ++i )
-			_AddVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy, vertices, mp.vertexOffset );
-		if( vertices.size() < mp.vertexOffset + 3 )
-		{
-			vertices.resize( mp.vertexOffset );
+			_AddVtx( poly[i], z0, BS, tgx, tgy, vertices, 0 );
+		if( vertices.size() < 3 )
 			break;
-		}
-		_PostFitTexcoords( surfaces[ poly.size() + 1 ], &vertices[ mp.vertexOffset ], vertices.size() - mp.vertexOffset );
+		_PostFitTexcoords( BS, vertices.data(), vertices.size() );
 		for( size_t i = 2; i < poly.size(); ++i )
 		{
 			indices.push_back( 0 );
@@ -529,22 +547,23 @@ void EdBlock::RegenerateMesh()
 			indices.push_back( i );
 		}
 		
-		mp.vertexCount = vertices.size() - mp.vertexOffset;
-		mp.indexCount = indices.size() - mp.indexOffset;
+		EdLGCSurfaceInfo S;
+		S.vdata = vertices.data();
+		S.vcount = vertices.size();
+		S.idata = indices.data();
+		S.icount = indices.size();
+		S.mtlname = surfaces[0].texname;
+		S.lmsize = CalcLMSizeAndNormalize( vertices );
+		S.xform = mtx;
+		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
+		S.lmdetail = BS.lmquality;
 		
-		MaterialHandle mh = GR_CreateMaterial();
-		mh->shader = GR_GetSurfaceShader( "default" );
-		mh->textures[ 0 ] = surfaces[ poly.size() + 1 ].cached_texture;
-		mp.material = mh;
-		
-		meshparts[ numparts++ ] = mp;
+		if( BS.surface_id )
+			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
+		else
+			BS.surface_id = g_EdLGCont->CreateSurface( &S );
 		break;
 	}
-	
-	cached_mesh->SetAABBFromVertexData( vertices.data(), vertices.size_bytes(), vd );
-	cached_mesh->SetVertexData( vertices.data(), vertices.size_bytes(), vd, false );
-	cached_mesh->SetIndexData( indices.data(), indices.size_bytes(), false );
-	cached_mesh->SetPartData( meshparts, numparts );
 }
 
 LevelCache::Vertex EdBlock::_MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy )
@@ -779,7 +798,7 @@ void EDGUIVertexProps::Prepare( EdBlock* block, int vid )
 	m_vid = vid;
 	
 	char bfr[ 32 ];
-	snprintf( bfr, sizeof(bfr), "Vertex #%d", vid );
+	sgrx_snprintf( bfr, sizeof(bfr), "Vertex #%d", vid );
 	m_group.caption = bfr;
 	m_group.SetOpen( true );
 	
@@ -825,6 +844,7 @@ int EDGUIVertexProps::OnEvent( EDGUIEvent* e )
 			
 			size_t oldpolysize = m_out->poly.size();
 			EdSurface Scopy = m_out->surfaces[ befat ];
+			Scopy.surface_id = 0;
 			m_out->poly.insert( insat, mid_fin );
 			if( (int) insat < m_vid )
 				m_vid++;
@@ -890,7 +910,7 @@ void EDGUISurfaceProps::Prepare( EdBlock* block, int sid )
 	EdSurface& S = block->surfaces[ sid ];
 	
 	char bfr[ 32 ];
-	snprintf( bfr, sizeof(bfr), "Surface #%d", sid );
+	sgrx_snprintf( bfr, sizeof(bfr), "Surface #%d", sid );
 	LoadParams( S, bfr );
 }
 
@@ -1079,7 +1099,7 @@ void EDGUIBlockProps::Prepare( EdBlock* block )
 	for( size_t i = 0; i < block->poly.size(); ++i )
 	{
 		char bfr[ 4 ];
-		snprintf( bfr, sizeof(bfr), "#%d", (int) i );
+		sgrx_snprintf( bfr, sizeof(bfr), "#%d", (int) i );
 		m_vertProps[ i ] = EDGUIPropVec3( block->poly[ i ], 2, V3(-8192), V3(8192) );
 		m_vertProps[ i ].caption = bfr;
 		m_vertProps[ i ].id1 = i;

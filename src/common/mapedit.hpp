@@ -280,6 +280,7 @@ struct EdLCGRenderInfo
 		lmdetail(1),
 		decalLayer(0){}
 	
+	// rspec
 	uint32_t rflags; // LM_MESHINST_*
 	float lmdetail;
 	uint8_t decalLayer;
@@ -303,16 +304,18 @@ struct EdLGCMeshInfo : EdLCGDrawableInfo
 struct EdLGCSurfaceInfo : EdLCGDrawableInfo
 {
 	EdLGCSurfaceInfo() :
-		verts(NULL), vcount(0),
-		indices(NULL), icount(0),
+		vdata(NULL), vcount(0),
+		idata(NULL), icount(0),
 		lmsize(V2(0)){}
 	
-	LCVertex* verts;
+	// vidata
+	LCVertex* vdata;
 	uint32_t vcount;
-	uint16_t* indices;
+	uint16_t* idata;
 	uint32_t icount;
-	String mtlname;
 	Vec2 lmsize;
+	// mtldata
+	String mtlname;
 };
 
 #define LGC_LIGHT_CHANGE_TYPE 0x04
@@ -345,7 +348,16 @@ struct EdLevelGraphicsCont
 	{
 		EdLCGRenderInfo info;
 		MeshInstHandle meshInst;
-		Vec2 surfLMSize;
+	};
+	struct Surface
+	{
+		EdLCGRenderInfo info;
+		MeshInstHandle meshInst;
+		MaterialHandle material;
+		Array< LCVertex > vertices;
+		Array< uint16_t > indices;
+		Vec2 lmsize;
+		String mtlname;
 	};
 	struct Light
 	{
@@ -354,15 +366,18 @@ struct EdLevelGraphicsCont
 	};
 	
 	typedef HashTable< uint32_t, Mesh > MeshTable;
+	typedef HashTable< uint32_t, Surface > SurfaceTable;
 	typedef HashTable< uint32_t, Light > LightTable;
 	
 	EdLevelGraphicsCont();
 	void Reset();
+	void LightMesh( SGRX_MeshInstance* MI );
 	
 	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
 	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
 	void DeleteMesh( uint32_t id );
 	void UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshInfo* info );
+	bool GetMeshAABB( uint32_t id, Vec3 out[2] );
 	
 	uint32_t CreateSurface( EdLGCSurfaceInfo* info = NULL );
 	void RequestSurface( uint32_t id, EdLGCSurfaceInfo* info = NULL );
@@ -379,7 +394,7 @@ struct EdLevelGraphicsCont
 	uint32_t m_nextLightID;
 	
 	MeshTable m_meshes;
-	MeshTable m_surfaces;
+	SurfaceTable m_surfaces;
 	LightTable m_lights;
 };
 
@@ -522,17 +537,29 @@ struct EdSurface
 	float lmquality;
 	int xfit, yfit;
 	
+	uint32_t surface_id;
+	
 	EdSurface() :
 		texgenmode( ED_TEXGEN_COORDS ),
 		xoff( 0 ), yoff( 0 ),
 		scale( 1 ), aspect( 1 ),
 		angle( 0 ), lmquality( 1 ),
-		xfit( 0 ), yfit( 0 )
+		xfit( 0 ), yfit( 0 ),
+		surface_id( 0 )
 	{}
 	
 	template< class T > void Serialize( T& arch )
 	{
 		arch.marker( "SURFACE" );
+		uint32_t oldsurfid = surface_id;
+		arch( surface_id, arch.version >= 5 );
+		if( surface_id != oldsurfid )
+		{
+			if( oldsurfid )
+				g_EdLGCont->DeleteSurface( oldsurfid );
+			if( surface_id )
+				g_EdLGCont->RequestSurface( surface_id );
+		}
 		arch << texname;
 		arch << texgenmode;
 		arch << xoff << yoff;
@@ -541,17 +568,6 @@ struct EdSurface
 		arch( lmquality, arch.version >= 1, 1.0f );
 		arch( xfit, arch.version >= 3, 0 );
 		arch( yfit, arch.version >= 3, 0 );
-		
-		if( T::IsReader ) Precache();
-	}
-	
-	TextureHandle cached_texture;
-	
-	void Precache()
-	{
-		char bfr[ 128 ];
-		snprintf( bfr, sizeof(bfr), "textures/%.*s.png", (int) texname.size(), texname.data() );
-		cached_texture = GR_GetTexture( bfr );
 	}
 };
 
@@ -746,17 +762,23 @@ struct EdPatchVtx
 
 struct EdPatchLayerInfo
 {
-	EdPatchLayerInfo() : xoff(0), yoff(0), scale(1), aspect(1), angle(0), lmquality(1){}
-	
-	void Precache()
-	{
-		char bfr[ 128 ];
-		snprintf( bfr, sizeof(bfr), "textures/%.*s.png", (int) texname.size(), texname.data() );
-		cached_texture = GR_GetTexture( bfr );
-	}
+	EdPatchLayerInfo() :
+		xoff(0), yoff(0),
+		scale(1), aspect(1),
+		angle(0), lmquality(1),
+		surface_id(0){}
 	
 	template< class T > void Serialize( T& arch )
 	{
+		uint32_t oldsurfid = surface_id;
+		arch( surface_id, arch.version >= 5 );
+		if( surface_id != oldsurfid )
+		{
+			if( oldsurfid )
+				g_EdLGCont->DeleteSurface( oldsurfid );
+			if( surface_id )
+				g_EdLGCont->RequestSurface( surface_id );
+		}
 		arch << texname;
 		arch << xoff << yoff;
 		arch << scale << aspect;
@@ -770,9 +792,7 @@ struct EdPatchLayerInfo
 	float angle;
 	float lmquality;
 	
-	TextureHandle cached_texture;
-	MeshHandle cached_mesh;
-	MeshInstHandle cached_meshinst;
+	uint32_t surface_id;
 };
 
 #define PATCH_IS_SOLID 0x80
@@ -801,7 +821,7 @@ struct EdPatch : EdObject
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const;
 	virtual void RegenerateMesh();
 	virtual Vec3 FindCenter() const;
-	void GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer );
+	Vec2 GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer );
 	void GenerateMesh( LevelCache& LC );
 	
 	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads() + GetNumXEdges() + GetNumYEdges(); }
@@ -1225,10 +1245,10 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 	virtual void DebugDraw();
 	
 	void AddButtonSubent( StringView type );
-	void SetMesh( StringView name );
+	void SetSpecialMesh( StringView path, const Mat4& mtx );
 	void SetMeshInstanceCount( int count );
-	void SetMeshInstanceMatrix( int which, const Mat4& mtx );
-	void GetMeshAABB( Vec3 out[2] );
+	void SetMeshInstanceData( int which, StringView path, const Mat4& mtx );
+	void GetMeshAABB( int which, Vec3 out[2] );
 	void SetScriptedItem( StringView name, sgsVariable args );
 	
 	// SGSPropInterface
@@ -1246,9 +1266,9 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 	
 	LevelCache* m_levelCache;
 	
-	MeshHandle cached_mesh;
-	Array< MeshInstHandle > cached_meshinsts;
+	Array< uint32_t > m_meshIDs;
 	
+	MeshInstHandle cached_specmeshinst;
 	SGRX_ScriptedItem* cached_scritem;
 };
 

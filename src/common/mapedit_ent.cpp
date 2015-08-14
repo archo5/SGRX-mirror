@@ -20,7 +20,7 @@ void EdEntity::BeforeDelete()
 void EdEntity::LoadIcon()
 {
 	char bfr[ 256 ];
-	snprintf( bfr, 256, "editor/icons/%s.png", tyname );
+	sgrx_snprintf( bfr, 256, "editor/icons/%s.png", tyname );
 	m_iconTex = GR_GetTexture( bfr );
 	if( !m_iconTex )
 		m_iconTex = GR_GetTexture( "editor/icons/default.png" );
@@ -75,11 +75,6 @@ EdEntMesh::EdEntMesh( bool isproto ) :
 	m_group.Add( &m_ctlScaleSep );
 	m_group.Add( &m_ctlMesh );
 	Add( &m_group );
-	
-	if( isproto == false )
-	{
-		m_meshID = g_EdLGCont->CreateMesh();
-	}
 }
 
 EdEntMesh& EdEntMesh::operator = ( const EdEntMesh& o )
@@ -102,7 +97,7 @@ EdEntity* EdEntMesh::CloneEntity()
 void EdEntMesh::UpdateCache( LevelCache& LC )
 {
 	char bfr[ 256 ];
-	snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( (int) Mesh().size(), 200 ), Mesh().data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( (int) Mesh().size(), 200 ), Mesh().data() );
 	LC.AddMeshInst( bfr, Matrix(), 1.0f, true, false, true, -1 );
 }
 
@@ -111,12 +106,6 @@ int EdEntMesh::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_PROPEDIT:
-#if 0 && TODO
-		if( e->target == &m_ctlMesh )
-		{
-			cached_mesh = NULL;
-		}
-#endif
 		if( !m_isproto )
 			RegenerateMesh();
 		break;
@@ -127,38 +116,14 @@ int EdEntMesh::OnEvent( EDGUIEvent* e )
 void EdEntMesh::DebugDraw()
 {
 	EdEntity::DebugDraw();
-#if 0 && TODO
-	if( cached_mesh )
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		br.Reset();
-		br.Col( 0.1f, 0.3f, 0.8f, 0.5f );
-		br.AABB( cached_mesh->m_boundsMin, cached_mesh->m_boundsMax, Matrix() );
-	}
-#endif
 }
 
 void EdEntMesh::RegenerateMesh()
 {
-#if 0 && TODO
-	if( !cached_mesh )
-	{
-		char bfr[ 128 ];
-		snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", (int) Mesh().size(), Mesh().data() );
-		cached_mesh = GR_GetMesh( bfr );
-	}
-	if( !cached_meshinst )
-	{
-		cached_meshinst = g_EdScene->CreateMeshInstance();
-		lmm_prepmeshinst( cached_meshinst );
-	}
-	cached_meshinst->mesh = cached_mesh;
-	cached_meshinst->matrix = Matrix();
-#endif
 	EdLGCMeshInfo M;
 	M.xform = Matrix();
 	char bfr[ 128 ];
-	snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", (int) Mesh().size(), Mesh().data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", (int) Mesh().size(), Mesh().data() );
 	M.path = bfr;
 	if( m_meshID )
 		g_EdLGCont->UpdateMesh( m_meshID, LGC_CHANGE_ALL, &M );
@@ -710,46 +675,55 @@ void EdEntScripted::AddButtonSubent( StringView type )
 	m_subEntProto = type;
 }
 
-void EdEntScripted::SetMesh( StringView name )
+void EdEntScripted::SetSpecialMesh( StringView path, const Mat4& mtx )
 {
-	cached_mesh = GR_GetMesh( name );
-	for( size_t i = 0; i < cached_meshinsts.size(); ++i )
-		cached_meshinsts[ i ]->mesh = cached_mesh;
+	if( path == "" )
+	{
+		cached_specmeshinst = NULL;
+		return;
+	}
+	else
+	{
+		cached_specmeshinst = g_EdScene->CreateMeshInstance();
+		cached_specmeshinst->mesh = GR_GetMesh( path );
+		cached_specmeshinst->matrix = mtx;
+		lmm_prepmeshinst( cached_specmeshinst );
+	}
 }
 
 void EdEntScripted::SetMeshInstanceCount( int count )
 {
-	int i = cached_meshinsts.size();
-	cached_meshinsts.resize( count );
-	while( count > i )
+	int i = m_meshIDs.size();
+	while( i > count )
 	{
-		MeshInstHandle cmi = g_EdScene->CreateMeshInstance();
-		lmm_prepmeshinst( cmi );
-		cmi->mesh = cached_mesh;
-		cmi->matrix = Mat4::Identity;
-		cached_meshinsts[ i++ ] = cmi;
+		g_EdLGCont->DeleteMesh( m_meshIDs[ --i ] );
+	}
+	m_meshIDs.resize( count );
+	while( i < count )
+	{
+		m_meshIDs[ i++ ] = g_EdLGCont->CreateMesh();
 	}
 }
 
-void EdEntScripted::SetMeshInstanceMatrix( int which, const Mat4& mtx )
+void EdEntScripted::SetMeshInstanceData( int which, StringView path, const Mat4& mtx )
 {
-	if( which < 0 || which >= (int) cached_meshinsts.size() )
+	if( which < 0 || which >= (int) m_meshIDs.size() )
 		return;
-	cached_meshinsts[ which ]->matrix = mtx;
+	
+	EdLGCMeshInfo M;
+	M.xform = mtx;
+	M.path = path;
+	g_EdLGCont->UpdateMesh( m_meshIDs[ which ], LGC_CHANGE_ALL, &M );
 }
 
-void EdEntScripted::GetMeshAABB( Vec3 out[2] )
+void EdEntScripted::GetMeshAABB( int which, Vec3 out[2] )
 {
-	if( cached_mesh )
-	{
-		out[0] = cached_mesh->m_boundsMin;
-		out[1] = cached_mesh->m_boundsMax;
-	}
-	else
-	{
-		out[0] = V3(-1);
-		out[1] = V3(1);
-	}
+	out[0] = V3(-1);
+	out[1] = V3(1);
+	if( which < 0 || which >= (int) m_meshIDs.size() )
+		return;
+	
+	g_EdLGCont->GetMeshAABB( m_meshIDs[ which ], out );
 }
 
 void EdEntScripted::SetScriptedItem( StringView name, sgsVariable args )
@@ -933,24 +907,16 @@ static int EE_AddButtonSubent( SGS_CTX )
 	return 0;
 }
 
-static int EE_SetMesh( SGS_CTX )
+static int EE_SetChar( SGS_CTX )
 {
-	SGSFN( "EE_SetMesh" );
+	SGSFN( "EE_SetChar" );
 	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
-	E->SetMesh( sgs_GetVar<StringView>()( C, 1 ) );
-	return 0;
-}
-static int EE_SetMeshFromChar( SGS_CTX )
-{
-	SGSFN( "EE_SetMeshFromChar" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->SetMesh( ED_GetMeshFromChar( sgs_GetVar<StringView>()( C, 1 ) ) );
+	E->SetSpecialMesh(
+		ED_GetMeshFromChar( sgs_GetVar<StringView>()( C, 1 ) ),
+		sgs_GetVar<Mat4>()( C, 2 ) );
 	return 0;
 }
 static int EE_SetMeshInstanceCount( SGS_CTX )
@@ -963,14 +929,17 @@ static int EE_SetMeshInstanceCount( SGS_CTX )
 	E->SetMeshInstanceCount( sgs_GetVar<int>()( C, 1 ) );
 	return 0;
 }
-static int EE_SetMeshInstanceMatrix( SGS_CTX )
+static int EE_SetMeshInstanceData( SGS_CTX )
 {
-	SGSFN( "EE_SetMeshInstanceMatrix" );
+	SGSFN( "EE_SetMeshInstanceData" );
 	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
-	E->SetMeshInstanceMatrix( sgs_GetVar<int>()( C, 1 ), sgs_GetVar<Mat4>()( C, 2 ) );
+	E->SetMeshInstanceData(
+		sgs_GetVar<int>()( C, 1 ),
+		sgs_GetVar<StringView>()( C, 2 ),
+		sgs_GetVar<Mat4>()( C, 3 ) );
 	return 0;
 }
 static int EE_GetMeshAABB( SGS_CTX )
@@ -981,7 +950,7 @@ static int EE_GetMeshAABB( SGS_CTX )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
 	Vec3 aabb[2];
-	E->GetMeshAABB( aabb );
+	E->GetMeshAABB( sgs_GetVar<int>()( C, 1 ), aabb );
 	sgs_PushVar( C, aabb[0] );
 	sgs_PushVar( C, aabb[1] );
 	return 2;
@@ -1071,10 +1040,9 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldScrFn", EE_AddFieldScrFn },
 	{ "EE_AddFieldScrItem", EE_AddFieldScrItem },
 	{ "EE_AddButtonSubent", EE_AddButtonSubent },
-	{ "EE_SetMesh", EE_SetMesh },
-	{ "EE_SetMeshFromChar", EE_SetMeshFromChar },
+	{ "EE_SetChar", EE_SetChar },
 	{ "EE_SetMeshInstanceCount", EE_SetMeshInstanceCount },
-	{ "EE_SetMeshInstanceMatrix", EE_SetMeshInstanceMatrix },
+	{ "EE_SetMeshInstanceData", EE_SetMeshInstanceData },
 	{ "EE_GetMeshAABB", EE_GetMeshAABB },
 	{ "EE_SetScriptedItem", EE_SetScriptedItem },
 	{ "EE_SetChangeFunc", EE_SetChangeFunc },

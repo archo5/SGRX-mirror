@@ -42,17 +42,14 @@ function ENTBASE_viewdir( eptr )
 function ENTCHG_xfmesh( eptr, data )
 {
 	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-	EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
 	EE_SetMeshInstanceCount( eptr, 1 );
-	EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+	EE_SetMeshInstanceData( eptr, 0, "meshes/" $ data.mesh $ ".ssm", mtx );
 }
 
 function ENTCHG_xfchar( eptr, data )
 {
 	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-	EE_SetMeshFromChar( eptr, "chars/" $ data.char $ ".chr" );
-	EE_SetMeshInstanceCount( eptr, 1 );
-	EE_SetMeshInstanceMatrix( eptr, 0, mtx );
+	EE_SetChar( eptr, "chars/" $ data.char $ ".chr", mtx );
 }
 
 function ENTGTH_xfmesh( eptr, data )
@@ -63,7 +60,7 @@ function ENTGTH_xfmesh( eptr, data )
 
 function ENTDD_xfmesh( eptr, data )
 {
-	(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+	(bbmin,bbmax) = EE_GetMeshAABB( eptr, 0 );
 	
 	BR_Reset();
 	BR_Col( 0.2, 0.7, 0.9, 0.8 );
@@ -176,24 +173,23 @@ function ED_ENT_mesharray( eptr )
 	EE_SetChangeFunc( eptr, function MeshArray_onChange( eptr, data )
 	{
 		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		EE_SetMesh( eptr, "meshes/" $ data.mesh $ ".ssm" );
+		path = "meshes/" $ data.mesh $ ".ssm";
 		EE_SetMeshInstanceCount( eptr, data.count );
 		for( i = 0; i < data.count; ++i )
 		{
 			suboff = data.offset * i;
 			submtx = mat4().translate_v3( suboff ).multiply( mtx );
-			EE_SetMeshInstanceMatrix( eptr, i, submtx );
+			EE_SetMeshInstanceData( eptr, i, path, submtx );
 		}
 	});
 	EE_SetDebugDrawFunc( eptr, function MeshArray_onDebugDraw( eptr, data )
 	{
-		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
-		
 		BR_Reset();
 		BR_Col( 0.2, 0.7, 0.9, 0.8 );
 		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
 		for( i = 0; i < data.count; ++i )
 		{
+			(bbmin,bbmax) = EE_GetMeshAABB( eptr, i );
 			suboff = data.offset * i;
 			submtx = mat4().translate_v3( suboff ).multiply( mtx );
 			BR_AABB( bbmin, bbmax, submtx );
@@ -225,7 +221,7 @@ function ED_ENT_door_slide( eptr )
 	EE_SetDebugDrawFunc( eptr, function DoorSlideProx_onDebugDraw( eptr, data )
 	{
 		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+		(bbmin,bbmax) = EE_GetMeshAABB( eptr, 0 );
 		BR_Reset();
 		BR_Col( 0.2, 0.8, 0.1, 0.8 );
 		BR_AABB( bbmin, bbmax, mtx );
@@ -246,7 +242,7 @@ function ED_ENT_door_slide_prox( eptr )
 	EE_SetDebugDrawFunc( eptr, function DoorSlideProx_onDebugDraw( eptr, data )
 	{
 		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		(bbmin,bbmax) = EE_GetMeshAABB( eptr );
+		(bbmin,bbmax) = EE_GetMeshAABB( eptr, 0 );
 		BR_Reset();
 		BR_Col( 0.2, 0.8, 0.1, 0.8 );
 		BR_AABB( bbmin, bbmax, mtx );

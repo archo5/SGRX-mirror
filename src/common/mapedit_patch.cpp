@@ -128,8 +128,7 @@ EdObject* EdPatch::Clone()
 	EdPatch* ptc = new EdPatch( *this );
 	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
 	{
-		ptc->layers[ i ].cached_mesh = NULL;
-		ptc->layers[ i ].cached_meshinst = NULL;
+		ptc->layers[ i ].surface_id = 0;
 	}
 	return ptc;
 }
@@ -178,42 +177,35 @@ void EdPatch::RegenerateMesh()
 	outverts.reserve( xsize * ysize );
 	outidcs.reserve( ( xsize - 1 ) * ( ysize - 1 ) * 6 );
 	
+	bool first = true;
 	for( int layer = 0; layer < MAX_PATCH_LAYERS; ++layer )
 	{
 		EdPatchLayerInfo& LI = layers[ layer ];
-		if( LI.texname.size() == 0 )
-		{
-			LI.cached_meshinst = NULL;
-			LI.cached_mesh = NULL;
-			LI.cached_texture = NULL;
-			continue;
-		}
-		
-		LI.Precache();
-		if( !LI.cached_mesh )
-			LI.cached_mesh = GR_CreateMesh();
-		if( !LI.cached_meshinst )
-		{
-			LI.cached_meshinst = g_EdScene->CreateMeshInstance();
-			LI.cached_meshinst->mesh = LI.cached_mesh;
-			lmm_prepmeshinst( LI.cached_meshinst );
-		}
-		LI.cached_meshinst->matrix = g_EdWorld->m_groupMgr.GetMatrix( group );
-		LI.cached_meshinst->decal = true;
-		
-		MaterialHandle mh = GR_CreateMaterial();
-		mh->blendMode = MBM_BASIC;
-		mh->shader = GR_GetSurfaceShader( "default" );
-		mh->textures[ 0 ] = LI.cached_texture;
+		EdLGCSurfaceInfo S;
 		
 		outverts.clear();
 		outidcs.clear();
-		GenerateMeshData( outverts, outidcs, layer );
-		SGRX_MeshPart mp = { 0, outverts.size(), 0, outidcs.size(), mh };
+		Vec2 lmsize = GenerateMeshData( outverts, outidcs, layer );
 		
-		LI.cached_mesh->SetVertexData( outverts.data(), outverts.size_bytes(), vd, false );
-		LI.cached_mesh->SetIndexData( outidcs.data(), outidcs.size_bytes(), false );
-		LI.cached_mesh->SetPartData( &mp, 1 );
+		bool ovr = first == false || ( blend & PATCH_IS_SOLID ) == 0;
+		S.vdata = outverts.data();
+		S.vcount = outverts.size();
+		S.idata = outidcs.data();
+		S.icount = outidcs.size();
+		S.mtlname = LI.texname;
+		S.lmsize = lmsize;
+		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
+		S.rflags = LM_MESHINST_CASTLMS | (ovr ? LM_MESHINST_DECAL : LM_MESHINST_SOLID);
+		S.lmdetail = LI.lmquality;
+		S.decalLayer = layer + ( blend & ~PATCH_IS_SOLID );
+		
+		if( LI.surface_id )
+			g_EdLGCont->UpdateSurface( LI.surface_id, LGC_CHANGE_ALL, &S );
+		else
+			LI.surface_id = g_EdLGCont->CreateSurface( &S );
+		
+		if( LI.texname.size() )
+			first = false;
 	}
 }
 
@@ -230,7 +222,7 @@ Vec3 EdPatch::FindCenter() const
 	return c / ( xsize * ysize ) + position;
 }
 
-void EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer )
+Vec2 EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer )
 {
 	// generate lightmap coords
 	Vec2 lmverts[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
@@ -302,7 +294,7 @@ void EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& 
 			Vec3 nrm = -Vec3Cross( xnrm, ynrm ).Normalized();
 			
 			EdPatchVtx& V = vertices[ x + y * MAX_PATCH_WIDTH ];
-			Vec2 LMV = lmverts[ x + y * MAX_PATCH_WIDTH ] * total_xy_length;
+			Vec2 LMV = lmverts[ x + y * MAX_PATCH_WIDTH ];
 			Vec2 tx = V.tex[ layer ];
 			LCVertex vert = { V.pos + position, nrm, V.col[ layer ], tx.x, tx.y, LMV.x, LMV.y };
 			outverts.push_back( vert );
@@ -335,6 +327,8 @@ void EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& 
 			}
 		}
 	}
+	
+	return total_xy_length;
 }
 
 void EdPatch::GenerateMesh( LevelCache& LC )
@@ -1051,7 +1045,7 @@ void EDGUIPatchVertProps::Prepare( EdPatch* patch, int vid )
 	m_vid = vid % patch->xsize + vid / patch->xsize * MAX_PATCH_WIDTH;
 	
 	char bfr[ 32 ];
-	snprintf( bfr, sizeof(bfr), "Vertex #%d", vid );
+	sgrx_snprintf( bfr, sizeof(bfr), "Vertex #%d", vid );
 	m_group.caption = bfr;
 	m_group.SetOpen( true );
 	
@@ -1144,7 +1138,7 @@ void EDGUIPatchLayerProps::Prepare( EdPatch* patch, int lid )
 	EdPatchLayerInfo& L = patch->layers[ lid ];
 	
 	char bfr[ 32 ];
-	snprintf( bfr, sizeof(bfr), "Layer #%d", lid );
+	sgrx_snprintf( bfr, sizeof(bfr), "Layer #%d", lid );
 	LoadParams( L, bfr );
 }
 

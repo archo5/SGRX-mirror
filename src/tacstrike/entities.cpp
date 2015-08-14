@@ -113,7 +113,7 @@ SlidingDoor::SlidingDoor
 	meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
-	snprintf( bfr, 255, "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
 	meshInst->mesh = GR_GetMesh( bfr );
 	
 	if( meshInst->mesh )
@@ -231,7 +231,7 @@ PickupItem::PickupItem( const StringView& id, const StringView& name, int count,
 	m_meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
-	snprintf( bfr, 255, "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
 	m_meshInst->mesh = GR_GetMesh( bfr );
 	m_meshInst->matrix = Mat4::CreateSRT( scl, rot, pos );
 	g_GameLevel->LightMesh( m_meshInst );
@@ -282,7 +282,7 @@ Actionable::Actionable( const StringView& name, const StringView& mesh,
 	m_meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
-	snprintf( bfr, 255, "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
 	m_meshInst->mesh = GR_GetMesh( bfr );
 	m_meshInst->matrix = mtx;
 	g_GameLevel->LightMesh( m_meshInst );
@@ -337,7 +337,7 @@ ParticleFX::ParticleFX( const StringView& name, const StringView& psys, const St
 	m_soundEventOneShot = g_SoundSys->EventIsOneShot( sndev );
 	
 	char bfr[ 256 ] = {0};
-	snprintf( bfr, 255, "psys/%.*s.psy", TMIN( 240, (int) psys.size() ), psys.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "psys/%.*s.psy", TMIN( 240, (int) psys.size() ), psys.data() );
 	m_psys.Load( bfr );
 	m_psys.AddToScene( g_GameLevel->m_scene );
 	m_psys.SetTransform( Mat4::CreateSRT( scl, rot, pos ) );

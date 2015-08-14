@@ -332,13 +332,13 @@ bool GameLevel::Load( const StringView& levelname )
 		LOG_FUNCTION_ARG( "CORE/CLEAR/SCRIPT" );
 		
 		char bfr[ 256 ];
-		snprintf( bfr, sizeof(bfr), "levels/%.*s/cache", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s/cache", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		if( !FS_LoadBinaryFile( bfr, ba ) )
 			return false;
 		
 		EndLevel();
 		
-		snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		m_scriptCtx.Include( bfr );
 	}
 	
@@ -438,13 +438,13 @@ bool GameLevel::Load( const StringView& levelname )
 			StringView src = MID.m_meshname;
 			if( src.ch() == '~' )
 			{
-				snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
+				sgrx_snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
 				MI->mesh = GR_GetMesh( subbfr );
 			}
 			else
 				MI->mesh = GR_GetMesh( src );
 			
-			snprintf( subbfr, sizeof(subbfr), "levels/%.*s/%d.png", TMIN( (int) levelname.size(), 200 ), levelname.data(), (int) i );
+			sgrx_snprintf( subbfr, sizeof(subbfr), "levels/%.*s/%d.png", TMIN( (int) levelname.size(), 200 ), levelname.data(), (int) i );
 			MI->textures[0] = GR_GetTexture( subbfr );
 			
 			MI->matrix = MID.m_mtx;
@@ -743,7 +743,7 @@ StackShortName GameLevel::GenerateName()
 {
 	m_nameIDGen++;
 	StackShortName tmp("");
-	snprintf( tmp.str, 15, "_name%u", (unsigned int) m_nameIDGen );
+	sgrx_snprintf( tmp.str, 15, "_name%u", (unsigned int) m_nameIDGen );
 	return tmp;
 }
 

@@ -409,6 +409,15 @@ void EdLevelGraphicsCont::Reset()
 	m_lights.clear();
 }
 
+void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI )
+{
+	// dummy static lighting
+	MI->textures[0] = GR_GetTexture( "textures/deflm.png" );
+	// dummy dynamic lighting
+	for( int i = 10; i < 16; ++i )
+		MI->constants[ i ] = V4(0.15f);
+}
+
 uint32_t EdLevelGraphicsCont::CreateMesh( EdLGCMeshInfo* info )
 {
 	uint32_t id = m_nextMeshID++;
@@ -430,6 +439,8 @@ void EdLevelGraphicsCont::DeleteMesh( uint32_t id )
 {
 	ASSERT( m_meshes.isset( id ) );
 	m_meshes.unset( id );
+	if( id == m_nextMeshID - 1 )
+		m_nextMeshID--;
 }
 
 static EdLGCMeshInfo g_defMeshInfo;
@@ -441,7 +452,7 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 	Mesh& M = m_meshes[ id ];
 	if( changes & LGC_MESH_CHANGE_PATH )
 	{
-		M.meshInst->mesh = GR_GetMesh( info->path );
+		M.meshInst->mesh = info->path.size() ? GR_GetMesh( info->path ) : NULL;
 	}
 	if( changes & LGC_CHANGE_XFORM )
 	{
@@ -452,8 +463,20 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 		M.info = *info;
 		M.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
 		M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
-		lmm_prepmeshinst( M.meshInst );
+		LightMesh( M.meshInst );
 	}
+}
+
+bool EdLevelGraphicsCont::GetMeshAABB( uint32_t id, Vec3 out[2] )
+{
+	ASSERT( m_meshes.isset( id ) );
+	Mesh& M = m_meshes[ id ];
+	if( M.meshInst->mesh == NULL )
+		return false;
+	
+	out[0] = M.meshInst->mesh->m_boundsMin;
+	out[1] = M.meshInst->mesh->m_boundsMax;
+	return true;
 }
 
 uint32_t EdLevelGraphicsCont::CreateSurface( EdLGCSurfaceInfo* info )
@@ -467,15 +490,21 @@ uint32_t EdLevelGraphicsCont::CreateSurface( EdLGCSurfaceInfo* info )
 void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
 {
 	ASSERT( m_surfaces.isset( id ) == false );
-	Mesh M;
-	M.meshInst = g_EdScene->CreateMeshInstance();
-	m_surfaces.set( id, M );
+	Surface S;
+	S.meshInst = g_EdScene->CreateMeshInstance();
+	S.meshInst->mesh = GR_CreateMesh();
+	S.material = GR_CreateMaterial();
+	S.material->shader = GR_GetSurfaceShader( "default" );
+	m_surfaces.set( id, S );
 	UpdateSurface( id, LGC_CHANGE_ALL, info );
 }
 
 void EdLevelGraphicsCont::DeleteSurface( uint32_t id )
 {
+	ASSERT( m_surfaces.isset( id ) );
 	m_surfaces.unset( id );
+	if( id == m_nextSurfID - 1 )
+		m_nextSurfID--;
 }
 
 static EdLGCSurfaceInfo g_defSurfInfo;
@@ -484,17 +513,43 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 	if( info == NULL )
 		info = &g_defSurfInfo;
 	ASSERT( m_surfaces.isset( id ) );
-	Mesh& M = m_surfaces[ id ];
+	Surface& S = m_surfaces[ id ];
+	if( changes & LGC_SURF_CHANGE_VIDATA )
+	{
+		S.vertices.assign( info->vdata, info->vcount );
+		S.indices.assign( info->idata, info->icount );
+		S.lmsize = info->lmsize;
+		
+		VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
+		S.meshInst->mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
+		S.meshInst->mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
+		S.meshInst->mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
+		SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size(), S.material };
+		S.meshInst->mesh->SetPartData( &mp, 1 );
+	}
+	if( changes & LGC_SURF_CHANGE_MTLDATA )
+	{
+		S.mtlname = info->mtlname;
+		if( S.mtlname.size() )
+		{
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
+			S.material->textures[0] = GR_GetTexture( bfr );
+		}
+	}
 	if( changes & LGC_CHANGE_XFORM )
 	{
-		M.meshInst->matrix = info->xform;
+		S.meshInst->matrix = info->xform;
 	}
 	if( changes & LGC_CHANGE_RSPEC )
 	{
-		M.info = *info;
-		M.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
-		M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
+		S.info = *info;
+		S.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
+		S.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
+		S.material->blendMode = S.meshInst->decal ? MBM_BASIC : MBM_NONE;
+		LightMesh( S.meshInst );
 	}
+	S.meshInst->enabled = S.mtlname.size() != 0 && S.vertices.size() != 0 && S.indices.size() != 0;
 }
 
 uint32_t EdLevelGraphicsCont::CreateLight( EdLGCLightInfo* info )
@@ -515,7 +570,10 @@ void EdLevelGraphicsCont::RequestLight( uint32_t id, EdLGCLightInfo* info )
 
 void EdLevelGraphicsCont::DeleteLight( uint32_t id )
 {
+	ASSERT( m_lights.isset( id ) );
 	m_lights.unset( id );
+	if( id == m_nextLightID - 1 )
+		m_nextLightID--;
 }
 
 static EdLGCLightInfo g_defLightInfo;
@@ -1765,7 +1823,7 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 	LOG << "Trying to open level: " << str;
 	
 	char bfr[ 256 ];
-	snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
 	String data;
 	if( !FS_LoadTextFile( bfr, data ) )
 	{
@@ -1795,7 +1853,7 @@ void EDGUIMainFrame::Level_Real_Save( const String& str )
 	arch << *g_EdWorld;
 	
 	char bfr[ 256 ];
-	snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
 	if( !FS_SaveTextFile( bfr, data ) )
 	{
 		LOG_ERROR << "FAILED TO SAVE LEVEL FILE: " << bfr;
@@ -1849,7 +1907,7 @@ void EDGUIMainFrame::Level_Real_Compile()
 	lcache.GenerateSamples( 1.0f );
 	
 	char bfr[ 256 ];
-	snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
 	
 	if( !lcache.SaveCache( bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
