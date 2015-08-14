@@ -1358,6 +1358,8 @@ template< class T > EdEntity* ENT_Unserialize( T& arch, bool fixMissing = false 
 			{
 				Vec3 entpos;
 				arch << entpos;
+				Array< uint32_t > meshids;
+				arch( meshids, arch.version >= 5 );
 				String data;
 				arch << data;
 				g_ScriptCtx->Push( g_ScriptCtx->Unserialize( data ) );

@@ -521,9 +521,13 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		S.lmsize = info->lmsize;
 		
 		VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
-		S.meshInst->mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
-		S.meshInst->mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
-		S.meshInst->mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
+		if( S.vertices.size() )
+		{
+			S.meshInst->mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
+			S.meshInst->mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
+		}
+		if( S.indices.size() )
+			S.meshInst->mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
 		SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size(), S.material };
 		S.meshInst->mesh->SetPartData( &mp, 1 );
 	}

@@ -527,44 +527,50 @@ EdEntity* EdEntScripted::CloneEntity()
 	return N;
 }
 
-void EdEntScripted::Serialize( SVHTR& arch )
+template< class T > void EdEntScripted_Unserialize( EdEntScripted* ES, T& arch )
 {
-	arch << m_ctlPos;
+	arch << ES->m_ctlPos;
+	arch( ES->m_meshIDs, arch.version >= 5 );
+	for( size_t i = 0; i < ES->m_meshIDs.size(); ++i )
+	{
+		g_EdLGCont->RequestMesh( ES->m_meshIDs[ i ] );
+	}
 	String data;
 	arch << data;
-	m_data = g_ScriptCtx->Unserialize( data );
-	Data2Fields();
-	_OnChange();
-	Data2Fields();
+	ES->m_data = g_ScriptCtx->Unserialize( data );
+	ES->Data2Fields();
+	ES->_OnChange();
+	ES->Data2Fields();
+}
+
+template< class T > void EdEntScripted_Serialize( EdEntScripted* ES, T& arch )
+{
+	arch << ES->m_ctlPos;
+	arch( ES->m_meshIDs, arch.version >= 5 );
+	String data;
+	data = g_ScriptCtx->Serialize( ES->m_data );
+	arch << data;
+	ES->Fields2Data();
+}
+
+void EdEntScripted::Serialize( SVHTR& arch )
+{
+	EdEntScripted_Unserialize( this, arch );
 }
 
 void EdEntScripted::Serialize( SVHTW& arch )
 {
-	arch << m_ctlPos;
-	String data;
-	data = g_ScriptCtx->Serialize( m_data );
-	arch << data;
-	Fields2Data();
+	EdEntScripted_Serialize( this, arch );
 }
 
 void EdEntScripted::Serialize( SVHBR& arch )
 {
-	arch << m_ctlPos;
-	String data;
-	arch << data;
-	m_data = g_ScriptCtx->Unserialize( data );
-	Data2Fields();
-	_OnChange();
-	Data2Fields();
+	EdEntScripted_Unserialize( this, arch );
 }
 
 void EdEntScripted::Serialize( SVHBW& arch )
 {
-	arch << m_ctlPos;
-	String data;
-	data = g_ScriptCtx->Serialize( m_data );
-	arch << data;
-	Fields2Data();
+	EdEntScripted_Serialize( this, arch );
 }
 
 void EdEntScripted::AddSelfToSEA( Array< LC_ScriptedEntity >& sea )
