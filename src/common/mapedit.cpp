@@ -416,7 +416,8 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 {
 	if( lmdata.size() )
 	{
-		texture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8 );
+		texture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8,
+			TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
 		Array< uint32_t > convdata;
 		convdata.resize( lmdata.size() );
 		for( size_t i = 0; i < lmdata.size(); ++i )
@@ -615,6 +616,23 @@ bool EdLevelGraphicsCont::IsInvalidated( uint32_t lmid )
 	return m_lightmaps.getcopy( lmid )->invalid;
 }
 
+static bool MtlNeedsLM( const StringView& name )
+{
+	return name != "null" && name != "clip" && name != "black";
+}
+
+static bool MtlIsSolid( const StringView& name )
+{
+	if( MtlNeedsLM( name ) == false ) return false;
+	return true;
+}
+
+static bool RenderInfoIsSolid( const EdLGCRenderInfo& rinfo )
+{
+	return ( rinfo.rflags & LM_MESHINST_DECAL ) == 0 &&
+		( ( rinfo.rflags & LM_MESHINST_DYNLIT ) == 0 || ( rinfo.rflags & LM_MESHINST_CASTLMS ) != 0 );
+}
+
 bool EdLevelGraphicsCont::ILMBeginRender()
 {
 	if( m_lmRenderer )
@@ -627,26 +645,28 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 	{
 		Mesh& M = m_meshes.item( i ).value;
 		uint32_t lmid = LGC_MESH_LMID( m_meshes.item( i ).key );
+		bool solid = RenderInfoIsSolid( M.info );
 		if( IsInvalidated( lmid ) )
 		{
-			m_lmRenderer->AddMeshInst( M.meshInst, V2(128 * M.info.lmdetail), lmid );
+			m_lmRenderer->AddMeshInst( M.meshInst, V2(128 * M.info.lmdetail), lmid, solid );
 		}
 		else
 		{
-			m_lmRenderer->AddMeshInst( M.meshInst, V2(0), 0 );
+			m_lmRenderer->AddMeshInst( M.meshInst, V2(0), 0, solid );
 		}
 	}
 	for( size_t i = 0; i < m_surfaces.size(); ++i )
 	{
 		Surface& S = m_surfaces.item( i ).value;
 		uint32_t lmid = LGC_SURF_LMID( m_surfaces.item( i ).key );
-		if( IsInvalidated( lmid ) )
+		bool solid = MtlIsSolid( S.mtlname ) && RenderInfoIsSolid( S.info );
+		if( IsInvalidated( lmid ) && MtlNeedsLM( S.mtlname ) )
 		{
-			m_lmRenderer->AddMeshInst( S.meshInst, S.lmsize * S.info.lmdetail, lmid );
+			m_lmRenderer->AddMeshInst( S.meshInst, S.lmsize * S.info.lmdetail, lmid, solid );
 		}
 		else
 		{
-			m_lmRenderer->AddMeshInst( S.meshInst, V2(0), 0 );
+			m_lmRenderer->AddMeshInst( S.meshInst, V2(0), 0, solid );
 		}
 	}
 	for( size_t i = 0; i < m_lights.size(); ++i )

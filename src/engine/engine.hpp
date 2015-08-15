@@ -1156,7 +1156,7 @@ typedef Handle< SGRX_IFont > FontHandle;
 ENGINE_EXPORT int GR_GetWidth();
 ENGINE_EXPORT int GR_GetHeight();
 
-ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, int mips = 1 );
+ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips );
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
 ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );

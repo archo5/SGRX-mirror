@@ -17,6 +17,34 @@
 
 
 
+static LTRBOOL _LMRenderer_SizeFunc(
+	ltr_Config* config,
+	const char* mesh_ident,
+	size_t mesh_ident_size,
+	const char* inst_ident,
+	size_t inst_ident_size,
+	float computed_surface_area,
+	float inst_importance,
+	u32 out_size[2] )
+{
+	SGRX_CAST( LMRenderer*, LMR, config->userdata );
+	uint32_t lmid = 0;
+	ASSERT( inst_ident_size == sizeof(uint32_t) );
+	memcpy( &lmid, inst_ident, sizeof(uint32_t) );
+	Vec2 size = LMR->m_lmsizes.getcopy( lmid, V2(0) );
+	if( size == V2(0) )
+	{
+		out_size[0] = 0;
+		out_size[1] = 0;
+	}
+	else
+	{
+		out_size[0] = TMAX( 1, TMIN( 1024, int(size.x) ) );
+		out_size[1] = TMAX( 1, TMIN( 1024, int(size.y) ) );
+	}
+	return 1;
+}
+
 LMRenderer::LMRenderer()
 {
 	rendered_sample_count = 0;
@@ -25,6 +53,12 @@ LMRenderer::LMRenderer()
 	completion = 0;
 	
 	m_scene = ltr_CreateScene();
+	
+	ltr_Config cfg;
+	ltr_GetConfig( &cfg, m_scene );
+	cfg.userdata = this;
+	cfg.size_fn = _LMRenderer_SizeFunc;
+	ltr_SetConfig( m_scene, &cfg );
 }
 
 LMRenderer::~LMRenderer()
@@ -76,7 +110,7 @@ bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t o
 	return true;
 }
 
-bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid )
+bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid, bool solid )
 {
 	if( MI->mesh == NULL )
 		return false;
@@ -198,10 +232,12 @@ bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_
 	ltr_MeshInstanceInfo mi_info;
 	memcpy( mi_info.matrix, &MI->matrix, sizeof(float)*16 );
 	mi_info.importance = 1;
-	mi_info.shadow = 1;
+	mi_info.shadow = solid;
 	mi_info.ident = (char*) &lmid;
 	mi_info.ident_size = sizeof(lmid);
 	ltr_MeshAddInstance( mesh->ltrMesh, &mi_info );
+	
+	m_lmsizes.set( lmid, lmsize );
 	
 	return true;
 }
@@ -226,8 +262,8 @@ bool LMRenderer::AddLight( const LC_Light& light )
 	light_info.power = light.power;
 	light_info.light_radius = light.light_radius;
 	light_info.shadow_sample_count = light.num_shadow_samples;
-	light_info.spot_angle_out = light.outerangle;
-	light_info.spot_angle_in = light.innerangle;
+	light_info.spot_angle_out = light.outerangle * 0.5f;
+	light_info.spot_angle_in = light.innerangle * 0.5f;
 	light_info.spot_curve = light.spotcurve;
 	
 	ltr_LightAdd( m_scene, &light_info );

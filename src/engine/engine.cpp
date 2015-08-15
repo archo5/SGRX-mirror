@@ -1987,11 +1987,11 @@ int GR_GetWidth(){ return g_RenderSettings.width; }
 int GR_GetHeight(){ return g_RenderSettings.height; }
 
 
-TextureHandle GR_CreateTexture( int width, int height, int format, int mips )
+TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips )
 {
 	LOG_FUNCTION;
 	
-	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format, 0 };
+	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format, flags };
 	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, NULL );
 	if( !tex )
 	{

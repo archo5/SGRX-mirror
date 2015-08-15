@@ -473,7 +473,7 @@ void EdBlock::RegenerateMesh()
 		S.vcount = vertices.size();
 		S.idata = indices.data();
 		S.icount = indices.size();
-		S.mtlname = surfaces[0].texname;
+		S.mtlname = BS.texname;
 		S.lmsize = CalcLMSizeAndNormalize( vertices );
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
@@ -512,7 +512,7 @@ void EdBlock::RegenerateMesh()
 		S.vcount = vertices.size();
 		S.idata = indices.data();
 		S.icount = indices.size();
-		S.mtlname = surfaces[0].texname;
+		S.mtlname = BS.texname;
 		S.lmsize = CalcLMSizeAndNormalize( vertices );
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
@@ -552,7 +552,7 @@ void EdBlock::RegenerateMesh()
 		S.vcount = vertices.size();
 		S.idata = indices.data();
 		S.icount = indices.size();
-		S.mtlname = surfaces[0].texname;
+		S.mtlname = BS.texname;
 		S.lmsize = CalcLMSizeAndNormalize( vertices );
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
