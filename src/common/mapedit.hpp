@@ -596,6 +596,11 @@ struct EdSurface
 		xfit( 0 ), yfit( 0 ),
 		surface_id( 0 )
 	{}
+	~EdSurface()
+	{
+		if( surface_id )
+			g_EdLGCont->DeleteSurface( surface_id );
+	}
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -816,6 +821,11 @@ struct EdPatchLayerInfo
 		scale(1), aspect(1),
 		angle(0), lmquality(1),
 		surface_id(0){}
+	~EdPatchLayerInfo()
+	{
+		if( surface_id )
+			g_EdLGCont->DeleteSurface( surface_id );
+	}
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -1096,6 +1106,7 @@ struct EDGUIEntButton : EDGUIButton
 struct EdEntMesh : EdEntity
 {
 	EdEntMesh( bool isproto = true );
+	~EdEntMesh(){ if( m_meshID ) g_EdLGCont->DeleteMesh( m_meshID ); }
 	
 	const String& Mesh() const { return m_ctlMesh.m_value; }
 	const Vec3& RotAngles() const { return m_ctlAngles.m_value; }
@@ -1144,6 +1155,7 @@ struct EdEntMesh : EdEntity
 struct EdEntLight : EdEntity
 {
 	EdEntLight( bool isproto = true );
+	~EdEntLight(){ if( m_lightID ) g_EdLGCont->DeleteLight( m_lightID ); }
 	
 	float Range() const { return m_ctlRange.m_value; }
 	float Power() const { return m_ctlPower.m_value; }

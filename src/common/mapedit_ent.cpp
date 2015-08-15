@@ -529,6 +529,11 @@ EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 EdEntScripted::~EdEntScripted()
 {
 	ClearFields();
+	for( size_t i = 0; i < m_meshIDs.size(); ++i )
+	{
+		if( m_meshIDs[ i ] )
+			g_EdLGCont->DeleteMesh( m_meshIDs[ i ] );
+	}
 	if( cached_scritem )
 		cached_scritem->Release();
 	if( m_subEntAddBtn )

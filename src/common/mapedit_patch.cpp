@@ -1218,6 +1218,7 @@ int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
 			else if( e->target == &m_lmquality )
 			{
 				m_out->layers[ m_lid ].lmquality = m_lmquality.m_value;
+				m_out->RegenerateMesh();
 			}
 		}
 		break;
