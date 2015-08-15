@@ -1,7 +1,31 @@
 
 
+#include <engine.hpp>
 #include "levelcache.hpp"
 
+
+
+
+struct LMRenderer
+{
+	struct Mesh
+	{
+		Array< Vec3 > positions;
+		Array< Vec3 > normals;
+		Array< Vec2 > texcoords;
+		struct ltr_Mesh* ltrMesh;
+	};
+	
+	LMRenderer();
+	~LMRenderer();
+	
+	void Start();
+	void AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid );
+	void AddLight( const LC_Light& light );
+	
+	struct ltr_Scene* m_scene;
+	HashTable< MeshHandle, Mesh* > m_meshes;
+};
 
 
 

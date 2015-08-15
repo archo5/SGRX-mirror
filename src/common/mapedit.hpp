@@ -438,6 +438,8 @@ struct EdLevelGraphicsCont
 	LightTable m_lights;
 	LMapTable m_lightmaps;
 	InvLMIDTable m_invalidLightmaps;
+	
+	LMRenderer* m_lmRenderer;
 };
 
 

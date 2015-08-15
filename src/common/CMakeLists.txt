@@ -3,14 +3,26 @@ cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 if(NOT RESTRICTED)
+# Lightmap renderer
+add_library( lighter SHARED
+	${EXTDIR}/src/lighter/lighter ${EXTDIR}/src/lighter/lighter_math )
+set_target_properties( lighter PROPERTIES
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	INCLUDE_DIRECTORIES "${EXTDIR}/src"
+	COMPILE_FLAGS "${CORE_FLAGS} -DLTRBUILD -O2"
+	LINK_FLAGS "${CORE_FLAGS} -O2"
+)
+
 # Editor
 add_library( editor SHARED
 	mapedit mapedit_ent mapedit_block mapedit_patch mapedit_edit
 	compiler scritem cppbc_scritem )
-target_link_libraries( editor sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod recast detour )
+target_link_libraries( editor
+	sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
+	recast detour lighter )
 set_target_properties( editor PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC"
-	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src/recast/Recast/Include;${EXTDIR}/src/recast/Detour/Include"
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src;${EXTDIR}/src/recast/Recast/Include;${EXTDIR}/src/recast/Detour/Include"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"

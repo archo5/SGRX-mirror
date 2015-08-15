@@ -443,6 +443,8 @@ void EdLevelGraphicsCont::Reset()
 	m_meshes.clear();
 	m_surfaces.clear();
 	m_lights.clear();
+	m_lightmaps.clear();
+	m_invalidLightmaps.clear();
 }
 
 void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
@@ -1937,6 +1939,19 @@ bool EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 	if( m_editMode )
 		m_editMode->OnViewEvent( e );
 	
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		int x1 = g_UIFrame->m_UIRenderView.x1;
+		int y1 = g_UIFrame->m_UIRenderView.y1;
+		char bfr[ 1024 ];
+		sgrx_snprintf( bfr, 1024, "Invalidated lightmaps: %d",
+			int(g_EdLGCont->m_invalidLightmaps.size()) );
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( x1, y1, bfr, HALIGN_RIGHT, VALIGN_BOTTOM );
+	}
+	
 	return true;
 }
 
@@ -2071,6 +2086,7 @@ void EDGUIMainFrame::Level_New()
 {
 	g_UIScrFnPicker->m_levelName = m_fileName = "";
 	g_EdWorld->Reset();
+	g_EdLGCont->Reset();
 	ResetEditorState();
 }
 

@@ -13,6 +13,72 @@
 #include <DetourNavMesh.h>
 #include <DetourNavMeshBuilder.h>
 
+#include <lighter/lighter.h>
+
+
+
+LMRenderer::LMRenderer()
+{
+	m_scene = ltr_CreateScene();
+}
+
+LMRenderer::~LMRenderer()
+{
+	ltr_DestroyScene( m_scene );
+}
+
+void LMRenderer::Start()
+{
+	ltr_Start( m_scene );
+}
+
+void LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid )
+{
+	if( MI->mesh == NULL )
+		return;
+	
+	Mesh*& mesh = m_meshes[ MI->mesh ];
+	if( mesh == NULL )
+	{
+		// TODO
+	}
+	
+	ltr_MeshInstanceInfo mi_info;
+	memcpy( mi_info.matrix, &MI->matrix, sizeof(float)*16 );
+	mi_info.importance = 1;
+	mi_info.shadow = 1;
+	mi_info.ident = (char*) &lmid;
+	mi_info.ident_size = sizeof(lmid);
+	ltr_MeshAddInstance( mesh->ltrMesh, &mi_info );
+}
+
+void LMRenderer::AddLight( const LC_Light& light )
+{
+	ltr_LightInfo light_info;
+	
+	if( light.type == LM_LIGHT_POINT )
+		light_info.type = LTR_LT_POINT;
+	else if( light.type == LM_LIGHT_SPOT )
+		light_info.type = LTR_LT_SPOT;
+	else if( light.type == LM_LIGHT_DIRECT )
+		light_info.type = LTR_LT_DIRECT;
+	else return;
+	
+	memcpy( light_info.position, &light.pos, sizeof(Vec3) );
+	memcpy( light_info.direction, &light.dir, sizeof(Vec3) );
+	memcpy( light_info.up_direction, &light.up, sizeof(Vec3) );
+	memcpy( light_info.color_rgb, &light.color, sizeof(Vec3) );
+	light_info.range = light.range;
+	light_info.power = light.power;
+	light_info.light_radius = light.light_radius;
+	light_info.shadow_sample_count = light.num_shadow_samples;
+	light_info.spot_angle_out = light.outerangle;
+	light_info.spot_angle_in = light.innerangle;
+	light_info.spot_curve = light.spotcurve;
+	
+	ltr_LightAdd( m_scene, &light_info );
+}
+
 
 
 int RectPacker::_NodeAlloc( int startnode, int w, int h )
