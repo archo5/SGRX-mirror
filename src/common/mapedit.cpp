@@ -431,8 +431,15 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 }
 
 EdLevelGraphicsCont::EdLevelGraphicsCont()
-	: m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1)
+	: m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1),
+	m_lmRenderer(NULL)
 {
+}
+
+EdLevelGraphicsCont::~EdLevelGraphicsCont()
+{
+	if( m_lmRenderer )
+		delete m_lmRenderer;
 }
 
 void EdLevelGraphicsCont::Reset()
@@ -603,6 +610,92 @@ void EdLevelGraphicsCont::InvalidateLightsByMI( SGRX_MeshInstance* MI )
 	InvalidateLights( MI->mesh->m_boundsMin, MI->mesh->m_boundsMax, MI->matrix );
 }
 
+bool EdLevelGraphicsCont::IsInvalidated( uint32_t lmid )
+{
+	return m_lightmaps.getcopy( lmid )->invalid;
+}
+
+bool EdLevelGraphicsCont::ILMBeginRender()
+{
+	if( m_lmRenderer )
+		return false;
+	if( m_invalidLightmaps.size() == 0 )
+		return false;
+	
+	m_lmRenderer = new LMRenderer;
+	for( size_t i = 0; i < m_meshes.size(); ++i )
+	{
+		Mesh& M = m_meshes.item( i ).value;
+		uint32_t lmid = LGC_MESH_LMID( m_meshes.item( i ).key );
+		if( IsInvalidated( lmid ) )
+		{
+			m_lmRenderer->AddMeshInst( M.meshInst, V2(128 * M.info.lmdetail), lmid );
+		}
+		else
+		{
+			m_lmRenderer->AddMeshInst( M.meshInst, V2(0), 0 );
+		}
+	}
+	for( size_t i = 0; i < m_surfaces.size(); ++i )
+	{
+		Surface& S = m_surfaces.item( i ).value;
+		uint32_t lmid = LGC_SURF_LMID( m_surfaces.item( i ).key );
+		if( IsInvalidated( lmid ) )
+		{
+			m_lmRenderer->AddMeshInst( S.meshInst, S.lmsize * S.info.lmdetail, lmid );
+		}
+		else
+		{
+			m_lmRenderer->AddMeshInst( S.meshInst, V2(0), 0 );
+		}
+	}
+	for( size_t i = 0; i < m_lights.size(); ++i )
+	{
+		m_lmRenderer->AddLight( m_lights[ i ].info );
+	}
+	m_lmRenderer->Start();
+	
+	return true;
+}
+
+void EdLevelGraphicsCont::ILMAbort()
+{
+	if( m_lmRenderer )
+	{
+		delete m_lmRenderer;
+		m_lmRenderer = NULL;
+	}
+}
+
+void EdLevelGraphicsCont::ILMCheck()
+{
+	if( m_lmRenderer == NULL )
+		return;
+	
+	if( m_lmRenderer->CheckStatus() )
+	{
+		for( uint32_t i = 0; i < m_lmRenderer->rendered_lightmap_count; ++i )
+		{
+			Array< Vec3 > colors;
+			uint32_t lmidsize[3];
+			if( m_lmRenderer->GetLightmap( i, colors, lmidsize ) &&
+				m_lightmaps.isset( lmidsize[0] ) )
+			{
+				LMap& L = *m_lightmaps[ lmidsize[0] ];
+				L.width = lmidsize[1];
+				L.height = lmidsize[2];
+				L.lmdata = colors;
+				L.ReloadTex();
+				ApplyLightmap( lmidsize[0] );
+			}
+		}
+		
+		delete m_lmRenderer;
+		m_lmRenderer = NULL;
+	}
+}
+
+
 uint32_t EdLevelGraphicsCont::CreateMesh( EdLGCMeshInfo* info )
 {
 	uint32_t id = m_nextMeshID;
@@ -743,6 +836,8 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			
 			S.vertices.assign( info->vdata, info->vcount );
 			S.indices.assign( info->idata, info->icount );
+			S.meshInst->mesh->m_vdata.assign( S.vertices.data(), S.vertices.size_bytes() );
+			S.meshInst->mesh->m_idata.assign( S.indices.data(), S.indices.size_bytes() );
 			
 			VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
 			if( S.vertices.size() )
@@ -1943,13 +2038,21 @@ bool EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 	{
 		int x1 = g_UIFrame->m_UIRenderView.x1;
 		int y1 = g_UIFrame->m_UIRenderView.y1;
-		char bfr[ 1024 ];
-		sgrx_snprintf( bfr, 1024, "# outdated lightmaps: %d",
-			int(g_EdLGCont->m_invalidLightmaps.size()) );
-		
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 		GR2D_SetColor( 1, 1 );
+		char bfr[ 1024 ];
+		
+		sgrx_snprintf( bfr, 1024, "%d outdated lightmaps",
+			int(g_EdLGCont->m_invalidLightmaps.size()) );
 		GR2D_DrawTextLine( x1, y1, bfr, HALIGN_RIGHT, VALIGN_BOTTOM );
+		
+		if( g_EdLGCont->m_lmRenderer )
+		{
+			sgrx_snprintf( bfr, 1024, "rendering lightmaps (%s: %d%%)",
+				StackString<128>(g_EdLGCont->m_lmRenderer->stage).str,
+				int(g_EdLGCont->m_lmRenderer->completion * 100) );
+			GR2D_DrawTextLine( x1, y1 - 12, bfr, HALIGN_RIGHT, VALIGN_BOTTOM );
+		}
 	}
 	
 	return true;
@@ -2358,12 +2461,24 @@ struct TACStrikeEditor : IGame
 	}
 	void OnEvent( const Event& e )
 	{
+		if( e.type == SDL_KEYDOWN )
+		{
+			if( e.key.keysym.sym == SDLK_F6 )
+			{
+				g_EdLGCont->ILMBeginRender();
+			}
+			if( e.key.keysym.sym == SDLK_F7 )
+			{
+				g_EdLGCont->ILMAbort();
+			}
+		}
 		g_UIFrame->EngineEvent( &e );
 		g_EdWorld->m_groupMgr.ProcessDestroyQueue();
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+		g_EdLGCont->ILMCheck();
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_UIFrame->Draw();
 	}

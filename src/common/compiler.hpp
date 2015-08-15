@@ -12,7 +12,8 @@ struct LMRenderer
 	{
 		Array< Vec3 > positions;
 		Array< Vec3 > normals;
-		Array< Vec2 > texcoords;
+		Array< Vec2 > texcoords0;
+		Array< Vec2 > texcoords1;
 		Array< uint32_t > indices;
 		struct ltr_Mesh* ltrMesh;
 	};
@@ -21,11 +22,20 @@ struct LMRenderer
 	~LMRenderer();
 	
 	void Start();
+	bool CheckStatus();
+	bool GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t outlmidsize[3] );
 	bool AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid );
 	bool AddLight( const LC_Light& light );
 	
 	struct ltr_Scene* m_scene;
 	HashTable< MeshHandle, Mesh* > m_meshes;
+	
+	uint32_t rendered_sample_count;
+	uint32_t rendered_lightmap_count;
+	struct ltr_SampleInfo* rendered_samples;
+	
+	String stage;
+	float completion;
 };
 
 

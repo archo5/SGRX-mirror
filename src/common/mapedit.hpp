@@ -402,6 +402,7 @@ struct EdLevelGraphicsCont
 	typedef HashTable< uint32_t, uint32_t > InvLMIDTable;
 	
 	EdLevelGraphicsCont();
+	~EdLevelGraphicsCont();
 	void Reset();
 	void LoadLightmaps( const StringView& levname );
 	void SaveLightmaps( const StringView& levname );
@@ -412,6 +413,10 @@ struct EdLevelGraphicsCont
 	void InvalidateLight( const Light& L );
 	void InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx );
 	void InvalidateLightsByMI( SGRX_MeshInstance* MI );
+	bool IsInvalidated( uint32_t lmid );
+	bool ILMBeginRender();
+	void ILMAbort();
+	void ILMCheck();
 	
 	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
 	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );

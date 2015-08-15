@@ -19,6 +19,11 @@
 
 LMRenderer::LMRenderer()
 {
+	rendered_sample_count = 0;
+	rendered_lightmap_count = 0;
+	rendered_samples = NULL;
+	completion = 0;
+	
 	m_scene = ltr_CreateScene();
 }
 
@@ -30,6 +35,45 @@ LMRenderer::~LMRenderer()
 void LMRenderer::Start()
 {
 	ltr_Start( m_scene );
+}
+
+bool LMRenderer::CheckStatus()
+{
+	ltr_WorkStatus wstatus;
+	if( ltr_GetStatus( m_scene, &wstatus ) )
+	{
+		stage = wstatus.stage;
+		completion = wstatus.completion;
+		return false;
+	}
+	
+	// completed
+	ltr_WorkOutputInfo woutinfo;
+	ltr_GetWorkOutputInfo( m_scene, &woutinfo );
+	rendered_sample_count = woutinfo.sample_count;
+	rendered_lightmap_count = woutinfo.lightmap_count;
+	rendered_samples = woutinfo.samples;
+	
+	return true;
+}
+
+bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t outlmidsize[3] )
+{
+	if( which >= rendered_lightmap_count )
+		return false;
+	
+	ltr_WorkOutput wout;
+	if( ltr_GetWorkOutput( m_scene, which, &wout ) == 0 )
+		return false;
+	
+	ASSERT( wout.inst_ident_size == 4 );
+	memcpy( &outlmidsize[0], wout.inst_ident, sizeof(uint32_t) );
+	outlmidsize[1] = wout.width;
+	outlmidsize[2] = wout.height;
+	outcols.resize( wout.width * wout.height );
+	memcpy( outcols.data(), wout.lightmap_rgb, outcols.size_bytes() );
+	
+	return true;
 }
 
 bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid )
@@ -104,11 +148,23 @@ bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_
 		else if( t1_off < 0 ) t1_off = t0_off;
 		
 		// TODO COPY PNTT data
+		uint32_t vcount = M->m_vdata.size() / vertex_decl.size;
+		mesh->positions.resize( vcount );
+		mesh->normals.resize( vcount );
+		mesh->texcoords0.resize( vcount );
+		mesh->texcoords1.resize( vcount );
+		for( uint32_t i = 0; i < vcount; ++i )
+		{
+			memcpy( &mesh->positions[ i ], &M->m_vdata[ vertex_decl.size * i + p_off ], sizeof(Vec3) );
+			memcpy( &mesh->normals[ i ], &M->m_vdata[ vertex_decl.size * i + n_off ], sizeof(Vec3) );
+			memcpy( &mesh->texcoords0[ i ], &M->m_vdata[ vertex_decl.size * i + t0_off ], sizeof(Vec2) );
+			memcpy( &mesh->texcoords1[ i ], &M->m_vdata[ vertex_decl.size * i + t1_off ], sizeof(Vec2) );
+		}
 		
 		if( M->m_dataFlags & MDF_INDEX_32 )
 		{
 			mesh->indices.resize( M->m_idata.size() / sizeof(uint32_t) );
-			memcpy( mesh->indices.data(), M->m_idata.data(), M->m_idata.size() );
+			memcpy( mesh->indices.data(), M->m_idata.data(), mesh->indices.size_bytes() );
 		}
 		else
 		{
@@ -129,8 +185,8 @@ bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_
 			{
 				&mesh->positions[ MP.vertexOffset ],
 				&mesh->normals[ MP.vertexOffset ],
-				&mesh->texcoords[ MP.vertexOffset ],
-				&mesh->texcoords[ MP.vertexOffset ],
+				&mesh->texcoords0[ MP.vertexOffset ],
+				&mesh->texcoords1[ MP.vertexOffset ],
 				sizeof(Vec3), sizeof(Vec3), sizeof(Vec2), sizeof(Vec2),
 				&mesh->indices[ MP.indexOffset ], MP.vertexCount, MP.indexCount,
 				1

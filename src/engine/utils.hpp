@@ -1703,8 +1703,12 @@ struct SGRX_RefCounted
 	SGRX_RefCounted() : m_refcount(0){}
 	virtual ~SGRX_RefCounted(){}
 	
+	SGRX_RefCounted( const SGRX_RefCounted& ) : m_refcount(0){} // DO NOT COPY REFCOUNT
+	SGRX_RefCounted& operator = ( const SGRX_RefCounted& ){ return *this; } // DO NOT COPY REFCOUNT
+	
 	FINLINE void Acquire(){ sgrx_atomic_inc( &m_refcount ); }
 	FINLINE void Release(){ if( sgrx_atomic_dec( &m_refcount ) <= 0 ) delete this; }
+	FINLINE int32_t GetRefCount() const { return m_refcount; }
 	
 private:
 	volatile int32_t m_refcount;
