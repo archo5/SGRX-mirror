@@ -567,6 +567,10 @@ EdEntity* EdEntScripted::CloneEntity()
 template< class T > void EdEntScripted_Unserialize( EdEntScripted* ES, T& arch )
 {
 	arch << ES->m_ctlPos;
+	for( size_t i = 0; i < ES->m_meshIDs.size(); ++i )
+	{
+		g_EdLGCont->DeleteMesh( ES->m_meshIDs[ i ] );
+	}
 	arch( ES->m_meshIDs, arch.version >= 5 );
 	for( size_t i = 0; i < ES->m_meshIDs.size(); ++i )
 	{

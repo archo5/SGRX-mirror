@@ -671,7 +671,7 @@ Quat Mat4::GetRotationQuaternion() const
 #endif
 }
 
-bool Mat4::InvertTo( Mat4& out )
+bool Mat4::InvertTo( Mat4& out ) const
 {
 	float inv[16], det;
 	int i;

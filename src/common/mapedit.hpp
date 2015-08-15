@@ -273,9 +273,9 @@ typedef LevelCache::Vertex LCVertex;
 
 #define LGC_MESH_CHANGE_PATH 0x04
 
-struct EdLCGRenderInfo
+struct EdLGCRenderInfo
 {
-	EdLCGRenderInfo() :
+	EdLGCRenderInfo() :
 		rflags(LM_MESHINST_SOLID|LM_MESHINST_CASTLMS),
 		lmdetail(1),
 		decalLayer(0){}
@@ -284,16 +284,24 @@ struct EdLCGRenderInfo
 	uint32_t rflags; // LM_MESHINST_*
 	float lmdetail;
 	uint8_t decalLayer;
+	
+	int RIDiff( const EdLGCRenderInfo& other ) const
+	{
+		if( rflags != other.rflags ) return 2;
+		if( lmdetail != other.lmdetail ) return 1;
+		if( decalLayer != other.decalLayer ) return -1;
+		return 0;
+	}
 };
 
-struct EdLCGDrawableInfo : EdLCGRenderInfo
+struct EdLGCDrawableInfo : EdLGCRenderInfo
 {
-	EdLCGDrawableInfo() : xform(Mat4::Identity){}
+	EdLGCDrawableInfo() : xform(Mat4::Identity){}
 	
 	Mat4 xform;
 };
 
-struct EdLGCMeshInfo : EdLCGDrawableInfo
+struct EdLGCMeshInfo : EdLGCDrawableInfo
 {
 	String path;
 };
@@ -301,7 +309,7 @@ struct EdLGCMeshInfo : EdLCGDrawableInfo
 #define LGC_SURF_CHANGE_VIDATA 0x04
 #define LGC_SURF_CHANGE_MTLDATA 0x08
 
-struct EdLGCSurfaceInfo : EdLCGDrawableInfo
+struct EdLGCSurfaceInfo : EdLGCDrawableInfo
 {
 	EdLGCSurfaceInfo() :
 		vdata(NULL), vcount(0),
@@ -345,12 +353,13 @@ struct EdLevelGraphicsCont
 {
 	struct Mesh
 	{
-		EdLCGRenderInfo info;
+		String meshpath;
+		EdLGCRenderInfo info;
 		MeshInstHandle meshInst;
 	};
 	struct Surface
 	{
-		EdLCGRenderInfo info;
+		EdLGCRenderInfo info;
 		MeshInstHandle meshInst;
 		MaterialHandle material;
 		Array< LCVertex > vertices;
@@ -362,13 +371,27 @@ struct EdLevelGraphicsCont
 	{
 		EdLGCLightInfo info;
 		LightHandle dynLight;
+		
+		bool IntersectsAABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx ) const;
 	};
 	struct LMap : SGRX_RefCounted
 	{
 		uint16_t width;
 		uint16_t height;
 		Array< Vec3 > lmdata;
-		TextureHandle tex;
+		TextureHandle texture;
+		bool invalid;
+		
+		template< class T > void Serialize( T& arch )
+		{
+			arch << width;
+			arch << height;
+			if( T::IsReader )
+				lmdata.resize( width * height );
+			arch.memory( lmdata.data(), lmdata.size_bytes() );
+			arch << invalid;
+		}
+		void ReloadTex();
 	};
 	typedef Handle< LMap > LMapHandle;
 	
@@ -376,11 +399,19 @@ struct EdLevelGraphicsCont
 	typedef HashTable< uint32_t, Surface > SurfaceTable;
 	typedef HashTable< uint32_t, Light > LightTable;
 	typedef HashTable< uint32_t, LMapHandle > LMapTable;
+	typedef HashTable< uint32_t, uint32_t > InvLMIDTable;
 	
 	EdLevelGraphicsCont();
 	void Reset();
-	void LightMesh( SGRX_MeshInstance* MI );
+	void LoadLightmaps( const StringView& levname );
+	void SaveLightmaps( const StringView& levname );
+	void LightMesh( SGRX_MeshInstance* MI, uint32_t lmid );
 	void CreateLightmap( uint32_t lmid );
+	void ApplyLightmap( uint32_t lmid );
+	void InvalidateLightmap( uint32_t lmid );
+	void InvalidateLight( const Light& L );
+	void InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx );
+	void InvalidateLightsByMI( SGRX_MeshInstance* MI );
 	
 	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
 	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
@@ -406,6 +437,7 @@ struct EdLevelGraphicsCont
 	SurfaceTable m_surfaces;
 	LightTable m_lights;
 	LMapTable m_lightmaps;
+	InvLMIDTable m_invalidLightmaps;
 };
 
 

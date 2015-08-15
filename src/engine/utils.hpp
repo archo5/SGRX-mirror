@@ -976,7 +976,7 @@ struct ENGINE_EXPORT Mat4
 	FINLINE bool operator != ( const Mat4& o ) const { return !( *this == o ); }
 	
 #define InvertTo InvertTo_ // linker errors
-	bool InvertTo( Mat4& out );
+	bool InvertTo( Mat4& out ) const;
 	FINLINE void Transpose()
 	{
 		TSWAP( m[1][0], m[0][1] );

@@ -397,6 +397,38 @@ void EdGroupManager::PathInvalidate( int32_t id )
 #define LGC_IS_VALID_ID( x ) ( (x) != 0 && (x) < uint32_t(0x80000000) )
 #define LGC_MESH_LMID( x ) (x)
 #define LGC_SURF_LMID( x ) ((x)|0x80000000)
+#define LGC_LMID_GET_ID( x ) ((x)&0x7fffffff)
+#define LGC_IS_MESH_LMID( x ) (((x)&0x80000000)==0)
+
+bool EdLevelGraphicsCont::Light::IntersectsAABB(
+	const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx ) const
+{
+	Mat4 invmtx = Mat4::Identity;
+	mtx.InvertTo( invmtx );
+	Vec3 locpos = invmtx.TransformPos( info.pos );
+	Vec3 inbbpos = Vec3::Min( Vec3::Max( locpos, bbmin ), bbmax );
+	Vec3 locdist = inbbpos - locpos;
+	Vec3 world_dist = mtx.TransformNormal( locdist );
+	return world_dist.LengthSq() < info.range * info.range;
+}
+
+void EdLevelGraphicsCont::LMap::ReloadTex()
+{
+	if( lmdata.size() )
+	{
+		texture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8 );
+		Array< uint32_t > convdata;
+		convdata.resize( lmdata.size() );
+		for( size_t i = 0; i < lmdata.size(); ++i )
+		{
+			Vec3 incol = lmdata[ i ];
+			convdata[ i ] = COLOR_RGB( incol.x * 255, incol.y * 255, incol.z * 255 );
+		}
+		texture->UploadRGBA8Part( convdata.data(), 0, 0, 0, width, height );
+	}
+	else
+		texture = GR_GetTexture( "textures/deflm.png" );
+}
 
 EdLevelGraphicsCont::EdLevelGraphicsCont()
 	: m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1)
@@ -413,10 +445,78 @@ void EdLevelGraphicsCont::Reset()
 	m_lights.clear();
 }
 
-void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI )
+void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 {
-	// dummy static lighting
-	MI->textures[0] = GR_GetTexture( "textures/deflm.png" );
+	char fname[ 256 ];
+	sgrx_snprintf( fname, sizeof(fname), "levels/%s/lmcache", StackString<200>(levname).str );
+	
+	ByteArray ba;
+	if( FS_LoadBinaryFile( fname, ba ) == false )
+	{
+		LOG_WARNING << "Could not load lightmap cache";
+		return;
+	}
+	
+	ByteReader br( &ba );
+	br.marker( "SGRXLMCH" );
+	if( br.error )
+	{
+		LOG_WARNING << "LMCACHE: File format error";
+		return;
+	}
+	
+	LMap LM;
+	while( br.pos < ba.size() )
+	{
+		br.marker( "LM" );
+		uint32_t lmid = 0;
+		br << lmid;
+		br << LM;
+		if( m_lightmaps.isset( lmid ) )
+		{
+			*m_lightmaps[ lmid ] = LM;
+			m_lightmaps[ lmid ]->ReloadTex();
+			ApplyLightmap( lmid );
+		}
+	}
+	
+	m_invalidLightmaps.clear();
+	for( size_t i = 0; i < m_lightmaps.size(); ++i )
+	{
+		if( m_lightmaps.item( i ).value->invalid )
+		{
+			uint32_t lmid = m_lightmaps.item( i ).key;
+			m_invalidLightmaps.set( lmid, lmid );
+		}
+	}
+}
+
+void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
+{
+	ByteArray ba;
+	ByteWriter bw( &ba );
+	bw.marker( "SGRXLMCH" );
+	
+	for( size_t i = 0; i < m_lightmaps.size(); ++i )
+	{
+		bw.marker( "LM" );
+		bw << m_lightmaps.item( i ).key;
+		bw << *m_lightmaps.item( i ).value;
+	}
+	
+	char path[ 256 ], fname[ 256 ];
+	sgrx_snprintf( path, sizeof(path), "levels/%s", StackString<200>(levname).str );
+	sgrx_snprintf( fname, sizeof(fname), "levels/%s/lmcache", StackString<200>(levname).str );
+	
+	FS_DirCreate( path );
+	FS_SaveBinaryFile( fname, ba.data(), ba.size() );
+}
+
+void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI, uint32_t lmid )
+{
+	// static lighting
+	ASSERT( m_lightmaps.isset( lmid ) );
+	MI->textures[0] = m_lightmaps[ lmid ]->texture;
 	// dummy dynamic lighting
 	for( int i = 10; i < 16; ++i )
 		MI->constants[ i ] = V4(0.15f);
@@ -427,12 +527,83 @@ void EdLevelGraphicsCont::CreateLightmap( uint32_t lmid )
 	LMap* LM = new LMap;
 	LM->width = 0;
 	LM->height = 0;
+	LM->texture = GR_GetTexture( "textures/deflm.png" );
+	LM->invalid = true;
 	m_lightmaps[ lmid ] = LM;
+	m_invalidLightmaps[ lmid ] = lmid;
+}
+
+void EdLevelGraphicsCont::ApplyLightmap( uint32_t lmid )
+{
+	uint32_t id = LGC_LMID_GET_ID( lmid );
+	if( LGC_IS_MESH_LMID( lmid ) )
+	{
+		m_meshes[ id ].meshInst->textures[0] = m_lightmaps[ lmid ]->texture;
+	}
+	else
+	{
+		m_surfaces[ id ].meshInst->textures[0] = m_lightmaps[ lmid ]->texture;
+	}
+}
+
+void EdLevelGraphicsCont::InvalidateLightmap( uint32_t lmid )
+{
+//	printf( "invalidated %u\n", unsigned(lmid) );
+	m_lightmaps[ lmid ]->invalid = true;
+	m_invalidLightmaps[ lmid ] = lmid;
+}
+
+void EdLevelGraphicsCont::InvalidateLight( const Light& L )
+{
+	for( size_t j = 0; j < m_meshes.size(); ++j )
+	{
+		Mesh& M = m_meshes.item( j ).value;
+		if( M.meshInst->mesh )
+		{
+			SGRX_IMesh* XM = M.meshInst->mesh;
+			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, M.meshInst->matrix ) )
+				InvalidateLightmap( LGC_MESH_LMID( m_meshes.item( j ).key ) );
+		}
+	}
+	for( size_t j = 0; j < m_surfaces.size(); ++j )
+	{
+		Surface& S = m_surfaces.item( j ).value;
+		if( S.meshInst->mesh )
+		{
+			SGRX_IMesh* XM = S.meshInst->mesh;
+			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, S.meshInst->matrix ) )
+				InvalidateLightmap( LGC_SURF_LMID( m_surfaces.item( j ).key ) );
+		}
+	}
+}
+
+void EdLevelGraphicsCont::InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx )
+{
+	Mat4 invmtx = Mat4::Identity;
+	mtx.InvertTo( invmtx );
+	for( size_t i = 0; i < m_lights.size(); ++i )
+	{
+		const Light& L = m_lights.item( i ).value;
+		Vec3 locpos = invmtx.TransformPos( L.info.pos );
+		Vec3 inbbpos = Vec3::Min( Vec3::Max( locpos, bbmin ), bbmax );
+		Vec3 locdist = inbbpos - locpos;
+		Vec3 world_dist = mtx.TransformNormal( locdist );
+		if( world_dist.LengthSq() < L.info.range * L.info.range )
+			InvalidateLight( L );
+	}
+}
+
+void EdLevelGraphicsCont::InvalidateLightsByMI( SGRX_MeshInstance* MI )
+{
+	if( MI->mesh == NULL )
+		return;
+	
+	InvalidateLights( MI->mesh->m_boundsMin, MI->mesh->m_boundsMax, MI->matrix );
 }
 
 uint32_t EdLevelGraphicsCont::CreateMesh( EdLGCMeshInfo* info )
 {
-	uint32_t id = m_nextMeshID++;
+	uint32_t id = m_nextMeshID;
 	ASSERT( LGC_IS_VALID_ID( id ) );
 	RequestMesh( id, info );
 	return id;
@@ -446,6 +617,8 @@ void EdLevelGraphicsCont::RequestMesh( uint32_t id, EdLGCMeshInfo* info )
 	m_meshes.set( id, M );
 	CreateLightmap( LGC_MESH_LMID( id ) );
 	UpdateMesh( id, LGC_CHANGE_ALL, info );
+	if( id >= m_nextMeshID )
+		m_nextMeshID = id + 1;
 }
 
 void EdLevelGraphicsCont::DeleteMesh( uint32_t id )
@@ -466,18 +639,43 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 	Mesh& M = m_meshes[ id ];
 	if( changes & LGC_MESH_CHANGE_PATH )
 	{
-		M.meshInst->mesh = info->path.size() ? GR_GetMesh( info->path ) : NULL;
+		if( M.meshpath != info->path )
+		{
+			M.meshpath = info->path;
+			InvalidateLightsByMI( M.meshInst );
+			M.meshInst->mesh = info->path.size() ? GR_GetMesh( info->path ) : NULL;
+			InvalidateLightsByMI( M.meshInst );
+		}
 	}
 	if( changes & LGC_CHANGE_XFORM )
 	{
-		M.meshInst->matrix = info->xform;
+		if( M.meshInst->matrix != info->xform )
+		{
+			InvalidateLightsByMI( M.meshInst );
+			M.meshInst->matrix = info->xform;
+			InvalidateLightsByMI( M.meshInst );
+		}
 	}
 	if( changes & LGC_CHANGE_RSPEC )
 	{
-		M.info = *info;
+		int diff = M.info.RIDiff( *info );
+		if( diff )
+		{
+			if( diff == 1 )
+				InvalidateLightmap( LGC_MESH_LMID( id ) );
+			else if( diff == 2 )
+				InvalidateLightsByMI( M.meshInst );
+			
+			M.info = *info;
+			
+			if( diff == 1 )
+				InvalidateLightmap( LGC_MESH_LMID( id ) );
+			else if( diff == 2 )
+				InvalidateLightsByMI( M.meshInst );
+		}
 		M.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
 		M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
-		LightMesh( M.meshInst );
+		LightMesh( M.meshInst, LGC_MESH_LMID( id ) );
 	}
 }
 
@@ -495,7 +693,7 @@ bool EdLevelGraphicsCont::GetMeshAABB( uint32_t id, Vec3 out[2] )
 
 uint32_t EdLevelGraphicsCont::CreateSurface( EdLGCSurfaceInfo* info )
 {
-	uint32_t id = m_nextSurfID++;
+	uint32_t id = m_nextSurfID;
 	ASSERT( LGC_IS_VALID_ID( id ) );
 	RequestSurface( id, info );
 	return id;
@@ -512,6 +710,8 @@ void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
 	m_surfaces.set( id, S );
 	CreateLightmap( LGC_SURF_LMID( id ) );
 	UpdateSurface( id, LGC_CHANGE_ALL, info );
+	if( id >= m_nextSurfID )
+		m_nextSurfID = id + 1;
 }
 
 void EdLevelGraphicsCont::DeleteSurface( uint32_t id )
@@ -532,49 +732,90 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 	Surface& S = m_surfaces[ id ];
 	if( changes & LGC_SURF_CHANGE_VIDATA )
 	{
-		S.vertices.assign( info->vdata, info->vcount );
-		S.indices.assign( info->idata, info->icount );
-		S.lmsize = info->lmsize;
-		
-		VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
-		if( S.vertices.size() )
+		if( S.vertices.size() != info->vcount ||
+			S.indices.size() != info->icount ||
+			memcmp( S.vertices.data(), info->vdata, S.vertices.size_bytes() ) != 0 ||
+			memcmp( S.indices.data(), info->idata, S.indices.size_bytes() ) != 0 )
 		{
-			S.meshInst->mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
-			S.meshInst->mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
+			InvalidateLightsByMI( S.meshInst );
+			
+			S.vertices.assign( info->vdata, info->vcount );
+			S.indices.assign( info->idata, info->icount );
+			
+			VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
+			if( S.vertices.size() )
+			{
+				S.meshInst->mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
+				S.meshInst->mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
+			}
+			if( S.indices.size() )
+				S.meshInst->mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
+			SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size(), S.material };
+			S.meshInst->mesh->SetPartData( &mp, 1 );
+			
+			InvalidateLightsByMI( S.meshInst );
 		}
-		if( S.indices.size() )
-			S.meshInst->mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
-		SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size(), S.material };
-		S.meshInst->mesh->SetPartData( &mp, 1 );
+		
+		if( S.lmsize != info->lmsize )
+		{
+			InvalidateLightmap( LGC_SURF_LMID( id ) );
+			S.lmsize = info->lmsize;
+			InvalidateLightmap( LGC_SURF_LMID( id ) );
+		}
 	}
 	if( changes & LGC_SURF_CHANGE_MTLDATA )
 	{
-		S.mtlname = info->mtlname;
-		if( S.mtlname.size() )
+		if( S.mtlname != info->mtlname )
 		{
-			char bfr[ 256 ];
-			sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
-			S.material->textures[0] = GR_GetTexture( bfr );
+			InvalidateLightsByMI( S.meshInst );
+			S.mtlname = info->mtlname;
+			InvalidateLightsByMI( S.meshInst );
+			
+			if( S.mtlname.size() )
+			{
+				char bfr[ 256 ];
+				sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
+				S.material->textures[0] = GR_GetTexture( bfr );
+			}
 		}
 	}
 	if( changes & LGC_CHANGE_XFORM )
 	{
-		S.meshInst->matrix = info->xform;
+		if( S.meshInst->matrix != info->xform )
+		{
+			InvalidateLightsByMI( S.meshInst );
+			S.meshInst->matrix = info->xform;
+			InvalidateLightsByMI( S.meshInst );
+		}
 	}
 	if( changes & LGC_CHANGE_RSPEC )
 	{
-		S.info = *info;
+		int diff = S.info.RIDiff( *info );
+		if( diff != 0 )
+		{
+			if( diff == 1 )
+				InvalidateLightmap( LGC_SURF_LMID( id ) );
+			else if( diff == 2 )
+				InvalidateLightsByMI( S.meshInst );
+			
+			S.info = *info;
+			
+			if( diff == 1 )
+				InvalidateLightmap( LGC_SURF_LMID( id ) );
+			else if( diff == 2 )
+				InvalidateLightsByMI( S.meshInst );
+		}
 		S.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
 		S.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
 		S.material->blendMode = S.meshInst->decal ? MBM_BASIC : MBM_NONE;
-		LightMesh( S.meshInst );
+		LightMesh( S.meshInst, LGC_SURF_LMID( id ) );
 	}
 	S.meshInst->enabled = S.mtlname.size() != 0 && S.vertices.size() != 0 && S.indices.size() != 0;
 }
 
 uint32_t EdLevelGraphicsCont::CreateLight( EdLGCLightInfo* info )
 {
-	uint32_t id = m_nextLightID++;
+	uint32_t id = m_nextLightID;
 	ASSERT( LGC_IS_VALID_ID( id ) );
 	RequestLight( id, info );
 	return id;
@@ -586,6 +827,8 @@ void EdLevelGraphicsCont::RequestLight( uint32_t id, EdLGCLightInfo* info )
 	Light L;
 	m_lights.set( id, L );
 	UpdateLight( id, LGC_CHANGE_ALL, info );
+	if( id >= m_nextLightID )
+		m_nextLightID = id + 1;
 }
 
 void EdLevelGraphicsCont::DeleteLight( uint32_t id )
@@ -606,6 +849,7 @@ void EdLevelGraphicsCont::UpdateLight( uint32_t id, uint32_t changes, EdLGCLight
 	if( changes & LGC_LIGHT_CHANGE_SPEC )
 	{
 		L.info = *info;
+		InvalidateLight( L );
 		if( info->type == LM_LIGHT_DYN_POINT || info->type == LM_LIGHT_DYN_SPOT )
 		{
 			if( L.dynLight == NULL )
@@ -1891,6 +2135,8 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 		return;
 	}
 	
+	g_EdLGCont->LoadLightmaps( str );
+	
 	g_UIScrFnPicker->m_levelName = m_fileName = str;
 }
 
@@ -1909,6 +2155,8 @@ void EDGUIMainFrame::Level_Real_Save( const String& str )
 		LOG_ERROR << "FAILED TO SAVE LEVEL FILE: " << bfr;
 		return;
 	}
+	
+	g_EdLGCont->SaveLightmaps( str );
 	
 	g_UIScrFnPicker->m_levelName = m_fileName = str;
 }
