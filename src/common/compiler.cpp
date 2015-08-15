@@ -32,15 +32,111 @@ void LMRenderer::Start()
 	ltr_Start( m_scene );
 }
 
-void LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid )
+bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid )
 {
 	if( MI->mesh == NULL )
-		return;
+		return false;
 	
+	SGRX_IMesh* M = MI->mesh;
 	Mesh*& mesh = m_meshes[ MI->mesh ];
 	if( mesh == NULL )
 	{
-		// TODO
+		mesh = new Mesh;
+		mesh->ltrMesh = ltr_CreateMesh( m_scene, M->m_key.data(), M->m_key.size() );
+		
+		VDeclInfo vertex_decl = M->m_vertexDecl.GetInfo();
+		int p_off = -1, n_off = -1, t0_off = -1, t1_off = -1;
+		for( int i = 0; i < (int) vertex_decl.count; ++i )
+		{
+			if( vertex_decl.usages[ i ] == VDECLUSAGE_POSITION )
+			{
+				if( vertex_decl.types[ i ] != VDECLTYPE_FLOAT3 )
+				{
+					LOG_ERROR << "MESH position data not FLOAT[3] (file: " << M->m_key << ")";
+					return false;
+				}
+				p_off = vertex_decl.offsets[ i ];
+			}
+			else if( vertex_decl.usages[ i ] == VDECLUSAGE_NORMAL )
+			{
+				if( vertex_decl.types[ i ] != VDECLTYPE_FLOAT3 )
+				{
+					LOG_ERROR << "MESH normal data not FLOAT[3] (file: " << M->m_key << ")";
+					return false;
+				}
+				n_off = vertex_decl.offsets[ i ];
+			}
+			else if( vertex_decl.usages[ i ] == VDECLUSAGE_TEXTURE0 )
+			{
+				if( vertex_decl.types[ i ] != VDECLTYPE_FLOAT2 )
+				{
+					LOG_ERROR << "MESH texcoord_0 data not FLOAT[2] (file: " << M->m_key << ")";
+					return false;
+				}
+				t0_off = vertex_decl.offsets[ i ];
+			}
+			else if( vertex_decl.usages[ i ] == VDECLUSAGE_TEXTURE1 )
+			{
+				if( vertex_decl.types[ i ] != VDECLTYPE_FLOAT2 )
+				{
+					LOG_ERROR << "MESH texcoord_1 data not FLOAT[2] (file: " << M->m_key << ")";
+					return false;
+				}
+				t1_off = vertex_decl.offsets[ i ];
+			}
+		}
+		if( p_off < 0 )
+		{
+			LOG_ERROR << "MESH has no position data (file: " << M->m_key << ")";
+			return false;
+		}
+		if( n_off < 0 )
+		{
+			LOG_ERROR << "MESH has no normal data (file: " << M->m_key << ")";
+			return false;
+		}
+		if( t0_off < 0 && t1_off < 0 )
+		{
+			LOG_ERROR << "MESH has no texture coordinate data (file: " << M->m_key << ")";
+			return false;
+		}
+		if( t0_off < 0 ) t0_off = t1_off;
+		else if( t1_off < 0 ) t1_off = t0_off;
+		
+		// TODO COPY PNTT data
+		
+		if( M->m_dataFlags & MDF_INDEX_32 )
+		{
+			mesh->indices.resize( M->m_idata.size() / sizeof(uint32_t) );
+			memcpy( mesh->indices.data(), M->m_idata.data(), M->m_idata.size() );
+		}
+		else
+		{
+			mesh->indices.resize( M->m_idata.size() / sizeof(uint16_t) );
+			ByteReader br( &M->m_idata );
+			for( size_t i = 0; i < mesh->indices.size(); ++i )
+			{
+				uint16_t idx = 0;
+				br << idx;
+				mesh->indices[ i ] = idx;
+			}
+		}
+		
+		for( size_t mpid = 0; mpid < M->m_meshParts.size(); ++mpid )
+		{
+			SGRX_MeshPart& MP = M->m_meshParts[ mpid ];
+			ltr_MeshPartInfo mpinfo =
+			{
+				&mesh->positions[ MP.vertexOffset ],
+				&mesh->normals[ MP.vertexOffset ],
+				&mesh->texcoords[ MP.vertexOffset ],
+				&mesh->texcoords[ MP.vertexOffset ],
+				sizeof(Vec3), sizeof(Vec3), sizeof(Vec2), sizeof(Vec2),
+				&mesh->indices[ MP.indexOffset ], MP.vertexCount, MP.indexCount,
+				1
+			};
+			ltr_MeshAddPart( mesh->ltrMesh, &mpinfo );
+		}
 	}
 	
 	ltr_MeshInstanceInfo mi_info;
@@ -50,9 +146,11 @@ void LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_
 	mi_info.ident = (char*) &lmid;
 	mi_info.ident_size = sizeof(lmid);
 	ltr_MeshAddInstance( mesh->ltrMesh, &mi_info );
+	
+	return true;
 }
 
-void LMRenderer::AddLight( const LC_Light& light )
+bool LMRenderer::AddLight( const LC_Light& light )
 {
 	ltr_LightInfo light_info;
 	
@@ -62,7 +160,7 @@ void LMRenderer::AddLight( const LC_Light& light )
 		light_info.type = LTR_LT_SPOT;
 	else if( light.type == LM_LIGHT_DIRECT )
 		light_info.type = LTR_LT_DIRECT;
-	else return;
+	else return false;
 	
 	memcpy( light_info.position, &light.pos, sizeof(Vec3) );
 	memcpy( light_info.direction, &light.dir, sizeof(Vec3) );
@@ -77,6 +175,8 @@ void LMRenderer::AddLight( const LC_Light& light )
 	light_info.spot_curve = light.spotcurve;
 	
 	ltr_LightAdd( m_scene, &light_info );
+	
+	return true;
 }
 
 

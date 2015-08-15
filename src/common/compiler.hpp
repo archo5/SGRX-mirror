@@ -13,6 +13,7 @@ struct LMRenderer
 		Array< Vec3 > positions;
 		Array< Vec3 > normals;
 		Array< Vec2 > texcoords;
+		Array< uint32_t > indices;
 		struct ltr_Mesh* ltrMesh;
 	};
 	
@@ -20,8 +21,8 @@ struct LMRenderer
 	~LMRenderer();
 	
 	void Start();
-	void AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid );
-	void AddLight( const LC_Light& light );
+	bool AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid );
+	bool AddLight( const LC_Light& light );
 	
 	struct ltr_Scene* m_scene;
 	HashTable< MeshHandle, Mesh* > m_meshes;

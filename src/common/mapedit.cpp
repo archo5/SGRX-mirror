@@ -1944,7 +1944,7 @@ bool EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 		int x1 = g_UIFrame->m_UIRenderView.x1;
 		int y1 = g_UIFrame->m_UIRenderView.y1;
 		char bfr[ 1024 ];
-		sgrx_snprintf( bfr, 1024, "Invalidated lightmaps: %d",
+		sgrx_snprintf( bfr, 1024, "# outdated lightmaps: %d",
 			int(g_EdLGCont->m_invalidLightmaps.size()) );
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
