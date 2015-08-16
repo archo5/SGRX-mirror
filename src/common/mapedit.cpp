@@ -422,7 +422,7 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 		convdata.resize( lmdata.size() );
 		for( size_t i = 0; i < lmdata.size(); ++i )
 		{
-			Vec3 incol = lmdata[ i ];
+			Vec3 incol = Vec3::Min( lmdata[ i ] * 0.5f, V3(1) );
 			convdata[ i ] = COLOR_RGB( incol.x * 255, incol.y * 255, incol.z * 255 );
 		}
 		texture->UploadRGBA8Part( convdata.data(), 0, 0, 0, width, height );
@@ -559,8 +559,23 @@ void EdLevelGraphicsCont::ApplyLightmap( uint32_t lmid )
 void EdLevelGraphicsCont::InvalidateLightmap( uint32_t lmid )
 {
 //	printf( "invalidated %u\n", unsigned(lmid) );
+	if( m_lmRenderer )
+	{
+		m_lightmaps[ lmid ]->alr_invalid = true;
+		m_alrInvalidLightmaps[ lmid ] = lmid;
+	}
+	
 	m_lightmaps[ lmid ]->invalid = true;
 	m_invalidLightmaps[ lmid ] = lmid;
+}
+
+void EdLevelGraphicsCont::ValidateLightmap( uint32_t lmid )
+{
+	m_lightmaps[ lmid ]->invalid = m_lightmaps[ lmid ]->alr_invalid;
+	if( m_alrInvalidLightmaps.isset( lmid ) )
+		m_invalidLightmaps.set( lmid, lmid );
+	else
+		m_invalidLightmaps.unset( lmid );
 }
 
 void EdLevelGraphicsCont::InvalidateLight( const Light& L )
@@ -611,6 +626,12 @@ void EdLevelGraphicsCont::InvalidateLightsByMI( SGRX_MeshInstance* MI )
 	InvalidateLights( MI->mesh->m_boundsMin, MI->mesh->m_boundsMax, MI->matrix );
 }
 
+void EdLevelGraphicsCont::InvalidateAll()
+{
+	for( size_t i = 0; i < m_lightmaps.size(); ++i )
+		InvalidateLightmap( m_lightmaps.item( i ).key );
+}
+
 bool EdLevelGraphicsCont::IsInvalidated( uint32_t lmid )
 {
 	return m_lightmaps.getcopy( lmid )->invalid;
@@ -627,6 +648,11 @@ static bool MtlIsSolid( const StringView& name )
 	return true;
 }
 
+static bool RenderInfoNeedsLM( const EdLGCRenderInfo& rinfo )
+{
+	return ( rinfo.rflags & LM_MESHINST_DYNLIT ) == 0;
+}
+
 static bool RenderInfoIsSolid( const EdLGCRenderInfo& rinfo )
 {
 	return ( rinfo.rflags & LM_MESHINST_DECAL ) == 0 &&
@@ -640,18 +666,48 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 	if( m_invalidLightmaps.size() == 0 )
 		return false;
 	
+	m_alrInvalidLightmaps.clear();
+	
 	m_lmRenderer = new LMRenderer;
+	
+	LMRenderer::Config& cfg = m_lmRenderer->config;
+	cfg.ambientColor = HSV( g_EdWorld->m_ctlAmbientColor.m_value );
+	cfg.lightmapClearColor = HSV( g_EdWorld->m_ctlLightmapClearColor.m_value );
+	cfg.lightmapDetail = g_EdWorld->m_ctlLightmapDetail.m_value;
+	cfg.lightmapBlurSize = g_EdWorld->m_ctlLightmapBlurSize.m_value;
+	cfg.aoDistance = g_EdWorld->m_ctlAODistance.m_value;
+	cfg.aoMultiplier = g_EdWorld->m_ctlAOMultiplier.m_value;
+	cfg.aoFalloff = g_EdWorld->m_ctlAOFalloff.m_value;
+	cfg.aoEffect = g_EdWorld->m_ctlAOEffect.m_value;
+	cfg.aoColor = HSV( g_EdWorld->m_ctlAOColor.m_value );
+	cfg.aoNumSamples = g_EdWorld->m_ctlAONumSamples.m_value;
+	
+	if( g_EdWorld->m_ctlDirLightColor.m_value.z > 0 )
+	{
+		LC_Light L;
+		L.type = LM_LIGHT_DIRECT;
+		L.range = 1024;
+		Vec2 dir = g_EdWorld->m_ctlDirLightDir.m_value;
+		L.dir = -V3( dir.x, dir.y, -1 ).Normalized();
+		L.color = HSV( g_EdWorld->m_ctlDirLightColor.m_value );
+		L.light_radius = g_EdWorld->m_ctlDirLightDivergence.m_value / 180.0f;
+		L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;
+		m_lmRenderer->AddLight( L );
+	}
+	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
 		Mesh& M = m_meshes.item( i ).value;
 		uint32_t lmid = LGC_MESH_LMID( m_meshes.item( i ).key );
+		m_lightmaps[ lmid ]->alr_invalid = false;
 		bool solid = RenderInfoIsSolid( M.info );
-		if( IsInvalidated( lmid ) )
+		if( IsInvalidated( lmid ) && RenderInfoNeedsLM( M.info ) )
 		{
 			m_lmRenderer->AddMeshInst( M.meshInst, V2(128 * M.info.lmdetail), lmid, solid );
 		}
 		else
 		{
+			ValidateLightmap( lmid );
 			m_lmRenderer->AddMeshInst( M.meshInst, V2(0), 0, solid );
 		}
 	}
@@ -659,13 +715,15 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 	{
 		Surface& S = m_surfaces.item( i ).value;
 		uint32_t lmid = LGC_SURF_LMID( m_surfaces.item( i ).key );
+		m_lightmaps[ lmid ]->alr_invalid = false;
 		bool solid = MtlIsSolid( S.mtlname ) && RenderInfoIsSolid( S.info );
-		if( IsInvalidated( lmid ) && MtlNeedsLM( S.mtlname ) )
+		if( IsInvalidated( lmid ) && RenderInfoNeedsLM( S.info ) && MtlNeedsLM( S.mtlname ) )
 		{
 			m_lmRenderer->AddMeshInst( S.meshInst, S.lmsize * S.info.lmdetail, lmid, solid );
 		}
 		else
 		{
+			ValidateLightmap( lmid );
 			m_lmRenderer->AddMeshInst( S.meshInst, V2(0), 0, solid );
 		}
 	}
@@ -701,12 +759,14 @@ void EdLevelGraphicsCont::ILMCheck()
 			if( m_lmRenderer->GetLightmap( i, colors, lmidsize ) &&
 				m_lightmaps.isset( lmidsize[0] ) )
 			{
-				LMap& L = *m_lightmaps[ lmidsize[0] ];
+				uint32_t lmid = lmidsize[0];
+				LMap& L = *m_lightmaps[ lmid ];
 				L.width = lmidsize[1];
 				L.height = lmidsize[2];
 				L.lmdata = colors;
 				L.ReloadTex();
-				ApplyLightmap( lmidsize[0] );
+				ApplyLightmap( lmid );
+				ValidateLightmap( lmid );
 			}
 		}
 		
@@ -1164,7 +1224,7 @@ EdWorld::EdWorld() :
 	m_ctlGroup.Add( &m_ctlDirLightDivergence );
 	m_ctlGroup.Add( &m_ctlDirLightNumSamples );
 	m_ctlGroup.Add( &m_ctlLightmapClearColor );
-	m_ctlGroup.Add( &m_ctlRADNumBounces );
+//	m_ctlGroup.Add( &m_ctlRADNumBounces );
 	m_ctlGroup.Add( &m_ctlLightmapDetail );
 	m_ctlGroup.Add( &m_ctlLightmapBlurSize );
 	m_ctlGroup.Add( &m_ctlAODistance );
@@ -2400,6 +2460,14 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
 };
 
+SGRX_RenderPass g_RenderPasses_Fullbright[] =
+{
+	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_ENABLED, 1, 4, 0, "base_fullbright" },
+	{ RPT_OBJECT, RPF_DECALS | RPF_ENABLED, 1, 4, 0, "base_fullbright" },
+	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
+	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_ENABLED, 1, 4, 0, "base_fullbright" },
+};
+
 struct TACStrikeEditor : IGame
 {
 	bool OnInitialize()
@@ -2411,6 +2479,7 @@ struct TACStrikeEditor : IGame
 		
 		g_ScriptCtx = new ScriptContext;
 		g_ScriptCtx->RegisterBatchRenderer();
+		sgs_RegIntConsts( g_ScriptCtx->C, g_ent_scripted_ric, -1 );
 		sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
 		sgs_RegFuncConsts( g_ScriptCtx->C, g_editor_rfc, -1 );
 		ScrItem_InstallAPI( g_ScriptCtx->C );
@@ -2483,6 +2552,22 @@ struct TACStrikeEditor : IGame
 	{
 		if( e.type == SDL_KEYDOWN )
 		{
+			if( e.key.keysym.sym == SDLK_F2 )
+			{
+				GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
+			}
+			if( e.key.keysym.sym == SDLK_F3 )
+			{
+				GR_SetRenderPasses( g_RenderPasses_Fullbright, SGRX_ARRAY_SIZE( g_RenderPasses_Fullbright ) );
+			}
+			if( e.key.keysym.sym == SDLK_F5 )
+			{
+				if( g_EdLGCont->m_lmRenderer == NULL )
+				{
+					g_EdLGCont->InvalidateAll();
+					g_EdLGCont->ILMBeginRender();
+				}
+			}
 			if( e.key.keysym.sym == SDLK_F6 )
 			{
 				g_EdLGCont->ILMBeginRender();

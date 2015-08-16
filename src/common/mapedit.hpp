@@ -381,6 +381,7 @@ struct EdLevelGraphicsCont
 		Array< Vec3 > lmdata;
 		TextureHandle texture;
 		bool invalid;
+		bool alr_invalid; // after lightmap rendering - no need to serialize
 		
 		template< class T > void Serialize( T& arch )
 		{
@@ -410,13 +411,20 @@ struct EdLevelGraphicsCont
 	void CreateLightmap( uint32_t lmid );
 	void ApplyLightmap( uint32_t lmid );
 	void InvalidateLightmap( uint32_t lmid );
+	void ValidateLightmap( uint32_t lmid );
 	void InvalidateLight( const Light& L );
 	void InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx );
 	void InvalidateLightsByMI( SGRX_MeshInstance* MI );
+	void InvalidateAll();
 	bool IsInvalidated( uint32_t lmid );
 	bool ILMBeginRender();
 	void ILMAbort();
 	void ILMCheck();
+	
+	int GetNumInvalidLightmaps()
+	{
+		return m_lmRenderer ? m_alrInvalidLightmaps.size() : m_invalidLightmaps.size();
+	}
 	
 	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
 	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
@@ -442,7 +450,9 @@ struct EdLevelGraphicsCont
 	SurfaceTable m_surfaces;
 	LightTable m_lights;
 	LMapTable m_lightmaps;
+	
 	InvLMIDTable m_invalidLightmaps;
+	InvLMIDTable m_alrInvalidLightmaps;
 	
 	LMRenderer* m_lmRenderer;
 };
@@ -1321,7 +1331,7 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 	void AddButtonSubent( StringView type );
 	void SetSpecialMesh( StringView path, const Mat4& mtx );
 	void SetMeshInstanceCount( int count );
-	void SetMeshInstanceData( int which, StringView path, const Mat4& mtx );
+	void SetMeshInstanceData( int which, StringView path, const Mat4& mtx, int flags, float lmdetail );
 	void GetMeshAABB( int which, Vec3 out[2] );
 	void SetScriptedItem( StringView name, sgsVariable args );
 	
@@ -1352,6 +1362,7 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 ////////////
 ///////////
 
+extern sgs_RegIntConst g_ent_scripted_ric[];
 extern sgs_RegFuncConst g_ent_scripted_rfc[];
 
 struct EDGUIEntList : EDGUIGroup

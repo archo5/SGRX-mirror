@@ -31,7 +31,7 @@ static LTRBOOL _LMRenderer_SizeFunc(
 	uint32_t lmid = 0;
 	ASSERT( inst_ident_size == sizeof(uint32_t) );
 	memcpy( &lmid, inst_ident, sizeof(uint32_t) );
-	Vec2 size = LMR->m_lmsizes.getcopy( lmid, V2(0) );
+	Vec2 size = LMR->m_lmsizes.getcopy( lmid, V2(0) ) * config->global_size_factor;
 	if( size == V2(0) )
 	{
 		out_size[0] = 0;
@@ -68,6 +68,21 @@ LMRenderer::~LMRenderer()
 
 void LMRenderer::Start()
 {
+	ltr_Config cfg;
+	ltr_GetConfig( &cfg, m_scene );
+	cfg.global_size_factor = config.lightmapDetail;
+	memcpy( cfg.clear_color, &config.lightmapClearColor, sizeof(Vec3) );
+	cfg.ambient_color[0] = powf( config.ambientColor.x, 2.2f );
+	cfg.ambient_color[1] = powf( config.ambientColor.y, 2.2f );
+	cfg.ambient_color[2] = powf( config.ambientColor.z, 2.2f );
+	cfg.ao_distance = config.aoDistance;
+	cfg.ao_multiplier = config.aoMultiplier;
+	cfg.ao_falloff = config.aoFalloff;
+	cfg.ao_effect = config.aoEffect;
+	cfg.ao_num_samples = config.aoNumSamples;
+	cfg.blur_size = config.lightmapBlurSize;
+	ltr_SetConfig( m_scene, &cfg );
+	
 	ltr_Start( m_scene );
 }
 

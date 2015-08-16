@@ -757,7 +757,8 @@ void EdEntScripted::SetMeshInstanceCount( int count )
 	}
 }
 
-void EdEntScripted::SetMeshInstanceData( int which, StringView path, const Mat4& mtx )
+void EdEntScripted::SetMeshInstanceData(
+	int which, StringView path, const Mat4& mtx, int flags, float lmdetail )
 {
 	if( which < 0 || which >= (int) m_meshIDs.size() )
 		return;
@@ -765,6 +766,8 @@ void EdEntScripted::SetMeshInstanceData( int which, StringView path, const Mat4&
 	EdLGCMeshInfo M;
 	M.xform = mtx;
 	M.path = path;
+	M.rflags = flags;
+	M.lmdetail = lmdetail;
 	g_EdLGCont->UpdateMesh( m_meshIDs[ which ], LGC_CHANGE_ALL, &M );
 }
 
@@ -988,10 +991,18 @@ static int EE_SetMeshInstanceData( SGS_CTX )
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
+	int flags = LM_MESHINST_SOLID | LM_MESHINST_CASTLMS;
+	if( sgs_StackSize( C ) > 4 )
+		flags = sgs_GetVar<int>()( C, 4 );
+	float lmdetail = 1;
+	if( sgs_StackSize( C ) > 5 )
+		lmdetail = sgs_GetVar<float>()( C, 5 );
 	E->SetMeshInstanceData(
 		sgs_GetVar<int>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
-		sgs_GetVar<Mat4>()( C, 3 ) );
+		sgs_GetVar<Mat4>()( C, 3 ),
+		flags,
+		lmdetail );
 	return 0;
 }
 static int EE_GetMeshAABB( SGS_CTX )
@@ -1075,6 +1086,13 @@ static int EE_GenMatrix_SRaP( SGS_CTX )
 	sgs_PushVar( C, out );
 	return 1;
 }
+
+sgs_RegIntConst g_ent_scripted_ric[] =
+{
+	{ "LM_MESHINST_SOLID", LM_MESHINST_SOLID },
+	{ "LM_MESHINST_DYNLIT", LM_MESHINST_DYNLIT },
+	{ "LM_MESHINST_CASTLMS", LM_MESHINST_CASTLMS },
+};
 
 sgs_RegFuncConst g_ent_scripted_rfc[] =
 {

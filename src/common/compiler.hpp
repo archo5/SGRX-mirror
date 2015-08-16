@@ -8,6 +8,33 @@
 
 struct LMRenderer
 {
+	struct Config
+	{
+		Config()
+		{
+			ambientColor = V3(0.1f);
+			lightmapClearColor = V3(0.0f);
+			lightmapDetail = 1;
+			lightmapBlurSize = 1;
+			aoDistance = 2;
+			aoMultiplier = 1;
+			aoFalloff = 2;
+			aoEffect = 0;
+			aoColor = V3(0);
+			aoNumSamples = 15;
+		}
+		
+		Vec3 ambientColor;
+		Vec3 lightmapClearColor;
+		float lightmapDetail;
+		float lightmapBlurSize;
+		float aoDistance;
+		float aoMultiplier;
+		float aoFalloff;
+		float aoEffect;
+		Vec3 aoColor;
+		int aoNumSamples;
+	};
 	struct Mesh
 	{
 		Array< Vec3 > positions;
@@ -30,6 +57,8 @@ struct LMRenderer
 	struct ltr_Scene* m_scene;
 	HashTable< MeshHandle, Mesh* > m_meshes;
 	HashTable< uint32_t, Vec2 > m_lmsizes;
+	
+	Config config;
 	
 	uint32_t rendered_sample_count;
 	uint32_t rendered_lightmap_count;

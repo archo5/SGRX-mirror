@@ -41,9 +41,14 @@ function ENTBASE_viewdir( eptr )
 
 function ENTCHG_xfmesh( eptr, data )
 {
+	lmdetail = @data.lmquality ?? 1.0;
+	flags =
+		( tobool( @data.solid ?? true ) * LM_MESHINST_SOLID ) |
+		( tobool( @data.dynlit ?? false ) * LM_MESHINST_DYNLIT ) |
+		( tobool( @data.castlms ?? true ) * LM_MESHINST_CASTLMS );
 	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
 	EE_SetMeshInstanceCount( eptr, 1 );
-	EE_SetMeshInstanceData( eptr, 0, "meshes/" $ data.mesh $ ".ssm", mtx );
+	EE_SetMeshInstanceData( eptr, 0, "meshes/" $ data.mesh $ ".ssm", mtx, flags, lmdetail );
 }
 
 function ENTCHG_xfchar( eptr, data )
