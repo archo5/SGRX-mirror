@@ -51,6 +51,7 @@ struct LMRenderer
 	void Start();
 	bool CheckStatus();
 	bool GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t outlmidsize[3] );
+	bool GetSample( uint32_t which, Vec3 outcols[6] );
 	bool AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid, bool solid );
 	bool AddLight( const LC_Light& light );
 	
@@ -59,6 +60,7 @@ struct LMRenderer
 	HashTable< uint32_t, Vec2 > m_lmsizes;
 	
 	Config config;
+	Array< Vec3 > sample_positions;
 	
 	uint32_t rendered_sample_count;
 	uint32_t rendered_lightmap_count;

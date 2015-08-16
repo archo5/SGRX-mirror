@@ -437,6 +437,42 @@ void EdBlock::RegenerateMesh()
 	
 	Mat4 mtx = g_EdWorld->m_groupMgr.GetMatrix( group );
 	
+	
+	// GENERATE PLANES
+	Vec3 toppoly[ MAX_BLOCK_POLYGONS ];
+	int topverts = 0;
+	Vec4 planes[ MAX_BLOCK_POLYGONS ];
+	int numplanes = 0;
+	
+	planes[ numplanes++ ] = V4( 0, 0, -1, - position.z - z0 );
+	for( size_t i = 0; i < poly.size(); ++i )
+	{
+		Vec3 vpos = poly[ i ] + position;
+		
+		size_t i1 = ( i + 1 ) % poly.size();
+		Vec2 dir = ( poly[ i1 ] - poly[ i ] ).ToVec2().Perp().Normalized();
+		if( !dir.NearZero() )
+		{
+			planes[ numplanes++ ] = V4( dir.x, dir.y, 0, Vec2Dot( vpos.ToVec2(), dir ) );
+		}
+		
+		toppoly[ topverts++ ] = vpos + V3( 0, 0, z1 );
+	}
+	if( PolyGetPlane( toppoly, topverts, planes[ numplanes ] ) )
+		numplanes++;
+	else
+		LOG_WARNING << "NO PLANE FOR TOP POLY at " << position;
+	
+	// ADD SOLID
+	EdLGCSolidInfo SOI;
+	SOI.planes = planes;
+	SOI.pcount = numplanes;
+	if( solid_id )
+		g_EdLGCont->UpdateSolid( solid_id, &SOI );
+	else
+		solid_id = g_EdLGCont->CreateSolid( &SOI );
+	
+	
 	Array< LCVertex > vertices;
 	Array< uint16_t > indices;
 	
@@ -478,6 +514,7 @@ void EdBlock::RegenerateMesh()
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
 		S.lmdetail = BS.lmquality;
+		S.solid_id = solid_id;
 		
 		if( BS.surface_id )
 			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
@@ -517,6 +554,7 @@ void EdBlock::RegenerateMesh()
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
 		S.lmdetail = BS.lmquality;
+		S.solid_id = solid_id;
 		
 		if( BS.surface_id )
 			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
@@ -557,6 +595,7 @@ void EdBlock::RegenerateMesh()
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
 		S.lmdetail = BS.lmquality;
+		S.solid_id = solid_id;
 		
 		if( BS.surface_id )
 			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );

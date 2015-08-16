@@ -301,6 +301,14 @@ struct EdLGCDrawableInfo : EdLGCRenderInfo
 	Mat4 xform;
 };
 
+struct EdLGCSolidInfo
+{
+	EdLGCSolidInfo() : planes(NULL), pcount(0){}
+	
+	Vec4* planes;
+	uint32_t pcount;
+};
+
 struct EdLGCMeshInfo : EdLGCDrawableInfo
 {
 	String path;
@@ -308,13 +316,17 @@ struct EdLGCMeshInfo : EdLGCDrawableInfo
 
 #define LGC_SURF_CHANGE_VIDATA 0x04
 #define LGC_SURF_CHANGE_MTLDATA 0x08
+#define LGC_SURF_CHANGE_SOLID 0x10
+#define LGC_SURF_CHANGE_LMPARENT 0x20
 
 struct EdLGCSurfaceInfo : EdLGCDrawableInfo
 {
 	EdLGCSurfaceInfo() :
 		vdata(NULL), vcount(0),
 		idata(NULL), icount(0),
-		lmsize(V2(0)){}
+		lmsize(V2(0)),
+		solid_id(0),
+		lmparent_id(0){}
 	
 	// vidata
 	LCVertex* vdata;
@@ -324,6 +336,10 @@ struct EdLGCSurfaceInfo : EdLGCDrawableInfo
 	Vec2 lmsize;
 	// mtldata
 	String mtlname;
+	// solid
+	uint32_t solid_id;
+	// lmparent
+	uint32_t lmparent_id;
 };
 
 #define LGC_LIGHT_CHANGE_SPEC 0x04
@@ -351,6 +367,10 @@ struct EdLGCLightInfo : LC_Light
 
 struct EdLevelGraphicsCont
 {
+	struct Solid
+	{
+		Array< Vec4 > planes;
+	};
 	struct Mesh
 	{
 		String meshpath;
@@ -366,6 +386,8 @@ struct EdLevelGraphicsCont
 		Array< uint16_t > indices;
 		Vec2 lmsize;
 		String mtlname;
+		uint32_t solid_id;
+		uint32_t lmparent_id;
 	};
 	struct Light
 	{
@@ -396,6 +418,7 @@ struct EdLevelGraphicsCont
 	};
 	typedef Handle< LMap > LMapHandle;
 	
+	typedef HashTable< uint32_t, Solid > SolidTable;
 	typedef HashTable< uint32_t, Mesh > MeshTable;
 	typedef HashTable< uint32_t, Surface > SurfaceTable;
 	typedef HashTable< uint32_t, Light > LightTable;
@@ -408,23 +431,27 @@ struct EdLevelGraphicsCont
 	void LoadLightmaps( const StringView& levname );
 	void SaveLightmaps( const StringView& levname );
 	void LightMesh( SGRX_MeshInstance* MI, uint32_t lmid );
+	void RelightAllMeshes();
 	void CreateLightmap( uint32_t lmid );
+	void ClearLightmap( uint32_t lmid );
 	void ApplyLightmap( uint32_t lmid );
 	void InvalidateLightmap( uint32_t lmid );
 	void ValidateLightmap( uint32_t lmid );
 	void InvalidateLight( const Light& L );
 	void InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx );
 	void InvalidateLightsByMI( SGRX_MeshInstance* MI );
+	void InvalidateSamples();
 	void InvalidateAll();
 	bool IsInvalidated( uint32_t lmid );
 	bool ILMBeginRender();
 	void ILMAbort();
 	void ILMCheck();
+	void STRegenerate();
 	
-	int GetNumInvalidLightmaps()
-	{
-		return m_lmRenderer ? m_alrInvalidLightmaps.size() : m_invalidLightmaps.size();
-	}
+	uint32_t CreateSolid( EdLGCSolidInfo* info = NULL );
+	void RequestSolid( uint32_t id, EdLGCSolidInfo* info = NULL );
+	void DeleteSolid( uint32_t id );
+	void UpdateSolid( uint32_t id, EdLGCSolidInfo* info );
 	
 	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
 	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
@@ -442,15 +469,25 @@ struct EdLevelGraphicsCont
 	void DeleteLight( uint32_t id );
 	void UpdateLight( uint32_t id, uint32_t changes, EdLGCLightInfo* info );
 	
+	int GetInvalidItemCount()
+	{
+		return int(m_invalidLightmaps.size()) + int(m_invalidSamples);
+	}
+	
+	uint32_t m_nextSolidID;
 	uint32_t m_nextMeshID;
 	uint32_t m_nextSurfID;
 	uint32_t m_nextLightID;
 	
+	SolidTable m_solids;
 	MeshTable m_meshes;
 	SurfaceTable m_surfaces;
 	LightTable m_lights;
 	LMapTable m_lightmaps;
+	SGRX_LightTree m_sampleTree;
 	
+	bool m_invalidSamples;
+	bool m_alrInvalidSamples;
 	InvLMIDTable m_invalidLightmaps;
 	InvLMIDTable m_alrInvalidLightmaps;
 	
@@ -638,7 +675,12 @@ struct EdSurface
 
 struct EdBlock : EdObject
 {
-	EdBlock() : EdObject( ObjType_Block ), position(V3(0)), z0(0), z1(1){}
+	EdBlock() : EdObject( ObjType_Block ), position(V3(0)), z0(0), z1(1), solid_id(0){}
+	~EdBlock()
+	{
+		if( solid_id )
+			g_EdLGCont->DeleteSolid( solid_id );
+	}
 	
 	Vec3 position;
 	float z0, z1;
@@ -650,9 +692,20 @@ struct EdBlock : EdObject
 	MeshHandle cached_mesh;
 	MeshInstHandle cached_meshinst;
 	
+	uint32_t solid_id;
+	
 	template< class T > void SerializeT( T& arch )
 	{
 		arch.marker( "BLOCK" );
+		uint32_t oldsolidid = solid_id;
+		arch( solid_id, arch.version >= 5 );
+		if( solid_id != oldsolidid )
+		{
+			if( oldsolidid )
+				g_EdLGCont->DeleteSolid( oldsolidid );
+			if( solid_id )
+				g_EdLGCont->RequestSolid( solid_id );
+		}
 		if( arch.version >= 3 )
 		{
 			arch << group;

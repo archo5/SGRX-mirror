@@ -432,8 +432,8 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 }
 
 EdLevelGraphicsCont::EdLevelGraphicsCont()
-	: m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1),
-	m_lmRenderer(NULL)
+	: m_nextSolidID(1), m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1),
+	m_invalidSamples(false), m_alrInvalidSamples(false), m_lmRenderer(NULL)
 {
 }
 
@@ -445,14 +445,19 @@ EdLevelGraphicsCont::~EdLevelGraphicsCont()
 
 void EdLevelGraphicsCont::Reset()
 {
+	m_nextSolidID = 1;
 	m_nextMeshID = 1;
 	m_nextSurfID = 1;
 	m_nextLightID = 1;
+	m_solids.clear();
 	m_meshes.clear();
 	m_surfaces.clear();
 	m_lights.clear();
 	m_lightmaps.clear();
+	m_invalidSamples = false;
+	m_alrInvalidSamples = false;
 	m_invalidLightmaps.clear();
+	m_alrInvalidLightmaps.clear();
 }
 
 void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
@@ -475,6 +480,9 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 		return;
 	}
 	
+	br << m_invalidSamples;
+	br << m_sampleTree;
+	
 	LMap LM;
 	while( br.pos < ba.size() )
 	{
@@ -486,6 +494,7 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 		{
 			*m_lightmaps[ lmid ] = LM;
 			m_lightmaps[ lmid ]->ReloadTex();
+//			printf( "%d x %d\n", int(LM.width), int(LM.height) );
 			ApplyLightmap( lmid );
 		}
 	}
@@ -499,6 +508,8 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 			m_invalidLightmaps.set( lmid, lmid );
 		}
 	}
+	
+	RelightAllMeshes();
 }
 
 void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
@@ -506,6 +517,9 @@ void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
 	ByteArray ba;
 	ByteWriter bw( &ba );
 	bw.marker( "SGRXLMCH" );
+	
+	bw << m_invalidSamples;
+	bw << m_sampleTree;
 	
 	for( size_t i = 0; i < m_lightmaps.size(); ++i )
 	{
@@ -527,9 +541,33 @@ void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI, uint32_t lmid )
 	// static lighting
 	ASSERT( m_lightmaps.isset( lmid ) );
 	MI->textures[0] = m_lightmaps[ lmid ]->texture;
-	// dummy dynamic lighting
-	for( int i = 10; i < 16; ++i )
-		MI->constants[ i ] = V4(0.15f);
+	// dynamic lighting
+	if( m_sampleTree.m_pos.size() )
+	{
+		SGRX_LightTreeSampler lts;
+		lts.m_lightTree = &m_sampleTree;
+		Vec3 colors[6];
+		lts.SampleLight( MI->matrix.TransformPos( V3(0) ), colors );
+		for( int i = 0; i < 6; ++i )
+			MI->constants[ i + 10 ] = V4( colors[ i ], 1.0f );
+	}
+	else
+	{
+		for( int i = 10; i < 16; ++i )
+			MI->constants[ i ] = V4(0.15f);
+	}
+}
+
+void EdLevelGraphicsCont::RelightAllMeshes()
+{
+	for( size_t i = 0; i < m_meshes.size(); ++i )
+	{
+		LightMesh( m_meshes.item( i ).value.meshInst, LGC_MESH_LMID( m_meshes.item( i ).key ) );
+	}
+	for( size_t i = 0; i < m_surfaces.size(); ++i )
+	{
+		LightMesh( m_surfaces.item( i ).value.meshInst, LGC_SURF_LMID( m_surfaces.item( i ).key ) );
+	}
 }
 
 void EdLevelGraphicsCont::CreateLightmap( uint32_t lmid )
@@ -541,6 +579,16 @@ void EdLevelGraphicsCont::CreateLightmap( uint32_t lmid )
 	LM->invalid = true;
 	m_lightmaps[ lmid ] = LM;
 	m_invalidLightmaps[ lmid ] = lmid;
+}
+
+void EdLevelGraphicsCont::ClearLightmap( uint32_t lmid )
+{
+	LMap* LM = m_lightmaps[ lmid ];
+	LM->width = 0;
+	LM->height = 0;
+	LM->lmdata.clear();
+	LM->texture = GR_GetTexture( "textures/deflm.png" );
+	ApplyLightmap( lmid );
 }
 
 void EdLevelGraphicsCont::ApplyLightmap( uint32_t lmid )
@@ -580,6 +628,7 @@ void EdLevelGraphicsCont::ValidateLightmap( uint32_t lmid )
 
 void EdLevelGraphicsCont::InvalidateLight( const Light& L )
 {
+	InvalidateSamples();
 	for( size_t j = 0; j < m_meshes.size(); ++j )
 	{
 		Mesh& M = m_meshes.item( j ).value;
@@ -604,6 +653,7 @@ void EdLevelGraphicsCont::InvalidateLight( const Light& L )
 
 void EdLevelGraphicsCont::InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx )
 {
+	InvalidateSamples();
 	Mat4 invmtx = Mat4::Identity;
 	mtx.InvertTo( invmtx );
 	for( size_t i = 0; i < m_lights.size(); ++i )
@@ -626,8 +676,18 @@ void EdLevelGraphicsCont::InvalidateLightsByMI( SGRX_MeshInstance* MI )
 	InvalidateLights( MI->mesh->m_boundsMin, MI->mesh->m_boundsMax, MI->matrix );
 }
 
+void EdLevelGraphicsCont::InvalidateSamples()
+{
+	if( m_lmRenderer )
+	{
+		m_alrInvalidSamples = true;
+	}
+	m_invalidSamples = true;
+}
+
 void EdLevelGraphicsCont::InvalidateAll()
 {
+	InvalidateSamples();
 	for( size_t i = 0; i < m_lightmaps.size(); ++i )
 		InvalidateLightmap( m_lightmaps.item( i ).key );
 }
@@ -663,10 +723,11 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 {
 	if( m_lmRenderer )
 		return false;
-	if( m_invalidLightmaps.size() == 0 )
+	if( GetInvalidItemCount() == 0 )
 		return false;
 	
 	m_alrInvalidLightmaps.clear();
+	m_alrInvalidSamples = false;
 	
 	m_lmRenderer = new LMRenderer;
 	
@@ -681,6 +742,14 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 	cfg.aoEffect = g_EdWorld->m_ctlAOEffect.m_value;
 	cfg.aoColor = HSV( g_EdWorld->m_ctlAOColor.m_value );
 	cfg.aoNumSamples = g_EdWorld->m_ctlAONumSamples.m_value;
+	
+	if( m_invalidSamples )
+	{
+		for( size_t i = 0; i < m_sampleTree.m_pos.size(); ++i )
+		{
+			m_lmRenderer->sample_positions.push_back( m_sampleTree.m_pos[ i ] );
+		}
+	}
 	
 	if( g_EdWorld->m_ctlDirLightColor.m_value.z > 0 )
 	{
@@ -701,12 +770,15 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 		uint32_t lmid = LGC_MESH_LMID( m_meshes.item( i ).key );
 		m_lightmaps[ lmid ]->alr_invalid = false;
 		bool solid = RenderInfoIsSolid( M.info );
-		if( IsInvalidated( lmid ) && RenderInfoNeedsLM( M.info ) )
+		bool needslm = RenderInfoNeedsLM( M.info );
+		if( needslm && IsInvalidated( lmid ) )
 		{
 			m_lmRenderer->AddMeshInst( M.meshInst, V2(128 * M.info.lmdetail), lmid, solid );
 		}
 		else
 		{
+			if( needslm == false )
+				ClearLightmap( lmid );
 			ValidateLightmap( lmid );
 			m_lmRenderer->AddMeshInst( M.meshInst, V2(0), 0, solid );
 		}
@@ -717,12 +789,15 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 		uint32_t lmid = LGC_SURF_LMID( m_surfaces.item( i ).key );
 		m_lightmaps[ lmid ]->alr_invalid = false;
 		bool solid = MtlIsSolid( S.mtlname ) && RenderInfoIsSolid( S.info );
-		if( IsInvalidated( lmid ) && RenderInfoNeedsLM( S.info ) && MtlNeedsLM( S.mtlname ) )
+		bool needslm = RenderInfoNeedsLM( S.info ) && MtlNeedsLM( S.mtlname );
+		if( needslm && IsInvalidated( lmid ) )
 		{
 			m_lmRenderer->AddMeshInst( S.meshInst, S.lmsize * S.info.lmdetail, lmid, solid );
 		}
 		else
 		{
+			if( needslm == false )
+				ClearLightmap( lmid );
 			ValidateLightmap( lmid );
 			m_lmRenderer->AddMeshInst( S.meshInst, V2(0), 0, solid );
 		}
@@ -770,11 +845,180 @@ void EdLevelGraphicsCont::ILMCheck()
 			}
 		}
 		
+		if( m_lmRenderer->rendered_sample_count == m_sampleTree.m_colors.size() )
+		{
+			for( size_t i = 0; i < m_sampleTree.m_colors.size(); ++i )
+			{
+				m_lmRenderer->GetSample( i, m_sampleTree.m_colors[ i ].color );
+			}
+			if( m_sampleTree.m_colors.size() )
+				RelightAllMeshes();
+			m_invalidSamples = m_alrInvalidSamples;
+		}
+		
 		delete m_lmRenderer;
 		m_lmRenderer = NULL;
 	}
 }
 
+static void TransformAABB( Vec3& bbmin, Vec3& bbmax, const Mat4& mtx )
+{
+	Vec3 pts[8] =
+	{
+		V3( bbmin.x, bbmin.y, bbmin.z ),
+		V3( bbmax.x, bbmin.y, bbmin.z ),
+		V3( bbmin.x, bbmax.y, bbmin.z ),
+		V3( bbmax.x, bbmax.y, bbmin.z ),
+		V3( bbmin.x, bbmin.y, bbmax.z ),
+		V3( bbmax.x, bbmin.y, bbmax.z ),
+		V3( bbmin.x, bbmax.y, bbmax.z ),
+		V3( bbmax.x, bbmax.y, bbmax.z ),
+	};
+	for( int i = 0; i < 8; ++i )
+		pts[ i ] = mtx.TransformPos( pts[ i ] );
+	bbmin = pts[0];
+	bbmax = pts[0];
+	for( int i = 1; i < 8; ++i )
+	{
+		bbmin = Vec3::Min( bbmin, pts[ i ] );
+		bbmax = Vec3::Max( bbmax, pts[ i ] );
+	}
+}
+
+void EdLevelGraphicsCont::STRegenerate()
+{
+	if( m_lmRenderer )
+		return;
+	
+	float stepsize = 1.0f;
+	
+	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
+	for( size_t i = 0; i < m_meshes.size(); ++i )
+	{
+		Mesh& M = m_meshes.item( i ).value;
+		if( M.meshInst->mesh == NULL )
+			continue;
+		
+		Vec3 tfbbmin = M.meshInst->mesh->m_boundsMin;
+		Vec3 tfbbmax = M.meshInst->mesh->m_boundsMax;
+		TransformAABB( tfbbmin, tfbbmax, M.meshInst->matrix );
+		bbmin = Vec3::Min( bbmin, tfbbmin );
+		bbmax = Vec3::Max( bbmax, tfbbmax );
+	}
+	for( size_t i = 0; i < m_surfaces.size(); ++i )
+	{
+		Surface& S = m_surfaces.item( i ).value;
+		if( S.meshInst->mesh == NULL )
+			continue;
+		
+		Vec3 tfbbmin = S.meshInst->mesh->m_boundsMin;
+		Vec3 tfbbmax = S.meshInst->mesh->m_boundsMax;
+		TransformAABB( tfbbmin, tfbbmax, S.meshInst->matrix );
+		bbmin = Vec3::Min( bbmin, tfbbmin );
+		bbmax = Vec3::Max( bbmax, tfbbmax );
+	}
+	
+	if( bbmin.x > bbmax.x )
+		return; // no data to generate samples for!
+	
+	LOG << "Generating samples for " << bbmin << " - " << bbmax << " area with step size: " << stepsize;
+	
+	VoxelBlock VB( bbmin, bbmax, stepsize );
+	LOG << "- voxel count: " << ( VB.m_xsize * VB.m_ysize * VB.m_zsize );
+	LOG << "- rasterizing blocks...";
+	// rasterize surfaces
+	for( size_t i = 0; i < m_surfaces.size(); ++i )
+	{
+		Surface& S = m_surfaces.item( i ).value;
+		for( size_t j = 0; j + 2 < S.indices.size(); j += 3 )
+		{
+			VB.RasterizeTriangle(
+				S.vertices[ S.indices[ j ] ].pos,
+				S.vertices[ S.indices[ j + 1 ] ].pos,
+				S.vertices[ S.indices[ j + 2 ] ].pos
+			);
+		}
+	}
+	LOG << "- rasterizing solids...";
+	// rasterize solids
+	for( size_t i = 0; i < m_solids.size(); ++i )
+	{
+		Solid& S = m_solids.item( i ).value;
+		VB.RasterizeSolid( S.planes.data(), S.planes.size() );
+	}
+	LOG << "- rasterizing meshes...";
+	// rasterize meshes
+	// TODO
+	
+	LOG << "- generating samples...";
+	Array< Vec3 > samples;
+	size_t osc = samples.size();
+	// generate samples (1 on every side, 0.125 per voxel otherwise - 1 in each 2x2 block)
+	for( int32_t z = 0; z < VB.m_zsize; ++z )
+	{
+		for( int32_t y = 0; y < VB.m_ysize; ++y )
+		{
+			for( int32_t x = 0; x < VB.m_xsize; ++x )
+			{
+				if( VB.Get( x, y, z ) )
+					continue; // cannot put samples into geometry
+				
+				bool putsample = ( x % 2 == 0 ) && ( y % 2 == 0 ) && ( z % 2 == 0 );
+				if( !putsample )
+				{
+					// check for nearby blocks
+					if( VB.Get( x - 1, y, z ) || VB.Get( x + 1, y, z ) ||
+						VB.Get( x, y - 1, z ) || VB.Get( x, y + 1, z ) ||
+						VB.Get( x, y, z - 1 ) || VB.Get( x, y, z + 1 ) )
+						putsample = true;
+				}
+				if( putsample )
+					samples.push_back( VB.GetPosition( x, y, z ) );
+			}
+		}
+	}
+	LOG << "- done, generated sample count: " << ( samples.size() - osc );
+	
+	m_sampleTree.SetSamplesUncolored( samples.data(), samples.size() );
+	m_invalidSamples = true;
+}
+
+
+uint32_t EdLevelGraphicsCont::CreateSolid( EdLGCSolidInfo* info )
+{
+	uint32_t id = m_nextSolidID;
+	ASSERT( LGC_IS_VALID_ID( id ) );
+	RequestSolid( id, info );
+	return id;
+}
+
+void EdLevelGraphicsCont::RequestSolid( uint32_t id, EdLGCSolidInfo* info )
+{
+	ASSERT( m_solids.isset( id ) == false );
+	Solid S;
+	m_solids.set( id, S );
+	UpdateSolid( id, info );
+	if( id >= m_nextSolidID )
+		m_nextSolidID = id + 1;
+}
+
+void EdLevelGraphicsCont::DeleteSolid( uint32_t id )
+{
+	ASSERT( m_solids.isset( id ) );
+	m_solids.unset( id );
+	if( id == m_nextSolidID - 1 )
+		m_nextSolidID--;
+}
+
+static EdLGCSolidInfo g_defSolidInfo;
+void EdLevelGraphicsCont::UpdateSolid( uint32_t id, EdLGCSolidInfo* info )
+{
+	if( info == NULL )
+		info = &g_defSolidInfo;
+	ASSERT( m_solids.isset( id ) );
+	Solid& S = m_solids[ id ];
+	S.planes.assign( info->planes, info->pcount );
+}
 
 uint32_t EdLevelGraphicsCont::CreateMesh( EdLGCMeshInfo* info )
 {
@@ -956,6 +1200,15 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			}
 		}
 	}
+	if( changes & LGC_SURF_CHANGE_SOLID )
+	{
+		S.solid_id = info->solid_id;
+	}
+	if( changes & LGC_SURF_CHANGE_LMPARENT )
+	{
+		S.lmparent_id = info->lmparent_id;
+		InvalidateLightmap( LGC_SURF_LMID( id ) );
+	}
 	if( changes & LGC_CHANGE_XFORM )
 	{
 		if( S.meshInst->matrix != info->xform )
@@ -971,7 +1224,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		if( diff != 0 )
 		{
 			if( diff == 1 )
-				InvalidateLightmap( LGC_SURF_LMID( id ) );
+				InvalidateLightmap( LGC_SURF_LMID( id ) ); // necessary?
 			else if( diff == 2 )
 				InvalidateLightsByMI( S.meshInst );
 			
@@ -2123,7 +2376,7 @@ bool EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 		char bfr[ 1024 ];
 		
 		sgrx_snprintf( bfr, 1024, "%d outdated lightmaps",
-			int(g_EdLGCont->m_invalidLightmaps.size()) );
+			g_EdLGCont->GetInvalidItemCount() );
 		GR2D_DrawTextLine( x1, y1, bfr, HALIGN_RIGHT, VALIGN_BOTTOM );
 		
 		if( g_EdLGCont->m_lmRenderer )
@@ -2575,6 +2828,10 @@ struct TACStrikeEditor : IGame
 			if( e.key.keysym.sym == SDLK_F7 )
 			{
 				g_EdLGCont->ILMAbort();
+			}
+			if( e.key.keysym.sym == SDLK_F9 )
+			{
+				g_EdLGCont->STRegenerate();
 			}
 		}
 		g_UIFrame->EngineEvent( &e );

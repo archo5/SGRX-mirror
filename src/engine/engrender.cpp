@@ -318,17 +318,26 @@ void SGRX_LightTree::SetSamples( Sample* samples, size_t count )
 		}
 	}
 	
-	m_nodes.clear();
-	m_sampidx.clear();
-	if( count == 0 )
-		return;
+	_RegenBVH();
+}
+
+void SGRX_LightTree::SetSamplesUncolored( Vec3* samples, size_t count, const Vec3& col )
+{
+	Colors defcol = { { col, col, col, col, col, col } };
+	m_pos.clear();
+	m_colors.clear();
+	m_pos.reserve( count );
+	m_colors.reserve( count );
+	for( size_t i = 0; i < count; ++i )
+	{
+		if( m_pos.find_first_at( samples[ i ] ) == NOT_FOUND )
+		{
+			m_pos.push_back( samples[ i ] );
+			m_colors.push_back( defcol );
+		}
+	}
 	
-	// BVH generation...
-	m_nodes.push_back( Node() );
-	Array< int32_t > sampidx;
-	for( size_t i = 0; i < m_pos.size(); ++i )
-		sampidx.push_back( i );
-	_LightTree_MakeNode( this, 0, sampidx.data(), sampidx.size(), 0 );
+	_RegenBVH();
 }
 
 void SGRX_LightTree::GetColors( Vec3 pos, Colors* out )
@@ -355,6 +364,21 @@ void SGRX_LightTree::GetColors( Vec3 pos, Colors* out )
 	}
 	
 	*out = col;
+}
+
+void SGRX_LightTree::_RegenBVH()
+{
+	m_nodes.clear();
+	m_sampidx.clear();
+	if( m_pos.size() == 0 )
+		return;
+	
+	// BVH generation...
+	m_nodes.push_back( Node() );
+	Array< int32_t > sampidx;
+	for( size_t i = 0; i < m_pos.size(); ++i )
+		sampidx.push_back( i );
+	_LightTree_MakeNode( this, 0, sampidx.data(), sampidx.size(), 0 );
 }
 
 

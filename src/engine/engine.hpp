@@ -901,11 +901,12 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LightTree
 	{
 		Vec3 color[6]; // X,Y,Z / +,-
 		void Clear(){ for( int i = 0; i < 6; ++i ) color[ i ] = V3(0); }
+		template< class T > void Serialize( T& arch ){ for( int i = 0; i < 6; ++i ) arch << color[i]; }
 	};
 	struct Sample : Colors
 	{
 		Vec3 pos;
-		template< class T > void Serialize( T& arch ){ arch << pos; for( int i = 0; i < 6; ++i ) arch << color[i]; }
+		template< class T > void Serialize( T& arch ){ arch << pos; Colors::Serialize( arch ); }
 	};
 	struct Node // size = 8(3+3+2) * 4(float/int32)
 	{
@@ -913,10 +914,21 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LightTree
 		Vec3 bbmax;
 		int32_t ch; // ch0 = ch, ch1 = ch + 1
 		int32_t sdo; // sample data offset
+		template< class T > void Serialize( T& arch ){ arch << bbmin << bbmax << ch << sdo; }
 	};
 	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << m_pos;
+		arch << m_colors;
+		arch << m_nodes;
+		arch << m_sampidx;
+	}
+	
 	ENGINE_EXPORT void SetSamples( Sample* samples, size_t count );
+	ENGINE_EXPORT void SetSamplesUncolored( Vec3* samples, size_t count, const Vec3& col = V3(0.15f) );
 	ENGINE_EXPORT void GetColors( Vec3 pos, Colors* out );
+	ENGINE_EXPORT void _RegenBVH();
 	
 	// samples
 	Array< Vec3 > m_pos;

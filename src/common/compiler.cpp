@@ -68,6 +68,21 @@ LMRenderer::~LMRenderer()
 
 void LMRenderer::Start()
 {
+	// easy to remember order: X,Y,Z / +,-
+	static const ltr_VEC3 sdirs[6] = { {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1} };
+	for( size_t i = 0; i < sample_positions.size(); ++i )
+	{
+		ltr_SampleInfo SI;
+		LTR_VEC3_SET( SI.out_color, 0, 0, 0 );
+		for( int s = 0; s < 6; ++ s )
+		{
+			SI.id = i * 6 + s;
+			memcpy( &SI.position, &sample_positions[ i ], sizeof(Vec3) );
+			memcpy( &SI.normal, &sdirs[ s ], sizeof(ltr_VEC3) );
+			ltr_SampleAdd( m_scene, &SI );
+		}
+	}
+	
 	ltr_Config cfg;
 	ltr_GetConfig( &cfg, m_scene );
 	cfg.global_size_factor = config.lightmapDetail;
@@ -99,7 +114,7 @@ bool LMRenderer::CheckStatus()
 	// completed
 	ltr_WorkOutputInfo woutinfo;
 	ltr_GetWorkOutputInfo( m_scene, &woutinfo );
-	rendered_sample_count = woutinfo.sample_count;
+	rendered_sample_count = woutinfo.sample_count / 6;
 	rendered_lightmap_count = woutinfo.lightmap_count;
 	rendered_samples = woutinfo.samples;
 	
@@ -122,6 +137,18 @@ bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t o
 	outcols.resize( wout.width * wout.height );
 	memcpy( outcols.data(), wout.lightmap_rgb, outcols.size_bytes() );
 	
+	return true;
+}
+
+bool LMRenderer::GetSample( uint32_t which, Vec3 outcols[6] )
+{
+	if( which >= rendered_sample_count )
+		return false;
+	
+	for( int i = 0; i < 6; ++i )
+	{
+		memcpy( &outcols[ i ], rendered_samples[ which * 6 + i ].out_color, sizeof(Vec3) );
+	}
 	return true;
 }
 
