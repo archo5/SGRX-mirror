@@ -378,6 +378,78 @@ int RectPacker::_NodeAlloc( int startnode, int w, int h )
 }
 
 
+static const int g_lmsizes[][2] =
+{
+	{ 64, 64 },
+	{ 128, 64 },
+	{ 128, 128 },
+	{ 256, 128 },
+	{ 256, 256 },
+	{ 512, 256 },
+	{ 512, 512 },
+	{ 1024, 512 },
+	{ 1024, 1024 },
+	{ 2048, 1024 },
+	{ 2048, 2048 },
+	{0,0},
+};
+
+LMRectPacker::LMRectPacker() : m_sizeid(0)
+{
+	Init( g_lmsizes[ m_sizeid ][0], g_lmsizes[ m_sizeid ][1] );
+}
+
+int LMRectPacker::LMAlloc( int w, int h )
+{
+	int id = Alloc( w, h );
+	int szid = m_sizeid + 1;
+	while( id == -1 && g_lmsizes[ szid ][0] != 0 )
+	{
+		// prepare for creating new packing
+		m_tmpAllocs.resize( m_allocs.size() );
+		RectPacker RP( g_lmsizes[ szid ][0], g_lmsizes[ szid ][1] );
+		
+		// try to copy all existing nodes
+		bool copied = true;
+		for( size_t i = 0; i < m_allocs.size(); ++i )
+		{
+			Node& N = m_tree[ m_allocs[ i ] ];
+			int nid = Alloc( N.x1 - N.x0, N.y1 - N.y0 );
+			if( nid == -1 )
+			{
+				copied = false;
+				break;
+			}
+			else
+			{
+				m_tmpAllocs[ i ] = nid;
+			}
+		}
+		
+		// try to add new node
+		if( copied )
+		{
+			id = RP.Alloc( w, h );
+			if( id != -1 )
+			{
+				m_allocs = m_tmpAllocs;
+				m_tree = RP.m_tree;
+				m_sizeid = szid;
+				break;
+			}
+		}
+		szid++;
+	}
+	
+	if( id != -1 )
+	{
+		m_allocs.push_back( id );
+		return m_allocs.size() - 1;
+	}
+	return -1;
+}
+
+
 inline int32_t divideup( int32_t x, int d ){ return ( x + d - 1 ) / d; }
 
 VoxelBlock::VoxelBlock( Vec3 bbmin, Vec3 bbmax, float stepsize )
@@ -872,6 +944,7 @@ void LevelCache::GatherMeshes()
 		pcenter /= P.m_vertices.size();
 		
 		Mesh* TM = NULL;
+		int lmalloc = -1;
 		
 		for( size_t mid = 0; mid < m_meshes.size(); ++mid )
 		{
@@ -890,7 +963,15 @@ void LevelCache::GatherMeshes()
 			if( ( curpos - pcenter ).Length() > 20 )
 				continue;
 			
+			if( P.m_lightmap.width && P.m_lightmap.height )
+			{
+				lmalloc = M.m_packer.LMAlloc( P.m_lightmap.width, P.m_lightmap.height );
+				if( lmalloc == -1 )
+					continue;
+			}
+			
 			TM = &m_meshes[ mid ];
+			P.m_lmalloc = lmalloc;
 			break;
 		}
 		

@@ -121,6 +121,26 @@ struct RectPacker
 	Array< Node > m_tree;
 };
 
+struct LMRectPacker : RectPacker
+{
+	LMRectPacker();
+	int LMAlloc( int w, int h );
+	
+	bool GetOffset( int pos, int outoff[2] )
+	{
+		if( pos < 0 || pos >= (int) m_allocs.size() )
+			return false;
+		Node& N = m_tree[ m_allocs[ pos ] ];
+		outoff[0] = N.x0;
+		outoff[1] = N.y0;
+		return true;
+	}
+	
+	Array< int > m_allocs;
+	Array< int > m_tmpAllocs;
+	int m_sizeid;
+};
+
 struct VoxelBlock
 {
 	// blocks of 4x4x4, stored into uint64 array
@@ -218,7 +238,7 @@ struct LevelCache
 	
 	struct Mesh
 	{
-		RectPacker m_packer;
+		LMRectPacker m_packer;
 		Array< size_t > m_partIDs;
 		Array< String > m_mtlnames;
 		Vec3 m_boundsMin;
