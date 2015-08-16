@@ -331,28 +331,6 @@ Vec2 EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& 
 	return total_xy_length;
 }
 
-void EdPatch::GenerateMesh( LevelCache& LC )
-{
-	Array< LCVertex > outverts;
-	Array< uint16_t > outidcs;
-	Array< LCVertex > outresolved;
-	bool first = true;
-	for( int layer = 0; layer < MAX_PATCH_LAYERS; ++layer )
-	{
-		if( layers[ layer ].texname.size() == 0 )
-			continue;
-		outverts.clear();
-		outidcs.clear();
-		outresolved.clear();
-		GenerateMeshData( outverts, outidcs, layer );
-		for( size_t i = 0; i < outidcs.size(); ++i )
-			outresolved.push_back( outverts[ outidcs[ i ] ] );
-		LC.AddPart( outresolved.data(), outresolved.size(), layers[ layer ].texname, NOT_FOUND,
-			(blend & PATCH_IS_SOLID), (blend & PATCH_IS_SOLID) && first ? -1 : (blend & ~PATCH_IS_SOLID) + layer );
-		first = false;
-	}
-}
-
 Vec3 EdPatch::GetElementPoint( int i ) const
 {
 	int vcount = xsize * ysize;

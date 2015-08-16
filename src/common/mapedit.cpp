@@ -753,15 +753,7 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 	
 	if( g_EdWorld->m_ctlDirLightColor.m_value.z > 0 )
 	{
-		LC_Light L;
-		L.type = LM_LIGHT_DIRECT;
-		L.range = 1024;
-		Vec2 dir = g_EdWorld->m_ctlDirLightDir.m_value;
-		L.dir = -V3( dir.x, dir.y, -1 ).Normalized();
-		L.color = HSV( g_EdWorld->m_ctlDirLightColor.m_value );
-		L.light_radius = g_EdWorld->m_ctlDirLightDivergence.m_value / 180.0f;
-		L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;
-		m_lmRenderer->AddLight( L );
+		m_lmRenderer->AddLight( g_EdWorld->GetDirLightInfo() );
 	}
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
@@ -981,6 +973,64 @@ void EdLevelGraphicsCont::STRegenerate()
 	
 	m_sampleTree.SetSamplesUncolored( samples.data(), samples.size() );
 	m_invalidSamples = true;
+}
+
+
+void EdLevelGraphicsCont::ExportLightmap( uint32_t lmid, LC_Lightmap& outlm )
+{
+	LMap& LM = *m_lightmaps[ lmid ];
+	outlm.width = LM.width;
+	outlm.height = LM.height;
+	outlm.data.resize( LM.width * LM.height );
+	for( size_t i = 0; i < outlm.data.size(); ++i )
+	{
+		Vec3 incol = Vec3::Min( LM.lmdata[ i ] * 0.5f, V3(1) );
+		outlm.data[ i ] = COLOR_RGB( incol.x * 255, incol.y * 255, incol.z * 255 );
+	}
+}
+
+void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
+{
+	for( size_t i = 0; i < m_solids.size(); ++i )
+	{
+		Solid& S = m_solids.item( i ).value;
+		LC.AddSolid( S.planes.data(), S.planes.size() );
+	}
+	
+	for( size_t i = 0; i < m_surfaces.size(); ++i )
+	{
+		Surface& S = m_surfaces.item( i ).value;
+		
+		LC_Lightmap lm;
+		ExportLightmap( LGC_SURF_LMID( m_surfaces.item( i ).key ), lm );
+		
+		Array< LCVertex > verts;
+		verts.reserve( S.indices.size() );
+		for( size_t v = 0; v < S.indices.size(); ++v )
+			verts.push_back( S.vertices[ S.indices[ v ] ] );
+		
+		size_t solid = S.solid_id > 0 ? S.solid_id - 1 : NOT_FOUND;
+		int decalLayer = ( S.info.rflags & LM_MESHINST_DECAL ) != 0 ? S.info.decalLayer : -1;
+		LC.AddPart( verts.data(), verts.size(), lm, S.mtlname, solid,
+			( S.info.rflags & LM_MESHINST_SOLID ) != 0, decalLayer );
+	}
+	
+	for( size_t i = 0; i < m_meshes.size(); ++i )
+	{
+		Mesh& M = m_meshes.item( i ).value;
+		
+		LC_Lightmap lm;
+		ExportLightmap( LGC_MESH_LMID( m_meshes.item( i ).key ), lm );
+		
+		LC.AddMeshInst( M.meshpath, M.meshInst->matrix, M.info.rflags, M.info.decalLayer, lm );
+	}
+	
+	LC.AddLight( g_EdWorld->GetDirLightInfo() );
+	
+	for( size_t i = 0; i < m_lights.size(); ++i )
+	{
+		LC.AddLight( m_lights[ i ].info );
+	}
 }
 
 
@@ -2120,6 +2170,19 @@ void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
 	objex.Save( name, "Exported from SGRX editor" );
 }
 
+LC_Light EdWorld::GetDirLightInfo()
+{
+	LC_Light L;
+	L.type = LM_LIGHT_DIRECT;
+	L.range = 1024;
+	Vec2 dir = g_EdWorld->m_ctlDirLightDir.m_value;
+	L.dir = -V3( dir.x, dir.y, -1 ).Normalized();
+	L.color = HSV( g_EdWorld->m_ctlDirLightColor.m_value );
+	L.light_radius = g_EdWorld->m_ctlDirLightDivergence.m_value / 180.0f;
+	L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;
+	return L;
+}
+
 
 
 static int edscrAddScriptedEntity( SGS_CTX )
@@ -2616,45 +2679,12 @@ void EDGUIMainFrame::Level_Real_Save( const String& str )
 void EDGUIMainFrame::Level_Real_Compile()
 {
 	LOG << "Compiling level";
-	LevelCache lcache;
+	LevelCache lcache( &g_EdLGCont->m_sampleTree );
 	
-	lcache.AmbientColor = HSV( g_EdWorld->m_ctlAmbientColor.m_value );
-	lcache.LightmapClearColor = HSV( g_EdWorld->m_ctlLightmapClearColor.m_value );
-	lcache.RADNumBounces = g_EdWorld->m_ctlRADNumBounces.m_value;
-	lcache.LightmapDetail = g_EdWorld->m_ctlLightmapDetail.m_value;
-	lcache.LightmapBlurSize = g_EdWorld->m_ctlLightmapBlurSize.m_value;
-	lcache.AODistance = g_EdWorld->m_ctlAODistance.m_value;
-	lcache.AOMultiplier = g_EdWorld->m_ctlAOMultiplier.m_value;
-	lcache.AOFalloff = g_EdWorld->m_ctlAOFalloff.m_value;
-	lcache.AOEffect = g_EdWorld->m_ctlAOEffect.m_value;
-//	lcache.AODivergence = g_EdWorld->m_ctlAODivergence.m_value;
-	lcache.AOColor = HSV( g_EdWorld->m_ctlAOColor.m_value );
-	lcache.AONumSamples = g_EdWorld->m_ctlAONumSamples.m_value;
-	
-	// DIRECTIONAL LIGHT
-	if( g_EdWorld->m_ctlDirLightColor.m_value.z && g_EdWorld->m_ctlDirLightNumSamples.m_value )
-	{
-		LC_Light L;
-		L.type = LM_LIGHT_DIRECT;
-		L.range = 1024;
-		Vec2 dir = g_EdWorld->m_ctlDirLightDir.m_value;
-		L.dir = -V3( dir.x, dir.y, -1 ).Normalized();
-		L.color = HSV( g_EdWorld->m_ctlDirLightColor.m_value );
-		L.light_radius = g_EdWorld->m_ctlDirLightDivergence.m_value / 180.0f;
-		L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;
-		lcache.AddLight( L );
-	}
-	
-	for( size_t i = 0; i < g_EdWorld->m_blocks.size(); ++i )
-		g_EdWorld->m_blocks[ i ]->GenerateMesh( lcache );
-	
-	for( size_t i = 0; i < g_EdWorld->m_patches.size(); ++i )
-		g_EdWorld->m_patches[ i ]->GenerateMesh( lcache );
+	g_EdLGCont->UpdateCache( lcache );
 	
 	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
 		g_EdWorld->m_entities[ i ]->UpdateCache( lcache );
-	
-	lcache.GenerateSamples( 1.0f );
 	
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );

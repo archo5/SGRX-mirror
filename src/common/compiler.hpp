@@ -96,10 +96,12 @@ struct RectPacker
 	
 	int _NodeAlloc( int startnode, int w, int h );
 	
-	RectPacker( int w, int h )
+	RectPacker(){ Init( 1, 1 ); }
+	RectPacker( int w, int h ){ Init( w, h ); }
+	void Init( int w, int h )
 	{
 		Node N = { 0, 0, 0, 0, w, h, false };
-		m_tree.push_back( N );
+		m_tree.assign( &N, 1 );
 	}
 	
 	int Alloc( int w, int h )
@@ -169,6 +171,13 @@ struct LevelCache
 			};
 			return out;
 		}
+		Vertex InterpLMCoords( const Vec2& lmin, const Vec2& lmax ) const
+		{
+			Vertex O = *this;
+			O.tx1 = TLERP( lmin.x, lmax.x, O.tx1 );
+			O.ty1 = TLERP( lmin.y, lmax.y, O.ty1 );
+			return O;
+		}
 		
 		template< class T > void Serialize( T& arch )
 		{
@@ -200,9 +209,8 @@ struct LevelCache
 	{
 		Array< Vertex > m_vertices;
 		size_t m_solid;
-		String m_texname;
-		Vec2 m_lmrect;
-		Vec2 m_lmmin;
+		String m_mtlname;
+		LC_Lightmap m_lightmap;
 		int m_lmalloc;
 		bool m_isSolid;
 		int m_decalLayer; // -1 if none
@@ -210,8 +218,9 @@ struct LevelCache
 	
 	struct Mesh
 	{
+		RectPacker m_packer;
 		Array< size_t > m_partIDs;
-		Array< String > m_texnames;
+		Array< String > m_mtlnames;
 		Vec3 m_boundsMin;
 		Vec3 m_boundsMax;
 		Vec3 m_pos;
@@ -220,24 +229,17 @@ struct LevelCache
 	
 	struct Solid : Array< Vec4 > {};
 	
-	LevelCache();
+	LevelCache( SGRX_LightTree* sampleTree );
 	
-	void AddPart( const Vertex* verts, int vcount, const StringView& texname_short, size_t fromsolid, bool solid, int decalLayer );
+	void AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
+		const StringView& mtlname, size_t fromsolid, bool solid, int decalLayer );
 	size_t AddSolid( const Vec4* planes, int count );
-	void GenerateSamples( float stepsize );
 	
-	void AddMeshInst( const String& meshname, const Mat4& mtx, float lmquality, bool solid, bool dynlit, bool castlms, int decalLayer )
+	void AddMeshInst( const String& meshname, const Mat4& mtx,
+		uint32_t flags, int decalLayer, LC_Lightmap& lm )
 	{
-		uint32_t flags = 0;
-		if( solid ) flags |= LM_MESHINST_SOLID;
-		if( dynlit ) flags |= LM_MESHINST_DYNLIT;
-		if( castlms ) flags |= LM_MESHINST_CASTLMS;
-		LC_MeshInst MI = { meshname, mtx, flags, 0, lmquality };
-		if( decalLayer != -1 )
-		{
-			MI.m_flags |= LM_MESHINST_DECAL;
-			MI.m_decalLayer = decalLayer;
-		}
+		flags &= (LM_MESHINST_SOLID|LM_MESHINST_DYNLIT|LM_MESHINST_CASTLMS|LM_MESHINST_DECAL);
+		LC_MeshInst MI = { meshname, mtx, flags, decalLayer, lm };
 		m_meshinst.push_back( MI );
 	}
 	
@@ -246,36 +248,15 @@ struct LevelCache
 		m_lights.push_back( L );
 	}
 	
-	void AddSample( const Vec3& p )
-	{
-		m_samples.push_back( p );
-	}
-	
-	static bool TexNull( const StringView& tex )
-	{
-		return tex == "textures/null.png" || tex == "textures/clip.png";
-	}
-	static bool TexNoLight( const StringView& tex )
-	{
-		return TexNull( tex ) || tex == "textures/black.png";
-	}
-	static bool TexNoSolid( const StringView& tex )
-	{
-		return TexNoLight( tex );
-	}
-	
 	void _CutPoly( const PartPoly& PP, const Vec4& plane, Array< PartPoly >& outpolies );
 	bool _PolyInside( const PartPoly& PP, const Solid& S );
 	void RemoveHiddenSurfaces();
 	void GenerateLines();
 	void CombineParts();
-//	void _GenerateLightmapPolys( Part& P );
-	bool _PackLightmapPolys( Mesh& M, int curwidth );
+	
 	void GatherMeshes();
-	void GenerateLightmapCoords( Mesh& M );
-	bool SaveMesh( int mid, Mesh& M, const StringView& path, bool remnull );
+	bool SaveMesh( int mid, Mesh& M, const StringView& path );
 	bool SaveCache( const StringView& path );
-	void GenerateLightmaps( const StringView& path );
 	bool GenerateNavmesh( const StringView& path, ByteArray& outData );
 	
 	MapMaterialMap m_mapMtls;
@@ -286,21 +267,8 @@ struct LevelCache
 	Array< LC_Light > m_lights;
 	Array< LC_ScriptedEntity > m_scriptents;
 	LC_PhysicsMesh m_phyMesh;
-	Array< Vec3 > m_samples;
+	SGRX_LightTree* m_sampleTree;
 	Array< Vec2 > m_lines;
-	
-	Vec3 AmbientColor;
-	Vec3 LightmapClearColor;
-	int RADNumBounces;
-	float LightmapDetail;
-	float LightmapBlurSize;
-	float AODistance;
-	float AOMultiplier;
-	float AOFalloff;
-	float AOEffect;
-//	float AODivergence;
-	Vec3 AOColor;
-	int AONumSamples;
 };
 
 

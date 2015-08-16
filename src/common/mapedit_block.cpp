@@ -621,59 +621,6 @@ LevelCache::Vertex EdBlock::_MakeGenVtx( const Vec3& vpos, float z, const EdSurf
 	return V;
 }
 
-void EdBlock::GenerateMesh( LevelCache& LC )
-{
-	if( poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
-		return;
-	
-	// GENERATE PLANES
-	Vec3 toppoly[ MAX_BLOCK_POLYGONS ];
-	int topverts = 0;
-	Vec4 planes[ MAX_BLOCK_POLYGONS ];
-	int numplanes = 0;
-	
-	planes[ numplanes++ ] = V4( 0, 0, -1, - position.z - z0 );
-	for( size_t i = 0; i < poly.size(); ++i )
-	{
-		Vec3 vpos = poly[ i ] + position;
-		
-		size_t i1 = ( i + 1 ) % poly.size();
-		Vec2 dir = ( poly[ i1 ] - poly[ i ] ).ToVec2().Perp().Normalized();
-		if( !dir.NearZero() )
-		{
-			planes[ numplanes++ ] = V4( dir.x, dir.y, 0, Vec2Dot( vpos.ToVec2(), dir ) );
-		}
-		
-		toppoly[ topverts++ ] = vpos + V3( 0, 0, z1 );
-	}
-	if( PolyGetPlane( toppoly, topverts, planes[ numplanes ] ) )
-		numplanes++;
-	else
-		LOG_WARNING << "NO PLANE FOR TOP POLY at " << position;
-	
-	// ADD SOLID
-	size_t solid = LC.AddSolid( planes, numplanes );
-	
-	// GENERATE MESH
-	LevelCache::Vertex verts[ ( ( MAX_BLOCK_POLYGONS - 2 ) - 2 ) * 3 ];
-	for( size_t i = 0; i < poly.size(); ++i )
-	{
-		LC.AddPart( verts, GenerateSurface( verts, i, true ), surfaces[ i ].texname, solid, true, -1 );
-	}
-	
-	// TOP
-	{
-		int i = poly.size();
-		LC.AddPart( verts, GenerateSurface( verts, i, true ), surfaces[ i ].texname, solid, true, -1 );
-	}
-	
-	// BOTTOM
-	{
-		int i = poly.size() + 1;
-		LC.AddPart( verts, GenerateSurface( verts, i, true ), surfaces[ i ].texname, solid, true, -1 );
-	}
-}
-
 int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit )
 {
 	if( tri )

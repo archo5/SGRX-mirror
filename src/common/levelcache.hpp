@@ -10,8 +10,24 @@
 // 4: added subentities
 // 5: added physics mesh
 // 6: added navmesh
-#define LC_FILE_VERSION 6
+// 7: changed sample format, added lightmaps
+#define LC_FILE_VERSION 7
 
+
+struct LC_Lightmap
+{
+	uint16_t width;
+	uint16_t height;
+	Array< uint32_t > data;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << width << height;
+		if( T::IsReader )
+			data.resize( width * height );
+		arch.memory( data.data(), data.size_bytes() );
+	}
+};
 
 #define LM_MESHINST_SOLID 0x0001
 #define LM_MESHINST_DYNLIT 0x0002
@@ -24,8 +40,7 @@ struct LC_MeshInst
 	uint32_t m_flags;
 	uint8_t m_decalLayer;
 	
-	// editor use only, not serialized
-	float lmquality;
+	LC_Lightmap m_lmap;
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -33,6 +48,7 @@ struct LC_MeshInst
 		arch << m_mtx;
 		arch( m_flags, arch.version >= 1, LM_MESHINST_SOLID );
 		arch( m_decalLayer, arch.version >= 3, 0 );
+		arch( m_lmap, arch.version >= 7 );
 	}
 };
 
@@ -93,7 +109,7 @@ struct LC_ScriptedEntity
 };
 
 // LINE = Vec2 x2
-// SAMPLE = Vec3
+// SAMPLES = SGRX_LightTree
 
 struct LC_PhysicsMesh
 {

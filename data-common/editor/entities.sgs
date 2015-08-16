@@ -57,12 +57,6 @@ function ENTCHG_xfchar( eptr, data )
 	EE_SetChar( eptr, "chars/" $ data.char $ ".chr", mtx );
 }
 
-function ENTGTH_xfmesh( eptr, data )
-{
-	mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-	EE_Gather_Mesh( eptr, "meshes/" $ data.mesh $ ".ssm", mtx, data.lmquality, data.solid, data.dynlit, data.castlms );
-}
-
 function ENTDD_xfmesh( eptr, data )
 {
 	(bbmin,bbmax) = EE_GetMeshAABB( eptr, 0 );
@@ -167,7 +161,6 @@ function ED_ENT_m3sh( eptr )
 	EE_AddFieldBool( eptr, "castlms", "Casts lightmap shadow (dyn)", true );
 	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
 	EE_SetDebugDrawFunc( eptr, ENTDD_xfmesh );
-	EE_SetGatherFunc( eptr, ENTGTH_xfmesh );
 }
 
 function ED_ENT_mesharray( eptr )
@@ -198,16 +191,6 @@ function ED_ENT_mesharray( eptr )
 			suboff = data.offset * i;
 			submtx = mat4().translate_v3( suboff ).multiply( mtx );
 			BR_AABB( bbmin, bbmax, submtx );
-		}
-	});
-	EE_SetGatherFunc( eptr, function MeshArray_onGather( eptr, data )
-	{
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		for( i = 0; i < data.count; ++i )
-		{
-			suboff = data.offset * i;
-			submtx = mat4().translate_v3( suboff ).multiply( mtx );
-			EE_Gather_Mesh( eptr, "meshes/" $ data.mesh $ ".ssm", submtx );
 		}
 	});
 }

@@ -520,7 +520,7 @@ void VoxelBlock::_PosToCoord( Vec3 p, int32_t outco[3] )
 }
 
 
-LevelCache::LevelCache()
+LevelCache::LevelCache( SGRX_LightTree* sampleTree ) : m_sampleTree( sampleTree )
 {
 	LOG << "Loading materials...";
 	{
@@ -562,12 +562,10 @@ LevelCache::LevelCache()
 
 #define LINE_HEIGHT 0.45f
 
-void LevelCache::AddPart( const Vertex* verts, int vcount, const StringView& texname_short, size_t fromsolid, bool solid, int decalLayer )
+void LevelCache::AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
+	const StringView& mtlname, size_t fromsolid, bool solid, int decalLayer )
 {
 	ASSERT( vcount >= 3 && vcount % 3 == 0 );
-	
-	char texbfr[ 256 ];
-	sgrx_snprintf( texbfr, sizeof(texbfr), "textures/%.*s.png", TMIN( (int) texname_short.size(), 200 ), texname_short.data() );
 	
 	m_meshParts.push_back( Part() );
 	Part& P = m_meshParts.last();
@@ -585,20 +583,11 @@ void LevelCache::AddPart( const Vertex* verts, int vcount, const StringView& tex
 	}
 	
 	P.m_solid = fromsolid;
-	P.m_texname = texbfr;
+	P.m_mtlname = mtlname;
+	P.m_lightmap = lm;
 	P.m_lmalloc = -1;
 	P.m_isSolid = solid;
 	P.m_decalLayer = decalLayer;
-	
-	Vec2 t2min = V2(FLT_MAX), t2max = V2(-FLT_MAX);
-	for( int i = 0; i < (int) P.m_vertices.size(); ++i )
-	{
-		Vec2 tc = V2( P.m_vertices[ i ].tx1, P.m_vertices[ i ].ty1 );
-		t2min = Vec2::Min( t2min, tc );
-		t2max = Vec2::Max( t2max, tc );
-	}
-	P.m_lmrect = t2max - t2min;
-	P.m_lmmin = t2min;
 }
 
 size_t LevelCache::AddSolid( const Vec4* planes, int count )
@@ -607,74 +596,6 @@ size_t LevelCache::AddSolid( const Vec4* planes, int count )
 	Solid& S = m_solids.last();
 	S.append( planes, count );
 	return m_solids.size() - 1;
-}
-
-
-void LevelCache::GenerateSamples( float stepsize )
-{
-	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
-	for( size_t i = 0; i < m_meshParts.size(); ++i )
-	{
-		Part& P = m_meshParts[ i ];
-		for( size_t j = 0; j < P.m_vertices.size(); ++j )
-		{
-			bbmin = Vec3::Min( bbmin, P.m_vertices[ j ].pos );
-			bbmax = Vec3::Max( bbmax, P.m_vertices[ j ].pos );
-		}
-	}
-	
-	LOG << "Generating samples for " << bbmin << " - " << bbmax << " area with step size: " << stepsize;
-	
-	VoxelBlock VB( bbmin, bbmax, stepsize );
-	LOG << "- voxel count: " << ( VB.m_xsize * VB.m_ysize * VB.m_zsize );
-	LOG << "- rasterizing blocks...";
-	// rasterize blocks
-	for( size_t i = 0; i < m_meshParts.size(); ++i )
-	{
-		Part& P = m_meshParts[ i ];
-		for( size_t j = 0; j + 2 < P.m_vertices.size(); j += 3 )
-		{
-			VB.RasterizeTriangle( P.m_vertices[ j ].pos,
-				P.m_vertices[ j + 1 ].pos, P.m_vertices[ j + 2 ].pos );
-		}
-	}
-	LOG << "- rasterizing solids...";
-	// rasterize solids
-	for( size_t i = 0; i < m_solids.size(); ++i )
-	{
-		VB.RasterizeSolid( m_solids[ i ].data(), m_solids[ i ].size() );
-	}
-	LOG << "- rasterizing meshes...";
-	// rasterize meshes
-	// - TODO
-	
-	LOG << "- generating samples...";
-	size_t osc = m_samples.size();
-	// generate samples (1 on every side, 0.125 per voxel otherwise - 1 in each 2x2 block)
-	for( int32_t z = 0; z < VB.m_zsize; ++z )
-	{
-		for( int32_t y = 0; y < VB.m_ysize; ++y )
-		{
-			for( int32_t x = 0; x < VB.m_xsize; ++x )
-			{
-				if( VB.Get( x, y, z ) )
-					continue; // canoot put samples into geometry
-				
-				bool putsample = ( x % 2 == 0 ) && ( y % 2 == 0 ) && ( z % 2 == 0 );
-				if( !putsample )
-				{
-					// check for nearby blocks
-					if( VB.Get( x - 1, y, z ) || VB.Get( x + 1, y, z ) ||
-						VB.Get( x, y - 1, z ) || VB.Get( x, y + 1, z ) ||
-						VB.Get( x, y, z - 1 ) || VB.Get( x, y, z + 1 ) )
-						putsample = true;
-				}
-				if( putsample )
-					AddSample( VB.GetPosition( x, y, z ) );
-			}
-		}
-	}
-	LOG << "- done, generated sample count: " << ( m_samples.size() - osc );
 }
 
 
@@ -880,8 +801,6 @@ void LevelCache::GenerateLines()
 	for( size_t p = 0; p < m_meshParts.size(); ++p )
 	{
 		Part& P = m_meshParts[ p ];
-		if( TexNull( P.m_texname ) )
-			continue;
 		
 		for( size_t mpv = 0; mpv + 2 < P.m_vertices.size(); mpv += 3 )
 		{
@@ -926,129 +845,11 @@ void LevelCache::GenerateLines()
 }
 
 
-#if 0
-void LevelCache::_GenerateLightmapPolys( Part& P )
-{
-	if( TexNoLight( P.m_texname ) )
-	{
-		for( size_t i = 0; i < P.m_vertices.size(); ++i )
-		{
-			P.m_vertices[ i ].nrm = V3(0);
-			P.m_lmverts.push_back( V2(0) );
-		}
-		for( size_t i = 0; i < P.m_polysizes.size(); ++i )
-		{
-			P.m_lmrects.push_back( V2(0) );
-			P.m_lmallocs.push_back( -1 );
-		}
-		return;
-	}
-	// longest edge is placed on X
-	size_t at = 0;
-	for( size_t i = 0; i < P.m_polysizes.size(); ++i )
-	{
-		Vec3 longedge = V3(0);
-		Vec3 normal = V3(0);
-		float lel = 0;
-		
-		int polysize = P.m_polysizes[ i ];
-		Vec3 prevedge = P.m_vertices[ at ].pos - P.m_vertices[ at + polysize - 1 ].pos;
-		for( int v = 0; v < polysize; ++v )
-		{
-			Vec3 newedge = P.m_vertices[ at + ( v + 1 ) % polysize ].pos - P.m_vertices[ at + v ].pos;
-			float nel = newedge.Length();
-			normal += Vec3Cross( newedge, prevedge );
-			if( nel > lel )
-			{
-				lel = nel;
-				longedge = newedge;
-			}
-			prevedge = newedge;
-		}
-		
-		longedge.Normalize();
-		normal.Normalize();
-		Vec3 edge_x = longedge;
-		Vec3 edge_y = Vec3Cross( edge_x, normal ).Normalized();
-		
-		Vec2 tmin = V2(FLT_MAX), tmax = V2(-FLT_MAX);
-		for( int v = 0; v < polysize; ++v )
-		{
-			// write back normal
-			P.m_vertices[ at + v ].nrm = normal;
-			
-			// generate lightmap poly
-			Vec3 p = P.m_vertices[ at + v ].pos;
-			Vec2 t = V2( Vec3Dot( edge_x, p ), Vec3Dot( edge_y, p ) ) * P.m_polylmq[ i ]   *   2; // magic constant for normal gap/polygon ratio
-			tmin = Vec2::Min( tmin, t );
-			tmax = Vec2::Max( tmax, t );
-			P.m_lmverts.push_back( t );
-		}
-		for( int v = 0; v < polysize; ++v )
-			P.m_lmverts[ at + v ] -= tmin;
-		P.m_lmrects.push_back( tmax - tmin );
-		P.m_lmallocs.push_back( -1 );
-		
-		at += polysize;
-	}
-}
-#endif
-
-bool LevelCache::_PackLightmapPolys( Mesh& M, int curwidth )
-{
-	RectPacker rp( curwidth, curwidth );
-	for( size_t i = 0; i < M.m_partIDs.size(); ++i )
-	{
-		Part& P = m_meshParts[ M.m_partIDs[ i ] ];
-		if( TexNoLight( P.m_texname ) )
-			continue;
-		
-		int szx = ceil( P.m_lmrect.x ) + 4; // padding
-		int szy = ceil( P.m_lmrect.y ) + 4;
-		int pos = rp.Alloc( szx, szy );
-	//	LOG << "x = " << szx << " , y = " << szy << " , pos = " << pos;
-		if( pos < 0 )
-			return false;
-		P.m_lmalloc = pos;
-	}
-	
-	// if not returned here by now, fix coords
-	float scale = 1.0f / curwidth;
-	for( size_t i = 0; i < M.m_partIDs.size(); ++i )
-	{
-		Part& P = m_meshParts[ M.m_partIDs[ i ] ];
-		if( TexNoLight( P.m_texname ) )
-		{
-			for( size_t v = 0; v < P.m_vertices.size(); ++v )
-			{
-				Vertex& V = P.m_vertices[ v ];
-				V.tx1 = 0;
-				V.ty1 = 0;
-			}
-			continue;
-		}
-		
-		int off[2] = {0,0};
-		rp.GetOffset( P.m_lmalloc, off );
-		off[0] += 2; // use half the padding
-		off[1] += 2;
-		
-		for( size_t v = 0; v < P.m_vertices.size(); ++v )
-		{
-			Vertex& V = P.m_vertices[ v ];
-			V.tx1 = ( V.tx1 - P.m_lmmin.x + off[0] ) * scale;
-			V.ty1 = ( V.ty1 - P.m_lmmin.y + off[1] ) * scale;
-		}
-	}
-	
-	return true;
-}
-
 static int sort_part_by_texture( const void* a, const void* b )
 {
 	SGRX_CAST( LevelCache::Part*, pa, a );
 	SGRX_CAST( LevelCache::Part*, pb, b );
-	return pa->m_texname.compare_to( pb->m_texname );
+	return pa->m_mtlname.compare_to( pb->m_mtlname );
 }
 
 void LevelCache::GatherMeshes()
@@ -1081,7 +882,7 @@ void LevelCache::GatherMeshes()
 				continue;
 			
 			// no more space
-			if( M.m_texnames.size() >= 8 && M.m_texnames.find_first_at( P.m_texname ) == NOT_FOUND )
+			if( M.m_mtlnames.size() >= 8 && M.m_mtlnames.find_first_at( P.m_mtlname ) == NOT_FOUND )
 				continue;
 			
 			// too far
@@ -1101,24 +902,19 @@ void LevelCache::GatherMeshes()
 			TM->m_div = 0;
 			TM->m_boundsMin = V3(FLT_MAX);
 			TM->m_boundsMax = V3(-FLT_MAX);
-			
-			// add instance for new mesh
-			char bfr[ 32 ];
-			sprintf( bfr, "~/%d.ssm", (int) m_meshes.size() - 1 );
-			AddMeshInst( bfr, Mat4::Identity, 1, false, false, true, P.m_decalLayer );
 		}
 		
 		TM->m_pos += pcenter;
 		TM->m_div++;
-		TM->m_texnames.find_or_add( P.m_texname );
+		TM->m_mtlnames.find_or_add( P.m_mtlname );
 		TM->m_partIDs.push_back( pid );
 		TM->m_boundsMin = Vec3::Min( TM->m_boundsMin, pmin );
 		TM->m_boundsMax = Vec3::Max( TM->m_boundsMax, pmax );
 		
 		// physics mesh generation
-		if( P.m_isSolid && TexNoSolid( P.m_texname ) == false )
+		if( P.m_isSolid )
 		{
-			uint32_t phy_mtl_id = m_phyMesh.materials.find_or_add( P.m_texname );
+			uint32_t phy_mtl_id = m_phyMesh.materials.find_or_add( P.m_mtlname );
 			
 			for( size_t v = 0; v + 2 < P.m_vertices.size(); v += 3 )
 			{
@@ -1131,21 +927,6 @@ void LevelCache::GatherMeshes()
 	}
 }
 
-void LevelCache::GenerateLightmapCoords( Mesh& M )
-{
-#if 0
-	// generate 2D polygons
-	for( size_t i = 0; i < M.m_parts.size(); ++i )
-		_GenerateLightmapPolys( M.m_parts[ i ] );
-#endif
-	
-	// try to pack all polygons
-	static const int widths[] = { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-	for( size_t i = 0; i < sizeof(widths)/sizeof(int); ++i )
-		if( _PackLightmapPolys( M, widths[ i ] ) )
-			break;
-}
-
 struct PartRangeData
 {
 	uint32_t vertexOffset;
@@ -1155,32 +936,81 @@ struct PartRangeData
 	int part_id;
 };
 
-bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnull )
+bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path )
 {
 	Array< Vertex > verts;
 	Array< uint16_t > indices;
 	Array< PartRangeData > parts;
 	
+	LC_Lightmap lightmap;
+	lightmap.width = M.m_packer.m_tree[0].x1;
+	lightmap.height = M.m_packer.m_tree[0].y1;
+	lightmap.data.resize_using( lightmap.width * lightmap.height, 0 );
+	
 	for( size_t pid = 0; pid < M.m_partIDs.size(); )
 	{
 		const Part& P = m_meshParts[ M.m_partIDs[ pid ] ];
-		if( remnull && TexNull( P.m_texname ) )
+		
+		int lmoff[2];
+		bool haslm = M.m_packer.GetOffset( P.m_lmalloc, lmoff );
+		Vec2 coords_min = V2(0);
+		Vec2 coords_max = V2(0);
+		if( haslm )
 		{
-			pid++;
-			continue;
+			int dstw = lightmap.width;
+			int srcw = P.m_lightmap.width;
+			int srch = P.m_lightmap.height;
+			for( uint16_t y = 0; y < P.m_lightmap.height; ++y )
+			{
+				// row padding - left side
+				lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] ] =
+					P.m_lightmap.data[ y * srcw ];
+				// main row data
+				memcpy(
+					&lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 ],
+					&P.m_lightmap.data[ y * srcw ],
+					srcw * sizeof(uint32_t)
+				);
+				// row padding - right side
+				lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 + srcw ] =
+					P.m_lightmap.data[ y * srcw + srcw - 1 ];
+			}
+			// row padding - copy top back
+			memcpy(
+				&lightmap.data[ ( lmoff[1] ) * dstw + lmoff[0] ],
+				&lightmap.data[ ( lmoff[1] + 1 ) * dstw + lmoff[0] ],
+				( srcw + 2 ) * sizeof(uint32_t)
+			);
+			// row padding - copy bottom forward
+			memcpy(
+				&lightmap.data[ ( lmoff[1] + 1 + srch ) * dstw + lmoff[0] ],
+				&lightmap.data[ ( lmoff[1] + srch ) * dstw + lmoff[0] ],
+				( srcw + 2 ) * sizeof(uint32_t)
+			);
+			coords_min = V2(
+				( lmoff[0] + 1.0f ) / float(lightmap.width),
+				( lmoff[1] + 1.0f ) / float(lightmap.height)
+			);
+			coords_max = V2(
+				( lmoff[0] + srcw + 1.0f ) / float(lightmap.width),
+				( lmoff[1] + srch + 1.0f ) / float(lightmap.height)
+			);
 		}
 		
 		PartRangeData PRD = { verts.size(), 0, indices.size(), 0, M.m_partIDs[ pid ] };
 		// the sorting of paths allows us to concatenate them
-		StringView texName = P.m_texname;
-		while( pid < M.m_partIDs.size() && m_meshParts[ M.m_partIDs[ pid ] ].m_texname == texName )
+		StringView mtlName = P.m_mtlname;
+		while( pid < M.m_partIDs.size() && m_meshParts[ M.m_partIDs[ pid ] ].m_mtlname == mtlName )
 		{
 			const Part& SOP = m_meshParts[ M.m_partIDs[ pid ] ];
 			for( size_t v = 0; v + 2 < SOP.m_vertices.size(); v += 3 )
 			{
-				indices.push_back( verts.find_or_add( SOP.m_vertices[ v + 0 ], PRD.vertexOffset ) - PRD.vertexOffset );
-				indices.push_back( verts.find_or_add( SOP.m_vertices[ v + 1 ], PRD.vertexOffset ) - PRD.vertexOffset );
-				indices.push_back( verts.find_or_add( SOP.m_vertices[ v + 2 ], PRD.vertexOffset ) - PRD.vertexOffset );
+				Vertex V0 = SOP.m_vertices[ v + 0 ].InterpLMCoords( coords_min, coords_max );
+				Vertex V1 = SOP.m_vertices[ v + 1 ].InterpLMCoords( coords_min, coords_max );
+				Vertex V2 = SOP.m_vertices[ v + 2 ].InterpLMCoords( coords_min, coords_max );
+				indices.push_back( verts.find_or_add( V0, PRD.vertexOffset ) - PRD.vertexOffset );
+				indices.push_back( verts.find_or_add( V1, PRD.vertexOffset ) - PRD.vertexOffset );
+				indices.push_back( verts.find_or_add( V2, PRD.vertexOffset ) - PRD.vertexOffset );
 			}
 			pid++;
 		}
@@ -1221,9 +1051,7 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnul
 		bw << parts[ i ].indexOffset;
 		bw << parts[ i ].indexCount;
 		
-		StringView tn = MP.m_texname;
-		if( tn.starts_with( "textures/" ) ) tn = tn.part( 9 );
-		if( tn.ends_with( ".png" ) ) tn = tn.part( 0, tn.size() - 4 );
+		StringView tn = MP.m_mtlname;
 		MapMaterial* mmtl = m_mapMtls.getcopy( tn );
 		if( mmtl )
 		{
@@ -1246,10 +1074,25 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path, bool remnul
 			vu8 = sizeof(EDMESH_SHADER) - 1; // shader name length
 			bw << vu8;
 			bw.marker( EDMESH_SHADER );
-			vu8 = MP.m_texname.size(); // texture name length
+			vu8 = MP.m_mtlname.size() + 13; // texture name length
 			bw << vu8;
-			bw.memory( MP.m_texname.data(), MP.m_texname.size() );
+			char pfx[] = "textures/";
+			char sfx[] = ".png";
+			bw.memory( pfx, 9 );
+			bw.memory( MP.m_mtlname.data(), MP.m_mtlname.size() );
+			bw.memory( sfx, 4 );
 		}
+	}
+	
+	// add instance for new mesh
+	{
+		const Part& P = m_meshParts[ M.m_partIDs[ 0 ] ];
+		char bfr[ 32 ];
+		sgrx_snprintf( bfr, sizeof(bfr), "~/%d.ssm", mid );
+		uint32_t flags = LM_MESHINST_CASTLMS;
+		if( P.m_decalLayer != -1 )
+			flags |= LM_MESHINST_DECAL;
+		AddMeshInst( bfr, Mat4::Identity, flags, P.m_decalLayer, lightmap );
 	}
 	
 	char bfr[ 256 ];
@@ -1263,28 +1106,16 @@ bool LevelCache::SaveCache( const StringView& path )
 	
 	GatherMeshes();
 	
-	for( size_t i = 0; i < m_meshes.size(); ++i )
-	{
-		GenerateLightmapCoords( m_meshes[ i ] );
-	}
-	
 	RemoveHiddenSurfaces();
 	GenerateLines();
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
-		SaveMesh( i, m_meshes[ i ], path, false );
+		SaveMesh( i, m_meshes[ i ], path );
 	}
-	
-	GenerateLightmaps( path );
 	
 	ByteArray navmesh;
 	GenerateNavmesh( path, navmesh );
-	
-	for( size_t i = 0; i < m_meshes.size(); ++i )
-	{
-		SaveMesh( i, m_meshes[ i ], path, true );
-	}
 	
 	ByteArray ba;
 	ByteWriter bw( &ba );
@@ -1305,18 +1136,7 @@ bool LevelCache::SaveCache( const StringView& path )
 	svh << m_lights;
 	
 	svh.marker( "SAMPLES" );
-	
-	ByteArray sample_data;
-	if( !FS_LoadBinaryFile( String_Concat( path, "/samples" ), sample_data ) )
-	{
-		LOG_WARNING << "FAILED to read from /samples, will insert zero";
-		int32_t zero = 0;
-		svh << zero;
-	}
-	else
-	{
-		svh.memory( sample_data.data(), sample_data.size() );
-	}
+	svh << *m_sampleTree;
 	
 	svh.marker( "PHYMESH" );
 	svh( m_phyMesh, svh.version >= 5 );
@@ -1325,143 +1145,6 @@ bool LevelCache::SaveCache( const StringView& path )
 	svh( navmesh, svh.version >= 6 );
 	
 	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
-}
-
-static LC_MeshInst* lm_sort_res = NULL;
-static int lm_sort_fn( const void* a, const void* b )
-{
-	LC_MeshInst& MA = lm_sort_res[ *(int*)a ];
-	LC_MeshInst& MB = lm_sort_res[ *(int*)b ];
-	return MA.m_meshname.compare_to( MB.m_meshname );
-}
-
-void LevelCache::GenerateLightmaps( const StringView& path )
-{
-	Array< int > instidcs;
-	for( size_t i = 0; i < m_meshinst.size(); ++i )
-	{
-		if( ( m_meshinst[ i ].m_flags & LM_MESHINST_DYNLIT ) != 0 &&
-			( m_meshinst[ i ].m_flags & LM_MESHINST_CASTLMS ) == 0 )
-			continue;
-		instidcs.push_back( i );
-	}
-	
-	lm_sort_res = m_meshinst.data();
-	qsort( instidcs.data(), instidcs.size(), sizeof(int), lm_sort_fn ); // sort by mesh name
-	lm_sort_res = NULL;
-	
-	char bfr[ 65536 ];
-	sgrx_snprintf( bfr, sizeof(bfr),
-		"CONFIG ambient_color %g %g %g\n"
-		"CONFIG clear_color %g %g %g\n"
-		"CONFIG bounce_count %d\n"
-		"CONFIG global_size_factor %g\n"
-		"CONFIG blur_size %g\n"
-		"CONFIG ao_distance %g\n"
-		"CONFIG ao_multiplier %g\n"
-		"CONFIG ao_falloff %g\n"
-		"CONFIG ao_effect %g\n"
-	//	"CONFIG ao_divergence %g\n"
-		"CONFIG ao_color %g %g %g\n"
-		"CONFIG ao_num_samples %d\n"
-		"CONFIG samples_out %.*s/samples\n"
-		"CONFIG texture_spec editor/textures.sgs\n"
-		, AmbientColor.x, AmbientColor.y, AmbientColor.z
-		, LightmapClearColor.x, LightmapClearColor.y, LightmapClearColor.z
-		, RADNumBounces
-		, LightmapDetail
-		, LightmapBlurSize
-		, AODistance
-		, AOMultiplier
-		, AOFalloff
-		, AOEffect
-	//	, AODivergence
-		, AOColor.x, AOColor.y, AOColor.z
-		, AONumSamples
-		, TMIN( 260, (int) path.size() ), path.data()
-	);
-	
-	String lm_cmds = bfr;
-	StringView lastmesh;
-	for( size_t i = 0; i < instidcs.size(); ++i )
-	{
-		const LC_MeshInst& MI = m_meshinst[ instidcs[ i ] ];
-		if( lastmesh != MI.m_meshname )
-		{
-			lastmesh = MI.m_meshname;
-			lm_cmds.append( "MESH " );
-			if( lastmesh.ch() == '~' )
-			{
-				lm_cmds.append( path.data(), path.size() );
-				lm_cmds.append( lastmesh.data() + 1, lastmesh.size() - 1 );
-			}
-			else
-				lm_cmds.append( lastmesh.data(), lastmesh.size() );
-			lm_cmds.append( "\n" );
-		}
-		sgrx_snprintf( bfr, sizeof(bfr), "INST lightmap %.*s/%d.png importance %g shadow %d matrix  %g %g %g %g  %g %g %g %g  %g %g %g %g  END\n"
-			, TMIN( 260, (int) path.size() ), path.data(), instidcs[ i ]
-			, MI.lmquality * ( ( MI.m_flags & LM_MESHINST_DYNLIT ) ? 0 : 1 )  *  2.0f // magic factor
-			, MI.m_flags & LM_MESHINST_DECAL ? 0 : 1
-			, MI.m_mtx.m[0][0], MI.m_mtx.m[1][0], MI.m_mtx.m[2][0], MI.m_mtx.m[3][0]
-			, MI.m_mtx.m[0][1], MI.m_mtx.m[1][1], MI.m_mtx.m[2][1], MI.m_mtx.m[3][1]
-			, MI.m_mtx.m[0][2], MI.m_mtx.m[1][2], MI.m_mtx.m[2][2], MI.m_mtx.m[3][2] );
-		lm_cmds.append( bfr );
-	}
-//	lm_cmds.append( "LIGHT POINT position 0.1 2.1 3 color 0.7 0.65 0.6 range 25.0 power 2.0 shadow_sample_count 4 END\n" );
-//	lm_cmds.append( "LIGHT POINT position -0.1 -6 2.5 color 0.227 0.438 1 range 25.0 power 2.0 shadow_sample_count 4 END\n" );
-	for( size_t i = 0; i < m_lights.size(); ++i )
-	{
-		char appbuf[ 10000 ]; // enough for 6 floats and more
-		
-		const LC_Light& L = m_lights[ i ];
-		lm_cmds.append( "LIGHT " );
-		if( L.type == LM_LIGHT_POINT )
-			lm_cmds.append( "POINT" );
-		else if( L.type == LM_LIGHT_SPOT )
-			lm_cmds.append( "SPOT" );
-		else if( L.type == LM_LIGHT_DIRECT )
-			lm_cmds.append( "DIRECT" );
-		else
-			lm_cmds.append( "UNKNOWN" );
-		
-		if( L.type == LM_LIGHT_POINT || L.type == LM_LIGHT_SPOT )
-		{
-			sprintf( appbuf, " position %g %g %g power %g", L.pos.x, L.pos.y, L.pos.z, L.power );
-			lm_cmds.append( appbuf );
-		}
-		if( L.type == LM_LIGHT_SPOT || L.type == LM_LIGHT_DIRECT )
-		{
-			sprintf( appbuf, " direction %g %g %g", L.dir.x, L.dir.y, L.dir.z );
-			lm_cmds.append( appbuf );
-		}
-		if( L.type == LM_LIGHT_SPOT )
-		{
-			sprintf( appbuf, " up_direction %g %g %g spot_angle_out %g spot_angle_in %g spot_curve %g", L.up.x, L.up.y, L.up.z, L.outerangle, L.innerangle, L.spotcurve );
-			lm_cmds.append( appbuf );
-		}
-		sprintf( appbuf, " range %g light_radius %g color %g %g %g shadow_sample_count %d END\n",
-			L.range, L.light_radius, L.color.x, L.color.y, L.color.z, L.num_shadow_samples );
-		lm_cmds.append( appbuf );
-	}
-	
-	for( size_t i = 0; i < m_samples.size(); ++i )
-	{
-		char appbuf[ 10000 ];
-		
-		const Vec3& p = m_samples[ i ];
-		sprintf( appbuf, "SAMPLE %g %g %g\n", p.x, p.y, p.z );
-		lm_cmds.append( appbuf );
-	}
-	
-	FS_SaveTextFile( "lmjob", lm_cmds );
-	
-	LOG << "Rendering lightmaps...";
-	sgrx_snprintf( bfr, sizeof(bfr), "lmrender -i %.*s/lmjob", (int) Game_GetDir().size(), Game_GetDir().data() );
-	LOG << "Command line: " << bfr;
-	system( bfr );
-	
-	LOG << "\nFinished!";
 }
 
 

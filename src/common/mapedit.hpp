@@ -447,6 +447,8 @@ struct EdLevelGraphicsCont
 	void ILMAbort();
 	void ILMCheck();
 	void STRegenerate();
+	void ExportLightmap( uint32_t lmid, LC_Lightmap& outlm );
+	void UpdateCache( LevelCache& LC );
 	
 	uint32_t CreateSolid( EdLGCSolidInfo* info = NULL );
 	void RequestSolid( uint32_t id, EdLGCSolidInfo* info = NULL );
@@ -772,7 +774,6 @@ struct EdBlock : EdObject
 	virtual void RegenerateMesh();
 	
 	LevelCache::Vertex _MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy );
-	void GenerateMesh( LevelCache& LC );
 	int GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit = true );
 	void Export( OBJExporter& objex );
 };
@@ -944,7 +945,6 @@ struct EdPatch : EdObject
 	virtual void RegenerateMesh();
 	virtual Vec3 FindCenter() const;
 	Vec2 GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer );
-	void GenerateMesh( LevelCache& LC );
 	
 	virtual int GetNumElements() const { return GetNumVerts() + GetNumQuads() + GetNumXEdges() + GetNumYEdges(); }
 	virtual Vec3 GetElementPoint( int i ) const;
@@ -1202,7 +1202,7 @@ struct EdEntMesh : EdEntity
 	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	
-	virtual void UpdateCache( LevelCache& LC );
+	virtual void UpdateCache( LevelCache& LC ){}
 	virtual int OnEvent( EDGUIEvent* e );
 	virtual void DebugDraw();
 	virtual void RegenerateMesh();
@@ -1271,7 +1271,7 @@ struct EdEntLight : EdEntity
 	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	
 	virtual void DebugDraw();
-	virtual void UpdateCache( LevelCache& LC );
+	virtual void UpdateCache( LevelCache& LC ){}
 	virtual int OnEvent( EDGUIEvent* e );
 	virtual void RegenerateMesh();
 	
@@ -1306,7 +1306,7 @@ struct EdEntLightSample : EdEntity
 	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	
-	virtual void UpdateCache( LevelCache& LC );
+	virtual void UpdateCache( LevelCache& LC ){}
 };
 
 
@@ -1660,6 +1660,8 @@ struct EdWorld : EDGUILayoutRow
 	void TransferObjectsToGroup( int32_t grpfrom, int32_t grpto );
 	void DeleteObjectsInGroup( int32_t grp );
 	void ExportGroupAsOBJ( int32_t grp, const StringView& name );
+	
+	LC_Light GetDirLightInfo();
 	
 	EDGUIItem* GetObjProps( size_t oid )
 	{

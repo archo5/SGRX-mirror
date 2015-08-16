@@ -94,13 +94,6 @@ EdEntity* EdEntMesh::CloneEntity()
 	return N;
 }
 
-void EdEntMesh::UpdateCache( LevelCache& LC )
-{
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( (int) Mesh().size(), 200 ), Mesh().data() );
-	LC.AddMeshInst( bfr, Matrix(), 1.0f, true, false, true, -1 );
-}
-
 int EdEntMesh::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
@@ -229,26 +222,6 @@ void EdEntLight::DebugDraw()
 	br.Tick( Pos() + FlareOffset(), 0.1f );
 }
 
-void EdEntLight::UpdateCache( LevelCache& LC )
-{
-	LC_Light L;
-	L.type = IsSpotlight() ? LM_LIGHT_SPOT : LM_LIGHT_POINT;
-	L.pos = Pos();
-	L.dir = SpotDir();
-	L.up = SpotUp();
-	L.range = Range();
-	L.power = Power();
-	L.color = HSV( ColorHSV() );
-	L.light_radius = LightRadius();
-	L.num_shadow_samples = ShadowSampleCount();
-	L.flaresize = FlareSize();
-	L.flareoffset = FlareOffset();
-	L.innerangle = SpotInnerAngle();
-	L.outerangle = SpotOuterAngle();
-	L.spotcurve = SpotCurve();
-	LC.AddLight( L );
-}
-
 int EdEntLight::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
@@ -308,11 +281,6 @@ EdEntity* EdEntLightSample::CloneEntity()
 	EdEntLightSample* N = new EdEntLightSample( false );
 	*N = *this;
 	return N;
-}
-
-void EdEntLightSample::UpdateCache( LevelCache& LC )
-{
-	LC.AddSample( Pos() );
 }
 
 
@@ -1060,22 +1028,6 @@ static int EE_SetGatherFunc( SGS_CTX )
 	return 0;
 }
 
-static int EE_Gather_Mesh( SGS_CTX )
-{
-	SGSFN( "EE_Gather_Mesh" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	float lmquality = sgs_StackSize( C ) > 3 ? sgs_GetVar<float>()( C, 3 ) : 1.0f;
-	bool solid = sgs_StackSize( C ) > 4 ? sgs_GetVar<bool>()( C, 4 ) : true;
-	bool dynlit = sgs_StackSize( C ) > 5 ? sgs_GetVar<bool>()( C, 5 ) : false;
-	bool castlms = sgs_StackSize( C ) > 6 ? sgs_GetVar<bool>()( C, 6 ) : true;
-	if( E->m_levelCache )
-		E->m_levelCache->AddMeshInst( sgs_GetVar<String>()( C, 1 ), sgs_GetVar<Mat4>()( C, 2 ), lmquality, solid, dynlit, castlms, -1 );
-	return 0;
-}
-
 static int EE_GenMatrix_SRaP( SGS_CTX )
 {
 	SGSFN( "EE_GenMatrix_SRaP" );
@@ -1118,7 +1070,6 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_SetChangeFunc", EE_SetChangeFunc },
 	{ "EE_SetDebugDrawFunc", EE_SetDebugDrawFunc },
 	{ "EE_SetGatherFunc", EE_SetGatherFunc },
-	{ "EE_Gather_Mesh", EE_Gather_Mesh },
 	{ "EE_GenMatrix_SRaP", EE_GenMatrix_SRaP },
 	SGS_RC_END(),
 };
