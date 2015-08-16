@@ -1233,7 +1233,7 @@ EDGUIPatchProps::EDGUIPatchProps() :
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_blkGroup( NULL ),
 	m_isSolid( false ),
-	m_layerStart( 0, 0, 255 )
+	m_layerStart( 0, 0, 127 )
 {
 	tyname = "blockprops";
 	m_pos.caption = "Position";
@@ -1283,15 +1283,15 @@ int EDGUIPatchProps::OnEvent( EDGUIEvent* e )
 				if( grp )
 					m_out->group = grp->m_id;
 			}
-			else if( e->target == &m_isSolid || e->target == &m_layerStart )
-			{
-				uint8_t blend = m_layerStart.m_value;
-				if( m_isSolid.m_value )
-					blend |= PATCH_IS_SOLID;
-				m_out->blend = blend;
-			}
-			m_out->RegenerateMesh();
 		}
+		else if( e->target == &m_isSolid || e->target == &m_layerStart )
+		{
+			uint8_t blend = m_layerStart.m_value;
+			if( m_isSolid.m_value )
+				blend |= PATCH_IS_SOLID;
+			m_out->blend = blend;
+		}
+		m_out->RegenerateMesh();
 		break;
 	}
 	return EDGUILayoutRow::OnEvent( e );
