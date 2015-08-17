@@ -414,7 +414,7 @@ int LMRectPacker::LMAlloc( int w, int h )
 		for( size_t i = 0; i < m_allocs.size(); ++i )
 		{
 			Node& N = m_tree[ m_allocs[ i ] ];
-			int nid = Alloc( N.x1 - N.x0, N.y1 - N.y0 );
+			int nid = RP.Alloc( N.x1 - N.x0, N.y1 - N.y0 );
 			if( nid == -1 )
 			{
 				copied = false;
@@ -949,9 +949,15 @@ void LevelCache::GatherMeshes()
 		for( size_t mid = 0; mid < m_meshes.size(); ++mid )
 		{
 			Mesh& M = m_meshes[ mid ];
+			Part& OP = m_meshParts[ M.m_partIDs[ 0 ] ];
 			
 			// wrong decal layer ID
-			if( m_meshParts[ M.m_partIDs[ 0 ] ].m_decalLayer != P.m_decalLayer )
+			if( OP.m_decalLayer != P.m_decalLayer )
+				continue;
+			
+			// not the same lightmap status (exists or not)
+			if( ( OP.m_lightmap.width != 0 && OP.m_lightmap.height != 0 ) !=
+				( P.m_lightmap.width != 0 && P.m_lightmap.height != 0 ) )
 				continue;
 			
 			// no more space
@@ -965,7 +971,8 @@ void LevelCache::GatherMeshes()
 			
 			if( P.m_lightmap.width && P.m_lightmap.height )
 			{
-				lmalloc = M.m_packer.LMAlloc( P.m_lightmap.width, P.m_lightmap.height );
+				lmalloc = M.m_packer.LMAlloc( P.m_lightmap.width + 2, P.m_lightmap.height + 2 );
+			//	printf( "lmalloc %d\n", lmalloc );
 				if( lmalloc == -1 )
 					continue;
 			}
@@ -983,6 +990,15 @@ void LevelCache::GatherMeshes()
 			TM->m_div = 0;
 			TM->m_boundsMin = V3(FLT_MAX);
 			TM->m_boundsMax = V3(-FLT_MAX);
+			lmalloc = -1;
+			if( P.m_lightmap.width && P.m_lightmap.height )
+			{
+				lmalloc = TM->m_packer.LMAlloc( P.m_lightmap.width + 2, P.m_lightmap.height + 2 );
+				if( lmalloc == -1 )
+					LOG_WARNING << "Could not allocate lightmap!!!";
+				ASSERT( lmalloc != -1 );
+			}
+			P.m_lmalloc = lmalloc;
 		}
 		
 		TM->m_pos += pcenter;
@@ -1023,60 +1039,22 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path )
 	Array< uint16_t > indices;
 	Array< PartRangeData > parts;
 	
-	LC_Lightmap lightmap;
-	lightmap.width = M.m_packer.m_tree[0].x1;
-	lightmap.height = M.m_packer.m_tree[0].y1;
-	lightmap.data.resize_using( lightmap.width * lightmap.height, 0 );
+	bool needlm = false;
+	for( size_t pid = 0; pid < M.m_partIDs.size(); ++pid )
+		if( ( needlm = ( m_meshParts[ M.m_partIDs[ pid ] ].m_lmalloc != -1 ) ) )
+			break;
+	
+	LC_Lightmap lightmap = { 0, 0 };
+	if( needlm ) // all parts should have the same LM status
+	{
+		lightmap.width = M.m_packer.m_tree[0].x1;
+		lightmap.height = M.m_packer.m_tree[0].y1;
+		lightmap.data.resize_using( lightmap.width * lightmap.height, 0 );
+	}
 	
 	for( size_t pid = 0; pid < M.m_partIDs.size(); )
 	{
 		const Part& P = m_meshParts[ M.m_partIDs[ pid ] ];
-		
-		int lmoff[2];
-		bool haslm = M.m_packer.GetOffset( P.m_lmalloc, lmoff );
-		Vec2 coords_min = V2(0);
-		Vec2 coords_max = V2(0);
-		if( haslm )
-		{
-			int dstw = lightmap.width;
-			int srcw = P.m_lightmap.width;
-			int srch = P.m_lightmap.height;
-			for( uint16_t y = 0; y < P.m_lightmap.height; ++y )
-			{
-				// row padding - left side
-				lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] ] =
-					P.m_lightmap.data[ y * srcw ];
-				// main row data
-				memcpy(
-					&lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 ],
-					&P.m_lightmap.data[ y * srcw ],
-					srcw * sizeof(uint32_t)
-				);
-				// row padding - right side
-				lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 + srcw ] =
-					P.m_lightmap.data[ y * srcw + srcw - 1 ];
-			}
-			// row padding - copy top back
-			memcpy(
-				&lightmap.data[ ( lmoff[1] ) * dstw + lmoff[0] ],
-				&lightmap.data[ ( lmoff[1] + 1 ) * dstw + lmoff[0] ],
-				( srcw + 2 ) * sizeof(uint32_t)
-			);
-			// row padding - copy bottom forward
-			memcpy(
-				&lightmap.data[ ( lmoff[1] + 1 + srch ) * dstw + lmoff[0] ],
-				&lightmap.data[ ( lmoff[1] + srch ) * dstw + lmoff[0] ],
-				( srcw + 2 ) * sizeof(uint32_t)
-			);
-			coords_min = V2(
-				( lmoff[0] + 1.0f ) / float(lightmap.width),
-				( lmoff[1] + 1.0f ) / float(lightmap.height)
-			);
-			coords_max = V2(
-				( lmoff[0] + srcw + 1.0f ) / float(lightmap.width),
-				( lmoff[1] + srch + 1.0f ) / float(lightmap.height)
-			);
-		}
 		
 		PartRangeData PRD = { verts.size(), 0, indices.size(), 0, M.m_partIDs[ pid ] };
 		// the sorting of paths allows us to concatenate them
@@ -1084,6 +1062,60 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path )
 		while( pid < M.m_partIDs.size() && m_meshParts[ M.m_partIDs[ pid ] ].m_mtlname == mtlName )
 		{
 			const Part& SOP = m_meshParts[ M.m_partIDs[ pid ] ];
+			
+			// copy lightmap
+			int lmoff[2] = {0,0};
+			bool haslm = M.m_packer.GetOffset( SOP.m_lmalloc, lmoff );
+		//	printf( "mid %d pid %d alloc %d haslm %d lmoff %d %d size %d %d\n",
+		//		mid, pid, SOP.m_lmalloc, int(haslm), lmoff[0], lmoff[1],
+		//		int(SOP.m_lightmap.width), int(SOP.m_lightmap.height) );
+			Vec2 coords_min = V2(0);
+			Vec2 coords_max = V2(0);
+			if( haslm )
+			{
+				ASSERT( lightmap.width != 0 && lightmap.height != 0 );
+				int dstw = lightmap.width;
+				int srcw = SOP.m_lightmap.width;
+				int srch = SOP.m_lightmap.height;
+				for( uint16_t y = 0; y < SOP.m_lightmap.height; ++y )
+				{
+					// row padding - left side
+					lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] ] =
+						SOP.m_lightmap.data[ y * srcw ];
+					// main row data
+					memcpy(
+						&lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 ],
+						&SOP.m_lightmap.data[ y * srcw ],
+						srcw * sizeof(uint32_t)
+					);
+					// row padding - right side
+					lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 + srcw ] =
+						SOP.m_lightmap.data[ y * srcw + srcw - 1 ];
+				}
+				// row padding - copy top back
+				memcpy(
+					&lightmap.data[ ( lmoff[1] ) * dstw + lmoff[0] ],
+					&lightmap.data[ ( lmoff[1] + 1 ) * dstw + lmoff[0] ],
+					( srcw + 2 ) * sizeof(uint32_t)
+				);
+				// row padding - copy bottom forward
+				memcpy(
+					&lightmap.data[ ( lmoff[1] + 1 + srch ) * dstw + lmoff[0] ],
+					&lightmap.data[ ( lmoff[1] + srch ) * dstw + lmoff[0] ],
+					( srcw + 2 ) * sizeof(uint32_t)
+				);
+				// generate coords
+				coords_min = V2(
+					( lmoff[0] + 1.0f ) / float(lightmap.width),
+					( lmoff[1] + 1.0f ) / float(lightmap.height)
+				);
+				coords_max = V2(
+					( lmoff[0] + srcw + 1.0f ) / float(lightmap.width),
+					( lmoff[1] + srch + 1.0f ) / float(lightmap.height)
+				);
+			}
+			
+			// copy vertex/index data
 			for( size_t v = 0; v + 2 < SOP.m_vertices.size(); v += 3 )
 			{
 				Vertex V0 = SOP.m_vertices[ v + 0 ].InterpLMCoords( coords_min, coords_max );
@@ -1220,10 +1252,10 @@ bool LevelCache::SaveCache( const StringView& path )
 	svh << *m_sampleTree;
 	
 	svh.marker( "PHYMESH" );
-	svh( m_phyMesh, svh.version >= 5 );
+	svh << m_phyMesh;
 	
 	svh.marker( "NAVMESH" );
-	svh( navmesh, svh.version >= 6 );
+	svh << navmesh;
 	
 	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
 }

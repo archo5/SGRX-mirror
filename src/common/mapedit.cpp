@@ -699,7 +699,7 @@ bool EdLevelGraphicsCont::IsInvalidated( uint32_t lmid )
 
 static bool MtlNeedsLM( const StringView& name )
 {
-	return name != "null" && name != "clip" && name != "black";
+	return name != "" && name != "null" && name != "clip" && name != "black";
 }
 
 static bool MtlIsSolid( const StringView& name )
@@ -1000,6 +1000,8 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 	for( size_t i = 0; i < m_surfaces.size(); ++i )
 	{
 		Surface& S = m_surfaces.item( i ).value;
+		if( S.mtlname == SV("") || S.mtlname == SV("null") || S.mtlname == SV("clip") )
+			continue;
 		
 		LC_Lightmap lm;
 		ExportLightmap( LGC_SURF_LMID( m_surfaces.item( i ).key ), lm );

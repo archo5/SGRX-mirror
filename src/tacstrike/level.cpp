@@ -382,11 +382,7 @@ bool GameLevel::Load( const StringView& levelname )
 		LOG_FUNCTION_ARG( "SAMPLES" );
 		
 		svh.marker( "SAMPLES" );
-		Array< SGRX_LightTree::Sample > lt_samples;
-		svh << lt_samples;
-		
-		LOG << "LEVEL: Loading samples: " << lt_samples.size();
-		m_ltSamples.SetSamples( lt_samples.data(), lt_samples.size() );
+		svh << m_ltSamples;
 	}
 	
 	// create static geometry
@@ -396,7 +392,7 @@ bool GameLevel::Load( const StringView& levelname )
 		svh.marker( "PHYMESH" );
 		SGRX_PhyRigidBodyInfo rbinfo;
 		LC_PhysicsMesh phy_mesh;
-		svh( phy_mesh, svh.version >= 5 );
+		svh << phy_mesh;
 		
 		// TODO: temporarily ignore material data
 		Array< uint32_t > fixedidcs;
@@ -415,11 +411,10 @@ bool GameLevel::Load( const StringView& levelname )
 		LOG_FUNCTION_ARG( "AI_DB" );
 		
 		ByteArray navmesh;
-		if( svh.version >= 6 )
-		{
-			svh.marker( "NAVMESH" );
-			svh( navmesh );
-		}
+		
+		svh.marker( "NAVMESH" );
+		svh << navmesh;
+		
 		m_aidbSystem.Load( navmesh );
 	}
 	
@@ -444,8 +439,19 @@ bool GameLevel::Load( const StringView& levelname )
 			else
 				MI->mesh = GR_GetMesh( src );
 			
-			sgrx_snprintf( subbfr, sizeof(subbfr), "levels/%.*s/%d.png", TMIN( (int) levelname.size(), 200 ), levelname.data(), (int) i );
-			MI->textures[0] = GR_GetTexture( subbfr );
+			if( MID.m_lmap.width && MID.m_lmap.height )
+			{
+				MI->textures[0] = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
+					TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
+				MI->textures[0]->UploadRGBA8Part( MID.m_lmap.data.data(),
+					0, 0, 0, MID.m_lmap.width, MID.m_lmap.height );
+			}
+			else
+			{
+				MI->dynamic = true;
+				for( int i = 10; i < 16; ++i )
+					MI->constants[ i ] = V4(0.15f);
+			}
 			
 			MI->matrix = MID.m_mtx;
 			

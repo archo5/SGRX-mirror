@@ -4,14 +4,8 @@
 #include <utils.hpp>
 
 
-// 1: added mesh instance flags
-// 2: added flare offset
-// 3: added decal layer
-// 4: added subentities
-// 5: added physics mesh
-// 6: added navmesh
-// 7: changed sample format, added lightmaps
-#define LC_FILE_VERSION 7
+// 0: version restart
+#define LC_FILE_VERSION 0
 
 
 struct LC_Lightmap
@@ -46,9 +40,9 @@ struct LC_MeshInst
 	{
 		arch << m_meshname;
 		arch << m_mtx;
-		arch( m_flags, arch.version >= 1, LM_MESHINST_SOLID );
-		arch( m_decalLayer, arch.version >= 3, 0 );
-		arch( m_lmap, arch.version >= 7 );
+		arch( m_flags, true, LM_MESHINST_SOLID );
+		arch( m_decalLayer, true, 0 );
+		arch( m_lmap, true );
 	}
 };
 
@@ -86,7 +80,7 @@ struct LC_Light
 		arch << color;
 		arch << num_shadow_samples;
 		arch << flaresize;
-		arch( flareoffset, arch.version >= 2, V3(0) );
+		arch( flareoffset, true, V3(0) );
 		arch << innerangle;
 		arch << outerangle;
 		arch << spotcurve;
@@ -104,7 +98,7 @@ struct LC_ScriptedEntity
 	{
 		arch << type;
 		arch << serialized_params;
-		arch( subentities, arch.version >= 4 );
+		arch( subentities, true );
 	}
 };
 
