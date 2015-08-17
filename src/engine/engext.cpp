@@ -8,6 +8,8 @@
 //  R A G D O L L
 ////////////////////
 
+#if 0
+
 AnimRagdoll::AnimRagdoll() :
 	m_enabled( false ),
 	m_lastTickSize( 0 )
@@ -191,6 +193,8 @@ void AnimRagdoll::DisablePhysics()
 		m_joints[ i ]->SetEnabled( false );
 	}
 }
+
+#endif
 
 
 

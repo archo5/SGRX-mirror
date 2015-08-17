@@ -49,13 +49,3 @@ set_target_properties( blendcubedds PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
-# Ragdoll generator
-add_executable( rdgen
-	rdgen
-)
-target_link_libraries( rdgen sgrx-core )
-set_target_properties( rdgen PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
-	COMPILE_FLAGS "${CORE_FLAGS}"
-	LINK_FLAGS "${CORE_FLAGS}"
-)
