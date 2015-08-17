@@ -108,7 +108,7 @@ LD32Char::LD32Char( const Vec3& pos, const Vec3& dir, const Vec4& color ) :
 	m_shadowInst->projectionTextures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
 	
 	m_anEnd.animSource = &m_anMainPlayer;
-	m_anEnd.PrepareForMesh( m_meshInst->mesh );
+	m_anEnd.Prepare( m_meshInst->mesh );
 	m_anMainPlayer.Play( GR_GetAnim( "stand_anim" ) );
 }
 

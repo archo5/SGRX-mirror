@@ -54,19 +54,21 @@ typedef HashTable< AnimHandle, int* > AnimCache;
 
 struct IF_GCC(ENGINE_EXPORT) Animator
 {
-	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
-	ENGINE_EXPORT bool PrepareForMesh( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
 	virtual void Advance( float deltaTime ){}
 	
-	void ClearFactors( float f ){ GR_ClearFactors( factor, f ); }
-	void SetFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( factor, mesh, name, f, ch ); }
+	void ClearFactors( float f ){ GR_ClearFactors( m_factors, f ); }
+	void SetFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true )
+	{
+		GR_SetFactors( m_factors, m_mesh, name, f, ch );
+	}
 	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
 	
-	Array< String > names;
-	Array< Vec3 > position;
-	Array< Quat > rotation;
-	Array< Vec3 > scale;
-	Array< float > factor;
+	MeshHandle m_mesh;
+	Array< Vec3 > m_positions;
+	Array< Quat > m_rotations;
+	Array< Vec3 > m_scales;
+	Array< float > m_factors;
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
@@ -92,14 +94,13 @@ struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
 	
 	ENGINE_EXPORT AnimMixer();
 	ENGINE_EXPORT ~AnimMixer();
-	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
 	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
 	Array< Mat4 > m_staging;
-	MeshHandle mesh;
 	
-	Layer* layers;
-	int layerCount;
+	Layer* layers; // INTERFACE
+	int layerCount; // INTERFACE
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
@@ -117,36 +118,64 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	
 	ENGINE_EXPORT AnimPlayer();
 	ENGINE_EXPORT ~AnimPlayer();
-	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
 	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
 	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
 	ENGINE_EXPORT bool CheckMarker( const StringView& name );
 	
+	void ClearBlendFactors( float f ){ GR_ClearFactors( m_blendFactors, f ); }
+	void SetBlendFactors( const StringView& name, float f, bool ch = true )
+	{
+		GR_SetFactors( m_blendFactors, m_mesh, name, f, ch );
+	}
+	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
+	
 	ENGINE_EXPORT int* _getTrackIds( const AnimHandle& anim );
 	ENGINE_EXPORT void _clearAnimCache();
 	
-	AnimCache animCache;
-	Array< Anim > currentAnims;
-	Array< float > blendFactor;
-	
-	void ClearBlendFactors( float f ){ GR_ClearFactors( blendFactor, f ); }
-	void SetBlendFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true ){ GR_SetFactors( blendFactor, mesh, name, f, ch ); }
-	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
+	AnimCache m_animCache;
+	Array< Anim > m_currentAnims;
+	Array< float > m_blendFactors;
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimInterp : Animator
 {
 	ENGINE_EXPORT AnimInterp();
-	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
 	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	ENGINE_EXPORT void Transfer();
 	ENGINE_EXPORT void Interpolate( float deltaTime );
 	
-	Array< Vec3 > prev_position;
-	Array< Quat > prev_rotation;
-	Array< Vec3 > prev_scale;
-	Animator* animSource;
+	Array< Vec3 > m_prev_positions;
+	Array< Quat > m_prev_rotations;
+	Array< Vec3 > m_prev_scales;
+	
+	Animator* animSource; // INTERFACE
+};
+
+struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
+{
+	struct Force
+	{
+		int boneID; // -1 for world
+		Vec3 pos; // in bone/world space
+		Vec3 dir; // normalized in bone/world space
+		float amount; // force = dir * amount
+		float radius; // distf = 1 - min( 1, dist / radius )
+		float power; // pow( distf, ->power<- )
+		float lifetime; // how long since it's been created
+	};
+	
+	ENGINE_EXPORT AnimDeformer();
+	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual void Advance( float deltaTime );
+	
+	ENGINE_EXPORT Force& AddLocalForce( const Vec3& pos, const Vec3& dir, float amount = 0.0f );
+	ENGINE_EXPORT int _FindClosestBone( const Vec3& pos );
+	
+	Array< Force > forces; // INTERFACE
+	Animator* animSource; // INTERFACE
 };
 
 

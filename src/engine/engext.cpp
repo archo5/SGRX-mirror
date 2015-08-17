@@ -244,10 +244,9 @@ void AnimCharacter::OnRenderUpdate()
 	m_cachedMeshInst->mesh = m_cachedMesh;
 	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh ? m_cachedMesh->m_numBones : 0 );
 	RecalcBoneIDs();
-	m_anMixer.mesh = m_cachedMesh;
-	m_anEnd.PrepareForMesh( m_cachedMesh );
-	if( m_cachedMesh && (int) m_layerAnimator.names.size() != m_cachedMesh->m_numBones )
-		m_layerAnimator.PrepareForMesh( m_cachedMesh );
+	m_anEnd.Prepare( m_cachedMesh );
+	if( m_cachedMesh && (int) m_layerAnimator.m_factors.size() != m_cachedMesh->m_numBones )
+		m_layerAnimator.Prepare( m_cachedMesh );
 	m_layerAnimator.ClearFactors( 1.0f );
 }
 
@@ -280,8 +279,8 @@ void AnimCharacter::RecalcLayerState()
 	if( m_cachedMesh == NULL )
 		return;
 	
-	TMEMSET( m_layerAnimator.position.data(), m_layerAnimator.position.size(), V3(0) );
-	TMEMSET( m_layerAnimator.rotation.data(), m_layerAnimator.rotation.size(), Quat::Identity );
+	TMEMSET( m_layerAnimator.m_positions.data(), m_layerAnimator.m_positions.size(), V3(0) );
+	TMEMSET( m_layerAnimator.m_rotations.data(), m_layerAnimator.m_rotations.size(), Quat::Identity );
 	for( size_t i = 0; i < layers.size(); ++i )
 	{
 		Layer& L = layers[ i ];
@@ -297,17 +296,17 @@ void AnimCharacter::RecalcLayerState()
 					int parent_id = m_cachedMesh->m_bones[ LT.bone_id ].parent_id;
 					if( parent_id >= 0 )
 					{
-						m_layerAnimator.position[ LT.bone_id ] -= m_layerAnimator.position[ parent_id ];
-						m_layerAnimator.rotation[ LT.bone_id ] =
-							m_layerAnimator.rotation[ LT.bone_id ] * m_layerAnimator.rotation[ parent_id ].Inverted();
+						m_layerAnimator.m_positions[ LT.bone_id ] -= m_layerAnimator.m_positions[ parent_id ];
+						m_layerAnimator.m_rotations[ LT.bone_id ] =
+							m_layerAnimator.m_rotations[ LT.bone_id ] * m_layerAnimator.m_rotations[ parent_id ].Inverted();
 					}
 				}
 				break;
 			case TransformType_Move:
-				m_layerAnimator.position[ LT.bone_id ] += LT.posaxis * L.amount;
+				m_layerAnimator.m_positions[ LT.bone_id ] += LT.posaxis * L.amount;
 				break;
 			case TransformType_Rotate:
-				m_layerAnimator.rotation[ LT.bone_id ] = m_layerAnimator.rotation[ LT.bone_id ]
+				m_layerAnimator.m_rotations[ LT.bone_id ] = m_layerAnimator.m_rotations[ LT.bone_id ]
 					* Quat::CreateAxisAngle( LT.posaxis.Normalized(), DEG2RAD( LT.angle ) * L.amount );
 				break;
 			}

@@ -62,42 +62,36 @@ bool SGRX_Animation::CheckMarker( const StringView& name, float fp0, float fp1 )
 	return false;
 }
 
-void Animator::Prepare( String* new_names, int count )
-{
-	names.assign( new_names, count );
-	position.clear();
-	rotation.clear();
-	scale.clear();
-	factor.clear();
-	position.resize( count );
-	rotation.resize( count );
-	scale.resize( count );
-	factor.resize( count );
-	for( int i = 0; i < count; ++i )
-	{
-		position[ i ] = V3(0);
-		rotation[ i ] = Quat::Identity;
-		scale[ i ] = V3(1);
-		factor[ i ] = 0;
-	}
-}
-
-bool Animator::PrepareForMesh( const MeshHandle& mesh )
+bool Animator::Prepare( const MeshHandle& mesh )
 {
 	SGRX_IMesh* M = mesh;
 	if( !M )
 		return false;
-	Array< String > bonenames;
-	bonenames.resize( M->m_numBones );
-	for( int i = 0; i < M->m_numBones; ++i )
-		bonenames[ i ] = M->m_bones[ i ].name;
-	Prepare( bonenames.data(), bonenames.size() );
+	
+	m_mesh = mesh;
+	int count = M->m_numBones;
+	m_positions.clear();
+	m_rotations.clear();
+	m_scales.clear();
+	m_factors.clear();
+	m_positions.resize( count );
+	m_rotations.resize( count );
+	m_scales.resize( count );
+	m_factors.resize( count );
+	for( int i = 0; i < count; ++i )
+	{
+		m_positions[ i ] = V3(0);
+		m_rotations[ i ] = Quat::Identity;
+		m_scales[ i ] = V3(1);
+		m_factors[ i ] = 0;
+	}
+	
 	return true;
 }
 
 Array< float >& Animator::GetBlendFactorArray()
 {
-	return factor;
+	return m_factors;
 }
 
 
@@ -109,25 +103,28 @@ AnimMixer::~AnimMixer()
 {
 }
 
-void AnimMixer::Prepare( String* new_names, int count )
+bool AnimMixer::Prepare( const MeshHandle& mesh )
 {
-	Animator::Prepare( new_names, count );
-	m_staging.resize( count );
+	if( Animator::Prepare( mesh ) == false )
+		return false;
+	m_staging.resize( m_factors.size() );
 	for( int i = 0; i < layerCount; ++i )
 	{
-		layers[ i ].anim->Prepare( new_names, count );
+		if( layers[ i ].anim->Prepare( mesh ) == false )
+			return false;
 	}
+	return true;
 }
 
 void AnimMixer::Advance( float deltaTime )
 {
 	// generate output
-	for( size_t i = 0; i < names.size(); ++i )
+	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
-		position[ i ] = V3(0);
-		rotation[ i ] = Quat::Identity;
-		scale[ i ] = V3(1);
-		factor[ i ] = 0;
+		m_positions[ i ] = V3(0);
+		m_rotations[ i ] = Quat::Identity;
+		m_scales[ i ] = V3(1);
+		m_factors[ i ] = 0;
 	}
 	
 	for( int layer = 0; layer < layerCount; ++layer )
@@ -136,15 +133,15 @@ void AnimMixer::Advance( float deltaTime )
 		AN->Advance( deltaTime );
 		
 		int tflags = layers[ layer ].tflags;
-		bool abslayer = ( tflags & TF_Absolute_All ) && mesh && mesh->m_numBones == (int) names.size();
-		SGRX_MeshBone* MB = mesh->m_bones;
+		bool abslayer = ( tflags & TF_Absolute_All ) != 0;
+		SGRX_MeshBone* MB = m_mesh->m_bones;
 		
-		for( size_t i = 0; i < names.size(); ++i )
+		for( size_t i = 0; i < m_factors.size(); ++i )
 		{
-			Vec3 P = AN->position[ i ];
-			Quat R = AN->rotation[ i ];
-			Vec3 S = AN->scale[ i ];
-			float q = AN->factor[ i ] * layers[ layer ].factor;
+			Vec3 P = AN->m_positions[ i ];
+			Quat R = AN->m_rotations[ i ];
+			Vec3 S = AN->m_scales[ i ];
+			float q = AN->m_factors[ i ] * layers[ layer ].factor;
 			
 			if( abslayer )
 			{
@@ -160,34 +157,34 @@ void AnimMixer::Advance( float deltaTime )
 				Mat4 inv = Mat4::Identity;
 				orig.InvertTo( inv );
 				Mat4 diff = tflags & TF_Additive ?
-					Mat4::CreateSRT( scale[ i ], rotation[ i ], position[ i ] ) * orig * tfm * inv :
+					Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * orig * tfm * inv :
 					tfm * inv;
 		//		if( q )
 		//			LOG << i << ":\t" << R;
 			//	if( q )
-			//		LOG << i << ":\t" << diff.GetRotationQuaternion() << rotation[i];
+			//		LOG << i << ":\t" << diff.GetRotationQuaternion() << m_rotations[i];
 				
 				// convert back to SRP
-				P = ( tflags & TF_Absolute_Pos ) ? diff.GetTranslation() : position[ i ];
-				R = ( tflags & TF_Absolute_Rot ) ? diff.GetRotationQuaternion() : rotation[ i ];
-				S = ( tflags & TF_Absolute_Scale ) ? diff.GetScale() : scale[ i ];
+				P = ( tflags & TF_Absolute_Pos ) ? diff.GetTranslation() : m_positions[ i ];
+				R = ( tflags & TF_Absolute_Rot ) ? diff.GetRotationQuaternion() : m_rotations[ i ];
+				S = ( tflags & TF_Absolute_Scale ) ? diff.GetScale() : m_scales[ i ];
 				
-				m_staging[ i ] = Mat4::CreateSRT( scale[ i ], rotation[ i ], position[ i ] ) * orig;
+				m_staging[ i ] = Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * orig;
 			}
 			
-			if( !factor[ i ] )
+			if( !m_factors[ i ] )
 			{
-				position[ i ] = P;
-				rotation[ i ] = R;
-				scale[ i ] = S;
-				factor[ i ] = q;
+				m_positions[ i ] = P;
+				m_rotations[ i ] = R;
+				m_scales[ i ] = S;
+				m_factors[ i ] = q;
 			}
 			else
 			{
-				position[ i ] = TLERP( position[ i ], P, q );
-				rotation[ i ] = TLERP( rotation[ i ], R, q );
-				scale[ i ] = TLERP( scale[ i ], S, q );
-				factor[ i ] = TLERP( factor[ i ], 1.0f, q );
+				m_positions[ i ] = TLERP( m_positions[ i ], P, q );
+				m_rotations[ i ] = TLERP( m_rotations[ i ], R, q );
+				m_scales[ i ] = TLERP( m_scales[ i ], S, q );
+				m_factors[ i ] = TLERP( m_factors[ i ], 1.0f, q );
 			}
 		}
 	}
@@ -202,24 +199,26 @@ AnimPlayer::~AnimPlayer()
 	_clearAnimCache();
 }
 
-void AnimPlayer::Prepare( String* new_names, int count )
+bool AnimPlayer::Prepare( const MeshHandle& mesh )
 {
-	currentAnims.clear();
+	m_currentAnims.clear();
 	_clearAnimCache();
-	Animator::Prepare( new_names, count );
-	blendFactor.resize( count );
-	for( int i = 0; i < count; ++i )
-		blendFactor[ i ] = 1;
+	if( Animator::Prepare( mesh ) == false )
+		return false;
+	m_blendFactors.resize( m_factors.size() );
+	for( size_t i = 0; i < m_factors.size(); ++i )
+		m_blendFactors[ i ] = 1;
+	return true;
 }
 
 void AnimPlayer::Advance( float deltaTime )
 {
 	// process tracks
-	for( size_t i = currentAnims.size(); i > 0; )
+	for( size_t i = m_currentAnims.size(); i > 0; )
 	{
 		--i;
 		
-		Anim& A = currentAnims[ i ];
+		Anim& A = m_currentAnims[ i ];
 		SGRX_Animation* AN = A.anim;
 		A.at += deltaTime;
 		A.prev_fade_at = A.fade_at;
@@ -232,34 +231,34 @@ void AnimPlayer::Advance( float deltaTime )
 			// permanent animation faded fully in, no need to keep previous tracks
 			if( A.fade_at > A.fadetime )
 			{
-				currentAnims.erase( 0, i );
+				m_currentAnims.erase( 0, i );
 				break;
 			}
 		}
 		// temporary animation has finished playback
 		else if( A.at >= animTime )
 		{
-			currentAnims.erase( i );
+			m_currentAnims.erase( i );
 			continue;
 		}
 	}
 	
 	// generate output
-	for( size_t i = 0; i < names.size(); ++i )
+	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
-		position[ i ] = V3(0);
-		rotation[ i ] = Quat::Identity;
-		scale[ i ] = V3(1);
-		factor[ i ] = 0;
+		m_positions[ i ] = V3(0);
+		m_rotations[ i ] = Quat::Identity;
+		m_scales[ i ] = V3(1);
+		m_factors[ i ] = 0;
 	}
-	for( size_t an = 0; an < currentAnims.size(); ++an )
+	for( size_t an = 0; an < m_currentAnims.size(); ++an )
 	{
-		Anim& A = currentAnims[ an ];
+		Anim& A = m_currentAnims[ an ];
 		SGRX_Animation* AN = A.anim;
 		
 		Vec3 P = V3(0), S = V3(1);
 		Quat R = Quat::Identity;
-		for( size_t i = 0; i < names.size(); ++i )
+		for( size_t i = 0; i < m_factors.size(); ++i )
 		{
 			int tid = A.trackIDs[ i ];
 			if( tid < 0 )
@@ -270,41 +269,41 @@ void AnimPlayer::Advance( float deltaTime )
 			float q = A.once ?
 				smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
 				smoothlerp_oneway( A.fade_at, 0, A.fadetime );
-			if( !factor[ i ] )
+			if( !m_factors[ i ] )
 			{
-				position[ i ] = P;
-				rotation[ i ] = R;
-				scale[ i ] = S;
-				factor[ i ] = q;
+				m_positions[ i ] = P;
+				m_rotations[ i ] = R;
+				m_scales[ i ] = S;
+				m_factors[ i ] = q;
 			}
 			else
 			{
-				position[ i ] = TLERP( position[ i ], P, q );
-				rotation[ i ] = TLERP( rotation[ i ], R, q );
-				scale[ i ] = TLERP( scale[ i ], S, q );
-				factor[ i ] = TLERP( factor[ i ], 1.0f, q );
+				m_positions[ i ] = TLERP( m_positions[ i ], P, q );
+				m_rotations[ i ] = TLERP( m_rotations[ i ], R, q );
+				m_scales[ i ] = TLERP( m_scales[ i ], S, q );
+				m_factors[ i ] = TLERP( m_factors[ i ], 1.0f, q );
 			}
 		}
 	}
-	for( size_t i = 0; i < names.size(); ++i )
-		factor[ i ] *= blendFactor[ i ];
+	for( size_t i = 0; i < m_factors.size(); ++i )
+		m_factors[ i ] *= m_blendFactors[ i ];
 }
 
 void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
 {
 	if( !anim )
 		return;
-	if( !once && currentAnims.size() && currentAnims.last().once == false && currentAnims.last().anim == anim )
+	if( !once && m_currentAnims.size() && m_currentAnims.last().once == false && m_currentAnims.last().anim == anim )
 		return; // ignore repetitive invocations
 	Anim A = { anim, _getTrackIds( anim ), 0, 0, 0, fadetime, once };
-	currentAnims.push_back( A );
+	m_currentAnims.push_back( A );
 }
 
 bool AnimPlayer::CheckMarker( const StringView& name )
 {
-	for( size_t i = 0; i < currentAnims.size(); ++i )
+	for( size_t i = 0; i < m_currentAnims.size(); ++i )
 	{
-		Anim& A = currentAnims[ i ];
+		Anim& A = m_currentAnims[ i ];
 		SGRX_Animation* AN = A.anim;
 		float fp0 = A.prev_fade_at * AN->speed;
 		float fp1 = A.fade_at * AN->speed;
@@ -331,33 +330,33 @@ bool AnimPlayer::CheckMarker( const StringView& name )
 
 int* AnimPlayer::_getTrackIds( const AnimHandle& anim )
 {
-	if( !names.size() )
+	if( !m_factors.size() )
 		return NULL;
-	int* ids = animCache.getcopy( anim );
+	int* ids = m_animCache.getcopy( anim );
 	if( !ids )
 	{
-		ids = new int [ names.size() ];
-		for( size_t i = 0; i < names.size(); ++i )
+		ids = new int [ m_factors.size() ];
+		for( size_t i = 0; i < m_factors.size(); ++i )
 		{
-			ids[ i ] = anim->trackNames.find_first_at( names[ i ] );
+			ids[ i ] = anim->trackNames.find_first_at( m_mesh->m_bones[ i ].name );
 		}
-		animCache.set( anim, ids );
+		m_animCache.set( anim, ids );
 	}
 	return ids;
 }
 
 void AnimPlayer::_clearAnimCache()
 {
-	for( size_t i = 0; i < animCache.size(); ++i )
+	for( size_t i = 0; i < m_animCache.size(); ++i )
 	{
-		delete [] animCache.item( i ).value;
+		delete [] m_animCache.item( i ).value;
 	}
-	animCache.clear();
+	m_animCache.clear();
 }
 
 Array< float >& AnimPlayer::GetBlendFactorArray()
 {
-	return blendFactor;
+	return m_blendFactors;
 }
 
 
@@ -365,14 +364,19 @@ AnimInterp::AnimInterp() : animSource( NULL )
 {
 }
 
-void AnimInterp::Prepare( String* new_names, int count )
+bool AnimInterp::Prepare( const MeshHandle& mesh )
 {
-	Animator::Prepare( new_names, count );
-	prev_position.resize( count );
-	prev_rotation.resize( count );
-	prev_scale.resize( count );
+	if( Animator::Prepare( mesh ) == false )
+		return false;
+	m_prev_positions.resize( m_factors.size() );
+	m_prev_rotations.resize( m_factors.size() );
+	m_prev_scales.resize( m_factors.size() );
 	if( animSource )
-		animSource->Prepare( new_names, count );
+	{
+		if( animSource->Prepare( mesh ) == false )
+			return false;
+	}
+	return true;
 }
 
 void AnimInterp::Advance( float deltaTime )
@@ -383,21 +387,21 @@ void AnimInterp::Advance( float deltaTime )
 
 void AnimInterp::Transfer()
 {
-	for( size_t i = 0; i < names.size(); ++i )
+	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
-		prev_position[ i ] = animSource->position[ i ];
-		prev_rotation[ i ] = animSource->rotation[ i ];
-		prev_scale[ i ] = animSource->scale[ i ];
+		m_prev_positions[ i ] = animSource->m_positions[ i ];
+		m_prev_rotations[ i ] = animSource->m_rotations[ i ];
+		m_prev_scales[ i ] = animSource->m_scales[ i ];
 	}
 }
 
 void AnimInterp::Interpolate( float deltaTime )
 {
-	for( size_t i = 0; i < names.size(); ++i )
+	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
-		position[ i ] = TLERP( prev_position[ i ], animSource->position[ i ], deltaTime );
-		rotation[ i ] = TLERP( prev_rotation[ i ], animSource->rotation[ i ], deltaTime );
-		scale[ i ] = TLERP( prev_scale[ i ], animSource->scale[ i ], deltaTime );
+		m_positions[ i ] = TLERP( m_prev_positions[ i ], animSource->m_positions[ i ], deltaTime );
+		m_rotations[ i ] = TLERP( m_prev_rotations[ i ], animSource->m_rotations[ i ], deltaTime );
+		m_scales[ i ] = TLERP( m_prev_scales[ i ], animSource->m_scales[ i ], deltaTime );
 	}
 }
 
@@ -458,7 +462,7 @@ bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_
 	SGRX_IMesh* mesh = mh;
 	if( !mesh )
 		return false;
-	if( outsz != animator->position.size() )
+	if( outsz != animator->m_positions.size() )
 		return false;
 	if( outsz != (size_t) mesh->m_numBones )
 		return false;
@@ -467,7 +471,7 @@ bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_
 	for( size_t i = 0; i < outsz; ++i )
 	{
 		Mat4& M = out[ i ];
-		M = Mat4::CreateSRT( animator->scale[ i ], animator->rotation[ i ], animator->position[ i ] ) * MB[ i ].boneOffset;
+		M = Mat4::CreateSRT( animator->m_scales[ i ], animator->m_rotations[ i ], animator->m_positions[ i ] ) * MB[ i ].boneOffset;
 		if( MB[ i ].parent_id >= 0 )
 			M = M * out[ MB[ i ].parent_id ];
 		else if( base )
