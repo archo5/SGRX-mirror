@@ -2052,6 +2052,11 @@ struct CSEditor : IGame
 		g_UIFrame = new EDGUIMainFrame();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
+		// TEST
+#if 1
+		g_AnimChar->m_anDeformer.AddModelForce( V3(-0.5f,0.5f,1), V3(1,-1,0), 1, 1, 0.5f );
+#endif
+		
 		// param area
 		g_UIFrame->ResetEditorState();
 		
@@ -2091,6 +2096,8 @@ struct CSEditor : IGame
 		g_AnimChar->FixedTick( dt );
 		g_AnimChar->PreRender( 1 );
 		g_UIFrame->Draw();
+		float fac = sinf( g_AnimChar->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;
+		g_AnimChar->m_anDeformer.forces[ 0 ].amount = fac * 0.5f;
 	}
 }
 g_Game;

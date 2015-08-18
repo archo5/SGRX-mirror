@@ -277,6 +277,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	MeshInstHandle m_cachedMeshInst;
 	Animator m_layerAnimator;
 	AnimMixer m_anMixer;
+	AnimDeformer m_anDeformer;
 	AnimInterp m_anEnd;
 };
 

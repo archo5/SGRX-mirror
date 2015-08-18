@@ -200,7 +200,8 @@ void AnimRagdoll::DisablePhysics()
 
 AnimCharacter::AnimCharacter()
 {
-	m_anEnd.animSource = &m_anMixer;
+	m_anDeformer.animSource = &m_anMixer;
+	m_anEnd.animSource = &m_anDeformer;
 }
 
 bool AnimCharacter::Load( const StringView& sv )

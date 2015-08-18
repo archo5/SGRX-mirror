@@ -566,6 +566,12 @@ struct ENGINE_EXPORT Quat
 	
 #ifdef USE_QUAT
 	static FINLINE Quat CreateAxisAngle( const Vec3& v, float a ){ return CreateAxisAngle( v.x, v.y, v.z, a ); }
+	static FINLINE Quat CreateAxisAxis( const Vec3& d0, const Vec3& d1 )
+	{
+		Vec3 axis = Vec3Cross( d0, d1 ).Normalized();
+		float angle = acosf( clamp( Vec3Dot( d0, d1 ), -1, 1 ) );
+		return CreateAxisAngle( axis, angle );
+	}
 	static Quat CreateAxisAngle( float x, float y, float z, float a )
 	{
 		float angsin = sinf( a / 2.0f );

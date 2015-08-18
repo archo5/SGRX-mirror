@@ -62,6 +62,12 @@ struct IF_GCC(ENGINE_EXPORT) Animator
 	{
 		GR_SetFactors( m_factors, m_mesh, name, f, ch );
 	}
+	int GetParentBoneID( int i ) const
+	{
+		if( i < 0 || i >= m_mesh->m_numBones )
+			return -1;
+		return m_mesh->m_bones[ i ].parent_id;
+	}
 	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
 	
 	MeshHandle m_mesh;
@@ -171,18 +177,29 @@ struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
 	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
 	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
-	ENGINE_EXPORT Force& AddLocalForce( const Vec3& pos, const Vec3& dir, float amount = 0.0f );
+	ENGINE_EXPORT void AddLocalForce( const Vec3& pos, const Vec3& dir,
+		float rad, float power = 1, float amount = 0.0f );
+	ENGINE_EXPORT void AddModelForce( const Vec3& pos, const Vec3& dir,
+		float rad, float power = 1, float amount = 0.0f );
 	ENGINE_EXPORT int _FindClosestBone( const Vec3& pos );
+	ENGINE_EXPORT void _UpdatePoseInfo();
 	
-	Array< Force > forces; // INTERFACE
-	Animator* animSource; // INTERFACE
+	Array< Mat4 > m_skinOffsets;
+	Array< Mat4 > m_invSkinOffsets;
+	Array< Vec3 > m_bonePositions;
+	
+	// INTERFACE
+	Array< Force > forces;
+	Animator* animSource;
+	int numIterations;
+	int numConstraintIterations;
 };
 
 
 
 ENGINE_EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
 ENGINE_EXPORT AnimHandle GR_GetAnim( const StringView& name );
-ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz, bool applyinv = true, Mat4* base = NULL );
+ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool applyinv = true, Mat4* base = NULL );
 ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
 
 

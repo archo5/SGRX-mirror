@@ -406,6 +406,193 @@ void AnimInterp::Interpolate( float deltaTime )
 }
 
 
+AnimDeformer::AnimDeformer() : numIterations(4), numConstraintIterations(4)
+{
+}
+
+bool AnimDeformer::Prepare( const MeshHandle& mesh )
+{
+	if( Animator::Prepare( mesh ) == false )
+		return false;
+	_UpdatePoseInfo();
+	if( animSource )
+	{
+		if( animSource->Prepare( mesh ) == false )
+			return false;
+	}
+	return true;
+}
+
+void AnimDeformer::Advance( float deltaTime )
+{
+	animSource->Advance( deltaTime );
+	for( size_t fid = 0; fid < forces.size(); ++fid )
+		forces[ fid ].lifetime += deltaTime;
+	
+	_UpdatePoseInfo();
+	
+	int count = TMIN( int(m_factors.size()), MAX_MESH_BONES );
+	Vec3 posns[ MAX_MESH_BONES ];
+	Vec3 dirs[ MAX_MESH_BONES ];
+	float dists[ MAX_MESH_BONES ];
+	
+	// save joint info
+	for( int i = 0; i < count; ++i )
+	{
+		int pid = GetParentBoneID( i );
+		posns[ i ] = m_bonePositions[ i ];
+		dirs[ i ] = m_bonePositions[ i ];
+		if( pid >= 0 )
+			dirs[ i ] -= m_bonePositions[ pid ];
+		dists[ i ] = dirs[ i ].Length();
+	}
+	
+	// deform
+	for( int it = 0; it < numIterations; ++it )
+	{
+		// apply forces
+		for( size_t fid = 0; fid < forces.size(); ++fid )
+		{
+			Force& F = forces[ fid ];
+			Vec3 fpos = F.pos;
+			if( F.boneID >= 0 )
+			{
+				fpos = m_skinOffsets[ F.boneID ].TransformPos( fpos );
+			}
+			float amount = F.amount / numIterations;
+			if( F.dir == V3(0) )
+			{
+				// omni force
+				for( int i = 0; i < count; ++i )
+				{
+					Vec3 fpush = ( m_bonePositions[ i ] - F.pos ).Normalized();
+					float distfac = TMIN( 1.0f, ( F.pos - m_bonePositions[ i ] ).Length() / F.radius );
+					distfac = powf( 1 - distfac, F.power );
+					m_bonePositions[ i ] += fpush * distfac * amount;
+				}
+			}
+			else
+			{
+				// directional force
+				Vec3 fdir = F.dir;
+				if( F.boneID >= 0 )
+				{
+					fdir = m_skinOffsets[ F.boneID ].TransformNormal( fdir );
+				}
+				Vec3 fpush = fdir.Normalized() * amount;
+				for( int i = 0; i < count; ++i )
+				{
+					float distfac = TMIN( 1.0f, ( F.pos - m_bonePositions[ i ] ).Length() / F.radius );
+					distfac = powf( 1 - distfac, F.power );
+					m_bonePositions[ i ] += fpush * distfac;
+				}
+			}
+		}
+		
+		// solve constraints
+		float invcit = 1.0f / numConstraintIterations;
+		for( int cit = 0; cit < numConstraintIterations; ++cit )
+		{
+			for( int i = 0; i < count; ++i )
+			{
+				int pid = GetParentBoneID( i );
+				// constraint to immovable origin is not used
+				if( pid >= 0 )
+				{
+					Vec3 p0 = m_bonePositions[ pid ];
+					Vec3 p1 = m_bonePositions[ i ];
+					float d = dists[ i ];
+					Vec3 diff = p1 - p0;
+					float difflen = diff.Length();
+					float amount = ( d - difflen ) * 0.5f * invcit;
+					Vec3 dn = diff.Normalized() * amount;
+					m_bonePositions[ pid ] -= dn;
+					m_bonePositions[ i ] += dn;
+				}
+			}
+		}
+	}
+	
+	// produce animation data
+	for( int i = 0; i < count; ++i )
+	{
+		m_positions[ i ] = animSource->m_positions[ i ];
+		m_rotations[ i ] = animSource->m_rotations[ i ];
+		m_scales[ i ] = animSource->m_scales[ i ];
+		m_factors[ i ] = animSource->m_factors[ i ];
+		
+		int pid = GetParentBoneID( i );
+		if( pid >= 0 )
+		{
+			// rotate bone with axis/angle in bone space
+			Vec3 nmdir = m_bonePositions[ i ] - m_bonePositions[ pid ];
+			Vec3 omdir = dirs[ i ];
+			
+			nmdir = m_invSkinOffsets[ i ].TransformNormal( nmdir ).Normalized();
+			omdir = m_invSkinOffsets[ i ].TransformNormal( omdir ).Normalized();
+			m_rotations[ i ] = m_rotations[ i ] * Quat::CreateAxisAxis( omdir, nmdir );
+		}
+		else
+		{
+			// move bone set in world space
+			m_positions[ i ] += m_invSkinOffsets[ i ].TransformNormal( m_bonePositions[ i ] - posns[ i ] );
+		}
+		m_factors[ i ] = 1;
+	}
+}
+
+void AnimDeformer::AddLocalForce( const Vec3& pos, const Vec3& dir, float rad, float power, float amount )
+{
+	int cb = _FindClosestBone( pos );
+	Force F = { cb, pos, dir, amount, rad, power, 0 };
+	if( cb >= 0 )
+	{
+		Mat4 iso = m_invSkinOffsets[ cb ];
+		F.pos = iso.TransformPos( pos );
+		F.dir = iso.TransformNormal( dir );
+	}
+	forces.push_back( F );
+}
+
+void AnimDeformer::AddModelForce( const Vec3& pos, const Vec3& dir, float rad, float power, float amount )
+{
+	Force F = { -1, pos, dir, amount, rad, power, 0 };
+	forces.push_back( F );
+}
+
+int AnimDeformer::_FindClosestBone( const Vec3& pos )
+{
+	int bone = -1;
+	float cdist = FLT_MAX;
+	for( size_t i = 0; i < m_bonePositions.size(); ++i )
+	{
+		float nd = ( pos - m_bonePositions[ i ] ).LengthSq();
+		if( nd < cdist )
+		{
+			bone = i;
+			cdist = nd;
+		}
+	}
+	return bone;
+}
+
+void AnimDeformer::_UpdatePoseInfo()
+{
+	m_skinOffsets.resize( m_factors.size() );
+	m_invSkinOffsets.resize( m_factors.size() );
+	m_bonePositions.resize( m_factors.size() );
+	
+	GR_ApplyAnimator( animSource, m_skinOffsets.data(), m_skinOffsets.size(), false );
+	for( size_t i = 0; i < m_factors.size(); ++i )
+	{
+		Mat4 inv = Mat4::Identity;
+		m_skinOffsets[ i ].InvertTo( inv );
+		m_invSkinOffsets[ i ] = inv;
+		m_bonePositions[ i ] = m_skinOffsets[ i ].TransformPos( V3(0) );
+	}
+}
+
+
 void GR_ClearFactors( Array< float >& out, float factor )
 {
 	TMEMSET( out.data(), out.size(), factor );
@@ -457,9 +644,9 @@ void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const Stri
 }
 
 
-bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_t outsz, bool applyinv, Mat4* base )
+bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool applyinv, Mat4* base )
 {
-	SGRX_IMesh* mesh = mh;
+	SGRX_IMesh* mesh = animator->m_mesh;
 	if( !mesh )
 		return false;
 	if( outsz != animator->m_positions.size() )
@@ -490,9 +677,9 @@ bool GR_ApplyAnimator( const Animator* animator, MeshHandle mh, Mat4* out, size_
 
 bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 {
-	if( !mih )
+	if( !mih || mih->mesh != animator->m_mesh )
 		return false;
-	return GR_ApplyAnimator( animator, mih->mesh, mih->skin_matrices.data(), mih->skin_matrices.size() );
+	return GR_ApplyAnimator( animator, mih->skin_matrices.data(), mih->skin_matrices.size() );
 }
 
 
