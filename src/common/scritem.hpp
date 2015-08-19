@@ -57,6 +57,28 @@ struct SGRX_SIRigidBodyInfo : SGRX_PhyRigidBodyInfo
 	SGS_PROPERTY SGS_ALIAS( uint16_t mask );
 };
 
+struct SGRX_SIHingeJointInfo : SGRX_PhyHingeJointInfo
+{
+	typedef sgsHandle< SGRX_SIHingeJointInfo > Handle;
+	
+	SGS_OBJECT;
+	
+	SGS_PROPERTY SGS_ALIAS( Vec3 pivotA );
+	SGS_PROPERTY SGS_ALIAS( Vec3 pivotB );
+	SGS_PROPERTY SGS_ALIAS( Vec3 axisA );
+	SGS_PROPERTY SGS_ALIAS( Vec3 axisB );
+};
+
+struct SGRX_SIConeTwistJointInfo : SGRX_PhyConeTwistJointInfo
+{
+	typedef sgsHandle< SGRX_SIConeTwistJointInfo > Handle;
+	
+	SGS_OBJECT;
+	
+	SGS_PROPERTY SGS_ALIAS( Mat4 frameA );
+	SGS_PROPERTY SGS_ALIAS( Mat4 frameB );
+};
+
 
 #define SCRITEM_ForceType_Velocity PFT_Velocity
 #define SCRITEM_ForceType_Impulse PFT_Impulse
@@ -141,6 +163,15 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD void RBSetRotation( int i, Quat v );
 	SGS_METHOD Mat4 RBGetMatrix( int i );
 	SGS_METHOD void RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p );
+	
+	// - joints
+	SGS_METHOD void JTCreateHingeB2W( int i, int bi, SGRX_SIHingeJointInfo* spec );
+	SGS_METHOD void JTCreateHingeB2B( int i, int biA, int biB, SGRX_SIHingeJointInfo* spec );
+	SGS_METHOD void JTCreateConeTwistB2W( int i, int bi, SGRX_SIConeTwistJointInfo* spec );
+	SGS_METHOD void JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_SIConeTwistJointInfo* spec );
+	SGS_METHOD void JTDestroy( int i );
+	SGS_METHOD bool JTExists( int i );
+	SGS_METHOD void JTSetEnabled( int i, bool enabled );
 	// ---
 	
 	sgsVariable m_variable;
@@ -158,6 +189,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	MeshInstHandle m_meshes[ SCRITEM_NUM_SLOTS ];
 	PartSysHandle m_partSys[ SCRITEM_NUM_SLOTS ];
 	PhyRigidBodyHandle m_bodies[ SCRITEM_NUM_SLOTS ];
+	PhyJointHandle m_joints[ SCRITEM_NUM_SLOTS ];
 	IVState< Vec3 > m_bodyPos[ SCRITEM_NUM_SLOTS ];
 	IVState< Quat > m_bodyRot[ SCRITEM_NUM_SLOTS ];
 	Vec3 m_bodyPosLerp[ SCRITEM_NUM_SLOTS ];

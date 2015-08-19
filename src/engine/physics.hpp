@@ -85,6 +85,30 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 typedef Handle< SGRX_IPhyRigidBody > PhyRigidBodyHandle;
 
 
+struct SGRX_PhyHingeJointInfo
+{
+	SGRX_PhyHingeJointInfo() :
+		pivotA(V3(0)), pivotB(V3(0)), axisA(V3(0,0,1)), axisB(V3(0,0,1))
+	{}
+	PhyRigidBodyHandle bodyA;
+	PhyRigidBodyHandle bodyB;
+	Vec3 pivotA;
+	Vec3 pivotB;
+	Vec3 axisA;
+	Vec3 axisB;
+};
+
+struct SGRX_PhyConeTwistJointInfo
+{
+	SGRX_PhyConeTwistJointInfo() :
+		frameA(Mat4::Identity), frameB(Mat4::Identity)
+	{}
+	PhyRigidBodyHandle bodyA;
+	PhyRigidBodyHandle bodyB;
+	Mat4 frameA;
+	Mat4 frameB;
+};
+
 struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyJoint : SGRX_RefCounted
 {
 	SGRX_IPhyJoint(){}
@@ -120,6 +144,8 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld : SGRX_RefCounted
 	virtual PhyShapeHandle CreateShapeFromMesh( SGRX_IMesh* mesh ) = 0;
 	
 	virtual PhyRigidBodyHandle CreateRigidBody( const SGRX_PhyRigidBodyInfo& info ) = 0;
+	virtual PhyJointHandle CreateHingeJoint( const SGRX_PhyHingeJointInfo& info ) = 0;
+	virtual PhyJointHandle CreateConeTwistJoint( const SGRX_PhyConeTwistJointInfo& info ) = 0;
 	
 	virtual Vec3 GetGravity() = 0;
 	virtual void SetGravity( const Vec3& v ) = 0;

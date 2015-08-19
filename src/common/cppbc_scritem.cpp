@@ -1,6 +1,6 @@
 // SGS/CPP-BC
 // warning: do not modify this file, it may be regenerated during any build
-// generated: 08/03/15 21:52:03
+// generated: 08/19/15 09:55:14
 
 #include "scritem.hpp"
 
@@ -91,6 +91,114 @@ sgs_ObjInterface SGRX_SIRigidBodyInfo::_sgs_interface[1] =
 {{
 	"SGRX_SIRigidBodyInfo",
 	SGRX_SIRigidBodyInfo::_sgs_destruct, SGRX_SIRigidBodyInfo::_sgs_gcmark, SGRX_SIRigidBodyInfo::_sgs_getindex, SGRX_SIRigidBodyInfo::_sgs_setindex, NULL, NULL, SGRX_SIRigidBodyInfo::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
+int SGRX_SIHingeJointInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SGRX_SIHingeJointInfo*>( obj->data )->~SGRX_SIHingeJointInfo();
+	return SGS_SUCCESS;
+}
+
+int SGRX_SIHingeJointInfo::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int SGRX_SIHingeJointInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "pivotA" ){ sgs_PushVar( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotA ); return SGS_SUCCESS; }
+		SGS_CASE( "pivotB" ){ sgs_PushVar( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotB ); return SGS_SUCCESS; }
+		SGS_CASE( "axisA" ){ sgs_PushVar( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisA ); return SGS_SUCCESS; }
+		SGS_CASE( "axisB" ){ sgs_PushVar( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisB ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_SIHingeJointInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "pivotA" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotA = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "pivotB" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotB = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "axisA" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisA = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "axisB" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisB = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_SIHingeJointInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 53 ];
+	sprintf( bfr, "SGRX_SIHingeJointInfo (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\npivotA = " ); sgs_DumpData( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotA, depth ).push( C ); }
+		{ sgs_PushString( C, "\npivotB = " ); sgs_DumpData( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotB, depth ).push( C ); }
+		{ sgs_PushString( C, "\naxisA = " ); sgs_DumpData( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisA, depth ).push( C ); }
+		{ sgs_PushString( C, "\naxisB = " ); sgs_DumpData( C, static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisB, depth ).push( C ); }
+		sgs_StringConcat( C, 8 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface SGRX_SIHingeJointInfo::_sgs_interface[1] =
+{{
+	"SGRX_SIHingeJointInfo",
+	SGRX_SIHingeJointInfo::_sgs_destruct, SGRX_SIHingeJointInfo::_sgs_gcmark, SGRX_SIHingeJointInfo::_sgs_getindex, SGRX_SIHingeJointInfo::_sgs_setindex, NULL, NULL, SGRX_SIHingeJointInfo::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
+int SGRX_SIConeTwistJointInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->~SGRX_SIConeTwistJointInfo();
+	return SGS_SUCCESS;
+}
+
+int SGRX_SIConeTwistJointInfo::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int SGRX_SIConeTwistJointInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "frameA" ){ sgs_PushVar( C, static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameA ); return SGS_SUCCESS; }
+		SGS_CASE( "frameB" ){ sgs_PushVar( C, static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameB ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_SIConeTwistJointInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "frameA" ){ static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameA = sgs_GetVarP<Mat4>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "frameB" ){ static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameB = sgs_GetVarP<Mat4>()( C, val ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_SIConeTwistJointInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 57 ];
+	sprintf( bfr, "SGRX_SIConeTwistJointInfo (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nframeA = " ); sgs_DumpData( C, static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameA, depth ).push( C ); }
+		{ sgs_PushString( C, "\nframeB = " ); sgs_DumpData( C, static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameB, depth ).push( C ); }
+		sgs_StringConcat( C, 4 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface SGRX_SIConeTwistJointInfo::_sgs_interface[1] =
+{{
+	"SGRX_SIConeTwistJointInfo",
+	SGRX_SIConeTwistJointInfo::_sgs_destruct, SGRX_SIConeTwistJointInfo::_sgs_gcmark, SGRX_SIConeTwistJointInfo::_sgs_getindex, SGRX_SIConeTwistJointInfo::_sgs_setindex, NULL, NULL, SGRX_SIConeTwistJointInfo::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -286,6 +394,48 @@ static int _sgs_method__SGRX_ScriptedItem__RBApplyForce( SGS_CTX )
 	data->RBApplyForce( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3) ); return 0;
 }
 
+static int _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2W( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, JTCreateHingeB2W ) ) return 0;
+	data->JTCreateHingeB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_SIHingeJointInfo>()(C,2) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2B( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, JTCreateHingeB2B ) ) return 0;
+	data->JTCreateHingeB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_SIHingeJointInfo>()(C,3) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2W( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, JTCreateConeTwistB2W ) ) return 0;
+	data->JTCreateConeTwistB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_SIConeTwistJointInfo>()(C,2) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2B( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, JTCreateConeTwistB2B ) ) return 0;
+	data->JTCreateConeTwistB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_SIConeTwistJointInfo>()(C,3) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__JTDestroy( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, JTDestroy ) ) return 0;
+	data->JTDestroy( sgs_GetVar<int>()(C,0) ); return 0;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__JTExists( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, JTExists ) ) return 0;
+	sgs_PushVar(C,data->JTExists( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__SGRX_ScriptedItem__JTSetEnabled( SGS_CTX )
+{
+	SGRX_ScriptedItem* data; if( !SGS_PARSE_METHOD( C, SGRX_ScriptedItem::_sgs_interface, data, SGRX_ScriptedItem, JTSetEnabled ) ) return 0;
+	data->JTSetEnabled( sgs_GetVar<int>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
+}
+
 int SGRX_ScriptedItem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<SGRX_ScriptedItem*>( obj->data )->~SGRX_ScriptedItem();
@@ -332,6 +482,13 @@ int SGRX_ScriptedItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "RBSetRotation" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetRotation ); return SGS_SUCCESS; }
 		SGS_CASE( "RBGetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBGetMatrix ); return SGS_SUCCESS; }
 		SGS_CASE( "RBApplyForce" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBApplyForce ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateHingeB2W" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2W ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateHingeB2B" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2B ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateConeTwistB2W" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2W ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateConeTwistB2B" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2B ); return SGS_SUCCESS; }
+		SGS_CASE( "JTDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "JTExists" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTExists ); return SGS_SUCCESS; }
+		SGS_CASE( "JTSetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTSetEnabled ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

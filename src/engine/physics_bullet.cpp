@@ -145,6 +145,39 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 };
 
 
+struct BulletPhyJoint : SGRX_IPhyJoint
+{
+	BulletPhyJoint( struct BulletPhyWorld* w ) : m_world(w){}
+	virtual ~BulletPhyJoint(){}
+	
+	struct BulletPhyWorld* m_world;
+	PhyRigidBodyHandle m_bodyA;
+	PhyRigidBodyHandle m_bodyB;
+};
+
+
+struct BulletPhyHingeJoint : BulletPhyJoint
+{
+	BulletPhyHingeJoint( struct BulletPhyWorld* world, const SGRX_PhyHingeJointInfo& hjinfo );
+	virtual ~BulletPhyHingeJoint();
+	
+	virtual void SetEnabled( bool enabled ){ m_joint->setEnabled( enabled ); }
+	
+	btHingeConstraint* m_joint;
+};
+
+
+struct BulletPhyConeTwistJoint : BulletPhyJoint
+{
+	BulletPhyConeTwistJoint( struct BulletPhyWorld* world, const SGRX_PhyConeTwistJointInfo& ctjinfo );
+	virtual ~BulletPhyConeTwistJoint();
+	
+	virtual void SetEnabled( bool enabled ){ m_joint->setEnabled( enabled ); }
+	
+	btConeTwistConstraint* m_joint;
+};
+
+
 struct BulletPhyWorld : SGRX_IPhyWorld
 {
 	BulletPhyWorld();
@@ -162,6 +195,8 @@ struct BulletPhyWorld : SGRX_IPhyWorld
 	virtual PhyShapeHandle CreateShapeFromMesh( SGRX_IMesh* mesh );
 	
 	virtual PhyRigidBodyHandle CreateRigidBody( const SGRX_PhyRigidBodyInfo& info );
+	virtual PhyJointHandle CreateHingeJoint( const SGRX_PhyHingeJointInfo& info );
+	virtual PhyJointHandle CreateConeTwistJoint( const SGRX_PhyConeTwistJointInfo& info );
 	
 	virtual Vec3 GetGravity();
 	virtual void SetGravity( const Vec3& v );
@@ -286,6 +321,63 @@ void BulletPhyRigidBody::ApplyForce( EPhyForceType type, const Vec3& v, const Ve
 		m_body->applyForce( V2BV( v ), relPos );
 		break;
 	}
+}
+
+
+BulletPhyHingeJoint::BulletPhyHingeJoint( struct BulletPhyWorld* world,
+	const SGRX_PhyHingeJointInfo& hjinfo )
+	: BulletPhyJoint( world )
+{
+	m_bodyA = hjinfo.bodyA;
+	m_bodyB = hjinfo.bodyB;
+	SGRX_CAST( BulletPhyRigidBody*, rbA, m_bodyA.item );
+	SGRX_CAST( BulletPhyRigidBody*, rbB, m_bodyB.item );
+	if( rbB )
+	{
+		m_joint = new btHingeConstraint( *rbA->m_body, *rbB->m_body, V2BV( hjinfo.pivotA ),
+			V2BV( hjinfo.pivotB ), V2BV( hjinfo.axisA ), V2BV( hjinfo.axisB ) );
+	}
+	else
+	{
+		m_joint = new btHingeConstraint( *rbA->m_body, V2BV( hjinfo.pivotA ), V2BV( hjinfo.axisA ) );
+	}
+	m_world->m_world->addConstraint( m_joint );
+}
+
+BulletPhyHingeJoint::~BulletPhyHingeJoint()
+{
+	m_world->m_world->removeConstraint( m_joint );
+	delete m_joint;
+}
+
+
+BulletPhyConeTwistJoint::BulletPhyConeTwistJoint( struct BulletPhyWorld* world,
+	const SGRX_PhyConeTwistJointInfo& ctjinfo )
+	: BulletPhyJoint( world )
+{
+	m_bodyA = ctjinfo.bodyA;
+	m_bodyB = ctjinfo.bodyB;
+	SGRX_CAST( BulletPhyRigidBody*, rbA, m_bodyA.item );
+	SGRX_CAST( BulletPhyRigidBody*, rbB, m_bodyB.item );
+	btTransform frameA;
+	btTransform frameB;
+	frameA.setFromOpenGLMatrix( ctjinfo.frameA.a );
+	if( rbB )
+	{
+		frameB.setFromOpenGLMatrix( ctjinfo.frameB.a );
+		m_joint = new btConeTwistConstraint( *rbA->m_body, *rbB->m_body, frameA, frameB );
+	}
+	else
+	{
+		m_joint = new btConeTwistConstraint( *rbA->m_body, frameA );
+	}
+	m_world->m_world->addConstraint( m_joint );
+}
+
+BulletPhyConeTwistJoint::~BulletPhyConeTwistJoint()
+{
+	m_world->m_world->removeConstraint( m_joint );
+	delete m_joint;
 }
 
 
@@ -455,6 +547,16 @@ PhyShapeHandle BulletPhyWorld::CreateShapeFromMesh( SGRX_IMesh* mesh )
 PhyRigidBodyHandle BulletPhyWorld::CreateRigidBody( const SGRX_PhyRigidBodyInfo& info )
 {
 	return new BulletPhyRigidBody( this, info );
+}
+
+PhyJointHandle BulletPhyWorld::CreateHingeJoint( const SGRX_PhyHingeJointInfo& info )
+{
+	return new BulletPhyHingeJoint( this, info );
+}
+
+PhyJointHandle BulletPhyWorld::CreateConeTwistJoint( const SGRX_PhyConeTwistJointInfo& info )
+{
+	return new BulletPhyConeTwistJoint( this, info );
 }
 
 Vec3 BulletPhyWorld::GetGravity()

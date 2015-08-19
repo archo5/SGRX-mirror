@@ -10,6 +10,18 @@ static int SIRigidBodyInfo( SGS_CTX )
 	return 1;
 }
 
+static int SIHingeJointInfo( SGS_CTX )
+{
+	SGS_PUSHCLASS( C, SGRX_SIHingeJointInfo, () );
+	return 1;
+}
+
+static int SIConeTwistJointInfo( SGS_CTX )
+{
+	SGS_PUSHCLASS( C, SGRX_SIConeTwistJointInfo, () );
+	return 1;
+}
+
 static sgs_RegIntConst scritem_intconsts[] =
 {
 	{ "SCRITEM_ForceType_Velocity", SCRITEM_ForceType_Velocity },
@@ -22,6 +34,8 @@ static sgs_RegIntConst scritem_intconsts[] =
 static sgs_RegFuncConst scritem_funcconsts[] =
 {
 	{ "SIRigidBodyInfo", SIRigidBodyInfo },
+	{ "SIHingeJointInfo", SIHingeJointInfo },
+	{ "SIConeTwistJointInfo", SIConeTwistJointInfo },
 	{ NULL, NULL },
 };
 
@@ -40,6 +54,8 @@ void ScrItem_InstallAPI( SGS_CTX )
 	sgs_Msg( C, SGS_WARNING, "no part.sys at offset %d", (int)(i) ); ret; }
 #define SCRITEM_BODYCHK( i, ret ) if( m_bodies[ i ] == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no body at offset %d", (int)(i) ); ret; }
+#define SCRITEM_JOINTCHK( i, ret ) if( m_joints[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no joint at offset %d", (int)(i) ); ret; }
 #define SCRITEM_DSYSCHK( ret ) if( m_dmgDecalSys == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
 
@@ -517,6 +533,71 @@ void SGRX_ScriptedItem::RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p )
 		m_bodies[ i ]->ApplyForce( (EPhyForceType) type, v, p );
 	else
 		m_bodies[ i ]->ApplyCentralForce( (EPhyForceType) type, v );
+}
+
+void SGRX_ScriptedItem::JTCreateHingeB2W( int i, int bi, SGRX_SIHingeJointInfo* spec )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_OFSCHK( bi, return );
+	SCRITEM_BODYCHK( bi, return );
+	SGRX_PhyHingeJointInfo hjinfo = *spec;
+	hjinfo.bodyA = m_bodies[ bi ];
+	m_joints[ i ] = m_phyWorld->CreateHingeJoint( hjinfo );
+}
+
+void SGRX_ScriptedItem::JTCreateHingeB2B( int i, int biA, int biB, SGRX_SIHingeJointInfo* spec )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_OFSCHK( biA, return );
+	SCRITEM_BODYCHK( biA, return );
+	SCRITEM_OFSCHK( biB, return );
+	SCRITEM_BODYCHK( biB, return );
+	SGRX_PhyHingeJointInfo hjinfo = *spec;
+	hjinfo.bodyA = m_bodies[ biA ];
+	hjinfo.bodyB = m_bodies[ biB ];
+	m_joints[ i ] = m_phyWorld->CreateHingeJoint( hjinfo );
+}
+
+void SGRX_ScriptedItem::JTCreateConeTwistB2W( int i, int bi, SGRX_SIConeTwistJointInfo* spec )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_OFSCHK( bi, return );
+	SCRITEM_BODYCHK( bi, return );
+	SGRX_PhyConeTwistJointInfo ctjinfo = *spec;
+	ctjinfo.bodyA = m_bodies[ bi ];
+	m_joints[ i ] = m_phyWorld->CreateConeTwistJoint( ctjinfo );
+}
+
+void SGRX_ScriptedItem::JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_SIConeTwistJointInfo* spec )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_OFSCHK( biA, return );
+	SCRITEM_BODYCHK( biA, return );
+	SCRITEM_OFSCHK( biB, return );
+	SCRITEM_BODYCHK( biB, return );
+	SGRX_PhyConeTwistJointInfo ctjinfo = *spec;
+	ctjinfo.bodyA = m_bodies[ biA ];
+	ctjinfo.bodyB = m_bodies[ biB ];
+	m_joints[ i ] = m_phyWorld->CreateConeTwistJoint( ctjinfo );
+}
+
+void SGRX_ScriptedItem::JTDestroy( int i )
+{
+	SCRITEM_OFSCHK( i, return );
+	m_joints[ i ] = NULL;
+}
+
+bool SGRX_ScriptedItem::JTExists( int i )
+{
+	SCRITEM_OFSCHK( i, return false );
+	return m_joints[ i ] != NULL;
+}
+
+void SGRX_ScriptedItem::JTSetEnabled( int i, bool enabled )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_JOINTCHK( i, return );
+	m_joints[ i ]->SetEnabled( enabled );
 }
 
 
