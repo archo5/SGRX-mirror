@@ -532,7 +532,7 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 			{
 				cursor_aim = false;
 				Vec2 cp = { e->mouse.x, e->mouse.y };
-				if( m_edScene->camera.GetCursorRay( ( cp.x - x0 ) / ( x1 - x0 ), ( cp.y - y0 ) / ( y1 - y0 ), crpos, crdir ) )
+				if( m_edScene->camera.GetCursorRay( safe_fdiv( cp.x - x0, x1 - x0 ), safe_fdiv( cp.y - y0, y1 - y0 ), crpos, crdir ) )
 				{
 					float dsts[2];
 					if( RayPlaneIntersect( crpos, crdir, V4(0,0,1,crplaneheight), dsts ) && dsts[0] > 0 )
@@ -576,6 +576,10 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 		m_edScene->camera.position += ( dir * ( movefwd - movebwd ) + rgt * ( movergt - movelft ) + up * ( moveup - movedn ) ) * speed;
 		
 		m_edScene->camera.UpdateMatrices();
+	}
+	Vec2 CPToNormalized( const Vec2& cp ) const
+	{
+		return V2( safe_fdiv( cp.x - x0, x1 - x0 ), safe_fdiv( cp.y - y0, y1 - y0 ) );
 	}
 	bool EventToFrame( EDGUIEvent* e ){ return m_mainframe->ViewEvent( e ); }
 	void DebugDraw(){ m_mainframe->DebugDraw(); }

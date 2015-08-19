@@ -565,6 +565,203 @@ struct EDGUIListItemButton : EDGUIButton
 };
 
 
+
+// TRANSFORM TARGET
+enum ETransformTargetType
+{
+	TT_None = 0,
+	TT_BoneHitbox,
+	TT_BoneBody,
+	TT_BoneJointSelfFrame,
+	TT_BoneJointParentFrame,
+};
+enum ETransformOpType
+{
+	TO_None = 0,
+	TO_MoveCam,
+	TO_RotateTrackpad,
+	TO_RotateCamRoll,
+};
+struct XFormData
+{
+	XFormData() : boneID(-1), position(V3(0)), rotation(Quat::Identity),
+		boneToWorld(Mat4::Identity), worldToBone(Mat4::Identity)
+	{}
+	int boneID;
+	Vec3 position;
+	Quat rotation;
+	Mat4 boneToWorld;
+	Mat4 worldToBone;
+};
+struct XFormStateInfo
+{
+	XFormStateInfo() : type(TT_None), op(TO_None), curCursorPos(V2(0)), startCursorPos(V2(0)){}
+	
+	String name;
+	ETransformTargetType type;
+	ETransformOpType op;
+	Vec2 curCursorPos;
+	Vec2 startCursorPos;
+	XFormData xfdata;
+	
+	void OnMoveKey()
+	{
+		if( type == TT_None )
+			return;
+		if( op != TO_MoveCam )
+		{
+			if( GetXFormData() == false )
+				return;
+		}
+		op = TO_MoveCam;
+		OnUpdate( curCursorPos );
+	}
+	void OnRotateKey()
+	{
+		if( type == TT_None )
+			return;
+		if( op != TO_RotateTrackpad && op != TO_RotateCamRoll )
+		{
+			if( GetXFormData() == false )
+				return;
+		}
+		if( op == TO_RotateTrackpad ) op = TO_RotateCamRoll;
+		else op = TO_RotateTrackpad;
+		OnUpdate( curCursorPos );
+	}
+	bool GetXFormData()
+	{
+		startCursorPos = curCursorPos;
+		StringView boneName = name;
+		
+		switch( type )
+		{
+		case TT_BoneHitbox:
+		case TT_BoneBody:
+		case TT_BoneJointSelfFrame:
+		case TT_BoneJointParentFrame:
+		case TT_None:
+			break;
+			// TODO ATTACHMENTS
+		}
+		
+		int bid = xfdata.boneID = g_AnimChar->_FindBone( boneName );
+		if( bid < 0 )
+			return false;
+		
+		SGRX_MeshInstance* MI = g_AnimChar->m_cachedMeshInst;
+		xfdata.boneToWorld = g_AnimChar->m_cachedMesh->m_bones[ bid ].skinOffset
+			* MI->skin_matrices[ bid ] * MI->matrix;
+		xfdata.worldToBone = Mat4::Identity;
+		xfdata.boneToWorld.InvertTo( xfdata.worldToBone );
+		
+		switch( type )
+		{
+		case TT_BoneHitbox:
+			xfdata.position = g_AnimChar->bones[ bid ].hitbox.position;
+			xfdata.rotation = g_AnimChar->bones[ bid ].hitbox.rotation;
+			break;
+		case TT_BoneBody:
+			xfdata.position = g_AnimChar->bones[ bid ].body.position;
+			xfdata.rotation = g_AnimChar->bones[ bid ].body.rotation;
+			break;
+		case TT_BoneJointSelfFrame:
+			xfdata.position = V3(0);
+			xfdata.rotation = Quat::Identity;
+			break;
+		case TT_BoneJointParentFrame:
+			xfdata.position = V3(0);
+			xfdata.rotation = Quat::Identity;
+			break;
+		case TT_None:
+			break;
+		}
+		
+		return true;
+	}
+	void SetXFormPos( Vec3 pos )
+	{
+		switch( type )
+		{
+		case TT_BoneHitbox:
+			g_AnimChar->bones[ xfdata.boneID ].hitbox.position = pos;
+			break;
+		case TT_BoneBody:
+			g_AnimChar->bones[ xfdata.boneID ].body.position = pos;
+			break;
+		case TT_BoneJointSelfFrame:
+			break;
+		case TT_BoneJointParentFrame:
+			break;
+		case TT_None:
+			break;
+		}
+	}
+	void SetXFormRot( Quat rot )
+	{
+		switch( type )
+		{
+		case TT_BoneHitbox:
+			g_AnimChar->bones[ xfdata.boneID ].hitbox.rotation = rot;
+			break;
+		case TT_BoneBody:
+			g_AnimChar->bones[ xfdata.boneID ].body.rotation = rot;
+			break;
+		case TT_BoneJointSelfFrame:
+			break;
+		case TT_BoneJointParentFrame:
+			break;
+		case TT_None:
+			break;
+		}
+	}
+	void OnUpdate( Vec2 cp );
+}
+g_XFormState;
+
+void XFormStateInfo::OnUpdate( Vec2 cp )
+{
+	curCursorPos = cp;
+	
+	switch( op )
+	{
+	case TO_MoveCam:
+		{
+			// calculate projection plane
+			Vec3 pporigin = xfdata.boneToWorld.TransformPos( xfdata.position );
+			Vec3 ppdir = -g_EdScene->camera.direction.Normalized();
+			Vec4 pplane = V4( ppdir, Vec3Dot( ppdir, pporigin ) );
+			
+			// calculate start/curr rays & intersect with plane
+			Vec3 ro_start, ro_dir;
+			Vec3 rc_start, rc_dir;
+			float ro_dists[2], rc_dists[2];
+			if( g_EdScene->camera.GetCursorRay( startCursorPos.x, startCursorPos.y, ro_start, ro_dir ) &&
+				g_EdScene->camera.GetCursorRay( curCursorPos.x, curCursorPos.y, rc_start, rc_dir ) &&
+				RayPlaneIntersect( ro_start, ro_dir, pplane, ro_dists ) &&
+				RayPlaneIntersect( rc_start, rc_dir, pplane, rc_dists ) )
+			{
+				// get intersection points
+				Vec3 ro_isp = ro_start + ro_dir * ro_dists[0];
+				Vec3 rc_isp = rc_start + rc_dir * rc_dists[0];
+				
+				// transform position
+				Vec3 nwpos = pporigin + rc_isp - ro_isp;
+				SetXFormPos( xfdata.worldToBone.TransformPos( nwpos ) );
+			}
+		}
+		break;
+	case TO_RotateTrackpad:
+		break;
+	case TO_RotateCamRoll:
+		break;
+	case TO_None:
+		break;
+	}
+}
+
+
+
 struct EDGUIBoneProps : EDGUILayoutRow
 {
 	EDGUIBoneProps() :
@@ -587,11 +784,13 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_hbox_offset.caption = "Offset";
 		m_hbox_extents.caption = "Extents";
 		m_hbox_multiplier.caption = "Multiplier";
+		m_btn_hbox_xform.caption = "Select hitbox for XForm";
 		
 		m_body_rotangles.caption = "Rotation (angles)";
 		m_body_offset.caption = "Offset";
 		m_body_type.caption = "Body types";
 		m_body_size.caption = "Body size";
+		m_btn_body_xform.caption = "Select body for XForm";
 		
 		m_recalc_thres.caption = "Threshold";
 		m_btn_recalc_body.caption = "Recalculate body";
@@ -602,11 +801,13 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_group_hbox.Add( &m_hbox_offset );
 		m_group_hbox.Add( &m_hbox_extents );
 		m_group_hbox.Add( &m_hbox_multiplier );
+		m_group_hbox.Add( &m_btn_hbox_xform );
 		
 		m_group_body.Add( &m_body_rotangles );
 		m_group_body.Add( &m_body_offset );
 		m_group_body.Add( &m_body_type );
 		m_group_body.Add( &m_body_size );
+		m_group_body.Add( &m_btn_body_xform );
 		
 		m_group_recalc.Add( &m_recalc_thres );
 		m_group_recalc.Add( &m_btn_recalc_body );
@@ -647,6 +848,11 @@ struct EDGUIBoneProps : EDGUILayoutRow
 			switch( e->type )
 			{
 			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btn_hbox_xform || e->target == &m_btn_body_xform )
+				{
+					g_XFormState.name = g_AnimChar->bones[ m_bid ].name;
+					g_XFormState.type = e->target == &m_btn_hbox_xform ? TT_BoneHitbox : TT_BoneBody;
+				}
 				if( e->target == &m_btn_recalc_body )
 				{
 					calc_char_bone_info( m_bid, m_recalc_thres.m_value, 1 );
@@ -686,10 +892,12 @@ struct EDGUIBoneProps : EDGUILayoutRow
 	EDGUIPropVec3 m_hbox_offset;
 	EDGUIPropVec3 m_hbox_extents;
 	EDGUIPropFloat m_hbox_multiplier;
+	EDGUIButton m_btn_hbox_xform;
 	EDGUIPropVec3 m_body_rotangles;
 	EDGUIPropVec3 m_body_offset;
 	EDGUIPropRsrc m_body_type;
 	EDGUIPropVec3 m_body_size;
+	EDGUIButton m_btn_body_xform;
 	EDGUIPropInt m_recalc_thres;
 	EDGUIButton m_btn_recalc_body;
 	EDGUIButton m_btn_recalc_hitbox;
@@ -1684,14 +1892,21 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			}
 			break;
 		case EDGUI_EVENT_KEYDOWN:
-			if( e->key.repeat == false && e->key.engkey == SDLK_1 )
-				m_showBodies = !m_showBodies;
-			if( e->key.repeat == false && e->key.engkey == SDLK_2 )
-				m_showHitboxes = !m_showHitboxes;
-			if( e->key.repeat == false && e->key.engkey == SDLK_3 )
-				m_showAttachments = !m_showAttachments;
-			if( e->key.repeat == false && e->key.engkey == SDLK_4 )
-				m_showMasks = !m_showMasks;
+			if( e->key.repeat == false )
+			{
+				if( e->key.engkey == SDLK_1 )
+					m_showBodies = !m_showBodies;
+				if( e->key.engkey == SDLK_2 )
+					m_showHitboxes = !m_showHitboxes;
+				if( e->key.engkey == SDLK_3 )
+					m_showAttachments = !m_showAttachments;
+				if( e->key.engkey == SDLK_4 )
+					m_showMasks = !m_showMasks;
+				if( e->key.engkey == SDLK_g )
+					g_XFormState.OnMoveKey();
+				if( e->key.engkey == SDLK_r )
+					g_XFormState.OnRotateKey();
+			}
 			break;
 		}
 		return true;
@@ -2090,6 +2305,8 @@ struct CSEditor : IGame
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
+		g_XFormState.OnUpdate( g_UIFrame->m_UIRenderView.CPToNormalized( Game_GetCursorPos() ) );
+		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_AnimChar->RecalcLayerState();
