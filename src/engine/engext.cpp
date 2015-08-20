@@ -334,6 +334,7 @@ void AnimCharacter::RecalcBoneIDs()
 	{
 		BoneInfo& BI = bones[ i ];
 		BI.bone_id = _FindBone( BI.name );
+		BI.joint.parent_id = _FindBone( BI.joint.parent_name );
 	}
 	for( size_t i = 0; i < attachments.size(); ++i )
 	{

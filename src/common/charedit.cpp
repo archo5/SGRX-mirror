@@ -36,6 +36,18 @@ inline uint8_t String2BodyType( const StringView& s )
 	if( s == "Box" ) return AnimCharacter::BodyType_Box;
 	return AnimCharacter::BodyType_None;
 }
+inline StringView JointType2String( uint8_t t )
+{
+	if( t == AnimCharacter::JointType_Hinge ) return "Hinge";
+	if( t == AnimCharacter::JointType_ConeTwist ) return "Cone Twist";
+	return "None";
+}
+inline uint8_t String2JointType( const StringView& s )
+{
+	if( s == "Hinge" ) return AnimCharacter::JointType_Hinge;
+	if( s == "Cone Twist" ) return AnimCharacter::JointType_ConeTwist;
+	return AnimCharacter::BodyType_None;
+}
 inline StringView TransformType2String( uint8_t t )
 {
 	if( t == AnimCharacter::TransformType_UndoParent ) return "UndoParent";
@@ -486,6 +498,7 @@ struct EDGUIJointType : EDGUIRsrcPicker
 		caption = "Pick a joint type";
 		m_options.push_back( "None" );
 		m_options.push_back( "Hinge" );
+		m_options.push_back( "Cone Twist" );
 		_Search( m_searchString );
 	}
 };
@@ -574,6 +587,7 @@ enum ETransformTargetType
 	TT_BoneBody,
 	TT_BoneJointSelfFrame,
 	TT_BoneJointParentFrame,
+	TT_Attachment,
 };
 enum ETransformOpType
 {
@@ -584,10 +598,11 @@ enum ETransformOpType
 };
 struct XFormData
 {
-	XFormData() : boneID(-1), position(V3(0)), rotation(Quat::Identity),
+	XFormData() : boneID(-1), itemID(-1), position(V3(0)), rotation(Quat::Identity),
 		boneToWorld(Mat4::Identity), worldToBone(Mat4::Identity)
 	{}
 	int boneID;
+	int itemID;
 	Vec3 position;
 	Quat rotation;
 	Mat4 boneToWorld;
@@ -602,6 +617,7 @@ struct XFormStateInfo
 	ETransformOpType op;
 	Vec2 curCursorPos;
 	Vec2 startCursorPos;
+	Vec2 viewSize;
 	XFormData xfdata;
 	
 	void OnMoveKey()
@@ -614,7 +630,7 @@ struct XFormStateInfo
 				return;
 		}
 		op = TO_MoveCam;
-		OnUpdate( curCursorPos );
+		OnUpdate( curCursorPos, viewSize );
 	}
 	void OnRotateKey()
 	{
@@ -627,27 +643,55 @@ struct XFormStateInfo
 		}
 		if( op == TO_RotateTrackpad ) op = TO_RotateCamRoll;
 		else op = TO_RotateTrackpad;
-		OnUpdate( curCursorPos );
+		OnUpdate( curCursorPos, viewSize );
+	}
+	void OnConfirmKey()
+	{
+		op = TO_None;
+	}
+	void OnCancelKey()
+	{
+		if( op != TO_None )
+		{
+			SetXFormPos( xfdata.position );
+			SetXFormRot( xfdata.rotation );
+			op = TO_None;
+		}
 	}
 	bool GetXFormData()
 	{
 		startCursorPos = curCursorPos;
 		StringView boneName = name;
 		
+		int iid = -1;
 		switch( type )
 		{
+		case TT_None:
+			return false;
 		case TT_BoneHitbox:
 		case TT_BoneBody:
 		case TT_BoneJointSelfFrame:
-		case TT_BoneJointParentFrame:
-		case TT_None:
 			break;
-			// TODO ATTACHMENTS
+		case TT_BoneJointParentFrame:
+			iid = g_AnimChar->_FindBone( boneName );
+			if( iid < 0 )
+				return false;
+			boneName = g_AnimChar->bones[ iid ].joint.parent_name;
+			break;
+		case TT_Attachment:
+			iid = g_AnimChar->FindAttachment( name );
+			if( iid < 0 )
+				return false;
+			boneName = g_AnimChar->attachments[ iid ].bone;
+			break;
 		}
 		
 		int bid = xfdata.boneID = g_AnimChar->_FindBone( boneName );
 		if( bid < 0 )
 			return false;
+		if( iid < 0 )
+			iid = bid;
+		xfdata.itemID = iid;
 		
 		SGRX_MeshInstance* MI = g_AnimChar->m_cachedMeshInst;
 		xfdata.boneToWorld = g_AnimChar->m_cachedMesh->m_bones[ bid ].skinOffset
@@ -657,23 +701,27 @@ struct XFormStateInfo
 		
 		switch( type )
 		{
+		case TT_None:
+			break;
 		case TT_BoneHitbox:
-			xfdata.position = g_AnimChar->bones[ bid ].hitbox.position;
-			xfdata.rotation = g_AnimChar->bones[ bid ].hitbox.rotation;
+			xfdata.position = g_AnimChar->bones[ iid ].hitbox.position;
+			xfdata.rotation = g_AnimChar->bones[ iid ].hitbox.rotation;
 			break;
 		case TT_BoneBody:
-			xfdata.position = g_AnimChar->bones[ bid ].body.position;
-			xfdata.rotation = g_AnimChar->bones[ bid ].body.rotation;
+			xfdata.position = g_AnimChar->bones[ iid ].body.position;
+			xfdata.rotation = g_AnimChar->bones[ iid ].body.rotation;
 			break;
 		case TT_BoneJointSelfFrame:
-			xfdata.position = V3(0);
-			xfdata.rotation = Quat::Identity;
+			xfdata.position = g_AnimChar->bones[ iid ].joint.self_position;
+			xfdata.rotation = g_AnimChar->bones[ iid ].joint.self_rotation;
 			break;
 		case TT_BoneJointParentFrame:
-			xfdata.position = V3(0);
-			xfdata.rotation = Quat::Identity;
+			xfdata.position = g_AnimChar->bones[ iid ].joint.prnt_position;
+			xfdata.rotation = g_AnimChar->bones[ iid ].joint.prnt_rotation;
 			break;
-		case TT_None:
+		case TT_Attachment:
+			xfdata.position = g_AnimChar->attachments[ iid ].position;
+			xfdata.rotation = g_AnimChar->attachments[ iid ].rotation;
 			break;
 		}
 		
@@ -681,47 +729,60 @@ struct XFormStateInfo
 	}
 	void SetXFormPos( Vec3 pos )
 	{
+		int iid = xfdata.itemID;
 		switch( type )
 		{
+		case TT_None:
+			break;
 		case TT_BoneHitbox:
-			g_AnimChar->bones[ xfdata.boneID ].hitbox.position = pos;
+			g_AnimChar->bones[ iid ].hitbox.position = pos;
 			break;
 		case TT_BoneBody:
-			g_AnimChar->bones[ xfdata.boneID ].body.position = pos;
+			g_AnimChar->bones[ iid ].body.position = pos;
 			break;
 		case TT_BoneJointSelfFrame:
+			g_AnimChar->bones[ iid ].joint.self_position = pos;
 			break;
 		case TT_BoneJointParentFrame:
+			g_AnimChar->bones[ iid ].joint.prnt_position = pos;
 			break;
-		case TT_None:
+		case TT_Attachment:
+			g_AnimChar->attachments[ iid ].position = pos;
 			break;
 		}
 	}
 	void SetXFormRot( Quat rot )
 	{
+		int iid = xfdata.itemID;
 		switch( type )
 		{
+		case TT_None:
+			break;
 		case TT_BoneHitbox:
-			g_AnimChar->bones[ xfdata.boneID ].hitbox.rotation = rot;
+			g_AnimChar->bones[ iid ].hitbox.rotation = rot;
 			break;
 		case TT_BoneBody:
-			g_AnimChar->bones[ xfdata.boneID ].body.rotation = rot;
+			g_AnimChar->bones[ iid ].body.rotation = rot;
 			break;
 		case TT_BoneJointSelfFrame:
+			g_AnimChar->bones[ iid ].joint.self_rotation = rot;
 			break;
 		case TT_BoneJointParentFrame:
+			g_AnimChar->bones[ iid ].joint.prnt_rotation = rot;
 			break;
-		case TT_None:
+		case TT_Attachment:
+			g_AnimChar->attachments[ iid ].rotation = rot;
 			break;
 		}
 	}
-	void OnUpdate( Vec2 cp );
+	void OnUpdate( Vec2 cp, Vec2 vsz );
 }
 g_XFormState;
 
-void XFormStateInfo::OnUpdate( Vec2 cp )
+void XFormStateInfo::OnUpdate( Vec2 cp, Vec2 vsz )
 {
 	curCursorPos = cp;
+	viewSize = vsz;
 	
 	switch( op )
 	{
@@ -752,8 +813,35 @@ void XFormStateInfo::OnUpdate( Vec2 cp )
 		}
 		break;
 	case TO_RotateTrackpad:
+		{
+			Vec2 cdiff = curCursorPos - startCursorPos;
+			Vec2 rf = cdiff * viewSize * 0.01f;
+			
+			SGRX_Camera& CAM = g_EdScene->camera;
+			Vec3 wdir_x = Vec3Cross( CAM.direction, CAM.updir );
+			Vec3 wdir_y = Vec3Cross( CAM.direction, wdir_x );
+			
+			Vec3 bdir_x = xfdata.worldToBone.TransformNormal( wdir_x ).Normalized();
+			Vec3 bdir_y = xfdata.worldToBone.TransformNormal( wdir_y ).Normalized();
+			
+			SetXFormRot( Quat::CreateAxisAngle( -bdir_y, rf.x ) *
+				Quat::CreateAxisAngle( bdir_x, rf.y ) * xfdata.rotation );
+		}
 		break;
 	case TO_RotateCamRoll:
+		{
+			Vec2 scntr = V2(0.5f) * viewSize;
+			Vec2 oss_cp = startCursorPos * viewSize;
+			Vec2 css_cp = curCursorPos * viewSize;
+			
+			float odcp = ( oss_cp - scntr ).Angle();
+			float cdcp = ( css_cp - scntr ).Angle();
+			
+			SGRX_Camera& CAM = g_EdScene->camera;
+			Vec3 bdir_z = xfdata.worldToBone.TransformNormal( CAM.direction ).Normalized();
+			
+			SetXFormRot( Quat::CreateAxisAngle( bdir_z, cdcp - odcp ) * xfdata.rotation );
+		}
 		break;
 	case TO_None:
 		break;
@@ -768,15 +856,29 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_group( true, "Bone properties" ),
 		m_group_hbox( true, "Hitbox" ),
 		m_group_body( true, "Body" ),
+		m_group_joint( true, "Joint" ),
 		m_group_recalc( true, "Recalculate shapes" ),
+		
 		m_hbox_rotangles( V3(0), 2, V3(-360), V3(360) ),
 		m_hbox_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_hbox_extents( V3(0.1f), 2, V3(0), V3(100) ),
 		m_hbox_multiplier( 1, 2, 0, 100.0f ),
+		
 		m_body_rotangles( V3(0), 2, V3(-360), V3(360) ),
 		m_body_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_body_type( g_UIBodyType, "None" ),
 		m_body_size( V3(0.1f), 2, V3(0), V3(100) ),
+		
+		m_joint_type( g_UIJointType, "None" ),
+		m_joint_parent( g_UIBonePicker, "" ),
+		m_joint_self_rotangles( V3(0), 2, V3(-360), V3(360) ),
+		m_joint_self_offset( V3(0), 2, V3(-8192), V3(8192) ),
+		m_joint_prnt_rotangles( V3(0), 2, V3(-360), V3(360) ),
+		m_joint_prnt_offset( V3(0), 2, V3(-8192), V3(8192) ),
+		m_joint_turnlim1( 0, 2, -360, 360 ),
+		m_joint_turnlim2( 0, 2, -360, 360 ),
+		m_joint_twistlim( 0, 2, -360, 360 ),
+		
 		m_recalc_thres( 96, 0, 255 ),
 		m_bid( -1 )
 	{
@@ -788,9 +890,21 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		
 		m_body_rotangles.caption = "Rotation (angles)";
 		m_body_offset.caption = "Offset";
-		m_body_type.caption = "Body types";
+		m_body_type.caption = "Body type";
 		m_body_size.caption = "Body size";
 		m_btn_body_xform.caption = "Select body for XForm";
+		
+		m_joint_type.caption = "Joint type";
+		m_joint_parent.caption = "Parent";
+		m_joint_self_rotangles.caption = "Local rotation";
+		m_joint_self_offset.caption = "Local position";
+		m_joint_prnt_rotangles.caption = "Parent rotation";
+		m_joint_prnt_offset.caption = "Parent position";
+		m_joint_turnlim1.caption = "Turn limit 1 (Min/X)";
+		m_joint_turnlim2.caption = "Turn limit 2 (Max/Y)";
+		m_joint_twistlim.caption = "Twist limit (Z)";
+		m_btn_joint_self_xform.caption = "Select local joint frame for XForm";
+		m_btn_joint_prnt_xform.caption = "Select parent joint frame for XForm";
 		
 		m_recalc_thres.caption = "Threshold";
 		m_btn_recalc_body.caption = "Recalculate body";
@@ -809,6 +923,18 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_group_body.Add( &m_body_size );
 		m_group_body.Add( &m_btn_body_xform );
 		
+		m_group_joint.Add( &m_joint_type );
+		m_group_joint.Add( &m_joint_parent );
+		m_group_joint.Add( &m_joint_self_rotangles );
+		m_group_joint.Add( &m_joint_self_offset );
+		m_group_joint.Add( &m_joint_prnt_rotangles );
+		m_group_joint.Add( &m_joint_prnt_offset );
+		m_group_joint.Add( &m_joint_turnlim1 );
+		m_group_joint.Add( &m_joint_turnlim2 );
+		m_group_joint.Add( &m_joint_twistlim );
+		m_group_joint.Add( &m_btn_joint_self_xform );
+		m_group_joint.Add( &m_btn_joint_prnt_xform );
+		
 		m_group_recalc.Add( &m_recalc_thres );
 		m_group_recalc.Add( &m_btn_recalc_body );
 		m_group_recalc.Add( &m_btn_recalc_hitbox );
@@ -816,6 +942,7 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		
 		m_group.Add( &m_group_hbox );
 		m_group.Add( &m_group_body );
+		m_group.Add( &m_group_joint );
 		m_group.Add( &m_group_recalc );
 		Add( &m_group );
 	}
@@ -834,10 +961,21 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_hbox_offset.SetValue( BI.hitbox.position );
 		m_hbox_extents.SetValue( BI.hitbox.extents );
 		m_hbox_multiplier.SetValue( BI.hitbox.multiplier );
+		
 		m_body_rotangles.SetValue( Q2EA( BI.body.rotation ) );
 		m_body_offset.SetValue( BI.body.position );
 		m_body_type.SetValue( BodyType2String( BI.body.type ) );
 		m_body_size.SetValue( BI.body.size );
+		
+		m_joint_type.SetValue( JointType2String( BI.joint.type ) );
+		m_joint_parent.SetValue( BI.joint.parent_name );
+		m_joint_self_rotangles.SetValue( Q2EA( BI.joint.self_rotation ) );
+		m_joint_self_offset.SetValue( BI.joint.self_position );
+		m_joint_prnt_rotangles.SetValue( Q2EA( BI.joint.prnt_rotation ) );
+		m_joint_prnt_offset.SetValue( BI.joint.prnt_position );
+		m_joint_turnlim1.SetValue( DEG2RAD( BI.joint.turn_limit_1 ) );
+		m_joint_turnlim2.SetValue( DEG2RAD( BI.joint.turn_limit_2 ) );
+		m_joint_twistlim.SetValue( DEG2RAD( BI.joint.twist_limit ) );
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -852,6 +990,12 @@ struct EDGUIBoneProps : EDGUILayoutRow
 				{
 					g_XFormState.name = g_AnimChar->bones[ m_bid ].name;
 					g_XFormState.type = e->target == &m_btn_hbox_xform ? TT_BoneHitbox : TT_BoneBody;
+				}
+				if( e->target == &m_btn_joint_self_xform || e->target == &m_btn_joint_prnt_xform )
+				{
+					g_XFormState.name = g_AnimChar->bones[ m_bid ].name;
+					g_XFormState.type = e->target == &m_btn_joint_self_xform ?
+						TT_BoneJointSelfFrame : TT_BoneJointParentFrame;
 				}
 				if( e->target == &m_btn_recalc_body )
 				{
@@ -874,10 +1018,26 @@ struct EDGUIBoneProps : EDGUILayoutRow
 				else if( e->target == &m_hbox_offset ) BI.hitbox.position = m_hbox_offset.m_value;
 				else if( e->target == &m_hbox_extents ) BI.hitbox.extents = m_hbox_extents.m_value;
 				else if( e->target == &m_hbox_multiplier ) BI.hitbox.multiplier = m_hbox_multiplier.m_value;
+				
 				else if( e->target == &m_body_rotangles ) BI.body.rotation = EA2Q( m_body_rotangles.m_value );
 				else if( e->target == &m_body_offset ) BI.body.position = m_body_offset.m_value;
 				else if( e->target == &m_body_type ) BI.body.type = String2BodyType( m_body_type.m_value );
 				else if( e->target == &m_body_size ) BI.body.size = m_body_size.m_value;
+				
+				else if( e->target == &m_joint_type ) BI.joint.type = String2JointType( m_joint_type.m_value );
+				else if( e->target == &m_joint_parent )
+				{
+					BI.joint.parent_name = m_joint_parent.m_value;
+					BI.joint.parent_id = g_AnimChar->_FindBone( BI.joint.parent_name );
+				}
+				else if( e->target == &m_joint_self_rotangles ) BI.joint.self_rotation = EA2Q( m_joint_self_rotangles.m_value );
+				else if( e->target == &m_joint_self_offset ) BI.joint.self_position = m_joint_self_offset.m_value;
+				else if( e->target == &m_joint_prnt_rotangles ) BI.joint.prnt_rotation = EA2Q( m_joint_prnt_rotangles.m_value );
+				else if( e->target == &m_joint_prnt_offset ) BI.joint.prnt_position = m_joint_prnt_offset.m_value;
+				else if( e->target == &m_joint_turnlim1 ) BI.joint.turn_limit_1 = RAD2DEG( m_joint_turnlim1.m_value );
+				else if( e->target == &m_joint_turnlim2 ) BI.joint.turn_limit_2 = RAD2DEG( m_joint_turnlim2.m_value );
+				else if( e->target == &m_joint_twistlim ) BI.joint.twist_limit = RAD2DEG( m_joint_twistlim.m_value );
+				
 				break;
 			}
 		}
@@ -887,17 +1047,33 @@ struct EDGUIBoneProps : EDGUILayoutRow
 	EDGUIGroup m_group;
 	EDGUIGroup m_group_hbox;
 	EDGUIGroup m_group_body;
+	EDGUIGroup m_group_joint;
 	EDGUIGroup m_group_recalc;
+	
 	EDGUIPropVec3 m_hbox_rotangles;
 	EDGUIPropVec3 m_hbox_offset;
 	EDGUIPropVec3 m_hbox_extents;
 	EDGUIPropFloat m_hbox_multiplier;
 	EDGUIButton m_btn_hbox_xform;
+	
 	EDGUIPropVec3 m_body_rotangles;
 	EDGUIPropVec3 m_body_offset;
 	EDGUIPropRsrc m_body_type;
 	EDGUIPropVec3 m_body_size;
 	EDGUIButton m_btn_body_xform;
+	
+	EDGUIPropRsrc m_joint_type;
+	EDGUIPropRsrc m_joint_parent;
+	EDGUIPropVec3 m_joint_self_rotangles;
+	EDGUIPropVec3 m_joint_self_offset;
+	EDGUIPropVec3 m_joint_prnt_rotangles;
+	EDGUIPropVec3 m_joint_prnt_offset;
+	EDGUIPropFloat m_joint_turnlim1;
+	EDGUIPropFloat m_joint_turnlim2;
+	EDGUIPropFloat m_joint_twistlim;
+	EDGUIButton m_btn_joint_self_xform;
+	EDGUIButton m_btn_joint_prnt_xform;
+	
 	EDGUIPropInt m_recalc_thres;
 	EDGUIButton m_btn_recalc_body;
 	EDGUIButton m_btn_recalc_hitbox;
@@ -988,11 +1164,13 @@ struct EDGUIAttachmentProps : EDGUILayoutRow
 		m_bone.caption = "Bone";
 		m_rotangles.caption = "Rotation (angles)";
 		m_offset.caption = "Offset";
+		m_btn_atch_xform.caption = "Select attachment for XForm";
 		
 		m_group.Add( &m_name );
 		m_group.Add( &m_bone );
 		m_group.Add( &m_rotangles );
 		m_group.Add( &m_offset );
+		m_group.Add( &m_btn_atch_xform );
 		
 		Add( &m_group );
 	}
@@ -1015,6 +1193,13 @@ struct EDGUIAttachmentProps : EDGUILayoutRow
 			AnimCharacter::Attachment& A = g_AnimChar->attachments[ m_aid ];
 			switch( e->type )
 			{
+			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btn_atch_xform )
+				{
+					g_XFormState.name = g_AnimChar->attachments[ m_aid ].name;
+					g_XFormState.type = TT_Attachment;
+				}
+				break;
 			case EDGUI_EVENT_PROPEDIT:
 				if( e->target == &m_name ) A.name = m_name.m_value;
 				else if( e->target == &m_bone )
@@ -1035,6 +1220,7 @@ struct EDGUIAttachmentProps : EDGUILayoutRow
 	EDGUIPropRsrc m_bone;
 	EDGUIPropVec3 m_rotangles;
 	EDGUIPropVec3 m_offset;
+	EDGUIButton m_btn_atch_xform;
 	int m_aid;
 };
 
@@ -1906,7 +2092,17 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 					g_XFormState.OnMoveKey();
 				if( e->key.engkey == SDLK_r )
 					g_XFormState.OnRotateKey();
+				if( e->key.engkey == SDLK_RETURN )
+					g_XFormState.OnConfirmKey();
+				if( e->key.engkey == SDLK_ESCAPE )
+					g_XFormState.OnCancelKey();
 			}
+			break;
+		case EDGUI_EVENT_BTNDOWN:
+			if( e->mouse.button == EDGUI_MB_LEFT )
+				g_XFormState.OnConfirmKey();
+			if( e->mouse.button == EDGUI_MB_RIGHT )
+				g_XFormState.OnCancelKey();
 			break;
 		}
 		return true;
@@ -2305,7 +2501,9 @@ struct CSEditor : IGame
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
-		g_XFormState.OnUpdate( g_UIFrame->m_UIRenderView.CPToNormalized( Game_GetCursorPos() ) );
+		g_XFormState.OnUpdate(
+			g_UIFrame->m_UIRenderView.CPToNormalized( Game_GetCursorPos() ),
+			g_UIFrame->m_UIRenderView.GetViewSize() );
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );

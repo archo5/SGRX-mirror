@@ -51,6 +51,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	{
 		JointType_None = 0,
 		JointType_Hinge = 1,
+		JointType_ConeTwist = 2,
 	};
 	enum TransformType
 	{
@@ -102,19 +103,35 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	{
 		String parent_name;
 		uint8_t type; // JointType
-		Vec3 local_offset1;
-		Vec3 local_offset2;
+		Vec3 self_position;
+		Quat self_rotation;
+		Vec3 prnt_position;
+		Quat prnt_rotation;
+		float turn_limit_1; // Hinge(min), ConeTwist(1)
+		float turn_limit_2; // Hinge(max), ConeTwist(2)
+		float twist_limit; // ConeTwist
 		
-		Joint() : type( JointType_None ), local_offset1( V3(0) ),
-			local_offset2( V3(0) ){}
+		int parent_id;
+		
+		Joint() : type( JointType_None ),
+			self_position( V3(0) ), self_rotation( Quat::Identity ),
+			prnt_position( V3(0) ), prnt_rotation( Quat::Identity ),
+			turn_limit_1( 0 ), turn_limit_2( 0 ), twist_limit( 0 ),
+			parent_id(-1)
+		{}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
 			arch.marker( "JOINT" );
 			arch( type );
 			arch( parent_name );
-			arch( local_offset1 );
-			arch( local_offset2 );
+			arch( self_position );
+			arch( self_rotation );
+			arch( prnt_position );
+			arch( prnt_rotation );
+			arch( turn_limit_1 );
+			arch( turn_limit_2 );
+			arch( twist_limit );
 		}
 	};
 	
@@ -135,7 +152,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 			arch( name );
 			arch( hitbox );
 			arch( body );
-		//	arch( joint );
+			arch( joint, arch.version >= 3 );
 		}
 	};
 	
@@ -233,7 +250,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 		
 		// 1: initial
 		// 2: added masks
-		SerializeVersionHelper<T> arch( basearch, 2 );
+		// 3: added joints
+		SerializeVersionHelper<T> arch( basearch, 3 );
 		
 		arch( mesh );
 		arch( bones );

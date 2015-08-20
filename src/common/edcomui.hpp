@@ -581,6 +581,10 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 	{
 		return V2( safe_fdiv( cp.x - x0, x1 - x0 ), safe_fdiv( cp.y - y0, y1 - y0 ) );
 	}
+	Vec2 GetViewSize() const
+	{
+		return V2( x1 - x0, y1 - y0 );
+	}
 	bool EventToFrame( EDGUIEvent* e ){ return m_mainframe->ViewEvent( e ); }
 	void DebugDraw(){ m_mainframe->DebugDraw(); }
 	
