@@ -691,9 +691,6 @@ struct EdBlock : EdObject
 	Array< EdSurface > surfaces;
 	Array< bool > subsel;
 	
-	MeshHandle cached_mesh;
-	MeshInstHandle cached_meshinst;
-	
 	uint32_t solid_id;
 	
 	template< class T > void SerializeT( T& arch )

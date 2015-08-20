@@ -356,8 +356,9 @@ Vec3 EdBlock::FindCenter() const
 EdObject* EdBlock::Clone()
 {
 	EdBlock* blk = new EdBlock( *this );
-	blk->cached_meshinst = NULL;
-	blk->cached_mesh = NULL;
+	blk->solid_id = 0;
+	for( size_t i = 0; i < blk->surfaces.size(); ++i )
+		blk->surfaces[ i ].surface_id = 0;
 	return blk;
 }
 
