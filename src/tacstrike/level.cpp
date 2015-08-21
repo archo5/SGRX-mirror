@@ -1036,14 +1036,24 @@ void GameLevel::DebugDraw()
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		m_entities[ i ]->DebugDrawWorld();
 	
-	return;
+#if DRAW_SAMPLES
 	br.Reset().Col( 0, 1, 0 );
 	for( size_t i = 0; i < m_ltSamples.m_pos.size(); ++i )
+	{
+#if 1
+		br.Col( m_ltSamples.m_colors[ i ].color[4] );
+	//	SGRX_LightTree::Colors COL;
+	//	m_ltSamples.GetColors( m_ltSamples.m_pos[ i ], &COL );
+	//	br.Col( COL.color[4] );
+#endif
 		br.Tick( m_ltSamples.m_pos[ i ], 0.1f );
+	}
+#endif
 	
-	return;
+#if DRAW_PATHFINDER||1
 	m_aidbSystem.m_pathfinder.DebugDraw();
 	
+#if TEST_PATHFINDER
 	br.Reset().Col( 1, 0, 0 );
 	
 	Array< Vec3 > path;
@@ -1053,6 +1063,8 @@ void GameLevel::DebugDraw()
 		for( size_t i = 0; i < path.size(); ++i )
 			br.Pos( path[ i ] );
 	}
+#endif
+#endif
 }
 
 void GameLevel::PostDraw()
@@ -1101,11 +1113,11 @@ void GameLevel::LightMesh( MeshInstHandle mih, Vec3 off )
 {
 	SGRX_LightTree::Colors COL;
 	m_ltSamples.GetColors( mih->matrix.TransformPos( off ), &COL );
-	mih->constants[10] = V4( COL.color[0], 1 );
-	mih->constants[11] = V4( COL.color[1], 1 );
-	mih->constants[12] = V4( COL.color[2], 1 );
-	mih->constants[13] = V4( COL.color[3], 1 );
-	mih->constants[14] = V4( COL.color[4], 1 );
-	mih->constants[15] = V4( COL.color[5], 1 );
+	mih->constants[10] = V4( COL.color[0] * 0.5f, 1 );
+	mih->constants[11] = V4( COL.color[1] * 0.5f, 1 );
+	mih->constants[12] = V4( COL.color[2] * 0.5f, 1 );
+	mih->constants[13] = V4( COL.color[3] * 0.5f, 1 );
+	mih->constants[14] = V4( COL.color[4] * 0.5f, 1 );
+	mih->constants[15] = V4( COL.color[5] * 0.5f, 1 );
 }
 

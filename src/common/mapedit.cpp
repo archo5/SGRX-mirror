@@ -882,7 +882,8 @@ void EdLevelGraphicsCont::STRegenerate()
 	if( m_lmRenderer )
 		return;
 	
-	float stepsize = 1.0f;
+	float density = g_EdWorld->m_ctlSampleDensity.m_value;
+	float stepsize = density ? 1.0f / density : 1.0f;
 	
 	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
 	for( size_t i = 0; i < m_meshes.size(); ++i )
@@ -1492,7 +1493,7 @@ EdWorld::EdWorld() :
 	m_ctlDirLightDivergence( 10, 2, 0, 180 ),
 	m_ctlDirLightNumSamples( 15, 0, 256 ),
 	m_ctlLightmapClearColor( V3(0,0,0), 2, V3(0), V3(1,1,100) ),
-	m_ctlRADNumBounces( 2, 0, 256 ),
+//	m_ctlRADNumBounces( 2, 0, 256 ),
 	m_ctlLightmapDetail( 1, 2, 0.01f, 16 ),
 	m_ctlLightmapBlurSize( 1, 2, 0, 10 ),
 	m_ctlAODistance( 2, 2, 0, 100 ),
@@ -1501,7 +1502,8 @@ EdWorld::EdWorld() :
 	m_ctlAOEffect( 0, 2, -1, 1 ),
 //	m_ctlAODivergence( 0, 2, 0, 1 ),
 	m_ctlAOColor( V3(0,0,0), 2, V3(0), V3(1,1,100) ),
-	m_ctlAONumSamples( 15, 0, 256 )
+	m_ctlAONumSamples( 15, 0, 256 ),
+	m_ctlSampleDensity( 1.0f, 2, 0.01f, 100.0f )
 {
 	tyname = "world";
 	m_ctlAmbientColor.caption = "Ambient color";
@@ -1510,7 +1512,7 @@ EdWorld::EdWorld() :
 	m_ctlDirLightDivergence.caption = "Dir.light divergence";
 	m_ctlDirLightNumSamples.caption = "Dir.light sample count";
 	m_ctlLightmapClearColor.caption = "Lightmap clear color (HSV)";
-	m_ctlRADNumBounces.caption = "Radiosity bounce count";
+//	m_ctlRADNumBounces.caption = "Radiosity bounce count";
 	m_ctlLightmapDetail.caption = "Lightmap detail";
 	m_ctlLightmapBlurSize.caption = "Lightmap blur size";
 	m_ctlAODistance.caption = "AO distance";
@@ -1520,6 +1522,7 @@ EdWorld::EdWorld() :
 //	m_ctlAODivergence.caption = "AO divergence";
 	m_ctlAOColor.caption = "AO color";
 	m_ctlAONumSamples.caption = "AO sample count";
+	m_ctlSampleDensity.caption = "Sample density";
 	m_vd = GR_GetVertexDecl( LCVertex_DECL );
 	
 	Add( &m_ctlGroup );
@@ -1539,6 +1542,7 @@ EdWorld::EdWorld() :
 //	m_ctlGroup.Add( &m_ctlAODivergence );
 	m_ctlGroup.Add( &m_ctlAOColor );
 	m_ctlGroup.Add( &m_ctlAONumSamples );
+	m_ctlGroup.Add( &m_ctlSampleDensity );
 	
 	TestData();
 }

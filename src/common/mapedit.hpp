@@ -14,7 +14,8 @@
 // v3: added surface.xfit/yfit, added groups, added block.position
 // v4: added subentities
 // v5: level graphics container IDs
-#define MAP_FILE_VERSION 5
+// v6: patch.layer.lmquality -> patch, added world.sample_density
+#define MAP_FILE_VERSION 6
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -880,7 +881,7 @@ struct EdPatchLayerInfo
 	EdPatchLayerInfo() :
 		xoff(0), yoff(0),
 		scale(1), aspect(1),
-		angle(0), lmquality(1),
+		angle(0),
 		surface_id(0){}
 	~EdPatchLayerInfo()
 	{
@@ -903,14 +904,14 @@ struct EdPatchLayerInfo
 		arch << xoff << yoff;
 		arch << scale << aspect;
 		arch << angle;
-		arch << lmquality;
+		float lmq = 0;
+		arch( lmq, arch.version < 6 );
 	}
 	
 	String texname;
 	float xoff, yoff;
 	float scale, aspect;
 	float angle;
-	float lmquality;
 	
 	uint32_t surface_id;
 };
@@ -998,6 +999,7 @@ struct EdPatch : EdObject
 		arch << position;
 		arch << xsize << ysize;
 		arch << blend;
+		arch( lmquality, arch.version >= 6, 1.0f );
 		for( int y = 0; y < ysize; ++y )
 		{
 			for( int x = 0; x < xsize; ++x )
@@ -1018,6 +1020,7 @@ struct EdPatch : EdObject
 	int8_t xsize;
 	int8_t ysize;
 	uint8_t blend;
+	float lmquality;
 	EdPatchLayerInfo layers[ MAX_PATCH_LAYERS ];
 };
 
@@ -1053,7 +1056,6 @@ struct EDGUIPatchLayerProps : EDGUILayoutRow
 	EDGUIPropVec2 m_off;
 	EDGUIPropVec2 m_scaleasp;
 	EDGUIPropFloat m_angle;
-	EDGUIPropFloat m_lmquality;
 	EDGUILayoutColumn m_texGenCol;
 	EDGUILabel m_texGenLbl;
 	EDGUIButton m_genFit;
@@ -1074,6 +1076,7 @@ struct EDGUIPatchProps : EDGUILayoutRow
 	EDGUIPropRsrc m_blkGroup;
 	EDGUIPropBool m_isSolid;
 	EDGUIPropInt m_layerStart;
+	EDGUIPropFloat m_lmquality;
 	EDGUIPatchLayerProps m_layerProps[4];
 };
 
@@ -1552,7 +1555,9 @@ struct EdWorld : EDGUILayoutRow
 		svh << m_ctlDirLightDivergence;
 		svh << m_ctlDirLightNumSamples;
 		svh << m_ctlLightmapClearColor;
-		svh << m_ctlRADNumBounces;
+		int radNumBounces = 0;
+		svh( radNumBounces, svh.version < 6 );
+	//	svh << m_ctlRADNumBounces;
 		svh << m_ctlLightmapDetail;
 		svh << m_ctlLightmapBlurSize;
 		svh << m_ctlAODistance;
@@ -1562,6 +1567,11 @@ struct EdWorld : EDGUILayoutRow
 	//	svh << m_ctlAODivergence;
 		svh << m_ctlAOColor;
 		svh << m_ctlAONumSamples;
+		
+		if( svh.version >= 6 )
+			svh << m_ctlSampleDensity;
+		else if( T::IsReader )
+			m_ctlSampleDensity.SetValue( 1.0f );
 		
 		if( T::IsWriter )
 		{
@@ -1720,7 +1730,7 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIPropFloat m_ctlDirLightDivergence;
 	EDGUIPropInt m_ctlDirLightNumSamples;
 	EDGUIPropVec3 m_ctlLightmapClearColor;
-	EDGUIPropInt m_ctlRADNumBounces;
+//	EDGUIPropInt m_ctlRADNumBounces;
 	EDGUIPropFloat m_ctlLightmapDetail;
 	EDGUIPropFloat m_ctlLightmapBlurSize;
 	EDGUIPropFloat m_ctlAODistance;
@@ -1730,6 +1740,7 @@ struct EdWorld : EDGUILayoutRow
 //	EDGUIPropFloat m_ctlAODivergence;
 	EDGUIPropVec3 m_ctlAOColor;
 	EDGUIPropInt m_ctlAONumSamples;
+	EDGUIPropFloat m_ctlSampleDensity;
 	
 	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;

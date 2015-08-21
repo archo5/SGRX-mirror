@@ -196,7 +196,7 @@ void EdPatch::RegenerateMesh()
 		S.lmsize = lmsize;
 		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
 		S.rflags = LM_MESHINST_CASTLMS | (ovr ? LM_MESHINST_DECAL : LM_MESHINST_SOLID);
-		S.lmdetail = LI.lmquality;
+		S.lmdetail = lmquality;
 		S.decalLayer = layer + ( blend & ~PATCH_IS_SOLID );
 		
 		if( LI.surface_id )
@@ -1076,8 +1076,7 @@ EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
 	m_tex( g_UISurfTexPicker, "metal0" ),
 	m_off( V2(0), 2, V2(0), V2(1) ),
 	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
-	m_angle( 0, 1, 0, 360 ),
-	m_lmquality( 1, 2, 0.01f, 100.0f )
+	m_angle( 0, 1, 0, 360 )
 {
 	tyname = "patchlayerprops";
 	m_group.caption = "Surface properties";
@@ -1085,7 +1084,6 @@ EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
 	m_off.caption = "Offset";
 	m_scaleasp.caption = "Scale/Aspect";
 	m_angle.caption = "Angle";
-	m_lmquality.caption = "Lightmap quality";
 	
 	m_texGenLbl.caption = "TexGen:";
 	m_genFit.caption = "Fit";
@@ -1103,7 +1101,6 @@ EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
 	m_group.Add( &m_off );
 	m_group.Add( &m_scaleasp );
 	m_group.Add( &m_angle );
-	m_group.Add( &m_lmquality );
 	m_group.Add( &m_texGenCol );
 	m_group.SetOpen( true );
 	Add( &m_group );
@@ -1129,7 +1126,6 @@ void EDGUIPatchLayerProps::LoadParams( EdPatchLayerInfo& L, const char* name )
 	m_off.SetValue( V2( L.xoff, L.yoff ) );
 	m_scaleasp.SetValue( V2( L.scale, L.aspect ) );
 	m_angle.SetValue( L.angle );
-	m_lmquality.SetValue( L.lmquality );
 }
 
 void EDGUIPatchLayerProps::BounceBack( EdPatchLayerInfo& L )
@@ -1140,7 +1136,6 @@ void EDGUIPatchLayerProps::BounceBack( EdPatchLayerInfo& L )
 	L.scale = m_scaleasp.m_value.x;
 	L.aspect = m_scaleasp.m_value.y;
 	L.angle = m_angle.m_value;
-	L.lmquality = m_lmquality.m_value;
 }
 
 int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
@@ -1170,8 +1165,7 @@ int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
 			e->target == &m_tex ||
 			e->target == &m_off ||
 			e->target == &m_scaleasp ||
-			e->target == &m_angle ||
-			e->target == &m_lmquality
+			e->target == &m_angle
 		) )
 		{
 			if( e->target == &m_tex )
@@ -1193,11 +1187,6 @@ int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
 			{
 				m_out->layers[ m_lid ].angle = m_angle.m_value;
 			}
-			else if( e->target == &m_lmquality )
-			{
-				m_out->layers[ m_lid ].lmquality = m_lmquality.m_value;
-				m_out->RegenerateMesh();
-			}
 		}
 		break;
 	}
@@ -1211,13 +1200,15 @@ EDGUIPatchProps::EDGUIPatchProps() :
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_blkGroup( NULL ),
 	m_isSolid( false ),
-	m_layerStart( 0, 0, 127 )
+	m_layerStart( 0, 0, 127 ),
+	m_lmquality( 1, 2, 0.01f, 100.0f )
 {
 	tyname = "blockprops";
 	m_pos.caption = "Position";
 	m_blkGroup.caption = "Group";
 	m_isSolid.caption = "Is solid?";
 	m_layerStart.caption = "Layer start";
+	m_lmquality.caption = "Lightmap quality";
 }
 
 void EDGUIPatchProps::Prepare( EdPatch* patch )
@@ -1234,8 +1225,10 @@ void EDGUIPatchProps::Prepare( EdPatch* patch )
 	m_group.Add( &m_blkGroup );
 	m_group.Add( &m_isSolid );
 	m_group.Add( &m_layerStart );
+	m_group.Add( &m_lmquality );
 	m_pos.SetValue( patch->position );
 	m_group.Add( &m_pos );
+	m_lmquality.SetValue( patch->lmquality );
 	
 	for( size_t i = 0; i < MAX_PATCH_LAYERS; ++i )
 	{
@@ -1268,6 +1261,11 @@ int EDGUIPatchProps::OnEvent( EDGUIEvent* e )
 			if( m_isSolid.m_value )
 				blend |= PATCH_IS_SOLID;
 			m_out->blend = blend;
+		}
+		else if( e->target == &m_lmquality )
+		{
+			m_out->lmquality = m_lmquality.m_value;
+			m_out->RegenerateMesh();
 		}
 		m_out->RegenerateMesh();
 		break;

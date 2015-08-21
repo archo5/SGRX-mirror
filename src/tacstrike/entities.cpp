@@ -823,7 +823,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
 	m_shadowInst->position = pos + V3(0,0,1);
 	
-	g_GameLevel->LightMesh( MI, V3(1) );
+	g_GameLevel->LightMesh( MI, V3(0,0,i_crouch ? 0.6f : 1) );
 	
 	m_animChar.PreRender( blendFactor );
 	m_interpPos = m_ivPos.Get( blendFactor );

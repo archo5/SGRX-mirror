@@ -959,7 +959,7 @@ void ParticleSystem::Emitter::PreRender( ParticleSystem* PS, ps_prerender_info& 
 		
 		if( render_Additive == false )
 		{
-			Vec3 color = PS->m_groups[ GRP ].color;
+			Vec3 color = PS->m_groups[ GRP ].color * 0.5f;
 			COL.x *= color.x;
 			COL.y *= color.y;
 			COL.z *= color.z;

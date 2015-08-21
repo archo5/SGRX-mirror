@@ -1292,7 +1292,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	Array< int > indices;
 	for( size_t i = 0; i < m_phyMesh.indices.size(); i += 4 )
 	{
-		int idcs[3] = { m_phyMesh.indices[i], m_phyMesh.indices[i+1], m_phyMesh.indices[i+2] };
+		int idcs[3] = { m_phyMesh.indices[i], m_phyMesh.indices[i+2], m_phyMesh.indices[i+1] };
 		indices.append( idcs, 3 );
 	}
 	
@@ -1624,6 +1624,14 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 		if( !dtCreateNavMeshData( &params, &navData, &navDataSize ) )
 		{
 			LOG_ERROR << "Could not build Detour navmesh.";
+			if (params.nvp > DT_VERTS_PER_POLYGON)
+				LOG << "Reason: reached DT_VERTS_PER_POLYGON limit!";
+			if (params.vertCount >= 0xffff)
+				LOG << "Reason: Vertex data size exceeds 65535!";
+			if (!params.vertCount || !params.verts)
+				LOG << "Reason: No vertex data!";
+			if (!params.polyCount || !params.polys)
+				LOG << "Reason: No polygon data!";
 			goto fail;
 		}
 		

@@ -288,7 +288,7 @@ void _LightTree_TestNode( SGRX_LightTree* LT, int32_t node, const Vec3 qbb[3],
 		{
 			size_t idx = LT->m_sampidx[ i + off ];
 			 // distfac: max = 100 to avoid precision issues
-			float distfac = 1.0f / ( 0.01f + ( qbb[2] - LT->m_pos[ idx ] ).LengthSq() );
+			float distfac = powf( 2.0f / ( 1.0f + ( qbb[2] - LT->m_pos[ idx ] ).Length() ), 16.0f );
 			for( int c = 0; c < 6; ++c )
 				outaddcol->color[ c ] += LT->m_colors[ idx ].color[ c ] * distfac;
 			*outaddwt += distfac;

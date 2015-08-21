@@ -588,7 +588,7 @@ void SGRX_DecalSystem::AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh
 	Mat4 vpmtx;
 	_GenDecalMatrix( projInfo, &vpmtx, &inv_zn2zf );
 	uint32_t color = Vec3ToCol32( m_lightSampler ?
-		m_lightSampler->SampleLight( projInfo.pos ) * 0.25f : V3(0.25f) );
+		m_lightSampler->SampleLight( projInfo.pos ) * 0.125f : V3(0.125f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color );
@@ -608,7 +608,7 @@ void SGRX_DecalSystem::AddDecal( const DecalProjectionInfo& projInfo, SGRX_IMesh
 	Mat4 vpmtx;
 	_GenDecalMatrix( projInfo, &vpmtx, &inv_zn2zf );
 	uint32_t color = Vec3ToCol32( m_lightSampler ?
-		m_lightSampler->SampleLight( projInfo.pos ) * 0.25f : V3(0.25f) );
+		m_lightSampler->SampleLight( projInfo.pos ) * 0.125f : V3(0.125f) );
 	
 	size_t origvbsize = m_vertexData.size(), origibsize = m_indexData.size();
 	targetMesh->Clip( worldMatrix, vpmtx, m_vertexData, true, inv_zn2zf, color, partID, 1 );
