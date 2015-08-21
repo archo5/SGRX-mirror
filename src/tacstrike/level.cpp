@@ -706,6 +706,17 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	}
 	
 	///////////////////////////
+	if( type == "cover" )
+	{
+		Mat4 mtx = Mat4::CreateSXT(
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
+			data.getprop("position").get<Vec3>() );
+		m_coverSystem.AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
+		return;
+	}
+	
+	///////////////////////////
 	if( type == "particle_fx" )
 	{
 		ParticleFX* PF = new ParticleFX
@@ -791,9 +802,12 @@ void GameLevel::EndLevel()
 	
 	m_ltSamples.SetSamples( NULL, 0 );
 	m_infoEmitters.Clear();
+	m_messageSystem.Clear();
+	m_objectiveSystem.Clear();
 	m_damageSystem.Clear();
 	m_bulletSystem.Clear();
 	m_flareSystem.Clear();
+	m_coverSystem.Clear();
 	m_lights.clear();
 	m_meshInsts.clear();
 	m_levelBodies.clear();

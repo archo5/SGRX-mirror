@@ -180,6 +180,11 @@ ObjectiveSystem::ObjectiveSystem() :
 	m_tx_icon_failed = GR_GetTexture( "ui/obj_failed.png" );
 }
 
+void ObjectiveSystem::Clear()
+{
+	m_objectives.clear();
+}
+
 int ObjectiveSystem::AddObjective(
 	const StringView& title,
 	OSObjective::State state,
@@ -315,6 +320,147 @@ void FlareSystem::Draw( SGRX_Camera& cam )
 		float dy = sin(0.1f)*0.5f*sz * FD.size;
 		br.TurnedBox( screenpos.x * W, screenpos.y * H, dx, dy );
 		br.Flush();
+	}
+}
+
+
+CoverSystem::CoverSystem()
+{
+}
+
+void CoverSystem::Clear()
+{
+	m_edgeMeshes.clear();
+	m_edgeMeshesByName.clear();
+}
+
+void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
+{
+	EdgeMesh* EM = new EdgeMesh;
+	EM->m_key = name;
+	EM->pos = mtx.TransformPos( V3(0) );
+	EM->enabled = true;
+	
+	Mat4 ntx;
+	mtx.GenNormalMatrix( ntx );
+	
+#if 1
+	Vec3 normals[6] =
+	{
+		V3(-1,0,0), V3(1,0,0),
+		V3(0,-1,0), V3(0,1,0),
+		V3(0,0,-1), V3(0,0,1),
+	};
+	for( int i = 0; i < 6; ++i )
+	{
+		normals[i] = ntx.TransformNormal( normals[i] );
+	}
+	Vec3 tfmin = mtx.TransformPos( bbmin );
+	Vec3 tfmax = mtx.TransformPos( bbmax );
+	
+	Vec4 planes[6] =
+	{
+		V4( normals[0], Vec3Dot( normals[0], tfmin ) ),
+		V4( normals[1], Vec3Dot( normals[1], tfmax ) ),
+		V4( normals[2], Vec3Dot( normals[2], tfmin ) ),
+		V4( normals[3], Vec3Dot( normals[3], tfmax ) ),
+		V4( normals[4], Vec3Dot( normals[4], tfmin ) ),
+		V4( normals[5], Vec3Dot( normals[5], tfmax ) ),
+	};
+	
+	Edge edges[12] =
+	{
+		{ 2, 4 }, { 3, 4 }, { 2, 5 }, { 3, 5 }, // X
+		{ 0, 4 }, { 1, 4 }, { 0, 5 }, { 1, 5 }, // Y
+		{ 0, 2 }, { 1, 2 }, { 0, 3 }, { 1, 3 }, // Z
+	};
+#else
+	Edge edges[12] =
+	{
+		// X
+		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmin.z), V3(0,-1,0), V3(0,0,-1) },
+		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(0,1,0), V3(0,0,-1) },
+		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(0,-1,0), V3(0,0,1) },
+		{ V3(bbmin.x,bbmax.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(0,1,0), V3(0,0,1) },
+		// Y
+		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmin.z), V3(-1,0,0), V3(0,0,-1) },
+		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(1,0,0), V3(0,0,-1) },
+		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,0,1) },
+		{ V3(bbmax.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,0,1) },
+		// Z
+		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmin.y,bbmax.z), V3(-1,0,0), V3(0,-1,0) },
+		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(1,0,0), V3(0,-1,0) },
+		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,1,0) },
+		{ V3(bbmax.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,1,0) },
+	};
+	
+	for( int i = 0; i < 12; ++i )
+	{
+		edges[ i ].p0 = mtx.TransformPos( edges[ i ].p0 );
+		edges[ i ].p1 = mtx.TransformPos( edges[ i ].p1 );
+		edges[ i ].n0 = ntx.TransformNormal( edges[ i ].n0 );
+		edges[ i ].n1 = ntx.TransformNormal( edges[ i ].n1 );
+	}
+	
+	Vec4 planes[6] =
+	{
+		V4( edges[4].n0, Vec3Dot( edges[4].n0, edges[4].p0 ) ), // X-
+		V4( edges[5].n0, Vec3Dot( edges[5].n0, edges[5].p0 ) ), // X+
+		V4( edges[0].n0, Vec3Dot( edges[0].n0, edges[0].p0 ) ), // Y-
+		V4( edges[1].n0, Vec3Dot( edges[1].n0, edges[1].p0 ) ), // Y+
+		V4( edges[0].n1, Vec3Dot( edges[0].n1, edges[0].p0 ) ), // Z-
+		V4( edges[2].n1, Vec3Dot( edges[2].n1, edges[2].p0 ) ), // Z+
+	};
+#endif
+	
+	EM->edges.assign( edges, 12 );
+	EM->planes.assign( planes, 6 );
+	
+	m_edgeMeshes.push_back( EM );
+	m_edgeMeshesByName.set( EM->m_key, EM );
+}
+
+void CoverSystem::Query( Vec3 viewer, float viewdist, CSCoverInfo& shape )
+{
+	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
+	{
+		EdgeMesh* EM = m_edgeMeshes[ emid ];
+		if( EM->enabled == false )
+			continue;
+		if( ( viewer - EM->pos ).Length() > viewdist )
+			continue;
+		
+		shape.shadowPlaneCounts.push_back(0);
+		
+		for( size_t i = 0; i < EM->planes.size(); ++i )
+		{
+			Vec4 P = EM->planes[ i ];
+			if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
+			{
+				shape.shadowPlanes.push_back( P );
+				shape.shadowPlaneCounts.last()++;
+			}
+		}
+		
+		for( size_t i = 0; i < EM->edges.size(); ++i )
+		{
+			Edge E = EM->edges[ i ];
+			Vec4 P0 = EM->planes[ E.pl0 ];
+			Vec4 P1 = EM->planes[ E.pl1 ];
+			bool is0 = Vec3Dot( P0.ToVec3(), viewer ) > P0.w;
+			bool is1 = Vec3Dot( P1.ToVec3(), viewer ) > P1.w;
+			
+			if( is0 && is1 == false )
+			{
+				shape.shadowPlanes.push_back( P1 );
+				shape.shadowPlaneCounts.last()++;
+			}
+			else if( is0 == false && is1 )
+			{
+				shape.shadowPlanes.push_back( P0 );
+				shape.shadowPlaneCounts.last()++;
+			}
+		}
 	}
 }
 

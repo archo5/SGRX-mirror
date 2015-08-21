@@ -246,6 +246,7 @@ struct ObjectiveSystem
 	float m_alpha;
 	
 	ObjectiveSystem();
+	void Clear();
 	int AddObjective(
 		const StringView& title,
 		OSObjective::State state,
@@ -280,6 +281,45 @@ struct FlareSystem
 	HashTable< void*, FSFlare > m_flares;
 	PixelShaderHandle m_ps_flare;
 	TextureHandle m_tex_flare;
+};
+
+
+struct CSCoverInfo
+{
+	Array< Vec4 > shadowPlanes;
+	Array< int > shadowPlaneCounts;
+};
+
+struct CoverSystem
+{
+	struct Edge
+	{
+#if 1
+		int pl0;
+		int pl1;
+#else
+		Vec3 p0; // endpoint 0
+		Vec3 p1; // endpoint 1
+		Vec3 n0; // adjacent plane 0 normal
+		Vec3 n1; // adjacent plane 1 normal
+#endif
+	};
+	struct EdgeMesh : SGRX_RCRsrc
+	{
+		Array< Edge > edges;
+		Array< Vec4 > planes;
+		Vec3 pos;
+		bool enabled;
+	};
+	typedef Handle< EdgeMesh > EdgeMeshHandle;
+	
+	CoverSystem();
+	void Clear();
+	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
+	void Query( Vec3 viewer, float viewdist, CSCoverInfo& shape );
+	
+	Array< EdgeMeshHandle > m_edgeMeshes;
+	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;
 };
 
 

@@ -53,6 +53,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	MessagingSystem m_messageSystem;
 	ObjectiveSystem m_objectiveSystem;
 	FlareSystem m_flareSystem;
+	CoverSystem m_coverSystem;
 	AIDBSystem m_aidbSystem;
 	
 	// LEVEL DATA
