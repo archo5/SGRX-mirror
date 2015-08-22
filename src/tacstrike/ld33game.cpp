@@ -20,8 +20,8 @@ Command MOVE_RIGHT( "move_right" );
 Command MOVE_UP( "move_up" );
 Command MOVE_DOWN( "move_down" );
 Command INTERACT( "interact" );
-Command JUMP( "jump" );
-Command CROUCH( "crouch" );
+Command THROW_COIN( "throw_coin" );
+Command SLOW_WALK( "slow_walk" );
 Command SHOW_OBJECTIVES( "show_objectives" );
 
 
@@ -32,8 +32,8 @@ static void resetcontrols()
 	MOVE_UP.value = 0;
 	MOVE_DOWN.value = 0;
 	INTERACT.value = 0;
-	JUMP.value = 0;
-	CROUCH.value = 0;
+	THROW_COIN.value = 0;
+	SLOW_WALK.value = 0;
 	SHOW_OBJECTIVES.value = 0;
 }
 
@@ -54,6 +54,9 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
+	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_DYNAMIC | RPF_ENABLED, 1, 4, 0, "base" },
+	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
@@ -78,8 +81,8 @@ ActionInput g_i_move_right = ACTINPUT_MAKE_KEY( SDLK_d );
 ActionInput g_i_move_up = ACTINPUT_MAKE_KEY( SDLK_w );
 ActionInput g_i_move_down = ACTINPUT_MAKE_KEY( SDLK_s );
 ActionInput g_i_interact = ACTINPUT_MAKE_MOUSE( SGRX_MB_LEFT );
-ActionInput g_i_jump = ACTINPUT_MAKE_KEY( SDLK_SPACE );
-ActionInput g_i_crouch = ACTINPUT_MAKE_KEY( SDLK_LCTRL );
+ActionInput g_i_throw_coin = ACTINPUT_MAKE_KEY( SDLK_q );
+ActionInput g_i_slow_walk = ACTINPUT_MAKE_KEY( SDLK_LSHIFT );
 ActionInput g_i_show_objectives = ACTINPUT_MAKE_KEY( SDLK_TAB );
 
 float g_i_mouse_sensitivity = 1.0f;
@@ -134,8 +137,8 @@ void SaveConfig( bool nd = true )
 		"i_move_up %u:%u\n"
 		"i_move_down %u:%u\n"
 		"i_interact %u:%u\n"
-		"i_jump %u:%u\n"
-		"i_crouch %u:%u\n"
+		"i_throw_coin %u:%u\n"
+		"i_slow_walk %u:%u\n"
 		"i_show_objectives %u:%u\n"
 		"i_mouse_sensitivity %g\n"
 		"i_mouse_invert_x %s\n"
@@ -158,8 +161,8 @@ void SaveConfig( bool nd = true )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_move_up ), (unsigned) ACTINPUT_GET_VALUE( g_i_move_up )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_move_down ), (unsigned) ACTINPUT_GET_VALUE( g_i_move_down )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_interact ), (unsigned) ACTINPUT_GET_VALUE( g_i_interact )
-		, (unsigned) ACTINPUT_GET_TYPE( g_i_jump ), (unsigned) ACTINPUT_GET_VALUE( g_i_jump )
-		, (unsigned) ACTINPUT_GET_TYPE( g_i_crouch ), (unsigned) ACTINPUT_GET_VALUE( g_i_crouch )
+		, (unsigned) ACTINPUT_GET_TYPE( g_i_throw_coin ), (unsigned) ACTINPUT_GET_VALUE( g_i_throw_coin )
+		, (unsigned) ACTINPUT_GET_TYPE( g_i_slow_walk ), (unsigned) ACTINPUT_GET_VALUE( g_i_slow_walk )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_show_objectives ), (unsigned) ACTINPUT_GET_VALUE( g_i_show_objectives )
 		, g_i_mouse_sensitivity
 		, g_i_mouse_invert_x ? "true" : "false"
@@ -1009,8 +1012,8 @@ Command* g_ctrls[] =
 	&MOVE_LEFT,
 	&MOVE_RIGHT,
 	&INTERACT,
-	&JUMP,
-	&CROUCH,
+	&THROW_COIN,
+	&SLOW_WALK,
 	&SHOW_OBJECTIVES,
 };
 ActionInput* g_ctrl_ai[] =
@@ -1020,8 +1023,8 @@ ActionInput* g_ctrl_ai[] =
 	&g_i_move_left,
 	&g_i_move_right,
 	&g_i_interact,
-	&g_i_jump,
-	&g_i_crouch,
+	&g_i_throw_coin,
+	&g_i_slow_walk,
 	&g_i_show_objectives,
 };
 #define g_num_ctrls int(sizeof(g_ctrls)/sizeof(g_ctrls[0]))
@@ -1045,8 +1048,8 @@ struct ControlOptionsMenuScreen : IScreen
 		menu.AddSwitchButton( "Move right", 0.0f, y, 0.5f, y + 0.05f ); y += 0.05f;
 		y = 0.2f;
 		menu.AddSwitchButton( "Interact", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
-		menu.AddSwitchButton( "Jump", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
-		menu.AddSwitchButton( "Crouch", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
+		menu.AddSwitchButton( "Throw a coin", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
+		menu.AddSwitchButton( "Slow walking", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
 		menu.AddSwitchButton( "Show objectives", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
 		y = 0.4f;
 		menu.AddSlider( "Mouse sensitivity", 0.0f, y, 1.0f, y + 0.1f ); y += 0.1f;
@@ -1415,7 +1418,7 @@ struct MainMenuScreen : IScreen
 	}
 	void OnStart()
 	{
-		m_tx_logo = GR_GetTexture( "ui/myflag-logo.png" );
+		m_tx_logo = GR_GetTexture( "ui/logo.png" );
 		menu.OnStart();
 	}
 	void OnEnd()
@@ -1459,7 +1462,7 @@ struct MainMenuScreen : IScreen
 		
 		br.Reset();
 		br.SetTexture( m_tx_logo );
-		br.Quad( TLERP( menu.x0, menu.x1, 0.2f ), TLERP( menu.y0, menu.y1, 0.0f ), TLERP( menu.x0, menu.x1, 0.8f ), TLERP( menu.y0, menu.y1, 0.3f ) );
+		br.Quad( TLERP( menu.x0, menu.x1, 0.0f ), TLERP( menu.y0, menu.y1, 0.2f ), TLERP( menu.x0, menu.x1, 1.0f ), TLERP( menu.y0, menu.y1, 0.7f ) );
 		
 		menu.RecalcSize( GR_GetWidth(), GR_GetHeight() );
 		
@@ -1618,8 +1621,8 @@ struct OfficeTheftGame : IGame
 				else if( key == "i_move_up"         ) g_i_move_up         = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_move_down"       ) g_i_move_down       = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_interact"        ) g_i_interact        = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
-				else if( key == "i_jump"            ) g_i_jump            = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
-				else if( key == "i_crouch"          ) g_i_crouch          = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
+				else if( key == "i_throw_coin"      ) g_i_throw_coin      = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
+				else if( key == "i_slow_walk"       ) g_i_slow_walk       = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_show_objectives" ) g_i_show_objectives = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_mouse_sensitivity" ) g_i_mouse_sensitivity = String_ParseFloat( value );
 				else if( key == "i_mouse_invert_x" ) g_i_mouse_invert_x = String_ParseBool( value );
@@ -1650,8 +1653,8 @@ struct OfficeTheftGame : IGame
 		Game_RegisterAction( &MOVE_UP );
 		Game_RegisterAction( &MOVE_DOWN );
 		Game_RegisterAction( &INTERACT );
-		Game_RegisterAction( &JUMP );
-		Game_RegisterAction( &CROUCH );
+		Game_RegisterAction( &THROW_COIN );
+		Game_RegisterAction( &SLOW_WALK );
 		Game_RegisterAction( &SHOW_OBJECTIVES );
 		
 		Game_BindInputToAction( g_i_move_left, &MOVE_LEFT );
@@ -1659,8 +1662,8 @@ struct OfficeTheftGame : IGame
 		Game_BindInputToAction( g_i_move_up, &MOVE_UP );
 		Game_BindInputToAction( g_i_move_down, &MOVE_DOWN );
 		Game_BindInputToAction( g_i_interact, &INTERACT );
-		Game_BindInputToAction( g_i_jump, &JUMP );
-		Game_BindInputToAction( g_i_crouch, &CROUCH );
+		Game_BindInputToAction( g_i_throw_coin, &THROW_COIN );
+		Game_BindInputToAction( g_i_slow_walk, &SLOW_WALK );
 		Game_BindInputToAction( g_i_show_objectives, &SHOW_OBJECTIVES );
 		
 		g_SoundSys->Load( "sound/master.bank" );

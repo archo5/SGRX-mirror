@@ -413,6 +413,10 @@ ScriptedItem::ScriptedItem( const StringView& name, sgsVariable args ) : m_scrIt
 	sgsVariable func = g_GameLevel->m_scriptCtx.GetGlobal( bfr );
 	if( func.not_null() )
 	{
+		sgs_Variable pvar;
+		sgs_InitPtr( &pvar, this );
+		args.setprop( "__entity", sgsVariable( g_GameLevel->m_scriptCtx.C, &pvar ) );
+		
 		m_scrItem = SGRX_ScriptedItem::Create(
 			g_GameLevel->m_scene, g_PhyWorld, g_GameLevel->m_scriptCtx.C,
 			func, args );

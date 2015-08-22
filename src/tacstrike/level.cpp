@@ -12,13 +12,6 @@
 #include "entities.hpp"
 
 
-static int SendMessage( SGS_CTX )
-{
-	SGSFN( "SendMessage" );
-	int ssz = sgs_StackSize( C );
-	g_GameLevel->m_messageSystem.AddMessage( (MSMessage::Type) sgs_GetVar<int>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ), ssz < 3 ? 3.0f : sgs_GetVar<float>()( C, 2 ) );
-	return 0;
-}
 static int EndLevel( SGS_CTX )
 {
 	SGSFN( "EndLevel" );
@@ -37,11 +30,97 @@ static int CallEntity( SGS_CTX )
 	g_GameLevel->CallEntityByName( sgs_GetVar<StringView>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ) );
 	return 0;
 }
+static int PlayerGetPosition( SGS_CTX )
+{
+	SGSFN( "PlayerGetPosition" );
+	if( g_GameLevel->m_player )
+	{
+		sgs_PushVar<Vec3>( C, g_GameLevel->m_player->GetPosition() );
+		return 1;
+	}
+	return 0;
+}
 static int PlayerHasItem( SGS_CTX )
 {
 	SGSFN( "PlayerHasItem" );
-	sgs_PushVar<bool>( C, g_GameLevel->m_player && g_GameLevel->m_player->HasItem( sgs_GetVar<StringView>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) ) );
+	if( g_GameLevel->m_player )
+	{
+		StringView name = sgs_GetVar<StringView>()( C, 0 );
+		sgs_PushVar<bool>( C, g_GameLevel->m_player->HasItem( name, sgs_GetVar<int>()( C, 1 ) ) );
+		return 1;
+	}
+	return 0;
+}
+static int EntitySetProperties( SGS_CTX )
+{
+	SGSFN( "EntitySetProperties" );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	Entity* E = g_GameLevel->FindEntityByName( name );
+	if( !E )
+		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
+	sgs_StkIdx ssz = sgs_StackSize( C );
+	for( sgs_StkIdx i = 1; i + 1 < ssz; i += 2 )
+	{
+		StringView key = sgs_GetVar<StringView>()( C, i + 0 );
+		sgsVariable value = sgs_GetVar<sgsVariable>()( C, i + 1 );
+		E->SetProperty( key, value );
+	}
+	return 0;
+}
+static int EntityGetProperties( SGS_CTX )
+{
+	SGSFN( "EntityGetProperties" );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	Entity* E = g_GameLevel->FindEntityByName( name );
+	if( !E )
+		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
+	sgs_StkIdx ssz = sgs_StackSize( C );
+	for( sgs_StkIdx i = 1; i < ssz; ++i )
+	{
+		StringView key = sgs_GetVar<StringView>()( C, i );
+		g_GameLevel->m_scriptCtx.Push( E->GetProperty( key ) );
+	}
+	return ssz - 1;
+}
+static int GetNamedPosition( SGS_CTX )
+{
+	SGSFN( "GetNamedPosition" );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	Vec3* pos = g_GameLevel->m_markerMap.getptr( name );
+	if( pos == NULL )
+		return sgs_Msg( C, SGS_WARNING, "failed to find named position: %.*s", (int) name.size(), name.data() );
+	g_GameLevel->m_scriptCtx.Push( *pos );
 	return 1;
+}
+static int IES_UpdateEmitter( SGS_CTX )
+{
+	SGSFN( "IES_UpdateEmitter" );
+	Entity* E = (Entity*) sgs_GetVar<void*>()( C, 0 );
+	if( E == NULL )
+		return sgs_Msg( C, SGS_WARNING, "given pointer is not an entity" );
+	InfoEmissionSystem::Data data =
+	{
+		sgs_GetVar<Vec3>()( C, 1 ),
+		sgs_GetVar<float>()( C, 2 ),
+		sgs_GetVar<int>()( C, 3 ),
+	};
+	g_GameLevel->m_infoEmitters.UpdateEmitter( E, data );
+	return 0;
+}
+static int IES_RemoveEmitter( SGS_CTX )
+{
+	SGSFN( "IES_RemoveEmitter" );
+	Entity* E = (Entity*) sgs_GetVar<void*>()( C, 0 );
+	if( E == NULL )
+		return sgs_Msg( C, SGS_WARNING, "given pointer is not an entity" );
+	return 0;
+}
+static int SendMessage( SGS_CTX )
+{
+	SGSFN( "SendMessage" );
+	int ssz = sgs_StackSize( C );
+	g_GameLevel->m_messageSystem.AddMessage( (MSMessage::Type) sgs_GetVar<int>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ), ssz < 3 ? 3.0f : sgs_GetVar<float>()( C, 2 ) );
+	return 0;
 }
 static int ObjectiveAdd( SGS_CTX )
 {
@@ -93,104 +172,47 @@ static int ObjectiveSetState( SGS_CTX )
 	g_GameLevel->m_objectiveSystem.m_objectives[ which ].state = (OSObjective::State) state;
 	return 0;
 }
-#ifdef LD32GAME
-static int EnemyDefine( SGS_CTX )
-{
-	SGSFN( "EnemyDefine" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	Enemy* enemy = (Enemy*) g_GameLevel->FindEntityByName( name );
-	if( !enemy )
-		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
-	if( strcmp( enemy->m_typeName, "enemy" ) != 0 )
-		return sgs_Msg( C, SGS_WARNING, "found entity is not 'enemy': %.*s", (int) name.size(), name.data() );
-	LD32ParseTaskArray( enemy->m_patrolTasks, sgs_GetVar<sgsVariable>()( C, 1 ) );
-	if( sgs_StackSize( C ) > 2 )
-	{
-		enemy->m_disturbActionName = sgs_GetVar<StringView>()( C, 2 );
-		LD32ParseTaskArray( enemy->m_disturbTasks, sgs_GetVar<sgsVariable>()( C, 3 ) );
-	}
-	enemy->UpdateTask();
-	return 0;
-}
-#endif
-static int EntitySetProperties( SGS_CTX )
-{
-	SGSFN( "EntitySetProperties" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	Entity* E = g_GameLevel->FindEntityByName( name );
-	if( !E )
-		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
-	sgs_StkIdx ssz = sgs_StackSize( C );
-	for( sgs_StkIdx i = 1; i + 1 < ssz; i += 2 )
-	{
-		StringView key = sgs_GetVar<StringView>()( C, i + 0 );
-		sgsVariable value = sgs_GetVar<sgsVariable>()( C, i + 1 );
-		E->SetProperty( key, value );
-	}
-	return 0;
-}
-static int EntityGetProperties( SGS_CTX )
-{
-	SGSFN( "EntityGetProperties" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	Entity* E = g_GameLevel->FindEntityByName( name );
-	if( !E )
-		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
-	sgs_StkIdx ssz = sgs_StackSize( C );
-	for( sgs_StkIdx i = 1; i < ssz; ++i )
-	{
-		StringView key = sgs_GetVar<StringView>()( C, i );
-		g_GameLevel->m_scriptCtx.Push( E->GetProperty( key ) );
-	}
-	return ssz - 1;
-}
-static int GetNamedPosition( SGS_CTX )
-{
-	SGSFN( "GetNamedPosition" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	Vec3* pos = g_GameLevel->m_markerMap.getptr( name );
-	if( pos == NULL )
-		return sgs_Msg( C, SGS_WARNING, "failed to find named position: %.*s", (int) name.size(), name.data() );
-	g_GameLevel->m_scriptCtx.Push( *pos );
-	return 1;
-}
 
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
-	{ "SendMessage", SendMessage },
 	{ "EndLevel", EndLevel },
 	{ "SetLevel", SetLevel },
 	{ "CallEntity", CallEntity },
+	{ "PlayerGetPosition", PlayerGetPosition },
 	{ "PlayerHasItem", PlayerHasItem },
+	{ "EntitySetProperties", EntitySetProperties },
+	{ "EntityGetProperties", EntityGetProperties },
+	{ "GetNamedPosition", GetNamedPosition },
+	// Info emission system
+	{ "IES_UpdateEmitter", IES_UpdateEmitter },
+	{ "IES_RemoveEmitter", IES_RemoveEmitter },
+	// Messaging system
+	{ "SendMessage", SendMessage },
+	// Objective system
 	{ "ObjectiveAdd", ObjectiveAdd },
 	{ "ObjectiveGetTitle", ObjectiveGetTitle },
 	{ "ObjectiveSetTitle", ObjectiveSetTitle },
 	{ "ObjectiveGetState", ObjectiveGetState },
 	{ "ObjectiveSetState", ObjectiveSetState },
-#ifdef LD32GAME
-	{ "EnemyDefine", EnemyDefine },
-#endif
-	{ "EntitySetProperties", EntitySetProperties },
-	{ "EntityGetProperties", EntityGetProperties },
-	{ "GetNamedPosition", GetNamedPosition },
 	SGS_RC_END(),
 };
 
 static sgs_RegIntConst g_gameapi_ric[] =
 {
+	{ "IEST_InteractiveItem", IEST_InteractiveItem },
+	{ "IEST_HeatSource", IEST_HeatSource },
+	{ "IEST_Player", IEST_Player },
+	{ "IEST_MapItem", IEST_MapItem },
+	// Messaging system
 	{ "MT_Continued", MSMessage::Continued },
 	{ "MT_Info", MSMessage::Info },
 	{ "MT_Warning", MSMessage::Warning },
+	// Objective system
 	{ "OS_Hidden", OSObjective::Hidden },
 	{ "OS_Open", OSObjective::Open },
 	{ "OS_Done", OSObjective::Done },
 	{ "OS_Failed", OSObjective::Failed },
 	{ "OS_Cancelled", OSObjective::Cancelled },
-#ifdef LD32GAME
-	{ "TT_Wait", TT_Wait },
-	{ "TT_Turn", TT_Turn },
-	{ "TT_Walk", TT_Walk },
-#endif
 	{ NULL, 0 },
 };
 
@@ -1050,7 +1072,7 @@ void GameLevel::DebugDraw()
 	}
 #endif
 	
-#if DRAW_PATHFINDER||1
+#if DRAW_PATHFINDER
 	m_aidbSystem.m_pathfinder.DebugDraw();
 	
 #if TEST_PATHFINDER

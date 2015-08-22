@@ -8,8 +8,7 @@ extern Command MOVE_RIGHT;
 extern Command MOVE_UP;
 extern Command MOVE_DOWN;
 extern Command INTERACT;
-extern Command JUMP;
-extern Command CROUCH;
+extern Command SLOW_WALK;
 extern Command SHOW_OBJECTIVES;
 
 
@@ -45,7 +44,8 @@ void LD33Player::FixedTick( float deltaTime )
 	Vec3 pos = m_bodyHandle->GetPosition();
 	m_ivPos.Advance( pos );
 	
-	m_isCrouching = CROUCH.value;
+	bool slowWalk = SLOW_WALK.value >= 0.5f;
+	m_isCrouching = 0;
 	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
 		g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
@@ -72,7 +72,7 @@ void LD33Player::FixedTick( float deltaTime )
 		ground = true;
 		m_canJumpTimeout = 0.5f;
 	}
-	if( !m_jumpTimeout && m_canJumpTimeout && JUMP.value )
+	if( !m_jumpTimeout && m_canJumpTimeout && 0)//JUMP.value )
 	{
 		lvel.z = 4;
 		m_jumpTimeout = 0.5f;
@@ -102,6 +102,7 @@ void LD33Player::FixedTick( float deltaTime )
 	float accel = ( md.NearZero() && !m_isCrouching ) ? 38 : 30;
 	if( m_isCrouching ){ accel = 5; maxspeed = 2.5f; }
 	if( !ground ){ accel = 10; }
+	if( slowWalk ){ accel *= 0.5f; maxspeed *= 0.5f; }
 	
 	float curspeed = Vec2Dot( lvel2, md );
 	float revmaxfactor = clamp( maxspeed - curspeed, 0, 1 );
@@ -167,7 +168,7 @@ void LD33Player::Tick( float deltaTime, float blendFactor )
 	SGRX_Sound3DAttribs s3dattr = { pos, m_bodyHandle->GetLinearVelocity(), dir, V3(0,0,1) };
 	
 	m_footstepTime += deltaTime * m_isOnGround * m_bodyHandle->GetLinearVelocity().Length() * ( 0.6f + m_isCrouching * 0.3f );
-	if( m_footstepTime >= 1 )
+	if( m_footstepTime >= 1 && SLOW_WALK.value < 0.5f )
 	{
 		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
 		fsev->SetVolume( 1.0f - m_isCrouching * 0.3f );
