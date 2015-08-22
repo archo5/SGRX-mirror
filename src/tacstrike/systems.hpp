@@ -1,6 +1,7 @@
 
 
 #pragma once
+#define USE_HASHTABLE
 #include <engine.hpp>
 #include <enganim.hpp>
 #include <engext.hpp>

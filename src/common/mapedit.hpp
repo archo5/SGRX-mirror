@@ -920,7 +920,7 @@ struct EdPatchLayerInfo
 
 struct EdPatch : EdObject
 {
-	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0), blend(0)
+	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0), blend(0), lmquality(1)
 	{
 		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
 		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );

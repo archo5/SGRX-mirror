@@ -38,6 +38,15 @@ static void resetcontrols()
 }
 
 
+float g_money = 0;
+const float g_money_target = 1000000.0f;
+
+void start_game()
+{
+	g_money = 900000.0f;
+}
+
+
 SGRX_RenderPass g_RenderPasses_Main[] =
 {
 	{ RPT_SHADOWS, RPF_ENABLED, 1, 0, 0, "shadow" },
@@ -103,7 +112,7 @@ void SaveConfig( bool nd = true )
 		g_s_vol_music = g_SoundSys->GetVolume( "bus:/music" );
 	}
 	
-	InLocalStorage ils( "CrageGames/FlagGame" );
+	InLocalStorage ils( "CrageGames/OfficeTheftGame" );
 	
 	char bfr[ 65536 ];
 	snprintf( bfr, sizeof(bfr),
@@ -356,7 +365,7 @@ struct ScreenMenu
 			{
 				float ctlalpha = i == m_selected || ( m_selected < 0 && i == m_HL ) ? 1.0f : 0.9f;
 				
-				GR2D_SetFont( "fonts/lato-regular.ttf", TMAX(0.0f, fabsf(ay0 - ay1) * 0.2f + (y1 - y0) / 50) * 0.8f );
+				GR2D_SetFont( "core", TMAX(0.0f, fabsf(ay0 - ay1) * 0.2f + (y1 - y0) / 50) * 0.8f );
 				
 				br.Reset().Col( bgcol.x, bgcol.y, bgcol.z, bgcol.w * opacity ).Quad( ax0, ay0, ax1, ay1 );
 				br.Reset().Col( fgcol.x, fgcol.y, fgcol.z, fgcol.w * opacity );
@@ -371,7 +380,7 @@ struct ScreenMenu
 					br.Reset().Col( 0.8f, ctlalpha * opacity ).Quad( mx0+IMG, ay0+IMG, TLERP( mx0+IMG, ax1-IMG, CTRL.sl_value ), ay1-IMG );
 					if( CTRL.value_text.size() )
 					{
-						GR2D_SetFont( "fonts/lato-regular.ttf", TMAX(0.0f, fabsf(ay0 - ay1) * 0.2f + (y1 - y0) / 50) * 0.6f );
+						GR2D_SetFont( "core", TMAX(0.0f, fabsf(ay0 - ay1) * 0.2f + (y1 - y0) / 50) * 0.6f );
 						
 						br.Flush();
 						GR2D_SetScissorRect( mx0+IMG, ay0+IMG, TLERP( mx0+IMG, ax1-IMG, CTRL.sl_value ), ay1-IMG );
@@ -399,7 +408,7 @@ struct ScreenMenu
 			}
 			else
 			{
-				GR2D_SetFont( "fonts/lato-regular.ttf", (y1 - y0) / 30 );
+				GR2D_SetFont( "core", (y1 - y0) / 30 );
 				
 				br.Reset().Col( fgcol.x, fgcol.y, fgcol.z, fgcol.w * opacity );
 				GR2D_DrawTextLine( round((ax0+ax1)/2), round((ay0+ay1)/2), CTRL.caption, HALIGN_CENTER, VALIGN_CENTER );
@@ -554,7 +563,7 @@ struct QuestionScreen : IScreen
 		br.Quad( 0, menu.y0, GR_GetWidth(), GR_GetHeight() );
 		
 		br.Col( 0.8f, menu.opacity );
-		GR2D_SetFont( "fonts/lato-regular.ttf", (menu.y1 - menu.y0) / 30 );
+		GR2D_SetFont( "core", (menu.y1 - menu.y0) / 30 );
 		GR2D_DrawTextLine( TLERP(menu.x0,menu.x1,0.5f), TLERP(menu.y0,menu.y1,0.3f), question, HALIGN_CENTER, VALIGN_CENTER );
 		
 		menu.Draw( delta );
@@ -1215,7 +1224,7 @@ struct ControlOptionsMenuScreen : IScreen
 			br.Col( 0, 0.5f * menu.opacity * keyAnimFactor );
 			br.QuadFrame( ox0, oy0, ox1, oy1, ix0, iy0, ix1, iy1 );
 			
-			GR2D_SetFont( "fonts/lato-regular.ttf", (menu.y1 - menu.y0) / 30 );
+			GR2D_SetFont( "core", (menu.y1 - menu.y0) / 30 );
 			
 			br.Reset().Col( 0.9f, menu.opacity * keyAnimFactor );
 			GR2D_DrawTextLine( round(TLERP(menu.x0,menu.x1,0.5f)), round(TLERP(menu.y0,menu.y1,0.1f)), "Press key/button to assign or <Escape> to cancel", HALIGN_CENTER, VALIGN_CENTER );
@@ -1379,7 +1388,7 @@ struct PauseMenuScreen : IScreen
 		
 		br.Reset();
 		br.Col( 0.8f, menu.opacity );
-		GR2D_SetFont( "fonts/lato-regular.ttf", (menu.y1 - menu.y0) / 30 );
+		GR2D_SetFont( "core", (menu.y1 - menu.y0) / 30 );
 		GR2D_DrawTextLine( TLERP(menu.x0,menu.x1,0.5f), TLERP(menu.y0,menu.y1,0.3f), "- PAUSED -", HALIGN_CENTER, VALIGN_CENTER );
 		
 		menu.Draw( delta );
@@ -1423,6 +1432,7 @@ struct MainMenuScreen : IScreen
 			{
 				// start the level
 				g_GameLevel->StartLevel();
+				start_game();
 				Game_RemoveOverlayScreen( this );
 				Game_ShowCursor( false );
 				return true;
@@ -1499,10 +1509,10 @@ struct EndMenuScreen : IScreen
 				Game_RemoveOverlayScreen( this );
 				delete g_GameLevel;
 				g_GameLevel = new GameLevel();
-				g_GameLevel->m_scene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 				g_GameLevel->Load( "jmplevel" );
 				g_GameLevel->Tick( 0, 0 );
 				g_GameLevel->StartLevel();
+				start_game();
 				return true;
 			}
 			else if( sel == 1 ){ Game_End(); }
@@ -1531,7 +1541,7 @@ struct EndMenuScreen : IScreen
 		br.Quad( 0, TLERP( menu.y0, menu.y1, 0.4f ), GR_GetWidth(), TLERP( menu.y0, menu.y1, 0.5f ) );
 		br.Reset();
 		br.Col( 0.2f, 0.8f, 0.1f, 1 );
-		GR2D_SetFont( "fonts/lato-regular.ttf", (menu.y1 - menu.y0) / 30 );
+		GR2D_SetFont( "core", (menu.y1 - menu.y0) / 30 );
 		GR2D_DrawTextLine( TLERP( menu.x0, menu.x1, 0.5f ), TLERP( menu.y0, menu.y1, 0.55f - smoothstep( g_GameLevel->m_endFactor ) * 0.1f ), "FLAG REACHED", HALIGN_CENTER, VALIGN_CENTER );
 		
 		br.Flush();
@@ -1552,9 +1562,9 @@ g_EndMenu;
 #define MAX_TICK_SIZE (1.0f/15.0f)
 #define FIXED_TICK_SIZE (1.0f/30.0f)
 
-struct FlagGame : IGame
+struct OfficeTheftGame : IGame
 {
-	FlagGame() : m_accum( 0.0f ), m_lastFrameReset( false )
+	OfficeTheftGame() : m_accum( 0.0f ), m_lastFrameReset( false )
 	{
 	}
 	
@@ -1562,7 +1572,7 @@ struct FlagGame : IGame
 	{
 		RenderSettings rs = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 4 };
 		
-		InLocalStorage ils( "CrageGames/FlagGame" );
+		InLocalStorage ils( "CrageGames/OfficeTheftGame" );
 		
 		String configdata;
 		if( LoadTextFile( "config.cfg", configdata ) )
@@ -1626,6 +1636,8 @@ struct FlagGame : IGame
 	
 	bool OnInitialize()
 	{
+		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
+		
 		g_SoundSys = SND_CreateSystem();
 		
 		g_PhyWorld = PHY_CreateWorld();
@@ -1663,12 +1675,11 @@ struct FlagGame : IGame
 		m_music->Start();
 		
 		g_GameLevel = new GameLevel();
-		g_GameLevel->m_scene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 		
 		Game_AddOverlayScreen( &g_MainMenu );
 		Game_AddOverlayScreen( &g_SplashScreen );
 		
-		g_GameLevel->Load( "jmplevel" );
+		g_GameLevel->Load( "office" );
 		g_GameLevel->Tick( 0, 0 );
 		
 		return true;
@@ -1729,6 +1740,16 @@ struct FlagGame : IGame
 	{
 		g_GameLevel->Draw();
 		g_GameLevel->Draw2D();
+		
+		// MONEY
+		char bfr[1024];
+		sgrx_snprintf( bfr, 1024, "Money stolen: $%.2f", g_money );
+		float minw = TMIN( GR_GetWidth(), GR_GetHeight() );
+		GR2D_SetFont( "core", minw / 20 );
+		GR2D_SetColor( 0, 1 );
+		GR2D_DrawTextLine( round(minw/10)+1, round(minw/10)+1, bfr, HALIGN_LEFT, VALIGN_TOP );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( round(minw/10), round(minw/10), bfr, HALIGN_LEFT, VALIGN_TOP );
 	}
 	
 	void OnTick( float dt, uint32_t gametime )

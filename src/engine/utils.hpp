@@ -706,6 +706,72 @@ template<> inline Quat DefaultValue<Quat>(){ return Quat::Identity; }
 
 
 //
+// YAWPITCH
+//
+
+struct YawPitch
+{
+	float yaw, pitch;
+	
+	void Normalize()
+	{
+		yaw = normalize_angle( yaw );
+		pitch = normalize_angle( pitch );
+	}
+	YawPitch Normalized() const
+	{
+		YawPitch out = { normalize_angle( yaw ), normalize_angle( pitch ) };
+		return out;
+	};
+	YawPitch Abs() const
+	{
+		YawPitch out = { fabsf( yaw ), fabsf( pitch ) };
+		return out;
+	}
+	YawPitch Scaled( float f ) const
+	{
+		YawPitch out = { yaw * f, pitch * f };
+		return out;
+	}
+	
+	void TurnTo( const YawPitch& tgt, const YawPitch& speedDelta )
+	{
+		YawPitch ypend = tgt.Normalized();
+		YawPitch ypstart = Normalized();
+		if( fabs( ypend.yaw - ypstart.yaw ) > M_PI )
+			ypstart.yaw += ypend.yaw > ypstart.yaw ? M_PI * 2 : -M_PI * 2;
+		if( fabs( ypend.pitch - ypstart.pitch ) > M_PI )
+			ypstart.pitch += ypend.pitch > ypstart.pitch ? M_PI * 2 : -M_PI * 2;
+		yaw = ypstart.yaw + sign( ypend.yaw - ypstart.yaw ) * TMIN( fabsf( ypend.yaw - ypstart.yaw ), speedDelta.yaw );
+		pitch = ypstart.pitch + sign( ypend.pitch - ypstart.pitch ) * TMIN( fabsf( ypend.pitch - ypstart.pitch ), speedDelta.pitch );
+	}
+};
+FINLINE YawPitch YP( float y, float p ){ YawPitch out = { y, p }; return out; }
+FINLINE YawPitch YP( float f ){ return YP( f, f ); }
+inline YawPitch YP( const Vec3& v )
+{
+	return YP( normalize_angle( atan2( v.y, v.x ) ),
+		normalize_angle( atan2( v.z, v.ToVec2().Length() ) ) );
+}
+inline YawPitch YawPitchDist( YawPitch from, YawPitch to )
+{
+	from = from.Normalized();
+	to = to.Normalized();
+	if( fabs( to.yaw - from.yaw ) > M_PI )
+		from.yaw += to.yaw > from.yaw ? M_PI * 2 : -M_PI * 2;
+	if( fabs( to.pitch - from.pitch ) > M_PI )
+		from.pitch += to.pitch > from.pitch ? M_PI * 2 : -M_PI * 2;
+	return YP( to.yaw - from.yaw, to.pitch - from.pitch );
+}
+inline bool YawPitchAlmostEqual( const YawPitch& a, const YawPitch& b )
+{
+	YawPitch dst = YawPitchDist( a, b ).Abs();
+	return dst.yaw < SMALL_FLOAT && dst.pitch < SMALL_FLOAT;
+}
+
+
+
+//
 // MAT4
 //
 

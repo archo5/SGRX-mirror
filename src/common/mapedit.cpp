@@ -1577,7 +1577,7 @@ void EdWorld::TestData()
 	b1.poly.assign( poly, 4 );
 	
 	EdSurface surf;
-	surf.texname = "metal0";
+	surf.texname = "null";
 	for( int i = 0; i < 6; ++i )
 		b1.surfaces.push_back( surf );
 	b1.subsel.resize( b1.GetNumElements() );

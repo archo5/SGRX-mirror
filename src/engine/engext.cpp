@@ -553,6 +553,9 @@ void SGRX_DecalSystem::SetSize( uint32_t vbSize )
 
 void SGRX_DecalSystem::Upload()
 {
+	if( m_mesh == NULL )
+		return;
+	
 	// cut excess decals
 	size_t vbcutsize = 0, vbsize = m_vertexData.size(), ibcutsize = 0, cutcount = 0;
 	while( vbsize > m_vbSize + vbcutsize )

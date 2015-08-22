@@ -1,6 +1,5 @@
 
 
-#define USE_HASHTABLE
 #include "level.hpp"
 
 
