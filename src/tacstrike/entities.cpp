@@ -448,6 +448,14 @@ void ScriptedItem::Tick( float deltaTime, float blendFactor )
 	}
 }
 
+void ScriptedItem::OnEvent( const StringView& type )
+{
+	if( m_scrItem )
+	{
+		m_scrItem->EntityEvent( type );
+	}
+}
+
 
 
 

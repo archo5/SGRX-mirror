@@ -112,6 +112,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void PreRender();
+	void EntityEvent( const StringView& type );
 	
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	

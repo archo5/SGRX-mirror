@@ -142,6 +142,7 @@ struct ScriptedItem : Entity
 	~ScriptedItem();
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );
+	virtual void OnEvent( const StringView& type );
 };
 
 

@@ -182,6 +182,13 @@ void SGRX_ScriptedItem::PreRender()
 		m_lightSampler->LightMesh( m_ovrDecalSysMI );
 }
 
+void SGRX_ScriptedItem::EntityEvent( const StringView& type )
+{
+	SGS_SCOPE;
+	sgs_PushVar( C, type );
+	Handle( this ).get_variable().thiscall( "onevent", 1 );
+}
+
 void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 {
 	if( evid == MIEVT_BulletHit )
