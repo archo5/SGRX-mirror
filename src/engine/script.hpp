@@ -50,6 +50,13 @@ template<> struct sgs_GetVar<Vec3> { Vec3 operator () ( SGS_CTX, sgs_StkIdx item
 template<> struct sgs_GetVarP<Vec3> { Vec3 operator () ( SGS_CTX, sgs_Variable* val ){
 	float vtmp[3] = {0.0f}; sgs_ParseVec3P( C, val, vtmp, 0 ); return V3( vtmp[0], vtmp[1], vtmp[2] ); }};
 
+// Vec4 interface
+template<> inline void sgs_PushVar<Vec4>( SGS_CTX, const Vec4& v ){ sgs_PushVec4( C, v.x, v.y, v.z, v.w ); }
+template<> struct sgs_GetVar<Vec4> { Vec4 operator () ( SGS_CTX, sgs_StkIdx item ){
+	float vtmp[4] = {0.0f}; sgs_ParseVec4( C, item, vtmp, 0 ); return V4( vtmp[0], vtmp[1], vtmp[2], vtmp[3] ); }};
+template<> struct sgs_GetVarP<Vec4> { Vec4 operator () ( SGS_CTX, sgs_Variable* val ){
+	float vtmp[4] = {0.0f}; sgs_ParseVec4P( C, val, vtmp, 0 ); return V4( vtmp[0], vtmp[1], vtmp[2], vtmp[3] ); }};
+
 // Quat interface
 template<> inline void sgs_PushVar<Quat>( SGS_CTX, const Quat& v ){ sgs_PushQuat( C, v.x, v.y, v.z, v.w ); }
 template<> struct sgs_GetVar<Quat> { Quat operator () ( SGS_CTX, sgs_StkIdx item ){

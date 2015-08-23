@@ -8,7 +8,7 @@ extern Command MOVE_RIGHT;
 extern Command MOVE_UP;
 extern Command MOVE_DOWN;
 extern Command INTERACT;
-extern Command SLOW_WALK;
+extern Command SPRINT;
 extern Command SHOW_OBJECTIVES;
 
 
@@ -44,7 +44,7 @@ void LD33Player::FixedTick( float deltaTime )
 	Vec3 pos = m_bodyHandle->GetPosition();
 	m_ivPos.Advance( pos );
 	
-	bool slowWalk = SLOW_WALK.value >= 0.5f;
+	bool slowWalk = SPRINT.value < 0.5f;
 	m_isCrouching = 0;
 	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
 		g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
@@ -168,7 +168,7 @@ void LD33Player::Tick( float deltaTime, float blendFactor )
 	SGRX_Sound3DAttribs s3dattr = { pos, m_bodyHandle->GetLinearVelocity(), dir, V3(0,0,1) };
 	
 	m_footstepTime += deltaTime * m_isOnGround * m_bodyHandle->GetLinearVelocity().Length() * ( 0.6f + m_isCrouching * 0.3f );
-	if( m_footstepTime >= 1 && SLOW_WALK.value < 0.5f )
+	if( m_footstepTime >= 1 && SPRINT.value >= 0.5f )
 	{
 		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
 		fsev->SetVolume( 1.0f - m_isCrouching * 0.3f );

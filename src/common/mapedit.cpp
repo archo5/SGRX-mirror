@@ -1175,6 +1175,7 @@ void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
 {
 	ASSERT( m_surfaces.isset( id ) == false );
 	Surface S;
+	S.lmsize = V2(0);
 	S.meshInst = g_EdScene->CreateMeshInstance();
 	S.meshInst->mesh = GR_CreateMesh();
 	S.material = GR_CreateMaterial();

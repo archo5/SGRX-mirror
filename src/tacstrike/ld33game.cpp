@@ -21,7 +21,7 @@ Command MOVE_UP( "move_up" );
 Command MOVE_DOWN( "move_down" );
 Command INTERACT( "interact" );
 Command THROW_COIN( "throw_coin" );
-Command SLOW_WALK( "slow_walk" );
+Command SPRINT( "sprint" );
 Command SHOW_OBJECTIVES( "show_objectives" );
 
 
@@ -33,7 +33,7 @@ static void resetcontrols()
 	MOVE_DOWN.value = 0;
 	INTERACT.value = 0;
 	THROW_COIN.value = 0;
-	SLOW_WALK.value = 0;
+	SPRINT.value = 0;
 	SHOW_OBJECTIVES.value = 0;
 }
 
@@ -82,7 +82,7 @@ ActionInput g_i_move_up = ACTINPUT_MAKE_KEY( SDLK_w );
 ActionInput g_i_move_down = ACTINPUT_MAKE_KEY( SDLK_s );
 ActionInput g_i_interact = ACTINPUT_MAKE_MOUSE( SGRX_MB_LEFT );
 ActionInput g_i_throw_coin = ACTINPUT_MAKE_KEY( SDLK_q );
-ActionInput g_i_slow_walk = ACTINPUT_MAKE_KEY( SDLK_LSHIFT );
+ActionInput g_i_sprint = ACTINPUT_MAKE_KEY( SDLK_LSHIFT );
 ActionInput g_i_show_objectives = ACTINPUT_MAKE_KEY( SDLK_TAB );
 
 float g_i_mouse_sensitivity = 1.0f;
@@ -138,7 +138,7 @@ void SaveConfig( bool nd = true )
 		"i_move_down %u:%u\n"
 		"i_interact %u:%u\n"
 		"i_throw_coin %u:%u\n"
-		"i_slow_walk %u:%u\n"
+		"i_sprint %u:%u\n"
 		"i_show_objectives %u:%u\n"
 		"i_mouse_sensitivity %g\n"
 		"i_mouse_invert_x %s\n"
@@ -162,7 +162,7 @@ void SaveConfig( bool nd = true )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_move_down ), (unsigned) ACTINPUT_GET_VALUE( g_i_move_down )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_interact ), (unsigned) ACTINPUT_GET_VALUE( g_i_interact )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_throw_coin ), (unsigned) ACTINPUT_GET_VALUE( g_i_throw_coin )
-		, (unsigned) ACTINPUT_GET_TYPE( g_i_slow_walk ), (unsigned) ACTINPUT_GET_VALUE( g_i_slow_walk )
+		, (unsigned) ACTINPUT_GET_TYPE( g_i_sprint ), (unsigned) ACTINPUT_GET_VALUE( g_i_sprint )
 		, (unsigned) ACTINPUT_GET_TYPE( g_i_show_objectives ), (unsigned) ACTINPUT_GET_VALUE( g_i_show_objectives )
 		, g_i_mouse_sensitivity
 		, g_i_mouse_invert_x ? "true" : "false"
@@ -1013,7 +1013,7 @@ Command* g_ctrls[] =
 	&MOVE_RIGHT,
 	&INTERACT,
 	&THROW_COIN,
-	&SLOW_WALK,
+	&SPRINT,
 	&SHOW_OBJECTIVES,
 };
 ActionInput* g_ctrl_ai[] =
@@ -1024,7 +1024,7 @@ ActionInput* g_ctrl_ai[] =
 	&g_i_move_right,
 	&g_i_interact,
 	&g_i_throw_coin,
-	&g_i_slow_walk,
+	&g_i_sprint,
 	&g_i_show_objectives,
 };
 #define g_num_ctrls int(sizeof(g_ctrls)/sizeof(g_ctrls[0]))
@@ -1049,7 +1049,7 @@ struct ControlOptionsMenuScreen : IScreen
 		y = 0.2f;
 		menu.AddSwitchButton( "Interact", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
 		menu.AddSwitchButton( "Throw a coin", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
-		menu.AddSwitchButton( "Slow walking", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
+		menu.AddSwitchButton( "Move faster", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
 		menu.AddSwitchButton( "Show objectives", 0.5f, y, 1.0f, y + 0.05f ); y += 0.05f;
 		y = 0.4f;
 		menu.AddSlider( "Mouse sensitivity", 0.0f, y, 1.0f, y + 0.1f ); y += 0.1f;
@@ -1622,7 +1622,7 @@ struct OfficeTheftGame : IGame
 				else if( key == "i_move_down"       ) g_i_move_down       = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_interact"        ) g_i_interact        = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_throw_coin"      ) g_i_throw_coin      = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
-				else if( key == "i_slow_walk"       ) g_i_slow_walk       = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
+				else if( key == "i_sprint"          ) g_i_sprint          = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_show_objectives" ) g_i_show_objectives = ACTINPUT_MAKE( String_ParseInt( value.until(":") ), String_ParseInt( value.after(":") ) );
 				else if( key == "i_mouse_sensitivity" ) g_i_mouse_sensitivity = String_ParseFloat( value );
 				else if( key == "i_mouse_invert_x" ) g_i_mouse_invert_x = String_ParseBool( value );
@@ -1654,7 +1654,7 @@ struct OfficeTheftGame : IGame
 		Game_RegisterAction( &MOVE_DOWN );
 		Game_RegisterAction( &INTERACT );
 		Game_RegisterAction( &THROW_COIN );
-		Game_RegisterAction( &SLOW_WALK );
+		Game_RegisterAction( &SPRINT );
 		Game_RegisterAction( &SHOW_OBJECTIVES );
 		
 		Game_BindInputToAction( g_i_move_left, &MOVE_LEFT );
@@ -1663,7 +1663,7 @@ struct OfficeTheftGame : IGame
 		Game_BindInputToAction( g_i_move_down, &MOVE_DOWN );
 		Game_BindInputToAction( g_i_interact, &INTERACT );
 		Game_BindInputToAction( g_i_throw_coin, &THROW_COIN );
-		Game_BindInputToAction( g_i_slow_walk, &SLOW_WALK );
+		Game_BindInputToAction( g_i_sprint, &SPRINT );
 		Game_BindInputToAction( g_i_show_objectives, &SHOW_OBJECTIVES );
 		
 		g_SoundSys->Load( "sound/master.bank" );
@@ -1745,14 +1745,14 @@ struct OfficeTheftGame : IGame
 		g_GameLevel->Draw2D();
 		
 		// MONEY
-		char bfr[1024];
-		sgrx_snprintf( bfr, 1024, "Money stolen: $%.2f", g_money );
-		float minw = TMIN( GR_GetWidth(), GR_GetHeight() );
-		GR2D_SetFont( "core", minw / 20 );
-		GR2D_SetColor( 0, 1 );
-		GR2D_DrawTextLine( round(minw/10)+1, round(minw/10)+1, bfr, HALIGN_LEFT, VALIGN_TOP );
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( round(minw/10), round(minw/10), bfr, HALIGN_LEFT, VALIGN_TOP );
+	//	char bfr[1024];
+	//	sgrx_snprintf( bfr, 1024, "Money stolen: $%.2f", g_money );
+	//	float minw = TMIN( GR_GetWidth(), GR_GetHeight() );
+	//	GR2D_SetFont( "core", minw / 20 );
+	//	GR2D_SetColor( 0, 1 );
+	//	GR2D_DrawTextLine( round(minw/10)+1, round(minw/10)+1, bfr, HALIGN_LEFT, VALIGN_TOP );
+	//	GR2D_SetColor( 1, 1 );
+	//	GR2D_DrawTextLine( round(minw/10), round(minw/10), bfr, HALIGN_LEFT, VALIGN_TOP );
 	}
 	
 	void OnTick( float dt, uint32_t gametime )

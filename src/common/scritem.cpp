@@ -301,6 +301,18 @@ void SGRX_ScriptedItem::MISetMatrix( int i, Mat4 mtx )
 	m_meshes[ i ]->matrix = mtx * m_transform;
 }
 
+void SGRX_ScriptedItem::MISetShaderConst( int i, int v, Vec4 var )
+{
+	SCRITEM_OFSCHK( i, return );
+	SCRITEM_MESHCHK( i, return );
+	if( v < 0 || v >= MAX_MI_CONSTANTS )
+	{
+		sgs_Msg( C, SGS_WARNING, "shader constant %d outside range [0;%d)", v, MAX_MI_CONSTANTS );
+		return;
+	}
+	m_meshes[ i ]->constants[ v ] = var;
+}
+
 void SGRX_ScriptedItem::PSCreate( int i, StringView path )
 {
 	SCRITEM_OFSCHK( i, return );

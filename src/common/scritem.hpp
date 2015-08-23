@@ -133,6 +133,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD void MISetEnabled( int i, bool enabled );
 	SGS_METHOD void MISetDynamic( int i, bool dynamic );
 	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
+	SGS_METHOD void MISetShaderConst( int i, int v, Vec4 var );
 	
 	// - particle system
 	SGS_METHOD void PSCreate( int i, StringView path );

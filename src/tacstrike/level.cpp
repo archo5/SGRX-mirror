@@ -92,6 +92,7 @@ static int GetNamedPosition( SGS_CTX )
 	g_GameLevel->m_scriptCtx.Push( *pos );
 	return 1;
 }
+
 static int IES_UpdateEmitter( SGS_CTX )
 {
 	SGSFN( "IES_UpdateEmitter" );
@@ -113,8 +114,10 @@ static int IES_RemoveEmitter( SGS_CTX )
 	Entity* E = (Entity*) sgs_GetVar<void*>()( C, 0 );
 	if( E == NULL )
 		return sgs_Msg( C, SGS_WARNING, "given pointer is not an entity" );
+	g_GameLevel->m_infoEmitters.RemoveEmitter( E );
 	return 0;
 }
+
 static int SendMessage( SGS_CTX )
 {
 	SGSFN( "SendMessage" );
@@ -122,6 +125,7 @@ static int SendMessage( SGS_CTX )
 	g_GameLevel->m_messageSystem.AddMessage( (MSMessage::Type) sgs_GetVar<int>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ), ssz < 3 ? 3.0f : sgs_GetVar<float>()( C, 2 ) );
 	return 0;
 }
+
 static int ObjectiveAdd( SGS_CTX )
 {
 	SGSFN( "ObjectiveAdd" );
@@ -173,6 +177,32 @@ static int ObjectiveSetState( SGS_CTX )
 	return 0;
 }
 
+static int FS_UpdateFlare( SGS_CTX )
+{
+	SGSFN( "IES_UpdateEmitter" );
+	void* P = sgs_GetVar<void*>()( C, 0 );
+	if( P == NULL )
+		return sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
+	FSFlare data =
+	{
+		sgs_GetVar<Vec3>()( C, 1 ),
+		sgs_GetVar<Vec3>()( C, 2 ),
+		sgs_GetVar<float>()( C, 3 ),
+		sgs_GetVar<bool>()( C, 4 ),
+	};
+	g_GameLevel->m_flareSystem.UpdateFlare( P, data );
+	return 0;
+}
+static int FS_RemoveFlare( SGS_CTX )
+{
+	SGSFN( "FS_RemoveFlare" );
+	void* P = sgs_GetVar<void*>()( C, 0 );
+	if( P == NULL )
+		return sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
+	g_GameLevel->m_flareSystem.RemoveFlare( P );
+	return 0;
+}
+
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
 	{ "EndLevel", EndLevel },
@@ -194,6 +224,9 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	{ "ObjectiveSetTitle", ObjectiveSetTitle },
 	{ "ObjectiveGetState", ObjectiveGetState },
 	{ "ObjectiveSetState", ObjectiveSetState },
+	// Flare system
+	{ "FS_UpdateFlare", FS_UpdateFlare },
+	{ "FS_RemoveFlare", FS_RemoveFlare },
 	SGS_RC_END(),
 };
 
@@ -1009,9 +1042,7 @@ void GameLevel::Draw2D()
 		br.Flush();
 		
 		br.Reset().SetTexture( NULL ).Col( 0.2f, 0.4f, 0.8f );
-#ifdef LD32GAME
-		Vec2 pos = m_player->m_position;
-#elif defined(TSGAME)
+#if defined(TSGAME)
 		Vec2 pos = m_player->m_bodyHandle->GetPosition().ToVec2();
 #else
 		Vec2 pos = m_scene->camera.position.ToVec2();
