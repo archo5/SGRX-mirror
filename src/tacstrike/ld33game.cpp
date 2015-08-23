@@ -38,13 +38,16 @@ static void resetcontrols()
 }
 
 
+bool g_show_money = false;
+bool g_show_suspicion = false;
 float g_money = 0;
 const float g_money_target = 1000000.0f;
+float g_suspicion = 0;
+String g_end_reason;
+Vec3 g_endcol = V3(1);
 
-void start_game()
-{
-	g_money = 900000.0f;
-}
+
+void SetupLevel();
 
 
 SGRX_RenderPass g_RenderPasses_Main[] =
@@ -1435,7 +1438,6 @@ struct MainMenuScreen : IScreen
 			{
 				// start the level
 				g_GameLevel->StartLevel();
-				start_game();
 				Game_RemoveOverlayScreen( this );
 				Game_ShowCursor( false );
 				return true;
@@ -1512,10 +1514,12 @@ struct EndMenuScreen : IScreen
 				Game_RemoveOverlayScreen( this );
 				delete g_GameLevel;
 				g_GameLevel = new GameLevel();
-				g_GameLevel->Load( "jmplevel" );
+				SetupLevel();
+				GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
+				g_GameLevel->Load( "office" );
 				g_GameLevel->Tick( 0, 0 );
 				g_GameLevel->StartLevel();
-				start_game();
+				Game_ShowCursor( false );
 				return true;
 			}
 			else if( sel == 1 ){ Game_End(); }
@@ -1543,9 +1547,9 @@ struct EndMenuScreen : IScreen
 		br.Col( 0, 0.5f * smoothstep( g_GameLevel->m_endFactor ) );
 		br.Quad( 0, TLERP( menu.y0, menu.y1, 0.4f ), GR_GetWidth(), TLERP( menu.y0, menu.y1, 0.5f ) );
 		br.Reset();
-		br.Col( 0.2f, 0.8f, 0.1f, 1 );
+		br.Col( g_endcol.x, g_endcol.y, g_endcol.z, 1 );
 		GR2D_SetFont( "core", (menu.y1 - menu.y0) / 30 );
-		GR2D_DrawTextLine( TLERP( menu.x0, menu.x1, 0.5f ), TLERP( menu.y0, menu.y1, 0.55f - smoothstep( g_GameLevel->m_endFactor ) * 0.1f ), "FLAG REACHED", HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_DrawTextLine( TLERP( menu.x0, menu.x1, 0.5f ), TLERP( menu.y0, menu.y1, 0.45f ), g_end_reason, HALIGN_CENTER, VALIGN_CENTER );
 		
 		br.Flush();
 		GR2D_UnsetScissorRect();
@@ -1559,6 +1563,60 @@ struct EndMenuScreen : IScreen
 	ScreenMenu menu;
 }
 g_EndMenu;
+
+
+
+
+
+static int SetSuspicion( SGS_CTX )
+{
+	SGSFN( "SetSuspicion" );
+	g_suspicion = sgs_GetVar<float>()( C, 0 );
+	return 0;
+}
+
+static int SetShowMoney( SGS_CTX )
+{
+	SGSFN( "SetShowMoney" );
+	g_show_money = sgs_GetVar<bool>()( C, 0 );
+	g_money = sgs_GetVar<float>()( C, 1 );
+	return 0;
+}
+
+static int SetShowSuspicion( SGS_CTX )
+{
+	SGSFN( "SetShowSuspicion" );
+	g_show_suspicion = sgs_GetVar<bool>()( C, 0 );
+	return 0;
+}
+
+static int EndGame( SGS_CTX )
+{
+	SGSFN( "EndGame" );
+	g_end_reason = sgs_GetVar<StringView>()( C, 0 );
+	g_endcol = sgs_GetVar<bool>()( C, 1 ) ? V3(0.2f, 0.7f, 0.1f) : V3(0.7f, 0.1f, 0.0f);
+	if( !Game_HasOverlayScreens() )
+	{
+		Game_AddOverlayScreen( &g_EndMenu );
+		Game_ShowCursor( true );
+	}
+	return 0;
+}
+
+static sgs_RegFuncConst gamerfc[] =
+{
+	{ "SetSuspicion", SetSuspicion },
+	{ "SetShowMoney", SetShowMoney },
+	{ "SetShowSuspicion", SetShowSuspicion },
+	{ "EndGame", EndGame },
+	{ NULL, NULL },
+};
+
+void SetupLevel()
+{
+	sgs_RegFuncConsts( g_GameLevel->m_scriptCtx.C, gamerfc, -1 );
+}
+
 
 
 
@@ -1679,12 +1737,14 @@ struct OfficeTheftGame : IGame
 		m_music->Start();
 		
 		g_GameLevel = new GameLevel();
+		SetupLevel();
+		
+		GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
+		g_GameLevel->Load( "office" );
+		g_GameLevel->Tick( 0, 0 );
 		
 		Game_AddOverlayScreen( &g_MainMenu );
 		Game_AddOverlayScreen( &g_SplashScreen );
-		
-		g_GameLevel->Load( "office" );
-		g_GameLevel->Tick( 0, 0 );
 		
 		return true;
 	}
@@ -1746,14 +1806,36 @@ struct OfficeTheftGame : IGame
 		g_GameLevel->Draw2D();
 		
 		// MONEY
-	//	char bfr[1024];
-	//	sgrx_snprintf( bfr, 1024, "Money stolen: $%.2f", g_money );
-	//	float minw = TMIN( GR_GetWidth(), GR_GetHeight() );
-	//	GR2D_SetFont( "core", minw / 20 );
-	//	GR2D_SetColor( 0, 1 );
-	//	GR2D_DrawTextLine( round(minw/10)+1, round(minw/10)+1, bfr, HALIGN_LEFT, VALIGN_TOP );
-	//	GR2D_SetColor( 1, 1 );
-	//	GR2D_DrawTextLine( round(minw/10), round(minw/10), bfr, HALIGN_LEFT, VALIGN_TOP );
+		int w = GR_GetWidth(), h = GR_GetHeight();
+		float minw = TMIN( w, h );
+		char bfr[1024];
+		
+		if( g_show_money )
+		{
+			sgrx_snprintf( bfr, 1024, "Money stolen: $%.2f", g_money );
+			GR2D_SetFont( "core", minw / 20 );
+			GR2D_SetColor( 0, 1 );
+			GR2D_DrawTextLine( round(minw/10)+1, h - round(minw/10)+1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
+			GR2D_SetColor( 1, 1 );
+			GR2D_DrawTextLine( round(minw/10), h - round(minw/10), bfr, HALIGN_LEFT, VALIGN_BOTTOM );
+		}
+		
+		if( g_show_suspicion )
+		{
+			float susp = clamp( g_suspicion, 0, 1 );
+			BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+			br.Col( 0, 0.5f );
+			br.AARect( w - round(minw/2)+1, h - round(minw/7)+1,
+				w - round(minw/10)+1, h - round(minw/10)+1 );
+			if( susp )
+			{
+				br.Col( 1, 0.8f );
+				br.AARect( w - round(minw/2), h - round(minw/7),
+					TLERP( w - round(minw/2), w - round(minw/10), susp ), h - round(minw/10) );
+			}
+			GR2D_SetColor( 0.5f, 1 );
+			GR2D_DrawTextLine( w - round(minw/10), h - round(minw/10), "SUSPICION", HALIGN_RIGHT, VALIGN_BOTTOM );
+		}
 	}
 	
 	void OnTick( float dt, uint32_t gametime )

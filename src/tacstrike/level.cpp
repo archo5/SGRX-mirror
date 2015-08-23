@@ -236,6 +236,7 @@ static sgs_RegIntConst g_gameapi_ric[] =
 	{ "IEST_HeatSource", IEST_HeatSource },
 	{ "IEST_Player", IEST_Player },
 	{ "IEST_MapItem", IEST_MapItem },
+	{ "IEST_AIAlert", IEST_AIAlert },
 	// Messaging system
 	{ "MT_Continued", MSMessage::Continued },
 	{ "MT_Info", MSMessage::Info },
@@ -606,6 +607,7 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	{
 		Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
 		SGRX_PhyRigidBodyInfo rbinfo;
+		rbinfo.group = 2;
 		rbinfo.shape = g_PhyWorld->CreateAABBShape( -scale, scale );
 		rbinfo.mass = 0;
 		rbinfo.inertia = V3(0);
@@ -1013,7 +1015,7 @@ void GameLevel::Draw2D()
 	if( m_player )
 		m_player->DrawUI();
 	
-#ifndef BRSD4GAME
+#ifdef TSGAME
 	int size_x = GR_GetWidth();
 	int size_y = GR_GetHeight();
 //	float aspect = size_x / (float) size_y;

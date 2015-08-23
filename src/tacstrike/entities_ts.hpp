@@ -165,6 +165,7 @@ struct TSFactStorage
 		FT_Sound_Footstep,
 		FT_Sound_Shot,
 		FT_Sight_ObjectState,
+		FT_Sight_Alarming,
 		FT_Sight_Friend,
 		FT_Sight_Foe,
 		FT_Position_Friend,
@@ -184,6 +185,9 @@ struct TSFactStorage
 	TSFactStorage();
 	void SortCreatedDesc();
 	void Process( TimeVal curTime );
+	bool HasFact( int typemask );
+	bool HasRecentFact( int typemask, TimeVal maxtime );
+	Fact* GetRecentFact( int typemask, TimeVal maxtime );
 	void Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
 	bool Update( FactType type, Vec3 pos, float rad,
 		TimeVal created, TimeVal expires, uint32_t ref = 0 );
@@ -195,6 +199,7 @@ struct TSFactStorage
 		TimeVal created, TimeVal expires, uint32_t ref = 0 );
 	
 	Array< Fact > facts;
+	TimeVal m_lastTime;
 	uint32_t last_mod_id;
 	uint32_t m_next_fact_id;
 };
@@ -214,6 +219,7 @@ struct TSEnemy : TSCharacter
 	
 	sgsVariable m_enemyState;
 	TSFactStorage m_factStorage;
+	sgs_VarObj* m_scrObj;
 	
 	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
 	~TSEnemy();
@@ -224,6 +230,10 @@ struct TSEnemy : TSCharacter
 	bool GetMapItemInfo( MapItemInfo* out );
 	void DebugDrawWorld();
 	void DebugDrawUI();
+	
+	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
+	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
+	TSFactStorage::Fact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
 };
 
 

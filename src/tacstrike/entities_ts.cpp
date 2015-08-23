@@ -860,7 +860,7 @@ bool TSPlayer::HasItem( const StringView& item, int count )
 
 
 
-TSFactStorage::TSFactStorage() : last_mod_id(0), m_next_fact_id(1)
+TSFactStorage::TSFactStorage() : m_lastTime(0), last_mod_id(0), m_next_fact_id(1)
 {
 }
 
@@ -885,6 +885,8 @@ static bool sort_facts_expires_desc( const void* pa, const void* pb, void* )
 
 void TSFactStorage::Process( TimeVal curTime )
 {
+	m_lastTime = curTime;
+	
 	for( size_t i = 0; i < facts.size(); ++i )
 	{
 		if( facts[ i ].expires < curTime )
@@ -899,6 +901,40 @@ void TSFactStorage::Process( TimeVal curTime )
 		sgrx_combsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_expires_desc, NULL );
 		facts.resize( 256 );
 	}
+}
+
+bool TSFactStorage::HasFact( int typemask )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( (1<<facts[ i ].type) & typemask )
+			return true;
+	}
+	return false;
+}
+
+bool TSFactStorage::HasRecentFact( int typemask, TimeVal maxtime )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
+			return true;
+	}
+	return false;
+}
+
+TSFactStorage::Fact* TSFactStorage::GetRecentFact( int typemask, TimeVal maxtime )
+{
+	Fact* F = NULL;
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
+		{
+			maxtime = m_lastTime - facts[ i ].created;
+			F = &facts[ i ];
+		}
+	}
+	return F;
 }
 
 void TSFactStorage::Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
@@ -969,6 +1005,69 @@ void TSFactStorage::MovingInsertOrUpdate( FactType type, Vec3 pos, float movespe
 }
 
 
+
+
+extern sgs_ObjInterface TSEnemy_iface[1];
+
+#define TSENEMY_VALID if( E == NULL ){ return sgs_Msg( C, SGS_WARNING, "enemy no longer exists" ); }
+
+static int TSEnemy_HasFact( SGS_CTX )
+{
+	TSEnemy* E;
+	SGS_PARSE_METHOD( C, TSEnemy_iface, E, TSEnemy, HasFact );
+	TSENEMY_VALID;
+	sgs_PushBool( C, E->HasFact( sgs_GetVar<int>()( C, 0 ) ) );
+	return 1;
+}
+
+static int TSEnemy_HasRecentFact( SGS_CTX )
+{
+	TSEnemy* E;
+	SGS_PARSE_METHOD( C, TSEnemy_iface, E, TSEnemy, HasRecentFact );
+	TSENEMY_VALID;
+	sgs_PushBool( C, E->HasRecentFact( sgs_GetVar<int>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) ) );
+	return 1;
+}
+
+static int TSEnemy_GetRecentFact( SGS_CTX )
+{
+	TSEnemy* E;
+	SGS_PARSE_METHOD( C, TSEnemy_iface, E, TSEnemy, GetRecentFact );
+	TSENEMY_VALID;
+	TSFactStorage::Fact* F = E->GetRecentFact( sgs_GetVar<int>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) );
+	if( F )
+	{
+		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
+		sgs_PushString( C, "ref" ); sgs_PushInt( C, F->ref );
+		sgs_PushString( C, "type" ); sgs_PushInt( C, F->type );
+		sgs_PushString( C, "position" ); sgs_PushVec3p( C, &F->position.x );
+		sgs_PushString( C, "created" ); sgs_PushInt( C, F->created );
+		sgs_PushString( C, "expires" ); sgs_PushInt( C, F->expires );
+		sgs_PushDict( C, 12 );
+		return 1;
+	}
+	return 0;
+}
+
+static int TSEnemy_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "HasFact" ) return sgs_PushCFunction( C, TSEnemy_HasFact );
+		SGS_CASE( "HasRecentFact" ) return sgs_PushCFunction( C, TSEnemy_HasRecentFact );
+		SGS_CASE( "GetRecentFact" ) return sgs_PushCFunction( C, TSEnemy_GetRecentFact );
+	SGS_END_INDEXFUNC
+}
+
+sgs_ObjInterface TSEnemy_iface[1] =
+{{
+	"TSEnemy",
+	NULL, NULL,
+	TSEnemy_getindex, NULL,
+	NULL, NULL, NULL, NULL,
+	NULL, NULL
+}};
+
+
 TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
 	TSCharacter( pos, dir ),
 	m_taskTimeout( 0 ), m_curTaskID( 0 ), m_curTaskMode( false ),
@@ -981,14 +1080,21 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsV
 	
 	UpdateTask();
 	
+	// create self
+	{
+		sgs_Variable var;
+		sgs_InitObject( g_GameLevel->m_scriptCtx.C, &var, this, TSEnemy_iface );
+		m_scrObj = sgs_GetObjectStructP( &var );
+	}
+	
 	// create ESO (enemy scripted object)
 	{
 		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-		g_GameLevel->m_scriptCtx.Push( (void*) this );
+		sgs_PushObjectPtr( g_GameLevel->m_scriptCtx.C, m_scrObj );
 		g_GameLevel->m_scriptCtx.Push( args );
 		g_GameLevel->m_scriptCtx.Push( m_position );
 		g_GameLevel->m_scriptCtx.Push( GetViewDir() );
-		if( g_GameLevel->m_scriptCtx.GlobalCall( "TSEnemy_Create", 3, 1 ) == false )
+		if( g_GameLevel->m_scriptCtx.GlobalCall( "TSEnemy_Create", 4, 1 ) == false )
 		{
 			LOG_ERROR << "FAILED to create enemy state";
 		}
@@ -1008,6 +1114,10 @@ TSEnemy::~TSEnemy()
 		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
 		m_enemyState.thiscall( "destroy" );
 	}
+	
+	// destroy self
+	m_scrObj->data = NULL;
+	sgs_ObjRelease( g_GameLevel->m_scriptCtx.C, m_scrObj );
 }
 
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
@@ -1030,13 +1140,21 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		// TODO friendlies
 		TSFactStorage& FS = enemy->m_factStorage;
 		
-		// fact of seeing
-		FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Foe,
-			enemypos, 10, curtime, curtime + 5*1000 );
-		
-		// fact of position
-		FS.MovingInsertOrUpdate( TSFactStorage::FT_Position_Foe,
-			enemypos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
+		if( data.types & IEST_AIAlert )
+		{
+			FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Alarming,
+				enemypos, 0, curtime, curtime + 5*1000 );
+		}
+		else
+		{
+			// fact of seeing
+			FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Foe,
+				enemypos, 10, curtime, curtime + 5*1000 );
+			
+			// fact of position
+			FS.MovingInsertOrUpdate( TSFactStorage::FT_Position_Foe,
+				enemypos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
+		}
 		
 		return true;
 	}
@@ -1091,7 +1209,7 @@ void TSEnemy::FixedTick( float deltaTime )
 	IESEnemyViewProc evp;
 	evp.curtime = curTime;
 	evp.enemy = this;
-	g_GameLevel->m_infoEmitters.QuerySphereAll( &evp, GetPosition(), 10.0f, IEST_Player );
+	g_GameLevel->m_infoEmitters.QuerySphereAll( &evp, GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
 	// - sounds
 	for( int i = 0; i < g_GameLevel->m_aidbSystem.GetNumSounds(); ++i )
 	{
@@ -1283,6 +1401,7 @@ void TSEnemy::DebugDrawUI()
 		case TSFactStorage::FT_Sound_Footstep: type = "snd-step"; break;
 		case TSFactStorage::FT_Sound_Shot: type = "snd-shot"; break;
 		case TSFactStorage::FT_Sight_ObjectState: type = "sight-state"; break;
+		case TSFactStorage::FT_Sight_Alarming: type = "sight-alarm"; break;
 		case TSFactStorage::FT_Sight_Friend: type = "sight-friend"; break;
 		case TSFactStorage::FT_Sight_Foe: type = "sight-foe"; break;
 		case TSFactStorage::FT_Position_Friend: type = "pos-friend"; break;
