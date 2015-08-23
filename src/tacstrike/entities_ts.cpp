@@ -233,8 +233,6 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 //	m_anLayers[3].factor = 0;
 	m_animChar.m_anMixer.layers = m_anLayers;
 	m_animChar.m_anMixer.layerCount = 3;
-	
-	InitializeMesh( "chars/tstest.chr" );
 }
 
 void TSCharacter::InitializeMesh( const StringView& path )
@@ -323,10 +321,11 @@ void TSCharacter::FixedTick( float deltaTime )
 			md = -md;
 			animname = anim_run_bw;
 		}
-		if( i_move.Length() > 0.1f )
-		{
-			TurnTo( md, deltaTime * 8 );
-		}
+		// TODO TURN ISSUES
+	//	if( i_move.Length() > 0.1f )
+	//	{
+	//		TurnTo( md, deltaTime * 8 );
+	//	}
 		
 		m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : anim_stand ), false, 0.2f );
 	}
@@ -495,6 +494,7 @@ void TSCharacter::TurnTo( const Vec2& turnDir, float speedDelta )
 	float angstart = normalize_angle( m_turnAngle );
 	if( fabs( angend - angstart ) > M_PI )
 		angstart += angend > angstart ? M_PI * 2 : -M_PI * 2;
+//	printf( "cur: %1.2f, target: %1.2f\n", angstart, angend);
 	m_turnAngle = angstart + sign( angend - angstart ) * TMIN( fabsf( angend - angstart ), speedDelta );
 }
 
@@ -613,6 +613,8 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	m_targetII( NULL ), m_targetTriggered( false ),
 	m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 )
 {
+	InitializeMesh( "chars/tstest.chr" );
+	
 	m_meshInstInfo.ownerType = GAT_Player;
 	
 	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
@@ -967,9 +969,10 @@ void TSFactStorage::MovingInsertOrUpdate( FactType type, Vec3 pos, float movespe
 }
 
 
-TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir ) :
+TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
 	TSCharacter( pos, dir ),
-	m_taskTimeout( 0 ), m_curTaskID( 0 ), m_curTaskMode( false ), m_turnAngleStart(0), m_turnAngleEnd(0)
+	m_taskTimeout( 0 ), m_curTaskID( 0 ), m_curTaskMode( false ),
+	i_turn( V2(0) ), m_turnAngleStart(0), m_turnAngleEnd(0)
 {
 	m_typeName = "enemy";
 	m_name = name;
@@ -982,6 +985,7 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir ) :
 	{
 		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
 		g_GameLevel->m_scriptCtx.Push( (void*) this );
+		g_GameLevel->m_scriptCtx.Push( args );
 		g_GameLevel->m_scriptCtx.Push( m_position );
 		g_GameLevel->m_scriptCtx.Push( GetViewDir() );
 		if( g_GameLevel->m_scriptCtx.GlobalCall( "TSEnemy_Create", 3, 1 ) == false )
@@ -990,6 +994,9 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir ) :
 		}
 		m_enemyState = sgsVariable( g_GameLevel->m_scriptCtx.C, -1 );
 	}
+	
+	StringView charpath = m_enemyState.getprop("charpath").get<StringView>();
+	InitializeMesh( charpath ? charpath : "chars/tstest.chr" );
 	
 	g_GameLevel->MapEntityByName( this );
 }
@@ -1130,11 +1137,12 @@ void TSEnemy::FixedTick( float deltaTime )
 		
 		i_crouch = m_enemyState[ "i_crouch" ].get<bool>();
 		i_move = m_enemyState[ "i_move" ].get<Vec2>();
+		i_turn = m_enemyState[ "i_turn" ].get<Vec2>();
 	}
 	
-	if( i_move.Length() > 0.5f )
+	if( i_turn.Length() > 0.1f )
 	{
-		TurnTo( i_move, deltaTime * 8 );
+		TurnTo( i_turn, deltaTime * 8 );
 	}
 	
 	TSCharacter::FixedTick( deltaTime );
@@ -1146,6 +1154,22 @@ void TSEnemy::FixedTick( float deltaTime )
 void TSEnemy::Tick( float deltaTime, float blendFactor )
 {
 	TSCharacter::Tick( deltaTime, blendFactor );
+}
+
+void TSEnemy::SetProperty( const StringView& name, sgsVariable value )
+{
+	if( name == "patrol_proc" )
+	{
+		m_enemyState.setprop( "patrol_proc", value );
+	}
+	else if( name == "patrol_observe_proc" )
+	{
+		m_enemyState.setprop( "patrol_observe_proc", value );
+	}
+	else if( name == "patrol_path" )
+	{
+		m_enemyState.setprop( "patrol_path", value );
+	}
 }
 
 void TSEnemy::UpdateTask()
@@ -1232,6 +1256,7 @@ void TSEnemy::DebugDrawUI()
 	int x = screenpos.x * GR_GetWidth();
 	int y = screenpos.y * GR_GetHeight();
 	
+	GR2D_SetFont( "core", 12 );
 	GR2D_SetFont( "mono", 12 );
 	
 	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );

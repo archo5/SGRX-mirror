@@ -241,6 +241,9 @@ def find_in_userdata( obj, key, default = None ):
 #
 
 def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
+	
+	MESH.calc_normals_split()
+	
 	# SORT BY MATERIAL
 	MID2FACES = {} # material index -> faces
 	FACE2MID = {} # face -> material index
@@ -283,7 +286,7 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 				
 				pos_id = addCached( Plist, MESH.vertices[ v_id ].co )
 				if face.use_smooth != False:
-					nrm_id = addCached( Nlist, MESH.vertices[ v_id ].normal )
+					nrm_id = addCached( Nlist, MESH.loops[ l_id ].normal )
 				else:
 					nrm_id = addCached( Nlist, face.normal )
 				

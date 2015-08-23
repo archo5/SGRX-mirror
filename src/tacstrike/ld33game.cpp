@@ -1666,13 +1666,14 @@ struct OfficeTheftGame : IGame
 		Game_BindInputToAction( g_i_sprint, &SPRINT );
 		Game_BindInputToAction( g_i_show_objectives, &SHOW_OBJECTIVES );
 		
+		GR_LoadAnims( "meshes/tstest.ssm.anm" );
+		
 		g_SoundSys->Load( "sound/master.bank" );
 		g_SoundSys->Load( "sound/master.strings.bank" );
 		
 		g_SoundSys->SetVolume( "bus:/", g_s_vol_master );
 		g_SoundSys->SetVolume( "bus:/music", g_s_vol_music );
 		g_SoundSys->SetVolume( "bus:/sfx", g_s_vol_sfx );
-		LOG << g_SoundSys->GetVolume( "bus:/music" );
 		
 		m_music = g_SoundSys->CreateEventInstance( "/lev1_music" );
 		m_music->Start();

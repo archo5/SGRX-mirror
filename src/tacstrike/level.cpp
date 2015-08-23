@@ -570,20 +570,16 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 		return;
 	}
 	
-#if defined(LD32GAME) || defined(TSGAME)
+#if defined(LD33GAME) || defined(TSGAME)
 	///////////////////////////
 	if( type == "enemy_start" )
 	{
-#ifdef LD32GAME
-		Enemy* E = new Enemy
-#endif
-#ifdef TSGAME
 		TSEnemy* E = new TSEnemy
-#endif
 		(
 			data.getprop("name").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
-			data.getprop("viewdir").get<Vec3>()
+			data.getprop("viewdir").get<Vec3>(),
+			data
 		);
 		m_entities.push_back( E );
 		return;

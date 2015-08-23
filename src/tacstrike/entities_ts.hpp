@@ -207,16 +207,18 @@ struct TSEnemy : TSCharacter
 	bool m_curTaskMode;
 	String m_disturbActionName;
 	
+	Vec2 i_turn;
 	float m_turnAngleStart;
 	float m_turnAngleEnd;
 	
 	sgsVariable m_enemyState;
 	TSFactStorage m_factStorage;
 	
-	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir );
+	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
 	~TSEnemy();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
+	void SetProperty( const StringView& name, sgsVariable value );
 	void UpdateTask();
 	bool GetMapItemInfo( MapItemInfo* out );
 	void DebugDrawWorld();
