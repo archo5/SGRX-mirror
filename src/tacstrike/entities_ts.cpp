@@ -197,7 +197,7 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
-	i_crouch( false ), i_move( V2(0) ), i_aim_at( false ), i_aim_target( V3(0) )
+	i_crouch( false ), i_move( V2(0) ), i_speed( 0 ), i_aim_at( false ), i_aim_target( V3(0) )
 {
 	m_meshInstInfo.typeOverride = "*human*";
 	
@@ -457,7 +457,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	
 	Vec2 lvel2 = lvel.ToVec2();
 	
-	float maxspeed = 5;
+	float maxspeed = 5 * i_speed;
 	float accel = ( md.NearZero() && !m_isCrouching ) ? 38 : 30;
 	if( m_isCrouching ){ accel = 5; maxspeed = 2.5f; }
 	if( !ground ){ accel = 10; }
@@ -1137,6 +1137,7 @@ void TSEnemy::FixedTick( float deltaTime )
 		
 		i_crouch = m_enemyState[ "i_crouch" ].get<bool>();
 		i_move = m_enemyState[ "i_move" ].get<Vec2>();
+		i_speed = m_enemyState[ "i_speed" ].get<float>();
 		i_turn = m_enemyState[ "i_turn" ].get<Vec2>();
 	}
 	

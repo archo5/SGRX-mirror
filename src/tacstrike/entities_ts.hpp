@@ -116,6 +116,7 @@ struct TSCharacter : Entity
 	
 	bool i_crouch;
 	Vec2 i_move;
+	float i_speed;
 	bool i_aim_at;
 	Vec3 i_aim_target;
 };
