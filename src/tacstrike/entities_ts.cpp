@@ -1359,7 +1359,7 @@ void TSParseTaskArray( TSTaskArray& out, sgsVariable var )
 }
 
 void TSEnemy::DebugDrawWorld()
-{
+{return;
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
 	Vec3 pos = GetPosition();
 	
@@ -1376,7 +1376,7 @@ void TSEnemy::DebugDrawWorld()
 }
 
 void TSEnemy::DebugDrawUI()
-{
+{return;
 	char bfr[ 256 ];
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	Vec3 pos = GetPosition();

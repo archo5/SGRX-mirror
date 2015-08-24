@@ -201,7 +201,7 @@ void LD33Player::Tick( float deltaTime, float blendFactor )
 void LD33Player::DrawUI()
 {
 	GR2D_GetBatchRenderer().Reset().Col(1);
-	GR2D_SetFont( "fonts/lato-regular.ttf", 12 );
+	GR2D_SetFont( "core", 12 );
 	char buf[ 150 ];
 	sprintf( buf, "speed: %g", m_bodyHandle->GetLinearVelocity().ToVec2().Length() );
 //	GR2D_DrawTextLine( 16, 16, buf );

@@ -1544,7 +1544,7 @@ struct EndMenuScreen : IScreen
 		GR2D_SetScissorRect( 0, TLERP( menu.y0, menu.y1, 0.4f ), GR_GetWidth(), TLERP( menu.y0, menu.y1, 0.5f ) );
 		
 		br.Reset();
-		br.Col( 0, 0.5f * smoothstep( g_GameLevel->m_endFactor ) );
+		br.Col( 0, 0.5f );
 		br.Quad( 0, TLERP( menu.y0, menu.y1, 0.4f ), GR_GetWidth(), TLERP( menu.y0, menu.y1, 0.5f ) );
 		br.Reset();
 		br.Col( g_endcol.x, g_endcol.y, g_endcol.z, 1 );

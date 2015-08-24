@@ -93,6 +93,28 @@ static int GetNamedPosition( SGS_CTX )
 	return 1;
 }
 
+static int SetCutsceneFunc( SGS_CTX )
+{
+	SGSFN( "SetCutsceneFunc" );
+	g_GameLevel->m_cutsceneFunc = sgsVariable( C, 0 );
+	g_GameLevel->m_cutsceneTime = sgs_GetVar<float>()( C, 1 );
+	return 0;
+}
+static int SetCutsceneSubtitle( SGS_CTX )
+{
+	SGSFN( "SetCutsceneSubtitle" );
+	g_GameLevel->m_cutsceneSubtitle = sgs_GetVar<StringView>()( C, 0 );
+	return 0;
+}
+static int SetCameraPosDir( SGS_CTX )
+{
+	SGSFN( "SetCameraPosDir" );
+	g_GameLevel->m_scene->camera.position = sgs_GetVar<Vec3>()( C, 0 );
+	g_GameLevel->m_scene->camera.direction = sgs_GetVar<Vec3>()( C, 1 );
+	g_GameLevel->m_scene->camera.UpdateMatrices();
+	return 0;
+}
+
 static int IES_UpdateEmitter( SGS_CTX )
 {
 	SGSFN( "IES_UpdateEmitter" );
@@ -213,6 +235,9 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	{ "EntitySetProperties", EntitySetProperties },
 	{ "EntityGetProperties", EntityGetProperties },
 	{ "GetNamedPosition", GetNamedPosition },
+	{ "SetCutsceneFunc", SetCutsceneFunc },
+	{ "SetCutsceneSubtitle", SetCutsceneSubtitle },
+	{ "SetCameraPosDir", SetCameraPosDir },
 	// Info emission system
 	{ "IES_UpdateEmitter", IES_UpdateEmitter },
 	{ "IES_RemoveEmitter", IES_RemoveEmitter },
@@ -822,6 +847,8 @@ void GameLevel::StartLevel()
 	m_currentTickTime = 0;
 	m_currentPhyTime = 0;
 	m_endFactor = -1;
+	m_cutsceneFunc = sgsVariable();
+	m_cutsceneSubtitle = "";
 	m_cameraInfoCached = false;
 	m_levelTime = 0;
 	if( !m_player )
@@ -845,6 +872,8 @@ void GameLevel::EndLevel()
 		delete m_entities[ i ];
 	m_entities.clear();
 	
+	m_cutsceneFunc = sgsVariable();
+	m_cutsceneSubtitle = "";
 	m_endFactor = -1;
 	m_cameraInfoCached = false;
 	if( m_player )
@@ -922,6 +951,21 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	
 	m_messageSystem.Tick( deltaTime );
 	m_objectiveSystem.Tick( deltaTime );
+	
+	if( m_cutsceneFunc.not_null() )
+	{
+		SGS_CSCOPE( m_scriptCtx.C );
+		m_scriptCtx.Push( m_cutsceneTime );
+		if( m_cutsceneFunc.call( 1, 1 ) )
+		{
+			if( sgs_GetVar<bool>()( m_scriptCtx.C, -1 ) )
+			{
+				m_cutsceneFunc = sgsVariable();
+				m_cutsceneSubtitle = "";
+			}
+		}
+		m_cutsceneTime += deltaTime;
+	}
 	
 	if( m_endFactor > 0 )
 	{
@@ -1015,12 +1059,12 @@ void GameLevel::Draw2D()
 	if( m_player )
 		m_player->DrawUI();
 	
-#ifdef TSGAME
 	int size_x = GR_GetWidth();
 	int size_y = GR_GetHeight();
+	int sqr = TMIN( size_x, size_y );
+#ifdef TSGAME
 //	float aspect = size_x / (float) size_y;
 	
-	int sqr = TMIN( size_x, size_y );
 //	int margin_x = ( size_x - sqr ) / 2;
 //	int margin_y = ( size_y - sqr ) / 2;
 	int safe_margin = sqr * 1 / 16;
@@ -1075,6 +1119,13 @@ void GameLevel::Draw2D()
 		br.Reset().SetTexture( m_tex_mapframe ).Quad( x0 - msm, y0 - msm, x1 + msm, y1 + msm ).Flush();
 	}
 #endif
+	
+	if( m_cutsceneSubtitle.size() )
+	{
+		GR2D_SetFont( "core", sqr / 20 );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( size_x / 2, size_y * 3 / 4, m_cutsceneSubtitle, HALIGN_CENTER, VALIGN_CENTER );
+	}
 	
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		m_entities[ i ]->DebugDrawUI();

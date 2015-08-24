@@ -70,6 +70,9 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	Player* m_player;
 	Vec3 m_playerSpawnInfo[2]; // position, direction
 	Vec3 m_levelCameraInfo[2]; // position, direction
+	sgsVariable m_cutsceneFunc;
+	float m_cutsceneTime;
+	String m_cutsceneSubtitle;
 	
 	// HELPER DATA
 	Vec3 m_cachedCameraInfo[2];
