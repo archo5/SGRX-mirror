@@ -317,6 +317,9 @@ static int InitGameAPI( SGS_CTX )
 }
 
 
+
+Command SKIP_CUTSCENE( "skip_cutscene" );
+
 GameLevel::GameLevel() :
 	m_nameIDGen( 0 ),
 	m_currentTickTime( 0 ),
@@ -328,6 +331,9 @@ GameLevel::GameLevel() :
 	m_player( NULL )
 {
 	LOG_FUNCTION;
+	
+	Game_RegisterAction( &SKIP_CUTSCENE );
+	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &SKIP_CUTSCENE );
 	
 	m_lightTree = &m_ltSamples;
 	
@@ -1001,7 +1007,10 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 				m_cutsceneSubtitle = "";
 			}
 		}
-		m_cutsceneTime += deltaTime;
+		if( SKIP_CUTSCENE.value )
+			m_cutsceneTime += deltaTime * 20;
+		else
+			m_cutsceneTime += deltaTime;
 	}
 	
 	if( m_endFactor > 0 )
@@ -1156,6 +1165,13 @@ void GameLevel::Draw2D()
 		br.Reset().SetTexture( m_tex_mapframe ).Quad( x0 - msm, y0 - msm, x1 + msm, y1 + msm ).Flush();
 	}
 #endif
+	
+	if( m_cutsceneFunc.not_null() && Game_HasOverlayScreens() == false )
+	{
+		GR2D_SetFont( "core", sqr / 40 );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( sqr/20, sqr/20, "Press <Space> to speed up", HALIGN_LEFT, VALIGN_TOP );
+	}
 	
 	if( m_cutsceneSubtitle.size() )
 	{
