@@ -73,6 +73,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	sgsVariable m_cutsceneFunc;
 	float m_cutsceneTime;
 	String m_cutsceneSubtitle;
+	SoundEventInstanceHandle m_music;
 	
 	// HELPER DATA
 	Vec3 m_cachedCameraInfo[2];

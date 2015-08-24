@@ -115,6 +115,35 @@ static int SetCameraPosDir( SGS_CTX )
 	return 0;
 }
 
+extern SoundSystemHandle g_SoundSys;
+static int SetMusic( SGS_CTX )
+{
+	SGSFN( "SetMusic" );
+	
+	if( g_GameLevel->m_music )
+		g_GameLevel->m_music->Stop();
+	g_GameLevel->m_music = NULL;
+	
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	if( name )
+	{
+		g_GameLevel->m_music = g_SoundSys->CreateEventInstance( name );
+		g_GameLevel->m_music->Start();
+	}
+	
+	return 0;
+}
+static int SetMusicVar( SGS_CTX )
+{
+	SGSFN( "SetMusicVar" );
+	StringView name = sgs_GetVar<StringView>()( C, 0 );
+	if( g_GameLevel->m_music && name )
+	{
+		g_GameLevel->m_music->SetParameter( name, sgs_GetVar<float>()( C, 1 ) );
+	}
+	return 0;
+}
+
 static int IES_UpdateEmitter( SGS_CTX )
 {
 	SGSFN( "IES_UpdateEmitter" );
@@ -201,7 +230,7 @@ static int ObjectiveSetState( SGS_CTX )
 
 static int FS_UpdateFlare( SGS_CTX )
 {
-	SGSFN( "IES_UpdateEmitter" );
+	SGSFN( "FS_UpdateFlare" );
 	void* P = sgs_GetVar<void*>()( C, 0 );
 	if( P == NULL )
 		return sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
@@ -238,6 +267,8 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	{ "SetCutsceneFunc", SetCutsceneFunc },
 	{ "SetCutsceneSubtitle", SetCutsceneSubtitle },
 	{ "SetCameraPosDir", SetCameraPosDir },
+	{ "SetMusic", SetMusic },
+	{ "SetMusicVar", SetMusicVar },
 	// Info emission system
 	{ "IES_UpdateEmitter", IES_UpdateEmitter },
 	{ "IES_RemoveEmitter", IES_RemoveEmitter },
@@ -849,6 +880,9 @@ void GameLevel::StartLevel()
 	m_endFactor = -1;
 	m_cutsceneFunc = sgsVariable();
 	m_cutsceneSubtitle = "";
+	if( m_music )
+		m_music->Stop();
+	m_music = NULL;
 	m_cameraInfoCached = false;
 	m_levelTime = 0;
 	if( !m_player )
@@ -874,6 +908,9 @@ void GameLevel::EndLevel()
 	
 	m_cutsceneFunc = sgsVariable();
 	m_cutsceneSubtitle = "";
+	if( m_music )
+		m_music->Stop( true );
+	m_music = NULL;
 	m_endFactor = -1;
 	m_cameraInfoCached = false;
 	if( m_player )

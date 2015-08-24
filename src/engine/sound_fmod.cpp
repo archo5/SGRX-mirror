@@ -1,5 +1,6 @@
 
 
+#include "engine.hpp"
 #include "sound.hpp"
 
 #include "fmod_studio.h"
@@ -100,12 +101,19 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 	}
 	bool Load( const StringView& file, bool async )
 	{
+		String respath;
+		if( FS_FindRealPath( file, respath ) == false )
+		{
+			LOG << "Failed to resolve path: " << file;
+			return false;
+		}
+		
 		FMOD_STUDIO_BANK* outbank = NULL;
 		int initflags = async ? FMOD_STUDIO_LOAD_BANK_NONBLOCKING : FMOD_STUDIO_LOAD_BANK_NORMAL;
-		int ret = FMOD_Studio_System_LoadBankFile( m_sys, StackPath(file), initflags, &outbank );
+		int ret = FMOD_Studio_System_LoadBankFile( m_sys, StackPath(respath), initflags, &outbank );
 		if( ret != FMOD_OK )
 		{
-			LOG << "Failed to load FMOD bank file: " << file << " (error " << ret << ")";
+			LOG << "Failed to load FMOD bank file: " << respath << " (error " << ret << ")";
 			return false;
 		}
 		return true;

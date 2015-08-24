@@ -749,6 +749,14 @@ bool BasicFileSystem::SaveTextFile( const StringView& path, const StringView& da
 	return ::SaveTextFile( String_Concat( m_fileRoot, path ), data );
 }
 
+bool BasicFileSystem::FindRealPath( const StringView& path, String& out )
+{
+	LOG_FUNCTION;
+	out = m_fileRoot;
+	out.append( path );
+	return true;
+}
+
 bool BasicFileSystem::FileExists( const StringView& path )
 {
 	LOG_FUNCTION;
@@ -815,6 +823,15 @@ bool FS_SaveTextFile( const StringView& path, const StringView& data )
 	LOG_FUNCTION;
 	for( size_t i = 0; i < g_FileSystems.size(); ++i )
 		if( g_FileSystems[ i ]->SaveTextFile( path, data ) )
+			return true;
+	return false;
+}
+
+bool FS_FindRealPath( const StringView& path, String& out )
+{
+	LOG_FUNCTION;
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( g_FileSystems[ i ]->FindRealPath( path, out ) )
 			return true;
 	return false;
 }

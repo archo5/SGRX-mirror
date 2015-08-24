@@ -1734,8 +1734,8 @@ struct OfficeTheftGame : IGame
 		g_SoundSys->SetVolume( "bus:/music", g_s_vol_music );
 		g_SoundSys->SetVolume( "bus:/sfx", g_s_vol_sfx );
 		
-		m_music = g_SoundSys->CreateEventInstance( "/lev1_music" );
-		m_music->Start();
+	//	m_music = g_SoundSys->CreateEventInstance( "/lev1_music" );
+	//	m_music->Start();
 		
 		g_GameLevel = new GameLevel();
 		SetupLevel();
@@ -1756,8 +1756,8 @@ struct OfficeTheftGame : IGame
 		delete g_GameLevel;
 		g_GameLevel = NULL;
 		
-		m_music->Stop();
-		m_music = NULL;
+	//	m_music->Stop();
+	//	m_music = NULL;
 		
 		g_PhyWorld = NULL;
 		g_SoundSys = NULL;
