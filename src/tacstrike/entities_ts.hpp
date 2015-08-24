@@ -190,13 +190,13 @@ struct TSFactStorage
 	Fact* GetRecentFact( int typemask, TimeVal maxtime );
 	void Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
 	bool Update( FactType type, Vec3 pos, float rad,
-		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	void InsertOrUpdate( FactType type, Vec3 pos, float rad,
-		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	bool MovingUpdate( FactType type, Vec3 pos, float movespeed,
-		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	void MovingInsertOrUpdate( FactType type, Vec3 pos, float movespeed,
-		TimeVal created, TimeVal expires, uint32_t ref = 0 );
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	
 	Array< Fact > facts;
 	TimeVal m_lastTime;

@@ -1724,7 +1724,8 @@ struct OfficeTheftGame : IGame
 		Game_BindInputToAction( g_i_sprint, &SPRINT );
 		Game_BindInputToAction( g_i_show_objectives, &SHOW_OBJECTIVES );
 		
-		GR_LoadAnims( "meshes/tstest.ssm.anm" );
+	//	GR_LoadAnims( "meshes/tstest.ssm.anm" );
+		GR_LoadAnims( "meshes/female1.ssm.anm" );
 		
 		g_SoundSys->Load( "sound/master.bank" );
 		g_SoundSys->Load( "sound/master.strings.bank" );

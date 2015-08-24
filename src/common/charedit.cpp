@@ -1290,6 +1290,7 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 		m_type( g_UITransformType ),
 		m_offaxis( V3(0,0,1), 2, V3(-100), V3(100) ),
 		m_angle( 0, 2, -9999, 9999 ),
+		m_base( 0, 2, -100, 100 ),
 		m_lid( -1 ),
 		m_tid( -1 )
 	{
@@ -1298,11 +1299,13 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 		m_type.caption = "Type";
 		m_offaxis.caption = "Offset/axis";
 		m_angle.caption = "Angle";
+		m_base.caption = "Base factor";
 		
 		m_group.Add( &m_bone );
 		m_group.Add( &m_type );
 		m_group.Add( &m_offaxis );
 		m_group.Add( &m_angle );
+		m_group.Add( &m_base );
 		
 		Add( &m_btnBack );
 		Add( &m_group );
@@ -1329,6 +1332,7 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 		m_type.SetValue( TransformType2String( LT.type ) );
 		m_offaxis.SetValue( LT.posaxis );
 		m_angle.SetValue( LT.angle );
+		m_base.SetValue( LT.base );
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -1356,6 +1360,7 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 				else if( e->target == &m_type ) LT.type = String2TransformType( m_type.m_value );
 				else if( e->target == &m_offaxis ) LT.posaxis = m_offaxis.m_value;
 				else if( e->target == &m_angle ) LT.angle = m_angle.m_value;
+				else if( e->target == &m_base ) LT.base = m_base.m_value;
 			}
 		}
 		return EDGUILayoutRow::OnEvent( e );
@@ -1367,6 +1372,7 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 	EDGUIPropRsrc m_type;
 	EDGUIPropVec3 m_offaxis;
 	EDGUIPropFloat m_angle;
+	EDGUIPropFloat m_base;
 	int m_lid;
 	int m_tid;
 };

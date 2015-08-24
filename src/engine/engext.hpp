@@ -183,11 +183,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 		uint8_t type; // TransformType
 		Vec3 posaxis; // offset for 'move', axis for 'rotate'
 		float angle; // only for rotation
+		float base; // additional unconditional offset
 		
 		int bone_id;
 		
 		LayerTransform() : type( TransformType_None ), posaxis( V3(0,0,1) ),
-			angle( 0 ), bone_id(-1){}
+			angle( 0 ), base(0), bone_id(-1){}
 		
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
@@ -196,6 +197,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 			arch( bone );
 			arch( posaxis );
 			arch( angle );
+			arch( base, arch.version >= 4, 0 );
 		}
 	};
 	struct Layer
@@ -251,7 +253,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 		// 1: initial
 		// 2: added masks
 		// 3: added joints
-		SerializeVersionHelper<T> arch( basearch, 3 );
+		// 4: base offset
+		SerializeVersionHelper<T> arch( basearch, 4 );
 		
 		arch( mesh );
 		arch( bones );

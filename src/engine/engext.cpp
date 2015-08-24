@@ -304,11 +304,11 @@ void AnimCharacter::RecalcLayerState()
 				}
 				break;
 			case TransformType_Move:
-				m_layerAnimator.m_positions[ LT.bone_id ] += LT.posaxis * L.amount;
+				m_layerAnimator.m_positions[ LT.bone_id ] += LT.posaxis * ( LT.base + L.amount );
 				break;
 			case TransformType_Rotate:
 				m_layerAnimator.m_rotations[ LT.bone_id ] = m_layerAnimator.m_rotations[ LT.bone_id ]
-					* Quat::CreateAxisAngle( LT.posaxis.Normalized(), DEG2RAD( LT.angle ) * L.amount );
+					* Quat::CreateAxisAngle( LT.posaxis.Normalized(), DEG2RAD( LT.angle ) * ( LT.base + L.amount ) );
 				break;
 			}
 		}

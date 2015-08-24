@@ -326,6 +326,10 @@ void TSCharacter::FixedTick( float deltaTime )
 	//	{
 	//		TurnTo( md, deltaTime * 8 );
 	//	}
+#ifdef LD33GAME
+		anim_stand = "idle";
+		animname = "walk";
+#endif
 		
 		m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : anim_stand ), false, 0.2f );
 	}
@@ -926,12 +930,14 @@ bool TSFactStorage::HasRecentFact( int typemask, TimeVal maxtime )
 TSFactStorage::Fact* TSFactStorage::GetRecentFact( int typemask, TimeVal maxtime )
 {
 	Fact* F = NULL;
+//	puts("GetRecentFact");
 	for( size_t i = 0; i < facts.size(); ++i )
 	{
 		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
 		{
-			maxtime = m_lastTime - facts[ i ].created;
 			F = &facts[ i ];
+		//	printf("fact %p created at %d within %d\n", F, F->created, maxtime );
+			maxtime = m_lastTime - facts[ i ].created;
 		}
 	}
 	return F;
@@ -947,7 +953,7 @@ void TSFactStorage::Insert( FactType type, Vec3 pos, TimeVal created, TimeVal ex
 }
 
 bool TSFactStorage::Update( FactType type, Vec3 pos, float rad,
-	TimeVal created, TimeVal expires, uint32_t ref )
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
 	float rad2 = rad * rad;
 	for( size_t i = 0; i < facts.size(); ++i )
@@ -956,8 +962,11 @@ bool TSFactStorage::Update( FactType type, Vec3 pos, float rad,
 			( facts[ i ].position - pos ).LengthSq() < rad2 )
 		{
 			facts[ i ].position = pos;
-			facts[ i ].created = created;
-			facts[ i ].expires = expires;
+			if( reset )
+			{
+				facts[ i ].created = created;
+				facts[ i ].expires = expires;
+			}
 			facts[ i ].ref = ref;
 			last_mod_id = facts[ i ].id;
 			return true;
@@ -968,14 +977,14 @@ bool TSFactStorage::Update( FactType type, Vec3 pos, float rad,
 }
 
 void TSFactStorage::InsertOrUpdate( FactType type, Vec3 pos, float rad,
-	TimeVal created, TimeVal expires, uint32_t ref )
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( Update( type, pos, rad, created, expires, ref ) == false )
+	if( Update( type, pos, rad, created, expires, ref, reset ) == false )
 		Insert( type, pos, created, expires, ref );
 }
 
 bool TSFactStorage::MovingUpdate( FactType type, Vec3 pos, float movespeed,
-	TimeVal created, TimeVal expires, uint32_t ref )
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
 	for( size_t i = 0; i < facts.size(); ++i )
 	{
@@ -986,8 +995,11 @@ bool TSFactStorage::MovingUpdate( FactType type, Vec3 pos, float movespeed,
 		if( ( facts[ i ].position - pos ).LengthSq() <= rad * rad + SMALL_FLOAT )
 		{
 			facts[ i ].position = pos;
-			facts[ i ].created = created;
-			facts[ i ].expires = expires;
+			if( reset )
+			{
+				facts[ i ].created = created;
+				facts[ i ].expires = expires;
+			}
 			facts[ i ].ref = ref;
 			last_mod_id = facts[ i ].id;
 			return true;
@@ -998,9 +1010,9 @@ bool TSFactStorage::MovingUpdate( FactType type, Vec3 pos, float movespeed,
 }
 
 void TSFactStorage::MovingInsertOrUpdate( FactType type, Vec3 pos, float movespeed,
-	TimeVal created, TimeVal expires, uint32_t ref )
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( MovingUpdate( type, pos, movespeed, created, expires, ref ) == false )
+	if( MovingUpdate( type, pos, movespeed, created, expires, ref, reset ) == false )
 		Insert( type, pos, created, expires, ref );
 }
 
@@ -1142,8 +1154,8 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		
 		if( data.types & IEST_AIAlert )
 		{
-			FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Alarming,
-				enemypos, 0, curtime, curtime + 5*1000 );
+			FS.InsertOrUpdate( TSFactStorage::FT_Sight_Alarming,
+				enemypos, 0, curtime, curtime + 5*1000, 0 );
 		}
 		else
 		{
@@ -1223,8 +1235,8 @@ void TSEnemy::FixedTick( float deltaTime )
 			if( S.type == AIS_Shot )
 				sndtype = TSFactStorage::FT_Sound_Shot;
 			
-			m_factStorage.MovingInsertOrUpdate( sndtype,
-				S.position, 10, curTime, curTime + 1*1000 );
+			m_factStorage.InsertOrUpdate( sndtype,
+				S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
 			
 			int lastid = m_factStorage.last_mod_id;
 			bool found_friend = m_factStorage.MovingUpdate( TSFactStorage::FT_Position_Friend,

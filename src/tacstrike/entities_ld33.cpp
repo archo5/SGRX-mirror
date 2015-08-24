@@ -175,6 +175,7 @@ void LD33Player::Tick( float deltaTime, float blendFactor )
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
 		m_footstepTime = 0;
+		g_GameLevel->m_aidbSystem.AddSound( pos, 10, 0.5f, AIS_Footstep );
 	}
 	
 	g_GameLevel->m_scene->camera.znear = 0.1f;
