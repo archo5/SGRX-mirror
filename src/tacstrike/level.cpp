@@ -1176,6 +1176,8 @@ void GameLevel::Draw2D()
 	if( m_cutsceneSubtitle.size() )
 	{
 		GR2D_SetFont( "core", sqr / 20 );
+		GR2D_SetColor( 0, 1 );
+		GR2D_DrawTextLine( size_x / 2 + 1, size_y * 3 / 4 + 1, m_cutsceneSubtitle, HALIGN_CENTER, VALIGN_CENTER );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( size_x / 2, size_y * 3 / 4, m_cutsceneSubtitle, HALIGN_CENTER, VALIGN_CENTER );
 	}
