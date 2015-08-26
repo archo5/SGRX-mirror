@@ -819,7 +819,7 @@ struct ENGINE_EXPORT Mat4
 		};
 		return m;
 	}
-	static Mat4 CreateUI( float x0, float y0, float x1, float y1 )
+	static Mat4 CreateUI( float x0, float y0, float x1, float y1, float z0 = -1.0f, float z1 = 1.0f )
 	{
 		float w = x1 - x0;
 		float h = y1 - y0;
@@ -827,8 +827,8 @@ struct ENGINE_EXPORT Mat4
 		{
 			2.0f / w, 0, 0, 0,
 			0, -2.0f / h, 0, 0,
-			0, 0, 1, 0,
-			-1 - x0 / w * 2.0f, 1 + y0 / w * 2.0f, 0, 1
+			0, 0, 1.0f / ( z1 - z0 ), 0,
+			-1 - x0 / w * 2.0f, 1 + y0 / w * 2.0f, z0 / ( z0 - z1 ), 1
 		};
 		return m;
 	}

@@ -1901,7 +1901,7 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 //
 
 // #define LOG_TO_STDOUT
-#define LOG_TO_FILE
+// #define LOG_TO_FILE
 
 
 #ifdef GATHER_STATS

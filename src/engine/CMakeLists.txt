@@ -1,7 +1,10 @@
 
 cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
-link_directories( D:/DXSDK/Lib/x86 ${EXTDIR}/d3dx )
+link_directories( ${EXTDIR}/d3dx )
+if(MSVC)
+	link_directories( D:/DXSDK/Lib/x86 )
+endif()
 
 # Engine
 add_library( sgrx-core SHARED

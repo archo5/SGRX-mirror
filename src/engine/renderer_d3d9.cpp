@@ -468,10 +468,13 @@ struct D3D9Renderer : IRenderer
 	RTData m_drd;
 	Mat4 m_world;
 	Mat4 m_view;
+	TextureHandle m_whiteTex;
+	IDirect3DVertexDeclaration9* m_batchVertDecl;
 	
 	SGRX_IVertexShader* m_sh_proj_vs;
 	SGRX_IVertexShader* m_sh_bv_vs;
 	SGRX_IVertexShader* m_sh_pp_vs;
+	SGRX_IPixelShader* m_sh_bv_ps;
 	SGRX_IPixelShader* m_sh_pp_final;
 	SGRX_IPixelShader* m_sh_pp_dshp;
 	SGRX_IPixelShader* m_sh_pp_blur_h;
@@ -566,6 +569,20 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		return NULL;
 	}
 	
+	D3DVERTEXELEMENT9 elements[ 4 ] =
+	{
+		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		{ 0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 },
+		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		D3DDECL_END()
+	};
+	if( FAILED( R->m_dev->CreateVertexDeclaration( elements, &R->m_batchVertDecl ) ) ||
+		R->m_batchVertDecl == NULL )
+	{
+		LOG_ERROR << "Failed to create D3D9 batched vertex declaration";
+		return NULL;
+	}
+	
 	postproc_init( d3ddev, &R->m_drd, settings.width, settings.height, d3dpp.MultiSampleType );
 	
 	d3ddev->BeginScene();
@@ -615,6 +632,7 @@ void D3D9Renderer::Destroy()
 	
 	postproc_free( &m_drd );
 	
+	SAFE_RELEASE( m_batchVertDecl );
 	SAFE_RELEASE( m_backbuf );
 	SAFE_RELEASE( m_dssurf );
 	SAFE_RELEASE( m_dev );
@@ -628,15 +646,21 @@ bool D3D9Renderer::LoadInternalResources()
 	if( !_RS_ProjectorInit() )
 		return false;
 	
+	m_whiteTex = GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, 0, 1 );
+	uint32_t whiteCol = 0xffffffff;
+	m_whiteTex.UploadRGBA8Part( &whiteCol );
+	
 	VertexShaderHandle sh_proj_vs = GR_GetVertexShader( "sys_proj_vs" );
 	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
 	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "sys_pp_vs" );
+	PixelShaderHandle sh_bv_ps = GR_GetPixelShader( "sys_bv_ps" );
 	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "sys_pp_final" );
 	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "sys_pp_bloom_dshp" );
 	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "sys_pp_bloom_blur_h" );
 	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "sys_pp_bloom_blur_v" );
 	if( !sh_bv_vs ||
 		!sh_pp_vs ||
+		!sh_bv_ps ||
 		!sh_pp_final ||
 		!sh_pp_dshp ||
 		!sh_pp_blur_h ||
@@ -647,6 +671,7 @@ bool D3D9Renderer::LoadInternalResources()
 	sh_proj_vs->Acquire();
 	sh_bv_vs->Acquire();
 	sh_pp_vs->Acquire();
+	sh_bv_ps->Acquire();
 	sh_pp_final->Acquire();
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
@@ -654,6 +679,7 @@ bool D3D9Renderer::LoadInternalResources()
 	m_sh_proj_vs = sh_proj_vs;
 	m_sh_bv_vs = sh_bv_vs;
 	m_sh_pp_vs = sh_pp_vs;
+	m_sh_bv_ps = sh_bv_ps;
 	m_sh_pp_final = sh_pp_final;
 	m_sh_pp_dshp = sh_pp_dshp;
 	m_sh_pp_blur_h = sh_pp_blur_h;
@@ -672,10 +698,13 @@ void D3D9Renderer::UnloadInternalResources()
 	m_sh_proj_vs->Release();
 	m_sh_bv_vs->Release();
 	m_sh_pp_vs->Release();
+	m_sh_bv_ps->Release();
 	m_sh_pp_final->Release();
 	m_sh_pp_dshp->Release();
 	m_sh_pp_blur_h->Release();
 	m_sh_pp_blur_v->Release();
+	
+	m_whiteTex = NULL;
 	
 	_RS_ProjectorFree();
 }
@@ -1411,12 +1440,12 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
 {
 	SetVertexShader( m_sh_bv_vs );
-	SetPixelShader( shd );
+	SetPixelShader( shd ? shd : m_sh_bv_ps );
 	VS_SetMat4( 0, m_world );
 	VS_SetMat4( 4, m_view );
-	SetTexture( 0, tex );
+	SetTexture( 0, tex ? tex : m_whiteTex.item );
 	PS_SetVec4Array( 0, shdata, shvcount );
-	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_DIFFUSE );
+	m_dev->SetVertexDeclaration( m_batchVertDecl );
 	m_dev->DrawPrimitiveUP( conv_prim_type( pt ), get_prim_count( pt, count ), verts, sizeof( *verts ) );
 }
 
@@ -1719,7 +1748,6 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	
 	// RENDERING ENDS
 	SetVertexShader( m_sh_bv_vs );
-	SetPixelShader( NULL );
 	_SetTextureInt( 0, NULL, 0 );
 	
 	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
@@ -2190,7 +2218,6 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	
 	m_dev->SetTexture( 0, NULL );
-	SetPixelShader( NULL );
 	debugDraw->DebugDraw();
 	GR2D_GetBatchRenderer().Flush().Reset();
 	
@@ -2359,14 +2386,16 @@ void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
 
 void D3D9Renderer::SetVertexShader( SGRX_IVertexShader* shd )
 {
+	ASSERT( shd );
 	SGRX_CAST( D3D9VertexShader*, S, shd );
-	m_dev->SetVertexShader( S ? S->m_VS : NULL );
+	m_dev->SetVertexShader( S->m_VS );
 }
 
 void D3D9Renderer::SetPixelShader( SGRX_IPixelShader* shd )
 {
+	ASSERT( shd );
 	SGRX_CAST( D3D9PixelShader*, S, shd );
-	m_dev->SetPixelShader( S ? S->m_PS : NULL );
+	m_dev->SetPixelShader( S->m_PS );
 }
 
 void D3D9Renderer::MI_ApplyConstants( SGRX_MeshInstance* MI )
