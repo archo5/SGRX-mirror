@@ -2368,7 +2368,7 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 {
 	LOG_FUNCTION;
 	
-	assert( anim >= 0 && anim < (int) afp->animData.size() );
+	ASSERT( anim >= 0 && anim < (int) afp->animData.size() );
 	
 	const AnimFileParser::Anim& AN = afp->animData[ anim ];
 	

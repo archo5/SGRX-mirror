@@ -5,7 +5,6 @@
 #define _USE_MATH_DEFINES
 #include <inttypes.h>
 #include <float.h>
-#include <assert.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1627,7 +1626,7 @@ struct StringView
 	FINLINE const char* begin() const { return m_str; }
 	FINLINE const char* end() const { return m_str + m_size; }
 	
-	FINLINE const char& operator [] ( size_t i ) const { assert( i < m_size ); return m_str[ i ]; }
+	FINLINE const char& operator [] ( size_t i ) const { ASSERT( i < m_size ); return m_str[ i ]; }
 	
 	FINLINE bool operator == ( const StringView& sv ) const { return m_size == sv.m_size && !memcmp( m_str, sv.m_str, m_size ); }
 	FINLINE bool operator != ( const StringView& sv ) const { return !( *this == sv ); }
@@ -1740,15 +1739,29 @@ struct StringView
 		m_size -= n;
 		return true;
 	}
-	FINLINE void trim( const StringView& chars )
+	FINLINE StringView take( size_t n )
+	{
+		StringView p = part( 0, n );
+		skip( n );
+		return p;
+	}
+	FINLINE void ltrim( const StringView& chars )
 	{
 		while( m_size && chars.is_any( *m_str ) )
 		{
 			m_str++;
 			m_size--;
 		}
+	}
+	FINLINE void rtrim( const StringView& chars )
+	{
 		while( m_size && chars.is_any( m_str[ m_size - 1 ] ) )
 			m_size--;
+	}
+	FINLINE void trim( const StringView& chars )
+	{
+		ltrim( chars );
+		rtrim( chars );
 	}
 	
 #ifdef USE_ARRAY
@@ -2084,7 +2097,7 @@ struct HashTable
 			}
 			while( i != sp );
 			
-			assert( m_size != osize );
+			ASSERT( m_size != osize );
 			
 			return &m_vars[ m_size - 1 ];
 		}
@@ -2106,7 +2119,7 @@ struct HashTable
 			{
 				Var* ep = m_vars + m_size;
 				i = _get_pair_id( ep->key, ep->hash );
-				assert( i != -1 );
+				ASSERT( i != -1 );
 				
 				p->key.~K();
 				p->value.~V();
