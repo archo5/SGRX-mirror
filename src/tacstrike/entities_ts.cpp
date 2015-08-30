@@ -197,7 +197,7 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
-	i_crouch( false ), i_move( V2(0) ), i_speed( 0 ), i_aim_at( false ), i_aim_target( V3(0) )
+	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_aim_at( false ), i_aim_target( V3(0) )
 {
 	m_meshInstInfo.typeOverride = "*human*";
 	
@@ -645,6 +645,10 @@ void TSPlayer::FixedTick( float deltaTime )
 		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
 		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
 	);
+	if( i_move.Length() > 0.1f )
+	{
+		TurnTo( i_move, deltaTime * 8 );
+	}
 	i_aim_target = FindTargetPosition();
 //	i_crouch = CROUCH.value;
 	
@@ -1359,7 +1363,7 @@ void TSParseTaskArray( TSTaskArray& out, sgsVariable var )
 }
 
 void TSEnemy::DebugDrawWorld()
-{return;
+{
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
 	Vec3 pos = GetPosition();
 	
@@ -1376,7 +1380,7 @@ void TSEnemy::DebugDrawWorld()
 }
 
 void TSEnemy::DebugDrawUI()
-{return;
+{
 	char bfr[ 256 ];
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	Vec3 pos = GetPosition();
