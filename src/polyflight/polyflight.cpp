@@ -10,7 +10,6 @@
 #include <sound.hpp>
 
 
-bool g_Paused = false;
 SoundSystemHandle g_SoundSys;
 
 Command MOVE_LEFT( "move_left" );
@@ -33,17 +32,6 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	// { RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
 };
 
-
-
-void Game_SetPaused( bool paused )
-{
-	g_Paused = paused;
-}
-
-bool Game_IsPaused()
-{
-	return g_Paused;
-}
 
 
 struct SplashScreen : IScreen

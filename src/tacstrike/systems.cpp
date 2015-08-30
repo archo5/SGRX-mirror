@@ -89,6 +89,119 @@ Entity* InfoEmissionSystem::QueryOneRay( const Vec3& from, const Vec3& to, uint3
 }
 
 
+LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), m_viewPos(V2(0))
+{
+	m_tex_mapline = GR_GetTexture( "ui/mapline.png" );
+	m_tex_mapframe = GR_GetTexture( "ui/mapframe.png" );
+}
+
+void LevelMapSystem::Clear()
+{
+	m_mapItemData.clear();
+}
+
+void LevelMapSystem::UpdateItem( Entity* e, const MapItemInfo& data )
+{
+	m_mapItemData[ e ] = data;
+}
+
+void LevelMapSystem::RemoveItem( Entity* e )
+{
+	m_mapItemData.unset( e );
+}
+
+void LevelMapSystem::DrawUI()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	int size_x = GR_GetWidth();
+	int size_y = GR_GetHeight();
+	int sqr = TMIN( size_x, size_y );
+	
+	int safe_margin = sqr * 1 / 16;
+	int mapsize_x = sqr * 4 / 10;
+	int mapsize_y = sqr * 3 / 10;
+	int msm = 0; // sqr / 100;
+	float map_aspect = mapsize_x / (float) mapsize_y;
+	int x1 = size_x - safe_margin;
+	int x0 = x1 - mapsize_x;
+	int y0 = safe_margin;
+	int y1 = y0 + mapsize_y;
+	
+	br.Reset().Col( 0, 0.5f );
+	br.Quad( x0, y0, x1, y1 );
+	br.Flush();
+	
+	br.Reset().SetTexture( NULL ).Col( 0.2f, 0.4f, 0.8f );
+	
+	Mat4 lookat = Mat4::CreateLookAt( V3( m_viewPos.x, m_viewPos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
+	GR2D_SetViewMatrix( lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 ) );
+	
+	GR2D_SetScissorRect( x0, y0, x1, y1 );
+	GR2D_SetViewport( x0, y0, x1, y1 );
+	
+	for( size_t i = 0; i < m_lines.size(); i += 2 )
+	{
+		Vec2 l0 = m_lines[ i ];
+		Vec2 l1 = m_lines[ i + 1 ];
+		
+		br.TexLine( l0, l1, 0.1f );
+	}
+	
+//	MapItemDraw ed;
+//	m_infoEmitters.QuerySphereAll( &ed, V3( pos.x, pos.y, 1 ), 100, IEST_MapItem );
+	for( size_t i = 0; i < m_mapItemData.size(); ++i )
+	{
+		MapItemInfo& mii = m_mapItemData.item( i ).value;
+		Vec2 viewpos = mii.position.ToVec2();
+		
+		if( ( mii.type & MI_Mask_Object ) == MI_Object_Player )
+		{
+			br.Reset().SetTexture( m_tex_mapline )
+				.Col( 0.2f, 0.9f, 0.1f ).Box( viewpos.x, viewpos.y, 1, 1 );
+		}
+		else
+		{
+			uint32_t viewcol = 0xffffffff;
+			uint32_t dotcol = COLOR_RGB( 245, 20, 10 );
+			switch( mii.type & MI_Mask_State )
+			{
+			case MI_State_Normal:
+				viewcol = mii.type & MI_Object_Enemy ?
+					COLOR_RGB( 230, 230, 230 ) : COLOR_RGB( 180, 230, 180 );
+				break;
+			case MI_State_Suspicious:
+				viewcol = COLOR_RGB( 170, 170, 100 );
+				break;
+			case MI_State_Alerted:
+				viewcol = COLOR_RGB( 170, 100, 100 );
+				break;
+			}
+			viewcol &= 0x7fffffff;
+			uint32_t viewcol_a0 = viewcol & 0x00ffffff;
+			Vec2 viewdir = mii.direction.ToVec2().Normalized();
+			Vec2 viewtan = viewdir.Perp();
+			br.Reset().Colu( viewcol_a0 )
+				.SetPrimitiveType( PT_Triangles )
+				.Pos( viewpos + viewdir * mii.sizeFwd - viewtan * mii.sizeRight )
+				.Pos( viewpos + viewdir * mii.sizeFwd + viewtan * mii.sizeRight )
+				.Colu( viewcol ).Pos( viewpos );
+			
+			br.Reset().SetTexture( m_tex_mapline )
+				.Colu( dotcol ).Box( viewpos.x, viewpos.y, 1, 1 );
+		}
+	}
+	
+	br.Flush();
+	GR2D_UnsetViewport();
+	GR2D_UnsetScissorRect();
+	
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+	
+	br.Reset().SetTexture( m_tex_mapframe ).Quad( x0 - msm, y0 - msm, x1 + msm, y1 + msm ).Flush();
+}
+
+
 MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	m_tx_icon_info = GR_GetTexture( "ui/icon_info.png" );
@@ -163,6 +276,7 @@ void MessagingSystem::DrawUI()
 
 ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ),
+	SHOW_OBJECTIVES( "show_objectives" ),
 	m_alpha(0)
 {
 	m_tx_icon_open = GR_GetTexture( "ui/obj_open.png" );

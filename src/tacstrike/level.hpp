@@ -66,6 +66,8 @@ typedef StackString<16> StackShortName;
 
 struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 {
+	SGS_OBJECT;
+	
 	GameLevel();
 	virtual ~GameLevel();
 	
@@ -83,15 +85,20 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	void AddEntity( Entity* E );
 	void AddEntry( const StringView& name, sgsVariable var );
 	
+	// system interface
+	void SetPlayer( Entity* E ){ m_player = E; }
+	
 	// entity interface
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
 	SGRX_Scene* GetScene() const { return m_scene; }
+	ScriptContext& GetScriptCtx(){ return m_scriptCtx; }
+	sgs_Context* GetSGSC() const { return m_scriptCtx.C; }
 	
 	bool Load( const StringView& levelname );
-	void CreateEntity( const StringView& type, const StringView& sgsparams );
+	void CreateEntity( const StringView& type, sgsVariable data );
 	StackShortName GenerateName();
 	void StartLevel();
-	void EndLevel();
+	void ClearLevel();
 	
 	void ProcessEvents();
 	void FixedTick( float deltaTime );
@@ -103,11 +110,11 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	void DebugDraw();
 	void PostDraw();
 	
-	void SetNextLevel( const StringView& name );
+	SGS_METHOD_NAMED( SetLevel ) void SetNextLevel( StringView name );
 	void MapEntityByName( Entity* e );
 	void UnmapEntityByName( Entity* e );
 	Entity* FindEntityByName( const StringView& name );
-	void CallEntityByName( const StringView& name, const StringView& action );
+	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
 	
 	void LightMesh( MeshInstHandle mih, Vec3 off = V3(0) );
 	
@@ -139,13 +146,12 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	float m_endFactor;
 	double m_levelTime;
 	Array< Entity* > m_entities;
+	Entity* m_player;
 	Array< MeshInstHandle > m_meshInsts;
 	Array< PhyRigidBodyHandle > m_levelBodies;
 	LCLightArray m_lights;
-	Array< Vec2 > m_lines;
 	SGRX_LightTree m_ltSamples;
 	SceneHandle m_scene;
-//	Player* m_player;
 	Vec3 m_playerSpawnInfo[2]; // position, direction
 	Vec3 m_levelCameraInfo[2]; // position, direction
 	sgsVariable m_cutsceneFunc;
@@ -157,10 +163,6 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	Vec3 m_cachedCameraInfo[2];
 	bool m_cameraInfoCached;
 	String m_nextLevel;
-	
-	// COMMON DATA
-	TextureHandle m_tex_mapline;
-	TextureHandle m_tex_mapframe;
 };
 
 

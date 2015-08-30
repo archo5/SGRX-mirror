@@ -34,7 +34,6 @@ struct BRSD4Player : Entity
 	
 	bool AddItem( const StringView& item, int count );
 	bool HasItem( const StringView& item, int count = 1 );
-	Vec3 GetPosition() const { return m_bodyHandle->GetPosition(); }
 };
 
 

@@ -149,7 +149,7 @@ struct ScriptedItem : Entity
 struct StockEntityCreationSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 999 };
-	StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
+	StockEntityCreationSystem( GameLevel* lev );
 	virtual bool AddEntity( const StringView& type, sgsVariable data );
 };
 

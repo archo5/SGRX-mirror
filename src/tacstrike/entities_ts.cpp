@@ -67,7 +67,10 @@ void TSCamera::FixedTick( float deltaTime )
 	m_playerVisible = false;
 	if( m_level->m_player )
 	{
-		Vec3 ppos = m_level->m_player->GetPosition();
+		Vec3 ppos = V3(0);
+#ifdef TSGAME
+		ppos = static_cast<TSPlayer*>(m_level->m_player)->GetPosition();
+#endif
 		Mat4 viewmtx, originmtx, invviewmtx = Mat4::Identity, invoriginmtx = Mat4::Identity;
 		m_animChar.GetAttachmentMatrix( 0, viewmtx );
 		m_animChar.GetAttachmentMatrix( 1, originmtx );
@@ -848,32 +851,6 @@ Vec3 TSPlayer::FindTargetPosition()
 	}
 	
 	return V3(0);
-}
-
-bool TSPlayer::AddItem( const StringView& item, int count )
-{
-	String key = item;
-	int* ic = m_items.getptr( key );
-	if( count < 0 )
-	{
-		if( !ic || *ic < count )
-			return false;
-		*ic += count;
-	}
-	else
-	{
-		if( !ic )
-			m_items.set( key, count );
-		else
-			*ic += count;
-	}
-	return true;
-}
-
-bool TSPlayer::HasItem( const StringView& item, int count )
-{
-	int* ic = m_items.getptr( item );
-	return ic && *ic >= count;
 }
 
 #endif

@@ -152,9 +152,6 @@ struct TSPlayer : TSCharacter
 	void DrawUI();
 	
 	Vec3 FindTargetPosition();
-	
-	bool AddItem( const StringView& item, int count );
-	bool HasItem( const StringView& item, int count = 1 );
 };
 
 #endif

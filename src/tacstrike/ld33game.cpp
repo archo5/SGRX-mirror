@@ -11,7 +11,6 @@
 
 
 GameLevel* g_GameLevel = NULL;
-bool g_Paused = false;
 PhyWorldHandle g_PhyWorld;
 SoundSystemHandle g_SoundSys;
 
@@ -64,18 +63,6 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
 };
-
-
-
-void Game_SetPaused( bool paused )
-{
-	g_Paused = paused;
-}
-
-bool Game_IsPaused()
-{
-	return g_Paused;
-}
 
 
 

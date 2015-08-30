@@ -22,25 +22,13 @@
 extern SoundSystemHandle g_SoundSys;
 extern SGRX_LineSet g_DebugLines;
 
-#if 0
-extern Command MOVE_LEFT;
-extern Command MOVE_RIGHT;
-extern Command MOVE_UP;
-extern Command MOVE_DOWN;
-extern Command MOVE_X;
-extern Command MOVE_Y;
-extern Command AIM_X;
-extern Command AIM_Y;
-extern Command SHOOT;
-extern Command RELOAD;
-extern Command SLOW_WALK;
-extern Command SPRINT;
-extern Command CROUCH;
-extern Command SHOW_OBJECTIVES;
-#endif
 
-void Game_SetPaused( bool paused );
-bool Game_IsPaused();
+template< class T > T* AddSystemToLevel( GameLevel* lev )
+{
+	T* sys = new T( lev );
+	lev->AddSystem( sys );
+	return sys;
+}
 
 
 enum EInteractionType
@@ -60,26 +48,6 @@ struct InteractInfo
 	Vec3 placeDir;
 	float timeEstimate;
 	float timeActual;
-};
-
-enum EMapItemType
-{
-	MI_None = 0,
-	MI_Mask_State = 0x00ff,
-	MI_Object_Enemy = 0x0100,
-	MI_Object_Camera = 0x0200,
-	MI_State_Normal = 0x0001,
-	MI_State_Suspicious = 0x0002,
-	MI_State_Alerted = 0x0003,
-};
-
-struct MapItemInfo
-{
-	int type; // EMapItemType combo
-	Vec3 position;
-	Vec3 direction;
-	float sizeFwd;
-	float sizeRight;
 };
 
 
@@ -153,6 +121,49 @@ struct IESItemGather : InfoEmissionSystem::IESProcessor
 	Array< Item > items;
 };
 
+
+enum EMapItemType
+{
+	MI_None = 0,
+	MI_Mask_Object = 0xff00,
+	MI_Mask_State = 0x00ff,
+	MI_Object_Player = 0x0100,
+	MI_Object_Enemy = 0x0200,
+	MI_Object_Camera = 0x0300,
+	MI_State_Normal = 0x0001,
+	MI_State_Suspicious = 0x0002,
+	MI_State_Alerted = 0x0003,
+};
+
+struct MapItemInfo
+{
+	int type; // EMapItemType combo
+	Vec3 position;
+	Vec3 direction;
+	float sizeFwd;
+	float sizeRight;
+};
+
+struct LevelMapSystem : IGameLevelSystem
+{
+	enum { e_system_uid = 9 };
+	
+	LevelMapSystem( GameLevel* lev );
+	void Clear();
+	void UpdateItem( Entity* e, const MapItemInfo& data );
+	void RemoveItem( Entity* e );
+	void DrawUI();
+	
+	Vec2 m_viewPos;
+
+	HashTable< Entity*, MapItemInfo > m_mapItemData;
+	Array< Vec2 > m_lines;
+	
+	TextureHandle m_tex_mapline;
+	TextureHandle m_tex_mapframe;
+};
+
+
 struct MSMessage
 {
 	enum Type
@@ -184,6 +195,7 @@ struct MessagingSystem : IGameLevelSystem
 	TextureHandle m_tx_icon_warning;
 	TextureHandle m_tx_icon_cont;
 };
+
 
 struct OSObjective
 {
@@ -218,10 +230,6 @@ struct ObjectiveSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 3 };
 	
-	Array< OSObjective > m_objectives;
-	
-	float m_alpha;
-	
 	ObjectiveSystem( GameLevel* lev );
 	void Clear();
 	int AddObjective(
@@ -234,10 +242,17 @@ struct ObjectiveSystem : IGameLevelSystem
 	void Tick( float dt );
 	void DrawUI();
 	
+	Command SHOW_OBJECTIVES;
+	
+	Array< OSObjective > m_objectives;
+	
+	float m_alpha;
+	
 	TextureHandle m_tx_icon_open;
 	TextureHandle m_tx_icon_done;
 	TextureHandle m_tx_icon_failed;
 };
+
 
 struct FSFlare
 {

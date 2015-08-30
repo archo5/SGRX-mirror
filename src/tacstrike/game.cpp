@@ -11,7 +11,6 @@
 
 
 GameLevel* g_GameLevel = NULL;
-bool g_Paused = false;
 PhyWorldHandle g_PhyWorld;
 SoundSystemHandle g_SoundSys;
 SGRX_LineSet g_DebugLines;
@@ -49,17 +48,6 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
 };
 
-
-
-void Game_SetPaused( bool paused )
-{
-	g_Paused = paused;
-}
-
-bool Game_IsPaused()
-{
-	return g_Paused;
-}
 
 
 #define MAX_TICK_SIZE (1.0f/15.0f)

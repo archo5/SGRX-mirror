@@ -1,6 +1,7 @@
 
 
 #include "entities_ld33.hpp"
+#include "systems.hpp"
 
 
 extern SoundSystemHandle g_SoundSys;
@@ -177,7 +178,7 @@ void LD33Player::Tick( float deltaTime, float blendFactor )
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
 		m_footstepTime = 0;
-		m_level->m_aidbSystem.AddSound( pos, 10, 0.5f, AIS_Footstep );
+		m_level->GetSystem<AIDBSystem>()->AddSound( pos, 10, 0.5f, AIS_Footstep );
 	}
 	
 	m_level->GetScene()->camera.znear = 0.1f;
@@ -215,32 +216,6 @@ void LD33Player::DrawUI()
 		float y = GR_GetHeight() / 2.0f;
 		GR2D_GetBatchRenderer().Reset().Col(1).SetTexture( m_tex_interact_icon ).QuadWH( x, y, bsz / 10, bsz / 10 );
 	}
-}
-
-bool LD33Player::AddItem( const StringView& item, int count )
-{
-	String key = item;
-	int* ic = m_items.getptr( key );
-	if( count < 0 )
-	{
-		if( !ic || *ic < count )
-			return false;
-		*ic += count;
-	}
-	else
-	{
-		if( !ic )
-			m_items.set( key, count );
-		else
-			*ic += count;
-	}
-	return true;
-}
-
-bool LD33Player::HasItem( const StringView& item, int count )
-{
-	int* ic = m_items.getptr( item );
-	return ic && *ic >= count;
 }
 
 

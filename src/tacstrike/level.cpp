@@ -30,18 +30,6 @@ static int EndLevel( SGS_CTX )
 	g_GameLevel->m_endFactor = 0;
 	return 0;
 }
-static int SetLevel( SGS_CTX )
-{
-	SGSFN( "SetLevel" );
-	g_GameLevel->SetNextLevel( sgs_GetVar<StringView>()( C, 0 ) );
-	return 0;
-}
-static int CallEntity( SGS_CTX )
-{
-	SGSFN( "CallEntity" );
-	g_GameLevel->CallEntityByName( sgs_GetVar<StringView>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ) );
-	return 0;
-}
 static int PlayerGetPosition( SGS_CTX )
 {
 	SGSFN( "PlayerGetPosition" );
@@ -327,9 +315,6 @@ static int InitGameAPI( SGS_CTX )
 {
 	sgs_RegFuncConsts( C, g_gameapi_rfc, -1 );
 	sgs_RegIntConsts( C, g_gameapi_ric, -1 );
-#ifdef TSGAME
-	ScrItem_InstallAPI( C );
-#endif
 	return 0;
 }
 
@@ -371,17 +356,13 @@ GameLevel::GameLevel() :
 //		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
 //	}
 	
-	m_tex_mapline = GR_GetTexture( "ui/mapline.png" );
-	m_tex_mapframe = GR_GetTexture( "ui/mapframe.png" );
-	
 	InitGameAPI( m_scriptCtx.C );
 	m_scriptCtx.Include( "data/enemy" );
-	m_scriptCtx.Include( "data/scritems" );
 }
 
 GameLevel::~GameLevel()
 {
-	EndLevel();
+	ClearLevel();
 //	m_damageSystem.Free();
 }
 
@@ -471,7 +452,7 @@ bool GameLevel::Load( const StringView& levelname )
 		if( !FS_LoadBinaryFile( bfr, ba ) )
 			return false;
 		
-		EndLevel();
+		ClearLevel();
 		
 		sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		m_scriptCtx.Include( bfr );
@@ -625,7 +606,13 @@ bool GameLevel::Load( const StringView& levelname )
 		
 		for( size_t i = 0; i < screntdefs.size(); ++i )
 		{
-			CreateEntity( screntdefs[ i ].type, screntdefs[ i ].serialized_params );
+			sgsVariable data = m_scriptCtx.Unserialize( screntdefs[ i ].serialized_params );
+			if( data.not_null() == false )
+			{
+				LOG << "BAD PARAMS FOR ENTITY " << screntdefs[ i ].type;
+				continue;
+			}
+			CreateEntity( screntdefs[ i ].type, data );
 		}
 	}
 	
@@ -633,13 +620,12 @@ bool GameLevel::Load( const StringView& levelname )
 	return true;
 }
 
-void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparams )
+void GameLevel::CreateEntity( const StringView& type, sgsVariable data )
 {
-	sgsVariable data = m_scriptCtx.Unserialize( sgsparams );
-	if( data.not_null() == false )
+	for( size_t i = 0; i < m_systems.size(); ++i )
 	{
-		LOG << "BAD PARAMS FOR ENTITY " << type;
-		return;
+		if( m_systems[ i ]->AddEntity( type, data ) )
+			return;
 	}
 	
 	///////////////////////////
@@ -747,17 +733,16 @@ void GameLevel::StartLevel()
 	m_levelTime = 0;
 	if( !m_player )
 	{
-		Player* P = new Player
-		(
-			m_playerSpawnInfo[0]
-			,m_playerSpawnInfo[1]
-		);
-		m_player = P;
+		sgsVariable data = m_scriptCtx.CreateDict();
+		data.setprop( "position", m_scriptCtx.CreateVec3( m_playerSpawnInfo[0] ) );
+		data.setprop( "viewdir", m_scriptCtx.CreateVec3( m_playerSpawnInfo[1] ) );
+		CreateEntity( "player", data );
+		ASSERT( m_player && "player must be created by one of the systems" );
 	}
 	m_scriptCtx.GlobalCall( "onLevelStart" );
 }
 
-void GameLevel::EndLevel()
+void GameLevel::ClearLevel()
 {
 	m_currentTickTime = 0;
 	m_currentPhyTime = 0;
@@ -765,6 +750,7 @@ void GameLevel::EndLevel()
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		delete m_entities[ i ];
 	m_entities.clear();
+	m_player = NULL;
 	
 	m_cutsceneFunc = sgsVariable();
 	m_cutsceneSubtitle = "";
@@ -773,11 +759,6 @@ void GameLevel::EndLevel()
 	m_music = NULL;
 	m_endFactor = -1;
 	m_cameraInfoCached = false;
-	if( m_player )
-	{
-		delete m_player;
-		m_player = NULL;
-	}
 	
 	m_ltSamples.SetSamples( NULL, 0 );
 	
@@ -800,7 +781,6 @@ void GameLevel::ProcessEvents()
 {
 	if( m_nextLevel.size() != 0 )
 	{
-		EndLevel();
 		Load( m_nextLevel );
 		StartLevel();
 		m_nextLevel = "";
@@ -814,8 +794,6 @@ void GameLevel::FixedTick( float deltaTime )
 		m_currentTickTime += deltaTime;
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->FixedTick( deltaTime );
-		if( m_player )
-			m_player->FixedTick( deltaTime );
 	}
 }
 
@@ -841,8 +819,6 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	{
 		m_currentPhyTime += deltaTime;
 		
-		if( m_player )
-			m_player->Tick( deltaTime, blendFactor );
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->Tick( deltaTime, blendFactor );
 	//	m_damageSystem.Tick( deltaTime );
@@ -893,62 +869,12 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	}
 }
 
-#ifdef TSGAME
-struct MapItemDraw : InfoEmissionSystem::IESProcessor
-{
-	bool Process( Entity* E, const InfoEmissionSystem::Data& D )
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		MapItemInfo mii;
-		if( E->GetMapItemInfo( &mii ) == false )
-			return true;
-		if( mii.type & (MI_Object_Enemy | MI_Object_Camera) )
-		{
-			uint32_t viewcol = 0xffffffff;
-			uint32_t dotcol = COLOR_RGB( 245, 20, 10 );
-			switch( mii.type & MI_Mask_State )
-			{
-			case MI_State_Normal:
-				viewcol = mii.type & MI_Object_Enemy ?
-					COLOR_RGB( 230, 230, 230 ) : COLOR_RGB( 180, 230, 180 );
-				break;
-			case MI_State_Suspicious:
-				viewcol = COLOR_RGB( 170, 170, 100 );
-				break;
-			case MI_State_Alerted:
-				viewcol = COLOR_RGB( 170, 100, 100 );
-				break;
-			}
-			viewcol &= 0x7fffffff;
-			uint32_t viewcol_a0 = viewcol & 0x00ffffff;
-			Vec2 viewpos = mii.position.ToVec2();
-			Vec2 viewdir = mii.direction.ToVec2().Normalized();
-			Vec2 viewtan = viewdir.Perp();
-			br.Reset().Colu( viewcol_a0 )
-				.SetPrimitiveType( PT_Triangles )
-				.Pos( viewpos + viewdir * mii.sizeFwd - viewtan * mii.sizeRight )
-				.Pos( viewpos + viewdir * mii.sizeFwd + viewtan * mii.sizeRight )
-				.Colu( viewcol ).Pos( viewpos );
-			
-			br.Reset().SetTexture( g_GameLevel->m_tex_mapline )
-				.Colu( dotcol ).Box( viewpos.x, viewpos.y, 1, 1 );
-		}
-		return true;
-	}
-};
-#endif
-
 void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->DrawUI();
-	
-	// m_messageSystem.DrawUI();
-	// m_objectiveSystem.DrawUI();
-//	if( m_player )
-//		m_player->Draw2D();
 	
 	//
 	// UI
@@ -957,69 +883,9 @@ void GameLevel::Draw2D()
 	
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
-	if( m_player )
-		m_player->DrawUI();
-	
 	int size_x = GR_GetWidth();
 	int size_y = GR_GetHeight();
 	int sqr = TMIN( size_x, size_y );
-#ifdef TSGAME
-//	float aspect = size_x / (float) size_y;
-	
-//	int margin_x = ( size_x - sqr ) / 2;
-//	int margin_y = ( size_y - sqr ) / 2;
-	int safe_margin = sqr * 1 / 16;
-	// MAP
-	{
-		int mapsize_x = sqr * 4 / 10;
-		int mapsize_y = sqr * 3 / 10;
-		int msm = 0; // sqr / 100;
-		float map_aspect = mapsize_x / (float) mapsize_y;
-		int x1 = size_x - safe_margin;
-		int x0 = x1 - mapsize_x;
-		int y0 = safe_margin;
-		int y1 = y0 + mapsize_y;
-		
-		br.Reset().Col( 0, 0.5f );
-		br.Quad( x0, y0, x1, y1 );
-		br.Flush();
-		
-		br.Reset().SetTexture( NULL ).Col( 0.2f, 0.4f, 0.8f );
-#if defined(TSGAME)
-		Vec2 pos = m_player->m_bodyHandle->GetPosition().ToVec2();
-#else
-		Vec2 pos = m_scene->camera.position.ToVec2();
-#endif
-		Mat4 lookat = Mat4::CreateLookAt( V3( pos.x, pos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
-		GR2D_SetViewMatrix( lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 ) );
-		
-		GR2D_SetScissorRect( x0, y0, x1, y1 );
-		GR2D_SetViewport( x0, y0, x1, y1 );
-		
-		for( size_t i = 0; i < m_lines.size(); i += 2 )
-		{
-			Vec2 l0 = m_lines[ i ];
-			Vec2 l1 = m_lines[ i + 1 ];
-			
-			br.TexLine( l0, l1, 0.1f );
-		}
-		
-#ifdef TSGAME
-		MapItemDraw ed;
-		m_infoEmitters.QuerySphereAll( &ed, V3( pos.x, pos.y, 1 ), 100, IEST_MapItem );
-#endif
-		
-		br.Reset().SetTexture( m_tex_mapline ).Col( 0.2f, 0.9f, 0.1f ).Box( pos.x, pos.y, 1, 1 );
-		
-		br.Flush();
-		GR2D_UnsetViewport();
-		GR2D_UnsetScissorRect();
-		
-		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-		
-		br.Reset().SetTexture( m_tex_mapframe ).Quad( x0 - msm, y0 - msm, x1 + msm, y1 + msm ).Flush();
-	}
-#endif
 	
 	if( m_cutsceneFunc.not_null() && Game_HasOverlayScreens() == false )
 	{
@@ -1047,6 +913,7 @@ void GameLevel::Draw2D()
 void GameLevel::DebugDraw()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
+	UNUSED( br );
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->DebugDrawWorld();
@@ -1099,7 +966,7 @@ void GameLevel::Draw()
 	GR_RenderScene( rsinfo );
 }
 
-void GameLevel::SetNextLevel( const StringView& name )
+void GameLevel::SetNextLevel( StringView name )
 {
 	m_nextLevel = name;
 }
@@ -1119,7 +986,7 @@ Entity* GameLevel::FindEntityByName( const StringView& name )
 	return m_entNameMap.getcopy( name );
 }
 
-void GameLevel::CallEntityByName( const StringView& name, const StringView& action )
+void GameLevel::CallEntityByName( StringView name, StringView action )
 {
 	Entity* e = m_entNameMap.getcopy( name );
 	if( e )

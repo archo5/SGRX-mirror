@@ -1,6 +1,5 @@
 // SGS/CPP-BC
 // warning: do not modify this file, it may be regenerated during any build
-// generated: 08/23/15 11:06:44
 
 #include "scritem.hpp"
 

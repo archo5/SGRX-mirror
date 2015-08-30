@@ -23,19 +23,12 @@ struct LD33Player : Entity
 	Entity* m_targetII;
 	bool m_targetTriggered;
 	
-	HashTable< String, int > m_items;
-	
 	TextureHandle m_tex_interact_icon;
 	
 	LD33Player( const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
-	
-	bool AddItem( const StringView& item, int count );
-	bool HasItem( const StringView& item, int count = 1 );
-	
-	Vec3 GetPosition() const { return m_bodyHandle->GetPosition(); }
 };
 
 

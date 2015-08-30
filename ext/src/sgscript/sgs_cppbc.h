@@ -39,6 +39,7 @@
 # endif
 # define SGS_NO_EXPORT
 # define SGS_METHOD
+# define SGS_METHOD_NAMED( name )
 # define SGS_MULTRET int
 # define SGS_PROPERTY
 # define SGS_PROPERTY_FUNC( funcs )

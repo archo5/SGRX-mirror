@@ -457,6 +457,12 @@ void ScriptedItem::OnEvent( const StringView& type )
 }
 
 
+StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+{
+	ScrItem_InstallAPI( lev->GetSGSC() );
+	lev->GetScriptCtx().Include( "data/scritems" );
+}
+
 bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
 {
 	///////////////////////////
