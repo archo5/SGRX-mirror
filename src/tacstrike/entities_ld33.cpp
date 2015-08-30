@@ -1,7 +1,9 @@
 
 
-#include "level.hpp"
+#include "entities_ld33.hpp"
 
+
+extern SoundSystemHandle g_SoundSys;
 
 extern Command MOVE_LEFT;
 extern Command MOVE_RIGHT;
@@ -23,14 +25,14 @@ LD33Player::LD33Player( const Vec3& pos, const Vec3& dir ) :
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
 	rbinfo.restitution = 0;
-	rbinfo.shape = g_PhyWorld->CreateCylinderShape( V3(0.3f,0.3f,0.3f) );
+	rbinfo.shape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.3f) );
 	rbinfo.mass = 70;
 	rbinfo.inertia = V3(0);
 	rbinfo.position = pos + V3(0,0,1);
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
-	m_bodyHandle = g_PhyWorld->CreateRigidBody( rbinfo );
-	m_shapeHandle = g_PhyWorld->CreateCylinderShape( V3(0.29f) );
+	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
+	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.29f) );
 }
 
 void LD33Player::FixedTick( float deltaTime )
@@ -46,8 +48,8 @@ void LD33Player::FixedTick( float deltaTime )
 	
 	bool slowWalk = SPRINT.value < 0.5f;
 	m_isCrouching = 0;
-	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
-		g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
+	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
+		m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
 	{
 		m_isCrouching = 1;
@@ -61,7 +63,7 @@ void LD33Player::FixedTick( float deltaTime )
 		ht += rcxdist;
 	
 	bool ground = false;
-	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
+	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
 		&& fabsf( rcinfo.point.z - pos.z ) < cheight + SMALL_FLOAT )
 	{
 		Vec3 v = m_bodyHandle->GetPosition();
@@ -151,7 +153,7 @@ void LD33Player::FixedTick( float deltaTime )
 	m_bodyHandle->SetLinearVelocity( lvel );
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
-	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
 void LD33Player::Tick( float deltaTime, float blendFactor )
@@ -175,18 +177,18 @@ void LD33Player::Tick( float deltaTime, float blendFactor )
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
 		m_footstepTime = 0;
-		g_GameLevel->m_aidbSystem.AddSound( pos, 10, 0.5f, AIS_Footstep );
+		m_level->m_aidbSystem.AddSound( pos, 10, 0.5f, AIS_Footstep );
 	}
 	
-	g_GameLevel->m_scene->camera.znear = 0.1f;
-	g_GameLevel->m_scene->camera.angle = 90;
-	g_GameLevel->m_scene->camera.direction = dir;
-	g_GameLevel->m_scene->camera.position = pos;
-	g_GameLevel->m_scene->camera.UpdateMatrices();
+	m_level->GetScene()->camera.znear = 0.1f;
+	m_level->GetScene()->camera.angle = 90;
+	m_level->GetScene()->camera.direction = dir;
+	m_level->GetScene()->camera.position = pos;
+	m_level->GetScene()->camera.UpdateMatrices();
 	
 	g_SoundSys->Set3DAttribs( s3dattr );
 	
-	m_targetII = g_GameLevel->m_infoEmitters.QueryOneRay( pos, pos + dir, IEST_InteractiveItem );
+	m_targetII = m_level->m_infoEmitters.QueryOneRay( pos, pos + dir, IEST_InteractiveItem );
 	if( m_targetII && INTERACT.value && !m_targetTriggered )
 	{
 		m_targetTriggered = true;

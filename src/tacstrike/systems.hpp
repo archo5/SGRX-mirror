@@ -8,26 +8,21 @@
 #include <sound.hpp>
 #include <physics.hpp>
 #include <script.hpp>
+
+#include "level.hpp"
 #include "pathfinding.hpp"
 #include "../common/scritem.hpp"
-
-
-
-typedef uint32_t TimeVal;
-typedef uint32_t EntityID;
-
-#define ENTID_NONE ((EntityID)0)
 
 
 
 //
 // GLOBAL INTERFACE
 //
-extern struct GameLevel* g_GameLevel;
-extern PhyWorldHandle g_PhyWorld;
+
 extern SoundSystemHandle g_SoundSys;
 extern SGRX_LineSet g_DebugLines;
 
+#if 0
 extern Command MOVE_LEFT;
 extern Command MOVE_RIGHT;
 extern Command MOVE_UP;
@@ -42,14 +37,10 @@ extern Command SLOW_WALK;
 extern Command SPRINT;
 extern Command CROUCH;
 extern Command SHOW_OBJECTIVES;
+#endif
 
 void Game_SetPaused( bool paused );
 bool Game_IsPaused();
-
-
-
-typedef Array< MeshInstHandle > MeshInstArray;
-typedef Array< PhyRigidBodyHandle > PhyBodyArray;
 
 
 enum EInteractionType
@@ -92,29 +83,6 @@ struct MapItemInfo
 };
 
 
-struct Entity
-{
-	const char* m_typeName;
-	String m_name;
-	String m_viewName;
-	
-	Entity();
-	virtual ~Entity();
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
-	virtual void OnEvent( const StringView& type ){}
-	virtual void SetProperty( const StringView& name, sgsVariable value ){}
-	virtual sgsVariable GetProperty( const StringView& name ){ return sgsVariable(); }
-	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
-	virtual bool CanInterruptAction( float progress ){ return false; }
-	virtual bool GetMapItemInfo( MapItemInfo* out ){ return false; }
-	virtual void DebugDrawWorld(){}
-	virtual void DebugDrawUI(){}
-};
-
-typedef Array< Entity* > EntityArray;
-
-
 
 #define IEST_InteractiveItem 0x0001
 #define IEST_HeatSource      0x0002
@@ -122,8 +90,10 @@ typedef Array< Entity* > EntityArray;
 #define IEST_MapItem         0x0008
 #define IEST_AIAlert         0x0020
 
-struct InfoEmissionSystem
+struct InfoEmissionSystem : IGameLevelSystem
 {
+	enum { e_system_uid = 1 };
+	
 	struct Data
 	{
 		Vec3 pos;
@@ -135,6 +105,7 @@ struct InfoEmissionSystem
 		virtual bool Process( Entity*, const Data& ) = 0;
 	};
 	
+	InfoEmissionSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
 	void Clear();
 	void UpdateEmitter( Entity* e, const Data& data );
 	void RemoveEmitter( Entity* e );
@@ -197,14 +168,16 @@ struct MSMessage
 	float position;
 };
 
-struct MessagingSystem
+struct MessagingSystem : IGameLevelSystem
 {
+	enum { e_system_uid = 2 };
+	
 	Array< MSMessage > m_messages;
 	
-	MessagingSystem();
+	MessagingSystem( GameLevel* lev );
 	void Clear();
 	void AddMessage( MSMessage::Type type, const StringView& sv, float tmlength = 3 );
-	void Tick( float dt );
+	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
 	
 	TextureHandle m_tx_icon_info;
@@ -241,13 +214,15 @@ struct OSObjStats
 	int numCancelled;
 };
 
-struct ObjectiveSystem
+struct ObjectiveSystem : IGameLevelSystem
 {
+	enum { e_system_uid = 3 };
+	
 	Array< OSObjective > m_objectives;
 	
 	float m_alpha;
 	
-	ObjectiveSystem();
+	ObjectiveSystem( GameLevel* lev );
 	void Clear();
 	int AddObjective(
 		const StringView& title,
@@ -272,56 +247,19 @@ struct FSFlare
 	bool enabled;
 };
 
-struct FlareSystem
+struct FlareSystem : IGameLevelSystem
 {
-	FlareSystem();
+	enum { e_system_uid = 4 };
+	
+	FlareSystem( GameLevel* lev );
 	void Clear();
 	void UpdateFlare( void* handle, const FSFlare& flare );
 	bool RemoveFlare( void* handle );
-	void Draw( SGRX_Camera& cam );
+	void PostDraw();
 	
 	HashTable< void*, FSFlare > m_flares;
 	PixelShaderHandle m_ps_flare;
 	TextureHandle m_tex_flare;
-};
-
-
-struct CSCoverInfo
-{
-	Array< Vec4 > shadowPlanes;
-	Array< int > shadowPlaneCounts;
-};
-
-struct CoverSystem
-{
-	struct Edge
-	{
-#if 1
-		int pl0;
-		int pl1;
-#else
-		Vec3 p0; // endpoint 0
-		Vec3 p1; // endpoint 1
-		Vec3 n0; // adjacent plane 0 normal
-		Vec3 n1; // adjacent plane 1 normal
-#endif
-	};
-	struct EdgeMesh : SGRX_RCRsrc
-	{
-		Array< Edge > edges;
-		Array< Vec4 > planes;
-		Vec3 pos;
-		bool enabled;
-	};
-	typedef Handle< EdgeMesh > EdgeMeshHandle;
-	
-	CoverSystem();
-	void Clear();
-	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
-	void Query( Vec3 viewer, float viewdist, CSCoverInfo& shape );
-	
-	Array< EdgeMeshHandle > m_edgeMeshes;
-	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;
 };
 
 
@@ -333,8 +271,10 @@ enum GameActorType // = SGRX_MeshInstUserData::ownerType
 };
 
 
-struct DamageSystem : SGRX_ScenePSRaycast
+struct DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 {
+	enum { e_system_uid = 5 };
+	
 	struct Material : SGRX_RefCounted
 	{
 		String match;
@@ -346,6 +286,8 @@ struct DamageSystem : SGRX_ScenePSRaycast
 	};
 	typedef Handle< Material > MtlHandle;
 	
+	DamageSystem( GameLevel* lev );
+	~DamageSystem();
 	const char* Init( SceneHandle scene, SGRX_LightSampler* sampler );
 	void Free();
 	void Tick( float deltaTime );
@@ -369,8 +311,10 @@ struct DamageSystem : SGRX_ScenePSRaycast
 };
 
 
-struct BulletSystem
+struct BulletSystem : IGameLevelSystem
 {
+	enum { e_system_uid = 6 };
+	
 	struct Bullet
 	{
 		Vec3 position;
@@ -385,7 +329,7 @@ struct BulletSystem
 	};
 	typedef Array< Bullet > BulletArray;
 	
-	BulletSystem( DamageSystem* dmgsys );
+	BulletSystem( GameLevel* lev );
 	
 	void Tick( SGRX_Scene* scene, float deltaTime );
 	
@@ -414,18 +358,62 @@ struct AISound
 	AISoundType type;
 };
 
-struct AIDBSystem
+struct AIDBSystem : IGameLevelSystem
 {
+	enum { e_system_uid = 7 };
+	
 	int GetNumSounds(){ return m_sounds.size(); }
 	bool CanHearSound( Vec3 pos, int i );
 	AISound GetSoundInfo( int i ){ return m_sounds[ i ]; }
 	
+	AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
 	void Load( ByteArray& data );
 	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	void Tick( float deltaTime );
 	
 	SGRX_Pathfinder m_pathfinder;
 	Array< AISound > m_sounds;
+};
+
+
+struct CSCoverInfo
+{
+	Array< Vec4 > shadowPlanes;
+	Array< int > shadowPlaneCounts;
+};
+
+struct CoverSystem : IGameLevelSystem
+{
+	enum { e_system_uid = 8 };
+	
+	struct Edge
+	{
+#if 1
+		int pl0;
+		int pl1;
+#else
+		Vec3 p0; // endpoint 0
+		Vec3 p1; // endpoint 1
+		Vec3 n0; // adjacent plane 0 normal
+		Vec3 n1; // adjacent plane 1 normal
+#endif
+	};
+	struct EdgeMesh : SGRX_RCRsrc
+	{
+		Array< Edge > edges;
+		Array< Vec4 > planes;
+		Vec3 pos;
+		bool enabled;
+	};
+	typedef Handle< EdgeMesh > EdgeMeshHandle;
+	
+	CoverSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
+	void Clear();
+	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
+	void Query( Vec3 viewer, float viewdist, CSCoverInfo& shape );
+	
+	Array< EdgeMeshHandle > m_edgeMeshes;
+	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;
 };
 
 

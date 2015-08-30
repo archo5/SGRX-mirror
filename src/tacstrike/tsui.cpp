@@ -1,8 +1,10 @@
 
 
 #include "tsui.hpp"
-#include "level.hpp"
+#include "systems.hpp"
 
+
+extern GameLevel* g_GameLevel;
 
 TSMenuTheme g_TSMenuTheme;
 TSSplashScreen g_SplashScreen;
@@ -343,7 +345,7 @@ bool TSPauseMenuScreen::OnEvent( const Event& e )
 	// OBJECTIVE MENU
 	if( show_objectives )
 	{
-		Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+		Array< OSObjective >& objlist = g_GameLevel->GetSystem<ObjectiveSystem>()->m_objectives;
 		int sel = objmenu.OnEvent( e );
 		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_UP ) sel = ScrollObjMenu( -1 );
 		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_DOWN ) sel = ScrollObjMenu( 1 );
@@ -409,7 +411,7 @@ bool TSPauseMenuScreen::Draw( float delta )
 	}
 	if( show_objectives )
 	{
-		OSObjStats stats = g_GameLevel->m_objectiveSystem.GetStats();
+		OSObjStats stats = g_GameLevel->GetSystem<ObjectiveSystem>()->GetStats();
 		
 		br.Reset().Col( 0.976f, objmenu.opacity );
 		br.AARect(
@@ -424,7 +426,7 @@ bool TSPauseMenuScreen::Draw( float delta )
 		
 		// icons
 		GR2D_SetFont( "tsicons", objmenu.GetMinw() * 32 / 720.f );
-		Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+		Array< OSObjective >& objlist = g_GameLevel->GetSystem<ObjectiveSystem>()->m_objectives;
 		for( int i = firstobj; i < TMIN( (int) objlist.size(), firstobj + 11 ); ++i )
 		{
 			OSObjective& OBJ = objlist[ i ];
@@ -575,7 +577,7 @@ bool TSPauseMenuScreen::Draw( float delta )
 
 void TSPauseMenuScreen::ReloadObjMenu()
 {
-	Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+	Array< OSObjective >& objlist = g_GameLevel->GetSystem<ObjectiveSystem>()->m_objectives;
 	selobj_id = TMIN( (int) objlist.size() - 1,
 		TMIN( firstobj + 11 - 1, TMAX( firstobj, selobj_id ) ) );
 	
@@ -615,7 +617,7 @@ void TSPauseMenuScreen::ReloadObjMenu()
 int TSPauseMenuScreen::ScrollObjMenu( int amount )
 {
 	int sel = -1;
-	Array< OSObjective >& objlist = g_GameLevel->m_objectiveSystem.m_objectives;
+	Array< OSObjective >& objlist = g_GameLevel->GetSystem<ObjectiveSystem>()->m_objectives;
 	while( amount != 0 )
 	{
 		if( amount < 0 )

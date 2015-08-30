@@ -1,6 +1,10 @@
 
 
 #pragma once
+#include <engext.hpp>
+
+#include "level.hpp"
+#include "systems.hpp"
 
 
 struct TSCamera : Entity
@@ -219,6 +223,7 @@ struct TSEnemy : TSCharacter
 	
 	sgsVariable m_enemyState;
 	TSFactStorage m_factStorage;
+	AIDBSystem* m_aidb;
 	sgs_VarObj* m_scrObj;
 	
 	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );

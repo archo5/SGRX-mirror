@@ -142,7 +142,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 			args
 		);
 		myscritem->SetLightSampler( g_GameLevel );
-		myscritem->SetPSRaycast( &g_GameLevel->m_damageSystem );
+		myscritem->SetPSRaycast( g_GameLevel->GetSystem<DamageSystem>() );
 		
 		g_GameLevel->StartLevel();
 		

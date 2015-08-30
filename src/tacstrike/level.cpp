@@ -9,9 +9,21 @@
 #define USE_HASHTABLE
 #define USE_SERIALIZATION
 #include "level.hpp"
-#include "entities.hpp"
 
 
+
+Entity::Entity() : m_typeName("<unknown>")
+{
+}
+
+Entity::~Entity()
+{
+	m_level->UnmapEntityByName( this );
+}
+
+
+
+#if 0
 static int EndLevel( SGS_CTX )
 {
 	SGSFN( "EndLevel" );
@@ -253,9 +265,11 @@ static int FS_RemoveFlare( SGS_CTX )
 	g_GameLevel->m_flareSystem.RemoveFlare( P );
 	return 0;
 }
+#endif
 
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
+#if 0
 	{ "EndLevel", EndLevel },
 	{ "SetLevel", SetLevel },
 	{ "CallEntity", CallEntity },
@@ -283,11 +297,13 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	// Flare system
 	{ "FS_UpdateFlare", FS_UpdateFlare },
 	{ "FS_RemoveFlare", FS_RemoveFlare },
+#endif
 	SGS_RC_END(),
 };
 
 static sgs_RegIntConst g_gameapi_ric[] =
 {
+#if 0
 	{ "IEST_InteractiveItem", IEST_InteractiveItem },
 	{ "IEST_HeatSource", IEST_HeatSource },
 	{ "IEST_Player", IEST_Player },
@@ -303,6 +319,7 @@ static sgs_RegIntConst g_gameapi_ric[] =
 	{ "OS_Done", OSObjective::Done },
 	{ "OS_Failed", OSObjective::Failed },
 	{ "OS_Cancelled", OSObjective::Cancelled },
+#endif
 	{ NULL, 0 },
 };
 
@@ -324,7 +341,7 @@ GameLevel::GameLevel() :
 	m_nameIDGen( 0 ),
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
-	m_bulletSystem( &m_damageSystem ),
+//	m_bulletSystem( &m_damageSystem ),
 	m_paused( false ),
 	m_endFactor( -1 ),
 	m_levelTime( 0 ),
@@ -348,11 +365,11 @@ GameLevel::GameLevel() :
 	m_scene->camera.aspect = 1024.0f / 576.0f;
 	m_scene->camera.UpdateMatrices();
 	
-	const char* err = m_damageSystem.Init( m_scene, this );
-	if( err )
-	{
-		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
-	}
+//	const char* err = m_damageSystem.Init( m_scene, this );
+//	if( err )
+//	{
+//		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
+//	}
 	
 	m_tex_mapline = GR_GetTexture( "ui/mapline.png" );
 	m_tex_mapframe = GR_GetTexture( "ui/mapframe.png" );
@@ -365,7 +382,7 @@ GameLevel::GameLevel() :
 GameLevel::~GameLevel()
 {
 	EndLevel();
-	m_damageSystem.Free();
+//	m_damageSystem.Free();
 }
 
 
@@ -518,10 +535,10 @@ bool GameLevel::Load( const StringView& levelname )
 		{
 			fixedidcs.append( &phy_mesh.indices[ i ], 3 );
 		}
-		rbinfo.shape = g_PhyWorld->CreateTriMeshShape(
+		rbinfo.shape = m_phyWorld->CreateTriMeshShape(
 			phy_mesh.positions.data(), phy_mesh.positions.size(),
 			fixedidcs.data(), fixedidcs.size(), true );
-		m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
+		m_levelBodies.push_back( m_phyWorld->CreateRigidBody( rbinfo ) );
 	}
 	
 	// initialize AI DB
@@ -593,11 +610,11 @@ bool GameLevel::Load( const StringView& levelname )
 				LOG_FUNCTION_ARG( "MI_BODY" );
 				
 				SGRX_PhyRigidBodyInfo rbinfo;
-				rbinfo.shape = g_PhyWorld->CreateShapeFromMesh( MI->mesh );
+				rbinfo.shape = m_phyWorld->CreateShapeFromMesh( MI->mesh );
 				rbinfo.shape->SetScale( MI->matrix.GetScale() );
 				rbinfo.position = MI->matrix.GetTranslation();
 				rbinfo.rotation = MI->matrix.GetRotationQuaternion();
-				m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
+				m_levelBodies.push_back( m_phyWorld->CreateRigidBody( rbinfo ) );
 			}
 		}
 	}
@@ -633,6 +650,21 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 		return;
 	}
 	
+	///////////////////////////
+	if( type == "solidbox" )
+	{
+		Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
+		SGRX_PhyRigidBodyInfo rbinfo;
+		rbinfo.group = 2;
+		rbinfo.shape = m_phyWorld->CreateAABBShape( -scale, scale );
+		rbinfo.mass = 0;
+		rbinfo.inertia = V3(0);
+		rbinfo.position = data.getprop("position").get<Vec3>();
+		rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
+		m_levelBodies.push_back( m_phyWorld->CreateRigidBody( rbinfo ) );
+		return;
+	}
+	
 #if defined(LD33GAME) || defined(TSGAME)
 	///////////////////////////
 	if( type == "enemy_start" )
@@ -665,126 +697,6 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 	}
 	
 	///////////////////////////
-	if( type == "solidbox" )
-	{
-		Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
-		SGRX_PhyRigidBodyInfo rbinfo;
-		rbinfo.group = 2;
-		rbinfo.shape = g_PhyWorld->CreateAABBShape( -scale, scale );
-		rbinfo.mass = 0;
-		rbinfo.inertia = V3(0);
-		rbinfo.position = data.getprop("position").get<Vec3>();
-		rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
-		m_levelBodies.push_back( g_PhyWorld->CreateRigidBody( rbinfo ) );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "trigger" )
-	{
-		BoxTrigger* BT = new BoxTrigger
-		(
-			data.getprop("func").get<StringView>(),
-			data.getprop("target").get<StringView>(),
-			data.getprop("once").get<bool>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
-		);
-		m_entities.push_back( BT );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "trigger_prox" )
-	{
-		ProximityTrigger* PT = new ProximityTrigger
-		(
-			data.getprop("func").get<StringView>(),
-			data.getprop("target").get<StringView>(),
-			data.getprop("once").get<bool>(),
-			data.getprop("position").get<Vec3>(),
-			data.getprop("distance").get<float>()
-		);
-		m_entities.push_back( PT );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "door_slide" )
-	{
-		SlidingDoor* SD = new SlidingDoor
-		(
-			data.getprop("name").get<StringView>(),
-			data.getprop("mesh").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("open_offset").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("open_rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			V3(0),
-			Quat::Identity,
-			data.getprop("open_time").get<float>(),
-			false,
-			data.getprop("is_switch").get<bool>(),
-			data.getprop("pred").get<StringView>(),
-			data.getprop("func").get<StringView>(),
-			data.getprop("target").get<StringView>(),
-			data.getprop("once").get<bool>()
-		);
-		m_entities.push_back( SD );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "door_slide_prox" )
-	{
-		StackShortName name = GenerateName();
-		
-		SlidingDoor* SD = new SlidingDoor
-		(
-			name.str,
-			data.getprop("mesh").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("open_offset").get<Vec3>(),
-			Quat::Identity,
-			V3(0),
-			Quat::Identity,
-			data.getprop("open_time").get<float>(),
-			false
-		);
-		m_entities.push_back( SD );
-		
-		ProximityTrigger* PT = new ProximityTrigger
-		(
-			"", name.str, false,
-			SD->meshInst->matrix.TransformPos( data.getprop("scan_offset").get<Vec3>() ),
-			data.getprop("scan_distance").get<float>()
-		);
-		m_entities.push_back( PT );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "pickup" )
-	{
-		PickupItem* PI = new PickupItem
-		(
-			data.getprop("id").get<StringView>(),
-			data.getprop("name").get<StringView>(),
-			data.getprop("count").get<int>(),
-			data.getprop("mesh").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
-		);
-		m_entities.push_back( PI );
-		return;
-	}
-	
-	///////////////////////////
 #ifdef TSGAME
 	if( type == "camera" )
 	{
@@ -802,64 +714,6 @@ void GameLevel::CreateEntity( const StringView& type, const StringView& sgsparam
 		return;
 	}
 #endif
-	
-	///////////////////////////
-	if( type == "actionable" )
-	{
-		Actionable* AC = new Actionable
-		(
-			data.getprop("name").get<StringView>(),
-			data.getprop("mesh").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("place_offset").get<Vec3>(),
-			data.getprop("place_dir").get<Vec3>()
-		);
-		m_entities.push_back( AC );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "cover" )
-	{
-		Mat4 mtx = Mat4::CreateSXT(
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
-			data.getprop("position").get<Vec3>() );
-		m_coverSystem.AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "particle_fx" )
-	{
-		ParticleFX* PF = new ParticleFX
-		(
-			data.getprop("name").get<StringView>(),
-			data.getprop("partsys").get<StringView>(),
-			data.getprop("soundevent").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("start").get<bool>()
-		);
-		m_entities.push_back( PF );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "scritem" )
-	{
-		sgsVariable scritem = data.getprop("scritem");
-		ScriptedItem* SI = new ScriptedItem
-		(
-			scritem.getprop("__type").get<StringView>(),
-			scritem
-		);
-		m_entities.push_back( SI );
-		return;
-	}
 	
 	///////////////////////////
 	if( type == "mesharray" ||
@@ -926,13 +780,17 @@ void GameLevel::EndLevel()
 	}
 	
 	m_ltSamples.SetSamples( NULL, 0 );
-	m_infoEmitters.Clear();
-	m_messageSystem.Clear();
-	m_objectiveSystem.Clear();
-	m_damageSystem.Clear();
-	m_bulletSystem.Clear();
-	m_flareSystem.Clear();
-	m_coverSystem.Clear();
+	
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->Clear();
+//	m_infoEmitters.Clear();
+//	m_messageSystem.Clear();
+//	m_objectiveSystem.Clear();
+//	m_damageSystem.Clear();
+//	m_bulletSystem.Clear();
+//	m_flareSystem.Clear();
+//	m_coverSystem.Clear();
+	
 	m_lights.clear();
 	m_meshInsts.clear();
 	m_levelBodies.clear();
@@ -987,13 +845,16 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 			m_player->Tick( deltaTime, blendFactor );
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->Tick( deltaTime, blendFactor );
-		m_damageSystem.Tick( deltaTime );
-		m_bulletSystem.Tick( m_scene, deltaTime );
-		m_aidbSystem.Tick( deltaTime );
+	//	m_damageSystem.Tick( deltaTime );
+	//	m_bulletSystem.Tick( m_scene, deltaTime );
+	//	m_aidbSystem.Tick( deltaTime );
 	}
 	
-	m_messageSystem.Tick( deltaTime );
-	m_objectiveSystem.Tick( deltaTime );
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->Tick( deltaTime, blendFactor );
+	
+//	m_messageSystem.Tick( deltaTime );
+//	m_objectiveSystem.Tick( deltaTime );
 	
 	if( m_cutsceneFunc.not_null() )
 	{
@@ -1081,19 +942,13 @@ void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
-	m_messageSystem.DrawUI();
-	m_objectiveSystem.DrawUI();
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->DrawUI();
+	
+	// m_messageSystem.DrawUI();
+	// m_objectiveSystem.DrawUI();
 //	if( m_player )
 //		m_player->Draw2D();
-	
-	// LIGHTS
-//	BatchRenderer& br = GR2D_GetBatchRenderer();
-//	for( size_t i = 0; i < m_lights.size(); ++i )
-//	{
-//		Light& L = m_lights[ i ];
-//		br.SetTexture( L.tex_flare ).Col( L.color.x, L.color.y, L.color.z, 0.2 );
-//		br.Box( L.pos.x, L.pos.y, L.radius, L.radius );
-//	}
 	
 	//
 	// UI
@@ -1182,6 +1037,9 @@ void GameLevel::Draw2D()
 		GR2D_DrawTextLine( size_x / 2, size_y * 3 / 4, m_cutsceneSubtitle, HALIGN_CENTER, VALIGN_CENTER );
 	}
 	
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->DebugDrawUI();
+	
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		m_entities[ i ]->DebugDrawUI();
 }
@@ -1189,6 +1047,9 @@ void GameLevel::Draw2D()
 void GameLevel::DebugDraw()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->DebugDrawWorld();
 	
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		m_entities[ i ]->DebugDrawWorld();
@@ -1226,8 +1087,8 @@ void GameLevel::DebugDraw()
 
 void GameLevel::PostDraw()
 {
-//	return;
-	m_flareSystem.Draw( m_scene->camera );
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->PostDraw();
 }
 
 void GameLevel::Draw()

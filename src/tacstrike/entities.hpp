@@ -146,6 +146,14 @@ struct ScriptedItem : Entity
 };
 
 
+struct StockEntityCreationSystem : IGameLevelSystem
+{
+	enum { e_system_uid = 999 };
+	StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
+	virtual bool AddEntity( const StringView& type, sgsVariable data );
+};
+
+
 
 
 
@@ -213,9 +221,7 @@ struct Weapon
 #define ENTGROUP_BADGUYS_DEAD 4
 
 
-
-extern Command DO_ACTION;
-
+#if 0
 
 #if defined(LD33GAME)
 #define TSGAME_NO_PLAYER
@@ -228,6 +234,8 @@ extern Command DO_ACTION;
 #elif defined(TSGAME)
 #include "entities_ts.hpp"
 #define Player TSPlayer
+#endif
+
 #endif
 
 

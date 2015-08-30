@@ -1,17 +1,7 @@
 
 
+#include "systems.hpp"
 #include "level.hpp"
-
-
-
-Entity::Entity() : m_typeName("<unknown>")
-{
-}
-
-Entity::~Entity()
-{
-	g_GameLevel->UnmapEntityByName( this );
-}
 
 
 
@@ -99,7 +89,7 @@ Entity* InfoEmissionSystem::QueryOneRay( const Vec3& from, const Vec3& to, uint3
 }
 
 
-MessagingSystem::MessagingSystem()
+MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	m_tx_icon_info = GR_GetTexture( "ui/icon_info.png" );
 	m_tx_icon_warning = GR_GetTexture( "ui/icon_warning.png" );
@@ -121,13 +111,13 @@ void MessagingSystem::AddMessage( MSMessage::Type type, const StringView& sv, fl
 	msg.position = 0;
 }
 
-void MessagingSystem::Tick( float dt )
+void MessagingSystem::Tick( float deltaTime, float blendFactor )
 {
 	for( size_t i = m_messages.size(); i > 0; )
 	{
 		i--;
 		MSMessage& msg = m_messages[ i ];
-		msg.position += dt;
+		msg.position += deltaTime;
 		if( msg.position > msg.tmlength + 2 )
 		{
 			m_messages.erase( i );
@@ -171,7 +161,8 @@ void MessagingSystem::DrawUI()
 }
 
 
-ObjectiveSystem::ObjectiveSystem() :
+ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
+	IGameLevelSystem( lev, e_system_uid ),
 	m_alpha(0)
 {
 	m_tx_icon_open = GR_GetTexture( "ui/obj_open.png" );
@@ -270,7 +261,7 @@ void ObjectiveSystem::DrawUI()
 }
 
 
-FlareSystem::FlareSystem()
+FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
@@ -291,8 +282,9 @@ bool FlareSystem::RemoveFlare( void* handle )
 	return m_flares.unset( handle );
 }
 
-void FlareSystem::Draw( SGRX_Camera& cam )
+void FlareSystem::PostDraw()
 {
+	SGRX_Camera& cam = m_level->GetScene()->camera;
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
 	float W = GR_GetWidth();
@@ -311,7 +303,7 @@ void FlareSystem::Draw( SGRX_Camera& cam )
 		if( Vec3Dot( FD.pos, cam.direction ) < Vec3Dot( cam.position, cam.direction ) )
 			continue;
 		SceneRaycastCallback_Any srcb;
-		g_GameLevel->m_scene->RaycastAll( cam.position, FD.pos, &srcb );
+		m_level->GetScene()->RaycastAll( cam.position, FD.pos, &srcb );
 		if( srcb.m_hit )
 			continue;
 	//	LOG << screenpos.z;
@@ -323,146 +315,19 @@ void FlareSystem::Draw( SGRX_Camera& cam )
 }
 
 
-CoverSystem::CoverSystem()
+DamageSystem::DamageSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-}
-
-void CoverSystem::Clear()
-{
-	m_edgeMeshes.clear();
-	m_edgeMeshesByName.clear();
-}
-
-void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
-{
-	EdgeMesh* EM = new EdgeMesh;
-	EM->m_key = name;
-	EM->pos = mtx.TransformPos( V3(0) );
-	EM->enabled = true;
-	
-	Mat4 ntx;
-	mtx.GenNormalMatrix( ntx );
-	
-#if 1
-	Vec3 normals[6] =
+	const char* err = Init( lev->GetScene(), lev );
+	if( err )
 	{
-		V3(-1,0,0), V3(1,0,0),
-		V3(0,-1,0), V3(0,1,0),
-		V3(0,0,-1), V3(0,0,1),
-	};
-	for( int i = 0; i < 6; ++i )
-	{
-		normals[i] = ntx.TransformNormal( normals[i] );
-	}
-	Vec3 tfmin = mtx.TransformPos( bbmin );
-	Vec3 tfmax = mtx.TransformPos( bbmax );
-	
-	Vec4 planes[6] =
-	{
-		V4( normals[0], Vec3Dot( normals[0], tfmin ) ),
-		V4( normals[1], Vec3Dot( normals[1], tfmax ) ),
-		V4( normals[2], Vec3Dot( normals[2], tfmin ) ),
-		V4( normals[3], Vec3Dot( normals[3], tfmax ) ),
-		V4( normals[4], Vec3Dot( normals[4], tfmin ) ),
-		V4( normals[5], Vec3Dot( normals[5], tfmax ) ),
-	};
-	
-	Edge edges[12] =
-	{
-		{ 2, 4 }, { 3, 4 }, { 2, 5 }, { 3, 5 }, // X
-		{ 0, 4 }, { 1, 4 }, { 0, 5 }, { 1, 5 }, // Y
-		{ 0, 2 }, { 1, 2 }, { 0, 3 }, { 1, 3 }, // Z
-	};
-#else
-	Edge edges[12] =
-	{
-		// X
-		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmin.z), V3(0,-1,0), V3(0,0,-1) },
-		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(0,1,0), V3(0,0,-1) },
-		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(0,-1,0), V3(0,0,1) },
-		{ V3(bbmin.x,bbmax.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(0,1,0), V3(0,0,1) },
-		// Y
-		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmin.z), V3(-1,0,0), V3(0,0,-1) },
-		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(1,0,0), V3(0,0,-1) },
-		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,0,1) },
-		{ V3(bbmax.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,0,1) },
-		// Z
-		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmin.y,bbmax.z), V3(-1,0,0), V3(0,-1,0) },
-		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(1,0,0), V3(0,-1,0) },
-		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,1,0) },
-		{ V3(bbmax.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,1,0) },
-	};
-	
-	for( int i = 0; i < 12; ++i )
-	{
-		edges[ i ].p0 = mtx.TransformPos( edges[ i ].p0 );
-		edges[ i ].p1 = mtx.TransformPos( edges[ i ].p1 );
-		edges[ i ].n0 = ntx.TransformNormal( edges[ i ].n0 );
-		edges[ i ].n1 = ntx.TransformNormal( edges[ i ].n1 );
-	}
-	
-	Vec4 planes[6] =
-	{
-		V4( edges[4].n0, Vec3Dot( edges[4].n0, edges[4].p0 ) ), // X-
-		V4( edges[5].n0, Vec3Dot( edges[5].n0, edges[5].p0 ) ), // X+
-		V4( edges[0].n0, Vec3Dot( edges[0].n0, edges[0].p0 ) ), // Y-
-		V4( edges[1].n0, Vec3Dot( edges[1].n0, edges[1].p0 ) ), // Y+
-		V4( edges[0].n1, Vec3Dot( edges[0].n1, edges[0].p0 ) ), // Z-
-		V4( edges[2].n1, Vec3Dot( edges[2].n1, edges[2].p0 ) ), // Z+
-	};
-#endif
-	
-	EM->edges.assign( edges, 12 );
-	EM->planes.assign( planes, 6 );
-	
-	m_edgeMeshes.push_back( EM );
-	m_edgeMeshesByName.set( EM->m_key, EM );
-}
-
-void CoverSystem::Query( Vec3 viewer, float viewdist, CSCoverInfo& shape )
-{
-	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
-	{
-		EdgeMesh* EM = m_edgeMeshes[ emid ];
-		if( EM->enabled == false )
-			continue;
-		if( ( viewer - EM->pos ).Length() > viewdist )
-			continue;
-		
-		shape.shadowPlaneCounts.push_back(0);
-		
-		for( size_t i = 0; i < EM->planes.size(); ++i )
-		{
-			Vec4 P = EM->planes[ i ];
-			if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
-			{
-				shape.shadowPlanes.push_back( P );
-				shape.shadowPlaneCounts.last()++;
-			}
-		}
-		
-		for( size_t i = 0; i < EM->edges.size(); ++i )
-		{
-			Edge E = EM->edges[ i ];
-			Vec4 P0 = EM->planes[ E.pl0 ];
-			Vec4 P1 = EM->planes[ E.pl1 ];
-			bool is0 = Vec3Dot( P0.ToVec3(), viewer ) > P0.w;
-			bool is1 = Vec3Dot( P1.ToVec3(), viewer ) > P1.w;
-			
-			if( is0 && is1 == false )
-			{
-				shape.shadowPlanes.push_back( P1 );
-				shape.shadowPlaneCounts.last()++;
-			}
-			else if( is0 == false && is1 )
-			{
-				shape.shadowPlanes.push_back( P0 );
-				shape.shadowPlaneCounts.last()++;
-			}
-		}
+		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
 	}
 }
 
+DamageSystem::~DamageSystem()
+{
+	Free();
+}
 
 const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 {
@@ -681,8 +546,9 @@ void DamageSystem::Clear()
 }
 
 
-BulletSystem::BulletSystem( DamageSystem* dmgsys ) :
-	m_damageSystem( dmgsys )
+BulletSystem::BulletSystem( GameLevel* lev ) :
+	IGameLevelSystem( lev, e_system_uid ),
+	m_damageSystem( lev->GetSystem<DamageSystem>() )
 {
 }
 
@@ -842,6 +708,143 @@ void AIDBSystem::Tick( float deltaTime )
 		if( S.timeout <= 0 )
 		{
 			m_sounds.uerase( i-- );
+		}
+	}
+}
+
+
+void CoverSystem::Clear()
+{
+	m_edgeMeshes.clear();
+	m_edgeMeshesByName.clear();
+}
+
+void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
+{
+	EdgeMesh* EM = new EdgeMesh;
+	EM->m_key = name;
+	EM->pos = mtx.TransformPos( V3(0) );
+	EM->enabled = true;
+	
+	Mat4 ntx;
+	mtx.GenNormalMatrix( ntx );
+	
+#if 1
+	Vec3 normals[6] =
+	{
+		V3(-1,0,0), V3(1,0,0),
+		V3(0,-1,0), V3(0,1,0),
+		V3(0,0,-1), V3(0,0,1),
+	};
+	for( int i = 0; i < 6; ++i )
+	{
+		normals[i] = ntx.TransformNormal( normals[i] );
+	}
+	Vec3 tfmin = mtx.TransformPos( bbmin );
+	Vec3 tfmax = mtx.TransformPos( bbmax );
+	
+	Vec4 planes[6] =
+	{
+		V4( normals[0], Vec3Dot( normals[0], tfmin ) ),
+		V4( normals[1], Vec3Dot( normals[1], tfmax ) ),
+		V4( normals[2], Vec3Dot( normals[2], tfmin ) ),
+		V4( normals[3], Vec3Dot( normals[3], tfmax ) ),
+		V4( normals[4], Vec3Dot( normals[4], tfmin ) ),
+		V4( normals[5], Vec3Dot( normals[5], tfmax ) ),
+	};
+	
+	Edge edges[12] =
+	{
+		{ 2, 4 }, { 3, 4 }, { 2, 5 }, { 3, 5 }, // X
+		{ 0, 4 }, { 1, 4 }, { 0, 5 }, { 1, 5 }, // Y
+		{ 0, 2 }, { 1, 2 }, { 0, 3 }, { 1, 3 }, // Z
+	};
+#else
+	Edge edges[12] =
+	{
+		// X
+		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmin.z), V3(0,-1,0), V3(0,0,-1) },
+		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(0,1,0), V3(0,0,-1) },
+		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(0,-1,0), V3(0,0,1) },
+		{ V3(bbmin.x,bbmax.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(0,1,0), V3(0,0,1) },
+		// Y
+		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmin.z), V3(-1,0,0), V3(0,0,-1) },
+		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(1,0,0), V3(0,0,-1) },
+		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,0,1) },
+		{ V3(bbmax.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,0,1) },
+		// Z
+		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmin.y,bbmax.z), V3(-1,0,0), V3(0,-1,0) },
+		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(1,0,0), V3(0,-1,0) },
+		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,1,0) },
+		{ V3(bbmax.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,1,0) },
+	};
+	
+	for( int i = 0; i < 12; ++i )
+	{
+		edges[ i ].p0 = mtx.TransformPos( edges[ i ].p0 );
+		edges[ i ].p1 = mtx.TransformPos( edges[ i ].p1 );
+		edges[ i ].n0 = ntx.TransformNormal( edges[ i ].n0 );
+		edges[ i ].n1 = ntx.TransformNormal( edges[ i ].n1 );
+	}
+	
+	Vec4 planes[6] =
+	{
+		V4( edges[4].n0, Vec3Dot( edges[4].n0, edges[4].p0 ) ), // X-
+		V4( edges[5].n0, Vec3Dot( edges[5].n0, edges[5].p0 ) ), // X+
+		V4( edges[0].n0, Vec3Dot( edges[0].n0, edges[0].p0 ) ), // Y-
+		V4( edges[1].n0, Vec3Dot( edges[1].n0, edges[1].p0 ) ), // Y+
+		V4( edges[0].n1, Vec3Dot( edges[0].n1, edges[0].p0 ) ), // Z-
+		V4( edges[2].n1, Vec3Dot( edges[2].n1, edges[2].p0 ) ), // Z+
+	};
+#endif
+	
+	EM->edges.assign( edges, 12 );
+	EM->planes.assign( planes, 6 );
+	
+	m_edgeMeshes.push_back( EM );
+	m_edgeMeshesByName.set( EM->m_key, EM );
+}
+
+void CoverSystem::Query( Vec3 viewer, float viewdist, CSCoverInfo& shape )
+{
+	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
+	{
+		EdgeMesh* EM = m_edgeMeshes[ emid ];
+		if( EM->enabled == false )
+			continue;
+		if( ( viewer - EM->pos ).Length() > viewdist )
+			continue;
+		
+		shape.shadowPlaneCounts.push_back(0);
+		
+		for( size_t i = 0; i < EM->planes.size(); ++i )
+		{
+			Vec4 P = EM->planes[ i ];
+			if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
+			{
+				shape.shadowPlanes.push_back( P );
+				shape.shadowPlaneCounts.last()++;
+			}
+		}
+		
+		for( size_t i = 0; i < EM->edges.size(); ++i )
+		{
+			Edge E = EM->edges[ i ];
+			Vec4 P0 = EM->planes[ E.pl0 ];
+			Vec4 P1 = EM->planes[ E.pl1 ];
+			bool is0 = Vec3Dot( P0.ToVec3(), viewer ) > P0.w;
+			bool is1 = Vec3Dot( P1.ToVec3(), viewer ) > P1.w;
+			
+			if( is0 && is1 == false )
+			{
+				shape.shadowPlanes.push_back( P1 );
+				shape.shadowPlaneCounts.last()++;
+			}
+			else if( is0 == false && is1 )
+			{
+				shape.shadowPlanes.push_back( P0 );
+				shape.shadowPlaneCounts.last()++;
+			}
 		}
 	}
 }

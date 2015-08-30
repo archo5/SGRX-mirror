@@ -1,6 +1,6 @@
 
 
-#include "level.hpp"
+#include "entities.hpp"
 
 
 extern Vec2 CURSOR_POS;
@@ -16,13 +16,13 @@ void Trigger::Invoke( bool newstate )
 	const char* evname = newstate ? "trigger_enter" : "trigger_leave";
 	if( m_func.size() )
 	{
-		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-		g_GameLevel->m_scriptCtx.Push( newstate );
-		g_GameLevel->m_scriptCtx.Push( g_GameLevel->m_scriptCtx.CreateString( evname ) );
-		g_GameLevel->m_scriptCtx.GlobalCall( StackString<256>( m_func ), 2 );
+		SGS_CSCOPE( m_level->m_scriptCtx.C );
+		m_level->m_scriptCtx.Push( newstate );
+		m_level->m_scriptCtx.Push( m_level->m_scriptCtx.CreateString( evname ) );
+		m_level->m_scriptCtx.GlobalCall( StackString<256>( m_func ), 2 );
 	}
 	if( m_target.size() )
-		g_GameLevel->CallEntityByName( m_target, evname );
+		m_level->CallEntityByName( m_target, evname );
 }
 
 void Trigger::Update( bool newstate )
@@ -45,7 +45,7 @@ BoxTrigger::BoxTrigger( const StringView& fn, const StringView& tgt, bool once, 
 
 void BoxTrigger::FixedTick( float deltaTime )
 {
-	Update( g_GameLevel->m_infoEmitters.QueryBB( m_matrix, IEST_Player ) );
+	Update( m_level->GetSystem<InfoEmissionSystem>()->QueryBB( m_matrix, IEST_Player ) );
 }
 
 
@@ -56,7 +56,7 @@ ProximityTrigger::ProximityTrigger( const StringView& fn, const StringView& tgt,
 
 void ProximityTrigger::FixedTick( float deltaTime )
 {
-	Update( g_GameLevel->m_infoEmitters.QuerySphereAny( m_position, m_radius, IEST_Player ) );
+	Update( m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAny( m_position, m_radius, IEST_Player ) );
 }
 
 
@@ -77,7 +77,7 @@ void SlidingDoor::_UpdateTransforms( float bf )
 	Quat localrot = m_ivRot.Get( bf );
 	Mat4 basemtx = Mat4::CreateSRT( scale, rotation, position );
 	meshInst->matrix = Mat4::CreateSRT( V3(1), localrot, localpos ) * basemtx;
-	g_GameLevel->LightMesh( meshInst );
+	m_level->LightMesh( meshInst );
 }
 
 SlidingDoor::SlidingDoor
@@ -108,7 +108,7 @@ SlidingDoor::SlidingDoor
 	m_ivPos( V3(0) ), m_ivRot( Quat::Identity )
 {
 	m_name = name;
-	meshInst = g_GameLevel->m_scene->CreateMeshInstance();
+	meshInst = m_level->GetScene()->CreateMeshInstance();
 	meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
@@ -124,14 +124,14 @@ SlidingDoor::SlidingDoor
 	if( m_isSwitch == false )
 	{
 		SGRX_PhyRigidBodyInfo rbinfo;
-		rbinfo.shape = g_PhyWorld->CreateAABBShape( m_bbMin, m_bbMax );
+		rbinfo.shape = m_level->GetPhyWorld()->CreateAABBShape( m_bbMin, m_bbMax );
 		rbinfo.shape->SetScale( scale );
 		rbinfo.kinematic = true;
 		rbinfo.position = position;
 		rbinfo.rotation = rotation;
 		rbinfo.mass = 0;
 		rbinfo.inertia = V3(0);
-		bodyHandle = g_PhyWorld->CreateRigidBody( rbinfo );
+		bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
 		soundEvent = g_SoundSys->CreateEventInstance( "/gate_open" );
 		if( soundEvent )
 		{
@@ -145,7 +145,7 @@ SlidingDoor::SlidingDoor
 	m_ivRot.prev = m_ivRot.curr = TLERP( rot_closed, rot_open, open_factor );
 	_UpdateTransforms( 1 );
 	
-	g_GameLevel->MapEntityByName( this );
+	m_level->MapEntityByName( this );
 }
 
 void SlidingDoor::FixedTick( float deltaTime )
@@ -178,10 +178,10 @@ void SlidingDoor::FixedTick( float deltaTime )
 		if( !m_done )
 		{
 			InfoEmissionSystem::Data D = { position, 0.5f, IEST_InteractiveItem };
-			g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+			m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 		}
 		else
-			g_GameLevel->m_infoEmitters.RemoveEmitter( this );
+			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 	}
 }
 
@@ -201,11 +201,11 @@ void SlidingDoor::OnEvent( const StringView& type )
 			{
 				return;
 			}
-			SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-			g_GameLevel->m_scriptCtx.Push( newstate );
-			if( g_GameLevel->m_scriptCtx.GlobalCall( StackString<256>( m_switchPred ), 1, 1 ) )
+			SGS_CSCOPE( m_level->m_scriptCtx.C );
+			m_level->m_scriptCtx.Push( newstate );
+			if( m_level->m_scriptCtx.GlobalCall( StackString<256>( m_switchPred ), 1, 1 ) )
 			{
-				bool val = sgs_GetVar<bool>()( g_GameLevel->m_scriptCtx.C, -1 );
+				bool val = sgs_GetVar<bool>()( m_level->m_scriptCtx.C, -1 );
 				if( !val )
 					return;
 			}
@@ -226,30 +226,30 @@ PickupItem::PickupItem( const StringView& id, const StringView& name, int count,
 {
 	m_name = id;
 	m_viewName = name;
-	m_meshInst = g_GameLevel->m_scene->CreateMeshInstance();
+	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	m_meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
 	m_meshInst->mesh = GR_GetMesh( bfr );
 	m_meshInst->matrix = Mat4::CreateSRT( scl, rot, pos );
-	g_GameLevel->LightMesh( m_meshInst );
+	m_level->LightMesh( m_meshInst );
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_InteractiveItem };
-	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
 void PickupItem::OnEvent( const StringView& type )
 {
-	if( ( type == "trigger_switch" || type == "action_end" ) && g_GameLevel->m_player )
+	if( ( type == "trigger_switch" || type == "action_end" ) && m_level->m_player )
 	{
-		g_GameLevel->m_player->AddItem( m_name, m_count );
-		g_GameLevel->m_infoEmitters.RemoveEmitter( this );
+		m_level->m_player->AddItem( m_name, m_count );
+		m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 		m_meshInst->enabled = false;
 		
 		char bfr[ 256 ];
 		sprintf( bfr, "Picked up %.*s", TMIN( 240, (int) m_viewName.size() ), m_viewName.data() );
-		g_GameLevel->m_messageSystem.AddMessage( MSMessage::Info, bfr );
+		m_level->GetSystem<MessagingSystem>()->AddMessage( MSMessage::Info, bfr );
 	}
 }
 
@@ -277,19 +277,19 @@ Actionable::Actionable( const StringView& name, const StringView& mesh,
 	
 	m_name = name;
 	m_viewName = name;
-	m_meshInst = g_GameLevel->m_scene->CreateMeshInstance();
+	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	m_meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
 	m_meshInst->mesh = GR_GetMesh( bfr );
 	m_meshInst->matrix = mtx;
-	g_GameLevel->LightMesh( m_meshInst );
+	m_level->LightMesh( m_meshInst );
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_InteractiveItem };
-	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 	
-	g_GameLevel->MapEntityByName( this );
+	m_level->MapEntityByName( this );
 }
 
 void Actionable::OnEvent( const StringView& type )
@@ -301,14 +301,14 @@ void Actionable::OnEvent( const StringView& type )
 	else if( type == "action_end" )
 	{
 		// end animation?
-		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-		g_GameLevel->m_scriptCtx.Push( m_name );
+		SGS_CSCOPE( m_level->m_scriptCtx.C );
+		m_level->m_scriptCtx.Push( m_name );
 		if( m_onSuccess.call( 1, 1 ) )
 		{
-			bool keep = sgsVariable( g_GameLevel->m_scriptCtx.C, -1 ).get<bool>();
+			bool keep = sgsVariable( m_level->m_scriptCtx.C, -1 ).get<bool>();
 			if( keep == false )
 			{
-				g_GameLevel->m_infoEmitters.RemoveEmitter( this );
+				m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 			}
 		}
 	}
@@ -338,14 +338,14 @@ ParticleFX::ParticleFX( const StringView& name, const StringView& psys, const St
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "psys/%.*s.psy", TMIN( 240, (int) psys.size() ), psys.data() );
 	m_psys.Load( bfr );
-	m_psys.AddToScene( g_GameLevel->m_scene );
+	m_psys.AddToScene( m_level->GetScene() );
 	m_psys.SetTransform( Mat4::CreateSRT( scl, rot, pos ) );
 	m_psys.OnRenderUpdate();
 	
 	if( start )
 		OnEvent( "trigger_enter" );
 	
-	g_GameLevel->MapEntityByName( this );
+	m_level->MapEntityByName( this );
 }
 
 void ParticleFX::Tick( float deltaTime, float blendFactor )
@@ -410,17 +410,17 @@ ScriptedItem::ScriptedItem( const StringView& name, sgsVariable args ) : m_scrIt
 {
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, 256, "SCRITEM_CREATE_%s", StackString<200>(name).str );
-	sgsVariable func = g_GameLevel->m_scriptCtx.GetGlobal( bfr );
+	sgsVariable func = m_level->m_scriptCtx.GetGlobal( bfr );
 	if( func.not_null() )
 	{
 		sgs_Variable pvar;
 		sgs_InitPtr( &pvar, this );
-		args.setprop( "__entity", sgsVariable( g_GameLevel->m_scriptCtx.C, &pvar ) );
+		args.setprop( "__entity", sgsVariable( m_level->m_scriptCtx.C, &pvar ) );
 		
 		m_scrItem = SGRX_ScriptedItem::Create(
-			g_GameLevel->m_scene, g_PhyWorld, g_GameLevel->m_scriptCtx.C,
+			m_level->GetScene(), m_level->GetPhyWorld(), m_level->m_scriptCtx.C,
 			func, args );
-		m_scrItem->SetLightSampler( g_GameLevel );
+		m_scrItem->SetLightSampler( m_level );
 		m_scrItem->PreRender();
 	}
 }
@@ -454,6 +454,175 @@ void ScriptedItem::OnEvent( const StringView& type )
 	{
 		m_scrItem->EntityEvent( type );
 	}
+}
+
+
+bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
+{
+	///////////////////////////
+	if( type == "trigger" )
+	{
+		BoxTrigger* BT = new BoxTrigger
+		(
+			data.getprop("func").get<StringView>(),
+			data.getprop("target").get<StringView>(),
+			data.getprop("once").get<bool>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
+		);
+		m_level->AddEntity( BT );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "trigger_prox" )
+	{
+		ProximityTrigger* PT = new ProximityTrigger
+		(
+			data.getprop("func").get<StringView>(),
+			data.getprop("target").get<StringView>(),
+			data.getprop("once").get<bool>(),
+			data.getprop("position").get<Vec3>(),
+			data.getprop("distance").get<float>()
+		);
+		m_level->AddEntity( PT );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "door_slide" )
+	{
+		SlidingDoor* SD = new SlidingDoor
+		(
+			data.getprop("name").get<StringView>(),
+			data.getprop("mesh").get<StringView>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			data.getprop("open_offset").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("open_rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			V3(0),
+			Quat::Identity,
+			data.getprop("open_time").get<float>(),
+			false,
+			data.getprop("is_switch").get<bool>(),
+			data.getprop("pred").get<StringView>(),
+			data.getprop("func").get<StringView>(),
+			data.getprop("target").get<StringView>(),
+			data.getprop("once").get<bool>()
+		);
+		m_level->AddEntity( SD );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "door_slide_prox" )
+	{
+		StackShortName name = m_level->GenerateName();
+		
+		SlidingDoor* SD = new SlidingDoor
+		(
+			name.str,
+			data.getprop("mesh").get<StringView>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			data.getprop("open_offset").get<Vec3>(),
+			Quat::Identity,
+			V3(0),
+			Quat::Identity,
+			data.getprop("open_time").get<float>(),
+			false
+		);
+		m_level->AddEntity( SD );
+		
+		ProximityTrigger* PT = new ProximityTrigger
+		(
+			"", name.str, false,
+			SD->meshInst->matrix.TransformPos( data.getprop("scan_offset").get<Vec3>() ),
+			data.getprop("scan_distance").get<float>()
+		);
+		m_level->AddEntity( PT );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "pickup" )
+	{
+		PickupItem* PI = new PickupItem
+		(
+			data.getprop("id").get<StringView>(),
+			data.getprop("name").get<StringView>(),
+			data.getprop("count").get<int>(),
+			data.getprop("mesh").get<StringView>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
+		);
+		m_level->AddEntity( PI );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "actionable" )
+	{
+		Actionable* AC = new Actionable
+		(
+			data.getprop("name").get<StringView>(),
+			data.getprop("mesh").get<StringView>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			data.getprop("place_offset").get<Vec3>(),
+			data.getprop("place_dir").get<Vec3>()
+		);
+		m_level->AddEntity( AC );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "cover" )
+	{
+		Mat4 mtx = Mat4::CreateSXT(
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
+			data.getprop("position").get<Vec3>() );
+		m_level->GetSystem<CoverSystem>()->AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "particle_fx" )
+	{
+		ParticleFX* PF = new ParticleFX
+		(
+			data.getprop("name").get<StringView>(),
+			data.getprop("partsys").get<StringView>(),
+			data.getprop("soundevent").get<StringView>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			data.getprop("start").get<bool>()
+		);
+		m_level->AddEntity( PF );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "scritem" )
+	{
+		sgsVariable scritem = data.getprop("scritem");
+		ScriptedItem* SI = new ScriptedItem
+		(
+			scritem.getprop("__type").get<StringView>(),
+			scritem
+		);
+		m_level->AddEntity( SI );
+		return true;
+	}
+	
+	return false;
 }
 
 

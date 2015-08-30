@@ -1,6 +1,7 @@
 
 
 #pragma once
+#include "level.hpp"
 
 
 struct BRSD4Player : Entity

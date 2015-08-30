@@ -1,9 +1,21 @@
 
 
-#include "level.hpp"
+#include "entities_ts.hpp"
 
 
 extern Vec2 CURSOR_POS;
+extern Command MOVE_LEFT;
+extern Command MOVE_RIGHT;
+extern Command MOVE_UP;
+extern Command MOVE_DOWN;
+extern Command MOVE_X;
+extern Command MOVE_Y;
+extern Command AIM_X;
+extern Command AIM_Y;
+extern Command SHOOT;
+extern Command RELOAD;
+extern Command CROUCH;
+extern Command DO_ACTION;
 
 
 #define MAGNUM_CAMERA_NOTICE_TIME 2
@@ -37,7 +49,7 @@ TSCamera::TSCamera(
 	m_animChar.m_anMixer.layers = m_anLayers;
 	m_animChar.m_anMixer.layerCount = 1;
 	m_animChar.Load( bfr );
-	m_animChar.AddToScene( g_GameLevel->m_scene );
+	m_animChar.AddToScene( m_level->GetScene() );
 	StringView atchlist[] = { "view", "origin", "light" };
 	m_animChar.SortEnsureAttachments( atchlist, 3 );
 	
@@ -45,17 +57,17 @@ TSCamera::TSCamera(
 	MI->dynamic = 1;
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( scl, rot, pos );
-	g_GameLevel->LightMesh( MI );
+	m_level->LightMesh( MI );
 	
-	g_GameLevel->MapEntityByName( this );
+	m_level->MapEntityByName( this );
 }
 
 void TSCamera::FixedTick( float deltaTime )
 {
 	m_playerVisible = false;
-	if( g_GameLevel->m_player )
+	if( m_level->m_player )
 	{
-		Vec3 ppos = g_GameLevel->m_player->GetPosition();
+		Vec3 ppos = m_level->m_player->GetPosition();
 		Mat4 viewmtx, originmtx, invviewmtx = Mat4::Identity, invoriginmtx = Mat4::Identity;
 		m_animChar.GetAttachmentMatrix( 0, viewmtx );
 		m_animChar.GetAttachmentMatrix( 1, originmtx );
@@ -68,7 +80,7 @@ void TSCamera::FixedTick( float deltaTime )
 		if( viewpos.Length() < MAGNUM_CAMERA_VIEW_DIST && viewangle < DEG2RAD( m_fov ) )
 		{
 			Vec3 viewpos = viewmtx.TransformPos( V3(0) );
-			bool isect = g_PhyWorld->Raycast( viewpos, ppos, 1, 1 );
+			bool isect = m_level->GetPhyWorld()->Raycast( viewpos, ppos, 1, 1 );
 			if( isect == false )
 			{
 				Vec3 origindir = invoriginmtx.TransformPos( ppos ).Normalized();
@@ -145,7 +157,7 @@ void TSCamera::FixedTick( float deltaTime )
 	
 	InfoEmissionSystem::Data D = {
 		m_animChar.m_cachedMeshInst->matrix.TransformPos( V3(0) ), 0.5f, IEST_MapItem };
-	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
 void TSCamera::Tick( float deltaTime, float blendFactor )
@@ -165,7 +177,7 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 		color = V3(1,1,0);
 	FSFlare FD = { mtx.TransformPos( V3(0) ), color, 1, true };
 	
-	g_GameLevel->m_flareSystem.UpdateFlare( this, FD );
+	m_level->m_flareSystem.UpdateFlare( this, FD );
 }
 
 void TSCamera::SetProperty( const StringView& name, sgsVariable value )
@@ -204,16 +216,16 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
 	rbinfo.restitution = 0;
-	rbinfo.shape = g_PhyWorld->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
+	rbinfo.shape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
 	rbinfo.mass = 70;
 	rbinfo.inertia = V3(0);
 	rbinfo.position = pos + V3(0,0,1);
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
-	m_bodyHandle = g_PhyWorld->CreateRigidBody( rbinfo );
-	m_shapeHandle = g_PhyWorld->CreateCylinderShape( V3(0.25f) );
+	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
+	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.25f) );
 	
-	m_shadowInst = g_GameLevel->m_scene->CreateLight();
+	m_shadowInst = m_level->GetScene()->CreateLight();
 	m_shadowInst->type = LIGHT_PROJ;
 	m_shadowInst->direction = V3(0,0,-1);
 	m_shadowInst->updir = V3(0,1,0);
@@ -238,14 +250,14 @@ TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
 void TSCharacter::InitializeMesh( const StringView& path )
 {
 	m_animChar.Load( path );
-	m_animChar.AddToScene( g_GameLevel->m_scene );
+	m_animChar.AddToScene( m_level->GetScene() );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->userData = &m_meshInstInfo;
 	MI->dynamic = 1;
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( V3(1), Quat::Identity, m_ivPos.curr );
-	g_GameLevel->LightMesh( MI, V3(1) );
+	m_level->LightMesh( MI, V3(1) );
 	
 	m_anTopPlayer.ClearBlendFactors( 0.0f );
 	m_animChar.ApplyMask( "top", &m_anTopPlayer );
@@ -379,7 +391,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
 	m_shadowInst->position = pos + V3(0,0,1);
 	
-	g_GameLevel->LightMesh( MI, V3(0,0,i_crouch ? 0.6f : 1) );
+	m_level->LightMesh( MI, V3(0,0,i_crouch ? 0.6f : 1) );
 	
 	m_animChar.PreRender( blendFactor );
 	m_interpPos = m_ivPos.Get( blendFactor );
@@ -402,8 +414,8 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	
 	bool prevCrouch = m_isCrouching;
 	m_isCrouching = i_crouch;
-	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
-		g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
+	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
+		m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
 	{
 		m_isCrouching = 1;
@@ -427,7 +439,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	m_ivPos.Advance( pos + V3(0,0,-cheight) );
 	
 	bool ground = false;
-	if( g_PhyWorld->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
+	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
 		&& fabsf( rcinfo.point.z - pos.z ) < cheight + SMALL_FLOAT )
 	{
 		Vec3 v = m_bodyHandle->GetPosition();
@@ -516,7 +528,7 @@ void TSCharacter::BeginClosestAction( float maxdist )
 	
 	Vec3 QP = GetQueryPosition();
 	IESItemGather ies_gather;
-	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
+	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
 	if( ies_gather.items.size() )
 	{
 		ies_gather.DistanceSort( QP );
@@ -625,9 +637,9 @@ TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
 	i_aim_at = true;
 	
 	m_shootPS.Load( "psys/gunflash.psy" );
-	m_shootPS.AddToScene( g_GameLevel->m_scene );
+	m_shootPS.AddToScene( m_level->GetScene() );
 	m_shootPS.OnRenderUpdate();
-	m_shootLT = g_GameLevel->m_scene->CreateLight();
+	m_shootLT = m_level->GetScene()->CreateLight();
 	m_shootLT->type = LIGHT_POINT;
 	m_shootLT->enabled = false;
 	m_shootLT->position = pos;
@@ -695,18 +707,18 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
 	Vec2 cursor_pos = CURSOR_POS;
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
+	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
 	
-	g_GameLevel->m_scene->camera.znear = 0.1f;
-	g_GameLevel->m_scene->camera.angle = 90;
-	g_GameLevel->m_scene->camera.updir = V3(0,-1,0);
-	g_GameLevel->m_scene->camera.direction = V3(-diff.x,diff.y,-5);
-	g_GameLevel->m_scene->camera.position = pos + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
-	g_GameLevel->m_scene->camera.UpdateMatrices();
+	m_level->GetScene()->camera.znear = 0.1f;
+	m_level->GetScene()->camera.angle = 90;
+	m_level->GetScene()->camera.updir = V3(0,-1,0);
+	m_level->GetScene()->camera.direction = V3(-diff.x,diff.y,-5);
+	m_level->GetScene()->camera.position = pos + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
+	m_level->GetScene()->camera.UpdateMatrices();
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
-	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 	
 	
 	m_shootLT->enabled = false;
@@ -718,14 +730,14 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 		Vec3 origin = mtx.TransformPos( V3(0) );
 		Vec3 dir = ( i_aim_target - origin ).Normalized();
 		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-		g_GameLevel->m_bulletSystem.Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
+		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
 		m_shootPS.SetTransform( mtx );
 		m_shootPS.Trigger();
 		m_shootLT->position = origin;
 		m_shootLT->UpdateTransform();
 		m_shootLT->enabled = true;
 		m_shootTimeout += 0.1f;
-		g_GameLevel->m_aidbSystem.AddSound( GetPosition(), 10, 0.2f, AIS_Shot );
+		m_level->GetSystem<AIDBSystem>()->AddSound( GetPosition(), 10, 0.2f, AIS_Shot );
 	}
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
@@ -744,11 +756,11 @@ void TSPlayer::DrawUI()
 	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
 	Vec2 cursor_pos = CURSOR_POS;
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	Vec2 player_pos = g_GameLevel->m_scene->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
+	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	
 	Vec3 QP = GetQueryPosition();
 	IESItemGather ies_gather;
-	g_GameLevel->m_infoEmitters.QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
+	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
 	if( ies_gather.items.size() )
 	{
 		ies_gather.DistanceSort( QP );
@@ -758,7 +770,7 @@ void TSPlayer::DrawUI()
 			Entity* E = ies_gather.items[ i ].E;
 			Vec3 pos = ies_gather.items[ i ].D.pos;
 			bool infront;
-			Vec2 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
+			Vec2 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
 			if( infront )
 			{
 				float dst = ( QP - pos ).Length();
@@ -812,11 +824,11 @@ Vec3 TSPlayer::FindTargetPosition()
 {
 	Vec3 crpos, crdir;
 	Vec2 crsp = CURSOR_POS / Game_GetScreenSize();
-	g_GameLevel->m_scene->camera.GetCursorRay( crsp.x, crsp.y, crpos, crdir );
+	m_level->GetScene()->camera.GetCursorRay( crsp.x, crsp.y, crpos, crdir );
 	Vec3 crtgt = crpos + crdir * 100;
 	
 	SGRX_PhyRaycastInfo rcinfo;
-	if( g_PhyWorld->Raycast( crpos, crtgt, 0x1, 0x1, &rcinfo ) )
+	if( m_level->GetPhyWorld()->Raycast( crpos, crtgt, 0x1, 0x1, &rcinfo ) )
 	{
 		bool atwall = 0.707f > fabsf(Vec3Dot( rcinfo.normal, V3(0,0,1) )); // > ~45deg to up vector
 		bool frontface = Vec3Dot( rcinfo.normal, crdir ) < 0; 
@@ -1092,6 +1104,7 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsV
 	m_typeName = "enemy";
 	m_name = name;
 	
+	m_aidb = m_level->GetSystem<AIDBSystem>();
 	m_meshInstInfo.ownerType = GAT_Enemy;
 	
 	UpdateTask();
@@ -1099,41 +1112,41 @@ TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsV
 	// create self
 	{
 		sgs_Variable var;
-		sgs_InitObject( g_GameLevel->m_scriptCtx.C, &var, this, TSEnemy_iface );
+		sgs_InitObject( m_level->m_scriptCtx.C, &var, this, TSEnemy_iface );
 		m_scrObj = sgs_GetObjectStructP( &var );
 	}
 	
 	// create ESO (enemy scripted object)
 	{
-		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-		sgs_PushObjectPtr( g_GameLevel->m_scriptCtx.C, m_scrObj );
-		g_GameLevel->m_scriptCtx.Push( args );
-		g_GameLevel->m_scriptCtx.Push( m_position );
-		g_GameLevel->m_scriptCtx.Push( GetViewDir() );
-		if( g_GameLevel->m_scriptCtx.GlobalCall( "TSEnemy_Create", 4, 1 ) == false )
+		SGS_CSCOPE( m_level->m_scriptCtx.C );
+		sgs_PushObjectPtr( m_level->m_scriptCtx.C, m_scrObj );
+		m_level->m_scriptCtx.Push( args );
+		m_level->m_scriptCtx.Push( m_position );
+		m_level->m_scriptCtx.Push( GetViewDir() );
+		if( m_level->m_scriptCtx.GlobalCall( "TSEnemy_Create", 4, 1 ) == false )
 		{
 			LOG_ERROR << "FAILED to create enemy state";
 		}
-		m_enemyState = sgsVariable( g_GameLevel->m_scriptCtx.C, -1 );
+		m_enemyState = sgsVariable( m_level->m_scriptCtx.C, -1 );
 	}
 	
 	StringView charpath = m_enemyState.getprop("charpath").get<StringView>();
 	InitializeMesh( charpath ? charpath : "chars/tstest.chr" );
 	
-	g_GameLevel->MapEntityByName( this );
+	m_level->MapEntityByName( this );
 }
 
 TSEnemy::~TSEnemy()
 {
 	// destroy ESO
 	{
-		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
+		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_enemyState.thiscall( "destroy" );
 	}
 	
 	// destroy self
 	m_scrObj->data = NULL;
-	sgs_ObjRelease( g_GameLevel->m_scriptCtx.C, m_scrObj );
+	sgs_ObjRelease( m_level->m_scriptCtx.C, m_scrObj );
 }
 
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
@@ -1150,7 +1163,7 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		if( vpdot < cosf(DEG2RAD(40.0f)) )
 			return true; // outside view cone
 		
-		if( g_PhyWorld->Raycast( vieworigin, enemypos, 1, 1 ) )
+		if( m_level->GetPhyWorld()->Raycast( vieworigin, enemypos, 1, 1 ) )
 			return true; // behind wall
 		
 		// TODO friendlies
@@ -1217,7 +1230,7 @@ void TSEnemy::FixedTick( float deltaTime )
 		}
 	}
 	
-	TimeVal curTime = g_GameLevel->GetPhyTime();
+	TimeVal curTime = m_level->GetPhyTime();
 	
 	// process facts
 	m_factStorage.Process( curTime );
@@ -1225,13 +1238,13 @@ void TSEnemy::FixedTick( float deltaTime )
 	IESEnemyViewProc evp;
 	evp.curtime = curTime;
 	evp.enemy = this;
-	g_GameLevel->m_infoEmitters.QuerySphereAll( &evp, GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
+	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp, GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
 	// - sounds
-	for( int i = 0; i < g_GameLevel->m_aidbSystem.GetNumSounds(); ++i )
+	for( int i = 0; i < m_aidb->GetNumSounds(); ++i )
 	{
-		if( g_GameLevel->m_aidbSystem.CanHearSound( GetPosition(), i ) == false )
+		if( m_aidb->CanHearSound( GetPosition(), i ) == false )
 			continue;
-		AISound S = g_GameLevel->m_aidbSystem.GetSoundInfo( i );
+		AISound S = m_aidb->GetSoundInfo( i );
 		
 		if( S.type == AIS_Footstep || S.type == AIS_Shot )
 		{
@@ -1260,13 +1273,13 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	// tick ESO
 	{
-		g_GameLevel->m_scriptCtx.Push( GetPosition() );
-		m_enemyState.setprop( "position", sgsVariable( g_GameLevel->m_scriptCtx.C, sgsVariable::PickAndPop ) );
-		g_GameLevel->m_scriptCtx.Push( GetViewDir() );
-		m_enemyState.setprop( "viewdir", sgsVariable( g_GameLevel->m_scriptCtx.C, sgsVariable::PickAndPop ) );
+		m_level->m_scriptCtx.Push( GetPosition() );
+		m_enemyState.setprop( "position", sgsVariable( m_level->m_scriptCtx.C, sgsVariable::PickAndPop ) );
+		m_level->m_scriptCtx.Push( GetViewDir() );
+		m_enemyState.setprop( "viewdir", sgsVariable( m_level->m_scriptCtx.C, sgsVariable::PickAndPop ) );
 		
-		SGS_CSCOPE( g_GameLevel->m_scriptCtx.C );
-		g_GameLevel->m_scriptCtx.Push( deltaTime );
+		SGS_CSCOPE( m_level->m_scriptCtx.C );
+		m_level->m_scriptCtx.Push( deltaTime );
 		m_enemyState.thiscall( "tick", 1 );
 		
 		i_crouch = m_enemyState[ "i_crouch" ].get<bool>();
@@ -1283,7 +1296,7 @@ void TSEnemy::FixedTick( float deltaTime )
 	TSCharacter::FixedTick( deltaTime );
 	
 	InfoEmissionSystem::Data D = { GetPosition(), 0.5f, IEST_MapItem };
-	g_GameLevel->m_infoEmitters.UpdateEmitter( this, D );
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
 void TSEnemy::Tick( float deltaTime, float blendFactor )
@@ -1385,7 +1398,7 @@ void TSEnemy::DebugDrawUI()
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	Vec3 pos = GetPosition();
 	bool infront;
-	Vec3 screenpos = g_GameLevel->m_scene->camera.WorldToScreen( pos, &infront );
+	Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
 	if( !infront )
 		return;
 	int x = screenpos.x * GR_GetWidth();
