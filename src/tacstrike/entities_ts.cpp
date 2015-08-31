@@ -545,7 +545,8 @@ bool TSCharacter::BeginAction( Entity* E )
 	if( !E || IsInAction() )
 		return false;
 	
-	if( E->GetInteractionInfo( GetQueryPosition(), &m_actState.info ) == false )
+	IInteractableEntity* IE = E->GetInterface<IInteractableEntity>();
+	if( IE == NULL || IE->GetInteractionInfo( GetQueryPosition(), &m_actState.info ) == false )
 		return false;
 	
 	m_actState.timeoutMoveToStart = 1;
@@ -561,7 +562,11 @@ bool TSCharacter::IsInAction()
 
 bool TSCharacter::CanInterruptAction()
 {
-	return IsInAction() && m_actState.target->CanInterruptAction( m_actState.progress );
+	if( IsInAction() == false )
+		return false;
+	
+	IInteractableEntity* IE = m_actState.target->GetInterface<IInteractableEntity>();
+	return IE && IE->CanInterruptAction( m_actState.progress );
 }
 
 void TSCharacter::InterruptAction( bool force )

@@ -50,9 +50,11 @@ struct Entity
 	virtual void OnEvent( const StringView& type ){}
 	virtual void SetProperty( const StringView& name, sgsVariable value ){}
 	virtual sgsVariable GetProperty( const StringView& name ){ return sgsVariable(); }
-//	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
-	virtual bool CanInterruptAction( float progress ){ return false; }
-//	virtual bool GetMapItemInfo( MapItemInfo* out ){ return false; }
+	
+	virtual void* GetInterfaceImpl( uint32_t iface_id ){ return NULL; }
+	template< class T > T* GetInterface(){ return (T*) GetInterfaceImpl( T::e_iface_uid ); }
+#define ENT_HAS_INTERFACE( T, reqid, ptr ) if( T::e_iface_uid == reqid ) return (T*) ptr
+	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	

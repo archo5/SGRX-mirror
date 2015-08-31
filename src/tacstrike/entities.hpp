@@ -215,27 +215,3 @@ struct Weapon
 };
 
 
-#define ENTGROUP_GOODGUYS 1
-#define ENTGROUP_BADGUYS 2
-#define ENTGROUP_GOODGUYS_DEAD 3
-#define ENTGROUP_BADGUYS_DEAD 4
-
-
-#if 0
-
-#if defined(LD33GAME)
-#define TSGAME_NO_PLAYER
-#include "entities_ts.hpp"
-#include "entities_ld33.hpp"
-#define Player LD33Player
-#elif defined(BRSD4GAME)
-#include "entities_brsd4.hpp"
-#define Player BRSD4Player
-#elif defined(TSGAME)
-#include "entities_ts.hpp"
-#define Player TSPlayer
-#endif
-
-#endif
-
-

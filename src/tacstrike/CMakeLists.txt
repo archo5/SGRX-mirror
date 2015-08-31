@@ -3,7 +3,7 @@ cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 # Core game library
-add_library( coregamelib STATIC level entities systems ../common/scritem ../common/cppbc_scritem )
+add_library( coregamelib STATIC level cppbc_level entities systems ../common/scritem ../common/cppbc_scritem )
 set_target_properties( coregamelib PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS}"
@@ -31,7 +31,7 @@ set_target_properties( jmpgame PROPERTIES
 )
 
 # LD33 Game
-add_library( ld33game SHARED ld33game entities_ts entities_ld33 )
+add_library( ld33game SHARED ld33game entities_ld33 )
 target_link_libraries( ld33game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( ld33game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"

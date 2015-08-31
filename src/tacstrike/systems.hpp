@@ -34,6 +34,10 @@ template< class T > T* AddSystemToLevel( GameLevel* lev )
 }
 
 
+//
+// INTERFACES
+//
+
 enum EInteractionType
 {
 	IT_None = 0,
@@ -51,6 +55,14 @@ struct InteractInfo
 	Vec3 placeDir;
 	float timeEstimate;
 	float timeActual;
+};
+
+struct IInteractableEntity
+{
+	enum { e_iface_uid = 1 };
+	
+	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
+	virtual bool CanInterruptAction( float progress ){ return false; }
 };
 
 

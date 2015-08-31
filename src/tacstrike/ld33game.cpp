@@ -8,6 +8,7 @@
 #define USE_ARRAY
 #define USE_HASHTABLE
 #include "level.hpp"
+#include "entities_ld33.hpp"
 
 
 GameLevel* g_GameLevel = NULL;
@@ -1497,7 +1498,6 @@ struct EndMenuScreen : IScreen
 			if( sel == 0 )
 			{
 				resetcontrols();
-				g_GameLevel->EndLevel();
 				Game_RemoveOverlayScreen( this );
 				delete g_GameLevel;
 				g_GameLevel = new GameLevel();
@@ -1832,7 +1832,7 @@ struct OfficeTheftGame : IGame
 		
 		if( g_GameLevel->m_player )
 		{
-			g_GameLevel->m_player->inCursorMove = V2(0);
+			static_cast<LD33Player*>(g_GameLevel->m_player)->inCursorMove = V2(0);
 			if( Game_HasOverlayScreens() == false )
 			{
 				Vec2 cpos = Game_GetCursorPos();
@@ -1840,7 +1840,7 @@ struct OfficeTheftGame : IGame
 				Vec2 opos = V2( GR_GetWidth() / 2, GR_GetHeight() / 2 );
 				Vec2 curmove = cpos - opos;
 				if( m_lastFrameReset )
-					g_GameLevel->m_player->inCursorMove = curmove * V2( g_i_mouse_invert_x ? -1 : 1, g_i_mouse_invert_y ? -1 : 1 ) * g_i_mouse_sensitivity;
+					static_cast<LD33Player*>(g_GameLevel->m_player)->inCursorMove = curmove * V2( g_i_mouse_invert_x ? -1 : 1, g_i_mouse_invert_y ? -1 : 1 ) * g_i_mouse_sensitivity;
 				m_lastFrameReset = true;
 			}
 			else
