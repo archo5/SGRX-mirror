@@ -100,6 +100,23 @@ void LevelMapSystem::Clear()
 	m_mapItemData.clear();
 }
 
+bool LevelMapSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t size )
+{
+	if( type != LC_FILE_MAPL_NAME )
+		return false;
+	
+	LOG_FUNCTION_ARG( "MAPL chunk" );
+	
+	LC_Chunk_Mapl parser = { &m_lines };
+	ByteReader br( ptr, size );
+	br << parser;
+	if( br.error )
+	{
+		LOG_ERROR << "Failed to parse MAPL (LevelMapSystem) data";
+	}
+	return true;
+}
+
 void LevelMapSystem::UpdateItem( Entity* e, const MapItemInfo& data )
 {
 	m_mapItemData[ e ] = data;
@@ -426,6 +443,159 @@ void FlareSystem::PostDraw()
 		br.TurnedBox( screenpos.x * W, screenpos.y * H, dx, dy );
 		br.Flush();
 	}
+}
+
+
+LevelCoreSystem::LevelCoreSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+{
+	lev->m_lightTree = &m_ltSamples;
+}
+
+void LevelCoreSystem::Clear()
+{
+	m_meshInsts.clear();
+	m_levelBodies.clear();
+	m_lights.clear();
+	m_ltSamples.SetSamples( NULL, 0 );
+}
+
+bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data )
+{
+	///////////////////////////
+	if( type == "solidbox" )
+	{
+		Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
+		SGRX_PhyRigidBodyInfo rbinfo;
+		rbinfo.group = 2;
+		rbinfo.shape = m_level->GetPhyWorld()->CreateAABBShape( -scale, scale );
+		rbinfo.mass = 0;
+		rbinfo.inertia = V3(0);
+		rbinfo.position = data.getprop("position").get<Vec3>();
+		rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
+		m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+		return true;
+	}
+	
+	return false;
+}
+
+bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t size )
+{
+	if( type != LC_FILE_GEOM_NAME )
+		return false;
+	
+	Array< LC_MeshInst > meshInstDefs;
+	LC_PhysicsMesh phyMesh;
+	LC_Chunk_Geom geom = { &meshInstDefs, &m_lights, &m_ltSamples, &phyMesh };
+	ByteReader br( ptr, size );
+	br << geom;
+	if( br.error )
+	{
+		LOG_ERROR << "Failed to load GEOM (LevelCoreSystem) chunk";
+		return true;
+	}
+	
+	// LOAD FLARES
+	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
+	if( FS )
+	{
+		for( size_t i = 0; i < m_lights.size(); ++i )
+		{
+			LC_Light& L = m_lights[ i ];
+			if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT )
+				continue;
+			FSFlare FD = { L.pos + L.flareoffset, L.color, L.flaresize, true };
+			FS->UpdateFlare( &m_lights[ i ], FD );
+		}
+	}
+	
+	// create static geometry
+	{
+		LOG_FUNCTION_ARG( "PHY_MESH" );
+		
+		// TODO: temporarily ignore material data
+		Array< uint32_t > fixedidcs;
+		for( size_t i = 0; i < phyMesh.indices.size(); i += 4 )
+		{
+			fixedidcs.append( &phyMesh.indices[ i ], 3 );
+		}
+		
+		SGRX_PhyRigidBodyInfo rbinfo;
+		rbinfo.shape = m_level->GetPhyWorld()->CreateTriMeshShape(
+			phyMesh.positions.data(), phyMesh.positions.size(),
+			fixedidcs.data(), fixedidcs.size(), true );
+		m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+	}
+	
+	// load mesh instances
+	{
+		LOG_FUNCTION_ARG( "MESH_INSTS" );
+		
+		StringView levelname = m_level->GetLevelName();
+		
+		for( size_t i = 0; i < meshInstDefs.size(); ++i )
+		{
+			LC_MeshInst& MID = meshInstDefs[ i ];
+			
+			LOG_FUNCTION_ARG( MID.m_meshname );
+			
+			char subbfr[ 512 ];
+			MeshInstHandle MI = m_level->GetScene()->CreateMeshInstance();
+			StringView src = MID.m_meshname;
+			if( src.ch() == '~' )
+			{
+				sgrx_snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
+				MI->mesh = GR_GetMesh( subbfr );
+			}
+			else
+				MI->mesh = GR_GetMesh( src );
+			
+			if( MID.m_lmap.width && MID.m_lmap.height )
+			{
+				MI->textures[0] = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
+					TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
+				MI->textures[0]->UploadRGBA8Part( MID.m_lmap.data.data(),
+					0, 0, 0, MID.m_lmap.width, MID.m_lmap.height );
+			}
+			else
+			{
+				MI->dynamic = true;
+				for( int i = 10; i < 16; ++i )
+					MI->constants[ i ] = V4(0.15f);
+			}
+			
+			MI->matrix = MID.m_mtx;
+			
+			if( MID.m_flags & LM_MESHINST_DYNLIT )
+			{
+				MI->dynamic = true;
+				m_level->LightMesh( MI );
+			}
+			
+			if( MID.m_flags & LM_MESHINST_DECAL )
+			{
+				MI->decal = true;
+				MI->transparent = true;
+				MI->sortidx = MID.m_decalLayer;
+			}
+			
+			m_meshInsts.push_back( MI );
+			
+			if( MID.m_flags & LM_MESHINST_SOLID )
+			{
+				LOG_FUNCTION_ARG( "MI_BODY" );
+				
+				SGRX_PhyRigidBodyInfo rbinfo;
+				rbinfo.shape = m_level->GetPhyWorld()->CreateShapeFromMesh( MI->mesh );
+				rbinfo.shape->SetScale( MI->matrix.GetScale() );
+				rbinfo.position = MI->matrix.GetTranslation();
+				rbinfo.rotation = MI->matrix.GetRotationQuaternion();
+				m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+			}
+		}
+	}
+	
+	return true;
 }
 
 
@@ -802,9 +972,15 @@ bool AIDBSystem::CanHearSound( Vec3 pos, int i )
 	return ( pos - S.position ).Length() < S.radius;
 }
 
-void AIDBSystem::Load( ByteArray& data )
+bool AIDBSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t size )
 {
-	m_pathfinder.Load( data );
+	if( type != LC_FILE_PFND_NAME )
+		return false;
+	
+	LOG_FUNCTION_ARG( "PFND chunk" );
+	
+	m_pathfinder.Load( ptr, size );
+	return true;
 }
 
 void AIDBSystem::AddSound( Vec3 pos, float rad, float timeout, AISoundType type )

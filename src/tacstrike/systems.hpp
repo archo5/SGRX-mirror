@@ -14,6 +14,9 @@
 #include "../common/scritem.hpp"
 
 
+// SYSTEM ID ALLOCATION (increment to allocate)
+// last id = 10
+
 
 //
 // GLOBAL INTERFACE
@@ -150,6 +153,7 @@ struct LevelMapSystem : IGameLevelSystem
 	
 	LevelMapSystem( GameLevel* lev );
 	void Clear();
+	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	void UpdateItem( Entity* e, const MapItemInfo& data );
 	void RemoveItem( Entity* e );
 	void DrawUI();
@@ -278,6 +282,22 @@ struct FlareSystem : IGameLevelSystem
 };
 
 
+struct LevelCoreSystem : IGameLevelSystem
+{
+	enum { e_system_uid = 10 };
+	
+	LevelCoreSystem( GameLevel* lev );
+	virtual void Clear();
+	virtual bool AddEntity( const StringView& type, sgsVariable data );
+	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
+	
+	Array< MeshInstHandle > m_meshInsts;
+	Array< PhyRigidBodyHandle > m_levelBodies;
+	Array< LC_Light > m_lights;
+	SGRX_LightTree m_ltSamples;
+};
+
+
 enum GameActorType // = SGRX_MeshInstUserData::ownerType
 {
 	GAT_None = 0,
@@ -382,7 +402,7 @@ struct AIDBSystem : IGameLevelSystem
 	AISound GetSoundInfo( int i ){ return m_sounds[ i ]; }
 	
 	AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
-	void Load( ByteArray& data );
+	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	void Tick( float deltaTime );
 	

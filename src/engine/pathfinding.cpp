@@ -85,14 +85,14 @@ SGRX_Pathfinder::~SGRX_Pathfinder()
 	dtFreeNavMeshQuery( m_navQuery );
 }
 
-bool SGRX_Pathfinder::Load( const ByteArray& data )
+bool SGRX_Pathfinder::Load( const uint8_t* ptr, size_t sz )
 {
-	uint8_t* navData = (uint8_t*) dtAlloc( data.size(), DT_ALLOC_PERM );
-	memcpy( navData, data.data(), data.size() );
+	uint8_t* navData = (uint8_t*) dtAlloc( sz, DT_ALLOC_PERM );
+	memcpy( navData, ptr, sz );
 	
 	dtStatus status;
 	
-	status = m_navMesh->init( navData, data.size(), DT_TILE_FREE_DATA );
+	status = m_navMesh->init( navData, sz, DT_TILE_FREE_DATA );
 	if( dtStatusFailed( status ) )
 	{
 		dtFree( navData );

@@ -26,6 +26,7 @@ struct IGameLevelSystem
 	IGameLevelSystem( GameLevel* lev, uint32_t uid ) : m_level( lev ), m_system_uid( uid ){}
 	virtual ~IGameLevelSystem(){}
 	virtual bool AddEntity( const StringView& type, sgsVariable data ){ return false; }
+	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size ){ return false; }
 	virtual void Clear(){}
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
@@ -86,6 +87,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	void AddEntry( const StringView& name, sgsVariable var );
 	
 	// system interface
+	StringView GetLevelName() const { return m_levelName; }
 	void SetPlayer( Entity* E ){ m_player = E; }
 	
 	// entity interface
@@ -121,14 +123,18 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
 	TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
 	
-	// UTILITIES
+	// ENGINE OBJECTS
+	SceneHandle m_scene;
 	ScriptContext m_scriptCtx;
+	PhyWorldHandle m_phyWorld;
+	
+	// UTILITIES
 	uint32_t m_nameIDGen;
 	double m_currentTickTime;
 	double m_currentPhyTime;
+	String m_levelName;
 	
 	// SYSTEMS
-	PhyWorldHandle m_phyWorld;
 	HashTable< StringView, Entity* > m_entNameMap;
 	HashTable< String, Vec3 > m_markerMap;
 	Array< IGameLevelSystem* > m_systems;
@@ -142,16 +148,12 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 //	AIDBSystem m_aidbSystem;
 	
 	// LEVEL DATA
+	sgsVariable m_self;
 	bool m_paused;
 	float m_endFactor;
 	double m_levelTime;
 	Array< Entity* > m_entities;
 	Entity* m_player;
-	Array< MeshInstHandle > m_meshInsts;
-	Array< PhyRigidBodyHandle > m_levelBodies;
-	LCLightArray m_lights;
-	SGRX_LightTree m_ltSamples;
-	SceneHandle m_scene;
 	Vec3 m_playerSpawnInfo[2]; // position, direction
 	Vec3 m_levelCameraInfo[2]; // position, direction
 	sgsVariable m_cutsceneFunc;

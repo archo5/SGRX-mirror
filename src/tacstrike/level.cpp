@@ -334,10 +334,15 @@ GameLevel::GameLevel() :
 {
 	LOG_FUNCTION;
 	
+	// create the scripted self
+	{
+		SGS_CSCOPE( GetSGSC() );
+		sgs_PushClass( GetSGSC(), this );
+		m_self = sgsVariable( GetSGSC(), -1 );
+	}
+	
 	Game_RegisterAction( &SKIP_CUTSCENE );
 	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &SKIP_CUTSCENE );
-	
-	m_lightTree = &m_ltSamples;
 	
 	m_playerSpawnInfo[0] = V3(0);
 	m_levelCameraInfo[0] = V3(0);
@@ -364,6 +369,8 @@ GameLevel::~GameLevel()
 {
 	ClearLevel();
 //	m_damageSystem.Free();
+	sgs_SetObjectDataP( &m_self.var, NULL );
+	sgs_SetObjectIfaceP( &m_self.var, NULL );
 }
 
 
@@ -458,164 +465,45 @@ bool GameLevel::Load( const StringView& levelname )
 		m_scriptCtx.Include( bfr );
 	}
 	
+	m_levelName = levelname;
+	
 	ByteReader br( &ba );
+	LC_Level levelData;
+	br << levelData;
 	
-	Array< LC_ScriptedEntity > screntdefs;
-	Array< LC_MeshInst > mesh_inst_defs;
-	
-	br.marker( "COMPILED" );
-	SerializeVersionHelper<ByteReader> svh( br, LC_FILE_VERSION );
-	
-	// load basic data
+	for( size_t cid = 0; cid < levelData.chunks.size(); ++cid )
 	{
-		LOG_FUNCTION_ARG( "UNSER_CORE" );
+		const LC_Chunk& C = levelData.chunks[ cid ];
+		StringView type( C.sys_id, 4 );
 		
-		svh.marker( "SCRENTS" );
-		svh << screntdefs;
+		LOG_FUNCTION_ARG( type );
 		
-		svh.marker( "INST" );
-		svh << mesh_inst_defs;
-		
-		svh.marker( "LINES" );
-		svh << m_lines;
-		
-		svh.marker( "LIGHTS" );
-		svh << m_lights;
-	}
-	
-	// LOAD FLARES
-	for( size_t i = 0; i < m_lights.size(); ++i )
-	{
-		LC_Light& L = m_lights[ i ];
-		if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT )
-			continue;
-		FSFlare FD = { L.pos + L.flareoffset, L.color, L.flaresize, true };
-		m_flareSystem.UpdateFlare( &m_lights[ i ], FD );
-	}
-	
-	// LOAD LIGHT SAMPLES
-	{
-		LOG_FUNCTION_ARG( "SAMPLES" );
-		
-		svh.marker( "SAMPLES" );
-		svh << m_ltSamples;
-	}
-	
-	// create static geometry
-	{
-		LOG_FUNCTION_ARG( "PHY_MESH" );
-		
-		svh.marker( "PHYMESH" );
-		SGRX_PhyRigidBodyInfo rbinfo;
-		LC_PhysicsMesh phy_mesh;
-		svh << phy_mesh;
-		
-		// TODO: temporarily ignore material data
-		Array< uint32_t > fixedidcs;
-		for( size_t i = 0; i < phy_mesh.indices.size(); i += 4 )
+		for( size_t i = 0; i < m_systems.size(); ++i )
 		{
-			fixedidcs.append( &phy_mesh.indices[ i ], 3 );
+			m_systems[ i ]->LoadChunk( type, C.ptr, C.size );
 		}
-		rbinfo.shape = m_phyWorld->CreateTriMeshShape(
-			phy_mesh.positions.data(), phy_mesh.positions.size(),
-			fixedidcs.data(), fixedidcs.size(), true );
-		m_levelBodies.push_back( m_phyWorld->CreateRigidBody( rbinfo ) );
-	}
-	
-	// initialize AI DB
-	{
-		LOG_FUNCTION_ARG( "AI_DB" );
 		
-		ByteArray navmesh;
-		
-		svh.marker( "NAVMESH" );
-		svh << navmesh;
-		
-		m_aidbSystem.Load( navmesh );
-	}
-	
-	// load mesh instances
-	{
-		LOG_FUNCTION_ARG( "MESH_INSTS" );
-		
-		for( size_t i = 0; i < mesh_inst_defs.size(); ++i )
+		if( type == LC_FILE_ENTS_NAME )
 		{
-			LC_MeshInst& MID = mesh_inst_defs[ i ];
+			LOG_FUNCTION_ARG( "ENTITIES" );
 			
-			LOG_FUNCTION_ARG( MID.m_meshname );
+			LC_Chunk_Ents ents;
+			ByteReader ebr( C.ptr, C.size );
+			ebr << ents;
 			
-			char subbfr[ 512 ];
-			MeshInstHandle MI = m_scene->CreateMeshInstance();
-			StringView src = MID.m_meshname;
-			if( src.ch() == '~' )
+			Array< LC_ScriptedEntity >& SEA = ents.entities; // scripted entity array
+			for( size_t i = 0; i < SEA.size(); ++i )
 			{
-				sgrx_snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
-				MI->mesh = GR_GetMesh( subbfr );
-			}
-			else
-				MI->mesh = GR_GetMesh( src );
-			
-			if( MID.m_lmap.width && MID.m_lmap.height )
-			{
-				MI->textures[0] = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
-					TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
-				MI->textures[0]->UploadRGBA8Part( MID.m_lmap.data.data(),
-					0, 0, 0, MID.m_lmap.width, MID.m_lmap.height );
-			}
-			else
-			{
-				MI->dynamic = true;
-				for( int i = 10; i < 16; ++i )
-					MI->constants[ i ] = V4(0.15f);
-			}
-			
-			MI->matrix = MID.m_mtx;
-			
-			if( MID.m_flags & LM_MESHINST_DYNLIT )
-			{
-				MI->dynamic = true;
-				LightMesh( MI );
-			}
-			
-			if( MID.m_flags & LM_MESHINST_DECAL )
-			{
-				MI->decal = true;
-				MI->transparent = true;
-				MI->sortidx = MID.m_decalLayer;
-			}
-			
-			m_meshInsts.push_back( MI );
-			
-			if( MID.m_flags & LM_MESHINST_SOLID )
-			{
-				LOG_FUNCTION_ARG( "MI_BODY" );
-				
-				SGRX_PhyRigidBodyInfo rbinfo;
-				rbinfo.shape = m_phyWorld->CreateShapeFromMesh( MI->mesh );
-				rbinfo.shape->SetScale( MI->matrix.GetScale() );
-				rbinfo.position = MI->matrix.GetTranslation();
-				rbinfo.rotation = MI->matrix.GetRotationQuaternion();
-				m_levelBodies.push_back( m_phyWorld->CreateRigidBody( rbinfo ) );
+				sgsVariable data = m_scriptCtx.Unserialize( SEA[ i ].serialized_params );
+				if( data.not_null() == false )
+				{
+					LOG << "BAD PARAMS FOR ENTITY " << SEA[ i ].type;
+					continue;
+				}
+				CreateEntity( SEA[ i ].type, data );
 			}
 		}
 	}
-	
-	// create entities
-	{
-		LOG_FUNCTION_ARG( "ENTITIES" );
-		
-		for( size_t i = 0; i < screntdefs.size(); ++i )
-		{
-			sgsVariable data = m_scriptCtx.Unserialize( screntdefs[ i ].serialized_params );
-			if( data.not_null() == false )
-			{
-				LOG << "BAD PARAMS FOR ENTITY " << screntdefs[ i ].type;
-				continue;
-			}
-			CreateEntity( screntdefs[ i ].type, data );
-		}
-	}
-	
 	
 	return true;
 }
@@ -633,21 +521,6 @@ void GameLevel::CreateEntity( const StringView& type, sgsVariable data )
 	{
 		m_playerSpawnInfo[0] = data.getprop("position").get<Vec3>();
 		m_playerSpawnInfo[1] = data.getprop("viewdir").get<Vec3>().Normalized();
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "solidbox" )
-	{
-		Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
-		SGRX_PhyRigidBodyInfo rbinfo;
-		rbinfo.group = 2;
-		rbinfo.shape = m_phyWorld->CreateAABBShape( -scale, scale );
-		rbinfo.mass = 0;
-		rbinfo.inertia = V3(0);
-		rbinfo.position = data.getprop("position").get<Vec3>();
-		rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
-		m_levelBodies.push_back( m_phyWorld->CreateRigidBody( rbinfo ) );
 		return;
 	}
 	
@@ -760,21 +633,8 @@ void GameLevel::ClearLevel()
 	m_endFactor = -1;
 	m_cameraInfoCached = false;
 	
-	m_ltSamples.SetSamples( NULL, 0 );
-	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Clear();
-//	m_infoEmitters.Clear();
-//	m_messageSystem.Clear();
-//	m_objectiveSystem.Clear();
-//	m_damageSystem.Clear();
-//	m_bulletSystem.Clear();
-//	m_flareSystem.Clear();
-//	m_coverSystem.Clear();
-	
-	m_lights.clear();
-	m_meshInsts.clear();
-	m_levelBodies.clear();
 }
 
 void GameLevel::ProcessEvents()
@@ -996,13 +856,6 @@ void GameLevel::CallEntityByName( StringView name, StringView action )
 
 void GameLevel::LightMesh( MeshInstHandle mih, Vec3 off )
 {
-	SGRX_LightTree::Colors COL;
-	m_ltSamples.GetColors( mih->matrix.TransformPos( off ), &COL );
-	mih->constants[10] = V4( COL.color[0] * 0.5f, 1 );
-	mih->constants[11] = V4( COL.color[1] * 0.5f, 1 );
-	mih->constants[12] = V4( COL.color[2] * 0.5f, 1 );
-	mih->constants[13] = V4( COL.color[3] * 0.5f, 1 );
-	mih->constants[14] = V4( COL.color[4] * 0.5f, 1 );
-	mih->constants[15] = V4( COL.color[5] * 0.5f, 1 );
+	SGRX_LightSampler::LightMesh( mih, off );
 }
 

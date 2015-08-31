@@ -2257,10 +2257,13 @@ template< class T > struct SerializeVersionHelper
 		return *this;
 	}
 	
+	FINLINE void* at() const { return arch->at(); }
+	
 	FINLINE SerializeVersionHelper& memory( void* ptr, size_t sz ){ arch->memory( ptr, sz ); return *this; }
 	FINLINE SerializeVersionHelper& charbuf( char* ptr, size_t sz ){ arch->charbuf( ptr, sz ); return *this; }
 	FINLINE SerializeVersionHelper& marker( const char* str ){ return marker( str, StringLength( str ) ); }
 	FINLINE SerializeVersionHelper& marker( const char* ptr, size_t sz ){ arch->marker( ptr, sz ); return *this; }
+	FINLINE SerializeVersionHelper& padding( size_t sz ){ arch->padding( sz ); return *this; }
 	
 	FINLINE SerializeVersionHelper& operator () ( bool& v, bool a = true, bool d = 0 ){ _serialize( v, a, d ); return *this; }
 	FINLINE SerializeVersionHelper& operator () ( char& v, bool a = true, char d = 0 ){ _serialize( v, a, d ); return *this; }
@@ -2303,7 +2306,8 @@ template< class T > struct SerializeVersionHelper
 
 struct ByteReader
 {
-	ByteReader( ByteArray* ba, size_t p = 0 ) : input( ba ), pos( p ), error( false ){}
+	ByteReader( uint8_t* ptr, size_t sz, size_t p = 0 ) : input_ptr( ptr ), input_size( sz ), pos( p ), error( false ){}
+	ByteReader( ByteArray* ba, size_t p = 0 ) : input_ptr( ba->data() ), input_size( ba->size() ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 0, IsBinary = 1 };
 	FINLINE ByteReader& operator << ( bool& v ){ uint8_t u; _read( &u, sizeof(u) ); v = !!u; return *this; }
 	FINLINE ByteReader& operator << ( char& v ){ _read( &v, sizeof(v) ); return *this; }
@@ -2323,9 +2327,9 @@ struct ByteReader
 	FINLINE ByteReader& marker( const char* str ){ return marker( str, StringLength( str ) ); }
 	FINLINE ByteReader& marker( const char* ptr, size_t sz )
 	{
-		if( pos >= input->size() || pos + sz > input->size() )
+		if( pos >= input_size || pos + sz > input_size )
 			error = true;
-		else if( 0 != memcmp( ptr, &input->at( pos ), sz ) )
+		else if( 0 != memcmp( ptr, &input_ptr[ pos ], sz ) )
 			error = true;
 		else
 			pos += sz;
@@ -2333,7 +2337,7 @@ struct ByteReader
 	}
 	FINLINE ByteReader& padding( size_t sz )
 	{
-		if( pos >= input->size() || pos + sz > input->size() )
+		if( pos >= input_size || pos + sz > input_size )
 			error = true;
 		else
 			pos += sz;
@@ -2341,18 +2345,19 @@ struct ByteReader
 	}
 	FINLINE ByteReader& _read( void* ptr, size_t sz )
 	{
-		if( pos >= input->size() || pos + sz > input->size() )
+		if( pos >= input_size || pos + sz > input_size )
 			error = true;
 		else
 		{
-			memcpy( ptr, &input->at( pos ), sz );
+			memcpy( ptr, &input_ptr[ pos ], sz );
 			pos += sz;
 		}
 		return *this;
 	}
-	FINLINE void* at() const { return &input->at( pos ); }
+	FINLINE void* at() const { return &input_ptr[ pos ]; }
 	
-	ByteArray* input;
+	uint8_t* input_ptr;
+	size_t input_size;
 	size_t pos;
 	bool error;
 };
@@ -2380,6 +2385,7 @@ struct ByteWriter
 	FINLINE ByteWriter& marker( const void* ptr, size_t sz ){ output->append( (uint8_t*) ptr, sz ); return *this; }
 	FINLINE ByteWriter& padding( size_t sz ){ output->reserve( output->size() + sz ); while( sz --> 0 ) output->push_back( 0 ); return *this; }
 	FINLINE ByteWriter& _write( const void* ptr, size_t sz ){ output->append( (uint8_t*) ptr, sz ); return *this; }
+	FINLINE void* at() const { return NULL; }
 	
 	ByteArray* output;
 };

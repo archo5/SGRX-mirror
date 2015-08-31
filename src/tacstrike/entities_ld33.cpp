@@ -189,7 +189,7 @@ void LD33Player::Tick( float deltaTime, float blendFactor )
 	
 	g_SoundSys->Set3DAttribs( s3dattr );
 	
-	m_targetII = m_level->m_infoEmitters.QueryOneRay( pos, pos + dir, IEST_InteractiveItem );
+	m_targetII = m_level->GetSystem<InfoEmissionSystem>()->QueryOneRay( pos, pos + dir, IEST_InteractiveItem );
 	if( m_targetII && INTERACT.value && !m_targetTriggered )
 	{
 		m_targetTriggered = true;

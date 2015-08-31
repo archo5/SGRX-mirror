@@ -8,6 +8,41 @@
 #define LC_FILE_VERSION 0
 
 
+struct LC_Chunk
+{
+	char sys_id[ 4 ];
+	uint32_t size;
+	uint8_t* ptr;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.charbuf( sys_id, 4 );
+		arch << size;
+		if( T::IsReader )
+		{
+			ptr = (uint8_t*) arch.at();
+			arch.padding( size );
+		}
+		else
+		{
+			arch.memory( ptr, size );
+		}
+	}
+};
+
+struct LC_Level
+{
+	Array< LC_Chunk > chunks;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.marker( "SGRXCLEV" );
+		SerializeVersionHelper<T> svh( arch, LC_FILE_VERSION );
+		svh << chunks;
+	}
+};
+
+
 struct LC_Lightmap
 {
 	uint16_t width;
@@ -80,30 +115,13 @@ struct LC_Light
 		arch << color;
 		arch << num_shadow_samples;
 		arch << flaresize;
-		arch( flareoffset, true, V3(0) );
+		arch << flareoffset;
 		arch << innerangle;
 		arch << outerangle;
 		arch << spotcurve;
 	}
 };
 typedef Array< LC_Light > LCLightArray;
-
-struct LC_ScriptedEntity
-{
-	String type;
-	String serialized_params;
-	Array< LC_ScriptedEntity > subentities;
-	
-	template< class T > void Serialize( T& arch )
-	{
-		arch << type;
-		arch << serialized_params;
-		arch( subentities, true );
-	}
-};
-
-// LINE = Vec2 x2
-// SAMPLES = SGRX_LightTree
 
 struct LC_PhysicsMesh
 {
@@ -118,5 +136,69 @@ struct LC_PhysicsMesh
 		arch << indices;
 	}
 };
+
+// Level geometry system
+#define LC_FILE_GEOM_NAME "GEOM"
+#define LC_FILE_GEOM_VERSION 0
+struct LC_Chunk_Geom
+{
+	Array< LC_MeshInst >* meshinsts;
+	Array< LC_Light >* lights;
+	SGRX_LightTree* lightTree;
+	LC_PhysicsMesh* physics;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_GEOM_VERSION );
+		svh << *meshinsts;
+		svh << *lights;
+		svh << *lightTree;
+		svh << *physics;
+	}
+};
+
+// Level entity definitions
+#define LC_FILE_ENTS_NAME "ENTS"
+#define LC_FILE_ENTS_VERSION 0
+struct LC_ScriptedEntity
+{
+	String type;
+	String serialized_params;
+	Array< LC_ScriptedEntity > subentities;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << type;
+		arch << serialized_params;
+		arch << subentities;
+	}
+};
+struct LC_Chunk_Ents
+{
+	Array< LC_ScriptedEntity > entities;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_ENTS_VERSION );
+		svh << entities;
+	}
+};
+
+// Level map system
+#define LC_FILE_MAPL_NAME "MAPL"
+#define LC_FILE_MAPL_VERSION 0
+struct LC_Chunk_Mapl
+{
+	Array< Vec2 >* lines;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_MAPL_VERSION );
+		svh << *lines;
+	}
+};
+
+// Pathfinding data (just a byte buffer)
+#define LC_FILE_PFND_NAME "PFND"
 
 

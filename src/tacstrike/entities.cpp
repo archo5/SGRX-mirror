@@ -243,7 +243,8 @@ void PickupItem::OnEvent( const StringView& type )
 {
 	if( ( type == "trigger_switch" || type == "action_end" ) && m_level->m_player )
 	{
-		m_level->m_player->AddItem( m_name, m_count );
+		// TODO
+	//	m_level->m_player->AddItem( m_name, m_count );
 		m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 		m_meshInst->enabled = false;
 		

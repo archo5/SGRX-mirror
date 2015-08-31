@@ -180,7 +180,7 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 		color = V3(1,1,0);
 	FSFlare FD = { mtx.TransformPos( V3(0) ), color, 1, true };
 	
-	m_level->m_flareSystem.UpdateFlare( this, FD );
+	m_level->GetSystem<FlareSystem>()->UpdateFlare( this, FD );
 }
 
 void TSCamera::SetProperty( const StringView& name, sgsVariable value )
@@ -1140,7 +1140,7 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		if( vpdot < cosf(DEG2RAD(40.0f)) )
 			return true; // outside view cone
 		
-		if( m_level->GetPhyWorld()->Raycast( vieworigin, enemypos, 1, 1 ) )
+		if( ent->m_level->GetPhyWorld()->Raycast( vieworigin, enemypos, 1, 1 ) )
 			return true; // behind wall
 		
 		// TODO friendlies
