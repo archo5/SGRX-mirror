@@ -224,6 +224,32 @@ MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_sy
 	m_tx_icon_info = GR_GetTexture( "ui/icon_info.png" );
 	m_tx_icon_warning = GR_GetTexture( "ui/icon_warning.png" );
 	m_tx_icon_cont = GR_GetTexture( "ui/icon_cont.png" );
+	
+	// create the scripted self
+	{
+		SGS_CSCOPE( m_level->GetSGSC() );
+		sgs_PushClass( m_level->GetSGSC(), this );
+		m_level->AddEntry( "messages", sgsVariable( m_level->GetSGSC(), -1 ) );
+		C = m_level->GetSGSC();
+		m_sgsObject = sgs_GetObjectStruct( C, -1 );
+		sgs_ObjAcquire( C, m_sgsObject );
+		
+		sgs_RegIntConst ric[] =
+		{
+			{ "MT_Continued", MSMessage::Continued },
+			{ "MT_Info", MSMessage::Info },
+			{ "MT_Warning", MSMessage::Warning },
+			{ NULL, 0 },
+		};
+		sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
+	}
+}
+
+MessagingSystem::~MessagingSystem()
+{
+	m_sgsObject->data = NULL;
+	m_sgsObject->iface = NULL;
+	sgs_ObjRelease( C, m_sgsObject );
 }
 
 void MessagingSystem::Clear()
@@ -290,6 +316,11 @@ void MessagingSystem::DrawUI()
 	}
 }
 
+void MessagingSystem::sgsAddMsg( int type, StringView text, float time )
+{
+	AddMessage( (MSMessage::Type) type, text, sgs_StackSize( C ) >= 3 ? time : 3.0f );
+}
+
 
 ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ),
@@ -299,6 +330,34 @@ ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
 	m_tx_icon_open = GR_GetTexture( "ui/obj_open.png" );
 	m_tx_icon_done = GR_GetTexture( "ui/obj_done.png" );
 	m_tx_icon_failed = GR_GetTexture( "ui/obj_failed.png" );
+	
+	// create the scripted self
+	{
+		SGS_CSCOPE( m_level->GetSGSC() );
+		sgs_PushClass( m_level->GetSGSC(), this );
+		m_level->AddEntry( "objectives", sgsVariable( m_level->GetSGSC(), -1 ) );
+		C = m_level->GetSGSC();
+		m_sgsObject = sgs_GetObjectStruct( C, -1 );
+		sgs_ObjAcquire( C, m_sgsObject );
+		
+		sgs_RegIntConst ric[] =
+		{
+			{ "OS_Hidden", OSObjective::Hidden },
+			{ "OS_Open", OSObjective::Open },
+			{ "OS_Done", OSObjective::Done },
+			{ "OS_Failed", OSObjective::Failed },
+			{ "OS_Cancelled", OSObjective::Cancelled },
+			{ NULL, 0 },
+		};
+		sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
+	}
+}
+
+ObjectiveSystem::~ObjectiveSystem()
+{
+	m_sgsObject->data = NULL;
+	m_sgsObject->iface = NULL;
+	sgs_ObjRelease( C, m_sgsObject );
 }
 
 void ObjectiveSystem::Clear()
@@ -389,6 +448,49 @@ void ObjectiveSystem::DrawUI()
 		}
 		y += 30;
 	}
+}
+
+bool ObjectiveSystem::_CheckRange( int i )
+{
+	if( i < 0 || i >= int(m_objectives.size()) )
+	{
+		sgs_Msg( C, SGS_WARNING, "objective ID out of bounds (requested id=%d, got %d)", i, int(m_objectives.size()) );
+		return true;
+	}
+	return false;
+}
+
+int ObjectiveSystem::sgsAddObj( StringView title, int state, StringView desc, bool req, Vec3 loc )
+{
+	return AddObjective( title, (OSObjective::State) state, desc, req, sgs_StackSize( C ) >= 5 ? &loc : NULL );
+}
+
+StringView ObjectiveSystem::sgsGetTitle( int i )
+{
+	if( _CheckRange( i ) )
+		return "";
+	return m_objectives[ i ].title;
+}
+
+void ObjectiveSystem::sgsSetTitle( int i, StringView title )
+{
+	if( _CheckRange( i ) )
+		return;
+	m_objectives[ i ].title = title;
+}
+
+int ObjectiveSystem::sgsGetState( int i )
+{
+	if( _CheckRange( i ) )
+		return 0;
+	return m_objectives[ i ].state;
+}
+
+void ObjectiveSystem::sgsSetState( int i, int state )
+{
+	if( _CheckRange( i ) )
+		return;
+	m_objectives[ i ].state = (OSObjective::State) state;
 }
 
 
@@ -726,7 +828,10 @@ void DamageSystem::Tick( float deltaTime, float blendFactor )
 	for( size_t i = 0; i < m_bulletDecalMaterials.size(); ++i )
 	{
 		Material* mtl = m_bulletDecalMaterials[ i ];
-		mtl->particles.Tick( deltaTime );
+		if( m_level->IsPaused() == false )
+		{
+			mtl->particles.Tick( deltaTime );
+		}
 		mtl->particles.PreRender();
 	}
 }

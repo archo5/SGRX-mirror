@@ -16,12 +16,6 @@ Entity::~Entity()
 
 
 #if 0
-static int EndLevel( SGS_CTX )
-{
-	SGSFN( "EndLevel" );
-	g_GameLevel->m_endFactor = 0;
-	return 0;
-}
 static int PlayerGetPosition( SGS_CTX )
 {
 	SGSFN( "PlayerGetPosition" );
@@ -161,65 +155,6 @@ static int IES_RemoveEmitter( SGS_CTX )
 	return 0;
 }
 
-static int SendMessage( SGS_CTX )
-{
-	SGSFN( "SendMessage" );
-	int ssz = sgs_StackSize( C );
-	g_GameLevel->m_messageSystem.AddMessage( (MSMessage::Type) sgs_GetVar<int>()( C, 0 ), sgs_GetVar<StringView>()( C, 1 ), ssz < 3 ? 3.0f : sgs_GetVar<float>()( C, 2 ) );
-	return 0;
-}
-
-static int ObjectiveAdd( SGS_CTX )
-{
-	SGSFN( "ObjectiveAdd" );
-	Vec3 loc = sgs_GetVar<Vec3>()( C, 4 );
-	sgs_PushVar<int>( C, g_GameLevel->m_objectiveSystem.AddObjective(
-		sgs_GetVar<StringView>()( C, 0 ),
-		(OSObjective::State) sgs_GetVar<int>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		sgs_GetVar<bool>()( C, 3 ),
-		sgs_ItemType( C, 4 ) == SGS_VT_NULL ? NULL : &loc
-	) );
-	return 1;
-}
-static int ObjectiveGetTitle( SGS_CTX )
-{
-	SGSFN( "ObjectiveGetTitle" );
-	int which = sgs_GetVar<int>()( C, 0 );
-	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
-		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
-	sgs_PushVar( C, g_GameLevel->m_objectiveSystem.m_objectives[ which ].title );
-	return 1;
-}
-static int ObjectiveSetTitle( SGS_CTX )
-{
-	SGSFN( "ObjectiveSetTitle" );
-	int which = sgs_GetVar<int>()( C, 0 );
-	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
-		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
-	g_GameLevel->m_objectiveSystem.m_objectives[ which ].title = sgs_GetVar<StringView>()( C, 1 );
-	return 0;
-}
-static int ObjectiveGetState( SGS_CTX )
-{
-	SGSFN( "ObjectiveGetState" );
-	int which = sgs_GetVar<int>()( C, 0 );
-	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
-		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
-	sgs_PushVar<int>( C, g_GameLevel->m_objectiveSystem.m_objectives[ which ].state );
-	return 1;
-}
-static int ObjectiveSetState( SGS_CTX )
-{
-	SGSFN( "ObjectiveSetState" );
-	int which = sgs_GetVar<int>()( C, 0 );
-	if( which < 0 || which >= (int) g_GameLevel->m_objectiveSystem.m_objectives.size() )
-		return sgs_Msg( C, SGS_WARNING, "index out of bounds: %d", which );
-	int state = sgs_GetVar<int>()( C, 1 );
-	g_GameLevel->m_objectiveSystem.m_objectives[ which ].state = (OSObjective::State) state;
-	return 0;
-}
-
 static int FS_UpdateFlare( SGS_CTX )
 {
 	SGSFN( "FS_UpdateFlare" );
@@ -250,8 +185,6 @@ static int FS_RemoveFlare( SGS_CTX )
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
 #if 0
-	{ "EndLevel", EndLevel },
-	{ "SetLevel", SetLevel },
 	{ "CallEntity", CallEntity },
 	{ "PlayerGetPosition", PlayerGetPosition },
 	{ "PlayerHasItem", PlayerHasItem },
@@ -266,14 +199,6 @@ static sgs_RegFuncConst g_gameapi_rfc[] =
 	// Info emission system
 	{ "IES_UpdateEmitter", IES_UpdateEmitter },
 	{ "IES_RemoveEmitter", IES_RemoveEmitter },
-	// Messaging system
-	{ "SendMessage", SendMessage },
-	// Objective system
-	{ "ObjectiveAdd", ObjectiveAdd },
-	{ "ObjectiveGetTitle", ObjectiveGetTitle },
-	{ "ObjectiveSetTitle", ObjectiveSetTitle },
-	{ "ObjectiveGetState", ObjectiveGetState },
-	{ "ObjectiveSetState", ObjectiveSetState },
 	// Flare system
 	{ "FS_UpdateFlare", FS_UpdateFlare },
 	{ "FS_RemoveFlare", FS_RemoveFlare },
@@ -289,16 +214,6 @@ static sgs_RegIntConst g_gameapi_ric[] =
 	{ "IEST_Player", IEST_Player },
 	{ "IEST_MapItem", IEST_MapItem },
 	{ "IEST_AIAlert", IEST_AIAlert },
-	// Messaging system
-	{ "MT_Continued", MSMessage::Continued },
-	{ "MT_Info", MSMessage::Info },
-	{ "MT_Warning", MSMessage::Warning },
-	// Objective system
-	{ "OS_Hidden", OSObjective::Hidden },
-	{ "OS_Open", OSObjective::Open },
-	{ "OS_Done", OSObjective::Done },
-	{ "OS_Failed", OSObjective::Failed },
-	{ "OS_Cancelled", OSObjective::Cancelled },
 #endif
 	{ NULL, 0 },
 };
@@ -321,7 +236,6 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_currentPhyTime( 0 ),
 //	m_bulletSystem( &m_damageSystem ),
 	m_paused( false ),
-	m_endFactor( -1 ),
 	m_levelTime( 0 ),
 	m_player( NULL )
 {
@@ -332,6 +246,9 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		SGS_CSCOPE( GetSGSC() );
 		sgs_PushClass( GetSGSC(), this );
 		m_self = sgsVariable( GetSGSC(), -1 );
+		C = GetSGSC();
+		m_sgsObject = sgs_GetObjectStruct( C, -1 );
+		sgs_ObjAcquire( C, m_sgsObject );
 	}
 	
 	Game_RegisterAction( &SKIP_CUTSCENE );
@@ -359,8 +276,9 @@ GameLevel::~GameLevel()
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->OnLevelDestroy();
 	
-	sgs_SetObjectDataP( &m_self.var, NULL );
-	sgs_SetObjectIfaceP( &m_self.var, NULL );
+	m_sgsObject->data = NULL;
+	m_sgsObject->iface = NULL;
+	sgs_ObjRelease( C, m_sgsObject );
 }
 
 
@@ -565,7 +483,6 @@ void GameLevel::StartLevel()
 {
 	m_currentTickTime = 0;
 	m_currentPhyTime = 0;
-	m_endFactor = -1;
 	m_cutsceneFunc = sgsVariable();
 	m_cutsceneSubtitle = "";
 	if( m_music )
@@ -599,7 +516,6 @@ void GameLevel::ClearLevel()
 	if( m_music )
 		m_music->Stop( true );
 	m_music = NULL;
-	m_endFactor = -1;
 	m_cameraInfoCached = false;
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
@@ -633,11 +549,6 @@ void GameLevel::FixedTick( float deltaTime )
 
 void GameLevel::Tick( float deltaTime, float blendFactor )
 {
-	if( m_endFactor >= 0 )
-	{
-		m_endFactor = clamp( m_endFactor + deltaTime / 3, 0, 1 );
-	}
-	
 	m_levelTime += deltaTime;
 	
 	if( !m_player )
@@ -682,24 +593,6 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 			m_cutsceneTime += deltaTime * 20;
 		else
 			m_cutsceneTime += deltaTime;
-	}
-	
-	if( m_endFactor > 0 )
-	{
-		if( !m_cameraInfoCached )
-		{
-			m_cachedCameraInfo[0] = m_scene->camera.position;
-			m_cachedCameraInfo[1] = m_scene->camera.direction;
-			m_cameraInfoCached = true;
-		}
-		Vec3 p0 = m_cachedCameraInfo[0];
-		Vec3 p1 = m_levelCameraInfo[0];
-		Vec3 d0 = m_cachedCameraInfo[1];
-		Vec3 d1 = m_levelCameraInfo[1];
-		float q = smoothstep( m_endFactor );
-		m_scene->camera.position = TLERP( p0, p1, q );
-		m_scene->camera.direction = TLERP( d0, d1, q ).Normalized();
-		m_scene->camera.UpdateMatrices();
 	}
 }
 

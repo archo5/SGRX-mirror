@@ -196,15 +196,20 @@ struct MSMessage
 
 struct MessagingSystem : IGameLevelSystem
 {
+	SGS_OBJECT;
+	
 	enum { e_system_uid = 2 };
 	
 	Array< MSMessage > m_messages;
 	
 	MessagingSystem( GameLevel* lev );
+	~MessagingSystem();
 	void Clear();
 	void AddMessage( MSMessage::Type type, const StringView& sv, float tmlength = 3 );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
+	
+	SGS_METHOD_NAMED( Add ) void sgsAddMsg( int type, StringView text, float time );
 	
 	TextureHandle m_tx_icon_info;
 	TextureHandle m_tx_icon_warning;
@@ -243,9 +248,12 @@ struct OSObjStats
 
 struct ObjectiveSystem : IGameLevelSystem
 {
+	SGS_OBJECT;
+	
 	enum { e_system_uid = 3 };
 	
 	ObjectiveSystem( GameLevel* lev );
+	~ObjectiveSystem();
 	void Clear();
 	int AddObjective(
 		const StringView& title,
@@ -256,6 +264,13 @@ struct ObjectiveSystem : IGameLevelSystem
 	OSObjStats GetStats();
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
+	
+	bool _CheckRange( int i );
+	SGS_METHOD_NAMED( Add ) int sgsAddObj( StringView title, int state, StringView desc, bool req, Vec3 loc );
+	SGS_METHOD_NAMED( GetTitle ) StringView sgsGetTitle( int i );
+	SGS_METHOD_NAMED( SetTitle ) void sgsSetTitle( int i, StringView title );
+	SGS_METHOD_NAMED( GetState ) int sgsGetState( int i );
+	SGS_METHOD_NAMED( SetState ) void sgsSetState( int i, int state );
 	
 	Command SHOW_OBJECTIVES;
 	

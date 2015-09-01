@@ -1517,12 +1517,12 @@ struct EndMenuScreen : IScreen
 		GR2D_SetScissorRect( 0, TLERP( menu.y0, menu.y1, 0.4f ), GR_GetWidth(), TLERP( menu.y0, menu.y1, 0.5f ) );
 		
 		br.Reset();
-		br.Col( 0, 0.5f * smoothstep( g_GameLevel->m_endFactor ) );
+		br.Col( 0, 0.5f * smoothstep( 1/*TODO*/ ) );
 		br.Quad( 0, TLERP( menu.y0, menu.y1, 0.4f ), GR_GetWidth(), TLERP( menu.y0, menu.y1, 0.5f ) );
 		br.Reset();
 		br.Col( 0.2f, 0.8f, 0.1f, 1 );
 		GR2D_SetFont( "fonts/lato-regular.ttf", (menu.y1 - menu.y0) / 30 );
-		GR2D_DrawTextLine( TLERP( menu.x0, menu.x1, 0.5f ), TLERP( menu.y0, menu.y1, 0.55f - smoothstep( g_GameLevel->m_endFactor ) * 0.1f ), "FLAG REACHED", HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_DrawTextLine( TLERP( menu.x0, menu.x1, 0.5f ), TLERP( menu.y0, menu.y1, 0.55f - smoothstep( 1/*TODO*/ ) * 0.1f ), "FLAG REACHED", HALIGN_CENTER, VALIGN_CENTER );
 		
 		br.Flush();
 		GR2D_UnsetScissorRect();
@@ -1705,7 +1705,7 @@ struct FlagGame : IGame
 	void Game_Tick( float dt, float bf )
 	{
 		g_GameLevel->Tick( dt, bf );
-		if( g_GameLevel->m_endFactor >= 0 && !Game_HasOverlayScreens() )
+		if( 1/*TODO*/ >= 0 && !Game_HasOverlayScreens() )
 		{
 			Game_AddOverlayScreen( &g_EndMenu );
 			Game_ShowCursor( true );

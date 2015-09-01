@@ -92,6 +92,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	// system interface
 	StringView GetLevelName() const { return m_levelName; }
 	void SetPlayer( Entity* E ){ m_player = E; }
+	bool IsPaused() const { return m_paused; }
 	
 	// entity interface
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
@@ -141,19 +142,10 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	HashTable< StringView, Entity* > m_entNameMap;
 	HashTable< String, Vec3 > m_markerMap;
 	Array< IGameLevelSystem* > m_systems;
-//	InfoEmissionSystem m_infoEmitters;
-//	DamageSystem m_damageSystem;
-//	BulletSystem m_bulletSystem;
-//	MessagingSystem m_messageSystem;
-//	ObjectiveSystem m_objectiveSystem;
-//	FlareSystem m_flareSystem;
-//	CoverSystem m_coverSystem;
-//	AIDBSystem m_aidbSystem;
 	
 	// LEVEL DATA
 	sgsVariable m_self;
 	bool m_paused;
-	float m_endFactor;
 	double m_levelTime;
 	Array< Entity* > m_entities;
 	Entity* m_player;

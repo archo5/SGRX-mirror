@@ -1769,11 +1769,6 @@ struct OfficeTheftGame : IGame
 	void Game_Tick( float dt, float bf )
 	{
 		g_GameLevel->Tick( dt, bf );
-		if( g_GameLevel->m_endFactor >= 0 && !Game_HasOverlayScreens() )
-		{
-			Game_AddOverlayScreen( &g_EndMenu );
-			Game_ShowCursor( true );
-		}
 	}
 	void Game_Render()
 	{
