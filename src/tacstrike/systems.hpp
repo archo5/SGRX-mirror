@@ -1,7 +1,6 @@
 
 
 #pragma once
-#define USE_HASHTABLE
 #include <engine.hpp>
 #include <enganim.hpp>
 #include <engext.hpp>
@@ -57,7 +56,7 @@ struct InteractInfo
 	float timeActual;
 };
 
-struct IInteractableEntity
+struct IInteractiveEntity
 {
 	enum { e_iface_uid = 1 };
 	
@@ -255,7 +254,7 @@ struct ObjectiveSystem : IGameLevelSystem
 		bool required = false,
 		Vec3* location = NULL );
 	OSObjStats GetStats();
-	void Tick( float dt );
+	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
 	
 	Command SHOW_OBJECTIVES;
@@ -337,7 +336,7 @@ struct DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 	~DamageSystem();
 	const char* Init( SceneHandle scene, SGRX_LightSampler* sampler );
 	void Free();
-	void Tick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
 	void AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 		const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
 		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
@@ -378,7 +377,7 @@ struct BulletSystem : IGameLevelSystem
 	
 	BulletSystem( GameLevel* lev );
 	
-	void Tick( SGRX_Scene* scene, float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
 	
 	void Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, uint32_t ownerType );
 	void Clear();
@@ -416,7 +415,7 @@ struct AIDBSystem : IGameLevelSystem
 	AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
 	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
-	void Tick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
 	
 	SGRX_Pathfinder m_pathfinder;
 	Array< AISound > m_sounds;

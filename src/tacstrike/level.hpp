@@ -25,6 +25,7 @@ struct IGameLevelSystem
 {
 	IGameLevelSystem( GameLevel* lev, uint32_t uid ) : m_level( lev ), m_system_uid( uid ){}
 	virtual ~IGameLevelSystem(){}
+	virtual void OnLevelDestroy(){ delete this; }
 	virtual bool AddEntity( const StringView& type, sgsVariable data ){ return false; }
 	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size ){ return false; }
 	virtual void Clear(){}
@@ -43,7 +44,7 @@ struct IGameLevelSystem
 
 struct Entity
 {
-	Entity();
+	Entity( GameLevel* lev );
 	virtual ~Entity();
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
@@ -71,7 +72,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 {
 	SGS_OBJECT;
 	
-	GameLevel();
+	GameLevel( PhyWorldHandle phyWorld );
 	virtual ~GameLevel();
 	
 	// configuration

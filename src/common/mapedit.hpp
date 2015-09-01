@@ -1,7 +1,6 @@
 
 
 #pragma once
-#define USE_HASHTABLE
 #include "compiler.hpp"
 #include "edutils.hpp"
 #include "edcomui.hpp"

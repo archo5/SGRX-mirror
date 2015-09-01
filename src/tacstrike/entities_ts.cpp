@@ -24,6 +24,7 @@ extern Command DO_ACTION;
 
 
 TSCamera::TSCamera(
+	GameLevel* lev,
 	const StringView& name,
 	const StringView& charname,
 	const Vec3& pos,
@@ -32,6 +33,7 @@ TSCamera::TSCamera(
 	const Vec3& dir0,
 	const Vec3& dir1
 ) :
+	Entity( lev ),
 	m_playerVisible( false ), m_lastSeenPlayerDir( YP(0) ),
 	m_curDir( YP( dir0 ) ), m_timeout( 0 ), m_state( 0 ),
 	m_alertTimeout( 0 ), m_noticeTimeout( 0 ),
@@ -208,7 +210,8 @@ bool TSCamera::GetMapItemInfo( MapItemInfo* out )
 }
 
 
-TSCharacter::TSCharacter( const Vec3& pos, const Vec3& dir ) :
+TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
+	Entity( lev ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
@@ -545,7 +548,7 @@ bool TSCharacter::BeginAction( Entity* E )
 	if( !E || IsInAction() )
 		return false;
 	
-	IInteractableEntity* IE = E->GetInterface<IInteractableEntity>();
+	IInteractiveEntity* IE = E->GetInterface<IInteractiveEntity>();
 	if( IE == NULL || IE->GetInteractionInfo( GetQueryPosition(), &m_actState.info ) == false )
 		return false;
 	
@@ -565,7 +568,7 @@ bool TSCharacter::CanInterruptAction()
 	if( IsInAction() == false )
 		return false;
 	
-	IInteractableEntity* IE = m_actState.target->GetInterface<IInteractableEntity>();
+	IInteractiveEntity* IE = m_actState.target->GetInterface<IInteractiveEntity>();
 	return IE && IE->CanInterruptAction( m_actState.progress );
 }
 
@@ -631,8 +634,8 @@ Vec3 TSCharacter::GetInterpAimDir()
 
 #ifndef TSGAME_NO_PLAYER
 
-TSPlayer::TSPlayer( const Vec3& pos, const Vec3& dir ) :
-	TSCharacter( pos-V3(0,0,1), dir ),
+TSPlayer::TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
+	TSCharacter( lev, pos-V3(0,0,1), dir ),
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ), inCursorMove( V2(0) ),
 	m_targetII( NULL ), m_targetTriggered( false ),
 	m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 )
@@ -1078,8 +1081,8 @@ sgs_ObjInterface TSEnemy_iface[1] =
 }};
 
 
-TSEnemy::TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
-	TSCharacter( pos, dir ),
+TSEnemy::TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
+	TSCharacter( lev, pos, dir ),
 	m_taskTimeout( 0 ), m_curTaskID( 0 ), m_curTaskMode( false ),
 	i_turn( V2(0) ), m_turnAngleStart(0), m_turnAngleEnd(0)
 {
@@ -1430,6 +1433,74 @@ void TSEnemy::DebugDrawUI()
 		
 		y += 13;
 	}
+}
+
+
+TSEntityCreationSystem::TSEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+{
+}
+
+bool TSEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
+{
+#ifndef TSGAME_NO_PLAYER
+	///////////////////////////
+	if( type == "player" )
+	{
+		TSPlayer* P = new TSPlayer
+		(
+			m_level,
+			data.getprop("position").get<Vec3>(),
+			data.getprop("viewdir").get<Vec3>()
+		);
+		m_level->AddEntity( P );
+		m_level->SetPlayer( P );
+		return true;
+	}
+#endif
+	
+	///////////////////////////
+	if( type == "camera" )
+	{
+		TSCamera* CAM = new TSCamera
+		(
+			m_level,
+			data.getprop("name").get<StringView>(),
+			data.getprop("char").get<StringView>(),
+			data.getprop("position").get<Vec3>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			data.getprop("dir0").get<Vec3>(),
+			data.getprop("dir1").get<Vec3>()
+		);
+		m_level->AddEntity( CAM );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "enemy_start" )
+	{
+		TSEnemy* E = new TSEnemy
+		(
+			m_level,
+			data.getprop("name").get<StringView>(),
+			data.getprop("position").get<Vec3>(),
+			data.getprop("viewdir").get<Vec3>(),
+			data
+		);
+		m_level->AddEntity( E );
+		return true;
+	}
+	
+	return false;
+}
+
+void TSEntityCreationSystem::DrawUI()
+{
+#ifndef TSGAME_NO_PLAYER
+	SGRX_CAST( TSPlayer*, P, m_level->m_player );
+	if( P )
+		P->DrawUI();
+#endif
 }
 
 

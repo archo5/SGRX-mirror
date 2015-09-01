@@ -1,17 +1,11 @@
 
 
-#define USE_VEC2
-#define USE_VEC3
-#define USE_VEC4
-#define USE_QUAT
-#define USE_MAT4
-#define USE_ARRAY
 #include "level.hpp"
 #include "tsui.hpp"
+#include "entities_ts.hpp"
 
 
 GameLevel* g_GameLevel = NULL;
-PhyWorldHandle g_PhyWorld;
 SoundSystemHandle g_SoundSys;
 SGRX_LineSet g_DebugLines;
 
@@ -69,9 +63,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 		g_SoundSys = SND_CreateSystem();
 		
-		g_PhyWorld = PHY_CreateWorld();
-		g_PhyWorld->SetGravity( V3( 0, 0, -9.81f ) );
-		
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 		
 		GR_GetVertexDecl( "pf3tf2" );
@@ -109,7 +100,19 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_A, &CROUCH );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &DO_ACTION );
 		
-		g_GameLevel = new GameLevel();
+		g_GameLevel = new GameLevel( PHY_CreateWorld() );
+		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
+		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
+		AddSystemToLevel<LevelMapSystem>( g_GameLevel );
+		AddSystemToLevel<MessagingSystem>( g_GameLevel );
+		AddSystemToLevel<ObjectiveSystem>( g_GameLevel );
+		AddSystemToLevel<FlareSystem>( g_GameLevel );
+		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
+		AddSystemToLevel<DamageSystem>( g_GameLevel );
+		AddSystemToLevel<BulletSystem>( g_GameLevel );
+		AddSystemToLevel<AIDBSystem>( g_GameLevel );
+		AddSystemToLevel<CoverSystem>( g_GameLevel );
+		AddSystemToLevel<TSEntityCreationSystem>( g_GameLevel );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
@@ -124,7 +127,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		args.setprop( "rot_angles", g_GameLevel->m_scriptCtx.CreateVec3( V3(0,0,0) ) );
 		myscritem = SGRX_ScriptedItem::Create(
 			g_GameLevel->m_scene,
-			g_PhyWorld,
+			g_GameLevel->GetPhyWorld(),
 			g_GameLevel->m_scriptCtx.C,
 			g_GameLevel->m_scriptCtx.GetGlobal( "SCRITEM_CREATE_window1" ),
 			args
@@ -145,7 +148,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		delete g_GameLevel;
 		g_GameLevel = NULL;
 		
-		g_PhyWorld = NULL;
 		g_SoundSys = NULL;
 	}
 	
@@ -166,12 +168,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	
 	void Game_FixedTick( float dt )
 	{
-		int ITERS = 10;
-		if( !g_GameLevel->m_paused )
-		{
-			for( int i = 0; i < ITERS; ++i )
-				g_PhyWorld->Step( dt / ITERS );
-		}
 		g_GameLevel->FixedTick( dt );
 		
 		myscritem->FixedTick( dt );

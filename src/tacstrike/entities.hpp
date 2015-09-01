@@ -1,13 +1,14 @@
 
 
 #pragma once
-#define USE_HASHTABLE
 #include <engine.hpp>
 #include <enganim.hpp>
 #include <pathfinding.hpp>
 #include <sound.hpp>
 #include <physics.hpp>
 #include <script.hpp>
+
+#include "level.hpp"
 #include "systems.hpp"
 
 
@@ -21,7 +22,7 @@ struct Trigger : Entity
 	
 	bool m_currState;
 	
-	Trigger( const StringView& fn, const StringView& tgt, bool once, bool laststate = false );
+	Trigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, bool laststate = false );
 	void Invoke( bool newstate );
 	void Update( bool newstate );
 };
@@ -30,7 +31,7 @@ struct BoxTrigger : Trigger
 {
 	Mat4 m_matrix;
 	
-	BoxTrigger( const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, const Quat& rot, const Vec3& scl );
+	BoxTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, const Quat& rot, const Vec3& scl );
 	virtual void FixedTick( float deltaTime );
 };
 
@@ -39,7 +40,7 @@ struct ProximityTrigger : Trigger
 	Vec3 m_position;
 	float m_radius;
 	
-	ProximityTrigger( const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, float rad );
+	ProximityTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, float rad );
 	virtual void FixedTick( float deltaTime );
 };
 
@@ -74,6 +75,7 @@ struct SlidingDoor : Trigger
 	void _UpdatePhysics();
 	void _UpdateTransforms( float bf );
 	SlidingDoor(
+		GameLevel* lev,
 		const StringView& name,
 		const StringView& mesh,
 		const Vec3& pos,
@@ -96,27 +98,39 @@ struct SlidingDoor : Trigger
 	virtual void OnEvent( const StringView& type );
 };
 
-struct PickupItem : Entity
+struct PickupItem : Entity, IInteractiveEntity
 {
 	MeshInstHandle m_meshInst;
 	int m_count;
 	Vec3 m_pos;
 	
-	PickupItem( const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl );
+	PickupItem( GameLevel* lev, const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl );
 	virtual void OnEvent( const StringView& type );
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
+	
+	virtual void* GetInterfaceImpl( uint32_t iface_id )
+	{
+		ENT_HAS_INTERFACE( IInteractiveEntity, iface_id, this );
+		return NULL;
+	}
 };
 
-struct Actionable : Entity
+struct Actionable : Entity, IInteractiveEntity
 {
 	MeshInstHandle m_meshInst;
 	InteractInfo m_info;
 	sgsVariable m_onSuccess;
 	
-	Actionable( const StringView& name, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir );
+	Actionable( GameLevel* lev, const StringView& name, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir );
 	virtual void OnEvent( const StringView& type );
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
 	virtual void SetProperty( const StringView& name, sgsVariable value );
+	
+	virtual void* GetInterfaceImpl( uint32_t iface_id )
+	{
+		ENT_HAS_INTERFACE( IInteractiveEntity, iface_id, this );
+		return NULL;
+	}
 };
 
 
@@ -128,7 +142,7 @@ struct ParticleFX : Entity
 	SoundEventInstanceHandle m_soundEventInst;
 	Vec3 m_position;
 	
-	ParticleFX( const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start );
+	ParticleFX( GameLevel* lev, const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start );
 	virtual void Tick( float deltaTime, float blendFactor );
 	virtual void OnEvent( const StringView& type );
 };
@@ -138,7 +152,7 @@ struct ScriptedItem : Entity
 {
 	SGRX_ScriptedItem* m_scrItem;
 	
-	ScriptedItem( const StringView& name, sgsVariable args );
+	ScriptedItem( GameLevel* lev, const StringView& name, sgsVariable args );
 	~ScriptedItem();
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );

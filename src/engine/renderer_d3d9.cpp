@@ -5,12 +5,6 @@
 #include <d3d9.h>
 #include <d3dx/d3dx9.h>
 
-#define USE_VEC3
-#define USE_VEC4
-#define USE_MAT4
-#define USE_ARRAY
-#define USE_HASHTABLE
-#define USE_SERIALIZATION
 #include "renderer.hpp"
 
 

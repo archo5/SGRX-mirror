@@ -1,6 +1,5 @@
 
 
-#define USE_HASHTABLE
 #include "renderer.hpp"
 
 

@@ -1,12 +1,6 @@
 
 
 #pragma once
-#define USE_VEC2
-#define USE_VEC3
-#define USE_VEC4
-#define USE_MAT4
-#define USE_ARRAY
-#define USE_SERIALIZATION
 #include <engine.hpp>
 #include <edgui.hpp>
 #include <script.hpp>

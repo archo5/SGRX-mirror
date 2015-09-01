@@ -1,8 +1,5 @@
 
 
-#define USE_VEC3
-#define USE_ARRAY
-#define USE_HASHTABLE
 #include "../engine/utils.hpp"
 #include "../engine/renderer.hpp"
 #include "../engine/script.hpp"

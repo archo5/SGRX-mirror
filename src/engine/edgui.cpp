@@ -1,8 +1,5 @@
 
 
-#define USE_VEC2
-#define USE_VEC3
-#define USE_ARRAY
 #include "edgui.hpp"
 
 

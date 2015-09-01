@@ -2,10 +2,6 @@
 
 #include <float.h>
 
-#define USE_VEC4
-#define USE_ARRAY
-#define USE_MAT4
-#define USE_HASHTABLE
 #include <engine.hpp>
 #include "compiler.hpp"
 
@@ -1227,35 +1223,55 @@ bool LevelCache::SaveCache( const StringView& path )
 		SaveMesh( i, m_meshes[ i ], path );
 	}
 	
-	ByteArray navmesh;
-	GenerateNavmesh( path, navmesh );
+	LC_Level level;
+	LC_Chunk chunk;
+	
+	// core data
+	ByteArray ba_geom;
+	LC_Chunk_Geom ch_geom = { &m_meshinst, &m_lights, m_sampleTree, &m_phyMesh };
+	ByteWriter( &ba_geom ) << ch_geom;
+	{
+		memcpy( chunk.sys_id, LC_FILE_GEOM_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = ba_geom.data();
+		chunk.size = ba_geom.size();
+		level.chunks.push_back( chunk );
+	}
+	
+	// entity data
+	ByteArray ba_ents;
+	LC_Chunk_Ents ch_ents = { m_scriptents };
+	ByteWriter( &ba_ents ) << ch_ents;
+	{
+		memcpy( chunk.sys_id, LC_FILE_ENTS_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = ba_ents.data();
+		chunk.size = ba_ents.size();
+		level.chunks.push_back( chunk );
+	}
+	
+	// map system
+	ByteArray ba_mapl;
+	LC_Chunk_Mapl ch_mapl = { &m_lines };
+	ByteWriter( &ba_mapl ) << ch_mapl;
+	{
+		memcpy( chunk.sys_id, LC_FILE_MAPL_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = ba_mapl.data();
+		chunk.size = ba_mapl.size();
+		level.chunks.push_back( chunk );
+	}
+	
+	// AI system (pathfinding)
+	ByteArray ba_pfnd;
+	GenerateNavmesh( path, ba_pfnd );
+	{
+		memcpy( chunk.sys_id, LC_FILE_PFND_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = ba_pfnd.data();
+		chunk.size = ba_pfnd.size();
+		level.chunks.push_back( chunk );
+	}
 	
 	ByteArray ba;
 	ByteWriter bw( &ba );
-	
-	bw.marker( "COMPILED" );
-	SerializeVersionHelper<ByteWriter> svh( bw, LC_FILE_VERSION );
-	
-	svh.marker( "SCRENTS" );
-	svh << m_scriptents;
-	
-	svh.marker( "INST" );
-	svh << m_meshinst;
-	
-	svh.marker( "LINES" );
-	svh << m_lines;
-	
-	svh.marker( "LIGHTS" );
-	svh << m_lights;
-	
-	svh.marker( "SAMPLES" );
-	svh << *m_sampleTree;
-	
-	svh.marker( "PHYMESH" );
-	svh << m_phyMesh;
-	
-	svh.marker( "NAVMESH" );
-	svh << navmesh;
+	bw << level;
 	
 	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
 }

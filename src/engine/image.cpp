@@ -8,7 +8,6 @@ extern "C" {
 #include <libjpg/jpeglib.h>
 
 
-#define USE_ARRAY
 #include "renderer.hpp"
 
 

@@ -8,8 +8,6 @@
 #include "../../ext/src/sgscript/sgsxgmath.h"
 #include "../../ext/src/sgscript/sgs_cppbc.h"
 
-#define USE_QUAT
-#define USE_MAT4
 #include "utils.hpp"
 
 

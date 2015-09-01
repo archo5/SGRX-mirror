@@ -10,6 +10,7 @@
 struct TSCamera : Entity
 {
 	TSCamera(
+		GameLevel* lev,
 		const StringView& name,
 		const StringView& charname,
 		const Vec3& pos,
@@ -72,7 +73,7 @@ struct TSCharacter : Entity
 		InteractInfo info;
 	};
 	
-	TSCharacter( const Vec3& pos, const Vec3& dir );
+	TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir );
 	void InitializeMesh( const StringView& path );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
@@ -146,7 +147,7 @@ struct TSPlayer : TSCharacter
 	float m_crouchIconShowTimeout;
 	float m_standIconShowTimeout;
 	
-	TSPlayer( const Vec3& pos, const Vec3& dir );
+	TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
@@ -223,7 +224,7 @@ struct TSEnemy : TSCharacter
 	AIDBSystem* m_aidb;
 	sgs_VarObj* m_scrObj;
 	
-	TSEnemy( const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
+	TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
 	~TSEnemy();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
@@ -236,6 +237,16 @@ struct TSEnemy : TSCharacter
 	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
 	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
 	TSFactStorage::Fact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
+};
+
+
+
+struct TSEntityCreationSystem : IGameLevelSystem
+{
+	enum { e_system_uid = 1000 };
+	TSEntityCreationSystem( GameLevel* lev );
+	virtual bool AddEntity( const StringView& type, sgsVariable data );
+	virtual void DrawUI();
 };
 
 

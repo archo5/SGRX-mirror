@@ -339,11 +339,11 @@ OSObjStats ObjectiveSystem::GetStats()
 	return out;
 }
 
-void ObjectiveSystem::Tick( float dt )
+void ObjectiveSystem::Tick( float deltaTime, float blendFactor )
 {
 	float tgt = SHOW_OBJECTIVES.value ? 1 : 0;
 	float diff = tgt - m_alpha;
-	m_alpha += sign( diff ) * TMIN( diff > 0 ? dt * 3 : dt, fabsf( diff ) );
+	m_alpha += sign( diff ) * TMIN( diff > 0 ? deltaTime * 3 : deltaTime, fabsf( diff ) );
 }
 
 void ObjectiveSystem::DrawUI()
@@ -718,7 +718,7 @@ void DamageSystem::Free()
 	m_bloodDecalMesh = NULL;
 }
 
-void DamageSystem::Tick( float deltaTime )
+void DamageSystem::Tick( float deltaTime, float blendFactor )
 {
 	UNUSED( deltaTime );
 	m_bulletDecalSys.Upload();
@@ -836,7 +836,7 @@ BulletSystem::BulletSystem( GameLevel* lev ) :
 {
 }
 
-void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
+void BulletSystem::Tick( float deltaTime, float blendFactor )
 {
 	for( size_t i = 0; i < m_bullets.size(); ++i )
 	{
@@ -852,7 +852,7 @@ void BulletSystem::Tick( SGRX_Scene* scene, float deltaTime )
 		Vec3 p2 = p1 + B.velocity * deltaTime;
 		
 		SceneRaycastCallback_Sorting cb( &m_tmpStore );
-		scene->RaycastAll( p1, p2, &cb, 0xffffffff );
+		m_level->GetScene()->RaycastAll( p1, p2, &cb, 0xffffffff );
 		#ifdef TSGAME
 	//	g_DebugLines.DrawLine( p1, p2, m_tmpStore.size() ? COLOR_RGB(255,0,0) : COLOR_RGB(255,255,0) );
 		#endif
@@ -989,7 +989,7 @@ void AIDBSystem::AddSound( Vec3 pos, float rad, float timeout, AISoundType type 
 	m_sounds.push_back( S );
 }
 
-void AIDBSystem::Tick( float deltaTime )
+void AIDBSystem::Tick( float deltaTime, float blendFactor )
 {
 	for( size_t i = 0; i < m_sounds.size(); ++i )
 	{

@@ -1,11 +1,5 @@
 
 
-#define USE_VEC2
-#define USE_VEC3
-#define USE_VEC4
-#define USE_QUAT
-#define USE_MAT4
-#define USE_ARRAY
 #include <engine.hpp>
 #include <sound.hpp>
 

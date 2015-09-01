@@ -1,10 +1,5 @@
 
 
-#define USE_VEC4
-#define USE_QUAT
-#define USE_MAT4
-#define USE_ARRAY
-#define USE_HASHTABLE
 #include "enganim.hpp"
 #include "physics.hpp"
 

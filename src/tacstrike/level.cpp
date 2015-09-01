@@ -1,18 +1,10 @@
 
 
-#define USE_VEC2
-#define USE_VEC3
-#define USE_VEC4
-#define USE_QUAT
-#define USE_MAT4
-#define USE_ARRAY
-#define USE_HASHTABLE
-#define USE_SERIALIZATION
 #include "level.hpp"
 
 
 
-Entity::Entity() : m_typeName("<unknown>")
+Entity::Entity( GameLevel* lev ) : m_typeName("<unknown>"), m_level( lev )
 {
 }
 
@@ -322,7 +314,8 @@ static int InitGameAPI( SGS_CTX )
 
 Command SKIP_CUTSCENE( "skip_cutscene" );
 
-GameLevel::GameLevel() :
+GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
+	m_phyWorld( phyWorld ),
 	m_nameIDGen( 0 ),
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
@@ -355,12 +348,6 @@ GameLevel::GameLevel() :
 	m_scene->camera.aspect = 1024.0f / 576.0f;
 	m_scene->camera.UpdateMatrices();
 	
-//	const char* err = m_damageSystem.Init( m_scene, this );
-//	if( err )
-//	{
-//		LOG_ERROR << LOG_DATE << "  Failed to init DMGSYS: " << err;
-//	}
-	
 	InitGameAPI( m_scriptCtx.C );
 	m_scriptCtx.Include( "data/enemy" );
 }
@@ -368,12 +355,29 @@ GameLevel::GameLevel() :
 GameLevel::~GameLevel()
 {
 	ClearLevel();
-//	m_damageSystem.Free();
+	
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->OnLevelDestroy();
+	
 	sgs_SetObjectDataP( &m_self.var, NULL );
 	sgs_SetObjectIfaceP( &m_self.var, NULL );
 }
 
 
+void GameLevel::AddSystem( IGameLevelSystem* sys )
+{
+	m_systems.push_back( sys );
+}
+
+void GameLevel::AddEntity( Entity* E )
+{
+	m_entities.push_back( E );
+}
+
+void GameLevel::AddEntry( const StringView& name, sgsVariable var )
+{
+	m_self.setprop( m_scriptCtx.CreateString( name ), var );
+}
 
 
 
@@ -524,22 +528,6 @@ void GameLevel::CreateEntity( const StringView& type, sgsVariable data )
 		return;
 	}
 	
-#if defined(LD33GAME) || defined(TSGAME)
-	///////////////////////////
-	if( type == "enemy_start" )
-	{
-		TSEnemy* E = new TSEnemy
-		(
-			data.getprop("name").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			data.getprop("viewdir").get<Vec3>(),
-			data
-		);
-		m_entities.push_back( E );
-		return;
-	}
-#endif
-	
 	///////////////////////////
 	if( type == "camera_start" )
 	{
@@ -554,25 +542,6 @@ void GameLevel::CreateEntity( const StringView& type, sgsVariable data )
 		m_markerMap.set( data.getprop("name").get<StringView>(), data.getprop("position").get<Vec3>() );
 		return;
 	}
-	
-	///////////////////////////
-#ifdef TSGAME
-	if( type == "camera" )
-	{
-		TSCamera* CAM = new TSCamera
-		(
-			data.getprop("name").get<StringView>(),
-			data.getprop("char").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("dir0").get<Vec3>(),
-			data.getprop("dir1").get<Vec3>()
-		);
-		m_entities.push_back( CAM );
-		return;
-	}
-#endif
 	
 	///////////////////////////
 	if( type == "mesharray" ||
@@ -652,6 +621,11 @@ void GameLevel::FixedTick( float deltaTime )
 	if( !m_paused )
 	{
 		m_currentTickTime += deltaTime;
+		
+		int ITERS = 10;
+		for( int i = 0; i < ITERS; ++i )
+			m_phyWorld->Step( deltaTime / ITERS );
+		
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->FixedTick( deltaTime );
 	}

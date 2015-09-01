@@ -1,8 +1,6 @@
 
 
 #pragma once
-#define USE_HASHTABLE
-#define USE_SERIALIZATION
 #include "engine.hpp"
 #include "renderer.hpp"
 
@@ -310,12 +308,10 @@ struct FontRenderer
 	int32_t m_cache_frame;
 };
 
-#ifdef USE_HASHTABLE
 inline Hash HashVar( const FontRenderer::CacheKey& ck )
 {
 	return (Hash)( ck.font.item ) + ck.codepoint;
 }
-#endif
 
 
 struct SGRX_Joystick : SGRX_RCRsrc

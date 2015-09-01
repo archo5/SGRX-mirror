@@ -1,7 +1,6 @@
 
 
 #pragma once
-#define USE_SERIALIZATION
 #include "engine.hpp"
 
 

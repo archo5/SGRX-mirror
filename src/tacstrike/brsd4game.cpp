@@ -1,19 +1,12 @@
 
 
-#define USE_VEC2
-#define USE_VEC3
-#define USE_VEC4
-#define USE_QUAT
-#define USE_MAT4
-#define USE_ARRAY
-#define USE_HASHTABLE
 #include "level.hpp"
+#include "systems.hpp"
 #include "entities_brsd4.hpp"
 
 
 GameLevel* g_GameLevel = NULL;
 bool g_Paused = false;
-PhyWorldHandle g_PhyWorld;
 SoundSystemHandle g_SoundSys;
 
 Command MOVE_LEFT( "move_left" );
@@ -1497,9 +1490,6 @@ struct EndMenuScreen : IScreen
 			{
 				resetcontrols();
 				Game_RemoveOverlayScreen( this );
-				delete g_GameLevel;
-				g_GameLevel = new GameLevel();
-				g_GameLevel->m_scene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 				g_GameLevel->Load( "jmplevel" );
 				g_GameLevel->Tick( 0, 0 );
 				g_GameLevel->StartLevel();
@@ -1628,9 +1618,6 @@ struct FlagGame : IGame
 	{
 		g_SoundSys = SND_CreateSystem();
 		
-		g_PhyWorld = PHY_CreateWorld();
-		g_PhyWorld->SetGravity( V3( 0, 0, -9.81f ) );
-		
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 		
 		Game_RegisterAction( &MOVE_LEFT );
@@ -1662,7 +1649,13 @@ struct FlagGame : IGame
 		m_music = g_SoundSys->CreateEventInstance( "/lev1_music" );
 		m_music->Start();
 		
-		g_GameLevel = new GameLevel();
+		g_GameLevel = new GameLevel( PHY_CreateWorld() );
+		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
+		AddSystemToLevel<MessagingSystem>( g_GameLevel );
+		AddSystemToLevel<ObjectiveSystem>( g_GameLevel );
+		AddSystemToLevel<FlareSystem>( g_GameLevel );
+		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
+		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 		g_GameLevel->m_scene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 		
 		Game_AddOverlayScreen( &g_MainMenu );
@@ -1683,7 +1676,6 @@ struct FlagGame : IGame
 		m_music->Stop();
 		m_music = NULL;
 		
-		g_PhyWorld = NULL;
 		g_SoundSys = NULL;
 	}
 	
@@ -1708,12 +1700,6 @@ struct FlagGame : IGame
 	
 	void Game_FixedTick( float dt )
 	{
-		int ITERS = 10;
-		if( !g_GameLevel->m_paused )
-		{
-			for( int i = 0; i < ITERS; ++i )
-				g_PhyWorld->Step( dt / ITERS );
-		}
 		g_GameLevel->FixedTick( dt );
 	}
 	void Game_Tick( float dt, float bf )

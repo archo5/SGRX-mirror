@@ -25,7 +25,7 @@ struct LD33Player : Entity
 	
 	TextureHandle m_tex_interact_icon;
 	
-	LD33Player( const Vec3& pos, const Vec3& dir );
+	LD33Player( GameLevel* lev, const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();

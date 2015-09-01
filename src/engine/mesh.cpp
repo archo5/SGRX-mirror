@@ -2,9 +2,6 @@
 
 #define __STDC_FORMAT_MACROS 1
 
-#define USE_VEC3
-#define USE_ARRAY
-#define USE_SERIALIZATION
 #include "renderer.hpp"
 
 

@@ -6,8 +6,8 @@
 extern Vec2 CURSOR_POS;
 
 
-Trigger::Trigger( const StringView& fn, const StringView& tgt, bool once, bool laststate ) :
-	m_func( fn ), m_target( tgt ), m_once( once ), m_done( false ), m_lastState( laststate ), m_currState( false )
+Trigger::Trigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, bool laststate ) :
+	Entity( lev ), m_func( fn ), m_target( tgt ), m_once( once ), m_done( false ), m_lastState( laststate ), m_currState( false )
 {
 }
 
@@ -37,8 +37,8 @@ void Trigger::Update( bool newstate )
 }
 
 
-BoxTrigger::BoxTrigger( const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
-	Trigger( fn, tgt, once ), m_matrix( Mat4::CreateSRT( scl, rot, pos ) )
+BoxTrigger::BoxTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
+	Trigger( lev, fn, tgt, once ), m_matrix( Mat4::CreateSRT( scl, rot, pos ) )
 {
 	m_matrix.InvertTo( m_matrix );
 }
@@ -49,8 +49,8 @@ void BoxTrigger::FixedTick( float deltaTime )
 }
 
 
-ProximityTrigger::ProximityTrigger( const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, float rad ) :
-	Trigger( fn, tgt, once ), m_position( pos ), m_radius( rad )
+ProximityTrigger::ProximityTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, float rad ) :
+	Trigger( lev, fn, tgt, once ), m_position( pos ), m_radius( rad )
 {
 }
 
@@ -82,6 +82,7 @@ void SlidingDoor::_UpdateTransforms( float bf )
 
 SlidingDoor::SlidingDoor
 (
+	GameLevel* lev,
 	const StringView& name,
 	const StringView& mesh,
 	const Vec3& pos,
@@ -99,7 +100,7 @@ SlidingDoor::SlidingDoor
 	const StringView& tgt,
 	bool once
 ):
-	Trigger( fn, tgt, once, true ),
+	Trigger( lev, fn, tgt, once, true ),
 	open_factor( istate ), open_target( istate ), open_time( TMAX( otime, SMALL_FLOAT ) ),
 	pos_open( oopen ), pos_closed( oclos ), rot_open( ropen ), rot_closed( rclos ),
 	target_state( istate ), m_isSwitch( isswitch ), m_switchPred( pred ),
@@ -221,8 +222,8 @@ void SlidingDoor::OnEvent( const StringView& type )
 }
 
 
-PickupItem::PickupItem( const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
-	m_count( count ), m_pos( pos )
+PickupItem::PickupItem( GameLevel* lev, const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
+	Entity( lev ), m_count( count ), m_pos( pos )
 {
 	m_name = id;
 	m_viewName = name;
@@ -265,8 +266,9 @@ bool PickupItem::GetInteractionInfo( Vec3 pos, InteractInfo* out )
 }
 
 
-Actionable::Actionable( const StringView& name, const StringView& mesh,
-	const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir )
+Actionable::Actionable( GameLevel* lev, const StringView& name, const StringView& mesh,
+	const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir ) :
+	Entity( lev )
 {
 	Mat4 mtx = Mat4::CreateSRT( scl, rot, pos );
 	
@@ -330,8 +332,8 @@ void Actionable::SetProperty( const StringView& name, sgsVariable value )
 }
 
 
-ParticleFX::ParticleFX( const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start ) :
-	m_soundEventName( sndev ), m_position( pos )
+ParticleFX::ParticleFX( GameLevel* lev, const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start ) :
+	Entity( lev ), m_soundEventName( sndev ), m_position( pos )
 {
 	m_name = name;
 	m_soundEventOneShot = g_SoundSys->EventIsOneShot( sndev );
@@ -407,7 +409,7 @@ void ParticleFX::OnEvent( const StringView& _type )
 
 
 
-ScriptedItem::ScriptedItem( const StringView& name, sgsVariable args ) : m_scrItem(NULL)
+ScriptedItem::ScriptedItem( GameLevel* lev, const StringView& name, sgsVariable args ) : Entity( lev ), m_scrItem(NULL)
 {
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, 256, "SCRITEM_CREATE_%s", StackString<200>(name).str );
@@ -471,6 +473,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	{
 		BoxTrigger* BT = new BoxTrigger
 		(
+			m_level,
 			data.getprop("func").get<StringView>(),
 			data.getprop("target").get<StringView>(),
 			data.getprop("once").get<bool>(),
@@ -487,6 +490,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	{
 		ProximityTrigger* PT = new ProximityTrigger
 		(
+			m_level,
 			data.getprop("func").get<StringView>(),
 			data.getprop("target").get<StringView>(),
 			data.getprop("once").get<bool>(),
@@ -502,6 +506,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	{
 		SlidingDoor* SD = new SlidingDoor
 		(
+			m_level,
 			data.getprop("name").get<StringView>(),
 			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
@@ -530,6 +535,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		
 		SlidingDoor* SD = new SlidingDoor
 		(
+			m_level,
 			name.str,
 			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
@@ -546,6 +552,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		
 		ProximityTrigger* PT = new ProximityTrigger
 		(
+			m_level,
 			"", name.str, false,
 			SD->meshInst->matrix.TransformPos( data.getprop("scan_offset").get<Vec3>() ),
 			data.getprop("scan_distance").get<float>()
@@ -559,6 +566,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	{
 		PickupItem* PI = new PickupItem
 		(
+			m_level,
 			data.getprop("id").get<StringView>(),
 			data.getprop("name").get<StringView>(),
 			data.getprop("count").get<int>(),
@@ -576,6 +584,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	{
 		Actionable* AC = new Actionable
 		(
+			m_level,
 			data.getprop("name").get<StringView>(),
 			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
@@ -589,7 +598,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	}
 	
 	///////////////////////////
-	if( type == "cover" )
+	if( type == "cover" && m_level->GetSystem<CoverSystem>() )
 	{
 		Mat4 mtx = Mat4::CreateSXT(
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
@@ -604,6 +613,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	{
 		ParticleFX* PF = new ParticleFX
 		(
+			m_level,
 			data.getprop("name").get<StringView>(),
 			data.getprop("partsys").get<StringView>(),
 			data.getprop("soundevent").get<StringView>(),
@@ -622,6 +632,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		sgsVariable scritem = data.getprop("scritem");
 		ScriptedItem* SI = new ScriptedItem
 		(
+			m_level,
 			scritem.getprop("__type").get<StringView>(),
 			scritem
 		);

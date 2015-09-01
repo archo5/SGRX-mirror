@@ -8,8 +8,6 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include <nanosvg/nanosvgrast.h>
 
-#define USE_ARRAY
-#define USE_HASHTABLE
 #define FREETYPE_INCLUDED
 #define NANOSVG_INCLUDED
 #include "engine_int.hpp"

@@ -15,7 +15,8 @@ extern Command SPRINT;
 extern Command SHOW_OBJECTIVES;
 
 
-LD33Player::LD33Player( const Vec3& pos, const Vec3& dir ) :
+LD33Player::LD33Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
+	Entity( lev ),
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ),
 	m_jumpTimeout(0), m_canJumpTimeout(0), m_footstepTime(0), m_isOnGround(false), m_isCrouching(0),
 	m_ivPos( pos ), inCursorMove( V2(0) ),

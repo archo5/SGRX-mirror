@@ -13,13 +13,6 @@
 #include <new>
 
 
-#define USE_VEC3
-#define USE_VEC4
-#define USE_QUAT
-#define USE_MAT4
-#define USE_ARRAY
-
-
 #define EXPORT __declspec(dllexport)
 #ifdef ENGINE_BUILDING
 #  define ENGINE_EXPORT __declspec(dllexport)
@@ -463,7 +456,6 @@ struct ENGINE_EXPORT Vec4
 {
 	float x, y, z, w;
 	
-#ifdef USE_VEC4
 	static FINLINE Vec4 Create( float x ){ Vec4 v = { x, x, x, x }; return v; }
 	static FINLINE Vec4 Create( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; return v; }
 	static FINLINE Vec4 CreateFromPtr( const float* x ){ Vec4 v = { x[0], x[1], x[2], x[3] }; return v; }
@@ -519,10 +511,8 @@ struct ENGINE_EXPORT Vec4
 	}
 	FINLINE void Set( float _x, float _y, float _z, float _w ){ x = _x; y = _y; z = _z; w = _w; }
 	FINLINE Vec3 ToVec3() const { Vec3 v = { x, y, z }; return v; }
-#endif
 };
 
-#ifdef USE_VEC4
 FINLINE Vec4 operator + ( float f, const Vec4& v ){ Vec4 out = { f + v.x, f + v.y, f + v.z, f + v.w }; return out; }
 FINLINE Vec4 operator - ( float f, const Vec4& v ){ Vec4 out = { f - v.x, f - v.y, f - v.z, f - v.w }; return out; }
 FINLINE Vec4 operator * ( float f, const Vec4& v ){ Vec4 out = { f * v.x, f * v.y, f * v.z, f * v.w }; return out; }
@@ -533,7 +523,6 @@ FINLINE Vec4 V4( float x, float a ){ Vec4 v = { x, x, x, a }; return v; }
 FINLINE Vec4 V4( const Vec3& v3, float w ){ Vec4 v = { v3.x, v3.y, v3.z, w }; return v; }
 FINLINE Vec4 V4( float x, float y, float z, float w ){ Vec4 v = { x, y, z, w }; return v; }
 FINLINE float Vec4Dot( const Vec4& v1, const Vec4& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.w * v2.w; }
-#endif
 inline Vec4 TLERP( const Vec4& a, const Vec4& b, const Vec4& s ){ return a * ( V4(1) - s ) + b * s; }
 
 template<> inline Vec4 DefaultValue<Vec4>(){ return V4(0); }
@@ -563,7 +552,6 @@ struct ENGINE_EXPORT Quat
 	
 	static const Quat Identity;
 	
-#ifdef USE_QUAT
 	static FINLINE Quat CreateAxisAngle( const Vec3& v, float a ){ return CreateAxisAngle( v.x, v.y, v.z, a ); }
 	static FINLINE Quat CreateAxisAxis( const Vec3& d0, const Vec3& d1 )
 	{
@@ -648,10 +636,8 @@ struct ENGINE_EXPORT Quat
 		float s = 1.0f / iwsq;
 		return V3( x * s, y * s, z * s );
 	}
-#endif
 };
 	
-#ifdef USE_QUAT
 FINLINE Quat operator * ( float f, const Quat& q ){ Quat out = { f * q.x, f * q.y, f * q.z, f * q.w }; return out; }
 
 FINLINE Quat QUAT( float x, float y, float z, float w ){ Quat q = { x, y, z, w }; return q; }
@@ -697,7 +683,6 @@ inline Quat QuatSlerp( const Quat& qa, const Quat& qo, float t )
 	return qout;
 }
 template< class S > Quat TLERP( const Quat& a, const Quat& b, const S& s ){ return QuatSlerp( a, b, s ); }
-#endif
 
 ENGINE_EXPORT Vec3 CalcAngularVelocity( const Quat& qa, const Quat& qb );
 
@@ -784,7 +769,6 @@ struct ENGINE_EXPORT Mat4
 	
 	static const Mat4 Identity;
 	
-#ifdef USE_MAT4
 	void SetIdentity()
 	{
 		for( int i = 0; i < 4; ++i )
@@ -1160,7 +1144,6 @@ struct ENGINE_EXPORT Mat4
 		for( int i = 0; i < 16; ++i )
 			arch << a[ i ];
 	}
-#endif
 };
 
 ENGINE_EXPORT Quat TransformQuaternion( const Quat& q, const Mat4& m );
@@ -1323,10 +1306,6 @@ struct Handle
 // ARRAY
 //
 
-#ifdef USE_SERIALIZATION
-#define USE_ARRAY
-#endif
-
 #define NOT_FOUND ((size_t)-1)
 
 template< class T >
@@ -1338,7 +1317,6 @@ struct Array
 	size_t m_size;
 	size_t m_mem;
 	
-#ifdef USE_ARRAY
 	Array() : m_data(NULL), m_size(0), m_mem(0){}
 	Array( const Array& a ) : m_data(NULL), m_size(0), m_mem(0) { insert( 0, a.m_data, a.m_size ); }
 	Array( const T* v, size_t sz ) : m_data(NULL), m_size(0), m_mem(0) { insert( 0, v, sz ); }
@@ -1477,10 +1455,8 @@ struct Array
 		for( size_t i = 0; i < m_size; ++i )
 			arch << m_data[ i ];
 	}
-#endif
 };
 
-#ifdef USE_ARRAY
 template< class T >
 void Array<T>::resize( size_t sz )
 {
@@ -1556,7 +1532,6 @@ void Array<T>::erase( size_t from, size_t count )
 	}
 	m_size -= count;
 }
-#endif
 
 template< class T > void TSWAP( Array<T>& a, Array<T>& b )
 {
@@ -1589,7 +1564,6 @@ FINLINE size_t StringLength( const char* str ){ const char* o = str; while( *str
 
 struct String : Array< char >
 {
-#ifdef USE_ARRAY
 	String() : Array(){}
 	String( const char* str ) : Array( str, StringLength( str ) ){}
 	String( const char* str, size_t size ) : Array( str, size ){}
@@ -1606,7 +1580,6 @@ struct String : Array< char >
 			resize( sz );
 		arch.charbuf( m_data, m_size );
 	}
-#endif
 };
 
 struct StringView
@@ -1764,9 +1737,7 @@ struct StringView
 		rtrim( chars );
 	}
 	
-#ifdef USE_ARRAY
 	FINLINE operator String () const { return String( m_str, m_size ); }
-#endif
 };
 
 // shorthand single arg autoconversion
@@ -1953,7 +1924,6 @@ struct HashTable
 	size_type m_size;
 	size_type m_num_removed;
 	
-#ifdef USE_HASHTABLE
 	// special pair IDs
 	enum { EMPTY = -1, REMOVED = -2 };
 	
@@ -2225,7 +2195,6 @@ struct HashTable
 		m_vars = p;
 		m_var_mem = size;
 	}
-#endif
 };
 
 typedef HashTable< String, String > StringTable;
