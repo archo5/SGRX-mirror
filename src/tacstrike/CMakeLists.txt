@@ -11,7 +11,7 @@ set_target_properties( coregamelib PROPERTIES
 )
 
 # Game
-add_library( game SHARED game gameui tsui entities_ts )
+add_library( game SHARED game gameui tsui entities_ts cppbc_entities_ts )
 target_link_libraries( game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
@@ -31,7 +31,7 @@ set_target_properties( jmpgame PROPERTIES
 )
 
 # LD33 Game
-add_library( ld33game SHARED ld33game entities_ld33 )
+add_library( ld33game SHARED ld33game entities_ld33 cppbc_entities_ts )
 target_link_libraries( ld33game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( ld33game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"

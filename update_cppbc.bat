@@ -5,5 +5,7 @@ sgsvm -p ../../ext/src/sgscript/cppbc.sgs scritem.hpp
 @pushd src\tacstrike
 @echo in src/tacstrike
 sgsvm -p ../../ext/src/sgscript/cppbc.sgs level.hpp
+sgsvm -p ../../ext/src/sgscript/cppbc.sgs entities.hpp
 sgsvm -p ../../ext/src/sgscript/cppbc.sgs systems.hpp
+sgsvm -p ../../ext/src/sgscript/cppbc.sgs entities_ts.hpp
 @popd

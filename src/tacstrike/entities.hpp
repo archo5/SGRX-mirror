@@ -100,11 +100,16 @@ struct SlidingDoor : Trigger
 
 struct PickupItem : Entity, IInteractiveEntity
 {
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
 	MeshInstHandle m_meshInst;
+	String m_type;
 	int m_count;
 	Vec3 m_pos;
 	
-	PickupItem( GameLevel* lev, const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl );
+	PickupItem( GameLevel* lev, const StringView& name, const StringView& type, int count,
+		const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl );
 	virtual void OnEvent( const StringView& type );
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
 	
@@ -117,14 +122,18 @@ struct PickupItem : Entity, IInteractiveEntity
 
 struct Actionable : Entity, IInteractiveEntity
 {
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
 	MeshInstHandle m_meshInst;
 	InteractInfo m_info;
-	sgsVariable m_onSuccess;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME timeEstimate ) SGS_ALIAS( float m_info.timeEstimate );
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME timeActual ) SGS_ALIAS( float m_info.timeActual );
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME onSuccess ) sgsVariable m_onSuccess;
 	
 	Actionable( GameLevel* lev, const StringView& name, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir );
 	virtual void OnEvent( const StringView& type );
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
-	virtual void SetProperty( const StringView& name, sgsVariable value );
 	
 	virtual void* GetInterfaceImpl( uint32_t iface_id )
 	{

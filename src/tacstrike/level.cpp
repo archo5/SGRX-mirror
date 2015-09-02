@@ -43,6 +43,11 @@ Entity::~Entity()
 	sgs_ObjRelease( C, m_sgsObject );
 }
 
+sgsVariable Entity::GetScriptedObject()
+{
+	return Handle( this ).get_variable();
+}
+
 int Entity::_sgsent_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	return ((Entity*) obj->data)->_sgsDestruct();
@@ -68,36 +73,14 @@ int Entity::_sgsent_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return ((Entity*) obj->data)->_sgsDump( depth );
 }
 
+sgsHandle< GameLevel > Entity::_sgs_getLevel()
+{
+	return sgsHandle< GameLevel >( m_level );
+}
+
 
 
 #if 0
-static int EntitySetProperties( SGS_CTX )
-{
-	SGSFN( "EntitySetProperties" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	Entity* E = g_GameLevel->FindEntityByName( name );
-	if( !E )
-		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
-	sgs_StkIdx ssz = sgs_StackSize( C );
-	for( sgs_StkIdx i = 1; i + 1 < ssz; i += 2 )
-	{
-		StringView key = sgs_GetVar<StringView>()( C, i + 0 );
-		sgsVariable value = sgs_GetVar<sgsVariable>()( C, i + 1 );
-		E->SetProperty( key, value );
-	}
-	return 0;
-}
-static int GetNamedPosition( SGS_CTX )
-{
-	SGSFN( "GetNamedPosition" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	Vec3* pos = g_GameLevel->m_markerMap.getptr( name );
-	if( pos == NULL )
-		return sgs_Msg( C, SGS_WARNING, "failed to find named position: %.*s", (int) name.size(), name.data() );
-	g_GameLevel->m_scriptCtx.Push( *pos );
-	return 1;
-}
-
 static int SetCutsceneFunc( SGS_CTX )
 {
 	SGSFN( "SetCutsceneFunc" );
@@ -109,14 +92,6 @@ static int SetCutsceneSubtitle( SGS_CTX )
 {
 	SGSFN( "SetCutsceneSubtitle" );
 	g_GameLevel->m_cutsceneSubtitle = sgs_GetVar<StringView>()( C, 0 );
-	return 0;
-}
-static int SetCameraPosDir( SGS_CTX )
-{
-	SGSFN( "SetCameraPosDir" );
-	g_GameLevel->m_scene->camera.position = sgs_GetVar<Vec3>()( C, 0 );
-	g_GameLevel->m_scene->camera.direction = sgs_GetVar<Vec3>()( C, 1 );
-	g_GameLevel->m_scene->camera.UpdateMatrices();
 	return 0;
 }
 
@@ -153,12 +128,8 @@ static int SetMusicVar( SGS_CTX )
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
 #if 0
-	{ "CallEntity", CallEntity },
-	{ "EntitySetProperties", EntitySetProperties },
-	{ "GetNamedPosition", GetNamedPosition },
 	{ "SetCutsceneFunc", SetCutsceneFunc },
 	{ "SetCutsceneSubtitle", SetCutsceneSubtitle },
-	{ "SetCameraPosDir", SetCameraPosDir },
 	{ "SetMusic", SetMusic },
 	{ "SetMusicVar", SetMusicVar },
 #endif
@@ -174,7 +145,6 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_nameIDGen( 0 ),
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
-//	m_bulletSystem( &m_damageSystem ),
 	m_paused( false ),
 	m_levelTime( 0 ),
 	m_player( NULL )
@@ -190,6 +160,10 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		m_sgsObject = sgs_GetObjectStruct( C, -1 );
 		sgs_ObjAcquire( C, m_sgsObject );
 	}
+	
+	// create marker pos. array
+	m_markerPositions = m_scriptCtx.CreateDict();
+	m_self.setprop( "positions", m_markerPositions );
 	
 	Game_RegisterAction( &SKIP_CUTSCENE );
 	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &SKIP_CUTSCENE );
@@ -394,7 +368,7 @@ void GameLevel::CreateEntity( const StringView& type, sgsVariable data )
 	///////////////////////////
 	if( type == "marker" )
 	{
-		m_markerMap.set( data.getprop("name").get<StringView>(), data.getprop("position").get<Vec3>() );
+		m_markerPositions.setprop( data.getprop("name"), data.getprop("position") );
 		return;
 	}
 	
@@ -501,16 +475,10 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 		
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->Tick( deltaTime, blendFactor );
-	//	m_damageSystem.Tick( deltaTime );
-	//	m_bulletSystem.Tick( m_scene, deltaTime );
-	//	m_aidbSystem.Tick( deltaTime );
 	}
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
-	
-//	m_messageSystem.Tick( deltaTime );
-//	m_objectiveSystem.Tick( deltaTime );
 	
 	if( m_cutsceneFunc.not_null() )
 	{
@@ -648,11 +616,23 @@ Entity* GameLevel::FindEntityByName( const StringView& name )
 	return m_entNameMap.getcopy( name );
 }
 
+Entity::Handle GameLevel::sgsFindEntity( StringView name )
+{
+	return Entity::Handle( FindEntityByName( name ) );
+}
+
 void GameLevel::CallEntityByName( StringView name, StringView action )
 {
 	Entity* e = m_entNameMap.getcopy( name );
 	if( e )
 		e->OnEvent( action );
+}
+
+void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
+{
+	m_scene->camera.position = pos;
+	m_scene->camera.direction = dir;
+	m_scene->camera.UpdateMatrices();
 }
 
 

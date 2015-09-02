@@ -185,13 +185,6 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 	m_level->GetSystem<FlareSystem>()->UpdateFlare( this, FD );
 }
 
-void TSCamera::SetProperty( const StringView& name, sgsVariable value )
-{
-	if( name == "moveTime" ) m_moveTime = value.get<float>();
-	else if( name == "pauseTime" ) m_pauseTime = value.get<float>();
-	else if( name == "fov" ) m_fov = value.get<float>();
-}
-
 bool TSCamera::GetMapItemInfo( MapItemInfo* out )
 {
 	Mat4 mtx;
@@ -756,6 +749,11 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
 	
+	MapItemInfo mymapitem = { MI_Object_Player, GetPosition(), V3(0), 0, 0 };
+	m_level->GetSystem<LevelMapSystem>()->UpdateItem( this, mymapitem );
+	m_level->GetSystem<LevelMapSystem>()->m_viewPos = GetPosition().ToVec2();
+	
+	
 	m_shootPS.Tick( deltaTime );
 	m_shootPS.PreRender();
 }
@@ -1086,16 +1084,13 @@ sgs_ObjInterface TSEnemy_iface[1] =
 
 TSEnemy::TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
 	TSCharacter( lev, pos, dir ),
-	m_taskTimeout( 0 ), m_curTaskID( 0 ), m_curTaskMode( false ),
-	i_turn( V2(0) ), m_turnAngleStart(0), m_turnAngleEnd(0)
+	i_turn( V2(0) )
 {
 	m_typeName = "enemy";
 	m_name = name;
 	
 	m_aidb = m_level->GetSystem<AIDBSystem>();
 	m_meshInstInfo.ownerType = GAT_Enemy;
-	
-	UpdateTask();
 	
 	// create self
 	{
@@ -1182,42 +1177,6 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 
 void TSEnemy::FixedTick( float deltaTime )
 {
-	TSTaskArray* ta = m_curTaskMode ? &m_disturbTasks : &m_patrolTasks;
-	if( ta->size() )
-	{
-		m_taskTimeout -= deltaTime;
-		
-		TSTask& T = (*ta)[ m_curTaskID ];
-		switch( T.type )
-		{
-		case TT_Wait:
-			m_moveDir = V2(0);
-			m_anMainPlayer.Play( GR_GetAnim( "stand_anim" ) );
-			break;
-		case TT_Turn:
-			m_moveDir = V2(0);
-			m_turnAngle = TLERP( m_turnAngleStart, m_turnAngleEnd, 1 - m_taskTimeout / T.timeout );
-			m_anMainPlayer.Play( GR_GetAnim( "turn" ) );
-			break;
-		case TT_Walk:
-			m_moveDir = ( T.target - m_position.ToVec2() ).Normalized();
-			m_anMainPlayer.Play( GR_GetAnim( "march" ) );
-			break;
-		}
-	//	LOG << "TASK " << T.type << "|" << T.timeout << "|" << T.target;
-		
-		if( m_taskTimeout <= 0 || ( T.target - m_position.ToVec2() ).Length() < 0.5f )
-		{
-			m_curTaskID++;
-			if( m_curTaskID >= (int) ta->size() )
-			{
-				m_curTaskID = 0;
-				m_curTaskMode = false;
-			}
-			UpdateTask();
-		}
-	}
-	
 	TimeVal curTime = m_level->GetPhyTime();
 	
 	// process facts
@@ -1292,40 +1251,6 @@ void TSEnemy::Tick( float deltaTime, float blendFactor )
 	TSCharacter::Tick( deltaTime, blendFactor );
 }
 
-void TSEnemy::SetProperty( const StringView& name, sgsVariable value )
-{
-	if( name == "patrol_proc" )
-	{
-		m_enemyState.setprop( "patrol_proc", value );
-	}
-	else if( name == "patrol_observe_proc" )
-	{
-		m_enemyState.setprop( "patrol_observe_proc", value );
-	}
-	else if( name == "patrol_path" )
-	{
-		m_enemyState.setprop( "patrol_path", value );
-	}
-}
-
-void TSEnemy::UpdateTask()
-{
-	TSTaskArray* ta = m_curTaskMode ? &m_disturbTasks : &m_patrolTasks;
-	if( ta->size() )
-	{
-		TSTask& T = (*ta)[ m_curTaskID ];
-		m_taskTimeout = T.timeout;
-		if( T.type == TT_Turn )
-		{
-			Vec2 td = ( T.target - m_position.ToVec2() ).Normalized();
-			m_turnAngleEnd = normalize_angle( atan2( td.y, td.x ) );
-			m_turnAngleStart = normalize_angle( m_turnAngle );
-			if( fabs( m_turnAngleEnd - m_turnAngleStart ) > M_PI )
-				m_turnAngleStart += m_turnAngleEnd > m_turnAngleStart ? M_PI * 2 : -M_PI * 2;
-		}
-	}
-}
-
 bool TSEnemy::GetMapItemInfo( MapItemInfo* out )
 {
 	out->type = MI_Object_Enemy | MI_State_Normal;
@@ -1334,33 +1259,6 @@ bool TSEnemy::GetMapItemInfo( MapItemInfo* out )
 	out->sizeFwd = 10;
 	out->sizeRight = 8;
 	return true;
-}
-
-void TSParseTaskArray( TSTaskArray& out, sgsVariable var )
-{
-	ScriptVarIterator it( var );
-	while( it.Advance() )
-	{
-		TSTask ntask = { TT_Wait, 100.0f, V2(0) };
-		
-		sgsVariable item = it.GetValue();
-		{
-			sgsVariable p_type = item.getprop("type");
-			if( p_type.not_null() )
-				ntask.type = (TSTaskType) p_type.get<int>();
-		}
-		{
-			sgsVariable p_tgt = item.getprop("target");
-			if( p_tgt.not_null() )
-				ntask.target = p_tgt.get<Vec2>();
-		}
-		{
-			sgsVariable p_time = item.getprop("timeout");
-			if( p_time.not_null() )
-				ntask.timeout = p_time.get<float>();
-		}
-		out.push_back( ntask );
-	}
 }
 
 void TSEnemy::DebugDrawWorld()

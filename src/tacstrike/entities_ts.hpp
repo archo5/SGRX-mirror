@@ -9,6 +9,9 @@
 
 struct TSCamera : Entity
 {
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
 	TSCamera(
 		GameLevel* lev,
 		const StringView& name,
@@ -21,7 +24,6 @@ struct TSCamera : Entity
 	);
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
-	void SetProperty( const StringView& name, sgsVariable value );
 	bool GetMapItemInfo( MapItemInfo* out );
 	
 	AnimCharacter m_animChar;
@@ -38,29 +40,17 @@ struct TSCamera : Entity
 	
 	YawPitch m_dir0;
 	YawPitch m_dir1;
-	float m_moveTime;
-	float m_pauseTime;
-	float m_fov;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME moveTime ) float m_moveTime;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME pauseTime ) float m_pauseTime;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME fov ) float m_fov;
 };
 
-
-enum TSTaskType
-{
-	TT_Wait,
-	TT_Turn,
-	TT_Walk,
-};
-struct TSTask
-{
-	TSTaskType type;
-	float timeout;
-	Vec2 target;
-};
-typedef Array< TSTask > TSTaskArray;
-void TSParseTaskArray( TSTaskArray& out, sgsVariable var );
 
 struct TSCharacter : Entity
 {
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
 	struct ActionState
 	{
 		ActionState() : timeoutMoveToStart(0), timeoutEnding(0),
@@ -208,18 +198,12 @@ struct TSFactStorage
 
 struct TSEnemy : TSCharacter
 {
-	TSTaskArray m_patrolTasks;
-	TSTaskArray m_disturbTasks;
-	float m_taskTimeout;
-	int m_curTaskID;
-	bool m_curTaskMode;
-	String m_disturbActionName;
+	SGS_OBJECT_INHERIT( TSCharacter );
+	ENT_SGS_IMPLEMENT;
 	
 	Vec2 i_turn;
-	float m_turnAngleStart;
-	float m_turnAngleEnd;
 	
-	sgsVariable m_enemyState;
+	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	TSFactStorage m_factStorage;
 	AIDBSystem* m_aidb;
 	sgs_VarObj* m_scrObj;
@@ -228,8 +212,6 @@ struct TSEnemy : TSCharacter
 	~TSEnemy();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
-	void SetProperty( const StringView& name, sgsVariable value );
-	void UpdateTask();
 	bool GetMapItemInfo( MapItemInfo* out );
 	void DebugDrawWorld();
 	void DebugDrawUI();

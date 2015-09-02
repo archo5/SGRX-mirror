@@ -745,8 +745,14 @@ function cppbc_extend_objects( objects )
 			if( inhname == obj.name )
 				cppbc_error( "cannot inherit yourself (" $ inhname $ ")" );
 			inhobj = null;
-			foreach( inhobj : objects )
-				if( inhobj.name == inhname ) break;
+			foreach( oo : objects )
+			{
+				if( oo.name == inhname )
+				{
+					inhobj = oo;
+					break;
+				}
+			}
 			if( inhobj === null )
 				cppbc_error( "cannot find inherited object (" $ inhname $ ")" );
 			

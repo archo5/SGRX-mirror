@@ -62,7 +62,6 @@ struct Entity
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual void OnEvent( const StringView& type ){}
-	virtual void SetProperty( const StringView& name, sgsVariable value ){}
 	
 	virtual void* GetInterfaceImpl( uint32_t iface_id ){ return NULL; }
 	template< class T > T* GetInterface(){ return (T*) GetInterfaceImpl( T::e_iface_uid ); }
@@ -71,7 +70,9 @@ struct Entity
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	
-#define SGS_IMPLEMENT \
+	sgsVariable GetScriptedObject();
+	
+#define ENT_SGS_IMPLEMENT \
 	virtual int _sgsDestruct(){ return _sgs_destruct( C, m_sgsObject ); } \
 	virtual int _sgsGCMark(){ return _sgs_gcmark( C, m_sgsObject ); } \
 	virtual int _sgsGetIndex( sgs_Variable* key, int isprop ){ return _sgs_getindex( C, m_sgsObject, key, isprop ); } \
@@ -79,7 +80,7 @@ struct Entity
 	virtual int _sgsDump( int depth ){ return _sgs_dump( C, m_sgsObject, depth ); }
 // --------------------------
 	
-	SGS_IMPLEMENT;
+	ENT_SGS_IMPLEMENT;
 	SGS_IFUNC( DESTRUCT ) int _sgsent_destruct( SGS_CTX, sgs_VarObj* obj );
 	SGS_IFUNC( GCMARK ) int _sgsent_gcmark( SGS_CTX, sgs_VarObj* obj );
 	SGS_IFUNC( GETINDEX ) int _sgsent_getindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop );
@@ -87,9 +88,17 @@ struct Entity
 	SGS_IFUNC( DUMP ) int _sgsent_dump( SGS_CTX, sgs_VarObj* obj, int depth );
 	
 	const char* m_typeName;
-	String m_name;
-	String m_viewName;
+	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_name;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME viewName ) String m_viewName;
 	GameLevel* m_level;
+	
+	StringView _sgs_getTypeName(){ return m_typeName; }
+	SGS_PROPERTY_FUNC( READ _sgs_getTypeName ) SGS_ALIAS( StringView typeName );
+	
+	sgsHandle< GameLevel > _sgs_getLevel();
+	SGS_PROPERTY_FUNC( READ _sgs_getLevel ) SGS_ALIAS( sgsHandle< GameLevel > level );
+	
+	SGS_METHOD_NAMED( CallEvent ) SGS_ALIAS( void OnEvent( StringView type ) );
 };
 
 
@@ -147,7 +156,9 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	void MapEntityByName( Entity* e );
 	void UnmapEntityByName( Entity* e );
 	Entity* FindEntityByName( const StringView& name );
+	SGS_METHOD_NAMED( FindEntity ) Entity::Handle sgsFindEntity( StringView name );
 	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
+	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	
 	void LightMesh( MeshInstHandle mih, Vec3 off = V3(0) );
 	
@@ -168,11 +179,11 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entNameMap;
-	HashTable< String, Vec3 > m_markerMap;
 	Array< IGameLevelSystem* > m_systems;
 	
 	// LEVEL DATA
 	sgsVariable m_self;
+	sgsVariable m_markerPositions;
 	bool m_paused;
 	double m_levelTime;
 	Array< Entity* > m_entities;

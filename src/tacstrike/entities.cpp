@@ -222,11 +222,11 @@ void SlidingDoor::OnEvent( const StringView& type )
 }
 
 
-PickupItem::PickupItem( GameLevel* lev, const StringView& id, const StringView& name, int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
-	Entity( lev ), m_count( count ), m_pos( pos )
+PickupItem::PickupItem( GameLevel* lev, const StringView& name, const StringView& type,
+	int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
+	Entity( lev ), m_type( type ), m_count( count ), m_pos( pos )
 {
-	m_name = id;
-	m_viewName = name;
+	m_name = name;
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	m_meshInst->dynamic = 1;
 	
@@ -242,16 +242,21 @@ PickupItem::PickupItem( GameLevel* lev, const StringView& id, const StringView& 
 
 void PickupItem::OnEvent( const StringView& type )
 {
-	if( ( type == "trigger_switch" || type == "action_end" ) && m_level->m_player )
+	if( ( type == "trigger_switch" || type == "action_end" ) )
 	{
-		// TODO
-	//	m_level->m_player->AddItem( m_name, m_count );
-		m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
-		m_meshInst->enabled = false;
+		SGS_SCOPE;
 		
-		char bfr[ 256 ];
-		sprintf( bfr, "Picked up %.*s", TMIN( 240, (int) m_viewName.size() ), m_viewName.data() );
-		m_level->GetSystem<MessagingSystem>()->AddMessage( MSMessage::Info, bfr );
+		sgsVariable scrobj = GetScriptedObject();
+		scrobj.push( C );
+		if( scrobj.getprop( "level" ).thiscall( "onPickupItem", 1, 1 ) )
+		{
+			bool keep = sgs_GetVar<bool>()( C, -1 );
+			if( keep == false )
+			{
+				m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+				m_meshInst->enabled = false;
+			}
+		}
 	}
 }
 
@@ -304,11 +309,11 @@ void Actionable::OnEvent( const StringView& type )
 	else if( type == "action_end" )
 	{
 		// end animation?
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_level->m_scriptCtx.Push( m_name );
+		SGS_SCOPE;
+		GetScriptedObject().push( C );
 		if( m_onSuccess.call( 1, 1 ) )
 		{
-			bool keep = sgsVariable( m_level->m_scriptCtx.C, -1 ).get<bool>();
+			bool keep = sgs_GetVar<bool>()( C, -1 );
 			if( keep == false )
 			{
 				m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
@@ -321,14 +326,6 @@ bool Actionable::GetInteractionInfo( Vec3 pos, InteractInfo* out )
 {
 	*out = m_info;
 	return true;
-}
-
-void Actionable::SetProperty( const StringView& name, sgsVariable value )
-{
-	if( name == "viewName" ) m_viewName = value.get<String>();
-	else if( name == "timeEstimate" ) m_info.timeEstimate = value.get<float>();
-	else if( name == "timeActual" ) m_info.timeActual = value.get<float>();
-	else if( name == "callback" ) m_onSuccess = value;
 }
 
 
@@ -567,8 +564,8 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		PickupItem* PI = new PickupItem
 		(
 			m_level,
-			data.getprop("id").get<StringView>(),
 			data.getprop("name").get<StringView>(),
+			data.getprop("type").get<StringView>(),
 			data.getprop("count").get<int>(),
 			data.getprop("mesh").get<StringView>(),
 			data.getprop("position").get<Vec3>(),

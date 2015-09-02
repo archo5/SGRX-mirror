@@ -275,7 +275,7 @@ function ED_ENT_pickup( eptr )
 {
 	ENTBASE_xfmesh( eptr );
 	ENTBASE_named( eptr );
-	EE_AddFieldString( eptr, "id", "ID", "" );
+	EE_AddFieldString( eptr, "type", "Type", "" );
 	EE_AddFieldInt( eptr, "count", "Count", 1, 1, 10000 );
 	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
 	EE_SetDebugDrawFunc( eptr, ENTDD_xfmesh );
