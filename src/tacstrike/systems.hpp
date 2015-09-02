@@ -74,6 +74,8 @@ struct IInteractiveEntity
 
 struct InfoEmissionSystem : IGameLevelSystem
 {
+	SGS_OBJECT_LITE;
+	
 	enum { e_system_uid = 1 };
 	
 	struct Data
@@ -87,7 +89,7 @@ struct InfoEmissionSystem : IGameLevelSystem
 		virtual bool Process( Entity*, const Data& ) = 0;
 	};
 	
-	InfoEmissionSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
+	InfoEmissionSystem( GameLevel* lev );
 	void Clear();
 	void UpdateEmitter( Entity* e, const Data& data );
 	void RemoveEmitter( Entity* e );
@@ -95,6 +97,9 @@ struct InfoEmissionSystem : IGameLevelSystem
 	bool QuerySphereAll( IESProcessor* proc, const Vec3& pos, float rad, uint32_t types );
 	bool QueryBB( const Mat4& mtx, uint32_t types );
 	Entity* QueryOneRay( const Vec3& from, const Vec3& to, uint32_t types );
+	
+	SGS_METHOD_NAMED( Update ) void sgsUpdate( Entity::Handle e, Vec3 pos, float rad, uint32_t types );
+	SGS_METHOD_NAMED( Remove ) void sgsRemove( Entity::Handle e );
 	
 	HashTable< Entity*, Data > m_emissionData;
 };
@@ -196,14 +201,13 @@ struct MSMessage
 
 struct MessagingSystem : IGameLevelSystem
 {
-	SGS_OBJECT;
+	SGS_OBJECT_LITE;
 	
 	enum { e_system_uid = 2 };
 	
 	Array< MSMessage > m_messages;
 	
 	MessagingSystem( GameLevel* lev );
-	~MessagingSystem();
 	void Clear();
 	void AddMessage( MSMessage::Type type, const StringView& sv, float tmlength = 3 );
 	void Tick( float deltaTime, float blendFactor );
@@ -248,12 +252,11 @@ struct OSObjStats
 
 struct ObjectiveSystem : IGameLevelSystem
 {
-	SGS_OBJECT;
+	SGS_OBJECT_LITE;
 	
 	enum { e_system_uid = 3 };
 	
 	ObjectiveSystem( GameLevel* lev );
-	~ObjectiveSystem();
 	void Clear();
 	int AddObjective(
 		const StringView& title,
@@ -294,6 +297,8 @@ struct FSFlare
 
 struct FlareSystem : IGameLevelSystem
 {
+	SGS_OBJECT_LITE;
+	
 	enum { e_system_uid = 4 };
 	
 	FlareSystem( GameLevel* lev );
@@ -301,6 +306,9 @@ struct FlareSystem : IGameLevelSystem
 	void UpdateFlare( void* handle, const FSFlare& flare );
 	bool RemoveFlare( void* handle );
 	void PostDraw();
+	
+	SGS_METHOD_NAMED( Update ) void sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled );
+	SGS_METHOD_NAMED( Remove ) void sgsRemove( void* handle );
 	
 	HashTable< void*, FSFlare > m_flares;
 	PixelShaderHandle m_ps_flare;

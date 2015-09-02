@@ -3,6 +3,65 @@
 
 #include "systems.hpp"
 
+static int _sgs_method__InfoEmissionSystem__sgsUpdate( SGS_CTX )
+{
+	InfoEmissionSystem* data; if( !SGS_PARSE_METHOD( C, InfoEmissionSystem::_sgs_interface, data, InfoEmissionSystem, sgsUpdate ) ) return 0;
+	data->sgsUpdate( sgs_GetVar<Entity::Handle>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<uint32_t>()(C,3) ); return 0;
+}
+
+static int _sgs_method__InfoEmissionSystem__sgsRemove( SGS_CTX )
+{
+	InfoEmissionSystem* data; if( !SGS_PARSE_METHOD( C, InfoEmissionSystem::_sgs_interface, data, InfoEmissionSystem, sgsRemove ) ) return 0;
+	data->sgsRemove( sgs_GetVar<Entity::Handle>()(C,0) ); return 0;
+}
+
+int InfoEmissionSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<InfoEmissionSystem*>( obj->data )->~InfoEmissionSystem();
+	return SGS_SUCCESS;
+}
+
+int InfoEmissionSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int InfoEmissionSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "Update" ){ sgs_PushCFunction( C, _sgs_method__InfoEmissionSystem__sgsUpdate ); return SGS_SUCCESS; }
+		SGS_CASE( "Remove" ){ sgs_PushCFunction( C, _sgs_method__InfoEmissionSystem__sgsRemove ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int InfoEmissionSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int InfoEmissionSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 50 ];
+	sprintf( bfr, "InfoEmissionSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface InfoEmissionSystem::_sgs_interface[1] =
+{{
+	"InfoEmissionSystem",
+	InfoEmissionSystem::_sgs_destruct, InfoEmissionSystem::_sgs_gcmark, InfoEmissionSystem::_sgs_getindex, InfoEmissionSystem::_sgs_setindex, NULL, NULL, InfoEmissionSystem::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
 static int _sgs_method__MessagingSystem__sgsAddMsg( SGS_CTX )
 {
 	MessagingSystem* data; if( !SGS_PARSE_METHOD( C, MessagingSystem::_sgs_interface, data, MessagingSystem, sgsAddMsg ) ) return 0;
@@ -132,5 +191,64 @@ sgs_ObjInterface ObjectiveSystem::_sgs_interface[1] =
 {{
 	"ObjectiveSystem",
 	ObjectiveSystem::_sgs_destruct, ObjectiveSystem::_sgs_gcmark, ObjectiveSystem::_sgs_getindex, ObjectiveSystem::_sgs_setindex, NULL, NULL, ObjectiveSystem::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
+static int _sgs_method__FlareSystem__sgsUpdate( SGS_CTX )
+{
+	FlareSystem* data; if( !SGS_PARSE_METHOD( C, FlareSystem::_sgs_interface, data, FlareSystem, sgsUpdate ) ) return 0;
+	data->sgsUpdate( sgs_GetVarObj<void>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<bool>()(C,4) ); return 0;
+}
+
+static int _sgs_method__FlareSystem__sgsRemove( SGS_CTX )
+{
+	FlareSystem* data; if( !SGS_PARSE_METHOD( C, FlareSystem::_sgs_interface, data, FlareSystem, sgsRemove ) ) return 0;
+	data->sgsRemove( sgs_GetVarObj<void>()(C,0) ); return 0;
+}
+
+int FlareSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<FlareSystem*>( obj->data )->~FlareSystem();
+	return SGS_SUCCESS;
+}
+
+int FlareSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int FlareSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "Update" ){ sgs_PushCFunction( C, _sgs_method__FlareSystem__sgsUpdate ); return SGS_SUCCESS; }
+		SGS_CASE( "Remove" ){ sgs_PushCFunction( C, _sgs_method__FlareSystem__sgsRemove ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int FlareSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int FlareSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 43 ];
+	sprintf( bfr, "FlareSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface FlareSystem::_sgs_interface[1] =
+{{
+	"FlareSystem",
+	FlareSystem::_sgs_destruct, FlareSystem::_sgs_gcmark, FlareSystem::_sgs_getindex, FlareSystem::_sgs_setindex, NULL, NULL, FlareSystem::_sgs_dump, NULL, NULL, NULL, 
 }};
 

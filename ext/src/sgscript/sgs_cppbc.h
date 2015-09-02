@@ -23,7 +23,6 @@
 # define SGS_OBJECT_LITE \
 	static int _sgs_destruct( SGS_CTX, sgs_VarObj* obj ); \
 	static int _sgs_gcmark( SGS_CTX, sgs_VarObj* obj ); \
-	static int _sgs_convert( SGS_CTX, sgs_VarObj* obj, int type ); \
 	static int _sgs_getindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop ); \
 	static int _sgs_setindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop ); \
 	static int _sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth ); \
@@ -745,6 +744,10 @@ template<> struct sgs_GetVar<std::string> { std::string operator () ( SGS_CTX, s
 	char* str; sgs_SizeVal size; if( sgs_ParseString( C, item, &str, &size ) )
 		return std::string( str, (size_t) size ); return std::string(); }};
 #endif
+template<> struct sgs_GetVarObj<void> { void* operator () ( SGS_CTX, sgs_StkIdx item )
+{
+	return sgs_GetVar<void*>()( C, item );
+}};
 template< class O >
 struct sgs_GetVar< sgsMaybe<O> >
 {

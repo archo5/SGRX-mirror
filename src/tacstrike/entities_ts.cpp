@@ -668,11 +668,14 @@ void TSPlayer::FixedTick( float deltaTime )
 		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
 		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
 	);
+	i_aim_target = FindTargetPosition();
 	if( i_move.Length() > 0.1f )
 	{
-		TurnTo( i_move, deltaTime * 8 );
+		Vec2 md = i_move;
+		if( Vec2Dot( ( i_aim_target - GetPosition() ).ToVec2(), md ) < 0 )
+			md = -md;
+		TurnTo( md, deltaTime * 8 );
 	}
-	i_aim_target = FindTargetPosition();
 //	i_crouch = CROUCH.value;
 	
 	if( DO_ACTION.value )
@@ -1438,6 +1441,7 @@ void TSEnemy::DebugDrawUI()
 
 TSEntityCreationSystem::TSEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
+	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
 bool TSEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )

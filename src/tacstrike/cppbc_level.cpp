@@ -3,6 +3,51 @@
 
 #include "level.hpp"
 
+int Entity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<Entity*>( obj->data )->~Entity();
+	return SGS_SUCCESS;
+}
+
+int Entity::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int Entity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int Entity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int Entity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 38 ];
+	sprintf( bfr, "Entity (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface Entity::_sgs_interface[1] =
+{{
+	"Entity",
+	Entity::_sgsent_destruct, Entity::_sgsent_gcmark, Entity::_sgsent_getindex, Entity::_sgsent_setindex, NULL, NULL, Entity::_sgsent_dump, NULL, NULL, NULL, 
+}};
+
+
 static int _sgs_method__GameLevel__SetNextLevel( SGS_CTX )
 {
 	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, SetNextLevel ) ) return 0;

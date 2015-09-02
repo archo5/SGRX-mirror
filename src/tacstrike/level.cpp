@@ -4,39 +4,73 @@
 
 
 
+IGameLevelSystem::~IGameLevelSystem()
+{
+	_DestroyScriptInterface();
+}
+
+void IGameLevelSystem::_DestroyScriptInterface()
+{
+	if( m_sgsObject )
+	{
+		m_sgsObject->data = NULL;
+		m_sgsObject->iface = NULL;
+		sgs_ObjRelease( C, m_sgsObject );
+		C = NULL;
+		m_sgsObject = NULL;
+	}
+}
+
+
 Entity::Entity( GameLevel* lev ) : m_typeName("<unknown>"), m_level( lev )
 {
+	// create the scripted self
+	{
+		SGS_CSCOPE( m_level->GetSGSC() );
+		sgs_PushClass( m_level->GetSGSC(), this );
+		m_level->AddEntry( "infoEmitters", sgsVariable( m_level->GetSGSC(), -1 ) );
+		C = m_level->GetSGSC();
+		m_sgsObject = sgs_GetObjectStruct( C, -1 );
+		sgs_ObjAcquire( C, m_sgsObject );
+	}
 }
 
 Entity::~Entity()
 {
 	m_level->UnmapEntityByName( this );
+	m_sgsObject->data = NULL;
+	m_sgsObject->iface = NULL;
+	sgs_ObjRelease( C, m_sgsObject );
+}
+
+int Entity::_sgsent_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	return ((Entity*) obj->data)->_sgsDestruct();
+}
+
+int Entity::_sgsent_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return ((Entity*) obj->data)->_sgsGCMark();
+}
+
+int Entity::_sgsent_getindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop )
+{
+	return ((Entity*) obj->data)->_sgsGetIndex( key, isprop );
+}
+
+int Entity::_sgsent_setindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop )
+{
+	return ((Entity*) obj->data)->_sgsSetIndex( key, val, isprop );
+}
+
+int Entity::_sgsent_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	return ((Entity*) obj->data)->_sgsDump( depth );
 }
 
 
 
 #if 0
-static int PlayerGetPosition( SGS_CTX )
-{
-	SGSFN( "PlayerGetPosition" );
-	if( g_GameLevel->m_player )
-	{
-		sgs_PushVar<Vec3>( C, g_GameLevel->m_player->GetPosition() );
-		return 1;
-	}
-	return 0;
-}
-static int PlayerHasItem( SGS_CTX )
-{
-	SGSFN( "PlayerHasItem" );
-	if( g_GameLevel->m_player )
-	{
-		StringView name = sgs_GetVar<StringView>()( C, 0 );
-		sgs_PushVar<bool>( C, g_GameLevel->m_player->HasItem( name, sgs_GetVar<int>()( C, 1 ) ) );
-		return 1;
-	}
-	return 0;
-}
 static int EntitySetProperties( SGS_CTX )
 {
 	SGSFN( "EntitySetProperties" );
@@ -52,21 +86,6 @@ static int EntitySetProperties( SGS_CTX )
 		E->SetProperty( key, value );
 	}
 	return 0;
-}
-static int EntityGetProperties( SGS_CTX )
-{
-	SGSFN( "EntityGetProperties" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	Entity* E = g_GameLevel->FindEntityByName( name );
-	if( !E )
-		return sgs_Msg( C, SGS_WARNING, "failed to find entity: %.*s", (int) name.size(), name.data() );
-	sgs_StkIdx ssz = sgs_StackSize( C );
-	for( sgs_StkIdx i = 1; i < ssz; ++i )
-	{
-		StringView key = sgs_GetVar<StringView>()( C, i );
-		g_GameLevel->m_scriptCtx.Push( E->GetProperty( key ) );
-	}
-	return ssz - 1;
 }
 static int GetNamedPosition( SGS_CTX )
 {
@@ -129,101 +148,22 @@ static int SetMusicVar( SGS_CTX )
 	}
 	return 0;
 }
-
-static int IES_UpdateEmitter( SGS_CTX )
-{
-	SGSFN( "IES_UpdateEmitter" );
-	Entity* E = (Entity*) sgs_GetVar<void*>()( C, 0 );
-	if( E == NULL )
-		return sgs_Msg( C, SGS_WARNING, "given pointer is not an entity" );
-	InfoEmissionSystem::Data data =
-	{
-		sgs_GetVar<Vec3>()( C, 1 ),
-		sgs_GetVar<float>()( C, 2 ),
-		sgs_GetVar<int>()( C, 3 ),
-	};
-	g_GameLevel->m_infoEmitters.UpdateEmitter( E, data );
-	return 0;
-}
-static int IES_RemoveEmitter( SGS_CTX )
-{
-	SGSFN( "IES_RemoveEmitter" );
-	Entity* E = (Entity*) sgs_GetVar<void*>()( C, 0 );
-	if( E == NULL )
-		return sgs_Msg( C, SGS_WARNING, "given pointer is not an entity" );
-	g_GameLevel->m_infoEmitters.RemoveEmitter( E );
-	return 0;
-}
-
-static int FS_UpdateFlare( SGS_CTX )
-{
-	SGSFN( "FS_UpdateFlare" );
-	void* P = sgs_GetVar<void*>()( C, 0 );
-	if( P == NULL )
-		return sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
-	FSFlare data =
-	{
-		sgs_GetVar<Vec3>()( C, 1 ),
-		sgs_GetVar<Vec3>()( C, 2 ),
-		sgs_GetVar<float>()( C, 3 ),
-		sgs_GetVar<bool>()( C, 4 ),
-	};
-	g_GameLevel->m_flareSystem.UpdateFlare( P, data );
-	return 0;
-}
-static int FS_RemoveFlare( SGS_CTX )
-{
-	SGSFN( "FS_RemoveFlare" );
-	void* P = sgs_GetVar<void*>()( C, 0 );
-	if( P == NULL )
-		return sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
-	g_GameLevel->m_flareSystem.RemoveFlare( P );
-	return 0;
-}
 #endif
 
 static sgs_RegFuncConst g_gameapi_rfc[] =
 {
 #if 0
 	{ "CallEntity", CallEntity },
-	{ "PlayerGetPosition", PlayerGetPosition },
-	{ "PlayerHasItem", PlayerHasItem },
 	{ "EntitySetProperties", EntitySetProperties },
-	{ "EntityGetProperties", EntityGetProperties },
 	{ "GetNamedPosition", GetNamedPosition },
 	{ "SetCutsceneFunc", SetCutsceneFunc },
 	{ "SetCutsceneSubtitle", SetCutsceneSubtitle },
 	{ "SetCameraPosDir", SetCameraPosDir },
 	{ "SetMusic", SetMusic },
 	{ "SetMusicVar", SetMusicVar },
-	// Info emission system
-	{ "IES_UpdateEmitter", IES_UpdateEmitter },
-	{ "IES_RemoveEmitter", IES_RemoveEmitter },
-	// Flare system
-	{ "FS_UpdateFlare", FS_UpdateFlare },
-	{ "FS_RemoveFlare", FS_RemoveFlare },
 #endif
 	SGS_RC_END(),
 };
-
-static sgs_RegIntConst g_gameapi_ric[] =
-{
-#if 0
-	{ "IEST_InteractiveItem", IEST_InteractiveItem },
-	{ "IEST_HeatSource", IEST_HeatSource },
-	{ "IEST_Player", IEST_Player },
-	{ "IEST_MapItem", IEST_MapItem },
-	{ "IEST_AIAlert", IEST_AIAlert },
-#endif
-	{ NULL, 0 },
-};
-
-static int InitGameAPI( SGS_CTX )
-{
-	sgs_RegFuncConsts( C, g_gameapi_rfc, -1 );
-	sgs_RegIntConsts( C, g_gameapi_ric, -1 );
-	return 0;
-}
 
 
 
@@ -264,9 +204,6 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_scene->camera.direction = Vec3::Create( -1, -1, -1 ).Normalized();
 	m_scene->camera.aspect = 1024.0f / 576.0f;
 	m_scene->camera.UpdateMatrices();
-	
-	InitGameAPI( m_scriptCtx.C );
-	m_scriptCtx.Include( "data/enemy" );
 }
 
 GameLevel::~GameLevel()

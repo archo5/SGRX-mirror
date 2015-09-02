@@ -5,6 +5,23 @@
 
 
 
+InfoEmissionSystem::InfoEmissionSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+{
+	// create the scripted self
+	_InitScriptInterface( "infoEmitters" );
+	
+	sgs_RegIntConst ric[] =
+	{
+		{ "IEST_InteractiveItem", IEST_InteractiveItem },
+		{ "IEST_HeatSource", IEST_HeatSource },
+		{ "IEST_Player", IEST_Player },
+		{ "IEST_MapItem", IEST_MapItem },
+		{ "IEST_AIAlert", IEST_AIAlert },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
+}
+
 void InfoEmissionSystem::Clear()
 {
 	m_emissionData.clear();
@@ -86,6 +103,27 @@ Entity* InfoEmissionSystem::QueryOneRay( const Vec3& from, const Vec3& to, uint3
 			return m_emissionData.item( i ).key;
 	}
 	return NULL;
+}
+
+void InfoEmissionSystem::sgsUpdate( Entity::Handle e, Vec3 pos, float rad, uint32_t types )
+{
+	if( e.not_null() == false )
+	{
+		sgs_Msg( C, SGS_WARNING, "given pointer is not an entity" );
+		return;
+	}
+	Data d = { pos, rad, types };
+	UpdateEmitter( e, d );
+}
+
+void InfoEmissionSystem::sgsRemove( Entity::Handle e )
+{
+	if( e.not_null() == false )
+	{
+		sgs_Msg( C, SGS_WARNING, "given pointer is not an entity" );
+		return;
+	}
+	RemoveEmitter( e );
 }
 
 
@@ -226,30 +264,16 @@ MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_sy
 	m_tx_icon_cont = GR_GetTexture( "ui/icon_cont.png" );
 	
 	// create the scripted self
+	_InitScriptInterface( "messages" );
+	
+	sgs_RegIntConst ric[] =
 	{
-		SGS_CSCOPE( m_level->GetSGSC() );
-		sgs_PushClass( m_level->GetSGSC(), this );
-		m_level->AddEntry( "messages", sgsVariable( m_level->GetSGSC(), -1 ) );
-		C = m_level->GetSGSC();
-		m_sgsObject = sgs_GetObjectStruct( C, -1 );
-		sgs_ObjAcquire( C, m_sgsObject );
-		
-		sgs_RegIntConst ric[] =
-		{
-			{ "MT_Continued", MSMessage::Continued },
-			{ "MT_Info", MSMessage::Info },
-			{ "MT_Warning", MSMessage::Warning },
-			{ NULL, 0 },
-		};
-		sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
-	}
-}
-
-MessagingSystem::~MessagingSystem()
-{
-	m_sgsObject->data = NULL;
-	m_sgsObject->iface = NULL;
-	sgs_ObjRelease( C, m_sgsObject );
+		{ "MT_Continued", MSMessage::Continued },
+		{ "MT_Info", MSMessage::Info },
+		{ "MT_Warning", MSMessage::Warning },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
 }
 
 void MessagingSystem::Clear()
@@ -332,32 +356,18 @@ ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
 	m_tx_icon_failed = GR_GetTexture( "ui/obj_failed.png" );
 	
 	// create the scripted self
+	_InitScriptInterface( "objectives" );
+	
+	sgs_RegIntConst ric[] =
 	{
-		SGS_CSCOPE( m_level->GetSGSC() );
-		sgs_PushClass( m_level->GetSGSC(), this );
-		m_level->AddEntry( "objectives", sgsVariable( m_level->GetSGSC(), -1 ) );
-		C = m_level->GetSGSC();
-		m_sgsObject = sgs_GetObjectStruct( C, -1 );
-		sgs_ObjAcquire( C, m_sgsObject );
-		
-		sgs_RegIntConst ric[] =
-		{
-			{ "OS_Hidden", OSObjective::Hidden },
-			{ "OS_Open", OSObjective::Open },
-			{ "OS_Done", OSObjective::Done },
-			{ "OS_Failed", OSObjective::Failed },
-			{ "OS_Cancelled", OSObjective::Cancelled },
-			{ NULL, 0 },
-		};
-		sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
-	}
-}
-
-ObjectiveSystem::~ObjectiveSystem()
-{
-	m_sgsObject->data = NULL;
-	m_sgsObject->iface = NULL;
-	sgs_ObjRelease( C, m_sgsObject );
+		{ "OS_Hidden", OSObjective::Hidden },
+		{ "OS_Open", OSObjective::Open },
+		{ "OS_Done", OSObjective::Done },
+		{ "OS_Failed", OSObjective::Failed },
+		{ "OS_Cancelled", OSObjective::Cancelled },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
 }
 
 void ObjectiveSystem::Clear()
@@ -498,6 +508,9 @@ FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid
 {
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
+	
+	// create the scripted self
+	_InitScriptInterface( "flares" );
 }
 
 void FlareSystem::Clear()
@@ -545,6 +558,27 @@ void FlareSystem::PostDraw()
 		br.TurnedBox( screenpos.x * W, screenpos.y * H, dx, dy );
 		br.Flush();
 	}
+}
+
+void FlareSystem::sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled )
+{
+	if( handle == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
+		return;
+	}
+	FSFlare F = { pos, col, size, sgs_StackSize( C ) >= 5 ? enabled : true };
+	UpdateFlare( handle, F );
+}
+
+void FlareSystem::sgsRemove( void* handle )
+{
+	if( handle == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "cannot use NULL pointer for association" );
+		return;
+	}
+	RemoveFlare( handle );
 }
 
 
