@@ -164,6 +164,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	double m_currentTickTime;
 	double m_currentPhyTime;
 	String m_levelName;
+	String m_nextLevel;
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entNameMap;
@@ -182,11 +183,6 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	float m_cutsceneTime;
 	String m_cutsceneSubtitle;
 	SoundEventInstanceHandle m_music;
-	
-	// HELPER DATA
-	Vec3 m_cachedCameraInfo[2];
-	bool m_cameraInfoCached;
-	String m_nextLevel;
 };
 
 

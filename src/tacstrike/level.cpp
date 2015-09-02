@@ -425,7 +425,6 @@ void GameLevel::StartLevel()
 	if( m_music )
 		m_music->Stop();
 	m_music = NULL;
-	m_cameraInfoCached = false;
 	m_levelTime = 0;
 	if( !m_player )
 	{
@@ -453,7 +452,6 @@ void GameLevel::ClearLevel()
 	if( m_music )
 		m_music->Stop( true );
 	m_music = NULL;
-	m_cameraInfoCached = false;
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Clear();
