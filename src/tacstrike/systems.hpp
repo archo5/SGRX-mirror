@@ -75,6 +75,7 @@ struct IInteractiveEntity
 struct InfoEmissionSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 1 };
 	
@@ -202,6 +203,7 @@ struct MSMessage
 struct MessagingSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 2 };
 	
@@ -253,6 +255,7 @@ struct OSObjStats
 struct ObjectiveSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 3 };
 	
@@ -298,6 +301,7 @@ struct FSFlare
 struct FlareSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 4 };
 	
@@ -335,6 +339,7 @@ struct LevelCoreSystem : IGameLevelSystem
 struct ScriptedSequenceSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 11 };
 	
@@ -354,6 +359,7 @@ struct ScriptedSequenceSystem : IGameLevelSystem
 struct MusicSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 12 };
 	

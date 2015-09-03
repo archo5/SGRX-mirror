@@ -58,7 +58,7 @@ int Entity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface Entity::_sgs_interface[1] =
 {{
 	"Entity",
-	Entity::_sgsent_destruct, Entity::_sgsent_gcmark, Entity::_sgsent_getindex, Entity::_sgsent_setindex, NULL, NULL, Entity::_sgsent_dump, NULL, NULL, NULL, 
+	NULL, Entity::_sgsent_gcmark, Entity::_sgsent_getindex, Entity::_sgsent_setindex, NULL, NULL, Entity::_sgsent_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -131,6 +131,6 @@ int GameLevel::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface GameLevel::_sgs_interface[1] =
 {{
 	"GameLevel",
-	GameLevel::_sgs_destruct, GameLevel::_sgs_gcmark, GameLevel::_sgs_getindex, GameLevel::_sgs_setindex, NULL, NULL, GameLevel::_sgs_dump, NULL, NULL, NULL, 
+	NULL, GameLevel::_sgs_gcmark, GameLevel::_getindex, GameLevel::_setindex, NULL, NULL, GameLevel::_sgs_dump, NULL, NULL, NULL, 
 }};
 

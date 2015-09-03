@@ -3,6 +3,8 @@
 #include "level.hpp"
 
 
+static sgs_ObjInterface g_empty_handle[] = {{ "empty_handle", NULL }};
+
 
 IGameLevelSystem::~IGameLevelSystem()
 {
@@ -14,7 +16,7 @@ void IGameLevelSystem::_DestroyScriptInterface()
 	if( m_sgsObject )
 	{
 		m_sgsObject->data = NULL;
-		m_sgsObject->iface = NULL;
+		m_sgsObject->iface = g_empty_handle;
 		sgs_ObjRelease( C, m_sgsObject );
 		C = NULL;
 		m_sgsObject = NULL;
@@ -39,18 +41,13 @@ Entity::~Entity()
 {
 	m_level->UnmapEntityByName( this );
 	m_sgsObject->data = NULL;
-	m_sgsObject->iface = NULL;
+	m_sgsObject->iface = g_empty_handle;
 	sgs_ObjRelease( C, m_sgsObject );
 }
 
 sgsVariable Entity::GetScriptedObject()
 {
 	return Handle( this ).get_variable();
-}
-
-int Entity::_sgsent_destruct( SGS_CTX, sgs_VarObj* obj )
-{
-	return ((Entity*) obj->data)->_sgsDestruct();
 }
 
 int Entity::_sgsent_gcmark( SGS_CTX, sgs_VarObj* obj )
@@ -126,7 +123,7 @@ GameLevel::~GameLevel()
 		m_systems[ i ]->OnLevelDestroy();
 	
 	m_sgsObject->data = NULL;
-	m_sgsObject->iface = NULL;
+	m_sgsObject->iface = g_empty_handle;
 	sgs_ObjRelease( C, m_sgsObject );
 }
 

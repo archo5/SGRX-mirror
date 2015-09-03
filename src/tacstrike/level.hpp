@@ -55,6 +55,7 @@ struct IGameLevelSystem
 struct Entity
 {
 	SGS_OBJECT;
+	SGS_NO_DESTRUCT;
 	typedef sgsHandle< Entity > Handle;
 	
 	Entity( GameLevel* lev );
@@ -73,7 +74,6 @@ struct Entity
 	sgsVariable GetScriptedObject();
 	
 #define ENT_SGS_IMPLEMENT \
-	virtual int _sgsDestruct(){ return _sgs_destruct( C, m_sgsObject ); } \
 	virtual int _sgsGCMark(){ return _sgs_gcmark( C, m_sgsObject ); } \
 	virtual int _sgsGetIndex( sgs_Variable* key, int isprop ){ return _sgs_getindex( C, m_sgsObject, key, isprop ); } \
 	virtual int _sgsSetIndex( sgs_Variable* key, sgs_Variable* val, int isprop ){ return _sgs_setindex( C, m_sgsObject, key, val, isprop ); } \
@@ -81,7 +81,6 @@ struct Entity
 // --------------------------
 	
 	ENT_SGS_IMPLEMENT;
-	SGS_IFUNC( DESTRUCT ) int _sgsent_destruct( SGS_CTX, sgs_VarObj* obj );
 	SGS_IFUNC( GCMARK ) int _sgsent_gcmark( SGS_CTX, sgs_VarObj* obj );
 	SGS_IFUNC( GETINDEX ) int _sgsent_getindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop );
 	SGS_IFUNC( SETINDEX ) int _sgsent_setindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop );
@@ -107,6 +106,7 @@ typedef StackString<16> StackShortName;
 struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 {
 	SGS_OBJECT;
+	SGS_NO_DESTRUCT;
 	
 	GameLevel( PhyWorldHandle phyWorld );
 	virtual ~GameLevel();

@@ -667,6 +667,7 @@ function cppbc_examine_object( code, pos )
 	blockcode = cppbc_remove_blocks( blockcode );
 	
 	no_export = re_match( blockcode, "#SGS_NO_EXPORT#" );
+	no_destruct = re_match( blockcode, "#SGS_NO_DESTRUCT#" );
 	inherited = {};
 	inh_matches = re_match_all( blockcode, "#SGS_OBJECT_INHERIT[ \t\v\n\r]*\\(([a-zA-Z0-9_ \t\v\n\r,]*)\\)#ms", RE_RETURN_CAPTURED );
 	foreach( match : inh_matches )
@@ -715,6 +716,7 @@ function cppbc_examine_object( code, pos )
 		name = classname,
 		items = items,
 		no_export = no_export,
+		no_destruct = no_destruct,
 		inherited = inherited,
 	};
 }
@@ -798,6 +800,9 @@ function cppbc_generate_code( objects, includes )
 			
 			ifuncs[ item.type ] = item.name;
 		}
+		
+		if( obj.no_destruct )
+			ifuncs[ "destruct" ] = null;
 		
 		// method wrappers
 		foreach( item : obj.items )

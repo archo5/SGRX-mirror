@@ -37,6 +37,7 @@
 #  define SGS_OBJECT_INHERIT( names... ) SGS_OBJECT_LITE
 # endif
 # define SGS_NO_EXPORT
+# define SGS_NO_DESTRUCT
 # define SGS_METHOD
 # define SGS_METHOD_NAMED( name )
 # define SGS_MULTRET int

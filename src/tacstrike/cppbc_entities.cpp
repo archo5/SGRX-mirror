@@ -58,7 +58,7 @@ int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface PickupItem::_sgs_interface[1] =
 {{
 	"PickupItem",
-	PickupItem::_sgsent_destruct, PickupItem::_sgsent_gcmark, PickupItem::_sgsent_getindex, PickupItem::_sgsent_setindex, NULL, NULL, PickupItem::_sgsent_dump, NULL, NULL, NULL, 
+	PickupItem::_sgs_destruct, PickupItem::_sgsent_gcmark, PickupItem::_sgsent_getindex, PickupItem::_sgsent_setindex, NULL, NULL, PickupItem::_sgsent_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -123,6 +123,6 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface Actionable::_sgs_interface[1] =
 {{
 	"Actionable",
-	Actionable::_sgsent_destruct, Actionable::_sgsent_gcmark, Actionable::_sgsent_getindex, Actionable::_sgsent_setindex, NULL, NULL, Actionable::_sgsent_dump, NULL, NULL, NULL, 
+	Actionable::_sgs_destruct, Actionable::_sgsent_gcmark, Actionable::_sgsent_getindex, Actionable::_sgsent_setindex, NULL, NULL, Actionable::_sgsent_dump, NULL, NULL, NULL, 
 }};
 
