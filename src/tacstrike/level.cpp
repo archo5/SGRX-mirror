@@ -80,66 +80,6 @@ sgsHandle< GameLevel > Entity::_sgs_getLevel()
 
 
 
-#if 0
-static int SetCutsceneFunc( SGS_CTX )
-{
-	SGSFN( "SetCutsceneFunc" );
-	g_GameLevel->m_cutsceneFunc = sgsVariable( C, 0 );
-	g_GameLevel->m_cutsceneTime = sgs_GetVar<float>()( C, 1 );
-	return 0;
-}
-static int SetCutsceneSubtitle( SGS_CTX )
-{
-	SGSFN( "SetCutsceneSubtitle" );
-	g_GameLevel->m_cutsceneSubtitle = sgs_GetVar<StringView>()( C, 0 );
-	return 0;
-}
-
-extern SoundSystemHandle g_SoundSys;
-static int SetMusic( SGS_CTX )
-{
-	SGSFN( "SetMusic" );
-	
-	if( g_GameLevel->m_music )
-		g_GameLevel->m_music->Stop();
-	g_GameLevel->m_music = NULL;
-	
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	if( name )
-	{
-		g_GameLevel->m_music = g_SoundSys->CreateEventInstance( name );
-		g_GameLevel->m_music->Start();
-	}
-	
-	return 0;
-}
-static int SetMusicVar( SGS_CTX )
-{
-	SGSFN( "SetMusicVar" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	if( g_GameLevel->m_music && name )
-	{
-		g_GameLevel->m_music->SetParameter( name, sgs_GetVar<float>()( C, 1 ) );
-	}
-	return 0;
-}
-#endif
-
-static sgs_RegFuncConst g_gameapi_rfc[] =
-{
-#if 0
-	{ "SetCutsceneFunc", SetCutsceneFunc },
-	{ "SetCutsceneSubtitle", SetCutsceneSubtitle },
-	{ "SetMusic", SetMusic },
-	{ "SetMusicVar", SetMusicVar },
-#endif
-	SGS_RC_END(),
-};
-
-
-
-Command SKIP_CUTSCENE( "skip_cutscene" );
-
 GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_phyWorld( phyWorld ),
 	m_nameIDGen( 0 ),
@@ -163,10 +103,8 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	
 	// create marker pos. array
 	m_markerPositions = m_scriptCtx.CreateDict();
-	m_self.setprop( "positions", m_markerPositions );
-	
-	Game_RegisterAction( &SKIP_CUTSCENE );
-	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &SKIP_CUTSCENE );
+	m_metadata = m_scriptCtx.CreateDict();
+	AddEntry( "positions", m_markerPositions );
 	
 	m_playerSpawnInfo[0] = V3(0);
 	m_levelCameraInfo[0] = V3(0);
@@ -192,6 +130,11 @@ GameLevel::~GameLevel()
 	sgs_ObjRelease( C, m_sgsObject );
 }
 
+
+void GameLevel::SetGlobalToSelf()
+{
+	m_scriptCtx.SetGlobal( "level", m_self );
+}
 
 void GameLevel::AddSystem( IGameLevelSystem* sys )
 {
@@ -394,11 +337,6 @@ void GameLevel::StartLevel()
 {
 	m_currentTickTime = 0;
 	m_currentPhyTime = 0;
-	m_cutsceneFunc = sgsVariable();
-	m_cutsceneSubtitle = "";
-	if( m_music )
-		m_music->Stop();
-	m_music = NULL;
 	m_levelTime = 0;
 	if( !m_player )
 	{
@@ -420,12 +358,6 @@ void GameLevel::ClearLevel()
 		delete m_entities[ i ];
 	m_entities.clear();
 	m_player = NULL;
-	
-	m_cutsceneFunc = sgsVariable();
-	m_cutsceneSubtitle = "";
-	if( m_music )
-		m_music->Stop( true );
-	m_music = NULL;
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Clear();
@@ -479,24 +411,6 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
-	
-	if( m_cutsceneFunc.not_null() )
-	{
-		SGS_CSCOPE( m_scriptCtx.C );
-		m_scriptCtx.Push( m_cutsceneTime );
-		if( m_cutsceneFunc.call( 1, 1 ) )
-		{
-			if( sgs_GetVar<bool>()( m_scriptCtx.C, -1 ) )
-			{
-				m_cutsceneFunc = sgsVariable();
-				m_cutsceneSubtitle = "";
-			}
-		}
-		if( SKIP_CUTSCENE.value )
-			m_cutsceneTime += deltaTime * 20;
-		else
-			m_cutsceneTime += deltaTime;
-	}
 }
 
 void GameLevel::Draw2D()
@@ -512,26 +426,6 @@ void GameLevel::Draw2D()
 	br.Reset();
 	
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-	
-	int size_x = GR_GetWidth();
-	int size_y = GR_GetHeight();
-	int sqr = TMIN( size_x, size_y );
-	
-	if( m_cutsceneFunc.not_null() && Game_HasOverlayScreens() == false )
-	{
-		GR2D_SetFont( "core", sqr / 40 );
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( sqr/20, sqr/20, "Press <Space> to speed up", HALIGN_LEFT, VALIGN_TOP );
-	}
-	
-	if( m_cutsceneSubtitle.size() )
-	{
-		GR2D_SetFont( "core", sqr / 20 );
-		GR2D_SetColor( 0, 1 );
-		GR2D_DrawTextLine( size_x / 2 + 1, size_y * 3 / 4 + 1, m_cutsceneSubtitle, HALIGN_CENTER, VALIGN_CENTER );
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( size_x / 2, size_y * 3 / 4, m_cutsceneSubtitle, HALIGN_CENTER, VALIGN_CENTER );
-	}
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->DebugDrawUI();
@@ -633,6 +527,28 @@ void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
 	m_scene->camera.position = pos;
 	m_scene->camera.direction = dir;
 	m_scene->camera.UpdateMatrices();
+}
+
+
+// ---
+
+int GameLevel::_getindex(
+	SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop )
+{
+	SGRX_CAST( GameLevel*, LVL, obj->data );
+	SGSRESULT res = sgs_PushIndexPP( C, &LVL->m_metadata.var, key, isprop );
+	if( res != SGS_ENOTFND )
+		return res; // found or serious error
+	return _sgs_getindex( C, obj, key, isprop );
+}
+
+int GameLevel::_setindex(
+	SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop )
+{
+	SGRX_CAST( GameLevel*, LVL, obj->data );
+	if( _sgs_setindex( C, obj, key, val, isprop ) != SGS_SUCCESS )
+		sgs_SetIndexPPP( C, &LVL->m_metadata.var, key, val, isprop );
+	return SGS_SUCCESS;
 }
 
 

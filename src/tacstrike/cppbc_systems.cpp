@@ -252,3 +252,121 @@ sgs_ObjInterface FlareSystem::_sgs_interface[1] =
 	FlareSystem::_sgs_destruct, FlareSystem::_sgs_gcmark, FlareSystem::_sgs_getindex, FlareSystem::_sgs_setindex, NULL, NULL, FlareSystem::_sgs_dump, NULL, NULL, NULL, 
 }};
 
+
+static int _sgs_method__ScriptedSequenceSystem__sgsStart( SGS_CTX )
+{
+	ScriptedSequenceSystem* data; if( !SGS_PARSE_METHOD( C, ScriptedSequenceSystem::_sgs_interface, data, ScriptedSequenceSystem, sgsStart ) ) return 0;
+	data->sgsStart( sgs_GetVar<sgsVariable>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
+int ScriptedSequenceSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<ScriptedSequenceSystem*>( obj->data )->~ScriptedSequenceSystem();
+	return SGS_SUCCESS;
+}
+
+int ScriptedSequenceSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int ScriptedSequenceSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "Start" ){ sgs_PushCFunction( C, _sgs_method__ScriptedSequenceSystem__sgsStart ); return SGS_SUCCESS; }
+		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_func ); return SGS_SUCCESS; }
+		SGS_CASE( "time" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_time ); return SGS_SUCCESS; }
+		SGS_CASE( "subtitle" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_subtitle ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int ScriptedSequenceSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "func" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_func = sgs_GetVarP<sgsVariable>()( C, val );
+			static_cast<ScriptedSequenceSystem*>( obj->data )->_StartCutscene(); return SGS_SUCCESS; }
+		SGS_CASE( "time" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_time = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "subtitle" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_subtitle = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int ScriptedSequenceSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 54 ];
+	sprintf( bfr, "ScriptedSequenceSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface ScriptedSequenceSystem::_sgs_interface[1] =
+{{
+	"ScriptedSequenceSystem",
+	ScriptedSequenceSystem::_sgs_destruct, ScriptedSequenceSystem::_sgs_gcmark, ScriptedSequenceSystem::_sgs_getindex, ScriptedSequenceSystem::_sgs_setindex, NULL, NULL, ScriptedSequenceSystem::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
+static int _sgs_method__MusicSystem__sgsSetTrack( SGS_CTX )
+{
+	MusicSystem* data; if( !SGS_PARSE_METHOD( C, MusicSystem::_sgs_interface, data, MusicSystem, sgsSetTrack ) ) return 0;
+	data->sgsSetTrack( sgs_GetVar<StringView>()(C,0) ); return 0;
+}
+
+static int _sgs_method__MusicSystem__sgsSetVar( SGS_CTX )
+{
+	MusicSystem* data; if( !SGS_PARSE_METHOD( C, MusicSystem::_sgs_interface, data, MusicSystem, sgsSetVar ) ) return 0;
+	data->sgsSetVar( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
+int MusicSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<MusicSystem*>( obj->data )->~MusicSystem();
+	return SGS_SUCCESS;
+}
+
+int MusicSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int MusicSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "SetTrack" ){ sgs_PushCFunction( C, _sgs_method__MusicSystem__sgsSetTrack ); return SGS_SUCCESS; }
+		SGS_CASE( "SetVar" ){ sgs_PushCFunction( C, _sgs_method__MusicSystem__sgsSetVar ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int MusicSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int MusicSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 43 ];
+	sprintf( bfr, "MusicSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface MusicSystem::_sgs_interface[1] =
+{{
+	"MusicSystem",
+	MusicSystem::_sgs_destruct, MusicSystem::_sgs_gcmark, MusicSystem::_sgs_getindex, MusicSystem::_sgs_setindex, NULL, NULL, MusicSystem::_sgs_dump, NULL, NULL, NULL, 
+}};
+

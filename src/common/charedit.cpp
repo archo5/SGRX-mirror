@@ -579,6 +579,8 @@ struct EDGUIListItemButton : EDGUIButton
 
 
 
+void CE_UpdateParamList();
+
 // TRANSFORM TARGET
 enum ETransformTargetType
 {
@@ -727,6 +729,18 @@ struct XFormStateInfo
 		
 		return true;
 	}
+	void _OnDataChanged()
+	{
+		CE_UpdateParamList();
+	}
+	template< class T > void _UPD( T& a, const T& b )
+	{
+		if( a != b )
+		{
+			a = b;
+			_OnDataChanged();
+		}
+	}
 	void SetXFormPos( Vec3 pos )
 	{
 		int iid = xfdata.itemID;
@@ -735,19 +749,19 @@ struct XFormStateInfo
 		case TT_None:
 			break;
 		case TT_BoneHitbox:
-			g_AnimChar->bones[ iid ].hitbox.position = pos;
+			_UPD( g_AnimChar->bones[ iid ].hitbox.position, pos );
 			break;
 		case TT_BoneBody:
-			g_AnimChar->bones[ iid ].body.position = pos;
+			_UPD( g_AnimChar->bones[ iid ].body.position, pos );
 			break;
 		case TT_BoneJointSelfFrame:
-			g_AnimChar->bones[ iid ].joint.self_position = pos;
+			_UPD( g_AnimChar->bones[ iid ].joint.self_position, pos );
 			break;
 		case TT_BoneJointParentFrame:
-			g_AnimChar->bones[ iid ].joint.prnt_position = pos;
+			_UPD( g_AnimChar->bones[ iid ].joint.prnt_position, pos );
 			break;
 		case TT_Attachment:
-			g_AnimChar->attachments[ iid ].position = pos;
+			_UPD( g_AnimChar->attachments[ iid ].position, pos );
 			break;
 		}
 	}
@@ -759,19 +773,19 @@ struct XFormStateInfo
 		case TT_None:
 			break;
 		case TT_BoneHitbox:
-			g_AnimChar->bones[ iid ].hitbox.rotation = rot;
+			_UPD( g_AnimChar->bones[ iid ].hitbox.rotation, rot );
 			break;
 		case TT_BoneBody:
-			g_AnimChar->bones[ iid ].body.rotation = rot;
+			_UPD( g_AnimChar->bones[ iid ].body.rotation, rot );
 			break;
 		case TT_BoneJointSelfFrame:
-			g_AnimChar->bones[ iid ].joint.self_rotation = rot;
+			_UPD( g_AnimChar->bones[ iid ].joint.self_rotation, rot );
 			break;
 		case TT_BoneJointParentFrame:
-			g_AnimChar->bones[ iid ].joint.prnt_rotation = rot;
+			_UPD( g_AnimChar->bones[ iid ].joint.prnt_rotation, rot );
 			break;
 		case TT_Attachment:
-			g_AnimChar->attachments[ iid ].rotation = rot;
+			_UPD( g_AnimChar->attachments[ iid ].rotation, rot );
 			break;
 		}
 	}
@@ -850,6 +864,22 @@ void XFormStateInfo::OnUpdate( Vec2 cp, Vec2 vsz )
 
 
 
+enum CE_GUI_ITEMS
+{
+	CE_GUI_BASE = 10000,
+	CE_GUI_BONEPROPS,
+	CE_GUI_BONELISTPROPS,
+	CE_GUI_ATCHPROPS,
+	CE_GUI_ATCHLISTPROPS,
+	CE_GUI_LAYERTFPROPS,
+	CE_GUI_LAYERPROPS,
+	CE_GUI_LAYERLISTPROPS,
+	CE_GUI_MASKCMDPROPS,
+	CE_GUI_MASKPROPS,
+	CE_GUI_MASKLISTPROPS,
+	CE_GUI_CHARPROPS,
+};
+
 struct EDGUIBoneProps : EDGUILayoutRow
 {
 	EDGUIBoneProps() :
@@ -882,6 +912,8 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_recalc_thres( 96, 0, 255 ),
 		m_bid( -1 )
 	{
+		type = CE_GUI_BONEPROPS;
+		
 		m_hbox_rotangles.caption = "Rotation (angles)";
 		m_hbox_offset.caption = "Offset";
 		m_hbox_extents.caption = "Extents";
@@ -1090,6 +1122,8 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 		m_group_recalc( false, "Recalculate shapes" ),
 		m_recalc_thres( 96, 0, 255 )
 	{
+		type = CE_GUI_BONELISTPROPS;
+		
 		m_recalc_thres.caption = "Threshold";
 		m_btn_recalc_body.caption = "Recalculate body";
 		m_btn_recalc_hitbox.caption = "Recalculate hitbox";
@@ -1160,6 +1194,8 @@ struct EDGUIAttachmentProps : EDGUILayoutRow
 		m_offset( V3(0), 2, V3(-8192), V3(8192) ),
 		m_aid( -1 )
 	{
+		type = CE_GUI_ATCHPROPS;
+		
 		m_name.caption = "Name";
 		m_bone.caption = "Bone";
 		m_rotangles.caption = "Rotation (angles)";
@@ -1231,6 +1267,8 @@ struct EDGUIAttachmentListProps : EDGUILayoutRow
 	EDGUIAttachmentListProps() :
 		m_group( true, "Attachments" )
 	{
+		type = CE_GUI_ATCHLISTPROPS;
+		
 		m_btnAdd.caption = "Add attachment";
 		
 		Add( &m_btnAdd );
@@ -1294,6 +1332,8 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 		m_lid( -1 ),
 		m_tid( -1 )
 	{
+		type = CE_GUI_LAYERTFPROPS;
+		
 		m_btnBack.caption = "Back to layer <which?>";
 		m_bone.caption = "Bone";
 		m_type.caption = "Type";
@@ -1385,6 +1425,8 @@ struct EDGUILayerProps : EDGUILayoutRow
 		m_group( true, "Transforms" ),
 		m_lid( -1 )
 	{
+		type = CE_GUI_LAYERPROPS;
+		
 		m_name.caption = "Name";
 		m_testFactor.caption = "Test factor";
 		m_btnAdd.caption = "Add transform";
@@ -1521,6 +1563,8 @@ struct EDGUILayerListProps : EDGUILayoutRow
 	EDGUILayerListProps() :
 		m_group( true, "Layers" )
 	{
+		type = CE_GUI_LAYERLISTPROPS;
+		
 		m_btnAdd.caption = "Add layer";
 		
 		m_layerButtons.Add( &m_editButton );
@@ -1611,6 +1655,8 @@ struct EDGUIMaskCmdProps : EDGUILayoutRow
 		m_mid( -1 ),
 		m_cid( -1 )
 	{
+		type = CE_GUI_MASKCMDPROPS;
+		
 		m_btnBack.caption = "Back to mask <which?>";
 		m_bone.caption = "Bone";
 		m_weight.caption = "Weight";
@@ -1688,6 +1734,8 @@ struct EDGUIMaskProps : EDGUILayoutRow
 		m_previewSize( 0.04f, 3, 0.001f, 1 ),
 		m_mid( -1 )
 	{
+		type = CE_GUI_MASKPROPS;
+		
 		m_previewSize.caption = "Preview bone tick size";
 		m_name.caption = "Name";
 		m_btnAdd.caption = "Add command";
@@ -1796,6 +1844,8 @@ struct EDGUIMaskListProps : EDGUILayoutRow
 		m_group( true, "Masks" ),
 		m_editButton( false )
 	{
+		type = CE_GUI_MASKLISTPROPS;
+		
 		m_btnAdd.caption = "Add mask";
 		
 		m_maskButtons.Add( &m_editButton );
@@ -1858,6 +1908,7 @@ struct EDGUICharProps : EDGUILayoutRow
 		m_group( true, "Character properties" ),
 		m_mesh( g_UIMeshPicker )
 	{
+		type = CE_GUI_CHARPROPS;
 		tyname = "charprops";
 		
 		m_mesh.caption = "Mesh";
@@ -2270,6 +2321,28 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		while( m_UIParamList.m_subitems.size() )
 			m_UIParamList.Remove( m_UIParamList.m_subitems.last() );
 	}
+	void AutoUpdateParamList()
+	{
+		for( size_t i = 0; i < m_UIParamList.m_subitems.size(); ++i )
+		{
+			EDGUIItem* item = m_UIParamList.m_subitems[ i ];
+			switch( item->type )
+			{
+			case CE_GUI_BONEPROPS: m_boneProps.Prepare( m_boneProps.m_bid ); break;
+			case CE_GUI_BONELISTPROPS: m_boneListProps.Prepare(); break;
+			case CE_GUI_ATCHPROPS: m_atchProps.Prepare( m_atchProps.m_aid ); break;
+			case CE_GUI_ATCHLISTPROPS: m_atchListProps.Prepare(); break;
+			case CE_GUI_LAYERTFPROPS: m_layerXfProps.Prepare( m_layerXfProps.m_lid, m_layerXfProps.m_tid ); break;
+			case CE_GUI_LAYERPROPS: m_layerProps.Prepare( m_layerProps.m_lid ); break;
+			case CE_GUI_LAYERLISTPROPS: m_layerListProps.Prepare(); break;
+			case CE_GUI_MASKCMDPROPS: m_maskCmdProps.Prepare( m_maskCmdProps.m_mid, m_maskCmdProps.m_cid ); break;
+			case CE_GUI_MASKPROPS: m_maskProps.Prepare( m_maskProps.m_mid ); break;
+			case CE_GUI_MASKLISTPROPS: m_maskListProps.Prepare(); break;
+			case CE_GUI_CHARPROPS: m_charProps.Prepare(); break;
+			default: break;
+			}
+		}
+	}
 	
 	void EditBone( int which )
 	{
@@ -2425,6 +2498,7 @@ void FC_EditLayerTransform( int lid, int tid ){ g_UIFrame->EditLayerTransform( l
 void FC_EditLayer( int which ){ g_UIFrame->EditLayer( which ); }
 void FC_EditMaskCmd( int mid, int cid ){ g_UIFrame->EditMaskCmd( mid, cid ); }
 void FC_EditMask( int which ){ g_UIFrame->EditMask( which ); }
+void CE_UpdateParamList(){ g_UIFrame->AutoUpdateParamList(); }
 
 
 

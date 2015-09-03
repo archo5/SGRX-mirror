@@ -112,6 +112,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	virtual ~GameLevel();
 	
 	// configuration
+	void SetGlobalToSelf();
 	void AddSystem( IGameLevelSystem* sys );
 	template< class T > T* GetSystem() const
 	{
@@ -160,6 +161,12 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
 	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	
+	// ---
+	SGS_IFUNC( GETINDEX ) int _getindex(
+		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop );
+	SGS_IFUNC( SETINDEX ) int _setindex(
+		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop );
+	
 	void LightMesh( MeshInstHandle mih, Vec3 off = V3(0) );
 	
 	TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
@@ -183,6 +190,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	
 	// LEVEL DATA
 	sgsVariable m_self;
+	sgsVariable m_metadata;
 	sgsVariable m_markerPositions;
 	bool m_paused;
 	double m_levelTime;
@@ -190,10 +198,6 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	Entity* m_player;
 	Vec3 m_playerSpawnInfo[2]; // position, direction
 	Vec3 m_levelCameraInfo[2]; // position, direction
-	sgsVariable m_cutsceneFunc;
-	float m_cutsceneTime;
-	String m_cutsceneSubtitle;
-	SoundEventInstanceHandle m_music;
 };
 
 

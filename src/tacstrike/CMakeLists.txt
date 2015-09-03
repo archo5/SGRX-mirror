@@ -3,7 +3,8 @@ cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 # Core game library
-add_library( coregamelib STATIC level cppbc_level entities systems cppbc_systems ../common/scritem ../common/cppbc_scritem )
+add_library( coregamelib STATIC level cppbc_level entities cppbc_entities
+	systems cppbc_systems ../common/scritem ../common/cppbc_scritem )
 set_target_properties( coregamelib PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS}"

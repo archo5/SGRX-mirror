@@ -1718,6 +1718,8 @@ struct OfficeTheftGame : IGame
 		AddSystemToLevel<ObjectiveSystem>( g_GameLevel );
 		AddSystemToLevel<FlareSystem>( g_GameLevel );
 		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
+		AddSystemToLevel<ScriptedSequenceSystem>( g_GameLevel );
+		AddSystemToLevel<MusicSystem>( g_GameLevel );
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
 		SetupLevel();
 		

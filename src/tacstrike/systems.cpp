@@ -7,7 +7,6 @@
 
 InfoEmissionSystem::InfoEmissionSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	// create the scripted self
 	_InitScriptInterface( "infoEmitters" );
 	
 	sgs_RegIntConst ric[] =
@@ -263,7 +262,6 @@ MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_sy
 	m_tx_icon_warning = GR_GetTexture( "ui/icon_warning.png" );
 	m_tx_icon_cont = GR_GetTexture( "ui/icon_cont.png" );
 	
-	// create the scripted self
 	_InitScriptInterface( "messages" );
 	
 	sgs_RegIntConst ric[] =
@@ -355,7 +353,6 @@ ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
 	m_tx_icon_done = GR_GetTexture( "ui/obj_done.png" );
 	m_tx_icon_failed = GR_GetTexture( "ui/obj_failed.png" );
 	
-	// create the scripted self
 	_InitScriptInterface( "objectives" );
 	
 	sgs_RegIntConst ric[] =
@@ -509,7 +506,6 @@ FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
 	
-	// create the scripted self
 	_InitScriptInterface( "flares" );
 }
 
@@ -732,6 +728,99 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 	}
 	
 	return true;
+}
+
+
+ScriptedSequenceSystem::ScriptedSequenceSystem( GameLevel* lev ) :
+	IGameLevelSystem( lev, e_system_uid ), m_cmdSkip( "skip_cutscene" ), m_time( 0 )
+{
+	Game_RegisterAction( &m_cmdSkip );
+	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &m_cmdSkip );
+	
+	_InitScriptInterface( "scrSeq" );
+}
+
+void ScriptedSequenceSystem::Tick( float deltaTime, float blendFactor )
+{
+	if( m_func.not_null() )
+	{
+		SGS_SCOPE;
+		sgs_PushVar( C, m_time );
+		if( m_func.call( 1, 1 ) )
+		{
+			if( sgs_GetVar<bool>()( C, -1 ) )
+			{
+				m_func = sgsVariable();
+				m_subtitle = "";
+			}
+		}
+		if( m_cmdSkip.value )
+			m_time += deltaTime * 20;
+		else
+			m_time += deltaTime;
+	}
+}
+
+void ScriptedSequenceSystem::DrawUI()
+{
+	int size_x = GR_GetWidth();
+	int size_y = GR_GetHeight();
+	int sqr = TMIN( size_x, size_y );
+	
+	if( m_func.not_null() && Game_HasOverlayScreens() == false )
+	{
+		GR2D_SetFont( "core", sqr / 40 );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( sqr/20, sqr/20, "Press <Space> to speed up", HALIGN_LEFT, VALIGN_TOP );
+	}
+	
+	if( m_subtitle.size() )
+	{
+		GR2D_SetFont( "core", sqr / 20 );
+		GR2D_SetColor( 0, 1 );
+		GR2D_DrawTextLine( size_x / 2 + 1, size_y * 3 / 4 + 1, m_subtitle, HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( size_x / 2, size_y * 3 / 4, m_subtitle, HALIGN_CENTER, VALIGN_CENTER );
+	}
+}
+
+void ScriptedSequenceSystem::sgsStart( sgsVariable func, float t )
+{
+	m_func = func;
+	m_time = t;
+}
+
+
+MusicSystem::MusicSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+{
+	_InitScriptInterface( "music" );
+}
+
+MusicSystem::~MusicSystem()
+{
+	if( m_music )
+		m_music->Stop();
+}
+
+void MusicSystem::sgsSetTrack( StringView path )
+{
+	if( m_music )
+		m_music->Stop();
+	if( path )
+	{
+		m_music = g_SoundSys->CreateEventInstance( path );
+		m_music->Start();
+	}
+	else
+		m_music = NULL;
+}
+
+void MusicSystem::sgsSetVar( StringView name, float val )
+{
+	if( m_music && name )
+	{
+		m_music->SetParameter( name, val );
+	}
 }
 
 

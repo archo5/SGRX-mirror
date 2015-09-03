@@ -2,6 +2,7 @@
 
 #include "level.hpp"
 #include "tsui.hpp"
+#include "entities.hpp"
 #include "entities_ts.hpp"
 
 
@@ -101,6 +102,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &DO_ACTION );
 		
 		g_GameLevel = new GameLevel( PHY_CreateWorld() );
+		g_GameLevel->SetGlobalToSelf();
 		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
 		AddSystemToLevel<LevelMapSystem>( g_GameLevel );
@@ -108,15 +110,19 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		AddSystemToLevel<ObjectiveSystem>( g_GameLevel );
 		AddSystemToLevel<FlareSystem>( g_GameLevel );
 		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
+		AddSystemToLevel<ScriptedSequenceSystem>( g_GameLevel );
+		AddSystemToLevel<MusicSystem>( g_GameLevel );
 		AddSystemToLevel<DamageSystem>( g_GameLevel );
 		AddSystemToLevel<BulletSystem>( g_GameLevel );
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
 		AddSystemToLevel<CoverSystem>( g_GameLevel );
+		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
 		AddSystemToLevel<TSEntityCreationSystem>( g_GameLevel );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
-		g_GameLevel->Load( "ai-test" );
+	//	g_GameLevel->Load( "ai-test" );
+		g_GameLevel->Load( "v3decotest" );
 		
 	//	GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
 		GR_LoadAnims( "meshes/tstest.ssm.anm" );

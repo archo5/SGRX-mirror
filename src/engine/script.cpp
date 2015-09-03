@@ -334,6 +334,12 @@ sgsVariable ScriptContext::GetGlobal( const StringView& name )
 	return out;
 }
 
+void ScriptContext::SetGlobal( const StringView& name, sgsVariable val )
+{
+	sgsVariable key = sgsString( C, name.data(), name.size() ).get_variable();
+	sgs_SetGlobalPP( C, &key.var, &val.var );
+}
+
 bool ScriptContext::Call( sgsVariable func, int args, int ret )
 {
 	return SGS_SUCCEEDED( sgs_CallP( C, &func.var, args, ret ) );

@@ -14,7 +14,7 @@
 
 
 // SYSTEM ID ALLOCATION (increment to allocate)
-// last id = 10
+// last id = 12
 
 
 //
@@ -329,6 +329,41 @@ struct LevelCoreSystem : IGameLevelSystem
 	Array< PhyRigidBodyHandle > m_levelBodies;
 	Array< LC_Light > m_lights;
 	SGRX_LightTree m_ltSamples;
+};
+
+
+struct ScriptedSequenceSystem : IGameLevelSystem
+{
+	SGS_OBJECT_LITE;
+	
+	enum { e_system_uid = 11 };
+	
+	ScriptedSequenceSystem( GameLevel* lev );
+	void Tick( float deltaTime, float blendFactor );
+	void DrawUI();
+	void _StartCutscene(){ m_time = 0; }
+	
+	Command m_cmdSkip;
+	SGS_METHOD_NAMED( Start ) void sgsStart( sgsVariable func, float t );
+	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _StartCutscene VARNAME func ) sgsVariable m_func;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME time ) float m_time;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME subtitle ) String m_subtitle;
+};
+
+
+struct MusicSystem : IGameLevelSystem
+{
+	SGS_OBJECT_LITE;
+	
+	enum { e_system_uid = 12 };
+	
+	MusicSystem( GameLevel* lev );
+	~MusicSystem();
+	
+	SGS_METHOD_NAMED( SetTrack ) void sgsSetTrack( StringView path );
+	SGS_METHOD_NAMED( SetVar ) void sgsSetVar( StringView name, float val );
+	
+	SoundEventInstanceHandle m_music;
 };
 
 

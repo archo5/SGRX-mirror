@@ -1016,10 +1016,22 @@ sgs_ObjInterface " $ obj.name $ "::_sgs_interface[1] =
 }
 
 
-function cppbc_parse_file( code, includes )
+function cppbc_parse_file( code, inclcode, includes )
 {
+	println( "In included code:" );
+	inclcode = cppbc_preprocess( inclcode );
+	inclobjects = cppbc_find_objects( inclcode );
+	
+	println( "In processed code:" );
 	code = cppbc_preprocess( code );
 	objects = cppbc_find_objects( code );
+	
+	foreach( io : inclobjects )
+	{
+		io.no_export = true;
+		objects.push( io );
+	}
+	
 	cppbc_extend_objects( objects );
 	gcode = cppbc_generate_code( objects, includes );
 	return gcode;
@@ -1033,6 +1045,7 @@ argv.shift();
 
 global IN = null;
 global OUT = null;
+global INCLCODE = "";
 global PRINT_TIMESTAMP = false;
 
 for( i = 0; i < argv.size; ++i )
@@ -1044,6 +1057,16 @@ for( i = 0; i < argv.size; ++i )
 		if( i == argv.size )
 			cppbc_error( "expected output name after -o" );
 		OUT = argv[ i ];
+	}
+	else if( argv[ i ] == "-i" )
+	{
+		i++;
+		if( i == argv.size )
+			cppbc_error( "expected include file name after -i" );
+		nic = io_file_read( argv[ i ] );
+		if( nic === null )
+			cppbc_error( "failed to read include file" );
+		INCLCODE $= nic;
 	}
 	else // input file
 	{
@@ -1066,6 +1089,6 @@ if( OUT === null )
 	OUT = string_implode( pathspl, "/" );
 }
 
-code = cppbc_parse_file( io_file_read( IN ), [IN] );
+code = cppbc_parse_file( io_file_read( IN ), INCLCODE, [IN] );
 io_file_write( OUT, code );
 
