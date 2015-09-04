@@ -425,6 +425,7 @@ struct D3D9Renderer : IRenderer
 	void _RS_RenderPass_Projectors( size_t pass_id );
 	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
 	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
+	void _RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
 	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
 	
 	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
@@ -473,6 +474,7 @@ struct D3D9Renderer : IRenderer
 	SGRX_IPixelShader* m_sh_pp_dshp;
 	SGRX_IPixelShader* m_sh_pp_blur_h;
 	SGRX_IPixelShader* m_sh_pp_blur_v;
+	SGRX_IPixelShader* m_sh_lvsl_ps;
 	Array< PixelShaderHandle > m_pass_shaders;
 	
 	// storage
@@ -652,13 +654,15 @@ bool D3D9Renderer::LoadInternalResources()
 	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "sys_pp_bloom_dshp" );
 	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "sys_pp_bloom_blur_h" );
 	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "sys_pp_bloom_blur_v" );
+	PixelShaderHandle sh_lvsl_ps = GR_GetPixelShader( "sys_lvsl_ps" );
 	if( !sh_bv_vs ||
 		!sh_pp_vs ||
 		!sh_bv_ps ||
 		!sh_pp_final ||
 		!sh_pp_dshp ||
 		!sh_pp_blur_h ||
-		!sh_pp_blur_v )
+		!sh_pp_blur_v ||
+		!sh_lvsl_ps )
 	{
 		return false;
 	}
@@ -670,6 +674,7 @@ bool D3D9Renderer::LoadInternalResources()
 	sh_pp_dshp->Acquire();
 	sh_pp_blur_h->Acquire();
 	sh_pp_blur_v->Acquire();
+	sh_lvsl_ps->Acquire();
 	m_sh_proj_vs = sh_proj_vs;
 	m_sh_bv_vs = sh_bv_vs;
 	m_sh_pp_vs = sh_pp_vs;
@@ -678,6 +683,7 @@ bool D3D9Renderer::LoadInternalResources()
 	m_sh_pp_dshp = sh_pp_dshp;
 	m_sh_pp_blur_h = sh_pp_blur_h;
 	m_sh_pp_blur_v = sh_pp_blur_v;
+	m_sh_lvsl_ps = sh_lvsl_ps;
 	
 	SetVertexShader( m_sh_bv_vs );
 	return true;
@@ -697,6 +703,7 @@ void D3D9Renderer::UnloadInternalResources()
 	m_sh_pp_dshp->Release();
 	m_sh_pp_blur_h->Release();
 	m_sh_pp_blur_v->Release();
+	m_sh_lvsl_ps->Release();
 	
 	m_whiteTex = NULL;
 	
@@ -1452,7 +1459,11 @@ bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	for( int i = 0; i < count; ++i )
 	{
 		SGRX_RenderPass& PASS = passes[ i ];
-		if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT && PASS.type != RPT_SCREEN && PASS.type != RPT_PROJECTORS )
+		if( PASS.type != RPT_SHADOWS &&
+			PASS.type != RPT_OBJECT &&
+			PASS.type != RPT_SCREEN &&
+			PASS.type != RPT_PROJECTORS &&
+			PASS.type != RPT_LIGHTVOLS )
 		{
 			LOG_ERROR << "Invalid type for pass " << i;
 			return false;
@@ -1657,6 +1668,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 			if( pass.type == RPT_PROJECTORS ) _RS_RenderPass_Projectors( pass_id );
 		}
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, tx_depth, RTOUT );
+		else if( pass.type == RPT_LIGHTVOLS ) _RS_RenderPass_LightVols( tx_depth, RTOUT );
 	}
 	
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
@@ -1776,7 +1788,10 @@ void D3D9Renderer::_RS_Render_Shadows()
 			Mat4 m_world_view, m_inv_view;
 			
 			SGRX_Light* L = scene->m_lights.item( light_id ).key;
-			if( !L->enabled || !L->shadowTexture || !L->shadowTexture->m_isRenderTexture )
+			if( !L->enabled ||
+				!L->hasShadows ||
+				!L->shadowTexture ||
+				!L->shadowTexture->m_isRenderTexture )
 				continue;
 			
 			/* CULL */
@@ -2169,6 +2184,104 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pa
 	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
 	PS_SetVec4( 4, campos4 );
 	PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
+	
+	if( m_enablePostProcessing )
+	{
+		m_dev->SetRenderTarget( 1, postproc_get_parm( &m_drd ) );
+		m_dev->SetRenderTarget( 2, postproc_get_depth( &m_drd ) );
+		m_dev->SetDepthStencilSurface( postproc_get_dss( &m_drd ) );
+	}
+	else
+	{
+		m_dev->SetRenderTarget( 2, RTOUT.DS );
+		m_dev->SetDepthStencilSurface( RTOUT.DSS );
+	}
+	
+	Viewport_Apply( 1 );
+	
+	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
+}
+
+void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
+{
+	const SGRX_Camera& CAM = m_currentScene->camera;
+	
+	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
+	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
+	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	m_dev->SetRenderTarget( 1, NULL );
+	m_dev->SetRenderTarget( 2, NULL );
+	m_dev->SetDepthStencilSurface( NULL );
+	
+	_SetTextureInt( 0, tx_depth, TEXTURE_FLAGS_FULLSCREEN );
+	
+	for( size_t light_id = 0; light_id < m_currentScene->m_lights.size(); ++light_id )
+	{
+		SGRX_Light* L = m_currentScene->m_lights.item( light_id ).key;
+		if( !L->enabled ||
+			L->type != LIGHT_SPOT || // only spotlights are currently supported
+			!L->hasShadows || // they need to have shadows
+			!L->shadowTexture ||
+			!L->shadowTexture->m_isRenderTexture )
+			continue;
+		
+		Vec3 volpts[8];
+		L->GetVolumePoints( volpts );
+		
+		float dmin = FLT_MAX;
+		float dmax = -FLT_MAX;
+		for( int i = 0; i < 8; ++i )
+		{
+			float d = Vec3Dot( volpts[ i ], CAM.direction );
+			if( d < dmin ) dmin = d;
+			if( d > dmax ) dmax = d;
+		}
+		
+		Vec3 pos00 = V3(0), pos10 = V3(0), pos01 = V3(0), pos11 = V3(0);
+		Vec3 dir00 = V3(0), dir10 = V3(0), dir01 = V3(0), dir11 = V3(0);
+		
+		CAM.GetCursorRay( 0, 0, pos00, dir00 );
+		CAM.GetCursorRay( 1, 0, pos10, dir10 );
+		CAM.GetCursorRay( 0, 1, pos01, dir01 );
+		CAM.GetCursorRay( 1, 1, pos11, dir11 );
+		
+		// normalize dirmin/dirmax along direction
+		float pl;
+		pl = Vec3Dot( dir00, CAM.direction ); if( pl ) dir00 /= pl;
+		pl = Vec3Dot( dir10, CAM.direction ); if( pl ) dir10 /= pl;
+		pl = Vec3Dot( dir01, CAM.direction ); if( pl ) dir01 /= pl;
+		pl = Vec3Dot( dir11, CAM.direction ); if( pl ) dir11 /= pl;
+		
+		SetVertexShader( m_sh_pp_vs );
+		SetPixelShader( m_sh_lvsl_ps );
+		PS_SetMat4( 0, L->viewProjMatrix );
+		PS_SetVec4( 4, V4( pos00, 0 ) );
+		PS_SetVec4( 5, V4( pos10, 0 ) );
+		PS_SetVec4( 6, V4( pos01, 0 ) );
+		PS_SetVec4( 7, V4( pos11, 0 ) );
+		PS_SetVec4( 8, V4( dir00, 0 ) );
+		PS_SetVec4( 9, V4( dir10, 0 ) );
+		PS_SetVec4( 10, V4( dir01, 0 ) );
+		PS_SetVec4( 11, V4( dir11, 0 ) );
+		PS_SetVec4( 12, V4( dmin, dmax, L->_tf_range, L->power ) );
+		PS_SetVec4( 13, V4( L->_tf_position, 0 ) );
+		PS_SetVec4( 14, V4( L->color, 0 ) );
+		float tszx = 1, tszy = 1;
+		if( L->shadowTexture )
+		{
+			const TextureInfo& texinfo = L->shadowTexture.GetInfo();
+			tszx = texinfo.width;
+			tszy = texinfo.height;
+		}
+		PS_SetVec4( 15, V4( tszx, tszy, 1.0f / tszx, 1.0f / tszy ) );
+		SetTexture( 8, L->cookieTexture );
+		SetTexture( 9, L->shadowTexture );
+		
+		// TODO optimize shape
+		PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
+	}
 	
 	if( m_enablePostProcessing )
 	{

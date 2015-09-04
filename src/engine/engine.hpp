@@ -612,6 +612,7 @@ struct SGRX_Light : SGRX_RCXFItem
 	ENGINE_EXPORT void UpdateTransform();
 	ENGINE_EXPORT void GenerateCamera( struct SGRX_Camera& outcam );
 	ENGINE_EXPORT virtual void SetTransform( const Mat4& mtx );
+	ENGINE_EXPORT void GetVolumePoints( Vec3 pts[8] );
 	
 	SGRX_Scene* _scene;
 	
@@ -756,7 +757,7 @@ struct SGRX_Camera
 	ENGINE_EXPORT void UpdateMatrices();
 	
 	ENGINE_EXPORT Vec3 WorldToScreen( const Vec3& pos, bool* infront = NULL );
-	ENGINE_EXPORT bool GetCursorRay( float x, float y, Vec3& pos, Vec3& dir );
+	ENGINE_EXPORT bool GetCursorRay( float x, float y, Vec3& pos, Vec3& dir ) const;
 	
 	Vec3 position;
 	Vec3 direction;
@@ -972,6 +973,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LightTreeSampler : SGRX_LightSampler
 #define RPT_SCREEN     2
 #define RPT_SHADOWS    3
 #define RPT_PROJECTORS 4
+#define RPT_LIGHTVOLS  5
 
 #define RPF_OBJ_STATIC      0x01
 #define RPF_OBJ_DYNAMIC     0x02

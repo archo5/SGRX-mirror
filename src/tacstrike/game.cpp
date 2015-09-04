@@ -37,10 +37,12 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
 	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_DYNAMIC | RPF_ENABLED, 1, 4, 0, "base" },
+	{ RPT_OBJECT, RPF_DECALS | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
 	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
 	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
+	{ RPT_LIGHTVOLS, RPF_ENABLED, 1, 0, 0, "lightvolume" },
 };
 
 
@@ -124,6 +126,19 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	g_GameLevel->Load( "ai-test" );
 		g_GameLevel->Load( "v3decotest" );
 		
+		mylight = g_GameLevel->GetScene()->CreateLight();
+		mylight->type = LIGHT_SPOT;
+		mylight->enabled = true;
+		mylight->position = V3(1,-1,1);
+		mylight->direction = V3(0.5f,0.5f,-0.5f);
+		mylight->color = V3(0.9f,0.8f,0.7f);
+		mylight->angle = 90;
+		mylight->range = 10;
+		mylight->cookieTexture = GR_GetTexture( "textures/cookies/default.png" );
+		mylight->shadowTexture = GR_CreateRenderTexture( 128, 128, RT_FORMAT_DEPTH );
+		mylight->hasShadows = true;
+		mylight->UpdateTransform();
+		
 	//	GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
 		GR_LoadAnims( "meshes/tstest.ssm.anm" );
 //		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
@@ -150,6 +165,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	{
 		myscritem->Release();
 		myscritem = NULL;
+		mylight = NULL;
 		
 		delete g_GameLevel;
 		g_GameLevel = NULL;
@@ -277,6 +293,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	float m_accum;
 	
 	SGRX_ScriptedItem* myscritem;
+	LightHandle mylight;
 }
 g_Game;
 

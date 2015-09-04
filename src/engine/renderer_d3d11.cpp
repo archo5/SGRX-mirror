@@ -1562,7 +1562,11 @@ bool D3D11Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
 	for( int i = 0; i < count; ++i )
 	{
 		SGRX_RenderPass& PASS = passes[ i ];
-		if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT && PASS.type != RPT_SCREEN )
+		if( PASS.type != RPT_SHADOWS &&
+			PASS.type != RPT_OBJECT &&
+			PASS.type != RPT_SCREEN &&
+			PASS.type != RPT_PROJECTORS &&
+			PASS.type != RPT_LIGHTVOLS )
 		{
 			LOG_ERROR << "Invalid type for pass " << i;
 			return false;

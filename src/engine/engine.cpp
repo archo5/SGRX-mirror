@@ -1576,7 +1576,7 @@ Vec3 SGRX_Camera::WorldToScreen( const Vec3& pos, bool* infront )
 	return P;
 }
 
-bool SGRX_Camera::GetCursorRay( float x, float y, Vec3& pos, Vec3& dir )
+bool SGRX_Camera::GetCursorRay( float x, float y, Vec3& pos, Vec3& dir ) const
 {
 	Vec3 tPos = { x * 2 - 1, y * -2 + 1, 0 };
 	Vec3 tTgt = { x * 2 - 1, y * -2 + 1, 1 };
@@ -1656,6 +1656,35 @@ void SGRX_Light::GenerateCamera( SGRX_Camera& outcam )
 void SGRX_Light::SetTransform( const Mat4& mtx )
 {
 	matrix = mtx;
+}
+
+void SGRX_Light::GetVolumePoints( Vec3 pts[8] )
+{
+	if( type == LIGHT_POINT )
+	{
+		pts[0] = _tf_position + V3(-_tf_range, -_tf_range, -_tf_range);
+		pts[1] = _tf_position + V3(+_tf_range, -_tf_range, -_tf_range);
+		pts[2] = _tf_position + V3(-_tf_range, +_tf_range, -_tf_range);
+		pts[3] = _tf_position + V3(+_tf_range, +_tf_range, -_tf_range);
+		pts[4] = _tf_position + V3(-_tf_range, -_tf_range, +_tf_range);
+		pts[5] = _tf_position + V3(+_tf_range, -_tf_range, +_tf_range);
+		pts[6] = _tf_position + V3(-_tf_range, +_tf_range, +_tf_range);
+		pts[7] = _tf_position + V3(+_tf_range, +_tf_range, +_tf_range);
+	}
+	else
+	{
+		Mat4 inv = Mat4::Identity;
+		viewProjMatrix.InvertTo( inv );
+		Vec3 ipts[8] =
+		{
+			V3(-1, -1, -1), V3(+1, -1, -1),
+			V3(-1, +1, -1), V3(+1, +1, -1),
+			V3(-1, -1, +1), V3(+1, -1, +1),
+			V3(-1, +1, +1), V3(+1, +1, +1),
+		};
+		for( int i = 0; i < 8; ++i )
+			pts[ i ] = inv.TransformPos( ipts[ i ] );
+	}
 }
 
 
