@@ -328,6 +328,22 @@ int AnimCharacter::_FindBone( const StringView& name )
 	return bid < m_cachedMesh->m_numBones ? bid : -1;
 }
 
+int AnimCharacter::FindParentBone( int which )
+{
+	if( m_cachedMesh == NULL )
+		return -1;
+	if( which < 0 || which >= (int) bones.size() )
+		return -1;
+	
+	int parent_id = m_cachedMesh->m_bones[ bones[ which ].bone_id ].parent_id;
+	for( size_t i = 0; i < bones.size(); ++i )
+	{
+		if( bones[ i ].bone_id == parent_id )
+			return i;
+	}
+	return -1;
+}
+
 void AnimCharacter::RecalcBoneIDs()
 {
 	for( size_t i = 0; i < bones.size(); ++i )
@@ -371,6 +387,44 @@ bool AnimCharacter::GetBodyMatrix( int which, Mat4& outwm )
 	}
 	outwm = Mat4::CreateRotationFromQuat( BI.body.rotation ) *
 		Mat4::CreateTranslation( BI.body.position ) * outwm;
+	return true;
+}
+
+bool AnimCharacter::GetJointMatrix( int which, bool parent, Mat4& outwm )
+{
+	if( !m_cachedMesh || !m_cachedMeshInst )
+		return false;
+	if( which < 0 || which >= (int) bones.size() )
+		return false;
+	BoneInfo& BI = bones[ which ];
+	int bid = BI.bone_id;
+	if( parent )
+	{
+		int pb = BI.joint.parent_id;
+		if( pb < 0 || pb >= (int) bones.size() )
+			return false;
+		bid = bones[ pb ].bone_id;
+	}
+	
+	outwm = m_cachedMeshInst->matrix;
+	if( bid >= 0 )
+	{
+		if( m_cachedMeshInst->skin_matrices.size() )
+		{
+			outwm = m_cachedMeshInst->skin_matrices[ bid ] * outwm;
+		}
+		outwm = m_cachedMesh->m_bones[ bid ].skinOffset * outwm;
+	}
+	if( parent )
+	{
+		outwm = Mat4::CreateRotationFromQuat( BI.joint.prnt_rotation ) *
+			Mat4::CreateTranslation( BI.joint.prnt_position ) * outwm;
+	}
+	else
+	{
+		outwm = Mat4::CreateRotationFromQuat( BI.joint.self_rotation ) *
+			Mat4::CreateTranslation( BI.joint.self_position ) * outwm;
+	}
 	return true;
 }
 

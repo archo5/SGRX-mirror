@@ -277,8 +277,10 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT void RecalcLayerState();
 	
 	ENGINE_EXPORT int _FindBone( const StringView& name );
+	ENGINE_EXPORT int FindParentBone( int which );
 	ENGINE_EXPORT void RecalcBoneIDs();
 	ENGINE_EXPORT bool GetBodyMatrix( int which, Mat4& outwm );
+	ENGINE_EXPORT bool GetJointMatrix( int which, bool parent, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
 	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool ApplyMask( const StringView& name, Animator* tgt );

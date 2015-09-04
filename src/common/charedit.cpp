@@ -1146,6 +1146,13 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 		for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
 		{
 			m_boneButtons[ i ].caption = g_AnimChar->bones[ i ].name;
+			int pb = g_AnimChar->FindParentBone( i );
+			if( pb >= 0 )
+			{
+				m_boneButtons[ i ].caption.append( "    (parent: " );
+				m_boneButtons[ i ].caption.append( g_AnimChar->bones[ pb ].name );
+				m_boneButtons[ i ].caption.append( ")" );
+			}
 			m_group.Add( &m_boneButtons[ i ] );
 		}
 	}
@@ -1971,6 +1978,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 {
 	EDGUIMainFrame() :
 		m_showBodies( true ),
+		m_showJoints( true ),
 		m_showHitboxes( true ),
 		m_showAttachments( true ),
 		m_showMasks( true ),
@@ -2125,11 +2133,13 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				GR2D_SetColor( 1, 1 );
 				GR2D_DrawTextLine( "Render items: [Bodies (1): " );
 				YesNoText( m_showBodies );
-				GR2D_DrawTextLine( ", Hitboxes (2): " );
+				GR2D_DrawTextLine( ", Joints (2): " );
+				YesNoText( m_showJoints );
+				GR2D_DrawTextLine( ", Hitboxes (3): " );
 				YesNoText( m_showHitboxes );
-				GR2D_DrawTextLine( ", Attachments (3): " );
+				GR2D_DrawTextLine( ", Attachments (4): " );
 				YesNoText( m_showAttachments );
-				GR2D_DrawTextLine( ", Masks (4): " );
+				GR2D_DrawTextLine( ", Masks (5): " );
 				YesNoText( m_showMasks );
 				GR2D_DrawTextLine( "]" );
 			}
@@ -2140,10 +2150,12 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				if( e->key.engkey == SDLK_1 )
 					m_showBodies = !m_showBodies;
 				if( e->key.engkey == SDLK_2 )
-					m_showHitboxes = !m_showHitboxes;
+					m_showJoints = !m_showJoints;
 				if( e->key.engkey == SDLK_3 )
-					m_showAttachments = !m_showAttachments;
+					m_showHitboxes = !m_showHitboxes;
 				if( e->key.engkey == SDLK_4 )
+					m_showAttachments = !m_showAttachments;
+				if( e->key.engkey == SDLK_5 )
 					m_showMasks = !m_showMasks;
 				if( e->key.engkey == SDLK_g )
 					g_XFormState.OnMoveKey();
@@ -2196,6 +2208,84 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 						case AnimCharacter::BodyType_Box:
 							br.AABB( -size, size, wm );
 							break;
+						}
+					}
+				}
+			}
+			
+			if( m_showJoints )
+			{
+				br.Reset();
+				for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+				{
+					float a = 0.5f;
+					float d = 0.1f;
+					
+					if( g_AnimChar->bones[ i ].joint.type == AnimCharacter::JointType_None )
+						continue;
+					
+					Mat4 wm;
+					if( g_AnimChar->GetJointMatrix( i, true, wm ) )
+					{
+						br.SetPrimitiveType( PT_Lines );
+						br.Col( 0.9f, 0.9f, 0.9f, a );
+						br.Pos( wm.TransformPos( V3(0,0,0) ) );
+						br.Col( 1, 0, 0, a );
+						br.Pos( wm.TransformPos( V3(d,0,0) ) );
+						
+						br.Prev( 1 );
+						br.Col( 0, 1, 0, a );
+						br.Pos( wm.TransformPos( V3(0,d,0) ) );
+						
+						br.Prev( 1 );
+						br.Col( 0, 0, 1, a );
+						br.Pos( wm.TransformPos( V3(0,0,d) ) );
+						
+						switch( g_AnimChar->bones[ i ].joint.type )
+						{
+						case AnimCharacter::JointType_Hinge:
+							br.Col( 1, 0.5f, 0, a );
+							br.ConeOutline(
+								wm.TransformPos( V3(0,0,0) ),
+								wm.TransformNormal( V3(0,0,1) ),
+								wm.TransformNormal( V3(0,-1,0) ),
+								0.1f,
+								45,
+								32 );
+							break;
+						case AnimCharacter::JointType_ConeTwist:
+							br.Col( 1, 1, 0, a );
+							br.ConeOutline(
+								wm.TransformPos( V3(0,0,0) ),
+								wm.TransformNormal( V3(0,0,1) ),
+								wm.TransformNormal( V3(0,-1,0) ),
+								0.1f,
+								45,
+								32 );
+							break;
+						case AnimCharacter::JointType_None: break;
+						}
+					}
+					
+					if( g_AnimChar->GetJointMatrix( i, false, wm ) )
+					{
+						br.SetPrimitiveType( PT_Lines );
+						br.Col( 0.6f, 0.6f, 0.6f, a );
+						br.Pos( wm.TransformPos( V3(0,0,0) ) );
+						br.Col( 1, 0, 0, a );
+						br.Pos( wm.TransformPos( V3(d,0,0) ) );
+						
+						br.Prev( 1 );
+						br.Col( 0, 1, 0, a );
+						br.Pos( wm.TransformPos( V3(0,d,0) ) );
+						
+						br.Prev( 1 );
+						br.Col( 0, 0, 1, a );
+						br.Pos( wm.TransformPos( V3(0,0,d) ) );
+						
+						switch( g_AnimChar->bones[ i ].joint.type )
+						{
+						default:;
 						}
 					}
 				}
@@ -2453,6 +2543,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	String m_fileName;
 	
 	bool m_showBodies;
+	bool m_showJoints;
 	bool m_showHitboxes;
 	bool m_showAttachments;
 	bool m_showMasks;
