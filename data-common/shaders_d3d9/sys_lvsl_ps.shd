@@ -3,7 +3,7 @@ sampler2D texDEPTH : register(s0);
 sampler2D texCookie0 : register(s8);
 sampler2D texShadow0 : register(s9);
 
-float4x4 shadowMtx : register(c0);
+float4x4 cMVPMtx : register(c0);
 float3 cPos00 : register(c4);
 float3 cPos10 : register(c5);
 float3 cPos01 : register(c6);
@@ -16,12 +16,27 @@ float4 DminDmaxRadPow : register(c12);
 float3 lightPos : register(c13);
 float3 lightColor : register(c14);
 float4 shmsize : register(c15);
+float4x4 shadowMtx : register(c16);
+
+float hash( float n ) { return frac(sin(n)*753.5453123); }
+float noise( float3 x )
+{
+    float3 p = floor(x);
+    float3 f = frac(x);
+    f = f*f*(3.0-2.0*f);
+	
+    float n = p.x + p.y*157.0 + 113.0*p.z;
+    return lerp(lerp(lerp( hash(n+  0.0), hash(n+  1.0),f.x),
+                     lerp( hash(n+157.0), hash(n+158.0),f.x),f.y),
+                lerp(lerp( hash(n+113.0), hash(n+114.0),f.x),
+                     lerp( hash(n+270.0), hash(n+271.0),f.x),f.y),f.z);
+}
 
 float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : COLOR0
 {
 	float3 q = float3(0,0,0);
 	float qdt = 0.1; // TODO configure
-	int iters = 64;
+	int iters = 16;
 	
 	float3 pos = lerp(
 		lerp( cPos00, cPos10, itex.x ),
@@ -29,6 +44,7 @@ float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : COLOR0
 	float3 dir = lerp(
 		lerp( cDir00, cDir10, itex.x ),
 		lerp( cDir01, cDir11, itex.x ), itex.y );
+	float3 opos = pos;
 	
 	float dist = ( DminDmaxRadPow.y - DminDmaxRadPow.x );
 	float dtdist = dist / iters;
@@ -36,8 +52,15 @@ float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : COLOR0
 	dir *= dtdist;
 	qdt *= dtdist;
 	
+	pos += dir * (( noise( ( pos - dir ) * 5000 ) + noise( ( pos - dir ) * 2000 ) ) * 0.25 );
+	
+	float distance = tex2D( texDEPTH, itex ).r;
+	
 	for( int i = 0; i < iters; ++i )
 	{
+		if( length( float3( fpos, 1 ) * distance ) < length( opos - pos ) )
+			break;
+		
 		float4 smpos = mul( shadowMtx, float4( pos, 1 ) );
 		float3 nrmpos = smpos.xyz / smpos.w;
 		float boundsfac =
@@ -48,7 +71,7 @@ float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : COLOR0
 		
 		float distfac = 1 - saturate( length( pos - lightPos ) / DminDmaxRadPow.z );
 		distfac = pow( distfac, DminDmaxRadPow.w );
-		float3 cookieRGB = tex2D( texCookie0, stex ).rgb;
+		float3 cookieRGB = tex2Dlod( texCookie0, float4( stex, 0, 0 ) ).rgb;
 		
 		float sh0 = nrmpos.z;
 		float sh1 = nrmpos.z * 1.0001;
@@ -66,7 +89,8 @@ float4 main( float2 itex : TEXCOORD0, float2 fpos : TEXCOORD1 ) : COLOR0
 		
 		q += cookieRGB * ( qdt * distfac * shadowfac * boundsfac );
 		
-		pos += dir;
+	//	pos += dir;
+		pos += dir * (i/iters+0.5); // 1.5 to 0.5 jump depending on ?
 	}
 	
 	return float4( lightColor * q, 1 );

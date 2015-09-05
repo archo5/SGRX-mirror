@@ -2205,7 +2205,10 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pa
 void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
 {
 	const SGRX_Camera& CAM = m_currentScene->camera;
+	Mat4 vpmtx;
+	vpmtx.Multiply( CAM.mView, CAM.mProj );
 	
+#if 1
 	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
 	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
 	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
@@ -2256,7 +2259,7 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 		
 		SetVertexShader( m_sh_pp_vs );
 		SetPixelShader( m_sh_lvsl_ps );
-		PS_SetMat4( 0, L->viewProjMatrix );
+		PS_SetMat4( 0, vpmtx );
 		PS_SetVec4( 4, V4( pos00, 0 ) );
 		PS_SetVec4( 5, V4( pos10, 0 ) );
 		PS_SetVec4( 6, V4( pos01, 0 ) );
@@ -2276,6 +2279,7 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 			tszy = texinfo.height;
 		}
 		PS_SetVec4( 15, V4( tszx, tszy, 1.0f / tszx, 1.0f / tszy ) );
+		PS_SetMat4( 16, L->viewProjMatrix );
 		SetTexture( 8, L->cookieTexture );
 		SetTexture( 9, L->shadowTexture );
 		
@@ -2298,6 +2302,62 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 	Viewport_Apply( 1 );
 	
 	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
+#else
+	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, FALSE );
+	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
+	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
+	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
+	
+	SetVertexShader( VSH );
+	SetPixelShader( SHD );
+	
+	for( size_t light_id = 0; light_id < m_currentScene->m_lights.size(); ++light_id )
+	{
+		SGRX_Light* L = m_currentScene->m_lights.item( light_id ).key;
+		if( !L->enabled ||
+			L->type != LIGHT_SPOT || // only spotlights are currently supported
+			!L->hasShadows || // they need to have shadows
+			!L->shadowTexture ||
+			!L->shadowTexture->m_isRenderTexture )
+			continue;
+		
+		Vec3 volpts[8]; // last 4 points are from the far end
+		L->GetVolumePoints( volpts );
+		
+#define MAX_LVOL_PLANES 256
+		Vec4 planes[ MAX_LVOL_PLANES ];
+		int planecount = 0;
+		
+		Vec3 slantdir = ( CAM.position - L->_tf_position );
+		slantdir -= slantdir * Vec3Dot( slantdir, CAM.direction ) * 0.5f;
+		slantdir.Normalize();
+		float plane_density = 0.1f;
+		
+		Vec3 ldir = L->_tf_direction.Normalized();
+		Vec3 startpos = L->_tf_position;
+		for( int i = 0; i < MAX_LVOL_PLANES; ++i )
+		{
+			Vec4 plane = V4( slantdir, Vec3Dot( slantdir, startpos ) );
+			
+			// assume plane always has similar orientation to light direction
+			// test if plane is outside the volume
+			if( Vec3Dot( plane.ToVec3(), volpts[4] ) < plane.w &&
+				Vec3Dot( plane.ToVec3(), volpts[5] ) < plane.w &&
+				Vec3Dot( plane.ToVec3(), volpts[6] ) < plane.w &&
+				Vec3Dot( plane.ToVec3(), volpts[7] ) < plane.w )
+				break;
+			
+			// process the plane
+			planes[ i ] = plane;
+			planecount++;
+			
+			// advance
+			float curdist = ( L->_tf_position - startpos ).Length();
+			startpos += ldir * ( ( L->_tf_range + curdist ) * plane_density );
+		}
+	}
+#endif
 }
 
 void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
