@@ -4,10 +4,12 @@
 #include <enganim.hpp>
 #include <engext.hpp>
 #include <edgui.hpp>
+#include <physics.hpp>
 #include "edcomui.hpp"
 
 
 struct EDGUIMainFrame* g_UIFrame;
+PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
 struct EDGUIMeshPicker* g_UIMeshPicker;
 struct EDGUICharOpenPicker* g_UICharOpenPicker;
@@ -17,7 +19,7 @@ struct EDGUIBodyType* g_UIBodyType;
 struct EDGUIJointType* g_UIJointType;
 struct EDGUITransformType* g_UITransformType;
 AnimCharacter* g_AnimChar;
-AnimMixer::Layer g_AnimMixLayers[1];
+AnimMixer::Layer g_AnimMixLayers[2];
 
 
 inline Quat EA2Q( Vec3 v ){ return Mat4::CreateRotationXYZ( DEG2RAD( v ) ).GetRotationQuaternion(); }
@@ -309,20 +311,20 @@ void calc_bone_volume_info( AMBone& B )
 	printf( "- capsule radius: %g, height: %g\n", B.capsule_radius, B.capsule_halfheight );
 }
 
-void calc_char_bone_info( int bid, int thres, int mask )
+void calc_char_bone_info( int bid, int thres, float minbs, int mask )
 {
 	if( g_AnimChar == NULL || bid < 0 || bid >= (int) g_AnimChar->bones.size() )
 	{
 		LOG_ERROR << "Cannot calculate bone info for bone " << bid << " at this time";
 		return;
 	}
+	SGRX_MeshBone* meshbones = g_AnimChar->m_cachedMesh->m_bones;
 	AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ bid ];
 	AMBone B = { BI.bone_id, BI.name, (uint8_t) thres };
 	
 	calc_bone_volume_info( B );
 	
-	Mat4 world_to_local = BI.bone_id < 0 ? Mat4::Identity :
-		g_AnimChar->m_cachedMesh->m_bones[ BI.bone_id ].invSkinOffset;
+	Mat4 world_to_local = BI.bone_id < 0 ? Mat4::Identity : meshbones[ BI.bone_id ].invSkinOffset;
 	Vec3 local_pos = world_to_local.TransformPos( B.world_center );
 	Vec3 lo1 = world_to_local.TransformNormal( B.world_axisX );
 	Vec3 lo2 = world_to_local.TransformNormal( B.world_axisY );
@@ -351,6 +353,89 @@ void calc_char_bone_info( int bid, int thres, int mask )
 		BI.hitbox.position = local_pos;
 		BI.hitbox.rotation = local_rot;
 		BI.hitbox.extents = B.bb_extents;
+	}
+	if( mask & 4 )
+	{
+		int pbone = g_AnimChar->FindParentBone( bid );
+		while( pbone >= 0 )
+		{
+			Vec3 bs = g_AnimChar->bones[ pbone ].body.size.Abs();
+			if( bs.x < minbs || bs.y < minbs || bs.z < minbs )
+				pbone = g_AnimChar->FindParentBone( pbone );
+			else
+				break;
+		}
+		Vec3 bs = g_AnimChar->bones[ bid ].body.size.Abs();
+		Vec3 pbs = g_AnimChar->bones[ pbone ].body.size.Abs();
+		if( pbone < 0 || bs.x < minbs || bs.y < minbs || bs.z < minbs ||
+			pbs.x < minbs || pbs.y < minbs || pbs.z < minbs )
+		{
+			BI.joint.type = AnimCharacter::JointType_None;
+			BI.joint.parent_name = "";
+			BI.joint.parent_id = -1;
+		}
+		else
+		{
+			int pbone_m = g_AnimChar->bones[ pbone ].bone_id;
+			
+			BI.joint.type = AnimCharacter::JointType_ConeTwist;
+			BI.joint.parent_name = g_AnimChar->bones[ pbone ].name;
+			BI.joint.parent_id = pbone;
+			
+			Mat4 world_to_parent = meshbones[ pbone_m ].invSkinOffset;
+			
+			// calculate own position
+			Vec3 bone_origin = meshbones[ BI.bone_id ].skinOffset.TransformPos( V3(0) );
+			
+			// calculate child bone count / avg. position
+			int numch = 0;
+			Vec3 avg_child_origin = V3(0);
+			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			{
+				if( g_AnimChar->FindParentBone( i ) == bid )
+				{
+					int cmbid = g_AnimChar->bones[ i ].bone_id;
+					avg_child_origin += meshbones[ cmbid ].skinOffset.TransformPos( V3(0) );
+					numch++;
+				}
+			}
+			if( numch > 0 )
+				avg_child_origin /= numch;
+			
+			// generate world-space joint frame
+			Vec3 jwZ = V3(0);
+			if( numch > 0 )
+				jwZ = ( avg_child_origin - bone_origin );
+			if( jwZ == V3(0) )
+				jwZ = B.world_axisZ;
+			jwZ.Normalize();
+			Vec3 jwX = Vec3Dot( jwZ, B.world_axisZ.Normalized() ) > 0.707f ? B.world_axisX : B.world_axisZ;
+			Vec3 jwY = Vec3Cross( jwZ, jwX ).Normalized();
+			jwX = Vec3Cross( jwY, jwZ ).Normalized(); // orthogonalize
+			
+			// copy joint frame to parent+own bone space
+			Mat4 jlb = Mat4::Basis(
+				world_to_local.TransformNormal( jwX ),
+				world_to_local.TransformNormal( jwY ),
+				world_to_local.TransformNormal( jwZ ) );
+			BI.joint.self_position = world_to_local.TransformPos( bone_origin );
+			BI.joint.self_rotation = jlb.GetRotationQuaternion();
+			
+			Mat4 jpb = Mat4::Basis(
+				world_to_parent.TransformNormal( jwX ),
+				world_to_parent.TransformNormal( jwY ),
+				world_to_parent.TransformNormal( jwZ ) );
+			BI.joint.prnt_position = world_to_parent.TransformPos( bone_origin );
+			BI.joint.prnt_rotation = jpb.GetRotationQuaternion();
+			
+			printf( "Joint Data for %.*s:\n", (int) B.name.size(), B.name.data() );
+			printf( "- child count: %d\n", numch );
+			printf( "- origin: %g %g %g\n", bone_origin.x, bone_origin.y, bone_origin.z );
+			printf( "- axis-X: %g %g %g\n", jwX.x, jwX.y, jwX.z );
+			printf( "- axis-Y: %g %g %g\n", jwY.x, jwY.y, jwY.z );
+			printf( "- axis-Z: %g %g %g\n", jwZ.x, jwZ.y, jwZ.z );
+			printf( "- avg. child origin: %g %g %g\n", avg_child_origin.x, avg_child_origin.y, avg_child_origin.z );
+		}
 	}
 }
 
@@ -909,6 +994,7 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_joint_turnlim2( 0, 2, -360, 360 ),
 		m_joint_twistlim( 0, 2, -360, 360 ),
 		
+		m_recalc_minbs( 0.05f, 2, 0, 10 ),
 		m_recalc_thres( 96, 0, 255 ),
 		m_bid( -1 )
 	{
@@ -937,6 +1023,8 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_joint_twistlim.caption = "Twist limit (Z)";
 		m_btn_joint_self_xform.caption = "Select local joint frame for XForm";
 		m_btn_joint_prnt_xform.caption = "Select parent joint frame for XForm";
+		m_recalc_minbs.caption = "Min. body size";
+		m_btn_recalc_joint.caption = "Regenerate joint data";
 		
 		m_recalc_thres.caption = "Threshold";
 		m_btn_recalc_body.caption = "Recalculate body";
@@ -966,6 +1054,8 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_group_joint.Add( &m_joint_twistlim );
 		m_group_joint.Add( &m_btn_joint_self_xform );
 		m_group_joint.Add( &m_btn_joint_prnt_xform );
+		m_group_joint.Add( &m_recalc_minbs );
+		m_group_joint.Add( &m_btn_recalc_joint );
 		
 		m_group_recalc.Add( &m_recalc_thres );
 		m_group_recalc.Add( &m_btn_recalc_body );
@@ -1029,19 +1119,24 @@ struct EDGUIBoneProps : EDGUILayoutRow
 					g_XFormState.type = e->target == &m_btn_joint_self_xform ?
 						TT_BoneJointSelfFrame : TT_BoneJointParentFrame;
 				}
+				if( e->target == &m_btn_recalc_joint )
+				{
+					calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 4 );
+					Prepare( m_bid );
+				}
 				if( e->target == &m_btn_recalc_body )
 				{
-					calc_char_bone_info( m_bid, m_recalc_thres.m_value, 1 );
+					calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 1 );
 					Prepare( m_bid );
 				}
 				if( e->target == &m_btn_recalc_hitbox )
 				{
-					calc_char_bone_info( m_bid, m_recalc_thres.m_value, 2 );
+					calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 2 );
 					Prepare( m_bid );
 				}
 				if( e->target == &m_btn_recalc_both )
 				{
-					calc_char_bone_info( m_bid, m_recalc_thres.m_value, 1|2 );
+					calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 1|2 );
 					Prepare( m_bid );
 				}
 				break;
@@ -1105,6 +1200,8 @@ struct EDGUIBoneProps : EDGUILayoutRow
 	EDGUIPropFloat m_joint_twistlim;
 	EDGUIButton m_btn_joint_self_xform;
 	EDGUIButton m_btn_joint_prnt_xform;
+	EDGUIPropFloat m_recalc_minbs;
+	EDGUIButton m_btn_recalc_joint;
 	
 	EDGUIPropInt m_recalc_thres;
 	EDGUIButton m_btn_recalc_body;
@@ -1120,19 +1217,24 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 	EDGUIBoneListProps() :
 		m_group( true, "Bones" ),
 		m_group_recalc( false, "Recalculate shapes" ),
+		m_recalc_minbs( 0.05f, 2, 0, 10 ),
 		m_recalc_thres( 96, 0, 255 )
 	{
 		type = CE_GUI_BONELISTPROPS;
 		
+		m_recalc_minbs.caption = "Min. body size";
 		m_recalc_thres.caption = "Threshold";
 		m_btn_recalc_body.caption = "Recalculate body";
 		m_btn_recalc_hitbox.caption = "Recalculate hitbox";
 		m_btn_recalc_both.caption = "Recalculate both";
+		m_btn_recalc_joint.caption = "Recalculate joint";
 		
+		m_group_recalc.Add( &m_recalc_minbs );
 		m_group_recalc.Add( &m_recalc_thres );
 		m_group_recalc.Add( &m_btn_recalc_body );
 		m_group_recalc.Add( &m_btn_recalc_hitbox );
 		m_group_recalc.Add( &m_btn_recalc_both );
+		m_group_recalc.Add( &m_btn_recalc_joint );
 		
 		Add( &m_group_recalc );
 		Add( &m_group );
@@ -1165,6 +1267,7 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 			if( e->target == &m_btn_recalc_body ) _Recalc(1);
 			else if( e->target == &m_btn_recalc_hitbox ) _Recalc(2);
 			else if( e->target == &m_btn_recalc_both ) _Recalc(1|2);
+			else if( e->target == &m_btn_recalc_joint ) _Recalc(4);
 			else if( e->target >= (EDGUIItem*) &m_boneButtons[0] &&
 				e->target <= (EDGUIItem*) &m_boneButtons.last() )
 			{
@@ -1179,16 +1282,18 @@ struct EDGUIBoneListProps : EDGUILayoutRow
 	void _Recalc( int mask )
 	{
 		for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
-			calc_char_bone_info( i, m_recalc_thres.m_value, mask );
+			calc_char_bone_info( i, m_recalc_thres.m_value, m_recalc_minbs.m_value, mask );
 	}
 	
 	EDGUIGroup m_group;
 	Array< EDGUIButton > m_boneButtons;
 	EDGUIGroup m_group_recalc;
+	EDGUIPropFloat m_recalc_minbs;
 	EDGUIPropInt m_recalc_thres;
 	EDGUIButton m_btn_recalc_body;
 	EDGUIButton m_btn_recalc_hitbox;
 	EDGUIButton m_btn_recalc_both;
+	EDGUIButton m_btn_recalc_joint;
 };
 
 
@@ -1938,7 +2043,7 @@ struct EDGUICharProps : EDGUILayoutRow
 			{
 				LOG << "Picked MESH: " << m_mesh.m_value;
 				g_AnimChar->mesh = m_mesh.m_value;
-				g_AnimChar->OnRenderUpdate();
+				g_AnimChar->_OnRenderUpdate();
 				SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
 				if( M )
 				{
@@ -1974,6 +2079,43 @@ struct EDGUICharProps : EDGUILayoutRow
 };
 
 
+struct EDGUIRagdollTestProps : EDGUILayoutRow
+{
+	EDGUIRagdollTestProps()
+	{
+		tyname = "ragdolltestprops";
+		
+		m_btn_start.caption = "Start";
+		m_btn_stop.caption = "Stop";
+		
+		Add( &m_btn_start );
+		Add( &m_btn_stop );
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_BTNCLICK:
+			if( e->target == &m_btn_start )
+			{
+				g_AnimChar->m_anRagdoll.Initialize( g_AnimChar );
+				g_AnimChar->EnablePhysics();
+			}
+			if( e->target == &m_btn_stop )
+			{
+				g_AnimChar->DisablePhysics();
+			}
+			break;
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIButton m_btn_start;
+	EDGUIButton m_btn_stop;
+};
+
+
 struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 {
 	EDGUIMainFrame() :
@@ -1982,6 +2124,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_showHitboxes( true ),
 		m_showAttachments( true ),
 		m_showMasks( true ),
+		m_showPhysics( true ),
 		m_UIMenuSplit( true, 26, 0 ),
 		m_UIParamSplit( false, 0, 0.6f ),
 		m_UIRenderView( g_EdScene, this )
@@ -2007,6 +2150,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_MBEditAttachments.caption = "Edit attachments";
 		m_MBEditLayers.caption = "Edit layers";
 		m_MBEditMasks.caption = "Edit masks";
+		m_MBRagdollTest.caption = "Ragdoll test";
 		m_UIMenuButtons.Add( &m_MB_Cat0 );
 		m_UIMenuButtons.Add( &m_MBNew );
 		m_UIMenuButtons.Add( &m_MBOpen );
@@ -2018,6 +2162,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_UIMenuButtons.Add( &m_MBEditAttachments );
 		m_UIMenuButtons.Add( &m_MBEditLayers );
 		m_UIMenuButtons.Add( &m_MBEditMasks );
+		m_UIMenuButtons.Add( &m_MBRagdollTest );
 	}
 	
 	int OnEvent( EDGUIEvent* e )
@@ -2067,6 +2212,12 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				AddToParamList( &m_maskListProps );
 				SetActiveMode( e->target );
 			}
+			else if( e->target == &m_MBRagdollTest )
+			{
+				ClearParamList();
+				AddToParamList( &m_ragdollTestProps );
+				SetActiveMode( e->target );
+			}
 			
 			return 1;
 			
@@ -2091,6 +2242,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_MBEditAttachments.SetHighlight( &m_MBEditAttachments == btn );
 		m_MBEditLayers.SetHighlight( &m_MBEditLayers == btn );
 		m_MBEditMasks.SetHighlight( &m_MBEditMasks == btn );
+		m_MBRagdollTest.SetHighlight( &m_MBRagdollTest == btn );
 	}
 	
 	bool ViewEvent( EDGUIEvent* e )
@@ -2141,6 +2293,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				YesNoText( m_showAttachments );
 				GR2D_DrawTextLine( ", Masks (5): " );
 				YesNoText( m_showMasks );
+				GR2D_DrawTextLine( ", Physics (6): " );
+				YesNoText( m_showPhysics );
 				GR2D_DrawTextLine( "]" );
 			}
 			break;
@@ -2157,6 +2311,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 					m_showAttachments = !m_showAttachments;
 				if( e->key.engkey == SDLK_5 )
 					m_showMasks = !m_showMasks;
+				if( e->key.engkey == SDLK_6 )
+					m_showPhysics = !m_showPhysics;
 				if( e->key.engkey == SDLK_g )
 					g_XFormState.OnMoveKey();
 				if( e->key.engkey == SDLK_r )
@@ -2203,7 +2359,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 							break;
 						case AnimCharacter::BodyType_Capsule:
 							br.CapsuleOutline( wm.TransformPos( V3(0) ), size.x,
-								wm.TransformNormal( V3(0,0,1) ).Normalized(), size.z, 32 );
+								wm.TransformNormal( V3(0,0,1) ).Normalized(), ( size.z - size.x ) * 2, 32 );
 							break;
 						case AnimCharacter::BodyType_Box:
 							br.AABB( -size, size, wm );
@@ -2399,6 +2555,12 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 					}
 				}
 			}
+			
+			// draw physics
+			if( m_showPhysics )
+			{
+				g_PhyWorld->DebugDraw();
+			}
 		}
 	}
 	
@@ -2487,8 +2649,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	{
 		m_fileName = "";
 		delete g_AnimChar;
-		g_AnimChar = new AnimCharacter;
-		g_AnimChar->AddToScene( g_EdScene );
+		g_AnimChar = new AnimCharacter( g_EdScene, g_PhyWorld );
 		ResetEditorState();
 	}
 	void CH_Open()
@@ -2547,6 +2708,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	bool m_showHitboxes;
 	bool m_showAttachments;
 	bool m_showMasks;
+	bool m_showPhysics;
 	
 	// property blocks
 	EDGUIBoneProps m_boneProps;
@@ -2560,6 +2722,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIMaskProps m_maskProps;
 	EDGUIMaskListProps m_maskListProps;
 	EDGUICharProps m_charProps;
+	EDGUIRagdollTestProps m_ragdollTestProps;
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;
@@ -2581,6 +2744,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBEditAttachments;
 	EDGUIButton m_MBEditLayers;
 	EDGUIButton m_MBEditMasks;
+	EDGUIButton m_MBRagdollTest;
 };
 
 void FC_EditBone( int which ){ g_UIFrame->EditBone( which ); }
@@ -2621,16 +2785,19 @@ struct CSEditor : IGame
 		g_UITransformType = new EDGUITransformType;
 		
 		// core layout
+		g_PhyWorld = PHY_CreateWorld();
+		g_PhyWorld->SetGravity( V3( 0, 0, -9.81f ) );
 		g_EdScene = GR_CreateScene();
 		g_EdScene->camera.position = V3(3);
 		g_EdScene->camera.UpdateMatrices();
 		g_EdScene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
-		g_AnimChar = new AnimCharacter;
+		g_AnimChar = new AnimCharacter( g_EdScene, g_PhyWorld );
 		g_AnimMixLayers[ 0 ].anim = &g_AnimChar->m_layerAnimator;
 		g_AnimMixLayers[ 0 ].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
+		g_AnimMixLayers[ 1 ].anim = &g_AnimChar->m_anRagdoll;
+		g_AnimMixLayers[ 1 ].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
 		g_AnimChar->m_anMixer.layers = g_AnimMixLayers;
 		g_AnimChar->m_anMixer.layerCount = sizeof(g_AnimMixLayers) / sizeof(g_AnimMixLayers[0]);
-		g_AnimChar->AddToScene( g_EdScene );
 		g_UIFrame = new EDGUIMainFrame();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
@@ -2665,6 +2832,7 @@ struct CSEditor : IGame
 		delete g_AnimChar;
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
+		g_PhyWorld = NULL;
 	}
 	void OnEvent( const Event& e )
 	{

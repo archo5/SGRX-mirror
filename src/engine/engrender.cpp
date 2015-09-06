@@ -756,17 +756,18 @@ BatchRenderer& BatchRenderer::SphereOutline( const Vec3& pos, float radius, int 
 
 BatchRenderer& BatchRenderer::CapsuleOutline( const Vec3& pos, float radius, const Vec3& nrm, float ht, int verts )
 {
+	ht /= 2;
 	Vec3 N = nrm.Normalized();
-	if( N.LengthSq() < SMALL_FLOAT )
+	if( nrm.LengthSq() < SMALL_FLOAT )
 		return SphereOutline( pos, radius, verts );
 	
 	Vec3 refdir = V3( 0, 0, nrm.z >= 0 ? 1 : -1 );
 	Vec3 rotaxis = Vec3Cross( N, refdir );
 	float rotangle = acosf( clamp( Vec3Dot( N, refdir ), -1, 1 ) );
 	
-	Mat4 rot = Mat4::CreateRotationAxisAngle( rotaxis, rotangle );
-	Vec3 T = rot.TransformNormal( V3(1,0,0) );
-	Vec3 B = rot.TransformNormal( V3(0,1,0) );
+	Mat4 rot = Mat4::CreateRotationAxisAngle( rotaxis.Normalized(), -rotangle );
+	Vec3 T = rot.TransformNormal( V3(1,0,0) ).Normalized();
+	Vec3 B = rot.TransformNormal( V3(0,1,0) ).Normalized();
 	Vec3 Tr = T * radius, Br = B * radius, Nr = N * radius;
 	
 	Vec3 p0 = pos - N * ht, p1 = pos + N * ht;

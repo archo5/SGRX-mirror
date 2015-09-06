@@ -34,6 +34,7 @@ TSCamera::TSCamera(
 	const Vec3& dir1
 ) :
 	Entity( lev ),
+	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_playerVisible( false ), m_lastSeenPlayerDir( YP(0) ),
 	m_curDir( YP( dir0 ) ), m_timeout( 0 ), m_state( 0 ),
 	m_alertTimeout( 0 ), m_noticeTimeout( 0 ),
@@ -51,7 +52,6 @@ TSCamera::TSCamera(
 	m_animChar.m_anMixer.layers = m_anLayers;
 	m_animChar.m_anMixer.layerCount = 1;
 	m_animChar.Load( bfr );
-	m_animChar.AddToScene( m_level->GetScene() );
 	StringView atchlist[] = { "view", "origin", "light" };
 	m_animChar.SortEnsureAttachments( atchlist, 3 );
 	
@@ -205,6 +205,7 @@ bool TSCamera::GetMapItemInfo( MapItemInfo* out )
 
 TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	Entity( lev ),
+	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
@@ -239,9 +240,9 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_anLayers[1].anim = &m_anTopPlayer;
 	m_anLayers[2].anim = &m_animChar.m_layerAnimator;
 	m_anLayers[2].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
-//	m_anLayers[3].anim = &m_anRagdoll;
-//	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
-//	m_anLayers[3].factor = 0;
+	m_anLayers[3].anim = &m_animChar.m_anRagdoll;
+	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
+	m_anLayers[3].factor = 0;
 	m_animChar.m_anMixer.layers = m_anLayers;
 	m_animChar.m_anMixer.layerCount = 3;
 }
@@ -249,7 +250,6 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 void TSCharacter::InitializeMesh( const StringView& path )
 {
 	m_animChar.Load( path );
-	m_animChar.AddToScene( m_level->GetScene() );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->userData = &m_meshInstInfo;

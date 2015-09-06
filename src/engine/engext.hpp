@@ -13,15 +13,16 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 		Vec3 relPos;
 		Quat relRot;
 		PhyRigidBodyHandle bodyHandle;
+		PhyJointHandle jointHandle;
 		Vec3 prevPos;
 		Vec3 currPos;
 		Quat prevRot;
 		Quat currRot;
 	};
 	
-	ENGINE_EXPORT AnimRagdoll();
-	ENGINE_EXPORT void Initialize( PhyWorldHandle world, MeshHandle mesh, struct SkeletonInfo* skinfo );
-	ENGINE_EXPORT virtual void Prepare( String* new_names, int count );
+	ENGINE_EXPORT AnimRagdoll( PhyWorldHandle phyWorld );
+	ENGINE_EXPORT void Initialize( struct AnimCharacter* chinfo );
+	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
 	ENGINE_EXPORT virtual void Advance( float deltaTime );
 	
 	ENGINE_EXPORT void SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot );
@@ -31,9 +32,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	
 	bool m_enabled;
 	float m_lastTickSize;
+	PhyWorldHandle m_phyWorld;
 	MeshHandle m_mesh;
 	Array< Body > m_bones;
-	Array< PhyJointHandle > m_joints;
 };
 
 
@@ -263,18 +264,20 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 		arch( masks, arch.version >= 2 );
 	}
 	
-	ENGINE_EXPORT AnimCharacter();
+	ENGINE_EXPORT AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld );
 	
 	ENGINE_EXPORT bool Load( const StringView& sv );
 	ENGINE_EXPORT bool Save( const StringView& sv );
 	
-	ENGINE_EXPORT void OnRenderUpdate();
-	ENGINE_EXPORT void AddToScene( SceneHandle sh );
+	ENGINE_EXPORT void _OnRenderUpdate();
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
 	ENGINE_EXPORT void FixedTick( float deltaTime );
 	ENGINE_EXPORT void PreRender( float blendFactor );
 	ENGINE_EXPORT void RecalcLayerState();
+	
+	ENGINE_EXPORT void EnablePhysics();
+	ENGINE_EXPORT void DisablePhysics();
 	
 	ENGINE_EXPORT int _FindBone( const StringView& name );
 	ENGINE_EXPORT int FindParentBone( int which );
@@ -301,6 +304,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	Animator m_layerAnimator;
 	AnimMixer m_anMixer;
 	AnimDeformer m_anDeformer;
+	AnimRagdoll m_anRagdoll;
 	AnimInterp m_anEnd;
 };
 

@@ -138,13 +138,14 @@ void AnimMixer::Advance( float deltaTime )
 			Vec3 S = AN->m_scales[ i ];
 			float q = AN->m_factors[ i ] * layers[ layer ].factor;
 			
+			Mat4 orig;
 			if( abslayer )
 			{
 				// to matrix
 				Mat4 tfm = Mat4::CreateSRT( S, R, P );
 				
 				// extract diff
-				Mat4 orig = MB[ i ].boneOffset;
+				orig = MB[ i ].boneOffset;
 				if( MB[ i ].parent_id >= 0 )
 				{
 					orig = orig * m_staging[ MB[ i ].parent_id ];
@@ -163,8 +164,6 @@ void AnimMixer::Advance( float deltaTime )
 				P = ( tflags & TF_Absolute_Pos ) ? diff.GetTranslation() : m_positions[ i ];
 				R = ( tflags & TF_Absolute_Rot ) ? diff.GetRotationQuaternion() : m_rotations[ i ];
 				S = ( tflags & TF_Absolute_Scale ) ? diff.GetScale() : m_scales[ i ];
-				
-				m_staging[ i ] = Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * orig;
 			}
 			
 			if( !m_factors[ i ] )
@@ -180,6 +179,11 @@ void AnimMixer::Advance( float deltaTime )
 				m_rotations[ i ] = TLERP( m_rotations[ i ], R, q );
 				m_scales[ i ] = TLERP( m_scales[ i ], S, q );
 				m_factors[ i ] = TLERP( m_factors[ i ], 1.0f, q );
+			}
+			
+			if( abslayer )
+			{
+				m_staging[ i ] = Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * orig;
 			}
 		}
 	}

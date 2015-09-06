@@ -138,6 +138,7 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld : SGRX_RefCounted
 	virtual PhyShapeHandle CreateSphereShape( float radius ) = 0;
 	virtual PhyShapeHandle CreateCapsuleShape( float radius, float height ) = 0;
 	virtual PhyShapeHandle CreateCylinderShape( const Vec3& extents ) = 0;
+	virtual PhyShapeHandle CreateBoxShape( const Vec3& extents ) = 0;
 	virtual PhyShapeHandle CreateConvexHullShape( const Vec3* data, size_t count ) = 0;
 	virtual PhyShapeHandle CreateAABBShape( const Vec3& min, const Vec3& max ) = 0;
 	virtual PhyShapeHandle CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false ) = 0;

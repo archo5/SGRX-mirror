@@ -592,13 +592,13 @@ struct ENGINE_EXPORT Quat
 	FINLINE bool operator == ( const Quat& o ) const { return x == o.x && y == o.y && z == o.z && w == o.w; }
 	FINLINE bool operator != ( const Quat& o ) const { return x != o.x && y != o.y && z != o.z && w != o.w; }
 	
-	Vec3 Transform( const Vec3& p ) const
+	Vec3 Transform( const Vec3& p ) const // TODO FIX
 	{
-		Quat v_ = { p.x, p.y, p.z };
-		Quat qin = Conjugate();
+		Quat qpos = { p.x, p.y, p.z, 0 };
+		Quat qconj = Conjugate();
 		Quat q_ = this->Normalized();
-		q_ = v_ * q_;
-		q_ = qin * q_;
+		q_ = qpos * q_;
+		q_ = qconj * q_;
 		Vec3 out = { q_.x, q_.y, q_.z };
 		return out;
 	}

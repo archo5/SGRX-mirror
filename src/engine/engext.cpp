@@ -8,95 +8,114 @@
 //  R A G D O L L
 ////////////////////
 
-#if 0
-
-AnimRagdoll::AnimRagdoll() :
+AnimRagdoll::AnimRagdoll( PhyWorldHandle phyWorld ) :
 	m_enabled( false ),
-	m_lastTickSize( 0 )
+	m_lastTickSize( 0 ),
+	m_phyWorld( phyWorld )
 {
+	ASSERT( phyWorld && "physics world handle must be valid" );
 }
 
-void AnimRagdoll::Initialize( PhyWorldHandle world, MeshHandle mesh, SkeletonInfo* skinfo )
+void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 {
-	m_mesh = mesh;
-	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.enabled = false;
 	rbinfo.friction = 0.8f;
 	rbinfo.restitution = 0.02f;
 	
-	for( size_t bid = 0; bid < skinfo->bodies.size(); ++bid )
+	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
-		SkeletonInfo::Body& SB = skinfo->bodies[ bid ];
+		Body B = { V3(0), Quat::Identity,
+			NULL, NULL, V3(0), V3(0), Quat::Identity, Quat::Identity };
+		m_bones[ i ] = B;
+	}
+	
+	if( m_factors.size() != chinfo->bones.size() )
+	{
+		// ragdoll not used
+		return;
+	}
+	
+	for( size_t bid = 0; bid < chinfo->bones.size(); ++bid )
+	{
+		AnimCharacter::BoneInfo& BI = chinfo->bones[ bid ];
 		
-		Body* TB = NULL;
-		for( size_t i = 0; i < m_bones.size(); ++i )
-		{
-			if( names[ i ] == SB.name )
-			{
-				TB = &m_bones[ i ];
-				break;
-			}
-		}
-		if( !TB )
-			continue;
+		Body* TB = &m_bones[ BI.bone_id ];
 		
 	//	LOG << SB.name << " > " << SB.capsule_radius << "|" << SB.capsule_height;
-		rbinfo.shape = world->CreateCapsuleShape( SB.capsule_radius, SB.capsule_height );
+		if( BI.body.type == AnimCharacter::BodyType_Sphere )
+		{
+			rbinfo.shape = m_phyWorld->CreateSphereShape( BI.body.size.x );
+		}
+		else if( BI.body.type == AnimCharacter::BodyType_Capsule )
+		{
+			rbinfo.shape = m_phyWorld->CreateCapsuleShape(
+				BI.body.size.x, ( BI.body.size.z - BI.body.size.x ) * 2 );
+		}
+		else if( BI.body.type == AnimCharacter::BodyType_Box )
+		{
+			rbinfo.shape = m_phyWorld->CreateBoxShape( BI.body.size );
+		}
+		else continue;
 		rbinfo.mass = 0;//4.0f / 3.0f * M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_radius + M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_height;
 		
 		rbinfo.inertia = rbinfo.shape->CalcInertia( rbinfo.mass );
 		
-		TB->relPos = SB.position;
-		TB->relRot = SB.rotation;
-		TB->bodyHandle = world->CreateRigidBody( rbinfo );
-	}
-	
-	for( size_t jid = 0; jid < skinfo->joints.size(); ++jid )
-	{
-		SkeletonInfo::Joint& SJ = skinfo->joints[ jid ];
-		UNUSED( SJ ); // TODO
+		TB->relPos = BI.body.position;
+		TB->relRot = BI.body.rotation;
+		TB->bodyHandle = m_phyWorld->CreateRigidBody( rbinfo );
 	}
 }
 
-void AnimRagdoll::Prepare( String* new_names, int count )
+bool AnimRagdoll::Prepare( const MeshHandle& mesh )
 {
-	Animator::Prepare( new_names, count );
-	m_bones.resize( count );
-	for( int i = 0; i < count; ++i )
+	if( Animator::Prepare( mesh ) == false )
+		return false;
+	
+	m_mesh = mesh;
+	m_bones.resize( m_factors.size() );
+	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
-		Body B = { V3(0), Quat::Identity, NULL, V3(0), V3(0), Quat::Identity, Quat::Identity };
+		Body B = { V3(0), Quat::Identity,
+			NULL, NULL, V3(0), V3(0), Quat::Identity, Quat::Identity };
 		m_bones[ i ] = B;
-		position[ i ] = V3( 0 );
-		rotation[ i ] = Quat::Identity;
-		scale[ i ] = V3( 1 );
-		factor[ i ] = 1;
+		m_positions[ i ] = V3( 0 );
+		m_rotations[ i ] = Quat::Identity;
+		m_scales[ i ] = V3( 1 );
+		m_factors[ i ] = 0;
 	}
+	
+	return true;
 }
 
 void AnimRagdoll::Advance( float deltaTime )
 {
 	m_lastTickSize = deltaTime;
+	
+	ASSERT( m_bones.size() == m_factors.size() );
+	for( size_t i = 0; i < m_factors.size(); ++i )
+		m_factors[ i ] = m_enabled && m_bones[ i ].bodyHandle;
+	
 	if( m_enabled == false )
 		return;
-	for( size_t i = 0; i < names.size(); ++i )
+	
+	for( size_t i = 0; i < m_bones.size(); ++i )
 	{
 		Body& B = m_bones[ i ];
 		if( B.bodyHandle )
 		{
 			Vec3 pos = B.bodyHandle->GetPosition();
 			Quat rot = B.bodyHandle->GetRotation();
-			Vec3 invRelPos = -B.relPos;
-			Quat invRelRot = B.relRot.Inverted();
-			position[ i ] = invRelRot.Transform( pos - invRelPos );
-			rotation[ i ] = rot * invRelRot;
+			Quat nrot = rot * B.relRot.Inverted();
+			m_positions[ i ] = pos - Mat4::CreateRotationFromQuat(nrot).TransformNormal( B.relPos );
+			m_rotations[ i ] = nrot;
 		}
 	}
 }
 
 void AnimRagdoll::SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot )
 {
-	ASSERT( bone_id >= 0 && bone_id < (int) names.size() );
+	ASSERT( bone_id >= 0 && bone_id < (int) m_factors.size() );
 	Body& B = m_bones[ bone_id ];
 	B.prevPos = prev_pos;
 	B.currPos = curr_pos;
@@ -106,14 +125,14 @@ void AnimRagdoll::SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Ve
 
 void AnimRagdoll::AdvanceTransforms( Animator* anim )
 {
-	ASSERT( names.size() == anim->names.size() );
-	for( size_t i = 0; i < names.size(); ++i )
+	ASSERT( m_factors.size() == anim->m_factors.size() );
+	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
 		Body& B = m_bones[ i ];
 		B.prevPos = B.currPos;
 		B.prevRot = B.currRot;
-		B.currPos = anim->position[ i ];
-		B.currRot = anim->rotation[ i ];
+		B.currPos = anim->m_positions[ i ];
+		B.currRot = anim->m_rotations[ i ];
 	}
 }
 
@@ -126,7 +145,7 @@ void AnimRagdoll::EnablePhysics( const Mat4& worldMatrix )
 	Mat4 prev_boneToWorldMatrices[ MAX_MESH_BONES ];
 	Mat4 curr_boneToWorldMatrices[ MAX_MESH_BONES ];
 	SGRX_MeshBone* MB = m_mesh->m_bones;
-	for( size_t i = 0; i < names.size(); ++i )
+	for( size_t i = 0; i < m_bones.size(); ++i )
 	{
 		Body& B = m_bones[ i ];
 		Mat4& prev_M = prev_boneToWorldMatrices[ i ];
@@ -170,10 +189,10 @@ void AnimRagdoll::EnablePhysics( const Mat4& worldMatrix )
 			}
 			B.bodyHandle->SetEnabled( true );
 		}
-	}
-	for( size_t i = 0; i < m_joints.size(); ++i )
-	{
-		m_joints[ i ]->SetEnabled( true );
+		if( B.jointHandle )
+		{
+			B.jointHandle->SetEnabled( true );
+		}
 	}
 }
 
@@ -187,19 +206,19 @@ void AnimRagdoll::DisablePhysics()
 		Body& B = m_bones[ i ];
 		if( B.bodyHandle )
 			B.bodyHandle->SetEnabled( false );
-	}
-	for( size_t i = 0; i < m_joints.size(); ++i )
-	{
-		m_joints[ i ]->SetEnabled( false );
+		if( B.jointHandle )
+			B.jointHandle->SetEnabled( false );
 	}
 }
 
-#endif
 
 
-
-AnimCharacter::AnimCharacter()
+AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
+	m_scene( sh ),
+	m_anRagdoll( phyWorld )
 {
+	ASSERT( sh && "scene handle must be valid" );
+	
 	m_anDeformer.animSource = &m_anMixer;
 	m_anEnd.animSource = &m_anDeformer;
 }
@@ -214,13 +233,7 @@ bool AnimCharacter::Load( const StringView& sv )
 	if( br.error )
 		return false;
 	
-	if( m_scene )
-		OnRenderUpdate();
-	else
-	{
-		m_cachedMesh = GR_GetMesh( mesh );
-		RecalcBoneIDs();
-	}
+	_OnRenderUpdate();
 	return true;
 }
 
@@ -232,11 +245,8 @@ bool AnimCharacter::Save( const StringView& sv )
 	return FS_SaveBinaryFile( sv, ba.data(), ba.size() );
 }
 
-void AnimCharacter::OnRenderUpdate()
+void AnimCharacter::_OnRenderUpdate()
 {
-	if( m_scene == NULL )
-		return;
-	
 	if( m_cachedMeshInst == NULL )
 	{
 		m_cachedMeshInst = m_scene->CreateMeshInstance();
@@ -249,13 +259,7 @@ void AnimCharacter::OnRenderUpdate()
 	if( m_cachedMesh && (int) m_layerAnimator.m_factors.size() != m_cachedMesh->m_numBones )
 		m_layerAnimator.Prepare( m_cachedMesh );
 	m_layerAnimator.ClearFactors( 1.0f );
-}
-
-void AnimCharacter::AddToScene( SceneHandle sh )
-{
-	m_scene = sh;
-	
-	OnRenderUpdate();
+	m_anRagdoll.Initialize( this );
 }
 
 void AnimCharacter::SetTransform( const Mat4& mtx )
@@ -267,6 +271,7 @@ void AnimCharacter::SetTransform( const Mat4& mtx )
 void AnimCharacter::FixedTick( float deltaTime )
 {
 	m_anEnd.Advance( deltaTime );
+	m_anRagdoll.AdvanceTransforms( &m_anEnd );
 }
 
 void AnimCharacter::PreRender( float blendFactor )
@@ -313,6 +318,16 @@ void AnimCharacter::RecalcLayerState()
 			}
 		}
 	}
+}
+
+void AnimCharacter::EnablePhysics()
+{
+	m_anRagdoll.EnablePhysics( m_cachedMeshInst->matrix );
+}
+
+void AnimCharacter::DisablePhysics()
+{
+	m_anRagdoll.DisablePhysics();
 }
 
 int AnimCharacter::_FindBone( const StringView& name )

@@ -41,7 +41,7 @@ set_target_properties( psedit PROPERTIES
 
 # Character editor
 add_library( charedit SHARED charedit )
-target_link_libraries( charedit sgrx-core )
+target_link_libraries( charedit sgrx-core sgrx-physics-bullet )
 set_target_properties( charedit PROPERTIES
 	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC"
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
