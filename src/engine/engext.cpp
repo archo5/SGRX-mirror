@@ -57,7 +57,7 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 			rbinfo.shape = m_phyWorld->CreateBoxShape( BI.body.size );
 		}
 		else continue;
-		rbinfo.mass = 0;//4.0f / 3.0f * M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_radius + M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_height;
+		rbinfo.mass = 2;//4.0f / 3.0f * M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_radius + M_PI * SB.capsule_radius * SB.capsule_radius * SB.capsule_height;
 		
 		rbinfo.inertia = rbinfo.shape->CalcInertia( rbinfo.mass );
 		
@@ -211,6 +211,16 @@ void AnimRagdoll::DisablePhysics()
 	}
 }
 
+void AnimRagdoll::WakeUp()
+{
+	for( size_t i = 0; i < m_bones.size(); ++i )
+	{
+		Body& B = m_bones[ i ];
+		if( B.bodyHandle )
+			B.bodyHandle->WakeUp();
+	}
+}
+
 
 
 AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
@@ -328,6 +338,11 @@ void AnimCharacter::EnablePhysics()
 void AnimCharacter::DisablePhysics()
 {
 	m_anRagdoll.DisablePhysics();
+}
+
+void AnimCharacter::WakeUp()
+{
+	m_anRagdoll.WakeUp();
 }
 
 int AnimCharacter::_FindBone( const StringView& name )

@@ -111,7 +111,9 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX_PhyRigidBodyInfo& rbinfo );
 	~BulletPhyRigidBody();
 	
+	virtual PhyShapeHandle GetShape() const { return m_shape; }
 	virtual void SetEnabled( bool enabled );
+	virtual void WakeUp(){ m_body->activate( true ); }
 	virtual Vec3 GetPosition() const { return BV2V( m_body->getCenterOfMassPosition() ); }
 	virtual void SetPosition( const Vec3& v )
 	{

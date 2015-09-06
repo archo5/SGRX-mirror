@@ -66,7 +66,9 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 	SGRX_IPhyRigidBody(){}
 	virtual ~SGRX_IPhyRigidBody(){}
 	
+	virtual PhyShapeHandle GetShape() const = 0;
 	virtual void SetEnabled( bool enabled ) = 0;
+	virtual void WakeUp() = 0;
 	virtual Vec3 GetPosition() const = 0;
 	virtual void SetPosition( const Vec3& v ) = 0;
 	virtual Quat GetRotation() const = 0;

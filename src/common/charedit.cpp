@@ -11,6 +11,9 @@
 struct EDGUIMainFrame* g_UIFrame;
 PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
+MaterialHandle g_FloorMeshMtl;
+MeshInstHandle g_FloorMeshInst;
+PhyRigidBodyHandle g_FloorBody;
 struct EDGUIMeshPicker* g_UIMeshPicker;
 struct EDGUICharOpenPicker* g_UICharOpenPicker;
 struct EDGUICharSavePicker* g_UICharSavePicker;
@@ -2079,40 +2082,93 @@ struct EDGUICharProps : EDGUILayoutRow
 };
 
 
+struct FMVertex
+{
+	Vec3 pos;
+	Vec3 nrm;
+	Vec2 tex;
+};
+
+static void floor_mesh_update( float size, float height )
+{
+	FMVertex verts[4] =
+	{
+		{ { -size, -size, 0 }, {0,0,1}, { -size, -size } },
+		{ { +size, -size, 0 }, {0,0,1}, { +size, -size } },
+		{ { +size, +size, 0 }, {0,0,1}, { +size, +size } },
+		{ { -size, +size, 0 }, {0,0,1}, { -size, +size } },
+	};
+	uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
+	SGRX_MeshPart part = { 0, 4, 0, 6, g_FloorMeshMtl };
+	VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf30f2" );
+	g_FloorMeshInst->mesh->SetVertexData( verts, sizeof(verts), vdh, false );
+	g_FloorMeshInst->mesh->SetIndexData( idcs, sizeof(idcs), false );
+	g_FloorMeshInst->mesh->SetAABBFromVertexData( verts, sizeof(verts), vdh );
+	g_FloorMeshInst->mesh->SetPartData( &part, 1 );
+	g_FloorBody->GetShape()->SetScale( V3(size) );
+	g_FloorBody->SetPosition( V3( 0, 0, height ) );
+}
+
+
 struct EDGUIRagdollTestProps : EDGUILayoutRow
 {
-	EDGUIRagdollTestProps()
+	EDGUIRagdollTestProps() :
+		m_floor_size( 2, 2, 0.01f, 100.0f ),
+		m_floor_height( 0, 2, -100.0f, 100.0f )
 	{
 		tyname = "ragdolltestprops";
 		
+		m_floor_size.caption = "Floor size";
+		m_floor_height.caption = "Floor height";
 		m_btn_start.caption = "Start";
 		m_btn_stop.caption = "Stop";
+		m_btn_wakeup.caption = "Wake up";
 		
+		Add( &m_floor_size );
+		Add( &m_floor_height );
 		Add( &m_btn_start );
 		Add( &m_btn_stop );
+		Add( &m_btn_wakeup );
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
 	{
 		switch( e->type )
 		{
+		case EDGUI_EVENT_PROPEDIT:
+			if( e->target == &m_floor_size || e->target == &m_floor_height )
+			{
+				floor_mesh_update( m_floor_size.m_value, m_floor_height.m_value );
+			}
+			break;
+			
 		case EDGUI_EVENT_BTNCLICK:
 			if( e->target == &m_btn_start )
 			{
-				g_AnimChar->m_anRagdoll.Initialize( g_AnimChar );
-				g_AnimChar->EnablePhysics();
+				if( g_AnimChar->m_anRagdoll.m_enabled == false )
+				{
+					g_AnimChar->m_anRagdoll.Initialize( g_AnimChar );
+					g_AnimChar->EnablePhysics();
+				}
 			}
 			if( e->target == &m_btn_stop )
 			{
 				g_AnimChar->DisablePhysics();
+			}
+			if( e->target == &m_btn_wakeup )
+			{
+				g_AnimChar->WakeUp();
 			}
 			break;
 		}
 		return EDGUILayoutRow::OnEvent( e );
 	}
 	
+	EDGUIPropFloat m_floor_size;
+	EDGUIPropFloat m_floor_height;
 	EDGUIButton m_btn_start;
 	EDGUIButton m_btn_stop;
+	EDGUIButton m_btn_wakeup;
 };
 
 
@@ -2801,6 +2857,23 @@ struct CSEditor : IGame
 		g_UIFrame = new EDGUIMainFrame();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
+		g_FloorMeshMtl = GR_CreateMaterial();
+		g_FloorMeshMtl->shader = GR_GetSurfaceShader( "default" );
+		g_FloorMeshMtl->textures[ 0 ] = GR_GetTexture( "textures/unit.png" );
+		g_FloorMeshInst = g_EdScene->CreateMeshInstance();
+		g_FloorMeshInst->mesh = GR_CreateMesh();
+		lmm_prepmeshinst( g_FloorMeshInst );
+		SGRX_PhyRigidBodyInfo frbi;
+		frbi.mass = 0;
+		frbi.kinematic = true;
+		frbi.inertia = V3(0);
+		frbi.friction = 0.95f;
+		frbi.restitution = 0.05f;
+		Vec3 verts[5] = { {-1,-1,0}, {1,-1,0}, {1,1,0}, {-1,1,0}, {0,0,-1} };
+		frbi.shape = g_PhyWorld->CreateConvexHullShape( verts, 5 );
+		g_FloorBody = g_PhyWorld->CreateRigidBody( frbi );
+		floor_mesh_update( 2, 0 );
+		
 		// TEST
 #if 0
 		g_AnimChar->m_anDeformer.AddModelForce( V3(-0.5f,0.5f,1), V3(1,-1,0), 1, 1, 0.5f );
@@ -2830,6 +2903,8 @@ struct CSEditor : IGame
 		delete g_UIFrame;
 		g_UIFrame = NULL;
 		delete g_AnimChar;
+		g_FloorMeshInst = NULL;
+		g_FloorMeshMtl = NULL;
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
 		g_PhyWorld = NULL;
@@ -2848,6 +2923,8 @@ struct CSEditor : IGame
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_AnimChar->RecalcLayerState();
 		g_AnimChar->FixedTick( dt );
+		for( int i = 0; i < 10; ++i )
+			g_PhyWorld->Step( dt / 10 );
 		g_AnimChar->PreRender( 1 );
 		g_UIFrame->Draw();
 	//	float fac = sinf( g_AnimChar->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;

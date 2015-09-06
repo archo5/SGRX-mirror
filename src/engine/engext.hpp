@@ -29,6 +29,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	ENGINE_EXPORT void AdvanceTransforms( Animator* anim );
 	ENGINE_EXPORT void EnablePhysics( const Mat4& worldMatrix );
 	ENGINE_EXPORT void DisablePhysics();
+	ENGINE_EXPORT void WakeUp();
 	
 	bool m_enabled;
 	float m_lastTickSize;
@@ -278,6 +279,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	
 	ENGINE_EXPORT void EnablePhysics();
 	ENGINE_EXPORT void DisablePhysics();
+	ENGINE_EXPORT void WakeUp();
 	
 	ENGINE_EXPORT int _FindBone( const StringView& name );
 	ENGINE_EXPORT int FindParentBone( int which );
