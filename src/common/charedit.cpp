@@ -2825,6 +2825,7 @@ SGRX_RenderPass g_RenderPasses_Main[] =
 
 struct CSEditor : IGame
 {
+	CSEditor() : phySlow(false){}
 	bool OnInitialize()
 	{
 		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
@@ -2911,6 +2912,8 @@ struct CSEditor : IGame
 	}
 	void OnEvent( const Event& e )
 	{
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_TAB ) phySlow = true;
+		if( e.type == SDL_KEYUP && e.key.keysym.sym == SDLK_TAB ) phySlow = false;
 		g_UIFrame->EngineEvent( &e );
 	}
 	void OnTick( float dt, uint32_t gametime )
@@ -2923,13 +2926,15 @@ struct CSEditor : IGame
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_AnimChar->RecalcLayerState();
 		g_AnimChar->FixedTick( dt );
-		for( int i = 0; i < 10; ++i )
+		for( int i = 0; i < (phySlow?1:10); ++i )
 			g_PhyWorld->Step( dt / 10 );
 		g_AnimChar->PreRender( 1 );
 		g_UIFrame->Draw();
 	//	float fac = sinf( g_AnimChar->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;
 	//	g_AnimChar->m_anDeformer.forces[ 0 ].amount = fac * 0.5f;
 	}
+	
+	bool phySlow;
 }
 g_Game;
 

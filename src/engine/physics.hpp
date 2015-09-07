@@ -87,26 +87,36 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 typedef Handle< SGRX_IPhyRigidBody > PhyRigidBodyHandle;
 
 
-struct SGRX_PhyHingeJointInfo
+struct SGRX_PhyJointBaseInfo
 {
-	SGRX_PhyHingeJointInfo() :
-		pivotA(V3(0)), pivotB(V3(0)), axisA(V3(0,0,1)), axisB(V3(0,0,1))
-	{}
+	SGRX_PhyJointBaseInfo() : enabled(true), disableCollisions(true){}
 	PhyRigidBodyHandle bodyA;
 	PhyRigidBodyHandle bodyB;
+	bool enabled;
+	bool disableCollisions;
+};
+
+struct SGRX_PhyHingeJointInfo : SGRX_PhyJointBaseInfo
+{
+	SGRX_PhyHingeJointInfo() :
+		useFrames(false),
+		pivotA(V3(0)), pivotB(V3(0)),
+		axisA(V3(0,0,1)), axisB(V3(0,0,1))
+	{}
+	bool useFrames;
 	Vec3 pivotA;
 	Vec3 pivotB;
 	Vec3 axisA;
 	Vec3 axisB;
+	Mat4 frameA;
+	Mat4 frameB;
 };
 
-struct SGRX_PhyConeTwistJointInfo
+struct SGRX_PhyConeTwistJointInfo : SGRX_PhyJointBaseInfo
 {
 	SGRX_PhyConeTwistJointInfo() :
 		frameA(Mat4::Identity), frameB(Mat4::Identity)
 	{}
-	PhyRigidBodyHandle bodyA;
-	PhyRigidBodyHandle bodyB;
 	Mat4 frameA;
 	Mat4 frameB;
 };

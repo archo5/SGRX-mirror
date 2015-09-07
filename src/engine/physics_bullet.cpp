@@ -151,10 +151,14 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 
 struct BulletPhyJoint : SGRX_IPhyJoint
 {
-	BulletPhyJoint( struct BulletPhyWorld* w ) : m_world(w){}
+	BulletPhyJoint( struct BulletPhyWorld* w, bool dc ) :
+		m_world(w), m_disableCollisions(dc){}
 	virtual ~BulletPhyJoint(){}
 	
+	void _SetEnabled( btTypedConstraint* ct, bool enabled );
+	
 	struct BulletPhyWorld* m_world;
+	bool m_disableCollisions;
 	PhyRigidBodyHandle m_bodyA;
 	PhyRigidBodyHandle m_bodyB;
 };
@@ -165,7 +169,7 @@ struct BulletPhyHingeJoint : BulletPhyJoint
 	BulletPhyHingeJoint( struct BulletPhyWorld* world, const SGRX_PhyHingeJointInfo& hjinfo );
 	virtual ~BulletPhyHingeJoint();
 	
-	virtual void SetEnabled( bool enabled ){ m_joint->setEnabled( enabled ); }
+	virtual void SetEnabled( bool enabled ){ _SetEnabled( m_joint, enabled ); }
 	
 	btHingeConstraint* m_joint;
 };
@@ -176,7 +180,7 @@ struct BulletPhyConeTwistJoint : BulletPhyJoint
 	BulletPhyConeTwistJoint( struct BulletPhyWorld* world, const SGRX_PhyConeTwistJointInfo& ctjinfo );
 	virtual ~BulletPhyConeTwistJoint();
 	
-	virtual void SetEnabled( bool enabled ){ m_joint->setEnabled( enabled ); }
+	virtual void SetEnabled( bool enabled ){ _SetEnabled( m_joint, enabled ); }
 	
 	btConeTwistConstraint* m_joint;
 };
@@ -329,24 +333,54 @@ void BulletPhyRigidBody::ApplyForce( EPhyForceType type, const Vec3& v, const Ve
 }
 
 
+void BulletPhyJoint::_SetEnabled( btTypedConstraint* ct, bool enabled )
+{
+	if( enabled )
+		m_world->m_world->addConstraint( ct, m_disableCollisions );
+	else
+		m_world->m_world->removeConstraint( ct );
+}
+
+
 BulletPhyHingeJoint::BulletPhyHingeJoint( struct BulletPhyWorld* world,
 	const SGRX_PhyHingeJointInfo& hjinfo )
-	: BulletPhyJoint( world )
+	: BulletPhyJoint( world, hjinfo.disableCollisions )
 {
 	m_bodyA = hjinfo.bodyA;
 	m_bodyB = hjinfo.bodyB;
 	SGRX_CAST( BulletPhyRigidBody*, rbA, m_bodyA.item );
 	SGRX_CAST( BulletPhyRigidBody*, rbB, m_bodyB.item );
-	if( rbB )
+	if( hjinfo.useFrames )
 	{
-		m_joint = new btHingeConstraint( *rbA->m_body, *rbB->m_body, V2BV( hjinfo.pivotA ),
-			V2BV( hjinfo.pivotB ), V2BV( hjinfo.axisA ), V2BV( hjinfo.axisB ) );
+		btTransform frameA;
+		btTransform frameB;
+		frameA.setFromOpenGLMatrix( hjinfo.frameA.a );
+		if( rbB )
+		{
+			frameB.setFromOpenGLMatrix( hjinfo.frameB.a );
+			m_joint = new btHingeConstraint( *rbA->m_body, *rbB->m_body, frameA, frameB );
+		}
+		else
+		{
+			m_joint = new btHingeConstraint( *rbA->m_body, frameA );
+		}
 	}
 	else
 	{
-		m_joint = new btHingeConstraint( *rbA->m_body, V2BV( hjinfo.pivotA ), V2BV( hjinfo.axisA ) );
+		if( rbB )
+		{
+			m_joint = new btHingeConstraint( *rbA->m_body, *rbB->m_body, V2BV( hjinfo.pivotA ),
+				V2BV( hjinfo.pivotB ), V2BV( hjinfo.axisA ), V2BV( hjinfo.axisB ) );
+		}
+		else
+		{
+			m_joint = new btHingeConstraint( *rbA->m_body, V2BV( hjinfo.pivotA ), V2BV( hjinfo.axisA ) );
+		}
 	}
-	m_world->m_world->addConstraint( m_joint );
+	if( hjinfo.enabled )
+	{
+		_SetEnabled( m_joint, true );
+	}
 }
 
 BulletPhyHingeJoint::~BulletPhyHingeJoint()
@@ -358,7 +392,7 @@ BulletPhyHingeJoint::~BulletPhyHingeJoint()
 
 BulletPhyConeTwistJoint::BulletPhyConeTwistJoint( struct BulletPhyWorld* world,
 	const SGRX_PhyConeTwistJointInfo& ctjinfo )
-	: BulletPhyJoint( world )
+	: BulletPhyJoint( world, ctjinfo.disableCollisions )
 {
 	m_bodyA = ctjinfo.bodyA;
 	m_bodyB = ctjinfo.bodyB;
@@ -376,7 +410,10 @@ BulletPhyConeTwistJoint::BulletPhyConeTwistJoint( struct BulletPhyWorld* world,
 	{
 		m_joint = new btConeTwistConstraint( *rbA->m_body, frameA );
 	}
-	m_world->m_world->addConstraint( m_joint );
+	if( ctjinfo.enabled )
+	{
+		_SetEnabled( m_joint, true );
+	}
 }
 
 BulletPhyConeTwistJoint::~BulletPhyConeTwistJoint()

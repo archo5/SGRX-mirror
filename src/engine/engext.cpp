@@ -65,6 +65,44 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 		TB->relRot = BI.body.rotation;
 		TB->bodyHandle = m_phyWorld->CreateRigidBody( rbinfo );
 	}
+	
+	for( size_t bid = 0; bid < chinfo->bones.size(); ++bid )
+	{
+		AnimCharacter::BoneInfo& BI = chinfo->bones[ bid ];
+		
+		if( BI.joint.parent_id >= 0 && BI.joint.type != AnimCharacter::JointType_None )
+		{
+			AnimCharacter::BoneInfo& PBI = chinfo->bones[ BI.joint.parent_id ];
+			Mat4 jsm, jpm;
+			if( m_bones[ BI.bone_id ].bodyHandle &&
+				m_bones[ PBI.bone_id ].bodyHandle &&
+				chinfo->GetJointFrameMatrices( bid, jsm, jpm ) )
+			{
+				if( BI.joint.type == AnimCharacter::JointType_Hinge )
+				{
+					SGRX_PhyHingeJointInfo jinfo;
+					jinfo.enabled = false;
+					jinfo.bodyA = m_bones[ BI.bone_id ].bodyHandle;
+					jinfo.bodyB = m_bones[ PBI.bone_id ].bodyHandle;
+					jinfo.frameA = jsm;
+					jinfo.frameB = jpm;
+					m_bones[ BI.bone_id ].jointHandle =
+						m_phyWorld->CreateHingeJoint( jinfo );
+				}
+				else if( BI.joint.type == AnimCharacter::JointType_ConeTwist )
+				{
+					SGRX_PhyConeTwistJointInfo jinfo;
+					jinfo.enabled = false;
+					jinfo.bodyA = m_bones[ BI.bone_id ].bodyHandle;
+					jinfo.bodyB = m_bones[ PBI.bone_id ].bodyHandle;
+					jinfo.frameA = jsm;
+					jinfo.frameB = jpm;
+					m_bones[ BI.bone_id ].jointHandle =
+						m_phyWorld->CreateConeTwistJoint( jinfo );
+				}
+			}
+		}
+	}
 }
 
 bool AnimRagdoll::Prepare( const MeshHandle& mesh )
@@ -204,10 +242,10 @@ void AnimRagdoll::DisablePhysics()
 	for( size_t i = 0; i < m_bones.size(); ++i )
 	{
 		Body& B = m_bones[ i ];
-		if( B.bodyHandle )
-			B.bodyHandle->SetEnabled( false );
 		if( B.jointHandle )
 			B.jointHandle->SetEnabled( false );
+		if( B.bodyHandle )
+			B.bodyHandle->SetEnabled( false );
 	}
 }
 
@@ -417,6 +455,33 @@ bool AnimCharacter::GetBodyMatrix( int which, Mat4& outwm )
 	}
 	outwm = Mat4::CreateRotationFromQuat( BI.body.rotation ) *
 		Mat4::CreateTranslation( BI.body.position ) * outwm;
+	return true;
+}
+
+bool AnimCharacter::GetJointFrameMatrices( int which, Mat4& outself, Mat4& outprnt )
+{
+	if( which < 0 || which >= (int) bones.size() )
+		return false;
+	BoneInfo& BI = bones[ which ];
+	int pb = BI.joint.parent_id;
+	if( pb < 0 || pb >= (int) bones.size() )
+		return false;
+	BoneInfo& PBI = bones[ pb ];
+	
+	// calc inverse body matrices
+	Mat4 bm = Mat4::CreateRotationFromQuat( BI.body.rotation ) *
+		Mat4::CreateTranslation( BI.body.position ),
+		pbm = Mat4::CreateRotationFromQuat( PBI.body.rotation ) *
+		Mat4::CreateTranslation( PBI.body.position );
+	Mat4 ibm = Mat4::Identity, ipbm = Mat4::Identity;
+	bm.InvertTo( ibm );
+	pbm.InvertTo( ipbm );
+	
+	// calc joint matrices
+	outself = Mat4::CreateRotationFromQuat( BI.joint.self_rotation ) *
+		Mat4::CreateTranslation( BI.joint.self_position ) * ibm;
+	outprnt = Mat4::CreateRotationFromQuat( BI.joint.prnt_rotation ) *
+		Mat4::CreateTranslation( BI.joint.prnt_position ) * ipbm;
 	return true;
 }
 
