@@ -115,10 +115,14 @@ struct SGRX_PhyHingeJointInfo : SGRX_PhyJointBaseInfo
 struct SGRX_PhyConeTwistJointInfo : SGRX_PhyJointBaseInfo
 {
 	SGRX_PhyConeTwistJointInfo() :
-		frameA(Mat4::Identity), frameB(Mat4::Identity)
+		frameA(Mat4::Identity), frameB(Mat4::Identity),
+		coneLimitX(FLT_MAX), coneLimitY(FLT_MAX), twistLimit(FLT_MAX)
 	{}
 	Mat4 frameA;
 	Mat4 frameB;
+	float coneLimitX; // limit angles (in radians)
+	float coneLimitY;
+	float twistLimit;
 };
 
 struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyJoint : SGRX_RefCounted

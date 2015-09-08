@@ -792,23 +792,43 @@ BatchRenderer& BatchRenderer::CapsuleOutline( const Vec3& pos, float radius, con
 
 BatchRenderer& BatchRenderer::ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts )
 {
+	return ConeOutline( pos, dir, up, radius, V2(angle), verts );
+}
+
+BatchRenderer& BatchRenderer::ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, Vec2 angles, int verts )
+{
 	if( verts >= 3 )
 	{
-		float hra = DEG2RAD( angle ) / 2.0f;
-		float rc = radius * cosf( hra );
-		float rs = radius * sinf( hra );
-		Vec3 dx = Vec3Cross(dir,up).Normalized() * rs, dy = up.Normalized() * rs;
+		Vec2 hra = DEG2RAD( angles ) / 2.0f;
+		Vec3 dx = Vec3Cross(dir,up).Normalized();
+		Vec3 dy = Vec3Cross(dir,dx).Normalized();
+		dx *= radius * sinf( hra.x );
+		dy *= radius * sinf( hra.y );
 		
 		SetPrimitiveType( PT_Lines );
 		float a = 0;
 		float ad = M_PI * 2.0f / verts;
 		for( int i = 0; i < verts; ++i )
 		{
+			float ca = cosf( a ), sa = sinf( a );
+			float aca = fabsf( ca ), asa = fabsf( sa );
+			float distangle = ( aca * hra.x + asa * hra.y ) / ( aca + asa );
+			float rc = radius * cosf( distangle );
+			
 			Pos( pos );
-			Pos( pos + dir * rc + sin( a ) * dx + cos( a ) * dy );
+			Pos( pos + dir * rc + ca * dx + sa * dy );
+			
+			if( i > 0 )
+			{
+				Prev( 2 ); // previous line position
+				Prev( 1 ); // current line position (-1 from last insertion)
+			}
+			
 			a += ad;
 		}
-		CircleOutline( pos + dir * rc, dx, dy, verts );
+		
+		Prev( 2 ); // previous line position
+		Prev( verts * 2 + ( verts - 1 ) * 2 - 1 ); // 1st line position
 	}
 	return *this;
 }

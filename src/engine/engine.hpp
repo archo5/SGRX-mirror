@@ -1059,6 +1059,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& SphereOutline( const Vec3& pos, float radius, int verts );
 	ENGINE_EXPORT BatchRenderer& CapsuleOutline( const Vec3& pos, float radius, const Vec3& nrm, float ht, int verts );
 	ENGINE_EXPORT BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts );
+	ENGINE_EXPORT BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, Vec2 angles, int verts );
 	ENGINE_EXPORT BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
 	ENGINE_EXPORT BatchRenderer& Tick( const Vec3& pos, float radius, const Mat4& transform = Mat4::Identity );
 	

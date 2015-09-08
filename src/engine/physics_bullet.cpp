@@ -342,6 +342,18 @@ void BulletPhyJoint::_SetEnabled( btTypedConstraint* ct, bool enabled )
 }
 
 
+// generate joint frame matrix
+inline Mat4 M2JFM( const Mat4& m )
+{
+	// there's probably a quicker way but..
+	Vec3 tr = m.GetTranslation();
+	return m;
+		//* Mat4::CreateTranslation( -tr )
+		//* Mat4::Basis( V3(0,0,1), V3(-1,0,0), V3(0,1,0), true )
+		//* Mat4::CreateTranslation( tr );
+}
+
+
 BulletPhyHingeJoint::BulletPhyHingeJoint( struct BulletPhyWorld* world,
 	const SGRX_PhyHingeJointInfo& hjinfo )
 	: BulletPhyJoint( world, hjinfo.disableCollisions )
@@ -400,16 +412,17 @@ BulletPhyConeTwistJoint::BulletPhyConeTwistJoint( struct BulletPhyWorld* world,
 	SGRX_CAST( BulletPhyRigidBody*, rbB, m_bodyB.item );
 	btTransform frameA;
 	btTransform frameB;
-	frameA.setFromOpenGLMatrix( ctjinfo.frameA.a );
+	frameA.setFromOpenGLMatrix( M2JFM( ctjinfo.frameA ).a );
 	if( rbB )
 	{
-		frameB.setFromOpenGLMatrix( ctjinfo.frameB.a );
+		frameB.setFromOpenGLMatrix( M2JFM( ctjinfo.frameB ).a );
 		m_joint = new btConeTwistConstraint( *rbA->m_body, *rbB->m_body, frameA, frameB );
 	}
 	else
 	{
 		m_joint = new btConeTwistConstraint( *rbA->m_body, frameA );
 	}
+	m_joint->setLimit( ctjinfo.coneLimitX, ctjinfo.coneLimitY, ctjinfo.twistLimit );
 	if( ctjinfo.enabled )
 	{
 		_SetEnabled( m_joint, true );

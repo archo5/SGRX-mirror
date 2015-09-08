@@ -22,6 +22,8 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 	rbinfo.enabled = false;
 	rbinfo.friction = 0.8f;
 	rbinfo.restitution = 0.02f;
+	rbinfo.linearDamping = 0.1f;
+	rbinfo.angularDamping = 0.1f;
 	
 	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
@@ -97,6 +99,9 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 					jinfo.bodyB = m_bones[ PBI.bone_id ].bodyHandle;
 					jinfo.frameA = jsm;
 					jinfo.frameB = jpm;
+					jinfo.coneLimitX = DEG2RAD( BI.joint.turn_limit_1 );
+					jinfo.coneLimitY = DEG2RAD( BI.joint.turn_limit_2 );
+					jinfo.twistLimit = DEG2RAD( BI.joint.twist_limit );
 					m_bones[ BI.bone_id ].jointHandle =
 						m_phyWorld->CreateConeTwistJoint( jinfo );
 				}
@@ -163,7 +168,9 @@ void AnimRagdoll::SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Ve
 
 void AnimRagdoll::AdvanceTransforms( Animator* anim )
 {
-	ASSERT( m_factors.size() == anim->m_factors.size() );
+	if( m_factors.size() != anim->m_factors.size() )
+		return;
+	
 	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
 		Body& B = m_bones[ i ];

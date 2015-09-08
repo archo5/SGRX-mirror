@@ -1098,9 +1098,9 @@ struct EDGUIBoneProps : EDGUILayoutRow
 		m_joint_self_offset.SetValue( BI.joint.self_position );
 		m_joint_prnt_rotangles.SetValue( Q2EA( BI.joint.prnt_rotation ) );
 		m_joint_prnt_offset.SetValue( BI.joint.prnt_position );
-		m_joint_turnlim1.SetValue( DEG2RAD( BI.joint.turn_limit_1 ) );
-		m_joint_turnlim2.SetValue( DEG2RAD( BI.joint.turn_limit_2 ) );
-		m_joint_twistlim.SetValue( DEG2RAD( BI.joint.twist_limit ) );
+		m_joint_turnlim1.SetValue( BI.joint.turn_limit_1 );
+		m_joint_turnlim2.SetValue( BI.joint.turn_limit_2 );
+		m_joint_twistlim.SetValue( BI.joint.twist_limit );
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -1164,9 +1164,9 @@ struct EDGUIBoneProps : EDGUILayoutRow
 				else if( e->target == &m_joint_self_offset ) BI.joint.self_position = m_joint_self_offset.m_value;
 				else if( e->target == &m_joint_prnt_rotangles ) BI.joint.prnt_rotation = EA2Q( m_joint_prnt_rotangles.m_value );
 				else if( e->target == &m_joint_prnt_offset ) BI.joint.prnt_position = m_joint_prnt_offset.m_value;
-				else if( e->target == &m_joint_turnlim1 ) BI.joint.turn_limit_1 = RAD2DEG( m_joint_turnlim1.m_value );
-				else if( e->target == &m_joint_turnlim2 ) BI.joint.turn_limit_2 = RAD2DEG( m_joint_turnlim2.m_value );
-				else if( e->target == &m_joint_twistlim ) BI.joint.twist_limit = RAD2DEG( m_joint_twistlim.m_value );
+				else if( e->target == &m_joint_turnlim1 ) BI.joint.turn_limit_1 = m_joint_turnlim1.m_value;
+				else if( e->target == &m_joint_turnlim2 ) BI.joint.turn_limit_2 = m_joint_turnlim2.m_value;
+				else if( e->target == &m_joint_twistlim ) BI.joint.twist_limit = m_joint_twistlim.m_value;
 				
 				break;
 			}
@@ -2433,7 +2433,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 					float a = 0.5f;
 					float d = 0.1f;
 					
-					if( g_AnimChar->bones[ i ].joint.type == AnimCharacter::JointType_None )
+					AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ i ];
+					if( BI.joint.type == AnimCharacter::JointType_None )
 						continue;
 					
 					Mat4 wm;
@@ -2453,7 +2454,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 						br.Col( 0, 0, 1, a );
 						br.Pos( wm.TransformPos( V3(0,0,d) ) );
 						
-						switch( g_AnimChar->bones[ i ].joint.type )
+						switch( BI.joint.type )
 						{
 						case AnimCharacter::JointType_Hinge:
 							br.Col( 1, 0.5f, 0, a );
@@ -2462,7 +2463,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 								wm.TransformNormal( V3(0,0,1) ),
 								wm.TransformNormal( V3(0,-1,0) ),
 								0.1f,
-								45,
+								V2( BI.joint.turn_limit_1, 0 ),
 								32 );
 							break;
 						case AnimCharacter::JointType_ConeTwist:
@@ -2472,7 +2473,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 								wm.TransformNormal( V3(0,0,1) ),
 								wm.TransformNormal( V3(0,-1,0) ),
 								0.1f,
-								45,
+								V2( BI.joint.turn_limit_1, BI.joint.turn_limit_2 ),
 								32 );
 							break;
 						case AnimCharacter::JointType_None: break;
@@ -2495,7 +2496,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 						br.Col( 0, 0, 1, a );
 						br.Pos( wm.TransformPos( V3(0,0,d) ) );
 						
-						switch( g_AnimChar->bones[ i ].joint.type )
+						switch( BI.joint.type )
 						{
 						default:;
 						}
