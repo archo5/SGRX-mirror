@@ -1247,37 +1247,6 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	Mat4 ntx;
 	mtx.GenNormalMatrix( ntx );
 	
-#if 1
-	Vec3 normals[6] =
-	{
-		V3(-1,0,0), V3(1,0,0),
-		V3(0,-1,0), V3(0,1,0),
-		V3(0,0,-1), V3(0,0,1),
-	};
-	for( int i = 0; i < 6; ++i )
-	{
-		normals[i] = ntx.TransformNormal( normals[i] );
-	}
-	Vec3 tfmin = mtx.TransformPos( bbmin );
-	Vec3 tfmax = mtx.TransformPos( bbmax );
-	
-	Vec4 planes[6] =
-	{
-		V4( normals[0], Vec3Dot( normals[0], tfmin ) ),
-		V4( normals[1], Vec3Dot( normals[1], tfmax ) ),
-		V4( normals[2], Vec3Dot( normals[2], tfmin ) ),
-		V4( normals[3], Vec3Dot( normals[3], tfmax ) ),
-		V4( normals[4], Vec3Dot( normals[4], tfmin ) ),
-		V4( normals[5], Vec3Dot( normals[5], tfmax ) ),
-	};
-	
-	Edge edges[12] =
-	{
-		{ 2, 4 }, { 3, 4 }, { 2, 5 }, { 3, 5 }, // X
-		{ 0, 4 }, { 1, 4 }, { 0, 5 }, { 1, 5 }, // Y
-		{ 0, 2 }, { 1, 2 }, { 0, 3 }, { 1, 3 }, // Z
-	};
-#else
 	Edge edges[12] =
 	{
 		// X
@@ -1301,8 +1270,10 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	{
 		edges[ i ].p0 = mtx.TransformPos( edges[ i ].p0 );
 		edges[ i ].p1 = mtx.TransformPos( edges[ i ].p1 );
-		edges[ i ].n0 = ntx.TransformNormal( edges[ i ].n0 );
-		edges[ i ].n1 = ntx.TransformNormal( edges[ i ].n1 );
+		edges[ i ].n0 = ntx.TransformNormal( edges[ i ].n0 ).Normalized();
+		edges[ i ].n1 = ntx.TransformNormal( edges[ i ].n1 ).Normalized();
+		edges[ i ].d0 = Vec3Dot( edges[ i ].p0, edges[ i ].n0 );
+		edges[ i ].d1 = Vec3Dot( edges[ i ].p1, edges[ i ].n1 );
 	}
 	
 	Vec4 planes[6] =
@@ -1314,7 +1285,6 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 		V4( edges[0].n1, Vec3Dot( edges[0].n1, edges[0].p0 ) ), // Z-
 		V4( edges[2].n1, Vec3Dot( edges[2].n1, edges[2].p0 ) ), // Z+
 	};
-#endif
 	
 	EM->edges.assign( edges, 12 );
 	EM->planes.assign( planes, 6 );
@@ -1323,7 +1293,7 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	m_edgeMeshesByName.set( EM->m_key, EM );
 }
 
-void CoverSystem::Query( Vec3 viewer, float viewdist, CSCoverInfo& shape )
+void CoverSystem::Query( Vec3 viewer, float viewdist, float rad, CSCoverInfo& cinfo )
 {
 	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
 	{
@@ -1333,36 +1303,41 @@ void CoverSystem::Query( Vec3 viewer, float viewdist, CSCoverInfo& shape )
 		if( ( viewer - EM->pos ).Length() > viewdist )
 			continue;
 		
-		shape.shadowPlaneCounts.push_back(0);
+		// TODO cover position lines
+		// TODO extract "rad"-based offsets
 		
-		for( size_t i = 0; i < EM->planes.size(); ++i )
-		{
-			Vec4 P = EM->planes[ i ];
-			if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
-			{
-				shape.shadowPlanes.push_back( P );
-				shape.shadowPlaneCounts.last()++;
-			}
-		}
-		
+		// shadow clip
+		CSCoverInfo::Shape sh = { 0, false };
+		cinfo.shapes.push_back( sh );
 		for( size_t i = 0; i < EM->edges.size(); ++i )
 		{
 			Edge E = EM->edges[ i ];
-			Vec4 P0 = EM->planes[ E.pl0 ];
-			Vec4 P1 = EM->planes[ E.pl1 ];
-			bool is0 = Vec3Dot( P0.ToVec3(), viewer ) > P0.w;
-			bool is1 = Vec3Dot( P1.ToVec3(), viewer ) > P1.w;
+			bool is0 = Vec3Dot( E.n0, viewer ) > E.d0;
+			bool is1 = Vec3Dot( E.n1, viewer ) > E.d1;
 			
-			if( is0 && is1 == false )
+			if( ( is0 && is1 == false ) || ( is0 == false && is1 ) )
 			{
-				shape.shadowPlanes.push_back( P1 );
-				shape.shadowPlaneCounts.last()++;
+				// silhouette edge
+				// - generate plane
+				Vec3 pN = Vec3Cross( E.p0 - viewer, E.p1 - viewer ).Normalized();
+				float pD = Vec3Dot( pN, viewer );
+				
+				// - offset by side-ness (top/bottom planes shouldn't cut in, sides should)
+				pD -= ( 1 - fabsf( Vec3Dot( pN, V3(0,0,1) ) ) ) * rad;
+				
+				// - push plane
+				cinfo.planes.push_back( V4( pN, pD ) );
+				cinfo.shapes.last().numPlanes++;
 			}
-			else if( is0 == false && is1 )
-			{
-				shape.shadowPlanes.push_back( P0 );
-				shape.shadowPlaneCounts.last()++;
-			}
+		}
+		
+		// side edge clip
+		sh.inside = true;
+		cinfo.shapes.push_back( sh );
+		for( size_t i = 0; i < EM->planes.size(); ++i )
+		{
+			cinfo.planes.push_back( EM->planes[ i ] + V4( 0, 0, 0, rad ) );
+			cinfo.shapes.last().numPlanes++;
 		}
 	}
 }

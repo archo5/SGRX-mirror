@@ -488,8 +488,20 @@ struct AIDBSystem : IGameLevelSystem
 
 struct CSCoverInfo
 {
-	Array< Vec4 > shadowPlanes;
-	Array< int > shadowPlaneCounts;
+	struct Shape
+	{
+		int numPlanes;
+		bool inside;
+	};
+	struct Cover
+	{
+		Vec2 start;
+		Vec2 end;
+	};
+	
+	Array< Vec4 > planes;
+	Array< Shape > shapes;
+	Array< Cover > covers;
 };
 
 struct CoverSystem : IGameLevelSystem
@@ -498,7 +510,7 @@ struct CoverSystem : IGameLevelSystem
 	
 	struct Edge
 	{
-#if 1
+#if 0
 		int pl0;
 		int pl1;
 #else
@@ -506,6 +518,8 @@ struct CoverSystem : IGameLevelSystem
 		Vec3 p1; // endpoint 1
 		Vec3 n0; // adjacent plane 0 normal
 		Vec3 n1; // adjacent plane 1 normal
+		float d0; // adjacent plane 0 distance
+		float d1; // adjacent plane 1 distance
 #endif
 	};
 	struct EdgeMesh : SGRX_RCRsrc
@@ -520,7 +534,7 @@ struct CoverSystem : IGameLevelSystem
 	CoverSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
 	void Clear();
 	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
-	void Query( Vec3 viewer, float viewdist, CSCoverInfo& shape );
+	void Query( Vec3 viewer, float viewdist, float rad, CSCoverInfo& cinfo );
 	
 	Array< EdgeMeshHandle > m_edgeMeshes;
 	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;
