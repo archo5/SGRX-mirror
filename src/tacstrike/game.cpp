@@ -273,6 +273,20 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	void DebugDraw()
 	{
 		g_GameLevel->DebugDraw();
+		
+		CSCoverInfo cinfo;
+		CoverSystem* CS = g_GameLevel->GetSystem<CoverSystem>();
+		CS->QueryLines( V3(-100), V3(100), 0.5f, 0.5f, cinfo );
+		CS->QuerySolids( V3(-100), V3(100), V3(0,10,1), 100, cinfo );
+		cinfo.InflateSolids( 0.5f - SMALL_FLOAT );
+		cinfo.OffsetShadowSides( 0.5f );
+		cinfo.ClipCoverWithShapes();
+		for( size_t i = 0; i < cinfo.covers.size(); ++i )
+		{
+			CSCoverLine& CL = cinfo.covers[ i ];
+			g_DebugLines.DrawLine( CL.p0, CL.p1 );
+		}
+		
 		g_DebugLines.Flush();
 		
 //		g_PhyWorld->DebugDraw();

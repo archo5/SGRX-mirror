@@ -1231,6 +1231,110 @@ void AIDBSystem::Tick( float deltaTime, float blendFactor )
 }
 
 
+void CSCoverInfo::InflateSolids( float amt )
+{
+	for( size_t shid = 0; shid < shapes.size(); ++shid )
+	{
+		if( shapes[ shid ].inside == false )
+			continue;
+		
+		for( int i = 0; i < shapes[ shid ].numPlanes; ++i )
+		{
+			Vec4& P = planes[ shapes[ shid ].offset + i ];
+			// - shift the plane forward
+			P.w += amt;
+		}
+	}
+}
+
+void CSCoverInfo::OffsetShadowSides( float rad )
+{
+	for( size_t shid = 0; shid < shapes.size(); ++shid )
+	{
+		if( shapes[ shid ].inside )
+			continue;
+		
+		for( int i = 0; i < shapes[ shid ].numPlanes; ++i )
+		{
+			Vec4& P = planes[ shapes[ shid ].offset + i ];
+			// - offset by side-ness (top/bottom planes shouldn't cut in, sides should)
+			P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * rad;
+		}
+	}
+}
+
+void CSCoverInfo::ClipCoverWithShapes()
+{
+}
+
+void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )
+{
+}
+
+bool CoverSystem::EdgeMesh::InAABB( const Vec3& ibmin, const Vec3& ibmax ) const
+{
+	return bbmin.x < ibmax.x
+		&& bbmin.y < ibmax.y
+		&& bbmin.z < ibmax.z
+		&& ibmin.x < bbmax.x
+		&& ibmin.y < bbmax.y
+		&& ibmin.z < bbmax.z;
+}
+
+void CoverSystem::EdgeMesh::CalcCoverLines()
+{
+	coverpts.clear();
+	coveridcs.clear();
+	
+	for( size_t i = 0; i < edges.size(); ++i )
+	{
+		const Edge& E = edges[ i ];
+		bool is0 = Vec3Dot( E.n0, V3(0,0,-1) ) > 0.707f;
+		bool is1 = Vec3Dot( E.n1, V3(0,0,-1) ) > 0.707f;
+		if( ( is0 && is1 == false ) || ( is1 && is0 == false ) )
+		{
+			Vec3 nout = is0 ? E.n1 : E.n0;
+			Vec3 nup = is0 ? -E.n0 : -E.n1;
+			CoverPoint cp0 = { E.p0, nout, nup };
+			CoverPoint cp1 = { E.p1, nout, nup };
+			
+			size_t pos0 = coverpts.find_first_at( cp0 );
+			size_t pos1 = coverpts.find_first_at( cp1 );
+			
+			if( pos0 == NOT_FOUND )
+			{
+				pos0 = coverpts.size();
+				coverpts.push_back( cp0 );
+			}
+			else
+			{
+				coverpts[ pos0 ].nout += nout;
+				coverpts[ pos0 ].nup += nup;
+			}
+			
+			if( pos1 == NOT_FOUND )
+			{
+				pos1 = coverpts.size();
+				coverpts.push_back( cp1 );
+			}
+			else
+			{
+				coverpts[ pos1 ].nout += nout;
+				coverpts[ pos1 ].nup += nup;
+			}
+			
+			coveridcs.push_back( pos0 );
+			coveridcs.push_back( pos1 );
+		}
+	}
+	
+	for( size_t i = 0; i < coverpts.size(); ++i )
+	{
+		coverpts[ i ].nout.Normalize();
+		coverpts[ i ].nup.Normalize();
+	}
+}
+
 void CoverSystem::Clear()
 {
 	m_edgeMeshes.clear();
@@ -1288,26 +1392,50 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	
 	EM->edges.assign( edges, 12 );
 	EM->planes.assign( planes, 6 );
+	EM->CalcCoverLines();
 	
 	m_edgeMeshes.push_back( EM );
 	m_edgeMeshesByName.set( EM->m_key, EM );
 }
 
-void CoverSystem::Query( Vec3 viewer, float viewdist, float rad, CSCoverInfo& cinfo )
+void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, CSCoverInfo& cinfo )
 {
 	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
 	{
 		EdgeMesh* EM = m_edgeMeshes[ emid ];
 		if( EM->enabled == false )
 			continue;
+		if( EM->InAABB( bbmin, bbmax ) == false )
+			continue;
+		
+		for( size_t i = 0; i < EM->coveridcs.size(); i += 2 )
+		{
+			const CoverPoint& cp0 = EM->coverpts[ EM->coveridcs[ i + 0 ] ];
+			const CoverPoint& cp1 = EM->coverpts[ EM->coveridcs[ i + 1 ] ];
+			CSCoverLine outcl =
+			{
+				cp0.pos + cp0.nout * dist + cp0.nup * height,
+				cp1.pos + cp1.nout * dist + cp1.nup * height,
+			};
+			cinfo.covers.push_back( outcl );
+		}
+	}
+}
+
+void CoverSystem::QuerySolids( Vec3 bbmin, Vec3 bbmax, Vec3 viewer, float viewdist, CSCoverInfo& cinfo )
+{
+	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
+	{
+		EdgeMesh* EM = m_edgeMeshes[ emid ];
+		if( EM->enabled == false )
+			continue;
+		if( EM->InAABB( bbmin, bbmax ) == false )
+			continue;
 		if( ( viewer - EM->pos ).Length() > viewdist )
 			continue;
 		
-		// TODO cover position lines
-		// TODO extract "rad"-based offsets
-		
 		// shadow clip
-		CSCoverInfo::Shape sh = { 0, false };
+		CSCoverInfo::Shape sh = { cinfo.planes.size(), 0, false };
 		cinfo.shapes.push_back( sh );
 		for( size_t i = 0; i < EM->edges.size(); ++i )
 		{
@@ -1322,9 +1450,6 @@ void CoverSystem::Query( Vec3 viewer, float viewdist, float rad, CSCoverInfo& ci
 				Vec3 pN = Vec3Cross( E.p0 - viewer, E.p1 - viewer ).Normalized();
 				float pD = Vec3Dot( pN, viewer );
 				
-				// - offset by side-ness (top/bottom planes shouldn't cut in, sides should)
-				pD -= ( 1 - fabsf( Vec3Dot( pN, V3(0,0,1) ) ) ) * rad;
-				
 				// - push plane
 				cinfo.planes.push_back( V4( pN, pD ) );
 				cinfo.shapes.last().numPlanes++;
@@ -1332,11 +1457,12 @@ void CoverSystem::Query( Vec3 viewer, float viewdist, float rad, CSCoverInfo& ci
 		}
 		
 		// side edge clip
+		sh.offset = cinfo.planes.size();
 		sh.inside = true;
 		cinfo.shapes.push_back( sh );
 		for( size_t i = 0; i < EM->planes.size(); ++i )
 		{
-			cinfo.planes.push_back( EM->planes[ i ] + V4( 0, 0, 0, rad ) );
+			cinfo.planes.push_back( EM->planes[ i ] );
 			cinfo.shapes.last().numPlanes++;
 		}
 	}

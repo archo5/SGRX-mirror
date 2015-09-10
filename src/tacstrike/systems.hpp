@@ -486,22 +486,29 @@ struct AIDBSystem : IGameLevelSystem
 };
 
 
+struct CSCoverLine
+{
+	Vec3 p0;
+	Vec3 p1;
+};
+
 struct CSCoverInfo
 {
 	struct Shape
 	{
+		size_t offset;
 		int numPlanes;
-		bool inside;
+		bool inside; // where to clip: false - shadow shapes, true - solids
 	};
-	struct Cover
-	{
-		Vec2 start;
-		Vec2 end;
-	};
+	
+	void InflateSolids( float amt );
+	void OffsetShadowSides( float rad );
+	void ClipCoverWithShapes();
+	void ClipWithSpheres( Vec4* spheres, int count );
 	
 	Array< Vec4 > planes;
 	Array< Shape > shapes;
-	Array< Cover > covers;
+	Array< CSCoverLine > covers;
 };
 
 struct CoverSystem : IGameLevelSystem
@@ -520,21 +527,46 @@ struct CoverSystem : IGameLevelSystem
 		Vec3 n1; // adjacent plane 1 normal
 		float d0; // adjacent plane 0 distance
 		float d1; // adjacent plane 1 distance
+		
+		bool cover; // is cover edge (bottom/side)
+		Vec3 nout; // outwards extension direction if p0/p1 match
+		Vec3 nup; // upwards extension direction if p0/p1 match
 #endif
+	};
+	struct CoverPoint
+	{
+		Vec3 pos;
+		Vec3 nout;
+		Vec3 nup;
+		
+		bool operator == ( const CoverPoint& o ) const { return pos == o.pos; }
 	};
 	struct EdgeMesh : SGRX_RCRsrc
 	{
+		// silhouette info
 		Array< Edge > edges;
+		// solid info
 		Array< Vec4 > planes;
+		// cover data
+		Array< CoverPoint > coverpts;
+		Array< uint16_t > coveridcs;
+		
 		Vec3 pos;
+		Vec3 bbmin;
+		Vec3 bbmax;
 		bool enabled;
+		
+		bool InAABB( const Vec3& ibmin, const Vec3& ibmax ) const;
+		void CalcCoverLines();
 	};
 	typedef Handle< EdgeMesh > EdgeMeshHandle;
 	
 	CoverSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
 	void Clear();
 	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
-	void Query( Vec3 viewer, float viewdist, float rad, CSCoverInfo& cinfo );
+	
+	void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, CSCoverInfo& cinfo );
+	void QuerySolids( Vec3 bbmin, Vec3 bbmax, Vec3 viewer, float viewdist, CSCoverInfo& cinfo );
 	
 	Array< EdgeMeshHandle > m_edgeMeshes;
 	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;
