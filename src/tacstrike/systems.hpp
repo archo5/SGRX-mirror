@@ -498,13 +498,12 @@ struct CSCoverInfo
 	{
 		size_t offset;
 		int numPlanes;
-		bool inside; // where to clip: false - shadow shapes, true - solids
 	};
 	
-	void InflateSolids( float amt );
-	void OffsetShadowSides( float rad );
-	void ClipCoverWithShapes();
 	void ClipWithSpheres( Vec4* spheres, int count );
+	
+	void _CullWithShadowLines( size_t firstcover, Vec4 P );
+	void _CullWithSolids();
 	
 	Array< Vec4 > planes;
 	Array< Shape > shapes;
@@ -538,6 +537,7 @@ struct CoverSystem : IGameLevelSystem
 		Vec3 pos;
 		Vec3 nout;
 		Vec3 nup;
+		int ctr;
 		
 		bool operator == ( const CoverPoint& o ) const { return pos == o.pos; }
 	};
@@ -565,8 +565,7 @@ struct CoverSystem : IGameLevelSystem
 	void Clear();
 	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
 	
-	void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, CSCoverInfo& cinfo );
-	void QuerySolids( Vec3 bbmin, Vec3 bbmax, Vec3 viewer, float viewdist, CSCoverInfo& cinfo );
+	void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, Vec3 viewer, CSCoverInfo& cinfo );
 	
 	Array< EdgeMeshHandle > m_edgeMeshes;
 	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;

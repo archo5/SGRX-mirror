@@ -1231,44 +1231,131 @@ void AIDBSystem::Tick( float deltaTime, float blendFactor )
 }
 
 
-void CSCoverInfo::InflateSolids( float amt )
-{
-	for( size_t shid = 0; shid < shapes.size(); ++shid )
-	{
-		if( shapes[ shid ].inside == false )
-			continue;
-		
-		for( int i = 0; i < shapes[ shid ].numPlanes; ++i )
-		{
-			Vec4& P = planes[ shapes[ shid ].offset + i ];
-			// - shift the plane forward
-			P.w += amt;
-		}
-	}
-}
-
-void CSCoverInfo::OffsetShadowSides( float rad )
-{
-	for( size_t shid = 0; shid < shapes.size(); ++shid )
-	{
-		if( shapes[ shid ].inside )
-			continue;
-		
-		for( int i = 0; i < shapes[ shid ].numPlanes; ++i )
-		{
-			Vec4& P = planes[ shapes[ shid ].offset + i ];
-			// - offset by side-ness (top/bottom planes shouldn't cut in, sides should)
-			P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * rad;
-		}
-	}
-}
-
-void CSCoverInfo::ClipCoverWithShapes()
-{
-}
-
 void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )
 {
+}
+
+bool _IntersectLinePlane( CSCoverLine& ioline, Vec4 plane )
+{
+	float sigdst0 = Vec3Dot( plane.ToVec3(), ioline.p0 ) - plane.w;
+	float sigdst1 = Vec3Dot( plane.ToVec3(), ioline.p1 ) - plane.w;
+	if( sigdst0 <= 0 && sigdst1 <= 0 )
+		return true;
+	float q = safe_fdiv( -sigdst0, sigdst1 - sigdst0 );
+	if( sigdst0 <= 0 )
+	{
+		ioline.p0 = TLERP( ioline.p0, ioline.p1, q );
+	}
+	else if( sigdst1 <= 0 )
+	{
+		ioline.p1 = TLERP( ioline.p0, ioline.p1, q );
+	}
+	return false;
+}
+
+void CSCoverInfo::_CullWithShadowLines( size_t firstcover, Vec4 P )
+{
+	for( size_t covid = firstcover; covid < covers.size(); ++covid )
+	{
+		bool rem = _IntersectLinePlane( covers[ covid ], P );
+		if( rem )
+			covers.uerase( covid-- );
+	}
+}
+
+void CSCoverInfo::_CullWithSolids()
+{
+	for( size_t sid = 0; sid < shapes.size(); ++sid )
+	{
+		const Shape& S = shapes[ sid ];
+		
+		size_t cover_count = covers.size();
+		for( size_t covid = 0; covid < cover_count; ++covid )
+		{
+			CSCoverLine clin = covers[ covid ];
+			CSCoverLine clout[2];
+			int cloutnum = 0;
+			
+			printf("begin line  %f %f %f  -->  %f %f %f\n",
+				clin.p0.x,clin.p0.y,clin.p0.z, clin.p1.x,clin.p1.y,clin.p1.z);
+			for( int plid = 0; plid < S.numPlanes; ++plid )
+			{
+				Vec4 plane = planes[ S.offset + plid ];
+				printf( "plid %d = %f %f %f / %f\n", plid, plane.x,plane.y,plane.z,plane.w);
+				float sigdst0 = Vec3Dot( plane.ToVec3(), clin.p0 ) - plane.w;
+				float sigdst1 = Vec3Dot( plane.ToVec3(), clin.p1 ) - plane.w;
+				if( sigdst0 >= 0 && sigdst1 >= 0 )
+				{
+					clout[ 0 ] = clin;
+					cloutnum = 1;
+					break;
+				}
+				float q = safe_fdiv( -sigdst0, sigdst1 - sigdst0 );
+				Vec3 isp = TLERP( clin.p0, clin.p1, q );
+				
+				// check if intersection point is inside solid
+				bool ipin = true;
+				for( int i = 0; i < S.numPlanes; ++i )
+				{
+					Vec4 P = planes[ S.offset + i ];
+					if( Vec3Dot( P.ToVec3(), isp ) > P.w + SMALL_FLOAT )
+					{
+						// point outside, ignore it
+						ipin = false;
+						break;
+					}
+				}
+				
+				if( ipin )
+				{
+					if( sigdst0 >= 0 ) // p0 in front, p1 behind
+					{
+						if( ( clin.p0 - isp ).LengthSq() > SMALL_FLOAT )
+						{
+							ASSERT( cloutnum < 2 );
+							clout[ cloutnum ].p0 = clin.p0;
+							clout[ cloutnum ].p1 = isp;
+							cloutnum++;
+							clin.p0 = isp;
+						}
+					}
+					else if( sigdst1 >= 0 ) // p1 in front, p0 behind
+					{
+						if( ( clin.p1 - isp ).LengthSq() > SMALL_FLOAT )
+						{
+							ASSERT( cloutnum < 2 );
+							clout[ cloutnum ].p1 = clin.p1;
+							clout[ cloutnum ].p0 = isp;
+							cloutnum++;
+							clin.p1 = isp;
+						}
+					}
+				}
+				
+				// if isp outside solid, it's not the right intersection point
+				// if( sigdst0 < 0 && sigdst1 < 0 ) --> ambiguous outcome, must resolve with other planes
+			}
+			
+			// update situation
+			if( cloutnum == 0 )
+			{
+				puts("--none--");
+				covers.uerase( covid-- );
+				cover_count--;
+			}
+			else if( cloutnum == 1 )
+			{
+				puts("1-out");
+				covers[ covid ] = clout[ 0 ];
+			}
+			else // if( cloutnum == 2 )
+			{
+				puts("2-out");
+				covers[ covid ] = clout[ 0 ];
+				covers.push_back( clout[ 1 ] );
+			}
+		}
+	}
 }
 
 bool CoverSystem::EdgeMesh::InAABB( const Vec3& ibmin, const Vec3& ibmax ) const
@@ -1295,8 +1382,8 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 		{
 			Vec3 nout = is0 ? E.n1 : E.n0;
 			Vec3 nup = is0 ? -E.n0 : -E.n1;
-			CoverPoint cp0 = { E.p0, nout, nup };
-			CoverPoint cp1 = { E.p1, nout, nup };
+			CoverPoint cp0 = { E.p0, nout, nup, 1 };
+			CoverPoint cp1 = { E.p1, nout, nup, 1 };
 			
 			size_t pos0 = coverpts.find_first_at( cp0 );
 			size_t pos1 = coverpts.find_first_at( cp1 );
@@ -1310,6 +1397,7 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 			{
 				coverpts[ pos0 ].nout += nout;
 				coverpts[ pos0 ].nup += nup;
+				coverpts[ pos0 ].ctr++;
 			}
 			
 			if( pos1 == NOT_FOUND )
@@ -1321,6 +1409,7 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 			{
 				coverpts[ pos1 ].nout += nout;
 				coverpts[ pos1 ].nup += nup;
+				coverpts[ pos1 ].ctr++;
 			}
 			
 			coveridcs.push_back( pos0 );
@@ -1328,11 +1417,13 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 		}
 	}
 	
+#if 0
 	for( size_t i = 0; i < coverpts.size(); ++i )
 	{
-		coverpts[ i ].nout.Normalize();
-		coverpts[ i ].nup.Normalize();
+		coverpts[ i ].nout /= coverpts[ i ].ctr;
+		coverpts[ i ].nup /= coverpts[ i ].ctr;
 	}
+#endif
 }
 
 void CoverSystem::Clear()
@@ -1398,7 +1489,7 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	m_edgeMeshesByName.set( EM->m_key, EM );
 }
 
-void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, CSCoverInfo& cinfo )
+void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, Vec3 viewer, CSCoverInfo& cinfo )
 {
 	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
 	{
@@ -1408,6 +1499,8 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, 
 		if( EM->InAABB( bbmin, bbmax ) == false )
 			continue;
 		
+		// produce lines
+		size_t cover_off = cinfo.covers.size();
 		for( size_t i = 0; i < EM->coveridcs.size(); i += 2 )
 		{
 			const CoverPoint& cp0 = EM->coverpts[ EM->coveridcs[ i + 0 ] ];
@@ -1419,53 +1512,56 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, 
 			};
 			cinfo.covers.push_back( outcl );
 		}
-	}
-}
-
-void CoverSystem::QuerySolids( Vec3 bbmin, Vec3 bbmax, Vec3 viewer, float viewdist, CSCoverInfo& cinfo )
-{
-	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
-	{
-		EdgeMesh* EM = m_edgeMeshes[ emid ];
-		if( EM->enabled == false )
-			continue;
-		if( EM->InAABB( bbmin, bbmax ) == false )
-			continue;
-		if( ( viewer - EM->pos ).Length() > viewdist )
-			continue;
 		
 		// shadow clip
-		CSCoverInfo::Shape sh = { cinfo.planes.size(), 0, false };
-		cinfo.shapes.push_back( sh );
-		for( size_t i = 0; i < EM->edges.size(); ++i )
 		{
-			Edge E = EM->edges[ i ];
-			bool is0 = Vec3Dot( E.n0, viewer ) > E.d0;
-			bool is1 = Vec3Dot( E.n1, viewer ) > E.d1;
-			
-			if( ( is0 && is1 == false ) || ( is0 == false && is1 ) )
+			for( size_t i = 0; i < EM->edges.size(); ++i )
 			{
-				// silhouette edge
-				// - generate plane
-				Vec3 pN = Vec3Cross( E.p0 - viewer, E.p1 - viewer ).Normalized();
-				float pD = Vec3Dot( pN, viewer );
+				Edge E = EM->edges[ i ];
+				bool is0 = Vec3Dot( E.n0, viewer ) > E.d0;
+				bool is1 = Vec3Dot( E.n1, viewer ) > E.d1;
 				
-				// - push plane
-				cinfo.planes.push_back( V4( pN, pD ) );
-				cinfo.shapes.last().numPlanes++;
+				if( ( is0 && is1 == false ) || ( is0 == false && is1 ) )
+				{
+					// silhouette edge
+					// - generate plane
+					Vec3 pN = Vec3Cross( E.p0 - viewer, E.p1 - viewer ).Normalized();
+					if( Vec3Dot( pN, E.n0 ) < 0 || Vec3Dot( pN, E.n1 ) < 0 )
+						pN = -pN;
+					float pD = Vec3Dot( pN, viewer );
+					
+					// - push plane
+					Vec4 P = V4( pN, pD );
+					P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
+					cinfo._CullWithShadowLines( cover_off, -P );
+				}
+			}
+			for( size_t i = 0; i < EM->planes.size(); ++i )
+			{
+				Vec4 P = EM->planes[ i ];
+				if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
+				{
+					P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
+					cinfo._CullWithShadowLines( cover_off, -P );
+				}
 			}
 		}
 		
-		// side edge clip
-		sh.offset = cinfo.planes.size();
-		sh.inside = true;
-		cinfo.shapes.push_back( sh );
-		for( size_t i = 0; i < EM->planes.size(); ++i )
+		// generate solids
 		{
-			cinfo.planes.push_back( EM->planes[ i ] );
-			cinfo.shapes.last().numPlanes++;
+			CSCoverInfo::Shape sh = { cinfo.planes.size(), 0 };
+			cinfo.shapes.push_back( sh );
+			for( size_t i = 0; i < EM->planes.size(); ++i )
+			{
+				Vec4 P = EM->planes[ i ];
+				P.w += dist - SMALL_FLOAT;
+				cinfo.planes.push_back( P );
+				cinfo.shapes.last().numPlanes++;
+			}
 		}
 	}
+	
+	cinfo._CullWithSolids();
 }
 
 
