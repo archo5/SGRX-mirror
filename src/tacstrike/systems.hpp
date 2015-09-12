@@ -500,6 +500,8 @@ struct CSCoverInfo
 		int numPlanes;
 	};
 	
+	void Clear();
+	bool GetPosition( Vec3 position, float distpow, Vec3& out );
 	void ClipWithSpheres( Vec4* spheres, int count );
 	
 	void _CullWithShadowLines( size_t firstcover, Vec4 P );
@@ -537,8 +539,8 @@ struct CoverSystem : IGameLevelSystem
 		Vec3 pos;
 		Vec3 nout;
 		Vec3 nup;
-		int ctr;
 		
+		void AdjustNormals( Vec3 newout, Vec3 newup );
 		bool operator == ( const CoverPoint& o ) const { return pos == o.pos; }
 	};
 	struct EdgeMesh : SGRX_RCRsrc

@@ -1231,6 +1231,17 @@ void AIDBSystem::Tick( float deltaTime, float blendFactor )
 }
 
 
+void CSCoverInfo::Clear()
+{
+	planes.clear();
+	shapes.clear();
+	covers.clear();
+}
+
+bool CSCoverInfo::GetPosition( Vec3 position, float distpow, Vec3& out )
+{
+}
+
 void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )
 {
 }
@@ -1276,12 +1287,9 @@ void CSCoverInfo::_CullWithSolids()
 			CSCoverLine clout[2];
 			int cloutnum = 0;
 			
-			printf("begin line  %f %f %f  -->  %f %f %f\n",
-				clin.p0.x,clin.p0.y,clin.p0.z, clin.p1.x,clin.p1.y,clin.p1.z);
 			for( int plid = 0; plid < S.numPlanes; ++plid )
 			{
 				Vec4 plane = planes[ S.offset + plid ];
-				printf( "plid %d = %f %f %f / %f\n", plid, plane.x,plane.y,plane.z,plane.w);
 				float sigdst0 = Vec3Dot( plane.ToVec3(), clin.p0 ) - plane.w;
 				float sigdst1 = Vec3Dot( plane.ToVec3(), clin.p1 ) - plane.w;
 				if( sigdst0 >= 0 && sigdst1 >= 0 )
@@ -1339,23 +1347,41 @@ void CSCoverInfo::_CullWithSolids()
 			// update situation
 			if( cloutnum == 0 )
 			{
-				puts("--none--");
 				covers.uerase( covid-- );
 				cover_count--;
 			}
 			else if( cloutnum == 1 )
 			{
-				puts("1-out");
 				covers[ covid ] = clout[ 0 ];
 			}
 			else // if( cloutnum == 2 )
 			{
-				puts("2-out");
 				covers[ covid ] = clout[ 0 ];
 				covers.push_back( clout[ 1 ] );
 			}
 		}
 	}
+}
+
+static const float cos135deg = cosf( M_PI * 0.75f );
+void CoverSystem::CoverPoint::AdjustNormals( Vec3 newout, Vec3 newup )
+{
+	Vec3 oldrt = Vec3Cross( nout, nup ).Normalized();
+	Vec3 newrt = Vec3Cross( newout, newup ).Normalized();
+	
+	float dot = clamp( Vec3Dot( oldrt, newrt ), -1, 1 );
+	if( dot < cos135deg )
+	{
+		nout += newout;
+		nout.Normalize();
+	}
+	else
+	{
+		nout = ( nout + newout ).Normalized() / cosf( 0.5f * acosf( dot ) );
+	}
+	
+	nup += newup;
+	nup.Normalize();
 }
 
 bool CoverSystem::EdgeMesh::InAABB( const Vec3& ibmin, const Vec3& ibmax ) const
@@ -1382,8 +1408,8 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 		{
 			Vec3 nout = is0 ? E.n1 : E.n0;
 			Vec3 nup = is0 ? -E.n0 : -E.n1;
-			CoverPoint cp0 = { E.p0, nout, nup, 1 };
-			CoverPoint cp1 = { E.p1, nout, nup, 1 };
+			CoverPoint cp0 = { E.p0, nout, nup };
+			CoverPoint cp1 = { E.p1, nout, nup };
 			
 			size_t pos0 = coverpts.find_first_at( cp0 );
 			size_t pos1 = coverpts.find_first_at( cp1 );
@@ -1395,9 +1421,7 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 			}
 			else
 			{
-				coverpts[ pos0 ].nout += nout;
-				coverpts[ pos0 ].nup += nup;
-				coverpts[ pos0 ].ctr++;
+				coverpts[ pos0 ].AdjustNormals( nout, nup );
 			}
 			
 			if( pos1 == NOT_FOUND )
@@ -1407,23 +1431,13 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 			}
 			else
 			{
-				coverpts[ pos1 ].nout += nout;
-				coverpts[ pos1 ].nup += nup;
-				coverpts[ pos1 ].ctr++;
+				coverpts[ pos1 ].AdjustNormals( nout, nup );
 			}
 			
 			coveridcs.push_back( pos0 );
 			coveridcs.push_back( pos1 );
 		}
 	}
-	
-#if 0
-	for( size_t i = 0; i < coverpts.size(); ++i )
-	{
-		coverpts[ i ].nout /= coverpts[ i ].ctr;
-		coverpts[ i ].nup /= coverpts[ i ].ctr;
-	}
-#endif
 }
 
 void CoverSystem::Clear()
@@ -1485,12 +1499,22 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	EM->planes.assign( planes, 6 );
 	EM->CalcCoverLines();
 	
+	EM->bbmin = V3(FLT_MAX);
+	EM->bbmax = V3(-FLT_MAX);
+	for( int i = 0; i < 12; ++i )
+	{
+		EM->bbmin = Vec3::Min( Vec3::Min( edges[ i ].p0, edges[ i ].p1 ), EM->bbmin );
+		EM->bbmax = Vec3::Max( Vec3::Max( edges[ i ].p0, edges[ i ].p1 ), EM->bbmax );
+	}
+	
 	m_edgeMeshes.push_back( EM );
 	m_edgeMeshesByName.set( EM->m_key, EM );
 }
 
 void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, Vec3 viewer, CSCoverInfo& cinfo )
 {
+	cinfo.Clear();
+	
 	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
 	{
 		EdgeMesh* EM = m_edgeMeshes[ emid ];

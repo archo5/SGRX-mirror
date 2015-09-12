@@ -861,7 +861,7 @@ BatchRenderer& BatchRenderer::Tick( const Vec3& pos, float radius, const Mat4& t
 	return *this;
 }
 
-const float cos135deg = cosf( M_PI * 0.75f );
+static const float cos135deg = cosf( M_PI * 0.75f );
 BatchRenderer& BatchRenderer::AAPoly( const Vec2* polydata, size_t polysize, float z )
 {
 	if( polysize < 3 )
