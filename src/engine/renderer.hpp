@@ -195,6 +195,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	ENGINE_EXPORT virtual bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
 	ENGINE_EXPORT virtual SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code ) = 0;
 	ENGINE_EXPORT virtual SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code ) = 0;
+	ENGINE_EXPORT virtual SGRX_IRenderState* CreateRenderState( const SGRX_RenderState& state ) = 0;
 	ENGINE_EXPORT virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
 	ENGINE_EXPORT virtual SGRX_IMesh* CreateMesh() = 0;
 	

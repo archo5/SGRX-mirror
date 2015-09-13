@@ -126,6 +126,17 @@ static int create_blendstate( ID3D11Device* device, D3D11_BLEND_DESC* rdesc, ID3
 	return 0;
 }
 
+static int create_dsstate( ID3D11Device* device, D3D11_DEPTH_STENCIL_DESC* dsdesc, ID3D11DepthStencilState** out )
+{
+	HRESULT hr = device->CreateDepthStencilState( dsdesc, out );
+	if( FAILED( hr ) || !*out )
+	{
+		LOG_ERROR << "Failed to create D3D11 depth stencil state";
+		return -1;
+	}
+	return 0;
+}
+
 static int create_sampstate( ID3D11Device* device, D3D11_SAMPLER_DESC* rdesc, ID3D11SamplerState** out )
 {
 	HRESULT hr = device->CreateSamplerState( rdesc, out );
@@ -344,6 +355,24 @@ struct D3D11PixelShader : SGRX_IPixelShader
 };
 
 
+struct D3D11RenderState : SGRX_IRenderState
+{
+	ID3D11RasterizerState* m_RS;
+	ID3D11BlendState* m_BS;
+	ID3D11DepthStencilState* m_DS;
+	struct D3D11Renderer* m_renderer;
+	
+	D3D11RenderState( struct D3D11Renderer* r ) : m_RS( NULL ), m_BS( NULL ), m_DS( NULL ), m_renderer( r ){}
+	~D3D11RenderState()
+	{
+		SAFE_RELEASE( m_RS );
+		SAFE_RELEASE( m_BS );
+		SAFE_RELEASE( m_DS );
+	}
+	virtual void SetState( const SGRX_RenderState& state );
+};
+
+
 struct D3D11VertexDecl : SGRX_IVertexDecl
 {
 	D3D11_INPUT_ELEMENT_DESC m_elements[ VDECL_MAX_ITEMS ];
@@ -429,6 +458,7 @@ struct D3D11Renderer : IRenderer
 	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
 	SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code );
 	SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code );
+	SGRX_IRenderState* CreateRenderState( const SGRX_RenderState& state );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
 	
@@ -1155,6 +1185,135 @@ cleanup:
 	SAFE_RELEASE( PS );
 	return NULL;
 }
+
+
+void D3D11RenderState::SetState( const SGRX_RenderState& state )
+{
+	static const D3D11_FILL_MODE fillModes[ 2 ] = { D3D11_FILL_SOLID, D3D11_FILL_WIREFRAME };
+	static const D3D11_CULL_MODE cullModes[ 4 ] = { D3D11_CULL_NONE, D3D11_CULL_BACK, D3D11_CULL_FRONT, /**/ D3D11_CULL_NONE };
+	static const D3D11_BLEND blendFactors[ 16 ] =
+	{
+		D3D11_BLEND_ZERO,
+		D3D11_BLEND_ONE,
+		D3D11_BLEND_SRC_COLOR,
+		D3D11_BLEND_INV_SRC_COLOR,
+		D3D11_BLEND_DEST_COLOR,
+		D3D11_BLEND_INV_DEST_COLOR,
+		D3D11_BLEND_SRC_ALPHA,
+		D3D11_BLEND_INV_SRC_ALPHA,
+		D3D11_BLEND_DEST_ALPHA,
+		D3D11_BLEND_INV_DEST_ALPHA,
+		D3D11_BLEND_BLEND_FACTOR,
+		D3D11_BLEND_INV_BLEND_FACTOR,
+		/**/
+		D3D11_BLEND_ONE, D3D11_BLEND_ONE, D3D11_BLEND_ONE, D3D11_BLEND_ONE,
+	};
+	static const D3D11_BLEND_OP blendOps[ 8 ] =
+	{
+		D3D11_BLEND_OP_ADD,
+		D3D11_BLEND_OP_SUBTRACT,
+		D3D11_BLEND_OP_REV_SUBTRACT,
+		D3D11_BLEND_OP_MIN,
+		D3D11_BLEND_OP_MAX,
+		/**/
+		D3D11_BLEND_OP_ADD, D3D11_BLEND_OP_ADD, D3D11_BLEND_OP_ADD
+	};
+	static const D3D11_DEPTH_WRITE_MASK dwMasks[ 2 ] = { D3D11_DEPTH_WRITE_MASK_ZERO, D3D11_DEPTH_WRITE_MASK_ALL };
+	static const D3D11_COMPARISON_FUNC compFuncs[ 8 ] =
+	{
+		D3D11_COMPARISON_NEVER,
+		D3D11_COMPARISON_ALWAYS,
+		D3D11_COMPARISON_EQUAL,
+		D3D11_COMPARISON_NOT_EQUAL,
+		D3D11_COMPARISON_LESS,
+		D3D11_COMPARISON_LESS_EQUAL,
+		D3D11_COMPARISON_GREATER,
+		D3D11_COMPARISON_GREATER_EQUAL,
+	};
+	static const D3D11_STENCIL_OP stencilOps[ 8 ] =
+	{
+		D3D11_STENCIL_OP_KEEP,
+		D3D11_STENCIL_OP_ZERO,
+		D3D11_STENCIL_OP_REPLACE,
+		D3D11_STENCIL_OP_INVERT,
+		D3D11_STENCIL_OP_INCR,
+		D3D11_STENCIL_OP_DECR,
+		D3D11_STENCIL_OP_INCR_SAT,
+		D3D11_STENCIL_OP_DECR_SAT,
+	};
+	
+	SAFE_RELEASE( m_RS );
+	SAFE_RELEASE( m_BS );
+	SAFE_RELEASE( m_DS );
+	
+	D3D11_RASTERIZER_DESC rdesc =
+	{
+		fillModes[ state.wireFill ],
+		cullModes[ state.cullMode ],
+		TRUE,
+		state.depthBias, state.depthBiasClamp, state.slopeDepthBias,
+		TRUE,
+		state.scissorEnable,
+		state.multisampleEnable,
+		TRUE
+	};
+	if( create_rstate( m_renderer->m_dev, &rdesc, &m_RS ) )
+	{
+		// error, use default or something
+	}
+	
+	// batch vertex blending states
+	D3D11_BLEND_DESC bdesc = { TRUE, state.separateBlend };
+	for( int i = 0; i < SGRX_RS_MAX_RENDER_TARGETS; ++i )
+	{
+		const SGRX_RenderState::BlendState& bs = state.blendStates[ i ];
+		D3D11_RENDER_TARGET_BLEND_DESC tbdesc =
+		{
+			bs.blendEnable,
+			blendFactors[ bs.srcBlend ], blendFactors[ bs.dstBlend ], blendOps[ bs.blendOp ],
+			blendFactors[ bs.srcBlendAlpha ], blendFactors[ bs.dstBlendAlpha ], blendOps[ bs.blendOpAlpha ],
+			bs.colorWrite,
+		};
+		bdesc.RenderTarget[ i ] = tbdesc;
+	}
+	if( create_blendstate( m_renderer->m_dev, &bdesc, &m_BS ) )
+	{
+		// error, use default or something
+	}
+	
+	D3D11_DEPTH_STENCIL_DESC dsdesc =
+	{
+		state.depthEnable,
+		dwMasks[ state.depthWriteEnable ],
+		compFuncs[ state.depthFunc ],
+		state.stencilEnable,
+		state.stencilReadMask,
+		state.stencilWriteMask,
+		{
+			stencilOps[ state.stencilFrontFailOp ],
+			stencilOps[ state.stencilFrontDepthFailOp ],
+			stencilOps[ state.stencilFrontPassOp ],
+			compFuncs[ state.stencilFrontFunc ],
+		},
+		{
+			stencilOps[ state.stencilBackFailOp ],
+			stencilOps[ state.stencilBackDepthFailOp ],
+			stencilOps[ state.stencilBackPassOp ],
+			compFuncs[ state.stencilBackFunc ],
+		},
+	};
+	if( create_dsstate( m_renderer->m_dev, &dsdesc, &m_DS ) )
+	{
+	}
+}
+
+SGRX_IRenderState* D3D11Renderer::CreateRenderState( const SGRX_RenderState& state )
+{
+	D3D11RenderState* out = new D3D11RenderState( this );
+	out->SetState( state );
+	return out;
+}
+
 
 static const char* vdeclusage_to_semtype[] =
 {

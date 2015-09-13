@@ -964,6 +964,24 @@ SGRX_IPixelShader::~SGRX_IPixelShader()
 }
 
 
+SGRX_IRenderState::~SGRX_IRenderState()
+{
+}
+
+void SGRX_IRenderState::SetState( const SGRX_RenderState& state )
+{
+	m_info = state;
+}
+
+const SGRX_RenderState& RenderStateHandle::GetInfo()
+{
+	static SGRX_RenderState dummy_info = {0};
+	if( !item )
+		return dummy_info;
+	return item->m_info;
+}
+
+
 SGRX_IVertexDecl::~SGRX_IVertexDecl()
 {
 	g_VertexDecls->unset( m_key );
@@ -2241,6 +2259,15 @@ SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
 	
 	LOG << "Created surface shader: " << name;
 	return ssh;
+}
+
+
+RenderStateHandle GR_CreateRenderState( const SGRX_RenderState& state )
+{
+	LOG_FUNCTION;
+	
+	SGRX_IRenderState* rs = g_Renderer->CreateRenderState( state );
+	return rs;
 }
 
 

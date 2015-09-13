@@ -358,6 +358,148 @@ struct PixelShaderHandle : Handle< SGRX_IPixelShader >
 	PixelShaderHandle( SGRX_IPixelShader* shdr ) : Handle( shdr ){}
 };
 
+
+// Cull mode: 2 bits
+#define SGRX_RS_CullMode_None 0
+#define SGRX_RS_CullMode_Back 1
+#define SGRX_RS_CullMode_Front 2
+
+// Blend op: 3 bits
+#define SGRX_RS_BlendOp_Add 0
+#define SGRX_RS_BlendOp_Sub 1
+#define SGRX_RS_BlendOp_RevSub 2
+#define SGRX_RS_BlendOp_Min 3
+#define SGRX_RS_BlendOp_Max 4
+
+// Blend factor: 4 bits
+#define SGRX_RS_Blend_Zero 0
+#define SGRX_RS_Blend_One 1
+#define SGRX_RS_Blend_SrcColor 2
+#define SGRX_RS_Blend_InvSrcColor 3
+#define SGRX_RS_Blend_DstColor 4
+#define SGRX_RS_Blend_InvDstColor 5
+#define SGRX_RS_Blend_SrcAlpha 6
+#define SGRX_RS_Blend_InvSrcAlpha 7
+#define SGRX_RS_Blend_DstAlpha 8
+#define SGRX_RS_Blend_InvDstAlpha 9
+#define SGRX_RS_Blend_Factor 10
+#define SGRX_RS_Blend_InvFactor 11
+
+// Color write enable : 4 bits
+#define SGRX_RS_ColorWrite_R 0x1
+#define SGRX_RS_ColorWrite_G 0x2
+#define SGRX_RS_ColorWrite_B 0x4
+#define SGRX_RS_ColorWrite_A 0x8
+#define SGRX_RS_ColorWrite_All 0xf
+
+// Depth comparison: 3 bits
+#define SGRX_RS_DepthComp_Never 0
+#define SGRX_RS_DepthComp_Always 1
+#define SGRX_RS_DepthComp_Equal 2
+#define SGRX_RS_DepthComp_NotEqual 3
+#define SGRX_RS_DepthComp_Less 4
+#define SGRX_RS_DepthComp_LessEqual 5
+#define SGRX_RS_DepthComp_Greater 6
+#define SGRX_RS_DepthComp_GreaterEqual 7
+
+// Stencil operation : 3 bits
+#define SGRX_RS_StencilOp_Keep 0
+#define SGRX_RS_StencilOp_Zero 1
+#define SGRX_RS_StencilOp_Replace 2
+#define SGRX_RS_StencilOp_Invert 3
+#define SGRX_RS_StencilOp_Incr 4
+#define SGRX_RS_StencilOp_Decr 5
+#define SGRX_RS_StencilOp_IncrSat 6
+#define SGRX_RS_StencilOp_DecrSat 7
+
+#define SGRX_RS_MAX_RENDER_TARGETS 8
+
+struct SGRX_RenderState // 68 bytes (aligned to 80?)
+{
+	struct BlendState // 27 bits -> 4 bytes
+	{
+		uint32_t colorWrite : 4;
+		uint32_t blendEnable : 1;
+		uint32_t blendOp : 3;
+		uint32_t srcBlend : 4;
+		uint32_t dstBlend : 4;
+		uint32_t blendOpAlpha : 3;
+		uint32_t srcBlendAlpha : 4;
+		uint32_t dstBlendAlpha : 4;
+	};
+	
+	// rasterizer state : 6 bits
+	uint32_t wireFill : 1; // wireframe fill instead of solid?
+	uint32_t cullMode : 2; // triangle face culling
+	uint32_t separateBlend : 1; // whether to use different blend states for different render targets
+	uint32_t scissorEnable : 1;
+	uint32_t multisampleEnable : 1;
+	
+	// depth state : 46 bits
+	uint32_t depthEnable : 1;
+	uint32_t depthWriteEnable : 1;
+	uint32_t depthFunc : 3;
+	uint32_t stencilEnable : 1;
+	uint32_t stencilReadMask : 8;
+	uint32_t stencilWriteMask : 8;
+	uint32_t stencilFrontFailOp : 3;
+	uint32_t stencilFrontDepthFailOp : 3;
+	uint32_t stencilFrontPassOp : 3;
+	uint32_t stencilFrontFunc : 3;
+	uint32_t stencilBackFailOp : 3;
+	uint32_t stencilBackDepthFailOp : 3;
+	uint32_t stencilBackPassOp : 3;
+	uint32_t stencilBackFunc : 3;
+	
+	// all flags : 52 bits -> 8 bytes
+	
+	// blend states : 4 * 8 = 32 bytes
+	BlendState blendStates[ SGRX_RS_MAX_RENDER_TARGETS ];
+	
+	// depth parameters : 28 bytes
+	float depthBias;
+	float slopeDepthBias;
+	float depthBiasClamp;
+	Vec4 blendFactor;
+	
+	void Init()
+	{
+		// most data is 0
+		memset( this, 0, sizeof(*this) );
+		depthEnable = 1;
+		depthWriteEnable = 1;
+		depthFunc = SGRX_RS_DepthComp_Less;
+		depthFunc = 0;
+		slopeDepthBias = 0;
+		depthBiasClamp = 0;
+		stencilReadMask = 0xff;
+		stencilWriteMask = 0xff;
+		blendFactor = V4(1);
+		for( int i = 0; i < SGRX_RS_MAX_RENDER_TARGETS; ++i )
+		{
+			blendStates[ i ].colorWrite = SGRX_RS_ColorWrite_All;
+		}
+	}
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderState : SGRX_RCRsrc
+{
+	ENGINE_EXPORT virtual ~SGRX_IRenderState();
+	ENGINE_EXPORT virtual void SetState( const SGRX_RenderState& state );
+	
+	SGRX_RenderState m_info;
+};
+
+struct RenderStateHandle : Handle< SGRX_IRenderState >
+{
+	RenderStateHandle() : Handle(){}
+	RenderStateHandle( const RenderStateHandle& h ) : Handle( h ){}
+	RenderStateHandle( SGRX_IRenderState* vd ) : Handle( vd ){}
+	
+	ENGINE_EXPORT const SGRX_RenderState& GetInfo();
+};
+
+
 #define VDECL_MAX_ITEMS 10
 
 #define VDECLTYPE_FLOAT1 0
@@ -1182,6 +1324,7 @@ ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
 ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
 ENGINE_EXPORT SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name );
 ENGINE_EXPORT MaterialHandle GR_CreateMaterial();
+ENGINE_EXPORT RenderStateHandle GR_CreateRenderState( const SGRX_RenderState& state );
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 ENGINE_EXPORT MeshHandle GR_CreateMesh();
 ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );

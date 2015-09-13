@@ -199,6 +199,15 @@ struct D3D9PixelShader : SGRX_IPixelShader
 };
 
 
+struct D3D9RenderState : SGRX_IRenderState
+{
+	D3D9RenderState( const SGRX_RenderState& state )
+	{
+		SetState( state );
+	}
+};
+
+
 struct D3D9VertexDecl : SGRX_IVertexDecl
 {
 	IDirect3DVertexDeclaration9* m_vdecl;
@@ -413,6 +422,7 @@ struct D3D9Renderer : IRenderer
 	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
 	SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code );
 	SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code );
+	SGRX_IRenderState* CreateRenderState( const SGRX_RenderState& state );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
 	
@@ -1130,6 +1140,12 @@ SGRX_IPixelShader* D3D9Renderer::CreatePixelShader( const StringView& path, Byte
 cleanup:
 	SAFE_RELEASE( PS );
 	return NULL;
+}
+
+
+SGRX_IRenderState* D3D9Renderer::CreateRenderState( const SGRX_RenderState& state )
+{
+	return new D3D9RenderState( state );
 }
 
 
