@@ -157,6 +157,42 @@ ENGINE_EXPORT uint32_t SGRX_Cull_SpotLight_MeshList( Array< SGRX_MeshInstance* >
 /// RENDERER
 ///
 
+
+struct PointLightData
+{
+	Vec3 viewPos;
+	float range;
+	Vec3 color;
+	float power;
+};
+
+struct SpotLightDataPS
+{
+	Vec3 viewPos;
+	float range;
+	Vec3 color;
+	float power;
+	Vec3 viewDir;
+	float angle;
+	Vec2 SMSize;
+	Vec2 invSMSize;
+};
+
+struct SpotLightDataVS
+{
+	Mat4 SMMatrix;
+};
+
+struct LightCount
+{
+	int numPL;
+	int numSL;
+};
+
+LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, int maxPL, int maxSL,
+	PointLightData* outPL, SpotLightDataPS* outSL_PS, SpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT );
+
+
 struct RendererInfo
 {
 	bool swapRB;
@@ -206,6 +242,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	ENGINE_EXPORT virtual void RenderScene( SGRX_RenderScene* RS ) = 0;
 	
 	// culling helpers
+	ENGINE_EXPORT void _RS_PreProcess( SGRX_Scene* scene );
 	ENGINE_EXPORT void _RS_Cull_Camera_Prepare( SGRX_Scene* scene );
 	ENGINE_EXPORT uint32_t _RS_Cull_Camera_MeshList( SGRX_Scene* scene );
 	ENGINE_EXPORT uint32_t _RS_Cull_Camera_PointLightList( SGRX_Scene* scene );

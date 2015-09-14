@@ -66,7 +66,7 @@ static uint32_t _SGRX_Cull_Frustum_MeshList( SGRX_CullSceneCamera* frustum, bool
 	for( size_t inst_id = 0; inst_id < S->m_meshInstances.size(); ++inst_id )
 	{
 		SGRX_MeshInstance* MI = (SGRX_MeshInstance*) S->m_meshInstances.item( inst_id ).key;
-		if( !MI->mesh || !MI->enabled )
+		if( MI->CanDraw() == false )
 			continue;
 		SGRX_IMesh* M = MI->mesh;
 		

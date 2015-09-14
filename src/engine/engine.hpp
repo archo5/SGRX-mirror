@@ -471,7 +471,7 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 	uint32_t scissorEnable : 1;
 	uint32_t multisampleEnable : 1;
 	
-	// depth state : 46 bits
+	// depth state : 54 bits
 	uint32_t depthEnable : 1;
 	uint32_t depthWriteEnable : 1;
 	uint32_t depthFunc : 3;
@@ -486,8 +486,9 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 	uint32_t stencilBackDepthFailOp : 3;
 	uint32_t stencilBackPassOp : 3;
 	uint32_t stencilBackFunc : 3;
+	uint32_t stencilRef : 8;
 	
-	// all flags : 52 bits -> 8 bytes
+	// all flags : 60 bits -> 8 bytes
 	
 	// blend states : 4 * 8 = 32 bytes
 	BlendState blendStates[ SGRX_RS_MAX_RENDER_TARGETS ];
@@ -517,6 +518,16 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 		}
 	}
 	
+	void InitOpposite()
+	{
+		// initialize opposite to default state, to make *all* comparisons fail
+		Init();
+		uint8_t* buf = (uint8_t*) this;
+		uint8_t* end = buf + sizeof(*this);
+		while( buf < end )
+			*buf++ ^= 0xff;
+	}
+	
 	bool operator == ( const SGRX_RenderState& o ) const
 	{
 		if( wireFill != o.wireFill ) return false;
@@ -538,6 +549,7 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 		if( stencilBackDepthFailOp != o.stencilBackDepthFailOp ) return false;
 		if( stencilBackPassOp != o.stencilBackPassOp ) return false;
 		if( stencilBackFunc != o.stencilBackFunc ) return false;
+		if( stencilRef != o.stencilRef ) return false;
 		if( depthBias != o.depthBias ) return false;
 		if( slopeDepthBias != o.slopeDepthBias ) return false;
 		if( depthBiasClamp != o.depthBiasClamp ) return false;
@@ -576,6 +588,7 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 		out ^= stencilBackDepthFailOp << 12;
 		out ^= stencilBackPassOp << 15;
 		out ^= stencilBackFunc << 18;
+		out ^= stencilRef << 21;
 		
 		out ^= HashVar( depthBias );
 		out ^= HashVar( slopeDepthBias );
@@ -694,6 +707,11 @@ struct SGRX_SurfaceShader : SGRX_RCRsrc
 	
 	ENGINE_EXPORT void ReloadShaders();
 	
+	FINLINE bool IsValid( int i ) const
+	{
+		return m_basicVertexShaders[ i ] && m_skinVertexShaders[ i ] && m_pixelShaders[ i ];
+	}
+	
 	Array< VertexShaderHandle > m_basicVertexShaders;
 	Array< VertexShaderHandle > m_skinVertexShaders;
 	Array< PixelShaderHandle > m_pixelShaders;
@@ -718,6 +736,11 @@ struct SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
 struct SGRX_Material
 {
 	ENGINE_EXPORT void Finalize();
+	
+	FINLINE bool IsValid( int i ) const
+	{
+		return shader && shader->IsValid( i ) && i < int(m_renderStates.size()) && m_renderStates[ i ];
+	}
 	
 	SurfaceShaderHandle shader;
 	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
@@ -757,6 +780,11 @@ struct SGRX_MeshPart
 	uint32_t indexOffset;
 	uint32_t indexCount;
 	SGRX_Material material;
+	
+	FINLINE bool CanDraw( int i ) const
+	{
+		return indexCount >= 3 && material.IsValid( i );
+	}
 };
 
 struct SGRX_MeshBone
@@ -794,6 +822,11 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	{
 		LOG_FUNCTION;
 		return InitIndexBuffer( size, i32 ) && UpdateIndexData( data, size );
+	}
+	
+	FINLINE bool IsValid() const
+	{
+		return m_vertexDecl && m_meshParts.size();
 	}
 	
 	ENGINE_EXPORT virtual void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
@@ -969,6 +1002,11 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	ENGINE_EXPORT SGRX_MeshInstance( SGRX_Scene* s );
 	ENGINE_EXPORT virtual ~SGRX_MeshInstance();
 	ENGINE_EXPORT virtual void SetTransform( const Mat4& mtx );
+	
+	FINLINE bool CanDraw() const
+	{
+		return enabled && mesh && mesh->IsValid();
+	}
 	
 	SGRX_Scene* _scene;
 	

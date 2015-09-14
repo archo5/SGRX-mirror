@@ -19,8 +19,24 @@
 #define __out_ecount(x)
 #define __in_range(x,y)
 #endif
+#include <windows.h>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
+#undef DXGI_ERROR_INVALID_CALL // GCC sucks
+#undef DXGI_ERROR_NOT_FOUND
+#undef DXGI_ERROR_MORE_DATA
+#undef DXGI_ERROR_UNSUPPORTED
+#undef DXGI_ERROR_DEVICE_REMOVED
+#undef DXGI_ERROR_DEVICE_HUNG
+#undef DXGI_ERROR_DEVICE_RESET
+#undef DXGI_ERROR_WAS_STILL_DRAWING
+#undef DXGI_ERROR_FRAME_STATISTICS_DISJOINT
+#undef DXGI_ERROR_GRAPHICS_VIDPN_SOURCE_IN_USE
+#undef DXGI_ERROR_DRIVER_INTERNAL_ERROR
+#undef DXGI_ERROR_NONEXCLUSIVE
+#undef DXGI_ERROR_NOT_CURRENTLY_AVAILABLE
+#undef DXGI_ERROR_REMOTE_CLIENT_DISCONNECTED
+#undef DXGI_ERROR_REMOTE_OUTOFMEMORY
 #include <d3d11.h>
 #ifdef ENABLE_SHADER_COMPILING
 #  include <d3dcompiler.h>
@@ -1767,13 +1783,7 @@ void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 	
 	m_stats.Reset();
 	// CULLING
-	_RS_Cull_Camera_Prepare( m_currentScene );
-	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList( m_currentScene );
-	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList( m_currentScene );
-	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList( m_currentScene );
-	
-	// MESH INST/LIGHT RELATIONS
-	_RS_Compile_MeshLists( m_currentScene );
+	_RS_PreProcess( m_currentScene );
 	
 	// Upload core CB data
 	cb_objpass_core_data coredata =

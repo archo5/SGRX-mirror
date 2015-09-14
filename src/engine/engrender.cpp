@@ -12,6 +12,92 @@ SGRX_DummyLightSampler g_DummyLightSampler;
 // RENDERER
 //
 
+
+LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, int maxPL, int maxSL,
+	PointLightData* outPL, SpotLightDataPS* outSL_PS, SpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT )
+{
+	LightCount out = { 0, 0 };
+	SGRX_DrawItemLight* drlt = DI->_lightbuf_begin;
+	while( drlt < DI->_lightbuf_end && ( out.numPL < maxPL || out.numSL < maxSL ) )
+	{
+		SGRX_Light* light = drlt->L;
+		if( light->type == LIGHT_POINT && out.numPL < maxPL )
+		{
+			// copy data
+			outPL->viewPos = CAM.mView.TransformPos( light->_tf_position );
+			outPL->range = light->_tf_range;
+			outPL->color = light->color;
+			outPL->power = light->power;
+			
+			outPL++;
+			out.numPL++;
+			
+			// remove light from array
+			if( drlt > DI->_lightbuf_begin )
+				*drlt = *DI->_lightbuf_begin;
+			DI->_lightbuf_begin++;
+		}
+		if( light->type == LIGHT_SPOT && out.numSL < maxSL )
+		{
+			// copy data
+			outSL_PS->viewPos = CAM.mView.TransformPos( light->_tf_position );
+			outSL_PS->range = light->_tf_range;
+			outSL_PS->color = light->color;
+			outSL_PS->power = light->power;
+			outSL_PS->viewDir = CAM.mView.TransformPos( light->_tf_direction ).Normalized();
+			float tszx = 1, tszy = 1;
+			if( light->shadowTexture )
+			{
+				const TextureInfo& texinfo = light->shadowTexture.GetInfo();
+				tszx = texinfo.width;
+				tszy = texinfo.height;
+			}
+			outSL_PS->angle = DEG2RAD( light->angle );
+			outSL_PS->SMSize = V2( tszx, tszy );
+			outSL_PS->invSMSize = V2( safe_fdiv( 1, tszx ), safe_fdiv( 1, tszy ) );
+			
+			outSL_VS->SMMatrix = light->viewProjMatrix;
+			
+			outSL_LT[0] = light;
+			
+			outSL_PS++;
+			outSL_VS++;
+			outSL_LT++;
+			out.numSL++;
+			
+			// remove light from array
+			if( drlt > DI->_lightbuf_begin )
+				*drlt = *DI->_lightbuf_begin;
+			DI->_lightbuf_begin++;
+		}
+		drlt++;
+	}
+	return out;
+}
+
+
+static bool meshinst_sortbyidx( const void* a, const void* b, void* )
+{
+	SGRX_CAST( SGRX_MeshInstance**, MIa, a );
+	SGRX_CAST( SGRX_MeshInstance**, MIb, b );
+	return (*MIa)->sortidx < (*MIb)->sortidx;
+}
+
+void IRenderer::_RS_PreProcess( SGRX_Scene* scene )
+{
+	_RS_Cull_Camera_Prepare( scene );
+	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList( scene );
+	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList( scene );
+	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList( scene );
+	
+	// sort meshes by index
+	sgrx_combsort( m_visible_meshes.data(), m_visible_meshes.size(),
+		sizeof(m_visible_meshes[0]), meshinst_sortbyidx, NULL );
+	
+	// MESH INST/LIGHT RELATIONS & DrawItems
+	_RS_Compile_MeshLists( scene );
+}
+
 void IRenderer::_RS_Cull_Camera_Prepare( SGRX_Scene* scene )
 {
 	SGRX_Cull_Camera_Prepare( scene );
@@ -52,18 +138,18 @@ static int sort_drawitemlight_by_light( const void* p1, const void* p2 )
 void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene )
 {
 	m_inst_light_buf.clear();
-	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
+	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
 	{
-		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
+		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
+		MI->m_drawItems.resize( MI->mesh->m_meshParts.size() );
 		
 		for( size_t i = 0; i < MI->m_drawItems.size(); ++i )
 		{
+			MI->m_drawItems[ i ].MI = MI;
+			MI->m_drawItems[ i ].part = i;
 			MI->m_drawItems[ i ]._lightbuf_begin = NULL;
 			MI->m_drawItems[ i ]._lightbuf_end = NULL;
 		}
-		
-		if( !MI->mesh || !MI->enabled )
-			continue;
 		
 		for( size_t i = 0; i < MI->m_drawItems.size(); ++i )
 		{
@@ -89,11 +175,10 @@ void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene )
 	}
 	
 	// covert offsets to pointers
-	for( size_t inst_id = 0; inst_id < scene->m_meshInstances.size(); ++inst_id )
+	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
 	{
-		SGRX_MeshInstance* MI = scene->m_meshInstances.item( inst_id ).key;
-		if( !MI->mesh || !MI->enabled )
-			continue;
+		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
+		
 		for( size_t i = 0; i < MI->m_drawItems.size(); ++i )
 		{
 			SGRX_DrawItem& DI = MI->m_drawItems[ i ];
@@ -180,7 +265,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 				if( M )
 				{
 					size_t vertoff = m_projectorVertices.size();
-					M->Clip( MI->matrix, L->viewProjMatrix, m_projectorVertices, true, invZNearToZFar );
+					M->Clip( MI->matrix, L->viewProjMatrix, m_projectorVertices, true, invZNearToZFar, 0xffffffff, mil->DI->part, 1 );
 					SGRX_DoIndexTriangleMeshVertices( m_projectorIndices, m_projectorVertices, vertoff, 48 );
 				}
 			}
