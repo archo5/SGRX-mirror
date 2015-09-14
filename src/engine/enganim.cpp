@@ -1066,13 +1066,14 @@ void ParticleSystem::OnRenderUpdate()
 		
 		SGRX_MeshPart MP = { 0, 0, 0, 0 };
 		
-		MaterialHandle mh = GR_CreateMaterial();
-		mh->blendMode = E.render_Additive ? MBM_ADDITIVE : MBM_BASIC;
-		mh->flags = E.render_Additive * MFL_UNLIT;
-		mh->shader = GR_GetSurfaceShader( String_Concat( E.render_Shader, "+PARTICLE" ) );
+		SGRX_Material mh;
+		mh.blendMode = E.render_Additive ? MBM_ADDITIVE : MBM_BASIC;
+		mh.flags = E.render_Additive * MFL_UNLIT;
+		mh.shader = GR_GetSurfaceShader( String_Concat( E.render_Shader, "+PARTICLE" ) );
 		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
-			mh->textures[ t ] = E.render_Textures[ t ];
+			mh.textures[ t ] = E.render_Textures[ t ];
 		MP.material = mh;
+		MP.material.Finalize();
 		
 		m_meshInsts[ i ]->mesh->SetPartData( &MP, 1 );
 	}

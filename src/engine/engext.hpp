@@ -363,7 +363,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_DecalSystem : SGRX_RefCounted
 	Mat4* m_ownMatrix;
 	
 	VertexDeclHandle m_vertexDecl;
-	MaterialHandle m_material;
+	SGRX_Material m_material;
 	MeshHandle m_mesh;
 	ByteArray m_vertexData;
 	UInt32Array m_indexData;

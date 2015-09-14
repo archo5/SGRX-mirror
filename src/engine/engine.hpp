@@ -15,6 +15,13 @@ struct SDL_Event;
 #include "utils.hpp"
 
 
+struct SGRX_Mesh;
+struct SGRX_DrawItem;
+struct SGRX_MeshInstance;
+struct SGRX_Light;
+struct SGRX_Scene;
+
+
 ENGINE_EXPORT uint32_t GetTimeMsec();
 ENGINE_EXPORT void Thread_Sleep( uint32_t msec );
 ENGINE_EXPORT void Sys_FatalError( const StringView& err );
@@ -124,7 +131,7 @@ ENGINE_EXPORT void Game_End();
 #define TEXFLAGS_CLAMP_X 0x10
 #define TEXFLAGS_CLAMP_Y 0x20
 
-struct ENGINE_EXPORT IGame
+struct IF_GCC(ENGINE_EXPORT) IGame
 {
 	virtual bool OnConfigure( int argc, char** argv ){ return true; }
 	virtual bool OnInitialize(){ return true; }
@@ -132,14 +139,15 @@ struct ENGINE_EXPORT IGame
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
-	virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
-	virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
-	virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
-	virtual bool SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data );
-	virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
-	virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
-	virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
-	virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
+	ENGINE_EXPORT virtual void OnMakeRenderState( const struct SGRX_RenderPass& pass, const struct SGRX_Material& mtl, struct SGRX_RenderState& out );
+	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
+	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
+	ENGINE_EXPORT virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
+	ENGINE_EXPORT virtual bool SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data );
+	ENGINE_EXPORT virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
+	ENGINE_EXPORT virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
+	ENGINE_EXPORT virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
+	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
 };
 
 struct IF_GCC(ENGINE_EXPORT) IDirEntryHandler
@@ -426,6 +434,34 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 		uint32_t blendOpAlpha : 3;
 		uint32_t srcBlendAlpha : 4;
 		uint32_t dstBlendAlpha : 4;
+		
+		bool operator == ( const BlendState& o ) const
+		{
+			if( colorWrite != o.colorWrite ) return false;
+			if( blendEnable != o.blendEnable ) return false;
+			if( blendOp != o.blendOp ) return false;
+			if( srcBlend != o.srcBlend ) return false;
+			if( dstBlend != o.dstBlend ) return false;
+			if( blendOpAlpha != o.blendOpAlpha ) return false;
+			if( srcBlendAlpha != o.srcBlendAlpha ) return false;
+			if( dstBlendAlpha != o.dstBlendAlpha ) return false;
+			return true;
+		}
+		
+		Hash getHash() const
+		{
+			// must only use first 24 bits
+			Hash out = 0;
+			out ^= colorWrite << 0;
+			out ^= blendEnable << 4;
+			out ^= blendOp << 5;
+			out ^= srcBlend << 8;
+			out ^= dstBlend << 12;
+			out ^= blendOpAlpha << 16;
+			out ^= srcBlendAlpha << 19;
+			out ^= dstBlendAlpha << 9;
+			return out;
+		}
 	};
 	
 	// rasterizer state : 6 bits
@@ -480,7 +516,81 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 			blendStates[ i ].colorWrite = SGRX_RS_ColorWrite_All;
 		}
 	}
+	
+	bool operator == ( const SGRX_RenderState& o ) const
+	{
+		if( wireFill != o.wireFill ) return false;
+		if( cullMode != o.cullMode ) return false;
+		if( separateBlend != o.separateBlend ) return false;
+		if( scissorEnable != o.scissorEnable ) return false;
+		if( multisampleEnable != o.multisampleEnable ) return false;
+		if( depthEnable != o.depthEnable ) return false;
+		if( depthWriteEnable != o.depthWriteEnable ) return false;
+		if( depthFunc != o.depthFunc ) return false;
+		if( stencilEnable != o.stencilEnable ) return false;
+		if( stencilReadMask != o.stencilReadMask ) return false;
+		if( stencilWriteMask != o.stencilWriteMask ) return false;
+		if( stencilFrontFailOp != o.stencilFrontFailOp ) return false;
+		if( stencilFrontDepthFailOp != o.stencilFrontDepthFailOp ) return false;
+		if( stencilFrontPassOp != o.stencilFrontPassOp ) return false;
+		if( stencilFrontFunc != o.stencilFrontFunc ) return false;
+		if( stencilBackFailOp != o.stencilBackFailOp ) return false;
+		if( stencilBackDepthFailOp != o.stencilBackDepthFailOp ) return false;
+		if( stencilBackPassOp != o.stencilBackPassOp ) return false;
+		if( stencilBackFunc != o.stencilBackFunc ) return false;
+		if( depthBias != o.depthBias ) return false;
+		if( slopeDepthBias != o.slopeDepthBias ) return false;
+		if( depthBiasClamp != o.depthBiasClamp ) return false;
+		if( blendFactor != o.blendFactor ) return false;
+		
+		int count = separateBlend ? SGRX_RS_MAX_RENDER_TARGETS : 1;
+		for( int i = 0; i < count; ++i )
+		{
+			if( !( blendStates[ i ] == o.blendStates[ i ] ) )
+				return false;
+		}
+		return true;
+	}
+	
+	Hash getHash() const
+	{
+		Hash out = 0x12345678;
+		
+		out ^= wireFill << 0;
+		out ^= cullMode << 1;
+		out ^= separateBlend << 3;
+		out ^= scissorEnable << 4;
+		out ^= multisampleEnable << 5;
+		
+		out ^= depthEnable << 6;
+		out ^= depthWriteEnable << 7;
+		out ^= depthFunc << 8;
+		out ^= stencilEnable << 11;
+		out ^= stencilReadMask << 12;
+		out ^= stencilWriteMask << 20;
+		out ^= stencilFrontFailOp << 28;
+		out ^= stencilFrontDepthFailOp << 0;
+		out ^= stencilFrontPassOp << 3;
+		out ^= stencilFrontFunc << 6;
+		out ^= stencilBackFailOp << 9;
+		out ^= stencilBackDepthFailOp << 12;
+		out ^= stencilBackPassOp << 15;
+		out ^= stencilBackFunc << 18;
+		
+		out ^= HashVar( depthBias );
+		out ^= HashVar( slopeDepthBias );
+		out ^= HashVar( depthBiasClamp );
+		
+		int count = separateBlend ? SGRX_RS_MAX_RENDER_TARGETS : 1;
+		for( int i = 0; i < count; ++i )
+		{
+			out ^= blendStates[ i ].getHash() << i;
+		}
+		
+		return out;
+	}
 };
+inline Hash HashVar( const SGRX_RenderState& state ){ return state.getHash(); }
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderState : SGRX_RCRsrc
 {
@@ -598,41 +708,32 @@ struct SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
 
 #define MFL_UNLIT    0x01
 #define MFL_NOCULL   0x02
+#define MFL_DECAL    0x04
 #define MBM_NONE     0
 #define MBM_BASIC    1 // alpha blending
 #define MBM_ADDITIVE 2
 #define MBM_MULTIPLY 3
 
 #define NUM_MATERIAL_TEXTURES 8
-struct SGRX_Material : SGRX_RCRsrc
+struct SGRX_Material
 {
-	ENGINE_EXPORT SGRX_Material();
-	ENGINE_EXPORT ~SGRX_Material();
+	ENGINE_EXPORT void Finalize();
 	
 	SurfaceShaderHandle shader;
 	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
 	
 	uint8_t flags;
 	uint8_t blendMode;
-};
-
-struct MaterialHandle : Handle< SGRX_Material >
-{
-	MaterialHandle() : Handle(){}
-	MaterialHandle( const MaterialHandle& h ) : Handle( h ){}
-	MaterialHandle( SGRX_Material* shdr ) : Handle( shdr ){}
+	
+	// cached objects
+	Array< RenderStateHandle > m_renderStates;
 };
 
 struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
 {
 	virtual ~IMeshRaycast(){}
-	virtual void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL ) = 0;
+	virtual void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi = NULL ) = 0;
 };
-
-struct SGRX_Mesh;
-struct SGRX_MeshInstance;
-struct SGRX_Light;
-struct SGRX_Scene;
 
 #define INDEX_16 0
 #define INDEX_32 1
@@ -655,7 +756,7 @@ struct SGRX_MeshPart
 	uint32_t vertexCount;
 	uint32_t indexOffset;
 	uint32_t indexCount;
-	MaterialHandle material;
+	SGRX_Material material;
 };
 
 struct SGRX_MeshBone
@@ -737,9 +838,9 @@ struct MeshHandle : Handle< SGRX_IMesh >
 	MeshHandle( struct SGRX_IMesh* mesh ) : Handle( mesh ){}
 };
 
-struct SGRX_MeshInstLight
+struct SGRX_DrawItemLight
 {
-	SGRX_MeshInstance* MI;
+	SGRX_DrawItem* DI;
 	SGRX_Light* L;
 };
 
@@ -787,8 +888,8 @@ struct SGRX_Light : SGRX_RCXFItem
 	Mat4 viewProjMatrix;
 	
 	/* frame cache */
-	SGRX_MeshInstLight* _mibuf_begin;
-	SGRX_MeshInstLight* _mibuf_end;
+	SGRX_DrawItemLight* _dibuf_begin;
+	SGRX_DrawItemLight* _dibuf_end;
 };
 
 struct LightHandle : Handle< SGRX_Light >
@@ -851,6 +952,18 @@ struct SGRX_DefaultCullScene : SGRX_CullScene
 };
 
 
+struct SGRX_DrawItem
+{
+	ENGINE_EXPORT SGRX_DrawItem();
+	
+	SGRX_MeshInstance* MI;
+	uint32_t part;
+	
+	/* frame cache */
+	SGRX_DrawItemLight* _lightbuf_begin;
+	SGRX_DrawItemLight* _lightbuf_end;
+};
+
 struct SGRX_MeshInstance : SGRX_RCXFItem
 {
 	ENGINE_EXPORT SGRX_MeshInstance( SGRX_Scene* s );
@@ -868,10 +981,6 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	uint32_t enabled : 1;
 	uint32_t cpuskin : 1; /* TODO */
 	uint32_t dynamic : 1;
-	uint32_t decal : 1;
-	uint32_t transparent : 1;
-	uint32_t unlit : 1;
-//	uint32_t additive : 1;
 	uint8_t sortidx;
 	
 	TextureHandle textures[ MAX_MI_TEXTURES ];
@@ -879,9 +988,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	
 	Array< Mat4 > skin_matrices;
 	
-	/* frame cache */
-	SGRX_MeshInstLight* _lightbuf_begin;
-	SGRX_MeshInstLight* _lightbuf_end;
+	Array< SGRX_DrawItem > m_drawItems;
 };
 
 struct MeshInstHandle : Handle< SGRX_MeshInstance >
@@ -1323,8 +1430,7 @@ ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int f
 ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
 ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
 ENGINE_EXPORT SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name );
-ENGINE_EXPORT MaterialHandle GR_CreateMaterial();
-ENGINE_EXPORT RenderStateHandle GR_CreateRenderState( const SGRX_RenderState& state );
+ENGINE_EXPORT RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state );
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 ENGINE_EXPORT MeshHandle GR_CreateMesh();
 ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );

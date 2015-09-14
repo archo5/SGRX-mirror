@@ -704,10 +704,14 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 				m_level->LightMesh( MI );
 			}
 			
-			if( MID.m_flags & LM_MESHINST_DECAL )
+			if( ( MID.m_flags & LM_MESHINST_DECAL ) != 0 && MI->mesh )
 			{
-				MI->decal = true;
-				MI->transparent = true;
+				for( size_t i = 0; i < MI->mesh->m_meshParts.size(); ++i )
+				{
+					SGRX_MeshPart& MP = MI->mesh->m_meshParts[ i ];
+					MP.material.flags |= MFL_DECAL;
+					MP.material.blendMode = MBM_BASIC;
+				}
 				MI->sortidx = MID.m_decalLayer;
 			}
 			
@@ -915,7 +919,6 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 		GR_GetTexture( decal_falloff_tex ) );
 	m_bulletDecalSys.SetSize( 48 * 1024 * 10 ); // random size
 	m_bulletDecalMesh = scene->CreateMeshInstance();
-	m_bulletDecalMesh->decal = true;
 	m_bulletDecalMesh->sortidx = 202;
 	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
 	m_bulletDecalMesh->textures[0] = GR_GetTexture( "textures/white.png" );
@@ -926,7 +929,6 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 		GR_GetTexture( decal_falloff_tex ) );
 	m_bloodDecalSys.SetSize( 48 * 1024 * 10 ); // random size
 	m_bloodDecalMesh = scene->CreateMeshInstance();
-	m_bloodDecalMesh->decal = true;
 	m_bloodDecalMesh->sortidx = 201;
 	m_bloodDecalMesh->mesh = m_bloodDecalSys.m_mesh;
 	m_bloodDecalMesh->textures[0] = GR_GetTexture( "textures/white.png" );
@@ -1011,8 +1013,7 @@ struct DmgSys_GenBlood : IProcessor
 		SGRX_CAST( SGRX_MeshInstance*, MI, data );
 		if( MI->mesh == NULL ||
 			MI->raycastOverride ||
-			MI->skin_matrices.size() ||
-			MI->decal )
+			MI->skin_matrices.size() )
 			return;
 		SGRX_CAST( SGRX_MeshInstUserData*, mii, MI->userData );
 		if( mii && mii->ovrDecalSysOverride )
@@ -1111,12 +1112,11 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 					if( HIT.partID >= 0 && HIT.partID < (int) mesh->m_meshParts.size() )
 					{
 						SGRX_MeshPart& MP = mesh->m_meshParts[ HIT.partID ];
-						if( MP.material &&
-							MP.material->textures[0] &&
-							( MP.material->blendMode == MBM_NONE ||
-							MP.material->blendMode == MBM_BASIC ) )
+						if( MP.material.textures[0] &&
+							( MP.material.blendMode == MBM_NONE ||
+							MP.material.blendMode == MBM_BASIC ) )
 						{
-							decalType = MP.material->textures[0]->m_key;
+							decalType = MP.material.textures[0]->m_key;
 						//	printf("%s\n", StackString<256>(decalType).str);
 						}
 					}
@@ -1240,6 +1240,7 @@ void CSCoverInfo::Clear()
 
 bool CSCoverInfo::GetPosition( Vec3 position, float distpow, Vec3& out )
 {
+	return false;
 }
 
 void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )

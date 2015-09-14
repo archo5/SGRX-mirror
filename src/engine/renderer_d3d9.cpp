@@ -612,17 +612,12 @@ void D3D9Renderer::Destroy()
 			LOG << "> " << M->m_key << " (" << M->m_meshParts.size() << " parts)";
 			for( size_t p = 0; p < M->m_meshParts.size(); ++p )
 			{
-				SGRX_Material* MTL = M->m_meshParts[ p ].material;
-				if( MTL )
-				{
-					SGRX_ITexture* TEX = MTL->textures[ 0 ];
-					if( TEX )
-						LOG << "Part " << p << " texture 0: " << TEX->m_key;
-					else
-						LOG << "Part " << p << " - material has no texture";
-				}
+				SGRX_Material& MTL = M->m_meshParts[ p ].material;
+				SGRX_ITexture* TEX = MTL.textures[ 0 ];
+				if( TEX )
+					LOG << "Part " << p << " texture 0: " << TEX->m_key;
 				else
-					LOG << "Part " << p << " - no material";
+					LOG << "Part " << p << " - material has no texture";
 			}
 		}
 	}
@@ -1839,10 +1834,6 @@ void D3D9Renderer::_RS_Render_Shadows()
 				
 				D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 				
-				/* if (transparent & want solid) or (solid & want transparent), skip */
-				if( MI->transparent || MI->decal )
-					continue;
-				
 				MI_ApplyConstants( MI );
 				
 				m_world_view.Multiply( MI->matrix, L->viewMatrix );
@@ -1856,14 +1847,12 @@ void D3D9Renderer::_RS_Render_Shadows()
 				for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
 				{
 					SGRX_MeshPart* MP = &M->m_meshParts[ part_id ];
-					SGRX_Material* MTL = MP->material;
-					if( !MTL )
-						continue;
-					SGRX_SurfaceShader* SSH = MTL->shader;
+					SGRX_Material& MTL = MP.material;
+					SGRX_SurfaceShader* SSH = MTL.shader;
 					if( !SSH )
 						continue;
 					
-					if( MTL->blendMode )
+					if( MTL.blendMode )
 						continue;
 					
 					SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
@@ -1879,9 +1868,9 @@ void D3D9Renderer::_RS_Render_Shadows()
 					SetVertexShader( VSH );
 					SetPixelShader( SHD );
 					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
-						SetTexture( tex_id, MTL->textures[ tex_id ] );
+						SetTexture( tex_id, MTL.textures[ tex_id ] );
 					
-					m_dev->SetRenderState( D3DRS_CULLMODE, MTL->flags & MFL_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
+					m_dev->SetRenderState( D3DRS_CULLMODE, MTL.flags & MFL_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 					
 					m_dev->DrawIndexedPrimitive(
 						M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
@@ -1976,10 +1965,6 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 		if( !M->m_vertexDecl )
 			continue;
 		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
-		
-		/* if (fully transparent & want solid), skip */
-		if( MI->transparent && mtl_type > 0 )
-			continue;
 		
 		/* dynamic meshes */
 		if( ( MI->dynamic && obj_type > 0 ) || ( !MI->dynamic && obj_type < 0 ) )
@@ -2120,14 +2105,12 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
 			{
 				SGRX_MeshPart* MP = &M->m_meshParts[ part_id ];
-				SGRX_Material* MTL = MP->material;
-				if( !MTL )
-					continue;
-				SGRX_SurfaceShader* SSH = MTL->shader;
+				SGRX_Material& MTL = MP.material;
+				SGRX_SurfaceShader* SSH = MTL.shader;
 				if( !SSH )
 					continue;
 				
-				bool transparent = MI->transparent || MTL->blendMode != 0;
+				bool transparent = MTL.blendMode != MBM_NONE;
 				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 					continue;
 				
@@ -2141,15 +2124,15 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				if( MP->indexCount < 3 )
 					continue;
 				
-				m_dev->SetRenderState( D3DRS_CULLMODE, MTL->flags & MFL_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
+				m_dev->SetRenderState( D3DRS_CULLMODE, MTL.flags & MFL_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 				m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & (RPF_LIGHTOVERLAY|RPF_DECALS) ) || transparent ) == false );
 				m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
-				if( ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->blendMode == MBM_ADDITIVE )
+				if( ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL.blendMode == MBM_ADDITIVE )
 				{
 					m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
 					m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
 				}
-				else if( MTL->blendMode == MBM_MULTIPLY )
+				else if( MTL.blendMode == MBM_MULTIPLY )
 				{
 					m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_ZERO );
 					m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR );
@@ -2163,7 +2146,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				SetVertexShader( VSH );
 				SetPixelShader( SHD );
 				for( size_t tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
-					SetTexture( tex_id, MTL->textures[ tex_id ] );
+					SetTexture( tex_id, MTL.textures[ tex_id ] );
 				
 				m_dev->DrawIndexedPrimitive(
 					M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,

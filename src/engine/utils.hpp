@@ -1899,6 +1899,8 @@ inline Hash HashVar( int32_t v ){ return v; }
 inline Hash HashVar( uint32_t v ){ return v; }
 inline Hash HashVar( int64_t v ){ return (Hash) v; }
 inline Hash HashVar( uint64_t v ){ return (Hash) v; }
+inline Hash HashVar( float v ){ Hash out; memcpy( &out, &v, sizeof(out) ); return out; }
+inline Hash HashVar( double v ){ Hash out; memcpy( &out, &v, sizeof(out) ); return out; }
 inline Hash HashVar( void* v ){ return (Hash) v; }
 inline Hash HashVar( const String& s ){ return HashFunc( s.m_data, s.m_size ); }
 inline Hash HashVar( const StringView& sv ){ return HashFunc( sv.m_str, sv.m_size ); }

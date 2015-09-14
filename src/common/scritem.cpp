@@ -407,7 +407,6 @@ void SGRX_ScriptedItem::DSCreate( StringView texDmgDecalPath,
 	m_dmgDecalSysMI->mesh = m_dmgDecalSys->m_mesh;
 	m_dmgDecalSysMI->matrix = m_transform;
 	m_dmgDecalSysMI->dynamic = 1;
-	m_dmgDecalSysMI->decal = 1;
 	
 	dmgDecalSysOverride = m_dmgDecalSys;
 	
@@ -420,7 +419,6 @@ void SGRX_ScriptedItem::DSCreate( StringView texDmgDecalPath,
 	m_ovrDecalSysMI->mesh = m_ovrDecalSys->m_mesh;
 	m_ovrDecalSysMI->matrix = m_transform;
 	m_ovrDecalSysMI->dynamic = 1;
-	m_ovrDecalSysMI->decal = 1;
 	
 	ovrDecalSysOverride = m_ovrDecalSys;
 }

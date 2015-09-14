@@ -1597,10 +1597,8 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 	{
 		m_inputLayouts[i].Reset();
 		
-		SGRX_Material* MTL = m_meshParts[ i ].material.item;
-		if( !MTL )
-			continue;
-		SGRX_SurfaceShader* SSH = MTL->shader;
+		SGRX_Material& MTL = m_meshParts[ i ].material;
+		SGRX_SurfaceShader* SSH = MTL.shader;
 		if( !SSH )
 			continue;
 		
@@ -1834,10 +1832,6 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 		if( !M->m_vertexDecl )
 			continue;
 		
-		/* if (fully transparent & want solid), skip */
-		if( MI->transparent && mtl_type > 0 )
-			continue;
-		
 		/* dynamic meshes */
 		if( ( MI->dynamic && obj_type > 0 ) || ( !MI->dynamic && obj_type < 0 ) )
 			continue;
@@ -1994,14 +1988,12 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 			for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
 			{
 				SGRX_MeshPart* MP = &M->m_meshParts[ part_id ];
-				SGRX_Material* MTL = MP->material;
-				if( !MTL )
-					continue;
-				SGRX_SurfaceShader* SSH = MTL->shader;
+				SGRX_Material& MTL = MP->material;
+				SGRX_SurfaceShader* SSH = MTL.shader;
 				if( !SSH )
 					continue;
 				
-				bool transparent = MI->transparent || MTL->blendMode != 0;
+				bool transparent = MTL.blendMode != MBM_NONE;
 				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 					continue;
 				
@@ -2012,14 +2004,14 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 				
 			//	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent ) == false );
 			//	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
-			//	m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL->additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
+			//	m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL.additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
 				
 				SetVertexShader( MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ part_id ] : SSH->m_basicVertexShaders[ part_id ] );
 				SetPixelShader( SSH->m_pixelShaders[ part_id ] );
 				
 				for( int i = 0; i < NUM_MATERIAL_TEXTURES; ++i )
 				{
-					D3D11Texture* tex = (D3D11Texture*) MTL->textures[ i ].item;
+					D3D11Texture* tex = (D3D11Texture*) MTL.textures[ i ].item;
 					srvs[ i ] = ( tex ? tex : m_defaultTexture )->m_rsrcView;
 					smps[ i ] = ( tex ? tex : m_defaultTexture )->m_sampState;
 				}
