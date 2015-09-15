@@ -189,7 +189,7 @@ struct LightCount
 	int numSL;
 };
 
-LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, int maxPL, int maxSL,
+ENGINE_EXPORT LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, int maxPL, int maxSL,
 	PointLightData* outPL, SpotLightDataPS* outSL_PS, SpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT );
 
 

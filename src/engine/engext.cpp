@@ -689,6 +689,7 @@ void SGRX_DecalSystem::Init( TextureHandle texDecal, TextureHandle texFalloff )
 	m_vertexDecl = GR_GetVertexDecl( SGRX_VDECL_DECAL );
 	m_mesh = GR_CreateMesh();
 	m_material = SGRX_Material(); // TODO: pass loaded material when there is something to load
+	m_material.flags = MFL_DECAL;
 	m_material.blendMode = MBM_BASIC;
 	m_material.shader = GR_GetSurfaceShader( "decal" );
 	m_material.textures[0] = texDecal;

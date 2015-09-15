@@ -711,6 +711,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 					SGRX_MeshPart& MP = MI->mesh->m_meshParts[ i ];
 					MP.material.flags |= MFL_DECAL;
 					MP.material.blendMode = MBM_BASIC;
+					MP.material.Finalize();
 				}
 				MI->sortidx = MID.m_decalLayer;
 			}

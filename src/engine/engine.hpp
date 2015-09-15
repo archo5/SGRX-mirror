@@ -505,8 +505,8 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 		memset( this, 0, sizeof(*this) );
 		depthEnable = 1;
 		depthWriteEnable = 1;
-		depthFunc = SGRX_RS_DepthComp_Less;
-		depthFunc = 0;
+		depthFunc = SGRX_RS_DepthComp_LessEqual;
+		multisampleEnable = 1;
 		slopeDepthBias = 0;
 		depthBiasClamp = 0;
 		stencilReadMask = 0xff;
@@ -515,6 +515,10 @@ struct SGRX_RenderState // 68 bytes (aligned to 80?)
 		for( int i = 0; i < SGRX_RS_MAX_RENDER_TARGETS; ++i )
 		{
 			blendStates[ i ].colorWrite = SGRX_RS_ColorWrite_All;
+			blendStates[ i ].srcBlend = SGRX_RS_Blend_SrcAlpha;
+			blendStates[ i ].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
+			blendStates[ i ].srcBlendAlpha = SGRX_RS_Blend_SrcAlpha;
+			blendStates[ i ].dstBlendAlpha = SGRX_RS_Blend_InvSrcAlpha;
 		}
 	}
 	

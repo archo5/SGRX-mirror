@@ -83,20 +83,7 @@ static void _ss_reset_states( IDirect3DDevice9* dev, int w, int h )
 	dev->SetTextureStageState( 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
 	dev->SetTextureStageState( 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE );
 	dev->SetRenderState( D3DRS_LIGHTING, 0 );
-	dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
-	dev->SetRenderState( D3DRS_ZENABLE, 0 );
-	dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
 	dev->SetRenderState( D3DRS_SEPARATEALPHABLENDENABLE, 1 );
-	dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-	{
-//		float wm[ 16 ] = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1 };
-//		float vm[ 16 ] = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 100,  0, 0, 0, 1 };
-//		float pm[ 16 ] = { 2.0f/(float)w, 0, 0, 0,  0, 2.0f/(float)h, 0, 0,  0, 0, 1.0f/999.0f, 1.0f/-999.0f,  0, 0, 0, 1 };
-//		dev->SetTransform( D3DTS_WORLD, (D3DMATRIX*) wm );
-//		dev->SetTransform( D3DTS_VIEW, (D3DMATRIX*) vm );
-//		dev->SetTransform( D3DTS_PROJECTION, (D3DMATRIX*) pm );
-	}
 }
 
 
@@ -340,8 +327,6 @@ static const char* postproc_init( IDirect3DDevice9* dev, RTData* D, int w, int h
 		
 		hr = dev->CreateDepthStencilSurface( w, h, D3DFMT_D24S8, msaa, 0, TRUE, &D->RTSD_MSAA, NULL );
 		if( FAILED( hr ) || !D->RTSD_MSAA ) return "failed to create d24s8 depth+stencil surface (fs,11,aa,7)";
-		
-		dev->SetRenderState( D3DRS_MULTISAMPLEANTIALIAS, TRUE );
 	}
 	
 	return NULL;
@@ -402,7 +387,7 @@ RendererInfo g_D3D9RendererInfo =
 
 struct D3D9Renderer : IRenderer
 {
-	D3D9Renderer() : m_dbg_rt( false ){ m_world.SetIdentity(); m_view.SetIdentity(); m_crs.Init(); }
+	D3D9Renderer() : m_dbg_rt( false ){ m_world.SetIdentity(); m_view.SetIdentity(); m_crs.InitOpposite(); }
 	void Destroy();
 	const RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
 	bool LoadInternalResources();
@@ -443,11 +428,11 @@ struct D3D9Renderer : IRenderer
 	bool ResetDevice();
 	void ResetViewport();
 	void _SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags );
-	void SetTexture( int slot, SGRX_ITexture* tex );
-	void SetVertexShader( SGRX_IVertexShader* shd );
-	void SetPixelShader( SGRX_IPixelShader* shd );
-	void SetRenderState( SGRX_RenderState& nrs );
-	void SetRenderState( SGRX_IRenderState* rsi );
+	void SetTexture( int slot, const SGRX_ITexture* tex );
+	void SetVertexShader( const SGRX_IVertexShader* shd );
+	void SetPixelShader( const SGRX_IPixelShader* shd );
+	void SetRenderState( const SGRX_RenderState& nrs );
+	void SetRenderState( const SGRX_IRenderState* rsi );
 	
 	FINLINE void VS_SetVec4Array( int at, const Vec4* arr, int size ){ m_dev->SetVertexShaderConstantF( at, &arr->x, size ); }
 	FINLINE void VS_SetVec4Array( int at, const float* arr, int size ){ m_dev->SetVertexShaderConstantF( at, arr, size ); }
@@ -566,6 +551,10 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	R->m_dev = d3ddev;
 	R->m_params = d3dpp;
 	R->m_currSettings = settings;
+	
+	SGRX_RenderState rs;
+	rs.Init();
+	R->SetRenderState( rs ); // assume m_crs is initialized in the opposite way
 	
 	if( FAILED( R->m_dev->GetRenderTarget( 0, &R->m_backbuf ) ) )
 	{
@@ -1454,6 +1443,13 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 
 void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
 {
+	SGRX_RenderState rs;
+	rs.Init();
+	rs.depthEnable = false;
+	rs.cullMode = SGRX_RS_CullMode_None;
+	rs.blendStates[0].blendEnable = true;
+	SetRenderState( rs );
+	
 	SetVertexShader( m_sh_bv_vs );
 	SetPixelShader( shd ? shd : m_sh_bv_ps );
 	VS_SetMat4( 0, m_world );
@@ -1594,10 +1590,6 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	// CULLING
 	_RS_PreProcess( m_currentScene );
 	
-	// RENDERING BEGINS
-	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
-	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, 1 );
-	
 	// RENDER SHADOWS
 	m_dev->SetRenderTarget( 1, NULL );
 	m_dev->SetRenderTarget( 2, NULL );
@@ -1618,8 +1610,6 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		m_dev->SetRenderTarget( 2, RTOUT.DS );
 		m_dev->SetDepthStencilSurface( RTOUT.DSS );
 	}
-	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	
 	Viewport_Apply( 1 );
 	
@@ -1679,23 +1669,24 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		else if( pass.type == RPT_LIGHTVOLS ) _RS_RenderPass_LightVols( tx_depth, RTOUT );
 	}
 	
-	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
-	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
-	
 	if( RS->postdraw )
 	{
 		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE ); // TODO HACK!!!
-		m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
 		RS->postdraw->PostDraw();
 		GR2D_GetBatchRenderer().Flush().Reset();
 		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	}
 	
 	// POST-PROCESSING
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
-	
 	if( m_enablePostProcessing )
 	{
+		SGRX_RenderState rs;
+		rs.Init();
+		rs.depthEnable = false;
+		rs.multisampleEnable = false;
+		rs.blendStates[0].blendEnable = false;
+		SetRenderState( rs );
+		
 		uint32_t pptexflags = TEXTURE_FLAGS_FULLSCREEN;
 		
 		postproc_resolve( m_dev, &m_drd );
@@ -1763,10 +1754,6 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	// RENDERING ENDS
 	SetVertexShader( m_sh_bv_vs );
 	_SetTextureInt( 0, NULL, 0 );
-	
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
-	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	
 	if( !m_currentRT )
 	{
@@ -1845,29 +1832,19 @@ void D3D9Renderer::_RS_Render_Shadows()
 				{
 					const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
 					const SGRX_Material& MTL = MP.material;
-					SGRX_SurfaceShader* SSH = MTL.shader;
-					if( !SSH )
-						continue;
-					
 					if( MTL.blendMode )
 						continue;
 					
-					SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
-					if( !VSH )
-						continue;
-					SGRX_IPixelShader* SHD = SSH->m_pixelShaders[ pass_id ];
-					if( !SHD )
-						continue;
+					const SGRX_SurfaceShader* SSH = MTL.shader;
+					const SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
+					const SGRX_IPixelShader* SHD = SSH->m_pixelShaders[ pass_id ];
+					const SGRX_IRenderState* RS = MTL.m_renderStates[ pass_id ];
 					
-					if( MP.indexCount < 3 )
-						continue;
-					
+					SetRenderState( RS );
 					SetVertexShader( VSH );
 					SetPixelShader( SHD );
 					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
 						SetTexture( tex_id, MTL.textures[ tex_id ] );
-					
-					m_dev->SetRenderState( D3DRS_CULLMODE, MTL.flags & MFL_NOCULL ? D3DCULL_NONE : D3DCULL_CCW );
 					
 					m_dev->DrawIndexedPrimitive(
 						M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
@@ -1896,11 +1873,15 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 	VS_SetMat4( 0, camViewProj );
 	VS_SetMat4( 8, Mat4::Identity );
 	
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
-	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
-	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, FALSE );
-	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( -1e-5f ) );
+	SGRX_RenderState rs;
+	rs.Init();
+	rs.blendStates[0].blendEnable = true;
+	rs.blendStates[0].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
+	rs.depthBias = -1e-5f;
+	rs.depthWriteEnable = false;
+	rs.cullMode = SGRX_RS_CullMode_None;
+	SetRenderState( rs );
+	
 	m_dev->SetVertexDeclaration( VD->m_vdecl );
 	m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
 	m_dev->SetIndices( M->m_IB );
@@ -1928,9 +1909,6 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 		m_stats.numDrawCalls++;
 		m_stats.numSDrawCalls++;
 	}
-	
-	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, TRUE );
-	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( 0 ) );
 }
 
 void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )
@@ -1938,8 +1916,6 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 	int obj_type = !!( PASS.flags & RPF_OBJ_STATIC ) - !!( PASS.flags & RPF_OBJ_DYNAMIC );
 	int mtl_type = !!( PASS.flags & RPF_MTL_SOLID ) - !!( PASS.flags & RPF_MTL_TRANSPARENT );
 	bool draw_decals = !!( PASS.flags & RPF_DECALS );
-	
-	m_dev->SetRenderState( D3DRS_DEPTHBIAS, F2DW( draw_decals ? -1e-5f : 0 ) );
 	
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	
@@ -1953,19 +1929,8 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 		if( ( MI->dynamic && obj_type > 0 ) || ( !MI->dynamic && obj_type < 0 ) )
 			continue;
 		
-		// PER-INSTANCE DATA
-		for( int i = 0; i < MAX_MI_TEXTURES; ++i )
-			SetTexture( 8 + i, MI->textures[ i ] );
-		MI_ApplyConstants( MI );
-		
 		Mat4 m_world_view;
 		m_world_view.Multiply( MI->matrix, CAM.mView );
-		VS_SetMat4( 0, m_world_view );
-		VS_SetMat4( 8, MI->matrix );
-		
-		m_dev->SetVertexDeclaration( VD->m_vdecl );
-		m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
-		m_dev->SetIndices( M->m_IB );
 		
 		for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
 		{
@@ -1974,17 +1939,30 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 			const SGRX_Material& MTL = MP.material;
 			if( MP.CanDraw( pass_id ) == false )
 				continue;
-			if( ( MTL.flags & MFL_DECAL ) != draw_decals )
+			if( ( ( MTL.flags & MFL_DECAL ) != 0 ) != draw_decals )
 				continue;
 			bool transparent = MTL.blendMode != MBM_NONE;
 			if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
 				continue;
 			
-			SGRX_SurfaceShader* SSH = MTL.shader;
-			SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
-			SGRX_IPixelShader* PSH = SSH->m_pixelShaders[ pass_id ];
-			SGRX_IRenderState* RS = MTL.m_renderStates[ pass_id ];
+			const SGRX_SurfaceShader* SSH = MTL.shader;
+			const SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
+			const SGRX_IPixelShader* PSH = SSH->m_pixelShaders[ pass_id ];
+			const SGRX_IRenderState* RS = MTL.m_renderStates[ pass_id ];
 			
+			// instance state
+			for( int i = 0; i < MAX_MI_TEXTURES; ++i )
+				SetTexture( 8 + i, MI->textures[ i ] );
+			MI_ApplyConstants( MI );
+			
+			VS_SetMat4( 0, m_world_view );
+			VS_SetMat4( 8, MI->matrix );
+			
+			m_dev->SetVertexDeclaration( VD->m_vdecl );
+			m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
+			m_dev->SetIndices( M->m_IB );
+			
+			// part state
 			SetRenderState( RS );
 			SetVertexShader( VSH );
 			SetPixelShader( PSH );
@@ -2007,7 +1985,7 @@ void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pa
 				
 				if( LC.numPL )
 				{
-					PS_SetVec4Array( 56, (Vec4*) PLData, sizeof(PLData) / sizeof(Vec4) * LC.numPL );
+					PS_SetVec4Array( 56, (Vec4*) PLData, 2 * LC.numPL );
 				}
 				if( LC.numSL )
 				{
@@ -2040,14 +2018,16 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pa
 	UNUSED( pass );
 	const SGRX_Camera& CAM = m_currentScene->camera;
 	
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
-	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
+	SGRX_RenderState rs;
+	rs.Init();
+	rs.blendStates[0].blendEnable = true;
+	rs.depthEnable = false;
+	rs.cullMode = SGRX_RS_CullMode_None;
+	SetRenderState( rs );
+	
 	m_dev->SetRenderTarget( 1, NULL );
 	m_dev->SetRenderTarget( 2, NULL );
 	m_dev->SetDepthStencilSurface( NULL );
-	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
 	
 	_SetTextureInt( 0, tx_depth, TEXTURE_FLAGS_FULLSCREEN );
 	SetTexture( 4, m_currentScene->skyTexture );
@@ -2071,8 +2051,6 @@ void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pa
 	}
 	
 	Viewport_Apply( 1 );
-	
-	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
 }
 
 void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
@@ -2081,12 +2059,14 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 	Mat4 vpmtx;
 	vpmtx.Multiply( CAM.mView, CAM.mProj );
 	
-#if 1
-	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
-	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+	SGRX_RenderState rs;
+	rs.Init();
+	rs.blendStates[0].blendEnable = true;
+	rs.blendStates[0].dstBlend = SGRX_RS_Blend_One;
+	rs.depthEnable = false;
+	rs.cullMode = SGRX_RS_CullMode_None;
+	SetRenderState( rs );
+	
 	m_dev->SetRenderTarget( 1, NULL );
 	m_dev->SetRenderTarget( 2, NULL );
 	m_dev->SetDepthStencilSurface( NULL );
@@ -2173,64 +2153,6 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 	}
 	
 	Viewport_Apply( 1 );
-	
-	m_dev->SetRenderState( D3DRS_ZENABLE, 1 );
-#else
-	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
-	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, FALSE );
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
-	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-	
-	SetVertexShader( VSH );
-	SetPixelShader( SHD );
-	
-	for( size_t light_id = 0; light_id < m_currentScene->m_lights.size(); ++light_id )
-	{
-		SGRX_Light* L = m_currentScene->m_lights.item( light_id ).key;
-		if( !L->enabled ||
-			L->type != LIGHT_SPOT || // only spotlights are currently supported
-			!L->hasShadows || // they need to have shadows
-			!L->shadowTexture ||
-			!L->shadowTexture->m_isRenderTexture )
-			continue;
-		
-		Vec3 volpts[8]; // last 4 points are from the far end
-		L->GetVolumePoints( volpts );
-		
-#define MAX_LVOL_PLANES 256
-		Vec4 planes[ MAX_LVOL_PLANES ];
-		int planecount = 0;
-		
-		Vec3 slantdir = ( CAM.position - L->_tf_position );
-		slantdir -= slantdir * Vec3Dot( slantdir, CAM.direction ) * 0.5f;
-		slantdir.Normalize();
-		float plane_density = 0.1f;
-		
-		Vec3 ldir = L->_tf_direction.Normalized();
-		Vec3 startpos = L->_tf_position;
-		for( int i = 0; i < MAX_LVOL_PLANES; ++i )
-		{
-			Vec4 plane = V4( slantdir, Vec3Dot( slantdir, startpos ) );
-			
-			// assume plane always has similar orientation to light direction
-			// test if plane is outside the volume
-			if( Vec3Dot( plane.ToVec3(), volpts[4] ) < plane.w &&
-				Vec3Dot( plane.ToVec3(), volpts[5] ) < plane.w &&
-				Vec3Dot( plane.ToVec3(), volpts[6] ) < plane.w &&
-				Vec3Dot( plane.ToVec3(), volpts[7] ) < plane.w )
-				break;
-			
-			// process the plane
-			planes[ i ] = plane;
-			planecount++;
-			
-			// advance
-			float curdist = ( L->_tf_position - startpos ).Length();
-			startpos += ldir * ( ( L->_tf_range + curdist ) * plane_density );
-		}
-	}
-#endif
 }
 
 void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
@@ -2250,12 +2172,7 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	br._RecalcMatrices();
 	SetTexture( 0, NULL );
 	
-	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
-	m_dev->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
 	m_dev->SetDepthStencilSurface( test_dss );
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 1 );
-	m_dev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 	
 	m_dev->SetTexture( 0, NULL );
 	debugDraw->DebugDraw();
@@ -2263,9 +2180,7 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	
 //	VS_SetMat4( 0, m_world );
 //	VS_SetMat4( 4, m_view );
-	m_dev->SetRenderState( D3DRS_ZENABLE, 0 );
 	m_dev->SetDepthStencilSurface( orig_dss );
-	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, 0 );
 	
 	br.worldMatrix = m_world = origWorld;
 	br.viewMatrix = m_view = origView;
@@ -2277,8 +2192,6 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 
 void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_location )
 {
-	m_dev->SetRenderState( D3DRS_MULTISAMPLEANTIALIAS, 0 );
-	
 	/* assuming these are validated: */
 	SGRX_Scene* scene = m_currentScene;
 	const SGRX_Camera& CAM = scene->camera;
@@ -2320,8 +2233,6 @@ void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_locati
 	
 	m_stats.numDrawCalls++;
 	m_stats.numPDrawCalls++;
-	
-	m_dev->SetRenderState( D3DRS_MULTISAMPLEANTIALIAS, 1 );
 }
 
 
@@ -2415,7 +2326,7 @@ void D3D9Renderer::_SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_
 	}
 }
 
-void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
+void D3D9Renderer::SetTexture( int slot, const SGRX_ITexture* tex )
 {
 	SGRX_CAST( D3D9Texture*, T, tex ); 
 	if( T )
@@ -2424,21 +2335,26 @@ void D3D9Renderer::SetTexture( int slot, SGRX_ITexture* tex )
 		_SetTextureInt( slot, NULL, 0 );
 }
 
-void D3D9Renderer::SetVertexShader( SGRX_IVertexShader* shd )
+void D3D9Renderer::SetVertexShader( const SGRX_IVertexShader* shd )
 {
 	ASSERT( shd );
-	SGRX_CAST( D3D9VertexShader*, S, shd );
+	SGRX_CAST( const D3D9VertexShader*, S, shd );
 	m_dev->SetVertexShader( S->m_VS );
 }
 
-void D3D9Renderer::SetPixelShader( SGRX_IPixelShader* shd )
+void D3D9Renderer::SetPixelShader( const SGRX_IPixelShader* shd )
 {
 	ASSERT( shd );
-	SGRX_CAST( D3D9PixelShader*, S, shd );
+	SGRX_CAST( const D3D9PixelShader*, S, shd );
 	m_dev->SetPixelShader( S->m_PS );
 }
 
-void D3D9Renderer::SetRenderState( SGRX_RenderState& nrs )
+static D3DCOLOR V4toD3DCOLOR( const Vec4& v )
+{
+	return D3DCOLOR_ARGB( COLOR_F2B( v.w ), COLOR_F2B( v.x ), COLOR_F2B( v.y ), COLOR_F2B( v.z ) );
+}
+
+void D3D9Renderer::SetRenderState( const SGRX_RenderState& nrs )
 {
 	static const D3DFILLMODE fillModes[2] = { D3DFILL_SOLID, D3DFILL_WIREFRAME };
 	static const D3DCULL cullModes[4] = { D3DCULL_NONE, D3DCULL_CCW, D3DCULL_CW, /**/ D3DCULL_NONE };
@@ -2520,9 +2436,10 @@ void D3D9Renderer::SetRenderState( SGRX_RenderState& nrs )
 	RENDER_STATE_TABLE( blendStates[0].blendOpAlpha, D3DRS_BLENDOPALPHA, blendOps );
 	RENDER_STATE_TABLE( blendStates[0].srcBlendAlpha, D3DRS_SRCBLENDALPHA, blendFactors );
 	RENDER_STATE_TABLE( blendStates[0].dstBlendAlpha, D3DRS_DESTBLENDALPHA, blendFactors );
+	RENDER_STATE_VALUE( blendFactor, D3DRS_BLENDFACTOR, V4toD3DCOLOR( nrs.blendFactor ) );
 }
 
-void D3D9Renderer::SetRenderState( SGRX_IRenderState* rsi )
+void D3D9Renderer::SetRenderState( const SGRX_IRenderState* rsi )
 {
 	ASSERT( rsi );
 	SetRenderState( rsi->m_info );

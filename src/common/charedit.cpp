@@ -11,7 +11,7 @@
 struct EDGUIMainFrame* g_UIFrame;
 PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
-MaterialHandle g_FloorMeshMtl;
+SGRX_Material g_FloorMeshMtl;
 MeshInstHandle g_FloorMeshInst;
 PhyRigidBodyHandle g_FloorBody;
 struct EDGUIMeshPicker* g_UIMeshPicker;
@@ -2859,9 +2859,9 @@ struct CSEditor : IGame
 		g_UIFrame = new EDGUIMainFrame();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
-		g_FloorMeshMtl = GR_CreateMaterial();
-		g_FloorMeshMtl->shader = GR_GetSurfaceShader( "default" );
-		g_FloorMeshMtl->textures[ 0 ] = GR_GetTexture( "textures/unit.png" );
+		g_FloorMeshMtl.shader = GR_GetSurfaceShader( "default" );
+		g_FloorMeshMtl.textures[ 0 ] = GR_GetTexture( "textures/unit.png" );
+		g_FloorMeshMtl.Finalize();
 		g_FloorMeshInst = g_EdScene->CreateMeshInstance();
 		g_FloorMeshInst->mesh = GR_CreateMesh();
 		lmm_prepmeshinst( g_FloorMeshInst );
@@ -2906,7 +2906,7 @@ struct CSEditor : IGame
 		g_UIFrame = NULL;
 		delete g_AnimChar;
 		g_FloorMeshInst = NULL;
-		g_FloorMeshMtl = NULL;
+		g_FloorMeshMtl = SGRX_Material();
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
 		g_PhyWorld = NULL;

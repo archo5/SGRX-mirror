@@ -1146,7 +1146,7 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 				InvalidateLightsByMI( M.meshInst );
 		}
 		M.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
-		M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
+	//	M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0; -- UNSUPPOTED
 		LightMesh( M.meshInst, LGC_MESH_LMID( id ) );
 	}
 }
@@ -1178,8 +1178,8 @@ void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
 	S.lmsize = V2(0);
 	S.meshInst = g_EdScene->CreateMeshInstance();
 	S.meshInst->mesh = GR_CreateMesh();
-	S.material = GR_CreateMaterial();
-	S.material->shader = GR_GetSurfaceShader( "default" );
+	S.material.shader = GR_GetSurfaceShader( "default" );
+	S.material.Finalize();
 	m_surfaces.set( id, S );
 	CreateLightmap( LGC_SURF_LMID( id ) );
 	UpdateSurface( id, LGC_CHANGE_ALL, info );
@@ -1250,8 +1250,9 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			{
 				char bfr[ 256 ];
 				sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
-				S.material->textures[0] = GR_GetTexture( bfr );
+				S.material.textures[0] = GR_GetTexture( bfr );
 			}
+			S.material.Finalize();
 		}
 	}
 	if( changes & LGC_SURF_CHANGE_SOLID )
@@ -1290,8 +1291,10 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 				InvalidateLightsByMI( S.meshInst );
 		}
 		S.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
-		S.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
-		S.material->blendMode = S.meshInst->decal ? MBM_BASIC : MBM_NONE;
+		bool decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
+		S.material.flags = decal ? MFL_DECAL : 0;
+		S.material.blendMode = decal ? MBM_BASIC : MBM_NONE;
+		S.material.Finalize();
 		LightMesh( S.meshInst, LGC_SURF_LMID( id ) );
 	}
 	S.meshInst->enabled = S.mtlname.size() != 0 && S.vertices.size() != 0 && S.indices.size() != 0;
