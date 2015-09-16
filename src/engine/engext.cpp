@@ -187,8 +187,8 @@ void AnimRagdoll::EnablePhysics( const Mat4& worldMatrix )
 		return;
 	m_enabled = true;
 	
-	Mat4 prev_boneToWorldMatrices[ MAX_MESH_BONES ];
-	Mat4 curr_boneToWorldMatrices[ MAX_MESH_BONES ];
+	Mat4 prev_boneToWorldMatrices[ SGRX_MAX_MESH_BONES ];
+	Mat4 curr_boneToWorldMatrices[ SGRX_MAX_MESH_BONES ];
 	SGRX_MeshBone* MB = m_mesh->m_bones;
 	for( size_t i = 0; i < m_bones.size(); ++i )
 	{
@@ -675,7 +675,7 @@ void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCa
 
 
 
-SGRX_DecalSystem::SGRX_DecalSystem() : m_lightSampler(NULL), m_ownMatrix(NULL), m_vbSize(0)
+SGRX_DecalSystem::SGRX_DecalSystem() : m_lightSampler(NULL), m_vbSize(0)
 {
 }
 
@@ -684,29 +684,39 @@ SGRX_DecalSystem::~SGRX_DecalSystem()
 	Free();
 }
 
-void SGRX_DecalSystem::Init( TextureHandle texDecal, TextureHandle texFalloff )
+void SGRX_DecalSystem::Init( SceneHandle scene, TextureHandle texDecal, TextureHandle texFalloff )
 {
 	m_vertexDecl = GR_GetVertexDecl( SGRX_VDECL_DECAL );
 	m_mesh = GR_CreateMesh();
-	m_material = SGRX_Material(); // TODO: pass loaded material when there is something to load
-	m_material.flags = MFL_DECAL;
-	m_material.blendMode = MBM_BASIC;
-	m_material.shader = GR_GetSurfaceShader( "decal" );
-	m_material.textures[0] = texDecal;
-	m_material.textures[1] = texFalloff;
-	m_material.Finalize();
+	
+	m_meshInst = scene->CreateMeshInstance();
+	m_meshInst->mesh = m_mesh;
+	SGRX_Material mtl; // TODO: pass loaded material when there is something to load
+	mtl.flags = SGRX_MtlFlag_Decal;
+	mtl.blendMode = SGRX_MtlBlend_Basic;
+	mtl.shader = "default";
+	mtl.textures[0] = texDecal;
+	mtl.textures[1] = texFalloff;
+	m_meshInst->materials.assign( &mtl, 1 );
+	m_meshInst->SetLightingMode( SGRX_LM_Decal );
 }
 
 void SGRX_DecalSystem::Free()
 {
 	ClearAllDecals();
 	m_mesh = NULL;
+	m_meshInst = NULL;
 	m_vbSize = 0;
 }
 
 void SGRX_DecalSystem::SetSize( uint32_t vbSize )
 {
 	m_vbSize = vbSize;
+}
+
+void SGRX_DecalSystem::SetDynamic( bool dynamic )
+{
+	m_meshInst->SetLightingMode( dynamic ? SGRX_LM_Dynamic : SGRX_LM_Decal );
 }
 
 void SGRX_DecalSystem::Upload()
@@ -739,7 +749,7 @@ void SGRX_DecalSystem::Upload()
 		m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl, true );
 		m_mesh->SetIndexData( m_indexData.data(), m_indexData.size_bytes(), true );
 	}
-	SGRX_MeshPart mp = { 0, m_vertexData.size() / sizeof(SGRX_Vertex_Decal), 0, m_indexData.size(), m_material };
+	SGRX_MeshPart mp = { 0, m_vertexData.size() / sizeof(SGRX_Vertex_Decal), 0, m_indexData.size() };
 	m_mesh->SetPartData( &mp, 1 );
 }
 
@@ -827,11 +837,11 @@ void SGRX_DecalSystem::_ScaleDecalTexcoords( const DecalProjectionInfo& projInfo
 
 void SGRX_DecalSystem::_InvTransformDecals( size_t vbfrom )
 {
-	if( m_ownMatrix == NULL )
+	if( m_meshInst->GetLightingMode() == SGRX_LM_Decal )
 		return;
 	
 	Mat4 inv = Mat4::Identity;
-	m_ownMatrix->InvertTo( inv );
+	m_meshInst->matrix.InvertTo( inv );
 	
 	SGRX_CAST( SGRX_Vertex_Decal*, vdata, m_vertexData.data() );
 	SGRX_Vertex_Decal* vdend = vdata + m_vertexData.size() / sizeof(SGRX_Vertex_Decal);

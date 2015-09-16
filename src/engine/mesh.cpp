@@ -282,7 +282,7 @@ const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out )
 		if( off >= size )
 			return "mesh incomplete (missing bone data)";
 		out->numBones = (uint8_t) buf[ off++ ];
-		if( out->numBones > MAX_MESH_BONES )
+		if( out->numBones > SGRX_MAX_MESH_BONES )
 			return "invalid bone count";
 		for( b = 0; b < out->numBones; ++b )
 		{

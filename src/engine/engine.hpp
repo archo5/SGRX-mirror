@@ -15,6 +15,9 @@ struct SDL_Event;
 #include "utils.hpp"
 
 
+#define SGRX_MAX_TEXTURES 16
+
+
 struct SGRX_Mesh;
 struct SGRX_DrawItem;
 struct SGRX_MeshInstance;
@@ -131,6 +134,24 @@ ENGINE_EXPORT void Game_End();
 #define TEXFLAGS_CLAMP_X 0x10
 #define TEXFLAGS_CLAMP_Y 0x20
 
+#define SGRX_CF_Color 0x1
+#define SGRX_CF_Depth 0x2
+#define SGRX_CF_Stencil 0x4
+#define SGRX_CF_ALL 0x7
+
+#define SGRX_RT_NONE uint16_t(-1)
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
+{
+	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTarget( uint16_t id,
+		uint8_t clearflags, uint8_t clearStencil, uint32_t clearColor, float clearDepth,
+		uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1 ) = 0;
+	ENGINE_EXPORT virtual void RenderShadows( uint8_t pass ) = 0;
+	ENGINE_EXPORT virtual void RenderTypes( uint8_t pass, int maxrepeat, bool solid, bool decal, bool transparent ) = 0;
+	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] ) = 0;
+};
+
 struct IF_GCC(ENGINE_EXPORT) IGame
 {
 	virtual bool OnConfigure( int argc, char** argv ){ return true; }
@@ -139,7 +160,8 @@ struct IF_GCC(ENGINE_EXPORT) IGame
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
-	ENGINE_EXPORT virtual void OnMakeRenderState( const struct SGRX_RenderPass& pass, const struct SGRX_Material& mtl, struct SGRX_RenderState& out );
+	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_Scene* scene );
+//	ENGINE_EXPORT virtual void OnMakeRenderState( const struct SGRX_RenderPass& pass, const SGRX_Material& mtl, struct SGRX_RenderState& out );
 	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
 	ENGINE_EXPORT virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
@@ -309,8 +331,10 @@ struct ENGINE_EXPORT RenderStats
 #define TEXFORMAT_DXT5   15
 #define TEXFORMAT_ISBLOCK4FORMAT( x ) ((x)==TEXFORMAT_DXT1||(x)==TEXFORMAT_DXT3||(x)==TEXFORMAT_DXT5)
 
-#define RT_FORMAT_BACKBUFFER 0x10000
-#define RT_FORMAT_DEPTH      0x10001
+#define RT_FORMAT_DEPTH       0x4000
+#define RT_FORMAT_COLOR_HDR16 0x4001 // 16bit unlimited color range
+#define RT_FORMAT_COLOR_LDR8  0x4002 // 8bit [0;1] color range
+#define RT_FORMAT_USE_MSAA    0x8000
 
 struct TextureInfo /* 16 bytes */
 {
@@ -648,7 +672,6 @@ struct RenderStateHandle : Handle< SGRX_IRenderState >
 #define VDECLUSAGE_TEXTURE3 9
 
 #define SHADER_NAME_LENGTH 64
-#define MAX_NUM_PASSES     16
 #define MAX_MI_TEXTURES    4
 #define MAX_MI_CONSTANTS   16
 
@@ -705,56 +728,17 @@ struct VertexDeclHandle : Handle< SGRX_IVertexDecl >
 	ENGINE_EXPORT const VDeclInfo& GetInfo();
 };
 
-struct SGRX_SurfaceShader : SGRX_RCRsrc
-{
-	ENGINE_EXPORT ~SGRX_SurfaceShader();
-	
-	ENGINE_EXPORT void ReloadShaders();
-	
-	FINLINE bool IsValid( int i ) const
-	{
-		return m_basicVertexShaders[ i ] && m_skinVertexShaders[ i ] && m_pixelShaders[ i ];
-	}
-	
-	Array< VertexShaderHandle > m_basicVertexShaders;
-	Array< VertexShaderHandle > m_skinVertexShaders;
-	Array< PixelShaderHandle > m_pixelShaders;
-};
 
-struct SurfaceShaderHandle : Handle< SGRX_SurfaceShader >
-{
-	SurfaceShaderHandle() : Handle(){}
-	SurfaceShaderHandle( const SurfaceShaderHandle& h ) : Handle( h ){}
-	SurfaceShaderHandle( SGRX_SurfaceShader* shdr ) : Handle( shdr ){}
-};
 
-#define MFL_UNLIT    0x01
-#define MFL_NOCULL   0x02
-#define MFL_DECAL    0x04
-#define MBM_NONE     0
-#define MBM_BASIC    1 // alpha blending
-#define MBM_ADDITIVE 2
-#define MBM_MULTIPLY 3
+#define SGRX_MtlFlag_Unlit    0x01
+#define SGRX_MtlFlag_Nocull   0x02
+#define SGRX_MtlFlag_Decal    0x04 // depth offset, changed drawing order
+#define SGRX_MtlBlend_None     0
+#define SGRX_MtlBlend_Basic    1 // alpha blending
+#define SGRX_MtlBlend_Additive 2
+#define SGRX_MtlBlend_Multiply 3
 
-#define NUM_MATERIAL_TEXTURES 8
-struct SGRX_Material
-{
-	ENGINE_EXPORT void Finalize();
-	
-	FINLINE bool IsValid( int i ) const
-	{
-		return shader && shader->IsValid( i ) && i < int(m_renderStates.size()) && m_renderStates[ i ];
-	}
-	
-	SurfaceShaderHandle shader;
-	TextureHandle textures[ NUM_MATERIAL_TEXTURES ];
-	
-	uint8_t flags;
-	uint8_t blendMode;
-	
-	// cached objects
-	Array< RenderStateHandle > m_renderStates;
-};
+
 
 struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
 {
@@ -775,7 +759,8 @@ struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
 #define MDF__PUBFLAGMASK (0x01|0x02|0x80|0x100)
 #define MDF__PUBFLAGBASE  0
 
-#define MAX_MESH_BONES 64
+#define SGRX_MAX_MESH_TEXTURES 8
+#define SGRX_MAX_MESH_BONES 64
 
 struct SGRX_MeshPart
 {
@@ -783,11 +768,15 @@ struct SGRX_MeshPart
 	uint32_t vertexCount;
 	uint32_t indexOffset;
 	uint32_t indexCount;
-	SGRX_Material material;
+	
+	String shader;
+	String textures[ SGRX_MAX_MESH_TEXTURES ];
+	uint8_t mtlFlags;
+	uint8_t mtlBlendMode;
 	
 	FINLINE bool CanDraw( int i ) const
 	{
-		return indexCount >= 3 && material.IsValid( i );
+		return indexCount >= 3;
 	}
 };
 
@@ -856,7 +845,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	uint32_t m_indexCount;
 	uint32_t m_indexDataSize;
 	Array< SGRX_MeshPart > m_meshParts;
-	SGRX_MeshBone m_bones[ MAX_MESH_BONES ];
+	SGRX_MeshBone m_bones[ SGRX_MAX_MESH_BONES ];
 	int m_numBones;
 	
 	/* collision detection */
@@ -912,7 +901,7 @@ struct SGRX_Light : SGRX_RCXFItem
 	bool hasShadows;
 	uint32_t layers;
 	PixelShaderHandle projectionShader;
-	TextureHandle projectionTextures[ NUM_MATERIAL_TEXTURES ];
+	TextureHandle projectionTextures[ SGRX_MAX_TEXTURES ];
 	Mat4 matrix;
 	
 	// cache
@@ -1001,6 +990,32 @@ struct SGRX_DrawItem
 	SGRX_DrawItemLight* _lightbuf_end;
 };
 
+enum SGRX_LightingMode
+{
+	SGRX_LM_Unlit = 0, // no lighting at all
+	SGRX_LM_Static, // lightmaps
+	SGRX_LM_Dynamic, // constants
+	SGRX_LM_Decal, // lighting from vertex data
+};
+
+struct SGRX_Material
+{
+	ENGINE_EXPORT SGRX_Material();
+	
+	String shader;
+	TextureHandle textures[ SGRX_MAX_TEXTURES ];
+	
+	uint8_t flags;
+	uint8_t blendMode;
+};
+
+struct SGRX_SRSData
+{
+	VertexShaderHandle VS;
+	PixelShaderHandle PS;
+	RenderStateHandle RS;
+};
+
 struct SGRX_MeshInstance : SGRX_RCXFItem
 {
 	ENGINE_EXPORT SGRX_MeshInstance( SGRX_Scene* s );
@@ -1012,6 +1027,36 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 		return enabled && mesh && mesh->IsValid();
 	}
 	
+	FINLINE void OnUpdate(){ m_invalid = true; }
+	FINLINE void SetAllMtlFlags( uint8_t add, uint8_t rem = 0xff )
+	{
+		for( size_t i = 0; i < materials.size(); ++i )
+		{
+			uint8_t& flags = materials[ i ].flags;
+			flags = ( flags & ~rem ) | add;
+		}
+		OnUpdate();
+	}
+	FINLINE void SetAllBlendModes( uint8_t bm )
+	{
+		for( size_t i = 0; i < materials.size(); ++i )
+			materials[ i ].blendMode = bm;
+		OnUpdate();
+	}
+	FINLINE void SetMITexture( int i, TextureHandle tex )
+	{
+		ASSERT( i >= 0 && i < 4 );
+		for( size_t mid = 0; mid < materials.size(); ++mid )
+			materials[ mid ].textures[ 8 + i ] = tex;
+		OnUpdate();
+	}
+	FINLINE void SetLightingMode( SGRX_LightingMode lm )
+	{
+		m_lightingMode = lm;
+		OnUpdate();
+	}
+	FINLINE SGRX_LightingMode GetLightingMode() const { return m_lightingMode; }
+	
 	SGRX_Scene* _scene;
 	
 	MeshHandle mesh;
@@ -1019,18 +1064,21 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	void* userData;
 	Mat4 matrix;
 	Vec4 color;
+	SGRX_LightingMode m_lightingMode;
 	uint32_t layers;
 	uint32_t enabled : 1;
-	uint32_t cpuskin : 1; /* TODO */
-	uint32_t dynamic : 1;
+	uint32_t allowStaticDecals : 1;
+//	uint32_t dynamic : 1;
 	uint8_t sortidx;
 	
-	TextureHandle textures[ MAX_MI_TEXTURES ];
 	Vec4 constants[ MAX_MI_CONSTANTS ];
 	
 	Array< Mat4 > skin_matrices;
+	Array< SGRX_Material > materials;
 	
-	Array< SGRX_DrawItem > m_drawItems;
+	bool m_invalid;
+	Array< SGRX_DrawItem > m_drawItems; // =*pass
+	Array< SGRX_SRSData > m_srsData; // =*part*pass
 };
 
 struct MeshInstHandle : Handle< SGRX_MeshInstance >
@@ -1119,10 +1167,21 @@ struct IF_GCC(ENGINE_EXPORT) SceneRaycastCallback_Sorting : SceneRaycastCallback
 	Array< SceneRaycastInfo >* m_sortarea;
 };
 
+struct SGRX_RenderPass
+{
+	bool isShadowPass;
+	bool isBasePass;
+	uint8_t numPL;
+	uint8_t numSL;
+	StringView shader;
+	StringView defines;
+};
+
 struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 {
 	ENGINE_EXPORT SGRX_Scene();
 	ENGINE_EXPORT virtual ~SGRX_Scene();
+	ENGINE_EXPORT void SetRenderPasses( SGRX_RenderPass* passes, int count );
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
 	ENGINE_EXPORT LightHandle CreateLight();
 	
@@ -1139,6 +1198,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;
+	Array< SGRX_RenderPass > m_passes;
+	bool m_invalid;
 	
 	SGRX_CullScene* cullScene;
 	SGRX_Camera camera;
@@ -1257,34 +1318,6 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LightTreeSampler : SGRX_LightSampler
 {
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] );
 	SGRX_LightTree* m_lightTree;
-};
-
-/* render pass constants */
-#define RPT_OBJECT     1
-#define RPT_SCREEN     2
-#define RPT_SHADOWS    3
-#define RPT_PROJECTORS 4
-#define RPT_LIGHTVOLS  5
-
-#define RPF_OBJ_STATIC      0x01
-#define RPF_OBJ_DYNAMIC     0x02
-#define RPF_OBJ_ALL        (RPF_OBJ_STATIC|RPF_OBJ_DYNAMIC)
-#define RPF_MTL_SOLID       0x04
-#define RPF_MTL_TRANSPARENT 0x08
-#define RPF_MTL_ALL        (RPF_MTL_SOLID|RPF_MTL_TRANSPARENT)
-#define RPF_CALC_DIRAMB     0x10
-#define RPF_LIGHTOVERLAY    0x20
-#define RPF_DECALS          0x40
-#define RPF_ENABLED         0x80
-
-struct SGRX_RenderPass
-{
-	uint8_t type;
-	uint8_t flags;
-	int16_t maxruns;
-	uint16_t pointlight_count;
-	uint8_t spotlight_count;
-	StringView shader_name;
 };
 
 enum EPrimitiveType
@@ -1471,14 +1504,12 @@ ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
 ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
 ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
-ENGINE_EXPORT SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name );
 ENGINE_EXPORT RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state );
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 ENGINE_EXPORT MeshHandle GR_CreateMesh();
 ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );
 
 ENGINE_EXPORT SceneHandle GR_CreateScene();
-ENGINE_EXPORT bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count );
 ENGINE_EXPORT void GR_RenderScene( SGRX_RenderScene& info );
 ENGINE_EXPORT RenderStats& GR_GetRenderStats();
 

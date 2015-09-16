@@ -51,7 +51,6 @@ typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
 typedef HashTable< StringView, SGRX_IVertexShader* > VertexShaderHashTable;
 typedef HashTable< StringView, SGRX_IPixelShader* > PixelShaderHashTable;
 typedef HashTable< SGRX_RenderState, SGRX_IRenderState* > RenderStateHashTable;
-typedef HashTable< StringView, SGRX_SurfaceShader* > SurfShaderHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
@@ -90,7 +89,6 @@ static TextureHashTable* g_Textures = NULL;
 static VertexShaderHashTable* g_VertexShaders = NULL;
 static PixelShaderHashTable* g_PixelShaders = NULL;
 static RenderStateHashTable* g_RenderStates = NULL;
-static SurfShaderHashTable* g_SurfShaders = NULL;
 static VertexDeclHashTable* g_VertexDecls = NULL;
 static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
@@ -496,6 +494,27 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 	if( flags.contains( ":mips" ) ) outusageflags |= TEXFLAGS_HASMIPS;
 }
 
+void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_Scene* scene )
+{
+#define RT_MAIN 0
+	
+	int W = GR_GetWidth();
+	int H = GR_GetHeight();
+	
+	UNUSED( scene );
+	ctrl->PrepRenderTarget( RT_MAIN, W, H, RT_FORMAT_COLOR_HDR16 );
+	ctrl->RenderShadows( 0 );
+	ctrl->SetRenderTarget( RT_MAIN, SGRX_CF_ALL, 0, 0, 1, 0, 0, W, H );
+	ctrl->RenderTypes( 1, 1, true, false, false );
+	ctrl->RenderTypes( 3, 4, true, false, false );
+	ctrl->RenderTypes( 1, 1, false, true, false );
+	ctrl->RenderTypes( 3, 4, false, true, false );
+	ctrl->RenderTypes( 1, 1, false, false, true );
+	ctrl->RenderTypes( 3, 4, false, false, true );
+	ctrl->SetRenderTarget( SGRX_RT_NONE, SGRX_CF_ALL, 0, 0, 1, 0, 0, W, H );
+}
+
+#if 0
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
 {
 	out.cullMode = mtl.flags & MFL_NOCULL ? SGRX_RS_CullMode_None : SGRX_RS_CullMode_Back;
@@ -503,14 +522,14 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 	if( pass.type == RPT_OBJECT )
 	{
 		out.depthBias = pass.flags & RPF_DECALS ? -1e-5f : 0;
-		out.depthWriteEnable = ( ( pass.flags & (RPF_LIGHTOVERLAY|RPF_DECALS) ) || mtl.blendMode != MBM_NONE ) == false;
-		out.blendStates[ 0 ].blendEnable = ( pass.flags & RPF_LIGHTOVERLAY ) || mtl.blendMode != MBM_NONE;
-		if( ( pass.flags & RPF_LIGHTOVERLAY ) || mtl.blendMode == MBM_ADDITIVE )
+		out.depthWriteEnable = ( ( pass.flags & (RPF_LIGHTOVERLAY|RPF_DECALS) ) || mtl.blendMode != SGRX_MtlBlend_None ) == false;
+		out.blendStates[ 0 ].blendEnable = ( pass.flags & RPF_LIGHTOVERLAY ) || mtl.blendMode != SGRX_MtlBlend_None;
+		if( ( pass.flags & RPF_LIGHTOVERLAY ) || mtl.blendMode == SGRX_MtlBlend_Additive )
 		{
 			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_SrcAlpha;
 			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_One;
 		}
-		else if( mtl.blendMode == MBM_MULTIPLY )
+		else if( mtl.blendMode == SGRX_MtlBlend_Multiply )
 		{
 			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_Zero;
 			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_SrcColor;
@@ -522,6 +541,7 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 		}
 	}
 }
+#endif
 
 bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags )
 {
@@ -1093,69 +1113,6 @@ void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factor
 }
 
 
-SGRX_SurfaceShader::~SGRX_SurfaceShader()
-{
-	g_SurfShaders->unset( m_key );
-}
-
-void SGRX_SurfaceShader::ReloadShaders()
-{
-	LOG_FUNCTION;
-	
-	// prevent deallocation
-	Array< VertexShaderHandle > newshaders_vb;
-	Array< VertexShaderHandle > newshaders_vs;
-	Array< PixelShaderHandle > newshaders_px;
-	newshaders_vb.resize( g_Renderer->m_renderPasses.size() );
-	newshaders_vs.resize( g_Renderer->m_renderPasses.size() );
-	newshaders_px.resize( g_Renderer->m_renderPasses.size() );
-	
-	for( size_t pass_id = 0; pass_id < g_Renderer->m_renderPasses.size(); ++pass_id )
-	{
-		const SGRX_RenderPass& PASS = g_Renderer->m_renderPasses[ pass_id ];
-		if( PASS.type != RPT_SHADOWS && PASS.type != RPT_OBJECT )
-			continue;
-		
-		char bfr[ 1000 ] = {0};
-		sgrx_snprintf( bfr, sizeof(bfr), "mtl:%.*s:%.*s", (int) m_key.size(), m_key.data(), (int) PASS.shader_name.size(), PASS.shader_name.data() );
-		if( PASS.flags & RPF_OBJ_DYNAMIC )
-			strcat( bfr, ":DYNAMIC" );
-		if( PASS.flags & RPF_OBJ_STATIC )
-			strcat( bfr, ":STATIC" );
-		if( PASS.flags & RPF_DECALS )
-			strcat( bfr, ":DECALS" );
-		newshaders_px[ pass_id ] = GR_GetPixelShader( bfr );
-		newshaders_vb[ pass_id ] = GR_GetVertexShader( bfr );
-		strcat( bfr, ":SKIN" );
-		newshaders_vs[ pass_id ] = GR_GetVertexShader( bfr );
-	}
-	
-	m_basicVertexShaders = newshaders_vb;
-	m_skinVertexShaders = newshaders_vs;
-	m_pixelShaders = newshaders_px;
-}
-
-
-void SGRX_Material::Finalize()
-{
-	Array< RenderStateHandle > newstates;
-	newstates.resize( g_Renderer->m_renderPasses.size() );
-	
-	for( size_t pass_id = 0; pass_id < g_Renderer->m_renderPasses.size(); ++pass_id )
-	{
-		const SGRX_RenderPass& pass = g_Renderer->m_renderPasses[ pass_id ];
-		if( pass.type != RPT_SHADOWS && pass.type != RPT_OBJECT )
-			continue;
-		
-		SGRX_RenderState state;
-		state.Init();
-		g_Game->OnMakeRenderState( pass, *this, state );
-		newstates[ pass_id ] = GR_GetRenderState( state );
-	}
-	
-	m_renderStates = newstates;
-}
-
 
 SGRX_IMesh::SGRX_IMesh() :
 	m_dataFlags( 0 ),
@@ -1184,7 +1141,7 @@ bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
 
 bool SGRX_IMesh::SetBoneData( SGRX_MeshBone* bones, int count )
 {
-	if( count < 0 || count > MAX_MESH_BONES )
+	if( count < 0 || count > SGRX_MAX_MESH_BONES )
 		return false;
 	int i;
 	for( i = 0; i < count; ++i )
@@ -1212,7 +1169,7 @@ bool SGRX_IMesh::RecalcBoneMatrices()
 		}
 	}
 	
-	Mat4 skinOffsets[ MAX_MESH_BONES ];
+	Mat4 skinOffsets[ SGRX_MAX_MESH_BONES ];
 	for( int b = 0; b < m_numBones; ++b )
 	{
 		if( m_bones[ b ].parent_id >= 0 )
@@ -1273,8 +1230,8 @@ template< class IdxType > void SGRX_IMesh_RaycastAll_Core( SGRX_IMesh* mesh, con
 		{
 			srci->partID = part_id;
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.material.blendMode != MBM_NONE &&
-				MP.material.blendMode != MBM_BASIC )
+			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
+				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
 				continue;
 			
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
@@ -1294,8 +1251,8 @@ template< class IdxType > void SGRX_IMesh_RaycastAll_Core( SGRX_IMesh* mesh, con
 		{
 			srci->partID = part_id;
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.material.blendMode != MBM_NONE &&
-				MP.material.blendMode != MBM_BASIC )
+			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
+				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
 				continue;
 			
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
@@ -1511,8 +1468,8 @@ void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh,
 		for( size_t part_id = fp; part_id < ep; ++part_id )
 		{
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.material.blendMode != MBM_NONE &&
-				MP.material.blendMode != MBM_BASIC )
+			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
+				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
 				continue;
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
@@ -1529,8 +1486,8 @@ void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh,
 		for( size_t part_id = fp; part_id < ep; ++part_id )
 		{
 			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.material.blendMode != MBM_NONE &&
-				MP.material.blendMode != MBM_BASIC )
+			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
+				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
 				continue;
 			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
 			{
@@ -1749,16 +1706,23 @@ SGRX_DrawItem::SGRX_DrawItem() : MI( NULL ), part( 0 ), _lightbuf_begin( NULL ),
 }
 
 
+SGRX_Material::SGRX_Material() : flags(0), blendMode(SGRX_MtlBlend_None)
+{
+}
+
+
 SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
 	raycastOverride( NULL ),
 	userData( NULL ),
 	color( Vec4::Create( 1 ) ),
+	m_lightingMode( SGRX_LM_Dynamic ),
 	layers( 0x1 ),
 	enabled( true ),
-	cpuskin( false ),
-	dynamic( false ),
-	sortidx( 0 )
+	allowStaticDecals( false ),
+//	dynamic( false ),
+	sortidx( 0 ),
+	m_invalid( true )
 {
 	matrix.SetIdentity();
 	for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
@@ -1919,7 +1883,17 @@ void SceneRaycastCallback_Sorting::AddResult( SceneRaycastInfo* info )
 
 
 
+static SGRX_RenderPass g_DefaultRenderPasses[] =
+{
+	// shadow pass
+	{ true, false, 0, 0, "sys_lighting", "" },
+	{ false, true, 32, 0, "sys_lighting", "" },
+	{ false, false, 32, 0, "sys_lighting", "" },
+	{ false, false, 0, 2, "sys_lighting", "" },
+};
+
 SGRX_Scene::SGRX_Scene() :
+	m_invalid( true ),
 	cullScene( NULL ),
 	fogColor( Vec3::Create( 0.5 ) ),
 	fogHeightFactor( 0 ),
@@ -1940,11 +1914,19 @@ SGRX_Scene::SGRX_Scene() :
 	camera.znear = 1;
 	camera.zfar = 1000;
 	camera.UpdateMatrices();
+	
+	SetRenderPasses( g_DefaultRenderPasses, SGRX_ARRAY_SIZE(g_DefaultRenderPasses) );
 }
 
 SGRX_Scene::~SGRX_Scene()
 {
 	LOG << "Deleted scene: " << this;
+}
+
+void SGRX_Scene::SetRenderPasses( SGRX_RenderPass* passes, int count )
+{
+	m_passes.assign( passes, count );
+	m_invalid = true;
 }
 
 MeshInstHandle SGRX_Scene::CreateMeshInstance()
@@ -2048,6 +2030,8 @@ size_t SGRX_SceneTree::FindNodeIDByPath( const StringView& path )
 		StringView curr = it.until( "/" );
 		it.skip( curr.size() + 1 );
 	}
+	UNUSED( rooted ); // TODO
+	UNUSED( pos );
 	return _NormalizeIndex( 0 );
 }
 
@@ -2276,23 +2260,6 @@ has_compiled_shader:
 	return shd;
 }
 
-SurfaceShaderHandle GR_GetSurfaceShader( const StringView& name )
-{
-	LOG_FUNCTION_ARG( name );
-	
-	SGRX_SurfaceShader* ssh = g_SurfShaders->getcopy( name );
-	if( ssh )
-		return ssh;
-	
-	ssh = new SGRX_SurfaceShader;
-	ssh->m_key = name;
-	ssh->ReloadShaders();
-	g_SurfShaders->set( ssh->m_key, ssh );
-	
-	LOG << "Created surface shader: " << name;
-	return ssh;
-}
-
 
 RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state )
 {
@@ -2373,7 +2340,7 @@ MeshHandle GR_GetMesh( const StringView& path )
 		return NULL;
 	}
 	
-	SGRX_MeshBone bones[ MAX_MESH_BONES ];
+	SGRX_MeshBone bones[ SGRX_MAX_MESH_BONES ];
 	for( int i = 0; i < mfd.numBones; ++i )
 	{
 		MeshFileBoneData* mfdb = &mfd.bones[ i ];
@@ -2404,32 +2371,30 @@ MeshHandle GR_GetMesh( const StringView& path )
 	SGRX_MeshPart* parts = mesh->m_meshParts.data();
 	for( int i = 0; i < mfd.numParts; ++i )
 	{
-		parts[ i ].vertexOffset = mfd.parts[ i ].vertexOffset;
-		parts[ i ].vertexCount = mfd.parts[ i ].vertexCount;
-		parts[ i ].indexOffset = mfd.parts[ i ].indexOffset;
-		parts[ i ].indexCount = mfd.parts[ i ].indexCount;
+		SGRX_MeshPart& P = parts[ i ];
+		P.vertexOffset = mfd.parts[ i ].vertexOffset;
+		P.vertexCount = mfd.parts[ i ].vertexCount;
+		P.indexOffset = mfd.parts[ i ].indexOffset;
+		P.indexCount = mfd.parts[ i ].indexCount;
 		
 		StringView mtltext( mfd.parts[ i ].materialStrings[0], mfd.parts[ i ].materialStringSizes[0] );
 		
 		// LOAD MATERIAL
 		//
-		SGRX_Material mh;
-		mh.flags = mfd.parts[ i ].flags;
-		mh.blendMode = mfd.parts[ i ].blendMode;
+		P.mtlFlags = mfd.parts[ i ].flags;
+		P.mtlBlendMode = mfd.parts[ i ].blendMode;
 		if( mfd.parts[ i ].materialStringSizes[0] >= SHADER_NAME_LENGTH )
 		{
 			LOG_WARNING << "Shader name for part " << i << " is too long";
 		}
 		else
 		{
-			mh.shader = GR_GetSurfaceShader( mtltext );
+			P.shader = mtltext;
 		}
 		for( int tid = 0; tid < mfd.parts[ i ].materialTextureCount; ++tid )
 		{
-			mh.textures[ tid ] = GR_GetTexture( StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] ) );
+			P.textures[ tid ] = StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] );
 		}
-		parts[ i ].material = mh;
-		parts[ i ].material.Finalize();
 	}
 	
 	mesh->m_vdata.append( (const uint8_t*) mfd.vertexData, mfd.vertexDataSize );
@@ -2544,19 +2509,6 @@ SceneHandle GR_CreateScene()
 	
 	LOG << "Created scene";
 	return scene;
-}
-
-bool GR_SetRenderPasses( SGRX_RenderPass* passes, int count )
-{
-	LOG_FUNCTION;
-	
-	if( g_Renderer->SetRenderPasses( passes, count ) )
-	{
-		for( size_t i = 0; i < g_SurfShaders->size(); ++i )
-			g_SurfShaders->item( i ).value->ReloadShaders();
-		return true;
-	}
-	return false;
 }
 
 void GR_RenderScene( SGRX_RenderScene& info )
@@ -3018,7 +2970,6 @@ static int init_graphics()
 	g_Textures = new TextureHashTable();
 	g_VertexShaders = new VertexShaderHashTable();
 	g_PixelShaders = new PixelShaderHashTable();
-	g_SurfShaders = new SurfShaderHashTable();
 	g_RenderStates = new RenderStateHashTable();
 	g_VertexDecls = new VertexDeclHashTable();
 	g_Meshes = new MeshHashTable();
@@ -3074,9 +3025,6 @@ static void free_graphics()
 	
 	delete g_RenderStates;
 	g_RenderStates = NULL;
-	
-	delete g_SurfShaders;
-	g_SurfShaders = NULL;
 	
 	delete g_PixelShaders;
 	g_PixelShaders = NULL;

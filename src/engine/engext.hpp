@@ -344,9 +344,10 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_DecalSystem : SGRX_RefCounted
 	ENGINE_EXPORT SGRX_DecalSystem();
 	ENGINE_EXPORT ~SGRX_DecalSystem();
 	
-	ENGINE_EXPORT void Init( TextureHandle texDecal, TextureHandle texFalloff );
+	ENGINE_EXPORT void Init( SceneHandle scene, TextureHandle texDecal, TextureHandle texFalloff );
 	ENGINE_EXPORT void Free();
 	ENGINE_EXPORT void SetSize( uint32_t vbSize );
+	ENGINE_EXPORT void SetDynamic( bool dynamic );
 	
 	ENGINE_EXPORT void Upload();
 	
@@ -360,9 +361,9 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_DecalSystem : SGRX_RefCounted
 	ENGINE_EXPORT void _GenDecalMatrix( const DecalProjectionInfo& projInfo, Mat4* outVPM, float* out_invzn2zf );
 	
 	SGRX_LightSampler* m_lightSampler;
-	Mat4* m_ownMatrix;
 	
 	VertexDeclHandle m_vertexDecl;
+	MeshInstHandle m_meshInst;
 	SGRX_Material m_material;
 	MeshHandle m_mesh;
 	ByteArray m_vertexData;

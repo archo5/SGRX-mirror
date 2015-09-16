@@ -10,7 +10,7 @@
 // nullifies mesh lighting
 inline void lmm_prepmeshinst( MeshInstHandle mih )
 {
-	mih->dynamic = 1;
+	mih->SetLightingMode( SGRX_LM_Dynamic );
 	for( int i = 10; i < 16; ++i )
 		mih->constants[ i ] = V4(0.15f);
 }

@@ -56,7 +56,6 @@ TSCamera::TSCamera(
 	m_animChar.SortEnsureAttachments( atchlist, 3 );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
-	MI->dynamic = 1;
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( scl, rot, pos );
 	m_level->LightMesh( MI );
@@ -253,7 +252,6 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->userData = &m_meshInstInfo;
-	MI->dynamic = 1;
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( V3(1), Quat::Identity, m_ivPos.curr );
 	m_level->LightMesh( MI, V3(1) );

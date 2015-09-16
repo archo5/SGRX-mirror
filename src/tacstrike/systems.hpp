@@ -415,9 +415,7 @@ struct DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 	Array< MtlHandle > m_bulletDecalMaterials;
 	Array< DecalMapPartInfo > m_bulletDecalInfo;
 	SGRX_DecalSystem m_bulletDecalSys;
-	MeshInstHandle m_bulletDecalMesh;
 	SGRX_DecalSystem m_bloodDecalSys;
-	MeshInstHandle m_bloodDecalMesh;
 };
 
 

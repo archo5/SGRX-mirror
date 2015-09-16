@@ -176,10 +176,10 @@ void SGRX_ScriptedItem::PreRender()
 		m_dmgDecalSys->Upload();
 	if( m_ovrDecalSys )
 		m_ovrDecalSys->Upload();
-	if( m_dmgDecalSysMI )
-		m_lightSampler->LightMesh( m_dmgDecalSysMI );
-	if( m_ovrDecalSysMI )
-		m_lightSampler->LightMesh( m_ovrDecalSysMI );
+	if( m_dmgDecalSys )
+		m_lightSampler->LightMesh( m_dmgDecalSys->m_meshInst );
+	if( m_ovrDecalSys )
+		m_lightSampler->LightMesh( m_ovrDecalSys->m_meshInst );
 }
 
 void SGRX_ScriptedItem::EntityEvent( const StringView& type )
@@ -236,10 +236,10 @@ int SGRX_ScriptedItem::_setindex(
 void SGRX_ScriptedItem::SetMatrix( Mat4 mtx )
 {
 	m_transform = mtx;
-	if( m_dmgDecalSysMI )
-		m_dmgDecalSysMI->matrix = mtx;
-	if( m_ovrDecalSysMI )
-		m_ovrDecalSysMI->matrix = mtx;
+	if( m_dmgDecalSys )
+		m_dmgDecalSys->m_meshInst->matrix = mtx;
+	if( m_ovrDecalSys )
+		m_ovrDecalSys->m_meshInst->matrix = mtx;
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
 	{
 		if( m_meshes[ i ] )
@@ -254,7 +254,6 @@ void SGRX_ScriptedItem::MICreate( int i, StringView path )
 	SCRITEM_OFSCHK( i, return );
 	m_meshes[ i ] = m_scene->CreateMeshInstance();
 	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * m_transform;
-	m_meshes[ i ]->dynamic = 1;
 	m_meshes[ i ]->userData = this;
 	if( path )
 		m_meshes[ i ]->mesh = GR_GetMesh( path );
@@ -284,13 +283,6 @@ void SGRX_ScriptedItem::MISetEnabled( int i, bool enabled )
 	SCRITEM_OFSCHK( i, return );
 	SCRITEM_MESHCHK( i, return );
 	m_meshes[ i ]->enabled = enabled;
-}
-
-void SGRX_ScriptedItem::MISetDynamic( int i, bool dynamic )
-{
-	SCRITEM_OFSCHK( i, return );
-	SCRITEM_MESHCHK( i, return );
-	m_meshes[ i ]->dynamic = dynamic;
 }
 
 void SGRX_ScriptedItem::MISetMatrix( int i, Mat4 mtx )
@@ -399,26 +391,16 @@ void SGRX_ScriptedItem::DSCreate( StringView texDmgDecalPath,
 		size = 64*1024;
 	
 	m_dmgDecalSys = new SGRX_DecalSystem;
-	m_dmgDecalSys->Init( GR_GetTexture( texDmgDecalPath ), GR_GetTexture( texFalloffPath ) );
+	m_dmgDecalSys->Init( m_scene, GR_GetTexture( texDmgDecalPath ), GR_GetTexture( texFalloffPath ) );
 	m_dmgDecalSys->SetSize( size );
-	m_dmgDecalSys->m_ownMatrix = &m_transform;
-	
-	m_dmgDecalSysMI = m_scene->CreateMeshInstance();
-	m_dmgDecalSysMI->mesh = m_dmgDecalSys->m_mesh;
-	m_dmgDecalSysMI->matrix = m_transform;
-	m_dmgDecalSysMI->dynamic = 1;
+	m_dmgDecalSys->SetDynamic( true );
 	
 	dmgDecalSysOverride = m_dmgDecalSys;
 	
 	m_ovrDecalSys = new SGRX_DecalSystem;
-	m_ovrDecalSys->Init( GR_GetTexture( texOvrDecalPath ), GR_GetTexture( texFalloffPath ) );
+	m_ovrDecalSys->Init( m_scene, GR_GetTexture( texOvrDecalPath ), GR_GetTexture( texFalloffPath ) );
 	m_ovrDecalSys->SetSize( size );
-	m_ovrDecalSys->m_ownMatrix = &m_transform;
-	
-	m_ovrDecalSysMI = m_scene->CreateMeshInstance();
-	m_ovrDecalSysMI->mesh = m_ovrDecalSys->m_mesh;
-	m_ovrDecalSysMI->matrix = m_transform;
-	m_ovrDecalSysMI->dynamic = 1;
+	m_ovrDecalSys->SetDynamic( true );
 	
 	ovrDecalSysOverride = m_ovrDecalSys;
 }
@@ -426,9 +408,7 @@ void SGRX_ScriptedItem::DSCreate( StringView texDmgDecalPath,
 void SGRX_ScriptedItem::DSDestroy()
 {
 	m_dmgDecalSys = NULL;
-	m_dmgDecalSysMI = NULL;
 	m_ovrDecalSys = NULL;
-	m_ovrDecalSysMI = NULL;
 	dmgDecalSysOverride = NULL;
 	ovrDecalSysOverride = NULL;
 }

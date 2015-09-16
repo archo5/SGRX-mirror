@@ -684,14 +684,16 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 			
 			if( MID.m_lmap.width && MID.m_lmap.height )
 			{
-				MI->textures[0] = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
+				TextureHandle lmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
 					TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
-				MI->textures[0]->UploadRGBA8Part( MID.m_lmap.data.data(),
+				lmtex->UploadRGBA8Part( MID.m_lmap.data.data(),
 					0, 0, 0, MID.m_lmap.width, MID.m_lmap.height );
+				MI->SetMITexture( 0, lmtex );
+				MI->SetLightingMode( SGRX_LM_Static );
+				MI->allowStaticDecals = true;
 			}
 			else
 			{
-				MI->dynamic = true;
 				for( int i = 10; i < 16; ++i )
 					MI->constants[ i ] = V4(0.15f);
 			}
@@ -700,19 +702,14 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 			
 			if( MID.m_flags & LM_MESHINST_DYNLIT )
 			{
-				MI->dynamic = true;
+				MI->SetLightingMode( SGRX_LM_Dynamic );
 				m_level->LightMesh( MI );
 			}
 			
 			if( ( MID.m_flags & LM_MESHINST_DECAL ) != 0 && MI->mesh )
 			{
-				for( size_t i = 0; i < MI->mesh->m_meshParts.size(); ++i )
-				{
-					SGRX_MeshPart& MP = MI->mesh->m_meshParts[ i ];
-					MP.material.flags |= MFL_DECAL;
-					MP.material.blendMode = MBM_BASIC;
-					MP.material.Finalize();
-				}
+				MI->SetAllMtlFlags( SGRX_MtlFlag_Decal, 0 );
+				MI->SetAllBlendModes( SGRX_MtlBlend_Basic );
 				MI->sortidx = MID.m_decalLayer;
 			}
 			
@@ -915,24 +912,18 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 	}
 	
 	m_bulletDecalSys.m_lightSampler = sampler;
-	m_bulletDecalSys.Init(
+	m_bulletDecalSys.Init( scene,
 		GR_GetTexture( decal_base_tex ),
 		GR_GetTexture( decal_falloff_tex ) );
 	m_bulletDecalSys.SetSize( 48 * 1024 * 10 ); // random size
-	m_bulletDecalMesh = scene->CreateMeshInstance();
-	m_bulletDecalMesh->sortidx = 202;
-	m_bulletDecalMesh->mesh = m_bulletDecalSys.m_mesh;
-	m_bulletDecalMesh->textures[0] = GR_GetTexture( "textures/white.png" );
+	m_bulletDecalSys.m_meshInst->sortidx = 202;
 	
 	m_bloodDecalSys.m_lightSampler = sampler;
-	m_bloodDecalSys.Init(
+	m_bloodDecalSys.Init( scene,
 		GR_GetTexture( "textures/particles/blood.png" ),
 		GR_GetTexture( decal_falloff_tex ) );
 	m_bloodDecalSys.SetSize( 48 * 1024 * 10 ); // random size
-	m_bloodDecalMesh = scene->CreateMeshInstance();
-	m_bloodDecalMesh->sortidx = 201;
-	m_bloodDecalMesh->mesh = m_bloodDecalSys.m_mesh;
-	m_bloodDecalMesh->textures[0] = GR_GetTexture( "textures/white.png" );
+	m_bloodDecalSys.m_meshInst->sortidx = 201;
 	
 	LOG << LOG_DATE << "  Damage system initialized successfully";
 	return NULL;
@@ -941,9 +932,7 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 void DamageSystem::Free()
 {
 	m_bulletDecalSys.Free();
-	m_bulletDecalMesh = NULL;
 	m_bloodDecalSys.Free();
-	m_bloodDecalMesh = NULL;
 }
 
 void DamageSystem::Tick( float deltaTime, float blendFactor )
@@ -1022,7 +1011,7 @@ struct DmgSys_GenBlood : IProcessor
 			mii->ovrDecalSysOverride->AddDecal( projInfo, MI->mesh, MI->matrix );
 			return;
 		}
-		if( MI->dynamic )
+		if( MI->GetLightingMode() != SGRX_LM_Static )
 			return;
 		DS->m_bloodDecalSys.AddDecal( projInfo, MI->mesh, MI->matrix );
 	}
@@ -1049,7 +1038,7 @@ void DamageSystem::AddBlood( Vec3 pos, Vec3 dir )
 			gb.DS = this;
 			gb.projInfo = projInfo;
 		}
-		m_bloodDecalMesh->_scene->GatherMeshes( cam, &gb );
+		m_level->GetScene()->GatherMeshes( cam, &gb );
 	}
 }
 
@@ -1113,11 +1102,11 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 					if( HIT.partID >= 0 && HIT.partID < (int) mesh->m_meshParts.size() )
 					{
 						SGRX_MeshPart& MP = mesh->m_meshParts[ HIT.partID ];
-						if( MP.material.textures[0] &&
-							( MP.material.blendMode == MBM_NONE ||
-							MP.material.blendMode == MBM_BASIC ) )
+						if( MP.textures[0].size() &&
+							( MP.mtlBlendMode == SGRX_MtlBlend_None ||
+							MP.mtlBlendMode == SGRX_MtlBlend_Basic ) )
 						{
-							decalType = MP.material.textures[0]->m_key;
+							decalType = MP.textures[0];
 						//	printf("%s\n", StackString<256>(decalType).str);
 						}
 					}
@@ -1126,7 +1115,7 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 				// apply damage to hit point
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
 				SGRX_DecalSystem* dmgDecalSys = mii ? mii->dmgDecalSysOverride : NULL;
-				bool needDecal = ( HIT.meshinst->dynamic == false || dmgDecalSys ) &&
+				bool needDecal = ( HIT.meshinst->allowStaticDecals || dmgDecalSys ) &&
 					HIT.meshinst->skin_matrices.size() == 0;
 				m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
 					needDecal ? HIT.meshinst->mesh : NULL,

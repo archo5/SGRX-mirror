@@ -2740,33 +2740,10 @@ void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 // EDITOR ENTRY POINT
 //
 
-SGRX_RenderPass g_RenderPasses_Main[] =
-{
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_DYNAMIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
-};
-
-SGRX_RenderPass g_RenderPasses_Fullbright[] =
-{
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_ENABLED, 1, 4, 0, "base_fullbright" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_ENABLED, 1, 4, 0, "base_fullbright" },
-	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_ENABLED, 1, 4, 0, "base_fullbright" },
-};
-
 struct TACStrikeEditor : IGame
 {
 	bool OnInitialize()
 	{
-		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
-		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
@@ -2847,11 +2824,13 @@ struct TACStrikeEditor : IGame
 		{
 			if( e.key.keysym.sym == SDLK_F2 )
 			{
-				GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
+				// TODO
+				// GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 			}
 			if( e.key.keysym.sym == SDLK_F3 )
 			{
-				GR_SetRenderPasses( g_RenderPasses_Fullbright, SGRX_ARRAY_SIZE( g_RenderPasses_Fullbright ) );
+				// TODO
+				// GR_SetRenderPasses( g_RenderPasses_Fullbright, SGRX_ARRAY_SIZE( g_RenderPasses_Fullbright ) );
 			}
 			if( e.key.keysym.sym == SDLK_F5 )
 			{

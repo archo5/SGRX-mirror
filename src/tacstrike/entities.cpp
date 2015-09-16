@@ -110,7 +110,6 @@ SlidingDoor::SlidingDoor
 {
 	m_name = name;
 	meshInst = m_level->GetScene()->CreateMeshInstance();
-	meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
@@ -228,7 +227,6 @@ PickupItem::PickupItem( GameLevel* lev, const StringView& name, const StringView
 {
 	m_name = name;
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
-	m_meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
@@ -286,7 +284,6 @@ Actionable::Actionable( GameLevel* lev, const StringView& name, const StringView
 	m_name = name;
 	m_viewName = name;
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
-	m_meshInst->dynamic = 1;
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );

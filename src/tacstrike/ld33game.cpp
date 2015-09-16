@@ -43,22 +43,6 @@ Vec3 g_endcol = V3(1);
 void SetupLevel();
 
 
-SGRX_RenderPass g_RenderPasses_Main[] =
-{
-	{ RPT_SHADOWS, RPF_ENABLED, 1, 0, 0, "shadow" },
-	{ RPT_SCREEN, RPF_ENABLED, 1, 0, 0, "ps_ss_fog" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_DYNAMIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 4, "ext_s4" },
-};
-
-
 
 ActionInput g_i_move_left = ACTINPUT_MAKE_KEY( SDLK_a );
 ActionInput g_i_move_right = ACTINPUT_MAKE_KEY( SDLK_d );
@@ -1677,8 +1661,6 @@ struct OfficeTheftGame : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		
 		g_SoundSys = SND_CreateSystem();
-		
-		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
 		
 		Game_RegisterAction( &MOVE_LEFT );
 		Game_RegisterAction( &MOVE_RIGHT );

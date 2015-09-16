@@ -29,23 +29,6 @@ Command SLOWDOWN_TEST( "slowdown_test" );
 Vec2 CURSOR_POS = V2(0);
 
 
-SGRX_RenderPass g_RenderPasses_Main[] =
-{
-	{ RPT_SHADOWS, RPF_ENABLED, 1, 0, 0, "shadow" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_OBJ_DYNAMIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_DECALS | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
-	{ RPT_PROJECTORS, RPF_ENABLED, 1, 0, 0, "projector" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 4, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_LIGHTOVERLAY | RPF_ENABLED, 100, 0, 2, "ext_s4" },
-//	{ RPT_LIGHTVOLS, RPF_ENABLED, 1, 0, 0, "lightvolume" },
-};
-
-
 
 #define MAX_TICK_SIZE (1.0f/15.0f)
 #define FIXED_TICK_SIZE (1.0f/30.0f)
@@ -65,10 +48,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		GR2D_SetFont( "core", 12 );
 		
 		g_SoundSys = SND_CreateSystem();
-		
-		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
-		
-		GR_GetVertexDecl( "pf3tf2" );
 		
 		Game_RegisterAction( &MOVE_LEFT );
 		Game_RegisterAction( &MOVE_RIGHT );

@@ -430,10 +430,10 @@ void AnimDeformer::Advance( float deltaTime )
 	
 	_UpdatePoseInfo();
 	
-	int count = TMIN( int(m_factors.size()), MAX_MESH_BONES );
-	Vec3 posns[ MAX_MESH_BONES ];
-	Vec3 dirs[ MAX_MESH_BONES ];
-	float dists[ MAX_MESH_BONES ];
+	int count = TMIN( int(m_factors.size()), SGRX_MAX_MESH_BONES );
+	Vec3 posns[ SGRX_MAX_MESH_BONES ];
+	Vec3 dirs[ SGRX_MAX_MESH_BONES ];
+	float dists[ SGRX_MAX_MESH_BONES ];
 	
 	// save joint info
 	for( int i = 0; i < count; ++i )
@@ -599,7 +599,7 @@ void GR_ClearFactors( Array< float >& out, float factor )
 
 void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch )
 {
-	int subbones[ MAX_MESH_BONES ];
+	int subbones[ SGRX_MAX_MESH_BONES ];
 	int numsb = 0;
 	GR_FindBones( subbones, numsb, mesh, name, ch );
 	for( int i = 0; i < numsb; ++i )
@@ -1060,21 +1060,16 @@ void ParticleSystem::OnRenderUpdate()
 			m_meshInsts[ i ]->mesh = GR_CreateMesh();
 		
 	//	m_meshInsts[ i ]->matrix = Mat4::Identity; // E.absolute ? Mat4::Identity : m_transform;
-	//	m_meshInsts[ i ]->transparent = 1;
-	//	m_meshInsts[ i ]->additive = E.render_Additive;
-	//	m_meshInsts[ i ]->unlit = E.render_Additive;
+		SGRX_Material mtl;
+		mtl.blendMode = E.render_Additive ? SGRX_MtlBlend_Additive : SGRX_MtlBlend_Basic;
+		mtl.flags = E.render_Additive * SGRX_MtlFlag_Unlit;
+		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
+			mtl.textures[ t ] = E.render_Textures[ t ];
+		mtl.shader = E.render_Shader;
+		m_meshInsts[ i ]->materials.assign( &mtl, 1 );
+		m_meshInsts[ i ]->OnUpdate();
 		
 		SGRX_MeshPart MP = { 0, 0, 0, 0 };
-		
-		SGRX_Material mh;
-		mh.blendMode = E.render_Additive ? MBM_ADDITIVE : MBM_BASIC;
-		mh.flags = E.render_Additive * MFL_UNLIT;
-		mh.shader = GR_GetSurfaceShader( String_Concat( E.render_Shader, "+PARTICLE" ) );
-		for( int t = 0; t < NUM_PARTICLE_TEXTURES; ++t )
-			mh.textures[ t ] = E.render_Textures[ t ];
-		MP.material = mh;
-		MP.material.Finalize();
-		
 		m_meshInsts[ i ]->mesh->SetPartData( &MP, 1 );
 	}
 }

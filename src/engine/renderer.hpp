@@ -37,8 +37,8 @@ struct MeshFilePartData
 	uint8_t blendMode;
 	
 	uint8_t materialTextureCount; /* 0 - 8 */
-	uint8_t materialStringSizes[ NUM_MATERIAL_TEXTURES + 1 ];
-	char* materialStrings[ NUM_MATERIAL_TEXTURES + 1 ];
+	uint8_t materialStringSizes[ SGRX_MAX_MESH_TEXTURES + 1 ];
+	char* materialStrings[ SGRX_MAX_MESH_TEXTURES + 1 ];
 	/* size w/o padding = 28+[36/72] = 64/100 */
 };
 
@@ -71,7 +71,7 @@ struct MeshFileData
 	
 	MeshFilePartData parts[ MAX_MESH_FILE_PARTS ];
 	/* size w/o padding = 51/63 + 64/100 x16 = 1075/1663 */
-	MeshFileBoneData bones[ MAX_MESH_BONES ];
+	MeshFileBoneData bones[ SGRX_MAX_MESH_BONES ];
 	/* size w/o padding = 1075/1663 + 70/74 x32 = 3315/4031 */
 };
 

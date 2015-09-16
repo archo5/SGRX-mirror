@@ -11,7 +11,6 @@
 struct EDGUIMainFrame* g_UIFrame;
 PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
-SGRX_Material g_FloorMeshMtl;
 MeshInstHandle g_FloorMeshInst;
 PhyRigidBodyHandle g_FloorBody;
 struct EDGUIMeshPicker* g_UIMeshPicker;
@@ -2099,7 +2098,7 @@ static void floor_mesh_update( float size, float height )
 		{ { -size, +size, 0 }, {0,0,1}, { -size, +size } },
 	};
 	uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
-	SGRX_MeshPart part = { 0, 4, 0, 6, g_FloorMeshMtl };
+	SGRX_MeshPart part = { 0, 4, 0, 6 };
 	VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf30f2" );
 	g_FloorMeshInst->mesh->SetVertexData( verts, sizeof(verts), vdh, false );
 	g_FloorMeshInst->mesh->SetIndexData( idcs, sizeof(idcs), false );
@@ -2815,22 +2814,11 @@ void CE_UpdateParamList(){ g_UIFrame->AutoUpdateParamList(); }
 
 
 
-SGRX_RenderPass g_RenderPasses_Main[] =
-{
-	{ RPT_SCREEN, RPF_ENABLED, 1, 0, 0, "ps_ss_fog" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_STATIC | RPF_ENABLED, 1, 0, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_SOLID | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 0, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_STATIC | RPF_ENABLED, 1, 0, 0, "base" },
-	{ RPT_OBJECT, RPF_MTL_TRANSPARENT | RPF_OBJ_DYNAMIC | RPF_ENABLED | RPF_CALC_DIRAMB, 1, 0, 0, "base" },
-};
-
 struct CSEditor : IGame
 {
 	CSEditor() : phySlow(false){}
 	bool OnInitialize()
 	{
-		GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
-		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
@@ -2859,11 +2847,12 @@ struct CSEditor : IGame
 		g_UIFrame = new EDGUIMainFrame();
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
-		g_FloorMeshMtl.shader = GR_GetSurfaceShader( "default" );
-		g_FloorMeshMtl.textures[ 0 ] = GR_GetTexture( "textures/unit.png" );
-		g_FloorMeshMtl.Finalize();
 		g_FloorMeshInst = g_EdScene->CreateMeshInstance();
 		g_FloorMeshInst->mesh = GR_CreateMesh();
+		SGRX_Material mtl;
+		mtl.shader = "default";
+		mtl.textures[ 0 ] = GR_GetTexture( "textures/unit.png" );
+		g_FloorMeshInst->materials.assign( &mtl, 1 );
 		lmm_prepmeshinst( g_FloorMeshInst );
 		SGRX_PhyRigidBodyInfo frbi;
 		frbi.mass = 0;
@@ -2906,7 +2895,6 @@ struct CSEditor : IGame
 		g_UIFrame = NULL;
 		delete g_AnimChar;
 		g_FloorMeshInst = NULL;
-		g_FloorMeshMtl = SGRX_Material();
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
 		g_PhyWorld = NULL;

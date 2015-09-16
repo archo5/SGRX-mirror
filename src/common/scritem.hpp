@@ -131,7 +131,6 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGS_METHOD bool MIExists( int i );
 	SGS_METHOD void MISetMesh( int i, StringView path );
 	SGS_METHOD void MISetEnabled( int i, bool enabled );
-	SGS_METHOD void MISetDynamic( int i, bool dynamic );
 	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
 	SGS_METHOD void MISetShaderConst( int i, int v, Vec4 var );
 	
@@ -184,9 +183,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	SGRX_IPSRaycast* m_psRaycast;
 	
 	DecalSysHandle m_dmgDecalSys;
-	MeshInstHandle m_dmgDecalSysMI;
 	DecalSysHandle m_ovrDecalSys;
-	MeshInstHandle m_ovrDecalSysMI;
 	
 	MeshInstHandle m_meshes[ SCRITEM_NUM_SLOTS ];
 	PartSysHandle m_partSys[ SCRITEM_NUM_SLOTS ];
