@@ -459,9 +459,6 @@ void Game_Process( float dt )
 		return;
 	}
 	
-	float f[4] = { 0.2f, 0.4f, 0.6f, 1.0f };
-	g_Renderer->Clear( f );
-	
 	g_Game->OnTick( dt, g_GameTime );
 	
 	process_overlay_screens( dt );
@@ -501,30 +498,39 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_Scene* scene )
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
 	
-	UNUSED( scene );
 	ctrl->PrepRenderTarget( RT_MAIN, W, H, RT_FORMAT_COLOR_HDR16 );
-	ctrl->RenderShadows( 0 );
-	ctrl->SetRenderTarget( RT_MAIN, SGRX_CF_ALL, 0, 0, 1, 0, 0, W, H );
-	ctrl->RenderTypes( 1, 1, true, false, false );
-	ctrl->RenderTypes( 3, 4, true, false, false );
-	ctrl->RenderTypes( 1, 1, false, true, false );
-	ctrl->RenderTypes( 3, 4, false, true, false );
-	ctrl->RenderTypes( 1, 1, false, false, true );
-	ctrl->RenderTypes( 3, 4, false, false, true );
-	ctrl->SetRenderTarget( SGRX_RT_NONE, SGRX_CF_ALL, 0, 0, 1, 0, 0, W, H );
+	ctrl->RenderShadows( scene, 0 );
+	{
+		SGRX_RTClearInfo clearInfo = { SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1 };
+		uint16_t rts[4] = { RT_MAIN, SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE };
+		ctrl->SetRenderTargets( clearInfo, rts );
+	}
+	ctrl->SortRenderItems( scene );
+	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
+	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
+	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Decal );
+	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Decal );
+	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
+	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
+	{
+		SGRX_RTClearInfo clearInfo = { SGRX_RT_NeedDepthStencil };
+		uint16_t rts[4] = { SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE };
+		ctrl->SetRenderTargets( clearInfo, rts );
+	}
 }
 
-#if 0
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
 {
-	out.cullMode = mtl.flags & MFL_NOCULL ? SGRX_RS_CullMode_None : SGRX_RS_CullMode_Back;
+	out.cullMode = mtl.flags & SGRX_MtlFlag_Nocull ? SGRX_RS_CullMode_None : SGRX_RS_CullMode_Back;
 	
-	if( pass.type == RPT_OBJECT )
+	if( pass.isShadowPass == false )
 	{
-		out.depthBias = pass.flags & RPF_DECALS ? -1e-5f : 0;
-		out.depthWriteEnable = ( ( pass.flags & (RPF_LIGHTOVERLAY|RPF_DECALS) ) || mtl.blendMode != SGRX_MtlBlend_None ) == false;
-		out.blendStates[ 0 ].blendEnable = ( pass.flags & RPF_LIGHTOVERLAY ) || mtl.blendMode != SGRX_MtlBlend_None;
-		if( ( pass.flags & RPF_LIGHTOVERLAY ) || mtl.blendMode == SGRX_MtlBlend_Additive )
+		bool decal = ( mtl.flags & SGRX_MtlFlag_Decal ) != 0;
+		bool ltovr = pass.isBasePass == false && pass.isShadowPass == false;
+		out.depthBias = decal ? -1e-5f : 0;
+		out.depthWriteEnable = ( ltovr || decal || mtl.blendMode != SGRX_MtlBlend_None ) == false;
+		out.blendStates[ 0 ].blendEnable = ltovr || mtl.blendMode != SGRX_MtlBlend_None;
+		if( ltovr || mtl.blendMode == SGRX_MtlBlend_Additive )
 		{
 			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_SrcAlpha;
 			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_One;
@@ -541,7 +547,6 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 		}
 	}
 }
-#endif
 
 bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags )
 {
@@ -1701,7 +1706,7 @@ SGRX_CullScene::~SGRX_CullScene()
 }
 
 
-SGRX_DrawItem::SGRX_DrawItem() : MI( NULL ), part( 0 ), _lightbuf_begin( NULL ), _lightbuf_end( NULL )
+SGRX_DrawItem::SGRX_DrawItem() : MI( NULL ), part( 0 ), type( 0 ), _lightbuf_begin( NULL ), _lightbuf_end( NULL )
 {
 }
 

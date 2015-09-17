@@ -2577,7 +2577,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 					if( (int) i != m_maskProps.m_mid )
 						continue; // displaying more than one at a time would lead to excessive noise
 					
-					float maskdata[ MAX_MESH_BONES ] = {0};
+					float maskdata[ SGRX_MAX_MESH_BONES ] = {0};
 					
 					AnimCharacter::Mask& M = g_AnimChar->masks[ i ];
 					for( size_t j = 0; j < M.cmds.size(); ++j )

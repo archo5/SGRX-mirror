@@ -157,6 +157,17 @@ ENGINE_EXPORT uint32_t SGRX_Cull_SpotLight_MeshList( Array< SGRX_MeshInstance* >
 /// RENDERER
 ///
 
+struct RenderItem
+{
+	uint64_t key;
+	SGRX_MeshInstance* MI;
+	uint32_t part_id;
+	
+	FINLINE bool IsSolid() const { return ( key >> 62 ) == 0; }
+	FINLINE bool IsDecal() const { return ( key >> 62 ) == 1; }
+	FINLINE bool IsTransparent() const { return ( key >> 62 ) == 2; }
+};
+
 
 struct PointLightData
 {
@@ -208,7 +219,7 @@ enum EShaderType
 
 #define RS_ZENABLE 1
 
-struct IF_GCC(ENGINE_EXPORT) IRenderer
+struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 {
 	IRenderer() : m_inDebugDraw( false ){}
 	virtual ~IRenderer(){}
@@ -221,8 +232,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	ENGINE_EXPORT virtual void Modify( const RenderSettings& settings ) = 0;
 	ENGINE_EXPORT virtual void SetCurrent() = 0;
 	
-	ENGINE_EXPORT virtual bool SetRenderTarget( TextureHandle rt ) = 0;
-	ENGINE_EXPORT virtual void Clear( float* color_v4f, bool clear_zbuffer = true ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
 	ENGINE_EXPORT virtual void SetScissorRect( bool enable, int* rect ) = 0;
 	
@@ -238,8 +248,21 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	ENGINE_EXPORT virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
 	ENGINE_EXPORT virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
 	
-	ENGINE_EXPORT virtual bool SetRenderPasses( SGRX_RenderPass* passes, int count ) = 0;
 	ENGINE_EXPORT virtual void RenderScene( SGRX_RenderScene* RS ) = 0;
+	
+	ENGINE_EXPORT virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
+	
+	// render control
+	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format );
+	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] );
+	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene );
+	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id );
+	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types );
+	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] );
+	
+	// render queue helpers
+	ENGINE_EXPORT uint64_t _RS_GenSortKey( const Mat4& view, SGRX_MeshInstance* MI, uint32_t part_id );
+	ENGINE_EXPORT void _RS_LoadInstItems( const Mat4& view, int slot, Array<SGRX_MeshInstance*>& insts, uint8_t flags );
 	
 	// culling helpers
 	ENGINE_EXPORT void _RS_PreProcess( SGRX_Scene* scene );
@@ -253,9 +276,11 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	// common data
 	RenderStats m_stats;
 	RenderSettings m_currSettings;
-	Array< SGRX_RenderPass > m_renderPasses;
 	
 	bool m_inDebugDraw;
+	
+	// render target cache
+	Array< TextureHandle > m_rtCache;
 	
 	// culling data
 	ByteArray m_scratchMem;
@@ -265,6 +290,14 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer
 	Array< SGRX_Light* > m_visible_spot_lights;
 	Array< SGRX_DrawItemLight > m_inst_light_buf;
 	Array< SGRX_DrawItemLight > m_light_inst_buf;
+	
+	// sorting data
+	Array< RenderItem > m_renderItemsBase;
+	Array< RenderItem > m_renderItemsAux;
+	RenderItem* m_riBaseStart;
+	RenderItem* m_riBaseSD;
+	RenderItem* m_riBaseDT;
+	RenderItem* m_riBaseEnd;
 	
 	// projector interface
 	bool _RS_ProjectorInit();

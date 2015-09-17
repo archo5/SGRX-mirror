@@ -76,6 +76,148 @@ LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, 
 }
 
 
+void IRenderer::PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format )
+{
+	if( id >= m_rtCache.size() )
+		m_rtCache.resize( id + 1 );
+	
+	bool valid = m_rtCache[ id ] == NULL;
+	if( valid )
+	{
+		const TextureInfo& TI = m_rtCache[ id ].GetInfo();
+		valid = TI.width == width && TI.height == height && TI.format == format;
+	}
+	if( valid == false )
+		m_rtCache[ id ] = GR_CreateRenderTexture( width, height, format );
+}
+
+void IRenderer::SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] )
+{
+	TextureHandle rts[4] =
+	{
+		ids[0] > m_rtCache.size() ? m_rtCache[ ids[0] ] : NULL,
+		ids[1] > m_rtCache.size() ? m_rtCache[ ids[1] ] : NULL,
+		ids[2] > m_rtCache.size() ? m_rtCache[ ids[2] ] : NULL,
+		ids[3] > m_rtCache.size() ? m_rtCache[ ids[3] ] : NULL,
+	};
+	SetRenderTargets( info, rts );
+}
+
+void IRenderer::SortRenderItems( SGRX_Scene* scene )
+{
+	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_spot_meshes, SGRX_TY_Solid );
+	
+	m_riBaseStart = m_renderItemsBase.data();
+	m_riBaseEnd = m_riBaseStart + m_renderItemsBase.size();
+	
+	m_riBaseSD = m_riBaseStart;
+	while( m_riBaseSD < m_riBaseEnd && m_riBaseSD->IsSolid() )
+		m_riBaseSD++;
+	
+	m_riBaseDT = m_riBaseSD;
+	while( m_riBaseDT < m_riBaseEnd && m_riBaseDT->IsDecal() )
+		m_riBaseDT++;
+}
+
+void IRenderer::RenderShadows( SGRX_Scene* scene, uint8_t pass_id )
+{
+	for( size_t vsl_id = 0; vsl_id < m_visible_spot_lights.size(); ++vsl_id )
+	{
+		SGRX_Light* L = m_visible_spot_lights[ vsl_id ];
+		if( !L->enabled ||
+			!L->hasShadows ||
+			!L->shadowTexture ||
+			!L->shadowTexture->m_isRenderTexture )
+			continue;
+		
+		_RS_Cull_SpotLight_MeshList( scene, L );
+		
+		_RS_LoadInstItems( L->viewMatrix, 1, m_visible_spot_meshes, SGRX_TY_Solid );
+		
+		SGRX_Camera cam;
+		L->GenerateCamera( cam );
+		DoRenderItems( scene, pass_id, 1, cam, m_renderItemsAux.data(), m_renderItemsAux.data() + m_renderItemsAux.size() );
+	}
+}
+
+void IRenderer::RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types )
+{
+	if( ( types & SGRX_TY_Solid ) != 0 && m_riBaseSD > m_riBaseStart )
+	{
+		DoRenderItems( scene, pass_id, maxrepeat, scene->camera, m_riBaseStart, m_riBaseSD );
+	}
+	if( ( types & SGRX_TY_Decal ) != 0 && m_riBaseDT > m_riBaseSD )
+	{
+		DoRenderItems( scene, pass_id, maxrepeat, scene->camera, m_riBaseSD, m_riBaseDT );
+	}
+	if( ( types & SGRX_TY_Transparent ) != 0 && m_riBaseEnd > m_riBaseDT )
+	{
+		DoRenderItems( scene, pass_id, maxrepeat, scene->camera, m_riBaseDT, m_riBaseEnd );
+	}
+}
+
+void IRenderer::DrawRenderTargets( uint16_t ids[4] )
+{
+}
+
+
+uint64_t IRenderer::_RS_GenSortKey( const Mat4& view, SGRX_MeshInstance* MI, uint32_t part_id )
+{
+	static const int mtlflags_to_sortb2[8] = { 0, 0, 1, 1, 2, 2, 2, 2 };
+	SGRX_DrawItem& DI = MI->m_drawItems[ part_id ];
+//	SGRX_Material& MTL = MI->GetMaterial( part_id );
+	uint64_t out = 0;
+	
+	// bytes 63-64: solid/decal/transparent
+	out |= uint64_t( mtlflags_to_sortb2[ DI.type & 7 ] ) << 62;
+	// bytes 55-62: sort index
+	out |= uint64_t( MI->sortidx ) << 54;
+	float dist = 1 / ( 1 + view.TransformPos( MI->matrix.GetTranslation() ).z );
+	if( DI.type & SGRX_TY_Transparent )
+	{
+		// bytes 33-54: depth
+		out |= uint64_t( ( 1 - dist ) * 0x3fffff ) << 32;
+	}
+	else
+	{
+		// bytes 1-22: depth backwards
+		out |= uint64_t( dist * 0x3fffff ) << 0;
+	}
+	
+	return out;
+}
+
+static bool renderitem_sort( const void* a, const void* b, void* )
+{
+	SGRX_CAST( RenderItem*, RIa, a );
+	SGRX_CAST( RenderItem*, RIb, b );
+	return RIa->key < RIb->key;
+}
+
+void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, Array<SGRX_MeshInstance*>& insts, uint8_t flags )
+{
+	Array< RenderItem >* RIA = slot ? &m_renderItemsAux : &m_renderItemsBase;
+	
+	RIA->clear();
+	for( size_t miid = 0; miid < insts.size(); ++miid )
+	{
+		SGRX_MeshInstance* MI = insts[ miid ];
+		for( size_t part_id = 0; part_id < MI->m_drawItems.size(); ++part_id )
+		{
+			if( MI->m_drawItems.size() <= part_id ||
+				MI->GetMaterialCount() <= part_id ||
+				( MI->m_drawItems[ part_id ].type & flags ) == 0 )
+				continue;
+			
+			RenderItem RI = { _RS_GenSortKey( view, MI, part_id ), MI, part_id };
+			RIA->push_back( RI );
+		}
+	}
+	
+	sgrx_combsort( RIA->data(), RIA->size(), sizeof(RenderItem), renderitem_sort, NULL );
+}
+
+
 static bool meshinst_sortbyidx( const void* a, const void* b, void* )
 {
 	SGRX_CAST( SGRX_MeshInstance**, MIa, a );

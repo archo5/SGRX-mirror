@@ -381,7 +381,6 @@ struct EdLevelGraphicsCont
 	{
 		EdLGCRenderInfo info;
 		MeshInstHandle meshInst;
-		SGRX_Material material;
 		Array< LCVertex > vertices;
 		Array< uint16_t > indices;
 		Vec2 lmsize;

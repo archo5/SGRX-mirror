@@ -540,7 +540,7 @@ void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI, uint32_t lmid )
 {
 	// static lighting
 	ASSERT( m_lightmaps.isset( lmid ) );
-	MI->textures[0] = m_lightmaps[ lmid ]->texture;
+	MI->SetMITexture( 0, m_lightmaps[ lmid ]->texture );
 	// dynamic lighting
 	if( m_sampleTree.m_pos.size() )
 	{
@@ -596,11 +596,11 @@ void EdLevelGraphicsCont::ApplyLightmap( uint32_t lmid )
 	uint32_t id = LGC_LMID_GET_ID( lmid );
 	if( LGC_IS_MESH_LMID( lmid ) )
 	{
-		m_meshes[ id ].meshInst->textures[0] = m_lightmaps[ lmid ]->texture;
+		m_meshes[ id ].meshInst->SetMITexture( 0, m_lightmaps[ lmid ]->texture );
 	}
 	else
 	{
-		m_surfaces[ id ].meshInst->textures[0] = m_lightmaps[ lmid ]->texture;
+		m_surfaces[ id ].meshInst->SetMITexture( 0, m_lightmaps[ lmid ]->texture );
 	}
 }
 
@@ -1145,7 +1145,7 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 			else if( diff == 2 )
 				InvalidateLightsByMI( M.meshInst );
 		}
-		M.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
+		M.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
 	//	M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0; -- UNSUPPOTED
 		LightMesh( M.meshInst, LGC_MESH_LMID( id ) );
 	}
@@ -1178,8 +1178,9 @@ void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
 	S.lmsize = V2(0);
 	S.meshInst = g_EdScene->CreateMeshInstance();
 	S.meshInst->mesh = GR_CreateMesh();
-	S.material.shader = GR_GetSurfaceShader( "default" );
-	S.material.Finalize();
+	SGRX_Material mtl;
+	mtl.shader = "default";
+	S.meshInst->materials.assign( &mtl, 1 );
 	m_surfaces.set( id, S );
 	CreateLightmap( LGC_SURF_LMID( id ) );
 	UpdateSurface( id, LGC_CHANGE_ALL, info );
@@ -1225,7 +1226,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			}
 			if( S.indices.size() )
 				S.meshInst->mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
-			SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size(), S.material };
+			SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size() };
 			S.meshInst->mesh->SetPartData( &mp, 1 );
 			
 			InvalidateLightsByMI( S.meshInst );
@@ -1250,9 +1251,8 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			{
 				char bfr[ 256 ];
 				sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
-				S.material.textures[0] = GR_GetTexture( bfr );
+				S.meshInst->SetMITexture( 0, GR_GetTexture( bfr ) );
 			}
-			S.material.Finalize();
 		}
 	}
 	if( changes & LGC_SURF_CHANGE_SOLID )
@@ -1290,11 +1290,13 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			else if( diff == 2 )
 				InvalidateLightsByMI( S.meshInst );
 		}
-		S.meshInst->dynamic = ( info->rflags & LM_MESHINST_DYNLIT ) != 0;
+		S.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
+		SGRX_Material mtl;
+		mtl.shader = "default";
 		bool decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
-		S.material.flags = decal ? MFL_DECAL : 0;
-		S.material.blendMode = decal ? MBM_BASIC : MBM_NONE;
-		S.material.Finalize();
+		mtl.flags = decal ? SGRX_MtlFlag_Decal : 0;
+		mtl.blendMode = decal ? SGRX_MtlBlend_Basic : SGRX_MtlBlend_None;
+		S.meshInst->materials.assign( &mtl, 1 );
 		LightMesh( S.meshInst, LGC_SURF_LMID( id ) );
 	}
 	S.meshInst->enabled = S.mtlname.size() != 0 && S.vertices.size() != 0 && S.indices.size() != 0;

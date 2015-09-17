@@ -134,21 +134,33 @@ ENGINE_EXPORT void Game_End();
 #define TEXFLAGS_CLAMP_X 0x10
 #define TEXFLAGS_CLAMP_Y 0x20
 
-#define SGRX_CF_Color 0x1
-#define SGRX_CF_Depth 0x2
-#define SGRX_CF_Stencil 0x4
-#define SGRX_CF_ALL 0x7
+#define SGRX_RT_ClearColor 0x1
+#define SGRX_RT_ClearDepth 0x2
+#define SGRX_RT_ClearStencil 0x4
+#define SGRX_RT_ClearAll 0x7
+#define SGRX_RT_NeedDepthStencil 0x8
 
 #define SGRX_RT_NONE uint16_t(-1)
+
+#define SGRX_TY_Solid 0x1
+#define SGRX_TY_Decal 0x2
+#define SGRX_TY_Transparent 0x4
+
+struct SGRX_RTClearInfo
+{
+	uint8_t flags;
+	uint8_t clearStencil;
+	uint32_t clearColor;
+	float clearDepth;
+};
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 {
 	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format ) = 0;
-	ENGINE_EXPORT virtual void SetRenderTarget( uint16_t id,
-		uint8_t clearflags, uint8_t clearStencil, uint32_t clearColor, float clearDepth,
-		uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1 ) = 0;
-	ENGINE_EXPORT virtual void RenderShadows( uint8_t pass ) = 0;
-	ENGINE_EXPORT virtual void RenderTypes( uint8_t pass, int maxrepeat, bool solid, bool decal, bool transparent ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] ) = 0;
+	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
+	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id ) = 0;
+	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types ) = 0;
 	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] ) = 0;
 };
 
@@ -161,7 +173,7 @@ struct IF_GCC(ENGINE_EXPORT) IGame
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
 	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_Scene* scene );
-//	ENGINE_EXPORT virtual void OnMakeRenderState( const struct SGRX_RenderPass& pass, const SGRX_Material& mtl, struct SGRX_RenderState& out );
+	ENGINE_EXPORT virtual void OnMakeRenderState( const struct SGRX_RenderPass& pass, const struct SGRX_Material& mtl, struct SGRX_RenderState& out );
 	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
 	ENGINE_EXPORT virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
@@ -983,7 +995,8 @@ struct SGRX_DrawItem
 	ENGINE_EXPORT SGRX_DrawItem();
 	
 	SGRX_MeshInstance* MI;
-	uint32_t part;
+	uint16_t part;
+	uint8_t type;
 	
 	/* frame cache */
 	SGRX_DrawItemLight* _lightbuf_begin;
@@ -1056,6 +1069,12 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 		OnUpdate();
 	}
 	FINLINE SGRX_LightingMode GetLightingMode() const { return m_lightingMode; }
+	FINLINE SGRX_SRSData& GetSRSData( uint8_t pass, size_t part )
+	{
+		return m_srsData[ m_drawItems.size() * pass + part ];
+	}
+	FINLINE uint16_t GetMaterialCount() const { return materials.size(); }
+	FINLINE SGRX_Material& GetMaterial( uint16_t i ){ return materials[ i ]; }
 	
 	SGRX_Scene* _scene;
 	

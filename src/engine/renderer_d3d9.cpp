@@ -397,8 +397,7 @@ struct D3D9Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	
-	bool SetRenderTarget( TextureHandle rt );
-	void Clear( float* color_v4f, bool clear_zbuffer );
+	void SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( bool enable, int* rect );
 	
@@ -414,9 +413,12 @@ struct D3D9Renderer : IRenderer
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
 	
-	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
-	void RenderScene( SGRX_RenderScene* RS );
-	void _RS_Render_Shadows();
+	virtual void RenderShadows( uint8_t pass_id );
+	
+	virtual void RenderScene( SGRX_RenderScene* RS );
+	
+	virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
+	
 	void _RS_RenderPass_Projectors( size_t pass_id );
 	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
 	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
@@ -473,7 +475,6 @@ struct D3D9Renderer : IRenderer
 	SGRX_IPixelShader* m_sh_pp_blur_h;
 	SGRX_IPixelShader* m_sh_pp_blur_v;
 	SGRX_IPixelShader* m_sh_lvsl_ps;
-	Array< PixelShaderHandle > m_pass_shaders;
 	
 	// storage
 	HashTable< D3D9Texture*, bool > m_ownTextures;
@@ -604,10 +605,10 @@ void D3D9Renderer::Destroy()
 			LOG << "> " << M->m_key << " (" << M->m_meshParts.size() << " parts)";
 			for( size_t p = 0; p < M->m_meshParts.size(); ++p )
 			{
-				SGRX_Material& MTL = M->m_meshParts[ p ].material;
-				SGRX_ITexture* TEX = MTL.textures[ 0 ];
+				SGRX_MeshPart& MP = M->m_meshParts[ p ];
+				StringView TEX = MP.textures[ 0 ];
 				if( TEX )
-					LOG << "Part " << p << " texture 0: " << TEX->m_key;
+					LOG << "Part " << p << " texture 0: " << TEX;
 				else
 					LOG << "Part " << p << " - material has no texture";
 			}
@@ -690,8 +691,6 @@ void D3D9Renderer::UnloadInternalResources()
 {
 	LOG_FUNCTION;
 	
-	SetRenderPasses( NULL, 0 );
-	
 	m_sh_proj_vs->Release();
 	m_sh_bv_vs->Release();
 	m_sh_pp_vs->Release();
@@ -751,31 +750,52 @@ void D3D9Renderer::Modify( const RenderSettings& settings )
 }
 
 
-bool D3D9Renderer::SetRenderTarget( TextureHandle rt )
+void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] )
 {
-	if( rt && !rt->m_isRenderTexture )
-		return false;
-	m_currentRT = rt;
-	D3D9RenderTexture* RTT = rt ? (D3D9RenderTexture*) rt.item : NULL;
-	IDirect3DSurface9* bbsurf = RTT ? RTT->CS : m_backbuf;
-	IDirect3DSurface9* dssurf = RTT ? RTT->DSS : m_dssurf;
-	m_dev->SetRenderTarget( 0, bbsurf );
-	m_dev->SetDepthStencilSurface( dssurf );
-	return true;
-}
-
-void D3D9Renderer::Clear( float* color_v4f, bool clear_zbuffer )
-{
-	uint32_t cc = 0;
-	uint32_t flags = 0;
-	if( color_v4f )
+	if( rts[0] == NULL && rts[1] == NULL && rts[2] == NULL && rts[3] == NULL )
 	{
-		cc = COLOR_RGBA( color_v4f[2] * 255, color_v4f[1] * 255, color_v4f[0] * 255, color_v4f[3] * 255 );
-		flags = D3DCLEAR_TARGET;
+		m_dev->SetRenderTarget( 0, m_backbuf );
+		m_dev->SetRenderTarget( 1, NULL );
+		m_dev->SetRenderTarget( 2, NULL );
+		m_dev->SetRenderTarget( 3, NULL );
+		if( info.flags & SGRX_RT_NeedDepthStencil )
+		{
+			m_dev->SetDepthStencilSurface( m_dssurf );
+		}
 	}
-	if( clear_zbuffer )
+	else
+	{
+		uint32_t w = 0, h = 0;
+		for( int i = 0; i < 4; ++i )
+		{
+			SGRX_ITexture* rt = rts[ i ];
+			if( rt )
+			{
+				ASSERT( !w || w == rt->m_info.width );
+				ASSERT( !h || h == rt->m_info.height );
+				w = rt->m_info.width;
+				h = rt->m_info.height;
+				ASSERT( rt->m_isRenderTexture );
+				SGRX_CAST( D3D9RenderTexture*, RTT, rt );
+				m_dev->SetRenderTarget( i, RTT->CS );
+			}
+			else
+			{
+				m_dev->SetRenderTarget( i, NULL );
+			}
+		}
+	}
+	
+	uint32_t cc = info.clearColor;
+	swap4b2ms( &cc, 1, 0xff0000, 16, 0xff, 16 );
+	uint32_t flags = 0;
+	if( info.flags & SGRX_RT_ClearColor )
+		flags |= D3DCLEAR_TARGET;
+	if( info.flags & SGRX_RT_ClearDepth )
 		flags |= D3DCLEAR_ZBUFFER;
-	m_dev->Clear( 0, NULL, flags, cc, 1.0f, 0 );
+	if( info.flags & SGRX_RT_ClearStencil )
+		flags |= D3DCLEAR_STENCIL;
+	m_dev->Clear( 0, NULL, flags, cc, info.clearDepth, info.clearStencil );
 }
 
 void D3D9Renderer::SetViewport( int x0, int y0, int x1, int y1 )
@@ -907,8 +927,11 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	
 	switch( format )
 	{
-	case RT_FORMAT_BACKBUFFER:
+	case RT_FORMAT_COLOR_HDR16:
 		d3dfmt = D3DFMT_A16B16G16R16F;
+		break;
+	case RT_FORMAT_COLOR_LDR8:
+		d3dfmt = D3DFMT_A8R8G8B8;
 		break;
 	case RT_FORMAT_DEPTH:
 		d3dfmt = D3DFMT_R32F;
@@ -1462,45 +1485,6 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 
 
 
-bool D3D9Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
-{
-	LOG_FUNCTION;
-	
-	for( int i = 0; i < count; ++i )
-	{
-		SGRX_RenderPass& PASS = passes[ i ];
-		if( PASS.type != RPT_SHADOWS &&
-			PASS.type != RPT_OBJECT &&
-			PASS.type != RPT_SCREEN &&
-			PASS.type != RPT_PROJECTORS &&
-			PASS.type != RPT_LIGHTVOLS )
-		{
-			LOG_ERROR << "Invalid type for pass " << i;
-			return false;
-		}
-		if( !PASS.shader_name )
-		{
-			LOG_ERROR << "No shader name for pass " << i;
-			return false;
-		}
-	}
-	
-	m_renderPasses.assign( passes, count );
-	Array< PixelShaderHandle > psh = m_pass_shaders;
-	m_pass_shaders.clear();
-	m_pass_shaders.reserve( count );
-	
-	for( int i = 0; i < (int) m_renderPasses.size(); ++i )
-	{
-		SGRX_RenderPass& PASS = m_renderPasses[ i ];
-		m_pass_shaders.push_back( PASS.type == RPT_SCREEN ? GR_GetPixelShader( PASS.shader_name ) : PixelShaderHandle() );
-	}
-	
-	return true;
-}
-
-
-
 #define TEXTURE_FLAGS_FULLSCREEN (TEXFLAGS_HASMIPS | TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y)
 
 /*
@@ -1593,7 +1577,6 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	// RENDER SHADOWS
 	m_dev->SetRenderTarget( 1, NULL );
 	m_dev->SetRenderTarget( 2, NULL );
-	_RS_Render_Shadows();
 	
 	// RENDER PREP
 	if( m_enablePostProcessing )
@@ -1649,6 +1632,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	PS_SetVec4Array( 20, dirlight, 3 );
 	
 	// MAIN PASSES
+#if 0
 	for( size_t pass_id = 0; pass_id < m_renderPasses.size(); ++pass_id )
 	{
 		const SGRX_RenderPass& pass = m_renderPasses[ pass_id ];
@@ -1668,6 +1652,7 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, tx_depth, RTOUT );
 		else if( pass.type == RPT_LIGHTVOLS ) _RS_RenderPass_LightVols( tx_depth, RTOUT );
 	}
+#endif
 	
 	if( RS->postdraw )
 	{
@@ -1768,91 +1753,120 @@ void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
 	m_currentScene = NULL;
 }
 
-void D3D9Renderer::_RS_Render_Shadows()
+void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
-	SGRX_Scene* scene = m_currentScene;
+	SGRX_RenderPass& PASS = scene->m_passes[ pass_id ];
+	if( PASS.isShadowPass )
+		maxrepeat = 1;
 	
-	for( size_t pass_id = 0; pass_id < m_renderPasses.size(); ++pass_id )
+	// set common data
+	// VS:0 = mWorldView
+	VS_SetMat4( 4, cam.mProj );
+	// VS:8 = mWorld
+	VS_SetMat4( 12, cam.mView );
+	PS_SetMat4( 0, cam.mInvView );
+	PS_SetMat4( 4, cam.mProj );
+	Vec4 campos4 = { cam.position.x, cam.position.y, cam.position.z, 0 };
+	PS_SetVec4( 4, campos4 );
+//	VS_SetVec4( 16, RS->timevals ); -- TODO restore time values
+//	PS_SetVec4( 16, RS->timevals );
+	
+	Vec4 skydata[ 1 ] =
 	{
-		// Only shadow passes
-		if( m_renderPasses[ pass_id ].type != RPT_SHADOWS )
-			continue;
+		{ scene->skyTexture ? 1 : 0, 0, 0, 0 },
+	};
+	PS_SetVec4Array( 11, skydata, 1 );
+	Vec3 fogGamma = scene->fogColor.Pow( 2.0 );
+	Vec4 fogdata[ 2 ] =
+	{
+		{ fogGamma.x, fogGamma.y, fogGamma.z, scene->fogHeightFactor },
+		{ scene->fogDensity, scene->fogHeightDensity, scene->fogStartHeight, scene->fogMinDist },
+	};
+	PS_SetVec4Array( 12, fogdata, 2 );
+	
+	Vec3 dirLightViewDir = -cam.mView.TransformNormal( scene->dirLightDir ).Normalized();
+	Vec4 dirlight[ 3 ] =
+	{
+		{ scene->ambientLightColor.x, scene->ambientLightColor.y, scene->ambientLightColor.z, 1 },
+		{ dirLightViewDir.x, dirLightViewDir.y, dirLightViewDir.z, 0 },
+		{ scene->dirLightColor.x, scene->dirLightColor.y, scene->dirLightColor.z, 1 },
+	};
+	PS_SetVec4Array( 20, dirlight, 3 );
+	
+	RenderItem* RI = start;
+	while( RI < end )
+	{
+		SGRX_MeshInstance* MI = RI->MI;
+		uint16_t part_id = RI->part_id;
 		
-		for( size_t light_id = 0; light_id < scene->m_lights.size(); ++light_id )
+		D3D9Mesh* M = (D3D9Mesh*) MI->mesh.item;
+		const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
+		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
+		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
+		const SGRX_Material& MTL = MI->GetMaterial( part_id );
+		
+		SGRX_SRSData& SRS = MI->GetSRSData( pass_id, part_id );
+		SetRenderState( SRS.RS );
+		SetVertexShader( SRS.VS );
+		SetPixelShader( SRS.PS );
+		
+		// instance state
+		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
+			SetTexture( i, MTL.textures[ i ] );
+		MI_ApplyConstants( MI );
+		
+		Mat4 mWorldView;
+		mWorldView.Multiply( MI->matrix, cam.mView );
+		VS_SetMat4( 0, mWorldView );
+		VS_SetMat4( 8, MI->matrix );
+		
+		m_dev->SetVertexDeclaration( VD->m_vdecl );
+		m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
+		m_dev->SetIndices( M->m_IB );
+		
+		for( int numruns = 0; numruns < maxrepeat; ++numruns )
 		{
-			Mat4 m_world_view, m_inv_view;
-			
-			SGRX_Light* L = scene->m_lights.item( light_id ).key;
-			if( !L->enabled ||
-				!L->hasShadows ||
-				!L->shadowTexture ||
-				!L->shadowTexture->m_isRenderTexture )
-				continue;
-			
-			/* CULL */
-			_RS_Cull_SpotLight_MeshList( scene, L );
-			
-			D3D9RenderTexture* RT = (D3D9RenderTexture*) L->shadowTexture.item;
-			
-			m_dev->SetRenderTarget( 0, RT->CS );
-			m_dev->SetDepthStencilSurface( RT->DSS );
-			m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xffffffff, 1.0f, 0 );
-			
-			VS_SetMat4( 4, L->projMatrix );
-			VS_SetMat4( 12, L->viewMatrix );
-			m_inv_view = L->viewMatrix;
-			m_inv_view.Transpose();
-			PS_SetMat4( 0, m_inv_view );
-			PS_SetMat4( 4, L->projMatrix );
-			
-			for( size_t miid = 0; miid < m_visible_spot_meshes.size(); ++miid )
+			if( PASS.isShadowPass == false )
 			{
-				SGRX_MeshInstance* MI = m_visible_spot_meshes[ miid ];
+				PointLightData PLData[ 32 ];
+				SpotLightDataPS SLDataPS[ 2 ];
+				SpotLightDataVS SLDataVS[ 2 ];
+				SGRX_Light* SLDataLT[ 2 ];
+				LightCount LC = SGRX_Renderer_FindLights( cam, DI,
+					TMIN( int(PASS.numPL), 32 ),
+					TMIN( int(PASS.numSL), 2 ),
+					PLData, SLDataPS, SLDataVS, SLDataLT );
 				
-				if( !MI->mesh || !MI->enabled )
-					continue; /* mesh not added / instance not enabled */
+				if( PASS.isBasePass == false && LC.numPL + LC.numSL <= 0 )
+					break;
 				
-				D3D9Mesh* M = (D3D9Mesh*) MI->mesh.item;
-				if( !M->m_vertexDecl )
-					continue; /* mesh not initialized */
-				
-				D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
-				
-				MI_ApplyConstants( MI );
-				
-				m_world_view.Multiply( MI->matrix, L->viewMatrix );
-				VS_SetMat4( 0, m_world_view );
-				VS_SetMat4( 8, MI->matrix );
-				
-				m_dev->SetVertexDeclaration( VD->m_vdecl );
-				m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
-				m_dev->SetIndices( M->m_IB );
-				
-				for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
+				if( LC.numPL )
 				{
-					const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
-					const SGRX_Material& MTL = MP.material;
-					if( MTL.blendMode )
-						continue;
-					
-					const SGRX_SurfaceShader* SSH = MTL.shader;
-					const SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
-					const SGRX_IPixelShader* SHD = SSH->m_pixelShaders[ pass_id ];
-					const SGRX_IRenderState* RS = MTL.m_renderStates[ pass_id ];
-					
-					SetRenderState( RS );
-					SetVertexShader( VSH );
-					SetPixelShader( SHD );
-					for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
-						SetTexture( tex_id, MTL.textures[ tex_id ] );
-					
-					m_dev->DrawIndexedPrimitive(
-						M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
-						MP.vertexOffset, 0, MP.vertexCount, MP.indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP.indexCount - 2 : MP.indexCount / 3 );
-					m_stats.numDrawCalls++;
-					m_stats.numSDrawCalls++;
+					PS_SetVec4Array( 56, (Vec4*) PLData, 2 * LC.numPL );
 				}
+				if( LC.numSL )
+				{
+					for( int i = 0; i < LC.numSL; ++i )
+					{
+						SetTexture( 12 + i * 2 + 0, SLDataLT[ i ]->cookieTexture );
+						SetTexture( 12 + i * 2 + 1, SLDataLT[ i ]->shadowTexture );
+					}
+					VS_SetVec4Array( 24, (Vec4*) SLDataVS, 4 * LC.numSL );
+					PS_SetVec4Array( 24, (Vec4*) SLDataPS, 4 * LC.numSL );
+				}
+				
+				Vec4 lightcounts = { LC.numPL, LC.numSL, 0, 0 };
+				VS_SetVec4( 23, lightcounts );
+				PS_SetVec4( 23, lightcounts );
 			}
+			
+			m_dev->DrawIndexedPrimitive(
+				M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
+				MP.vertexOffset, 0, MP.vertexCount, MP.indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP.indexCount - 2 : MP.indexCount / 3 );
+			
+			m_stats.numDrawCalls++;
+			m_stats.numMDrawCalls += PASS.isShadowPass == false;
+			m_stats.numSDrawCalls += PASS.isShadowPass != false;
 		}
 	}
 }
@@ -1900,7 +1914,7 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 			continue;
 		
 		SetPixelShader( SHD );
-		for( int tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
+		for( int tex_id = 0; tex_id < SGRX_MAX_TEXTURES; ++tex_id )
 			SetTexture( tex_id, L->projectionTextures[ tex_id ] );
 		
 		m_dev->DrawIndexedPrimitive(
@@ -1908,108 +1922,6 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 			MP.vertexOffset, 0, MP.vertexCount, MP.indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP.indexCount - 2 : MP.indexCount / 3 );
 		m_stats.numDrawCalls++;
 		m_stats.numSDrawCalls++;
-	}
-}
-
-void D3D9Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )
-{
-	int obj_type = !!( PASS.flags & RPF_OBJ_STATIC ) - !!( PASS.flags & RPF_OBJ_DYNAMIC );
-	int mtl_type = !!( PASS.flags & RPF_MTL_SOLID ) - !!( PASS.flags & RPF_MTL_TRANSPARENT );
-	bool draw_decals = !!( PASS.flags & RPF_DECALS );
-	
-	const SGRX_Camera& CAM = m_currentScene->camera;
-	
-	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
-	{
-		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
-		const D3D9Mesh* M = (D3D9Mesh*) MI->mesh.item;
-		const D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
-		
-		/* dynamic meshes */
-		if( ( MI->dynamic && obj_type > 0 ) || ( !MI->dynamic && obj_type < 0 ) )
-			continue;
-		
-		Mat4 m_world_view;
-		m_world_view.Multiply( MI->matrix, CAM.mView );
-		
-		for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
-		{
-			SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
-			const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
-			const SGRX_Material& MTL = MP.material;
-			if( MP.CanDraw( pass_id ) == false )
-				continue;
-			if( ( ( MTL.flags & MFL_DECAL ) != 0 ) != draw_decals )
-				continue;
-			bool transparent = MTL.blendMode != MBM_NONE;
-			if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
-				continue;
-			
-			const SGRX_SurfaceShader* SSH = MTL.shader;
-			const SGRX_IVertexShader* VSH = MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ pass_id ] : SSH->m_basicVertexShaders[ pass_id ];
-			const SGRX_IPixelShader* PSH = SSH->m_pixelShaders[ pass_id ];
-			const SGRX_IRenderState* RS = MTL.m_renderStates[ pass_id ];
-			
-			// instance state
-			for( int i = 0; i < MAX_MI_TEXTURES; ++i )
-				SetTexture( 8 + i, MI->textures[ i ] );
-			MI_ApplyConstants( MI );
-			
-			VS_SetMat4( 0, m_world_view );
-			VS_SetMat4( 8, MI->matrix );
-			
-			m_dev->SetVertexDeclaration( VD->m_vdecl );
-			m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
-			m_dev->SetIndices( M->m_IB );
-			
-			// part state
-			SetRenderState( RS );
-			SetVertexShader( VSH );
-			SetPixelShader( PSH );
-			for( size_t tex_id = 0; tex_id < NUM_MATERIAL_TEXTURES; ++tex_id )
-				SetTexture( tex_id, MTL.textures[ tex_id ] );
-			
-			do
-			{
-				PointLightData PLData[ 32 ];
-				SpotLightDataPS SLDataPS[ 2 ];
-				SpotLightDataVS SLDataVS[ 2 ];
-				SGRX_Light* SLDataLT[ 2 ];
-				LightCount LC = SGRX_Renderer_FindLights( CAM, DI,
-					TMIN( int(PASS.pointlight_count), 32 ),
-					TMIN( int(PASS.spotlight_count), 2 ),
-					PLData, SLDataPS, SLDataVS, SLDataLT );
-				
-				if( PASS.flags & RPF_LIGHTOVERLAY && LC.numPL + LC.numSL <= 0 )
-					break;
-				
-				if( LC.numPL )
-				{
-					PS_SetVec4Array( 56, (Vec4*) PLData, 2 * LC.numPL );
-				}
-				if( LC.numSL )
-				{
-					for( int i = 0; i < LC.numSL; ++i )
-					{
-						SetTexture( 12 + i * 2 + 0, SLDataLT[ i ]->cookieTexture );
-						SetTexture( 12 + i * 2 + 1, SLDataLT[ i ]->shadowTexture );
-					}
-					VS_SetVec4Array( 24, (Vec4*) SLDataVS, 4 * LC.numSL );
-					PS_SetVec4Array( 24, (Vec4*) SLDataPS, 4 * LC.numSL );
-				}
-				
-				Vec4 lightcounts = { LC.numPL, LC.numSL, 0, 0 };
-				VS_SetVec4( 23, lightcounts );
-				PS_SetVec4( 23, lightcounts );
-				
-				m_dev->DrawIndexedPrimitive(
-					M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
-					MP.vertexOffset, 0, MP.vertexCount, MP.indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP.indexCount - 2 : MP.indexCount / 3 );
-				m_stats.numDrawCalls++;
-				m_stats.numMDrawCalls++;
-			}
-			while( PASS.flags & RPF_LIGHTOVERLAY );
-		}
 	}
 }
 
