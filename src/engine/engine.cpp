@@ -491,9 +491,11 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 	if( flags.contains( ":mips" ) ) outusageflags |= TEXFLAGS_HASMIPS;
 }
 
-void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_Scene* scene )
+void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
 #define RT_MAIN 0
+	
+	SGRX_Scene* scene = info.scene;
 	
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
@@ -517,6 +519,9 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_Scene* scene )
 		uint16_t rts[4] = { SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE };
 		ctrl->SetRenderTargets( clearInfo, rts );
 	}
+	
+	if( info.postdraw )
+		info.postdraw->PostDraw();
 }
 
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
@@ -546,6 +551,50 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
 		}
 	}
+}
+
+void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
+	SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
+{
+	if( pass.isBasePass == false && pass.isShadowPass == false && ( mtl.flags & SGRX_MtlFlag_Unlit ) != 0 )
+	{
+		PS = NULL;
+		VS = NULL;
+		return;
+	}
+	
+	String name = "mtl:";
+	name.append( mtl.shader );
+	name.append( ":" );
+	name.append( pass.shader );
+	
+	if( pass.isShadowPass )
+		name.append( ":SHADOW_PASS" );
+	else
+	{
+		char bfr[32];
+		if( pass.isBasePass )
+			name.append( ":BASE_PASS" );
+		if( pass.numPL )
+		{
+			sgrx_snprintf( bfr, 32, "%d", pass.numPL );
+			name.append( ":NUM_POINTLIGHTS " );
+			name.append( bfr );
+		}
+		if( pass.numSL )
+		{
+			sgrx_snprintf( bfr, 32, "%d", pass.numSL );
+			name.append( ":NUM_SPOTLIGHTS " );
+			name.append( bfr );
+		}
+	}
+	
+	PS = GR_GetPixelShader( name );
+	
+	if( MI->IsSkinned() )
+		name.append( ":SKIN" );
+	
+	VS = GR_GetVertexShader( name );
 }
 
 bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags )
@@ -1747,6 +1796,49 @@ void SGRX_MeshInstance::SetTransform( const Mat4& mtx )
 	matrix = mtx;
 }
 
+void SGRX_MeshInstance::_Precache()
+{
+	size_t dicnt = TMIN( materials.size(), mesh->m_meshParts.size() );
+	if( m_invalid || _scene->m_invalid || m_drawItems.size() != dicnt )
+	{
+		m_drawItems.resize( dicnt );
+		for( size_t i = 0; i < dicnt; ++i )
+		{
+			const SGRX_Material& mtl = materials[ i ];
+			uint8_t type = 0;
+			if( mtl.flags & SGRX_MtlFlag_Decal )
+				type = SGRX_TY_Decal;
+			else if( mtl.blendMode != SGRX_MtlBlend_None )
+				type = SGRX_TY_Transparent;
+			else
+				type = SGRX_TY_Solid;
+			m_drawItems[ i ].MI = this;
+			m_drawItems[ i ].part = i;
+			m_drawItems[ i ].type = type;
+			m_drawItems[ i ]._lightbuf_begin = NULL;
+			m_drawItems[ i ]._lightbuf_end = NULL;
+		}
+		
+		m_srsData.resize( dicnt * _scene->m_passes.size() );
+		for( size_t diid = 0; diid < dicnt; ++diid )
+		{
+			for( size_t pid = 0; pid < _scene->m_passes.size(); ++pid )
+			{
+				SGRX_SRSData& srs = GetSRSData( pid, diid );
+				
+				// load render state
+				SGRX_RenderState rs;
+				rs.Init();
+				g_Game->OnMakeRenderState( _scene->m_passes[ pid ], materials[ diid ], rs );
+				srs.RS = GR_GetRenderState( rs );
+				
+				// load shaders
+				g_Game->OnLoadMtlShaders( _scene->m_passes[ pid ], materials[ diid ], this, srs.VS, srs.PS );
+			}
+		}
+	}
+}
+
 
 uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& writeoffset, const uint8_t* vertex, size_t vertsize )
 {
@@ -1891,10 +1983,10 @@ void SceneRaycastCallback_Sorting::AddResult( SceneRaycastInfo* info )
 static SGRX_RenderPass g_DefaultRenderPasses[] =
 {
 	// shadow pass
-	{ true, false, 0, 0, "sys_lighting", "" },
-	{ false, true, 32, 0, "sys_lighting", "" },
-	{ false, false, 32, 0, "sys_lighting", "" },
-	{ false, false, 0, 2, "sys_lighting", "" },
+	{ true, false, 0, 0, "sys_lighting" },
+	{ false, true, 32, 0, "sys_lighting" },
+	{ false, false, 32, 0, "sys_lighting" },
+	{ false, false, 0, 2, "sys_lighting" },
 };
 
 SGRX_Scene::SGRX_Scene() :
@@ -2520,7 +2612,10 @@ void GR_RenderScene( SGRX_RenderScene& info )
 {
 	g_BatchRenderer->Flush();
 	g_BatchRenderer->Reset();
-	g_Renderer->RenderScene( &info );
+	
+	info.scene->m_timevals = info.timevals;
+	g_Renderer->_RS_PreProcess( info.scene );
+	g_Game->OnDrawScene( g_Renderer, info );
 }
 
 RenderStats& GR_GetRenderStats()

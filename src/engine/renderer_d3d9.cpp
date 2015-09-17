@@ -1768,8 +1768,8 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 	PS_SetMat4( 4, cam.mProj );
 	Vec4 campos4 = { cam.position.x, cam.position.y, cam.position.z, 0 };
 	PS_SetVec4( 4, campos4 );
-//	VS_SetVec4( 16, RS->timevals ); -- TODO restore time values
-//	PS_SetVec4( 16, RS->timevals );
+	VS_SetVec4( 16, scene->m_timevals );
+	PS_SetVec4( 16, scene->m_timevals );
 	
 	Vec4 skydata[ 1 ] =
 	{
@@ -1806,6 +1806,11 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 		const SGRX_Material& MTL = MI->GetMaterial( part_id );
 		
 		SGRX_SRSData& SRS = MI->GetSRSData( pass_id, part_id );
+		if( SRS.RS == NULL || SRS.VS == NULL || SRS.PS == NULL )
+		{
+			RI++;
+			continue;
+		}
 		SetRenderState( SRS.RS );
 		SetVertexShader( SRS.VS );
 		SetPixelShader( SRS.PS );
@@ -1868,6 +1873,7 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 			m_stats.numMDrawCalls += PASS.isShadowPass == false;
 			m_stats.numSDrawCalls += PASS.isShadowPass != false;
 		}
+		RI++;
 	}
 }
 

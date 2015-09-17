@@ -283,15 +283,7 @@ void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene )
 	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
 	{
 		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
-		MI->m_drawItems.resize( MI->mesh->m_meshParts.size() );
-		
-		for( size_t i = 0; i < MI->m_drawItems.size(); ++i )
-		{
-			MI->m_drawItems[ i ].MI = MI;
-			MI->m_drawItems[ i ].part = i;
-			MI->m_drawItems[ i ]._lightbuf_begin = NULL;
-			MI->m_drawItems[ i ]._lightbuf_end = NULL;
-		}
+		MI->_Precache();
 		
 		for( size_t i = 0; i < MI->m_drawItems.size(); ++i )
 		{
@@ -401,7 +393,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 		while( mil < milend )
 		{
 			SGRX_MeshInstance* MI = mil->DI->MI;
-			if( ( MI->layers & L->layers ) != 0 && MI->skin_matrices.size() == 0 )
+			if( ( MI->layers & L->layers ) != 0 && MI->IsSkinned() == false )
 			{
 				SGRX_IMesh* M = MI->mesh;
 				if( M )

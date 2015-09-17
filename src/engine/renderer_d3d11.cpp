@@ -481,12 +481,10 @@ struct D3D11Renderer : IRenderer
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
 	
-	bool SetRenderPasses( SGRX_RenderPass* passes, int count );
 	void RenderScene( SGRX_RenderScene* RS );
-//	void _RS_Render_Shadows();
-	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
-	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, /*IDirect3DBaseTexture9* tx_depth,*/ const RTOutInfo& RTOUT );
 //	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
+	
+	void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
 	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
 	
@@ -791,8 +789,6 @@ bool D3D11Renderer::LoadInternalResources()
 
 void D3D11Renderer::UnloadInternalResources()
 {
-	SetRenderPasses( NULL, 0 );
-	
 	SAFE_RELEASE( m_inputLayout_batchverts );
 	
 	m_defaultTexture->Release();
@@ -991,8 +987,11 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	DXGI_FORMAT d3dfmt;
 	switch( format )
 	{
-	case RT_FORMAT_BACKBUFFER:
+	case RT_FORMAT_COLOR_HDR16:
 		d3dfmt = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		break;
+	case RT_FORMAT_COLOR_LDR8:
+		d3dfmt = DXGI_FORMAT_R8G8B8A8_UNORM;
 		break;
 	case RT_FORMAT_DEPTH:
 		d3dfmt = DXGI_FORMAT_D32_FLOAT;
@@ -1730,41 +1729,6 @@ void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t co
 }
 
 
-bool D3D11Renderer::SetRenderPasses( SGRX_RenderPass* passes, int count )
-{
-	for( int i = 0; i < count; ++i )
-	{
-		SGRX_RenderPass& PASS = passes[ i ];
-		if( PASS.type != RPT_SHADOWS &&
-			PASS.type != RPT_OBJECT &&
-			PASS.type != RPT_SCREEN &&
-			PASS.type != RPT_PROJECTORS &&
-			PASS.type != RPT_LIGHTVOLS )
-		{
-			LOG_ERROR << "Invalid type for pass " << i;
-			return false;
-		}
-		if( !PASS.shader_name )
-		{
-			LOG_ERROR << "No shader name for pass " << i;
-			return false;
-		}
-	}
-	
-	m_renderPasses.assign( passes, count );
-	Array< PixelShaderHandle > psh = m_pass_shaders;
-	m_pass_shaders.clear();
-	m_pass_shaders.reserve( count );
-	
-	for( int i = 0; i < (int) m_renderPasses.size(); ++i )
-	{
-		SGRX_RenderPass& PASS = m_renderPasses[ i ];
-		m_pass_shaders.push_back( PASS.type == RPT_SCREEN ? GR_GetPixelShader( PASS.shader_name ) : PixelShaderHandle() );
-	}
-	
-	return true;
-}
-
 void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 {
 	SceneHandle scene = RS->scene;
@@ -1792,7 +1756,7 @@ void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 		CAM.mProj,
 		CAM.mInvView,
 		CAM.position,
-		RS->timevals,
+		scene->m_timevals,
 		
 		scene->ambientLightColor,
 		-CAM.mView.TransformNormal( scene->dirLightDir ).Normalized(),
@@ -1800,6 +1764,7 @@ void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 	};
 	upload_buf( m_ctx, m_cbuf0_common, true, true, &coredata, sizeof(coredata) );
 	
+#if 0
 	for( size_t pass_id = 0; pass_id < m_renderPasses.size(); ++pass_id )
 	{
 		const SGRX_RenderPass& pass = m_renderPasses[ pass_id ];
@@ -1807,6 +1772,7 @@ void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 		if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
 		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, /*tx_depth,*/ RTOUT );
 	}
+#endif
 	
 	// RESTORE STATE
 	m_enablePostProcessing = false;
@@ -1814,12 +1780,25 @@ void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
 	m_currentScene = NULL;
 }
 
-void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t pass_id )
+void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
-	int obj_type = !!( PASS.flags & RPF_OBJ_STATIC ) - !!( PASS.flags & RPF_OBJ_DYNAMIC );
-	int mtl_type = !!( PASS.flags & RPF_MTL_SOLID ) - !!( PASS.flags & RPF_MTL_TRANSPARENT );
+	SGRX_RenderPass& PASS = scene->m_passes[ pass_id ];
+	if( PASS.isShadowPass )
+		maxrepeat = 1;
 	
-	const SGRX_Camera& CAM = m_currentScene->camera;
+	cb_objpass_core_data coredata =
+	{
+		cam.mView,
+		cam.mProj,
+		cam.mInvView,
+		cam.position,
+		scene->m_timevals,
+		
+		scene->ambientLightColor,
+		-cam.mView.TransformNormal( scene->dirLightDir ).Normalized(),
+		scene->dirLightColor,
+	};
+	upload_buf( m_ctx, m_cbuf0_common, true, true, &coredata, sizeof(coredata) );
 	
 	ID3D11Buffer* cbufs[5] =
 	{
@@ -1832,215 +1811,107 @@ void D3D11Renderer::_RS_RenderPass_Object( const SGRX_RenderPass& PASS, size_t p
 	m_ctx->VSSetConstantBuffers( 0, 5, cbufs );
 	m_ctx->PSSetConstantBuffers( 0, 5, cbufs );
 	
-	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
+	RenderItem* RI = start;
+	while( RI < end )
 	{
-		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
-		if( !MI->mesh )
-			continue;
+		SGRX_MeshInstance* MI = RI->MI;
+		uint16_t part_id = RI->part_id;
 		
 		D3D11Mesh* M = (D3D11Mesh*) MI->mesh.item;
-		if( !M->m_vertexDecl )
-			continue;
+		const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
+		D3D11VertexDecl* VD = (D3D11VertexDecl*) M->m_vertexDecl.item;
+		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
+		const SGRX_Material& MTL = MI->GetMaterial( part_id );
 		
-		/* dynamic meshes */
-		if( ( MI->dynamic && obj_type > 0 ) || ( !MI->dynamic && obj_type < 0 ) )
-			continue;
-		
-		// RENDERSTATE: NOCULL    M->m_dataFlags & MDF_NOCULL ? D3DCULL_NONE : D3DCULL_CCW
-		
-		/* -------------------------------------- */
-		do
+		SGRX_SRSData& SRS = MI->GetSRSData( pass_id, part_id );
+		if( SRS.RS == NULL || SRS.VS == NULL || SRS.PS == NULL )
 		{
-			/* WHILE THERE ARE LIGHTS IN A LIGHT OVERLAY PASS */
-			int pl_count = 0, sl_count = 0;
-			Vec4 lightdata[ 64 ];
-			Vec4 *pldata_it = &lightdata[0];
-			Vec4 *sldata_ps_it = &lightdata[32];
-			Vec4 *sldata_vs_it = &lightdata[48];
-			
-#if 0
-	
-	TODO
-	
-			if( PASS.pointlight_count )
-			{
-				while( pl_count < PASS.pointlight_count && MI->_lightbuf_begin < MI->_lightbuf_end )
-				{
-					int found = 0;
-					SGRX_MeshInstLight* plt = MI->_lightbuf_begin;
-					while( plt < MI->_lightbuf_end )
-					{
-						if( plt->L->type == LIGHT_POINT )
-						{
-							SGRX_Light* light = plt->L;
-							
-							found = 1;
-							
-							// copy data
-							Vec3 viewpos = CAM.mView.TransformPos( light->position );
-							Vec4 newdata[2] =
-							{
-								{ viewpos.x, viewpos.y, viewpos.z, light->range },
-								{ light->color.x, light->color.y, light->color.z, light->power }
-							};
-							memcpy( pldata_it, newdata, sizeof(Vec4)*2 );
-							pldata_it += 2;
-							pl_count++;
-							
-							// extract light from array
-							if( plt > MI->_lightbuf_begin )
-								*plt = *MI->_lightbuf_begin;
-							MI->_lightbuf_begin++;
-							
-							break;
-						}
-						plt++;
-					}
-					if( !found )
-						break;
-				}
-				m_cbuf3_ltpoint.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, &lightdata[0], 
-				PS_SetVec4Array( 56, &lightdata[0], 2 * pl_count );
-			}
-			if( PASS.spotlight_count )
-			{
-				while( sl_count < PASS.spotlight_count && MI->_lightbuf_begin < MI->_lightbuf_end )
-				{
-					int found = 0;
-					SGRX_MeshInstLight* plt = MI->_lightbuf_begin;
-					while( plt < MI->_lightbuf_end )
-					{
-						if( plt->L->type == LIGHT_SPOT )
-						{
-							SGRX_Light* light = plt->L;
-							
-							found = 1;
-							
-							// copy data
-							Vec3 viewpos = CAM.mView.TransformPos( light->position );
-							Vec3 viewdir = CAM.mView.TransformPos( light->direction ).Normalized();
-							float tszx = 1, tszy = 1;
-							if( light->shadowTexture )
-							{
-								const TextureInfo& texinfo = light->shadowTexture.GetInfo();
-								tszx = texinfo.width;
-								tszy = texinfo.height;
-							}
-							Vec4 newdata[4] =
-							{
-								{ viewpos.x, viewpos.y, viewpos.z, light->range },
-								{ light->color.x, light->color.y, light->color.z, light->power },
-								{ viewdir.x, viewdir.y, viewdir.z, DEG2RAD( light->angle ) },
-								{ tszx, tszy, 1.0f / tszx, 1.0f / tszy },
-							};
-							memcpy( sldata_ps_it, newdata, sizeof(Vec4)*4 );
-							Mat4 tmp;
-							tmp.Multiply( MI->matrix, light->viewProjMatrix );
-							memcpy( sldata_vs_it, &tmp, sizeof(Mat4) );
-							sldata_ps_it += 4;
-							sldata_vs_it += 4;
-							
-							SetTexture( 8 + sl_count * 2, light->cookieTexture );
-							SetTexture( 8 + sl_count * 2 + 1, light->shadowTexture );
-							sl_count++;
-							
-							// extract light from array
-							if( plt > MI->_lightbuf_begin )
-								*plt = *MI->_lightbuf_begin;
-							MI->_lightbuf_begin++;
-							
-							break;
-						}
-						plt++;
-					}
-					if( !found )
-						break;
-				}
-				VS_SetVec4Array( 24, &lightdata[48], 4 * sl_count );
-				PS_SetVec4Array( 24, &lightdata[32], 4 * sl_count );
-			}
-#endif
-			
-			if( PASS.flags & RPF_LIGHTOVERLAY && pl_count + sl_count <= 0 )
-				break;
-			
-			// PER-INSTANCE DATA
-			Mat4 m_world_view;
-			m_world_view.Multiply( MI->matrix, CAM.mView );
-			cb_objpass_instance_data instdata =
-			{
-				MI->matrix,
-				m_world_view,
-				V2( pl_count, sl_count ),
-			};
-			for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
-				instdata.gInstanceData[ i ] = MI->constants[ i ];
-			upload_buf( m_ctx, m_cbuf1_inst, true, true, &instdata, sizeof(instdata) );
-			
-			ID3D11ShaderResourceView* srvs[16] = { NULL };
-			ID3D11SamplerState* smps[16] = { NULL };
-			for( int i = 0; i < MAX_MI_TEXTURES; ++i )
-			{
-				D3D11Texture* tex = (D3D11Texture*) MI->textures[ i ].item;
-				srvs[ i + 8 ] = ( tex ? tex : m_defaultTexture )->m_rsrcView;
-				smps[ i + 8 ] = ( tex ? tex : m_defaultTexture )->m_sampState;
-			}
-			m_ctx->PSSetShaderResources( 8, 4, srvs + 8 );
-			m_ctx->PSSetSamplers( 8, 4, smps + 8 );
-			
-			ID3D11Buffer* vbufs[2] = { M->m_VB, m_vertbuf_defaults };
-			const UINT strides[2] = { M->m_realVertexSize, sizeof(BackupVertexData) };
-			const UINT offsets[2] = { 0, 0 };
-			m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
-			m_ctx->IASetIndexBuffer( M->m_IB, M->m_dataFlags & MDF_INDEX_32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0 );
-			m_ctx->IASetPrimitiveTopology( M->m_dataFlags & MDF_TRIANGLESTRIP ? D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-			
-			for( size_t part_id = 0; part_id < M->m_meshParts.size(); ++part_id )
-			{
-				SGRX_MeshPart* MP = &M->m_meshParts[ part_id ];
-				SGRX_Material& MTL = MP->material;
-				SGRX_SurfaceShader* SSH = MTL.shader;
-				if( !SSH )
-					continue;
-				
-				bool transparent = MTL.blendMode != MBM_NONE;
-				if( ( transparent && mtl_type > 0 ) || ( !transparent && mtl_type < 0 ) )
-					continue;
-				
-				if( MP->indexCount < 3 )
-					continue;
-				
-				m_ctx->IASetInputLayout( MI->skin_matrices.size() ? M->m_inputLayouts[ part_id ].basic : M->m_inputLayouts[ part_id ].skin );
-				
-			//	m_dev->SetRenderState( D3DRS_ZWRITEENABLE, ( ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent ) == false );
-			//	m_dev->SetRenderState( D3DRS_ALPHABLENDENABLE, ( PASS.flags & RPF_LIGHTOVERLAY ) || transparent );
-			//	m_dev->SetRenderState( D3DRS_DESTBLEND, ( PASS.flags & RPF_LIGHTOVERLAY ) || MTL.additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA );
-				
-				SetVertexShader( MI->skin_matrices.size() ? SSH->m_skinVertexShaders[ part_id ] : SSH->m_basicVertexShaders[ part_id ] );
-				SetPixelShader( SSH->m_pixelShaders[ part_id ] );
-				
-				for( int i = 0; i < NUM_MATERIAL_TEXTURES; ++i )
-				{
-					D3D11Texture* tex = (D3D11Texture*) MTL.textures[ i ].item;
-					srvs[ i ] = ( tex ? tex : m_defaultTexture )->m_rsrcView;
-					smps[ i ] = ( tex ? tex : m_defaultTexture )->m_sampState;
-				}
-				m_ctx->PSSetShaderResources( 0, 8, srvs );
-				m_ctx->PSSetSamplers( 0, 8, smps );
-				
-				m_ctx->DrawIndexed( MP->indexCount, MP->indexOffset, MP->vertexOffset );
-				m_stats.numDrawCalls++;
-				m_stats.numMDrawCalls++;
-			}
-			
-			/* -------------------------------------- */
+			RI++;
+			continue;
 		}
-		while( PASS.flags & RPF_LIGHTOVERLAY );
+		SetRenderState( SRS.RS );
+		SetVertexShader( SRS.VS );
+		SetPixelShader( SRS.PS );
+		
+		// instance state
+		ID3D11ShaderResourceView* srvs[16] = { NULL };
+		ID3D11SamplerState* smps[16] = { NULL };
+		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
+		{
+			D3D11Texture* tex = (D3D11Texture*) MTL.textures[ i ].item;
+			srvs[ i ] = ( tex ? tex : m_defaultTexture )->m_rsrcView;
+			smps[ i ] = ( tex ? tex : m_defaultTexture )->m_sampState;
+		}
+		m_ctx->PSSetShaderResources( 0, SGRX_MAX_TEXTURES, srvs );
+		m_ctx->PSSetSamplers( 0, SGRX_MAX_TEXTURES, smps );
+		MI_ApplyConstants( MI );
+		
+		Mat4 mWorldView;
+		mWorldView.Multiply( MI->matrix, cam.mView );
+		cb_objpass_instance_data instdata =
+		{
+			MI->matrix,
+			mWorldView,
+			V2( 0, 0 ), // TODO lighting
+		};
+		for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
+			instdata.gInstanceData[ i ] = MI->constants[ i ];
+		upload_buf( m_ctx, m_cbuf1_inst, true, true, &instdata, sizeof(instdata) );
+		
+		ID3D11Buffer* vbufs[2] = { M->m_VB, m_vertbuf_defaults };
+		const UINT strides[2] = { M->m_realVertexSize, sizeof(BackupVertexData) };
+		const UINT offsets[2] = { 0, 0 };
+		m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
+		m_ctx->IASetIndexBuffer( M->m_IB, M->m_dataFlags & MDF_INDEX_32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0 );
+		m_ctx->IASetPrimitiveTopology( M->m_dataFlags & MDF_TRIANGLESTRIP ? D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+		m_ctx->IASetInputLayout( MI->IsSkinned() ? M->m_inputLayouts[ part_id ].basic : M->m_inputLayouts[ part_id ].skin );
+		
+		for( int numruns = 0; numruns < maxrepeat; ++numruns )
+		{
+			if( PASS.isShadowPass == false )
+			{
+				PointLightData PLData[ 32 ];
+				SpotLightDataPS SLDataPS[ 2 ];
+				SpotLightDataVS SLDataVS[ 2 ];
+				SGRX_Light* SLDataLT[ 2 ];
+				LightCount LC = SGRX_Renderer_FindLights( cam, DI,
+					TMIN( int(PASS.numPL), 32 ),
+					TMIN( int(PASS.numSL), 2 ),
+					PLData, SLDataPS, SLDataVS, SLDataLT );
+				
+				if( PASS.isBasePass == false && LC.numPL + LC.numSL <= 0 )
+					break;
+				
+#if 0
+				if( LC.numPL )
+				{
+					PS_SetVec4Array( 56, (Vec4*) PLData, 2 * LC.numPL );
+				}
+				if( LC.numSL )
+				{
+					for( int i = 0; i < LC.numSL; ++i )
+					{
+						SetTexture( 12 + i * 2 + 0, SLDataLT[ i ]->cookieTexture );
+						SetTexture( 12 + i * 2 + 1, SLDataLT[ i ]->shadowTexture );
+					}
+					VS_SetVec4Array( 24, (Vec4*) SLDataVS, 4 * LC.numSL );
+					PS_SetVec4Array( 24, (Vec4*) SLDataPS, 4 * LC.numSL );
+				}
+				
+				Vec4 lightcounts = { LC.numPL, LC.numSL, 0, 0 };
+				VS_SetVec4( 23, lightcounts );
+				PS_SetVec4( 23, lightcounts );
+#endif
+			}
+			
+			m_ctx->DrawIndexed( MP.indexCount, MP.indexOffset, MP.vertexOffset );
+			
+			m_stats.numDrawCalls++;
+			m_stats.numMDrawCalls += PASS.isShadowPass == false;
+			m_stats.numSDrawCalls += PASS.isShadowPass != false;
+		}
+		RI++;
 	}
-}
-
-void D3D11Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, /*IDirect3DBaseTexture9* tx_depth,*/ const RTOutInfo& RTOUT )
-{
 }
 
 

@@ -2601,7 +2601,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 					for( int bone_id = 0; bone_id < g_AnimChar->m_cachedMesh->m_numBones; ++bone_id )
 					{
 						Mat4 bmtx = g_AnimChar->m_cachedMeshInst->matrix;
-						if( g_AnimChar->m_cachedMeshInst->skin_matrices.size() )
+						if( g_AnimChar->m_cachedMeshInst->IsSkinned() )
 							bmtx = g_AnimChar->m_cachedMeshInst->skin_matrices[ bone_id ] * bmtx;
 						bmtx = g_AnimChar->m_cachedMesh->m_bones[ bone_id ].skinOffset * bmtx;
 						

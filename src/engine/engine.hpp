@@ -172,8 +172,10 @@ struct IF_GCC(ENGINE_EXPORT) IGame
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
-	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_Scene* scene );
+	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, struct SGRX_RenderScene& info );
 	ENGINE_EXPORT virtual void OnMakeRenderState( const struct SGRX_RenderPass& pass, const struct SGRX_Material& mtl, struct SGRX_RenderState& out );
+	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
+		SGRX_MeshInstance* MI, struct VertexShaderHandle& VS, struct PixelShaderHandle& PS );
 	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
 	ENGINE_EXPORT virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
@@ -1034,11 +1036,14 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	ENGINE_EXPORT SGRX_MeshInstance( SGRX_Scene* s );
 	ENGINE_EXPORT virtual ~SGRX_MeshInstance();
 	ENGINE_EXPORT virtual void SetTransform( const Mat4& mtx );
+	ENGINE_EXPORT void _Precache();
 	
+	FINLINE void Precache(){ if( mesh ) _Precache(); }
 	FINLINE bool CanDraw() const
 	{
 		return enabled && mesh && mesh->IsValid();
 	}
+	FINLINE bool IsSkinned() const { return skin_matrices.size() != 0; }
 	
 	FINLINE void OnUpdate(){ m_invalid = true; }
 	FINLINE void SetAllMtlFlags( uint8_t add, uint8_t rem = 0xff )
@@ -1193,7 +1198,6 @@ struct SGRX_RenderPass
 	uint8_t numPL;
 	uint8_t numSL;
 	StringView shader;
-	StringView defines;
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
@@ -1219,6 +1223,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	HashTable< SGRX_Light*, LightHandle > m_lights;
 	Array< SGRX_RenderPass > m_passes;
 	bool m_invalid;
+	Vec4 m_timevals; // temporary?
 	
 	SGRX_CullScene* cullScene;
 	SGRX_Camera camera;

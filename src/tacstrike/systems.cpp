@@ -1003,7 +1003,7 @@ struct DmgSys_GenBlood : IProcessor
 		SGRX_CAST( SGRX_MeshInstance*, MI, data );
 		if( MI->mesh == NULL ||
 			MI->raycastOverride ||
-			MI->skin_matrices.size() )
+			MI->IsSkinned() )
 			return;
 		SGRX_CAST( SGRX_MeshInstUserData*, mii, MI->userData );
 		if( mii && mii->ovrDecalSysOverride )
@@ -1116,7 +1116,7 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
 				SGRX_DecalSystem* dmgDecalSys = mii ? mii->dmgDecalSysOverride : NULL;
 				bool needDecal = ( HIT.meshinst->allowStaticDecals || dmgDecalSys ) &&
-					HIT.meshinst->skin_matrices.size() == 0;
+					HIT.meshinst->IsSkinned() == false;
 				m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
 					needDecal ? HIT.meshinst->mesh : NULL,
 					-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );

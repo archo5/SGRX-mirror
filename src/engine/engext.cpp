@@ -454,7 +454,7 @@ bool AnimCharacter::GetBodyMatrix( int which, Mat4& outwm )
 	outwm = m_cachedMeshInst->matrix;
 	if( BI.bone_id >= 0 )
 	{
-		if( m_cachedMeshInst->skin_matrices.size() )
+		if( m_cachedMeshInst->IsSkinned() )
 		{
 			outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
 		}
@@ -511,7 +511,7 @@ bool AnimCharacter::GetJointMatrix( int which, bool parent, Mat4& outwm )
 	outwm = m_cachedMeshInst->matrix;
 	if( bid >= 0 )
 	{
-		if( m_cachedMeshInst->skin_matrices.size() )
+		if( m_cachedMeshInst->IsSkinned() )
 		{
 			outwm = m_cachedMeshInst->skin_matrices[ bid ] * outwm;
 		}
@@ -543,7 +543,7 @@ bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 	outwm = m_cachedMeshInst->matrix;
 	if( BI.bone_id >= 0 )
 	{
-		if( m_cachedMeshInst->skin_matrices.size() )
+		if( m_cachedMeshInst->IsSkinned() )
 		{
 			outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
 		}
@@ -566,7 +566,7 @@ bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm )
 	outwm = m_cachedMeshInst->matrix;
 	if( AT.bone_id >= 0 )
 	{
-		if( m_cachedMeshInst->skin_matrices.size() )
+		if( m_cachedMeshInst->IsSkinned() )
 		{
 			outwm = m_cachedMeshInst->skin_matrices[ AT.bone_id ] * outwm;
 		}
@@ -650,7 +650,7 @@ void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCa
 		if( BI.bone_id >= 0 )
 		{
 			bxf = bxf * m_cachedMesh->m_bones[ BI.bone_id ].skinOffset;
-			if( m_cachedMeshInst->skin_matrices.size() )
+			if( m_cachedMeshInst->IsSkinned() )
 			{
 				bxf = bxf * m_cachedMeshInst->skin_matrices[ BI.bone_id ];
 			}

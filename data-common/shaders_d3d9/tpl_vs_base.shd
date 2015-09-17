@@ -6,8 +6,8 @@ float4x4 mView : register(c12);
 float time : register(c16);
 
 
-#if NUMSPOTLIGHTS > 0
-float4x4 mSpotLight[ NUMSPOTLIGHTS ] : register(c24);
+#if NUM_SPOTLIGHTS > 0
+float4x4 mSpotLight[ NUM_SPOTLIGHTS ] : register(c24);
 #endif
 
 
@@ -57,14 +57,10 @@ void main
 	out float4 otfpos : TEXCOORD4,
 	out float4 oT : TEXCOORD6,
 	out float3 oN : TEXCOORD7,
-#if NUMSPOTLIGHTS > 0
+#if NUM_SPOTLIGHTS > 0
 	out float4 oSLPPos0 : TEXCOORD8,
-#if NUMSPOTLIGHTS > 1
+#if NUM_SPOTLIGHTS > 1
 	out float4 oSLPPos1 : TEXCOORD9,
-#if NUMSPOTLIGHTS > 2
-	out float4 oSLPPos2 : TEXCOORD10,
-#if NUMSPOTLIGHTS > 3
-	out float4 oSLPPos3 : TEXCOORD11,
 #endif
 #endif
 #endif
