@@ -399,22 +399,12 @@ struct D3D11VertexDecl : SGRX_IVertexDecl
 
 struct D3D11Mesh : SGRX_IMesh
 {
-	struct InputLayouts
-	{
-		ID3D11InputLayout* basic;
-		ID3D11InputLayout* skin;
-		
-		FINLINE void Reset(){ basic = NULL; skin = NULL; }
-	};
-	
 	ID3D11Buffer* m_VB;
 	ID3D11Buffer* m_IB;
 	struct D3D11Renderer* m_renderer;
 	int m_origVertexSize;
 	int m_realVertexSize;
 	size_t m_realVertexDataSize;
-	
-	Array< InputLayouts > m_inputLayouts;
 	
 	D3D11Mesh() : m_VB( NULL ), m_IB( NULL ), m_renderer( NULL ), m_origVertexSize(0), m_realVertexSize(0), m_realVertexDataSize(0)
 	{
@@ -425,9 +415,20 @@ struct D3D11Mesh : SGRX_IMesh
 	bool InitIndexBuffer( size_t size, bool i32 );
 	bool UpdateVertexData( const void* data, size_t size, bool tristrip );
 	bool UpdateIndexData( const void* data, size_t size );
-	bool SetPartData( SGRX_MeshPart* parts, int count );
+};
+
+
+struct D3D11VertexInputMapping : SGRX_IVertexInputMapping
+{
+	ID3D11InputLayout* m_inputLayout;
 	
-	void _UpdatePartInputLayouts();
+	D3D11VertexInputMapping() : m_inputLayout( NULL )
+	{
+	}
+	~D3D11VertexInputMapping()
+	{
+		SAFE_RELEASE( m_inputLayout );
+	}
 };
 
 
@@ -464,8 +465,7 @@ struct D3D11Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	
-	bool SetRenderTarget( TextureHandle rt );
-	void Clear( float* color_v4f, bool clear_zbuffer );
+	void SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( bool enable, int* rect );
 	
@@ -477,6 +477,7 @@ struct D3D11Renderer : IRenderer
 	SGRX_IRenderState* CreateRenderState( const SGRX_RenderState& state );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
+	SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd );
 	
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
@@ -492,8 +493,9 @@ struct D3D11Renderer : IRenderer
 	void ResetViewport();
 //	void _SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags );
 	void SetTexture( int slot, SGRX_ITexture* tex );
-	void SetVertexShader( SGRX_IVertexShader* shd );
-	void SetPixelShader( SGRX_IPixelShader* shd );
+	void SetVertexShader( const SGRX_IVertexShader* shd );
+	void SetPixelShader( const SGRX_IPixelShader* shd );
+	void SetRenderState( const SGRX_IRenderState* rsi );
 	
 //	FINLINE void VS_SetVec4Array( int at, Vec4* arr, int size ){ m_dev->SetVertexShaderConstantF( at, &arr->x, size ); }
 //	FINLINE void VS_SetVec4Array( int at, float* arr, int size ){ m_dev->SetVertexShaderConstantF( at, arr, size ); }
@@ -811,16 +813,46 @@ void D3D11Renderer::Modify( const RenderSettings& settings )
 }
 
 
-bool D3D11Renderer::SetRenderTarget( TextureHandle rt )
+void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] )
 {
-	return false;
-}
-
-void D3D11Renderer::Clear( float* color_v4f, bool clear_zbuffer )
-{
-	m_ctx->ClearRenderTargetView( m_rtView, color_v4f );
-	if( clear_zbuffer )
-		m_ctx->ClearDepthStencilView( m_dsView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0 );
+	if( rts[0] == NULL && rts[1] == NULL && rts[2] == NULL && rts[3] == NULL )
+	{
+		m_ctx->OMSetRenderTargets( 1, &m_rtView, info.flags & SGRX_RT_NeedDepthStencil ? m_dsView : NULL );
+	}
+	else
+	{
+		if( rts[0] ) ASSERT( rts[0]->m_isRenderTexture );
+		if( rts[1] ) ASSERT( rts[1]->m_isRenderTexture );
+		if( rts[2] ) ASSERT( rts[2]->m_isRenderTexture );
+		if( rts[3] ) ASSERT( rts[3]->m_isRenderTexture );
+		SGRX_CAST( D3D11RenderTexture*, rtt0, rts[0].item );
+		SGRX_CAST( D3D11RenderTexture*, rtt1, rts[1].item );
+		SGRX_CAST( D3D11RenderTexture*, rtt2, rts[2].item );
+		SGRX_CAST( D3D11RenderTexture*, rtt3, rts[3].item );
+		ID3D11RenderTargetView* rtv[4] =
+		{
+			rtt0 ? rtt0->CRV : NULL,
+			rtt1 ? rtt1->CRV : NULL,
+			rtt2 ? rtt2->CRV : NULL,
+			rtt3 ? rtt3->CRV : NULL,
+		};
+		// todo alloc DS
+		m_ctx->OMSetRenderTargets( 1, rtv, info.flags & SGRX_RT_NeedDepthStencil ? m_dsView : NULL );
+	}
+	
+	// clear buffers
+	Vec4 col = Col32ToVec4( info.clearColor );
+	if( info.flags & SGRX_RT_ClearColor )
+		m_ctx->ClearRenderTargetView( m_rtView, &col.x );
+	if( info.flags & (SGRX_RT_ClearDepth|SGRX_RT_ClearStencil) )
+	{
+		int dscf = 0;
+		if( info.flags & SGRX_RT_ClearDepth )
+			dscf |= D3D11_CLEAR_DEPTH;
+		if( info.flags & SGRX_RT_ClearStencil )
+			dscf |= D3D11_CLEAR_STENCIL;
+		m_ctx->ClearDepthStencilView( m_dsView, dscf, info.clearDepth, info.clearStencil );
+	}
 }
 
 void D3D11Renderer::SetViewport( int x0, int y0, int x1, int y1 )
@@ -1355,7 +1387,7 @@ static DXGI_FORMAT vdecltype_to_format[] =
 	DXGI_FORMAT_R8G8B8A8_UNORM,
 };
 
-static const char* format_to_str( DXGI_FORMAT fmt )
+inline const char* format_to_str( DXGI_FORMAT fmt )
 {
 	static char bfr[32];
 	switch( fmt )
@@ -1498,11 +1530,6 @@ D3D11Mesh::~D3D11Mesh()
 	m_renderer->m_ownMeshes.unset( this );
 	SAFE_RELEASE( m_VB );
 	SAFE_RELEASE( m_IB );
-	for( size_t i = 0; i < m_inputLayouts.size(); ++i )
-	{
-		SAFE_RELEASE( m_inputLayouts[ i ].basic );
-		SAFE_RELEASE( m_inputLayouts[ i ].skin );
-	}
 }
 
 bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
@@ -1519,8 +1546,6 @@ bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 		return false;
 	
 	m_vertexDecl = vd;
-	
-	_UpdatePartInputLayouts();
 	
 	return true;
 }
@@ -1583,54 +1608,21 @@ bool D3D11Mesh::UpdateIndexData( const void* data, size_t size )
 	return true;
 }
 
-bool D3D11Mesh::SetPartData( SGRX_MeshPart* parts, int count )
+SGRX_IMesh* D3D11Renderer::CreateMesh()
 {
-	bool ret = SGRX_IMesh::SetPartData( parts, count );
-	if( !ret )
-		return false;
-	
-	_UpdatePartInputLayouts();
-	
-	return true;
+	D3D11Mesh* mesh = new D3D11Mesh;
+	mesh->m_renderer = this;
+	m_ownMeshes.set( mesh, true );
+	return mesh;
 }
 
-void D3D11Mesh::_UpdatePartInputLayouts()
+SGRX_IVertexInputMapping* D3D11Renderer::CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd )
 {
-	for( size_t i = 0; i < m_inputLayouts.size(); ++i )
-	{
-		SAFE_RELEASE( m_inputLayouts[ i ].basic );
-		SAFE_RELEASE( m_inputLayouts[ i ].skin );
-	}
-	m_inputLayouts.clear();
+	SGRX_CAST( D3D11VertexShader*, VS, vs );
+	SGRX_CAST( D3D11VertexDecl*, VD, vd );
 	
-	if( !m_vertexDecl )
-		return;
-	D3D11VertexDecl* VD = (D3D11VertexDecl*) m_vertexDecl.item;
+	ID3D11InputLayout* IL = NULL;
 	
-	m_inputLayouts.resize( m_meshParts.size() );
-	for( size_t i = 0; i < m_meshParts.size(); ++i )
-	{
-		m_inputLayouts[i].Reset();
-		
-		SGRX_Material& MTL = m_meshParts[ i ].material;
-		SGRX_SurfaceShader* SSH = MTL.shader;
-		if( !SSH )
-			continue;
-		
-		D3D11VertexShader* SHD_VB = NULL;
-		for( size_t j = 0; j < SSH->m_basicVertexShaders.size(); ++j )
-		{
-			if( SSH->m_basicVertexShaders[ j ] )
-				SHD_VB = (D3D11VertexShader*) SSH->m_basicVertexShaders[ j ].item;
-		}
-		
-		D3D11VertexShader* SHD_VS = NULL;
-		for( size_t j = 0; j < SSH->m_skinVertexShaders.size(); ++j )
-		{
-			if( SSH->m_skinVertexShaders[ j ] )
-				SHD_VS = (D3D11VertexShader*) SSH->m_skinVertexShaders[ j ].item;
-		}
-		
 #if 0
 		D3D11_INPUT_ELEMENT_DESC* elements = VD->m_elements;
 		LOG << "CREATING INPUT LAYOUT";
@@ -1646,33 +1638,17 @@ void D3D11Mesh::_UpdatePartInputLayouts()
 			LOG << "\tInstanceDataStepRate: " << elements[ v ].InstanceDataStepRate;
 		}
 #endif
-		
-		if( SHD_VB )
-		{
-			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VB->m_VSBC.data(), SHD_VB->m_VSBC.size(), &m_inputLayouts[i].basic );
-			if( FAILED( hr ) || !m_inputLayouts[i].basic )
-			{
-				LOG_ERROR << "Failed to create an input layout (basic, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VB->m_key << ", v.d.key=" << VD->m_key << ")";
-			}
-		}
-		
-		if( SHD_VS )
-		{
-			HRESULT hr = m_renderer->m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, SHD_VS->m_VSBC.data(), SHD_VS->m_VSBC.size(), &m_inputLayouts[i].skin );
-			if( FAILED( hr ) || !m_inputLayouts[i].skin )
-			{
-				LOG_ERROR << "Failed to create an input layout (skinned, mesh=" << m_key << ", part=" << i << ", sh.key=" << SHD_VS->m_key << ", v.d.key=" << VD->m_key << ")";
-			}
-		}
+	
+	HRESULT hr = m_dev->CreateInputLayout( VD->m_elements, VD->m_elemCount, VS->m_VSBC.data(), VS->m_VSBC.size(), &IL );
+	if( FAILED( hr ) || !IL )
+	{
+		LOG_ERROR << "Failed to create an input layout (sh.key=" << VS->m_key << ", v.d.key=" << VD->m_key << ")";
+		return NULL;
 	}
-}
-
-SGRX_IMesh* D3D11Renderer::CreateMesh()
-{
-	D3D11Mesh* mesh = new D3D11Mesh;
-	mesh->m_renderer = this;
-	m_ownMeshes.set( mesh, true );
-	return mesh;
+	
+	D3D11VertexInputMapping* vim = new D3D11VertexInputMapping;
+	vim->m_inputLayout = IL;
+	return vim;
 }
 	
 
@@ -1819,12 +1795,12 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		
 		D3D11Mesh* M = (D3D11Mesh*) MI->mesh.item;
 		const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
-		D3D11VertexDecl* VD = (D3D11VertexDecl*) M->m_vertexDecl.item;
+	//	D3D11VertexDecl* VD = (D3D11VertexDecl*) M->m_vertexDecl.item;
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
 		const SGRX_Material& MTL = MI->GetMaterial( part_id );
 		
 		SGRX_SRSData& SRS = MI->GetSRSData( pass_id, part_id );
-		if( SRS.RS == NULL || SRS.VS == NULL || SRS.PS == NULL )
+		if( SRS.RS == NULL || SRS.VS == NULL || SRS.PS == NULL || SRS.VIM == NULL )
 		{
 			RI++;
 			continue;
@@ -1832,6 +1808,8 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		SetRenderState( SRS.RS );
 		SetVertexShader( SRS.VS );
 		SetPixelShader( SRS.PS );
+		SGRX_CAST( D3D11VertexInputMapping*, VIM, SRS.VIM.item );
+		m_ctx->IASetInputLayout( VIM->m_inputLayout );
 		
 		// instance state
 		ID3D11ShaderResourceView* srvs[16] = { NULL };
@@ -1864,7 +1842,6 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
 		m_ctx->IASetIndexBuffer( M->m_IB, M->m_dataFlags & MDF_INDEX_32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0 );
 		m_ctx->IASetPrimitiveTopology( M->m_dataFlags & MDF_TRIANGLESTRIP ? D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-		m_ctx->IASetInputLayout( MI->IsSkinned() ? M->m_inputLayouts[ part_id ].basic : M->m_inputLayouts[ part_id ].skin );
 		
 		for( int numruns = 0; numruns < maxrepeat; ++numruns )
 		{
@@ -1915,16 +1892,26 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 }
 
 
-void D3D11Renderer::SetVertexShader( SGRX_IVertexShader* shd )
+void D3D11Renderer::SetVertexShader( const SGRX_IVertexShader* shd )
 {
-	SGRX_CAST( D3D11VertexShader*, S, shd );
+	SGRX_CAST( const D3D11VertexShader*, S, shd );
 	m_ctx->VSSetShader( S ? S->m_VS : NULL, NULL, 0 );
 }
 
-void D3D11Renderer::SetPixelShader( SGRX_IPixelShader* shd )
+void D3D11Renderer::SetPixelShader( const SGRX_IPixelShader* shd )
 {
-	SGRX_CAST( D3D11PixelShader*, S, shd );
+	SGRX_CAST( const D3D11PixelShader*, S, shd );
 	m_ctx->PSSetShader( S ? S->m_PS : NULL, NULL, 0 );
+}
+
+void D3D11Renderer::SetRenderState( const SGRX_IRenderState* rsi )
+{
+	ASSERT( rsi );
+	SGRX_CAST( const D3D11RenderState*, RS, rsi );
+	
+	m_ctx->RSSetState( RS->m_RS );
+	m_ctx->OMSetBlendState( RS->m_BS, &RS->m_info.blendFactor.x, 0xffffffff );
+	m_ctx->OMSetDepthStencilState( RS->m_DS, RS->m_info.stencilRef );
 }
 
 

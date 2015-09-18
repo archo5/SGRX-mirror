@@ -154,38 +154,6 @@ struct SGRX_RTClearInfo
 	float clearDepth;
 };
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
-{
-	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format ) = 0;
-	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] ) = 0;
-	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
-	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id ) = 0;
-	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types ) = 0;
-	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] ) = 0;
-};
-
-struct IF_GCC(ENGINE_EXPORT) IGame
-{
-	virtual bool OnConfigure( int argc, char** argv ){ return true; }
-	virtual bool OnInitialize(){ return true; }
-	virtual void OnDestroy(){}
-	virtual void OnEvent( const Event& e ){}
-	virtual void OnTick( float dt, uint32_t gametime ) = 0;
-	
-	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, struct SGRX_RenderScene& info );
-	ENGINE_EXPORT virtual void OnMakeRenderState( const struct SGRX_RenderPass& pass, const struct SGRX_Material& mtl, struct SGRX_RenderState& out );
-	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
-		SGRX_MeshInstance* MI, struct VertexShaderHandle& VS, struct PixelShaderHandle& PS );
-	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
-	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
-	ENGINE_EXPORT virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
-	ENGINE_EXPORT virtual bool SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data );
-	ENGINE_EXPORT virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
-	ENGINE_EXPORT virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
-	ENGINE_EXPORT virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
-	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
-};
-
 struct IF_GCC(ENGINE_EXPORT) IDirEntryHandler
 {
 	ENGINE_EXPORT virtual bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir ) = 0;
@@ -1024,11 +992,17 @@ struct SGRX_Material
 	uint8_t blendMode;
 };
 
+struct SGRX_IVertexInputMapping : SGRX_RCRsrc
+{
+};
+typedef Handle< SGRX_IVertexInputMapping > VtxInputMapHandle;
+
 struct SGRX_SRSData
 {
 	VertexShaderHandle VS;
 	PixelShaderHandle PS;
 	RenderStateHandle RS;
+	VtxInputMapHandle VIM;
 };
 
 struct SGRX_MeshInstance : SGRX_RCXFItem
@@ -1038,7 +1012,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	ENGINE_EXPORT virtual void SetTransform( const Mat4& mtx );
 	ENGINE_EXPORT void _Precache();
 	
-	FINLINE void Precache(){ if( mesh ) _Precache(); }
+	FINLINE void Precache(){ if( mesh && mesh->m_vertexDecl ) _Precache(); }
 	FINLINE bool CanDraw() const
 	{
 		return enabled && mesh && mesh->IsValid();
@@ -1518,6 +1492,42 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IFont : SGRX_RCRsrc
 	virtual int GetYOffset( int pxsize ){ return 0; }
 };
 typedef Handle< SGRX_IFont > FontHandle;
+
+
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
+{
+	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] ) = 0;
+	ENGINE_EXPORT virtual TextureHandle GetRenderTarget( uint16_t id ) = 0;
+	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
+	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id ) = 0;
+	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types ) = 0;
+	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] ) = 0;
+};
+
+struct IF_GCC(ENGINE_EXPORT) IGame
+{
+	virtual bool OnConfigure( int argc, char** argv ){ return true; }
+	virtual bool OnInitialize(){ return true; }
+	virtual void OnDestroy(){}
+	virtual void OnEvent( const Event& e ){}
+	virtual void OnTick( float dt, uint32_t gametime ) = 0;
+	
+	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
+	ENGINE_EXPORT virtual void OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out );
+	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
+		SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
+	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
+	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
+	ENGINE_EXPORT virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
+	ENGINE_EXPORT virtual bool SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data );
+	ENGINE_EXPORT virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
+	ENGINE_EXPORT virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
+	ENGINE_EXPORT virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
+	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
+};
+
 
 
 ENGINE_EXPORT int GR_GetWidth();

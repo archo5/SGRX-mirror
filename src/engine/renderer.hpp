@@ -244,6 +244,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual SGRX_IRenderState* CreateRenderState( const SGRX_RenderState& state ) = 0;
 	ENGINE_EXPORT virtual SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo ) = 0;
 	ENGINE_EXPORT virtual SGRX_IMesh* CreateMesh() = 0;
+	ENGINE_EXPORT virtual SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd ) = 0;
 	
 	ENGINE_EXPORT virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
 	ENGINE_EXPORT virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
@@ -253,6 +254,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	// render control
 	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format );
 	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] );
+	ENGINE_EXPORT virtual TextureHandle GetRenderTarget( uint16_t id );
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene );
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id );
 	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types );

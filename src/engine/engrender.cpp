@@ -103,6 +103,11 @@ void IRenderer::SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] 
 	SetRenderTargets( info, rts );
 }
 
+TextureHandle IRenderer::GetRenderTarget( uint16_t id )
+{
+	return id > m_rtCache.size() ? m_rtCache[ id ] : NULL;
+}
+
 void IRenderer::SortRenderItems( SGRX_Scene* scene )
 {
 	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_spot_meshes, SGRX_TY_Solid );

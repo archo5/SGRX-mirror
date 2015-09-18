@@ -496,6 +496,7 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 #define RT_MAIN 0
 	
 	SGRX_Scene* scene = info.scene;
+	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
@@ -514,14 +515,21 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Decal );
 	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
 	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
+	if( info.postdraw )
+		info.postdraw->PostDraw();
+	
+	// reset target
 	{
 		SGRX_RTClearInfo clearInfo = { SGRX_RT_NeedDepthStencil };
 		uint16_t rts[4] = { SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE };
 		ctrl->SetRenderTargets( clearInfo, rts );
 	}
 	
-	if( info.postdraw )
-		info.postdraw->PostDraw();
+	// blit
+	br.Reset().SetTexture( ctrl->GetRenderTarget( RT_MAIN ) ).Quad( 0, 0, 1, 1 ).Flush();
+	
+	if( info.debugdraw )
+		info.debugdraw->DebugDraw();
 }
 
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
@@ -1834,6 +1842,9 @@ void SGRX_MeshInstance::_Precache()
 				
 				// load shaders
 				g_Game->OnLoadMtlShaders( _scene->m_passes[ pid ], materials[ diid ], this, srs.VS, srs.PS );
+				
+				// create/load vertex input mapping
+				srs.VIM = g_Renderer->CreateVertexInputMapping( srs.VS, mesh->m_vertexDecl );
 			}
 		}
 	}

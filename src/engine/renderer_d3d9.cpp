@@ -409,6 +409,7 @@ struct D3D9Renderer : IRenderer
 	SGRX_IRenderState* CreateRenderState( const SGRX_RenderState& state );
 	SGRX_IVertexDecl* CreateVertexDecl( const VDeclInfo& vdinfo );
 	SGRX_IMesh* CreateMesh();
+	SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd ){ return NULL; }
 	
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
@@ -786,6 +787,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle
 		}
 	}
 	
+	// clear buffers
 	uint32_t cc = info.clearColor;
 	swap4b2ms( &cc, 1, 0xff0000, 16, 0xff, 16 );
 	uint32_t flags = 0;
