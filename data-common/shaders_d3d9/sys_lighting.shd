@@ -230,7 +230,7 @@ __CODE__
 #if LMODE == 1 || LMODE == 3 // -- static / decal
 	totalDiffuse = tex2D( InstTex0, inTex1.xy ) * 2;
 #if LMODE == 3 // -- decal
-	totalDiffuse *= icol;
+	totalDiffuse *= icol.rgb;
 #endif // LMODE == 3
 #elif LMODE == 2 // -- dynamic
 	float3 LN = mul( mInvView, outNormal );
@@ -242,6 +242,12 @@ __CODE__
 		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
 		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
 #endif // LMODE
+#ifdef DECAL
+#if LMODE != 3
+	totalDiffuse *= icol.rgb;
+#endif // LMODE != 3
+	outOpacity *= icol.a;
+#endif // DECAL
 	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
 	totalSpecular += outAmbientSpecularLight + texCUBElod( InstTex1, float4( refWorld.xzy, 0 ) ).rgb;
 	

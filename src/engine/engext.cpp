@@ -691,10 +691,10 @@ void SGRX_DecalSystem::Init( SceneHandle scene, TextureHandle texDecal, TextureH
 	
 	m_meshInst = scene->CreateMeshInstance();
 	m_meshInst->SetMesh( m_mesh );
-	SGRX_Material mtl; // TODO: pass loaded material when there is something to load
+	SGRX_Material mtl;
 	mtl.flags = SGRX_MtlFlag_Decal;
 	mtl.blendMode = SGRX_MtlBlend_Basic;
-	mtl.shader = "default";
+	mtl.shader = "decal";
 	mtl.textures[0] = texDecal;
 	mtl.textures[1] = texFalloff;
 	m_meshInst->materials.assign( &mtl, 1 );

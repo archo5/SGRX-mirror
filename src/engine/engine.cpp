@@ -683,6 +683,10 @@ void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& 
 		}
 	}
 	
+	// misc. parameters
+	if( mtl.flags & SGRX_MtlFlag_Decal )
+		name.append( ":DECAL" ); // color multiplied by vertex color, even with other lighting models
+	
 	PS = GR_GetPixelShader( name );
 	
 	if( MI->IsSkinned() )
