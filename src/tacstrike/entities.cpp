@@ -113,12 +113,12 @@ SlidingDoor::SlidingDoor
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
-	meshInst->mesh = GR_GetMesh( bfr );
+	meshInst->SetMesh( bfr );
 	
-	if( meshInst->mesh )
+	if( meshInst->GetMesh() )
 	{
-		m_bbMin = meshInst->mesh->m_boundsMin;
-		m_bbMax = meshInst->mesh->m_boundsMax;
+		m_bbMin = meshInst->GetMesh()->m_boundsMin;
+		m_bbMax = meshInst->GetMesh()->m_boundsMax;
 	}
 	
 	if( m_isSwitch == false )
@@ -230,7 +230,7 @@ PickupItem::PickupItem( GameLevel* lev, const StringView& name, const StringView
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
-	m_meshInst->mesh = GR_GetMesh( bfr );
+	m_meshInst->SetMesh( bfr );
 	m_meshInst->matrix = Mat4::CreateSRT( scl, rot, pos );
 	m_level->LightMesh( m_meshInst );
 	
@@ -287,7 +287,7 @@ Actionable::Actionable( GameLevel* lev, const StringView& name, const StringView
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%.*s.ssm", TMIN( 240, (int) mesh.size() ), mesh.data() );
-	m_meshInst->mesh = GR_GetMesh( bfr );
+	m_meshInst->SetMesh( bfr );
 	m_meshInst->matrix = mtx;
 	m_level->LightMesh( m_meshInst );
 	

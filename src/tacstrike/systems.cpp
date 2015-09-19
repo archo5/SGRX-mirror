@@ -677,10 +677,10 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 			if( src.ch() == '~' )
 			{
 				sgrx_snprintf( subbfr, sizeof(subbfr), "levels/%.*s%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
-				MI->mesh = GR_GetMesh( subbfr );
+				MI->SetMesh( subbfr );
 			}
 			else
-				MI->mesh = GR_GetMesh( src );
+				MI->SetMesh( src );
 			
 			if( MID.m_lmap.width && MID.m_lmap.height )
 			{
@@ -706,7 +706,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 				m_level->LightMesh( MI );
 			}
 			
-			if( ( MID.m_flags & LM_MESHINST_DECAL ) != 0 && MI->mesh )
+			if( ( MID.m_flags & LM_MESHINST_DECAL ) != 0 && MI->GetMesh() )
 			{
 				MI->SetAllMtlFlags( SGRX_MtlFlag_Decal, 0 );
 				MI->SetAllBlendModes( SGRX_MtlBlend_Basic );
@@ -720,7 +720,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 				LOG_FUNCTION_ARG( "MI_BODY" );
 				
 				SGRX_PhyRigidBodyInfo rbinfo;
-				rbinfo.shape = m_level->GetPhyWorld()->CreateShapeFromMesh( MI->mesh );
+				rbinfo.shape = m_level->GetPhyWorld()->CreateShapeFromMesh( MI->GetMesh() );
 				rbinfo.shape->SetScale( MI->matrix.GetScale() );
 				rbinfo.position = MI->matrix.GetTranslation();
 				rbinfo.rotation = MI->matrix.GetRotationQuaternion();
@@ -1001,19 +1001,19 @@ struct DmgSys_GenBlood : IProcessor
 	void Process( void* data )
 	{
 		SGRX_CAST( SGRX_MeshInstance*, MI, data );
-		if( MI->mesh == NULL ||
+		if( MI->GetMesh() == NULL ||
 			MI->raycastOverride ||
 			MI->IsSkinned() )
 			return;
 		SGRX_CAST( SGRX_MeshInstUserData*, mii, MI->userData );
 		if( mii && mii->ovrDecalSysOverride )
 		{
-			mii->ovrDecalSysOverride->AddDecal( projInfo, MI->mesh, MI->matrix );
+			mii->ovrDecalSysOverride->AddDecal( projInfo, MI->GetMesh(), MI->matrix );
 			return;
 		}
 		if( MI->GetLightingMode() != SGRX_LM_Static )
 			return;
-		DS->m_bloodDecalSys.AddDecal( projInfo, MI->mesh, MI->matrix );
+		DS->m_bloodDecalSys.AddDecal( projInfo, MI->GetMesh(), MI->matrix );
 	}
 	
 	DamageSystem* DS;
@@ -1098,7 +1098,7 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 				}
 				else
 				{
-					SGRX_IMesh* mesh = HIT.meshinst->mesh;
+					SGRX_IMesh* mesh = HIT.meshinst->GetMesh();
 					if( HIT.partID >= 0 && HIT.partID < (int) mesh->m_meshParts.size() )
 					{
 						SGRX_MeshPart& MP = mesh->m_meshParts[ HIT.partID ];
@@ -1118,7 +1118,7 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 				bool needDecal = ( HIT.meshinst->allowStaticDecals || dmgDecalSys ) &&
 					HIT.meshinst->IsSkinned() == false;
 				m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
-					needDecal ? HIT.meshinst->mesh : NULL,
+					needDecal ? HIT.meshinst->GetMesh() : NULL,
 					-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );
 				
 				// blood?

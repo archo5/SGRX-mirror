@@ -431,7 +431,7 @@ struct D3D9Renderer : IRenderer
 	void _RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
 	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
 	
-	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
+//	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
 	
 	bool ResetDevice();
 	void ResetViewport();
@@ -458,7 +458,7 @@ struct D3D9Renderer : IRenderer
 	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
 	
 	void MI_ApplyConstants( const SGRX_MeshInstance* MI );
-	void Viewport_Apply( int downsample );
+//	void Viewport_Apply( int downsample );
 	
 	// state
 	TextureHandle m_currentRT;
@@ -490,7 +490,7 @@ struct D3D9Renderer : IRenderer
 	
 	// temp data
 	SceneHandle m_currentScene;
-	SGRX_Viewport* m_viewport;
+	D3DVIEWPORT9 m_viewport;
 };
 
 extern "C" RENDERER_EXPORT bool Initialize( const char** outname )
@@ -650,7 +650,7 @@ bool D3D9Renderer::LoadInternalResources()
 	uint32_t whiteCol = 0xffffffff;
 	m_whiteTex.UploadRGBA8Part( &whiteCol );
 	
-	VertexShaderHandle sh_proj_vs = GR_GetVertexShader( "mtl::vs_base" );
+//	VertexShaderHandle sh_proj_vs = GR_GetVertexShader( "mtl::vs_base" );
 	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
 	PixelShaderHandle sh_bv_ps = GR_GetPixelShader( "sys_bv_ps" );
 	PixelShaderHandle sh_lvsl_ps = GR_GetPixelShader( "sys_lvsl_ps" );
@@ -660,11 +660,11 @@ bool D3D9Renderer::LoadInternalResources()
 	{
 		return false;
 	}
-	sh_proj_vs->Acquire();
+//	sh_proj_vs->Acquire();
 	sh_bv_vs->Acquire();
 	sh_bv_ps->Acquire();
 	sh_lvsl_ps->Acquire();
-	m_sh_proj_vs = sh_proj_vs;
+//	m_sh_proj_vs = sh_proj_vs;
 	m_sh_bv_vs = sh_bv_vs;
 	m_sh_bv_ps = sh_bv_ps;
 	m_sh_lvsl_ps = sh_lvsl_ps;
@@ -677,7 +677,7 @@ void D3D9Renderer::UnloadInternalResources()
 {
 	LOG_FUNCTION;
 	
-	m_sh_proj_vs->Release();
+//	m_sh_proj_vs->Release();
 	m_sh_bv_vs->Release();
 	m_sh_bv_ps->Release();
 	m_sh_lvsl_ps->Release();
@@ -740,6 +740,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthSt
 		m_dev->SetRenderTarget( 2, NULL );
 		m_dev->SetRenderTarget( 3, NULL );
 		m_dev->SetDepthStencilSurface( m_dssurf );
+		SetViewport( 0, 0, GR_GetWidth(), GR_GetHeight() );
 	}
 	else
 	{
@@ -763,6 +764,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthSt
 			}
 		}
 		m_dev->SetDepthStencilSurface( dss ? ((D3D9DepthStencilSurface*)dss)->DSS : NULL );
+		SetViewport( 0, 0, w, h );
 	}
 	
 	// clear buffers
@@ -781,6 +783,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthSt
 void D3D9Renderer::SetViewport( int x0, int y0, int x1, int y1 )
 {
 	D3DVIEWPORT9 vp = { x0, y0, x1 - x0, y1 - y0, 0.0, 1.0 };
+	m_viewport = vp;
 	m_dev->SetViewport( &vp );
 }
 
@@ -1484,12 +1487,14 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 	rs.blendStates[0].blendEnable = true;
 	SetRenderState( rs );
 	
+	Mat4 hpomtx = Mat4::CreateTranslation( safe_fdiv( -1.0f, m_viewport.Width ), safe_fdiv( 1.0f, m_viewport.Height ), 0 );
+	
 	SetVertexShader( m_sh_bv_vs );
 	SetPixelShader( shd ? shd : m_sh_bv_ps );
 	VS_SetMat4( 0, m_world );
-	VS_SetMat4( 4, m_view );
+	VS_SetMat4( 4, Mat4().Multiply( m_view, hpomtx ) );
 	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
-		SetTexture( i, textures[ i ] ? textures[ i ] : m_whiteTex );
+		SetTexture( i, textures[ i ] ? textures[ i ] : ( i == 0 ? m_whiteTex : NULL ) );
 	PS_SetVec4Array( 0, shdata, shvcount );
 	m_dev->SetVertexDeclaration( m_batchVertDecl );
 	m_dev->DrawPrimitiveUP( conv_prim_type( pt ), get_prim_count( pt, count ), verts, sizeof( *verts ) );
@@ -1561,8 +1566,8 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 	VS_SetMat4( 12, cam.mView );
 	PS_SetMat4( 0, cam.mInvView );
 	PS_SetMat4( 4, cam.mProj );
-	Vec4 campos4 = { cam.position.x, cam.position.y, cam.position.z, 0 };
-	PS_SetVec4( 4, campos4 );
+//	Vec4 campos4 = { cam.position.x, cam.position.y, cam.position.z, 0 };
+//	PS_SetVec4( 4, campos4 );
 	VS_SetVec4( 16, scene->m_timevals );
 	PS_SetVec4( 16, scene->m_timevals );
 	
@@ -1594,7 +1599,7 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 		SGRX_MeshInstance* MI = RI->MI;
 		uint16_t part_id = RI->part_id;
 		
-		D3D9Mesh* M = (D3D9Mesh*) MI->mesh.item;
+		D3D9Mesh* M = (D3D9Mesh*) MI->GetMesh();
 		const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
 		D3D9VertexDecl* VD = (D3D9VertexDecl*) M->m_vertexDecl.item;
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];
@@ -1809,10 +1814,10 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 		SetTexture( 9, L->shadowTexture );
 		
 		// TODO optimize shape
-		PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
+//		PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
 	}
 	
-	Viewport_Apply( 1 );
+//	Viewport_Apply( 1 );
 }
 
 void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
@@ -1849,7 +1854,7 @@ void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* 
 	m_inDebugDraw = false;
 }
 
-
+#if 0
 void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_location )
 {
 	/* assuming these are validated: */
@@ -1894,7 +1899,7 @@ void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_locati
 	m_stats.numDrawCalls++;
 	m_stats.numPDrawCalls++;
 }
-
+#endif
 
 bool D3D9Renderer::ResetDevice()
 {
@@ -2112,6 +2117,7 @@ void D3D9Renderer::MI_ApplyConstants( const SGRX_MeshInstance* MI )
 	PS_SetVec4Array( 100, &MI->constants[0], 16 );
 }
 
+#if 0
 void D3D9Renderer::Viewport_Apply( int downsample )
 {
 	if( m_viewport )
@@ -2129,4 +2135,5 @@ void D3D9Renderer::Viewport_Apply( int downsample )
 		m_dev->SetViewport( &d3dvp );
 	}
 }
+#endif
 

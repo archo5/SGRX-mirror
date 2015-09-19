@@ -307,7 +307,7 @@ void AnimCharacter::_OnRenderUpdate()
 		m_cachedMeshInst = m_scene->CreateMeshInstance();
 	}
 	m_cachedMesh = GR_GetMesh( mesh );
-	m_cachedMeshInst->mesh = m_cachedMesh;
+	m_cachedMeshInst->SetMesh( m_cachedMesh );
 	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh ? m_cachedMesh->m_numBones : 0 );
 	RecalcBoneIDs();
 	m_anEnd.Prepare( m_cachedMesh );
@@ -690,7 +690,7 @@ void SGRX_DecalSystem::Init( SceneHandle scene, TextureHandle texDecal, TextureH
 	m_mesh = GR_CreateMesh();
 	
 	m_meshInst = scene->CreateMeshInstance();
-	m_meshInst->mesh = m_mesh;
+	m_meshInst->SetMesh( m_mesh );
 	SGRX_Material mtl; // TODO: pass loaded material when there is something to load
 	mtl.flags = SGRX_MtlFlag_Decal;
 	mtl.blendMode = SGRX_MtlBlend_Basic;

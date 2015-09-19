@@ -256,7 +256,7 @@ void SGRX_ScriptedItem::MICreate( int i, StringView path )
 	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * m_transform;
 	m_meshes[ i ]->userData = this;
 	if( path )
-		m_meshes[ i ]->mesh = GR_GetMesh( path );
+		m_meshes[ i ]->SetMesh( path );
 }
 
 void SGRX_ScriptedItem::MIDestroy( int i )
@@ -275,7 +275,7 @@ void SGRX_ScriptedItem::MISetMesh( int i, StringView path )
 {
 	SCRITEM_OFSCHK( i, return );
 	SCRITEM_MESHCHK( i, return );
-	m_meshes[ i ]->mesh = GR_GetMesh( path );
+	m_meshes[ i ]->SetMesh( path );
 }
 
 void SGRX_ScriptedItem::MISetEnabled( int i, bool enabled )
@@ -350,7 +350,7 @@ void SGRX_ScriptedItem::PSSetMatrixFromMeshAABB( int i, int mi )
 	SCRITEM_PSYSCHK( i, return );
 	SCRITEM_OFSCHK( mi, return );
 	SCRITEM_MESHCHK( mi, return );
-	SGRX_IMesh* M = m_meshes[ mi ]->mesh;
+	SGRX_IMesh* M = m_meshes[ mi ]->GetMesh();
 	if( M == NULL )
 	{
 		sgs_Msg( C, SGS_WARNING, "mesh is not loaded" );
@@ -432,7 +432,7 @@ void SGRX_ScriptedItem::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* s
 	SCRITEM_OFSCHK( i, return );
 	SCRITEM_OFSCHK( mi, return );
 	SCRITEM_MESHCHK( mi, return );
-	SGRX_IMesh* M = m_meshes[ mi ]->mesh;
+	SGRX_IMesh* M = m_meshes[ mi ]->GetMesh();
 	if( M == NULL )
 	{
 		sgs_Msg( C, SGS_WARNING, "mesh is not loaded" );

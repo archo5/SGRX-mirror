@@ -1847,7 +1847,7 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		SGRX_MeshInstance* MI = RI->MI;
 		uint16_t part_id = RI->part_id;
 		
-		D3D11Mesh* M = (D3D11Mesh*) MI->mesh.item;
+		D3D11Mesh* M = (D3D11Mesh*) MI->GetMesh();
 		const SGRX_MeshPart& MP = M->m_meshParts[ part_id ];
 	//	D3D11VertexDecl* VD = (D3D11VertexDecl*) M->m_vertexDecl.item;
 		SGRX_DrawItem* DI = &MI->m_drawItems[ part_id ];

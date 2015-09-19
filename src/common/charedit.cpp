@@ -2100,10 +2100,10 @@ static void floor_mesh_update( float size, float height )
 	uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
 	SGRX_MeshPart part = { 0, 4, 0, 6 };
 	VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf30f2" );
-	g_FloorMeshInst->mesh->SetVertexData( verts, sizeof(verts), vdh, false );
-	g_FloorMeshInst->mesh->SetIndexData( idcs, sizeof(idcs), false );
-	g_FloorMeshInst->mesh->SetAABBFromVertexData( verts, sizeof(verts), vdh );
-	g_FloorMeshInst->mesh->SetPartData( &part, 1 );
+	g_FloorMeshInst->GetMesh()->SetVertexData( verts, sizeof(verts), vdh, false );
+	g_FloorMeshInst->GetMesh()->SetIndexData( idcs, sizeof(idcs), false );
+	g_FloorMeshInst->GetMesh()->SetAABBFromVertexData( verts, sizeof(verts), vdh );
+	g_FloorMeshInst->GetMesh()->SetPartData( &part, 1 );
 	g_FloorBody->GetShape()->SetScale( V3(size) );
 	g_FloorBody->SetPosition( V3( 0, 0, height ) );
 }
@@ -2848,7 +2848,7 @@ struct CSEditor : IGame
 		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
 		g_FloorMeshInst = g_EdScene->CreateMeshInstance();
-		g_FloorMeshInst->mesh = GR_CreateMesh();
+		g_FloorMeshInst->SetMesh( GR_CreateMesh() );
 		SGRX_Material mtl;
 		mtl.shader = "default";
 		mtl.textures[ 0 ] = GR_GetTexture( "textures/unit.png" );

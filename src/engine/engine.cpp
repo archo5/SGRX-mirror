@@ -502,14 +502,17 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 #define RT_MAIN 0xfff0
 #define RT_HBLUR 0xfff1
 #define RT_VBLUR 0xfff2
+#define RT_HBLUR2 0xfff3
+#define RT_VBLUR2 0xfff4
+#define RT_HPASS 0xfff5
 	
 	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
-	PixelShaderHandle pppsh_blur_h = GR_GetPixelShader( "mtl::sys_pp_blur:HOR" );
-	PixelShaderHandle pppsh_blur_v = GR_GetPixelShader( "mtl::sys_pp_blur:VERT" );
+	PixelShaderHandle pppsh_highpass = GR_GetPixelShader( "sys_pp_highpass" );
+	PixelShaderHandle pppsh_blur = GR_GetPixelShader( "sys_pp_blur" );
 	
 	GR_PreserveResource( pppsh_final );
-	GR_PreserveResource( pppsh_blur_h );
-	GR_PreserveResource( pppsh_blur_v );
+	GR_PreserveResource( pppsh_highpass );
+	GR_PreserveResource( pppsh_blur );
 	
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
@@ -517,19 +520,26 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
 	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
+	int W16 = TMAX( W4 / 4, 1 ), H16 = TMAX( H4 / 4, 1 );
 	
-	TextureHandle rttMAIN, rttHBLUR, rttVBLUR;
+	TextureHandle rttMAIN, rttHPASS, rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2;
 	DepthStencilSurfHandle dssMAIN;
 	if( info.enablePostProcessing )
 	{
 		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
+		rttHPASS = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_HPASS );
 		rttHBLUR = GR_GetRenderTarget( W4, H, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
 		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
+		rttHBLUR2 = GR_GetRenderTarget( W16, H4, RT_FORMAT_COLOR_HDR16, RT_HBLUR2 );
+		rttVBLUR2 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_VBLUR2 );
 		dssMAIN = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
 		
 		GR_PreserveResource( rttMAIN );
+		GR_PreserveResource( rttHPASS );
 		GR_PreserveResource( rttHBLUR );
 		GR_PreserveResource( rttVBLUR );
+		GR_PreserveResource( rttHBLUR2 );
+		GR_PreserveResource( rttVBLUR2 );
 		GR_PreserveResource( dssMAIN );
 	}
 	
@@ -545,19 +555,41 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
 	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
 	if( info.postdraw )
+	{
+		GR2D_SetViewMatrix( scene->camera.mView );
 		info.postdraw->PostDraw();
+	}
 	
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
 	if( info.enablePostProcessing )
 	{
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR );
-		br.Reset().SetTexture( rttMAIN ).Quad( 0, 0, 1, 1 ).Flush();
+		br.Reset();
+		br.ShaderData.push_back( V4(0) );
 		
+		float spread = 3.5f;
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHPASS );
+		br.SetTexture( rttMAIN ).SetShader( pppsh_highpass ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W ), 0 );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR );
+		br.SetTexture( rttHPASS ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H ) );
 		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR );
-		br.Reset().SetTexture( rttHBLUR ).Quad( 0, 0, 1, 1 ).Flush();
+		br.SetTexture( rttHBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W4 ), 0 );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR2 );
+		br.SetTexture( rttVBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H4 ) );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR2 );
+		br.SetTexture( rttHBLUR2 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
 		
 		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
-		br.Reset().SetTexture( 0, rttMAIN )
-		          .SetTexture( 2, rttVBLUR ).Quad( 0, 0, 1, 1 ).Flush();
+		br.SetTexture( 0, rttMAIN )
+		  .SetTexture( 2, rttVBLUR )
+		  .SetTexture( 3, rttVBLUR2 ).SetShader( pppsh_final ).Quad( 0, 0, 1, 1 ).Flush();
 	}
 	else
 	{
@@ -566,7 +598,10 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	}
 	
 	if( info.debugdraw )
+	{
+		GR2D_SetViewMatrix( scene->camera.mView );
 		info.debugdraw->DebugDraw();
+	}
 }
 
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
@@ -622,7 +657,7 @@ void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& 
 		// lighting mode
 		{
 			sgrx_snprintf( bfr, 32, "%d", MI->GetLightingMode() );
-			name.append( ":LIGHTING_MODE " );
+			name.append( ":LMODE " );
 			name.append( bfr );
 		}
 		if( pass.isBasePass )
@@ -800,6 +835,11 @@ bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, St
 		LOG_WARNING << "Failed to load shader file: " << filename << " (type=" << type << ", path=" << path << ")";
 		return false;
 	}
+	
+	char bfr[ 300 ];
+	sgrx_snprintf( bfr, 300, "#line 1 \"%s\"\n", StackPath(path).str );
+	outdata.insert( 0, bfr, sgrx_snlen( bfr, 300 ) );
+	
 	return ParseShaderIncludes( type, path, outdata );
 }
 
@@ -819,16 +859,21 @@ bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path,
 		// append prior data
 		nstr.append( it.data(), inc.data() - it.data() );
 		
-		// comment pointing to file name
-		nstr.append( "// " );
-		nstr.append( incpath );
-		nstr.append( "\n" );
-		
-		// contents of new file
+		// contents of new file (includes starting directive)
 		String incfiledata;
 		if( !OnLoadShaderFile( type, incpath, incfiledata ) )
 			return false;
 		nstr.append( incfiledata );
+		
+		// directive for original file
+		int linenum = StringView(outdata).part( 0, inc.data() - outdata.data() ).count( "\n" ) + 1;
+		char bfr[ 32 ];
+		sgrx_snprintf( bfr, 32, "%d", linenum );
+		nstr.append( "#line " );
+		nstr.append( bfr );
+		nstr.append( " \"" );
+		nstr.append( path );
+		nstr.append( "\"\n" );
 		
 		// continue
 		it = inc.after( "\"" ).after( "\"" );
@@ -1868,8 +1913,8 @@ void SGRX_MeshInstance::SetTransform( const Mat4& mtx )
 
 void SGRX_MeshInstance::_Precache()
 {
-	size_t dicnt = TMIN( materials.size(), mesh->m_meshParts.size() );
-	if( m_invalid || _scene->m_invalid || m_drawItems.size() != dicnt )
+	size_t dicnt = TMIN( materials.size(), m_mesh->m_meshParts.size() );
+	if( m_invalid || m_drawItems.size() != dicnt )
 	{
 		m_drawItems.resize( dicnt );
 		for( size_t i = 0; i < dicnt; ++i )
@@ -1906,10 +1951,44 @@ void SGRX_MeshInstance::_Precache()
 				g_Game->OnLoadMtlShaders( _scene->m_passes[ pid ], materials[ diid ], this, srs.VS, srs.PS );
 				
 				// create/load vertex input mapping
-				srs.VIM = g_Renderer->CreateVertexInputMapping( srs.VS, mesh->m_vertexDecl );
+				srs.VIM = g_Renderer->CreateVertexInputMapping( srs.VS, m_mesh->m_vertexDecl );
+			}
+		}
+		
+		m_invalid = false;
+	}
+}
+
+void SGRX_MeshInstance::SetMesh( StringView path )
+{
+	SetMesh( GR_GetMesh( path ) );
+}
+
+void SGRX_MeshInstance::SetMesh( MeshHandle mh )
+{
+	m_mesh = mh;
+	if( mh )
+	{
+		materials.resize( mh->m_meshParts.size() );
+		for( size_t i = 0; i < mh->m_meshParts.size(); ++i )
+		{
+			const SGRX_MeshPart& MP = mh->m_meshParts[ i ];
+			SGRX_Material& M = materials[ i ];
+			
+			M.shader = MP.shader;
+			M.blendMode = MP.mtlBlendMode;
+			M.flags = MP.mtlFlags;
+			for( size_t t = 0; t < SGRX_MAX_MESH_TEXTURES; ++t )
+			{
+				M.textures[ t ] = MP.textures[ t ].size() ? GR_GetTexture( MP.textures[ t ] ) : NULL;
 			}
 		}
 	}
+	else
+	{
+		materials.resize( 0 );
+	}
+	OnUpdate();
 }
 
 
@@ -1975,7 +2054,7 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 	
 	SGRX_CAST( SGRX_MeshInstance*, MI, data );
 	
-	SGRX_IMesh* M = MI->mesh;
+	SGRX_IMesh* M = MI->GetMesh();
 	if( M )
 	{
 		size_t vertoff = outVertices->size();
@@ -2057,13 +2136,12 @@ static SGRX_RenderPass g_DefaultRenderPasses[] =
 {
 	// shadow pass
 	{ true, false, 0, 0, "sys_lighting" },
-	{ false, true, 32, 0, "sys_lighting" },
-	{ false, false, 32, 0, "sys_lighting" },
+	{ false, true, 16, 0, "sys_lighting" },
+	{ false, false, 16, 0, "sys_lighting" },
 	{ false, false, 0, 2, "sys_lighting" },
 };
 
 SGRX_Scene::SGRX_Scene() :
-	m_invalid( true ),
 	cullScene( NULL ),
 	fogColor( Vec3::Create( 0.5 ) ),
 	fogHeightFactor( 0 ),
@@ -2096,7 +2174,8 @@ SGRX_Scene::~SGRX_Scene()
 void SGRX_Scene::SetRenderPasses( SGRX_RenderPass* passes, int count )
 {
 	m_passes.assign( passes, count );
-	m_invalid = true;
+	for( size_t i = 0; i < m_meshInstances.size(); ++i )
+		m_meshInstances.item( i ).key->OnUpdate();
 }
 
 MeshInstHandle SGRX_Scene::CreateMeshInstance()
@@ -2130,14 +2209,14 @@ void SGRX_Scene::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallb
 	for( size_t i = 0; i < m_meshInstances.size(); ++i )
 	{
 		SGRX_MeshInstance* mi = m_meshInstances.item( i ).key;
-		if( mi->enabled && mi->mesh &&
+		if( mi->enabled && mi->GetMesh() &&
 			( mi->layers & layers ) && mi->matrix.InvertTo( inv ) )
 		{
 			Vec3 tffrom = inv.TransformPos( from );
 			Vec3 tfto = inv.TransformPos( to );
-			if( SegmentAABBIntersect( tffrom, tfto, mi->mesh->m_boundsMin, mi->mesh->m_boundsMax ) )
+			if( SegmentAABBIntersect( tffrom, tfto, mi->GetMesh()->m_boundsMin, mi->GetMesh()->m_boundsMax ) )
 			{
-				IMeshRaycast* mrc = mi->raycastOverride ? mi->raycastOverride : mi->mesh;
+				IMeshRaycast* mrc = mi->raycastOverride ? mi->raycastOverride : mi->GetMesh();
 				mrc->RaycastAll( tffrom, tfto, cb, mi );
 			}
 		}
@@ -2289,7 +2368,8 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 {
 	LOG_FUNCTION;
 	
-	TextureInfo ti = { TEXTYPE_2D, 1, width, height, 1, format, 0 };
+	TextureInfo ti = { TEXTYPE_2D, 1, width, height, 1, format,
+		TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
 	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
 	if( !tex )
 	{

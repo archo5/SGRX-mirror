@@ -1634,6 +1634,23 @@ struct StringView
 	{
 		return find_last_at( substr, substr_end( substr ) );
 	}
+	FINLINE int count( const StringView& substr ) const
+	{
+		int out = 0;
+		size_t at = 0;
+		for(;;)
+		{
+			at = find_first_at( substr, at );
+			if( at != NOT_FOUND )
+			{
+				at++;
+				out++;
+			}
+			else
+				break;
+		}
+		return out;
+	}
 	FINLINE bool is_any( char c ) const
 	{
 		for( size_t i = 0; i < m_size; ++i )

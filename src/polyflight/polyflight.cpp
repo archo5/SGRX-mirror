@@ -149,7 +149,7 @@ struct GameLevel
 		R.m_rot_axis = V3( randf11(), randf11(), randf11() ).Normalized();
 		R.m_rot_angle_unit = 1.0f + randf11() * 0.1f;
 		R.m_inst = m_scene->CreateMeshInstance();
-		R.m_inst->mesh = m_mesh_rock;
+		R.m_inst->SetMesh( m_mesh_rock );
 		R.m_inst->SetMITexture( 0, m_tx_specmask );
 		R.m_inst->SetMITexture( 1, m_tx_specenv );
 	}

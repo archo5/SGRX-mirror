@@ -120,6 +120,14 @@ void IRenderer::RenderShadows( SGRX_Scene* scene, uint8_t pass_id )
 			!L->shadowTexture->m_isRenderTexture )
 			continue;
 		
+		const TextureInfo& TI = L->shadowTexture.GetInfo();
+		DepthStencilSurfHandle dssh = GR_GetDepthStencilSurface( TI.width, TI.height, TI.format );
+		GR_PreserveResource( dssh );
+		
+		SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
+		TextureHandle thlist[4] = { L->shadowTexture, NULL, NULL, NULL };
+		SetRenderTargets( info, dssh, thlist );
+		
 		_RS_Cull_SpotLight_MeshList( scene, L );
 		
 		_RS_LoadInstItems( L->viewMatrix, 1, m_visible_spot_meshes, SGRX_TY_Solid );
@@ -387,7 +395,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 			SGRX_MeshInstance* MI = mil->DI->MI;
 			if( ( MI->layers & L->layers ) != 0 && MI->IsSkinned() == false )
 			{
-				SGRX_IMesh* M = MI->mesh;
+				SGRX_IMesh* M = MI->GetMesh();
 				if( M )
 				{
 					size_t vertoff = m_projectorVertices.size();
@@ -1343,7 +1351,8 @@ BatchRenderer& BatchRenderer::Flush()
 BatchRenderer& BatchRenderer::Reset()
 {
 	ShaderData.clear();
-	CheckSetTexture( NULL );
+	for( size_t i = 0; i < SGRX_MAX_TEXTURES; ++i )
+		CheckSetTexture( i, NULL );
 	SetShader( NULL );
 	SetPrimitiveType( PT_None );
 	m_proto.color = 0xffffffff;

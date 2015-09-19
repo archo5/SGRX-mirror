@@ -40,8 +40,8 @@ struct SpotLight /* size: 4c */
 	float4 vdirang;
 	float4 shminfo;
 };
-SpotLight gSLights[4] : register(c24); /* :c39 */
-sampler2D SpotLightTextures[4] : register(s12);
+SpotLight gSLights[ NUM_SPOTLIGHTS ] : register(c24); /* :c39 */
+sampler2D SpotLightTextures[ NUM_SPOTLIGHTS ] : register(s12);
 #endif
 
 float4 gInstanceData[16] : register(c100); /* :c115 */
@@ -60,10 +60,10 @@ void main
 	float4 inSLPPos1 : TEXCOORD9,
 #endif // NUM_SPOTLIGHTS > 1
 #endif // NUM_SPOTLIGHTS > 2
-	out float4 _outColor0 : COLOR0,
+	out float4 _outColor0 : COLOR0
 #ifndef SHADOW_PASS
-	out float4 _outColor1 : COLOR1,
-	out float4 _outColor2 : COLOR2
+	,out float4 _outColor1 : COLOR1
+	,out float4 _outColor2 : COLOR2
 #endif // SHADOW_PASS
 )
 {
@@ -111,14 +111,29 @@ __CODE__
 	float RdotV, specAmount;
 	
 #ifdef BASE_PASS
-	float3 totalDiffuse = /* gAmbLightColor + */ outAmbientDiffuseLight;
-	float3 totalSpecular = outAmbientSpecularLight + texCUBElod( InstTex1, float4( refWorld.xzy, 0 ) ).rgb;
+#if LMODE == 1 || LMODE == 3 // -- static / decal
+	totalDiffuse = tex2D( InstTex0, inTex1.xy ) * 2;
+#if LMODE == 3 // -- decal
+	totalDiffuse *= icol;
+#endif // LMODE == 3
+#elif LMODE == 2 // -- dynamic
+	float3 LN = mul( mInvView, outNormal );
+	float qxp = saturate( LN.x ), qxn = saturate( -LN.x );
+	float qyp = saturate( LN.y ), qyn = saturate( -LN.y );
+	float qzp = saturate( LN.z ), qzn = saturate( -LN.z );
+	totalDiffuse = 2*(
+		qxp * gInstanceData[10] + qxn * gInstanceData[11] +
+		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
+		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
+#endif // LMODE
+	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
+	totalSpecular += outAmbientSpecularLight + texCUBElod( InstTex1, float4( refWorld.xzy, 0 ) ).rgb;
 	
-	/* DIRECTIONAL LIGHT */
-//	totalDiffuse += saturate( dot( outNormal, gDirLightDir ) ) * gDirLightColor;
+	/* DIRECTIONAL LIGHT *--disabled--/
+	totalDiffuse += saturate( dot( outNormal, gDirLightDir ) ) * gDirLightColor;
 	RdotV = saturate( dot( reflect( gDirLightDir, outNormal ), viewDir ) );
 	specAmount = pow( RdotV, outSpecularPower ) * sqrt( outSpecularPower );
-//	totalSpecular += gDirLightColor * specAmount;
+	totalSpecular += gDirLightColor * specAmount; */
 #endif // BASE_PASS
 	
 #ifdef NUM_POINTLIGHTS
@@ -145,7 +160,11 @@ __CODE__
 	
 #ifdef NUM_SPOTLIGHTS
 	/* SPOT LIGHTS */
-	float4 SLPositions[ 4 ] = { inSLPPos0, inSLPPos1, inSLPPos2, inSLPPos3 };
+	float4 SLPositions[ NUM_SPOTLIGHTS ] = { inSLPPos0
+#if NUM_SPOTLIGHTS > 1
+		,inSLPPos1
+#endif
+	};
 	for( int i = 0; i < gLightCounts.y; ++i )
 	{
 		SpotLight SL = gSLights[ i ];
@@ -189,10 +208,10 @@ __CODE__
 	}
 #endif // NUM_SPOTLIGHTS
 	
-#if LIGHTING_MODE == 0 // -- unlit
+#if LMODE == 0 // -- unlit
 	totalDiffuse = float3(1,1,1);
 	totalSpecular = float3(0,0,0);
-#endif // LIGHTING_MODE == 0
+#endif // LMODE == 0
 	
 	_outColor0 = float4( totalDiffuse * outDiffuseColor + totalSpecular * outSpecularColor + outEmissiveLight, outOpacity );
 	_outColor1 = float4( outDistortion, 0, outOpacity );

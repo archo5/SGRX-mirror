@@ -68,7 +68,7 @@ static uint32_t _SGRX_Cull_Frustum_MeshList( SGRX_CullSceneCamera* frustum, bool
 		SGRX_MeshInstance* MI = (SGRX_MeshInstance*) S->m_meshInstances.item( inst_id ).key;
 		if( MI->CanDraw() == false )
 			continue;
-		SGRX_IMesh* M = MI->mesh;
+		SGRX_IMesh* M = MI->GetMesh();
 		
 		mesh_instances[ data_size ] = MI;
 		mesh_bounds[ data_size ].transform = MI->matrix;

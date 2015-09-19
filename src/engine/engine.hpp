@@ -1007,14 +1007,17 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	ENGINE_EXPORT virtual void SetTransform( const Mat4& mtx );
 	ENGINE_EXPORT void _Precache();
 	
-	FINLINE void Precache(){ if( mesh && mesh->m_vertexDecl ) _Precache(); }
+	FINLINE void Precache(){ if( m_mesh && m_mesh->m_vertexDecl ) _Precache(); }
 	FINLINE bool CanDraw() const
 	{
-		return enabled && mesh && mesh->IsValid();
+		return enabled && m_mesh && m_mesh->IsValid();
 	}
 	FINLINE bool IsSkinned() const { return skin_matrices.size() != 0; }
 	
 	FINLINE void OnUpdate(){ m_invalid = true; }
+	FINLINE SGRX_IMesh* GetMesh() const { return m_mesh; }
+	ENGINE_EXPORT void SetMesh( StringView path );
+	ENGINE_EXPORT void SetMesh( MeshHandle mh );
 	FINLINE void SetAllMtlFlags( uint8_t add, uint8_t rem = 0xff )
 	{
 		for( size_t i = 0; i < materials.size(); ++i )
@@ -1052,7 +1055,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	
 	SGRX_Scene* _scene;
 	
-	MeshHandle mesh;
+	MeshHandle m_mesh;
 	IMeshRaycast* raycastOverride;
 	void* userData;
 	Mat4 matrix;
@@ -1191,7 +1194,6 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;
 	Array< SGRX_RenderPass > m_passes;
-	bool m_invalid;
 	Vec4 m_timevals; // temporary?
 	
 	SGRX_CullScene* cullScene;
@@ -1336,11 +1338,11 @@ struct BatchRenderer
 		State() : primType(PT_None){}
 		FINLINE bool IsDiff( const State& o ) const
 		{
-			if( shader != o.shader ) return false;
-			if( primType != o.primType ) return false;
+			if( shader != o.shader ) return true;
+			if( primType != o.primType ) return true;
 			for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
-				if( textures[ i ] != o.textures[ i ] ) return false;
-			return true;
+				if( textures[ i ] != o.textures[ i ] ) return true;
+			return false;
 		}
 		
 		TextureHandle textures[ SGRX_MAX_TEXTURES ];
@@ -1396,7 +1398,7 @@ struct BatchRenderer
 	
 	ENGINE_EXPORT bool CheckSetTexture( int i, const TextureHandle& tex );
 	FINLINE bool CheckSetTexture( const TextureHandle& tex ){ return CheckSetTexture( 0, tex ); }
-	FINLINE BatchRenderer& SetTexture( int i, const TextureHandle& tex ){ CheckSetTexture( 0, tex ); return *this; }
+	FINLINE BatchRenderer& SetTexture( int i, const TextureHandle& tex ){ CheckSetTexture( i, tex ); return *this; }
 	FINLINE BatchRenderer& SetTexture( const TextureHandle& tex ){ return SetTexture( 0, tex ); }
 	FINLINE BatchRenderer& UnsetTexture( int i ){ return SetTexture( i, NULL ); }
 	FINLINE BatchRenderer& UnsetTexture(){ return SetTexture( 0, NULL ); }

@@ -676,7 +676,7 @@ bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool a
 
 bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
 {
-	if( !mih || mih->mesh != animator->m_mesh )
+	if( !mih || mih->GetMesh() != animator->m_mesh )
 		return false;
 	return GR_ApplyAnimator( animator, mih->skin_matrices.data(), mih->skin_matrices.size() );
 }
@@ -1056,8 +1056,8 @@ void ParticleSystem::OnRenderUpdate()
 		
 		if( !m_meshInsts[ i ] )
 			m_meshInsts[ i ] = m_scene->CreateMeshInstance();
-		if( !m_meshInsts[ i ]->mesh )
-			m_meshInsts[ i ]->mesh = GR_CreateMesh();
+		if( !m_meshInsts[ i ]->GetMesh() )
+			m_meshInsts[ i ]->SetMesh( GR_CreateMesh() );
 		
 	//	m_meshInsts[ i ]->matrix = Mat4::Identity; // E.absolute ? Mat4::Identity : m_transform;
 		SGRX_Material mtl;
@@ -1070,7 +1070,7 @@ void ParticleSystem::OnRenderUpdate()
 		m_meshInsts[ i ]->OnUpdate();
 		
 		SGRX_MeshPart MP = { 0, 0, 0, 0 };
-		m_meshInsts[ i ]->mesh->SetPartData( &MP, 1 );
+		m_meshInsts[ i ]->GetMesh()->SetPartData( &MP, 1 );
 	}
 }
 
@@ -1132,7 +1132,7 @@ void ParticleSystem::PreRender()
 	
 	for( size_t i = 0; i < emitters.size(); ++i )
 	{
-		MeshHandle mesh = m_meshInsts[ i ]->mesh;
+		MeshHandle mesh = m_meshInsts[ i ]->GetMesh();
 		
 		m_vertices.clear();
 		m_indices.clear();

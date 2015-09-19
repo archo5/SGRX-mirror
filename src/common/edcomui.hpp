@@ -75,7 +75,7 @@ struct EDGUIMeshPickerCore : EDGUIRsrcPicker
 		if( m_meshes[ i ] )
 		{
 			SGRX_IMesh* M = m_meshes[ i ];
-			m_meshinst->mesh = m_meshes[ i ];
+			m_meshinst->SetMesh( m_meshes[ i ] );
 			m_scene->camera.position = M->m_boundsMax + ( M->m_boundsMax - M->m_boundsMin ) * 0.5f + V3(0.1f);
 			m_scene->camera.direction = ( M->m_boundsMin - M->m_boundsMax ).Normalized();
 			m_scene->camera.znear = 0.1f;

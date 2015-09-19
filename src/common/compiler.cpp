@@ -150,11 +150,11 @@ bool LMRenderer::GetSample( uint32_t which, Vec3 outcols[6] )
 
 bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid, bool solid )
 {
-	if( MI->mesh == NULL )
+	if( MI->GetMesh() == NULL )
 		return false;
 	
-	SGRX_IMesh* M = MI->mesh;
-	Mesh*& mesh = m_meshes[ MI->mesh ];
+	SGRX_IMesh* M = MI->GetMesh();
+	Mesh*& mesh = m_meshes[ M ];
 	if( mesh == NULL )
 	{
 		mesh = new Mesh;

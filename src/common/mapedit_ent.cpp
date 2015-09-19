@@ -705,7 +705,7 @@ void EdEntScripted::SetSpecialMesh( StringView path, const Mat4& mtx )
 	else
 	{
 		cached_specmeshinst = g_EdScene->CreateMeshInstance();
-		cached_specmeshinst->mesh = GR_GetMesh( path );
+		cached_specmeshinst->SetMesh( path );
 		cached_specmeshinst->matrix = mtx;
 		lmm_prepmeshinst( cached_specmeshinst );
 	}

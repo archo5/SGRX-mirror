@@ -632,9 +632,9 @@ void EdLevelGraphicsCont::InvalidateLight( const Light& L )
 	for( size_t j = 0; j < m_meshes.size(); ++j )
 	{
 		Mesh& M = m_meshes.item( j ).value;
-		if( M.meshInst->mesh )
+		if( M.meshInst->GetMesh() )
 		{
-			SGRX_IMesh* XM = M.meshInst->mesh;
+			SGRX_IMesh* XM = M.meshInst->GetMesh();
 			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, M.meshInst->matrix ) )
 				InvalidateLightmap( LGC_MESH_LMID( m_meshes.item( j ).key ) );
 		}
@@ -642,9 +642,9 @@ void EdLevelGraphicsCont::InvalidateLight( const Light& L )
 	for( size_t j = 0; j < m_surfaces.size(); ++j )
 	{
 		Surface& S = m_surfaces.item( j ).value;
-		if( S.meshInst->mesh )
+		if( S.meshInst->GetMesh() )
 		{
-			SGRX_IMesh* XM = S.meshInst->mesh;
+			SGRX_IMesh* XM = S.meshInst->GetMesh();
 			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, S.meshInst->matrix ) )
 				InvalidateLightmap( LGC_SURF_LMID( m_surfaces.item( j ).key ) );
 		}
@@ -670,10 +670,10 @@ void EdLevelGraphicsCont::InvalidateLights( const Vec3& bbmin, const Vec3& bbmax
 
 void EdLevelGraphicsCont::InvalidateLightsByMI( SGRX_MeshInstance* MI )
 {
-	if( MI->mesh == NULL )
+	if( MI->GetMesh() == NULL )
 		return;
 	
-	InvalidateLights( MI->mesh->m_boundsMin, MI->mesh->m_boundsMax, MI->matrix );
+	InvalidateLights( MI->GetMesh()->m_boundsMin, MI->GetMesh()->m_boundsMax, MI->matrix );
 }
 
 void EdLevelGraphicsCont::InvalidateSamples()
@@ -889,11 +889,12 @@ void EdLevelGraphicsCont::STRegenerate()
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
 		Mesh& M = m_meshes.item( i ).value;
-		if( M.meshInst->mesh == NULL )
+		SGRX_IMesh* mesh = M.meshInst->GetMesh();
+		if( mesh == NULL )
 			continue;
 		
-		Vec3 tfbbmin = M.meshInst->mesh->m_boundsMin;
-		Vec3 tfbbmax = M.meshInst->mesh->m_boundsMax;
+		Vec3 tfbbmin = mesh->m_boundsMin;
+		Vec3 tfbbmax = mesh->m_boundsMax;
 		TransformAABB( tfbbmin, tfbbmax, M.meshInst->matrix );
 		bbmin = Vec3::Min( bbmin, tfbbmin );
 		bbmax = Vec3::Max( bbmax, tfbbmax );
@@ -901,11 +902,12 @@ void EdLevelGraphicsCont::STRegenerate()
 	for( size_t i = 0; i < m_surfaces.size(); ++i )
 	{
 		Surface& S = m_surfaces.item( i ).value;
-		if( S.meshInst->mesh == NULL )
+		SGRX_IMesh* mesh = S.meshInst->GetMesh();
+		if( mesh == NULL )
 			continue;
 		
-		Vec3 tfbbmin = S.meshInst->mesh->m_boundsMin;
-		Vec3 tfbbmax = S.meshInst->mesh->m_boundsMax;
+		Vec3 tfbbmin = mesh->m_boundsMin;
+		Vec3 tfbbmax = mesh->m_boundsMax;
 		TransformAABB( tfbbmin, tfbbmax, S.meshInst->matrix );
 		bbmin = Vec3::Min( bbmin, tfbbmin );
 		bbmax = Vec3::Max( bbmax, tfbbmax );
@@ -1115,7 +1117,7 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 		{
 			M.meshpath = info->path;
 			InvalidateLightsByMI( M.meshInst );
-			M.meshInst->mesh = info->path.size() ? GR_GetMesh( info->path ) : NULL;
+			M.meshInst->SetMesh( info->path.size() ? GR_GetMesh( info->path ) : NULL );
 			InvalidateLightsByMI( M.meshInst );
 		}
 	}
@@ -1155,11 +1157,12 @@ bool EdLevelGraphicsCont::GetMeshAABB( uint32_t id, Vec3 out[2] )
 {
 	ASSERT( m_meshes.isset( id ) );
 	Mesh& M = m_meshes[ id ];
-	if( M.meshInst->mesh == NULL )
+	SGRX_IMesh* mesh = M.meshInst->GetMesh();
+	if( mesh == NULL )
 		return false;
 	
-	out[0] = M.meshInst->mesh->m_boundsMin;
-	out[1] = M.meshInst->mesh->m_boundsMax;
+	out[0] = mesh->m_boundsMin;
+	out[1] = mesh->m_boundsMax;
 	return true;
 }
 
@@ -1177,7 +1180,7 @@ void EdLevelGraphicsCont::RequestSurface( uint32_t id, EdLGCSurfaceInfo* info )
 	Surface S;
 	S.lmsize = V2(0);
 	S.meshInst = g_EdScene->CreateMeshInstance();
-	S.meshInst->mesh = GR_CreateMesh();
+	S.meshInst->SetMesh( GR_CreateMesh() );
 	SGRX_Material mtl;
 	mtl.shader = "default";
 	S.meshInst->materials.assign( &mtl, 1 );
@@ -1215,19 +1218,20 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			
 			S.vertices.assign( info->vdata, info->vcount );
 			S.indices.assign( info->idata, info->icount );
-			S.meshInst->mesh->m_vdata.assign( S.vertices.data(), S.vertices.size_bytes() );
-			S.meshInst->mesh->m_idata.assign( S.indices.data(), S.indices.size_bytes() );
+			SGRX_IMesh* mesh = S.meshInst->GetMesh();
+			mesh->m_vdata.assign( S.vertices.data(), S.vertices.size_bytes() );
+			mesh->m_idata.assign( S.indices.data(), S.indices.size_bytes() );
 			
 			VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
 			if( S.vertices.size() )
 			{
-				S.meshInst->mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
-				S.meshInst->mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
+				mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
+				mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
 			}
 			if( S.indices.size() )
-				S.meshInst->mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
+				mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
 			SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size() };
-			S.meshInst->mesh->SetPartData( &mp, 1 );
+			mesh->SetPartData( &mp, 1 );
 			
 			InvalidateLightsByMI( S.meshInst );
 		}
@@ -2446,7 +2450,7 @@ bool EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
 	{
 		int x1 = g_UIFrame->m_UIRenderView.x1;
 		int y1 = g_UIFrame->m_UIRenderView.y1;
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	//	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 		GR2D_SetColor( 1, 1 );
 		char bfr[ 1024 ];
 		
