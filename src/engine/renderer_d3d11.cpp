@@ -343,6 +343,16 @@ struct D3D11RenderTexture : D3D11Texture
 	}
 };
 
+struct D3D11DepthStencilSurface : SGRX_IDepthStencilSurface
+{
+	ID3D11Texture2D* DT;
+	ID3D11DepthStencilView* DSV;
+	struct D3D11Renderer* m_renderer;
+	
+	D3D11DepthStencilSurface() : DT( NULL ), DSV( NULL ), m_renderer( NULL ){}
+	virtual ~D3D11DepthStencilSurface();
+};
+
 
 struct D3D11VertexShader : SGRX_IVertexShader
 {
@@ -465,12 +475,13 @@ struct D3D11Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	
-	void SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] );
+	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( bool enable, int* rect );
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
+	SGRX_IDepthStencilSurface* CreateDepthStencilSurface( int width, int height, int format );
 	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
 	SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code );
 	SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code );
@@ -535,6 +546,7 @@ struct D3D11Renderer : IRenderer
 	// storage
 	HashTable< D3D11Texture*, bool > m_ownTextures;
 	HashTable< D3D11Mesh*, bool > m_ownMeshes;
+	HashTable< D3D11DepthStencilSurface*, bool > m_ownDSS;
 	
 	// specific
 	ID3D11Device* m_dev;
@@ -814,11 +826,11 @@ void D3D11Renderer::Modify( const RenderSettings& settings )
 }
 
 
-void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] )
+void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] )
 {
 	if( rts[0] == NULL && rts[1] == NULL && rts[2] == NULL && rts[3] == NULL )
 	{
-		m_ctx->OMSetRenderTargets( 1, &m_rtView, info.flags & SGRX_RT_NeedDepthStencil ? m_dsView : NULL );
+		m_ctx->OMSetRenderTargets( 1, &m_rtView, m_dsView );
 	}
 	else
 	{
@@ -837,8 +849,7 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandl
 			rtt2 ? rtt2->CRV : NULL,
 			rtt3 ? rtt3->CRV : NULL,
 		};
-		// todo alloc DS
-		m_ctx->OMSetRenderTargets( 1, rtv, info.flags & SGRX_RT_NeedDepthStencil ? m_dsView : NULL );
+		m_ctx->OMSetRenderTargets( 1, rtv, dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL );
 	}
 	
 	// clear buffers
@@ -1101,6 +1112,40 @@ cleanup:
 	SAFE_RELEASE( CT );
 	return NULL;
 }
+
+
+D3D11DepthStencilSurface::~D3D11DepthStencilSurface()
+{
+	SAFE_RELEASE( DT );
+	SAFE_RELEASE( DSV );
+	m_renderer->m_ownDSS.unset( this );
+}
+
+SGRX_IDepthStencilSurface* D3D11Renderer::CreateDepthStencilSurface( int width, int height, int format )
+{
+	ID3D11Texture2D* DT = NULL;
+	ID3D11DepthStencilView *DSV = NULL;
+	D3D11DepthStencilSurface* DSS;
+	
+	if( create_rtt( m_dev, width, height, 0, DXGI_FORMAT_D24_UNORM_S8_UINT, true, &DT, &DSV ) )
+	{
+		// error message already printed
+		goto cleanup;
+	}
+	
+	DSS = new D3D11DepthStencilSurface;
+	DSS->DT = DT;
+	DSS->DSV = DSV;
+	DSS->m_renderer = this;
+	m_ownDSS.set( DSS, true );
+	return DSS;
+	
+cleanup:
+	SAFE_RELEASE( DSV );
+	SAFE_RELEASE( DT );
+	return NULL;
+}
+
 
 bool D3D11Renderer::CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors )
 {

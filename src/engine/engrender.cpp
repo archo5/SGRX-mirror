@@ -88,36 +88,9 @@ IRenderer::~IRenderer()
 {
 }
 
-void IRenderer::PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format )
+void IRenderer::SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] )
 {
-	if( id >= m_rtCache.size() )
-		m_rtCache.resize( id + 1 );
-	
-	bool valid = m_rtCache[ id ] == NULL;
-	if( valid )
-	{
-		const TextureInfo& TI = m_rtCache[ id ].GetInfo();
-		valid = TI.width == width && TI.height == height && TI.format == format;
-	}
-	if( valid == false )
-		m_rtCache[ id ] = GR_CreateRenderTexture( width, height, format );
-}
-
-void IRenderer::SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] )
-{
-	TextureHandle rts[4] =
-	{
-		ids[0] < m_rtCache.size() ? m_rtCache[ ids[0] ] : NULL,
-		ids[1] < m_rtCache.size() ? m_rtCache[ ids[1] ] : NULL,
-		ids[2] < m_rtCache.size() ? m_rtCache[ ids[2] ] : NULL,
-		ids[3] < m_rtCache.size() ? m_rtCache[ ids[3] ] : NULL,
-	};
-	SetRenderTargets( info, rts );
-}
-
-TextureHandle IRenderer::GetRenderTarget( uint16_t id )
-{
-	return id > m_rtCache.size() ? m_rtCache[ id ] : NULL;
+	SetRenderTargets( info, dss, rts );
 }
 
 void IRenderer::SortRenderItems( SGRX_Scene* scene )

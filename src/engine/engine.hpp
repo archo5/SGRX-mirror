@@ -305,17 +305,19 @@ struct TextureInfo /* 16 bytes */
 	uint16_t width;
 	uint16_t height;
 	uint16_t depth;
-	uint32_t format; /* TEXFORMAT */
-	uint32_t flags; /* TEXFLAGS */
+	uint16_t format; /* TEXFORMAT / RT_FORMAT */
+	uint16_t flags; /* TEXFLAGS */
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_ITexture : SGRX_RCRsrc
 {
+	ENGINE_EXPORT SGRX_ITexture();
 	ENGINE_EXPORT virtual ~SGRX_ITexture();
 	ENGINE_EXPORT virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
 	
 	TextureInfo m_info;
 	bool m_isRenderTexture;
+	uint64_t m_rtkey;
 };
 
 struct TextureHandle : Handle< SGRX_ITexture >
@@ -327,6 +329,19 @@ struct TextureHandle : Handle< SGRX_ITexture >
 	ENGINE_EXPORT const TextureInfo& GetInfo() const;
 	ENGINE_EXPORT bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IDepthStencilSurface : SGRX_RefCounted
+{
+	ENGINE_EXPORT SGRX_IDepthStencilSurface();
+	ENGINE_EXPORT virtual ~SGRX_IDepthStencilSurface();
+	
+	uint16_t m_width;
+	uint16_t m_height;
+	uint32_t m_format; /* RT_FORMAT */
+	uint64_t m_key;
+};
+
+typedef Handle< SGRX_IDepthStencilSurface > DepthStencilSurfHandle;
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexShader : SGRX_RCRsrc
 {
@@ -1490,7 +1505,6 @@ typedef Handle< SGRX_IFont > FontHandle;
 #define SGRX_RT_ClearDepth 0x2
 #define SGRX_RT_ClearStencil 0x4
 #define SGRX_RT_ClearAll 0x7
-#define SGRX_RT_NeedDepthStencil 0x8
 
 #define SGRX_RT_NONE uint16_t(-1)
 
@@ -1509,27 +1523,25 @@ struct SGRX_RTClearInfo
 struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 {
 	ENGINE_EXPORT virtual ~SGRX_IRenderControl();
-	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format ) = 0;
-	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] ) = 0;
-	ENGINE_EXPORT virtual TextureHandle GetRenderTarget( uint16_t id ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id ) = 0;
 	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types ) = 0;
 	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] ) = 0;
 	
 	// shortcuts
-	FINLINE void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t id0 = SGRX_RT_NONE,
-		uint16_t id1 = SGRX_RT_NONE, uint16_t id2 = SGRX_RT_NONE, uint16_t id3 = SGRX_RT_NONE )
+	FINLINE void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info,
+		TextureHandle rt0 = NULL, TextureHandle rt1 = NULL, TextureHandle rt2 = NULL, TextureHandle rt3 = NULL )
 	{
-		uint16_t ids[4] = { id0, id1, id2, id3 };
-		SetRenderTargets( info, ids );
+		TextureHandle rts[4] = { rt0, rt1, rt2, rt3 };
+		SetRenderTargets( dss, info, rts );
 	}
-	FINLINE void SetRenderTargets( uint8_t flags, uint8_t clearStencil, uint32_t clearColor, float clearDepth,
-		uint16_t id0 = SGRX_RT_NONE, uint16_t id1 = SGRX_RT_NONE, uint16_t id2 = SGRX_RT_NONE, uint16_t id3 = SGRX_RT_NONE )
+	FINLINE void SetRenderTargets( SGRX_IDepthStencilSurface* dss, uint8_t flags, uint8_t clearStencil, uint32_t clearColor, float clearDepth,
+		TextureHandle rt0 = NULL, TextureHandle rt1 = NULL, TextureHandle rt2 = NULL, TextureHandle rt3 = NULL )
 	{
 		SGRX_RTClearInfo info = { flags, clearStencil, clearColor, clearDepth };
-		uint16_t ids[4] = { id0, id1, id2, id3 };
-		SetRenderTargets( info, ids );
+		TextureHandle rts[4] = { rt0, rt1, rt2, rt3 };
+		SetRenderTargets( dss, info, rts );
 	}
 };
 
@@ -1563,6 +1575,9 @@ ENGINE_EXPORT int GR_GetHeight();
 ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips );
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
+ENGINE_EXPORT TextureHandle GR_GetRenderTarget( int width, int height, int format, int extra );
+ENGINE_EXPORT DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int format );
+ENGINE_EXPORT DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, int format, int extra = 0 );
 ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
 ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
 ENGINE_EXPORT RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state );

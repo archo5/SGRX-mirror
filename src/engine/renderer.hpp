@@ -229,12 +229,13 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual void Modify( const RenderSettings& settings ) = 0;
 	ENGINE_EXPORT virtual void SetCurrent() = 0;
 	
-	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] ) = 0;
+	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
 	ENGINE_EXPORT virtual void SetScissorRect( bool enable, int* rect ) = 0;
 	
 	ENGINE_EXPORT virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
 	ENGINE_EXPORT virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;
+	ENGINE_EXPORT virtual SGRX_IDepthStencilSurface* CreateDepthStencilSurface( int width, int height, int format ) = 0;
 	ENGINE_EXPORT virtual bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;
 	ENGINE_EXPORT virtual SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code ) = 0;
 	ENGINE_EXPORT virtual SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code ) = 0;
@@ -251,9 +252,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 		const SGRX_Camera& cam, RenderItem* start, RenderItem* end ) = 0;
 	
 	// render control
-	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format );
-	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] );
-	ENGINE_EXPORT virtual TextureHandle GetRenderTarget( uint16_t id );
+	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] );
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene );
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id );
 	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types );
@@ -277,9 +276,6 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	RenderSettings m_currSettings;
 	
 	bool m_inDebugDraw;
-	
-	// render target cache
-	Array< TextureHandle > m_rtCache;
 	
 	// culling data
 	ByteArray m_scratchMem;

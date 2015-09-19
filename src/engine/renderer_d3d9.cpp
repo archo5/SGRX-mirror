@@ -147,7 +147,6 @@ struct D3D9RenderTexture : D3D9Texture
 	IDirect3DSurface9* CS; /* color (output 0) surface */
 	IDirect3DTexture9* DT; /* depth (output 2) texture (not used for shadowmaps, such data in CT/CS already) */
 	IDirect3DSurface9* DS; /* depth (output 2) surface (not used for shadowmaps, such data in CT/CS already) */
-	IDirect3DSurface9* DSS; /* depth/stencil surface */
 	int format;
 	
 	D3D9RenderTexture() : D3D9Texture(true){}
@@ -156,8 +155,16 @@ struct D3D9RenderTexture : D3D9Texture
 		SAFE_RELEASE( CS );
 		SAFE_RELEASE( DT );
 		SAFE_RELEASE( DS );
-		SAFE_RELEASE( DSS );
 	}
+};
+
+struct D3D9DepthStencilSurface : SGRX_IDepthStencilSurface
+{
+	IDirect3DSurface9* DSS; /* depth/stencil surface */
+	struct D3D9Renderer* m_renderer;
+	
+	D3D9DepthStencilSurface() : DSS(NULL), m_renderer(NULL){}
+	virtual ~D3D9DepthStencilSurface();
 };
 
 
@@ -397,12 +404,13 @@ struct D3D9Renderer : IRenderer
 	void Modify( const RenderSettings& settings );
 	void SetCurrent(){} // does nothing since there's no thread context pointer
 	
-	void SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] );
+	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( bool enable, int* rect );
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
+	SGRX_IDepthStencilSurface* CreateDepthStencilSurface( int width, int height, int format );
 	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
 	SGRX_IVertexShader* CreateVertexShader( const StringView& path, ByteArray& code );
 	SGRX_IPixelShader* CreatePixelShader( const StringView& path, ByteArray& code );
@@ -472,6 +480,7 @@ struct D3D9Renderer : IRenderer
 	// storage
 	HashTable< D3D9Texture*, bool > m_ownTextures;
 	HashTable< D3D9Mesh*, bool > m_ownMeshes;
+	HashTable< D3D9DepthStencilSurface*, bool > m_ownDSS;
 	
 	// specific
 	IDirect3DDevice9* m_dev;
@@ -612,9 +621,14 @@ void D3D9Renderer::Destroy()
 		for( size_t i = 0; i < m_ownTextures.size(); ++i )
 			LOG << "> " << m_ownTextures.item( i ).key->m_key;
 	}
+	if( m_ownDSS.size() )
+	{
+		LOG << "Unfreed depth/stencil surfaces: " << m_ownDSS.size();
+	}
 	
 	m_ownMeshes.clear();
 	m_ownTextures.clear();
+	m_ownDSS.clear();
 	
 	postproc_free( &m_drd );
 	
@@ -717,7 +731,7 @@ void D3D9Renderer::Modify( const RenderSettings& settings )
 }
 
 
-void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle rts[4] )
+void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] )
 {
 	if( rts[0] == NULL && rts[1] == NULL && rts[2] == NULL && rts[3] == NULL )
 	{
@@ -725,10 +739,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle
 		m_dev->SetRenderTarget( 1, NULL );
 		m_dev->SetRenderTarget( 2, NULL );
 		m_dev->SetRenderTarget( 3, NULL );
-		if( info.flags & SGRX_RT_NeedDepthStencil )
-		{
-			m_dev->SetDepthStencilSurface( m_dssurf );
-		}
+		m_dev->SetDepthStencilSurface( m_dssurf );
 	}
 	else
 	{
@@ -751,6 +762,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, TextureHandle
 				m_dev->SetRenderTarget( i, NULL );
 			}
 		}
+		m_dev->SetDepthStencilSurface( dss ? ((D3D9DepthStencilSurface*)dss)->DSS : NULL );
 	}
 	
 	// clear buffers
@@ -911,7 +923,7 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	
 	
 	IDirect3DTexture9 *CT = NULL, *DT = NULL;
-	IDirect3DSurface9 *CS = NULL, *DS = NULL, *DSS = NULL;
+	IDirect3DSurface9 *CS = NULL, *DS = NULL;
 	D3D9RenderTexture* RT = NULL;
 	
 	if( format == RT_FORMAT_DEPTH )
@@ -920,13 +932,6 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 		if( FAILED( hr ) || !CT )
 		{
 			LOG_ERROR << "failed to create D3D9 render target texture (HRESULT=" << (void*) hr << ")";
-			goto cleanup;
-		}
-		
-		hr = m_dev->CreateDepthStencilSurface( width, height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &DSS, NULL );
-		if( FAILED( hr ) || !DSS )
-		{
-			LOG_ERROR << "failed to create D3D9 d24s8 depth+stencil surface (HRESULT=" << (void*) hr << ")";
 			goto cleanup;
 		}
 		
@@ -953,13 +958,6 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 			goto cleanup;
 		}
 		
-		hr = m_dev->CreateDepthStencilSurface( width, height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &DSS, NULL );
-		if( FAILED( hr ) || !DSS )
-		{
-			LOG_ERROR << "failed to create D3D9 d24s8 depth+stencil surface (HRESULT=" << (void*) hr << ")";
-			goto cleanup;
-		}
-		
 		hr = CT->GetSurfaceLevel( 0, &CS );
 		if( FAILED( hr ) || !CS )
 		{
@@ -982,7 +980,6 @@ SGRX_ITexture* D3D9Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	RT->CS = CS;
 	RT->DS = DS;
 	RT->DT = DT;
-	RT->DSS = DSS;
 	m_ownTextures.set( RT, true );
 	return RT;
 	
@@ -990,8 +987,53 @@ cleanup:
 	SAFE_RELEASE( CS );
 	SAFE_RELEASE( DS );
 	SAFE_RELEASE( DT );
-	SAFE_RELEASE( DSS );
 	SAFE_RELEASE( CT );
+	return NULL;
+}
+
+
+D3D9DepthStencilSurface::~D3D9DepthStencilSurface()
+{
+	m_renderer->m_ownDSS.unset( this );
+	SAFE_RELEASE( DSS );
+}
+
+SGRX_IDepthStencilSurface* D3D9Renderer::CreateDepthStencilSurface( int width, int height, int format )
+{
+	LOG_FUNCTION;
+	
+	HRESULT hr = 0;
+
+	switch( format )
+	{
+	case RT_FORMAT_COLOR_HDR16:
+	case RT_FORMAT_COLOR_LDR8:
+	case RT_FORMAT_DEPTH:
+		break;
+	default:
+		LOG_ERROR << "format ID was not recognized / supported: " << format;
+		return NULL;
+	}
+	
+	D3D9DepthStencilSurface* outDSS = NULL;
+	
+	IDirect3DSurface9 *DSS = NULL;
+	
+	hr = m_dev->CreateDepthStencilSurface( width, height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &DSS, NULL );
+	if( FAILED( hr ) || !DSS )
+	{
+		LOG_ERROR << "failed to create D3D9 d24s8 depth+stencil surface (HRESULT=" << (void*) hr << ")";
+		goto cleanup;
+	}
+	
+	outDSS = new D3D9DepthStencilSurface;
+	outDSS->DSS = DSS;
+	outDSS->m_renderer = this;
+	m_ownDSS.set( outDSS, true );
+	return outDSS;
+	
+cleanup:
+	SAFE_RELEASE( DSS );
 	return NULL;
 }
 

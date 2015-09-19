@@ -48,6 +48,8 @@ void Sys_FatalError( const StringView& err )
 
 typedef HashTable< StringView, SGRX_ConvexPointSet* > ConvexPointSetHashTable;
 typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
+typedef HashTable< uint64_t, SGRX_ITexture* > RenderTargetTable;
+typedef HashTable< uint64_t, SGRX_IDepthStencilSurface* > DepthStencilSurfTable;
 typedef HashTable< StringView, SGRX_IVertexShader* > VertexShaderHashTable;
 typedef HashTable< StringView, SGRX_IPixelShader* > PixelShaderHashTable;
 typedef HashTable< SGRX_RenderState, SGRX_IRenderState* > RenderStateHashTable;
@@ -87,6 +89,8 @@ static BatchRenderer* g_BatchRenderer = NULL;
 static FontRenderer* g_FontRenderer = NULL;
 static ConvexPointSetHashTable* g_CPSets = NULL;
 static TextureHashTable* g_Textures = NULL;
+static RenderTargetTable* g_RenderTargets = NULL;
+static DepthStencilSurfTable* g_DepthStencilSurfs = NULL;
 static VertexShaderHashTable* g_VertexShaders = NULL;
 static PixelShaderHashTable* g_PixelShaders = NULL;
 static RenderStateHashTable* g_RenderStates = NULL;
@@ -495,13 +499,13 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 
 void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
-#define RT_MAIN 0
-#define RT_HBLUR 1
-#define RT_VBLUR 2
+#define RT_MAIN 0xfff0
+#define RT_HBLUR 0xfff1
+#define RT_VBLUR 0xfff2
 	
 	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
-	PixelShaderHandle pppsh_blur_h = GR_GetPixelShader( "sys_pp_blur:HOR" );
-	PixelShaderHandle pppsh_blur_v = GR_GetPixelShader( "sys_pp_blur:VERT" );
+	PixelShaderHandle pppsh_blur_h = GR_GetPixelShader( "mtl::sys_pp_blur:HOR" );
+	PixelShaderHandle pppsh_blur_v = GR_GetPixelShader( "mtl::sys_pp_blur:VERT" );
 	
 	GR_PreserveResource( pppsh_final );
 	GR_PreserveResource( pppsh_blur_h );
@@ -512,19 +516,27 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
-	int W4 = W / 4, H4 = H / 4;
+	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
 	
+	TextureHandle rttMAIN, rttHBLUR, rttVBLUR;
+	DepthStencilSurfHandle dssMAIN;
 	if( info.enablePostProcessing )
 	{
-		ctrl->PrepRenderTarget( RT_MAIN, W, H, RT_FORMAT_COLOR_HDR16 );
-		ctrl->PrepRenderTarget( RT_HBLUR, W4, H, RT_FORMAT_COLOR_HDR16 );
-		ctrl->PrepRenderTarget( RT_VBLUR, W4, H4, RT_FORMAT_COLOR_HDR16 );
+		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
+		rttHBLUR = GR_GetRenderTarget( W4, H, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
+		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
+		dssMAIN = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
+		
+		GR_PreserveResource( rttMAIN );
+		GR_PreserveResource( rttHBLUR );
+		GR_PreserveResource( rttVBLUR );
+		GR_PreserveResource( dssMAIN );
 	}
 	
 	ctrl->RenderShadows( scene, 0 );
 	
 	ctrl->SortRenderItems( scene );
-	ctrl->SetRenderTargets( SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1, RT_MAIN );
+	ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttMAIN );
 	
 	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
 	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
@@ -537,20 +549,20 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	
 	if( info.enablePostProcessing )
 	{
-		ctrl->SetRenderTargets( SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1, RT_HBLUR );
-		br.Reset().SetTexture( ctrl->GetRenderTarget( RT_MAIN ) ).Quad( 0, 0, 1, 1 ).Flush();
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR );
+		br.Reset().SetTexture( rttMAIN ).Quad( 0, 0, 1, 1 ).Flush();
 		
-		ctrl->SetRenderTargets( SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1, RT_VBLUR );
-		br.Reset().SetTexture( ctrl->GetRenderTarget( RT_HBLUR ) ).Quad( 0, 0, 1, 1 ).Flush();
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR );
+		br.Reset().SetTexture( rttHBLUR ).Quad( 0, 0, 1, 1 ).Flush();
 		
-		ctrl->SetRenderTargets( SGRX_RT_NeedDepthStencil, 0, 0, 1 );
-		br.Reset().SetTexture( 0, ctrl->GetRenderTarget( RT_MAIN ) )
-		          .SetTexture( 2, ctrl->GetRenderTarget( RT_VBLUR ) ).Quad( 0, 0, 1, 1 ).Flush();
+		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
+		br.Reset().SetTexture( 0, rttMAIN )
+		          .SetTexture( 2, rttVBLUR ).Quad( 0, 0, 1, 1 ).Flush();
 	}
 	else
 	{
-		ctrl->SetRenderTargets( SGRX_RT_NeedDepthStencil, 0, 0, 1 );
-		br.Reset().SetTexture( ctrl->GetRenderTarget( RT_MAIN ) ).Quad( 0, 0, 1, 1 ).Flush();
+		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
+		br.Reset().SetTexture( rttMAIN ).Quad( 0, 0, 1, 1 ).Flush();
 	}
 	
 	if( info.debugdraw )
@@ -761,7 +773,7 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 		}
 		
 		String tpl_data, mtl_data, vs_data;
-		if( !OnLoadShaderFile( type, String_Concat( "tpl_", tpl ), tpl_data ) )
+		if( !OnLoadShaderFile( type, tpl, tpl_data ) )
 			return false;
 		if( mtl.size() && !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
 			return false;
@@ -1051,10 +1063,16 @@ void RenderStats::Reset()
 }
 
 
+SGRX_ITexture::SGRX_ITexture() : m_rtkey(0)
+{
+}
+
 SGRX_ITexture::~SGRX_ITexture()
 {
 	LOG << "Deleted texture: " << m_key;
 	g_Textures->unset( m_key );
+	if( m_rtkey )
+		g_RenderTargets->unset( m_rtkey );
 }
 
 const TextureInfo& TextureHandle::GetInfo() const
@@ -1091,6 +1109,18 @@ bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, i
 	if( h < 0 ) h = mti.height;
 	
 	return item->UploadRGBA8Part( data, mip, x, y, w, h );
+}
+
+
+SGRX_IDepthStencilSurface::SGRX_IDepthStencilSurface() : m_width(0), m_height(0), m_format(0), m_key(0)
+{
+}
+
+SGRX_IDepthStencilSurface::~SGRX_IDepthStencilSurface()
+{
+	LOG << "Deleted depth/stencil surface: " << m_width << "x" << m_height << ", format=" << m_format;
+	if( m_key )
+		g_DepthStencilSurfs->unset( m_key );
 }
 
 
@@ -2273,6 +2303,52 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 	return tex;
 }
 
+TextureHandle GR_GetRenderTarget( int width, int height, int format, int extra )
+{
+	ASSERT( width && height && format );
+	LOG_FUNCTION;
+	
+	uint64_t key = (uint64_t(width&0xffff)<<48) | (uint64_t(height&0xffff)<<32) | (uint64_t(format&0xffff)<<16) | (uint64_t(extra&0xffff));
+	SGRX_ITexture* rtt = g_RenderTargets->getcopy( key );
+	if( rtt )
+		return rtt;
+	
+	TextureHandle rtth = GR_CreateRenderTexture( width, height, format );
+	rtth->m_rtkey = key;
+	g_RenderTargets->set( key, rtth );
+	return rtth;
+}
+
+DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int format )
+{
+	ASSERT( width && height && format );
+	LOG_FUNCTION;
+	
+	SGRX_IDepthStencilSurface* dss = g_Renderer->CreateDepthStencilSurface( width, height, format );
+	dss->m_width = width;
+	dss->m_height = height;
+	dss->m_format = format;
+	
+	LOG << "Created depth/stencil surface: " << width << "x" << height << ", format=" << format;
+	return dss;
+}
+
+DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, int format, int extra )
+{
+	ASSERT( width && height && format );
+	LOG_FUNCTION;
+	
+	uint64_t key = (uint64_t(width&0xffff)<<48) | (uint64_t(height&0xffff)<<32) | (uint64_t(format&0xffff)<<16) | (uint64_t(extra&0xffff));
+	SGRX_IDepthStencilSurface* dss = g_DepthStencilSurfs->getcopy( key );
+	if( dss )
+		return dss;
+	
+	DepthStencilSurfHandle dssh = GR_CreateDepthStencilSurface( width, height, format );
+	dssh->m_key = key;
+	g_DepthStencilSurfs->set( key, dssh );
+	return dssh;
+}
+
 
 VertexShaderHandle GR_GetVertexShader( const StringView& path )
 {
@@ -3127,6 +3203,8 @@ static int init_graphics()
 	
 	g_CPSets = new ConvexPointSetHashTable();
 	g_Textures = new TextureHashTable();
+	g_RenderTargets = new RenderTargetTable();
+	g_DepthStencilSurfs = new DepthStencilSurfTable();
 	g_VertexShaders = new VertexShaderHashTable();
 	g_PixelShaders = new PixelShaderHashTable();
 	g_RenderStates = new RenderStateHashTable();
@@ -3194,6 +3272,12 @@ static void free_graphics()
 	
 	delete g_VertexShaders;
 	g_VertexShaders = NULL;
+	
+	delete g_DepthStencilSurfs;
+	g_DepthStencilSurfs = NULL;
+	
+	delete g_RenderTargets;
+	g_RenderTargets = NULL;
 	
 	delete g_Textures;
 	g_Textures = NULL;
