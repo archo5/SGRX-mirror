@@ -5,7 +5,12 @@ float4 PPData : register(c0);
 
 float4 main( float2 itex : TEXCOORD0 ) : COLOR0
 {
+#ifdef HOR
+	float2 hoff = float2( PPData.z, 0 );
+#endif
+#ifdef VERT
 	float2 hoff = float2( 0, PPData.w );
+#endif
 	
 	float3 ocol = tex2D( texOCOL, itex ).rgb * 0.383;
 	ocol += tex2D( texOCOL, itex + hoff*1 ).rgb * 0.242;

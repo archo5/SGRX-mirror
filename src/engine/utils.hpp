@@ -1780,6 +1780,7 @@ struct SGRX_RCXFItem : SGRX_RefCounted
 	virtual void SetTransform( const Mat4& mtx ) = 0;
 };
 
+typedef Handle< SGRX_RefCounted > GenericHandle;
 typedef Handle< SGRX_RCXFItem > XFItemHandle;
 
 

@@ -63,8 +63,6 @@ void main
 	out float4 oSLPPos1 : TEXCOORD9,
 #endif
 #endif
-#endif
-#endif
 	out float4 ocol : COLOR0,
 	out float4 otex0 : TEXCOORD0,
 	out float4 otex1 : TEXCOORD1
@@ -110,12 +108,6 @@ __VSCODE__
 	oSLPPos0 = mul( mSpotLight[0], worldPos );
 #if NUMSPOTLIGHTS > 1
 	oSLPPos1 = mul( mSpotLight[1], worldPos );
-#if NUMSPOTLIGHTS > 2
-	oSLPPos2 = mul( mSpotLight[2], worldPos );
-#if NUMSPOTLIGHTS > 3
-	oSLPPos3 = mul( mSpotLight[3], worldPos );
-#endif
-#endif
 #endif
 #endif
 }

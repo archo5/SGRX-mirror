@@ -217,13 +217,10 @@ enum EShaderType
 	ShaderType_Pixel,
 };
 
-#define RS_ZENABLE 1
-
 struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 {
-	IRenderer() : m_inDebugDraw( false ){}
-	virtual ~IRenderer(){}
-	
+	ENGINE_EXPORT IRenderer();
+	ENGINE_EXPORT virtual ~IRenderer();
 	ENGINE_EXPORT virtual void Destroy() = 0;
 	ENGINE_EXPORT virtual const RendererInfo& GetInfo() = 0;
 	ENGINE_EXPORT virtual bool LoadInternalResources() = 0;
@@ -247,9 +244,11 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd ) = 0;
 	
 	ENGINE_EXPORT virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
-	ENGINE_EXPORT virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
+	ENGINE_EXPORT virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
+		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
 	
-	ENGINE_EXPORT virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
+	ENGINE_EXPORT virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat,
+		const SGRX_Camera& cam, RenderItem* start, RenderItem* end ) = 0;
 	
 	// render control
 	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format );

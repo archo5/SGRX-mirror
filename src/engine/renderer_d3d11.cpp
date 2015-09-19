@@ -480,7 +480,8 @@ struct D3D11Renderer : IRenderer
 	SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd );
 	
 	void SetMatrix( bool view, const Mat4& mtx );
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
+	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
+		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
 	
 	void RenderScene( SGRX_RenderScene* RS );
 //	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
@@ -1674,7 +1675,8 @@ FINLINE D3D11_PRIMITIVE_TOPOLOGY conv_prim_type( EPrimitiveType pt )
 	}
 }
 
-void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
+void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
+	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
 {
 	SetVertexShader( m_sh_bv_vs );
 	SetPixelShader( shd ? shd : m_sh_bv_ps );
@@ -1686,9 +1688,16 @@ void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t co
 	m_ctx->VSSetConstantBuffers( 0, 1, &m_cbuf_vs_batchverts );
 	
 	m_ctx->PSSetConstantBuffers( 0, 1, m_cbuf_ps_batchverts.PPBuf() );
-	ID3D11ShaderResourceView* srvs[] = { ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_rsrcView };
+	
+	ID3D11ShaderResourceView* srvs[ 16 ];
+	ID3D11SamplerState* smps[ 16 ];
+	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
+	{
+		SGRX_ITexture* tex = textures[ i ];
+		srvs[ i ] = ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_rsrcView;
+		smps[ i ] = ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_sampState;
+	}
 	m_ctx->PSSetShaderResources( 0, 1, srvs );
-	ID3D11SamplerState* smps[] = { ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_sampState };
 	m_ctx->PSSetSamplers( 0, 1, smps );
 	
 	m_ctx->IASetPrimitiveTopology( conv_prim_type( pt ) );
@@ -1822,7 +1831,6 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		}
 		m_ctx->PSSetShaderResources( 0, SGRX_MAX_TEXTURES, srvs );
 		m_ctx->PSSetSamplers( 0, SGRX_MAX_TEXTURES, smps );
-		MI_ApplyConstants( MI );
 		
 		Mat4 mWorldView;
 		mWorldView.Multiply( MI->matrix, cam.mView );

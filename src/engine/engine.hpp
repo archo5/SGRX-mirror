@@ -134,26 +134,6 @@ ENGINE_EXPORT void Game_End();
 #define TEXFLAGS_CLAMP_X 0x10
 #define TEXFLAGS_CLAMP_Y 0x20
 
-#define SGRX_RT_ClearColor 0x1
-#define SGRX_RT_ClearDepth 0x2
-#define SGRX_RT_ClearStencil 0x4
-#define SGRX_RT_ClearAll 0x7
-#define SGRX_RT_NeedDepthStencil 0x8
-
-#define SGRX_RT_NONE uint16_t(-1)
-
-#define SGRX_TY_Solid 0x1
-#define SGRX_TY_Decal 0x2
-#define SGRX_TY_Transparent 0x4
-
-struct SGRX_RTClearInfo
-{
-	uint8_t flags;
-	uint8_t clearStencil;
-	uint32_t clearColor;
-	float clearDepth;
-};
-
 struct IF_GCC(ENGINE_EXPORT) IDirEntryHandler
 {
 	ENGINE_EXPORT virtual bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir ) = 0;
@@ -976,9 +956,9 @@ struct SGRX_DrawItem
 enum SGRX_LightingMode
 {
 	SGRX_LM_Unlit = 0, // no lighting at all
-	SGRX_LM_Static, // lightmaps
-	SGRX_LM_Dynamic, // constants
-	SGRX_LM_Decal, // lighting from vertex data
+	SGRX_LM_Static = 1, // lightmaps
+	SGRX_LM_Dynamic = 2, // constants
+	SGRX_LM_Decal = 3, // lighting from vertex data
 };
 
 struct SGRX_Material
@@ -1339,8 +1319,16 @@ struct BatchRenderer
 	struct State
 	{
 		State() : primType(PT_None){}
+		FINLINE bool IsDiff( const State& o ) const
+		{
+			if( shader != o.shader ) return false;
+			if( primType != o.primType ) return false;
+			for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
+				if( textures[ i ] != o.textures[ i ] ) return false;
+			return true;
+		}
 		
-		TextureHandle texture;
+		TextureHandle textures[ SGRX_MAX_TEXTURES ];
 		PixelShaderHandle shader;
 		EPrimitiveType primType;
 	};
@@ -1391,10 +1379,13 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& AAStroke( const Vec2* linedata, size_t linesize, float width, bool closed, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& AACircleOutline( float x, float y, float r, float width = 1, float z = 0, int verts = -1 );
 	
-	ENGINE_EXPORT bool CheckSetTexture( const TextureHandle& tex );
-	ENGINE_EXPORT BatchRenderer& SetTexture( const TextureHandle& tex );
+	ENGINE_EXPORT bool CheckSetTexture( int i, const TextureHandle& tex );
+	FINLINE bool CheckSetTexture( const TextureHandle& tex ){ return CheckSetTexture( 0, tex ); }
+	FINLINE BatchRenderer& SetTexture( int i, const TextureHandle& tex ){ CheckSetTexture( 0, tex ); return *this; }
+	FINLINE BatchRenderer& SetTexture( const TextureHandle& tex ){ return SetTexture( 0, tex ); }
+	FINLINE BatchRenderer& UnsetTexture( int i ){ return SetTexture( i, NULL ); }
+	FINLINE BatchRenderer& UnsetTexture(){ return SetTexture( 0, NULL ); }
 	ENGINE_EXPORT BatchRenderer& SetShader( const PixelShaderHandle& shd );
-	FINLINE BatchRenderer& UnsetTexture(){ return SetTexture( NULL ); }
 	ENGINE_EXPORT BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
 	ENGINE_EXPORT BatchRenderer& QuadsToTris();
 	ENGINE_EXPORT BatchRenderer& Flush();
@@ -1495,8 +1486,29 @@ typedef Handle< SGRX_IFont > FontHandle;
 
 
 
+#define SGRX_RT_ClearColor 0x1
+#define SGRX_RT_ClearDepth 0x2
+#define SGRX_RT_ClearStencil 0x4
+#define SGRX_RT_ClearAll 0x7
+#define SGRX_RT_NeedDepthStencil 0x8
+
+#define SGRX_RT_NONE uint16_t(-1)
+
+#define SGRX_TY_Solid 0x1
+#define SGRX_TY_Decal 0x2
+#define SGRX_TY_Transparent 0x4
+
+struct SGRX_RTClearInfo
+{
+	uint8_t flags;
+	uint8_t clearStencil;
+	uint32_t clearColor;
+	float clearDepth;
+};
+
 struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 {
+	ENGINE_EXPORT virtual ~SGRX_IRenderControl();
 	ENGINE_EXPORT virtual void PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format ) = 0;
 	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] ) = 0;
 	ENGINE_EXPORT virtual TextureHandle GetRenderTarget( uint16_t id ) = 0;
@@ -1504,6 +1516,21 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id ) = 0;
 	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types ) = 0;
 	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] ) = 0;
+	
+	// shortcuts
+	FINLINE void SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t id0 = SGRX_RT_NONE,
+		uint16_t id1 = SGRX_RT_NONE, uint16_t id2 = SGRX_RT_NONE, uint16_t id3 = SGRX_RT_NONE )
+	{
+		uint16_t ids[4] = { id0, id1, id2, id3 };
+		SetRenderTargets( info, ids );
+	}
+	FINLINE void SetRenderTargets( uint8_t flags, uint8_t clearStencil, uint32_t clearColor, float clearDepth,
+		uint16_t id0 = SGRX_RT_NONE, uint16_t id1 = SGRX_RT_NONE, uint16_t id2 = SGRX_RT_NONE, uint16_t id3 = SGRX_RT_NONE )
+	{
+		SGRX_RTClearInfo info = { flags, clearStencil, clearColor, clearDepth };
+		uint16_t ids[4] = { id0, id1, id2, id3 };
+		SetRenderTargets( info, ids );
+	}
 };
 
 struct IF_GCC(ENGINE_EXPORT) IGame
@@ -1542,6 +1569,8 @@ ENGINE_EXPORT RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 ENGINE_EXPORT MeshHandle GR_CreateMesh();
 ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );
+ENGINE_EXPORT void GR_PreserveResourcePtr( SGRX_RefCounted* rsrc );
+template< class T > void GR_PreserveResource( T& handle ){ GR_PreserveResourcePtr( handle.item ); }
 
 ENGINE_EXPORT SceneHandle GR_CreateScene();
 ENGINE_EXPORT void GR_RenderScene( SGRX_RenderScene& info );

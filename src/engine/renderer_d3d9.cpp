@@ -358,12 +358,12 @@ static void postproc_free( RTData* D )
 	D->height = 0;
 }
 
-static IDirect3DSurface9* postproc_get_ocol( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTS_OCOL_MSAA : D->RTS_OCOL; }
-static IDirect3DSurface9* postproc_get_parm( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_PARM; }
-static IDirect3DSurface9* postproc_get_depth( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_DEPTH; }
-static IDirect3DSurface9* postproc_get_dss( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTSD_MSAA : D->RTSD; }
+inline IDirect3DSurface9* postproc_get_ocol( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTS_OCOL_MSAA : D->RTS_OCOL; }
+inline IDirect3DSurface9* postproc_get_parm( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_PARM; }
+inline IDirect3DSurface9* postproc_get_depth( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_DEPTH; }
+inline IDirect3DSurface9* postproc_get_dss( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTSD_MSAA : D->RTSD; }
 
-static void postproc_resolve( IDirect3DDevice9* dev, RTData* D )
+inline void postproc_resolve( IDirect3DDevice9* dev, RTData* D )
 {
 	if( !D->mstype )
 		return;
@@ -412,11 +412,8 @@ struct D3D9Renderer : IRenderer
 	SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd ){ return NULL; }
 	
 	void SetMatrix( bool view, const Mat4& mtx );
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
-	
-	virtual void RenderShadows( uint8_t pass_id );
-	
-	virtual void RenderScene( SGRX_RenderScene* RS );
+	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
+		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
 	
 	virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
@@ -469,12 +466,7 @@ struct D3D9Renderer : IRenderer
 	
 	SGRX_IVertexShader* m_sh_proj_vs;
 	SGRX_IVertexShader* m_sh_bv_vs;
-	SGRX_IVertexShader* m_sh_pp_vs;
 	SGRX_IPixelShader* m_sh_bv_ps;
-	SGRX_IPixelShader* m_sh_pp_final;
-	SGRX_IPixelShader* m_sh_pp_dshp;
-	SGRX_IPixelShader* m_sh_pp_blur_h;
-	SGRX_IPixelShader* m_sh_pp_blur_v;
 	SGRX_IPixelShader* m_sh_lvsl_ps;
 	
 	// storage
@@ -489,7 +481,6 @@ struct D3D9Renderer : IRenderer
 	
 	// temp data
 	SceneHandle m_currentScene;
-	bool m_enablePostProcessing;
 	SGRX_Viewport* m_viewport;
 };
 
@@ -645,43 +636,23 @@ bool D3D9Renderer::LoadInternalResources()
 	uint32_t whiteCol = 0xffffffff;
 	m_whiteTex.UploadRGBA8Part( &whiteCol );
 	
-	VertexShaderHandle sh_proj_vs = GR_GetVertexShader( "sys_proj_vs" );
+	VertexShaderHandle sh_proj_vs = GR_GetVertexShader( "mtl::vs_base" );
 	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
-	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "sys_pp_vs" );
 	PixelShaderHandle sh_bv_ps = GR_GetPixelShader( "sys_bv_ps" );
-	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "sys_pp_final" );
-	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "sys_pp_bloom_dshp" );
-	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "sys_pp_bloom_blur_h" );
-	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "sys_pp_bloom_blur_v" );
 	PixelShaderHandle sh_lvsl_ps = GR_GetPixelShader( "sys_lvsl_ps" );
 	if( !sh_bv_vs ||
-		!sh_pp_vs ||
 		!sh_bv_ps ||
-		!sh_pp_final ||
-		!sh_pp_dshp ||
-		!sh_pp_blur_h ||
-		!sh_pp_blur_v ||
 		!sh_lvsl_ps )
 	{
 		return false;
 	}
 	sh_proj_vs->Acquire();
 	sh_bv_vs->Acquire();
-	sh_pp_vs->Acquire();
 	sh_bv_ps->Acquire();
-	sh_pp_final->Acquire();
-	sh_pp_dshp->Acquire();
-	sh_pp_blur_h->Acquire();
-	sh_pp_blur_v->Acquire();
 	sh_lvsl_ps->Acquire();
 	m_sh_proj_vs = sh_proj_vs;
 	m_sh_bv_vs = sh_bv_vs;
-	m_sh_pp_vs = sh_pp_vs;
 	m_sh_bv_ps = sh_bv_ps;
-	m_sh_pp_final = sh_pp_final;
-	m_sh_pp_dshp = sh_pp_dshp;
-	m_sh_pp_blur_h = sh_pp_blur_h;
-	m_sh_pp_blur_v = sh_pp_blur_v;
 	m_sh_lvsl_ps = sh_lvsl_ps;
 	
 	SetVertexShader( m_sh_bv_vs );
@@ -694,12 +665,7 @@ void D3D9Renderer::UnloadInternalResources()
 	
 	m_sh_proj_vs->Release();
 	m_sh_bv_vs->Release();
-	m_sh_pp_vs->Release();
 	m_sh_bv_ps->Release();
-	m_sh_pp_final->Release();
-	m_sh_pp_dshp->Release();
-	m_sh_pp_blur_h->Release();
-	m_sh_pp_blur_v->Release();
 	m_sh_lvsl_ps->Release();
 	
 	m_whiteTex = NULL;
@@ -1466,7 +1432,8 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 	}
 }
 
-void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt, SGRX_ITexture* tex, SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
+void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
+	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
 {
 	SGRX_RenderState rs;
 	rs.Init();
@@ -1479,7 +1446,8 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 	SetPixelShader( shd ? shd : m_sh_bv_ps );
 	VS_SetMat4( 0, m_world );
 	VS_SetMat4( 4, m_view );
-	SetTexture( 0, tex ? tex : m_whiteTex.item );
+	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
+		SetTexture( i, textures[ i ] ? textures[ i ] : m_whiteTex );
 	PS_SetVec4Array( 0, shdata, shvcount );
 	m_dev->SetVertexDeclaration( m_batchVertDecl );
 	m_dev->DrawPrimitiveUP( conv_prim_type( pt ), get_prim_count( pt, count ), verts, sizeof( *verts ) );
@@ -1537,223 +1505,6 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 	---
 	100-115: instance data
 */
-void D3D9Renderer::RenderScene( SGRX_RenderScene* RS )
-{
-	LOG_FUNCTION;
-	
-	SceneHandle scene = RS->scene;
-	if( !scene )
-		return;
-	
-	m_enablePostProcessing = RS->enablePostProcessing;
-	m_viewport = RS->viewport;
-	m_currentScene = scene;
-	const SGRX_Camera& CAM = scene->camera;
-	
-	// PREPARE RT
-	IDirect3DTexture9* tx_depth = m_drd.RTT_DEPTH;
-	IDirect3DSurface9* su_depth = m_drd.RTS_DEPTH;
-	RTOutInfo RTOUT = { NULL, su_depth, NULL, m_currSettings.width, m_currSettings.height };
-	if( m_currentRT )
-	{
-		D3D9RenderTexture* RT = (D3D9RenderTexture*) m_currentRT.item;
-		RTOUT.CS = RT->CS;
-		RTOUT.DS = RT->DS;
-		RTOUT.DSS = RT->DSS;
-		RTOUT.w = RT->m_info.width;
-		RTOUT.h = RT->m_info.height;
-		tx_depth = RT->DT;
-		su_depth = RT->DS;
-	}
-	else
-	{
-		m_dev->GetRenderTarget( 0, &RTOUT.CS );
-		m_dev->GetDepthStencilSurface( &RTOUT.DSS );
-	}
-	int w = RTOUT.w, h = RTOUT.h;
-	
-	m_stats.Reset();
-	// CULLING
-	_RS_PreProcess( m_currentScene );
-	
-	// RENDER SHADOWS
-	m_dev->SetRenderTarget( 1, NULL );
-	m_dev->SetRenderTarget( 2, NULL );
-	
-	// RENDER PREP
-	if( m_enablePostProcessing )
-	{
-		m_dev->SetRenderTarget( 0, postproc_get_ocol( &m_drd ) );
-		m_dev->SetRenderTarget( 1, postproc_get_parm( &m_drd ) );
-		m_dev->SetRenderTarget( 2, postproc_get_depth( &m_drd ) );
-		m_dev->SetDepthStencilSurface( postproc_get_dss( &m_drd ) );
-	}
-	else
-	{
-		m_dev->SetRenderTarget( 0, RTOUT.CS );
-		m_dev->SetRenderTarget( 1, NULL );
-		m_dev->SetRenderTarget( 2, RTOUT.DS );
-		m_dev->SetDepthStencilSurface( RTOUT.DSS );
-	}
-	
-	Viewport_Apply( 1 );
-	
-	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0 // 0xff00ff00
-		, 1.0f, 0 );
-	
-	/* upload unchanged data */
-	VS_SetMat4( 0, CAM.mView );
-	VS_SetMat4( 4, CAM.mProj );
-	VS_SetMat4( 12, CAM.mView );
-	VS_SetVec4( 16, RS->timevals );
-	PS_SetMat4( 0, CAM.mInvView );
-	PS_SetMat4( 4, CAM.mProj );
-	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
-	PS_SetVec4( 4, campos4 );
-	
-	Vec4 skydata[ 1 ] =
-	{
-		{ scene->skyTexture ? 1 : 0, 0, 0, 0 },
-	};
-	PS_SetVec4Array( 11, skydata, 1 );
-	Vec3 fogGamma = scene->fogColor.Pow( 2.0 );
-	Vec4 fogdata[ 2 ] =
-	{
-		{ fogGamma.x, fogGamma.y, fogGamma.z, scene->fogHeightFactor },
-		{ scene->fogDensity, scene->fogHeightDensity, scene->fogStartHeight, scene->fogMinDist },
-	};
-	PS_SetVec4Array( 12, fogdata, 2 );
-	
-	Vec3 dirLightViewDir = -CAM.mView.TransformNormal( scene->dirLightDir ).Normalized();
-	Vec4 dirlight[ 3 ] =
-	{
-		{ scene->ambientLightColor.x, scene->ambientLightColor.y, scene->ambientLightColor.z, 1 },
-		{ dirLightViewDir.x, dirLightViewDir.y, dirLightViewDir.z, 0 },
-		{ scene->dirLightColor.x, scene->dirLightColor.y, scene->dirLightColor.z, 1 },
-	};
-	PS_SetVec4Array( 20, dirlight, 3 );
-	
-	// MAIN PASSES
-#if 0
-	for( size_t pass_id = 0; pass_id < m_renderPasses.size(); ++pass_id )
-	{
-		const SGRX_RenderPass& pass = m_renderPasses[ pass_id ];
-		
-		if( pass.type == RPT_OBJECT || pass.type == RPT_PROJECTORS )
-		{
-			VS_SetMat4( 0, CAM.mView );
-			VS_SetMat4( 4, CAM.mProj );
-			VS_SetMat4( 12, CAM.mView );
-			PS_SetMat4( 0, CAM.mInvView );
-			PS_SetMat4( 4, CAM.mProj );
-			Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
-			PS_SetVec4( 4, campos4 );
-			if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
-			if( pass.type == RPT_PROJECTORS ) _RS_RenderPass_Projectors( pass_id );
-		}
-		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, tx_depth, RTOUT );
-		else if( pass.type == RPT_LIGHTVOLS ) _RS_RenderPass_LightVols( tx_depth, RTOUT );
-	}
-#endif
-	
-	if( RS->postdraw )
-	{
-		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE ); // TODO HACK!!!
-		RS->postdraw->PostDraw();
-		GR2D_GetBatchRenderer().Flush().Reset();
-		m_dev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-	}
-	
-	// POST-PROCESSING
-	if( m_enablePostProcessing )
-	{
-		SGRX_RenderState rs;
-		rs.Init();
-		rs.depthEnable = false;
-		rs.multisampleEnable = false;
-		rs.blendStates[0].blendEnable = false;
-		SetRenderState( rs );
-		
-		uint32_t pptexflags = TEXTURE_FLAGS_FULLSCREEN;
-		
-		postproc_resolve( m_dev, &m_drd );
-		
-		m_dev->SetRenderTarget( 1, NULL );
-		m_dev->SetRenderTarget( 2, NULL );
-		m_dev->SetDepthStencilSurface( NULL );
-		
-		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_DSHP );
-		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
-		_SetTextureInt( 0, m_drd.RTT_OCOL, pptexflags );
-		SetVertexShader( m_sh_pp_vs );
-		SetPixelShader( m_sh_pp_dshp );
-		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
-		
-		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_BLUR1 );
-		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
-		_SetTextureInt( 0, m_drd.RTT_BLOOM_DSHP, pptexflags );
-		SetPixelShader( m_sh_pp_blur_h );
-		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
-		
-		m_dev->SetRenderTarget( 0, m_drd.RTS_BLOOM_BLUR2 );
-		m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
-		_SetTextureInt( 0, m_drd.RTT_BLOOM_BLUR1, pptexflags );
-		SetPixelShader( m_sh_pp_blur_v );
-		PostProcBlit( RTOUT.w, RTOUT.h, 4, 0 );
-		
-		m_dev->SetRenderTarget( 0, RTOUT.CS );
-	//	m_dev->Clear( 0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0 );
-		SetPixelShader( m_sh_pp_final );
-		_SetTextureInt( 0, m_drd.RTT_OCOL, pptexflags );
-		_SetTextureInt( 1, m_drd.RTT_PARM, pptexflags );
-		_SetTextureInt( 2, m_drd.RTT_BLOOM_BLUR2, pptexflags );
-		PostProcBlit( RTOUT.w, RTOUT.h, 1, 0 );
-		m_dev->SetDepthStencilSurface( RTOUT.DSS );
-	}
-	
-	// MANUAL DEBUG DRAWING
-	if( RS->debugdraw )
-		_RS_DebugDraw( RS->debugdraw, m_enablePostProcessing ? postproc_get_dss( &m_drd ) : RTOUT.DSS, RTOUT.DSS );
-	
-	// POST-PROCESS DEBUGGING
-	if( !m_currentRT && m_dbg_rt )
-	{
-		RECT srcRect = { 0, 0, w, h };
-		RECT srcRect2 = { 0, 0, w/4, h/4 };
-		RECT dstRect = { 0, h/8, w/8, h/4 };
-		IDirect3DSurface9* surfs[] =
-		{
-			m_drd.RTS_OCOL,
-			m_drd.RTS_PARM,
-			m_drd.RTS_BLOOM_DSHP,
-			m_drd.RTS_BLOOM_BLUR1,
-			m_drd.RTS_BLOOM_BLUR2,
-		};
-		for( size_t i = 0; i < sizeof(surfs)/sizeof(surfs[0]); ++i )
-		{
-			RECT* sr = ( surfs[i] == m_drd.RTS_BLOOM_DSHP || surfs[i] == m_drd.RTS_BLOOM_BLUR1 || surfs[i] == m_drd.RTS_BLOOM_BLUR2 ) ? &srcRect2 : &srcRect;
-			m_dev->StretchRect( surfs[i], sr, m_backbuf, &dstRect, D3DTEXF_POINT );
-			dstRect.left += w/8;
-			dstRect.right += w/8;
-		}
-	}
-	
-	// RENDERING ENDS
-	SetVertexShader( m_sh_bv_vs );
-	_SetTextureInt( 0, NULL, 0 );
-	
-	if( !m_currentRT )
-	{
-		SAFE_RELEASE( RTOUT.CS );
-		SAFE_RELEASE( RTOUT.DSS );
-	}
-	ResetViewport();
-	
-	// RESTORE STATE
-	m_enablePostProcessing = false;
-	m_viewport = NULL;
-	m_currentScene = NULL;
-}
 
 void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
@@ -1933,46 +1684,6 @@ void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 	}
 }
 
-void D3D9Renderer::_RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
-{
-	UNUSED( pass );
-	const SGRX_Camera& CAM = m_currentScene->camera;
-	
-	SGRX_RenderState rs;
-	rs.Init();
-	rs.blendStates[0].blendEnable = true;
-	rs.depthEnable = false;
-	rs.cullMode = SGRX_RS_CullMode_None;
-	SetRenderState( rs );
-	
-	m_dev->SetRenderTarget( 1, NULL );
-	m_dev->SetRenderTarget( 2, NULL );
-	m_dev->SetDepthStencilSurface( NULL );
-	
-	_SetTextureInt( 0, tx_depth, TEXTURE_FLAGS_FULLSCREEN );
-	SetTexture( 4, m_currentScene->skyTexture );
-	
-	SetVertexShader( m_sh_pp_vs );
-	SetPixelShader( m_pass_shaders[ pass_id ] );
-	Vec4 campos4 = { CAM.position.x, CAM.position.y, CAM.position.z, 0 };
-	PS_SetVec4( 4, campos4 );
-	PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
-	
-	if( m_enablePostProcessing )
-	{
-		m_dev->SetRenderTarget( 1, postproc_get_parm( &m_drd ) );
-		m_dev->SetRenderTarget( 2, postproc_get_depth( &m_drd ) );
-		m_dev->SetDepthStencilSurface( postproc_get_dss( &m_drd ) );
-	}
-	else
-	{
-		m_dev->SetRenderTarget( 2, RTOUT.DS );
-		m_dev->SetDepthStencilSurface( RTOUT.DSS );
-	}
-	
-	Viewport_Apply( 1 );
-}
-
 void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT )
 {
 	const SGRX_Camera& CAM = m_currentScene->camera;
@@ -2030,7 +1741,6 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 		pl = Vec3Dot( dir01, CAM.direction ); if( pl ) dir01 /= pl;
 		pl = Vec3Dot( dir11, CAM.direction ); if( pl ) dir11 /= pl;
 		
-		SetVertexShader( m_sh_pp_vs );
 		SetPixelShader( m_sh_lvsl_ps );
 		PS_SetMat4( 0, vpmtx );
 		PS_SetVec4( 4, V4( pos00, 0 ) );
@@ -2058,18 +1768,6 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 		
 		// TODO optimize shape
 		PostProcBlit( RTOUT.w, RTOUT.h, 1, -1 );
-	}
-	
-	if( m_enablePostProcessing )
-	{
-		m_dev->SetRenderTarget( 1, postproc_get_parm( &m_drd ) );
-		m_dev->SetRenderTarget( 2, postproc_get_depth( &m_drd ) );
-		m_dev->SetDepthStencilSurface( postproc_get_dss( &m_drd ) );
-	}
-	else
-	{
-		m_dev->SetRenderTarget( 2, RTOUT.DS );
-		m_dev->SetDepthStencilSurface( RTOUT.DSS );
 	}
 	
 	Viewport_Apply( 1 );

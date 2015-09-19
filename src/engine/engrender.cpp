@@ -76,6 +76,18 @@ LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, 
 }
 
 
+SGRX_IRenderControl::~SGRX_IRenderControl()
+{
+}
+
+IRenderer::IRenderer() : m_inDebugDraw( false )
+{
+}
+
+IRenderer::~IRenderer()
+{
+}
+
 void IRenderer::PrepRenderTarget( uint16_t id, uint16_t width, uint16_t height, uint16_t format )
 {
 	if( id >= m_rtCache.size() )
@@ -95,10 +107,10 @@ void IRenderer::SetRenderTargets( const SGRX_RTClearInfo& info, uint16_t ids[4] 
 {
 	TextureHandle rts[4] =
 	{
-		ids[0] > m_rtCache.size() ? m_rtCache[ ids[0] ] : NULL,
-		ids[1] > m_rtCache.size() ? m_rtCache[ ids[1] ] : NULL,
-		ids[2] > m_rtCache.size() ? m_rtCache[ ids[2] ] : NULL,
-		ids[3] > m_rtCache.size() ? m_rtCache[ ids[3] ] : NULL,
+		ids[0] < m_rtCache.size() ? m_rtCache[ ids[0] ] : NULL,
+		ids[1] < m_rtCache.size() ? m_rtCache[ ids[1] ] : NULL,
+		ids[2] < m_rtCache.size() ? m_rtCache[ ids[2] ] : NULL,
+		ids[3] < m_rtCache.size() ? m_rtCache[ ids[3] ] : NULL,
 	};
 	SetRenderTargets( info, rts );
 }
@@ -232,6 +244,8 @@ static bool meshinst_sortbyidx( const void* a, const void* b, void* )
 
 void IRenderer::_RS_PreProcess( SGRX_Scene* scene )
 {
+	m_stats.Reset();
+	
 	_RS_Cull_Camera_Prepare( scene );
 	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList( scene );
 	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList( scene );
@@ -1277,22 +1291,17 @@ BatchRenderer& BatchRenderer::AACircleOutline( float x, float y, float r, float 
 	return *this;
 }
 
-bool BatchRenderer::CheckSetTexture( const TextureHandle& tex )
+bool BatchRenderer::CheckSetTexture( int i, const TextureHandle& tex )
 {
-	if( tex != m_nextState.texture )
+	ASSERT( i >= 0 && i < SGRX_MAX_TEXTURES );
+	if( tex != m_nextState.textures[ i ] )
 	{
-		m_nextState.texture = tex;
+		m_nextState.textures[ i ] = tex;
 		_UpdateDiff();
 		return true;
 	}
 	_UpdateDiff();
 	return false;
-}
-
-BatchRenderer& BatchRenderer::SetTexture( const TextureHandle& tex )
-{
-	CheckSetTexture( tex );
-	return *this;
 }
 
 BatchRenderer& BatchRenderer::SetShader( const PixelShaderHandle& shd )
@@ -1345,7 +1354,14 @@ BatchRenderer& BatchRenderer::Flush()
 {
 	if( m_verts.size() )
 	{
-		m_renderer->DrawBatchVertices( m_verts.data(), m_verts.size(), m_currState.primType, m_currState.texture, m_currState.shader, ShaderData.data(), ShaderData.size() );
+		m_renderer->DrawBatchVertices
+		(
+			m_verts.data(), m_verts.size(),
+			m_currState.primType,
+			m_currState.textures,
+			m_currState.shader,
+			ShaderData.data(), ShaderData.size()
+		);
 		m_verts.clear();
 	}
 	return *this;
@@ -1365,10 +1381,7 @@ BatchRenderer& BatchRenderer::Reset()
 
 void BatchRenderer::_UpdateDiff()
 {
-	m_diff = m_currState.texture != m_nextState.texture
-		|| m_currState.shader != m_nextState.shader
-		|| m_currState.primType != m_nextState.primType
-	;
+	m_diff = m_currState.IsDiff( m_nextState );
 }
 
 void BatchRenderer::_RecalcMatrices()

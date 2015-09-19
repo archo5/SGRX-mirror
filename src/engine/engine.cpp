@@ -56,6 +56,7 @@ typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
 typedef HashTable< StringView, FontHandle > FontHashTable;
 typedef HashTable< int, JoystickHandle > JoystickHashTable;
+typedef HashTable< GenericHandle, int > ResourcePreserveHashTable;
 
 static String g_GameLibName = "game";
 static String g_GameDir = ".";
@@ -94,6 +95,7 @@ static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
 static FontHashTable* g_LoadedFonts = NULL;
 static JoystickHashTable* g_Joysticks = NULL;
+static ResourcePreserveHashTable* g_PreservedResources = NULL;
 static SGRX_FontSettings g_CurFontSettings = { "", 0, 0.0f, -1.2f };
 
 
@@ -494,21 +496,36 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
 #define RT_MAIN 0
+#define RT_HBLUR 1
+#define RT_VBLUR 2
+	
+	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
+	PixelShaderHandle pppsh_blur_h = GR_GetPixelShader( "sys_pp_blur:HOR" );
+	PixelShaderHandle pppsh_blur_v = GR_GetPixelShader( "sys_pp_blur:VERT" );
+	
+	GR_PreserveResource( pppsh_final );
+	GR_PreserveResource( pppsh_blur_h );
+	GR_PreserveResource( pppsh_blur_v );
 	
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
+	int W4 = W / 4, H4 = H / 4;
 	
-	ctrl->PrepRenderTarget( RT_MAIN, W, H, RT_FORMAT_COLOR_HDR16 );
-	ctrl->RenderShadows( scene, 0 );
+	if( info.enablePostProcessing )
 	{
-		SGRX_RTClearInfo clearInfo = { SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1 };
-		uint16_t rts[4] = { RT_MAIN, SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE };
-		ctrl->SetRenderTargets( clearInfo, rts );
+		ctrl->PrepRenderTarget( RT_MAIN, W, H, RT_FORMAT_COLOR_HDR16 );
+		ctrl->PrepRenderTarget( RT_HBLUR, W4, H, RT_FORMAT_COLOR_HDR16 );
+		ctrl->PrepRenderTarget( RT_VBLUR, W4, H4, RT_FORMAT_COLOR_HDR16 );
 	}
+	
+	ctrl->RenderShadows( scene, 0 );
+	
 	ctrl->SortRenderItems( scene );
+	ctrl->SetRenderTargets( SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1, RT_MAIN );
+	
 	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
 	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
 	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Decal );
@@ -518,15 +535,23 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	if( info.postdraw )
 		info.postdraw->PostDraw();
 	
-	// reset target
+	if( info.enablePostProcessing )
 	{
-		SGRX_RTClearInfo clearInfo = { SGRX_RT_NeedDepthStencil };
-		uint16_t rts[4] = { SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE, SGRX_RT_NONE };
-		ctrl->SetRenderTargets( clearInfo, rts );
+		ctrl->SetRenderTargets( SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1, RT_HBLUR );
+		br.Reset().SetTexture( ctrl->GetRenderTarget( RT_MAIN ) ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		ctrl->SetRenderTargets( SGRX_RT_ClearAll | SGRX_RT_NeedDepthStencil, 0, 0, 1, RT_VBLUR );
+		br.Reset().SetTexture( ctrl->GetRenderTarget( RT_HBLUR ) ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		ctrl->SetRenderTargets( SGRX_RT_NeedDepthStencil, 0, 0, 1 );
+		br.Reset().SetTexture( 0, ctrl->GetRenderTarget( RT_MAIN ) )
+		          .SetTexture( 2, ctrl->GetRenderTarget( RT_VBLUR ) ).Quad( 0, 0, 1, 1 ).Flush();
 	}
-	
-	// blit
-	br.Reset().SetTexture( ctrl->GetRenderTarget( RT_MAIN ) ).Quad( 0, 0, 1, 1 ).Flush();
+	else
+	{
+		ctrl->SetRenderTargets( SGRX_RT_NeedDepthStencil, 0, 0, 1 );
+		br.Reset().SetTexture( ctrl->GetRenderTarget( RT_MAIN ) ).Quad( 0, 0, 1, 1 ).Flush();
+	}
 	
 	if( info.debugdraw )
 		info.debugdraw->DebugDraw();
@@ -564,7 +589,8 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
 	SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
 {
-	if( pass.isBasePass == false && pass.isShadowPass == false && ( mtl.flags & SGRX_MtlFlag_Unlit ) != 0 )
+	if( pass.isBasePass == false && pass.isShadowPass == false &&
+		( ( mtl.flags & SGRX_MtlFlag_Unlit ) != 0 || MI->GetLightingMode() == SGRX_LM_Unlit ) )
 	{
 		PS = NULL;
 		VS = NULL;
@@ -581,6 +607,12 @@ void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& 
 	else
 	{
 		char bfr[32];
+		// lighting mode
+		{
+			sgrx_snprintf( bfr, 32, "%d", MI->GetLightingMode() );
+			name.append( ":LIGHTING_MODE " );
+			name.append( bfr );
+		}
 		if( pass.isBasePass )
 			name.append( ":BASE_PASS" );
 		if( pass.numPL )
@@ -2609,6 +2641,22 @@ AnimHandle GR_GetAnim( const StringView& name )
 
 
 
+void GR_PreserveResourcePtr( SGRX_RefCounted* rsrc )
+{
+	g_PreservedResources->set( rsrc, 2 );
+}
+
+static void _unpreserve_resources()
+{
+	for( size_t i = 0; i < g_PreservedResources->size(); ++i )
+	{
+		if( --g_PreservedResources->item( i ).value <= 0 )
+			g_PreservedResources->unset( g_PreservedResources->item( i ).key );
+	}
+}
+
+
+
 SceneHandle GR_CreateScene()
 {
 	LOG_FUNCTION;
@@ -3087,6 +3135,7 @@ static int init_graphics()
 	g_Anims = new AnimHashTable();
 	g_LoadedFonts = new FontHashTable();
 	g_Joysticks = new JoystickHashTable();
+	g_PreservedResources = new ResourcePreserveHashTable();
 	LOG << LOG_DATE << "  Created renderer resource caches";
 	
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
@@ -3118,6 +3167,9 @@ static void free_graphics()
 	
 	delete g_BatchRenderer;
 	g_BatchRenderer = NULL;
+	
+	delete g_PreservedResources;
+	g_PreservedResources = NULL;
 	
 	delete g_Joysticks;
 	g_Joysticks = NULL;
@@ -3364,6 +3416,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	SDL_Event event;
 	while( g_Running )
 	{
+		_unpreserve_resources();
 		g_ActionMap->Advance();
 		SDL_JoystickUpdate();
 		while( SDL_PollEvent( &event ) )
