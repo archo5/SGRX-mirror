@@ -698,6 +698,7 @@ void SGRX_DecalSystem::Init( SceneHandle scene, TextureHandle texDecal, TextureH
 	mtl.textures[0] = texDecal;
 	mtl.textures[1] = texFalloff;
 	m_meshInst->materials.assign( &mtl, 1 );
+	m_meshInst->SetMITexture( 0, GR_GetTexture( "textures/white.png" ) );
 	m_meshInst->SetLightingMode( SGRX_LM_Decal );
 }
 

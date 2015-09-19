@@ -95,7 +95,7 @@ void IRenderer::SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTC
 
 void IRenderer::SortRenderItems( SGRX_Scene* scene )
 {
-	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_spot_meshes, SGRX_TY_Solid );
+	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_meshes, SGRX_TY_Solid | SGRX_TY_Decal | SGRX_TY_Transparent );
 	
 	m_riBaseStart = m_renderItemsBase.data();
 	m_riBaseEnd = m_riBaseStart + m_renderItemsBase.size();

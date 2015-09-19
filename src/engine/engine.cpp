@@ -505,6 +505,7 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 #define RT_HBLUR2 0xfff3
 #define RT_VBLUR2 0xfff4
 #define RT_HPASS 0xfff5
+#define RT_DEPTH 0xfff6
 	
 	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
 	PixelShaderHandle pppsh_highpass = GR_GetPixelShader( "sys_pp_highpass" );
@@ -522,11 +523,15 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
 	int W16 = TMAX( W4 / 4, 1 ), H16 = TMAX( H4 / 4, 1 );
 	
-	TextureHandle rttMAIN, rttHPASS, rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2;
+	ctrl->RenderShadows( scene, 0 );
+	ctrl->SortRenderItems( scene );
+	
+	TextureHandle rttMAIN, rttHPASS, rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2, rttDEPTH;
 	DepthStencilSurfHandle dssMAIN;
 	if( info.enablePostProcessing )
 	{
 		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
+		rttDEPTH = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_DEPTH );
 		rttHPASS = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_HPASS );
 		rttHBLUR = GR_GetRenderTarget( W4, H, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
 		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
@@ -535,17 +540,18 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		dssMAIN = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
 		
 		GR_PreserveResource( rttMAIN );
+		GR_PreserveResource( rttDEPTH );
 		GR_PreserveResource( rttHPASS );
 		GR_PreserveResource( rttHBLUR );
 		GR_PreserveResource( rttVBLUR );
 		GR_PreserveResource( rttHBLUR2 );
 		GR_PreserveResource( rttVBLUR2 );
 		GR_PreserveResource( dssMAIN );
+		
+		ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttDEPTH );
+		ctrl->RenderTypes( scene, 0, 1, SGRX_TY_Solid );
 	}
 	
-	ctrl->RenderShadows( scene, 0 );
-	
-	ctrl->SortRenderItems( scene );
 	ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttMAIN );
 	
 	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
@@ -589,7 +595,8 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
 		br.SetTexture( 0, rttMAIN )
 		  .SetTexture( 2, rttVBLUR )
-		  .SetTexture( 3, rttVBLUR2 ).SetShader( pppsh_final ).Quad( 0, 0, 1, 1 ).Flush();
+		  .SetTexture( 3, rttVBLUR2 )
+		  .SetTexture( 4, rttDEPTH ).SetShader( pppsh_final ).Quad( 0, 0, 1, 1 ).Flush();
 	}
 	else
 	{

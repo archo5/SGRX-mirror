@@ -3,6 +3,7 @@ sampler2D texOCOL : register(s0);
 sampler2D texPARM : register(s1);
 sampler2D texBLOOM : register(s2);
 sampler2D texBLOOM2 : register(s3);
+sampler2D texDEPTH : register(s4);
 
 float4 main( float2 itex : TEXCOORD0 ) : COLOR0
 {

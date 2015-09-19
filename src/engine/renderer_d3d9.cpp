@@ -78,10 +78,6 @@ static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, 
 
 static void _ss_reset_states( IDirect3DDevice9* dev, int w, int h )
 {
-	dev->SetTextureStageState( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-	dev->SetTextureStageState( 0, D3DTSS_ALPHAOP, D3DTOP_MODULATE );
-	dev->SetTextureStageState( 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
-	dev->SetTextureStageState( 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE );
 	dev->SetRenderState( D3DRS_LIGHTING, 0 );
 	dev->SetRenderState( D3DRS_SEPARATEALPHABLENDENABLE, 1 );
 }
