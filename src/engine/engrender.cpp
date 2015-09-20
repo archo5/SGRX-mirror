@@ -734,6 +734,7 @@ BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( f
 	m_proto.color = 0xffffffff;
 	worldMatrix = Mat4::Identity;
 	viewMatrix = Mat4::Identity;
+	ResetState();
 }
 
 BatchRenderer& BatchRenderer::AddVertices( Vertex* verts, int count )
@@ -1354,12 +1355,15 @@ BatchRenderer& BatchRenderer::Flush()
 {
 	if( m_verts.size() )
 	{
+		RenderStateHandle rsh = GR_GetRenderState( RenderState );
+		GR_PreserveResource( rsh );
 		m_renderer->DrawBatchVertices
 		(
 			m_verts.data(), m_verts.size(),
 			m_currState.primType,
 			m_currState.textures,
 			m_currState.shader,
+			rsh,
 			ShaderData.data(), ShaderData.size()
 		);
 		m_verts.clear();

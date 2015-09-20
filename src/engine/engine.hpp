@@ -1411,6 +1411,15 @@ struct BatchRenderer
 	ENGINE_EXPORT void _UpdateDiff();
 	ENGINE_EXPORT void _RecalcMatrices();
 	
+	FINLINE void ResetState()
+	{
+		RenderState.Init();
+		RenderState.depthEnable = false;
+		RenderState.cullMode = SGRX_RS_CullMode_None;
+		RenderState.blendStates[0].blendEnable = true;
+	}
+	
+	SGRX_RenderState RenderState;
 	Array< Vec4 > ShaderData;
 	
 	IRenderer* m_renderer;

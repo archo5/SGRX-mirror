@@ -243,12 +243,9 @@ __CODE__
 		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
 		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
 #endif // LMODE
-#ifdef DECAL
-#if LMODE != 3
+#if defined(DECAL) && LMODE != 3
 	totalDiffuse *= icol.rgb;
-#endif // LMODE != 3
-	outOpacity *= icol.a;
-#endif // DECAL
+#endif // defined(DECAL) && LMODE != 3
 	totalDiffuse *= LIGHT_MULTIPLIER;
 	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
 	totalSpecular += outAmbientSpecularLight + texCUBElod( InstTex1, float4( refWorld.xzy, 0 ) ).rgb;
@@ -259,6 +256,10 @@ __CODE__
 	specAmount = pow( RdotV, outSpecularPower ) * sqrt( outSpecularPower );
 	totalSpecular += gDirLightColor * specAmount; */
 #endif // BASE_PASS
+	
+#ifdef DECAL
+	outOpacity *= icol.a;
+#endif // DECAL
 	
 #ifdef NUM_POINTLIGHTS
 	/* POINT LIGHTS */

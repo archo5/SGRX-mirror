@@ -2092,10 +2092,10 @@ static void floor_mesh_update( float size, float height )
 {
 	FMVertex verts[4] =
 	{
-		{ { -size, -size, 0 }, {0,0,1}, { -size, -size } },
-		{ { +size, -size, 0 }, {0,0,1}, { +size, -size } },
-		{ { +size, +size, 0 }, {0,0,1}, { +size, +size } },
-		{ { -size, +size, 0 }, {0,0,1}, { -size, +size } },
+		{ { -size, -size, 0 }, {0,0,1}, { +size, -size } },
+		{ { +size, -size, 0 }, {0,0,1}, { -size, -size } },
+		{ { +size, +size, 0 }, {0,0,1}, { -size, +size } },
+		{ { -size, +size, 0 }, {0,0,1}, { +size, +size } },
 	};
 	uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
 	SGRX_MeshPart part = { 0, 4, 0, 6 };

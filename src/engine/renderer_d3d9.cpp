@@ -408,7 +408,7 @@ struct D3D9Renderer : IRenderer
 	
 	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
-	void SetScissorRect( bool enable, int* rect );
+	void SetScissorRect( int* rect );
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
@@ -423,17 +423,12 @@ struct D3D9Renderer : IRenderer
 	
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
+		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount );
 	
 	virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
 	void _RS_RenderPass_Projectors( size_t pass_id );
-	void _RS_RenderPass_Object( const SGRX_RenderPass& pass, size_t pass_id );
-	void _RS_RenderPass_Screen( const SGRX_RenderPass& pass, size_t pass_id, IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
 	void _RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
-	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
-	
-//	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
 	
 	bool ResetDevice();
 	void ResetViewport();
@@ -458,9 +453,6 @@ struct D3D9Renderer : IRenderer
 	
 	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
 	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
-	
-	void MI_ApplyConstants( const SGRX_MeshInstance* MI );
-//	void Viewport_Apply( int downsample );
 	
 	// state
 	SGRX_RenderState m_crs;
@@ -748,7 +740,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthSt
 		m_dev->SetRenderTarget( 1, NULL );
 		m_dev->SetRenderTarget( 2, NULL );
 		m_dev->SetRenderTarget( 3, NULL );
-		m_dev->SetDepthStencilSurface( m_dssurf );
+		m_dev->SetDepthStencilSurface( dss ? ((D3D9DepthStencilSurface*)dss)->DSS : m_dssurf );
 		SetViewport( 0, 0, GR_GetWidth(), GR_GetHeight() );
 	}
 	else
@@ -796,12 +788,16 @@ void D3D9Renderer::SetViewport( int x0, int y0, int x1, int y1 )
 	m_dev->SetViewport( &vp );
 }
 
-void D3D9Renderer::SetScissorRect( bool enable, int* rect )
+void D3D9Renderer::SetScissorRect( int* rect )
 {
-	m_dev->SetRenderState( D3DRS_SCISSORTESTENABLE, enable );
 	if( rect )
 	{
 		RECT r = { rect[0], rect[1], rect[2], rect[3] };
+		m_dev->SetScissorRect( &r );
+	}
+	else
+	{
+		RECT r = { m_viewport.X, m_viewport.Y, m_viewport.X + m_viewport.Width, m_viewport.Y + m_viewport.Height };
 		m_dev->SetScissorRect( &r );
 	}
 }
@@ -1484,21 +1480,15 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 }
 
 void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
+	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount )
 {
-	SGRX_RenderState rs;
-	rs.Init();
-	rs.depthEnable = false;
-	rs.cullMode = SGRX_RS_CullMode_None;
-	rs.blendStates[0].blendEnable = true;
-	SetRenderState( rs );
-	
 	float w = m_viewport.Width;
 	float h = m_viewport.Height;
 	Mat4 hpomtx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
 	
 	SetVertexShader( m_sh_bv_vs );
 	SetPixelShader( shd ? shd : m_sh_bv_ps );
+	SetRenderState( rs );
 	VS_SetMat4( 0, m_world );
 	VS_SetMat4( 4, m_view * hpomtx );
 	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
@@ -1626,7 +1616,9 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 		// instance state
 		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 			SetTexture( i, MTL.textures[ i ] );
-		MI_ApplyConstants( MI );
+		if( MI->skin_matrices.size() )
+			VS_SetVec4Array( 40, (const Vec4*) &MI->skin_matrices[0], MI->skin_matrices.size() * 4 );
+		PS_SetVec4Array( 100, &MI->constants[0], 16 );
 		
 		Mat4 mWorldView;
 		mWorldView.Multiply( MI->matrix, cam.mView );
@@ -2036,31 +2028,4 @@ void D3D9Renderer::SetRenderState( const SGRX_IRenderState* rsi )
 	ASSERT( rsi );
 	SetRenderState( rsi->m_info );
 }
-
-void D3D9Renderer::MI_ApplyConstants( const SGRX_MeshInstance* MI )
-{
-	if( MI->skin_matrices.size() )
-		VS_SetVec4Array( 40, (const Vec4*) &MI->skin_matrices[0], MI->skin_matrices.size() * 4 );
-	PS_SetVec4Array( 100, &MI->constants[0], 16 );
-}
-
-#if 0
-void D3D9Renderer::Viewport_Apply( int downsample )
-{
-	if( m_viewport )
-	{
-		SGRX_Viewport* VP = m_viewport;
-		D3DVIEWPORT9 d3dvp =
-		{
-			VP->x1 / downsample,
-			VP->y1 / downsample,
-			( VP->x2 - VP->x1 ) / downsample,
-			( VP->y2 - VP->y1 ) / downsample,
-			0.0f,
-			1.0f
-		};
-		m_dev->SetViewport( &d3dvp );
-	}
-}
-#endif
 

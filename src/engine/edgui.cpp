@@ -407,6 +407,7 @@ bool EDGUIFrame::PushScissorRect( int _x0, int _y0, int _x1, int _y1 )
 	Rect R = { TMAX( _x0, last.x0 ), TMAX( _y0, last.y0 ), TMIN( _x1, last.x1 ), TMIN( _y1, last.y1 ) };
 	m_rects.push_back( R );
 	GR2D_GetBatchRenderer().Flush();
+	GR2D_GetBatchRenderer().RenderState.scissorEnable = true;
 	GR2D_SetScissorRect( R.x0, R.y0, R.x1, R.y1 );
 	return true;
 }
@@ -421,7 +422,10 @@ void EDGUIFrame::PopScissorRect()
 		GR2D_SetScissorRect( last.x0, last.y0, last.x1, last.y1 );
 	}
 	else
+	{
 		GR2D_UnsetScissorRect();
+		GR2D_GetBatchRenderer().RenderState.scissorEnable = false;
+	}
 }
 
 void EDGUIFrame::_HandleMouseMove( bool optional )

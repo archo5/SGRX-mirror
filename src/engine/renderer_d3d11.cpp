@@ -477,7 +477,7 @@ struct D3D11Renderer : IRenderer
 	
 	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
-	void SetScissorRect( bool enable, int* rect );
+	void SetScissorRect( int* rect );
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
@@ -492,19 +492,12 @@ struct D3D11Renderer : IRenderer
 	
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount );
-	
-	void RenderScene( SGRX_RenderScene* RS );
-//	void _RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss );
+		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount );
 	
 	void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
-	void PostProcBlit( int w, int h, int downsample, int ppdata_location );
-	
 	bool ResetDevice();
 	void ResetViewport();
-//	void _SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags );
-	void SetTexture( int slot, SGRX_ITexture* tex );
 	void SetVertexShader( const SGRX_IVertexShader* shd );
 	void SetPixelShader( const SGRX_IPixelShader* shd );
 	void SetRenderState( const SGRX_IRenderState* rsi );
@@ -523,9 +516,6 @@ struct D3D11Renderer : IRenderer
 //	
 //	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
 //	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
-	
-	void MI_ApplyConstants( SGRX_MeshInstance* MI );
-	void Viewport_Apply( int downsample );
 	
 	// state
 	TextureHandle m_currentRT;
@@ -559,9 +549,6 @@ struct D3D11Renderer : IRenderer
 	
 	// rendering data
 	D3D11Texture* m_defaultTexture;
-	ID3D11RasterizerState* m_rstate_batchverts;
-	ID3D11BlendState* m_bstate_batchverts_normal;
-	ID3D11BlendState* m_bstate_batchverts_additive;
 	ID3D11InputLayout* m_inputLayout_batchverts;
 	ID3D11Buffer* m_vertbuf_defaults;
 	cb_vs_batchverts m_cbdata_vs_batchverts;
@@ -575,16 +562,8 @@ struct D3D11Renderer : IRenderer
 	D3D11DynBuffer m_cbuf4_ltspot;
 	
 	// temp data
-	SceneHandle m_currentScene;
-	bool m_enablePostProcessing;
-	SGRX_Viewport* m_viewport;
+	D3D11_VIEWPORT m_viewport;
 	ByteArray m_scratchMem;
-//	Array< SGRX_MeshInstance* > m_visible_meshes;
-//	Array< SGRX_MeshInstance* > m_visible_spot_meshes;
-//	Array< SGRX_Light* > m_visible_point_lights;
-//	Array< SGRX_Light* > m_visible_spot_lights;
-//	Array< SGRX_MeshInstLight > m_inst_light_buf;
-//	Array< SGRX_MeshInstLight > m_light_inst_buf;
 };
 
 extern "C" RENDERER_EXPORT bool Initialize( const char** outname )
@@ -688,21 +667,6 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	if( create_buf( device, sizeof(R->m_cbdata_vs_batchverts), true, D3D11_BIND_CONSTANT_BUFFER, &R->m_cbdata_vs_batchverts, &R->m_cbuf_vs_batchverts ) )
 		return NULL;
 	
-	// batch vertex rasterizer state
-	D3D11_RASTERIZER_DESC rdesc_batchverts = { D3D11_FILL_SOLID, D3D11_CULL_NONE, TRUE, 0, 0, 0, TRUE, TRUE, TRUE, TRUE };
-	if( create_rstate( device, &rdesc_batchverts, &R->m_rstate_batchverts ) )
-		return NULL;
-	
-	// batch vertex blending states
-	D3D11_BLEND_DESC bdesc_batchverts = { FALSE, FALSE, {
-		{ TRUE, D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, D3D11_BLEND_OP_ADD, D3D11_BLEND_INV_DEST_ALPHA, D3D11_BLEND_ONE, D3D11_BLEND_OP_ADD, 0xf }
-	} };
-	if( create_blendstate( device, &bdesc_batchverts, &R->m_bstate_batchverts_normal ) )
-		return NULL;
-	bdesc_batchverts.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
-	if( create_blendstate( device, &bdesc_batchverts, &R->m_bstate_batchverts_additive ) )
-		return NULL;
-	
 	// pass constant buffers
 	if( create_buf( device, sizeof(cb_objpass_core_data), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf0_common ) ) return NULL;
 	if( create_buf( device, sizeof(cb_objpass_instance_data), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf1_inst ) ) return NULL;
@@ -710,7 +674,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	
 	// initial viewport settings
 	R->SetViewport( 0, 0, settings.width, settings.height );
-	R->SetScissorRect( 0, NULL );
+	R->SetScissorRect( NULL );
 	
 	return R;
 }
@@ -727,9 +691,6 @@ void D3D11Renderer::Destroy()
 	SAFE_RELEASE( m_cbuf_vs_batchverts );
 	m_vertbuf_batchverts.Free();
 	m_cbuf_ps_batchverts.Free();
-	SAFE_RELEASE( m_rstate_batchverts );
-	SAFE_RELEASE( m_bstate_batchverts_normal );
-	SAFE_RELEASE( m_bstate_batchverts_additive );
 	
 	SAFE_RELEASE( m_dsView );
 	SAFE_RELEASE( m_rtView );
@@ -873,16 +834,18 @@ void D3D11Renderer::SetViewport( int x0, int y0, int x1, int y1 )
 	m_ctx->RSSetViewports( 1, &vp );
 }
 
-void D3D11Renderer::SetScissorRect( bool enable, int* rect )
+void D3D11Renderer::SetScissorRect( int* rect )
 {
-	if( enable )
+	if( rect )
 	{
 		D3D11_RECT rct = { rect[0], rect[1], rect[2], rect[3] };
 		m_ctx->RSSetScissorRects( 1, &rct );
 	}
 	else
 	{
-		D3D11_RECT rct = { 0, 0, m_currSettings.width, m_currSettings.height };
+		int x = m_viewport.TopLeftX;
+		int y = m_viewport.TopLeftY;
+		D3D11_RECT rct = { x, y, x + m_viewport.Width, y + m_viewport.Height };
 		m_ctx->RSSetScissorRects( 1, &rct );
 	}
 }
@@ -1721,10 +1684,11 @@ FINLINE D3D11_PRIMITIVE_TOPOLOGY conv_prim_type( EPrimitiveType pt )
 }
 
 void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount )
+	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount )
 {
 	SetVertexShader( m_sh_bv_vs );
 	SetPixelShader( shd ? shd : m_sh_bv_ps );
+	SetRenderState( rs );
 	
 	m_vertbuf_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_VERTEX_BUFFER, verts, sizeof(*verts) * count );
 	if( shdata && shvcount )
@@ -1752,63 +1716,9 @@ void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t co
 	static const UINT offsets[2] = { 0, 0 };
 	m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
 	
-	m_ctx->OMSetBlendState( m_bstate_batchverts_normal, NULL, 0xffffffff );
-	m_ctx->RSSetState( m_rstate_batchverts );
-	
 	m_ctx->Draw( count, 0 );
 }
 
-
-void D3D11Renderer::RenderScene( SGRX_RenderScene* RS )
-{
-	SceneHandle scene = RS->scene;
-	if( !scene )
-		return;
-	
-	m_enablePostProcessing = RS->enablePostProcessing;
-	m_viewport = RS->viewport;
-	m_currentScene = scene;
-	const SGRX_Camera& CAM = scene->camera;
-	
-	
-	// TODO viewport / RTs
-	RTOutInfo RTOUT;
-	
-	
-	m_stats.Reset();
-	// CULLING
-	_RS_PreProcess( m_currentScene );
-	
-	// Upload core CB data
-	cb_objpass_core_data coredata =
-	{
-		CAM.mView,
-		CAM.mProj,
-		CAM.mInvView,
-		CAM.position,
-		scene->m_timevals,
-		
-		scene->ambientLightColor,
-		-CAM.mView.TransformNormal( scene->dirLightDir ).Normalized(),
-		scene->dirLightColor,
-	};
-	upload_buf( m_ctx, m_cbuf0_common, true, true, &coredata, sizeof(coredata) );
-	
-#if 0
-	for( size_t pass_id = 0; pass_id < m_renderPasses.size(); ++pass_id )
-	{
-		const SGRX_RenderPass& pass = m_renderPasses[ pass_id ];
-		
-		if( pass.type == RPT_OBJECT ) _RS_RenderPass_Object( pass, pass_id );
-		else if( pass.type == RPT_SCREEN ) _RS_RenderPass_Screen( pass, pass_id, /*tx_depth,*/ RTOUT );
-	}
-#endif
-	
-	// RESTORE STATE
-	m_enablePostProcessing = false;
-	m_viewport = NULL;
-	m_currentScene = NULL;
-}
 
 void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {

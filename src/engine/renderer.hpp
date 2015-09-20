@@ -231,7 +231,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	
 	ENGINE_EXPORT virtual void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
-	ENGINE_EXPORT virtual void SetScissorRect( bool enable, int* rect ) = 0;
+	ENGINE_EXPORT virtual void SetScissorRect( int* rect ) = 0;
 	
 	ENGINE_EXPORT virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
 	ENGINE_EXPORT virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;
@@ -246,7 +246,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	
 	ENGINE_EXPORT virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
 	ENGINE_EXPORT virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, Vec4* shdata, size_t shvcount ) = 0;
+		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount ) = 0;
 	
 	ENGINE_EXPORT virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat,
 		const SGRX_Camera& cam, RenderItem* start, RenderItem* end ) = 0;

@@ -509,14 +509,10 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 #define RT_HPASS 0xfff5
 #define RT_DEPTH 0xfff6
 	
-	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
-	PixelShaderHandle pppsh_highpass = GR_GetPixelShader( "sys_pp_highpass" );
-	PixelShaderHandle pppsh_blur = GR_GetPixelShader( "sys_pp_blur" );
+	// preserve state
+	Mat4 viewMtx = g_BatchRenderer->viewMatrix;
 	
-	GR_PreserveResource( pppsh_final );
-	GR_PreserveResource( pppsh_highpass );
-	GR_PreserveResource( pppsh_blur );
-	
+	// shortcuts
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
@@ -525,9 +521,20 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
 	int W16 = TMAX( W4 / 4, 1 ), H16 = TMAX( H4 / 4, 1 );
 	
+	// load shaders
+	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
+	PixelShaderHandle pppsh_highpass = GR_GetPixelShader( "sys_pp_highpass" );
+	PixelShaderHandle pppsh_blur = GR_GetPixelShader( "sys_pp_blur" );
+	
+	GR_PreserveResource( pppsh_final );
+	GR_PreserveResource( pppsh_highpass );
+	GR_PreserveResource( pppsh_blur );
+	
+	// initial actions
 	ctrl->RenderShadows( scene, 0 );
 	ctrl->SortRenderItems( scene );
 	
+	// prepare render targets
 	TextureHandle rttMAIN, rttHPASS, rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2, rttDEPTH;
 	DepthStencilSurfHandle dssMAIN;
 	if( info.enablePostProcessing )
@@ -554,6 +561,7 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		ctrl->RenderTypes( scene, 0, 1, SGRX_TY_Solid );
 	}
 	
+	// draw things
 	ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttMAIN );
 	if( info.viewport )
 		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
@@ -567,9 +575,12 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	if( info.postdraw )
 	{
 		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
+		br.Flush().Reset();
 		info.postdraw->PostDraw();
+		br.Flush();
 	}
 	
+	// post-process
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
 	if( info.enablePostProcessing )
 	{
@@ -608,15 +619,23 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		br.Reset().SetTexture( rttMAIN ).VPQuad( info.viewport ).Flush();
 	}
 	
+	// debug rendering from camera viewpoint and optional depth clipping
 	if( info.debugdraw )
 	{
+		ctrl->SetRenderTargets( dssMAIN, 0, 0, 0, 1 );
 		if( info.viewport )
 			GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
 		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
+		br.Flush().Reset();
 		info.debugdraw->DebugDraw();
+		br.Flush();
 		if( info.viewport )
 			GR2D_UnsetViewport();
+		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
 	}
+	
+	GR2D_SetViewMatrix( viewMtx );
+	br.Reset();
 }
 
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
@@ -1201,6 +1220,7 @@ SGRX_IPixelShader::~SGRX_IPixelShader()
 
 SGRX_IRenderState::~SGRX_IRenderState()
 {
+	g_RenderStates->unset( m_info );
 }
 
 void SGRX_IRenderState::SetState( const SGRX_RenderState& state )
@@ -2874,13 +2894,6 @@ void GR2D_SetViewMatrix( const Mat4& mtx )
 	g_Renderer->SetMatrix( true, mtx );
 }
 
-void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 )
-{
-	g_BatchRenderer->Flush();
-	int rect[4] = { x0, y0, x1, y1 };
-	g_Renderer->SetScissorRect( true, rect );
-}
-
 void GR2D_SetViewport( int x0, int y0, int x1, int y1 )
 {
 	g_BatchRenderer->Flush();
@@ -2893,10 +2906,17 @@ void GR2D_UnsetViewport()
 	g_Renderer->SetViewport( 0, 0, GR_GetWidth(), GR_GetHeight() );
 }
 
+void GR2D_SetScissorRect( int x0, int y0, int x1, int y1 )
+{
+	g_BatchRenderer->Flush();
+	int rect[4] = { x0, y0, x1, y1 };
+	g_Renderer->SetScissorRect( rect );
+}
+
 void GR2D_UnsetScissorRect()
 {
 	g_BatchRenderer->Flush();
-	g_Renderer->SetScissorRect( false, NULL );
+	g_Renderer->SetScissorRect( NULL );
 }
 
 bool GR2D_LoadFont( const StringView& key, const StringView& path )

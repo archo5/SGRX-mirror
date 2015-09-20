@@ -533,6 +533,7 @@ void FlareSystem::PostDraw()
 	float H = GR_GetHeight();
 	float sz = TMIN( W, H ) * 0.2f;
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().SetShader( m_ps_flare ).SetTexture( m_tex_flare );
+	br.RenderState.blendStates[0].dstBlend = SGRX_RS_Blend_One;
 	br.ShaderData.push_back( V4( W, H, 1.0f / W, 1.0f / H ) );
 	br.ShaderData.push_back( V4(1) );
 	for( size_t i = 0; i < m_flares.size(); ++i )
@@ -554,6 +555,7 @@ void FlareSystem::PostDraw()
 		br.TurnedBox( screenpos.x * W, screenpos.y * H, dx, dy );
 		br.Flush();
 	}
+	br.RenderState.blendStates[0].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
 }
 
 void FlareSystem::sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled )
