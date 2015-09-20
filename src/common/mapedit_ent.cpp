@@ -131,6 +131,7 @@ EdEntLight::EdEntLight( bool isproto ) :
 	m_ctlPower( 2, 2, 0.01f, 100.0f ),
 	m_ctlColorHSV( V3(0,0,1), 2, V3(0,0,0), V3(1,1,100) ),
 	m_ctlLightRadius( 1, 2, 0, 100.0f ),
+	m_ctlDynamic( false ),
 	m_ctlShSampleCnt( 5, 0, 256 ),
 	m_ctlFlareSize( 1, 2, 0, 10 ),
 	m_ctlFlareOffset( V3(0), 2, V3(-4), V3(4) ),
@@ -149,6 +150,7 @@ EdEntLight::EdEntLight( bool isproto ) :
 	m_ctlPower.caption = "Power";
 	m_ctlColorHSV.caption = "Color (HSV)";
 	m_ctlLightRadius.caption = "Light radius";
+	m_ctlDynamic.caption = "Is dynamic?";
 	m_ctlShSampleCnt.caption = "# shadow samples";
 	m_ctlFlareSize.caption = "Flare size";
 	m_ctlFlareOffset.caption = "Flare offset";
@@ -163,6 +165,7 @@ EdEntLight::EdEntLight( bool isproto ) :
 	m_group.Add( &m_ctlPower );
 	m_group.Add( &m_ctlColorHSV );
 	m_group.Add( &m_ctlLightRadius );
+	m_group.Add( &m_ctlDynamic );
 	m_group.Add( &m_ctlShSampleCnt );
 	m_group.Add( &m_ctlFlareSize );
 	m_group.Add( &m_ctlFlareOffset );
@@ -181,6 +184,7 @@ EdEntLight& EdEntLight::operator = ( const EdEntLight& o )
 	m_ctlPower.SetValue( o.Power() );
 	m_ctlColorHSV.SetValue( o.ColorHSV() );
 	m_ctlLightRadius.SetValue( o.LightRadius() );
+	m_ctlDynamic.SetValue( o.IsDynamic() );
 	m_ctlShSampleCnt.SetValue( o.ShadowSampleCount() );
 	m_ctlFlareSize.SetValue( o.FlareSize() );
 	m_ctlFlareOffset.SetValue( o.FlareOffset() );
@@ -237,7 +241,10 @@ int EdEntLight::OnEvent( EDGUIEvent* e )
 void EdEntLight::RegenerateMesh()
 {
 	EdLGCLightInfo L;
-	L.type = IsSpotlight() ? LM_LIGHT_SPOT : LM_LIGHT_POINT;
+	if( IsDynamic() )
+		L.type = IsSpotlight() ? LM_LIGHT_DYN_SPOT : LM_LIGHT_DYN_POINT;
+	else
+		L.type = IsSpotlight() ? LM_LIGHT_SPOT : LM_LIGHT_POINT;
 	L.pos = Pos();
 	L.dir = SpotDir();
 	L.up = SpotUp();

@@ -14,7 +14,8 @@
 // v4: added subentities
 // v5: level graphics container IDs
 // v6: patch.layer.lmquality -> patch, added world.sample_density
-#define MAP_FILE_VERSION 6
+// v7: added dynamic lights
+#define MAP_FILE_VERSION 7
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -37,6 +38,7 @@ MAPEDIT_GLOBAL( PhyWorldHandle g_EdPhyWorld );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EdLevelGraphicsCont* g_EdLGCont );
 MAPEDIT_GLOBAL( struct EDGUISDTexPicker* g_UISurfTexPicker );
+MAPEDIT_GLOBAL( struct EDGUISurfMtlPicker* g_UISurfMtlPicker );
 MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
 MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
@@ -46,6 +48,125 @@ MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelOpenPicker* g_UILevelOpenPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
 MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
+
+
+
+struct SMPVertex
+{
+	Vec3 pos;
+	Vec3 nrm;
+	Vec4 tng;
+	Vec2 tex;
+};
+
+struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
+{
+	EDGUISurfMtlPicker()
+	{
+		m_mesh = GR_CreateMesh();
+		
+		float size = 1;
+		SMPVertex verts[4] =
+		{
+			{ { -size, 0, -size }, {0,0,1}, {1,0,0,1}, { 1, 1 } },
+			{ { +size, 0, -size }, {0,0,1}, {1,0,0,1}, { 0, 1 } },
+			{ { +size, 0, +size }, {0,0,1}, {1,0,0,1}, { 0, 0 } },
+			{ { -size, 0, +size }, {0,0,1}, {1,0,0,1}, { 1, 0 } },
+		};
+		uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
+		SGRX_MeshPart part = { 0, 4, 0, 6 };
+		VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf3tf40f2" );
+		m_mesh->SetVertexData( verts, sizeof(verts), vdh, false );
+		m_mesh->SetIndexData( idcs, sizeof(idcs), false );
+		m_mesh->SetAABBFromVertexData( verts, sizeof(verts), vdh );
+		m_mesh->SetPartData( &part, 1 );
+		
+		m_scene->camera.direction = V3(0.05f,1,-0.05f).Normalized();
+		m_scene->camera.position = -m_scene->camera.direction * 2.0f;
+		m_scene->camera.znear = 0.1f;
+		m_scene->camera.angle = 60;
+		m_scene->camera.UpdateMatrices();
+		m_customCamera = true;
+		
+		caption = "Pick a surface material";
+		Reload();
+	}
+	void Reload()
+	{
+		LOG << "Reloading surface materials";
+		m_options.clear();
+		Clear();
+		m_options.push_back( "<none>" );
+		m_meshInsts.push_back( NULL );
+		
+		// parse material list
+		m_materials.clear();
+		String material_data;
+		if( FS_LoadTextFile( "editor/materials.txt", material_data ) )
+		{
+			MapMaterial mmdummy;
+			MapMaterial* mmtl = &mmdummy;
+			ConfigReader cfgread( material_data );
+			StringView key, value;
+			while( cfgread.Read( key, value ) )
+			{
+				if( key == "material" )
+				{
+					mmtl = new MapMaterial;
+					mmtl->name = value;
+					mmtl->texcount = 0;
+					m_materials.set( mmtl->name, mmtl );
+					LOG << "[SMtl]: " << value;
+				}
+				else if( key == "shader" ) mmtl->shader = value;
+				else if( key == "0" ){ mmtl->texture[0] = value; mmtl->texcount = TMAX( mmtl->texcount, 0+1 ); }
+				else if( key == "1" ){ mmtl->texture[1] = value; mmtl->texcount = TMAX( mmtl->texcount, 1+1 ); }
+				else if( key == "2" ){ mmtl->texture[2] = value; mmtl->texcount = TMAX( mmtl->texcount, 2+1 ); }
+				else if( key == "3" ){ mmtl->texture[3] = value; mmtl->texcount = TMAX( mmtl->texcount, 3+1 ); }
+				else if( key == "4" ){ mmtl->texture[4] = value; mmtl->texcount = TMAX( mmtl->texcount, 4+1 ); }
+				else if( key == "5" ){ mmtl->texture[5] = value; mmtl->texcount = TMAX( mmtl->texcount, 5+1 ); }
+				else if( key == "6" ){ mmtl->texture[6] = value; mmtl->texcount = TMAX( mmtl->texcount, 6+1 ); }
+				else if( key == "7" ){ mmtl->texture[7] = value; mmtl->texcount = TMAX( mmtl->texcount, 7+1 ); }
+			}
+			LOG << "Loading completed";
+		}
+		else
+		{
+			LOG_ERROR << "FAILED to open editor/materials.txt";
+		}
+		
+		// load materials
+		for( size_t i = 0; i < m_materials.size(); ++i )
+		{
+			m_options.push_back( m_materials.item( i ).key );
+			AddMtl( m_materials.item( i ).value );
+		}
+		
+		_Search( m_searchString );
+	}
+	void AddMtl( MapMaterial* MM )
+	{
+		MeshInstHandle mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( m_mesh );
+		mih->enabled = false;
+		SGRX_Material mtl;
+		mtl.shader = MM->shader;
+		for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
+		{
+			if( MM->texture[ i ].size() )
+				mtl.textures[ i ] = GR_GetTexture( MM->texture[ i ] );
+		}
+		mih->materials.assign( &mtl, 1 );
+		lmm_prepmeshinst( mih );
+		mih->constants[ 14 ] *= V4( V3( 1.5f ), 1 );
+		mih->constants[ 15 ] *= V4( V3( 0.5f ), 1 );
+		mih->Precache();
+		m_meshInsts.push_back( mih );
+	}
+	
+	MeshHandle m_mesh;
+	MapMaterialMap m_materials;
+};
 
 
 
@@ -1222,6 +1343,7 @@ struct EdEntLight : EdEntity
 	float Power() const { return m_ctlPower.m_value; }
 	const Vec3& ColorHSV() const { return m_ctlColorHSV.m_value; }
 	float LightRadius() const { return m_ctlLightRadius.m_value; }
+	bool IsDynamic() const { return m_ctlDynamic.m_value; }
 	int ShadowSampleCount() const { return m_ctlShSampleCnt.m_value; }
 	float FlareSize() const { return m_ctlFlareSize.m_value; }
 	Vec3 FlareOffset() const { return m_ctlFlareOffset.m_value; }
@@ -1253,6 +1375,10 @@ struct EdEntLight : EdEntity
 		arch << m_ctlPower;
 		arch << m_ctlColorHSV;
 		arch << m_ctlLightRadius;
+		if( arch.version >= 7 )
+			m_ctlDynamic.Serialize( arch );
+		else if( T::IsReader )
+			m_ctlDynamic.SetValue( false );
 		arch << m_ctlShSampleCnt;
 		arch << m_ctlFlareSize;
 		if( arch.version >= 2 )
@@ -1277,6 +1403,7 @@ struct EdEntLight : EdEntity
 	EDGUIPropFloat m_ctlPower;
 	EDGUIPropVec3 m_ctlColorHSV;
 	EDGUIPropFloat m_ctlLightRadius;
+	EDGUIPropBool m_ctlDynamic;
 	EDGUIPropInt m_ctlShSampleCnt;
 	EDGUIPropFloat m_ctlFlareSize;
 	EDGUIPropVec3 m_ctlFlareOffset;
@@ -1756,7 +1883,7 @@ struct EDGUIMultiObjectProps : EDGUILayoutRow
 	virtual int OnEvent( EDGUIEvent* e );
 	
 	EDGUIGroup m_group;
-	EDGUIPropRsrc m_tex;
+	EDGUIPropRsrc m_mtl;
 	bool m_selsurf;
 };
 

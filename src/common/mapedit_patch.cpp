@@ -296,7 +296,8 @@ Vec2 EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& 
 			EdPatchVtx& V = vertices[ x + y * MAX_PATCH_WIDTH ];
 			Vec2 LMV = lmverts[ x + y * MAX_PATCH_WIDTH ];
 			Vec2 tx = V.tex[ layer ];
-			LCVertex vert = { V.pos + position, nrm, V.col[ layer ], tx.x, tx.y, LMV.x, LMV.y };
+			Vec4 tng = V4( xnrm.Normalized(), -1 );
+			LCVertex vert = { V.pos + position, nrm, tng, V.col[ layer ], tx.x, tx.y, LMV.x, LMV.y };
 			outverts.push_back( vert );
 		}
 	}
@@ -1073,7 +1074,7 @@ int EDGUIPatchVertProps::OnEvent( EDGUIEvent* e )
 EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
 	m_out( NULL ),
 	m_lid( 0 ),
-	m_tex( g_UISurfTexPicker, "metal0" ),
+	m_tex( g_UISurfMtlPicker, "null" ),
 	m_off( V2(0), 2, V2(0), V2(1) ),
 	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
 	m_angle( 0, 1, 0, 360 )

@@ -609,7 +609,11 @@ void EdBlock::RegenerateMesh()
 LevelCache::Vertex EdBlock::_MakeGenVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy )
 {
 	Vec3 nrm = -Vec3Cross( tgx, tgy ).Normalized();
-	LevelCache::Vertex V = { { vpos.x + position.x, vpos.y + position.y, z + position.z }, nrm, 0xffffffff, 0, 0, 0, 0 };
+	LevelCache::Vertex V =
+	{
+		{ vpos.x + position.x, vpos.y + position.y, z + position.z },
+		nrm, V4( tgx.Normalized(), -1 ), 0xffffffff, 0, 0, 0, 0
+	};
 	
 	float tdx = Vec3Dot( V.pos, tgx ), tdy = Vec3Dot( V.pos, tgy );
 	Vec2 tx = V2( tdx, tdy );
@@ -853,7 +857,7 @@ int EDGUIVertexProps::OnEvent( EDGUIEvent* e )
 EDGUISurfaceProps::EDGUISurfaceProps() :
 	m_out( NULL ),
 	m_sid( 0 ),
-	m_tex( g_UISurfTexPicker, "metal0" ),
+	m_tex( g_UISurfMtlPicker, "null" ),
 	m_off( V2(0), 2, V2(0), V2(1) ),
 	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
 	m_angle( 0, 1, 0, 360 ),

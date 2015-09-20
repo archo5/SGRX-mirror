@@ -590,41 +590,6 @@ void VoxelBlock::_PosToCoord( Vec3 p, int32_t outco[3] )
 
 LevelCache::LevelCache( SGRX_LightTree* sampleTree ) : m_sampleTree( sampleTree )
 {
-	LOG << "Loading materials...";
-	{
-		String material_data;
-		if( FS_LoadTextFile( "editor/materials.txt", material_data ) )
-		{
-			MapMaterial mmdummy;
-			MapMaterial* mmtl = &mmdummy;
-			ConfigReader cfgread( material_data );
-			StringView key, value;
-			while( cfgread.Read( key, value ) )
-			{
-				if( key == "material" )
-				{
-					mmtl = new MapMaterial;
-					mmtl->name = value;
-					mmtl->texcount = 0;
-					m_mapMtls.set( mmtl->name, mmtl );
-				}
-				else if( key == "shader" ) mmtl->shader = value;
-				else if( key == "0" ){ mmtl->texture[0] = value; mmtl->texcount = TMAX( mmtl->texcount, 0+1 ); }
-				else if( key == "1" ){ mmtl->texture[1] = value; mmtl->texcount = TMAX( mmtl->texcount, 1+1 ); }
-				else if( key == "2" ){ mmtl->texture[2] = value; mmtl->texcount = TMAX( mmtl->texcount, 2+1 ); }
-				else if( key == "3" ){ mmtl->texture[3] = value; mmtl->texcount = TMAX( mmtl->texcount, 3+1 ); }
-				else if( key == "4" ){ mmtl->texture[4] = value; mmtl->texcount = TMAX( mmtl->texcount, 4+1 ); }
-				else if( key == "5" ){ mmtl->texture[5] = value; mmtl->texcount = TMAX( mmtl->texcount, 5+1 ); }
-				else if( key == "6" ){ mmtl->texture[6] = value; mmtl->texcount = TMAX( mmtl->texcount, 6+1 ); }
-				else if( key == "7" ){ mmtl->texture[7] = value; mmtl->texcount = TMAX( mmtl->texcount, 7+1 ); }
-			}
-			LOG << "Loading completed";
-		}
-		else
-		{
-			LOG_ERROR << "FAILED to open editor/materials.txt";
-		}
-	}
 }
 
 
@@ -1029,7 +994,7 @@ struct PartRangeData
 	int part_id;
 };
 
-bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path )
+bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringView& path )
 {
 	Array< Vertex > verts;
 	Array< uint16_t > indices;
@@ -1161,7 +1126,7 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path )
 		bw << parts[ i ].indexCount;
 		
 		StringView tn = MP.m_mtlname;
-		MapMaterial* mmtl = m_mapMtls.getcopy( tn );
+		MapMaterial* mmtl = mtls.getcopy( tn );
 		if( mmtl )
 		{
 			vu8 = mmtl->texcount;
@@ -1209,7 +1174,7 @@ bool LevelCache::SaveMesh( int mid, Mesh& M, const StringView& path )
 	return FS_SaveBinaryFile( bfr, ba.data(), ba.size() );
 }
 
-bool LevelCache::SaveCache( const StringView& path )
+bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 {
 	FS_DirCreate( path );
 	
@@ -1220,7 +1185,7 @@ bool LevelCache::SaveCache( const StringView& path )
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
-		SaveMesh( i, m_meshes[ i ], path );
+		SaveMesh( mtls, i, m_meshes[ i ], path );
 	}
 	
 	LC_Level level;

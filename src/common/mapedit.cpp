@@ -1253,9 +1253,24 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			
 			if( S.mtlname.size() )
 			{
-				char bfr[ 256 ];
-				sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
-				S.meshInst->GetMaterial( 0 ).textures[ 0 ] = GR_GetTexture( bfr );
+				SGRX_Material& M = S.meshInst->GetMaterial( 0 );
+				MapMaterial* mtl = g_UISurfMtlPicker->m_materials.getcopy( S.mtlname );
+				if( mtl )
+				{
+					M.shader = mtl->shader;
+					for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
+					{
+						M.textures[ i ] = mtl->texture[ i ].size() ? GR_GetTexture( mtl->texture[ i ] ) : NULL;
+					}
+				}
+				else
+				{
+					char bfr[ 256 ];
+					sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
+					M.shader = "default";
+					M.textures[ 0 ] = GR_GetTexture( bfr );
+				}
+				S.meshInst->OnUpdate();
 			}
 		}
 	}
@@ -2224,11 +2239,11 @@ static sgs_RegFuncConst g_editor_rfc[] =
 
 EDGUIMultiObjectProps::EDGUIMultiObjectProps() :
 	m_group( true, "Multiple objects" ),
-	m_tex( g_UISurfTexPicker, "" ),
+	m_mtl( g_UISurfMtlPicker, "" ),
 	m_selsurf( false )
 {
-	m_tex.caption = "Texture";
-	m_group.Add( &m_tex );
+	m_mtl.caption = "Material";
+	m_group.Add( &m_mtl );
 	Add( &m_group );
 }
 
@@ -2253,7 +2268,7 @@ void EDGUIMultiObjectProps::Prepare( bool selsurf )
 				{
 					if( tex.size() )
 					{
-						m_tex.SetValue( "" );
+						m_mtl.SetValue( "" );
 						return;
 					}
 					tex = tt;
@@ -2268,14 +2283,14 @@ void EDGUIMultiObjectProps::Prepare( bool selsurf )
 			{
 				if( tex.size() )
 				{
-					m_tex.SetValue( "" );
+					m_mtl.SetValue( "" );
 					return;
 				}
 				tex = tt;
 			}
 		}
 	}
-	m_tex.SetValue( tex );
+	m_mtl.SetValue( tex );
 }
 
 int EDGUIMultiObjectProps::OnEvent( EDGUIEvent* e )
@@ -2283,7 +2298,7 @@ int EDGUIMultiObjectProps::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_tex )
+		if( e->target == &m_mtl )
 		{
 			for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
 			{
@@ -2297,14 +2312,14 @@ int EDGUIMultiObjectProps::OnEvent( EDGUIEvent* e )
 					{
 						if( m_selsurf && B->IsSurfaceSelected( s ) == false )
 							continue;
-						B->surfaces[ s ].texname = m_tex.m_value;
+						B->surfaces[ s ].texname = m_mtl.m_value;
 					}
 					obj->RegenerateMesh();
 				}
 				else if( obj->m_type == ObjType_Patch )
 				{
 					SGRX_CAST( EdPatch*, P, obj );
-					P->layers[0].texname = m_tex.m_value;
+					P->layers[0].texname = m_mtl.m_value;
 					obj->RegenerateMesh();
 				}
 			}
@@ -2704,7 +2719,7 @@ void EDGUIMainFrame::Level_Real_Compile()
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
 	
-	if( !lcache.SaveCache( bfr ) )
+	if( !lcache.SaveCache( g_UISurfMtlPicker->m_materials, bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
 	else
 		LOG << "Level is compiled";
@@ -2766,6 +2781,7 @@ struct TACStrikeEditor : IGame
 		LOG << "\nLoading completed\n\n";
 		
 		g_UISurfTexPicker = new EDGUISDTexPicker;
+		g_UISurfMtlPicker = new EDGUISurfMtlPicker;
 		g_UIMeshPicker = new EDGUIMeshPicker;
 		g_UICharPicker = new EDGUICharUsePicker;
 		g_UIPartSysPicker = new EDGUIPartSysPicker;
@@ -2810,6 +2826,8 @@ struct TACStrikeEditor : IGame
 		g_UICharPicker = NULL;
 		delete g_UIMeshPicker;
 		g_UIMeshPicker = NULL;
+		delete g_UISurfMtlPicker;
+		g_UISurfMtlPicker = NULL;
 		delete g_UISurfTexPicker;
 		g_UISurfTexPicker = NULL;
 		delete g_UIFrame;

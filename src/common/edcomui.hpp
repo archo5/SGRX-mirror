@@ -63,28 +63,51 @@ struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 
 struct EDGUIMeshPickerCore : EDGUIRsrcPicker
 {
-	EDGUIMeshPickerCore() : m_scene( GR_CreateScene() )
+	EDGUIMeshPickerCore() : m_customCamera( false ), m_scene( GR_CreateScene() )
 	{
-		m_meshinst = m_scene->CreateMeshInstance();
-		lmm_prepmeshinst( m_meshinst );
+	}
+	~EDGUIMeshPickerCore()
+	{
+		Clear();
+	}
+	void Clear()
+	{
+		m_meshInsts.clear();
+	}
+	void AddMesh( StringView path )
+	{
+		MeshInstHandle mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( path );
+		mih->enabled = false;
+		lmm_prepmeshinst( mih );
+		mih->Precache();
+		m_meshInsts.push_back( mih );
 	}
 	void _DrawItem( int i, int x0, int y0, int x1, int y1 )
 	{
 		SGRX_Viewport vp = { x0 + 10, y0 + 4, x1 - 10, y1 - 16 };
 		
-		if( m_meshes[ i ] )
+		if( m_meshInsts[ i ] )
 		{
-			SGRX_IMesh* M = m_meshes[ i ];
-			m_meshinst->SetMesh( m_meshes[ i ] );
-			m_scene->camera.position = M->m_boundsMax + ( M->m_boundsMax - M->m_boundsMin ) * 0.5f + V3(0.1f);
-			m_scene->camera.direction = ( M->m_boundsMin - M->m_boundsMax ).Normalized();
-			m_scene->camera.znear = 0.1f;
-			m_scene->camera.angle = 60;
-			m_scene->camera.UpdateMatrices();
+			SGRX_IMesh* M = m_meshInsts[ i ]->GetMesh();
+			if( m_customCamera == false )
+			{
+				Vec3 dst = M->m_boundsMin - M->m_boundsMax;
+				Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
+				if( idst.z > 0 )
+					idst.z = -idst.z;
+				m_scene->camera.direction = idst.Normalized();
+				m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
+				m_scene->camera.znear = 0.1f;
+				m_scene->camera.angle = 60;
+				m_scene->camera.UpdateMatrices();
+			}
 			
 			SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
 			rsinfo.viewport = &vp;
+			m_meshInsts[ i ]->enabled = true;
 			GR_RenderScene( rsinfo );
+			m_meshInsts[ i ]->enabled = false;
 		}
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer();
@@ -92,9 +115,9 @@ struct EDGUIMeshPickerCore : EDGUIRsrcPicker
 		GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
 	}
 	
-	Array< MeshHandle > m_meshes;
+	bool m_customCamera;
+	Array< MeshInstHandle > m_meshInsts;
 	SceneHandle m_scene;
-	MeshInstHandle m_meshinst;
 };
 
 struct EDGUIMeshPicker : EDGUIMeshPickerCore, IDirEntryHandler
@@ -109,7 +132,7 @@ struct EDGUIMeshPicker : EDGUIMeshPickerCore, IDirEntryHandler
 	{
 		LOG << "Reloading meshes";
 		m_options.clear();
-		m_meshes.clear();
+		Clear();
 		FS_IterateDirectory( "meshes", this );
 		_Search( m_searchString );
 	}
@@ -122,7 +145,7 @@ struct EDGUIMeshPicker : EDGUIMeshPickerCore, IDirEntryHandler
 				m_options.push_back( String_Concat( "meshes/", name ) );
 			else
 				m_options.push_back( name.part( 0, name.size() - 4 ) );
-			m_meshes.push_back( GR_GetMesh( String_Concat( "meshes/", name ) ) );
+			AddMesh( String_Concat( "meshes/", name ) );
 		}
 		return true;
 	}
@@ -157,7 +180,7 @@ struct EDGUICharUsePicker : EDGUIMeshPickerCore, IDirEntryHandler
 	{
 		LOG << "Reloading chars";
 		m_options.clear();
-		m_meshes.clear();
+		Clear();
 		FS_IterateDirectory( "chars", this );
 		_Search( m_searchString );
 	}
@@ -175,7 +198,7 @@ struct EDGUICharUsePicker : EDGUIMeshPickerCore, IDirEntryHandler
 				m_options.push_back( fullpath );
 			else
 				m_options.push_back( name.part( 0, name.size() - 4 ) );
-			m_meshes.push_back( GR_GetMesh( mesh ) );
+			AddMesh( mesh );
 		}
 		return true;
 	}

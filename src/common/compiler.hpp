@@ -72,19 +72,6 @@ struct LMRenderer
 
 
 
-#define MAX_MATERIAL_TEXTURES 8
-struct MapMaterial : SGRX_RefCounted
-{
-	String name;
-	String shader;
-	String texture[ MAX_MATERIAL_TEXTURES ];
-	int texcount;
-};
-typedef Handle< MapMaterial > MapMaterialHandle;
-typedef HashTable< StringView, MapMaterialHandle > MapMaterialMap;
-
-
-
 struct RectPacker
 {
 	struct Node
@@ -165,7 +152,21 @@ struct VoxelBlock
 };
 
 
-#define LCVertex_DECL "pf3nf3cb40f21f2"
+
+#define MAX_MATERIAL_TEXTURES 8
+struct MapMaterial : SGRX_RefCounted
+{
+	String name;
+	String shader;
+	String texture[ MAX_MATERIAL_TEXTURES ];
+	int texcount;
+};
+typedef Handle< MapMaterial > MapMaterialHandle;
+typedef HashTable< StringView, MapMaterialHandle > MapMaterialMap;
+
+
+
+#define LCVertex_DECL "pf3nf3tf4cb40f21f2"
 
 struct LevelCache
 {
@@ -173,6 +174,7 @@ struct LevelCache
 	{
 		Vec3 pos;
 		Vec3 nrm;
+		Vec4 tng;
 		uint32_t color;
 		float tx0, ty0;
 		float tx1, ty1;
@@ -183,6 +185,7 @@ struct LevelCache
 			{
 				TLERP( pos, o.pos, q ),
 				TLERP( nrm, o.nrm, q ),
+				TLERP( tng, o.tng, q ),
 				Vec4ToCol32( TLERP( Col32ToVec4( color ), Col32ToVec4( o.color ), q ) ),
 				TLERP( tx0, o.tx0, q ),
 				TLERP( ty0, o.ty0, q ),
@@ -203,6 +206,7 @@ struct LevelCache
 		{
 			arch << pos;
 			arch << nrm;
+			arch << tng;
 			arch << color;
 			arch << tx0 << ty0;
 			arch << tx1 << ty1;
@@ -212,6 +216,7 @@ struct LevelCache
 		{
 			return pos == o.pos
 				&& nrm == o.nrm
+				&& tng == o.tng
 				&& color == o.color
 				&& tx0 == o.tx0
 				&& ty0 == o.ty0
@@ -275,11 +280,10 @@ struct LevelCache
 	void CombineParts();
 	
 	void GatherMeshes();
-	bool SaveMesh( int mid, Mesh& M, const StringView& path );
-	bool SaveCache( const StringView& path );
+	bool SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringView& path );
+	bool SaveCache( MapMaterialMap& mtls, const StringView& path );
 	bool GenerateNavmesh( const StringView& path, ByteArray& outData );
 	
-	MapMaterialMap m_mapMtls;
 	Array< Solid > m_solids;
 	Array< Mesh > m_meshes;
 	Array< Part > m_meshParts;
