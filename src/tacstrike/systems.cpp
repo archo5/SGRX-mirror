@@ -541,7 +541,7 @@ void FlareSystem::PostDraw()
 		FSFlare& FD = m_flares.item( i ).value;
 		if( FD.enabled == false || FD.size <= 0 )
 			continue;
-		br.ShaderData[1] = V4( FD.color, 0.1f / ( ( FD.pos - cam.position ).Length() + 1 ) );
+		br.ShaderData[1] = V4( FD.color * 2, 0.1f / ( ( FD.pos - cam.position ).Length() + 1 ) );
 		Vec3 screenpos = cam.WorldToScreen( FD.pos );
 		if( Vec3Dot( FD.pos, cam.direction ) < Vec3Dot( cam.position, cam.direction ) )
 			continue;
