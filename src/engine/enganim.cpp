@@ -950,7 +950,7 @@ void ParticleSystem::Emitter::PreRender( ParticleSystem* PS, ps_prerender_info& 
 				V3(
 					curve_ColorHue.GetValue( q, RCO.x ),
 					curve_ColorSat.GetValue( q, RCO.y ),
-					curve_ColorVal.GetValue( q, RCO.z )
+					curve_ColorVal.GetValue( q, RCO.z ) * 2
 				)
 			),
 			curve_Opacity.GetValue( q, RCO.w )

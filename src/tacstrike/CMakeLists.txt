@@ -11,6 +11,16 @@ set_target_properties( coregamelib PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
+# Test Suite
+add_library( testsuite SHARED testsuite )
+target_link_libraries( testsuite sgrx-core )
+set_target_properties( testsuite PROPERTIES
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "${CORE_FLAGS} -DTESTSUITE"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+
 # Game
 add_library( game SHARED game gameui tsui entities_ts cppbc_entities_ts )
 target_link_libraries( game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )

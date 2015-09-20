@@ -470,6 +470,8 @@ void Game_Process( float dt )
 	process_overlay_screens( dt );
 	
 	g_BatchRenderer->Flush();
+	
+	g_Renderer->Swap();
 }
 
 
@@ -553,6 +555,8 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	}
 	
 	ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttMAIN );
+	if( info.viewport )
+		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
 	
 	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
 	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
@@ -562,7 +566,7 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
 	if( info.postdraw )
 	{
-		GR2D_SetViewMatrix( scene->camera.mView );
+		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
 		info.postdraw->PostDraw();
 	}
 	
@@ -596,18 +600,22 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		br.SetTexture( 0, rttMAIN )
 		  .SetTexture( 2, rttVBLUR )
 		  .SetTexture( 3, rttVBLUR2 )
-		  .SetTexture( 4, rttDEPTH ).SetShader( pppsh_final ).Quad( 0, 0, 1, 1 ).Flush();
+		  .SetTexture( 4, rttDEPTH ).SetShader( pppsh_final ).VPQuad( info.viewport ).Flush();
 	}
 	else
 	{
 		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
-		br.Reset().SetTexture( rttMAIN ).Quad( 0, 0, 1, 1 ).Flush();
+		br.Reset().SetTexture( rttMAIN ).VPQuad( info.viewport ).Flush();
 	}
 	
 	if( info.debugdraw )
 	{
-		GR2D_SetViewMatrix( scene->camera.mView );
+		if( info.viewport )
+			GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
+		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
 		info.debugdraw->DebugDraw();
+		if( info.viewport )
+			GR2D_UnsetViewport();
 	}
 }
 
@@ -3624,8 +3632,6 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		float fdt = dt / 1000.0f;
 		
 		Game_Process( fdt );
-		
-		g_Renderer->Swap();
 	}
 	
 	g_Game->OnDestroy();

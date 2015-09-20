@@ -1,4 +1,5 @@
 
+#define LIGHT_MULTIPLIER 4
 #if VS
 
 float4x4 mWorldView : register(c0);
@@ -228,7 +229,7 @@ __CODE__
 	
 #ifdef BASE_PASS
 #if LMODE == 1 || LMODE == 3 // -- static / decal
-	totalDiffuse = tex2D( InstTex0, inTex1.xy ) * 2;
+	totalDiffuse = tex2D( InstTex0, inTex1.xy );
 #if LMODE == 3 // -- decal
 	totalDiffuse *= icol.rgb;
 #endif // LMODE == 3
@@ -237,7 +238,7 @@ __CODE__
 	float qxp = saturate( LN.x ), qxn = saturate( -LN.x );
 	float qyp = saturate( LN.y ), qyn = saturate( -LN.y );
 	float qzp = saturate( LN.z ), qzn = saturate( -LN.z );
-	totalDiffuse = 2*(
+	totalDiffuse = (
 		qxp * gInstanceData[10] + qxn * gInstanceData[11] +
 		qyp * gInstanceData[12] + qyn * gInstanceData[13] +
 		qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
@@ -248,6 +249,7 @@ __CODE__
 #endif // LMODE != 3
 	outOpacity *= icol.a;
 #endif // DECAL
+	totalDiffuse *= LIGHT_MULTIPLIER;
 	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
 	totalSpecular += outAmbientSpecularLight + texCUBElod( InstTex1, float4( refWorld.xzy, 0 ) ).rgb;
 	

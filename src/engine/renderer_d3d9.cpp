@@ -390,7 +390,13 @@ RendererInfo g_D3D9RendererInfo =
 
 struct D3D9Renderer : IRenderer
 {
-	D3D9Renderer() : m_dbg_rt( false ){ m_world.SetIdentity(); m_view.SetIdentity(); m_crs.InitOpposite(); }
+	D3D9Renderer()
+	{
+		m_world.SetIdentity();
+		m_view.SetIdentity();
+		m_crs.InitOpposite();
+		memset( &m_viewport, 0, sizeof(m_viewport) );
+	}
 	void Destroy();
 	const RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
 	bool LoadInternalResources();
@@ -457,8 +463,6 @@ struct D3D9Renderer : IRenderer
 //	void Viewport_Apply( int downsample );
 	
 	// state
-	TextureHandle m_currentRT;
-	bool m_dbg_rt;
 	SGRX_RenderState m_crs;
 	
 	// helpers
@@ -583,6 +587,10 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	
 	d3ddev->BeginScene();
 	
+	SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
+	TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
+	R->SetRenderTargets( info, NULL, rts );
+	
 	return R;
 }
 
@@ -685,8 +693,6 @@ void D3D9Renderer::UnloadInternalResources()
 
 void D3D9Renderer::Swap()
 {
-	m_currentRT = NULL;
-	
 	m_dev->EndScene();
 	if( m_dev->Present( NULL, NULL, NULL, NULL ) == D3DERR_DEVICELOST )
 	{
@@ -696,6 +702,10 @@ void D3D9Renderer::Swap()
 		}
 	}
 	m_dev->BeginScene();
+	
+	SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
+	TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
+	SetRenderTargets( info, NULL, rts );
 }
 
 void D3D9Renderer::Modify( const RenderSettings& settings )
@@ -723,6 +733,9 @@ void D3D9Renderer::Modify( const RenderSettings& settings )
 		ResetDevice();
 		ResetViewport();
 		m_dev->BeginScene();
+		SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
+		TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
+		SetRenderTargets( info, NULL, rts );
 	}
 }
 
@@ -1436,10 +1449,7 @@ void D3D9Renderer::SetMatrix( bool view, const Mat4& mtx )
 {
 	if( view )
 	{
-		float w = GetWidth();
-		float h = GetHeight();
-		Mat4 mfx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
-		m_view = Mat4().Multiply( mtx, mfx );
+		m_view = mtx;
 	}
 	else
 	{
@@ -1483,12 +1493,14 @@ void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t cou
 	rs.blendStates[0].blendEnable = true;
 	SetRenderState( rs );
 	
-	Mat4 hpomtx = Mat4::CreateTranslation( safe_fdiv( -1.0f, m_viewport.Width ), safe_fdiv( 1.0f, m_viewport.Height ), 0 );
+	float w = m_viewport.Width;
+	float h = m_viewport.Height;
+	Mat4 hpomtx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
 	
 	SetVertexShader( m_sh_bv_vs );
 	SetPixelShader( shd ? shd : m_sh_bv_ps );
 	VS_SetMat4( 0, m_world );
-	VS_SetMat4( 4, Mat4().Multiply( m_view, hpomtx ) );
+	VS_SetMat4( 4, m_view * hpomtx );
 	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 		SetTexture( i, textures[ i ] ? textures[ i ] : ( i == 0 ? m_whiteTex : NULL ) );
 	PS_SetVec4Array( 0, shdata, shvcount );
@@ -1815,87 +1827,6 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 	
 //	Viewport_Apply( 1 );
 }
-
-void D3D9Renderer::_RS_DebugDraw( SGRX_DebugDraw* debugDraw, IDirect3DSurface9* test_dss, IDirect3DSurface9* orig_dss )
-{
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	const SGRX_Camera& CAM = m_currentScene->camera;
-	m_inDebugDraw = true;
-	
-	Mat4 origWorld = m_world, origView = m_view;
-	Mat4 worldMatrix, viewProjMatrix;
-	worldMatrix.SetIdentity();
-	viewProjMatrix.Multiply( CAM.mView, CAM.mProj );
-//	VS_SetMat4( 0, worldMatrix );
-//	VS_SetMat4( 4, viewProjMatrix );
-	br.worldMatrix = m_world = worldMatrix;
-	br.viewMatrix = m_view = viewProjMatrix;
-	br._RecalcMatrices();
-	SetTexture( 0, NULL );
-	
-	m_dev->SetDepthStencilSurface( test_dss );
-	
-	m_dev->SetTexture( 0, NULL );
-	debugDraw->DebugDraw();
-	GR2D_GetBatchRenderer().Flush().Reset();
-	
-//	VS_SetMat4( 0, m_world );
-//	VS_SetMat4( 4, m_view );
-	m_dev->SetDepthStencilSurface( orig_dss );
-	
-	br.worldMatrix = m_world = origWorld;
-	br.viewMatrix = m_view = origView;
-	br._RecalcMatrices();
-	
-	m_inDebugDraw = false;
-}
-
-#if 0
-void D3D9Renderer::PostProcBlit( int w, int h, int downsample, int ppdata_location )
-{
-	/* assuming these are validated: */
-	SGRX_Scene* scene = m_currentScene;
-	const SGRX_Camera& CAM = scene->camera;
-	
-	float invQW = 2.0f, invQH = 2.0f, offX = -1.0f, offY = -1.0f, t0x = 0, t0y = 0, t1x = 1, t1y = 1;
-	if( m_viewport )
-	{
-		SGRX_Viewport* VP = m_viewport;
-		t0x = (float) VP->x1 / (float) w;
-		t0y = (float) VP->y1 / (float) h;
-		t1x = (float) VP->x2 / (float) w;
-		t1y = (float) VP->y2 / (float) h;
-		Viewport_Apply( downsample );
-	}
-	
-	w /= downsample;
-	h /= downsample;
-	
-	float hpox = 0.5f / w;
-	float hpoy = 0.5f / h;
-	float fsx = 1.0f / CAM.mProj.m[0][0];
-	float fsy = 1.0f / CAM.mProj.m[1][1];
-	ScreenSpaceVtx ssVertices[] =
-	{
-		{ offX, offY, 0, t0x+hpox, t1y+hpoy, -fsx, -fsy },
-		{ invQW + offX, offY, 0, t1x+hpox, t1y+hpoy, +fsx, -fsy },
-		{ invQW + offX, invQH + offY, 0, t1x+hpox, t0y+hpoy, +fsx, +fsy },
-		{ offX, invQH + offY, 0, t0x+hpox, t0y+hpoy, -fsx, +fsy },
-	};
-	
-	if( ppdata_location >= 0 )
-	{
-		Vec4 ppdata = { w, h, 1.0f / w, 1.0f / h };
-		PS_SetVec4( ppdata_location, ppdata );
-	}
-	
-	m_dev->SetFVF( D3DFVF_XYZ | D3DFVF_TEX2 );
-	m_dev->DrawPrimitiveUP( D3DPT_TRIANGLEFAN, 2, ssVertices, sizeof(*ssVertices) );
-	
-	m_stats.numDrawCalls++;
-	m_stats.numPDrawCalls++;
-}
-#endif
 
 bool D3D9Renderer::ResetDevice()
 {

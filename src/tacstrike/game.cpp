@@ -110,7 +110,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mylight->enabled = true;
 		mylight->position = V3(1,-1,1);
 		mylight->direction = V3(0.5f,0.5f,-0.5f);
-		mylight->color = V3(0.9f,0.8f,0.7f);
+		mylight->color = V3(0.9f,0.8f,0.7f) * 10;
 		mylight->angle = 90;
 		mylight->range = 10;
 		mylight->cookieTexture = GR_GetTexture( "textures/cookies/default.png" );
@@ -267,18 +267,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_DebugLines.Flush();
 		
 //		g_PhyWorld->DebugDraw();
-	//	SGRX_MeshBone* bones = animtest->mesh->m_bones;
-	//	for( int i = 0; i < animtest->mesh->m_numBones; ++i )
-	//		DrawTick( bones[ i ].skinOffset );
-	}
-	void DrawTick( const Mat4& mtx )
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		br.UnsetTexture().SetPrimitiveType( PT_Lines ).Flush();
-		br.Col( 1,0,0 ).Pos( mtx.TransformPos( V3(0,0,0) ) ).Pos( mtx.TransformPos( V3(1,0,0)*0.1f ) );
-		br.Col( 0,1,0 ).Pos( mtx.TransformPos( V3(0,0,0) ) ).Pos( mtx.TransformPos( V3(0,1,0)*0.1f ) );
-		br.Col( 0,0,1 ).Pos( mtx.TransformPos( V3(0,0,0) ) ).Pos( mtx.TransformPos( V3(0,0,1)*1.1f ) );
-		br.Flush();
 	}
 	
 	float m_accum;

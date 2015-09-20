@@ -812,6 +812,25 @@ BatchRenderer& BatchRenderer::QuadFrame( float x0, float y0, float x1, float y1,
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::VPQuad( SGRX_Viewport* vp, float z )
+{
+	SetPrimitiveType( PT_Triangles );
+	
+	float x0 = vp ? safe_fdiv( vp->x0, GR_GetWidth() ) : 0;
+	float y0 = vp ? safe_fdiv( vp->y0, GR_GetHeight() ) : 0;
+	float x1 = vp ? safe_fdiv( vp->x1, GR_GetWidth() ) : 1;
+	float y1 = vp ? safe_fdiv( vp->y1, GR_GetHeight() ) : 1;
+	
+	Tex( x0, y0 ); Pos( x0, y0, z );
+	Tex( x1, y0 ); Pos( x1, y0, z );
+	Tex( x1, y1 ); Pos( x1, y1, z );
+	Prev( 0 );
+	Tex( x0, y1 ); Pos( x0, y1, z );
+	Prev( 4 );
+	
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy, float z )
 {
 	float tx = -dy;
