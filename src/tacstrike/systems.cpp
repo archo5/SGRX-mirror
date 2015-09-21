@@ -588,6 +588,7 @@ LevelCoreSystem::LevelCoreSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_sy
 void LevelCoreSystem::Clear()
 {
 	m_meshInsts.clear();
+	m_lightInsts.clear();
 	m_levelBodies.clear();
 	m_lights.clear();
 	m_ltSamples.SetSamples( NULL, 0 );
@@ -636,7 +637,8 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 		for( size_t i = 0; i < m_lights.size(); ++i )
 		{
 			LC_Light& L = m_lights[ i ];
-			if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT )
+			if( L.type != LM_LIGHT_POINT && L.type != LM_LIGHT_SPOT &&
+				L.type != LM_LIGHT_DYN_POINT && L.type != LM_LIGHT_DYN_SPOT )
 				continue;
 			FSFlare FD = { L.pos + L.flareoffset, L.color, L.flaresize, true };
 			FS->UpdateFlare( &m_lights[ i ], FD );
@@ -728,6 +730,36 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 				rbinfo.rotation = MI->matrix.GetRotationQuaternion();
 				m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
 			}
+		}
+	}
+	
+	// load dynamic lights
+	for( size_t i = 0; i < m_lights.size(); ++i )
+	{
+		LC_Light& L = m_lights[ i ];
+		if( L.type == LM_LIGHT_DYN_POINT || L.type == LM_LIGHT_DYN_SPOT )
+		{
+			LightHandle lh = m_level->GetScene()->CreateLight();
+			if( L.type == LM_LIGHT_DYN_POINT )
+				lh->type = LIGHT_POINT;
+			else
+				lh->type = LIGHT_SPOT;
+			lh->position = L.pos;
+			lh->direction = L.dir;
+			lh->updir = L.up;
+			lh->range = L.range;
+			lh->power = L.power;
+			lh->color = L.color;
+		//	lh-> = L.flaresize;
+		//	lh-> = L.flareoffset;
+		//	lh-> = L.innerangle;
+			lh->angle = L.outerangle;
+		//	lh-> = L.spotcurve;
+			lh->cookieTexture = GR_GetTexture( "textures/cookies/default.png" );
+			if( L.num_shadow_samples > 0 && L.num_shadow_samples <= 2048 )
+				lh->shadowTexture = GR_CreateRenderTexture( L.num_shadow_samples, L.num_shadow_samples, RT_FORMAT_DEPTH );
+			lh->UpdateTransform();
+			m_lightInsts.push_back( lh );
 		}
 	}
 	

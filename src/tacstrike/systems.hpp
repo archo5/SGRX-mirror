@@ -330,6 +330,7 @@ struct LevelCoreSystem : IGameLevelSystem
 	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	
 	Array< MeshInstHandle > m_meshInsts;
+	Array< LightHandle > m_lightInsts;
 	Array< PhyRigidBodyHandle > m_levelBodies;
 	Array< LC_Light > m_lights;
 	SGRX_LightTree m_ltSamples;

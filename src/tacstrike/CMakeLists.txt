@@ -51,3 +51,13 @@ set_target_properties( ld33game PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
+# MLD62 Game
+add_library( mld62game SHARED mld62game )
+target_link_libraries( mld62game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
+set_target_properties( mld62game PROPERTIES
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "${CORE_FLAGS} -DMLD62GAME"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+

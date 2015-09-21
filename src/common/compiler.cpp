@@ -1109,7 +1109,7 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 	bw << vu32;
 	for( size_t i = 0; i < indices.size(); ++i )
 		bw << indices[ i ];
-#define EDMESH_VTX_FORMAT "pf3nf3cb40f21f2"
+#define EDMESH_VTX_FORMAT LCVertex_DECL
 #define EDMESH_SHADER "default"
 	uint8_t vu8 = sizeof(EDMESH_VTX_FORMAT) - 1; // vertex format length
 	bw << vu8;
