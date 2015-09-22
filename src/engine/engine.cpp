@@ -562,23 +562,7 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	}
 	
 	// draw things
-	ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttMAIN );
-	if( info.viewport )
-		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
-	
-	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
-	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
-	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Decal );
-	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Decal );
-	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
-	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
-	if( info.postdraw )
-	{
-		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
-		br.Flush().Reset();
-		info.postdraw->PostDraw();
-		br.Flush();
-	}
+	OnDrawSceneGeom( ctrl, info, rttMAIN, dssMAIN );
 	
 	// post-process
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
@@ -636,6 +620,31 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	
 	GR2D_SetViewMatrix( viewMtx );
 	br.Reset();
+}
+
+void IGame::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+	TextureHandle rtt, DepthStencilSurfHandle dss )
+{
+	SGRX_Scene* scene = info.scene;
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, 0, 1, rtt );
+	if( info.viewport )
+		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
+	
+	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
+	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
+	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Decal );
+	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Decal );
+	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
+	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
+	if( info.postdraw )
+	{
+		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
+		br.Flush().Reset();
+		info.postdraw->PostDraw();
+		br.Flush();
+	}
 }
 
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )

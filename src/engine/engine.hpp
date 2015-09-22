@@ -1538,8 +1538,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id ) = 0;
+	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount ) = 0;
 	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types ) = 0;
-	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] ) = 0;
 	
 	// shortcuts
 	FINLINE void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info,
@@ -1566,6 +1566,9 @@ struct IF_GCC(ENGINE_EXPORT) IGame
 	virtual void OnTick( float dt, uint32_t gametime ) = 0;
 	
 	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
+	ENGINE_EXPORT virtual void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+		TextureHandle rtt, DepthStencilSurfHandle dss );
+	
 	ENGINE_EXPORT virtual void OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out );
 	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
 		SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );

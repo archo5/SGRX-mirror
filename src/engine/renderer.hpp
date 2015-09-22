@@ -255,12 +255,12 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] );
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene );
 	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id );
+	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount );
 	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types );
-	ENGINE_EXPORT virtual void DrawRenderTargets( uint16_t ids[4] );
 	
 	// render queue helpers
 	ENGINE_EXPORT uint64_t _RS_GenSortKey( const Mat4& view, SGRX_MeshInstance* MI, uint32_t part_id );
-	ENGINE_EXPORT void _RS_LoadInstItems( const Mat4& view, int slot, Array<SGRX_MeshInstance*>& insts, uint8_t flags );
+	ENGINE_EXPORT void _RS_LoadInstItems( const Mat4& view, int slot, SGRX_MeshInstance** milist, size_t micount, uint8_t flags );
 	
 	// culling helpers
 	ENGINE_EXPORT void _RS_PreProcess( SGRX_Scene* scene );
@@ -269,7 +269,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT uint32_t _RS_Cull_Camera_PointLightList( SGRX_Scene* scene );
 	ENGINE_EXPORT uint32_t _RS_Cull_Camera_SpotLightList( SGRX_Scene* scene );
 	ENGINE_EXPORT uint32_t _RS_Cull_SpotLight_MeshList( SGRX_Scene* scene, SGRX_Light* L );
-	ENGINE_EXPORT void _RS_Compile_MeshLists( SGRX_Scene* scene );
+	ENGINE_EXPORT void _RS_Compile_MeshLists( SGRX_Scene* scene, SGRX_MeshInstance** milist, size_t micount );
 	
 	// common data
 	RenderStats m_stats;

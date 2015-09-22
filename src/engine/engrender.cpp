@@ -95,7 +95,8 @@ void IRenderer::SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTC
 
 void IRenderer::SortRenderItems( SGRX_Scene* scene )
 {
-	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_meshes, SGRX_TY_Solid | SGRX_TY_Decal | SGRX_TY_Transparent );
+	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_meshes.data(),
+		m_visible_meshes.size(), SGRX_TY_Solid | SGRX_TY_Decal | SGRX_TY_Transparent );
 	
 	m_riBaseStart = m_renderItemsBase.data();
 	m_riBaseEnd = m_riBaseStart + m_renderItemsBase.size();
@@ -130,12 +131,19 @@ void IRenderer::RenderShadows( SGRX_Scene* scene, uint8_t pass_id )
 		
 		_RS_Cull_SpotLight_MeshList( scene, L );
 		
-		_RS_LoadInstItems( L->viewMatrix, 1, m_visible_spot_meshes, SGRX_TY_Solid );
+		_RS_LoadInstItems( L->viewMatrix, 1, m_visible_spot_meshes.data(), m_visible_spot_meshes.size(), SGRX_TY_Solid );
 		
 		SGRX_Camera cam;
 		L->GenerateCamera( cam );
 		DoRenderItems( scene, pass_id, 1, cam, m_renderItemsAux.data(), m_renderItemsAux.data() + m_renderItemsAux.size() );
 	}
+}
+
+void IRenderer::RenderMeshes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount )
+{
+	_RS_LoadInstItems( scene->camera.mView, 1, milist, micount, SGRX_TY_Solid | SGRX_TY_Decal | SGRX_TY_Transparent );
+	_RS_Compile_MeshLists( scene, milist, micount );
+	DoRenderItems( scene, pass_id, 1, scene->camera, m_renderItemsAux.data(), m_renderItemsAux.data() + m_renderItemsAux.size() );
 }
 
 void IRenderer::RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types )
@@ -152,10 +160,6 @@ void IRenderer::RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, 
 	{
 		DoRenderItems( scene, pass_id, maxrepeat, scene->camera, m_riBaseDT, m_riBaseEnd );
 	}
-}
-
-void IRenderer::DrawRenderTargets( uint16_t ids[4] )
-{
 }
 
 
@@ -192,14 +196,14 @@ static bool renderitem_sort( const void* a, const void* b, void* )
 	return RIa->key < RIb->key;
 }
 
-void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, Array<SGRX_MeshInstance*>& insts, uint8_t flags )
+void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, SGRX_MeshInstance** milist, size_t micount, uint8_t flags )
 {
 	Array< RenderItem >* RIA = slot ? &m_renderItemsAux : &m_renderItemsBase;
 	
 	RIA->clear();
-	for( size_t miid = 0; miid < insts.size(); ++miid )
+	for( size_t miid = 0; miid < micount; ++miid )
 	{
-		SGRX_MeshInstance* MI = insts[ miid ];
+		SGRX_MeshInstance* MI = milist[ miid ];
 		for( size_t part_id = 0; part_id < MI->m_drawItems.size(); ++part_id )
 		{
 			if( MI->m_drawItems.size() <= part_id ||
@@ -216,13 +220,6 @@ void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, Array<SGRX_MeshIn
 }
 
 
-static bool meshinst_sortbyidx( const void* a, const void* b, void* )
-{
-	SGRX_CAST( SGRX_MeshInstance**, MIa, a );
-	SGRX_CAST( SGRX_MeshInstance**, MIb, b );
-	return (*MIa)->sortidx < (*MIb)->sortidx;
-}
-
 void IRenderer::_RS_PreProcess( SGRX_Scene* scene )
 {
 	m_stats.Reset();
@@ -232,12 +229,8 @@ void IRenderer::_RS_PreProcess( SGRX_Scene* scene )
 	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList( scene );
 	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList( scene );
 	
-	// sort meshes by index
-	sgrx_combsort( m_visible_meshes.data(), m_visible_meshes.size(),
-		sizeof(m_visible_meshes[0]), meshinst_sortbyidx, NULL );
-	
 	// MESH INST/LIGHT RELATIONS & DrawItems
-	_RS_Compile_MeshLists( scene );
+	_RS_Compile_MeshLists( scene, m_visible_meshes.data(), m_visible_meshes.size() );
 }
 
 void IRenderer::_RS_Cull_Camera_Prepare( SGRX_Scene* scene )
@@ -277,12 +270,12 @@ static int sort_drawitemlight_by_light( const void* p1, const void* p2 )
 	return mil1->L == mil2->L ? 0 : ( mil1->L < mil2->L ? -1 : 1 );
 }
 
-void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene )
+void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene, SGRX_MeshInstance** milist, size_t micount )
 {
 	m_inst_light_buf.clear();
-	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
+	for( size_t inst_id = 0; inst_id < micount; ++inst_id )
 	{
-		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
+		SGRX_MeshInstance* MI = milist[ inst_id ];
 		MI->_Precache();
 		
 		for( size_t i = 0; i < MI->m_drawItems.size(); ++i )
@@ -309,9 +302,9 @@ void IRenderer::_RS_Compile_MeshLists( SGRX_Scene* scene )
 	}
 	
 	// covert offsets to pointers
-	for( size_t inst_id = 0; inst_id < m_visible_meshes.size(); ++inst_id )
+	for( size_t inst_id = 0; inst_id < micount; ++inst_id )
 	{
-		SGRX_MeshInstance* MI = m_visible_meshes[ inst_id ];
+		SGRX_MeshInstance* MI = milist[ inst_id ];
 		
 		for( size_t i = 0; i < MI->m_drawItems.size(); ++i )
 		{

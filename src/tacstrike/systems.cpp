@@ -771,7 +771,7 @@ ScriptedSequenceSystem::ScriptedSequenceSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ), m_cmdSkip( "skip_cutscene" ), m_time( 0 )
 {
 	Game_RegisterAction( &m_cmdSkip );
-	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &m_cmdSkip );
+//	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &m_cmdSkip );
 	
 	_InitScriptInterface( "scrSeq" );
 }

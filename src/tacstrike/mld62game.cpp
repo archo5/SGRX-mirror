@@ -13,6 +13,7 @@ Command MOVE_UP( "move_up" );
 Command MOVE_DOWN( "move_down" );
 Command INTERACT( "interact" );
 Command SHOOT( "shoot" );
+Command JUMP( "jump" );
 Command SLOW_WALK( "slow_walk" );
 Command SHOW_OBJECTIVES( "show_objectives" );
 
@@ -24,6 +25,7 @@ ActionInput g_i_move_up = ACTINPUT_MAKE_KEY( SDLK_w );
 ActionInput g_i_move_down = ACTINPUT_MAKE_KEY( SDLK_s );
 ActionInput g_i_interact = ACTINPUT_MAKE_KEY( SDLK_e );
 ActionInput g_i_shoot = ACTINPUT_MAKE_MOUSE( SGRX_MB_LEFT );
+ActionInput g_i_jump = ACTINPUT_MAKE_KEY( SDLK_SPACE );
 ActionInput g_i_slow_walk = ACTINPUT_MAKE_KEY( SDLK_LSHIFT );
 ActionInput g_i_show_objectives = ACTINPUT_MAKE_KEY( SDLK_TAB );
 
@@ -49,6 +51,11 @@ struct MLD62Player : Entity
 	bool m_isOnGround;
 	float m_isCrouching;
 	
+	// camera fix
+	float m_bobPower;
+	float m_bobTime;
+	YawPitch m_weaponTurn;
+	
 	IVState< Vec3 > m_ivPos;
 	
 	Vec2 inCursorMove;
@@ -70,6 +77,7 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	Entity( lev ),
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ),
 	m_jumpTimeout(0), m_canJumpTimeout(0), m_footstepTime(0), m_isOnGround(false), m_isCrouching(0),
+	m_bobPower(0), m_bobTime(0), m_weaponTurn(YP(0)),
 	m_ivPos( pos ), inCursorMove( V2(0) ),
 	m_targetII( NULL ), m_targetTriggered( false )
 {
@@ -77,7 +85,7 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	
 	m_weapon = m_level->GetScene()->CreateMeshInstance();
 	m_weapon->SetMesh( "meshes/weapon.ssm" );
-	m_weapon->matrix = Mat4::CreateScale(10,10,10);
+//	m_weapon->enabled = false;
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
@@ -131,9 +139,9 @@ void MLD62Player::FixedTick( float deltaTime )
 		ground = true;
 		m_canJumpTimeout = 0.5f;
 	}
-	if( !m_jumpTimeout && m_canJumpTimeout && 0)//JUMP.value )
+	if( !m_jumpTimeout && m_canJumpTimeout && JUMP.value )
 	{
-		lvel.z = 4;
+		lvel.z = 5;
 		m_jumpTimeout = 0.5f;
 		
 		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
@@ -237,10 +245,25 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 		m_level->GetSystem<AIDBSystem>()->AddSound( pos, 10, 0.5f, AIS_Footstep );
 	}
 	
+	///// BOBBING /////
+	Vec2 md = { MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value };
+	float bobtgt = m_isOnGround && md.Length() > 0.5f ? 1.0f : 0.0f;
+	if( m_isCrouching ) bobtgt *= 0.3f;
+	if( SLOW_WALK.value ) bobtgt *= 0.5f;
+	float bobdiff = bobtgt - m_bobPower;
+	m_bobPower += TMIN( fabsf( bobdiff ), deltaTime * 5 ) * sign( bobdiff );
+	m_weaponTurn.yaw += inCursorMove.x * 0.004f;
+	m_weaponTurn.pitch += inCursorMove.y * 0.004f;
+	m_weaponTurn.TurnTo( YP(0), YawPitchDist(m_weaponTurn,YP(0)).Abs().Scaled(deltaTime*10) );
+	
+	Vec3 campos = pos;
+	campos.z += m_bobPower * 0.1f + fabsf( sinf( m_bobTime * 3 ) ) * 0.1f;
+	m_bobTime += deltaTime * m_isOnGround * m_bodyHandle->GetLinearVelocity().Length() * ( 0.6f + m_isCrouching * 0.3f );
+	
 	m_level->GetScene()->camera.znear = 0.1f;
 	m_level->GetScene()->camera.angle = 90;
 	m_level->GetScene()->camera.direction = dir;
-	m_level->GetScene()->camera.position = pos;
+	m_level->GetScene()->camera.position = campos;
 	m_level->GetScene()->camera.UpdateMatrices();
 	
 	g_SoundSys->Set3DAttribs( s3dattr );
@@ -256,10 +279,13 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 		m_targetTriggered = false;
 	}
 	
-	
+	float wpnbob = fabs(sinf(m_bobTime*3))*m_bobPower*0.01f;
 	Mat4 mtx = Mat4::Identity;
 	mtx = mtx * Mat4::CreateRotationX( -M_PI / 2 );
-	mtx = mtx * Mat4::CreateTranslation( -0.3f, -0.5f, +0.5f );
+	mtx = mtx * Mat4::CreateTranslation( -0.3f, -0.6f+wpnbob, +0.5f );
+	mtx = mtx * Mat4::CreateScale( V3( 0.2f ) );
+	mtx = mtx * Mat4::CreateRotationX( -m_weaponTurn.pitch );
+	mtx = mtx * Mat4::CreateRotationY( m_weaponTurn.yaw );
 	mtx = mtx * m_level->GetScene()->camera.mInvView;
 	m_weapon->matrix = mtx;
 	m_level->LightMesh( m_weapon );
@@ -370,6 +396,7 @@ struct SciFiBossFightGame : IGame
 		Game_RegisterAction( &MOVE_DOWN );
 		Game_RegisterAction( &INTERACT );
 		Game_RegisterAction( &SHOOT );
+		Game_RegisterAction( &JUMP );
 		Game_RegisterAction( &SLOW_WALK );
 		Game_RegisterAction( &SHOW_OBJECTIVES );
 		
@@ -379,6 +406,7 @@ struct SciFiBossFightGame : IGame
 		Game_BindInputToAction( g_i_move_down, &MOVE_DOWN );
 		Game_BindInputToAction( g_i_interact, &INTERACT );
 		Game_BindInputToAction( g_i_shoot, &SHOOT );
+		Game_BindInputToAction( g_i_jump, &JUMP );
 		Game_BindInputToAction( g_i_slow_walk, &SLOW_WALK );
 		Game_BindInputToAction( g_i_show_objectives, &SHOW_OBJECTIVES );
 		
@@ -484,6 +512,63 @@ struct SciFiBossFightGame : IGame
 		Game_Tick( dt, ( m_accum + FIXED_TICK_SIZE ) / FIXED_TICK_SIZE );
 		
 		Game_Render();
+	}
+	
+	void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+		TextureHandle rtt, DepthStencilSurfHandle dss )
+	{
+		SGRX_Scene* scene = info.scene;
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		
+		int W = GR_GetWidth();
+		int H = GR_GetHeight();
+		
+		ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, 0, 1, rtt );
+		if( info.viewport )
+			GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
+		
+		ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
+		ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
+		if( info.postdraw )
+		{
+			GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
+			br.Flush().Reset();
+			info.postdraw->PostDraw();
+			br.Flush();
+		}
+		
+		if( g_GameLevel->m_player )
+		{
+			DepthStencilSurfHandle dssFPV;
+			dssFPV = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, 0xff00 );
+			GR_PreserveResource( dssFPV );
+			
+			ctrl->SetRenderTargets( dssFPV, SGRX_RT_ClearDepth | SGRX_RT_ClearStencil, 0, 0, 1, rtt );
+			if( info.viewport )
+				GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
+			
+			SGRX_Camera cambk = scene->camera;
+			scene->camera.zfar = 2;
+			scene->camera.znear = 0.01f;
+			scene->camera.UpdateMatrices();
+			
+			SGRX_CAST( MLD62Player*, player, g_GameLevel->m_player );
+			SGRX_MeshInstance* minsts[] = { player->m_weapon };
+			size_t micount = 1;
+			
+			ctrl->RenderMeshes( scene, 1, 1, SGRX_TY_Solid, minsts, micount );
+			ctrl->RenderMeshes( scene, 3, 4, SGRX_TY_Solid, minsts, micount );
+			ctrl->RenderMeshes( scene, 1, 1, SGRX_TY_Decal, minsts, micount );
+			ctrl->RenderMeshes( scene, 3, 4, SGRX_TY_Decal, minsts, micount );
+			ctrl->RenderMeshes( scene, 1, 1, SGRX_TY_Transparent, minsts, micount );
+			ctrl->RenderMeshes( scene, 3, 4, SGRX_TY_Transparent, minsts, micount );
+			
+			scene->camera = cambk;
+		}
 	}
 	
 	float m_accum;
