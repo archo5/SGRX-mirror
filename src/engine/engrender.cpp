@@ -173,8 +173,8 @@ uint64_t IRenderer::_RS_GenSortKey( const Mat4& view, SGRX_MeshInstance* MI, uin
 	// bytes 63-64: solid/decal/transparent
 	out |= uint64_t( mtlflags_to_sortb2[ DI.type & 7 ] ) << 62;
 	// bytes 55-62: sort index
-	out |= uint64_t( MI->sortidx ) << 54;
-	float dist = 1 / ( 1 + view.TransformPos( MI->matrix.GetTranslation() ).z );
+	out |= uint64_t( MI->sortidx & 0xff ) << 54;
+	float dist = 1 / ( 1 + fabsf( view.TransformPos( MI->matrix.GetTranslation() ).z ) );
 	if( DI.type & SGRX_TY_Transparent )
 	{
 		// bytes 33-54: depth

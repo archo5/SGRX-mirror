@@ -65,9 +65,13 @@ struct MLD62Player : Entity
 	
 	TextureHandle m_tex_interact_icon;
 	
-	MeshInstHandle m_weapon;
+	float m_shootTimeout;
+	AnimCharacter m_weapon;
+	ParticleSystem m_shootPS;
+	LightHandle m_shootLT;
 	
 	MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir );
+	Mat4 GetBulletOutputMatrix();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
@@ -79,13 +83,12 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_jumpTimeout(0), m_canJumpTimeout(0), m_footstepTime(0), m_isOnGround(false), m_isCrouching(0),
 	m_bobPower(0), m_bobTime(0), m_weaponTurn(YP(0)),
 	m_ivPos( pos ), inCursorMove( V2(0) ),
-	m_targetII( NULL ), m_targetTriggered( false )
+	m_targetII( NULL ), m_targetTriggered( false ),
+	m_shootTimeout(0), m_weapon( lev->GetScene(), lev->GetPhyWorld() )
 {
 	m_tex_interact_icon = GR_GetTexture( "ui/interact_icon.png" );
 	
-	m_weapon = m_level->GetScene()->CreateMeshInstance();
-	m_weapon->SetMesh( "meshes/weapon.ssm" );
-//	m_weapon->enabled = false;
+	m_weapon.Load( "chars/weapon.chr" );
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
@@ -98,6 +101,33 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	rbinfo.group = 2;
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
 	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.29f) );
+	
+	m_shootPS.Load( "psys/gunflash.psy" );
+	m_shootPS.AddToScene( m_level->GetScene() );
+	m_shootPS.OnRenderUpdate();
+	m_shootLT = m_level->GetScene()->CreateLight();
+	m_shootLT->type = LIGHT_POINT;
+	m_shootLT->enabled = false;
+	m_shootLT->position = pos;
+	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
+	m_shootLT->range = 4;
+	m_shootLT->power = 4;
+	m_shootLT->UpdateTransform();
+	m_shootTimeout = 0;
+}
+
+Mat4 MLD62Player::GetBulletOutputMatrix()
+{
+	Mat4 out = m_weapon.m_cachedMeshInst->matrix;
+	for( size_t i = 0; i < m_weapon.attachments.size(); ++i )
+	{
+		if( m_weapon.attachments[ i ].name == StringView("barrel") )
+		{
+			m_weapon.GetAttachmentMatrix( i, out );
+			break;
+		}
+	}
+	return out;
 }
 
 void MLD62Player::FixedTick( float deltaTime )
@@ -219,6 +249,8 @@ void MLD62Player::FixedTick( float deltaTime )
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
 	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	
+	m_weapon.FixedTick( deltaTime );
 }
 
 void MLD62Player::Tick( float deltaTime, float blendFactor )
@@ -287,8 +319,39 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 	mtx = mtx * Mat4::CreateRotationX( -m_weaponTurn.pitch );
 	mtx = mtx * Mat4::CreateRotationY( m_weaponTurn.yaw );
 	mtx = mtx * m_level->GetScene()->camera.mInvView;
-	m_weapon->matrix = mtx;
-	m_level->LightMesh( m_weapon );
+	
+	m_weapon.SetTransform( mtx );
+	m_weapon.PreRender( blendFactor );
+	m_level->LightMesh( m_weapon.m_cachedMeshInst );
+	
+	
+	m_shootLT->enabled = false;
+	if( m_shootTimeout > 0 )
+	{
+		m_shootTimeout -= deltaTime;
+		m_shootLT->enabled = true;
+	}
+	if( SHOOT.value && m_shootTimeout <= 0 )
+	{
+		Vec3 aimtgt = campos + dir * 100;
+		Mat4 mtx = GetBulletOutputMatrix();
+		Vec3 origin = mtx.TransformPos( V3(0) );
+		Vec3 dir = ( aimtgt - origin ).Normalized();
+		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
+		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, GAT_Player );
+		m_shootPS.SetTransform( mtx );
+		m_shootPS.Trigger();
+		m_shootLT->position = origin;
+		m_shootLT->UpdateTransform();
+		m_shootLT->enabled = true;
+		m_shootTimeout += 0.1f;
+		m_level->GetSystem<AIDBSystem>()->AddSound( pos, 10, 0.2f, AIS_Shot );
+	}
+	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
+	
+	
+	m_shootPS.Tick( deltaTime );
+	m_shootPS.PreRender();
 }
 
 void MLD62Player::DrawUI()
@@ -363,9 +426,11 @@ bool MLD62EntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 
 void MLD62EntityCreationSystem::DrawUI()
 {
+#if 0
 	SGRX_CAST( MLD62Player*, P, m_level->m_player );
 	if( P )
 		P->DrawUI();
+#endif
 }
 
 
@@ -426,6 +491,8 @@ struct SciFiBossFightGame : IGame
 		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
 		AddSystemToLevel<ScriptedSequenceSystem>( g_GameLevel );
 		AddSystemToLevel<MusicSystem>( g_GameLevel );
+		AddSystemToLevel<DamageSystem>( g_GameLevel );
+		AddSystemToLevel<BulletSystem>( g_GameLevel );
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
 		AddSystemToLevel<MLD62EntityCreationSystem>( g_GameLevel );
 		
@@ -517,47 +584,47 @@ struct SciFiBossFightGame : IGame
 	void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
 		TextureHandle rtt, DepthStencilSurfHandle dss )
 	{
-		SGRX_Scene* scene = info.scene;
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		
-		int W = GR_GetWidth();
-		int H = GR_GetHeight();
-		
-		ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, 0, 1, rtt );
-		if( info.viewport )
-			GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
-		
-		ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
-		ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
-		ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Decal );
-		ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Decal );
-		ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
-		ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
-		if( info.postdraw )
-		{
-			GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
-			br.Flush().Reset();
-			info.postdraw->PostDraw();
-			br.Flush();
-		}
+		IGame::OnDrawSceneGeom( ctrl, info, rtt, dss );
 		
 		if( g_GameLevel->m_player )
 		{
-			DepthStencilSurfHandle dssFPV;
-			dssFPV = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, 0xff00 );
-			GR_PreserveResource( dssFPV );
+			BatchRenderer& br = GR2D_GetBatchRenderer();
+			SGRX_Scene* scene = info.scene;
+			int W = GR_GetWidth();
+			int H = GR_GetHeight();
+			float avgw = ( W + H ) * 0.5f;
+			int minw = TMIN( W, H );
 			
+			DepthStencilSurfHandle dssFPV;
+			TextureHandle rttGUI;
+			dssFPV = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, 0xff00 );
+			rttGUI = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_LDR8, 0xff01 );
+			GR_PreserveResource( dssFPV );
+			GR_PreserveResource( rttGUI );
+			
+			// GUI
+			ctrl->SetRenderTargets( NULL, SGRX_RT_ClearColor, 0, 0, 1, rttGUI );
+			br.Reset();
+			GR2D_SetFont( "core", minw / 24 );
+			GR2D_DrawTextLine( minw / 10, minw / 10, "HEALTH: ||||||||||||||||||||" );
+			TextureHandle crosshairTex = GR_GetTexture( "ui/crosshair.png" );
+			GR_PreserveResource( crosshairTex );
+			br.Reset().Col(0.5f,0.01f,0,1).SetTexture( crosshairTex ).Box( W/2, H/2, minw/18, minw/18 );
+			br.Reset().SetTexture( crosshairTex ).Box( W/2, H/2, minw/20, minw/20 );
+			br.Flush();
+			
+			// WEAPON
 			ctrl->SetRenderTargets( dssFPV, SGRX_RT_ClearDepth | SGRX_RT_ClearStencil, 0, 0, 1, rtt );
 			if( info.viewport )
 				GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
 			
 			SGRX_Camera cambk = scene->camera;
-			scene->camera.zfar = 2;
+			scene->camera.zfar = 5;
 			scene->camera.znear = 0.01f;
 			scene->camera.UpdateMatrices();
 			
 			SGRX_CAST( MLD62Player*, player, g_GameLevel->m_player );
-			SGRX_MeshInstance* minsts[] = { player->m_weapon };
+			SGRX_MeshInstance* minsts[] = { player->m_weapon.m_cachedMeshInst };
 			size_t micount = 1;
 			
 			ctrl->RenderMeshes( scene, 1, 1, SGRX_TY_Solid, minsts, micount );
@@ -566,6 +633,17 @@ struct SciFiBossFightGame : IGame
 			ctrl->RenderMeshes( scene, 3, 4, SGRX_TY_Decal, minsts, micount );
 			ctrl->RenderMeshes( scene, 1, 1, SGRX_TY_Transparent, minsts, micount );
 			ctrl->RenderMeshes( scene, 3, 4, SGRX_TY_Transparent, minsts, micount );
+			
+			// GUI overlay
+			Mat4 backup = br.viewMatrix;
+			Mat4 guimtx = Mat4::Identity;
+			float turnQ = 0.1f;
+			guimtx = guimtx * Mat4::CreateRotationX( -player->m_weaponTurn.pitch*turnQ );
+			guimtx = guimtx * Mat4::CreateRotationY( player->m_weaponTurn.yaw*turnQ );
+			guimtx = guimtx * scene->camera.mProj;
+			GR2D_SetViewMatrix( guimtx );
+			br.Reset().SetTexture( rttGUI ).Quad( W/avgw, H/avgw, -W/avgw, -H/avgw, 1 ).Flush();
+			GR2D_SetViewMatrix( backup );
 			
 			scene->camera = cambk;
 		}

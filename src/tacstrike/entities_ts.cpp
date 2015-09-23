@@ -728,7 +728,10 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	
 	m_shootLT->enabled = false;
 	if( m_shootTimeout > 0 )
+	{
 		m_shootTimeout -= deltaTime;
+		m_shootLT->enabled = true;
+	}
 	if( SHOOT.value && m_shootTimeout <= 0 )
 	{
 		Mat4 mtx = GetBulletOutputMatrix();
