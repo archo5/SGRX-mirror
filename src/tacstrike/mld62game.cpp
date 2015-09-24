@@ -39,6 +39,265 @@ float g_s_vol_music = 0.8f;
 
 
 
+struct SGRX_HelpTextRenderer
+{
+	struct Text
+	{
+		StringView text;
+		StringView font;
+		Vec4 color;
+		Vec2 pos;
+		int fontSize;
+		int width;
+		int lineNum;
+		int padding;
+		bool button;
+	};
+	struct FontInfo
+	{
+		StringView name;
+		float sizeFactor;
+	};
+	
+	SGRX_HelpTextRenderer();
+	void RenderText( StringView text );
+	virtual void AddInputText( ActionInput input );
+	virtual void AddActionInputText( StringView action );
+	virtual void DrawTextItem( Text& item );
+	
+	// interface helpers
+	void SetNamedFont( StringView key, StringView name, float factor = 1 )
+	{
+		FontInfo fi = { name, factor };
+		namedFonts.set( key, fi );
+	}
+	
+	// internals
+	void SetColor( StringView name );
+	void SetFont( StringView name );
+	void AddText( StringView text );
+	void AddText( StringView from, StringView to ){ AddText( from.part( 0, to.data() - from.data() ) ); }
+	
+	// settings
+	HashTable< StringView, Vec4 > namedColors;
+	HashTable< StringView, FontInfo > namedFonts;
+	int fontSize;
+	Vec2 centerPos;
+	float lineHeightFactor;
+	TextureHandle buttonTex;
+	int buttonTexBorder;
+	int buttonBorder;
+	
+	// cached data
+	int m_lineCount;
+	int m_curLine;
+	Vec4 m_curColor;
+	FontInfo m_curFont;
+	Array< Text > m_textCache;
+};
+
+SGRX_HelpTextRenderer::SGRX_HelpTextRenderer() :
+	fontSize(16), centerPos(V2(100,100)), lineHeightFactor(1.2f), buttonTexBorder(40), buttonBorder(4),
+	m_lineCount(0), m_curLine(0), m_curColor(V4(1))
+{
+	m_curFont.sizeFactor = 1;
+}
+
+void SGRX_HelpTextRenderer::RenderText( StringView text )
+{
+	m_curLine = 0;
+	m_lineCount = text.count( "\n" );
+	SetColor( "" );
+	SetFont( "" );
+	m_textCache.clear();
+	
+	StringView start = text, it = text;
+	while( it.size() )
+	{
+		char c = it.ch();
+		if( c == '#' )
+		{
+			AddText( start, it );
+			it.skip( 1 );
+			char c2 = it.ch();
+			if( c2 == '#' )
+			{
+				start = it;
+				it.skip( 1 ); // skip one #, include another
+				continue;
+			}
+			else if( c2 == 'c' || c2 == 'C' ) // color
+			{
+				it.skip( 1 );
+				if( it.ch() != '(' )
+				{
+					LOG_WARNING << "RenderText: unexpected character at " << (it.data() - text.data());
+					continue;
+				}
+				it.skip( 1 );
+				StringView colorname = it.until( ")" );
+				SetColor( colorname );
+				it.skip( colorname.size() + 1 );
+				start = it;
+				continue;
+			}
+			else if( c2 == 'f' || c2 == 'F' ) // font
+			{
+				it.skip( 1 );
+				if( it.ch() != '(' )
+				{
+					LOG_WARNING << "RenderText: unexpected character at " << (it.data() - text.data());
+					continue;
+				}
+				it.skip( 1 );
+				StringView fontname = it.until( ")" );
+				SetFont( fontname );
+				it.skip( fontname.size() + 1 );
+				start = it;
+				continue;
+			}
+			else if( c2 == 'a' || c2 == 'A' ) // action
+			{
+				it.skip( 1 );
+				if( it.ch() != '(' )
+				{
+					LOG_WARNING << "RenderText: unexpected character at " << (it.data() - text.data());
+					continue;
+				}
+				it.skip( 1 );
+				StringView actionname = it.until( ")" );
+				AddActionInputText( actionname );
+				it.skip( actionname.size() + 1 );
+				start = it;
+				continue;
+			}
+		}
+		else if( c == '\n' )
+		{
+			AddText( start, it );
+			m_curLine++;
+			it.skip( 1 );
+			start = it;
+		}
+		it.skip( 1 );
+	}
+	if( start.size() )
+		AddText( start );
+	
+	// calculate h-positions
+	size_t si = 0;
+	int curline = 0;
+	int totalWidth = 0;
+	for( size_t i = 0; i <= m_textCache.size(); ++i )
+	{
+		if( i == m_textCache.size() || curline != m_textCache[ i ].lineNum )
+		{
+			int ho = 0;
+			for( ; si < i; ++si )
+			{
+				m_textCache[ si ].pos.x += ho - totalWidth / 2;
+				ho += m_textCache[ si ].width;
+			}
+			
+			if( i == m_textCache.size() )
+				break;
+			
+			curline = m_textCache[ i ].lineNum;
+			totalWidth = 0;
+		}
+		totalWidth += m_textCache[ i ].width;
+	}
+	
+	// draw text items
+	for( size_t i = 0; i < m_textCache.size(); ++i )
+		DrawTextItem( m_textCache[ i ] );
+	
+	m_textCache.clear();
+}
+
+void SGRX_HelpTextRenderer::AddInputText( ActionInput input )
+{
+	StringView text = Game_GetInputName( input );
+	AddText( text );
+	int pad = buttonBorder;
+	m_textCache.last().padding = pad;
+	m_textCache.last().width += pad * 2;
+	m_textCache.last().button = true;
+}
+
+void SGRX_HelpTextRenderer::AddActionInputText( StringView action )
+{
+	Command* cmd = Game_FindAction( action );
+	ActionInput inputs[2];
+	int num = Game_GetActionBindings( cmd, inputs, 2 );
+	for( int i = 0; i < num; ++i )
+	{
+		if( i != 0 )
+			AddText( "/" );
+		AddInputText( inputs[ i ] );
+	}
+}
+
+void SGRX_HelpTextRenderer::DrawTextItem( Text& item )
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	Vec4 c = item.color;
+	Vec2 pos = V2( round( item.pos.x ), round( item.pos.y ) );
+	if( item.button )
+	{
+		int hsize = item.fontSize / 2 + item.padding;
+		Vec4 rect = V4( pos.x, pos.y - hsize, pos.x + item.width, pos.y + hsize );
+		Vec2 texoff = buttonTex.GetInvSize() * buttonTexBorder;
+		Vec4 texbdr = V4( texoff.x, texoff.y, texoff.x, texoff.y );
+		br.Reset().SetTexture( buttonTex ).Button( rect, V4(buttonBorder), texbdr );
+		c = V4( V3(0.1f), 1 );
+	}
+	
+	GR2D_SetColor( c.x, c.y, c.z, c.w );
+	GR2D_SetFont( item.font, item.fontSize );
+	GR2D_DrawTextLine( item.pos.x + item.padding, item.pos.y, item.text, HALIGN_LEFT, VALIGN_CENTER );
+}
+
+void SGRX_HelpTextRenderer::SetColor( StringView name )
+{
+	Vec4* col = namedColors.getptr( name );
+	m_curColor = col ? *col : V4(1);
+}
+
+void SGRX_HelpTextRenderer::SetFont( StringView name )
+{
+	FontInfo* font = namedFonts.getptr( name );
+	if( font )
+		m_curFont = *font;
+	else
+	{
+		FontInfo dummy = { "", 1 };
+		m_curFont = dummy;
+	}
+}
+
+void SGRX_HelpTextRenderer::AddText( StringView text )
+{
+	Text T =
+	{
+		text,
+		m_curFont.name,
+		m_curColor,
+		centerPos,
+		fontSize * m_curFont.sizeFactor,
+		0,
+		m_curLine,
+		false
+	};
+	T.pos.y += ( m_curLine - ( m_lineCount - 1 ) * 0.5f ) * fontSize * lineHeightFactor;
+	GR2D_SetFont( T.font, T.fontSize );
+	T.width = GR2D_GetTextLength( text );
+	m_textCache.push_back( T );
+}
+
+
+
 struct MLD62Player : Entity
 {
 	PhyRigidBodyHandle m_bodyHandle;
@@ -132,6 +391,7 @@ Mat4 MLD62Player::GetBulletOutputMatrix()
 
 void MLD62Player::FixedTick( float deltaTime )
 {
+	SGRX_IPhyWorld* PW = m_level->GetPhyWorld();
 	SGRX_PhyRaycastInfo rcinfo;
 	SGRX_PhyRaycastInfo rcinfo2;
 	
@@ -143,8 +403,8 @@ void MLD62Player::FixedTick( float deltaTime )
 	
 	bool slowWalk = SLOW_WALK.value > 0.5f;
 	m_isCrouching = 0;
-	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
-		m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
+	if( PW->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
+		PW->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
 	{
 		m_isCrouching = 1;
@@ -158,7 +418,7 @@ void MLD62Player::FixedTick( float deltaTime )
 		ht += rcxdist;
 	
 	bool ground = false;
-	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
+	if( PW->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
 		&& fabsf( rcinfo.point.z - pos.z ) < cheight + SMALL_FLOAT )
 	{
 		Vec3 v = m_bodyHandle->GetPosition();
@@ -204,6 +464,15 @@ void MLD62Player::FixedTick( float deltaTime )
 	float curspeed = Vec2Dot( lvel2, md );
 	float revmaxfactor = clamp( maxspeed - curspeed, 0, 1 );
 	lvel2 += md * accel * revmaxfactor * deltaTime;
+	
+	///// WALLRUN /////
+	if( JUMP.value && ground == false )
+	{
+		if( PW->ConvexCast( m_shapeHandle, pos, pos + V3( md.x, md.y, 0 ), 1, 1, &rcinfo ) )
+		{
+			m_bodyHandle->ApplyCentralForce( PFT_Acceleration, V3(0,0,40) );
+		}
+	}
 	
 	///// FRICTION /////
 	curspeed = Vec2Dot( lvel2, md );
@@ -543,6 +812,16 @@ struct SciFiBossFightGame : IGame
 	{
 		g_GameLevel->Draw();
 		g_GameLevel->Draw2D();
+		
+		// TEST //
+		SGRX_HelpTextRenderer htr;
+		htr.lineHeightFactor = 1.4f;
+		htr.buttonTex = GR_GetTexture( "ui/key.png" );
+		htr.centerPos = V2( GR_GetWidth() / 2, GR_GetHeight() * 3 / 4 );
+		htr.fontSize = GR_GetHeight() / 20;
+		htr.buttonBorder = GR_GetHeight() / 80;
+		htr.SetNamedFont( "", "core" );
+		htr.RenderText( "While running along a wall,\npress #a(jump) to do a wallrun" );
 	}
 	
 	void OnTick( float dt, uint32_t gametime )

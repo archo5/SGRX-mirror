@@ -348,13 +348,6 @@ struct ActionMap
 			m_inputCmdMap.unset( input );
 		return !!cmd;
 	}
-	bool Map( ActionInput input, const StringView& sv )
-	{
-		Command* cmd = FindAction( sv );
-		if( cmd )
-			m_inputCmdMap.set( input, cmd );
-		return !!cmd;
-	}
 	void Unmap( ActionInput input ){ m_inputCmdMap.unset( input ); }
 	Command* Get( ActionInput input ){ return m_inputCmdMap.getcopy( input ); }
 	

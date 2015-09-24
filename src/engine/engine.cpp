@@ -204,6 +204,11 @@ void Game_UnregisterAction( Command* cmd )
 	g_ActionMap->Unregister( cmd );
 }
 
+Command* Game_FindAction( const StringView& cmd )
+{
+	return g_ActionMap->FindAction( cmd );
+}
+
 void Game_BindKeyToAction( uint32_t key, Command* cmd )
 {
 	g_ActionMap->Map( ACTINPUT_MAKE_KEY( key ), cmd );
@@ -211,7 +216,7 @@ void Game_BindKeyToAction( uint32_t key, Command* cmd )
 
 void Game_BindKeyToAction( uint32_t key, const StringView& cmd )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_KEY( key ), cmd );
+	Game_BindKeyToAction( key, Game_FindAction( cmd ) );
 }
 
 void Game_BindMouseButtonToAction( int btn, Command* cmd )
@@ -221,7 +226,7 @@ void Game_BindMouseButtonToAction( int btn, Command* cmd )
 
 void Game_BindMouseButtonToAction( int btn, const StringView& cmd )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), cmd );
+	Game_BindMouseButtonToAction( btn, Game_FindAction( cmd ) );
 }
 
 void Game_BindGamepadButtonToAction( int btn, Command* cmd )
@@ -231,7 +236,7 @@ void Game_BindGamepadButtonToAction( int btn, Command* cmd )
 
 void Game_BindGamepadButtonToAction( int btn, const StringView& cmd )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_GPADBTN( btn ), cmd );
+	Game_BindGamepadButtonToAction( btn, Game_FindAction( cmd ) );
 }
 
 void Game_BindGamepadAxisToAction( int axis, Command* cmd )
@@ -241,7 +246,7 @@ void Game_BindGamepadAxisToAction( int axis, Command* cmd )
 
 void Game_BindGamepadAxisToAction( int axis, const StringView& cmd )
 {
-	g_ActionMap->Map( ACTINPUT_MAKE_GPADAXIS( axis ), cmd );
+	Game_BindGamepadAxisToAction( axis, Game_FindAction( cmd ) );
 }
 
 ActionInput Game_GetActionBinding( Command* cmd )
@@ -253,6 +258,18 @@ ActionInput Game_GetActionBinding( Command* cmd )
 			return icm->item(i).key;
 	}
 	return 0;
+}
+
+int Game_GetActionBindings( Command* cmd, ActionInput* out, int bufsize )
+{
+	int num = 0;
+	ActionMap::InputCmdMap* icm = &g_ActionMap->m_inputCmdMap;
+	for( size_t i = 0; i < icm->size() && num < bufsize; ++i )
+	{
+		if( icm->item(i).value == cmd )
+			out[ num++ ] = icm->item(i).key;
+	}
+	return num;
 }
 
 void Game_BindInputToAction( ActionInput iid, Command* cmd )
@@ -1173,6 +1190,12 @@ const TextureInfo& TextureHandle::GetInfo() const
 	if( !item )
 		return dummy_info;
 	return item->m_info;
+}
+
+Vec2 TextureHandle::GetInvSize( Vec2 def ) const
+{
+	const TextureInfo& TI = GetInfo();
+	return V2( TI.width ? 1.0f / TI.width : def.x, TI.height ? 1.0f / TI.height : def.y );
 }
 
 bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, int y )

@@ -839,6 +839,31 @@ BatchRenderer& BatchRenderer::TurnedBox( float x, float y, float dx, float dy, f
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::Button( Vec4 rect, Vec4 bdr, Vec4 texbdr, float z )
+{
+	SetPrimitiveType( PT_Triangles );
+	
+	float pox[4] = { rect.x, rect.x + bdr.x, rect.z - bdr.z, rect.z };
+	float poy[4] = { rect.y, rect.y + bdr.y, rect.w - bdr.w, rect.w };
+	float txx[4] = { 0, texbdr.x, 1 - texbdr.z, 1 };
+	float txy[4] = { 0, texbdr.y, 1 - texbdr.w, 1 };
+	
+	for( int y = 0; y < 3; ++y )
+	{
+		for( int x = 0; x < 3; ++x )
+		{
+			Tex( txx[x], txy[y] ); Pos( pox[x], poy[y], z );
+			Tex( txx[x+1], txy[y] ); Pos( pox[x+1], poy[y], z );
+			Tex( txx[x+1], txy[y+1] ); Pos( pox[x+1], poy[y+1], z );
+			Prev(0);
+			Tex( txx[x], txy[y+1] ); Pos( pox[x], poy[y+1], z );
+			Prev(4);
+		}
+	}
+	
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::Poly( const void* data, int count, float z, int stride )
 {
 	SGRX_CAST( const uint8_t*, bp, data );

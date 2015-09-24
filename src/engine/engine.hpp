@@ -90,6 +90,7 @@ typedef uint64_t ActionInput;
 
 ENGINE_EXPORT void Game_RegisterAction( Command* cmd );
 ENGINE_EXPORT void Game_UnregisterAction( Command* cmd );
+ENGINE_EXPORT Command* Game_FindAction( const StringView& cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
 ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, Command* cmd );
@@ -99,6 +100,7 @@ ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, const StringView& cm
 ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, Command* cmd );
 ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, const StringView& cmd );
 ENGINE_EXPORT ActionInput Game_GetActionBinding( Command* cmd );
+ENGINE_EXPORT int Game_GetActionBindings( Command* cmd, ActionInput* out, int bufsize );
 ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, Command* cmd );
 ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );
 ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
@@ -327,6 +329,7 @@ struct TextureHandle : Handle< SGRX_ITexture >
 	TextureHandle( SGRX_ITexture* tex ) : Handle( tex ){}
 	
 	ENGINE_EXPORT const TextureInfo& GetInfo() const;
+	ENGINE_EXPORT Vec2 GetInvSize( Vec2 def = V2(0) ) const;
 	ENGINE_EXPORT bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
 };
 
@@ -1375,6 +1378,7 @@ struct BatchRenderer
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
 	FINLINE BatchRenderer& Box( float x, float y, float w, float h, float z = 0 ){ w *= 0.5f; h *= 0.5f; return Quad( x - w, y - h, x + w, y + h, z ); }
 	ENGINE_EXPORT BatchRenderer& TurnedBox( float x, float y, float dx, float dy, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& Button( Vec4 rect, Vec4 bdr, Vec4 texbdr, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& Poly( const void* data, int count, float z = 0, int stride = sizeof(Vec2) );
 	ENGINE_EXPORT BatchRenderer& PolyOutline( const void* data, int count, float z = 0, int stride = sizeof(Vec2) );
 	ENGINE_EXPORT BatchRenderer& Sprite( const Vec3& pos, const Vec3& dx, const Vec3& dy );
