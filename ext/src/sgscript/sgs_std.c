@@ -2569,7 +2569,8 @@ static int sgsstd_co_resume( SGS_CTX )
 		ssz = sgs_StackSize( C );
 		for( i = 0; i < ssz; ++i )
 		{
-			sgs_PeekStackItem( C, i, &tmp );
+			if( !sgs_PeekStackItem( C, i, &tmp ) )
+				STDLIB_WARN( "failed to resume coroutine - internal error in loading data" );
 			sgs_PushVariable( CO->ctx, &tmp );
 		}
 		
@@ -2588,7 +2589,8 @@ static int sgsstd_co_resume( SGS_CTX )
 	
 	for( i = -rvc; i < 0; ++i )
 	{
-		sgs_PeekStackItem( CO->ctx, i, &tmp );
+		if( !sgs_PeekStackItem( CO->ctx, i, &tmp ) )
+			STDLIB_WARN( "failed to return from coroutine - internal error in returning data" );
 		sgs_PushVariable( C, &tmp );
 	}
 	
@@ -2976,7 +2978,10 @@ static int _push_procdir( SGS_CTX )
 		while( mfnend > mfn && *mfnend != '/' && *mfnend != '\\' )
 			mfnend--;
 		if( ((size_t)( mfnend - mfn )) > 0x7fffffff )
+		{
+			free( mfn );
 			return 0;
+		}
 		/* WP: added error condition */
 		sgs_PushStringBuf( C, mfn, (sgs_SizeVal)( mfnend - mfn ) );
 		free( mfn );
