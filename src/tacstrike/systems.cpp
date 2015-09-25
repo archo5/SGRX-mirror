@@ -501,6 +501,62 @@ void ObjectiveSystem::sgsSetState( int i, int state )
 }
 
 
+
+static SGRX_HelpTextRenderer m_defaultRenderer;
+
+HelpTextSystem::HelpTextSystem( GameLevel* lev ) :
+	IGameLevelSystem( lev, e_system_uid ),
+	m_alpha(0), m_fadeTime(0), m_fadeTo(0), renderer(&m_defaultRenderer)
+{
+	_InitScriptInterface( "helptext" );
+}
+
+void HelpTextSystem::Clear()
+{
+	m_alpha = 0;
+	m_fadeTime = 0;
+	m_fadeTo = 0;
+}
+
+void HelpTextSystem::SetText( StringView text, float alpha, float fadetime, float fadeto )
+{
+	m_text = text;
+	m_alpha = alpha;
+	m_fadeTime = fadetime;
+	m_fadeTo = fadeto;
+}
+
+void HelpTextSystem::Tick( float deltaTime, float blendFactor )
+{
+	if( m_fadeTime > 0 )
+	{
+		float diff = m_fadeTo - m_alpha;
+		m_alpha += TMAX( fabsf( diff ), deltaTime / m_fadeTime ) * sign( diff );
+	}
+}
+
+void HelpTextSystem::DrawUI()
+{
+	if( m_text.size() && m_alpha > 0 )
+	{
+		renderer->opacity = m_alpha;
+		renderer->RenderText( m_text );
+	}
+}
+
+void HelpTextSystem::sgsClear()
+{
+	Clear();
+}
+
+void HelpTextSystem::sgsSetText( StringView text, float alpha, float fadetime, float fadeto )
+{
+	int ssz = sgs_StackSize( C );
+	SetText( text, ssz >= 2 ? alpha : 1, ssz >= 3 ? fadetime : 0, ssz >= 4 ? fadeto : 0 );
+}
+
+
+
 FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	m_ps_flare = GR_GetPixelShader( "flare" );

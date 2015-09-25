@@ -375,3 +375,63 @@ typedef Handle< SGRX_DecalSystem > DecalSysHandle;
 
 
 
+struct IF_GCC(ENGINE_EXPORT) SGRX_HelpTextRenderer
+{
+	struct Text
+	{
+		StringView text;
+		StringView font;
+		Vec4 color;
+		Vec2 pos;
+		int fontSize;
+		int width;
+		int lineNum;
+		int padding;
+		bool button;
+	};
+	struct FontInfo
+	{
+		StringView name;
+		float sizeFactor;
+	};
+	
+	ENGINE_EXPORT SGRX_HelpTextRenderer();
+	ENGINE_EXPORT void RenderText( StringView text );
+	ENGINE_EXPORT virtual void AddInputText( ActionInput input );
+	ENGINE_EXPORT virtual void AddActionInputText( StringView action );
+	ENGINE_EXPORT virtual void DrawTextItem( Text& item );
+	
+	// interface helpers
+	void SetNamedFont( StringView key, StringView name, float factor = 1 )
+	{
+		FontInfo fi = { name, factor };
+		namedFonts.set( key, fi );
+	}
+	
+	// internals
+	ENGINE_EXPORT void SetColor( StringView name );
+	ENGINE_EXPORT void SetFont( StringView name );
+	ENGINE_EXPORT void AddText( StringView text );
+	void AddText( StringView from, StringView to ){ AddText( from.part( 0, to.data() - from.data() ) ); }
+	
+	// settings
+	HashTable< StringView, Vec4 > namedColors;
+	HashTable< StringView, FontInfo > namedFonts;
+	int fontSize;
+	Vec2 centerPos;
+	float lineHeightFactor;
+	TextureHandle buttonTex;
+	int buttonTexBorder;
+	int buttonBorder;
+	float opacity;
+	
+	// cached data
+	int m_lineCount;
+	int m_curLine;
+	Vec4 m_curColor;
+	FontInfo m_curFont;
+	Array< Text > m_textCache;
+};
+
+
+

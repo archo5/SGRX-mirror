@@ -14,7 +14,7 @@
 
 
 // SYSTEM ID ALLOCATION (increment to allocate)
-// last id = 12
+// last id = 13
 
 
 //
@@ -287,6 +287,35 @@ struct ObjectiveSystem : IGameLevelSystem
 	TextureHandle m_tx_icon_open;
 	TextureHandle m_tx_icon_done;
 	TextureHandle m_tx_icon_failed;
+};
+
+
+struct HelpTextSystem : IGameLevelSystem
+{
+	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
+	
+	enum { e_system_uid = 13 };
+	
+	HelpTextSystem( GameLevel* lev );
+	void Clear();
+	void SetText( StringView text, float alpha = 1, float fadetime = 0, float fadeto = 0 );
+	void Tick( float deltaTime, float blendFactor );
+	void DrawUI();
+	
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME text ) String m_text;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME alpha ) float m_alpha;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME fadeTime ) float m_fadeTime;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME fadeTo ) float m_fadeTo;
+	SGS_METHOD_NAMED( Clear ) void sgsClear();
+	SGS_METHOD_NAMED( SetText ) void sgsSetText( StringView text, float alpha, float fadetime, float fadeto );
+	
+	// renderer access
+	int get_fontSize(){ return renderer->fontSize; }
+	void set_fontSize( int v ){ renderer->fontSize = v; }
+	SGS_PROPERTY_FUNC( READ get_fontSize WRITE set_fontSize ) SGS_ALIAS( int fontSize );
+	
+	SGRX_HelpTextRenderer* renderer;
 };
 
 

@@ -194,6 +194,76 @@ sgs_ObjInterface ObjectiveSystem::_sgs_interface[1] =
 }};
 
 
+static int _sgs_method__HelpTextSystem__sgsClear( SGS_CTX )
+{
+	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, sgsClear ) ) return 0;
+	data->sgsClear(  ); return 0;
+}
+
+static int _sgs_method__HelpTextSystem__sgsSetText( SGS_CTX )
+{
+	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, sgsSetText ) ) return 0;
+	data->sgsSetText( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
+}
+
+int HelpTextSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<HelpTextSystem*>( obj->data )->~HelpTextSystem();
+	return SGS_SUCCESS;
+}
+
+int HelpTextSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int HelpTextSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "text" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_text ); return SGS_SUCCESS; }
+		SGS_CASE( "alpha" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_alpha ); return SGS_SUCCESS; }
+		SGS_CASE( "fadeTime" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_fadeTime ); return SGS_SUCCESS; }
+		SGS_CASE( "fadeTo" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_fadeTo ); return SGS_SUCCESS; }
+		SGS_CASE( "Clear" ){ sgs_PushCFunction( C, _sgs_method__HelpTextSystem__sgsClear ); return SGS_SUCCESS; }
+		SGS_CASE( "SetText" ){ sgs_PushCFunction( C, _sgs_method__HelpTextSystem__sgsSetText ); return SGS_SUCCESS; }
+		SGS_CASE( "fontSize" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->get_fontSize() ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int HelpTextSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "text" ){ static_cast<HelpTextSystem*>( obj->data )->m_text = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "alpha" ){ static_cast<HelpTextSystem*>( obj->data )->m_alpha = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "fadeTime" ){ static_cast<HelpTextSystem*>( obj->data )->m_fadeTime = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "fadeTo" ){ static_cast<HelpTextSystem*>( obj->data )->m_fadeTo = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "fontSize" ){ static_cast<HelpTextSystem*>( obj->data )->set_fontSize( sgs_GetVarP<int>()( C, val ) ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int HelpTextSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 46 ];
+	sprintf( bfr, "HelpTextSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nfontSize = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->get_fontSize(), depth ).push( C ); }
+		sgs_StringConcat( C, 2 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface HelpTextSystem::_sgs_interface[1] =
+{{
+	"HelpTextSystem",
+	NULL, HelpTextSystem::_sgs_gcmark, HelpTextSystem::_sgs_getindex, HelpTextSystem::_sgs_setindex, NULL, NULL, HelpTextSystem::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
 static int _sgs_method__FlareSystem__sgsUpdate( SGS_CTX )
 {
 	FlareSystem* data; if( !SGS_PARSE_METHOD( C, FlareSystem::_sgs_interface, data, FlareSystem, sgsUpdate ) ) return 0;
