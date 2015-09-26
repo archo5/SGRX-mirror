@@ -311,9 +311,9 @@ struct HelpTextSystem : IGameLevelSystem
 	SGS_METHOD_NAMED( SetText ) void sgsSetText( StringView text, float alpha, float fadetime, float fadeto );
 	
 	// renderer access
-	int get_fontSize(){ return renderer->fontSize; }
-	void set_fontSize( int v ){ renderer->fontSize = v; }
-	SGS_PROPERTY_FUNC( READ get_fontSize WRITE set_fontSize ) SGS_ALIAS( int fontSize );
+	SGS_PROPERTY_FUNC( READ WRITE VALIDATE renderer SOURCE renderer->fontSize ) SGS_ALIAS( int fontSize );
+	SGS_PROPERTY_FUNC( READ WRITE VALIDATE renderer SOURCE renderer->centerPos ) SGS_ALIAS( Vec2 centerPos );
+	SGS_PROPERTY_FUNC( READ WRITE VALIDATE renderer SOURCE renderer->lineHeightFactor ) SGS_ALIAS( float lineHeightFactor );
 	
 	SGRX_HelpTextRenderer* renderer;
 };

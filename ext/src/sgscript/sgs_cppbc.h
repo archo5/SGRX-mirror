@@ -54,6 +54,8 @@
 # define SGS_DUMP( what )
 # define SGS_NODUMP( what )
 # define VARNAME
+# define VALIDATE
+# define SOURCE
 # define READ
 # define WRITE
 # define READ_CALLBACK

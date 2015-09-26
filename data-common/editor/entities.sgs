@@ -102,6 +102,7 @@ function ED_ENT_player_start( eptr )
 
 function ED_ENT_enemy_start( eptr )
 {
+	EE_AddFieldString( eptr, "type", "Type", "" );
 	ENTBASE_named( eptr );
 	ENTBASE_viewdir( eptr );
 	EE_SetDebugDrawFunc( eptr, ENTDD_startpos );

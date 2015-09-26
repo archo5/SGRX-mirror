@@ -2,6 +2,7 @@
 
 #include "level.hpp"
 #include "systems.hpp"
+#include "entities.hpp"
 
 
 GameLevel* g_GameLevel = NULL;
@@ -75,6 +76,8 @@ struct MLD62Player : Entity
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
+	
+	Vec3 GetPosition(){ return m_bodyHandle->GetPosition(); }
 };
 
 MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
@@ -383,6 +386,41 @@ void MLD62Player::DrawUI()
 
 
 
+struct MLD62_BossEye : Entity
+{
+	MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir );
+	
+	void Tick( float deltaTime, float blendFactor );
+	
+	Vec3 m_position;
+	YawPitch m_direction;
+	MeshInstHandle m_coreMesh;
+};
+
+MLD62_BossEye::MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
+	Entity( lev ),
+	m_position( pos ), m_direction( YP( dir ) )
+{
+	m_coreMesh = lev->GetScene()->CreateMeshInstance();
+	m_coreMesh->SetMesh( "meshes/robosaw.ssm" );
+}
+
+void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
+{
+	if( m_level->m_player )
+	{
+		SGRX_CAST( MLD62Player*, P, m_level->m_player );
+		m_direction.TurnTo( YP( ( P->GetPosition() - m_position ).Normalized() ), YP( deltaTime ) );
+	}
+	
+	m_coreMesh->matrix =
+		Mat4::CreateRotationY( -m_direction.pitch ) *
+		Mat4::CreateRotationZ( m_direction.yaw ) *
+		Mat4::CreateTranslation( m_position );
+}
+
+
+
 struct MLD62EntityCreationSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 1000 };
@@ -394,7 +432,6 @@ struct MLD62EntityCreationSystem : IGameLevelSystem
 
 MLD62EntityCreationSystem::MLD62EntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
 bool MLD62EntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
@@ -415,22 +452,23 @@ bool MLD62EntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	}
 #endif
 	
-	#if 0
 	///////////////////////////
 	if( type == "enemy_start" )
 	{
-		TSEnemy* E = new TSEnemy
-		(
-			m_level,
-			data.getprop("name").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			data.getprop("viewdir").get<Vec3>(),
-			data
-		);
-		m_level->AddEntity( E );
-		return true;
+		StringView type = data.getprop("type").get<StringView>();
+		if( type == "eye" )
+		{
+			MLD62_BossEye* E = new MLD62_BossEye
+			(
+				m_level,
+				data.getprop("name").get<StringView>(),
+				data.getprop("position").get<Vec3>(),
+				data.getprop("viewdir").get<Vec3>()
+			);
+			m_level->AddEntity( E );
+			return true;
+		}
 	}
-	#endif
 	return false;
 }
 
@@ -505,6 +543,7 @@ struct SciFiBossFightGame : IGame
 		AddSystemToLevel<DamageSystem>( g_GameLevel );
 		AddSystemToLevel<BulletSystem>( g_GameLevel );
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
+		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
 		AddSystemToLevel<MLD62EntityCreationSystem>( g_GameLevel );
 		
 		GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
