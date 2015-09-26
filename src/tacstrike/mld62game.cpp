@@ -458,6 +458,125 @@ void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
 
 
 
+struct MLD62_RoboSaw : Entity, SGRX_MeshInstUserData
+{
+	MLD62_RoboSaw( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir );
+	
+	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
+	void Hit( float pwr );
+	
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	
+	float m_health;
+	Vec3 m_position;
+	MeshInstHandle m_coreMesh;
+	PhyRigidBodyHandle m_body;
+	
+	IVState< Vec3 > m_ivPos;
+	IVState< Quat > m_ivRot;
+};
+
+MLD62_RoboSaw::MLD62_RoboSaw( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
+	Entity( lev ),
+	m_health( 100 ), m_position( pos ),
+	m_ivPos( pos ), m_ivRot( Quat::Identity )
+{
+	m_coreMesh = lev->GetScene()->CreateMeshInstance();
+	m_coreMesh->SetMesh( "meshes/robosaw.ssm" );
+	m_coreMesh->userData = (SGRX_MeshInstUserData*) this;
+	
+	SGRX_PhyRigidBodyInfo rbinfo;
+	rbinfo.friction = 1.0f;
+	rbinfo.restitution = 0.1f;
+	rbinfo.shape = lev->GetPhyWorld()->CreateSphereShape( 1.0f );
+	rbinfo.shape->SetScale( V3(0.7f,0.7f,0.32f) );
+	rbinfo.mass = 5;
+	rbinfo.angularDamping = 0.5f;
+	rbinfo.inertia = rbinfo.shape->CalcInertia( rbinfo.mass ) * 0.1f;
+	rbinfo.position = pos;
+	rbinfo.canSleep = false;
+	rbinfo.group = 2;
+	m_body = lev->GetPhyWorld()->CreateRigidBody( rbinfo );
+}
+
+void MLD62_RoboSaw::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
+{
+	if( evid == MIEVT_BulletHit )
+	{
+		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
+		m_body->ApplyForce( PFT_Impulse, bhinfo->vel * 0.1f, bhinfo->pos );
+		Hit( bhinfo->vel.Length() * 0.0001f );
+	}
+}
+
+void MLD62_RoboSaw::Hit( float pwr )
+{
+	if( m_health > 0 )
+	{
+		m_health -= pwr;
+		if( m_health <= 0 )
+		{
+			FlareSystem* FS = m_level->GetSystem<FlareSystem>();
+			FS->RemoveFlare( this );
+		}
+	}
+}
+
+void MLD62_RoboSaw::FixedTick( float deltaTime )
+{
+	bool canSeePlayer = false;
+	Vec3 pos = m_body->GetPosition();
+	if( m_level->m_player )
+	{
+		SGRX_CAST( MLD62Player*, P, m_level->m_player );
+		if( m_level->GetPhyWorld()->Raycast( pos, P->GetPosition() ) )
+		{
+			canSeePlayer = true;
+		}
+	}
+	
+	Vec3 force = V3(0);
+	{
+		Vec3 gnd = pos + V3(0,0,-100);
+		SGRX_PhyRaycastInfo info;
+		if( m_level->GetPhyWorld()->Raycast( pos, gnd, 0x0001, 0xffff, &info ) )
+		{
+			gnd = TLERP( pos, gnd, info.factor );
+		}
+		Vec3 tgt = gnd + V3(0,0,1);
+		float len = ( tgt - pos ).Length();
+		if( tgt.z > pos.z )
+			force = ( tgt - pos ).Normalized() * TMIN( len, 1.0f ) * 50 - m_body->GetLinearVelocity();
+	}
+	
+	if( m_health > 0 )
+	{
+		m_body->ApplyCentralForce( PFT_Velocity, force * deltaTime );
+		m_body->SetAngularVelocity( m_body->GetAngularVelocity() * 0.5f + V3(1,1,0) * 100 * deltaTime *
+			PHY_QuaternionToEulerXYZ( m_body->GetRotation().Inverted() ) );
+	}
+	
+	m_ivPos.Advance( pos );
+	m_ivRot.Advance( m_body->GetRotation() );
+}
+
+void MLD62_RoboSaw::Tick( float deltaTime, float blendFactor )
+{
+	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
+	Mat4 mtx =
+		Mat4::CreateRotationFromQuat( m_ivRot.Get( blendFactor ) ) *
+		Mat4::CreateTranslation( m_ivPos.Get( blendFactor ) );
+	m_coreMesh->matrix = mtx;
+	if( m_health > 0 )
+	{
+		FSFlare statusFlare = { mtx.TransformPos( V3(0.251f,0.151f,0.155f) ), V3(2.0f,0.05f,0.01f), 1.0f, true };
+		FS->UpdateFlare( this, statusFlare );
+	}
+}
+
+
+
 struct MLD62EntityCreationSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 1000 };
@@ -496,6 +615,18 @@ bool MLD62EntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		if( type == "eye" )
 		{
 			MLD62_BossEye* E = new MLD62_BossEye
+			(
+				m_level,
+				data.getprop("name").get<StringView>(),
+				data.getprop("position").get<Vec3>(),
+				data.getprop("viewdir").get<Vec3>()
+			);
+			m_level->AddEntity( E );
+			return true;
+		}
+		if( type == "robosaw" )
+		{
+			MLD62_RoboSaw* E = new MLD62_RoboSaw
 			(
 				m_level,
 				data.getprop("name").get<StringView>(),

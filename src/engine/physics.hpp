@@ -12,6 +12,18 @@
 #endif
 
 
+inline Vec3 PHY_QuaternionToEulerXYZ( const Quat& q )
+{
+	float sqx = q.x * q.x, sqy = q.y * q.y, sqz = q.z * q.z, sqw = q.w * q.w;
+	return V3
+	(
+		atan2f( 2.0 * ( q.y * q.z + q.x * q.w ), -sqx - sqy + sqz + sqw ),
+		asinf( -2.0 * ( q.x * q.z - q.y * q.w ) ),
+		atan2f( 2.0 * ( q.x * q.y + q.z * q.w ), sqx - sqy - sqz + sqw )
+	);
+}
+
+
 struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyShape : SGRX_RefCounted
 {
 	SGRX_IPhyShape() : _type(0){}
