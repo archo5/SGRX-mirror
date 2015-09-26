@@ -6,23 +6,20 @@
 extern Vec2 CURSOR_POS;
 
 
-Trigger::Trigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, bool laststate ) :
-	Entity( lev ), m_func( fn ), m_target( tgt ), m_once( once ), m_done( false ), m_lastState( laststate ), m_currState( false )
+Trigger::Trigger( GameLevel* lev, bool laststate ) :
+	Entity( lev ), m_once( true ), m_done( false ), m_lastState( laststate ), m_currState( false )
 {
 }
 
 void Trigger::Invoke( bool newstate )
 {
-	const char* evname = newstate ? "trigger_enter" : "trigger_leave";
-	if( m_func.size() )
+	sgsVariable& curfn = newstate ? m_func : m_funcOut;
+	if( curfn.not_null() )
 	{
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_level->m_scriptCtx.Push( newstate );
-		m_level->m_scriptCtx.Push( m_level->m_scriptCtx.CreateString( evname ) );
-		m_level->m_scriptCtx.GlobalCall( StackString<256>( m_func ), 2 );
+		m_level->m_scriptCtx.Call( curfn, 1 );
 	}
-	if( m_target.size() )
-		m_level->CallEntityByName( m_target, evname );
 }
 
 void Trigger::Update( bool newstate )
@@ -36,11 +33,27 @@ void Trigger::Update( bool newstate )
 	}
 }
 
+void Trigger::sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout )
+{
+	m_done = false;
+	m_once = once;
+	m_func = fn;
+	if( sgs_StackSize( C ) < 3 )
+		m_funcOut = fn;
+	else if( sgs_TypeOf( C, 2 ) == SGS_VT_BOOL )
+		m_funcOut = sgs_GetBool( C, 2 ) ? fn : sgsVariable();
+	else
+		m_funcOut = fnout;
+}
 
-BoxTrigger::BoxTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
-	Trigger( lev, fn, tgt, once ), m_matrix( Mat4::CreateSRT( scl, rot, pos ) )
+
+BoxTrigger::BoxTrigger( GameLevel* lev, StringView name, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
+	Trigger( lev ), m_matrix( Mat4::CreateSRT( scl, rot, pos ) )
 {
 	m_matrix.InvertTo( m_matrix );
+	
+	m_name = name;
+	m_level->MapEntityByName( this );
 }
 
 void BoxTrigger::FixedTick( float deltaTime )
@@ -49,9 +62,11 @@ void BoxTrigger::FixedTick( float deltaTime )
 }
 
 
-ProximityTrigger::ProximityTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, float rad ) :
-	Trigger( lev, fn, tgt, once ), m_position( pos ), m_radius( rad )
+ProximityTrigger::ProximityTrigger( GameLevel* lev, StringView name, const Vec3& pos, float rad ) :
+	Trigger( lev ), m_position( pos ), m_radius( rad )
 {
+	m_name = name;
+	m_level->MapEntityByName( this );
 }
 
 void ProximityTrigger::FixedTick( float deltaTime )
@@ -94,16 +109,12 @@ SlidingDoor::SlidingDoor
 	const Quat& rclos,
 	float otime,
 	bool istate,
-	bool isswitch,
-	const StringView& pred,
-	const StringView& fn,
-	const StringView& tgt,
-	bool once
+	bool isswitch
 ):
-	Trigger( lev, fn, tgt, once, true ),
+	Trigger( lev, true ),
 	open_factor( istate ), open_target( istate ), open_time( TMAX( otime, SMALL_FLOAT ) ),
 	pos_open( oopen ), pos_closed( oclos ), rot_open( ropen ), rot_closed( rclos ),
-	target_state( istate ), m_isSwitch( isswitch ), m_switchPred( pred ),
+	target_state( istate ), m_isSwitch( isswitch ),
 	position( pos ), rotation( rot ), scale( scl ),
 	m_bbMin( V3(-1) ), m_bbMax( V3(1) ),
 	m_ivPos( V3(0) ), m_ivRot( Quat::Identity )
@@ -203,7 +214,7 @@ void SlidingDoor::OnEvent( const StringView& type )
 			}
 			SGS_CSCOPE( m_level->m_scriptCtx.C );
 			m_level->m_scriptCtx.Push( newstate );
-			if( m_level->m_scriptCtx.GlobalCall( StackString<256>( m_switchPred ), 1, 1 ) )
+			if( m_level->m_scriptCtx.Call( m_switchPred, 1, 1 ) )
 			{
 				bool val = sgs_GetVar<bool>()( m_level->m_scriptCtx.C, -1 );
 				if( !val )
@@ -468,9 +479,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		BoxTrigger* BT = new BoxTrigger
 		(
 			m_level,
-			data.getprop("func").get<StringView>(),
-			data.getprop("target").get<StringView>(),
-			data.getprop("once").get<bool>(),
+			data.getprop("name").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
@@ -485,9 +494,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		ProximityTrigger* PT = new ProximityTrigger
 		(
 			m_level,
-			data.getprop("func").get<StringView>(),
-			data.getprop("target").get<StringView>(),
-			data.getprop("once").get<bool>(),
+			data.getprop("name").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
 			data.getprop("distance").get<float>()
 		);
@@ -512,46 +519,9 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			Quat::Identity,
 			data.getprop("open_time").get<float>(),
 			false,
-			data.getprop("is_switch").get<bool>(),
-			data.getprop("pred").get<StringView>(),
-			data.getprop("func").get<StringView>(),
-			data.getprop("target").get<StringView>(),
-			data.getprop("once").get<bool>()
+			data.getprop("is_switch").get<bool>()
 		);
 		m_level->AddEntity( SD );
-		return true;
-	}
-	
-	///////////////////////////
-	if( type == "door_slide_prox" )
-	{
-		StackShortName name = m_level->GenerateName();
-		
-		SlidingDoor* SD = new SlidingDoor
-		(
-			m_level,
-			name.str,
-			data.getprop("mesh").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("open_offset").get<Vec3>(),
-			Quat::Identity,
-			V3(0),
-			Quat::Identity,
-			data.getprop("open_time").get<float>(),
-			false
-		);
-		m_level->AddEntity( SD );
-		
-		ProximityTrigger* PT = new ProximityTrigger
-		(
-			m_level,
-			"", name.str, false,
-			SD->meshInst->matrix.TransformPos( data.getprop("scan_offset").get<Vec3>() ),
-			data.getprop("scan_distance").get<float>()
-		);
-		m_level->AddEntity( PT );
 		return true;
 	}
 	

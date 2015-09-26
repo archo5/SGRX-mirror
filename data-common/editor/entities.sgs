@@ -139,7 +139,7 @@ function ED_ENT_solidbox( eptr )
 function ED_ENT_trigger( eptr )
 {
 	ENTBASE_xform( eptr );
-	ENTBASE_trigger( eptr );
+	ENTBASE_named( eptr );
 	EE_SetDebugDrawFunc( eptr, function Trigger_onDebugDraw( eptr, data )
 	{
 		BR_Reset();
@@ -151,7 +151,7 @@ function ED_ENT_trigger( eptr )
 function ED_ENT_trigger_prox( eptr )
 {
 	EE_AddFieldFloat( eptr, "distance", "Test distance", 1, 2, 0.01, 100 );
-	ENTBASE_trigger( eptr );
+	ENTBASE_named( eptr );
 	EE_SetDebugDrawFunc( eptr, function TriggerProx_onDebugDraw( eptr, data )
 	{
 		BR_Reset();
@@ -222,31 +222,6 @@ function ED_ENT_door_slide( eptr )
 		BR_Reset();
 		BR_Col( 0.2, 0.8, 0.1, 0.8 );
 		BR_AABB( bbmin, bbmax, mtx );
-		BR_Col( 0.7, 0.1, 0.1, 0.8 );
-		BR_SetPrimitiveType( PT_Lines );
-		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( data.open_offset ) );
-	});
-}
-
-function ED_ENT_door_slide_prox( eptr )
-{
-	ENTBASE_xfmesh( eptr );
-	EE_AddFieldFloat( eptr, "open_time", "Opening time", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "open_offset", "Opening offset", vec3(0,0,1), 2, -128, 128 );
-	EE_AddFieldVec3( eptr, "scan_offset", "Scanner offset", vec3(0,0,0), 2, -128, 128 );
-	EE_AddFieldFloat( eptr, "scan_distance", "Scanner distance", 1, 2, 0.01, 100 );
-	EE_SetChangeFunc( eptr, ENTCHG_xfmesh );
-	EE_SetDebugDrawFunc( eptr, function DoorSlideProx_onDebugDraw( eptr, data )
-	{
-		mtx = EE_GenMatrix_SRaP( data.scale_sep * data.scale_uni, data.rot_angles, data.position );
-		(bbmin,bbmax) = EE_GetMeshAABB( eptr, 0 );
-		BR_Reset();
-		BR_Col( 0.2, 0.8, 0.1, 0.8 );
-		BR_AABB( bbmin, bbmax, mtx );
-		BR_Col( 0.2, 0.6, 0.1, 0.8 );
-		wsp = mtx.transform_pos( data.scan_offset );
-		BR_Tick( wsp, data.scan_distance );
-		BR_SphereOutline( wsp, data.scan_distance, 32 );
 		BR_Col( 0.7, 0.1, 0.1, 0.8 );
 		BR_SetPrimitiveType( PT_Lines );
 		BR_Pos( mtx.transform_pos( 0 ) ); BR_Pos( mtx.transform_pos( data.open_offset ) );

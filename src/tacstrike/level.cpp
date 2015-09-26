@@ -30,7 +30,7 @@ Entity::Entity( GameLevel* lev ) : m_typeName("<unknown>"), m_level( lev )
 	{
 		SGS_CSCOPE( m_level->GetSGSC() );
 		sgs_PushClass( m_level->GetSGSC(), this );
-		m_level->AddEntry( "infoEmitters", sgsVariable( m_level->GetSGSC(), -1 ) );
+	//	m_level->AddEntry( "infoEmitters", sgsVariable( m_level->GetSGSC(), -1 ) );
 		C = m_level->GetSGSC();
 		m_sgsObject = sgs_GetObjectStruct( C, -1 );
 		sgs_ObjAcquire( C, m_sgsObject );
@@ -140,6 +140,7 @@ void GameLevel::AddSystem( IGameLevelSystem* sys )
 
 void GameLevel::AddEntity( Entity* E )
 {
+	E->m_sgsObject->iface = E->_sgsGetIface();
 	m_entities.push_back( E );
 }
 

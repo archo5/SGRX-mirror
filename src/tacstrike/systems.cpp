@@ -513,6 +513,7 @@ HelpTextSystem::HelpTextSystem( GameLevel* lev ) :
 
 void HelpTextSystem::Clear()
 {
+	m_text = "";
 	m_alpha = 0;
 	m_fadeTime = 0;
 	m_fadeTo = 0;
@@ -531,7 +532,7 @@ void HelpTextSystem::Tick( float deltaTime, float blendFactor )
 	if( m_fadeTime > 0 )
 	{
 		float diff = m_fadeTo - m_alpha;
-		m_alpha += TMAX( fabsf( diff ), deltaTime / m_fadeTime ) * sign( diff );
+		m_alpha += TMIN( fabsf( diff ), deltaTime / m_fadeTime ) * sign( diff );
 	}
 }
 

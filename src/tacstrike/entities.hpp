@@ -14,38 +14,52 @@
 
 struct Trigger : Entity
 {
-	String m_func;
-	String m_target;
-	bool m_once;
-	bool m_done;
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME func ) sgsVariable m_func;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME funcOut ) sgsVariable m_funcOut;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME once ) bool m_once;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME done ) bool m_done;
 	bool m_lastState;
 	
 	bool m_currState;
 	
-	Trigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, bool laststate = false );
-	void Invoke( bool newstate );
+	Trigger( GameLevel* lev, bool laststate = false );
+	SGS_METHOD void Invoke( bool newstate );
 	void Update( bool newstate );
+	
+	SGS_METHOD_NAMED( SetupTrigger ) void sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout );
 };
 
 struct BoxTrigger : Trigger
 {
-	Mat4 m_matrix;
+	SGS_OBJECT_INHERIT( Trigger );
+	ENT_SGS_IMPLEMENT;
 	
-	BoxTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, const Quat& rot, const Vec3& scl );
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME matrix ) Mat4 m_matrix;
+	
+	BoxTrigger( GameLevel* lev, StringView name, const Vec3& pos, const Quat& rot, const Vec3& scl );
 	virtual void FixedTick( float deltaTime );
 };
 
 struct ProximityTrigger : Trigger
 {
-	Vec3 m_position;
-	float m_radius;
+	SGS_OBJECT_INHERIT( Trigger );
+	ENT_SGS_IMPLEMENT;
 	
-	ProximityTrigger( GameLevel* lev, const StringView& fn, const StringView& tgt, bool once, const Vec3& pos, float rad );
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME position ) Vec3 m_position;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME radius ) float m_radius;
+	
+	ProximityTrigger( GameLevel* lev, StringView name, const Vec3& pos, float rad );
 	virtual void FixedTick( float deltaTime );
 };
 
 struct SlidingDoor : Trigger
 {
+	SGS_OBJECT_INHERIT( Trigger );
+	ENT_SGS_IMPLEMENT;
+	
 	float open_factor; // 0 .. 1
 	float open_target; // 0 .. 1
 	float open_time; // > 0
@@ -56,8 +70,8 @@ struct SlidingDoor : Trigger
 	Quat rot_closed;
 	bool target_state;
 	
-	bool m_isSwitch;
-	String m_switchPred;
+	SGS_PROPERTY_FUNC( READ VARNAME isSwitch ) bool m_isSwitch;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME switchPred ) sgsVariable m_switchPred;
 	
 	Vec3 position;
 	Quat rotation;
@@ -87,11 +101,7 @@ struct SlidingDoor : Trigger
 		const Quat& rclos,
 		float otime,
 		bool istate,
-		bool isswitch = false,
-		const StringView& pred = StringView(),
-		const StringView& fn = StringView(),
-		const StringView& tgt = StringView(),
-		bool once = false
+		bool isswitch = false
 	);
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );

@@ -54,8 +54,7 @@ struct IGameLevelSystem
 
 struct Entity
 {
-	SGS_OBJECT;
-	SGS_NO_DESTRUCT;
+	SGS_OBJECT SGS_NO_DESTRUCT;
 	typedef sgsHandle< Entity > Handle;
 	
 	Entity( GameLevel* lev );
@@ -74,6 +73,7 @@ struct Entity
 	sgsVariable GetScriptedObject();
 	
 #define ENT_SGS_IMPLEMENT \
+	virtual sgs_ObjInterface* _sgsGetIface() const { return _sgs_interface; } \
 	virtual int _sgsGCMark(){ return _sgs_gcmark( C, m_sgsObject ); } \
 	virtual int _sgsGetIndex( sgs_Variable* key, int isprop ){ return _sgs_getindex( C, m_sgsObject, key, isprop ); } \
 	virtual int _sgsSetIndex( sgs_Variable* key, sgs_Variable* val, int isprop ){ return _sgs_setindex( C, m_sgsObject, key, val, isprop ); } \

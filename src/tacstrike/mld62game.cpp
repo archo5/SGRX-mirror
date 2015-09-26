@@ -92,6 +92,7 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_tex_interact_icon = GR_GetTexture( "ui/interact_icon.png" );
 	
 	m_weapon.Load( "chars/weapon.chr" );
+	m_weapon.m_cachedMeshInst->layers = 0x2;
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
@@ -395,6 +396,8 @@ struct MLD62_BossEye : Entity
 	Vec3 m_position;
 	YawPitch m_direction;
 	MeshInstHandle m_coreMesh;
+	MeshInstHandle m_laserMesh;
+	PhyRigidBodyHandle m_body;
 };
 
 MLD62_BossEye::MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
@@ -403,10 +406,24 @@ MLD62_BossEye::MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 di
 {
 	m_coreMesh = lev->GetScene()->CreateMeshInstance();
 	m_coreMesh->SetMesh( "meshes/robosaw.ssm" );
+	m_laserMesh = lev->GetScene()->CreateMeshInstance();
+	m_laserMesh->SetMesh( "meshes/laser.ssm" );
+	
+	SGRX_PhyRigidBodyInfo rbinfo;
+	rbinfo.friction = 0;
+	rbinfo.restitution = 0;
+	rbinfo.shape = lev->GetPhyWorld()->CreateSphereShape( 0.5f );
+	rbinfo.mass = 0;
+	rbinfo.inertia = V3(0);
+	rbinfo.position = pos;
+	rbinfo.canSleep = false;
+	rbinfo.group = 2;
+	m_body = lev->GetPhyWorld()->CreateRigidBody( rbinfo );
 }
 
 void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
 {
+	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
 	if( m_level->m_player )
 	{
 		SGRX_CAST( MLD62Player*, P, m_level->m_player );
@@ -417,6 +434,26 @@ void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
 		Mat4::CreateRotationY( -m_direction.pitch ) *
 		Mat4::CreateRotationZ( m_direction.yaw ) *
 		Mat4::CreateTranslation( m_position );
+	Mat4 laserMtx =
+		Mat4::CreateTranslation( V3(0,0,0.75f) ) *
+		Mat4::CreateRotationY( M_PI/2 ) *
+		m_coreMesh->matrix;
+	
+	float dist = 100;
+	SceneRaycastInfo rcinfo;
+	if( m_level->GetScene()->RaycastOne(
+		laserMtx.TransformPos( V3(0,0,0) ),
+		laserMtx.TransformPos( V3(0,0,dist) ), &rcinfo, 0x1 ) )
+	{
+		dist *= rcinfo.factor;
+	}
+	
+	FSFlare laserFlare = { laserMtx.TransformPos( V3(0,0,0) ), V3(2.0f,0.05f,0.01f), 1.0f, true };
+	FS->UpdateFlare( this, laserFlare );
+	laserFlare.pos = laserMtx.TransformPos( V3(0,0,dist) );
+	FS->UpdateFlare( ((char*)this)+1, laserFlare );
+	
+	m_laserMesh->matrix = Mat4::CreateScale( 0.02f, 0.02f, dist ) * laserMtx;
 }
 
 
@@ -531,6 +568,7 @@ struct SciFiBossFightGame : IGame
 		g_SoundSys->SetVolume( "bus:/sfx", g_s_vol_sfx );
 		
 		g_GameLevel = new GameLevel( PHY_CreateWorld() );
+		g_GameLevel->SetGlobalToSelf();
 		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
 		AddSystemToLevel<MessagingSystem>( g_GameLevel );
@@ -546,6 +584,14 @@ struct SciFiBossFightGame : IGame
 		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
 		AddSystemToLevel<MLD62EntityCreationSystem>( g_GameLevel );
 		
+		HelpTextSystem* HTS = g_GameLevel->GetSystem<HelpTextSystem>();
+		HTS->renderer = &htr;
+		htr.lineHeightFactor = 1.4f;
+		htr.buttonTex = GR_GetTexture( "ui/key.png" );
+		htr.centerPos = V2( GR_GetWidth() / 2, GR_GetHeight() * 3 / 4 );
+		htr.fontSize = GR_GetHeight() / 20;
+		htr.SetNamedFont( "", "core" );
+		
 		GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
 		g_GameLevel->Load( "test" );
 		g_GameLevel->Tick( 0, 0 );
@@ -559,6 +605,8 @@ struct SciFiBossFightGame : IGame
 	{
 		delete g_GameLevel;
 		g_GameLevel = NULL;
+		
+		htr.buttonTex = NULL;
 		
 		g_SoundSys = NULL;
 	}
@@ -591,18 +639,15 @@ struct SciFiBossFightGame : IGame
 	}
 	void Game_Render()
 	{
+		htr.centerPos = V2( GR_GetWidth() / 2, GR_GetHeight() * 3 / 4 );
+		htr.fontSize = GR_GetHeight() / 20;
+		htr.buttonBorder = GR_GetHeight() / 80;
+		
 		g_GameLevel->Draw();
 		g_GameLevel->Draw2D();
 		
 		// TEST //
-		SGRX_HelpTextRenderer htr;
-		htr.lineHeightFactor = 1.4f;
-		htr.buttonTex = GR_GetTexture( "ui/key.png" );
-		htr.centerPos = V2( GR_GetWidth() / 2, GR_GetHeight() * 3 / 4 );
-		htr.fontSize = GR_GetHeight() / 20;
-		htr.buttonBorder = GR_GetHeight() / 80;
-		htr.SetNamedFont( "", "core" );
-		htr.RenderText( "While running along a wall,\npress #a(jump) to do a wallrun" );
+	//	htr.RenderText( "While running along a wall,\npress #a(jump) to do a wallrun" );
 	}
 	
 	void OnTick( float dt, uint32_t gametime )
@@ -709,6 +754,7 @@ struct SciFiBossFightGame : IGame
 		}
 	}
 	
+	SGRX_HelpTextRenderer htr;
 	float m_accum;
 	bool m_lastFrameReset;
 }

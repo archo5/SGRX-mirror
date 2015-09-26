@@ -3,9 +3,9 @@
 
 #include "entities_ts.hpp"
 
-static int _sgs_method__TSCamera__OnEvent( SGS_CTX )
+static int _sgs_method__TSCamera__CallEvent( SGS_CTX )
 {
-	TSCamera* data; if( !SGS_PARSE_METHOD( C, TSCamera::_sgs_interface, data, TSCamera, OnEvent ) ) return 0;
+	TSCamera* data; if( !SGS_PARSE_METHOD( C, TSCamera::_sgs_interface, data, TSCamera, CallEvent ) ) return 0;
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
@@ -27,7 +27,7 @@ int TSCamera::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__TSCamera__OnEvent ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__TSCamera__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "moveTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_moveTime ); return SGS_SUCCESS; }
 		SGS_CASE( "pauseTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_pauseTime ); return SGS_SUCCESS; }
 		SGS_CASE( "fov" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_fov ); return SGS_SUCCESS; }
@@ -68,9 +68,9 @@ sgs_ObjInterface TSCamera::_sgs_interface[1] =
 }};
 
 
-static int _sgs_method__TSCharacter__OnEvent( SGS_CTX )
+static int _sgs_method__TSCharacter__CallEvent( SGS_CTX )
 {
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, OnEvent ) ) return 0;
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, CallEvent ) ) return 0;
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
@@ -92,7 +92,7 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__TSCharacter__OnEvent ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__TSCharacter__CallEvent ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -127,9 +127,9 @@ sgs_ObjInterface TSCharacter::_sgs_interface[1] =
 }};
 
 
-static int _sgs_method__TSEnemy__OnEvent( SGS_CTX )
+static int _sgs_method__TSEnemy__CallEvent( SGS_CTX )
 {
-	TSEnemy* data; if( !SGS_PARSE_METHOD( C, TSEnemy::_sgs_interface, data, TSEnemy, OnEvent ) ) return 0;
+	TSEnemy* data; if( !SGS_PARSE_METHOD( C, TSEnemy::_sgs_interface, data, TSEnemy, CallEvent ) ) return 0;
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
@@ -151,7 +151,7 @@ int TSEnemy::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<TSEnemy*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSEnemy*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSEnemy*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__TSEnemy__OnEvent ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__TSEnemy__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<TSEnemy*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }

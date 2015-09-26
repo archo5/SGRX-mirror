@@ -877,7 +877,7 @@ static int _sgs_method__%OBJ%__%NAME%( SGS_CTX )
 	%LINE%
 }
 "
-			, { "%OBJ%" = obj.name, "%NAME%" = item.name, "%LINE%" = line } );
+			, { "%OBJ%" = obj.name, "%NAME%" = item.varname, "%LINE%" = line } );
 		}
 		
 		// interface functions
@@ -913,7 +913,7 @@ int " $ obj.name $ "::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		{
 			itemline = null;
 			if( item.what == "METHOD" )
-				itemline = "sgs_PushCFunction( C, _sgs_method__%OBJ%__"$item.name$" );";
+				itemline = "sgs_PushCFunction( C, _sgs_method__%OBJ%__"$item.varname$" );";
 			else if( item.what == "PROPERTY" )
 			{
 				if( item.access <= 0 )
