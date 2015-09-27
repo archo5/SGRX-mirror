@@ -68,10 +68,12 @@ struct MLD62Player : Entity
 	bool m_targetTriggered;
 	
 	TextureHandle m_tex_interact_icon;
+	TextureHandle m_tex_dead_img;
 	
 	float m_health;
 	float m_hitTimeout;
 	float m_shootTimeout;
+	float m_deadTimeout;
 	AnimCharacter m_weapon;
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
@@ -96,10 +98,11 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_bobPower(0), m_bobTime(0), m_weaponTurn(YP(0)), m_wallRunTgt(0), m_wallRunShow(0), m_wallRunDir(V3(0)),
 	m_ivPos( pos ), inCursorMove( V2(0) ),
 	m_targetII( NULL ), m_targetTriggered( false ),
-	m_health(100), m_hitTimeout(0),
-	m_shootTimeout(0), m_weapon( lev->GetScene(), lev->GetPhyWorld() )
+	m_health(100), m_hitTimeout(0), m_shootTimeout(0), m_deadTimeout(0),
+	m_weapon( lev->GetScene(), lev->GetPhyWorld() )
 {
-	m_tex_interact_icon = GR_GetTexture( "ui/interact_icon.png" );
+	// m_tex_interact_icon = GR_GetTexture( "ui/interact_icon.png" );
+	m_tex_dead_img = GR_GetTexture( "ui/fscr_dead.png" );
 	
 	m_weapon.Load( "chars/weapon.chr" );
 	m_weapon.m_cachedMeshInst->layers = 0x2;
@@ -325,6 +328,9 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 		m_footstepTime = 0;
 		m_level->GetSystem<AIDBSystem>()->AddSound( pos, 10, 0.5f, AIS_Footstep );
 	}
+	
+	if( Alive() == false )
+		m_deadTimeout += deltaTime;
 	
 	///// BOBBING /////
 	Vec2 md = { MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value };
@@ -560,6 +566,7 @@ MLD62_RoboSaw::MLD62_RoboSaw( GameLevel* lev, StringView name, Vec3 pos, Vec3 di
 	rbinfo.angularDamping = 0.5f;
 	rbinfo.inertia = rbinfo.shape->CalcInertia( rbinfo.mass ) * 0.1f;
 	rbinfo.position = pos;
+	rbinfo.rotation = Quat::CreateAxisAngle( V3(0,0,1), atan2(dir.y,dir.x) );
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
 	m_body = lev->GetPhyWorld()->CreateRigidBody( rbinfo );
@@ -648,7 +655,10 @@ void MLD62_RoboSaw::FixedTick( float deltaTime )
 
 void MLD62_RoboSaw::Tick( float deltaTime, float blendFactor )
 {
-	m_sawRotation += deltaTime * 100;
+	if( m_health > 0 )
+	{
+		m_sawRotation += deltaTime * 100;
+	}
 	
 	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
 	Mat4 mtx =
@@ -859,6 +869,11 @@ struct SciFiBossFightGame : IGame
 	}
 	void Game_Render()
 	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		int W = GR_GetWidth();
+		int H = GR_GetHeight();
+		int minw = TMIN( W, H );
+		
 		htr.centerPos = V2( GR_GetWidth() / 2, GR_GetHeight() * 3 / 4 );
 		htr.fontSize = GR_GetHeight() / 20;
 		htr.buttonBorder = GR_GetHeight() / 80;
@@ -866,8 +881,17 @@ struct SciFiBossFightGame : IGame
 		g_GameLevel->Draw();
 		g_GameLevel->Draw2D();
 		
-		// TEST //
-	//	htr.RenderText( "While running along a wall,\npress #a(jump) to do a wallrun" );
+		if( g_GameLevel->m_player )
+		{
+			SGRX_CAST( MLD62Player*, player, g_GameLevel->m_player );
+			if( player->Alive() == false )
+			{
+				float a = clamp( player->m_deadTimeout, 0, 1 );
+				float s = 2 - smoothstep( a );
+				br.Reset().Col( 1, a ).SetTexture( player->m_tex_dead_img )
+				  .Box( W/2, H/2, minw*s/1, minw*s/2 ).Flush();
+			}
+		}
 	}
 	
 	void OnTick( float dt, uint32_t gametime )
@@ -931,16 +955,19 @@ struct SciFiBossFightGame : IGame
 			
 			// GUI
 			ctrl->SetRenderTargets( NULL, SGRX_RT_ClearColor, 0, 0, 1, rttGUI );
-			br.Reset();
-			GR2D_SetFont( "core", minw / 24 );
-			StringView healthstr = "HEALTH: ||||||||||||||||||||";
-			healthstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(player->m_health,100.0f) / 5 );
-			GR2D_DrawTextLine( minw / 10, minw / 10, healthstr );
-			TextureHandle crosshairTex = GR_GetTexture( "ui/crosshair.png" );
-			GR_PreserveResource( crosshairTex );
-			br.Reset().Col(0.5f,0.01f,0,1).SetTexture( crosshairTex ).Box( W/2, H/2, minw/18, minw/18 );
-			br.Reset().SetTexture( crosshairTex ).Box( W/2, H/2, minw/20, minw/20 );
-			br.Flush();
+			if( player->Alive() )
+			{
+				br.Reset();
+				GR2D_SetFont( "core", minw / 24 );
+				StringView healthstr = "HEALTH: ||||||||||||||||||||";
+				healthstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(player->m_health,100.0f) / 5 );
+				GR2D_DrawTextLine( minw / 10, minw / 10, healthstr );
+				TextureHandle crosshairTex = GR_GetTexture( "ui/crosshair.png" );
+				GR_PreserveResource( crosshairTex );
+				br.Reset().Col(0.5f,0.01f,0,1).SetTexture( crosshairTex ).Box( W/2, H/2, minw/18, minw/18 );
+				br.Reset().SetTexture( crosshairTex ).Box( W/2, H/2, minw/20, minw/20 );
+				br.Flush();
+			}
 			
 			// WEAPON
 			ctrl->SetRenderTargets( dssFPV, SGRX_RT_ClearDepth | SGRX_RT_ClearStencil, 0, 0, 1, rtt );
