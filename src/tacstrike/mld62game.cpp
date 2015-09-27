@@ -115,7 +115,7 @@ struct EndScreen : IScreen
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer();
 		br.Reset()
-			.Col( 0, clamp( m_timer / 3, 0, 1 ) )
+			.Col( 0, clamp( m_timer / 3, 0, 0.4f ) )
 			.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
 		
 		br.Reset().Col( 1 );
@@ -587,7 +587,7 @@ struct MLD62_BossEye : Entity, SGRX_MeshInstUserData
 
 MLD62_BossEye::MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
 	Entity( lev ), m_state( BEA_FollowPlayer ),
-	m_health(1), m_timeInState(0),
+	m_health(100), m_timeInState(0),
 	m_laserWidth(1), m_flareSize(1), m_target(V3(0)),
 	m_position( pos ), m_direction( YP( dir ) )
 {
