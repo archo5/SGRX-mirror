@@ -128,7 +128,7 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_shootLT->position = pos;
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
 	m_shootLT->range = 4;
-	m_shootLT->power = 4;
+	m_shootLT->power = 2;
 	m_shootLT->UpdateTransform();
 	m_shootTimeout = 0;
 }
@@ -448,57 +448,208 @@ void MLD62Player::DrawUI()
 
 
 
-struct MLD62_BossEye : Entity
+enum EBossEyeAction
+{
+	BEA_None = 0,
+	BEA_FollowTarget,
+	BEA_FollowPlayer,
+	BEA_Charge,
+	BEA_Shoot,
+	BEA_Cooldown,
+	BEA_Malfunction,
+};
+
+#define LASER_MAX_WIDTH 0.15f
+#define FLARE_MAX_SIZE 3.0f
+
+struct MLD62_BossEye : Entity, SGRX_MeshInstUserData
 {
 	MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir );
 	
+	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
+	void Hit( float pwr );
+	
 	void Tick( float deltaTime, float blendFactor );
 	
+	void SetState( EBossEyeAction ns );
+	
+	EBossEyeAction m_state;
+	float m_health;
+	float m_timeInState;
+	float m_laserWidth;
+	float m_flareSize;
+	Vec3 m_target;
 	Vec3 m_position;
 	YawPitch m_direction;
 	MeshInstHandle m_coreMesh;
+	MeshInstHandle m_shieldMesh;
 	MeshInstHandle m_laserMesh;
 	PhyRigidBodyHandle m_body;
+	
+	ParticleSystem m_shootPS;
+	LightHandle m_shootLT;
 };
 
 MLD62_BossEye::MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
-	Entity( lev ),
+	Entity( lev ), m_state( BEA_FollowPlayer ),
+	m_health(100), m_timeInState(0),
+	m_laserWidth(1), m_flareSize(1), m_target(V3(0)),
 	m_position( pos ), m_direction( YP( dir ) )
 {
 	m_coreMesh = lev->GetScene()->CreateMeshInstance();
-	m_coreMesh->SetMesh( "meshes/robosaw.ssm" );
+	m_coreMesh->SetMesh( "meshes/eye.ssm" );
+	m_coreMesh->userData = (SGRX_MeshInstUserData*) this;
+	m_shieldMesh = lev->GetScene()->CreateMeshInstance();
+	m_shieldMesh->SetMesh( "meshes/shield.ssm" );
+	m_shieldMesh->layers = 0x4;
 	m_laserMesh = lev->GetScene()->CreateMeshInstance();
 	m_laserMesh->SetMesh( "meshes/laser.ssm" );
+	m_laserMesh->layers = 0x4;
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
 	rbinfo.restitution = 0;
-	rbinfo.shape = lev->GetPhyWorld()->CreateSphereShape( 0.5f );
+	rbinfo.shape = lev->GetPhyWorld()->CreateSphereShape( 1.1f );
 	rbinfo.mass = 0;
 	rbinfo.inertia = V3(0);
 	rbinfo.position = pos;
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
 	m_body = lev->GetPhyWorld()->CreateRigidBody( rbinfo );
+	
+	m_shootPS.Load( "psys/defaulthit.psy" );
+	m_shootPS.AddToScene( m_level->GetScene() );
+	m_shootPS.OnRenderUpdate();
+	m_shootLT = m_level->GetScene()->CreateLight();
+	m_shootLT->type = LIGHT_POINT;
+	m_shootLT->enabled = false;
+	m_shootLT->position = pos;
+	m_shootLT->color = V3(2.0f,0.05f,0.01f)*1;
+	m_shootLT->range = 16;
+	m_shootLT->power = 2;
+	m_shootLT->UpdateTransform();
+}
+
+void MLD62_BossEye::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
+{
+	if( evid == MIEVT_BulletHit )
+	{
+		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
+		Hit( bhinfo->vel.Length() * 0.01f );
+	}
+}
+
+void MLD62_BossEye::Hit( float pwr )
+{
+	if( m_health > 0 )
+	{
+		m_health -= pwr;
+		if( m_health <= 0 )
+		{
+			SetState( BEA_Malfunction );
+		}
+	}
 }
 
 void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
 {
-	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
-	if( m_level->m_player )
-	{
-		SGRX_CAST( MLD62Player*, P, m_level->m_player );
-		m_direction.TurnTo( YP( ( P->GetPosition() - m_position ).Normalized() ), YP( deltaTime ) );
-	}
-	
-	m_coreMesh->matrix =
+	Mat4 mtx = 
 		Mat4::CreateRotationY( -m_direction.pitch ) *
 		Mat4::CreateRotationZ( m_direction.yaw ) *
 		Mat4::CreateTranslation( m_position );
+	m_coreMesh->matrix = mtx;
+	m_shieldMesh->matrix = mtx;
 	Mat4 laserMtx =
-		Mat4::CreateTranslation( V3(0,0,0.75f) ) *
+		Mat4::CreateTranslation( V3(0,0,1.11f) ) *
 		Mat4::CreateRotationY( M_PI/2 ) *
-		m_coreMesh->matrix;
+		mtx;
+	
+	m_timeInState += deltaTime;
+	switch( m_state )
+	{
+	case BEA_None:
+		break;
+	case BEA_FollowTarget:
+		{
+			YawPitch targetDir = YP( ( m_target - m_position ).Normalized() );
+			m_direction.TurnTo( targetDir, YP( deltaTime ) );
+			if( YawPitchAlmostEqual( m_direction, targetDir ) )
+			{
+				SetState( BEA_Charge );
+				break;
+			}
+		}
+		m_laserWidth = LASER_MAX_WIDTH;
+		m_flareSize = 1.0f;
+		break;
+	case BEA_FollowPlayer:
+		if( m_level->m_player )
+		{
+			SGRX_CAST( MLD62Player*, P, m_level->m_player );
+			if( m_level->GetPhyWorld()->Raycast( m_body->GetPosition(), P->GetPosition(), 0x0001, 0x0001 ) == false )
+			{
+				YawPitch targetDir = YP( ( P->GetPosition() - m_position ).Normalized() );
+				m_direction.TurnTo( targetDir, YP( deltaTime ) );
+				if( YawPitchAlmostEqual( m_direction, targetDir ) )
+				{
+					SetState( BEA_Charge );
+					break;
+				}
+			}
+		}
+		m_laserWidth = LASER_MAX_WIDTH;
+		m_flareSize = 1.0f;
+		break;
+	case BEA_Charge:
+		m_laserWidth = TLERP( LASER_MAX_WIDTH, 0.02f, clamp( m_timeInState / 3, 0, 1 ) );
+		m_flareSize = TLERP( 1.0f, FLARE_MAX_SIZE, clamp( m_timeInState / 3, 0, 1 ) );
+		if( m_timeInState >= 3 )
+		{
+			SetState( BEA_Shoot );
+			break;
+		}
+		break;
+	case BEA_Shoot:
+		m_flareSize = 5;
+		if( m_timeInState >= 0.1f )
+		{
+			m_shootLT->enabled = false;
+			SetState( BEA_Cooldown );
+			break;
+		}
+		break;
+	case BEA_Cooldown:
+		m_flareSize = 0;
+		m_laserWidth = 0;
+		if( m_timeInState >= 3.0f )
+		{
+			m_shieldMesh->enabled = true;
+			SetState( BEA_FollowPlayer );
+			break;
+		}
+		break;
+	case BEA_Malfunction:
+		m_flareSize = 0;
+		m_laserWidth = 0;
+		m_shootLT->enabled = fmodf( m_timeInState, 0.5f ) < 0.25f;
+		m_shieldMesh->enabled = false;
+		{
+			float prevtime = m_timeInState - deltaTime;
+			if( fmodf( prevtime, 0.2f ) < 0.1f && fmodf( m_timeInState, 0.2f ) >= 0.1f )
+			{
+				Vec3 randdir = V3(randf11(),randf11(),randf11()).Normalized();
+				m_target = m_body->GetPosition() + randdir;
+				Mat4 emitdir = Mat4::CreateScale( V3(2) ) *
+					Mat4::CreateTranslation( V3(0,0,1) ) *
+					Mat4::CreateRotationBetweenVectors( V3(0,0,1), randdir ) * mtx;
+				m_shootPS.SetTransform( emitdir );
+				m_shootPS.Trigger();
+			}
+			YawPitch targetDir = YP( ( m_target - m_position ).Normalized() );
+			m_direction.TurnTo( targetDir, YP( deltaTime ) );
+		}
+		break;
+	}
 	
 	float dist = 100;
 	SceneRaycastInfo rcinfo;
@@ -509,12 +660,62 @@ void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
 		dist *= rcinfo.factor;
 	}
 	
-	FSFlare laserFlare = { laserMtx.TransformPos( V3(0,0,0) ), V3(2.0f,0.05f,0.01f), 1.0f, true };
+	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
+	FSFlare laserFlare = { laserMtx.TransformPos( V3(0,0,0) ), V3(2.0f,0.05f,0.01f), m_flareSize, true };
 	FS->UpdateFlare( this, laserFlare );
-	laserFlare.pos = laserMtx.TransformPos( V3(0,0,dist) );
+	laserFlare.pos = laserMtx.TransformPos( V3(0,0,dist-0.01f) );
+	laserFlare.size = m_laserWidth ? 1.0f : 0;
 	FS->UpdateFlare( ((char*)this)+1, laserFlare );
 	
-	m_laserMesh->matrix = Mat4::CreateScale( 0.02f, 0.02f, dist ) * laserMtx;
+	m_laserMesh->matrix = Mat4::CreateScale( m_laserWidth, m_laserWidth, dist ) * laserMtx;
+	
+	
+	m_shootPS.Tick( deltaTime );
+	m_shootPS.PreRender();
+}
+
+void MLD62_BossEye::SetState( EBossEyeAction ns )
+{
+	switch( ns )
+	{
+	case BEA_Shoot:
+		{
+			Mat4 lm = m_laserMesh->matrix;
+			m_level->GetSystem<BulletSystem>()->Add(
+				lm.TransformPos( V3(0) ),
+				lm.TransformNormal( V3(0,0,1) ).Normalized() * 1000, 1, 1, GAT_Enemy );
+			if( m_level->m_player )
+			{
+				SGRX_CAST( MLD62Player*, P, m_level->m_player );
+				
+				SceneRaycastInfo rcinfo;
+				Vec3 p0 = lm.TransformPos(V3(0)), p1 = lm.TransformPos(V3(0,0,100));
+				if( m_level->GetScene()->RaycastOne( p0, p1, &rcinfo, 0x1 ) )
+				{
+					Vec3 hitpos = TLERP( p0, p1, rcinfo.factor );
+					float dist = ( P->GetPosition() - hitpos ).Length();
+					P->Hit( clamp( 1 - dist * 0.2f, 0, 1 ) * 30 );
+				}
+				
+				SGRX_PhyRaycastInfo prci;
+				if( m_level->GetPhyWorld()->Raycast( p0, p1, 0x1, 0xffff, &prci ) && prci.body == P->m_bodyHandle )
+				{
+					P->Hit( 40 );
+				}
+			}
+			
+			m_shootLT->enabled = true;
+			m_shieldMesh->enabled = false;
+		}
+		break;
+	case BEA_Cooldown:
+		break;
+	default:
+		break;
+	}
+	
+	m_state = ns;
+	m_timeInState = 0;
 }
 
 
@@ -801,8 +1002,8 @@ struct SciFiBossFightGame : IGame
 		g_GameLevel->SetGlobalToSelf();
 		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
-		AddSystemToLevel<MessagingSystem>( g_GameLevel );
-		AddSystemToLevel<ObjectiveSystem>( g_GameLevel );
+	//	AddSystemToLevel<MessagingSystem>( g_GameLevel );
+	//	AddSystemToLevel<ObjectiveSystem>( g_GameLevel );
 		AddSystemToLevel<HelpTextSystem>( g_GameLevel );
 		AddSystemToLevel<FlareSystem>( g_GameLevel );
 		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
@@ -813,6 +1014,8 @@ struct SciFiBossFightGame : IGame
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
 		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
 		AddSystemToLevel<MLD62EntityCreationSystem>( g_GameLevel );
+		
+		g_GameLevel->GetSystem<FlareSystem>()->m_layers &= ~0x4;
 		
 		HelpTextSystem* HTS = g_GameLevel->GetSystem<HelpTextSystem>();
 		HTS->renderer = &htr;
@@ -960,8 +1163,9 @@ struct SciFiBossFightGame : IGame
 				br.Reset();
 				GR2D_SetFont( "core", minw / 24 );
 				StringView healthstr = "HEALTH: ||||||||||||||||||||";
-				healthstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(player->m_health,100.0f) / 5 );
-				GR2D_DrawTextLine( minw / 10, minw / 10, healthstr );
+				StringView curhltstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(player->m_health,100.0f) / 5 );
+				br.Col( 0.1f, 1 ); GR2D_DrawTextLine( minw / 10, minw / 10, healthstr );
+				br.Col( 1, 1 ); GR2D_DrawTextLine( minw / 10, minw / 10, curhltstr );
 				TextureHandle crosshairTex = GR_GetTexture( "ui/crosshair.png" );
 				GR_PreserveResource( crosshairTex );
 				br.Reset().Col(0.5f,0.01f,0,1).SetTexture( crosshairTex ).Box( W/2, H/2, minw/18, minw/18 );

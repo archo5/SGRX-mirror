@@ -558,7 +558,7 @@ void HelpTextSystem::sgsSetText( StringView text, float alpha, float fadetime, f
 
 
 
-FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), m_layers(0xffffffff)
 {
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
@@ -603,7 +603,7 @@ void FlareSystem::PostDraw()
 		if( Vec3Dot( FD.pos, cam.direction ) < Vec3Dot( cam.position, cam.direction ) )
 			continue;
 		SceneRaycastCallback_Any srcb;
-		m_level->GetScene()->RaycastAll( cam.position, FD.pos, &srcb );
+		m_level->GetScene()->RaycastAll( cam.position, FD.pos, &srcb, m_layers );
 		if( srcb.m_hit )
 			continue;
 	//	LOG << screenpos.z;
@@ -1231,6 +1231,9 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 				{
 					// entry into solid
 					B.intersectStart = hitpoint;
+					// todo upgrade
+					remb = true;
+					break;
 				}
 				else if( B.numSolidRefs == 0 )
 				{
@@ -1244,7 +1247,7 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 						remb = true;
 						break;
 					}
-					B.velocity * speedScale;
+					B.velocity *= speedScale;
 				}
 				else if( B.numSolidRefs < 0 )
 				{

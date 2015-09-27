@@ -342,6 +342,7 @@ struct FlareSystem : IGameLevelSystem
 	
 	SGS_METHOD_NAMED( Update ) void sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled );
 	SGS_METHOD_NAMED( Remove ) void sgsRemove( void* handle );
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME layers ) uint32_t m_layers;
 	
 	HashTable< void*, FSFlare > m_flares;
 	PixelShaderHandle m_ps_flare;
