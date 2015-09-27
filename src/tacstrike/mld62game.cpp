@@ -40,6 +40,95 @@ float g_s_vol_music = 0.8f;
 
 
 
+bool endgame = false;
+
+struct StartScreen : IScreen
+{
+	float m_timer;
+	TextureHandle m_tx_logo;
+	
+	StartScreen() : m_timer(0)
+	{
+	}
+	
+	void OnStart()
+	{
+		m_timer = 0;
+		m_tx_logo = GR_GetTexture( "ui/scr_title.png" );
+	}
+	void OnEnd()
+	{
+		m_tx_logo = NULL;
+	}
+	
+	bool OnEvent( const Event& e )
+	{
+		if( e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SGRX_MB_LEFT )
+		{
+			Game_ShowCursor( false );
+			g_GameLevel->StartLevel();
+			m_timer = 5;
+		}
+		return true;
+	}
+	bool Draw( float delta )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		
+		// logo
+		const TextureInfo& texinfo = m_tx_logo.GetInfo();
+		float scale = GR_GetWidth() / 1024.0f;
+		br.Reset().SetTexture( m_tx_logo ).Box( GR_GetWidth() / 2.0f, GR_GetHeight() / 2.1f, texinfo.width * scale, texinfo.height * scale );
+		
+		GR2D_SetFont( "core", GR_GetHeight()/20 );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4, "Click to start", HALIGN_CENTER, VALIGN_CENTER );
+		
+		return m_timer >= 5;
+	}
+}
+g_StartScreen;
+
+
+struct EndScreen : IScreen
+{
+	float m_timer;
+	
+	EndScreen() : m_timer(0)
+	{
+	}
+	
+	void OnStart()
+	{
+		m_timer = 0;
+	}
+	void OnEnd()
+	{
+	}
+	
+	bool OnEvent( const Event& e )
+	{
+		return true;
+	}
+	bool Draw( float delta )
+	{
+		m_timer += delta;
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		br.Reset()
+			.Col( 0, clamp( m_timer / 3, 0, 1 ) )
+			.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
+		
+		br.Reset().Col( 1 );
+		GR2D_SetFont( "core", GR_GetHeight()/20 );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4, "Success!", HALIGN_CENTER, VALIGN_CENTER );
+		
+		return false;
+	}
+}
+g_EndScreen;
+
+
+
 struct MLD62Player : Entity
 {
 	PhyRigidBodyHandle m_bodyHandle;
@@ -318,7 +407,8 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 	
 	SGRX_Sound3DAttribs s3dattr = { pos, m_bodyHandle->GetLinearVelocity(), dir, V3(0,0,1) };
 	
-	m_footstepTime += deltaTime * m_isOnGround * m_bodyHandle->GetLinearVelocity().Length() * ( 0.6f + m_isCrouching * 0.3f );
+	float needfs = m_isOnGround || m_wallRunShow > 0;
+	m_footstepTime += deltaTime * needfs * m_bodyHandle->GetLinearVelocity().Length() * ( 0.6f + m_isCrouching * 0.3f );
 	if( m_footstepTime >= 1 )//&& SLOW_WALK.value >= 0.5f )
 	{
 		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
@@ -421,6 +511,11 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 		m_shootLT->enabled = true;
 		m_shootTimeout += 0.1f;
 		m_level->GetSystem<AIDBSystem>()->AddSound( pos, 10, 0.2f, AIS_Shot );
+		
+		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/gunshot" );
+	//	fsev->SetVolume( 1.0f );
+		fsev->Set3DAttribs( s3dattr );
+		fsev->Start();
 	}
 	m_shootLT->color = V3(0.9f,0.7f,0.5f) * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
@@ -492,7 +587,7 @@ struct MLD62_BossEye : Entity, SGRX_MeshInstUserData
 
 MLD62_BossEye::MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
 	Entity( lev ), m_state( BEA_FollowPlayer ),
-	m_health(100), m_timeInState(0),
+	m_health(1), m_timeInState(0),
 	m_laserWidth(1), m_flareSize(1), m_target(V3(0)),
 	m_position( pos ), m_direction( YP( dir ) )
 {
@@ -694,7 +789,7 @@ void MLD62_BossEye::SetState( EBossEyeAction ns )
 				{
 					Vec3 hitpos = TLERP( p0, p1, rcinfo.factor );
 					float dist = ( P->GetPosition() - hitpos ).Length();
-					P->Hit( clamp( 1 - dist * 0.2f, 0, 1 ) * 30 );
+					P->Hit( clamp( 1 - dist * 0.1f, 0, 1 ) * 40 );
 				}
 				
 				SGRX_PhyRaycastInfo prci;
@@ -706,9 +801,20 @@ void MLD62_BossEye::SetState( EBossEyeAction ns )
 			
 			m_shootLT->enabled = true;
 			m_shieldMesh->enabled = false;
+			
+			SGRX_Sound3DAttribs s3dattr = { lm.TransformPos( V3(0) ), V3(0), lm.TransformNormal( V3(0,0,1) ).Normalized(), V3(0,0,1) };
+			SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/lasershot" );
+			fsev->Set3DAttribs( s3dattr );
+			fsev->Start();
 		}
 		break;
 	case BEA_Cooldown:
+		break;
+	case BEA_Malfunction:
+		Game_AddOverlayScreen( &g_EndScreen );
+		Game_ShowCursor( true );
+		SHOOT.value = 0;
+		endgame = true;
 		break;
 	default:
 		break;
@@ -743,7 +849,7 @@ struct MLD62_RoboSaw : Entity, SGRX_MeshInstUserData
 
 MLD62_RoboSaw::MLD62_RoboSaw( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
 	Entity( lev ),
-	m_health( 100 ), m_sawRotation( 0 ), m_position( pos ),
+	m_health( 20 ), m_sawRotation( 0 ), m_position( pos ),
 	m_ivPos( pos ), m_ivRot( Quat::Identity )
 {
 	m_coreMesh = lev->GetScene()->CreateMeshInstance();
@@ -856,6 +962,9 @@ void MLD62_RoboSaw::FixedTick( float deltaTime )
 
 void MLD62_RoboSaw::Tick( float deltaTime, float blendFactor )
 {
+	if( endgame )
+		Hit(1000);
+	
 	if( m_health > 0 )
 	{
 		m_sawRotation += deltaTime * 100;
@@ -1029,8 +1138,9 @@ struct SciFiBossFightGame : IGame
 		g_GameLevel->Load( "test" );
 		g_GameLevel->Tick( 0, 0 );
 		
-		g_GameLevel->StartLevel();
 		Game_ShowCursor( false );
+		
+		Game_AddOverlayScreen( &g_StartScreen );
 		
 		return true;
 	}

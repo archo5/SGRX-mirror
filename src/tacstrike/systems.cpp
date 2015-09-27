@@ -1064,7 +1064,10 @@ void DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 			mtl->particles.Trigger();
 			
 			// sound
-			// TODO
+			SoundEventInstanceHandle sev = g_SoundSys->CreateEventInstance( mtl->sound );
+			SGRX_Sound3DAttribs s3dattr = { pos, V3(0), nrm, Vec3Cross( dir, nrm ).Normalized() };
+			sev->Set3DAttribs( s3dattr );
+			sev->Start();
 			
 			break;
 		}

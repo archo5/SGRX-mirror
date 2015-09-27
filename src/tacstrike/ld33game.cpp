@@ -138,8 +138,8 @@ void SaveConfig( bool nd = true )
 	);
 	SaveTextFile( "config.cfg", bfr );
 }
-	
-	
+
+
 
 struct SplashScreen : IScreen
 {
