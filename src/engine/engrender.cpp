@@ -208,7 +208,8 @@ void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, SGRX_MeshInstance
 		{
 			if( MI->m_drawItems.size() <= part_id ||
 				MI->GetMaterialCount() <= part_id ||
-				( MI->m_drawItems[ part_id ].type & flags ) == 0 )
+				( MI->m_drawItems[ part_id ].type & flags ) == 0 ||
+				( MI->GetMaterial( part_id ).flags & SGRX_MtlFlag_Disable ) )
 				continue;
 			
 			RenderItem RI = { _RS_GenSortKey( view, MI, part_id ), MI, part_id };

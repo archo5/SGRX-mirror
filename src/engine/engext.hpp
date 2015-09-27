@@ -379,7 +379,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_HelpTextRenderer
 {
 	struct Text
 	{
-		StringView text;
+		size_t text_start;
+		size_t text_size;
 		StringView font;
 		Vec4 color;
 		Vec2 pos;
@@ -407,6 +408,10 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_HelpTextRenderer
 		FontInfo fi = { name, factor };
 		namedFonts.set( key, fi );
 	}
+	StringView GetText( Text& text )
+	{
+		return StringView( m_strings ).part( text.text_start, text.text_size );
+	}
 	
 	// internals
 	ENGINE_EXPORT void SetColor( StringView name );
@@ -428,6 +433,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_HelpTextRenderer
 	// cached data
 	int m_lineCount;
 	int m_curLine;
+	String m_strings;
 	Vec4 m_curColor;
 	FontInfo m_curFont;
 	Array< Text > m_textCache;

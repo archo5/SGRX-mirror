@@ -56,6 +56,9 @@ struct MLD62Player : Entity
 	float m_bobPower;
 	float m_bobTime;
 	YawPitch m_weaponTurn;
+	float m_wallRunTgt;
+	float m_wallRunShow;
+	Vec3 m_wallRunDir;
 	
 	IVState< Vec3 > m_ivPos;
 	
@@ -66,17 +69,23 @@ struct MLD62Player : Entity
 	
 	TextureHandle m_tex_interact_icon;
 	
+	float m_health;
+	float m_hitTimeout;
 	float m_shootTimeout;
 	AnimCharacter m_weapon;
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
 	
 	MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir );
+	
+	void Hit( float pwr );
+	
 	Mat4 GetBulletOutputMatrix();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
 	
+	bool Alive() const { return m_health > 0; }
 	Vec3 GetPosition(){ return m_bodyHandle->GetPosition(); }
 };
 
@@ -84,9 +93,10 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	Entity( lev ),
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ),
 	m_jumpTimeout(0), m_canJumpTimeout(0), m_footstepTime(0), m_isOnGround(false), m_isCrouching(0),
-	m_bobPower(0), m_bobTime(0), m_weaponTurn(YP(0)),
+	m_bobPower(0), m_bobTime(0), m_weaponTurn(YP(0)), m_wallRunTgt(0), m_wallRunShow(0), m_wallRunDir(V3(0)),
 	m_ivPos( pos ), inCursorMove( V2(0) ),
 	m_targetII( NULL ), m_targetTriggered( false ),
+	m_health(100), m_hitTimeout(0),
 	m_shootTimeout(0), m_weapon( lev->GetScene(), lev->GetPhyWorld() )
 {
 	m_tex_interact_icon = GR_GetTexture( "ui/interact_icon.png" );
@@ -104,7 +114,7 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
-	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.29f) );
+	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.29f,0.29f,0.3f) );
 	
 	m_shootPS.Load( "psys/gunflash.psy" );
 	m_shootPS.AddToScene( m_level->GetScene() );
@@ -118,6 +128,23 @@ MLD62Player::MLD62Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_shootLT->power = 4;
 	m_shootLT->UpdateTransform();
 	m_shootTimeout = 0;
+}
+
+void MLD62Player::Hit( float pwr )
+{
+	if( m_hitTimeout > 0 )
+		return;
+	
+	if( Alive() )
+	{
+		m_hitTimeout += pwr / 40;
+		m_health -= pwr;
+		if( m_health <= 0 )
+		{
+			m_health = 0;
+			// dead
+		}
+	}
 }
 
 Mat4 MLD62Player::GetBulletOutputMatrix()
@@ -142,11 +169,12 @@ void MLD62Player::FixedTick( float deltaTime )
 	
 	m_jumpTimeout = TMAX( 0.0f, m_jumpTimeout - deltaTime );
 	m_canJumpTimeout = TMAX( 0.0f, m_canJumpTimeout - deltaTime );
+	m_hitTimeout = TMAX( 0.0f, m_hitTimeout - deltaTime );
 	
 	Vec3 pos = m_bodyHandle->GetPosition();
 	m_ivPos.Advance( pos );
 	
-	bool slowWalk = SLOW_WALK.value > 0.5f;
+	bool slowWalk = false;//SLOW_WALK.value > 0.5f;
 	m_isCrouching = 0;
 	if( PW->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
 		PW->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
@@ -156,6 +184,8 @@ void MLD62Player::FixedTick( float deltaTime )
 	}
 	
 	float cheight = m_isCrouching ? 0.5f : 1.5f;
+	if( Alive() == false )
+		cheight = 0.3f;
 	float rcxdist = 1.0f;
 	Vec3 lvel = m_bodyHandle->GetLinearVelocity();
 	float ht = cheight - 0.29f;
@@ -174,7 +204,7 @@ void MLD62Player::FixedTick( float deltaTime )
 		ground = true;
 		m_canJumpTimeout = 0.5f;
 	}
-	if( !m_jumpTimeout && m_canJumpTimeout && JUMP.value )
+	if( !m_jumpTimeout && m_canJumpTimeout && JUMP.value && Alive() )
 	{
 		lvel.z = 5;
 		m_jumpTimeout = 0.5f;
@@ -195,6 +225,8 @@ void MLD62Player::FixedTick( float deltaTime )
 	Vec2 perpdir = realdir.Perp();
 	
 	Vec2 md = { MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value };
+	if( Alive() == false )
+		md = V2(0);
 	md.Normalize();
 	md = -realdir * md.y - perpdir * md.x;
 	
@@ -211,11 +243,14 @@ void MLD62Player::FixedTick( float deltaTime )
 	lvel2 += md * accel * revmaxfactor * deltaTime;
 	
 	///// WALLRUN /////
-	if( JUMP.value && ground == false )
+	m_wallRunTgt = 0;
+	if( JUMP.value && Alive() && ground == false )
 	{
 		if( PW->ConvexCast( m_shapeHandle, pos, pos + V3( md.x, md.y, 0 ), 1, 1, &rcinfo ) )
 		{
+			m_wallRunDir = rcinfo.normal;
 			m_bodyHandle->ApplyCentralForce( PFT_Acceleration, V3(0,0,40) );
+			m_wallRunTgt = 1;
 		}
 	}
 	
@@ -281,7 +316,7 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 	SGRX_Sound3DAttribs s3dattr = { pos, m_bodyHandle->GetLinearVelocity(), dir, V3(0,0,1) };
 	
 	m_footstepTime += deltaTime * m_isOnGround * m_bodyHandle->GetLinearVelocity().Length() * ( 0.6f + m_isCrouching * 0.3f );
-	if( m_footstepTime >= 1 && SLOW_WALK.value >= 0.5f )
+	if( m_footstepTime >= 1 )//&& SLOW_WALK.value >= 0.5f )
 	{
 		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
 		fsev->SetVolume( 1.0f - m_isCrouching * 0.3f );
@@ -293,24 +328,37 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 	
 	///// BOBBING /////
 	Vec2 md = { MOVE_LEFT.value - MOVE_RIGHT.value, MOVE_DOWN.value - MOVE_UP.value };
+	if( Alive() == false )
+		md = V2(0);
 	float bobtgt = m_isOnGround && md.Length() > 0.5f ? 1.0f : 0.0f;
 	if( m_isCrouching ) bobtgt *= 0.3f;
-	if( SLOW_WALK.value ) bobtgt *= 0.5f;
+//	if( SLOW_WALK.value ) bobtgt *= 0.5f;
 	float bobdiff = bobtgt - m_bobPower;
 	m_bobPower += TMIN( fabsf( bobdiff ), deltaTime * 5 ) * sign( bobdiff );
 	m_weaponTurn.yaw += inCursorMove.x * 0.004f;
 	m_weaponTurn.pitch += inCursorMove.y * 0.004f;
 	m_weaponTurn.TurnTo( YP(0), YawPitchDist(m_weaponTurn,YP(0)).Abs().Scaled(deltaTime*10) );
 	
+	float diff = m_wallRunTgt - m_wallRunShow;
+	m_wallRunShow += TMIN( fabsf( diff ), deltaTime * 4 ) * sign( diff );
+//	Vec2 realdir = { cos( m_angles.x ), sin( m_angles.x ) };
+//	Vec2 perpdir = realdir.Perp();
+//	Vec3 wallrundir = V3(perpdir.x,perpdir.y,0);
+//	float weaponturnfac = 1;
+//	if( Vec3Dot( m_wallRunDir, wallrundir ) < 0 )
+//		weaponturnfac = -1;
+	
 	Vec3 campos = pos;
 	campos.z += m_bobPower * 0.1f + fabsf( sinf( m_bobTime * 3 ) ) * 0.1f;
 	m_bobTime += deltaTime * m_isOnGround * m_bodyHandle->GetLinearVelocity().Length() * ( 0.6f + m_isCrouching * 0.3f );
 	
-	m_level->GetScene()->camera.znear = 0.1f;
-	m_level->GetScene()->camera.angle = 90;
-	m_level->GetScene()->camera.direction = dir;
-	m_level->GetScene()->camera.position = campos;
-	m_level->GetScene()->camera.UpdateMatrices();
+	SGRX_Scene* S = m_level->GetScene();
+	S->camera.znear = 0.1f;
+	S->camera.angle = 90;
+	S->camera.direction = dir;
+	S->camera.position = campos;
+	S->camera.updir = ( V3(0,0,1) + m_wallRunDir * 0.1f * m_wallRunShow ).Normalized();
+	S->camera.UpdateMatrices();
 	
 	g_SoundSys->Set3DAttribs( s3dattr );
 	
@@ -330,9 +378,16 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 	mtx = mtx * Mat4::CreateRotationX( -M_PI / 2 );
 	mtx = mtx * Mat4::CreateTranslation( -0.3f, -0.6f+wpnbob, +0.5f );
 	mtx = mtx * Mat4::CreateScale( V3( 0.2f ) );
+//	mtx = mtx * Mat4::CreateRotationZ( m_wallRunShow * weaponturnfac * 0.2f );
 	mtx = mtx * Mat4::CreateRotationX( -m_weaponTurn.pitch );
 	mtx = mtx * Mat4::CreateRotationY( m_weaponTurn.yaw );
+//	mtx = mtx * Mat4::CreateRotationBetweenVectors( V3(0,0,1), S->camera.updir );
 	mtx = mtx * m_level->GetScene()->camera.mInvView;
+	
+	Vec3 tr = mtx.GetTranslation();
+	mtx = mtx * Mat4::CreateTranslation( -tr );
+	mtx = mtx * Mat4::CreateRotationBetweenVectors( V3(0,0,1), S->camera.updir );
+	mtx = mtx * Mat4::CreateTranslation( tr );
 	
 	m_weapon.SetTransform( mtx );
 	m_weapon.PreRender( blendFactor );
@@ -345,15 +400,15 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 		m_shootTimeout -= deltaTime;
 		m_shootLT->enabled = true;
 	}
-	if( SHOOT.value && m_shootTimeout <= 0 )
+	Mat4 bmtx = GetBulletOutputMatrix();
+	m_shootPS.SetTransform( bmtx );
+	if( Alive() && SHOOT.value && m_shootTimeout <= 0 )
 	{
 		Vec3 aimtgt = campos + dir * 100;
-		Mat4 mtx = GetBulletOutputMatrix();
-		Vec3 origin = mtx.TransformPos( V3(0) );
+		Vec3 origin = bmtx.TransformPos( V3(0) );
 		Vec3 dir = ( aimtgt - origin ).Normalized();
 		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
 		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, GAT_Player );
-		m_shootPS.SetTransform( mtx );
 		m_shootPS.Trigger();
 		m_shootLT->position = origin;
 		m_shootLT->UpdateTransform();
@@ -361,7 +416,7 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 		m_shootTimeout += 0.1f;
 		m_level->GetSystem<AIDBSystem>()->AddSound( pos, 10, 0.2f, AIS_Shot );
 	}
-	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
+	m_shootLT->color = V3(0.9f,0.7f,0.5f) * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
 	
 	m_shootPS.Tick( deltaTime );
@@ -469,8 +524,10 @@ struct MLD62_RoboSaw : Entity, SGRX_MeshInstUserData
 	void Tick( float deltaTime, float blendFactor );
 	
 	float m_health;
+	float m_sawRotation;
 	Vec3 m_position;
 	MeshInstHandle m_coreMesh;
+	MeshInstHandle m_coreMeshSaw;
 	PhyRigidBodyHandle m_body;
 	
 	IVState< Vec3 > m_ivPos;
@@ -479,17 +536,25 @@ struct MLD62_RoboSaw : Entity, SGRX_MeshInstUserData
 
 MLD62_RoboSaw::MLD62_RoboSaw( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
 	Entity( lev ),
-	m_health( 100 ), m_position( pos ),
+	m_health( 100 ), m_sawRotation( 0 ), m_position( pos ),
 	m_ivPos( pos ), m_ivRot( Quat::Identity )
 {
 	m_coreMesh = lev->GetScene()->CreateMeshInstance();
 	m_coreMesh->SetMesh( "meshes/robosaw.ssm" );
 	m_coreMesh->userData = (SGRX_MeshInstUserData*) this;
+	m_coreMeshSaw = lev->GetScene()->CreateMeshInstance();
+	m_coreMeshSaw->SetMesh( "meshes/robosaw.ssm" );
+	m_coreMeshSaw->userData = (SGRX_MeshInstUserData*) this;
+	
+	m_coreMesh->GetMaterial( 0 ).flags |= SGRX_MtlFlag_Disable;
+	m_coreMeshSaw->GetMaterial( 1 ).flags |= SGRX_MtlFlag_Disable;
+	m_coreMesh->OnUpdate();
+	m_coreMeshSaw->OnUpdate();
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 1.0f;
 	rbinfo.restitution = 0.1f;
-	rbinfo.shape = lev->GetPhyWorld()->CreateSphereShape( 1.0f );
+	rbinfo.shape = lev->GetPhyWorld()->CreateSphereShape( 0.5f );
 	rbinfo.shape->SetScale( V3(0.7f,0.7f,0.32f) );
 	rbinfo.mass = 5;
 	rbinfo.angularDamping = 0.5f;
@@ -506,7 +571,7 @@ void MLD62_RoboSaw::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 	{
 		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
 		m_body->ApplyForce( PFT_Impulse, bhinfo->vel * 0.1f, bhinfo->pos );
-		Hit( bhinfo->vel.Length() * 0.0001f );
+		Hit( bhinfo->vel.Length() * 0.1f );
 	}
 }
 
@@ -525,12 +590,12 @@ void MLD62_RoboSaw::Hit( float pwr )
 
 void MLD62_RoboSaw::FixedTick( float deltaTime )
 {
+	SGRX_CAST( MLD62Player*, P, m_level->m_player );
 	bool canSeePlayer = false;
 	Vec3 pos = m_body->GetPosition();
 	if( m_level->m_player )
 	{
-		SGRX_CAST( MLD62Player*, P, m_level->m_player );
-		if( m_level->GetPhyWorld()->Raycast( pos, P->GetPosition() ) )
+		if( m_level->GetPhyWorld()->Raycast( pos, P->GetPosition(), 0x0001, 0x0001 ) == false )
 		{
 			canSeePlayer = true;
 		}
@@ -544,17 +609,37 @@ void MLD62_RoboSaw::FixedTick( float deltaTime )
 		{
 			gnd = TLERP( pos, gnd, info.factor );
 		}
-		Vec3 tgt = gnd + V3(0,0,1);
+		Vec3 tgt = gnd + V3(0,0,1.5f);
 		float len = ( tgt - pos ).Length();
 		if( tgt.z > pos.z )
-			force = ( tgt - pos ).Normalized() * TMIN( len, 1.0f ) * 50 - m_body->GetLinearVelocity();
+			force += ( tgt - pos ).Normalized() * TMIN( len, 1.0f ) * 50 - m_body->GetLinearVelocity();
+	}
+	if( canSeePlayer )
+	{
+		Vec3 tgt = P->GetPosition();
+		float len = ( tgt - pos ).Length();
+		if( tgt.z > pos.z )
+			force += ( tgt - pos ).Normalized() * TMIN( len, 0.2f ) * 50 - m_body->GetLinearVelocity();
+		
+		if( len < 0.9f )
+		{
+			P->Hit( 10.0f );
+			force += ( pos - tgt ).Normalized() * 100;
+		}
 	}
 	
 	if( m_health > 0 )
 	{
+		Vec3 angvel = m_body->GetAngularVelocity() * 0.5f
+			+ V3(1,1,0) * 100 * deltaTime * PHY_QuaternionToEulerXYZ( m_body->GetRotation().Inverted() );
+		if( canSeePlayer )
+		{
+			Vec3 dir = Mat4::CreateRotationFromQuat( m_body->GetRotation() ).TransformNormal( V3(-1,0,0) );
+			angvel.z += YawPitchDist( YP( P->GetPosition() - pos ), YP( dir ) ).yaw * 10 * deltaTime;
+		}
+		
 		m_body->ApplyCentralForce( PFT_Velocity, force * deltaTime );
-		m_body->SetAngularVelocity( m_body->GetAngularVelocity() * 0.5f + V3(1,1,0) * 100 * deltaTime *
-			PHY_QuaternionToEulerXYZ( m_body->GetRotation().Inverted() ) );
+		m_body->SetAngularVelocity( angvel );
 	}
 	
 	m_ivPos.Advance( pos );
@@ -563,11 +648,15 @@ void MLD62_RoboSaw::FixedTick( float deltaTime )
 
 void MLD62_RoboSaw::Tick( float deltaTime, float blendFactor )
 {
+	m_sawRotation += deltaTime * 100;
+	
 	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
 	Mat4 mtx =
+		Mat4::CreateScale( V3(0.5f) ) *
 		Mat4::CreateRotationFromQuat( m_ivRot.Get( blendFactor ) ) *
 		Mat4::CreateTranslation( m_ivPos.Get( blendFactor ) );
 	m_coreMesh->matrix = mtx;
+	m_coreMeshSaw->matrix = Mat4::CreateRotationZ( m_sawRotation ) * mtx;
 	if( m_health > 0 )
 	{
 		FSFlare statusFlare = { mtx.TransformPos( V3(0.251f,0.151f,0.155f) ), V3(2.0f,0.05f,0.01f), 1.0f, true };
@@ -824,6 +913,8 @@ struct SciFiBossFightGame : IGame
 		
 		if( g_GameLevel->m_player )
 		{
+			SGRX_CAST( MLD62Player*, player, g_GameLevel->m_player );
+			
 			BatchRenderer& br = GR2D_GetBatchRenderer();
 			SGRX_Scene* scene = info.scene;
 			int W = GR_GetWidth();
@@ -842,7 +933,9 @@ struct SciFiBossFightGame : IGame
 			ctrl->SetRenderTargets( NULL, SGRX_RT_ClearColor, 0, 0, 1, rttGUI );
 			br.Reset();
 			GR2D_SetFont( "core", minw / 24 );
-			GR2D_DrawTextLine( minw / 10, minw / 10, "HEALTH: ||||||||||||||||||||" );
+			StringView healthstr = "HEALTH: ||||||||||||||||||||";
+			healthstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(player->m_health,100.0f) / 5 );
+			GR2D_DrawTextLine( minw / 10, minw / 10, healthstr );
 			TextureHandle crosshairTex = GR_GetTexture( "ui/crosshair.png" );
 			GR_PreserveResource( crosshairTex );
 			br.Reset().Col(0.5f,0.01f,0,1).SetTexture( crosshairTex ).Box( W/2, H/2, minw/18, minw/18 );
@@ -859,7 +952,6 @@ struct SciFiBossFightGame : IGame
 			scene->camera.znear = 0.01f;
 			scene->camera.UpdateMatrices();
 			
-			SGRX_CAST( MLD62Player*, player, g_GameLevel->m_player );
 			SGRX_MeshInstance* minsts[] = { player->m_weapon.m_cachedMeshInst };
 			size_t micount = 1;
 			
@@ -877,6 +969,7 @@ struct SciFiBossFightGame : IGame
 			guimtx = guimtx * Mat4::CreateRotationX( -player->m_weaponTurn.pitch*turnQ );
 			guimtx = guimtx * Mat4::CreateRotationY( player->m_weaponTurn.yaw*turnQ );
 			guimtx = guimtx * scene->camera.mProj;
+			br.Reset().Col( 0.5f, 0.01f, 0.0f, TMIN(player->m_hitTimeout,0.5f) ).Quad( 0, 0, W, H ).Flush();
 			GR2D_SetViewMatrix( guimtx );
 			br.Reset().SetTexture( rttGUI ).Quad( W/avgw, H/avgw, -W/avgw, -H/avgw, 1 ).Flush();
 			GR2D_SetViewMatrix( backup );

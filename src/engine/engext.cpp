@@ -894,6 +894,7 @@ void SGRX_HelpTextRenderer::RenderText( StringView text )
 	m_lineCount = text.count( "\n" );
 	SetColor( "" );
 	SetFont( "" );
+	m_strings.clear();
 	m_textCache.clear();
 	
 	StringView start = text, it = text;
@@ -1042,7 +1043,7 @@ void SGRX_HelpTextRenderer::DrawTextItem( Text& item )
 	
 	GR2D_SetColor( c.x, c.y, c.z, c.w * opacity );
 	GR2D_SetFont( item.font, item.fontSize );
-	GR2D_DrawTextLine( item.pos.x + item.padding, item.pos.y, item.text, HALIGN_LEFT, VALIGN_CENTER );
+	GR2D_DrawTextLine( item.pos.x + item.padding, item.pos.y, GetText( item ), HALIGN_LEFT, VALIGN_CENTER );
 }
 
 void SGRX_HelpTextRenderer::SetColor( StringView name )
@@ -1067,7 +1068,8 @@ void SGRX_HelpTextRenderer::AddText( StringView text )
 {
 	Text T =
 	{
-		text,
+		m_strings.size(),
+		text.size(),
 		m_curFont.name,
 		m_curColor,
 		centerPos,
@@ -1076,6 +1078,7 @@ void SGRX_HelpTextRenderer::AddText( StringView text )
 		m_curLine,
 		false
 	};
+	m_strings.append( text );
 	T.pos.y += ( m_curLine - ( m_lineCount - 1 ) * 0.5f ) * fontSize * lineHeightFactor;
 	GR2D_SetFont( T.font, T.fontSize );
 	T.width = GR2D_GetTextLength( text );
