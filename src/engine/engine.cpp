@@ -475,6 +475,13 @@ void Game_OnEvent( const Event& e )
 	}
 }
 
+static void renderer_clear_rts()
+{
+	SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
+	TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
+	g_Renderer->SetRenderTargets( info, NULL, rts );
+}
+
 void Game_Process( float dt )
 {
 	LOG_FUNCTION;
@@ -491,6 +498,7 @@ void Game_Process( float dt )
 	g_BatchRenderer->Flush();
 	
 	g_Renderer->Swap();
+	renderer_clear_rts();
 }
 
 
@@ -3268,6 +3276,7 @@ BatchRenderer& GR2D_GetBatchRenderer()
 void SGRX_Swap()
 {
 	g_Renderer->Swap();
+	renderer_clear_rts();
 }
 
 
@@ -3399,6 +3408,7 @@ static int init_graphics()
 		LOG_ERROR << "Failed to create renderer (" << rendername << ")";
 		return 105;
 	}
+	renderer_clear_rts();
 	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
 	
 	g_CPSets = new ConvexPointSetHashTable();
@@ -3547,6 +3557,7 @@ bool GR_SetVideoMode( const RenderSettings& rs )
 		if( g_Renderer )
 		{
 			g_Renderer->Modify( rs );
+			renderer_clear_rts();
 		}
 	}
 	

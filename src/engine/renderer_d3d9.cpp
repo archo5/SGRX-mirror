@@ -403,10 +403,6 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	
 	d3ddev->BeginScene();
 	
-	SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
-	TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
-	R->SetRenderTargets( info, NULL, rts );
-	
 	return R;
 }
 
@@ -484,10 +480,6 @@ void D3D9Renderer::Swap()
 		}
 	}
 	m_dev->BeginScene();
-	
-	SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
-	TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
-	SetRenderTargets( info, NULL, rts );
 }
 
 void D3D9Renderer::Modify( const RenderSettings& settings )
@@ -515,9 +507,6 @@ void D3D9Renderer::Modify( const RenderSettings& settings )
 		ResetDevice();
 		ResetViewport();
 		m_dev->BeginScene();
-		SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
-		TextureHandle rts[4] = { NULL, NULL, NULL, NULL };
-		SetRenderTargets( info, NULL, rts );
 	}
 }
 

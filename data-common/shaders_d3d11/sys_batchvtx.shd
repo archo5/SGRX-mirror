@@ -1,0 +1,35 @@
+
+#if VS
+
+float4x4 mWorld : register(c0);
+float4x4 mViewProj : register(c4);
+
+void main
+(
+	float3 ipos : POSITION0,
+	float2 itex : TEXCOORD0,
+	float4 icol : COLOR0,
+	out float2 otex : TEXCOORD0,
+	out float4 ocol : COLOR0,
+	out float4 opos : SV_POSITION
+)
+{
+	opos = mul( mViewProj, mul( mWorld, float4( ipos, 1 ) ) );
+	otex = itex;
+	ocol = icol;
+}
+
+
+#elif PS
+
+Texture2D Tex0 : register(t0);
+SamplerState Samp0 : register(s0);
+
+float4 main( float2 itex : TEXCOORD0, float4 icol : COLOR0 ) : SV_TARGET0
+{
+	return icol * Tex0.Sample( Samp0, itex );
+}
+
+
+#endif // VS/PS
+

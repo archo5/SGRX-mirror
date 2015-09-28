@@ -709,9 +709,15 @@ void D3D11Renderer::Modify( const RenderSettings& settings )
 
 void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] )
 {
+	Vec4 col = Col32ToVec4( info.clearColor );
+	ID3D11DepthStencilView* dsv = NULL;
+	
 	if( rts[0] == NULL && rts[1] == NULL && rts[2] == NULL && rts[3] == NULL )
 	{
+		if( info.flags & SGRX_RT_ClearColor )
+			m_ctx->ClearRenderTargetView( m_rtView, &col.x );
 		m_ctx->OMSetRenderTargets( 1, &m_rtView, m_dsView );
+		dsv = m_dsView;
 	}
 	else
 	{
@@ -730,21 +736,24 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 			rtt2 ? rtt2->CRV : NULL,
 			rtt3 ? rtt3->CRV : NULL,
 		};
-		m_ctx->OMSetRenderTargets( 1, rtv, dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL );
+		if( info.flags & SGRX_RT_ClearColor )
+		{
+			for( int i = 0; i < 4; ++i )
+				m_ctx->ClearRenderTargetView( rtv[ i ], &col.x );
+		}
+		dsv = dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL;
+		m_ctx->OMSetRenderTargets( 4, rtv, dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL );
 	}
 	
 	// clear buffers
-	Vec4 col = Col32ToVec4( info.clearColor );
-	if( info.flags & SGRX_RT_ClearColor )
-		m_ctx->ClearRenderTargetView( m_rtView, &col.x );
-	if( info.flags & (SGRX_RT_ClearDepth|SGRX_RT_ClearStencil) )
+	if( ( info.flags & (SGRX_RT_ClearDepth|SGRX_RT_ClearStencil) ) && dsv )
 	{
 		int dscf = 0;
 		if( info.flags & SGRX_RT_ClearDepth )
 			dscf |= D3D11_CLEAR_DEPTH;
 		if( info.flags & SGRX_RT_ClearStencil )
 			dscf |= D3D11_CLEAR_STENCIL;
-		m_ctx->ClearDepthStencilView( m_dsView, dscf, info.clearDepth, info.clearStencil );
+		m_ctx->ClearDepthStencilView( dsv, dscf, info.clearDepth, info.clearStencil );
 	}
 }
 
