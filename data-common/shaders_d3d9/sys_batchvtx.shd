@@ -1,4 +1,6 @@
 
+#if VS
+
 float4x4 mWorld : register(c0);
 float4x4 mViewProj : register(c4);
 
@@ -16,4 +18,17 @@ void main
 	otex = itex;
 	ocol = icol;
 }
+
+
+#elif PS
+
+sampler2D Tex0 : register(s0);
+
+float4 main( float2 itex : TEXCOORD0, float4 icol : COLOR0 ) : COLOR0
+{
+	return icol * tex2D( Tex0, itex );
+}
+
+
+#endif // VS/PS
 

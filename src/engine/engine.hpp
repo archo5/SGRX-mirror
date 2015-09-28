@@ -991,10 +991,27 @@ struct SGRX_Material
 	uint8_t blendMode;
 };
 
-struct SGRX_IVertexInputMapping : SGRX_RCRsrc
+
+struct SGRX_VtxInputMapKey
 {
+	VertexShaderHandle vsh;
+	VertexDeclHandle vdh;
+	
+	FINLINE bool operator == ( const SGRX_VtxInputMapKey& o ) const { return vsh == o.vsh && vdh == o.vdh; }
+};
+inline Hash HashVar( const SGRX_VtxInputMapKey& v )
+{
+	return HashVar( v.vsh.item ) ^ HashVar( v.vdh.item );
+}
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexInputMapping : SGRX_RCRsrc
+{
+	ENGINE_EXPORT virtual ~SGRX_IVertexInputMapping();
+	
+	SGRX_VtxInputMapKey m_key;
 };
 typedef Handle< SGRX_IVertexInputMapping > VtxInputMapHandle;
+
 
 struct SGRX_SRSData
 {
@@ -1181,8 +1198,11 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	ENGINE_EXPORT SGRX_Scene();
 	ENGINE_EXPORT virtual ~SGRX_Scene();
 	ENGINE_EXPORT void SetRenderPasses( SGRX_RenderPass* passes, int count );
+	ENGINE_EXPORT void SetDefines( StringView defines );
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
 	ENGINE_EXPORT LightHandle CreateLight();
+	
+	ENGINE_EXPORT void OnUpdate();
 	
 	// finds closest match and returns only that
 	ENGINE_EXPORT bool RaycastOne( const Vec3& from, const Vec3& to, SceneRaycastInfo* outinfo = NULL, uint32_t layers = 0xffffffff );
@@ -1198,6 +1218,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;
 	Array< SGRX_RenderPass > m_passes;
+	StringView m_defines;
 	Vec4 m_timevals; // temporary?
 	
 	SGRX_CullScene* cullScene;
@@ -1329,6 +1350,23 @@ enum EPrimitiveType
 	PT_TriangleStrip,
 };
 
+
+struct SGRX_ImmDrawData
+{
+	void* vertices;
+	uint32_t vertexCount;
+	EPrimitiveType primType;
+	SGRX_IVertexDecl* vertexDecl;
+	SGRX_IVertexInputMapping* vertexInputMapping;
+	SGRX_IVertexShader* vertexShader;
+	SGRX_IPixelShader* pixelShader;
+	SGRX_IRenderState* renderState;
+	Vec4* shdata;
+	size_t shvcount;
+	SGRX_ITexture* textures[ SGRX_MAX_TEXTURES ];
+};
+
+
 struct BatchRenderer
 {
 	struct Vertex
@@ -1342,7 +1380,8 @@ struct BatchRenderer
 		State() : primType(PT_None){}
 		FINLINE bool IsDiff( const State& o ) const
 		{
-			if( shader != o.shader ) return true;
+			if( pshader != o.pshader ) return true;
+			if( vshader != o.vshader ) return true;
 			if( primType != o.primType ) return true;
 			for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 				if( textures[ i ] != o.textures[ i ] ) return true;
@@ -1350,7 +1389,8 @@ struct BatchRenderer
 		}
 		
 		TextureHandle textures[ SGRX_MAX_TEXTURES ];
-		PixelShaderHandle shader;
+		VertexShaderHandle vshader;
+		PixelShaderHandle pshader;
 		EPrimitiveType primType;
 	};
 	
@@ -1408,7 +1448,9 @@ struct BatchRenderer
 	FINLINE BatchRenderer& SetTexture( const TextureHandle& tex ){ return SetTexture( 0, tex ); }
 	FINLINE BatchRenderer& UnsetTexture( int i ){ return SetTexture( i, NULL ); }
 	FINLINE BatchRenderer& UnsetTexture(){ return SetTexture( 0, NULL ); }
-	ENGINE_EXPORT BatchRenderer& SetShader( const PixelShaderHandle& shd );
+	ENGINE_EXPORT BatchRenderer& SetVertexShader( const VertexShaderHandle& shd );
+	ENGINE_EXPORT BatchRenderer& SetPixelShader( const PixelShaderHandle& shd );
+	FINLINE BatchRenderer& SetShader( const PixelShaderHandle& shd ){ return SetPixelShader( shd ); }
 	ENGINE_EXPORT BatchRenderer& SetPrimitiveType( EPrimitiveType pt );
 	ENGINE_EXPORT BatchRenderer& QuadsToTris();
 	ENGINE_EXPORT BatchRenderer& Flush();
@@ -1428,6 +1470,10 @@ struct BatchRenderer
 	Array< Vec4 > ShaderData;
 	
 	IRenderer* m_renderer;
+	VertexDeclHandle m_vertexDecl;
+	VertexShaderHandle m_defVShader;
+	PixelShaderHandle m_defPShader;
+	TextureHandle m_whiteTex;
 	State m_currState;
 	State m_nextState;
 	bool m_diff;
@@ -1575,7 +1621,7 @@ struct IF_GCC(ENGINE_EXPORT) IGame
 		TextureHandle rtt, DepthStencilSurfHandle dss );
 	
 	ENGINE_EXPORT virtual void OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out );
-	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
+	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const StringView& defines, const SGRX_Material& mtl,
 		SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
 	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
@@ -1602,6 +1648,7 @@ ENGINE_EXPORT VertexShaderHandle GR_GetVertexShader( const StringView& path );
 ENGINE_EXPORT PixelShaderHandle GR_GetPixelShader( const StringView& path );
 ENGINE_EXPORT RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state );
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
+ENGINE_EXPORT VtxInputMapHandle GR_GetVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd );
 ENGINE_EXPORT MeshHandle GR_CreateMesh();
 ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );
 ENGINE_EXPORT void GR_PreserveResourcePtr( SGRX_RefCounted* rsrc );

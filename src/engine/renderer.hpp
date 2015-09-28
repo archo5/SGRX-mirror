@@ -206,7 +206,6 @@ ENGINE_EXPORT LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_
 
 struct RendererInfo
 {
-	bool swapRB;
 	bool compileShaders;
 	StringView shaderTarget;
 };
@@ -245,8 +244,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd ) = 0;
 	
 	ENGINE_EXPORT virtual void SetMatrix( bool view, const Mat4& mtx ) = 0;
-	ENGINE_EXPORT virtual void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount ) = 0;
+	ENGINE_EXPORT virtual void DrawImmediate( SGRX_ImmDrawData& idd ) = 0;
 	
 	ENGINE_EXPORT virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat,
 		const SGRX_Camera& cam, RenderItem* start, RenderItem* end ) = 0;

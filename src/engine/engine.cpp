@@ -54,6 +54,7 @@ typedef HashTable< StringView, SGRX_IVertexShader* > VertexShaderHashTable;
 typedef HashTable< StringView, SGRX_IPixelShader* > PixelShaderHashTable;
 typedef HashTable< SGRX_RenderState, SGRX_IRenderState* > RenderStateHashTable;
 typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
+typedef HashTable< SGRX_VtxInputMapKey, SGRX_IVertexInputMapping* > VtxInputMapHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
 typedef HashTable< StringView, FontHandle > FontHashTable;
@@ -95,6 +96,7 @@ static VertexShaderHashTable* g_VertexShaders = NULL;
 static PixelShaderHashTable* g_PixelShaders = NULL;
 static RenderStateHashTable* g_RenderStates = NULL;
 static VertexDeclHashTable* g_VertexDecls = NULL;
+static VtxInputMapHashTable* g_VtxInputMaps = NULL;
 static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
 static FontHashTable* g_LoadedFonts = NULL;
@@ -693,7 +695,8 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 	}
 }
 
-void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& mtl,
+void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass,
+	const StringView& defines, const SGRX_Material& mtl,
 	SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS )
 {
 	if( pass.isBasePass == false && pass.isShadowPass == false &&
@@ -737,6 +740,9 @@ void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass, const SGRX_Material& 
 	}
 	
 	// misc. parameters
+	name.append( ":" );
+	name.append( defines ); // scene defines
+	
 	if( mtl.flags & SGRX_MtlFlag_Decal )
 		name.append( ":DECAL" ); // color multiplied by vertex color, even with other lighting models
 	
@@ -851,7 +857,7 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 				vs = spec.after( "|" );
 				
 				StringView def = defs.until( "+" );
-				while( def.size() )
+				while( def.size() || defs.ch() == '+' )
 				{
 					prepend.append( STRLIT_BUF( "#define " ) );
 					prepend.append( def.data(), def.size() );
@@ -862,7 +868,7 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 			}
 			else if( i == 2 )
 				tpl = cur;
-			else
+			else if( cur.size() )
 			{
 				prepend.append( STRLIT_BUF( "#define " ) );
 				prepend.append( cur.data(), cur.size() );
@@ -1350,6 +1356,13 @@ void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factor
 			break;
 		}
 	}
+}
+
+
+
+SGRX_IVertexInputMapping::~SGRX_IVertexInputMapping()
+{
+	g_VtxInputMaps->unset( m_key );
 }
 
 
@@ -2019,10 +2032,10 @@ void SGRX_MeshInstance::_Precache()
 				srs.RS = GR_GetRenderState( rs );
 				
 				// load shaders
-				g_Game->OnLoadMtlShaders( _scene->m_passes[ pid ], materials[ diid ], this, srs.VS, srs.PS );
+				g_Game->OnLoadMtlShaders( _scene->m_passes[ pid ], _scene->m_defines, materials[ diid ], this, srs.VS, srs.PS );
 				
 				// create/load vertex input mapping
-				srs.VIM = g_Renderer->CreateVertexInputMapping( srs.VS, m_mesh->m_vertexDecl );
+				srs.VIM = GR_GetVertexInputMapping( srs.VS, m_mesh->m_vertexDecl );
 			}
 		}
 		
@@ -2234,6 +2247,7 @@ SGRX_Scene::SGRX_Scene() :
 	camera.zfar = 1000;
 	camera.UpdateMatrices();
 	
+	m_defines = ":MOD_BLENDCOLOR 0";
 	SetRenderPasses( g_DefaultRenderPasses, SGRX_ARRAY_SIZE(g_DefaultRenderPasses) );
 }
 
@@ -2245,8 +2259,13 @@ SGRX_Scene::~SGRX_Scene()
 void SGRX_Scene::SetRenderPasses( SGRX_RenderPass* passes, int count )
 {
 	m_passes.assign( passes, count );
-	for( size_t i = 0; i < m_meshInstances.size(); ++i )
-		m_meshInstances.item( i ).key->OnUpdate();
+	OnUpdate();
+}
+
+void SGRX_Scene::SetDefines( StringView defines )
+{
+	m_defines = defines;
+	OnUpdate();
 }
 
 MeshInstHandle SGRX_Scene::CreateMeshInstance()
@@ -2261,6 +2280,12 @@ LightHandle SGRX_Scene::CreateLight()
 	SGRX_Light* lt = new SGRX_Light( this );
 	m_lights.set( lt, NULL );
 	return lt;
+}
+
+void SGRX_Scene::OnUpdate()
+{
+	for( size_t i = 0; i < m_meshInstances.size(); ++i )
+		m_meshInstances.item( i ).key->OnUpdate();
 }
 
 bool SGRX_Scene::RaycastOne( const Vec3& from, const Vec3& to, SceneRaycastInfo* outinfo, uint32_t layers )
@@ -2673,6 +2698,30 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 	
 	LOG << "Created vertex declaration: " << vdecl;
 	return VD;
+}
+
+
+VtxInputMapHandle GR_GetVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd )
+{
+	LOG_FUNCTION;
+	
+	SGRX_VtxInputMapKey key = { vs, vd };
+	SGRX_IVertexInputMapping* vim = g_VtxInputMaps->getcopy( key );
+	if( vim )
+		return vim;
+	
+	vim = g_Renderer->CreateVertexInputMapping( vs, vd );
+	if( vim == NULL )
+	{
+		// valid outcome
+		return vim;
+	}
+	
+	vim->m_key = key;
+	g_VtxInputMaps->set( key, vim );
+	
+	LOG << "Created vertex input mapping";
+	return vim;
 }
 
 
@@ -3360,6 +3409,7 @@ static int init_graphics()
 	g_PixelShaders = new PixelShaderHashTable();
 	g_RenderStates = new RenderStateHashTable();
 	g_VertexDecls = new VertexDeclHashTable();
+	g_VtxInputMaps = new VtxInputMapHashTable();
 	g_Meshes = new MeshHashTable();
 	g_Anims = new AnimHashTable();
 	g_LoadedFonts = new FontHashTable();
@@ -3411,6 +3461,9 @@ static void free_graphics()
 	
 	delete g_Meshes;
 	g_Meshes = NULL;
+	
+	delete g_VtxInputMaps;
+	g_VtxInputMaps = NULL;
 	
 	delete g_VertexDecls;
 	g_VertexDecls = NULL;

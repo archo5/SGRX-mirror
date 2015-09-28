@@ -719,7 +719,6 @@ void GR2D_SetColor( float r, float g, float b, float a )
 
 BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( false )
 {
-	m_swapRB = r->GetInfo().swapRB;
 	m_proto.x = 0;
 	m_proto.y = 0;
 	m_proto.z = 0;
@@ -728,6 +727,14 @@ BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( f
 	m_proto.color = 0xffffffff;
 	worldMatrix = Mat4::Identity;
 	viewMatrix = Mat4::Identity;
+	
+	m_vertexDecl = GR_GetVertexDecl( "pf3cb40f2" );
+	m_defVShader = GR_GetVertexShader( "sys_batchvtx" );
+	m_defPShader = GR_GetPixelShader( "sys_batchvtx" );
+	m_whiteTex = GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, 0, 1 );
+	uint32_t whiteCol = 0xffffffff;
+	m_whiteTex.UploadRGBA8Part( &whiteCol );
+	
 	ResetState();
 }
 
@@ -754,10 +761,7 @@ BatchRenderer& BatchRenderer::AddVertex( const Vertex& vert )
 BatchRenderer& BatchRenderer::Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a )
 {
 	uint32_t col;
-	if( m_swapRB )
-		col = COLOR_RGBA( b, g, r, a );
-	else
-		col = COLOR_RGBA( r, g, b, a );
+	col = COLOR_RGBA( r, g, b, a );
 	m_proto.color = col;
 	return *this;
 }
@@ -1324,9 +1328,16 @@ bool BatchRenderer::CheckSetTexture( int i, const TextureHandle& tex )
 	return false;
 }
 
-BatchRenderer& BatchRenderer::SetShader( const PixelShaderHandle& shd )
+BatchRenderer& BatchRenderer::SetVertexShader( const VertexShaderHandle& shd )
 {
-	m_nextState.shader = shd;
+	m_nextState.vshader = shd ? shd : m_defVShader;
+	_UpdateDiff();
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::SetPixelShader( const PixelShaderHandle& shd )
+{
+	m_nextState.pshader = shd ? shd : m_defPShader;
 	_UpdateDiff();
 	return *this;
 }
@@ -1375,16 +1386,29 @@ BatchRenderer& BatchRenderer::Flush()
 	if( m_verts.size() )
 	{
 		RenderStateHandle rsh = GR_GetRenderState( RenderState );
+		VtxInputMapHandle vimh = GR_GetVertexInputMapping( m_currState.vshader, m_vertexDecl );
+		
 		GR_PreserveResource( rsh );
-		m_renderer->DrawBatchVertices
-		(
+		GR_PreserveResource( vimh );
+		
+		SGRX_ImmDrawData immdd =
+		{
 			m_verts.data(), m_verts.size(),
 			m_currState.primType,
-			m_currState.textures,
-			m_currState.shader,
+			m_vertexDecl,
+			vimh,
+			m_currState.vshader,
+			m_currState.pshader,
 			rsh,
 			ShaderData.data(), ShaderData.size()
-		);
+		};
+		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
+			immdd.textures[ i ] = m_currState.textures[ i ];
+		if( immdd.textures[ 0 ] == NULL )
+			immdd.textures[ 0 ] = m_whiteTex;
+		
+		m_renderer->DrawImmediate( immdd );
+		
 		m_verts.clear();
 	}
 	return *this;
@@ -1395,7 +1419,8 @@ BatchRenderer& BatchRenderer::Reset()
 	ShaderData.clear();
 	for( size_t i = 0; i < SGRX_MAX_TEXTURES; ++i )
 		CheckSetTexture( i, NULL );
-	SetShader( NULL );
+	SetVertexShader( NULL );
+	SetPixelShader( NULL );
 	SetPrimitiveType( PT_None );
 	m_proto.color = 0xffffffff;
 	m_proto.u = 0;

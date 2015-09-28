@@ -80,6 +80,7 @@ struct StartScreen : IScreen
 		float scale = GR_GetWidth() / 1024.0f;
 		br.Reset().SetTexture( m_tx_logo ).Box( GR_GetWidth() / 2.0f, GR_GetHeight() / 2.1f, texinfo.width * scale, texinfo.height * scale );
 		
+		br.Reset();
 		GR2D_SetFont( "core", GR_GetHeight()/20 );
 		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4, "Click to start", HALIGN_CENTER, VALIGN_CENTER );
 		
@@ -571,6 +572,7 @@ struct MLD62_BossEye : Entity, SGRX_MeshInstUserData
 	EBossEyeAction m_state;
 	float m_health;
 	float m_timeInState;
+	float m_hitTimeout;
 	float m_laserWidth;
 	float m_flareSize;
 	Vec3 m_target;
@@ -587,7 +589,7 @@ struct MLD62_BossEye : Entity, SGRX_MeshInstUserData
 
 MLD62_BossEye::MLD62_BossEye( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
 	Entity( lev ), m_state( BEA_FollowPlayer ),
-	m_health(100), m_timeInState(0),
+	m_health(100), m_timeInState(0), m_hitTimeout(0),
 	m_laserWidth(1), m_flareSize(1), m_target(V3(0)),
 	m_position( pos ), m_direction( YP( dir ) )
 {
@@ -639,6 +641,7 @@ void MLD62_BossEye::Hit( float pwr )
 	if( m_health > 0 )
 	{
 		m_health -= pwr;
+		m_hitTimeout = 0.1f;
 		if( m_health <= 0 )
 		{
 			SetState( BEA_Malfunction );
@@ -648,11 +651,18 @@ void MLD62_BossEye::Hit( float pwr )
 
 void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
 {
+	m_hitTimeout = TMAX( 0.0f, m_hitTimeout - deltaTime );
+	
+	Vec4 col = V4(0);
+	if( m_hitTimeout > 0 )
+		col = V4( 1, 1, 1, 0.5f );
+	
 	Mat4 mtx = 
 		Mat4::CreateRotationY( -m_direction.pitch ) *
 		Mat4::CreateRotationZ( m_direction.yaw ) *
 		Mat4::CreateTranslation( m_position );
 	m_coreMesh->matrix = mtx;
+	m_coreMesh->constants[0] = col;
 	m_shieldMesh->matrix = mtx;
 	Mat4 laserMtx =
 		Mat4::CreateTranslation( V3(0,0,1.11f) ) *
@@ -838,6 +848,7 @@ struct MLD62_RoboSaw : Entity, SGRX_MeshInstUserData
 	
 	float m_health;
 	float m_sawRotation;
+	float m_hitTimeout;
 	Vec3 m_position;
 	MeshInstHandle m_coreMesh;
 	MeshInstHandle m_coreMeshSaw;
@@ -849,7 +860,7 @@ struct MLD62_RoboSaw : Entity, SGRX_MeshInstUserData
 
 MLD62_RoboSaw::MLD62_RoboSaw( GameLevel* lev, StringView name, Vec3 pos, Vec3 dir ) :
 	Entity( lev ),
-	m_health( 20 ), m_sawRotation( 0 ), m_position( pos ),
+	m_health( 20 ), m_sawRotation( 0 ), m_hitTimeout( 0 ), m_position( pos ),
 	m_ivPos( pos ), m_ivRot( Quat::Identity )
 {
 	m_coreMesh = lev->GetScene()->CreateMeshInstance();
@@ -893,6 +904,7 @@ void MLD62_RoboSaw::Hit( float pwr )
 {
 	if( m_health > 0 )
 	{
+		m_hitTimeout = 0.1f;
 		m_health -= pwr;
 		if( m_health <= 0 )
 		{
@@ -962,6 +974,8 @@ void MLD62_RoboSaw::FixedTick( float deltaTime )
 
 void MLD62_RoboSaw::Tick( float deltaTime, float blendFactor )
 {
+	m_hitTimeout = TMAX( 0.0f, m_hitTimeout - deltaTime );
+	
 	if( endgame )
 		Hit(1000);
 	
@@ -970,6 +984,10 @@ void MLD62_RoboSaw::Tick( float deltaTime, float blendFactor )
 		m_sawRotation += deltaTime * 100;
 	}
 	
+	Vec4 col = V4(0);
+	if( m_hitTimeout > 0 )
+		col = V4( 1, 1, 1, 0.5f );
+	
 	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
 	Mat4 mtx =
 		Mat4::CreateScale( V3(0.5f) ) *
@@ -977,6 +995,8 @@ void MLD62_RoboSaw::Tick( float deltaTime, float blendFactor )
 		Mat4::CreateTranslation( m_ivPos.Get( blendFactor ) );
 	m_coreMesh->matrix = mtx;
 	m_coreMeshSaw->matrix = Mat4::CreateRotationZ( m_sawRotation ) * mtx;
+	m_coreMesh->constants[ 0 ] = col;
+	m_coreMeshSaw->constants[ 0 ] = col;
 	if( m_health > 0 )
 	{
 		FSFlare statusFlare = { mtx.TransformPos( V3(0.251f,0.151f,0.155f) ), V3(2.0f,0.05f,0.01f), 1.0f, true };

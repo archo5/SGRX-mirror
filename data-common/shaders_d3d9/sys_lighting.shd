@@ -341,6 +341,14 @@ __CODE__
 	_outColor0 = float4( totalDiffuse * outDiffuseColor + totalSpecular * outSpecularColor + outEmissiveLight, outOpacity );
 	_outColor1 = float4( outDistortion, 0, outOpacity );
 	_outColor2 = float4( inViewPos.z, 0, 0, 1 );
+	
+	// modifier addons
+#ifdef MOD_BLENDCOLOR
+	_outColor0.rgb = lerp( _outColor0.rgb,
+		gInstanceData[ MOD_BLENDCOLOR ].rgb,
+		gInstanceData[ MOD_BLENDCOLOR ].a );
+#endif
+	
 #endif // SHADOW_PASS
 }
 

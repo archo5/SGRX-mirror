@@ -442,16 +442,8 @@ struct D3D11VertexInputMapping : SGRX_IVertexInputMapping
 };
 
 
-struct RTOutInfo
-{
-	// TODO
-	int unused;
-};
-
-
 RendererInfo g_D3D11RendererInfo =
 {
-	false, // swap R/B
 	true, // compile shaders
 	"d3d11", // shader type
 };
@@ -491,8 +483,7 @@ struct D3D11Renderer : IRenderer
 	SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd );
 	
 	void SetMatrix( bool view, const Mat4& mtx );
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount );
+	void DrawImmediate( SGRX_ImmDrawData& idd );
 	
 	void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
@@ -521,18 +512,6 @@ struct D3D11Renderer : IRenderer
 	TextureHandle m_currentRT;
 	bool m_dbg_rt;
 	
-	// helpers
-//	RTData m_drd;
-	
-	SGRX_IVertexShader* m_sh_bv_vs;
-	SGRX_IPixelShader* m_sh_bv_ps;
-	SGRX_IVertexShader* m_sh_pp_vs;
-	SGRX_IPixelShader* m_sh_pp_final;
-	SGRX_IPixelShader* m_sh_pp_dshp;
-	SGRX_IPixelShader* m_sh_pp_blur_h;
-	SGRX_IPixelShader* m_sh_pp_blur_v;
-	Array< PixelShaderHandle > m_pass_shaders;
-	
 	// storage
 	HashTable< D3D11Texture*, bool > m_ownTextures;
 	HashTable< D3D11Mesh*, bool > m_ownMeshes;
@@ -549,7 +528,6 @@ struct D3D11Renderer : IRenderer
 	
 	// rendering data
 	D3D11Texture* m_defaultTexture;
-	ID3D11InputLayout* m_inputLayout_batchverts;
 	ID3D11Buffer* m_vertbuf_defaults;
 	cb_vs_batchverts m_cbdata_vs_batchverts;
 	ID3D11Buffer* m_cbuf_vs_batchverts;
@@ -709,72 +687,14 @@ bool D3D11Renderer::LoadInternalResources()
 	uint32_t tdata = 0xffffffff;
 	m_defaultTexture = (D3D11Texture*) CreateTexture( &tinfo, &tdata );
 	if( m_defaultTexture == NULL )
-		return NULL;
-	
-	// shaders
-	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
-	PixelShaderHandle sh_bv_ps = GR_GetPixelShader( "sys_bv_ps" );
-	VertexShaderHandle sh_pp_vs = GR_GetVertexShader( "sys_pp_vs" );
-	PixelShaderHandle sh_pp_final = GR_GetPixelShader( "sys_pp_final" );
-	PixelShaderHandle sh_pp_dshp = GR_GetPixelShader( "sys_pp_bloom_dshp" );
-	PixelShaderHandle sh_pp_blur_h = GR_GetPixelShader( "sys_pp_bloom_blur_h" );
-	PixelShaderHandle sh_pp_blur_v = GR_GetPixelShader( "sys_pp_bloom_blur_v" );
-	if( !sh_bv_vs ||
-		!sh_bv_ps ||
-		!sh_pp_vs ||
-		!sh_pp_final ||
-		!sh_pp_dshp ||
-		!sh_pp_blur_h ||
-		!sh_pp_blur_v )
-	{
 		return false;
-	}
-	sh_bv_vs->Acquire();
-	sh_bv_ps->Acquire();
-	sh_pp_vs->Acquire();
-	sh_pp_final->Acquire();
-	sh_pp_dshp->Acquire();
-	sh_pp_blur_h->Acquire();
-	sh_pp_blur_v->Acquire();
-	m_sh_bv_vs = sh_bv_vs;
-	m_sh_bv_ps = sh_bv_ps;
-	m_sh_pp_vs = sh_pp_vs;
-	m_sh_pp_final = sh_pp_final;
-	m_sh_pp_dshp = sh_pp_dshp;
-	m_sh_pp_blur_h = sh_pp_blur_h;
-	m_sh_pp_blur_v = sh_pp_blur_v;
-	
-	SetVertexShader( m_sh_bv_vs );
-	
-	D3D11_INPUT_ELEMENT_DESC bv_elems[3] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	};
-	SGRX_CAST( D3D11VertexShader*, VS, m_sh_bv_vs );
-	HRESULT hr = m_dev->CreateInputLayout( bv_elems, SGRX_ARRAY_SIZE(bv_elems), VS->m_VSBC.data(), VS->m_VSBC.size(), &m_inputLayout_batchverts );
-	if( FAILED( hr ) || !m_inputLayout_batchverts )
-	{
-		LOG_ERROR << "Failed to create D3D11 batch vertex input layout";
-		return false;
-	}
 	
 	return true;
 }
 
 void D3D11Renderer::UnloadInternalResources()
 {
-	SAFE_RELEASE( m_inputLayout_batchverts );
-	
 	m_defaultTexture->Release();
-	m_sh_bv_vs->Release();
-	m_sh_bv_ps->Release();
-	m_sh_pp_vs->Release();
-	m_sh_pp_final->Release();
-	m_sh_pp_dshp->Release();
-	m_sh_pp_blur_h->Release();
-	m_sh_pp_blur_v->Release();
 }
 
 void D3D11Renderer::Swap()
@@ -1683,40 +1603,39 @@ FINLINE D3D11_PRIMITIVE_TOPOLOGY conv_prim_type( EPrimitiveType pt )
 	}
 }
 
-void D3D11Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount )
+void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 {
-	SetVertexShader( m_sh_bv_vs );
-	SetPixelShader( shd ? shd : m_sh_bv_ps );
-	SetRenderState( rs );
+	SetVertexShader( idd.vertexShader );
+	SetPixelShader( idd.pixelShader );
+	SetRenderState( idd.renderState );
 	
-	m_vertbuf_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_VERTEX_BUFFER, verts, sizeof(*verts) * count );
-	if( shdata && shvcount )
-		m_cbuf_ps_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, shdata, sizeof(*shdata) * shvcount );
+	m_vertbuf_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_VERTEX_BUFFER, idd.vertices, idd.vertexDecl->m_info.size * idd.vertexCount );
+	if( idd.shdata && idd.shvcount )
+		m_cbuf_ps_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, idd.shdata, sizeof(*idd.shdata) * idd.shvcount );
 	
 	m_ctx->VSSetConstantBuffers( 0, 1, &m_cbuf_vs_batchverts );
 	
 	m_ctx->PSSetConstantBuffers( 0, 1, m_cbuf_ps_batchverts.PPBuf() );
 	
-	ID3D11ShaderResourceView* srvs[ 16 ];
-	ID3D11SamplerState* smps[ 16 ];
+	ID3D11ShaderResourceView* srvs[ SGRX_MAX_TEXTURES ];
+	ID3D11SamplerState* smps[ SGRX_MAX_TEXTURES ];
 	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 	{
-		SGRX_ITexture* tex = textures[ i ];
+		SGRX_ITexture* tex = idd.textures[ i ];
 		srvs[ i ] = ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_rsrcView;
 		smps[ i ] = ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_sampState;
 	}
-	m_ctx->PSSetShaderResources( 0, 1, srvs );
-	m_ctx->PSSetSamplers( 0, 1, smps );
+	m_ctx->PSSetShaderResources( 0, SGRX_MAX_TEXTURES, srvs );
+	m_ctx->PSSetSamplers( 0, SGRX_MAX_TEXTURES, smps );
 	
-	m_ctx->IASetPrimitiveTopology( conv_prim_type( pt ) );
-	m_ctx->IASetInputLayout( m_inputLayout_batchverts );
+	m_ctx->IASetPrimitiveTopology( conv_prim_type( idd.primType ) );
+	m_ctx->IASetInputLayout( ((D3D11VertexInputMapping*) idd.vertexInputMapping)->m_inputLayout );
 	ID3D11Buffer* vbufs[2] = { m_vertbuf_batchverts, m_vertbuf_defaults };
-	static const UINT strides[2] = { sizeof(BatchRenderer::Vertex), sizeof(BackupVertexData) };
+	static const UINT strides[2] = { idd.vertexDecl->m_info.size, sizeof(BackupVertexData) };
 	static const UINT offsets[2] = { 0, 0 };
 	m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
 	
-	m_ctx->Draw( count, 0 );
+	m_ctx->Draw( idd.vertexCount, 0 );
 }
 
 

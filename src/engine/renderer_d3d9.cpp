@@ -229,161 +229,8 @@ struct D3D9Mesh : SGRX_IMesh
 };
 
 
-struct ScreenSpaceVtx
-{
-	float x, y, z;
-	float u0, v0;
-	float u1, v1;
-};
-
-struct RTOutInfo
-{
-	IDirect3DSurface9* CS;
-	IDirect3DSurface9* DS;
-	IDirect3DSurface9* DSS;
-	int w, h;
-};
-
-struct RTData
-{
-	IDirect3DTexture9* RTT_OCOL; /* oR, oG, oB, oA, RGBA16F */
-	IDirect3DTexture9* RTT_PARM; /* distX, distY, emissive, oA (blending purposes), RGBA16F */
-	IDirect3DTexture9* RTT_DEPTH; /* depth, R32F */
-	IDirect3DTexture9* RTT_BLOOM_DSHP; /* bloom downsample/high-pass RT, RGBA8 */
-	IDirect3DTexture9* RTT_BLOOM_BLUR1; /* bloom horizontal blur RT, RGBA8 */
-	IDirect3DTexture9* RTT_BLOOM_BLUR2; /* bloom vertical blur RT, RGBA8 */
-	
-	IDirect3DSurface9* RTS_OCOL;
-	IDirect3DSurface9* RTS_PARM;
-	IDirect3DSurface9* RTS_DEPTH;
-	IDirect3DSurface9* RTS_BLOOM_DSHP;
-	IDirect3DSurface9* RTS_BLOOM_BLUR1;
-	IDirect3DSurface9* RTS_BLOOM_BLUR2;
-	IDirect3DSurface9* RTSD;
-	
-	IDirect3DSurface9* RTS_OCOL_MSAA;
-	IDirect3DSurface9* RTS_PARM_MSAA;
-	IDirect3DSurface9* RTS_DEPTH_MSAA;
-	IDirect3DSurface9* RTSD_MSAA;
-	
-	int width, height;
-	D3DMULTISAMPLE_TYPE mstype;
-};
-
-
-static const char* postproc_init( IDirect3DDevice9* dev, RTData* D, int w, int h, D3DMULTISAMPLE_TYPE msaa )
-{
-	LOG_FUNCTION;
-	
-	HRESULT hr;
-	memset( D, 0, sizeof(*D) );
-	
-	D->width = w;
-	D->height = h;
-	D->mstype = msaa;
-	
-	int w4 = w / 4;
-	int h4 = h / 4;
-	
-	/* core */
-	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_OCOL, NULL );
-	if( FAILED( hr ) || !D->RTT_OCOL ) return "failed to create rgba16f render target texture (fs,1)";
-	
-	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_PARM, NULL );
-	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create rgba16f render target texture (fs,2)";
-	
-	hr = dev->CreateTexture( w, h, 1, D3DUSAGE_RENDERTARGET, D3DFMT_R32F, D3DPOOL_DEFAULT, &D->RTT_DEPTH, NULL );
-	if( FAILED( hr ) || !D->RTT_PARM ) return "failed to create r32f depth stencil texture (fs,3)";
-	
-	/* bloom */
-	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_DSHP, NULL );
-	if( FAILED( hr ) || !D->RTT_BLOOM_DSHP ) return "failed to create rgba16f render target texture (ds,4)";
-	
-	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_BLUR1, NULL );
-	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR1 ) return "failed to create rgba16f render target texture (ds,5)";
-	
-	hr = dev->CreateTexture( w4, h4, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16F, D3DPOOL_DEFAULT, &D->RTT_BLOOM_BLUR2, NULL );
-	if( FAILED( hr ) || !D->RTT_BLOOM_BLUR2 ) return "failed to create rgba16f render target texture (ds,6)";
-	
-	/* depth */
-	hr = dev->CreateDepthStencilSurface( w, h, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, TRUE, &D->RTSD, NULL );
-	if( FAILED( hr ) || !D->RTSD ) return "failed to create d24s8 depth+stencil surface (fs,7)";
-	
-	/* surfaces */
-	D->RTT_OCOL->GetSurfaceLevel( 0, &D->RTS_OCOL );
-	D->RTT_PARM->GetSurfaceLevel( 0, &D->RTS_PARM );
-	D->RTT_DEPTH->GetSurfaceLevel( 0, &D->RTS_DEPTH );
-	D->RTT_BLOOM_DSHP->GetSurfaceLevel( 0, &D->RTS_BLOOM_DSHP );
-	D->RTT_BLOOM_BLUR1->GetSurfaceLevel( 0, &D->RTS_BLOOM_BLUR1 );
-	D->RTT_BLOOM_BLUR2->GetSurfaceLevel( 0, &D->RTS_BLOOM_BLUR2 );
-	
-	if( msaa )
-	{
-		hr = dev->CreateRenderTarget( w, h, D3DFMT_A16B16G16R16F, msaa, 0, FALSE, &D->RTS_OCOL_MSAA, NULL );
-		if( FAILED( hr ) || !D->RTS_OCOL_MSAA ) return "failed to create rgba16f render target surface (fs,8,aa,1)";
-		
-		hr = dev->CreateRenderTarget( w, h, D3DFMT_A16B16G16R16F, msaa, 0, FALSE, &D->RTS_PARM_MSAA, NULL );
-		if( FAILED( hr ) || !D->RTS_PARM_MSAA ) return "failed to create rgba16f render target surface (fs,9,aa,2)";
-		
-		hr = dev->CreateRenderTarget( w, h, D3DFMT_R32F, msaa, 0, FALSE, &D->RTS_DEPTH_MSAA, NULL );
-		if( FAILED( hr ) || !D->RTS_DEPTH_MSAA ) return "failed to create rgba16f render target surface (fs,10,aa,3)";
-		
-		hr = dev->CreateDepthStencilSurface( w, h, D3DFMT_D24S8, msaa, 0, TRUE, &D->RTSD_MSAA, NULL );
-		if( FAILED( hr ) || !D->RTSD_MSAA ) return "failed to create d24s8 depth+stencil surface (fs,11,aa,7)";
-	}
-	
-	return NULL;
-}
-
-static void postproc_free( RTData* D )
-{
-	SAFE_RELEASE( D->RTS_OCOL_MSAA );
-	SAFE_RELEASE( D->RTS_PARM_MSAA );
-	SAFE_RELEASE( D->RTS_DEPTH_MSAA );
-	SAFE_RELEASE( D->RTSD_MSAA );
-	
-	SAFE_RELEASE( D->RTS_OCOL );
-	SAFE_RELEASE( D->RTS_PARM );
-	SAFE_RELEASE( D->RTS_DEPTH );
-	SAFE_RELEASE( D->RTS_BLOOM_DSHP );
-	SAFE_RELEASE( D->RTS_BLOOM_BLUR1 );
-	SAFE_RELEASE( D->RTS_BLOOM_BLUR2 );
-	SAFE_RELEASE( D->RTT_OCOL );
-	SAFE_RELEASE( D->RTT_PARM );
-	SAFE_RELEASE( D->RTT_DEPTH );
-	SAFE_RELEASE( D->RTT_BLOOM_DSHP );
-	SAFE_RELEASE( D->RTT_BLOOM_BLUR1 );
-	SAFE_RELEASE( D->RTT_BLOOM_BLUR2 );
-	SAFE_RELEASE( D->RTSD );
-	
-	D->mstype = D3DMULTISAMPLE_NONE;
-	D->width = 0;
-	D->height = 0;
-}
-
-inline IDirect3DSurface9* postproc_get_ocol( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTS_OCOL_MSAA : D->RTS_OCOL; }
-inline IDirect3DSurface9* postproc_get_parm( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_PARM; }
-inline IDirect3DSurface9* postproc_get_depth( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? NULL : D->RTS_DEPTH; }
-inline IDirect3DSurface9* postproc_get_dss( RTData* D ){ return D->mstype != D3DMULTISAMPLE_NONE ? D->RTSD_MSAA : D->RTSD; }
-
-inline void postproc_resolve( IDirect3DDevice9* dev, RTData* D )
-{
-	if( !D->mstype )
-		return;
-	
-	dev->EndScene();
-	RECT r = { 0, 0, D->width, D->height };
-	dev->StretchRect( D->RTS_OCOL_MSAA, &r, D->RTS_OCOL, &r, D3DTEXF_NONE );
-	dev->StretchRect( D->RTS_PARM_MSAA, &r, D->RTS_PARM, &r, D3DTEXF_NONE );
-	dev->StretchRect( D->RTS_DEPTH_MSAA, &r, D->RTS_DEPTH, &r, D3DTEXF_NONE );
-//	dev->StretchRect( D->RTSD_MSAA, &r, D->RTSD, &r, D3DTEXF_NONE ); // ?
-	dev->BeginScene();
-}
-
-
 RendererInfo g_D3D9RendererInfo =
 {
-	true, // swap R/B
 	true, // compile shaders
 	"d3d9", // shader type
 };
@@ -422,13 +269,14 @@ struct D3D9Renderer : IRenderer
 	SGRX_IVertexInputMapping* CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd ){ return NULL; }
 	
 	void SetMatrix( bool view, const Mat4& mtx );
-	void DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-		TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount );
+	void DrawImmediate( SGRX_ImmDrawData& idd );
 	
 	virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
+#if 0
 	void _RS_RenderPass_Projectors( size_t pass_id );
 	void _RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, const RTOutInfo& RTOUT );
+#endif
 	
 	bool ResetDevice();
 	void ResetViewport();
@@ -458,16 +306,8 @@ struct D3D9Renderer : IRenderer
 	SGRX_RenderState m_crs;
 	
 	// helpers
-	RTData m_drd;
 	Mat4 m_world;
 	Mat4 m_view;
-	TextureHandle m_whiteTex;
-	IDirect3DVertexDeclaration9* m_batchVertDecl;
-	
-	SGRX_IVertexShader* m_sh_proj_vs;
-	SGRX_IVertexShader* m_sh_bv_vs;
-	SGRX_IPixelShader* m_sh_bv_ps;
-	SGRX_IPixelShader* m_sh_lvsl_ps;
 	
 	// storage
 	HashTable< D3D9Texture*, bool > m_ownTextures;
@@ -561,22 +401,6 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		return NULL;
 	}
 	
-	D3DVERTEXELEMENT9 elements[ 4 ] =
-	{
-		{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-		{ 0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 },
-		{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-		D3DDECL_END()
-	};
-	if( FAILED( R->m_dev->CreateVertexDeclaration( elements, &R->m_batchVertDecl ) ) ||
-		R->m_batchVertDecl == NULL )
-	{
-		LOG_ERROR << "Failed to create D3D9 batched vertex declaration";
-		return NULL;
-	}
-	
-	postproc_init( d3ddev, &R->m_drd, settings.width, settings.height, d3dpp.MultiSampleType );
-	
 	d3ddev->BeginScene();
 	
 	SGRX_RTClearInfo info = { SGRX_RT_ClearAll, 0, 0, 1 };
@@ -626,9 +450,6 @@ void D3D9Renderer::Destroy()
 	m_ownTextures.clear();
 	m_ownDSS.clear();
 	
-	postproc_free( &m_drd );
-	
-	SAFE_RELEASE( m_batchVertDecl );
 	SAFE_RELEASE( m_backbuf );
 	SAFE_RELEASE( m_dssurf );
 	SAFE_RELEASE( m_dev );
@@ -642,43 +463,12 @@ bool D3D9Renderer::LoadInternalResources()
 	if( !_RS_ProjectorInit() )
 		return false;
 	
-	m_whiteTex = GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, 0, 1 );
-	uint32_t whiteCol = 0xffffffff;
-	m_whiteTex.UploadRGBA8Part( &whiteCol );
-	
-//	VertexShaderHandle sh_proj_vs = GR_GetVertexShader( "mtl::vs_base" );
-	VertexShaderHandle sh_bv_vs = GR_GetVertexShader( "sys_bv_vs" );
-	PixelShaderHandle sh_bv_ps = GR_GetPixelShader( "sys_bv_ps" );
-	PixelShaderHandle sh_lvsl_ps = GR_GetPixelShader( "sys_lvsl_ps" );
-	if( !sh_bv_vs ||
-		!sh_bv_ps ||
-		!sh_lvsl_ps )
-	{
-		return false;
-	}
-//	sh_proj_vs->Acquire();
-	sh_bv_vs->Acquire();
-	sh_bv_ps->Acquire();
-	sh_lvsl_ps->Acquire();
-//	m_sh_proj_vs = sh_proj_vs;
-	m_sh_bv_vs = sh_bv_vs;
-	m_sh_bv_ps = sh_bv_ps;
-	m_sh_lvsl_ps = sh_lvsl_ps;
-	
-	SetVertexShader( m_sh_bv_vs );
 	return true;
 }
 
 void D3D9Renderer::UnloadInternalResources()
 {
 	LOG_FUNCTION;
-	
-//	m_sh_proj_vs->Release();
-	m_sh_bv_vs->Release();
-	m_sh_bv_ps->Release();
-	m_sh_lvsl_ps->Release();
-	
-	m_whiteTex = NULL;
 	
 	_RS_ProjectorFree();
 }
@@ -1479,23 +1269,22 @@ FINLINE uint32_t get_prim_count( EPrimitiveType pt, uint32_t numverts )
 	}
 }
 
-void D3D9Renderer::DrawBatchVertices( BatchRenderer::Vertex* verts, uint32_t count, EPrimitiveType pt,
-	TextureHandle textures[ SGRX_MAX_TEXTURES ], SGRX_IPixelShader* shd, SGRX_IRenderState* rs, Vec4* shdata, size_t shvcount )
+void D3D9Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 {
 	float w = m_viewport.Width;
 	float h = m_viewport.Height;
 	Mat4 hpomtx = { 1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  w ? -1.0f / w : 0, h ? 1.0f / h : 0, 0, 1 };
 	
-	SetVertexShader( m_sh_bv_vs );
-	SetPixelShader( shd ? shd : m_sh_bv_ps );
-	SetRenderState( rs );
+	SetVertexShader( idd.vertexShader );
+	SetPixelShader( idd.pixelShader );
+	SetRenderState( idd.renderState );
 	VS_SetMat4( 0, m_world );
 	VS_SetMat4( 4, m_view * hpomtx );
 	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
-		SetTexture( i, textures[ i ] ? textures[ i ] : ( i == 0 ? m_whiteTex : NULL ) );
-	PS_SetVec4Array( 0, shdata, shvcount );
-	m_dev->SetVertexDeclaration( m_batchVertDecl );
-	m_dev->DrawPrimitiveUP( conv_prim_type( pt ), get_prim_count( pt, count ), verts, sizeof( *verts ) );
+		SetTexture( i, idd.textures[ i ] );
+	PS_SetVec4Array( 0, idd.shdata, idd.shvcount );
+	m_dev->SetVertexDeclaration( ((D3D9VertexDecl*) idd.vertexDecl)->m_vdecl );
+	m_dev->DrawPrimitiveUP( conv_prim_type( idd.primType ), get_prim_count( idd.primType, idd.vertexCount ), idd.vertices, idd.vertexDecl->m_info.size );
 }
 
 
@@ -1677,6 +1466,7 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 	}
 }
 
+#if 0
 void D3D9Renderer::_RS_RenderPass_Projectors( size_t pass_id )
 {
 	const SGRX_Camera& CAM = m_currentScene->camera;
@@ -1819,6 +1609,7 @@ void D3D9Renderer::_RS_RenderPass_LightVols( IDirect3DBaseTexture9* tx_depth, co
 	
 //	Viewport_Apply( 1 );
 }
+#endif
 
 bool D3D9Renderer::ResetDevice()
 {
@@ -1840,7 +1631,6 @@ bool D3D9Renderer::ResetDevice()
 			LOG_ERROR << "Failed to prepare for resetting texture " << tex << " (" << tex->m_key << ")";
 		}
 	}
-	postproc_free( &m_drd );
 	SAFE_RELEASE( m_backbuf );
 	SAFE_RELEASE( m_dssurf );
 	
@@ -1866,8 +1656,6 @@ bool D3D9Renderer::ResetDevice()
 		LOG_ERROR << "Failed to retrieve the original depth/stencil surface";
 		return NULL;
 	}
-	
-	postproc_init( m_dev, &m_drd, m_params.BackBufferWidth, m_params.BackBufferHeight, m_params.MultiSampleType );
 	
 	for( size_t i = 0; i < m_ownMeshes.size(); ++i )
 	{
