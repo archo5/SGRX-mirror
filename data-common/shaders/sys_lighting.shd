@@ -1,3 +1,4 @@
+#include "__eq"
 
 #define LIGHT_MULTIPLIER 4
 #if VS
@@ -120,18 +121,22 @@ __VSCODE__
 
 #elif PS
 
-sampler2D Tex0 : register(s0);
-sampler2D Tex1 : register(s1);
-sampler2D Tex2 : register(s2);
-sampler2D Tex3 : register(s3);
-sampler2D Tex4 : register(s4);
-sampler2D Tex5 : register(s5);
-sampler2D Tex6 : register(s6);
-sampler2D Tex7 : register(s7);
-sampler2D InstTex0 : register(s8);
-samplerCUBE InstTex1 : register(s9);
-samplerCUBE InstTex2 : register(s10);
-samplerCUBE InstTex3 : register(s11);
+NEEDS_TEXTURE_2D(0);
+NEEDS_TEXTURE_2D(1);
+NEEDS_TEXTURE_2D(2);
+NEEDS_TEXTURE_2D(3);
+NEEDS_TEXTURE_2D(4);
+NEEDS_TEXTURE_2D(5);
+NEEDS_TEXTURE_2D(6);
+NEEDS_TEXTURE_2D(7);
+NEEDS_TEXTURE_2D(8);
+NEEDS_TEXTURE_CUBE(9);
+NEEDS_TEXTURE_CUBE(10);
+NEEDS_TEXTURE_CUBE(11);
+#define InstTex0 Tex8
+#define InstTex1 Tex9
+#define InstTex2 Tex10
+#define InstTex3 Tex11
 
 float4x4 mInvView : register(c0);
 float4x4 mProj : register(c4);
@@ -158,7 +163,11 @@ struct SpotLight /* size: 4c */
 	float4 shminfo;
 };
 SpotLight gSLights[ NUM_SPOTLIGHTS ] : register(c24); /* :c39 */
-sampler2D SpotLightTextures[ NUM_SPOTLIGHTS ] : register(s12);
+NEEDS_TEXTURE_2D(12);
+NEEDS_TEXTURE_2D(13);
+NEEDS_TEXTURE_2D(14);
+NEEDS_TEXTURE_2D(15);
+// sampler2D SpotLightTextures[ NUM_SPOTLIGHTS ] : register(s12);
 #endif
 
 float4 gInstanceData[16] : register(c100); /* :c115 */
@@ -170,17 +179,17 @@ void main
 	float3 inNormal : TEXCOORD7,
 	float4 icol : COLOR0,
 	float4 inTex0 : TEXCOORD0,
-	float4 inTex1 : TEXCOORD1,
+	float4 inTex1 : TEXCOORD1
 #if NUM_SPOTLIGHTS > 0
-	float4 inSLPPos0 : TEXCOORD8,
+	,float4 inSLPPos0 : TEXCOORD8
 #if NUM_SPOTLIGHTS > 1
-	float4 inSLPPos1 : TEXCOORD9,
+	,float4 inSLPPos1 : TEXCOORD9
 #endif // NUM_SPOTLIGHTS > 1
 #endif // NUM_SPOTLIGHTS > 2
-	out float4 _outColor0 : COLOR0
+	ARG_OUT_RT0
 #ifndef SHADOW_PASS
-	,out float4 _outColor1 : COLOR1
-	,out float4 _outColor2 : COLOR2
+	ARG_OUT_RT1
+	ARG_OUT_RT2
 #endif // SHADOW_PASS
 )
 {
@@ -214,7 +223,7 @@ __CODE__
 	float dval = projPos.z / projPos.w;
 	dval += 0.0001;
 	dval += ( abs( ddx( dval ) ) + abs( ddy( dval ) ) ) * 0.2;
-	_outColor0 = float4( dval, 0, 0, 1 );
+	RT0 = float4( dval, 0, 0, 1 );
 #else
 	
 	outNormal = normalize( outNormal );
@@ -229,7 +238,7 @@ __CODE__
 	
 #ifdef BASE_PASS
 #if LMODE == 1 || LMODE == 3 // -- static / decal
-	totalDiffuse = tex2D( InstTex0, inTex1.xy );
+	totalDiffuse = TEXSAMPLE_2D( InstTex0, inTex1.xy );
 #if LMODE == 3 // -- decal
 	totalDiffuse *= icol.rgb;
 #endif // LMODE == 3
@@ -248,7 +257,7 @@ __CODE__
 #endif // defined(DECAL) && LMODE != 3
 	totalDiffuse *= LIGHT_MULTIPLIER;
 	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
-	totalSpecular += outAmbientSpecularLight + texCUBElod( InstTex1, float4( refWorld.xzy, 0 ) ).rgb;
+	totalSpecular += outAmbientSpecularLight + TEXSAMPLE_CUBE_LOD( InstTex1, refWorld.xzy, 0 ).rgb;
 	
 	/* DIRECTIONAL LIGHT *--disabled--/
 	totalDiffuse += saturate( dot( outNormal, gDirLightDir ) ) * gDirLightColor;
@@ -290,6 +299,12 @@ __CODE__
 		,inSLPPos1
 #endif
 	};
+#ifdef HLSL_D3D9
+	sampler2D SpotLightTextures[4] = { Tex12, Tex13, Tex14, Tex15 };
+#elif defined(HLSL_D3D11)
+	Texture2D SpotLightTextures[4] = { Tex12, Tex13, Tex14, Tex15 };
+	SamplerState SMP_SpotLightTextures[4] = { SMP_Tex12, SMP_Tex13, SMP_Tex14, SMP_Tex15 };
+#endif
 	for( int i = 0; i < gLightCounts.y; ++i )
 	{
 		SpotLight SL = gSLights[ i ];
@@ -303,20 +318,20 @@ __CODE__
 		if( dot(step(-(abs( slpos ) -1),0),1) <= 0 )
 		{
 			float2 sltex = slpos.xy * float2(0.5,-0.5) + 0.5;
-			float3 cookieSample = tex2Dlod( SpotLightTextures[ i * 2 ], float4( sltex, 0, 0 ) );
+			float3 cookieSample = TEXSAMPLE_2D_LOD( SpotLightTextures[ i * 2 ], sltex, 0 );
 			
 			float4 sizeinfo = SL.shminfo;
 			float2 coord = sltex * sizeinfo.xy;
 			float2 fv = frac( coord );
-			sampler2D shmap = SpotLightTextures[ i * 2 + 1 ];
+			#define shmap SpotLightTextures[ i * 2 + 1 ]
 			float coord0x = floor( coord.x ) * sizeinfo.z;
 			float coord1x = ceil( coord.x ) * sizeinfo.z;
 			float coord0y = floor( coord.y ) * sizeinfo.w;
 			float coord1y = ceil( coord.y ) * sizeinfo.w;
-			float s00 = step( slpos.z, tex2Dlod( shmap, float4( coord0x, coord0y, 0, 0 ) ).r );
-			float s10 = step( slpos.z, tex2Dlod( shmap, float4( coord1x, coord0y, 0, 0 ) ).r );
-			float s01 = step( slpos.z, tex2Dlod( shmap, float4( coord0x, coord1y, 0, 0 ) ).r );
-			float s11 = step( slpos.z, tex2Dlod( shmap, float4( coord1x, coord1y, 0, 0 ) ).r );
+			float s00 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord0x, coord0y ), 0 ).r );
+			float s10 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord1x, coord0y ), 0 ).r );
+			float s01 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord0x, coord1y ), 0 ).r );
+			float s11 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord1x, coord1y ), 0 ).r );
 			float smix = lerp( lerp( s00, s10, fv.x ), lerp( s01, s11, fv.x ), fv.y );
 			
 			lightColor *= cookieSample * smix;
@@ -338,13 +353,13 @@ __CODE__
 	totalSpecular = float3(0,0,0);
 #endif // LMODE == 0
 	
-	_outColor0 = float4( totalDiffuse * outDiffuseColor + totalSpecular * outSpecularColor + outEmissiveLight, outOpacity );
-	_outColor1 = float4( outDistortion, 0, outOpacity );
-	_outColor2 = float4( inViewPos.z, 0, 0, 1 );
+	RT0 = float4( totalDiffuse * outDiffuseColor + totalSpecular * outSpecularColor + outEmissiveLight, outOpacity );
+	RT1 = float4( outDistortion, 0, outOpacity );
+	RT2 = float4( inViewPos.z, 0, 0, 1 );
 	
 	// modifier addons
 #ifdef MOD_BLENDCOLOR
-	_outColor0.rgb = lerp( _outColor0.rgb,
+	RT0.rgb = lerp( RT0.rgb,
 		gInstanceData[ MOD_BLENDCOLOR ].rgb,
 		gInstanceData[ MOD_BLENDCOLOR ].a );
 #endif

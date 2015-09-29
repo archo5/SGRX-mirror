@@ -2,14 +2,26 @@
 #ifdef HLSL_D3D9
 
 #define NEEDS_TEXTURE_2D( id ) sampler2D Tex##id : register(s##id);
+#define NEEDS_TEXTURE_CUBE( id ) samplerCUBE Tex##id : register(s##id);
 #define TEXSAMPLE_2D( name, tc ) tex2D( name, tc )
+#define TEXSAMPLE_2D_LOD( name, tc, lod ) tex2Dlod( name, float4(tc,0,lod) )
+#define TEXSAMPLE_2D_BIAS( name, tc, bias ) tex2Dbias( name, float4(tc,0,bias) )
+#define TEXSAMPLE_CUBE_LOD( name, tc, lod ) texCUBElod( name, float4(tc,lod) )
 #define ARG_OUT_RT0 ,out float4 RT0 : COLOR0
+#define ARG_OUT_RT1 ,out float4 RT1 : COLOR1
+#define ARG_OUT_RT2 ,out float4 RT2 : COLOR2
 
 #elif defined(HLSL_D3D11)
 
 #define _NEEDS_SAMPLER( id ) SamplerState SMP_Tex##id : register(s##id);
 #define NEEDS_TEXTURE_2D( id ) Texture2D Tex##id : register(t##id); _NEEDS_SAMPLER( id );
+#define NEEDS_TEXTURE_CUBE( id ) TextureCube Tex##id : register(t##id); _NEEDS_SAMPLER( id );
 #define TEXSAMPLE_2D( name, tc ) name.Sample( SMP_##name, tc )
+#define TEXSAMPLE_2D_LOD( name, tc, lod ) name.SampleLevel( SMP_##name, tc, lod )
+#define TEXSAMPLE_2D_BIAS( name, tc, bias ) name.SampleBias( SMP_##name, tc, bias )
+#define TEXSAMPLE_CUBE_LOD( name, tc, lod ) name.Sample( SMP_##name, float4(tc,lod) )
 #define ARG_OUT_RT0 ,out float4 RT0 : SV_TARGET0
+#define ARG_OUT_RT1 ,out float4 RT1 : SV_TARGET1
+#define ARG_OUT_RT2 ,out float4 RT2 : SV_TARGET2
 
 #endif
