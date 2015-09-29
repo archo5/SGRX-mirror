@@ -516,12 +516,8 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 	if( flags.contains( ":wrapy" ) ) outusageflags &= ~TEXFLAGS_CLAMP_Y;
 	if( flags.contains( ":clampx" ) ) outusageflags |= TEXFLAGS_CLAMP_X;
 	if( flags.contains( ":clampy" ) ) outusageflags |= TEXFLAGS_CLAMP_Y;
-	if( flags.contains( ":nolerp" ) ) outusageflags &= ~(TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y);
-	if( flags.contains( ":nolerpx" ) ) outusageflags &= ~TEXFLAGS_LERP_X;
-	if( flags.contains( ":nolerpy" ) ) outusageflags &= ~TEXFLAGS_LERP_Y;
-	if( flags.contains( ":lerp" ) ) outusageflags |= (TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y);
-	if( flags.contains( ":lerpx" ) ) outusageflags |= TEXFLAGS_LERP_X;
-	if( flags.contains( ":lerpy" ) ) outusageflags |= TEXFLAGS_LERP_Y;
+	if( flags.contains( ":nolerp" ) ) outusageflags &= ~TEXFLAGS_LERP;
+	if( flags.contains( ":lerp" ) ) outusageflags |= TEXFLAGS_LERP;
 	if( flags.contains( ":nomips" ) ) outusageflags &= ~TEXFLAGS_HASMIPS;
 	if( flags.contains( ":mips" ) ) outusageflags |= TEXFLAGS_HASMIPS;
 }
@@ -776,7 +772,7 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 		FS_LoadBinaryFile( path, outdata ) == false )
 		return false;
 	
-	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y;
+	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP;
 	if( path.contains( "diff." ) )
 	{
 		// diffuse maps
@@ -2473,7 +2469,7 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 	LOG_FUNCTION;
 	
 	TextureInfo ti = { TEXTYPE_2D, 1, width, height, 1, format,
-		TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
+		TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
 	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
 	if( !tex )
 	{

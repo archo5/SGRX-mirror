@@ -746,7 +746,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 			if( MID.m_lmap.width && MID.m_lmap.height )
 			{
 				TextureHandle lmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
-					TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
+					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
 				lmtex->UploadRGBA8Part( MID.m_lmap.data.data(),
 					0, 0, 0, MID.m_lmap.width, MID.m_lmap.height );
 				MI->SetMITexture( 0, lmtex );

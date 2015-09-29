@@ -417,7 +417,7 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 	if( lmdata.size() )
 	{
 		texture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8,
-			TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
+			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
 		Array< uint32_t > convdata;
 		convdata.resize( lmdata.size() );
 		for( size_t i = 0; i < lmdata.size(); ++i )

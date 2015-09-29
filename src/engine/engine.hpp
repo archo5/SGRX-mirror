@@ -131,8 +131,7 @@ ENGINE_EXPORT void Game_End();
 
 #define TEXFLAGS_SRGB    0x01
 #define TEXFLAGS_HASMIPS 0x02
-#define TEXFLAGS_LERP_X  0x04
-#define TEXFLAGS_LERP_Y  0x08
+#define TEXFLAGS_LERP    0x04
 #define TEXFLAGS_CLAMP_X 0x10
 #define TEXFLAGS_CLAMP_Y 0x20
 

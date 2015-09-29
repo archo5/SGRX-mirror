@@ -1277,9 +1277,6 @@ void D3D9Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 }
 
 
-
-#define TEXTURE_FLAGS_FULLSCREEN (TEXFLAGS_HASMIPS | TEXFLAGS_LERP_X | TEXFLAGS_LERP_Y | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y)
-
 /*
 	R E N D E R I N G
 	
@@ -1678,8 +1675,8 @@ void D3D9Renderer::_SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_
 	m_dev->SetTexture( slot, tex );
 	if( tex )
 	{
-		m_dev->SetSamplerState( slot, D3DSAMP_MAGFILTER, ( flags & TEXFLAGS_LERP_X ) ? D3DTEXF_LINEAR : D3DTEXF_POINT );
-		m_dev->SetSamplerState( slot, D3DSAMP_MINFILTER, ( flags & TEXFLAGS_LERP_Y ) ? D3DTEXF_LINEAR : D3DTEXF_POINT );
+		m_dev->SetSamplerState( slot, D3DSAMP_MAGFILTER, ( flags & TEXFLAGS_LERP ) ? D3DTEXF_LINEAR : D3DTEXF_POINT );
+		m_dev->SetSamplerState( slot, D3DSAMP_MINFILTER, ( flags & TEXFLAGS_LERP ) ? D3DTEXF_LINEAR : D3DTEXF_POINT );
 		m_dev->SetSamplerState( slot, D3DSAMP_MIPFILTER, ( flags & TEXFLAGS_HASMIPS ) ? D3DTEXF_LINEAR : D3DTEXF_NONE );
 		m_dev->SetSamplerState( slot, D3DSAMP_ADDRESSU, ( flags & TEXFLAGS_CLAMP_X ) ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP );
 		m_dev->SetSamplerState( slot, D3DSAMP_ADDRESSV, ( flags & TEXFLAGS_CLAMP_Y ) ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP );

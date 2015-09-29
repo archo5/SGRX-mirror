@@ -574,7 +574,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	swapChainDesc.BufferDesc.Height = settings.height;
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = settings.fullscreen != FULLSCREEN_NORMAL ? 0 : settings.refresh_rate;
 	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // DXGI_FORMAT_B8G8R8A8_UNORM ?
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
 	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_STRETCHED;
 	swapChainDesc.SampleDesc.Count = msamples;
@@ -590,7 +590,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		NULL, // adapter
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL, // software rasterizer (unused)
-		D3D11_CREATE_DEVICE_DEBUG, // flags
+		0, // D3D11_CREATE_DEVICE_DEBUG, // flags
 		NULL, // feature levels
 		0, // ^^
 		D3D11_SDK_VERSION,
@@ -699,7 +699,7 @@ void D3D11Renderer::UnloadInternalResources()
 
 void D3D11Renderer::Swap()
 {
-	m_swapChain->Present( 0, 0 );
+	m_swapChain->Present( m_currSettings.vsync ? 1 : 0, 0 );
 }
 
 void D3D11Renderer::Modify( const RenderSettings& settings )
@@ -889,9 +889,12 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 			return NULL;
 		}
 		
-		D3D11_SAMPLER_DESC sdesc = {
-			D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP,
-			D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP,
+		D3D11_SAMPLER_DESC sdesc =
+		{
+			texinfo->flags & TEXFLAGS_LERP ? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT,
+			texinfo->flags & TEXFLAGS_CLAMP_X ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
+			texinfo->flags & TEXFLAGS_CLAMP_Y ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
+			D3D11_TEXTURE_ADDRESS_WRAP,
 			0, 1, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 		};
 		if( create_sampstate( m_dev, &sdesc, &samp ) )
@@ -1248,7 +1251,7 @@ void D3D11RenderState::SetState( const SGRX_RenderState& state )
 	}
 	
 	// batch vertex blending states
-	D3D11_BLEND_DESC bdesc = { TRUE, state.separateBlend };
+	D3D11_BLEND_DESC bdesc = { FALSE, state.separateBlend };
 	for( int i = 0; i < SGRX_RS_MAX_RENDER_TARGETS; ++i )
 	{
 		const SGRX_RenderState::BlendState& bs = state.blendStates[ i ];
