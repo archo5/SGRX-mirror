@@ -1,0 +1,10 @@
+#include "__eq"
+
+NEEDS_TEXTURE_2D(0);
+
+void main( float2 itex : TEXCOORD0
+	ARG_OUT_RT0 )
+{
+	RT0 = float4( max( 0.0, pow( TEXSAMPLE_2D( Tex0, itex ).rgb, 1.0/2.0 ) - 1.0 ), 1 );
+}
+

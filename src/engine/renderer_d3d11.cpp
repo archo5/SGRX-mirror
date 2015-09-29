@@ -442,10 +442,11 @@ struct D3D11VertexInputMapping : SGRX_IVertexInputMapping
 };
 
 
-RendererInfo g_D3D11RendererInfo =
+SGRX_RendererInfo g_D3D11RendererInfo =
 {
 	true, // compile shaders
-	"d3d11", // shader type
+	"d3d11", // shader cache folder suffix
+	"HLSL_D3D11", // shader type (define)
 };
 
 struct D3D11Renderer : IRenderer
@@ -459,7 +460,7 @@ struct D3D11Renderer : IRenderer
 	
 	D3D11Renderer() : m_dbg_rt( false ){}
 	void Destroy();
-	const RendererInfo& GetInfo(){ return g_D3D11RendererInfo; }
+	const SGRX_RendererInfo& GetInfo(){ return g_D3D11RendererInfo; }
 	bool LoadInternalResources();
 	void UnloadInternalResources();
 	

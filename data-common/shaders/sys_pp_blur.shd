@@ -1,0 +1,23 @@
+#include "__eq"
+
+NEEDS_TEXTURE_2D(0);
+#define texOCOL Tex0
+
+float4 PPData : register(c0);
+
+void main( float2 itex : TEXCOORD0
+	ARG_OUT_RT0 )
+{
+	float2 hoff = PPData.zw;
+	
+	float3 ocol = TEXSAMPLE_2D( texOCOL, itex ).rgb * 0.383;
+	ocol += TEXSAMPLE_2D( texOCOL, itex + hoff*1 ).rgb * 0.242;
+	ocol += TEXSAMPLE_2D( texOCOL, itex + hoff*2 ).rgb * 0.061;
+	ocol += TEXSAMPLE_2D( texOCOL, itex + hoff*3 ).rgb * 0.006;
+	ocol += TEXSAMPLE_2D( texOCOL, itex - hoff*1 ).rgb * 0.242;
+	ocol += TEXSAMPLE_2D( texOCOL, itex - hoff*2 ).rgb * 0.061;
+	ocol += TEXSAMPLE_2D( texOCOL, itex - hoff*3 ).rgb * 0.006;
+	
+	RT0 = float4( ocol, 1 );
+}
+

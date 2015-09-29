@@ -204,12 +204,6 @@ ENGINE_EXPORT LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_
 	PointLightData* outPL, SpotLightDataPS* outSL_PS, SpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT );
 
 
-struct RendererInfo
-{
-	bool compileShaders;
-	StringView shaderTarget;
-};
-
 enum EShaderType
 {
 	ShaderType_Vertex,
@@ -221,7 +215,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT IRenderer();
 	ENGINE_EXPORT virtual ~IRenderer();
 	ENGINE_EXPORT virtual void Destroy() = 0;
-	ENGINE_EXPORT virtual const RendererInfo& GetInfo() = 0;
+	ENGINE_EXPORT virtual const SGRX_RendererInfo& GetInfo() = 0;
 	ENGINE_EXPORT virtual bool LoadInternalResources() = 0;
 	ENGINE_EXPORT virtual void UnloadInternalResources() = 0;
 	ENGINE_EXPORT virtual void Swap() = 0;

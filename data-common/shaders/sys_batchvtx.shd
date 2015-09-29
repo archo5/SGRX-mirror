@@ -28,7 +28,7 @@ NEEDS_TEXTURE_2D(0);
 void main( float2 itex : TEXCOORD0, float4 icol : COLOR0
 	ARG_OUT_RT0 )
 {
-	RT0 = icol * TEXSAMPLE( Tex0, itex );
+	RT0 = icol * TEXSAMPLE_2D( Tex0, itex );
 }
 
 

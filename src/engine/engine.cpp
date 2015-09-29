@@ -785,12 +785,12 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	return true;
 }
 
-void IGame::GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name )
+void IGame::GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name )
 {
 	LOG_FUNCTION;
 	
 	name = "shadercache_";
-	name.append( type.data(), type.size() );
+	name.append( rinfo.shaderCacheSfx );
 	name.append( "/" );
 	
 	StringView it = key;
@@ -809,7 +809,7 @@ void IGame::GetShaderCacheFilename( const StringView& type, const char* sfx, con
 	name.append( ".csh" );
 }
 
-bool IGame::GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata )
+bool IGame::GetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, ByteArray& outdata )
 {
 	LOG_FUNCTION;
 	
@@ -817,13 +817,13 @@ bool IGame::GetCompiledShader( const StringView& type, const char* sfx, const St
 		return false;
 	
 	String filename;
-	GetShaderCacheFilename( type, sfx, key, filename );
+	GetShaderCacheFilename( rinfo, sfx, key, filename );
 	
-	LOG << "Loading precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
+	LOG << "Loading precompiled shader: " << filename << " (type=" << rinfo.shaderCacheSfx << ", key=" << key << ")";
 	return FS_LoadBinaryFile( filename, outdata );
 }
 
-bool IGame::SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data )
+bool IGame::SetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, const ByteArray& data )
 {
 	LOG_FUNCTION;
 	
@@ -831,13 +831,13 @@ bool IGame::SetCompiledShader( const StringView& type, const char* sfx, const St
 		return false;
 	
 	String filename;
-	GetShaderCacheFilename( type, sfx, key, filename );
+	GetShaderCacheFilename( rinfo, sfx, key, filename );
 	
-	LOG << "Saving precompiled shader: " << filename << " (type=" << type << ", key=" << key << ")";
+	LOG << "Saving precompiled shader: " << filename << " (type=" << rinfo.shaderCacheSfx << ", key=" << key << ")";
 	return FS_SaveBinaryFile( filename, data.data(), data.size() );
 }
 
-bool IGame::OnLoadShader( const StringView& type, const StringView& key, String& outdata )
+bool IGame::OnLoadShader( const SGRX_RendererInfo& rinfo, const StringView& key, String& outdata )
 {
 	LOG_FUNCTION;
 	
@@ -882,42 +882,42 @@ bool IGame::OnLoadShader( const StringView& type, const StringView& key, String&
 		}
 		
 		String tpl_data, mtl_data, vs_data;
-		if( !OnLoadShaderFile( type, tpl, tpl_data ) )
+		if( !OnLoadShaderFile( rinfo, tpl, tpl_data ) )
 			return false;
-		if( mtl.size() && !OnLoadShaderFile( type, String_Concat( "mtl_", mtl ), mtl_data ) )
+		if( mtl.size() && !OnLoadShaderFile( rinfo, String_Concat( "mtl_", mtl ), mtl_data ) )
 			return false;
-		if( vs.size() && !OnLoadShaderFile( type, String_Concat( "vs_", vs ), vs_data ) )
+		if( vs.size() && !OnLoadShaderFile( rinfo, String_Concat( "vs_", vs ), vs_data ) )
 			return false;
 		outdata = String_Concat( prepend, String_Replace( String_Replace( tpl_data, "__CODE__", mtl_data ), "__VSCODE__", vs_data ) );
 		return true;
 	}
-	return OnLoadShaderFile( type, key, outdata );
+	return OnLoadShaderFile( rinfo, key, outdata );
 }
 
-bool IGame::OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata )
+bool IGame::OnLoadShaderFile( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata )
 {
 	LOG_FUNCTION;
 	
-	String filename = "shaders_";
-	filename.append( type.data(), type.size() );
+	String filename = "shaders";
 	filename.push_back( '/' );
 	filename.append( path.data(), path.size() );
 	filename.append( STRLIT_BUF( ".shd" ) );
 	
 	if( !FS_LoadTextFile( filename, outdata ) )
 	{
-		LOG_WARNING << "Failed to load shader file: " << filename << " (type=" << type << ", path=" << path << ")";
+		LOG_WARNING << "Failed to load shader file: " << filename << " (type=" << rinfo.shaderCacheSfx << ", path=" << path << ")";
 		return false;
 	}
 	
-	char bfr[ 300 ];
-	sgrx_snprintf( bfr, 300, "#line 1 \"%s\"\n", StackPath(path).str );
-	outdata.insert( 0, bfr, sgrx_snlen( bfr, 300 ) );
+	char bfr[ 400 ];
+	sgrx_snprintf( bfr, 400, "#define %s\n#line 1 \"%s\"\n",
+		StackString<100>(rinfo.shaderTypeDefine).str, StackPath(path).str );
+	outdata.insert( 0, bfr, sgrx_snlen( bfr, 400 ) );
 	
-	return ParseShaderIncludes( type, path, outdata );
+	return ParseShaderIncludes( rinfo, path, outdata );
 }
 
-bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata )
+bool IGame::ParseShaderIncludes( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata )
 {
 	LOG_FUNCTION;
 	
@@ -935,7 +935,7 @@ bool IGame::ParseShaderIncludes( const StringView& type, const StringView& path,
 		
 		// contents of new file (includes starting directive)
 		String incfiledata;
-		if( !OnLoadShaderFile( type, incpath, incfiledata ) )
+		if( !OnLoadShaderFile( rinfo, incpath, incfiledata ) )
 			return false;
 		nstr.append( incfiledata );
 		
@@ -2544,13 +2544,13 @@ VertexShaderHandle GR_GetVertexShader( const StringView& path )
 	
 	if( g_Renderer->GetInfo().compileShaders )
 	{
-		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".vs", path, comp ) )
+		if( g_Game->GetCompiledShader( g_Renderer->GetInfo(), ".vs", path, comp ) )
 		{
 			goto has_compiled_shader;
 		}
 	}
 	
-	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderTarget, path, code ) )
+	if( !g_Game->OnLoadShader( g_Renderer->GetInfo(), path, code ) )
 	{
 		LOG_ERROR << LOG_DATE << "  Could not find vertex shader: " << path;
 		return VertexShaderHandle();
@@ -2566,7 +2566,7 @@ VertexShaderHandle GR_GetVertexShader( const StringView& path )
 			return VertexShaderHandle();
 		}
 		
-		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".vs", path, comp );
+		g_Game->SetCompiledShader( g_Renderer->GetInfo(), ".vs", path, comp );
 		
 has_compiled_shader:
 		shd = g_Renderer->CreateVertexShader( path, comp );
@@ -2607,13 +2607,13 @@ PixelShaderHandle GR_GetPixelShader( const StringView& path )
 	
 	if( g_Renderer->GetInfo().compileShaders )
 	{
-		if( g_Game->GetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".ps", path, comp ) )
+		if( g_Game->GetCompiledShader( g_Renderer->GetInfo(), ".ps", path, comp ) )
 		{
 			goto has_compiled_shader;
 		}
 	}
 	
-	if( !g_Game->OnLoadShader( g_Renderer->GetInfo().shaderTarget, path, code ) )
+	if( !g_Game->OnLoadShader( g_Renderer->GetInfo(), path, code ) )
 	{
 		LOG_ERROR << LOG_DATE << "  Could not find pixel shader: " << path;
 		return PixelShaderHandle();
@@ -2629,7 +2629,7 @@ PixelShaderHandle GR_GetPixelShader( const StringView& path )
 			return PixelShaderHandle();
 		}
 		
-		g_Game->SetCompiledShader( g_Renderer->GetInfo().shaderTarget, ".ps", path, comp );
+		g_Game->SetCompiledShader( g_Renderer->GetInfo(), ".ps", path, comp );
 		
 has_compiled_shader:
 		shd = g_Renderer->CreatePixelShader( path, comp );

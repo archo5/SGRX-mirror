@@ -1,23 +1,9 @@
 
-#ifdef VS
-
-void main
-(
-	float4 ipos : POSITION0,
-	float2 itex0 : TEXCOORD0,
-	out float4 opos : POSITION0,
-	out float2 otex : TEXCOORD0
-)
-{
-	opos = ipos;
-	otex = itex0;
-}
-
-#elif defined(PS)
-
-Texture2D TexOCOL : register(t0);
-Texture2D TexPARM : register(t1);
-Texture2D TexBLOOM : register(t2);
+Texture2D texOCOL : register(t0);
+Texture2D texPARM : register(t1);
+Texture2D texBLOOM : register(t2);
+Texture2D texBLOOM2 : register(t3);
+Texture2D texDEPTH : register(t4);
 SamplerState SampFS
 {
 	Filter = MIN_MAG_MIP_LINEAR;
@@ -27,21 +13,21 @@ SamplerState SampFS
 
 float4 main( float2 itex : TEXCOORD0 ) : SV_TARGET0
 {
-	float3 parm = TexPARM.Sample( SampFS, itex ).rgb;
+	float3 parm = texPARM.Sample( SampFS, itex ).rgb;
 	itex += parm.xy;
-	float3 ocol = TexOCOL.Sample( SampFS, itex ).rgb;
-	float3 bloom = TexBLOOM.Sample( SampFS, itex ).rgb;
-	ocol += pow(bloom,1/2.0) * 0.5;
+	float3 ocol = texOCOL.Sample( SampFS, itex ).rgb;
 	ocol -= 1;
 	ocol *= 1.02;
 	ocol += 1;
-	{
+	if(0){
 		float3 avg = dot( ocol, 0.333333 );
 		ocol = lerp( avg, ocol, 1.3 );
-		ocol = max( 0, ocol );
 	}
+	ocol = max( 0, ocol );
 	ocol = pow( ocol, 1.0 / 2.0 );
-	{
+	float3 bloom = texBLOOM.Sample( SampFS, itex ).rgb + texBLOOM2.Sample( SampFS, itex ).rgb;
+	ocol += sqrt(bloom);
+	if(0){
 		float3 avg = dot( ocol, 0.333333 );
 		ocol = lerp( avg, ocol, 1.3 );
 		ocol = max( 0, ocol );
@@ -49,4 +35,3 @@ float4 main( float2 itex : TEXCOORD0 ) : SV_TARGET0
 	return float4(ocol,1);
 }
 
-#endif

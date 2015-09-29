@@ -229,10 +229,11 @@ struct D3D9Mesh : SGRX_IMesh
 };
 
 
-RendererInfo g_D3D9RendererInfo =
+SGRX_RendererInfo g_D3D9RendererInfo =
 {
 	true, // compile shaders
-	"d3d9", // shader type
+	"d3d9", // shader cache folder suffix
+	"HLSL_D3D9", // shader type (define)
 };
 
 struct D3D9Renderer : IRenderer
@@ -245,7 +246,7 @@ struct D3D9Renderer : IRenderer
 		memset( &m_viewport, 0, sizeof(m_viewport) );
 	}
 	void Destroy();
-	const RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
+	const SGRX_RendererInfo& GetInfo(){ return g_D3D9RendererInfo; }
 	bool LoadInternalResources();
 	void UnloadInternalResources();
 	

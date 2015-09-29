@@ -1563,6 +1563,14 @@ typedef Handle< SGRX_IFont > FontHandle;
 
 
 
+struct SGRX_RendererInfo
+{
+	bool compileShaders;
+	StringView shaderCacheSfx;
+	StringView shaderTypeDefine;
+};
+
+
 #define SGRX_RT_ClearColor 0x1
 #define SGRX_RT_ClearDepth 0x2
 #define SGRX_RT_ClearStencil 0x4
@@ -1623,12 +1631,12 @@ struct IF_GCC(ENGINE_EXPORT) IGame
 	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const StringView& defines, const SGRX_Material& mtl,
 		SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
 	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
-	ENGINE_EXPORT virtual void GetShaderCacheFilename( const StringView& type, const char* sfx, const StringView& key, String& name );
-	ENGINE_EXPORT virtual bool GetCompiledShader( const StringView& type, const char* sfx, const StringView& key, ByteArray& outdata );
-	ENGINE_EXPORT virtual bool SetCompiledShader( const StringView& type, const char* sfx, const StringView& key, const ByteArray& data );
-	ENGINE_EXPORT virtual bool OnLoadShader( const StringView& type, const StringView& key, String& outdata );
-	ENGINE_EXPORT virtual bool OnLoadShaderFile( const StringView& type, const StringView& path, String& outdata );
-	ENGINE_EXPORT virtual bool ParseShaderIncludes( const StringView& type, const StringView& path, String& outdata );
+	ENGINE_EXPORT virtual void GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name );
+	ENGINE_EXPORT virtual bool GetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, ByteArray& outdata );
+	ENGINE_EXPORT virtual bool SetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, const ByteArray& data );
+	ENGINE_EXPORT virtual bool OnLoadShader( const SGRX_RendererInfo& rinfo, const StringView& key, String& outdata );
+	ENGINE_EXPORT virtual bool OnLoadShaderFile( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata );
+	ENGINE_EXPORT virtual bool ParseShaderIncludes( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata );
 	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
 };
 
