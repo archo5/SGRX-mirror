@@ -63,35 +63,12 @@ ALIGN16(struct) cb_objpass_instance_data // b1
 {
 	Mat4 mWorld;
 	Mat4 mWorldView;
-	Vec2 gLightCounts;
 	Vec4 gInstanceData[16];
 };
 
 ALIGN16(struct) cb_objpass_skin_matrices // b2
 {
 	Mat4 mSkin[32];
-};
-
-// array of these is b3
-ALIGN16(struct) cb_objpass_point_light
-{
-	Vec3 viewPos;
-	float range;
-	Vec3 color;
-	float power;
-};
-
-// array of these is b4
-ALIGN16(struct) cb_objpass_spotlight
-{
-	Vec3 viewPos;
-	float range;
-	Vec3 color;
-	float power;
-	Vec3 viewDir;
-	float angle;
-	Vec2 smSize;
-	Vec2 smInvSize;
 };
 
 
@@ -164,7 +141,7 @@ static int create_sampstate( ID3D11Device* device, D3D11_SAMPLER_DESC* rdesc, ID
 	return 0;
 }
 
-static int create_rtt_( ID3D11Device* device, int width, int height, int msamples, DXGI_FORMAT fmt, bool ds, ID3D11Texture2D** outtex, void** outview )
+static int create_rtt_( ID3D11Device* device, int width, int height, int msamples, DXGI_FORMAT fmt, bool ds, bool srs, ID3D11Texture2D** outtex, void** outview )
 {
 	const char* what = ds ? "depth/stencil" : "render target";
 	
@@ -175,11 +152,13 @@ static int create_rtt_( ID3D11Device* device, int width, int height, int msample
 	dtd.Height = height;
 	dtd.MipLevels = 1;
 	dtd.ArraySize = 1;
-	dtd.Format = fmt;
+	dtd.Format = fmt == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_TYPELESS : fmt;
 	dtd.SampleDesc.Count = msamples > 1 ? TMAX( 1, TMIN( 16, msamples ) ) : 1;
 	dtd.SampleDesc.Quality = msamples > 1 ? 1 : 0;
 	dtd.Usage = D3D11_USAGE_DEFAULT;
 	dtd.BindFlags = ds ? D3D11_BIND_DEPTH_STENCIL : D3D11_BIND_RENDER_TARGET;
+	if( srs )
+		dtd.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 	
 	HRESULT hr = device->CreateTexture2D( &dtd, NULL, outtex );
 	if( FAILED( hr ) || *outtex == NULL )
@@ -190,7 +169,11 @@ static int create_rtt_( ID3D11Device* device, int width, int height, int msample
 	}
 	
 	if( ds )
-		hr = device->CreateDepthStencilView( *outtex, NULL, (ID3D11DepthStencilView**) outview );
+	{
+		D3D11_DEPTH_STENCIL_VIEW_DESC desc = { fmt, D3D11_DSV_DIMENSION_TEXTURE2D, 0 };
+		desc.Texture2D.MipSlice = 0;
+		hr = device->CreateDepthStencilView( *outtex, &desc, (ID3D11DepthStencilView**) outview );
+	}
 	else
 		hr = device->CreateRenderTargetView( *outtex, NULL, (ID3D11RenderTargetView**) outview );
 	if( FAILED( hr ) || *outview == NULL )
@@ -202,7 +185,7 @@ static int create_rtt_( ID3D11Device* device, int width, int height, int msample
 	
 	return 0;
 }
-#define create_rtt( dev, w, h, ms, fmt, ds, outtex, outview ) create_rtt_( dev, w, h, ms, fmt, ds, outtex, (void**) outview )
+#define create_rtt( dev, w, h, ms, fmt, ds, srs, outtex, outview ) create_rtt_( dev, w, h, ms, fmt, ds, srs, outtex, (void**) outview )
 
 static int create_buf( ID3D11Device* device, size_t numbytes, bool dyn, D3D11_BIND_FLAG bindtype, const void* data, ID3D11Buffer** out )
 {
@@ -458,7 +441,7 @@ struct D3D11Renderer : IRenderer
 		Mat4 view;
 	};
 	
-	D3D11Renderer() : m_dbg_rt( false ){}
+	D3D11Renderer(){}
 	void Destroy();
 	const SGRX_RendererInfo& GetInfo(){ return g_D3D11RendererInfo; }
 	bool LoadInternalResources();
@@ -494,24 +477,11 @@ struct D3D11Renderer : IRenderer
 	void SetPixelShader( const SGRX_IPixelShader* shd );
 	void SetRenderState( const SGRX_IRenderState* rsi );
 	
-//	FINLINE void VS_SetVec4Array( int at, Vec4* arr, int size ){ m_dev->SetVertexShaderConstantF( at, &arr->x, size ); }
-//	FINLINE void VS_SetVec4Array( int at, float* arr, int size ){ m_dev->SetVertexShaderConstantF( at, arr, size ); }
-//	FINLINE void VS_SetVec4( int at, const Vec4& v ){ m_dev->SetVertexShaderConstantF( at, &v.x, 1 ); }
-//	FINLINE void VS_SetFloat( int at, float f ){ Vec4 v = {f,f,f,f}; m_dev->SetVertexShaderConstantF( at, &v.x, 1 ); }
-//	FINLINE void VS_SetMat4( int at, const Mat4& v ){ m_dev->SetVertexShaderConstantF( at, v.a, 4 ); }
-//	
-//	FINLINE void PS_SetVec4Array( int at, Vec4* arr, int size ){ m_dev->SetPixelShaderConstantF( at, &arr->x, size ); }
-//	FINLINE void PS_SetVec4Array( int at, float* arr, int size ){ m_dev->SetPixelShaderConstantF( at, arr, size ); }
-//	FINLINE void PS_SetVec4( int at, const Vec4& v ){ m_dev->SetPixelShaderConstantF( at, &v.x, 1 ); }
-//	FINLINE void PS_SetFloat( int at, float f ){ Vec4 v = {f,f,f,f}; m_dev->SetPixelShaderConstantF( at, &v.x, 1 ); }
-//	FINLINE void PS_SetMat4( int at, const Mat4& v ){ m_dev->SetPixelShaderConstantF( at, v.a, 4 ); }
-//	
 //	FINLINE int GetWidth() const { return m_params.BackBufferWidth; }
 //	FINLINE int GetHeight() const { return m_params.BackBufferHeight; }
 	
 	// state
-	TextureHandle m_currentRT;
-	bool m_dbg_rt;
+	SGRX_Mutex m_mutex;
 	
 	// storage
 	HashTable< D3D11Texture*, bool > m_ownTextures;
@@ -538,7 +508,9 @@ struct D3D11Renderer : IRenderer
 	ID3D11Buffer* m_cbuf1_inst;
 	ID3D11Buffer* m_cbuf2_skin;
 	D3D11DynBuffer m_cbuf3_ltpoint;
-	D3D11DynBuffer m_cbuf4_ltspot;
+	D3D11DynBuffer m_cbuf4_ltspotvs;
+	D3D11DynBuffer m_cbuf4_ltspotps;
+	D3D11DynBuffer m_cbuf6_ltcount;
 	
 	// temp data
 	D3D11_VIEWPORT m_viewport;
@@ -591,7 +563,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		NULL, // adapter
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL, // software rasterizer (unused)
-		0, // D3D11_CREATE_DEVICE_DEBUG, // flags
+		D3D11_CREATE_DEVICE_DEBUG, // flags
 		NULL, // feature levels
 		0, // ^^
 		D3D11_SDK_VERSION,
@@ -623,7 +595,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	}
 	
 	// Depth/stencil buffer
-	if( create_rtt( device, settings.width, settings.height, msamples, DXGI_FORMAT_D24_UNORM_S8_UINT, true, &depthBuffer, &dsView ) )
+	if( create_rtt( device, settings.width, settings.height, msamples, DXGI_FORMAT_D24_UNORM_S8_UINT, true, false, &depthBuffer, &dsView ) )
 		return NULL;
 	
 	context->OMSetRenderTargets( 1, &rtView, NULL );
@@ -664,7 +636,9 @@ void D3D11Renderer::Destroy()
 	SAFE_RELEASE( m_cbuf1_inst );
 	SAFE_RELEASE( m_cbuf2_skin );
 	m_cbuf3_ltpoint.Free();
-	m_cbuf4_ltspot.Free();
+	m_cbuf4_ltspotvs.Free();
+	m_cbuf4_ltspotps.Free();
+	m_cbuf6_ltcount.Free();
 	
 	SAFE_RELEASE( m_vertbuf_defaults );
 	SAFE_RELEASE( m_cbuf_vs_batchverts );
@@ -700,6 +674,8 @@ void D3D11Renderer::UnloadInternalResources()
 
 void D3D11Renderer::Swap()
 {
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	m_swapChain->Present( m_currSettings.vsync ? 1 : 0, 0 );
 }
 
@@ -710,6 +686,10 @@ void D3D11Renderer::Modify( const RenderSettings& settings )
 
 void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	Vec4 col = Col32ToVec4( info.clearColor );
 	ID3D11DepthStencilView* dsv = NULL;
 	
@@ -740,7 +720,8 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 		if( info.flags & SGRX_RT_ClearColor )
 		{
 			for( int i = 0; i < 4; ++i )
-				m_ctx->ClearRenderTargetView( rtv[ i ], &col.x );
+				if( rtv[ i ] )
+					m_ctx->ClearRenderTargetView( rtv[ i ], &col.x );
 		}
 		dsv = dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL;
 		m_ctx->OMSetRenderTargets( 4, rtv, dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL );
@@ -760,14 +741,23 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 
 void D3D11Renderer::SetViewport( int x0, int y0, int x1, int y1 )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	D3D11_VIEWPORT vp = { x0, y0, x1 - x0, y1 - y0, 0.0f, 1.0f };
 	m_ctx->RSSetViewports( 1, &vp );
 }
 
 void D3D11Renderer::SetScissorRect( int* rect )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	if( rect )
 	{
+		LOG << "SCIRECT" << rect[0] << "|" << rect[1] << "|" << rect[2] << "|" << rect[3];
 		D3D11_RECT rct = { rect[0], rect[1], rect[2], rect[3] };
 		m_ctx->RSSetScissorRects( 1, &rct );
 	}
@@ -775,6 +765,7 @@ void D3D11Renderer::SetScissorRect( int* rect )
 	{
 		int x = m_viewport.TopLeftX;
 		int y = m_viewport.TopLeftY;
+		LOG << "SCIRECT" << x << "|" << y << "|" << (x + m_viewport.Width) << "|" << (y + m_viewport.Height);
 		D3D11_RECT rct = { x, y, x + m_viewport.Width, y + m_viewport.Height };
 		m_ctx->RSSetScissorRects( 1, &rct );
 	}
@@ -791,6 +782,10 @@ D3D11Texture::~D3D11Texture()
 
 bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_renderer->m_mutex );
+	
 	// sure, we copied... nothing
 	if( !w || !h )
 		return true;
@@ -830,6 +825,10 @@ bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, in
 
 SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	HRESULT hr;
 	// TODO: filter unsupported formats / dimensions
 	
@@ -922,6 +921,10 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 
 SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	int width = texinfo->width, height = texinfo->height, format = texinfo->format;
 	
 	DXGI_FORMAT d3dfmt;
@@ -956,7 +959,9 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	
 	if( format == RT_FORMAT_DEPTH )
 	{
-		if( create_rtt( m_dev, width, height, 0, d3dfmt, true, &DT, &DSV ) )
+		LOG_FUNCTION_ARG( "DEPTH_RT" );
+		
+		if( create_rtt( m_dev, width, height, 0, d3dfmt, true, true, &DT, &DSV ) )
 			goto cleanup;
 		
 		CT = DT;
@@ -964,18 +969,27 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	}
 	else
 	{
-		if( create_rtt( m_dev, width, height, 0, d3dfmt, false, &CT, &CRV ) )
-			goto cleanup;
-		if( create_rtt( m_dev, width, height, 0, DXGI_FORMAT_D24_UNORM_S8_UINT, true, &DT, &DSV ) )
+		LOG_FUNCTION_ARG( "COLOR_RT" );
+		
+		if( create_rtt( m_dev, width, height, 0, d3dfmt, false, true, &CT, &CRV ) )
 			goto cleanup;
 	}
 	
 	// shader resource view
 	{
-		HRESULT hr = m_dev->CreateShaderResourceView( CT, NULL, &CSRV );
+		D3D11_SHADER_RESOURCE_VIEW_DESC desc =
+		{
+			d3dfmt == DXGI_FORMAT_D32_FLOAT ? DXGI_FORMAT_R32_FLOAT : d3dfmt,
+			D3D11_SRV_DIMENSION_TEXTURE2D
+		};
+		desc.Texture2D.MostDetailedMip = 0;
+		desc.Texture2D.MipLevels = -1;
+		HRESULT hr = m_dev->CreateShaderResourceView( CT, &desc, &CSRV );
 		if( FAILED( hr ) || !CSRV )
 		{
-			LOG_ERROR << "Failed to create D3D11 shader resource view for renderable texture";
+			LOG_ERROR << "Failed to create D3D11 shader resource view for renderable texture"
+				<< " (format=" << format << ", d3dfmt=" << d3dfmt << ", width=" << width
+				<< ", height=" << height << ", texptr=" << CT << ")";
 			goto cleanup;
 		}
 	}
@@ -1019,11 +1033,18 @@ D3D11DepthStencilSurface::~D3D11DepthStencilSurface()
 
 SGRX_IDepthStencilSurface* D3D11Renderer::CreateDepthStencilSurface( int width, int height, int format )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
+	if( format == RT_FORMAT_DEPTH )
+		return NULL;
+	
 	ID3D11Texture2D* DT = NULL;
 	ID3D11DepthStencilView *DSV = NULL;
 	D3D11DepthStencilSurface* DSS;
 	
-	if( create_rtt( m_dev, width, height, 0, DXGI_FORMAT_D24_UNORM_S8_UINT, true, &DT, &DSV ) )
+	if( create_rtt( m_dev, width, height, 0, DXGI_FORMAT_D24_UNORM_S8_UINT, true, false, &DT, &DSV ) )
 	{
 		// error message already printed
 		goto cleanup;
@@ -1045,6 +1066,10 @@ cleanup:
 
 bool D3D11Renderer::CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 #ifdef ENABLE_SHADER_COMPILING
 	HRESULT hr;
 	ID3DBlob *outbuf = NULL, *outerr = NULL;
@@ -1113,6 +1138,8 @@ bool D3D11Renderer::CompileShader( const StringView& path, EShaderType shadertyp
 
 SGRX_IVertexShader* D3D11Renderer::CreateVertexShader( const StringView& path, ByteArray& code )
 {
+	LOG_FUNCTION;
+	
 	HRESULT hr;
 	ByteReader br( &code );
 	br.marker( "CVSH\x7f", 5 );
@@ -1145,6 +1172,8 @@ cleanup:
 
 SGRX_IPixelShader* D3D11Renderer::CreatePixelShader( const StringView& path, ByteArray& code )
 {
+	LOG_FUNCTION;
+	
 	HRESULT hr;
 	ByteReader br( &code );
 	br.marker( "CPSH\x7f", 5 );
@@ -1348,6 +1377,8 @@ inline const char* format_to_str( DXGI_FORMAT fmt )
 
 SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 {
+	LOG_FUNCTION;
+	
 	int i;
 	bool hascolor = false;
 	bool hastan = false;
@@ -1476,6 +1507,10 @@ D3D11Mesh::~D3D11Mesh()
 
 bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_renderer->m_mutex );
+	
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	SAFE_RELEASE( m_VB );
 	
@@ -1494,6 +1529,10 @@ bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 
 bool D3D11Mesh::InitIndexBuffer( size_t size, bool i32 )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_renderer->m_mutex );
+	
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	SAFE_RELEASE( m_IB );
 	if( create_buf( m_renderer->m_dev, size, dyn, D3D11_BIND_INDEX_BUFFER, NULL, &m_IB ) )
@@ -1505,6 +1544,10 @@ bool D3D11Mesh::InitIndexBuffer( size_t size, bool i32 )
 
 bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_renderer->m_mutex );
+	
 	if( size > m_vertexDataSize )
 	{
 		LOG_ERROR << "given vertex data is too big";
@@ -1538,6 +1581,10 @@ bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 
 bool D3D11Mesh::UpdateIndexData( const void* data, size_t size )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_renderer->m_mutex );
+	
 	if( size > m_indexDataSize )
 	{
 		LOG_ERROR << "given index data is too big";
@@ -1560,6 +1607,10 @@ SGRX_IMesh* D3D11Renderer::CreateMesh()
 
 SGRX_IVertexInputMapping* D3D11Renderer::CreateVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	SGRX_CAST( D3D11VertexShader*, VS, vs );
 	SGRX_CAST( D3D11VertexDecl*, VD, vd );
 	
@@ -1596,6 +1647,10 @@ SGRX_IVertexInputMapping* D3D11Renderer::CreateVertexInputMapping( SGRX_IVertexS
 
 void D3D11Renderer::SetMatrix( bool view, const Mat4& mtx )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	if( view )
 		m_cbdata_vs_batchverts.view = mtx;
 	else
@@ -1618,6 +1673,10 @@ FINLINE D3D11_PRIMITIVE_TOPOLOGY conv_prim_type( EPrimitiveType pt )
 
 void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	SetVertexShader( idd.vertexShader );
 	SetPixelShader( idd.pixelShader );
 	SetRenderState( idd.renderState );
@@ -1654,6 +1713,10 @@ void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 
 void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_mutex );
+	
 	SGRX_RenderPass& PASS = scene->m_passes[ pass_id ];
 	if( PASS.isShadowPass )
 		maxrepeat = 1;
@@ -1672,16 +1735,18 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 	};
 	upload_buf( m_ctx, m_cbuf0_common, true, true, &coredata, sizeof(coredata) );
 	
-	ID3D11Buffer* cbufs[5] =
+	ID3D11Buffer* cbufs[7] =
 	{
 		m_cbuf0_common,
 		m_cbuf1_inst,
 		m_cbuf2_skin,
 		m_cbuf3_ltpoint,
-		m_cbuf4_ltspot,
+		m_cbuf4_ltspotvs,
+		m_cbuf4_ltspotps,
+		m_cbuf6_ltcount,
 	};
-	m_ctx->VSSetConstantBuffers( 0, 5, cbufs );
-	m_ctx->PSSetConstantBuffers( 0, 5, cbufs );
+	m_ctx->VSSetConstantBuffers( 0, 7, cbufs );
+	m_ctx->PSSetConstantBuffers( 0, 7, cbufs );
 	
 	RenderItem* RI = start;
 	while( RI < end )
@@ -1708,8 +1773,8 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		m_ctx->IASetInputLayout( VIM->m_inputLayout );
 		
 		// instance state
-		ID3D11ShaderResourceView* srvs[16] = { NULL };
-		ID3D11SamplerState* smps[16] = { NULL };
+		ID3D11ShaderResourceView* srvs[ SGRX_MAX_TEXTURES ] = { NULL };
+		ID3D11SamplerState* smps[ SGRX_MAX_TEXTURES ] = { NULL };
 		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 		{
 			D3D11Texture* tex = (D3D11Texture*) MTL.textures[ i ].item;
@@ -1725,7 +1790,6 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		{
 			MI->matrix,
 			mWorldView,
-			V2( 0, 0 ), // TODO lighting
 		};
 		for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
 			instdata.gInstanceData[ i ] = MI->constants[ i ];
@@ -1754,26 +1818,27 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 				if( PASS.isBasePass == false && LC.numPL + LC.numSL <= 0 )
 					break;
 				
-#if 0
 				if( LC.numPL )
 				{
-					PS_SetVec4Array( 56, (Vec4*) PLData, 2 * LC.numPL );
+					m_cbuf3_ltpoint.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, PLData, sizeof(PointLightData) * LC.numPL );
 				}
 				if( LC.numSL )
 				{
+					ID3D11ShaderResourceView* slt_srvs[4] = { NULL };
+					ID3D11SamplerState* slt_smps[4] = { NULL };
 					for( int i = 0; i < LC.numSL; ++i )
 					{
-						SetTexture( 12 + i * 2 + 0, SLDataLT[ i ]->cookieTexture );
-						SetTexture( 12 + i * 2 + 1, SLDataLT[ i ]->shadowTexture );
+						slt_srvs[ i * 2 + 0 ] = SLDataLT[ i ]->cookieTexture ? SLDataLT[ i ]->cookieTexture->m_rsrcView : NULL;
+						slt_smps[ i * 2 + 1 ] = SLDataLT[ i ]->shadowTexture ? SLDataLT[ i ]->shadowTexture->m_sampState : NULL;
 					}
-					VS_SetVec4Array( 24, (Vec4*) SLDataVS, 4 * LC.numSL );
-					PS_SetVec4Array( 24, (Vec4*) SLDataPS, 4 * LC.numSL );
+					m_ctx->PSSetShaderResources( 12, LC.numSL * 2, slt_srvs );
+					m_ctx->PSSetSamplers( 12, LC.numSL * 2, slt_smps );
+					m_cbuf4_ltspotvs.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, SLDataVS, sizeof(SpotLightDataVS) * LC.numSL );
+					m_cbuf4_ltspotvs.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, SLDataPS, sizeof(SpotLightDataPS) * LC.numSL );
 				}
 				
 				Vec4 lightcounts = { LC.numPL, LC.numSL, 0, 0 };
-				VS_SetVec4( 23, lightcounts );
-				PS_SetVec4( 23, lightcounts );
-#endif
+				m_cbuf6_ltcount.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, &lightcounts, sizeof(lightcounts) );
 			}
 			
 			m_ctx->DrawIndexed( MP.indexCount, MP.indexOffset, MP.vertexOffset );

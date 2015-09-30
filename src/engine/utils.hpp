@@ -138,7 +138,7 @@ struct SGRX_Mutex
 {
 	SGRX_Mutex() : lock(0){}
 	bool TryLock(){ return 0 == sgrx_atomic_cmpxchg( &lock, 0, 1 ); }
-	void Lock(){ while( TryLock() ); }
+	void Lock(){ while( TryLock() == false ); }
 	void Unlock(){ sgrx_atomic_cmpxchg( &lock, 1, 0 ); }
 	
 	volatile int32_t lock;

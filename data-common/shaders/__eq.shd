@@ -3,6 +3,7 @@
 
 #define NEEDS_TEXTURE_2D( id ) sampler2D Tex##id : register(s##id);
 #define NEEDS_TEXTURE_CUBE( id ) samplerCUBE Tex##id : register(s##id);
+#define NEEDS_TEXTURE_SM( id ) NEEDS_TEXTURE_2D( id )
 #define TEXSAMPLE_2D( name, tc ) tex2D( name, tc )
 #define TEXSAMPLE_2D_LOD( name, tc, lod ) tex2Dlod( name, float4(tc,0,lod) )
 #define TEXSAMPLE_2D_BIAS( name, tc, bias ) tex2Dbias( name, float4(tc,0,bias) )
@@ -10,12 +11,30 @@
 #define ARG_OUT_RT0 ,out float4 RT0 : COLOR0
 #define ARG_OUT_RT1 ,out float4 RT1 : COLOR1
 #define ARG_OUT_RT2 ,out float4 RT2 : COLOR2
+#define BLENDIDX_UINT8_4_TYPE int4
+#define SEMANTIC_VSOUT_POS POSITION0
+
+float SHADOWMAP_2x2( sampler2D tex, float4 sizeinfo, float2 tc, float depth )
+{
+	float2 coord = tc * sizeinfo.xy;
+	float2 fv = frac( coord );
+	float coord0x = floor( coord.x ) * sizeinfo.z;
+	float coord1x = ceil( coord.x ) * sizeinfo.z;
+	float coord0y = floor( coord.y ) * sizeinfo.w;
+	float coord1y = ceil( coord.y ) * sizeinfo.w;
+	float s00 = step( depth, TEXSAMPLE_2D_LOD( tex, float2( coord0x, coord0y ), 0 ).r );
+	float s10 = step( depth, TEXSAMPLE_2D_LOD( tex, float2( coord1x, coord0y ), 0 ).r );
+	float s01 = step( depth, TEXSAMPLE_2D_LOD( tex, float2( coord0x, coord1y ), 0 ).r );
+	float s11 = step( depth, TEXSAMPLE_2D_LOD( tex, float2( coord1x, coord1y ), 0 ).r );
+	return lerp( lerp( s00, s10, fv.x ), lerp( s01, s11, fv.x ), fv.y );
+}
 
 #elif defined(HLSL_D3D11)
 
 #define _NEEDS_SAMPLER( id ) SamplerState SMP_Tex##id : register(s##id);
 #define NEEDS_TEXTURE_2D( id ) Texture2D Tex##id : register(t##id); _NEEDS_SAMPLER( id );
 #define NEEDS_TEXTURE_CUBE( id ) TextureCube Tex##id : register(t##id); _NEEDS_SAMPLER( id );
+#define NEEDS_TEXTURE_SM( id ) Texture2D Tex##id : register(t##id);
 #define TEXSAMPLE_2D( name, tc ) name.Sample( SMP_##name, tc )
 #define TEXSAMPLE_2D_LOD( name, tc, lod ) name.SampleLevel( SMP_##name, tc, lod )
 #define TEXSAMPLE_2D_BIAS( name, tc, bias ) name.SampleBias( SMP_##name, tc, bias )
@@ -23,5 +42,20 @@
 #define ARG_OUT_RT0 ,out float4 RT0 : SV_TARGET0
 #define ARG_OUT_RT1 ,out float4 RT1 : SV_TARGET1
 #define ARG_OUT_RT2 ,out float4 RT2 : SV_TARGET2
+#define BLENDIDX_UINT8_4_TYPE ubyte4
+#define SEMANTIC_VSOUT_POS SV_POSITION0
+
+SamplerComparisonState SamplerState_Comp
+{
+	Filter = COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	AddressU = Clamp;
+	AddressV = Clamp;
+	ComparisonFunc = Less;
+};
+
+float SHADOWMAP_2x2( Texture2D tex, float4 sizeinfo, float2 tc, float depth )
+{
+	return tex.SampleCmpLevelZero( SamplerState_Comp, tc, depth );
+}
 
 #endif

@@ -169,7 +169,7 @@ struct RenderItem
 };
 
 
-struct PointLightData
+ALIGN16(struct) PointLightData
 {
 	Vec3 viewPos;
 	float range;
@@ -177,7 +177,7 @@ struct PointLightData
 	float power;
 };
 
-struct SpotLightDataPS
+ALIGN16(struct) SpotLightDataPS
 {
 	Vec3 viewPos;
 	float range;
@@ -189,7 +189,7 @@ struct SpotLightDataPS
 	Vec2 invSMSize;
 };
 
-struct SpotLightDataVS
+ALIGN16(struct) SpotLightDataVS
 {
 	Mat4 SMMatrix;
 };

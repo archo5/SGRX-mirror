@@ -2505,6 +2505,11 @@ DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int 
 	LOG_FUNCTION;
 	
 	SGRX_IDepthStencilSurface* dss = g_Renderer->CreateDepthStencilSurface( width, height, format );
+	if( dss == NULL )
+	{
+		// valid outcome
+		return NULL;
+	}
 	dss->m_width = width;
 	dss->m_height = height;
 	dss->m_format = format;
@@ -2524,6 +2529,11 @@ DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, int for
 		return dss;
 	
 	DepthStencilSurfHandle dssh = GR_CreateDepthStencilSurface( width, height, format );
+	if( dssh == NULL )
+	{
+		// valid outcome
+		return NULL;
+	}
 	dssh->m_key = key;
 	g_DepthStencilSurfs->set( key, dssh );
 	return dssh;
@@ -2708,6 +2718,9 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 VtxInputMapHandle GR_GetVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd )
 {
 	LOG_FUNCTION;
+	
+	if( vs == NULL || vd == NULL )
+		return NULL;
 	
 	SGRX_VtxInputMapKey key = { vs, vd };
 	SGRX_IVertexInputMapping* vim = g_VtxInputMaps->getcopy( key );

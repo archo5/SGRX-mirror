@@ -1,6 +1,6 @@
-float4 diff = tex2D( Tex0, inTex0.xy );
+float4 diff = TEXSAMPLE_2D( Tex0, inTex0.xy );
 diff = diff * diff;// * icol;
-float3 emit = tex2D( Tex1, inTex0.xy ).rgb;
+float3 emit = TEXSAMPLE_2D( Tex1, inTex0.xy ).rgb;
 outDiffuseColor = diff.rgb;
 outOpacity = diff.a;
 float fresnel = 1 - abs( dot( inNormal, normalize(viewPos) ) );
@@ -17,6 +17,6 @@ outAmbientDiffuseLight = LIGHT_MULTIPLIER*(
 	qyp * gInstanceData[12] + qyn * gInstanceData[13] +
 	qzp * gInstanceData[14] + qzn * gInstanceData[15] ) / (qxp+qyp+qzp+qxn+qyn+qzn);
 #else
-outAmbientDiffuseLight = tex2D( InstTex0, inTex1.xy ) * LIGHT_MULTIPLIER;
+outAmbientDiffuseLight = TEXSAMPLE_2D( InstTex0, inTex1.xy ) * LIGHT_MULTIPLIER;
 #endif
 outEmissiveLight = outAmbientDiffuseLight * emit * 4;
