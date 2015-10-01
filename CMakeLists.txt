@@ -83,7 +83,7 @@ add_subdirectory( ext/src/recast/DebugUtils/Source )
 add_subdirectory( src/engine )
 add_subdirectory( src/common )
 add_subdirectory( src/tacstrike )
-add_subdirectory( src/polyflight )
+add_subdirectory( src/smallgames )
 
 if(NOT RESTRICTED)
 add_subdirectory( src/tools )

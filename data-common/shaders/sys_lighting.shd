@@ -75,7 +75,11 @@ UNIFORM_BUFFER_END;
 #endif // NUM_SPOTLIGHTS > 0
 
 
+#ifndef LIGHT_MULTIPLIER
 #define LIGHT_MULTIPLIER 4
+#endif
+
+
 #if VS
 
 
