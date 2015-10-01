@@ -169,7 +169,37 @@ struct RenderItem
 };
 
 
-ALIGN16(struct) PointLightData
+ALIGN16(struct) SGRX_RPCoreData
+{
+	Mat4 mView;
+	Mat4 mProj;
+	Mat4 mInvView;
+	Vec3 gCameraPos;
+	Vec4 timeVals;
+	
+	Vec3 gAmbLightColor;
+	Vec3 gDirLightDir;
+	Vec3 gDirLightColor;
+};
+
+ALIGN16(struct) SGRX_RPInstanceData
+{
+	Mat4 mWorld;
+	Mat4 mWorldView;
+	Vec4 gInstanceData[16];
+};
+
+ALIGN16(struct) SGRX_RPLightCounts
+{
+	Vec4 lightcounts;
+};
+
+ALIGN16(struct) SGRX_RPSkinMatrices
+{
+	Mat4 mSkin[64];
+};
+
+ALIGN16(struct) SGRX_RPPointLightData
 {
 	Vec3 viewPos;
 	float range;
@@ -177,7 +207,7 @@ ALIGN16(struct) PointLightData
 	float power;
 };
 
-ALIGN16(struct) SpotLightDataPS
+ALIGN16(struct) SGRX_RPSpotLightDataPS
 {
 	Vec3 viewPos;
 	float range;
@@ -189,7 +219,7 @@ ALIGN16(struct) SpotLightDataPS
 	Vec2 invSMSize;
 };
 
-ALIGN16(struct) SpotLightDataVS
+ALIGN16(struct) SGRX_RPSpotLightDataVS
 {
 	Mat4 SMMatrix;
 };
@@ -201,7 +231,7 @@ struct LightCount
 };
 
 ENGINE_EXPORT LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, int maxPL, int maxSL,
-	PointLightData* outPL, SpotLightDataPS* outSL_PS, SpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT );
+	SGRX_RPPointLightData* outPL, SGRX_RPSpotLightDataPS* outSL_PS, SGRX_RPSpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT );
 
 
 enum EShaderType

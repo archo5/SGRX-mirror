@@ -280,7 +280,7 @@ struct D3D9Renderer : IRenderer
 #endif
 	
 	bool ResetDevice();
-	void ResetViewport();
+	void ResetViewport(){ SetViewport( 0, 0, m_currSettings.width, m_currSettings.height ); }
 	void _SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags );
 	void SetTexture( int slot, const SGRX_ITexture* tex );
 	void SetVertexShader( const SGRX_IVertexShader* shd );
@@ -521,7 +521,7 @@ void D3D9Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthSt
 		m_dev->SetRenderTarget( 2, NULL );
 		m_dev->SetRenderTarget( 3, NULL );
 		m_dev->SetDepthStencilSurface( dss ? ((D3D9DepthStencilSurface*)dss)->DSS : m_dssurf );
-		SetViewport( 0, 0, GR_GetWidth(), GR_GetHeight() );
+		ResetViewport();
 	}
 	else
 	{
@@ -1333,23 +1333,22 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 	if( PASS.isShadowPass )
 		maxrepeat = 1;
 	
-	// set common data
-	// VS:0 = mWorldView
-	VS_SetMat4( 4, cam.mProj );
-	// VS:8 = mWorld
-	VS_SetMat4( 12, cam.mView );
-	PS_SetMat4( 0, cam.mInvView );
-	PS_SetMat4( 4, cam.mProj );
-//	Vec4 campos4 = { cam.position.x, cam.position.y, cam.position.z, 0 };
-//	PS_SetVec4( 4, campos4 );
-	VS_SetVec4( 16, scene->m_timevals );
-	PS_SetVec4( 16, scene->m_timevals );
-	
-	Vec4 skydata[ 1 ] =
+	SGRX_RPCoreData coredata =
 	{
-		{ scene->skyTexture ? 1 : 0, 0, 0, 0 },
+		cam.mView,
+		cam.mProj,
+		cam.mInvView,
+		cam.position,
+		scene->m_timevals,
+		
+		scene->ambientLightColor,
+		-cam.mView.TransformNormal( scene->dirLightDir ).Normalized(),
+		scene->dirLightColor,
 	};
-	PS_SetVec4Array( 11, skydata, 1 );
+	VS_SetVec4Array( 0, (Vec4*) &coredata, sizeof(SGRX_RPCoreData) / sizeof(Vec4) );
+	PS_SetVec4Array( 0, (Vec4*) &coredata, sizeof(SGRX_RPCoreData) / sizeof(Vec4) );
+	
+#if 0
 	Vec3 fogGamma = scene->fogColor.Pow( 2.0 );
 	Vec4 fogdata[ 2 ] =
 	{
@@ -1357,15 +1356,7 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 		{ scene->fogDensity, scene->fogHeightDensity, scene->fogStartHeight, scene->fogMinDist },
 	};
 	PS_SetVec4Array( 12, fogdata, 2 );
-	
-	Vec3 dirLightViewDir = -cam.mView.TransformNormal( scene->dirLightDir ).Normalized();
-	Vec4 dirlight[ 3 ] =
-	{
-		{ scene->ambientLightColor.x, scene->ambientLightColor.y, scene->ambientLightColor.z, 1 },
-		{ dirLightViewDir.x, dirLightViewDir.y, dirLightViewDir.z, 0 },
-		{ scene->dirLightColor.x, scene->dirLightColor.y, scene->dirLightColor.z, 1 },
-	};
-	PS_SetVec4Array( 20, dirlight, 3 );
+#endif
 	
 	RenderItem* RI = start;
 	while( RI < end )
@@ -1393,13 +1384,16 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 			SetTexture( i, MTL.textures[ i ] );
 		if( MI->skin_matrices.size() )
-			VS_SetVec4Array( 40, (const Vec4*) &MI->skin_matrices[0], MI->skin_matrices.size() * 4 );
-		PS_SetVec4Array( 100, &MI->constants[0], 16 );
+			VS_SetVec4Array( 42, (const Vec4*) &MI->skin_matrices[0], MI->skin_matrices.size() * 4 );
+		VS_SetVec4Array( 25, &MI->constants[0], 16 );
+		PS_SetVec4Array( 25, &MI->constants[0], 16 );
 		
 		Mat4 mWorldView;
 		mWorldView.Multiply( MI->matrix, cam.mView );
-		VS_SetMat4( 0, mWorldView );
-		VS_SetMat4( 8, MI->matrix );
+		VS_SetMat4( 17, MI->matrix );
+		VS_SetMat4( 21, mWorldView );
+		PS_SetMat4( 17, MI->matrix );
+		PS_SetMat4( 21, mWorldView );
 		
 		m_dev->SetVertexDeclaration( VD->m_vdecl );
 		m_dev->SetStreamSource( 0, M->m_VB, 0, VD->m_info.size );
@@ -1409,9 +1403,9 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 		{
 			if( PASS.isShadowPass == false )
 			{
-				PointLightData PLData[ 32 ];
-				SpotLightDataPS SLDataPS[ 2 ];
-				SpotLightDataVS SLDataVS[ 2 ];
+				SGRX_RPPointLightData PLData[ 32 ];
+				SGRX_RPSpotLightDataPS SLDataPS[ 2 ];
+				SGRX_RPSpotLightDataVS SLDataVS[ 2 ];
 				SGRX_Light* SLDataLT[ 2 ];
 				LightCount LC = SGRX_Renderer_FindLights( cam, DI,
 					TMIN( int(PASS.numPL), 32 ),
@@ -1423,7 +1417,8 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 				
 				if( LC.numPL )
 				{
-					PS_SetVec4Array( 56, (Vec4*) PLData, 2 * LC.numPL );
+					VS_SetVec4Array( 170, (Vec4*) PLData, 2 * LC.numPL );
+					PS_SetVec4Array( 170, (Vec4*) PLData, 2 * LC.numPL );
 				}
 				if( LC.numSL )
 				{
@@ -1432,13 +1427,15 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 						SetTexture( 12 + i * 2 + 0, SLDataLT[ i ]->cookieTexture );
 						SetTexture( 12 + i * 2 + 1, SLDataLT[ i ]->shadowTexture );
 					}
-					VS_SetVec4Array( 24, (Vec4*) SLDataVS, 4 * LC.numSL );
-					PS_SetVec4Array( 24, (Vec4*) SLDataPS, 4 * LC.numSL );
+					VS_SetVec4Array( 202, (Vec4*) SLDataVS, 4 * LC.numSL );
+					PS_SetVec4Array( 202, (Vec4*) SLDataVS, 4 * LC.numSL );
+					VS_SetVec4Array( 210, (Vec4*) SLDataPS, 4 * LC.numSL );
+					PS_SetVec4Array( 210, (Vec4*) SLDataPS, 4 * LC.numSL );
 				}
 				
 				Vec4 lightcounts = { LC.numPL, LC.numSL, 0, 0 };
-				VS_SetVec4( 23, lightcounts );
-				PS_SetVec4( 23, lightcounts );
+				VS_SetVec4( 41, lightcounts );
+				PS_SetVec4( 41, lightcounts );
 			}
 			
 			m_dev->DrawIndexedPrimitive(
@@ -1665,11 +1662,6 @@ bool D3D9Renderer::ResetDevice()
 	return true;
 }
 
-void D3D9Renderer::ResetViewport()
-{
-	D3DVIEWPORT9 vp = { 0, 0, m_currSettings.width, m_currSettings.height, 0.0, 1.0 };
-	m_dev->SetViewport( &vp );
-}
 
 void D3D9Renderer::_SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_t flags )
 {

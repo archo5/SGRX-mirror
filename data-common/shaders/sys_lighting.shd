@@ -18,20 +18,65 @@ struct VSOUT
 	float4 pos : SEMANTIC_VSOUT_POS;
 };
 
+struct PointLight /* size: 2c */
+{
+	float4 vposrad;
+	float4 colpow;
+};
+struct SpotLight /* size: 4c */
+{
+	PointLight PL;
+	float4 vdirang;
+	float4 shminfo;
+};
+
+
+UNIFORM_BUFFER( core_data, 0 )
+	UNIFORM_VAR( float4x4 mView, 0 );
+	UNIFORM_VAR( float4x4 mProj, 4 );
+	UNIFORM_VAR( float4x4 mInvView, 8 );
+	UNIFORM_VAR( float3 cameraPos, 12 );
+	UNIFORM_VAR( float4 timeVals, 13 );
+	UNIFORM_VAR( float3 gAmbLightColor, 14 );
+	UNIFORM_VAR( float3 gDirLightDir, 15 );
+	UNIFORM_VAR( float3 gDirLightColor, 16 );
+UNIFORM_BUFFER_END;
+
+UNIFORM_BUFFER( instance_data, 1 )
+	UNIFORM_VAR( float4x4 mWorld, 17 );
+	UNIFORM_VAR( float4x4 mWorldView, 21 );
+	UNIFORM_VAR( float4 gInstanceData[16], 25 );
+UNIFORM_BUFFER_END;
+
+UNIFORM_BUFFER( instance_light_count, 2 )
+	UNIFORM_VAR( float2 gLightCounts, 41 );
+UNIFORM_BUFFER_END;
+
+#ifdef SKIN
+UNIFORM_BUFFER( skin_matrices, 3 )
+	UNIFORM_VAR( float4x4 mSkin[32], 42 );
+UNIFORM_BUFFER_END;
+#endif // SKIN
+
+#if NUM_POINTLIGHTS > 0
+UNIFORM_BUFFER( point_light_data, 4 )
+	UNIFORM_VAR( PointLight gPLights[16], 170 );
+UNIFORM_BUFFER_END;
+#endif // NUM_POINTLIGHTS > 0
+
+#if NUM_SPOTLIGHTS > 0
+UNIFORM_BUFFER( spot_light_data_vs, 5 )
+	UNIFORM_VAR( float4x4 mSpotLight[ NUM_SPOTLIGHTS ], 202 );
+UNIFORM_BUFFER_END;
+
+UNIFORM_BUFFER( spot_light_data_ps, 6 )
+	UNIFORM_VAR( SpotLight gSLights[ NUM_SPOTLIGHTS ], 210 );
+UNIFORM_BUFFER_END;
+#endif // NUM_SPOTLIGHTS > 0
+
 
 #define LIGHT_MULTIPLIER 4
 #if VS
-
-float4x4 mWorldView : register(c0);
-float4x4 mProj : register(c4);
-float4x4 mWorld : register(c8);
-float4x4 mView : register(c12);
-float time : register(c16);
-
-
-#if NUM_SPOTLIGHTS > 0
-float4x4 mSpotLight[ NUM_SPOTLIGHTS ] : register(c24);
-#endif // NUM_SPOTLIGHTS > 0
 
 
 #ifdef PARTICLE
@@ -53,10 +98,6 @@ void main
 	vsout.tex1 = itex0;
 }
 #else // PARTICLE
-
-#ifdef SKIN
-float4x4 mSkin[64] : register(c40); /* :c167 */
-#endif // SKIN
 
 void main
 (
@@ -139,24 +180,12 @@ NEEDS_TEXTURE_CUBE(11);
 #define InstTex2 Tex10
 #define InstTex3 Tex11
 
-float4x4 mInvView : register(c0);
-float4x4 mProj : register(c4);
-float3 gAmbLightColor : register(c20);
-float3 gDirLightDir : register(c21);
-float3 gDirLightColor : register(c22);
-float4 gLightCounts : register(c23);
-
-struct PointLight /* size: 2c */
-{
-	float4 vposrad;
-	float4 colpow;
-};
-struct SpotLight /* size: 4c */
-{
-	PointLight PL;
-	float4 vdirang;
-	float4 shminfo;
-};
+#ifdef NUM_SPOTLIGHTS
+NEEDS_TEXTURE_2D(12);
+NEEDS_TEXTURE_SM(13);
+NEEDS_TEXTURE_2D(14);
+NEEDS_TEXTURE_SM(15);
+#endif
 
 void ApplyPointLight( inout float3 totalDiffuse, inout float3 totalSpecular,
 	PointLight PL, float3 viewPos, float3 viewNormal, float specPower, float3 rgbmult )
@@ -185,25 +214,13 @@ bool PostProjCoordToTexDepth( out float3 slpos, float4 coord )
 	return dot(step(1-abs( pos ),0),1) <= 0;
 }
 
-#ifdef NUM_POINTLIGHTS
-PointLight gPLights[ NUM_POINTLIGHTS ] : register(c56); /* :c87 */
-#endif
-
-#ifdef NUM_SPOTLIGHTS
-SpotLight gSLights[ NUM_SPOTLIGHTS ] : register(c24); /* :c39 */
-NEEDS_TEXTURE_2D(12);
-NEEDS_TEXTURE_SM(13);
-NEEDS_TEXTURE_2D(14);
-NEEDS_TEXTURE_SM(15);
-#endif
-
-float4 gInstanceData[16] : register(c100); /* :c115 */
-
 void main
 (
 	VSOUT input
 	
+#if !defined(SHADOW_PASS) || SHADOW_PASS_TO_RT
 	ARG_OUT_RT0
+#endif
 #ifndef SHADOW_PASS
 	ARG_OUT_RT1
 	ARG_OUT_RT2
@@ -243,10 +260,9 @@ __CODE__
 	}
 	
 #ifdef SHADOW_PASS
-	float dval = projPos.z / projPos.w;
-	dval += 0.0001;
-	dval += ( abs( ddx( dval ) ) + abs( ddy( dval ) ) ) * 0.2;
-	RT0 = float4( dval, 0, 0, 1 );
+#if SHADOW_PASS_TO_RT
+	RT0 = float4( projPos.z / projPos.w, 0, 0, 1 );
+#endif
 #else
 	
 	outNormal = normalize( outNormal );
@@ -278,7 +294,7 @@ __CODE__
 #endif // defined(DECAL) && LMODE != 3
 	totalDiffuse *= LIGHT_MULTIPLIER;
 	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
-	totalSpecular += outAmbientSpecularLight + TEXSAMPLE_CUBE_LOD( InstTex1, refWorld.xzy, 0 ).rgb;
+	totalSpecular += outAmbientSpecularLight; // + TEXSAMPLE_CUBE_LOD( InstTex1, refWorld.xzy, 0 ).rgb;
 	
 	/* DIRECTIONAL LIGHT *--disabled--/
 	totalDiffuse += saturate( dot( outNormal, gDirLightDir ) ) * gDirLightColor;
@@ -322,43 +338,6 @@ __CODE__
 				TEXSAMPLE_2D_LOD( Tex14, slpos.xy, 0 ) * SHADOWMAP_2x2( Tex15, SL.shminfo, slpos.xy, slpos.z ) );
 		}
 	}
-#if 0
-	for( int i = 0; i < gLightCounts.y; ++i )
-	{
-		SpotLight SL = gSLights[ i ];
-		
-		if( dot(step(-(abs( slpos ) -1),0),1) <= 0 )
-		{
-			float2 sltex = slpos.xy * float2(0.5,-0.5) + 0.5;
-			float3 cookieSample = TEXSAMPLE_2D_LOD( SpotLightTextures[ i * 2 ], sltex, 0 );
-			
-			float4 sizeinfo = SL.shminfo;
-			float2 coord = sltex * sizeinfo.xy;
-			float2 fv = frac( coord );
-			#define shmap SpotLightTextures[ i * 2 + 1 ]
-			float coord0x = floor( coord.x ) * sizeinfo.z;
-			float coord1x = ceil( coord.x ) * sizeinfo.z;
-			float coord0y = floor( coord.y ) * sizeinfo.w;
-			float coord1y = ceil( coord.y ) * sizeinfo.w;
-			float s00 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord0x, coord0y ), 0 ).r );
-			float s10 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord1x, coord0y ), 0 ).r );
-			float s01 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord0x, coord1y ), 0 ).r );
-			float s11 = step( slpos.z, TEXSAMPLE_2D_LOD( shmap, float2( coord1x, coord1y ), 0 ).r );
-			float smix = lerp( lerp( s00, s10, fv.x ), lerp( s01, s11, fv.x ), fv.y );
-			
-			lightColor *= cookieSample * smix;
-			
-			float distFactor = pow( 1 - saturate( lightDist / SL.vposrad.w ), SL.colpow.w );
-			float NdotL = saturate( dot( outNormal, lightDir ) );
-			
-			RdotV = saturate( dot( reflect( lightDir, outNormal ), viewDir ) );
-			specAmount = pow( RdotV, outSpecularPower ) * sqrt( outSpecularPower );
-			
-			totalDiffuse += lightColor * NdotL * distFactor;
-			totalSpecular += lightColor * specAmount * distFactor;
-		}
-	}
-#endif 0
 #endif // NUM_SPOTLIGHTS
 	
 #if LMODE == 0 // -- unlit

@@ -1,6 +1,7 @@
 
 #ifdef HLSL_D3D9
 
+#define SHADOW_PASS_TO_RT 1
 #define NEEDS_TEXTURE_2D( id ) sampler2D Tex##id : register(s##id);
 #define NEEDS_TEXTURE_CUBE( id ) samplerCUBE Tex##id : register(s##id);
 #define NEEDS_TEXTURE_SM( id ) NEEDS_TEXTURE_2D( id )
@@ -13,6 +14,9 @@
 #define ARG_OUT_RT2 ,out float4 RT2 : COLOR2
 #define BLENDIDX_UINT8_4_TYPE int4
 #define SEMANTIC_VSOUT_POS POSITION0
+#define UNIFORM_BUFFER( name, pos )
+#define UNIFORM_BUFFER_END
+#define UNIFORM_VAR( decl, pos ) decl : register(c##pos)
 
 float SHADOWMAP_2x2( sampler2D tex, float4 sizeinfo, float2 tc, float depth )
 {
@@ -31,10 +35,12 @@ float SHADOWMAP_2x2( sampler2D tex, float4 sizeinfo, float2 tc, float depth )
 
 #elif defined(HLSL_D3D11)
 
+#define SHADOW_PASS_TO_RT 0
 #define _NEEDS_SAMPLER( id ) SamplerState SMP_Tex##id : register(s##id);
 #define NEEDS_TEXTURE_2D( id ) Texture2D Tex##id : register(t##id); _NEEDS_SAMPLER( id );
 #define NEEDS_TEXTURE_CUBE( id ) TextureCube Tex##id : register(t##id); _NEEDS_SAMPLER( id );
-#define NEEDS_TEXTURE_SM( id ) Texture2D Tex##id : register(t##id);
+#define NEEDS_TEXTURE_SM( id ) Texture2D Tex##id : register(t##id); \
+	SamplerComparisonState SMP_Tex##id : register(s##id);
 #define TEXSAMPLE_2D( name, tc ) name.Sample( SMP_##name, tc )
 #define TEXSAMPLE_2D_LOD( name, tc, lod ) name.SampleLevel( SMP_##name, tc, lod )
 #define TEXSAMPLE_2D_BIAS( name, tc, bias ) name.SampleBias( SMP_##name, tc, bias )
@@ -42,20 +48,16 @@ float SHADOWMAP_2x2( sampler2D tex, float4 sizeinfo, float2 tc, float depth )
 #define ARG_OUT_RT0 ,out float4 RT0 : SV_TARGET0
 #define ARG_OUT_RT1 ,out float4 RT1 : SV_TARGET1
 #define ARG_OUT_RT2 ,out float4 RT2 : SV_TARGET2
-#define BLENDIDX_UINT8_4_TYPE ubyte4
+#define BLENDIDX_UINT8_4_TYPE uint4
 #define SEMANTIC_VSOUT_POS SV_POSITION0
+#define UNIFORM_BUFFER( name, pos ) cbuffer name : register(b##pos){
+#define UNIFORM_BUFFER_END };
+#define UNIFORM_VAR( decl, pos ) decl
 
-SamplerComparisonState SamplerState_Comp
+float SHADOWMAP_2x2_( Texture2D tex, SamplerComparisonState smp, float4 sizeinfo, float2 tc, float depth )
 {
-	Filter = COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-	AddressU = Clamp;
-	AddressV = Clamp;
-	ComparisonFunc = Less;
-};
-
-float SHADOWMAP_2x2( Texture2D tex, float4 sizeinfo, float2 tc, float depth )
-{
-	return tex.SampleCmpLevelZero( SamplerState_Comp, tc, depth );
+	return tex.SampleCmpLevelZero( smp, tc, depth );
 }
+#define SHADOWMAP_2x2( tex, sizeinfo, tc, depth ) SHADOWMAP_2x2_( tex, SMP_##tex, sizeinfo, tc, depth )
 
 #endif

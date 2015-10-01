@@ -46,32 +46,6 @@
 #include "renderer.hpp"
 
 
-ALIGN16(struct) cb_objpass_core_data // b0
-{
-	Mat4 mView;
-	Mat4 mProj;
-	Mat4 mInvView;
-	Vec3 gCameraPos;
-	Vec4 timeVals;
-	
-	Vec3 gAmbLightColor;
-	Vec3 gDirLightDir;
-	Vec3 gDirLightColor;
-};
-
-ALIGN16(struct) cb_objpass_instance_data // b1
-{
-	Mat4 mWorld;
-	Mat4 mWorldView;
-	Vec4 gInstanceData[16];
-};
-
-ALIGN16(struct) cb_objpass_skin_matrices // b2
-{
-	Mat4 mSkin[32];
-};
-
-
 #define SAFE_RELEASE( x ) if( x ){ (x)->Release(); x = NULL; }
 
 
@@ -187,7 +161,35 @@ static int create_rtt_( ID3D11Device* device, int width, int height, int msample
 }
 #define create_rtt( dev, w, h, ms, fmt, ds, srs, outtex, outview ) create_rtt_( dev, w, h, ms, fmt, ds, srs, outtex, (void**) outview )
 
-static int create_buf( ID3D11Device* device, size_t numbytes, bool dyn, D3D11_BIND_FLAG bindtype, const void* data, ID3D11Buffer** out )
+static int upload_buf( ID3D11DeviceContext* ctx, ID3D11Buffer* buf,
+	bool dyn, bool discard, const void* data, size_t size )
+{
+	if( dyn )
+	{
+		D3D11_MAPPED_SUBRESOURCE msr;
+		HRESULT hr = ctx->Map( buf, 0, discard ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to lock D3D11 buffer";
+			return -1;
+		}
+		
+		if( data )
+			memcpy( msr.pData, data, size );
+		else
+			memset( msr.pData, 0, size );
+		
+		ctx->Unmap( buf, 0 );
+	}
+	else
+	{
+		ctx->UpdateSubresource( buf, 0, NULL, data, size, 0 );
+	}
+	return 0;
+}
+
+static int create_buf( ID3D11DeviceContext* ctx, ID3D11Device* device,
+	size_t numbytes, bool dyn, D3D11_BIND_FLAG bindtype, const void* data, ID3D11Buffer** out )
 {
 	const char* what = "?";
 	if( bindtype == D3D11_BIND_VERTEX_BUFFER ) what = "vertex";
@@ -213,36 +215,13 @@ static int create_buf( ID3D11Device* device, size_t numbytes, bool dyn, D3D11_BI
 		return -1;
 	}
 	
-	return 0;
-}
-
-static int upload_buf( ID3D11DeviceContext* ctx, ID3D11Buffer* buf, bool dyn, bool discard, const void* data, size_t size )
-{
-	if( dyn )
-	{
-		D3D11_MAPPED_SUBRESOURCE msr;
-		HRESULT hr = ctx->Map( buf, 0, discard ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
-		if( FAILED( hr ) )
-		{
-			LOG_ERROR << "failed to lock D3D11 buffer";
-			return -1;
-		}
-		
-		memcpy( msr.pData, data, size );
-		
-		ctx->Unmap( buf, 0 );
-	}
-	else
-	{
-		ctx->UpdateSubresource( buf, 0, NULL, data, size, 0 );
-	}
-	return 0;
+	return dyn ? upload_buf( ctx, *out, true, true, NULL, numbytes ) : 0;
 }
 
 
 struct D3D11DynBuffer
 {
-	D3D11DynBuffer() : buffer( NULL ), currSize( 0 ){}
+	D3D11DynBuffer( D3D11_BIND_FLAG bindtype ) : buffer( NULL ), currSize( 0 ), m_bindtype( bindtype ){}
 	~D3D11DynBuffer()
 	{
 		if( buffer )
@@ -252,18 +231,22 @@ struct D3D11DynBuffer
 	{
 		SAFE_RELEASE( buffer );
 	}
-	void Upload( ID3D11Device* dev, ID3D11DeviceContext* ctx, D3D11_BIND_FLAG bindtype, const void* data, size_t size )
+	void Upload( ID3D11Device* dev, ID3D11DeviceContext* ctx, const void* data, size_t size )
 	{
 		if( !size )
 			return;
 		if( size > currSize )
 		{
 			SAFE_RELEASE( buffer );
-			create_buf( dev, size, true, bindtype, data, &buffer );
+			create_buf( ctx, dev, size, true, m_bindtype, data, &buffer );
 			currSize = size;
 		}
 		else
 			upload_buf( ctx, buffer, true, true, data, size );
+	}
+	void DynSetZero( ID3D11Device* dev, ID3D11DeviceContext* ctx, size_t size )
+	{
+		Upload( dev, ctx, NULL, size );
 	}
 	
 	operator ID3D11Buffer* () const { return buffer; }
@@ -271,6 +254,7 @@ struct D3D11DynBuffer
 	
 	ID3D11Buffer* buffer;
 	size_t currSize;
+	D3D11_BIND_FLAG m_bindtype;
 	
 private:
 	D3D11DynBuffer( const D3D11DynBuffer& );
@@ -281,6 +265,7 @@ private:
 struct BackupVertexData
 {
 	Vec4 color;
+	Vec4 normal;
 	Vec4 tangent;
 	Vec4 tex[4];
 };
@@ -441,7 +426,14 @@ struct D3D11Renderer : IRenderer
 		Mat4 view;
 	};
 	
-	D3D11Renderer(){}
+	D3D11Renderer() :
+		m_vertbuf_batchverts( D3D11_BIND_VERTEX_BUFFER ),
+		m_cbuf_ps_batchverts( D3D11_BIND_CONSTANT_BUFFER ),
+		m_cbuf3_ltpoint( D3D11_BIND_CONSTANT_BUFFER ),
+		m_cbuf4_ltspotvs( D3D11_BIND_CONSTANT_BUFFER ),
+		m_cbuf4_ltspotps( D3D11_BIND_CONSTANT_BUFFER ),
+		m_cbuf6_ltcount( D3D11_BIND_CONSTANT_BUFFER )
+	{}
 	void Destroy();
 	const SGRX_RendererInfo& GetInfo(){ return g_D3D11RendererInfo; }
 	bool LoadInternalResources();
@@ -453,6 +445,7 @@ struct D3D11Renderer : IRenderer
 	
 	void SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthStencilSurface* dss, TextureHandle rts[4] );
 	void SetViewport( int x0, int y0, int x1, int y1 );
+	void _SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( int* rect );
 	
 	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
@@ -472,7 +465,6 @@ struct D3D11Renderer : IRenderer
 	void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
 	bool ResetDevice();
-	void ResetViewport();
 	void SetVertexShader( const SGRX_IVertexShader* shd );
 	void SetPixelShader( const SGRX_IPixelShader* shd );
 	void SetRenderState( const SGRX_IRenderState* rsi );
@@ -496,9 +488,10 @@ struct D3D11Renderer : IRenderer
 	ID3D11Texture2D* m_depthBuffer;
 	ID3D11RenderTargetView* m_rtView;
 	ID3D11DepthStencilView* m_dsView;
+	ID3D11SamplerState* m_sampState;
+	ID3D11SamplerState* m_depthSampState;
 	
 	// rendering data
-	D3D11Texture* m_defaultTexture;
 	ID3D11Buffer* m_vertbuf_defaults;
 	cb_vs_batchverts m_cbdata_vs_batchverts;
 	ID3D11Buffer* m_cbuf_vs_batchverts;
@@ -563,7 +556,7 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		NULL, // adapter
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL, // software rasterizer (unused)
-		D3D11_CREATE_DEVICE_DEBUG, // flags
+		0,//D3D11_CREATE_DEVICE_DEBUG, // flags
 		NULL, // feature levels
 		0, // ^^
 		D3D11_SDK_VERSION,
@@ -610,18 +603,45 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	R->m_rtView = rtView;
 	R->m_dsView = dsView;
 	
+	// default sampler state
+	D3D11_SAMPLER_DESC sdesc =
+	{
+		D3D11_FILTER_MIN_MAG_MIP_POINT,
+		D3D11_TEXTURE_ADDRESS_WRAP,
+		D3D11_TEXTURE_ADDRESS_WRAP,
+		D3D11_TEXTURE_ADDRESS_WRAP,
+		0, 1, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
+	};
+	if( create_sampstate( device, &sdesc, &R->m_sampState ) )
+		return NULL;
+	// depth sampler state
+	D3D11_SAMPLER_DESC sdesc2 =
+	{
+		D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR,
+		D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_WRAP,
+		0, 1, D3D11_COMPARISON_LESS, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
+	};
+	if( create_sampstate( device, &sdesc2, &R->m_depthSampState ) )
+		return NULL;
+	
 	// default vertex data
-	if( create_buf( device, sizeof(g_initial_backup_vertex_data), false, D3D11_BIND_VERTEX_BUFFER, &g_initial_backup_vertex_data, &R->m_vertbuf_defaults ) )
+	if( create_buf( context, device, sizeof(g_initial_backup_vertex_data), false, D3D11_BIND_VERTEX_BUFFER, &g_initial_backup_vertex_data, &R->m_vertbuf_defaults ) )
 		return NULL;
 	
 	// batch vertex constant buffer data
-	if( create_buf( device, sizeof(R->m_cbdata_vs_batchverts), true, D3D11_BIND_CONSTANT_BUFFER, &R->m_cbdata_vs_batchverts, &R->m_cbuf_vs_batchverts ) )
+	if( create_buf( context, device, sizeof(R->m_cbdata_vs_batchverts), true, D3D11_BIND_CONSTANT_BUFFER, &R->m_cbdata_vs_batchverts, &R->m_cbuf_vs_batchverts ) )
 		return NULL;
 	
 	// pass constant buffers
-	if( create_buf( device, sizeof(cb_objpass_core_data), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf0_common ) ) return NULL;
-	if( create_buf( device, sizeof(cb_objpass_instance_data), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf1_inst ) ) return NULL;
-	if( create_buf( device, sizeof(cb_objpass_skin_matrices), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf2_skin ) ) return NULL;
+	if( create_buf( context, device, sizeof(SGRX_RPCoreData), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf0_common ) ) return NULL;
+	if( create_buf( context, device, sizeof(SGRX_RPInstanceData), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf1_inst ) ) return NULL;
+	if( create_buf( context, device, sizeof(SGRX_RPSkinMatrices), true, D3D11_BIND_CONSTANT_BUFFER, NULL, &R->m_cbuf2_skin ) ) return NULL;
+	R->m_cbuf6_ltcount.DynSetZero( device, context, sizeof(Vec4) );
+	R->m_cbuf3_ltpoint.DynSetZero( device, context, sizeof(SGRX_RPPointLightData) * 16 );
+	R->m_cbuf4_ltspotvs.DynSetZero( device, context, sizeof(SGRX_RPSpotLightDataVS) * 2 );
+	R->m_cbuf4_ltspotps.DynSetZero( device, context, sizeof(SGRX_RPSpotLightDataPS) * 2 );
 	
 	// initial viewport settings
 	R->SetViewport( 0, 0, settings.width, settings.height );
@@ -640,6 +660,8 @@ void D3D11Renderer::Destroy()
 	m_cbuf4_ltspotps.Free();
 	m_cbuf6_ltcount.Free();
 	
+	SAFE_RELEASE( m_sampState );
+	SAFE_RELEASE( m_depthSampState );
 	SAFE_RELEASE( m_vertbuf_defaults );
 	SAFE_RELEASE( m_cbuf_vs_batchverts );
 	m_vertbuf_batchverts.Free();
@@ -657,19 +679,11 @@ void D3D11Renderer::Destroy()
 
 bool D3D11Renderer::LoadInternalResources()
 {
-	// default texture (white)
-	TextureInfo tinfo = { TEXTYPE_2D, 1, 1, 1, 1, TEXFORMAT_RGBA8, 0 };
-	uint32_t tdata = 0xffffffff;
-	m_defaultTexture = (D3D11Texture*) CreateTexture( &tinfo, &tdata );
-	if( m_defaultTexture == NULL )
-		return false;
-	
 	return true;
 }
 
 void D3D11Renderer::UnloadInternalResources()
 {
-	m_defaultTexture->Release();
 }
 
 void D3D11Renderer::Swap()
@@ -699,32 +713,39 @@ void D3D11Renderer::SetRenderTargets( const SGRX_RTClearInfo& info, SGRX_IDepthS
 			m_ctx->ClearRenderTargetView( m_rtView, &col.x );
 		m_ctx->OMSetRenderTargets( 1, &m_rtView, m_dsView );
 		dsv = m_dsView;
+		_SetViewport( 0, 0, m_currSettings.width, m_currSettings.height );
 	}
 	else
 	{
-		if( rts[0] ) ASSERT( rts[0]->m_isRenderTexture );
-		if( rts[1] ) ASSERT( rts[1]->m_isRenderTexture );
-		if( rts[2] ) ASSERT( rts[2]->m_isRenderTexture );
-		if( rts[3] ) ASSERT( rts[3]->m_isRenderTexture );
-		SGRX_CAST( D3D11RenderTexture*, rtt0, rts[0].item );
-		SGRX_CAST( D3D11RenderTexture*, rtt1, rts[1].item );
-		SGRX_CAST( D3D11RenderTexture*, rtt2, rts[2].item );
-		SGRX_CAST( D3D11RenderTexture*, rtt3, rts[3].item );
-		ID3D11RenderTargetView* rtv[4] =
+		dsv = dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL;
+		ID3D11RenderTargetView* rtv[4] = { NULL, NULL, NULL, NULL };
+		uint32_t w = 0, h = 0;
+		for( int i = 0; i < 4; ++i )
 		{
-			rtt0 ? rtt0->CRV : NULL,
-			rtt1 ? rtt1->CRV : NULL,
-			rtt2 ? rtt2->CRV : NULL,
-			rtt3 ? rtt3->CRV : NULL,
-		};
+			SGRX_ITexture* rt = rts[ i ].item;
+			if( rt )
+			{
+				ASSERT( rt->m_isRenderTexture );
+				ASSERT( !w || w == rt->m_info.width );
+				ASSERT( !h || h == rt->m_info.height );
+				w = rt->m_info.width;
+				h = rt->m_info.height;
+				SGRX_CAST( D3D11RenderTexture*, RT, rt );
+				rtv[ i ] = RT->CRV;
+				if( RT->DSV )
+					dsv = RT->DSV;
+			}
+		}
 		if( info.flags & SGRX_RT_ClearColor )
 		{
 			for( int i = 0; i < 4; ++i )
+			{
 				if( rtv[ i ] )
 					m_ctx->ClearRenderTargetView( rtv[ i ], &col.x );
+			}
 		}
-		dsv = dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL;
-		m_ctx->OMSetRenderTargets( 4, rtv, dss ? ((D3D11DepthStencilSurface*)dss)->DSV : NULL );
+		m_ctx->OMSetRenderTargets( 4, rtv, dsv );
+		_SetViewport( 0, 0, w, h );
 	}
 	
 	// clear buffers
@@ -745,7 +766,13 @@ void D3D11Renderer::SetViewport( int x0, int y0, int x1, int y1 )
 	
 	SGRX_ScopedMtxLock LOCK( &m_mutex );
 	
+	_SetViewport( x0, y0, x1, y1 );
+}
+
+void D3D11Renderer::_SetViewport( int x0, int y0, int x1, int y1 )
+{
 	D3D11_VIEWPORT vp = { x0, y0, x1 - x0, y1 - y0, 0.0f, 1.0f };
+	m_viewport = vp;
 	m_ctx->RSSetViewports( 1, &vp );
 }
 
@@ -757,7 +784,6 @@ void D3D11Renderer::SetScissorRect( int* rect )
 	
 	if( rect )
 	{
-		LOG << "SCIRECT" << rect[0] << "|" << rect[1] << "|" << rect[2] << "|" << rect[3];
 		D3D11_RECT rct = { rect[0], rect[1], rect[2], rect[3] };
 		m_ctx->RSSetScissorRects( 1, &rct );
 	}
@@ -765,7 +791,6 @@ void D3D11Renderer::SetScissorRect( int* rect )
 	{
 		int x = m_viewport.TopLeftX;
 		int y = m_viewport.TopLeftY;
-		LOG << "SCIRECT" << x << "|" << y << "|" << (x + m_viewport.Width) << "|" << (y + m_viewport.Height);
 		D3D11_RECT rct = { x, y, x + m_viewport.Width, y + m_viewport.Height };
 		m_ctx->RSSetScissorRects( 1, &rct );
 	}
@@ -945,8 +970,8 @@ SGRX_ITexture* D3D11Renderer::CreateRenderTexture( TextureInfo* texinfo )
 	}
 	
 	D3D11_SAMPLER_DESC sdesc = {
-		D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP,
-		D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP,
+		D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_WRAP,
 		0, 1, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 	};
 	
@@ -1268,8 +1293,8 @@ void D3D11RenderState::SetState( const SGRX_RenderState& state )
 	{
 		fillModes[ state.wireFill ],
 		cullModes[ state.cullMode ],
-		TRUE,
-		state.depthBias, state.depthBiasClamp, state.slopeDepthBias,
+		FALSE,
+		state.depthBias * (1000/1e-5f), state.depthBiasClamp, state.slopeDepthBias,
 		TRUE,
 		state.scissorEnable,
 		state.multisampleEnable,
@@ -1381,6 +1406,7 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 	
 	int i;
 	bool hascolor = false;
+	bool hasnrm = false;
 	bool hastan = false;
 	bool hastex0 = false;
 	bool hastex1 = false;
@@ -1399,6 +1425,8 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		
 		if( vdinfo.usages[ i ] == VDECLUSAGE_COLOR )
 			hascolor = true;
+		if( vdinfo.usages[ i ] == VDECLUSAGE_NORMAL )
+			hasnrm = true;
 		if( vdinfo.usages[ i ] == VDECLUSAGE_TANGENT )
 			hastan = true;
 		if( vdinfo.usages[ i ] == VDECLUSAGE_TEXTURE0 )
@@ -1432,13 +1460,24 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		elements[ i ].InstanceDataStepRate = 0;
 		i++;
 	}
+	if( !hasnrm )
+	{
+		elements[ i ].SemanticName = "NORMAL";
+		elements[ i ].SemanticIndex = 0;
+		elements[ i ].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+		elements[ i ].InputSlot = 1;
+		elements[ i ].AlignedByteOffset = 16;
+		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+		elements[ i ].InstanceDataStepRate = 0;
+		i++;
+	}
 	if( !hastan )
 	{
 		elements[ i ].SemanticName = "TANGENT";
 		elements[ i ].SemanticIndex = 0;
 		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		elements[ i ].InputSlot = 1;
-		elements[ i ].AlignedByteOffset = 16;
+		elements[ i ].AlignedByteOffset = 32;
 		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
 		elements[ i ].InstanceDataStepRate = 0;
 		i++;
@@ -1449,7 +1488,7 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		elements[ i ].SemanticIndex = 0;
 		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		elements[ i ].InputSlot = 1;
-		elements[ i ].AlignedByteOffset = 32;
+		elements[ i ].AlignedByteOffset = 48;
 		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
 		elements[ i ].InstanceDataStepRate = 0;
 		i++;
@@ -1460,7 +1499,7 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		elements[ i ].SemanticIndex = 1;
 		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		elements[ i ].InputSlot = 1;
-		elements[ i ].AlignedByteOffset = 48;
+		elements[ i ].AlignedByteOffset = 64;
 		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
 		elements[ i ].InstanceDataStepRate = 0;
 		i++;
@@ -1471,7 +1510,7 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		elements[ i ].SemanticIndex = 2;
 		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		elements[ i ].InputSlot = 1;
-		elements[ i ].AlignedByteOffset = 64;
+		elements[ i ].AlignedByteOffset = 80;
 		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
 		elements[ i ].InstanceDataStepRate = 0;
 		i++;
@@ -1482,7 +1521,7 @@ SGRX_IVertexDecl* D3D11Renderer::CreateVertexDecl( const VDeclInfo& vdinfo )
 		elements[ i ].SemanticIndex = 3;
 		elements[ i ].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		elements[ i ].InputSlot = 1;
-		elements[ i ].AlignedByteOffset = 80;
+		elements[ i ].AlignedByteOffset = 96;
 		elements[ i ].InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
 		elements[ i ].InstanceDataStepRate = 0;
 		i++;
@@ -1519,7 +1558,7 @@ bool D3D11Mesh::InitVertexBuffer( size_t size, VertexDeclHandle vd )
 	m_vertexDataSize = size;
 	m_realVertexDataSize = divideup( size, m_origVertexSize ) * m_realVertexSize;
 	
-	if( create_buf( m_renderer->m_dev, m_realVertexDataSize, dyn, D3D11_BIND_VERTEX_BUFFER, NULL, &m_VB ) )
+	if( create_buf( m_renderer->m_ctx, m_renderer->m_dev, m_realVertexDataSize, dyn, D3D11_BIND_VERTEX_BUFFER, NULL, &m_VB ) )
 		return false;
 	
 	m_vertexDecl = vd;
@@ -1535,7 +1574,7 @@ bool D3D11Mesh::InitIndexBuffer( size_t size, bool i32 )
 	
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	SAFE_RELEASE( m_IB );
-	if( create_buf( m_renderer->m_dev, size, dyn, D3D11_BIND_INDEX_BUFFER, NULL, &m_IB ) )
+	if( create_buf( m_renderer->m_ctx, m_renderer->m_dev, size, dyn, D3D11_BIND_INDEX_BUFFER, NULL, &m_IB ) )
 		return false;
 	m_dataFlags = ( m_dataFlags & ~MDF_INDEX_32 ) | ( MDF_INDEX_32 * i32 );
 	m_indexDataSize = size;
@@ -1599,6 +1638,8 @@ bool D3D11Mesh::UpdateIndexData( const void* data, size_t size )
 
 SGRX_IMesh* D3D11Renderer::CreateMesh()
 {
+	LOG_FUNCTION;
+	
 	D3D11Mesh* mesh = new D3D11Mesh;
 	mesh->m_renderer = this;
 	m_ownMeshes.set( mesh, true );
@@ -1681,9 +1722,9 @@ void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 	SetPixelShader( idd.pixelShader );
 	SetRenderState( idd.renderState );
 	
-	m_vertbuf_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_VERTEX_BUFFER, idd.vertices, idd.vertexDecl->m_info.size * idd.vertexCount );
+	m_vertbuf_batchverts.Upload( m_dev, m_ctx, idd.vertices, idd.vertexDecl->m_info.size * idd.vertexCount );
 	if( idd.shdata && idd.shvcount )
-		m_cbuf_ps_batchverts.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, idd.shdata, sizeof(*idd.shdata) * idd.shvcount );
+		m_cbuf_ps_batchverts.Upload( m_dev, m_ctx, idd.shdata, sizeof(*idd.shdata) * idd.shvcount );
 	
 	m_ctx->VSSetConstantBuffers( 0, 1, &m_cbuf_vs_batchverts );
 	
@@ -1694,8 +1735,8 @@ void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 	for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 	{
 		SGRX_ITexture* tex = idd.textures[ i ];
-		srvs[ i ] = ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_rsrcView;
-		smps[ i ] = ((D3D11Texture*)( tex ? tex : m_defaultTexture ))->m_sampState;
+		srvs[ i ] = tex ? ((D3D11Texture*)tex)->m_rsrcView : NULL;
+		smps[ i ] = tex ? ((D3D11Texture*)tex)->m_sampState : m_sampState;
 	}
 	m_ctx->PSSetShaderResources( 0, SGRX_MAX_TEXTURES, srvs );
 	m_ctx->PSSetSamplers( 0, SGRX_MAX_TEXTURES, smps );
@@ -1721,7 +1762,7 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 	if( PASS.isShadowPass )
 		maxrepeat = 1;
 	
-	cb_objpass_core_data coredata =
+	SGRX_RPCoreData coredata =
 	{
 		cam.mView,
 		cam.mProj,
@@ -1739,11 +1780,11 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 	{
 		m_cbuf0_common,
 		m_cbuf1_inst,
+		m_cbuf6_ltcount,
 		m_cbuf2_skin,
 		m_cbuf3_ltpoint,
 		m_cbuf4_ltspotvs,
 		m_cbuf4_ltspotps,
-		m_cbuf6_ltcount,
 	};
 	m_ctx->VSSetConstantBuffers( 0, 7, cbufs );
 	m_ctx->PSSetConstantBuffers( 0, 7, cbufs );
@@ -1778,15 +1819,15 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 		{
 			D3D11Texture* tex = (D3D11Texture*) MTL.textures[ i ].item;
-			srvs[ i ] = ( tex ? tex : m_defaultTexture )->m_rsrcView;
-			smps[ i ] = ( tex ? tex : m_defaultTexture )->m_sampState;
+			srvs[ i ] = tex ? ((D3D11Texture*)tex)->m_rsrcView : NULL;
+			smps[ i ] = tex ? ((D3D11Texture*)tex)->m_sampState : m_sampState;
 		}
 		m_ctx->PSSetShaderResources( 0, SGRX_MAX_TEXTURES, srvs );
 		m_ctx->PSSetSamplers( 0, SGRX_MAX_TEXTURES, smps );
 		
 		Mat4 mWorldView;
 		mWorldView.Multiply( MI->matrix, cam.mView );
-		cb_objpass_instance_data instdata =
+		SGRX_RPInstanceData instdata =
 		{
 			MI->matrix,
 			mWorldView,
@@ -1794,6 +1835,12 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
 			instdata.gInstanceData[ i ] = MI->constants[ i ];
 		upload_buf( m_ctx, m_cbuf1_inst, true, true, &instdata, sizeof(instdata) );
+		
+		if( MI->skin_matrices.size() )
+		{
+			size_t sz = TMIN( MI->skin_matrices.size(), size_t(64) ) * sizeof(Mat4);
+			upload_buf( m_ctx, m_cbuf2_skin, true, true, MI->skin_matrices.data(), sz );
+		}
 		
 		ID3D11Buffer* vbufs[2] = { M->m_VB, m_vertbuf_defaults };
 		const UINT strides[2] = { M->m_realVertexSize, sizeof(BackupVertexData) };
@@ -1806,12 +1853,12 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		{
 			if( PASS.isShadowPass == false )
 			{
-				PointLightData PLData[ 32 ];
-				SpotLightDataPS SLDataPS[ 2 ];
-				SpotLightDataVS SLDataVS[ 2 ];
-				SGRX_Light* SLDataLT[ 2 ];
+				SGRX_RPPointLightData PLData[ 16 ] = {0};
+				SGRX_RPSpotLightDataPS SLDataPS[ 2 ] = {0};
+				SGRX_RPSpotLightDataVS SLDataVS[ 2 ] = {0};
+				SGRX_Light* SLDataLT[ 2 ] = {0};
 				LightCount LC = SGRX_Renderer_FindLights( cam, DI,
-					TMIN( int(PASS.numPL), 32 ),
+					TMIN( int(PASS.numPL), 16 ),
 					TMIN( int(PASS.numSL), 2 ),
 					PLData, SLDataPS, SLDataVS, SLDataLT );
 				
@@ -1820,25 +1867,34 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 				
 				if( LC.numPL )
 				{
-					m_cbuf3_ltpoint.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, PLData, sizeof(PointLightData) * LC.numPL );
+					m_cbuf3_ltpoint.Upload( m_dev, m_ctx, PLData, sizeof(SGRX_RPPointLightData) * LC.numPL );
 				}
 				if( LC.numSL )
 				{
 					ID3D11ShaderResourceView* slt_srvs[4] = { NULL };
-					ID3D11SamplerState* slt_smps[4] = { NULL };
+					ID3D11SamplerState* slt_smps[4] =
+					{
+						m_sampState, m_depthSampState,
+						m_sampState, m_depthSampState
+					};
 					for( int i = 0; i < LC.numSL; ++i )
 					{
-						slt_srvs[ i * 2 + 0 ] = SLDataLT[ i ]->cookieTexture ? SLDataLT[ i ]->cookieTexture->m_rsrcView : NULL;
-						slt_smps[ i * 2 + 1 ] = SLDataLT[ i ]->shadowTexture ? SLDataLT[ i ]->shadowTexture->m_sampState : NULL;
+						slt_srvs[ i * 2 + 0 ] = SLDataLT[ i ]->cookieTexture ?
+							((D3D11Texture*)SLDataLT[ i ]->cookieTexture.item)->m_rsrcView : NULL;
+						slt_smps[ i * 2 + 0 ] = SLDataLT[ i ]->cookieTexture ?
+							((D3D11Texture*)SLDataLT[ i ]->cookieTexture.item)->m_sampState : m_sampState;
+						slt_srvs[ i * 2 + 1 ] = SLDataLT[ i ]->shadowTexture ?
+							((D3D11Texture*)SLDataLT[ i ]->shadowTexture.item)->m_rsrcView : NULL;
+					//	slt_smps[ i * 2 + 1 ] = m_depthSampState;
 					}
-					m_ctx->PSSetShaderResources( 12, LC.numSL * 2, slt_srvs );
-					m_ctx->PSSetSamplers( 12, LC.numSL * 2, slt_smps );
-					m_cbuf4_ltspotvs.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, SLDataVS, sizeof(SpotLightDataVS) * LC.numSL );
-					m_cbuf4_ltspotvs.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, SLDataPS, sizeof(SpotLightDataPS) * LC.numSL );
+					m_ctx->PSSetShaderResources( 12, 4, slt_srvs );
+					m_ctx->PSSetSamplers( 12, 4, slt_smps );
+					m_cbuf4_ltspotvs.Upload( m_dev, m_ctx, SLDataVS, sizeof(SGRX_RPSpotLightDataVS) * LC.numSL );
+					m_cbuf4_ltspotps.Upload( m_dev, m_ctx, SLDataPS, sizeof(SGRX_RPSpotLightDataPS) * LC.numSL );
 				}
 				
 				Vec4 lightcounts = { LC.numPL, LC.numSL, 0, 0 };
-				m_cbuf6_ltcount.Upload( m_dev, m_ctx, D3D11_BIND_CONSTANT_BUFFER, &lightcounts, sizeof(lightcounts) );
+				m_cbuf6_ltcount.Upload( m_dev, m_ctx, &lightcounts, sizeof(lightcounts) );
 			}
 			
 			m_ctx->DrawIndexed( MP.indexCount, MP.indexOffset, MP.vertexOffset );

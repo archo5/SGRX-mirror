@@ -563,7 +563,7 @@ void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	if( info.enablePostProcessing )
 	{
 		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
-		rttDEPTH = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_DEPTH );
+		rttDEPTH = GR_GetRenderTarget( W, H, RT_FORMAT_DEPTH, RT_DEPTH );
 		rttHPASS = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_HPASS );
 		rttHBLUR = GR_GetRenderTarget( W4, H, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
 		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
@@ -696,6 +696,11 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 			out.blendStates[ 0 ].srcBlend = SGRX_RS_Blend_SrcAlpha;
 			out.blendStates[ 0 ].dstBlend = SGRX_RS_Blend_InvSrcAlpha;
 		}
+	}
+	else
+	{
+		out.depthBias = 1e-5f;
+		out.slopeDepthBias = 0.5f;
 	}
 }
 

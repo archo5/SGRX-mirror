@@ -14,7 +14,7 @@ SGRX_DummyLightSampler g_DummyLightSampler;
 
 
 LightCount SGRX_Renderer_FindLights( const SGRX_Camera& CAM, SGRX_DrawItem* DI, int maxPL, int maxSL,
-	PointLightData* outPL, SpotLightDataPS* outSL_PS, SpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT )
+	SGRX_RPPointLightData* outPL, SGRX_RPSpotLightDataPS* outSL_PS, SGRX_RPSpotLightDataVS* outSL_VS, SGRX_Light** outSL_LT )
 {
 	LightCount out = { 0, 0 };
 	SGRX_DrawItemLight* drlt = DI->_lightbuf_begin;
@@ -734,6 +734,9 @@ BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( f
 	m_whiteTex = GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, 0, 1 );
 	uint32_t whiteCol = 0xffffffff;
 	m_whiteTex.UploadRGBA8Part( &whiteCol );
+	
+	m_currState.vshader = m_nextState.vshader = m_defVShader;
+	m_currState.pshader = m_nextState.pshader = m_defPShader;
 	
 	ResetState();
 }
