@@ -2495,10 +2495,12 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 						br.Col( 0, 0, 1, a );
 						br.Pos( wm.TransformPos( V3(0,0,d) ) );
 						
+#if 0
 						switch( BI.joint.type )
 						{
 						default:;
 						}
+#endif
 					}
 				}
 			}

@@ -3448,6 +3448,7 @@ static int init_graphics()
 	g_FontRenderer = new FontRenderer();
 	LOG << LOG_DATE << "  Created font renderer";
 	
+	g_Renderer->_RS_ProjectorInit();
 	if( !g_Renderer->LoadInternalResources() )
 	{
 		LOG_ERROR << "Failed to load renderer (" << rendername << ") internal resources";
@@ -3463,6 +3464,7 @@ static void free_graphics()
 	LOG_FUNCTION;
 	
 	g_Renderer->UnloadInternalResources();
+	g_Renderer->_RS_ProjectorFree();
 	
 	delete g_FontRenderer;
 	g_FontRenderer = NULL;

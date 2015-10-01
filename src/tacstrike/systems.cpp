@@ -1451,7 +1451,7 @@ void CSCoverInfo::_CullWithSolids()
 	}
 }
 
-static const float cos135deg = cosf( M_PI * 0.75f );
+static const float cos135deg = cosf( FLT_PI * 0.75f );
 void CoverSystem::CoverPoint::AdjustNormals( Vec3 newout, Vec3 newup )
 {
 	Vec3 oldrt = Vec3Cross( nout, nup ).Normalized();

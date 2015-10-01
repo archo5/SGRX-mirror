@@ -146,8 +146,8 @@ void TSCamera::FixedTick( float deltaTime )
 		}
 	}
 	
-	float f_turn_h = clamp( normalize_angle2( m_curDir.yaw ), -M_PI * 0.4f, M_PI * 0.4f ) / M_PI;
-	float f_turn_v = clamp( normalize_angle2( m_curDir.pitch ), -M_PI * 0.25f, M_PI * 0.25f ) / M_PI;
+	float f_turn_h = clamp( normalize_angle2( m_curDir.yaw ), -FLT_PI * 0.4f, FLT_PI * 0.4f ) / FLT_PI;
+	float f_turn_v = clamp( normalize_angle2( m_curDir.pitch ), -FLT_PI * 0.25f, FLT_PI * 0.25f ) / FLT_PI;
 	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
 	{
 		AnimCharacter::Layer& L = m_animChar.layers[ i ];
@@ -551,7 +551,7 @@ bool TSCharacter::BeginAction( Entity* E )
 
 bool TSCharacter::IsInAction()
 {
-	return m_actState.target;
+	return m_actState.target != NULL;
 }
 
 bool TSCharacter::CanInterruptAction()

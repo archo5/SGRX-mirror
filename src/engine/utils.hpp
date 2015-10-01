@@ -28,12 +28,27 @@ ENGINE_EXPORT void sgrx_assert_func( const char* code, const char* file, int lin
 #define IF_MSVC(x) x
 #define FINLINE __forceinline
 #define ALIGN16(a) __declspec(align(16)) a
+#define ALLOC_ALIGNED16(sz) _aligned_malloc( sz, 16 )
+#define FREE_ALIGNED(ptr) _aligned_free( ptr )
 #else
 #define IF_GCC(x) x
 #define IF_MSVC(x)
 #define FINLINE inline __attribute__((__always_inline__))
 #define ALIGN16(a) a __attribute__ ((aligned (16)))
 #endif
+
+ENGINE_EXPORT void* sgrx_aligned_malloc( size_t size, size_t align );
+ENGINE_EXPORT void sgrx_aligned_free( void* ptr );
+
+#define CLASS_ALIGNED_ALLOC() \
+	FINLINE void* operator new( size_t sz )           { return sgrx_aligned_malloc( sz, 16 ); } \
+	FINLINE void  operator delete( void* ptr )        { sgrx_aligned_free( ptr ); } \
+	FINLINE void* operator new( size_t, void* ptr )   { return ptr; } \
+	FINLINE void  operator delete( void*, void* )     {} \
+	FINLINE void* operator new[]( size_t sz )         { return sgrx_aligned_malloc( sz, 16 ); } \
+	FINLINE void  operator delete[]( void* ptr )      { sgrx_aligned_free( ptr ); } \
+	FINLINE void* operator new[]( size_t, void* ptr ) { return ptr; } \
+	FINLINE void  operator delete[]( void*, void* )   {}
 
 #ifndef THREAD_LOCAL
 # if __STDC_VERSION__ >= 201112 && !defined __STDC_NO_THREADS__
@@ -63,6 +78,9 @@ ENGINE_EXPORT void sgrx_assert_func( const char* code, const char* file, int lin
 #endif
 #define STRLIT_LEN( x ) (sizeof(x)-1)
 #define STRLIT_BUF( x ) x, STRLIT_LEN( x )
+#define SGRX_GLUE(a,b) __SGRX_GLUE(a,b)
+#define __SGRX_GLUE(a,b) a ## b
+#define SGRX_CASSERT(expr, msg) typedef char SGRX_GLUE (compiler_verify_, msg) [(expr) ? (+1) : (-1)]
 
 
 // compiler/toolchain padding
@@ -163,8 +181,10 @@ struct SGRX_ScopedMtxLock
 #define SPACE_CHARS " \t\n"
 #define HSPACE_CHARS " \t"
 
-#define DEG2RAD( x ) ((x)/180.0f*(float)M_PI)
-#define RAD2DEG( x ) ((x)*180.0f/(float)M_PI)
+#define FLT_PI float(M_PI)
+#define DBL_PI M_PI
+#define DEG2RAD( x ) ((x)/180.0f*FLT_PI)
+#define RAD2DEG( x ) ((x)*180.0f/FLT_PI)
 
 #define COLOR_F2B( x ) (uint8_t( clamp( x, 0, 1 ) * 255 ))
 #define COLOR_RGBA(r,g,b,a) ((uint32_t)((((int)(a)&0xff)<<24)|(((int)(b)&0xff)<<16)|(((int)(g)&0xff)<<8)|((int)(r)&0xff)))
@@ -183,8 +203,8 @@ inline float lerp( float a, float b, float t ){ return a * (1.0f-t) + b * t; }
 inline float sign( float x ){ return IIF( x == 0.0f, 0.0f, IIF( x < 0.0f, -1.0f, 1.0f ) ); }
 FINLINE int safe_idiv( int x, int y ){ if( y == 0 ) return 0; return x / y; }
 FINLINE float safe_fdiv( float x, float y ){ if( y == 0 ) return 0; return x / y; }
-inline float normalize_angle( float x ){ x = fmodf( x, (float) M_PI * 2.0f ); return IIF( x < 0.0f, x + (float) M_PI*2.0f, x ); }
-inline float normalize_angle2( float x ){ x = normalize_angle( x ); if( x >= M_PI ) x -= M_PI * 2; return x; }
+inline float normalize_angle( float x ){ x = fmodf( x, (float) FLT_PI * 2.0f ); return IIF( x < 0.0f, x + (float) FLT_PI * 2.0f, x ); }
+inline float normalize_angle2( float x ){ x = normalize_angle( x ); if( x >= FLT_PI ) x -= FLT_PI * 2.0f; return x; }
 inline float saturate( float x ){ return IIF( x < 0.0f, 0.0f, IIF( x > 1.0f, 1.0f, x ) ); }
 inline float smoothstep( float x ){ return x * x * ( 3.0f - 2.0f * x ); }
 inline float smoothlerp_oneway( float t, float a, float b ){ if( b == a ) return 1.0f; return smoothstep( saturate( ( t - a ) / ( b - a ) ) ); }
@@ -2590,7 +2610,7 @@ ENGINE_EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
 
 // #define GATHER_STATS
 
-struct ENGINE_EXPORT SGRX_Log
+struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 {
 	template< class T > struct Loggable
 	{
@@ -2618,16 +2638,9 @@ struct ENGINE_EXPORT SGRX_Log
 		static STATS stats;
 		double time;
 		ENGINE_EXPORT void WriteStat( double dt );
-#  define GTHST_BEGIN time = sgrx_hqtime();
-#  define GTHST_END WriteStat( sgrx_hqtime() - time );
-#else
-#  define GTHST_BEGIN
-#  define GTHST_END
 #endif
-		RegFunc( const char* func, const char* file, int ln, StringView a = StringView() ) :
-			funcname( func ), filename( file ), linenum( ln ), arg( a ), prev( lastfunc )
-		{ lastfunc = this; GTHST_BEGIN; }
-		~RegFunc(){ GTHST_END; lastfunc = prev; }
+		ENGINE_EXPORT RegFunc( const char* func, const char* file, int ln, StringView a = StringView() );
+		ENGINE_EXPORT ~RegFunc();
 		const char* funcname;
 		const char* filename;
 		int linenum;
@@ -2644,34 +2657,34 @@ struct ENGINE_EXPORT SGRX_Log
 	static FILE* out;
 	static THREAD_LOCAL RegFunc* lastfunc;
 	
-	SGRX_Log();
-	~SGRX_Log();
-	void prelog();
+	ENGINE_EXPORT SGRX_Log();
+	ENGINE_EXPORT ~SGRX_Log();
+	ENGINE_EXPORT void prelog();
 	
-	SGRX_Log& operator << ( const Separator& );
-	SGRX_Log& operator << ( EMod_Partial );
-	SGRX_Log& operator << ( ESpec_Date );
-	SGRX_Log& operator << ( ESpec_CallStack );
-	SGRX_Log& operator << ( bool );
-	SGRX_Log& operator << ( int8_t );
-	SGRX_Log& operator << ( uint8_t );
-	SGRX_Log& operator << ( int16_t );
-	SGRX_Log& operator << ( uint16_t );
-	SGRX_Log& operator << ( int32_t );
-	SGRX_Log& operator << ( uint32_t );
-	SGRX_Log& operator << ( int64_t );
-	SGRX_Log& operator << ( uint64_t );
-	SGRX_Log& operator << ( float );
-	SGRX_Log& operator << ( double );
-	SGRX_Log& operator << ( const void* );
-	SGRX_Log& operator << ( const char* );
-	SGRX_Log& operator << ( const StringView& );
-	SGRX_Log& operator << ( const String& );
-	SGRX_Log& operator << ( const Vec2& );
-	SGRX_Log& operator << ( const Vec3& );
-	SGRX_Log& operator << ( const Vec4& );
-	SGRX_Log& operator << ( const Quat& );
-	SGRX_Log& operator << ( const Mat4& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const Separator& );
+	ENGINE_EXPORT SGRX_Log& operator << ( EMod_Partial );
+	ENGINE_EXPORT SGRX_Log& operator << ( ESpec_Date );
+	ENGINE_EXPORT SGRX_Log& operator << ( ESpec_CallStack );
+	ENGINE_EXPORT SGRX_Log& operator << ( bool );
+	ENGINE_EXPORT SGRX_Log& operator << ( int8_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( uint8_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( int16_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( uint16_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( int32_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( uint32_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( int64_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( uint64_t );
+	ENGINE_EXPORT SGRX_Log& operator << ( float );
+	ENGINE_EXPORT SGRX_Log& operator << ( double );
+	ENGINE_EXPORT SGRX_Log& operator << ( const void* );
+	ENGINE_EXPORT SGRX_Log& operator << ( const char* );
+	ENGINE_EXPORT SGRX_Log& operator << ( const StringView& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const String& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const Vec2& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const Vec3& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const Vec4& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const Quat& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const Mat4& );
 	template< class T > SGRX_Log& operator << ( const Loggable<T>& val ){ val.v.Log( *this ); return *this; }
 	template< class T > SGRX_Log& operator << ( const Array<T>& arr ){ *this << "ARRAY";
 		for( size_t i = 0; i < arr.size(); ++i ) *this << "\n\t" << i << ": " << arr[i]; return *this; }

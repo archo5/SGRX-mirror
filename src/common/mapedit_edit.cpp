@@ -632,13 +632,13 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			"Select all [Ctrl+A], Select none [Ctrl+Alt+A]", HALIGN_LEFT, VALIGN_TOP );
 		GR2D_SetTextCursor( x0, y0 + 16 );
 		GR2D_DrawTextLine( "Selection mask: [Blocks: " );
-		YesNoText( m_selMask & SelMask_Blocks );
+		YesNoText( ( m_selMask & SelMask_Blocks ) != 0 );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( ", Patches: " );
-		YesNoText( m_selMask & SelMask_Patches );
+		YesNoText( ( m_selMask & SelMask_Patches ) != 0 );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( ", Entities: " );
-		YesNoText( m_selMask & SelMask_Entities );
+		YesNoText( ( m_selMask & SelMask_Entities ) != 0 );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( "]" );
 		
@@ -1317,7 +1317,7 @@ void EdPaintVertsEditMode::_TakeSnapshot()
 		int vcount = obj->GetNumPaintVerts();
 		for( int v = 0; v < vcount; ++v )
 		{
-			PaintVertex pv = { V3(0), 0xffffffff, 0 };
+			PaintVertex pv = { V3(0), V4(1), 0 };
 			obj->GetPaintVertex( v, layer_id, pv.pos, pv.col );
 			m_originalVerts[ off++ ] = pv;
 		}

@@ -472,7 +472,7 @@ void MLD62Player::Tick( float deltaTime, float blendFactor )
 	
 	float wpnbob = fabs(sinf(m_bobTime*3))*m_bobPower*0.01f;
 	Mat4 mtx = Mat4::Identity;
-	mtx = mtx * Mat4::CreateRotationX( -M_PI / 2 );
+	mtx = mtx * Mat4::CreateRotationX( -FLT_PI / 2 );
 	mtx = mtx * Mat4::CreateTranslation( -0.3f, -0.6f+wpnbob, +0.5f );
 	mtx = mtx * Mat4::CreateScale( V3( 0.2f ) );
 //	mtx = mtx * Mat4::CreateRotationZ( m_wallRunShow * weaponturnfac * 0.2f );
@@ -666,7 +666,7 @@ void MLD62_BossEye::Tick( float deltaTime, float blendFactor )
 	m_shieldMesh->matrix = mtx;
 	Mat4 laserMtx =
 		Mat4::CreateTranslation( V3(0,0,1.11f) ) *
-		Mat4::CreateRotationY( M_PI/2 ) *
+		Mat4::CreateRotationY( FLT_PI/2 ) *
 		mtx;
 	
 	m_timeInState += deltaTime;

@@ -39,6 +39,20 @@ void sgrx_assert_func( const char* code, const char* file, int line )
 }
 
 
+#if defined( _WIN32 )
+void* sgrx_aligned_malloc( size_t size, size_t align ){ return _aligned_malloc( size, align ); }
+void sgrx_aligned_free( void* ptr ){ _aligned_free( ptr ); }
+#else
+void* sgrx_aligned_malloc( size_t size, size_t align )
+{
+	void* ptr = NULL;
+	ASSERT( posix_memalign( &ptr, align, size ) == 0 );
+	return ptr;
+}
+void sgrx_aligned_free( void* ptr ){ free( ptr ); }
+#endif
+
+
 void NOP( int x ){}
 
 
@@ -409,15 +423,16 @@ double sgrx_hqtime()
 #  define atomic_inc32(ptr) InterlockedIncrement((ptr))
 #  define atomic_dec32(ptr) InterlockedDecrement((ptr))
 #  define atomic_cmpxchg(ptr,test,val) InterlockedCompareExchange((ptr),(val),(test))
+SGRX_CASSERT(sizeof(LONG) == sizeof(int32_t), long_equals_int32_t);
 #else
 #  error "no support for interlocked ops?"
 #endif
 
-int32_t sgrx_atomic_inc( volatile int32_t* ptr ){ return atomic_inc32( ptr ); }
-int32_t sgrx_atomic_dec( volatile int32_t* ptr ){ return atomic_dec32( ptr ); }
+int32_t sgrx_atomic_inc( volatile int32_t* ptr ){ return atomic_inc32( (volatile LONG*) ptr ); }
+int32_t sgrx_atomic_dec( volatile int32_t* ptr ){ return atomic_dec32( (volatile LONG*) ptr ); }
 int32_t sgrx_atomic_cmpxchg( volatile int32_t* ptr, int32_t test, int32_t val )
 {
-	return atomic_cmpxchg( ptr, test, val );
+	return atomic_cmpxchg( (volatile LONG*) ptr, test, val );
 }
 
 
@@ -438,7 +453,7 @@ void sgrx_sleep( uint32_t ms )
 int sgrx_numcpus()
 {
 	SYSTEM_INFO sysinfo;
-	GetSystemInfo( &sysinfo );
+	GetNativeSystemInfo( &sysinfo );
 	return sysinfo.dwNumberOfProcessors;
 }
 
@@ -472,7 +487,7 @@ void SGRX_Thread::Join()
 	if( !handle )
 		return;
 	HANDLE T = (HANDLE) handle;
-	WaitForMultipleObjects( 1, &T, TRUE, INFINITE );
+	WaitForSingleObjectEx( T, INFINITE, FALSE );
 	CloseHandle( T );
 	handle = NULL;
 }
@@ -1923,7 +1938,26 @@ void SGRX_Log::RegFunc::WriteStat( double dt )
 	}
 	fprintf( stats.f, ": %f\n", dt );
 }
+#  define GTHST_BEGIN time = sgrx_hqtime();
+#  define GTHST_END WriteStat( sgrx_hqtime() - time );
+#else
+#  define GTHST_BEGIN
+#  define GTHST_END
 #endif
+
+
+SGRX_Log::RegFunc::RegFunc( const char* func, const char* file, int ln, StringView a ) :
+	funcname( func ), filename( file ), linenum( ln ), arg( a ), prev( lastfunc )
+{
+	lastfunc = this;
+	GTHST_BEGIN;
+}
+
+SGRX_Log::RegFunc::~RegFunc()
+{
+	GTHST_END;
+	lastfunc = prev;
+}
 
 
 SGRX_Log::init::init()

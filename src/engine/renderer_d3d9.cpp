@@ -455,19 +455,11 @@ void D3D9Renderer::Destroy()
 
 bool D3D9Renderer::LoadInternalResources()
 {
-	LOG_FUNCTION;
-	
-	if( !_RS_ProjectorInit() )
-		return false;
-	
 	return true;
 }
 
 void D3D9Renderer::UnloadInternalResources()
 {
-	LOG_FUNCTION;
-	
-	_RS_ProjectorFree();
 }
 
 void D3D9Renderer::Swap()

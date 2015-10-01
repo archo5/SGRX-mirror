@@ -20,8 +20,14 @@
 #define __in_range(x,y)
 #endif
 #include <windows.h>
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable: 4005 )
+#endif
 #undef DXGI_ERROR_INVALID_CALL // GCC sucks
 #undef DXGI_ERROR_NOT_FOUND
 #undef DXGI_ERROR_MORE_DATA
@@ -41,7 +47,12 @@
 #ifdef ENABLE_SHADER_COMPILING
 #  include <d3dcompiler.h>
 #endif
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
+#endif
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
 
 #include "renderer.hpp"
 

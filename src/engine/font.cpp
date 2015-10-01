@@ -261,7 +261,7 @@ bool FontRenderer::SetFont( const StringView& name, int pxsize )
 		m_currentFont = fh;
 		m_currentSize = pxsize;
 	}
-	return fh;
+	return fh != NULL;
 }
 
 void FontRenderer::SetCursor( const Vec2& pos )

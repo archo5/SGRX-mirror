@@ -80,6 +80,8 @@ struct BulletConvexHullShape : BulletPhyShape
 
 struct BulletTriMeshShape : BulletPhyShape
 {
+	CLASS_ALIGNED_ALLOC();
+
 	BulletTriMeshShape( const Vec3* verts, size_t vcount, const void* idata, size_t icount, bool index32 )
 	{
 		if( index32 )
