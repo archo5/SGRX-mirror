@@ -596,7 +596,8 @@ struct CoverSystem : IGameLevelSystem
 	void Clear();
 	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
 	
-	void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, Vec3 viewer, CSCoverInfo& cinfo );
+	void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
+		float height, Vec3 viewer, bool visible, CSCoverInfo& cinfo );
 	
 	Array< EdgeMeshHandle > m_edgeMeshes;
 	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;

@@ -1599,7 +1599,8 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	m_edgeMeshesByName.set( EM->m_key, EM );
 }
 
-void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, Vec3 viewer, CSCoverInfo& cinfo )
+void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
+	float height, Vec3 viewer, bool visible, CSCoverInfo& cinfo )
 {
 	cinfo.Clear();
 	
@@ -1626,7 +1627,9 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, 
 		}
 		
 		// shadow clip
+		if( visible == false )
 		{
+			// cut away shadow planes
 			for( size_t i = 0; i < EM->edges.size(); ++i )
 			{
 				Edge E = EM->edges[ i ];
@@ -1655,6 +1658,46 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist, float height, 
 				{
 					P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
 					cinfo._CullWithShadowLines( cover_off, -P );
+				}
+			}
+		}
+		else
+		{
+			// generate solid from shadow planes
+			CSCoverInfo::Shape sh = { cinfo.planes.size(), 0 };
+			cinfo.shapes.push_back( sh );
+			for( size_t i = 0; i < EM->edges.size(); ++i )
+			{
+				Edge E = EM->edges[ i ];
+				bool is0 = Vec3Dot( E.n0, viewer ) > E.d0;
+				bool is1 = Vec3Dot( E.n1, viewer ) > E.d1;
+				
+				if( ( is0 && is1 == false ) || ( is0 == false && is1 ) )
+				{
+					// silhouette edge
+					// - generate plane
+					Vec3 pN = Vec3Cross( E.p0 - viewer, E.p1 - viewer ).Normalized();
+					if( Vec3Dot( pN, E.n0 ) < 0 || Vec3Dot( pN, E.n1 ) < 0 )
+						pN = -pN;
+					float pD = Vec3Dot( pN, viewer );
+					
+					// - push plane
+					Vec4 P = V4( pN, pD );
+					P.w += ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
+					
+					cinfo.planes.push_back( P );
+					cinfo.shapes.last().numPlanes++;
+				}
+			}
+			for( size_t i = 0; i < EM->planes.size(); ++i )
+			{
+				Vec4 P = EM->planes[ i ];
+				if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
+				{
+				//	P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
+					
+					cinfo.planes.push_back( P );
+					cinfo.shapes.last().numPlanes++;
 				}
 			}
 		}

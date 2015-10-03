@@ -418,6 +418,7 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 	if len( Tlists ) > 0:
 		tan1list = [ Vector([0,0,0]) for i in range(len(vertices)) ]
 		tan2list = [ Vector([0,0,0]) for i in range(len(vertices)) ]
+		hitlist = [ 0 for i in range(len(vertices)) ]
 		
 		for part in parts:
 			voff = part["voff"]
@@ -456,8 +457,8 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 				t2 = w3.y - w1.y;
 				
 				ir = s1 * t2 - s2 * t1
-				if abs( ir ) > 0.001:
-					r = 1.0 / ir
+				if True: # abs( ir ) > 0.000001:
+					r = abs( ir ) # 1.0 / ir
 					sdir = Vector([(t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r, (t2 * z1 - t1 * z2) * r])
 					tdir = Vector([(s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r, (s1 * z2 - s2 * z1) * r])
 					
@@ -468,6 +469,13 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 					tan2list[ i1 ] += tdir
 					tan2list[ i2 ] += tdir
 					tan2list[ i3 ] += tdir
+					
+					hitlist[ i1 ] += 1
+					hitlist[ i2 ] += 1
+					hitlist[ i3 ] += 1
+				else:
+					print( "Bad triangle UV map!!! invR: %f | UV0: %f;%f | UV1: %f;%f | UV2: %f;%f" % \
+						(ir, Tdc1[0],Tdc1[1],Tdc2[0],Tdc2[1],Tdc3[0],Tdc3[1]))
 				#
 			#
 		#
@@ -479,6 +487,11 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 			t2 = tan2list[ v_id ]
 			
 			outtan = ( t - n * n.dot( t ) ).normalized()
+			if outtan == Vector([0.0,0.0,0.0]):
+				outtan = Vector([0.0,0.0,1.0])
+				print( "Tangent was detected to be 0,0,0 on vertex %d - changed to 0,0,1" % v_id )
+				Tdc = struct.unpack( "2f", vertex[ 24:32 ] )
+				print( "HC: %d, Nrm: %s, Tx1: %s, Tg2: %s" % ( hitlist[ v_id ], n, Tdc, t2 ) )
 			sign = -1.0 if n.cross( t ).dot( t2 ) < 0.0 else 1.0
 			vertices[ v_id ] = vertex[ :24 ] + struct.pack( "4f", outtan.x, outtan.y, outtan.z, sign ) + vertex[ 24: ]
 		#
