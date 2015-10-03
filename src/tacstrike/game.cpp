@@ -259,6 +259,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		CoverSystem* CS = g_GameLevel->GetSystem<CoverSystem>();
 		Vec3 viewer_pos = PLY->GetPosition(); // V3(-8,10,1);
 		CS->QueryLines( V3(-100), V3(100), 0.5f, 0.5f, viewer_pos, true, cinfo );
+		Vec4 sphere = V4( viewer_pos, 1 );
+		cinfo.ClipWithSpheres( &sphere, 1 );
 		for( size_t i = 0; i < cinfo.covers.size(); ++i )
 		{
 			CSCoverLine& CL = cinfo.covers[ i ];

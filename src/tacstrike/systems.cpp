@@ -1332,6 +1332,72 @@ bool CSCoverInfo::GetPosition( Vec3 position, float distpow, Vec3& out )
 
 void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )
 {
+	for( int sid = 0; sid < count; ++sid )
+	{
+		Vec4 sphere = spheres[ sid ];
+		Vec3 sP = sphere.ToVec3();
+		float sR = sphere.w;
+		
+		size_t cover_count = covers.size();
+		for( size_t cid = 0; cid < cover_count; ++cid )
+		{
+			CSCoverLine clin = covers[ cid ];
+			
+			Vec3 pN = ( clin.p1 - clin.p0 ).Normalized();
+			float pDs = Vec3Dot( pN, sP );
+			float pD0 = Vec3Dot( pN, clin.p0 );
+			float pD1 = Vec3Dot( pN, clin.p1 );
+			if( fabsf( pD1 - pD0 ) > SMALL_FLOAT )
+			{
+				float fs = ( pDs - pD0 ) / ( pD1 - pD0 );
+				Vec3 sphere_proj = TLERP( clin.p0, clin.p1, fs );
+				float dist = ( sphere_proj - sP ).Length();
+				float pushfac = sR * cosf( asinf( clamp( dist / sR, -1, 1 ) ) );
+				if( pushfac > SMALL_FLOAT )
+				{
+					float fs0 = fs - pushfac / fabsf( pD1 - pD0 );
+					float fs1 = fs + pushfac / fabsf( pD1 - pD0 );
+					// 6 cases
+					if( fs0 <= 0 )
+					{
+						if( fs1 <= 0 ) continue; // start/end before line, skip
+						else if( fs1 < 1 )
+						{
+							// start-before/end-middle, clip beginning
+							covers[ cid ].p0 = TLERP( clin.p0, clin.p1, fs1 );
+							continue;
+						}
+						else
+						{
+							// start-before/end-after, remove the whole line
+							covers.uerase( cid-- );
+							cover_count--;
+						}
+					}
+					else if( fs0 < 1 )
+					{
+						if( fs1 < 1 )
+						{
+							// start/end at middle, clip middle out
+							CSCoverLine nl0 = { clin.p0, TLERP( clin.p0, clin.p1, fs0 ) };
+							CSCoverLine nl1 = { TLERP( clin.p0, clin.p1, fs1 ), clin.p1 };
+							covers[ cid ] = nl0;
+							covers.push_back( nl1 );
+						}
+						else
+						{
+							// start-middle/end-after, clip end
+							covers[ cid ].p1 = TLERP( clin.p0, clin.p1, fs0 );
+							continue;
+						}
+					}
+					else continue; // start/end after line, skip
+				}
+				else continue; // sphere didn't hit the line
+			}
+			else continue; // line too short to clip
+		}
+	}
 }
 
 bool _IntersectLinePlane( CSCoverLine& ioline, Vec4 plane )
