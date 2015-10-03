@@ -10,8 +10,7 @@ Command MOVE_LEFT( "move_left" );
 Command MOVE_RIGHT( "move_right" );
 Command MOVE_UP( "move_up" );
 Command MOVE_DOWN( "move_down" );
-Command SHOOT( "shoot" );
-Command DASH( "dash" );
+Command SPEED( "speed" );
 
 
 struct GameLevel
@@ -46,6 +45,7 @@ struct GameLevel
 	
 	void Tick( float dt )
 	{
+	//	dt *= m_speed;
 		m_levelTime += dt;
 		
 		m_scene->camera.position = V3(0,0,20*0.8f);
@@ -74,9 +74,9 @@ struct GameLevel
 #define MAX_TICK_SIZE (1.0f/15.0f)
 #define FIXED_TICK_SIZE (1.0f/30.0f)
 
-struct PolyFlightGame : IGame
+struct BreakageGame : IGame
 {
-	PolyFlightGame() : m_accum( 0.0f )
+	BreakageGame() : m_accum( 0.0f )
 	{
 	}
 	
@@ -88,15 +88,13 @@ struct PolyFlightGame : IGame
 		Game_RegisterAction( &MOVE_RIGHT );
 		Game_RegisterAction( &MOVE_UP );
 		Game_RegisterAction( &MOVE_DOWN );
-		Game_RegisterAction( &SHOOT );
-		Game_RegisterAction( &DASH );
+		Game_RegisterAction( &SPEED );
 		
-		Game_BindKeyToAction( SDLK_LEFT, &MOVE_LEFT );
-		Game_BindKeyToAction( SDLK_RIGHT, &MOVE_RIGHT );
-		Game_BindKeyToAction( SDLK_UP, &MOVE_UP );
-		Game_BindKeyToAction( SDLK_DOWN, &MOVE_DOWN );
-		Game_BindKeyToAction( SDLK_z, &SHOOT );
-		Game_BindKeyToAction( SDLK_x, &DASH );
+		Game_BindKeyToAction( SDLK_a, &MOVE_LEFT );
+		Game_BindKeyToAction( SDLK_d, &MOVE_RIGHT );
+		Game_BindKeyToAction( SDLK_w, &MOVE_UP );
+		Game_BindKeyToAction( SDLK_s, &MOVE_DOWN );
+	//	Game_BindKeyToAction( SDLK_z, &SPEED );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		g_GameLevel = new GameLevel;

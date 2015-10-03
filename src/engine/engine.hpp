@@ -718,12 +718,23 @@ struct VertexDeclHandle : Handle< SGRX_IVertexDecl >
 #define SGRX_MtlBlend_Additive 2
 #define SGRX_MtlBlend_Multiply 3
 
+struct SGRX_Material
+{
+	ENGINE_EXPORT SGRX_Material();
+	
+	String shader;
+	TextureHandle textures[ SGRX_MAX_TEXTURES ];
+	
+	uint8_t flags;
+	uint8_t blendMode;
+};
 
 
 struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
 {
 	virtual ~IMeshRaycast(){}
 	virtual void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi = NULL ) = 0;
+	virtual void MRC_DebugDraw( SGRX_MeshInstance* mi ) = 0;
 };
 
 #define INDEX_16 0
@@ -803,6 +814,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	}
 	
 	ENGINE_EXPORT virtual void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
+	ENGINE_EXPORT virtual void MRC_DebugDraw( SGRX_MeshInstance* mi );
 	
 	ENGINE_EXPORT void Clip(
 		const Mat4& mtx,
@@ -880,8 +892,7 @@ struct SGRX_Light : SGRX_RCXFItem
 	TextureHandle shadowTexture;
 	bool hasShadows;
 	uint32_t layers;
-	PixelShaderHandle projectionShader;
-	TextureHandle projectionTextures[ SGRX_MAX_TEXTURES ];
+	SGRX_Material projectionMaterial;
 	Mat4 matrix;
 	
 	// cache
@@ -979,17 +990,6 @@ enum SGRX_LightingMode
 	SGRX_LM_Decal = 3, // lighting from vertex data
 };
 
-struct SGRX_Material
-{
-	ENGINE_EXPORT SGRX_Material();
-	
-	String shader;
-	TextureHandle textures[ SGRX_MAX_TEXTURES ];
-	
-	uint8_t flags;
-	uint8_t blendMode;
-};
-
 
 struct SGRX_VtxInputMapKey
 {
@@ -1036,8 +1036,8 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	
 	FINLINE void OnUpdate(){ m_invalid = true; }
 	FINLINE SGRX_IMesh* GetMesh() const { return m_mesh; }
-	ENGINE_EXPORT void SetMesh( StringView path );
-	ENGINE_EXPORT void SetMesh( MeshHandle mh );
+	ENGINE_EXPORT void SetMesh( StringView path, bool mtls = true );
+	ENGINE_EXPORT void SetMesh( MeshHandle mh, bool mtls = true );
 	FINLINE void SetAllMtlFlags( uint8_t add, uint8_t rem = 0xff )
 	{
 		for( size_t i = 0; i < materials.size(); ++i )
@@ -1071,6 +1071,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 		return m_srsData[ m_drawItems.size() * pass + part ];
 	}
 	FINLINE uint16_t GetMaterialCount() const { return materials.size(); }
+	FINLINE void SetMaterialCount( uint16_t n ){ materials.resize( n ); OnUpdate(); }
 	FINLINE SGRX_Material& GetMaterial( uint16_t i ){ return materials[ i ]; }
 	
 	SGRX_Scene* _scene;
@@ -1214,11 +1215,14 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	ENGINE_EXPORT void GatherMeshes( const SGRX_Camera& cam, IProcessor* meshInstProc, uint32_t layers = 0xffffffff );
 	ENGINE_EXPORT void GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outverts, UInt32Array& outindices, uint32_t layers = 0xffffffff );
 	
+	ENGINE_EXPORT void DebugDraw_MeshRaycast( uint32_t layers = 0xffffffff );
+	
 	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
 	HashTable< SGRX_Light*, LightHandle > m_lights;
 	Array< SGRX_RenderPass > m_passes;
 	StringView m_defines;
 	Vec4 m_timevals; // temporary?
+	MeshInstHandle m_projMeshInst;
 	
 	SGRX_CullScene* cullScene;
 	SGRX_Camera camera;

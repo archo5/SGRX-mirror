@@ -1,1 +1,3 @@
-outColor = tex2D( Tex0, inTex0.xy ) * tex2D( Tex1, float2( inTex0.z, 0.5 ) );
+float4 col = TEXSAMPLE_2D( Tex0, inTex0.xy ) * TEXSAMPLE_2D( Tex1, float2( inTex0.z, 0.5 ) );
+outDiffuseColor = col.rgb;
+outOpacity = col.a;

@@ -1547,6 +1547,11 @@ void SGRX_IMesh::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallb
 	}
 }
 
+void SGRX_IMesh::MRC_DebugDraw( SGRX_MeshInstance* mi )
+{
+	// TODO
+}
+
 template< typename T, typename T2 > void sa2_insert( T* arr, T2* arr2, int& count, int& at, const T& val, const T2& val2 )
 {
 	for( int i = count; i > at; )
@@ -1888,6 +1893,9 @@ SGRX_Light::SGRX_Light( SGRX_Scene* s ) :
 	_dibuf_begin( NULL ),
 	_dibuf_end( NULL )
 {
+	projectionMaterial.shader = "proj_default";
+	projectionMaterial.flags = SGRX_MtlFlag_Unlit | SGRX_MtlFlag_Decal;
+	projectionMaterial.blendMode = SGRX_MtlBlend_Basic;
 	UpdateTransform();
 }
 
@@ -2052,34 +2060,37 @@ void SGRX_MeshInstance::_Precache()
 	}
 }
 
-void SGRX_MeshInstance::SetMesh( StringView path )
+void SGRX_MeshInstance::SetMesh( StringView path, bool mtls )
 {
-	SetMesh( GR_GetMesh( path ) );
+	SetMesh( GR_GetMesh( path ), mtls );
 }
 
-void SGRX_MeshInstance::SetMesh( MeshHandle mh )
+void SGRX_MeshInstance::SetMesh( MeshHandle mh, bool mtls )
 {
 	m_mesh = mh;
-	if( mh )
+	if( mtls )
 	{
-		materials.resize( mh->m_meshParts.size() );
-		for( size_t i = 0; i < mh->m_meshParts.size(); ++i )
+		if( mh )
 		{
-			const SGRX_MeshPart& MP = mh->m_meshParts[ i ];
-			SGRX_Material& M = materials[ i ];
-			
-			M.shader = MP.shader;
-			M.blendMode = MP.mtlBlendMode;
-			M.flags = MP.mtlFlags;
-			for( size_t t = 0; t < SGRX_MAX_MESH_TEXTURES; ++t )
+			materials.resize( mh->m_meshParts.size() );
+			for( size_t i = 0; i < mh->m_meshParts.size(); ++i )
 			{
-				M.textures[ t ] = MP.textures[ t ].size() ? GR_GetTexture( MP.textures[ t ] ) : NULL;
+				const SGRX_MeshPart& MP = mh->m_meshParts[ i ];
+				SGRX_Material& M = materials[ i ];
+				
+				M.shader = MP.shader;
+				M.blendMode = MP.mtlBlendMode;
+				M.flags = MP.mtlFlags;
+				for( size_t t = 0; t < SGRX_MAX_MESH_TEXTURES; ++t )
+				{
+					M.textures[ t ] = MP.textures[ t ].size() ? GR_GetTexture( MP.textures[ t ] ) : NULL;
+				}
 			}
 		}
-	}
-	else
-	{
-		materials.resize( 0 );
+		else
+		{
+			materials.resize( 0 );
+		}
 	}
 	OnUpdate();
 }
@@ -2258,10 +2269,15 @@ SGRX_Scene::SGRX_Scene() :
 	
 	m_defines = ":MOD_BLENDCOLOR 0";
 	SetRenderPasses( g_DefaultRenderPasses, SGRX_ARRAY_SIZE(g_DefaultRenderPasses) );
+	
+	m_projMeshInst = CreateMeshInstance();
+	m_projMeshInst->sortidx = 255;
 }
 
 SGRX_Scene::~SGRX_Scene()
 {
+	m_projMeshInst = NULL;
+	
 	LOG << "Deleted scene: " << this;
 }
 
@@ -2358,6 +2374,19 @@ void SGRX_Scene::GenerateProjectionMesh( const SGRX_Camera& cam, ByteArray& outv
 {
 	SGRX_ProjectionMeshProcessor pmp( &outverts, &outindices, cam.mView * cam.mProj, cam.zfar - cam.znear );
 	GatherMeshes( cam, &pmp, layers );
+}
+
+void SGRX_Scene::DebugDraw_MeshRaycast( uint32_t layers )
+{
+	for( size_t i = 0; i < m_meshInstances.size(); ++i )
+	{
+		SGRX_MeshInstance* mi = m_meshInstances.item( i ).key;
+		if( mi->layers & layers )
+		{
+			IMeshRaycast* imrc = mi->raycastOverride ? mi->raycastOverride : mi->GetMesh();
+			imrc->MRC_DebugDraw( mi );
+		}
+	}
 }
 
 

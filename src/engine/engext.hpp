@@ -287,6 +287,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT bool GetBodyMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetJointFrameMatrices( int which, Mat4& outself, Mat4& outprnt );
 	ENGINE_EXPORT bool GetJointMatrix( int which, bool parent, Mat4& outwm );
+	ENGINE_EXPORT void _GetHitboxMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
 	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool ApplyMask( const StringView& name, Animator* tgt );
@@ -294,6 +295,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT void SortEnsureAttachments( const StringView* atchnames, int count );
 	
 	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
+	ENGINE_EXPORT void MRC_DebugDraw( SGRX_MeshInstance* mi );
 	
 	String mesh;
 	Array< BoneInfo > bones;

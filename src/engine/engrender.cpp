@@ -95,6 +95,8 @@ void IRenderer::SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTC
 
 void IRenderer::SortRenderItems( SGRX_Scene* scene )
 {
+	_RS_UpdateProjectorMesh( scene );
+	
 	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_meshes.data(),
 		m_visible_meshes.size(), SGRX_TY_Solid | SGRX_TY_Decal | SGRX_TY_Transparent );
 	
@@ -363,14 +365,14 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 	m_projectorVertices.clear();
 	m_projectorIndices.clear();
 	m_projectorMeshParts.clear();
-	m_projectorList.clear();
+	m_projectorMaterials.clear();
 	size_t stride = m_projectorVertexDecl.GetInfo().size;
 	
 	// generate vertex data
 	for( size_t i = 0; i < m_visible_spot_lights.size(); ++i )
 	{
 		SGRX_Light* L = m_visible_spot_lights[ i ];
-		if( L->type != LIGHT_PROJ || !L->projectionShader )
+		if( L->type != LIGHT_PROJ )
 			continue;
 		
 		L->UpdateTransform();
@@ -390,11 +392,15 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 			if( ( MI->layers & L->layers ) != 0 && MI->IsSkinned() == false )
 			{
 				SGRX_IMesh* M = MI->GetMesh();
-				if( M )
+				if( M && MI->GetMaterialCount() > mil->DI->part )
 				{
-					size_t vertoff = m_projectorVertices.size();
-					M->Clip( MI->matrix, L->viewProjMatrix, m_projectorVertices, true, invZNearToZFar, 0xffffffff, mil->DI->part, 1 );
-					SGRX_DoIndexTriangleMeshVertices( m_projectorIndices, m_projectorVertices, vertoff, 48 );
+					SGRX_Material& MTL = MI->GetMaterial( mil->DI->part );
+					if( ( MTL.flags & SGRX_MtlFlag_Disable ) == 0 && MTL.blendMode == SGRX_MtlBlend_None )
+					{
+						size_t vertoff = m_projectorVertices.size();
+						M->Clip( MI->matrix, L->viewProjMatrix, m_projectorVertices, true, invZNearToZFar, 0xffffffff, mil->DI->part, 1 );
+						SGRX_DoIndexTriangleMeshVertices( m_projectorIndices, m_projectorVertices, vertoff, 48 );
+					}
 				}
 			}
 			mil++;
@@ -406,16 +412,24 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 			m_projectorIndices[ ipos ] -= mp.vertexOffset;
 		
 		m_projectorMeshParts.push_back( mp );
-		m_projectorList.push_back( L );
+		m_projectorMaterials.push_back( &L->projectionMaterial );
 	}
 	
 	// apply new data
 	bool apply = m_projectorVertices.size() && m_projectorIndices.size() && m_projectorMeshParts.size();
+	scene->m_projMeshInst->enabled = apply;
 	if( apply )
 	{
 		m_projectorMesh->SetVertexData( m_projectorVertices.data(), m_projectorVertices.size_bytes(), m_projectorVertexDecl, false );
 		m_projectorMesh->SetIndexData( m_projectorIndices.data(), m_projectorIndices.size_bytes(), true );
 		m_projectorMesh->SetPartData( m_projectorMeshParts.data(), m_projectorMeshParts.size() );
+		
+		scene->m_projMeshInst->SetMesh( m_projectorMesh, false );
+		scene->m_projMeshInst->SetMaterialCount( m_projectorMaterials.size() );
+		for( size_t i = 0; i < m_projectorMaterials.size(); ++i )
+		{
+			scene->m_projMeshInst->GetMaterial( i ) = *m_projectorMaterials[ i ];
+		}
 	}
 	
 	return apply;

@@ -276,6 +276,8 @@ AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
 	
 	m_anDeformer.animSource = &m_anMixer;
 	m_anEnd.animSource = &m_anDeformer;
+	m_cachedMeshInst = m_scene->CreateMeshInstance();
+	m_cachedMeshInst->raycastOverride = this;
 }
 
 bool AnimCharacter::Load( const StringView& sv )
@@ -302,10 +304,6 @@ bool AnimCharacter::Save( const StringView& sv )
 
 void AnimCharacter::_OnRenderUpdate()
 {
-	if( m_cachedMeshInst == NULL )
-	{
-		m_cachedMeshInst = m_scene->CreateMeshInstance();
-	}
 	m_cachedMesh = GR_GetMesh( mesh );
 	m_cachedMeshInst->SetMesh( m_cachedMesh );
 	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh ? m_cachedMesh->m_numBones : 0 );
@@ -445,7 +443,7 @@ void AnimCharacter::RecalcBoneIDs()
 
 bool AnimCharacter::GetBodyMatrix( int which, Mat4& outwm )
 {
-	if( !m_cachedMesh || !m_cachedMeshInst )
+	if( !m_cachedMesh )
 		return false;
 	if( which < 0 || which >= (int) bones.size() )
 		return false;
@@ -494,7 +492,7 @@ bool AnimCharacter::GetJointFrameMatrices( int which, Mat4& outself, Mat4& outpr
 
 bool AnimCharacter::GetJointMatrix( int which, bool parent, Mat4& outwm )
 {
-	if( !m_cachedMesh || !m_cachedMeshInst )
+	if( !m_cachedMesh )
 		return false;
 	if( which < 0 || which >= (int) bones.size() )
 		return false;
@@ -530,9 +528,24 @@ bool AnimCharacter::GetJointMatrix( int which, bool parent, Mat4& outwm )
 	return true;
 }
 
+void AnimCharacter::_GetHitboxMatrix( int which, Mat4& outwm )
+{
+	BoneInfo& BI = bones[ which ];
+	outwm = Mat4::CreateRotationFromQuat( BI.hitbox.rotation ) *
+		Mat4::CreateTranslation( BI.hitbox.position );
+	if( BI.bone_id >= 0 )
+	{
+		outwm = outwm * m_cachedMesh->m_bones[ BI.bone_id ].skinOffset;
+		if( m_cachedMeshInst->IsSkinned() )
+		{
+			outwm = outwm * m_cachedMeshInst->skin_matrices[ BI.bone_id ];
+		}
+	}
+}
+
 bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 {
-	if( !m_cachedMesh || !m_cachedMeshInst )
+	if( !m_cachedMesh )
 		return false;
 	if( which < 0 || which >= (int) bones.size() )
 		return false;
@@ -540,24 +553,15 @@ bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 	if( BI.hitbox.multiplier == 0 )
 		return false; // a way to disable it
 	
-	outwm = m_cachedMeshInst->matrix;
-	if( BI.bone_id >= 0 )
-	{
-		if( m_cachedMeshInst->IsSkinned() )
-		{
-			outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
-		}
-		outwm = m_cachedMesh->m_bones[ BI.bone_id ].skinOffset * outwm;
-	}
-	outwm = Mat4::CreateRotationFromQuat( BI.hitbox.rotation ) *
-		Mat4::CreateTranslation( BI.hitbox.position ) * outwm;
+	_GetHitboxMatrix( which, outwm );
+	outwm = outwm * m_cachedMeshInst->matrix;
 	outext = BI.hitbox.extents;
 	return true;
 }
 
 bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm )
 {
-	if( !m_cachedMesh || !m_cachedMeshInst )
+	if( !m_cachedMesh )
 		return false;
 	if( which < 0 || which >= (int) attachments.size() )
 		return false;
@@ -640,24 +644,15 @@ void AnimCharacter::SortEnsureAttachments( const StringView* atchnames, int coun
 void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi )
 {
 	UNUSED( cbmi ); // always use own mesh instance
-	if( !m_cachedMesh || !m_cachedMeshInst )
+	if( !m_cachedMesh )
 		return;
 	for( size_t i = 0; i < bones.size(); ++i )
 	{
+		Mat4 bxf, inv;
 		BoneInfo& BI = bones[ i ];
-		Mat4 bxf = Mat4::CreateRotationFromQuat( BI.hitbox.rotation ) *
-			Mat4::CreateTranslation( BI.hitbox.position );
-		if( BI.bone_id >= 0 )
-		{
-			bxf = bxf * m_cachedMesh->m_bones[ BI.bone_id ].skinOffset;
-			if( m_cachedMeshInst->IsSkinned() )
-			{
-				bxf = bxf * m_cachedMeshInst->skin_matrices[ BI.bone_id ];
-			}
-		}
-		bxf = bxf * m_cachedMeshInst->matrix;
-		
-		Mat4 inv;
+		if( BI.hitbox.multiplier == 0 )
+			continue;
+		_GetHitboxMatrix( i, bxf );
 		if( bxf.InvertTo( inv ) )
 		{
 			Vec3 p0 = inv.TransformPos( from );
@@ -670,6 +665,25 @@ void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCa
 				cb->AddResult( &srci );
 			}
 		}
+	}
+}
+
+void AnimCharacter::MRC_DebugDraw( SGRX_MeshInstance* mi )
+{
+	UNUSED( mi ); // always use own mesh instance
+	if( !m_cachedMesh )
+		return;
+	
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Reset().Col( 0.1f, 0.5f, 0.9f );
+	for( size_t i = 0; i < bones.size(); ++i )
+	{
+		Mat4 bxf;
+		BoneInfo& BI = bones[ i ];
+		if( BI.hitbox.multiplier == 0 )
+			continue;
+		_GetHitboxMatrix( i, bxf );
+		br.AABB( -BI.hitbox.extents, BI.hitbox.extents, bxf * m_cachedMeshInst->matrix );
 	}
 }
 

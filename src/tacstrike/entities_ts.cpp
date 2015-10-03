@@ -231,9 +231,8 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_shadowInst->angle = 60;
 	m_shadowInst->range = 1.5f;
 	m_shadowInst->UpdateTransform();
-	m_shadowInst->projectionShader = GR_GetPixelShader( "mtl:proj_default:base_proj" );
-	m_shadowInst->projectionTextures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
-	m_shadowInst->projectionTextures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
+	m_shadowInst->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
+	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
 	
 	m_anLayers[0].anim = &m_anMainPlayer;
 	m_anLayers[1].anim = &m_anTopPlayer;

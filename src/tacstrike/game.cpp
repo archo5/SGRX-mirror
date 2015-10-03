@@ -102,8 +102,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
-	//	g_GameLevel->Load( "ai-test" );
-		g_GameLevel->Load( "v3decotest" );
+		g_GameLevel->Load( "ai-test" );
+	//	g_GameLevel->Load( "v3decotest" );
 		
 		mylight = g_GameLevel->GetScene()->CreateLight();
 		mylight->type = LIGHT_SPOT;
@@ -252,6 +252,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	void DebugDraw()
 	{
 		g_GameLevel->DebugDraw();
+	//	g_GameLevel->GetScene()->DebugDraw_MeshRaycast();
 		
 		CSCoverInfo cinfo;
 		TSPlayer* PLY = (TSPlayer*) g_GameLevel->m_player;
