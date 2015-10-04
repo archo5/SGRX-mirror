@@ -530,15 +530,17 @@ struct CSCoverInfo
 	};
 	
 	void Clear();
-	bool GetPosition( Vec3 position, float distpow, Vec3& out );
+	bool GetPosition( Vec3 position, float distpow, Vec3& out, float interval = 0.1f );
 	void ClipWithSpheres( Vec4* spheres, int count );
 	
+	size_t _GetBestFactorID();
 	void _CullWithShadowLines( size_t firstcover, Vec4 P );
 	void _CullWithSolids();
 	
 	Array< Vec4 > planes;
 	Array< Shape > shapes;
 	Array< CSCoverLine > covers;
+	Array< float > factors;
 };
 
 struct CoverSystem : IGameLevelSystem

@@ -254,6 +254,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_GameLevel->DebugDraw();
 	//	g_GameLevel->GetScene()->DebugDraw_MeshRaycast();
 		
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		
 		CSCoverInfo cinfo;
 		TSPlayer* PLY = (TSPlayer*) g_GameLevel->m_player;
 		CoverSystem* CS = g_GameLevel->GetSystem<CoverSystem>();
@@ -266,6 +268,20 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 			CSCoverLine& CL = cinfo.covers[ i ];
 			g_DebugLines.DrawLine( CL.p0, CL.p1 );
 		}
+		
+		static Array<Vec3> positions;
+#define MAX_POSS 100
+		Vec3 genpos;
+		if( cinfo.GetPosition( viewer_pos, Game_GetCursorPosNormalized().x, genpos ) )
+		{
+			positions.insert( 0, genpos );
+			positions.resize( MAX_POSS );
+		}
+		for( size_t i = 0; i < positions.size(); ++i )
+		{
+			br.Reset().Col( 0, 1, 0, 1-float(i)/MAX_POSS ).Tick( positions[i], 0.1f );
+		}
+		br.Flush();
 		
 		g_DebugLines.Flush();
 		

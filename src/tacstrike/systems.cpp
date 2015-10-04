@@ -1323,11 +1323,48 @@ void CSCoverInfo::Clear()
 	planes.clear();
 	shapes.clear();
 	covers.clear();
+	factors.clear();
 }
 
-bool CSCoverInfo::GetPosition( Vec3 position, float distpow, Vec3& out )
+bool CSCoverInfo::GetPosition( Vec3 position, float distpow, Vec3& out, float interval )
 {
-	return false;
+	if( covers.size() == 0 )
+		return false;
+	
+	// generate cover line goodness factors
+	factors.resize( covers.size() );
+	for( size_t cid = 0; cid < covers.size(); ++cid )
+	{
+		float dist = PointLineDistance( position, covers[ cid ].p0, covers[ cid ].p1 );
+		factors[ cid ] = TLERP( randf(), 1/(1+dist), distpow );
+	}
+	
+	// pick best cover line
+	size_t found_cid = _GetBestFactorID();
+	CSCoverLine clin = covers[ found_cid ];
+	
+	// calculate cover point placement on line
+	float len = ( clin.p1 - clin.p0 ).Length();
+	int count = floor( len / interval ) + 1;
+	float hoff = fmodf( len, interval ) / 2;
+	float qstart = hoff / len;
+	float qdt = interval / len;
+	
+	// generate cover point goodness factors
+	factors.resize( count );
+	float q = qstart;
+	for( int i = 0; i < count; ++i, q += qdt )
+	{
+		Vec3 pt = TLERP( clin.p0, clin.p1, q );
+		float dist = ( pt - position ).Length();
+		factors[ i ] = TLERP( randf(), 1/(1+dist), distpow );
+	}
+	
+	// pick best cover point
+	size_t found_ptid = _GetBestFactorID();
+	out = TLERP( clin.p0, clin.p1, qstart + qdt * found_ptid );
+	
+	return true;
 }
 
 void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )
@@ -1398,6 +1435,22 @@ void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )
 			else continue; // line too short to clip
 		}
 	}
+}
+
+size_t CSCoverInfo::_GetBestFactorID()
+{
+	float q = -1;
+	size_t id = NOT_FOUND;
+	for( size_t i = 0; i < factors.size(); ++i )
+	{
+		float nq = factors[ i ];
+		if( nq > q )
+		{
+			q = nq;
+			id = i;
+		}
+	}
+	return id;
 }
 
 bool _IntersectLinePlane( CSCoverLine& ioline, Vec4 plane )

@@ -1170,6 +1170,7 @@ ENGINE_EXPORT Quat TransformQuaternion( const Quat& q, const Mat4& m );
 
 
 
+ENGINE_EXPORT float PointLineDistance( const Vec3& pt, const Vec3& l0, const Vec3& l1 );
 ENGINE_EXPORT float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 );
 ENGINE_EXPORT bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const Vec3& tb0, const Vec3& tb1, const Vec3& tb2 );
 ENGINE_EXPORT bool TriangleAABBIntersect( const Vec3& t0, const Vec3& t1, const Vec3& t2, const Vec3& bbmin, const Vec3& bbmax );
