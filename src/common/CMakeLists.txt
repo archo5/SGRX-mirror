@@ -21,8 +21,17 @@ target_link_libraries( editor
 	sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
 	recast detour lighter )
 set_target_properties( editor PROPERTIES
-	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC"
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src;${EXTDIR}/src/recast/Recast/Include;${EXTDIR}/src/recast/Detour/Include"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "${CORE_FLAGS}"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+
+# Asset editor
+add_library( aedit SHARED aedit.cpp assetcomp.hpp assetcomp.cpp )
+target_link_libraries( aedit sgrx-core )
+set_target_properties( aedit PROPERTIES
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
@@ -32,7 +41,6 @@ set_target_properties( editor PROPERTIES
 add_library( psedit SHARED psedit )
 target_link_libraries( psedit sgrx-core )
 set_target_properties( psedit PROPERTIES
-	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC"
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
@@ -43,7 +51,6 @@ set_target_properties( psedit PROPERTIES
 add_library( charedit SHARED charedit )
 target_link_libraries( charedit sgrx-core sgrx-physics-bullet )
 set_target_properties( charedit PROPERTIES
-	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC"
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
@@ -54,7 +61,6 @@ set_target_properties( charedit PROPERTIES
 add_library( csedit SHARED csedit )
 target_link_libraries( csedit sgrx-core )
 set_target_properties( csedit PROPERTIES
-	CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC"
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"

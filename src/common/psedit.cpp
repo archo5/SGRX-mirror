@@ -29,7 +29,7 @@ struct EDGUIShaderPicker : EDGUIRsrcPicker
 	{
 		LOG << "Reloading shaders";
 		m_options.clear();
-		DirectoryIterator tdi( "shaders_d3d9" );
+		DirectoryIterator tdi( "shaders" );
 		while( tdi.Next() )
 		{
 			StringView fn = tdi.Name();

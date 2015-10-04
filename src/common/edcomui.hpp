@@ -17,6 +17,66 @@ inline void lmm_prepmeshinst( MeshInstHandle mih )
 
 
 
+#define LI_SUBBTN_WIDTH 30
+struct EDGUIListItemButton : EDGUIButton
+{
+	EDGUIListItemButton( bool ordered = true )
+	{
+		tyname = "btn_item";
+		m_up.tyname = "btn_up";
+		m_dn.tyname = "btn_dn";
+		m_del.tyname = "btn_del";
+		
+		m_up.caption = "[up]";
+		m_dn.caption = "[dn]";
+		m_del.caption = "[x]";
+		
+		m_del.SetHighlight( true );
+		
+		if( ordered )
+		{
+			Add( &m_up );
+			Add( &m_dn );
+		}
+		Add( &m_del );
+	}
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_LAYOUT:
+			EDGUIButton::OnEvent( e );
+			SetSubitemLayout( &m_up, x1 - LI_SUBBTN_WIDTH * 3, y0, x1 - LI_SUBBTN_WIDTH * 2, y1 );
+			SetSubitemLayout( &m_dn, x1 - LI_SUBBTN_WIDTH * 2, y0, x1 - LI_SUBBTN_WIDTH * 1, y1 );
+			SetSubitemLayout( &m_del, x1 - LI_SUBBTN_WIDTH * 1, y0, x1 - LI_SUBBTN_WIDTH * 0, y1 );
+			return 0;
+			
+		case EDGUI_EVENT_PAINT:
+			if( backColor )
+			{
+				GR2D_GetBatchRenderer().UnsetTexture().Colu( backColor ).Quad( float(x0), float(y0), float(x1), float(y1) );
+			}
+			if( textColor && caption.size() )
+			{
+				GR2D_GetBatchRenderer().Colu( textColor );
+				GR2D_DrawTextLine( x0 + 2, round(( y0 + y1 ) / 2.0f), caption, HALIGN_LEFT, VALIGN_CENTER );
+			}
+			for( size_t i = 0; i < m_subitems.size(); ++i )
+			{
+				m_subitems[ i ]->OnEvent( e );
+			}
+			return 1;
+			
+		}
+		return EDGUIButton::OnEvent( e );
+	}
+	
+	EDGUIButton m_up;
+	EDGUIButton m_dn;
+	EDGUIButton m_del;
+};
+
+
 struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUISDTexPicker( const StringView& dir = "textures" ) : m_dir( String_Concat( dir, "/" ) )
