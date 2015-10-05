@@ -14,13 +14,250 @@
 struct EDGUIMainFrame* g_UIFrame;
 SceneHandle g_EdScene;
 SGRX_AssetScript* g_EdAS;
+struct EDGUIImageFilterType* g_UIImgFilterType;
 
 EDGUIRsrcPicker TMPRSRC;
 
 
+
+struct EDGUIImageFilterType : EDGUIRsrcPicker
+{
+	EDGUIImageFilterType()
+	{
+		caption = "Pick an image filter";
+		m_options.push_back( "Resize" );
+		m_options.push_back( "Sharpen" );
+		m_options.push_back( "To linear" );
+		m_options.push_back( "From linear" );
+		_Search( m_searchString );
+	}
+	SGRX_TextureOutputFormat GetPickedType() const
+	{
+		return SGRX_TextureOutputFormat( m_picked + 1 );
+	}
+};
+
+struct EDGUICreatePickButton : EDGUIPropRsrc
+{
+	EDGUICreatePickButton( EDGUIRsrcPicker* rsrcPicker, const StringView& def = StringView() ) :
+		EDGUIPropRsrc( rsrcPicker, def )
+	{
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_PROPEDIT:
+		case EDGUI_EVENT_PROPCHANGE:
+			if( e->target == m_rsrcPicker )
+			{
+				EDGUIEvent se = { e->type, this };
+				BubblingEvent( &se );
+				return 0;
+			}
+			break;
+		}
+		return EDGUIPropRsrc::OnEvent( e );
+	}
+};
+
+
+struct EDGUIImgFilter_Resize : EDGUILayoutRow
+{
+	EDGUIImgFilter_Resize( SGRX_ImageFilter* iflt ) :
+		m_width( 256, 1, 4096 ),
+		m_height( 256, 1, 4096 ),
+		m_hfilter( iflt )
+	{
+		SGRX_ImageFilter_Resize* F = iflt->upcast<SGRX_ImageFilter_Resize>();
+		m_width.SetValue( F->width );
+		m_height.SetValue( F->height );
+		
+		m_width.caption = "Width";
+		m_height.caption = "Height";
+		
+		Add( &m_width );
+		Add( &m_height );
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_hfilter )
+		{
+			SGRX_ImageFilter_Resize* F = m_hfilter->upcast<SGRX_ImageFilter_Resize>();
+			switch( e->type )
+			{
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_width ) F->width = m_width.m_value;
+				if( e->target == &m_height ) F->height = m_height.m_value;
+				break;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIPropInt m_width;
+	EDGUIPropInt m_height;
+	SGRX_ImgFilterHandle m_hfilter;
+};
+
 struct EDGUIAssetTexture : EDGUILayoutRow
 {
+	EDGUIAssetTexture() :
+		m_group( true, "Texture" ),
+		m_sourceFile( &TMPRSRC ),
+		m_outputCategory( &TMPRSRC ),
+		m_outputType( &TMPRSRC ),
+		m_sfgroup( true, "Selected filter" ),
+		m_curFilter( NULL ),
+		m_flgroup( true, "Filters" ),
+		m_filterBtnAdd( g_UIImgFilterType ),
+		m_tid( NOT_FOUND )
+	{
+		m_sourceFile.caption = "Source file";
+		m_outputCategory.caption = "Output category";
+		m_outputName.caption = "Output name";
+		m_outputType.caption = "Output type";
+		m_isSRGB.caption = "Is SRGB?";
+		
+		m_group.Add( &m_sourceFile );
+		m_group.Add( &m_outputCategory );
+		m_group.Add( &m_outputName );
+		m_group.Add( &m_outputType );
+		m_group.Add( &m_isSRGB );
+		
+		m_filterBtnAdd.SetValue( "Pick filter to add" );
+		
+		m_filterButtons.Add( &m_filterEditButton );
+		m_flgroup.Add( &m_filterBtnAdd );
+		m_flgroup.Add( &m_filterButtons );
+		
+		Add( &m_group );
+		Add( &m_sfgroup );
+		Add( &m_flgroup );
+	}
+	
+	~EDGUIAssetTexture()
+	{
+		m_sfgroup.Clear();
+		if( m_curFilter )
+		{
+			delete m_curFilter;
+			m_curFilter = NULL;
+		}
+	}
+	
+	void ReloadFilterList()
+	{
+		SGRX_TextureAsset& TA = g_EdAS->textureAssets[ m_tid ];
+		
+		m_filterButtons.m_options.resize( TA.filters.size() );
+		for( size_t i = 0; i < TA.filters.size(); ++i )
+		{
+			m_filterButtons.m_options[ i ] = TA.filters[ i ]->GetName();
+		}
+		m_filterButtons.UpdateOptions();
+	}
+	
+	void Prepare( size_t tid )
+	{
+		m_tid = tid;
+		SGRX_TextureAsset& TA = g_EdAS->textureAssets[ tid ];
+		
+		m_sourceFile.SetValue( TA.sourceFile );
+		m_outputCategory.SetValue( TA.outputCategory );
+		m_outputName.SetValue( TA.outputName );
+		m_outputType.SetValue( SGRX_TextureOutputFormat_ToString( TA.outputType ) );
+		m_isSRGB.SetValue( TA.isSRGB );
+		
+		m_sfgroup.Clear();
+		if( m_curFilter )
+		{
+			delete m_curFilter;
+			m_curFilter = NULL;
+		}
+		
+		ReloadFilterList();
+	}
+	
+	void EditFilter( SGRX_ImageFilter* IF )
+	{
+		EDGUILayoutRow* newflt = NULL;
+		switch( IF->GetType() )
+		{
+		case SGRX_AIF_Resize: newflt = new EDGUIImgFilter_Resize( IF ); break;
+		default:break;
+		}
+		if( newflt )
+		{
+			if( m_curFilter )
+				delete m_curFilter;
+			m_curFilter = newflt;
+			m_sfgroup.Clear();
+			m_sfgroup.Add( m_curFilter );
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "Selected filter: %s",
+				SGRX_AssetImgFilterType_ToString( IF->GetType() ) );
+			m_sfgroup.caption = bfr;
+			m_sfgroup.SetOpen( true );
+		}
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_tid != NOT_FOUND )
+		{
+			SGRX_TextureAsset& TA = g_EdAS->textureAssets[ m_tid ];
+			switch( e->type )
+			{
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_sourceFile ){ TA.sourceFile = m_sourceFile.m_value; }
+				if( e->target == &m_outputCategory ){ TA.outputCategory = m_outputCategory.m_value; }
+				if( e->target == &m_outputName ){ TA.outputName = m_outputName.m_value; }
+				if( e->target == &m_outputType )
+				{
+					TA.outputType = SGRX_TextureOutputFormat_FromString( m_outputType.m_value );
+				}
+				if( e->target == &m_isSRGB ){ TA.isSRGB = m_isSRGB.m_value; }
+				if( e->target == &m_filterBtnAdd )
+				{
+					SGRX_ImageFilter* IF = NULL;
+					switch( g_UIImgFilterType->GetPickedType() )
+					{
+					case SGRX_AIF_Resize: IF = new SGRX_ImageFilter_Resize; break;
+					default: break;
+					}
+					if( IF )
+					{
+						TA.filters.push_back( IF );
+						ReloadFilterList();
+						EditFilter( IF );
+					}
+				}
+				break;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_sourceFile;
+	EDGUIPropRsrc m_outputCategory;
+	EDGUIPropString m_outputName;
+	EDGUIPropRsrc m_outputType;
+	EDGUIPropBool m_isSRGB;
+	EDGUIGroup m_sfgroup;
+	EDGUILayoutRow* m_curFilter;
+	EDGUIGroup m_flgroup;
+	EDGUICreatePickButton m_filterBtnAdd;
+	EDGUIBtnList m_filterButtons;
+	EDGUIListItemButton m_filterEditButton;
+	size_t m_tid;
 };
+
+void FC_EditTexture( size_t id );
+void FC_EditTextureList();
 
 struct EDGUIAssetTextureList : EDGUILayoutRow
 {
@@ -30,13 +267,55 @@ struct EDGUIAssetTextureList : EDGUILayoutRow
 	{
 		m_btnAdd.caption = "Add texture";
 		
+		m_buttons.Add( &m_editButton );
+		m_group.Add( &m_buttons );
 		Add( &m_btnAdd );
 		Add( &m_group );
 	}
 	
+	void Prepare()
+	{
+		m_buttons.m_options.resize( g_EdAS->textureAssets.size() );
+		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
+		{
+			g_EdAS->textureAssets[ i ].GetDesc( m_buttons.m_options[ i ] );
+		}
+		m_buttons.UpdateOptions();
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		switch( e->type )
+		{
+		case EDGUI_EVENT_BTNCLICK:
+			if( e->target == &m_btnAdd )
+			{
+				SGRX_TextureAsset texasset;
+				texasset.outputType = SGRX_TOF_PNG_RGBA32;
+				texasset.isSRGB = true;
+				g_EdAS->textureAssets.push_back( texasset );
+				FC_EditTexture( g_EdAS->textureAssets.size() - 1 );
+				return 1;
+			}
+			if( e->target == &m_editButton )
+			{
+				FC_EditTexture( m_editButton.id2 );
+				return 1;
+			}
+			if( e->target == &m_editButton.m_del )
+			{
+				g_EdAS->textureAssets.erase( m_editButton.id2 );
+				Prepare();
+				return 1;
+			}
+			break;
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
 	EDGUIGroup m_group;
 	EDGUIButton m_btnAdd;
-	EDGUIBtnList m_layerButtons;
+	EDGUIBtnList m_buttons;
 	EDGUIListItemButton m_editButton;
 };
 
@@ -225,8 +504,17 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			m_UIParamList.Remove( m_UIParamList.m_subitems.last() );
 	}
 	
+	void EditTexture( size_t id )
+	{
+		ClearParamList();
+		m_UITexture.Prepare( id );
+		AddToParamList( &m_UITexture );
+	}
 	void EditTextureList()
 	{
+		ClearParamList();
+		m_UITextureList.Prepare();
+		AddToParamList( &m_UITextureList );
 	}
 	void EditMesh( size_t id )
 	{
@@ -284,10 +572,14 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBEditMeshes;
 	
 	// data edit views
+	EDGUIAssetTexture m_UITexture;
+	EDGUIAssetTextureList m_UITextureList;
 	EDGUIAssetMesh m_UIMesh;
 	EDGUIAssetMeshList m_UIMeshList;
 };
 
+void FC_EditTexture( size_t id ){ g_UIFrame->EditTexture( id ); }
+void FC_EditTextureList(){ g_UIFrame->EditTextureList(); }
 void FC_EditMesh( size_t id ){ g_UIFrame->EditMesh( id ); }
 void FC_EditMeshList(){ g_UIFrame->EditMeshList(); }
 
@@ -305,7 +597,7 @@ struct PSEditor : IGame
 	//	g_UIMeshPicker = new EDGUIMeshPicker;
 	//	g_UIPSOpenPicker = new EDGUIPSOpenPicker;
 	//	g_UIPSSavePicker = new EDGUIPSSavePicker;
-	//	g_UIPSISFXPicker = new EDGUIPSISFXPicker;
+		g_UIImgFilterType = new EDGUIImageFilterType;
 		
 		// core layout
 		g_EdScene = GR_CreateScene();
@@ -319,8 +611,8 @@ struct PSEditor : IGame
 	}
 	void OnDestroy()
 	{
-	//	delete g_UIPSISFXPicker;
-	//	g_UIPSISFXPicker = NULL;
+		delete g_UIImgFilterType;
+		g_UIImgFilterType = NULL;
 	//	delete g_UIPSSavePicker;
 	//	g_UIPSSavePicker = NULL;
 	//	delete g_UIPSOpenPicker;

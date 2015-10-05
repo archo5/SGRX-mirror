@@ -347,6 +347,7 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 		
 		if(0);
 		else if( engkey == SDLK_RETURN ) ev.key.key = EDGUI_KEY_ENTER;
+		else if( engkey == SDLK_KP_ENTER ) ev.key.key = EDGUI_KEY_ENTER;
 		else if( engkey == SDLK_BACKSPACE ) ev.key.key = EDGUI_KEY_DELLEFT;
 		else if( engkey == SDLK_DELETE ) ev.key.key = EDGUI_KEY_DELRIGHT;
 		else if( engkey == SDLK_LEFT ) ev.key.key = EDGUI_KEY_LEFT;
@@ -1344,7 +1345,7 @@ int EDGUIRsrcPicker::OnEvent( EDGUIEvent* e )
 			Close();
 			return 1;
 		}
-		else if( e->key.engkey == SDLK_RETURN )
+		else if( e->key.engkey == SDLK_RETURN || e->key.engkey == SDLK_KP_ENTER )
 		{
 			m_pickedOption = m_searchString;
 			_OnConfirm();

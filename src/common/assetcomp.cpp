@@ -4,6 +4,32 @@
 
 
 
+static const char* assetimgfiltype_string_table[] =
+{
+	"resize",
+	"sharpen",
+	"to_linear",
+	"from_linear",
+};
+
+const char* SGRX_AssetImgFilterType_ToString( SGRX_AssetImageFilterType aift )
+{
+	int fid = aift;
+	if( fid <= 0 || fid >= SGRX_AIF__COUNT )
+		return "Unknown";
+	return assetimgfiltype_string_table[ fid - 1 ];
+}
+
+SGRX_AssetImageFilterType SGRX_AssetImgFilterType_FromString( const StringView& sv )
+{
+	for( int i = 1; i < SGRX_AIF__COUNT; ++i )
+	{
+		if( sv == assetimgfiltype_string_table[ i - 1 ] )
+			return (SGRX_AssetImageFilterType) i;
+	}
+	return SGRX_AIF_Unknown;
+}
+
 bool SGRX_ImageFilter_Resize::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -85,17 +111,28 @@ void SGRX_ImageFilter_Linear::Generate( String& out )
 {
 }
 
+static const char* texoutfmt_string_table[] =
+{
+	"PNG_RGBA32",
+	"STX_RGBA32",
+};
+
 const char* SGRX_TextureOutputFormat_ToString( SGRX_TextureOutputFormat fmt )
 {
-	static const char* texoutfmt_string_table[] =
-	{
-		"PNG_RGBA32",
-		"STX_RGBA32",
-	};
 	int fid = fmt;
 	if( fid <= 0 || fid >= SGRX_TOF__COUNT )
 		return "Unknown";
 	return texoutfmt_string_table[ fid - 1 ];
+}
+
+SGRX_TextureOutputFormat SGRX_TextureOutputFormat_FromString( const StringView& sv )
+{
+	for( int i = 1; i < SGRX_TOF__COUNT; ++i )
+	{
+		if( sv == texoutfmt_string_table[ i - 1 ] )
+			return (SGRX_TextureOutputFormat) i;
+	}
+	return SGRX_TOF_Unknown;
 }
 
 bool SGRX_TextureAsset::Parse( ConfigReader& cread )

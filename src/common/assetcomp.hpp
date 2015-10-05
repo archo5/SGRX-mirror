@@ -7,12 +7,17 @@
 
 enum SGRX_AssetImageFilterType
 {
-	SGRX_AssetImgFilter_None = 0,
-	SGRX_AssetImgFilter_Resize,
-	SGRX_AssetImgFilter_Sharpen,
-	SGRX_AssetImgFilter_ToLinear,
-	SGRX_AssetImgFilter_FromLinear,
+	SGRX_AIF_Unknown = 0,
+	SGRX_AIF_Resize,
+	SGRX_AIF_Sharpen,
+	SGRX_AIF_ToLinear,
+	SGRX_AIF_FromLinear,
+	
+	SGRX_AIF__COUNT,
 };
+
+const char* SGRX_AssetImgFilterType_ToString( SGRX_AssetImageFilterType aift );
+SGRX_AssetImageFilterType SGRX_AssetImgFilterType_FromString( const StringView& sv );
 
 struct SGRX_ImageFilter : SGRX_RefCounted
 {
@@ -20,14 +25,15 @@ struct SGRX_ImageFilter : SGRX_RefCounted
 	virtual const char* GetName() const = 0;
 	virtual bool Parse( ConfigReader& cread ) = 0;
 	virtual void Generate( String& out ) = 0;
-	
-	SGRX_AssetImageFilterType m_type;
+	template< class T > T* upcast(){ return T::IsType( GetType() ) ? (T*) this : NULL; }
 };
 typedef Handle< SGRX_ImageFilter > SGRX_ImgFilterHandle;
 
 struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 {
-	SGRX_AssetImageFilterType GetType() const { return SGRX_AssetImgFilter_Resize; }
+	SGRX_ImageFilter_Resize() : width(256), height(256){}
+	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Resize; }
+	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Resize; }
 	const char* GetName() const { return "resize"; }
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
@@ -38,7 +44,8 @@ struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 
 struct SGRX_ImageFilter_Sharpen : SGRX_ImageFilter
 {
-	SGRX_AssetImageFilterType GetType() const { return SGRX_AssetImgFilter_Sharpen; }
+	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Sharpen; }
+	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Sharpen; }
 	const char* GetName() const { return "sharpen"; }
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
@@ -48,10 +55,12 @@ struct SGRX_ImageFilter_Sharpen : SGRX_ImageFilter
 
 struct SGRX_ImageFilter_Linear : SGRX_ImageFilter
 {
+	static bool IsType( SGRX_AssetImageFilterType ift )
+	{ return ift == SGRX_AIF_ToLinear || ift == SGRX_AIF_FromLinear; }
 	SGRX_ImageFilter_Linear( bool fromlin ) : inverse( fromlin ){}
 	SGRX_AssetImageFilterType GetType() const
 	{
-		return inverse ? SGRX_AssetImgFilter_FromLinear : SGRX_AssetImgFilter_ToLinear;
+		return inverse ? SGRX_AIF_FromLinear : SGRX_AIF_ToLinear;
 	}
 	const char* GetName() const
 	{
@@ -75,6 +84,7 @@ enum SGRX_TextureOutputFormat
 };
 
 const char* SGRX_TextureOutputFormat_ToString( SGRX_TextureOutputFormat fmt );
+SGRX_TextureOutputFormat SGRX_TextureOutputFormat_FromString( const StringView& sv );
 
 struct SGRX_TextureAsset
 {
