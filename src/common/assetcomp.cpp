@@ -2,6 +2,8 @@
 
 #include "assetcomp.hpp"
 
+#include <include/FreeImage.h>
+
 
 
 static const char* assetimgfiltype_string_table[] =
@@ -55,8 +57,8 @@ void SGRX_ImageFilter_Resize::Generate( String& out )
 {
 	char bfr[ 128 ];
 	sgrx_snprintf( bfr, 128,
-		"   WIDTH %d\n"
-		"   HEIGHT %d\n",
+		"  WIDTH %d\n"
+		"  HEIGHT %d\n",
 		width, height );
 	out.append( bfr );
 }
@@ -84,7 +86,7 @@ void SGRX_ImageFilter_Sharpen::Generate( String& out )
 {
 	char bfr[ 128 ];
 	sgrx_snprintf( bfr, 128,
-		"   FACTOR %g\n",
+		"  FACTOR %g\n",
 		factor );
 	out.append( bfr );
 }
@@ -113,8 +115,8 @@ void SGRX_ImageFilter_Linear::Generate( String& out )
 
 static const char* texoutfmt_string_table[] =
 {
-	"PNG_RGBA32",
-	"STX_RGBA32",
+	"PNG/RGBA32",
+	"STX/RGBA32",
 };
 
 const char* SGRX_TextureOutputFormat_ToString( SGRX_TextureOutputFormat fmt )
@@ -146,6 +148,15 @@ bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 			outputCategory = value;
 		else if( key == "OUTPUT_NAME" )
 			outputName = value;
+		else if( key == "OUTPUT_TYPE" )
+		{
+			outputType = SGRX_TextureOutputFormat_FromString( value );
+			if( outputType == SGRX_TOF_Unknown )
+			{
+				LOG_WARNING << "Unknown texture output type: " << value << ", changed to PNG/RGBA32";
+				outputType = SGRX_TOF_PNG_RGBA32;
+			}
+		}
 		else if( key == "IS_SRGB" )
 			isSRGB = String_ParseBool( value );
 		else if( key == "FILTER" )
@@ -182,22 +193,22 @@ bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 
 void SGRX_TextureAsset::Generate( String& out )
 {
-	out.append( " TEXTURE\n" );
-	out.append( "  SOURCE " ); out.append( sourceFile ); out.append( "\n" );
-	out.append( "  OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
-	out.append( "  OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
-	out.append( "  OUTPUT_TYPE " );
+	out.append( "TEXTURE\n" );
+	out.append( " SOURCE " ); out.append( sourceFile ); out.append( "\n" );
+	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
+	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
+	out.append( " OUTPUT_TYPE " );
 	out.append( SGRX_TextureOutputFormat_ToString( outputType ) ); out.append( "\n" );
-	out.append( "  IS_SRGB " ); out.append( isSRGB ? "true" : "false" ); out.append( "\n" );
+	out.append( " IS_SRGB " ); out.append( isSRGB ? "true" : "false" ); out.append( "\n" );
 	for( size_t i = 0; i < filters.size(); ++i )
 	{
-		out.append( "  FILTER " );
+		out.append( " FILTER " );
 		out.append( filters[ i ]->GetName() );
 		out.append( "\n" );
 		filters[ i ]->Generate( out );
-		out.append( "  FILTER_END\n" );
+		out.append( " FILTER_END\n" );
 	}
-	out.append( " TEXTURE_END\n" );
+	out.append( "TEXTURE_END\n" );
 }
 
 void SGRX_TextureAsset::GetDesc( String& out )
@@ -235,11 +246,11 @@ bool SGRX_MeshAsset::Parse( ConfigReader& cread )
 
 void SGRX_MeshAsset::Generate( String& out )
 {
-	out.append( " MESH\n" );
-	out.append( "  SOURCE " ); out.append( sourceFile ); out.append( "\n" );
-	out.append( "  OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
-	out.append( "  OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
-	out.append( " MESH_END\n" );
+	out.append( "MESH\n" );
+	out.append( " SOURCE " ); out.append( sourceFile ); out.append( "\n" );
+	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
+	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
+	out.append( "MESH_END\n" );
 }
 
 void SGRX_MeshAsset::GetDesc( String& out )
@@ -319,5 +330,74 @@ bool SGRX_AssetScript::Save( const StringView& path )
 	Generate( data );
 	
 	return FS_SaveTextFile( path, data );
+}
+
+
+
+fi_handle g_load_address;
+
+inline unsigned _stdcall SGRXFI_ReadProc(void *buffer, unsigned size, unsigned count, fi_handle handle)
+{
+	BYTE *tmp = (BYTE *)buffer;
+
+	for (unsigned c = 0; c < count; c++)
+	{
+		memcpy(tmp, g_load_address, size);
+		
+		g_load_address = (BYTE *)g_load_address + size;
+		
+		tmp += size;
+	}
+	
+	return count;
+}
+
+inline unsigned _stdcall SGRXFI_WriteProc(void *buffer, unsigned size, unsigned count, fi_handle handle)
+{
+	return size;
+}
+
+inline int _stdcall SGRXFI_SeekProc(fi_handle handle, long offset, int origin)
+{
+	ASSERT(origin != SEEK_END);
+	
+	if (origin == SEEK_SET)
+		g_load_address = (BYTE *)handle + offset;
+	else
+		g_load_address = (BYTE *)g_load_address + offset;
+	
+	return 0;
+}
+
+inline long _stdcall SGRXFI_TellProc(fi_handle handle)
+{
+	ASSERT((int)handle > (int)g_load_address);
+
+	return ((int)g_load_address - (int)handle);
+}
+
+SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
+{
+	FreeImageIO io;
+	io.read_proc  = SGRXFI_ReadProc;
+	io.write_proc = SGRXFI_WriteProc;
+	io.tell_proc  = SGRXFI_TellProc;
+	io.seek_proc  = SGRXFI_SeekProc;
+	
+	ByteArray data;
+	if( FS_LoadBinaryFile( path, data ) == false )
+	{
+		LOG_ERROR << "Failed to load image file: " << path;
+		return NULL;
+	}
+	
+	FIBITMAP *dib = FreeImage_LoadFromHandle( FIF_TIFF, &io, (fi_handle)data.data() );
+	FreeImage_Unload(dib);
+	return NULL;
+}
+
+void SGRX_ProcessAssets( const SGRX_AssetScript& script )
+{
+	puts( "processing assets...");
 }
 

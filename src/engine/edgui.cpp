@@ -429,6 +429,27 @@ void EDGUIFrame::PopScissorRect()
 	}
 }
 
+void EDGUIFrame::UpdateMouse()
+{
+	EDGUIItem* prevhover = m_hover;
+	m_hover = _GetItemAtPosition( m_mouseX, m_mouseY );
+	
+	if( prevhover )
+	{
+		EDGUIEvent e = { EDGUI_EVENT_MOUSELEAVE, prevhover };
+		e.mouse.x = m_mouseX;
+		e.mouse.y = m_mouseY;
+		prevhover->BubblingEvent( &e );
+	}
+	if( m_hover )
+	{
+		EDGUIEvent e = { EDGUI_EVENT_MOUSEENTER, m_hover };
+		e.mouse.x = m_mouseX;
+		e.mouse.y = m_mouseY;
+		m_hover->BubblingEvent( &e );
+	}
+}
+
 void EDGUIFrame::_HandleMouseMove( bool optional )
 {
 	if( optional )
@@ -1027,7 +1048,7 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 		y1 = y0 + EDGUI_THEME_BUTTON_HEIGHT * m_options.size();
 		{
 			int hl = m_highlight;
-			int cy0 = ( hl >= 0 ? hl : m_options.size() ) * EDGUI_THEME_BUTTON_HEIGHT;
+			int cy0 = y0 + ( hl >= 0 ? hl : m_options.size() ) * EDGUI_THEME_BUTTON_HEIGHT;
 			for( size_t i = 0; i < m_subitems.size(); ++i )
 			{
 				SetSubitemLayout( m_subitems[ i ], x0, cy0, x1, cy0 + EDGUI_THEME_BUTTON_HEIGHT );

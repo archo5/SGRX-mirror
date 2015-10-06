@@ -29,9 +29,9 @@ set_target_properties( editor PROPERTIES
 
 # Asset editor
 add_library( aedit SHARED aedit.cpp assetcomp.hpp assetcomp.cpp )
-target_link_libraries( aedit sgrx-core )
+target_link_libraries( aedit sgrx-core FreeImage )
 set_target_properties( aedit PROPERTIES
-	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}"
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"

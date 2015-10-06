@@ -213,6 +213,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIFrame : EDGUIItem
 	ENGINE_EXPORT bool PushScissorRect( int x0, int y0, int x1, int y1 );
 	ENGINE_EXPORT void PopScissorRect();
 	
+	ENGINE_EXPORT void UpdateMouse();
 	ENGINE_EXPORT void _HandleMouseMove( bool optional );
 	ENGINE_EXPORT EDGUIItem* _GetItemAtPosition( int x, int y );
 	ENGINE_EXPORT void _Unlink( EDGUIItem* item );

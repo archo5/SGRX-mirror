@@ -59,6 +59,15 @@ set_target_properties( SDL2 PROPERTIES
 )
 list( APPEND ExternalSharedLibraries "${EXTDIR}/bin-win32/SDL2.dll" )
 
+# FreeImage
+add_library( FreeImage SHARED IMPORTED )
+set_target_properties( FreeImage PROPERTIES
+	IMPORTED_LOCATION "${EXTDIR}/bin-win32/FreeImage.dll"
+	IMPORTED_IMPLIB "${EXTDIR}/lib-win32/libFreeImage.a"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+)
+list( APPEND ExternalSharedLibraries "${EXTDIR}/bin-win32/FreeImage.dll" )
+
 # FMOD
 add_library( fmod SHARED IMPORTED )
 set_target_properties( fmod PROPERTIES

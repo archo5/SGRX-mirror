@@ -44,6 +44,7 @@ struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 
 struct SGRX_ImageFilter_Sharpen : SGRX_ImageFilter
 {
+	SGRX_ImageFilter_Sharpen() : factor(1){}
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Sharpen; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Sharpen; }
 	const char* GetName() const { return "sharpen"; }
@@ -123,4 +124,27 @@ struct SGRX_AssetScript
 	Array< SGRX_TextureAsset > textureAssets;
 	Array< SGRX_MeshAsset > meshAssets;
 };
+
+
+
+struct SGRX_ImageFP32 : SGRX_RefCounted
+{
+	void Resize( int w, int h )
+	{
+		m_pixels.resize( w * h );
+		m_width = w;
+		m_height = h;
+	}
+	int GetWidth() const { return m_width; }
+	int GetHeight() const { return m_height; }
+	const Vec4* GetData() const { return m_pixels.data(); }
+	Vec4* GetData(){ return m_pixels.data(); }
+	
+	Array< Vec4 > m_pixels;
+	int m_width;
+	int m_height;
+};
+typedef Handle< SGRX_ImageFP32 > SGRX_IFP32Handle;
+
+void SGRX_ProcessAssets( const SGRX_AssetScript& script );
 
