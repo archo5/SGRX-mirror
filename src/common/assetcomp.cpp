@@ -2,7 +2,9 @@
 
 #include "assetcomp.hpp"
 
-#include <include/FreeImage.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+#include <libpng/png.h>
 
 
 
@@ -63,13 +65,38 @@ void SGRX_ImageFilter_Resize::Generate( String& out )
 	out.append( bfr );
 }
 
+SGRX_IFP32Handle SGRX_ImageFilter_Resize::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
+{
+	if( width < 1 || width > 4096 ||
+		height < 1 || height > 4096 )
+	{
+		printf( "ERROR: resize - size out of bounds" );
+		return NULL;
+	}
+	if( image->GetWidth() == width && image->GetHeight() == height )
+		return image;
+	
+	float fw = width, fh = height;
+	float xoff = TMAX( 0.0f, image->GetWidth() / fw - 1.0f ) / ( image->GetWidth() * 2 );
+	float yoff = TMAX( 0.0f, image->GetHeight() / fh - 1.0f ) / ( image->GetHeight() * 2 );
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( width, height );
+	for( int y = 0; y < height; ++y )
+	{
+		for( int x = 0; x < width; ++x )
+		{
+			out->Pixel( x, y ) = image->GetLerp( xoff + x / fw, yoff + y / fh );
+		}
+	}
+	return out;
+}
+
 bool SGRX_ImageFilter_Sharpen::Parse( ConfigReader& cread )
 {
 	StringView key, value;
 	while( cread.Read( key, value ) )
 	{
 		if( key == "FACTOR" )
-			factor = String_ParseInt( value );
+			factor = String_ParseFloat( value );
 		else if( key == "FILTER_END" )
 			return true;
 		else
@@ -89,6 +116,45 @@ void SGRX_ImageFilter_Sharpen::Generate( String& out )
 		"  FACTOR %g\n",
 		factor );
 	out.append( bfr );
+}
+
+template< int w, int h >
+SGRX_IFP32Handle SGRX_ImageConvolutionFilter(
+	SGRX_ImageFP32* image, float* kernel )
+{
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	int hw = w / 2, hh = h / 2;
+	for( int y = 0; y < image->GetHeight(); ++y )
+	{
+		for( int x = 0; x < image->GetWidth(); ++x )
+		{
+			Vec4 col = V4(0);
+			for( int ky = 0; ky < h; ++ky )
+			{
+				for( int kx = 0; kx < w; ++kx )
+				{
+					col += image->GetClamped( x - hw + kx, y - hh + ky ) * kernel[ kx + ky * w ];
+				}
+			}
+			out->Pixel( x, y ) = col;
+		}
+	}
+	return out;
+}
+
+SGRX_IFP32Handle SGRX_ImageFilter_Sharpen::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
+{
+	if( factor == 0 )
+		return image;
+	
+	float a = -1 * factor, b = 8 * factor + 1;
+	float filter[9] =
+	{
+		a, a, a,
+		a, b, a,
+		a, a, a,
+	};
+	return SGRX_ImageConvolutionFilter<3,3>( image, filter );
 }
 
 bool SGRX_ImageFilter_Linear::Parse( ConfigReader& cread )
@@ -111,6 +177,26 @@ bool SGRX_ImageFilter_Linear::Parse( ConfigReader& cread )
 
 void SGRX_ImageFilter_Linear::Generate( String& out )
 {
+}
+
+SGRX_IFP32Handle SGRX_ImageFilter_Linear::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
+{
+	if( ifs.isSRGB == false )
+		return image;
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	float factor = inverse ? 1.0f / 2.2f : 2.2f;
+	for( size_t i = 0; i < image->Size(); ++i )
+	{
+		Vec4 col =
+		{
+			powf( (*image)[ i ].x, factor ),
+			powf( (*image)[ i ].y, factor ),
+			powf( (*image)[ i ].z, factor ),
+			powf( (*image)[ i ].w, factor ),
+		};
+		(*out)[ i ] = col;
+	}
+	return out;
 }
 
 static const char* texoutfmt_string_table[] =
@@ -334,56 +420,8 @@ bool SGRX_AssetScript::Save( const StringView& path )
 
 
 
-fi_handle g_load_address;
-
-inline unsigned _stdcall SGRXFI_ReadProc(void *buffer, unsigned size, unsigned count, fi_handle handle)
-{
-	BYTE *tmp = (BYTE *)buffer;
-
-	for (unsigned c = 0; c < count; c++)
-	{
-		memcpy(tmp, g_load_address, size);
-		
-		g_load_address = (BYTE *)g_load_address + size;
-		
-		tmp += size;
-	}
-	
-	return count;
-}
-
-inline unsigned _stdcall SGRXFI_WriteProc(void *buffer, unsigned size, unsigned count, fi_handle handle)
-{
-	return size;
-}
-
-inline int _stdcall SGRXFI_SeekProc(fi_handle handle, long offset, int origin)
-{
-	ASSERT(origin != SEEK_END);
-	
-	if (origin == SEEK_SET)
-		g_load_address = (BYTE *)handle + offset;
-	else
-		g_load_address = (BYTE *)g_load_address + offset;
-	
-	return 0;
-}
-
-inline long _stdcall SGRXFI_TellProc(fi_handle handle)
-{
-	ASSERT((int)handle > (int)g_load_address);
-
-	return ((int)g_load_address - (int)handle);
-}
-
 SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 {
-	FreeImageIO io;
-	io.read_proc  = SGRXFI_ReadProc;
-	io.write_proc = SGRXFI_WriteProc;
-	io.tell_proc  = SGRXFI_TellProc;
-	io.seek_proc  = SGRXFI_SeekProc;
-	
 	ByteArray data;
 	if( FS_LoadBinaryFile( path, data ) == false )
 	{
@@ -391,13 +429,178 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 		return NULL;
 	}
 	
-	FIBITMAP *dib = FreeImage_LoadFromHandle( FIF_TIFF, &io, (fi_handle)data.data() );
-	FreeImage_Unload(dib);
-	return NULL;
+	int w = 0, h = 0, nc = 0;
+	stbi_ldr_to_hdr_gamma( 1.0f );
+	float* coldata = stbi_loadf_from_memory(
+		data.data(), data.size(), &w, &h, &nc, 4 );
+	if( coldata == NULL )
+	{
+		LOG_ERROR << "Failed to parse image file: " << path;
+		return NULL;
+	}
+	
+	SGRX_IFP32Handle ih = new SGRX_ImageFP32( w, h );
+	memcpy( ih->GetData(), coldata, sizeof(Vec4) * w * h );
+	
+	stbi_image_free( coldata );
+	return ih;
+}
+
+void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata )
+{
+	size_t off = outdata.size(), pxcount = image->GetWidth() * image->GetHeight();
+	outdata.resize( off + image->GetWidth() * image->GetHeight() * 4 );
+	uint8_t* data = &outdata[ off ];
+	for( size_t i = 0; i < pxcount; ++i )
+	{
+		const Vec4& color = (*image)[ i ];
+		data[ 0 ] = clamp( color.x, 0, 1 ) * 255;
+		data[ 1 ] = clamp( color.y, 0, 1 ) * 255;
+		data[ 2 ] = clamp( color.z, 0, 1 ) * 255;
+		data[ 3 ] = clamp( color.w, 0, 1 ) * 255;
+		data += 4;
+	}
+}
+
+static void sgrx_png_write_data( png_structp png_ptr, png_bytep data, png_size_t length )
+{
+	ByteArray* p = (ByteArray*) png_get_io_ptr( png_ptr );
+	p->append( data, length );
+}
+
+int dumpimg( ByteArray& out, uint8_t* buffer, int width, int height )
+{
+	int code = 0;
+	png_structp png_ptr;
+	png_infop info_ptr;
+	
+	// Initialize write structure
+	png_ptr = png_create_write_struct( PNG_LIBPNG_VER_STRING, NULL, NULL, NULL );
+	if( png_ptr == NULL )
+	{
+		printf( "Could not allocate write struct\n" );
+		return 1;
+	}
+	
+	// Initialize info structure
+	info_ptr = png_create_info_struct( png_ptr );
+	if( info_ptr == NULL )
+	{
+		printf( "Could not allocate info struct\n" );
+		return 1;
+	}
+	// Setup Exception handling
+	if( setjmp( png_jmpbuf( png_ptr ) ) )
+	{
+		printf( "Error during png creation\n" );
+		code = 1;
+		goto fail;
+	}
+	
+	png_set_write_fn( png_ptr, &out, sgrx_png_write_data, NULL );
+	
+	// Write header (8 bit colour depth)
+	png_set_IHDR( png_ptr, info_ptr, width, height,
+		8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
+		PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE );
+	
+	png_write_info( png_ptr, info_ptr );
+	for( int y = 0; y < height; ++y )
+	{
+		png_write_row( png_ptr, buffer );
+		buffer += width * 4;
+	}
+	png_write_end( png_ptr, NULL );
+	
+fail:
+	if( info_ptr != NULL ) png_free_data( png_ptr, info_ptr, PNG_FREE_ALL, -1 );
+	if( png_ptr != NULL ) png_destroy_write_struct( &png_ptr, (png_infopp) NULL );
+	return code;
+}
+
+bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_TextureAsset& TA )
+{
+	String fullpath = path;
+	ByteArray filedata;
+	ByteArray imagedata;
+	
+	switch( TA.outputType )
+	{
+	case SGRX_TOF_PNG_RGBA32:
+		fullpath.append( ".png" );
+		SGRX_ImageF32ToRGBA8( image, imagedata );
+		if( dumpimg( filedata, imagedata.data(), image->GetWidth(), image->GetHeight() ) )
+		{
+			printf( "ERROR: failed to encode PNG\n" );
+			return false;
+		}
+		break;
+	case SGRX_TOF_STX_RGBA32:
+		fullpath.append( ".stx" );
+		SGRX_ImageF32ToRGBA8( image, imagedata );
+		filedata.append( "STX\0", 4 );
+		{
+			TextureInfo info = { TEXTYPE_2D, 1,
+				image->GetWidth(), image->GetHeight(),
+				1, TEXFORMAT_RGBA8, 0 };
+			filedata.append( &info, sizeof(info) );
+			uint32_t datasize = imagedata.size();
+			filedata.append( &datasize, sizeof(datasize) );
+			filedata.append( imagedata );
+		}
+		break;
+	default:
+		printf( "ERROR: invalid output format: %d\n", TA.outputType );
+		break;
+	}
+	
+	if( FS_SaveBinaryFile( fullpath, filedata.data(), filedata.size() ) == false )
+	{
+		printf( "ERROR: failed to save the texture file: %s\n", StackString<256>(fullpath).str );
+		return false;
+	}
+	return true;
 }
 
 void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 {
 	puts( "processing assets...");
+	
+	puts( "- textures...");
+	for( size_t tid = 0; tid < script.textureAssets.size(); ++tid )
+	{
+		const SGRX_TextureAsset& TA = script.textureAssets[ tid ];
+		printf( "| %s => [%s] %s\n",
+			StackString<256>(TA.sourceFile).str,
+			StackString<256>(TA.outputCategory).str,
+			StackString<256>(TA.outputName).str );
+		SGRX_IFP32Handle image = SGRX_LoadImage( TA.sourceFile );
+		if( image == NULL )
+			continue;
+		
+		SGRX_ImageFilterState ifs =
+		{
+			TA.isSRGB,
+		};
+		for( size_t fid = 0; fid < TA.filters.size(); ++fid )
+		{
+			SGRX_ImageFilter* IF = TA.filters[ fid ];
+			printf( "|-- filter: %s... ", IF->GetName() );
+			image = IF->Process( image, ifs );
+			printf( "%s\n", image ? "OK" : "ERROR" );
+			if( image == NULL )
+				break;
+		}
+		
+		StringView catPath = script.categories.getcopy( TA.outputCategory );
+		char bfr[ 520 ];
+		sgrx_snprintf( bfr, 520, "%s/%s",
+			StackString<256>(catPath).str,
+			StackString<256>(TA.outputName).str );
+		if( SGRX_SaveImage( bfr, image, TA ) )
+		{
+			printf( "|----------- saved!\n" );
+		}
+	}
 }
 

@@ -7,6 +7,9 @@ extern "C" {
 #include <libpng/png.h>
 #include <libjpg/jpeglib.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 
 #include "renderer.hpp"
 

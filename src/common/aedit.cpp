@@ -779,12 +779,14 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		// menu
 		m_MB_Cat0.caption = "File:";
 		m_MBSave.caption = "Save";
+		m_MBRun.caption = "Run";
 		m_MB_Cat1.caption = "Edit:";
 		m_MBEditScript.caption = "Script";
 		m_MBEditTextures.caption = "Textures";
 		m_MBEditMeshes.caption = "Meshes";
 		m_UIMenuButtons.Add( &m_MB_Cat0 );
 		m_UIMenuButtons.Add( &m_MBSave );
+		m_UIMenuButtons.Add( &m_MBRun );
 		m_UIMenuButtons.Add( &m_MB_Cat1 );
 		m_UIMenuButtons.Add( &m_MBEditScript );
 		m_UIMenuButtons.Add( &m_MBEditTextures );
@@ -801,6 +803,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			if(0);
 			
 			else if( e->target == &m_MBSave ) ASCR_Save();
+			else if( e->target == &m_MBRun ) ASCR_Run();
 			
 			else if( e->target == &m_MBEditScript )
 			{
@@ -902,6 +905,10 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			return;
 		}
 	}
+	void ASCR_Run()
+	{
+		SGRX_ProcessAssets( *g_EdAS );
+	}
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;
@@ -914,6 +921,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	// menu
 	EDGUILabel m_MB_Cat0;
 	EDGUIButton m_MBSave;
+	EDGUIButton m_MBRun;
 	EDGUILabel m_MB_Cat1;
 	EDGUIButton m_MBEditScript;
 	EDGUIButton m_MBEditTextures;
@@ -937,7 +945,7 @@ void FC_EditScript(){ g_UIFrame->EditScript(); }
 
 
 
-struct PSEditor : IGame
+struct ASEditor : IGame
 {
 	bool OnInitialize()
 	{
