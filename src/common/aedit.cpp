@@ -14,16 +14,38 @@
 struct EDGUIMainFrame* g_UIFrame;
 SceneHandle g_EdScene;
 SGRX_AssetScript* g_EdAS;
-struct EDGUIImageFilterType* g_UIImgFilterType;
-struct EDGUITextureOutputFormat* g_UITexOutFmt;
-struct EDGUICategoryPicker* g_UICategoryPicker;
-struct EDGUIAssetPathPicker* g_UIAssetPathPicker;
+struct EDGUIPickers* g_UIPickers;
 
 EDGUIRsrcPicker TMPRSRC;
 
 
 
-struct EDGUIImageFilterType : EDGUIRsrcPicker
+struct EDGUISmallEnumPicker : EDGUIRsrcPicker
+{
+	void _OnChangeZoom()
+	{
+		EDGUIRsrcPicker::_OnChangeZoom();
+		m_itemHeight /= 4;
+	}
+};
+
+struct EDGUIImageFilterSharpenMode : EDGUISmallEnumPicker
+{
+	EDGUIImageFilterSharpenMode()
+	{
+		caption = "Pick the sharpening mode";
+		m_options.push_back( "0-1" );
+		m_options.push_back( "1-1" );
+		m_options.push_back( "1-2" );
+		_Search( m_searchString );
+	}
+	SGRX_ImgFltSharpen_Mode GetPickedType() const
+	{
+		return SGRX_ImgFltSharpen_Mode( m_picked + 1 );
+	}
+};
+
+struct EDGUIImageFilterType : EDGUISmallEnumPicker
 {
 	EDGUIImageFilterType()
 	{
@@ -38,14 +60,9 @@ struct EDGUIImageFilterType : EDGUIRsrcPicker
 	{
 		return SGRX_AssetImageFilterType( m_picked + 1 );
 	}
-	void _OnChangeZoom()
-	{
-		EDGUIRsrcPicker::_OnChangeZoom();
-		m_itemHeight /= 4;
-	}
 };
 
-struct EDGUITextureOutputFormat : EDGUIRsrcPicker
+struct EDGUITextureOutputFormat : EDGUISmallEnumPicker
 {
 	EDGUITextureOutputFormat()
 	{
@@ -61,14 +78,9 @@ struct EDGUITextureOutputFormat : EDGUIRsrcPicker
 	{
 		return SGRX_TextureOutputFormat( m_picked + 1 );
 	}
-	void _OnChangeZoom()
-	{
-		EDGUIRsrcPicker::_OnChangeZoom();
-		m_itemHeight /= 4;
-	}
 };
 
-struct EDGUICategoryPicker : EDGUIRsrcPicker
+struct EDGUICategoryPicker : EDGUISmallEnumPicker
 {
 	EDGUICategoryPicker()
 	{
@@ -85,11 +97,6 @@ struct EDGUICategoryPicker : EDGUIRsrcPicker
 			}
 		}
 		_Search( m_searchString );
-	}
-	void _OnChangeZoom()
-	{
-		EDGUIRsrcPicker::_OnChangeZoom();
-		m_itemHeight /= 4;
 	}
 };
 
@@ -138,6 +145,15 @@ struct EDGUIAssetPathPicker : EDGUIRsrcPicker, IDirEntryHandler
 		m_itemHeight = 16;
 	}
 	int m_depth;
+};
+
+struct EDGUIPickers
+{
+	EDGUIImageFilterSharpenMode sharpenMode;
+	EDGUIImageFilterType imageFilterType;
+	EDGUITextureOutputFormat textureOutputFormat;
+	EDGUICategoryPicker category;
+	EDGUIAssetPathPicker assetPath;
 };
 
 struct EDGUICreatePickButton : EDGUIPropRsrc
@@ -209,14 +225,18 @@ struct EDGUIImgFilter_Sharpen : EDGUILayoutRow
 {
 	EDGUIImgFilter_Sharpen( SGRX_ImageFilter* iflt ) :
 		m_factor( 1, 2, 0, 100 ),
+		m_mode( &g_UIPickers->sharpenMode ),
 		m_hfilter( iflt )
 	{
 		SGRX_ImageFilter_Sharpen* F = iflt->upcast<SGRX_ImageFilter_Sharpen>();
 		m_factor.SetValue( F->factor );
+		m_mode.SetValue( SGRX_ImgFltSharpen_ToString( F->mode ) );
 		
 		m_factor.caption = "Factor";
+		m_mode.caption = "Mode";
 		
 		Add( &m_factor );
+		Add( &m_mode );
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -228,6 +248,7 @@ struct EDGUIImgFilter_Sharpen : EDGUILayoutRow
 			{
 			case EDGUI_EVENT_PROPEDIT:
 				if( e->target == &m_factor ) F->factor = m_factor.m_value;
+				if( e->target == &m_mode ) F->mode = SGRX_ImgFltSharpen_FromString( m_mode.m_value );
 				break;
 			}
 		}
@@ -235,6 +256,7 @@ struct EDGUIImgFilter_Sharpen : EDGUILayoutRow
 	}
 	
 	EDGUIPropFloat m_factor;
+	EDGUIPropRsrc m_mode;
 	SGRX_ImgFilterHandle m_hfilter;
 };
 
@@ -249,13 +271,13 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 {
 	EDGUIAssetTexture() :
 		m_group( true, "Texture" ),
-		m_sourceFile( g_UIAssetPathPicker ),
-		m_outputCategory( g_UICategoryPicker ),
-		m_outputType( g_UITexOutFmt ),
+		m_sourceFile( &g_UIPickers->assetPath ),
+		m_outputCategory( &g_UIPickers->category ),
+		m_outputType( &g_UIPickers->textureOutputFormat ),
 		m_sfgroup( true, "Selected filter" ),
 		m_curFilter( NULL ),
 		m_flgroup( true, "Filters" ),
-		m_filterBtnAdd( g_UIImgFilterType ),
+		m_filterBtnAdd( &g_UIPickers->imageFilterType ),
 		m_tid( NOT_FOUND )
 	{
 		m_outputCategory.m_requestReload = true;
@@ -265,12 +287,20 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		m_outputName.caption = "Output name";
 		m_outputType.caption = "Output type";
 		m_isSRGB.caption = "Is SRGB?";
+		m_mips.caption = "Generate mipmaps?";
+		m_lerp.caption = "Use linear interpolation?";
+		m_clampx.caption = "Clamp X";
+		m_clampy.caption = "Clamp Y";
 		
 		m_group.Add( &m_sourceFile );
 		m_group.Add( &m_outputCategory );
 		m_group.Add( &m_outputName );
 		m_group.Add( &m_outputType );
 		m_group.Add( &m_isSRGB );
+		m_group.Add( &m_mips );
+		m_group.Add( &m_lerp );
+		m_group.Add( &m_clampx );
+		m_group.Add( &m_clampy );
 		
 		m_filterBtnAdd.SetValue( "Pick filter to add" );
 		
@@ -329,6 +359,10 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		m_outputName.SetValue( TA.outputName );
 		m_outputType.SetValue( SGRX_TextureOutputFormat_ToString( TA.outputType ) );
 		m_isSRGB.SetValue( TA.isSRGB );
+		m_mips.SetValue( TA.mips );
+		m_lerp.SetValue( TA.lerp );
+		m_clampx.SetValue( TA.clampx );
+		m_clampy.SetValue( TA.clampy );
 		
 		m_sfgroup.Clear();
 		if( m_curFilter )
@@ -382,10 +416,14 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 					TA.outputType = SGRX_TextureOutputFormat_FromString( m_outputType.m_value );
 				}
 				if( e->target == &m_isSRGB ){ TA.isSRGB = m_isSRGB.m_value; }
+				if( e->target == &m_mips ){ TA.mips = m_mips.m_value; }
+				if( e->target == &m_lerp ){ TA.lerp = m_lerp.m_value; }
+				if( e->target == &m_clampx ){ TA.clampx = m_clampx.m_value; }
+				if( e->target == &m_clampy ){ TA.clampy = m_clampy.m_value; }
 				if( e->target == &m_filterBtnAdd )
 				{
 					SGRX_ImageFilter* IF = NULL;
-					switch( g_UIImgFilterType->GetPickedType() )
+					switch( g_UIPickers->imageFilterType.GetPickedType() )
 					{
 					case SGRX_AIF_Resize: IF = new SGRX_ImageFilter_Resize; break;
 					case SGRX_AIF_Sharpen: IF = new SGRX_ImageFilter_Sharpen; break;
@@ -449,6 +487,10 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 	EDGUIPropString m_outputName;
 	EDGUIPropRsrc m_outputType;
 	EDGUIPropBool m_isSRGB;
+	EDGUIPropBool m_mips;
+	EDGUIPropBool m_lerp;
+	EDGUIPropBool m_clampx;
+	EDGUIPropBool m_clampy;
 	EDGUILayoutColumn m_columnList;
 	EDGUIGroup m_sfgroup;
 	EDGUILayoutRow* m_curFilter;
@@ -493,10 +535,7 @@ struct EDGUIAssetTextureList : EDGUILayoutRow
 		case EDGUI_EVENT_BTNCLICK:
 			if( e->target == &m_btnAdd )
 			{
-				SGRX_TextureAsset texasset;
-				texasset.outputType = SGRX_TOF_PNG_RGBA32;
-				texasset.isSRGB = true;
-				g_EdAS->textureAssets.push_back( texasset );
+				g_EdAS->textureAssets.push_back( SGRX_TextureAsset() );
 				FC_EditTexture( g_EdAS->textureAssets.size() - 1 );
 				return 1;
 			}
@@ -526,8 +565,8 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 {
 	EDGUIAssetMesh() :
 		m_group( true, "Mesh" ),
-		m_sourceFile( g_UIAssetPathPicker ),
-		m_outputCategory( g_UICategoryPicker ),
+		m_sourceFile( &g_UIPickers->assetPath ),
+		m_outputCategory( &g_UIPickers->category ),
 		m_mid( NOT_FOUND )
 	{
 		m_sourceFile.caption = "Source file";
@@ -980,10 +1019,7 @@ struct ASEditor : IGame
 		
 	//	g_UITexPicker = new EDGUISDTexPicker( "textures/particles" );
 	//	g_UIShaderPicker = new EDGUIShaderPicker;
-		g_UIAssetPathPicker = new EDGUIAssetPathPicker;
-		g_UICategoryPicker = new EDGUICategoryPicker;
-		g_UITexOutFmt = new EDGUITextureOutputFormat;
-		g_UIImgFilterType = new EDGUIImageFilterType;
+		g_UIPickers = new EDGUIPickers;
 		
 		// core layout
 		g_EdScene = GR_CreateScene();
@@ -997,14 +1033,8 @@ struct ASEditor : IGame
 	}
 	void OnDestroy()
 	{
-		delete g_UIImgFilterType;
-		g_UIImgFilterType = NULL;
-		delete g_UITexOutFmt;
-		g_UITexOutFmt = NULL;
-		delete g_UICategoryPicker;
-		g_UICategoryPicker = NULL;
-		delete g_UIAssetPathPicker;
-		g_UIAssetPathPicker = NULL;
+		delete g_UIPickers;
+		g_UIPickers = NULL;
 	//	delete g_UIShaderPicker;
 	//	g_UIShaderPicker = NULL;
 	//	delete g_UITexPicker;

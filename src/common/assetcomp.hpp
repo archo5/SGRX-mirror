@@ -94,9 +94,20 @@ struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 	int height;
 };
 
+enum SGRX_ImgFltSharpen_Mode
+{
+	SGRX_IFS_0_1,
+	SGRX_IFS_1_1,
+	SGRX_IFS_1_2,
+	
+	SGRX_IFS__COUNT,
+};
+const char* SGRX_ImgFltSharpen_ToString( SGRX_ImgFltSharpen_Mode ifsm );
+SGRX_ImgFltSharpen_Mode SGRX_ImgFltSharpen_FromString( const StringView& sv );
+
 struct SGRX_ImageFilter_Sharpen : SGRX_ImageFilter
 {
-	SGRX_ImageFilter_Sharpen() : factor(0.1f){}
+	SGRX_ImageFilter_Sharpen() : factor(0.1f), mode(SGRX_IFS_1_2){}
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Sharpen; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Sharpen; }
 	const char* GetName() const { return "sharpen"; }
@@ -105,6 +116,7 @@ struct SGRX_ImageFilter_Sharpen : SGRX_ImageFilter
 	SGRX_IFP32Handle Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs );
 	
 	float factor;
+	SGRX_ImgFltSharpen_Mode mode;
 };
 
 struct SGRX_ImageFilter_Linear : SGRX_ImageFilter
@@ -143,6 +155,7 @@ SGRX_TextureOutputFormat SGRX_TextureOutputFormat_FromString( const StringView& 
 
 struct SGRX_TextureAsset
 {
+	SGRX_TextureAsset();
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetDesc( String& out );
@@ -152,6 +165,10 @@ struct SGRX_TextureAsset
 	String outputName;
 	SGRX_TextureOutputFormat outputType;
 	bool isSRGB;
+	bool mips;
+	bool lerp;
+	bool clampx;
+	bool clampy;
 	
 	Array< SGRX_ImgFilterHandle > filters;
 };

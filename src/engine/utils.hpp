@@ -1788,6 +1788,16 @@ FINLINE void String::append( const StringView& sv )
 	append( sv.m_str, sv.m_size );
 }
 
+struct SGRX_Regex
+{
+	ENGINE_EXPORT SGRX_Regex( const StringView& regex, const char* mods );
+	ENGINE_EXPORT ~SGRX_Regex();
+	FINLINE bool Valid(){ return m_R != NULL; }
+	ENGINE_EXPORT bool Match( const StringView& str, size_t off = 0 );
+	
+	void* m_R;
+};
+
 
 struct IF_GCC(ENGINE_EXPORT) IProcessor
 {

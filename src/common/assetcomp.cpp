@@ -90,6 +90,31 @@ SGRX_IFP32Handle SGRX_ImageFilter_Resize::Process( SGRX_ImageFP32* image, SGRX_I
 	return out;
 }
 
+static const char* imgfltsharpen_string_table[] =
+{
+	"0-1",
+	"1-1",
+	"1-2",
+};
+
+const char* SGRX_ImgFltSharpen_ToString( SGRX_ImgFltSharpen_Mode ifsm )
+{
+	int fid = ifsm;
+	if( fid < 0 || fid >= SGRX_IFS__COUNT )
+		return "0-1";
+	return imgfltsharpen_string_table[ fid ];
+}
+
+SGRX_ImgFltSharpen_Mode SGRX_ImgFltSharpen_FromString( const StringView& sv )
+{
+	for( int i = 0; i < SGRX_IFS__COUNT; ++i )
+	{
+		if( sv == imgfltsharpen_string_table[ i ] )
+			return (SGRX_ImgFltSharpen_Mode) i;
+	}
+	return SGRX_IFS_0_1;
+}
+
 bool SGRX_ImageFilter_Sharpen::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -97,6 +122,8 @@ bool SGRX_ImageFilter_Sharpen::Parse( ConfigReader& cread )
 	{
 		if( key == "FACTOR" )
 			factor = String_ParseFloat( value );
+		else if( key == "MODE" )
+			mode = SGRX_ImgFltSharpen_FromString( value );
 		else if( key == "FILTER_END" )
 			return true;
 		else
@@ -113,8 +140,10 @@ void SGRX_ImageFilter_Sharpen::Generate( String& out )
 {
 	char bfr[ 128 ];
 	sgrx_snprintf( bfr, 128,
-		"  FACTOR %g\n",
-		factor );
+		"  FACTOR %g\n"
+		"  MODE %s\n",
+		factor,
+		SGRX_ImgFltSharpen_ToString( mode ) );
 	out.append( bfr );
 }
 
@@ -147,12 +176,23 @@ SGRX_IFP32Handle SGRX_ImageFilter_Sharpen::Process( SGRX_ImageFP32* image, SGRX_
 	if( factor == 0 )
 		return image;
 	
-	float a = -1 * factor, b = 8 * factor + 1;
+	float a = 0, b = -1, c = 4;
+	switch( mode )
+	{
+	default:
+	case SGRX_IFS_0_1: a = 0; b = -1; c = 4; break;
+	case SGRX_IFS_1_1: a = -1; b = -1; c = 8; break;
+	case SGRX_IFS_1_2: a = -1; b = -2; c = 12; break;
+	}
+	a *= factor;
+	b *= factor;
+	c *= factor;
+	c += 1;
 	float filter[9] =
 	{
-		a, a, a,
 		a, b, a,
-		a, a, a,
+		b, c, b,
+		a, b, a,
 	};
 	return SGRX_ImageConvolutionFilter<3,3>( image, filter );
 }
@@ -223,6 +263,12 @@ SGRX_TextureOutputFormat SGRX_TextureOutputFormat_FromString( const StringView& 
 	return SGRX_TOF_Unknown;
 }
 
+SGRX_TextureAsset::SGRX_TextureAsset() :
+	outputType(SGRX_TOF_PNG_RGBA32),
+	isSRGB(true), mips(true), lerp(true), clampx(false), clampy(false)
+{
+}
+
 bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -245,6 +291,14 @@ bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 		}
 		else if( key == "IS_SRGB" )
 			isSRGB = String_ParseBool( value );
+		else if( key == "MIPS" )
+			mips = String_ParseBool( value );
+		else if( key == "LERP" )
+			lerp = String_ParseBool( value );
+		else if( key == "CLAMPX" )
+			clampx = String_ParseBool( value );
+		else if( key == "CLAMPY" )
+			clampy = String_ParseBool( value );
 		else if( key == "FILTER" )
 		{
 			SGRX_ImgFilterHandle IF;
@@ -286,6 +340,10 @@ void SGRX_TextureAsset::Generate( String& out )
 	out.append( " OUTPUT_TYPE " );
 	out.append( SGRX_TextureOutputFormat_ToString( outputType ) ); out.append( "\n" );
 	out.append( " IS_SRGB " ); out.append( isSRGB ? "true" : "false" ); out.append( "\n" );
+	out.append( " MIPS " ); out.append( mips ? "true" : "false" ); out.append( "\n" );
+	out.append( " LERP " ); out.append( lerp ? "true" : "false" ); out.append( "\n" );
+	out.append( " CLAMPX " ); out.append( clampx ? "true" : "false" ); out.append( "\n" );
+	out.append( " CLAMPY " ); out.append( clampy ? "true" : "false" ); out.append( "\n" );
 	for( size_t i = 0; i < filters.size(); ++i )
 	{
 		out.append( " FILTER " );
@@ -593,7 +651,16 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 {
 	if( !image )
 		return NULL;
-	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(), TEXFORMAT_RGBA8, 0, 1 );
+	uint32_t flags = 0;
+//	if( TA.isSRGB )
+//		flags |= TEXFLAGS_SRGB;
+	if( TA.lerp )
+		flags |= TEXFLAGS_LERP;
+	if( TA.clampx )
+		flags |= TEXFLAGS_CLAMP_X;
+	if( TA.clampy )
+		flags |= TEXFLAGS_CLAMP_Y;
+	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(), TEXFORMAT_RGBA8, flags, 1 );
 	ByteArray imagedata;
 	SGRX_ImageF32ToRGBA8( image, imagedata );
 	tex.UploadRGBA8Part( imagedata.data() );
@@ -622,5 +689,7 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 			printf( "|----------- saved!\n" );
 		}
 	}
+	
+	puts( "- meshes...");
 }
 

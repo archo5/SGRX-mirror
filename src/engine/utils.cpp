@@ -1148,6 +1148,23 @@ bool StringView::match( const StringView& regex )
 	return ret;
 }
 
+SGRX_Regex::SGRX_Regex( const StringView& regex, const char* mods )
+{
+	m_R = srx_CreateExt( regex.data(), regex.size(), mods, NULL, srx_DefaultMemFunc, NULL );
+}
+
+SGRX_Regex::~SGRX_Regex()
+{
+	srx_Destroy( (srx_Context*) m_R );
+}
+
+bool SGRX_Regex::Match( const StringView& str, size_t off )
+{
+	if( m_R == NULL )
+		return false;
+	return RXSUCCESS == srx_MatchExt( (srx_Context*) m_R, str.data(), str.size(), off );
+}
+
 /* string -> number conversion */
 
 typedef const char CCH;
