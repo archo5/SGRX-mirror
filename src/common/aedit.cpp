@@ -304,6 +304,8 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 			m_filterButtons.m_options[ i ] = TA.filters[ i ]->GetName();
 		}
 		m_filterButtons.UpdateOptions();
+		
+		UpdatePreviewTexture();
 	}
 	
 	void UpdatePreviewTexture()
@@ -336,7 +338,6 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		}
 		
 		ReloadFilterList();
-		UpdatePreviewTexture();
 	}
 	
 	void EditFilter( SGRX_ImageFilter* IF )

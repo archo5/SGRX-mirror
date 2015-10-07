@@ -1,8 +1,11 @@
 
 
+#define RX_NEED_DEFAULT_MEMFUNC
+
 #include <utility>
 #include <stdio.h>
 #include <time.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #  define WIN32_LEAN_AND_MEAN
@@ -17,6 +20,8 @@
 #  include <unistd.h>
 #  include <pthread.h>
 #endif
+
+#include <sgscript/sgs_regex.h>
 
 
 #include "utils.hpp"
@@ -1126,6 +1131,22 @@ bool SegmentAABBIntersect2( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, c
 }
 
 
+
+bool StringView::match( const StringView& regex )
+{
+	char endch = regex.ch();
+	char endpat[] = { endch, 0 };
+	StringView pattern = regex.part( 1 );
+	StringView mods = pattern.after( endpat );
+	pattern = pattern.until( endpat );
+	srx_Context* R = srx_CreateExt( pattern.data(), pattern.size(),
+		StackString<4>(mods), NULL, srx_DefaultMemFunc, NULL );
+	if( R == NULL )
+		return false;
+	bool ret = RXSUCCESS == srx_MatchExt( R, m_str, m_size, 0 );
+	srx_Destroy( R );
+	return ret;
+}
 
 /* string -> number conversion */
 
