@@ -243,6 +243,8 @@ struct EDGUIImgFilter_PropertyLess : EDGUILayoutRow
 };
 
 
+void FC_SetTexture( TextureHandle tex );
+
 struct EDGUIAssetTexture : EDGUILayoutRow
 {
 	EDGUIAssetTexture() :
@@ -304,6 +306,17 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		m_filterButtons.UpdateOptions();
 	}
 	
+	void UpdatePreviewTexture()
+	{
+		SGRX_TextureAsset& TA = g_EdAS->textureAssets[ m_tid ];
+		TextureHandle tex;
+		SGRX_IFP32Handle img = SGRX_ProcessTextureAsset( TA );
+		tex = SGRX_FP32ToTexture( img, TA );
+		if( tex == NULL )
+			tex = GR_GetTexture( "textures/unit.png" );
+		FC_SetTexture( tex );
+	}
+	
 	void Prepare( size_t tid )
 	{
 		m_tid = tid;
@@ -323,6 +336,7 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		}
 		
 		ReloadFilterList();
+		UpdatePreviewTexture();
 	}
 	
 	void EditFilter( SGRX_ImageFilter* IF )
@@ -386,6 +400,9 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 						return 1;
 					}
 				}
+				break;
+			case EDGUI_EVENT_PROPCHANGE:
+				UpdatePreviewTexture();
 				break;
 			case EDGUI_EVENT_BTNCLICK:
 				if( e->target == &m_filterEditButton )
@@ -830,6 +847,10 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	void DebugDraw()
 	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		br.Reset();
+		br.SetTexture( m_texPreview );
+		br.Box( 0, 0, 2, 2 );
 	}
 	
 	void AddToParamList( EDGUIItem* item )
@@ -934,6 +955,9 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIAssetMeshList m_UIMeshList;
 	EDGUIAssetCategoryForm m_UICategory;
 	EDGUIAssetScript m_UIAssetScript;
+	
+	// preview data
+	TextureHandle m_texPreview;
 };
 
 void FC_EditTexture( size_t id ){ g_UIFrame->EditTexture( id ); }
@@ -942,6 +966,7 @@ void FC_EditMesh( size_t id ){ g_UIFrame->EditMesh( id ); }
 void FC_EditMeshList(){ g_UIFrame->EditMeshList(); }
 void FC_EditCategory( const StringView& name ){ g_UIFrame->EditCategory( name ); }
 void FC_EditScript(){ g_UIFrame->EditScript(); }
+void FC_SetTexture( TextureHandle tex ){ g_UIFrame->m_texPreview = tex; }
 
 
 

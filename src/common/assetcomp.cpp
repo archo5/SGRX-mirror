@@ -562,6 +562,44 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 	return true;
 }
 
+SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA )
+{
+	printf( "| %s => [%s] %s\n",
+		StackString<256>(TA.sourceFile).str,
+		StackString<256>(TA.outputCategory).str,
+		StackString<256>(TA.outputName).str );
+	SGRX_IFP32Handle image = SGRX_LoadImage( TA.sourceFile );
+	if( image == NULL )
+		return NULL;
+	
+	SGRX_ImageFilterState ifs =
+	{
+		TA.isSRGB,
+	};
+	for( size_t fid = 0; fid < TA.filters.size(); ++fid )
+	{
+		SGRX_ImageFilter* IF = TA.filters[ fid ];
+		printf( "|-- filter: %s... ", IF->GetName() );
+		image = IF->Process( image, ifs );
+		printf( "%s\n", image ? "OK" : "ERROR" );
+		if( image == NULL )
+			break;
+	}
+	
+	return image;
+}
+
+TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA )
+{
+	if( !image )
+		return NULL;
+	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(), TEXFORMAT_RGBA8, 0, 1 );
+	ByteArray imagedata;
+	SGRX_ImageF32ToRGBA8( image, imagedata );
+	tex.UploadRGBA8Part( imagedata.data() );
+	return tex;
+}
+
 void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 {
 	puts( "processing assets...");
@@ -570,27 +608,9 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 	for( size_t tid = 0; tid < script.textureAssets.size(); ++tid )
 	{
 		const SGRX_TextureAsset& TA = script.textureAssets[ tid ];
-		printf( "| %s => [%s] %s\n",
-			StackString<256>(TA.sourceFile).str,
-			StackString<256>(TA.outputCategory).str,
-			StackString<256>(TA.outputName).str );
-		SGRX_IFP32Handle image = SGRX_LoadImage( TA.sourceFile );
+		SGRX_IFP32Handle image = SGRX_ProcessTextureAsset( TA );
 		if( image == NULL )
 			continue;
-		
-		SGRX_ImageFilterState ifs =
-		{
-			TA.isSRGB,
-		};
-		for( size_t fid = 0; fid < TA.filters.size(); ++fid )
-		{
-			SGRX_ImageFilter* IF = TA.filters[ fid ];
-			printf( "|-- filter: %s... ", IF->GetName() );
-			image = IF->Process( image, ifs );
-			printf( "%s\n", image ? "OK" : "ERROR" );
-			if( image == NULL )
-				break;
-		}
 		
 		StringView catPath = script.categories.getcopy( TA.outputCategory );
 		char bfr[ 520 ];

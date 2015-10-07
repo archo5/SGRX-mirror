@@ -180,5 +180,7 @@ struct SGRX_AssetScript
 };
 
 
+SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA );
+TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA );
 void SGRX_ProcessAssets( const SGRX_AssetScript& script );
 
