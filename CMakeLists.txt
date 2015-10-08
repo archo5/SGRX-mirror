@@ -1,5 +1,7 @@
 
 cmake_minimum_required( VERSION 2.8 )
+cmake_policy( SET CMP0048 NEW )
+project( SGRX )
 
 
 set(SRCDIR "${CMAKE_SOURCE_DIR}/src")
@@ -74,6 +76,9 @@ set_target_properties( fmodstudio PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 )
 list( APPEND ExternalSharedLibraries "${EXTDIR}/bin-win32/fmodstudio.dll" )
+
+# Assimp
+add_subdirectory( ext/src/assimp )
 
 # Recast / Detour
 add_subdirectory( ext/src/recast/Recast/Source )

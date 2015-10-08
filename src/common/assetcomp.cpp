@@ -1,5 +1,10 @@
 
 
+#define ASSIMP_IMPORTER_TYPE Assimp::Importer
+#define ASSIMP_SCENE_TYPE const aiScene
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 #include "assetcomp.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -474,6 +479,45 @@ bool SGRX_AssetScript::Save( const StringView& path )
 	Generate( data );
 	
 	return FS_SaveTextFile( path, data );
+}
+
+
+
+SGRX_Scene3D::SGRX_Scene3D( const StringView& path ) : m_scene(NULL)
+{
+	ByteArray data;
+	if( FS_LoadBinaryFile( path, data ) == false )
+		return;
+	
+	m_imp = new Assimp::Importer;
+	int flags =
+		aiProcess_CalcTangentSpace |
+		aiProcess_JoinIdenticalVertices |
+		aiProcess_Triangulate |
+		aiProcess_GenSmoothNormals |
+		aiProcess_LimitBoneWeights;
+	m_scene = m_imp->ReadFileFromMemory( data.data(), data.size(),
+		flags, StackString<32>(path.after_all(".")) );
+	if( m_scene == NULL )
+	{
+		delete m_imp;
+		return;
+	}
+}
+
+SGRX_Scene3D::~SGRX_Scene3D()
+{
+	delete m_imp;
+	m_imp = NULL;
+	m_scene = NULL;
+}
+
+void SGRX_Scene3D::GetModelList( Array< String >& out )
+{
+	for( unsigned i = 0; i < m_scene->mNumMeshes; ++i )
+	{
+		out.push_back( m_scene->mMeshes[ i ]->mName.C_Str() );
+	}
 }
 
 

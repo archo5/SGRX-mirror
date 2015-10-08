@@ -197,6 +197,23 @@ struct SGRX_AssetScript
 };
 
 
+#ifndef ASSIMP_IMPORTER_TYPE
+#define ASSIMP_IMPORTER_TYPE void
+#endif
+#ifndef ASSIMP_SCENE_TYPE
+#define ASSIMP_SCENE_TYPE const void
+#endif
+struct SGRX_Scene3D : SGRX_RefCounted
+{
+	SGRX_Scene3D( const StringView& path );
+	~SGRX_Scene3D();
+	
+	void GetModelList( Array< String >& out );
+	
+	ASSIMP_IMPORTER_TYPE* m_imp;
+	ASSIMP_SCENE_TYPE* m_scene;
+};
+
 SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA );
 TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA );
 void SGRX_ProcessAssets( const SGRX_AssetScript& script );
