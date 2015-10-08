@@ -54,6 +54,7 @@ struct EDGUIImageFilterType : EDGUISmallEnumPicker
 		m_options.push_back( "Sharpen" );
 		m_options.push_back( "To linear" );
 		m_options.push_back( "From linear" );
+		m_options.push_back( "Expand range" );
 		_Search( m_searchString );
 	}
 	SGRX_AssetImageFilterType GetPickedType() const
@@ -84,6 +85,7 @@ struct EDGUICategoryPicker : EDGUISmallEnumPicker
 {
 	EDGUICategoryPicker()
 	{
+		m_looseSearch = true;
 		Reload();
 	}
 	void Reload()
@@ -104,6 +106,7 @@ struct EDGUIAssetPathPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUIAssetPathPicker() : m_depth(0)
 	{
+		m_looseSearch = true;
 		Reload();
 	}
 	void AddOptionsFromDir( const StringView& path )
@@ -260,6 +263,45 @@ struct EDGUIImgFilter_Sharpen : EDGUILayoutRow
 	SGRX_ImgFilterHandle m_hfilter;
 };
 
+struct EDGUIImgFilter_ExpandRange : EDGUILayoutRow
+{
+	EDGUIImgFilter_ExpandRange( SGRX_ImageFilter* iflt ) :
+		m_vmin( V4(0), 3, V4(0), V4(1) ),
+		m_vmax( V4(0,0,1,1), 3, V4(0), V4(1) ),
+		m_hfilter( iflt )
+	{
+		SGRX_ImageFilter_ExpandRange* F = iflt->upcast<SGRX_ImageFilter_ExpandRange>();
+		m_vmin.SetValue( F->vmin );
+		m_vmax.SetValue( F->vmax );
+		
+		m_vmin.caption = "Min. color";
+		m_vmax.caption = "Max. color";
+		
+		Add( &m_vmin );
+		Add( &m_vmax );
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_hfilter )
+		{
+			SGRX_ImageFilter_ExpandRange* F = m_hfilter->upcast<SGRX_ImageFilter_ExpandRange>();
+			switch( e->type )
+			{
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_vmin ) F->vmin = m_vmin.m_value;
+				if( e->target == &m_vmax ) F->vmax = m_vmax.m_value;
+				break;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIPropVec4 m_vmin;
+	EDGUIPropVec4 m_vmax;
+	SGRX_ImgFilterHandle m_hfilter;
+};
+
 struct EDGUIImgFilter_PropertyLess : EDGUILayoutRow
 {
 };
@@ -383,6 +425,7 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		case SGRX_AIF_Sharpen: newflt = new EDGUIImgFilter_Sharpen( IF ); break;
 		case SGRX_AIF_ToLinear: newflt = new EDGUIImgFilter_PropertyLess(); break;
 		case SGRX_AIF_FromLinear: newflt = new EDGUIImgFilter_PropertyLess(); break;
+		case SGRX_AIF_ExpandRange: newflt = new EDGUIImgFilter_ExpandRange( IF ); break;
 		default: break;
 		}
 		if( newflt )
@@ -429,6 +472,7 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 					case SGRX_AIF_Sharpen: IF = new SGRX_ImageFilter_Sharpen; break;
 					case SGRX_AIF_ToLinear: IF = new SGRX_ImageFilter_Linear( false ); break;
 					case SGRX_AIF_FromLinear: IF = new SGRX_ImageFilter_Linear( true ); break;
+					case SGRX_AIF_ExpandRange: IF = new SGRX_ImageFilter_ExpandRange; break;
 					default: break;
 					}
 					if( IF )

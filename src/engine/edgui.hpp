@@ -366,6 +366,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIRsrcPicker : EDGUIItem
 	int cx0, cy0, cx1, cy1;
 	int m_hlfiltered;
 	int m_picked;
+	bool m_looseSearch;
 	String m_searchString;
 	String m_pickedOption;
 	Array< String > m_options;

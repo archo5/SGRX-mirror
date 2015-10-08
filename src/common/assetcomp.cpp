@@ -13,12 +13,39 @@
 
 
 
+SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height )
+{
+	if( width < 1 || width > 4096 ||
+		height < 1 || height > 4096 )
+	{
+		printf( "ERROR: resize - size out of bounds" );
+		return NULL;
+	}
+	if( image->GetWidth() == width && image->GetHeight() == height )
+		return image;
+	
+	float fw = width, fh = height;
+	float xoff = TMAX( 0.0f, image->GetWidth() / fw - 1.0f ) / ( image->GetWidth() * 2 );
+	float yoff = TMAX( 0.0f, image->GetHeight() / fh - 1.0f ) / ( image->GetHeight() * 2 );
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( width, height );
+	for( int y = 0; y < height; ++y )
+	{
+		for( int x = 0; x < width; ++x )
+		{
+			out->Pixel( x, y ) = image->GetLerp( xoff + x / fw, yoff + y / fh );
+		}
+	}
+	return out;
+}
+
+
 static const char* assetimgfiltype_string_table[] =
 {
 	"resize",
 	"sharpen",
 	"to_linear",
 	"from_linear",
+	"expand_range",
 };
 
 const char* SGRX_AssetImgFilterType_ToString( SGRX_AssetImageFilterType aift )
@@ -72,27 +99,7 @@ void SGRX_ImageFilter_Resize::Generate( String& out )
 
 SGRX_IFP32Handle SGRX_ImageFilter_Resize::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
 {
-	if( width < 1 || width > 4096 ||
-		height < 1 || height > 4096 )
-	{
-		printf( "ERROR: resize - size out of bounds" );
-		return NULL;
-	}
-	if( image->GetWidth() == width && image->GetHeight() == height )
-		return image;
-	
-	float fw = width, fh = height;
-	float xoff = TMAX( 0.0f, image->GetWidth() / fw - 1.0f ) / ( image->GetWidth() * 2 );
-	float yoff = TMAX( 0.0f, image->GetHeight() / fh - 1.0f ) / ( image->GetHeight() * 2 );
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( width, height );
-	for( int y = 0; y < height; ++y )
-	{
-		for( int x = 0; x < width; ++x )
-		{
-			out->Pixel( x, y ) = image->GetLerp( xoff + x / fw, yoff + y / fh );
-		}
-	}
-	return out;
+	return SGRX_ResizeImage( image, width, height );
 }
 
 static const char* imgfltsharpen_string_table[] =
@@ -244,6 +251,62 @@ SGRX_IFP32Handle SGRX_ImageFilter_Linear::Process( SGRX_ImageFP32* image, SGRX_I
 	return out;
 }
 
+
+bool SGRX_ImageFilter_ExpandRange::Parse( ConfigReader& cread )
+{
+	StringView key, value;
+	while( cread.Read( key, value ) )
+	{
+		if( key == "MIN" )
+			vmin = String_ParseVec4( value );
+		else if( key == "MAX" )
+			vmax = String_ParseVec4( value );
+		else if( key == "FILTER_END" )
+			return true;
+		else
+		{
+			LOG_ERROR << "Unrecognized AssetScript/ImgFilter(expand_range) command: " << key << "=" << value;
+			return false;
+		}
+	}
+	LOG_ERROR << "Incomplete AssetScript/ImgFilter(expand_range) data";
+	return false;
+}
+
+void SGRX_ImageFilter_ExpandRange::Generate( String& out )
+{
+	char bfr[ 2048 ];
+	sgrx_snprintf( bfr, 2048,
+		"  MIN %g;%g;%g;%g\n"
+		"  MAX %g;%g;%g;%g\n",
+		vmin.x, vmin.y, vmin.z, vmin.w,
+		vmax.x, vmax.y, vmax.z, vmax.w );
+	out.append( bfr );
+}
+
+SGRX_IFP32Handle SGRX_ImageFilter_ExpandRange::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
+{
+	Vec4 cmin = V4( HSV( vmin.ToVec3() ), vmin.w );
+	Vec4 cmax = V4( HSV( vmax.ToVec3() ), vmax.w );
+	Vec4 diff = cmax - cmin;
+	if( diff.x == 0 || diff.y == 0 || diff.z == 0 || diff.w == 0 )
+		return image;
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	for( size_t i = 0; i < image->Size(); ++i )
+	{
+		Vec4 col =
+		{
+			clamp( ( (*image)[ i ].x - cmin.x ) / diff.x, 0, 1 ),
+			clamp( ( (*image)[ i ].y - cmin.y ) / diff.y, 0, 1 ),
+			clamp( ( (*image)[ i ].z - cmin.z ) / diff.z, 0, 1 ),
+			clamp( ( (*image)[ i ].w - cmin.w ) / diff.w, 0, 1 ),
+		};
+		(*out)[ i ] = col;
+	}
+	return out;
+}
+
+
 static const char* texoutfmt_string_table[] =
 {
 	"PNG/RGBA32",
@@ -315,6 +378,8 @@ bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 				IF = new SGRX_ImageFilter_Linear( false );
 			else if( value == "from_linear" )
 				IF = new SGRX_ImageFilter_Linear( true );
+			else if( value == "expand_range" )
+				IF = new SGRX_ImageFilter_ExpandRange;
 			else
 			{
 				LOG_ERROR << "Unrecognized ImgFilter: " << value;
@@ -696,6 +761,7 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 	if( !image )
 		return NULL;
 	uint32_t flags = 0;
+	
 //	if( TA.isSRGB )
 //		flags |= TEXFLAGS_SRGB;
 	if( TA.lerp )
@@ -704,10 +770,29 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 		flags |= TEXFLAGS_CLAMP_X;
 	if( TA.clampy )
 		flags |= TEXFLAGS_CLAMP_Y;
-	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(), TEXFORMAT_RGBA8, flags, 1 );
+	
+	Array< SGRX_IFP32Handle > mips;
+	mips.push_back( image );
+	if( TA.mips )
+	{
+		flags |= TEXFLAGS_HASMIPS;
+		while( mips.last()->GetWidth() != 1 || mips.last()->GetHeight() != 1 )
+		{
+			int w1 = TMAX( mips.last()->GetWidth() / 2, 1 );
+			int h1 = TMAX( mips.last()->GetHeight() / 2, 1 );
+			mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1 ) );
+		}
+	}
+	
+	TextureHandle tex = GR_CreateTexture( image->GetWidth(), image->GetHeight(),
+		TEXFORMAT_RGBA8, flags, mips.size() );
 	ByteArray imagedata;
-	SGRX_ImageF32ToRGBA8( image, imagedata );
-	tex.UploadRGBA8Part( imagedata.data() );
+	for( size_t i = 0; i < mips.size(); ++i )
+	{
+		imagedata.clear();
+		SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
+		tex.UploadRGBA8Part( imagedata.data(), i );
+	}
 	return tex;
 }
 

@@ -1273,6 +1273,7 @@ EDGUIRsrcPicker::EDGUIRsrcPicker() :
 	cy1( 0 ),
 	m_hlfiltered( -1 ),
 	m_picked( 0 ),
+	m_looseSearch( false ),
 	m_owner( NULL ),
 	m_mouseX( 0 ),
 	m_mouseY( 0 )
@@ -1464,6 +1465,24 @@ void EDGUIRsrcPicker::_Search( const StringView& str )
 	{
 		for( size_t i = 0; i < m_options.size(); ++i )
 			m_filtered.push_back( i );
+	}
+	else if( m_looseSearch )
+	{
+		String regex;
+		for( size_t i = 0; i < str.size(); ++i )
+		{
+			if( i > 0 )
+			{
+				regex.append( ".*" );
+			}
+			regex.push_back( str[ i ] );
+		}
+		SGRX_Regex R( regex, "i" );
+		for( size_t i = 0; i < m_options.size(); ++i )
+		{
+			if( R.Match( m_options[ i ] ) )
+				m_filtered.push_back( i );
+		}
 	}
 	else
 	{

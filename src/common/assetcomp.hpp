@@ -48,6 +48,7 @@ struct SGRX_ImageFP32 : SGRX_RefCounted
 	int m_height;
 };
 typedef Handle< SGRX_ImageFP32 > SGRX_IFP32Handle;
+SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height );
 
 
 enum SGRX_AssetImageFilterType
@@ -57,6 +58,7 @@ enum SGRX_AssetImageFilterType
 	SGRX_AIF_Sharpen,
 	SGRX_AIF_ToLinear,
 	SGRX_AIF_FromLinear,
+	SGRX_AIF_ExpandRange,
 	
 	SGRX_AIF__COUNT,
 };
@@ -137,6 +139,20 @@ struct SGRX_ImageFilter_Linear : SGRX_ImageFilter
 	SGRX_IFP32Handle Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs );
 	
 	bool inverse;
+};
+
+struct SGRX_ImageFilter_ExpandRange : SGRX_ImageFilter
+{
+	SGRX_ImageFilter_ExpandRange() : vmin(V4(0)), vmax(V4(0,0,1,1)){}
+	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_ExpandRange; }
+	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_ExpandRange; }
+	const char* GetName() const { return "expand_range"; }
+	bool Parse( ConfigReader& cread );
+	void Generate( String& out );
+	SGRX_IFP32Handle Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs );
+	
+	Vec4 vmin;
+	Vec4 vmax;
 };
 
 enum SGRX_TextureOutputFormat

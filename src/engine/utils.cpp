@@ -1143,7 +1143,7 @@ bool StringView::match( const StringView& regex )
 		StackString<4>(mods), NULL, srx_DefaultMemFunc, NULL );
 	if( R == NULL )
 		return false;
-	bool ret = RXSUCCESS == srx_MatchExt( R, m_str, m_size, 0 );
+	bool ret = srx_MatchExt( R, m_str, m_size, 0 ) > 0;
 	srx_Destroy( R );
 	return ret;
 }
@@ -1162,7 +1162,7 @@ bool SGRX_Regex::Match( const StringView& str, size_t off )
 {
 	if( m_R == NULL )
 		return false;
-	return RXSUCCESS == srx_MatchExt( (srx_Context*) m_R, str.data(), str.size(), off );
+	return srx_MatchExt( (srx_Context*) m_R, str.data(), str.size(), off ) > 0;
 }
 
 /* string -> number conversion */
