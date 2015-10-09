@@ -77,6 +77,30 @@ struct EDGUIListItemButton : EDGUIButton
 };
 
 
+struct EDGUIShaderPicker : EDGUIRsrcPicker, IDirEntryHandler
+{
+	EDGUIShaderPicker()
+	{
+		Reload();
+	}
+	void Reload()
+	{
+		LOG << "Reloading shaders";
+		m_options.clear();
+		FS_IterateDirectory( "shaders", this );
+		_Search( m_searchString );
+	}
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		LOG << "[Sh]: " << name;
+		if( isdir == false && name.ends_with( ".shd" ) && name.starts_with( "mtl_" ) )
+		{
+			m_options.push_back( name.part( 4, name.size() - 8 ) );
+		}
+		return true;
+	}
+};
+
 struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUISDTexPicker( const StringView& dir = "textures" ) : m_dir( String_Concat( dir, "/" ) )

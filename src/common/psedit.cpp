@@ -19,34 +19,6 @@ struct EDGUIPSISFXPicker* g_UIPSISFXPicker;
 
 
 
-struct EDGUIShaderPicker : EDGUIRsrcPicker
-{
-	EDGUIShaderPicker()
-	{
-		Reload();
-	}
-	void Reload()
-	{
-		LOG << "Reloading shaders";
-		m_options.clear();
-		DirectoryIterator tdi( "shaders" );
-		while( tdi.Next() )
-		{
-			StringView fn = tdi.Name();
-			LOG << fn;
-			if( !tdi.IsDirectory() )
-			{
-				if( fn.ends_with( ".shd" ) && fn.starts_with( "mtl_" ) )
-				{
-					m_options.push_back( fn.part( 4, fn.size() - 8 ) );
-				}
-			}
-		}
-		_Search( m_searchString );
-	}
-};
-
-
 struct EDGUIPSPicker : EDGUIRsrcPicker, IDirEntryHandler
 {
 	EDGUIPSPicker(){ Reload(); }

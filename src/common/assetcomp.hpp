@@ -189,6 +189,21 @@ struct SGRX_TextureAsset
 	Array< SGRX_ImgFilterHandle > filters;
 };
 
+struct SGRX_MeshAssetPart : SGRX_RefCounted
+{
+	SGRX_MeshAssetPart() : shader("default"), mtlFlags(0), mtlBlendMode(SGRX_MtlBlend_None){}
+	bool Parse( ConfigReader& cread );
+	void Generate( String& out );
+	void GetDesc( int i, String& out );
+	
+	String meshName;
+	String shader;
+	String textures[ 8 ];
+	uint8_t mtlFlags;
+	uint8_t mtlBlendMode;
+};
+typedef Handle< SGRX_MeshAssetPart > SGRX_MeshAPHandle;
+
 struct SGRX_MeshAsset
 {
 	bool Parse( ConfigReader& cread );
@@ -198,7 +213,7 @@ struct SGRX_MeshAsset
 	String sourceFile;
 	String outputCategory;
 	String outputName;
-	String meshName;
+	Array< SGRX_MeshAPHandle > parts;
 };
 
 struct SGRX_AssetScript

@@ -435,6 +435,70 @@ void SGRX_TextureAsset::GetDesc( String& out )
 	out = bfr;
 }
 
+
+bool SGRX_MeshAssetPart::Parse( ConfigReader& cread )
+{
+	StringView key, value;
+	while( cread.Read( key, value ) )
+	{
+		if( key == "MESH_NAME" )
+			meshName = value;
+		else if( key == "SHADER" )
+			shader = value;
+		else if( key == "TEXTURE0" ) textures[ 0 ] = value;
+		else if( key == "TEXTURE1" ) textures[ 1 ] = value;
+		else if( key == "TEXTURE2" ) textures[ 2 ] = value;
+		else if( key == "TEXTURE3" ) textures[ 3 ] = value;
+		else if( key == "TEXTURE4" ) textures[ 4 ] = value;
+		else if( key == "TEXTURE5" ) textures[ 5 ] = value;
+		else if( key == "TEXTURE6" ) textures[ 6 ] = value;
+		else if( key == "TEXTURE7" ) textures[ 7 ] = value;
+		else if( key == "MTL_FLAGS" )
+			mtlFlags = String_ParseInt( value );
+		else if( key == "MTL_BLENDMODE" )
+			mtlBlendMode = String_ParseInt( value );
+		else if( key == "PART_END" )
+			return true;
+		else
+		{
+			LOG_ERROR << "Unrecognized AssetScript/Mesh/Part command: " << key << "=" << value;
+			return false;
+		}
+	}
+	LOG_ERROR << "Incomplete AssetScript/Mesh/Part data";
+	return false;
+}
+
+void SGRX_MeshAssetPart::Generate( String& out )
+{
+	out.append( " PART\n" );
+	out.append( "  MESH_NAME " ); out.append( meshName ); out.append( "\n" );
+	out.append( "  SHADER " ); out.append( shader ); out.append( "\n" );
+	out.append( "  TEXTURE0 " ); out.append( textures[ 0 ] ); out.append( "\n" );
+	out.append( "  TEXTURE1 " ); out.append( textures[ 1 ] ); out.append( "\n" );
+	out.append( "  TEXTURE2 " ); out.append( textures[ 2 ] ); out.append( "\n" );
+	out.append( "  TEXTURE3 " ); out.append( textures[ 3 ] ); out.append( "\n" );
+	out.append( "  TEXTURE4 " ); out.append( textures[ 4 ] ); out.append( "\n" );
+	out.append( "  TEXTURE5 " ); out.append( textures[ 5 ] ); out.append( "\n" );
+	out.append( "  TEXTURE6 " ); out.append( textures[ 6 ] ); out.append( "\n" );
+	out.append( "  TEXTURE7 " ); out.append( textures[ 7 ] ); out.append( "\n" );
+	char bfr[ 128 ];
+	sgrx_snprintf( bfr, 128,
+		"  MTL_FLAGS %d\n"
+		"  MTL_BLENDMODE %d\n",
+		int(mtlFlags),
+		int(mtlBlendMode) );
+	out.append( bfr );
+	out.append( " PART_END\n" );
+}
+
+void SGRX_MeshAssetPart::GetDesc( int i, String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%d: %s", i, StackString<200>(meshName).str );
+	out = bfr;
+}
+
 bool SGRX_MeshAsset::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -446,8 +510,13 @@ bool SGRX_MeshAsset::Parse( ConfigReader& cread )
 			outputCategory = value;
 		else if( key == "OUTPUT_NAME" )
 			outputName = value;
-		else if( key == "MESH_NAME" )
-			meshName = value;
+		else if( key == "PART" )
+		{
+			SGRX_MeshAPHandle mph = new SGRX_MeshAssetPart;
+			if( mph->Parse( cread ) == false )
+				return false;
+			parts.push_back( mph );
+		}
 		else if( key == "MESH_END" )
 			return true;
 		else
@@ -466,7 +535,8 @@ void SGRX_MeshAsset::Generate( String& out )
 	out.append( " SOURCE " ); out.append( sourceFile ); out.append( "\n" );
 	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
 	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
-	out.append( " MESH_NAME " ); out.append( meshName ); out.append( "\n" );
+	for( size_t i = 0; i < parts.size(); ++i )
+		parts[ i ]->Generate( out );
 	out.append( "MESH_END\n" );
 }
 

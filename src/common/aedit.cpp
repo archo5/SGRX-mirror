@@ -181,6 +181,7 @@ struct EDGUIPickers
 	EDGUICategoryPicker category;
 	EDGUIAssetPathPicker assetPath;
 	EDGUIASMeshNamePicker meshName;
+	EDGUIShaderPicker shader;
 	
 	void SetMesh( SGRX_Scene3D* scene )
 	{
@@ -640,22 +641,73 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_group( true, "Mesh" ),
 		m_sourceFile( &g_UIPickers->assetPath ),
 		m_outputCategory( &g_UIPickers->category ),
-		m_meshName( &g_UIPickers->meshName ),
-		m_mid( NOT_FOUND )
+		m_MPgroup( true, "Selected part" ),
+		m_MPmeshName( &g_UIPickers->meshName ),
+		m_MPshader( &g_UIPickers->shader ),
+		m_MPtexture0( &TMPRSRC ),
+		m_MPtexture1( &TMPRSRC ),
+		m_MPtexture2( &TMPRSRC ),
+		m_MPtexture3( &TMPRSRC ),
+		m_MPtexture4( &TMPRSRC ),
+		m_MPtexture5( &TMPRSRC ),
+		m_MPtexture6( &TMPRSRC ),
+		m_MPtexture7( &TMPRSRC ),
+		m_MPLgroup( true, "Parts" ),
+		m_mid( NOT_FOUND ),
+		m_pid( NOT_FOUND )
 	{
 		m_sourceFile.caption = "Source file";
 		m_outputCategory.caption = "Output category";
 		m_outputName.caption = "Output name";
-		m_meshName.caption = "Mesh name";
-		
-		m_meshName.m_requestReload = true;
 		
 		m_group.Add( &m_sourceFile );
 		m_group.Add( &m_outputCategory );
 		m_group.Add( &m_outputName );
-		m_group.Add( &m_meshName );
+		
+		m_MPLBtnAdd.caption = "Add part";
+		m_MPLButtons.Add( &m_MPLEditButton );
+		m_MPLgroup.Add( &m_MPLBtnAdd );
+		m_MPLgroup.Add( &m_MPLButtons );
+		
+		m_MPmeshName.caption = "Mesh name";
+		m_MPshader.caption = "Shader";
+		m_MPtexture0.caption = "Texture 0";
+		m_MPtexture1.caption = "Texture 1";
+		m_MPtexture2.caption = "Texture 2";
+		m_MPtexture3.caption = "Texture 3";
+		m_MPtexture4.caption = "Texture 4";
+		m_MPtexture5.caption = "Texture 5";
+		m_MPtexture6.caption = "Texture 6";
+		m_MPtexture7.caption = "Texture 7";
+		
+		m_MPmeshName.m_requestReload = true;
+		
+		m_MPart.Add( &m_MPmeshName );
+		m_MPart.Add( &m_MPshader );
+		m_MPart.Add( &m_MPtexture0 );
+		m_MPart.Add( &m_MPtexture1 );
+		m_MPart.Add( &m_MPtexture2 );
+		m_MPart.Add( &m_MPtexture3 );
+		m_MPart.Add( &m_MPtexture4 );
+		m_MPart.Add( &m_MPtexture5 );
+		m_MPart.Add( &m_MPtexture6 );
+		m_MPart.Add( &m_MPtexture7 );
 		
 		Add( &m_group );
+		Add( &m_MPgroup );
+		Add( &m_MPLgroup );
+	}
+	
+	void ReloadPartList()
+	{
+		SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
+		
+		m_MPLButtons.m_options.resize( MA.parts.size() );
+		for( size_t i = 0; i < MA.parts.size(); ++i )
+		{
+			MA.parts[ i ]->GetDesc( i, m_MPLButtons.m_options[ i ] );
+		}
+		m_MPLButtons.UpdateOptions();
 	}
 	
 	void ReloadImpScene()
@@ -671,9 +723,32 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_sourceFile.SetValue( MA.sourceFile );
 		m_outputCategory.SetValue( MA.outputCategory );
 		m_outputName.SetValue( MA.outputName );
-		m_meshName.SetValue( MA.meshName );
+		
+		ReloadPartList();
+		PreparePart( NOT_FOUND );
 		
 		ReloadImpScene();
+	}
+	
+	void PreparePart( size_t pid )
+	{
+		m_pid = pid;
+		SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
+		SGRX_MeshAssetPart* MP = m_pid != NOT_FOUND ? MA.parts[ m_pid ] : NULL;
+		
+		m_MPmeshName.SetValue( MP ? MP->meshName : "" );
+		m_MPshader.SetValue( MP ? MP->shader : "" );
+		m_MPtexture0.SetValue( MP ? MP->textures[ 0 ] : "" );
+		m_MPtexture1.SetValue( MP ? MP->textures[ 1 ] : "" );
+		m_MPtexture2.SetValue( MP ? MP->textures[ 2 ] : "" );
+		m_MPtexture3.SetValue( MP ? MP->textures[ 3 ] : "" );
+		m_MPtexture4.SetValue( MP ? MP->textures[ 4 ] : "" );
+		m_MPtexture5.SetValue( MP ? MP->textures[ 5 ] : "" );
+		m_MPtexture6.SetValue( MP ? MP->textures[ 6 ] : "" );
+		m_MPtexture7.SetValue( MP ? MP->textures[ 7 ] : "" );
+		m_MPgroup.Clear();
+		if( MP )
+			m_MPgroup.Add( &m_MPart );
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -681,16 +756,72 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		if( m_mid != NOT_FOUND )
 		{
 			SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
+			SGRX_MeshAssetPart* MP = m_pid != NOT_FOUND ? MA.parts[ m_pid ] : NULL;
 			switch( e->type )
 			{
 			case EDGUI_EVENT_PROPEDIT:
 				if( e->target == &m_sourceFile ){ MA.sourceFile = m_sourceFile.m_value; }
 				if( e->target == &m_outputCategory ){ MA.outputCategory = m_outputCategory.m_value; }
 				if( e->target == &m_outputName ){ MA.outputName = m_outputName.m_value; }
-				if( e->target == &m_meshName ){ MA.meshName = m_meshName.m_value; }
+				if( MP )
+				{
+					bool ed = false;
+					if( e->target == &m_MPmeshName ){ ed = true; MP->meshName = m_MPmeshName.m_value; }
+					if( e->target == &m_MPshader ){ ed = true; MP->shader = m_MPshader.m_value; }
+					if( e->target == &m_MPtexture0 ){ ed = true; MP->textures[ 0 ] = m_MPtexture0.m_value; }
+					if( e->target == &m_MPtexture1 ){ ed = true; MP->textures[ 1 ] = m_MPtexture1.m_value; }
+					if( e->target == &m_MPtexture2 ){ ed = true; MP->textures[ 2 ] = m_MPtexture2.m_value; }
+					if( e->target == &m_MPtexture3 ){ ed = true; MP->textures[ 3 ] = m_MPtexture3.m_value; }
+					if( e->target == &m_MPtexture4 ){ ed = true; MP->textures[ 4 ] = m_MPtexture4.m_value; }
+					if( e->target == &m_MPtexture5 ){ ed = true; MP->textures[ 5 ] = m_MPtexture5.m_value; }
+					if( e->target == &m_MPtexture6 ){ ed = true; MP->textures[ 6 ] = m_MPtexture6.m_value; }
+					if( e->target == &m_MPtexture7 ){ ed = true; MP->textures[ 7 ] = m_MPtexture7.m_value; }
+					if( ed )
+					{
+						ReloadPartList();
+					}
+				}
 				break;
 			case EDGUI_EVENT_PROPCHANGE:
 				if( e->target == &m_sourceFile ){ ReloadImpScene(); }
+				break;
+			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_MPLBtnAdd )
+				{
+					MA.parts.push_back( new SGRX_MeshAssetPart );
+					ReloadPartList();
+					m_frame->UpdateMouse();
+				}
+				if( e->target == &m_MPLEditButton )
+				{
+					PreparePart( m_MPLEditButton.id2 );
+				}
+				if( e->target == &m_MPLEditButton.m_up )
+				{
+					size_t i = m_MPLEditButton.id2;
+					if( i > 0 )
+						TSWAP( MA.parts[ i ], MA.parts[ i - 1 ] );
+					ReloadPartList();
+					m_frame->UpdateMouse();
+					return 1;
+				}
+				if( e->target == &m_MPLEditButton.m_dn )
+				{
+					size_t i = m_MPLEditButton.id2;
+					if( i < MA.parts.size() - 1 )
+						TSWAP( MA.parts[ i ], MA.parts[ i + 1 ] );
+					ReloadPartList();
+					m_frame->UpdateMouse();
+					return 1;
+				}
+				if( e->target == &m_MPLEditButton.m_del )
+				{
+					MA.parts.erase( m_MPLEditButton.id2 );
+					m_pid = NOT_FOUND;
+					ReloadPartList();
+					m_frame->UpdateMouse();
+					return 1;
+				}
 				break;
 			}
 		}
@@ -700,9 +831,25 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	EDGUIGroup m_group;
 	EDGUIPropRsrc m_sourceFile;
 	EDGUIPropRsrc m_outputCategory;
-	EDGUIPropRsrc m_meshName;
 	EDGUIPropString m_outputName;
+	EDGUIGroup m_MPgroup;
+	EDGUILayoutRow m_MPart;
+	EDGUIPropRsrc m_MPmeshName;
+	EDGUIPropRsrc m_MPshader;
+	EDGUIPropRsrc m_MPtexture0;
+	EDGUIPropRsrc m_MPtexture1;
+	EDGUIPropRsrc m_MPtexture2;
+	EDGUIPropRsrc m_MPtexture3;
+	EDGUIPropRsrc m_MPtexture4;
+	EDGUIPropRsrc m_MPtexture5;
+	EDGUIPropRsrc m_MPtexture6;
+	EDGUIPropRsrc m_MPtexture7;
+	EDGUIGroup m_MPLgroup;
+	EDGUIButton m_MPLBtnAdd;
+	EDGUIBtnList m_MPLButtons;
+	EDGUIListItemButton m_MPLEditButton;
 	size_t m_mid;
+	size_t m_pid;
 	ImpScene3DHandle m_scene;
 };
 
@@ -1110,7 +1257,6 @@ struct ASEditor : IGame
 		GR2D_SetFont( "core", 12 );
 		
 	//	g_UITexPicker = new EDGUISDTexPicker( "textures/particles" );
-	//	g_UIShaderPicker = new EDGUIShaderPicker;
 		g_UIPickers = new EDGUIPickers;
 		
 		// core layout
@@ -1127,8 +1273,6 @@ struct ASEditor : IGame
 	{
 		delete g_UIPickers;
 		g_UIPickers = NULL;
-	//	delete g_UIShaderPicker;
-	//	g_UIShaderPicker = NULL;
 	//	delete g_UITexPicker;
 	//	g_UITexPicker = NULL;
 		delete g_UIFrame;
