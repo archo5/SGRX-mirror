@@ -446,6 +446,8 @@ bool SGRX_MeshAsset::Parse( ConfigReader& cread )
 			outputCategory = value;
 		else if( key == "OUTPUT_NAME" )
 			outputName = value;
+		else if( key == "MESH_NAME" )
+			meshName = value;
 		else if( key == "MESH_END" )
 			return true;
 		else
@@ -464,6 +466,7 @@ void SGRX_MeshAsset::Generate( String& out )
 	out.append( " SOURCE " ); out.append( sourceFile ); out.append( "\n" );
 	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
 	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
+	out.append( " MESH_NAME " ); out.append( meshName ); out.append( "\n" );
 	out.append( "MESH_END\n" );
 }
 
@@ -548,11 +551,14 @@ bool SGRX_AssetScript::Save( const StringView& path )
 
 
 
-SGRX_Scene3D::SGRX_Scene3D( const StringView& path ) : m_scene(NULL)
+SGRX_Scene3D::SGRX_Scene3D( const StringView& path ) : m_imp(NULL), m_scene(NULL)
 {
 	ByteArray data;
 	if( FS_LoadBinaryFile( path, data ) == false )
+	{
+		printf( "Could not load 3D scene file: %s\n", StackString<1024>(path).str );
 		return;
+	}
 	
 	m_imp = new Assimp::Importer;
 	int flags =
@@ -566,23 +572,57 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path ) : m_scene(NULL)
 	if( m_scene == NULL )
 	{
 		delete m_imp;
+		m_imp = NULL;
 		return;
 	}
 }
 
 SGRX_Scene3D::~SGRX_Scene3D()
 {
-	delete m_imp;
-	m_imp = NULL;
+	if( m_imp )
+	{
+		delete m_imp;
+		m_imp = NULL;
+	}
 	m_scene = NULL;
 }
 
-void SGRX_Scene3D::GetModelList( Array< String >& out )
+static void aiNode_GetMeshList( StringView path, const aiScene* S, aiNode* N, Array< String >& out )
 {
-	for( unsigned i = 0; i < m_scene->mNumMeshes; ++i )
+	String subpath = path;
+	subpath.append( "/" );
+	subpath.append( N->mName.C_Str() );
+	
+	String meshpath = subpath;
+	for( unsigned i = 0; i < N->mNumMeshes; ++i )
 	{
-		out.push_back( m_scene->mMeshes[ i ]->mName.C_Str() );
+		unsigned mid = N->mMeshes[ i ];
+		aiMesh* M = S->mMeshes[ mid ];
+		meshpath = subpath;
+		meshpath.append( "|" );
+		meshpath.append( M->mName.C_Str() );
+		char bfr[ 32 ];
+		sgrx_snprintf( bfr, 32, "[%d]", mid );
+		meshpath.append( bfr );
+		out.push_back( meshpath );
 	}
+	
+	for( unsigned i = 0; i < N->mNumChildren; ++i )
+	{
+		aiNode_GetMeshList( subpath, S, N->mChildren[ i ], out );
+	}
+}
+
+void SGRX_Scene3D::GetMeshList( Array< String >& out )
+{
+	if( m_scene == NULL )
+		return;
+	aiNode_GetMeshList( "", m_scene, m_scene->mRootNode, out );
+//	for( unsigned i = 0; i < m_scene->mNumMeshes; ++i )
+//	{
+//		out.push_back( m_scene->mMeshes[ i ]->mName.C_Str() );
+//	}
+	
 }
 
 

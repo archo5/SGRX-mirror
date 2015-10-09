@@ -29,6 +29,16 @@ struct EDGUISmallEnumPicker : EDGUIRsrcPicker
 	}
 };
 
+struct EDGUILongEnumPicker : EDGUIRsrcPicker
+{
+	void _OnChangeZoom()
+	{
+		EDGUIRsrcPicker::_OnChangeZoom();
+		m_itemWidth = 300;
+		m_itemHeight = 16;
+	}
+};
+
 struct EDGUIImageFilterSharpenMode : EDGUISmallEnumPicker
 {
 	EDGUIImageFilterSharpenMode()
@@ -102,7 +112,7 @@ struct EDGUICategoryPicker : EDGUISmallEnumPicker
 	}
 };
 
-struct EDGUIAssetPathPicker : EDGUIRsrcPicker, IDirEntryHandler
+struct EDGUIAssetPathPicker : EDGUILongEnumPicker, IDirEntryHandler
 {
 	EDGUIAssetPathPicker() : m_depth(0)
 	{
@@ -141,13 +151,26 @@ struct EDGUIAssetPathPicker : EDGUIRsrcPicker, IDirEntryHandler
 		AddOptionsFromDir( "assets" );
 		_Search( m_searchString );
 	}
-	void _OnChangeZoom()
-	{
-		EDGUIRsrcPicker::_OnChangeZoom();
-		m_itemWidth = 300;
-		m_itemHeight = 16;
-	}
 	int m_depth;
+};
+
+struct EDGUIASMeshNamePicker : EDGUILongEnumPicker
+{
+	EDGUIASMeshNamePicker()
+	{
+		m_looseSearch = true;
+		Reload();
+	}
+	void Reload()
+	{
+		m_options.clear();
+		if( m_scene )
+		{
+			m_scene->GetMeshList( m_options );
+		}
+		_Search( m_searchString );
+	}
+	ImpScene3DHandle m_scene;
 };
 
 struct EDGUIPickers
@@ -157,6 +180,12 @@ struct EDGUIPickers
 	EDGUITextureOutputFormat textureOutputFormat;
 	EDGUICategoryPicker category;
 	EDGUIAssetPathPicker assetPath;
+	EDGUIASMeshNamePicker meshName;
+	
+	void SetMesh( SGRX_Scene3D* scene )
+	{
+		meshName.m_scene = scene;
+	}
 };
 
 struct EDGUICreatePickButton : EDGUIPropRsrc
@@ -611,17 +640,27 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_group( true, "Mesh" ),
 		m_sourceFile( &g_UIPickers->assetPath ),
 		m_outputCategory( &g_UIPickers->category ),
+		m_meshName( &g_UIPickers->meshName ),
 		m_mid( NOT_FOUND )
 	{
 		m_sourceFile.caption = "Source file";
 		m_outputCategory.caption = "Output category";
 		m_outputName.caption = "Output name";
+		m_meshName.caption = "Mesh name";
+		
+		m_meshName.m_requestReload = true;
 		
 		m_group.Add( &m_sourceFile );
 		m_group.Add( &m_outputCategory );
 		m_group.Add( &m_outputName );
+		m_group.Add( &m_meshName );
 		
 		Add( &m_group );
+	}
+	
+	void ReloadImpScene()
+	{
+		g_UIPickers->SetMesh( new SGRX_Scene3D( m_sourceFile.m_value ) );
 	}
 	
 	void Prepare( size_t mid )
@@ -632,6 +671,9 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_sourceFile.SetValue( MA.sourceFile );
 		m_outputCategory.SetValue( MA.outputCategory );
 		m_outputName.SetValue( MA.outputName );
+		m_meshName.SetValue( MA.meshName );
+		
+		ReloadImpScene();
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -645,6 +687,10 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 				if( e->target == &m_sourceFile ){ MA.sourceFile = m_sourceFile.m_value; }
 				if( e->target == &m_outputCategory ){ MA.outputCategory = m_outputCategory.m_value; }
 				if( e->target == &m_outputName ){ MA.outputName = m_outputName.m_value; }
+				if( e->target == &m_meshName ){ MA.meshName = m_meshName.m_value; }
+				break;
+			case EDGUI_EVENT_PROPCHANGE:
+				if( e->target == &m_sourceFile ){ ReloadImpScene(); }
 				break;
 			}
 		}
@@ -654,8 +700,10 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	EDGUIGroup m_group;
 	EDGUIPropRsrc m_sourceFile;
 	EDGUIPropRsrc m_outputCategory;
+	EDGUIPropRsrc m_meshName;
 	EDGUIPropString m_outputName;
 	size_t m_mid;
+	ImpScene3DHandle m_scene;
 };
 
 void FC_EditMesh( size_t id );

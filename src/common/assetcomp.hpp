@@ -198,6 +198,7 @@ struct SGRX_MeshAsset
 	String sourceFile;
 	String outputCategory;
 	String outputName;
+	String meshName;
 };
 
 struct SGRX_AssetScript
@@ -224,11 +225,12 @@ struct SGRX_Scene3D : SGRX_RefCounted
 	SGRX_Scene3D( const StringView& path );
 	~SGRX_Scene3D();
 	
-	void GetModelList( Array< String >& out );
+	void GetMeshList( Array< String >& out );
 	
 	ASSIMP_IMPORTER_TYPE* m_imp;
 	ASSIMP_SCENE_TYPE* m_scene;
 };
+typedef Handle< SGRX_Scene3D > ImpScene3DHandle;
 
 SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA );
 TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA );
