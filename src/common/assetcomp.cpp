@@ -906,6 +906,17 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 	return tex;
 }
 
+MeshHandle SGRX_ProcessMeshAsset( const SGRX_MeshAsset& MA )
+{
+	printf( "| %s => [%s] %s\n",
+		StackString<256>(MA.sourceFile).str,
+		StackString<256>(MA.outputCategory).str,
+		StackString<256>(MA.outputName).str );
+	
+	puts( "TODO ProcessMeshAsset...");
+	return NULL;
+}
+
 void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 {
 	puts( "processing assets...");
@@ -930,5 +941,33 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 	}
 	
 	puts( "- meshes...");
+	for( size_t tid = 0; tid < script.meshAssets.size(); ++tid )
+	{
+		const SGRX_MeshAsset& MA = script.meshAssets[ tid ];
+		MeshHandle mesh = SGRX_ProcessMeshAsset( MA );
+		if( mesh == NULL )
+			continue;
+		
+		ByteArray data;
+		if( mesh->ToMeshData( data ) == false )
+		{
+			puts( "ERROR: failed to serialize mesh" );
+			continue;
+		}
+		
+		StringView catPath = script.categories.getcopy( MA.outputCategory );
+		char bfr[ 520 ];
+		sgrx_snprintf( bfr, 520, "%s/%s",
+			StackString<256>(catPath).str,
+			StackString<256>(MA.outputName).str );
+		if( FS_SaveBinaryFile( bfr, data.data(), data.size() ) )
+		{
+			printf( "|----------- saved!\n" );
+		}
+		else
+		{
+			printf( "ERROR: failed to save file to %s\n", bfr );
+		}
+	}
 }
 

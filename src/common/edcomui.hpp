@@ -16,6 +16,24 @@ inline void lmm_prepmeshinst( MeshInstHandle mih )
 }
 
 
+inline int SGRX_MtlBlend_FromString( const StringView& sv )
+{
+	if( sv == "None" ) return SGRX_MtlBlend_None;
+	if( sv == "Basic" ) return SGRX_MtlBlend_Basic;
+	if( sv == "Additive" ) return SGRX_MtlBlend_Additive;
+	if( sv == "Multiply" ) return SGRX_MtlBlend_Multiply;
+	return SGRX_MtlBlend_None;
+}
+
+inline const char* SGRX_MtlBlend_ToString( int bm )
+{
+	if( bm == SGRX_MtlBlend_None ) return "None";
+	if( bm == SGRX_MtlBlend_Basic ) return "Basic";
+	if( bm == SGRX_MtlBlend_Additive ) return "Additive";
+	if( bm == SGRX_MtlBlend_Multiply ) return "Multiply";
+	return "None";
+}
+
 
 #define LI_SUBBTN_WIDTH 30
 struct EDGUIListItemButton : EDGUIButton

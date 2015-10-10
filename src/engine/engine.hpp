@@ -787,6 +787,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	ENGINE_EXPORT SGRX_IMesh();
 	ENGINE_EXPORT virtual ~SGRX_IMesh();
 	
+	bool ToMeshData( ByteArray& out );
+	
 	virtual bool InitVertexBuffer( size_t size, VertexDeclHandle vd ) = 0;
 	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
 	virtual bool UpdateVertexData( const void* data, size_t size, bool tristrip ) = 0;

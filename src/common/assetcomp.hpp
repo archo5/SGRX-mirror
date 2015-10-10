@@ -249,5 +249,6 @@ typedef Handle< SGRX_Scene3D > ImpScene3DHandle;
 
 SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA );
 TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA );
+MeshHandle SGRX_ProcessMeshAsset( const SGRX_MeshAsset& MA );
 void SGRX_ProcessAssets( const SGRX_AssetScript& script );
 

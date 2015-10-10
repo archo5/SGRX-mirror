@@ -19,6 +19,9 @@ struct EDGUIPickers* g_UIPickers;
 EDGUIRsrcPicker TMPRSRC;
 
 
+#define SGRX_GET_FLAG( v, fl ) (((v) & (fl)) != 0)
+#define SGRX_SET_FLAG( v, fl, b ) v = ((v) & ~(fl)) | ((b)?(fl):0)
+
 
 struct EDGUISmallEnumPicker : EDGUIRsrcPicker
 {
@@ -39,6 +42,19 @@ struct EDGUILongEnumPicker : EDGUIRsrcPicker
 	}
 };
 
+struct EDGUIMtlBlendMode : EDGUISmallEnumPicker
+{
+	EDGUIMtlBlendMode()
+	{
+		caption = "Pick the blending mode";
+		m_options.push_back( "None" );
+		m_options.push_back( "Basic" );
+		m_options.push_back( "Additive" );
+		m_options.push_back( "Multiply" );
+		_Search( m_searchString );
+	}
+};
+
 struct EDGUIImageFilterSharpenMode : EDGUISmallEnumPicker
 {
 	EDGUIImageFilterSharpenMode()
@@ -48,10 +64,6 @@ struct EDGUIImageFilterSharpenMode : EDGUISmallEnumPicker
 		m_options.push_back( "1-1" );
 		m_options.push_back( "1-2" );
 		_Search( m_searchString );
-	}
-	SGRX_ImgFltSharpen_Mode GetPickedType() const
-	{
-		return SGRX_ImgFltSharpen_Mode( m_picked + 1 );
 	}
 };
 
@@ -85,10 +97,6 @@ struct EDGUITextureOutputFormat : EDGUISmallEnumPicker
 		}
 		_Search( m_searchString );
 	}
-	SGRX_TextureOutputFormat GetPickedType() const
-	{
-		return SGRX_TextureOutputFormat( m_picked + 1 );
-	}
 };
 
 struct EDGUICategoryPicker : EDGUISmallEnumPicker
@@ -106,6 +114,31 @@ struct EDGUICategoryPicker : EDGUISmallEnumPicker
 			for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
 			{
 				m_options.push_back( g_EdAS->categories.item( i ).key );
+			}
+		}
+		_Search( m_searchString );
+	}
+};
+
+struct EDGUITextureAssetPicker : EDGUILongEnumPicker
+{
+	EDGUITextureAssetPicker()
+	{
+		m_looseSearch = true;
+		Reload();
+	}
+	void Reload()
+	{
+		m_options.clear();
+		if( g_EdAS )
+		{
+			for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
+			{
+				const SGRX_TextureAsset& TA = g_EdAS->textureAssets[ i ];
+				String opt = TA.outputCategory;
+				opt.append( "/" );
+				opt.append( TA.outputName );
+				m_options.push_back( opt );
 			}
 		}
 		_Search( m_searchString );
@@ -175,10 +208,12 @@ struct EDGUIASMeshNamePicker : EDGUILongEnumPicker
 
 struct EDGUIPickers
 {
+	EDGUIMtlBlendMode blendMode;
 	EDGUIImageFilterSharpenMode sharpenMode;
 	EDGUIImageFilterType imageFilterType;
 	EDGUITextureOutputFormat textureOutputFormat;
 	EDGUICategoryPicker category;
+	EDGUITextureAssetPicker textureAsset;
 	EDGUIAssetPathPicker assetPath;
 	EDGUIASMeshNamePicker meshName;
 	EDGUIShaderPicker shader;
@@ -644,14 +679,18 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPgroup( true, "Selected part" ),
 		m_MPmeshName( &g_UIPickers->meshName ),
 		m_MPshader( &g_UIPickers->shader ),
-		m_MPtexture0( &TMPRSRC ),
-		m_MPtexture1( &TMPRSRC ),
-		m_MPtexture2( &TMPRSRC ),
-		m_MPtexture3( &TMPRSRC ),
-		m_MPtexture4( &TMPRSRC ),
-		m_MPtexture5( &TMPRSRC ),
-		m_MPtexture6( &TMPRSRC ),
-		m_MPtexture7( &TMPRSRC ),
+		m_MPtexture0( &g_UIPickers->textureAsset ),
+		m_MPtexture1( &g_UIPickers->textureAsset ),
+		m_MPtexture2( &g_UIPickers->textureAsset ),
+		m_MPtexture3( &g_UIPickers->textureAsset ),
+		m_MPtexture4( &g_UIPickers->textureAsset ),
+		m_MPtexture5( &g_UIPickers->textureAsset ),
+		m_MPtexture6( &g_UIPickers->textureAsset ),
+		m_MPtexture7( &g_UIPickers->textureAsset ),
+		m_MPmtlUnlit( false ),
+		m_MPmtlNocull( false ),
+		m_MPmtlDecal( false ),
+		m_MPmtlBlendMode( &g_UIPickers->blendMode ),
 		m_MPLgroup( true, "Parts" ),
 		m_mid( NOT_FOUND ),
 		m_pid( NOT_FOUND )
@@ -679,6 +718,10 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPtexture5.caption = "Texture 5";
 		m_MPtexture6.caption = "Texture 6";
 		m_MPtexture7.caption = "Texture 7";
+		m_MPmtlUnlit.caption = "Unlit?";
+		m_MPmtlNocull.caption = "Disable culling?";
+		m_MPmtlDecal.caption = "Decal?";
+		m_MPmtlBlendMode.caption = "Blend mode";
 		
 		m_MPmeshName.m_requestReload = true;
 		
@@ -692,6 +735,10 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPart.Add( &m_MPtexture5 );
 		m_MPart.Add( &m_MPtexture6 );
 		m_MPart.Add( &m_MPtexture7 );
+		m_MPart.Add( &m_MPmtlUnlit );
+		m_MPart.Add( &m_MPmtlNocull );
+		m_MPart.Add( &m_MPmtlDecal );
+		m_MPart.Add( &m_MPmtlBlendMode );
 		
 		Add( &m_group );
 		Add( &m_MPgroup );
@@ -717,6 +764,8 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	
 	void Prepare( size_t mid )
 	{
+		g_UIPickers->textureAsset.Reload();
+		
 		m_mid = mid;
 		SGRX_MeshAsset& MA = g_EdAS->meshAssets[ mid ];
 		
@@ -746,6 +795,10 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPtexture5.SetValue( MP ? MP->textures[ 5 ] : "" );
 		m_MPtexture6.SetValue( MP ? MP->textures[ 6 ] : "" );
 		m_MPtexture7.SetValue( MP ? MP->textures[ 7 ] : "" );
+		m_MPmtlUnlit.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Unlit ) : false );
+		m_MPmtlNocull.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Nocull ) : false );
+		m_MPmtlDecal.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Decal ) : false );
+		m_MPmtlBlendMode.SetValue( SGRX_MtlBlend_ToString( MP ? MP->mtlBlendMode : 0 ) );
 		m_MPgroup.Clear();
 		if( MP )
 			m_MPgroup.Add( &m_MPart );
@@ -776,6 +829,14 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 					if( e->target == &m_MPtexture5 ){ ed = true; MP->textures[ 5 ] = m_MPtexture5.m_value; }
 					if( e->target == &m_MPtexture6 ){ ed = true; MP->textures[ 6 ] = m_MPtexture6.m_value; }
 					if( e->target == &m_MPtexture7 ){ ed = true; MP->textures[ 7 ] = m_MPtexture7.m_value; }
+					if( e->target == &m_MPmtlUnlit ){ ed = true;
+						SGRX_SET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Unlit, m_MPmtlUnlit.m_value ); }
+					if( e->target == &m_MPmtlNocull ){ ed = true;
+						SGRX_SET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Nocull, m_MPmtlNocull.m_value ); }
+					if( e->target == &m_MPmtlDecal ){ ed = true;
+						SGRX_SET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Decal, m_MPmtlDecal.m_value ); }
+					if( e->target == &m_MPmtlBlendMode ){ ed = true;
+						MP->mtlBlendMode = SGRX_MtlBlend_FromString( m_MPmtlBlendMode.m_value ); }
 					if( ed )
 					{
 						ReloadPartList();
@@ -844,6 +905,10 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	EDGUIPropRsrc m_MPtexture5;
 	EDGUIPropRsrc m_MPtexture6;
 	EDGUIPropRsrc m_MPtexture7;
+	EDGUIPropBool m_MPmtlUnlit;
+	EDGUIPropBool m_MPmtlNocull;
+	EDGUIPropBool m_MPmtlDecal;
+	EDGUIPropRsrc m_MPmtlBlendMode;
 	EDGUIGroup m_MPLgroup;
 	EDGUIButton m_MPLBtnAdd;
 	EDGUIBtnList m_MPLButtons;
