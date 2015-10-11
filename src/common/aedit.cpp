@@ -373,6 +373,7 @@ struct EDGUIImgFilter_PropertyLess : EDGUILayoutRow
 
 
 void FC_SetTexture( TextureHandle tex );
+void FC_SetMesh( MeshHandle mesh );
 
 struct EDGUIAssetTexture : EDGUILayoutRow
 {
@@ -695,13 +696,19 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_mid( NOT_FOUND ),
 		m_pid( NOT_FOUND )
 	{
+		m_outputCategory.m_requestReload = true;
+		
 		m_sourceFile.caption = "Source file";
 		m_outputCategory.caption = "Output category";
 		m_outputName.caption = "Output name";
+		m_rotateY2Z.caption = "Rotate Y->Z";
+		m_flipUVY.caption = "Flip UV/Y";
 		
 		m_group.Add( &m_sourceFile );
 		m_group.Add( &m_outputCategory );
 		m_group.Add( &m_outputName );
+		m_group.Add( &m_rotateY2Z );
+		m_group.Add( &m_flipUVY );
 		
 		m_MPLBtnAdd.caption = "Add part";
 		m_MPLButtons.Add( &m_MPLEditButton );
@@ -745,6 +752,13 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		Add( &m_MPLgroup );
 	}
 	
+	void UpdatePreviewMesh()
+	{
+		SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
+		MeshHandle mesh = SGRX_ProcessMeshAsset( g_EdAS, MA );
+		FC_SetMesh( mesh );
+	}
+	
 	void ReloadPartList()
 	{
 		SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
@@ -755,6 +769,8 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 			MA.parts[ i ]->GetDesc( i, m_MPLButtons.m_options[ i ] );
 		}
 		m_MPLButtons.UpdateOptions();
+		
+		UpdatePreviewMesh();
 	}
 	
 	void ReloadImpScene()
@@ -772,6 +788,8 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_sourceFile.SetValue( MA.sourceFile );
 		m_outputCategory.SetValue( MA.outputCategory );
 		m_outputName.SetValue( MA.outputName );
+		m_rotateY2Z.SetValue( MA.rotateY2Z );
+		m_flipUVY.SetValue( MA.flipUVY );
 		
 		ReloadPartList();
 		PreparePart( NOT_FOUND );
@@ -813,9 +831,11 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 			switch( e->type )
 			{
 			case EDGUI_EVENT_PROPEDIT:
-				if( e->target == &m_sourceFile ){ MA.sourceFile = m_sourceFile.m_value; }
+				if( e->target == &m_sourceFile ){ MA.sourceFile = m_sourceFile.m_value; UpdatePreviewMesh(); }
 				if( e->target == &m_outputCategory ){ MA.outputCategory = m_outputCategory.m_value; }
 				if( e->target == &m_outputName ){ MA.outputName = m_outputName.m_value; }
+				if( e->target == &m_rotateY2Z ){ MA.rotateY2Z = m_rotateY2Z.m_value; UpdatePreviewMesh(); }
+				if( e->target == &m_flipUVY ){ MA.flipUVY = m_flipUVY.m_value; UpdatePreviewMesh(); }
 				if( MP )
 				{
 					bool ed = false;
@@ -893,6 +913,8 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	EDGUIPropRsrc m_sourceFile;
 	EDGUIPropRsrc m_outputCategory;
 	EDGUIPropString m_outputName;
+	EDGUIPropBool m_rotateY2Z;
+	EDGUIPropBool m_flipUVY;
 	EDGUIGroup m_MPgroup;
 	EDGUILayoutRow m_MPart;
 	EDGUIPropRsrc m_MPmeshName;
@@ -1153,6 +1175,9 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_UIMenuButtons.Add( &m_MBEditTextures );
 		m_UIMenuButtons.Add( &m_MBEditMeshes );
 		
+		m_meshPrevInst = g_EdScene->CreateMeshInstance();
+		lmm_prepmeshinst( m_meshPrevInst );
+		
 		ASCR_Open();
 	}
 	
@@ -1191,10 +1216,17 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	void DebugDraw()
 	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		br.Reset();
-		br.SetTexture( m_texPreview );
-		br.Box( 0, 0, 2, 2 );
+		if( m_texPreview )
+		{
+			const TextureInfo& info = m_texPreview.GetInfo();
+			float aspect = safe_fdiv( info.width, info.height );
+			float w = 2 * TMAX( 1.0f, aspect );
+			float h = 2 / TMIN( 1.0f, aspect );
+			BatchRenderer& br = GR2D_GetBatchRenderer();
+			br.Reset();
+			br.SetTexture( m_texPreview );
+			br.Box( 0, 0, w, h );
+		}
 	}
 	
 	void AddToParamList( EDGUIItem* item )
@@ -1264,7 +1296,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	{
 		LOG << "Trying to save asset script";
 		
-		if( g_EdAS->Save( ASSET_SCRIPT_NAME ) )
+		if( g_EdAS->Save( ASSET_SCRIPT_NAME ) == false )
 		{
 			LOG_ERROR << "FAILED TO SAVE ASSET SCRIPT";
 			return;
@@ -1302,6 +1334,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	// preview data
 	TextureHandle m_texPreview;
+	MeshInstHandle m_meshPrevInst;
 };
 
 void FC_EditTexture( size_t id ){ g_UIFrame->EditTexture( id ); }
@@ -1310,7 +1343,17 @@ void FC_EditMesh( size_t id ){ g_UIFrame->EditMesh( id ); }
 void FC_EditMeshList(){ g_UIFrame->EditMeshList(); }
 void FC_EditCategory( const StringView& name ){ g_UIFrame->EditCategory( name ); }
 void FC_EditScript(){ g_UIFrame->EditScript(); }
-void FC_SetTexture( TextureHandle tex ){ g_UIFrame->m_texPreview = tex; }
+void FC_SetTexture( TextureHandle tex )
+{
+	g_UIFrame->m_texPreview = tex;
+	g_UIFrame->m_meshPrevInst->enabled = false;
+}
+void FC_SetMesh( MeshHandle mesh )
+{
+	g_UIFrame->m_texPreview = NULL;
+	g_UIFrame->m_meshPrevInst->SetMesh( mesh );
+	g_UIFrame->m_meshPrevInst->enabled = mesh != NULL;
+}
 
 
 

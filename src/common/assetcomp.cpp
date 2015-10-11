@@ -312,6 +312,11 @@ static const char* texoutfmt_string_table[] =
 	"PNG/RGBA32",
 	"STX/RGBA32",
 };
+static const char* texoutfmt_ext_string_table[] =
+{
+	"png",
+	"stx",
+};
 
 const char* SGRX_TextureOutputFormat_ToString( SGRX_TextureOutputFormat fmt )
 {
@@ -329,6 +334,14 @@ SGRX_TextureOutputFormat SGRX_TextureOutputFormat_FromString( const StringView& 
 			return (SGRX_TextureOutputFormat) i;
 	}
 	return SGRX_TOF_Unknown;
+}
+
+const char* SGRX_TextureOutputFormat_Ext( SGRX_TextureOutputFormat fmt )
+{
+	int fid = fmt;
+	if( fid <= 0 || fid >= SGRX_TOF__COUNT )
+		return "";
+	return texoutfmt_ext_string_table[ fid - 1 ];
 }
 
 SGRX_TextureAsset::SGRX_TextureAsset() :
@@ -510,6 +523,10 @@ bool SGRX_MeshAsset::Parse( ConfigReader& cread )
 			outputCategory = value;
 		else if( key == "OUTPUT_NAME" )
 			outputName = value;
+		else if( key == "ROTATE_Y2Z" )
+			rotateY2Z = String_ParseBool( value );
+		else if( key == "FLIP_UVY" )
+			flipUVY = String_ParseBool( value );
 		else if( key == "PART" )
 		{
 			SGRX_MeshAPHandle mph = new SGRX_MeshAssetPart;
@@ -535,6 +552,8 @@ void SGRX_MeshAsset::Generate( String& out )
 	out.append( " SOURCE " ); out.append( sourceFile ); out.append( "\n" );
 	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
 	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
+	out.append( " ROTATE_Y2Z " ); out.append( rotateY2Z ? "true" : "false" ); out.append( "\n" );
+	out.append( " FLIP_UVY " ); out.append( flipUVY ? "true" : "false" ); out.append( "\n" );
 	for( size_t i = 0; i < parts.size(); ++i )
 		parts[ i ]->Generate( out );
 	out.append( "MESH_END\n" );
@@ -633,10 +652,11 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path ) : m_imp(NULL), m_scene(NULL
 	m_imp = new Assimp::Importer;
 	int flags =
 		aiProcess_CalcTangentSpace |
-		aiProcess_JoinIdenticalVertices |
+	//	aiProcess_JoinIdenticalVertices |
 		aiProcess_Triangulate |
 		aiProcess_GenSmoothNormals |
-		aiProcess_LimitBoneWeights;
+		aiProcess_LimitBoneWeights |
+		aiProcess_FlipWindingOrder;
 	m_scene = m_imp->ReadFileFromMemory( data.data(), data.size(),
 		flags, StackString<32>(path.after_all(".")) );
 	if( m_scene == NULL )
@@ -906,15 +926,282 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 	return tex;
 }
 
-MeshHandle SGRX_ProcessMeshAsset( const SGRX_MeshAsset& MA )
+struct MeshAssetInputs
 {
+	bool pos;
+	bool nrm;
+	bool tng;
+	bool col;
+	bool tx0;
+	bool tx1;
+	bool tx2;
+	bool tx3;
+	// additional flags
+	bool y2z;
+	bool flip_uvy;
+};
+
+static size_t _InsertVertex( ByteArray& out,
+	const MeshAssetInputs& fmt, aiMesh* mesh, unsigned idx, size_t from )
+{
+	uint8_t bfr[ 256 ];
+	uint8_t* p = bfr;
+	
+	if( fmt.pos )
+	{
+		aiVector3D v = mesh->mVertices ? mesh->mVertices[ idx ] : aiVector3D(0);
+		Vec3 ov = { v.x, v.y, v.z };
+		if( fmt.y2z )
+			ov = V3( ov.x, -ov.z, ov.y );
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	if( fmt.nrm )
+	{
+		aiVector3D v = mesh->mNormals ? mesh->mNormals[ idx ] : aiVector3D(0);
+		Vec3 ov = { v.x, v.y, v.z };
+		if( fmt.y2z )
+			ov = V3( ov.x, -ov.z, ov.y );
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	if( fmt.tng )
+	{
+		Vec4 ov = { 0, 0, 1, 1 };
+		if( mesh->mNormals && mesh->mTangents && mesh->mBitangents )
+		{
+			aiVector3D n = mesh->mNormals[ idx ];
+			aiVector3D t = mesh->mTangents[ idx ];
+			aiVector3D b = mesh->mBitangents[ idx ];
+			Vec3 vn = { n.x, n.y, n.z };
+			Vec3 vt = { t.x, t.y, t.z };
+			Vec3 vb = { b.x, b.y, b.z };
+			Vec3 tt = vt;
+			if( fmt.flip_uvy )
+				vb = -vb;
+			if( fmt.y2z )
+				tt = V3( tt.x, -tt.z, tt.y );
+			ov = V4( tt, sign( Vec3Dot( Vec3Cross( vn, vt ), vb ) ) );
+		}
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	if( fmt.col )
+	{
+		aiColor4D v = mesh->mColors[0] ? mesh->mColors[0][ idx ] : aiColor4D(1);
+		Vec4 oc = { v.r, v.g, v.b, v.a };
+		uint32_t ov = Vec4ToCol32( oc );
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	if( fmt.tx0 )
+	{
+		aiVector3D v = mesh->mTextureCoords[0] ? mesh->mTextureCoords[0][ idx ] : aiVector3D(0);
+		Vec2 ov = { v.x, v.y };
+		if( fmt.flip_uvy )
+			ov.y = 1 - ov.y;
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	if( fmt.tx1 )
+	{
+		aiVector3D v = mesh->mTextureCoords[1] ? mesh->mTextureCoords[1][ idx ] : aiVector3D(0);
+		Vec2 ov = { v.x, v.y };
+		if( fmt.flip_uvy )
+			ov.y = 1 - ov.y;
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	if( fmt.tx2 )
+	{
+		aiVector3D v = mesh->mTextureCoords[2] ? mesh->mTextureCoords[2][ idx ] : aiVector3D(0);
+		Vec2 ov = { v.x, v.y };
+		if( fmt.flip_uvy )
+			ov.y = 1 - ov.y;
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	if( fmt.tx3 )
+	{
+		aiVector3D v = mesh->mTextureCoords[3] ? mesh->mTextureCoords[3][ idx ] : aiVector3D(0);
+		Vec2 ov = { v.x, v.y };
+		if( fmt.flip_uvy )
+			ov.y = 1 - ov.y;
+		memcpy( p, &ov, sizeof(ov) );
+		p += sizeof(ov);
+	}
+	
+	return out.find_or_add_bytes( bfr, p - bfr, from );
+}
+
+static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& texid )
+{
+	StringView cat = texid.until( "/" );
+	StringView name = texid.after( "/" );
+	const String* catpath = AS->categories.getptr( cat );
+	if( catpath == NULL )
+		return "";
+	
+	const SGRX_TextureAsset* TA = NULL;
+	for( size_t i = 0; i < AS->textureAssets.size(); ++i )
+	{
+		if( AS->textureAssets[ i ].outputCategory == cat &&
+			AS->textureAssets[ i ].outputName == name )
+		{
+			TA = &AS->textureAssets[ i ];
+			break;
+		}
+	}
+	if( TA == NULL )
+		return "";
+	
+	String out = *catpath;
+	out.append( "/" );
+	out.append( name );
+	out.append( "." );
+	out.append( SGRX_TextureOutputFormat_Ext( TA->outputType ) );
+	return out;
+}
+
+MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA )
+{
+	if( MA.parts.size() < 1 || MA.parts.size() > 16 )
+	{
+		puts( "Mesh part count not in range [1;16]" );
+		return NULL;
+	}
+	
 	printf( "| %s => [%s] %s\n",
 		StackString<256>(MA.sourceFile).str,
 		StackString<256>(MA.outputCategory).str,
 		StackString<256>(MA.outputName).str );
 	
-	puts( "TODO ProcessMeshAsset...");
-	return NULL;
+	ImpScene3DHandle scene = new SGRX_Scene3D( MA.sourceFile );
+	if( scene->m_scene == NULL )
+	{
+		printf( "Failed to load %s\n", StackString<256>(MA.sourceFile).str );
+		return NULL;
+	}
+	const aiScene* S = scene->m_scene;
+	
+	// enumerate mesh data
+	aiMesh* part_ptrs[ 16 ] = {0};
+	MeshAssetInputs fmt = {0};
+	fmt.y2z = MA.rotateY2Z;
+	fmt.flip_uvy = MA.flipUVY;
+	int numparts = MA.parts.size();
+	for( int i = 0; i < numparts; ++i )
+	{
+		SGRX_MeshAssetPart* MP = MA.parts[ i ];
+		unsigned meshID = String_ParseInt( StringView(MP->meshName).after_last("[").until("]") );
+		printf("MESHID %d | %s | %s | %s\n",meshID,
+			StackString<256>(StringView(MP->meshName)).str,
+			StackString<256>(StringView(MP->meshName).after_last("[")).str,
+			StackString<256>(StringView(MP->meshName).after_last("[").until("]")).str);
+		if( meshID >= S->mNumMeshes )
+		{
+			printf( "Mesh ID %d out of bounds (count=%d)\n", meshID, S->mNumMeshes );
+			return NULL;
+		}
+		aiMesh* mesh = S->mMeshes[ meshID ];
+		ASSERT( mesh && "Mesh with a valid ID must have a valid aiMesh*" );
+		ASSERT( mesh->mPrimitiveTypes == aiPrimitiveType_TRIANGLE );
+		part_ptrs[ i ] = mesh;
+		// update format
+		if( mesh->mVertices ) fmt.pos = true;
+		if( mesh->mNormals ) fmt.nrm = true;
+		if( mesh->mNormals && mesh->mTangents && mesh->mBitangents ) fmt.tng = true;
+		if( mesh->mColors[0] ) fmt.col = true;
+		if( mesh->mTextureCoords[0] ) fmt.tx0 = true;
+		if( mesh->mTextureCoords[1] ) fmt.tx1 = true;
+		if( mesh->mTextureCoords[2] ) fmt.tx2 = true;
+		if( mesh->mTextureCoords[3] ) fmt.tx3 = true;
+	}
+	
+	// generate vdecl
+	char vfmt_bfr[ 64 ];
+	size_t vsize = 0;
+	size_t isize = 2;
+	{
+		char* p = vfmt_bfr;
+		if( fmt.pos ){ p[0] = 'p'; p[1] = 'f'; p[2] = '3'; p += 3; vsize += 12; }
+		if( fmt.nrm ){ p[0] = 'n'; p[1] = 'f'; p[2] = '3'; p += 3; vsize += 12; }
+		if( fmt.tng ){ p[0] = 't'; p[1] = 'f'; p[2] = '4'; p += 3; vsize += 16; }
+		if( fmt.col ){ p[0] = 'c'; p[1] = 'b'; p[2] = '4'; p += 3; vsize += 4; }
+		if( fmt.tx0 ){ p[0] = '0'; p[1] = 'f'; p[2] = '2'; p += 3; vsize += 8; }
+		if( fmt.tx1 ){ p[0] = '1'; p[1] = 'f'; p[2] = '2'; p += 3; vsize += 8; }
+		if( fmt.tx2 ){ p[0] = '2'; p[1] = 'f'; p[2] = '2'; p += 3; vsize += 8; }
+		if( fmt.tx3 ){ p[0] = '3'; p[1] = 'f'; p[2] = '2'; p += 3; vsize += 8; }
+		*p = 0;
+	}
+	VertexDeclHandle vdh = GR_GetVertexDecl( vfmt_bfr );
+	if( vdh == NULL )
+	{
+		puts( "Failed to create vertex decl." );
+		return NULL;
+	}
+	
+	// generate vertex/index/part data
+	ByteArray vdata;
+	ByteArray idata;
+	SGRX_MeshPart mparts[ 16 ];
+	for( int i = 0; i < numparts; ++i )
+	{
+		SGRX_MeshAssetPart* MP = MA.parts[ i ];
+		aiMesh* mesh = part_ptrs[ i ];
+		size_t voff = vdata.size() / vsize;
+		size_t ioff = idata.size() / isize;
+		for( unsigned fid = 0; fid < mesh->mNumFaces; ++fid )
+		{
+			aiFace& F = mesh->mFaces[ fid ];
+			ASSERT( F.mNumIndices == 3 );
+			
+			unsigned idx0 = F.mIndices[0];
+			unsigned idx1 = F.mIndices[1];
+			unsigned idx2 = F.mIndices[2];
+			
+			size_t t0 = _InsertVertex( vdata, fmt, mesh, idx0, voff );
+			size_t t1 = _InsertVertex( vdata, fmt, mesh, idx1, voff );
+			size_t t2 = _InsertVertex( vdata, fmt, mesh, idx2, voff );
+			
+			uint16_t idcs[3] = { t0 - voff, t1 - voff, t2 - voff };
+			idata.append( &idcs, sizeof(idcs) );
+		}
+		
+		SGRX_MeshPart& outMP = mparts[ i ];
+		outMP.vertexOffset = voff;
+		outMP.vertexCount = vdata.size() / vsize - voff;
+		outMP.indexOffset = ioff;
+		outMP.indexCount = idata.size() / isize - ioff;
+		outMP.shader = MP->shader;
+		for( int t = 0; t < 8; ++t )
+			outMP.textures[ t ] = SGRX_TexIDToPath( AS, MP->textures[ t ] );
+		outMP.mtlFlags = MP->mtlFlags;
+		outMP.mtlBlendMode = MP->mtlBlendMode;
+		
+		printf( "| part %d: mesh=%p src-vc=%d src-fc=%d dst-vc=%d dst-ic=%d shader=%s\n",
+			i, mesh, mesh->mNumVertices, mesh->mNumFaces,
+			int(outMP.vertexCount), int(outMP.indexCount),
+			StackString<256>(outMP.shader).str );
+	}
+	
+	MeshHandle dstMesh = GR_CreateMesh();
+	dstMesh->SetVertexData( vdata.data(), vdata.size(), vdh, false );
+	dstMesh->SetAABBFromVertexData( vdata.data(), vdata.size(), vdh );
+	dstMesh->SetIndexData( idata.data(), idata.size(), false );
+	dstMesh->SetPartData( mparts, numparts );
+	dstMesh->m_vdata = vdata;
+	dstMesh->m_idata = idata;
+	dstMesh->m_dataFlags = MDF_MTLINFO;
+	
+	return dstMesh;
 }
 
 void SGRX_ProcessAssets( const SGRX_AssetScript& script )
@@ -944,7 +1231,7 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 	for( size_t tid = 0; tid < script.meshAssets.size(); ++tid )
 	{
 		const SGRX_MeshAsset& MA = script.meshAssets[ tid ];
-		MeshHandle mesh = SGRX_ProcessMeshAsset( MA );
+		MeshHandle mesh = SGRX_ProcessMeshAsset( &script, MA );
 		if( mesh == NULL )
 			continue;
 		

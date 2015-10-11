@@ -1574,6 +1574,24 @@ struct ByteArray : UInt8Array
 	void assign( const void* data, size_t size ){ UInt8Array::assign( (const uint8_t*) data, size ); }
 	void append( const void* data, size_t size ){ UInt8Array::append( (const uint8_t*) data, size ); }
 	void append( const ByteArray& a ){ append( a.m_data, a.m_size ); }
+	size_t find_first_bytes_at( const void* data, size_t size, size_t from = 0 )
+	{
+		size_t count = m_size / size;
+		for( size_t i = from; i < count; ++i )
+			if( memcmp( data, m_data + i * size, size ) == 0 )
+				return i;
+		return NOT_FOUND;
+	}
+	size_t find_or_add_bytes( const void* data, size_t size, size_t from = 0 )
+	{
+		size_t id = find_first_bytes_at( data, size, from );
+		if( id == NOT_FOUND )
+		{
+			id = m_size / size;
+			append( data, size );
+		}
+		return id;
+	}
 };
 
 
@@ -1723,6 +1741,16 @@ struct StringView
 	{
 		size_t pos = find_last_at( substr );
 		return pos == NOT_FOUND ? StringView( m_str, 0 ) : StringView( m_str, pos + substr.size() );
+	}
+	FINLINE StringView from_last( const StringView& substr ) const
+	{
+		size_t pos = find_last_at( substr );
+		return pos == NOT_FOUND ? StringView( m_str + m_size, 0 ) : part( pos );
+	}
+	FINLINE StringView after_last( const StringView& substr ) const
+	{
+		size_t pos = find_last_at( substr );
+		return pos == NOT_FOUND ? StringView( m_str + m_size, 0 ) : part( pos + substr.size() );
 	}
 	FINLINE StringView until_any( const StringView& chars ) const
 	{

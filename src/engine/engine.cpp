@@ -651,7 +651,7 @@ void IGame::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, 0, 1, rtt );
+	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, 0x00111111, 1, rtt );
 	if( info.viewport )
 		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
 	
