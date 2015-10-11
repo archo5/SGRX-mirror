@@ -1132,6 +1132,50 @@ bool SegmentAABBIntersect2( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, c
 
 
 
+FINLINE char sgrx_tolower( char a )
+{
+	if( a >= 'A' && a <= 'Z' )
+		return a + 'a' - 'A';
+	return a;
+}
+
+bool StringView::match_loose( const StringView& substr )
+{
+#define MAX_ML_CHARS 256
+	if( substr.size() == 0 )
+		return true;
+	if( substr.size() > MAX_ML_CHARS )
+		return false;
+	
+	size_t matchstack[ MAX_ML_CHARS ];
+	for( size_t off = 0; off < m_size; ++off )
+	{
+		size_t chpos = off;
+		int stacksize = 0;
+		for(;;)
+		{
+			if( chpos >= m_size )
+			{
+				// reached end of string, backtrack
+				chpos = matchstack[ --stacksize ];
+				if( stacksize <= 0 )
+					break; // nowhere to backtrack
+				continue;
+			}
+			if( sgrx_tolower( substr[ stacksize ] ) == sgrx_tolower( m_str[ chpos ] ) )
+			{
+				// enter the stack
+				matchstack[ stacksize++ ] = ++chpos;
+				if( stacksize == (int) substr.size() )
+					return true; // matched last char, success
+				continue;
+			}
+			chpos++;
+		}
+	}
+	return false;
+}
+
 bool StringView::match( const StringView& regex )
 {
 	char endch = regex.ch();

@@ -1803,6 +1803,7 @@ struct StringView
 		rtrim( chars );
 	}
 	
+	bool match_loose( const StringView& substr );
 	bool match( const StringView& regex );
 	
 	FINLINE operator String () const { return String( m_str, m_size ); }

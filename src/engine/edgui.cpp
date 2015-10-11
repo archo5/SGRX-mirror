@@ -1468,19 +1468,9 @@ void EDGUIRsrcPicker::_Search( const StringView& str )
 	}
 	else if( m_looseSearch )
 	{
-		String regex;
-		for( size_t i = 0; i < str.size(); ++i )
-		{
-			if( i > 0 )
-			{
-				regex.append( ".*" );
-			}
-			regex.push_back( str[ i ] );
-		}
-		SGRX_Regex R( regex, "i" );
 		for( size_t i = 0; i < m_options.size(); ++i )
 		{
-			if( R.Match( m_options[ i ] ) )
+			if( StringView( m_options[ i ] ).match_loose( str ) )
 				m_filtered.push_back( i );
 		}
 	}
