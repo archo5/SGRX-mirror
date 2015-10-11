@@ -59,6 +59,7 @@ enum SGRX_AssetImageFilterType
 	SGRX_AIF_ToLinear,
 	SGRX_AIF_FromLinear,
 	SGRX_AIF_ExpandRange,
+	SGRX_AIF_BCP,
 	
 	SGRX_AIF__COUNT,
 };
@@ -73,12 +74,21 @@ SGRX_AssetImageFilterType SGRX_AssetImgFilterType_FromString( const StringView& 
 
 struct SGRX_ImageFilter : SGRX_RefCounted
 {
+	SGRX_ImageFilter() : blend(1), cclamp(true), colors(0xff){}
 	virtual SGRX_AssetImageFilterType GetType() const = 0;
 	virtual const char* GetName() const = 0;
 	virtual bool Parse( ConfigReader& cread ) = 0;
 	virtual void Generate( String& out ) = 0;
 	virtual SGRX_IFP32Handle Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs ) = 0;
 	template< class T > T* upcast(){ return T::IsType( GetType() ) ? (T*) this : NULL; }
+	
+	bool ParseCMFParam( StringView key, StringView value );
+	void GenerateCMFParams( String& out );
+	void CMFBlend( SGRX_ImageFP32* src, SGRX_ImageFP32* dst );
+	
+	float blend;
+	bool cclamp;
+	uint8_t colors;
 };
 typedef Handle< SGRX_ImageFilter > SGRX_ImgFilterHandle;
 
@@ -153,6 +163,28 @@ struct SGRX_ImageFilter_ExpandRange : SGRX_ImageFilter
 	
 	Vec4 vmin;
 	Vec4 vmax;
+};
+
+struct SGRX_ImageFilter_BCP : SGRX_ImageFilter
+{
+	SGRX_ImageFilter_BCP() : apply_bc1(true), brightness(0), contrast(1),
+		apply_pow(false), power(1), apply_bc2(false), brightness_2(0), contrast_2(1)
+	{ colors = 0x7; }
+	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_BCP; }
+	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_BCP; }
+	const char* GetName() const { return "bcp"; }
+	bool Parse( ConfigReader& cread );
+	void Generate( String& out );
+	SGRX_IFP32Handle Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs );
+	
+	bool apply_bc1;
+	float brightness;
+	float contrast;
+	bool apply_pow;
+	float power;
+	bool apply_bc2;
+	float brightness_2;
+	float contrast_2;
 };
 
 enum SGRX_TextureOutputFormat

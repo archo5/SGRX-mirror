@@ -1395,7 +1395,53 @@ SGRX_IMesh::~SGRX_IMesh()
 
 bool SGRX_IMesh::ToMeshData( ByteArray& out )
 {
-	return false;
+	if( m_meshParts.size() > MAX_MESH_FILE_PARTS )
+		return false;
+	ByteWriter bw( &out );
+	bw.marker( "SS3DMESH" );
+	bw.write( uint32_t(m_dataFlags & MDF__PUBFLAGMASK) );
+	bw.write( m_boundsMin );
+	bw.write( m_boundsMax );
+	bw << m_vdata;
+	bw << m_idata;
+	bw.write( uint8_t(m_vertexDecl->m_key.size()) );
+	bw.memory( m_vertexDecl->m_key.data(), m_vertexDecl->m_key.size() );
+	bw.write( uint8_t(m_meshParts.size()) );
+	for( size_t pid = 0; pid < m_meshParts.size(); ++pid )
+	{
+		SGRX_MeshPart& MP = m_meshParts[ pid ];
+		if( m_dataFlags & MDF_MTLINFO )
+		{
+			bw.write( uint8_t(MP.mtlFlags) );
+			bw.write( uint8_t(MP.mtlBlendMode) );
+		}
+		bw.write( uint32_t(MP.vertexOffset) );
+		bw.write( uint32_t(MP.vertexCount) );
+		bw.write( uint32_t(MP.indexOffset) );
+		bw.write( uint32_t(MP.indexCount) );
+		bw.write( uint8_t(SGRX_MAX_MESH_TEXTURES) ); // materialTextureCount
+		bw.write( uint8_t(MP.shader.size()) );
+		bw.memory( MP.shader.data(), MP.shader.size() );
+		for( int tid = 0; tid < SGRX_MAX_MESH_TEXTURES; ++tid )
+		{
+			const String& tex = MP.textures[ tid ];
+			bw.write( uint8_t(tex.size()) );
+			bw.memory( tex.data(), tex.size() );
+		}
+	}
+	if( m_dataFlags & MDF_SKINNED )
+	{
+		bw.write( uint8_t(m_numBones) );
+		for( int bid = 0; bid < m_numBones; ++bid )
+		{
+			const SGRX_MeshBone& B = m_bones[ bid ];
+			bw.write( uint8_t(B.name.size()) );
+			bw.memory( B.name.data(), B.name.size() );
+			bw.write( uint8_t(B.parent_id) );
+			bw.write( B.boneOffset );
+		}
+	}
+	return true;
 }
 
 bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )

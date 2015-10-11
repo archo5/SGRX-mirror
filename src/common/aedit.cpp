@@ -77,6 +77,7 @@ struct EDGUIImageFilterType : EDGUISmallEnumPicker
 		m_options.push_back( "To linear" );
 		m_options.push_back( "From linear" );
 		m_options.push_back( "Expand range" );
+		m_options.push_back( "Brightness/contrast/power" );
 		_Search( m_searchString );
 	}
 	SGRX_AssetImageFilterType GetPickedType() const
@@ -250,12 +251,80 @@ struct EDGUICreatePickButton : EDGUIPropRsrc
 };
 
 
-struct EDGUIImgFilter_Resize : EDGUILayoutRow
+struct EDGUIImgFilterBase : EDGUILayoutRow
+{
+	EDGUIImgFilterBase( SGRX_ImageFilter* iflt, bool addCMF = false ) :
+		m_blend( 1, 3, 0, 1 ),
+		m_cclamp( true ),
+		m_applyR( true ),
+		m_applyG( true ),
+		m_applyB( true ),
+		m_applyA( true ),
+		m_hfilter( iflt )
+	{
+		if( addCMF )
+			AddCMFFields();
+	}
+	
+	void AddCMFFields()
+	{
+		m_blend.caption = "Blend factor";
+		m_cclamp.caption = "Clamp colors?";
+		m_applyR.caption = "Apply to R?";
+		m_applyG.caption = "Apply to G?";
+		m_applyB.caption = "Apply to B?";
+		m_applyA.caption = "Apply to A?";
+		
+		m_blend.SetValue( m_hfilter->blend );
+		m_cclamp.SetValue( m_hfilter->cclamp );
+		m_applyR.SetValue( ( m_hfilter->colors & 0x1 ) != 0 );
+		m_applyG.SetValue( ( m_hfilter->colors & 0x2 ) != 0 );
+		m_applyB.SetValue( ( m_hfilter->colors & 0x4 ) != 0 );
+		m_applyA.SetValue( ( m_hfilter->colors & 0x8 ) != 0 );
+		
+		Add( &m_blend );
+		Add( &m_cclamp );
+		Add( &m_applyR );
+		Add( &m_applyG );
+		Add( &m_applyB );
+		Add( &m_applyA );
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_hfilter )
+		{
+			SGRX_ImageFilter* F = m_hfilter;
+			switch( e->type )
+			{
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_blend ){ F->blend = m_blend.m_value; }
+				if( e->target == &m_cclamp ){ F->cclamp = m_cclamp.m_value; }
+				if( e->target == &m_applyR ){ SGRX_SET_FLAG( F->colors, 0x1, m_applyR.m_value ); }
+				if( e->target == &m_applyG ){ SGRX_SET_FLAG( F->colors, 0x2, m_applyG.m_value ); }
+				if( e->target == &m_applyB ){ SGRX_SET_FLAG( F->colors, 0x4, m_applyB.m_value ); }
+				if( e->target == &m_applyA ){ SGRX_SET_FLAG( F->colors, 0x8, m_applyA.m_value ); }
+				break;
+			}
+		}
+		return EDGUILayoutRow::OnEvent( e );
+	}
+	
+	EDGUIPropFloat m_blend;
+	EDGUIPropBool m_cclamp;
+	EDGUIPropBool m_applyR;
+	EDGUIPropBool m_applyG;
+	EDGUIPropBool m_applyB;
+	EDGUIPropBool m_applyA;
+	SGRX_ImgFilterHandle m_hfilter;
+};
+
+struct EDGUIImgFilter_Resize : EDGUIImgFilterBase
 {
 	EDGUIImgFilter_Resize( SGRX_ImageFilter* iflt ) :
+		EDGUIImgFilterBase( iflt ),
 		m_width( 256, 1, 4096 ),
-		m_height( 256, 1, 4096 ),
-		m_hfilter( iflt )
+		m_height( 256, 1, 4096 )
 	{
 		SGRX_ImageFilter_Resize* F = iflt->upcast<SGRX_ImageFilter_Resize>();
 		m_width.SetValue( F->width );
@@ -281,20 +350,19 @@ struct EDGUIImgFilter_Resize : EDGUILayoutRow
 				break;
 			}
 		}
-		return EDGUILayoutRow::OnEvent( e );
+		return EDGUIImgFilterBase::OnEvent( e );
 	}
 	
 	EDGUIPropInt m_width;
 	EDGUIPropInt m_height;
-	SGRX_ImgFilterHandle m_hfilter;
 };
 
-struct EDGUIImgFilter_Sharpen : EDGUILayoutRow
+struct EDGUIImgFilter_Sharpen : EDGUIImgFilterBase
 {
 	EDGUIImgFilter_Sharpen( SGRX_ImageFilter* iflt ) :
+		EDGUIImgFilterBase( iflt ),
 		m_factor( 1, 2, 0, 100 ),
-		m_mode( &g_UIPickers->sharpenMode ),
-		m_hfilter( iflt )
+		m_mode( &g_UIPickers->sharpenMode )
 	{
 		SGRX_ImageFilter_Sharpen* F = iflt->upcast<SGRX_ImageFilter_Sharpen>();
 		m_factor.SetValue( F->factor );
@@ -305,6 +373,8 @@ struct EDGUIImgFilter_Sharpen : EDGUILayoutRow
 		
 		Add( &m_factor );
 		Add( &m_mode );
+		
+		AddCMFFields();
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -320,20 +390,19 @@ struct EDGUIImgFilter_Sharpen : EDGUILayoutRow
 				break;
 			}
 		}
-		return EDGUILayoutRow::OnEvent( e );
+		return EDGUIImgFilterBase::OnEvent( e );
 	}
 	
 	EDGUIPropFloat m_factor;
 	EDGUIPropRsrc m_mode;
-	SGRX_ImgFilterHandle m_hfilter;
 };
 
-struct EDGUIImgFilter_ExpandRange : EDGUILayoutRow
+struct EDGUIImgFilter_ExpandRange : EDGUIImgFilterBase
 {
 	EDGUIImgFilter_ExpandRange( SGRX_ImageFilter* iflt ) :
+		EDGUIImgFilterBase( iflt ),
 		m_vmin( V4(0), 3, V4(0), V4(1) ),
-		m_vmax( V4(0,0,1,1), 3, V4(0), V4(1) ),
-		m_hfilter( iflt )
+		m_vmax( V4(0,0,1,1), 3, V4(0), V4(1) )
 	{
 		SGRX_ImageFilter_ExpandRange* F = iflt->upcast<SGRX_ImageFilter_ExpandRange>();
 		m_vmin.SetValue( F->vmin );
@@ -344,6 +413,8 @@ struct EDGUIImgFilter_ExpandRange : EDGUILayoutRow
 		
 		Add( &m_vmin );
 		Add( &m_vmax );
+		
+		AddCMFFields();
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -359,16 +430,88 @@ struct EDGUIImgFilter_ExpandRange : EDGUILayoutRow
 				break;
 			}
 		}
-		return EDGUILayoutRow::OnEvent( e );
+		return EDGUIImgFilterBase::OnEvent( e );
 	}
 	
 	EDGUIPropVec4 m_vmin;
 	EDGUIPropVec4 m_vmax;
-	SGRX_ImgFilterHandle m_hfilter;
 };
 
-struct EDGUIImgFilter_PropertyLess : EDGUILayoutRow
+struct EDGUIImgFilter_BCP : EDGUIImgFilterBase
 {
+	EDGUIImgFilter_BCP( SGRX_ImageFilter* iflt ) :
+		EDGUIImgFilterBase( iflt ),
+		m_apply_bc1( true ),
+		m_brightness( 0, 2, -100, 100 ),
+		m_contrast( 1, 2, -100, 100 ),
+		m_apply_pow( false ),
+		m_power( 1, 2, 0.01f, 100 ),
+		m_apply_bc2( false ),
+		m_brightness_2( 0, 2, -100, 100 ),
+		m_contrast_2( 1, 2, -100, 100 )
+	{
+		SGRX_ImageFilter_BCP* F = iflt->upcast<SGRX_ImageFilter_BCP>();
+		
+		m_apply_bc1.SetValue( F->apply_bc1 );
+		m_brightness.SetValue( F->brightness );
+		m_contrast.SetValue( F->contrast );
+		m_apply_pow.SetValue( F->apply_pow );
+		m_power.SetValue( F->power );
+		m_apply_bc2.SetValue( F->apply_bc2 );
+		m_brightness_2.SetValue( F->brightness_2 );
+		m_contrast_2.SetValue( F->contrast_2 );
+		
+		m_apply_bc1.caption = "Apply brightness/contrast-1";
+		m_brightness.caption = "Brightness [1]";
+		m_contrast.caption = "Contrast [1]";
+		m_apply_pow.caption = "Apply power";
+		m_power.caption = "Power";
+		m_apply_bc2.caption = "Apply brightness/contrast-2";
+		m_brightness_2.caption = "Brightness [2]";
+		m_contrast_2.caption = "Contrast [2]";
+		
+		Add( &m_apply_bc1 );
+		Add( &m_brightness );
+		Add( &m_contrast );
+		Add( &m_apply_pow );
+		Add( &m_power );
+		Add( &m_apply_bc2 );
+		Add( &m_brightness_2 );
+		Add( &m_contrast_2 );
+		
+		AddCMFFields();
+	}
+	
+	virtual int OnEvent( EDGUIEvent* e )
+	{
+		if( m_hfilter )
+		{
+			SGRX_ImageFilter_BCP* F = m_hfilter->upcast<SGRX_ImageFilter_BCP>();
+			switch( e->type )
+			{
+			case EDGUI_EVENT_PROPEDIT:
+				if( e->target == &m_apply_bc1 ) F->apply_bc1 = m_apply_bc1.m_value;
+				if( e->target == &m_brightness ) F->brightness = m_brightness.m_value;
+				if( e->target == &m_contrast ) F->contrast = m_contrast.m_value;
+				if( e->target == &m_apply_pow ) F->apply_pow = m_apply_pow.m_value;
+				if( e->target == &m_power ) F->power = m_power.m_value;
+				if( e->target == &m_apply_bc2 ) F->apply_bc2 = m_apply_bc2.m_value;
+				if( e->target == &m_brightness_2 ) F->brightness_2 = m_brightness_2.m_value;
+				if( e->target == &m_contrast_2 ) F->contrast_2 = m_contrast_2.m_value;
+				break;
+			}
+		}
+		return EDGUIImgFilterBase::OnEvent( e );
+	}
+	
+	EDGUIPropBool m_apply_bc1;
+	EDGUIPropFloat m_brightness;
+	EDGUIPropFloat m_contrast;
+	EDGUIPropBool m_apply_pow;
+	EDGUIPropFloat m_power;
+	EDGUIPropBool m_apply_bc2;
+	EDGUIPropFloat m_brightness_2;
+	EDGUIPropFloat m_contrast_2;
 };
 
 
@@ -489,9 +632,10 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		{
 		case SGRX_AIF_Resize: newflt = new EDGUIImgFilter_Resize( IF ); break;
 		case SGRX_AIF_Sharpen: newflt = new EDGUIImgFilter_Sharpen( IF ); break;
-		case SGRX_AIF_ToLinear: newflt = new EDGUIImgFilter_PropertyLess(); break;
-		case SGRX_AIF_FromLinear: newflt = new EDGUIImgFilter_PropertyLess(); break;
+		case SGRX_AIF_ToLinear: newflt = new EDGUIImgFilterBase( IF, true ); break;
+		case SGRX_AIF_FromLinear: newflt = new EDGUIImgFilterBase( IF, true ); break;
 		case SGRX_AIF_ExpandRange: newflt = new EDGUIImgFilter_ExpandRange( IF ); break;
+		case SGRX_AIF_BCP: newflt = new EDGUIImgFilter_BCP( IF ); break;
 		default: break;
 		}
 		if( newflt )
@@ -539,6 +683,7 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 					case SGRX_AIF_ToLinear: IF = new SGRX_ImageFilter_Linear( false ); break;
 					case SGRX_AIF_FromLinear: IF = new SGRX_ImageFilter_Linear( true ); break;
 					case SGRX_AIF_ExpandRange: IF = new SGRX_ImageFilter_ExpandRange; break;
+					case SGRX_AIF_BCP: IF = new SGRX_ImageFilter_BCP; break;
 					default: break;
 					}
 					if( IF )

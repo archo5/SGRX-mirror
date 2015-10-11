@@ -46,6 +46,7 @@ static const char* assetimgfiltype_string_table[] =
 	"to_linear",
 	"from_linear",
 	"expand_range",
+	"bcp",
 };
 
 const char* SGRX_AssetImgFilterType_ToString( SGRX_AssetImageFilterType aift )
@@ -64,6 +65,60 @@ SGRX_AssetImageFilterType SGRX_AssetImgFilterType_FromString( const StringView& 
 			return (SGRX_AssetImageFilterType) i;
 	}
 	return SGRX_AIF_Unknown;
+}
+
+bool SGRX_ImageFilter::ParseCMFParam( StringView key, StringView value )
+{
+	if( key == "CMF_COLORS" )
+	{
+		colors = String_ParseInt( value ) & 0xf;
+		return true;
+	}
+	if( key == "CMF_BLEND" )
+	{
+		blend = String_ParseFloat( value );
+		return true;
+	}
+	if( key == "CMF_CLAMP" )
+	{
+		cclamp = String_ParseBool( value );
+		return true;
+	}
+	return false;
+}
+
+void SGRX_ImageFilter::GenerateCMFParams( String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256,
+		"  CMF_BLEND %g\n"
+		"  CMF_CLAMP %s\n"
+		"  CMF_COLORS 0x%x\n",
+		blend, cclamp ? "true" : "false", int(colors) );
+	out.append( bfr );
+}
+
+void SGRX_ImageFilter::CMFBlend( SGRX_ImageFP32* src, SGRX_ImageFP32* dst )
+{
+	if( src->GetWidth() != dst->GetWidth() || src->GetHeight() != dst->GetHeight() )
+		return;
+	for( size_t i = 0; i < src->Size(); ++i )
+	{
+		Vec4 srccol = (*src)[ i ];
+		Vec4& dstcol = (*dst)[ i ];
+		dstcol = TLERP( srccol, dstcol, blend );
+		if( cclamp )
+		{
+			dstcol.x = clamp( dstcol.x, 0, 1 );
+			dstcol.y = clamp( dstcol.y, 0, 1 );
+			dstcol.z = clamp( dstcol.z, 0, 1 );
+			dstcol.w = clamp( dstcol.w, 0, 1 );
+		}
+		if( ~colors & 0x1 ) dstcol.x = srccol.x;
+		if( ~colors & 0x2 ) dstcol.y = srccol.y;
+		if( ~colors & 0x4 ) dstcol.z = srccol.z;
+		if( ~colors & 0x8 ) dstcol.w = srccol.w;
+	}
 }
 
 bool SGRX_ImageFilter_Resize::Parse( ConfigReader& cread )
@@ -138,6 +193,8 @@ bool SGRX_ImageFilter_Sharpen::Parse( ConfigReader& cread )
 			mode = SGRX_ImgFltSharpen_FromString( value );
 		else if( key == "FILTER_END" )
 			return true;
+		else if( ParseCMFParam( key, value ) )
+			continue;
 		else
 		{
 			LOG_ERROR << "Unrecognized AssetScript/ImgFilter(resize) command: " << key << "=" << value;
@@ -157,6 +214,7 @@ void SGRX_ImageFilter_Sharpen::Generate( String& out )
 		factor,
 		SGRX_ImgFltSharpen_ToString( mode ) );
 	out.append( bfr );
+	GenerateCMFParams( out );
 }
 
 template< int w, int h >
@@ -206,7 +264,9 @@ SGRX_IFP32Handle SGRX_ImageFilter_Sharpen::Process( SGRX_ImageFP32* image, SGRX_
 		b, c, b,
 		a, b, a,
 	};
-	return SGRX_ImageConvolutionFilter<3,3>( image, filter );
+	SGRX_IFP32Handle dst = SGRX_ImageConvolutionFilter<3,3>( image, filter );
+	CMFBlend( image, dst );
+	return dst;
 }
 
 bool SGRX_ImageFilter_Linear::Parse( ConfigReader& cread )
@@ -216,6 +276,8 @@ bool SGRX_ImageFilter_Linear::Parse( ConfigReader& cread )
 	{
 		if( key == "FILTER_END" )
 			return true;
+		else if( ParseCMFParam( key, value ) )
+			continue;
 		else
 		{
 			LOG_ERROR << "Unrecognized AssetScript/ImgFilter(resize) command: " << key << "=" << value;
@@ -229,6 +291,7 @@ bool SGRX_ImageFilter_Linear::Parse( ConfigReader& cread )
 
 void SGRX_ImageFilter_Linear::Generate( String& out )
 {
+	GenerateCMFParams( out );
 }
 
 SGRX_IFP32Handle SGRX_ImageFilter_Linear::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
@@ -248,6 +311,7 @@ SGRX_IFP32Handle SGRX_ImageFilter_Linear::Process( SGRX_ImageFP32* image, SGRX_I
 		};
 		(*out)[ i ] = col;
 	}
+	CMFBlend( image, out );
 	return out;
 }
 
@@ -263,6 +327,8 @@ bool SGRX_ImageFilter_ExpandRange::Parse( ConfigReader& cread )
 			vmax = String_ParseVec4( value );
 		else if( key == "FILTER_END" )
 			return true;
+		else if( ParseCMFParam( key, value ) )
+			continue;
 		else
 		{
 			LOG_ERROR << "Unrecognized AssetScript/ImgFilter(expand_range) command: " << key << "=" << value;
@@ -282,6 +348,7 @@ void SGRX_ImageFilter_ExpandRange::Generate( String& out )
 		vmin.x, vmin.y, vmin.z, vmin.w,
 		vmax.x, vmax.y, vmax.z, vmax.w );
 	out.append( bfr );
+	GenerateCMFParams( out );
 }
 
 SGRX_IFP32Handle SGRX_ImageFilter_ExpandRange::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
@@ -296,13 +363,102 @@ SGRX_IFP32Handle SGRX_ImageFilter_ExpandRange::Process( SGRX_ImageFP32* image, S
 	{
 		Vec4 col =
 		{
-			clamp( ( (*image)[ i ].x - cmin.x ) / diff.x, 0, 1 ),
-			clamp( ( (*image)[ i ].y - cmin.y ) / diff.y, 0, 1 ),
-			clamp( ( (*image)[ i ].z - cmin.z ) / diff.z, 0, 1 ),
-			clamp( ( (*image)[ i ].w - cmin.w ) / diff.w, 0, 1 ),
+			( (*image)[ i ].x - cmin.x ) / diff.x,
+			( (*image)[ i ].y - cmin.y ) / diff.y,
+			( (*image)[ i ].z - cmin.z ) / diff.z,
+			( (*image)[ i ].w - cmin.w ) / diff.w,
 		};
 		(*out)[ i ] = col;
 	}
+	CMFBlend( image, out );
+	return out;
+}
+
+
+bool SGRX_ImageFilter_BCP::Parse( ConfigReader& cread )
+{
+	StringView key, value;
+	while( cread.Read( key, value ) )
+	{
+		if( key == "APPLY_BC1" )
+			apply_bc1 = String_ParseBool( value );
+		else if( key == "BRIGHTNESS" )
+			brightness = String_ParseFloat( value );
+		else if( key == "CONTRAST" )
+			contrast = String_ParseFloat( value );
+		else if( key == "APPLY_POW" )
+			apply_pow = String_ParseBool( value );
+		else if( key == "POWER" )
+			power = String_ParseFloat( value );
+		else if( key == "APPLY_BC2" )
+			apply_bc1 = String_ParseBool( value );
+		else if( key == "BRIGHTNESS_2" )
+			brightness_2 = String_ParseFloat( value );
+		else if( key == "CONTRAST_2" )
+			contrast_2 = String_ParseFloat( value );
+		else if( key == "FILTER_END" )
+			return true;
+		else if( ParseCMFParam( key, value ) )
+			continue;
+		else
+		{
+			LOG_ERROR << "Unrecognized AssetScript/ImgFilter(expand_range) command: " << key << "=" << value;
+			return false;
+		}
+	}
+	LOG_ERROR << "Incomplete AssetScript/ImgFilter(expand_range) data";
+	return false;
+}
+
+void SGRX_ImageFilter_BCP::Generate( String& out )
+{
+	char bfr[ 4096 ];
+	sgrx_snprintf( bfr, 4096,
+		"  APPLY_BC1 %s\n"
+		"  BRIGHTNESS %g\n"
+		"  CONTRAST %g\n"
+		"  APPLY_POW %s\n"
+		"  POWER %g\n"
+		"  APPLY_BC2 %s\n"
+		"  BRIGHTNESS_2 %g\n"
+		"  CONTRAST_2 %g\n",
+		apply_bc1 ? "true" : "false", brightness, contrast,
+		apply_pow ? "true" : "false", power,
+		apply_bc2 ? "true" : "false", brightness_2, contrast_2 );
+	out.append( bfr );
+	GenerateCMFParams( out );
+}
+
+SGRX_IFP32Handle SGRX_ImageFilter_BCP::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
+{
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	for( size_t i = 0; i < image->Size(); ++i )
+		(*out)[ i ] = (*image)[ i ];
+	if( apply_bc1 )
+	{
+		for( size_t i = 0; i < image->Size(); ++i )
+			(*out)[ i ] = (*out)[ i ] * V4(contrast) + V4(brightness);
+	}
+	if( apply_pow )
+	{
+		for( size_t i = 0; i < image->Size(); ++i )
+		{
+			Vec4 col = (*out)[ i ];
+			(*out)[ i ] = V4
+			(
+				pow( fabsf( col.x ), power ) * sign( col.x ),
+				pow( fabsf( col.y ), power ) * sign( col.y ),
+				pow( fabsf( col.z ), power ) * sign( col.z ),
+				pow( fabsf( col.w ), power ) * sign( col.w )
+			);
+		}
+	}
+	if( apply_bc2 )
+	{
+		for( size_t i = 0; i < image->Size(); ++i )
+			(*out)[ i ] = (*out)[ i ] * V4(contrast_2) + V4(brightness_2);
+	}
+	CMFBlend( image, out );
 	return out;
 }
 
@@ -393,6 +549,8 @@ bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 				IF = new SGRX_ImageFilter_Linear( true );
 			else if( value == "expand_range" )
 				IF = new SGRX_ImageFilter_ExpandRange;
+			else if( value == "bcp" )
+				IF = new SGRX_ImageFilter_BCP;
 			else
 			{
 				LOG_ERROR << "Unrecognized ImgFilter: " << value;
@@ -1208,6 +1366,19 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 {
 	puts( "processing assets...");
 	
+	puts( "- category folders...");
+	for( size_t cid = 0; cid < script.categories.size(); ++cid )
+	{
+		StringView dir = script.categories.item( cid ).value;
+		size_t slashpos = dir.find_first_at( "/" );
+		while( slashpos != NOT_FOUND )
+		{
+			FS_DirCreate( dir.part( 0, slashpos ) );
+			slashpos = dir.find_first_at( "/", slashpos + 1 );
+		}
+		FS_DirCreate( dir );
+	}
+	
 	puts( "- textures...");
 	for( size_t tid = 0; tid < script.textureAssets.size(); ++tid )
 	{
@@ -1244,7 +1415,7 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 		
 		StringView catPath = script.categories.getcopy( MA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, "%s/%s",
+		sgrx_snprintf( bfr, 520, "%s/%s.ssm",
 			StackString<256>(catPath).str,
 			StackString<256>(MA.outputName).str );
 		if( FS_SaveBinaryFile( bfr, data.data(), data.size() ) )

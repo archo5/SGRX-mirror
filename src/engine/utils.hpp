@@ -2430,8 +2430,9 @@ struct ByteWriter
 	FINLINE ByteWriter& operator << ( float& v ){ _write( &v, sizeof(v) ); return *this; }
 	FINLINE ByteWriter& operator << ( double& v ){ _write( &v, sizeof(v) ); return *this; }
 	template< class T > ByteWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
-	FINLINE ByteWriter& memory( void* ptr, size_t sz ){ return _write( ptr, sz ); }
-	FINLINE ByteWriter& charbuf( char* ptr, size_t sz ){ return _write( ptr, sz ); }
+	template< class T > FINLINE ByteWriter& write( T v ){ (*this) << v; return *this; }
+	FINLINE ByteWriter& memory( const void* ptr, size_t sz ){ return _write( ptr, sz ); }
+	FINLINE ByteWriter& charbuf( const char* ptr, size_t sz ){ return _write( ptr, sz ); }
 	FINLINE ByteWriter& marker( const char* str ){ return marker( str, StringLength( str ) ); }
 	FINLINE ByteWriter& marker( const void* ptr, size_t sz ){ output->append( (uint8_t*) ptr, sz ); return *this; }
 	FINLINE ByteWriter& padding( size_t sz ){ output->reserve( output->size() + sz ); while( sz --> 0 ) output->push_back( 0 ); return *this; }
