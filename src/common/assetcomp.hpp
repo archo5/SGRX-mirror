@@ -94,7 +94,7 @@ typedef Handle< SGRX_ImageFilter > SGRX_ImgFilterHandle;
 
 struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 {
-	SGRX_ImageFilter_Resize() : width(256), height(256){}
+	SGRX_ImageFilter_Resize() : width(256), height(256), srgb(false){}
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Resize; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Resize; }
 	const char* GetName() const { return "resize"; }
@@ -104,6 +104,7 @@ struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 	
 	int width;
 	int height;
+	bool srgb;
 };
 
 enum SGRX_ImgFltSharpen_Mode
@@ -207,6 +208,7 @@ struct SGRX_TextureAsset
 	SGRX_TextureAsset();
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
+	void GetFullName( String& out );
 	void GetDesc( String& out );
 	
 	String sourceFile;
@@ -241,6 +243,7 @@ struct SGRX_MeshAsset
 {
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
+	void GetFullName( String& out );
 	void GetDesc( String& out );
 	
 	String sourceFile;

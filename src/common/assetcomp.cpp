@@ -38,6 +38,23 @@ SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height 
 	return out;
 }
 
+SGRX_IFP32Handle SGRX_ImagePower( SGRX_ImageFP32* image, float power )
+{
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	for( size_t i = 0; i < image->Size(); ++i )
+	{
+		Vec4 col =
+		{
+			powf( (*image)[ i ].x, power ),
+			powf( (*image)[ i ].y, power ),
+			powf( (*image)[ i ].z, power ),
+			powf( (*image)[ i ].w, power ),
+		};
+		(*out)[ i ] = col;
+	}
+	return out;
+}
+
 
 static const char* assetimgfiltype_string_table[] =
 {
@@ -130,6 +147,8 @@ bool SGRX_ImageFilter_Resize::Parse( ConfigReader& cread )
 			width = String_ParseInt( value );
 		else if( key == "HEIGHT" )
 			height = String_ParseInt( value );
+		else if( key == "SRGB" )
+			srgb = String_ParseBool( value );
 		else if( key == "FILTER_END" )
 			return true;
 		else
@@ -147,14 +166,21 @@ void SGRX_ImageFilter_Resize::Generate( String& out )
 	char bfr[ 128 ];
 	sgrx_snprintf( bfr, 128,
 		"  WIDTH %d\n"
-		"  HEIGHT %d\n",
-		width, height );
+		"  HEIGHT %d\n"
+		"  SRGB %s\n",
+		width, height, srgb ? "true" : "false" );
 	out.append( bfr );
 }
 
 SGRX_IFP32Handle SGRX_ImageFilter_Resize::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
 {
-	return SGRX_ResizeImage( image, width, height );
+	SGRX_IFP32Handle out = image;
+	if( srgb )
+		out = SGRX_ImagePower( out, 2.2f );
+	out = SGRX_ResizeImage( out, width, height );
+	if( srgb )
+		out = SGRX_ImagePower( out, 1.0f / 2.2f );
+	return out;
 }
 
 static const char* imgfltsharpen_string_table[] =
@@ -298,19 +324,7 @@ SGRX_IFP32Handle SGRX_ImageFilter_Linear::Process( SGRX_ImageFP32* image, SGRX_I
 {
 	if( ifs.isSRGB == false )
 		return image;
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
-	float factor = inverse ? 1.0f / 2.2f : 2.2f;
-	for( size_t i = 0; i < image->Size(); ++i )
-	{
-		Vec4 col =
-		{
-			powf( (*image)[ i ].x, factor ),
-			powf( (*image)[ i ].y, factor ),
-			powf( (*image)[ i ].z, factor ),
-			powf( (*image)[ i ].w, factor ),
-		};
-		(*out)[ i ] = col;
-	}
+	SGRX_IFP32Handle out = SGRX_ImagePower( image, inverse ? 1.0f / 2.2f : 2.2f );
 	CMFBlend( image, out );
 	return out;
 }
@@ -596,6 +610,15 @@ void SGRX_TextureAsset::Generate( String& out )
 	out.append( "TEXTURE_END\n" );
 }
 
+void SGRX_TextureAsset::GetFullName( String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s",
+		StackString<100>(outputCategory).str,
+		StackString<100>(outputName).str );
+	out = bfr;
+}
+
 void SGRX_TextureAsset::GetDesc( String& out )
 {
 	char bfr[ 256 ];
@@ -715,6 +738,15 @@ void SGRX_MeshAsset::Generate( String& out )
 	for( size_t i = 0; i < parts.size(); ++i )
 		parts[ i ]->Generate( out );
 	out.append( "MESH_END\n" );
+}
+
+void SGRX_MeshAsset::GetFullName( String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s",
+		StackString<100>(outputCategory).str,
+		StackString<100>(outputName).str );
+	out = bfr;
 }
 
 void SGRX_MeshAsset::GetDesc( String& out )

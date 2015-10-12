@@ -1104,11 +1104,11 @@ void EDGUIBtnList::SetHighlight( int hl )
 	{
 		SetSubitemLayout( m_subitems[ i ], x0, cy0, x1, cy0 + EDGUI_THEME_BUTTON_HEIGHT );
 		m_subitems[ i ]->SetCaption( hl >= 0 ? m_options[ hl ] : "" );
-		_RecursiveSetID2( m_subitems[ i ], hl );
+		_RecursiveSetID2( m_subitems[ i ], m_idTable.size() && hl >= 0 ? m_idTable[ hl ] : hl );
 	}
 }
 
-void EDGUIBtnList::_RecursiveSetID2( EDGUIItem* item, int val )
+void EDGUIBtnList::_RecursiveSetID2( EDGUIItem* item, uint32_t val )
 {
 	item->id2 = val;
 	for( size_t i = 0; i < item->m_subitems.size(); ++i )

@@ -311,10 +311,11 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIBtnList : EDGUIItem
 	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	ENGINE_EXPORT void UpdateOptions();
 	ENGINE_EXPORT void SetHighlight( int hl );
-	ENGINE_EXPORT void _RecursiveSetID2( EDGUIItem* item, int val );
+	ENGINE_EXPORT void _RecursiveSetID2( EDGUIItem* item, uint32_t val );
 	
 	int m_highlight;
 	Array< String > m_options;
+	Array< uint32_t > m_idTable;
 };
 
 

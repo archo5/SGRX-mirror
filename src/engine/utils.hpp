@@ -1621,7 +1621,7 @@ struct String : Array< char >
 	}
 };
 
-struct StringView
+struct IF_GCC(ENGINE_EXPORT) StringView
 {
 	const char* m_str;
 	size_t m_size;
@@ -1803,8 +1803,8 @@ struct StringView
 		rtrim( chars );
 	}
 	
-	bool match_loose( const StringView& substr );
-	bool match( const StringView& regex );
+	ENGINE_EXPORT bool match_loose( const StringView& substr );
+	ENGINE_EXPORT bool match( const StringView& regex );
 	
 	FINLINE operator String () const { return String( m_str, m_size ); }
 };

@@ -324,17 +324,21 @@ struct EDGUIImgFilter_Resize : EDGUIImgFilterBase
 	EDGUIImgFilter_Resize( SGRX_ImageFilter* iflt ) :
 		EDGUIImgFilterBase( iflt ),
 		m_width( 256, 1, 4096 ),
-		m_height( 256, 1, 4096 )
+		m_height( 256, 1, 4096 ),
+		m_srgb( false )
 	{
 		SGRX_ImageFilter_Resize* F = iflt->upcast<SGRX_ImageFilter_Resize>();
 		m_width.SetValue( F->width );
 		m_height.SetValue( F->height );
+		m_srgb.SetValue( F->srgb );
 		
 		m_width.caption = "Width";
 		m_height.caption = "Height";
+		m_srgb.caption = "SRGB?";
 		
 		Add( &m_width );
 		Add( &m_height );
+		Add( &m_srgb );
 	}
 	
 	virtual int OnEvent( EDGUIEvent* e )
@@ -347,6 +351,7 @@ struct EDGUIImgFilter_Resize : EDGUIImgFilterBase
 			case EDGUI_EVENT_PROPEDIT:
 				if( e->target == &m_width ) F->width = m_width.m_value;
 				if( e->target == &m_height ) F->height = m_height.m_value;
+				if( e->target == &m_srgb ) F->srgb = m_srgb.m_value;
 				break;
 			}
 		}
@@ -355,6 +360,7 @@ struct EDGUIImgFilter_Resize : EDGUIImgFilterBase
 	
 	EDGUIPropInt m_width;
 	EDGUIPropInt m_height;
+	EDGUIPropBool m_srgb;
 };
 
 struct EDGUIImgFilter_Sharpen : EDGUIImgFilterBase
@@ -519,6 +525,8 @@ void FC_SetTexture( TextureHandle tex );
 void FC_SetMesh( MeshHandle mesh );
 void FC_EditTexture( size_t id );
 void FC_EditTextureList();
+void FC_EditMesh( size_t id );
+void FC_EditMeshList();
 
 struct EDGUIAssetTexture : EDGUILayoutRow
 {
@@ -791,19 +799,31 @@ struct EDGUIAssetTextureList : EDGUILayoutRow
 		m_editButton( false )
 	{
 		m_btnAdd.caption = "Add texture";
+		m_filter.caption = "Filter";
 		
 		m_buttons.Add( &m_editButton );
 		m_group.Add( &m_buttons );
 		Add( &m_btnAdd );
+		Add( &m_filter );
 		Add( &m_group );
 	}
 	
 	void Prepare()
 	{
-		m_buttons.m_options.resize( g_EdAS->textureAssets.size() );
+		m_buttons.m_options.clear();
+		m_buttons.m_idTable.clear();
+		m_buttons.m_options.reserve( g_EdAS->textureAssets.size() );
+		m_buttons.m_idTable.reserve( g_EdAS->textureAssets.size() );
 		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
 		{
-			g_EdAS->textureAssets[ i ].GetDesc( m_buttons.m_options[ i ] );
+			String name;
+			g_EdAS->textureAssets[ i ].GetFullName( name );
+			if( StringView(name).match_loose( m_filter.m_value ) )
+			{
+				g_EdAS->textureAssets[ i ].GetDesc( name );
+				m_buttons.m_options.push_back( name );
+				m_buttons.m_idTable.push_back( i );
+			}
 		}
 		m_buttons.UpdateOptions();
 	}
@@ -812,6 +832,12 @@ struct EDGUIAssetTextureList : EDGUILayoutRow
 	{
 		switch( e->type )
 		{
+		case EDGUI_EVENT_PROPEDIT:
+			if( e->target == &m_filter )
+			{
+				Prepare();
+			}
+			break;
 		case EDGUI_EVENT_BTNCLICK:
 			if( e->target == &m_btnAdd )
 			{
@@ -837,6 +863,7 @@ struct EDGUIAssetTextureList : EDGUILayoutRow
 	
 	EDGUIGroup m_group;
 	EDGUIButton m_btnAdd;
+	EDGUIPropString m_filter;
 	EDGUIBtnList m_buttons;
 	EDGUIListItemButton m_editButton;
 };
@@ -867,6 +894,12 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_pid( NOT_FOUND )
 	{
 		m_outputCategory.m_requestReload = true;
+		
+		m_btnDuplicate.caption = "Duplicate";
+		m_btnDelete.caption = "Delete";
+		
+		m_topCol.Add( &m_btnDuplicate );
+		m_topCol.Add( &m_btnDelete );
 		
 		m_sourceFile.caption = "Source file";
 		m_outputCategory.caption = "Output category";
@@ -917,6 +950,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPart.Add( &m_MPmtlDecal );
 		m_MPart.Add( &m_MPmtlBlendMode );
 		
+		Add( &m_topCol );
 		Add( &m_group );
 		Add( &m_MPgroup );
 		Add( &m_MPLgroup );
@@ -1037,6 +1071,22 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 				if( e->target == &m_sourceFile ){ ReloadImpScene(); }
 				break;
 			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btnDuplicate )
+				{
+					SGRX_MeshAsset MAcopy = g_EdAS->meshAssets[ m_mid ];
+					m_mid = g_EdAS->meshAssets.size();
+					MAcopy.outputName.append( " - Copy" );
+					g_EdAS->meshAssets.push_back( MAcopy );
+					Prepare( m_mid );
+					return 1;
+				}
+				if( e->target == &m_btnDelete )
+				{
+					g_EdAS->meshAssets.erase( m_mid );
+					m_mid = NOT_FOUND;
+					FC_EditMeshList();
+					return 1;
+				}
 				if( e->target == &m_MPLBtnAdd )
 				{
 					MA.parts.push_back( new SGRX_MeshAssetPart );
@@ -1079,6 +1129,9 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		return EDGUILayoutRow::OnEvent( e );
 	}
 	
+	EDGUILayoutColumn m_topCol;
+	EDGUIButton m_btnDuplicate;
+	EDGUIButton m_btnDelete;
 	EDGUIGroup m_group;
 	EDGUIPropRsrc m_sourceFile;
 	EDGUIPropRsrc m_outputCategory;
@@ -1110,9 +1163,6 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	ImpScene3DHandle m_scene;
 };
 
-void FC_EditMesh( size_t id );
-void FC_EditMeshList();
-
 struct EDGUIAssetMeshList : EDGUILayoutRow
 {
 	EDGUIAssetMeshList() :
@@ -1120,19 +1170,31 @@ struct EDGUIAssetMeshList : EDGUILayoutRow
 		m_editButton( false )
 	{
 		m_btnAdd.caption = "Add mesh";
+		m_filter.caption = "Filter";
 		
 		m_buttons.Add( &m_editButton );
 		m_group.Add( &m_buttons );
 		Add( &m_btnAdd );
+		Add( &m_filter );
 		Add( &m_group );
 	}
 	
 	void Prepare()
 	{
-		m_buttons.m_options.resize( g_EdAS->meshAssets.size() );
+		m_buttons.m_options.clear();
+		m_buttons.m_idTable.clear();
+		m_buttons.m_options.reserve( g_EdAS->meshAssets.size() );
+		m_buttons.m_idTable.reserve( g_EdAS->meshAssets.size() );
 		for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
 		{
-			g_EdAS->meshAssets[ i ].GetDesc( m_buttons.m_options[ i ] );
+			String name;
+			g_EdAS->meshAssets[ i ].GetFullName( name );
+			if( StringView(name).match_loose( m_filter.m_value ) )
+			{
+				g_EdAS->meshAssets[ i ].GetDesc( name );
+				m_buttons.m_options.push_back( name );
+				m_buttons.m_idTable.push_back( i );
+			}
 		}
 		m_buttons.UpdateOptions();
 	}
@@ -1141,6 +1203,12 @@ struct EDGUIAssetMeshList : EDGUILayoutRow
 	{
 		switch( e->type )
 		{
+		case EDGUI_EVENT_PROPEDIT:
+			if( e->target == &m_filter )
+			{
+				Prepare();
+			}
+			break;
 		case EDGUI_EVENT_BTNCLICK:
 			if( e->target == &m_btnAdd )
 			{
@@ -1166,6 +1234,7 @@ struct EDGUIAssetMeshList : EDGUILayoutRow
 	
 	EDGUIGroup m_group;
 	EDGUIButton m_btnAdd;
+	EDGUIPropString m_filter;
 	EDGUIBtnList m_buttons;
 	EDGUIListItemButton m_editButton;
 };
