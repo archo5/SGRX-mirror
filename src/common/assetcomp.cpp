@@ -391,7 +391,7 @@ bool SGRX_ImageFilter_BCP::Parse( ConfigReader& cread )
 		else if( key == "POWER" )
 			power = String_ParseFloat( value );
 		else if( key == "APPLY_BC2" )
-			apply_bc1 = String_ParseBool( value );
+			apply_bc2 = String_ParseBool( value );
 		else if( key == "BRIGHTNESS_2" )
 			brightness_2 = String_ParseFloat( value );
 		else if( key == "CONTRAST_2" )

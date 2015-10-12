@@ -517,6 +517,8 @@ struct EDGUIImgFilter_BCP : EDGUIImgFilterBase
 
 void FC_SetTexture( TextureHandle tex );
 void FC_SetMesh( MeshHandle mesh );
+void FC_EditTexture( size_t id );
+void FC_EditTextureList();
 
 struct EDGUIAssetTexture : EDGUILayoutRow
 {
@@ -532,6 +534,12 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		m_tid( NOT_FOUND )
 	{
 		m_outputCategory.m_requestReload = true;
+		
+		m_btnDuplicate.caption = "Duplicate";
+		m_btnDelete.caption = "Delete";
+		
+		m_topCol.Add( &m_btnDuplicate );
+		m_topCol.Add( &m_btnDelete );
 		
 		m_sourceFile.caption = "Source file";
 		m_outputCategory.caption = "Output category";
@@ -559,6 +567,7 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		m_flgroup.Add( &m_filterBtnAdd );
 		m_flgroup.Add( &m_filterButtons );
 		
+		Add( &m_topCol );
 		Add( &m_group );
 		Add( &m_columnList );
 		m_columnList.Add( &m_sfgroup );
@@ -699,6 +708,22 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 				UpdatePreviewTexture();
 				break;
 			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_btnDuplicate )
+				{
+					SGRX_TextureAsset TAcopy = g_EdAS->textureAssets[ m_tid ];
+					m_tid = g_EdAS->textureAssets.size();
+					TAcopy.outputName.append( " - Copy" );
+					g_EdAS->textureAssets.push_back( TAcopy );
+					Prepare( m_tid );
+					return 1;
+				}
+				if( e->target == &m_btnDelete )
+				{
+					g_EdAS->textureAssets.erase( m_tid );
+					m_tid = NOT_FOUND;
+					FC_EditTextureList();
+					return 1;
+				}
 				if( e->target == &m_filterEditButton )
 				{
 					EditFilter( TA.filters[ m_filterEditButton.id2 ] );
@@ -736,6 +761,9 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 		return EDGUILayoutRow::OnEvent( e );
 	}
 	
+	EDGUILayoutColumn m_topCol;
+	EDGUIButton m_btnDuplicate;
+	EDGUIButton m_btnDelete;
 	EDGUIGroup m_group;
 	EDGUIPropRsrc m_sourceFile;
 	EDGUIPropRsrc m_outputCategory;
@@ -755,9 +783,6 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 	EDGUIListItemButton m_filterEditButton;
 	size_t m_tid;
 };
-
-void FC_EditTexture( size_t id );
-void FC_EditTextureList();
 
 struct EDGUIAssetTextureList : EDGUILayoutRow
 {
