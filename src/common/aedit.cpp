@@ -1244,7 +1244,7 @@ struct EDGUIAssetMeshList : EDGUILayoutRow
 };
 
 void FC_EditCategory( const StringView& name );
-void FC_EditScript();
+void FC_EditCatList();
 
 struct EDGUIAssetCategoryForm : EDGUILayoutRow
 {
@@ -1312,7 +1312,7 @@ struct EDGUIAssetCategoryForm : EDGUILayoutRow
 			{
 				g_EdAS->categories.unset( m_origName );
 				g_EdAS->categories.set( m_name.m_value, m_path.m_value );
-				FC_EditScript();
+				FC_EditCatList();
 			}
 			break;
 		}
@@ -1326,32 +1326,41 @@ struct EDGUIAssetCategoryForm : EDGUILayoutRow
 	EDGUIButton m_btnSave;
 };
 
-struct EDGUIAssetScript : EDGUILayoutRow
+struct EDGUIAssetCategoryList : EDGUILayoutRow
 {
-	EDGUIAssetScript() :
+	EDGUIAssetCategoryList() :
 		m_cgroup( true, "Categories" ),
 		m_ctgEditButton( false )
 	{
 		m_ctgBtnAdd.caption = "Add category";
+		m_filter.caption = "Filter";
 		
 		m_ctgButtons.Add( &m_ctgEditButton );
 		
-		m_cgroup.Add( &m_ctgBtnAdd );
 		m_cgroup.Add( &m_ctgButtons );
 		
+		Add( &m_ctgBtnAdd );
+		Add( &m_filter );
 		Add( &m_cgroup );
 	}
 	
 	void Prepare()
 	{
-		m_ctgButtons.m_options.resize( g_EdAS->categories.size() );
+		m_ctgButtons.m_options.clear();
+		m_ctgButtons.m_idTable.clear();
+		m_ctgButtons.m_options.reserve( g_EdAS->categories.size() );
+		m_ctgButtons.m_idTable.reserve( g_EdAS->categories.size() );
 		for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
 		{
 			char bfr[ 256 ];
 			sgrx_snprintf( bfr, 256, "%s => %s",
 				StackString<100>( g_EdAS->categories.item( i ).key ).str,
 				StackString<100>( g_EdAS->categories.item( i ).value ).str );
-			m_ctgButtons.m_options[ i ] = bfr;
+			if( StringView(bfr).match_loose( m_filter.m_value ) )
+			{
+				m_ctgButtons.m_options.push_back( bfr );
+				m_ctgButtons.m_idTable.push_back( i );
+			}
 		}
 		m_ctgButtons.UpdateOptions();
 	}
@@ -1360,6 +1369,9 @@ struct EDGUIAssetScript : EDGUILayoutRow
 	{
 		switch( e->type )
 		{
+		case EDGUI_EVENT_PROPEDIT:
+			if( e->target == &m_filter ) Prepare();
+			break;
 		case EDGUI_EVENT_BTNCLICK:
 			if( e->target == &m_ctgBtnAdd )
 			{
@@ -1381,6 +1393,7 @@ struct EDGUIAssetScript : EDGUILayoutRow
 	
 	EDGUIGroup m_cgroup;
 	EDGUIButton m_ctgBtnAdd;
+	EDGUIPropString m_filter;
 	EDGUIBtnList m_ctgButtons;
 	EDGUIListItemButton m_ctgEditButton;
 };
@@ -1408,7 +1421,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_MBRun.caption = "Run";
 		m_MBForceRun.caption = "Force Run";
 		m_MB_Cat1.caption = "Edit:";
-		m_MBEditScript.caption = "Script";
+		m_MBEditScript.caption = "Categories";
 		m_MBEditTextures.caption = "Textures";
 		m_MBEditMeshes.caption = "Meshes";
 		m_UIMenuButtons.Add( &m_MB_Cat0 );
@@ -1439,7 +1452,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			
 			else if( e->target == &m_MBEditScript )
 			{
-				EditScript();
+				EditCatList();
 			}
 			else if( e->target == &m_MBEditTextures )
 			{
@@ -1515,16 +1528,16 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_UICategory.Prepare( name );
 		AddToParamList( &m_UICategory );
 	}
-	void EditScript()
+	void EditCatList()
 	{
 		ClearParamList();
-		m_UIAssetScript.Prepare();
-		AddToParamList( &m_UIAssetScript );
+		m_UICatList.Prepare();
+		AddToParamList( &m_UICatList );
 	}
 	
 	void ResetEditorState()
 	{
-		EditScript();
+		EditCatList();
 	}
 	void ASCR_Open()
 	{
@@ -1585,7 +1598,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIAssetMesh m_UIMesh;
 	EDGUIAssetMeshList m_UIMeshList;
 	EDGUIAssetCategoryForm m_UICategory;
-	EDGUIAssetScript m_UIAssetScript;
+	EDGUIAssetCategoryList m_UICatList;
 	
 	// preview data
 	TextureHandle m_texPreview;
@@ -1597,7 +1610,7 @@ void FC_EditTextureList(){ g_UIFrame->EditTextureList(); }
 void FC_EditMesh( size_t id ){ g_UIFrame->EditMesh( id ); }
 void FC_EditMeshList(){ g_UIFrame->EditMeshList(); }
 void FC_EditCategory( const StringView& name ){ g_UIFrame->EditCategory( name ); }
-void FC_EditScript(){ g_UIFrame->EditScript(); }
+void FC_EditCatList(){ g_UIFrame->EditCatList(); }
 void FC_SetTexture( TextureHandle tex )
 {
 	g_UIFrame->m_texPreview = tex;
