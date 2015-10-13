@@ -203,6 +203,18 @@ const char* SGRX_TextureOutputFormat_ToString( SGRX_TextureOutputFormat fmt );
 SGRX_TextureOutputFormat SGRX_TextureOutputFormat_FromString( const StringView& sv );
 const char* SGRX_TextureOutputFormat_Ext( SGRX_TextureOutputFormat fmt );
 
+struct SGRX_RevInfo
+{
+	SGRX_RevInfo() : ts_source(0), ts_output(0), rev_output(1), rev_asset(1){}
+	
+	// output state info
+	uint32_t ts_source;
+	uint32_t ts_output;
+	uint32_t rev_output;
+	// asset info
+	uint32_t rev_asset;
+};
+
 struct SGRX_TextureAsset
 {
 	SGRX_TextureAsset();
@@ -210,6 +222,8 @@ struct SGRX_TextureAsset
 	void Generate( String& out );
 	void GetFullName( String& out );
 	void GetDesc( String& out );
+	
+	SGRX_RevInfo ri;
 	
 	String sourceFile;
 	String outputCategory;
@@ -246,6 +260,8 @@ struct SGRX_MeshAsset
 	void GetFullName( String& out );
 	void GetDesc( String& out );
 	
+	SGRX_RevInfo ri;
+	
 	String sourceFile;
 	String outputCategory;
 	String outputName;
@@ -260,6 +276,11 @@ struct SGRX_AssetScript
 	void Generate( String& out );
 	bool Load( const StringView& path );
 	bool Save( const StringView& path );
+	// - additional state
+	bool LoadAssetInfo( const StringView& path );
+	bool SaveAssetInfo( const StringView& path );
+	bool LoadOutputInfo( const StringView& path );
+	bool SaveOutputInfo( const StringView& path );
 	
 	HashTable< String, String > categories;
 	Array< SGRX_TextureAsset > textureAssets;

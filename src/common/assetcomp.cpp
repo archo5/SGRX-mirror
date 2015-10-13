@@ -828,6 +828,183 @@ bool SGRX_AssetScript::Save( const StringView& path )
 	return FS_SaveTextFile( path, data );
 }
 
+enum EAssetType
+{
+	AT_Unknown = 0,
+	AT_Texture,
+	AT_Mesh,
+};
+
+struct AssetInfoItem
+{
+	uint8_t asset_type;
+	String category;
+	String name;
+	uint32_t rev_asset;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << asset_type;
+		arch << category;
+		arch << name;
+		arch << rev_asset;
+	}
+};
+
+struct AssetOutputItem
+{
+	uint8_t asset_type;
+	String category;
+	String name;
+	uint32_t ts_source;
+	uint32_t ts_output;
+	uint32_t rev_output;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << asset_type;
+		arch << category;
+		arch << name;
+		arch << ts_source;
+		arch << ts_output;
+		arch << rev_output;
+	}
+};
+
+bool SGRX_AssetScript::LoadAssetInfo( const StringView& path )
+{
+	String data;
+	if( FS_LoadTextFile( path, data ) == false )
+		return false;
+	
+	TextReader tr( &data );
+	tr.marker( "AS_ASSET_INFO" );
+	Array< AssetInfoItem > items;
+	tr << items;
+	for( size_t i = 0; i < items.size(); ++i )
+	{
+		const AssetInfoItem& item = items[ i ];
+		switch( item.asset_type )
+		{
+		case AT_Texture:
+			for( size_t j = 0; j < textureAssets.size(); ++j )
+			{
+				SGRX_TextureAsset& TA = textureAssets[ j ];
+				if( TA.outputCategory != item.category ||
+					TA.outputName != item.name )
+					continue;
+				TA.ri.rev_asset = item.rev_asset;
+			}
+			break;
+		case AT_Mesh:
+			for( size_t j = 0; j < meshAssets.size(); ++j )
+			{
+				SGRX_MeshAsset& MA = meshAssets[ j ];
+				if( MA.outputCategory != item.category ||
+					MA.outputName != item.name )
+					continue;
+				MA.ri.rev_asset = item.rev_asset;
+			}
+			break;
+		}
+	}
+	
+	return tr.error == false;
+}
+
+bool SGRX_AssetScript::SaveAssetInfo( const StringView& path )
+{
+	String data;
+	TextWriter tw( &data );
+	tw.marker( "AS_ASSET_INFO" );
+	Array< AssetInfoItem > items;
+	for( size_t j = 0; j < textureAssets.size(); ++j )
+	{
+		SGRX_TextureAsset& TA = textureAssets[ j ];
+		AssetInfoItem item = { AT_Texture, TA.outputCategory, TA.outputName, TA.ri.rev_asset };
+		items.push_back( item );
+	}
+	for( size_t j = 0; j < meshAssets.size(); ++j )
+	{
+		SGRX_MeshAsset& MA = meshAssets[ j ];
+		AssetInfoItem item = { AT_Mesh, MA.outputCategory, MA.outputName, MA.ri.rev_asset };
+		items.push_back( item );
+	}
+	tw << items;
+	
+	return FS_SaveTextFile( path, data );
+}
+
+bool SGRX_AssetScript::LoadOutputInfo( const StringView& path )
+{
+	String data;
+	if( FS_LoadTextFile( path, data ) == false )
+		return false;
+	
+	TextReader tr( &data );
+	tr.marker( "AS_OUTPUT_INFO" );
+	Array< AssetOutputItem > items;
+	tr << items;
+	for( size_t i = 0; i < items.size(); ++i )
+	{
+		const AssetOutputItem& item = items[ i ];
+		switch( item.asset_type )
+		{
+		case AT_Texture:
+			for( size_t j = 0; j < textureAssets.size(); ++j )
+			{
+				SGRX_TextureAsset& TA = textureAssets[ j ];
+				if( TA.outputCategory != item.category ||
+					TA.outputName != item.name )
+					continue;
+				TA.ri.ts_source = item.ts_source;
+				TA.ri.ts_output = item.ts_output;
+				TA.ri.rev_output = item.rev_output;
+			}
+			break;
+		case AT_Mesh:
+			for( size_t j = 0; j < meshAssets.size(); ++j )
+			{
+				SGRX_MeshAsset& MA = meshAssets[ j ];
+				if( MA.outputCategory != item.category ||
+					MA.outputName != item.name )
+					continue;
+				MA.ri.ts_source = item.ts_source;
+				MA.ri.ts_output = item.ts_output;
+				MA.ri.rev_output = item.rev_output;
+			}
+			break;
+		}
+	}
+	
+	return tr.error == false;
+}
+
+bool SGRX_AssetScript::SaveOutputInfo( const StringView& path )
+{
+	String data;
+	TextWriter tw( &data );
+	tw.marker( "AS_OUTPUT_INFO" );
+	Array< AssetOutputItem > items;
+	for( size_t j = 0; j < textureAssets.size(); ++j )
+	{
+		SGRX_TextureAsset& TA = textureAssets[ j ];
+		AssetOutputItem item = { AT_Texture, TA.outputCategory, TA.outputName,
+			TA.ri.ts_source, TA.ri.ts_output, TA.ri.rev_output };
+		items.push_back( item );
+	}
+	for( size_t j = 0; j < meshAssets.size(); ++j )
+	{
+		SGRX_MeshAsset& MA = meshAssets[ j ];
+		AssetOutputItem item = { AT_Mesh, MA.outputCategory, MA.outputName,
+			MA.ri.ts_source, MA.ri.ts_output, MA.ri.rev_output };
+		items.push_back( item );
+	}
+	tw << items;
+	
+	return FS_SaveTextFile( path, data );
+}
+
 
 
 SGRX_Scene3D::SGRX_Scene3D( const StringView& path ) : m_imp(NULL), m_scene(NULL)
