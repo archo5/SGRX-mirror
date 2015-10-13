@@ -1184,14 +1184,12 @@ fail:
 
 bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_TextureAsset& TA )
 {
-	String fullpath = path;
 	ByteArray filedata;
 	ByteArray imagedata;
 	
 	switch( TA.outputType )
 	{
 	case SGRX_TOF_PNG_RGBA32:
-		fullpath.append( ".png" );
 		SGRX_ImageF32ToRGBA8( image, imagedata );
 		if( dumpimg( filedata, imagedata.data(), image->GetWidth(), image->GetHeight() ) )
 		{
@@ -1200,7 +1198,6 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 		}
 		break;
 	case SGRX_TOF_STX_RGBA32:
-		fullpath.append( ".stx" );
 		SGRX_ImageF32ToRGBA8( image, imagedata );
 		filedata.append( "STX\0", 4 );
 		{
@@ -1218,9 +1215,9 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 		break;
 	}
 	
-	if( FS_SaveBinaryFile( fullpath, filedata.data(), filedata.size() ) == false )
+	if( FS_SaveBinaryFile( path, filedata.data(), filedata.size() ) == false )
 	{
-		printf( "ERROR: failed to save the texture file: %s\n", StackString<256>(fullpath).str );
+		printf( "ERROR: failed to save the texture file: %s\n", StackString<256>(path).str );
 		return false;
 	}
 	return true;
@@ -1571,7 +1568,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	return dstMesh;
 }
 
-void SGRX_ProcessAssets( const SGRX_AssetScript& script )
+void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 {
 	puts( "processing assets...");
 	
@@ -1591,18 +1588,30 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 	puts( "- textures...");
 	for( size_t tid = 0; tid < script.textureAssets.size(); ++tid )
 	{
-		const SGRX_TextureAsset& TA = script.textureAssets[ tid ];
+		SGRX_TextureAsset& TA = script.textureAssets[ tid ];
+		StringView catPath = script.categories.getcopy( TA.outputCategory );
+		char bfr[ 520 ];
+		sgrx_snprintf( bfr, 520, "%s/%s.%s",
+			StackString<256>(catPath).str,
+			StackString<256>(TA.outputName).str,
+			SGRX_TextureOutputFormat_Ext( TA.outputType ) );
+		if( force == false &&
+			TA.ri.rev_output == TA.ri.rev_asset &&
+			TA.ri.ts_source != 0 &&
+			TA.ri.ts_output != 0 &&
+			TA.ri.ts_source == FS_FileModTime( TA.sourceFile ) &&
+			TA.ri.ts_output == FS_FileModTime( bfr ) )
+			continue;
+		
 		SGRX_IFP32Handle image = SGRX_ProcessTextureAsset( TA );
 		if( image == NULL )
 			continue;
 		
-		StringView catPath = script.categories.getcopy( TA.outputCategory );
-		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, "%s/%s",
-			StackString<256>(catPath).str,
-			StackString<256>(TA.outputName).str );
 		if( SGRX_SaveImage( bfr, image, TA ) )
 		{
+			TA.ri.rev_output = TA.ri.rev_asset;
+			TA.ri.ts_source = FS_FileModTime( TA.sourceFile );
+			TA.ri.ts_output = FS_FileModTime( bfr );
 			printf( "|----------- saved!\n" );
 		}
 	}
@@ -1610,7 +1619,20 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 	puts( "- meshes...");
 	for( size_t tid = 0; tid < script.meshAssets.size(); ++tid )
 	{
-		const SGRX_MeshAsset& MA = script.meshAssets[ tid ];
+		SGRX_MeshAsset& MA = script.meshAssets[ tid ];
+		StringView catPath = script.categories.getcopy( MA.outputCategory );
+		char bfr[ 520 ];
+		sgrx_snprintf( bfr, 520, "%s/%s.ssm",
+			StackString<256>(catPath).str,
+			StackString<256>(MA.outputName).str );
+		if( force == false &&
+			MA.ri.rev_output == MA.ri.rev_asset &&
+			MA.ri.ts_source != 0 &&
+			MA.ri.ts_output != 0 &&
+			MA.ri.ts_source == FS_FileModTime( MA.sourceFile ) &&
+			MA.ri.ts_output == FS_FileModTime( bfr ) )
+			continue;
+		
 		MeshHandle mesh = SGRX_ProcessMeshAsset( &script, MA );
 		if( mesh == NULL )
 			continue;
@@ -1622,13 +1644,11 @@ void SGRX_ProcessAssets( const SGRX_AssetScript& script )
 			continue;
 		}
 		
-		StringView catPath = script.categories.getcopy( MA.outputCategory );
-		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, "%s/%s.ssm",
-			StackString<256>(catPath).str,
-			StackString<256>(MA.outputName).str );
 		if( FS_SaveBinaryFile( bfr, data.data(), data.size() ) )
 		{
+			MA.ri.rev_output = MA.ri.rev_asset;
+			MA.ri.ts_source = FS_FileModTime( MA.sourceFile );
+			MA.ri.ts_output = FS_FileModTime( bfr );
 			printf( "|----------- saved!\n" );
 		}
 		else

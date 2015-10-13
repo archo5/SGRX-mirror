@@ -15,8 +15,12 @@
 #  define WINVER 0x0600
 #  define NOCOMM
 #  include <windows.h>
+#  include <sys/types.h>
+#  include <sys/stat.h>
+#  define _stat stat
 #else
 #  include <sys/time.h>
+#  include <sys/stat.h>
 #  include <unistd.h>
 #  include <pthread.h>
 #endif
@@ -1905,6 +1909,14 @@ bool FileExists( const StringView& path )
 		return false;
 	fclose( fp );
 	return path;
+}
+
+uint32_t FileModTime( const StringView& path )
+{
+	struct stat info;
+	if( stat( StackPath( path ), &info ) == -1 )
+		return 0;
+	return TMAX( info.st_ctime, info.st_mtime );
 }
 
 bool LoadItemListFile( const StringView& path, ItemList& out )

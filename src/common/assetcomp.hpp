@@ -205,7 +205,7 @@ const char* SGRX_TextureOutputFormat_Ext( SGRX_TextureOutputFormat fmt );
 
 struct SGRX_RevInfo
 {
-	SGRX_RevInfo() : ts_source(0), ts_output(0), rev_output(1), rev_asset(1){}
+	SGRX_RevInfo() : ts_source(0), ts_output(0), rev_output(0), rev_asset(1){}
 	
 	// output state info
 	uint32_t ts_source;
@@ -309,5 +309,5 @@ typedef Handle< SGRX_Scene3D > ImpScene3DHandle;
 SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA );
 TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA );
 MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA );
-void SGRX_ProcessAssets( const SGRX_AssetScript& script );
+void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force = false );
 

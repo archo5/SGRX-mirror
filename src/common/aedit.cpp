@@ -9,6 +9,8 @@
 
 
 #define ASSET_SCRIPT_NAME "assets.txt"
+#define ASSET_INFO_NAME "asset_revs.info"
+#define OUTPUT_INFO_NAME "output_revs.info"
 
 
 struct EDGUIMainFrame* g_UIFrame;
@@ -713,6 +715,7 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 				}
 				break;
 			case EDGUI_EVENT_PROPCHANGE:
+				TA.ri.rev_asset++;
 				UpdatePreviewTexture();
 				break;
 			case EDGUI_EVENT_BTNCLICK:
@@ -1068,6 +1071,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 				}
 				break;
 			case EDGUI_EVENT_PROPCHANGE:
+				MA.ri.rev_asset++;
 				if( e->target == &m_sourceFile ){ ReloadImpScene(); }
 				break;
 			case EDGUI_EVENT_BTNCLICK:
@@ -1402,6 +1406,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_MB_Cat0.caption = "File:";
 		m_MBSave.caption = "Save";
 		m_MBRun.caption = "Run";
+		m_MBForceRun.caption = "Force Run";
 		m_MB_Cat1.caption = "Edit:";
 		m_MBEditScript.caption = "Script";
 		m_MBEditTextures.caption = "Textures";
@@ -1409,6 +1414,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_UIMenuButtons.Add( &m_MB_Cat0 );
 		m_UIMenuButtons.Add( &m_MBSave );
 		m_UIMenuButtons.Add( &m_MBRun );
+		m_UIMenuButtons.Add( &m_MBForceRun );
 		m_UIMenuButtons.Add( &m_MB_Cat1 );
 		m_UIMenuButtons.Add( &m_MBEditScript );
 		m_UIMenuButtons.Add( &m_MBEditTextures );
@@ -1428,7 +1434,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			if(0);
 			
 			else if( e->target == &m_MBSave ) ASCR_Save();
-			else if( e->target == &m_MBRun ) ASCR_Run();
+			else if( e->target == &m_MBRun ) ASCR_Run( false );
+			else if( e->target == &m_MBForceRun ) ASCR_Run( true );
 			
 			else if( e->target == &m_MBEditScript )
 			{
@@ -1528,6 +1535,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			LOG_ERROR << "FAILED TO LOAD ASSET SCRIPT";
 			return;
 		}
+		g_EdAS->LoadAssetInfo( ASSET_INFO_NAME );
 		
 		ResetEditorState();
 	}
@@ -1540,10 +1548,17 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			LOG_ERROR << "FAILED TO SAVE ASSET SCRIPT";
 			return;
 		}
+		if( g_EdAS->SaveAssetInfo( ASSET_INFO_NAME ) == false )
+		{
+			LOG_ERROR << "FAILED TO SAVE ASSET INFO";
+			return;
+		}
 	}
-	void ASCR_Run()
+	void ASCR_Run( bool force )
 	{
-		SGRX_ProcessAssets( *g_EdAS );
+		g_EdAS->LoadOutputInfo( OUTPUT_INFO_NAME );
+		SGRX_ProcessAssets( *g_EdAS, force );
+		g_EdAS->SaveOutputInfo( OUTPUT_INFO_NAME );
 	}
 	
 	// core layout
@@ -1558,6 +1573,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUILabel m_MB_Cat0;
 	EDGUIButton m_MBSave;
 	EDGUIButton m_MBRun;
+	EDGUIButton m_MBForceRun;
 	EDGUILabel m_MB_Cat1;
 	EDGUIButton m_MBEditScript;
 	EDGUIButton m_MBEditTextures;

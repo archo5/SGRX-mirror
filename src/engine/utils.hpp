@@ -2636,6 +2636,7 @@ ENGINE_EXPORT bool SaveBinaryFile( const StringView& path, const void* data, siz
 ENGINE_EXPORT bool LoadTextFile( const StringView& path, String& out );
 ENGINE_EXPORT bool SaveTextFile( const StringView& path, const StringView& data );
 ENGINE_EXPORT bool FileExists( const StringView& path );
+ENGINE_EXPORT uint32_t FileModTime( const StringView& path );
 
 struct IL_Item
 {

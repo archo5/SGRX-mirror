@@ -1037,6 +1037,12 @@ bool BasicFileSystem::DirCreate( const StringView& path )
 	return ::DirCreate( String_Concat( m_fileRoot, path ) );
 }
 
+uint32_t BasicFileSystem::FileModTime( const StringView& path )
+{
+	LOG_FUNCTION;
+	return ::FileModTime( String_Concat( m_fileRoot, path ) );
+}
+
 void BasicFileSystem::IterateDirectory( const StringView& path, IDirEntryHandler* deh )
 {
 	LOG_FUNCTION;
@@ -1120,6 +1126,16 @@ bool FS_DirCreate( const StringView& path )
 		if( g_FileSystems[ i ]->DirCreate( path ) )
 			return true;
 	return false;
+}
+
+uint32_t FS_FileModTime( const StringView& path )
+{
+	LOG_FUNCTION;
+	uint32_t t;
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+		if( ( t = g_FileSystems[ i ]->FileModTime( path ) ) != 0 )
+			return t;
+	return 0;
 }
 
 void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh )

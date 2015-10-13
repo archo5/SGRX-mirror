@@ -154,6 +154,7 @@ struct IF_GCC(ENGINE_EXPORT) IFileSystem
 	ENGINE_EXPORT virtual bool FindRealPath( const StringView& path, String& out ) = 0;
 	ENGINE_EXPORT virtual bool FileExists( const StringView& path ) = 0;
 	ENGINE_EXPORT virtual bool DirCreate( const StringView& path ) = 0;
+	ENGINE_EXPORT virtual uint32_t FileModTime( const StringView& path ) = 0;
 	ENGINE_EXPORT virtual void IterateDirectory( const StringView& path, IDirEntryHandler* deh ) = 0;
 	
 	int32_t m_refcount;
@@ -169,6 +170,7 @@ struct IF_GCC(ENGINE_EXPORT) BasicFileSystem : IFileSystem
 	ENGINE_EXPORT virtual bool FindRealPath( const StringView& path, String& out );
 	ENGINE_EXPORT virtual bool FileExists( const StringView& path );
 	ENGINE_EXPORT virtual bool DirCreate( const StringView& path );
+	ENGINE_EXPORT virtual uint32_t FileModTime( const StringView& path );
 	ENGINE_EXPORT virtual void IterateDirectory( const StringView& path, IDirEntryHandler* deh );
 	
 	String m_fileRoot;
@@ -185,6 +187,7 @@ ENGINE_EXPORT bool FS_SaveTextFile( const StringView& path, const StringView& da
 ENGINE_EXPORT bool FS_FindRealPath( const StringView& path, String& out );
 ENGINE_EXPORT bool FS_FileExists( const StringView& path );
 ENGINE_EXPORT bool FS_DirCreate( const StringView& path );
+ENGINE_EXPORT uint32_t FS_FileModTime( const StringView& path );
 ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh );
 
 
