@@ -624,12 +624,15 @@ Vec3 TSCharacter::GetInterpAimDir()
 
 
 TSAimHelper::TSAimHelper( GameLevel* lev ) :
-	m_level(lev), m_cp(V2(0)), m_aimPtr(NULL), m_aimPoint(V3(0)), m_rcPoint(V3(0)), m_pDist(0)
+	m_level(lev), m_pos(V3(0)), m_cp(V2(0)), m_aimPtr(NULL),
+	m_aimPoint(V3(0)), m_rcPoint(V3(0)), m_aimFactor(0), m_pDist(0)
 {
+	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
 }
 
 void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 {
+	m_pos = pos;
 	m_cp = cp;
 	m_rcPoint = _CalcRCPos( pos );
 	
@@ -638,16 +641,37 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 		m_pDist = FLT_MAX;
 		m_closestEnt = NULL;
 		lock = m_level->GetSystem<InfoEmissionSystem>()
-			->QuerySphereAll( this, pos, 10.0f, IEST_HeatSource );
+			->QuerySphereAll( this, pos, 8.0f, IEST_HeatSource );
 		m_aimPtr = m_closestEnt;
 		m_aimPoint = m_closestPoint;
 	}
 	else m_aimPtr = NULL;
+	
+	float tgt = m_aimPtr ? 1 : 0;
+	float diff = tgt - m_aimFactor;
+	m_aimFactor += TMIN( fabsf( diff ), deltaTime * 5 ) * sign( diff );
+}
+
+void TSAimHelper::DrawUI()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
+	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+	Vec2 cursor_pos = m_cp * screen_size;
+	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_pos ).ToVec2() * screen_size;
+	Vec2 target_pos = m_level->GetScene()->camera.WorldToScreen( m_aimPoint ).ToVec2() * screen_size;
+	cursor_pos = TLERP( cursor_pos, target_pos, m_aimFactor );
+	
+	float cursor_size = bsz / 20;
+	float cursor_angle = ( cursor_pos - player_pos ).Angle() + M_PI;
+	br.Reset().SetTexture( m_tex_cursor ).TurnedBox(
+		cursor_pos.x, cursor_pos.y, cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
 }
 
 Vec3 TSAimHelper::GetAimPoint()
 {
-	return m_aimPtr ? m_aimPoint : m_rcPoint;
+	return TLERP( m_rcPoint, m_aimPoint, m_aimFactor );
 }
 
 Vec3 TSAimHelper::_CalcRCPos( Vec3 pos )
@@ -691,7 +715,6 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 	}
 	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( D.pos ).ToVec2();
 	float npdist = ( m_cp - scrpos ).Length();
-	printf("len:%f\n",npdist);
 	if( npdist < m_pDist )
 	{
 		m_closestEnt = E;
@@ -716,7 +739,6 @@ TSPlayer::TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	
 	m_meshInstInfo.ownerType = GAT_Player;
 	
-	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
 	i_aim_at = true;
 	
 	m_shootPS.Load( "psys/gunflash.psy" );
@@ -796,12 +818,13 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
 	m_aimHelper.Tick( deltaTime, GetPosition(), CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
+	Vec3 camtgt = TLERP( pos, m_aimHelper.m_aimPoint, 0.1f * smoothstep( m_aimHelper.m_aimFactor ) );
 	
 	m_level->GetScene()->camera.znear = 0.1f;
 	m_level->GetScene()->camera.angle = 90;
 	m_level->GetScene()->camera.updir = V3(0,-1,0);
 	m_level->GetScene()->camera.direction = V3(-diff.x,diff.y,-5);
-	m_level->GetScene()->camera.position = pos + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
+	m_level->GetScene()->camera.position = camtgt + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
 	m_level->GetScene()->camera.UpdateMatrices();
 	
 	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
@@ -847,11 +870,8 @@ void TSPlayer::DrawUI()
 	GR2D_GetFontSettings( &fs );
 	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
-	
-	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
-	Vec2 cursor_pos = CURSOR_POS;
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
+	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
 	
 	Vec3 QP = GetQueryPosition();
 	IESItemGather ies_gather;
@@ -901,10 +921,7 @@ void TSPlayer::DrawUI()
 		br.Reset().SetTexture( m_tex_interact_icon ).QuadWH( x, y, bsz / 10, bsz / 10 );
 	}
 	
-	float cursor_size = bsz / 20;
-	float cursor_angle = ( cursor_pos - player_pos ).Angle() + M_PI;
-	br.Reset().SetTexture( m_tex_cursor ).TurnedBox(
-		cursor_pos.x, cursor_pos.y, cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
+	m_aimHelper.DrawUI();
 	
 	GR2D_SetFont( "tsicons", bsz * 0.2f );
 	br.Col( 1, 0.25f * m_crouchIconShowTimeout );

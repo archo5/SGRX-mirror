@@ -121,15 +121,19 @@ struct TSAimHelper : InfoEmissionSystem::IESProcessor
 {
 	TSAimHelper( GameLevel* lev );
 	void Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock );
+	void DrawUI();
 	Vec3 GetAimPoint();
 	
 	Vec3 _CalcRCPos( Vec3 pos );
 	
 	GameLevel* m_level;
+	TextureHandle m_tex_cursor;
+	Vec3 m_pos;
 	Vec2 m_cp;
 	void* m_aimPtr;
 	Vec3 m_aimPoint;
 	Vec3 m_rcPoint;
+	float m_aimFactor;
 	
 	// lock target query
 	virtual bool Process( Entity* E, const InfoEmissionSystem::Data& D );
@@ -152,7 +156,6 @@ struct TSPlayer : TSCharacter
 	HashTable< String, int > m_items;
 	
 	TextureHandle m_tex_interact_icon;
-	TextureHandle m_tex_cursor;
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
 	float m_shootTimeout;
