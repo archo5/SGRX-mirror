@@ -19,6 +19,7 @@ Command MOVE_Y( "move_y" );
 Command AIM_X( "aim_x", 0 );
 Command AIM_Y( "aim_y", 0 );
 Command SHOOT( "shoot" );
+Command LOCK_ON( "lock_on" );
 Command RELOAD( "reload" );
 Command SLOW_WALK( "slow_walk" );
 Command SPRINT( "sprint" );
@@ -54,6 +55,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_RegisterAction( &MOVE_UP );
 		Game_RegisterAction( &MOVE_DOWN );
 		Game_RegisterAction( &SHOOT );
+		Game_RegisterAction( &LOCK_ON );
 		Game_RegisterAction( &RELOAD );
 		Game_RegisterAction( &SLOW_WALK );
 		Game_RegisterAction( &SPRINT );
@@ -66,6 +68,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindKeyToAction( SDLK_s, &MOVE_DOWN );
 	//	Game_BindKeyToAction( SDLK_g, &SHOOT );
 		Game_BindMouseButtonToAction( SGRX_MB_LEFT, &SHOOT );
+		Game_BindMouseButtonToAction( SGRX_MB_RIGHT, &LOCK_ON );
 		Game_BindKeyToAction( SDLK_r, &RELOAD );
 	//	Game_BindKeyToAction( SDLK_LCTRL, &SLOW_WALK );
 		Game_BindKeyToAction( SDLK_LSHIFT, &SPRINT );
@@ -78,6 +81,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_RIGHTX, &AIM_X );
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_RIGHTY, &AIM_Y );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, &SHOOT );
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_LEFTSHOULDER, &LOCK_ON );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_Y, &RELOAD );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_A, &CROUCH );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &DO_ACTION );

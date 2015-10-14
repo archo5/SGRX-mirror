@@ -117,6 +117,28 @@ struct TSCharacter : Entity
 };
 
 
+struct TSAimHelper : InfoEmissionSystem::IESProcessor
+{
+	TSAimHelper( GameLevel* lev );
+	void Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock );
+	Vec3 GetAimPoint();
+	
+	Vec3 _CalcRCPos( Vec3 pos );
+	
+	GameLevel* m_level;
+	Vec2 m_cp;
+	void* m_aimPtr;
+	Vec3 m_aimPoint;
+	Vec3 m_rcPoint;
+	
+	// lock target query
+	virtual bool Process( Entity* E, const InfoEmissionSystem::Data& D );
+	float m_pDist;
+	void* m_closestEnt;
+	Vec3 m_closestPoint;
+};
+
+
 #ifndef TSGAME_NO_PLAYER
 
 struct TSPlayer : TSCharacter
@@ -136,13 +158,12 @@ struct TSPlayer : TSCharacter
 	float m_shootTimeout;
 	float m_crouchIconShowTimeout;
 	float m_standIconShowTimeout;
+	TSAimHelper m_aimHelper;
 	
 	TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
-	
-	Vec3 FindTargetPosition();
 };
 
 #endif

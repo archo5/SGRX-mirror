@@ -13,6 +13,7 @@ extern Command MOVE_Y;
 extern Command AIM_X;
 extern Command AIM_Y;
 extern Command SHOOT;
+extern Command LOCK_ON;
 extern Command RELOAD;
 extern Command CROUCH;
 extern Command DO_ACTION;
@@ -622,13 +623,94 @@ Vec3 TSCharacter::GetInterpAimDir()
 
 
 
+TSAimHelper::TSAimHelper( GameLevel* lev ) :
+	m_level(lev), m_cp(V2(0)), m_aimPtr(NULL), m_aimPoint(V3(0)), m_rcPoint(V3(0)), m_pDist(0)
+{
+}
+
+void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
+{
+	m_cp = cp;
+	m_rcPoint = _CalcRCPos( pos );
+	
+	if( lock )
+	{
+		m_pDist = FLT_MAX;
+		m_closestEnt = NULL;
+		lock = m_level->GetSystem<InfoEmissionSystem>()
+			->QuerySphereAll( this, pos, 10.0f, IEST_HeatSource );
+		m_aimPtr = m_closestEnt;
+		m_aimPoint = m_closestPoint;
+	}
+	else m_aimPtr = NULL;
+}
+
+Vec3 TSAimHelper::GetAimPoint()
+{
+	return m_aimPtr ? m_aimPoint : m_rcPoint;
+}
+
+Vec3 TSAimHelper::_CalcRCPos( Vec3 pos )
+{
+	Vec3 crpos, crdir;
+	m_level->GetScene()->camera.GetCursorRay( m_cp.x, m_cp.y, crpos, crdir );
+	Vec3 crtgt = crpos + crdir * 100;
+	
+	SGRX_PhyRaycastInfo rcinfo;
+	if( m_level->GetPhyWorld()->Raycast( crpos, crtgt, 0x1, 0x1, &rcinfo ) )
+	{
+		bool atwall = 0.707f > fabsf(Vec3Dot( rcinfo.normal, V3(0,0,1) )); // > ~45deg to up vector
+		bool frontface = Vec3Dot( rcinfo.normal, crdir ) < 0; 
+		if( atwall && frontface )
+			return rcinfo.point;
+		
+		// must adjust target height above ground
+		if( frontface )
+			return rcinfo.point + V3(0,0,1.1f);
+	}
+	
+	// backup same level plane test if aiming into nothing
+	float dsts[2];
+	if( RayPlaneIntersect( crpos, crdir, V4(0,0,1.1f,pos.z), dsts ) )
+	{
+		return crpos + crdir * dsts[0];
+	}
+	
+	return V3(0);
+}
+
+bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
+{
+	if( D.types & IEST_Player )
+		return true;
+	if( E == m_aimPtr )
+	{
+		m_closestEnt = m_aimPtr;
+		m_closestPoint = D.pos;
+		return false;
+	}
+	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( D.pos ).ToVec2();
+	float npdist = ( m_cp - scrpos ).Length();
+	printf("len:%f\n",npdist);
+	if( npdist < m_pDist )
+	{
+		m_closestEnt = E;
+		m_closestPoint = D.pos;
+		m_pDist = npdist;
+	}
+	return true;
+}
+
+
+
 #ifndef TSGAME_NO_PLAYER
 
 TSPlayer::TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	TSCharacter( lev, pos-V3(0,0,1), dir ),
 	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ), inCursorMove( V2(0) ),
 	m_targetII( NULL ), m_targetTriggered( false ),
-	m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 )
+	m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 ),
+	m_aimHelper( lev )
 {
 	InitializeMesh( "chars/tstest.chr" );
 	
@@ -658,7 +740,7 @@ void TSPlayer::FixedTick( float deltaTime )
 		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
 		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
 	);
-	i_aim_target = FindTargetPosition();
+	i_aim_target = m_aimHelper.GetAimPoint();
 	if( i_move.Length() > 0.1f )
 	{
 		Vec2 md = i_move;
@@ -713,6 +795,7 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
 	Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
+	m_aimHelper.Tick( deltaTime, GetPosition(), CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
 	
 	m_level->GetScene()->camera.znear = 0.1f;
 	m_level->GetScene()->camera.angle = 90;
@@ -830,36 +913,6 @@ void TSPlayer::DrawUI()
 	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0b", HALIGN_LEFT, VALIGN_BOTTOM );
 	
 	GR2D_SetFontSettings( &fs );
-}
-
-Vec3 TSPlayer::FindTargetPosition()
-{
-	Vec3 crpos, crdir;
-	Vec2 crsp = CURSOR_POS / Game_GetScreenSize();
-	m_level->GetScene()->camera.GetCursorRay( crsp.x, crsp.y, crpos, crdir );
-	Vec3 crtgt = crpos + crdir * 100;
-	
-	SGRX_PhyRaycastInfo rcinfo;
-	if( m_level->GetPhyWorld()->Raycast( crpos, crtgt, 0x1, 0x1, &rcinfo ) )
-	{
-		bool atwall = 0.707f > fabsf(Vec3Dot( rcinfo.normal, V3(0,0,1) )); // > ~45deg to up vector
-		bool frontface = Vec3Dot( rcinfo.normal, crdir ) < 0; 
-		if( atwall && frontface )
-			return rcinfo.point;
-		
-		// must adjust target height above ground
-		if( frontface )
-			return rcinfo.point + V3(0,0,1.1f);
-	}
-	
-	// backup same level plane test if aiming into nothing
-	float dsts[2];
-	if( RayPlaneIntersect( crpos, crdir, V4(0,0,1.1f,GetPosition().z), dsts ) )
-	{
-		return crpos + crdir * dsts[0];
-	}
-	
-	return V3(0);
 }
 
 #endif
@@ -1242,7 +1295,7 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	TSCharacter::FixedTick( deltaTime );
 	
-	InfoEmissionSystem::Data D = { GetPosition(), 0.5f, IEST_MapItem };
+	InfoEmissionSystem::Data D = { GetPosition(), 0.5f, IEST_MapItem | IEST_HeatSource };
 	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
