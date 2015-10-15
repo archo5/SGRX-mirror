@@ -647,8 +647,18 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 		m_closestEnt = NULL;
 		lock = m_level->GetSystem<InfoEmissionSystem>()
 			->QuerySphereAll( this, pos, 8.0f, IEST_Target );
-		m_aimPtr = m_closestEnt;
-		m_aimPoint = m_closestPoint;
+		if( m_aimPtr == NULL || m_aimPtr == m_closestEnt )
+		{
+			if( m_aimFactor < SMALL_FLOAT )
+			{
+				m_aimPtr = m_closestEnt;
+				m_aimPoint = m_closestPoint;
+			}
+		}
+		else
+		{
+			m_aimPtr = NULL;
+		}
 	}
 	else m_aimPtr = NULL;
 	
@@ -739,6 +749,12 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 {
 	if( D.types & IEST_Player )
 		return true;
+	
+	SceneRaycastCallback_Any srcb;
+	m_level->GetScene()->RaycastAll( m_pos, D.pos, &srcb, 0x1 );
+	if( srcb.m_hit )
+		return true;
+	
 	if( E == m_aimPtr )
 	{
 		m_closestEnt = m_aimPtr;
