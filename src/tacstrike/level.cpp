@@ -424,6 +424,7 @@ void GameLevel::Draw2D()
 	br.Reset();
 	
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+	return;
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->DebugDrawUI();

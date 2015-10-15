@@ -633,12 +633,13 @@ TSAimHelper::TSAimHelper( GameLevel* lev ) :
 void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 {
 	m_pos = pos;
-	m_cp = cp;
+	if( m_aimFactor == 0 || m_aimPtr == NULL )
+		m_cp = cp;
 	m_rcPoint = _CalcRCPos( pos );
 	
 	if( lock )
 	{
-		m_pDist = FLT_MAX;
+		m_pDist = 0.5f;
 		m_closestEnt = NULL;
 		lock = m_level->GetSystem<InfoEmissionSystem>()
 			->QuerySphereAll( this, pos, 8.0f, IEST_HeatSource );
@@ -650,23 +651,50 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 	float tgt = m_aimPtr ? 1 : 0;
 	float diff = tgt - m_aimFactor;
 	m_aimFactor += TMIN( fabsf( diff ), deltaTime * 5 ) * sign( diff );
+	
+	if( m_aimFactor > 0 && diff >= 0 )
+	{
+		Vec3 tgtpos = TLERP( m_rcPoint, m_aimPoint, m_aimFactor );
+		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+		Vec2 target_pos = m_level->GetScene()->camera.WorldToScreen( tgtpos ).ToVec2();
+		Vec2 tgt = V2( clamp( target_pos.x, 0, 1 ), clamp( target_pos.y, 0, 1 ) ) * screen_size;
+		Game_SetCursorPos( tgt.x, tgt.y );
+	}
 }
 
 void TSAimHelper::DrawUI()
 {
+	m_pDist = 0.5f;
+	m_closestEnt = NULL;
+	m_level->GetSystem<InfoEmissionSystem>()
+		->QuerySphereAll( this, m_pos, 8.0f, IEST_HeatSource );
+	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	Vec2 cursor_pos = m_cp * screen_size;
 	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_pos ).ToVec2() * screen_size;
-	Vec2 target_pos = m_level->GetScene()->camera.WorldToScreen( m_aimPoint ).ToVec2() * screen_size;
-	cursor_pos = TLERP( cursor_pos, target_pos, m_aimFactor );
 	
-	float cursor_size = bsz / 20;
-	float cursor_angle = ( cursor_pos - player_pos ).Angle() + M_PI;
-	br.Reset().SetTexture( m_tex_cursor ).TurnedBox(
-		cursor_pos.x, cursor_pos.y, cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
+	// target cursor
+	if( m_aimPtr == NULL && m_closestEnt )
+	{
+		Vec2 cp = m_level->GetScene()->camera.WorldToScreen( m_closestPoint ).ToVec2() * screen_size;
+		float cursor_size = bsz / 20 * powf( 1 - m_pDist * 1.9f, 0.5f );
+		float cursor_angle = ( cp - player_pos ).Angle() + M_PI;
+		br.Reset().Col( 1, 0.5f ).SetTexture( m_tex_cursor ).TurnedBox( cp.x, cp.y,
+			cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
+	}
+	
+	// main cursor
+	{
+		Vec2 target_pos = m_level->GetScene()->camera.WorldToScreen( m_aimPoint ).ToVec2() * screen_size;
+		Vec2 cp = TLERP( cursor_pos, target_pos, m_aimFactor );
+		float cursor_size = bsz / 20;
+		float cursor_angle = ( cp - player_pos ).Angle() + M_PI;
+		br.Reset().SetTexture( m_tex_cursor ).TurnedBox( cp.x, cp.y,
+			cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
+	}
 }
 
 Vec3 TSAimHelper::GetAimPoint()
@@ -713,13 +741,16 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 		m_closestPoint = D.pos;
 		return false;
 	}
-	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( D.pos ).ToVec2();
-	float npdist = ( m_cp - scrpos ).Length();
-	if( npdist < m_pDist )
+	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+	float bsz = TMIN( screen_size.x, screen_size.y );
+	Vec2 curpos = m_cp * screen_size;
+	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( D.pos ).ToVec2() * screen_size;
+	float npdist = ( curpos - scrpos ).Length();
+	if( npdist < m_pDist * bsz )
 	{
 		m_closestEnt = E;
 		m_closestPoint = D.pos;
-		m_pDist = npdist;
+		m_pDist = npdist / bsz;
 	}
 	return true;
 }

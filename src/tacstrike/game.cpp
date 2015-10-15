@@ -89,6 +89,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_GameLevel = new GameLevel( PHY_CreateWorld() );
 		g_GameLevel->SetGlobalToSelf();
 		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
+		AddSystemToLevel<TSEntityCreationSystem>( g_GameLevel );
 		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
 		AddSystemToLevel<LevelMapSystem>( g_GameLevel );
 		AddSystemToLevel<MessagingSystem>( g_GameLevel );
@@ -102,7 +103,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
 		AddSystemToLevel<CoverSystem>( g_GameLevel );
 		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
-		AddSystemToLevel<TSEntityCreationSystem>( g_GameLevel );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
@@ -142,6 +142,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_GameLevel->StartLevel();
 		
 		Game_AddOverlayScreen( &g_PauseMenu );
+		cursor_dt = V2(0);
 		return true;
 	}
 	void OnDestroy()
@@ -156,6 +157,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_SoundSys = NULL;
 	}
 	
+	Vec2 cursor_dt;
 	void OnEvent( const Event& e )
 	{
 		if( e.type == SDL_MOUSEMOTION )
@@ -164,10 +166,22 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		}
 		else if( e.type == SDL_CONTROLLERAXISMOTION )
 		{
+#if 1
+			float rad = TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.05f;
+			Vec2 off = V2( AIM_X.value, AIM_Y.value );
+			if( off.Length() > 0.35f )
+			{
+				cursor_dt = off.Normalized() *
+					powf( TREVLERP<float>( 0.35f, 0.75f, off.Length() ), 1.5f ) * rad;
+			}
+			else
+				cursor_dt = V2(0);
+#else
 			float rad = TMAX( GR_GetWidth(), GR_GetHeight() ) * 0.5f;
 			Vec2 off = V2( AIM_X.value, AIM_Y.value );
 			if( off.Length() > 0.1f )
 				CURSOR_POS = Game_GetScreenSize() * 0.5f + off * rad;
+#endif
 		}
 	}
 	
@@ -179,6 +193,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	}
 	void Game_Tick( float dt, float bf )
 	{
+		CURSOR_POS += cursor_dt;
 		g_GameLevel->Tick( dt, bf );
 		
 		myscritem->Tick( dt, bf );
@@ -255,7 +270,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	}
 	void DebugDraw()
 	{
-		g_GameLevel->DebugDraw();
+//		g_GameLevel->DebugDraw();
 	//	g_GameLevel->GetScene()->DebugDraw_MeshRaycast();
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer();
