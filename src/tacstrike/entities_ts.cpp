@@ -183,6 +183,10 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 	FSFlare FD = { mtx.TransformPos( V3(0) ), color, 1, true };
 	
 	m_level->GetSystem<FlareSystem>()->UpdateFlare( this, FD );
+	
+	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "origin" ) );
+	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_Target };
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
 bool TSCamera::GetMapItemInfo( MapItemInfo* out )
@@ -642,7 +646,7 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 		m_pDist = 0.5f;
 		m_closestEnt = NULL;
 		lock = m_level->GetSystem<InfoEmissionSystem>()
-			->QuerySphereAll( this, pos, 8.0f, IEST_HeatSource );
+			->QuerySphereAll( this, pos, 8.0f, IEST_Target );
 		m_aimPtr = m_closestEnt;
 		m_aimPoint = m_closestPoint;
 	}
@@ -667,7 +671,7 @@ void TSAimHelper::DrawUI()
 	m_pDist = 0.5f;
 	m_closestEnt = NULL;
 	m_level->GetSystem<InfoEmissionSystem>()
-		->QuerySphereAll( this, m_pos, 8.0f, IEST_HeatSource );
+		->QuerySphereAll( this, m_pos, 8.0f, IEST_Target );
 	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
@@ -1343,7 +1347,8 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	TSCharacter::FixedTick( deltaTime );
 	
-	InfoEmissionSystem::Data D = { GetPosition(), 0.5f, IEST_MapItem | IEST_HeatSource };
+	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
+	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
 	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 

@@ -297,6 +297,17 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
 	ENGINE_EXPORT void MRC_DebugDraw( SGRX_MeshInstance* mi );
 	
+	FINLINE Mat4 GetAttachmentMatrix( int which )
+	{
+		Mat4 out = Mat4::Identity;
+		GetAttachmentMatrix( which, out );
+		return out;
+	}
+	FINLINE Vec3 GetAttachmentPos( int which, Vec3 p = V3(0) )
+	{
+		return GetAttachmentMatrix( which ).TransformPos( p );
+	}
+	
 	String mesh;
 	Array< BoneInfo > bones;
 	Array< Attachment > attachments;
