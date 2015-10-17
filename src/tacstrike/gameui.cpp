@@ -415,3 +415,117 @@ int ScreenMenu::SelectPrevInGroup( int group )
 }
 
 
+void ConfigurableProp_Label::GenerateConfig( String& out )
+{
+	out.append( "# " );
+	out.append( name );
+	out.append( "\n" );
+}
+
+void ConfigurableProp_Label::Parse( const StringView& )
+{
+}
+
+void ConfigurableProp_Int::GenerateConfig( String& out )
+{
+	out.append( name );
+	out.append( " " );
+	char bfr[ 1024 ];
+	sgrx_snprintf( bfr, 1024, "%" PRId32, value );
+	out.append( bfr );
+}
+
+void ConfigurableProp_Int::Parse( const StringView& str )
+{
+	value = String_ParseInt( str );
+}
+
+void ConfigurableProp_Float::GenerateConfig( String& out )
+{
+	out.append( name );
+	out.append( " " );
+	char bfr[ 1024 ];
+	sgrx_snprintf( bfr, 1024, "%g", value );
+	out.append( bfr );
+}
+
+void ConfigurableProp_Float::Parse( const StringView& str )
+{
+	value = String_ParseFloat( str );
+}
+
+void ConfigurableProp_Bool::GenerateConfig( String& out )
+{
+	out.append( name );
+	out.append( " " );
+	out.append( value ? "true" : "false" );
+}
+
+void ConfigurableProp_Bool::Parse( const StringView& str )
+{
+	value = String_ParseBool( str );
+}
+
+void ConfigurableProp_Input::GenerateConfig( String& out )
+{
+	out.append( name );
+	out.append( " " );
+	char bfr[ 1024 ];
+	sgrx_snprintf( bfr, 1024, "%u:%u",
+		(unsigned) ACTINPUT_GET_TYPE( value ),
+		(unsigned) ACTINPUT_GET_VALUE( value ) );
+	out.append( bfr );
+}
+
+void ConfigurableProp_Input::Parse( const StringView& str )
+{
+	value = ACTINPUT_MAKE(
+		String_ParseInt( str.until(":") ),
+		String_ParseInt( str.after(":") ) );
+}
+
+bool ParseConfigProp( ConfigurableProperty** props, size_t count, const StringView& key, const StringView& value )
+{
+	for( size_t i = 0; i < count; ++i )
+	{
+		if( props[ i ]->type != CFGPROP_Label && props[ i ]->name == key )
+		{
+			props[ i ]->Parse( value );
+			return true;
+		}
+	}
+	return false;
+}
+
+void GenerateConfigProps( ConfigurableProperty** props, size_t count, String& out )
+{
+	for( size_t i = 0; i < count; ++i )
+	{
+		props[ i ]->GenerateConfig( out );
+	}
+}
+
+bool LoadConfigPropFile( const StringView& path, bool infs, ConfigurableProperty** props, size_t count )
+{
+	String data;
+	if( ( infs ? FS_LoadTextFile( path, data ) : LoadTextFile( path, data ) ) == false )
+		return false;
+	
+	ConfigReader cfg( data );
+	StringView key, value;
+	while( cfg.Read( key, value ) )
+	{
+		ParseConfigProp( props, count, key, value );
+	}
+	return true;
+}
+
+bool SaveConfigPropFile( const StringView& path, bool infs, ConfigurableProperty** props, size_t count )
+{
+	String data;
+	GenerateConfigProps( props, count, data );
+	
+	return infs ? FS_SaveTextFile( path, data ) : SaveTextFile( path, data );
+}
+
+

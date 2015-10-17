@@ -125,4 +125,91 @@ struct ScreenMenu
 };
 
 
+enum ConfigPropType
+{
+	CFGPROP_Label = 0,
+	CFGPROP_Int = 1,
+	CFGPROP_Float = 2,
+	CFGPROP_Bool = 3,
+	CFGPROP_Enum = 101,
+	CFGPROP_Input = 102,
+};
+
+struct ConfigurableProperty
+{
+	ConfigurableProperty( const StringView& nm, ConfigPropType ty ) : name(nm), type(ty){}
+	virtual ~ConfigurableProperty(){}
+	virtual void GenerateConfig( String& out ) = 0;
+	virtual void Parse( const StringView& value ) = 0;
+	
+	StringView name;
+	ConfigPropType type;
+};
+
+struct ConfigurableProp_Label : ConfigurableProperty
+{
+	ConfigurableProp_Label( const StringView& lbl )
+		: ConfigurableProperty( lbl, CFGPROP_Label ){}
+	virtual void GenerateConfig( String& out );
+	virtual void Parse( const StringView& str );
+};
+
+struct ConfigurableProp_Int : ConfigurableProperty
+{
+	ConfigurableProp_Int( const StringView& nm, int32_t v = 0 )
+		: ConfigurableProperty( nm, CFGPROP_Int ), value( v ){}
+	virtual void GenerateConfig( String& out );
+	virtual void Parse( const StringView& str );
+	
+	int32_t value;
+};
+
+struct ConfigurableProp_Float : ConfigurableProperty
+{
+	ConfigurableProp_Float( const StringView& nm, float v = 0 )
+		: ConfigurableProperty( nm, CFGPROP_Float ), value( v ){}
+	virtual void GenerateConfig( String& out );
+	virtual void Parse( const StringView& str );
+	
+	float value;
+};
+
+struct ConfigurableProp_Bool : ConfigurableProperty
+{
+	ConfigurableProp_Bool( const StringView& nm, bool v = false )
+		: ConfigurableProperty( nm, CFGPROP_Bool ), value( v ){}
+	virtual void GenerateConfig( String& out );
+	virtual void Parse( const StringView& str );
+	
+	bool value;
+};
+
+struct ConfigurableProp_Enum : ConfigurableProp_Int
+{
+	ConfigurableProp_Enum( const StringView& nm, StringView* vnms, int32_t nmc, int32_t v = 0 )
+		: ConfigurableProp_Int( nm, v ), value_names( vnms ), max_value( nmc ){ type = CFGPROP_Enum; }
+	virtual void GenerateConfig( String& out );
+	virtual void Parse( const StringView& str );
+	
+	StringView* value_names;
+	int32_t max_value;
+};
+
+struct ConfigurableProp_Input : ConfigurableProperty
+{
+	ConfigurableProp_Input( const StringView& nm, ActionInput v )
+		: ConfigurableProperty( nm, CFGPROP_Input ), value( v ){}
+	virtual void GenerateConfig( String& out );
+	virtual void Parse( const StringView& str );
+	
+	ActionInput value;
+};
+
+bool ParseConfigProp( ConfigurableProperty** props, size_t count, const StringView& key, const StringView& value );
+void GenerateConfigProps( ConfigurableProperty** props, size_t count, String& out );
+
+bool LoadConfigPropFile( const StringView& path, bool infs, ConfigurableProperty** props, size_t count );
+bool SaveConfigPropFile( const StringView& path, bool infs, ConfigurableProperty** props, size_t count );
+
+
 

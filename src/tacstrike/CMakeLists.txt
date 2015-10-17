@@ -61,3 +61,13 @@ set_target_properties( mld62game PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
+# ISR3 Game
+add_library( isr3game SHARED isr3game )
+target_link_libraries( isr3game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
+set_target_properties( isr3game PROPERTIES
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	COMPILE_FLAGS "${CORE_FLAGS} -DISR3GAME"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+
