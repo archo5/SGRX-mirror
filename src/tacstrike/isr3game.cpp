@@ -103,7 +103,7 @@ struct DroneTheftGame : IGame
 		htr.SetNamedFont( "", "core" );
 		
 		GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
-		g_GameLevel->Load( "test" );
+		g_GameLevel->Load( "level1" );
 		g_GameLevel->Tick( 0, 0 );
 		
 		Game_ShowCursor( false );
