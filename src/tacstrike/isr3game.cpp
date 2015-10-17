@@ -126,8 +126,8 @@ ISR3Drone::ISR3Drone( GameLevel* lev, Vec3 pos, Vec3 dir ) :
 	m_shadowInst->type = LIGHT_PROJ;
 	m_shadowInst->direction = V3(0,0,-1);
 	m_shadowInst->updir = V3(0,1,0);
-	m_shadowInst->angle = 90;
-	m_shadowInst->range = 1.5f;
+	m_shadowInst->angle = 45;
+	m_shadowInst->range = 3.5f;
 	m_shadowInst->UpdateTransform();
 	m_shadowInst->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
 	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
@@ -247,6 +247,54 @@ void ISR3Drone::Hit( float pwr )
 
 void ISR3Drone::FixedTick( float deltaTime )
 {
+	if( IsInAction() )
+	{
+		i_move = V2(0);
+		if( m_actState.timeoutMoveToStart > 0 )
+		{
+			if( ( m_actState.info.placePos - GetPosition() ).ToVec2().Length() < 0.1f )
+			{
+				m_actState.timeoutMoveToStart = 0;
+			}
+			else
+			{
+				i_move = ( m_actState.info.placePos - GetPosition() ).ToVec2();
+				m_actState.timeoutMoveToStart -= deltaTime;
+			}
+		}
+		else if( m_actState.progress < m_actState.info.timeActual )
+		{
+			float pp = m_actState.progress;
+			float cp = pp + deltaTime;
+			
+			// <<< TODO EVENTS >>>
+			if( pp < 0.01f && 0.01f <= cp )
+			{
+				m_actState.target->OnEvent( "action_start" );
+			}
+		//	if( pp < 0.5f && 0.5f <= cp )
+		//	{
+		//	}
+			
+			m_actState.progress = cp;
+			if( m_actState.progress >= m_actState.info.timeActual )
+			{
+				// end of action
+				m_actState.target->OnEvent( "action_end" );
+				m_actState.timeoutEnding = IA_NEEDS_LONG_END( m_actState.info.type ) ? 1 : 0;
+			}
+		}
+		else
+		{
+			m_actState.timeoutEnding -= deltaTime;
+			if( m_actState.timeoutEnding <= 0 )
+			{
+				// end of action ending
+				InterruptAction( true );
+			}
+		}
+	}
+	
 	Vec3 pos = m_body->GetPosition();
 	
 	Vec2 md = i_move * i_speed;
@@ -589,6 +637,7 @@ struct DroneTheftGame : IGame
 	bool OnInitialize()
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
+		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf:nohint" );
 		
 		g_SoundSys = SND_CreateSystem();
 		
@@ -750,6 +799,10 @@ struct DroneTheftGame : IGame
 	
 	void OnTick( float dt, uint32_t gametime )
 	{
+		CURSOR_POS += cursor_dt;
+		CURSOR_POS.x = clamp( CURSOR_POS.x, 0, GR_GetWidth() );
+		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
+		
 		g_SoundSys->Update();
 		
 		#if 0

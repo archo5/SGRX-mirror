@@ -193,7 +193,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	}
 	void Game_Tick( float dt, float bf )
 	{
-		CURSOR_POS += cursor_dt;
 		g_GameLevel->Tick( dt, bf );
 		
 		myscritem->Tick( dt, bf );
@@ -246,6 +245,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	void OnTick( float dt, uint32_t gametime )
 	{
 	//	CURSOR_POS += V2( AIM_X.value, AIM_Y.value ) * TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.03f;
+		CURSOR_POS += cursor_dt;
 		CURSOR_POS.x = clamp( CURSOR_POS.x, 0, GR_GetWidth() );
 		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
 		
