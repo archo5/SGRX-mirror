@@ -137,6 +137,8 @@ struct Actionable : Entity, IInteractiveEntity
 	
 	MeshInstHandle m_meshInst;
 	InteractInfo m_info;
+	void sgsSetEnabled(){ SetEnabled( m_enabled ); }
+	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK sgsSetEnabled VARNAME enabled ) bool m_enabled;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME timeEstimate ) SGS_ALIAS( float m_info.timeEstimate );
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME timeActual ) SGS_ALIAS( float m_info.timeActual );
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME onSuccess ) sgsVariable m_onSuccess;
@@ -145,6 +147,7 @@ struct Actionable : Entity, IInteractiveEntity
 	Actionable( GameLevel* lev, const StringView& name, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir );
 	virtual void OnEvent( const StringView& type );
 	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
+	void SetEnabled( bool v );
 	
 	virtual void* GetInterfaceImpl( uint32_t iface_id )
 	{

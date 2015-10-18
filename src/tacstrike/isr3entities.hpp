@@ -47,6 +47,7 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	Vec3 GetQueryPosition(){ return GetPosition() + V3(0,0,0.5f); }
 	Vec3 GetInterpPos(){ return m_interpPos; }
 	Vec3 GetInterpAimDir(){ return m_interpAimDir; }
+	bool Alive() const { return m_health > 0; }
 	
 	PhyRigidBodyHandle m_body;
 	PhyShapeHandle m_shapeHandle;

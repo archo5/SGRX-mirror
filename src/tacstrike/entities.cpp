@@ -302,29 +302,31 @@ Actionable::Actionable( GameLevel* lev, const StringView& name, const StringView
 	m_meshInst->matrix = mtx;
 	m_level->LightMesh( m_meshInst );
 	
-	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_InteractiveItem };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	SetEnabled( true );
 	
 	m_level->MapEntityByName( this );
 }
 
 void Actionable::OnEvent( const StringView& type )
 {
-	if( type == "action_start" )
+	if( m_enabled )
 	{
-		// start animation?
-	}
-	else if( type == "action_end" )
-	{
-		// end animation?
-		SGS_SCOPE;
-		GetScriptedObject().push( C );
-		if( m_onSuccess.call( 1, 1 ) )
+		if( type == "action_start" )
 		{
-			bool keep = sgs_GetVar<bool>()( C, -1 );
-			if( keep == false )
+			// start animation?
+		}
+		else if( type == "action_end" )
+		{
+			// end animation?
+			SGS_SCOPE;
+			GetScriptedObject().push( C );
+			if( m_onSuccess.call( 1, 1 ) )
 			{
-				m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+				bool keep = sgs_GetVar<bool>()( C, -1 );
+				if( keep == false )
+				{
+					m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+				}
 			}
 		}
 	}
@@ -332,8 +334,24 @@ void Actionable::OnEvent( const StringView& type )
 
 bool Actionable::GetInteractionInfo( Vec3 pos, InteractInfo* out )
 {
+	if( m_enabled == false )
+		return false;
 	*out = m_info;
 	return true;
+}
+
+void Actionable::SetEnabled( bool v )
+{
+	m_enabled = v;
+	if( v )
+	{
+		InfoEmissionSystem::Data D = { m_info.placePos, 0.5f, IEST_InteractiveItem };
+		m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	}
+	else
+	{
+		m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+	}
 }
 
 

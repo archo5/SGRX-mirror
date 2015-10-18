@@ -220,7 +220,7 @@ void ISR3Drone::FixedTick( float deltaTime )
 	{
 		Vec3 gnd = pos + V3(0,0,-100);
 		SGRX_PhyRaycastInfo info;
-		if( m_level->GetPhyWorld()->Raycast( pos, gnd, 0x0001, 0xffff, &info ) )
+		if( m_level->GetPhyWorld()->Raycast( pos, gnd, 0x0001, 0x0001, &info ) )
 		{
 			gnd = TLERP( pos, gnd, info.factor );
 		}
@@ -405,6 +405,7 @@ void ISR3Player::DrawUI()
 	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+	int W = GR_GetWidth(), H = GR_GetHeight();
 	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
 	
 	Vec3 QP = GetQueryPosition();
@@ -459,6 +460,29 @@ void ISR3Player::DrawUI()
 //	}
 	
 	m_aimHelper.DrawUI();
+	
+	if( Alive() )
+	{
+		if( m_actState.target )
+		{
+			Vec2 pos = V2( W / 2, H * 3 / 4 );
+			Vec2 ext = V2( bsz / 4, bsz / 40 );
+			Vec2 ext2 = V2( -bsz / 4, bsz / 40 );
+			Vec2 irect[4] = { pos - ext, pos - ext2, pos + ext, pos + ext2 };
+			float q = clamp( safe_fdiv( m_actState.progress, m_actState.info.timeActual ), 0, 1 );
+			br.Reset().Col( 0.5f, 0.02f, 0.01f, 0.5f ).Quad( pos.x - ext.x, pos.y - ext.y,
+				TLERP( pos.x - ext.x, pos.x + ext.x, q ), pos.y + ext.y );
+			br.Reset().Col( 1, 1 ).AAStroke( irect, 4, 2, true );
+		}
+		
+		br.Reset();
+		GR2D_SetFont( "core", bsz / 24 );
+		StringView healthstr = "HEALTH: ||||||||||||||||||||";
+		StringView curhltstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(m_health,100.0f) / 5 );
+		br.Col( 0.1f, 1 ); GR2D_DrawTextLine( bsz / 10, bsz / 10, healthstr );
+		br.Col( 1, 1 ); GR2D_DrawTextLine( bsz / 10, bsz / 10, curhltstr );
+		br.Flush();
+	}
 	
 	GR2D_SetFontSettings( &fs );
 }
