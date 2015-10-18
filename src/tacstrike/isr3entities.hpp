@@ -10,6 +10,9 @@
 
 struct ISR3Drone : Entity, SGRX_MeshInstUserData
 {
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
 	struct ActionState
 	{
 		ActionState() : timeoutMoveToStart(0), timeoutEnding(0),
@@ -32,6 +35,7 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
 	
+	virtual void OnEvent( const StringView& type ){}
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	void Hit( float pwr );
 	
@@ -41,6 +45,8 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	
 	Vec3 GetPosition(){ return m_body->GetPosition(); }
 	Vec3 GetQueryPosition(){ return GetPosition() + V3(0,0,0.5f); }
+	Vec3 GetInterpPos(){ return m_interpPos; }
+	Vec3 GetInterpAimDir(){ return m_interpAimDir; }
 	
 	PhyRigidBodyHandle m_body;
 	PhyShapeHandle m_shapeHandle;
@@ -53,6 +59,8 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	IVState< Vec3 > m_ivPos;
 	IVState< Quat > m_ivRot;
 	float m_turnAngle;
+	Vec3 m_interpPos;
+	Vec3 m_interpAimDir;
 	
 	HashTable< String, int > m_items;
 
@@ -68,3 +76,55 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	bool i_aim_at;
 	Vec3 i_aim_target;
 };
+
+
+struct ISR3Player : ISR3Drone
+{
+	Vec2 inCursorMove;
+	Entity* m_targetII;
+	bool m_targetTriggered;
+	TSAimHelper m_aimHelper;
+	
+	ISR3Player( GameLevel* lev, Vec3 pos, Vec3 dir );
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	void DrawUI();
+};
+
+
+struct ISR3Enemy : ISR3Drone
+{
+	SGS_OBJECT_INHERIT( ISR3Drone );
+	ENT_SGS_IMPLEMENT;
+	
+	Vec2 i_turn;
+	
+	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
+	TSFactStorage m_factStorage;
+	AIDBSystem* m_aidb;
+	sgs_VarObj* m_scrObj;
+	
+	ISR3Enemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
+	~ISR3Enemy();
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	bool GetMapItemInfo( MapItemInfo* out );
+	void DebugDrawWorld();
+	void DebugDrawUI();
+	
+	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
+	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
+	TSFactStorage::Fact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
+};
+
+
+
+struct ISR3EntityCreationSystem : IGameLevelSystem
+{
+	enum { e_system_uid = 1000 };
+	ISR3EntityCreationSystem( GameLevel* lev );
+	virtual bool AddEntity( const StringView& type, sgsVariable data );
+	virtual void DrawUI();
+};
+
+
