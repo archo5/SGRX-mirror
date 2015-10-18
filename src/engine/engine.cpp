@@ -79,7 +79,7 @@ static Vec2 g_CursorScale = {0,0};
 static Array< IScreen* > g_OverlayScreens;
 static Array< FileSysHandle > g_FileSystems;
 
-static RenderSettings g_RenderSettings = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
+static RenderSettings g_RenderSettings = { 0, 1280, 720, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
 static const char* g_RendererPrefix = "sgrx-render-";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;

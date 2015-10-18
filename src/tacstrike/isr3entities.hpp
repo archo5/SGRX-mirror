@@ -80,6 +80,9 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 
 struct ISR3Player : ISR3Drone
 {
+	SGS_OBJECT_INHERIT( ISR3Drone );
+	ENT_SGS_IMPLEMENT;
+	
 	Vec2 inCursorMove;
 	Entity* m_targetII;
 	bool m_targetTriggered;
@@ -102,7 +105,6 @@ struct ISR3Enemy : ISR3Drone
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	TSFactStorage m_factStorage;
 	AIDBSystem* m_aidb;
-	sgs_VarObj* m_scrObj;
 	
 	ISR3Enemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
 	~ISR3Enemy();
@@ -115,6 +117,10 @@ struct ISR3Enemy : ISR3Drone
 	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
 	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
 	TSFactStorage::Fact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
+	
+	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( int typemask );
+	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( int typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( int typemask, TimeVal maxtime );
 };
 
 

@@ -629,7 +629,8 @@ Vec3 TSCharacter::GetInterpAimDir()
 
 TSAimHelper::TSAimHelper( GameLevel* lev ) :
 	m_level(lev), m_pos(V3(0)), m_cp(V2(0)), m_aimPtr(NULL),
-	m_aimPoint(V3(0)), m_rcPoint(V3(0)), m_aimFactor(0), m_pDist(0)
+	m_aimPoint(V3(0)), m_rcPoint(V3(0)), m_aimFactor(0), m_pDist(0),
+	m_closestEnt(NULL), m_closestPoint(V3(0))
 {
 	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
 }

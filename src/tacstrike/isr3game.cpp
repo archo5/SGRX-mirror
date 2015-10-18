@@ -38,6 +38,117 @@ float g_s_vol_sfx = 0.8f;
 float g_s_vol_music = 0.8f;
 
 
+struct StartScreen : IScreen
+{
+	float m_timer;
+	TextureHandle m_tx_logo;
+	
+	StartScreen() : m_timer(0)
+	{
+	}
+	
+	void OnStart()
+	{
+		m_timer = 0;
+		m_tx_logo = GR_GetTexture( "ui/scr_title.png" );
+	}
+	void OnEnd()
+	{
+		m_tx_logo = NULL;
+	}
+	
+	bool OnEvent( const Event& e )
+	{
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE )
+		{
+			Game_ShowCursor( false );
+			g_GameLevel->StartLevel();
+			m_timer = 5;
+		}
+		return true;
+	}
+	bool Draw( float delta )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		
+		// logo
+		const TextureInfo& texinfo = m_tx_logo.GetInfo();
+		float scale = GR_GetWidth() / 1024.0f;
+		br.Reset().SetTexture( m_tx_logo ).Box( GR_GetWidth() / 2.0f, GR_GetHeight() / 2.1f, texinfo.width * scale, texinfo.height * scale );
+		
+		br.Reset();
+		GR2D_SetFont( "core", GR_GetHeight()/20 );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4, "Press SPACE to start", HALIGN_CENTER, VALIGN_CENTER );
+		
+		return m_timer >= 5;
+	}
+}
+g_StartScreen;
+
+
+struct EndScreen : IScreen
+{
+	float m_timer;
+	bool m_restart;
+	
+	EndScreen() : m_timer(0), m_restart(false)
+	{
+	}
+	
+	void OnStart()
+	{
+		m_timer = 0;
+		m_restart = false;
+	}
+	void OnEnd()
+	{
+	}
+	
+	bool OnEvent( const Event& e )
+	{
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r )
+		{
+			Game_ShowCursor( false );
+			GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
+			g_GameLevel->Load( "level1" );
+			g_GameLevel->Tick( 0, 0 );
+			g_GameLevel->StartLevel();
+			m_restart = true;
+		}
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE )
+		{
+			Game_End();
+		}
+		return true;
+	}
+	bool Draw( float delta )
+	{
+		m_timer += delta;
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		br.Reset()
+			.Col( 0, clamp( m_timer / 3, 0, 0.4f ) )
+			.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
+		
+		br.Reset().Col( 1 );
+		GR2D_SetFont( "core", GR_GetHeight()/20 );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*2/4, "Information obtained! Good job!", HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4, "Press R to restart level", HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3.5f/4, "Press Esc to quit", HALIGN_CENTER, VALIGN_CENTER );
+		
+		return m_restart;
+	}
+}
+g_EndScreen;
+
+
+int EndGame( SGS_CTX )
+{
+	Game_AddOverlayScreen( &g_EndScreen );
+	return 0;
+};
+
+
 #define MAX_TICK_SIZE (1.0f/15.0f)
 #define FIXED_TICK_SIZE (1.0f/30.0f)
 
@@ -93,6 +204,8 @@ struct DroneTheftGame : IGame
 		g_SoundSys->SetVolume( "bus:/sfx", g_s_vol_sfx );
 		
 		g_GameLevel = new GameLevel( PHY_CreateWorld() );
+		sgs_PushCFunction( g_GameLevel->GetSGSC(), EndGame );
+		sgs_StoreGlobal( g_GameLevel->GetSGSC(), "EndGame" );
 		g_GameLevel->SetGlobalToSelf();
 		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
@@ -102,7 +215,7 @@ struct DroneTheftGame : IGame
 		AddSystemToLevel<FlareSystem>( g_GameLevel );
 		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
 		AddSystemToLevel<LevelMapSystem>( g_GameLevel );
-		AddSystemToLevel<ScriptedSequenceSystem>( g_GameLevel );
+	//	AddSystemToLevel<ScriptedSequenceSystem>( g_GameLevel );
 		AddSystemToLevel<MusicSystem>( g_GameLevel );
 		AddSystemToLevel<DamageSystem>( g_GameLevel );
 		AddSystemToLevel<BulletSystem>( g_GameLevel );
@@ -122,9 +235,10 @@ struct DroneTheftGame : IGame
 		g_GameLevel->Load( "level1" );
 		g_GameLevel->Tick( 0, 0 );
 		
-		Game_ShowCursor( false );
+		Game_ShowCursor( true );
 		
-		g_GameLevel->StartLevel();
+		Game_AddOverlayScreen( &g_StartScreen );
+		
 		return true;
 	}
 	void OnDestroy()

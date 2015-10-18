@@ -166,6 +166,9 @@ void LevelMapSystem::RemoveItem( Entity* e )
 
 void LevelMapSystem::DrawUI()
 {
+	if( m_level->m_player == NULL )
+		return;
+	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	int size_x = GR_GetWidth();

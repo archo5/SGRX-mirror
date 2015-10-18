@@ -489,68 +489,6 @@ void ISR3Player::DrawUI()
 
 
 
-
-extern sgs_ObjInterface ISR3Enemy_iface[1];
-
-#define ISR3ENEMY_VALID if( E == NULL ){ return sgs_Msg( C, SGS_WARNING, "enemy no longer exists" ); }
-
-static int ISR3Enemy_HasFact( SGS_CTX )
-{
-	ISR3Enemy* E;
-	SGS_PARSE_METHOD( C, ISR3Enemy_iface, E, ISR3Enemy, HasFact );
-	ISR3ENEMY_VALID;
-	sgs_PushBool( C, E->HasFact( sgs_GetVar<int>()( C, 0 ) ) );
-	return 1;
-}
-
-static int ISR3Enemy_HasRecentFact( SGS_CTX )
-{
-	ISR3Enemy* E;
-	SGS_PARSE_METHOD( C, ISR3Enemy_iface, E, ISR3Enemy, HasRecentFact );
-	ISR3ENEMY_VALID;
-	sgs_PushBool( C, E->HasRecentFact( sgs_GetVar<int>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) ) );
-	return 1;
-}
-
-static int ISR3Enemy_GetRecentFact( SGS_CTX )
-{
-	ISR3Enemy* E;
-	SGS_PARSE_METHOD( C, ISR3Enemy_iface, E, ISR3Enemy, GetRecentFact );
-	ISR3ENEMY_VALID;
-	TSFactStorage::Fact* F = E->GetRecentFact( sgs_GetVar<int>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) );
-	if( F )
-	{
-		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
-		sgs_PushString( C, "ref" ); sgs_PushInt( C, F->ref );
-		sgs_PushString( C, "type" ); sgs_PushInt( C, F->type );
-		sgs_PushString( C, "position" ); sgs_PushVec3p( C, &F->position.x );
-		sgs_PushString( C, "created" ); sgs_PushInt( C, F->created );
-		sgs_PushString( C, "expires" ); sgs_PushInt( C, F->expires );
-		sgs_PushDict( C, 12 );
-		return 1;
-	}
-	return 0;
-}
-
-static int ISR3Enemy_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "HasFact" ) return sgs_PushCFunction( C, ISR3Enemy_HasFact );
-		SGS_CASE( "HasRecentFact" ) return sgs_PushCFunction( C, ISR3Enemy_HasRecentFact );
-		SGS_CASE( "GetRecentFact" ) return sgs_PushCFunction( C, ISR3Enemy_GetRecentFact );
-	SGS_END_INDEXFUNC
-}
-
-sgs_ObjInterface ISR3Enemy_iface[1] =
-{{
-	"ISR3Enemy",
-	NULL, NULL,
-	ISR3Enemy_getindex, NULL,
-	NULL, NULL, NULL, NULL,
-	NULL, NULL
-}};
-
-
 ISR3Enemy::ISR3Enemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
 	ISR3Drone( lev, pos, dir ),
 	i_turn( V2(0) )
@@ -558,20 +496,15 @@ ISR3Enemy::ISR3Enemy( GameLevel* lev, const StringView& name, const Vec3& pos, c
 	m_typeName = "enemy";
 	m_name = name;
 	
+	i_aim_at = true;
+	
 	m_aidb = m_level->GetSystem<AIDBSystem>();
 	ownerType = GAT_Enemy;
-	
-	// create self
-	{
-		sgs_Variable var;
-		sgs_InitObject( m_level->m_scriptCtx.C, &var, this, ISR3Enemy_iface );
-		m_scrObj = sgs_GetObjectStructP( &var );
-	}
 	
 	// create ESO (enemy scripted object)
 	{
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		sgs_PushObjectPtr( m_level->m_scriptCtx.C, m_scrObj );
+		GetScriptedObject().push( m_level->m_scriptCtx.C );
 		m_level->m_scriptCtx.Push( args );
 		m_level->m_scriptCtx.Push( GetPosition() );
 		m_level->m_scriptCtx.Push( GetAimDir() );
@@ -595,10 +528,6 @@ ISR3Enemy::~ISR3Enemy()
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_enemyState.thiscall( "destroy" );
 	}
-	
-	// destroy self
-	m_scrObj->data = NULL;
-	sgs_ObjRelease( m_level->m_scriptCtx.C, m_scrObj );
 }
 
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
@@ -701,6 +630,7 @@ void ISR3Enemy::FixedTick( float deltaTime )
 		i_move = m_enemyState[ "i_move" ].get<Vec2>();
 		i_speed = m_enemyState[ "i_speed" ].get<float>();
 		i_turn = m_enemyState[ "i_turn" ].get<Vec2>();
+		i_aim_target = m_enemyState[ "i_aim_target" ].get<Vec3>();
 	}
 	
 	if( i_turn.Length() > 0.1f )
@@ -808,10 +738,38 @@ void ISR3Enemy::DebugDrawUI()
 	}
 }
 
+bool ISR3Enemy::sgsHasFact( int typemask )
+{
+	return HasFact( typemask );
+}
+
+bool ISR3Enemy::sgsHasRecentFact( int typemask, TimeVal maxtime )
+{
+	return HasRecentFact( typemask, maxtime );
+}
+
+SGS_MULTRET ISR3Enemy::sgsGetRecentFact( int typemask, TimeVal maxtime )
+{
+	TSFactStorage::Fact* F = GetRecentFact( typemask, maxtime );
+	if( F )
+	{
+		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
+		sgs_PushString( C, "ref" ); sgs_PushInt( C, F->ref );
+		sgs_PushString( C, "type" ); sgs_PushInt( C, F->type );
+		sgs_PushString( C, "position" ); sgs_PushVec3p( C, &F->position.x );
+		sgs_PushString( C, "created" ); sgs_PushInt( C, F->created );
+		sgs_PushString( C, "expires" ); sgs_PushInt( C, F->expires );
+		sgs_PushDict( C, 12 );
+		return 1;
+	}
+	return 0;
+}
+
 
 
 ISR3EntityCreationSystem::ISR3EntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
+	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
 bool ISR3EntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
