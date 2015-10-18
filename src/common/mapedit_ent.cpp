@@ -1051,6 +1051,7 @@ sgs_RegIntConst g_ent_scripted_ric[] =
 	{ "LM_MESHINST_SOLID", LM_MESHINST_SOLID },
 	{ "LM_MESHINST_DYNLIT", LM_MESHINST_DYNLIT },
 	{ "LM_MESHINST_CASTLMS", LM_MESHINST_CASTLMS },
+	{ "LM_MESHINST_EDITOR_ONLY", LM_MESHINST_EDITOR_ONLY },
 };
 
 sgs_RegFuncConst g_ent_scripted_rfc[] =

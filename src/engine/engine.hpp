@@ -1239,6 +1239,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	float fogStartHeight;
 	float fogMinDist;
 	
+	uint32_t clearColor;
 	Vec3 ambientLightColor;
 	Vec3 dirLightColor;
 	Vec3 dirLightDir;

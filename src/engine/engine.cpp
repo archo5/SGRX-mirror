@@ -651,7 +651,7 @@ void IGame::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, 0x00111111, 1, rtt );
+	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, scene->clearColor, 1, rtt );
 	if( info.viewport )
 		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
 	
@@ -2320,6 +2320,7 @@ SGRX_Scene::SGRX_Scene() :
 	fogHeightDensity( 0 ),
 	fogStartHeight( 0.01f ),
 	fogMinDist( 0 ),
+	clearColor( 0x00111111 ),
 	ambientLightColor( Vec3::Create( 0.1f ) ),
 	dirLightColor( Vec3::Create( 0.8f ) ),
 	dirLightDir( Vec3::Create( -1 ).Normalized() )

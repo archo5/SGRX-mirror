@@ -298,12 +298,14 @@ int FlareSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "Update" ){ sgs_PushCFunction( C, _sgs_method__FlareSystem__Update ); return SGS_SUCCESS; }
 		SGS_CASE( "Remove" ){ sgs_PushCFunction( C, _sgs_method__FlareSystem__Remove ); return SGS_SUCCESS; }
+		SGS_CASE( "layers" ){ sgs_PushVar( C, static_cast<FlareSystem*>( obj->data )->m_layers ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
 int FlareSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "layers" ){ static_cast<FlareSystem*>( obj->data )->m_layers = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

@@ -62,6 +62,7 @@ struct LC_Lightmap
 #define LM_MESHINST_DYNLIT 0x0002
 #define LM_MESHINST_CASTLMS 0x0004
 #define LM_MESHINST_DECAL 0x0008
+#define LM_MESHINST_EDITOR_ONLY 0x0010 // editor-only
 struct LC_MeshInst
 {
 	String m_meshname;

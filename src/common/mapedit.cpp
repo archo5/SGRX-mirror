@@ -1023,6 +1023,8 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
 		Mesh& M = m_meshes.item( i ).value;
+		if( M.info.rflags & LM_MESHINST_EDITOR_ONLY )
+			continue;
 		
 		LC_Lightmap lm;
 		ExportLightmap( LGC_MESH_LMID( m_meshes.item( i ).key ), lm );

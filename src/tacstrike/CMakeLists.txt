@@ -62,7 +62,7 @@ set_target_properties( mld62game PROPERTIES
 )
 
 # ISR3 Game
-add_library( isr3game SHARED isr3game entities_ts cppbc_entities_ts )
+add_library( isr3game SHARED isr3game isr3entities cppbc_isr3entities entities_ts cppbc_entities_ts )
 target_link_libraries( isr3game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( isr3game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"

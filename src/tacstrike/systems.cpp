@@ -246,6 +246,23 @@ void LevelMapSystem::DrawUI()
 		}
 	}
 	
+	ObjectiveSystem* objSys = m_level->GetSystem<ObjectiveSystem>();
+	if( objSys )
+	{
+		for( size_t i = 0; i < objSys->m_objectives.size(); ++i )
+		{
+			OSObjective& obj = objSys->m_objectives[ i ];
+			if( obj.hasLocation == false || obj.state != OSObjective::Open )
+				continue;
+			
+			Vec2 viewpos = obj.location.ToVec2();
+			
+			uint32_t dotcol = COLOR_RGB( 20, 245, 10 );
+			br.Reset().SetTexture( m_tex_mapline )
+				.Colu( dotcol ).Box( viewpos.x, viewpos.y, 1, 1 );
+		}
+	}
+	
 	br.Flush();
 	GR2D_UnsetViewport();
 	GR2D_UnsetScissorRect();

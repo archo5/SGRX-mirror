@@ -109,6 +109,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_levelCameraInfo[1] = V3(1,0,0);
 	
 	m_scene = GR_CreateScene();
+	m_scene->clearColor = 0;
 	m_scene->camera.position = Vec3::Create( 4, 4, 4 );
 	m_scene->camera.direction = Vec3::Create( -1, -1, -1 ).Normalized();
 	m_scene->camera.aspect = 1024.0f / 576.0f;
