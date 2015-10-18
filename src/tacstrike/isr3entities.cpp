@@ -26,7 +26,7 @@ ISR3Drone::ISR3Drone( GameLevel* lev, Vec3 pos, Vec3 dir ) :
 	i_aim_at = false;
 	i_aim_target = V3(0);
 	
-	m_health = 20;
+	m_health = 100;
 	m_hitTimeout = 0;
 	m_turnAngle = atan2( dir.y, dir.x );
 	m_ivPos = pos;
@@ -35,7 +35,7 @@ ISR3Drone::ISR3Drone( GameLevel* lev, Vec3 pos, Vec3 dir ) :
 	m_interpAimDir = V3(0);
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
-	MI->userData = &m_meshInstInfo;
+	MI->userData = (SGRX_MeshInstUserData*) this;
 	MI->layers = 0x2;
 	
 	m_shadowInst = m_level->GetScene()->CreateLight();
@@ -155,8 +155,8 @@ void ISR3Drone::Hit( float pwr )
 		m_health -= pwr;
 		if( m_health <= 0 )
 		{
-			FlareSystem* FS = m_level->GetSystem<FlareSystem>();
-			FS->RemoveFlare( this );
+			m_level->GetSystem<FlareSystem>()->RemoveFlare( this );
+			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 		}
 	}
 }
@@ -213,8 +213,10 @@ void ISR3Drone::FixedTick( float deltaTime )
 	
 	Vec3 pos = m_body->GetPosition();
 	
-	Vec2 md = i_move * i_speed;
-	Vec3 force = V3( md.x, md.y, 0 );
+	Vec2 md = i_move.Normalized() * clamp( i_move.Length(), 0, 1 ) * i_speed;
+//	float pwr = TMAX( 0.0f, Vec2Dot( md.Normalized(), m_body->GetLinearVelocity().ToVec2() ) );
+//	Vec3 force = V3( md.x, md.y, 0 ) / ( 0.1f + pwr * 0.5f );
+	Vec3 force = ( V3( md.x, md.y, 0 ) - m_body->GetLinearVelocity() ) * 5.0f;
 	{
 		Vec3 gnd = pos + V3(0,0,-100);
 		SGRX_PhyRaycastInfo info;
@@ -261,6 +263,7 @@ void ISR3Drone::Tick( float deltaTime, float blendFactor )
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->matrix = mtx;
+	MI->constants[ 0 ] = col;
 	m_shadowInst->position = pos + V3(0,0,1);
 	
 	m_level->LightMesh( MI );
@@ -283,7 +286,7 @@ ISR3Player::ISR3Player( GameLevel* lev, Vec3 pos, Vec3 dir )
 	m_aimHelper( lev )
 {
 	m_animChar.Load( "chars/player.chr" );
-	m_meshInstInfo.ownerType = GAT_Player;
+	ownerType = GAT_Player;
 	
 	i_aim_at = true;
 	
@@ -366,14 +369,14 @@ void ISR3Player::Tick( float deltaTime, float blendFactor )
 			Vec3 dir = ( i_aim_target - origin_l ).Normalized();
 			dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
 		//	printf("%f;%f;%f\n",dir.x,dir.y,dir.z);
-			m_level->GetSystem<BulletSystem>()->Add( origin_l, dir * 100, 1, 1, m_meshInstInfo.ownerType );
+			m_level->GetSystem<BulletSystem>()->Add( origin_l, dir * 100, 1, 1, ownerType );
 			m_shootPS.SetTransform( mtx_l );
 			m_shootPS.Trigger();
 		}
 		{
 			Vec3 dir = ( i_aim_target - origin_r ).Normalized();
 			dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-			m_level->GetSystem<BulletSystem>()->Add( origin_r, dir * 100, 1, 1, m_meshInstInfo.ownerType );
+			m_level->GetSystem<BulletSystem>()->Add( origin_r, dir * 100, 1, 1, ownerType );
 			m_shootPS.SetTransform( mtx_r );
 			m_shootPS.Trigger();
 		}
@@ -532,7 +535,7 @@ ISR3Enemy::ISR3Enemy( GameLevel* lev, const StringView& name, const Vec3& pos, c
 	m_name = name;
 	
 	m_aidb = m_level->GetSystem<AIDBSystem>();
-	m_meshInstInfo.ownerType = GAT_Enemy;
+	ownerType = GAT_Enemy;
 	
 	// create self
 	{
@@ -683,9 +686,12 @@ void ISR3Enemy::FixedTick( float deltaTime )
 	
 	ISR3Drone::FixedTick( deltaTime );
 	
-	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
-	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	if( m_health > 0 )
+	{
+		Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
+		InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
+		m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	}
 }
 
 void ISR3Enemy::Tick( float deltaTime, float blendFactor )

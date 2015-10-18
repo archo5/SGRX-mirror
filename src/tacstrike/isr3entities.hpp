@@ -53,7 +53,6 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	LightHandle m_shadowInst;
 	
 	AnimCharacter m_animChar;
-	SGRX_MeshInstUserData m_meshInstInfo;
 	ActionState m_actState;
 	
 	IVState< Vec3 > m_ivPos;
