@@ -649,10 +649,10 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 			->QuerySphereAll( this, pos, 8.0f, IEST_Target );
 		if( m_aimPtr == NULL || m_aimPtr == m_closestEnt )
 		{
+			m_aimPoint = m_closestPoint;
 			if( m_aimFactor < SMALL_FLOAT )
 			{
 				m_aimPtr = m_closestEnt;
-				m_aimPoint = m_closestPoint;
 			}
 		}
 		else

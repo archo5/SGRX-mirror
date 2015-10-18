@@ -291,6 +291,7 @@ bool AnimCharacter::Load( const StringView& sv )
 		return false;
 	
 	_OnRenderUpdate();
+	m_cachedMeshInst->raycastOverride = m_cachedMesh->m_numBones ? this : NULL;
 	return true;
 }
 
