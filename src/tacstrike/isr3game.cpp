@@ -155,6 +155,70 @@ struct EndScreen : IScreen
 g_EndScreen;
 
 
+
+
+
+struct ISR3SplashScreen : IScreen
+{
+	ISR3SplashScreen() : m_timer(0)
+	{
+	}
+	
+	void OnStart()
+	{
+		m_timer = 0;
+	}
+	
+	void OnEnd()
+	{
+	}
+	
+	bool OnEvent( const Event& e )
+	{
+		if( m_timer > 2 && ( e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN ) )
+		{
+			m_timer = 5;
+		}
+		return true;
+	}
+	
+	bool Draw( float delta )
+	{
+		m_timer += delta;
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		br.UnsetTexture()
+			.Col( 0, 1 )
+			.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
+		
+		float vis_crage = smoothlerp_range( m_timer, 0, 1, 3, 5 );
+		if( vis_crage )
+		{
+			// background
+			float maxw = TMAX( GR_GetWidth(), GR_GetHeight() ) + 50;
+			br.Col( 0, vis_crage ).QuadWH( 0, -m_timer * 10, maxw, maxw );
+			
+			// logo
+			br.Reset().Col( 1, vis_crage );
+			GR2D_SetFont( "core", GR_GetHeight()/20 );
+			GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*2/4, 
+				"a game by snake5", HALIGN_CENTER, VALIGN_CENTER );
+			
+			br.Reset().Col( 1, vis_crage );
+			GR2D_SetFont( "core", GR_GetHeight()/30 );
+			GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4, 
+				"This game was developed as part of Indie Speed Run 2015 (www.indiespeedrun.com).",
+				HALIGN_CENTER, VALIGN_CENTER );
+		}
+		
+		return m_timer > 5;
+	}
+	
+	float m_timer;
+}
+g_SplashScreen;
+
+
 void MissionFailed()
 {
 	if( Game_HasOverlayScreen( &g_EndScreen ) == false )
@@ -271,6 +335,7 @@ struct DroneTheftGame : IGame
 		
 		Game_AddOverlayScreen( &g_StartScreen );
 		g_GameLevel->GetSystem<MusicSystem>()->sgsSetTrack( "/game_music" );
+		Game_AddOverlayScreen( &g_SplashScreen );
 		
 		return true;
 	}

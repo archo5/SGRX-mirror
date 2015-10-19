@@ -169,6 +169,7 @@ void ISR3Drone::Hit( float pwr )
 {
 	if( m_health > 0 )
 	{
+		RenewAction();
 		m_hitTimeout = 0.1f;
 		m_health -= pwr;
 		if( m_health <= 0 )
@@ -682,7 +683,7 @@ void ISR3Enemy::Tick( float deltaTime, float blendFactor )
 		{
 			i_move = V2(0);
 			i_aim_target = GetPosition() + V3( cosf( m_turnAmt ), sinf( m_turnAmt ), 0 ) * 10;
-			m_turnAmt += deltaTime;
+			m_turnAmt += deltaTime * 2.0f;
 			i_shoot = false;
 		}
 		
