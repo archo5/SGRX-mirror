@@ -17,6 +17,9 @@ extern Command LOCK_ON;
 extern Vec2 CURSOR_POS;
 
 
+void RenewAction();
+
+
 ISR3Drone::ISR3Drone( GameLevel* lev, Vec3 pos, Vec3 dir ) :
 	Entity( lev ),
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() )
@@ -25,6 +28,7 @@ ISR3Drone::ISR3Drone( GameLevel* lev, Vec3 pos, Vec3 dir ) :
 	i_speed = 10;
 	i_aim_at = false;
 	i_aim_target = V3(0);
+	i_shoot = false;
 	
 	m_health = 100;
 	m_hitTimeout = 0;
@@ -61,6 +65,20 @@ ISR3Drone::ISR3Drone( GameLevel* lev, Vec3 pos, Vec3 dir ) :
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
 	m_body = lev->GetPhyWorld()->CreateRigidBody( rbinfo );
+	
+	m_shootPS.Load( "psys/gunflash.psy" );
+	m_shootPS.AddToScene( m_level->GetScene() );
+	m_shootPS.OnRenderUpdate();
+	m_shootLT = m_level->GetScene()->CreateLight();
+	m_shootLT->type = LIGHT_POINT;
+	m_shootLT->enabled = false;
+	m_shootLT->position = pos;
+	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
+	m_shootLT->range = 4;
+	m_shootLT->power = 4;
+	m_shootLT->UpdateTransform();
+	m_shootTimeout = 0;
+	m_bulletSpeed = 20;
 }
 
 void ISR3Drone::TurnTo( const Vec2& turnDir, float speedDelta )
@@ -155,6 +173,7 @@ void ISR3Drone::Hit( float pwr )
 		m_health -= pwr;
 		if( m_health <= 0 )
 		{
+			OnDeath();
 			m_level->GetSystem<FlareSystem>()->RemoveFlare( this );
 			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 		}
@@ -165,6 +184,7 @@ void ISR3Drone::FixedTick( float deltaTime )
 {
 	if( IsInAction() )
 	{
+		RenewAction();
 		i_move = V2(0);
 		if( m_actState.timeoutMoveToStart > 0 )
 		{
@@ -277,6 +297,51 @@ void ISR3Drone::Tick( float deltaTime, float blendFactor )
 		FSFlare statusFlare = { vpos, V3(2.0f,0.05f,0.01f), 0.1f, true };
 		FS->UpdateFlare( this, statusFlare );
 	}
+	
+	// shooting
+	m_shootLT->enabled = false;
+	if( m_shootTimeout > 0 )
+	{
+		m_shootTimeout -= deltaTime;
+		m_shootLT->enabled = true;
+	}
+	if( i_shoot && m_shootTimeout <= 0 )
+	{
+		Mat4 mtx_l = m_animChar.GetAttachmentMatrix( m_animChar.FindAttachment( "gun_l" ) );
+		Mat4 mtx_r = m_animChar.GetAttachmentMatrix( m_animChar.FindAttachment( "gun_r" ) );
+		Vec3 origin_l = mtx_l.TransformPos( V3(0) );
+		Vec3 origin_r = mtx_r.TransformPos( V3(0) );
+	//	printf("%f;%f;%f\n",i_aim_target.x,i_aim_target.y,i_aim_target.z);
+		{
+			Vec3 dir = ( i_aim_target - origin_l ).Normalized();
+			dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
+		//	printf("%f;%f;%f\n",dir.x,dir.y,dir.z);
+			m_level->GetSystem<BulletSystem>()->Add( origin_l, dir * m_bulletSpeed, 1, 1, ownerType );
+			m_shootPS.SetTransform( mtx_l );
+			m_shootPS.Trigger();
+		}
+		{
+			Vec3 dir = ( i_aim_target - origin_r ).Normalized();
+			dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
+			m_level->GetSystem<BulletSystem>()->Add( origin_r, dir * m_bulletSpeed, 1, 1, ownerType );
+			m_shootPS.SetTransform( mtx_r );
+			m_shootPS.Trigger();
+		}
+		m_shootLT->position = ( origin_l + origin_r ) * 0.5f;
+		m_shootLT->UpdateTransform();
+		m_shootLT->enabled = true;
+		m_shootTimeout += 0.1f;
+		m_level->GetSystem<AIDBSystem>()->AddSound( GetPosition(), 10, 0.2f, AIS_Shot );
+		
+		SGRX_Sound3DAttribs s3dattr = { pos, m_body->GetLinearVelocity(), GetAimDir(), V3(0,0,1) };
+		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/gunshot" );
+		fsev->Set3DAttribs( s3dattr );
+		fsev->Start();
+	}
+	m_shootLT->color = V3(0.9f,0.7f,0.5f) * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
+	
+	m_shootPS.Tick( deltaTime );
+	m_shootPS.PreRender();
 }
 
 
@@ -289,19 +354,13 @@ ISR3Player::ISR3Player( GameLevel* lev, Vec3 pos, Vec3 dir )
 	ownerType = GAT_Player;
 	
 	i_aim_at = true;
-	
-	m_shootPS.Load( "psys/gunflash.psy" );
-	m_shootPS.AddToScene( m_level->GetScene() );
-	m_shootPS.OnRenderUpdate();
-	m_shootLT = m_level->GetScene()->CreateLight();
-	m_shootLT->type = LIGHT_POINT;
-	m_shootLT->enabled = false;
-	m_shootLT->position = pos;
-	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
-	m_shootLT->range = 4;
-	m_shootLT->power = 4;
-	m_shootLT->UpdateTransform();
-	m_shootTimeout = 0;
+	m_bulletSpeed = 50;
+}
+
+void MissionFailed();
+void ISR3Player::OnDeath()
+{
+	MissionFailed();
 }
 
 void ISR3Player::FixedTick( float deltaTime )
@@ -349,53 +408,26 @@ void ISR3Player::Tick( float deltaTime, float blendFactor )
 	m_level->GetScene()->camera.position = camtgt + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
 	m_level->GetScene()->camera.UpdateMatrices();
 	
-	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	SGRX_Sound3DAttribs s3dattr = { pos, m_body->GetLinearVelocity(), GetAimDir(), V3(0,0,1) };
+	g_SoundSys->Set3DAttribs( s3dattr );
 	
-	
-	m_shootLT->enabled = false;
-	if( m_shootTimeout > 0 )
+	if( Alive() )
 	{
-		m_shootTimeout -= deltaTime;
-		m_shootLT->enabled = true;
+		InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
+		m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+		
+		MapItemInfo mymapitem = { MI_Object_Player, GetPosition(), V3(0), 0, 0 };
+		m_level->GetSystem<LevelMapSystem>()->UpdateItem( this, mymapitem );
+		m_level->GetSystem<LevelMapSystem>()->m_viewPos = GetPosition().ToVec2();
+		
+		i_shoot = SHOOT.value > 0.5f;
 	}
-	if( SHOOT.value && m_shootTimeout <= 0 )
+	else
 	{
-		Mat4 mtx_l = m_animChar.GetAttachmentMatrix( m_animChar.FindAttachment( "gun_l" ) );
-		Mat4 mtx_r = m_animChar.GetAttachmentMatrix( m_animChar.FindAttachment( "gun_r" ) );
-		Vec3 origin_l = mtx_l.TransformPos( V3(0) );
-		Vec3 origin_r = mtx_r.TransformPos( V3(0) );
-		{
-			Vec3 dir = ( i_aim_target - origin_l ).Normalized();
-			dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-		//	printf("%f;%f;%f\n",dir.x,dir.y,dir.z);
-			m_level->GetSystem<BulletSystem>()->Add( origin_l, dir * 100, 1, 1, ownerType );
-			m_shootPS.SetTransform( mtx_l );
-			m_shootPS.Trigger();
-		}
-		{
-			Vec3 dir = ( i_aim_target - origin_r ).Normalized();
-			dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-			m_level->GetSystem<BulletSystem>()->Add( origin_r, dir * 100, 1, 1, ownerType );
-			m_shootPS.SetTransform( mtx_r );
-			m_shootPS.Trigger();
-		}
-		m_shootLT->position = ( origin_l + origin_r ) * 0.5f;
-		m_shootLT->UpdateTransform();
-		m_shootLT->enabled = true;
-		m_shootTimeout += 0.1f;
-		m_level->GetSystem<AIDBSystem>()->AddSound( GetPosition(), 10, 0.2f, AIS_Shot );
+		m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+		m_level->GetSystem<LevelMapSystem>()->RemoveItem( this );
+		i_shoot = false;
 	}
-	m_shootLT->color = V3(0.9f,0.7f,0.5f) * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
-	
-	
-	MapItemInfo mymapitem = { MI_Object_Player, GetPosition(), V3(0), 0, 0 };
-	m_level->GetSystem<LevelMapSystem>()->UpdateItem( this, mymapitem );
-	m_level->GetSystem<LevelMapSystem>()->m_viewPos = GetPosition().ToVec2();
-	
-	
-	m_shootPS.Tick( deltaTime );
-	m_shootPS.PreRender();
 }
 
 void ISR3Player::DrawUI()
@@ -478,9 +510,32 @@ void ISR3Player::DrawUI()
 		br.Reset();
 		GR2D_SetFont( "core", bsz / 24 );
 		StringView healthstr = "HEALTH: ||||||||||||||||||||";
-		StringView curhltstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(m_health,100.0f) / 5 );
-		br.Col( 0.1f, 1 ); GR2D_DrawTextLine( bsz / 10, bsz / 10, healthstr );
+		StringView curhltstr = healthstr.part( 0, sizeof("HEALTH: ")-1 + TMIN(0.0f,100.0f) / 5 );
+		br.Col( 0.1f, 1 ); GR2D_DrawTextLine( bsz / 10, bsz / 10, curhltstr );
 		br.Col( 1, 1 ); GR2D_DrawTextLine( bsz / 10, bsz / 10, curhltstr );
+		br.Flush();
+		
+		TextureHandle th = GR_GetTexture( "ui/candle.png" );
+		GR_PreserveResource( th );
+		br.Reset().SetTexture( th );
+		br.Col( 0.5f, 0, 0, 0.5f ).TurnedBox( bsz / 2.5f, bsz / 8.5f, cosf(0.0f) * bsz / 10, sinf(0.0f) * bsz / 5 );
+		br.Col( 1, 1.0f );
+		{
+			float Q = m_health / 100.0f;
+			float x = bsz / 2.5f, y = bsz / 8.5f;
+			float dx = cosf(0.0f) * bsz / 10, dy = sinf(0.0f) * bsz / 5;
+			float tx = -dy;
+			float ty = dx;
+			float dmx = TLERP( -dx, dx, Q );
+			float dmy = TLERP( -dy, dy, Q );
+			br.SetPrimitiveType( PT_Triangles );
+			br.Tex( 0, 0 ); br.Pos( x - dx - tx, y - dy - ty );
+			br.Tex( 1, 0 ); br.Pos( x - dx + tx, y - dy + ty );
+			br.Tex( 1, Q ); br.Pos( x + dmx + tx, y + dmy + ty );
+			br.Prev( 0 );
+			br.Tex( 0, Q ); br.Pos( x + dmx - tx, y + dmy - ty );
+			br.Prev( 4 );
+		}
 		br.Flush();
 	}
 	
@@ -491,50 +546,32 @@ void ISR3Player::DrawUI()
 
 ISR3Enemy::ISR3Enemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
 	ISR3Drone( lev, pos, dir ),
-	i_turn( V2(0) )
+	m_follow( 0 )
 {
 	m_typeName = "enemy";
 	m_name = name;
 	
 	i_aim_at = true;
+	i_speed = 6;
+	m_turnAmt = 0;
 	
 	m_aidb = m_level->GetSystem<AIDBSystem>();
 	ownerType = GAT_Enemy;
 	
-	// create ESO (enemy scripted object)
-	{
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		GetScriptedObject().push( m_level->m_scriptCtx.C );
-		m_level->m_scriptCtx.Push( args );
-		m_level->m_scriptCtx.Push( GetPosition() );
-		m_level->m_scriptCtx.Push( GetAimDir() );
-		if( m_level->m_scriptCtx.GlobalCall( "ISR3Enemy_Create", 4, 1 ) == false )
-		{
-			LOG_ERROR << "FAILED to create enemy state";
-		}
-		m_enemyState = sgsVariable( m_level->m_scriptCtx.C, -1 );
-	}
-	
-	StringView charpath = m_enemyState.getprop("charpath").get<StringView>();
-	m_animChar.Load( charpath ? charpath : "chars/enemy.chr" );
+	m_animChar.Load( "chars/enemy.chr" );
 	
 	m_level->MapEntityByName( this );
 }
 
 ISR3Enemy::~ISR3Enemy()
 {
-	// destroy ESO
-	{
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_enemyState.thiscall( "destroy" );
-	}
 }
 
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 {
 	bool Process( Entity* ent, const InfoEmissionSystem::Data& data )
 	{
-		Vec3 enemypos = data.pos + V3(0,0,1); // FIXME MAYBE?
+		Vec3 enemypos = data.pos;// + V3(0,0,1); // FIXME MAYBE?
 		
 		// verify the find
 		Vec3 vieworigin = enemy->GetPosition();
@@ -616,28 +653,6 @@ void ISR3Enemy::FixedTick( float deltaTime )
 		}
 	}
 	
-	// tick ESO
-	{
-		m_level->m_scriptCtx.Push( GetPosition() );
-		m_enemyState.setprop( "position", sgsVariable( m_level->m_scriptCtx.C, sgsVariable::PickAndPop ) );
-		m_level->m_scriptCtx.Push( GetAimDir() );
-		m_enemyState.setprop( "viewdir", sgsVariable( m_level->m_scriptCtx.C, sgsVariable::PickAndPop ) );
-		
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_level->m_scriptCtx.Push( deltaTime );
-		m_enemyState.thiscall( "tick", 1 );
-		
-		i_move = m_enemyState[ "i_move" ].get<Vec2>();
-		i_speed = m_enemyState[ "i_speed" ].get<float>();
-		i_turn = m_enemyState[ "i_turn" ].get<Vec2>();
-		i_aim_target = m_enemyState[ "i_aim_target" ].get<Vec3>();
-	}
-	
-	if( i_turn.Length() > 0.1f )
-	{
-		TurnTo( i_turn, deltaTime * 8 );
-	}
-	
 	ISR3Drone::FixedTick( deltaTime );
 	
 	if( m_health > 0 )
@@ -650,6 +665,36 @@ void ISR3Enemy::FixedTick( float deltaTime )
 
 void ISR3Enemy::Tick( float deltaTime, float blendFactor )
 {
+	if( Alive() )
+	{
+		TSFactStorage::Fact* F = GetRecentFact( 1<<TSFactStorage::FT_Sight_Foe, 1000 );
+		if( HasRecentFact( 1<<TSFactStorage::FT_Sight_Foe, 1000 ) )
+			m_follow = 3;
+		m_follow = TMAX( m_follow - deltaTime, 0.0f );
+		if( F )
+		{
+			RenewAction();
+			i_move = ( F->position - GetPosition() ).ToVec2();
+			i_aim_target = F->position;
+			i_shoot = true;
+		}
+		else
+		{
+			i_move = V2(0);
+			i_aim_target = GetPosition() + V3( cosf( m_turnAmt ), sinf( m_turnAmt ), 0 ) * 10;
+			m_turnAmt += deltaTime;
+			i_shoot = false;
+		}
+		
+		MapItemInfo mymapitem = { MI_Object_Enemy, GetPosition(), GetAimDir(), 5, 5 };
+		m_level->GetSystem<LevelMapSystem>()->UpdateItem( this, mymapitem );
+	}
+	else
+	{
+		i_shoot = false;
+		m_level->GetSystem<LevelMapSystem>()->RemoveItem( this );
+	}
+	
 	ISR3Drone::Tick( deltaTime, blendFactor );
 }
 
@@ -769,7 +814,6 @@ SGS_MULTRET ISR3Enemy::sgsGetRecentFact( int typemask, TimeVal maxtime )
 
 ISR3EntityCreationSystem::ISR3EntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
 bool ISR3EntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )

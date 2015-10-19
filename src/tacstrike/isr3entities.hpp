@@ -38,6 +38,7 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	virtual void OnEvent( const StringView& type ){}
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	void Hit( float pwr );
+	virtual void OnDeath(){}
 	
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
@@ -67,6 +68,7 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
 	float m_shootTimeout;
+	float m_bulletSpeed;
 	
 	float m_health;
 	float m_hitTimeout;
@@ -75,6 +77,7 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	float i_speed;
 	bool i_aim_at;
 	Vec3 i_aim_target;
+	bool i_shoot;
 };
 
 
@@ -89,6 +92,7 @@ struct ISR3Player : ISR3Drone
 	TSAimHelper m_aimHelper;
 	
 	ISR3Player( GameLevel* lev, Vec3 pos, Vec3 dir );
+	virtual void OnDeath();
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void DrawUI();
@@ -100,11 +104,11 @@ struct ISR3Enemy : ISR3Drone
 	SGS_OBJECT_INHERIT( ISR3Drone );
 	ENT_SGS_IMPLEMENT;
 	
-	Vec2 i_turn;
-	
-	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	TSFactStorage m_factStorage;
 	AIDBSystem* m_aidb;
+	
+	float m_follow;
+	float m_turnAmt;
 	
 	ISR3Enemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
 	~ISR3Enemy();

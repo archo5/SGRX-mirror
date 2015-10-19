@@ -164,7 +164,6 @@ int ISR3Enemy::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__ISR3Enemy__CallEvent ); return SGS_SUCCESS; }
-		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
 		SGS_CASE( "HasFact" ){ sgs_PushCFunction( C, _sgs_method__ISR3Enemy__HasFact ); return SGS_SUCCESS; }
 		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunction( C, _sgs_method__ISR3Enemy__HasRecentFact ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunction( C, _sgs_method__ISR3Enemy__GetRecentFact ); return SGS_SUCCESS; }

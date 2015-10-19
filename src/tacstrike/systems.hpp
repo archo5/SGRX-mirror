@@ -278,6 +278,7 @@ struct ObjectiveSystem : IGameLevelSystem
 	SGS_METHOD_NAMED( SetTitle ) void sgsSetTitle( int i, StringView title );
 	SGS_METHOD_NAMED( GetState ) int sgsGetState( int i );
 	SGS_METHOD_NAMED( SetState ) void sgsSetState( int i, int state );
+	SGS_METHOD_NAMED( SetLocation ) void sgsSetLocation( int i, Vec3 loc );
 	
 	Command SHOW_OBJECTIVES;
 	

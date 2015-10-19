@@ -520,6 +520,14 @@ void ObjectiveSystem::sgsSetState( int i, int state )
 	m_objectives[ i ].state = (OSObjective::State) state;
 }
 
+void ObjectiveSystem::sgsSetLocation( int i, Vec3 loc )
+{
+	if( _CheckRange( i ) )
+		return;
+	m_objectives[ i ].hasLocation = sgs_StackSize( C ) > 1;
+	m_objectives[ i ].location = loc;
+}
+
 
 
 static SGRX_HelpTextRenderer m_defaultRenderer;

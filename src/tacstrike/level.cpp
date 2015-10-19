@@ -435,6 +435,7 @@ void GameLevel::Draw2D()
 
 void GameLevel::DebugDraw()
 {
+	return;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	UNUSED( br );
 	

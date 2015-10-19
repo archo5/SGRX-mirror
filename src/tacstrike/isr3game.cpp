@@ -90,8 +90,9 @@ struct EndScreen : IScreen
 {
 	float m_timer;
 	bool m_restart;
+	bool success;
 	
-	EndScreen() : m_timer(0), m_restart(false)
+	EndScreen() : m_timer(0), m_restart(false), success(false)
 	{
 	}
 	
@@ -126,15 +127,27 @@ struct EndScreen : IScreen
 		m_timer += delta;
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer();
-		br.Reset()
-			.Col( 0, clamp( m_timer / 3, 0, 0.4f ) )
-			.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
+		if( success )
+		{
+			br.Reset()
+				.Col( 0, clamp( m_timer / 3, 0, 0.4f ) )
+				.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
+		}
+		else
+		{
+			br.Reset()
+				.Col( 0.5f, 0, 0, clamp( m_timer / 3, 0, 0.4f ) )
+				.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
+		}
 		
 		br.Reset().Col( 1 );
 		GR2D_SetFont( "core", GR_GetHeight()/20 );
-		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*2/4, "Information obtained! Good job!", HALIGN_CENTER, VALIGN_CENTER );
-		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4, "Press R to restart level", HALIGN_CENTER, VALIGN_CENTER );
-		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3.5f/4, "Press Esc to quit", HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*2/4, 
+			success ? "Information obtained! Good job!" : "Mission failed!", HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3/4,
+			"Press R to restart level", HALIGN_CENTER, VALIGN_CENTER );
+		GR2D_DrawTextLine( GR_GetWidth()/2,GR_GetHeight()*3.5f/4,
+			"Press Esc to quit", HALIGN_CENTER, VALIGN_CENTER );
 		
 		return m_restart;
 	}
@@ -142,11 +155,30 @@ struct EndScreen : IScreen
 g_EndScreen;
 
 
+void MissionFailed()
+{
+	if( Game_HasOverlayScreen( &g_EndScreen ) == false )
+	{
+		g_EndScreen.success = false;
+		Game_AddOverlayScreen( &g_EndScreen );
+	}
+}
+
 int EndGame( SGS_CTX )
 {
-	Game_AddOverlayScreen( &g_EndScreen );
+	if( Game_HasOverlayScreen( &g_EndScreen ) == false )
+	{
+		g_EndScreen.success = true;
+		Game_AddOverlayScreen( &g_EndScreen );
+	}
 	return 0;
 };
+
+float action = 0;
+void RenewAction()
+{
+	action = 1;
+}
 
 
 #define MAX_TICK_SIZE (1.0f/15.0f)
@@ -228,7 +260,7 @@ struct DroneTheftGame : IGame
 		htr.lineHeightFactor = 1.4f;
 		htr.buttonTex = GR_GetTexture( "ui/key.png" );
 		htr.centerPos = V2( GR_GetWidth() / 2, GR_GetHeight() * 3 / 4 );
-		htr.fontSize = GR_GetHeight() / 20;
+		htr.fontSize = GR_GetHeight() / 24;
 		htr.SetNamedFont( "", "core" );
 		
 		GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
@@ -238,6 +270,7 @@ struct DroneTheftGame : IGame
 		Game_ShowCursor( true );
 		
 		Game_AddOverlayScreen( &g_StartScreen );
+		g_GameLevel->GetSystem<MusicSystem>()->sgsSetTrack( "/game_music" );
 		
 		return true;
 	}
@@ -298,6 +331,8 @@ struct DroneTheftGame : IGame
 	}
 	void Game_Tick( float dt, float bf )
 	{
+		action = TMAX( action - dt * 0.5f, 0.0f );
+		g_GameLevel->GetSystem<MusicSystem>()->sgsSetVar( "action", action > 0 );
 		g_GameLevel->Tick( dt, bf );
 	}
 	void Game_Render()

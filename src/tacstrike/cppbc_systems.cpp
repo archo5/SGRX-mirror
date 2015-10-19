@@ -144,6 +144,12 @@ static int _sgs_method__ObjectiveSystem__SetState( SGS_CTX )
 	data->sgsSetState( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1) ); return 0;
 }
 
+static int _sgs_method__ObjectiveSystem__SetLocation( SGS_CTX )
+{
+	ObjectiveSystem* data; if( !SGS_PARSE_METHOD( C, ObjectiveSystem::_sgs_interface, data, ObjectiveSystem, SetLocation ) ) return 0;
+	data->sgsSetLocation( sgs_GetVar<int>()(C,0), sgs_GetVar<Vec3>()(C,1) ); return 0;
+}
+
 int ObjectiveSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<ObjectiveSystem*>( obj->data )->~ObjectiveSystem();
@@ -163,6 +169,7 @@ int ObjectiveSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "SetTitle" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__SetTitle ); return SGS_SUCCESS; }
 		SGS_CASE( "GetState" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__GetState ); return SGS_SUCCESS; }
 		SGS_CASE( "SetState" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__SetState ); return SGS_SUCCESS; }
+		SGS_CASE( "SetLocation" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__SetLocation ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
