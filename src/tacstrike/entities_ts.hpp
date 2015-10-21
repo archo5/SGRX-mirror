@@ -230,7 +230,6 @@ struct TSEnemy : TSCharacter
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	TSFactStorage m_factStorage;
 	AIDBSystem* m_aidb;
-	sgs_VarObj* m_scrObj;
 	
 	TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
 	~TSEnemy();

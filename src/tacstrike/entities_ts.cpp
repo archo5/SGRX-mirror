@@ -1214,17 +1214,10 @@ TSEnemy::TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const
 	m_aidb = m_level->GetSystem<AIDBSystem>();
 	m_meshInstInfo.ownerType = GAT_Enemy;
 	
-	// create self
-	{
-		sgs_Variable var;
-		sgs_InitObject( m_level->m_scriptCtx.C, &var, this, TSEnemy_iface );
-		m_scrObj = sgs_GetObjectStructP( &var );
-	}
-	
 	// create ESO (enemy scripted object)
 	{
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		sgs_PushObjectPtr( m_level->m_scriptCtx.C, m_scrObj );
+		sgs_PushObjectPtr( m_level->m_scriptCtx.C, m_sgsObject );
 		m_level->m_scriptCtx.Push( args );
 		m_level->m_scriptCtx.Push( m_position );
 		m_level->m_scriptCtx.Push( GetViewDir() );
@@ -1248,10 +1241,6 @@ TSEnemy::~TSEnemy()
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_enemyState.thiscall( "destroy" );
 	}
-	
-	// destroy self
-	m_scrObj->data = NULL;
-	sgs_ObjRelease( m_level->m_scriptCtx.C, m_scrObj );
 }
 
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor

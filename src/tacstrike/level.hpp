@@ -21,6 +21,12 @@ typedef uint32_t EntityID;
 #define ENTID_NONE ((EntityID)0)
 
 
+struct IActorController : SGRX_RefCounted
+{
+	virtual float GetInput( uint32_t iid ) = 0;
+};
+
+
 struct IGameLevelSystem
 {
 	IGameLevelSystem( GameLevel* lev, uint32_t uid ) :
