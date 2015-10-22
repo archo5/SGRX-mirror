@@ -58,7 +58,7 @@ int Entity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface Entity::_sgs_interface[1] =
 {{
 	"Entity",
-	NULL, Entity::_sgsent_gcmark, Entity::_sgsent_getindex, Entity::_sgsent_setindex, NULL, NULL, Entity::_sgsent_dump, NULL, NULL, NULL, 
+	NULL, Entity::_sgs_gcmark, Entity::_sgs_getindex, Entity::_sgs_setindex, NULL, NULL, Entity::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 

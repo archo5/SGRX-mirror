@@ -1208,6 +1208,8 @@ TSEnemy::TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const
 	TSCharacter( lev, pos, dir ),
 	i_turn( V2(0) )
 {
+	InitScriptInterface();
+	
 	m_typeName = "enemy";
 	m_name = name;
 	

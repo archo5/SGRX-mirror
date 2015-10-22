@@ -15,6 +15,9 @@
 struct GameLevel;
 
 
+extern sgs_ObjInterface g_sgsobj_empty_handle[1];
+
+
 typedef uint32_t TimeVal;
 typedef uint32_t EntityID;
 
@@ -47,9 +50,8 @@ struct IGameLevelSystem
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	
-#define _InitScriptInterface( name ) _InitScriptInterface_( name, this )
-	template< class T > void _InitScriptInterface_( const StringView& name, T* ptr );
-	void _DestroyScriptInterface();
+	template< class T > void InitScriptInterface( const StringView& name, T* ptr );
+	void DestroyScriptInterface();
 	SGS_CTX;
 	sgs_VarObj* m_sgsObject;
 	
@@ -76,21 +78,19 @@ struct Entity
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	
-	sgsVariable GetScriptedObject();
+	sgsVariable GetScriptedObject(){ return Handle( this ).get_variable(); }
 	
+	template< class T > void _InitScriptInterface( T* ptr );
+	void _DestroyScriptInterface_()
+	{
+		m_sgsObject->data = NULL;
+		m_sgsObject->iface = g_sgsobj_empty_handle;
+		sgs_ObjRelease( C, m_sgsObject );
+	}
 #define ENT_SGS_IMPLEMENT \
-	virtual sgs_ObjInterface* _sgsGetIface() const { return _sgs_interface; } \
-	virtual int _sgsGCMark(){ return _sgs_gcmark( C, m_sgsObject ); } \
-	virtual int _sgsGetIndex( sgs_Variable* key, int isprop ){ return _sgs_getindex( C, m_sgsObject, key, isprop ); } \
-	virtual int _sgsSetIndex( sgs_Variable* key, sgs_Variable* val, int isprop ){ return _sgs_setindex( C, m_sgsObject, key, val, isprop ); } \
-	virtual int _sgsDump( int depth ){ return _sgs_dump( C, m_sgsObject, depth ); }
-// --------------------------
+	virtual void InitScriptInterface(){ if( m_sgsObject == NULL ) _InitScriptInterface( this ); }
 	
 	ENT_SGS_IMPLEMENT;
-	SGS_IFUNC( GCMARK ) int _sgsent_gcmark( SGS_CTX, sgs_VarObj* obj );
-	SGS_IFUNC( GETINDEX ) int _sgsent_getindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop );
-	SGS_IFUNC( SETINDEX ) int _sgsent_setindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop );
-	SGS_IFUNC( DUMP ) int _sgsent_dump( SGS_CTX, sgs_VarObj* obj, int depth );
 	
 	const char* m_typeName;
 	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_name;
@@ -208,11 +208,20 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 
 
 
-template< class T > void IGameLevelSystem::_InitScriptInterface_( const StringView& name, T* ptr )
+template< class T > void IGameLevelSystem::InitScriptInterface( const StringView& name, T* ptr )
 {
 	SGS_CSCOPE( m_level->GetSGSC() );
 	sgs_PushClass( m_level->GetSGSC(), ptr );
 	m_level->AddEntry( name, sgsVariable( m_level->GetSGSC(), -1 ) );
+	C = m_level->GetSGSC();
+	m_sgsObject = sgs_GetObjectStruct( C, -1 );
+	sgs_ObjAcquire( C, m_sgsObject );
+}
+
+template< class T > void Entity::_InitScriptInterface( T* ptr )
+{
+	SGS_CSCOPE( m_level->GetSGSC() );
+	sgs_PushClass( m_level->GetSGSC(), ptr );
 	C = m_level->GetSGSC();
 	m_sgsObject = sgs_GetObjectStruct( C, -1 );
 	sgs_ObjAcquire( C, m_sgsObject );

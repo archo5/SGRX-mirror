@@ -7,7 +7,7 @@
 
 InfoEmissionSystem::InfoEmissionSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	_InitScriptInterface( "infoEmitters" );
+	InitScriptInterface( "infoEmitters", this );
 	
 	sgs_RegIntConst ric[] =
 	{
@@ -282,7 +282,7 @@ MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_sy
 	m_tx_icon_warning = GR_GetTexture( "ui/icon_warning.png" );
 	m_tx_icon_cont = GR_GetTexture( "ui/icon_cont.png" );
 	
-	_InitScriptInterface( "messages" );
+	InitScriptInterface( "messages", this );
 	
 	sgs_RegIntConst ric[] =
 	{
@@ -373,7 +373,7 @@ ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
 	m_tx_icon_done = GR_GetTexture( "ui/obj_done.png" );
 	m_tx_icon_failed = GR_GetTexture( "ui/obj_failed.png" );
 	
-	_InitScriptInterface( "objectives" );
+	InitScriptInterface( "objectives", this );
 	
 	sgs_RegIntConst ric[] =
 	{
@@ -536,7 +536,7 @@ HelpTextSystem::HelpTextSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ),
 	m_alpha(0), m_fadeTime(0), m_fadeTo(0), renderer(&m_defaultRenderer)
 {
-	_InitScriptInterface( "helptext" );
+	InitScriptInterface( "helptext", this );
 }
 
 void HelpTextSystem::Clear()
@@ -591,7 +591,7 @@ FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
 	
-	_InitScriptInterface( "flares" );
+	InitScriptInterface( "flares", this );
 }
 
 void FlareSystem::Clear()
@@ -858,7 +858,7 @@ ScriptedSequenceSystem::ScriptedSequenceSystem( GameLevel* lev ) :
 	Game_RegisterAction( &m_cmdSkip );
 //	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &m_cmdSkip );
 	
-	_InitScriptInterface( "scrSeq" );
+	InitScriptInterface( "scrSeq", this );
 }
 
 void ScriptedSequenceSystem::Tick( float deltaTime, float blendFactor )
@@ -914,7 +914,7 @@ void ScriptedSequenceSystem::sgsStart( sgsVariable func, float t )
 
 MusicSystem::MusicSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	_InitScriptInterface( "music" );
+	InitScriptInterface( "music", this );
 }
 
 MusicSystem::~MusicSystem()

@@ -64,7 +64,7 @@ int TSCamera::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface TSCamera::_sgs_interface[1] =
 {{
 	"TSCamera",
-	TSCamera::_sgs_destruct, TSCamera::_sgsent_gcmark, TSCamera::_sgsent_getindex, TSCamera::_sgsent_setindex, NULL, NULL, TSCamera::_sgsent_dump, NULL, NULL, NULL, 
+	TSCamera::_sgs_destruct, TSCamera::_sgs_gcmark, TSCamera::_sgs_getindex, TSCamera::_sgs_setindex, NULL, NULL, TSCamera::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -123,7 +123,7 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface TSCharacter::_sgs_interface[1] =
 {{
 	"TSCharacter",
-	TSCharacter::_sgs_destruct, TSCharacter::_sgsent_gcmark, TSCharacter::_sgsent_getindex, TSCharacter::_sgsent_setindex, NULL, NULL, TSCharacter::_sgsent_dump, NULL, NULL, NULL, 
+	TSCharacter::_sgs_destruct, TSCharacter::_sgs_gcmark, TSCharacter::_sgs_getindex, TSCharacter::_sgs_setindex, NULL, NULL, TSCharacter::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -183,6 +183,6 @@ int TSEnemy::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface TSEnemy::_sgs_interface[1] =
 {{
 	"TSEnemy",
-	TSEnemy::_sgs_destruct, TSEnemy::_sgsent_gcmark, TSEnemy::_sgsent_getindex, TSEnemy::_sgsent_setindex, NULL, NULL, TSEnemy::_sgsent_dump, NULL, NULL, NULL, 
+	TSEnemy::_sgs_destruct, TSEnemy::_sgs_gcmark, TSEnemy::_sgs_getindex, TSEnemy::_sgs_setindex, NULL, NULL, TSEnemy::_sgs_dump, NULL, NULL, NULL, 
 }};
 

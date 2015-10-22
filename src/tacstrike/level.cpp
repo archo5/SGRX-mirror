@@ -3,20 +3,20 @@
 #include "level.hpp"
 
 
-static sgs_ObjInterface g_empty_handle[] = {{ "empty_handle", NULL }};
+sgs_ObjInterface g_sgsobj_empty_handle[1] = {{ "empty_handle", NULL }};
 
 
 IGameLevelSystem::~IGameLevelSystem()
 {
-	_DestroyScriptInterface();
+	DestroyScriptInterface();
 }
 
-void IGameLevelSystem::_DestroyScriptInterface()
+void IGameLevelSystem::DestroyScriptInterface()
 {
 	if( m_sgsObject )
 	{
 		m_sgsObject->data = NULL;
-		m_sgsObject->iface = g_empty_handle;
+		m_sgsObject->iface = g_sgsobj_empty_handle;
 		sgs_ObjRelease( C, m_sgsObject );
 		C = NULL;
 		m_sgsObject = NULL;
@@ -24,49 +24,16 @@ void IGameLevelSystem::_DestroyScriptInterface()
 }
 
 
-Entity::Entity( GameLevel* lev ) : m_typeName("<unknown>"), m_level( lev )
+Entity::Entity( GameLevel* lev ) :
+	m_sgsObject( NULL ), C( NULL ),
+	m_typeName("<unknown>"), m_level( lev )
 {
-	// create the scripted self
-	{
-		SGS_CSCOPE( m_level->GetSGSC() );
-		sgs_PushClass( m_level->GetSGSC(), this );
-		C = m_level->GetSGSC();
-		m_sgsObject = sgs_GetObjectStruct( C, -1 );
-		sgs_ObjAcquire( C, m_sgsObject );
-	}
 }
 
 Entity::~Entity()
 {
 	m_level->UnmapEntityByName( this );
-	m_sgsObject->data = NULL;
-	m_sgsObject->iface = g_empty_handle;
-	sgs_ObjRelease( C, m_sgsObject );
-}
-
-sgsVariable Entity::GetScriptedObject()
-{
-	return Handle( this ).get_variable();
-}
-
-int Entity::_sgsent_gcmark( SGS_CTX, sgs_VarObj* obj )
-{
-	return ((Entity*) obj->data)->_sgsGCMark();
-}
-
-int Entity::_sgsent_getindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop )
-{
-	return ((Entity*) obj->data)->_sgsGetIndex( key, isprop );
-}
-
-int Entity::_sgsent_setindex( SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop )
-{
-	return ((Entity*) obj->data)->_sgsSetIndex( key, val, isprop );
-}
-
-int Entity::_sgsent_dump( SGS_CTX, sgs_VarObj* obj, int depth )
-{
-	return ((Entity*) obj->data)->_sgsDump( depth );
+	_DestroyScriptInterface_();
 }
 
 sgsHandle< GameLevel > Entity::_sgs_getLevel()
@@ -123,7 +90,7 @@ GameLevel::~GameLevel()
 		m_systems[ i ]->OnLevelDestroy();
 	
 	m_sgsObject->data = NULL;
-	m_sgsObject->iface = g_empty_handle;
+	m_sgsObject->iface = g_sgsobj_empty_handle;
 	sgs_ObjRelease( C, m_sgsObject );
 }
 
@@ -140,7 +107,7 @@ void GameLevel::AddSystem( IGameLevelSystem* sys )
 
 void GameLevel::AddEntity( Entity* E )
 {
-	E->m_sgsObject->iface = E->_sgsGetIface();
+	E->InitScriptInterface();
 	m_entities.push_back( E );
 }
 

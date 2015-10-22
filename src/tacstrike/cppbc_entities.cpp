@@ -80,7 +80,7 @@ int Trigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface Trigger::_sgs_interface[1] =
 {{
 	"Trigger",
-	Trigger::_sgs_destruct, Trigger::_sgsent_gcmark, Trigger::_sgsent_getindex, Trigger::_sgsent_setindex, NULL, NULL, Trigger::_sgsent_dump, NULL, NULL, NULL, 
+	Trigger::_sgs_destruct, Trigger::_sgs_gcmark, Trigger::_sgs_getindex, Trigger::_sgs_setindex, NULL, NULL, Trigger::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -163,7 +163,7 @@ int BoxTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface BoxTrigger::_sgs_interface[1] =
 {{
 	"BoxTrigger",
-	BoxTrigger::_sgs_destruct, BoxTrigger::_sgsent_gcmark, BoxTrigger::_sgsent_getindex, BoxTrigger::_sgsent_setindex, NULL, NULL, BoxTrigger::_sgsent_dump, NULL, NULL, NULL, 
+	BoxTrigger::_sgs_destruct, BoxTrigger::_sgs_gcmark, BoxTrigger::_sgs_getindex, BoxTrigger::_sgs_setindex, NULL, NULL, BoxTrigger::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -248,7 +248,7 @@ int ProximityTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface ProximityTrigger::_sgs_interface[1] =
 {{
 	"ProximityTrigger",
-	ProximityTrigger::_sgs_destruct, ProximityTrigger::_sgsent_gcmark, ProximityTrigger::_sgsent_getindex, ProximityTrigger::_sgsent_setindex, NULL, NULL, ProximityTrigger::_sgsent_dump, NULL, NULL, NULL, 
+	ProximityTrigger::_sgs_destruct, ProximityTrigger::_sgs_gcmark, ProximityTrigger::_sgs_getindex, ProximityTrigger::_sgs_setindex, NULL, NULL, ProximityTrigger::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -332,7 +332,7 @@ int SlidingDoor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface SlidingDoor::_sgs_interface[1] =
 {{
 	"SlidingDoor",
-	SlidingDoor::_sgs_destruct, SlidingDoor::_sgsent_gcmark, SlidingDoor::_sgsent_getindex, SlidingDoor::_sgsent_setindex, NULL, NULL, SlidingDoor::_sgsent_dump, NULL, NULL, NULL, 
+	SlidingDoor::_sgs_destruct, SlidingDoor::_sgs_gcmark, SlidingDoor::_sgs_getindex, SlidingDoor::_sgs_setindex, NULL, NULL, SlidingDoor::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -391,7 +391,7 @@ int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface PickupItem::_sgs_interface[1] =
 {{
 	"PickupItem",
-	PickupItem::_sgs_destruct, PickupItem::_sgsent_gcmark, PickupItem::_sgsent_getindex, PickupItem::_sgsent_setindex, NULL, NULL, PickupItem::_sgsent_dump, NULL, NULL, NULL, 
+	PickupItem::_sgs_destruct, PickupItem::_sgs_gcmark, PickupItem::_sgs_getindex, PickupItem::_sgs_setindex, NULL, NULL, PickupItem::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -460,6 +460,6 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface Actionable::_sgs_interface[1] =
 {{
 	"Actionable",
-	Actionable::_sgs_destruct, Actionable::_sgsent_gcmark, Actionable::_sgsent_getindex, Actionable::_sgsent_setindex, NULL, NULL, Actionable::_sgsent_dump, NULL, NULL, NULL, 
+	Actionable::_sgs_destruct, Actionable::_sgs_gcmark, Actionable::_sgs_getindex, Actionable::_sgs_setindex, NULL, NULL, Actionable::_sgs_dump, NULL, NULL, NULL, 
 }};
 

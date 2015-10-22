@@ -58,7 +58,7 @@ int ISR3Drone::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface ISR3Drone::_sgs_interface[1] =
 {{
 	"ISR3Drone",
-	ISR3Drone::_sgs_destruct, ISR3Drone::_sgsent_gcmark, ISR3Drone::_sgsent_getindex, ISR3Drone::_sgsent_setindex, NULL, NULL, ISR3Drone::_sgsent_dump, NULL, NULL, NULL, 
+	ISR3Drone::_sgs_destruct, ISR3Drone::_sgs_gcmark, ISR3Drone::_sgs_getindex, ISR3Drone::_sgs_setindex, NULL, NULL, ISR3Drone::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -117,7 +117,7 @@ int ISR3Player::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface ISR3Player::_sgs_interface[1] =
 {{
 	"ISR3Player",
-	ISR3Player::_sgs_destruct, ISR3Player::_sgsent_gcmark, ISR3Player::_sgsent_getindex, ISR3Player::_sgsent_setindex, NULL, NULL, ISR3Player::_sgsent_dump, NULL, NULL, NULL, 
+	ISR3Player::_sgs_destruct, ISR3Player::_sgs_gcmark, ISR3Player::_sgs_getindex, ISR3Player::_sgs_setindex, NULL, NULL, ISR3Player::_sgs_dump, NULL, NULL, NULL, 
 }};
 
 
@@ -197,6 +197,6 @@ int ISR3Enemy::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface ISR3Enemy::_sgs_interface[1] =
 {{
 	"ISR3Enemy",
-	ISR3Enemy::_sgs_destruct, ISR3Enemy::_sgsent_gcmark, ISR3Enemy::_sgsent_getindex, ISR3Enemy::_sgsent_setindex, NULL, NULL, ISR3Enemy::_sgsent_dump, NULL, NULL, NULL, 
+	ISR3Enemy::_sgs_destruct, ISR3Enemy::_sgs_gcmark, ISR3Enemy::_sgs_getindex, ISR3Enemy::_sgs_setindex, NULL, NULL, ISR3Enemy::_sgs_dump, NULL, NULL, NULL, 
 }};
 
