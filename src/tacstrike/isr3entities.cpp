@@ -347,9 +347,7 @@ void ISR3Drone::Tick( float deltaTime, float blendFactor )
 
 
 ISR3Player::ISR3Player( GameLevel* lev, Vec3 pos, Vec3 dir )
-	: ISR3Drone( lev, pos, dir ), inCursorMove( V2(0) ),
-	m_targetII( NULL ), m_targetTriggered( false ),
-	m_aimHelper( lev )
+	: ISR3Drone( lev, pos, dir ), m_aimHelper( lev )
 {
 	m_animChar.Load( "chars/player.chr" );
 	ownerType = GAT_Player;

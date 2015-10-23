@@ -460,6 +460,6 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 sgs_ObjInterface Actionable::_sgs_interface[1] =
 {{
 	"Actionable",
-	Actionable::_sgs_destruct, Actionable::_sgs_gcmark, Actionable::_sgs_getindex, Actionable::_sgs_setindex, NULL, NULL, Actionable::_sgs_dump, NULL, NULL, NULL, 
+	NULL, Actionable::_sgs_gcmark, Actionable::_sgs_getindex, Actionable::_sgs_setindex, NULL, NULL, Actionable::_sgs_dump, NULL, NULL, NULL, 
 }};
 

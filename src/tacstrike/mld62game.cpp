@@ -1021,7 +1021,6 @@ MLD62EntityCreationSystem::MLD62EntityCreationSystem( GameLevel* lev ) : IGameLe
 
 bool MLD62EntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
 {
-#ifndef TSGAME_NO_PLAYER
 	///////////////////////////
 	if( type == "player" )
 	{
@@ -1035,7 +1034,6 @@ bool MLD62EntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		m_level->SetPlayer( P );
 		return true;
 	}
-#endif
 	
 	///////////////////////////
 	if( type == "enemy_start" )

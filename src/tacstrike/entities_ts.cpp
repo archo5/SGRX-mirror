@@ -208,7 +208,7 @@ bool TSCamera::GetMapItemInfo( MapItemInfo* out )
 
 
 TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
-	Entity( lev ),
+	SGRX_Actor( lev ),
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
@@ -780,11 +780,25 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 
 #ifndef TSGAME_NO_PLAYER
 
+
+Vec3 TSPlayerController::GetInput( uint32_t iid )
+{
+	switch( iid )
+	{
+	case ACT_Chr_Move: return V3(
+		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
+		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value,
+		1 );
+	case ACT_Chr_Crouch: return V3(CROUCH.value);
+	case ACT_Chr_AimAt: return V3(1);
+	case ACT_Chr_AimTarget: return m_aimHelper.GetAimPoint();
+	}
+	return V3(0);
+}
+
+
 TSPlayer::TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	TSCharacter( lev, pos-V3(0,0,1), dir ),
-	m_angles( V2( atan2( dir.y, dir.x ), atan2( dir.z, dir.ToVec2().Length() ) ) ), inCursorMove( V2(0) ),
-	m_targetII( NULL ), m_targetTriggered( false ),
-	m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 ),
 	m_aimHelper( lev )
 {
 	InitializeMesh( "chars/tstest.chr" );
@@ -834,52 +848,9 @@ void TSPlayer::FixedTick( float deltaTime )
 
 void TSPlayer::Tick( float deltaTime, float blendFactor )
 {
-	m_crouchIconShowTimeout -= deltaTime;
-	m_standIconShowTimeout -= deltaTime;
-	if( CROUCH.IsPressed() )
-	{
-		i_crouch = !i_crouch;
-#if 1
-		m_crouchIconShowTimeout = i_crouch ? 2 : 0;
-		m_standIconShowTimeout = i_crouch ? 0 : 2;
-#else
-		if( i_crouch )
-			m_crouchIconShowTimeout = 2;
-		else
-			m_standIconShowTimeout = 2;
-#endif
-	}
-	m_crouchIconShowTimeout = TMAX( m_crouchIconShowTimeout, i_crouch ? 1.0f : 0.0f );
-	m_standIconShowTimeout = TMAX( m_standIconShowTimeout, i_crouch ? 0.0f : 1.0f );
-	
 	TSCharacter::Tick( deltaTime, blendFactor );
 	
-	m_angles += inCursorMove * V2(-0.01f);
-	m_angles.y = clamp( m_angles.y, (float) -M_PI/2 + SMALL_FLOAT, (float) M_PI/2 - SMALL_FLOAT );
-	
-//	float ch = cosf( m_angles.x ), sh = sinf( m_angles.x );
-//	float cv = cosf( m_angles.y ), sv = sinf( m_angles.y );
-	
-	Vec3 pos = m_ivPos.Get( blendFactor );
-//	Vec3 dir = V3( ch * cv, sh * cv, sv );
-	m_position = pos;
-	
-	float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
-	Vec2 cursor_pos = CURSOR_POS;
-	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_position ).ToVec2() * screen_size;
-	Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
-	m_aimHelper.Tick( deltaTime, GetPosition(), CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
-	Vec3 camtgt = TLERP( pos, m_aimHelper.m_aimPoint, 0.1f * smoothstep( m_aimHelper.m_aimFactor ) );
-	
-	m_level->GetScene()->camera.znear = 0.1f;
-	m_level->GetScene()->camera.angle = 90;
-	m_level->GetScene()->camera.updir = V3(0,-1,0);
-	m_level->GetScene()->camera.direction = V3(-diff.x,diff.y,-5);
-	m_level->GetScene()->camera.position = camtgt + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
-	m_level->GetScene()->camera.UpdateMatrices();
-	
-	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_HeatSource | IEST_Player };
+	InfoEmissionSystem::Data D = { GetInterpPos(), 0.5f, IEST_HeatSource | IEST_Player };
 	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 	
 	
@@ -902,86 +873,12 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 		m_shootLT->UpdateTransform();
 		m_shootLT->enabled = true;
 		m_shootTimeout += 0.1f;
-		m_level->GetSystem<AIDBSystem>()->AddSound( GetPosition(), 10, 0.2f, AIS_Shot );
+		m_level->GetSystem<AIDBSystem>()->AddSound( GetInterpPos(), 10, 0.2f, AIS_Shot );
 	}
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
-	
-	MapItemInfo mymapitem = { MI_Object_Player, GetPosition(), V3(0), 0, 0 };
-	m_level->GetSystem<LevelMapSystem>()->UpdateItem( this, mymapitem );
-	m_level->GetSystem<LevelMapSystem>()->m_viewPos = GetPosition().ToVec2();
-	
-	
 	m_shootPS.Tick( deltaTime );
 	m_shootPS.PreRender();
-}
-
-void TSPlayer::DrawUI()
-{
-	SGRX_FontSettings fs;
-	GR2D_GetFontSettings( &fs );
-	
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
-	
-	Vec3 QP = GetQueryPosition();
-	IESItemGather ies_gather;
-	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
-	if( ies_gather.items.size() )
-	{
-		ies_gather.DistanceSort( QP );
-		for( size_t i = ies_gather.items.size(); i > 0; )
-		{
-			i--;
-			Entity* E = ies_gather.items[ i ].E;
-			Vec3 pos = ies_gather.items[ i ].D.pos;
-			bool infront;
-			Vec2 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
-			if( infront )
-			{
-				float dst = ( QP - pos ).Length();
-				bool activate = i == 0 && dst < 2;
-				Vec2 dir = V2( 2, -1 ).Normalized();
-				Vec2 clp0 = screenpos + dir * 12;
-				Vec2 clp1 = screenpos + dir * 64;
-				Vec2 cline[2] = { clp0, clp1 };
-				Vec2 addX = V2( 0, -48 ), addY = V2( 120, 0 );
-				Vec2 irect[4] = { clp1, clp1 + addY, clp1 + addX + addY, clp1 + addX };
-				float a = smoothlerp_oneway( dst, 5.0f, 4.0f );
-				
-				br.Reset();
-				if( activate )
-				{
-					br.Col( 0.9f, 0.1f, 0, 0.5f * a ).CircleFill( screenpos.x, screenpos.y, 12 );
-				}
-				br.Col( 0, 0.5f * a ).QuadWH( clp1.x, clp1.y, 120, -48 );
-				br.Col( 0.905f, 1 * a ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
-				br.AAStroke( cline, 2, 2, false );
-				br.AAStroke( irect, 4, 2, true );
-				
-				GR2D_SetFont( "mono", 15 );
-				GR2D_DrawTextLine( round( clp1.x + 4 ), round( clp1.y - 48 + 4 ), E->m_viewName );
-			}
-		}
-	}
-	
-	if( m_targetII )
-	{
-		float x = GR_GetWidth() / 2.0f;
-		float y = GR_GetHeight() / 2.0f;
-		br.Reset().SetTexture( m_tex_interact_icon ).QuadWH( x, y, bsz / 10, bsz / 10 );
-	}
-	
-	m_aimHelper.DrawUI();
-	
-	GR2D_SetFont( "tsicons", bsz * 0.2f );
-	br.Col( 1, 0.25f * m_crouchIconShowTimeout );
-	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0a", HALIGN_LEFT, VALIGN_BOTTOM );
-	br.Col( 1, 0.25f * m_standIconShowTimeout );
-	GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0b", HALIGN_LEFT, VALIGN_BOTTOM );
-	
-	GR2D_SetFontSettings( &fs );
 }
 
 #endif
@@ -1451,23 +1348,32 @@ void TSEnemy::DebugDrawUI()
 }
 
 
-TSEntityCreationSystem::TSEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+TSGameSystem::TSGameSystem( GameLevel* lev )
+	: IGameLevelSystem( lev, e_system_uid )
+#ifndef TSGAME_NO_PLAYER
+	, m_playerCtrl( lev )
+	, m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 ), m_prevCrouchValue( 0 )
+#endif
 {
+#ifndef TSGAME_NO_PLAYER
+	m_playerCtrl.Acquire();
+#endif
 	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
-bool TSEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
+bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 {
 #ifndef TSGAME_NO_PLAYER
 	///////////////////////////
 	if( type == "player" )
 	{
-		TSPlayer* P = new TSPlayer
+		TSCharacter* P = new TSCharacter
 		(
 			m_level,
 			data.getprop("position").get<Vec3>(),
 			data.getprop("viewdir").get<Vec3>()
 		);
+		P->ctrl = &m_playerCtrl;
 		m_level->AddEntity( P );
 		m_level->SetPlayer( P );
 		return true;
@@ -1510,12 +1416,117 @@ bool TSEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data
 	return false;
 }
 
-void TSEntityCreationSystem::DrawUI()
+void TSGameSystem::Tick( float deltaTime, float blendFactor )
 {
 #ifndef TSGAME_NO_PLAYER
-	SGRX_CAST( TSPlayer*, P, m_level->m_player );
+	SGRX_CAST( TSCharacter*, P, m_level->m_player );
 	if( P )
-		P->DrawUI();
+	{
+		// crouch UI
+		float crouchVal = m_playerCtrl.GetInput( ACT_Chr_Crouch ).x;
+		bool crouch = crouchVal > 0.5f;
+		if( crouchVal != m_prevCrouchValue )
+		{
+			m_crouchIconShowTimeout = crouch ? 2 : 0;
+			m_standIconShowTimeout = crouch ? 0 : 2;
+			m_prevCrouchValue = crouchVal;
+		}
+		m_crouchIconShowTimeout = TMAX( m_crouchIconShowTimeout - deltaTime, crouch ? 1.0f : 0.0f );
+		m_standIconShowTimeout = TMAX( m_standIconShowTimeout - deltaTime, crouch ? 0.0f : 1.0f );
+		
+		// camera
+		TSAimHelper& AH = m_playerCtrl.m_aimHelper;
+		Vec3 pos = P->GetInterpPos();
+		float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
+		Vec2 cursor_pos = CURSOR_POS;
+		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+		Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( pos ).ToVec2() * screen_size;
+		Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
+		AH.Tick( deltaTime, pos, CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
+		Vec3 camtgt = TLERP( pos, AH.m_aimPoint, 0.1f * smoothstep( AH.m_aimFactor ) );
+		
+		SGRX_Camera& CAM = m_level->GetScene()->camera;
+		CAM.znear = 0.1f;
+		CAM.angle = 90;
+		CAM.updir = V3(0,-1,0);
+		CAM.direction = V3(-diff.x,diff.y,-5);
+		CAM.position = camtgt + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
+		CAM.UpdateMatrices();
+		
+		// map
+		MapItemInfo mymapitem = { MI_Object_Player, pos, V3(0), 0, 0 };
+		m_level->GetSystem<LevelMapSystem>()->UpdateItem( P, mymapitem );
+		m_level->GetSystem<LevelMapSystem>()->m_viewPos = pos.ToVec2();
+	}
+#endif
+}
+
+void TSGameSystem::DrawUI()
+{
+#ifndef TSGAME_NO_PLAYER
+	
+	// UI
+	SGRX_CAST( TSCharacter*, P, m_level->m_player );
+	if( P )
+	{
+		SGRX_FontSettings fs;
+		GR2D_GetFontSettings( &fs );
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+		float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
+		
+		Vec3 QP = P->GetQueryPosition();
+		IESItemGather ies_gather;
+		m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
+		if( ies_gather.items.size() )
+		{
+			ies_gather.DistanceSort( QP );
+			for( size_t i = ies_gather.items.size(); i > 0; )
+			{
+				i--;
+				Entity* E = ies_gather.items[ i ].E;
+				Vec3 pos = ies_gather.items[ i ].D.pos;
+				bool infront;
+				Vec2 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
+				if( infront )
+				{
+					float dst = ( QP - pos ).Length();
+					bool activate = i == 0 && dst < 2;
+					Vec2 dir = V2( 2, -1 ).Normalized();
+					Vec2 clp0 = screenpos + dir * 12;
+					Vec2 clp1 = screenpos + dir * 64;
+					Vec2 cline[2] = { clp0, clp1 };
+					Vec2 addX = V2( 0, -48 ), addY = V2( 120, 0 );
+					Vec2 irect[4] = { clp1, clp1 + addY, clp1 + addX + addY, clp1 + addX };
+					float a = smoothlerp_oneway( dst, 5.0f, 4.0f );
+					
+					br.Reset();
+					if( activate )
+					{
+						br.Col( 0.9f, 0.1f, 0, 0.5f * a ).CircleFill( screenpos.x, screenpos.y, 12 );
+					}
+					br.Col( 0, 0.5f * a ).QuadWH( clp1.x, clp1.y, 120, -48 );
+					br.Col( 0.905f, 1 * a ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
+					br.AAStroke( cline, 2, 2, false );
+					br.AAStroke( irect, 4, 2, true );
+					
+					GR2D_SetFont( "mono", 15 );
+					GR2D_DrawTextLine( round( clp1.x + 4 ), round( clp1.y - 48 + 4 ), E->m_viewName );
+				}
+			}
+		}
+		
+		m_playerCtrl.m_aimHelper.DrawUI();
+		
+		GR2D_SetFont( "tsicons", bsz * 0.2f );
+		br.Col( 1, 0.25f * m_crouchIconShowTimeout );
+		GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0a", HALIGN_LEFT, VALIGN_BOTTOM );
+		br.Col( 1, 0.25f * m_standIconShowTimeout );
+		GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0b", HALIGN_LEFT, VALIGN_BOTTOM );
+		
+		GR2D_SetFontSettings( &fs );
+	}
 #endif
 }
 

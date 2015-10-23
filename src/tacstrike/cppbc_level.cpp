@@ -62,6 +62,65 @@ sgs_ObjInterface Entity::_sgs_interface[1] =
 }};
 
 
+static int _sgs_method__SGRX_Actor__CallEvent( SGS_CTX )
+{
+	SGRX_Actor* data; if( !SGS_PARSE_METHOD( C, SGRX_Actor::_sgs_interface, data, SGRX_Actor, CallEvent ) ) return 0;
+	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
+}
+
+int SGRX_Actor::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SGRX_Actor*>( obj->data )->~SGRX_Actor();
+	return SGS_SUCCESS;
+}
+
+int SGRX_Actor::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int SGRX_Actor::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<SGRX_Actor*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<SGRX_Actor*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
+		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<SGRX_Actor*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<SGRX_Actor*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__SGRX_Actor__CallEvent ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_Actor::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "viewName" ){ static_cast<SGRX_Actor*>( obj->data )->m_viewName = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_Actor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 42 ];
+	sprintf( bfr, "SGRX_Actor (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<SGRX_Actor*>( obj->data )->_sgs_getTypeName(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<SGRX_Actor*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		sgs_StringConcat( C, 4 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface SGRX_Actor::_sgs_interface[1] =
+{{
+	"SGRX_Actor",
+	NULL, SGRX_Actor::_sgs_gcmark, SGRX_Actor::_sgs_getindex, SGRX_Actor::_sgs_setindex, NULL, NULL, SGRX_Actor::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
 static int _sgs_method__GameLevel__SetLevel( SGS_CTX )
 {
 	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, SetLevel ) ) return 0;

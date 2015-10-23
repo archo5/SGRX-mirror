@@ -86,9 +86,6 @@ struct ISR3Player : ISR3Drone
 	SGS_OBJECT_INHERIT( ISR3Drone );
 	ENT_SGS_IMPLEMENT;
 	
-	Vec2 inCursorMove;
-	Entity* m_targetII;
-	bool m_targetTriggered;
 	TSAimHelper m_aimHelper;
 	
 	ISR3Player( GameLevel* lev, Vec3 pos, Vec3 dir );

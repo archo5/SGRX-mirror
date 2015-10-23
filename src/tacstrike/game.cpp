@@ -89,7 +89,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_GameLevel = new GameLevel( PHY_CreateWorld() );
 		g_GameLevel->SetGlobalToSelf();
 		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
-		AddSystemToLevel<TSEntityCreationSystem>( g_GameLevel );
+		AddSystemToLevel<TSGameSystem>( g_GameLevel );
 		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
 		AddSystemToLevel<LevelMapSystem>( g_GameLevel );
 		AddSystemToLevel<MessagingSystem>( g_GameLevel );

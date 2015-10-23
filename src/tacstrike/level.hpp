@@ -24,10 +24,11 @@ typedef uint32_t EntityID;
 #define ENTID_NONE ((EntityID)0)
 
 
-struct IActorController : SGRX_RefCounted
+struct SGRX_IActorController : SGRX_RefCounted
 {
-	virtual float GetInput( uint32_t iid ) = 0;
+	virtual Vec3 GetInput( uint32_t iid ){ return V3(0); }
 };
+typedef Handle< SGRX_IActorController > SGRX_ActorCtrlHandle;
 
 
 struct IGameLevelSystem
@@ -107,12 +108,22 @@ struct Entity
 };
 
 
+struct SGRX_Actor : Entity
+{
+	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	
+	SGRX_Actor( GameLevel* lev ) : Entity( lev ){}
+	
+	SGRX_ActorCtrlHandle ctrl;
+};
+
+
 typedef StackString<16> StackShortName;
 
 struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 {
-	SGS_OBJECT;
-	SGS_NO_DESTRUCT;
+	SGS_OBJECT SGS_NO_DESTRUCT;
 	
 	GameLevel( PhyWorldHandle phyWorld );
 	virtual ~GameLevel();
@@ -210,6 +221,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 
 template< class T > void IGameLevelSystem::InitScriptInterface( const StringView& name, T* ptr )
 {
+	T::_sgs_interface->destruct = NULL;
 	SGS_CSCOPE( m_level->GetSGSC() );
 	sgs_PushClass( m_level->GetSGSC(), ptr );
 	m_level->AddEntry( name, sgsVariable( m_level->GetSGSC(), -1 ) );
@@ -220,6 +232,7 @@ template< class T > void IGameLevelSystem::InitScriptInterface( const StringView
 
 template< class T > void Entity::_InitScriptInterface( T* ptr )
 {
+	T::_sgs_interface->destruct = NULL;
 	SGS_CSCOPE( m_level->GetSGSC() );
 	sgs_PushClass( m_level->GetSGSC(), ptr );
 	C = m_level->GetSGSC();

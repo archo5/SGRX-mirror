@@ -132,7 +132,7 @@ struct PickupItem : Entity, IInteractiveEntity
 
 struct Actionable : Entity, IInteractiveEntity
 {
-	SGS_OBJECT_INHERIT( Entity );
+	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	
 	MeshInstHandle m_meshInst;

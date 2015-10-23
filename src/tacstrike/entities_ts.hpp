@@ -46,9 +46,20 @@ struct TSCamera : Entity
 };
 
 
-struct TSCharacter : Entity
+enum TSActions
 {
-	SGS_OBJECT_INHERIT( Entity );
+	ACT_None = 0,
+	
+	ACT_Chr_Move, // v3 (x/y-dir, z-speed)
+	ACT_Chr_Crouch, // .x>0.5 => b
+	ACT_Chr_AimAt, // .x>0.5 => b
+	ACT_Chr_AimTarget, // v3
+};
+
+
+struct TSCharacter : SGRX_Actor
+{
+	SGS_OBJECT_INHERIT( SGRX_Actor );
 	ENT_SGS_IMPLEMENT;
 	
 	struct ActionState
@@ -145,28 +156,24 @@ struct TSAimHelper : InfoEmissionSystem::IESProcessor
 
 #ifndef TSGAME_NO_PLAYER
 
+struct TSPlayerController : SGRX_IActorController
+{
+	TSAimHelper m_aimHelper;
+	
+	TSPlayerController( GameLevel* lev ) : m_aimHelper( lev ){}
+	virtual Vec3 GetInput( uint32_t iid );
+};
+
 struct TSPlayer : TSCharacter
 {
-	Vec2 m_angles;
-	Vec2 inCursorMove;
-	
-	Entity* m_targetII;
-	bool m_targetTriggered;
-	
-	HashTable< String, int > m_items;
-	
-	TextureHandle m_tex_interact_icon;
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
 	float m_shootTimeout;
-	float m_crouchIconShowTimeout;
-	float m_standIconShowTimeout;
 	TSAimHelper m_aimHelper;
 	
 	TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
-	void DrawUI();
 };
 
 #endif
@@ -246,12 +253,20 @@ struct TSEnemy : TSCharacter
 
 
 
-struct TSEntityCreationSystem : IGameLevelSystem
+struct TSGameSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 1000 };
-	TSEntityCreationSystem( GameLevel* lev );
+	TSGameSystem( GameLevel* lev );
 	virtual bool AddEntity( const StringView& type, sgsVariable data );
+	virtual void Tick( float deltaTime, float blendFactor );
 	virtual void DrawUI();
+	
+#ifndef TSGAME_NO_PLAYER
+	TSPlayerController m_playerCtrl;
+	float m_crouchIconShowTimeout;
+	float m_standIconShowTimeout;
+	float m_prevCrouchValue;
+#endif
 };
 
 
