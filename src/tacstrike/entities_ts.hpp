@@ -120,11 +120,15 @@ struct TSCharacter : SGRX_Actor
 	
 	ActionState m_actState;
 	
-	bool i_crouch;
-	Vec2 i_move;
-	float i_speed;
-	bool i_aim_at;
-	Vec3 i_aim_target;
+	ParticleSystem m_shootPS;
+	LightHandle m_shootLT;
+	float m_shootTimeout;
+	
+//	bool i_crouch;
+//	Vec2 i_move;
+//	float i_speed;
+//	bool i_aim_at;
+//	Vec3 i_aim_target;
 };
 
 
@@ -166,9 +170,6 @@ struct TSPlayerController : SGRX_IActorController
 
 struct TSPlayer : TSCharacter
 {
-	ParticleSystem m_shootPS;
-	LightHandle m_shootLT;
-	float m_shootTimeout;
 	TSAimHelper m_aimHelper;
 	
 	TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir );

@@ -114,6 +114,10 @@ struct SGRX_Actor : Entity
 	ENT_SGS_IMPLEMENT;
 	
 	SGRX_Actor( GameLevel* lev ) : Entity( lev ){}
+	FINLINE Vec3 GetInputV3( uint32_t iid ){ return ctrl->GetInput( iid ); }
+	FINLINE Vec2 GetInputV2( uint32_t iid ){ return ctrl->GetInput( iid ).ToVec2(); }
+	FINLINE float GetInputF( uint32_t iid ){ return ctrl->GetInput( iid ).x; }
+	FINLINE bool GetInputB( uint32_t iid ){ return ctrl->GetInput( iid ).x > 0.5f; }
 	
 	SGRX_ActorCtrlHandle ctrl;
 };

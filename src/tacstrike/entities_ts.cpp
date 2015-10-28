@@ -212,8 +212,8 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
-	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
-	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_aim_at( false ), i_aim_target( V3(0) )
+	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) )
+//	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_aim_at( false ), i_aim_target( V3(0) )
 {
 	m_meshInstInfo.typeOverride = "*human*";
 	
@@ -248,6 +248,19 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_anLayers[3].factor = 0;
 	m_animChar.m_anMixer.layers = m_anLayers;
 	m_animChar.m_anMixer.layerCount = 3;
+	
+	m_shootPS.Load( "psys/gunflash.psy" );
+	m_shootPS.AddToScene( m_level->GetScene() );
+	m_shootPS.OnRenderUpdate();
+	m_shootLT = m_level->GetScene()->CreateLight();
+	m_shootLT->type = LIGHT_POINT;
+	m_shootLT->enabled = false;
+	m_shootLT->position = pos;
+	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
+	m_shootLT->range = 4;
+	m_shootLT->power = 4;
+	m_shootLT->UpdateTransform();
+	m_shootTimeout = 0;
 }
 
 void TSCharacter::InitializeMesh( const StringView& path )
@@ -271,7 +284,7 @@ void TSCharacter::FixedTick( float deltaTime )
 {
 	if( IsInAction() )
 	{
-		i_move = V2(0);
+//		i_move = V2(0);
 		if( m_actState.timeoutMoveToStart > 0 )
 		{
 			m_anMainPlayer.Play( GR_GetAnim( "stand_with_gun_up" ), false, 0.2f );
@@ -322,10 +335,12 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 	else
 	{
+		Vec2 i_move = GetInputV2( ACT_Chr_Move );
+		
 		// animate character
-		const char* anim_stand = i_crouch ? "crouch" : "stand_with_gun_up";
-		const char* anim_run_fw = i_crouch ? "crouch_walk" : "run";
-		const char* anim_run_bw = i_crouch ? "crouch_walk_bw" : "run_bw";
+		const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_gun_up";
+		const char* anim_run_fw = m_isCrouching ? "crouch_walk" : "run";
+		const char* anim_run_bw = m_isCrouching ? "crouch_walk_bw" : "run_bw";
 		
 		const char* animname = anim_run_fw;
 		Vec2 md = i_move.Normalized();
@@ -352,9 +367,9 @@ void TSCharacter::FixedTick( float deltaTime )
 	//
 	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
 	Vec2 aimdir = rundir;
-	if( i_aim_at )
+	if( GetInputB( ACT_Chr_AimAt ) )
 	{
-		aimdir = ( i_aim_target - GetPosition() ).ToVec2();
+		aimdir = ( GetInputV3( ACT_Chr_AimTarget ) - GetPosition() ).ToVec2();
 	}
 	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
 	//
@@ -392,11 +407,38 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
 	m_shadowInst->position = pos + V3(0,0,1);
 	
-	m_level->LightMesh( MI, V3(0,0,i_crouch ? 0.6f : 1) );
+	m_level->LightMesh( MI, V3(0,0,m_isCrouching ? 0.6f : 1) );
 	
 	m_animChar.PreRender( blendFactor );
 	m_interpPos = m_ivPos.Get( blendFactor );
 	m_interpAimDir = m_ivAimDir.Get( blendFactor );
+	
+	
+	m_shootLT->enabled = false;
+	if( m_shootTimeout > 0 )
+	{
+		m_shootTimeout -= deltaTime;
+		m_shootLT->enabled = true;
+	}
+	if( SHOOT.value && m_shootTimeout <= 0 )
+	{
+		Mat4 mtx = GetBulletOutputMatrix();
+		Vec3 origin = mtx.TransformPos( V3(0) );
+		Vec3 dir = ( GetInputV3( ACT_Chr_AimTarget ) - origin ).Normalized();
+		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
+		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
+		m_shootPS.SetTransform( mtx );
+		m_shootPS.Trigger();
+		m_shootLT->position = origin;
+		m_shootLT->UpdateTransform();
+		m_shootLT->enabled = true;
+		m_shootTimeout += 0.1f;
+		m_level->GetSystem<AIDBSystem>()->AddSound( GetInterpPos(), 10, 0.2f, AIS_Shot );
+	}
+	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
+	
+	m_shootPS.Tick( deltaTime );
+	m_shootPS.PreRender();
 }
 
 void TSCharacter::HandleMovementPhysics( float deltaTime )
@@ -414,12 +456,12 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	Vec3 pos = m_bodyHandle->GetPosition();
 	
 	bool prevCrouch = m_isCrouching;
-	m_isCrouching = i_crouch;
+	m_isCrouching = GetInputB( ACT_Chr_Crouch );
 	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
 		m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
 	{
-		m_isCrouching = 1;
+		m_isCrouching = true;
 	}
 	
 	if( prevCrouch != m_isCrouching )
@@ -468,13 +510,13 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	}
 	m_isOnGround = ground;
 	
-	Vec2 md = i_move;
+	Vec2 md = GetInputV2( ACT_Chr_Move );
 	if( md.LengthSq() > 1 )
 		md.Normalize();
 	
 	Vec2 lvel2 = lvel.ToVec2();
 	
-	float maxspeed = 5 * i_speed;
+	float maxspeed = 5 * GetInputV3( ACT_Chr_Move ).z;
 	float accel = ( md.NearZero() && !m_isCrouching ) ? 38 : 30;
 	if( m_isCrouching ){ accel = 5; maxspeed = 2.5f; }
 	if( !ground ){ accel = 10; }
@@ -594,9 +636,9 @@ Vec3 TSCharacter::GetViewDir()
 Vec3 TSCharacter::GetAimDir()
 {
 	Vec3 aimdir = V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 );
-	if( i_aim_at )
+	if( GetInputB( ACT_Chr_AimAt ) )
 	{
-		aimdir = ( i_aim_target - GetPosition() );
+		aimdir = ( GetInputV3( ACT_Chr_AimTarget ) - GetPosition() );
 	}
 	return aimdir;
 }
@@ -805,24 +847,12 @@ TSPlayer::TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	
 	m_meshInstInfo.ownerType = GAT_Player;
 	
-	i_aim_at = true;
-	
-	m_shootPS.Load( "psys/gunflash.psy" );
-	m_shootPS.AddToScene( m_level->GetScene() );
-	m_shootPS.OnRenderUpdate();
-	m_shootLT = m_level->GetScene()->CreateLight();
-	m_shootLT->type = LIGHT_POINT;
-	m_shootLT->enabled = false;
-	m_shootLT->position = pos;
-	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
-	m_shootLT->range = 4;
-	m_shootLT->power = 4;
-	m_shootLT->UpdateTransform();
-	m_shootTimeout = 0;
+//	i_aim_at = true;
 }
 
 void TSPlayer::FixedTick( float deltaTime )
 {
+#if 0
 	i_move = V2
 	(
 		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
@@ -837,6 +867,7 @@ void TSPlayer::FixedTick( float deltaTime )
 		TurnTo( md, deltaTime * 8 );
 	}
 //	i_crouch = CROUCH.value;
+#endif
 	
 	if( DO_ACTION.value )
 	{
@@ -852,33 +883,6 @@ void TSPlayer::Tick( float deltaTime, float blendFactor )
 	
 	InfoEmissionSystem::Data D = { GetInterpPos(), 0.5f, IEST_HeatSource | IEST_Player };
 	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
-	
-	
-	m_shootLT->enabled = false;
-	if( m_shootTimeout > 0 )
-	{
-		m_shootTimeout -= deltaTime;
-		m_shootLT->enabled = true;
-	}
-	if( SHOOT.value && m_shootTimeout <= 0 )
-	{
-		Mat4 mtx = GetBulletOutputMatrix();
-		Vec3 origin = mtx.TransformPos( V3(0) );
-		Vec3 dir = ( i_aim_target - origin ).Normalized();
-		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
-		m_shootPS.SetTransform( mtx );
-		m_shootPS.Trigger();
-		m_shootLT->position = origin;
-		m_shootLT->UpdateTransform();
-		m_shootLT->enabled = true;
-		m_shootTimeout += 0.1f;
-		m_level->GetSystem<AIDBSystem>()->AddSound( GetInterpPos(), 10, 0.2f, AIS_Shot );
-	}
-	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
-	
-	m_shootPS.Tick( deltaTime );
-	m_shootPS.PreRender();
 }
 
 #endif
@@ -1373,6 +1377,8 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 			data.getprop("position").get<Vec3>(),
 			data.getprop("viewdir").get<Vec3>()
 		);
+		P->InitializeMesh( "chars/tstest.chr" );
+		P->m_meshInstInfo.ownerType = GAT_Player;
 		P->ctrl = &m_playerCtrl;
 		m_level->AddEntity( P );
 		m_level->SetPlayer( P );
