@@ -51,10 +51,12 @@ enum TSActions
 	ACT_None = 0,
 	
 	ACT_Chr_Move, // v3 (x/y-dir, z-speed)
+	ACT_Chr_Turn, // v3 (x/y-dir, z-speed-rad/sec)
 	ACT_Chr_Crouch, // .x>0.5 => b
 	ACT_Chr_AimAt, // .x>0.5 => b
 	ACT_Chr_AimTarget, // v3
 	ACT_Chr_Shoot, // .x>0.5 => b
+	ACT_Chr_DoAction, // .x>0.5 => b
 };
 
 
@@ -164,8 +166,12 @@ struct TSAimHelper : InfoEmissionSystem::IESProcessor
 struct TSPlayerController : SGRX_IActorController
 {
 	TSAimHelper m_aimHelper;
+	Vec2 i_move;
+	Vec3 i_aim_target;
+	Vec3 i_turn;
 	
-	TSPlayerController( GameLevel* lev ) : m_aimHelper( lev ){}
+	TSPlayerController( GameLevel* lev );
+	void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
 };
 

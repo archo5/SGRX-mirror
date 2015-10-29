@@ -282,6 +282,8 @@ void TSCharacter::InitializeMesh( const StringView& path )
 
 void TSCharacter::FixedTick( float deltaTime )
 {
+	SGRX_Actor::FixedTick( deltaTime );
+	
 	if( IsInAction() )
 	{
 //		i_move = V2(0);
@@ -397,10 +399,21 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 	
 	m_animChar.FixedTick( deltaTime );
+	
+	if( GetInputB( ACT_Chr_DoAction ) )
+	{
+		BeginClosestAction( 2 );
+	}
 }
 
 void TSCharacter::Tick( float deltaTime, float blendFactor )
 {
+	SGRX_Actor::Tick( deltaTime, blendFactor );
+	
+	Vec3 turn = GetInputV3( ACT_Chr_Turn );
+	if( turn.z > 0 )
+		TurnTo( turn.ToVec2(), turn.z * deltaTime );
+	
 	Vec3 pos = m_ivPos.Get( blendFactor );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
@@ -823,59 +836,44 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 #ifndef TSGAME_NO_PLAYER
 
 
-Vec3 TSPlayerController::GetInput( uint32_t iid )
+TSPlayerController::TSPlayerController( GameLevel* lev ) : m_aimHelper( lev ),
+	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
 {
-	switch( iid )
-	{
-	case ACT_Chr_Move: return V3(
-		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
-		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value,
-		1 );
-	case ACT_Chr_Crouch: return V3(CROUCH.value);
-	case ACT_Chr_AimAt: return V3(1);
-	case ACT_Chr_AimTarget: return m_aimHelper.GetAimPoint();
-	}
-	return V3(0);
 }
 
-
-TSPlayer::TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
-	TSCharacter( lev, pos-V3(0,0,1), dir ),
-	m_aimHelper( lev )
+void TSPlayerController::Tick( float deltaTime, float blendFactor )
 {
-	InitializeMesh( "chars/tstest.chr" );
-	
-	m_meshInstInfo.ownerType = GAT_Player;
-	
-//	i_aim_at = true;
-}
-
-void TSPlayer::FixedTick( float deltaTime )
-{
-#if 0
 	i_move = V2
 	(
 		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
 		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
 	);
 	i_aim_target = m_aimHelper.GetAimPoint();
+	i_turn = V3(0);
 	if( i_move.Length() > 0.1f )
 	{
 		Vec2 md = i_move;
-		if( Vec2Dot( ( i_aim_target - GetPosition() ).ToVec2(), md ) < 0 )
+		if( Vec2Dot( ( i_aim_target - m_aimHelper.m_pos ).ToVec2(), md ) < 0 )
 			md = -md;
-		TurnTo( md, deltaTime * 8 );
+		i_turn = V3( md.x, md.y, 8 );
 	}
-//	i_crouch = CROUCH.value;
-#endif
-	
-	if( DO_ACTION.value )
-	{
-		BeginClosestAction( 2 );
-	}
-	
-	TSCharacter::FixedTick( deltaTime );
 }
+
+Vec3 TSPlayerController::GetInput( uint32_t iid )
+{
+	switch( iid )
+	{
+	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
+	case ACT_Chr_Turn: return i_turn;
+	case ACT_Chr_Crouch: return V3(CROUCH.value);
+	case ACT_Chr_AimAt: return V3(1);
+	case ACT_Chr_AimTarget: return i_aim_target;
+	case ACT_Chr_Shoot: return V3(SHOOT.value);
+	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
+	}
+	return V3(0);
+}
+
 
 void TSPlayer::Tick( float deltaTime, float blendFactor )
 {

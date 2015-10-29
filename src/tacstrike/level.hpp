@@ -26,6 +26,8 @@ typedef uint32_t EntityID;
 
 struct SGRX_IActorController : SGRX_RefCounted
 {
+	virtual void FixedTick( float deltaTime ){}
+	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual Vec3 GetInput( uint32_t iid ){ return V3(0); }
 };
 typedef Handle< SGRX_IActorController > SGRX_ActorCtrlHandle;
@@ -118,6 +120,15 @@ struct SGRX_Actor : Entity
 	FINLINE Vec2 GetInputV2( uint32_t iid ){ return ctrl->GetInput( iid ).ToVec2(); }
 	FINLINE float GetInputF( uint32_t iid ){ return ctrl->GetInput( iid ).x; }
 	FINLINE bool GetInputB( uint32_t iid ){ return ctrl->GetInput( iid ).x > 0.5f; }
+	
+	virtual void FixedTick( float deltaTime )
+	{
+		ctrl->FixedTick( deltaTime );
+	}
+	virtual void Tick( float deltaTime, float blendFactor )
+	{
+		ctrl->Tick( deltaTime, blendFactor );
+	}
 	
 	SGRX_ActorCtrlHandle ctrl;
 };
