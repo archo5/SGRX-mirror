@@ -420,7 +420,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootTimeout -= deltaTime;
 		m_shootLT->enabled = true;
 	}
-	if( SHOOT.value && m_shootTimeout <= 0 )
+	if( GetInputB( ACT_Chr_Shoot ) && m_shootTimeout <= 0 )
 	{
 		Mat4 mtx = GetBulletOutputMatrix();
 		Vec3 origin = mtx.TransformPos( V3(0) );
@@ -1044,106 +1044,52 @@ void TSFactStorage::MovingInsertOrUpdate( FactType type, Vec3 pos, float movespe
 
 
 
-extern sgs_ObjInterface TSEnemy_iface[1];
-
-#define TSENEMY_VALID if( E == NULL ){ return sgs_Msg( C, SGS_WARNING, "enemy no longer exists" ); }
-
-static int TSEnemy_HasFact( SGS_CTX )
+TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args ) :
+	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V2(0) ),
+	m_level( lev ), m_aidb( m_level->GetSystem<AIDBSystem>() ), m_char( chr )
 {
-	TSEnemy* E;
-	SGS_PARSE_METHOD( C, TSEnemy_iface, E, TSEnemy, HasFact );
-	TSENEMY_VALID;
-	sgs_PushBool( C, E->HasFact( sgs_GetVar<int>()( C, 0 ) ) );
-	return 1;
-}
-
-static int TSEnemy_HasRecentFact( SGS_CTX )
-{
-	TSEnemy* E;
-	SGS_PARSE_METHOD( C, TSEnemy_iface, E, TSEnemy, HasRecentFact );
-	TSENEMY_VALID;
-	sgs_PushBool( C, E->HasRecentFact( sgs_GetVar<int>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) ) );
-	return 1;
-}
-
-static int TSEnemy_GetRecentFact( SGS_CTX )
-{
-	TSEnemy* E;
-	SGS_PARSE_METHOD( C, TSEnemy_iface, E, TSEnemy, GetRecentFact );
-	TSENEMY_VALID;
-	TSFactStorage::Fact* F = E->GetRecentFact( sgs_GetVar<int>()( C, 0 ), sgs_GetVar<int>()( C, 1 ) );
-	if( F )
+	// create controller scripted object
 	{
-		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
-		sgs_PushString( C, "ref" ); sgs_PushInt( C, F->ref );
-		sgs_PushString( C, "type" ); sgs_PushInt( C, F->type );
-		sgs_PushString( C, "position" ); sgs_PushVec3p( C, &F->position.x );
-		sgs_PushString( C, "created" ); sgs_PushInt( C, F->created );
-		sgs_PushString( C, "expires" ); sgs_PushInt( C, F->expires );
-		sgs_PushDict( C, 12 );
-		return 1;
+		_sgs_interface->destruct = NULL;
+		SGS_CSCOPE( m_level->GetSGSC() );
+		sgs_PushClass( m_level->GetSGSC(), this );
+		C = m_level->GetSGSC();
+		m_sgsObject = sgs_GetObjectStruct( C, -1 );
+		sgs_ObjAcquire( C, m_sgsObject );
 	}
-	return 0;
-}
-
-static int TSEnemy_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "HasFact" ) return sgs_PushCFunction( C, TSEnemy_HasFact );
-		SGS_CASE( "HasRecentFact" ) return sgs_PushCFunction( C, TSEnemy_HasRecentFact );
-		SGS_CASE( "GetRecentFact" ) return sgs_PushCFunction( C, TSEnemy_GetRecentFact );
-	SGS_END_INDEXFUNC
-}
-
-sgs_ObjInterface TSEnemy_iface[1] =
-{{
-	"TSEnemy",
-	NULL, NULL,
-	TSEnemy_getindex, NULL,
-	NULL, NULL, NULL, NULL,
-	NULL, NULL
-}};
-
-
-TSEnemy::TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args ) :
-	TSCharacter( lev, pos, dir ),
-	i_turn( V2(0) )
-{
-	InitScriptInterface();
 	
-	m_typeName = "enemy";
-	m_name = name;
-	
-	m_aidb = m_level->GetSystem<AIDBSystem>();
-	m_meshInstInfo.ownerType = GAT_Enemy;
+//	m_meshInstInfo.ownerType = GAT_Enemy;
 	
 	// create ESO (enemy scripted object)
 	{
+		chr->InitScriptInterface();
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		sgs_PushObjectPtr( m_level->m_scriptCtx.C, m_sgsObject );
+		sgs_PushObjectPtr( m_level->m_scriptCtx.C, chr->m_sgsObject );
 		m_level->m_scriptCtx.Push( args );
-		m_level->m_scriptCtx.Push( m_position );
-		m_level->m_scriptCtx.Push( GetViewDir() );
-		if( m_level->m_scriptCtx.GlobalCall( "TSEnemy_Create", 4, 1 ) == false )
+		if( m_level->m_scriptCtx.GlobalCall( "TSEnemy_Create", 3, 1 ) == false )
 		{
 			LOG_ERROR << "FAILED to create enemy state";
 		}
 		m_enemyState = sgsVariable( m_level->m_scriptCtx.C, -1 );
 	}
 	
-	StringView charpath = m_enemyState.getprop("charpath").get<StringView>();
-	InitializeMesh( charpath ? charpath : "chars/tstest.chr" );
+//	StringView charpath = m_enemyState.getprop("charpath").get<StringView>();
+//	InitializeMesh( charpath ? charpath : "chars/tstest.chr" );
 	
-	m_level->MapEntityByName( this );
+//	m_level->MapEntityByName( this );
 }
 
-TSEnemy::~TSEnemy()
+TSEnemyController::~TSEnemyController()
 {
 	// destroy ESO
 	{
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_enemyState.thiscall( "destroy" );
 	}
+	
+	sgs_ObjRelease( C, m_sgsObject );
+	m_sgsObject = NULL;
 }
 
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
@@ -1153,8 +1099,8 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		Vec3 enemypos = data.pos + V3(0,0,1); // FIXME MAYBE?
 		
 		// verify the find
-		Vec3 vieworigin = enemy->GetPosition();
-		Vec3 viewdir = enemy->GetViewDir();
+		Vec3 vieworigin = enemy->m_char->GetPosition();
+		Vec3 viewdir = enemy->m_char->GetViewDir();
 		Vec3 view2pos = enemypos - vieworigin;
 		float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
 		if( vpdot < cosf(DEG2RAD(40.0f)) )
@@ -1186,10 +1132,10 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 	}
 	
 	TimeVal curtime;
-	TSEnemy* enemy;
+	TSEnemyController* enemy;
 };
 
-void TSEnemy::FixedTick( float deltaTime )
+void TSEnemyController::FixedTick( float deltaTime )
 {
 	TimeVal curTime = m_level->GetPhyTime();
 	
@@ -1199,11 +1145,12 @@ void TSEnemy::FixedTick( float deltaTime )
 	IESEnemyViewProc evp;
 	evp.curtime = curTime;
 	evp.enemy = this;
-	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp, GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
+	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp,
+		m_char->GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
 	// - sounds
 	for( int i = 0; i < m_aidb->GetNumSounds(); ++i )
 	{
-		if( m_aidb->CanHearSound( GetPosition(), i ) == false )
+		if( m_aidb->CanHearSound( m_char->GetPosition(), i ) == false )
 			continue;
 		AISound S = m_aidb->GetSoundInfo( i );
 		
@@ -1234,11 +1181,6 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	// tick ESO
 	{
-		m_level->m_scriptCtx.Push( GetPosition() );
-		m_enemyState.setprop( "position", sgsVariable( m_level->m_scriptCtx.C, sgsVariable::PickAndPop ) );
-		m_level->m_scriptCtx.Push( GetViewDir() );
-		m_enemyState.setprop( "viewdir", sgsVariable( m_level->m_scriptCtx.C, sgsVariable::PickAndPop ) );
-		
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_level->m_scriptCtx.Push( deltaTime );
 		m_enemyState.thiscall( "tick", 1 );
@@ -1251,22 +1193,18 @@ void TSEnemy::FixedTick( float deltaTime )
 	
 	if( i_turn.Length() > 0.1f )
 	{
-		TurnTo( i_turn, deltaTime * 8 );
+		m_char->TurnTo( i_turn, deltaTime * 8 );
 	}
 	
-	TSCharacter::FixedTick( deltaTime );
+//	TSCharacter::FixedTick( deltaTime );
 	
-	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
-	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+//	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
+//	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
+//	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
-void TSEnemy::Tick( float deltaTime, float blendFactor )
-{
-	TSCharacter::Tick( deltaTime, blendFactor );
-}
-
-bool TSEnemy::GetMapItemInfo( MapItemInfo* out )
+#if 0
+bool TSEnemyController::GetMapItemInfo( MapItemInfo* out )
 {
 	out->type = MI_Object_Enemy | MI_State_Normal;
 	out->position = GetInterpPos();
@@ -1275,11 +1213,12 @@ bool TSEnemy::GetMapItemInfo( MapItemInfo* out )
 	out->sizeRight = 8;
 	return true;
 }
+#endif
 
-void TSEnemy::DebugDrawWorld()
+void TSEnemyController::DebugDrawWorld()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
-	Vec3 pos = GetPosition();
+	Vec3 pos = m_char->GetPosition();
 	
 	m_factStorage.SortCreatedDesc();
 	
@@ -1293,11 +1232,11 @@ void TSEnemy::DebugDrawWorld()
 	}
 }
 
-void TSEnemy::DebugDrawUI()
+void TSEnemyController::DebugDrawUI()
 {
 	char bfr[ 256 ];
 	BatchRenderer& br = GR2D_GetBatchRenderer();
-	Vec3 pos = GetPosition();
+	Vec3 pos = m_char->GetPosition();
 	bool infront;
 	Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
 	if( !infront )
@@ -1349,6 +1288,33 @@ void TSEnemy::DebugDrawUI()
 		
 		y += 13;
 	}
+}
+
+bool TSEnemyController::sgsHasFact( int typemask )
+{
+	return HasFact( typemask );
+}
+
+bool TSEnemyController::sgsHasRecentFact( int typemask, TimeVal maxtime )
+{
+	return HasRecentFact( typemask, maxtime );
+}
+
+SGS_MULTRET TSEnemyController::sgsGetRecentFact( int typemask, TimeVal maxtime )
+{
+	TSFactStorage::Fact* F = GetRecentFact( typemask, maxtime );
+	if( F )
+	{
+		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
+		sgs_PushString( C, "ref" ); sgs_PushInt( C, F->ref );
+		sgs_PushString( C, "type" ); sgs_PushInt( C, F->type );
+		sgs_PushString( C, "position" ); sgs_PushVec3p( C, &F->position.x );
+		sgs_PushString( C, "created" ); sgs_PushInt( C, F->created );
+		sgs_PushString( C, "expires" ); sgs_PushInt( C, F->expires );
+		sgs_PushDict( C, 12 );
+		return 1;
+	}
+	return 0;
 }
 
 
@@ -1407,14 +1373,14 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 	///////////////////////////
 	if( type == "enemy_start" )
 	{
-		TSEnemy* E = new TSEnemy
+		TSCharacter* E = new TSCharacter
 		(
 			m_level,
-			data.getprop("name").get<StringView>(),
 			data.getprop("position").get<Vec3>(),
-			data.getprop("viewdir").get<Vec3>(),
-			data
+			data.getprop("viewdir").get<Vec3>()
 		);
+		E->InitializeMesh( "chars/tstest.chr" );
+		E->ctrl = new TSEnemyController( m_level, E, data );
 		m_level->AddEntity( E );
 		return true;
 	}

@@ -113,34 +113,55 @@ sgs_ObjInterface TSCharacter::_sgs_interface[1] =
 }};
 
 
-int TSEnemy::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+static int _sgs_method__TSEnemyController__HasFact( SGS_CTX )
 {
-	static_cast<TSEnemy*>( obj->data )->~TSEnemy();
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, HasFact ) ) return 0;
+	sgs_PushVar(C,data->sgsHasFact( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSEnemyController__HasRecentFact( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, HasRecentFact ) ) return 0;
+	sgs_PushVar(C,data->sgsHasRecentFact( sgs_GetVar<int>()(C,0), sgs_GetVar<TimeVal>()(C,1) )); return 1;
+}
+
+static int _sgs_method__TSEnemyController__GetRecentFact( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetRecentFact ) ) return 0;
+	return data->sgsGetRecentFact( sgs_GetVar<int>()(C,0), sgs_GetVar<TimeVal>()(C,1) );
+}
+
+int TSEnemyController::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<TSEnemyController*>( obj->data )->~TSEnemyController();
 	return SGS_SUCCESS;
 }
 
-int TSEnemy::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+int TSEnemyController::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
 	return SGS_SUCCESS;
 }
 
-int TSEnemy::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<TSEnemy*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
+		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
+		SGS_CASE( "HasFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__HasFact ); return SGS_SUCCESS; }
+		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__HasRecentFact ); return SGS_SUCCESS; }
+		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__GetRecentFact ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
-int TSEnemy::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+int TSEnemyController::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
 	SGS_END_INDEXFUNC;
 }
 
-int TSEnemy::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
-	char bfr[ 39 ];
-	sprintf( bfr, "TSEnemy (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	char bfr[ 49 ];
+	sprintf( bfr, "TSEnemyController (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
@@ -152,9 +173,9 @@ int TSEnemy::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface TSEnemy::_sgs_interface[1] =
+sgs_ObjInterface TSEnemyController::_sgs_interface[1] =
 {{
-	"TSEnemy",
-	TSEnemy::_sgs_destruct, TSEnemy::_sgs_gcmark, TSEnemy::_sgs_getindex, TSEnemy::_sgs_setindex, NULL, NULL, TSEnemy::_sgs_dump, NULL, NULL, NULL, 
+	"TSEnemyController",
+	TSEnemyController::_sgs_destruct, TSEnemyController::_sgs_gcmark, TSEnemyController::_sgs_getindex, TSEnemyController::_sgs_setindex, NULL, NULL, TSEnemyController::_sgs_dump, NULL, NULL, NULL, 
 }};
 

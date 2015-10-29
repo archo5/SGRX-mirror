@@ -54,6 +54,7 @@ enum TSActions
 	ACT_Chr_Crouch, // .x>0.5 => b
 	ACT_Chr_AimAt, // .x>0.5 => b
 	ACT_Chr_AimTarget, // v3
+	ACT_Chr_Shoot, // .x>0.5 => b
 };
 
 
@@ -228,28 +229,34 @@ struct TSFactStorage
 	uint32_t m_next_fact_id;
 };
 
-struct TSEnemy : TSCharacter
+struct TSEnemyController : SGRX_IActorController
 {
-	SGS_OBJECT_INHERIT( TSCharacter );
-	ENT_SGS_IMPLEMENT;
+	SGS_OBJECT;
 	
+	bool i_crouch;
+	Vec2 i_move;
+	float i_speed;
 	Vec2 i_turn;
 	
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
+	GameLevel* m_level;
 	TSFactStorage m_factStorage;
 	AIDBSystem* m_aidb;
+	TSCharacter* m_char;
 	
-	TSEnemy( GameLevel* lev, const StringView& name, const Vec3& pos, const Vec3& dir, sgsVariable args );
-	~TSEnemy();
+	TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args );
+	~TSEnemyController();
 	void FixedTick( float deltaTime );
-	void Tick( float deltaTime, float blendFactor );
-	bool GetMapItemInfo( MapItemInfo* out );
 	void DebugDrawWorld();
 	void DebugDrawUI();
 	
 	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
 	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
 	TSFactStorage::Fact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
+	
+	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( int typemask );
+	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( int typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( int typemask, TimeVal maxtime );
 };
 
 
