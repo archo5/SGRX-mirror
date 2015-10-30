@@ -40,6 +40,19 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	{
 	}
 	
+	bool OnConfigure( int argc, char* argv[] )
+	{
+#if 0
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.width = 1920;
+		rs.height = 1080;
+		rs.fullscreen = FULLSCREEN_WINDOWED;
+		GR_SetVideoMode( rs );
+#endif
+		return true;
+	}
+	
 	bool OnInitialize()
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );

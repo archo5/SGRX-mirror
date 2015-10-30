@@ -127,6 +127,8 @@ struct TSCharacter : SGRX_Actor
 	LightHandle m_shootLT;
 	float m_shootTimeout;
 	
+	SGS_PROPERTY_FUNC( READ GetPosition ) SGS_ALIAS( Vec3 position );
+	
 //	bool i_crouch;
 //	Vec2 i_move;
 //	float i_speed;
