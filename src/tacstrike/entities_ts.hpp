@@ -244,7 +244,11 @@ struct TSEnemyController : SGRX_IActorController
 	bool i_crouch;
 	Vec2 i_move;
 	float i_speed;
-	Vec2 i_turn;
+	Vec3 i_turn;
+	bool i_aim_at;
+	Vec3 i_aim_target;
+	bool i_shoot;
+	bool i_act;
 	
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	GameLevel* m_level;
@@ -254,7 +258,8 @@ struct TSEnemyController : SGRX_IActorController
 	
 	TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args );
 	~TSEnemyController();
-	void FixedTick( float deltaTime );
+	virtual void FixedTick( float deltaTime );
+	virtual Vec3 GetInput( uint32_t iid );
 	void DebugDrawWorld();
 	void DebugDrawUI();
 	

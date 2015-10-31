@@ -1043,7 +1043,8 @@ void TSFactStorage::MovingInsertOrUpdate( FactType type, Vec3 pos, float movespe
 
 
 TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args ) :
-	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V2(0) ),
+	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
+	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
 	m_level( lev ), m_aidb( m_level->GetSystem<AIDBSystem>() ), m_char( chr )
 {
 	// create controller scripted object
@@ -1186,19 +1187,32 @@ void TSEnemyController::FixedTick( float deltaTime )
 		i_crouch = m_enemyState[ "i_crouch" ].get<bool>();
 		i_move = m_enemyState[ "i_move" ].get<Vec2>();
 		i_speed = m_enemyState[ "i_speed" ].get<float>();
-		i_turn = m_enemyState[ "i_turn" ].get<Vec2>();
+		i_turn = m_enemyState[ "i_turn" ].get<Vec3>();
+		sgsVariable aim_target = m_enemyState[ "i_aim_target" ];
+		i_aim_at = aim_target.not_null();
+		i_aim_target = aim_target.get<Vec3>();
+		i_shoot = m_enemyState[ "i_shoot" ].get<bool>();
+		i_act = m_enemyState[ "i_act" ].get<bool>();
 	}
-	
-	if( i_turn.Length() > 0.1f )
-	{
-		m_char->TurnTo( i_turn, deltaTime * 8 );
-	}
-	
-//	TSCharacter::FixedTick( deltaTime );
 	
 //	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
 //	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
 //	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+}
+
+Vec3 TSEnemyController::GetInput( uint32_t iid )
+{
+	switch( iid )
+	{
+	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
+	case ACT_Chr_Turn: return i_turn;
+	case ACT_Chr_Crouch: return V3( i_crouch );
+	case ACT_Chr_AimAt: return V3( i_aim_at );
+	case ACT_Chr_AimTarget: return i_aim_target;
+	case ACT_Chr_Shoot: return V3( i_shoot );
+	case ACT_Chr_DoAction: return V3( i_act );
+	}
+	return V3(0);
 }
 
 #if 0
