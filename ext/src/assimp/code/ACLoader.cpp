@@ -453,6 +453,12 @@ void AC3DImporter::ConvertMaterial(const Object& object,
 }
 
 // ------------------------------------------------------------------------------------------------
+struct MtlCount
+{
+	unsigned numfaces;
+	unsigned numverts;
+};
+typedef std::vector< MtlCount > MatTable;
 // Converts the loaded data to the internal verbose representation
 aiNode* AC3DImporter::ConvertObjectSection(Object& object,
     std::vector<aiMesh*>& meshes,
@@ -504,12 +510,6 @@ aiNode* AC3DImporter::ConvertObjectSection(Object& object,
         {
             // need to generate one or more meshes for this object.
             // find out how many different materials we have
-			struct MtlCount
-			{
-				unsigned numfaces;
-				unsigned numverts;
-			};
-            typedef std::vector< MtlCount > MatTable;
 			MtlCount zeroMC = {0, 0};
             MatTable needMat(materials.size(),zeroMC);
 

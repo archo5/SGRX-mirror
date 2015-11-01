@@ -5,6 +5,7 @@
 #    source groups and library command)
 #
 cmake_minimum_required( VERSION 2.6 )
+set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 SET( HEADER_PATH ../include/assimp )
 
 SET( COMPILER_HEADERS
@@ -656,6 +657,8 @@ ADD_DEFINITIONS( -DASSIMP_BUILD_DLL_EXPORT )
 if ( MSVC )
   ADD_DEFINITIONS( -D_SCL_SECURE_NO_WARNINGS )
   ADD_DEFINITIONS( -D_CRT_SECURE_NO_WARNINGS )
+else(MSVC)
+  ADD_DEFINITIONS( -fpermissive -fexceptions -frtti -Wno-reorder -Wno-unused-function -m32 -s )
 endif ( MSVC )
 
 if (UNZIP_FOUND)
