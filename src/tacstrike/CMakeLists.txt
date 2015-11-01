@@ -16,7 +16,6 @@ add_library( testsuite SHARED testsuite )
 target_link_libraries( testsuite sgrx-core )
 set_target_properties( testsuite PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS} -DTESTSUITE"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -26,7 +25,6 @@ add_library( game SHARED game gameui tsui entities_ts cppbc_entities_ts )
 target_link_libraries( game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS} -DTSGAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -36,7 +34,6 @@ add_library( jmpgame SHARED brsd4game entities_brsd4 )
 target_link_libraries( jmpgame coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( jmpgame PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS} -DBRSD4GAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -46,7 +43,6 @@ add_library( ld33game SHARED ld33game entities_ld33 cppbc_entities_ts )
 target_link_libraries( ld33game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( ld33game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS} -DLD33GAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -56,7 +52,6 @@ add_library( mld62game SHARED mld62game )
 target_link_libraries( mld62game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( mld62game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS} -DMLD62GAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -66,7 +61,6 @@ add_library( isr3game SHARED isr3game isr3entities cppbc_isr3entities entities_t
 target_link_libraries( isr3game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( isr3game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS} -DISR3GAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )

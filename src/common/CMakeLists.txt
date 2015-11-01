@@ -7,7 +7,6 @@ if(NOT RESTRICTED)
 add_library( lighter SHARED
 	${EXTDIR}/src/lighter/lighter ${EXTDIR}/src/lighter/lighter_math )
 set_target_properties( lighter PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${EXTDIR}/src"
 	COMPILE_FLAGS "${CORE_FLAGS} -DLTRBUILD -O2"
 	LINK_FLAGS "${CORE_FLAGS} -O2"
@@ -22,7 +21,6 @@ target_link_libraries( editor
 	recast detour lighter )
 set_target_properties( editor PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src;${EXTDIR}/src/recast/Recast/Include;${EXTDIR}/src/recast/Detour/Include"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -34,7 +32,6 @@ add_library( aedit SHARED aedit.cpp assetcomp.hpp assetcomp.cpp
 target_link_libraries( aedit sgrx-core assimp )
 set_target_properties( aedit PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src;${EXTDIR}/src/assimp/include;${EXTDIR}/src/zlib"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -44,7 +41,6 @@ add_library( psedit SHARED psedit )
 target_link_libraries( psedit sgrx-core )
 set_target_properties( psedit PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -54,7 +50,6 @@ add_library( charedit SHARED charedit )
 target_link_libraries( charedit sgrx-core sgrx-physics-bullet )
 set_target_properties( charedit PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
@@ -64,7 +59,6 @@ add_library( csedit SHARED csedit )
 target_link_libraries( csedit sgrx-core )
 set_target_properties( csedit PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
 )

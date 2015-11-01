@@ -18,7 +18,6 @@ add_library( sgrx-core SHARED
 )
 target_link_libraries( sgrx-core SDL2 )
 set_target_properties( sgrx-core PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${EXTDIR}/include;${EXTDIR}/include/freetype;${EXTDIR}/src;${EXTDIR}/src/zlib"
 	COMPILE_FLAGS "${CORE_FLAGS} -DENGINE_BUILDING"
 	LINK_FLAGS "${CORE_FLAGS}"
@@ -29,7 +28,6 @@ if(NOT (CMAKE_SYSTEM_NAME STREQUAL WindowsPhone OR CMAKE_SYSTEM_NAME STREQUAL Wi
 add_library( sgrx-render-d3d9 SHARED renderer_d3d9 )
 target_link_libraries( sgrx-render-d3d9 d3d9 d3dx9 sgrx-core )
 set_target_properties( sgrx-render-d3d9 PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${EXTDIR}"
 	COMPILE_FLAGS "${CORE_FLAGS} ${MINGW_D3D_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS}"
@@ -45,7 +43,6 @@ endif()
 add_library( sgrx-render-d3d11 SHARED renderer_d3d11 )
 target_link_libraries( sgrx-render-d3d11 d3d11 ${D3DCOMPILER_LIB} sgrx-core )
 set_target_properties( sgrx-render-d3d11 PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "D:/DXSDK/Include"
 	COMPILE_FLAGS "${CORE_FLAGS} ${MINGW_D3D_FLAGS} -DENABLE_SHADER_COMPILING"
 	LINK_FLAGS "${CORE_FLAGS}"
@@ -55,7 +52,6 @@ set_target_properties( sgrx-render-d3d11 PROPERTIES
 add_library( sgrx-sound-fmod SHARED sound_fmod )
 target_link_libraries( sgrx-sound-fmod fmod fmodstudio sgrx-core )
 set_target_properties( sgrx-sound-fmod PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${EXTDIR}/include/fmod"
 	COMPILE_FLAGS "${CORE_FLAGS} -DSOUND_BUILDING"
 	LINK_FLAGS "${CORE_FLAGS}"
@@ -65,7 +61,6 @@ set_target_properties( sgrx-sound-fmod PROPERTIES
 add_library( sgrx-pathfinding STATIC pathfinding )
 target_link_libraries( sgrx-pathfinding detour rcd_debug )
 set_target_properties( sgrx-pathfinding PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${EXTDIR}/src/recast/Detour/Include;${EXTDIR}/src/recast/DetourTileCache/Include"
 	COMPILE_FLAGS "${PF_CORE_FLAGS} -DPATHFINDING_BUILDING"
 	LINK_FLAGS "${PF_CORE_FLAGS}"
@@ -79,7 +74,6 @@ add_library( sgrx-physics-bullet SHARED physics_bullet
 )
 target_link_libraries( sgrx-physics-bullet sgrx-core )
 set_target_properties( sgrx-physics-bullet PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${EXTDIR}/src;${EXTDIR}/src/bullet/src"
 	COMPILE_FLAGS "${PF_CORE_FLAGS} -DPHYSICS_BUILDING"
 	LINK_FLAGS "${PF_CORE_FLAGS}"
@@ -91,7 +85,6 @@ add_library( sgrx-script SHARED script
 )
 target_link_libraries( sgrx-script sgrx-core )
 set_target_properties( sgrx-script PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	INCLUDE_DIRECTORIES "${EXTDIR}/src/sgscript"
 	COMPILE_FLAGS "${CORE_FLAGS} -DSCRIPT_BUILDING -DSGS_COMPILE_MODULE -DSGS_DLL=1"
 	LINK_FLAGS "${CORE_FLAGS}"
@@ -103,13 +96,11 @@ add_executable( sgrx launcher )
 target_link_libraries( sgrx-debug sgrx-core )
 target_link_libraries( sgrx sgrx-core )
 set_target_properties( sgrx-debug PROPERTIES
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS} ${LINK_STRIP_FLAG}"
 )
 set_target_properties( sgrx PROPERTIES
 	COMPILE_DEFINITIONS "SGRX_RELEASE=1"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS} ${LINK_STRIP_FLAG} ${LINK_WINDOWS_FLAG}"
 )

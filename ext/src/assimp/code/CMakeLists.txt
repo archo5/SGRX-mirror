@@ -5,7 +5,6 @@
 #    source groups and library command)
 #
 cmake_minimum_required( VERSION 2.6 )
-set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 SET( HEADER_PATH ../include/assimp )
 
 SET( COMPILER_HEADERS
@@ -172,16 +171,35 @@ MACRO(ADD_ASSIMP_IMPORTER name)
     add_definitions(-DASSIMP_BUILD_NO_${name}_IMPORTER)
   ENDIF()
 ENDMACRO()
+MACRO(ADD_ASSIMP_EXPORTER name)
+  OPTION(ASSIMP_BUILD_${name}_EXPORTER "build the ${name} exporter" TRUE)
+  IF(ASSIMP_BUILD_${name}_EXPORTER)
+    LIST(APPEND ASSIMP_LOADER_SRCS ${ARGN})
+    SET(ASSIMP_EXPORTERS_ENABLED "${ASSIMP_EXPORTERS_ENABLED} ${name}")
+    SET(${name}_SRCS ${ARGN})
+    SOURCE_GROUP(${name} FILES ${ARGN})
+  ELSE()
+    SET(${name}_SRC "")
+    SET(ASSIMP_EXPORTERS_DISABLED "${ASSIMP_EXPORTERS_DISABLED} ${name}")
+    add_definitions(-DASSIMP_BUILD_NO_${name}_EXPORTER)
+  ENDIF()
+ENDMACRO()
 
 SET(ASSIMP_LOADER_SRCS "")
 SET(ASSIMP_IMPORTERS_ENABLED "") # list of enabled importers
 SET(ASSIMP_IMPORTERS_DISABLED "") # disabled list (used to print)
+SET(ASSIMP_EXPORTERS_ENABLED "") # list of enabled exporters
+SET(ASSIMP_EXPORTERS_DISABLED "") # disabled list (used to print)
 
 ADD_ASSIMP_IMPORTER(3DS
   3DSConverter.cpp
   3DSHelper.h
   3DSLoader.cpp
   3DSLoader.h
+)
+
+ADD_ASSIMP_EXPORTER(3DS
+  3DSHelper.h
   3DSExporter.h
   3DSExporter.cpp
 )
@@ -199,13 +217,16 @@ ADD_ASSIMP_IMPORTER(ASE
 )
 
 ADD_ASSIMP_IMPORTER(ASSBIN
-  AssbinExporter.h
-  AssbinExporter.cpp
   AssbinLoader.h
   AssbinLoader.cpp
 )
 
-ADD_ASSIMP_IMPORTER(ASSXML
+ADD_ASSIMP_EXPORTER(ASSBIN
+  AssbinExporter.h
+  AssbinExporter.cpp
+)
+
+ADD_ASSIMP_EXPORTER(ASSXML
   AssxmlExporter.h
   AssxmlExporter.cpp
 )
@@ -226,6 +247,10 @@ ADD_ASSIMP_IMPORTER(COLLADA
   ColladaLoader.h
   ColladaParser.cpp
   ColladaParser.h
+)
+
+ADD_ASSIMP_EXPORTER(COLLADA
+  ColladaHelper.h
   ColladaExporter.h
   ColladaExporter.cpp
 )
@@ -248,10 +273,14 @@ ADD_ASSIMP_IMPORTER(HMP
   HalfLifeFileData.h
 )
 
-#FIXME: allow to set IRRMESH by option
 ADD_ASSIMP_IMPORTER(IRR
   IRRLoader.cpp
   IRRLoader.h
+  IRRShared.cpp
+  IRRShared.h
+)
+
+ADD_ASSIMP_IMPORTER(IRRMESH
   IRRMeshLoader.cpp
   IRRMeshLoader.h
   IRRShared.cpp
@@ -338,7 +367,9 @@ ADD_ASSIMP_IMPORTER(OBJ
   ObjFileParser.cpp
   ObjFileParser.h
   ObjTools.h
+)
 
+ADD_ASSIMP_EXPORTER(OBJ
   ObjExporter.h
   ObjExporter.cpp
 )
@@ -357,10 +388,14 @@ ADD_ASSIMP_IMPORTER(OGRE
 )
 
 ADD_ASSIMP_IMPORTER(OPENGEX
-  OpenGEXExporter.cpp
-  OpenGEXExporter.h
   OpenGEXImporter.cpp
   OpenGEXImporter.h
+  OpenGEXStructs.h
+)
+
+ADD_ASSIMP_EXPORTER(OPENGEX
+  OpenGEXExporter.cpp
+  OpenGEXExporter.h
   OpenGEXStructs.h
 )
 
@@ -369,6 +404,9 @@ ADD_ASSIMP_IMPORTER(PLY
   PlyLoader.h
   PlyParser.cpp
   PlyParser.h
+)
+
+ADD_ASSIMP_EXPORTER(PLY
   PlyExporter.cpp
   PlyExporter.h
 )
@@ -538,6 +576,9 @@ ADD_ASSIMP_IMPORTER(SMD
 ADD_ASSIMP_IMPORTER(STL
   STLLoader.cpp
   STLLoader.h
+)
+
+ADD_ASSIMP_EXPORTER(STL
   STLExporter.h
   STLExporter.cpp
 )
@@ -558,15 +599,18 @@ ADD_ASSIMP_IMPORTER(X
   XFileImporter.h
   XFileParser.cpp
   XFileParser.h
+)
+
+ADD_ASSIMP_EXPORTER(X
+  XFileHelper.h
   XFileExporter.h
   XFileExporter.cpp
 )
 
-SET( Step_SRCS
+ADD_ASSIMP_EXPORTER(STEP
   StepExporter.h
   StepExporter.cpp
 )
-SOURCE_GROUP( Step FILES ${Step_SRCS})
 
 SET( Exporter_SRCS
   Exporter.cpp
@@ -657,8 +701,8 @@ ADD_DEFINITIONS( -DASSIMP_BUILD_DLL_EXPORT )
 if ( MSVC )
   ADD_DEFINITIONS( -D_SCL_SECURE_NO_WARNINGS )
   ADD_DEFINITIONS( -D_CRT_SECURE_NO_WARNINGS )
-else(MSVC)
-  ADD_DEFINITIONS( -fpermissive -fexceptions -frtti -Wno-reorder -Wno-unused-function -m32 -s )
+else ( MSVC )
+  SET( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions -frtti" )
 endif ( MSVC )
 
 if (UNZIP_FOUND)
@@ -667,8 +711,10 @@ else (UNZIP_FOUND)
   SET (unzip_compile_SRCS ${unzip_SRCS})
 endif (UNZIP_FOUND)
 
-MESSAGE(STATUS "Enabled formats:${ASSIMP_IMPORTERS_ENABLED}")
-MESSAGE(STATUS "Disabled formats:${ASSIMP_IMPORTERS_DISABLED}")
+MESSAGE(STATUS "Enabled importers:${ASSIMP_IMPORTERS_ENABLED}")
+MESSAGE(STATUS "Disabled importers:${ASSIMP_IMPORTERS_DISABLED}")
+MESSAGE(STATUS "Enabled exporters:${ASSIMP_EXPORTERS_ENABLED}")
+MESSAGE(STATUS "Disabled exporters:${ASSIMP_EXPORTERS_DISABLED}")
 
 SET( assimp_src
   # Assimp Files
