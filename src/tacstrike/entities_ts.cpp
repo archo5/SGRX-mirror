@@ -43,6 +43,7 @@ TSCamera::TSCamera(
 	m_moveTime( 3.0f ), m_pauseTime( 2.0f ),
 	m_fov( 30.0f )
 {
+	m_typeName = "camera";
 	m_name = name;
 	
 	char bfr[ 256 ];
@@ -71,7 +72,7 @@ void TSCamera::FixedTick( float deltaTime )
 	{
 		Vec3 ppos = V3(0);
 #ifdef TSGAME
-		ppos = static_cast<TSPlayer*>(m_level->m_player)->GetPosition();
+		ppos = static_cast<TSCharacter*>(m_level->m_player)->GetPosition();
 #endif
 		Mat4 viewmtx, originmtx, invviewmtx = Mat4::Identity, invoriginmtx = Mat4::Identity;
 		m_animChar.GetAttachmentMatrix( 0, viewmtx );
@@ -159,10 +160,6 @@ void TSCamera::FixedTick( float deltaTime )
 	}
 	m_animChar.RecalcLayerState();
 	m_animChar.FixedTick( deltaTime );
-	
-	InfoEmissionSystem::Data D = {
-		m_animChar.m_cachedMeshInst->matrix.TransformPos( V3(0) ), 0.5f, IEST_MapItem };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 }
 
 void TSCamera::Tick( float deltaTime, float blendFactor )
@@ -187,24 +184,29 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "origin" ) );
 	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_Target };
 	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	
+	LevelMapSystem* lms = m_level->GetSystem<LevelMapSystem>();
+	if( lms )
+	{
+		MapItemInfo mii = {0};
+		
+		Mat4 mtx;
+		m_animChar.GetAttachmentMatrix( 0, mtx );
+		
+		mii.type = MI_Object_Camera;
+		if( m_alertTimeout > 0 ) mii.type |= MI_State_Alerted;
+		else if( m_noticeTimeout > 0 ) mii.type |= MI_State_Suspicious;
+		else mii.type |= MI_State_Normal;
+		
+		mii.position = mtx.TransformPos( V3(0) );
+		mii.direction = mtx.TransformNormal( V3(1,0,0) );
+		mii.sizeFwd = 10;
+		mii.sizeRight = 6;
+		
+		lms->UpdateItem( this, mii );
+	}
 }
 
-bool TSCamera::GetMapItemInfo( MapItemInfo* out )
-{
-	Mat4 mtx;
-	m_animChar.GetAttachmentMatrix( 0, mtx );
-	
-	out->type = MI_Object_Camera;
-	if( m_alertTimeout > 0 ) out->type |= MI_State_Alerted;
-	else if( m_noticeTimeout > 0 ) out->type |= MI_State_Suspicious;
-	else out->type |= MI_State_Normal;
-	
-	out->position = mtx.TransformPos( V3(0) );
-	out->direction = mtx.TransformNormal( V3(1,0,0) );
-	out->sizeFwd = 10;
-	out->sizeRight = 6;
-	return true;
-}
 
 
 TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
@@ -212,9 +214,10 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
-	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) )
-//	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_aim_at( false ), i_aim_target( V3(0) )
+	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
+	m_infoFlags( IEST_HeatSource )
 {
+	m_typeName = "character";
 	m_meshInstInfo.typeOverride = "*human*";
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
@@ -425,6 +428,11 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	m_animChar.PreRender( blendFactor );
 	m_interpPos = m_ivPos.Get( blendFactor );
 	m_interpAimDir = m_ivAimDir.Get( blendFactor );
+	
+	
+	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
+	InfoEmissionSystem::Data D = { tgtpos, 0.5f, m_infoFlags };
+	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 	
 	
 	m_shootLT->enabled = false;
@@ -874,15 +882,6 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	return V3(0);
 }
 
-
-void TSPlayer::Tick( float deltaTime, float blendFactor )
-{
-	TSCharacter::Tick( deltaTime, blendFactor );
-	
-	InfoEmissionSystem::Data D = { GetInterpPos(), 0.5f, IEST_HeatSource | IEST_Player };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
-}
-
 #endif
 
 
@@ -1057,8 +1056,6 @@ TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVaria
 		sgs_ObjAcquire( C, m_sgsObject );
 	}
 	
-//	m_meshInstInfo.ownerType = GAT_Enemy;
-	
 	// create ESO (enemy scripted object)
 	{
 		chr->InitScriptInterface();
@@ -1072,11 +1069,6 @@ TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVaria
 		}
 		m_enemyState = sgsVariable( m_level->m_scriptCtx.C, -1 );
 	}
-	
-//	StringView charpath = m_enemyState.getprop("charpath").get<StringView>();
-//	InitializeMesh( charpath ? charpath : "chars/tstest.chr" );
-	
-//	m_level->MapEntityByName( this );
 }
 
 TSEnemyController::~TSEnemyController()
@@ -1194,10 +1186,23 @@ void TSEnemyController::FixedTick( float deltaTime )
 		i_shoot = m_enemyState[ "i_shoot" ].get<bool>();
 		i_act = m_enemyState[ "i_act" ].get<bool>();
 	}
-	
-//	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
-//	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
-//	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+}
+
+void TSEnemyController::Tick( float deltaTime, float blendFactor )
+{
+	LevelMapSystem* lms = m_level->GetSystem<LevelMapSystem>();
+	if( lms )
+	{
+		MapItemInfo mii = {0};
+		
+		mii.type = MI_Object_Enemy | MI_State_Normal;
+		mii.position = m_char->GetInterpPos();
+		mii.direction = m_char->GetInterpAimDir();
+		mii.sizeFwd = 10;
+		mii.sizeRight = 8;
+		
+		lms->UpdateItem( m_char, mii );
+	}
 }
 
 Vec3 TSEnemyController::GetInput( uint32_t iid )
@@ -1218,11 +1223,6 @@ Vec3 TSEnemyController::GetInput( uint32_t iid )
 #if 0
 bool TSEnemyController::GetMapItemInfo( MapItemInfo* out )
 {
-	out->type = MI_Object_Enemy | MI_State_Normal;
-	out->position = GetInterpPos();
-	out->direction = GetInterpAimDir();
-	out->sizeFwd = 10;
-	out->sizeRight = 8;
 	return true;
 }
 #endif
@@ -1355,6 +1355,7 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 			data.getprop("position").get<Vec3>(),
 			data.getprop("viewdir").get<Vec3>()
 		);
+		P->m_infoFlags |= IEST_Player;
 		P->InitializeMesh( "chars/tstest.chr" );
 		P->m_meshInstInfo.ownerType = GAT_Player;
 		P->ctrl = &m_playerCtrl;
@@ -1391,7 +1392,11 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 			data.getprop("position").get<Vec3>(),
 			data.getprop("viewdir").get<Vec3>()
 		);
+		E->m_infoFlags |= IEST_Target;
 		E->InitializeMesh( "chars/tstest.chr" );
+		E->m_meshInstInfo.ownerType = GAT_Enemy;
+		E->m_name = data.getprop("name").get<StringView>();
+		m_level->MapEntityByName( E );
 		E->ctrl = new TSEnemyController( m_level, E, data );
 		m_level->AddEntity( E );
 		return true;

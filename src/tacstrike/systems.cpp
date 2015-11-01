@@ -14,7 +14,7 @@ InfoEmissionSystem::InfoEmissionSystem( GameLevel* lev ) : IGameLevelSystem( lev
 		{ "IEST_InteractiveItem", IEST_InteractiveItem },
 		{ "IEST_HeatSource", IEST_HeatSource },
 		{ "IEST_Player", IEST_Player },
-		{ "IEST_MapItem", IEST_MapItem },
+		{ "IEST_Target", IEST_Target },
 		{ "IEST_AIAlert", IEST_AIAlert },
 		{ NULL, 0 },
 	};
@@ -205,8 +205,6 @@ void LevelMapSystem::DrawUI()
 		br.TexLine( l0, l1, 0.1f );
 	}
 	
-//	MapItemDraw ed;
-//	m_infoEmitters.QuerySphereAll( &ed, V3( pos.x, pos.y, 1 ), 100, IEST_MapItem );
 	for( size_t i = 0; i < m_mapItemData.size(); ++i )
 	{
 		MapItemInfo& mii = m_mapItemData.item( i ).value;

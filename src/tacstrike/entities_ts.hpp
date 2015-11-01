@@ -24,7 +24,6 @@ struct TSCamera : Entity
 	);
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
-	bool GetMapItemInfo( MapItemInfo* out );
 	
 	AnimCharacter m_animChar;
 	AnimMixer::Layer m_anLayers[1];
@@ -122,6 +121,7 @@ struct TSCharacter : SGRX_Actor
 	float m_turnAngle;
 	
 	ActionState m_actState;
+	uint32_t m_infoFlags;
 	
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
@@ -175,15 +175,6 @@ struct TSPlayerController : SGRX_IActorController
 	TSPlayerController( GameLevel* lev );
 	void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
-};
-
-struct TSPlayer : TSCharacter
-{
-	TSAimHelper m_aimHelper;
-	
-	TSPlayer( GameLevel* lev, const Vec3& pos, const Vec3& dir );
-	void FixedTick( float deltaTime );
-	void Tick( float deltaTime, float blendFactor );
 };
 
 #endif
@@ -259,6 +250,7 @@ struct TSEnemyController : SGRX_IActorController
 	TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args );
 	~TSEnemyController();
 	virtual void FixedTick( float deltaTime );
+	virtual void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
 	void DebugDrawWorld();
 	void DebugDrawUI();

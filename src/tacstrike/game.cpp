@@ -289,7 +289,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		BatchRenderer& br = GR2D_GetBatchRenderer();
 		
 		CSCoverInfo cinfo;
-		TSPlayer* PLY = (TSPlayer*) g_GameLevel->m_player;
+		TSCharacter* PLY = (TSCharacter*) g_GameLevel->m_player;
 		CoverSystem* CS = g_GameLevel->GetSystem<CoverSystem>();
 		Vec3 viewer_pos = PLY->GetPosition(); // V3(-8,10,1);
 		CS->QueryLines( V3(-100), V3(100), 0.5f, 0.5f, viewer_pos, true, cinfo );

@@ -657,7 +657,7 @@ void ISR3Enemy::FixedTick( float deltaTime )
 	if( m_health > 0 )
 	{
 		Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
-		InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_MapItem | IEST_HeatSource | IEST_Target };
+		InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_HeatSource | IEST_Target };
 		m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 	}
 }

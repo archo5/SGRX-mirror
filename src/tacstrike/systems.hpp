@@ -69,7 +69,6 @@ struct IInteractiveEntity
 #define IEST_InteractiveItem 0x0001
 #define IEST_HeatSource      0x0002
 #define IEST_Player          0x0004
-#define IEST_MapItem         0x0008
 #define IEST_Target          0x0010
 #define IEST_AIAlert         0x0020
 
