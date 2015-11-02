@@ -218,7 +218,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_infoFlags( IEST_HeatSource )
 {
 	m_typeName = "character";
-	m_meshInstInfo.typeOverride = "*human*";
+	typeOverride = "*human*";
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
@@ -264,6 +264,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_shootLT->power = 4;
 	m_shootLT->UpdateTransform();
 	m_shootTimeout = 0;
+	m_timeSinceLastHit = 9999;
 }
 
 void TSCharacter::InitializeMesh( const StringView& path )
@@ -271,7 +272,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	m_animChar.Load( path );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
-	MI->userData = &m_meshInstInfo;
+	MI->userData = (SGRX_MeshInstUserData*) this;
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( V3(1), Quat::Identity, m_ivPos.curr );
 	m_level->LightMesh( MI, V3(1) );
@@ -402,6 +403,7 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 	
 	m_animChar.FixedTick( deltaTime );
+	m_timeSinceLastHit += deltaTime;
 	
 	if( GetInputB( ACT_Chr_DoAction ) )
 	{
@@ -435,6 +437,19 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
 	
 	
+	AnimDeformer& AnD = m_animChar.m_anDeformer;
+	for( size_t i = 0; i < AnD.forces.size(); ++i )
+	{
+		AnimDeformer::Force& F = AnD.forces[ i ];
+		float t = F.lifetime;
+		F.amount = sinf( t * FLT_PI ) * expf( -t * 8 ) * 7 * 0.2f;
+		if( F.lifetime > 3 )
+		{
+			AnD.forces.erase( i-- );
+		}
+	}
+	
+	
 	m_shootLT->enabled = false;
 	if( m_shootTimeout > 0 )
 	{
@@ -447,7 +462,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		Vec3 origin = mtx.TransformPos( V3(0) );
 		Vec3 dir = ( GetInputV3( ACT_Chr_AimTarget ) - origin ).Normalized();
 		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
-		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, m_meshInstInfo.ownerType );
+		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, ownerType );
 		m_shootPS.SetTransform( mtx );
 		m_shootPS.Trigger();
 		m_shootLT->position = origin;
@@ -637,6 +652,36 @@ void TSCharacter::InterruptAction( bool force )
 	
 	m_actState.progress = 0;
 	m_actState.target = NULL;
+}
+
+void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
+{
+	if( evid == MIEVT_BulletHit )
+	{
+		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
+		Mat4 inv = Mat4::Identity;
+		m_animChar.m_cachedMeshInst->matrix.InvertTo( inv );
+		Vec3 pos = inv.TransformPos( bhinfo->pos );
+		Vec3 vel = inv.TransformNormal( bhinfo->vel );
+		m_animChar.m_anDeformer.AddModelForce( pos, vel * 0.1f, 0.3f );
+		Hit( bhinfo->vel.Length() * 0.1f );
+	}
+}
+
+void TSCharacter::Hit( float pwr )
+{
+	float m_health = 1000000;
+	if( m_health > 0 )
+	{
+		m_timeSinceLastHit = 0;
+//		RenewAction();
+		m_health -= pwr;
+		if( m_health <= 0 )
+		{
+			OnDeath();
+			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+		}
+	}
 }
 
 Vec3 TSCharacter::GetQueryPosition()
@@ -1357,7 +1402,7 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 		);
 		P->m_infoFlags |= IEST_Player;
 		P->InitializeMesh( "chars/tstest.chr" );
-		P->m_meshInstInfo.ownerType = GAT_Player;
+		P->ownerType = GAT_Player;
 		P->ctrl = &m_playerCtrl;
 		m_level->AddEntity( P );
 		m_level->SetPlayer( P );
@@ -1394,7 +1439,7 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 		);
 		E->m_infoFlags |= IEST_Target;
 		E->InitializeMesh( "chars/tstest.chr" );
-		E->m_meshInstInfo.ownerType = GAT_Enemy;
+		E->ownerType = GAT_Enemy;
 		E->m_name = data.getprop("name").get<StringView>();
 		m_level->MapEntityByName( E );
 		E->ctrl = new TSEnemyController( m_level, E, data );

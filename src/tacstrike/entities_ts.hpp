@@ -59,7 +59,7 @@ enum TSActions
 };
 
 
-struct TSCharacter : SGRX_Actor
+struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 {
 	SGS_OBJECT_INHERIT( SGRX_Actor );
 	ENT_SGS_IMPLEMENT;
@@ -89,6 +89,11 @@ struct TSCharacter : SGRX_Actor
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
 	
+	virtual void OnEvent( const StringView& type ){}
+	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
+	void Hit( float pwr );
+	virtual void OnDeath(){}
+	
 	Vec3 GetQueryPosition();
 	Vec3 GetPosition();
 	Vec3 GetViewDir();
@@ -103,9 +108,9 @@ struct TSCharacter : SGRX_Actor
 	LightHandle m_shadowInst;
 	
 	AnimCharacter m_animChar;
-	SGRX_MeshInstUserData m_meshInstInfo;
 	AnimPlayer m_anMainPlayer;
 	AnimPlayer m_anTopPlayer;
+	AnimDeformer m_anDeformer;
 	AnimMixer::Layer m_anLayers[4];
 	
 	float m_footstepTime;
@@ -126,6 +131,7 @@ struct TSCharacter : SGRX_Actor
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
 	float m_shootTimeout;
+	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	
 	SGS_PROPERTY_FUNC( READ GetPosition ) SGS_ALIAS( Vec3 position );
 	
