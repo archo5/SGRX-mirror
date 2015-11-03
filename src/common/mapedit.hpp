@@ -488,6 +488,12 @@ struct EdLGCLightInfo : LC_Light
 
 struct EdLevelGraphicsCont
 {
+	struct PrevMeshData
+	{
+		Vec3 bbmin;
+		Vec3 bbmax;
+		Mat4 transform;
+	};
 	struct Solid
 	{
 		Array< Vec4 > planes;
@@ -544,6 +550,7 @@ struct EdLevelGraphicsCont
 	typedef HashTable< uint32_t, Light > LightTable;
 	typedef HashTable< uint32_t, LMapHandle > LMapTable;
 	typedef HashTable< uint32_t, uint32_t > InvLMIDTable;
+	typedef HashTable< uint32_t, PrevMeshData > MovedMeshSet;
 	
 	EdLevelGraphicsCont();
 	~EdLevelGraphicsCont();
@@ -557,9 +564,11 @@ struct EdLevelGraphicsCont
 	void ApplyLightmap( uint32_t lmid );
 	void InvalidateLightmap( uint32_t lmid );
 	void ValidateLightmap( uint32_t lmid );
-	void InvalidateLight( const Light& L );
-	void InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx );
-	void InvalidateLightsByMI( SGRX_MeshInstance* MI );
+	void ApplyInvalidation();
+	void InvalidateMesh( uint32_t id );
+	void InvalidateSurface( uint32_t id );
+	void InvalidateLight( uint32_t id );
+	
 	void InvalidateSamples();
 	void InvalidateAll();
 	bool IsInvalidated( uint32_t lmid );
@@ -612,6 +621,9 @@ struct EdLevelGraphicsCont
 	bool m_alrInvalidSamples;
 	InvLMIDTable m_invalidLightmaps;
 	InvLMIDTable m_alrInvalidLightmaps;
+	MovedMeshSet m_movedMeshes;
+	MovedMeshSet m_movedSurfs;
+	LightTable m_movedLights;
 	
 	LMRenderer* m_lmRenderer;
 };

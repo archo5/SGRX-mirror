@@ -394,6 +394,52 @@ void EdGroupManager::PathInvalidate( int32_t id )
 
 
 
+void LightmapF32ToRGBA( uint32_t* pxout, Vec3* pxin, int width, int height )
+{
+	size_t sz = width * height;
+	
+#if 1
+	// Floyd-Steinberg dithering
+	Array< Vec3 > dithered;
+	dithered.resize( sz );
+	for( size_t i = 0; i < sz; ++i )
+		dithered[ i ] = Vec3::Min( pxin[ i ] * 0.5f, V3(1) ) * 255;
+	for( int y = 0; y < height; ++y )
+	{
+		for( int x = 0; x < width; ++x )
+		{
+			Vec3& PX = dithered[ x + width * y ];
+			Vec3 oldpx = PX;
+			Vec3 newpx = V3( round( oldpx.x ), round( oldpx.y ), round( oldpx.z ) );
+			PX = newpx;
+			pxout[ x + width * y ] = COLOR_RGB( newpx.x, newpx.y, newpx.z );
+			Vec3 quant_error = oldpx - newpx;
+			
+			if( x < width - 1 )
+				dithered[ x + 1 + width * y ] += quant_error * (7.0f/16.0f);
+			if( y < height - 1 )
+			{
+				dithered[ x + width * ( y + 1 ) ] += quant_error * (5.0f/16.0f);
+				if( x > 0 )
+					dithered[ x - 1 + width * ( y + 1 ) ] += quant_error * (3.0f/16.0f);
+				if( x < width - 1 )
+					dithered[ x + 1 + width * ( y + 1 ) ] += quant_error * (1.0f/16.0f);
+			}
+		}
+	}
+	pxin = dithered.data();
+#else
+	
+	for( size_t i = 0; i < sz; ++i )
+	{
+		Vec3 incol = Vec3::Min( pxin[ i ] * 0.5f, V3(1) );
+		pxout[ i ] = COLOR_RGB( incol.x * 255, incol.y * 255, incol.z * 255 );
+	}
+#endif
+}
+
+
+
 #define LGC_IS_VALID_ID( x ) ( (x) != 0 && (x) < uint32_t(0x80000000) )
 #define LGC_MESH_LMID( x ) (x)
 #define LGC_SURF_LMID( x ) ((x)|0x80000000)
@@ -420,11 +466,7 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
 		Array< uint32_t > convdata;
 		convdata.resize( lmdata.size() );
-		for( size_t i = 0; i < lmdata.size(); ++i )
-		{
-			Vec3 incol = Vec3::Min( lmdata[ i ] * 0.5f, V3(1) );
-			convdata[ i ] = COLOR_RGB( incol.x * 255, incol.y * 255, incol.z * 255 );
-		}
+		LightmapF32ToRGBA( convdata.data(), lmdata.data(), width, height );
 		texture->UploadRGBA8Part( convdata.data(), 0, 0, 0, width, height );
 	}
 	else
@@ -510,6 +552,11 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 	}
 	
 	RelightAllMeshes();
+	
+	// - cancel all edits
+	m_movedMeshes.clear();
+	m_movedSurfs.clear();
+	m_movedLights.clear();
 }
 
 void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
@@ -626,54 +673,150 @@ void EdLevelGraphicsCont::ValidateLightmap( uint32_t lmid )
 		m_invalidLightmaps.unset( lmid );
 }
 
-void EdLevelGraphicsCont::InvalidateLight( const Light& L )
+void EdLevelGraphicsCont::ApplyInvalidation()
 {
 	InvalidateSamples();
-	for( size_t j = 0; j < m_meshes.size(); ++j )
-	{
-		Mesh& M = m_meshes.item( j ).value;
-		if( M.meshInst->GetMesh() )
-		{
-			SGRX_IMesh* XM = M.meshInst->GetMesh();
-			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, M.meshInst->matrix ) )
-				InvalidateLightmap( LGC_MESH_LMID( m_meshes.item( j ).key ) );
-		}
-	}
-	for( size_t j = 0; j < m_surfaces.size(); ++j )
-	{
-		Surface& S = m_surfaces.item( j ).value;
-		if( S.meshInst->GetMesh() )
-		{
-			SGRX_IMesh* XM = S.meshInst->GetMesh();
-			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, S.meshInst->matrix ) )
-				InvalidateLightmap( LGC_SURF_LMID( m_surfaces.item( j ).key ) );
-		}
-	}
-}
-
-void EdLevelGraphicsCont::InvalidateLights( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx )
-{
-	InvalidateSamples();
-	Mat4 invmtx = Mat4::Identity;
-	mtx.InvertTo( invmtx );
+	
+	// convert invalidated meshes/surfaces into lights
 	for( size_t i = 0; i < m_lights.size(); ++i )
 	{
-		const Light& L = m_lights.item( i ).value;
-		Vec3 locpos = invmtx.TransformPos( L.info.pos );
-		Vec3 inbbpos = Vec3::Min( Vec3::Max( locpos, bbmin ), bbmax );
-		Vec3 locdist = inbbpos - locpos;
-		Vec3 world_dist = mtx.TransformNormal( locdist );
-		if( world_dist.LengthSq() < L.info.range * L.info.range )
-			InvalidateLight( L );
+		uint32_t id = m_lights.item( i ).key;
+		if( m_movedLights.isset( id ) )
+			continue;
+		Light& L = m_lights.item( i ).value;
+		
+		// - check if any of invalidated meshes hit the light
+		for( size_t j = 0; j < m_movedMeshes.size(); ++j )
+		{
+			Mesh* pM = m_meshes.getptr( m_movedMeshes.item( j ).key );
+			if( pM == NULL )
+				continue;
+			Mesh& M = *pM;
+			SGRX_IMesh* XM = M.meshInst->GetMesh();
+			if( XM == NULL )
+				continue;
+			PrevMeshData& pmd = m_movedMeshes.item( j ).value;
+			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, M.meshInst->matrix ) ||
+				L.IntersectsAABB( pmd.bbmin, pmd.bbmax, pmd.transform ) )
+			{
+				m_movedLights.set( id, L );
+				goto lightdone;
+			}
+		}
+		
+		// - check if any of invalidated surfaces hit the light
+		for( size_t j = 0; j < m_movedSurfs.size(); ++j )
+		{
+			Surface* pS = m_surfaces.getptr( m_movedSurfs.item( j ).key );
+			if( pS == NULL )
+				continue;
+			Surface& S = *pS;
+			SGRX_IMesh* XM = S.meshInst->GetMesh();
+			if( XM == NULL )
+				continue;
+			PrevMeshData& pmd = m_movedSurfs.item( j ).value;
+			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, S.meshInst->matrix ) ||
+				L.IntersectsAABB( pmd.bbmin, pmd.bbmax, pmd.transform ) )
+			{
+				m_movedLights.set( id, L );
+				goto lightdone;
+			}
+		}
+lightdone:;
+	}
+	
+	// invalidate mesh lightmaps based on lights
+	for( size_t i = 0; i < m_meshes.size(); ++i )
+	{
+		Mesh& M = m_meshes.item( i ).value;
+		SGRX_IMesh* XM = M.meshInst->GetMesh();
+		if( XM == NULL )
+			continue;
+		for( size_t j = 0; j < m_movedLights.size(); ++j )
+		{
+			uint32_t id = m_movedLights.item( j ).key;
+			Light* pL = m_lights.getptr( id );
+			if( pL == NULL )
+				continue;
+			Light& L = *pL;
+			Light& PrevL = m_movedLights.item( j ).value;
+			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, M.meshInst->matrix ) ||
+				PrevL.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, M.meshInst->matrix ) )
+			{
+				InvalidateLightmap( LGC_MESH_LMID( m_meshes.item( i ).key ) );
+				break;
+			}
+		}
+	}
+	
+	// invalidate surface lightmaps based on lights
+	for( size_t i = 0; i < m_surfaces.size(); ++i )
+	{
+		Surface& S = m_surfaces.item( i ).value;
+		SGRX_IMesh* XM = S.meshInst->GetMesh();
+		if( XM == NULL )
+			continue;
+		for( size_t j = 0; j < m_movedLights.size(); ++j )
+		{
+			uint32_t id = m_movedLights.item( j ).key;
+			Light* pL = m_lights.getptr( id );
+			if( pL == NULL )
+				continue;
+			Light& L = *pL;
+			Light& PrevL = m_movedLights.item( j ).value;
+			if( L.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, S.meshInst->matrix ) ||
+				PrevL.IntersectsAABB( XM->m_boundsMin, XM->m_boundsMax, S.meshInst->matrix ) )
+			{
+				InvalidateLightmap( LGC_SURF_LMID( m_surfaces.item( i ).key ) );
+				break;
+			}
+		}
+	}
+	
+	// clean up
+	m_movedMeshes.clear();
+	m_movedSurfs.clear();
+	m_movedLights.clear();
+}
+
+void EdLevelGraphicsCont::InvalidateMesh( uint32_t id )
+{
+	if( m_movedMeshes.isset( id ) )
+		return;
+	Mesh* pM = m_meshes.getptr( id );
+	if( pM == NULL )
+		return;
+	SGRX_IMesh* XM = pM->meshInst->GetMesh();
+	if( XM )
+	{
+		PrevMeshData pmd = { XM->m_boundsMin, XM->m_boundsMax, pM->meshInst->matrix };
+		m_movedMeshes.set( id, pmd );
 	}
 }
 
-void EdLevelGraphicsCont::InvalidateLightsByMI( SGRX_MeshInstance* MI )
+void EdLevelGraphicsCont::InvalidateSurface( uint32_t id )
 {
-	if( MI->GetMesh() == NULL )
+	if( m_movedSurfs.isset( id ) )
 		return;
-	
-	InvalidateLights( MI->GetMesh()->m_boundsMin, MI->GetMesh()->m_boundsMax, MI->matrix );
+	Surface* pS = m_surfaces.getptr( id );
+	if( pS == NULL )
+		return;
+	SGRX_IMesh* XM = pS->meshInst->GetMesh();
+	if( XM )
+	{
+		PrevMeshData pmd = { XM->m_boundsMin, XM->m_boundsMax, pS->meshInst->matrix };
+		m_movedSurfs.set( id, pmd );
+	}
+}
+
+void EdLevelGraphicsCont::InvalidateLight( uint32_t id )
+{
+	if( m_movedLights.isset( id ) )
+		return;
+	Light* pL = m_lights.getptr( id );
+	if( pL == NULL )
+		return;
+	m_movedLights.set( id, *pL );
 }
 
 void EdLevelGraphicsCont::InvalidateSamples()
@@ -765,7 +908,7 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 		bool needslm = RenderInfoNeedsLM( M.info );
 		if( needslm && IsInvalidated( lmid ) )
 		{
-			m_lmRenderer->AddMeshInst( M.meshInst, V2(128 * M.info.lmdetail), lmid, solid );
+			m_lmRenderer->AddMeshInst( M.meshInst, V2(32 * M.info.lmdetail), lmid, solid );
 		}
 		else
 		{
@@ -985,11 +1128,7 @@ void EdLevelGraphicsCont::ExportLightmap( uint32_t lmid, LC_Lightmap& outlm )
 	outlm.width = LM.width;
 	outlm.height = LM.height;
 	outlm.data.resize( LM.width * LM.height );
-	for( size_t i = 0; i < outlm.data.size(); ++i )
-	{
-		Vec3 incol = Vec3::Min( LM.lmdata[ i ] * 0.5f, V3(1) );
-		outlm.data[ i ] = COLOR_RGB( incol.x * 255, incol.y * 255, incol.z * 255 );
-	}
+	LightmapF32ToRGBA( outlm.data.data(), LM.lmdata.data(), LM.width, LM.height );
 }
 
 void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
@@ -1113,23 +1252,27 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 		info = &g_defMeshInfo;
 	ASSERT( m_meshes.isset( id ) );
 	Mesh& M = m_meshes[ id ];
+	
+	bool edited =
+		( ( changes & LGC_MESH_CHANGE_PATH ) && M.meshpath != info->path ) ||
+		( ( changes & LGC_CHANGE_XFORM ) && M.meshInst->matrix != info->xform ) ||
+		( ( changes & LGC_CHANGE_RSPEC ) && M.info.RIDiff( *info ) == 2 );
+	if( edited )
+		InvalidateMesh( id );
+	
 	if( changes & LGC_MESH_CHANGE_PATH )
 	{
 		if( M.meshpath != info->path )
 		{
 			M.meshpath = info->path;
-			InvalidateLightsByMI( M.meshInst );
 			M.meshInst->SetMesh( info->path.size() ? GR_GetMesh( info->path ) : NULL );
-			InvalidateLightsByMI( M.meshInst );
 		}
 	}
 	if( changes & LGC_CHANGE_XFORM )
 	{
 		if( M.meshInst->matrix != info->xform )
 		{
-			InvalidateLightsByMI( M.meshInst );
 			M.meshInst->matrix = info->xform;
-			InvalidateLightsByMI( M.meshInst );
 		}
 	}
 	if( changes & LGC_CHANGE_RSPEC )
@@ -1139,20 +1282,19 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 		{
 			if( diff == 1 )
 				InvalidateLightmap( LGC_MESH_LMID( id ) );
-			else if( diff == 2 )
-				InvalidateLightsByMI( M.meshInst );
 			
 			M.info = *info;
 			
 			if( diff == 1 )
 				InvalidateLightmap( LGC_MESH_LMID( id ) );
-			else if( diff == 2 )
-				InvalidateLightsByMI( M.meshInst );
 		}
 		M.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
 	//	M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0; -- UNSUPPOTED
 		LightMesh( M.meshInst, LGC_MESH_LMID( id ) );
 	}
+	
+	if( edited )
+		InvalidateMesh( id );
 }
 
 bool EdLevelGraphicsCont::GetMeshAABB( uint32_t id, Vec3 out[2] )
@@ -1209,15 +1351,27 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		info = &g_defSurfInfo;
 	ASSERT( m_surfaces.isset( id ) );
 	Surface& S = m_surfaces[ id ];
+	
+	bool surfedit = false;
 	if( changes & LGC_SURF_CHANGE_VIDATA )
 	{
-		if( S.vertices.size() != info->vcount ||
+		surfedit = S.vertices.size() != info->vcount ||
 			S.indices.size() != info->icount ||
 			memcmp( S.vertices.data(), info->vdata, S.vertices.size_bytes() ) != 0 ||
-			memcmp( S.indices.data(), info->idata, S.indices.size_bytes() ) != 0 )
+			memcmp( S.indices.data(), info->idata, S.indices.size_bytes() ) != 0;
+	}
+	bool edited =
+		( ( changes & LGC_SURF_CHANGE_VIDATA ) && surfedit ) ||
+		( ( changes & LGC_SURF_CHANGE_MTLDATA ) && S.mtlname != info->mtlname ) ||
+		( ( changes & LGC_CHANGE_XFORM ) && S.meshInst->matrix != info->xform ) ||
+		( ( changes & LGC_CHANGE_RSPEC ) && S.info.RIDiff( *info ) == 2 );
+	if( edited )
+		InvalidateSurface( id );
+	
+	if( changes & LGC_SURF_CHANGE_VIDATA )
+	{
+		if( surfedit )
 		{
-			InvalidateLightsByMI( S.meshInst );
-			
 			S.vertices.assign( info->vdata, info->vcount );
 			S.indices.assign( info->idata, info->icount );
 			SGRX_IMesh* mesh = S.meshInst->GetMesh();
@@ -1234,8 +1388,6 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 				mesh->SetIndexData( S.indices.data(), S.indices.size_bytes(), false );
 			SGRX_MeshPart mp = { 0, S.vertices.size(), 0, S.indices.size() };
 			mesh->SetPartData( &mp, 1 );
-			
-			InvalidateLightsByMI( S.meshInst );
 		}
 		
 		if( S.lmsize != info->lmsize )
@@ -1249,9 +1401,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 	{
 		if( S.mtlname != info->mtlname )
 		{
-			InvalidateLightsByMI( S.meshInst );
 			S.mtlname = info->mtlname;
-			InvalidateLightsByMI( S.meshInst );
 			
 			if( S.mtlname.size() )
 			{
@@ -1289,9 +1439,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 	{
 		if( S.meshInst->matrix != info->xform )
 		{
-			InvalidateLightsByMI( S.meshInst );
 			S.meshInst->matrix = info->xform;
-			InvalidateLightsByMI( S.meshInst );
 		}
 	}
 	if( changes & LGC_CHANGE_RSPEC )
@@ -1301,15 +1449,11 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		{
 			if( diff == 1 )
 				InvalidateLightmap( LGC_SURF_LMID( id ) ); // necessary?
-			else if( diff == 2 )
-				InvalidateLightsByMI( S.meshInst );
 			
 			S.info = *info;
 			
 			if( diff == 1 )
 				InvalidateLightmap( LGC_SURF_LMID( id ) );
-			else if( diff == 2 )
-				InvalidateLightsByMI( S.meshInst );
 		}
 		S.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
 		SGRX_Material& mtl = S.meshInst->GetMaterial( 0 );
@@ -1320,6 +1464,9 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		LightMesh( S.meshInst, LGC_SURF_LMID( id ) );
 	}
 	S.meshInst->enabled = S.mtlname.size() != 0 && S.vertices.size() != 0 && S.indices.size() != 0;
+	
+	if( edited )
+		InvalidateSurface( id );
 }
 
 uint32_t EdLevelGraphicsCont::CreateLight( EdLGCLightInfo* info )
@@ -1357,8 +1504,8 @@ void EdLevelGraphicsCont::UpdateLight( uint32_t id, uint32_t changes, EdLGCLight
 	Light& L = m_lights[ id ];
 	if( changes & LGC_LIGHT_CHANGE_SPEC )
 	{
+		InvalidateLight( id );
 		L.info = *info;
-		InvalidateLight( L );
 		if( info->type == LM_LIGHT_DYN_POINT || info->type == LM_LIGHT_DYN_SPOT )
 		{
 			if( L.dynLight == NULL )
@@ -2762,7 +2909,7 @@ void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 // EDITOR ENTRY POINT
 //
 
-struct TACStrikeEditor : IGame
+struct MapEditor : IGame
 {
 	bool OnInitialize()
 	{
@@ -2884,6 +3031,7 @@ struct TACStrikeEditor : IGame
 	void OnTick( float dt, uint32_t gametime )
 	{
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+		g_EdLGCont->ApplyInvalidation();
 		g_EdLGCont->ILMCheck();
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_UIFrame->Draw();
