@@ -186,54 +186,6 @@ struct TSPlayerController : SGRX_IActorController
 #endif
 
 
-struct TSFactStorage
-{
-	enum FactType
-	{
-		FT_Unknown = 0,
-		FT_Sound_Noise,
-		FT_Sound_Footstep,
-		FT_Sound_Shot,
-		FT_Sight_ObjectState,
-		FT_Sight_Alarming,
-		FT_Sight_Friend,
-		FT_Sight_Foe,
-		FT_Position_Friend,
-		FT_Position_Foe,
-	};
-	
-	struct Fact
-	{
-		uint32_t id;
-		uint32_t ref;
-		FactType type;
-		Vec3 position;
-		TimeVal created;
-		TimeVal expires;
-	};
-	
-	TSFactStorage();
-	void SortCreatedDesc();
-	void Process( TimeVal curTime );
-	bool HasFact( int typemask );
-	bool HasRecentFact( int typemask, TimeVal maxtime );
-	Fact* GetRecentFact( int typemask, TimeVal maxtime );
-	void Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
-	bool Update( FactType type, Vec3 pos, float rad,
-		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	void InsertOrUpdate( FactType type, Vec3 pos, float rad,
-		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	bool MovingUpdate( FactType type, Vec3 pos, float movespeed,
-		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	void MovingInsertOrUpdate( FactType type, Vec3 pos, float movespeed,
-		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	
-	Array< Fact > facts;
-	TimeVal m_lastTime;
-	uint32_t last_mod_id;
-	uint32_t m_next_fact_id;
-};
-
 struct TSEnemyController : SGRX_IActorController
 {
 	SGS_OBJECT;
@@ -249,7 +201,7 @@ struct TSEnemyController : SGRX_IActorController
 	
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	GameLevel* m_level;
-	TSFactStorage m_factStorage;
+	AIFactStorage m_factStorage;
 	AIDBSystem* m_aidb;
 	TSCharacter* m_char;
 	
@@ -263,7 +215,7 @@ struct TSEnemyController : SGRX_IActorController
 	
 	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
 	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
-	TSFactStorage::Fact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
+	AIFact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
 	
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( int typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( int typemask, TimeVal maxtime );

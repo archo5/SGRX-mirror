@@ -455,3 +455,167 @@ sgs_ObjInterface MusicSystem::_sgs_interface[1] =
 	NULL, MusicSystem::_sgs_gcmark, MusicSystem::_sgs_getindex, MusicSystem::_sgs_setindex, NULL, NULL, MusicSystem::_sgs_dump, NULL, NULL, NULL, 
 }};
 
+
+int AIFact::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<AIFact*>( obj->data )->~AIFact();
+	return SGS_SUCCESS;
+}
+
+int AIFact::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int AIFact::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<AIFact*>( obj->data )->id ); return SGS_SUCCESS; }
+		SGS_CASE( "ref" ){ sgs_PushVar( C, static_cast<AIFact*>( obj->data )->ref ); return SGS_SUCCESS; }
+		SGS_CASE( "type" ){ sgs_PushVar( C, static_cast<AIFact*>( obj->data )->type ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<AIFact*>( obj->data )->position ); return SGS_SUCCESS; }
+		SGS_CASE( "created" ){ sgs_PushVar( C, static_cast<AIFact*>( obj->data )->created ); return SGS_SUCCESS; }
+		SGS_CASE( "expires" ){ sgs_PushVar( C, static_cast<AIFact*>( obj->data )->expires ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int AIFact::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "id" ){ static_cast<AIFact*>( obj->data )->id = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "ref" ){ static_cast<AIFact*>( obj->data )->ref = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "type" ){ static_cast<AIFact*>( obj->data )->type = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ static_cast<AIFact*>( obj->data )->position = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "created" ){ static_cast<AIFact*>( obj->data )->created = sgs_GetVarP<TimeVal>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "expires" ){ static_cast<AIFact*>( obj->data )->expires = sgs_GetVarP<TimeVal>()( C, val ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int AIFact::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 38 ];
+	sprintf( bfr, "AIFact (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<AIFact*>( obj->data )->id, depth ).push( C ); }
+		{ sgs_PushString( C, "\nref = " ); sgs_DumpData( C, static_cast<AIFact*>( obj->data )->ref, depth ).push( C ); }
+		{ sgs_PushString( C, "\ntype = " ); sgs_DumpData( C, static_cast<AIFact*>( obj->data )->type, depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<AIFact*>( obj->data )->position, depth ).push( C ); }
+		{ sgs_PushString( C, "\ncreated = " ); sgs_DumpData( C, static_cast<AIFact*>( obj->data )->created, depth ).push( C ); }
+		{ sgs_PushString( C, "\nexpires = " ); sgs_DumpData( C, static_cast<AIFact*>( obj->data )->expires, depth ).push( C ); }
+		sgs_StringConcat( C, 12 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface AIFact::_sgs_interface[1] =
+{{
+	"AIFact",
+	AIFact::_sgs_destruct, AIFact::_sgs_gcmark, AIFact::_sgs_getindex, AIFact::_sgs_setindex, NULL, NULL, AIFact::_sgs_dump, NULL, NULL, NULL, 
+}};
+
+
+static int _sgs_method__AIDBSystem__HasFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, HasFact ) ) return 0;
+	sgs_PushVar(C,data->sgsHasFact( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
+static int _sgs_method__AIDBSystem__HasRecentFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, HasRecentFact ) ) return 0;
+	sgs_PushVar(C,data->sgsHasRecentFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) )); return 1;
+}
+
+static int _sgs_method__AIDBSystem__GetRecentFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRecentFact ) ) return 0;
+	return data->sgsGetRecentFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) );
+}
+
+static int _sgs_method__AIDBSystem__InsertFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, InsertFact ) ) return 0;
+	data->sgsInsertFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<TimeVal>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<uint32_t>()(C,4) ); return 0;
+}
+
+static int _sgs_method__AIDBSystem__UpdateFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, UpdateFact ) ) return 0;
+	sgs_PushVar(C,data->sgsUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
+}
+
+static int _sgs_method__AIDBSystem__InsertOrUpdateFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, InsertOrUpdateFact ) ) return 0;
+	data->sgsInsertOrUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
+}
+
+static int _sgs_method__AIDBSystem__MovingUpdateFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, MovingUpdateFact ) ) return 0;
+	sgs_PushVar(C,data->sgsMovingUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
+}
+
+static int _sgs_method__AIDBSystem__MovingInsertOrUpdateFact( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, MovingInsertOrUpdateFact ) ) return 0;
+	data->sgsMovingInsertOrUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
+}
+
+int AIDBSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<AIDBSystem*>( obj->data )->~AIDBSystem();
+	return SGS_SUCCESS;
+}
+
+int AIDBSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int AIDBSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "HasFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__HasFact ); return SGS_SUCCESS; }
+		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__HasRecentFact ); return SGS_SUCCESS; }
+		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__GetRecentFact ); return SGS_SUCCESS; }
+		SGS_CASE( "InsertFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__InsertFact ); return SGS_SUCCESS; }
+		SGS_CASE( "UpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__UpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__InsertOrUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__MovingUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int AIDBSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int AIDBSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 42 ];
+	sprintf( bfr, "AIDBSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+sgs_ObjInterface AIDBSystem::_sgs_interface[1] =
+{{
+	"AIDBSystem",
+	NULL, AIDBSystem::_sgs_gcmark, AIDBSystem::_sgs_getindex, AIDBSystem::_sgs_setindex, NULL, NULL, AIDBSystem::_sgs_dump, NULL, NULL, NULL, 
+}};
+

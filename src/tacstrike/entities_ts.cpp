@@ -931,161 +931,6 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 
 
 
-TSFactStorage::TSFactStorage() : m_lastTime(0), last_mod_id(0), m_next_fact_id(1)
-{
-}
-
-static bool sort_facts_created_desc( const void* pa, const void* pb, void* )
-{
-	SGRX_CAST( TSFactStorage::Fact*, fa, pa );
-	SGRX_CAST( TSFactStorage::Fact*, fb, pb );
-	return fa->created > fb->created;
-}
-
-void TSFactStorage::SortCreatedDesc()
-{
-	sgrx_combsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_created_desc, NULL );
-}
-
-static bool sort_facts_expires_desc( const void* pa, const void* pb, void* )
-{
-	SGRX_CAST( TSFactStorage::Fact*, fa, pa );
-	SGRX_CAST( TSFactStorage::Fact*, fb, pb );
-	return fa->expires > fb->expires;
-}
-
-void TSFactStorage::Process( TimeVal curTime )
-{
-	m_lastTime = curTime;
-	
-	for( size_t i = 0; i < facts.size(); ++i )
-	{
-		if( facts[ i ].expires < curTime )
-		{
-			facts.uerase( i-- );
-			break;
-		}
-	}
-	
-	if( facts.size() > 256 )
-	{
-		sgrx_combsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_expires_desc, NULL );
-		facts.resize( 256 );
-	}
-}
-
-bool TSFactStorage::HasFact( int typemask )
-{
-	for( size_t i = 0; i < facts.size(); ++i )
-	{
-		if( (1<<facts[ i ].type) & typemask )
-			return true;
-	}
-	return false;
-}
-
-bool TSFactStorage::HasRecentFact( int typemask, TimeVal maxtime )
-{
-	for( size_t i = 0; i < facts.size(); ++i )
-	{
-		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
-			return true;
-	}
-	return false;
-}
-
-TSFactStorage::Fact* TSFactStorage::GetRecentFact( int typemask, TimeVal maxtime )
-{
-	Fact* F = NULL;
-//	puts("GetRecentFact");
-	for( size_t i = 0; i < facts.size(); ++i )
-	{
-		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
-		{
-			F = &facts[ i ];
-		//	printf("fact %p created at %d within %d\n", F, F->created, maxtime );
-			maxtime = m_lastTime - facts[ i ].created;
-		}
-	}
-	return F;
-}
-
-void TSFactStorage::Insert( FactType type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
-{
-	Fact F = { m_next_fact_id++, ref, type, pos, created, expires };
-//	printf( "INSERT FACT: type %d, pos: %g;%g;%g, created: %d, expires: %d\n",
-//		(int)type, pos.x,pos.y,pos.z, (int)created, (int)expires );
-	facts.push_back( F );
-	last_mod_id = F.id;
-}
-
-bool TSFactStorage::Update( FactType type, Vec3 pos, float rad,
-	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	float rad2 = rad * rad;
-	for( size_t i = 0; i < facts.size(); ++i )
-	{
-		if( facts[ i ].type == type &&
-			( facts[ i ].position - pos ).LengthSq() < rad2 )
-		{
-			facts[ i ].position = pos;
-			if( reset )
-			{
-				facts[ i ].created = created;
-				facts[ i ].expires = expires;
-			}
-			facts[ i ].ref = ref;
-			last_mod_id = facts[ i ].id;
-			return true;
-		}
-	}
-	
-	return false;
-}
-
-void TSFactStorage::InsertOrUpdate( FactType type, Vec3 pos, float rad,
-	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	if( Update( type, pos, rad, created, expires, ref, reset ) == false )
-		Insert( type, pos, created, expires, ref );
-}
-
-bool TSFactStorage::MovingUpdate( FactType type, Vec3 pos, float movespeed,
-	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	for( size_t i = 0; i < facts.size(); ++i )
-	{
-		if( facts[ i ].type != type )
-			continue;
-		
-		float rad = ( created - facts[ i ].created ) * 0.001f * movespeed;
-		if( ( facts[ i ].position - pos ).LengthSq() <= rad * rad + SMALL_FLOAT )
-		{
-			facts[ i ].position = pos;
-			if( reset )
-			{
-				facts[ i ].created = created;
-				facts[ i ].expires = expires;
-			}
-			facts[ i ].ref = ref;
-			last_mod_id = facts[ i ].id;
-			return true;
-		}
-	}
-	
-	return false;
-}
-
-void TSFactStorage::MovingInsertOrUpdate( FactType type, Vec3 pos, float movespeed,
-	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	if( MovingUpdate( type, pos, movespeed, created, expires, ref, reset ) == false )
-		Insert( type, pos, created, expires, ref );
-}
-
-
-
-
 TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args ) :
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
@@ -1146,21 +991,21 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 			return true; // behind wall
 		
 		// TODO friendlies
-		TSFactStorage& FS = enemy->m_factStorage;
+		AIFactStorage& FS = enemy->m_factStorage;
 		
 		if( data.types & IEST_AIAlert )
 		{
-			FS.InsertOrUpdate( TSFactStorage::FT_Sight_Alarming,
+			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
 		}
 		else
 		{
 			// fact of seeing
-			FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Foe,
+			FS.MovingInsertOrUpdate( FT_Sight_Foe,
 				enemypos, 10, curtime, curtime + 5*1000 );
 			
 			// fact of position
-			FS.MovingInsertOrUpdate( TSFactStorage::FT_Position_Foe,
+			FS.MovingInsertOrUpdate( FT_Position_Foe,
 				enemypos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
 		}
 		
@@ -1192,25 +1037,25 @@ void TSEnemyController::FixedTick( float deltaTime )
 		
 		if( S.type == AIS_Footstep || S.type == AIS_Shot )
 		{
-			TSFactStorage::FactType sndtype = TSFactStorage::FT_Sound_Footstep;
+			AIFactType sndtype = FT_Sound_Footstep;
 			if( S.type == AIS_Shot )
-				sndtype = TSFactStorage::FT_Sound_Shot;
+				sndtype = FT_Sound_Shot;
 			
 			m_factStorage.InsertOrUpdate( sndtype,
 				S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
 			
 			int lastid = m_factStorage.last_mod_id;
-			bool found_friend = m_factStorage.MovingUpdate( TSFactStorage::FT_Position_Friend,
+			bool found_friend = m_factStorage.MovingUpdate( FT_Position_Friend,
 				S.position, 10, curTime, curTime + 30*1000, lastid );
 			if( found_friend == false )
 			{
-				m_factStorage.MovingUpdate( TSFactStorage::FT_Position_Foe,
+				m_factStorage.MovingUpdate( FT_Position_Foe,
 					S.position, 10, curTime, curTime + 30*1000, lastid );
 			}
 		}
 		else
 		{
-			m_factStorage.InsertOrUpdate( TSFactStorage::FT_Sound_Noise,
+			m_factStorage.InsertOrUpdate( FT_Sound_Noise,
 				S.position, 1, curTime, curTime + 1*1000 );
 		}
 	}
@@ -1282,7 +1127,7 @@ void TSEnemyController::DebugDrawWorld()
 	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
 	for( size_t i = 0; i < count; ++i )
 	{
-		TSFactStorage::Fact& F = m_factStorage.facts[ i ];
+		AIFact& F = m_factStorage.facts[ i ];
 		br.SetPrimitiveType( PT_Lines );
 		br.Pos( pos ).Pos( F.position );
 		br.Tick( F.position, 0.1f );
@@ -1318,20 +1163,20 @@ void TSEnemyController::DebugDrawUI()
 	
 	for( size_t i = 0; i < count; ++i )
 	{
-		TSFactStorage::Fact& F = m_factStorage.facts[ i ];
+		AIFact& F = m_factStorage.facts[ i ];
 		const char* type = "type?";
 		switch( F.type )
 		{
-		case TSFactStorage::FT_Unknown: type = "unknown"; break;
-		case TSFactStorage::FT_Sound_Noise: type = "snd-noise"; break;
-		case TSFactStorage::FT_Sound_Footstep: type = "snd-step"; break;
-		case TSFactStorage::FT_Sound_Shot: type = "snd-shot"; break;
-		case TSFactStorage::FT_Sight_ObjectState: type = "sight-state"; break;
-		case TSFactStorage::FT_Sight_Alarming: type = "sight-alarm"; break;
-		case TSFactStorage::FT_Sight_Friend: type = "sight-friend"; break;
-		case TSFactStorage::FT_Sight_Foe: type = "sight-foe"; break;
-		case TSFactStorage::FT_Position_Friend: type = "pos-friend"; break;
-		case TSFactStorage::FT_Position_Foe: type = "pos-foe"; break;
+		case FT_Unknown: type = "unknown"; break;
+		case FT_Sound_Noise: type = "snd-noise"; break;
+		case FT_Sound_Footstep: type = "snd-step"; break;
+		case FT_Sound_Shot: type = "snd-shot"; break;
+		case FT_Sight_ObjectState: type = "sight-state"; break;
+		case FT_Sight_Alarming: type = "sight-alarm"; break;
+		case FT_Sight_Friend: type = "sight-friend"; break;
+		case FT_Sight_Foe: type = "sight-foe"; break;
+		case FT_Position_Friend: type = "pos-friend"; break;
+		case FT_Position_Foe: type = "pos-foe"; break;
 		}
 		
 		sgrx_snprintf( bfr, 256, "Fact #%d (ref=%d) <%s> @ %.4g;%.4g;%.4g cr: %d, exp: %d",
@@ -1359,7 +1204,7 @@ bool TSEnemyController::sgsHasRecentFact( int typemask, TimeVal maxtime )
 
 SGS_MULTRET TSEnemyController::sgsGetRecentFact( int typemask, TimeVal maxtime )
 {
-	TSFactStorage::Fact* F = GetRecentFact( typemask, maxtime );
+	AIFact* F = GetRecentFact( typemask, maxtime );
 	if( F )
 	{
 		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );

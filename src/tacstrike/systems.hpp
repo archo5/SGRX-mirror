@@ -498,21 +498,89 @@ struct AISound
 	AISoundType type;
 };
 
+enum AIFactType // some basic fact types
+{
+	FT_Unknown = 0,
+	FT_Sound_Noise,
+	FT_Sound_Footstep,
+	FT_Sound_Shot,
+	FT_Sight_ObjectState,
+	FT_Sight_Alarming,
+	FT_Sight_Friend,
+	FT_Sight_Foe,
+	FT_Position_Friend,
+	FT_Position_Foe,
+};
+
+struct AIFact
+{
+	SGS_OBJECT_LITE;
+	
+	SGS_PROPERTY uint32_t id;
+	SGS_PROPERTY uint32_t ref;
+	SGS_PROPERTY uint32_t type; // AIFactType
+	SGS_PROPERTY Vec3 position;
+	SGS_PROPERTY TimeVal created;
+	SGS_PROPERTY TimeVal expires;
+};
+
+struct AIFactStorage
+{
+	AIFactStorage();
+	void SortCreatedDesc();
+	void Process( TimeVal curTime );
+	bool HasFact( uint32_t typemask );
+	bool HasRecentFact( uint32_t typemask, TimeVal maxtime );
+	AIFact* GetRecentFact( uint32_t typemask, TimeVal maxtime );
+	void Insert( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	bool Update( uint32_t type, Vec3 pos, float rad,
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
+	void InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
+	bool MovingUpdate( uint32_t type, Vec3 pos, float movespeed,
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
+	void MovingInsertOrUpdate( uint32_t type, Vec3 pos, float movespeed,
+		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
+	
+	Array< AIFact > facts;
+	TimeVal m_lastTime;
+	uint32_t last_mod_id;
+	uint32_t m_next_fact_id;
+};
+
 struct AIDBSystem : IGameLevelSystem
 {
+	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
+	
 	enum { e_system_uid = 7 };
 	
 	int GetNumSounds(){ return m_sounds.size(); }
 	bool CanHearSound( Vec3 pos, int i );
 	AISound GetSoundInfo( int i ){ return m_sounds[ i ]; }
 	
-	AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
+	AIDBSystem( GameLevel* lev );
 	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	void Tick( float deltaTime, float blendFactor );
+	void FixedTick( float deltaTime );
 	
 	SGRX_Pathfinder m_pathfinder;
 	Array< AISound > m_sounds;
+	AIFactStorage m_globalFacts;
+	
+	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
+	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
+	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( uint32_t type, Vec3 pos,
+		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
+		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( uint32_t type, Vec3 pos,
+		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
+		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 };
 
 

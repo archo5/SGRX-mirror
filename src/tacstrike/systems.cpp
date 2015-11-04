@@ -1307,6 +1307,180 @@ void BulletSystem::Clear()
 
 
 
+AIFactStorage::AIFactStorage() : m_lastTime(0), last_mod_id(0), m_next_fact_id(1)
+{
+}
+
+static bool sort_facts_created_desc( const void* pa, const void* pb, void* )
+{
+	SGRX_CAST( AIFact*, fa, pa );
+	SGRX_CAST( AIFact*, fb, pb );
+	return fa->created > fb->created;
+}
+
+void AIFactStorage::SortCreatedDesc()
+{
+	sgrx_combsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_created_desc, NULL );
+}
+
+static bool sort_facts_expires_desc( const void* pa, const void* pb, void* )
+{
+	SGRX_CAST( AIFact*, fa, pa );
+	SGRX_CAST( AIFact*, fb, pb );
+	return fa->expires > fb->expires;
+}
+
+void AIFactStorage::Process( TimeVal curTime )
+{
+	m_lastTime = curTime;
+	
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( facts[ i ].expires < curTime )
+		{
+			facts.uerase( i-- );
+			break;
+		}
+	}
+	
+	if( facts.size() > 256 )
+	{
+		sgrx_combsort( facts.data(), facts.size(), sizeof(facts[0]), sort_facts_expires_desc, NULL );
+		facts.resize( 256 );
+	}
+}
+
+bool AIFactStorage::HasFact( uint32_t typemask )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( (1<<facts[ i ].type) & typemask )
+			return true;
+	}
+	return false;
+}
+
+bool AIFactStorage::HasRecentFact( uint32_t typemask, TimeVal maxtime )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
+			return true;
+	}
+	return false;
+}
+
+AIFact* AIFactStorage::GetRecentFact( uint32_t typemask, TimeVal maxtime )
+{
+	AIFact* F = NULL;
+//	puts("GetRecentFact");
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
+		{
+			F = &facts[ i ];
+		//	printf("fact %p created at %d within %d\n", F, F->created, maxtime );
+			maxtime = m_lastTime - facts[ i ].created;
+		}
+	}
+	return F;
+}
+
+void AIFactStorage::Insert( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
+{
+	AIFact F = { m_next_fact_id++, ref, type, pos, created, expires };
+//	printf( "INSERT FACT: type %d, pos: %g;%g;%g, created: %d, expires: %d\n",
+//		(int)type, pos.x,pos.y,pos.z, (int)created, (int)expires );
+	facts.push_back( F );
+	last_mod_id = F.id;
+}
+
+bool AIFactStorage::Update( uint32_t type, Vec3 pos, float rad,
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	float rad2 = rad * rad;
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( facts[ i ].type == type &&
+			( facts[ i ].position - pos ).LengthSq() < rad2 )
+		{
+			facts[ i ].position = pos;
+			if( reset )
+			{
+				facts[ i ].created = created;
+				facts[ i ].expires = expires;
+			}
+			facts[ i ].ref = ref;
+			last_mod_id = facts[ i ].id;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+void AIFactStorage::InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( Update( type, pos, rad, created, expires, ref, reset ) == false )
+		Insert( type, pos, created, expires, ref );
+}
+
+bool AIFactStorage::MovingUpdate( uint32_t type, Vec3 pos, float movespeed,
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( facts[ i ].type != type )
+			continue;
+		
+		float rad = ( created - facts[ i ].created ) * 0.001f * movespeed;
+		if( ( facts[ i ].position - pos ).LengthSq() <= rad * rad + SMALL_FLOAT )
+		{
+			facts[ i ].position = pos;
+			if( reset )
+			{
+				facts[ i ].created = created;
+				facts[ i ].expires = expires;
+			}
+			facts[ i ].ref = ref;
+			last_mod_id = facts[ i ].id;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+void AIFactStorage::MovingInsertOrUpdate( uint32_t type, Vec3 pos, float movespeed,
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( MovingUpdate( type, pos, movespeed, created, expires, ref, reset ) == false )
+		Insert( type, pos, created, expires, ref );
+}
+
+
+AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+{
+	InitScriptInterface( "aidb", this );
+	
+	sgs_RegIntConst ric[] =
+	{
+		{ "FT_Unknown", FT_Unknown },
+		{ "FT_Sound_Noise", FT_Sound_Noise },
+		{ "FT_Sound_Footstep", FT_Sound_Footstep },
+		{ "FT_Sound_Shot", FT_Sound_Shot },
+		{ "FT_Sight_ObjectState", FT_Sight_ObjectState },
+		{ "FT_Sight_Alarming", FT_Sight_Alarming },
+		{ "FT_Sight_Friend", FT_Sight_Friend },
+		{ "FT_Sight_Foe", FT_Sight_Foe },
+		{ "FT_Position_Friend", FT_Position_Friend },
+		{ "FT_Position_Foe", FT_Position_Foe },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
+}
+
 bool AIDBSystem::CanHearSound( Vec3 pos, int i )
 {
 	AISound& S = m_sounds[ i ];
@@ -1341,6 +1515,66 @@ void AIDBSystem::Tick( float deltaTime, float blendFactor )
 			m_sounds.uerase( i-- );
 		}
 	}
+}
+
+void AIDBSystem::FixedTick( float deltaTime )
+{
+	m_globalFacts.Process( m_level->GetPhyTime() );
+}
+
+bool AIDBSystem::sgsHasFact( uint32_t typemask )
+{
+	return m_globalFacts.HasFact( typemask );
+}
+
+bool AIDBSystem::sgsHasRecentFact( uint32_t typemask, TimeVal maxtime )
+{
+	return m_globalFacts.HasRecentFact( typemask, maxtime );
+}
+
+SGS_MULTRET AIDBSystem::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
+{
+	AIFact* F = m_globalFacts.GetRecentFact( typemask, maxtime );
+	if( F )
+		sgs_PushLiteClass( C, F );
+	return 0;
+}
+
+void AIDBSystem::sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
+{
+	m_globalFacts.Insert( type, pos, created, expires, ref );
+}
+
+bool AIDBSystem::sgsUpdateFact( uint32_t type, Vec3 pos,
+	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	return m_globalFacts.Update( type, pos, rad, created, expires, ref, reset );
+}
+
+void AIDBSystem::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
+	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	m_globalFacts.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
+}
+
+bool AIDBSystem::sgsMovingUpdateFact( uint32_t type, Vec3 pos,
+	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	return m_globalFacts.MovingUpdate( type, pos, movespeed, created, expires, ref, reset );
+}
+
+void AIDBSystem::sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
+	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	m_globalFacts.MovingInsertOrUpdate( type, pos, movespeed, created, expires, ref, reset );
 }
 
 

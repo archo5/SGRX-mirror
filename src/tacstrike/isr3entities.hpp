@@ -101,7 +101,7 @@ struct ISR3Enemy : ISR3Drone
 	SGS_OBJECT_INHERIT( ISR3Drone );
 	ENT_SGS_IMPLEMENT;
 	
-	TSFactStorage m_factStorage;
+	AIFactStorage m_factStorage;
 	AIDBSystem* m_aidb;
 	
 	float m_follow;
@@ -117,7 +117,7 @@ struct ISR3Enemy : ISR3Drone
 	
 	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
 	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
-	TSFactStorage::Fact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
+	AIFact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
 	
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( int typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( int typemask, TimeVal maxtime );

@@ -584,21 +584,21 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 			return true; // behind wall
 		
 		// TODO friendlies
-		TSFactStorage& FS = enemy->m_factStorage;
+		AIFactStorage& FS = enemy->m_factStorage;
 		
 		if( data.types & IEST_AIAlert )
 		{
-			FS.InsertOrUpdate( TSFactStorage::FT_Sight_Alarming,
+			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
 		}
 		else
 		{
 			// fact of seeing
-			FS.MovingInsertOrUpdate( TSFactStorage::FT_Sight_Foe,
+			FS.MovingInsertOrUpdate( FT_Sight_Foe,
 				enemypos, 10, curtime, curtime + 5*1000 );
 			
 			// fact of position
-			FS.MovingInsertOrUpdate( TSFactStorage::FT_Position_Foe,
+			FS.MovingInsertOrUpdate( FT_Position_Foe,
 				enemypos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
 		}
 		
@@ -629,25 +629,25 @@ void ISR3Enemy::FixedTick( float deltaTime )
 		
 		if( S.type == AIS_Footstep || S.type == AIS_Shot )
 		{
-			TSFactStorage::FactType sndtype = TSFactStorage::FT_Sound_Footstep;
+			AIFactType sndtype = FT_Sound_Footstep;
 			if( S.type == AIS_Shot )
-				sndtype = TSFactStorage::FT_Sound_Shot;
+				sndtype = FT_Sound_Shot;
 			
 			m_factStorage.InsertOrUpdate( sndtype,
 				S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
 			
 			int lastid = m_factStorage.last_mod_id;
-			bool found_friend = m_factStorage.MovingUpdate( TSFactStorage::FT_Position_Friend,
+			bool found_friend = m_factStorage.MovingUpdate( FT_Position_Friend,
 				S.position, 10, curTime, curTime + 30*1000, lastid );
 			if( found_friend == false )
 			{
-				m_factStorage.MovingUpdate( TSFactStorage::FT_Position_Foe,
+				m_factStorage.MovingUpdate( FT_Position_Foe,
 					S.position, 10, curTime, curTime + 30*1000, lastid );
 			}
 		}
 		else
 		{
-			m_factStorage.InsertOrUpdate( TSFactStorage::FT_Sound_Noise,
+			m_factStorage.InsertOrUpdate( FT_Sound_Noise,
 				S.position, 1, curTime, curTime + 1*1000 );
 		}
 	}
@@ -666,8 +666,8 @@ void ISR3Enemy::Tick( float deltaTime, float blendFactor )
 {
 	if( Alive() )
 	{
-		TSFactStorage::Fact* F = GetRecentFact( 1<<TSFactStorage::FT_Sight_Foe, 1000 );
-		if( HasRecentFact( 1<<TSFactStorage::FT_Sight_Foe, 1000 ) )
+		AIFact* F = GetRecentFact( 1<<FT_Sight_Foe, 1000 );
+		if( HasRecentFact( 1<<FT_Sight_Foe, 1000 ) )
 			m_follow = 3;
 		m_follow = TMAX( m_follow - deltaTime, 0.0f );
 		if( F )
@@ -717,7 +717,7 @@ void ISR3Enemy::DebugDrawWorld()
 	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
 	for( size_t i = 0; i < count; ++i )
 	{
-		TSFactStorage::Fact& F = m_factStorage.facts[ i ];
+		AIFact& F = m_factStorage.facts[ i ];
 		br.SetPrimitiveType( PT_Lines );
 		br.Pos( pos ).Pos( F.position );
 		br.Tick( F.position, 0.1f );
@@ -753,20 +753,20 @@ void ISR3Enemy::DebugDrawUI()
 	
 	for( size_t i = 0; i < count; ++i )
 	{
-		TSFactStorage::Fact& F = m_factStorage.facts[ i ];
+		AIFact& F = m_factStorage.facts[ i ];
 		const char* type = "type?";
 		switch( F.type )
 		{
-		case TSFactStorage::FT_Unknown: type = "unknown"; break;
-		case TSFactStorage::FT_Sound_Noise: type = "snd-noise"; break;
-		case TSFactStorage::FT_Sound_Footstep: type = "snd-step"; break;
-		case TSFactStorage::FT_Sound_Shot: type = "snd-shot"; break;
-		case TSFactStorage::FT_Sight_ObjectState: type = "sight-state"; break;
-		case TSFactStorage::FT_Sight_Alarming: type = "sight-alarm"; break;
-		case TSFactStorage::FT_Sight_Friend: type = "sight-friend"; break;
-		case TSFactStorage::FT_Sight_Foe: type = "sight-foe"; break;
-		case TSFactStorage::FT_Position_Friend: type = "pos-friend"; break;
-		case TSFactStorage::FT_Position_Foe: type = "pos-foe"; break;
+		case FT_Unknown: type = "unknown"; break;
+		case FT_Sound_Noise: type = "snd-noise"; break;
+		case FT_Sound_Footstep: type = "snd-step"; break;
+		case FT_Sound_Shot: type = "snd-shot"; break;
+		case FT_Sight_ObjectState: type = "sight-state"; break;
+		case FT_Sight_Alarming: type = "sight-alarm"; break;
+		case FT_Sight_Friend: type = "sight-friend"; break;
+		case FT_Sight_Foe: type = "sight-foe"; break;
+		case FT_Position_Friend: type = "pos-friend"; break;
+		case FT_Position_Foe: type = "pos-foe"; break;
 		}
 		
 		sgrx_snprintf( bfr, 256, "Fact #%d (ref=%d) <%s> @ %.4g;%.4g;%.4g cr: %d, exp: %d",
@@ -794,7 +794,7 @@ bool ISR3Enemy::sgsHasRecentFact( int typemask, TimeVal maxtime )
 
 SGS_MULTRET ISR3Enemy::sgsGetRecentFact( int typemask, TimeVal maxtime )
 {
-	TSFactStorage::Fact* F = GetRecentFact( typemask, maxtime );
+	AIFact* F = GetRecentFact( typemask, maxtime );
 	if( F )
 	{
 		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
