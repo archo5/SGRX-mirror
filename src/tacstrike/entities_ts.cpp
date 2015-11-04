@@ -442,7 +442,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	{
 		AnimDeformer::Force& F = AnD.forces[ i ];
 		float t = F.lifetime;
-		F.amount = sinf( t * FLT_PI ) * expf( -t * 8 ) * 7 * 0.2f;
+		F.amount = sinf( t * FLT_PI ) * expf( -t * 8 ) * 7 * 0.4f;
 		if( F.lifetime > 3 )
 		{
 			AnD.forces.erase( i-- );

@@ -513,6 +513,61 @@ void AnimDeformer::Advance( float deltaTime )
 	}
 	
 	// produce animation data
+#if 1
+	for( int i = 0; i < count; ++i )
+	{
+		m_positions[ i ] = animSource->m_positions[ i ];
+		m_rotations[ i ] = animSource->m_rotations[ i ];
+		m_scales[ i ] = animSource->m_scales[ i ];
+		m_factors[ i ] = animSource->m_factors[ i ];
+	}
+	if( count > 0 )
+	{
+		Vec3 off = m_bonePositions[ 0 ] - posns[ 0 ];
+		m_positions[ 0 ] += m_invSkinOffsets[ 0 ].TransformNormal( off );
+	}
+	Mat4 skinXF[ SGRX_MAX_MESH_BONES ];
+	for( int i = 0; i < count; ++i )
+	{
+		skinXF[ i ] = m_mesh->m_bones[ i ].boneOffset;
+		if( i > 0 )
+		{
+			int pid = GetParentBoneID( i );
+			skinXF[ i ] = skinXF[ i ] * skinXF[ pid ];
+		}
+		
+		// gather average global target/local original child pos.
+		Vec3 avgtgt = V3(0);
+		Vec3 avgpos = V3(0);
+		int cc = 0;
+		for( int ch = i + 1; ch < count; ++ch )
+		{
+			if( GetParentBoneID( ch ) != i )
+				continue;
+			avgtgt += m_bonePositions[ ch ];
+			avgpos += posns[ ch ];
+			cc++;
+		}
+		
+		if( cc == 0 )
+			continue;
+		
+		avgpos /= cc;
+		avgtgt /= cc;
+		
+		Mat4 curxf = Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] );
+		Mat4 inv = Mat4::Identity;
+		( curxf * skinXF[ i ] ).InvertTo( inv );
+		avgtgt = inv.TransformPos( avgtgt ).Normalized();
+		avgpos = m_invSkinOffsets[ i ].TransformPos( avgpos ).Normalized();
+		m_rotations[ i ] = m_rotations[ i ] * Quat::CreateAxisAxis( avgpos, avgtgt );
+		
+		skinXF[ i ] = Mat4::CreateSRT(
+			m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * skinXF[ i ];
+		
+		m_factors[ i ] = 1;
+	}
+#else
 	for( int i = 0; i < count; ++i )
 	{
 		m_positions[ i ] = animSource->m_positions[ i ];
@@ -527,9 +582,19 @@ void AnimDeformer::Advance( float deltaTime )
 			Vec3 nmdir = m_bonePositions[ i ] - m_bonePositions[ pid ];
 			Vec3 omdir = dirs[ i ];
 			
-			nmdir = m_invSkinOffsets[ i ].TransformNormal( nmdir ).Normalized();
-			omdir = m_invSkinOffsets[ i ].TransformNormal( omdir ).Normalized();
-			m_rotations[ i ] = m_rotations[ i ] * Quat::CreateAxisAxis( omdir, nmdir );
+			Vec3 tf_nmdir = m_invSkinOffsets[ i ].TransformNormal( nmdir ).Normalized();
+			Vec3 tf_omdir = m_invSkinOffsets[ i ].TransformNormal( omdir ).Normalized();
+			m_rotations[ i ] = m_rotations[ i ] * Quat::CreateAxisAxis( tf_omdir, tf_nmdir );
+			
+			// rotate child bones backwards
+			for( int ch = i + 1; ch < count; ++ch )
+			{
+				if( GetParentBoneID( ch ) != i )
+					continue;
+				tf_nmdir = m_invSkinOffsets[ ch ].TransformNormal( nmdir ).Normalized();
+				tf_omdir = m_invSkinOffsets[ ch ].TransformNormal( omdir ).Normalized();
+				m_rotations[ ch ] = m_rotations[ ch ] * Quat::CreateAxisAxis( tf_nmdir, tf_omdir );
+			}
 		}
 		else
 		{
@@ -538,6 +603,7 @@ void AnimDeformer::Advance( float deltaTime )
 		}
 		m_factors[ i ] = 1;
 	}
+#endif
 }
 
 void AnimDeformer::AddLocalForce( const Vec3& pos, const Vec3& dir, float rad, float power, float amount )

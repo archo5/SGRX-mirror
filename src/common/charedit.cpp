@@ -2809,7 +2809,7 @@ struct CSEditor : IGame
 		
 		// TEST
 #if 0
-		g_AnimChar->m_anDeformer.AddModelForce( V3(-0.5f,0.5f,1), V3(1,-1,0), 1, 1, 0.5f );
+		g_AnimChar->m_anDeformer.AddModelForce( V3(-0.5f,0.5f,1), V3(1,-1,0), 0.7f, 1, 0.5f );
 #endif
 		
 		// param area
@@ -2861,8 +2861,12 @@ struct CSEditor : IGame
 			g_PhyWorld->Step( dt / 10 );
 		g_AnimChar->PreRender( 1 );
 		g_UIFrame->Draw();
-	//	float fac = sinf( g_AnimChar->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;
-	//	g_AnimChar->m_anDeformer.forces[ 0 ].amount = fac * 0.5f;
+#if 0
+		//float fac = sinf( g_AnimChar->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;
+		g_AnimChar->m_anDeformer.forces[ 0 ].amount = 1;//fac * 0.5f;
+		g_AnimChar->m_anDeformer.forces[ 0 ].pos = g_EdScene->camera.position;
+		g_AnimChar->m_anDeformer.forces[ 0 ].dir = g_EdScene->camera.direction;
+#endif
 	}
 	
 	bool phySlow;
