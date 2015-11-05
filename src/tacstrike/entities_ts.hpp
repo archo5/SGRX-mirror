@@ -202,7 +202,10 @@ struct TSEnemyController : SGRX_IActorController
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	GameLevel* m_level;
 	AIFactStorage m_factStorage;
+	CSCoverInfo m_coverInfo;
+	Array< Vec3 > m_path;
 	AIDBSystem* m_aidb;
+	CoverSystem* m_coverSys;
 	TSCharacter* m_char;
 	
 	TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args );
@@ -213,13 +216,30 @@ struct TSEnemyController : SGRX_IActorController
 	void DebugDrawWorld();
 	void DebugDrawUI();
 	
-	bool HasFact( int typemask ){ return m_factStorage.HasFact( typemask ); }
-	bool HasRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.HasRecentFact( typemask, maxtime ); }
-	AIFact* GetRecentFact( int typemask, TimeVal maxtime ){ return m_factStorage.GetRecentFact( typemask, maxtime ); }
+	// fact storage
+	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
+	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
+	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( uint32_t type, Vec3 pos,
+		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
+		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( uint32_t type, Vec3 pos,
+		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
+		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	
-	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( int typemask );
-	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( int typemask, TimeVal maxtime );
-	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( int typemask, TimeVal maxtime );
+	// cover info
+	SGS_METHOD_NAMED( QueryCoverLines ) void sgsQueryCoverLines( Vec3 bbmin,
+		Vec3 bbmax, float dist, float height, Vec3 viewer, bool visible );
+	SGS_METHOD_NAMED( GetCoverPosition ) sgsMaybe<Vec3> sgsGetCoverPosition(
+		Vec3 position, float distpow, float interval /* = 0.1 */ );
+	
+	// pathfinding
+	SGS_METHOD_NAMED( FindPath ) bool sgsFindPath( const Vec3& to );
+	SGS_METHOD_NAMED( GetNextPathPoint ) sgsMaybe<Vec3> sgsGetNextPathPoint();
+	SGS_METHOD_NAMED( RemoveNextPathPoint ) bool sgsRemoveNextPathPoint();
 };
 
 

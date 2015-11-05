@@ -934,7 +934,8 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args ) :
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
-	m_level( lev ), m_aidb( m_level->GetSystem<AIDBSystem>() ), m_char( chr )
+	m_level( lev ), m_aidb( m_level->GetSystem<AIDBSystem>() ),
+	m_coverSys( m_level->GetSystem<CoverSystem>() ), m_char( chr )
 {
 	// create controller scripted object
 	{
@@ -1192,32 +1193,104 @@ void TSEnemyController::DebugDrawUI()
 	}
 }
 
-bool TSEnemyController::sgsHasFact( int typemask )
+bool TSEnemyController::sgsHasFact( uint32_t typemask )
 {
-	return HasFact( typemask );
+	return m_factStorage.HasFact( typemask );
 }
 
-bool TSEnemyController::sgsHasRecentFact( int typemask, TimeVal maxtime )
+bool TSEnemyController::sgsHasRecentFact( uint32_t typemask, TimeVal maxtime )
 {
-	return HasRecentFact( typemask, maxtime );
+	return m_factStorage.HasRecentFact( typemask, maxtime );
 }
 
-SGS_MULTRET TSEnemyController::sgsGetRecentFact( int typemask, TimeVal maxtime )
+SGS_MULTRET TSEnemyController::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
 {
-	AIFact* F = GetRecentFact( typemask, maxtime );
+	AIFact* F = m_factStorage.GetRecentFact( typemask, maxtime );
 	if( F )
-	{
-		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
-		sgs_PushString( C, "ref" ); sgs_PushInt( C, F->ref );
-		sgs_PushString( C, "type" ); sgs_PushInt( C, F->type );
-		sgs_PushString( C, "position" ); sgs_PushVec3p( C, &F->position.x );
-		sgs_PushString( C, "created" ); sgs_PushInt( C, F->created );
-		sgs_PushString( C, "expires" ); sgs_PushInt( C, F->expires );
-		sgs_PushDict( C, 12 );
-		return 1;
-	}
+		sgs_PushLiteClass( C, F );
 	return 0;
 }
+
+void TSEnemyController::sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref )
+{
+	m_factStorage.Insert( type, pos, created, expires, ref );
+}
+
+bool TSEnemyController::sgsUpdateFact( uint32_t type, Vec3 pos,
+	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	return m_factStorage.Update( type, pos, rad, created, expires, ref, reset );
+}
+
+void TSEnemyController::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
+	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	m_factStorage.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
+}
+
+bool TSEnemyController::sgsMovingUpdateFact( uint32_t type, Vec3 pos,
+	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	return m_factStorage.MovingUpdate( type, pos, movespeed, created, expires, ref, reset );
+}
+
+void TSEnemyController::sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
+	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+{
+	if( sgs_StackSize( C ) < 7 )
+		reset = true;
+	m_factStorage.MovingInsertOrUpdate( type, pos, movespeed, created, expires, ref, reset );
+}
+
+void TSEnemyController::sgsQueryCoverLines( Vec3 bbmin,
+	Vec3 bbmax, float dist, float height, Vec3 viewer, bool visible )
+{
+	if( m_coverSys == NULL )
+		return;
+	m_coverSys->QueryLines( bbmin, bbmax, dist, height, viewer, visible, m_coverInfo );
+	// TODO clip by facts
+}
+
+sgsMaybe<Vec3> TSEnemyController::sgsGetCoverPosition(
+	Vec3 position, float distpow, float interval /* = 0.1 */ )
+{
+	if( sgs_StackSize( C ) < 3 )
+		interval = 0.1f;
+	Vec3 out = V3(0);
+	if( m_coverInfo.GetPosition( position, distpow, out, interval ) )
+		return out;
+	return sgsMaybe<Vec3>();
+}
+
+bool TSEnemyController::sgsFindPath( const Vec3& to )
+{
+	m_aidb->m_pathfinder.FindPath( m_char->GetPosition(), to, m_path );
+	return m_path.size();
+}
+
+sgsMaybe<Vec3> TSEnemyController::sgsGetNextPathPoint()
+{
+	if( m_path.size() )
+		return m_path[ 0 ];
+	return sgsMaybe<Vec3>();
+}
+
+bool TSEnemyController::sgsRemoveNextPathPoint()
+{
+	if( m_path.size() )
+	{
+		m_path.erase( 0 );
+		return true;
+	}
+	return false;
+}
+
 
 
 TSGameSystem::TSGameSystem( GameLevel* lev )
