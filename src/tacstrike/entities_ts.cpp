@@ -978,7 +978,7 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 {
 	bool Process( Entity* ent, const InfoEmissionSystem::Data& data )
 	{
-		Vec3 enemypos = data.pos + V3(0,0,1); // FIXME MAYBE?
+		Vec3 enemypos = data.pos;
 		
 		// verify the find
 		Vec3 vieworigin = enemy->m_char->GetPosition();
@@ -1111,13 +1111,6 @@ Vec3 TSEnemyController::GetInput( uint32_t iid )
 	return V3(0);
 }
 
-#if 0
-bool TSEnemyController::GetMapItemInfo( MapItemInfo* out )
-{
-	return true;
-}
-#endif
-
 void TSEnemyController::DebugDrawWorld()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
@@ -1207,7 +1200,10 @@ SGS_MULTRET TSEnemyController::sgsGetRecentFact( uint32_t typemask, TimeVal maxt
 {
 	AIFact* F = m_factStorage.GetRecentFact( typemask, maxtime );
 	if( F )
-		sgs_PushLiteClass( C, F );
+	{
+		sgs_PushLiteClassFrom( C, F ); // BUG! wrong stack.
+		return 1;
+	}
 	return 0;
 }
 
