@@ -38,21 +38,21 @@ int SGRX_SIRigidBodyInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int SGRX_SIRigidBodyInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "position" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->position = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->rotation = sgs_GetVarP<Quat>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "friction" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->friction = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "restitution" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->restitution = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "mass" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->mass = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "inertia" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->inertia = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "linearDamping" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->linearDamping = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "angularDamping" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->angularDamping = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "linearFactor" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->linearFactor = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "angularFactor" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->angularFactor = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "kinematic" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->kinematic = sgs_GetVarP<bool>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "canSleep" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->canSleep = sgs_GetVarP<bool>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "enabled" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->enabled = sgs_GetVarP<bool>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "group" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->group = sgs_GetVarP<uint16_t>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "mask" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->mask = sgs_GetVarP<uint16_t>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->position = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->rotation = sgs_GetVar<Quat>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "friction" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->friction = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "restitution" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->restitution = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "mass" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->mass = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "inertia" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->inertia = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "linearDamping" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->linearDamping = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "angularDamping" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->angularDamping = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "linearFactor" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->linearFactor = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "angularFactor" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->angularFactor = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "kinematic" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->kinematic = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "canSleep" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->canSleep = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->enabled = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "group" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->group = sgs_GetVar<uint16_t>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "mask" ){ static_cast<SGRX_SIRigidBodyInfo*>( obj->data )->mask = sgs_GetVar<uint16_t>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -117,10 +117,10 @@ int SGRX_SIHingeJointInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int SGRX_SIHingeJointInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "pivotA" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotA = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "pivotB" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotB = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "axisA" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisA = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "axisB" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisB = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "pivotA" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotA = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "pivotB" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->pivotB = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "axisA" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisA = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "axisB" ){ static_cast<SGRX_SIHingeJointInfo*>( obj->data )->axisB = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -172,8 +172,8 @@ int SGRX_SIConeTwistJointInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int SGRX_SIConeTwistJointInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "frameA" ){ static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameA = sgs_GetVarP<Mat4>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "frameB" ){ static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameB = sgs_GetVarP<Mat4>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "frameA" ){ static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameA = sgs_GetVar<Mat4>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "frameB" ){ static_cast<SGRX_SIConeTwistJointInfo*>( obj->data )->frameB = sgs_GetVar<Mat4>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -449,45 +449,45 @@ int SGRX_ScriptedItem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int SGRX_ScriptedItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "SetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__SetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "MICreate" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MICreate ); return SGS_SUCCESS; }
-		SGS_CASE( "MIDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MIDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "MIExists" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MIExists ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetMesh" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetMesh ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetEnabled ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetShaderConst" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__MISetShaderConst ); return SGS_SUCCESS; }
-		SGS_CASE( "PSCreate" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSCreate ); return SGS_SUCCESS; }
-		SGS_CASE( "PSDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "PSExists" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSExists ); return SGS_SUCCESS; }
-		SGS_CASE( "PSLoad" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSLoad ); return SGS_SUCCESS; }
-		SGS_CASE( "PSSetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSSetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "PSSetMatrixFromMeshAABB" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSSetMatrixFromMeshAABB ); return SGS_SUCCESS; }
-		SGS_CASE( "PSPlay" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSPlay ); return SGS_SUCCESS; }
-		SGS_CASE( "PSStop" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSStop ); return SGS_SUCCESS; }
-		SGS_CASE( "PSTrigger" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__PSTrigger ); return SGS_SUCCESS; }
-		SGS_CASE( "DSCreate" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSCreate ); return SGS_SUCCESS; }
-		SGS_CASE( "DSDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "DSResize" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSResize ); return SGS_SUCCESS; }
-		SGS_CASE( "DSClear" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__DSClear ); return SGS_SUCCESS; }
-		SGS_CASE( "RBCreateFromMesh" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromMesh ); return SGS_SUCCESS; }
-		SGS_CASE( "RBCreateFromConvexPointSet" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromConvexPointSet ); return SGS_SUCCESS; }
-		SGS_CASE( "RBDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "RBExists" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBExists ); return SGS_SUCCESS; }
-		SGS_CASE( "RBSetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetEnabled ); return SGS_SUCCESS; }
-		SGS_CASE( "RBGetPosition" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBGetPosition ); return SGS_SUCCESS; }
-		SGS_CASE( "RBSetPosition" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetPosition ); return SGS_SUCCESS; }
-		SGS_CASE( "RBGetRotation" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBGetRotation ); return SGS_SUCCESS; }
-		SGS_CASE( "RBSetRotation" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBSetRotation ); return SGS_SUCCESS; }
-		SGS_CASE( "RBGetMatrix" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBGetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "RBApplyForce" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__RBApplyForce ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateHingeB2W" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2W ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateHingeB2B" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2B ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateConeTwistB2W" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2W ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateConeTwistB2B" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2B ); return SGS_SUCCESS; }
-		SGS_CASE( "JTDestroy" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "JTExists" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTExists ); return SGS_SUCCESS; }
-		SGS_CASE( "JTSetEnabled" ){ sgs_PushCFunction( C, _sgs_method__SGRX_ScriptedItem__JTSetEnabled ); return SGS_SUCCESS; }
+		SGS_CASE( "SetMatrix" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__SetMatrix ); return SGS_SUCCESS; }
+		SGS_CASE( "MICreate" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__MICreate ); return SGS_SUCCESS; }
+		SGS_CASE( "MIDestroy" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__MIDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "MIExists" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__MIExists ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetMesh" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__MISetMesh ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetEnabled" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__MISetEnabled ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetMatrix" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__MISetMatrix ); return SGS_SUCCESS; }
+		SGS_CASE( "MISetShaderConst" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__MISetShaderConst ); return SGS_SUCCESS; }
+		SGS_CASE( "PSCreate" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSCreate ); return SGS_SUCCESS; }
+		SGS_CASE( "PSDestroy" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "PSExists" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSExists ); return SGS_SUCCESS; }
+		SGS_CASE( "PSLoad" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSLoad ); return SGS_SUCCESS; }
+		SGS_CASE( "PSSetMatrix" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSSetMatrix ); return SGS_SUCCESS; }
+		SGS_CASE( "PSSetMatrixFromMeshAABB" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSSetMatrixFromMeshAABB ); return SGS_SUCCESS; }
+		SGS_CASE( "PSPlay" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSPlay ); return SGS_SUCCESS; }
+		SGS_CASE( "PSStop" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSStop ); return SGS_SUCCESS; }
+		SGS_CASE( "PSTrigger" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__PSTrigger ); return SGS_SUCCESS; }
+		SGS_CASE( "DSCreate" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__DSCreate ); return SGS_SUCCESS; }
+		SGS_CASE( "DSDestroy" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__DSDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "DSResize" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__DSResize ); return SGS_SUCCESS; }
+		SGS_CASE( "DSClear" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__DSClear ); return SGS_SUCCESS; }
+		SGS_CASE( "RBCreateFromMesh" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromMesh ); return SGS_SUCCESS; }
+		SGS_CASE( "RBCreateFromConvexPointSet" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBCreateFromConvexPointSet ); return SGS_SUCCESS; }
+		SGS_CASE( "RBDestroy" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "RBExists" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBExists ); return SGS_SUCCESS; }
+		SGS_CASE( "RBSetEnabled" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBSetEnabled ); return SGS_SUCCESS; }
+		SGS_CASE( "RBGetPosition" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBGetPosition ); return SGS_SUCCESS; }
+		SGS_CASE( "RBSetPosition" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBSetPosition ); return SGS_SUCCESS; }
+		SGS_CASE( "RBGetRotation" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBGetRotation ); return SGS_SUCCESS; }
+		SGS_CASE( "RBSetRotation" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBSetRotation ); return SGS_SUCCESS; }
+		SGS_CASE( "RBGetMatrix" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBGetMatrix ); return SGS_SUCCESS; }
+		SGS_CASE( "RBApplyForce" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__RBApplyForce ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateHingeB2W" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2W ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateHingeB2B" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__JTCreateHingeB2B ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateConeTwistB2W" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2W ); return SGS_SUCCESS; }
+		SGS_CASE( "JTCreateConeTwistB2B" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__JTCreateConeTwistB2B ); return SGS_SUCCESS; }
+		SGS_CASE( "JTDestroy" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__JTDestroy ); return SGS_SUCCESS; }
+		SGS_CASE( "JTExists" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__JTExists ); return SGS_SUCCESS; }
+		SGS_CASE( "JTSetEnabled" ){ sgs_PushCFunc( C, _sgs_method__SGRX_ScriptedItem__JTSetEnabled ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

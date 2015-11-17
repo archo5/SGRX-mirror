@@ -194,10 +194,8 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	
 	// ---
-	SGS_IFUNC( GETINDEX ) int _getindex(
-		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop );
-	SGS_IFUNC( SETINDEX ) int _setindex(
-		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop );
+	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
+	SGS_IFUNC( SETINDEX ) int _setindex( SGS_ARGS_SETINDEXFUNC );
 	
 	void LightMesh( MeshInstHandle mih, Vec3 off = V3(0) );
 	
@@ -238,7 +236,7 @@ template< class T > void IGameLevelSystem::InitScriptInterface( const StringView
 {
 	T::_sgs_interface->destruct = NULL;
 	SGS_CSCOPE( m_level->GetSGSC() );
-	sgs_PushClass( m_level->GetSGSC(), ptr );
+	sgs_CreateClass( m_level->GetSGSC(), NULL, ptr );
 	m_level->AddEntry( name, sgsVariable( m_level->GetSGSC(), -1 ) );
 	C = m_level->GetSGSC();
 	m_sgsObject = sgs_GetObjectStruct( C, -1 );
@@ -249,7 +247,7 @@ template< class T > void Entity::_InitScriptInterface( T* ptr )
 {
 	T::_sgs_interface->destruct = NULL;
 	SGS_CSCOPE( m_level->GetSGSC() );
-	sgs_PushClass( m_level->GetSGSC(), ptr );
+	sgs_CreateClass( m_level->GetSGSC(), NULL, ptr );
 	C = m_level->GetSGSC();
 	m_sgsObject = sgs_GetObjectStruct( C, -1 );
 	sgs_ObjAcquire( C, m_sgsObject );

@@ -23,55 +23,39 @@ template<> inline void sgs_PushVar<String>( SGS_CTX, const String& v ){ sgs_Push
 template<> struct sgs_GetVar<String> { String operator () ( SGS_CTX, sgs_StkIdx item ){
 	char* str; sgs_SizeVal size; if( sgs_ParseString( C, item, &str, &size ) )
 		return String( str, (size_t) size ); return String(); }};
-template<> struct sgs_GetVarP<String> { String operator () ( SGS_CTX, sgs_Variable* var ){
-	char* str; sgs_SizeVal size; if( sgs_ParseStringP( C, var, &str, &size ) )
-		return String( str, (size_t) size ); return String(); }};
 template<> inline void sgs_PushVar<StringView>( SGS_CTX, const StringView& v ){ sgs_PushStringBuf( C, v.data(), (sgs_SizeVal) v.size() ); }
 template<> struct sgs_GetVar<StringView> { StringView operator () ( SGS_CTX, sgs_StkIdx item ){
 	char* str; sgs_SizeVal size; if( sgs_ParseString( C, item, &str, &size ) )
 		return StringView( str, (size_t) size ); return StringView(); }};
-template<> struct sgs_GetVarP<StringView> { StringView operator () ( SGS_CTX, sgs_Variable* var ){
-	char* str; sgs_SizeVal size; if( sgs_ParseStringP( C, var, &str, &size ) )
-		return StringView( str, (size_t) size ); return StringView(); }};
 
 // Vec2 interface
-template<> inline void sgs_PushVar<Vec2>( SGS_CTX, const Vec2& v ){ sgs_PushVec2( C, v.x, v.y ); }
+template<> inline void sgs_PushVar<Vec2>( SGS_CTX, const Vec2& v ){ sgs_CreateVec2( C, NULL, v.x, v.y ); }
 template<> struct sgs_GetVar<Vec2> { Vec2 operator () ( SGS_CTX, sgs_StkIdx item ){
 	float vtmp[2] = {0.0f}; sgs_ParseVec2( C, item, vtmp, 0 ); return V2( vtmp[0], vtmp[1] ); }};
-template<> struct sgs_GetVarP<Vec2> { Vec2 operator () ( SGS_CTX, sgs_Variable* val ){
-	float vtmp[2] = {0.0f}; sgs_ParseVec2P( C, val, vtmp, 0 ); return V2( vtmp[0], vtmp[1] ); }};
 SGS_DECL_DUMPDATA_INT( Vec2 );
 
 // Vec3 interface
-template<> inline void sgs_PushVar<Vec3>( SGS_CTX, const Vec3& v ){ sgs_PushVec3( C, v.x, v.y, v.z ); }
+template<> inline void sgs_PushVar<Vec3>( SGS_CTX, const Vec3& v ){ sgs_CreateVec3( C, NULL, v.x, v.y, v.z ); }
 template<> struct sgs_GetVar<Vec3> { Vec3 operator () ( SGS_CTX, sgs_StkIdx item ){
 	float vtmp[3] = {0.0f}; sgs_ParseVec3( C, item, vtmp, 0 ); return V3( vtmp[0], vtmp[1], vtmp[2] ); }};
-template<> struct sgs_GetVarP<Vec3> { Vec3 operator () ( SGS_CTX, sgs_Variable* val ){
-	float vtmp[3] = {0.0f}; sgs_ParseVec3P( C, val, vtmp, 0 ); return V3( vtmp[0], vtmp[1], vtmp[2] ); }};
 SGS_DECL_DUMPDATA_INT( Vec3 );
 
 // Vec4 interface
-template<> inline void sgs_PushVar<Vec4>( SGS_CTX, const Vec4& v ){ sgs_PushVec4( C, v.x, v.y, v.z, v.w ); }
+template<> inline void sgs_PushVar<Vec4>( SGS_CTX, const Vec4& v ){ sgs_CreateVec4( C, NULL, v.x, v.y, v.z, v.w ); }
 template<> struct sgs_GetVar<Vec4> { Vec4 operator () ( SGS_CTX, sgs_StkIdx item ){
 	float vtmp[4] = {0.0f}; sgs_ParseVec4( C, item, vtmp, 0 ); return V4( vtmp[0], vtmp[1], vtmp[2], vtmp[3] ); }};
-template<> struct sgs_GetVarP<Vec4> { Vec4 operator () ( SGS_CTX, sgs_Variable* val ){
-	float vtmp[4] = {0.0f}; sgs_ParseVec4P( C, val, vtmp, 0 ); return V4( vtmp[0], vtmp[1], vtmp[2], vtmp[3] ); }};
 SGS_DECL_DUMPDATA_INT( Vec4 );
 
 // Quat interface
-template<> inline void sgs_PushVar<Quat>( SGS_CTX, const Quat& v ){ sgs_PushQuat( C, v.x, v.y, v.z, v.w ); }
+template<> inline void sgs_PushVar<Quat>( SGS_CTX, const Quat& v ){ sgs_CreateQuat( C, NULL, v.x, v.y, v.z, v.w ); }
 template<> struct sgs_GetVar<Quat> { Quat operator () ( SGS_CTX, sgs_StkIdx item ){
 	float vtmp[4] = {0,0,0,1}; sgs_ParseQuat( C, item, vtmp, 0 ); Quat q = { vtmp[0], vtmp[1], vtmp[2], vtmp[3] }; return q; }};
-template<> struct sgs_GetVarP<Quat> { Quat operator () ( SGS_CTX, sgs_Variable* val ){
-	float vtmp[4] = {0,0,0,1}; sgs_ParseQuatP( C, val, vtmp, 0 ); Quat q = { vtmp[0], vtmp[1], vtmp[2], vtmp[3] }; return q; }};
 SGS_DECL_DUMPDATA_INT( Quat );
 
 // Mat4
-template<> inline void sgs_PushVar<Mat4>( SGS_CTX, const Mat4& v ){ sgs_PushMat4( C, v.a, 0 ); }
+template<> inline void sgs_PushVar<Mat4>( SGS_CTX, const Mat4& v ){ sgs_CreateMat4( C, NULL, v.a, 0 ); }
 template<> struct sgs_GetVar<Mat4> { Mat4 operator () ( SGS_CTX, sgs_StkIdx item ){
 	Mat4 m = Mat4::Identity; sgs_ParseMat4( C, item, m.a ); return m; }};
-template<> struct sgs_GetVarP<Mat4> { Mat4 operator () ( SGS_CTX, sgs_Variable* val ){
-	Mat4 m = Mat4::Identity; sgs_ParseMat4P( C, val, m.a ); return m; }};
 SGS_DECL_DUMPDATA_INT( Mat4 );
 
 

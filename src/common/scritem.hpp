@@ -117,10 +117,8 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	
 	// ---
-	SGS_IFUNC( GETINDEX ) int _getindex(
-		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop );
-	SGS_IFUNC( SETINDEX ) int _setindex(
-		SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop );
+	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
+	SGS_IFUNC( SETINDEX ) int _setindex( SGS_ARGS_SETINDEXFUNC );
 	
 	// - common
 	SGS_METHOD void SetMatrix( Mat4 mtx );

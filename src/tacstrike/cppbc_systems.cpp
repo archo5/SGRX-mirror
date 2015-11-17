@@ -29,8 +29,8 @@ int InfoEmissionSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int InfoEmissionSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "Update" ){ sgs_PushCFunction( C, _sgs_method__InfoEmissionSystem__Update ); return SGS_SUCCESS; }
-		SGS_CASE( "Remove" ){ sgs_PushCFunction( C, _sgs_method__InfoEmissionSystem__Remove ); return SGS_SUCCESS; }
+		SGS_CASE( "Update" ){ sgs_PushCFunc( C, _sgs_method__InfoEmissionSystem__Update ); return SGS_SUCCESS; }
+		SGS_CASE( "Remove" ){ sgs_PushCFunc( C, _sgs_method__InfoEmissionSystem__Remove ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -82,7 +82,7 @@ int MessagingSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int MessagingSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "Add" ){ sgs_PushCFunction( C, _sgs_method__MessagingSystem__Add ); return SGS_SUCCESS; }
+		SGS_CASE( "Add" ){ sgs_PushCFunc( C, _sgs_method__MessagingSystem__Add ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -164,12 +164,12 @@ int ObjectiveSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int ObjectiveSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "Add" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__Add ); return SGS_SUCCESS; }
-		SGS_CASE( "GetTitle" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__GetTitle ); return SGS_SUCCESS; }
-		SGS_CASE( "SetTitle" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__SetTitle ); return SGS_SUCCESS; }
-		SGS_CASE( "GetState" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__GetState ); return SGS_SUCCESS; }
-		SGS_CASE( "SetState" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__SetState ); return SGS_SUCCESS; }
-		SGS_CASE( "SetLocation" ){ sgs_PushCFunction( C, _sgs_method__ObjectiveSystem__SetLocation ); return SGS_SUCCESS; }
+		SGS_CASE( "Add" ){ sgs_PushCFunc( C, _sgs_method__ObjectiveSystem__Add ); return SGS_SUCCESS; }
+		SGS_CASE( "GetTitle" ){ sgs_PushCFunc( C, _sgs_method__ObjectiveSystem__GetTitle ); return SGS_SUCCESS; }
+		SGS_CASE( "SetTitle" ){ sgs_PushCFunc( C, _sgs_method__ObjectiveSystem__SetTitle ); return SGS_SUCCESS; }
+		SGS_CASE( "GetState" ){ sgs_PushCFunc( C, _sgs_method__ObjectiveSystem__GetState ); return SGS_SUCCESS; }
+		SGS_CASE( "SetState" ){ sgs_PushCFunc( C, _sgs_method__ObjectiveSystem__SetState ); return SGS_SUCCESS; }
+		SGS_CASE( "SetLocation" ){ sgs_PushCFunc( C, _sgs_method__ObjectiveSystem__SetLocation ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -231,24 +231,24 @@ int HelpTextSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "alpha" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_alpha ); return SGS_SUCCESS; }
 		SGS_CASE( "fadeTime" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_fadeTime ); return SGS_SUCCESS; }
 		SGS_CASE( "fadeTo" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_fadeTo ); return SGS_SUCCESS; }
-		SGS_CASE( "Clear" ){ sgs_PushCFunction( C, _sgs_method__HelpTextSystem__Clear ); return SGS_SUCCESS; }
-		SGS_CASE( "SetText" ){ sgs_PushCFunction( C, _sgs_method__HelpTextSystem__SetText ); return SGS_SUCCESS; }
-		SGS_CASE( "fontSize" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->renderer->fontSize ); return SGS_SUCCESS; }
-		SGS_CASE( "centerPos" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->renderer->centerPos ); return SGS_SUCCESS; }
-		SGS_CASE( "lineHeightFactor" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->renderer->lineHeightFactor ); return SGS_SUCCESS; }
+		SGS_CASE( "Clear" ){ sgs_PushCFunc( C, _sgs_method__HelpTextSystem__Clear ); return SGS_SUCCESS; }
+		SGS_CASE( "SetText" ){ sgs_PushCFunc( C, _sgs_method__HelpTextSystem__SetText ); return SGS_SUCCESS; }
+		SGS_CASE( "fontSize" ){ if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ){ return SGS_EINPROC; } sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->renderer->fontSize ); return SGS_SUCCESS; }
+		SGS_CASE( "centerPos" ){ if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ){ return SGS_EINPROC; } sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->renderer->centerPos ); return SGS_SUCCESS; }
+		SGS_CASE( "lineHeightFactor" ){ if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ){ return SGS_EINPROC; } sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->renderer->lineHeightFactor ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
 int HelpTextSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "text" ){ static_cast<HelpTextSystem*>( obj->data )->m_text = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "alpha" ){ static_cast<HelpTextSystem*>( obj->data )->m_alpha = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "fadeTime" ){ static_cast<HelpTextSystem*>( obj->data )->m_fadeTime = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "fadeTo" ){ static_cast<HelpTextSystem*>( obj->data )->m_fadeTo = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "fontSize" ){ static_cast<HelpTextSystem*>( obj->data )->renderer->fontSize = sgs_GetVarP<int>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "centerPos" ){ static_cast<HelpTextSystem*>( obj->data )->renderer->centerPos = sgs_GetVarP<Vec2>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "lineHeightFactor" ){ static_cast<HelpTextSystem*>( obj->data )->renderer->lineHeightFactor = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "text" ){ static_cast<HelpTextSystem*>( obj->data )->m_text = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "alpha" ){ static_cast<HelpTextSystem*>( obj->data )->m_alpha = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "fadeTime" ){ static_cast<HelpTextSystem*>( obj->data )->m_fadeTime = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "fadeTo" ){ static_cast<HelpTextSystem*>( obj->data )->m_fadeTo = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "fontSize" ){ if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ){ return SGS_EINPROC; } static_cast<HelpTextSystem*>( obj->data )->renderer->fontSize = sgs_GetVar<int>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "centerPos" ){ if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ){ return SGS_EINPROC; } static_cast<HelpTextSystem*>( obj->data )->renderer->centerPos = sgs_GetVar<Vec2>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "lineHeightFactor" ){ if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ){ return SGS_EINPROC; } static_cast<HelpTextSystem*>( obj->data )->renderer->lineHeightFactor = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -259,9 +259,9 @@ int HelpTextSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\nfontSize = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->fontSize, depth ).push( C ); }
-		{ sgs_PushString( C, "\ncenterPos = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->centerPos, depth ).push( C ); }
-		{ sgs_PushString( C, "\nlineHeightFactor = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->lineHeightFactor, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfontSize = " ); if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ) sgs_PushString( C, "<inaccessible>" ); else sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->fontSize, depth ).push( C ); }
+		{ sgs_PushString( C, "\ncenterPos = " ); if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ) sgs_PushString( C, "<inaccessible>" ); else sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->centerPos, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlineHeightFactor = " ); if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ) sgs_PushString( C, "<inaccessible>" ); else sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->lineHeightFactor, depth ).push( C ); }
 		sgs_StringConcat( C, 6 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
@@ -303,8 +303,8 @@ int FlareSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int FlareSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "Update" ){ sgs_PushCFunction( C, _sgs_method__FlareSystem__Update ); return SGS_SUCCESS; }
-		SGS_CASE( "Remove" ){ sgs_PushCFunction( C, _sgs_method__FlareSystem__Remove ); return SGS_SUCCESS; }
+		SGS_CASE( "Update" ){ sgs_PushCFunc( C, _sgs_method__FlareSystem__Update ); return SGS_SUCCESS; }
+		SGS_CASE( "Remove" ){ sgs_PushCFunc( C, _sgs_method__FlareSystem__Remove ); return SGS_SUCCESS; }
 		SGS_CASE( "layers" ){ sgs_PushVar( C, static_cast<FlareSystem*>( obj->data )->m_layers ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
@@ -312,7 +312,7 @@ int FlareSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int FlareSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "layers" ){ static_cast<FlareSystem*>( obj->data )->m_layers = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "layers" ){ static_cast<FlareSystem*>( obj->data )->m_layers = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -358,7 +358,7 @@ int ScriptedSequenceSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int ScriptedSequenceSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "Start" ){ sgs_PushCFunction( C, _sgs_method__ScriptedSequenceSystem__Start ); return SGS_SUCCESS; }
+		SGS_CASE( "Start" ){ sgs_PushCFunc( C, _sgs_method__ScriptedSequenceSystem__Start ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "time" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_time ); return SGS_SUCCESS; }
 		SGS_CASE( "subtitle" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_subtitle ); return SGS_SUCCESS; }
@@ -368,10 +368,10 @@ int ScriptedSequenceSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int ScriptedSequenceSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "func" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_func = sgs_GetVarP<sgsVariable>()( C, val );
+		SGS_CASE( "func" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_func = sgs_GetVar<sgsVariable>()( C, 1 );
 			static_cast<ScriptedSequenceSystem*>( obj->data )->_StartCutscene(); return SGS_SUCCESS; }
-		SGS_CASE( "time" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_time = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "subtitle" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_subtitle = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "time" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_time = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "subtitle" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_subtitle = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -423,8 +423,8 @@ int MusicSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int MusicSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "SetTrack" ){ sgs_PushCFunction( C, _sgs_method__MusicSystem__SetTrack ); return SGS_SUCCESS; }
-		SGS_CASE( "SetVar" ){ sgs_PushCFunction( C, _sgs_method__MusicSystem__SetVar ); return SGS_SUCCESS; }
+		SGS_CASE( "SetTrack" ){ sgs_PushCFunc( C, _sgs_method__MusicSystem__SetTrack ); return SGS_SUCCESS; }
+		SGS_CASE( "SetVar" ){ sgs_PushCFunc( C, _sgs_method__MusicSystem__SetVar ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -482,12 +482,12 @@ int AIFact::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int AIFact::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "id" ){ static_cast<AIFact*>( obj->data )->id = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "ref" ){ static_cast<AIFact*>( obj->data )->ref = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "type" ){ static_cast<AIFact*>( obj->data )->type = sgs_GetVarP<uint32_t>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ static_cast<AIFact*>( obj->data )->position = sgs_GetVarP<Vec3>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "created" ){ static_cast<AIFact*>( obj->data )->created = sgs_GetVarP<TimeVal>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "expires" ){ static_cast<AIFact*>( obj->data )->expires = sgs_GetVarP<TimeVal>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<AIFact*>( obj->data )->id = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "ref" ){ static_cast<AIFact*>( obj->data )->ref = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "type" ){ static_cast<AIFact*>( obj->data )->type = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ static_cast<AIFact*>( obj->data )->position = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "created" ){ static_cast<AIFact*>( obj->data )->created = sgs_GetVar<TimeVal>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "expires" ){ static_cast<AIFact*>( obj->data )->expires = sgs_GetVar<TimeVal>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -581,14 +581,14 @@ int AIDBSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int AIDBSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "HasFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__HasFact ); return SGS_SUCCESS; }
-		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__HasRecentFact ); return SGS_SUCCESS; }
-		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__GetRecentFact ); return SGS_SUCCESS; }
-		SGS_CASE( "InsertFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__InsertFact ); return SGS_SUCCESS; }
-		SGS_CASE( "UpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__UpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__InsertOrUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__MovingUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__AIDBSystem__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "HasFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__HasFact ); return SGS_SUCCESS; }
+		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__HasRecentFact ); return SGS_SUCCESS; }
+		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRecentFact ); return SGS_SUCCESS; }
+		SGS_CASE( "InsertFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__InsertFact ); return SGS_SUCCESS; }
+		SGS_CASE( "UpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__UpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__InsertOrUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__MovingUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

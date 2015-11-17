@@ -6,19 +6,19 @@
 
 static int SIRigidBodyInfo( SGS_CTX )
 {
-	SGS_PUSHCLASS( C, SGRX_SIRigidBodyInfo, () );
+	SGS_CREATECLASS( C, NULL, SGRX_SIRigidBodyInfo, () );
 	return 1;
 }
 
 static int SIHingeJointInfo( SGS_CTX )
 {
-	SGS_PUSHCLASS( C, SGRX_SIHingeJointInfo, () );
+	SGS_CREATECLASS( C, NULL, SGRX_SIHingeJointInfo, () );
 	return 1;
 }
 
 static int SIConeTwistJointInfo( SGS_CTX )
 {
-	SGS_PUSHCLASS( C, SGRX_SIConeTwistJointInfo, () );
+	SGS_CREATECLASS( C, NULL, SGRX_SIConeTwistJointInfo, () );
 	return 1;
 }
 
@@ -66,11 +66,11 @@ SGRX_ScriptedItem* SGRX_ScriptedItem::Create(
 	sgsVariable func,
 	sgsVariable args )
 {
-	SGRX_ScriptedItem* SI = SGS_PUSHCLASS( C, SGRX_ScriptedItem, () );
+	SGRX_ScriptedItem* SI = SGS_CREATECLASS( C, NULL, SGRX_ScriptedItem, () );
 	sgs_ObjAcquire( C, SI->m_sgsObject );
 	sgsVariable obj( C, sgsVariable::PickAndPop );
 	SI->m_variable.C = C;
-	sgs_InitDict( C, &SI->m_variable.var, 0 );
+	sgs_CreateDict( C, &SI->m_variable.var, 0 );
 	SI->m_scene = scene;
 	SI->m_phyWorld = phyWorld;
 	SI->m_lightSampler = &GR_GetDummyLightSampler();
@@ -195,8 +195,8 @@ void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* dat
 	{
 		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
 		SGS_SCOPE;
-		sgs_PushVec3p( C, &bhinfo->pos.x );
-		sgs_PushVec3p( C, &bhinfo->vel.x );
+		sgs_CreateVec3p( C, NULL, &bhinfo->pos.x );
+		sgs_CreateVec3p( C, NULL, &bhinfo->vel.x );
 		int i = 0;
 		for( ; i < SCRITEM_NUM_SLOTS; ++i )
 		{
@@ -214,22 +214,23 @@ void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* dat
 
 // ---
 
-int SGRX_ScriptedItem::_getindex(
-	SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop )
+int SGRX_ScriptedItem::_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGRX_CAST( SGRX_ScriptedItem*, SI, obj->data );
-	SGSRESULT res = sgs_PushIndexPP( C, &SI->m_variable.var, key, isprop );
-	if( res != SGS_ENOTFND )
-		return res; // found or serious error
-	return _sgs_getindex( C, obj, key, isprop );
+	SGSBOOL res = sgs_PushIndex( C, SI->m_variable.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) );
+	if( res )
+		return res; // found
+	return _sgs_getindex( C, obj );
 }
 
-int SGRX_ScriptedItem::_setindex(
-	SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop )
+int SGRX_ScriptedItem::_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGRX_CAST( SGRX_ScriptedItem*, SI, obj->data );
-	if( _sgs_setindex( C, obj, key, val, isprop ) != SGS_SUCCESS )
-		sgs_SetIndexPPP( C, &SI->m_variable.var, key, val, isprop );
+	if( _sgs_setindex( C, obj ) != SGS_SUCCESS )
+	{
+		sgs_SetIndex( C, SI->m_variable.var, sgs_StackItem( C, 0 ),
+			sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) );
+	}
 	return SGS_SUCCESS;
 }
 

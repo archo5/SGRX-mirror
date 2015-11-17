@@ -300,8 +300,7 @@ struct DroneTheftGame : IGame
 		g_SoundSys->SetVolume( "bus:/sfx", g_s_vol_sfx );
 		
 		g_GameLevel = new GameLevel( PHY_CreateWorld() );
-		sgs_PushCFunction( g_GameLevel->GetSGSC(), EndGame );
-		sgs_StoreGlobal( g_GameLevel->GetSGSC(), "EndGame" );
+		sgs_SetGlobalByName( g_GameLevel->GetSGSC(), "EndGame", sgs_MakeCFunc( EndGame ) );
 		g_GameLevel->SetGlobalToSelf();
 		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );

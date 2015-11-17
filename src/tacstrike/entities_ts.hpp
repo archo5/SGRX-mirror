@@ -219,22 +219,22 @@ struct TSEnemyController : SGRX_IActorController
 	// fact storage
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
-	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime );
 	SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
-	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( uint32_t type, Vec3 pos,
+	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
+	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( uint32_t type, Vec3 pos,
+	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
+	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	
 	// cover info
 	SGS_METHOD_NAMED( QueryCoverLines ) void sgsQueryCoverLines( Vec3 bbmin,
 		Vec3 bbmax, float dist, float height, Vec3 viewer, bool visible );
 	SGS_METHOD_NAMED( GetCoverPosition ) sgsMaybe<Vec3> sgsGetCoverPosition(
-		Vec3 position, float distpow, float interval /* = 0.1 */ );
+		sgs_Context* coro, Vec3 position, float distpow, float interval /* = 0.1 */ );
 	
 	// pathfinding
 	SGS_METHOD_NAMED( FindPath ) bool sgsFindPath( const Vec3& to );

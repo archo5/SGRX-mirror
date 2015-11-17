@@ -1537,7 +1537,7 @@ SGS_MULTRET AIDBSystem::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
 	AIFact* F = m_globalFacts.GetRecentFact( typemask, maxtime );
 	if( F )
 	{
-		sgs_PushLiteClassFrom( C, F );
+		sgs_CreateLiteClassFrom( C, NULL, F );
 		return 1;
 	}
 	return 0;

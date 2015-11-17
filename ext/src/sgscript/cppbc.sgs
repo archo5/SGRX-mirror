@@ -521,14 +521,38 @@ function cppbc_examine_property_func( code )
 	
 	sp = fmt_string_parser( code );
 	
-	sp.skipcc( "( \t\v\r\n" );
+	sp.skipcc( " \t\v\r\n" );
 	items = [];
-	while( ( item = sp.readcc( "^ \t\v\r\n)" ) ) !== "" )
+	item = "";
+	bracestack = 0;
+	if( sp.getchar() != "(" )
 	{
-		items.push( item );
-		sp.skipcc( " \t\v\r\n" );
+		cppbc_error( "PROPERTY_FUNC: '(' expected" );
 	}
-	sp.skipcc( ")" );
+	while( sp.at_end == false )
+	{
+		prevoff = sp.stream_offset;
+		sp.skipcc( " \t\v\r\n" );
+		curoff = sp.stream_offset;
+		ch = sp.getchar();
+		at_end = bracestack == 0 && ch == ")";
+		if( ( curoff > prevoff || at_end ) && item.length )
+		{
+			items.push( item );
+			item = "";
+		}
+		if( at_end )
+			break;
+		if( ch == "(" )
+			bracestack++;
+		else if( ch == ")" )
+			bracestack--;
+		item $= ch;
+	}
+	if( sp.at_end )
+	{
+		cppbc_error( "PROPERTY_FUNC: unexpected end of file before closing brace" );
+	}
 	
 	readmethod = null;
 	writemethod = null;
@@ -624,6 +648,7 @@ function cppbc_examine_property_func( code )
 		writecb = writecallback,
 		varname = varname,
 		srcname = if( source, source, vd.name ),
+		validate = validate,
 	};
 }
 
@@ -845,6 +870,7 @@ function cppbc_generate_code( objects, includes )
 				continue;
 			
 			line = "";
+			param_id = 0;
 			foreach( i, param : item.params )
 			{
 				if( line != "" )
@@ -857,8 +883,12 @@ function cppbc_generate_code( objects, includes )
 					getvar3rd = "Obj";
 					ptype = string_part( param, 0, -1 );
 				}
+				fixedtype = cppbc_fix_type( ptype );
 				
-				line $= string_format( "sgs_GetVar{3}<{1}>()(C,{2})", cppbc_fix_type( ptype ), i, getvar3rd );
+				if( fixedtype == "sgs_Context" || fixedtype == "SGS_CTX" )
+					line $= "C";
+				else
+					line $= string_format( "sgs_GetVar{3}<{1}>()(C,{2})", fixedtype, param_id++, getvar3rd );
 			}
 			line = string_format( "data->{1}( {2} )", item.name, line );
 			
@@ -898,8 +928,8 @@ int %OBJ%::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 		{
 			if( item.what != "GCREF" )
 				continue;
-			out $= "\n\tif( SGS_FAILED( sgs_GCMarkVar( C, static_cast<"$
-				obj.name$"*>( obj->data )->"$item.name$" ) ) ) return SGS_EINPROC;";
+			out $= "\n\tsgs_GCMarkVar( C, static_cast<"$
+				obj.name$"*>( obj->data )->"$item.name$" );";
 		}
 		out $= "\n\treturn SGS_SUCCESS;\n}\n";
 		
@@ -913,7 +943,7 @@ int " $ obj.name $ "::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		{
 			itemline = null;
 			if( item.what == "METHOD" )
-				itemline = "sgs_PushCFunction( C, _sgs_method__%OBJ%__"$item.varname$" );";
+				itemline = "sgs_PushCFunc( C, _sgs_method__%OBJ%__"$item.varname$" );";
 			else if( item.what == "PROPERTY" )
 			{
 				if( item.access <= 0 )
@@ -921,10 +951,13 @@ int " $ obj.name $ "::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 			}
 			else if( item.what == "PROPERTY_FUNC" )
 			{
+				itemline = "";
+				if( item.validate !== null )
+					itemline $= "if( !( static_cast<%OBJ%*>( obj->data )->"$item.validate$" ) ){ return SGS_EINPROC; } ";
 				if( item.read === true )
-					itemline = "%TYPEFUNC%( C, static_cast<%OBJ%*>( obj->data )->"$item.srcname$" );";
+					itemline $= "%TYPEFUNC%( C, static_cast<%OBJ%*>( obj->data )->"$item.srcname$" );";
 				else if( item.read )
-					itemline = "%TYPEFUNC%( C, static_cast<%OBJ%*>( obj->data )->"$item.read$"() );";
+					itemline $= "%TYPEFUNC%( C, static_cast<%OBJ%*>( obj->data )->"$item.read$"() );";
 				if( item.readcb )
 					itemline $= "\n\t\t\tstatic_cast<%OBJ%*>( obj->data )->"$item.readcb$"();";
 			}
@@ -957,14 +990,17 @@ int " $ obj.name $ "::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 			if( item.what == "PROPERTY" )
 			{
 				if( item.access >= 0 )
-					itemline = "static_cast<%OBJ%*>( obj->data )->"$item.name$" = %TYPEFUNC%( C, val%ISOBJ% );";
+					itemline = "static_cast<%OBJ%*>( obj->data )->"$item.name$" = %TYPEFUNC%( C, 1%ISOBJ% );";
 			}
 			else if( item.what == "PROPERTY_FUNC" )
 			{
+				itemline = "";
+				if( item.validate !== null )
+					itemline $= "if( !( static_cast<%OBJ%*>( obj->data )->"$item.validate$" ) ){ return SGS_EINPROC; } ";
 				if( item.write === true )
-					itemline = "static_cast<%OBJ%*>( obj->data )->"$item.srcname$" = %TYPEFUNC%( C, val%ISOBJ% );";
+					itemline $= "static_cast<%OBJ%*>( obj->data )->"$item.srcname$" = %TYPEFUNC%( C, 1%ISOBJ% );";
 				else if( item.write )
-					itemline = "static_cast<%OBJ%*>( obj->data )->"$item.write$"( %TYPEFUNC%( C, val%ISOBJ% ) );";
+					itemline $= "static_cast<%OBJ%*>( obj->data )->"$item.write$"( %TYPEFUNC%( C, 1%ISOBJ% ) );";
 				if( item.writecb )
 					itemline $= "\n\t\t\tstatic_cast<%OBJ%*>( obj->data )->"$item.writecb$"();";
 			}
@@ -975,7 +1011,7 @@ int " $ obj.name $ "::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 				, {
 					"%OBJ%" = obj.name,
 					"%NAME%" = if( isset( item, "varname" ), item.varname || item.name, item.name ),
-					"%TYPEFUNC%" = if( cppbc_type_is_voidptr( item.type ), "sgs_GetPtrP", "sgs_GetVarP<" $ cppbc_fix_type( item.type ) $ ">()" ),
+					"%TYPEFUNC%" = if( cppbc_type_is_voidptr( item.type ), "sgs_GetPtr", "sgs_GetVar<" $ cppbc_fix_type( item.type ) $ ">()" ),
 					"%ISOBJ%" = if( string_part( item.type, 0, 4 ) != "void" && item.type[ item.type.length - 1 ] == "*", ", true", "" ),
 				});
 			}
@@ -993,6 +1029,7 @@ int " $ obj.name $ "::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		out $= "\n\tif( depth > 0 )\n\t{";
 		// 1. compile a list
 		dumpvars = {};
+		dumpvalid = {};
 		dumpvarorder = [];
 		foreach( item : obj.items )
 		{
@@ -1003,9 +1040,15 @@ int " $ obj.name $ "::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 			if( item.what == "PROPERTY_FUNC" && @item.varname && item.read === true ) continue;
 			
 			if( item.what == "PROPERTY_FUNC" && item.read !== true )
+			{
 				dumpvars[ item.name ] = item.read $ "()";
+				dumpvalid[ item.name ] = item.validate;
+			}
 			else
+			{
 				dumpvars[ item.name ] = @item.srcname ?? item.name;
+				dumpvalid[ item.name ] = @item.validate;
+			}
 			dumpvarorder.push( item.name );
 		}
 		foreach( item : obj.items )
@@ -1019,9 +1062,15 @@ int " $ obj.name $ "::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		foreach( name : dumpvarorder )
 		{
 			src = dumpvars[ name ];
+			vld = dumpvalid[ name ];
 			out $= "\n\t\t{ ";
-			out $= "sgs_PushString( C, \"\\n"$name$" = \" );"$
-				" sgs_DumpData( C, static_cast<"$obj.name$"*>( obj->data )->"$src$", depth ).push( C ); }";
+			out $= "sgs_PushString( C, \"\\n"$name$" = \" ); ";
+			if( vld !== null )
+			{
+				out $= "if( !( static_cast<"$obj.name$"*>( obj->data )->"$vld$" ) ) sgs_PushString( C, \"<inaccessible>\" ); else ";
+			}
+			out $= "sgs_DumpData( C, static_cast<"$obj.name$"*>( obj->data )->"$src$", depth ).push( C );";
+			out $= " }";
 		}
 		out $= "\n\t\tsgs_StringConcat( C, "$dict_size(dumpvars)*2$" );\n\t\tsgs_PadString( C );";
 		out $= "\n\t\tsgs_PushString( C, \"\\n}\" );";

@@ -27,14 +27,14 @@ int Entity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__Entity__CallEvent ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__Entity__CallEvent ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
 int Entity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "viewName" ){ static_cast<Entity*>( obj->data )->m_viewName = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "viewName" ){ static_cast<Entity*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -86,14 +86,14 @@ int SGRX_Actor::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<SGRX_Actor*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<SGRX_Actor*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<SGRX_Actor*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__SGRX_Actor__CallEvent ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__SGRX_Actor__CallEvent ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
 int SGRX_Actor::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "viewName" ){ static_cast<SGRX_Actor*>( obj->data )->m_viewName = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "viewName" ){ static_cast<SGRX_Actor*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -159,10 +159,10 @@ int GameLevel::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int GameLevel::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "SetLevel" ){ sgs_PushCFunction( C, _sgs_method__GameLevel__SetLevel ); return SGS_SUCCESS; }
-		SGS_CASE( "FindEntity" ){ sgs_PushCFunction( C, _sgs_method__GameLevel__FindEntity ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEntity" ){ sgs_PushCFunction( C, _sgs_method__GameLevel__CallEntity ); return SGS_SUCCESS; }
-		SGS_CASE( "SetCameraPosDir" ){ sgs_PushCFunction( C, _sgs_method__GameLevel__SetCameraPosDir ); return SGS_SUCCESS; }
+		SGS_CASE( "SetLevel" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__SetLevel ); return SGS_SUCCESS; }
+		SGS_CASE( "FindEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__FindEntity ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__CallEntity ); return SGS_SUCCESS; }
+		SGS_CASE( "SetCameraPosDir" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__SetCameraPosDir ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

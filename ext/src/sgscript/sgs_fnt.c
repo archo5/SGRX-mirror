@@ -104,6 +104,8 @@ typedef struct _ftcomp
 {
 	SGS_CTX;
 	sgs_TokenList at;
+	sgs_FTNode* heap;
+	sgs_FTNode* heapend;
 }
 FTComp;
 
@@ -123,24 +125,45 @@ FTComp;
 #define SFTC_UNEXP sgs_Msg( F->C, SGS_ERROR, "Unexpected end of code", SFTC_LINENUM )
 
 
-static sgs_FTNode* _make_node( SGS_CTX, int type, sgs_TokenList token, sgs_FTNode* next, sgs_FTNode* child )
+static sgs_FTNode* _make_heap( SGS_CTX )
 {
-	sgs_FTNode* node = sgs_Alloc( sgs_FTNode );
+	sgs_FTNode* node = sgs_Alloc_n( sgs_FTNode, 33 );
+	node->type = SGS_SFT_HEAPBIT;
+	node->token = NULL;
+	node->next = NULL;
+	node->child = NULL;
+	return node;
+}
+
+static sgs_FTNode* _make_node( SFTC, int type, sgs_TokenList token, sgs_FTNode* next, sgs_FTNode* child )
+{
+	sgs_FTNode* node = NULL;
+	if( ( F->heapend->type >> 8 ) == 32 )
+	{
+		F->heapend = F->heapend->next = _make_heap( F->C );
+	}
+	node = F->heapend + 1 + ( F->heapend->type >> 8 );
+	F->heapend->type += ( 1 << 8 );
+	
 	node->type = type;
 	node->token = token;
 	node->next = next;
 	node->child = child;
 	return node;
 }
-#define make_node( ty, tok, next, ch ) _make_node( F->C, ty, tok, next, ch )
+#define make_node( ty, tok, next, ch ) _make_node( F, ty, tok, next, ch )
 
 void sgsFT_Destroy( SGS_CTX, sgs_FTNode* tree )
 {
-	if( tree->next ) sgsFT_Destroy( C, tree->next );
-	if( tree->child ) sgsFT_Destroy( C, tree->child );
-	sgs_Dealloc( tree );
+	while( tree )
+	{
+		sgs_FTNode* next = tree->next;
+		/* if( tree->child ) sgsFT_Destroy( C, tree->child ); HEAP CHILD IS NOT A SEPARATE ALLOCATION */
+		sgs_Dealloc( tree );
+		tree = next;
+	}
 }
-#define SFTC_DESTROY( node ) sgsFT_Destroy( F->C, node )
+#define SFTC_DESTROY( node ) (void)0 /* sgsFT_Destroy( F->C, node ) */
 
 
 
@@ -339,13 +362,13 @@ static sgs_LineNum predictlinenum( sgs_FTNode* node ) /* next, child, local */
 }
 
 
-static int level_exp( SGS_CTX, sgs_FTNode** tree )
+static int level_exp( SFTC, sgs_FTNode** tree )
 {
 	sgs_FTNode* node = *tree, *prev = NULL, *mpp = NULL;
 	int weight = 0, curwt, isfcall, binary, count = 0;
 
 	SGS_FN_BEGIN;
-	sgs_BreakIf( !C || !tree );
+	sgs_BreakIf( !tree );
 
 	if( !*tree )
 	{
@@ -407,12 +430,12 @@ _continue:
 			}
 			
 			SGS_FN_ENTER;
-			ret1 = level_exp( C, &se1 );
+			ret1 = level_exp( F, &se1 );
 			if( !ret1 )
 			{
 				*tree = NULL;
-				if( se1 ) sgsFT_Destroy( C, se1 );
-				if( se2 ) sgsFT_Destroy( C, se2 );
+				if( se1 ) SFTC_DESTROY( se1 );
+				if( se2 ) SFTC_DESTROY( se2 );
 				SGS_FN_END;
 				return 0;
 			}
@@ -430,12 +453,12 @@ _continue:
 			}
 			
 			SGS_FN_ENTER;
-			ret2 = level_exp( C, &se2 );
+			ret2 = level_exp( F, &se2 );
 			if( !ret2 )
 			{
 				*tree = NULL;
-				if( se1 ) sgsFT_Destroy( C, se1 );
-				if( se2 ) sgsFT_Destroy( C, se2 );
+				if( se1 ) SFTC_DESTROY( se1 );
+				if( se2 ) SFTC_DESTROY( se2 );
 				SGS_FN_END;
 				return 0;
 			}
@@ -444,23 +467,23 @@ _continue:
 				/* array */
 				if( !se2->child || se2->child->next )
 				{
-					sgs_Msg( C, SGS_ERROR, "[line %d] Invalid number of arguments "
+					sgs_Msg( F->C, SGS_ERROR, "[line %d] Invalid number of arguments "
 						"in an array accessor", sgsT_LineNum( mpp_token ) );
 					*tree = NULL;
-					if( se1 ) sgsFT_Destroy( C, se1 );
-					/* if( se2 ) */ sgsFT_Destroy( C, se2 );
+					if( se1 ) SFTC_DESTROY( se1 );
+					/* if( se2 ) */ SFTC_DESTROY( se2 );
 					SGS_FN_END;
 					return 0;
 				}
 				se1->next = se2->child;
 				se2->child = NULL;
-				sgsFT_Destroy( C, se2 );
-				*tree = _make_node( C, SGS_SFT_INDEX, mpp_token, NULL, se1 );
+				SFTC_DESTROY( se2 );
+				*tree = make_node( SGS_SFT_INDEX, mpp_token, NULL, se1 );
 				SGS_FN_END;
 				return 1;
 			}
 			se1->next = se2;
-			*tree = _make_node( C, SGS_SFT_FCALL, mpp_token, NULL, se1 );
+			*tree = make_node( SGS_SFT_FCALL, mpp_token, NULL, se1 );
 			SGS_FN_END;
 			return 1;
 		}
@@ -493,13 +516,13 @@ _continue:
 				mpp->next = NULL;
 				
 				SGS_FN_ENTER;
-				ret1 = level_exp( C, &se1 );
+				ret1 = level_exp( F, &se1 );
 				if( !ret1 )
 				{
 					*tree = NULL;
-					if( se1 ) sgsFT_Destroy( C, se1 );
-					if( se2 ) sgsFT_Destroy( C, se2 );
-					sgsFT_Destroy( C, mpp );
+					if( se1 ) SFTC_DESTROY( se1 );
+					if( se2 ) SFTC_DESTROY( se2 );
+					SFTC_DESTROY( mpp );
 					SGS_FN_END;
 					return 0;
 				}
@@ -516,21 +539,21 @@ _continue:
 					return 1;
 				}
 				
-				sgsFT_Destroy( C, mpp );
+				SFTC_DESTROY( mpp );
 				
 				SGS_FN_ENTER;
-				ret2 = level_exp( C, &se2 );
+				ret2 = level_exp( F, &se2 );
 				if( !ret2 )
 				{
 					*tree = NULL;
-					if( se1 ) sgsFT_Destroy( C, se1 );
-					if( se2 ) sgsFT_Destroy( C, se2 );
+					if( se1 ) SFTC_DESTROY( se1 );
+					if( se2 ) SFTC_DESTROY( se2 );
 					SGS_FN_END;
 					return 0;
 				}
 				
 				se1->next = se2;
-				*tree = _make_node( C, SGS_SFT_OPER, mpptoken, NULL, se1 );
+				*tree = make_node( SGS_SFT_OPER, mpptoken, NULL, se1 );
 				SGS_FN_END;
 				
 				if( *mpptoken == SGS_ST_OP_CAT || *mpptoken == SGS_ST_OP_CATEQ )
@@ -547,7 +570,7 @@ _continue:
 						
 						se1->child = NULL;
 						se1->next = NULL;
-						sgsFT_Destroy( C, se1 );
+						SFTC_DESTROY( se1 );
 					}
 					/* merge in CAT on second operand */
 					if( *se2->token == SGS_ST_OP_CAT )
@@ -560,7 +583,7 @@ _continue:
 						tmp->next = se2->child;
 						
 						se2->child = NULL;
-						sgsFT_Destroy( C, se2 );
+						SFTC_DESTROY( se2 );
 					}
 				}
 				
@@ -597,7 +620,7 @@ _continue:
 					mpp->next = NULL;
 				}
 				SGS_FN_ENTER;
-				ret1 = level_exp( C, &mpp->child );
+				ret1 = level_exp( F, &mpp->child );
 				if( !ret1 )
 				{
 					SGS_FN_END;
@@ -618,8 +641,8 @@ _continue:
 	}
 
 	/* in case we failed unexpectedly, dump & debug */
-	sgs_Msg( C, SGS_ERROR, "[line %d] Missing operators or separators", predictlinenum( *tree ) );
-	C->state |= SGS_HAS_ERRORS;
+	sgs_Msg( F->C, SGS_ERROR, "[line %d] Missing operators or separators", predictlinenum( *tree ) );
+	F->C->state |= SGS_HAS_ERRORS;
 #if SGS_DEBUG && SGS_DEBUG_DATA
 	sgsFT_Dump( *tree );
 #endif
@@ -627,7 +650,7 @@ _continue:
 	return 0;
 
 fail:
-	sgs_Msg( C, SGS_ERROR, "[line %d] Invalid expression", sgsT_LineNum( mpp->token ) );
+	sgs_Msg( F->C, SGS_ERROR, "[line %d] Invalid expression", sgsT_LineNum( mpp->token ) );
 #if SGS_DEBUG && SGS_DEBUG_DATA
 	sgsFT_Dump( *tree );
 #endif
@@ -769,7 +792,8 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 				SFTC_NEXT;
 				while( !SFTC_IS( '}' ) )
 				{
-					if( !SFTC_IS( SGS_ST_IDENT ) && !SFTC_IS( SGS_ST_STRING ) )
+					int is_ident = SFTC_IS( SGS_ST_IDENT );
+					if( !is_ident && !SFTC_IS( SGS_ST_STRING ) )
 					{
 						SFTC_PRINTERR( "Expected key identifier in dictionary expression" );
 						break;
@@ -786,17 +810,36 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 
 					if( !SFTC_IS( SGS_ST_OP_SET ) )
 					{
-						SFTC_PRINTERR( "Expected '=' in dictionary expression "
-							"/ missing closing bracket before '{'" );
-						break;
+						if( is_ident )
+						{
+							if( SFTC_IS( ',' ) || SFTC_IS( '}' ) )
+							{
+								expr->next = make_node( SGS_SFT_IDENT, expr->token, NULL, NULL );
+								expr = expr->next;
+							}
+							else
+							{
+								SFTC_PRINTERR( "Expected '=', ',' or '}' after dictionary key" );
+								break;
+							}
+						}
+						else
+						{
+							SFTC_PRINTERR( "Expected '=' in dictionary expression "
+								"/ missing closing bracket before '{'" );
+							break;
+						}
 					}
-					SFTC_NEXT;
-
-					expr->next = parse_exp( F, ",}", 2 );
-					if( !expr->next )
-						break;
 					else
-						expr = expr->next;
+					{
+						SFTC_NEXT;
+
+						expr->next = parse_exp( F, ",}", 2 );
+						if( !expr->next )
+							break;
+						else
+							expr = expr->next;
+					}
 
 					if( SFTC_IS( ',' ) )
 						SFTC_NEXT;
@@ -838,7 +881,11 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 	}
 
 	cur = node->next;
-	sgs_Free( F->C, node );
+	{
+		node->child = NULL;
+		node->next = NULL;
+		SFTC_DESTROY( node );
+	}
 	node = cur;
 	if( !node )
 	{
@@ -846,7 +893,7 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 		goto fail;
 	}
 
-	if( !level_exp( F->C, &node ) )
+	if( !level_exp( F, &node ) )
 		goto fail;
 
 	SGS_FN_END;
@@ -1568,9 +1615,16 @@ sgs_FTNode* sgsFT_Compile( SGS_CTX, sgs_TokenList tlist )
 	{
 		F.C = C;
 		F.at = tlist;
+		F.heap = F.heapend = _make_heap( C );
 	}
 	ret = parse_stmtlist( &F, 0 );
-	return ret;
+	if( !ret )
+	{
+		sgsFT_Destroy( C, F.heap );
+		return NULL;
+	}
+	F.heap->child = ret;
+	return F.heap;
 }
 
 

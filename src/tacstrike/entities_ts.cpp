@@ -941,7 +941,7 @@ TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVaria
 	{
 		_sgs_interface->destruct = NULL;
 		SGS_CSCOPE( m_level->GetSGSC() );
-		sgs_PushClass( m_level->GetSGSC(), this );
+		sgs_CreateClass( m_level->GetSGSC(), NULL, this );
 		C = m_level->GetSGSC();
 		m_sgsObject = sgs_GetObjectStruct( C, -1 );
 		sgs_ObjAcquire( C, m_sgsObject );
@@ -1196,12 +1196,12 @@ bool TSEnemyController::sgsHasRecentFact( uint32_t typemask, TimeVal maxtime )
 	return m_factStorage.HasRecentFact( typemask, maxtime );
 }
 
-SGS_MULTRET TSEnemyController::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
+SGS_MULTRET TSEnemyController::sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime )
 {
 	AIFact* F = m_factStorage.GetRecentFact( typemask, maxtime );
 	if( F )
 	{
-		sgs_PushLiteClassFrom( C, F ); // BUG! wrong stack.
+		sgs_CreateLiteClassFrom( coro, NULL, F );
 		return 1;
 	}
 	return 0;
@@ -1212,34 +1212,34 @@ void TSEnemyController::sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created,
 	m_factStorage.Insert( type, pos, created, expires, ref );
 }
 
-bool TSEnemyController::sgsUpdateFact( uint32_t type, Vec3 pos,
+bool TSEnemyController::sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	return m_factStorage.Update( type, pos, rad, created, expires, ref, reset );
 }
 
-void TSEnemyController::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
+void TSEnemyController::sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	m_factStorage.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
 }
 
-bool TSEnemyController::sgsMovingUpdateFact( uint32_t type, Vec3 pos,
+bool TSEnemyController::sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	return m_factStorage.MovingUpdate( type, pos, movespeed, created, expires, ref, reset );
 }
 
-void TSEnemyController::sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
+void TSEnemyController::sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	m_factStorage.MovingInsertOrUpdate( type, pos, movespeed, created, expires, ref, reset );
 }
@@ -1254,9 +1254,9 @@ void TSEnemyController::sgsQueryCoverLines( Vec3 bbmin,
 }
 
 sgsMaybe<Vec3> TSEnemyController::sgsGetCoverPosition(
-	Vec3 position, float distpow, float interval /* = 0.1 */ )
+	sgs_Context* coro, Vec3 position, float distpow, float interval /* = 0.1 */ )
 {
-	if( sgs_StackSize( C ) < 3 )
+	if( sgs_StackSize( coro ) < 3 )
 		interval = 0.1f;
 	Vec3 out = V3(0);
 	if( m_coverInfo.GetPosition( position, distpow, out, interval ) )

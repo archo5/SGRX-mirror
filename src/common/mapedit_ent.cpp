@@ -300,9 +300,8 @@ void SGSPropInterface::Data2Fields()
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		Field& F = m_fields[ i ];
-		SGSRESULT res = SGS_ENOTFND;
-		sgsVariable val = m_data.getprop( F.key, &res );
-		if( res == SGS_ENOTFND )
+		sgsVariable val = m_data.getprop( F.key );
+		if( val.type_id() == SGS_VT_NULL )
 			continue;
 		switch( F.property->type )
 		{

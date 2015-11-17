@@ -57,7 +57,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	// create the scripted self
 	{
 		SGS_CSCOPE( GetSGSC() );
-		sgs_PushClass( GetSGSC(), this );
+		sgs_CreateClass( GetSGSC(), NULL, this );
 		m_self = sgsVariable( GetSGSC(), -1 );
 		C = GetSGSC();
 		m_sgsObject = sgs_GetObjectStruct( C, -1 );
@@ -499,22 +499,23 @@ void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
 
 // ---
 
-int GameLevel::_getindex(
-	SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, int isprop )
+int GameLevel::_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGRX_CAST( GameLevel*, LVL, obj->data );
-	SGSRESULT res = sgs_PushIndexPP( C, &LVL->m_metadata.var, key, isprop );
-	if( res != SGS_ENOTFND )
-		return res; // found or serious error
-	return _sgs_getindex( C, obj, key, isprop );
+	SGSBOOL res = sgs_PushIndex( C, LVL->m_metadata.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) );
+	if( res )
+		return res; // found
+	return _sgs_getindex( C, obj );
 }
 
-int GameLevel::_setindex(
-	SGS_CTX, sgs_VarObj* obj, sgs_Variable* key, sgs_Variable* val, int isprop )
+int GameLevel::_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGRX_CAST( GameLevel*, LVL, obj->data );
-	if( _sgs_setindex( C, obj, key, val, isprop ) != SGS_SUCCESS )
-		sgs_SetIndexPPP( C, &LVL->m_metadata.var, key, val, isprop );
+	if( _sgs_setindex( C, obj ) != SGS_SUCCESS )
+	{
+		sgs_SetIndex( C, LVL->m_metadata.var, sgs_StackItem( C, 0 ),
+			sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) );
+	}
 	return SGS_SUCCESS;
 }
 

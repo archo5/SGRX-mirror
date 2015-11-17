@@ -27,7 +27,7 @@ int TSCamera::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunction( C, _sgs_method__TSCamera__CallEvent ); return SGS_SUCCESS; }
+		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__TSCamera__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "moveTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_moveTime ); return SGS_SUCCESS; }
 		SGS_CASE( "pauseTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_pauseTime ); return SGS_SUCCESS; }
 		SGS_CASE( "fov" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_fov ); return SGS_SUCCESS; }
@@ -37,10 +37,10 @@ int TSCamera::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int TSCamera::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "viewName" ){ static_cast<TSCamera*>( obj->data )->m_viewName = sgs_GetVarP<String>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "moveTime" ){ static_cast<TSCamera*>( obj->data )->m_moveTime = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "pauseTime" ){ static_cast<TSCamera*>( obj->data )->m_pauseTime = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
-		SGS_CASE( "fov" ){ static_cast<TSCamera*>( obj->data )->m_fov = sgs_GetVarP<float>()( C, val ); return SGS_SUCCESS; }
+		SGS_CASE( "viewName" ){ static_cast<TSCamera*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "moveTime" ){ static_cast<TSCamera*>( obj->data )->m_moveTime = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "pauseTime" ){ static_cast<TSCamera*>( obj->data )->m_pauseTime = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "fov" ){ static_cast<TSCamera*>( obj->data )->m_fov = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -131,7 +131,7 @@ static int _sgs_method__TSEnemyController__HasRecentFact( SGS_CTX )
 static int _sgs_method__TSEnemyController__GetRecentFact( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetRecentFact ) ) return 0;
-	return data->sgsGetRecentFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) );
+	return data->sgsGetRecentFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) );
 }
 
 static int _sgs_method__TSEnemyController__InsertFact( SGS_CTX )
@@ -143,25 +143,25 @@ static int _sgs_method__TSEnemyController__InsertFact( SGS_CTX )
 static int _sgs_method__TSEnemyController__UpdateFact( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, UpdateFact ) ) return 0;
-	sgs_PushVar(C,data->sgsUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
+	sgs_PushVar(C,data->sgsUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
 }
 
 static int _sgs_method__TSEnemyController__InsertOrUpdateFact( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, InsertOrUpdateFact ) ) return 0;
-	data->sgsInsertOrUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
+	data->sgsInsertOrUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
 }
 
 static int _sgs_method__TSEnemyController__MovingUpdateFact( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, MovingUpdateFact ) ) return 0;
-	sgs_PushVar(C,data->sgsMovingUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
+	sgs_PushVar(C,data->sgsMovingUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
 }
 
 static int _sgs_method__TSEnemyController__MovingInsertOrUpdateFact( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, MovingInsertOrUpdateFact ) ) return 0;
-	data->sgsMovingInsertOrUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
+	data->sgsMovingInsertOrUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
 }
 
 static int _sgs_method__TSEnemyController__QueryCoverLines( SGS_CTX )
@@ -173,7 +173,7 @@ static int _sgs_method__TSEnemyController__QueryCoverLines( SGS_CTX )
 static int _sgs_method__TSEnemyController__GetCoverPosition( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetCoverPosition ) ) return 0;
-	sgs_PushVar(C,data->sgsGetCoverPosition( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) )); return 1;
+	sgs_PushVar(C,data->sgsGetCoverPosition( C, sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) )); return 1;
 }
 
 static int _sgs_method__TSEnemyController__FindPath( SGS_CTX )
@@ -209,19 +209,19 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
-		SGS_CASE( "HasFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__HasFact ); return SGS_SUCCESS; }
-		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__HasRecentFact ); return SGS_SUCCESS; }
-		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__GetRecentFact ); return SGS_SUCCESS; }
-		SGS_CASE( "InsertFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__InsertFact ); return SGS_SUCCESS; }
-		SGS_CASE( "UpdateFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__UpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__InsertOrUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__MovingUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "QueryCoverLines" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__QueryCoverLines ); return SGS_SUCCESS; }
-		SGS_CASE( "GetCoverPosition" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__GetCoverPosition ); return SGS_SUCCESS; }
-		SGS_CASE( "FindPath" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__FindPath ); return SGS_SUCCESS; }
-		SGS_CASE( "GetNextPathPoint" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__GetNextPathPoint ); return SGS_SUCCESS; }
-		SGS_CASE( "RemoveNextPathPoint" ){ sgs_PushCFunction( C, _sgs_method__TSEnemyController__RemoveNextPathPoint ); return SGS_SUCCESS; }
+		SGS_CASE( "HasFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasFact ); return SGS_SUCCESS; }
+		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasRecentFact ); return SGS_SUCCESS; }
+		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetRecentFact ); return SGS_SUCCESS; }
+		SGS_CASE( "InsertFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__InsertFact ); return SGS_SUCCESS; }
+		SGS_CASE( "UpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__UpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__InsertOrUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__MovingUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
+		SGS_CASE( "QueryCoverLines" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__QueryCoverLines ); return SGS_SUCCESS; }
+		SGS_CASE( "GetCoverPosition" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetCoverPosition ); return SGS_SUCCESS; }
+		SGS_CASE( "FindPath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__FindPath ); return SGS_SUCCESS; }
+		SGS_CASE( "GetNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetNextPathPoint ); return SGS_SUCCESS; }
+		SGS_CASE( "RemoveNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__RemoveNextPathPoint ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

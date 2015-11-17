@@ -19,7 +19,7 @@ void ScriptVarIterator::_Init( SGS_CTX, sgs_Variable* var )
 	if( !C )
 		return;
 	sgs_Variable it;
-	if( SGS_SUCCEEDED( sgs_GetIteratorP( C, var, &it ) ) )
+	if( SGS_SUCCEEDED( sgs_GetIterator( C, *var, &it ) ) )
 	{
 		m_iter = sgsVariable( C, &it );
 		sgs_Release( C, &it );
@@ -30,7 +30,7 @@ sgsVariable ScriptVarIterator::GetKey()
 {
 	sgsVariable out( m_iter.C );
 	if( m_iter.C )
-		sgs_IterGetDataP( m_iter.C, &m_iter.var, &out.var, NULL );
+		sgs_IterGetData( m_iter.C, m_iter.var, &out.var, NULL );
 	return out;
 }
 
@@ -38,13 +38,13 @@ sgsVariable ScriptVarIterator::GetValue()
 {
 	sgsVariable out( m_iter.C );
 	if( m_iter.C )
-		sgs_IterGetDataP( m_iter.C, &m_iter.var, NULL, &out.var );
+		sgs_IterGetData( m_iter.C, m_iter.var, NULL, &out.var );
 	return out;
 }
 
 bool ScriptVarIterator::Advance()
 {
-	return m_iter.C && sgs_IterAdvanceP( m_iter.C, &m_iter.var ) > 0;
+	return m_iter.C && sgs_IterAdvance( m_iter.C, m_iter.var ) > 0;
 }
 
 
@@ -68,8 +68,7 @@ static int euler2quat( SGS_CTX )
 	Quat rot = ( Quat::CreateAxisAngle( 1,0,0, angles.x ) *
 		Quat::CreateAxisAngle( 0,1,0, angles.y ) ) *
 		Quat::CreateAxisAngle( 0,0,1, angles.z );
-	sgs_PushQuat( C, rot.x, rot.y, rot.z, rot.w );
-	return 1;
+	return sgs_CreateQuat( C, NULL, rot.x, rot.y, rot.z, rot.w );
 }
 static sgs_RegFuncConst g_sgrxmath_rfc[] =
 {
@@ -267,13 +266,8 @@ bool ScriptContext::Include( const char* what, const char* searchpath )
 String ScriptContext::Serialize( sgsVariable var )
 {
 	SGS_SCOPE;
-	String out;
-	sgs_PushVar( C, var );
-	if( SGS_SUCCEEDED( sgs_Serialize( C ) ) )
-	{
-		out = sgs_GetVar<String>()( C, -1 );
-	}
-	return out;
+	sgs_Serialize( C, var.var );
+	return sgs_GetVar<String>()( C, -1 );
 }
 
 sgsVariable ScriptContext::Unserialize( const StringView& sv )
@@ -281,7 +275,7 @@ sgsVariable ScriptContext::Unserialize( const StringView& sv )
 	SGS_SCOPE;
 	sgsVariable out;
 	sgs_PushStringBuf( C, sv.data(), sv.size() );
-	if( SGS_SUCCEEDED( sgs_Unserialize( C ) ) )
+	if( sgs_Unserialize( C, sgs_StackItem( C, -1 ) ) )
 	{
 		out = sgs_GetVar<sgsVariable>()( C, -1 );
 	}
@@ -301,28 +295,28 @@ sgsVariable ScriptContext::CreateStringVar( const StringView& sv )
 sgsVariable ScriptContext::CreateDict( int args )
 {
 	sgsVariable out( C );
-	sgs_InitDict( C, &out.var, args );
+	sgs_CreateDict( C, &out.var, args );
 	return out;
 }
 
 sgsVariable ScriptContext::CreateVec2( const Vec2& v )
 {
 	sgsVariable out( C );
-	sgs_InitVec2( C, &out.var, v.x, v.y );
+	sgs_CreateVec2( C, &out.var, v.x, v.y );
 	return out;
 }
 
 sgsVariable ScriptContext::CreateVec3( const Vec3& v )
 {
 	sgsVariable out( C );
-	sgs_InitVec3( C, &out.var, v.x, v.y, v.z );
+	sgs_CreateVec3( C, &out.var, v.x, v.y, v.z );
 	return out;
 }
 
 sgsVariable ScriptContext::CreateQuat( const Quat& v )
 {
 	sgsVariable out( C );
-	sgs_InitQuat( C, &out.var, v.x, v.y, v.z, v.w );
+	sgs_CreateQuat( C, &out.var, v.x, v.y, v.z, v.w );
 	return out;
 }
 
@@ -330,24 +324,24 @@ sgsVariable ScriptContext::GetGlobal( const StringView& name )
 {
 	sgsVariable key = sgsString( C, name.data(), name.size() ).get_variable();
 	sgsVariable out( C );
-	sgs_GetGlobalPP( C, &key.var, &out.var );
+	sgs_GetGlobal( C, key.var, &out.var );
 	return out;
 }
 
 void ScriptContext::SetGlobal( const StringView& name, sgsVariable val )
 {
 	sgsVariable key = sgsString( C, name.data(), name.size() ).get_variable();
-	sgs_SetGlobalPP( C, &key.var, &val.var );
+	sgs_SetGlobal( C, key.var, val.var );
 }
 
 bool ScriptContext::Call( sgsVariable func, int args, int ret )
 {
-	return SGS_SUCCEEDED( sgs_CallP( C, &func.var, args, ret ) );
+	return sgs_Call( C, func.var, args, ret );
 }
 
 bool ScriptContext::GlobalCall( const char* name, int args, int ret )
 {
-	return SGS_SUCCEEDED( sgs_GlobalCall( C, name, args, ret ) );
+	return sgs_GlobalCall( C, name, args, ret );
 }
 
 void ScriptContext::PushEnv()
@@ -355,9 +349,9 @@ void ScriptContext::PushEnv()
 	sgs_Variable cur_env, new_env;
 	
 	sgs_GetEnv( C, &cur_env );
-	sgs_InitDict( C, &new_env, 0 );
+	sgs_CreateDict( C, &new_env, 0 );
 	sgs_ObjSetMetaObj( C, sgs_GetObjectStructP( &new_env ), sgs_GetObjectStructP( &cur_env ) );
-	sgs_SetEnv( C, &new_env );
+	sgs_SetEnv( C, new_env );
 	sgs_Release( C, &new_env );
 	sgs_Release( C, &cur_env );
 }
@@ -375,7 +369,7 @@ bool ScriptContext::PopEnv()
 		
 		sgs_ObjSetMetaObj( C, sgs_GetObjectStructP( &cur_env ), NULL );
 		
-		sgs_SetEnv( C, &new_env );
+		sgs_SetEnv( C, new_env );
 		sgs_Release( C, &new_env );
 		return true;
 	}

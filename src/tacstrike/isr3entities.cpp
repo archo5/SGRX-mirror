@@ -800,11 +800,10 @@ SGS_MULTRET ISR3Enemy::sgsGetRecentFact( int typemask, TimeVal maxtime )
 		sgs_PushString( C, "id" ); sgs_PushInt( C, F->id );
 		sgs_PushString( C, "ref" ); sgs_PushInt( C, F->ref );
 		sgs_PushString( C, "type" ); sgs_PushInt( C, F->type );
-		sgs_PushString( C, "position" ); sgs_PushVec3p( C, &F->position.x );
+		sgs_PushString( C, "position" ); sgs_CreateVec3p( C, NULL, &F->position.x );
 		sgs_PushString( C, "created" ); sgs_PushInt( C, F->created );
 		sgs_PushString( C, "expires" ); sgs_PushInt( C, F->expires );
-		sgs_PushDict( C, 12 );
-		return 1;
+		return sgs_CreateDict( C, NULL, 12 );
 	}
 	return 0;
 }

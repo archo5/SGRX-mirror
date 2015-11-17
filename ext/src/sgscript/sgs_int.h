@@ -188,6 +188,7 @@ SGS_APIFUNC void sgsT_DumpList( sgs_TokenList tlist, sgs_TokenList tend );
 #define SGS_SFT_BREAK   27
 #define SGS_SFT_CONT    28
 #define SGS_SFT_FUNC    30
+#define SGS_SFT_HEAPBIT 255
 
 typedef struct _sgs_FTNode sgs_FTNode;
 struct _sgs_FTNode
@@ -334,6 +335,7 @@ typedef enum sgs_Instruction_e
 	/* specials */
 	SGS_SI_ARRAY,    /* (C:out, E:args) */
 	SGS_SI_DICT,     /* -- || -- */
+	SGS_SI_RSYM,     /* (B:name, C:var)         performs dual registration to symbol table */
 
 	SGS_SI_COUNT
 }
@@ -429,6 +431,7 @@ void sgsVM_VarDump( const sgs_Variable* var );
 
 void sgsVM_StackDump( SGS_CTX );
 
+int sgsVM_PushStackFrame( SGS_CTX, sgs_Variable* func );
 int sgsVM_VarCall( SGS_CTX, sgs_Variable* var, int args, int clsr, int* outrvc, int gotthis );
 void sgsVM_PushClosures( SGS_CTX, sgs_Closure** cls, int num );
 
@@ -481,6 +484,35 @@ sgs_ObjPoolItem;
 
 typedef sgs_Variable* sgs_VarPtr;
 
+#define SGS_SF_METHOD  0x01
+#define SGS_SF_HASTHIS 0x02
+#define SGS_SF_ABORTED 0x04
+#define SGS_SF_REENTER 0x08
+
+struct _sgs_StackFrame
+{
+	sgs_Variable    func;
+	const uint32_t* code;
+	const uint32_t* iptr;
+	const uint32_t* iend;
+	const uint32_t* lptr;
+	sgs_Variable*   cptr;
+	const char*     nfname;
+	sgs_StackFrame* prev;
+	sgs_StackFrame* next;
+	sgs_StackFrame* cached;
+	sgs_StkIdx argbeg;
+	sgs_StkIdx argend;
+	sgs_StkIdx argsfrom;
+	sgs_StkIdx stkoff;
+	sgs_StkIdx clsoff;
+	int32_t constcount;
+	int32_t errsup;
+	uint8_t argcount;
+	uint8_t inexp;
+	uint8_t flags;
+};
+
 struct _sgs_ShCtx
 {
 	uint32_t      version;
@@ -513,7 +545,22 @@ struct _sgs_ShCtx
 	sgs_VHTable   typetable; /* type interface table */
 	sgs_VHTable   stringtable; /* string constant caching hash table */
 	sgs_VHTable   ifacetable; /* interface generator => object table */
+	
+	/* > _R (global registry) */
+	sgs_VarObj*   _R;
+	sgs_VarObj*   _SYM;
+	sgs_VarObj*   _INC;
 };
+
+/* Virtual machine state */
+#define SGS_STOP_ON_FIRST_ERROR 0x0001
+#define SGS_HAS_ERRORS          0x00010000
+#define SGS_MUST_STOP          (0x00020000 | SGS_HAS_ERRORS)
+#define SGS_SERIALIZE_MODE2     0x0004
+#define SGS_STATE_PAUSED        0x0008
+#define SGS_STATE_DESTROYING    0x0010
+#define SGS_STATE_LASTFUNCABORT 0x0020
+#define SGS_STATE_INSIDE_API    0x0040
 
 struct _sgs_Context
 {
@@ -534,6 +581,7 @@ struct _sgs_Context
 	sgs_MsgFunc   msg_fn;  /* messaging function */
 	void*         msg_ctx; /* messaging context */
 	int           last_errno;
+	int           object_arg;
 	
 	/* hook */
 	sgs_HookFunc  hook_fn;
@@ -603,23 +651,27 @@ static const char* sgs_OpNames[] =
 	"inc", "dec", "add", "sub", "mul", "div", "mod",
 	"and", "or", "xor", "lsh", "rsh",
 	"seq", "sneq", "eq", "neq", "lt", "gte", "gt", "lte", "rawcmp",
-	"array", "dict"
+	"array", "dict", "rsym",
 };
 
 #endif
 
 
-int sgsSTD_PostInit( SGS_CTX );
-int sgsSTD_MakeArray( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
-int sgsSTD_MakeDict( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
-int sgsSTD_MakeMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
-int sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* func, uint32_t clc );
-int sgsSTD_GlobalInit( SGS_CTX );
-int sgsSTD_GlobalFree( SGS_CTX );
-int sgsSTD_GlobalGet( SGS_CTX, sgs_Variable* out, sgs_Variable* idx );
-int sgsSTD_GlobalSet( SGS_CTX, sgs_Variable* idx, sgs_Variable* val );
-int sgsSTD_GlobalGC( SGS_CTX );
-int sgsSTD_GlobalIter( SGS_CTX, sgs_VHTVar** outp, sgs_VHTVar** outpend );
+void sgsSTD_PostInit( SGS_CTX );
+SGSBOOL sgsSTD_MakeArray( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
+SGSBOOL sgsSTD_MakeDict( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
+SGSBOOL sgsSTD_MakeMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
+void sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* func, uint32_t clc );
+void sgsSTD_RegistryInit( SGS_CTX );
+void sgsSTD_RegistryFree( SGS_CTX );
+void sgsSTD_RegistryGC( SGS_CTX );
+void sgsSTD_RegistryIter( SGS_CTX, int subtype, sgs_VHTVar** outp, sgs_VHTVar** outpend );
+void sgsSTD_GlobalInit( SGS_CTX );
+void sgsSTD_GlobalFree( SGS_CTX );
+SGSBOOL sgsSTD_GlobalGet( SGS_CTX, sgs_Variable* out, sgs_Variable* idx );
+SGSBOOL sgsSTD_GlobalSet( SGS_CTX, sgs_Variable* idx, sgs_Variable* val );
+void sgsSTD_GlobalGC( SGS_CTX );
+void sgsSTD_GlobalIter( SGS_CTX, sgs_VHTVar** outp, sgs_VHTVar** outpend );
 
 
 
@@ -646,10 +698,7 @@ extern SGS_APIFUNC sgs_ObjInterface sgsstd_array_iter_iface[1];
 extern SGS_APIFUNC sgs_ObjInterface sgsstd_dict_iface[1];
 extern SGS_APIFUNC sgs_ObjInterface sgsstd_dict_iter_iface[1];
 extern SGS_APIFUNC sgs_ObjInterface sgsstd_map_iface[1];
-
-#define SGSIFACE_ARRAY SGS_IF_DLL( sgsstd_array_iface, sgs_FindType( C, "array" ) )
-#define SGSIFACE_DICT SGS_IF_DLL( sgsstd_dict_iface, sgs_FindType( C, "dict" ) )
-#define SGSIFACE_MAP SGS_IF_DLL( sgsstd_map_iface, sgs_FindType( C, "map" ) )
+extern SGS_APIFUNC sgs_ObjInterface sgsstd_closure_iface[1];
 
 
 

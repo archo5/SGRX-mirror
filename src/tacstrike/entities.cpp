@@ -40,7 +40,7 @@ void Trigger::sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout )
 	m_func = fn;
 	if( sgs_StackSize( C ) < 3 )
 		m_funcOut = fn;
-	else if( sgs_TypeOf( C, 2 ) == SGS_VT_BOOL )
+	else if( sgs_ItemType( C, 2 ) == SGS_VT_BOOL )
 		m_funcOut = sgs_GetBool( C, 2 ) ? fn : sgsVariable();
 	else
 		m_funcOut = fnout;
@@ -439,8 +439,7 @@ ScriptedItem::ScriptedItem( GameLevel* lev, const StringView& name, sgsVariable 
 	sgsVariable func = m_level->m_scriptCtx.GetGlobal( bfr );
 	if( func.not_null() )
 	{
-		sgs_Variable pvar;
-		sgs_InitPtr( &pvar, this );
+		sgs_Variable pvar = sgs_MakePtr( this );
 		args.setprop( "__entity", sgsVariable( m_level->m_scriptCtx.C, &pvar ) );
 		
 		m_scrItem = SGRX_ScriptedItem::Create(
