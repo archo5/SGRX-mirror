@@ -721,7 +721,8 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 			case EDGUI_EVENT_BTNCLICK:
 				if( e->target == &m_btnDuplicate )
 				{
-					SGRX_TextureAsset TAcopy = g_EdAS->textureAssets[ m_tid ];
+					SGRX_TextureAsset TAcopy;
+					TAcopy.Clone( g_EdAS->textureAssets[ m_tid ] );
 					m_tid = g_EdAS->textureAssets.size();
 					TAcopy.outputName.append( " - Copy" );
 					g_EdAS->textureAssets.push_back( TAcopy );
@@ -1077,7 +1078,8 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 			case EDGUI_EVENT_BTNCLICK:
 				if( e->target == &m_btnDuplicate )
 				{
-					SGRX_MeshAsset MAcopy = g_EdAS->meshAssets[ m_mid ];
+					SGRX_MeshAsset MAcopy;
+					MAcopy.Clone( g_EdAS->meshAssets[ m_mid ] );
 					m_mid = g_EdAS->meshAssets.size();
 					MAcopy.outputName.append( " - Copy" );
 					g_EdAS->meshAssets.push_back( MAcopy );

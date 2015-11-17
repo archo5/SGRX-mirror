@@ -72,9 +72,13 @@ struct SGRX_ImageFilterState
 const char* SGRX_AssetImgFilterType_ToString( SGRX_AssetImageFilterType aift );
 SGRX_AssetImageFilterType SGRX_AssetImgFilterType_FromString( const StringView& sv );
 
+#define SGRX_IF_CLONE( name ) \
+	SGRX_ImageFilter* Clone() const { return new name( *this ); }
+
 struct SGRX_ImageFilter : SGRX_RefCounted
 {
 	SGRX_ImageFilter() : blend(1), cclamp(true), colors(0xff){}
+	virtual SGRX_ImageFilter* Clone() const = 0;
 	virtual SGRX_AssetImageFilterType GetType() const = 0;
 	virtual const char* GetName() const = 0;
 	virtual bool Parse( ConfigReader& cread ) = 0;
@@ -95,6 +99,7 @@ typedef Handle< SGRX_ImageFilter > SGRX_ImgFilterHandle;
 struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 {
 	SGRX_ImageFilter_Resize() : width(256), height(256), srgb(false){}
+	SGRX_IF_CLONE( SGRX_ImageFilter_Resize );
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Resize; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Resize; }
 	const char* GetName() const { return "resize"; }
@@ -121,6 +126,7 @@ SGRX_ImgFltSharpen_Mode SGRX_ImgFltSharpen_FromString( const StringView& sv );
 struct SGRX_ImageFilter_Sharpen : SGRX_ImageFilter
 {
 	SGRX_ImageFilter_Sharpen() : factor(0.1f), mode(SGRX_IFS_1_2){}
+	SGRX_IF_CLONE( SGRX_ImageFilter_Sharpen );
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Sharpen; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Sharpen; }
 	const char* GetName() const { return "sharpen"; }
@@ -134,9 +140,10 @@ struct SGRX_ImageFilter_Sharpen : SGRX_ImageFilter
 
 struct SGRX_ImageFilter_Linear : SGRX_ImageFilter
 {
+	SGRX_ImageFilter_Linear( bool fromlin ) : inverse( fromlin ){}
+	SGRX_IF_CLONE( SGRX_ImageFilter_Linear );
 	static bool IsType( SGRX_AssetImageFilterType ift )
 	{ return ift == SGRX_AIF_ToLinear || ift == SGRX_AIF_FromLinear; }
-	SGRX_ImageFilter_Linear( bool fromlin ) : inverse( fromlin ){}
 	SGRX_AssetImageFilterType GetType() const
 	{
 		return inverse ? SGRX_AIF_FromLinear : SGRX_AIF_ToLinear;
@@ -155,6 +162,7 @@ struct SGRX_ImageFilter_Linear : SGRX_ImageFilter
 struct SGRX_ImageFilter_ExpandRange : SGRX_ImageFilter
 {
 	SGRX_ImageFilter_ExpandRange() : vmin(V4(0)), vmax(V4(0,0,1,1)){}
+	SGRX_IF_CLONE( SGRX_ImageFilter_ExpandRange );
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_ExpandRange; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_ExpandRange; }
 	const char* GetName() const { return "expand_range"; }
@@ -171,6 +179,7 @@ struct SGRX_ImageFilter_BCP : SGRX_ImageFilter
 	SGRX_ImageFilter_BCP() : apply_bc1(true), brightness(0), contrast(1),
 		apply_pow(false), power(1), apply_bc2(false), brightness_2(0), contrast_2(1)
 	{ colors = 0x7; }
+	SGRX_IF_CLONE( SGRX_ImageFilter_BCP );
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_BCP; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_BCP; }
 	const char* GetName() const { return "bcp"; }
@@ -218,6 +227,7 @@ struct SGRX_RevInfo
 struct SGRX_TextureAsset
 {
 	SGRX_TextureAsset();
+	void Clone( const SGRX_TextureAsset& other );
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetFullName( String& out );
@@ -255,6 +265,7 @@ typedef Handle< SGRX_MeshAssetPart > SGRX_MeshAPHandle;
 
 struct SGRX_MeshAsset
 {
+	void Clone( const SGRX_MeshAsset& other );
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetFullName( String& out );

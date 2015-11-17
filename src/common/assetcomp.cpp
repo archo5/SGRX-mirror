@@ -520,6 +520,15 @@ SGRX_TextureAsset::SGRX_TextureAsset() :
 {
 }
 
+void SGRX_TextureAsset::Clone( const SGRX_TextureAsset& other )
+{
+	*this = other;
+	for( size_t i = 0; i < filters.size(); ++i )
+	{
+		filters[ i ] = filters[ i ]->Clone();
+	}
+}
+
 bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -691,6 +700,15 @@ void SGRX_MeshAssetPart::GetDesc( int i, String& out )
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, 256, "%d: %s", i, StackString<200>(meshName).str );
 	out = bfr;
+}
+
+void SGRX_MeshAsset::Clone( const SGRX_MeshAsset& other )
+{
+	*this = other;
+	for( size_t i = 0; i < parts.size(); ++i )
+	{
+		parts[ i ] = new SGRX_MeshAssetPart( *parts[ i ] );
+	}
 }
 
 bool SGRX_MeshAsset::Parse( ConfigReader& cread )

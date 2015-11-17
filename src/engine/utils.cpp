@@ -1749,9 +1749,9 @@ bool DirExists( const StringView& path )
 bool DirCreate( const StringView& path )
 {
 #ifdef _WIN32
-	return CreateDirectoryW( StackWString< MAX_PATH >( path ), NULL ) != FALSE;
+	return CreateDirectoryW( StackWString< MAX_PATH >( path ), NULL ) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS;
 #else
-	return mkdir( StackString< 4096 >( path ) ) == 0;
+	return mkdir( StackString< 4096 >( path ) ) == 0 || errno == EEXIST;
 #endif
 }
 
