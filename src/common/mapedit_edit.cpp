@@ -1500,6 +1500,7 @@ void EdEditLevelEditMode::OnEnter()
 {
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBLevelInfo );
 	g_UIFrame->AddToParamList( g_EdWorld );
+	g_UIFrame->AddToParamList( &g_UIFrame->m_btnDumpLMInfo );
 }
 
 

@@ -583,6 +583,37 @@ void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
 	FS_SaveBinaryFile( fname, ba.data(), ba.size() );
 }
 
+void EdLevelGraphicsCont::DumpLightmapInfo()
+{
+	puts( "--- LIGHTMAP INFO ---" );
+	for( size_t i = 0; i < m_lightmaps.size(); ++i )
+	{
+		uint32_t id = m_lightmaps.item( i ).key;
+		uint32_t subid = LGC_LMID_GET_ID( id );
+		LMapHandle lmh = m_lightmaps.item( i ).value;
+		printf( "LM id=%u type=%s width=%d height=%d inv:%s|%s\n",
+			(unsigned) subid, LGC_IS_MESH_LMID(id) ? "MESH" : "SURF", lmh->width, lmh->height,
+			lmh->invalid ? "Y" : "n", lmh->alr_invalid ? "Y" : "n" );
+		if( LGC_IS_MESH_LMID( id ) )
+		{
+			Mesh* M = m_meshes.getptr( subid );
+			if( M )
+				printf( "- path=%s\n", StackString<256>(M->meshpath).str );
+			else
+				puts( "- MESH NOT FOUND -" );
+		}
+		else
+		{
+			Surface* S = m_surfaces.getptr( subid );
+			if( S )
+				printf( "- mtl=%s\n", StackString<256>(S->mtlname).str );
+			else
+				puts( "- SURFACE NOT FOUND -" );
+		}
+	}
+	printf( "samples inv:%s|%s\n", m_invalidSamples ? "Y" : "n", m_alrInvalidSamples ? "Y" : "n" );
+}
+
 void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI, uint32_t lmid )
 {
 	// static lighting
@@ -2529,6 +2560,9 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuButtonsRgt.Add( &m_MBEditGroups );
 	m_UIMenuButtonsRgt.Add( &m_MBLevelInfo );
 	
+	// extra stuff
+	m_btnDumpLMInfo.caption = "Dump lightmap info";
+	
 	m_txMarker = GR_GetTexture( "editor/marker.png" );
 }
 
@@ -2556,6 +2590,8 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_MBAddEntity ) SetEditMode( &m_emAddEntity );
 		else if( e->target == &m_MBEditGroups ) SetEditMode( &m_emEditGroup );
 		else if( e->target == &m_MBLevelInfo ) SetEditMode( &m_emEditLevel );
+		
+		else if( e->target == &m_btnDumpLMInfo ) g_EdLGCont->DumpLightmapInfo();
 		
 		return 1;
 		

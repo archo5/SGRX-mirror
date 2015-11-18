@@ -68,10 +68,10 @@ struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
 		float size = 1;
 		SMPVertex verts[4] =
 		{
-			{ { -size, 0, -size }, {0,0,1}, {1,0,0,1}, { 1, 1 } },
-			{ { +size, 0, -size }, {0,0,1}, {1,0,0,1}, { 0, 1 } },
-			{ { +size, 0, +size }, {0,0,1}, {1,0,0,1}, { 0, 0 } },
-			{ { -size, 0, +size }, {0,0,1}, {1,0,0,1}, { 1, 0 } },
+			{ { -size, 0, -size }, {0,0,1}, {1,0,0,1}, { 0, 1 } },
+			{ { +size, 0, -size }, {0,0,1}, {1,0,0,1}, { 1, 1 } },
+			{ { +size, 0, +size }, {0,0,1}, {1,0,0,1}, { 1, 0 } },
+			{ { -size, 0, +size }, {0,0,1}, {1,0,0,1}, { 0, 0 } },
 		};
 		uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
 		SGRX_MeshPart part = { 0, 4, 0, 6 };
@@ -557,6 +557,7 @@ struct EdLevelGraphicsCont
 	void Reset();
 	void LoadLightmaps( const StringView& levname );
 	void SaveLightmaps( const StringView& levname );
+	void DumpLightmapInfo();
 	void LightMesh( SGRX_MeshInstance* MI, uint32_t lmid );
 	void RelightAllMeshes();
 	void CreateLightmap( uint32_t lmid );
@@ -2226,6 +2227,9 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBAddEntity;
 	EDGUIButton m_MBEditGroups;
 	EDGUIButton m_MBLevelInfo;
+	
+	// extra stuff
+	EDGUIButton m_btnDumpLMInfo;
 };
 
 

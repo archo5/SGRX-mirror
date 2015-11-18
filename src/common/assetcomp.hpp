@@ -287,6 +287,7 @@ struct SGRX_AssetScript
 	void Generate( String& out );
 	bool Load( const StringView& path );
 	bool Save( const StringView& path );
+	StringView GetCategoryPath( const StringView& name );
 	// - additional state
 	bool LoadAssetInfo( const StringView& path );
 	bool SaveAssetInfo( const StringView& path );

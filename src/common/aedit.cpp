@@ -1629,6 +1629,63 @@ void FC_SetMesh( MeshHandle mesh )
 
 struct ASEditor : IGame
 {
+	bool OnConfigure( int argc, char** argv )
+	{
+		int op = 0;
+		const char* cat = NULL;
+		for( int i = 1; i < argc; ++i )
+		{
+			if( !strcmp( argv[ i ], "--dtex" ) ) op = 1;
+			if( !strcmp( argv[ i ], "--gmtl" ) ) op = 2;
+			if( !strncmp( argv[ i ], "--cat=", 6 ) )
+				cat = argv[ i ] + 6;
+			else if( !strcmp( argv[ i ], "-c" ) && i + 1 < argc )
+				cat = argv[ ++i ];
+		}
+		switch( op )
+		{
+		case 1: // dump textures
+			{
+				SGRX_AssetScript as;
+				as.Load( ASSET_SCRIPT_NAME );
+				for( size_t i = 0; i < as.textureAssets.size(); ++i )
+				{
+					SGRX_TextureAsset& TA = as.textureAssets[ i ];
+					if( cat )
+					{
+						if( TA.outputCategory != StringView(cat) )
+							continue;
+					}
+					printf( "%s/%s.%s\n",
+						StackString<256>(as.GetCategoryPath(TA.outputCategory)).str,
+						StackString<256>(TA.outputName).str,
+						SGRX_TextureOutputFormat_Ext( TA.outputType ) );
+				}
+			}
+			return false;
+		case 2: // generate materials
+			{
+				SGRX_AssetScript as;
+				as.Load( ASSET_SCRIPT_NAME );
+				for( size_t i = 0; i < as.textureAssets.size(); ++i )
+				{
+					SGRX_TextureAsset& TA = as.textureAssets[ i ];
+					if( cat )
+					{
+						if( TA.outputCategory != StringView(cat) )
+							continue;
+					}
+					printf( "material %s\nshader default\n0 %s/%s.%s\n",
+						StackString<256>(TA.outputName).str,
+						StackString<256>(as.GetCategoryPath(TA.outputCategory)).str,
+						StackString<256>(TA.outputName).str,
+						SGRX_TextureOutputFormat_Ext( TA.outputType ) );
+				}
+			}
+			return false;
+		}
+		return true;
+	}
 	bool OnInitialize()
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );

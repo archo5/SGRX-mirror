@@ -846,6 +846,14 @@ bool SGRX_AssetScript::Save( const StringView& path )
 	return FS_SaveTextFile( path, data );
 }
 
+StringView SGRX_AssetScript::GetCategoryPath( const StringView& name )
+{
+	String* path = categories.getptr( name );
+	if( path )
+		return *path;
+	return "";
+}
+
 enum EAssetType
 {
 	AT_Unknown = 0,
@@ -1216,12 +1224,37 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 		}
 		break;
 	case SGRX_TOF_STX_RGBA32:
-		SGRX_ImageF32ToRGBA8( image, imagedata );
-		filedata.append( "STX\0", 4 );
 		{
-			TextureInfo info = { TEXTYPE_2D, 1,
+			uint16_t flags = 0;
+			
+		//	if( TA.isSRGB )
+		//		flags |= TEXFLAGS_SRGB;
+			if( TA.lerp )
+				flags |= TEXFLAGS_LERP;
+			if( TA.clampx )
+				flags |= TEXFLAGS_CLAMP_X;
+			if( TA.clampy )
+				flags |= TEXFLAGS_CLAMP_Y;
+			
+			Array< SGRX_IFP32Handle > mips;
+			mips.push_back( image );
+			if( TA.mips )
+			{
+				flags |= TEXFLAGS_HASMIPS;
+				while( mips.last()->GetWidth() != 1 || mips.last()->GetHeight() != 1 )
+				{
+					int w1 = TMAX( mips.last()->GetWidth() / 2, 1 );
+					int h1 = TMAX( mips.last()->GetHeight() / 2, 1 );
+					mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1 ) );
+				}
+			}
+			for( size_t i = 0; i < mips.size(); ++i )
+				SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
+			
+			filedata.append( "STX\0", 4 );
+			TextureInfo info = { TEXTYPE_2D, mips.size(),
 				image->GetWidth(), image->GetHeight(),
-				1, TEXFORMAT_RGBA8, 0 };
+				1, TEXFORMAT_RGBA8, flags };
 			filedata.append( &info, sizeof(info) );
 			uint32_t datasize = imagedata.size();
 			filedata.append( &datasize, sizeof(datasize) );
