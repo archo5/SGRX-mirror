@@ -21,6 +21,7 @@
 
 #define MAX_PATCH_WIDTH 16
 #define MAX_PATCH_LAYERS 4
+#define MAX_MESHPATH_PARTS 4
 
 #define EDGUI_EVENT_SETENTITY EDGUI_EVENT_USER + 1
 #define EDGUI_EVENT_DELOBJECT EDGUI_EVENT_USER + 2
@@ -640,6 +641,7 @@ enum EObjectType
 	ObjType_Block = 1,
 	ObjType_Entity = 2,
 	ObjType_Patch = 3,
+	ObjType_MeshPath = 4,
 };
 
 enum ESpecialAction
@@ -1213,6 +1215,169 @@ struct EDGUIPatchProps : EDGUILayoutRow
 };
 
 
+//
+// MESHPATH
+//
+
+struct EdMeshPathPoint
+{
+	EdMeshPathPoint() : pos(V3(0)), smooth(false), sel(false){}
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << pos << smooth;
+	}
+	
+	Vec3 pos;
+	bool smooth;
+	bool sel;
+};
+
+struct EdMeshPathPart
+{
+	EdMeshPathPart() :
+		xoff(0), yoff(0),
+		scale(1), aspect(1),
+		angle(0),
+		surface_id(0){}
+	~EdMeshPathPart()
+	{
+		if( surface_id )
+			g_EdLGCont->DeleteSurface( surface_id );
+	}
+	
+	template< class T > void Serialize( T& arch )
+	{
+		uint32_t oldsurfid = surface_id;
+		arch( surface_id, arch.version >= 5 );
+		if( surface_id != oldsurfid )
+		{
+			if( oldsurfid )
+				g_EdLGCont->DeleteSurface( oldsurfid );
+			if( surface_id )
+				g_EdLGCont->RequestSurface( surface_id );
+		}
+		arch << texname;
+		arch << xoff << yoff;
+		arch << scale << aspect;
+		arch << angle;
+		float lmq = 0;
+		arch( lmq, arch.version < 6 );
+	}
+	
+	String texname;
+	float xoff, yoff;
+	float scale, aspect;
+	float angle;
+	
+	uint32_t surface_id;
+};
+
+struct EdMeshPath : EdObject
+{
+	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ), m_isSolid( true )
+	{
+	}
+	
+	virtual EdObject* Clone();
+	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
+	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
+	virtual Vec3 GetPosition() const { return m_position; }
+	virtual void SetPosition( const Vec3& p ){ m_position = p; }
+	virtual bool RayIntersect( const Vec3& rpos, const Vec3& rdir, float outdst[1] ) const;
+	virtual void RegenerateMesh();
+	virtual Vec3 FindCenter() const;
+	Vec2 GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer );
+	
+	virtual int GetNumElements() const { return m_points.size(); }
+	virtual Vec3 GetElementPoint( int i ) const { return m_points[ i ].pos + m_position; }
+	virtual bool IsElementSelected( int i ) const { return m_points[ i ].sel; }
+	virtual bool IsElementSpecial( int i ) const { return false; }
+	virtual void SelectElement( int i, bool sel ){ m_points[ i ].sel = true; }
+	virtual void ClearSelection(){ for( size_t i = 0; i < m_points.size(); ++i ) m_points[ i ].sel = false; }
+	virtual int GetNumVerts() const { return m_points.size(); }
+	virtual Vec3 GetLocalVertex( int i ) const { return m_points[ i ].pos + m_position; }
+	virtual void SetLocalVertex( int i, const Vec3& pos ){ m_points[ i ].pos = pos - m_position; }
+	virtual bool IsVertexSelected( int i ) const { return m_points[ i ].sel; }
+	virtual int GetOnlySelectedVertex() const;
+	virtual void ScaleVertices( const Vec3& f );
+	virtual void MoveSelectedVertices( const Vec3& t );
+	
+	template< class T > void SerializeT( T& arch )
+	{
+		arch.marker( "MESHPATH" );
+		arch << group;
+		arch << m_position;
+		arch << m_meshName;
+		arch << m_lmquality;
+		arch << m_isSolid;
+		arch << m_points;
+		for( int mp = 0; mp < MAX_MESHPATH_PARTS; ++mp )
+			arch << m_parts[ mp ];
+	}
+	
+	Vec3 m_position;
+	String m_meshName;
+	float m_lmquality;
+	bool m_isSolid;
+	Array< EdMeshPathPoint > m_points;
+	EdMeshPathPart m_parts[ MAX_MESHPATH_PARTS ];
+	
+	MeshHandle m_cachedMesh;
+};
+
+typedef Handle< EdMeshPath > EdMeshPathHandle;
+
+
+struct EDGUIMeshPathPointProps : EDGUILayoutRow
+{
+	EDGUIMeshPathPointProps();
+	void Prepare( EdMeshPath* mpath, int pid );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EdMeshPath* m_out;
+	int m_pid;
+	EDGUIGroup m_group;
+	EDGUIPropVec3 m_pos;
+	EDGUIPropBool m_smooth;
+};
+
+struct EDGUIMeshPathPartProps : EDGUILayoutRow
+{
+	EDGUIMeshPathPartProps();
+	void Prepare( EdMeshPath* mpath, int pid );
+	void LoadParams( EdMeshPathPart& MP, const char* name = "Part" );
+	void BounceBack( EdMeshPathPart& MP );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EdMeshPath* m_out;
+	int m_pid;
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_tex;
+	EDGUIPropVec2 m_off;
+	EDGUIPropVec2 m_scaleasp;
+	EDGUIPropFloat m_angle;
+};
+
+struct EDGUIMeshPathProps : EDGUILayoutRow
+{
+	EDGUIMeshPathProps();
+	void Prepare( EdMeshPath* mpath );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EdMeshPath* m_out;
+	EDGUIGroup m_group;
+	EDGUIPropRsrc m_meshName;
+	EDGUIPropVec3 m_pos;
+	EDGUIPropRsrc m_blkGroup;
+	EDGUIPropBool m_isSolid;
+	EDGUIPropFloat m_lmquality;
+	EDGUIMeshPathPartProps m_partProps[ MAX_MESHPATH_PARTS ];
+};
+
+
 
 //
 // ENTITIES
@@ -1671,6 +1836,7 @@ enum SelectionMask
 	SelMask_Blocks = 0x1,
 	SelMask_Patches = 0x2,
 	SelMask_Entities = 0x4,
+	SelMask_MeshPaths = 0x8,
 	SelMask_ALL = 0xf
 };
 
@@ -1778,6 +1944,7 @@ struct EdWorld : EDGUILayoutRow
 	void DrawPoly_BlockVertex( int block, int vert, bool sel );
 	void DrawWires_Patches( EdObject* hl, bool tonedown = false );
 	void DrawWires_Entities( EdObject* hl );
+	void DrawWires_MeshPaths( EdObject* hl );
 	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
 		float outdst[1], int outobj[1], EdObject** skip = NULL, int mask = SelMask_ALL );
 	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
@@ -1825,6 +1992,11 @@ struct EdWorld : EDGUILayoutRow
 			m_ctlPatchProps.Prepare( (EdPatch*) obj );
 			return &m_ctlPatchProps;
 		}
+		if( obj->m_type == ObjType_MeshPath )
+		{
+			m_ctlMeshPathProps.Prepare( (EdMeshPath*) obj );
+			return &m_ctlMeshPathProps;
+		}
 		return NULL;
 	}
 	EDGUIItem* GetVertProps( size_t oid, size_t vid )
@@ -1839,6 +2011,11 @@ struct EdWorld : EDGUILayoutRow
 		{
 			m_ctlPatchVertProps.Prepare( (EdPatch*) obj, vid );
 			return &m_ctlPatchVertProps;
+		}
+		if( obj->m_type == ObjType_MeshPath )
+		{
+			m_ctlMeshPathPointProps.Prepare( (EdMeshPath*) obj, vid );
+			return &m_ctlMeshPathPointProps;
 		}
 		return NULL;
 	}
@@ -1858,6 +2035,7 @@ struct EdWorld : EDGUILayoutRow
 	Array< EdBlockHandle > m_blocks;
 	Array< EdEntityHandle > m_entities;
 	Array< EdPatchHandle > m_patches;
+	Array< EdMeshPathHandle > m_mpaths;
 	Array< EdObjectHandle > m_objects;
 	EdGroupManager m_groupMgr;
 	
@@ -1885,6 +2063,8 @@ struct EdWorld : EDGUILayoutRow
 	EDGUISurfaceProps m_ctlSurfProps;
 	EDGUIPatchProps m_ctlPatchProps;
 	EDGUIPatchVertProps m_ctlPatchVertProps;
+	EDGUIMeshPathProps m_ctlMeshPathProps;
+	EDGUIMeshPathPointProps m_ctlMeshPathPointProps;
 };
 
 inline void World_AddObject( EdObject* obj ){ g_EdWorld->AddObject( obj ); }
@@ -2007,6 +2187,7 @@ struct EdDrawBlockEditMode : EdEditMode
 	{
 		BD_Polygon = 1,
 		BD_BoxStrip = 2,
+		BD_MeshPath = 3,
 	};
 
 	EdDrawBlockEditMode();

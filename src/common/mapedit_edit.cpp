@@ -382,6 +382,23 @@ void EdDrawBlockEditMode::OnViewEvent( EDGUIEvent* e )
 					}
 				}
 			}
+			else if( m_blockDrawMode == BD_MeshPath )
+			{
+				float planeHeight = g_UIFrame->GetCursorPlaneHeight();
+				EdMeshPath MP;
+				for( size_t i = 0; i < m_drawnVerts.size(); ++i )
+				{
+					EdMeshPathPoint P;
+					P.pos = V3( m_drawnVerts[ i ].x, m_drawnVerts[ i ].y, planeHeight );
+					MP.m_points.push_back( P );
+				}
+				Vec3 c = g_UIFrame->Snapped( MP.FindCenter() );
+				for( size_t i = 0; i < MP.m_points.size(); ++i )
+					MP.m_points[ i ].pos -= c;
+				MP.m_position = c;
+				g_EdWorld->AddObject( MP.Clone() );
+				m_drawnVerts.clear();
+			}
 		}
 		if( e->key.engkey == SDLK_ESCAPE )
 		{
@@ -393,6 +410,25 @@ void EdDrawBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		}
 		if( e->key.engkey == SDLK_1 ) m_blockDrawMode = BD_Polygon;
 		if( e->key.engkey == SDLK_2 ) m_blockDrawMode = BD_BoxStrip;
+		if( e->key.engkey == SDLK_3 ) m_blockDrawMode = BD_MeshPath;
+	}
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		int x0 = g_UIFrame->m_UIRenderView.x0;
+		int y0 = g_UIFrame->m_UIRenderView.y0;
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		
+		br.Reset().Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 16 );
+		
+		GR2D_SetColor( 1, 1 );
+		GR2D_SetTextCursor( x0, y0 );
+		if( m_blockDrawMode == BD_Polygon ){ br.Col( 0.1f, 1, 0 ); GR2D_DrawTextLine( ">>>" ); br.Col( 1 ); }
+		GR2D_DrawTextLine( "Polygon mode [1], " );
+		if( m_blockDrawMode == BD_BoxStrip ){ br.Col( 0.1f, 1, 0 ); GR2D_DrawTextLine( ">>>" ); br.Col( 1 ); }
+		GR2D_DrawTextLine( "AAQuad mode [2], " );
+		if( m_blockDrawMode == BD_MeshPath ){ br.Col( 0.1f, 1, 0 ); GR2D_DrawTextLine( ">>>" ); br.Col( 1 ); }
+		GR2D_DrawTextLine( "Path mode[3]" );
 	}
 	
 	EdEditMode::OnViewEvent( e );
@@ -422,22 +458,33 @@ void EdDrawBlockEditMode::Draw()
 	if( m_drawnVerts.size() >= 2 )
 	{
 		br.Col( 0.9f, 0.1f, 0, 0.7f );
-		br.PolyOutline( m_drawnVerts.data(), m_drawnVerts.size(), planeHeight, sizeof(*m_drawnVerts.data()) );
+		if( m_blockDrawMode == BD_MeshPath )
+		{
+			br.SetPrimitiveType( PT_LineStrip );
+			for( size_t i = 0; i < m_drawnVerts.size(); ++i )
+			br.Pos( m_drawnVerts[ i ], planeHeight );
+		}
+		else
+		{
+			br.PolyOutline( m_drawnVerts.data(), m_drawnVerts.size(), planeHeight, sizeof(*m_drawnVerts.data()) );
+		}
 	}
 	for( size_t i = 0; i < m_drawnVerts.size(); ++i )
 	{
 		br.Col( 0.9f, 0.1f, 0, 0.8f );
 		br.CircleOutline( m_drawnVerts[i].x, m_drawnVerts[i].y, 0.02f, planeHeight, 16 );
 	}
-	if( m_blockDrawMode == BD_Polygon && g_UIFrame->IsCursorAiming() )
+	if( ( m_blockDrawMode == BD_Polygon || m_blockDrawMode == BD_MeshPath ) &&
+		g_UIFrame->IsCursorAiming() )
 	{
 		Vec2 pos = g_UIFrame->GetCursorPlanePos();
 		if( m_drawnVerts.size() > 1 )
 		{
 			br.Col( 0.9f, 0.1f, 0, 0.4f ).SetPrimitiveType( PT_LineStrip );
-			br.Pos( m_drawnVerts.last().x, m_drawnVerts.last().y, planeHeight );
-			br.Pos( pos.x, pos.y, planeHeight );
-			br.Pos( m_drawnVerts[0].x, m_drawnVerts[0].y, planeHeight );
+			br.Pos( m_drawnVerts.last(), planeHeight );
+			br.Pos( pos, planeHeight );
+			if( m_blockDrawMode == BD_Polygon )
+				br.Pos( m_drawnVerts[0], planeHeight );
 		}
 	}
 	g_UIFrame->DrawCursor();
@@ -573,6 +620,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		if( e->key.engkey == SDLK_1 ) m_selMask ^= SelMask_Blocks;
 		if( e->key.engkey == SDLK_2 ) m_selMask ^= SelMask_Patches;
 		if( e->key.engkey == SDLK_3 ) m_selMask ^= SelMask_Entities;
+		if( e->key.engkey == SDLK_4 ) m_selMask ^= SelMask_MeshPaths;
 		if( sm != m_selMask )
 		{
 			_MouseMove();
@@ -636,6 +684,9 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( ", Patches: " );
 		YesNoText( ( m_selMask & SelMask_Patches ) != 0 );
+		GR2D_SetColor( 1, 1 );
+		GR2D_DrawTextLine( ", Mesh paths: " );
+		YesNoText( ( m_selMask & SelMask_MeshPaths ) != 0 );
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( ", Entities: " );
 		YesNoText( ( m_selMask & SelMask_Entities ) != 0 );

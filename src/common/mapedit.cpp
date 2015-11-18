@@ -1806,6 +1806,7 @@ void EdWorld::DrawWires_Objects( EdObject* hl, bool tonedown )
 	DrawWires_Blocks( hl );
 	DrawWires_Patches( hl, tonedown );
 	DrawWires_Entities( hl );
+	DrawWires_MeshPaths( hl );
 }
 
 void EdWorld::DrawWires_Blocks( EdObject* hl )
@@ -2026,6 +2027,35 @@ void EdWorld::DrawWires_Entities( EdObject* hl )
 	br.Flush();
 }
 
+void EdWorld::DrawWires_MeshPaths( EdObject* hl )
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	
+	br.SetPrimitiveType( PT_Lines );
+	for( size_t i = 0; i < m_mpaths.size(); ++i )
+	{
+		EdMeshPath* mp = m_mpaths[ i ];
+		if( mp->selected )
+			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
+		else if( mp == hl )
+			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
+		else
+			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
+		
+		float q = 0.2f;
+		Vec3 P = mp->m_position;
+		br.Pos( P - V3(q,0,0) ).Pos( P + V3(0,0,q) ).Prev(0).Pos( P + V3(q,0,0) ).Prev(0).Pos( P - V3(0,0,q) ).Prev(0).Prev(6);
+		br.Pos( P - V3(0,q,0) ).Pos( P + V3(0,0,q) ).Prev(0).Pos( P + V3(0,q,0) ).Prev(0).Pos( P - V3(0,0,q) ).Prev(0).Prev(6);
+		br.Pos( P - V3(q,0,0) ).Pos( P + V3(0,q,0) ).Prev(0).Pos( P + V3(q,0,0) ).Prev(0).Pos( P - V3(0,q,0) ).Prev(0).Prev(6);
+		
+		for( size_t p = 1; p < mp->m_points.size(); ++p )
+		{
+			br.Pos( mp->m_points[ p - 1 ].pos + P );
+			br.Pos( mp->m_points[ p ].pos + P );
+		}
+	}
+}
+
 
 static bool ObjInArray( EdObject* obj, EdObject** list )
 {
@@ -2045,6 +2075,7 @@ int Obj2Mask( EdObject* obj )
 {
 	if( obj->m_type == ObjType_Block ) return SelMask_Blocks;
 	if( obj->m_type == ObjType_Patch ) return SelMask_Patches;
+	if( obj->m_type == ObjType_MeshPath ) return SelMask_MeshPaths;
 	if( obj->m_type == ObjType_Entity ) return SelMask_Entities;
 	return 0;
 }
@@ -2137,6 +2168,8 @@ void EdWorld::AddObject( EdObject* obj )
 		m_entities.push_back( (EdEntity*) obj );
 	if( obj->m_type == ObjType_Patch )
 		m_patches.push_back( (EdPatch*) obj );
+	if( obj->m_type == ObjType_MeshPath )
+		m_mpaths.push_back( (EdMeshPath*) obj );
 	obj->RegenerateMesh();
 }
 
@@ -2165,6 +2198,13 @@ void EdWorld::DeleteObject( EdObject* obj )
 		at = m_patches.find_first_at( (EdPatch*) obj );
 		if( at != NOT_FOUND )
 			m_patches.uerase( at );
+	}
+	
+	if( obj->m_type == ObjType_MeshPath )
+	{
+		at = m_mpaths.find_first_at( (EdMeshPath*) obj );
+		if( at != NOT_FOUND )
+			m_mpaths.uerase( at );
 	}
 	
 	if( obj->m_type == ObjType_Entity )
@@ -2469,6 +2509,20 @@ void EDGUIMultiObjectProps::Prepare( bool selsurf )
 				tex = tt;
 			}
 		}
+		else if( obj->m_type == ObjType_MeshPath )
+		{
+			SGRX_CAST( EdMeshPath*, MP, obj );
+			StringView tt = MP->m_parts[0].texname;
+			if( tt && tex != tt )
+			{
+				if( tex.size() )
+				{
+					m_mtl.SetValue( "" );
+					return;
+				}
+				tex = tt;
+			}
+		}
 	}
 	m_mtl.SetValue( tex );
 }
@@ -2500,6 +2554,12 @@ int EDGUIMultiObjectProps::OnEvent( EDGUIEvent* e )
 				{
 					SGRX_CAST( EdPatch*, P, obj );
 					P->layers[0].texname = m_mtl.m_value;
+					obj->RegenerateMesh();
+				}
+				else if( obj->m_type == ObjType_MeshPath )
+				{
+					SGRX_CAST( EdMeshPath*, MP, obj );
+					MP->m_parts[0].texname = m_mtl.m_value;
 					obj->RegenerateMesh();
 				}
 			}
@@ -2540,7 +2600,7 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_MBSaveAs.caption = "Save As";
 	m_MBCompile.caption = "Compile";
 	m_MB_Cat1.caption = "Edit:";
-	m_MBDrawBlock.caption = "Draw Block";
+	m_MBDrawBlock.caption = "Draw Block/Path";
 	m_MBEditObjects.caption = "Edit Objects";
 	m_MBPaintSurfs.caption = "Paint Surfaces";
 	m_MBAddEntity.caption = "Add Entity";

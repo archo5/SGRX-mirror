@@ -14,7 +14,7 @@ set_target_properties( lighter PROPERTIES
 
 # Editor
 add_library( editor SHARED
-	mapedit mapedit_ent mapedit_block mapedit_patch mapedit_edit
+	mapedit mapedit_ent mapedit_block mapedit_mpath mapedit_patch mapedit_edit
 	compiler scritem cppbc_scritem )
 target_link_libraries( editor
 	sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
