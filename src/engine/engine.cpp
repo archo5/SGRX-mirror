@@ -1324,20 +1324,251 @@ const VDeclInfo& VertexDeclHandle::GetInfo()
 }
 
 
-void VD_ExtractVec3( const VDeclInfo& vdinfo, int vcount, const void** vertptrs, Vec3* outpos, int usage = VDECLUSAGE_POSITION )
+bool VD_ExtractFloat1( const VDeclInfo& vdinfo, int vcount, const void* verts, float* outp, int usage )
 {
-	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage );
+	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage ), stride = vdinfo.size;
 	if( ty == -1 || ofs == -1 )
-		return;
+		return false;
 	
 	switch( ty )
 	{
-	case VDECLTYPE_FLOAT1: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), 0, 0 ); break;
-	case VDECLTYPE_FLOAT2: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), *(float*)((uint8_t*)vertptrs[i]+ofs+4), 0 ); break;
+	case VDECLTYPE_FLOAT1:
+	case VDECLTYPE_FLOAT2:
 	case VDECLTYPE_FLOAT3:
-	case VDECLTYPE_FLOAT4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = *(Vec3*)((uint8_t*)vertptrs[i]+ofs); break;
-	case VDECLTYPE_BCOL4: for( int i = 0; i < vcount; ++i ) outpos[ i ] = V3( *((uint8_t*)vertptrs[i]+ofs)/255.0f, *((uint8_t*)vertptrs[i]+ofs+1)/255.0f, *((uint8_t*)vertptrs[i]+ofs+2)/255.0f ); break;
+	case VDECLTYPE_FLOAT4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = *(float*)((uint8_t*)verts+stride*i+ofs);
+		}
+		break;
+	case VDECLTYPE_BCOL4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = *((uint8_t*)verts+stride*i+ofs)/255.0f;
+		}
+		break;
 	}
+	return true;
+}
+
+bool VD_ExtractFloat2( const VDeclInfo& vdinfo, int vcount, const void* verts, Vec2* outp, int usage )
+{
+	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage ), stride = vdinfo.size;
+	if( ty == -1 || ofs == -1 )
+		return false;
+	
+	switch( ty )
+	{
+	case VDECLTYPE_FLOAT1:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V2( *(float*)((uint8_t*)verts+stride*i+ofs), 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT2:
+	case VDECLTYPE_FLOAT3:
+	case VDECLTYPE_FLOAT4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = *(Vec2*)((uint8_t*)verts+stride*i+ofs);
+		}
+		break;
+	case VDECLTYPE_BCOL4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V2(
+				*((uint8_t*)verts+stride*i+ofs)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+1)/255.0f );
+		}
+		break;
+	}
+	return true;
+}
+
+bool VD_ExtractFloat3( const VDeclInfo& vdinfo, int vcount, const void* verts, Vec3* outp, int usage )
+{
+	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage ), stride = vdinfo.size;
+	if( ty == -1 || ofs == -1 )
+		return false;
+	
+	switch( ty )
+	{
+	case VDECLTYPE_FLOAT1:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V3( *(float*)((uint8_t*)verts+stride*i+ofs), 0, 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT2:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V3(
+				*(float*)((uint8_t*)verts+stride*i+ofs),
+				*(float*)((uint8_t*)verts+stride*i+ofs+4), 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT3:
+	case VDECLTYPE_FLOAT4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = *(Vec3*)((uint8_t*)verts+stride*i+ofs);
+		}
+		break;
+	case VDECLTYPE_BCOL4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V3(
+				*((uint8_t*)verts+stride*i+ofs)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+1)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+2)/255.0f );
+		}
+		break;
+	}
+	return true;
+}
+
+bool VD_ExtractFloat4( const VDeclInfo& vdinfo, int vcount, const void* verts, Vec4* outp, int usage )
+{
+	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage ), stride = vdinfo.size;
+	if( ty == -1 || ofs == -1 )
+		return false;
+	
+	switch( ty )
+	{
+	case VDECLTYPE_FLOAT1:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V4( *(float*)((uint8_t*)verts+stride*i+ofs), 0, 0, 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT2:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V4(
+				*(float*)((uint8_t*)verts+stride*i+ofs),
+				*(float*)((uint8_t*)verts+stride*i+ofs+4), 0, 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT3:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V4(
+				*(float*)((uint8_t*)verts+stride*i+ofs),
+				*(float*)((uint8_t*)verts+stride*i+ofs+4),
+				*(float*)((uint8_t*)verts+stride*i+ofs+8), 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = *(Vec4*)((uint8_t*)verts+stride*i+ofs);
+		}
+		break;
+	case VDECLTYPE_BCOL4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V4(
+				*((uint8_t*)verts+stride*i+ofs)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+1)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+2)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+3)/255.0f );
+		}
+		break;
+	}
+	return true;
+}
+
+bool VD_ExtractByte4Clamped( const VDeclInfo& vdinfo, int vcount, const void* verts, uint32_t* outp, int usage )
+{
+	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage ), stride = vdinfo.size;
+	if( ty == -1 || ofs == -1 )
+		return false;
+	
+	switch( ty )
+	{
+	case VDECLTYPE_FLOAT1:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = Vec4ToCol32( V4( *(float*)((uint8_t*)verts+stride*i+ofs), 0, 0, 0 ) );
+		}
+		break;
+	case VDECLTYPE_FLOAT2:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = Vec4ToCol32( V4(
+				*(float*)((uint8_t*)verts+stride*i+ofs),
+				*(float*)((uint8_t*)verts+stride*i+ofs+4), 0, 0 ) );
+		}
+		break;
+	case VDECLTYPE_FLOAT3:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = Vec4ToCol32( V4(
+				*(float*)((uint8_t*)verts+stride*i+ofs),
+				*(float*)((uint8_t*)verts+stride*i+ofs+4),
+				*(float*)((uint8_t*)verts+stride*i+ofs+8), 0 ) );
+		}
+		break;
+	case VDECLTYPE_FLOAT4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = Vec4ToCol32( *(Vec4*)((uint8_t*)verts+stride*i+ofs) );
+		}
+		break;
+	case VDECLTYPE_BCOL4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = Vec4ToCol32( V4(
+				*((uint8_t*)verts+stride*i+ofs)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+1)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+2)/255.0f,
+				*((uint8_t*)verts+stride*i+ofs+3)/255.0f ) );
+		}
+		break;
+	}
+	return true;
+}
+
+bool VD_ExtractFloat3P( const VDeclInfo& vdinfo, int vcount, const void** vertptrs, Vec3* outp, int usage )
+{
+	int ty = vdinfo.GetType( usage ), ofs = vdinfo.GetOffset( usage );
+	if( ty == -1 || ofs == -1 )
+		return false;
+	
+	switch( ty )
+	{
+	case VDECLTYPE_FLOAT1:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V3( *(float*)((uint8_t*)vertptrs[i]+ofs), 0, 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT2:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V3(
+				*(float*)((uint8_t*)vertptrs[i]+ofs),
+				*(float*)((uint8_t*)vertptrs[i]+ofs+4), 0 );
+		}
+		break;
+	case VDECLTYPE_FLOAT3:
+	case VDECLTYPE_FLOAT4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = *(Vec3*)((uint8_t*)vertptrs[i]+ofs);
+		}
+		break;
+	case VDECLTYPE_BCOL4:
+		for( int i = 0; i < vcount; ++i )
+		{
+			outp[ i ] = V3(
+				*((uint8_t*)vertptrs[i]+ofs)/255.0f,
+				*((uint8_t*)vertptrs[i]+ofs+1)/255.0f,
+				*((uint8_t*)vertptrs[i]+ofs+2)/255.0f );
+		}
+		break;
+	}
+	return true;
 }
 
 void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factors, const void* v1, const void* v2, const void* v3 )
@@ -1404,9 +1635,7 @@ SGRX_IVertexInputMapping::~SGRX_IVertexInputMapping()
 
 SGRX_IMesh::SGRX_IMesh() :
 	m_dataFlags( 0 ),
-	m_vertexCount( 0 ),
 	m_vertexDataSize( 0 ),
-	m_indexCount( 0 ),
 	m_indexDataSize( 0 ),
 	m_numBones( 0 ),
 	m_boundsMin( Vec3::Create( 0 ) ),
@@ -1538,7 +1767,7 @@ void SGRX_IMesh_RaycastAll_Core_TestTriangle( const Vec3& rpos, const Vec3& rdir
 {
 	const void* verts[3] = { v1, v3, v2 }; // order swapped for RayPolyIntersect
 	Vec3 pos[3] = {0};
-	VD_ExtractVec3( *vdinfo, 3, verts, pos );
+	VD_ExtractFloat3P( *vdinfo, 3, verts, pos );
 	
 	float dist[1];
 	if( RayPolyIntersect( rpos, rdir, pos, 3, dist ) && dist[0] >= 0 && dist[0] < rlen )
@@ -1665,7 +1894,7 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
 {
 	const void* verts[3] = { v1, v2, v3 };
 	Vec3 pos[3] = {0};
-	VD_ExtractVec3( vdecl->m_info, 3, verts, pos );
+	VD_ExtractFloat3P( vdecl->m_info, 3, verts, pos );
 	
 	pos[0] = mtx.TransformPos( pos[0] );
 	pos[1] = mtx.TransformPos( pos[1] );
@@ -1746,7 +1975,7 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
 		VDI = &decalvdi;
 		
 		Vec3 nrm[3] = {0};
-		VD_ExtractVec3( vdecl->m_info, 3, verts, nrm, VDECLUSAGE_NORMAL );
+		VD_ExtractFloat3P( vdecl->m_info, 3, verts, nrm, VDECLUSAGE_NORMAL );
 		
 		nrm[0] = mtx.TransformNormal( nrm[0] );
 		nrm[1] = mtx.TransformNormal( nrm[1] );

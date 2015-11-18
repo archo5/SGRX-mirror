@@ -710,6 +710,14 @@ struct VertexDeclHandle : Handle< SGRX_IVertexDecl >
 	ENGINE_EXPORT const VDeclInfo& GetInfo();
 };
 
+ENGINE_EXPORT bool VD_ExtractFloat1( const VDeclInfo& vdinfo, int vcount, const void* verts, float* outp, int usage = VDECLUSAGE_TEXTURE1 );
+ENGINE_EXPORT bool VD_ExtractFloat2( const VDeclInfo& vdinfo, int vcount, const void* verts, Vec2* outp, int usage = VDECLUSAGE_TEXTURE0 );
+ENGINE_EXPORT bool VD_ExtractFloat3( const VDeclInfo& vdinfo, int vcount, const void* verts, Vec3* outp, int usage = VDECLUSAGE_POSITION );
+ENGINE_EXPORT bool VD_ExtractFloat4( const VDeclInfo& vdinfo, int vcount, const void* verts, Vec4* outp, int usage = VDECLUSAGE_TANGENT );
+ENGINE_EXPORT bool VD_ExtractByte4Clamped( const VDeclInfo& vdinfo, int vcount, const void* verts, uint32_t* outp, int usage = VDECLUSAGE_COLOR );
+ENGINE_EXPORT bool VD_ExtractFloat3P( const VDeclInfo& vdinfo, int vcount, const void** vertptrs, Vec3* outp, int usage = VDECLUSAGE_POSITION );
+ENGINE_EXPORT void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factors, const void* v1, const void* v2, const void* v3 );
+
 
 
 #define SGRX_MtlFlag_Unlit    0x01
@@ -837,9 +845,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	/* rendering info */
 	uint32_t m_dataFlags;
 	VertexDeclHandle m_vertexDecl;
-	uint32_t m_vertexCount;
 	uint32_t m_vertexDataSize;
-	uint32_t m_indexCount;
 	uint32_t m_indexDataSize;
 	Array< SGRX_MeshPart > m_meshParts;
 	SGRX_MeshBone m_bones[ SGRX_MAX_MESH_BONES ];
@@ -852,6 +858,9 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	/* vertex/index data */
 	ByteArray m_vdata;
 	ByteArray m_idata;
+	
+	FINLINE size_t GetBufferVertexCount(){ return m_vertexDecl ? m_vdata.size() / m_vertexDecl->m_info.size : 0; }
+	FINLINE size_t GetBufferIndexCount(){ return m_idata.size() / ( m_dataFlags & MDF_INDEX_32 ? 4 : 2 ); }
 };
 
 struct MeshHandle : Handle< SGRX_IMesh >

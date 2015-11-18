@@ -1221,7 +1221,7 @@ struct EDGUIPatchProps : EDGUILayoutRow
 
 struct EdMeshPathPoint
 {
-	EdMeshPathPoint() : pos(V3(0)), smooth(false), sel(false){}
+	EdMeshPathPoint() : pos(V3(0)), smooth(30), sel(false){}
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -1229,7 +1229,7 @@ struct EdMeshPathPoint
 	}
 	
 	Vec3 pos;
-	bool smooth;
+	float smooth;
 	bool sel;
 };
 
@@ -1273,9 +1273,18 @@ struct EdMeshPathPart
 	uint32_t surface_id;
 };
 
+enum EMPATH_TurnMode
+{
+	MPATH_TurnMode_H = 0, // horizontal
+	MPATH_TurnMode_Fwd, // forward
+	MPATH_TurnMode_HFwdSkew, // horizontal+forward (skew)
+};
+
 struct EdMeshPath : EdObject
 {
-	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ), m_isSolid( true )
+	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ),
+		m_isSolid( true ), m_intervalScaleOffset(V2(1,0)), m_pipeModeOvershoot(0),
+		m_scaleUni( 1 ), m_scaleSep( V3(1) ), m_turnMode(0)
 	{
 	}
 	
@@ -1287,8 +1296,11 @@ struct EdMeshPath : EdObject
 	virtual Vec3 GetPosition() const { return m_position; }
 	virtual void SetPosition( const Vec3& p ){ m_position = p; }
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& rdir, float outdst[1] ) const;
+	float FindPointOnPath( float at, size_t& pi0, size_t& pi1 );
+	Vec4 GetPlane( size_t pt );
 	virtual void RegenerateMesh();
 	virtual Vec3 FindCenter() const;
+	size_t PlaceItem( struct LCVDataEdit& edit, float at, float off );
 	Vec2 GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& outidcs, int layer );
 	
 	virtual int GetNumElements() const { return m_points.size(); }
@@ -1313,6 +1325,11 @@ struct EdMeshPath : EdObject
 		arch << m_meshName;
 		arch << m_lmquality;
 		arch << m_isSolid;
+		arch << m_intervalScaleOffset;
+		arch << m_pipeModeOvershoot;
+		arch << m_scaleUni;
+		arch << m_scaleSep;
+		arch << m_turnMode;
 		arch << m_points;
 		for( int mp = 0; mp < MAX_MESHPATH_PARTS; ++mp )
 			arch << m_parts[ mp ];
@@ -1322,6 +1339,11 @@ struct EdMeshPath : EdObject
 	String m_meshName;
 	float m_lmquality;
 	bool m_isSolid;
+	Vec2 m_intervalScaleOffset;
+	int m_pipeModeOvershoot;
+	float m_scaleUni;
+	Vec3 m_scaleSep;
+	int m_turnMode;
 	Array< EdMeshPathPoint > m_points;
 	EdMeshPathPart m_parts[ MAX_MESHPATH_PARTS ];
 	
@@ -1341,7 +1363,7 @@ struct EDGUIMeshPathPointProps : EDGUILayoutRow
 	int m_pid;
 	EDGUIGroup m_group;
 	EDGUIPropVec3 m_pos;
-	EDGUIPropBool m_smooth;
+	EDGUIPropFloat m_smooth;
 };
 
 struct EDGUIMeshPathPartProps : EDGUILayoutRow
@@ -1374,6 +1396,11 @@ struct EDGUIMeshPathProps : EDGUILayoutRow
 	EDGUIPropRsrc m_blkGroup;
 	EDGUIPropBool m_isSolid;
 	EDGUIPropFloat m_lmquality;
+	EDGUIPropVec2 m_intervalScaleOffset;
+	EDGUIPropInt m_pipeModeOvershoot;
+	EDGUIPropFloat m_scaleUni;
+	EDGUIPropVec3 m_scaleSep;
+	EDGUIPropInt m_turnMode;
 	EDGUIMeshPathPartProps m_partProps[ MAX_MESHPATH_PARTS ];
 };
 

@@ -201,6 +201,17 @@ struct LevelCache
 			O.ty1 = TLERP( lmin.y, lmax.y, O.ty1 );
 			return O;
 		}
+		void SetDefault()
+		{
+			pos = V3(0);
+			nrm = V3(0,0,1);
+			tng = V4(1,0,0,1);
+			color = 0xffffffff;
+			tx0 = 0;
+			ty0 = 0;
+			tx1 = 0;
+			ty1 = 0;
+		}
 		
 		template< class T > void Serialize( T& arch )
 		{
