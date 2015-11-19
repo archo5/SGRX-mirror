@@ -125,6 +125,7 @@
 #define EDGUI_KEY_PAGEDOWN  15
 #define EDGUI_KEY_ENTER     16
 #define EDGUI_KEY_ACTIVATE  17
+#define EDGUI_KEY_ESCAPE    18
 
 #define EDGUI_MB_LEFT 0
 #define EDGUI_MB_RIGHT 1
@@ -325,7 +326,14 @@ struct IF_GCC(ENGINE_EXPORT) EDGUINumberWheel : EDGUIItem
 	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	
 	ENGINE_EXPORT double GetValue();
+	ENGINE_EXPORT void SetValue( double val, int x, int y );
+	ENGINE_EXPORT void _Text2Num();
+	ENGINE_EXPORT void _Num2Text();
+	ENGINE_EXPORT void _OnEditValue();
 	
+	String m_textValue;
+	double m_origValue;
+	double m_prevValue;
 	double m_value;
 	double m_min;
 	double m_max;

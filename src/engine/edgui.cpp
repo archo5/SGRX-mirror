@@ -348,6 +348,7 @@ void EDGUIFrame::EngineEvent( const Event* eev )
 		if(0);
 		else if( engkey == SDLK_RETURN ) ev.key.key = EDGUI_KEY_ENTER;
 		else if( engkey == SDLK_KP_ENTER ) ev.key.key = EDGUI_KEY_ENTER;
+		else if( engkey == SDLK_ESCAPE ) ev.key.key = EDGUI_KEY_ESCAPE;
 		else if( engkey == SDLK_BACKSPACE ) ev.key.key = EDGUI_KEY_DELLEFT;
 		else if( engkey == SDLK_DELETE ) ev.key.key = EDGUI_KEY_DELRIGHT;
 		else if( engkey == SDLK_LEFT ) ev.key.key = EDGUI_KEY_LEFT;
@@ -1119,6 +1120,9 @@ void EDGUIBtnList::_RecursiveSetID2( EDGUIItem* item, uint32_t val )
 
 
 EDGUINumberWheel::EDGUINumberWheel( EDGUIItem* owner, double min, double max, int initpwr, int numwheels ) :
+	m_textValue( "0" ),
+	m_origValue( 0 ),
+	m_prevValue( 0 ),
 	m_value( 0 ),
 	m_min( min ),
 	m_max( max ),
@@ -1147,27 +1151,56 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_KEYDOWN:
 		if( e->key.key == EDGUI_KEY_COPY )
 		{
-			char bfr[ 1224 ];
-			sgrx_snprintf( bfr, sizeof( bfr ), "%.18g", GetValue() );
-			Window_SetClipboardText( bfr );
+			Window_SetClipboardText( m_textValue );
 		}
 		if( e->key.key == EDGUI_KEY_PASTE )
 		{
-			String text;
-			if( Window_GetClipboardText( text ) )
+			if( Window_GetClipboardText( m_textValue ) )
 			{
-				double prevval = GetValue();
-				m_value = String_ParseFloat( text );
+				m_value = String_ParseFloat( m_textValue );
 				if( m_value < m_min ) m_value = m_min;
 				if( m_value > m_max ) m_value = m_max;
-				if( GetValue() != prevval && m_owner )
-				{
-					EDGUIEvent se = { EDGUI_EVENT_PROPEDIT, this };
-					m_owner->BubblingEvent( &se );
-				}
+				_Num2Text();
+				_OnEditValue();
 			}
 			else
 				LOG << "Failed to retrieve text from clipboard";
+		}
+		if( e->key.key == EDGUI_KEY_DELLEFT )
+		{
+			if( m_textValue.size() )
+			{
+				m_textValue.pop_back();
+				_Text2Num();
+			}
+		}
+		if( e->key.key == EDGUI_KEY_DELRIGHT )
+		{
+			m_textValue.clear();
+			_Text2Num();
+		}
+		if( e->key.key == EDGUI_KEY_ENTER )
+		{
+			if( m_owner )
+			{
+				EDGUIEvent se = { EDGUI_EVENT_PROPCHANGE, this };
+				m_owner->BubblingEvent( &se );
+			}
+			m_parent->Remove( this );
+		}
+		if( e->key.key == EDGUI_KEY_ESCAPE )
+		{
+			m_value = m_origValue;
+			_OnEditValue();
+			m_parent->Remove( this );
+		}
+		return 1;
+		
+	case EDGUI_EVENT_TEXTINPUT:
+		if( e->text.text[0] == '.' || ( e->text.text[0] >= '0' && e->text.text[0] <= '9' ) )
+		{
+			m_textValue.append( e->text.text );
+			_Text2Num();
 		}
 		return 1;
 		
@@ -1207,15 +1240,11 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 				if( ca - pa > M_PI ) ca -= (float) M_PI * 2.0f;
 				float diff = ca - pa;
 				
-				double prevval = GetValue();
 				m_value += diff * powf( 10.0f, float(m_initpwr + m_curWheel) );
 				if( m_value < m_min ) m_value = m_min;
 				if( m_value > m_max ) m_value = m_max;
-				if( GetValue() != prevval && m_owner )
-				{
-					EDGUIEvent se = { EDGUI_EVENT_PROPEDIT, this };
-					m_owner->BubblingEvent( &se );
-				}
+				_Num2Text();
+				_OnEditValue();
 			}
 		}
 		m_prevMouseX = e->mouse.x;
@@ -1246,8 +1275,7 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 				sgrx_snprintf( bfr, 31, "%g", powf( 10, m_initpwr + m_curWheel ) );
 				GR2D_DrawTextLine( m_cx + xfac * rad, m_cy + yfac * rad, bfr );
 			}
-			sgrx_snprintf( bfr, 31, "%g", GetValue() );
-			GR2D_DrawTextLine( m_cx, m_cy, bfr, HALIGN_CENTER, VALIGN_CENTER );
+			GR2D_DrawTextLine( m_cx, m_cy, m_textValue, HALIGN_CENTER, VALIGN_CENTER );
 		}
 		return 1;
 	}
@@ -1258,6 +1286,41 @@ double EDGUINumberWheel::GetValue()
 {
 	double rf = powf( 10, m_initpwr );
 	return round( m_value / rf ) * rf;
+}
+
+void EDGUINumberWheel::SetValue( double val, int x, int y )
+{
+	m_cx = x;
+	m_cy = y;
+	m_origValue = val;
+	m_prevValue = val;
+	m_value = val;
+	_Num2Text();
+}
+
+void EDGUINumberWheel::_Text2Num()
+{
+	m_value = String_ParseFloat( m_textValue );
+	if( m_value < m_min ) m_value = m_min;
+	if( m_value > m_max ) m_value = m_max;
+	_OnEditValue();
+}
+
+void EDGUINumberWheel::_Num2Text()
+{
+	char bfr[ 1224 ];
+	sgrx_snprintf( bfr, sizeof( bfr ), "%.6g", GetValue() );
+	m_textValue = bfr;
+}
+
+void EDGUINumberWheel::_OnEditValue()
+{
+	if( GetValue() != m_prevValue && m_owner )
+	{
+		EDGUIEvent se = { EDGUI_EVENT_PROPEDIT, this };
+		m_owner->BubblingEvent( &se );
+		m_prevValue = m_value;
+	}
 }
 
 
@@ -1771,9 +1834,7 @@ int EDGUIPropInt::OnEvent( EDGUIEvent* e )
 		_Begin( e );
 		if( Hit( e->mouse.x, e->mouse.y ) )
 		{
-			m_numWheel.m_cx = e->mouse.x;
-			m_numWheel.m_cy = e->mouse.y;
-			m_numWheel.m_value = m_value;
+			m_numWheel.SetValue( m_value, e->mouse.x, e->mouse.y );
 			m_frame->Add( &m_numWheel );
 		}
 		_End( e );
@@ -1822,9 +1883,7 @@ int EDGUIPropFloat::OnEvent( EDGUIEvent* e )
 		_Begin( e );
 		if( Hit( e->mouse.x, e->mouse.y ) )
 		{
-			m_numWheel.m_cx = e->mouse.x;
-			m_numWheel.m_cy = e->mouse.y;
-			m_numWheel.m_value = m_value;
+			m_numWheel.SetValue( m_value, e->mouse.x, e->mouse.y );
 			m_frame->Add( &m_numWheel );
 			m_frame->_HandleMouseMove( false );
 		}
@@ -1880,17 +1939,13 @@ int EDGUIPropVec2::OnEvent( EDGUIEvent* e )
 		{
 			if( e->target == &m_Xbutton )
 			{
-				m_XnumWheel.m_cx = e->mouse.x;
-				m_XnumWheel.m_cy = e->mouse.y;
-				m_XnumWheel.m_value = m_value.x;
+				m_XnumWheel.SetValue( m_value.x, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_XnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
 			if( e->target == &m_Ybutton )
 			{
-				m_YnumWheel.m_cx = e->mouse.x;
-				m_YnumWheel.m_cy = e->mouse.y;
-				m_YnumWheel.m_value = m_value.y;
+				m_YnumWheel.SetValue( m_value.y, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_YnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
@@ -1964,25 +2019,19 @@ int EDGUIPropVec3::OnEvent( EDGUIEvent* e )
 		{
 			if( e->target == &m_Xbutton )
 			{
-				m_XnumWheel.m_cx = e->mouse.x;
-				m_XnumWheel.m_cy = e->mouse.y;
-				m_XnumWheel.m_value = m_value.x;
+				m_XnumWheel.SetValue( m_value.x, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_XnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
 			if( e->target == &m_Ybutton )
 			{
-				m_YnumWheel.m_cx = e->mouse.x;
-				m_YnumWheel.m_cy = e->mouse.y;
-				m_YnumWheel.m_value = m_value.y;
+				m_YnumWheel.SetValue( m_value.y, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_YnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
 			if( e->target == &m_Zbutton )
 			{
-				m_ZnumWheel.m_cx = e->mouse.x;
-				m_ZnumWheel.m_cy = e->mouse.y;
-				m_ZnumWheel.m_value = m_value.z;
+				m_ZnumWheel.SetValue( m_value.z, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_ZnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
@@ -2064,33 +2113,25 @@ int EDGUIPropVec4::OnEvent( EDGUIEvent* e )
 		{
 			if( e->target == &m_Xbutton )
 			{
-				m_XnumWheel.m_cx = e->mouse.x;
-				m_XnumWheel.m_cy = e->mouse.y;
-				m_XnumWheel.m_value = m_value.x;
+				m_XnumWheel.SetValue( m_value.x, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_XnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
 			if( e->target == &m_Ybutton )
 			{
-				m_YnumWheel.m_cx = e->mouse.x;
-				m_YnumWheel.m_cy = e->mouse.y;
-				m_YnumWheel.m_value = m_value.y;
+				m_YnumWheel.SetValue( m_value.y, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_YnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
 			if( e->target == &m_Zbutton )
 			{
-				m_ZnumWheel.m_cx = e->mouse.x;
-				m_ZnumWheel.m_cy = e->mouse.y;
-				m_ZnumWheel.m_value = m_value.z;
+				m_ZnumWheel.SetValue( m_value.z, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_ZnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}
 			if( e->target == &m_Wbutton )
 			{
-				m_WnumWheel.m_cx = e->mouse.x;
-				m_WnumWheel.m_cy = e->mouse.y;
-				m_WnumWheel.m_value = m_value.w;
+				m_WnumWheel.SetValue( m_value.w, e->mouse.x, e->mouse.y );
 				m_frame->Add( &m_WnumWheel );
 				m_frame->_HandleMouseMove( false );
 			}

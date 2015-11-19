@@ -703,6 +703,7 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_lmquality( 1, 2, 0.01f, 100.0f ),
 	m_intervalScaleOffset( V2(1,0), 2, V2(0.01f,-128), V2(100.0f,128) ),
 	m_pipeModeOvershoot( 0, 0, 32 ),
+	m_rotAngles( V3(0), 2, V3(0), V3(360) ),
 	m_scaleUni( 1, 2, 0.01f, 100.0f ),
 	m_scaleSep( V3(1), 2, V3(0.01f), V3(100.0f) ),
 	m_turnMode( 0, 0, 2 )
