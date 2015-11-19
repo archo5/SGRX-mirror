@@ -1284,7 +1284,7 @@ struct EdMeshPath : EdObject
 {
 	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ),
 		m_isSolid( true ), m_intervalScaleOffset(V2(1,0)), m_pipeModeOvershoot(0),
-		m_scaleUni( 1 ), m_scaleSep( V3(1) ), m_turnMode(0)
+		m_rotAngles( V3(0) ), m_scaleUni( 1 ), m_scaleSep( V3(1) ), m_turnMode(0)
 	{
 	}
 	
@@ -1316,6 +1316,8 @@ struct EdMeshPath : EdObject
 	virtual int GetOnlySelectedVertex() const;
 	virtual void ScaleVertices( const Vec3& f );
 	virtual void MoveSelectedVertices( const Vec3& t );
+	virtual void SpecialAction( ESpecialAction act );
+	virtual bool CanDoSpecialAction( ESpecialAction act );
 	
 	template< class T > void SerializeT( T& arch )
 	{
@@ -1327,6 +1329,7 @@ struct EdMeshPath : EdObject
 		arch << m_isSolid;
 		arch << m_intervalScaleOffset;
 		arch << m_pipeModeOvershoot;
+		arch << m_rotAngles;
 		arch << m_scaleUni;
 		arch << m_scaleSep;
 		arch << m_turnMode;
@@ -1341,6 +1344,7 @@ struct EdMeshPath : EdObject
 	bool m_isSolid;
 	Vec2 m_intervalScaleOffset;
 	int m_pipeModeOvershoot;
+	Vec3 m_rotAngles;
 	float m_scaleUni;
 	Vec3 m_scaleSep;
 	int m_turnMode;
@@ -1398,6 +1402,7 @@ struct EDGUIMeshPathProps : EDGUILayoutRow
 	EDGUIPropFloat m_lmquality;
 	EDGUIPropVec2 m_intervalScaleOffset;
 	EDGUIPropInt m_pipeModeOvershoot;
+	EDGUIPropVec3 m_rotAngles;
 	EDGUIPropFloat m_scaleUni;
 	EDGUIPropVec3 m_scaleSep;
 	EDGUIPropInt m_turnMode;

@@ -696,7 +696,7 @@ bool EdPatch::CanDoSpecialAction( ESpecialAction act )
 		}
 		
 	default:
-		return true;
+		return false;
 	}
 }
 

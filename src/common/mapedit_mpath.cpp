@@ -317,8 +317,11 @@ size_t EdMeshPath::PlaceItem( LCVDataEdit& edit, float at, float off )
 		}
 		break;
 	}
-	Mat4 xf = Mat4::CreateScale( m_scaleUni * m_scaleSep ) * rotmtx
+	Mat4 xf = Mat4::CreateRotationXYZ( DEG2RAD( m_rotAngles ) )
+		* Mat4::CreateScale( m_scaleUni * m_scaleSep ) * rotmtx
 		* Mat4::CreateTranslation( pos + dtp * off );
+	// DEBUG
+//	if(off) pos += V3(0,0,0.5f);
 	
 	if( m_pipeModeOvershoot )
 	{
@@ -346,8 +349,11 @@ void EdMeshPath::RegenerateMesh()
 	if( !ExtractLCVDataFromMesh( m_cachedMesh, vertices, indices ) )
 		return;
 	
+	Vec3 bbmin = m_cachedMesh->m_boundsMin;
+	Vec3 bbmax = m_cachedMesh->m_boundsMax;
+	TransformAABB( bbmin, bbmax, Mat4::CreateRotationXYZ( DEG2RAD( m_rotAngles ) ) );
 	Vec3 totalScale = m_scaleUni * m_scaleSep;
-	float advance = m_cachedMesh->m_boundsMax.x - m_cachedMesh->m_boundsMin.x;
+	float advance = bbmax.x - bbmin.x;
 	float realAdv = advance * m_intervalScaleOffset.x * totalScale.x;
 	float totalLength = 0;
 	for( size_t i = 1; i < m_points.size(); ++i )
@@ -466,6 +472,80 @@ void EdMeshPath::MoveSelectedVertices( const Vec3& t )
 		{
 			m_points[ i ].pos += t;
 		}
+	}
+}
+
+void EdMeshPath::SpecialAction( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_Subdivide:
+		for( size_t i = 1; i < m_points.size(); ++i )
+		{
+			if( m_points[ i - 1 ].sel && m_points[ i ].sel )
+			{
+				EdMeshPathPoint mpp = m_points[ i ];
+				mpp.pos = TLERP( m_points[ i - 1 ].pos, mpp.pos, 0.5f );
+				m_points.insert( i++, mpp );
+			}
+		}
+		RegenerateMesh();
+		break;
+	case SA_Unsubdivide:
+		for( size_t i = 0; i < m_points.size(); ++i )
+		{
+			if( m_points[ i ].sel )
+				m_points.erase( i-- );
+		}
+		RegenerateMesh();
+		break;
+	case SA_Extend:
+		if( m_points[ 0 ].sel )
+		{
+			// extend from first
+			EdMeshPathPoint mpp = m_points[ 0 ];
+			m_points.insert( 0, mpp );
+			m_points[ 1 ].sel = false;
+		}
+		else
+		{
+			// extend from last
+			EdMeshPathPoint mpp = m_points.last();
+			m_points.push_back( mpp );
+			m_points[ m_points.size() - 2 ].sel = false;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+bool EdMeshPath::CanDoSpecialAction( ESpecialAction act )
+{
+	switch( act )
+	{
+	case SA_Subdivide:
+		for( size_t i = 1; i < m_points.size(); ++i )
+		{
+			if( m_points[ i - 1 ].sel && m_points[ i ].sel )
+				return true;
+		}
+		return false;
+	case SA_Unsubdivide:
+		{
+			int selnum = 0;
+			for( size_t i = 0; i < m_points.size(); ++i )
+				if( m_points[ i ].sel )
+					selnum++;
+			return m_points.size() - selnum >= 2;
+		}
+	case SA_Extend:
+		{
+			int v = GetOnlySelectedVertex();
+			return v == 0 || v == (int) m_points.size() - 1;
+		}
+	default:
+		return false;
 	}
 }
 
@@ -635,6 +715,7 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_lmquality.caption = "Lightmap quality";
 	m_intervalScaleOffset.caption = "Interval scale/offset";
 	m_pipeModeOvershoot.caption = "Pipe mode?/overshoot";
+	m_rotAngles.caption = "Rotation (XYZ)";
 	m_scaleUni.caption = "Scale (uniform)";
 	m_scaleSep.caption = "Scale (separate)";
 	m_turnMode.caption = "Turn mode";
@@ -657,6 +738,7 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_group.Add( &m_lmquality );
 	m_group.Add( &m_intervalScaleOffset );
 	m_group.Add( &m_pipeModeOvershoot );
+	m_group.Add( &m_rotAngles );
 	m_group.Add( &m_scaleUni );
 	m_group.Add( &m_scaleSep );
 	m_group.Add( &m_turnMode );
@@ -719,6 +801,11 @@ int EDGUIMeshPathProps::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_pipeModeOvershoot )
 		{
 			m_out->m_pipeModeOvershoot = m_pipeModeOvershoot.m_value;
+			m_out->RegenerateMesh();
+		}
+		else if( e->target == &m_rotAngles )
+		{
+			m_out->m_rotAngles = m_rotAngles.m_value;
 			m_out->RegenerateMesh();
 		}
 		else if( e->target == &m_scaleUni )

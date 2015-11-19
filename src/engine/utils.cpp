@@ -1134,6 +1134,30 @@ bool SegmentAABBIntersect2( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, c
 	return true;
 }
 
+void TransformAABB( Vec3& bbmin, Vec3& bbmax, const Mat4& mtx )
+{
+	Vec3 pts[8] =
+	{
+		V3( bbmin.x, bbmin.y, bbmin.z ),
+		V3( bbmax.x, bbmin.y, bbmin.z ),
+		V3( bbmin.x, bbmax.y, bbmin.z ),
+		V3( bbmax.x, bbmax.y, bbmin.z ),
+		V3( bbmin.x, bbmin.y, bbmax.z ),
+		V3( bbmax.x, bbmin.y, bbmax.z ),
+		V3( bbmin.x, bbmax.y, bbmax.z ),
+		V3( bbmax.x, bbmax.y, bbmax.z ),
+	};
+	for( int i = 0; i < 8; ++i )
+		pts[ i ] = mtx.TransformPos( pts[ i ] );
+	bbmin = pts[0];
+	bbmax = pts[0];
+	for( int i = 1; i < 8; ++i )
+	{
+		bbmin = Vec3::Min( bbmin, pts[ i ] );
+		bbmax = Vec3::Max( bbmax, pts[ i ] );
+	}
+}
+
 
 
 FINLINE char sgrx_tolower( char a )

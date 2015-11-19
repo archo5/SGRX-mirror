@@ -1183,6 +1183,7 @@ ENGINE_EXPORT bool RayPolyIntersect( const Vec3& pos, const Vec3& dir, const Vec
 ENGINE_EXPORT bool RaySphereIntersect( const Vec3& pos, const Vec3& dir, const Vec3& spherePos, float sphereRadius, float dst[1] );
 ENGINE_EXPORT bool SegmentAABBIntersect( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, const Vec3& bbmax );
 ENGINE_EXPORT bool SegmentAABBIntersect2( const Vec3& p1, const Vec3& p2, const Vec3& bbmin, const Vec3& bbmax, float dst[1] );
+ENGINE_EXPORT void TransformAABB( Vec3& bbmin, Vec3& bbmax, const Mat4& mtx );
 
 
 //

@@ -1068,7 +1068,7 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		String actlist = "Grab [G]";
 		if( _CanDo( SA_Invert ) ) actlist.append( ", Invert patch [I]" );
 		if( _CanDo( SA_Subdivide ) ) actlist.append( ", Subdivide [']']" );
-		if( _CanDo( SA_Unsubdivide ) ) actlist.append( ", Unsubdivide [']']" );
+		if( _CanDo( SA_Unsubdivide ) ) actlist.append( ", Unsubdivide ['[']" );
 		if( _CanDo( SA_EdgeFlip ) ) actlist.append( ", Edge flip [F]" );
 		if( _CanDo( SA_Extend ) ) actlist.append( ", Extend [E]" );
 		if( _CanDo( SA_Remove ) ) actlist.append( ", Remove [Del]" );
