@@ -311,6 +311,8 @@ size_t EdMeshPath::PlaceItem( LCVDataEdit& edit, float at, float off )
 		{
 			Vec3 bx = dtp;
 			Vec3 bz = V3(0,0,1);
+			if( Vec3Dot( bx, bz ) > 0.999f )
+				bz = V3(-1,0,1);
 			Vec3 by = Vec3Cross( bz, bx ).Normalized();
 			bz = Vec3Cross( bx, by ).Normalized();
 			rotmtx = Mat4::Basis( bx, by, bz );
@@ -372,36 +374,38 @@ void EdMeshPath::RegenerateMesh()
 		
 		LCVDataEdit edit( vertices, indices, m_cachedMesh->m_meshParts[ pid ] );
 		
-		float curat = 0, prevat = 0, at = 0;
-		size_t oldp1 = 0;
-		while( at < totalLength )
+		if( m_pipeModeOvershoot )
 		{
-			size_t pi1 = PlaceItem( edit, at, 0 );
-			
-			prevat = curat;
-			curat = at;
-			
-			at += realAdv;
-			if( at >= totalLength )
-				pi1++;
-			
-			// dual overshoot
-			if( oldp1 != pi1 )
+			float segmentEnd = 0;
+			for( size_t i = 1; i < m_points.size(); ++i )
 			{
-				for( int pmo = 1; pmo <= m_pipeModeOvershoot; ++pmo )
+				float segmentStart = segmentEnd;
+				segmentEnd += ( m_points[ i ].pos - m_points[ i - 1 ].pos ).Length();
+				float segmentMid = ( segmentStart + segmentEnd ) * 0.5f;
+				
+				float extra_adv = realAdv * m_pipeModeOvershoot;
+				for( float at = -extra_adv; at < totalLength + extra_adv; at += realAdv )
 				{
-					// overshoot forward from current unit
-					if( pi1 != 1 )
-					{
-						PlaceItem( edit, at >= totalLength ? curat : prevat, realAdv * pmo );
-					}
-					// overshoot backward from next unit if not at the end
-					if( pi1 < m_points.size() )
-					{
-						PlaceItem( edit, curat, -realAdv * pmo );
-					}
+					float tMin = at + bbmin.x * totalScale.x - extra_adv;
+					float tMax = at + bbmax.x * totalScale.x + extra_adv;
+					
+				//	printf( "p %d seg %g | segmin=%g segmax=%g tmin=%g tmax=%g\n",
+				//		(int)i, at, segmentStart, segmentEnd, tMin, tMax );
+					if( tMin > segmentEnd || tMax < segmentStart )
+						continue; // instance doesn't intersect with segment
+					
+				//	printf( "BUILD segmid=%g off=%g\n", segmentMid, at - segmentMid );
+					PlaceItem( edit, segmentMid, at - segmentMid );
 				}
-				oldp1 = pi1;
+			}
+		}
+		else
+		{
+			float at = 0;
+			while( at < totalLength )
+			{
+				PlaceItem( edit, at, 0 );
+				at += realAdv;
 			}
 		}
 		
@@ -750,6 +754,7 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_isSolid.SetValue( mpath->m_isSolid );
 	m_intervalScaleOffset.SetValue( mpath->m_intervalScaleOffset );
 	m_pipeModeOvershoot.SetValue( mpath->m_pipeModeOvershoot );
+	m_rotAngles.SetValue( mpath->m_rotAngles );
 	m_scaleUni.SetValue( mpath->m_scaleUni );
 	m_scaleSep.SetValue( mpath->m_scaleSep );
 	m_turnMode.SetValue( mpath->m_turnMode );
