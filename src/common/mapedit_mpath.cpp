@@ -98,26 +98,34 @@ bool ExtractLCVDataFromMesh( SGRX_IMesh* mesh, Array<LCVertex>& vertices, Array<
 
 struct LCVDataEdit
 {
-	LCVDataEdit( const Array<LCVertex>& iva, const Array<uint16_t>& iia, const SGRX_MeshPart& MP )
+	LCVDataEdit( const Array<LCVertex>& iva, const Array<uint16_t>& iia,
+		const SGRX_MeshPart& MP, const Array<SGRX_MeshPart>& parts )
 		: triarea_total( 0 ), tex1off( 0 )
 	{
 		// reindex the input arrays to extract mesh part data
-		uint32_t iend = MP.indexOffset + MP.indexCount;
-		for( uint32_t i = MP.indexOffset; i < iend; ++i )
 		{
-			inIA.push_back( inVA.find_or_add( iva[ iia[ i ] ] ) );
+			uint32_t iend = MP.indexOffset + MP.indexCount;
+			for( uint32_t i = MP.indexOffset; i < iend; ++i )
+			{
+				inIA.push_back( inVA.find_or_add( iva[ iia[ i ] + MP.vertexOffset ] ) );
+			}
+			
+			while( inIA.size() % 3 )
+				inIA.pop_back();
 		}
 		
-		while( inIA.size() % 3 )
-			inIA.pop_back();
-		
 		// calculate triangle area from the whole mesh (for lightmap coord scaling stability)
-		for( size_t i = 0; i + 2 < iia.size(); i +=3 )
+		for( size_t p = 0; p < parts.size(); ++p )
 		{
-			Vec3 p0 = iva[ iia[ i+0 ] ].pos;
-			Vec3 p1 = iva[ iia[ i+1 ] ].pos;
-			Vec3 p2 = iva[ iia[ i+2 ] ].pos;
-			triarea_total += TriangleArea( p0, p1, p2 );
+			const SGRX_MeshPart& mp = parts[ p ];
+			uint32_t iend = mp.indexOffset + mp.indexCount;
+			for( uint32_t i = mp.indexOffset; i + 2 < iend; i += 3 )
+			{
+				Vec3 p0 = iva[ iia[ i+0 ] + mp.vertexOffset ].pos;
+				Vec3 p1 = iva[ iia[ i+1 ] + mp.vertexOffset ].pos;
+				Vec3 p2 = iva[ iia[ i+2 ] + mp.vertexOffset ].pos;
+				triarea_total += TriangleArea( p0, p1, p2 );
+			}
 		}
 	}
 	
@@ -190,7 +198,7 @@ struct LCVDataEdit
 		}
 	}
 	
-	void Add( Mat4 xf, Vec4* planes, int plcount )
+	void Add( Mat4 xf, Vec4* planes, Vec3* normals, int plcount )
 	{
 		size_t voff = outVA.size();
 		size_t ioff = outIA.size();
@@ -209,6 +217,23 @@ struct LCVDataEdit
 				stage2.clear();
 				_ClipTris( stage2, stage, planes[ i ] );
 				stage = stage2;
+			}
+			// turn normals on planes
+			for( int i = 0; i < plcount; ++i )
+			{
+				if( normals[ i ] == V3(0) )
+					continue;
+				Mat4 xf = Mat4::CreateRotationBetweenVectors( normals[ i ], planes[ i ].ToVec3() );
+				for( size_t v = 0; v < stage.size(); ++v )
+				{
+					Vec3 PN = planes[ i ].ToVec3();
+					float PD = planes[ i ].w;
+					// having used this plane for clipping before, signed distance checking is acceptable
+					if( Vec3Dot( stage[ v ].pos, PN ) - PD > -SMALL_FLOAT )
+					{
+						stage[ v ].nrm = xf.TransformNormal( stage[ v ].nrm ).Normalized();
+					}
+				}
 			}
 			// repack into output
 			for( size_t i = 0; i < stage.size(); ++i )
@@ -245,6 +270,7 @@ struct LCVDataEdit
 	Array<uint16_t> outIA;
 	Array<LCVertex> stage;
 	Array<LCVertex> stage2;
+	Array<uint16_t> plverts;
 };
 
 
@@ -328,11 +354,16 @@ size_t EdMeshPath::PlaceItem( LCVDataEdit& edit, float at, float off )
 	if( m_pipeModeOvershoot )
 	{
 		Vec4 planes[2] = { -GetPlane( pi0 ), GetPlane( pi1 ) };
-		edit.Add( xf, planes, 2 );
+		Vec3 normals[2] =
+		{
+			m_doSmoothing || m_points[ pi0 ].smooth ? -dtp : V3( 0 ),
+			m_doSmoothing || m_points[ pi0 ].smooth ? dtp : V3( 0 ),
+		};
+		edit.Add( xf, planes, normals, 2 );
 	}
 	else
 	{
-		edit.Add( xf, NULL, 0 );
+		edit.Add( xf, NULL, NULL, 0 );
 	}
 	
 	return pi1;
@@ -351,6 +382,9 @@ void EdMeshPath::RegenerateMesh()
 	if( !ExtractLCVDataFromMesh( m_cachedMesh, vertices, indices ) )
 		return;
 	
+	if( m_intervalScaleOffset.x < 0.1f )
+		return;
+	
 	Vec3 bbmin = m_cachedMesh->m_boundsMin;
 	Vec3 bbmax = m_cachedMesh->m_boundsMax;
 	TransformAABB( bbmin, bbmax, Mat4::CreateRotationXYZ( DEG2RAD( m_rotAngles ) ) );
@@ -363,7 +397,6 @@ void EdMeshPath::RegenerateMesh()
 		totalLength += ( m_points[ i ].pos - m_points[ i - 1 ].pos ).Length();
 	}
 	
-	bool first = true;
 	for( int pid = 0; pid < MAX_MESHPATH_PARTS && pid < (int) m_cachedMesh->m_meshParts.size(); ++pid )
 	{
 		if( m_parts[ pid ].texname.size() == 0 )
@@ -372,7 +405,7 @@ void EdMeshPath::RegenerateMesh()
 		EdMeshPathPart& MP = m_parts[ pid ];
 		EdLGCSurfaceInfo S;
 		
-		LCVDataEdit edit( vertices, indices, m_cachedMesh->m_meshParts[ pid ] );
+		LCVDataEdit edit( vertices, indices, m_cachedMesh->m_meshParts[ pid ], m_cachedMesh->m_meshParts );
 		
 		if( m_pipeModeOvershoot )
 		{
@@ -411,13 +444,13 @@ void EdMeshPath::RegenerateMesh()
 		
 		edit.Finalize();
 		
-		bool solid = first == true && m_isSolid;
+		bool solid = m_isSolid;
 		S.vdata = edit.outVA.data();
 		S.vcount = edit.outVA.size();
 		S.idata = edit.outIA.data();
 		S.icount = edit.outIA.size();
 		S.mtlname = MP.texname;
-		S.lmsize = V2( edit.tex1off, 1 ) * sqrtf( edit.triarea_total ) * 8; // magic number
+		S.lmsize = V2( edit.tex1off, 1 ) * sqrtf( edit.triarea_total ) * 2;
 		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
 		S.rflags = LM_MESHINST_CASTLMS | (solid ? LM_MESHINST_SOLID : 0);
 		S.lmdetail = m_lmquality;
@@ -427,8 +460,6 @@ void EdMeshPath::RegenerateMesh()
 			g_EdLGCont->UpdateSurface( MP.surface_id, LGC_CHANGE_ALL, &S );
 		else
 			MP.surface_id = g_EdLGCont->CreateSurface( &S );
-		
-		first = false;
 	}
 }
 
@@ -563,7 +594,7 @@ EDGUIMeshPathPointProps::EDGUIMeshPathPointProps() :
 	tyname = "meshpathpointprops";
 	m_group.caption = "Mesh path point properties";
 	m_pos.caption = "Offset";
-	m_smooth.caption = "Smooth?";
+	m_smooth.caption = "Max. smoothing angle";
 	
 	m_group.Add( &m_pos );
 	m_group.Add( &m_smooth );
@@ -717,6 +748,7 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_pos.caption = "Position";
 	m_blkGroup.caption = "Group";
 	m_isSolid.caption = "Is solid?";
+	m_doSmoothing.caption = "Perform smoothing?";
 	m_lmquality.caption = "Lightmap quality";
 	m_intervalScaleOffset.caption = "Interval scale/offset";
 	m_pipeModeOvershoot.caption = "Pipe mode?/overshoot";
@@ -740,6 +772,7 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_group.Add( &m_pos );
 	m_group.Add( &m_blkGroup );
 	m_group.Add( &m_isSolid );
+	m_group.Add( &m_doSmoothing );
 	m_group.Add( &m_lmquality );
 	m_group.Add( &m_intervalScaleOffset );
 	m_group.Add( &m_pipeModeOvershoot );
@@ -750,8 +783,9 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	
 	m_meshName.SetValue( mpath->m_meshName );
 	m_pos.SetValue( mpath->m_position );
-	m_lmquality.SetValue( mpath->m_lmquality );
 	m_isSolid.SetValue( mpath->m_isSolid );
+	m_doSmoothing.SetValue( mpath->m_doSmoothing );
+	m_lmquality.SetValue( mpath->m_lmquality );
 	m_intervalScaleOffset.SetValue( mpath->m_intervalScaleOffset );
 	m_pipeModeOvershoot.SetValue( mpath->m_pipeModeOvershoot );
 	m_rotAngles.SetValue( mpath->m_rotAngles );
@@ -783,52 +817,18 @@ int EDGUIMeshPathProps::OnEvent( EDGUIEvent* e )
 				if( grp )
 					m_out->group = grp->m_id;
 			}
-			m_out->RegenerateMesh();
 		}
-		else if( e->target == &m_meshName )
-		{
-			m_out->m_meshName = m_meshName.m_value;
-			m_out->RegenerateMesh();
-		}
-		else if( e->target == &m_isSolid )
-		{
-			m_out->m_isSolid = m_isSolid.m_value;
-		}
-		else if( e->target == &m_lmquality )
-		{
-			m_out->m_lmquality = m_lmquality.m_value;
-			m_out->RegenerateMesh();
-		}
-		else if( e->target == &m_intervalScaleOffset )
-		{
-			m_out->m_intervalScaleOffset = m_intervalScaleOffset.m_value;
-			m_out->RegenerateMesh();
-		}
-		else if( e->target == &m_pipeModeOvershoot )
-		{
-			m_out->m_pipeModeOvershoot = m_pipeModeOvershoot.m_value;
-			m_out->RegenerateMesh();
-		}
-		else if( e->target == &m_rotAngles )
-		{
-			m_out->m_rotAngles = m_rotAngles.m_value;
-			m_out->RegenerateMesh();
-		}
-		else if( e->target == &m_scaleUni )
-		{
-			m_out->m_scaleUni = m_scaleUni.m_value;
-			m_out->RegenerateMesh();
-		}
-		else if( e->target == &m_scaleSep )
-		{
-			m_out->m_scaleSep = m_scaleSep.m_value;
-			m_out->RegenerateMesh();
-		}
-		else if( e->target == &m_turnMode )
-		{
-			m_out->m_turnMode = m_turnMode.m_value;
-			m_out->RegenerateMesh();
-		}
+		else if( e->target == &m_meshName ) m_out->m_meshName = m_meshName.m_value;
+		else if( e->target == &m_isSolid ) m_out->m_isSolid = m_isSolid.m_value;
+		else if( e->target == &m_doSmoothing ) m_out->m_doSmoothing = m_doSmoothing.m_value;
+		else if( e->target == &m_lmquality ) m_out->m_lmquality = m_lmquality.m_value;
+		else if( e->target == &m_intervalScaleOffset ) m_out->m_intervalScaleOffset = m_intervalScaleOffset.m_value;
+		else if( e->target == &m_pipeModeOvershoot ) m_out->m_pipeModeOvershoot = m_pipeModeOvershoot.m_value;
+		else if( e->target == &m_rotAngles ) m_out->m_rotAngles = m_rotAngles.m_value;
+		else if( e->target == &m_scaleUni ) m_out->m_scaleUni = m_scaleUni.m_value;
+		else if( e->target == &m_scaleSep ) m_out->m_scaleSep = m_scaleSep.m_value;
+		else if( e->target == &m_turnMode ) m_out->m_turnMode = m_turnMode.m_value;
+		m_out->RegenerateMesh();
 		break;
 	}
 	return EDGUILayoutRow::OnEvent( e );

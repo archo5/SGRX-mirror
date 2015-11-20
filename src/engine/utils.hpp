@@ -889,13 +889,13 @@ struct ENGINE_EXPORT Mat4
 		return m;
 	}
 	static FINLINE Mat4 CreateRotationAxisAngle( const Vec3& axis, float angle ){ return CreateRotationAxisAngle( axis.x, axis.y, axis.z, angle ); }
-	static Mat4 CreateRotationBetweenVectors( const Vec3& a, const Vec3& b )
+	static Mat4 CreateRotationBetweenVectors( const Vec3& a, const Vec3& b, float scale = 1.0f )
 	{
 		float angle = acosf( clamp( Vec3Dot( a, b ), -1, 1 ) );
 		Vec3 axis = Vec3Cross( a, b );
 		if( axis.LengthSq() < SMALL_FLOAT )
 			axis = Vec3Cross( a, a.Shuffle() );
-		return CreateRotationAxisAngle( axis.Normalized(), angle );
+		return CreateRotationAxisAngle( axis.Normalized(), angle * scale );
 	}
 	static Mat4 CreateRotationFromQuat( const Quat& q )
 	{

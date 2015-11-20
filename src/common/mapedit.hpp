@@ -15,7 +15,8 @@
 // v5: level graphics container IDs
 // v6: patch.layer.lmquality -> patch, added world.sample_density
 // v7: added dynamic lights
-#define MAP_FILE_VERSION 7
+// v8: added mesh paths
+#define MAP_FILE_VERSION 8
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -1221,7 +1222,7 @@ struct EDGUIPatchProps : EDGUILayoutRow
 
 struct EdMeshPathPoint
 {
-	EdMeshPathPoint() : pos(V3(0)), smooth(30), sel(false){}
+	EdMeshPathPoint() : pos(V3(0)), smooth(false), sel(false){}
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -1229,7 +1230,7 @@ struct EdMeshPathPoint
 	}
 	
 	Vec3 pos;
-	float smooth;
+	bool smooth;
 	bool sel;
 };
 
@@ -1283,7 +1284,8 @@ enum EMPATH_TurnMode
 struct EdMeshPath : EdObject
 {
 	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ),
-		m_isSolid( true ), m_intervalScaleOffset(V2(1,0)), m_pipeModeOvershoot(0),
+		m_isSolid( true ), m_doSmoothing( false ),
+		m_intervalScaleOffset(V2(1,0)), m_pipeModeOvershoot(0),
 		m_rotAngles( V3(0) ), m_scaleUni( 1 ), m_scaleSep( V3(1) ), m_turnMode(0)
 	{
 	}
@@ -1327,6 +1329,7 @@ struct EdMeshPath : EdObject
 		arch << m_meshName;
 		arch << m_lmquality;
 		arch << m_isSolid;
+		arch << m_doSmoothing;
 		arch << m_intervalScaleOffset;
 		arch << m_pipeModeOvershoot;
 		arch << m_rotAngles;
@@ -1342,6 +1345,7 @@ struct EdMeshPath : EdObject
 	String m_meshName;
 	float m_lmquality;
 	bool m_isSolid;
+	bool m_doSmoothing;
 	Vec2 m_intervalScaleOffset;
 	int m_pipeModeOvershoot;
 	Vec3 m_rotAngles;
@@ -1367,7 +1371,7 @@ struct EDGUIMeshPathPointProps : EDGUILayoutRow
 	int m_pid;
 	EDGUIGroup m_group;
 	EDGUIPropVec3 m_pos;
-	EDGUIPropFloat m_smooth;
+	EDGUIPropBool m_smooth;
 };
 
 struct EDGUIMeshPathPartProps : EDGUILayoutRow
@@ -1399,6 +1403,7 @@ struct EDGUIMeshPathProps : EDGUILayoutRow
 	EDGUIPropVec3 m_pos;
 	EDGUIPropRsrc m_blkGroup;
 	EDGUIPropBool m_isSolid;
+	EDGUIPropBool m_doSmoothing;
 	EDGUIPropFloat m_lmquality;
 	EDGUIPropVec2 m_intervalScaleOffset;
 	EDGUIPropInt m_pipeModeOvershoot;
@@ -1935,6 +1940,16 @@ struct EdWorld : EDGUILayoutRow
 			{
 				svh << *m_patches[ i ].item;
 			}
+			
+			if( svh.version >= 8 )
+			{
+				int32_t numpaths = m_mpaths.size();
+				svh << numpaths;
+				for( size_t i = 0; i < m_mpaths.size(); ++i )
+				{
+					svh << *m_mpaths[ i ].item;
+				}
+			}
 		}
 		else
 		{
@@ -1963,6 +1978,18 @@ struct EdWorld : EDGUILayoutRow
 				EdPatch* patch = new EdPatch;
 				svh << *patch;
 				AddObject( patch );
+			}
+			
+			if( svh.version >= 8 )
+			{
+				int32_t numpaths;
+				svh << numpaths;
+				for( int32_t i = 0; i < numpaths; ++i )
+				{
+					EdMeshPath* mpath = new EdMeshPath;
+					svh << *mpath;
+					AddObject( mpath );
+				}
 			}
 		}
 	}

@@ -991,7 +991,7 @@ float PolyArea( const Vec2* points, int pointcount )
 
 float TriangleArea( float a, float b, float c )
 {
-	return 0.25f * sqrtf( ( a + b + c ) * ( b + c - a ) * ( c + a - b ) * ( a + b - c ) );
+	return 0.25f * sqrtf( TMAX( 0.0f, ( a + b + c ) * ( b + c - a ) * ( c + a - b ) * ( a + b - c ) ) );
 }
 
 float TriangleArea( const Vec3& p0, const Vec3& p1, const Vec3& p2 )
