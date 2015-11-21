@@ -1284,7 +1284,7 @@ enum EMPATH_TurnMode
 struct EdMeshPath : EdObject
 {
 	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ),
-		m_isSolid( true ), m_doSmoothing( false ),
+		m_isSolid( true ), m_doSmoothing( false ), m_isDynamic( false ),
 		m_intervalScaleOffset(V2(1,0)), m_pipeModeOvershoot(0),
 		m_rotAngles( V3(0) ), m_scaleUni( 1 ), m_scaleSep( V3(1) ), m_turnMode(0)
 	{
@@ -1330,6 +1330,7 @@ struct EdMeshPath : EdObject
 		arch << m_lmquality;
 		arch << m_isSolid;
 		arch << m_doSmoothing;
+		arch << m_isDynamic;
 		arch << m_intervalScaleOffset;
 		arch << m_pipeModeOvershoot;
 		arch << m_rotAngles;
@@ -1346,6 +1347,7 @@ struct EdMeshPath : EdObject
 	float m_lmquality;
 	bool m_isSolid;
 	bool m_doSmoothing;
+	bool m_isDynamic;
 	Vec2 m_intervalScaleOffset;
 	int m_pipeModeOvershoot;
 	Vec3 m_rotAngles;
@@ -1404,6 +1406,7 @@ struct EDGUIMeshPathProps : EDGUILayoutRow
 	EDGUIPropRsrc m_blkGroup;
 	EDGUIPropBool m_isSolid;
 	EDGUIPropBool m_doSmoothing;
+	EDGUIPropBool m_isDynamic;
 	EDGUIPropFloat m_lmquality;
 	EDGUIPropVec2 m_intervalScaleOffset;
 	EDGUIPropInt m_pipeModeOvershoot;

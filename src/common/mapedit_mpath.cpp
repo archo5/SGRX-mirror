@@ -135,8 +135,8 @@ struct LCVDataEdit
 		{
 			LCVertex& V = arr[ i ];
 			V.pos = xf.TransformPos( V.pos );
-			V.nrm = xf.TransformNormal( V.nrm );
-			V.tng = V4( xf.TransformNormal( V.tng.ToVec3() ), V.tng.w );
+			V.nrm = xf.TransformNormal( V.nrm ).Normalized();
+			V.tng = V4( xf.TransformNormal( V.tng.ToVec3() ).Normalized(), V.tng.w );
 			V.tx1 += tex1off;
 		}
 	}
@@ -232,6 +232,9 @@ struct LCVDataEdit
 					if( Vec3Dot( stage[ v ].pos, PN ) - PD > -SMALL_FLOAT )
 					{
 						stage[ v ].nrm = xf.TransformNormal( stage[ v ].nrm ).Normalized();
+						stage[ v ].tng = V4(
+							xf.TransformNormal( stage[ v ].tng.ToVec3() ).Normalized(),
+							stage[ v ].tng.w );
 					}
 				}
 			}
@@ -254,10 +257,18 @@ struct LCVDataEdit
 		tex1off++;
 	}
 	
-	void Finalize()
+	void Finalize( Vec2 txscale, float txangle, Vec2 txoff )
 	{
 		for( size_t i = 0; i < outVA.size(); ++i )
 		{
+			Vec2 tx = V2(
+				safe_fdiv( outVA[ i ].tx0, txscale.x ),
+				safe_fdiv( outVA[ i ].ty0, txscale.y ) );
+			tx.Rotate( txangle );
+			tx += txoff;
+			outVA[ i ].tx0 = tx.x;
+			outVA[ i ].ty0 = tx.y;
+			
 			outVA[ i ].tx1 /= tex1off; // not 0 if anything added (outVA not empty)
 		}
 	}
@@ -337,8 +348,11 @@ size_t EdMeshPath::PlaceItem( LCVDataEdit& edit, float at, float off )
 		{
 			Vec3 bx = dtp;
 			Vec3 bz = V3(0,0,1);
-			if( Vec3Dot( bx, bz ) > 0.999f )
+			float xzdot = Vec3Dot( bx, bz );
+			if( xzdot > 0.999f )
 				bz = V3(-1,0,1);
+			else if( xzdot < -0.999f )
+				bz = V3(1,0,1);
 			Vec3 by = Vec3Cross( bz, bx ).Normalized();
 			bz = Vec3Cross( bx, by ).Normalized();
 			rotmtx = Mat4::Basis( bx, by, bz );
@@ -442,9 +456,10 @@ void EdMeshPath::RegenerateMesh()
 			}
 		}
 		
-		edit.Finalize();
+		edit.Finalize(
+			V2( MP.scale, safe_fdiv( MP.scale, MP.aspect ) ),
+			DEG2RAD( MP.angle ), V2( MP.xoff, MP.yoff ) );
 		
-		bool solid = m_isSolid;
 		S.vdata = edit.outVA.data();
 		S.vcount = edit.outVA.size();
 		S.idata = edit.outIA.data();
@@ -452,7 +467,9 @@ void EdMeshPath::RegenerateMesh()
 		S.mtlname = MP.texname;
 		S.lmsize = V2( edit.tex1off, 1 ) * sqrtf( edit.triarea_total ) * 2;
 		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
-		S.rflags = LM_MESHINST_CASTLMS | (solid ? LM_MESHINST_SOLID : 0);
+		S.rflags = LM_MESHINST_CASTLMS
+			| (m_isSolid ? LM_MESHINST_SOLID : 0)
+			| (m_isDynamic ? LM_MESHINST_DYNLIT : 0);
 		S.lmdetail = m_lmquality;
 		S.decalLayer = 0;
 		
@@ -594,7 +611,7 @@ EDGUIMeshPathPointProps::EDGUIMeshPathPointProps() :
 	tyname = "meshpathpointprops";
 	m_group.caption = "Mesh path point properties";
 	m_pos.caption = "Offset";
-	m_smooth.caption = "Max. smoothing angle";
+	m_smooth.caption = "Smoothing?";
 	
 	m_group.Add( &m_pos );
 	m_group.Add( &m_smooth );
@@ -735,6 +752,8 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_blkGroup( NULL ),
 	m_isSolid( false ),
+	m_doSmoothing( false ),
+	m_isDynamic( false ),
 	m_lmquality( 1, 2, 0.01f, 100.0f ),
 	m_intervalScaleOffset( V2(1,0), 2, V2(0.01f,-128), V2(100.0f,128) ),
 	m_pipeModeOvershoot( 0, 0, 32 ),
@@ -749,6 +768,7 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_blkGroup.caption = "Group";
 	m_isSolid.caption = "Is solid?";
 	m_doSmoothing.caption = "Perform smoothing?";
+	m_isDynamic.caption = "Is dynamic?";
 	m_lmquality.caption = "Lightmap quality";
 	m_intervalScaleOffset.caption = "Interval scale/offset";
 	m_pipeModeOvershoot.caption = "Pipe mode?/overshoot";
@@ -773,6 +793,7 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_group.Add( &m_blkGroup );
 	m_group.Add( &m_isSolid );
 	m_group.Add( &m_doSmoothing );
+	m_group.Add( &m_isDynamic );
 	m_group.Add( &m_lmquality );
 	m_group.Add( &m_intervalScaleOffset );
 	m_group.Add( &m_pipeModeOvershoot );
@@ -785,6 +806,7 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_pos.SetValue( mpath->m_position );
 	m_isSolid.SetValue( mpath->m_isSolid );
 	m_doSmoothing.SetValue( mpath->m_doSmoothing );
+	m_isDynamic.SetValue( mpath->m_isDynamic );
 	m_lmquality.SetValue( mpath->m_lmquality );
 	m_intervalScaleOffset.SetValue( mpath->m_intervalScaleOffset );
 	m_pipeModeOvershoot.SetValue( mpath->m_pipeModeOvershoot );
@@ -821,6 +843,7 @@ int EDGUIMeshPathProps::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_meshName ) m_out->m_meshName = m_meshName.m_value;
 		else if( e->target == &m_isSolid ) m_out->m_isSolid = m_isSolid.m_value;
 		else if( e->target == &m_doSmoothing ) m_out->m_doSmoothing = m_doSmoothing.m_value;
+		else if( e->target == &m_isDynamic ) m_out->m_isDynamic = m_isDynamic.m_value;
 		else if( e->target == &m_lmquality ) m_out->m_lmquality = m_lmquality.m_value;
 		else if( e->target == &m_intervalScaleOffset ) m_out->m_intervalScaleOffset = m_intervalScaleOffset.m_value;
 		else if( e->target == &m_pipeModeOvershoot ) m_out->m_pipeModeOvershoot = m_pipeModeOvershoot.m_value;

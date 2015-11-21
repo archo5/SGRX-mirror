@@ -605,7 +605,7 @@ void LevelCache::AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
 	
 	for( int i = 0; i + 2 < vcount; i += 3 )
 	{
-		if( TriangleArea( verts[ i+0 ].pos, verts[ i+1 ].pos, verts[ i+2 ].pos ) < SMALL_FLOAT )
+		if( TriangleArea( verts[ i+0 ].pos, verts[ i+1 ].pos, verts[ i+2 ].pos ) < 0.0000001f )
 			continue;
 		P.m_vertices.append( &verts[ i ], 3 );
 	}
