@@ -981,15 +981,8 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		Vec3 enemypos = data.pos;
 		
 		// verify the find
-		Vec3 vieworigin = enemy->m_char->GetPosition();
-		Vec3 viewdir = enemy->m_char->GetViewDir();
-		Vec3 view2pos = enemypos - vieworigin;
-		float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
-		if( vpdot < cosf(DEG2RAD(40.0f)) )
-			return true; // outside view cone
-		
-		if( ent->m_level->GetPhyWorld()->Raycast( vieworigin, enemypos, 1, 1 ) )
-			return true; // behind wall
+		if( enemy->CanSeePoint( enemypos ) == false )
+			return true;
 		
 		// TODO friendlies
 		AIFactStorage& FS = enemy->m_factStorage;
@@ -1186,6 +1179,44 @@ void TSEnemyController::DebugDrawUI()
 	}
 }
 
+bool TSEnemyController::CanSeePoint( Vec3 pt )
+{
+	Vec3 vieworigin = m_char->GetPosition();
+	Vec3 viewdir = m_char->GetAimDir();
+	Vec3 view2pos = pt - vieworigin;
+	
+	// check immediate proximity
+	if( view2pos.ToVec2().Length() < 0.5f && fabsf( view2pos.z ) < 1 )
+		return true;
+	
+	// increase vertical FOV
+	viewdir.z *= 0.5f;
+	view2pos.z *= 0.5f;
+	
+	float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
+	if( vpdot < cosf(DEG2RAD(40.0f)) )
+		return false; // outside view cone
+	
+	if( m_level->GetPhyWorld()->Raycast( vieworigin, pt, 1, 1 ) )
+		return false; // behind wall
+	
+	return true;
+}
+
+bool TSEnemyController::LookingAtPoint( Vec3 pt )
+{
+	Vec3 vieworigin = m_char->GetPosition();
+	Vec3 viewdir = m_char->GetAimDir();
+	Vec3 view2pos = pt - vieworigin;
+	
+	// increase vertical FOV
+	viewdir.z *= 0.5f;
+	view2pos.z *= 0.5f;
+	
+	float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
+	return vpdot >= cosf(DEG2RAD(40.0f));
+}
+
 bool TSEnemyController::sgsHasFact( uint32_t typemask )
 {
 	return m_factStorage.HasFact( typemask );
@@ -1262,6 +1293,11 @@ sgsMaybe<Vec3> TSEnemyController::sgsGetCoverPosition(
 	if( m_coverInfo.GetPosition( position, distpow, out, interval ) )
 		return out;
 	return sgsMaybe<Vec3>();
+}
+
+bool TSEnemyController::sgsIsWalkable( Vec3 pos, Vec3 ext )
+{
+	return m_aidb->m_pathfinder.FindPoly( pos, NULL, ext ) != 0;
 }
 
 bool TSEnemyController::sgsFindPath( const Vec3& to )

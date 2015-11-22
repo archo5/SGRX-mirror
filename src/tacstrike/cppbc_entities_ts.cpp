@@ -116,6 +116,18 @@ sgs_ObjInterface TSCharacter::_sgs_interface[1] =
 }};
 
 
+static int _sgs_method__TSEnemyController__CanSeePoint( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, CanSeePoint ) ) return 0;
+	sgs_PushVar(C,data->CanSeePoint( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSEnemyController__LookingAtPoint( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, LookingAtPoint ) ) return 0;
+	sgs_PushVar(C,data->LookingAtPoint( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
 static int _sgs_method__TSEnemyController__HasFact( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, HasFact ) ) return 0;
@@ -176,6 +188,12 @@ static int _sgs_method__TSEnemyController__GetCoverPosition( SGS_CTX )
 	sgs_PushVar(C,data->sgsGetCoverPosition( C, sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) )); return 1;
 }
 
+static int _sgs_method__TSEnemyController__IsWalkable( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, IsWalkable ) ) return 0;
+	sgs_PushVar(C,data->sgsIsWalkable( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1) )); return 1;
+}
+
 static int _sgs_method__TSEnemyController__FindPath( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, FindPath ) ) return 0;
@@ -209,6 +227,8 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
+		SGS_CASE( "CanSeePoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__CanSeePoint ); return SGS_SUCCESS; }
+		SGS_CASE( "LookingAtPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__LookingAtPoint ); return SGS_SUCCESS; }
 		SGS_CASE( "HasFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasFact ); return SGS_SUCCESS; }
 		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasRecentFact ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetRecentFact ); return SGS_SUCCESS; }
@@ -219,6 +239,7 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
 		SGS_CASE( "QueryCoverLines" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__QueryCoverLines ); return SGS_SUCCESS; }
 		SGS_CASE( "GetCoverPosition" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetCoverPosition ); return SGS_SUCCESS; }
+		SGS_CASE( "IsWalkable" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__IsWalkable ); return SGS_SUCCESS; }
 		SGS_CASE( "FindPath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__FindPath ); return SGS_SUCCESS; }
 		SGS_CASE( "GetNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetNextPathPoint ); return SGS_SUCCESS; }
 		SGS_CASE( "RemoveNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__RemoveNextPathPoint ); return SGS_SUCCESS; }

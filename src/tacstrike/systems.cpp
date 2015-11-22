@@ -1460,6 +1460,38 @@ void AIFactStorage::MovingInsertOrUpdate( uint32_t type, Vec3 pos, float movespe
 }
 
 
+bool AIRoom::IsInside( Vec3 pos )
+{
+	bool in = false;
+	for( size_t i = 0; i < parts.size(); ++i )
+	{
+		if( parts[ i ].negative )
+			continue;
+		
+		Vec3 ixp = parts[ i ].inv_bbox_xf.TransformPos( pos ).Abs();
+		if( ixp.x <= 1 && ixp.y <= 1 && ixp.z <= 1 )
+		{
+			in = true;
+			break;
+		}
+	}
+	if( in == false )
+		return false; // not in any positive boxes
+	
+	for( size_t i = 0; i < parts.size(); ++i )
+	{
+		if( parts[ i ].negative == false )
+			continue;
+		
+		Vec3 ixp = parts[ i ].inv_bbox_xf.TransformPos( pos ).Abs();
+		if( ixp.x <= 1 && ixp.y <= 1 && ixp.z <= 1 )
+			return false; // in a negative box
+	}
+	
+	return true;
+}
+
+
 AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	InitScriptInterface( "aidb", this );
@@ -1520,6 +1552,16 @@ void AIDBSystem::AddRoomPart( const StringView& name, Mat4 xf, bool negative, fl
 		rh->parts.push_back( part );
 		m_rooms.set( rh->m_key, rh );
 	}
+}
+
+AIRoom* AIDBSystem::FindRoomByPos( Vec3 pos )
+{
+	for( size_t i = 0; i < m_rooms.size(); ++i )
+	{
+		if( m_rooms.item( i ).value->IsInside( pos ) )
+			return m_rooms.item( i ).value;
+	}
+	return NULL;
 }
 
 void AIDBSystem::Tick( float deltaTime, float blendFactor )
@@ -1598,21 +1640,8 @@ void AIDBSystem::sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, 
 	m_globalFacts.MovingInsertOrUpdate( type, pos, movespeed, created, expires, ref, reset );
 }
 
-SGS_MULTRET AIDBSystem::sgsGetRoomList( sgs_Context* coro )
+SGS_MULTRET AIDBSystem::sgsPushRoom( sgs_Context* coro, AIRoom* room )
 {
-	for( size_t i = 0; i < m_rooms.size(); ++i )
-	{
-		sgs_PushVar( coro, m_rooms.item( i ).key );
-	}
-	return sgs_CreateArray( coro, NULL, m_rooms.size() );
-}
-
-SGS_MULTRET AIDBSystem::sgsGetRoomPoints( sgs_Context* coro, StringView name )
-{
-	AIRoom* room = m_rooms.getcopy( name );
-	if( room == NULL )
-		return sgs_Msg( coro, SGS_WARNING, "no room found: %s", StackString<256>(name) );
-	
 	Array< Vec3 > points;
 	
 	// first add points
@@ -1657,6 +1686,40 @@ SGS_MULTRET AIDBSystem::sgsGetRoomPoints( sgs_Context* coro, StringView name )
 		sgs_PushVar( coro, points[ i ] );
 	}
 	return sgs_CreateArray( coro, NULL, points.size() );
+}
+
+SGS_MULTRET AIDBSystem::sgsGetRoomList( sgs_Context* coro )
+{
+	for( size_t i = 0; i < m_rooms.size(); ++i )
+	{
+		sgs_PushVar( coro, m_rooms.item( i ).key );
+	}
+	return sgs_CreateArray( coro, NULL, m_rooms.size() );
+}
+
+sgsString AIDBSystem::sgsGetRoomNameByPos( sgs_Context* coro, Vec3 pos )
+{
+	AIRoom* room = FindRoomByPos( pos );
+	if( room == NULL )
+		return sgsString();
+	StringView name = room->m_key;
+	return sgsString( coro, name.data(), name.size() );
+}
+
+SGS_MULTRET AIDBSystem::sgsGetRoomByPos( sgs_Context* coro, Vec3 pos )
+{
+	AIRoom* room = FindRoomByPos( pos );
+	if( room == NULL )
+		return 0;
+	return sgsPushRoom( coro, room );
+}
+
+SGS_MULTRET AIDBSystem::sgsGetRoomPoints( sgs_Context* coro, StringView name )
+{
+	AIRoom* room = m_rooms.getcopy( name );
+	if( room == NULL )
+		return 0;
+	return sgsPushRoom( coro, room );
 }
 
 

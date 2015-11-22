@@ -509,6 +509,8 @@ struct AIRoomPart
 
 struct AIRoom : SGRX_RCRsrc
 {
+	bool IsInside( Vec3 pos );
+	
 	Array< AIRoomPart > parts;
 };
 typedef Handle< AIRoom > AIRoomHandle;
@@ -578,6 +580,7 @@ struct AIDBSystem : IGameLevelSystem
 	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
+	AIRoom* FindRoomByPos( Vec3 pos );
 	void Tick( float deltaTime, float blendFactor );
 	void FixedTick( float deltaTime );
 	
@@ -598,7 +601,10 @@ struct AIDBSystem : IGameLevelSystem
 		uint32_t type, Vec3 pos, float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( sgs_Context* coro,
 		uint32_t type, Vec3 pos, float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_MULTRET sgsPushRoom( sgs_Context* coro, AIRoom* room );
 	SGS_METHOD_NAMED( GetRoomList ) SGS_MULTRET sgsGetRoomList( sgs_Context* coro );
+	SGS_METHOD_NAMED( GetRoomNameByPos ) sgsString sgsGetRoomNameByPos( sgs_Context* coro, Vec3 pos );
+	SGS_METHOD_NAMED( GetRoomByPos ) SGS_MULTRET sgsGetRoomByPos( sgs_Context* coro, Vec3 pos );
 	SGS_METHOD_NAMED( GetRoomPoints ) SGS_MULTRET sgsGetRoomPoints( sgs_Context* coro, StringView name );
 };
 

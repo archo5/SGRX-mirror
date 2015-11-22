@@ -216,6 +216,10 @@ struct TSEnemyController : SGRX_IActorController
 	void DebugDrawWorld();
 	void DebugDrawUI();
 	
+	// core queries
+	SGS_METHOD bool CanSeePoint( Vec3 pt );
+	SGS_METHOD bool LookingAtPoint( Vec3 pt );
+	
 	// fact storage
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
@@ -237,6 +241,7 @@ struct TSEnemyController : SGRX_IActorController
 		sgs_Context* coro, Vec3 position, float distpow, float interval /* = 0.1 */ );
 	
 	// pathfinding
+	SGS_METHOD_NAMED( IsWalkable ) bool sgsIsWalkable( Vec3 pos, Vec3 ext );
 	SGS_METHOD_NAMED( FindPath ) bool sgsFindPath( const Vec3& to );
 	SGS_METHOD_NAMED( GetNextPathPoint ) sgsMaybe<Vec3> sgsGetNextPathPoint();
 	SGS_METHOD_NAMED( RemoveNextPathPoint ) bool sgsRemoveNextPathPoint();

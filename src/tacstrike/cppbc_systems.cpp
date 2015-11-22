@@ -573,6 +573,18 @@ static int _sgs_method__AIDBSystem__GetRoomList( SGS_CTX )
 	return data->sgsGetRoomList( C );
 }
 
+static int _sgs_method__AIDBSystem__GetRoomNameByPos( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomNameByPos ) ) return 0;
+	sgs_PushVar(C,data->sgsGetRoomNameByPos( C, sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__AIDBSystem__GetRoomByPos( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomByPos ) ) return 0;
+	return data->sgsGetRoomByPos( C, sgs_GetVar<Vec3>()(C,0) );
+}
+
 static int _sgs_method__AIDBSystem__GetRoomPoints( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomPoints ) ) return 0;
@@ -602,6 +614,8 @@ int AIDBSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__MovingUpdateFact ); return SGS_SUCCESS; }
 		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRoomList" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRoomList ); return SGS_SUCCESS; }
+		SGS_CASE( "GetRoomNameByPos" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRoomNameByPos ); return SGS_SUCCESS; }
+		SGS_CASE( "GetRoomByPos" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRoomByPos ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRoomPoints" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRoomPoints ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
