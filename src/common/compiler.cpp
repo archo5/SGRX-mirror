@@ -764,6 +764,8 @@ void LevelCache::RemoveHiddenSurfaces()
 		{
 			m_cutpolies.clear();
 			const Solid& S = m_solids[ s ];
+			if( S.size() == 0 )
+				continue;
 			
 		//	size_t ops = m_polies.size();
 			while( m_polies.size() )
@@ -892,82 +894,84 @@ void LevelCache::GatherMeshes()
 	for( size_t pid = 0; pid < m_meshParts.size(); ++pid )
 	{
 		Part& P = m_meshParts[ pid ];
-		
-		// mesh combination
-		Vec3 pcenter = V3(0), pmin = V3(FLT_MAX), pmax = V3(-FLT_MAX);
-		for( size_t v = 0; v < P.m_vertices.size(); ++v )
+		if( P.m_mtlname != SV("clip") )
 		{
-			Vec3 p = P.m_vertices[ v ].pos;
-			pcenter += p;
-			pmin = Vec3::Min( pmin, p );
-			pmax = Vec3::Max( pmax, p );
-		}
-		pcenter /= P.m_vertices.size();
-		
-		Mesh* TM = NULL;
-		int lmalloc = -1;
-		
-		for( size_t mid = 0; mid < m_meshes.size(); ++mid )
-		{
-			Mesh& M = m_meshes[ mid ];
-			Part& OP = m_meshParts[ M.m_partIDs[ 0 ] ];
-			
-			// wrong decal layer ID
-			if( OP.m_decalLayer != P.m_decalLayer )
-				continue;
-			
-			// not the same lightmap status (exists or not)
-			if( ( OP.m_lightmap.width != 0 && OP.m_lightmap.height != 0 ) !=
-				( P.m_lightmap.width != 0 && P.m_lightmap.height != 0 ) )
-				continue;
-			
-			// no more space
-			if( M.m_mtlnames.size() >= 8 && M.m_mtlnames.find_first_at( P.m_mtlname ) == NOT_FOUND )
-				continue;
-			
-			// too far
-			Vec3 curpos = M.m_pos / M.m_div;
-			if( ( curpos - pcenter ).Length() > 20 )
-				continue;
-			
-			if( P.m_lightmap.width && P.m_lightmap.height )
+			// mesh combination
+			Vec3 pcenter = V3(0), pmin = V3(FLT_MAX), pmax = V3(-FLT_MAX);
+			for( size_t v = 0; v < P.m_vertices.size(); ++v )
 			{
-				lmalloc = M.m_packer.LMAlloc( P.m_lightmap.width + 2, P.m_lightmap.height + 2 );
-			//	printf( "lmalloc %d\n", lmalloc );
-				if( lmalloc == -1 )
+				Vec3 p = P.m_vertices[ v ].pos;
+				pcenter += p;
+				pmin = Vec3::Min( pmin, p );
+				pmax = Vec3::Max( pmax, p );
+			}
+			pcenter /= P.m_vertices.size();
+			
+			Mesh* TM = NULL;
+			int lmalloc = -1;
+			
+			for( size_t mid = 0; mid < m_meshes.size(); ++mid )
+			{
+				Mesh& M = m_meshes[ mid ];
+				Part& OP = m_meshParts[ M.m_partIDs[ 0 ] ];
+				
+				// wrong decal layer ID
+				if( OP.m_decalLayer != P.m_decalLayer )
 					continue;
+				
+				// not the same lightmap status (exists or not)
+				if( ( OP.m_lightmap.width != 0 && OP.m_lightmap.height != 0 ) !=
+					( P.m_lightmap.width != 0 && P.m_lightmap.height != 0 ) )
+					continue;
+				
+				// no more space
+				if( M.m_mtlnames.size() >= 8 && M.m_mtlnames.find_first_at( P.m_mtlname ) == NOT_FOUND )
+					continue;
+				
+				// too far
+				Vec3 curpos = M.m_pos / M.m_div;
+				if( ( curpos - pcenter ).Length() > 20 )
+					continue;
+				
+				if( P.m_lightmap.width && P.m_lightmap.height )
+				{
+					lmalloc = M.m_packer.LMAlloc( P.m_lightmap.width + 2, P.m_lightmap.height + 2 );
+				//	printf( "lmalloc %d\n", lmalloc );
+					if( lmalloc == -1 )
+						continue;
+				}
+				
+				TM = &m_meshes[ mid ];
+				P.m_lmalloc = lmalloc;
+				break;
 			}
 			
-			TM = &m_meshes[ mid ];
-			P.m_lmalloc = lmalloc;
-			break;
-		}
-		
-		if( !TM )
-		{
-			m_meshes.push_back( Mesh() );
-			TM = &m_meshes.last();
-			TM->m_pos = V3(0);
-			TM->m_div = 0;
-			TM->m_boundsMin = V3(FLT_MAX);
-			TM->m_boundsMax = V3(-FLT_MAX);
-			lmalloc = -1;
-			if( P.m_lightmap.width && P.m_lightmap.height )
+			if( !TM )
 			{
-				lmalloc = TM->m_packer.LMAlloc( P.m_lightmap.width + 2, P.m_lightmap.height + 2 );
-				if( lmalloc == -1 )
-					LOG_WARNING << "Could not allocate lightmap!!!";
-				ASSERT( lmalloc != -1 );
+				m_meshes.push_back( Mesh() );
+				TM = &m_meshes.last();
+				TM->m_pos = V3(0);
+				TM->m_div = 0;
+				TM->m_boundsMin = V3(FLT_MAX);
+				TM->m_boundsMax = V3(-FLT_MAX);
+				lmalloc = -1;
+				if( P.m_lightmap.width && P.m_lightmap.height )
+				{
+					lmalloc = TM->m_packer.LMAlloc( P.m_lightmap.width + 2, P.m_lightmap.height + 2 );
+					if( lmalloc == -1 )
+						LOG_WARNING << "Could not allocate lightmap!!!";
+					ASSERT( lmalloc != -1 );
+				}
+				P.m_lmalloc = lmalloc;
 			}
-			P.m_lmalloc = lmalloc;
+			
+			TM->m_pos += pcenter;
+			TM->m_div++;
+			TM->m_mtlnames.find_or_add( P.m_mtlname );
+			TM->m_partIDs.push_back( pid );
+			TM->m_boundsMin = Vec3::Min( TM->m_boundsMin, pmin );
+			TM->m_boundsMax = Vec3::Max( TM->m_boundsMax, pmax );
 		}
-		
-		TM->m_pos += pcenter;
-		TM->m_div++;
-		TM->m_mtlnames.find_or_add( P.m_mtlname );
-		TM->m_partIDs.push_back( pid );
-		TM->m_boundsMin = Vec3::Min( TM->m_boundsMin, pmin );
-		TM->m_boundsMax = Vec3::Max( TM->m_boundsMax, pmax );
 		
 		// physics mesh generation
 		if( P.m_isSolid )
@@ -1097,7 +1101,7 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 	ByteWriter bw( &ba );
 	
 	bw.marker( "SS3DMESH" );
-	uint32_t vu32 = 0; // mesh data flags
+	uint32_t vu32 = MDF_MTLINFO; // mesh data flags
 	bw << vu32;
 	bw << M.m_boundsMin;
 	bw << M.m_boundsMax;
@@ -1120,15 +1124,16 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 	{
 		LevelCache::Part& MP = m_meshParts[ parts[ i ].part_id ];
 		
-		bw << parts[ i ].vertexOffset;
-		bw << parts[ i ].vertexCount;
-		bw << parts[ i ].indexOffset;
-		bw << parts[ i ].indexCount;
-		
 		StringView tn = MP.m_mtlname;
 		MapMaterial* mmtl = mtls.getcopy( tn );
 		if( mmtl )
 		{
+			vu8 = mmtl->flags; bw << vu8;
+			vu8 = mmtl->blendmode; bw << vu8;
+			bw << parts[ i ].vertexOffset;
+			bw << parts[ i ].vertexCount;
+			bw << parts[ i ].indexOffset;
+			bw << parts[ i ].indexCount;
 			vu8 = mmtl->texcount;
 			bw << vu8;
 			vu8 = TMIN( mmtl->shader.size(), size_t(255) );
@@ -1143,6 +1148,12 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 		}
 		else
 		{
+			vu8 = 0;
+			bw << vu8 << vu8; // material flags, blend mode
+			bw << parts[ i ].vertexOffset;
+			bw << parts[ i ].vertexCount;
+			bw << parts[ i ].indexOffset;
+			bw << parts[ i ].indexCount;
 			vu8 = 1; // texture count
 			bw << vu8;
 			vu8 = sizeof(EDMESH_SHADER) - 1; // shader name length
@@ -1299,9 +1310,9 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	//
 	float cellSize = 0.3f;
 	float cellHeight = 0.2f;
-	float agentHeight = 1.0f;
+	float agentHeight = 1.5f;
 	float agentRadius = 0.3f;
-	float agentMaxClimb = 0.4f;
+	float agentMaxClimb = 0.2f;
 	float agentMaxSlope = 45.0f;
 	int regionMinSize = 2;
 	int regionMergeSize = 10;

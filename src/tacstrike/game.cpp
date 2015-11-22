@@ -283,7 +283,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	}
 	void DebugDraw()
 	{
-//		g_GameLevel->DebugDraw();
+		g_GameLevel->DebugDraw();
 	//	g_GameLevel->GetScene()->DebugDraw_MeshRaycast();
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer();

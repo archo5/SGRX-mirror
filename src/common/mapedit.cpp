@@ -1149,7 +1149,7 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 	for( size_t i = 0; i < m_surfaces.size(); ++i )
 	{
 		Surface& S = m_surfaces.item( i ).value;
-		if( S.mtlname == SV("") || S.mtlname == SV("null") || S.mtlname == SV("clip") )
+		if( S.mtlname == SV("") || S.mtlname == SV("null") )
 			continue;
 		
 		LC_Lightmap lm;
@@ -1421,6 +1421,8 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 					{
 						M.textures[ i ] = mtl->texture[ i ].size() ? GR_GetTexture( mtl->texture[ i ] ) : NULL;
 					}
+					M.blendMode = mtl->blendmode;
+					M.flags = mtl->flags;
 				}
 				else
 				{
@@ -1465,8 +1467,14 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		S.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
 		SGRX_Material& mtl = S.meshInst->GetMaterial( 0 );
 		bool decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
-		mtl.flags = decal ? SGRX_MtlFlag_Decal : 0;
-		mtl.blendMode = decal ? SGRX_MtlBlend_Basic : SGRX_MtlBlend_None;
+		// HACK: assume LGC_SURF_CHANGE_MTLDATA is also done
+		if( decal )
+		{
+			mtl.flags |= SGRX_MtlFlag_Decal;
+			mtl.blendMode = SGRX_MtlBlend_Basic;
+		}
+	//	mtl.flags = decal ? SGRX_MtlFlag_Decal : 0;
+	//	mtl.blendMode = decal ? SGRX_MtlBlend_Basic : SGRX_MtlBlend_None;
 		S.meshInst->OnUpdate();
 		LightMesh( S.meshInst, LGC_SURF_LMID( id ) );
 	}

@@ -160,6 +160,8 @@ struct MapMaterial : SGRX_RefCounted
 	String shader;
 	String texture[ MAX_MATERIAL_TEXTURES ];
 	int texcount;
+	int blendmode;
+	int flags;
 };
 typedef Handle< MapMaterial > MapMaterialHandle;
 typedef HashTable< StringView, MapMaterialHandle > MapMaterialMap;

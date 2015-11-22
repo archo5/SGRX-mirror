@@ -583,6 +583,7 @@ struct AIDBSystem : IGameLevelSystem
 	AIRoom* FindRoomByPos( Vec3 pos );
 	void Tick( float deltaTime, float blendFactor );
 	void FixedTick( float deltaTime );
+	void DebugDrawWorld();
 	
 	SGRX_Pathfinder m_pathfinder;
 	Array< AISound > m_sounds;
@@ -683,7 +684,12 @@ struct CoverSystem : IGameLevelSystem
 		Vec3 bbmax;
 		bool enabled;
 		
+		Mat4 inv_bbox_xf;
+		Vec3 obb_min;
+		Vec3 obb_max;
+		
 		bool InAABB( const Vec3& ibmin, const Vec3& ibmax ) const;
+		bool PointInBox( Vec3 pt ) const;
 		void CalcCoverLines();
 	};
 	typedef Handle< EdgeMesh > EdgeMeshHandle;

@@ -464,6 +464,20 @@ void EdBlock::RegenerateMesh()
 	else
 		LOG_WARNING << "NO PLANE FOR TOP POLY at " << position;
 	
+	// HACK: if any surface is "clip", assume no solid clipping
+	bool hasclip = false;
+	for( size_t i = 0; i < poly.size(); ++i )
+	{
+		EdSurface& BS = surfaces[ i ];
+		if( BS.texname == SV("clip") )
+		{
+			hasclip = true;
+			break;
+		}
+	}
+	if( hasclip )
+		numplanes = 0;
+	
 	// ADD SOLID
 	EdLGCSolidInfo SOI;
 	SOI.planes = planes;

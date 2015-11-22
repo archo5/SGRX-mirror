@@ -1582,6 +1582,11 @@ void AIDBSystem::FixedTick( float deltaTime )
 	m_globalFacts.Process( m_level->GetPhyTime() );
 }
 
+void AIDBSystem::DebugDrawWorld()
+{
+	m_pathfinder.DebugDraw();
+}
+
 bool AIDBSystem::sgsHasFact( uint32_t typemask )
 {
 	return m_globalFacts.HasFact( typemask );
@@ -1677,6 +1682,20 @@ SGS_MULTRET AIDBSystem::sgsPushRoom( sgs_Context* coro, AIRoom* room )
 			Vec3 ixp = RP.inv_bbox_xf.TransformPos( points[ p ] ).Abs();
 			if( ixp.x <= 1 && ixp.y <= 1 && ixp.z <= 1 )
 				points.erase( p-- );
+		}
+	}
+	
+	// global exclusion using covers
+	CoverSystem* coverSys = m_level->GetSystem<CoverSystem>();
+	if( coverSys )
+	{
+		for( size_t i = 0; i < coverSys->m_edgeMeshes.size(); ++i )
+		{
+			for( size_t p = 0; p < points.size(); ++p )
+			{
+				if( coverSys->m_edgeMeshes[ i ]->PointInBox( points[ p ] ) )
+					points.erase( p-- );
+			}
 		}
 	}
 	
@@ -2006,6 +2025,17 @@ bool CoverSystem::EdgeMesh::InAABB( const Vec3& ibmin, const Vec3& ibmax ) const
 		&& ibmin.z < bbmax.z;
 }
 
+bool CoverSystem::EdgeMesh::PointInBox( Vec3 pt ) const
+{
+	Vec3 ixp = inv_bbox_xf.TransformPos( pt );
+	return ixp.x >= obb_min.x
+		&& ixp.y >= obb_min.y
+		&& ixp.z >= obb_min.z
+		&& ixp.x <= obb_max.x
+		&& ixp.y <= obb_max.y
+		&& ixp.z <= obb_max.z;
+}
+
 void CoverSystem::EdgeMesh::CalcCoverLines()
 {
 	coverpts.clear();
@@ -2063,6 +2093,10 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	EdgeMesh* EM = new EdgeMesh;
 	EM->m_key = name;
 	EM->pos = mtx.TransformPos( V3(0) );
+	EM->inv_bbox_xf = Mat4::Identity;
+	mtx.InvertTo( EM->inv_bbox_xf );
+	EM->obb_min = bbmin;
+	EM->obb_max = bbmax;
 	EM->enabled = true;
 	
 	Mat4 ntx;

@@ -1,0 +1,10 @@
+float2 tex = ( projPos.xy / projPos.w * 0.5 + 0.5 ) * viewportSizeInv.xy / float2( 16.0, 16.0 );
+float4 diff = TEXSAMPLE_2D( Tex0, tex.yx );
+diff = diff * diff;
+outDiffuseColor = diff.rgb;
+outOpacity = diff.a;
+clip( outOpacity - 0.01 );
+float fresnel = 1 - abs( dot( inNormal, normalize(viewPos) ) );
+outSpecularColor = float3( 0.1, 0.1, 0.1 ) * ( fresnel * fresnel );
+outSpecularPower = 64;
+outNormal = inNormal;

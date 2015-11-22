@@ -37,9 +37,10 @@ UNIFORM_BUFFER( core_data, 0 )
 	UNIFORM_VAR( float4x4 mInvView, 8 );
 	UNIFORM_VAR( float3 cameraPos, 12 );
 	UNIFORM_VAR( float4 timeVals, 13 );
-	UNIFORM_VAR( float3 gAmbLightColor, 14 );
-	UNIFORM_VAR( float3 gDirLightDir, 15 );
-	UNIFORM_VAR( float3 gDirLightColor, 16 );
+	UNIFORM_VAR( float4 viewportSizeInv, 14 );
+	UNIFORM_VAR( float3 gAmbLightColor, 15 );
+	UNIFORM_VAR( float3 gDirLightDir, 16 );
+	UNIFORM_VAR( float3 gDirLightColor, 17 );
 UNIFORM_BUFFER_END;
 
 UNIFORM_BUFFER( instance_data, 1 )

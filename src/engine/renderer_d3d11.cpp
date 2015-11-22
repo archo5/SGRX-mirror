@@ -1779,8 +1779,11 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		cam.mView,
 		cam.mProj,
 		cam.mInvView,
-		cam.position,
+		cam.position, 0,
 		scene->m_timevals,
+		V4( m_viewport.Width, m_viewport.Height,
+			safe_fdiv( 1.0f, m_viewport.Width ),
+			safe_fdiv( 1.0f, m_viewport.Height ) ),
 		
 		scene->ambientLightColor,
 		-cam.mView.TransformNormal( scene->dirLightDir ).Normalized(),

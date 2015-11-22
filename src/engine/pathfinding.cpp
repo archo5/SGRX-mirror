@@ -176,7 +176,9 @@ void SGRX_Pathfinder::DebugDraw()
 {
 	GR2D_SetWorldMatrix( Mat4::Basis( V3(1,0,0), V3(0,0,1), V3(0,1,0) ) );
 	DetourDebugDraw ddd;
-	duDebugDrawNavMesh( &ddd, *m_navMesh, 0 );
+	duDebugDrawNavMesh( &ddd, *m_navMesh, DU_DRAWNAVMESH_OFFMESHCONS
+		| DU_DRAWNAVMESH_CLOSEDLIST | DU_DRAWNAVMESH_COLOR_TILES );
+	duDebugDrawNavMeshPortals( &ddd, *m_navMesh );
 	GR2D_SetWorldMatrix( Mat4::Identity );
 }
 

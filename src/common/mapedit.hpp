@@ -117,10 +117,21 @@ struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
 					mmtl = new MapMaterial;
 					mmtl->name = value;
 					mmtl->texcount = 0;
+					mmtl->blendmode = SGRX_MtlBlend_None;
+					mmtl->flags = 0;
 					m_materials.set( mmtl->name, mmtl );
 					LOG << "[SMtl]: " << value;
 				}
 				else if( key == "shader" ) mmtl->shader = value;
+				else if( key == "blendmode" )
+				{
+					if( value == "basic" ) mmtl->blendmode = SGRX_MtlBlend_Basic;
+					else if( value == "additive" ) mmtl->blendmode = SGRX_MtlBlend_Additive;
+					else if( value == "multiply" ) mmtl->blendmode = SGRX_MtlBlend_Multiply;
+					else mmtl->blendmode = SGRX_MtlBlend_None;
+				}
+				else if( key == "unlit" ) mmtl->flags |= SGRX_MtlFlag_Unlit;
+				else if( key == "nocull" ) mmtl->flags |= SGRX_MtlFlag_Nocull;
 				else if( key == "0" ){ mmtl->texture[0] = value; mmtl->texcount = TMAX( mmtl->texcount, 0+1 ); }
 				else if( key == "1" ){ mmtl->texture[1] = value; mmtl->texcount = TMAX( mmtl->texcount, 1+1 ); }
 				else if( key == "2" ){ mmtl->texture[2] = value; mmtl->texcount = TMAX( mmtl->texcount, 2+1 ); }
@@ -153,6 +164,8 @@ struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
 		mih->enabled = false;
 		SGRX_Material mtl;
 		mtl.shader = MM->shader;
+		mtl.blendMode = MM->blendmode;
+		mtl.flags = MM->flags;
 		for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
 		{
 			if( MM->texture[ i ].size() )

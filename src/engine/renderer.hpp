@@ -175,7 +175,9 @@ ALIGN16(struct) SGRX_RPCoreData
 	Mat4 mProj;
 	Mat4 mInvView;
 	Vec3 gCameraPos;
+	float _pad0;
 	Vec4 timeVals;
+	Vec4 viewportSizeInv;
 	
 	Vec3 gAmbLightColor;
 	Vec3 gDirLightDir;
