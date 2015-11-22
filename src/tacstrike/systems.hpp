@@ -498,6 +498,21 @@ struct AISound
 	AISoundType type;
 };
 
+struct AIRoomPart
+{
+	Mat4 bbox_xf;
+	Mat4 inv_bbox_xf;
+	Vec3 scale;
+	bool negative;
+	float cell_size;
+};
+
+struct AIRoom : SGRX_RCRsrc
+{
+	Array< AIRoomPart > parts;
+};
+typedef Handle< AIRoom > AIRoomHandle;
+
 enum AIFactType // some basic fact types
 {
 	FT_Unknown = 0,
@@ -562,25 +577,29 @@ struct AIDBSystem : IGameLevelSystem
 	AIDBSystem( GameLevel* lev );
 	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
+	void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
 	void Tick( float deltaTime, float blendFactor );
 	void FixedTick( float deltaTime );
 	
 	SGRX_Pathfinder m_pathfinder;
 	Array< AISound > m_sounds;
+	HashTable< StringView, AIRoomHandle > m_rooms;
 	AIFactStorage m_globalFacts;
 	
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
-	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime );
 	SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
-	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( uint32_t type, Vec3 pos,
+	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
-		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( uint32_t type, Vec3 pos,
-		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
-		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro,
+		uint32_t type, Vec3 pos, float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( sgs_Context* coro,
+		uint32_t type, Vec3 pos, float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( sgs_Context* coro,
+		uint32_t type, Vec3 pos, float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
+	SGS_METHOD_NAMED( GetRoomList ) SGS_MULTRET sgsGetRoomList( sgs_Context* coro );
+	SGS_METHOD_NAMED( GetRoomPoints ) SGS_MULTRET sgsGetRoomPoints( sgs_Context* coro, StringView name );
 };
 
 

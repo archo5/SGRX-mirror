@@ -136,6 +136,37 @@ function ED_ENT_solidbox( eptr )
 	});
 }
 
+function ED_ENT_room( eptr )
+{
+	ENTBASE_xform( eptr );
+	ENTBASE_named( eptr );
+	EE_AddFieldBool( eptr, "negative", "Is negative (excluding)?", false );
+	EE_AddFieldFloat( eptr, "cell_size", "Cell size", 0.5, 2, 0.01, 100 );
+	EE_SetDebugDrawFunc( eptr, function Room_onDebugDraw( eptr, data )
+	{
+		scale = data.scale_sep * data.scale_uni;
+		mtx = EE_GenMatrix_SRaP( scale, data.rot_angles, data.position );
+		BR_Reset();
+		BR_Col( 0.2, 0.9, 0.8, 0.8 );
+		BR_AABB( -1, 1, mtx );
+		if( data.negative == false && data.cell_size > 0.01 )
+		{
+			xcount = floor( scale.x / data.cell_size );
+			ycount = floor( scale.y / data.cell_size );
+			xncs = data.cell_size / scale.x;
+			yncs = data.cell_size / scale.y;
+			for( y = 0; y < ycount; ++y )
+			{
+				for( x = 0; x < xcount; ++x )
+				{
+					pos = vec3( ( x * 2 - (xcount-1) ) * xncs, ( y * 2 - (ycount-1) ) * yncs, 0 );
+					BR_Tick( mtx.transform_pos( pos ), data.cell_size * 0.9 );
+				}
+			}
+		}
+	});
+}
+
 function ED_ENT_trigger( eptr )
 {
 	ENTBASE_xform( eptr );

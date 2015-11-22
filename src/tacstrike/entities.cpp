@@ -579,14 +579,28 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	}
 	
 	///////////////////////////
-	if( type == "cover" && m_level->GetSystem<CoverSystem>() )
+	CoverSystem* coverSys = m_level->GetSystem<CoverSystem>();
+	if( type == "cover" && coverSys )
 	{
 		Mat4 mtx = Mat4::CreateSXT(
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
 			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
 			data.getprop("position").get<Vec3>() );
-		m_level->GetSystem<CoverSystem>()->AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
+		coverSys->AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
 		return true;
+	}
+	
+	///////////////////////////
+	AIDBSystem* aidbSys = m_level->GetSystem<AIDBSystem>();
+	if( type == "room" && aidbSys )
+	{
+		Mat4 mtx = Mat4::CreateSXT(
+			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
+			data.getprop("position").get<Vec3>() );
+		aidbSys->AddRoomPart(
+			data.getprop("name").get<StringView>(), mtx,
+			data.getprop("negative").get<bool>(), data.getprop("cell_size").get<float>() );
 	}
 	
 	///////////////////////////

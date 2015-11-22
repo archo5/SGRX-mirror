@@ -240,14 +240,27 @@ struct EDGUIMeshPicker : EDGUIMeshPickerCore, IDirEntryHandler
 	}
 	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
 	{
-		LOG << "[M]: " << name;
-		if( !isdir && name.ends_with( ".ssm" ) )
+		if( name == "." || name == ".." )
+			return true;
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
+		LOG << "[M]: " << bfr;
+		StringView fullname = bfr;
+		if( isdir )
+		{
+			FS_IterateDirectory( fullname, this );
+		}
+		else if( name.ends_with( ".ssm" ) )
 		{
 			if( m_fullpaths )
-				m_options.push_back( String_Concat( "meshes/", name ) );
+				m_options.push_back( fullname );
 			else
-				m_options.push_back( name.part( 0, name.size() - 4 ) );
-			AddMesh( String_Concat( "meshes/", name ) );
+			{
+				StringView part = fullname.part( sizeof("meshes/")-1,
+					fullname.size() - (sizeof("meshes/.ssm")-1) );
+				m_options.push_back( part );
+			}
+			AddMesh( fullname );
 		}
 		return true;
 	}

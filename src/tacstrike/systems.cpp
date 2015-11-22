@@ -1504,6 +1504,24 @@ void AIDBSystem::AddSound( Vec3 pos, float rad, float timeout, AISoundType type 
 	m_sounds.push_back( S );
 }
 
+void AIDBSystem::AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size )
+{
+	AIRoom* rh = m_rooms.getcopy( name );
+	AIRoomPart part = { xf, xf, xf.GetScale(), negative, cell_size };
+	xf.InvertTo( part.inv_bbox_xf );
+	if( rh )
+	{
+		rh->parts.push_back( part );
+	}
+	else
+	{
+		rh = new AIRoom;
+		rh->m_key = name;
+		rh->parts.push_back( part );
+		m_rooms.set( rh->m_key, rh );
+	}
+}
+
 void AIDBSystem::Tick( float deltaTime, float blendFactor )
 {
 	for( size_t i = 0; i < m_sounds.size(); ++i )
@@ -1532,12 +1550,12 @@ bool AIDBSystem::sgsHasRecentFact( uint32_t typemask, TimeVal maxtime )
 	return m_globalFacts.HasRecentFact( typemask, maxtime );
 }
 
-SGS_MULTRET AIDBSystem::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
+SGS_MULTRET AIDBSystem::sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime )
 {
 	AIFact* F = m_globalFacts.GetRecentFact( typemask, maxtime );
 	if( F )
 	{
-		sgs_CreateLiteClassFrom( C, NULL, F );
+		sgs_CreateLiteClassFrom( coro, NULL, F );
 		return 1;
 	}
 	return 0;
@@ -1548,36 +1566,97 @@ void AIDBSystem::sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVa
 	m_globalFacts.Insert( type, pos, created, expires, ref );
 }
 
-bool AIDBSystem::sgsUpdateFact( uint32_t type, Vec3 pos,
+bool AIDBSystem::sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	return m_globalFacts.Update( type, pos, rad, created, expires, ref, reset );
 }
 
-void AIDBSystem::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
+void AIDBSystem::sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	m_globalFacts.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
 }
 
-bool AIDBSystem::sgsMovingUpdateFact( uint32_t type, Vec3 pos,
+bool AIDBSystem::sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	return m_globalFacts.MovingUpdate( type, pos, movespeed, created, expires, ref, reset );
 }
 
-void AIDBSystem::sgsMovingInsertOrUpdateFact( uint32_t type, Vec3 pos,
+void AIDBSystem::sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( C ) < 7 )
+	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	m_globalFacts.MovingInsertOrUpdate( type, pos, movespeed, created, expires, ref, reset );
+}
+
+SGS_MULTRET AIDBSystem::sgsGetRoomList( sgs_Context* coro )
+{
+	for( size_t i = 0; i < m_rooms.size(); ++i )
+	{
+		sgs_PushVar( coro, m_rooms.item( i ).key );
+	}
+	return sgs_CreateArray( coro, NULL, m_rooms.size() );
+}
+
+SGS_MULTRET AIDBSystem::sgsGetRoomPoints( sgs_Context* coro, StringView name )
+{
+	AIRoom* room = m_rooms.getcopy( name );
+	if( room == NULL )
+		return sgs_Msg( coro, SGS_WARNING, "no room found: %s", StackString<256>(name) );
+	
+	Array< Vec3 > points;
+	
+	// first add points
+	for( size_t i = 0; i < room->parts.size(); ++i )
+	{
+		const AIRoomPart& RP = room->parts[ i ];
+		if( RP.negative || RP.cell_size < 0.01f )
+			continue;
+		
+		int xcount = floorf( RP.scale.x / RP.cell_size );
+		int ycount = floorf( RP.scale.y / RP.cell_size );
+		float xncs = RP.cell_size / RP.scale.x;
+		float yncs = RP.cell_size / RP.scale.y;
+		for( int y = 0; y < ycount; ++y )
+		{
+			for( int x = 0; x < xcount; ++x )
+			{
+				Vec3 pos = V3( ( x * 2 - (xcount-1) ) * xncs, ( y * 2 - (ycount-1) ) * yncs, 0 );
+				points.push_back( RP.bbox_xf.TransformPos( pos ) );
+			}
+		}
+	}
+	
+	// then exclude them from
+	for( size_t i = 0; i < room->parts.size(); ++i )
+	{
+		const AIRoomPart& RP = room->parts[ i ];
+		if( RP.negative == false )
+			continue;
+		
+		for( size_t p = 0; p < points.size(); ++p )
+		{
+			Vec3 ixp = RP.inv_bbox_xf.TransformPos( points[ p ] ).Abs();
+			if( ixp.x <= 1 && ixp.y <= 1 && ixp.z <= 1 )
+				points.erase( p-- );
+		}
+	}
+	
+	// copy to sgs array
+	for( size_t i = 0; i < points.size(); ++i )
+	{
+		sgs_PushVar( coro, points[ i ] );
+	}
+	return sgs_CreateArray( coro, NULL, points.size() );
 }
 
 
