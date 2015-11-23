@@ -286,10 +286,32 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		g_GameLevel->DebugDraw();
 	//	g_GameLevel->GetScene()->DebugDraw_MeshRaycast();
 		
+		TSCharacter* PLY = (TSCharacter*) g_GameLevel->m_player;
+		
 		BatchRenderer& br = GR2D_GetBatchRenderer();
 		
+#if TEST_PATHFINDER
+		br.Reset().Col( 1, 0, 0 );
+		
+		Vec3 otg = V3(0,0,0);
+		Array< Vec3 > path;
+		AIDBSystem* aidbSys = g_GameLevel->GetSystem<AIDBSystem>();
+		Vec3 rpos, rdir;
+		Vec2 cpn = Game_GetCursorPosNormalized();
+		SceneRaycastInfo srci;
+		if( g_GameLevel->GetScene()->camera.GetCursorRay( cpn.x, cpn.y, rpos, rdir ) &&
+			g_GameLevel->GetScene()->RaycastOne( rpos, rdir * 100, &srci ) &&
+			aidbSys->m_pathfinder.FindPath(
+				PLY->GetPosition() + otg, rpos + rdir * 100 * srci.factor + otg, path ) &&
+			path.size() >= 2 )
+		{
+			br.SetPrimitiveType( PT_LineStrip );
+			for( size_t i = 0; i < path.size(); ++i )
+				br.Pos( path[ i ] );
+		}
+#endif
+		
 		CSCoverInfo cinfo;
-		TSCharacter* PLY = (TSCharacter*) g_GameLevel->m_player;
 		CoverSystem* CS = g_GameLevel->GetSystem<CoverSystem>();
 		Vec3 viewer_pos = PLY->GetPosition(); // V3(-8,10,1);
 		CS->QueryLines( V3(-100), V3(100), 0.5f, 0.5f, viewer_pos, true, cinfo );

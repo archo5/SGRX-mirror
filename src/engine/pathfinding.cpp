@@ -118,7 +118,33 @@ uint64_t SGRX_Pathfinder::FindPoly( const Vec3& pt, Vec3* outpt, const Vec3& ext
 	Vec3 rc_ext = SGRX2RC( ext );
 	
 	dtPolyRef out = 0;
+#if 1
+	dtPolyRef polylist[ 128 ];
+	int numpoly = 0, nearest = -1;
+	float ndst = FLT_MAX;
+	m_navQuery->queryPolygons( &rc_pt.x, &rc_ext.x, &qfilter, polylist, &numpoly, 128 );
+	for( int i = 0; i < numpoly; ++i )
+	{
+		Vec3 closest = V3(0);
+		m_navQuery->closestPointOnPoly( polylist[ i ], &rc_pt.x, &closest.x, NULL );
+		
+		float dst = ( closest - rc_pt ).Length();
+		if( closest.y > rc_pt.y )
+			dst *= 10; // if point is not above polygon, weigh distance appropriately (?)
+		if( dst < ndst )
+		{
+			ndst = dst;
+			nearest = i;
+			if( outpt )
+				*outpt = closest;
+		}
+	}
+	if( nearest == -1 )
+		return 0;
+	out = polylist[ nearest ];
+#else
 	m_navQuery->findNearestPoly( &rc_pt.x, &rc_ext.x, &qfilter, &out, outpt ? &outpt->x : NULL );
+#endif
 	if( outpt )
 		*outpt = RC2SGRX( *outpt );
 	return out;
@@ -139,8 +165,9 @@ bool SGRX_Pathfinder::FindPath( const Vec3& from, uint64_t frompoly,
 	Vec3 rc_from = SGRX2RC( from );
 	Vec3 rc_to = SGRX2RC( to );
 	
-	m_navQuery->findPath( frompoly, topoly, &rc_from.x, &rc_to.x, &qfilter, polylist, &numpoly, MAX_PATH_POLYS );
-	if( numpoly )
+	dtStatus status = m_navQuery->findPath( frompoly, topoly,
+		&rc_from.x, &rc_to.x, &qfilter, polylist, &numpoly, MAX_PATH_POLYS );
+	if( numpoly && !( status & DT_PARTIAL_RESULT ) )
 	{
 		// In case of partial path, make sure the end point is clamped to the last polygon.
 		Vec3 epos = rc_to;
