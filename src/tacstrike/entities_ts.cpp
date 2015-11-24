@@ -215,6 +215,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
+	m_aimDir( YP(dir) ), m_aimDist( dir.Length() ),
 	m_infoFlags( IEST_HeatSource )
 {
 	m_typeName = "character";
@@ -372,11 +373,15 @@ void TSCharacter::FixedTick( float deltaTime )
 	
 	//
 	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
-	Vec2 aimdir = rundir;
+	Vec3 aimdir = V3( rundir.x, rundir.y, 0 );
+	float aimspeed = GetInputV2( ACT_Chr_AimAt ).y;
 	if( GetInputB( ACT_Chr_AimAt ) )
 	{
-		aimdir = ( GetInputV3( ACT_Chr_AimTarget ) - GetPosition() ).ToVec2();
+		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetPosition();
 	}
+	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
+	m_aimDist = aimdir.Length();
+	aimdir = m_aimDir.ToVec3();
 	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
 	//
 	
@@ -701,12 +706,7 @@ Vec3 TSCharacter::GetViewDir()
 
 Vec3 TSCharacter::GetAimDir()
 {
-	Vec3 aimdir = V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 );
-	if( GetInputB( ACT_Chr_AimAt ) )
-	{
-		aimdir = ( GetInputV3( ACT_Chr_AimTarget ) - GetPosition() );
-	}
-	return aimdir;
+	return m_aimDir.ToVec3();
 }
 
 Mat4 TSCharacter::GetBulletOutputMatrix()
@@ -919,7 +919,7 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3(CROUCH.value);
-	case ACT_Chr_AimAt: return V3(1);
+	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
 	case ACT_Chr_Shoot: return V3(SHOOT.value);
 	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
@@ -1096,7 +1096,7 @@ Vec3 TSEnemyController::GetInput( uint32_t iid )
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3( i_crouch );
-	case ACT_Chr_AimAt: return V3( i_aim_at );
+	case ACT_Chr_AimAt: return V3( i_aim_at /* y/n */, 8 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
 	case ACT_Chr_Shoot: return V3( i_shoot );
 	case ACT_Chr_DoAction: return V3( i_act );

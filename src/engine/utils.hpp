@@ -738,6 +738,12 @@ struct YawPitch
 		return out;
 	}
 	
+	Vec3 ToVec3() const
+	{
+		float cy = cosf( yaw ), sy = sinf( yaw );
+		float cp = cosf( pitch ), sp = sinf( pitch );
+		return V3( cy * cp, sy * cp, sp );
+	}
 	void TurnTo( const YawPitch& tgt, const YawPitch& speedDelta )
 	{
 		YawPitch ypend = tgt.Normalized();

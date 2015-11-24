@@ -52,7 +52,7 @@ enum TSActions
 	ACT_Chr_Move, // v3 (x/y-dir, z-speed)
 	ACT_Chr_Turn, // v3 (x/y-dir, z-speed-rad/sec)
 	ACT_Chr_Crouch, // .x>0.5 => b
-	ACT_Chr_AimAt, // .x>0.5 => b
+	ACT_Chr_AimAt, // .x>0.5 => b, y = speed (special channel)
 	ACT_Chr_AimTarget, // v3
 	ACT_Chr_Shoot, // .x>0.5 => b
 	ACT_Chr_DoAction, // .x>0.5 => b
@@ -124,6 +124,8 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	Vec3 m_position;
 	Vec2 m_moveDir;
 	float m_turnAngle;
+	YawPitch m_aimDir;
+	float m_aimDist;
 	
 	ActionState m_actState;
 	uint32_t m_infoFlags;
@@ -134,12 +136,6 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	
 	SGS_PROPERTY_FUNC( READ GetPosition ) SGS_ALIAS( Vec3 position );
-	
-//	bool i_crouch;
-//	Vec2 i_move;
-//	float i_speed;
-//	bool i_aim_at;
-//	Vec3 i_aim_target;
 };
 
 
