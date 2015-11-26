@@ -66,6 +66,180 @@ struct Command_Func : Command
 	void OnChangeState(){ if( state && !state ) Function(); }
 };
 
+typedef int32_t IntType;
+struct IVec2 { IntType x, y; };
+struct IVec3 { IntType x, y, z; };
+struct IVec4 { IntType x, y, z, w; };
+struct SGRX_EventData
+{
+	enum Type
+	{
+		Null,
+		UserData,
+		Int,
+		Int2,
+		Int3,
+		Int4,
+		Float,
+		Float2,
+		Float3,
+		Float4,
+		StrView,
+	}
+	type;
+	
+	union _Data
+	{
+		void* UD;
+		IVec4 IV4;
+		Vec4 FV4;
+		char* SV[ sizeof(StringView)/sizeof(char*) ];
+	}
+	data;
+	
+	StringView& _SV(){ return *(StringView*) data.SV; }
+	const StringView& _SV() const { return *(StringView*) data.SV; }
+	
+	SGRX_EventData(){ SetNull(); }
+	SGRX_EventData( void* ud ){ SetUserData( ud ); }
+	SGRX_EventData( IntType x ){ SetInt( x ); }
+	SGRX_EventData( IntType x, IntType y ){ SetIVec2( x, y ); }
+	SGRX_EventData( IntType x, IntType y, IntType z ){ SetIVec3( x, y, z ); }
+	SGRX_EventData( IntType x, IntType y, IntType z, IntType w ){ SetIVec4( x, y, z, w ); }
+	SGRX_EventData( float x ){ SetFloat( x ); }
+	SGRX_EventData( float x, float y ){ SetFVec2( x, y ); }
+	SGRX_EventData( float x, float y, float z ){ SetFVec3( x, y, z ); }
+	SGRX_EventData( float x, float y, float z, float w ){ SetFVec4( x, y, z, w ); }
+	SGRX_EventData( StringView sv ){ SetStringView( sv ); }
+	
+	void SetNull(){ type = Null; }
+	void SetUserData( void* ud ){ type = UserData; data.UD = ud; }
+	void SetInt( IntType x ){ type = Int; data.IV4.x = x;
+		data.IV4.y = 0; data.IV4.z = 0; data.IV4.w = 0; }
+	void SetIVec2( IntType x, IntType y ){ type = Int2; data.IV4.x = x;
+		data.IV4.y = y; data.IV4.z = 0; data.IV4.w = 0; }
+	void SetIVec3( IntType x, IntType y, IntType z ){ type = Int3; data.IV4.x = x;
+		data.IV4.y = y; data.IV4.z = z; data.IV4.w = 0; }
+	void SetIVec4( IntType x, IntType y, IntType z, IntType w ){ type = Int4; data.IV4.x = x;
+		data.IV4.y = y; data.IV4.z = z; data.IV4.w = w; }
+	void SetFloat( float x ){ type = Float; data.FV4.x = x;
+		data.FV4.y = 0; data.FV4.z = 0; data.FV4.w = 0; }
+	void SetFVec2( float x, float y ){ type = Float2; data.FV4.x = x;
+		data.FV4.y = y; data.FV4.z = 0; data.FV4.w = 0; }
+	void SetFVec3( float x, float y, float z ){ type = Float3; data.FV4.x = x;
+		data.FV4.y = y; data.FV4.z = z; data.FV4.w = 0; }
+	void SetFVec4( float x, float y, float z, float w ){ type = Float4; data.FV4.x = x;
+		data.FV4.y = y; data.FV4.z = z; data.FV4.w = w; }
+	void SetStringView( StringView sv ){ type = StrView; _SV() = sv; }
+	
+	void* GetUserData() const { return type == UserData ? data.UD : NULL; }
+	IntType GetInt() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4: return data.IV4.x;
+		case Float: case Float2: case Float3: case Float4: return data.FV4.x;
+		default: return 0;
+		}
+	}
+	IVec2 GetIVec2() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4:
+			{ IVec2 out = { data.IV4.x, data.IV4.y }; return out; }
+		case Float: case Float2: case Float3: case Float4:
+			{ IVec2 out = { data.FV4.x, data.FV4.y }; return out; }
+		default:
+			{ IVec2 out = { 0, 0 }; return out; }
+		}
+	}
+	IVec3 GetIVec3() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4:
+			{ IVec3 out = { data.IV4.x, data.IV4.y, data.IV4.z }; return out; }
+		case Float: case Float2: case Float3: case Float4:
+			{ IVec3 out = { data.FV4.x, data.FV4.y, data.FV4.z }; return out; }
+		default:
+			{ IVec3 out = { 0, 0, 0 }; return out; }
+		}
+	}
+	IVec4 GetIVec4() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4: return data.IV4;
+		case Float: case Float2: case Float3: case Float4:
+			{ IVec4 out = { data.FV4.x, data.FV4.y, data.FV4.z, data.FV4.w }; return out; }
+		default:
+			{ IVec4 out = { 0, 0, 0, 0 }; return out; }
+		}
+	}
+	float GetFloat() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4: return data.IV4.x;
+		case Float: case Float2: case Float3: case Float4: return data.FV4.x;
+		default: return 0;
+		}
+	}
+	Vec2 GetFVec2() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4:
+			{ Vec2 out = { data.IV4.x, data.IV4.y }; return out; }
+		case Float: case Float2: case Float3: case Float4:
+			{ Vec2 out = { data.FV4.x, data.FV4.y }; return out; }
+		default:
+			{ Vec2 out = { 0, 0 }; return out; }
+		}
+	}
+	Vec3 GetFVec3() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4:
+			{ Vec3 out = { data.IV4.x, data.IV4.y, data.IV4.z }; return out; }
+		case Float: case Float2: case Float3: case Float4:
+			{ Vec3 out = { data.FV4.x, data.FV4.y, data.FV4.z }; return out; }
+		default:
+			{ Vec3 out = { 0, 0, 0 }; return out; }
+		}
+	}
+	Vec4 GetFVec4() const
+	{
+		switch( type )
+		{
+		case Int: case Int2: case Int3: case Int4:
+			{ Vec4 out = { data.IV4.x, data.IV4.y, data.IV4.z, data.IV4.w }; return out; }
+		case Float: case Float2: case Float3: case Float4: return data.FV4;
+		default:
+			{ Vec4 out = { 0, 0, 0, 0 }; return out; }
+		}
+	}
+	StringView GetStringView() const { return _SV(); }
+};
+
+typedef int32_t SGRX_EventID;
+enum SGRX_EventIDType
+{
+	EID_Type_None = 0,
+	EID_Type_Engine = 1,
+	EID_Type_User = 65536,
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IEventHandler
+{
+	ENGINE_EXPORT virtual ~SGRX_IEventHandler();
+	ENGINE_EXPORT void RegisterHandler( SGRX_EventID eid );
+	ENGINE_EXPORT void UnregisterHandler( SGRX_EventID eid = 0 );
+	ENGINE_EXPORT virtual void HandleEvent( SGRX_EventID eid, const SGRX_EventData& edata ) = 0;
+};
+
 #define SGRX_MB_UNKNOWN 0
 #define SGRX_MB_LEFT 1
 #define SGRX_MB_MIDDLE 2
@@ -88,6 +262,9 @@ typedef uint64_t ActionInput;
 #define ACTINPUT_GET_TYPE( iid ) (((iid)>>32ull)&0xffffffff)
 #define ACTINPUT_GET_VALUE( iid ) ((iid)&0xffffffff)
 
+ENGINE_EXPORT void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid );
+ENGINE_EXPORT void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid = 0 );
+ENGINE_EXPORT void Game_FireEvent( SGRX_EventID eid, const SGRX_EventData& edata );
 ENGINE_EXPORT void Game_RegisterAction( Command* cmd );
 ENGINE_EXPORT void Game_UnregisterAction( Command* cmd );
 ENGINE_EXPORT Command* Game_FindAction( const StringView& cmd );

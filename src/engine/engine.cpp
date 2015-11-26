@@ -46,6 +46,19 @@ void Sys_FatalError( const StringView& err )
 // GLOBALS
 //
 
+struct EventLinkEntry
+{
+	bool operator == ( const EventLinkEntry& o ) const { return eid == o.eid && eh == o.eh; }
+	SGRX_EventID eid;
+	SGRX_IEventHandler* eh;
+};
+struct EventLinkArray : Array< EventLinkEntry >, SGRX_RefCounted
+{
+};
+typedef Handle< EventLinkArray > EventLinkArrayHandle;
+
+typedef HashTable< SGRX_EventID, EventLinkArrayHandle > EventLinksByID;
+typedef HashTable< SGRX_IEventHandler*, EventLinkArrayHandle > EventLinksByHandler;
 typedef HashTable< StringView, SGRX_ConvexPointSet* > ConvexPointSetHashTable;
 typedef HashTable< StringView, SGRX_ITexture* > TextureHashTable;
 typedef HashTable< uint64_t, SGRX_ITexture* > RenderTargetTable;
@@ -76,6 +89,8 @@ static uint32_t g_GameTime = 0;
 static ActionMap* g_ActionMap;
 static Vec2 g_CursorPos = {0,0};
 static Vec2 g_CursorScale = {0,0};
+static EventLinksByID g_EventLinksByID;
+static EventLinksByHandler g_EventLinksByHandler;
 static Array< IScreen* > g_OverlayScreens;
 static Array< FileSysHandle > g_FileSystems;
 
@@ -179,9 +194,90 @@ SGRX_Joystick::~SGRX_Joystick()
 
 
 
+SGRX_IEventHandler::~SGRX_IEventHandler()
+{
+	Game_UnregisterEventHandler( this );
+}
+
+void SGRX_IEventHandler::RegisterHandler( SGRX_EventID eid )
+{
+	Game_RegisterEventHandler( this, eid );
+}
+
+void SGRX_IEventHandler::UnregisterHandler( SGRX_EventID eid )
+{
+	Game_UnregisterEventHandler( this, eid );
+}
+
+
+
 //
 // GAME SYSTEMS
 //
+
+
+void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
+{
+	EventLinkEntry ele = { eid, eh };
+	EventLinkArrayHandle links = g_EventLinksByID.getcopy( eid );
+	if( !links )
+	{
+		links = new EventLinkArray;
+		g_EventLinksByID.set( eid, links );
+	}
+	links->find_or_add( ele );
+	links = g_EventLinksByHandler.getcopy( eh );
+	if( !links )
+	{
+		links = new EventLinkArray;
+		g_EventLinksByHandler.set( eh, links );
+	}
+	links->find_or_add( ele );
+}
+
+void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
+{
+	if( eid == 0 )
+	{
+		EventLinkArrayHandle links = g_EventLinksByHandler.getcopy( eh );
+		if( !links )
+			return;
+		EventLinkArray& ELA = *links;
+		for( size_t i = 0; i < ELA.size(); ++i )
+		{
+			Game_UnregisterEventHandler( eh, ELA[ i ].eid );
+		}
+	}
+	else
+	{
+		EventLinkEntry ele = { eid, eh };
+		EventLinkArrayHandle links = g_EventLinksByID.getcopy( eid );
+		if( links )
+		{
+			links->remove_first( ele );
+		}
+		links = g_EventLinksByHandler.getcopy( eh );
+		if( links )
+		{
+			links->remove_first( ele );
+			if( links->size() == 0 )
+				g_EventLinksByHandler.unset( eh );
+		}
+	}
+}
+
+void Game_FireEvent( SGRX_EventID eid, const SGRX_EventData& edata )
+{
+	EventLinkArrayHandle links = g_EventLinksByID.getcopy( eid );
+	if( !links )
+		return;
+	EventLinkArray& ELA = *links;
+	for( size_t i = 0; i < ELA.size(); ++i )
+	{
+		ELA[ i ].eh->HandleEvent( eid, edata );
+	}
+}
+
 
 void Command::_SetState( float x )
 {

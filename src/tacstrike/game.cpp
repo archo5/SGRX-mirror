@@ -1,9 +1,6 @@
 
 
-#include "level.hpp"
-#include "tsui.hpp"
-#include "entities.hpp"
-#include "entities_ts.hpp"
+#include "tsgame.hpp"
 
 
 GameLevel* g_GameLevel = NULL;
@@ -28,6 +25,30 @@ Command SHOW_OBJECTIVES( "show_objectives" );
 Command DO_ACTION( "do_action" );
 Command SLOWDOWN_TEST( "slowdown_test" );
 Vec2 CURSOR_POS = V2(0);
+
+
+
+TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
+	IGameLevelSystem( lev, e_system_uid ), m_state( GS_Intro ),
+	m_timeout( 3 )
+{
+}
+
+void TSFightGameMode::Tick( float deltaTime, float blendFactor )
+{
+	m_timeout = TMAX( 0.0f, m_timeout - deltaTime );
+	switch( m_state )
+	{
+	case GS_Intro:
+		if( m_timeout <= 0 )
+		{
+			// start the game
+		}
+		break;
+	case GS_Playing:
+		break;
+	}
+}
 
 
 
