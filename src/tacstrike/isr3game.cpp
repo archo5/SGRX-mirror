@@ -6,20 +6,20 @@
 GameLevel* g_GameLevel = NULL;
 SoundSystemHandle g_SoundSys;
 
-Command MOVE_LEFT( "move_left" );
-Command MOVE_RIGHT( "move_right" );
-Command MOVE_UP( "move_up" );
-Command MOVE_DOWN( "move_down" );
-Command MOVE_X( "move_x" );
-Command MOVE_Y( "move_y" );
-Command AIM_X( "aim_x", 0 );
-Command AIM_Y( "aim_y", 0 );
-Command DO_ACTION( "do_action" );
-Command SHOOT( "shoot" );
-Command LOCK_ON( "lock_on" );
-Command SHOW_OBJECTIVES( "show_objectives" );
+InputState MOVE_LEFT( "move_left" );
+InputState MOVE_RIGHT( "move_right" );
+InputState MOVE_UP( "move_up" );
+InputState MOVE_DOWN( "move_down" );
+InputState MOVE_X( "move_x" );
+InputState MOVE_Y( "move_y" );
+InputState AIM_X( "aim_x", 0 );
+InputState AIM_Y( "aim_y", 0 );
+InputState DO_ACTION( "do_action" );
+InputState SHOOT( "shoot" );
+InputState LOCK_ON( "lock_on" );
+InputState SHOW_OBJECTIVES( "show_objectives" );
 
-Command CROUCH( "crouch" );
+InputState CROUCH( "crouch" );
 
 Vec2 CURSOR_POS = V2(0);
 
@@ -62,7 +62,7 @@ struct StartScreen : IScreen
 		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_SPACE )
 		{
 			Game_ShowCursor( false );
-			g_GameLevel->StartLevel();
+		//	g_GameLevel->StartLevel();
 			m_timer = 5;
 		}
 		return true;
@@ -112,8 +112,7 @@ struct EndScreen : IScreen
 			Game_ShowCursor( false );
 			GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
 			g_GameLevel->Load( "level1" );
-			g_GameLevel->Tick( 0, 0 );
-			g_GameLevel->StartLevel();
+		//	g_GameLevel->StartLevel();
 			m_restart = true;
 		}
 		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE )

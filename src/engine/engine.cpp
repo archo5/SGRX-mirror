@@ -266,7 +266,7 @@ void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
 	}
 }
 
-void Game_FireEvent( SGRX_EventID eid, const SGRX_EventData& edata )
+void Game_FireEvent( SGRX_EventID eid, const EventData& edata )
 {
 	EventLinkArrayHandle links = g_EventLinksByID.getcopy( eid );
 	if( !links )
@@ -279,75 +279,55 @@ void Game_FireEvent( SGRX_EventID eid, const SGRX_EventData& edata )
 }
 
 
-void Command::_SetState( float x )
+void InputState::_SetState( float x )
 {
 	x = clamp( x, -1, 1 );
 	state = fabsf( x ) >= threshold;
 	value = state ? x : 0;
 }
 
-void Command::_Advance()
+void InputState::_Advance()
 {
 	prev_value = value;
 	prev_state = state;
 }
 
-void Game_RegisterAction( Command* cmd )
+void Game_RegisterAction( InputState* cmd )
 {
 	g_ActionMap->Register( cmd );
 }
 
-void Game_UnregisterAction( Command* cmd )
+void Game_UnregisterAction( InputState* cmd )
 {
 	g_ActionMap->Unregister( cmd );
 }
 
-Command* Game_FindAction( const StringView& cmd )
+InputState* Game_FindAction( const StringView& cmd )
 {
 	return g_ActionMap->FindAction( cmd );
 }
 
-void Game_BindKeyToAction( uint32_t key, Command* cmd )
+void Game_BindKeyToAction( uint32_t key, InputState* cmd )
 {
 	g_ActionMap->Map( ACTINPUT_MAKE_KEY( key ), cmd );
 }
 
-void Game_BindKeyToAction( uint32_t key, const StringView& cmd )
-{
-	Game_BindKeyToAction( key, Game_FindAction( cmd ) );
-}
-
-void Game_BindMouseButtonToAction( int btn, Command* cmd )
+void Game_BindMouseButtonToAction( int btn, InputState* cmd )
 {
 	g_ActionMap->Map( ACTINPUT_MAKE_MOUSE( btn ), cmd );
 }
 
-void Game_BindMouseButtonToAction( int btn, const StringView& cmd )
-{
-	Game_BindMouseButtonToAction( btn, Game_FindAction( cmd ) );
-}
-
-void Game_BindGamepadButtonToAction( int btn, Command* cmd )
+void Game_BindGamepadButtonToAction( int btn, InputState* cmd )
 {
 	g_ActionMap->Map( ACTINPUT_MAKE_GPADBTN( btn ), cmd );
 }
 
-void Game_BindGamepadButtonToAction( int btn, const StringView& cmd )
-{
-	Game_BindGamepadButtonToAction( btn, Game_FindAction( cmd ) );
-}
-
-void Game_BindGamepadAxisToAction( int axis, Command* cmd )
+void Game_BindGamepadAxisToAction( int axis, InputState* cmd )
 {
 	g_ActionMap->Map( ACTINPUT_MAKE_GPADAXIS( axis ), cmd );
 }
 
-void Game_BindGamepadAxisToAction( int axis, const StringView& cmd )
-{
-	Game_BindGamepadAxisToAction( axis, Game_FindAction( cmd ) );
-}
-
-ActionInput Game_GetActionBinding( Command* cmd )
+ActionInput Game_GetActionBinding( InputState* cmd )
 {
 	ActionMap::InputCmdMap* icm = &g_ActionMap->m_inputCmdMap;
 	for( size_t i = 0; i < icm->size(); ++i )
@@ -358,7 +338,7 @@ ActionInput Game_GetActionBinding( Command* cmd )
 	return 0;
 }
 
-int Game_GetActionBindings( Command* cmd, ActionInput* out, int bufsize )
+int Game_GetActionBindings( InputState* cmd, ActionInput* out, int bufsize )
 {
 	int num = 0;
 	ActionMap::InputCmdMap* icm = &g_ActionMap->m_inputCmdMap;
@@ -370,7 +350,7 @@ int Game_GetActionBindings( Command* cmd, ActionInput* out, int bufsize )
 	return num;
 }
 
-void Game_BindInputToAction( ActionInput iid, Command* cmd )
+void Game_BindInputToAction( ActionInput iid, InputState* cmd )
 {
 	g_ActionMap->Map( iid, cmd );
 }
@@ -548,20 +528,20 @@ void Game_OnEvent( const Event& e )
 	
 	if( e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_CONTROLLERBUTTONUP )
 	{
-		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADBTN( e.cbutton.button ) );
+		InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADBTN( e.cbutton.button ) );
 		if( cmd )
 			cmd->_SetState( e.cbutton.state );
 	}
 	else if( e.type == SDL_CONTROLLERAXISMOTION )
 	{
-		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADAXIS( e.caxis.axis ) );
+		InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_GPADAXIS( e.caxis.axis ) );
 		if( cmd )
 			cmd->_SetState( e.caxis.value / 32767.0f );
 	}
 	
 	if( e.type == SDL_KEYDOWN || e.type == SDL_KEYUP )
 	{
-		Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_KEY( e.key.keysym.sym ) );
+		InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_KEY( e.key.keysym.sym ) );
 		if( cmd )
 			cmd->_SetState( e.key.state );
 	}
@@ -574,7 +554,7 @@ void Game_OnEvent( const Event& e )
 		if( e.button.button == SDL_BUTTON_MIDDLE ) btn = SGRX_MB_MIDDLE;
 		if( btn >= 0 )
 		{
-			Command* cmd = g_ActionMap->Get( ACTINPUT_MAKE_MOUSE( btn ) );
+			InputState* cmd = g_ActionMap->Get( ACTINPUT_MAKE_MOUSE( btn ) );
 			if( cmd )
 				cmd->_SetState( e.button.state );
 		}

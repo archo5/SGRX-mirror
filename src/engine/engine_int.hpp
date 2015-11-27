@@ -328,19 +328,19 @@ typedef Handle< SGRX_Joystick > JoystickHandle;
 
 struct ActionMap
 {
-	typedef HashTable< StringView, Command* > NameCmdMap;
-	typedef HashTable< ActionInput, Command* > InputCmdMap;
+	typedef HashTable< StringView, InputState* > NameCmdMap;
+	typedef HashTable< ActionInput, InputState* > InputCmdMap;
 	
 	void Advance()
 	{
 		for( size_t i = 0; i < m_inputCmdMap.size(); ++i )
 			m_inputCmdMap.item( i ).value->_Advance();
 	}
-	void Register( Command* cmd ){ m_nameCmdMap.set( cmd->name, cmd ); }
-	void Unregister( Command* cmd ){ m_nameCmdMap.unset( cmd->name ); }
-	Command* FindAction( const StringView& sv ){ return m_nameCmdMap.getcopy( sv ); }
+	void Register( InputState* cmd ){ m_nameCmdMap.set( cmd->name, cmd ); }
+	void Unregister( InputState* cmd ){ m_nameCmdMap.unset( cmd->name ); }
+	InputState* FindAction( const StringView& sv ){ return m_nameCmdMap.getcopy( sv ); }
 	
-	bool Map( ActionInput input, Command* cmd )
+	bool Map( ActionInput input, InputState* cmd )
 	{
 		if( cmd )
 			m_inputCmdMap.set( input, cmd );
@@ -349,7 +349,7 @@ struct ActionMap
 		return !!cmd;
 	}
 	void Unmap( ActionInput input ){ m_inputCmdMap.unset( input ); }
-	Command* Get( ActionInput input ){ return m_inputCmdMap.getcopy( input ); }
+	InputState* Get( ActionInput input ){ return m_inputCmdMap.getcopy( input ); }
 	
 	NameCmdMap m_nameCmdMap;
 	InputCmdMap m_inputCmdMap;

@@ -8,14 +8,14 @@
 GameLevel* g_GameLevel = NULL;
 SoundSystemHandle g_SoundSys;
 
-Command MOVE_LEFT( "move_left" );
-Command MOVE_RIGHT( "move_right" );
-Command MOVE_UP( "move_up" );
-Command MOVE_DOWN( "move_down" );
-Command INTERACT( "interact" );
-Command THROW_COIN( "throw_coin" );
-Command SPRINT( "sprint" );
-Command SHOW_OBJECTIVES( "show_objectives" );
+InputState MOVE_LEFT( "move_left" );
+InputState MOVE_RIGHT( "move_right" );
+InputState MOVE_UP( "move_up" );
+InputState MOVE_DOWN( "move_down" );
+InputState INTERACT( "interact" );
+InputState THROW_COIN( "throw_coin" );
+InputState SPRINT( "sprint" );
+InputState SHOW_OBJECTIVES( "show_objectives" );
 
 
 static void resetcontrols()
@@ -973,7 +973,7 @@ struct SoundOptionsMenuScreen : IScreen
 g_SoundOptionsMenu;
 
 
-Command* g_ctrls[] =
+InputState* g_ctrls[] =
 {
 	&MOVE_UP,
 	&MOVE_DOWN,
@@ -1402,7 +1402,7 @@ struct MainMenuScreen : IScreen
 			if( sel == 0 )
 			{
 				// start the level
-				g_GameLevel->StartLevel();
+			//	g_GameLevel->StartLevel();
 				Game_RemoveOverlayScreen( this );
 				Game_ShowCursor( false );
 				return true;
@@ -1478,8 +1478,7 @@ struct EndMenuScreen : IScreen
 				Game_RemoveOverlayScreen( this );
 				GR2D_SetFont( "core", TMIN(GR_GetWidth(),GR_GetHeight())/20 );
 				g_GameLevel->Load( "office" );
-				g_GameLevel->Tick( 0, 0 );
-				g_GameLevel->StartLevel();
+			//	g_GameLevel->StartLevel();
 				Game_ShowCursor( false );
 				return true;
 			}

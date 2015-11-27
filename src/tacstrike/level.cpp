@@ -246,6 +246,23 @@ bool GameLevel::Load( const StringView& levelname )
 		}
 	}
 	
+	m_currentTickTime = 0;
+	m_currentPhyTime = 0;
+	m_levelTime = 0;
+	
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->OnPostLevelLoad();
+	
+	if( !m_player )
+	{
+		sgsVariable data = m_scriptCtx.CreateDict();
+		data.setprop( "position", m_scriptCtx.CreateVec3( m_playerSpawnInfo[0] ) );
+		data.setprop( "viewdir", m_scriptCtx.CreateVec3( m_playerSpawnInfo[1] ) );
+		CreateEntity( "player", data );
+		ASSERT( m_player && "player must be created by one of the systems" );
+	}
+	m_scriptCtx.GlobalCall( "onLevelStart" );
+	
 	return true;
 }
 
@@ -298,22 +315,6 @@ StackShortName GameLevel::GenerateName()
 	return tmp;
 }
 
-void GameLevel::StartLevel()
-{
-	m_currentTickTime = 0;
-	m_currentPhyTime = 0;
-	m_levelTime = 0;
-	if( !m_player )
-	{
-		sgsVariable data = m_scriptCtx.CreateDict();
-		data.setprop( "position", m_scriptCtx.CreateVec3( m_playerSpawnInfo[0] ) );
-		data.setprop( "viewdir", m_scriptCtx.CreateVec3( m_playerSpawnInfo[1] ) );
-		CreateEntity( "player", data );
-		ASSERT( m_player && "player must be created by one of the systems" );
-	}
-	m_scriptCtx.GlobalCall( "onLevelStart" );
-}
-
 void GameLevel::ClearLevel()
 {
 	m_currentTickTime = 0;
@@ -333,7 +334,6 @@ void GameLevel::ProcessEvents()
 	if( m_nextLevel.size() != 0 )
 	{
 		Load( m_nextLevel );
-		StartLevel();
 		m_nextLevel = "";
 	}
 }

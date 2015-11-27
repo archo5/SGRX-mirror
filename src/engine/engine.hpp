@@ -36,16 +36,20 @@ ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
 typedef SDL_Event Event;
 
 
-struct Command
+// command object
+struct CObj
 {
-	Command( const StringView& sv, float thr = 0.25f ) :
+	virtual ~CObj(){}
+};
+
+struct InputState : CObj
+{
+	InputState( const StringView& sv, float thr = 0.25f ) :
 		name(sv),
 		threshold(thr),
 		value(0), prev_value(0),
 		state(false), prev_state(false)
 	{}
-	virtual ~Command(){}
-	virtual void OnChangeState(){}
 	
 	FINLINE bool IsPressed() const { return state && !prev_state; }
 	FINLINE bool IsReleased() const { return !state && prev_state; }
@@ -59,18 +63,11 @@ struct Command
 	bool state, prev_state;
 };
 
-struct Command_Func : Command
-{
-	virtual void Function() = 0;
-	Command_Func( const StringView& sv, float thr = 0.1f ) : Command( sv, thr ){}
-	void OnChangeState(){ if( state && !state ) Function(); }
-};
-
 typedef int32_t IntType;
 struct IVec2 { IntType x, y; };
 struct IVec3 { IntType x, y, z; };
 struct IVec4 { IntType x, y, z, w; };
-struct SGRX_EventData
+struct EventData
 {
 	enum Type
 	{
@@ -100,17 +97,17 @@ struct SGRX_EventData
 	StringView& _SV(){ return *(StringView*) data.SV; }
 	const StringView& _SV() const { return *(StringView*) data.SV; }
 	
-	SGRX_EventData(){ SetNull(); }
-	SGRX_EventData( void* ud ){ SetUserData( ud ); }
-	SGRX_EventData( IntType x ){ SetInt( x ); }
-	SGRX_EventData( IntType x, IntType y ){ SetIVec2( x, y ); }
-	SGRX_EventData( IntType x, IntType y, IntType z ){ SetIVec3( x, y, z ); }
-	SGRX_EventData( IntType x, IntType y, IntType z, IntType w ){ SetIVec4( x, y, z, w ); }
-	SGRX_EventData( float x ){ SetFloat( x ); }
-	SGRX_EventData( float x, float y ){ SetFVec2( x, y ); }
-	SGRX_EventData( float x, float y, float z ){ SetFVec3( x, y, z ); }
-	SGRX_EventData( float x, float y, float z, float w ){ SetFVec4( x, y, z, w ); }
-	SGRX_EventData( StringView sv ){ SetStringView( sv ); }
+	EventData(){ SetNull(); }
+	EventData( void* ud ){ SetUserData( ud ); }
+	EventData( IntType x ){ SetInt( x ); }
+	EventData( IntType x, IntType y ){ SetIVec2( x, y ); }
+	EventData( IntType x, IntType y, IntType z ){ SetIVec3( x, y, z ); }
+	EventData( IntType x, IntType y, IntType z, IntType w ){ SetIVec4( x, y, z, w ); }
+	EventData( float x ){ SetFloat( x ); }
+	EventData( float x, float y ){ SetFVec2( x, y ); }
+	EventData( float x, float y, float z ){ SetFVec3( x, y, z ); }
+	EventData( float x, float y, float z, float w ){ SetFVec4( x, y, z, w ); }
+	EventData( StringView sv ){ SetStringView( sv ); }
 	
 	void SetNull(){ type = Null; }
 	void SetUserData( void* ud ){ type = UserData; data.UD = ud; }
@@ -237,7 +234,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IEventHandler
 	ENGINE_EXPORT virtual ~SGRX_IEventHandler();
 	ENGINE_EXPORT void RegisterHandler( SGRX_EventID eid );
 	ENGINE_EXPORT void UnregisterHandler( SGRX_EventID eid = 0 );
-	ENGINE_EXPORT virtual void HandleEvent( SGRX_EventID eid, const SGRX_EventData& edata ) = 0;
+	ENGINE_EXPORT virtual void HandleEvent( SGRX_EventID eid, const EventData& edata ) = 0;
 };
 
 #define SGRX_MB_UNKNOWN 0
@@ -264,21 +261,17 @@ typedef uint64_t ActionInput;
 
 ENGINE_EXPORT void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid );
 ENGINE_EXPORT void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid = 0 );
-ENGINE_EXPORT void Game_FireEvent( SGRX_EventID eid, const SGRX_EventData& edata );
-ENGINE_EXPORT void Game_RegisterAction( Command* cmd );
-ENGINE_EXPORT void Game_UnregisterAction( Command* cmd );
-ENGINE_EXPORT Command* Game_FindAction( const StringView& cmd );
-ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, Command* cmd );
-ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, const StringView& cmd );
-ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, Command* cmd );
-ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, const StringView& cmd );
-ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, Command* cmd );
-ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, const StringView& cmd );
-ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, Command* cmd );
-ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, const StringView& cmd );
-ENGINE_EXPORT ActionInput Game_GetActionBinding( Command* cmd );
-ENGINE_EXPORT int Game_GetActionBindings( Command* cmd, ActionInput* out, int bufsize );
-ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, Command* cmd );
+ENGINE_EXPORT void Game_FireEvent( SGRX_EventID eid, const EventData& edata );
+ENGINE_EXPORT void Game_RegisterAction( InputState* cmd );
+ENGINE_EXPORT void Game_UnregisterAction( InputState* cmd );
+ENGINE_EXPORT InputState* Game_FindAction( const StringView& cmd );
+ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, InputState* cmd );
+ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, InputState* cmd );
+ENGINE_EXPORT void Game_BindGamepadButtonToAction( int btn, InputState* cmd );
+ENGINE_EXPORT void Game_BindGamepadAxisToAction( int axis, InputState* cmd );
+ENGINE_EXPORT ActionInput Game_GetActionBinding( InputState* cmd );
+ENGINE_EXPORT int Game_GetActionBindings( InputState* cmd, ActionInput* out, int bufsize );
+ENGINE_EXPORT void Game_BindInputToAction( ActionInput iid, InputState* cmd );
 ENGINE_EXPORT void Game_UnbindInput( ActionInput iid );
 ENGINE_EXPORT StringView Game_GetInputName( ActionInput iid );
 ENGINE_EXPORT Vec2 Game_GetCursorPos();

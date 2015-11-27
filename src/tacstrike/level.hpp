@@ -41,6 +41,7 @@ struct IGameLevelSystem
 		m_system_uid( uid )
 	{}
 	virtual ~IGameLevelSystem();
+	virtual void OnPostLevelLoad(){}
 	virtual void OnLevelDestroy(){ delete this; }
 	virtual bool AddEntity( const StringView& type, sgsVariable data ){ return false; }
 	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size ){ return false; }
@@ -116,19 +117,26 @@ struct SGRX_Actor : Entity
 	ENT_SGS_IMPLEMENT;
 	
 	SGRX_Actor( GameLevel* lev ) : Entity( lev ){}
-	FINLINE Vec3 GetInputV3( uint32_t iid ){ return ctrl->GetInput( iid ); }
-	FINLINE Vec2 GetInputV2( uint32_t iid ){ return ctrl->GetInput( iid ).ToVec2(); }
-	FINLINE float GetInputF( uint32_t iid ){ return ctrl->GetInput( iid ).x; }
-	FINLINE bool GetInputB( uint32_t iid ){ return ctrl->GetInput( iid ).x > 0.5f; }
+	FINLINE Vec3 GetInputV3( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ) : V3(0); }
+	FINLINE Vec2 GetInputV2( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).ToVec2() : V2(0); }
+	FINLINE float GetInputF( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x : 0; }
+	FINLINE bool GetInputB( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x > 0.5f : false; }
 	
 	virtual void FixedTick( float deltaTime )
 	{
-		ctrl->FixedTick( deltaTime );
+		if( ctrl )
+			ctrl->FixedTick( deltaTime );
 	}
 	virtual void Tick( float deltaTime, float blendFactor )
 	{
-		ctrl->Tick( deltaTime, blendFactor );
+		if( ctrl )
+			ctrl->Tick( deltaTime, blendFactor );
 	}
+	
+	virtual bool IsAlive(){ return true; }
+	virtual void Reset(){} // make alive again
+	virtual Vec3 GetPosition(){ return V3(0); }
+	virtual void SetPosition( Vec3 pos ){} // teleport to this place
 	
 	SGRX_ActorCtrlHandle ctrl;
 };
@@ -172,7 +180,6 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	bool Load( const StringView& levelname );
 	void CreateEntity( const StringView& type, sgsVariable data );
 	StackShortName GenerateName();
-	void StartLevel();
 	void ClearLevel();
 	
 	void ProcessEvents();

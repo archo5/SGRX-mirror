@@ -7,6 +7,20 @@
 #include "systems.hpp"
 
 
+struct TSEventData_CharHit
+{
+	struct TSCharacter* ch;
+	float power;
+};
+
+enum TSEventIDs
+{
+	_TSEV_Base_ = EID_Type_User,
+	TSEV_CharHit, // userdata = TSEventData_CharHit*
+	TSEV_CharDied, // userdata = TSCharacter*
+};
+
+
 struct TSCamera : Entity
 {
 	SGS_OBJECT_INHERIT( Entity );
@@ -89,13 +103,17 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
 	
+	virtual bool IsAlive(){ return m_health > 0; }
+	virtual void Reset();
+	Vec3 GetPosition();
+	void SetPosition( Vec3 pos );
+	
 	virtual void OnEvent( const StringView& type ){}
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	void Hit( float pwr );
 	virtual void OnDeath(){}
 	
 	Vec3 GetQueryPosition();
-	Vec3 GetPosition();
 	Vec3 GetViewDir();
 	Vec3 GetAimDir();
 	Mat4 GetBulletOutputMatrix();
@@ -112,6 +130,9 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	AnimPlayer m_anTopPlayer;
 	AnimDeformer m_anDeformer;
 	AnimMixer::Layer m_anLayers[4];
+	
+	float m_health;
+	float m_armor;
 	
 	float m_footstepTime;
 	bool m_isCrouching;

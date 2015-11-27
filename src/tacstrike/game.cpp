@@ -7,31 +7,84 @@ GameLevel* g_GameLevel = NULL;
 SoundSystemHandle g_SoundSys;
 SGRX_LineSet g_DebugLines;
 
-Command MOVE_LEFT( "move_left" );
-Command MOVE_RIGHT( "move_right" );
-Command MOVE_UP( "move_up" );
-Command MOVE_DOWN( "move_down" );
-Command MOVE_X( "move_x" );
-Command MOVE_Y( "move_y" );
-Command AIM_X( "aim_x", 0 );
-Command AIM_Y( "aim_y", 0 );
-Command SHOOT( "shoot" );
-Command LOCK_ON( "lock_on" );
-Command RELOAD( "reload" );
-Command SLOW_WALK( "slow_walk" );
-Command SPRINT( "sprint" );
-Command CROUCH( "crouch" );
-Command SHOW_OBJECTIVES( "show_objectives" );
-Command DO_ACTION( "do_action" );
-Command SLOWDOWN_TEST( "slowdown_test" );
+InputState MOVE_LEFT( "move_left" );
+InputState MOVE_RIGHT( "move_right" );
+InputState MOVE_UP( "move_up" );
+InputState MOVE_DOWN( "move_down" );
+InputState MOVE_X( "move_x" );
+InputState MOVE_Y( "move_y" );
+InputState AIM_X( "aim_x", 0 );
+InputState AIM_Y( "aim_y", 0 );
+InputState SHOOT( "shoot" );
+InputState LOCK_ON( "lock_on" );
+InputState RELOAD( "reload" );
+InputState SLOW_WALK( "slow_walk" );
+InputState SPRINT( "sprint" );
+InputState CROUCH( "crouch" );
+InputState SHOW_OBJECTIVES( "show_objectives" );
+InputState DO_ACTION( "do_action" );
+InputState SLOWDOWN_TEST( "slowdown_test" );
 Vec2 CURSOR_POS = V2(0);
 
 
 
 TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ), m_state( GS_Intro ),
-	m_timeout( 3 )
+	m_timeout( 3 ), m_points_ply( 0 ), m_points_enm( 0 ), m_points_target( 10 ),
+	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 )
 {
+	RegisterHandler( TSEV_CharDied );
+	
+	m_player = NULL;
+	m_enemy = NULL;
+	
+}
+
+void TSFightGameMode::OnPostLevelLoad()
+{
+	// pick spawnpoints
+	Vec3 playerPos = m_spawnPoints[ rand() % m_spawnPoints.size() ];
+	Vec3 enemyPos = PickFurthestSpawnPoint( playerPos );
+	
+	// create the player
+	m_player = new TSCharacter
+	(
+		m_level,
+		playerPos,
+		( enemyPos - playerPos ).Normalized()
+	);
+	m_player->m_infoFlags |= IEST_Player;
+	m_player->InitializeMesh( "chars/tstest.chr" );
+	m_player->ownerType = GAT_Player;
+	m_level->AddEntity( m_player );
+	m_level->SetPlayer( m_player );
+	m_actorCtrl_ply = &m_level->GetSystem<TSGameSystem>()->m_playerCtrl;
+	
+	// create the enemy
+	m_enemy = new TSCharacter
+	(
+		m_level,
+		enemyPos,
+		( playerPos - enemyPos ).Normalized()
+	);
+	m_enemy->m_infoFlags |= IEST_Target;
+	m_enemy->InitializeMesh( "chars/tstest.chr" );
+	m_enemy->ownerType = GAT_Enemy;
+	m_enemy->m_name = "enemy";
+	m_level->MapEntityByName( m_enemy );
+	m_level->AddEntity( m_enemy );
+	m_actorCtrl_enm = new TSEnemyController( m_level, m_enemy, sgsVariable() );
+}
+
+bool TSFightGameMode::AddEntity( const StringView& type, sgsVariable data )
+{
+	if( type == "dm_spawn" )
+	{
+		m_spawnPoints.push_back( data.getprop("position").get<Vec3>() );
+		return true;
+	}
+	
+	return false;
 }
 
 void TSFightGameMode::Tick( float deltaTime, float blendFactor )
@@ -40,14 +93,103 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 	switch( m_state )
 	{
 	case GS_Intro:
+		// timeout to intro end
 		if( m_timeout <= 0 )
 		{
 			// start the game
+			m_state = GS_Playing;
+			
+			// set controllers
+			m_player->ctrl = m_actorCtrl_ply;
+			m_enemy->ctrl = m_actorCtrl_enm;
 		}
 		break;
 	case GS_Playing:
+		// timeout to respawn
+		m_respawnTimeout_ply = TMAX( 0.0f, m_respawnTimeout_ply - deltaTime );
+		m_respawnTimeout_enm = TMAX( 0.0f, m_respawnTimeout_enm - deltaTime );
+		if( m_player->IsAlive() == false && m_respawnTimeout_ply <= 0 )
+		{
+			m_player->Reset();
+			m_player->SetPosition( PickFurthestSpawnPoint( m_enemy->GetPosition() ) );
+		}
+		if( m_enemy->IsAlive() == false && m_respawnTimeout_enm <= 0 )
+		{
+			m_enemy->Reset();
+			m_enemy->SetPosition( PickFurthestSpawnPoint( m_player->GetPosition() ) );
+		}
+		break;
+	case GS_Ending:
 		break;
 	}
+}
+
+void TSFightGameMode::DrawUI()
+{
+	if( m_state == GS_Intro )
+	{
+		GR2D_SetFont( "core", 32 );
+		GR2D_SetColor( 0, 0, 1 );
+		char bfr[ 128 ];
+		sgrx_snprintf( bfr, sizeof(bfr), "%d", (int) ceil( m_timeout ) );
+		GR2D_DrawTextLine( GR_GetWidth() / 2, GR_GetHeight() / 2, bfr, HALIGN_CENTER, VALIGN_CENTER );
+	}
+	else if( m_state == GS_Playing )
+	{
+		GR2D_SetFont( "core", 32 );
+		GR2D_SetColor( 1, 0, 0 );
+		char bfr[ 128 ];
+		sgrx_snprintf( bfr, sizeof(bfr), "[P] %d : [E] %d", m_points_ply, m_points_enm );
+		GR2D_DrawTextLine( GR_GetWidth() / 2, GR_GetHeight() / 16, bfr, HALIGN_CENTER, VALIGN_CENTER );
+	}
+}
+
+void TSFightGameMode::HandleEvent( SGRX_EventID eid, const EventData& edata )
+{
+	switch( eid )
+	{
+	case TSEV_CharDied:
+		{
+			SGRX_CAST( TSCharacter*, ch, edata.GetUserData() );
+			
+			if( m_enemy == ch )
+			{
+				m_points_ply++;
+				m_respawnTimeout_enm = 3;
+			}
+			if( m_player == ch )
+			{
+				m_points_enm++;
+				m_respawnTimeout_ply = 3;
+			}
+			
+			if( m_points_ply >= m_points_target || m_points_enm >= m_points_target )
+			{
+				m_state = GS_Ending;
+				
+				// unlink controllers
+				m_player->ctrl = NULL;
+				m_enemy->ctrl = NULL;
+			}
+		}
+		break;
+	}
+}
+
+Vec3 TSFightGameMode::PickFurthestSpawnPoint( Vec3 from )
+{
+	float dist = 0;
+	size_t fp = NOT_FOUND;
+	for( size_t i = 0; i < m_spawnPoints.size(); ++i )
+	{
+		float ndst = ( m_spawnPoints[ i ] - from ).Length();
+		if( ndst > dist )
+		{
+			dist = ndst;
+			fp = i;
+		}
+	}
+	return fp != NOT_FOUND ? m_spawnPoints[ fp ] : from;
 }
 
 
@@ -137,12 +279,18 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
 		AddSystemToLevel<CoverSystem>( g_GameLevel );
 		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
+		AddSystemToLevel<TSFightGameMode>( g_GameLevel );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
+		
+	//	GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
+		GR_LoadAnims( "meshes/tstest.ssm.anm" );
+//		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		
 		g_GameLevel->Load( "ai-test" );
 	//	g_GameLevel->Load( "v3decotest" );
 		
+#if 0
 		mylight = g_GameLevel->GetScene()->CreateLight();
 		mylight->type = LIGHT_SPOT;
 		mylight->enabled = true;
@@ -156,10 +304,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		mylight->hasShadows = true;
 		mylight->UpdateTransform();
 		
-	//	GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
-		GR_LoadAnims( "meshes/tstest.ssm.anm" );
-//		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
-		
 		sgsVariable args = g_GameLevel->m_scriptCtx.CreateDict();
 		args.setprop( "position", g_GameLevel->m_scriptCtx.CreateVec3( V3(2,-2,1) ) );
 		args.setprop( "rot_angles", g_GameLevel->m_scriptCtx.CreateVec3( V3(0,0,0) ) );
@@ -172,8 +316,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		);
 		myscritem->SetLightSampler( g_GameLevel );
 		myscritem->SetPSRaycast( g_GameLevel->GetSystem<DamageSystem>() );
-		
-		g_GameLevel->StartLevel();
+#endif
 		
 		Game_AddOverlayScreen( &g_PauseMenu );
 		cursor_dt = V2(0);
@@ -181,8 +324,11 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	}
 	void OnDestroy()
 	{
-		myscritem->Release();
-		myscritem = NULL;
+		if( myscritem )
+		{
+			myscritem->Release();
+			myscritem = NULL;
+		}
 		mylight = NULL;
 		
 		delete g_GameLevel;
@@ -223,14 +369,17 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	{
 		g_GameLevel->FixedTick( dt );
 		
-		myscritem->FixedTick( dt );
+		if( myscritem ) myscritem->FixedTick( dt );
 	}
 	void Game_Tick( float dt, float bf )
 	{
 		g_GameLevel->Tick( dt, bf );
 		
-		myscritem->Tick( dt, bf );
-		myscritem->PreRender();
+		if( myscritem )
+		{
+			myscritem->Tick( dt, bf );
+			myscritem->PreRender();
+		}
 		
 #ifdef TESTSHOOT
 		Vec3 CP, CD;

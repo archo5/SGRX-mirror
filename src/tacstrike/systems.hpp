@@ -279,7 +279,7 @@ struct ObjectiveSystem : IGameLevelSystem
 	SGS_METHOD_NAMED( SetState ) void sgsSetState( int i, int state );
 	SGS_METHOD_NAMED( SetLocation ) void sgsSetLocation( int i, Vec3 loc );
 	
-	Command SHOW_OBJECTIVES;
+	InputState SHOW_OBJECTIVES;
 	
 	Array< OSObjective > m_objectives;
 	
@@ -380,7 +380,7 @@ struct ScriptedSequenceSystem : IGameLevelSystem
 	void DrawUI();
 	void _StartCutscene(){ m_time = 0; }
 	
-	Command m_cmdSkip;
+	InputState m_cmdSkip;
 	SGS_METHOD_NAMED( Start ) void sgsStart( sgsVariable func, float t );
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _StartCutscene VARNAME func ) sgsVariable m_func;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME time ) float m_time;

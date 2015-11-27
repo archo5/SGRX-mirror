@@ -6,14 +6,14 @@
 
 extern SoundSystemHandle g_SoundSys;
 
-extern Command MOVE_LEFT;
-extern Command MOVE_RIGHT;
-extern Command MOVE_UP;
-extern Command MOVE_DOWN;
-extern Command INTERACT;
-extern Command JUMP;
-extern Command CROUCH;
-extern Command SHOW_OBJECTIVES;
+extern InputState MOVE_LEFT;
+extern InputState MOVE_RIGHT;
+extern InputState MOVE_UP;
+extern InputState MOVE_DOWN;
+extern InputState INTERACT;
+extern InputState JUMP;
+extern InputState CROUCH;
+extern InputState SHOW_OBJECTIVES;
 
 
 BRSD4Player::BRSD4Player( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :

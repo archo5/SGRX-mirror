@@ -6,11 +6,11 @@
 
 SoundSystemHandle g_SoundSys;
 
-Command MOVE_LEFT( "move_left" );
-Command MOVE_RIGHT( "move_right" );
-Command MOVE_UP( "move_up" );
-Command MOVE_DOWN( "move_down" );
-Command SPEED( "speed" );
+InputState MOVE_LEFT( "move_left" );
+InputState MOVE_RIGHT( "move_right" );
+InputState MOVE_UP( "move_up" );
+InputState MOVE_DOWN( "move_down" );
+InputState SPEED( "speed" );
 
 
 struct GameLevel

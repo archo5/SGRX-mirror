@@ -4,19 +4,19 @@
 
 
 extern Vec2 CURSOR_POS;
-extern Command MOVE_LEFT;
-extern Command MOVE_RIGHT;
-extern Command MOVE_UP;
-extern Command MOVE_DOWN;
-extern Command MOVE_X;
-extern Command MOVE_Y;
-extern Command AIM_X;
-extern Command AIM_Y;
-extern Command SHOOT;
-extern Command LOCK_ON;
-extern Command RELOAD;
-extern Command CROUCH;
-extern Command DO_ACTION;
+extern InputState MOVE_LEFT;
+extern InputState MOVE_RIGHT;
+extern InputState MOVE_UP;
+extern InputState MOVE_DOWN;
+extern InputState MOVE_X;
+extern InputState MOVE_Y;
+extern InputState AIM_X;
+extern InputState AIM_Y;
+extern InputState SHOOT;
+extern InputState LOCK_ON;
+extern InputState RELOAD;
+extern InputState CROUCH;
+extern InputState DO_ACTION;
 
 
 #define MAGNUM_CAMERA_NOTICE_TIME 2
@@ -212,6 +212,7 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	SGRX_Actor( lev ),
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
+	m_health( 100 ), m_armor( 0 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
@@ -659,6 +660,23 @@ void TSCharacter::InterruptAction( bool force )
 	m_actState.target = NULL;
 }
 
+void TSCharacter::Reset()
+{
+	m_health = 100;
+}
+
+Vec3 TSCharacter::GetPosition()
+{
+	return m_bodyHandle->GetPosition();
+}
+
+void TSCharacter::SetPosition( Vec3 pos )
+{
+	m_bodyHandle->SetPosition( pos );
+	m_ivPos.Advance( pos );
+	m_ivPos.Advance( pos );
+}
+
 void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 {
 	if( evid == MIEVT_BulletHit )
@@ -675,16 +693,26 @@ void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 
 void TSCharacter::Hit( float pwr )
 {
-	float m_health = 1000000;
+//	float m_health = 1000000;
 	if( m_health > 0 )
 	{
 		m_timeSinceLastHit = 0;
 //		RenewAction();
 		m_health -= pwr;
+		
+		// event
+		{
+			TSEventData_CharHit data = { this, pwr };
+			Game_FireEvent( TSEV_CharHit, &data );
+		}
+		
 		if( m_health <= 0 )
 		{
 			OnDeath();
 			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+			
+			// event
+			Game_FireEvent( TSEV_CharDied, this );
 		}
 	}
 }
@@ -692,11 +720,6 @@ void TSCharacter::Hit( float pwr )
 Vec3 TSCharacter::GetQueryPosition()
 {
 	return GetPosition() + V3(0,0,0.5f);
-}
-
-Vec3 TSCharacter::GetPosition()
-{
-	return m_bodyHandle->GetPosition();
 }
 
 Vec3 TSCharacter::GetViewDir()

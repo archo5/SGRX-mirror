@@ -1028,7 +1028,7 @@ void SGRX_HelpTextRenderer::AddInputText( ActionInput input )
 
 void SGRX_HelpTextRenderer::AddActionInputText( StringView action )
 {
-	Command* cmd = Game_FindAction( action );
+	InputState* cmd = Game_FindAction( action );
 	ActionInput inputs[2];
 	int num = Game_GetActionBindings( cmd, inputs, 2 );
 	for( int i = 0; i < num; ++i )

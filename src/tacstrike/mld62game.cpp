@@ -8,15 +8,15 @@
 GameLevel* g_GameLevel = NULL;
 SoundSystemHandle g_SoundSys;
 
-Command MOVE_LEFT( "move_left" );
-Command MOVE_RIGHT( "move_right" );
-Command MOVE_UP( "move_up" );
-Command MOVE_DOWN( "move_down" );
-Command INTERACT( "interact" );
-Command SHOOT( "shoot" );
-Command JUMP( "jump" );
-Command SLOW_WALK( "slow_walk" );
-Command SHOW_OBJECTIVES( "show_objectives" );
+InputState MOVE_LEFT( "move_left" );
+InputState MOVE_RIGHT( "move_right" );
+InputState MOVE_UP( "move_up" );
+InputState MOVE_DOWN( "move_down" );
+InputState INTERACT( "interact" );
+InputState SHOOT( "shoot" );
+InputState JUMP( "jump" );
+InputState SLOW_WALK( "slow_walk" );
+InputState SHOW_OBJECTIVES( "show_objectives" );
 
 
 
@@ -66,7 +66,7 @@ struct StartScreen : IScreen
 		if( e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SGRX_MB_LEFT )
 		{
 			Game_ShowCursor( false );
-			g_GameLevel->StartLevel();
+		//	g_GameLevel->StartLevel();
 			m_timer = 5;
 		}
 		return true;

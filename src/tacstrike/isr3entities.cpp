@@ -3,17 +3,17 @@
 #include "isr3entities.hpp"
 
 
-extern Command MOVE_LEFT;
-extern Command MOVE_RIGHT;
-extern Command MOVE_UP;
-extern Command MOVE_DOWN;
-extern Command MOVE_X;
-extern Command MOVE_Y;
-extern Command AIM_X;
-extern Command AIM_Y;
-extern Command DO_ACTION;
-extern Command SHOOT;
-extern Command LOCK_ON;
+extern InputState MOVE_LEFT;
+extern InputState MOVE_RIGHT;
+extern InputState MOVE_UP;
+extern InputState MOVE_DOWN;
+extern InputState MOVE_X;
+extern InputState MOVE_Y;
+extern InputState AIM_X;
+extern InputState AIM_Y;
+extern InputState DO_ACTION;
+extern InputState SHOOT;
+extern InputState LOCK_ON;
 extern Vec2 CURSOR_POS;
 
 

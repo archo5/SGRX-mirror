@@ -94,6 +94,12 @@ function ED_ENT_scritem( eptr )
 	});
 }
 
+function ED_ENT_dm_spawn( eptr )
+{
+	ENTBASE_viewdir( eptr );
+	EE_SetDebugDrawFunc( eptr, ENTDD_startpos );
+}
+
 function ED_ENT_player_start( eptr )
 {
 	ENTBASE_viewdir( eptr );

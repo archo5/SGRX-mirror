@@ -3,8 +3,8 @@
 #include <engine.hpp>
 
 
-Command MOVE_LEFT( "move_left" );
-Command MOVE_RIGHT( "move_right" );
+InputState MOVE_LEFT( "move_left" );
+InputState MOVE_RIGHT( "move_right" );
 
 
 #define MAX_TICK_SIZE (1.0f/15.0f)
