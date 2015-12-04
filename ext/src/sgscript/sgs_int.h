@@ -188,6 +188,9 @@ SGS_APIFUNC void sgsT_DumpList( sgs_TokenList tlist, sgs_TokenList tend );
 #define SGS_SFT_BREAK   27
 #define SGS_SFT_CONT    28
 #define SGS_SFT_FUNC    30
+/* threading addons */
+#define SGS_SFT_THRCALL 40 /* thread */
+#define SGS_SFT_STHCALL 41 /* subthread */
 #define SGS_SFT_HEAPBIT 255
 
 typedef struct _sgs_FTNode sgs_FTNode;
@@ -262,6 +265,7 @@ SGS_APIFUNC int sgsBC_ValidateHeader( const char* buf, size_t size );
 
 #define SGS_INT_ERRSUP_INC 1
 #define SGS_INT_ERRSUP_DEC 2
+#define SGS_INT_RESET_WAIT_TIMER 3
 
 typedef enum sgs_Instruction_e
 {
@@ -336,6 +340,10 @@ typedef enum sgs_Instruction_e
 	SGS_SI_ARRAY,    /* (C:out, E:args) */
 	SGS_SI_DICT,     /* -- || -- */
 	SGS_SI_RSYM,     /* (B:name, C:var)         performs dual registration to symbol table */
+	SGS_SI_COTRT,    /* (A:to, B:from)          sets A to true if `from` is finished */
+	SGS_SI_COTRF,    /* (A:to, B:from)          sets A to false if `from` is not finished */
+	SGS_SI_COABORT,  /* (C:arg, E:from)         if arg = true, look for COTR* and abort threads */
+	SGS_SI_YLDJMP,   /* (C:arg, E:off)          if arg = false, yield and jump */
 
 	SGS_SI_COUNT
 }
@@ -468,7 +476,7 @@ struct _sgs_FuncCtx
 	sgs_MemBuf vars;
 	sgs_MemBuf gvars;
 	sgs_MemBuf clsr;
-	int inclsr, outclsr;
+	int inclsr, outclsr, syncdepth;
 	int32_t loops;
 	sgs_BreakInfo* binfo;
 }
@@ -500,7 +508,6 @@ struct _sgs_StackFrame
 	const char*     nfname;
 	sgs_StackFrame* prev;
 	sgs_StackFrame* next;
-	sgs_StackFrame* cached;
 	sgs_StkIdx argbeg;
 	sgs_StkIdx argend;
 	sgs_StkIdx argsfrom;
@@ -541,6 +548,10 @@ struct _sgs_ShCtx
 	sgs_ObjPoolItem* objpool_data;
 	int32_t       objpool_size;
 	
+	/* more pools */
+	sgs_Context* ctx_pool;
+	sgs_StackFrame* sf_pool;
+	
 	/* tables / cache */
 	sgs_VHTable   typetable; /* type interface table */
 	sgs_VHTable   stringtable; /* string constant caching hash table */
@@ -561,9 +572,11 @@ struct _sgs_ShCtx
 #define SGS_STATE_DESTROYING    0x0010
 #define SGS_STATE_LASTFUNCABORT 0x0020
 #define SGS_STATE_INSIDE_API    0x0040
+#define SGS_STATE_COROSTART     0x0080 /* function is pushed to stack */
 
 struct _sgs_Context
 {
+	int32_t       refcount;
 	sgs_ShCtx*    shared;
 	sgs_Context*  prev;
 	sgs_Context*  next;
@@ -593,6 +606,12 @@ struct _sgs_Context
 	const char*   filename;  /* filename of currently compiled code */
 	
 	/* virtual machine */
+	/* > coop micro-threading */
+	sgs_Context*  parent; /* owning (parent) context */
+	sgs_VarObj*   _T; /* subthreads */
+	sgs_VarObj*   _E; /* end events */
+	sgs_Real      wait_timer; /* sync/race */
+	
 	/* > main stack */
 	sgs_VarPtr    stack_base;
 	uint32_t      stack_mem;
@@ -608,7 +627,6 @@ struct _sgs_Context
 	/* > stack frame info */
 	sgs_StackFrame* sf_first;
 	sgs_StackFrame* sf_last;
-	sgs_StackFrame* sf_cached;
 	int           sf_count;
 	int           num_last_returned;
 	
@@ -623,7 +641,7 @@ struct _sgs_Context
 
 static const char* sgs_ErrNames[] =
 {
-	"SUCCESS", "ENOTFND", "ECOMP", "ENOTOBJ",
+	"SUCCESS", "ENOTFND", "ECOMP", "<UNUSED>",
 	"ENOTSUP", "EBOUNDS", "EINVAL", "EINPROC"
 };
 
@@ -638,6 +656,7 @@ static const char* sgs_VarNames[] =
 	"C function",
 	"object",
 	"ptr",
+	"thread",
 };
 
 static const char* sgs_OpNames[] =
@@ -651,17 +670,24 @@ static const char* sgs_OpNames[] =
 	"inc", "dec", "add", "sub", "mul", "div", "mod",
 	"and", "or", "xor", "lsh", "rsh",
 	"seq", "sneq", "eq", "neq", "lt", "gte", "gt", "lte", "rawcmp",
-	"array", "dict", "rsym",
+	"array", "dict", "rsym", "cotrt", "cotrf", "coabort", "yldjmp",
 };
 
 #endif
 
+
+sgs_Context* sgsCTX_ForkState( SGS_CTX, int copystate );
+void sgsCTX_FreeState( SGS_CTX );
+sgs_StackFrame* sgsCTX_AllocFrame( SGS_CTX );
+void sgsCTX_FreeFrame( SGS_CTX, sgs_StackFrame* F );
 
 void sgsSTD_PostInit( SGS_CTX );
 SGSBOOL sgsSTD_MakeArray( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
 SGSBOOL sgsSTD_MakeDict( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
 SGSBOOL sgsSTD_MakeMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
 void sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* func, uint32_t clc );
+void sgsSTD_ThreadsFree( SGS_CTX );
+void sgsSTD_ThreadsGC( SGS_CTX );
 void sgsSTD_RegistryInit( SGS_CTX );
 void sgsSTD_RegistryFree( SGS_CTX );
 void sgsSTD_RegistryGC( SGS_CTX );

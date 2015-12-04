@@ -115,6 +115,11 @@ typedef void (*sgs_MsgFunc) (
 #define SGS_HOOK_ENTER 1 /* entered a function */
 #define SGS_HOOK_EXIT  2 /* exited a function */
 #define SGS_HOOK_STEP  3 /* about to execute an instruction */
+#define SGS_HOOK_PAUSE 4 /* paused execution */
+#define SGS_HOOK_CONT  5 /* continuing execution */
+#define SGS_HOOK_CREAT 6 /* context created */
+#define SGS_HOOK_CFORK 7 /* context forked */
+#define SGS_HOOK_CFREE 8 /* context freed */
 typedef void (*sgs_HookFunc) (
 	void* /* userdata */,
 	sgs_Context* /* ctx / SGS_CTX */,
@@ -141,6 +146,12 @@ typedef SGSRESULT (*sgs_ScriptFSFunc) (
 	int /* op */,
 	sgs_ScriptFSData* /* data */
 );
+
+
+/* for state/query functions */
+#define SGS_TRUE 1
+#define SGS_FALSE 0
+#define SGS_QUERY -1
 
 
 /* Statistics / debugging */
@@ -189,7 +200,8 @@ typedef SGSRESULT (*sgs_ScriptFSFunc) (
 #define SGS_VT_CFUNC  6
 #define SGS_VT_OBJECT 7
 #define SGS_VT_PTR    8
-#define SGS_VT__COUNT 9
+#define SGS_VT_THREAD 9
+#define SGS_VT__COUNT 10
 
 /* - object data */
 typedef struct sgs_ObjData sgs_VarObj;
@@ -248,14 +260,15 @@ typedef struct _sgs_iFunc sgs_iFunc;
 typedef union _sgs_VarData
 {
 	sgs_SizeVal* pRC;
-	sgs_Bool    B;
-	sgs_Int     I;
-	sgs_Real    R;
-	sgs_iStr*   S;
-	sgs_iFunc*  F;
-	sgs_CFunc   C;
-	sgs_VarObj* O;
-	void*       P;
+	sgs_Bool     B;
+	sgs_Int      I;
+	sgs_Real     R;
+	sgs_iStr*    S;
+	sgs_iFunc*   F;
+	sgs_CFunc    C;
+	sgs_VarObj*  O;
+	void*        P;
+	sgs_Context* T;
 }
 sgs_VarData;
 
@@ -299,11 +312,12 @@ static SGS_INLINE sgs_Context* sgs_CreateEngine()
 SGS_APIFUNC void sgs_DestroyEngine( SGS_CTX );
 
 SGS_APIFUNC sgs_Context* sgs_ForkState( SGS_CTX, int copystate );
-SGS_APIFUNC void sgs_FreeState( SGS_CTX );
+SGS_APIFUNC void sgs_ReleaseState( SGS_CTX );
 SGS_APIFUNC SGSBOOL sgs_PauseState( SGS_CTX );
 SGS_APIFUNC SGSBOOL sgs_ResumeStateRet( SGS_CTX, int args, int* outrvc );
 SGS_APIFUNC SGSBOOL sgs_ResumeStateExp( SGS_CTX, int args, int expect );
 #define sgs_ResumeState( C ) sgs_ResumeStateExp( C, 0, 0 )
+SGS_APIFUNC int sgs_ProcessSubthreads( SGS_CTX, sgs_Real dt );
 
 
 #define SGS_CODE_ER 0 /* error codes */
@@ -468,6 +482,7 @@ static SGS_INLINE sgs_Variable sgs_MakePtr( void* v )
 SGS_APIFUNC void sgs_InitStringBuf( SGS_CTX, sgs_Variable* out, const char* str, sgs_SizeVal size );
 SGS_APIFUNC void sgs_InitString( SGS_CTX, sgs_Variable* out, const char* str );
 SGS_APIFUNC void sgs_InitObjectPtr( sgs_Variable* out, sgs_VarObj* obj );
+SGS_APIFUNC void sgs_InitThreadPtr( sgs_Variable* out, sgs_Context* T );
 
 /* pushed to stack if out = null */
 SGS_APIFUNC SGSONE sgs_CreateObject( SGS_CTX, sgs_Variable* out, void* data, sgs_ObjInterface* iface );
@@ -475,6 +490,9 @@ SGS_APIFUNC void* sgs_CreateObjectIPA( SGS_CTX, sgs_Variable* out, uint32_t adde
 SGS_APIFUNC SGSONE sgs_CreateArray( SGS_CTX, sgs_Variable* out, sgs_SizeVal numitems );
 SGS_APIFUNC SGSONE sgs_CreateDict( SGS_CTX, sgs_Variable* out, sgs_SizeVal numitems );
 SGS_APIFUNC SGSONE sgs_CreateMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal numitems );
+SGS_APIFUNC SGSONE sgs_CreateEvent( SGS_CTX, sgs_Variable* out );
+SGS_APIFUNC SGSONE sgs_CreatePooledEventBuf( SGS_CTX, sgs_Variable* out, sgs_Variable dict, const char* str, sgs_SizeVal size );
+#define sgs_CreatePooledEvent( C, out, dict, str ) sgs_CreatePooledEventBuf( C, out, dict, str, SGS_STRINGLENGTHFUNC( str ) )
 
 /*
 	STACK & SUB-ITEMS
@@ -488,6 +506,7 @@ SGS_APIFUNC SGSONE sgs_PushStringBuf( SGS_CTX, const char* str, sgs_SizeVal size
 SGS_APIFUNC SGSONE sgs_PushString( SGS_CTX, const char* str );
 SGS_APIFUNC SGSONE sgs_PushCFunc( SGS_CTX, sgs_CFunc func );
 SGS_APIFUNC SGSONE sgs_PushObjectPtr( SGS_CTX, sgs_VarObj* obj );
+SGS_APIFUNC SGSONE sgs_PushThreadPtr( SGS_CTX, sgs_Context* T );
 SGS_APIFUNC SGSONE sgs_PushPtr( SGS_CTX, void* ptr );
 
 SGS_APIFUNC SGSONE sgs_PushVariable( SGS_CTX, sgs_Variable var );
@@ -631,6 +650,7 @@ SGS_APIFUNC sgs_SizeVal sgs_ArrayRemove( SGS_CTX, sgs_Variable var, sgs_Variable
 SGS_APIFUNC SGSBOOL sgs_IsDict( sgs_Variable var );
 SGS_APIFUNC SGSBOOL sgs_IsMap( sgs_Variable var );
 SGS_APIFUNC SGSBOOL sgs_Unset( SGS_CTX, sgs_Variable var, sgs_Variable key );
+SGS_APIFUNC SGSBOOL sgs_EventState( SGS_CTX, sgs_Variable evt, int state );
 
 SGS_APIFUNC void sgs_Serialize( SGS_CTX, sgs_Variable var );
 SGS_APIFUNC void sgs_SerializeObject( SGS_CTX, sgs_StkIdx args, const char* func );
@@ -730,16 +750,16 @@ SGS_APIFUNC sgs_SizeVal sgs_GetStringSizeP( sgs_Variable* var );
 SGS_APIFUNC sgs_VarObj* sgs_GetObjectStructP( sgs_Variable* var );
 SGS_APIFUNC void* sgs_GetObjectDataP( sgs_Variable* var );
 SGS_APIFUNC sgs_ObjInterface* sgs_GetObjectIfaceP( sgs_Variable* var );
-SGS_APIFUNC SGSBOOL sgs_SetObjectDataP( sgs_Variable* var, void* data );
-SGS_APIFUNC SGSBOOL sgs_SetObjectIfaceP( sgs_Variable* var, sgs_ObjInterface* iface );
+SGS_APIFUNC void sgs_SetObjectDataP( sgs_Variable* var, void* data );
+SGS_APIFUNC void sgs_SetObjectIfaceP( sgs_Variable* var, sgs_ObjInterface* iface );
 
 SGS_APIFUNC char* sgs_GetStringPtr( SGS_CTX, sgs_StkIdx item );
 SGS_APIFUNC sgs_SizeVal sgs_GetStringSize( SGS_CTX, sgs_StkIdx item );
 SGS_APIFUNC sgs_VarObj* sgs_GetObjectStruct( SGS_CTX, sgs_StkIdx item );
 SGS_APIFUNC void* sgs_GetObjectData( SGS_CTX, sgs_StkIdx item );
 SGS_APIFUNC sgs_ObjInterface* sgs_GetObjectIface( SGS_CTX, sgs_StkIdx item );
-SGS_APIFUNC SGSBOOL sgs_SetObjectData( SGS_CTX, sgs_StkIdx item, void* data );
-SGS_APIFUNC SGSBOOL sgs_SetObjectIface( SGS_CTX, sgs_StkIdx item, sgs_ObjInterface* iface );
+SGS_APIFUNC void sgs_SetObjectData( SGS_CTX, sgs_StkIdx item, void* data );
+SGS_APIFUNC void sgs_SetObjectIface( SGS_CTX, sgs_StkIdx item, sgs_ObjInterface* iface );
 
 SGS_APIFUNC int sgs_HasFuncName( SGS_CTX );
 SGS_APIFUNC void sgs_FuncName( SGS_CTX, const char* fnliteral );

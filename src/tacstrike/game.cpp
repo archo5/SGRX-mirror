@@ -110,11 +110,13 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 		m_respawnTimeout_enm = TMAX( 0.0f, m_respawnTimeout_enm - deltaTime );
 		if( m_player->IsAlive() == false && m_respawnTimeout_ply <= 0 )
 		{
+			m_actorCtrl_ply->Reset();
 			m_player->Reset();
 			m_player->SetPosition( PickFurthestSpawnPoint( m_enemy->GetPosition() ) );
 		}
 		if( m_enemy->IsAlive() == false && m_respawnTimeout_enm <= 0 )
 		{
+			m_actorCtrl_enm->Reset();
 			m_enemy->Reset();
 			m_enemy->SetPosition( PickFurthestSpawnPoint( m_player->GetPosition() ) );
 		}
@@ -481,6 +483,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		}
 #endif
 		
+#if TEST_COVERSYSTEM
 		CSCoverInfo cinfo;
 		CoverSystem* CS = g_GameLevel->GetSystem<CoverSystem>();
 		Vec3 viewer_pos = PLY->GetPosition(); // V3(-8,10,1);
@@ -506,6 +509,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 			br.Reset().Col( 0, 1, 0, 1-float(i)/MAX_POSS ).Tick( positions[i], 0.1f );
 		}
 		br.Flush();
+#endif
 		
 		g_DebugLines.Flush();
 		

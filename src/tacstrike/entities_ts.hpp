@@ -230,6 +230,7 @@ struct TSEnemyController : SGRX_IActorController
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
+	virtual void Reset();
 	void DebugDrawWorld();
 	void DebugDrawUI();
 	

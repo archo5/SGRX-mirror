@@ -386,6 +386,9 @@ void TSCharacter::FixedTick( float deltaTime )
 	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
 	//
 	
+	if( Vec2Dot( rundir, aimdir.ToVec2() ) < -0.1f )
+		TurnTo( aimdir.ToVec2(), 8 * deltaTime );
+	
 	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
 	float f_turn_top = ( atan2( aimdir.y, aimdir.x ) - M_PI / 2 ) / ( M_PI * 2 );
 	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
@@ -591,11 +594,9 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 
 void TSCharacter::TurnTo( const Vec2& turnDir, float speedDelta )
 {
-	float angend = normalize_angle( turnDir.Angle() );
-	float angstart = normalize_angle( m_turnAngle );
-	if( fabs( angend - angstart ) > M_PI )
-		angstart += angend > angstart ? M_PI * 2 : -M_PI * 2;
-//	printf( "cur: %1.2f, target: %1.2f\n", angstart, angend);
+	float angroot = m_aimDir.yaw + M_PI;
+	float angend = normalize_angle( turnDir.Angle() - angroot ) + angroot;
+	float angstart = normalize_angle( m_turnAngle - angroot ) + angroot;
 	m_turnAngle = angstart + sign( angend - angstart ) * TMIN( fabsf( angend - angstart ), speedDelta );
 }
 
@@ -1125,6 +1126,16 @@ Vec3 TSEnemyController::GetInput( uint32_t iid )
 	case ACT_Chr_DoAction: return V3( i_act );
 	}
 	return V3(0);
+}
+
+void TSEnemyController::Reset()
+{
+	m_factStorage.Clear();
+	
+	{
+		SGS_CSCOPE( m_level->m_scriptCtx.C );
+		m_enemyState.thiscall( "reset", 0 );
+	}
 }
 
 void TSEnemyController::DebugDrawWorld()

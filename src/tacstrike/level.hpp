@@ -29,6 +29,7 @@ struct SGRX_IActorController : SGRX_RefCounted
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual Vec3 GetInput( uint32_t iid ){ return V3(0); }
+	virtual void Reset(){}
 };
 typedef Handle< SGRX_IActorController > SGRX_ActorCtrlHandle;
 

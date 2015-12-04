@@ -544,6 +544,7 @@ struct AIFact
 struct AIFactStorage
 {
 	AIFactStorage();
+	void Clear();
 	void SortCreatedDesc();
 	void Process( TimeVal curTime );
 	bool HasFact( uint32_t typemask );

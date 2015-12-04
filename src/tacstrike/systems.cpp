@@ -1311,6 +1311,14 @@ AIFactStorage::AIFactStorage() : m_lastTime(0), last_mod_id(0), m_next_fact_id(1
 {
 }
 
+void AIFactStorage::Clear()
+{
+	facts.clear();
+	m_lastTime = 0;
+	last_mod_id = 0;
+	m_next_fact_id = 1;
+}
+
 static bool sort_facts_created_desc( const void* pa, const void* pb, void* )
 {
 	SGRX_CAST( AIFact*, fa, pa );
