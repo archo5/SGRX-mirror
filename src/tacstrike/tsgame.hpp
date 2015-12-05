@@ -14,9 +14,11 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 		GS_Playing,
 		GS_Intro,
 		GS_Ending,
+		GS_TEST,
 	};
 	enum { e_system_uid = 1000 };
 	TSFightGameMode( GameLevel* lev );
+	~TSFightGameMode();
 	void OnPostLevelLoad();
 	bool AddEntity( const StringView& type, sgsVariable data );
 	void Tick( float deltaTime, float blendFactor );

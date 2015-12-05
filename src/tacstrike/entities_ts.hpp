@@ -7,6 +7,9 @@
 #include "systems.hpp"
 
 
+extern CVarBool g_cv_notarget;
+
+
 struct TSEventData_CharHit
 {
 	struct TSCharacter* ch;

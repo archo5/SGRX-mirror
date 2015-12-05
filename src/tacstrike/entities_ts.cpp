@@ -3,6 +3,9 @@
 #include "entities_ts.hpp"
 
 
+CVarBool g_cv_notarget( "notarget", true );
+
+
 extern Vec2 CURSOR_POS;
 extern InputState MOVE_LEFT;
 extern InputState MOVE_RIGHT;
@@ -1016,7 +1019,7 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
 		}
-		else
+		else if( g_cv_notarget.value == false )
 		{
 			// fact of seeing
 			FS.MovingInsertOrUpdate( FT_Sight_Foe,

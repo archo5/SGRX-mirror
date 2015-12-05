@@ -42,6 +42,13 @@ struct CObj
 	virtual ~CObj(){}
 };
 
+struct CVarBool : CObj
+{
+	CVarBool( const char* nm, bool v = false ) : name( nm ), value( v ){}
+	const char* name;
+	bool value;
+};
+
 struct InputState : CObj
 {
 	InputState( const StringView& sv, float thr = 0.25f ) :

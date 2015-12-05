@@ -4,9 +4,11 @@
 #define SGS_DLL 1
 #define __STDC_FORMAT_MACROS 1
 #define HEADER_SGSCRIPT_H "sgscript.h"
+#define HEADER_SGS_UTIL_H "sgs_util.h"
 #include "../../ext/src/sgscript/sgscript.h"
 #include "../../ext/src/sgscript/sgsxgmath.h"
 #include "../../ext/src/sgscript/sgs_cppbc.h"
+#include "../../ext/src/sgscript/sgs_prof.h"
 
 #include "utils.hpp"
 
