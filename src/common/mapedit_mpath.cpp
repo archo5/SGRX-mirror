@@ -467,8 +467,9 @@ void EdMeshPath::RegenerateMesh()
 		S.mtlname = MP.texname;
 		S.lmsize = V2( edit.tex1off, 1 ) * sqrtf( edit.triarea_total ) * 2;
 		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
-		S.rflags = LM_MESHINST_CASTLMS
-			| (m_isSolid ? LM_MESHINST_SOLID : 0)
+		S.rflags = 0
+			| (m_isLMSolid ? LM_MESHINST_CASTLMS : 0)
+			| (m_isPhySolid ? LM_MESHINST_SOLID : 0)
 			| (m_isDynamic ? LM_MESHINST_DYNLIT : 0);
 		S.lmdetail = m_lmquality;
 		S.decalLayer = 0;
@@ -751,7 +752,8 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_meshName( g_UIMeshPicker ),
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_blkGroup( NULL ),
-	m_isSolid( false ),
+	m_isLMSolid( true ),
+	m_isPhySolid( false ),
 	m_doSmoothing( false ),
 	m_isDynamic( false ),
 	m_lmquality( 1, 2, 0.01f, 100.0f ),
@@ -766,7 +768,8 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_meshName.caption = "Mesh";
 	m_pos.caption = "Position";
 	m_blkGroup.caption = "Group";
-	m_isSolid.caption = "Is solid?";
+	m_isLMSolid.caption = "Casts lightmap shadows?";
+	m_isPhySolid.caption = "Is solid?";
 	m_doSmoothing.caption = "Perform smoothing?";
 	m_isDynamic.caption = "Is dynamic?";
 	m_lmquality.caption = "Lightmap quality";
@@ -791,7 +794,8 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_group.Add( &m_meshName );
 	m_group.Add( &m_pos );
 	m_group.Add( &m_blkGroup );
-	m_group.Add( &m_isSolid );
+	m_group.Add( &m_isLMSolid );
+	m_group.Add( &m_isPhySolid );
 	m_group.Add( &m_doSmoothing );
 	m_group.Add( &m_isDynamic );
 	m_group.Add( &m_lmquality );
@@ -804,7 +808,8 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	
 	m_meshName.SetValue( mpath->m_meshName );
 	m_pos.SetValue( mpath->m_position );
-	m_isSolid.SetValue( mpath->m_isSolid );
+	m_isLMSolid.SetValue( mpath->m_isLMSolid );
+	m_isPhySolid.SetValue( mpath->m_isPhySolid );
 	m_doSmoothing.SetValue( mpath->m_doSmoothing );
 	m_isDynamic.SetValue( mpath->m_isDynamic );
 	m_lmquality.SetValue( mpath->m_lmquality );
@@ -841,7 +846,8 @@ int EDGUIMeshPathProps::OnEvent( EDGUIEvent* e )
 			}
 		}
 		else if( e->target == &m_meshName ) m_out->m_meshName = m_meshName.m_value;
-		else if( e->target == &m_isSolid ) m_out->m_isSolid = m_isSolid.m_value;
+		else if( e->target == &m_isLMSolid ) m_out->m_isLMSolid = m_isLMSolid.m_value;
+		else if( e->target == &m_isPhySolid ) m_out->m_isPhySolid = m_isPhySolid.m_value;
 		else if( e->target == &m_doSmoothing ) m_out->m_doSmoothing = m_doSmoothing.m_value;
 		else if( e->target == &m_isDynamic ) m_out->m_isDynamic = m_isDynamic.m_value;
 		else if( e->target == &m_lmquality ) m_out->m_lmquality = m_lmquality.m_value;

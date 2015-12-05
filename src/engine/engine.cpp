@@ -94,7 +94,7 @@ static EventLinksByHandler g_EventLinksByHandler;
 static Array< IScreen* > g_OverlayScreens;
 static Array< FileSysHandle > g_FileSystems;
 
-static RenderSettings g_RenderSettings = { 0, 1280, 720, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
+static RenderSettings g_RenderSettings = { 0, 1280, 720, 60, FULLSCREEN_NONE, false, ANTIALIAS_NONE, 0 };
 static const char* g_RendererPrefix = "sgrx-render-";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;

@@ -195,7 +195,10 @@ void EdPatch::RegenerateMesh()
 		S.mtlname = LI.texname;
 		S.lmsize = lmsize;
 		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
-		S.rflags = LM_MESHINST_CASTLMS | (ovr ? LM_MESHINST_DECAL : LM_MESHINST_SOLID);
+		S.rflags = 0
+			| (m_isLMSolid ? LM_MESHINST_CASTLMS : 0)
+			| (ovr ? LM_MESHINST_DECAL : 0)
+			| (m_isPhySolid && first ? LM_MESHINST_SOLID : 0);
 		S.lmdetail = lmquality;
 		S.decalLayer = layer + ( blend & ~PATCH_IS_SOLID );
 		
@@ -1200,14 +1203,18 @@ EDGUIPatchProps::EDGUIPatchProps() :
 	m_group( true, "Patch properties" ),
 	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
 	m_blkGroup( NULL ),
-	m_isSolid( false ),
+	m_isDecal( false ),
+	m_isLMSolid( false ),
+	m_isPhySolid( false ),
 	m_layerStart( 0, 0, 127 ),
 	m_lmquality( 1, 2, 0.01f, 100.0f )
 {
 	tyname = "blockprops";
 	m_pos.caption = "Position";
 	m_blkGroup.caption = "Group";
-	m_isSolid.caption = "Is solid?";
+	m_isDecal.caption = "Render as decal?";
+	m_isLMSolid.caption = "Casts lightmap shadows?";
+	m_isPhySolid.caption = "Is solid?";
 	m_layerStart.caption = "Layer start";
 	m_lmquality.caption = "Lightmap quality";
 }
@@ -1216,7 +1223,9 @@ void EDGUIPatchProps::Prepare( EdPatch* patch )
 {
 	m_out = patch;
 	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
-	m_isSolid.SetValue( ( patch->blend & PATCH_IS_SOLID ) != 0 );
+	m_isDecal.SetValue( ( patch->blend & PATCH_IS_SOLID ) == 0 );
+	m_isLMSolid.SetValue( patch->m_isLMSolid );
+	m_isPhySolid.SetValue( patch->m_isPhySolid );
 	m_layerStart.SetValue( patch->blend & ~PATCH_IS_SOLID );
 	
 	Clear();
@@ -1224,7 +1233,9 @@ void EDGUIPatchProps::Prepare( EdPatch* patch )
 	Add( &m_group );
 	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( patch->group ) );
 	m_group.Add( &m_blkGroup );
-	m_group.Add( &m_isSolid );
+	m_group.Add( &m_isDecal );
+	m_group.Add( &m_isLMSolid );
+	m_group.Add( &m_isPhySolid );
 	m_group.Add( &m_layerStart );
 	m_group.Add( &m_lmquality );
 	m_pos.SetValue( patch->position );
@@ -1256,18 +1267,16 @@ int EDGUIPatchProps::OnEvent( EDGUIEvent* e )
 					m_out->group = grp->m_id;
 			}
 		}
-		else if( e->target == &m_isSolid || e->target == &m_layerStart )
+		else if( e->target == &m_isDecal || e->target == &m_layerStart )
 		{
 			uint8_t blend = m_layerStart.m_value;
-			if( m_isSolid.m_value )
+			if( m_isDecal.m_value == false )
 				blend |= PATCH_IS_SOLID;
 			m_out->blend = blend;
 		}
-		else if( e->target == &m_lmquality )
-		{
-			m_out->lmquality = m_lmquality.m_value;
-			m_out->RegenerateMesh();
-		}
+		else if( e->target == &m_isLMSolid ) m_out->m_isLMSolid = m_isLMSolid.m_value;
+		else if( e->target == &m_isPhySolid ) m_out->m_isPhySolid = m_isPhySolid.m_value;
+		else if( e->target == &m_lmquality ) m_out->lmquality = m_lmquality.m_value;
 		m_out->RegenerateMesh();
 		break;
 	}

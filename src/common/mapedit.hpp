@@ -16,7 +16,8 @@
 // v6: patch.layer.lmquality -> patch, added world.sample_density
 // v7: added dynamic lights
 // v8: added mesh paths
-#define MAP_FILE_VERSION 8
+// v9: separated patch/path LM/physics solidity
+#define MAP_FILE_VERSION 9
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -1147,6 +1148,8 @@ struct EdPatch : EdObject
 		arch << position;
 		arch << xsize << ysize;
 		arch << blend;
+		arch( m_isLMSolid, arch.version >= 9, true );
+		arch( m_isPhySolid, arch.version >= 9, true );
 		arch( lmquality, arch.version >= 6, 1.0f );
 		for( int y = 0; y < ysize; ++y )
 		{
@@ -1168,6 +1171,8 @@ struct EdPatch : EdObject
 	int8_t xsize;
 	int8_t ysize;
 	uint8_t blend;
+	bool m_isLMSolid;
+	bool m_isPhySolid;
 	float lmquality;
 	EdPatchLayerInfo layers[ MAX_PATCH_LAYERS ];
 };
@@ -1222,7 +1227,9 @@ struct EDGUIPatchProps : EDGUILayoutRow
 	EDGUIGroup m_group;
 	EDGUIPropVec3 m_pos;
 	EDGUIPropRsrc m_blkGroup;
-	EDGUIPropBool m_isSolid;
+	EDGUIPropBool m_isDecal;
+	EDGUIPropBool m_isLMSolid;
+	EDGUIPropBool m_isPhySolid;
 	EDGUIPropInt m_layerStart;
 	EDGUIPropFloat m_lmquality;
 	EDGUIPatchLayerProps m_layerProps[4];
@@ -1297,7 +1304,7 @@ enum EMPATH_TurnMode
 struct EdMeshPath : EdObject
 {
 	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ),
-		m_isSolid( true ), m_doSmoothing( false ), m_isDynamic( false ),
+		m_isLMSolid( true ), m_isPhySolid( false ), m_doSmoothing( false ), m_isDynamic( false ),
 		m_intervalScaleOffset(V2(1,0)), m_pipeModeOvershoot(0),
 		m_rotAngles( V3(0) ), m_scaleUni( 1 ), m_scaleSep( V3(1) ), m_turnMode(0)
 	{
@@ -1341,7 +1348,8 @@ struct EdMeshPath : EdObject
 		arch << m_position;
 		arch << m_meshName;
 		arch << m_lmquality;
-		arch << m_isSolid;
+		arch( m_isLMSolid, arch.version >= 9, true );
+		arch << m_isPhySolid;
 		arch << m_doSmoothing;
 		arch << m_isDynamic;
 		arch << m_intervalScaleOffset;
@@ -1358,7 +1366,8 @@ struct EdMeshPath : EdObject
 	Vec3 m_position;
 	String m_meshName;
 	float m_lmquality;
-	bool m_isSolid;
+	bool m_isLMSolid;
+	bool m_isPhySolid;
 	bool m_doSmoothing;
 	bool m_isDynamic;
 	Vec2 m_intervalScaleOffset;
@@ -1417,7 +1426,8 @@ struct EDGUIMeshPathProps : EDGUILayoutRow
 	EDGUIPropRsrc m_meshName;
 	EDGUIPropVec3 m_pos;
 	EDGUIPropRsrc m_blkGroup;
-	EDGUIPropBool m_isSolid;
+	EDGUIPropBool m_isLMSolid;
+	EDGUIPropBool m_isPhySolid;
 	EDGUIPropBool m_doSmoothing;
 	EDGUIPropBool m_isDynamic;
 	EDGUIPropFloat m_lmquality;

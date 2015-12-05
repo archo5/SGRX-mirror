@@ -15,6 +15,7 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 		GS_Intro,
 		GS_Ending,
 		GS_TEST,
+		GS_TEST2,
 	};
 	enum { e_system_uid = 1000 };
 	TSFightGameMode( GameLevel* lev );

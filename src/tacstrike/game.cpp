@@ -28,9 +28,9 @@ Vec2 CURSOR_POS = V2(0);
 
 
 
-static sgs_Prof prof;
+//static sgs_Prof prof;
 TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
-	IGameLevelSystem( lev, e_system_uid ), m_state( GS_TEST ),
+	IGameLevelSystem( lev, e_system_uid ), m_state( GS_TEST2 ),
 	m_timeout( 3 ), m_points_ply( 0 ), m_points_enm( 0 ), m_points_target( 10 ),
 	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 )
 {
@@ -39,13 +39,13 @@ TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	m_player = NULL;
 	m_enemy = NULL;
 	
-	sgs_ProfInit( m_level->GetSGSC(), &prof, SGS_PROF_FUNCTIME );
+	//sgs_ProfInit( m_level->GetSGSC(), &prof, SGS_PROF_FUNCTIME );
 }
 
 TSFightGameMode::~TSFightGameMode()
 {
-	sgs_ProfDump( m_level->GetSGSC(), &prof );
-	sgs_ProfClose( m_level->GetSGSC(), &prof );
+	//sgs_ProfDump( m_level->GetSGSC(), &prof );
+	//sgs_ProfClose( m_level->GetSGSC(), &prof );
 }
 
 void TSFightGameMode::OnPostLevelLoad()
@@ -83,7 +83,7 @@ void TSFightGameMode::OnPostLevelLoad()
 	m_level->AddEntity( m_enemy );
 	m_actorCtrl_enm = new TSEnemyController( m_level, m_enemy, sgsVariable() );
 	
-	if( m_state == GS_TEST )
+	if( m_state == GS_TEST || m_state == GS_TEST2 )
 	{
 		m_player->ctrl = m_actorCtrl_ply;
 	}
@@ -121,8 +121,8 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 			E->m_name = "enemy";
 			m_level->MapEntityByName( E );
 			m_level->AddEntity( E );
-			E->ctrl = new TSEnemyController( m_level, E, sgsVariable() );
-			m_timeout += 10;
+		//	E->ctrl = new TSEnemyController( m_level, E, sgsVariable() );
+			m_timeout += 3;
 		}
 		break;
 	case GS_Intro:

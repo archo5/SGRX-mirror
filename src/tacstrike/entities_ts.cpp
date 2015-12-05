@@ -246,6 +246,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_shadowInst->UpdateTransform();
 	m_shadowInst->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
 	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
+	m_shadowInst->enabled = false;
 	
 	m_anLayers[0].anim = &m_anMainPlayer;
 	m_anLayers[1].anim = &m_anTopPlayer;
@@ -887,7 +888,7 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 		return true;
 	
 	SceneRaycastCallback_Any srcb;
-	m_level->GetScene()->RaycastAll( m_pos, D.pos, &srcb, 0x1 );
+//	m_level->GetScene()->RaycastAll( m_pos, D.pos, &srcb, 0x1 );
 	if( srcb.m_hit )
 		return true;
 	
