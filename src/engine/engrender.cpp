@@ -420,7 +420,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 	scene->m_projMeshInst->enabled = apply;
 	if( apply )
 	{
-		m_projectorMesh->SetVertexData( m_projectorVertices.data(), m_projectorVertices.size_bytes(), m_projectorVertexDecl, false );
+		m_projectorMesh->SetVertexData( m_projectorVertices.data(), m_projectorVertices.size_bytes(), m_projectorVertexDecl );
 		m_projectorMesh->SetIndexData( m_projectorIndices.data(), m_projectorIndices.size_bytes(), true );
 		m_projectorMesh->SetPartData( m_projectorMeshParts.data(), m_projectorMeshParts.size() );
 		

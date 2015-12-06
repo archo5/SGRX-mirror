@@ -94,7 +94,7 @@ static EventLinksByHandler g_EventLinksByHandler;
 static Array< IScreen* > g_OverlayScreens;
 static Array< FileSysHandle > g_FileSystems;
 
-static RenderSettings g_RenderSettings = { 0, 1280, 720, 60, FULLSCREEN_NONE, false, ANTIALIAS_NONE, 0 };
+static RenderSettings g_RenderSettings = { 0, 1280, 720, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
 static const char* g_RendererPrefix = "sgrx-render-";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;
@@ -1838,6 +1838,54 @@ bool SGRX_IMesh::SetAABBFromVertexData( const void* data, size_t size, VertexDec
 	return GetAABBFromVertexData( vd.GetInfo(), (const char*) data, size, m_boundsMin, m_boundsMax );
 }
 
+static void _Tris_Add( Array< Triangle >& tris, VDeclInfo* vdinfo, const void* v1, const void* v2, const void* v3 )
+{
+	const void* verts[3] = { v1, v2, v3 };
+	Vec3 pos[3] = {0};
+	VD_ExtractFloat3P( *vdinfo, 3, verts, pos );
+	
+	Triangle T = { pos[0], pos[1], pos[2] };
+	tris.push_back( T );
+}
+
+template< class IdxType > void SGRX_IMesh_GenTriTree_Core( SGRX_IMesh* mesh )
+{
+	Array< Triangle > tris;
+	
+	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
+	VDeclInfo* vdinfo = &mesh->m_vertexDecl->m_info;
+	size_t stride = vdinfo->size;
+	
+	for( size_t part_id = 0; part_id < mesh->m_meshParts.size(); ++part_id )
+	{
+		SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+		tris.clear();
+		for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
+		{
+			_Tris_Add( tris, vdinfo
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
+			);
+		}
+		MP.m_triTree.SetTris( tris.data(), tris.size() );
+	}
+}
+
+void SGRX_IMesh::GenerateTriangleTree()
+{
+	LOG_FUNCTION;
+	
+	if( ( m_dataFlags & MDF_INDEX_32 ) != 0 )
+	{
+		SGRX_IMesh_GenTriTree_Core< uint32_t >( this );
+	}
+	else
+	{
+		SGRX_IMesh_GenTriTree_Core< uint16_t >( this );
+	}
+}
+
 void SGRX_IMesh_RaycastAll_Core_TestTriangle( const Vec3& rpos, const Vec3& rdir, float rlen,
 	SceneRaycastCallback* cb, SceneRaycastInfo* srci, VDeclInfo* vdinfo, const void* v1, const void* v2, const void* v3 )
 {
@@ -1858,55 +1906,75 @@ void SGRX_IMesh_RaycastAll_Core_TestTriangle( const Vec3& rpos, const Vec3& rdir
 	}
 }
 
+struct MPTRayQuery : BaseRayQuery
+{
+	MPTRayQuery( SceneRaycastCallback* cb, SceneRaycastInfo* srciptr, Triangle* ta,
+		const Vec3& r0, const Vec3& r1 )
+	: srcb( cb ), srci( srciptr ), tris( ta ), ray_end( r1 )
+	{
+		SetRay( r0, r1 );
+	}
+	bool operator () ( int32_t* ids, int32_t count )
+	{
+		for( int32_t i = 0; i < count; ++i )
+		{
+			Triangle& T = tris[ ids[ i ] ];
+			float dist = IntersectLineSegmentTriangle( ray_origin, ray_end, T.P1, T.P2, T.P3 );
+			if( dist < 1.0f )
+			{
+				srci->factor = dist;
+				srci->normal = T.GetNormal();
+				if( srci->meshinst )
+					srci->normal = srci->meshinst->matrix.TransformNormal( srci->normal );
+				
+				// TODO u/v
+				srcb->AddResult( srci );
+			}
+		}
+		return true;
+	}
+	
+	SceneRaycastCallback* srcb;
+	SceneRaycastInfo* srci;
+	Triangle* tris;
+	Vec3 ray_end;
+};
+
 template< class IdxType > void SGRX_IMesh_RaycastAll_Core( SGRX_IMesh* mesh, const Vec3& from, const Vec3& to,
 	SceneRaycastCallback* cb, SceneRaycastInfo* srci, size_t fp, size_t ep )
 {
-	size_t stride = mesh->m_vertexDecl.GetInfo().size;
 	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
+	VDeclInfo* vdinfo = &mesh->m_vertexDecl->m_info;
+	size_t stride = vdinfo->size;
 	
 	Vec3 dtdir = to - from;
 	float rlen = dtdir.Length();
 	dtdir /= rlen;
 	
-	if( ( mesh->m_dataFlags & MDF_TRIANGLESTRIP ) == 0 )
+	for( size_t part_id = fp; part_id < ep; ++part_id )
 	{
-		for( size_t part_id = fp; part_id < ep; ++part_id )
+		srci->partID = part_id;
+		SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+		if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
+			MP.mtlBlendMode != SGRX_MtlBlend_Basic )
+			continue;
+		
+		if( MP.m_triTree.m_bbTree.m_nodes.size() )
 		{
-			srci->partID = part_id;
-			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
-				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
-				continue;
-			
+			// we have a tree!
+			MPTRayQuery query( cb, srci, MP.m_triTree.m_tris.data(), from, to );
+			MP.m_triTree.m_bbTree.RayQuery( query );
+		}
+		else
+		{
+			// no tree, iterate all triangles
 			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 			{
 				srci->triID = tri / 3;
-				SGRX_IMesh_RaycastAll_Core_TestTriangle( from, dtdir, rlen, cb, srci, &mesh->m_vertexDecl->m_info
+				SGRX_IMesh_RaycastAll_Core_TestTriangle( from, dtdir, rlen, cb, srci, vdinfo
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
 					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
-				);
-			}
-		}
-	}
-	else
-	{
-		for( size_t part_id = fp; part_id < ep; ++part_id )
-		{
-			srci->partID = part_id;
-			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
-				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
-				continue;
-			
-			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
-			{
-				srci->triID = tri - 2;
-				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
-				SGRX_IMesh_RaycastAll_Core_TestTriangle( from, dtdir, rlen, cb, srci, &mesh->m_vertexDecl->m_info
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i1 ] ) * stride ]
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i2 ] ) * stride ]
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i3 ] ) * stride ]
 				);
 			}
 		}
@@ -2112,41 +2180,20 @@ void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh,
 {
 	size_t stride = mesh->m_vertexDecl.GetInfo().size;
 	SGRX_CAST( IdxType*, indices, mesh->m_idata.data() );
-	if( ( mesh->m_dataFlags & MDF_TRIANGLESTRIP ) == 0 )
+	
+	for( size_t part_id = fp; part_id < ep; ++part_id )
 	{
-		for( size_t part_id = fp; part_id < ep; ++part_id )
+		SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
+		if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
+			MP.mtlBlendMode != SGRX_MtlBlend_Basic )
+			continue;
+		for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
 		{
-			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
-				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
-				continue;
-			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
-			{
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
-				);
-			}
-		}
-	}
-	else
-	{
-		for( size_t part_id = fp; part_id < ep; ++part_id )
-		{
-			SGRX_MeshPart& MP = mesh->m_meshParts[ part_id ];
-			if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
-				MP.mtlBlendMode != SGRX_MtlBlend_Basic )
-				continue;
-			for( uint32_t tri = MP.indexOffset + 2, triend = MP.indexOffset + MP.indexCount; tri < triend; ++tri )
-			{
-				uint32_t i1 = tri, i2 = tri + 1 + tri % 2, i3 = tri + 2 - tri % 2;
-				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i1 ] ) * stride ]
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i2 ] ) * stride ]
-					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ i3 ] ) * stride ]
-				);
-			}
+			SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
+			);
 		}
 	}
 }
@@ -3203,7 +3250,7 @@ MeshHandle GR_GetMesh( const StringView& path )
 	mesh = g_Renderer->CreateMesh();
 	if( !mesh ||
 		!( vdh = GR_GetVertexDecl( StringView( mfd.formatData, mfd.formatSize ) ) ) ||
-		!mesh->SetVertexData( mfd.vertexData, mfd.vertexDataSize, vdh, ( mfd.dataFlags & MDF_TRIANGLESTRIP ) != 0 ) ||
+		!mesh->SetVertexData( mfd.vertexData, mfd.vertexDataSize, vdh ) ||
 		!mesh->SetIndexData( mfd.indexData, mfd.indexDataSize, ( mfd.dataFlags & MDF_INDEX_32 ) != 0 ) ||
 		!mesh->SetBoneData( bones, mfd.numBones ) )
 	{
@@ -3249,6 +3296,7 @@ MeshHandle GR_GetMesh( const StringView& path )
 	
 	mesh->m_vdata.append( (const uint8_t*) mfd.vertexData, mfd.vertexDataSize );
 	mesh->m_idata.append( (const uint8_t*) mfd.indexData, mfd.indexDataSize );
+	mesh->GenerateTriangleTree();
 	mesh->m_key = path;
 	g_Meshes->set( mesh->m_key, mesh );
 	

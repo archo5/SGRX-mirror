@@ -762,7 +762,7 @@ void SGRX_DecalSystem::Upload()
 	// apply data
 	if( m_vertexData.size() )
 	{
-		m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl, false );
+		m_mesh->SetVertexData( m_vertexData.data(), m_vertexData.size_bytes(), m_vertexDecl );
 		m_mesh->SetIndexData( m_indexData.data(), m_indexData.size_bytes(), true );
 	}
 	SGRX_MeshPart mp = { 0, m_vertexData.size() / sizeof(SGRX_Vertex_Decal), 0, m_indexData.size() };

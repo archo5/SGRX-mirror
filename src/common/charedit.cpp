@@ -2040,7 +2040,7 @@ static void floor_mesh_update( float size, float height )
 	uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
 	SGRX_MeshPart part = { 0, 4, 0, 6 };
 	VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf30f2" );
-	g_FloorMeshInst->GetMesh()->SetVertexData( verts, sizeof(verts), vdh, false );
+	g_FloorMeshInst->GetMesh()->SetVertexData( verts, sizeof(verts), vdh );
 	g_FloorMeshInst->GetMesh()->SetIndexData( idcs, sizeof(idcs), false );
 	g_FloorMeshInst->GetMesh()->SetAABBFromVertexData( verts, sizeof(verts), vdh );
 	g_FloorMeshInst->GetMesh()->SetPartData( &part, 1 );

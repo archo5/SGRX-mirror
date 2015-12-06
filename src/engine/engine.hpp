@@ -930,12 +930,11 @@ struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
 
 /* mesh data flags */
 #define MDF_INDEX_32      0x01
-#define MDF_TRIANGLESTRIP 0x02
 #define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
 #define MDF_SKINNED       0x80 /* mesh has bone data (name, offset, parent id) */
 #define MDF_MTLINFO      0x100 /* mesh has material info (flags, blend mode) */
 
-#define MDF__PUBFLAGMASK (0x01|0x02|0x80|0x100)
+#define MDF__PUBFLAGMASK (0x01|0x80|0x100)
 #define MDF__PUBFLAGBASE  0
 
 #define SGRX_MAX_MESH_TEXTURES 8
@@ -952,6 +951,8 @@ struct SGRX_MeshPart
 	String textures[ SGRX_MAX_MESH_TEXTURES ];
 	uint8_t mtlFlags;
 	uint8_t mtlBlendMode;
+	
+	TriTree m_triTree;
 	
 	FINLINE bool CanDraw( int i ) const
 	{
@@ -979,18 +980,19 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	
 	virtual bool InitVertexBuffer( size_t size, VertexDeclHandle vd ) = 0;
 	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
-	virtual bool UpdateVertexData( const void* data, size_t size, bool tristrip ) = 0;
+	virtual bool UpdateVertexData( const void* data, size_t size ) = 0;
 	virtual bool UpdateIndexData( const void* data, size_t size ) = 0;
 	ENGINE_EXPORT virtual bool SetPartData( SGRX_MeshPart* parts, int count );
 	
 	ENGINE_EXPORT bool SetBoneData( SGRX_MeshBone* bones, int count );
 	ENGINE_EXPORT bool RecalcBoneMatrices();
 	ENGINE_EXPORT bool SetAABBFromVertexData( const void* data, size_t size, VertexDeclHandle vd );
+	ENGINE_EXPORT void GenerateTriangleTree();
 	
-	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd, bool tristrip )
+	bool SetVertexData( const void* data, size_t size, VertexDeclHandle vd )
 	{
 		LOG_FUNCTION;
-		return InitVertexBuffer( size, vd ) && UpdateVertexData( data, size, tristrip );
+		return InitVertexBuffer( size, vd ) && UpdateVertexData( data, size );
 	}
 	bool SetIndexData( const void* data, size_t size, bool i32 )
 	{

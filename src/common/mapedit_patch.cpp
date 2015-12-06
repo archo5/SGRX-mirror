@@ -615,6 +615,48 @@ void EdPatch::SpecialAction( ESpecialAction act )
 		if( !CanDoSpecialAction( act ) ) return;
 		break;
 		
+#define SETBYTE( bref, x, v ) \
+	if( v ){ (bref) |= 1 << (x); }else{ (bref) &= ~(1 << (x)); }
+#define PATCH_BYTESWAP( bto, x1, y1, bfrom, x0, y0 ) { \
+	bool v = ( bfrom[ y0 ] & ( 1 << (x0) ) ) != 0; \
+	SETBYTE( bto[ y1 ], x1, v ); }
+	
+	case SA_RotateCCW:
+	case SA_RotateCW:
+		{
+			EdPatchVtx nverts[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
+			uint16_t nedgeflip[ MAX_PATCH_WIDTH ];
+			uint16_t nvertsel[ MAX_PATCH_WIDTH ];
+			memset( nverts, 0, sizeof(nverts) );
+			memset( nedgeflip, 0, sizeof(nedgeflip) );
+			memset( nvertsel, 0, sizeof(nvertsel) );
+			for( int y = 0; y < ysize; ++y )
+			{
+				for( int x = 0; x < xsize; ++x )
+				{
+					if( act == SA_RotateCCW )
+					{
+						nverts[ y + ( xsize - 1 - x ) * MAX_PATCH_WIDTH ] =
+							vertices[ x + y * MAX_PATCH_WIDTH ];
+						PATCH_BYTESWAP( nedgeflip, y, xsize - 1 - x, edgeflip, x, y );
+						PATCH_BYTESWAP( nvertsel, y, xsize - 1 - x, vertsel, x, y );
+					}
+					else
+					{
+						nverts[ ( ysize - 1 - y ) + x * MAX_PATCH_WIDTH ] =
+							vertices[ x + y * MAX_PATCH_WIDTH ];
+						PATCH_BYTESWAP( nedgeflip, ysize - 1 - y, x, edgeflip, x, y );
+						PATCH_BYTESWAP( nvertsel, ysize - 1 - y, x, vertsel, x, y );
+					}
+				}
+			}
+			memcpy( vertices, nverts, sizeof(nverts) );
+			memcpy( edgeflip, nedgeflip, sizeof(nedgeflip) );
+			memcpy( vertsel, nvertsel, sizeof(nvertsel) );
+			TSWAP( xsize, ysize );
+		}
+		break;
+		
 	default:
 		break;
 	}
@@ -697,6 +739,10 @@ bool EdPatch::CanDoSpecialAction( ESpecialAction act )
 			int dims[2] = {0, 0};
 			return IsAnyRectSel( false, dims ) && dims[0] >= 2 && dims[1] >= 2;
 		}
+		
+	case SA_RotateCCW:
+	case SA_RotateCW:
+		return true;
 		
 	default:
 		return false;

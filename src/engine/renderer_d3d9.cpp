@@ -221,7 +221,7 @@ struct D3D9Mesh : SGRX_IMesh
 	
 	bool InitVertexBuffer( size_t size, VertexDeclHandle vd );
 	bool InitIndexBuffer( size_t size, bool i32 );
-	bool UpdateVertexData( const void* data, size_t size, bool tristrip );
+	bool UpdateVertexData( const void* data, size_t size );
 	bool UpdateIndexData( const void* data, size_t size );
 	
 	bool OnDeviceLost();
@@ -1051,7 +1051,7 @@ bool D3D9Mesh::InitIndexBuffer( size_t size, bool i32 )
 	return true;
 }
 
-bool D3D9Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
+bool D3D9Mesh::UpdateVertexData( const void* data, size_t size )
 {
 	LOG_FUNCTION;
 	
@@ -1433,9 +1433,8 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrep
 				PS_SetVec4( 41, lightcounts );
 			}
 			
-			m_dev->DrawIndexedPrimitive(
-				M->m_dataFlags & MDF_TRIANGLESTRIP ? D3DPT_TRIANGLESTRIP : D3DPT_TRIANGLELIST,
-				MP.vertexOffset, 0, MP.vertexCount, MP.indexOffset, M->m_dataFlags & MDF_TRIANGLESTRIP ? MP.indexCount - 2 : MP.indexCount / 3 );
+			m_dev->DrawIndexedPrimitive( D3DPT_TRIANGLELIST,
+				MP.vertexOffset, 0, MP.vertexCount, MP.indexOffset, MP.indexCount / 3 );
 			
 			m_stats.numDrawCalls++;
 			m_stats.numMDrawCalls += PASS.isShadowPass == false;

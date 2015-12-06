@@ -753,7 +753,7 @@ Mat4 TSCharacter::GetBulletOutputMatrix()
 
 Vec3 TSCharacter::GetInterpPos()
 {
-	return m_interpPos;
+	return m_interpPos + V3(0,0,1);
 }
 
 Vec3 TSCharacter::GetInterpAimDir()
@@ -888,7 +888,7 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 		return true;
 	
 	SceneRaycastCallback_Any srcb;
-//	m_level->GetScene()->RaycastAll( m_pos, D.pos, &srcb, 0x1 );
+	m_level->GetScene()->RaycastAll( m_pos, D.pos, &srcb, 0x1 );
 	if( srcb.m_hit )
 		return true;
 	

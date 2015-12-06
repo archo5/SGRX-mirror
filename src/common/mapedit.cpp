@@ -1388,7 +1388,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			VertexDeclHandle vd = GR_GetVertexDecl( LCVertex_DECL );
 			if( S.vertices.size() )
 			{
-				mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd, false );
+				mesh->SetVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
 				mesh->SetAABBFromVertexData( S.vertices.data(), S.vertices.size_bytes(), vd );
 			}
 			if( S.indices.size() )

@@ -2034,6 +2034,307 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 
 
 
+
+//
+// SPATIAL PARTITIONING
+//
+
+bool RayAABBTest( const Vec3& ro, const Vec3& inv_n, float len, const Vec3& bbmin, const Vec3& bbmax )
+{
+	float tmin = -FLT_MAX, tmax = FLT_MAX;
+	
+	if( inv_n.x != 0.0f )
+	{
+		float tx1 = ( bbmin.x - ro.x ) * inv_n.x;
+		float tx2 = ( bbmax.x - ro.x ) * inv_n.x;
+		
+		tmin = TMAX( tmin, TMIN( tx1, tx2 ) );
+		tmax = TMIN( tmax, TMAX( tx1, tx2 ) );
+	}
+	
+	if( inv_n.y != 0.0f )
+	{
+		float ty1 = ( bbmin.y - ro.y ) * inv_n.y;
+		float ty2 = ( bbmax.y - ro.y ) * inv_n.y;
+		
+		tmin = TMAX( tmin, TMIN( ty1, ty2 ) );
+		tmax = TMIN( tmax, TMAX( ty1, ty2 ) );
+	}
+	
+	if( inv_n.z != 0.0f )
+	{
+		float tz1 = ( bbmin.z - ro.z ) * inv_n.z;
+		float tz2 = ( bbmax.z - ro.z ) * inv_n.z;
+		
+		tmin = TMAX( tmin, TMIN( tz1, tz2 ) );
+		tmax = TMIN( tmax, TMAX( tz1, tz2 ) );
+	}
+	
+	return tmax >= tmin && len >= tmin;
+}
+
+
+#define AABBTREE_MIN_SPLIT_SIZE 4
+#define AABBTREE_MAX_SPLIT_DEPTH 16
+#define AABBTREE_SIZE_SPLIT_FACTOR 3
+
+struct _AABBTree_SortIndices
+{
+	AABB3* aabbs;
+	Vec3 splitnrm;
+};
+
+int _AABBTree_SortIndices_func( const void* A, const void* B, void* ud )
+{
+	SGRX_CAST( _AABBTree_SortIndices*, ABTSI, ud );
+	int32_t idx_a = *(int32_t*) A;
+	int32_t idx_b = *(int32_t*) B;
+	float dot_a = Vec3Dot( ABTSI->splitnrm, ABTSI->aabbs[ idx_a ].Center() );
+	float dot_b = Vec3Dot( ABTSI->splitnrm, ABTSI->aabbs[ idx_b ].Center() );
+	return dot_a < dot_b;
+}
+
+void AABBTree::SetAABBs( AABB3* aabbs, size_t count )
+{
+	m_nodes.clear();
+	m_itemidx.clear();
+	m_nodes.push_back( Node() );
+	m_nodes[0].bbmin = V3(FLT_MAX);
+	m_nodes[0].bbmax = V3(-FLT_MAX);
+	m_nodes[0].ch = -1;
+	m_nodes[0].ido = -1;
+	if( count == 0 )
+		return;
+	
+	// BVH generation...
+	Array< int32_t > sampidx;
+	for( size_t i = 0; i < count; ++i )
+	{
+		if( aabbs[ i ].Valid() )
+			sampidx.push_back( i );
+	}
+	_MakeNode( 0, aabbs, sampidx.data(), sampidx.size(), 0 );
+}
+
+void AABBTree::_MakeNode( int32_t node, AABB3* aabbs, int32_t* sampidx_data, size_t sampidx_count, int depth )
+{
+	AABBTree::Node& N = m_nodes[ node ];
+	
+	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
+	for( size_t i = 0; i < sampidx_count; ++i )
+	{
+		AABB3& bb = aabbs[ sampidx_data[ i ] ];
+		bbmin = Vec3::Min( bbmin, bb.bbmin );
+		bbmax = Vec3::Max( bbmax, bb.bbmax );
+	}
+	N.bbmin = bbmin;
+	N.bbmax = bbmax;
+	AABB3 Nbb = { bbmin, bbmax };
+	float Nbbvol = Nbb.Volume();
+	
+	if( sampidx_count > AABBTREE_MIN_SPLIT_SIZE &&
+		depth < AABBTREE_MAX_SPLIT_DEPTH )
+	{
+		// split
+		N.ido = -1;
+		N.ch = -1;
+		int numsplittable = 0;
+		
+		Vec3 sbbmin = V3(FLT_MAX), sbbmax = V3(-FLT_MAX);
+		for( size_t i = 0; i < sampidx_count; ++i )
+		{
+			AABB3& bb = aabbs[ sampidx_data[ i ] ];
+			if( bb.Volume() * AABBTREE_SIZE_SPLIT_FACTOR < Nbbvol )
+			{
+				numsplittable++;
+				sbbmin = Vec3::Min( sbbmin, bb.bbmin );
+				sbbmax = Vec3::Max( sbbmax, bb.bbmax );
+			}
+		}
+		Vec3 sbbsize = sbbmax - sbbmin;
+		Vec3 splitnrm = V3(0,0,1);
+		if( sbbsize.x > sbbsize.y && sbbsize.x > sbbsize.z ) splitnrm = V3(1,0,0);
+		else if( sbbsize.y > sbbsize.x && sbbsize.y > sbbsize.z ) splitnrm = V3(0,1,0);
+		
+		if( numsplittable < AABBTREE_MIN_SPLIT_SIZE )
+			goto actually_make_leaf;
+		
+		Array< int32_t > subsampidx_self, subsampidx_split;
+		for( size_t i = 0; i < sampidx_count; ++i )
+		{
+			AABB3& bb = aabbs[ sampidx_data[ i ] ];
+			if( bb.Volume() * AABBTREE_SIZE_SPLIT_FACTOR < Nbbvol )
+				subsampidx_split.push_back( sampidx_data[ i ] );
+			else
+				subsampidx_self.push_back( sampidx_data[ i ] );
+		}
+		
+		if( subsampidx_self.size() )
+		{
+			// add big items directly to node
+			N.ido = m_itemidx.size();
+			m_itemidx.push_back( subsampidx_self.size() );
+			m_itemidx.reserve( m_itemidx.size() + subsampidx_self.size() );
+			for( size_t i = 0; i < subsampidx_self.size(); ++i )
+				m_itemidx.push_back( subsampidx_self[ i ] );
+		}
+		
+		_AABBTree_SortIndices ABTSI = { aabbs, splitnrm };
+		sgrx_quicksort( subsampidx_split.data(), subsampidx_split.size(),
+			sizeof(int32_t), _AABBTree_SortIndices_func, &ABTSI );
+		size_t mid = subsampidx_split.size() / 2;
+		
+		// -- DO NOT TOUCH <N> ANYMORE --
+		m_nodes.push_back( AABBTree::Node() );
+		_MakeNode( m_nodes.size() - 1, aabbs, subsampidx_split.data(), mid, depth + 1 );
+		m_nodes[ node ].ch = m_nodes.size();
+		m_nodes.push_back( AABBTree::Node() );
+		_MakeNode( m_nodes.size() - 1, aabbs, subsampidx_split.data() + mid, subsampidx_split.size() - mid, depth + 1 );
+	}
+	else
+	{
+actually_make_leaf:
+		// make leaf
+		N.ido = m_itemidx.size();
+		N.ch = -1;
+		m_itemidx.push_back( sampidx_count );
+		m_itemidx.reserve( m_itemidx.size() + sampidx_count );
+		for( size_t i = 0; i < sampidx_count; ++i )
+			m_itemidx.push_back( sampidx_data[ i ] );
+	}
+}
+
+
+float IntersectLineSegmentTriangle( const Vec3& L1, const Vec3& L2, const Vec3& P1, const Vec3& P2, const Vec3& P3 )
+{
+	Vec3 u = P2 - P1;
+	Vec3 v = P3 - P1;
+	Vec3 n = Vec3Cross( u, v );
+	if( n.NearZero() )
+		return 2.0f;
+	
+	Vec3 dir = L2 - L1;
+	Vec3 w0 = L1 - P1;
+	float a = -Vec3Dot( n, w0 );
+	float b = Vec3Dot( n, dir );
+	if( fabs( b ) < SMALL_FLOAT )
+		return 2.0f;
+	
+	float r = a / b;
+	if( r < 0.0f || r > 1.0f )
+	    return 2.0f;
+	
+	Vec3 I = L1 + r * dir;
+	
+	// is I inside T?
+	float uu = Vec3Dot( u, u );
+	float uv = Vec3Dot( u, v );
+	float vv = Vec3Dot( v, v );
+	Vec3 w = I - P1;
+	float wu = Vec3Dot( w, u );
+	float wv = Vec3Dot( w, v );
+	float D = uv * uv - uu * vv;
+	
+	// get and test parametric coords
+	float s = ( uv * wv - vv * wu ) / D;
+	if( s < 0.0f || s > 1.0f )
+		return 2.0f;
+	float t = ( uv * wu - uu * wv ) / D;
+	if( t < 0.0f || ( s + t ) > 1.0f )
+		return 2.0f;
+	
+	return r;
+}
+
+
+void TriTree::SetTris( Triangle* tris, size_t count )
+{
+	m_tris.assign( tris, count );
+	Array< AABB3 > bbs;
+	for( size_t i = 0; i < count; ++i )
+	{
+		AABB3 bb;
+		tris[ i ].GetAABB( bb );
+		bbs.push_back( bb );
+	}
+	
+	m_bbTree.SetAABBs( bbs.data(), bbs.size() );
+}
+
+
+struct AnyHitRayQuery : BaseRayQuery
+{
+	AnyHitRayQuery( Triangle* ta, const Vec3& r0, const Vec3& r1 ) : hit(false), tris( ta ), ray_end( r1 )
+	{
+		SetRay( r0, r1 );
+	}
+	bool operator () ( int32_t* ids, int32_t count )
+	{
+		for( int32_t i = 0; i < count; ++i )
+		{
+			Triangle& T = tris[ ids[ i ] ];
+			hit = IntersectLineSegmentTriangle( ray_origin, ray_end, T.P1, T.P2, T.P3 ) < 1.0f;
+			if( hit )
+				return false;
+		}
+		return true;
+	}
+	
+	bool hit;
+	Triangle* tris;
+	Vec3 ray_end;
+};
+
+bool TriTree::IntersectRay( const Vec3& from, const Vec3& to )
+{
+	AnyHitRayQuery query( m_tris.data(), from, to );
+	m_bbTree.RayQuery( query );
+	return query.hit;
+}
+
+
+struct ClosestHitRayQuery : BaseRayQuery
+{
+	ClosestHitRayQuery( Triangle* ta, const Vec3& r0, const Vec3& r1 ) : closest(2), hitid(-1), tris( ta ), ray_end( r1 )
+	{
+		SetRay( r0, r1 );
+	}
+	bool operator () ( int32_t* ids, int32_t count )
+	{
+		for( int32_t i = 0; i < count; ++i )
+		{
+			Triangle& T = tris[ ids[ i ] ];
+			float dist = IntersectLineSegmentTriangle( ray_origin, ray_end, T.P1, T.P2, T.P3 );
+			if( dist < closest )
+			{
+				closest = dist;
+				hitid = ids[ i ];
+			}
+		}
+		return true;
+	}
+	
+	float closest;
+	int32_t hitid;
+	Triangle* tris;
+	Vec3 ray_end;
+};
+
+float TriTree::IntersectRayDist( const Vec3& from, const Vec3& to, int32_t* outtid )
+{
+	ClosestHitRayQuery query( m_tris.data(), from, to );
+	m_bbTree.RayQuery( query );
+	if( query.hitid != -1 && outtid )
+	{
+		*outtid = query.hitid;
+	}
+	return query.closest;
+}
+
+
+
+
+
 //
 // LOGGING
 //

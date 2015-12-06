@@ -938,14 +938,12 @@ void EdEditVertexEditMode::_Do( ESpecialAction act )
 		{
 		case SA_Extend:
 			// move afterwards
+			if( obj->CanDoSpecialAction( act ) == false )
+				break;
+			
 			obj->SpecialAction( act );
-			if( obj->CanDoSpecialAction( act ) )
-			{
-				m_transform.m_extend = false;
-				g_UIFrame->SetEditTransform( &m_transform );
-			}
-			else
-				obj->selected = false;
+			m_transform.m_extend = false;
+			g_UIFrame->SetEditTransform( &m_transform );
 			OnEnter(); // refresh selection
 			break;
 			
@@ -1042,6 +1040,16 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		{
 			_Do( SA_SurfsToPatches );
 		}
+		// ROTATE (CCW)
+		if( e->key.engkey == SDLK_9 && e->key.engmod & KMOD_SHIFT )
+		{
+			_Do( SA_RotateCCW );
+		}
+		// ROTATE (CW)
+		if( e->key.engkey == SDLK_0 && e->key.engmod & KMOD_SHIFT )
+		{
+			_Do( SA_RotateCW );
+		}
 		
 		// GRAB (MOVE)
 		if( e->key.engkey == SDLK_g )
@@ -1075,6 +1083,8 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		if( _CanDo( SA_ExtractPart ) ) actlist.append( ", Extract part [X]" );
 		if( _CanDo( SA_DuplicatePart ) ) actlist.append( ", Duplicate part [Ctrl+D]" );
 		if( _CanDo( SA_SurfsToPatches ) ) actlist.append( ", Surfaces to patches [Alt+S]" );
+		if( _CanDo( SA_RotateCCW ) ) actlist.append( ", Rotate (CCW) [Shift+9/'(']" );
+		if( _CanDo( SA_RotateCW ) ) actlist.append( ", Rotate (CW) [Shift+0/')']" );
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 32 );

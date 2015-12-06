@@ -79,7 +79,7 @@ struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
 		uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
 		SGRX_MeshPart part = { 0, 4, 0, 6 };
 		VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf3tf40f2" );
-		m_mesh->SetVertexData( verts, sizeof(verts), vdh, false );
+		m_mesh->SetVertexData( verts, sizeof(verts), vdh );
 		m_mesh->SetIndexData( idcs, sizeof(idcs), false );
 		m_mesh->SetAABBFromVertexData( verts, sizeof(verts), vdh );
 		m_mesh->SetPartData( &part, 1 );
@@ -672,6 +672,8 @@ enum ESpecialAction
 	SA_ExtractPart,
 	SA_DuplicatePart,
 	SA_SurfsToPatches,
+	SA_RotateCCW,
+	SA_RotateCW,
 	// entity actions
 	SA_MoveBack,
 	SA_MoveFwd,

@@ -402,7 +402,7 @@ struct D3D11Mesh : SGRX_IMesh
 	
 	bool InitVertexBuffer( size_t size, VertexDeclHandle vd );
 	bool InitIndexBuffer( size_t size, bool i32 );
-	bool UpdateVertexData( const void* data, size_t size, bool tristrip );
+	bool UpdateVertexData( const void* data, size_t size );
 	bool UpdateIndexData( const void* data, size_t size );
 };
 
@@ -1593,7 +1593,7 @@ bool D3D11Mesh::InitIndexBuffer( size_t size, bool i32 )
 	return true;
 }
 
-bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
+bool D3D11Mesh::UpdateVertexData( const void* data, size_t size )
 {
 	LOG_FUNCTION;
 	
@@ -1624,8 +1624,6 @@ bool D3D11Mesh::UpdateVertexData( const void* data, size_t size, bool tristrip )
 	
 	bool dyn = !!( m_dataFlags & MDF_DYNAMIC );
 	upload_buf( m_renderer->m_ctx, m_VB, dyn, true, data, size );
-	
-	m_dataFlags = ( m_dataFlags & ~MDF_TRIANGLESTRIP ) | ( MDF_TRIANGLESTRIP * tristrip );
 	
 	return true;
 }
@@ -1862,7 +1860,7 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxre
 		const UINT offsets[2] = { 0, 0 };
 		m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
 		m_ctx->IASetIndexBuffer( M->m_IB, M->m_dataFlags & MDF_INDEX_32 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT, 0 );
-		m_ctx->IASetPrimitiveTopology( M->m_dataFlags & MDF_TRIANGLESTRIP ? D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+		m_ctx->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 		
 		for( int numruns = 0; numruns < maxrepeat; ++numruns )
 		{

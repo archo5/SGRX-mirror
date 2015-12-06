@@ -1608,7 +1608,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	}
 	
 	MeshHandle dstMesh = GR_CreateMesh();
-	dstMesh->SetVertexData( vdata.data(), vdata.size(), vdh, false );
+	dstMesh->SetVertexData( vdata.data(), vdata.size(), vdh );
 	dstMesh->SetAABBFromVertexData( vdata.data(), vdata.size(), vdh );
 	dstMesh->SetIndexData( idata.data(), idata.size(), false );
 	dstMesh->SetPartData( mparts, numparts );

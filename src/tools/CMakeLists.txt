@@ -1,19 +1,4 @@
 
-# Lightmap renderer
-add_executable( lmrender
-	lmrender
-	${EXTDIR}/src/lighter/lighter ${EXTDIR}/src/lighter/lighter_math
-	${EXTDIR}/src/zlib1 ${EXTDIR}/src/zlib2 ${EXTDIR}/src/zlib3
-	${EXTDIR}/src/libpng1
-)
-target_link_libraries( lmrender sgrx-core )
-target_link_libraries( lmrender sgrx-script )
-set_target_properties( lmrender PROPERTIES
-	INCLUDE_DIRECTORIES "${EXTDIR}/src;${EXTDIR}/src/zlib"
-	COMPILE_FLAGS "${CORE_FLAGS} -DLTR_STATIC -O2"
-	LINK_FLAGS "${CORE_FLAGS} -O2"
-)
-
 # Mesh processor
 add_executable( meshproc
 	meshproc

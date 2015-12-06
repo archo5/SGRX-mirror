@@ -1192,6 +1192,7 @@ ENGINE_EXPORT bool SegmentAABBIntersect2( const Vec3& p1, const Vec3& p2, const 
 ENGINE_EXPORT void TransformAABB( Vec3& bbmin, Vec3& bbmax, const Mat4& mtx );
 
 
+
 //
 // COLOR
 //
@@ -2653,6 +2654,199 @@ struct IL_Item
 typedef Array< IL_Item > ItemList;
 
 ENGINE_EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
+
+
+
+//
+// SPATIAL PARTITIONING
+//
+
+struct AABB3
+{
+	Vec3 bbmin;
+	Vec3 bbmax;
+	
+	FINLINE bool Valid() const { return bbmin.x <= bbmax.x && bbmin.y <= bbmax.y && bbmin.z <= bbmax.z; }
+	FINLINE Vec3 Center() const { return ( bbmin + bbmax ) * 0.5f; }
+	FINLINE float Volume() const { return ( bbmax.x - bbmin.x ) * ( bbmax.y - bbmin.y ) * ( bbmax.z - bbmin.z ); }
+};
+
+struct BaseRayQuery
+{
+	Vec3 ray_origin;
+	float ray_len;
+	Vec3 _ray_inv_dir;
+	
+	void SetRayDir( Vec3 dir )
+	{
+		dir = dir.Normalized();
+		_ray_inv_dir = V3
+		(
+			safe_fdiv( 1, dir.x ),
+			safe_fdiv( 1, dir.y ),
+			safe_fdiv( 1, dir.z )
+		);
+	}
+	void SetRay( const Vec3& r0, const Vec3& r1 )
+	{
+		ray_origin = r0;
+		ray_len = ( r1 - r0 ).Length();
+		SetRayDir( r1 - r0 );
+	}
+};
+
+bool RayAABBTest( const Vec3& ro, const Vec3& inv_n, float len, const Vec3& bbmin, const Vec3& bbmax );
+
+struct AABBTree
+{
+	struct Node // size = 8(3+3+2) * 4(float/int32)
+	{
+		Vec3 bbmin;
+		Vec3 bbmax;
+		int32_t ch; // ch0 = node + 1, ch1 = ch
+		int32_t ido; // item data offset
+	};
+	
+	// AABBs must be stored manually if necessary
+	void SetAABBs( AABB3* aabbs, size_t count );
+	
+	void _printdepth( int depth )
+	{
+		for( int i = 0; i < depth; ++i )
+			printf( "  " );
+	}
+	void Dump( int32_t node = 0, int depth = 0 )
+	{
+		AABBTree::Node& N = m_nodes[ node ];
+		_printdepth(depth); printf( "node #%d (%d items, %.2f;%.2f;%.2f -> %.2f;%.2f;%.2f)",
+			int(node), N.ido != -1 ? int(m_itemidx[ N.ido ]) : 0,
+			N.bbmin.x, N.bbmin.y, N.bbmin.z, N.bbmax.x, N.bbmax.y, N.bbmax.z );
+		if( N.ch != -1 )
+		{
+			printf( " {\n" );
+			depth++;
+			Dump( node + 1, depth );
+			Dump( N.ch, depth );
+			depth--;
+			_printdepth(depth); printf( "}\n" );
+		}
+		else printf( "\n" );
+	}
+	
+	template< class T > bool RayQuery( T& rq, int32_t node = 0 )
+	{
+		AABBTree::Node& N = m_nodes[ node ];
+		if( RayAABBTest( rq.ray_origin, rq._ray_inv_dir, rq.ray_len, N.bbmin, N.bbmax ) == false )
+			return true;
+		
+		if( N.ido != -1 )
+		{
+			if( rq( &m_itemidx[ N.ido + 1 ], m_itemidx[ N.ido ] ) == false )
+				return false;
+		}
+		
+		// child nodes
+		if( N.ch != -1 )
+		{
+			if( RayQuery( rq, node + 1 ) == false ) return false;
+			if( RayQuery( rq, N.ch ) == false ) return false;
+		}
+		
+		return true;
+	}
+	
+	template< class T > void DynBBQuery( T& bbq, int32_t node = 0 )
+	{
+		AABBTree::Node& N = m_nodes[ node ];
+		if( bbq.bbmin.x > N.bbmax.x || bbq.bbmax.x < N.bbmin.x ||
+			bbq.bbmin.y > N.bbmax.y || bbq.bbmax.y < N.bbmin.y ||
+			bbq.bbmin.z > N.bbmax.z || bbq.bbmax.z < N.bbmin.z )
+			return;
+		
+		// items
+		if( N.ido != -1 )
+		{
+			bbq( &m_itemidx[ N.ido + 1 ], m_itemidx[ N.ido ] );
+		}
+		
+		// child nodes
+		if( N.ch != -1 )
+		{
+			DynBBQuery( bbq, node + 1 );
+			DynBBQuery( bbq, N.ch );
+		}
+	}
+	
+	template< class T > void Query( const Vec3& qmin, const Vec3& qmax, T& out, int32_t node = 0 )
+	{
+		AABBTree::Node& N = m_nodes[ node ];
+		if( qmin.x > N.bbmax.x || qmax.x < N.bbmin.x ||
+			qmin.y > N.bbmax.y || qmax.y < N.bbmin.y ||
+			qmin.z > N.bbmax.z || qmax.z < N.bbmin.z )
+			return;
+		
+		// items
+		if( N.ido != -1 )
+		{
+			out( &m_itemidx[ N.ido + 1 ], m_itemidx[ N.ido ] );
+		}
+		
+		// child nodes
+		if( N.ch != -1 )
+		{
+			Query( qmin, qmax, out, node + 1 );
+			Query( qmin, qmax, out, N.ch );
+		}
+	}
+	
+	template< class T > void GetAll( T& out )
+	{
+		for( size_t i = 0; i < m_itemidx.size(); i += 1 + m_itemidx[ i ] )
+		{
+			out( &m_itemidx[ i + 1 ], m_itemidx[ i ] );
+		}
+	}
+	
+	void _MakeNode( int32_t node, AABB3* aabbs, int32_t* sampidx_data, size_t sampidx_count, int depth );
+	
+	// BVH
+	Array< Node > m_nodes;
+	Array< int32_t > m_itemidx; // format: <count> [ <item> x count ], ...
+};
+
+struct Triangle
+{
+	Vec3 P1, P2, P3;
+	
+	bool CheckIsUseful() const
+	{
+		Vec3 e1 = P2 - P1, e2 = P3 - P1;
+		return !Vec3Cross( e1, e2 ).NearZero();
+	}
+	void GetAABB( AABB3& out ) const
+	{
+		out.bbmin = V3( TMIN( P1.x, TMIN( P2.x, P3.x ) ), TMIN( P1.y, TMIN( P2.y, P3.y ) ), TMIN( P1.z, TMIN( P2.z, P3.z ) ) );
+		out.bbmax = V3( TMAX( P1.x, TMAX( P2.x, P3.x ) ), TMAX( P1.y, TMAX( P2.y, P3.y ) ), TMAX( P1.z, TMAX( P2.z, P3.z ) ) );
+	}
+	Vec3 GetNormal() const
+	{
+		return Vec3Cross( P3 - P1, P2 - P1 ).Normalized();
+	}
+};
+
+float IntersectLineSegmentTriangle( const Vec3& L1, const Vec3& L2, const Vec3& P1, const Vec3& P2, const Vec3& P3 );
+
+struct TriTree
+{
+	void SetTris( Triangle* tris, size_t count );
+	bool IntersectRay( const Vec3& from, const Vec3& to );
+	float IntersectRayDist( const Vec3& from, const Vec3& to, int32_t* outtid );
+	float GetDistance( const Vec3& p, float dist );
+	
+	AABBTree m_bbTree;
+	Array< Triangle > m_tris;
+};
+
 
 
 //

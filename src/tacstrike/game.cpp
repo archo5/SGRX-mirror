@@ -105,6 +105,7 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 	m_timeout = TMAX( 0.0f, m_timeout - deltaTime );
 	switch( m_state )
 	{
+	case GS_TEST2: break;
 	case GS_TEST:
 		if( m_timeout <= 0 )
 		{
@@ -246,6 +247,12 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		rs.width = 1920;
 		rs.height = 1080;
 		rs.fullscreen = FULLSCREEN_WINDOWED;
+		GR_SetVideoMode( rs );
+#endif
+#if 0
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.vsync = false;
 		GR_SetVideoMode( rs );
 #endif
 		return true;
