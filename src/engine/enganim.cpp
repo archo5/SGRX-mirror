@@ -111,7 +111,7 @@ bool AnimMixer::Prepare( const MeshHandle& mesh )
 	return true;
 }
 
-void AnimMixer::Advance( float deltaTime )
+void AnimMixer::Advance( float deltaTime, AnimInfo* info )
 {
 	// generate output
 	for( size_t i = 0; i < m_factors.size(); ++i )
@@ -125,7 +125,7 @@ void AnimMixer::Advance( float deltaTime )
 	for( int layer = 0; layer < layerCount; ++layer )
 	{
 		Animator* AN = layers[ layer ].anim;
-		AN->Advance( deltaTime );
+		AN->Advance( deltaTime, info );
 		
 		int tflags = layers[ layer ].tflags;
 		bool abslayer = ( tflags & TF_Absolute_All ) != 0;
@@ -149,6 +149,10 @@ void AnimMixer::Advance( float deltaTime )
 				if( MB[ i ].parent_id >= 0 )
 				{
 					orig = orig * m_staging[ MB[ i ].parent_id ];
+				}
+				else if( tflags & TF_IgnoreMeshXF )
+				{
+					orig = orig * info->rootXF;
 				}
 				Mat4 inv = Mat4::Identity;
 				orig.InvertTo( inv );
@@ -210,7 +214,7 @@ bool AnimPlayer::Prepare( const MeshHandle& mesh )
 	return true;
 }
 
-void AnimPlayer::Advance( float deltaTime )
+void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 {
 	// process tracks
 	for( size_t i = m_currentAnims.size(); i > 0; )
@@ -378,10 +382,10 @@ bool AnimInterp::Prepare( const MeshHandle& mesh )
 	return true;
 }
 
-void AnimInterp::Advance( float deltaTime )
+void AnimInterp::Advance( float deltaTime, AnimInfo* info )
 {
 	Transfer();
-	animSource->Advance( deltaTime );
+	animSource->Advance( deltaTime, info );
 }
 
 void AnimInterp::Transfer()
@@ -422,9 +426,9 @@ bool AnimDeformer::Prepare( const MeshHandle& mesh )
 	return true;
 }
 
-void AnimDeformer::Advance( float deltaTime )
+void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 {
-	animSource->Advance( deltaTime );
+	animSource->Advance( deltaTime, info );
 	for( size_t fid = 0; fid < forces.size(); ++fid )
 		forces[ fid ].lifetime += deltaTime;
 	

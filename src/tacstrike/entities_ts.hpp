@@ -114,7 +114,7 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	virtual void OnEvent( const StringView& type ){}
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	void Hit( float pwr );
-	virtual void OnDeath(){}
+	virtual void OnDeath();
 	
 	Vec3 GetQueryPosition();
 	Vec3 GetViewDir();
@@ -131,7 +131,6 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	AnimCharacter m_animChar;
 	AnimPlayer m_anMainPlayer;
 	AnimPlayer m_anTopPlayer;
-	AnimDeformer m_anDeformer;
 	AnimMixer::Layer m_anLayers[4];
 	
 	float m_health;

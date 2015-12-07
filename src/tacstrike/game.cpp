@@ -30,7 +30,7 @@ Vec2 CURSOR_POS = V2(0);
 
 //static sgs_Prof prof;
 TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
-	IGameLevelSystem( lev, e_system_uid ), m_state( GS_TEST2 ),
+	IGameLevelSystem( lev, e_system_uid ), m_state( GS_Intro ),
 	m_timeout( 3 ), m_points_ply( 0 ), m_points_enm( 0 ), m_points_target( 10 ),
 	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 )
 {

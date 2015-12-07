@@ -253,10 +253,12 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_anLayers[2].anim = &m_animChar.m_layerAnimator;
 	m_anLayers[2].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
 	m_anLayers[3].anim = &m_animChar.m_anRagdoll;
-	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
+	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos
+		| AnimMixer::TF_Absolute_Rot
+		| AnimMixer::TF_IgnoreMeshXF;
 	m_anLayers[3].factor = 0;
 	m_animChar.m_anMixer.layers = m_anLayers;
-	m_animChar.m_anMixer.layerCount = 3;
+	m_animChar.m_anMixer.layerCount = 4;
 	
 	m_shootPS.Load( "psys/gunflash.psy" );
 	m_shootPS.AddToScene( m_level->GetScene() );
@@ -445,9 +447,12 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	m_interpAimDir = m_ivAimDir.Get( blendFactor );
 	
 	
-	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
-	InfoEmissionSystem::Data D = { tgtpos, 0.5f, m_infoFlags };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	if( m_health > 0 )
+	{
+		Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
+		InfoEmissionSystem::Data D = { tgtpos, 0.5f, m_infoFlags };
+		m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	}
 	
 	
 	AnimDeformer& AnD = m_animChar.m_anDeformer;
@@ -668,6 +673,9 @@ void TSCharacter::InterruptAction( bool force )
 void TSCharacter::Reset()
 {
 	m_health = 100;
+	m_animChar.DisablePhysics();
+	m_anLayers[3].factor = 0;
+	m_bodyHandle->SetEnabled( true );
 }
 
 Vec3 TSCharacter::GetPosition()
@@ -696,6 +704,17 @@ void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 	}
 }
 
+void TSCharacter::OnDeath()
+{
+	m_bodyHandle->SetEnabled( false );
+	m_animChar.EnablePhysics();
+	m_anLayers[3].factor = 1;
+	m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+	
+	// event
+	Game_FireEvent( TSEV_CharDied, this );
+}
+
 void TSCharacter::Hit( float pwr )
 {
 //	float m_health = 1000000;
@@ -714,10 +733,6 @@ void TSCharacter::Hit( float pwr )
 		if( m_health <= 0 )
 		{
 			OnDeath();
-			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
-			
-			// event
-			Game_FireEvent( TSEV_CharDied, this );
 		}
 	}
 }

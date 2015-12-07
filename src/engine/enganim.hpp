@@ -52,10 +52,15 @@ struct AnimHandle : Handle< SGRX_Animation >
 // Track-track mapping for animators to find the matching track indices
 typedef HashTable< AnimHandle, int* > AnimCache;
 
+struct AnimInfo
+{
+	Mat4 rootXF;
+};
+
 struct IF_GCC(ENGINE_EXPORT) Animator
 {
 	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
-	virtual void Advance( float deltaTime ){}
+	virtual void Advance( float deltaTime, AnimInfo* info ){}
 	
 	void ClearFactors( float f ){ GR_ClearFactors( m_factors, f ); }
 	void SetFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true )
@@ -87,6 +92,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
 		TF_Absolute_Scale = 0x04,
 		TF_Absolute_All = (TF_Absolute_Rot|TF_Absolute_Pos|TF_Absolute_Scale),
 		TF_Additive = 0x10,
+		TF_IgnoreMeshXF = 0x20,
 	};
 	
 	struct Layer
@@ -101,7 +107,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
 	ENGINE_EXPORT AnimMixer();
 	ENGINE_EXPORT ~AnimMixer();
 	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
-	ENGINE_EXPORT virtual void Advance( float deltaTime );
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	Array< Mat4 > m_staging;
 	
@@ -125,7 +131,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	ENGINE_EXPORT AnimPlayer();
 	ENGINE_EXPORT ~AnimPlayer();
 	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
-	ENGINE_EXPORT virtual void Advance( float deltaTime );
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
 	ENGINE_EXPORT bool CheckMarker( const StringView& name );
@@ -149,7 +155,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimInterp : Animator
 {
 	ENGINE_EXPORT AnimInterp();
 	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
-	ENGINE_EXPORT virtual void Advance( float deltaTime );
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	ENGINE_EXPORT void Transfer();
 	ENGINE_EXPORT void Interpolate( float deltaTime );
 	
@@ -175,7 +181,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
 	
 	ENGINE_EXPORT AnimDeformer();
 	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
-	ENGINE_EXPORT virtual void Advance( float deltaTime );
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	ENGINE_EXPORT void AddLocalForce( const Vec3& pos, const Vec3& dir,
 		float rad, float power = 1, float amount = 0.0f );

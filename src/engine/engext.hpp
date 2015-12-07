@@ -23,7 +23,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	ENGINE_EXPORT AnimRagdoll( PhyWorldHandle phyWorld );
 	ENGINE_EXPORT void Initialize( struct AnimCharacter* chinfo );
 	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
-	ENGINE_EXPORT virtual void Advance( float deltaTime );
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	ENGINE_EXPORT void SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot );
 	ENGINE_EXPORT void AdvanceTransforms( Animator* anim );

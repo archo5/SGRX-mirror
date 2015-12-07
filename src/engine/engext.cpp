@@ -131,7 +131,7 @@ bool AnimRagdoll::Prepare( const MeshHandle& mesh )
 	return true;
 }
 
-void AnimRagdoll::Advance( float deltaTime )
+void AnimRagdoll::Advance( float deltaTime, AnimInfo* info )
 {
 	m_lastTickSize = deltaTime;
 	
@@ -324,7 +324,8 @@ void AnimCharacter::SetTransform( const Mat4& mtx )
 
 void AnimCharacter::FixedTick( float deltaTime )
 {
-	m_anEnd.Advance( deltaTime );
+	AnimInfo info = { m_cachedMeshInst->matrix };
+	m_anEnd.Advance( deltaTime, &info );
 	m_anRagdoll.AdvanceTransforms( &m_anEnd );
 }
 
