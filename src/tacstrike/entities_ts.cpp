@@ -3,7 +3,7 @@
 #include "entities_ts.hpp"
 
 
-CVarBool g_cv_notarget( "notarget", true );
+CVarBool g_cv_notarget( "notarget", false );
 
 
 extern Vec2 CURSOR_POS;
@@ -474,7 +474,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootTimeout -= deltaTime;
 		m_shootLT->enabled = true;
 	}
-	if( GetInputB( ACT_Chr_Shoot ) && m_shootTimeout <= 0 )
+	if( GetInputB( ACT_Chr_Shoot ) && m_health > 0 && m_shootTimeout <= 0 )
 	{
 		Mat4 mtx = GetBulletOutputMatrix();
 		Vec3 origin = mtx.TransformPos( V3(0) );
