@@ -76,9 +76,9 @@ struct LC_MeshInst
 	{
 		arch << m_meshname;
 		arch << m_mtx;
-		arch( m_flags, true, LM_MESHINST_SOLID );
-		arch( m_decalLayer, true, 0 );
-		arch( m_lmap, true );
+		arch << m_flags;
+		arch << m_decalLayer;
+		arch << m_lmap;
 	}
 };
 

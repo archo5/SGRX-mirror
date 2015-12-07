@@ -596,7 +596,7 @@ LevelCache::LevelCache( SGRX_LightTree* sampleTree ) : m_sampleTree( sampleTree 
 #define LINE_HEIGHT 0.45f
 
 void LevelCache::AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
-	const StringView& mtlname, size_t fromsolid, bool solid, int decalLayer )
+	const StringView& mtlname, size_t fromsolid, uint32_t flags, int decalLayer )
 {
 	ASSERT( vcount >= 3 && vcount % 3 == 0 );
 	
@@ -619,7 +619,7 @@ void LevelCache::AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
 	P.m_mtlname = mtlname;
 	P.m_lightmap = lm;
 	P.m_lmalloc = -1;
-	P.m_isSolid = solid;
+	P.m_flags = flags;
 	P.m_decalLayer = decalLayer;
 }
 
@@ -915,6 +915,10 @@ void LevelCache::GatherMeshes()
 				Mesh& M = m_meshes[ mid ];
 				Part& OP = m_meshParts[ M.m_partIDs[ 0 ] ];
 				
+				// do not group dynlit meshes
+				if( ( OP.m_flags | P.m_flags ) & LM_MESHINST_DYNLIT )
+					continue;
+				
 				// wrong decal layer ID
 				if( OP.m_decalLayer != P.m_decalLayer )
 					continue;
@@ -974,7 +978,7 @@ void LevelCache::GatherMeshes()
 		}
 		
 		// physics mesh generation
-		if( P.m_isSolid )
+		if( P.m_flags & LM_MESHINST_SOLID )
 		{
 			uint32_t phy_mtl_id = m_phyMesh.materials.find_or_add( P.m_mtlname );
 			
@@ -1086,6 +1090,9 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 				Vertex V0 = SOP.m_vertices[ v + 0 ].InterpLMCoords( coords_min, coords_max );
 				Vertex V1 = SOP.m_vertices[ v + 1 ].InterpLMCoords( coords_min, coords_max );
 				Vertex V2 = SOP.m_vertices[ v + 2 ].InterpLMCoords( coords_min, coords_max );
+				V0.pos -= M.m_pos;
+				V1.pos -= M.m_pos;
+				V2.pos -= M.m_pos;
 				indices.push_back( verts.find_or_add( V0, PRD.vertexOffset ) - PRD.vertexOffset );
 				indices.push_back( verts.find_or_add( V1, PRD.vertexOffset ) - PRD.vertexOffset );
 				indices.push_back( verts.find_or_add( V2, PRD.vertexOffset ) - PRD.vertexOffset );
@@ -1103,8 +1110,10 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 	bw.marker( "SS3DMESH" );
 	uint32_t vu32 = MDF_MTLINFO; // mesh data flags
 	bw << vu32;
-	bw << M.m_boundsMin;
-	bw << M.m_boundsMax;
+	Vec3 v3 = M.m_boundsMin - M.m_pos;
+	bw << v3;
+	v3 = M.m_boundsMax - M.m_pos;
+	bw << v3;
 	vu32 = verts.size_bytes(); // vertex buffer size
 	bw << vu32;
 	for( size_t i = 0; i < verts.size(); ++i )
@@ -1174,10 +1183,8 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 		const Part& P = m_meshParts[ M.m_partIDs[ 0 ] ];
 		char bfr[ 32 ];
 		sgrx_snprintf( bfr, sizeof(bfr), "~/%d.ssm", mid );
-		uint32_t flags = LM_MESHINST_CASTLMS;
-		if( P.m_decalLayer != -1 )
-			flags |= LM_MESHINST_DECAL;
-		AddMeshInst( bfr, Mat4::Identity, flags, P.m_decalLayer, lightmap );
+		AddMeshInst( bfr, Mat4::CreateTranslation( M.m_pos ),
+			P.m_flags & ~LM_MESHINST_SOLID, P.m_decalLayer, lightmap );
 	}
 	
 	char bfr[ 256 ];

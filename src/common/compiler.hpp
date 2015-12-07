@@ -250,7 +250,7 @@ struct LevelCache
 		String m_mtlname;
 		LC_Lightmap m_lightmap;
 		int m_lmalloc;
-		bool m_isSolid;
+		uint32_t m_flags;
 		int m_decalLayer; // -1 if none
 	};
 	
@@ -270,7 +270,7 @@ struct LevelCache
 	LevelCache( SGRX_LightTree* sampleTree );
 	
 	void AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
-		const StringView& mtlname, size_t fromsolid, bool solid, int decalLayer );
+		const StringView& mtlname, size_t fromsolid, uint32_t flags, int decalLayer );
 	size_t AddSolid( const Vec4* planes, int count );
 	
 	void AddMeshInst( const String& meshname, const Mat4& mtx,

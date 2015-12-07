@@ -1162,8 +1162,7 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 		
 		size_t solid = S.solid_id > 0 ? S.solid_id - 1 : NOT_FOUND;
 		int decalLayer = ( S.info.rflags & LM_MESHINST_DECAL ) != 0 ? S.info.decalLayer : -1;
-		LC.AddPart( verts.data(), verts.size(), lm, S.mtlname, solid,
-			( S.info.rflags & LM_MESHINST_SOLID ) != 0, decalLayer );
+		LC.AddPart( verts.data(), verts.size(), lm, S.mtlname, solid, S.info.rflags, decalLayer );
 	}
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
