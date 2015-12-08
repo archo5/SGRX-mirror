@@ -87,6 +87,14 @@ void TSFightGameMode::OnPostLevelLoad()
 	{
 		m_player->ctrl = m_actorCtrl_ply;
 	}
+	
+	m_state = GS_Intro;
+	m_timeout = 3;
+	m_points_ply = 9;
+	m_points_enm = 9;
+	m_points_target = 10;
+	m_respawnTimeout_ply = 0;
+	m_respawnTimeout_enm = 0;
 }
 
 bool TSFightGameMode::AddEntity( const StringView& type, sgsVariable data )
@@ -360,7 +368,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		myscritem->SetPSRaycast( g_GameLevel->GetSystem<DamageSystem>() );
 #endif
 		
-		Game_AddOverlayScreen( &g_PauseMenu );
+	//	Game_AddOverlayScreen( &g_PauseMenu );
+		Game_ShowCursor( false );
 		cursor_dt = V2(0);
 		return true;
 	}
@@ -404,6 +413,17 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 			if( off.Length() > 0.1f )
 				CURSOR_POS = Game_GetScreenSize() * 0.5f + off * rad;
 #endif
+		}
+		else if( e.type == SDL_KEYDOWN )
+		{
+			if( e.key.keysym.sym == SDLK_r &&
+				e.key.repeat == 0 &&
+				( e.key.keysym.mod & KMOD_CTRL ) &&
+				( e.key.keysym.mod & KMOD_SHIFT ) )
+			{
+				String levname = g_GameLevel->GetLevelName();
+				g_GameLevel->Load( levname );
+			}
 		}
 	}
 	
