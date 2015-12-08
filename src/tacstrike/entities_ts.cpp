@@ -460,7 +460,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	{
 		AnimDeformer::Force& F = AnD.forces[ i ];
 		float t = F.lifetime;
-		F.amount = sinf( t * FLT_PI ) * expf( -t * 8 ) * 7 * 0.4f;
+		F.amount = sinf( t * FLT_PI ) * expf( -t * 8 ) * 7 * F.dir.Length();
 		if( F.lifetime > 3 )
 		{
 			AnD.forces.erase( i-- );
@@ -488,6 +488,12 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootLT->enabled = true;
 		m_shootTimeout += 0.1f;
 		m_level->GetSystem<AIDBSystem>()->AddSound( GetInterpPos(), 10, 0.2f, AIS_Shot );
+		
+		Mat4 inv = Mat4::Identity;
+		m_animChar.m_cachedMeshInst->matrix.InvertTo( inv );
+		Vec3 forcePos = inv.TransformPos( origin );
+		Vec3 forceDir = inv.TransformNormal( -dir ).Normalized();
+		AnD.AddModelForce( forcePos, forceDir * 0.2f, 1.0f );
 	}
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
@@ -698,9 +704,9 @@ void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 		Mat4 inv = Mat4::Identity;
 		m_animChar.m_cachedMeshInst->matrix.InvertTo( inv );
 		Vec3 pos = inv.TransformPos( bhinfo->pos );
-		Vec3 vel = inv.TransformNormal( bhinfo->vel );
-		m_animChar.m_anDeformer.AddModelForce( pos, vel * 0.1f, 0.3f );
-		Hit( bhinfo->vel.Length() * 0.1f );
+		Vec3 vel = inv.TransformNormal( bhinfo->vel ).Normalized();
+		m_animChar.m_anDeformer.AddModelForce( pos, vel * 0.4f, 0.3f );
+		Hit( bhinfo->vel.Length() * 0.15f );
 	}
 }
 
@@ -1059,6 +1065,9 @@ void TSEnemyController::FixedTick( float deltaTime )
 	
 	// process facts
 	m_factStorage.Process( curTime );
+	// - self
+	m_factStorage.MovingInsertOrUpdate( FT_Position_Friend,
+		m_char->GetPosition(), 10, curTime, curTime + 1*1000, 0 );
 	// - vision
 	IESEnemyViewProc evp;
 	evp.curtime = curTime;
@@ -1120,15 +1129,20 @@ void TSEnemyController::Tick( float deltaTime, float blendFactor )
 	LevelMapSystem* lms = m_level->GetSystem<LevelMapSystem>();
 	if( lms )
 	{
-		MapItemInfo mii = {0};
-		
-		mii.type = MI_Object_Enemy | MI_State_Normal;
-		mii.position = m_char->GetInterpPos();
-		mii.direction = m_char->GetInterpAimDir();
-		mii.sizeFwd = 10;
-		mii.sizeRight = 8;
-		
-		lms->UpdateItem( m_char, mii );
+		if( m_char->m_health > 0 )
+		{
+			MapItemInfo mii = {0};
+			
+			mii.type = MI_Object_Enemy | MI_State_Normal;
+			mii.position = m_char->GetInterpPos();
+			mii.direction = m_char->GetInterpAimDir();
+			mii.sizeFwd = 10;
+			mii.sizeRight = 8;
+			
+			lms->UpdateItem( m_char, mii );
+		}
+		else
+			lms->RemoveItem( m_char );
 	}
 }
 

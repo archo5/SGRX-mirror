@@ -30,6 +30,8 @@ struct SGRX_IActorController : SGRX_RefCounted
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual Vec3 GetInput( uint32_t iid ){ return V3(0); }
 	virtual void Reset(){}
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
 };
 typedef Handle< SGRX_IActorController > SGRX_ActorCtrlHandle;
 
@@ -132,6 +134,16 @@ struct SGRX_Actor : Entity
 	{
 		if( ctrl )
 			ctrl->Tick( deltaTime, blendFactor );
+	}
+	virtual void DebugDrawWorld()
+	{
+		if( ctrl )
+			ctrl->DebugDrawWorld();
+	}
+	virtual void DebugDrawUI()
+	{
+		if( ctrl )
+			ctrl->DebugDrawUI();
 	}
 	
 	virtual bool IsAlive(){ return true; }

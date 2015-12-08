@@ -1437,24 +1437,34 @@ void AIFactStorage::InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
 bool AIFactStorage::MovingUpdate( uint32_t type, Vec3 pos, float movespeed,
 	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
+	int which = -1;
+	float mindist = FLT_MAX;
 	for( size_t i = 0; i < facts.size(); ++i )
 	{
 		if( facts[ i ].type != type )
 			continue;
 		
+		float distsq = ( facts[ i ].position - pos ).LengthSq();
 		float rad = ( created - facts[ i ].created ) * 0.001f * movespeed;
-		if( ( facts[ i ].position - pos ).LengthSq() <= rad * rad + SMALL_FLOAT )
+		if( distsq <= rad * rad + SMALL_FLOAT && distsq < mindist )
 		{
-			facts[ i ].position = pos;
-			if( reset )
-			{
-				facts[ i ].created = created;
-				facts[ i ].expires = expires;
-			}
-			facts[ i ].ref = ref;
-			last_mod_id = facts[ i ].id;
-			return true;
+			which = i;
+			mindist = distsq;
 		}
+	}
+	
+	if( which != -1 )
+	{
+		int i = which;
+		facts[ i ].position = pos;
+		if( reset )
+		{
+			facts[ i ].created = created;
+			facts[ i ].expires = expires;
+		}
+		facts[ i ].ref = ref;
+		last_mod_id = facts[ i ].id;
+		return true;
 	}
 	
 	return false;
