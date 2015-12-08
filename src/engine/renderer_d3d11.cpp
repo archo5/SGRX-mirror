@@ -15,6 +15,7 @@
 #define __out_bcount_opt(x)
 #define __in_ecount_opt(x)
 #define __out_ecount_opt(x)
+#define __out_ecount_part_opt(x,y)
 #define __in_ecount(x)
 #define __out_ecount(x)
 #define __in_range(x,y)
