@@ -90,8 +90,8 @@ void TSFightGameMode::OnPostLevelLoad()
 	
 	m_state = GS_Intro;
 	m_timeout = 3;
-	m_points_ply = 9;
-	m_points_enm = 9;
+	m_points_ply = 0;
+	m_points_enm = 0;
 	m_points_target = 10;
 	m_respawnTimeout_ply = 0;
 	m_respawnTimeout_enm = 0;
