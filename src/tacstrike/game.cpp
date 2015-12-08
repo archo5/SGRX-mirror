@@ -32,8 +32,9 @@ Vec2 CURSOR_POS = V2(0);
 TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ), m_state( GS_Intro ),
 	m_timeout( 3 ), m_points_ply( 0 ), m_points_enm( 0 ), m_points_target( 10 ),
-	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 )
+	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 ), m_hitAlpha( 0.0f )
 {
+	RegisterHandler( TSEV_CharHit );
 	RegisterHandler( TSEV_CharDied );
 	
 	m_player = NULL;
@@ -111,6 +112,7 @@ bool TSFightGameMode::AddEntity( const StringView& type, sgsVariable data )
 void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 {
 	m_timeout = TMAX( 0.0f, m_timeout - deltaTime );
+	m_hitAlpha = clamp( m_hitAlpha - deltaTime, 0.0f, 0.5f );
 	switch( m_state )
 	{
 	case GS_TEST2: break;
@@ -170,6 +172,13 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 
 void TSFightGameMode::DrawUI()
 {
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	if( m_hitAlpha > 0 )
+	{
+		br.Reset().Col( 0.6f, 0.02f, 0.01f, m_hitAlpha );
+		br.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
+	}
+	
 	if( m_state == GS_Intro )
 	{
 		GR2D_SetFont( "core", 32 );
@@ -192,6 +201,14 @@ void TSFightGameMode::HandleEvent( SGRX_EventID eid, const EventData& edata )
 {
 	switch( eid )
 	{
+	case TSEV_CharHit:
+		{
+			SGRX_CAST( TSEventData_CharHit*, hitdata, edata.GetUserData() );
+			
+			if( m_player == hitdata->ch )
+				m_hitAlpha += hitdata->power * 0.1f;
+		}
+		break;
 	case TSEV_CharDied:
 		{
 			SGRX_CAST( TSCharacter*, ch, edata.GetUserData() );

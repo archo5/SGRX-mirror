@@ -35,6 +35,7 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 	int m_points_target;
 	float m_respawnTimeout_ply;
 	float m_respawnTimeout_enm;
+	float m_hitAlpha;
 	TSCharacter* m_player;
 	TSCharacter* m_enemy;
 	SGRX_ActorCtrlHandle m_actorCtrl_ply;
