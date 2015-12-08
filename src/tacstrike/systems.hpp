@@ -551,11 +551,13 @@ struct AIFactStorage
 	bool HasRecentFact( uint32_t typemask, TimeVal maxtime );
 	AIFact* GetRecentFact( uint32_t typemask, TimeVal maxtime );
 	void Insert( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	void RemoveExt( uint32_t* types, size_t typecount );
+	void Remove( uint32_t type ){ RemoveExt( &type, 1 ); }
 	bool Update( uint32_t type, Vec3 pos, float rad,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	void InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	bool MovingUpdate( uint32_t type, Vec3 pos, float movespeed,
+	bool MovingUpdate( uint32_t* types, size_t typecount, Vec3 pos, float movespeed,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	void MovingInsertOrUpdate( uint32_t type, Vec3 pos, float movespeed,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );

@@ -637,13 +637,9 @@ void ISR3Enemy::FixedTick( float deltaTime )
 				S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
 			
 			int lastid = m_factStorage.last_mod_id;
-			bool found_friend = m_factStorage.MovingUpdate( FT_Position_Friend,
+			uint32_t types[] = { FT_Position_Friend, FT_Position_Foe };
+			m_factStorage.MovingUpdate( types, 2,
 				S.position, 10, curTime, curTime + 30*1000, lastid );
-			if( found_friend == false )
-			{
-				m_factStorage.MovingUpdate( FT_Position_Foe,
-					S.position, 10, curTime, curTime + 30*1000, lastid );
-			}
 		}
 		else
 		{

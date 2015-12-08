@@ -1025,6 +1025,7 @@ TSEnemyController::~TSEnemyController()
 
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 {
+	IESEnemyViewProc() : sawEnemy(false){}
 	bool Process( Entity* ent, const InfoEmissionSystem::Data& data )
 	{
 		Vec3 enemypos = data.pos;
@@ -1043,6 +1044,8 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		}
 		else if( g_cv_notarget.value == false )
 		{
+			sawEnemy = true;
+			
 			// fact of seeing
 			FS.MovingInsertOrUpdate( FT_Sight_Foe,
 				enemypos, 10, curtime, curtime + 5*1000 );
@@ -1057,6 +1060,7 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 	
 	TimeVal curtime;
 	TSEnemyController* enemy;
+	bool sawEnemy;
 };
 
 void TSEnemyController::FixedTick( float deltaTime )
@@ -1068,12 +1072,6 @@ void TSEnemyController::FixedTick( float deltaTime )
 	// - self
 	m_factStorage.MovingInsertOrUpdate( FT_Position_Friend,
 		m_char->GetPosition(), 10, curTime, curTime + 1*1000, 0 );
-	// - vision
-	IESEnemyViewProc evp;
-	evp.curtime = curTime;
-	evp.enemy = this;
-	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp,
-		m_char->GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
 	// - sounds
 	for( int i = 0; i < m_aidb->GetNumSounds(); ++i )
 	{
@@ -1091,18 +1089,34 @@ void TSEnemyController::FixedTick( float deltaTime )
 				S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
 			
 			int lastid = m_factStorage.last_mod_id;
-			bool found_friend = m_factStorage.MovingUpdate( FT_Position_Friend,
+			uint32_t types[] = { FT_Position_Friend, FT_Position_Foe };
+			m_factStorage.MovingUpdate( types, 2,
 				S.position, 10, curTime, curTime + 30*1000, lastid );
-			if( found_friend == false )
-			{
-				m_factStorage.MovingUpdate( FT_Position_Foe,
-					S.position, 10, curTime, curTime + 30*1000, lastid );
-			}
 		}
 		else
 		{
 			m_factStorage.InsertOrUpdate( FT_Sound_Noise,
 				S.position, 1, curTime, curTime + 1*1000 );
+		}
+	}
+	// - vision
+	IESEnemyViewProc evp;
+	evp.curtime = curTime;
+	evp.enemy = this;
+	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp,
+		m_char->GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
+	if( evp.sawEnemy == false ) // HACK
+	{
+		for( size_t i = 0; i < m_factStorage.facts.size(); ++i )
+		{
+			AIFact& F = m_factStorage.facts[ i ];
+			if( F.type != FT_Position_Foe )
+				continue;
+			if( CanSeePoint( F.position ) == false )
+			{
+				m_factStorage.facts.erase( i-- );
+				continue;
+			}
 		}
 	}
 	
@@ -1331,7 +1345,7 @@ bool TSEnemyController::sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, V
 {
 	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
-	return m_factStorage.MovingUpdate( type, pos, movespeed, created, expires, ref, reset );
+	return m_factStorage.MovingUpdate( &type, 1, pos, movespeed, created, expires, ref, reset );
 }
 
 void TSEnemyController::sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,

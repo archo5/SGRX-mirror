@@ -1427,6 +1427,21 @@ bool AIFactStorage::Update( uint32_t type, Vec3 pos, float rad,
 	return false;
 }
 
+void AIFactStorage::RemoveExt( uint32_t* types, size_t typecount )
+{
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		size_t j = 0;
+		for( ; j < typecount; ++j )
+			if( facts[ i ].type == types[ j ] )
+				break;
+		if( j == typecount )
+			continue;
+		
+		facts.erase( i-- );
+	}
+}
+
 void AIFactStorage::InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
 	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
@@ -1434,14 +1449,18 @@ void AIFactStorage::InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
 		Insert( type, pos, created, expires, ref );
 }
 
-bool AIFactStorage::MovingUpdate( uint32_t type, Vec3 pos, float movespeed,
-	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+bool AIFactStorage::MovingUpdate( uint32_t* types, size_t typecount, Vec3 pos,
+	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
 	int which = -1;
 	float mindist = FLT_MAX;
 	for( size_t i = 0; i < facts.size(); ++i )
 	{
-		if( facts[ i ].type != type )
+		size_t j = 0;
+		for( ; j < typecount; ++j )
+			if( facts[ i ].type == types[ j ] )
+				break;
+		if( j == typecount )
 			continue;
 		
 		float distsq = ( facts[ i ].position - pos ).LengthSq();
@@ -1473,7 +1492,7 @@ bool AIFactStorage::MovingUpdate( uint32_t type, Vec3 pos, float movespeed,
 void AIFactStorage::MovingInsertOrUpdate( uint32_t type, Vec3 pos, float movespeed,
 	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( MovingUpdate( type, pos, movespeed, created, expires, ref, reset ) == false )
+	if( MovingUpdate( &type, 1, pos, movespeed, created, expires, ref, reset ) == false )
 		Insert( type, pos, created, expires, ref );
 }
 
@@ -1652,7 +1671,7 @@ bool AIDBSystem::sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos
 {
 	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
-	return m_globalFacts.MovingUpdate( type, pos, movespeed, created, expires, ref, reset );
+	return m_globalFacts.MovingUpdate( &type, 1, pos, movespeed, created, expires, ref, reset );
 }
 
 void AIDBSystem::sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
