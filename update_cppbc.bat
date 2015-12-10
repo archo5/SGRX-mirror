@@ -1,6 +1,7 @@
 @pushd src\common
 @echo in src/common
 sgsvm -p ../../ext/src/sgscript/cppbc.sgs scritem.hpp
+sgsvm -p ../../ext/src/sgscript/cppbc.sgs gamegui.hpp
 @popd
 @pushd src\tacstrike
 @echo in src/tacstrike

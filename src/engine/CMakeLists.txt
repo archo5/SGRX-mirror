@@ -8,8 +8,13 @@ endif()
 
 # Engine
 add_library( sgrx-core SHARED
-	engine.cpp engine.hpp engrender.cpp enganim.cpp enganim.hpp engext.cpp engext.hpp edgui.cpp edgui.hpp
-	image.cpp font.cpp mesh.cpp culling.cpp utils.cpp utils.hpp dds.c dds.h
+	engine.cpp engine.hpp engrender.cpp
+	enganim.cpp enganim.hpp
+	engext.cpp engext.hpp
+	edgui.cpp edgui.hpp
+	image.cpp font.cpp mesh.cpp culling.cpp
+	utils.cpp utils.hpp
+	dds.c dds.h
 	${EXTDIR}/src/zlib1 ${EXTDIR}/src/zlib2 ${EXTDIR}/src/zlib3
 	${EXTDIR}/src/libpng1
 	${EXTDIR}/src/libjpg1 ${EXTDIR}/src/libjpg2 ${EXTDIR}/src/libjpg3
