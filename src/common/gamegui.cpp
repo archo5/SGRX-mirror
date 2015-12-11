@@ -33,6 +33,9 @@ GameUIControl* GameUIControl::Create( SGS_CTX )
 	CTL->eventCallback.C = C;
 	CTL->eventCallback.set( GUI_DefaultEventCallback );
 	
+	CTL->metadata.C = C;
+	sgs_CreateDict( C, &CTL->metadata.var, 0 );
+	
 	CTL->shaders.C = C;
 	sgs_CreateArray( C, &CTL->shaders.var, 0 );
 	
@@ -81,10 +84,41 @@ void GameUIControl::Draw( float dt )
 		// recalculate positions
 		if( parent )
 		{
-			rx0 = parent->IX( x );
-			ry0 = parent->IY( y );
-			rx1 = parent->IX( x + width );
-			ry1 = parent->IY( y + height );
+			if( mode == GUI_ScrMode_Fit || mode == GUI_ScrMode_Crop )
+			{
+				float pw = parent->rx1 - parent->rx0, ph = parent->ry1 - parent->ry0;
+				float parent_aspect = safe_fdiv( pw, ph );
+				float self_aspect = safe_fdiv( width, height );
+				
+				float tw = pw, th = ph;
+				if( ( self_aspect > parent_aspect ) ^ ( mode == GUI_ScrMode_Crop ) )
+				{
+					// match width
+					th = tw / self_aspect;
+				}
+				else
+				{
+					// match height
+					tw = th * self_aspect;
+				}
+				float tx = ( pw - tw ) / 2;
+				float ty = ( ph - th ) / 2;
+				tx *= xalign + 1;
+				ty *= yalign + 1;
+				tx += x;
+				ty += ty;
+				rx0 = parent->rx0 + tx;
+				ry0 = parent->ry0 + ty;
+				rx1 = rx0 + tw;
+				ry1 = ry0 + th;
+			}
+			else
+			{
+				rx0 = parent->IX( x );
+				ry0 = parent->IY( y );
+				rx1 = parent->IX( x + width );
+				ry1 = parent->IY( y + height );
+			}
 		}
 		else
 		{
@@ -102,8 +136,10 @@ void GameUIControl::Draw( float dt )
 		{
 			sgsVariable shader( C );
 			sgs_IterGetData( C, sgs_StackItem( C, -1 ), NULL, &shader.var );
+			sgs_PushVar( C, obj );
 			sgs_PushVar( C, dt );
-			obj.thiscall( shader, 1, 0 );
+			GR2D_GetBatchRenderer().Reset();
+			shader.thiscall( shader, 2, 0 );
 		}
 	}
 	
@@ -124,6 +160,11 @@ float GameUIControl::IX( float x )
 	return TLERP( rx0, rx1, x ); // interpolate from precalc
 }
 
+float GameUIControl::IS( float s )
+{
+	return IX( s ) - IX( 0 );
+}
+
 float GameUIControl::IY( float y )
 {
 	y = safe_fdiv( y, height ); // to normalized coords
@@ -135,7 +176,7 @@ int GameUIControl::_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGRX_CAST( GameUIControl*, CTL, obj->data );
 	SGSBOOL res = sgs_PushIndex( C, CTL->metadata.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) );
 	if( res )
-		return res; // found
+		return SGS_SUCCESS; // found
 	return _sgs_getindex( C, obj );
 }
 
@@ -188,15 +229,115 @@ GameUIControl::Handle GameUIControl::CreateControl(
 	return out;
 }
 
+void GameUIControl::DReset()
+{
+	GR2D_GetBatchRenderer().Reset();
+}
+
+void GameUIControl::DCol( sgs_Context* ctx, float a, float b, float c, float d )
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	int ssz = sgs_StackSize( ctx );
+	if( ssz <= 1 )
+		br.Col( a );
+	else if( ssz == 2 )
+		br.Col( a, b );
+	else if( ssz == 3 )
+		br.Col( a, b, c );
+	else
+		br.Col( a, b, c, d );
+}
+
+void GameUIControl::DTex( StringView name )
+{
+	GR2D_GetBatchRenderer().SetTexture( GR_GetTexture( name ) );
+}
+
+void GameUIControl::DQuad( float x0, float y0, float x1, float y1 )
+{
+	GR2D_GetBatchRenderer().Quad( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ) );
+}
+
+void GameUIControl::DQuadExt( sgs_Context* ctx, float x0, float y0, float x1, float y1,
+	float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ )
+{
+	int ssz = sgs_StackSize( ctx );
+	GR2D_GetBatchRenderer().QuadExt( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ),
+		tox, toy, ssz >= 7 ? tsx : 1.0f, ssz >= 8 ? tsy : 1.0f );
+}
+
+void GameUIControl::DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr )
+{
+	GR2D_GetBatchRenderer().Button(
+		V4( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ) ),
+		bdr, texbdr );
+}
+
+void GameUIControl::DFont( StringView name, float size )
+{
+	GR2D_SetFont( name, IS( size ) );
+}
+
+void GameUIControl::DText( sgs_Context* ctx, StringView text, float x, float y, int ha, int va )
+{
+	if( sgs_StackSize( ctx ) <= 1 )
+		GR2D_DrawTextLine( text );
+	else
+		GR2D_DrawTextLine( IX( x ), IY( y ), text, ha, va );
+}
+
+
+
+static int TEXTURE( SGS_CTX )
+{
+	char* bfr;
+	sgs_SizeVal size;
+	SGSFN( "TEXTURE" );
+	if( !sgs_LoadArgs( C, "m", &bfr, &size ) )
+		return 0;
+	
+	sgs_PushIndex( C, sgs_Registry( C, SGS_REG_ROOT ), sgs_MakeNull(), 0 );
+	SGRX_CAST( GameUISystem*, sys, sgs_GetPtr( C, -1 ) );
+	sgs_Pop( C, 1 );
+	
+	sys->PrecacheTexture( StringView( bfr, size ) );
+	sgs_SetStackSize( C, 1 );
+	return 1; // return the string itself
+}
+
+sgs_RegIntConst sgs_iconsts[] =
+{
+	{ "HALIGN_LEFT", HALIGN_LEFT },
+	{ "HALIGN_CENTER", HALIGN_CENTER },
+	{ "HALIGN_RIGHT", HALIGN_RIGHT },
+	{ "VALIGN_TOP", VALIGN_TOP },
+	{ "VALIGN_CENTER", VALIGN_CENTER },
+	{ "VALIGN_BOTTOM", VALIGN_BOTTOM },
+	
+	{ "GUI_ScrMode_Abs", GUI_ScrMode_Abs },
+	{ "GUI_ScrMode_Fit", GUI_ScrMode_Fit },
+	{ "GUI_ScrMode_Crop", GUI_ScrMode_Crop },
+};
+
+sgs_RegFuncConst sgs_funcs[] =
+{
+	{ "TEXTURE", TEXTURE },
+};
 
 GameUISystem::GameUISystem() :
 	m_rootCtrl(NULL), m_hoverCtrl(NULL), m_kbdFocusCtrl(NULL),
 	m_mouseX(0), m_mouseY(0)
 {
-	m_rootCtrl = GameUIControl::Create( m_scriptCtx.C );
+	SGS_CTX = m_scriptCtx.C;
+	m_rootCtrl = GameUIControl::Create( C );
 	m_rootCtrl->m_system = this;
 	m_clickCtrl[0] = NULL;
 	m_clickCtrl[1] = NULL;
+	
+	sgs_SetIndex( C, sgs_Registry( C, SGS_REG_ROOT ), sgs_MakeNull(), sgs_MakePtr( this ), 0 );
+	sgs_RegIntConsts( C, sgs_iconsts, SGRX_ARRAY_SIZE(sgs_iconsts) );
+	sgs_RegFuncConsts( C, sgs_funcs, SGRX_ARRAY_SIZE(sgs_funcs) );
+	m_scriptCtx.SetGlobal( "ROOT", m_rootCtrl->GetHandle() );
 }
 
 GameUISystem::~GameUISystem()
@@ -425,7 +566,15 @@ GameUIControl* GameUISystem::_GetItemAtPosition( int x, int y )
 
 void GameUISystem::Draw( float dt )
 {
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+	
+	m_rootCtrl->x = 0;
+	m_rootCtrl->y = 0;
+	m_rootCtrl->width = GR_GetWidth();
+	m_rootCtrl->height = GR_GetHeight();
 	m_rootCtrl->Draw( dt );
+	
+	GR2D_GetBatchRenderer().Flush();
 }
 
 void GameUISystem::_OnRemove( GameUIControl* ctrl )
@@ -439,6 +588,11 @@ void GameUISystem::_OnRemove( GameUIControl* ctrl )
 		m_clickCtrl[0] = NULL;
 	if( m_clickCtrl[1] == ctrl )
 		m_clickCtrl[1] = NULL;
+}
+
+void GameUISystem::PrecacheTexture( const StringView& texname )
+{
+	m_precachedTextures.push_back( GR_GetTexture( texname ) );
 }
 
 

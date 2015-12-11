@@ -87,6 +87,54 @@ static int _sgs_method__GameUIControl__CreateControl( SGS_CTX )
 	sgs_PushVar(C,data->CreateControl( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) )); return 1;
 }
 
+static int _sgs_method__GameUIControl__DReset( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DReset ) ) return 0;
+	data->DReset(  ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DCol( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DCol ) ) return 0;
+	data->DCol( C, sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DTex( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DTex ) ) return 0;
+	data->DTex( sgs_GetVar<StringView>()(C,0) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DQuad( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DQuad ) ) return 0;
+	data->DQuad( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DQuadExt( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DQuadExt ) ) return 0;
+	data->DQuadExt( C, sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5), sgs_GetVar<float>()(C,6), sgs_GetVar<float>()(C,7) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DButton( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DButton ) ) return 0;
+	data->DButton( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<Vec4>()(C,4), sgs_GetVar<Vec4>()(C,5) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DFont( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DFont ) ) return 0;
+	data->DFont( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DText( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DText ) ) return 0;
+	data->DText( C, sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<int>()(C,3), sgs_GetVar<int>()(C,4) ); return 0;
+}
+
 int GameUIControl::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameUIControl*>( obj->data )->~GameUIControl();
@@ -119,6 +167,14 @@ int GameUIControl::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "shaders" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->shaders ); return SGS_SUCCESS; }
 		SGS_CASE( "CreateScreen" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__CreateScreen ); return SGS_SUCCESS; }
 		SGS_CASE( "CreateControl" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__CreateControl ); return SGS_SUCCESS; }
+		SGS_CASE( "DReset" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DReset ); return SGS_SUCCESS; }
+		SGS_CASE( "DCol" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DCol ); return SGS_SUCCESS; }
+		SGS_CASE( "DTex" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DTex ); return SGS_SUCCESS; }
+		SGS_CASE( "DQuad" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuad ); return SGS_SUCCESS; }
+		SGS_CASE( "DQuadExt" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuadExt ); return SGS_SUCCESS; }
+		SGS_CASE( "DButton" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DButton ); return SGS_SUCCESS; }
+		SGS_CASE( "DFont" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DFont ); return SGS_SUCCESS; }
+		SGS_CASE( "DText" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DText ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

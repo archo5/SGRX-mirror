@@ -84,10 +84,18 @@ struct Test_GameUI : ITest
 	void OnInitialize()
 	{
 		m_guiSys = new GameUISystem;
+		m_guiSys->Load( "ui/test.sgs" );
 	}
 	void OnDestroy()
 	{
 		delete m_guiSys;
+	}
+	void OnEvent( const Event& e )
+	{
+	}
+	void Do( float dt, float )
+	{
+		m_guiSys->Draw( dt );
 	}
 	
 	GameUISystem* m_guiSys;
@@ -138,6 +146,8 @@ struct TestSuite : IGame
 	
 	bool OnInitialize()
 	{
+		Game_FileSystems().insert( 0, new BasicFileSystem( "../data-test" ) );
+		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		
 		Game_RegisterAction( &MOVE_LEFT );
@@ -173,6 +183,10 @@ struct TestSuite : IGame
 			SetTest( ( g_CurTest + 1 ) % TESTCOUNT );
 		}
 		g_Tests[ g_CurTest ]->Do( dt, ( m_accum + FIXED_TICK_SIZE ) / FIXED_TICK_SIZE );
+	}
+	void OnEvent( const Event& e )
+	{
+		g_Tests[ g_CurTest ]->OnEvent( e );
 	}
 	
 	float m_accum;

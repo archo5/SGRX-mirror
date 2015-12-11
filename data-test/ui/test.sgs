@@ -1,0 +1,44 @@
+
+_G.
+{
+	tex_background = TEXTURE("ui/bg1.png"),
+	tex_button_core_n = TEXTURE("ui/button_core.png"),
+	tex_button_core_h = TEXTURE("ui/button_core_h.png"),
+	tex_button_core_c = TEXTURE("ui/button_core_c.png"),
+};
+
+function ButtonShader( ctrl )
+{
+	ctrl.DTex( tex_button_core_n );
+	ctrl.DButton( 0, 0, ctrl.width, ctrl.height, 4, 4/128 );
+	ctrl.DFont( "core", ctrl.height / 2 );
+	ctrl.DText( ctrl.text, ctrl.width / 2, ctrl.height / 2, HALIGN_CENTER, VALIGN_CENTER );
+}
+
+function CreateButton( x, y, w, h, text )
+{
+	ctrl = this.CreateControl( x, y, w, h );
+	ctrl.shaders.push( ButtonShader );
+	ctrl.text = text;
+	return ctrl;
+}
+
+global scr_background = ROOT.CreateScreen( GUI_ScrMode_Crop, 512, 512 );
+t = 0;
+scr_background.shaders.push(function( ctrl, dt ) use( t )
+{
+	t += dt;
+	ctrl.DTex( tex_background );
+	ctrl.DQuadExt( 0, 0, 512, 512, t * -0.02 );
+	process_threads();
+});
+
+global scr_mainmenu = ROOT.CreateScreen( GUI_ScrMode_Fit, 100, 100 );
+scr_mainmenu.shaders.push(function( ctrl )
+{
+	ctrl.DCol( 0, 0.5 );
+	ctrl.DQuad( 5, 5, 95, 95 );
+});
+
+global scr_button1 = scr_mainmenu!CreateButton( 10, 10, 50, 5, "Click me" );
+

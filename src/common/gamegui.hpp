@@ -129,6 +129,7 @@ struct GameUIControl
 	bool Hit( int x, int y );
 	float IX( float x );
 	float IY( float y );
+	float IS( float s );
 	Handle GetHandle(){ return Handle( this ); }
 	
 	// ---
@@ -138,6 +139,16 @@ struct GameUIControl
 	SGS_METHOD Handle CreateScreen( int mode, float width, float height,
 		float xalign /* = 0 */, float yalign /* = 0 */, float x /* = 0 */, float y /* = 0 */ );
 	SGS_METHOD Handle CreateControl( float x, float y, float width, float height );
+	
+	SGS_METHOD void DReset();
+	SGS_METHOD void DCol( sgs_Context* ctx, float a, float b, float c, float d );
+	SGS_METHOD void DTex( StringView name );
+	SGS_METHOD void DQuad( float x0, float y0, float x1, float y1 );
+	SGS_METHOD void DQuadExt( sgs_Context* ctx, float x0, float y0, float x1, float y1,
+		float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ );
+	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );
+	SGS_METHOD void DFont( StringView name, float size );
+	SGS_METHOD void DText( sgs_Context* ctx, StringView text, float x, float y, int ha, int va );
 };
 
 
@@ -153,6 +164,8 @@ struct GameUISystem
 	GameUIControl* _GetItemAtPosition( int x, int y );
 	void _OnRemove( GameUIControl* ctrl );
 	
+	void PrecacheTexture( const StringView& texname );
+	
 	GameUIControl* m_rootCtrl;
 	ScriptContext m_scriptCtx;
 	Array< GameUIControl* > m_hoverTrail;
@@ -161,6 +174,8 @@ struct GameUISystem
 	GameUIControl* m_clickCtrl[2];
 	int m_mouseX;
 	int m_mouseY;
+	
+	Array< TextureHandle > m_precachedTextures;
 };
 
 

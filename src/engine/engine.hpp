@@ -1612,6 +1612,8 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& Prev( int i );
 	ENGINE_EXPORT BatchRenderer& RawQuad( float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& Quad( float x0, float y0, float x1, float y1, float z = 0 );
+	ENGINE_EXPORT BatchRenderer& QuadExt( float x0, float y0, float x1, float y1,
+		float tox = 0, float toy = 0, float tsx = 1, float tsy = 1, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& QuadFrame( float x0, float y0, float x1, float y1, float ix0, float iy0, float ix1, float iy1, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& VPQuad( SGRX_Viewport* vp, float z = 0 );
 	FINLINE BatchRenderer& QuadWH( float x, float y, float w, float h, float z = 0 ){ return Quad( x, y, x + w, y + h, z ); }
