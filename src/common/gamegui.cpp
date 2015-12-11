@@ -11,60 +11,123 @@ int GUI_DefaultEventCallback( SGS_CTX )
 
 
 GameUIControl::GameUIControl() :
-	x(0), y(0), width(0), height(0), rx0(0), ry0(0), rx1(0), ry1(0)
+	mode(GUI_ScrMode_Abs), x(0), y(0), width(0), height(0),
+	xalign(0), yalign(0), rx0(0), ry0(0), rx1(0), ry1(0), z(0),
+	m_system(NULL)
 {
+}
+
+GameUIControl::~GameUIControl()
+{
+	if( parent )
+		parent->m_subitems.remove_first( this );
+	m_system->_OnRemove( this );
 }
 
 GameUIControl* GameUIControl::Create( SGS_CTX )
 {
-	sgsVariable obj( C );
-	GameUIControl* CTL = SGS_CREATECLASS( C, &obj.var, GameUIControl, () );
+//	sgsVariable obj( C ); // TODO FIX cppbc
+//	GameUIControl* CTL = SGS_CREATECLASS( C, &obj.var, GameUIControl, () );
+	GameUIControl* CTL = SGS_CREATECLASS( C, NULL, GameUIControl, () );
 	
 	CTL->eventCallback.C = C;
 	CTL->eventCallback.set( GUI_DefaultEventCallback );
 	
-	CTL->animators.C = C;
-	sgs_CreateArray( C, &CTL->animators.var, 0 );
-	
 	CTL->shaders.C = C;
 	sgs_CreateArray( C, &CTL->shaders.var, 0 );
 	
+//	obj._acquire();
+	sgs_ObjAcquire( C, CTL->m_sgsObject );
+	sgs_Pop( C, 1 );
 	return CTL;
 }
 
-void GameUIControl::Tick( float dt )
+int GameUIControl::OnEvent( const GameUIEvent& e )
 {
-	// recalculate positions
-	rx0 = parent->IX( x );
-	ry0 = parent->IY( y );
-	rx1 = parent->IX( x + width );
-	ry1 = parent->IY( y + height );
-	
-	// call all animators
+	// call the event callback
 	SGS_SCOPE;
 	sgsVariable obj = Handle( this ).get_variable();
-	sgs_PushIterator( C, animators.var );
-	while( sgs_IterAdvance( C, sgs_StackItem( C, -1 ) ) )
+	sgs_CreateLiteClassFrom( C, NULL, &e );
+	if( obj.thiscall( eventCallback, 1, 1 ) )
 	{
-		sgs_IterPushData( C, sgs_StackItem( C, -1 ), 0, 1 );
-		sgsVariable animator( C, sgsVariable::PickAndPop );
-		sgs_PushVar( C, dt );
-		obj.thiscall( animator, 1, 0 );
+		return sgs_GetInt( C, -1 );
+	}
+	return 0;
+}
+
+void GameUIControl::BubblingEvent( const GameUIEvent& e )
+{
+	GameUIControl* cc = this;
+	while( cc )
+	{
+		if( !cc->OnEvent( e ) )
+			break;
+		cc = cc->parent;
 	}
 }
 
-void GameUIControl::Draw()
+static int sort_ui_subitems( const void* A, const void* B )
 {
-	// call all shaders
-	SGS_SCOPE;
-	sgsVariable obj = Handle( this ).get_variable();
-	sgs_PushIterator( C, shaders.var );
-	while( sgs_IterAdvance( C, sgs_StackItem( C, -1 ) ) )
+	SGRX_CAST( GameUIControl*, uia, A );
+	SGRX_CAST( GameUIControl*, uib, B );
+	return uia->z == uib->z ? 0 : ( uia->z < uib->z ? -1 : 1 );
+}
+
+void GameUIControl::Draw( float dt )
+{
+	qsort( m_subitems.data(), m_subitems.size(), sizeof(GameUIControl*), sort_ui_subitems );
+	
 	{
-		sgs_IterPushData( C, sgs_StackItem( C, -1 ), 0, 1 );
-		sgsVariable shader( C, sgsVariable::PickAndPop );
-		obj.thiscall( shader, 0, 0 );
+		// recalculate positions
+		if( parent )
+		{
+			rx0 = parent->IX( x );
+			ry0 = parent->IY( y );
+			rx1 = parent->IX( x + width );
+			ry1 = parent->IY( y + height );
+		}
+		else
+		{
+			rx0 = x;
+			ry0 = y;
+			rx1 = x + width;
+			ry1 = y + height;
+		}
+		
+		// call all shaders
+		SGS_SCOPE;
+		sgsVariable obj = Handle( this ).get_variable();
+		sgs_PushIterator( C, shaders.var );
+		while( sgs_IterAdvance( C, sgs_StackItem( C, -1 ) ) )
+		{
+			sgsVariable shader( C );
+			sgs_IterGetData( C, sgs_StackItem( C, -1 ), NULL, &shader.var );
+			sgs_PushVar( C, dt );
+			obj.thiscall( shader, 1, 0 );
+		}
 	}
+	
+	for( size_t i = 0; i < m_subitems.size(); ++i )
+	{
+		m_subitems[ i ]->Draw( dt );
+	}
+}
+
+bool GameUIControl::Hit( int x, int y )
+{
+	return rx0 <= x && x < rx1 && ry0 <= y && y < ry1;
+}
+
+float GameUIControl::IX( float x )
+{
+	x = safe_fdiv( x, width ); // to normalized coords
+	return TLERP( rx0, rx1, x ); // interpolate from precalc
+}
+
+float GameUIControl::IY( float y )
+{
+	y = safe_fdiv( y, height ); // to normalized coords
+	return TLERP( ry0, ry1, y ); // interpolate from precalc
 }
 
 int GameUIControl::_getindex( SGS_ARGS_GETINDEXFUNC )
@@ -87,100 +150,295 @@ int GameUIControl::_setindex( SGS_ARGS_SETINDEXFUNC )
 	return SGS_SUCCESS;
 }
 
-
-
-GameUIScreen* GameUIScreen::Create( SGS_CTX )
-{
-	sgsVariable obj( C );
-	GameUIScreen* SCN = SGS_CREATECLASS( C, &obj.var, GameUIScreen, () );
-	return SCN;
-}
-
-void GameUIScreen::Acquire()
-{
-	sgs_ObjAcquire( C, m_sgsObject );
-}
-
-void GameUIScreen::Release()
-{
-	sgs_ObjRelease( C, m_sgsObject );
-}
-
-void GameUIScreen::OnEvent( const Event& e )
-{
-}
-
-void GameUIScreen::Tick( float dt )
-{
-}
-
-void GameUIScreen::Draw()
-{
-}
-
-float GameUIScreen::IX( float x )
-{
-	x = safe_fdiv( x, width ); // to normalized coords
-	return TLERP( rx0, rx1, x ); // interpolate from precalc
-}
-
-float GameUIScreen::IY( float y )
-{
-	y = safe_fdiv( y, height ); // to normalized coords
-	return TLERP( ry0, ry1, y ); // interpolate from precalc
-}
-
-int GameUIScreen::_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGRX_CAST( GameUIScreen*, SCN, obj->data );
-	SGSBOOL res = sgs_PushIndex( C, SCN->metadata.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) );
-	if( res )
-		return res; // found
-	return _sgs_getindex( C, obj );
-}
-
-int GameUIScreen::_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	SGRX_CAST( GameUIScreen*, SCN, obj->data );
-	if( _sgs_setindex( C, obj ) != SGS_SUCCESS )
-	{
-		sgs_SetIndex( C, SCN->metadata.var, sgs_StackItem( C, 0 ),
-			sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) );
-	}
-	return SGS_SUCCESS;
-}
-
-GameUIScreen::Handle GameUIScreen::CreateScreen( int mode, float width, float height,
+GameUIControl::Handle GameUIControl::CreateScreen( int mode, float width, float height,
 		float xalign, float yalign, float x, float y )
 {
-	GameUIScreen* SCN = Create( C );
-	SCN->mode = mode;
-	SCN->width = width;
-	SCN->height = height;
-	SCN->xalign = xalign;
-	SCN->yalign = yalign;
-	SCN->x = x;
-	SCN->y = y;
-	SCN->parent = Handle( this );
+	GameUIControl* CTL = Create( C );
+	CTL->mode = mode;
+	CTL->width = width;
+	CTL->height = height;
+	CTL->xalign = xalign;
+	CTL->yalign = yalign;
+	CTL->x = x;
+	CTL->y = y;
+	CTL->parent = Handle( this );
+	CTL->m_system = m_system;
+	m_subitems.push_back( CTL );
 	
-	Handle out( SCN );
-	SCN->Release();
+	Handle out( CTL );
+	sgs_ObjRelease( C, CTL->m_sgsObject );
 	return out;
 }
 
-GameUIControl::Handle GameUIScreen::CreateControl(
+GameUIControl::Handle GameUIControl::CreateControl(
 		float x, float y, float width, float height )
 {
 	GameUIControl* CTL = GameUIControl::Create( C );
+	CTL->mode = GUI_ScrMode_Abs;
 	CTL->x = x;
 	CTL->y = y;
 	CTL->width = width;
 	CTL->height = height;
 	CTL->parent = Handle( this );
+	CTL->m_system = m_system;
+	m_subitems.push_back( CTL );
 	
 	GameUIControl::Handle out( CTL );
 	sgs_ObjRelease( C, CTL->m_sgsObject );
 	return out;
+}
+
+
+GameUISystem::GameUISystem() :
+	m_rootCtrl(NULL), m_hoverCtrl(NULL), m_kbdFocusCtrl(NULL),
+	m_mouseX(0), m_mouseY(0)
+{
+	m_rootCtrl = GameUIControl::Create( m_scriptCtx.C );
+	m_rootCtrl->m_system = this;
+	m_clickCtrl[0] = NULL;
+	m_clickCtrl[1] = NULL;
+}
+
+GameUISystem::~GameUISystem()
+{
+	sgs_ObjRelease( m_scriptCtx.C, m_rootCtrl->m_sgsObject );
+	m_rootCtrl = NULL;
+}
+
+void GameUISystem::Load( const StringView& sv )
+{
+	m_scriptCtx.ExecFile( sv );
+}
+
+void GameUISystem::EngineEvent( const Event& eev )
+{
+	if( eev.type == SDL_MOUSEMOTION )
+	{
+		m_mouseX = eev.motion.x;
+		m_mouseY = eev.motion.y;
+		if( m_hoverCtrl )
+		{
+			GameUIEvent ev = { GUI_Event_MouseMove, m_hoverCtrl->GetHandle() };
+			ev.mouse.x = m_mouseX;
+			ev.mouse.y = m_mouseY;
+			m_hoverCtrl->OnEvent( ev );
+		}
+		_HandleMouseMove( true );
+	}
+	else if( eev.type == SDL_MOUSEWHEEL )
+	{
+		if( m_hoverCtrl )
+		{
+			GameUIEvent ev = { GUI_Event_MouseWheel, m_hoverCtrl->GetHandle() };
+			ev.mouse.x = eev.wheel.x;
+			ev.mouse.y = eev.wheel.y;
+			m_hoverCtrl->BubblingEvent( ev );
+		}
+	}
+	else if( eev.type == SDL_MOUSEBUTTONUP || eev.type == SDL_MOUSEBUTTONDOWN )
+	{
+		int btn = eev.button.button;
+		if( btn == SGRX_MB_LEFT ) btn = GUI_MB_Left;
+		else if( btn == SGRX_MB_RIGHT ) btn = GUI_MB_Right;
+		else
+			btn = -1;
+		if( btn >= 0 )
+		{
+			bool down = eev.type == SDL_MOUSEBUTTONDOWN;
+			GameUIEvent ev = { down ? GUI_Event_BtnDown : GUI_Event_BtnUp };
+			ev.mouse.x = m_mouseX;
+			ev.mouse.y = m_mouseY;
+			ev.mouse.button = btn;
+			
+			if( !down )
+			{
+				if( m_clickCtrl[ btn ] )
+				{
+					m_clickCtrl[ btn ]->OnEvent( ev );
+					m_clickCtrl[ btn ] = NULL;
+				}
+				_HandleMouseMove( true );
+			}
+			else if( m_hoverCtrl )
+			{
+				m_clickCtrl[ btn ] = m_hoverCtrl;
+				m_hoverCtrl->OnEvent( ev );
+			}
+		}
+	}
+	else if( eev.type == SDL_KEYDOWN || eev.type == SDL_KEYUP )
+	{
+		if( !m_kbdFocusCtrl )
+			return;
+		
+		bool down = eev.type == SDL_KEYDOWN;
+		int engkey = eev.key.keysym.sym;
+		int engmod = eev.key.keysym.mod;
+		
+		GameUIEvent ev =
+		{
+			down ? GUI_Event_KeyDown : GUI_Event_KeyUp,
+			m_kbdFocusCtrl->GetHandle()
+		};
+		ev.key.key = GUI_Key_Unknown;
+		ev.key.engkey = engkey;
+		ev.key.engmod = engmod;
+		ev.key.repeat = !!eev.key.repeat;
+		
+		if(0);
+		else if( engkey == SDLK_RETURN ) ev.key.key = GUI_Key_Enter;
+		else if( engkey == SDLK_KP_ENTER ) ev.key.key = GUI_Key_Enter;
+		else if( engkey == SDLK_ESCAPE ) ev.key.key = GUI_Key_Escape;
+		else if( engkey == SDLK_BACKSPACE ) ev.key.key = GUI_Key_DelLeft;
+		else if( engkey == SDLK_DELETE ) ev.key.key = GUI_Key_DelRight;
+		else if( engkey == SDLK_LEFT ) ev.key.key = GUI_Key_Left;
+		else if( engkey == SDLK_RIGHT ) ev.key.key = GUI_Key_Right;
+		else if( engkey == SDLK_a && engmod & KMOD_CTRL ){ ev.key.key = GUI_Key_SelectAll; }
+		else if( engkey == SDLK_x && engmod & KMOD_CTRL ){ ev.key.key = GUI_Key_Cut; }
+		else if( engkey == SDLK_c && engmod & KMOD_CTRL ){ ev.key.key = GUI_Key_Copy; }
+		else if( engkey == SDLK_v && engmod & KMOD_CTRL ){ ev.key.key = GUI_Key_Paste; }
+		
+		if( engmod & KMOD_SHIFT )
+			ev.key.key |= GUI_KeyMod_Shift;
+		
+		m_kbdFocusCtrl->OnEvent( ev );
+	}
+	else if( eev.type == SDL_TEXTINPUT )
+	{
+		if( !m_kbdFocusCtrl )
+			return;
+		
+		GameUIEvent ev = { GUI_Event_TextInput, m_kbdFocusCtrl->GetHandle() };
+		sgrx_sncopy( ev.text.text, 8, eev.text.text );
+		ev.text.text[7] = 0;
+		
+		m_kbdFocusCtrl->OnEvent( ev );
+	}
+}
+
+void GameUISystem::_HandleMouseMove( bool optional )
+{
+	if( optional )
+	{
+		for( int i = 0; i < 3; ++i )
+			if( m_clickCtrl[ i ] )
+				return;
+	}
+	
+	GameUIControl* prevhover = m_hoverCtrl;
+	m_hoverCtrl = _GetItemAtPosition( m_mouseX, m_mouseY );
+	
+	if( m_hoverCtrl != prevhover )
+	{
+		if( prevhover || m_hoverCtrl )
+		{
+			// try to find common parent
+			GameUIControl* phi = prevhover, *pphi = NULL;
+			size_t i;
+			while( phi )
+			{
+				for( i = 0; i < m_hoverTrail.size(); ++i )
+					if( m_hoverTrail[ i ] == phi )
+						break;
+				if( i < m_hoverTrail.size() )
+					break;
+				pphi = phi;
+				phi = phi->parent;
+			}
+			
+		//	printf("ht0=%p htsz=%d pphi=%p phi=%p prev=%p curr=%p\n", m_hoverTrail.size()>=2 ? m_hoverTrail[1] : NULL, (int) m_hoverTrail.size(), pphi, phi, prevhover, m_hover );
+			if( !phi )
+			{
+				// no common parent, run bubbling event on previous hover, bubbling event on current hover, update all styles
+				if( pphi )
+				{
+					GameUIEvent e = { GUI_Event_MouseLeave, pphi->GetHandle() };
+					e.mouse.x = m_mouseX;
+					e.mouse.y = m_mouseY;
+					pphi->BubblingEvent( e );
+				}
+				if( m_hoverCtrl )
+				{
+					GameUIEvent e = { GUI_Event_MouseEnter, m_hoverCtrl->GetHandle() };
+					e.mouse.x = m_mouseX;
+					e.mouse.y = m_mouseY;
+					m_hoverCtrl->BubblingEvent( e );
+				}
+			}
+			else
+			{
+				GameUIEvent e;
+				// found common parent, run events through that (parent gets none), update styles up from parent (not parent itself)
+				GameUIControl *cc;
+				
+				e.type = GUI_Event_MouseLeave;
+				e.target = prevhover->GetHandle();
+				e.mouse.x = m_mouseX;
+				e.mouse.y = m_mouseY;
+				
+				cc = prevhover;
+				while( cc && cc != phi )
+				{
+					if( !cc->OnEvent( e ) )
+						break;
+					cc = cc->parent;
+				}
+				
+				e.type = GUI_Event_MouseEnter;
+				e.target = m_hoverCtrl->GetHandle();
+				e.mouse.x = m_mouseX;
+				e.mouse.y = m_mouseY;
+				
+				cc = m_hoverCtrl;
+				while( cc && cc != phi )
+				{
+					if( !cc->OnEvent( e ) )
+						break;
+					cc = cc->parent;
+				}
+			}
+		}
+	}
+}
+
+GameUIControl* GameUISystem::_GetItemAtPosition( int x, int y )
+{
+	m_hoverTrail.clear();
+	m_hoverTrail.push_back( m_rootCtrl );
+	GameUIControl* item = m_rootCtrl, *atpos = NULL;
+	while( item && item != atpos )
+	{
+		atpos = item;
+		for( size_t i = item->m_subitems.size(); i > 0; )
+		{
+			--i;
+			if( item->m_subitems[ i ]->Hit( x, y ) )
+			{
+				item = item->m_subitems[ i ];
+				m_hoverTrail.push_back( item );
+				break;
+			}
+		}
+	}
+	return atpos;
+}
+
+void GameUISystem::Draw( float dt )
+{
+	m_rootCtrl->Draw( dt );
+}
+
+void GameUISystem::_OnRemove( GameUIControl* ctrl )
+{
+	m_hoverTrail.remove_all( ctrl );
+	if( m_hoverCtrl == ctrl )
+		m_hoverCtrl = NULL;
+	if( m_kbdFocusCtrl == ctrl )
+		m_kbdFocusCtrl = NULL;
+	if( m_clickCtrl[0] == ctrl )
+		m_clickCtrl[0] = NULL;
+	if( m_clickCtrl[1] == ctrl )
+		m_clickCtrl[1] = NULL;
 }
 
 

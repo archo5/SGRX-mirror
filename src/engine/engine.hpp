@@ -29,6 +29,7 @@ ENGINE_EXPORT uint32_t GetTimeMsec();
 ENGINE_EXPORT void Thread_Sleep( uint32_t msec );
 ENGINE_EXPORT void Sys_FatalError( const StringView& err );
 
+ENGINE_EXPORT void Window_SetTitle( const StringView& text );
 ENGINE_EXPORT bool Window_HasClipboardText();
 ENGINE_EXPORT bool Window_GetClipboardText( String& out );
 ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );

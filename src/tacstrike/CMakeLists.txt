@@ -16,8 +16,9 @@ set_target_properties( coregamelib PROPERTIES
 )
 
 # Test Suite
-add_library( testsuite SHARED testsuite )
-target_link_libraries( testsuite sgrx-core )
+add_library( testsuite SHARED testsuite.cpp
+	../common/gamegui.hpp ../common/gamegui.cpp ../common/cppbc_gamegui.cpp )
+target_link_libraries( testsuite sgrx-core sgrx-script )
 set_target_properties( testsuite PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DTESTSUITE"

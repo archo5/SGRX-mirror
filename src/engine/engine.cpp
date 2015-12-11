@@ -156,6 +156,11 @@ SoundEventInstanceHandle SGRX_ISoundSystem::CreateEventInstance( const StringVie
 
 
 
+void Window_SetTitle( const StringView& text )
+{
+	SDL_SetWindowTitle( g_Window, StackString<4096>(text) );
+}
+
 bool Window_HasClipboardText()
 {
 	return SDL_HasClipboardText() != 0;
