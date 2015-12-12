@@ -92,6 +92,7 @@ struct Test_GameUI : ITest
 	}
 	void OnEvent( const Event& e )
 	{
+		m_guiSys->EngineEvent( e );
 	}
 	void Do( float dt, float )
 	{

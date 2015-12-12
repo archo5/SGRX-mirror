@@ -6,14 +6,30 @@
 
 int GUI_DefaultEventCallback( SGS_CTX )
 {
-	return 0;
+	sgs_Method( C );
+	GameUIControl* ctrl = sgs_GetVarObj<GameUIControl>()( C, 0 );
+	if( !ctrl )
+		return sgs_Msg( C, SGS_WARNING, "this != GameUIControl" );
+	
+	GameUIEvent ev = sgs_GetVar<GameUIEvent>()( C, 1 );
+	switch( ev.type )
+	{
+	case GUI_Event_MouseEnter:
+		ctrl->hover = true;
+		break;
+	case GUI_Event_MouseLeave:
+		ctrl->hover = false;
+		break;
+	}
+		
+	return 1;
 }
 
 
 GameUIControl::GameUIControl() :
 	mode(GUI_ScrMode_Abs), x(0), y(0), width(0), height(0),
 	xalign(0), yalign(0), rx0(0), ry0(0), rx1(0), ry1(0), z(0),
-	m_system(NULL)
+	hover(false), m_system(NULL)
 {
 }
 
@@ -71,9 +87,9 @@ void GameUIControl::BubblingEvent( const GameUIEvent& e )
 
 static int sort_ui_subitems( const void* A, const void* B )
 {
-	SGRX_CAST( GameUIControl*, uia, A );
-	SGRX_CAST( GameUIControl*, uib, B );
-	return uia->z == uib->z ? 0 : ( uia->z < uib->z ? -1 : 1 );
+	SGRX_CAST( GameUIControl**, uia, A );
+	SGRX_CAST( GameUIControl**, uib, B );
+	return (*uia)->z == (*uib)->z ? 0 : ( (*uia)->z < (*uib)->z ? 1 : -1 );
 }
 
 void GameUIControl::Draw( float dt )
@@ -461,7 +477,7 @@ void GameUISystem::_HandleMouseMove( bool optional )
 {
 	if( optional )
 	{
-		for( int i = 0; i < 3; ++i )
+		for( int i = 0; i < 2; ++i )
 			if( m_clickCtrl[ i ] )
 				return;
 	}

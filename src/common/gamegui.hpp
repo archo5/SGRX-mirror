@@ -60,12 +60,15 @@
 #define GUI_EVENT_ISKEY(x) ((x)==GUI_Event_KeyDown||(x)==GUI_Event_KeyUp)
 
 
+struct GameUIControl;
+
+
 struct GameUIEvent
 {
 	SGS_OBJECT_LITE;
 	
 	SGS_PROPERTY int type;
-	SGS_PROPERTY sgsHandle< struct GameUIControl > target;
+	SGS_PROPERTY sgsHandle< GameUIControl > target;
 	union
 	{
 		struct {
@@ -91,6 +94,34 @@ struct GameUIEvent
 	SGS_PROPERTY_FUNC( READ SOURCE key.engmod VALIDATE IsKeyEvent() ) SGS_ALIAS( int engmod );
 	SGS_PROPERTY_FUNC( READ SOURCE key.repeat VALIDATE IsKeyEvent() ) SGS_ALIAS( bool repeat );
 };
+SGS_DEFAULT_LITE_OBJECT_INTERFACE( GameUIEvent );
+
+
+struct GameUISystem
+{
+	GameUISystem();
+	~GameUISystem();
+	void Load( const StringView& sv );
+	void EngineEvent( const Event& eev );
+	void Draw( float dt );
+	
+	void _HandleMouseMove( bool optional );
+	GameUIControl* _GetItemAtPosition( int x, int y );
+	void _OnRemove( GameUIControl* ctrl );
+	
+	void PrecacheTexture( const StringView& texname );
+	
+	GameUIControl* m_rootCtrl;
+	ScriptContext m_scriptCtx;
+	Array< GameUIControl* > m_hoverTrail;
+	GameUIControl* m_hoverCtrl;
+	GameUIControl* m_kbdFocusCtrl;
+	GameUIControl* m_clickCtrl[2];
+	int m_mouseX;
+	int m_mouseY;
+	
+	Array< TextureHandle > m_precachedTextures;
+};
 
 
 struct GameUIControl
@@ -115,6 +146,15 @@ struct GameUIControl
 	SGS_PROPERTY_FUNC( READ ) Handle parent;
 	SGS_PROPERTY sgsVariable eventCallback;
 	SGS_PROPERTY_FUNC( READ ) sgsVariable shaders; // array
+	
+	SGS_PROPERTY bool hover;
+	bool _getClicked() const { return this == m_system->m_clickCtrl[0] ||
+		this == m_system->m_clickCtrl[1]; }
+	SGS_PROPERTY_FUNC( READ _getClicked ) SGS_ALIAS( bool clicked );
+	bool _getClickedL() const { return this == m_system->m_clickCtrl[0]; }
+	SGS_PROPERTY_FUNC( READ _getClickedL ) SGS_ALIAS( bool clickedL );
+	bool _getClickedR() const { return this == m_system->m_clickCtrl[1]; }
+	SGS_PROPERTY_FUNC( READ _getClickedR ) SGS_ALIAS( bool clickedR );
 	
 	struct GameUISystem* m_system;
 	Array< GameUIControl* > m_subitems;
@@ -149,33 +189,6 @@ struct GameUIControl
 	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );
 	SGS_METHOD void DFont( StringView name, float size );
 	SGS_METHOD void DText( sgs_Context* ctx, StringView text, float x, float y, int ha, int va );
-};
-
-
-struct GameUISystem
-{
-	GameUISystem();
-	~GameUISystem();
-	void Load( const StringView& sv );
-	void EngineEvent( const Event& eev );
-	void Draw( float dt );
-	
-	void _HandleMouseMove( bool optional );
-	GameUIControl* _GetItemAtPosition( int x, int y );
-	void _OnRemove( GameUIControl* ctrl );
-	
-	void PrecacheTexture( const StringView& texname );
-	
-	GameUIControl* m_rootCtrl;
-	ScriptContext m_scriptCtx;
-	Array< GameUIControl* > m_hoverTrail;
-	GameUIControl* m_hoverCtrl;
-	GameUIControl* m_kbdFocusCtrl;
-	GameUIControl* m_clickCtrl[2];
-	int m_mouseX;
-	int m_mouseY;
-	
-	Array< TextureHandle > m_precachedTextures;
 };
 
 
