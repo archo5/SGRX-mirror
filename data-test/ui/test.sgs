@@ -5,6 +5,7 @@ _G.
 	tex_button_core_n = TEXTURE("ui/button_core.png"),
 	tex_button_core_h = TEXTURE("ui/button_core_h.png"),
 	tex_button_core_c = TEXTURE("ui/button_core_c.png"),
+	tex_button_core_f = TEXTURE("ui/button_core_f.png"),
 };
 
 function ButtonShader( ctrl )
@@ -17,6 +18,11 @@ function ButtonShader( ctrl )
 	ctrl.DText( ctrl.text, ctrl.width / 2,
 		ctrl.height / 2 + ctrl.InvIS( ctrl.clickedL ),
 		HALIGN_CENTER, VALIGN_CENTER );
+	if( ctrl.focused )
+	{
+		ctrl.DTex( tex_button_core_f );
+		ctrl.DButton( 0, 0, ctrl.width, ctrl.height, 4, 4/128 );
+	}
 }
 
 function CreateButton( x, y, w, h, text )
@@ -24,6 +30,7 @@ function CreateButton( x, y, w, h, text )
 	ctrl = this.CreateControl( x, y, w, h );
 	ctrl.shaders.push( ButtonShader );
 	ctrl.text = text;
+	ctrl.focusable = true;
 	return ctrl;
 }
 
@@ -63,6 +70,8 @@ function YesNoQuestion( text )
 	btn_no = scr_bgr!CreateButton( 200-70, 70, 60, 20, "No" );
 	btn_no.AddCallback( "onclick", function() use(answer){ answer = false; } );
 	
+	SetFocusRoot( scr_bgr );
+	
 	function min(a,b){ return if(a<b,a,b); }
 	while( factor < 1 )
 	{
@@ -99,6 +108,13 @@ global scr_button1 = scr_mainmenu!CreateButton( 10, 10, 40, 5, "Click me" );
 scr_button1.AddCallback( "onclick", function()
 {
 	println( "clicked!" );
+	thread YesNoQuestion( "Do you want to do something?" );
+});
+
+global scr_button2 = scr_mainmenu!CreateButton( 10, 20, 40, 5, "Click me 2" );
+scr_button2.AddCallback( "onclick", function()
+{
+	println( "clicked 2!" );
 	thread YesNoQuestion( "Do you want to do something?" );
 });
 

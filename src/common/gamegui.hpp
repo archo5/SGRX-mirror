@@ -108,10 +108,13 @@ struct GameUISystem
 	void _HandleMouseMove( bool optional );
 	GameUIControl* _GetItemAtPosition( int x, int y );
 	void _OnRemove( GameUIControl* ctrl );
+	void MoveFocus( float x, float y );
 	
 	void PrecacheTexture( const StringView& texname );
 	
+	uint32_t m_idGen;
 	GameUIControl* m_rootCtrl;
+	GameUIControl* m_focusRootCtrl;
 	ScriptContext m_scriptCtx;
 	Array< GameUIControl* > m_hoverTrail;
 	GameUIControl* m_hoverCtrl;
@@ -133,6 +136,8 @@ struct GameUIControl
 	
 	SGS_OBJECT;
 	
+	SGS_PROPERTY uint32_t id;
+	SGS_PROPERTY bool enabled;
 	SGS_PROPERTY int mode;
 	SGS_PROPERTY float x;
 	SGS_PROPERTY float y;
@@ -157,6 +162,14 @@ struct GameUIControl
 	SGS_PROPERTY_FUNC( READ ) sgsVariable shaders; // array
 	
 	SGS_PROPERTY bool hover;
+	SGS_PROPERTY bool focusable;
+	void _FindBestFocus( struct FocusSearch& fs );
+	SGS_METHOD_NAMED( IsIn ) bool _isIn( GameUIControl* prt );
+	GameUIControl* _getFirstFocusable();
+	bool _getVisible() const;
+	SGS_PROPERTY_FUNC( READ _getVisible ) SGS_ALIAS( bool visible );
+	bool _getFocused() const { return this == m_system->m_kbdFocusCtrl; }
+	SGS_PROPERTY_FUNC( READ _getFocused ) SGS_ALIAS( bool focused );
 	bool _getClicked() const { return this == m_system->m_clickCtrl[0] ||
 		this == m_system->m_clickCtrl[1]; }
 	SGS_PROPERTY_FUNC( READ _getClicked ) SGS_ALIAS( bool clicked );
@@ -172,7 +185,7 @@ struct GameUIControl
 	~GameUIControl();
 	static GameUIControl* Create( SGS_CTX );
 	int OnEvent( const GameUIEvent& e );
-	void BubblingEvent( const GameUIEvent& e );
+	void BubblingEvent( const GameUIEvent& e, bool breakable = false );
 	void Draw( float dt );
 	
 	SGS_METHOD void AddCallback( sgsString key, sgsVariable func );

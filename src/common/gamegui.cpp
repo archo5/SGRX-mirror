@@ -4,6 +4,61 @@
 
 
 
+struct FocusSearch
+{
+	FocusSearch( GameUIControl* c, Vec2 d ) : bestdist(FLT_MAX), bestctrl(NULL),
+		exclctrl(c), dir(d), rx0(c->rx0), ry0(c->ry0), rx1(c->rx1), ry1(c->ry1)
+	{
+		pos = V2( ( rx0 + rx1 ) * 0.5f, ( ry0 + ry1 ) * 0.5f );
+		mymaxproj = GetMaxProj( c, d );
+	}
+	float GetMinProj( GameUIControl* c, Vec2 d )
+	{
+		return TMIN(
+			TMIN(
+				Vec2Dot( V2(c->rx0,c->ry0), d ),
+				Vec2Dot( V2(c->rx1,c->ry0), d )
+			),
+			TMIN(
+				Vec2Dot( V2(c->rx0,c->ry1), d ),
+				Vec2Dot( V2(c->rx1,c->ry1), d )
+			)
+		);
+	}
+	float GetMaxProj( GameUIControl* c, Vec2 d ){ return -GetMinProj( c, -d ); }
+	float GetDistance( GameUIControl* c, Vec2 p )
+	{
+		Vec2 pos = V2( c->rx0 + c->rx1, c->ry0 + c->ry1 ) * 0.5f;
+		return ( pos - p ).Length();
+	}
+	float Measure( GameUIControl* c )
+	{
+		float dp = GetMinProj( c, dir ) - mymaxproj;
+		if( dp < 0 )
+			return FLT_MAX;
+		return dp + GetDistance( c, pos );
+	}
+	void CheckFit( GameUIControl* c )
+	{
+		if( exclctrl == c )
+			return;
+		
+		float m = Measure( c );
+		if( m < bestdist )
+		{
+			bestdist = m;
+			bestctrl = c;
+		}
+	}
+	float bestdist;
+	GameUIControl* bestctrl;
+	GameUIControl* exclctrl;
+	Vec2 dir, pos;
+	float mymaxproj;
+	float rx0, ry0, rx1, ry1;
+};
+
+
 int GUI_DefaultEventCallback( SGS_CTX )
 {
 	sgs_Method( C );
@@ -22,6 +77,16 @@ int GUI_DefaultEventCallback( SGS_CTX )
 		ctrl->hover = false;
 		ctrl->InvokeCallbacks( ctrl->m_system->m_str_onmouseleave );
 		break;
+	case GUI_Event_KeyDown:
+		if( ev.key.key == GUI_Key_Left )  ctrl->m_system->MoveFocus( -1, 0 );
+		if( ev.key.key == GUI_Key_Right ) ctrl->m_system->MoveFocus( 1, 0 );
+		if( ev.key.key == GUI_Key_Up )    ctrl->m_system->MoveFocus( 0, -1 );
+		if( ev.key.key == GUI_Key_Down )  ctrl->m_system->MoveFocus( 0, 1 );
+		if( ev.key.key == GUI_Key_Enter || ev.key.key == GUI_Key_Activate )
+		{
+			ctrl->InvokeCallbacks( ctrl->m_system->m_str_onclick );
+		}
+		break;
 	}
 		
 	return 1;
@@ -29,10 +94,10 @@ int GUI_DefaultEventCallback( SGS_CTX )
 
 
 GameUIControl::GameUIControl() :
-	mode(GUI_ScrMode_Abs), x(0), y(0), width(0), height(0),
+	enabled(true), mode(GUI_ScrMode_Abs), x(0), y(0), width(0), height(0),
 	xalign(0), yalign(0), xscale(1), yscale(1),
 	rx0(0), ry0(0), rx1(0), ry1(0), z(0),
-	hover(false), m_system(NULL)
+	hover(false), focusable(false), m_system(NULL)
 {
 }
 
@@ -64,6 +129,52 @@ GameUIControl* GameUIControl::Create( SGS_CTX )
 	return CTL;
 }
 
+void GameUIControl::_FindBestFocus( FocusSearch& fs )
+{
+	fs.CheckFit( this );
+	for( size_t i = 0; i < m_subitems.size(); ++i )
+	{
+		m_subitems[ i ]->_FindBestFocus( fs );
+	}
+}
+
+bool GameUIControl::_isIn( GameUIControl* prt )
+{
+	const GameUIControl* ctrl = this;
+	while( ctrl )
+	{
+		if( ctrl == prt )
+			return true;
+		ctrl = ctrl->parent;
+	}
+	return false;
+}
+
+GameUIControl* GameUIControl::_getFirstFocusable()
+{
+	if( focusable )
+		return this;
+	for( size_t i = 0; i < m_subitems.size(); ++i )
+	{
+		GameUIControl* ctrl = m_subitems[ i ]->_getFirstFocusable();
+		if( ctrl )
+			return ctrl;
+	}
+	return NULL;
+}
+
+bool GameUIControl::_getVisible() const
+{
+	const GameUIControl* ctrl = this;
+	while( ctrl )
+	{
+		if( !enabled )
+			return false;
+		ctrl = ctrl->parent;
+	}
+	return true;
+}
+
 int GameUIControl::OnEvent( const GameUIEvent& e )
 {
 	// call the event callback
@@ -77,25 +188,33 @@ int GameUIControl::OnEvent( const GameUIEvent& e )
 	return 0;
 }
 
-void GameUIControl::BubblingEvent( const GameUIEvent& e )
+void GameUIControl::BubblingEvent( const GameUIEvent& e, bool breakable )
 {
 	GameUIControl* cc = this;
 	while( cc )
 	{
-		cc->OnEvent( e );
+		if( cc->OnEvent( e ) == 0 && breakable )
+			break;
 		cc = cc->parent;
 	}
 }
 
 static int sort_ui_subitems( const void* A, const void* B )
 {
-	SGRX_CAST( GameUIControl**, uia, A );
-	SGRX_CAST( GameUIControl**, uib, B );
-	return (*uia)->z == (*uib)->z ? 0 : ( (*uia)->z < (*uib)->z ? -1 : 1 );
+	GameUIControl* uia = *(GameUIControl**) A;
+	GameUIControl* uib = *(GameUIControl**) B;
+	if( uia->z != uib->z )
+		return uia->z < uib->z ? -1 : 1;
+	if( uia->id != uib->id )
+		return uia->id < uib->id ? -1 : 1;
+	return 0;
 }
 
 void GameUIControl::Draw( float dt )
 {
+	if( enabled == false )
+		return;
+	
 	qsort( m_subitems.data(), m_subitems.size(), sizeof(GameUIControl*), sort_ui_subitems );
 	
 	{
@@ -182,8 +301,9 @@ void GameUIControl::AddCallback( sgsString key, sgsVariable func )
 	if( sgs_IsCallableP( &event.var ) )
 	{
 		sgs_PushVar( C, event );
-		event = sgsVariable();
-		sgs_ArrayPush( C, event.var, 1 );
+		event = sgsVariable( C );
+		sgs_CreateArray( C, &event.var, 1 );
+		Handle( this ).get_variable().setindex( key, event );
 	}
 	if( sgs_IsArray( event.var ) )
 	{
@@ -223,7 +343,7 @@ void GameUIControl::InvokeCallbacks( sgsString key )
 		int sz = sgs_ArraySize( event.var );
 		for( int i = 0; i < sz; ++i )
 		{
-			event.getindex( sgsVariable().set( (sgs_Int) sz ) ).call( C );
+			event.getindex( sgsVariable( C ).set( (sgs_Int) i ) ).call( C );
 		}
 	}
 	else if( sgs_IsCallableP( &event.var ) )
@@ -238,7 +358,7 @@ void GameUIControl::InvokeCallbacks( sgsString key )
 
 bool GameUIControl::Hit( int x, int y )
 {
-	return rx0 <= x && x < rx1 && ry0 <= y && y < ry1;
+	return enabled && rx0 <= x && x < rx1 && ry0 <= y && y < ry1;
 }
 
 float GameUIControl::IX( float x )
@@ -308,6 +428,7 @@ GameUIControl::Handle GameUIControl::CreateScreen(
 	CTL->y = y;
 	CTL->parent = Handle( this );
 	CTL->m_system = m_system;
+	CTL->id = ++m_system->m_idGen;
 	m_subitems.push_back( CTL );
 	
 	Handle out( CTL );
@@ -326,6 +447,7 @@ GameUIControl::Handle GameUIControl::CreateControl(
 	CTL->height = height;
 	CTL->parent = Handle( this );
 	CTL->m_system = m_system;
+	CTL->id = ++m_system->m_idGen;
 	m_subitems.push_back( CTL );
 	
 	GameUIControl::Handle out( CTL );
@@ -392,6 +514,14 @@ void GameUIControl::DText( StringView text, float x, float y, int ha, int va )
 
 
 
+static GameUISystem* GetSystem( SGS_CTX )
+{
+	sgs_PushIndex( C, sgs_Registry( C, SGS_REG_ROOT ), sgs_MakeNull(), 0 );
+	SGRX_CAST( GameUISystem*, sys, sgs_GetPtr( C, -1 ) );
+	sgs_Pop( C, 1 );
+	return sys;
+}
+
 static int TEXTURE( SGS_CTX )
 {
 	char* bfr;
@@ -400,13 +530,17 @@ static int TEXTURE( SGS_CTX )
 	if( !sgs_LoadArgs( C, "m", &bfr, &size ) )
 		return 0;
 	
-	sgs_PushIndex( C, sgs_Registry( C, SGS_REG_ROOT ), sgs_MakeNull(), 0 );
-	SGRX_CAST( GameUISystem*, sys, sgs_GetPtr( C, -1 ) );
-	sgs_Pop( C, 1 );
-	
+	GameUISystem* sys = GetSystem( C );
 	sys->PrecacheTexture( StringView( bfr, size ) );
 	sgs_SetStackSize( C, 1 );
 	return 1; // return the string itself
+}
+
+static int SetFocusRoot( SGS_CTX )
+{
+	SGSFN( "SetFocusRoot" );
+	GetSystem( C )->m_focusRootCtrl = sgs_GetVarObj<GameUIControl>()( C, 0 );
+	return 0;
 }
 
 sgs_RegIntConst sgs_iconsts[] =
@@ -426,15 +560,18 @@ sgs_RegIntConst sgs_iconsts[] =
 sgs_RegFuncConst sgs_funcs[] =
 {
 	{ "TEXTURE", TEXTURE },
+	{ "SetFocusRoot", SetFocusRoot },
 };
 
 GameUISystem::GameUISystem() :
-	m_rootCtrl(NULL), m_hoverCtrl(NULL), m_kbdFocusCtrl(NULL),
+	m_idGen(0), m_rootCtrl(NULL), m_hoverCtrl(NULL), m_kbdFocusCtrl(NULL),
 	m_mouseX(0), m_mouseY(0)
 {
 	SGS_CTX = m_scriptCtx.C;
 	m_rootCtrl = GameUIControl::Create( C );
 	m_rootCtrl->m_system = this;
+	m_rootCtrl->id = ++m_idGen;
+	m_focusRootCtrl = m_rootCtrl;
 	m_clickCtrl[0] = NULL;
 	m_clickCtrl[1] = NULL;
 	
@@ -508,7 +645,10 @@ void GameUISystem::EngineEvent( const Event& eev )
 				if( m_clickCtrl[ btn ] )
 				{
 					m_clickCtrl[ btn ]->OnEvent( ev );
-					m_clickCtrl[ btn ]->InvokeCallbacks( m_str_onclick );
+					if( m_clickCtrl[ btn ]->Hit( ev.mouse.x, ev.mouse.y ) )
+					{
+						m_clickCtrl[ btn ]->InvokeCallbacks( m_str_onclick );
+					}
 					m_clickCtrl[ btn ] = NULL;
 				}
 				_HandleMouseMove( true );
@@ -542,11 +682,14 @@ void GameUISystem::EngineEvent( const Event& eev )
 		if(0);
 		else if( engkey == SDLK_RETURN ) ev.key.key = GUI_Key_Enter;
 		else if( engkey == SDLK_KP_ENTER ) ev.key.key = GUI_Key_Enter;
+		else if( engkey == SDLK_SPACE ) ev.key.key = GUI_Key_Activate;
 		else if( engkey == SDLK_ESCAPE ) ev.key.key = GUI_Key_Escape;
 		else if( engkey == SDLK_BACKSPACE ) ev.key.key = GUI_Key_DelLeft;
 		else if( engkey == SDLK_DELETE ) ev.key.key = GUI_Key_DelRight;
 		else if( engkey == SDLK_LEFT ) ev.key.key = GUI_Key_Left;
 		else if( engkey == SDLK_RIGHT ) ev.key.key = GUI_Key_Right;
+		else if( engkey == SDLK_UP ) ev.key.key = GUI_Key_Up;
+		else if( engkey == SDLK_DOWN ) ev.key.key = GUI_Key_Down;
 		else if( engkey == SDLK_a && engmod & KMOD_CTRL ){ ev.key.key = GUI_Key_SelectAll; }
 		else if( engkey == SDLK_x && engmod & KMOD_CTRL ){ ev.key.key = GUI_Key_Cut; }
 		else if( engkey == SDLK_c && engmod & KMOD_CTRL ){ ev.key.key = GUI_Key_Copy; }
@@ -555,7 +698,7 @@ void GameUISystem::EngineEvent( const Event& eev )
 		if( engmod & KMOD_SHIFT )
 			ev.key.key |= GUI_KeyMod_Shift;
 		
-		m_kbdFocusCtrl->OnEvent( ev );
+		m_kbdFocusCtrl->BubblingEvent( ev, true );
 	}
 	else if( eev.type == SDL_TEXTINPUT )
 	{
@@ -677,6 +820,18 @@ GameUIControl* GameUISystem::_GetItemAtPosition( int x, int y )
 
 void GameUISystem::Draw( float dt )
 {
+	// check keyboard focus control
+	if( m_kbdFocusCtrl &&
+		( m_kbdFocusCtrl->_getVisible() == false ||
+		m_kbdFocusCtrl->_isIn( m_focusRootCtrl ) == false ) )
+	{
+		m_kbdFocusCtrl = NULL;
+	}
+	if( m_kbdFocusCtrl == NULL )
+	{
+		m_kbdFocusCtrl = m_focusRootCtrl->_getFirstFocusable();
+	}
+	
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
 	m_rootCtrl->x = 0;
@@ -693,6 +848,8 @@ void GameUISystem::Draw( float dt )
 void GameUISystem::_OnRemove( GameUIControl* ctrl )
 {
 	m_hoverTrail.remove_all( ctrl );
+	if( m_focusRootCtrl == ctrl )
+		m_focusRootCtrl = m_rootCtrl;
 	if( m_hoverCtrl == ctrl )
 		m_hoverCtrl = NULL;
 	if( m_kbdFocusCtrl == ctrl )
@@ -701,6 +858,14 @@ void GameUISystem::_OnRemove( GameUIControl* ctrl )
 		m_clickCtrl[0] = NULL;
 	if( m_clickCtrl[1] == ctrl )
 		m_clickCtrl[1] = NULL;
+}
+
+void GameUISystem::MoveFocus( float x, float y )
+{
+	FocusSearch fs( m_kbdFocusCtrl, V2( x, y ) );
+	( m_focusRootCtrl ? m_focusRootCtrl : m_rootCtrl )->_FindBestFocus( fs );
+	if( fs.bestctrl )
+		m_kbdFocusCtrl = fs.bestctrl;
 }
 
 void GameUISystem::PrecacheTexture( const StringView& texname )
