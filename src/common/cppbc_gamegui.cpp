@@ -103,6 +103,13 @@ static int _sgs_method__GameUIControl__InvokeCallbacks( SGS_CTX )
 	data->InvokeCallbacks( sgs_GetVar<sgsString>()(C,0) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__Hit( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, Hit ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->Hit( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1) )); return 1;
+}
+
 static int _sgs_method__GameUIControl__IX( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, IX ) ) return 0;
@@ -265,6 +272,7 @@ int GameUIControl::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "AddCallback" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__AddCallback ); return SGS_SUCCESS; }
 		SGS_CASE( "RemoveCallback" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__RemoveCallback ); return SGS_SUCCESS; }
 		SGS_CASE( "InvokeCallbacks" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__InvokeCallbacks ); return SGS_SUCCESS; }
+		SGS_CASE( "Hit" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__Hit ); return SGS_SUCCESS; }
 		SGS_CASE( "IX" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__IX ); return SGS_SUCCESS; }
 		SGS_CASE( "IY" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__IY ); return SGS_SUCCESS; }
 		SGS_CASE( "IS" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__IS ); return SGS_SUCCESS; }

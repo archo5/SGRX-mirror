@@ -69,6 +69,12 @@ int GUI_DefaultEventCallback( SGS_CTX )
 	GameUIEvent ev = sgs_GetVar<GameUIEvent>()( C, 1 );
 	switch( ev.type )
 	{
+	case GUI_Event_BtnUp:
+		if( ctrl->Hit( ev.mouse.x, ev.mouse.y ) )
+		{
+			ctrl->InvokeCallbacks( ctrl->m_system->m_str_onclick );
+		}
+		break;
 	case GUI_Event_MouseEnter:
 		ctrl->hover = true;
 		ctrl->InvokeCallbacks( ctrl->m_system->m_str_onmouseenter );
@@ -555,6 +561,48 @@ sgs_RegIntConst sgs_iconsts[] =
 	{ "GUI_ScrMode_Abs", GUI_ScrMode_Abs },
 	{ "GUI_ScrMode_Fit", GUI_ScrMode_Fit },
 	{ "GUI_ScrMode_Crop", GUI_ScrMode_Crop },
+	
+	{ "GUI_Event_MouseMove", GUI_Event_MouseMove },
+	{ "GUI_Event_MouseEnter", GUI_Event_MouseEnter },
+	{ "GUI_Event_MouseLeave", GUI_Event_MouseLeave },
+	{ "GUI_Event_BtnDown", GUI_Event_BtnDown },
+	{ "GUI_Event_BtnUp", GUI_Event_BtnUp },
+	{ "GUI_Event_BtnClick", GUI_Event_BtnClick },
+	{ "GUI_Event_MouseWheel", GUI_Event_MouseWheel },
+	{ "GUI_Event_PropEdit", GUI_Event_PropEdit },
+	{ "GUI_Event_PropChange", GUI_Event_PropChange },
+	{ "GUI_Event_SetFocus", GUI_Event_SetFocus },
+	{ "GUI_Event_LoseFocus", GUI_Event_LoseFocus },
+	{ "GUI_Event_KeyDown", GUI_Event_KeyDown },
+	{ "GUI_Event_KeyUp", GUI_Event_KeyUp },
+	{ "GUI_Event_TextInput", GUI_Event_TextInput },
+	{ "GUI_Event_User", GUI_Event_User },
+	
+	{ "GUI_Key_Unknown", GUI_Key_Unknown },
+	{ "GUI_Key_Left", GUI_Key_Left },
+	{ "GUI_Key_Right", GUI_Key_Right },
+	{ "GUI_Key_Up", GUI_Key_Up },
+	{ "GUI_Key_Down", GUI_Key_Down },
+	{ "GUI_Key_DelLeft", GUI_Key_DelLeft },
+	{ "GUI_Key_DelRight", GUI_Key_DelRight },
+	{ "GUI_Key_Tab", GUI_Key_Tab },
+	{ "GUI_Key_Cut", GUI_Key_Cut },
+	{ "GUI_Key_Copy", GUI_Key_Copy },
+	{ "GUI_Key_Paste", GUI_Key_Paste },
+	{ "GUI_Key_Undo", GUI_Key_Undo },
+	{ "GUI_Key_Redo", GUI_Key_Redo },
+	{ "GUI_Key_SelectAll", GUI_Key_SelectAll },
+	{ "GUI_Key_PageUp", GUI_Key_PageUp },
+	{ "GUI_Key_PageDown", GUI_Key_PageDown },
+	{ "GUI_Key_Enter", GUI_Key_Enter },
+	{ "GUI_Key_Activate", GUI_Key_Activate },
+	{ "GUI_Key_Escape", GUI_Key_Escape },
+	
+	{ "GUI_MB_Left", GUI_MB_Left },
+	{ "GUI_MB_Right", GUI_MB_Right },
+	
+	{ "GUI_KeyMod_Filter", GUI_KeyMod_Filter },
+	{ "GUI_KeyMod_Shift", GUI_KeyMod_Shift },
 };
 
 sgs_RegFuncConst sgs_funcs[] =
@@ -645,10 +693,6 @@ void GameUISystem::EngineEvent( const Event& eev )
 				if( m_clickCtrl[ btn ] )
 				{
 					m_clickCtrl[ btn ]->OnEvent( ev );
-					if( m_clickCtrl[ btn ]->Hit( ev.mouse.x, ev.mouse.y ) )
-					{
-						m_clickCtrl[ btn ]->InvokeCallbacks( m_str_onclick );
-					}
 					m_clickCtrl[ btn ] = NULL;
 				}
 				_HandleMouseMove( true );
@@ -656,6 +700,7 @@ void GameUISystem::EngineEvent( const Event& eev )
 			else if( m_hoverCtrl )
 			{
 				m_clickCtrl[ btn ] = m_hoverCtrl;
+				m_kbdFocusCtrl = m_hoverCtrl;
 				m_hoverCtrl->OnEvent( ev );
 			}
 		}

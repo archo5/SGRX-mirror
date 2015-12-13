@@ -192,7 +192,7 @@ struct GameUIControl
 	SGS_METHOD void RemoveCallback( sgsString key, sgsVariable func );
 	SGS_METHOD void InvokeCallbacks( sgsString key );
 	
-	bool Hit( int x, int y );
+	SGS_METHOD bool Hit( int x, int y );
 	SGS_METHOD float IX( float x );
 	SGS_METHOD float IY( float y );
 	SGS_METHOD float IS( float s );

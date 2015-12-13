@@ -28,6 +28,18 @@ function ButtonShader( ctrl )
 function CreateButton( x, y, w, h, text )
 {
 	ctrl = this.CreateControl( x, y, w, h );
+	ocb = ctrl.eventCallback;
+	function button_callback( ev ) use( ocb )
+	{
+		if( ev.type == GUI_Event_BtnUp )
+		{
+			if( this.Hit( ev.x, ev.y ) && ev.button == GUI_MB_Left )
+				this.InvokeCallbacks( "onclick" );
+			return 1;
+		}
+		return this!ocb( ev );
+	}
+	ctrl.eventCallback = button_callback;
 	ctrl.shaders.push( ButtonShader );
 	ctrl.text = text;
 	ctrl.focusable = true;
