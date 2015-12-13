@@ -865,7 +865,7 @@ void ScriptedSequenceSystem::Tick( float deltaTime, float blendFactor )
 	{
 		SGS_SCOPE;
 		sgs_PushVar( C, m_time );
-		if( m_func.call( 1, 1 ) )
+		if( m_func.call( C, 1, 1 ) )
 		{
 			if( sgs_GetVar<bool>()( C, -1 ) )
 			{

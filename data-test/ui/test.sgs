@@ -15,7 +15,7 @@ function ButtonShader( ctrl )
 	ctrl.DButton( 0, 0, ctrl.width, ctrl.height, 4, 4/128 );
 	ctrl.DFont( "core", ctrl.height / 2 );
 	ctrl.DText( ctrl.text, ctrl.width / 2,
-		ctrl.height / 2 + ctrl.clickedL * 0.1,
+		ctrl.height / 2 + ctrl.InvIS( ctrl.clickedL ),
 		HALIGN_CENTER, VALIGN_CENTER );
 }
 
@@ -27,7 +27,58 @@ function CreateButton( x, y, w, h, text )
 	return ctrl;
 }
 
-global scr_background = ROOT.CreateScreen( GUI_ScrMode_Crop, 512, 512 ).{ z = 1 };
+function YesNoQuestion( text )
+{
+	answer = null;
+	factor = 0.0;
+	
+	scr_overlay = ROOT.CreateScreen( GUI_ScrMode_Crop, 100, 100 ).{ z = 1000 };
+	scr_overlay.shaders.push(function( ctrl )
+	{
+		ctrl.DCol( 0, 0.5 );
+		ctrl.DQuad( 0, 0, ctrl.width, ctrl.height );
+	});
+	scr_bgr = ROOT.CreateScreen( GUI_ScrMode_Fit, 200, 100 ).{
+		z = 1001, xscale = 0.4, yscale = 0.4, text = text };
+	scr_bgr.shaders.push(function( ctrl ) use( factor )
+	{
+		// background
+		ctrl.DCol( 0.1, 0.3, 0.7, 0.5 );
+		ctrl.DQuad( 0, 0, 200, 100 );
+		// top border
+		ctrl.DCol( 0.7, 1 );
+		ctrl.DQuad( 0, 0, 200 * factor, 20 );
+		ctrl.DCol( 0.8, 1 );
+		ctrl.DQuad( 0, 20, 200 * factor, 21 );
+		ctrl.DCol( 0.0, 0.2 );
+		ctrl.DQuad( 0, 21, 200 * factor, 24 );
+		// question text
+		ctrl.DCol( 0.02, 1 * factor );
+		ctrl.DFont( "core", 10 );
+		ctrl.DText( ctrl.text, 5, 10, HALIGN_LEFT, VALIGN_CENTER );
+	});
+	
+	btn_yes = scr_bgr!CreateButton( 10, 70, 60, 20, "Yes" );
+	btn_yes.AddCallback( "onclick", function() use(answer){ answer = true; } );
+	btn_no = scr_bgr!CreateButton( 200-70, 70, 60, 20, "No" );
+	btn_no.AddCallback( "onclick", function() use(answer){ answer = false; } );
+	
+	function min(a,b){ return if(a<b,a,b); }
+	while( factor < 1 )
+	{
+		factor = min( factor + 0.05, 1 );
+		yield 0.01;
+	}
+	
+	while( answer === null )
+	{
+		yield;
+	}
+	
+	return answer;
+}
+
+global scr_background = ROOT.CreateScreen( GUI_ScrMode_Crop, 512, 512 ).{ z = -1 };
 t = 0;
 scr_background.shaders.push(function( ctrl, dt ) use( t )
 {
@@ -44,5 +95,10 @@ scr_mainmenu.shaders.push(function( ctrl )
 	ctrl.DQuad( 5, 5, ctrl.width - 5, ctrl.height - 5 );
 });
 
-global scr_button1 = scr_mainmenu!CreateButton( 10, 10, 50, 5, "Click me" );
+global scr_button1 = scr_mainmenu!CreateButton( 10, 10, 40, 5, "Click me" );
+scr_button1.AddCallback( "onclick", function()
+{
+	println( "clicked!" );
+	thread YesNoQuestion( "Do you want to do something?" );
+});
 

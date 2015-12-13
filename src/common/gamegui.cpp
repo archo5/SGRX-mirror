@@ -16,9 +16,11 @@ int GUI_DefaultEventCallback( SGS_CTX )
 	{
 	case GUI_Event_MouseEnter:
 		ctrl->hover = true;
+		ctrl->InvokeCallbacks( ctrl->m_system->m_str_onmouseenter );
 		break;
 	case GUI_Event_MouseLeave:
 		ctrl->hover = false;
+		ctrl->InvokeCallbacks( ctrl->m_system->m_str_onmouseleave );
 		break;
 	}
 		
@@ -28,7 +30,8 @@ int GUI_DefaultEventCallback( SGS_CTX )
 
 GameUIControl::GameUIControl() :
 	mode(GUI_ScrMode_Abs), x(0), y(0), width(0), height(0),
-	xalign(0), yalign(0), rx0(0), ry0(0), rx1(0), ry1(0), z(0),
+	xalign(0), yalign(0), xscale(1), yscale(1),
+	rx0(0), ry0(0), rx1(0), ry1(0), z(0),
 	hover(false), m_system(NULL)
 {
 }
@@ -46,13 +49,13 @@ GameUIControl* GameUIControl::Create( SGS_CTX )
 //	GameUIControl* CTL = SGS_CREATECLASS( C, &obj.var, GameUIControl, () );
 	GameUIControl* CTL = SGS_CREATECLASS( C, NULL, GameUIControl, () );
 	
-	CTL->eventCallback.C = C;
+	CTL->eventCallback = sgsVariable( C );
 	CTL->eventCallback.set( GUI_DefaultEventCallback );
 	
-	CTL->metadata.C = C;
+	CTL->metadata = sgsVariable( C );
 	sgs_CreateDict( C, &CTL->metadata.var, 0 );
 	
-	CTL->shaders.C = C;
+	CTL->shaders = sgsVariable( C );
 	sgs_CreateArray( C, &CTL->shaders.var, 0 );
 	
 //	obj._acquire();
@@ -67,7 +70,7 @@ int GameUIControl::OnEvent( const GameUIEvent& e )
 	SGS_SCOPE;
 	sgsVariable obj = Handle( this ).get_variable();
 	sgs_CreateLiteClassFrom( C, NULL, &e );
-	if( obj.thiscall( eventCallback, 1, 1 ) )
+	if( obj.thiscall( C, eventCallback, 1, 1 ) )
 	{
 		return sgs_GetInt( C, -1 );
 	}
@@ -79,8 +82,7 @@ void GameUIControl::BubblingEvent( const GameUIEvent& e )
 	GameUIControl* cc = this;
 	while( cc )
 	{
-		if( !cc->OnEvent( e ) )
-			break;
+		cc->OnEvent( e );
 		cc = cc->parent;
 	}
 }
@@ -89,7 +91,7 @@ static int sort_ui_subitems( const void* A, const void* B )
 {
 	SGRX_CAST( GameUIControl**, uia, A );
 	SGRX_CAST( GameUIControl**, uib, B );
-	return (*uia)->z == (*uib)->z ? 0 : ( (*uia)->z < (*uib)->z ? 1 : -1 );
+	return (*uia)->z == (*uib)->z ? 0 : ( (*uia)->z < (*uib)->z ? -1 : 1 );
 }
 
 void GameUIControl::Draw( float dt )
@@ -117,12 +119,14 @@ void GameUIControl::Draw( float dt )
 					// match height
 					tw = th * self_aspect;
 				}
+				tw *= xscale;
+				th *= yscale;
 				float tx = ( pw - tw ) / 2;
 				float ty = ( ph - th ) / 2;
 				tx *= xalign + 1;
 				ty *= yalign + 1;
 				tx += x;
-				ty += ty;
+				ty += y;
 				rx0 = parent->rx0 + tx;
 				ry0 = parent->ry0 + ty;
 				rx1 = rx0 + tw;
@@ -150,18 +154,85 @@ void GameUIControl::Draw( float dt )
 		sgs_PushIterator( C, shaders.var );
 		while( sgs_IterAdvance( C, sgs_StackItem( C, -1 ) ) )
 		{
+			SGS_SCOPE;
 			sgsVariable shader( C );
 			sgs_IterGetData( C, sgs_StackItem( C, -1 ), NULL, &shader.var );
+			sgs_PushVar( C, shader );
 			sgs_PushVar( C, obj );
 			sgs_PushVar( C, dt );
 			GR2D_GetBatchRenderer().Reset();
-			shader.thiscall( shader, 2, 0 );
+			sgs_ThisCall( C, shader.var, 2, 0 );
 		}
 	}
 	
 	for( size_t i = 0; i < m_subitems.size(); ++i )
 	{
 		m_subitems[ i ]->Draw( dt );
+	}
+}
+
+void GameUIControl::AddCallback( sgsString key, sgsVariable func )
+{
+	if( !sgs_IsCallableP( &func.var ) )
+	{
+		sgs_Msg( C, SGS_WARNING, "not callable" );
+		return;
+	}
+	sgsVariable event = Handle( this ).get_variable().getindex( key );
+	if( sgs_IsCallableP( &event.var ) )
+	{
+		sgs_PushVar( C, event );
+		event = sgsVariable();
+		sgs_ArrayPush( C, event.var, 1 );
+	}
+	if( sgs_IsArray( event.var ) )
+	{
+		sgs_PushVar( C, func );
+		sgs_ArrayPush( C, event.var, 1 );
+	}
+	else
+	{
+		Handle( this ).get_variable().setindex( key, func );
+	}
+}
+
+void GameUIControl::RemoveCallback( sgsString key, sgsVariable func )
+{
+	if( !sgs_IsCallableP( &func.var ) )
+	{
+		sgs_Msg( C, SGS_WARNING, "not callable" );
+		return;
+	}
+	sgsVariable event = Handle( this ).get_variable().getindex( key );
+	if( sgs_IsArray( event.var ) )
+	{
+		sgs_ArrayRemove( C, event.var, key.get_variable().var, SGS_TRUE );
+	}
+	else
+	{
+		Handle( this ).get_variable().setindex( key, sgsVariable() );
+	}
+}
+
+void GameUIControl::InvokeCallbacks( sgsString key )
+{
+	sgsVariable event = Handle( this ).get_variable().getindex( key );
+	if( sgs_IsArray( event.var ) )
+	{
+		// iterate array of callables
+		int sz = sgs_ArraySize( event.var );
+		for( int i = 0; i < sz; ++i )
+		{
+			event.getindex( sgsVariable().set( (sgs_Int) sz ) ).call( C );
+		}
+	}
+	else if( sgs_IsCallableP( &event.var ) )
+	{
+		event.call( C );
+	}
+	else if( event.not_null() )
+	{
+		sgs_Msg( C, SGS_WARNING, "invalid state for '%s'", key.c_str() );
 	}
 }
 
@@ -176,15 +247,32 @@ float GameUIControl::IX( float x )
 	return TLERP( rx0, rx1, x ); // interpolate from precalc
 }
 
+float GameUIControl::IY( float y )
+{
+	y = safe_fdiv( y, height ); // to normalized coords
+	return TLERP( ry0, ry1, y ); // interpolate from precalc
+}
+
 float GameUIControl::IS( float s )
 {
 	return IX( s ) - IX( 0 );
 }
 
-float GameUIControl::IY( float y )
+float GameUIControl::InvIX( float x )
 {
-	y = safe_fdiv( y, height ); // to normalized coords
-	return TLERP( ry0, ry1, y ); // interpolate from precalc
+	x = TREVLERP<float>( rx0, rx1, x );
+	return x * width;
+}
+
+float GameUIControl::InvIY( float y )
+{
+	y = TREVLERP<float>( ry0, ry1, y );
+	return y * height;
+}
+
+float GameUIControl::InvIS( float s )
+{
+	return safe_fdiv( 1, IS( s ) );
 }
 
 int GameUIControl::_getindex( SGS_ARGS_GETINDEXFUNC )
@@ -207,8 +295,8 @@ int GameUIControl::_setindex( SGS_ARGS_SETINDEXFUNC )
 	return SGS_SUCCESS;
 }
 
-GameUIControl::Handle GameUIControl::CreateScreen( int mode, float width, float height,
-		float xalign, float yalign, float x, float y )
+GameUIControl::Handle GameUIControl::CreateScreen(
+	int mode, float width, float height, float xalign, float yalign, float x, float y )
 {
 	GameUIControl* CTL = Create( C );
 	CTL->mode = mode;
@@ -228,7 +316,7 @@ GameUIControl::Handle GameUIControl::CreateScreen( int mode, float width, float 
 }
 
 GameUIControl::Handle GameUIControl::CreateControl(
-		float x, float y, float width, float height )
+	float x, float y, float width, float height )
 {
 	GameUIControl* CTL = GameUIControl::Create( C );
 	CTL->mode = GUI_ScrMode_Abs;
@@ -250,10 +338,10 @@ void GameUIControl::DReset()
 	GR2D_GetBatchRenderer().Reset();
 }
 
-void GameUIControl::DCol( sgs_Context* ctx, float a, float b, float c, float d )
+void GameUIControl::DCol( float a, float b, float c, float d )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
-	int ssz = sgs_StackSize( ctx );
+	int ssz = sgs_StackSize( C );
 	if( ssz <= 1 )
 		br.Col( a );
 	else if( ssz == 2 )
@@ -274,10 +362,10 @@ void GameUIControl::DQuad( float x0, float y0, float x1, float y1 )
 	GR2D_GetBatchRenderer().Quad( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ) );
 }
 
-void GameUIControl::DQuadExt( sgs_Context* ctx, float x0, float y0, float x1, float y1,
+void GameUIControl::DQuadExt( float x0, float y0, float x1, float y1,
 	float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ )
 {
-	int ssz = sgs_StackSize( ctx );
+	int ssz = sgs_StackSize( C );
 	GR2D_GetBatchRenderer().QuadExt( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ),
 		tox, toy, ssz >= 7 ? tsx : 1.0f, ssz >= 8 ? tsy : 1.0f );
 }
@@ -294,9 +382,9 @@ void GameUIControl::DFont( StringView name, float size )
 	GR2D_SetFont( name, IS( size ) );
 }
 
-void GameUIControl::DText( sgs_Context* ctx, StringView text, float x, float y, int ha, int va )
+void GameUIControl::DText( StringView text, float x, float y, int ha, int va )
 {
-	if( sgs_StackSize( ctx ) <= 1 )
+	if( sgs_StackSize( C ) <= 1 )
 		GR2D_DrawTextLine( text );
 	else
 		GR2D_DrawTextLine( IX( x ), IY( y ), text, ha, va );
@@ -354,10 +442,18 @@ GameUISystem::GameUISystem() :
 	sgs_RegIntConsts( C, sgs_iconsts, SGRX_ARRAY_SIZE(sgs_iconsts) );
 	sgs_RegFuncConsts( C, sgs_funcs, SGRX_ARRAY_SIZE(sgs_funcs) );
 	m_scriptCtx.SetGlobal( "ROOT", m_rootCtrl->GetHandle() );
+	
+	m_str_onclick = sgsString( C, "onclick" );
+	m_str_onmouseenter = sgsString( C, "onmouseenter" );
+	m_str_onmouseleave = sgsString( C, "onmouseleave" );
 }
 
 GameUISystem::~GameUISystem()
 {
+	m_str_onclick = sgsString();
+	m_str_onmouseenter = sgsString();
+	m_str_onmouseleave = sgsString();
+	
 	sgs_ObjRelease( m_scriptCtx.C, m_rootCtrl->m_sgsObject );
 	m_rootCtrl = NULL;
 }
@@ -412,6 +508,7 @@ void GameUISystem::EngineEvent( const Event& eev )
 				if( m_clickCtrl[ btn ] )
 				{
 					m_clickCtrl[ btn ]->OnEvent( ev );
+					m_clickCtrl[ btn ]->InvokeCallbacks( m_str_onclick );
 					m_clickCtrl[ btn ] = NULL;
 				}
 				_HandleMouseMove( true );
@@ -536,8 +633,7 @@ void GameUISystem::_HandleMouseMove( bool optional )
 				cc = prevhover;
 				while( cc && cc != phi )
 				{
-					if( !cc->OnEvent( e ) )
-						break;
+					cc->OnEvent( e );
 					cc = cc->parent;
 				}
 				
@@ -549,8 +645,7 @@ void GameUISystem::_HandleMouseMove( bool optional )
 				cc = m_hoverCtrl;
 				while( cc && cc != phi )
 				{
-					if( !cc->OnEvent( e ) )
-						break;
+					cc->OnEvent( e );
 					cc = cc->parent;
 				}
 			}
@@ -589,6 +684,8 @@ void GameUISystem::Draw( float dt )
 	m_rootCtrl->width = GR_GetWidth();
 	m_rootCtrl->height = GR_GetHeight();
 	m_rootCtrl->Draw( dt );
+	
+	sgs_ProcessSubthreads( m_scriptCtx.C, dt );
 	
 	GR2D_GetBatchRenderer().Flush();
 }

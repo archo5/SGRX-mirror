@@ -257,7 +257,7 @@ void PickupItem::OnEvent( const StringView& type )
 		
 		sgsVariable scrobj = GetScriptedObject();
 		scrobj.push( C );
-		if( scrobj.getprop( "level" ).thiscall( "onPickupItem", 1, 1 ) )
+		if( scrobj.getprop( "level" ).thiscall( C, "onPickupItem", 1, 1 ) )
 		{
 			bool keep = sgs_GetVar<bool>()( C, -1 );
 			if( keep == false )
@@ -320,7 +320,7 @@ void Actionable::OnEvent( const StringView& type )
 			// end animation?
 			SGS_SCOPE;
 			GetScriptedObject().push( C );
-			if( m_onSuccess.call( 1, 1 ) )
+			if( m_onSuccess.call( C, 1, 1 ) )
 			{
 				bool keep = sgs_GetVar<bool>()( C, -1 );
 				if( keep == false )

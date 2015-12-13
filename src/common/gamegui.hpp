@@ -119,6 +119,9 @@ struct GameUISystem
 	GameUIControl* m_clickCtrl[2];
 	int m_mouseX;
 	int m_mouseY;
+	sgsString m_str_onclick;
+	sgsString m_str_onmouseenter;
+	sgsString m_str_onmouseleave;
 	
 	Array< TextureHandle > m_precachedTextures;
 };
@@ -137,6 +140,12 @@ struct GameUIControl
 	SGS_PROPERTY float height;
 	SGS_PROPERTY float xalign;
 	SGS_PROPERTY float yalign;
+	SGS_PROPERTY float xscale;
+	SGS_PROPERTY float yscale;
+	float _getSWidth(){ return width * xscale; }
+	SGS_PROPERTY_FUNC( READ _getSWidth ) float swidth;
+	float _getSHeight(){ return height * yscale; }
+	SGS_PROPERTY_FUNC( READ _getSHeight ) float sheight;
 	SGS_PROPERTY float rx0;
 	SGS_PROPERTY float ry0;
 	SGS_PROPERTY float rx1;
@@ -166,10 +175,17 @@ struct GameUIControl
 	void BubblingEvent( const GameUIEvent& e );
 	void Draw( float dt );
 	
+	SGS_METHOD void AddCallback( sgsString key, sgsVariable func );
+	SGS_METHOD void RemoveCallback( sgsString key, sgsVariable func );
+	SGS_METHOD void InvokeCallbacks( sgsString key );
+	
 	bool Hit( int x, int y );
-	float IX( float x );
-	float IY( float y );
-	float IS( float s );
+	SGS_METHOD float IX( float x );
+	SGS_METHOD float IY( float y );
+	SGS_METHOD float IS( float s );
+	SGS_METHOD float InvIX( float x );
+	SGS_METHOD float InvIY( float y );
+	SGS_METHOD float InvIS( float s );
 	Handle GetHandle(){ return Handle( this ); }
 	
 	// ---
@@ -181,14 +197,14 @@ struct GameUIControl
 	SGS_METHOD Handle CreateControl( float x, float y, float width, float height );
 	
 	SGS_METHOD void DReset();
-	SGS_METHOD void DCol( sgs_Context* ctx, float a, float b, float c, float d );
+	SGS_METHOD void DCol( float a, float b, float c, float d );
 	SGS_METHOD void DTex( StringView name );
 	SGS_METHOD void DQuad( float x0, float y0, float x1, float y1 );
-	SGS_METHOD void DQuadExt( sgs_Context* ctx, float x0, float y0, float x1, float y1,
+	SGS_METHOD void DQuadExt( float x0, float y0, float x1, float y1,
 		float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ );
 	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );
 	SGS_METHOD void DFont( StringView name, float size );
-	SGS_METHOD void DText( sgs_Context* ctx, StringView text, float x, float y, int ha, int va );
+	SGS_METHOD void DText( StringView text, float x, float y, int ha, int va );
 };
 
 

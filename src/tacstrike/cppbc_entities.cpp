@@ -6,34 +6,40 @@
 static int _sgs_method__Trigger__CallEvent( SGS_CTX )
 {
 	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, CallEvent ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
 static int _sgs_method__Trigger__Invoke( SGS_CTX )
 {
 	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, Invoke ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->Invoke( sgs_GetVar<bool>()(C,0) ); return 0;
 }
 
 static int _sgs_method__Trigger__SetupTrigger( SGS_CTX )
 {
 	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, SetupTrigger ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsSetupTrigger( sgs_GetVar<bool>()(C,0), sgs_GetVar<sgsVariable>()(C,1), sgs_GetVar<sgsVariable>()(C,2) ); return 0;
 }
 
 int Trigger::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<Trigger*>( obj->data )->C = C;
 	static_cast<Trigger*>( obj->data )->~Trigger();
 	return SGS_SUCCESS;
 }
 
 int Trigger::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Trigger*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int Trigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Trigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
@@ -51,6 +57,7 @@ int Trigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int Trigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Trigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewName" ){ static_cast<Trigger*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ static_cast<Trigger*>( obj->data )->m_func = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
@@ -62,6 +69,7 @@ int Trigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int Trigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Trigger*>( obj->data )->C, C );
 	char bfr[ 39 ];
 	sprintf( bfr, "Trigger (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -87,34 +95,40 @@ sgs_ObjInterface Trigger::_sgs_interface[1] =
 static int _sgs_method__BoxTrigger__CallEvent( SGS_CTX )
 {
 	BoxTrigger* data; if( !SGS_PARSE_METHOD( C, BoxTrigger::_sgs_interface, data, BoxTrigger, CallEvent ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
 static int _sgs_method__BoxTrigger__Invoke( SGS_CTX )
 {
 	BoxTrigger* data; if( !SGS_PARSE_METHOD( C, BoxTrigger::_sgs_interface, data, BoxTrigger, Invoke ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->Invoke( sgs_GetVar<bool>()(C,0) ); return 0;
 }
 
 static int _sgs_method__BoxTrigger__SetupTrigger( SGS_CTX )
 {
 	BoxTrigger* data; if( !SGS_PARSE_METHOD( C, BoxTrigger::_sgs_interface, data, BoxTrigger, SetupTrigger ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsSetupTrigger( sgs_GetVar<bool>()(C,0), sgs_GetVar<sgsVariable>()(C,1), sgs_GetVar<sgsVariable>()(C,2) ); return 0;
 }
 
 int BoxTrigger::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<BoxTrigger*>( obj->data )->C = C;
 	static_cast<BoxTrigger*>( obj->data )->~BoxTrigger();
 	return SGS_SUCCESS;
 }
 
 int BoxTrigger::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BoxTrigger*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int BoxTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BoxTrigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
@@ -133,6 +147,7 @@ int BoxTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int BoxTrigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BoxTrigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewName" ){ static_cast<BoxTrigger*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ static_cast<BoxTrigger*>( obj->data )->m_func = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
@@ -145,6 +160,7 @@ int BoxTrigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int BoxTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BoxTrigger*>( obj->data )->C, C );
 	char bfr[ 42 ];
 	sprintf( bfr, "BoxTrigger (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -170,34 +186,40 @@ sgs_ObjInterface BoxTrigger::_sgs_interface[1] =
 static int _sgs_method__ProximityTrigger__CallEvent( SGS_CTX )
 {
 	ProximityTrigger* data; if( !SGS_PARSE_METHOD( C, ProximityTrigger::_sgs_interface, data, ProximityTrigger, CallEvent ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
 static int _sgs_method__ProximityTrigger__Invoke( SGS_CTX )
 {
 	ProximityTrigger* data; if( !SGS_PARSE_METHOD( C, ProximityTrigger::_sgs_interface, data, ProximityTrigger, Invoke ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->Invoke( sgs_GetVar<bool>()(C,0) ); return 0;
 }
 
 static int _sgs_method__ProximityTrigger__SetupTrigger( SGS_CTX )
 {
 	ProximityTrigger* data; if( !SGS_PARSE_METHOD( C, ProximityTrigger::_sgs_interface, data, ProximityTrigger, SetupTrigger ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsSetupTrigger( sgs_GetVar<bool>()(C,0), sgs_GetVar<sgsVariable>()(C,1), sgs_GetVar<sgsVariable>()(C,2) ); return 0;
 }
 
 int ProximityTrigger::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<ProximityTrigger*>( obj->data )->C = C;
 	static_cast<ProximityTrigger*>( obj->data )->~ProximityTrigger();
 	return SGS_SUCCESS;
 }
 
 int ProximityTrigger::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ProximityTrigger*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int ProximityTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ProximityTrigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
@@ -217,6 +239,7 @@ int ProximityTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int ProximityTrigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ProximityTrigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewName" ){ static_cast<ProximityTrigger*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ static_cast<ProximityTrigger*>( obj->data )->m_func = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
@@ -230,6 +253,7 @@ int ProximityTrigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int ProximityTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ProximityTrigger*>( obj->data )->C, C );
 	char bfr[ 48 ];
 	sprintf( bfr, "ProximityTrigger (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -255,34 +279,40 @@ sgs_ObjInterface ProximityTrigger::_sgs_interface[1] =
 static int _sgs_method__SlidingDoor__CallEvent( SGS_CTX )
 {
 	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, CallEvent ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
 static int _sgs_method__SlidingDoor__Invoke( SGS_CTX )
 {
 	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, Invoke ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->Invoke( sgs_GetVar<bool>()(C,0) ); return 0;
 }
 
 static int _sgs_method__SlidingDoor__SetupTrigger( SGS_CTX )
 {
 	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, SetupTrigger ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsSetupTrigger( sgs_GetVar<bool>()(C,0), sgs_GetVar<sgsVariable>()(C,1), sgs_GetVar<sgsVariable>()(C,2) ); return 0;
 }
 
 int SlidingDoor::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<SlidingDoor*>( obj->data )->C = C;
 	static_cast<SlidingDoor*>( obj->data )->~SlidingDoor();
 	return SGS_SUCCESS;
 }
 
 int SlidingDoor::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SlidingDoor*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int SlidingDoor::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SlidingDoor*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
@@ -302,6 +332,7 @@ int SlidingDoor::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int SlidingDoor::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SlidingDoor*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewName" ){ static_cast<SlidingDoor*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ static_cast<SlidingDoor*>( obj->data )->m_func = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
@@ -314,6 +345,7 @@ int SlidingDoor::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int SlidingDoor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SlidingDoor*>( obj->data )->C, C );
 	char bfr[ 43 ];
 	sprintf( bfr, "SlidingDoor (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -339,22 +371,26 @@ sgs_ObjInterface SlidingDoor::_sgs_interface[1] =
 static int _sgs_method__PickupItem__CallEvent( SGS_CTX )
 {
 	PickupItem* data; if( !SGS_PARSE_METHOD( C, PickupItem::_sgs_interface, data, PickupItem, CallEvent ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
 int PickupItem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<PickupItem*>( obj->data )->C = C;
 	static_cast<PickupItem*>( obj->data )->~PickupItem();
 	return SGS_SUCCESS;
 }
 
 int PickupItem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<PickupItem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int PickupItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<PickupItem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
@@ -366,6 +402,7 @@ int PickupItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int PickupItem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<PickupItem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewName" ){ static_cast<PickupItem*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
@@ -373,6 +410,7 @@ int PickupItem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<PickupItem*>( obj->data )->C, C );
 	char bfr[ 42 ];
 	sprintf( bfr, "PickupItem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -398,22 +436,26 @@ sgs_ObjInterface PickupItem::_sgs_interface[1] =
 static int _sgs_method__Actionable__CallEvent( SGS_CTX )
 {
 	Actionable* data; if( !SGS_PARSE_METHOD( C, Actionable::_sgs_interface, data, Actionable, CallEvent ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->OnEvent( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
 int Actionable::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<Actionable*>( obj->data )->C = C;
 	static_cast<Actionable*>( obj->data )->~Actionable();
 	return SGS_SUCCESS;
 }
 
 int Actionable::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Actionable*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int Actionable::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Actionable*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
@@ -430,6 +472,7 @@ int Actionable::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int Actionable::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Actionable*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewName" ){ static_cast<Actionable*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ static_cast<Actionable*>( obj->data )->m_enabled = sgs_GetVar<bool>()( C, 1 );
@@ -442,6 +485,7 @@ int Actionable::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Actionable*>( obj->data )->C, C );
 	char bfr[ 42 ];
 	sprintf( bfr, "Actionable (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );

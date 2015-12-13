@@ -11,7 +11,7 @@ ScriptVarIterator::ScriptVarIterator( SGS_CTX, sgs_Variable* var )
 
 ScriptVarIterator::ScriptVarIterator( sgsVariable& var )
 {
-	_Init( var.C, &var.var );
+	_Init( var.get_ctx(), &var.var );
 }
 
 void ScriptVarIterator::_Init( SGS_CTX, sgs_Variable* var )
@@ -28,23 +28,23 @@ void ScriptVarIterator::_Init( SGS_CTX, sgs_Variable* var )
 
 sgsVariable ScriptVarIterator::GetKey()
 {
-	sgsVariable out( m_iter.C );
-	if( m_iter.C )
-		sgs_IterGetData( m_iter.C, m_iter.var, &out.var, NULL );
+	sgsVariable out( m_iter.get_ctx() );
+	if( m_iter.get_ctx() )
+		sgs_IterGetData( m_iter.get_ctx(), m_iter.var, &out.var, NULL );
 	return out;
 }
 
 sgsVariable ScriptVarIterator::GetValue()
 {
-	sgsVariable out( m_iter.C );
-	if( m_iter.C )
-		sgs_IterGetData( m_iter.C, m_iter.var, NULL, &out.var );
+	sgsVariable out( m_iter.get_ctx() );
+	if( m_iter.get_ctx() )
+		sgs_IterGetData( m_iter.get_ctx(), m_iter.var, NULL, &out.var );
 	return out;
 }
 
 bool ScriptVarIterator::Advance()
 {
-	return m_iter.C && sgs_IterAdvance( m_iter.C, m_iter.var ) > 0;
+	return m_iter.get_ctx() && sgs_IterAdvance( m_iter.get_ctx(), m_iter.var ) > 0;
 }
 
 

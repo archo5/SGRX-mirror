@@ -69,7 +69,7 @@ SGRX_ScriptedItem* SGRX_ScriptedItem::Create(
 	SGRX_ScriptedItem* SI = SGS_CREATECLASS( C, NULL, SGRX_ScriptedItem, () );
 	sgs_ObjAcquire( C, SI->m_sgsObject );
 	sgsVariable obj( C, sgsVariable::PickAndPop );
-	SI->m_variable.C = C;
+	SI->m_variable = sgsVariable( C );
 	sgs_CreateDict( C, &SI->m_variable.var, 0 );
 	SI->m_scene = scene;
 	SI->m_phyWorld = phyWorld;
@@ -85,7 +85,7 @@ SGRX_ScriptedItem* SGRX_ScriptedItem::Create(
 	{
 		SGS_SCOPE;
 		args.push( C );
-		obj.thiscall( func, 1 );
+		obj.thiscall( C, func, 1 );
 	}
 	
 	return SI;
@@ -135,7 +135,7 @@ void SGRX_ScriptedItem::FixedTick( float deltaTime )
 	{
 		SGS_SCOPE;
 		sgs_PushReal( C, deltaTime );
-		Handle( this ).get_variable().thiscall( "fixedupdate", 1 );
+		Handle( this ).get_variable().thiscall( C, "fixedupdate", 1 );
 	}
 }
 
@@ -154,7 +154,7 @@ void SGRX_ScriptedItem::Tick( float deltaTime, float blendFactor )
 		SGS_SCOPE;
 		sgs_PushReal( C, deltaTime );
 		sgs_PushReal( C, blendFactor );
-		Handle( this ).get_variable().thiscall( "update", 2 );
+		Handle( this ).get_variable().thiscall( C, "update", 2 );
 	}
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
 	{
@@ -186,7 +186,7 @@ void SGRX_ScriptedItem::EntityEvent( const StringView& type )
 {
 	SGS_SCOPE;
 	sgs_PushVar( C, type );
-	Handle( this ).get_variable().thiscall( "onevent", 1 );
+	Handle( this ).get_variable().thiscall( C, "onevent", 1 );
 }
 
 void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
@@ -208,7 +208,7 @@ void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* dat
 		}
 		if( i == SCRITEM_NUM_SLOTS )
 			sgs_PushInt( C, -1 ); // wat
-		Handle( this ).get_variable().thiscall( "onhit", 3 );
+		Handle( this ).get_variable().thiscall( C, "onhit", 3 );
 	}
 }
 

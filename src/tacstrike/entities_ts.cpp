@@ -1016,7 +1016,7 @@ TSEnemyController::~TSEnemyController()
 	// destroy ESO
 	{
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_enemyState.thiscall( "destroy" );
+		m_enemyState.thiscall( C, "destroy" );
 	}
 	
 	sgs_ObjRelease( C, m_sgsObject );
@@ -1124,7 +1124,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	{
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_level->m_scriptCtx.Push( deltaTime );
-		m_enemyState.thiscall( "tick", 1 );
+		m_enemyState.thiscall( C, "tick", 1 );
 		
 		i_crouch = m_enemyState[ "i_crouch" ].get<bool>();
 		i_move = m_enemyState[ "i_move" ].get<Vec2>();
@@ -1181,7 +1181,7 @@ void TSEnemyController::Reset()
 	
 	{
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_enemyState.thiscall( "reset", 0 );
+		m_enemyState.thiscall( C, "reset", 0 );
 	}
 }
 
