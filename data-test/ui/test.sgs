@@ -6,7 +6,34 @@ _G.
 	tex_button_core_h = TEXTURE("ui/button_core_h.png"),
 	tex_button_core_c = TEXTURE("ui/button_core_c.png"),
 	tex_button_core_f = TEXTURE("ui/button_core_f.png"),
+	values = {},
+	ev_change = {},
 };
+
+function CallEvents( evcb, key )
+{
+	if( evcb === null );
+	else if( is_callable( evcb ) )
+		evcb( key );
+	else
+	{
+		foreach( ev : evcb )
+			ev( key );
+	}
+}
+
+function CallEventChain( events, key )
+{
+	origkey = key;
+	for(;;)
+	{
+		CallEvents( @events[ key ], origkey );
+		pos = string_find_rev( key, "/" );
+		if( pos === null )
+			break;
+		key = string_part( key, 0, pos );
+	}
+}
 
 function ButtonShader( ctrl )
 {
@@ -29,20 +56,88 @@ function CreateButton( x, y, w, h, text )
 {
 	ctrl = this.CreateControl( x, y, w, h );
 	ocb = ctrl.eventCallback;
-	function button_callback( ev ) use( ocb )
+	Button = ctrl;
+	function Button.eventCallback( ev ) use( ocb )
 	{
-		if( ev.type == GUI_Event_BtnUp )
+		if( ev.type == GUI_Event_BtnActivate )
 		{
-			if( this.Hit( ev.x, ev.y ) && ev.button == GUI_MB_Left )
+			if( ev.button == GUI_MB_Left )
 				this.InvokeCallbacks( "onclick" );
 			return 1;
 		}
 		return this!ocb( ev );
 	}
-	ctrl.eventCallback = button_callback;
 	ctrl.shaders.push( ButtonShader );
 	ctrl.text = text;
 	ctrl.focusable = true;
+	return ctrl;
+}
+
+function CreateSwitchButton( x, y, w, h, sbw, options, key )
+{
+	ctrl = this.CreateControl( x, y, w, h );
+	
+	btn_mid = ctrl!CreateButton( sbw, 0, w - sbw * 2, h );
+	btn_lft = null;
+	btn_rgt = null;
+	if( sbw > 0 )
+	{
+		btn_lft = ctrl!CreateButton( 0, 0, sbw, h, "<" );
+		btn_rgt = ctrl!CreateButton( w - sbw, 0, sbw, h, ">" );
+	}
+	
+	ocb = ctrl.eventCallback;
+	SwitchButton = ctrl;
+	function SwitchButton.eventCallback( ev ) use( ocb )
+	{
+		if( ev.isActivate )
+		{
+			btn = if( ev.type == GUI_Event_KeyActivate, 0, ev.button );
+			if( ev.target == this.btn_mid )
+			{
+				if( btn == GUI_MB_Left ) this.pos++;
+				if( btn == GUI_MB_Right ) this.pos--;
+			}
+			else if( ev.target == this.btn_lft && ( btn == GUI_MB_Left ) ) this.pos--;
+			else if( ev.target == this.btn_rgt && ( btn == GUI_MB_Left ) ) this.pos++;
+			
+			this.pos = toint( ( this.pos + this.options.size ) % this.options.size );
+			this.OnChangedPos();
+		}
+		return this!ocb( ev );
+	}
+	function SwitchButton.Reload()
+	{
+		val = @values[ this.key ];
+		this.pos = toint( val );
+		if( typeof( @this.options.first ) != "string" )
+		{
+			for( i = 0; i < this.options.size; ++i )
+				if( this.options[ i ].value == val )
+					break;
+			this.pos = toint( i % this.options.size );
+		}
+		this.OnChangedPos();
+	}
+	function SwitchButton.OnChangedPos()
+	{
+		opt = this.options[ this.pos ];
+		if( typeof(opt) == "string" )
+		{
+			this.btn_mid.text = opt;
+			values[ this.key ] = this.pos;
+		}
+		else
+		{
+			this.btn_mid.text = opt.name;
+			values[ this.key ] = opt.value;
+		}
+		CallEventChain( ev_change, this.key );
+	}
+	
+	ctrl.{ btn_mid, btn_lft, btn_rgt, options, key };
+	ctrl.Reload();
+	
 	return ctrl;
 }
 
@@ -129,4 +224,10 @@ scr_button2.AddCallback( "onclick", function()
 	println( "clicked 2!" );
 	thread YesNoQuestion( "Do you want to do something?" );
 });
+
+global scr_switch1 = scr_mainmenu!CreateSwitchButton(
+	10, 30, 40, 5, 5, ["One", "Two", "Three"], "all/systems/test" );
+ev_change."all/systems/test" = function(k){ println("\\ all ("$values[k]$")"); };
+ev_change."all/systems" = function(k){ println("\\ systems ("$values[k]$")"); };
+ev_change."all" = function(k){ println("\\ test ("$values[k]$")"); };
 

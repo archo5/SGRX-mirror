@@ -15,7 +15,7 @@
 #define GUI_Event_MouseLeave 12
 #define GUI_Event_BtnDown    13
 #define GUI_Event_BtnUp      14
-#define GUI_Event_BtnClick   15
+#define GUI_Event_BtnActivate 15
 #define GUI_Event_MouseWheel 16
 #define GUI_Event_PropEdit   21
 #define GUI_Event_PropChange 22
@@ -23,7 +23,8 @@
 #define GUI_Event_LoseFocus  32
 #define GUI_Event_KeyDown    41
 #define GUI_Event_KeyUp      42
-#define GUI_Event_TextInput  43
+#define GUI_Event_KeyActivate 43
+#define GUI_Event_TextInput  50
 #define GUI_Event_User       256
 
 #define GUI_Key_Unknown   0
@@ -53,7 +54,7 @@
 #define GUI_KeyMod_Shift  0x100
 
 #define GUI_EVENT_ISBUTTON(x) ((x)==GUI_Event_BtnDown \
-	||(x)==GUI_Event_BtnUp||(x)==GUI_Event_BtnClick)
+	||(x)==GUI_Event_BtnUp||(x)==GUI_Event_BtnActivate)
 #define GUI_EVENT_ISMOUSE(x) ((x)==GUI_Event_MouseMove \
 	||(x)==GUI_Event_MouseEnter||(x)==GUI_Event_MouseLeave \
 	||(x)==GUI_Event_MouseWheel||GUI_EVENT_ISBUTTON(x))
@@ -86,6 +87,8 @@ struct GameUIEvent
 	FINLINE bool IsMouseEvent() const { return GUI_EVENT_ISMOUSE(type); }
 	FINLINE bool IsButtonEvent() const { return GUI_EVENT_ISBUTTON(type); }
 	FINLINE bool IsKeyEvent() const { return GUI_EVENT_ISKEY(type); }
+	FINLINE bool IsActivateEvent() const {
+		return type == GUI_Event_BtnActivate || type == GUI_Event_KeyActivate; }
 	SGS_PROPERTY_FUNC( READ SOURCE mouse.x VALIDATE IsMouseEvent() ) SGS_ALIAS( int x );
 	SGS_PROPERTY_FUNC( READ SOURCE mouse.y VALIDATE IsMouseEvent() ) SGS_ALIAS( int y );
 	SGS_PROPERTY_FUNC( READ SOURCE mouse.button VALIDATE IsButtonEvent() ) SGS_ALIAS( int button );
@@ -93,6 +96,7 @@ struct GameUIEvent
 	SGS_PROPERTY_FUNC( READ SOURCE key.engkey VALIDATE IsKeyEvent() ) SGS_ALIAS( int engkey );
 	SGS_PROPERTY_FUNC( READ SOURCE key.engmod VALIDATE IsKeyEvent() ) SGS_ALIAS( int engmod );
 	SGS_PROPERTY_FUNC( READ SOURCE key.repeat VALIDATE IsKeyEvent() ) SGS_ALIAS( bool repeat );
+	SGS_PROPERTY_FUNC( READ IsActivateEvent ) SGS_ALIAS( bool isActivate );
 };
 SGS_DEFAULT_LITE_OBJECT_INTERFACE( GameUIEvent );
 
