@@ -12,12 +12,13 @@
 #define INCLUDE_REAL_SDL
 #include "engine_int.hpp"
 #include "renderer.hpp"
-#include "sound.hpp"
 
 
 void SGRX_INT_InitResourceTables();
 void SGRX_INT_DestroyResourceTables();
 void SGRX_INT_UnpreserveResources();
+void SGRX_INT_InitBatchRendering();
+void SGRX_INT_DestroyBatchRendering();
 
 
 uint32_t GetTimeMsec()
@@ -63,7 +64,6 @@ typedef Handle< EventLinkArray > EventLinkArrayHandle;
 
 typedef HashTable< SGRX_EventID, EventLinkArrayHandle > EventLinksByID;
 typedef HashTable< SGRX_IEventHandler*, EventLinkArrayHandle > EventLinksByHandler;
-typedef HashTable< StringView, FontHandle > FontHashTable;
 typedef HashTable< int, JoystickHandle > JoystickHashTable;
 
 static String g_GameLibName = "game";
@@ -93,46 +93,9 @@ static pfnRndInitialize g_RfnInitialize = NULL;
 static pfnRndFree g_RfnFree = NULL;
 static pfnRndCreateRenderer g_RfnCreateRenderer = NULL;
 IRenderer* g_Renderer = NULL;
-static BatchRenderer* g_BatchRenderer = NULL;
-static FontRenderer* g_FontRenderer = NULL;
-static FontHashTable* g_LoadedFonts = NULL;
 static JoystickHashTable* g_Joysticks = NULL;
-static SGRX_FontSettings g_CurFontSettings = { "", 0, 0.0f, -1.2f };
 
-
-
-
-struct FakeSoundEventInstance : SGRX_ISoundEventInstance
-{
-	FakeSoundEventInstance( bool oneshot ) :
-		m_paused(false), m_volume(1), m_pitch(1)
-	{
-		isOneShot = oneshot;
-		isReal = false;
-	}
-	void Start(){ m_paused = false; }
-	void Stop( bool immediate = false ){}
-	bool GetPaused(){ return m_paused; }
-	void SetPaused( bool paused ){ m_paused = paused; }
-	float GetVolume(){ return m_volume; }
-	void SetVolume( float v ){ m_volume = v; }
-	float GetPitch(){ return m_pitch; }
-	void SetPitch( float v ){ m_pitch = v; }
-	bool SetParameter( const StringView& name, float value ){ return false; }
-	void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ){}
-	
-	bool m_paused;
-	float m_volume;
-	float m_pitch;
-};
-
-SoundEventInstanceHandle SGRX_ISoundSystem::CreateEventInstance( const StringView& name )
-{
-	SoundEventInstanceHandle seih = CreateEventInstanceRaw( name );
-	if( seih != NULL )
-		return seih;
-	return new FakeSoundEventInstance( true );
-}
+extern BatchRenderer* g_BatchRenderer;
 
 
 
@@ -462,15 +425,6 @@ static void process_overlay_screens( float dt )
 	}
 }
 
-inline float ctrldeadzone( float x, float deadzone )
-{
-	x = clamp( x / 32767.0f, -1, 1 );
-	float sgn = sign( x );
-	float dst = fabsf( x );
-	if( dst < deadzone )
-		dst = 0;
-	return sgn * dst;
-}
 
 void Game_OnEvent( const Event& e )
 {
@@ -1279,264 +1233,6 @@ void GR2D_UnsetScissorRect()
 	g_Renderer->SetScissorRect( NULL );
 }
 
-bool GR2D_LoadFont( const StringView& key, const StringView& path )
-{
-	SGRX_IFont* fif = NULL;
-	if( ( fif = sgrx_int_CreateFont( path ) ) == NULL )
-	{
-		LOG_ERROR << LOG_DATE << "  Failed to load font: " << path;
-		return false;
-	}
-	fif->m_key = key;
-	g_LoadedFonts->set( fif->m_key, fif );
-	return true;
-}
-
-bool GR2D_LoadSVGIconFont( const StringView& key, const StringView& path )
-{
-	SGRX_IFont* fif = NULL;
-	if( ( fif = sgrx_int_CreateSVGIconFont( path ) ) == NULL )
-	{
-		LOG_ERROR << LOG_DATE << "  Failed to load SVG icon font: " << path;
-		return false;
-	}
-	fif->m_key = key;
-	g_LoadedFonts->set( fif->m_key, fif );
-	return true;
-}
-
-FontHandle GR2D_GetFont( const StringView& key )
-{
-	return g_LoadedFonts->getcopy( key );
-}
-
-void GR2D_GetFontSettings( SGRX_FontSettings* settings )
-{
-	*settings = g_CurFontSettings;
-//	SGRX_IFont* fnt = g_FontRenderer->m_currentFont;
-//	settings->font = fnt ? fnt->m_key : "";
-//	settings->size = g_FontRenderer->m_currentSize;
-//	settings->letterspacing = g_CurFontSettings.letterspacing;
-//	settings->lineheight = g_CurFontSettings.lineheight;
-}
-
-void GR2D_SetFontSettings( SGRX_FontSettings* settings )
-{
-	g_CurFontSettings = *settings;
-	GR2D_SetFont( settings->font, settings->size );
-}
-
-bool GR2D_SetFont( const StringView& name, int pxsize )
-{
-	g_CurFontSettings.font = name;
-	g_CurFontSettings.size = pxsize;
-	return g_FontRenderer->SetFont( name, pxsize );
-}
-
-void GR2D_SetLetterSpacing( float lsp )
-{
-	g_CurFontSettings.letterspacing = lsp;
-}
-
-void GR2D_SetLineHeight( float lht )
-{
-	g_CurFontSettings.lineheight = lht;
-}
-
-void GR2D_SetTextCursor( const Vec2& pos )
-{
-	g_FontRenderer->SetCursor( pos );
-}
-
-Vec2 GR2D_GetTextCursor()
-{
-	return g_FontRenderer->m_cursor;
-}
-
-int GR2D_GetTextLength( const StringView& text )
-{
-	if( !g_FontRenderer )
-		return 0;
-	return g_FontRenderer->GetTextWidth( text );
-}
-
-int GR2D_DrawTextLine( const StringView& text )
-{
-	return g_FontRenderer->PutText( g_BatchRenderer, text );
-}
-
-int GR2D_DrawTextLine( float x, float y, const StringView& text )
-{
-	g_FontRenderer->SetCursor( V2( x, y ) );
-	return g_FontRenderer->PutText( g_BatchRenderer, text );
-}
-
-int GR2D_DrawTextLine( const StringView& text, int halign, int valign )
-{
-	Vec2 pos = GR2D_GetTextCursor();
-	int ret = GR2D_DrawTextLine( pos.x, pos.y, text, halign, valign );
-	GR2D_SetTextCursor( GR2D_GetTextCursor().x, pos.y );
-	return ret;
-}
-
-int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign )
-{
-	if( !g_FontRenderer->m_currentFont )
-		return 0;
-	float length = 0;
-	if( halign != 0 )
-		length = g_FontRenderer->GetTextWidth( text );
-	return GR2D_DrawTextLine( x - round( halign * 0.5f * length ), round( y - valign * 0.5f * g_FontRenderer->m_currentSize ), text );
-}
-
-struct TextLine
-{
-	int start;
-	int end;
-	int pxwidth;
-};
-
-void _GR2D_CalcTextLayout( Array< TextLine >& lines, const StringView& text, int width, int height )
-{
-	int lineheight = ceilf( g_CurFontSettings.CalcLineHeight() );
-	
-	int line_start = 0;
-	int end_of_last_word = 0;
-	int cur_line_width = 0;
-	int cur_word_width = 0;
-	int num_words = 1;
-	
-	uint32_t prev_chr_val = 0;
-	
-	UTF8Iterator IT( text );
-	if( IT.Advance() == false )
-		return;
-	for(;;)
-	{
-		int chr_pos = IT.offset;
-		uint32_t chr_val = IT.codepoint;
-		
-		int char_width = g_FontRenderer->GetAdvanceX( prev_chr_val, chr_val );
-		
-		if( chr_val == '\n' )
-		{
-			cur_line_width += cur_word_width;
-			if( prev_chr_val == ' ' )
-				num_words--;
-			
-			TextLine LN = { line_start, chr_pos, cur_line_width };
-			lines.push_back( LN );
-			
-			cur_line_width = 0;
-			cur_word_width = 0;
-			num_words = 1;
-			if( ( (int)lines.size() + 1 ) * lineheight > height )
-				break;
-			
-			// goto next line after all subsequent spaces
-			prev_chr_val = 0;
-			bool lastadv;
-			while( ( lastadv = IT.Advance() ) && IT.codepoint == ' ' );
-			if( !lastadv )
-				break;
-			line_start = IT.offset;
-			continue;
-		}
-		if( chr_val == ' ' )
-		{
-			cur_line_width += cur_word_width;
-			if( prev_chr_val != 0 && prev_chr_val != ' ' )
-				num_words++;
-			end_of_last_word = chr_pos;
-			cur_word_width = 0;
-		}
-		
-		if( cur_line_width + cur_word_width + char_width < width )
-		{
-			// still within line
-			cur_word_width += char_width;
-			prev_chr_val = chr_val;
-			if( IT.Advance() == false )
-				break;
-		}
-		else
-		{
-			// over the limit
-			if( cur_line_width )
-			{
-				// if not first word, commit line and restart the word
-				cur_word_width = 0;
-				num_words--;
-				chr_pos = end_of_last_word;
-				
-				IT.SetOffset( end_of_last_word );
-			}
-			cur_line_width += cur_word_width;
-			
-			TextLine LN = { line_start, chr_pos, cur_line_width };
-			lines.push_back( LN );
-			
-			cur_line_width = 0;
-			cur_word_width = 0;
-			num_words = 1;
-			if( ( (int)lines.size() + 1 ) * lineheight > height )
-				break;
-			
-			// goto next line after all subsequent spaces
-			prev_chr_val = 0;
-			bool lastadv;
-			while( ( lastadv = IT.Advance() ) && IT.codepoint == ' ' );
-			if( !lastadv )
-				break;
-			line_start = IT.offset;
-		}
-	}
-	
-	cur_line_width += cur_word_width;
-	if( cur_line_width )
-	{
-		TextLine LN = { line_start, text.size(), cur_line_width };
-		lines.push_back( LN );
-	}
-	
-	return;
-}
-
-static Array< TextLine > lines;
-void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
-	const StringView& text, int halign, int valign )
-{
-	// sizing
-	int width = x1 - x0;
-	int height = y1 - y0;
-	
-	int lineheight = ceilf( g_CurFontSettings.CalcLineHeight() );
-	if( height < lineheight )
-		return;
-	
-	lines.clear();
-	_GR2D_CalcTextLayout( lines, text, width, height );
-	
-	int vspace = height - lines.size() * lineheight;
-	int y = y0;
-	if( valign == VALIGN_CENTER ) y += vspace / 2;
-	else if( valign == VALIGN_BOTTOM ) y += vspace;
-	
-	for( size_t i = 0; i < lines.size(); ++i )
-	{
-		TextLine& LN = lines[ i ];
-		int hspace = width - LN.pxwidth;
-		int x = x0;
-		if( halign == HALIGN_CENTER ) x += hspace / 2;
-		else if( halign & HALIGN_RIGHT ) x += hspace;
-		
-		StringView textpart = text.part( LN.start, LN.end - LN.start );
-		
-		GR2D_DrawTextLine( x, y, textpart );
-		y += lineheight;
-	}
-}
-
 
 BatchRenderer& GR2D_GetBatchRenderer()
 {
@@ -1683,16 +1379,10 @@ static int init_graphics()
 	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
 	
 	SGRX_INT_InitResourceTables();
-	g_LoadedFonts = new FontHashTable();
-	g_Joysticks = new JoystickHashTable();
 	LOG << LOG_DATE << "  Created renderer resource caches";
+	SGRX_INT_InitBatchRendering();
 	
-	g_BatchRenderer = new BatchRenderer( g_Renderer );
-	LOG << LOG_DATE << "  Created batch renderer";
-	
-	sgrx_int_InitializeFontRendering();
-	g_FontRenderer = new FontRenderer();
-	LOG << LOG_DATE << "  Created font renderer";
+	g_Joysticks = new JoystickHashTable();
 	
 	g_Renderer->_RS_ProjectorInit();
 	if( !g_Renderer->LoadInternalResources() )
@@ -1712,19 +1402,10 @@ static void free_graphics()
 	g_Renderer->UnloadInternalResources();
 	g_Renderer->_RS_ProjectorFree();
 	
-	delete g_FontRenderer;
-	g_FontRenderer = NULL;
-	sgrx_int_FreeFontRendering();
-	
-	delete g_BatchRenderer;
-	g_BatchRenderer = NULL;
-	
 	delete g_Joysticks;
 	g_Joysticks = NULL;
 	
-	delete g_LoadedFonts;
-	g_LoadedFonts = NULL;
-	
+	SGRX_INT_DestroyBatchRendering();
 	SGRX_INT_DestroyResourceTables();
 	
 	g_Renderer->Destroy();

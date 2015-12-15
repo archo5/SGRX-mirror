@@ -2,6 +2,7 @@
 
 #include "engine_int.hpp"
 #include "enganim.hpp"
+#include "sound.hpp"
 
 
 typedef HashTable< StringView, SGRX_ConvexPointSet* > ConvexPointSetHashTable;
@@ -15,6 +16,7 @@ typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< SGRX_VtxInputMapKey, SGRX_IVertexInputMapping* > VtxInputMapHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
+typedef HashTable< StringView, FontHandle > FontHashTable;
 typedef HashTable< GenericHandle, int > ResourcePreserveHashTable;
 
 static ConvexPointSetHashTable* g_CPSets = NULL;
@@ -28,10 +30,45 @@ static VertexDeclHashTable* g_VertexDecls = NULL;
 static VtxInputMapHashTable* g_VtxInputMaps = NULL;
 static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
+static FontHashTable* g_LoadedFonts = NULL;
 static ResourcePreserveHashTable* g_PreservedResources = NULL;
 
 extern IGame* g_Game;
 extern IRenderer* g_Renderer;
+
+
+
+struct FakeSoundEventInstance : SGRX_ISoundEventInstance
+{
+	FakeSoundEventInstance( bool oneshot ) :
+		m_paused(false), m_volume(1), m_pitch(1)
+	{
+		isOneShot = oneshot;
+		isReal = false;
+	}
+	void Start(){ m_paused = false; }
+	void Stop( bool immediate = false ){}
+	bool GetPaused(){ return m_paused; }
+	void SetPaused( bool paused ){ m_paused = paused; }
+	float GetVolume(){ return m_volume; }
+	void SetVolume( float v ){ m_volume = v; }
+	float GetPitch(){ return m_pitch; }
+	void SetPitch( float v ){ m_pitch = v; }
+	bool SetParameter( const StringView& name, float value ){ return false; }
+	void Set3DAttribs( const SGRX_Sound3DAttribs& attribs ){}
+	
+	bool m_paused;
+	float m_volume;
+	float m_pitch;
+};
+
+SoundEventInstanceHandle SGRX_ISoundSystem::CreateEventInstance( const StringView& name )
+{
+	SoundEventInstanceHandle seih = CreateEventInstanceRaw( name );
+	if( seih != NULL )
+		return seih;
+	return new FakeSoundEventInstance( true );
+}
 
 
 
@@ -2209,6 +2246,38 @@ SceneHandle GR_CreateScene()
 }
 
 
+bool GR2D_LoadFont( const StringView& key, const StringView& path )
+{
+	SGRX_IFont* fif = NULL;
+	if( ( fif = sgrx_int_CreateFont( path ) ) == NULL )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load font: " << path;
+		return false;
+	}
+	fif->m_key = key;
+	g_LoadedFonts->set( fif->m_key, fif );
+	return true;
+}
+
+bool GR2D_LoadSVGIconFont( const StringView& key, const StringView& path )
+{
+	SGRX_IFont* fif = NULL;
+	if( ( fif = sgrx_int_CreateSVGIconFont( path ) ) == NULL )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load SVG icon font: " << path;
+		return false;
+	}
+	fif->m_key = key;
+	g_LoadedFonts->set( fif->m_key, fif );
+	return true;
+}
+
+FontHandle GR2D_GetFont( const StringView& key )
+{
+	return g_LoadedFonts->getcopy( key );
+}
+
+
 void SGRX_INT_InitResourceTables()
 {
 	g_CPSets = new ConvexPointSetHashTable();
@@ -2222,11 +2291,15 @@ void SGRX_INT_InitResourceTables()
 	g_VtxInputMaps = new VtxInputMapHashTable();
 	g_Meshes = new MeshHashTable();
 	g_Anims = new AnimHashTable();
+	g_LoadedFonts = new FontHashTable();
 	g_PreservedResources = new ResourcePreserveHashTable();
 }
 
 void SGRX_INT_DestroyResourceTables()
 {
+	delete g_LoadedFonts;
+	g_LoadedFonts = NULL;
+	
 	delete g_PreservedResources;
 	g_PreservedResources = NULL;
 	

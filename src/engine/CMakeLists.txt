@@ -8,7 +8,7 @@ endif()
 
 # Engine
 add_library( sgrx-core SHARED
-	engine.cpp engine.hpp engrender.cpp engrsrc.cpp
+	engine.cpp engine.hpp engrender.cpp engbatchr.cpp engrsrc.cpp
 	enganim.cpp enganim.hpp
 	engext.cpp engext.hpp
 	edgui.cpp edgui.hpp
