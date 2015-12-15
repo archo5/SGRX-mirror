@@ -152,9 +152,16 @@ function SliderShader( ctrl )
 	ctrl.DButton( 0, 0, ctrl.width, ctrl.height, 4, 4/128 );
 	pos = ctrl.pos;
 	ctrl.DCol( 1 );
-	if( ctrl.btnwidth <= 0 )
+	if( ctrl.btnwidth > 0 )
 	{
-		ctrl.DButton( 0, 0, ctrl.width * pos, ctrl.height, min( 4, ctrl.width * pos ), 4/128 );
+		xoff = ( ctrl.width - ctrl.btnwidth ) * pos;
+		ctrl.DButton( xoff, 0, xoff + ctrl.btnwidth, ctrl.height,
+			min( 4, ctrl.IS( ctrl.btnwidth / 2 ) ), 4/128 );
+	}
+	else
+	{
+		ctrl.DButton( 0, 0, ctrl.width * pos, ctrl.height,
+			min( 4, ctrl.IS( ctrl.width * pos / 2 ) ), 4/128 );
 	}
 	
 	text = ctrl.val;
@@ -169,12 +176,6 @@ function CreateSlider( x, y, w, h, btnwidth, key, mapping, textfunc )
 {
 	ctrl = this.CreateControl( x, y, w, h );
 	
-	btn_mkr = null;
-	if( btnwidth > 0 )
-	{
-		btn_mkr = ctrl!CreateButton( 0, 0, btnwidth, h );
-	}
-	
 	ocb = ctrl.eventCallback;
 	Slider = ctrl;
 	ctrl.shaders.push( SliderShader );
@@ -183,7 +184,10 @@ function CreateSlider( x, y, w, h, btnwidth, key, mapping, textfunc )
 		if( ( ev.type == GUI_Event_MouseMove && this.clickedL ) ||
 			( ev.type == GUI_Event_BtnDown && ev.button == GUI_MB_Left ) )
 		{
-			this.SetPos( ( ev.x - this.rx0 ) / ( this.rx1 - this.rx0 ) );
+			bws = this.IS( this.btnwidth / 2 );
+			pmin = this.rx0 + bws;
+			pmax = this.rx1 - bws;
+			this.SetPos( ( ev.x - pmin ) / ( pmax - pmin ) );
 		}
 		return this!ocb( ev );
 	}
@@ -213,17 +217,17 @@ function CreateSlider( x, y, w, h, btnwidth, key, mapping, textfunc )
 	}
 	function Slider.SetPos( pos )
 	{
+		oldval = this.val;
 		pos = clamp( pos, 0.0, 1.0 );
 		val = this.MapTo( pos );
 		values[ this.key ] = val;
 		this.pos = this.MapFrom( val );
 		this.val = val;
-		if( this.btn_mkr )
-			this.btn_mkr.x = ( this.width - this.btnwidth ) * this.pos;
-		CallEventChain( ev_change, this.key );
+		if( oldval != val )
+			CallEventChain( ev_change, this.key );
 	}
 	
-	ctrl.{ btn_mkr, btnwidth, key, mapping, textfunc };
+	ctrl.{ btnwidth, key, mapping, textfunc };
 	ctrl.Reload();
 	
 	return ctrl;
