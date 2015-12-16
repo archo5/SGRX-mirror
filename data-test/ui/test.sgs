@@ -151,6 +151,10 @@ function SliderShader( ctrl )
 	ctrl.DCol( 0, 1 );
 	ctrl.DTex( tex_button_core_c );
 	ctrl.DButton( 0, 0, ctrl.width, ctrl.height, 4, 4/128 );
+	if( ctrl.focused )
+	{
+		ctrl.DButton( 0, 0, ctrl.width, ctrl.height, 4, 4/128 );
+	}
 	pos = ctrl.pos;
 	ctrl.DCol( 1 );
 	if( ctrl.btnwidth > 0 )
@@ -158,11 +162,25 @@ function SliderShader( ctrl )
 		xoff = ( ctrl.width - ctrl.btnwidth ) * pos;
 		ctrl.DButton( xoff, 0, xoff + ctrl.btnwidth, ctrl.height,
 			min( 4, ctrl.IS( ctrl.btnwidth / 2 ) ), 4/128 );
+		if( ctrl.focused )
+		{
+			ctrl.DTex( tex_button_core_f );
+			ctrl.DCol( 1, 0.5 );
+			ctrl.DButton( xoff, 0, xoff + ctrl.btnwidth, ctrl.height,
+				min( 4, ctrl.IS( ctrl.btnwidth / 2 ) ), 4/128 );
+		}
 	}
 	else
 	{
 		ctrl.DButton( 0, 0, ctrl.width * pos, ctrl.height,
 			min( 4, ctrl.IS( ctrl.width * pos / 2 ) ), 4/128 );
+		if( ctrl.focused )
+		{
+			ctrl.DTex( tex_button_core_f );
+			ctrl.DCol( 1, 0.5 );
+			ctrl.DButton( 0, 0, ctrl.width * pos, ctrl.height,
+				min( 4, ctrl.IS( ctrl.width * pos / 2 ) ), 4/128 );
+		}
 	}
 	
 	text = ctrl.val;
@@ -176,6 +194,7 @@ function SliderShader( ctrl )
 function CreateSlider( x, y, w, h, btnwidth, key, mapping, textfunc )
 {
 	ctrl = this.CreateControl( x, y, w, h );
+	ctrl.focusable = true;
 	
 	ocb = ctrl.eventCallback;
 	Slider = ctrl;
@@ -338,8 +357,8 @@ scr_optmenu.shaders.push(function( ctrl )
 {
 	ctrl.DCol( 0.4, 0.5 );
 	ctrl.DQuad( 5, 5, ctrl.width - 5, ctrl.height - 5 );
-	ctrl.DCol( 0.1, 0.8 );
 	ctrl.DFont( "core", 4 );
+	ctrl.DCol( 0.1, 0.8 );
 	ctrl.DText( "Options", 99, 6, HALIGN_RIGHT, VALIGN_TOP );
 });
 scr_optmenu.enabled = false;
@@ -349,10 +368,10 @@ function animate( obj, prop, endval, time )
 {
 	startval = obj.(prop);
 	
-	for( at = 0; at < time; at += 1/60 )
+	for( at = 0; at < time; at += 1/120 )
 	{
 		obj.(prop) = lerp( startval, endval, at / time );
-		yield 1/60;
+		yield 1/120;
 	}
 	
 	obj.(prop) = endval;
@@ -368,7 +387,7 @@ scr_btn_main2options.AddCallback( "onclick", function()
 	scr_mainmenu.enabled = false;
 });
 
-global scr_btn_options2main = scr_optmenu!CreateButton( 95, 90, 5, 5, ">" );
+global scr_btn_options2main = scr_optmenu!CreateButton( 95, 90, 5, 5, "<" );
 scr_btn_options2main.AddCallback( "onclick", function()
 {
 	scr_mainmenu.enabled = true;

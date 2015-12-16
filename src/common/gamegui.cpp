@@ -26,17 +26,24 @@ struct FocusSearch
 		);
 	}
 	float GetMaxProj( GameUIControl* c, Vec2 d ){ return -GetMinProj( c, -d ); }
-	float GetDistance( GameUIControl* c, Vec2 p )
+	float GetDistance( GameUIControl* c )
 	{
-		Vec2 pos = V2( c->rx0 + c->rx1, c->ry0 + c->ry1 ) * 0.5f;
-		return ( pos - p ).Length();
+		float xoff = TMIN( c->rx1 - exclctrl->rx0, exclctrl->rx1 - c->rx0 );
+		float yoff = TMIN( c->ry1 - exclctrl->ry0, exclctrl->ry1 - c->ry0 );
+		if( xoff >= 0 && yoff >= 0 )
+			return 0;
+		if( xoff >= 0 )
+			return -yoff;
+		if( yoff >= 0 )
+			return -xoff;
+		return sqrtf( xoff * xoff + yoff * yoff );
 	}
 	float Measure( GameUIControl* c )
 	{
 		float dp = GetMinProj( c, dir ) - mymaxproj;
 		if( dp < 0 )
 			return FLT_MAX;
-		return dp + GetDistance( c, pos );
+		return dp + GetDistance( c );
 	}
 	void CheckFit( GameUIControl* c )
 	{
@@ -498,7 +505,7 @@ void GameUIControl::DQuadExt( float x0, float y0, float x1, float y1,
 void GameUIControl::DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr )
 {
 	GR2D_GetBatchRenderer().Button(
-		V4( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ) ),
+		V4( round( IX( x0 ) ), round( IY( y0 ) ), round( IX( x1 ) ), round( IY( y1 ) ) ),
 		bdr, texbdr );
 }
 
@@ -895,6 +902,8 @@ void GameUISystem::Draw( float dt )
 	m_rootCtrl->width = GR_GetWidth();
 	m_rootCtrl->height = GR_GetHeight();
 	m_rootCtrl->Draw( dt );
+	
+	_HandleMouseMove( true );
 	
 	sgs_ProcessSubthreads( m_scriptCtx.C, dt );
 	
