@@ -65,6 +65,7 @@ typedef Handle< EventLinkArray > EventLinkArrayHandle;
 typedef HashTable< SGRX_EventID, EventLinkArrayHandle > EventLinksByID;
 typedef HashTable< SGRX_IEventHandler*, EventLinkArrayHandle > EventLinksByHandler;
 typedef HashTable< int, JoystickHandle > JoystickHashTable;
+typedef HashTable< StringView, CObj* > CObjMap;
 
 static String g_GameLibName = "game";
 static String g_GameDir = ".";
@@ -79,6 +80,7 @@ static void* g_GameLib = NULL;
 IGame* g_Game = NULL;
 static uint32_t g_GameTime = 0;
 static ActionMap* g_ActionMap;
+static CObjMap* g_CObjs;
 static Vec2 g_CursorPos = {0,0};
 static Vec2 g_CursorScale = {0,0};
 static EventLinksByID g_EventLinksByID;
@@ -96,6 +98,22 @@ IRenderer* g_Renderer = NULL;
 static JoystickHashTable* g_Joysticks = NULL;
 
 extern BatchRenderer* g_BatchRenderer;
+
+
+CVarInt gcv_r_width( "r_width" );
+CVarInt gcv_r_height( "r_height" );
+CVarInt gcv_r_rate( "r_rate" );
+
+static void registercvars()
+{
+	gcv_r_width.is_const = true;
+	gcv_r_height.is_const = true;
+	gcv_r_rate.is_const = true;
+	
+	REGCOBJ( gcv_r_width );
+	REGCOBJ( gcv_r_height );
+	REGCOBJ( gcv_r_rate );
+}
 
 
 
@@ -121,6 +139,65 @@ bool Window_GetClipboardText( String& out )
 bool Window_SetClipboardText( const StringView& text )
 {
 	return 0 == SDL_SetClipboardText( String_Concat( text, StringView( "\0", 1 ) ).data() );
+}
+
+
+
+CObj::~CObj()
+{
+}
+
+void CObj::ToString( String& out )
+{
+}
+
+void CObj::DoCommand( StringView cmd )
+{
+}
+
+void CVar::DoCommand( StringView args )
+{
+	if( args.size() == 0 )
+	{
+		String out;
+		ToString( out );
+		printf( "CVAR [%s]: %s\n", StackString<128>(name).str, StackString<128>(out).str );
+	}
+	else
+	{
+		FromString( args );
+		OnChange();
+	}
+}
+
+void CVar::FromString( StringView str )
+{
+}
+
+void CVar::OnChange()
+{
+}
+
+void CVarBool::ToString( String& out )
+{
+	out.append( value ? "true" : "false" );
+}
+
+void CVarBool::FromString( StringView str )
+{
+	value = String_ParseBool( str );
+}
+
+void CVarInt::ToString( String& out )
+{
+	char bfr[ 32 ];
+	sgrx_snprintf( bfr, 32, "%d", (int) value );
+	out.append( bfr );
+}
+
+void CVarInt::FromString( StringView str )
+{
+	value = String_ParseInt( str );
 }
 
 
@@ -248,6 +325,16 @@ void Game_RegisterAction( InputState* cmd )
 void Game_UnregisterAction( InputState* cmd )
 {
 	g_ActionMap->Unregister( cmd );
+}
+
+void Game_RegisterCObj( CObj& cobj )
+{
+	g_CObjs->set( cobj.name, &cobj );
+}
+
+void Game_UnregisterCObj( CObj& cobj )
+{
+	g_CObjs->unset( cobj.name );
 }
 
 InputState* Game_FindAction( const StringView& cmd )
@@ -1583,7 +1670,10 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	}
 	SDL_JoystickEventState( SDL_ENABLE );
 	
+	g_CObjs = new CObjMap;
 	g_ActionMap = new ActionMap;
+	
+	registercvars();
 	
 	g_GameLibName.append( STRLIT_BUF( ".dll" ) );
 	
@@ -1667,6 +1757,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	SDL_UnloadObject( g_GameLib );
 	
 	delete g_ActionMap;
+	delete g_CObjs;
 	
 	LOG << LOG_DATE << "  Engine finished";
 	return 0;

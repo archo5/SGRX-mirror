@@ -38,22 +38,48 @@ typedef SDL_Event Event;
 
 
 // command object
-struct CObj
+struct IF_GCC(ENGINE_EXPORT) CObj
 {
-	virtual ~CObj(){}
+	CObj( StringView nm ) : name( nm ){}
+	ENGINE_EXPORT virtual ~CObj();
+	ENGINE_EXPORT virtual void ToString( String& out );
+	ENGINE_EXPORT virtual void DoCommand( StringView cmd );
+	
+	StringView name;
 };
 
-struct CVarBool : CObj
+struct IF_GCC(ENGINE_EXPORT) CVar : CObj
 {
-	CVarBool( const char* nm, bool v = false ) : name( nm ), value( v ){}
-	const char* name;
+	CVar( StringView nm ) : CObj( nm ), is_const( false ){}
+	ENGINE_EXPORT virtual void DoCommand( StringView args );
+	ENGINE_EXPORT virtual void FromString( StringView str );
+	ENGINE_EXPORT virtual void OnChange();
+	
+	bool is_const;
+};
+
+struct IF_GCC(ENGINE_EXPORT) CVarBool : CVar
+{
+	CVarBool( StringView nm, bool v = false ) : CVar( nm ), value( v ){}
+	ENGINE_EXPORT virtual void ToString( String& out );
+	ENGINE_EXPORT virtual void FromString( StringView str );
+	
 	bool value;
 };
 
-struct InputState : CObj
+struct IF_GCC(ENGINE_EXPORT) CVarInt : CVar
 {
-	InputState( const StringView& sv, float thr = 0.25f ) :
-		name(sv),
+	CVarInt( StringView nm, int32_t v = 0 ) : CVar( nm ), value( v ){}
+	ENGINE_EXPORT virtual void ToString( String& out );
+	ENGINE_EXPORT virtual void FromString( StringView str );
+	
+	int32_t value;
+};
+
+struct IF_GCC(ENGINE_EXPORT) InputState : CObj
+{
+	InputState( const StringView& nm, float thr = 0.25f ) :
+		CObj( nm ),
 		threshold(thr),
 		value(0), prev_value(0),
 		state(false), prev_state(false)
@@ -65,7 +91,6 @@ struct InputState : CObj
 	ENGINE_EXPORT void _SetState( float x );
 	ENGINE_EXPORT void _Advance();
 	
-	StringView name;
 	float threshold;
 	float value, prev_value;
 	bool state, prev_state;
@@ -272,6 +297,9 @@ ENGINE_EXPORT void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_Eve
 ENGINE_EXPORT void Game_FireEvent( SGRX_EventID eid, const EventData& edata );
 ENGINE_EXPORT void Game_RegisterAction( InputState* cmd );
 ENGINE_EXPORT void Game_UnregisterAction( InputState* cmd );
+ENGINE_EXPORT void Game_RegisterCObj( CObj& cobj );
+ENGINE_EXPORT void Game_UnregisterCObj( CObj& cobj );
+#define REGCOBJ( cobj ) Game_RegisterCObj( cobj );
 ENGINE_EXPORT InputState* Game_FindAction( const StringView& cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, InputState* cmd );
 ENGINE_EXPORT void Game_BindMouseButtonToAction( int btn, InputState* cmd );
