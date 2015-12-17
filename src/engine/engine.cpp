@@ -251,6 +251,18 @@ void CVarInt::FromString( StringView str )
 	value = String_ParseInt( str );
 }
 
+void CVarFloat::ToString( String& out )
+{
+	char bfr[ 1200 ];
+	sgrx_snprintf( bfr, 1200, "%.6g", value );
+	out.append( bfr );
+}
+
+void CVarFloat::FromString( StringView str )
+{
+	value = String_ParseFloat( str );
+}
+
 
 
 SGRX_Joystick::SGRX_Joystick( int which ) : m_id( which ), m_gamectrl( NULL )
@@ -586,6 +598,9 @@ static void process_overlay_screens( float dt )
 void Game_OnEvent( const Event& e )
 {
 	LOG_FUNCTION;
+	
+	Game_FireEvent( EID_WindowEvent, EventData( (void*) &e ) );
+	
 	if( e.type == SDL_WINDOWEVENT )
 	{
 		switch( e.window.event )

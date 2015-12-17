@@ -1,7 +1,7 @@
 
 
 #include "level.hpp"
-#include "tsui.hpp"
+#include "gamegui.hpp"
 #include "entities.hpp"
 #include "entities_ts.hpp"
 
@@ -35,11 +35,13 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 	int m_points_target;
 	float m_respawnTimeout_ply;
 	float m_respawnTimeout_enm;
-	float m_hitAlpha;
+	float m_timeSinceLastHit;
 	TSCharacter* m_player;
 	TSCharacter* m_enemy;
-	SGRX_ActorCtrlHandle m_actorCtrl_ply;
+	SGRX_IActorController* m_actorCtrl_ply;
 	SGRX_ActorCtrlHandle m_actorCtrl_enm;
 	Array< Vec3 > m_spawnPoints;
+	
+	GameUISystem m_guiSys;
 };
 

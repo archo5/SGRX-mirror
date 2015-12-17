@@ -109,6 +109,8 @@ struct GameUISystem
 	void EngineEvent( const Event& eev );
 	void Draw( float dt );
 	
+	void CallFunc( StringView name );
+	
 	void _HandleMouseMove( bool optional );
 	GameUIControl* _GetItemAtPosition( int x, int y );
 	void _OnRemove( GameUIControl* ctrl );

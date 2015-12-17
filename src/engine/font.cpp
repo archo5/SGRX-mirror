@@ -86,6 +86,7 @@ int FTFont::GetKerning( uint32_t ic1, uint32_t ic2 )
 
 int FTFont::GetYOffset( int pxsize )
 {
+	_Resize( pxsize );
 	FT_Size_Metrics m = face->size->metrics;
 	return -( ( ( m.ascender + abs( m.descender ) ) >> 6 ) - m.y_ppem ) / 2;
 }

@@ -563,15 +563,11 @@ static int GetCVar( SGS_CTX )
 	CObj* cv = Game_FindCObj( sgs_GetVar<StringView>()( C, 0 ) );
 	
 	if( cv->type == COBJ_TYPE_CVAR_BOOL )
-	{
-		sgs_PushBool( C, ((CVarBool*)cv)->value );
-		return 1;
-	}
+		return sgs_PushBool( C, ((CVarBool*)cv)->value );
 	if( cv->type == COBJ_TYPE_CVAR_INT )
-	{
-		sgs_PushInt( C, ((CVarInt*)cv)->value );
-		return 1;
-	}
+		return sgs_PushInt( C, ((CVarInt*)cv)->value );
+	if( cv->type == COBJ_TYPE_CVAR_FLOAT )
+		return sgs_PushReal( C, ((CVarFloat*)cv)->value );
 	return 0;
 }
 
@@ -939,6 +935,11 @@ void GameUISystem::Draw( float dt )
 	sgs_ProcessSubthreads( m_scriptCtx.C, dt );
 	
 	GR2D_GetBatchRenderer().Flush();
+}
+
+void GameUISystem::CallFunc( StringView name )
+{
+	m_scriptCtx.GlobalCall( name );
 }
 
 void GameUISystem::_OnRemove( GameUIControl* ctrl )

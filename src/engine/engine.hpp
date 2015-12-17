@@ -41,6 +41,7 @@ typedef SDL_Event Event;
 #define COBJ_TYPE_CVAR_CUSTOM 1
 #define COBJ_TYPE_CVAR_BOOL   2
 #define COBJ_TYPE_CVAR_INT    3
+#define COBJ_TYPE_CVAR_FLOAT  4
 #define COBJ_TYPE_INPUTSTATE  1000
 
 #define COBJ_FLAG_CONST      0x0001
@@ -91,6 +92,15 @@ struct IF_GCC(ENGINE_EXPORT) CVarInt : CVar
 	ENGINE_EXPORT virtual void FromString( StringView str );
 	
 	int32_t value;
+};
+
+struct IF_GCC(ENGINE_EXPORT) CVarFloat : CVar
+{
+	CVarFloat( StringView nm, float v = 0 ) : CVar( nm, COBJ_TYPE_CVAR_FLOAT ), value( v ){}
+	ENGINE_EXPORT virtual void ToString( String& out );
+	ENGINE_EXPORT virtual void FromString( StringView str );
+	
+	float value;
 };
 
 struct IF_GCC(ENGINE_EXPORT) InputState : CObj
@@ -276,6 +286,9 @@ enum SGRX_EventIDType
 {
 	EID_Type_None = 0,
 	EID_Type_Engine = 1,
+	
+	EID_WindowEvent, // Event*
+	
 	EID_Type_User = 65536,
 };
 

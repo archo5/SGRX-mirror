@@ -179,16 +179,15 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	void AddEntity( Entity* E );
 	void AddEntry( const StringView& name, sgsVariable var );
 	
-	// system interface
+	// system/entity interface
 	StringView GetLevelName() const { return m_levelName; }
 	void SetPlayer( Entity* E ){ m_player = E; }
 	bool IsPaused() const { return m_paused; }
-	
-	// entity interface
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
 	SGRX_Scene* GetScene() const { return m_scene; }
 	ScriptContext& GetScriptCtx(){ return m_scriptCtx; }
 	sgs_Context* GetSGSC() const { return m_scriptCtx.C; }
+	float GetDeltaTime() const { return m_deltaTime; }
 	
 	bool Load( const StringView& levelname );
 	void CreateEntity( const StringView& type, sgsVariable data );
@@ -231,6 +230,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	uint32_t m_nameIDGen;
 	double m_currentTickTime;
 	double m_currentPhyTime;
+	float m_deltaTime;
 	String m_levelName;
 	String m_nextLevel;
 	

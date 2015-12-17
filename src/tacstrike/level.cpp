@@ -48,6 +48,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_nameIDGen( 0 ),
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
+	m_deltaTime( 0 ),
 	m_paused( false ),
 	m_levelTime( 0 ),
 	m_player( NULL )
@@ -355,6 +356,7 @@ void GameLevel::FixedTick( float deltaTime )
 
 void GameLevel::Tick( float deltaTime, float blendFactor )
 {
+	m_deltaTime = deltaTime;
 	m_levelTime += deltaTime;
 	
 	if( !m_player )

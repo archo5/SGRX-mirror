@@ -28,12 +28,25 @@ Vec2 CURSOR_POS = V2(0);
 
 
 
+CVarFloat gcv_ts_time_since_last_hit( "ts_time_since_last_hit" );
+CVarInt gcv_ts_fight_state( "ts_fight_state" );
+CVarFloat gcv_ts_fight_timeleft( "ts_fight_timeleft" );
+CVarInt gcv_ts_fight_p1_points( "ts_fight_p1_points" );
+CVarInt gcv_ts_fight_p2_points( "ts_fight_p2_points" );
+
 //static sgs_Prof prof;
 TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ), m_state( GS_Intro ),
 	m_timeout( 3 ), m_points_ply( 0 ), m_points_enm( 0 ), m_points_target( 10 ),
-	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 ), m_hitAlpha( 0.0f )
+	m_respawnTimeout_ply( 0 ), m_respawnTimeout_enm( 0 ), m_timeSinceLastHit( 9999.0f )
 {
+	REGCOBJ( gcv_ts_time_since_last_hit );
+	REGCOBJ( gcv_ts_fight_state );
+	REGCOBJ( gcv_ts_fight_timeleft );
+	REGCOBJ( gcv_ts_fight_p1_points );
+	REGCOBJ( gcv_ts_fight_p2_points );
+	
+	RegisterHandler( EID_WindowEvent );
 	RegisterHandler( TSEV_CharHit );
 	RegisterHandler( TSEV_CharDied );
 	
@@ -41,6 +54,8 @@ TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	m_enemy = NULL;
 	
 	//sgs_ProfInit( m_level->GetSGSC(), &prof, SGS_PROF_FUNCTIME );
+	
+	m_guiSys.Load( "ui/fight.sgs" );
 }
 
 TSFightGameMode::~TSFightGameMode()
@@ -112,7 +127,8 @@ bool TSFightGameMode::AddEntity( const StringView& type, sgsVariable data )
 void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 {
 	m_timeout = TMAX( 0.0f, m_timeout - deltaTime );
-	m_hitAlpha = clamp( m_hitAlpha - deltaTime, 0.0f, 0.5f );
+	m_timeSinceLastHit += deltaTime;
+	
 	switch( m_state )
 	{
 	case GS_TEST2: break;
@@ -140,6 +156,8 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 		// timeout to intro end
 		if( m_timeout <= 0 )
 		{
+			m_guiSys.CallFunc( "ev_fight_start" );
+			
 			// start the game
 			m_state = GS_Playing;
 			
@@ -168,45 +186,38 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 	case GS_Ending:
 		break;
 	}
+	
+	gcv_ts_time_since_last_hit.value = m_timeSinceLastHit;
+	gcv_ts_fight_timeleft.value = m_timeout;
+	gcv_ts_fight_state.value = m_state;
+	gcv_ts_fight_p1_points.value = m_points_ply;
+	gcv_ts_fight_p2_points.value = m_points_enm;
 }
 
 void TSFightGameMode::DrawUI()
 {
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	if( m_hitAlpha > 0 )
-	{
-		br.Reset().Col( 0.6f, 0.02f, 0.01f, m_hitAlpha );
-		br.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
-	}
-	
-	if( m_state == GS_Intro )
-	{
-		GR2D_SetFont( "core", 32 );
-		GR2D_SetColor( 0, 0, 1 );
-		char bfr[ 128 ];
-		sgrx_snprintf( bfr, sizeof(bfr), "%d", (int) ceil( m_timeout ) );
-		GR2D_DrawTextLine( GR_GetWidth() / 2, GR_GetHeight() / 2, bfr, HALIGN_CENTER, VALIGN_CENTER );
-	}
-	else if( m_state == GS_Playing )
-	{
-		GR2D_SetFont( "core", 32 );
-		GR2D_SetColor( 1, 0, 0 );
-		char bfr[ 128 ];
-		sgrx_snprintf( bfr, sizeof(bfr), "[P] %d : [E] %d", m_points_ply, m_points_enm );
-		GR2D_DrawTextLine( GR_GetWidth() / 2, GR_GetHeight() / 16, bfr, HALIGN_CENTER, VALIGN_CENTER );
-	}
+	m_guiSys.Draw( m_level->GetDeltaTime() );
 }
 
 void TSFightGameMode::HandleEvent( SGRX_EventID eid, const EventData& edata )
 {
 	switch( eid )
 	{
+	case EID_WindowEvent:
+		{
+			SGRX_CAST( Event*, ev, edata.GetUserData() );
+			m_guiSys.EngineEvent( *ev );
+		}
+		break;
 	case TSEV_CharHit:
 		{
 			SGRX_CAST( TSEventData_CharHit*, hitdata, edata.GetUserData() );
 			
 			if( m_player == hitdata->ch )
-				m_hitAlpha += hitdata->power * 0.1f;
+			{
+				m_timeSinceLastHit = TMIN( m_timeSinceLastHit, 1.0f );
+				m_timeSinceLastHit = clamp( m_timeSinceLastHit - hitdata->power * 0.1f, 0, 1 );
+			}
 		}
 		break;
 	case TSEV_CharDied:
