@@ -141,6 +141,8 @@ GameUIControl* GameUIControl::Create( SGS_CTX )
 
 void GameUIControl::_FindBestFocus( FocusSearch& fs )
 {
+	if( enabled == false )
+		return;
 	fs.CheckFit( this );
 	for( size_t i = 0; i < m_subitems.size(); ++i )
 	{
@@ -162,6 +164,8 @@ bool GameUIControl::_isIn( GameUIControl* prt )
 
 GameUIControl* GameUIControl::_getFirstFocusable()
 {
+	if( enabled == false )
+		return NULL;
 	if( focusable )
 		return this;
 	for( size_t i = 0; i < m_subitems.size(); ++i )
@@ -178,7 +182,7 @@ bool GameUIControl::_getVisible() const
 	const GameUIControl* ctrl = this;
 	while( ctrl )
 	{
-		if( !enabled )
+		if( ctrl->enabled == false )
 			return false;
 		ctrl = ctrl->parent;
 	}
@@ -553,6 +557,31 @@ static int SetFocusRoot( SGS_CTX )
 	return 0;
 }
 
+static int GetCVar( SGS_CTX )
+{
+	SGSFN( "GetCVar" );
+	CObj* cv = Game_FindCObj( sgs_GetVar<StringView>()( C, 0 ) );
+	
+	if( cv->type == COBJ_TYPE_CVAR_BOOL )
+	{
+		sgs_PushBool( C, ((CVarBool*)cv)->value );
+		return 1;
+	}
+	if( cv->type == COBJ_TYPE_CVAR_INT )
+	{
+		sgs_PushInt( C, ((CVarInt*)cv)->value );
+		return 1;
+	}
+	return 0;
+}
+
+static int DoCommand( SGS_CTX )
+{
+	SGSFN( "DoCommand" );
+	sgs_PushBool( C, Game_DoCommand( sgs_GetVar<StringView>()( C, 0 ) ) );
+	return 1;
+}
+
 sgs_RegIntConst sgs_iconsts[] =
 {
 	{ "HALIGN_LEFT", HALIGN_LEFT },
@@ -614,6 +643,8 @@ sgs_RegFuncConst sgs_funcs[] =
 {
 	{ "TEXTURE", TEXTURE },
 	{ "SetFocusRoot", SetFocusRoot },
+	{ "GetCVar", GetCVar },
+	{ "DoCommand", DoCommand },
 };
 
 GameUISystem::GameUISystem() :
@@ -888,7 +919,7 @@ void GameUISystem::Draw( float dt )
 		( m_kbdFocusCtrl->_getVisible() == false ||
 		m_kbdFocusCtrl->_isIn( m_focusRootCtrl ) == false ) )
 	{
-		m_kbdFocusCtrl = NULL;
+		MoveFocus( 0, 0 );
 	}
 	if( m_kbdFocusCtrl == NULL )
 	{

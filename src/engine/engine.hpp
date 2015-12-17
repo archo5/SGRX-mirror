@@ -38,29 +38,46 @@ typedef SDL_Event Event;
 
 
 // command object
+#define COBJ_TYPE_CVAR_CUSTOM 1
+#define COBJ_TYPE_CVAR_BOOL   2
+#define COBJ_TYPE_CVAR_INT    3
+#define COBJ_TYPE_INPUTSTATE  1000
+
+#define COBJ_FLAG_CONST      0x0001
+
+template< class T > void TSET_FLAG( T& var, T flag, bool val )
+{
+	if( val )
+		var |= flag;
+	else
+		var &= ~flag;
+}
+
 struct IF_GCC(ENGINE_EXPORT) CObj
 {
-	CObj( StringView nm ) : name( nm ){}
+	CObj( StringView nm, uint16_t ty ) : name( nm ), type( ty ), flags( 0 ){}
 	ENGINE_EXPORT virtual ~CObj();
 	ENGINE_EXPORT virtual void ToString( String& out );
 	ENGINE_EXPORT virtual void DoCommand( StringView cmd );
 	
+	bool GetConst() const { return ( flags & COBJ_FLAG_CONST ) != 0; }
+	void SetConst( bool v ){ TSET_FLAG<uint16_t>( flags, COBJ_FLAG_CONST, v ); }
+	
 	StringView name;
+	uint16_t type, flags;
 };
 
 struct IF_GCC(ENGINE_EXPORT) CVar : CObj
 {
-	CVar( StringView nm ) : CObj( nm ), is_const( false ){}
+	CVar( StringView nm, uint16_t ty = COBJ_TYPE_CVAR_CUSTOM ) : CObj( nm, ty ){}
 	ENGINE_EXPORT virtual void DoCommand( StringView args );
 	ENGINE_EXPORT virtual void FromString( StringView str );
 	ENGINE_EXPORT virtual void OnChange();
-	
-	bool is_const;
 };
 
 struct IF_GCC(ENGINE_EXPORT) CVarBool : CVar
 {
-	CVarBool( StringView nm, bool v = false ) : CVar( nm ), value( v ){}
+	CVarBool( StringView nm, bool v = false ) : CVar( nm, COBJ_TYPE_CVAR_BOOL ), value( v ){}
 	ENGINE_EXPORT virtual void ToString( String& out );
 	ENGINE_EXPORT virtual void FromString( StringView str );
 	
@@ -69,7 +86,7 @@ struct IF_GCC(ENGINE_EXPORT) CVarBool : CVar
 
 struct IF_GCC(ENGINE_EXPORT) CVarInt : CVar
 {
-	CVarInt( StringView nm, int32_t v = 0 ) : CVar( nm ), value( v ){}
+	CVarInt( StringView nm, int32_t v = 0 ) : CVar( nm, COBJ_TYPE_CVAR_INT ), value( v ){}
 	ENGINE_EXPORT virtual void ToString( String& out );
 	ENGINE_EXPORT virtual void FromString( StringView str );
 	
@@ -79,7 +96,7 @@ struct IF_GCC(ENGINE_EXPORT) CVarInt : CVar
 struct IF_GCC(ENGINE_EXPORT) InputState : CObj
 {
 	InputState( const StringView& nm, float thr = 0.25f ) :
-		CObj( nm ),
+		CObj( nm, COBJ_TYPE_INPUTSTATE ),
 		threshold(thr),
 		value(0), prev_value(0),
 		state(false), prev_state(false)
@@ -299,6 +316,8 @@ ENGINE_EXPORT void Game_RegisterAction( InputState* cmd );
 ENGINE_EXPORT void Game_UnregisterAction( InputState* cmd );
 ENGINE_EXPORT void Game_RegisterCObj( CObj& cobj );
 ENGINE_EXPORT void Game_UnregisterCObj( CObj& cobj );
+ENGINE_EXPORT CObj* Game_FindCObj( StringView name );
+ENGINE_EXPORT bool Game_DoCommand( StringView cmd );
 #define REGCOBJ( cobj ) Game_RegisterCObj( cobj );
 ENGINE_EXPORT InputState* Game_FindAction( const StringView& cmd );
 ENGINE_EXPORT void Game_BindKeyToAction( uint32_t key, InputState* cmd );

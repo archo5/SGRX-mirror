@@ -1811,6 +1811,9 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 		rtrim( chars );
 	}
 	
+	int64_t parse_int();
+	double parse_float();
+	
 	ENGINE_EXPORT bool match_loose( const StringView& substr );
 	ENGINE_EXPORT bool match( const StringView& regex );
 	
@@ -1935,6 +1938,10 @@ ENGINE_EXPORT String String_Replace( const StringView& base, const StringView& s
 //
 // PARSING
 //
+
+ENGINE_EXPORT int util_strtonum( const char** at, const char* end, int64_t* outi, double* outf );
+ENGINE_EXPORT int util_strtonum( const char** at, const char* end, int64_t* outi );
+ENGINE_EXPORT int util_strtonum( const char** at, const char* end, double* outf );
 
 ENGINE_EXPORT bool String_ParseBool( const StringView& sv );
 ENGINE_EXPORT int64_t String_ParseInt( const StringView& sv, bool* success = NULL );

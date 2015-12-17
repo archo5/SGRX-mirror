@@ -100,19 +100,70 @@ static JoystickHashTable* g_Joysticks = NULL;
 extern BatchRenderer* g_BatchRenderer;
 
 
+CVarInt gcv_r_display( "r_display" );
 CVarInt gcv_r_width( "r_width" );
 CVarInt gcv_r_height( "r_height" );
-CVarInt gcv_r_rate( "r_rate" );
+CVarInt gcv_r_refresh_rate( "r_refresh_rate" );
+CVarInt gcv_r_fullscreen( "r_fullscreen" );
+CVarBool gcv_r_vsync( "r_vsync" );
+
+struct CVarVideoMode : CVar
+{
+	CVarVideoMode() : CVar( "r_videomode" ){}
+	virtual void ToString( String& out )
+	{
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, sizeof(bfr), "%d %d %d %d %d %d %d %d\n",
+			(int) g_RenderSettings.display,
+			(int) g_RenderSettings.width,
+			(int) g_RenderSettings.height,
+			(int) g_RenderSettings.refresh_rate,
+			(int) g_RenderSettings.fullscreen,
+			(int) g_RenderSettings.vsync,
+			(int) g_RenderSettings.aa_mode,
+			(int) g_RenderSettings.aa_quality );
+	}
+	virtual void FromString( StringView str )
+	{
+		RenderSettings rs;
+		{
+			rs.display = str.parse_int();
+			rs.width = str.parse_int();
+			rs.height = str.parse_int();
+			rs.refresh_rate = str.parse_int();
+			rs.fullscreen = str.parse_int();
+			rs.vsync = str.parse_int() != 0;
+			rs.aa_mode = str.parse_int();
+			rs.aa_quality = str.parse_int();
+		}
+		GR_SetVideoMode( rs );
+	}
+}
+gcv_r_videomode;
 
 static void registercvars()
 {
-	gcv_r_width.is_const = true;
-	gcv_r_height.is_const = true;
-	gcv_r_rate.is_const = true;
+	gcv_r_display.SetConst( true );
+	gcv_r_width.SetConst( true );
+	gcv_r_height.SetConst( true );
+	gcv_r_refresh_rate.SetConst( true );
+	gcv_r_fullscreen.SetConst( true );
+	gcv_r_vsync.SetConst( true );
 	
+	gcv_r_display.value = g_RenderSettings.display;
+	gcv_r_width.value = g_RenderSettings.width;
+	gcv_r_height.value = g_RenderSettings.height;
+	gcv_r_refresh_rate.value = g_RenderSettings.refresh_rate;
+	gcv_r_fullscreen.value = g_RenderSettings.fullscreen;
+	gcv_r_vsync.value = g_RenderSettings.vsync;
+	
+	REGCOBJ( gcv_r_display );
 	REGCOBJ( gcv_r_width );
 	REGCOBJ( gcv_r_height );
-	REGCOBJ( gcv_r_rate );
+	REGCOBJ( gcv_r_refresh_rate );
+	REGCOBJ( gcv_r_fullscreen );
+	REGCOBJ( gcv_r_vsync );
+	REGCOBJ( gcv_r_videomode );
 }
 
 
@@ -151,7 +202,7 @@ void CObj::ToString( String& out )
 {
 }
 
-void CObj::DoCommand( StringView cmd )
+void CObj::DoCommand( StringView args )
 {
 }
 
@@ -163,7 +214,7 @@ void CVar::DoCommand( StringView args )
 		ToString( out );
 		printf( "CVAR [%s]: %s\n", StackString<128>(name).str, StackString<128>(out).str );
 	}
-	else
+	else if( GetConst() == false )
 	{
 		FromString( args );
 		OnChange();
@@ -335,6 +386,25 @@ void Game_RegisterCObj( CObj& cobj )
 void Game_UnregisterCObj( CObj& cobj )
 {
 	g_CObjs->unset( cobj.name );
+}
+
+CObj* Game_FindCObj( StringView name )
+{
+	return g_CObjs->getcopy( name );
+}
+
+bool Game_DoCommand( StringView cmd )
+{
+	cmd.ltrim( SPACE_CHARS );
+	StringView name = cmd.until_any( SPACE_CHARS );
+	CObj* obj = g_CObjs->getcopy( name );
+	if( !obj )
+		return false;
+	
+	cmd.skip( name.size() );
+	cmd.ltrim( SPACE_CHARS );
+	obj->DoCommand( cmd );
+	return true;
 }
 
 InputState* Game_FindAction( const StringView& cmd )
@@ -1558,6 +1628,12 @@ bool GR_SetVideoMode( const RenderSettings& rs )
 	}
 	
 	g_RenderSettings = rs;
+	gcv_r_display.value = g_RenderSettings.display;
+	gcv_r_width.value = g_RenderSettings.width;
+	gcv_r_height.value = g_RenderSettings.height;
+	gcv_r_refresh_rate.value = g_RenderSettings.refresh_rate;
+	gcv_r_fullscreen.value = g_RenderSettings.fullscreen;
+	gcv_r_vsync.value = g_RenderSettings.vsync;
 	
 	remap_cursor();
 	

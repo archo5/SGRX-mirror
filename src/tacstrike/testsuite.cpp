@@ -145,6 +145,19 @@ struct TestSuite : IGame
 	{
 	}
 	
+	bool OnConfigure( int argc, char* argv[] )
+	{
+#if 0
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.width = 800;
+		rs.height = 600;
+		//rs.fullscreen = FULLSCREEN_WINDOWED;
+		GR_SetVideoMode( rs );
+#endif
+		return true;
+	}
+	
 	bool OnInitialize()
 	{
 		Game_FileSystems().insert( 0, new BasicFileSystem( "../data-test" ) );

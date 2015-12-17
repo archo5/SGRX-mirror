@@ -707,6 +707,46 @@ void D3D11Renderer::Swap()
 
 void D3D11Renderer::Modify( const RenderSettings& settings )
 {
+	HRESULT hr;
+	
+	SAFE_RELEASE( m_dsView );
+	SAFE_RELEASE( m_rtView );
+	SAFE_RELEASE( m_depthBuffer );
+	SAFE_RELEASE( m_backBuffer );
+	
+	int msamples = settings.aa_mode == ANTIALIAS_MULTISAMPLE ? TMAX( 1, TMIN( 16, settings.aa_quality ) ) : 1;
+	
+	hr = m_swapChain->ResizeBuffers( 0, settings.width, settings.height,
+		DXGI_FORMAT_UNKNOWN, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH );
+	if( FAILED( hr ) )
+	{
+		LOG_ERROR << "Failed to resize D3D11 swap chain";
+		return;
+	}
+	
+	// Backbuffer
+	hr = m_swapChain->GetBuffer( 0, g_ID3D11Texture2D, (void**) &m_backBuffer );
+	if( FAILED( hr ) || m_backBuffer == NULL )
+	{
+		LOG_ERROR << "Failed to retrieve D3D11 backbuffer";
+		return;
+	}
+	
+	hr = m_dev->CreateRenderTargetView( m_backBuffer, NULL, &m_rtView );
+	if( FAILED( hr ) || m_rtView == NULL )
+	{
+		LOG_ERROR << "Failed to create D3D11 render target view";
+		return;
+	}
+	
+	// Depth/stencil buffer
+	if( create_rtt( m_dev, settings.width, settings.height, msamples,
+		DXGI_FORMAT_D24_UNORM_S8_UINT, true, false, &m_depthBuffer, &m_dsView ) )
+	{
+		return;
+	}
+	
+	m_currSettings = settings;
 }
 
 

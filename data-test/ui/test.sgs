@@ -380,20 +380,43 @@ function animate( obj, prop, endval, time )
 global scr_btn_main2options = scr_mainmenu!CreateButton( 95, 90, 5, 5, ">" );
 scr_btn_main2options.AddCallback( "onclick", function()
 {
-	scr_optmenu.enabled = true;
-	a1 = thread animate( scr_mainmenu, "x", -2000, 0.2 );
-	a2 = thread animate( scr_optmenu, "x", 0, 0.2 );
-	sync( a1, a2 );
-	scr_mainmenu.enabled = false;
+	thread (function()
+	{
+		scr_optmenu.enabled = true;
+		a1 = subthread animate( scr_mainmenu, "x", -2000, 0.2 );
+		a2 = subthread animate( scr_optmenu, "x", 0, 0.2 );
+		sync( a1, a2 );
+		scr_mainmenu.enabled = false;
+	})();
 });
 
 global scr_btn_options2main = scr_optmenu!CreateButton( 95, 90, 5, 5, "<" );
 scr_btn_options2main.AddCallback( "onclick", function()
 {
-	scr_mainmenu.enabled = true;
-	a1 = thread animate( scr_optmenu, "x", 2000, 0.2 );
-	a2 = thread animate( scr_mainmenu, "x", 0, 0.2 );
-	sync( a1, a2 );
-	scr_optmenu.enabled = false;
+	thread (function()
+	{
+		scr_mainmenu.enabled = true;
+		a1 = subthread animate( scr_optmenu, "x", 2000, 0.2 );
+		a2 = subthread animate( scr_mainmenu, "x", 0, 0.2 );
+		sync( a1, a2 );
+		scr_optmenu.enabled = false;
+	})();
 });
+
+
+DoCommand( "r_videomode 0 600 600 60 0 1 0 0" );
+
+
+foreach( name : [
+	"r_display",
+	"r_width",
+	"r_height",
+	"r_refresh_rate",
+	"r_fullscreen",
+	"r_vsync",
+	] )
+{
+	print( name, ": " );
+	printvar( GetCVar( name ) );
+}
 

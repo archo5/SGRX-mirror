@@ -1159,6 +1159,22 @@ void TransformAABB( Vec3& bbmin, Vec3& bbmax, const Mat4& mtx )
 }
 
 
+int64_t StringView::parse_int()
+{
+	int64_t out = 0;
+	ltrim( SPACE_CHARS );
+	util_strtonum( &m_str, m_str + m_size, &out );
+	return out;
+}
+
+double StringView::parse_float()
+{
+	double out = 0;
+	ltrim( SPACE_CHARS );
+	util_strtonum( &m_str, m_str + m_size, &out );
+	return out;
+}
+
 
 FINLINE char sgrx_tolower( char a )
 {
@@ -1386,6 +1402,24 @@ int util_strtonum( CCH** at, CCH* end, int64_t* outi, double* outf )
 		else if( str[1] == 'b' ) return strtonum_bin( at, end, outi );
 	}
 	return strtonum_dec( at, end, outi, outf );
+}
+
+int util_strtonum( CCH** at, CCH* end, int64_t* outi )
+{
+	double outf;
+	int out = util_strtonum( at, end, outi, &outf );
+	if( out == 2 )
+		*outi = outf;
+	return out;
+}
+
+int util_strtonum( CCH** at, CCH* end, double* outf )
+{
+	int64_t outi;
+	int out = util_strtonum( at, end, &outi, outf );
+	if( out == 1 )
+		*outf = outi;
+	return out;
 }
 
 
