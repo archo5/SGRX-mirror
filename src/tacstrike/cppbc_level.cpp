@@ -161,6 +161,20 @@ static int _sgs_method__GameLevel__SetCameraPosDir( SGS_CTX )
 	data->sgsSetCameraPosDir( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1) ); return 0;
 }
 
+static int _sgs_method__GameLevel__WorldToScreen( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, WorldToScreen ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	return data->sgsWorldToScreen( sgs_GetVar<Vec3>()(C,0) );
+}
+
+static int _sgs_method__GameLevel__WorldToScreenPx( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, WorldToScreenPx ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	return data->sgsWorldToScreenPx( sgs_GetVar<Vec3>()(C,0) );
+}
+
 int GameLevel::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameLevel*>( obj->data )->C = C;
@@ -182,6 +196,8 @@ int GameLevel::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "FindEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__FindEntity ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__CallEntity ); return SGS_SUCCESS; }
 		SGS_CASE( "SetCameraPosDir" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__SetCameraPosDir ); return SGS_SUCCESS; }
+		SGS_CASE( "WorldToScreen" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__WorldToScreen ); return SGS_SUCCESS; }
+		SGS_CASE( "WorldToScreenPx" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__WorldToScreenPx ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

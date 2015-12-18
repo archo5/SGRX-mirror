@@ -782,6 +782,11 @@ Vec3 TSCharacter::GetInterpAimDir()
 	return m_interpAimDir;
 }
 
+Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
+{
+	return m_animChar.GetAttachmentPos( m_animChar.FindAttachment( atch ), off );
+}
+
 
 
 TSAimHelper::TSAimHelper( GameLevel* lev ) :

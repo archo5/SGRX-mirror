@@ -46,7 +46,6 @@ TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	REGCOBJ( gcv_ts_fight_p1_points );
 	REGCOBJ( gcv_ts_fight_p2_points );
 	
-	RegisterHandler( EID_WindowEvent );
 	RegisterHandler( TSEV_CharHit );
 	RegisterHandler( TSEV_CharDied );
 	
@@ -55,7 +54,7 @@ TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	
 	//sgs_ProfInit( m_level->GetSGSC(), &prof, SGS_PROF_FUNCTIME );
 	
-	m_guiSys.Load( "ui/fight.sgs" );
+	m_level->GetGUI().Load( "ui/fight.sgs" );
 }
 
 TSFightGameMode::~TSFightGameMode()
@@ -156,7 +155,7 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 		// timeout to intro end
 		if( m_timeout <= 0 )
 		{
-			m_guiSys.CallFunc( "ev_fight_start" );
+			m_level->GetGUI().CallFunc( "ev_fight_start" );
 			
 			// start the game
 			m_state = GS_Playing;
@@ -194,21 +193,10 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 	gcv_ts_fight_p2_points.value = m_points_enm;
 }
 
-void TSFightGameMode::DrawUI()
-{
-	m_guiSys.Draw( m_level->GetDeltaTime() );
-}
-
 void TSFightGameMode::HandleEvent( SGRX_EventID eid, const EventData& edata )
 {
 	switch( eid )
 	{
-	case EID_WindowEvent:
-		{
-			SGRX_CAST( Event*, ev, edata.GetUserData() );
-			m_guiSys.EngineEvent( *ev );
-		}
-		break;
 	case TSEV_CharHit:
 		{
 			SGRX_CAST( TSEventData_CharHit*, hitdata, edata.GetUserData() );

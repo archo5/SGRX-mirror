@@ -5,6 +5,8 @@
 #include "script.hpp"
 
 
+#define GUI_REG_KEY 484
+
 
 #define GUI_ScrMode_Abs 0
 #define GUI_ScrMode_Fit 1
@@ -103,7 +105,7 @@ SGS_DEFAULT_LITE_OBJECT_INTERFACE( GameUIEvent );
 
 struct GameUISystem
 {
-	GameUISystem();
+	GameUISystem( ScriptContext* scrctx );
 	~GameUISystem();
 	void Load( const StringView& sv );
 	void EngineEvent( const Event& eev );
@@ -121,7 +123,7 @@ struct GameUISystem
 	uint32_t m_idGen;
 	GameUIControl* m_rootCtrl;
 	GameUIControl* m_focusRootCtrl;
-	ScriptContext m_scriptCtx;
+	ScriptContext* m_scriptCtx;
 	Array< GameUIControl* > m_hoverTrail;
 	GameUIControl* m_hoverCtrl;
 	GameUIControl* m_kbdFocusCtrl;
@@ -153,10 +155,14 @@ struct GameUIControl
 	SGS_PROPERTY float yalign;
 	SGS_PROPERTY float xscale;
 	SGS_PROPERTY float yscale;
-	float _getSWidth(){ return width * xscale; }
+	float _getSWidth() const { return width * xscale; }
 	SGS_PROPERTY_FUNC( READ _getSWidth ) float swidth;
-	float _getSHeight(){ return height * yscale; }
+	float _getSHeight() const { return height * yscale; }
 	SGS_PROPERTY_FUNC( READ _getSHeight ) float sheight;
+	float _getMinW() const { return TMIN( width, height ); }
+	SGS_PROPERTY_FUNC( READ _getMinW ) float minw;
+	float _getMaxW() const { return TMAX( width, height ); }
+	SGS_PROPERTY_FUNC( READ _getMaxW ) float maxw;
 	SGS_PROPERTY float rx0;
 	SGS_PROPERTY float ry0;
 	SGS_PROPERTY float rx1;

@@ -563,13 +563,13 @@ bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 
 bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm )
 {
+	outwm = m_cachedMeshInst->matrix;
 	if( !m_cachedMesh )
 		return false;
 	if( which < 0 || which >= (int) attachments.size() )
 		return false;
 	Attachment& AT = attachments[ which ];
 	
-	outwm = m_cachedMeshInst->matrix;
 	if( AT.bone_id >= 0 )
 	{
 		if( m_cachedMeshInst->IsSkinned() )

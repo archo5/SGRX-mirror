@@ -1,7 +1,6 @@
 
 
 #include "level.hpp"
-#include "gamegui.hpp"
 #include "entities.hpp"
 #include "entities_ts.hpp"
 
@@ -23,7 +22,6 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 	void OnPostLevelLoad();
 	bool AddEntity( const StringView& type, sgsVariable data );
 	void Tick( float deltaTime, float blendFactor );
-	void DrawUI();
 	void HandleEvent( SGRX_EventID eid, const EventData& edata );
 	
 	Vec3 PickFurthestSpawnPoint( Vec3 from );
@@ -41,7 +39,5 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 	SGRX_IActorController* m_actorCtrl_ply;
 	SGRX_ActorCtrlHandle m_actorCtrl_enm;
 	Array< Vec3 > m_spawnPoints;
-	
-	GameUISystem m_guiSys;
 };
 

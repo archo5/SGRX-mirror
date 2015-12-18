@@ -159,6 +159,7 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	
 	SGS_PROPERTY_FUNC( READ GetPosition ) SGS_ALIAS( Vec3 position );
+	SGS_METHOD_NAMED( GetAttachmentPos ) Vec3 sgsGetAttachmentPos( StringView atch, Vec3 off );
 };
 
 

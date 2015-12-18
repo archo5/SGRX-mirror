@@ -530,7 +530,7 @@ void GameUIControl::DText( StringView text, float x, float y, int ha, int va )
 
 static GameUISystem* GetSystem( SGS_CTX )
 {
-	sgs_PushIndex( C, sgs_Registry( C, SGS_REG_ROOT ), sgs_MakeNull(), 0 );
+	sgs_PushIndex( C, sgs_Registry( C, SGS_REG_ROOT ), sgs_MakeInt( GUI_REG_KEY ), 0 );
 	SGRX_CAST( GameUISystem*, sys, sgs_GetPtr( C, -1 ) );
 	sgs_Pop( C, 1 );
 	return sys;
@@ -643,11 +643,12 @@ sgs_RegFuncConst sgs_funcs[] =
 	{ "DoCommand", DoCommand },
 };
 
-GameUISystem::GameUISystem() :
-	m_idGen(0), m_rootCtrl(NULL), m_hoverCtrl(NULL), m_kbdFocusCtrl(NULL),
+GameUISystem::GameUISystem( ScriptContext* scrctx ) :
+	m_idGen(0), m_rootCtrl(NULL), m_focusRootCtrl(NULL),
+	m_scriptCtx(scrctx), m_hoverCtrl(NULL), m_kbdFocusCtrl(NULL),
 	m_mouseX(0), m_mouseY(0)
 {
-	SGS_CTX = m_scriptCtx.C;
+	SGS_CTX = m_scriptCtx->C;
 	m_rootCtrl = GameUIControl::Create( C );
 	m_rootCtrl->m_system = this;
 	m_rootCtrl->id = ++m_idGen;
@@ -655,10 +656,11 @@ GameUISystem::GameUISystem() :
 	m_clickCtrl[0] = NULL;
 	m_clickCtrl[1] = NULL;
 	
-	sgs_SetIndex( C, sgs_Registry( C, SGS_REG_ROOT ), sgs_MakeNull(), sgs_MakePtr( this ), 0 );
+	sgs_SetIndex( C, sgs_Registry( C, SGS_REG_ROOT ),
+		sgs_MakeInt( GUI_REG_KEY ), sgs_MakePtr( this ), 0 );
 	sgs_RegIntConsts( C, sgs_iconsts, SGRX_ARRAY_SIZE(sgs_iconsts) );
 	sgs_RegFuncConsts( C, sgs_funcs, SGRX_ARRAY_SIZE(sgs_funcs) );
-	m_scriptCtx.SetGlobal( "ROOT", m_rootCtrl->GetHandle() );
+	m_scriptCtx->SetGlobal( "ROOT", m_rootCtrl->GetHandle() );
 	
 	m_str_onclick = sgsString( C, "onclick" );
 	m_str_onmouseenter = sgsString( C, "onmouseenter" );
@@ -671,13 +673,13 @@ GameUISystem::~GameUISystem()
 	m_str_onmouseenter = sgsString();
 	m_str_onmouseleave = sgsString();
 	
-	sgs_ObjRelease( m_scriptCtx.C, m_rootCtrl->m_sgsObject );
+	sgs_ObjRelease( m_scriptCtx->C, m_rootCtrl->m_sgsObject );
 	m_rootCtrl = NULL;
 }
 
 void GameUISystem::Load( const StringView& sv )
 {
-	m_scriptCtx.ExecFile( sv );
+	m_scriptCtx->ExecFile( sv );
 }
 
 void GameUISystem::EngineEvent( const Event& eev )
@@ -932,14 +934,14 @@ void GameUISystem::Draw( float dt )
 	
 	_HandleMouseMove( true );
 	
-	sgs_ProcessSubthreads( m_scriptCtx.C, dt );
+	sgs_ProcessSubthreads( m_scriptCtx->C, dt );
 	
 	GR2D_GetBatchRenderer().Flush();
 }
 
 void GameUISystem::CallFunc( StringView name )
 {
-	m_scriptCtx.GlobalCall( name );
+	m_scriptCtx->GlobalCall( name );
 }
 
 void GameUISystem::_OnRemove( GameUIControl* ctrl )

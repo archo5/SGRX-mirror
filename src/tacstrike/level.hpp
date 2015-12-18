@@ -10,6 +10,7 @@
 #include <script.hpp>
 
 #include "levelcache.hpp"
+#include "gamegui.hpp"
 
 
 struct GameLevel;
@@ -157,12 +158,17 @@ struct SGRX_Actor : Entity
 
 typedef StackString<16> StackShortName;
 
-struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
+struct GameLevel :
+	SGRX_PostDraw,
+	SGRX_DebugDraw,
+	SGRX_LightTreeSampler,
+	SGRX_IEventHandler
 {
 	SGS_OBJECT SGS_NO_DESTRUCT;
 	
 	GameLevel( PhyWorldHandle phyWorld );
 	virtual ~GameLevel();
+	virtual void HandleEvent( SGRX_EventID eid, const EventData& edata );
 	
 	// configuration
 	void SetGlobalToSelf();
@@ -187,6 +193,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	SGRX_Scene* GetScene() const { return m_scene; }
 	ScriptContext& GetScriptCtx(){ return m_scriptCtx; }
 	sgs_Context* GetSGSC() const { return m_scriptCtx.C; }
+	GameUISystem& GetGUI(){ return m_guiSys; }
 	float GetDeltaTime() const { return m_deltaTime; }
 	
 	bool Load( const StringView& levelname );
@@ -211,6 +218,8 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	SGS_METHOD_NAMED( FindEntity ) Entity::Handle sgsFindEntity( StringView name );
 	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
 	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
+	SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
+	SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
 	
 	// ---
 	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
@@ -225,6 +234,7 @@ struct GameLevel : SGRX_PostDraw, SGRX_DebugDraw, SGRX_LightTreeSampler
 	SceneHandle m_scene;
 	ScriptContext m_scriptCtx;
 	PhyWorldHandle m_phyWorld;
+	GameUISystem m_guiSys;
 	
 	// UTILITIES
 	uint32_t m_nameIDGen;

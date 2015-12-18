@@ -45,6 +45,7 @@ sgsHandle< GameLevel > Entity::_sgs_getLevel()
 
 GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_phyWorld( phyWorld ),
+	m_guiSys( &m_scriptCtx ),
 	m_nameIDGen( 0 ),
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
@@ -54,6 +55,9 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_player( NULL )
 {
 	LOG_FUNCTION;
+	
+	// handled events
+	RegisterHandler( EID_WindowEvent );
 	
 	// create the scripted self
 	{
@@ -93,6 +97,19 @@ GameLevel::~GameLevel()
 	m_sgsObject->data = NULL;
 	m_sgsObject->iface = g_sgsobj_empty_handle;
 	sgs_ObjRelease( C, m_sgsObject );
+}
+
+void GameLevel::HandleEvent( SGRX_EventID eid, const EventData& edata )
+{
+	switch( eid )
+	{
+	case EID_WindowEvent:
+		{
+			SGRX_CAST( Event*, ev, edata.GetUserData() );
+			m_guiSys.EngineEvent( *ev );
+		}
+		break;
+	}
 }
 
 
@@ -384,6 +401,8 @@ void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
+	m_guiSys.Draw( m_deltaTime );
+	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->DrawUI();
 	
@@ -485,6 +504,23 @@ void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
 	m_scene->camera.position = pos;
 	m_scene->camera.direction = dir;
 	m_scene->camera.UpdateMatrices();
+}
+
+SGS_MULTRET GameLevel::sgsWorldToScreen( Vec3 pos )
+{
+	bool infront = false;
+	sgs_PushVar( C, m_scene->camera.WorldToScreen( pos, &infront ) );
+	sgs_PushVar( C, infront );
+	return 2;
+}
+
+SGS_MULTRET GameLevel::sgsWorldToScreenPx( Vec3 pos )
+{
+	bool infront = false;
+	sgs_PushVar( C, m_scene->camera.WorldToScreen( pos, &infront )
+		* V3( GR_GetWidth(), GR_GetHeight(), 1 ) );
+	sgs_PushVar( C, infront );
+	return 2;
 }
 
 
