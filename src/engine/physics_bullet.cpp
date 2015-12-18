@@ -453,6 +453,10 @@ BulletPhyWorld::BulletPhyWorld()
 	);
 	m_world->setWorldUserInfo( this );
 	m_world->setGravity( btVector3(0,0,0) );
+	btContactSolverInfo& info = m_world->getSolverInfo();
+	info.m_splitImpulse = true;
+	info.m_splitImpulsePenetrationThreshold = 0;//-0.001f;
+	info.m_erp2 = 0.2f;
 	LOG << LOG_DATE << "  Created Bullet physics world";
 }
 
