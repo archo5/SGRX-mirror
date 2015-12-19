@@ -249,6 +249,8 @@ bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_
 				mesh->indices[ i ] = idx;
 			}
 		}
+		for( size_t i = 0; i + 2 < mesh->indices.size(); i += 3 )
+			TSWAP( mesh->indices[ i + 1 ], mesh->indices[ i + 2 ] );
 		
 		for( size_t mpid = 0; mpid < M->m_meshParts.size(); ++mpid )
 		{
