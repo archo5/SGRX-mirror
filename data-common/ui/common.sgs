@@ -331,4 +331,8 @@ function animate_multi( obj, endvals, time )
 		obj.(k) = v;
 }
 
+function tween_linear( a, b, t ){ return lerp( a, b, t ); }
+function tween_cubicIn( a, b, t ){ return lerp( a, b, pow( t, 3 ) ); }
+function tween_cubicOut( a, b, t ){ return lerp( a, b, pow( t, 1/3 ) ); }
+
 

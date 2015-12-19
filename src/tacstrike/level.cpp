@@ -45,7 +45,6 @@ sgsHandle< GameLevel > Entity::_sgs_getLevel()
 
 GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_phyWorld( phyWorld ),
-	m_guiSys( &m_scriptCtx ),
 	m_nameIDGen( 0 ),
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
@@ -55,6 +54,8 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_player( NULL )
 {
 	LOG_FUNCTION;
+	
+	m_guiSys = new GameUISystem( &m_scriptCtx );
 	
 	// handled events
 	RegisterHandler( EID_WindowEvent );
@@ -106,7 +107,7 @@ void GameLevel::HandleEvent( SGRX_EventID eid, const EventData& edata )
 	case EID_WindowEvent:
 		{
 			SGRX_CAST( Event*, ev, edata.GetUserData() );
-			m_guiSys.EngineEvent( *ev );
+			m_guiSys->EngineEvent( *ev );
 		}
 		break;
 	}
@@ -401,7 +402,7 @@ void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
-	m_guiSys.Draw( m_deltaTime );
+	m_guiSys->Draw( m_deltaTime );
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->DrawUI();

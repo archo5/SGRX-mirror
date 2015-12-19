@@ -83,12 +83,14 @@ struct Test_GameUI : ITest
 	
 	void OnInitialize()
 	{
-		m_guiSys = new GameUISystem( &m_scriptCtx );
+		m_scriptCtx = new ScriptContext;
+		m_guiSys = new GameUISystem( m_scriptCtx );
 		m_guiSys->Load( "ui/test.sgs" );
 	}
 	void OnDestroy()
 	{
-		delete m_guiSys;
+		m_guiSys = NULL;
+		delete m_scriptCtx;
 	}
 	void OnEvent( const Event& e )
 	{
@@ -99,8 +101,8 @@ struct Test_GameUI : ITest
 		m_guiSys->Draw( dt );
 	}
 	
-	ScriptContext m_scriptCtx;
-	GameUISystem* m_guiSys;
+	ScriptContext* m_scriptCtx;
+	GUISysHandle m_guiSys;
 }
 g_TestGameUI;
 

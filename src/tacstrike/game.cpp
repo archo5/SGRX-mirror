@@ -54,7 +54,7 @@ TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	
 	//sgs_ProfInit( m_level->GetSGSC(), &prof, SGS_PROF_FUNCTIME );
 	
-	m_level->GetGUI().Load( "ui/fight.sgs" );
+	m_level->GetGUI()->Load( "ui/fight.sgs" );
 }
 
 TSFightGameMode::~TSFightGameMode()
@@ -155,7 +155,7 @@ void TSFightGameMode::Tick( float deltaTime, float blendFactor )
 		// timeout to intro end
 		if( m_timeout <= 0 )
 		{
-			m_level->GetGUI().CallFunc( "ev_fight_start" );
+			m_level->GetGUI()->CallFunc( "ev_fight_start" );
 			
 			// start the game
 			m_state = GS_Playing;

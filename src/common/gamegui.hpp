@@ -103,7 +103,7 @@ struct GameUIEvent
 SGS_DEFAULT_LITE_OBJECT_INTERFACE( GameUIEvent );
 
 
-struct GameUISystem
+struct GameUISystem : SGRX_RefCounted
 {
 	GameUISystem( ScriptContext* scrctx );
 	~GameUISystem();
@@ -136,6 +136,7 @@ struct GameUISystem
 	
 	Array< TextureHandle > m_precachedTextures;
 };
+typedef Handle< GameUISystem > GUISysHandle;
 
 
 struct GameUIControl
@@ -190,7 +191,7 @@ struct GameUIControl
 	bool _getClickedR() const { return this == m_system->m_clickCtrl[1]; }
 	SGS_PROPERTY_FUNC( READ _getClickedR ) SGS_ALIAS( bool clickedR );
 	
-	struct GameUISystem* m_system;
+	GUISysHandle m_system;
 	Array< GameUIControl* > m_subitems;
 	
 	GameUIControl();

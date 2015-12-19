@@ -193,7 +193,7 @@ struct GameLevel :
 	SGRX_Scene* GetScene() const { return m_scene; }
 	ScriptContext& GetScriptCtx(){ return m_scriptCtx; }
 	sgs_Context* GetSGSC() const { return m_scriptCtx.C; }
-	GameUISystem& GetGUI(){ return m_guiSys; }
+	GameUISystem* GetGUI(){ return m_guiSys; }
 	float GetDeltaTime() const { return m_deltaTime; }
 	
 	bool Load( const StringView& levelname );
@@ -234,7 +234,7 @@ struct GameLevel :
 	SceneHandle m_scene;
 	ScriptContext m_scriptCtx;
 	PhyWorldHandle m_phyWorld;
-	GameUISystem m_guiSys;
+	GUISysHandle m_guiSys;
 	
 	// UTILITIES
 	uint32_t m_nameIDGen;
