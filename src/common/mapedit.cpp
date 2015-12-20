@@ -438,6 +438,18 @@ void LightmapF32ToRGBA( uint32_t* pxout, Vec3* pxin, int width, int height )
 #endif
 }
 
+void LMNormalF32ToRGBA( uint32_t* pxout, Vec4* pxin, int width, int height )
+{
+	size_t sz = width * height;
+	
+	for( size_t i = 0; i < sz; ++i )
+	{
+		Vec4 indata = pxin[ i ];
+		indata = V4( indata.ToVec3() * 0.5f + 0.5f, indata.w );
+		pxout[ i ] = COLOR_RGB( indata.x * 255, indata.y * 255, indata.z * 255 );
+	}
+}
+
 
 
 #define LGC_IS_VALID_ID( x ) ( (x) != 0 && (x) < uint32_t(0x80000000) )
@@ -458,19 +470,41 @@ bool EdLevelGraphicsCont::Light::IntersectsAABB(
 	return world_dist.LengthSq() < info.range * info.range;
 }
 
+void EdLevelGraphicsCont::LMap::ExportRGBA8( uint32_t* outcol, uint32_t* outnrm )
+{
+	size_t W = width;
+	size_t H = height;
+	if( W * H )
+	{
+		LightmapF32ToRGBA( outcol, lmdata.data(), W, H );
+		if( nmdata.size() )
+			LMNormalF32ToRGBA( outnrm, nmdata.data(), W, H );
+		else
+			TMEMSET( outnrm, W * H, COLOR_RGBA(127,127,127,0) );
+	}
+}
+
 void EdLevelGraphicsCont::LMap::ReloadTex()
 {
 	if( lmdata.size() )
 	{
+		Array< uint32_t > convdata;
+		convdata.resize( width * height * 2 );
+		ExportRGBA8( convdata.data(), convdata.data() + ( width * height ) );
+		
 		texture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8,
 			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
-		Array< uint32_t > convdata;
-		convdata.resize( lmdata.size() );
-		LightmapF32ToRGBA( convdata.data(), lmdata.data(), width, height );
 		texture->UploadRGBA8Part( convdata.data(), 0, 0, 0, width, height );
+		
+		nmtexture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8,
+			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
+		nmtexture->UploadRGBA8Part( &convdata[width*height], 0, 0, 0, width, height );
 	}
 	else
+	{
 		texture = GR_GetTexture( "textures/deflm.png" );
+		nmtexture = GR_GetTexture( "textures/defnm.png" );
+	}
 }
 
 EdLevelGraphicsCont::EdLevelGraphicsCont()
@@ -654,6 +688,7 @@ void EdLevelGraphicsCont::CreateLightmap( uint32_t lmid )
 	LM->width = 0;
 	LM->height = 0;
 	LM->texture = GR_GetTexture( "textures/deflm.png" );
+	LM->nmtexture = GR_GetTexture( "textures/defnm.png" );
 	LM->invalid = true;
 	m_lightmaps[ lmid ] = LM;
 	m_invalidLightmaps[ lmid ] = lmid;
@@ -666,6 +701,7 @@ void EdLevelGraphicsCont::ClearLightmap( uint32_t lmid )
 	LM->height = 0;
 	LM->lmdata.clear();
 	LM->texture = GR_GetTexture( "textures/deflm.png" );
+	LM->nmtexture = GR_GetTexture( "textures/defnm.png" );
 	ApplyLightmap( lmid );
 }
 
@@ -675,10 +711,12 @@ void EdLevelGraphicsCont::ApplyLightmap( uint32_t lmid )
 	if( LGC_IS_MESH_LMID( lmid ) )
 	{
 		m_meshes[ id ].meshInst->SetMITexture( 0, m_lightmaps[ lmid ]->texture );
+		m_meshes[ id ].meshInst->SetMITexture( 1, m_lightmaps[ lmid ]->nmtexture );
 	}
 	else
 	{
 		m_surfaces[ id ].meshInst->SetMITexture( 0, m_lightmaps[ lmid ]->texture );
+		m_surfaces[ id ].meshInst->SetMITexture( 1, m_lightmaps[ lmid ]->nmtexture );
 	}
 }
 
@@ -965,7 +1003,8 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 			if( needslm == false )
 				ClearLightmap( lmid );
 			ValidateLightmap( lmid );
-			m_lmRenderer->AddMeshInst( S.meshInst, V2(0), 0, solid );
+			if( solid )
+				m_lmRenderer->AddMeshInst( S.meshInst, V2(0), 0, true );
 		}
 	}
 	for( size_t i = 0; i < m_lights.size(); ++i )
@@ -996,8 +1035,9 @@ void EdLevelGraphicsCont::ILMCheck()
 		for( uint32_t i = 0; i < m_lmRenderer->rendered_lightmap_count; ++i )
 		{
 			Array< Vec3 > colors;
+			Array< Vec4 > normals;
 			uint32_t lmidsize[3];
-			if( m_lmRenderer->GetLightmap( i, colors, lmidsize ) &&
+			if( m_lmRenderer->GetLightmap( i, colors, normals, lmidsize ) &&
 				m_lightmaps.isset( lmidsize[0] ) )
 			{
 				uint32_t lmid = lmidsize[0];
@@ -1005,6 +1045,7 @@ void EdLevelGraphicsCont::ILMCheck()
 				L.width = lmidsize[1];
 				L.height = lmidsize[2];
 				L.lmdata = colors;
+				L.nmdata = normals;
 				L.ReloadTex();
 				ApplyLightmap( lmid );
 				ValidateLightmap( lmid );
@@ -1089,7 +1130,8 @@ void EdLevelGraphicsCont::STRegenerate()
 	for( size_t i = 0; i < m_solids.size(); ++i )
 	{
 		Solid& S = m_solids.item( i ).value;
-		VB.RasterizeSolid( S.planes.data(), S.planes.size() );
+		if( S.planes.size() )
+			VB.RasterizeSolid( S.planes.data(), S.planes.size() );
 	}
 	LOG << "- rasterizing meshes...";
 	// rasterize meshes
@@ -1135,7 +1177,8 @@ void EdLevelGraphicsCont::ExportLightmap( uint32_t lmid, LC_Lightmap& outlm )
 	outlm.width = LM.width;
 	outlm.height = LM.height;
 	outlm.data.resize( LM.width * LM.height );
-	LightmapF32ToRGBA( outlm.data.data(), LM.lmdata.data(), LM.width, LM.height );
+	outlm.nmdata.resize( LM.width * LM.height );
+	LM.ExportRGBA8( outlm.data.data(), outlm.nmdata.data() );
 }
 
 void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )

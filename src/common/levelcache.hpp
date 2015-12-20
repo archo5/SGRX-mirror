@@ -48,13 +48,18 @@ struct LC_Lightmap
 	uint16_t width;
 	uint16_t height;
 	Array< uint32_t > data;
+	Array< uint32_t > nmdata;
 	
 	template< class T > void Serialize( T& arch )
 	{
 		arch << width << height;
 		if( T::IsReader )
-			data.resize( width * height );
+		{
+			data.resize( size_t(width) * size_t(height) );
+			nmdata.resize( size_t(width) * size_t(height) );
+		}
 		arch.memory( data.data(), data.size_bytes() );
+		arch.memory( nmdata.data(), nmdata.size_bytes() );
 	}
 };
 

@@ -92,6 +92,7 @@ void LMRenderer::Start()
 	cfg.ao_effect = config.aoEffect;
 	cfg.ao_num_samples = config.aoNumSamples;
 	cfg.blur_size = config.lightmapBlurSize;
+	cfg.generate_normalmap_data = 1;
 	ltr_SetConfig( m_scene, &cfg );
 	
 	ltr_Start( m_scene );
@@ -117,7 +118,8 @@ bool LMRenderer::CheckStatus()
 	return true;
 }
 
-bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t outlmidsize[3] )
+bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols,
+	Array< Vec4 >& outxyzf, uint32_t outlmidsize[3] )
 {
 	if( which >= rendered_lightmap_count )
 		return false;
@@ -132,6 +134,8 @@ bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t o
 	outlmidsize[2] = wout.height;
 	outcols.resize( wout.width * wout.height );
 	memcpy( outcols.data(), wout.lightmap_rgb, outcols.size_bytes() );
+	outxyzf.resize( wout.width * wout.height );
+	memcpy( outxyzf.data(), wout.normals_xyzf, outxyzf.size_bytes() );
 	
 	return true;
 }
@@ -493,8 +497,9 @@ void VoxelBlock::RasterizeTriangle( Vec3 p1, Vec3 p2, Vec3 p3 )
 	}
 }
 
-void VoxelBlock::RasterizeSolid( Vec4* planes, size_t count )
+int32_t VoxelBlock::RasterizeSolid( Vec4* planes, size_t count )
 {
+	int32_t numhit = 0;
 	// TOOD MAYBE optimize
 	for( int32_t z = 0; z <= m_zsize; ++z )
 	{
@@ -505,13 +510,17 @@ void VoxelBlock::RasterizeSolid( Vec4* planes, size_t count )
 				Vec3 vbpos = GetPosition( x, y, z );
 				size_t i;
 				for( i = 0; i < count; ++i )
-					if( Vec3Dot( planes[ i ].ToVec3(), vbpos ) > planes[ i ].w + SMALL_FLOAT )
+					if( Vec3Dot( -planes[ i ].ToVec3(), vbpos ) > -planes[ i ].w + SMALL_FLOAT )
 						break;
 				if( i == count )
+				{
 					Set1( x, y, z );
+					numhit++;
+				}
 			}
 		}
 	}
+	return numhit;
 }
 
 Vec3 VoxelBlock::GetPosition( int32_t x, int32_t y, int32_t z )
@@ -1004,6 +1013,12 @@ struct PartRangeData
 	int part_id;
 };
 
+static void LMCOPY( LC_Lightmap& dst, size_t dstoff, const LC_Lightmap& src, size_t srcoff, size_t pxcount )
+{
+	memcpy( &dst.data[ dstoff ], &src.data[ srcoff ], pxcount * sizeof(uint32_t) );
+	memcpy( &dst.nmdata[ dstoff ], &src.nmdata[ srcoff ], pxcount * sizeof(uint32_t) );
+}
+
 bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringView& path )
 {
 	Array< Vertex > verts;
@@ -1021,6 +1036,7 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 		lightmap.width = M.m_packer.m_tree[0].x1;
 		lightmap.height = M.m_packer.m_tree[0].y1;
 		lightmap.data.resize_using( lightmap.width * lightmap.height, 0 );
+		lightmap.nmdata.resize_using( lightmap.width * lightmap.height, COLOR_RGBA(128,128,128,0) );
 	}
 	
 	for( size_t pid = 0; pid < M.m_partIDs.size(); )
@@ -1051,29 +1067,29 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 				for( uint16_t y = 0; y < SOP.m_lightmap.height; ++y )
 				{
 					// row padding - left side
-					lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] ] =
-						SOP.m_lightmap.data[ y * srcw ];
+					LMCOPY( lightmap, ( y + lmoff[1] + 1 ) * dstw + lmoff[0],
+						SOP.m_lightmap, y * srcw, 1 );
 					// main row data
-					memcpy(
-						&lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 ],
-						&SOP.m_lightmap.data[ y * srcw ],
-						srcw * sizeof(uint32_t)
+					LMCOPY(
+						lightmap, ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1,
+						SOP.m_lightmap, y * srcw,
+						srcw
 					);
 					// row padding - right side
-					lightmap.data[ ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 + srcw ] =
-						SOP.m_lightmap.data[ y * srcw + srcw - 1 ];
+					LMCOPY( lightmap, ( y + lmoff[1] + 1 ) * dstw + lmoff[0] + 1 + srcw,
+						SOP.m_lightmap, y * srcw + srcw - 1, 1 );
 				}
 				// row padding - copy top back
-				memcpy(
-					&lightmap.data[ ( lmoff[1] ) * dstw + lmoff[0] ],
-					&lightmap.data[ ( lmoff[1] + 1 ) * dstw + lmoff[0] ],
-					( srcw + 2 ) * sizeof(uint32_t)
+				LMCOPY(
+					lightmap, ( lmoff[1] ) * dstw + lmoff[0],
+					lightmap, ( lmoff[1] + 1 ) * dstw + lmoff[0],
+					srcw + 2
 				);
 				// row padding - copy bottom forward
-				memcpy(
-					&lightmap.data[ ( lmoff[1] + 1 + srch ) * dstw + lmoff[0] ],
-					&lightmap.data[ ( lmoff[1] + srch ) * dstw + lmoff[0] ],
-					( srcw + 2 ) * sizeof(uint32_t)
+				LMCOPY(
+					lightmap, ( lmoff[1] + 1 + srch ) * dstw + lmoff[0],
+					lightmap, ( lmoff[1] + srch ) * dstw + lmoff[0],
+					srcw + 2
 				);
 				// generate coords
 				coords_min = V2(

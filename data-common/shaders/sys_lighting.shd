@@ -177,7 +177,7 @@ NEEDS_TEXTURE_2D(5);
 NEEDS_TEXTURE_2D(6);
 NEEDS_TEXTURE_2D(7);
 NEEDS_TEXTURE_2D(8);
-NEEDS_TEXTURE_CUBE(9);
+NEEDS_TEXTURE_2D(9);
 NEEDS_TEXTURE_CUBE(10);
 NEEDS_TEXTURE_CUBE(11);
 #define InstTex0 Tex8
@@ -280,7 +280,10 @@ __CODE__
 	
 #ifdef BASE_PASS
 #if LMODE == 1 || LMODE == 3 // -- static / decal
-	totalDiffuse = TEXSAMPLE_2D( InstTex0, inTex1.xy );
+	float3 LN = mul( mInvView, outNormal );
+	float4 contribData = TEXSAMPLE_2D( InstTex1, inTex1.xy );
+	totalDiffuse = TEXSAMPLE_2D( InstTex0, inTex1.xy ).rgb *
+		lerp( 1, saturate( dot( contribData.xyz * 2 - 1, LN ) ), contribData.w );
 #if LMODE == 3 // -- decal
 	totalDiffuse *= icol.rgb;
 #endif // LMODE == 3

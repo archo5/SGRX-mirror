@@ -543,7 +543,9 @@ struct EdLevelGraphicsCont
 		uint16_t width;
 		uint16_t height;
 		Array< Vec3 > lmdata;
+		Array< Vec4 > nmdata;
 		TextureHandle texture;
+		TextureHandle nmtexture;
 		bool invalid;
 		bool alr_invalid; // after lightmap rendering - no need to serialize
 		
@@ -552,10 +554,14 @@ struct EdLevelGraphicsCont
 			arch << width;
 			arch << height;
 			if( T::IsReader )
-				lmdata.resize( width * height );
+				lmdata.resize( size_t(width) * size_t(height) );
 			arch.memory( lmdata.data(), lmdata.size_bytes() );
+			if( T::IsReader )
+				nmdata.resize( size_t(width) * size_t(height) );
+			arch.memory( nmdata.data(), nmdata.size_bytes() );
 			arch << invalid;
 		}
+		void ExportRGBA8( uint32_t* outcol, uint32_t* outnrm );
 		void ReloadTex();
 	};
 	typedef Handle< LMap > LMapHandle;

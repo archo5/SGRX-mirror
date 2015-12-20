@@ -50,7 +50,8 @@ struct LMRenderer
 	
 	void Start();
 	bool CheckStatus();
-	bool GetLightmap( uint32_t which, Array< Vec3 >& outcols, uint32_t outlmidsize[3] );
+	bool GetLightmap( uint32_t which, Array< Vec3 >& outcols,
+		Array< Vec4 >& outxyzf, uint32_t outlmidsize[3] );
 	bool GetSample( uint32_t which, Vec3 outcols[6] );
 	bool AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid, bool solid );
 	bool AddLight( const LC_Light& light );
@@ -133,7 +134,7 @@ struct VoxelBlock
 	// blocks of 4x4x4, stored into uint64 array
 	VoxelBlock( Vec3 bbmin, Vec3 bbmax, float stepsize );
 	void RasterizeTriangle( Vec3 p1, Vec3 p2, Vec3 p3 );
-	void RasterizeSolid( Vec4* planes, size_t count );
+	int32_t RasterizeSolid( Vec4* planes, size_t count );
 	Vec3 GetPosition( int32_t x, int32_t y, int32_t z );
 	
 	bool Get( int32_t x, int32_t y, int32_t z );
