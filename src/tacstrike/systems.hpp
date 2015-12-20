@@ -14,7 +14,7 @@
 
 
 // SYSTEM ID ALLOCATION (increment to allocate)
-// last id = 13
+// last id = 14
 
 
 //
@@ -706,6 +706,31 @@ struct CoverSystem : IGameLevelSystem
 	
 	Array< EdgeMeshHandle > m_edgeMeshes;
 	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;
+};
+
+
+struct DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
+{
+	enum { e_system_uid = 14 };
+	
+	DevelopSystem( GameLevel* lev );
+	void HandleEvent( SGRX_EventID eid, const EventData& edata );
+	void Tick( float deltaTime, float blendFactor );
+	
+	bool screenshotMode : 1;
+	bool moveMult : 1;
+	bool moveFwd : 1;
+	bool moveBwd : 1;
+	bool moveLft : 1;
+	bool moveRgt : 1;
+	bool moveUp : 1;
+	bool moveDn : 1;
+	bool rotView : 1;
+	bool rotLft : 1;
+	bool rotRgt : 1;
+	Vec3 cameraPos;
+	YawPitch cameraDir;
+	float cameraRoll;
 };
 
 

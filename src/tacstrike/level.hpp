@@ -13,6 +13,11 @@
 #include "gamegui.hpp"
 
 
+extern CVarBool gcv_cl_gui;
+extern CVarBool gcv_cl_debug;
+extern CVarBool gcv_g_paused;
+
+
 struct GameLevel;
 
 
@@ -188,7 +193,7 @@ struct GameLevel :
 	// system/entity interface
 	StringView GetLevelName() const { return m_levelName; }
 	void SetPlayer( Entity* E ){ m_player = E; }
-	bool IsPaused() const { return m_paused; }
+	bool IsPaused() const { return m_paused || gcv_g_paused.value; }
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
 	SGRX_Scene* GetScene() const { return m_scene; }
 	ScriptContext& GetScriptCtx(){ return m_scriptCtx; }

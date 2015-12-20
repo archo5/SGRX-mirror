@@ -6,6 +6,11 @@
 sgs_ObjInterface g_sgsobj_empty_handle[1] = {{ "empty_handle", NULL }};
 
 
+CVarBool gcv_cl_gui( "cl_gui", true );
+CVarBool gcv_cl_debug( "cl_debug", false );
+CVarBool gcv_g_paused( "g_paused", false );
+
+
 IGameLevelSystem::~IGameLevelSystem()
 {
 	DestroyScriptInterface();
@@ -359,7 +364,7 @@ void GameLevel::ProcessEvents()
 
 void GameLevel::FixedTick( float deltaTime )
 {
-	if( !m_paused )
+	if( IsPaused() == false )
 	{
 		m_currentTickTime += deltaTime;
 		
@@ -386,7 +391,7 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 		m_scene->camera.UpdateMatrices();
 	}
 	
-	if( !m_paused )
+	if( IsPaused() == false )
 	{
 		m_currentPhyTime += deltaTime;
 		
@@ -402,56 +407,60 @@ void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
-	m_guiSys->Draw( m_deltaTime );
+	if( gcv_cl_gui.value )
+	{
+		m_guiSys->Draw( m_deltaTime );
+		
+		for( size_t i = 0; i < m_systems.size(); ++i )
+			m_systems[ i ]->DrawUI();
+	}
 	
-	for( size_t i = 0; i < m_systems.size(); ++i )
-		m_systems[ i ]->DrawUI();
-	
-	//
-	// UI
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	br.Reset();
-	
-	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-	return;
-	
-	for( size_t i = 0; i < m_systems.size(); ++i )
-		m_systems[ i ]->DebugDrawUI();
-	
-	for( size_t i = 0; i < m_entities.size(); ++i )
-		m_entities[ i ]->DebugDrawUI();
+	if( gcv_cl_debug.value )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		br.Reset();
+		
+		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+		
+		for( size_t i = 0; i < m_systems.size(); ++i )
+			m_systems[ i ]->DebugDrawUI();
+		
+		for( size_t i = 0; i < m_entities.size(); ++i )
+			m_entities[ i ]->DebugDrawUI();
+	}
 }
 
 void GameLevel::DebugDraw()
 {
-//	return;
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	UNUSED( br );
-	
-	for( size_t i = 0; i < m_systems.size(); ++i )
-		m_systems[ i ]->DebugDrawWorld();
-	
-	for( size_t i = 0; i < m_entities.size(); ++i )
-		m_entities[ i ]->DebugDrawWorld();
-	
-#if DRAW_SAMPLES
-	br.Reset().Col( 0, 1, 0 );
-	for( size_t i = 0; i < m_ltSamples.m_pos.size(); ++i )
+	if( gcv_cl_debug.value )
 	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		UNUSED( br );
+		
+		for( size_t i = 0; i < m_systems.size(); ++i )
+			m_systems[ i ]->DebugDrawWorld();
+		
+		for( size_t i = 0; i < m_entities.size(); ++i )
+			m_entities[ i ]->DebugDrawWorld();
+		
+#if DRAW_SAMPLES
+		br.Reset().Col( 0, 1, 0 );
+		for( size_t i = 0; i < m_ltSamples.m_pos.size(); ++i )
+		{
 #if 1
-		br.Col( m_ltSamples.m_colors[ i ].color[4] );
-	//	SGRX_LightTree::Colors COL;
-	//	m_ltSamples.GetColors( m_ltSamples.m_pos[ i ], &COL );
-	//	br.Col( COL.color[4] );
+			br.Col( m_ltSamples.m_colors[ i ].color[4] );
+		//	SGRX_LightTree::Colors COL;
+		//	m_ltSamples.GetColors( m_ltSamples.m_pos[ i ], &COL );
+		//	br.Col( COL.color[4] );
 #endif
-		br.Tick( m_ltSamples.m_pos[ i ], 0.1f );
-	}
+			br.Tick( m_ltSamples.m_pos[ i ], 0.1f );
+		}
 #endif
-	
+		
 #if DRAW_PATHFINDER
-	m_aidbSystem.m_pathfinder.DebugDraw();
-	
+		m_aidbSystem.m_pathfinder.DebugDraw();
 #endif
+	}
 }
 
 void GameLevel::PostDraw()

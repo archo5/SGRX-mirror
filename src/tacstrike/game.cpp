@@ -346,6 +346,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		AddSystemToLevel<CoverSystem>( g_GameLevel );
 		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
 		AddSystemToLevel<TSFightGameMode>( g_GameLevel );
+		AddSystemToLevel<DevelopSystem>( g_GameLevel );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		

@@ -2322,3 +2322,94 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
 }
 
 
+DevelopSystem::DevelopSystem( GameLevel* lev ) :
+	IGameLevelSystem( lev, e_system_uid ),
+	screenshotMode( false ), moveMult(false), moveFwd(false), moveBwd(false),
+	moveLft(false), moveRgt(false), moveUp(false), moveDn(false),
+	rotView(false), rotLft(false), rotRgt(false),
+	cameraPos(V3(0)), cameraDir(YP(0,0)), cameraRoll(0)
+{
+	RegisterHandler( EID_WindowEvent );
+}
+
+void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
+{
+	if( eid == EID_WindowEvent )
+	{
+		SGRX_CAST( Event*, ev, edata.GetUserData() );
+		if( ev->type == SDL_KEYDOWN && ev->key.repeat == 0 && ev->key.keysym.sym == SDLK_F2 )
+		{
+			screenshotMode = !screenshotMode;
+			if( screenshotMode )
+			{
+				SGRX_Camera& CAM = m_level->GetScene()->camera;
+				cameraPos = CAM.position;
+				cameraDir = YP( CAM.direction );
+				cameraRoll = 0;
+			}
+			gcv_cl_gui.value = !screenshotMode;
+			gcv_g_paused.value = screenshotMode;
+			Game_ShowCursor( screenshotMode );
+		}
+		if( ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP )
+		{
+			bool dn = ev->type == SDL_KEYDOWN;
+			uint32_t k = ev->key.keysym.sym;
+			if( k == SDLK_LSHIFT ) moveMult = dn;
+			if( k == SDLK_w ) moveFwd = dn;
+			if( k == SDLK_s ) moveBwd = dn;
+			if( k == SDLK_a ) moveLft = dn;
+			if( k == SDLK_d ) moveRgt = dn;
+			if( k == SDLK_z ) moveUp = dn;
+			if( k == SDLK_x ) moveDn = dn;
+			if( k == SDLK_q ) rotLft = dn;
+			if( k == SDLK_e ) rotRgt = dn;
+		}
+		if( ev->type == SDL_MOUSEBUTTONDOWN || ev->type == SDL_MOUSEBUTTONUP )
+		{
+			bool dn = ev->type == SDL_MOUSEBUTTONDOWN;
+			uint32_t b = ev->button.button;
+			if( b == SGRX_MB_RIGHT ) rotView = dn;
+		}
+	}
+}
+
+void DevelopSystem::Tick( float deltaTime, float blendFactor )
+{
+	if( screenshotMode )
+	{
+		float speed = deltaTime;
+		if( moveMult )
+			speed *= 10;
+		
+		Vec3 up = V3(0,0,1);
+		Vec3 dir = cameraDir.ToVec3();
+		Vec3 right = Vec3Cross( dir, up ).Normalized();
+		Mat4 rollMat = Mat4::CreateRotationAxisAngle( dir, cameraRoll );
+		right = rollMat.TransformNormal( right ).Normalized();
+		
+		cameraPos += dir * ( moveFwd - moveBwd ) * speed;
+		cameraPos += right * ( moveRgt - moveLft ) * speed;
+		cameraPos += V3(0,0,1) * ( moveUp - moveDn ) * speed;
+		cameraRoll += ( rotRgt - rotLft ) * 0.5f * speed;
+		if( rotView )
+		{
+			Vec2 cpos = Game_GetCursorPos();
+			Game_SetCursorPos( GR_GetWidth() / 2, GR_GetHeight() / 2 );
+			Vec2 opos = V2( GR_GetWidth() / 2, GR_GetHeight() / 2 );
+			Vec2 curmove = ( cpos - opos ) * -0.01f;
+			cameraDir.yaw += curmove.x;
+			cameraDir.pitch = clamp( cameraDir.pitch + curmove.y,
+				-M_PI*0.5f + SMALL_FLOAT,
+				M_PI*0.5f - SMALL_FLOAT );
+		}
+		
+		SGRX_Camera& CAM = m_level->GetScene()->camera;
+		CAM.position = cameraPos;
+		CAM.direction = dir;
+		CAM.updir = rollMat.TransformNormal( up ).Normalized();
+		CAM.UpdateMatrices();
+	}
+}
+
+
