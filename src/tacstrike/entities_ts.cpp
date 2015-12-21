@@ -1490,7 +1490,7 @@ void TSGameSystem::Tick( float deltaTime, float blendFactor )
 {
 #ifndef TSGAME_NO_PLAYER
 	SGRX_CAST( TSCharacter*, P, m_level->m_player );
-	if( P )
+	if( P && !m_level->IsPaused() )
 	{
 		// crouch UI
 		float crouchVal = m_playerCtrl.GetInput( ACT_Chr_Crouch ).x;
