@@ -530,6 +530,8 @@ struct EdLevelGraphicsCont
 		String mtlname;
 		uint32_t solid_id;
 		uint32_t lmparent_id;
+		
+		void RecalcTangents();
 	};
 	struct Light
 	{

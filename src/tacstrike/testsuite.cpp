@@ -45,6 +45,7 @@ struct Test_PixelPerfectRendering : ITest
 		m_time += dt;
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
 		TextureHandle cliptex = GR_GetTexture( "textures/clip.png:nolerp" );
+		GR_PreserveResource( cliptex );
 		GR2D_GetBatchRenderer().Reset().SetTexture( cliptex ).Quad( 0, 0, 1, 1 );
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
@@ -71,6 +72,45 @@ struct Test_PixelPerfectRendering : ITest
 	float m_time;
 }
 g_TestPixelPerfectRendering;
+
+
+
+struct Test_BruteForce : ITest
+{
+	Test_BruteForce(){}
+	virtual StringView GetName() const { return "Brute force batch rendering"; }
+	void OnInitialize()
+	{
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.vsync = false;
+		GR_SetVideoMode( rs );
+	}
+	void Do( float, float )
+	{
+		TextureHandle cliptex = GR_GetTexture( "textures/clip.png:nolerp" );
+		GR_PreserveResource( cliptex );
+		
+		TextureHandle nulltex = GR_GetTexture( "textures/null.png:nolerp" );
+		GR_PreserveResource( nulltex );
+		
+		SGRX_ITexture* textures[2] = { cliptex, nulltex };
+		
+		int i = 0;
+		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+		GR2D_GetBatchRenderer().Reset();
+		for( int y = 0; y < GR_GetHeight(); y += 16 )
+		{
+			for( int x = 0; x < GR_GetWidth(); x += 16 )
+			{
+				int c = i++ % 2;
+				GR2D_GetBatchRenderer().SetTexture( textures[c] ).QuadWH( x, y, 16, 16 );
+			}
+		}
+	//	LOG << "rendered " << i << " tiles (16x16)";
+	}
+}
+g_TestBruteForce;
 
 
 
@@ -115,6 +155,7 @@ ITest* g_Tests[] =
 {
 	&g_TestIntro,
 	&g_TestPixelPerfectRendering,
+	&g_TestBruteForce,
 	&g_TestGameUI,
 };
 #define TESTCOUNT (sizeof(g_Tests)/sizeof(g_Tests[0]))

@@ -458,6 +458,75 @@ void LMNormalF32ToRGBA( uint32_t* pxout, Vec4* pxin, int width, int height )
 #define LGC_LMID_GET_ID( x ) ((x)&0x7fffffff)
 #define LGC_IS_MESH_LMID( x ) (((x)&0x80000000)==0)
 
+void EdLevelGraphicsCont::Surface::RecalcTangents()
+{
+	Array<Vec3> tanstore;
+	tanstore.resize_using( vertices.size() * 2, V3(0) );
+	Vec3* tan1 = tanstore.data();
+	Vec3* tan2 = tan1 + vertices.size();
+	
+	for( size_t trioff = 0; trioff + 2 < indices.size(); trioff += 3 )
+	{
+		uint16_t i1 = indices[ trioff ];
+		uint16_t i2 = indices[ trioff + 1 ];
+		uint16_t i3 = indices[ trioff + 2 ];
+		
+		const Vec3& v1 = vertices[ i1 ].pos;
+		const Vec3& v2 = vertices[ i2 ].pos;
+		const Vec3& v3 = vertices[ i3 ].pos;
+		
+		const Vec2& w1 = V2( vertices[ i1 ].tx0, vertices[ i1 ].ty0 );
+		const Vec2& w2 = V2( vertices[ i2 ].tx0, vertices[ i2 ].ty0 );
+		const Vec2& w3 = V2( vertices[ i3 ].tx0, vertices[ i3 ].ty0 );
+		
+		float x1 = v2.x - v1.x;
+		float x2 = v3.x - v1.x;
+		float y1 = v2.y - v1.y;
+		float y2 = v3.y - v1.y;
+		float z1 = v2.z - v1.z;
+		float z2 = v3.z - v1.z;
+		
+		float s1 = w2.x - w1.x;
+		float s2 = w3.x - w1.x;
+		float t1 = w2.y - w1.y;
+		float t2 = w3.y - w1.y;
+		
+		float invR = s1 * t2 - s2 * t1;
+		if( invR > 0 )
+		{
+			float r = 1.0f / invR;
+			Vec3 sdir = V3((t2 * x1 - t1 * x2) * r,
+				(t2 * y1 - t1 * y2) * r,
+				(t2 * z1 - t1 * z2) * r);
+			Vec3 tdir = V3((s1 * x2 - s2 * x1) * r,
+				(s1 * y2 - s2 * y1) * r,
+				(s1 * z2 - s2 * z1) * r);
+			
+			tan1[ i1 ] += sdir;
+			tan1[ i2 ] += sdir;
+			tan1[ i3 ] += sdir;
+			
+			tan2[ i1 ] += tdir;
+			tan2[ i2 ] += tdir;
+			tan2[ i3 ] += tdir;
+		}
+	}
+	
+	for( size_t i = 0; i < vertices.size(); ++i )
+	{
+		const Vec3& n = vertices[ i ].nrm;
+		const Vec3& t = tan1[ i ];
+		
+		// Gram-Schmidt orthogonalize
+		Vec3 outTng = ( t - n * Vec3Dot( n, t ) ).Normalized();
+		
+		// Calculate handedness
+		float outDir = ( Vec3Dot( Vec3Cross( n, t ), tan2[ i ] ) < 0.0f ) ? -1.0f : 1.0f;
+		
+		vertices[ i ].tng = V4( outTng, outDir );
+	}
+}
+
 bool EdLevelGraphicsCont::Light::IntersectsAABB(
 	const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx ) const
 {
@@ -1423,6 +1492,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		{
 			S.vertices.assign( info->vdata, info->vcount );
 			S.indices.assign( info->idata, info->icount );
+			S.RecalcTangents();
 			SGRX_IMesh* mesh = S.meshInst->GetMesh();
 			mesh->m_vdata.assign( S.vertices.data(), S.vertices.size_bytes() );
 			mesh->m_idata.assign( S.indices.data(), S.indices.size_bytes() );
