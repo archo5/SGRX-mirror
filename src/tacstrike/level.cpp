@@ -10,6 +10,13 @@ CVarBool gcv_cl_gui( "cl_gui", true );
 CVarBool gcv_cl_debug( "cl_debug", false );
 CVarBool gcv_g_paused( "g_paused", false );
 
+void RegisterCommonGameCVars()
+{
+	REGCOBJ( gcv_cl_gui );
+	REGCOBJ( gcv_cl_debug );
+	REGCOBJ( gcv_g_paused );
+}
+
 
 IGameLevelSystem::~IGameLevelSystem()
 {

@@ -17,6 +17,8 @@ extern CVarBool gcv_cl_gui;
 extern CVarBool gcv_cl_debug;
 extern CVarBool gcv_g_paused;
 
+void RegisterCommonGameCVars();
+
 
 struct GameLevel;
 

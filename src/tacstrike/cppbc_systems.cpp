@@ -555,18 +555,6 @@ static int _sgs_method__AIDBSystem__InsertOrUpdateFact( SGS_CTX )
 	data->sgsInsertOrUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
 }
 
-static int _sgs_method__AIDBSystem__MovingUpdateFact( SGS_CTX )
-{
-	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, MovingUpdateFact ) ) return 0;
-	sgs_PushVar(C,data->sgsMovingUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
-}
-
-static int _sgs_method__AIDBSystem__MovingInsertOrUpdateFact( SGS_CTX )
-{
-	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, MovingInsertOrUpdateFact ) ) return 0;
-	data->sgsMovingInsertOrUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
-}
-
 static int _sgs_method__AIDBSystem__GetRoomList( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomList ) ) return 0;
@@ -611,8 +599,6 @@ int AIDBSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "InsertFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__InsertFact ); return SGS_SUCCESS; }
 		SGS_CASE( "UpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__UpdateFact ); return SGS_SUCCESS; }
 		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__InsertOrUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__MovingUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRoomList" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRoomList ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRoomNameByPos" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRoomNameByPos ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRoomByPos" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRoomByPos ); return SGS_SUCCESS; }

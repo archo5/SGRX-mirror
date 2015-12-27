@@ -250,10 +250,6 @@ struct TSEnemyController : SGRX_IActorController
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
-		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
-		float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	
 	// cover info
 	SGS_METHOD_NAMED( QueryCoverLines ) void sgsQueryCoverLines( Vec3 bbmin,

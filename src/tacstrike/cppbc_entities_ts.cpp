@@ -191,20 +191,6 @@ static int _sgs_method__TSEnemyController__InsertOrUpdateFact( SGS_CTX )
 	data->sgsInsertOrUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
 }
 
-static int _sgs_method__TSEnemyController__MovingUpdateFact( SGS_CTX )
-{
-	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, MovingUpdateFact ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsMovingUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
-}
-
-static int _sgs_method__TSEnemyController__MovingInsertOrUpdateFact( SGS_CTX )
-{
-	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, MovingInsertOrUpdateFact ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->sgsMovingInsertOrUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
-}
-
 static int _sgs_method__TSEnemyController__QueryCoverLines( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, QueryCoverLines ) ) return 0;
@@ -273,8 +259,6 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "InsertFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__InsertFact ); return SGS_SUCCESS; }
 		SGS_CASE( "UpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__UpdateFact ); return SGS_SUCCESS; }
 		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__InsertOrUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__MovingUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "MovingInsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__MovingInsertOrUpdateFact ); return SGS_SUCCESS; }
 		SGS_CASE( "QueryCoverLines" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__QueryCoverLines ); return SGS_SUCCESS; }
 		SGS_CASE( "GetCoverPosition" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetCoverPosition ); return SGS_SUCCESS; }
 		SGS_CASE( "IsWalkable" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__IsWalkable ); return SGS_SUCCESS; }

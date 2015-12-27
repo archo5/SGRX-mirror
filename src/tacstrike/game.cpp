@@ -261,6 +261,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 {
 	TACStrikeGame() : m_accum( 0.0f )
 	{
+		RegisterCommonGameCVars();
 	}
 	
 	bool OnConfigure( int argc, char* argv[] )
@@ -345,7 +346,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		AddSystemToLevel<AIDBSystem>( g_GameLevel );
 		AddSystemToLevel<CoverSystem>( g_GameLevel );
 		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
-		AddSystemToLevel<TSFightGameMode>( g_GameLevel );
+	//	AddSystemToLevel<TSFightGameMode>( g_GameLevel );
 		AddSystemToLevel<DevelopSystem>( g_GameLevel );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
@@ -354,7 +355,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		GR_LoadAnims( "meshes/tstest.ssm.anm" );
 //		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		
-		g_GameLevel->Load( "ai-test" );
+		g_GameLevel->Load( "ai-test-suite" );
 	//	g_GameLevel->Load( "v3decotest" );
 		
 #if 0

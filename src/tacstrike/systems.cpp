@@ -1456,33 +1456,25 @@ void AIFactStorage::InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
 		Insert( type, pos, created, expires, ref );
 }
 
-bool AIFactStorage::MovingUpdate( uint32_t* types, size_t typecount, Vec3 pos,
-	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
+bool AIFactStorage::CustomUpdate( AIFactDistance& distfn,
+	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
 	int which = -1;
 	float mindist = FLT_MAX;
 	for( size_t i = 0; i < facts.size(); ++i )
 	{
-		size_t j = 0;
-		for( ; j < typecount; ++j )
-			if( facts[ i ].type == types[ j ] )
-				break;
-		if( j == typecount )
-			continue;
-		
-		float distsq = ( facts[ i ].position - pos ).LengthSq();
-		float rad = ( created - facts[ i ].created ) * 0.001f * movespeed;
-		if( distsq <= rad * rad + SMALL_FLOAT && distsq < mindist )
+		float dist = distfn.GetDistance( facts[ i ] );
+		if( dist < mindist )
 		{
 			which = i;
-			mindist = distsq;
+			mindist = dist;
 		}
 	}
 	
 	if( which != -1 )
 	{
 		int i = which;
-		facts[ i ].position = pos;
+		facts[ i ].position = distfn.GetPosition();
 		if( reset )
 		{
 			facts[ i ].created = created;
@@ -1496,11 +1488,11 @@ bool AIFactStorage::MovingUpdate( uint32_t* types, size_t typecount, Vec3 pos,
 	return false;
 }
 
-void AIFactStorage::MovingInsertOrUpdate( uint32_t type, Vec3 pos, float movespeed,
+void AIFactStorage::CustomInsertOrUpdate( AIFactDistance& distfn, uint32_t type,
 	TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( MovingUpdate( &type, 1, pos, movespeed, created, expires, ref, reset ) == false )
-		Insert( type, pos, created, expires, ref );
+	if( CustomUpdate( distfn, created, expires, ref, reset ) == false )
+		Insert( type, distfn.GetPosition(), created, expires, ref );
 }
 
 
@@ -1671,22 +1663,6 @@ void AIDBSystem::sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 p
 	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	m_globalFacts.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
-}
-
-bool AIDBSystem::sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
-	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	if( sgs_StackSize( coro ) < 7 )
-		reset = true;
-	return m_globalFacts.MovingUpdate( &type, 1, pos, movespeed, created, expires, ref, reset );
-}
-
-void AIDBSystem::sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
-	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	if( sgs_StackSize( coro ) < 7 )
-		reset = true;
-	m_globalFacts.MovingInsertOrUpdate( type, pos, movespeed, created, expires, ref, reset );
 }
 
 SGS_MULTRET AIDBSystem::sgsPushRoom( sgs_Context* coro, AIRoom* room )
@@ -2324,10 +2300,11 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
 
 DevelopSystem::DevelopSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ),
-	screenshotMode( false ), moveMult(false), moveFwd(false), moveBwd(false),
+	screenshotMode(false), moveMult(false), moveFwd(false), moveBwd(false),
 	moveLft(false), moveRgt(false), moveUp(false), moveDn(false),
 	rotView(false), rotLft(false), rotRgt(false),
-	cameraPos(V3(0)), cameraDir(YP(0,0)), cameraRoll(0)
+	cameraPos(V3(0)), cameraDir(YP(0,0)), cameraRoll(0),
+	consoleMode(false), justEnabledConsole(false)
 {
 	RegisterHandler( EID_WindowEvent );
 }
@@ -2351,6 +2328,12 @@ void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 			gcv_g_paused.value = screenshotMode;
 			Game_ShowCursor( screenshotMode );
 		}
+		if( ev->type == SDL_KEYDOWN && ev->key.repeat == 0 && ev->key.keysym.sym == SDLK_BACKQUOTE )
+		{
+			consoleMode = !consoleMode;
+			gcv_g_paused.value = consoleMode;
+			justEnabledConsole = consoleMode;
+		}
 		if( ev->type == SDL_KEYDOWN || ev->type == SDL_KEYUP )
 		{
 			bool dn = ev->type == SDL_KEYDOWN;
@@ -2364,6 +2347,32 @@ void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 			if( k == SDLK_x ) moveDn = dn;
 			if( k == SDLK_q ) rotLft = dn;
 			if( k == SDLK_e ) rotRgt = dn;
+			
+			if( consoleMode && dn )
+			{
+				if( k == SDLK_BACKSPACE )
+				{
+					if( ev->key.keysym.mod & KMOD_CTRL )
+					{
+						size_t pos = StringView(inputText).find_last_at( " ", inputText.size() - 1, 0 );
+						inputText.resize( pos );
+					}
+					else if( inputText.size() )
+						inputText.pop_back();
+				}
+				else if( k == SDLK_RETURN || k == SDLK_KP_ENTER )
+				{
+					LOG << ">" << StackString<1024>(inputText).str;
+					if( Game_DoCommand( inputText ) == false )
+						LOG << "ERROR: could not find command";
+					inputText.clear();
+				}
+			}
+		}
+		if( ev->type == SDL_TEXTINPUT )
+		{
+			if( consoleMode && !justEnabledConsole )
+				inputText.append( ev->text.text );
 		}
 		if( ev->type == SDL_MOUSEBUTTONDOWN || ev->type == SDL_MOUSEBUTTONUP )
 		{
@@ -2409,6 +2418,35 @@ void DevelopSystem::Tick( float deltaTime, float blendFactor )
 		CAM.direction = dir;
 		CAM.updir = rollMat.TransformNormal( up ).Normalized();
 		CAM.UpdateMatrices();
+	}
+	
+	if( justEnabledConsole )
+		justEnabledConsole = false;
+}
+
+void DevelopSystem::DrawUI()
+{
+	if( consoleMode )
+	{
+		int w = GR_GetWidth();
+		int y_cline = 12;
+		int y_bsize = 1;
+		int y_end = GR_GetHeight() / 3;
+		int y_logend = y_end - y_cline - y_bsize * 2;
+		
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		br.Col( 0.2f, 0.3f, 0.4f, 0.5f );
+		br.QuadWH( 0, 0, w, y_logend );
+		br.Col( 0.4f, 0.05f, 0.01f, 0.5f );
+		br.QuadWH( 0, y_end - y_cline - y_bsize, w, y_cline );
+		br.Col( 0.5f, 0.6f, 0.7f, 1.0f );
+		br.QuadWH( 0, y_logend, w, y_bsize );
+		br.QuadWH( 0, y_end - y_bsize, w, y_bsize );
+		
+		br.Col( 0.9f, 0.9f, 0.9f, 1.0f );
+		GR2D_SetFont( "core", y_cline );
+		GR2D_DrawTextLine( 10, y_end - y_bsize - y_cline / 2, ">", HALIGN_RIGHT, VALIGN_CENTER );
+		GR2D_DrawTextLine( 10, y_end - y_bsize - y_cline / 2, inputText, HALIGN_LEFT, VALIGN_CENTER );
 	}
 }
 

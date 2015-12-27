@@ -1028,6 +1028,28 @@ TSEnemyController::~TSEnemyController()
 	m_sgsObject = NULL;
 }
 
+struct TSEC_FindChar : AIFactDistance
+{
+	float GetDistance( const AIFact& fact )
+	{
+		if( fact.type != type )
+			return FLT_MAX;
+		
+		float dist = PointLineDistance( pos,
+			fact.position - V3(0,0,0.5f), fact.position + V3(0,0,0.5f) ) - 0.5f;
+		float maxdist = ( curTime - fact.created ) * 0.001f * speed;
+		if( dist > maxdist )
+			return FLT_MAX;
+		return dist;
+	}
+	Vec3 GetPosition(){ return pos; }
+	
+	uint32_t type;
+	Vec3 pos;
+	float speed;
+	uint32_t curTime;
+};
+
 struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 {
 	IESEnemyViewProc() : sawEnemy(false){}
@@ -1051,13 +1073,22 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		{
 			sawEnemy = true;
 			
+			TSEC_FindChar fchr;
+			{
+				fchr.type = FT_Sight_Foe,
+				fchr.pos = enemypos;
+				fchr.speed = 10;
+				fchr.curTime = curtime;
+			}
+			
 			// fact of seeing
-			FS.MovingInsertOrUpdate( FT_Sight_Foe,
-				enemypos, 10, curtime, curtime + 5*1000 );
+			FS.CustomInsertOrUpdate( fchr, FT_Sight_Foe,
+				curtime, curtime + 5*1000 );
 			
 			// fact of position
-			FS.MovingInsertOrUpdate( FT_Position_Foe,
-				enemypos, 10, curtime, curtime + 30*1000, FS.last_mod_id );
+			fchr.type = FT_Position_Foe;
+			FS.CustomInsertOrUpdate( fchr, FT_Position_Foe,
+				curtime, curtime + 30*1000, FS.last_mod_id );
 		}
 		
 		return true;
@@ -1068,6 +1099,27 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 	bool sawEnemy;
 };
 
+struct TSEC_FindSoundSource : AIFactDistance
+{
+	float GetDistance( const AIFact& fact )
+	{
+		if( fact.type != FT_Position_Friend && fact.type != FT_Position_Foe )
+			return FLT_MAX;
+		
+		float dist = PointLineDistance( pos,
+			fact.position - V3(0,0,0.5f), fact.position + V3(0,0,0.5f) ) - 0.5f;
+		float maxdist = ( curTime - fact.created ) * 0.001f * speed;
+		if( dist > maxdist )
+			return FLT_MAX;
+		return dist;
+	}
+	Vec3 GetPosition(){ return pos; }
+	
+	Vec3 pos;
+	float speed;
+	uint32_t curTime;
+};
+
 void TSEnemyController::FixedTick( float deltaTime )
 {
 	TimeVal curTime = m_level->GetPhyTime();
@@ -1075,8 +1127,15 @@ void TSEnemyController::FixedTick( float deltaTime )
 	// process facts
 	m_factStorage.Process( curTime );
 	// - self
-	m_factStorage.MovingInsertOrUpdate( FT_Position_Friend,
-		m_char->GetPosition(), 10, curTime, curTime + 1*1000, 0 );
+	TSEC_FindChar fchr;
+	{
+		fchr.type = FT_Position_Friend;
+		fchr.pos = m_char->GetPosition();
+		fchr.speed = 10;
+		fchr.curTime = curTime;
+	}
+	m_factStorage.CustomInsertOrUpdate( fchr, FT_Position_Friend,
+		curTime, curTime + 1*1000, 0 );
 	// - sounds
 	for( int i = 0; i < m_aidb->GetNumSounds(); ++i )
 	{
@@ -1094,9 +1153,13 @@ void TSEnemyController::FixedTick( float deltaTime )
 				S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
 			
 			int lastid = m_factStorage.last_mod_id;
-			uint32_t types[] = { FT_Position_Friend, FT_Position_Foe };
-			m_factStorage.MovingUpdate( types, 2,
-				S.position, 10, curTime, curTime + 30*1000, lastid );
+			TSEC_FindSoundSource fss;
+			{
+				fss.pos = S.position;
+				fss.speed = 10;
+				fss.curTime = curTime;
+			}
+			m_factStorage.CustomUpdate( fss, curTime, curTime + 30*1000, lastid );
 		}
 		else
 		{
@@ -1110,20 +1173,6 @@ void TSEnemyController::FixedTick( float deltaTime )
 	evp.enemy = this;
 	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp,
 		m_char->GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
-	if( evp.sawEnemy == false ) // HACK
-	{
-		for( size_t i = 0; i < m_factStorage.facts.size(); ++i )
-		{
-			AIFact& F = m_factStorage.facts[ i ];
-			if( F.type != FT_Position_Foe )
-				continue;
-			if( CanSeePoint( F.position ) == false )
-			{
-				m_factStorage.facts.erase( i-- );
-				continue;
-			}
-		}
-	}
 	
 	// tick ESO
 	{
@@ -1343,22 +1392,6 @@ void TSEnemyController::sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type,
 	if( sgs_StackSize( coro ) < 7 )
 		reset = true;
 	m_factStorage.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
-}
-
-bool TSEnemyController::sgsMovingUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
-	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	if( sgs_StackSize( coro ) < 7 )
-		reset = true;
-	return m_factStorage.MovingUpdate( &type, 1, pos, movespeed, created, expires, ref, reset );
-}
-
-void TSEnemyController::sgsMovingInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
-	float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
-{
-	if( sgs_StackSize( coro ) < 7 )
-		reset = true;
-	m_factStorage.MovingInsertOrUpdate( type, pos, movespeed, created, expires, ref, reset );
 }
 
 void TSEnemyController::sgsQueryCoverLines( Vec3 bbmin,

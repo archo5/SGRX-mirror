@@ -541,6 +541,12 @@ struct AIFact
 	SGS_PROPERTY TimeVal expires;
 };
 
+struct AIFactDistance
+{
+	virtual float GetDistance( const AIFact& fact ) = 0;
+	virtual Vec3 GetPosition() = 0;
+};
+
 struct AIFactStorage
 {
 	AIFactStorage();
@@ -557,9 +563,9 @@ struct AIFactStorage
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	void InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	bool MovingUpdate( uint32_t* types, size_t typecount, Vec3 pos, float movespeed,
+	bool CustomUpdate( AIFactDistance& distfn,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	void MovingInsertOrUpdate( uint32_t type, Vec3 pos, float movespeed,
+	void CustomInsertOrUpdate( AIFactDistance& distfn, uint32_t type,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	
 	Array< AIFact > facts;
@@ -601,10 +607,6 @@ struct AIDBSystem : IGameLevelSystem
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro,
 		uint32_t type, Vec3 pos, float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingUpdateFact ) bool sgsMovingUpdateFact( sgs_Context* coro,
-		uint32_t type, Vec3 pos, float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( MovingInsertOrUpdateFact ) void sgsMovingInsertOrUpdateFact( sgs_Context* coro,
-		uint32_t type, Vec3 pos, float movespeed, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	SGS_MULTRET sgsPushRoom( sgs_Context* coro, AIRoom* room );
 	SGS_METHOD_NAMED( GetRoomList ) SGS_MULTRET sgsGetRoomList( sgs_Context* coro );
 	SGS_METHOD_NAMED( GetRoomNameByPos ) sgsString sgsGetRoomNameByPos( sgs_Context* coro, Vec3 pos );
@@ -716,6 +718,7 @@ struct DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
 	DevelopSystem( GameLevel* lev );
 	void HandleEvent( SGRX_EventID eid, const EventData& edata );
 	void Tick( float deltaTime, float blendFactor );
+	void DrawUI();
 	
 	bool screenshotMode : 1;
 	bool moveMult : 1;
@@ -731,6 +734,10 @@ struct DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
 	Vec3 cameraPos;
 	YawPitch cameraDir;
 	float cameraRoll;
+	
+	bool consoleMode : 1;
+	bool justEnabledConsole : 1;
+	String inputText;
 };
 
 

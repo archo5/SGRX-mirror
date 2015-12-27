@@ -34,6 +34,7 @@ set_target_properties( game PROPERTIES
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
+if(0)
 # BRSD 4 Game
 add_library( jmpgame SHARED brsd4game entities_brsd4 )
 target_link_libraries( jmpgame coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
@@ -69,4 +70,5 @@ set_target_properties( isr3game PROPERTIES
 	COMPILE_FLAGS "${CORE_FLAGS} -DISR3GAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
+endif()
 
