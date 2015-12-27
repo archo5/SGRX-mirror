@@ -44,37 +44,6 @@ struct SGRX_IActorController : SGRX_RefCounted
 typedef Handle< SGRX_IActorController > SGRX_ActorCtrlHandle;
 
 
-struct IGameLevelSystem
-{
-	IGameLevelSystem( GameLevel* lev, uint32_t uid ) :
-		C( NULL ), m_sgsObject( NULL ),
-		m_level( lev ),
-		m_system_uid( uid )
-	{}
-	virtual ~IGameLevelSystem();
-	virtual void OnPostLevelLoad(){}
-	virtual void OnLevelDestroy(){ delete this; }
-	virtual bool AddEntity( const StringView& type, sgsVariable data ){ return false; }
-	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size ){ return false; }
-	virtual void Clear(){}
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
-	virtual void DrawUI(){}
-	
-	virtual void PostDraw(){}
-	virtual void DebugDrawWorld(){}
-	virtual void DebugDrawUI(){}
-	
-	template< class T > void InitScriptInterface( const StringView& name, T* ptr );
-	void DestroyScriptInterface();
-	SGS_CTX;
-	sgs_VarObj* m_sgsObject;
-	
-	GameLevel* m_level;
-	uint32_t m_system_uid;
-};
-
-
 struct Entity
 {
 	SGS_OBJECT SGS_NO_DESTRUCT;
@@ -119,6 +88,37 @@ struct Entity
 	SGS_PROPERTY_FUNC( READ _sgs_getLevel ) SGS_ALIAS( sgsHandle< GameLevel > level );
 	
 	SGS_METHOD_NAMED( CallEvent ) SGS_ALIAS( void OnEvent( StringView type ) );
+};
+
+
+struct IGameLevelSystem
+{
+	IGameLevelSystem( GameLevel* lev, uint32_t uid ) :
+		C( NULL ), m_sgsObject( NULL ),
+		m_level( lev ),
+		m_system_uid( uid )
+	{}
+	virtual ~IGameLevelSystem();
+	virtual void OnPostLevelLoad(){}
+	virtual void OnLevelDestroy(){ delete this; }
+	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar ){ return false; }
+	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size ){ return false; }
+	virtual void Clear(){}
+	virtual void FixedTick( float deltaTime ){}
+	virtual void Tick( float deltaTime, float blendFactor ){}
+	virtual void DrawUI(){}
+	
+	virtual void PostDraw(){}
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
+	
+	template< class T > void InitScriptInterface( const StringView& name, T* ptr );
+	void DestroyScriptInterface();
+	SGS_CTX;
+	sgs_VarObj* m_sgsObject;
+	
+	GameLevel* m_level;
+	uint32_t m_system_uid;
 };
 
 
@@ -204,7 +204,8 @@ struct GameLevel :
 	float GetDeltaTime() const { return m_deltaTime; }
 	
 	bool Load( const StringView& levelname );
-	void CreateEntity( const StringView& type, sgsVariable data );
+	sgsVariable CreateEntity( const StringView& type, sgsVariable data );
+	void DestroyEntity( Entity* eptr );
 	StackShortName GenerateName();
 	void ClearLevel();
 	
@@ -222,6 +223,8 @@ struct GameLevel :
 	void MapEntityByName( Entity* e );
 	void UnmapEntityByName( Entity* e );
 	Entity* FindEntityByName( const StringView& name );
+	SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type, sgsVariable data );
+	SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
 	SGS_METHOD_NAMED( FindEntity ) Entity::Handle sgsFindEntity( StringView name );
 	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
 	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );

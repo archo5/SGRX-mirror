@@ -91,11 +91,12 @@ int SGRX_SIRigidBodyInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface SGRX_SIRigidBodyInfo::_sgs_interface[1] =
-{{
+static sgs_ObjInterface SGRX_SIRigidBodyInfo__sgs_interface =
+{
 	"SGRX_SIRigidBodyInfo",
 	SGRX_SIRigidBodyInfo::_sgs_destruct, SGRX_SIRigidBodyInfo::_sgs_gcmark, SGRX_SIRigidBodyInfo::_sgs_getindex, SGRX_SIRigidBodyInfo::_sgs_setindex, NULL, NULL, SGRX_SIRigidBodyInfo::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface SGRX_SIRigidBodyInfo::_sgs_interface(SGRX_SIRigidBodyInfo__sgs_interface);
 
 
 int SGRX_SIHingeJointInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -153,11 +154,12 @@ int SGRX_SIHingeJointInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface SGRX_SIHingeJointInfo::_sgs_interface[1] =
-{{
+static sgs_ObjInterface SGRX_SIHingeJointInfo__sgs_interface =
+{
 	"SGRX_SIHingeJointInfo",
 	SGRX_SIHingeJointInfo::_sgs_destruct, SGRX_SIHingeJointInfo::_sgs_gcmark, SGRX_SIHingeJointInfo::_sgs_getindex, SGRX_SIHingeJointInfo::_sgs_setindex, NULL, NULL, SGRX_SIHingeJointInfo::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface SGRX_SIHingeJointInfo::_sgs_interface(SGRX_SIHingeJointInfo__sgs_interface);
 
 
 int SGRX_SIConeTwistJointInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -209,11 +211,12 @@ int SGRX_SIConeTwistJointInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface SGRX_SIConeTwistJointInfo::_sgs_interface[1] =
-{{
+static sgs_ObjInterface SGRX_SIConeTwistJointInfo__sgs_interface =
+{
 	"SGRX_SIConeTwistJointInfo",
 	SGRX_SIConeTwistJointInfo::_sgs_destruct, SGRX_SIConeTwistJointInfo::_sgs_gcmark, SGRX_SIConeTwistJointInfo::_sgs_getindex, SGRX_SIConeTwistJointInfo::_sgs_setindex, NULL, NULL, SGRX_SIConeTwistJointInfo::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface SGRX_SIConeTwistJointInfo::_sgs_interface(SGRX_SIConeTwistJointInfo__sgs_interface);
 
 
 static int _sgs_method__SGRX_ScriptedItem__SetMatrix( SGS_CTX )
@@ -571,9 +574,10 @@ int SGRX_ScriptedItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface SGRX_ScriptedItem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface SGRX_ScriptedItem__sgs_interface =
+{
 	"SGRX_ScriptedItem",
 	SGRX_ScriptedItem::_sgs_destruct, SGRX_ScriptedItem::_sgs_gcmark, SGRX_ScriptedItem::_getindex, SGRX_ScriptedItem::_setindex, NULL, NULL, SGRX_ScriptedItem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface SGRX_ScriptedItem::_sgs_interface(SGRX_ScriptedItem__sgs_interface);
 

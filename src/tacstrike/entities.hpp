@@ -187,7 +187,7 @@ struct StockEntityCreationSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 999 };
 	StockEntityCreationSystem( GameLevel* lev );
-	virtual bool AddEntity( const StringView& type, sgsVariable data );
+	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar );
 };
 
 

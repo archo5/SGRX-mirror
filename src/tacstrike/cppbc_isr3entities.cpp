@@ -61,11 +61,12 @@ int ISR3Drone::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface ISR3Drone::_sgs_interface[1] =
-{{
+static sgs_ObjInterface ISR3Drone__sgs_interface =
+{
 	"ISR3Drone",
 	ISR3Drone::_sgs_destruct, ISR3Drone::_sgs_gcmark, ISR3Drone::_sgs_getindex, ISR3Drone::_sgs_setindex, NULL, NULL, ISR3Drone::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface ISR3Drone::_sgs_interface(ISR3Drone__sgs_interface, &Entity::_sgs_interface);
 
 
 static int _sgs_method__ISR3Player__CallEvent( SGS_CTX )
@@ -126,11 +127,12 @@ int ISR3Player::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface ISR3Player::_sgs_interface[1] =
-{{
+static sgs_ObjInterface ISR3Player__sgs_interface =
+{
 	"ISR3Player",
 	ISR3Player::_sgs_destruct, ISR3Player::_sgs_gcmark, ISR3Player::_sgs_getindex, ISR3Player::_sgs_setindex, NULL, NULL, ISR3Player::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface ISR3Player::_sgs_interface(ISR3Player__sgs_interface, &ISR3Drone::_sgs_interface);
 
 
 static int _sgs_method__ISR3Enemy__CallEvent( SGS_CTX )
@@ -215,9 +217,10 @@ int ISR3Enemy::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface ISR3Enemy::_sgs_interface[1] =
-{{
+static sgs_ObjInterface ISR3Enemy__sgs_interface =
+{
 	"ISR3Enemy",
 	ISR3Enemy::_sgs_destruct, ISR3Enemy::_sgs_gcmark, ISR3Enemy::_sgs_getindex, ISR3Enemy::_sgs_setindex, NULL, NULL, ISR3Enemy::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface ISR3Enemy::_sgs_interface(ISR3Enemy__sgs_interface, &ISR3Drone::_sgs_interface);
 

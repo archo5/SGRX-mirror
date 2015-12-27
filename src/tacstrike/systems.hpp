@@ -357,7 +357,7 @@ struct LevelCoreSystem : IGameLevelSystem
 	
 	LevelCoreSystem( GameLevel* lev );
 	virtual void Clear();
-	virtual bool AddEntity( const StringView& type, sgsVariable data );
+	virtual bool AddEntity( const StringView& type, sgsVariable data, Entity::Handle& outeh );
 	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	
 	Array< MeshInstHandle > m_meshInsts;

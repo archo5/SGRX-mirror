@@ -1457,7 +1457,7 @@ TSGameSystem::TSGameSystem( GameLevel* lev )
 	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
-bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
+bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar )
 {
 #ifndef TSGAME_NO_PLAYER
 	///////////////////////////
@@ -1475,6 +1475,7 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 		P->ctrl = &m_playerCtrl;
 		m_level->AddEntity( P );
 		m_level->SetPlayer( P );
+		outvar = P->GetScriptedObject();
 		return true;
 	}
 #endif
@@ -1494,11 +1495,12 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 			data.getprop("dir1").get<Vec3>()
 		);
 		m_level->AddEntity( CAM );
+		outvar = CAM->GetScriptedObject();
 		return true;
 	}
 	
 	///////////////////////////
-	if( type == "enemy_start" )
+	if( type == "enemy_start" || type == "enemy" )
 	{
 		TSCharacter* E = new TSCharacter
 		(
@@ -1513,6 +1515,7 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data )
 		m_level->MapEntityByName( E );
 		E->ctrl = new TSEnemyController( m_level, E, data );
 		m_level->AddEntity( E );
+		outvar = E->GetScriptedObject();
 		return true;
 	}
 	

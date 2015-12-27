@@ -488,7 +488,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	lev->GetScriptCtx().Include( "data/scritems" );
 }
 
-bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data )
+bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar )
 {
 	///////////////////////////
 	if( type == "trigger" )
@@ -502,6 +502,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
 		);
 		m_level->AddEntity( BT );
+		outvar = BT->GetScriptedObject();
 		return true;
 	}
 	
@@ -516,6 +517,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			data.getprop("distance").get<float>()
 		);
 		m_level->AddEntity( PT );
+		outvar = PT->GetScriptedObject();
 		return true;
 	}
 	
@@ -539,6 +541,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			data.getprop("is_switch").get<bool>()
 		);
 		m_level->AddEntity( SD );
+		outvar = SD->GetScriptedObject();
 		return true;
 	}
 	
@@ -557,6 +560,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
 		);
 		m_level->AddEntity( PI );
+		outvar = PI->GetScriptedObject();
 		return true;
 	}
 	
@@ -575,6 +579,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			data.getprop("place_dir").get<Vec3>()
 		);
 		m_level->AddEntity( AC );
+		outvar = AC->GetScriptedObject();
 		return true;
 	}
 	
@@ -618,6 +623,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			data.getprop("start").get<bool>()
 		);
 		m_level->AddEntity( PF );
+		outvar = PF->GetScriptedObject();
 		return true;
 	}
 	
@@ -632,6 +638,7 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 			scritem
 		);
 		m_level->AddEntity( SI );
+		outvar = SI->GetScriptedObject();
 		return true;
 	}
 	

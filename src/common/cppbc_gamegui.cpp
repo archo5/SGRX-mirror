@@ -70,11 +70,12 @@ int GameUIEvent::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface GameUIEvent::_sgs_interface[1] =
-{{
+static sgs_ObjInterface GameUIEvent__sgs_interface =
+{
 	"GameUIEvent",
 	GameUIEvent::_sgs_destruct, GameUIEvent::_sgs_gcmark, GameUIEvent::_sgs_getindex, GameUIEvent::_sgs_setindex, NULL, NULL, GameUIEvent::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface GameUIEvent::_sgs_interface(GameUIEvent__sgs_interface);
 
 
 static int _sgs_method__GameUIControl__IsIn( SGS_CTX )
@@ -370,9 +371,10 @@ int GameUIControl::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface GameUIControl::_sgs_interface[1] =
-{{
+static sgs_ObjInterface GameUIControl__sgs_interface =
+{
 	"GameUIControl",
 	GameUIControl::_sgs_destruct, GameUIControl::_sgs_gcmark, GameUIControl::_getindex, GameUIControl::_setindex, NULL, NULL, GameUIControl::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface GameUIControl::_sgs_interface(GameUIControl__sgs_interface);
 

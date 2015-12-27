@@ -677,7 +677,7 @@ void LevelCoreSystem::Clear()
 	m_ltSamples.SetSamples( NULL, 0 );
 }
 
-bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data )
+bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data, Entity::Handle& outeh )
 {
 	///////////////////////////
 	if( type == "solidbox" )
@@ -691,6 +691,13 @@ bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data )
 		rbinfo.position = data.getprop("position").get<Vec3>();
 		rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
 		m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "mesharray" ||
+		type == "m3sh" )
+	{
 		return true;
 	}
 	

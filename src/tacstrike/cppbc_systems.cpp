@@ -55,11 +55,12 @@ int InfoEmissionSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface InfoEmissionSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface InfoEmissionSystem__sgs_interface =
+{
 	"InfoEmissionSystem",
 	NULL, InfoEmissionSystem::_sgs_gcmark, InfoEmissionSystem::_sgs_getindex, InfoEmissionSystem::_sgs_setindex, NULL, NULL, InfoEmissionSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface InfoEmissionSystem::_sgs_interface(InfoEmissionSystem__sgs_interface);
 
 
 static int _sgs_method__MessagingSystem__Add( SGS_CTX )
@@ -107,11 +108,12 @@ int MessagingSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface MessagingSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface MessagingSystem__sgs_interface =
+{
 	"MessagingSystem",
 	NULL, MessagingSystem::_sgs_gcmark, MessagingSystem::_sgs_getindex, MessagingSystem::_sgs_setindex, NULL, NULL, MessagingSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface MessagingSystem::_sgs_interface(MessagingSystem__sgs_interface);
 
 
 static int _sgs_method__ObjectiveSystem__Add( SGS_CTX )
@@ -194,11 +196,12 @@ int ObjectiveSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface ObjectiveSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface ObjectiveSystem__sgs_interface =
+{
 	"ObjectiveSystem",
 	NULL, ObjectiveSystem::_sgs_gcmark, ObjectiveSystem::_sgs_getindex, ObjectiveSystem::_sgs_setindex, NULL, NULL, ObjectiveSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface ObjectiveSystem::_sgs_interface(ObjectiveSystem__sgs_interface);
 
 
 static int _sgs_method__HelpTextSystem__Clear( SGS_CTX )
@@ -270,11 +273,12 @@ int HelpTextSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface HelpTextSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface HelpTextSystem__sgs_interface =
+{
 	"HelpTextSystem",
 	NULL, HelpTextSystem::_sgs_gcmark, HelpTextSystem::_sgs_getindex, HelpTextSystem::_sgs_setindex, NULL, NULL, HelpTextSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface HelpTextSystem::_sgs_interface(HelpTextSystem__sgs_interface);
 
 
 static int _sgs_method__FlareSystem__Update( SGS_CTX )
@@ -331,11 +335,12 @@ int FlareSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface FlareSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface FlareSystem__sgs_interface =
+{
 	"FlareSystem",
 	NULL, FlareSystem::_sgs_gcmark, FlareSystem::_sgs_getindex, FlareSystem::_sgs_setindex, NULL, NULL, FlareSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface FlareSystem::_sgs_interface(FlareSystem__sgs_interface);
 
 
 static int _sgs_method__ScriptedSequenceSystem__Start( SGS_CTX )
@@ -390,11 +395,12 @@ int ScriptedSequenceSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface ScriptedSequenceSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface ScriptedSequenceSystem__sgs_interface =
+{
 	"ScriptedSequenceSystem",
 	NULL, ScriptedSequenceSystem::_sgs_gcmark, ScriptedSequenceSystem::_sgs_getindex, ScriptedSequenceSystem::_sgs_setindex, NULL, NULL, ScriptedSequenceSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface ScriptedSequenceSystem::_sgs_interface(ScriptedSequenceSystem__sgs_interface);
 
 
 static int _sgs_method__MusicSystem__SetTrack( SGS_CTX )
@@ -449,11 +455,12 @@ int MusicSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface MusicSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface MusicSystem__sgs_interface =
+{
 	"MusicSystem",
 	NULL, MusicSystem::_sgs_gcmark, MusicSystem::_sgs_getindex, MusicSystem::_sgs_setindex, NULL, NULL, MusicSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface MusicSystem::_sgs_interface(MusicSystem__sgs_interface);
 
 
 int AIFact::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -512,11 +519,12 @@ int AIFact::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface AIFact::_sgs_interface[1] =
-{{
+static sgs_ObjInterface AIFact__sgs_interface =
+{
 	"AIFact",
 	AIFact::_sgs_destruct, AIFact::_sgs_gcmark, AIFact::_sgs_getindex, AIFact::_sgs_setindex, NULL, NULL, AIFact::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface AIFact::_sgs_interface(AIFact__sgs_interface);
 
 
 static int _sgs_method__AIDBSystem__HasFact( SGS_CTX )
@@ -627,9 +635,10 @@ int AIDBSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface AIDBSystem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface AIDBSystem__sgs_interface =
+{
 	"AIDBSystem",
 	NULL, AIDBSystem::_sgs_gcmark, AIDBSystem::_sgs_getindex, AIDBSystem::_sgs_setindex, NULL, NULL, AIDBSystem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface AIDBSystem::_sgs_interface(AIDBSystem__sgs_interface);
 

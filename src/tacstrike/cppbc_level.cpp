@@ -61,11 +61,12 @@ int Entity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface Entity::_sgs_interface[1] =
-{{
+static sgs_ObjInterface Entity__sgs_interface =
+{
 	"Entity",
 	NULL, Entity::_sgs_gcmark, Entity::_sgs_getindex, Entity::_sgs_setindex, NULL, NULL, Entity::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface Entity::_sgs_interface(Entity__sgs_interface);
 
 
 static int _sgs_method__SGRX_Actor__CallEvent( SGS_CTX )
@@ -126,11 +127,12 @@ int SGRX_Actor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface SGRX_Actor::_sgs_interface[1] =
-{{
+static sgs_ObjInterface SGRX_Actor__sgs_interface =
+{
 	"SGRX_Actor",
 	NULL, SGRX_Actor::_sgs_gcmark, SGRX_Actor::_sgs_getindex, SGRX_Actor::_sgs_setindex, NULL, NULL, SGRX_Actor::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface SGRX_Actor::_sgs_interface(SGRX_Actor__sgs_interface, &Entity::_sgs_interface);
 
 
 static int _sgs_method__GameLevel__SetLevel( SGS_CTX )
@@ -138,6 +140,20 @@ static int _sgs_method__GameLevel__SetLevel( SGS_CTX )
 	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, SetLevel ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->SetNextLevel( sgs_GetVar<StringView>()(C,0) ); return 0;
+}
+
+static int _sgs_method__GameLevel__CreateEntity( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, CreateEntity ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsCreateEntity( sgs_GetVar<StringView>()(C,0), sgs_GetVar<sgsVariable>()(C,1) )); return 1;
+}
+
+static int _sgs_method__GameLevel__DestroyEntity( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, DestroyEntity ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->sgsDestroyEntity( sgs_GetVar<sgsVariable>()(C,0) ); return 0;
 }
 
 static int _sgs_method__GameLevel__FindEntity( SGS_CTX )
@@ -193,6 +209,8 @@ int GameLevel::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<GameLevel*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "SetLevel" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__SetLevel ); return SGS_SUCCESS; }
+		SGS_CASE( "CreateEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__CreateEntity ); return SGS_SUCCESS; }
+		SGS_CASE( "DestroyEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__DestroyEntity ); return SGS_SUCCESS; }
 		SGS_CASE( "FindEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__FindEntity ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEntity" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__CallEntity ); return SGS_SUCCESS; }
 		SGS_CASE( "SetCameraPosDir" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__SetCameraPosDir ); return SGS_SUCCESS; }
@@ -224,9 +242,10 @@ int GameLevel::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface GameLevel::_sgs_interface[1] =
-{{
+static sgs_ObjInterface GameLevel__sgs_interface =
+{
 	"GameLevel",
 	NULL, GameLevel::_sgs_gcmark, GameLevel::_getindex, GameLevel::_setindex, NULL, NULL, GameLevel::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface GameLevel::_sgs_interface(GameLevel__sgs_interface);
 

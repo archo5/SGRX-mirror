@@ -85,11 +85,12 @@ int Trigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface Trigger::_sgs_interface[1] =
-{{
+static sgs_ObjInterface Trigger__sgs_interface =
+{
 	"Trigger",
 	Trigger::_sgs_destruct, Trigger::_sgs_gcmark, Trigger::_sgs_getindex, Trigger::_sgs_setindex, NULL, NULL, Trigger::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface Trigger::_sgs_interface(Trigger__sgs_interface, &Entity::_sgs_interface);
 
 
 static int _sgs_method__BoxTrigger__CallEvent( SGS_CTX )
@@ -176,11 +177,12 @@ int BoxTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface BoxTrigger::_sgs_interface[1] =
-{{
+static sgs_ObjInterface BoxTrigger__sgs_interface =
+{
 	"BoxTrigger",
 	BoxTrigger::_sgs_destruct, BoxTrigger::_sgs_gcmark, BoxTrigger::_sgs_getindex, BoxTrigger::_sgs_setindex, NULL, NULL, BoxTrigger::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface BoxTrigger::_sgs_interface(BoxTrigger__sgs_interface, &Trigger::_sgs_interface);
 
 
 static int _sgs_method__ProximityTrigger__CallEvent( SGS_CTX )
@@ -269,11 +271,12 @@ int ProximityTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface ProximityTrigger::_sgs_interface[1] =
-{{
+static sgs_ObjInterface ProximityTrigger__sgs_interface =
+{
 	"ProximityTrigger",
 	ProximityTrigger::_sgs_destruct, ProximityTrigger::_sgs_gcmark, ProximityTrigger::_sgs_getindex, ProximityTrigger::_sgs_setindex, NULL, NULL, ProximityTrigger::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface ProximityTrigger::_sgs_interface(ProximityTrigger__sgs_interface, &Trigger::_sgs_interface);
 
 
 static int _sgs_method__SlidingDoor__CallEvent( SGS_CTX )
@@ -361,11 +364,12 @@ int SlidingDoor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface SlidingDoor::_sgs_interface[1] =
-{{
+static sgs_ObjInterface SlidingDoor__sgs_interface =
+{
 	"SlidingDoor",
 	SlidingDoor::_sgs_destruct, SlidingDoor::_sgs_gcmark, SlidingDoor::_sgs_getindex, SlidingDoor::_sgs_setindex, NULL, NULL, SlidingDoor::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface SlidingDoor::_sgs_interface(SlidingDoor__sgs_interface, &Trigger::_sgs_interface);
 
 
 static int _sgs_method__PickupItem__CallEvent( SGS_CTX )
@@ -426,11 +430,12 @@ int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface PickupItem::_sgs_interface[1] =
-{{
+static sgs_ObjInterface PickupItem__sgs_interface =
+{
 	"PickupItem",
 	PickupItem::_sgs_destruct, PickupItem::_sgs_gcmark, PickupItem::_sgs_getindex, PickupItem::_sgs_setindex, NULL, NULL, PickupItem::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface PickupItem::_sgs_interface(PickupItem__sgs_interface, &Entity::_sgs_interface);
 
 
 static int _sgs_method__Actionable__CallEvent( SGS_CTX )
@@ -501,9 +506,10 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface Actionable::_sgs_interface[1] =
-{{
+static sgs_ObjInterface Actionable__sgs_interface =
+{
 	"Actionable",
 	NULL, Actionable::_sgs_gcmark, Actionable::_sgs_getindex, Actionable::_sgs_setindex, NULL, NULL, Actionable::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface Actionable::_sgs_interface(Actionable__sgs_interface, &Entity::_sgs_interface);
 

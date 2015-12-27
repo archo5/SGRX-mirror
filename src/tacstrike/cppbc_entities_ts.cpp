@@ -67,11 +67,12 @@ int TSCamera::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface TSCamera::_sgs_interface[1] =
-{{
+static sgs_ObjInterface TSCamera__sgs_interface =
+{
 	"TSCamera",
 	TSCamera::_sgs_destruct, TSCamera::_sgs_gcmark, TSCamera::_sgs_getindex, TSCamera::_sgs_setindex, NULL, NULL, TSCamera::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface TSCamera::_sgs_interface(TSCamera__sgs_interface, &Entity::_sgs_interface);
 
 
 static int _sgs_method__TSCharacter__GetAttachmentPos( SGS_CTX )
@@ -128,11 +129,12 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface TSCharacter::_sgs_interface[1] =
-{{
+static sgs_ObjInterface TSCharacter__sgs_interface =
+{
 	"TSCharacter",
 	TSCharacter::_sgs_destruct, TSCharacter::_sgs_gcmark, TSCharacter::_sgs_getindex, TSCharacter::_sgs_setindex, NULL, NULL, TSCharacter::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, &SGRX_Actor::_sgs_interface);
 
 
 static int _sgs_method__TSEnemyController__CanSeePoint( SGS_CTX )
@@ -291,9 +293,10 @@ int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
-sgs_ObjInterface TSEnemyController::_sgs_interface[1] =
-{{
+static sgs_ObjInterface TSEnemyController__sgs_interface =
+{
 	"TSEnemyController",
 	TSEnemyController::_sgs_destruct, TSEnemyController::_sgs_gcmark, TSEnemyController::_sgs_getindex, TSEnemyController::_sgs_setindex, NULL, NULL, TSEnemyController::_sgs_dump, NULL, NULL, NULL, 
-}};
+};
+_sgsInterface TSEnemyController::_sgs_interface(TSEnemyController__sgs_interface);
 

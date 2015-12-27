@@ -284,7 +284,7 @@ bool GameLevel::Load( const StringView& levelname )
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->OnPostLevelLoad();
 	
-	if( !m_player )
+	if( 0&& !m_player )
 	{
 		sgsVariable data = m_scriptCtx.CreateDict();
 		data.setprop( "position", m_scriptCtx.CreateVec3( m_playerSpawnInfo[0] ) );
@@ -297,45 +297,30 @@ bool GameLevel::Load( const StringView& levelname )
 	return true;
 }
 
-void GameLevel::CreateEntity( const StringView& type, sgsVariable data )
+sgsVariable GameLevel::CreateEntity( const StringView& type, sgsVariable data )
 {
 	for( size_t i = 0; i < m_systems.size(); ++i )
 	{
-		if( m_systems[ i ]->AddEntity( type, data ) )
-			return;
-	}
-	
-	///////////////////////////
-	if( type == "player_start" )
-	{
-		m_playerSpawnInfo[0] = data.getprop("position").get<Vec3>();
-		m_playerSpawnInfo[1] = data.getprop("viewdir").get<Vec3>().Normalized();
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "camera_start" )
-	{
-		m_levelCameraInfo[0] = data.getprop("position").get<Vec3>();
-		m_levelCameraInfo[1] = data.getprop("viewdir").get<Vec3>().Normalized();
-		return;
+		sgsVariable outvar;
+		if( m_systems[ i ]->AddEntity( type, data, outvar ) )
+			return outvar;
 	}
 	
 	///////////////////////////
 	if( type == "marker" )
 	{
 		m_markerPositions.setprop( data.getprop("name"), data.getprop("position") );
-		return;
-	}
-	
-	///////////////////////////
-	if( type == "mesharray" ||
-		type == "m3sh" )
-	{
-		return;
+		return sgsVariable();
 	}
 	
 	LOG << "ENTITY TYPE NOT FOUND: " << type;
+	return sgsVariable();
+}
+
+void GameLevel::DestroyEntity( Entity* eptr )
+{
+	delete eptr;
+	m_entities.remove_all( eptr );
 }
 
 StackShortName GameLevel::GenerateName()
@@ -389,14 +374,14 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	m_deltaTime = deltaTime;
 	m_levelTime += deltaTime;
 	
-	if( !m_player )
-	{
-		m_scene->camera.position = m_levelCameraInfo[0];
-		m_scene->camera.direction = m_levelCameraInfo[1];
-		m_scene->camera.updir = V3(0,0,1);
-		m_scene->camera.aspect = GR_GetWidth() / (float) GR_GetHeight();
-		m_scene->camera.UpdateMatrices();
-	}
+//	if( !m_player )
+//	{
+//		m_scene->camera.position = m_levelCameraInfo[0];
+//		m_scene->camera.direction = m_levelCameraInfo[1];
+//		m_scene->camera.updir = V3(0,0,1);
+//		m_scene->camera.aspect = GR_GetWidth() / (float) GR_GetHeight();
+//		m_scene->camera.UpdateMatrices();
+//	}
 	
 	if( IsPaused() == false )
 	{
@@ -502,6 +487,18 @@ void GameLevel::UnmapEntityByName( Entity* e )
 Entity* GameLevel::FindEntityByName( const StringView& name )
 {
 	return m_entNameMap.getcopy( name );
+}
+
+sgsVariable GameLevel::sgsCreateEntity( StringView type, sgsVariable data )
+{
+	return CreateEntity( type, data );
+}
+
+void GameLevel::sgsDestroyEntity( sgsVariable eh )
+{
+	Entity* E = eh.downcast<Entity>();
+	if( E )
+		DestroyEntity( E );
 }
 
 Entity::Handle GameLevel::sgsFindEntity( StringView name )
