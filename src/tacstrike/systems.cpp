@@ -7,7 +7,8 @@
 
 InfoEmissionSystem::InfoEmissionSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	InitScriptInterface( "infoEmitters", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "infoEmitters" );
 	
 	sgs_RegIntConst ric[] =
 	{
@@ -104,7 +105,7 @@ Entity* InfoEmissionSystem::QueryOneRay( const Vec3& from, const Vec3& to, uint3
 	return NULL;
 }
 
-void InfoEmissionSystem::sgsUpdate( Entity::Handle e, Vec3 pos, float rad, uint32_t types )
+void InfoEmissionSystem::sgsUpdate( Entity::ScrHandle e, Vec3 pos, float rad, uint32_t types )
 {
 	if( e.not_null() == false )
 	{
@@ -115,7 +116,7 @@ void InfoEmissionSystem::sgsUpdate( Entity::Handle e, Vec3 pos, float rad, uint3
 	UpdateEmitter( e, d );
 }
 
-void InfoEmissionSystem::sgsRemove( Entity::Handle e )
+void InfoEmissionSystem::sgsRemove( Entity::ScrHandle e )
 {
 	if( e.not_null() == false )
 	{
@@ -280,7 +281,8 @@ MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_sy
 	m_tx_icon_warning = GR_GetTexture( "ui/icon_warning.png" );
 	m_tx_icon_cont = GR_GetTexture( "ui/icon_cont.png" );
 	
-	InitScriptInterface( "messages", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "messages" );
 	
 	sgs_RegIntConst ric[] =
 	{
@@ -371,7 +373,8 @@ ObjectiveSystem::ObjectiveSystem( GameLevel* lev ) :
 	m_tx_icon_done = GR_GetTexture( "ui/obj_done.png" );
 	m_tx_icon_failed = GR_GetTexture( "ui/obj_failed.png" );
 	
-	InitScriptInterface( "objectives", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "objectives" );
 	
 	sgs_RegIntConst ric[] =
 	{
@@ -534,7 +537,8 @@ HelpTextSystem::HelpTextSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ),
 	m_alpha(0), m_fadeTime(0), m_fadeTo(0), renderer(&m_defaultRenderer)
 {
-	InitScriptInterface( "helptext", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "helptext" );
 }
 
 void HelpTextSystem::Clear()
@@ -589,7 +593,8 @@ FlareSystem::FlareSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid
 	m_ps_flare = GR_GetPixelShader( "flare" );
 	m_tex_flare = GR_GetTexture( "textures/fx/flare.png" );
 	
-	InitScriptInterface( "flares", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "flares" );
 }
 
 void FlareSystem::Clear()
@@ -677,7 +682,7 @@ void LevelCoreSystem::Clear()
 	m_ltSamples.SetSamples( NULL, 0 );
 }
 
-bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data, Entity::Handle& outeh )
+bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar )
 {
 	///////////////////////////
 	if( type == "solidbox" )
@@ -870,7 +875,8 @@ ScriptedSequenceSystem::ScriptedSequenceSystem( GameLevel* lev ) :
 	Game_RegisterAction( &m_cmdSkip );
 //	Game_BindInputToAction( ACTINPUT_MAKE_KEY( SDLK_SPACE ), &m_cmdSkip );
 	
-	InitScriptInterface( "scrSeq", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "scrSeq" );
 }
 
 void ScriptedSequenceSystem::Tick( float deltaTime, float blendFactor )
@@ -926,7 +932,8 @@ void ScriptedSequenceSystem::sgsStart( sgsVariable func, float t )
 
 MusicSystem::MusicSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	InitScriptInterface( "music", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "music" );
 }
 
 MusicSystem::~MusicSystem()
@@ -1537,7 +1544,8 @@ bool AIRoom::IsInside( Vec3 pos )
 
 AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	InitScriptInterface( "aidb", this );
+	_InitScriptInterface( this );
+	AddSelfToLevel( "aidb" );
 	
 	sgs_RegIntConst ric[] =
 	{

@@ -571,6 +571,20 @@ static int GetCVar( SGS_CTX )
 	return 0;
 }
 
+static int SetCVar( SGS_CTX )
+{
+	SGSFN( "SetCVar" );
+	CObj* cv = Game_FindCObj( sgs_GetVar<StringView>()( C, 0 ) );
+	
+	if( cv->type == COBJ_TYPE_CVAR_BOOL )
+		((CVarBool*)cv)->value = sgs_GetBool( C, 1 );
+	if( cv->type == COBJ_TYPE_CVAR_INT )
+		((CVarInt*)cv)->value = sgs_GetInt( C, 1 );
+	if( cv->type == COBJ_TYPE_CVAR_FLOAT )
+		((CVarFloat*)cv)->value = sgs_GetReal( C, 1 );
+	return 0;
+}
+
 static int DoCommand( SGS_CTX )
 {
 	SGSFN( "DoCommand" );
@@ -640,6 +654,7 @@ sgs_RegFuncConst sgs_funcs[] =
 	{ "TEXTURE", TEXTURE },
 	{ "SetFocusRoot", SetFocusRoot },
 	{ "GetCVar", GetCVar },
+	{ "SetCVar", SetCVar },
 	{ "DoCommand", DoCommand },
 };
 

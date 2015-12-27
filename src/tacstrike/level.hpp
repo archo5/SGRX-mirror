@@ -32,73 +32,79 @@ typedef uint32_t EntityID;
 #define ENTID_NONE ((EntityID)0)
 
 
-struct SGRX_IActorController : SGRX_RefCounted
-{
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
-	virtual Vec3 GetInput( uint32_t iid ){ return V3(0); }
-	virtual void Reset(){}
-	virtual void DebugDrawWorld(){}
-	virtual void DebugDrawUI(){}
-};
-typedef Handle< SGRX_IActorController > SGRX_ActorCtrlHandle;
-
-
-struct Entity
+struct LevelScrObj : SGRX_RefCounted
 {
 	SGS_OBJECT SGS_NO_DESTRUCT;
-	typedef sgsHandle< Entity > Handle;
+	typedef sgsHandle< LevelScrObj > ScrHandle;
 	
-	Entity( GameLevel* lev );
-	virtual ~Entity();
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
-	virtual void OnEvent( const StringView& type ){}
-	
-	virtual void* GetInterfaceImpl( uint32_t iface_id ){ return NULL; }
-	template< class T > T* GetInterface(){ return (T*) GetInterfaceImpl( T::e_iface_uid ); }
-#define ENT_HAS_INTERFACE( T, reqid, ptr ) if( T::e_iface_uid == reqid ) return (T*) ptr
-	
-	virtual void DebugDrawWorld(){}
-	virtual void DebugDrawUI(){}
-	
-	sgsVariable GetScriptedObject(){ return Handle( this ).get_variable(); }
+	LevelScrObj( GameLevel* lev );
+	virtual ~LevelScrObj();
 	
 	template< class T > void _InitScriptInterface( T* ptr );
-	void _DestroyScriptInterface_()
-	{
-		m_sgsObject->data = NULL;
-		m_sgsObject->iface = g_sgsobj_empty_handle;
-		sgs_ObjRelease( C, m_sgsObject );
-	}
+	void DestroyScriptInterface();
 #define ENT_SGS_IMPLEMENT \
 	virtual void InitScriptInterface(){ if( m_sgsObject == NULL ) _InitScriptInterface( this ); }
 	
 	ENT_SGS_IMPLEMENT;
 	
-	const char* m_typeName;
-	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_name;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME viewName ) String m_viewName;
-	GameLevel* m_level;
+	sgsVariable GetScriptedObject(){ return ScrHandle( this ).get_variable(); }
+	void AddSelfToLevel( StringView name );
 	
-	StringView _sgs_getTypeName(){ return m_typeName; }
-	SGS_PROPERTY_FUNC( READ _sgs_getTypeName ) SGS_ALIAS( StringView typeName );
+	virtual void* GetInterfaceImpl( uint32_t iface_id ){ return NULL; }
+	template< class T > T* GetInterface(){ return (T*) GetInterfaceImpl( T::e_iface_uid ); }
+#define ENT_HAS_INTERFACE( T, reqid, ptr ) if( T::e_iface_uid == reqid ) return (T*) ptr
 	
 	sgsHandle< GameLevel > _sgs_getLevel();
 	SGS_PROPERTY_FUNC( READ _sgs_getLevel ) SGS_ALIAS( sgsHandle< GameLevel > level );
 	
+	GameLevel* m_level;
+};
+
+
+struct IActorController : LevelScrObj
+{
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	typedef sgsHandle< IActorController > ScrHandle;
+	
+	IActorController( GameLevel* lev ) : LevelScrObj( lev ){}
+	virtual void FixedTick( float deltaTime ){}
+	virtual void Tick( float deltaTime, float blendFactor ){}
+	virtual SGS_METHOD Vec3 GetInput( uint32_t iid ){ return V3(0); }
+	virtual SGS_METHOD void Reset(){}
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
+};
+typedef Handle< IActorController > ActorCtrlHandle;
+
+
+struct Entity : LevelScrObj
+{
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	typedef sgsHandle< Entity > ScrHandle;
+	
+	Entity( GameLevel* lev );
+	~Entity();
+	virtual void FixedTick( float deltaTime ){}
+	virtual void Tick( float deltaTime, float blendFactor ){}
+	virtual void OnEvent( const StringView& type ){}
+	
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
+	
+	SGS_PROPERTY_FUNC( READ VARNAME typeName ) StringView m_typeName;
+	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_name;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME viewName ) String m_viewName;
 	SGS_METHOD_NAMED( CallEvent ) SGS_ALIAS( void OnEvent( StringView type ) );
 };
 
 
-struct IGameLevelSystem
+struct IGameLevelSystem : LevelScrObj
 {
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	
 	IGameLevelSystem( GameLevel* lev, uint32_t uid ) :
-		C( NULL ), m_sgsObject( NULL ),
-		m_level( lev ),
-		m_system_uid( uid )
+		LevelScrObj( lev ), m_system_uid( uid )
 	{}
-	virtual ~IGameLevelSystem();
 	virtual void OnPostLevelLoad(){}
 	virtual void OnLevelDestroy(){ delete this; }
 	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar ){ return false; }
@@ -112,26 +118,20 @@ struct IGameLevelSystem
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	
-	template< class T > void InitScriptInterface( const StringView& name, T* ptr );
-	void DestroyScriptInterface();
-	SGS_CTX;
-	sgs_VarObj* m_sgsObject;
-	
-	GameLevel* m_level;
 	uint32_t m_system_uid;
 };
 
 
-struct SGRX_Actor : Entity
+struct Actor : Entity
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	
-	SGRX_Actor( GameLevel* lev ) : Entity( lev ){}
-	FINLINE Vec3 GetInputV3( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ) : V3(0); }
-	FINLINE Vec2 GetInputV2( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).ToVec2() : V2(0); }
-	FINLINE float GetInputF( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x : 0; }
-	FINLINE bool GetInputB( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x > 0.5f : false; }
+	Actor( GameLevel* lev ) : Entity( lev ){}
+	FINLINE SGS_METHOD Vec3 GetInputV3( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ) : V3(0); }
+	FINLINE SGS_METHOD Vec2 GetInputV2( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).ToVec2() : V2(0); }
+	FINLINE SGS_METHOD float GetInputF( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x : 0; }
+	FINLINE SGS_METHOD bool GetInputB( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x > 0.5f : false; }
 	
 	virtual void FixedTick( float deltaTime )
 	{
@@ -154,12 +154,16 @@ struct SGRX_Actor : Entity
 			ctrl->DebugDrawUI();
 	}
 	
-	virtual bool IsAlive(){ return true; }
-	virtual void Reset(){} // make alive again
+	virtual SGS_METHOD bool IsAlive(){ return true; }
+	virtual SGS_METHOD void Reset(){} // make alive again
 	virtual Vec3 GetPosition(){ return V3(0); }
 	virtual void SetPosition( Vec3 pos ){} // teleport to this place
 	
-	SGRX_ActorCtrlHandle ctrl;
+	ActorCtrlHandle ctrl;
+	
+	IActorController::ScrHandle _getCtrl(){ return IActorController::ScrHandle(ctrl); }
+	SGS_PROPERTY_FUNC( READ _getCtrl ) SGS_ALIAS( sgsHandle<IActorController> ctrl );
+	SGS_PROPERTY_FUNC( READ GetPosition WRITE SetPosition ) SGS_ALIAS( Vec3 position );
 };
 
 
@@ -225,7 +229,7 @@ struct GameLevel :
 	Entity* FindEntityByName( const StringView& name );
 	SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type, sgsVariable data );
 	SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
-	SGS_METHOD_NAMED( FindEntity ) Entity::Handle sgsFindEntity( StringView name );
+	SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
 	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
 	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
@@ -272,18 +276,7 @@ struct GameLevel :
 
 
 
-template< class T > void IGameLevelSystem::InitScriptInterface( const StringView& name, T* ptr )
-{
-	T::_sgs_interface->destruct = NULL;
-	SGS_CSCOPE( m_level->GetSGSC() );
-	sgs_CreateClass( m_level->GetSGSC(), NULL, ptr );
-	m_level->AddEntry( name, sgsVariable( m_level->GetSGSC(), -1 ) );
-	C = m_level->GetSGSC();
-	m_sgsObject = sgs_GetObjectStruct( C, -1 );
-	sgs_ObjAcquire( C, m_sgsObject );
-}
-
-template< class T > void Entity::_InitScriptInterface( T* ptr )
+template< class T > void LevelScrObj::_InitScriptInterface( T* ptr )
 {
 	T::_sgs_interface->destruct = NULL;
 	SGS_CSCOPE( m_level->GetSGSC() );

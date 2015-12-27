@@ -41,10 +41,10 @@ int Trigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Trigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__Trigger__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
@@ -75,9 +75,15 @@ int Trigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->_sgs_getTypeName(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		sgs_StringConcat( C, 4 );
+		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->m_typeName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nviewName = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->m_viewName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfunc = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->m_func, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfuncOut = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->m_funcOut, depth ).push( C ); }
+		{ sgs_PushString( C, "\nonce = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->m_once, depth ).push( C ); }
+		{ sgs_PushString( C, "\ndone = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->m_done, depth ).push( C ); }
+		sgs_StringConcat( C, 16 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -131,10 +137,10 @@ int BoxTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BoxTrigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__BoxTrigger__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
@@ -167,9 +173,16 @@ int BoxTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->_sgs_getTypeName(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		sgs_StringConcat( C, 4 );
+		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_typeName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nviewName = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_viewName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfunc = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_func, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfuncOut = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_funcOut, depth ).push( C ); }
+		{ sgs_PushString( C, "\nonce = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_once, depth ).push( C ); }
+		{ sgs_PushString( C, "\ndone = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_done, depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrix = " ); sgs_DumpData( C, static_cast<BoxTrigger*>( obj->data )->m_matrix, depth ).push( C ); }
+		sgs_StringConcat( C, 18 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -223,10 +236,10 @@ int ProximityTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ProximityTrigger*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__ProximityTrigger__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
@@ -261,9 +274,17 @@ int ProximityTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->_sgs_getTypeName(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		sgs_StringConcat( C, 4 );
+		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_typeName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nviewName = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_viewName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfunc = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_func, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfuncOut = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_funcOut, depth ).push( C ); }
+		{ sgs_PushString( C, "\nonce = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_once, depth ).push( C ); }
+		{ sgs_PushString( C, "\ndone = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_done, depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_position, depth ).push( C ); }
+		{ sgs_PushString( C, "\nradius = " ); sgs_DumpData( C, static_cast<ProximityTrigger*>( obj->data )->m_radius, depth ).push( C ); }
+		sgs_StringConcat( C, 20 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -317,10 +338,10 @@ int SlidingDoor::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SlidingDoor*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__SlidingDoor__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
@@ -354,9 +375,17 @@ int SlidingDoor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->_sgs_getTypeName(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		sgs_StringConcat( C, 4 );
+		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_typeName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nviewName = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_viewName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfunc = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_func, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfuncOut = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_funcOut, depth ).push( C ); }
+		{ sgs_PushString( C, "\nonce = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_once, depth ).push( C ); }
+		{ sgs_PushString( C, "\ndone = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_done, depth ).push( C ); }
+		{ sgs_PushString( C, "\nisSwitch = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_isSwitch, depth ).push( C ); }
+		{ sgs_PushString( C, "\nswitchPred = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->m_switchPred, depth ).push( C ); }
+		sgs_StringConcat( C, 20 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -396,10 +425,10 @@ int PickupItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<PickupItem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__PickupItem__CallEvent ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
@@ -420,9 +449,11 @@ int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->_sgs_getTypeName(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		sgs_StringConcat( C, 4 );
+		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->m_typeName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nviewName = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->m_viewName, depth ).push( C ); }
+		sgs_StringConcat( C, 8 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -462,10 +493,10 @@ int Actionable::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Actionable*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->_sgs_getTypeName() ); return SGS_SUCCESS; }
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__Actionable__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_enabled ); return SGS_SUCCESS; }
 		SGS_CASE( "timeEstimate" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_info.timeEstimate ); return SGS_SUCCESS; }
@@ -496,9 +527,16 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->_sgs_getTypeName(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		sgs_StringConcat( C, 4 );
+		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_typeName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nviewName = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_viewName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_enabled, depth ).push( C ); }
+		{ sgs_PushString( C, "\ntimeEstimate = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_info.timeEstimate, depth ).push( C ); }
+		{ sgs_PushString( C, "\ntimeActual = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_info.timeActual, depth ).push( C ); }
+		{ sgs_PushString( C, "\nonSuccess = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_onSuccess, depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_info.placePos, depth ).push( C ); }
+		sgs_StringConcat( C, 18 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

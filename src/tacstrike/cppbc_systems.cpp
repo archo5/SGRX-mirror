@@ -6,13 +6,13 @@
 static int _sgs_method__InfoEmissionSystem__Update( SGS_CTX )
 {
 	InfoEmissionSystem* data; if( !SGS_PARSE_METHOD( C, InfoEmissionSystem::_sgs_interface, data, InfoEmissionSystem, Update ) ) return 0;
-	data->sgsUpdate( sgs_GetVar<Entity::Handle>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<uint32_t>()(C,3) ); return 0;
+	data->sgsUpdate( sgs_GetVar<Entity::ScrHandle>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<uint32_t>()(C,3) ); return 0;
 }
 
 static int _sgs_method__InfoEmissionSystem__Remove( SGS_CTX )
 {
 	InfoEmissionSystem* data; if( !SGS_PARSE_METHOD( C, InfoEmissionSystem::_sgs_interface, data, InfoEmissionSystem, Remove ) ) return 0;
-	data->sgsRemove( sgs_GetVar<Entity::Handle>()(C,0) ); return 0;
+	data->sgsRemove( sgs_GetVar<Entity::ScrHandle>()(C,0) ); return 0;
 }
 
 int InfoEmissionSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -262,10 +262,14 @@ int HelpTextSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
+		{ sgs_PushString( C, "\ntext = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->m_text, depth ).push( C ); }
+		{ sgs_PushString( C, "\nalpha = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->m_alpha, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfadeTime = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->m_fadeTime, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfadeTo = " ); sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->m_fadeTo, depth ).push( C ); }
 		{ sgs_PushString( C, "\nfontSize = " ); if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ) sgs_PushString( C, "<inaccessible>" ); else sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->fontSize, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncenterPos = " ); if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ) sgs_PushString( C, "<inaccessible>" ); else sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->centerPos, depth ).push( C ); }
 		{ sgs_PushString( C, "\nlineHeightFactor = " ); if( !( static_cast<HelpTextSystem*>( obj->data )->renderer ) ) sgs_PushString( C, "<inaccessible>" ); else sgs_DumpData( C, static_cast<HelpTextSystem*>( obj->data )->renderer->lineHeightFactor, depth ).push( C ); }
-		sgs_StringConcat( C, 6 );
+		sgs_StringConcat( C, 14 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -327,7 +331,8 @@ int FlareSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		sgs_StringConcat( C, 0 );
+		{ sgs_PushString( C, "\nlayers = " ); sgs_DumpData( C, static_cast<FlareSystem*>( obj->data )->m_layers, depth ).push( C ); }
+		sgs_StringConcat( C, 2 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -387,7 +392,10 @@ int ScriptedSequenceSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		sgs_StringConcat( C, 0 );
+		{ sgs_PushString( C, "\nfunc = " ); sgs_DumpData( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_func, depth ).push( C ); }
+		{ sgs_PushString( C, "\ntime = " ); sgs_DumpData( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_time, depth ).push( C ); }
+		{ sgs_PushString( C, "\nsubtitle = " ); sgs_DumpData( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_subtitle, depth ).push( C ); }
+		sgs_StringConcat( C, 6 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

@@ -213,7 +213,7 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 
 
 TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
-	SGRX_Actor( lev ),
+	Actor( lev ),
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_health( 100 ), m_armor( 0 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
@@ -294,7 +294,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 
 void TSCharacter::FixedTick( float deltaTime )
 {
-	SGRX_Actor::FixedTick( deltaTime );
+	Actor::FixedTick( deltaTime );
 	
 	if( IsInAction() )
 	{
@@ -428,7 +428,7 @@ void TSCharacter::FixedTick( float deltaTime )
 
 void TSCharacter::Tick( float deltaTime, float blendFactor )
 {
-	SGRX_Actor::Tick( deltaTime, blendFactor );
+	Actor::Tick( deltaTime, blendFactor );
 	
 	Vec3 turn = GetInputV3( ACT_Chr_Turn );
 	if( turn.z > 0 )
@@ -943,8 +943,8 @@ bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
 #ifndef TSGAME_NO_PLAYER
 
 
-TSPlayerController::TSPlayerController( GameLevel* lev ) : m_aimHelper( lev ),
-	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
+TSPlayerController::TSPlayerController( GameLevel* lev ) : IActorController( lev ),
+	m_aimHelper( lev ), i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
 {
 }
 
@@ -986,20 +986,14 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 
 
 TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args ) :
+	IActorController( lev ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
-	m_level( lev ), m_aidb( m_level->GetSystem<AIDBSystem>() ),
+	m_aidb( m_level->GetSystem<AIDBSystem>() ),
 	m_coverSys( m_level->GetSystem<CoverSystem>() ), m_char( chr )
 {
 	// create controller scripted object
-	{
-		_sgs_interface->destruct = NULL;
-		SGS_CSCOPE( m_level->GetSGSC() );
-		sgs_CreateClass( m_level->GetSGSC(), NULL, this );
-		C = m_level->GetSGSC();
-		m_sgsObject = sgs_GetObjectStruct( C, -1 );
-		sgs_ObjAcquire( C, m_sgsObject );
-	}
+	InitScriptInterface();
 	
 	// create ESO (enemy scripted object)
 	{
@@ -1024,8 +1018,7 @@ TSEnemyController::~TSEnemyController()
 		m_enemyState.thiscall( C, "destroy" );
 	}
 	
-	sgs_ObjRelease( C, m_sgsObject );
-	m_sgsObject = NULL;
+	DestroyScriptInterface();
 }
 
 struct TSEC_FindChar : AIFactDistance
@@ -1362,12 +1355,12 @@ bool TSEnemyController::sgsHasRecentFact( uint32_t typemask, TimeVal maxtime )
 	return m_factStorage.HasRecentFact( typemask, maxtime );
 }
 
-SGS_MULTRET TSEnemyController::sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime )
+SGS_MULTRET TSEnemyController::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
 {
 	AIFact* F = m_factStorage.GetRecentFact( typemask, maxtime );
 	if( F )
 	{
-		sgs_CreateLiteClassFrom( coro, NULL, F );
+		sgs_CreateLiteClassFrom( C, NULL, F );
 		return 1;
 	}
 	return 0;
@@ -1378,18 +1371,18 @@ void TSEnemyController::sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created,
 	m_factStorage.Insert( type, pos, created, expires, ref );
 }
 
-bool TSEnemyController::sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+bool TSEnemyController::sgsUpdateFact( uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( coro ) < 7 )
+	if( sgs_StackSize( C ) < 7 )
 		reset = true;
 	return m_factStorage.Update( type, pos, rad, created, expires, ref, reset );
 }
 
-void TSEnemyController::sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+void TSEnemyController::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( coro ) < 7 )
+	if( sgs_StackSize( C ) < 7 )
 		reset = true;
 	m_factStorage.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
 }
@@ -1404,9 +1397,9 @@ void TSEnemyController::sgsQueryCoverLines( Vec3 bbmin,
 }
 
 sgsMaybe<Vec3> TSEnemyController::sgsGetCoverPosition(
-	sgs_Context* coro, Vec3 position, float distpow, float interval /* = 0.1 */ )
+	Vec3 position, float distpow, float interval /* = 0.1 */ )
 {
-	if( sgs_StackSize( coro ) < 3 )
+	if( sgs_StackSize( C ) < 3 )
 		interval = 0.1f;
 	Vec3 out = V3(0);
 	if( m_coverInfo.GetPosition( position, distpow, out, interval ) )

@@ -106,6 +106,10 @@ CVarInt gcv_r_height( "r_height" );
 CVarInt gcv_r_refresh_rate( "r_refresh_rate" );
 CVarInt gcv_r_fullscreen( "r_fullscreen" );
 CVarBool gcv_r_vsync( "r_vsync" );
+struct CVarShowCursor : CVarBool {
+	CVarShowCursor() : CVarBool( "cl_showcursor", true ){}
+	virtual void OnChange(){ Game_ShowCursor( value ); }
+} gcv_cl_showcursor;
 
 struct CVarVideoMode : CVar
 {
@@ -164,6 +168,7 @@ static void registercvars()
 	REGCOBJ( gcv_r_fullscreen );
 	REGCOBJ( gcv_r_vsync );
 	REGCOBJ( gcv_r_videomode );
+	REGCOBJ( gcv_cl_showcursor );
 }
 
 

@@ -99,8 +99,8 @@ struct InfoEmissionSystem : IGameLevelSystem
 	bool QueryBB( const Mat4& mtx, uint32_t types );
 	Entity* QueryOneRay( const Vec3& from, const Vec3& to, uint32_t types );
 	
-	SGS_METHOD_NAMED( Update ) void sgsUpdate( Entity::Handle e, Vec3 pos, float rad, uint32_t types );
-	SGS_METHOD_NAMED( Remove ) void sgsRemove( Entity::Handle e );
+	SGS_METHOD_NAMED( Update ) void sgsUpdate( Entity::ScrHandle e, Vec3 pos, float rad, uint32_t types );
+	SGS_METHOD_NAMED( Remove ) void sgsRemove( Entity::ScrHandle e );
 	
 	HashTable< Entity*, Data > m_emissionData;
 };
@@ -357,7 +357,7 @@ struct LevelCoreSystem : IGameLevelSystem
 	
 	LevelCoreSystem( GameLevel* lev );
 	virtual void Clear();
-	virtual bool AddEntity( const StringView& type, sgsVariable data, Entity::Handle& outeh );
+	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar );
 	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
 	
 	Array< MeshInstHandle > m_meshInsts;

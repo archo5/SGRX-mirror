@@ -76,9 +76,9 @@ enum TSActions
 };
 
 
-struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
+struct TSCharacter : Actor, SGRX_MeshInstUserData
 {
-	SGS_OBJECT_INHERIT( SGRX_Actor );
+	SGS_OBJECT_INHERIT( Actor );
 	ENT_SGS_IMPLEMENT;
 	
 	struct ActionState
@@ -158,7 +158,6 @@ struct TSCharacter : SGRX_Actor, SGRX_MeshInstUserData
 	float m_shootTimeout;
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	
-	SGS_PROPERTY_FUNC( READ GetPosition ) SGS_ALIAS( Vec3 position );
 	SGS_METHOD_NAMED( GetAttachmentPos ) Vec3 sgsGetAttachmentPos( StringView atch, Vec3 off );
 };
 
@@ -191,7 +190,7 @@ struct TSAimHelper : InfoEmissionSystem::IESProcessor
 
 #ifndef TSGAME_NO_PLAYER
 
-struct TSPlayerController : SGRX_IActorController
+struct TSPlayerController : IActorController
 {
 	TSAimHelper m_aimHelper;
 	Vec2 i_move;
@@ -206,9 +205,10 @@ struct TSPlayerController : SGRX_IActorController
 #endif
 
 
-struct TSEnemyController : SGRX_IActorController
+struct TSEnemyController : IActorController
 {
-	SGS_OBJECT;
+	SGS_OBJECT_INHERIT( IActorController ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
 	
 	bool i_crouch;
 	Vec2 i_move;
@@ -220,7 +220,6 @@ struct TSEnemyController : SGRX_IActorController
 	bool i_act;
 	
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
-	GameLevel* m_level;
 	AIFactStorage m_factStorage;
 	CSCoverInfo m_coverInfo;
 	Array< Vec3 > m_path;
@@ -244,18 +243,18 @@ struct TSEnemyController : SGRX_IActorController
 	// fact storage
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
-	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( uint32_t typemask, TimeVal maxtime );
 	SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
-	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	
 	// cover info
 	SGS_METHOD_NAMED( QueryCoverLines ) void sgsQueryCoverLines( Vec3 bbmin,
 		Vec3 bbmax, float dist, float height, Vec3 viewer, bool visible );
 	SGS_METHOD_NAMED( GetCoverPosition ) sgsMaybe<Vec3> sgsGetCoverPosition(
-		sgs_Context* coro, Vec3 position, float distpow, float interval /* = 0.1 */ );
+		Vec3 position, float distpow, float interval /* = 0.1 */ );
 	
 	// pathfinding
 	SGS_METHOD_NAMED( IsWalkable ) bool sgsIsWalkable( Vec3 pos, Vec3 ext );

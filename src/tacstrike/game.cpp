@@ -387,7 +387,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 #endif
 		
 	//	Game_AddOverlayScreen( &g_PauseMenu );
-		Game_ShowCursor( false );
 		cursor_dt = V2(0);
 		return true;
 	}

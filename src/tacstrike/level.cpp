@@ -18,12 +18,19 @@ void RegisterCommonGameCVars()
 }
 
 
-IGameLevelSystem::~IGameLevelSystem()
+LevelScrObj::LevelScrObj( GameLevel* lev ) :
+	m_level( lev )
+{
+	m_sgsObject = NULL;
+	C = NULL;
+}
+
+LevelScrObj::~LevelScrObj()
 {
 	DestroyScriptInterface();
 }
 
-void IGameLevelSystem::DestroyScriptInterface()
+void LevelScrObj::DestroyScriptInterface()
 {
 	if( m_sgsObject )
 	{
@@ -35,22 +42,25 @@ void IGameLevelSystem::DestroyScriptInterface()
 	}
 }
 
+void LevelScrObj::AddSelfToLevel( StringView name )
+{
+	m_level->AddEntry( name, GetScriptedObject() );
+}
+
+sgsHandle< GameLevel > LevelScrObj::_sgs_getLevel()
+{
+	return sgsHandle< GameLevel >( m_level );
+}
+
 
 Entity::Entity( GameLevel* lev ) :
-	m_sgsObject( NULL ), C( NULL ),
-	m_typeName("<unknown>"), m_level( lev )
+	LevelScrObj( lev ), m_typeName("<unknown>")
 {
 }
 
 Entity::~Entity()
 {
 	m_level->UnmapEntityByName( this );
-	_DestroyScriptInterface_();
-}
-
-sgsHandle< GameLevel > Entity::_sgs_getLevel()
-{
-	return sgsHandle< GameLevel >( m_level );
 }
 
 
@@ -501,9 +511,9 @@ void GameLevel::sgsDestroyEntity( sgsVariable eh )
 		DestroyEntity( E );
 }
 
-Entity::Handle GameLevel::sgsFindEntity( StringView name )
+Entity::ScrHandle GameLevel::sgsFindEntity( StringView name )
 {
-	return Entity::Handle( FindEntityByName( name ) );
+	return Entity::ScrHandle( FindEntityByName( name ) );
 }
 
 void GameLevel::CallEntityByName( StringView name, StringView action )

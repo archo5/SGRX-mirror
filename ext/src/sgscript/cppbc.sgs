@@ -1051,7 +1051,6 @@ int " $ obj.name $ "::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 				continue;
 			if( item.what == "PROPERTY" && item.access > 0 ) continue;
 			if( item.what == "PROPERTY_FUNC" && !item.read ) continue;
-			if( item.what == "PROPERTY_FUNC" && @item.varname && item.read === true ) continue;
 			
 			if( item.what == "PROPERTY_FUNC" && item.read !== true )
 			{
@@ -1135,8 +1134,8 @@ function cppbc_parse_file( code, inclcode, includes )
 	foreach( io : inclobjects )
 	{
 		io.no_export = true;
-		objects.push( io );
 	}
+	objects = get_concat( inclobjects, objects );
 	
 	cppbc_extend_objects( objects );
 	gcode = cppbc_generate_code( objects, includes );
