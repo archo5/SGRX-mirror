@@ -129,6 +129,20 @@ static int _sgs_method__TSCharacter__Reset( SGS_CTX )
 	data->Reset(  ); return 0;
 }
 
+static int _sgs_method__TSCharacter__GetViewDir( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetViewDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetViewDir(  )); return 1;
+}
+
+static int _sgs_method__TSCharacter__GetAimDir( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetAimDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetAimDir(  )); return 1;
+}
+
 static int _sgs_method__TSCharacter__GetAttachmentPos( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetAttachmentPos ) ) return 0;
@@ -166,6 +180,8 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "Reset" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__Reset ); return SGS_SUCCESS; }
 		SGS_CASE( "ctrl" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_getCtrl() ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "GetViewDir" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetViewDir ); return SGS_SUCCESS; }
+		SGS_CASE( "GetAimDir" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetAimDir ); return SGS_SUCCESS; }
 		SGS_CASE( "timeSinceLastHit" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit ); return SGS_SUCCESS; }
 		SGS_CASE( "GetAttachmentPos" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetAttachmentPos ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;

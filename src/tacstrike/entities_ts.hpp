@@ -117,8 +117,8 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	virtual void OnDeath();
 	
 	Vec3 GetQueryPosition();
-	Vec3 GetViewDir();
-	Vec3 GetAimDir();
+	SGS_METHOD Vec3 GetViewDir();
+	SGS_METHOD Vec3 GetAimDir();
 	Mat4 GetBulletOutputMatrix();
 	
 	Vec3 GetInterpPos();
