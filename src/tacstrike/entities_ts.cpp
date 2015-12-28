@@ -3,7 +3,15 @@
 #include "entities_ts.hpp"
 
 
-CVarBool g_cv_notarget( "notarget", false );
+CVarBool gcv_notarget( "notarget", false );
+CVarBool gcv_dbg_aifacts( "dbg_aifacts", false );
+
+void register_tsent_cvars()
+{
+	REGCOBJ( gcv_notarget );
+	REGCOBJ( gcv_dbg_aifacts );
+}
+
 
 
 extern Vec2 CURSOR_POS;
@@ -1062,7 +1070,7 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
 		}
-		else if( g_cv_notarget.value == false )
+		else if( gcv_notarget.value == false )
 		{
 			sawEnemy = true;
 			
@@ -1234,69 +1242,45 @@ void TSEnemyController::Reset()
 
 void TSEnemyController::DebugDrawWorld()
 {
-	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
-	Vec3 pos = m_char->GetPosition();
-	
-	m_factStorage.SortCreatedDesc();
-	
-	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
-	for( size_t i = 0; i < count; ++i )
+	if( gcv_dbg_aifacts.value )
 	{
-		AIFact& F = m_factStorage.facts[ i ];
-		br.SetPrimitiveType( PT_Lines );
-		br.Pos( pos ).Pos( F.position );
-		br.Tick( F.position, 0.1f );
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
+		Vec3 pos = m_char->GetPosition();
+		
+		m_factStorage.SortCreatedDesc();
+		
+		size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
+		for( size_t i = 0; i < count; ++i )
+		{
+			AIFact& F = m_factStorage.facts[ i ];
+			br.SetPrimitiveType( PT_Lines );
+			br.Pos( pos ).Pos( F.position );
+			br.Tick( F.position, 0.1f );
+		}
 	}
 }
 
 void TSEnemyController::DebugDrawUI()
 {
-	char bfr[ 256 ];
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	Vec3 pos = m_char->GetPosition();
-	bool infront;
-	Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
-	if( !infront )
-		return;
-	int x = screenpos.x * GR_GetWidth();
-	int y = screenpos.y * GR_GetHeight();
-	
-	GR2D_SetFont( "core", 12 );
-	GR2D_SetFont( "mono", 12 );
-	
-	size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
-	sgrx_snprintf( bfr, 256, "count: %d, mod id: %d, next: %d",
-		int(m_factStorage.facts.size()), int(m_factStorage.last_mod_id),
-		int(m_factStorage.m_next_fact_id) );
-	
-	int len = GR2D_GetTextLength( bfr );
-	br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
-	br.Col( 1.0f );
-	GR2D_DrawTextLine( x, y, bfr );
-	
-	y += 13;
-	
-	for( size_t i = 0; i < count; ++i )
+	if( gcv_dbg_aifacts.value )
 	{
-		AIFact& F = m_factStorage.facts[ i ];
-		const char* type = "type?";
-		switch( F.type )
-		{
-		case FT_Unknown: type = "unknown"; break;
-		case FT_Sound_Noise: type = "snd-noise"; break;
-		case FT_Sound_Footstep: type = "snd-step"; break;
-		case FT_Sound_Shot: type = "snd-shot"; break;
-		case FT_Sight_ObjectState: type = "sight-state"; break;
-		case FT_Sight_Alarming: type = "sight-alarm"; break;
-		case FT_Sight_Friend: type = "sight-friend"; break;
-		case FT_Sight_Foe: type = "sight-foe"; break;
-		case FT_Position_Friend: type = "pos-friend"; break;
-		case FT_Position_Foe: type = "pos-foe"; break;
-		}
+		char bfr[ 256 ];
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		Vec3 pos = m_char->GetPosition();
+		bool infront;
+		Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
+		if( !infront )
+			return;
+		int x = screenpos.x * GR_GetWidth();
+		int y = screenpos.y * GR_GetHeight();
 		
-		sgrx_snprintf( bfr, 256, "Fact #%d (ref=%d) <%s> @ %.4g;%.4g;%.4g cr: %d, exp: %d",
-			int(F.id), int(F.ref), type, F.position.x, F.position.y, F.position.z,
-			int(F.created), int(F.expires) );
+		GR2D_SetFont( "core", 12 );
+		GR2D_SetFont( "mono", 12 );
+		
+		size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
+		sgrx_snprintf( bfr, 256, "count: %d, mod id: %d, next: %d",
+			int(m_factStorage.facts.size()), int(m_factStorage.last_mod_id),
+			int(m_factStorage.m_next_fact_id) );
 		
 		int len = GR2D_GetTextLength( bfr );
 		br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
@@ -1304,6 +1288,36 @@ void TSEnemyController::DebugDrawUI()
 		GR2D_DrawTextLine( x, y, bfr );
 		
 		y += 13;
+		
+		for( size_t i = 0; i < count; ++i )
+		{
+			AIFact& F = m_factStorage.facts[ i ];
+			const char* type = "type?";
+			switch( F.type )
+			{
+			case FT_Unknown: type = "unknown"; break;
+			case FT_Sound_Noise: type = "snd-noise"; break;
+			case FT_Sound_Footstep: type = "snd-step"; break;
+			case FT_Sound_Shot: type = "snd-shot"; break;
+			case FT_Sight_ObjectState: type = "sight-state"; break;
+			case FT_Sight_Alarming: type = "sight-alarm"; break;
+			case FT_Sight_Friend: type = "sight-friend"; break;
+			case FT_Sight_Foe: type = "sight-foe"; break;
+			case FT_Position_Friend: type = "pos-friend"; break;
+			case FT_Position_Foe: type = "pos-foe"; break;
+			}
+			
+			sgrx_snprintf( bfr, 256, "Fact #%d (ref=%d) <%s> @ %.4g;%.4g;%.4g cr: %d, exp: %d",
+				int(F.id), int(F.ref), type, F.position.x, F.position.y, F.position.z,
+				int(F.created), int(F.expires) );
+			
+			int len = GR2D_GetTextLength( bfr );
+			br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
+			br.Col( 1.0f );
+			GR2D_DrawTextLine( x, y, bfr );
+			
+			y += 13;
+		}
 	}
 }
 
@@ -1444,6 +1458,7 @@ TSGameSystem::TSGameSystem( GameLevel* lev )
 	, m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 ), m_prevCrouchValue( 0 )
 #endif
 {
+	register_tsent_cvars(); // TODO global init?
 #ifndef TSGAME_NO_PLAYER
 	m_playerCtrl.Acquire();
 #endif

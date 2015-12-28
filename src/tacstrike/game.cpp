@@ -532,7 +532,7 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	}
 	void DebugDraw()
 	{
-//		g_GameLevel->DebugDraw();
+		g_GameLevel->DebugDraw();
 	//	g_GameLevel->GetScene()->DebugDraw_MeshRaycast();
 		
 		TSCharacter* PLY = (TSCharacter*) g_GameLevel->m_player;

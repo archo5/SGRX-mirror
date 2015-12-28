@@ -77,6 +77,8 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 {
 	LOG_FUNCTION;
 	
+	m_scriptCtx.RegisterBatchRenderer();
+	
 	m_guiSys = new GameUISystem( &m_scriptCtx );
 	
 	// handled events
@@ -107,6 +109,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_scene->camera.position = Vec3::Create( 4, 4, 4 );
 	m_scene->camera.direction = Vec3::Create( -1, -1, -1 ).Normalized();
 	m_scene->camera.aspect = 1024.0f / 576.0f;
+	m_scene->camera.znear = 0.1f;
 	m_scene->camera.UpdateMatrices();
 }
 
@@ -444,6 +447,8 @@ void GameLevel::DebugDraw()
 		
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->DebugDrawWorld();
+		
+		m_scriptCtx.GlobalCall( "onLevelDebugDraw" );
 		
 #if DRAW_SAMPLES
 		br.Reset().Col( 0, 1, 0 );
