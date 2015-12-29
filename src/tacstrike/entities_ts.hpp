@@ -94,7 +94,9 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	};
 	
 	TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir );
+	SGS_METHOD void SetPlayerMode( bool isPlayer );
 	void InitializeMesh( const StringView& path );
+	void ProcessAnims( float deltaTime );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
 	void HandleMovementPhysics( float deltaTime );
@@ -219,6 +221,7 @@ struct TSEnemyController : IActorController
 	bool i_shoot;
 	bool i_act;
 	
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME inPlayerTeam ) bool m_inPlayerTeam;
 	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
 	AIFactStorage m_factStorage;
 	CSCoverInfo m_coverInfo;

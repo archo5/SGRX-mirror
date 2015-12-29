@@ -283,6 +283,15 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_timeSinceLastHit = 9999;
 }
 
+void TSCharacter::SetPlayerMode( bool isPlayer )
+{
+	if( isPlayer )
+		m_infoFlags = ( m_infoFlags & ~IEST_Target ) | IEST_Player;
+	else
+		m_infoFlags = ( m_infoFlags & ~IEST_Player ) | IEST_Target;
+	ownerType = isPlayer ? GAT_Player : GAT_Enemy;
+}
+
 void TSCharacter::InitializeMesh( const StringView& path )
 {
 	m_animChar.Load( path );
@@ -298,6 +307,43 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	
 	m_anMainPlayer.Play( GR_GetAnim( "standing_idle" ) );
 //	m_anTopPlayer.Play( GR_GetAnim( "run" ) );
+	
+	ProcessAnims( 0 );
+	AnimInfo info = { m_animChar.m_cachedMeshInst->matrix };
+	m_animChar.m_anEnd.Advance( 0, &info );
+	m_animChar.m_anEnd.Transfer();
+}
+
+void TSCharacter::ProcessAnims( float deltaTime )
+{
+	// turning
+	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
+	Vec3 aimdir = V3( rundir.x, rundir.y, 0 );
+	float aimspeed = GetInputV2( ACT_Chr_AimAt ).y;
+	if( GetInputB( ACT_Chr_AimAt ) )
+	{
+		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetPosition();
+	}
+	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
+	m_aimDist = aimdir.Length();
+	aimdir = m_aimDir.ToVec3();
+	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
+	
+	// committing to animator
+	if( Vec2Dot( rundir, aimdir.ToVec2() ) < -0.1f )
+		TurnTo( aimdir.ToVec2(), 8 * deltaTime );
+	
+	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
+	float f_turn_top = ( atan2( aimdir.y, aimdir.x ) - M_PI / 2 ) / ( M_PI * 2 );
+	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
+	{
+		AnimCharacter::Layer& L = m_animChar.layers[ i ];
+		if( L.name == StringView("turn_bottom") )
+			L.amount = f_turn_btm;
+		else if( L.name == StringView("turn_top") )
+			L.amount = f_turn_top;
+	}
+	m_animChar.RecalcLayerState();
 }
 
 void TSCharacter::FixedTick( float deltaTime )
@@ -386,34 +432,7 @@ void TSCharacter::FixedTick( float deltaTime )
 	
 	HandleMovementPhysics( deltaTime );
 	
-	//
-	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
-	Vec3 aimdir = V3( rundir.x, rundir.y, 0 );
-	float aimspeed = GetInputV2( ACT_Chr_AimAt ).y;
-	if( GetInputB( ACT_Chr_AimAt ) )
-	{
-		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetPosition();
-	}
-	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
-	m_aimDist = aimdir.Length();
-	aimdir = m_aimDir.ToVec3();
-	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
-	//
-	
-	if( Vec2Dot( rundir, aimdir.ToVec2() ) < -0.1f )
-		TurnTo( aimdir.ToVec2(), 8 * deltaTime );
-	
-	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
-	float f_turn_top = ( atan2( aimdir.y, aimdir.x ) - M_PI / 2 ) / ( M_PI * 2 );
-	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
-	{
-		AnimCharacter::Layer& L = m_animChar.layers[ i ];
-		if( L.name == StringView("turn_bottom") )
-			L.amount = f_turn_btm;
-		else if( L.name == StringView("turn_top") )
-			L.amount = f_turn_top;
-	}
-	m_animChar.RecalcLayerState();
+	ProcessAnims( deltaTime );
 	
 	if( m_anMainPlayer.CheckMarker( "step" ) )
 	{
@@ -997,6 +1016,7 @@ TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVaria
 	IActorController( lev ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
+	m_inPlayerTeam( false ),
 	m_aidb( m_level->GetSystem<AIDBSystem>() ),
 	m_coverSys( m_level->GetSystem<CoverSystem>() ), m_char( chr )
 {
@@ -1173,7 +1193,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	evp.curtime = curTime;
 	evp.enemy = this;
 	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp,
-		m_char->GetPosition(), 10.0f, IEST_Player | IEST_AIAlert );
+		m_char->GetPosition(), 10.0f, ( m_inPlayerTeam ? IEST_Target : IEST_Player ) | IEST_AIAlert );
 	
 	// tick ESO
 	{
@@ -1477,9 +1497,8 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data, sgsVaria
 			data.getprop("position").get<Vec3>(),
 			data.getprop("viewdir").get<Vec3>()
 		);
-		P->m_infoFlags |= IEST_Player;
+		P->SetPlayerMode( true );
 		P->InitializeMesh( "chars/tstest.chr" );
-		P->ownerType = GAT_Player;
 		P->ctrl = &m_playerCtrl;
 		m_level->AddEntity( P );
 		m_level->SetPlayer( P );
@@ -1516,9 +1535,8 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data, sgsVaria
 			data.getprop("position").get<Vec3>(),
 			data.getprop("viewdir").get<Vec3>()
 		);
-		E->m_infoFlags |= IEST_Target;
+		E->SetPlayerMode( false );
 		E->InitializeMesh( "chars/tstest.chr" );
-		E->ownerType = GAT_Enemy;
 		E->m_name = data.getprop("name").get<StringView>();
 		m_level->MapEntityByName( E );
 		E->ctrl = new TSEnemyController( m_level, E, data );
