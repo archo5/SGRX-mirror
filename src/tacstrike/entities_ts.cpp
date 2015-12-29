@@ -283,6 +283,11 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_timeSinceLastHit = 9999;
 }
 
+TSCharacter::~TSCharacter()
+{
+	m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+}
+
 void TSCharacter::SetPlayerMode( bool isPlayer )
 {
 	if( isPlayer )
