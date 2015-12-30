@@ -599,6 +599,8 @@ struct AIDBSystem : IGameLevelSystem
 	HashTable< StringView, AIRoomHandle > m_rooms;
 	AIFactStorage m_globalFacts;
 	
+	SGS_METHOD_NAMED( AddSound ) void sgsAddSound( Vec3 pos, float rad, float timeout, int type );
+	
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
 	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime );

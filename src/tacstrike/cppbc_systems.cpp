@@ -535,6 +535,12 @@ static sgs_ObjInterface AIFact__sgs_interface =
 _sgsInterface AIFact::_sgs_interface(AIFact__sgs_interface);
 
 
+static int _sgs_method__AIDBSystem__AddSound( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, AddSound ) ) return 0;
+	data->sgsAddSound( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<int>()(C,3) ); return 0;
+}
+
 static int _sgs_method__AIDBSystem__HasFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, HasFact ) ) return 0;
@@ -609,6 +615,7 @@ int AIDBSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 int AIDBSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "AddSound" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__AddSound ); return SGS_SUCCESS; }
 		SGS_CASE( "HasFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__HasFact ); return SGS_SUCCESS; }
 		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__HasRecentFact ); return SGS_SUCCESS; }
 		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunc( C, _sgs_method__AIDBSystem__GetRecentFact ); return SGS_SUCCESS; }

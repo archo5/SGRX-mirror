@@ -195,6 +195,7 @@ int GameUIControl::OnEvent( const GameUIEvent& e )
 	SGS_SCOPE;
 	sgsVariable obj = Handle( this ).get_variable();
 	sgs_CreateLiteClassFrom( C, NULL, &e );
+	sgs_SetGlobal( C, m_system->m_str_GUIEvent.get_variable().var, sgsVariable( C, -1 ).var );
 	if( obj.thiscall( C, eventCallback, 1, 1 ) )
 	{
 		return sgs_GetInt( C, -1 );
@@ -350,19 +351,20 @@ void GameUIControl::RemoveCallback( sgsString key, sgsVariable func )
 
 void GameUIControl::InvokeCallbacks( sgsString key )
 {
-	sgsVariable event = Handle( this ).get_variable().getindex( key );
+	sgsVariable self = Handle( this ).get_variable();
+	sgsVariable event = self.getindex( key );
 	if( sgs_IsArray( event.var ) )
 	{
 		// iterate array of callables
 		int sz = sgs_ArraySize( event.var );
 		for( int i = 0; i < sz; ++i )
 		{
-			event.getindex( sgsVariable( C ).set( (sgs_Int) i ) ).call( C );
+			self.thiscall( C, event.getindex( sgsVariable( C ).set( (sgs_Int) i ) ) );
 		}
 	}
 	else if( sgs_IsCallableP( &event.var ) )
 	{
-		event.call( C );
+		self.thiscall( C, event );
 	}
 	else if( event.not_null() )
 	{
@@ -680,6 +682,7 @@ GameUISystem::GameUISystem( ScriptContext* scrctx ) :
 	m_str_onclick = sgsString( C, "onclick" );
 	m_str_onmouseenter = sgsString( C, "onmouseenter" );
 	m_str_onmouseleave = sgsString( C, "onmouseleave" );
+	m_str_GUIEvent = sgsString( C, "GUIEvent" );
 }
 
 GameUISystem::~GameUISystem()

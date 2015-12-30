@@ -133,6 +133,7 @@ struct GameUISystem : SGRX_RefCounted
 	sgsString m_str_onclick;
 	sgsString m_str_onmouseenter;
 	sgsString m_str_onmouseleave;
+	sgsString m_str_GUIEvent;
 	
 	Array< TextureHandle > m_precachedTextures;
 };

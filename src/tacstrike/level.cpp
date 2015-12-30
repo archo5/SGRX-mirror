@@ -552,6 +552,20 @@ SGS_MULTRET GameLevel::sgsWorldToScreenPx( Vec3 pos )
 	return 2;
 }
 
+SGS_MULTRET GameLevel::sgsGetCursorWorldPoint()
+{
+	Vec2 cpn = Game_GetCursorPosNormalized();
+	Vec3 pos, dir, end;
+	if( !m_scene->camera.GetCursorRay( cpn.x, cpn.y, pos, dir ) )
+		return 0;
+	SceneRaycastInfo hitinfo;
+	end = pos + dir * m_scene->camera.zfar;
+	if( !m_scene->RaycastOne( pos, end, &hitinfo ) )
+		return 0;
+	sgs_PushVar( C, TLERP( pos, end, hitinfo.factor ) );
+	return 1;
+}
+
 
 // ---
 

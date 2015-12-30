@@ -1549,6 +1549,9 @@ AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 	
 	sgs_RegIntConst ric[] =
 	{
+		{ "AIS_Footstep", AIS_Footstep },
+		{ "AIS_Shot", AIS_Shot },
+		
 		{ "FT_Unknown", FT_Unknown },
 		{ "FT_Sound_Noise", FT_Sound_Noise },
 		{ "FT_Sound_Footstep", FT_Sound_Footstep },
@@ -1636,6 +1639,11 @@ void AIDBSystem::FixedTick( float deltaTime )
 void AIDBSystem::DebugDrawWorld()
 {
 	m_pathfinder.DebugDraw();
+}
+
+void AIDBSystem::sgsAddSound( Vec3 pos, float rad, float timeout, int type )
+{
+	AddSound( pos, rad, timeout, (AISoundType) type );
 }
 
 bool AIDBSystem::sgsHasFact( uint32_t typemask )
