@@ -206,7 +206,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
 ENGINE_EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
 ENGINE_EXPORT AnimHandle GR_GetAnim( const StringView& name );
 ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool applyinv = true, Mat4* base = NULL );
-ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih );
+ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, SGRX_MeshInstance* meshinst );
 
 
 

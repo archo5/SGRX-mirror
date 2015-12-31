@@ -744,11 +744,13 @@ bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool a
 	return true;
 }
 
-bool GR_ApplyAnimator( const Animator* animator, MeshInstHandle mih )
+bool GR_ApplyAnimator( const Animator* animator, SGRX_MeshInstance* meshinst )
 {
-	if( !mih || mih->GetMesh() != animator->m_mesh )
+	if( !meshinst || meshinst->GetMesh() != animator->m_mesh )
 		return false;
-	return GR_ApplyAnimator( animator, mih->skin_matrices.data(), mih->skin_matrices.size() );
+	return GR_ApplyAnimator( animator,
+		meshinst->skin_matrices.data(),
+		meshinst->skin_matrices.size() );
 }
 
 

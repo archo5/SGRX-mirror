@@ -1983,6 +1983,11 @@ struct UTF8Iterator
 // HASH TABLE
 //
 
+struct NoValue
+{
+	NoValue(){}
+};
+
 typedef uint32_t Hash;
 ENGINE_EXPORT Hash HashFunc( const char* str, size_t size );
 

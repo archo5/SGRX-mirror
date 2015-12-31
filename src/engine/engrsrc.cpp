@@ -1566,14 +1566,14 @@ void SGRX_Scene::SetDefines( StringView defines )
 MeshInstHandle SGRX_Scene::CreateMeshInstance()
 {
 	SGRX_MeshInstance* mi = new SGRX_MeshInstance( this );
-	m_meshInstances.set( mi, NULL );
+	m_meshInstances.set( mi, NoValue() );
 	return mi;
 }
 
 LightHandle SGRX_Scene::CreateLight()
 {
 	SGRX_Light* lt = new SGRX_Light( this );
-	m_lights.set( lt, NULL );
+	m_lights.set( lt, NoValue() );
 	return lt;
 }
 

@@ -590,8 +590,8 @@ int GameLevel::_setindex( SGS_ARGS_SETINDEXFUNC )
 }
 
 
-void GameLevel::LightMesh( MeshInstHandle mih, Vec3 off )
+void GameLevel::LightMesh( SGRX_MeshInstance* meshinst, Vec3 off )
 {
-	SGRX_LightSampler::LightMesh( mih, off );
+	SGRX_LightSampler::LightMesh( meshinst, off );
 }
 

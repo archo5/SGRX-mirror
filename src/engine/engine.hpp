@@ -1471,8 +1471,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	
 	ENGINE_EXPORT void DebugDraw_MeshRaycast( uint32_t layers = 0xffffffff );
 	
-	HashTable< SGRX_MeshInstance*, MeshInstHandle > m_meshInstances;
-	HashTable< SGRX_Light*, LightHandle > m_lights;
+	HashTable< SGRX_MeshInstance*, NoValue > m_meshInstances;
+	HashTable< SGRX_Light*, NoValue > m_lights;
 	Array< SGRX_RenderPass > m_passes;
 	StringView m_defines;
 	Vec4 m_timevals; // temporary?

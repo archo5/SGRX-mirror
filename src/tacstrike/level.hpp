@@ -240,7 +240,7 @@ struct GameLevel :
 	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
 	SGS_IFUNC( SETINDEX ) int _setindex( SGS_ARGS_SETINDEXFUNC );
 	
-	void LightMesh( MeshInstHandle mih, Vec3 off = V3(0) );
+	void LightMesh( SGRX_MeshInstance* meshinst, Vec3 off = V3(0) );
 	
 	TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
 	TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }

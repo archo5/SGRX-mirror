@@ -1307,6 +1307,8 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 				}
 			}
 		}
+		// make sure mesh instance handles are freed
+		m_tmpStore.clear();
 		
 		if( remb )
 			m_bullets.erase( i-- );
