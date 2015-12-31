@@ -5,11 +5,13 @@
 
 CVarBool gcv_notarget( "notarget", false );
 CVarBool gcv_dbg_aifacts( "dbg_aifacts", false );
+CVarBool gcv_dbg_aistack( "dbg_aistack", false );
 
 void register_tsent_cvars()
 {
 	REGCOBJ( gcv_notarget );
 	REGCOBJ( gcv_dbg_aifacts );
+	REGCOBJ( gcv_dbg_aistack );
 }
 
 
@@ -1287,20 +1289,22 @@ void TSEnemyController::DebugDrawWorld()
 
 void TSEnemyController::DebugDrawUI()
 {
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	Vec3 pos = m_char->GetPosition();
+	bool infront;
+	Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
+	if( !infront )
+		return;
+	int x = screenpos.x * GR_GetWidth();
+	int y = screenpos.y * GR_GetHeight();
+	
+	GR2D_SetFont( "core", 12 );
+	GR2D_SetFont( "mono", 12 );
+	
 	if( gcv_dbg_aifacts.value )
 	{
 		char bfr[ 256 ];
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		Vec3 pos = m_char->GetPosition();
-		bool infront;
-		Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
-		if( !infront )
-			return;
-		int x = screenpos.x * GR_GetWidth();
-		int y = screenpos.y * GR_GetHeight();
-		
-		GR2D_SetFont( "core", 12 );
-		GR2D_SetFont( "mono", 12 );
 		
 		size_t count = TMIN( size_t(10), m_factStorage.facts.size() );
 		sgrx_snprintf( bfr, 256, "count: %d, mod id: %d, next: %d",
@@ -1335,6 +1339,28 @@ void TSEnemyController::DebugDrawUI()
 			sgrx_snprintf( bfr, 256, "Fact #%d (ref=%d) <%s> @ %.4g;%.4g;%.4g cr: %d, exp: %d",
 				int(F.id), int(F.ref), type, F.position.x, F.position.y, F.position.z,
 				int(F.created), int(F.expires) );
+			
+			int len = GR2D_GetTextLength( bfr );
+			br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
+			br.Col( 1.0f );
+			GR2D_DrawTextLine( x, y, bfr );
+			
+			y += 13;
+		}
+	}
+	if( gcv_dbg_aistack.value )
+	{
+		char bfr[ 512 ];
+		
+		sgs_Context* T = m_enemyState.getprop("coro_ai_main").var.data.T;
+		sgs_StackFrame* sf = sgs_GetFramePtr( T, NULL, 0 );
+		while( sf )
+		{
+			int line;
+			const char *name, *file;
+			sgs_StackFrameInfo( T, sf, &name, &file, &line );
+			sgrx_snprintf( bfr, 512, "%.240s at %.240s:%d", name, file, line );
+			sf = sgs_GetFramePtr( T, sf, 0 );
 			
 			int len = GR2D_GetTextLength( bfr );
 			br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
@@ -1461,7 +1487,7 @@ sgsMaybe<Vec3> TSEnemyController::sgsGetNextPathPoint()
 {
 	if( m_path.size() )
 		return m_path[ 0 ];
-	return sgsMaybe<Vec3>();
+	return sgsMaybeNot;
 }
 
 bool TSEnemyController::sgsRemoveNextPathPoint()

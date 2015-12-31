@@ -182,8 +182,8 @@ bool SGRX_Pathfinder::FindPath( const Vec3& from, uint64_t frompoly,
 				pts[ i ] = RC2SGRX( pts[ i ] );
 			return true;
 		}
-		pts.clear();
 	}
+	pts.clear();
 	return false;
 }
 
