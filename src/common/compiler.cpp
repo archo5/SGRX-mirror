@@ -1001,6 +1001,20 @@ void LevelCache::GatherMeshes()
 				m_phyMesh.indices.push_back( phy_mtl_id );
 			}
 		}
+		
+		// navmesh generation
+		if( ( P.m_flags & LM_MESHINST_SOLID ) && P.m_mtlname != SV("black") )
+		{
+			uint32_t nav_mtl_id = m_navMesh.materials.find_or_add( P.m_mtlname );
+			
+			for( size_t v = 0; v + 2 < P.m_vertices.size(); v += 3 )
+			{
+				m_navMesh.indices.push_back( m_navMesh.positions.find_or_add( P.m_vertices[ v + 0 ].pos ) );
+				m_navMesh.indices.push_back( m_navMesh.positions.find_or_add( P.m_vertices[ v + 2 ].pos ) );
+				m_navMesh.indices.push_back( m_navMesh.positions.find_or_add( P.m_vertices[ v + 1 ].pos ) );
+				m_navMesh.indices.push_back( nav_mtl_id );
+			}
+		}
 	}
 }
 
@@ -1287,8 +1301,8 @@ enum SamplePartitionType
 
 bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 {
-	if( m_phyMesh.positions.size() == 0 ||
-		m_phyMesh.indices.size() == 0 )
+	if( m_navMesh.positions.size() == 0 ||
+		m_navMesh.indices.size() == 0 )
 	{
 		LOG_ERROR << "No physics data, cannot generate navmesh!";
 		return false;
@@ -1296,10 +1310,10 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	
 	Vec3 bmin = V3(FLT_MAX), bmax = V3(-FLT_MAX);
 	Array< Vec3 > recastVerts;
-	recastVerts.resize( m_phyMesh.positions.size() );
-	for( size_t i = 0; i < m_phyMesh.positions.size(); ++i )
+	recastVerts.resize( m_navMesh.positions.size() );
+	for( size_t i = 0; i < m_navMesh.positions.size(); ++i )
 	{
-		Vec3 p = m_phyMesh.positions[ i ];
+		Vec3 p = m_navMesh.positions[ i ];
 		Vec3 pconv = V3( p.x, p.z, p.y );
 		recastVerts[ i ] = pconv;
 		bmin = Vec3::Min( bmin, pconv );
@@ -1307,16 +1321,16 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	}
 	
 	Array< int > indices;
-	for( size_t i = 0; i < m_phyMesh.indices.size(); i += 4 )
+	for( size_t i = 0; i < m_navMesh.indices.size(); i += 4 )
 	{
-		int idcs[3] = { m_phyMesh.indices[i], m_phyMesh.indices[i+2], m_phyMesh.indices[i+1] };
+		int idcs[3] = { m_navMesh.indices[i], m_navMesh.indices[i+2], m_navMesh.indices[i+1] };
 		indices.append( idcs, 3 );
 	}
 	
 	const float* verts = &recastVerts[0].x;
 	const int nverts = recastVerts.size();
 	const int* tris = indices.data();
-	const int ntris = m_phyMesh.indices.size() / 4;
+	const int ntris = m_navMesh.indices.size() / 4;
 	
 	bool retval = true;
 	unsigned char* triareas = NULL;

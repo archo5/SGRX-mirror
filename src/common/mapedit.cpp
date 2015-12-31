@@ -632,6 +632,11 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 	while( br.pos < ba.size() )
 	{
 		br.marker( "LM" );
+		if( br.error )
+		{
+			LOG_WARNING << "LMCACHE: missing 'LM', load error at " << br.pos;
+			break;
+		}
 		uint32_t lmid = 0;
 		br << lmid;
 		br << LM;
@@ -985,6 +990,7 @@ static bool MtlNeedsLM( const StringView& name )
 
 static bool MtlIsSolid( const StringView& name )
 {
+	if( name == "black" ) return true;
 	if( MtlNeedsLM( name ) == false ) return false;
 	return true;
 }
@@ -1407,7 +1413,7 @@ void EdLevelGraphicsCont::UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshIn
 				InvalidateLightmap( LGC_MESH_LMID( id ) );
 		}
 		M.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
-	//	M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0; -- UNSUPPOTED
+	//	M.meshInst->decal = ( info->rflags & LM_MESHINST_DECAL ) != 0; -- UNSUPPORTED
 		LightMesh( M.meshInst, LGC_MESH_LMID( id ) );
 	}
 	
@@ -1542,6 +1548,8 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 					sgrx_snprintf( bfr, sizeof(bfr), "textures/%s.png", StackString<200>(S.mtlname).str );
 					M.shader = "default";
 					M.textures[ 0 ] = GR_GetTexture( bfr );
+					M.blendMode = SGRX_MtlBlend_None;
+					M.flags = 0;
 				}
 				S.meshInst->OnUpdate();
 			}
@@ -1579,7 +1587,15 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		S.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
 		SGRX_Material& mtl = S.meshInst->GetMaterial( 0 );
 		bool decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
-		// HACK: assume LGC_SURF_CHANGE_MTLDATA is also done
+		
+		mtl.blendMode = SGRX_MtlBlend_None;
+		mtl.flags = 0;
+		MapMaterial* mapmtl = g_UISurfMtlPicker->m_materials.getcopy( S.mtlname );
+		if( mapmtl )
+		{
+			mtl.blendMode = mapmtl->blendmode;
+			mtl.flags = mapmtl->flags;
+		}
 		if( decal )
 		{
 			mtl.flags |= SGRX_MtlFlag_Decal;

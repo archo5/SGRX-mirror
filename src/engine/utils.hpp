@@ -2397,7 +2397,7 @@ struct ByteReader
 			error = true;
 		else if( 0 != memcmp( ptr, &input_ptr[ pos ], sz ) )
 			error = true;
-		else
+		if( !error )
 			pos += sz;
 		return *this;
 	}
@@ -2405,7 +2405,7 @@ struct ByteReader
 	{
 		if( pos >= input_size || pos + sz > input_size )
 			error = true;
-		else
+		if( !error )
 			pos += sz;
 		return *this;
 	}
@@ -2413,7 +2413,7 @@ struct ByteReader
 	{
 		if( pos >= input_size || pos + sz > input_size )
 			error = true;
-		else
+		if( !error )
 		{
 			memcpy( ptr, &input_ptr[ pos ], sz );
 			pos += sz;
@@ -2479,7 +2479,7 @@ struct TextReader
 		StringView it = _read();
 		if( sz * 2 != it.size() )
 			error = true;
-		else
+		if( !error )
 		{
 			uint8_t* p = (uint8_t*) ptr;
 			for( size_t i = 0; i < sz; ++i )
@@ -2522,7 +2522,7 @@ struct TextReader
 		}
 		if( pos >= input->size() || sz || input->at( pos ) != '\n' )
 			error = true;
-		else
+		if( !error )
 			pos++;
 		return *this;
 	}
@@ -2532,11 +2532,8 @@ struct TextReader
 	FINLINE StringView _read()
 	{
 		if( pos >= input->size() )
-		{
 			error = true;
-			return StringView();
-		}
-		else
+		if( !error )
 		{
 			StringView sv = StringView( &input->at( pos ), input->size() - pos ).until( "\n" );
 			if( sv.size() == 0 )
@@ -2545,6 +2542,7 @@ struct TextReader
 				pos += sv.size() + 1;
 			return sv;
 		}
+		return StringView();
 	}
 	
 	String* input;
