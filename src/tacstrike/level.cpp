@@ -379,6 +379,12 @@ void GameLevel::FixedTick( float deltaTime )
 		
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->FixedTick( deltaTime );
+		
+		{
+			SGS_SCOPE;
+			m_scriptCtx.Push( deltaTime );
+			m_scriptCtx.GlobalCall( "onLevelFixedTick", 1 );
+		}
 	}
 }
 
