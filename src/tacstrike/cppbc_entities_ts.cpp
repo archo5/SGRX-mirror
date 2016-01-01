@@ -333,6 +333,27 @@ static int _sgs_method__TSEnemyController__FindPath( SGS_CTX )
 	sgs_PushVar(C,data->sgsFindPath( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
+static int _sgs_method__TSEnemyController__HasPath( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, HasPath ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsHasPath(  )); return 1;
+}
+
+static int _sgs_method__TSEnemyController__GetPathPointCount( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetPathPointCount ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsGetPathPointCount(  )); return 1;
+}
+
+static int _sgs_method__TSEnemyController__AdvancePath( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, AdvancePath ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsAdvancePath( sgs_GetVar<float>()(C,0) )); return 1;
+}
+
 static int _sgs_method__TSEnemyController__GetNextPathPoint( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetNextPathPoint ) ) return 0;
@@ -381,6 +402,9 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "GetCoverPosition" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetCoverPosition ); return SGS_SUCCESS; }
 		SGS_CASE( "IsWalkable" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__IsWalkable ); return SGS_SUCCESS; }
 		SGS_CASE( "FindPath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__FindPath ); return SGS_SUCCESS; }
+		SGS_CASE( "HasPath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasPath ); return SGS_SUCCESS; }
+		SGS_CASE( "GetPathPointCount" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetPathPointCount ); return SGS_SUCCESS; }
+		SGS_CASE( "AdvancePath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__AdvancePath ); return SGS_SUCCESS; }
 		SGS_CASE( "GetNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetNextPathPoint ); return SGS_SUCCESS; }
 		SGS_CASE( "RemoveNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__RemoveNextPathPoint ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;

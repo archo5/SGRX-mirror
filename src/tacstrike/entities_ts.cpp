@@ -1483,6 +1483,37 @@ bool TSEnemyController::sgsFindPath( const Vec3& to )
 	return m_path.size();
 }
 
+bool TSEnemyController::sgsHasPath()
+{
+	return m_path.size() != 0;
+}
+
+int TSEnemyController::sgsGetPathPointCount()
+{
+	return m_path.size();
+}
+
+bool TSEnemyController::sgsAdvancePath( float dist )
+{
+	while( dist > 0 && m_path.size() >= 2 )
+	{
+		float len = ( m_path[0] - m_path[1] ).Length();
+		if( dist > len )
+		{
+			dist -= len;
+			m_path.erase(0);
+		}
+		else
+		{
+			m_path[0] = TLERP( m_path[0], m_path[1], dist / len );
+			break;
+		}
+	}
+	if( m_path.size() == 1 )
+		m_path.clear();
+	return m_path.size() != 0;
+}
+
 sgsMaybe<Vec3> TSEnemyController::sgsGetNextPathPoint()
 {
 	if( m_path.size() )

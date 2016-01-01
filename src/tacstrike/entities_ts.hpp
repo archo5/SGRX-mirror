@@ -263,6 +263,9 @@ struct TSEnemyController : IActorController
 	// pathfinding
 	SGS_METHOD_NAMED( IsWalkable ) bool sgsIsWalkable( Vec3 pos, Vec3 ext );
 	SGS_METHOD_NAMED( FindPath ) bool sgsFindPath( const Vec3& to );
+	SGS_METHOD_NAMED( HasPath ) bool sgsHasPath();
+	SGS_METHOD_NAMED( GetPathPointCount ) int sgsGetPathPointCount();
+	SGS_METHOD_NAMED( AdvancePath ) bool sgsAdvancePath( float dist );
 	SGS_METHOD_NAMED( GetNextPathPoint ) sgsMaybe<Vec3> sgsGetNextPathPoint();
 	SGS_METHOD_NAMED( RemoveNextPathPoint ) bool sgsRemoveNextPathPoint();
 };
