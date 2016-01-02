@@ -211,6 +211,27 @@ static int _sgs_method__GameUIControl__DButton( SGS_CTX )
 	data->DButton( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<Vec4>()(C,4), sgs_GetVar<Vec4>()(C,5) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DAALine( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAALine ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DAALine( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DAARectOutline( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAARectOutline ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DAARectOutline( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DAACircleOutline( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAACircleOutline ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DAACircleOutline( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DFont( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DFont ) ) return 0;
@@ -223,6 +244,13 @@ static int _sgs_method__GameUIControl__DText( SGS_CTX )
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DText ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->DText( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<int>()(C,3), sgs_GetVar<int>()(C,4) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DTextLen( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DTextLen ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->DTextLen( sgs_GetVar<StringView>()(C,0) )); return 1;
 }
 
 int GameUIControl::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -261,6 +289,8 @@ int GameUIControl::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "ry0" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->ry0 ); return SGS_SUCCESS; }
 		SGS_CASE( "rx1" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->rx1 ); return SGS_SUCCESS; }
 		SGS_CASE( "ry1" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->ry1 ); return SGS_SUCCESS; }
+		SGS_CASE( "rwidth" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->rwidth ); return SGS_SUCCESS; }
+		SGS_CASE( "rheight" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->rheight ); return SGS_SUCCESS; }
 		SGS_CASE( "z" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->z ); return SGS_SUCCESS; }
 		SGS_CASE( "metadata" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->metadata ); return SGS_SUCCESS; }
 		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->parent ); return SGS_SUCCESS; }
@@ -292,8 +322,12 @@ int GameUIControl::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "DQuad" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuad ); return SGS_SUCCESS; }
 		SGS_CASE( "DQuadExt" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuadExt ); return SGS_SUCCESS; }
 		SGS_CASE( "DButton" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DButton ); return SGS_SUCCESS; }
+		SGS_CASE( "DAALine" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAALine ); return SGS_SUCCESS; }
+		SGS_CASE( "DAARectOutline" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAARectOutline ); return SGS_SUCCESS; }
+		SGS_CASE( "DAACircleOutline" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAACircleOutline ); return SGS_SUCCESS; }
 		SGS_CASE( "DFont" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DFont ); return SGS_SUCCESS; }
 		SGS_CASE( "DText" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DText ); return SGS_SUCCESS; }
+		SGS_CASE( "DTextLen" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DTextLen ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -351,6 +385,8 @@ int GameUIControl::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nry0 = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->ry0, depth ).push( C ); }
 		{ sgs_PushString( C, "\nrx1 = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->rx1, depth ).push( C ); }
 		{ sgs_PushString( C, "\nry1 = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->ry1, depth ).push( C ); }
+		{ sgs_PushString( C, "\nrwidth = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->rwidth, depth ).push( C ); }
+		{ sgs_PushString( C, "\nrheight = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->rheight, depth ).push( C ); }
 		{ sgs_PushString( C, "\nz = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->z, depth ).push( C ); }
 		{ sgs_PushString( C, "\nmetadata = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->metadata, depth ).push( C ); }
 		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->parent, depth ).push( C ); }
@@ -363,7 +399,7 @@ int GameUIControl::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nclicked = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->_getClicked(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nclickedL = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->_getClickedL(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nclickedR = " ); sgs_DumpData( C, static_cast<GameUIControl*>( obj->data )->_getClickedR(), depth ).push( C ); }
-		sgs_StringConcat( C, 62 );
+		sgs_StringConcat( C, 66 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

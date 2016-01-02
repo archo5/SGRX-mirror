@@ -106,7 +106,7 @@ int GUI_DefaultEventCallback( SGS_CTX )
 GameUIControl::GameUIControl() :
 	enabled(true), mode(GUI_ScrMode_Abs), x(0), y(0), width(0), height(0),
 	xalign(0), yalign(0), xscale(1), yscale(1),
-	rx0(0), ry0(0), rx1(0), ry1(0), z(0),
+	rx0(0), ry0(0), rx1(0), ry1(0), rwidth(0), rheight(0), z(0),
 	hover(false), focusable(false), m_system(NULL)
 {
 }
@@ -234,9 +234,13 @@ void GameUIControl::Draw( float dt )
 	
 	{
 		// recalculate positions
+		rwidth = width;
+		rheight = height;
 		if( parent )
 		{
-			if( mode == GUI_ScrMode_Fit || mode == GUI_ScrMode_Crop )
+			if( mode == GUI_ScrMode_Fit ||
+				mode == GUI_ScrMode_FitXtd ||
+				mode == GUI_ScrMode_Crop )
 			{
 				float pw = parent->rx1 - parent->rx0, ph = parent->ry1 - parent->ry0;
 				float parent_aspect = safe_fdiv( pw, ph );
@@ -265,6 +269,15 @@ void GameUIControl::Draw( float dt )
 				ry0 = parent->ry0 + ty;
 				rx1 = rx0 + tw;
 				ry1 = ry0 + th;
+				if( mode == GUI_ScrMode_FitXtd )
+				{
+					rwidth = parent->rwidth;
+					rheight = parent->rheight;
+					rx0 = parent->rx0;
+					ry0 = parent->ry0;
+					rx1 = parent->rx1;
+					ry1 = parent->ry1;
+				}
 			}
 			else
 			{
@@ -379,13 +392,13 @@ bool GameUIControl::Hit( int x, int y )
 
 float GameUIControl::IX( float x )
 {
-	x = safe_fdiv( x, width ); // to normalized coords
+	x = safe_fdiv( x, rwidth ); // to normalized coords
 	return TLERP( rx0, rx1, x ); // interpolate from precalc
 }
 
 float GameUIControl::IY( float y )
 {
-	y = safe_fdiv( y, height ); // to normalized coords
+	y = safe_fdiv( y, rheight ); // to normalized coords
 	return TLERP( ry0, ry1, y ); // interpolate from precalc
 }
 
@@ -397,18 +410,18 @@ float GameUIControl::IS( float s )
 float GameUIControl::InvIX( float x )
 {
 	x = TREVLERP<float>( rx0, rx1, x );
-	return x * width;
+	return x * rwidth;
 }
 
 float GameUIControl::InvIY( float y )
 {
 	y = TREVLERP<float>( ry0, ry1, y );
-	return y * height;
+	return y * rheight;
 }
 
 float GameUIControl::InvIS( float s )
 {
-	return safe_fdiv( 1, IS( s ) );
+	return InvIX( s ) - InvIX( 0 );
 }
 
 int GameUIControl::_getindex( SGS_ARGS_GETINDEXFUNC )
@@ -515,6 +528,39 @@ void GameUIControl::DButton( float x0, float y0, float x1, float y1, Vec4 bdr, V
 		bdr, texbdr );
 }
 
+void GameUIControl::DAALine( float x0, float y0, float x1, float y1, float w )
+{
+	if( sgs_StackSize( C ) < 5 )
+		w = 1;
+	Vec2 pts[2] =
+	{
+		V2( IX( x0 ), IY( y0 ) ),
+		V2( IX( x1 ), IY( y1 ) ),
+	};
+	GR2D_GetBatchRenderer().AAStroke( pts, 2, IS( w ), false );
+}
+
+void GameUIControl::DAARectOutline( float x0, float y0, float x1, float y1, float w )
+{
+	if( sgs_StackSize( C ) < 5 )
+		w = 1;
+	Vec2 pts[4] =
+	{
+		V2( IX( x0 ), IY( y0 ) ),
+		V2( IX( x1 ), IY( y0 ) ),
+		V2( IX( x1 ), IY( y1 ) ),
+		V2( IX( x0 ), IY( y1 ) ),
+	};
+	GR2D_GetBatchRenderer().AAStroke( pts, 4, IS( w ), true );
+}
+
+void GameUIControl::DAACircleOutline( float x, float y, float r, float w )
+{
+	if( sgs_StackSize( C ) < 4 )
+		w = 1;
+	GR2D_GetBatchRenderer().AACircleOutline( IX( x ), IY( y ), IS( r ), IS( w ) );
+}
+
 void GameUIControl::DFont( StringView name, float size )
 {
 	GR2D_SetFont( name, IS( size ) );
@@ -526,6 +572,12 @@ void GameUIControl::DText( StringView text, float x, float y, int ha, int va )
 		GR2D_DrawTextLine( text );
 	else
 		GR2D_DrawTextLine( IX( x ), IY( y ), text, ha, va );
+}
+
+float GameUIControl::DTextLen( StringView text )
+{
+	int len = GR2D_GetTextLength( text );
+	return InvIS( len );
 }
 
 
@@ -563,6 +615,9 @@ static int GetCVar( SGS_CTX )
 {
 	SGSFN( "GetCVar" );
 	CObj* cv = Game_FindCObj( sgs_GetVar<StringView>()( C, 0 ) );
+	if( cv == NULL )
+		return sgs_Msg( C, SGS_WARNING, "CVar not found: '%s'",
+			sgs_GetVar<sgsString>()( C, 0 ).c_str() );
 	
 	if( cv->type == COBJ_TYPE_CVAR_BOOL )
 		return sgs_PushBool( C, ((CVarBool*)cv)->value );
@@ -577,6 +632,9 @@ static int SetCVar( SGS_CTX )
 {
 	SGSFN( "SetCVar" );
 	CObj* cv = Game_FindCObj( sgs_GetVar<StringView>()( C, 0 ) );
+	if( cv == NULL )
+		return sgs_Msg( C, SGS_WARNING, "CVar not found: '%s'",
+			sgs_GetVar<sgsString>()( C, 0 ).c_str() );
 	
 	if( cv->type == COBJ_TYPE_CVAR_BOOL )
 		((CVarBool*)cv)->value = sgs_GetBool( C, 1 );
@@ -606,6 +664,7 @@ sgs_RegIntConst sgs_iconsts[] =
 	{ "GUI_ScrMode_Abs", GUI_ScrMode_Abs },
 	{ "GUI_ScrMode_Fit", GUI_ScrMode_Fit },
 	{ "GUI_ScrMode_Crop", GUI_ScrMode_Crop },
+	{ "GUI_ScrMode_FitXtd", GUI_ScrMode_FitXtd },
 	
 	{ "GUI_Event_MouseMove", GUI_Event_MouseMove },
 	{ "GUI_Event_MouseEnter", GUI_Event_MouseEnter },

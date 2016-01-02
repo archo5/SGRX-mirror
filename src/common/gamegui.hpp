@@ -11,6 +11,7 @@
 #define GUI_ScrMode_Abs 0
 #define GUI_ScrMode_Fit 1
 #define GUI_ScrMode_Crop 2
+#define GUI_ScrMode_FitXtd 3
 
 #define GUI_Event_MouseMove  10
 #define GUI_Event_MouseEnter 11
@@ -169,6 +170,8 @@ struct GameUIControl
 	SGS_PROPERTY float ry0;
 	SGS_PROPERTY float rx1;
 	SGS_PROPERTY float ry1;
+	SGS_PROPERTY_FUNC( READ ) float rwidth;
+	SGS_PROPERTY_FUNC( READ ) float rheight;
 	SGS_PROPERTY float z;
 	SGS_PROPERTY sgsVariable metadata;
 	SGS_PROPERTY_FUNC( READ ) Handle parent;
@@ -230,8 +233,12 @@ struct GameUIControl
 	SGS_METHOD void DQuadExt( float x0, float y0, float x1, float y1,
 		float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ );
 	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );
+	SGS_METHOD void DAALine( float x0, float y0, float x1, float y1, float w );
+	SGS_METHOD void DAARectOutline( float x0, float y0, float x1, float y1, float w );
+	SGS_METHOD void DAACircleOutline( float x, float y, float r, float w );
 	SGS_METHOD void DFont( StringView name, float size );
 	SGS_METHOD void DText( StringView text, float x, float y, int ha, int va );
+	SGS_METHOD float DTextLen( StringView text );
 };
 
 
