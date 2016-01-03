@@ -1011,8 +1011,6 @@ void GameUISystem::Draw( float dt )
 	
 	_HandleMouseMove( true );
 	
-	sgs_ProcessSubthreads( m_scriptCtx->C, dt );
-	
 	GR2D_GetBatchRenderer().Flush();
 }
 

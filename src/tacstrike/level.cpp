@@ -412,6 +412,8 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
+	
+	sgs_ProcessSubthreads( m_scriptCtx.C, deltaTime );
 }
 
 void GameLevel::Draw2D()
