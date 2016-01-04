@@ -242,8 +242,8 @@ struct GameLevel :
 	
 	void LightMesh( SGRX_MeshInstance* meshinst, Vec3 off = V3(0) );
 	
-	TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
-	TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
+	SGS_METHOD TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
+	SGS_METHOD TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
 	
 	// ENGINE OBJECTS
 	SceneHandle m_scene;

@@ -430,6 +430,20 @@ static int _sgs_method__GameLevel__GetCursorWorldPoint( SGS_CTX )
 	return data->sgsGetCursorWorldPoint(  );
 }
 
+static int _sgs_method__GameLevel__GetTickTime( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, GetTickTime ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetTickTime(  )); return 1;
+}
+
+static int _sgs_method__GameLevel__GetPhyTime( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, GetPhyTime ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetPhyTime(  )); return 1;
+}
+
 int GameLevel::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameLevel*>( obj->data )->C = C;
@@ -456,6 +470,8 @@ int GameLevel::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "WorldToScreen" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__WorldToScreen ); return SGS_SUCCESS; }
 		SGS_CASE( "WorldToScreenPx" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__WorldToScreenPx ); return SGS_SUCCESS; }
 		SGS_CASE( "GetCursorWorldPoint" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__GetCursorWorldPoint ); return SGS_SUCCESS; }
+		SGS_CASE( "GetTickTime" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__GetTickTime ); return SGS_SUCCESS; }
+		SGS_CASE( "GetPhyTime" ){ sgs_PushCFunc( C, _sgs_method__GameLevel__GetPhyTime ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
