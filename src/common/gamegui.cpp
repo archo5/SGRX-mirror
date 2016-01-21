@@ -196,11 +196,8 @@ int GameUIControl::OnEvent( const GameUIEvent& e )
 	sgsVariable obj = Handle( this ).get_variable();
 	sgs_CreateLiteClassFrom( C, NULL, &e );
 	sgs_SetGlobal( C, m_system->m_str_GUIEvent.get_variable().var, sgsVariable( C, -1 ).var );
-	if( obj.thiscall( C, eventCallback, 1, 1 ) )
-	{
-		return sgs_GetInt( C, -1 );
-	}
-	return 0;
+	obj.thiscall( C, eventCallback, 1, 1 );
+	return sgs_GetInt( C, -1 );
 }
 
 void GameUIControl::BubblingEvent( const GameUIEvent& e, bool breakable )

@@ -214,12 +214,10 @@ void SlidingDoor::OnEvent( const StringView& type )
 			}
 			SGS_CSCOPE( m_level->m_scriptCtx.C );
 			m_level->m_scriptCtx.Push( newstate );
-			if( m_level->m_scriptCtx.Call( m_switchPred, 1, 1 ) )
-			{
-				bool val = sgs_GetVar<bool>()( m_level->m_scriptCtx.C, -1 );
-				if( !val )
-					return;
-			}
+			m_level->m_scriptCtx.Call( m_switchPred, 1, 1 );
+			bool val = sgs_GetVar<bool>()( m_level->m_scriptCtx.C, -1 );
+			if( !val )
+				return;
 		}
 		
 		target_state = newstate;
@@ -257,14 +255,12 @@ void PickupItem::OnEvent( const StringView& type )
 		
 		sgsVariable scrobj = GetScriptedObject();
 		scrobj.push( C );
-		if( scrobj.getprop( "level" ).thiscall( C, "onPickupItem", 1, 1 ) )
+		scrobj.getprop( "level" ).thiscall( C, "onPickupItem", 1, 1 );
+		bool keep = sgs_GetVar<bool>()( C, -1 );
+		if( keep == false )
 		{
-			bool keep = sgs_GetVar<bool>()( C, -1 );
-			if( keep == false )
-			{
-				m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
-				m_meshInst->enabled = false;
-			}
+			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+			m_meshInst->enabled = false;
 		}
 	}
 }
@@ -320,13 +316,11 @@ void Actionable::OnEvent( const StringView& type )
 			// end animation?
 			SGS_SCOPE;
 			GetScriptedObject().push( C );
-			if( m_onSuccess.call( C, 1, 1 ) )
+			m_onSuccess.call( C, 1, 1 );
+			bool keep = sgs_GetVar<bool>()( C, -1 );
+			if( keep == false )
 			{
-				bool keep = sgs_GetVar<bool>()( C, -1 );
-				if( keep == false )
-				{
-					m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
-				}
+				m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 			}
 		}
 	}

@@ -1217,7 +1217,7 @@ static SGSBOOL compile_fcall( SGS_FNTCMP_ARGS, rcpos_t* out, int expect )
 		if( threadmode )
 		{
 			const char* key = threadmode == 1 ? "thread_create" : "subthread_create";
-			rcpos_t strpos = add_const_s( C, func, strlen( key ), key );
+			rcpos_t strpos = add_const_s( C, func, (uint32_t) strlen( key ), key );
 			INSTR_WRITE( SGS_SI_GETVAR, realfnpos, BC_CONSTENC( strpos ), 0 );
 			gotthis = 0;
 		}
@@ -2111,6 +2111,10 @@ static SGSBOOL compile_node_w( SGS_FNTCMP_ARGS, rcpos_t src )
 		SGS_FN_HIT( "W_ARRLIST" );
 		QPRINT( "Cannot write to constants" );
 		goto fail;
+	case SGS_SFT_DCTLIST:
+		SGS_FN_HIT( "W_DCTLIST" );
+		QPRINT( "Cannot write to constants" );
+		goto fail;
 	case SGS_SFT_MAPLIST:
 		SGS_FN_HIT( "W_MAPLIST" );
 		QPRINT( "Cannot write to constants" );
@@ -2202,8 +2206,9 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 			*out = pos;
 		}
 		break;
+	case SGS_SFT_DCTLIST:
 	case SGS_SFT_MAPLIST:
-		SGS_FN_HIT( "R_MAPLIST" );
+		SGS_FN_HIT( "R_(DCT|MAP)LIST" );
 		{
 			rcpos_t pos = 0;
 			int args = 0;
@@ -2214,7 +2219,13 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 				pos = 0;
 				if( args % 2 == 0 )
 				{
-					if( *n->token == SGS_ST_STRING )
+					if( n->type != SGS_SFT_ARGMT )
+					{
+						SGS_FN_ENTER;
+						if( !compile_node_r( C, func, n, &pos ) )
+							goto fail;
+					}
+					else if( *n->token == SGS_ST_STRING )
 					{
 						uint32_t string_len;
 						SGS_AS_UINT32( string_len, n->token + 1 );
@@ -2235,7 +2246,7 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 				n = n->next;
 			}
 			pos = comp_reg_alloc( C );
-			INSTR_WRITE_EX( SGS_SI_DICT, args, pos );
+			INSTR_WRITE_EX( node->type == SGS_SFT_DCTLIST ? SGS_SI_DICT : SGS_SI_MAP, args, pos );
 			*out = pos;
 		}
 		break;
@@ -2341,6 +2352,7 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 	case SGS_SFT_KEYWORD:
 	case SGS_SFT_CONST:
 	case SGS_SFT_ARRLIST:
+	case SGS_SFT_DCTLIST:
 	case SGS_SFT_MAPLIST:
 		break;
 
@@ -2771,7 +2783,7 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 					rcpos_t r_name;
 					sgs_MemBuf ffn = sgs_membuf_create();
 					rpts( &ffn, C, n_name );
-					r_name = add_const_s( C, func, ffn.size, ffn.ptr );
+					r_name = add_const_s( C, func, (uint32_t) ffn.size, ffn.ptr );
 					sgs_membuf_destroy( &ffn, C );
 					INSTR_WRITE( SGS_SI_RSYM, 0, BC_CONSTENC( r_name ), pos );
 				}
@@ -3117,7 +3129,7 @@ static const char* bc_read_varlist( decoder_t* D, sgs_Variable* vlist, int cnt )
 */
 static int bc_write_sgsfunc( sgs_iFunc* F, SGS_CTX, sgs_MemBuf* outbuf )
 {
-	size_t size = F->sfuncname->size;
+	uint32_t size = F->sfuncname->size;
 	uint16_t cc, ic;
 	uint8_t gntc[4] = { F->gotthis, F->numargs, F->numtmp, F->numclsr };
 	

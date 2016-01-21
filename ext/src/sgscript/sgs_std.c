@@ -362,9 +362,7 @@ static SGS_INLINE int sgsarrcomp_custom( const void* p1, const void* p2, void* u
 	SGS_CTX = u->C;
 	sgs_PushVariable( C, v1 );
 	sgs_PushVariable( C, v2 );
-	if( !sgs_Call( C, u->sortfunc, 2, 1 ) )
-		return 0;
-	else
+	sgs_Call( C, u->sortfunc, 2, 1 );
 	{
 		sgs_Real r = sgs_GetReal( C, -1 );
 		sgs_Pop( C, 1 );
@@ -1068,8 +1066,7 @@ static int sgsstd_dict_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	
 	if( sgs_ParseString( C, 0, NULL, NULL ) )
 	{
-		sgs_Variable key;
-		sgs_PeekStackItem( C, 0, &key );
+		sgs_Variable key = sgs_StackItem( C, 0 );
 		pair = sgs_vht_get( ht, &key );
 		if( !pair )
 			return SGS_ENOTFND;
@@ -1085,9 +1082,7 @@ static int sgsstd_dict_setindex( SGS_ARGS_SETINDEXFUNC )
 	HTHDR;
 	if( sgs_ParseString( C, 0, NULL, NULL ) )
 	{
-		sgs_Variable key, val;
-		sgs_PeekStackItem( C, 0, &key );
-		sgs_PeekStackItem( C, 1, &val );
+		sgs_Variable key = sgs_StackItem( C, 0 ), val = sgs_StackItem( C, 1 );
 		sgs_vht_set( ht, C, &key, &val );
 		return SGS_SUCCESS;
 	}
@@ -1231,12 +1226,8 @@ static int sgsstd_dict( SGS_CTX )
 	
 	for( i = 0; i < objcnt; i += 2 )
 	{
-		sgs_Variable val;
-		if( !sgs_ParseString( C, i, NULL, NULL ) )
-			return sgs_FuncArgError( C, i, SGS_VT_STRING, 0 );
-		
-		if( !sgs_PeekStackItem( C, i + 1, &val ) )
-			STDLIB_ERR( "Internal error, stack state changed while building dict" )
+		sgs_Variable val = sgs_StackItem( C, i + 1 );
+		sgs_ToString( C, i );
 		sgs_vht_set( ht, C, (C->stack_off+i), &val );
 	}
 	
@@ -1325,7 +1316,7 @@ static int sgsstd_map_convert( SGS_CTX, sgs_VarObj* obj, int type )
 	sgs_VHTVar* pair = NULL;
 	HTHDR;
 	
-	sgs_PeekStackItem( C, 0, &key );
+	key = sgs_StackItem( C, 0 );
 	pair = sgs_vht_get( ht, &key );
 	if( !pair )
 		return SGS_ENOTFND;
@@ -1337,9 +1328,7 @@ static int sgsstd_map_convert( SGS_CTX, sgs_VarObj* obj, int type )
 static int sgsstd_map_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	HTHDR;
-	sgs_Variable key, val;
-	sgs_PeekStackItem( C, 0, &key );
-	sgs_PeekStackItem( C, 1, &val );
+	sgs_Variable key = sgs_StackItem( C, 0 ), val = sgs_StackItem( C, 1 );
 	sgs_vht_set( ht, C, &key, &val );
 	return SGS_SUCCESS;
 }
@@ -1642,11 +1631,11 @@ static int sgsstd_map_filter( SGS_CTX )
 	return _sgsstd_ht_filter( C, 1 );
 }
 
-static int sgsstd_dict_process( SGS_CTX )
+static int sgsstd_map_process( SGS_CTX )
 {
 	sgs_Variable v_func;
-	SGSFN( "dict_process" );
-	if( !sgs_LoadArgs( C, "?t?p<v", &v_func ) )
+	SGSFN( "map_process" );
+	if( !sgs_LoadArgs( C, "?v?p<v", &v_func ) )
 		return 0;
 	
 	sgs_PushIterator( C, sgs_StackItem( C, 0 ) );
@@ -2402,7 +2391,6 @@ static int sgsstd_metamethods_test( SGS_CTX )
 
 static int sgsstd_mm_getindex_router( SGS_CTX )
 {
-	int ret;
 	sgs_Variable func, movar;
 	SGSFN( "mm_getindex_router" );
 	
@@ -2417,9 +2405,8 @@ static int sgsstd_mm_getindex_router( SGS_CTX )
 	if( sgs_GetIndex( C, movar, sgs_StackItem( C, -1 ), &func, SGS_FALSE ) == SGS_FALSE ) goto fail;
 	
 	sgs_SetStackSize( C, 1 );
-	ret = sgs_ThisCall( C, func, 0, 1 );
+	sgs_ThisCall( C, func, 0, 1 );
 	sgs_Release( C, &func );
-	if( !ret ) goto fail;
 	return 1;
 	
 fail:
@@ -2428,7 +2415,6 @@ fail:
 
 static int sgsstd_mm_setindex_router( SGS_CTX )
 {
-	int ret;
 	sgs_Variable func, movar;
 	SGSFN( "mm_setindex_router" );
 	
@@ -2444,9 +2430,8 @@ static int sgsstd_mm_setindex_router( SGS_CTX )
 	
 	sgs_SetStackSize( C, 3 );
 	sgs_PopSkip( C, 1, 1 );
-	ret = sgs_ThisCall( C, func, 1, 0 );
+	sgs_ThisCall( C, func, 1, 0 );
 	sgs_Release( C, &func );
-	if( !ret ) goto fail;
 	return 0;
 	
 fail:
@@ -2578,7 +2563,28 @@ static void sgs__check_threadendtbl( SGS_CTX )
 	C->_E = endtbl.data.O;
 }
 
-static int sgsstd_end_on( SGS_CTX )
+void sgs_EndOn( SGS_CTX, sgs_Variable ev, int enable )
+{
+	/* if we're trying to disable an end event and ..
+	.. table doesn't exist - it's already disabled */
+	if( enable )
+		sgs__check_threadendtbl( C );
+	if( C->_E )
+	{
+		sgs_VHTable* ht = &((DictHdr*)C->_E->data)->ht;
+		if( enable )
+		{
+			sgs_Variable val = sgs_MakeNull();
+			sgs_vht_set( ht, C, &ev, &val );
+		}
+		else
+		{
+			sgs_vht_unset( ht, C, &ev );
+		}
+	}
+}
+
+int sgsstd_end_on( SGS_CTX )
 {
 	sgs_Bool enable = SGS_TRUE;
 	sgs_Context* which = C;
@@ -2592,24 +2598,7 @@ static int sgsstd_end_on( SGS_CTX )
 	if( !sgs_LoadArgs( C, "?*|b", &enable ) )
 		return 0;
 	
-	/* if we're trying to disable an end event and ..
-	.. table doesn't exist - it's already disabled */
-	if( enable )
-		sgs__check_threadendtbl( which );
-	if( which->_E )
-	{
-		sgs_Variable key = sgs_StackItem( C, 0 );
-		sgs_VHTable* ht = &((DictHdr*)which->_E->data)->ht;
-		if( enable )
-		{
-			sgs_Variable val = sgs_MakeNull();
-			sgs_vht_set( ht, which, &key, &val );
-		}
-		else
-		{
-			sgs_vht_unset( ht, which, &key );
-		}
-	}
+	sgs_EndOn( which, sgs_StackItem( C, 0 ), enable );
 	return 0;
 }
 
@@ -2629,7 +2618,7 @@ static int sgsstd_co_create( SGS_CTX )
 	return sgs_PushThreadPtr( C, T );
 }
 
-static int sgsstd_co_resume( SGS_CTX )
+int sgsstd_co_resume( SGS_CTX )
 {
 	sgs_Context* T = NULL;
 	sgs_StkIdx i, ssz;
@@ -2685,7 +2674,7 @@ static int sgsstd_co_resume( SGS_CTX )
 	return rvc;
 }
 
-static int sgsstd_abort( SGS_CTX )
+int sgsstd_abort( SGS_CTX )
 {
 	sgs_SizeVal i, ssz, abc = 0;
 	SGSFN( "abort" );
@@ -2740,11 +2729,7 @@ SGSBOOL sgs_CreateSubthread( sgs_Context* T, SGS_CTX,
 	{
 		sgs_PushVariable( co_ctx, sgs_StackItem( C, i - size ) );
 	}
-	if( sgs_FCall( co_ctx, func, size, 1, gotthis ) == SGS_FALSE )
-	{
-		sgsCTX_FreeState( co_ctx );
-		return SGS_FALSE;
-	}
+	sgs_FCall( co_ctx, func, size, 1, gotthis );
 	
 	waittime = sgs_GetReal( co_ctx, -1 );
 	sgs_Pop( co_ctx, 1 );
@@ -2940,19 +2925,11 @@ static void sgsstd_pcall_print( void* data, SGS_CTX, int type, const char* messa
 	{
 		sgs_PushInt( C, type );
 		sgs_PushString( C, message );
-		ret = sgs_Call( C, P->handler, 2, 1 );
-		if( ret == SGS_FALSE )
-		{
-			ret = 0;
-			P->pfn( P->pctx, C, SGS_ERROR, "error detected while attempting to call error handler" );
-		}
-		else
-		{
-			if( sgs_Cntl( C, SGS_CNTL_GET_ABORT, 0 ) )
-				sgs_Abort( C );
-			ret = (int) sgs_GetInt( C, -1 );
-			sgs_Pop( C, 1 );
-		}
+		sgs_Call( C, P->handler, 2, 1 );
+		if( sgs_Cntl( C, SGS_CNTL_GET_ABORT, 0 ) )
+			sgs_Abort( C );
+		ret = (int) sgs_GetInt( C, -1 );
+		sgs_Pop( C, 1 );
 	}
 	
 	if( ret > 0 )
@@ -3452,6 +3429,14 @@ static int sgsstd_include( SGS_CTX )
 			sgs_membuf_destroy( &mb, C );
 			goto success;
 		}
+		else if( ret == SGS_ECOMP || ret == SGS_EINVAL )
+		{
+			/* compilation / parsing error, already printed */
+			sgs_membuf_destroy( &mb, C );
+			sgs_PushBool( C, 0 );
+			return 1;
+		}
+		/* SGS_ENOTSUP - binary detected */
 		
 		ret = sgsXPC_GetProcAddress( mb.ptr, SGS_LIB_ENTRY_POINT, (void**) &func );
 		if( SGS_SUCCEEDED( ret ) )
@@ -3953,8 +3938,7 @@ static sgs_RegFuncConst regfuncs[] =
 	/* containers */
 	/* STDLIB_FN( array ), -- object */ STDLIB_FN( dict ), STDLIB_FN( map ), { "class", sgsstd_class },
 	STDLIB_FN( array_filter ), STDLIB_FN( array_process ),
-	STDLIB_FN( dict_filter ), STDLIB_FN( dict_process ),
-	STDLIB_FN( map_filter ),
+	STDLIB_FN( dict_filter ), STDLIB_FN( map_filter ), STDLIB_FN( map_process ),
 	STDLIB_FN( dict_size ), STDLIB_FN( map_size ), STDLIB_FN( isset ), STDLIB_FN( unset ), STDLIB_FN( clone ),
 	STDLIB_FN( get_keys ), STDLIB_FN( get_values ), STDLIB_FN( get_concat ),
 	STDLIB_FN( get_merged ), STDLIB_FN( get_merged_map ),
@@ -4018,6 +4002,7 @@ static const sgs_RegIntConst regiconsts[] =
 	{ "VT_CFUNC", SGS_VT_CFUNC },
 	{ "VT_OBJECT", SGS_VT_OBJECT },
 	{ "VT_PTR", SGS_VT_PTR },
+	{ "VT_THREAD", SGS_VT_THREAD },
 	
 	{ "RAND_MAX", RAND_MAX },
 };
@@ -4055,7 +4040,11 @@ SGSBOOL sgsSTD_MakeArray( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt )
 	sgs_BreakIf( out == NULL ); /* CreateObjectIPA modifies the stack otherwise */
 	
 	if( ssz < cnt )
+	{
+		sgs_Msg( C, SGS_APIERR, "sgs_CreateArray: not enough items on stack (need at least %d, got %d)",
+			(int) cnt, (int) ssz );
 		return SGS_FALSE;
+	}
 	else
 	{
 		sgs_Variable *p, *pend;
@@ -4086,20 +4075,26 @@ SGSBOOL sgsSTD_MakeDict( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt )
 	sgs_VHTable* ht;
 	sgs_StkIdx i, ssz = sgs_StackSize( C );
 	
-	if( cnt > ssz || cnt % 2 != 0 )
+	if( cnt % 2 != 0 )
+	{
+		sgs_Msg( C, SGS_APIERR, "sgs_CreateDict: specified item count not even (multiple of 2 required, got %d)",
+			(int) cnt );
 		return SGS_FALSE;
+	}
+	if( cnt > ssz )
+	{
+		sgs_Msg( C, SGS_APIERR, "sgs_CreateDict: not enough items on stack (need at least %d, got %d)",
+			(int) cnt, (int) ssz );
+		return SGS_FALSE;
+	}
 	
+	sgs_BreakIf( out == NULL );
 	dh = mkdict( C, out );
 	ht = &dh->ht;
 	
 	for( i = 0; i < cnt; i += 2 )
 	{
-		if( !sgs_ParseString( C, i - cnt, NULL, NULL ) )
-		{
-			sgs_Release( C, out );
-			return SGS_FALSE;
-		}
-		
+		sgs_ToString( C, i - cnt );
 		sgs_vht_set( ht, C, (C->stack_top+i-cnt), (C->stack_top+i+1-cnt) );
 	}
 	
@@ -4113,8 +4108,18 @@ SGSBOOL sgsSTD_MakeMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt )
 	sgs_VHTable* ht;
 	sgs_StkIdx i, ssz = sgs_StackSize( C );
 	
-	if( cnt > ssz || cnt % 2 != 0 )
+	if( cnt % 2 != 0 )
+	{
+		sgs_Msg( C, SGS_APIERR, "sgs_CreateMap: specified item count not even (multiple of 2 required, got %d)",
+			(int) cnt );
 		return SGS_FALSE;
+	}
+	if( cnt > ssz )
+	{
+		sgs_Msg( C, SGS_APIERR, "sgs_CreateMap: not enough items on stack (need at least %d, got %d)",
+			(int) cnt, (int) ssz );
+		return SGS_FALSE;
+	}
 	
 	dh = mkmap( C, out );
 	ht = &dh->ht;
@@ -4229,6 +4234,7 @@ void sgsSTD_GlobalFree( SGS_CTX )
 
 SGSBOOL sgsSTD_GlobalGet( SGS_CTX, sgs_Variable* out, sgs_Variable* idx )
 {
+	const char* name;
 	sgs_VHTVar* pair;
 	sgs_VarObj* obj = GLBP;
 	HTHDR;
@@ -4238,18 +4244,44 @@ SGSBOOL sgsSTD_GlobalGet( SGS_CTX, sgs_Variable* out, sgs_Variable* idx )
 	if( idx->type != SGS_VT_STRING )
 		return SGS_FALSE;
 	
-	if( strcmp( sgs_str_cstr( idx->data.S ), "_G" ) == 0 )
+	name = sgs_var_cstr( idx );
+	
+	if( strcmp( name, "_G" ) == 0 )
 	{
+		sgs_Variable tmp;
+		sgs_InitObjectPtr( &tmp, obj );
 		sgs_Release( C, out );
-		sgs_InitObjectPtr( out, obj );
+		*out = tmp;
 		return SGS_TRUE;
 	}
 	
-	if( strcmp( sgs_str_cstr( idx->data.S ), "_R" ) == 0 )
+	if( strcmp( name, "_R" ) == 0 )
 	{
 		SGS_SHCTX_USE;
 		sgs_Release( C, out );
 		sgs_InitObjectPtr( out, RLBP );
+		return SGS_TRUE;
+	}
+	
+	if( strcmp( name, "_T" ) == 0 )
+	{
+		sgs_Variable tmp;
+		sgs_InitThreadPtr( &tmp, C );
+		sgs_Release( C, out );
+		*out = tmp;
+		return SGS_TRUE;
+	}
+	
+	if( strcmp( name, "_F" ) == 0 )
+	{
+		sgs_Variable tmp = sgs_MakeNull();
+		if( C->sf_last )
+		{
+			tmp = C->sf_last->func;
+			sgs_Acquire( C, &tmp );
+		}
+		sgs_Release( C, out );
+		*out = tmp;
 		return SGS_TRUE;
 	}
 	
@@ -4280,13 +4312,16 @@ SGSBOOL sgsSTD_GlobalGet( SGS_CTX, sgs_Variable* out, sgs_Variable* idx )
 
 SGSBOOL sgsSTD_GlobalSet( SGS_CTX, sgs_Variable* idx, sgs_Variable* val )
 {
+	const char* name;
 	sgs_VarObj* obj = GLBP;
 	HTHDR;
 	
 	if( idx->type != SGS_VT_STRING )
 		return SGS_FALSE;
 	
-	if( strcmp( sgs_var_cstr( idx ), "_G" ) == 0 )
+	name = sgs_var_cstr( idx );
+	
+	if( strcmp( name, "_G" ) == 0 )
 	{
 		if( val->type != SGS_VT_OBJECT ||
 			( val->data.O->iface != sgsstd_dict_iface && val->data.O->iface != sgsstd_map_iface ) )
@@ -4298,9 +4333,11 @@ SGSBOOL sgsSTD_GlobalSet( SGS_CTX, sgs_Variable* idx, sgs_Variable* val )
 		return SGS_TRUE;
 	}
 	
-	if( strcmp( sgs_str_cstr( idx->data.S ), "_R" ) == 0 )
+	if( strcmp( name, "_R" ) == 0 ||
+		strcmp( name, "_T" ) == 0 ||
+		strcmp( name, "_F" ) == 0 )
 	{
-		sgs_Msg( C, SGS_WARNING, "cannot change _R" );
+		sgs_Msg( C, SGS_WARNING, "cannot change %s", name );
 		return SGS_FALSE;
 	}
 	
@@ -4469,9 +4506,8 @@ SGSBOOL sgs_IncludeExt( SGS_CTX, const char* name, const char* searchpath )
 	
 	sz = sgs_StackSize( C );
 	sgs_PushString( C, name );
-	ret = sgs_Call( C, sgs_MakeCFunc( sgsstd_include ), 1, 1 );
-	if( ret )
-		ret = sgs_GetBool( C, -1 );
+	sgs_Call( C, sgs_MakeCFunc( sgsstd_include ), 1, 1 );
+	ret = sgs_GetBool( C, -1 );
 	sgs_SetStackSize( C, sz );
 	
 	if( pathrep == 1 )

@@ -33,6 +33,7 @@ static void dumpnode( sgs_FTNode* N )
 	case SGS_SFT_USELIST: printf( "USE_LIST" ); break;
 	case SGS_SFT_EXPLIST: printf( "EXPR_LIST" ); break;
 	case SGS_SFT_ARRLIST: printf( "ARRAY_LIST" ); break;
+	case SGS_SFT_DCTLIST: printf( "DICT_LIST" ); break;
 	case SGS_SFT_MAPLIST: printf( "MAP_LIST" ); break;
 	case SGS_SFT_RETURN: printf( "RETURN" ); break;
 	case SGS_SFT_BLOCK: printf( "BLOCK" ); break;
@@ -365,7 +366,7 @@ static sgs_LineNum predictlinenum( sgs_FTNode* node ) /* next, child, local */
 static int level_exp( SFTC, sgs_FTNode** tree )
 {
 	sgs_FTNode* node = *tree, *prev = NULL, *mpp = NULL;
-	int weight = 0, curwt, isfcall, binary, count = 0;
+	int weight = 0, isfcall, binary, count = 0;
 	int threadmode = 0; /* 0 = none, 1 = thread, 2 = subthread */
 
 	SGS_FN_BEGIN;
@@ -397,30 +398,31 @@ static int level_exp( SFTC, sgs_FTNode** tree )
 	/* find the most powerful part (mpp) */
 	while( node )
 	{
+		int leftmostsplit, curwt;
+		
 		count++;
-
+		
 		/* only interested in operators and subexpressions */
 		if( node->type != SGS_SFT_OPER && node->type != SGS_SFT_EXPLIST && node->type != SGS_SFT_ARRLIST )
 			goto _continue;
-
+		
 		/* function tree test */
 		isfcall = node->type == SGS_SFT_EXPLIST || node->type == SGS_SFT_ARRLIST;
 		if( isfcall )	isfcall = !!prev;
 		if( isfcall )	isfcall = prev->type != SGS_SFT_OPER || !SGS_ST_OP_BINARY( *prev->token );
-
+		
 		/* op tests */
 		binary = node->type == SGS_SFT_OPER;
 		if( binary )	binary = prev && node->next;
 		if( binary )	binary = prev->type != SGS_SFT_OPER || 
 			*prev->token == SGS_ST_OP_INC || *prev->token == SGS_ST_OP_DEC;
-
-		/* HACK: discard unary operators following unary operators */
-		if( !binary && !isfcall && mpp && mpp->next == node && SGS_ST_OP_UNARY( *mpp->token ) )
-			goto _continue;
-
+		
 		/* weighting */
 		curwt = part_weight( node, isfcall, binary );
-		if( ( curwt == 40 && curwt > weight ) || ( curwt != 40 && curwt >= weight ) )
+		leftmostsplit = 
+			( node->type == SGS_SFT_OPER && SGS_ST_OP_ASSIGN( *node->token ) ) || /* assignment ops */
+			( node->type == SGS_SFT_OPER && !binary ); /* unary ops */
+		if( ( leftmostsplit && curwt > weight ) || ( !leftmostsplit && curwt >= weight ) )
 		{
 			weight = curwt;
 			mpp = node;
@@ -458,7 +460,7 @@ _continue:
 				return 0;
 			}
 			
-			if( mpp->type == SGS_SFT_ARRLIST && !mpp->child && mpp->next && mpp->next->type == SGS_SFT_MAPLIST )
+			if( mpp->type == SGS_SFT_ARRLIST && !mpp->child && mpp->next && mpp->next->type == SGS_SFT_DCTLIST )
 			{
 				/* a multiset (index) expression */
 				mpp->type = SGS_SFT_MIDXSET;
@@ -503,7 +505,7 @@ _continue:
 			goto retsuccess;
 		}
 		
-		/* binary ops */
+		/* operators */
 		if( mpp->type == SGS_SFT_OPER )
 		{
 			if( mpp == *tree )
@@ -542,7 +544,7 @@ _continue:
 					return 0;
 				}
 				
-				if( mpptoken && *mpptoken == SGS_ST_OP_MMBR && !mpp->child && se2->type == SGS_SFT_MAPLIST )
+				if( mpptoken && *mpptoken == SGS_ST_OP_MMBR && !mpp->child && se2->type == SGS_SFT_DCTLIST )
 				{
 					/* a multiset (property) expression */
 					mpp->type = SGS_SFT_MPROPSET;
@@ -680,12 +682,98 @@ retsuccess:
 	return 0;
 
 fail:
-	sgs_Msg( F->C, SGS_ERROR, "[line %d] Invalid expression", sgsT_LineNum( mpp->token ) );
+	if( mpp == NULL )
+		mpp = *tree;
+	sgs_Msg( F->C, SGS_ERROR, "[line %d] Invalid expression", mpp ? sgsT_LineNum( mpp->token ) : 0 );
 #if SGS_DEBUG && SGS_DEBUG_DATA
 	sgsFT_Dump( *tree );
 #endif
 	SGS_FN_END;
 	return 0;
+}
+
+
+SFTRET parse_dict( SFTC )
+{
+	sgs_TokenList startok = SFTC_AT;
+	sgs_FTNode* expr = NULL, *fexp = NULL, *cur;
+	/* dictionary expression */
+	SFTC_NEXT;
+	while( !SFTC_IS( '}' ) )
+	{
+		int is_ident = SFTC_IS( SGS_ST_IDENT );
+		int is_varkey = SFTC_IS( '[' );
+		if( !is_ident && !is_varkey && !SFTC_IS( SGS_ST_STRING ) )
+		{
+			SFTC_PRINTERR( "expected key identifier, string or '[' in dictionary expression" );
+			goto fail;
+		}
+		
+		/* make key */
+		if( is_varkey )
+		{
+			SFTC_NEXT;
+			cur = parse_exp( F, "]", 1 );
+			if( !cur )
+				goto fail;
+		}
+		else
+		{
+			cur = make_node( SGS_SFT_ARGMT, SFTC_AT, NULL, NULL );
+		}
+		SFTC_NEXT;
+		
+		/* add key to node list */
+		if( !fexp )
+			expr = fexp = cur;
+		else
+		{
+			expr->next = cur;
+			expr = expr->next;
+		}
+		
+		if( !SFTC_IS( SGS_ST_OP_SET ) )
+		{
+			if( is_ident )
+			{
+				if( SFTC_IS( ',' ) || SFTC_IS( '}' ) )
+				{
+					expr->next = make_node( SGS_SFT_IDENT, expr->token, NULL, NULL );
+					expr = expr->next;
+				}
+				else
+				{
+					SFTC_PRINTERR( "Expected '=', ',' or '}' after dictionary key" );
+					goto fail;
+				}
+			}
+			else
+			{
+				SFTC_PRINTERR( "Expected '=' in dictionary expression "
+					"/ missing closing bracket before '{'" );
+				goto fail;
+			}
+		}
+		else
+		{
+			SFTC_NEXT;
+			
+			expr->next = parse_exp( F, ",}", 2 );
+			if( !expr->next )
+				goto fail;
+			else
+				expr = expr->next;
+		}
+		
+		if( SFTC_IS( ',' ) )
+			SFTC_NEXT;
+	}
+	return make_node( SGS_SFT_DCTLIST, startok, NULL, fexp );
+	
+fail:
+	if( fexp )
+		SFTC_DESTROY( fexp );
+	return NULL;
 }
 
 
@@ -742,7 +830,19 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 			  || SFTC_IS( SGS_ST_NUMREAL ) )
 			cur = cur->next = make_node( SGS_SFT_CONST, SFTC_AT, NULL, NULL );
 		else if( SFTC_IS( SGS_ST_IDENT ) )
-			cur = cur->next = make_node( SGS_SFT_IDENT, SFTC_AT, NULL, NULL );
+		{
+			if( SFTC_IS_ID( "map" ) && sgsT_Next( SFTC_AT ) && *sgsT_Next( SFTC_AT ) == '{' )
+			{
+				SFTC_NEXT;
+				cur->next = parse_dict( F );
+				if( !cur->next )
+					goto fail;
+				cur = cur->next;
+				cur->type = SGS_SFT_MAPLIST;
+			}
+			else
+				cur = cur->next = make_node( SGS_SFT_IDENT, SFTC_AT, NULL, NULL );
+		}
 		else if( SFTC_IS( SGS_ST_KEYWORD ) )
 		{
 			if( SFTC_ISKEY( "function" ) )
@@ -750,7 +850,6 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 				cur->next = parse_function( F, 1 );
 				if( !cur->next )
 					goto fail;
-
 				cur = cur->next;
 				continue;
 			}
@@ -816,75 +915,10 @@ SFTRET parse_exp( SFTC, char* endtoklist, int etlsize )
 			/* dictionary */
 			else if( SFTC_IS( '{' ) )
 			{
-				sgs_TokenList startok = SFTC_AT;
-				sgs_FTNode* expr = NULL, *fexp = NULL;
-				/* dictionary expression */
-				SFTC_NEXT;
-				while( !SFTC_IS( '}' ) )
-				{
-					int is_ident = SFTC_IS( SGS_ST_IDENT );
-					if( !is_ident && !SFTC_IS( SGS_ST_STRING ) )
-					{
-						SFTC_PRINTERR( "Expected key identifier in dictionary expression" );
-						break;
-					}
-
-					if( !fexp )
-						expr = fexp = make_node( SGS_SFT_IDENT, SFTC_AT, NULL, NULL );
-					else
-					{
-						expr->next = make_node( SGS_SFT_IDENT, SFTC_AT, NULL, NULL );
-						expr = expr->next;
-					}
-					SFTC_NEXT;
-
-					if( !SFTC_IS( SGS_ST_OP_SET ) )
-					{
-						if( is_ident )
-						{
-							if( SFTC_IS( ',' ) || SFTC_IS( '}' ) )
-							{
-								expr->next = make_node( SGS_SFT_IDENT, expr->token, NULL, NULL );
-								expr = expr->next;
-							}
-							else
-							{
-								SFTC_PRINTERR( "Expected '=', ',' or '}' after dictionary key" );
-								break;
-							}
-						}
-						else
-						{
-							SFTC_PRINTERR( "Expected '=' in dictionary expression "
-								"/ missing closing bracket before '{'" );
-							break;
-						}
-					}
-					else
-					{
-						SFTC_NEXT;
-
-						expr->next = parse_exp( F, ",}", 2 );
-						if( !expr->next )
-							break;
-						else
-							expr = expr->next;
-					}
-
-					if( SFTC_IS( ',' ) )
-						SFTC_NEXT;
-				}
-				if( !SFTC_IS( '}' ) )
-				{
-					if( fexp )
-						SFTC_DESTROY( fexp );
-					SFTC_SETERR;
-				}
-				else
-				{
-					cur->next = make_node( SGS_SFT_MAPLIST, startok, NULL, fexp );
-					cur = cur->next;
-				}
+				cur->next = parse_dict( F );
+				if( !cur->next )
+					goto fail;
+				cur = cur->next;
 			}
 			else
 			{

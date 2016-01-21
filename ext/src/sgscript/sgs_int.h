@@ -176,8 +176,9 @@ SGS_APIFUNC void sgsT_DumpList( sgs_TokenList tlist, sgs_TokenList tend );
 #define SGS_SFT_USELIST 14
 #define SGS_SFT_EXPLIST 15
 #define SGS_SFT_ARRLIST 16
-#define SGS_SFT_MAPLIST 17
-#define SGS_SFT_RETURN  18
+#define SGS_SFT_DCTLIST 17
+#define SGS_SFT_MAPLIST 18
+#define SGS_SFT_RETURN  19
 /* statement types */
 #define SGS_SFT_BLOCK   21
 #define SGS_SFT_IFELSE  22
@@ -339,6 +340,7 @@ typedef enum sgs_Instruction_e
 	/* specials */
 	SGS_SI_ARRAY,    /* (C:out, E:args) */
 	SGS_SI_DICT,     /* -- || -- */
+	SGS_SI_MAP,      /* -- || -- */
 	SGS_SI_RSYM,     /* (B:name, C:var)         performs dual registration to symbol table */
 	SGS_SI_COTRT,    /* (A:to, B:from)          sets A to true if `from` is finished */
 	SGS_SI_COTRF,    /* (A:to, B:from)          sets A to false if `from` is not finished */
@@ -532,6 +534,12 @@ struct _sgs_ShCtx
 	sgs_ScriptFSFunc sfs_fn;
 	void*         sfs_ctx;
 	
+	/* output */
+	sgs_OutputFunc output_fn; /* output function */
+	void*         output_ctx; /* output context */
+	sgs_OutputFunc erroutput_fn; /* error output function */
+	void*         erroutput_ctx; /* error output context */
+	
 	/* memory */
 	sgs_MemFunc   memfunc;
 	void*         mfuserdata;
@@ -584,11 +592,6 @@ struct _sgs_Context
 	sgs_Context*  prev;
 	sgs_Context*  next;
 	
-	/* output */
-	sgs_OutputFunc output_fn; /* output function */
-	void*         output_ctx; /* output context */
-	sgs_OutputFunc erroutput_fn; /* error output function */
-	void*         erroutput_ctx; /* error output context */
 	void*         serialize_state; /* current serialization state */
 	
 	/* info output */
@@ -673,7 +676,7 @@ static const char* sgs_OpNames[] =
 	"inc", "dec", "add", "sub", "mul", "div", "mod",
 	"and", "or", "xor", "lsh", "rsh",
 	"seq", "sneq", "eq", "neq", "lt", "gte", "gt", "lte", "rawcmp",
-	"array", "dict", "rsym", "cotrt", "cotrf", "coabort", "yldjmp",
+	"array", "dict", "map", "rsym", "cotrt", "cotrf", "coabort", "yldjmp",
 };
 
 #endif

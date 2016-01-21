@@ -424,14 +424,12 @@ public:
 	sgsVariable( sgs_Context* c ) : C(sgs_RootContext(c)) { var.type = SGS_VT_NULL; }
 	sgsVariable( sgs_Context* c, sgs_StkIdx item ) : C(sgs_RootContext(c))
 	{
-		var.type = SGS_VT_NULL;
-		sgs_PeekStackItem( c, item, &var );
+		var = sgs_StackItem( c, item );
 		_acquire();
 	}
 	sgsVariable( sgs_Context* c, EPickAndPop ) : C(sgs_RootContext(c))
 	{
-		var.type = SGS_VT_NULL;
-		sgs_PeekStackItem( c, -1, &var );
+		var = sgs_StackItem( c, -1 );
 		_acquire();
 		sgs_Pop( c, 1 );
 	}
@@ -538,7 +536,7 @@ public:
 	template< class T > T* get_object_data(){ return (T*) sgs_GetObjectDataP( &var ); }
 	template< class T > sgsHandle<T> get_handle(){ return sgsHandle<T>( C, &var ); }
 	template< class T > sgsHandle<T> downcast(){ return sgsHandle<T>( C, &var, true ); }
-	int type_id() const { return var.type; }
+	int type_id() const { return (int) var.type; }
 	bool is_string() const { return var.type == SGS_VT_STRING; }
 	sgsString get_string(){ return is_string() ? sgsString( C, var.data.S ) : sgsString(); }
 	
@@ -592,22 +590,18 @@ public:
 	sgsVariable& set( sgs_CFunc v ){ _release(); var = sgs_MakeCFunc( v ); return *this; }
 	template< class T > sgsVariable& set( sgsHandle< T > v ){ _release(); C = v.object->C; sgs_InitObjectPtr( C, &var, v.object ); return *this; }
 	template< class T > sgsVariable& set( T* v ){ _release(); C = v->C; sgs_InitObjectPtr( C, &var, v->m_sgsObject ); return *this; }
-	bool call( sgs_Context* c, int args = 0, int ret = 0 )
+	void call( sgs_Context* c, int args = 0, int ret = 0 )
 	{
-		return c && sgs_Call( c, var, args, ret );
+		sgs_Call( c, var, args, ret );
 	}
-	bool thiscall( sgs_Context* c, sgsVariable func, int args = 0, int ret = 0 )
+	void thiscall( sgs_Context* c, sgsVariable func, int args = 0, int ret = 0 )
 	{
-		if( c && func.not_null() )
-		{
-			sgs_InsertVariable( c, -args - 1, var );
-			return sgs_ThisCall( c, func.var, args, ret );
-		}
-		return false;
+		sgs_InsertVariable( c, -args - 1, var );
+		sgs_ThisCall( c, func.var, args, ret );
 	}
-	bool thiscall( sgs_Context* c, const char* key, int args = 0, int ret = 0 )
+	void thiscall( sgs_Context* c, const char* key, int args = 0, int ret = 0 )
 	{
-		return thiscall( c, getprop( key ), args, ret );
+		thiscall( c, getprop( key ), args, ret );
 	}
 	
 	sgs_Variable var;
@@ -720,7 +714,7 @@ template< class T > inline sgsString sgs_DumpData( SGS_CTX, const std::vector<T>
 			sgs_PushString( C, "\n" );
 			sgs_DumpData( C, v[i], depth ).push( C );
 		}
-		sgs_StringConcat( C, v.size() * 2 );
+		sgs_StringConcat( C, (sgs_StkIdx) v.size() * 2 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

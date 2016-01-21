@@ -334,9 +334,9 @@ void ScriptContext::SetGlobal( const StringView& name, sgsVariable val )
 	sgs_SetGlobal( C, key.var, val.var );
 }
 
-bool ScriptContext::Call( sgsVariable func, int args, int ret )
+void ScriptContext::Call( sgsVariable func, int args, int ret )
 {
-	return sgs_Call( C, func.var, args, ret );
+	sgs_Call( C, func.var, args, ret );
 }
 
 bool ScriptContext::GlobalCall( StringView name, int args, int ret )
@@ -344,7 +344,9 @@ bool ScriptContext::GlobalCall( StringView name, int args, int ret )
 	sgsVariable func = GetGlobal( name );
 	if( sgs_IsCallableP( &func.var ) == false )
 		LOG_WARNING << "Failed to retrieve callable global from " << name;
-	return func.not_null() ? sgs_Call( C, func.var, args, ret ) : false;
+	if( func.not_null() )
+		sgs_Call( C, func.var, args, ret );
+	return func.not_null();
 }
 
 void ScriptContext::PushEnv()

@@ -103,7 +103,7 @@ struct ScriptContext
 	SCRIPT_EXPORT sgsVariable GetGlobal( const StringView& name );
 	SCRIPT_EXPORT void SetGlobal( const StringView& name, sgsVariable val );
 	
-	SCRIPT_EXPORT bool Call( sgsVariable func, int args = 0, int ret = 0 );
+	SCRIPT_EXPORT void Call( sgsVariable func, int args = 0, int ret = 0 );
 	SCRIPT_EXPORT bool GlobalCall( StringView name, int args = 0, int ret = 0 );
 	
 	// creates a new dict, sets metaobject of current to new, sets new as env
