@@ -807,7 +807,7 @@ struct ENGINE_EXPORT Mat4
 		m.SetIdentity();
 		return m;
 	}
-	static Mat4 CreateFromPtr( float* v16f )
+	static Mat4 CreateFromPtr( const float* v16f )
 	{
 		Mat4 m;
 		memcpy( m.a, v16f, sizeof(float[16]) );

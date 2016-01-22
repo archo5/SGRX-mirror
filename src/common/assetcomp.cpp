@@ -1354,6 +1354,9 @@ struct MeshAssetInputs
 	// additional flags
 	bool y2z;
 	bool flip_uvy;
+	// matrices
+	Mat4 tf_pos;
+	Mat4 tf_nrm;
 };
 
 static size_t _InsertVertex( ByteArray& out,
@@ -1366,6 +1369,7 @@ static size_t _InsertVertex( ByteArray& out,
 	{
 		aiVector3D v = mesh->mVertices ? mesh->mVertices[ idx ] : aiVector3D(0);
 		Vec3 ov = { v.x, v.y, v.z };
+		ov = fmt.tf_pos.TransformPos( ov );
 		if( fmt.y2z )
 			ov = V3( ov.x, -ov.z, ov.y );
 		memcpy( p, &ov, sizeof(ov) );
@@ -1376,6 +1380,7 @@ static size_t _InsertVertex( ByteArray& out,
 	{
 		aiVector3D v = mesh->mNormals ? mesh->mNormals[ idx ] : aiVector3D(0);
 		Vec3 ov = { v.x, v.y, v.z };
+		ov = fmt.tf_nrm.TransformNormal( ov );
 		if( fmt.y2z )
 			ov = V3( ov.x, -ov.z, ov.y );
 		memcpy( p, &ov, sizeof(ov) );
@@ -1485,6 +1490,19 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 	return out;
 }
 
+static void _EnumNodes( const char* base, const Mat4& ptf, const aiNode* N, HashTable<String, Mat4>& out )
+{
+	Mat4 local = Mat4::CreateFromPtr( N->mTransformation[0] );
+	local.Transpose();
+	Mat4 mytf = ptf * local;
+	char buf[ 1024 ];
+	sgrx_snprintf( buf, 1024, "%s/%s", base, N->mName.C_Str() );
+	out.set( buf, mytf );
+	
+	for( unsigned i = 0; i < N->mNumChildren; ++i )
+		_EnumNodes( buf, mytf, N->mChildren[ i ], out );
+}
+
 MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA )
 {
 	if( MA.parts.size() < 1 || MA.parts.size() > 16 )
@@ -1506,7 +1524,11 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	}
 	const aiScene* S = scene->m_scene;
 	
+	HashTable<String, Mat4> nodes;
+	_EnumNodes( "", Mat4::Identity, S->mRootNode, nodes );
+	
 	// enumerate mesh data
+	Mat4 part_xfs[ 16 ];
 	aiMesh* part_ptrs[ 16 ] = {0};
 	MeshAssetInputs fmt = {0};
 	fmt.y2z = MA.rotateY2Z;
@@ -1516,10 +1538,6 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	{
 		SGRX_MeshAssetPart* MP = MA.parts[ i ];
 		unsigned meshID = String_ParseInt( StringView(MP->meshName).after_last("[").until("]") );
-		printf("MESHID %d | %s | %s | %s\n",meshID,
-			StackString<256>(StringView(MP->meshName)).str,
-			StackString<256>(StringView(MP->meshName).after_last("[")).str,
-			StackString<256>(StringView(MP->meshName).after_last("[").until("]")).str);
 		if( meshID >= S->mNumMeshes )
 		{
 			printf( "Mesh ID %d out of bounds (count=%d)\n", meshID, S->mNumMeshes );
@@ -1529,6 +1547,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		ASSERT( mesh && "Mesh with a valid ID must have a valid aiMesh*" );
 		ASSERT( mesh->mPrimitiveTypes == aiPrimitiveType_TRIANGLE );
 		part_ptrs[ i ] = mesh;
+		part_xfs[ i ] = nodes.getcopy( StringView(MP->meshName).until("|"), Mat4::Identity );
 		// update format
 		if( mesh->mVertices ) fmt.pos = true;
 		if( mesh->mNormals ) fmt.nrm = true;
@@ -1571,6 +1590,15 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	{
 		SGRX_MeshAssetPart* MP = MA.parts[ i ];
 		aiMesh* mesh = part_ptrs[ i ];
+		
+		Mat4 tf_pos = part_xfs[ i ];
+		Mat4 tf_nrm = Mat4::Identity;
+		tf_pos.InvertTo( tf_nrm );
+		tf_nrm.Transpose();
+		
+		fmt.tf_pos = tf_pos;
+		fmt.tf_nrm = tf_nrm;
+		
 		size_t voff = vdata.size() / vsize;
 		size_t ioff = idata.size() / isize;
 		for( unsigned fid = 0; fid < mesh->mNumFaces; ++fid )
