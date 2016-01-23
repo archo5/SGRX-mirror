@@ -690,7 +690,7 @@ void SGRX_MeshAssetPart::Generate( String& out )
 	char bfr[ 128 ];
 	sgrx_snprintf( bfr, 128,
 		"  MTL_FLAGS %d\n"
-		"  MTL_BLENDMODE %d\n",
+		"  MTL_BLENDMODE %d\n"
 		"  OPT_TRANSFORM %d\n",
 		int(mtlFlags),
 		int(mtlBlendMode),
