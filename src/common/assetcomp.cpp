@@ -660,6 +660,8 @@ bool SGRX_MeshAssetPart::Parse( ConfigReader& cread )
 			mtlFlags = String_ParseInt( value );
 		else if( key == "MTL_BLENDMODE" )
 			mtlBlendMode = String_ParseInt( value );
+		else if( key == "OPT_TRANSFORM" )
+			optTransform = String_ParseInt( value );
 		else if( key == "PART_END" )
 			return true;
 		else
@@ -689,8 +691,10 @@ void SGRX_MeshAssetPart::Generate( String& out )
 	sgrx_snprintf( bfr, 128,
 		"  MTL_FLAGS %d\n"
 		"  MTL_BLENDMODE %d\n",
+		"  OPT_TRANSFORM %d\n",
 		int(mtlFlags),
-		int(mtlBlendMode) );
+		int(mtlBlendMode),
+		int(optTransform) );
 	out.append( bfr );
 	out.append( " PART_END\n" );
 }
@@ -726,6 +730,8 @@ bool SGRX_MeshAsset::Parse( ConfigReader& cread )
 			rotateY2Z = String_ParseBool( value );
 		else if( key == "FLIP_UVY" )
 			flipUVY = String_ParseBool( value );
+		else if( key == "TRANSFORM" )
+			transform = String_ParseBool( value );
 		else if( key == "PART" )
 		{
 			SGRX_MeshAPHandle mph = new SGRX_MeshAssetPart;
@@ -753,6 +759,7 @@ void SGRX_MeshAsset::Generate( String& out )
 	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
 	out.append( " ROTATE_Y2Z " ); out.append( rotateY2Z ? "true" : "false" ); out.append( "\n" );
 	out.append( " FLIP_UVY " ); out.append( flipUVY ? "true" : "false" ); out.append( "\n" );
+	out.append( " TRANSFORM " ); out.append( transform ? "true" : "false" ); out.append( "\n" );
 	for( size_t i = 0; i < parts.size(); ++i )
 		parts[ i ]->Generate( out );
 	out.append( "MESH_END\n" );
@@ -1590,14 +1597,23 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	{
 		SGRX_MeshAssetPart* MP = MA.parts[ i ];
 		aiMesh* mesh = part_ptrs[ i ];
+		bool transform = MP->optTransform ? MP->optTransform > 0 : MA.transform;
 		
-		Mat4 tf_pos = part_xfs[ i ];
-		Mat4 tf_nrm = Mat4::Identity;
-		tf_pos.InvertTo( tf_nrm );
-		tf_nrm.Transpose();
-		
-		fmt.tf_pos = tf_pos;
-		fmt.tf_nrm = tf_nrm;
+		if( transform )
+		{
+			Mat4 tf_pos = part_xfs[ i ];
+			Mat4 tf_nrm = Mat4::Identity;
+			tf_pos.InvertTo( tf_nrm );
+			tf_nrm.Transpose();
+			
+			fmt.tf_pos = tf_pos;
+			fmt.tf_nrm = tf_nrm;
+		}
+		else
+		{
+			fmt.tf_pos = Mat4::Identity;
+			fmt.tf_nrm = Mat4::Identity;
+		}
 		
 		size_t voff = vdata.size() / vsize;
 		size_t ioff = idata.size() / isize;

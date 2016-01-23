@@ -42,6 +42,8 @@
 #define EDGUI_THEME_PROP_BOOL_OFF_INACTIVE_COLOR COLOR_RGBA( 100, 20, 0, 255 )
 #define EDGUI_THEME_PROP_BOOL_ON_ACTIVE_COLOR COLOR_RGBA( 20, 180, 0, 255 )
 #define EDGUI_THEME_PROP_BOOL_ON_INACTIVE_COLOR COLOR_RGBA( 20, 100, 0, 255 )
+#define EDGUI_THEME_PROP_BOOL_DEF_ACTIVE_COLOR COLOR_RGBA( 60, 80, 100, 255 )
+#define EDGUI_THEME_PROP_BOOL_DEF_INACTIVE_COLOR COLOR_RGBA( 50, 52, 54, 255 )
 // - number wheel
 #define EDGUI_THEME_NUMWHEEL_WHEEL_SIZE 20
 #define EDGUI_THEME_NUMWHEEL_CENTER_SIZE 20
@@ -105,6 +107,7 @@
 #define EDGUI_ITEM_PROP_VEC3   106
 #define EDGUI_ITEM_PROP_VEC4   107
 #define EDGUI_ITEM_PROP_RSRC   108
+#define EDGUI_ITEM_PROP_DEF_BOOL 201
 
 
 #define EDGUI_KEY_UNKNOWN   0
@@ -429,6 +432,19 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIPropBool : EDGUIProperty
 	template< class T > void Serialize( T& arch ){ arch << m_value; }
 	
 	bool m_value;
+};
+
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropDefBool : EDGUIProperty
+{
+	ENGINE_EXPORT EDGUIPropDefBool( int def = 0 );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	void SetValue( int v ){ m_value = IIF( v == 0, 0, IIF( v < 0, -1, 1 ) ); }
+	void _UpdateButton(){}
+	PROP_INTERFACE( EDGUIPropDefBool );
+	
+	template< class T > void Serialize( T& arch ){ arch << m_value; }
+	
+	int m_value;
 };
 
 struct IF_GCC(ENGINE_EXPORT) EDGUIPropInt : EDGUIProperty

@@ -910,12 +910,14 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_outputName.caption = "Output name";
 		m_rotateY2Z.caption = "Rotate Y->Z";
 		m_flipUVY.caption = "Flip UV/Y";
+		m_transform.caption = "Transform";
 		
 		m_group.Add( &m_sourceFile );
 		m_group.Add( &m_outputCategory );
 		m_group.Add( &m_outputName );
 		m_group.Add( &m_rotateY2Z );
 		m_group.Add( &m_flipUVY );
+		m_group.Add( &m_transform );
 		
 		m_MPLBtnAdd.caption = "Add part";
 		m_MPLButtons.Add( &m_MPLEditButton );
@@ -936,6 +938,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPmtlNocull.caption = "Disable culling?";
 		m_MPmtlDecal.caption = "Decal?";
 		m_MPmtlBlendMode.caption = "Blend mode";
+		m_MPoptTransform.caption = "Transform (override)?";
 		
 		m_MPmeshName.m_requestReload = true;
 		
@@ -953,6 +956,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPart.Add( &m_MPmtlNocull );
 		m_MPart.Add( &m_MPmtlDecal );
 		m_MPart.Add( &m_MPmtlBlendMode );
+		m_MPart.Add( &m_MPoptTransform );
 		
 		Add( &m_topCol );
 		Add( &m_group );
@@ -998,6 +1002,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_outputName.SetValue( MA.outputName );
 		m_rotateY2Z.SetValue( MA.rotateY2Z );
 		m_flipUVY.SetValue( MA.flipUVY );
+		m_transform.SetValue( MA.transform );
 		
 		ReloadPartList();
 		PreparePart( NOT_FOUND );
@@ -1025,6 +1030,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 		m_MPmtlNocull.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Nocull ) : false );
 		m_MPmtlDecal.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Decal ) : false );
 		m_MPmtlBlendMode.SetValue( SGRX_MtlBlend_ToString( MP ? MP->mtlBlendMode : 0 ) );
+		m_MPoptTransform.SetValue( MP ? MP->optTransform : 0 );
 		m_MPgroup.Clear();
 		if( MP )
 			m_MPgroup.Add( &m_MPart );
@@ -1044,6 +1050,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 				if( e->target == &m_outputName ){ MA.outputName = m_outputName.m_value; }
 				if( e->target == &m_rotateY2Z ){ MA.rotateY2Z = m_rotateY2Z.m_value; UpdatePreviewMesh(); }
 				if( e->target == &m_flipUVY ){ MA.flipUVY = m_flipUVY.m_value; UpdatePreviewMesh(); }
+				if( e->target == &m_transform ){ MA.transform = m_transform.m_value; UpdatePreviewMesh(); }
 				if( MP )
 				{
 					bool ed = false;
@@ -1065,6 +1072,8 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 						SGRX_SET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Decal, m_MPmtlDecal.m_value ); }
 					if( e->target == &m_MPmtlBlendMode ){ ed = true;
 						MP->mtlBlendMode = SGRX_MtlBlend_FromString( m_MPmtlBlendMode.m_value ); }
+					if( e->target == &m_MPoptTransform ){ ed = true;
+						MP->optTransform = m_MPoptTransform.m_value; }
 					if( ed )
 					{
 						ReloadPartList();
@@ -1144,6 +1153,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	EDGUIPropString m_outputName;
 	EDGUIPropBool m_rotateY2Z;
 	EDGUIPropBool m_flipUVY;
+	EDGUIPropBool m_transform;
 	EDGUIGroup m_MPgroup;
 	EDGUILayoutRow m_MPart;
 	EDGUIPropRsrc m_MPmeshName;
@@ -1160,6 +1170,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	EDGUIPropBool m_MPmtlNocull;
 	EDGUIPropBool m_MPmtlDecal;
 	EDGUIPropRsrc m_MPmtlBlendMode;
+	EDGUIPropDefBool m_MPoptTransform;
 	EDGUIGroup m_MPLgroup;
 	EDGUIButton m_MPLBtnAdd;
 	EDGUIBtnList m_MPLButtons;

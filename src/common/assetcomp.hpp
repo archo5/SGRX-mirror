@@ -250,7 +250,12 @@ struct SGRX_TextureAsset
 
 struct SGRX_MeshAssetPart : SGRX_RefCounted
 {
-	SGRX_MeshAssetPart() : shader("default"), mtlFlags(0), mtlBlendMode(SGRX_MtlBlend_None){}
+	SGRX_MeshAssetPart() :
+		shader("default"),
+		mtlFlags(0),
+		mtlBlendMode(SGRX_MtlBlend_None),
+		optTransform(0)
+	{}
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
 	void GetDesc( int i, String& out );
@@ -260,11 +265,17 @@ struct SGRX_MeshAssetPart : SGRX_RefCounted
 	String textures[ 8 ];
 	uint8_t mtlFlags;
 	uint8_t mtlBlendMode;
+	int optTransform;
 };
 typedef Handle< SGRX_MeshAssetPart > SGRX_MeshAPHandle;
 
 struct SGRX_MeshAsset
 {
+	SGRX_MeshAsset() :
+		rotateY2Z(false),
+		flipUVY(false),
+		transform(false)
+	{}
 	void Clone( const SGRX_MeshAsset& other );
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
@@ -278,6 +289,7 @@ struct SGRX_MeshAsset
 	String outputName;
 	bool rotateY2Z;
 	bool flipUVY;
+	bool transform;
 	Array< SGRX_MeshAPHandle > parts;
 };
 

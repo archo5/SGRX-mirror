@@ -1802,6 +1802,57 @@ int EDGUIPropBool::OnEvent( EDGUIEvent* e )
 }
 
 
+EDGUIPropDefBool::EDGUIPropDefBool( int def ) : m_value( 0 )
+{
+	type = EDGUI_ITEM_PROP_DEF_BOOL;
+	tyname = "property-def-bool";
+	SetValue( def );
+}
+
+int EDGUIPropDefBool::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			int x13 = ( x1 - x0 ) / 3 + x0;
+			int x23 = ( x1 - x0 ) * 2 / 3 + x0;
+			int newval = IIF( e->mouse.x <= x13, -1, IIF( e->mouse.x <= x23, 0, 1 ) );
+			if( m_value != newval )
+			{
+				m_value = newval;
+				Edited();
+				Changed();
+			}
+		}
+		_End( e );
+		return 1;
+		
+	case EDGUI_EVENT_PAINT:
+		{
+			_Begin( e );
+			int x13 = ( x1 - x0 ) / 3 + x0;
+			int x23 = ( x1 - x0 ) * 2 / 3 + x0;
+			GR2D_GetBatchRenderer().UnsetTexture()
+				.Colu( m_value < 0 ? EDGUI_THEME_PROP_BOOL_OFF_ACTIVE_COLOR : EDGUI_THEME_PROP_BOOL_OFF_INACTIVE_COLOR ).Quad( x0, y0, x13, y1 )
+				.Colu( m_value == 0 ? EDGUI_THEME_PROP_BOOL_DEF_ACTIVE_COLOR : EDGUI_THEME_PROP_BOOL_DEF_INACTIVE_COLOR ).Quad( x13, y0, x23, y1 )
+				.Colu( m_value > 0 ? EDGUI_THEME_PROP_BOOL_ON_ACTIVE_COLOR : EDGUI_THEME_PROP_BOOL_ON_INACTIVE_COLOR ).Quad( x23, y0, x1, y1 );
+			
+			GR2D_GetBatchRenderer().Colu( textColor );
+			GR2D_DrawTextLine( ( x0 + x13 ) / 2, ( y0 + y1 ) / 2, "No", HALIGN_CENTER, VALIGN_CENTER );
+			GR2D_DrawTextLine( ( x13 + x23 ) / 2, ( y0 + y1 ) / 2, "Default", HALIGN_CENTER, VALIGN_CENTER );
+			GR2D_DrawTextLine( ( x23 + x1 ) / 2, ( y0 + y1 ) / 2, "Yes", HALIGN_CENTER, VALIGN_CENTER );
+			_End( e );
+		}
+		return 1;
+	}
+	
+	return EDGUIProperty::OnEvent( e );
+}
+
+
 EDGUIPropInt::EDGUIPropInt( int32_t def, int32_t min, int32_t max ) :
 	m_value( def ),
 	m_min( min ),
