@@ -783,6 +783,150 @@ void SGRX_MeshAsset::GetDesc( String& out )
 	out = bfr;
 }
 
+void SGRX_ABAnimSource::GetDesc( String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s (prefix:%s)",
+		file.size() ? StackString<100>(file).str : "<no file>",
+		prefix.size() ? StackString<100>(prefix).str : "<none>" );
+	out = bfr;
+}
+
+void SGRX_ABAnimation::GetDesc( String& out )
+{
+	char startbfr[ 32 ] = "(original)";
+	char endbfr[ 32 ] = "(original)";
+	if( startFrame != -1 )
+		sgrx_snprintf( startbfr, 32, "%d", startFrame );
+	if( endFrame != -1 )
+		sgrx_snprintf( endbfr, 32, "%d", endFrame );
+	char bfr[ 512 ];
+	sgrx_snprintf( bfr, 512, "%s (name override:%s, start:%s, end:%s)",
+		source.size() ? StackString<100>(source).str : "<unspecified>",
+		name.size() ? StackString<100>(name).str : "<none>",
+		startbfr, endbfr );
+	out = bfr;
+}
+
+void SGRX_AnimBundleAsset::Clone( const SGRX_AnimBundleAsset& other )
+{
+	*this = other;
+}
+
+bool SGRX_AnimBundleAsset::Parse( ConfigReader& cread )
+{
+	StringView key, value;
+	while( cread.Read( key, value ) )
+	{
+		if( key == "OUTPUT_CATEGORY" )
+			outputCategory = value;
+		else if( key == "OUTPUT_NAME" )
+			outputName = value;
+		else if( key == "BUNDLE_PREFIX" )
+			bundlePrefix = value;
+		else if( key == "ANIM_BUNDLE_END" )
+			return true;
+		else if( key == "SOURCE" )
+		{
+			SGRX_ABAnimSource src = { value, "" };
+			sources.push_back( src );
+		}
+		else if( key == "SRC_PREFIX" )
+		{
+			if( sources.size() == 0 )
+			{
+				LOG_ERROR << "SRC_PREFIX requires at least one SOURCE before it";
+				return false;
+			}
+			sources.last().prefix = value;
+		}
+		else if( key == "ANIM" )
+		{
+			SGRX_ABAnimation anim;
+			anim.source = value;
+			anims.push_back( anim );
+		}
+		else if( key == "ANIM_NAME" || key == "ANIM_START_FRAME" || key == "ANIM_END_FRAME" )
+		{
+			if( anims.size() == 0 )
+			{
+				LOG_ERROR << "SRC_PREFIX requires at least one SOURCE before it";
+				return false;
+			}
+			if( key == "ANIM_NAME" )
+				anims.last().name = value;
+			else if( key == "ANIM_START_FRAME" )
+				anims.last().startFrame = value.size() ? String_ParseInt( value ) : -1;
+			else if( key == "ANIM_END_FRAME" )
+				anims.last().endFrame = value.size() ? String_ParseInt( value ) : -1;
+		}
+		else
+		{
+			LOG_ERROR << "Unrecognized AssetScript/Mesh command: " << key << "=" << value;
+			return false;
+		}
+	}
+	LOG_ERROR << "Incomplete AssetScript/Mesh data";
+	return false;
+}
+
+void SGRX_AnimBundleAsset::Generate( String& out )
+{
+	out.append( "ANIM_BUNDLE\n" );
+	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
+	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
+	out.append( " BUNDLE_PREFIX " ); out.append( bundlePrefix ); out.append( "\n" );
+	for( size_t i = 0; i < sources.size(); ++i )
+	{
+		out.append( " SOURCE " );
+		out.append( sources[ i ].file );
+		out.append( "\n SRC_PREFIX " );
+		out.append( sources[ i ].prefix );
+		out.append( "\n" );
+	}
+	for( size_t i = 0; i < anims.size(); ++i )
+	{
+		char bfr[ 32 ];
+		out.append( " ANIM " );
+		out.append( anims[ i ].source );
+		out.append( "\n ANIM_NAME " );
+		out.append( anims[ i ].name );
+		out.append( "\n ANIM_START_FRAME " );
+		if( anims[ i ].startFrame != -1 )
+		{
+			sgrx_snprintf( bfr, 32, "%d", anims[ i ].startFrame );
+			out.append( bfr );
+		}
+		out.append( "\n ANIM_END_FRAME " );
+		if( anims[ i ].endFrame != -1 )
+		{
+			sgrx_snprintf( bfr, 32, "%d", anims[ i ].endFrame );
+			out.append( bfr );
+		}
+		out.append( "\n" );
+	}
+	out.append( "ANIM_BUNDLE_END\n" );
+}
+
+void SGRX_AnimBundleAsset::GetFullName( String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s",
+		StackString<100>(outputCategory).str,
+		StackString<100>(outputName).str );
+	out = bfr;
+}
+
+void SGRX_AnimBundleAsset::GetDesc( String& out )
+{
+	char bfr[ 512 ];
+	sgrx_snprintf( bfr, 512, "%s/%s (bundle prefix:%s)",
+		StackString<100>(outputCategory).str,
+		StackString<100>(outputName).str,
+		bundlePrefix.size() ? StackString<100>(bundlePrefix) : "<none>" );
+	out = bfr;
+}
+
 bool SGRX_AssetScript::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -802,6 +946,12 @@ bool SGRX_AssetScript::Parse( ConfigReader& cread )
 		{
 			meshAssets.push_back( SGRX_MeshAsset() );
 			if( meshAssets.last().Parse( cread ) == false )
+				return false;
+		}
+		else if( key == "ANIM_BUNDLE" )
+		{
+			animBundleAssets.push_back( SGRX_AnimBundleAsset() );
+			if( animBundleAssets.last().Parse( cread ) == false )
 				return false;
 		}
 		else
@@ -832,6 +982,11 @@ void SGRX_AssetScript::Generate( String& out )
 	for( size_t i = 0; i < meshAssets.size(); ++i )
 	{
 		meshAssets[ i ].Generate( out );
+	}
+	
+	for( size_t i = 0; i < animBundleAssets.size(); ++i )
+	{
+		animBundleAssets[ i ].Generate( out );
 	}
 }
 

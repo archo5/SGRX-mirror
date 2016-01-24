@@ -268,6 +268,14 @@ struct EDGUIAssetMeshList : EDGUILayoutRow
 
 struct EDGUIAssetAnimBundle : EDGUILayoutRow
 {
+	EDGUIAssetAnimBundle();
+	void Prepare( size_t abid );
+	void ReloadAnimSourceList();
+	void PrepareAnimSource( size_t sid );
+	void ReloadAnimList();
+	void PrepareAnim( size_t aid );
+	virtual int OnEvent( EDGUIEvent* e );
+	
 	EDGUILayoutColumn m_topCol;
 	EDGUIButton m_btnDuplicate;
 	EDGUIButton m_btnDelete;
@@ -277,18 +285,32 @@ struct EDGUIAssetAnimBundle : EDGUILayoutRow
 	EDGUIPropRsrc m_outputCategory;
 	EDGUIPropString m_outputName;
 	EDGUIPropString m_bundlePrefix;
+	// animation
+	EDGUIGroup m_AN_group;
+	EDGUILayoutRow m_AN_cont;
+	EDGUIPropRsrc m_AN_source;
+	EDGUIPropString m_AN_name;
+	EDGUIPropString m_AN_startFrame;
+	EDGUIPropString m_AN_endFrame;
+	// animation list
+	EDGUIGroup m_ANL_group;
+	EDGUIButton m_ANL_btnAdd;
+	EDGUIBtnList m_ANL_buttons;
+	EDGUIListItemButton m_ANL_editButton;
 	// anim. source
-	EDGUIGroup m_ASgroup;
-	EDGUIPropRsrc m_ASfileName;
-	EDGUIPropString m_ASprefix;
+	EDGUIGroup m_AS_group;
+	EDGUILayoutRow m_AS_cont;
+	EDGUIPropRsrc m_AS_fileName;
+	EDGUIPropString m_AS_prefix;
 	// anim. source list
-	EDGUIGroup m_ASLgroup;
-	EDGUIButton m_ASLBtnAdd;
-	EDGUIBtnList m_ASLButtons;
-	EDGUIListItemButton m_ASLEditButton;
+	EDGUIGroup m_ASL_group;
+	EDGUIButton m_ASL_btnAdd;
+	EDGUIBtnList m_ASL_buttons;
+	EDGUIListItemButton m_ASL_editButton;
 	
-	size_t m_aid;
+	size_t m_abid;
 	size_t m_sid;
+	size_t m_aid;
 };
 
 struct EDGUIAssetAnimBundleList : EDGUILayoutRow
@@ -344,6 +366,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	void EditTextureList();
 	void EditMesh( size_t id );
 	void EditMeshList();
+	void EditAnimBundle( size_t id );
+	void EditAnimBundleList();
 	void EditCategory( const StringView& name );
 	void EditCatList();
 	void ResetEditorState();
@@ -368,12 +392,15 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBEditScript;
 	EDGUIButton m_MBEditTextures;
 	EDGUIButton m_MBEditMeshes;
+	EDGUIButton m_MBEditAnimBundles;
 	
 	// data edit views
 	EDGUIAssetTexture m_UITexture;
 	EDGUIAssetTextureList m_UITextureList;
 	EDGUIAssetMesh m_UIMesh;
 	EDGUIAssetMeshList m_UIMeshList;
+	EDGUIAssetAnimBundle m_UIAnimBundle;
+	EDGUIAssetAnimBundleList m_UIAnimBundleList;
 	EDGUIAssetCategoryForm m_UICategory;
 	EDGUIAssetCategoryList m_UICatList;
 	

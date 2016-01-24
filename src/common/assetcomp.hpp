@@ -293,6 +293,43 @@ struct SGRX_MeshAsset
 	Array< SGRX_MeshAPHandle > parts;
 };
 
+struct SGRX_ABAnimSource
+{
+	void GetDesc( String& out );
+	
+	String file;
+	String prefix;
+};
+
+struct SGRX_ABAnimation
+{
+	SGRX_ABAnimation() : startFrame(-1), endFrame(-1){}
+	void GetDesc( String& out );
+	
+	String source;
+	String name;
+	int startFrame;
+	int endFrame;
+};
+
+struct SGRX_AnimBundleAsset
+{
+	SGRX_AnimBundleAsset(){}
+	void Clone( const SGRX_AnimBundleAsset& other );
+	bool Parse( ConfigReader& cread );
+	void Generate( String& out );
+	void GetFullName( String& out );
+	void GetDesc( String& out );
+	
+	SGRX_RevInfo ri;
+	
+	String outputCategory;
+	String outputName;
+	String bundlePrefix;
+	Array< SGRX_ABAnimation > anims;
+	Array< SGRX_ABAnimSource > sources;
+};
+
 struct SGRX_AssetScript
 {
 	bool Parse( ConfigReader& cread );
@@ -309,6 +346,7 @@ struct SGRX_AssetScript
 	HashTable< String, String > categories;
 	Array< SGRX_TextureAsset > textureAssets;
 	Array< SGRX_MeshAsset > meshAssets;
+	Array< SGRX_AnimBundleAsset > animBundleAssets;
 };
 
 

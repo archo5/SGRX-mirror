@@ -24,6 +24,8 @@ void FC_EditTexture( size_t id ){ g_UIFrame->EditTexture( id ); }
 void FC_EditTextureList(){ g_UIFrame->EditTextureList(); }
 void FC_EditMesh( size_t id ){ g_UIFrame->EditMesh( id ); }
 void FC_EditMeshList(){ g_UIFrame->EditMeshList(); }
+void FC_EditAnimBundle( size_t id ){ g_UIFrame->EditAnimBundle( id ); }
+void FC_EditAnimBundleList(){ g_UIFrame->EditAnimBundleList(); }
 void FC_EditCategory( const StringView& name ){ g_UIFrame->EditCategory( name ); }
 void FC_EditCatList(){ g_UIFrame->EditCatList(); }
 void FC_SetTexture( TextureHandle tex )
@@ -1081,6 +1083,325 @@ int EDGUIAssetMeshList::OnEvent( EDGUIEvent* e )
 	return EDGUILayoutRow::OnEvent( e );
 }
 
+EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
+	m_group( true, "Animation bundle" ),
+	m_outputCategory( &g_UIPickers->category ),
+	m_AN_group( true, "Animation" ),
+	m_AN_source( &TMPRSRC ),
+	m_ANL_group( true, "Animation list" ),
+	m_ANL_editButton( false ),
+	m_AS_group( true, "Animation source" ),
+	m_AS_fileName( &g_UIPickers->assetPath ),
+	m_ASL_group( true, "Animation source list" ),
+	m_ASL_editButton( false ),
+	m_abid( NOT_FOUND ),
+	m_sid( NOT_FOUND ),
+	m_aid( NOT_FOUND )
+{
+	m_outputCategory.m_requestReload = true;
+	
+	m_btnDuplicate.caption = "Duplicate";
+	m_btnDelete.caption = "Delete";
+	
+	m_outputCategory.caption = "Output category";
+	m_outputName.caption = "Output name";
+	m_bundlePrefix.caption = "Bundle prefix";
+	
+	m_AN_source.caption = "Source/name";
+	m_AN_name.caption = "Name override";
+	m_AN_startFrame.caption = "Start frame";
+	m_AN_endFrame.caption = "End frame";
+	
+	m_ANL_btnAdd.caption = "Add animation";
+	
+	m_AS_fileName.caption = "Source file";
+	m_AS_prefix.caption = "Prefix";
+	
+	m_ASL_btnAdd.caption = "Add animation source";
+	
+	m_topCol.Add( &m_btnDuplicate );
+	m_topCol.Add( &m_btnDelete );
+	
+	m_group.Add( &m_outputCategory );
+	m_group.Add( &m_outputName );
+	m_group.Add( &m_bundlePrefix );
+	
+	m_AN_cont.Add( &m_AN_source );
+	m_AN_cont.Add( &m_AN_name );
+	m_AN_cont.Add( &m_AN_startFrame );
+	m_AN_cont.Add( &m_AN_endFrame );
+	
+	m_ANL_buttons.Add( &m_ANL_editButton );
+	m_ANL_group.Add( &m_ANL_btnAdd );
+	m_ANL_group.Add( &m_ANL_buttons );
+	
+	m_AS_cont.Add( &m_AS_fileName );
+	m_AS_cont.Add( &m_AS_prefix );
+	
+	m_ASL_buttons.Add( &m_ASL_editButton );
+	m_ASL_group.Add( &m_ASL_btnAdd );
+	m_ASL_group.Add( &m_ASL_buttons );
+	
+	Add( &m_topCol );
+	Add( &m_group );
+	Add( &m_AN_group );
+	Add( &m_ANL_group );
+	Add( &m_AS_group );
+	Add( &m_ASL_group );
+}
+
+void EDGUIAssetAnimBundle::Prepare( size_t abid )
+{
+	m_abid = abid;
+	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ abid ];
+	
+	m_outputCategory.SetValue( ABA.outputCategory );
+	m_outputName.SetValue( ABA.outputName );
+	m_bundlePrefix.SetValue( ABA.bundlePrefix );
+	
+	ReloadAnimSourceList();
+	PrepareAnimSource( NOT_FOUND );
+	
+	ReloadAnimList();
+	PrepareAnim( NOT_FOUND );
+}
+
+void EDGUIAssetAnimBundle::ReloadAnimSourceList()
+{
+	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
+	
+	m_ASL_buttons.m_options.resize( ABA.sources.size() );
+	for( size_t i = 0; i < ABA.sources.size(); ++i )
+	{
+		ABA.sources[ i ].GetDesc( m_ASL_buttons.m_options[ i ] );
+	}
+	m_ASL_buttons.UpdateOptions();
+}
+
+void EDGUIAssetAnimBundle::PrepareAnimSource( size_t sid )
+{
+	m_sid = sid;
+	
+	if( m_sid != NOT_FOUND )
+	{
+		const SGRX_ABAnimSource& AS = g_EdAS->animBundleAssets[ m_abid ].sources[ sid ];
+		m_AS_fileName.SetValue( AS.file );
+		m_AS_prefix.SetValue( AS.prefix );
+		
+		m_AS_group.Add( &m_AS_cont );
+	}
+	else
+		m_AS_group.Clear();
+}
+
+void EDGUIAssetAnimBundle::ReloadAnimList()
+{
+	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
+	
+	m_ANL_buttons.m_options.resize( ABA.anims.size() );
+	for( size_t i = 0; i < ABA.anims.size(); ++i )
+	{
+		ABA.anims[ i ].GetDesc( m_ANL_buttons.m_options[ i ] );
+	}
+	m_ANL_buttons.UpdateOptions();
+	OnChangeLayout();
+}
+
+void EDGUIAssetAnimBundle::PrepareAnim( size_t aid )
+{
+	m_aid = aid;
+	
+	if( m_aid != NOT_FOUND )
+	{
+		const SGRX_ABAnimation& AN = g_EdAS->animBundleAssets[ m_abid ].anims[ aid ];
+		m_AN_source.SetValue( AN.source );
+		m_AN_name.SetValue( AN.name );
+		
+		char bfr[ 32 ];
+		if( AN.startFrame != -1 )
+		{
+			sgrx_snprintf( bfr, 32, "%d", AN.startFrame );
+			m_AN_startFrame.SetValue( bfr );
+		}
+		else
+			m_AN_startFrame.SetValue( "" );
+		if( AN.endFrame != -1 )
+		{
+			sgrx_snprintf( bfr, 32, "%d", AN.endFrame );
+			m_AN_endFrame.SetValue( bfr );
+		}
+		else
+			m_AN_endFrame.SetValue( "" );
+		
+		m_AN_group.Add( &m_AN_cont );
+	}
+	else
+		m_AN_group.Clear();
+}
+
+int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
+{
+	if( m_abid != NOT_FOUND )
+	{
+		SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
+		SGRX_ABAnimSource* AS = m_sid != NOT_FOUND ? &ABA.sources[ m_sid ] : NULL;
+		SGRX_ABAnimation* AN = m_aid != NOT_FOUND ? &ABA.anims[ m_aid ] : NULL;
+		switch( e->type )
+		{
+		case EDGUI_EVENT_PROPEDIT:
+			if( e->target == &m_outputCategory ){ ABA.outputCategory = m_outputCategory.m_value; }
+			if( e->target == &m_outputName ){ ABA.outputName = m_outputName.m_value; }
+			if( e->target == &m_bundlePrefix ){ ABA.bundlePrefix = m_bundlePrefix.m_value; }
+			if( AN )
+			{
+				bool edited = false;
+				if( e->target == &m_AN_source ){ AN->source = m_AN_source.m_value; edited = true; }
+				if( e->target == &m_AN_name ){ AN->name = m_AN_name.m_value; edited = true; }
+				if( e->target == &m_AN_startFrame ){ edited = true;
+					AN->startFrame = m_AN_startFrame.m_value.size() ? String_ParseInt( m_AN_startFrame.m_value ) : -1; }
+				if( e->target == &m_AN_endFrame ){ edited = true;
+					AN->endFrame = m_AN_endFrame.m_value.size() ? String_ParseInt( m_AN_endFrame.m_value ) : -1; }
+				if( edited )
+					ReloadAnimList();
+			}
+			if( AS )
+			{
+				bool edited = false;
+				if( e->target == &m_AS_fileName ){ AS->file = m_AS_fileName.m_value; edited = true; }
+				if( e->target == &m_AS_prefix ){ AS->prefix = m_AS_prefix.m_value; edited = true; }
+				if( edited )
+					ReloadAnimSourceList();
+			}
+			break;
+		case EDGUI_EVENT_BTNCLICK:
+			if( e->target == &m_btnDuplicate )
+			{
+				SGRX_AnimBundleAsset ABAcopy;
+				ABAcopy.Clone( g_EdAS->animBundleAssets[ m_abid ] );
+				m_abid = g_EdAS->animBundleAssets.size();
+				ABAcopy.outputName.append( " - Copy" );
+				g_EdAS->animBundleAssets.push_back( ABAcopy );
+				Prepare( m_abid );
+				return 1;
+			}
+			if( e->target == &m_btnDelete )
+			{
+				g_EdAS->animBundleAssets.erase( m_abid );
+				m_abid = NOT_FOUND;
+				FC_EditAnimBundleList();
+				return 1;
+			}
+			if( e->target == &m_ANL_btnAdd )
+			{
+				ABA.anims.push_back( SGRX_ABAnimation() );
+				ReloadAnimList();
+				m_frame->UpdateMouse();
+			}
+			if( e->target == &m_ANL_editButton )
+			{
+				PrepareAnim( m_ANL_editButton.id2 );
+			}
+			if( e->target == &m_ANL_editButton.m_del )
+			{
+				ABA.anims.erase( m_ANL_editButton.id2 );
+				m_aid = NOT_FOUND;
+				ReloadAnimList();
+				m_frame->UpdateMouse();
+				m_AN_group.Clear();
+				return 1;
+			}
+			if( e->target == &m_ASL_btnAdd )
+			{
+				ABA.sources.push_back( SGRX_ABAnimSource() );
+				ReloadAnimSourceList();
+				m_frame->UpdateMouse();
+			}
+			if( e->target == &m_ASL_editButton )
+			{
+				PrepareAnimSource( m_ASL_editButton.id2 );
+			}
+			if( e->target == &m_ASL_editButton.m_del )
+			{
+				ABA.sources.erase( m_ASL_editButton.id2 );
+				m_sid = NOT_FOUND;
+				ReloadAnimSourceList();
+				m_frame->UpdateMouse();
+				m_AS_group.Clear();
+				return 1;
+			}
+			break;
+		}
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
+EDGUIAssetAnimBundleList::EDGUIAssetAnimBundleList() :
+	m_group( true, "Anim. bundle assets" ),
+	m_editButton( false )
+{
+	m_btnAdd.caption = "Add anim. bundle";
+	m_filter.caption = "Filter";
+	
+	m_buttons.Add( &m_editButton );
+	m_group.Add( &m_buttons );
+	Add( &m_btnAdd );
+	Add( &m_filter );
+	Add( &m_group );
+}
+
+void EDGUIAssetAnimBundleList::Prepare()
+{
+	m_buttons.m_options.clear();
+	m_buttons.m_idTable.clear();
+	m_buttons.m_options.reserve( g_EdAS->animBundleAssets.size() );
+	m_buttons.m_idTable.reserve( g_EdAS->animBundleAssets.size() );
+	for( size_t i = 0; i < g_EdAS->animBundleAssets.size(); ++i )
+	{
+		String name;
+		g_EdAS->animBundleAssets[ i ].GetFullName( name );
+		if( StringView(name).match_loose( m_filter.m_value ) )
+		{
+			g_EdAS->animBundleAssets[ i ].GetDesc( name );
+			m_buttons.m_options.push_back( name );
+			m_buttons.m_idTable.push_back( i );
+		}
+	}
+	m_buttons.UpdateOptions();
+}
+
+int EDGUIAssetAnimBundleList::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+		if( e->target == &m_filter )
+		{
+			Prepare();
+		}
+		break;
+	case EDGUI_EVENT_BTNCLICK:
+		if( e->target == &m_btnAdd )
+		{
+			g_EdAS->animBundleAssets.push_back( SGRX_AnimBundleAsset() );
+			FC_EditAnimBundle( g_EdAS->animBundleAssets.size() - 1 );
+			return 1;
+		}
+		if( e->target == &m_editButton )
+		{
+			FC_EditAnimBundle( m_editButton.id2 );
+			return 1;
+		}
+		if( e->target == &m_editButton.m_del )
+		{
+			g_EdAS->animBundleAssets.erase( m_editButton.id2 );
+			Prepare();
+			return 1;
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
+}
+
 EDGUIAssetCategoryForm::EDGUIAssetCategoryForm() :
 	m_group( true, "Edit category" )
 {
@@ -1239,6 +1560,7 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_MBEditScript.caption = "Categories";
 	m_MBEditTextures.caption = "Textures";
 	m_MBEditMeshes.caption = "Meshes";
+	m_MBEditAnimBundles.caption = "Anim. bundles";
 	m_UIMenuButtons.Add( &m_MB_Cat0 );
 	m_UIMenuButtons.Add( &m_MBSave );
 	m_UIMenuButtons.Add( &m_MBRun );
@@ -1247,6 +1569,7 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuButtons.Add( &m_MBEditScript );
 	m_UIMenuButtons.Add( &m_MBEditTextures );
 	m_UIMenuButtons.Add( &m_MBEditMeshes );
+	m_UIMenuButtons.Add( &m_MBEditAnimBundles );
 	
 	m_meshPrevInst = g_EdScene->CreateMeshInstance();
 	lmm_prepmeshinst( m_meshPrevInst );
@@ -1276,6 +1599,10 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_MBEditMeshes )
 		{
 			EditMeshList();
+		}
+		else if( e->target == &m_MBEditAnimBundles )
+		{
+			EditAnimBundleList();
 		}
 		
 		return 1;
@@ -1331,6 +1658,18 @@ void EDGUIMainFrame::EditMeshList()
 	ClearParamList();
 	m_UIMeshList.Prepare();
 	AddToParamList( &m_UIMeshList );
+}
+void EDGUIMainFrame::EditAnimBundle( size_t id )
+{
+	ClearParamList();
+	m_UIAnimBundle.Prepare( id );
+	AddToParamList( &m_UIAnimBundle );
+}
+void EDGUIMainFrame::EditAnimBundleList()
+{
+	ClearParamList();
+	m_UIAnimBundleList.Prepare();
+	AddToParamList( &m_UIAnimBundleList );
 }
 void EDGUIMainFrame::EditCategory( const StringView& name )
 {
