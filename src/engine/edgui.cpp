@@ -981,6 +981,25 @@ int EDGUIButton::OnEvent( EDGUIEvent* e )
 {
 	switch( e->type )
 	{
+	case EDGUI_EVENT_PAINT:
+		if( backColor )
+		{
+			TextureHandle tx = GR_GetTexture( "editor/btn_n.png" );
+			GR_PreserveResource( tx );
+			GR2D_GetBatchRenderer().Reset().Colu( backColor ).SetTexture( tx )
+				.Button( V4( float(x0), float(y0), float(x1), float(y1) ), V4(4.0f), V4(4.0f/32.0f) );
+		}
+		if( textColor && caption.size() )
+		{
+			GR2D_GetBatchRenderer().Reset().Colu( textColor );
+			GR2D_DrawTextLine( round(( x0 + x1 ) / 2.0f), round(( y0 + y1 ) / 2.0f), caption, HALIGN_CENTER, VALIGN_CENTER );
+		}
+		for( size_t i = 0; i < m_subitems.size(); ++i )
+		{
+			m_subitems[ i ]->OnEvent( e );
+		}
+		return 1;
+		
 	case EDGUI_EVENT_LAYOUT:
 		x0 = e->layout.x0;
 		x1 = e->layout.x1;
