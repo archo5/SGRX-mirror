@@ -32,12 +32,21 @@ void FC_SetTexture( TextureHandle tex )
 {
 	g_UIFrame->m_texPreview = tex;
 	g_UIFrame->m_meshPrevInst->enabled = false;
+	g_UIFrame->m_animPreview = NULL;
 }
 void FC_SetMesh( MeshHandle mesh )
 {
 	g_UIFrame->m_texPreview = NULL;
 	g_UIFrame->m_meshPrevInst->SetMesh( mesh );
 	g_UIFrame->m_meshPrevInst->enabled = mesh != NULL;
+	g_UIFrame->m_animPreview = NULL;
+}
+void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
+{
+	g_UIFrame->m_texPreview = NULL;
+	g_UIFrame->m_meshPrevInst->SetMesh( mesh );
+	g_UIFrame->m_meshPrevInst->enabled = mesh != NULL;
+	g_UIFrame->m_animPreview = anim;
 }
 
 
@@ -127,6 +136,28 @@ void EDGUITextureAssetPicker::Reload()
 		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
 		{
 			const SGRX_TextureAsset& TA = g_EdAS->textureAssets[ i ];
+			String opt = TA.outputCategory;
+			opt.append( "/" );
+			opt.append( TA.outputName );
+			m_options.push_back( opt );
+		}
+	}
+	_Search( m_searchString );
+}
+
+EDGUIMeshAssetPicker::EDGUIMeshAssetPicker()
+{
+	m_looseSearch = true;
+	Reload();
+}
+void EDGUIMeshAssetPicker::Reload()
+{
+	m_options.clear();
+	if( g_EdAS )
+	{
+		for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
+		{
+			const SGRX_MeshAsset& TA = g_EdAS->meshAssets[ i ];
 			String opt = TA.outputCategory;
 			opt.append( "/" );
 			opt.append( TA.outputName );
@@ -1103,6 +1134,7 @@ int EDGUIAssetMeshList::OnEvent( EDGUIEvent* e )
 EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	m_group( true, "Animation bundle" ),
 	m_outputCategory( &g_UIPickers->category ),
+	m_previewMesh( &g_UIPickers->meshAsset ),
 	m_AN_group( true, "Animation" ),
 	m_AN_source( &g_UIPickers->animName ),
 	m_ANL_group( true, "Animation list" ),
@@ -1123,6 +1155,7 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	m_outputCategory.caption = "Output category";
 	m_outputName.caption = "Output name";
 	m_bundlePrefix.caption = "Bundle prefix";
+	m_previewMesh.caption = "Preview mesh";
 	
 	m_AN_source.caption = "Source/name";
 	m_AN_name.caption = "Name override";
@@ -1142,6 +1175,7 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	m_group.Add( &m_outputCategory );
 	m_group.Add( &m_outputName );
 	m_group.Add( &m_bundlePrefix );
+	m_group.Add( &m_previewMesh );
 	
 	m_AN_cont.Add( &m_AN_source );
 	m_AN_cont.Add( &m_AN_name );
@@ -1167,14 +1201,24 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	Add( &m_ASL_group );
 }
 
+void EDGUIAssetAnimBundle::UpdatePreviewAnim()
+{
+	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
+	AnimHandle anim = SGRX_ProcessSingleAnim( ABA, m_aid );
+	FC_SetAnim( g_EdAS->GetMesh( m_previewMesh.m_value ), anim );
+}
+
 void EDGUIAssetAnimBundle::Prepare( size_t abid )
 {
+	g_UIPickers->meshAsset.Reload();
+	
 	m_abid = abid;
 	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ abid ];
 	
 	m_outputCategory.SetValue( ABA.outputCategory );
 	m_outputName.SetValue( ABA.outputName );
 	m_bundlePrefix.SetValue( ABA.bundlePrefix );
+	m_previewMesh.SetValue( ABA.previewMesh );
 	
 	ReloadAnimSourceList();
 	PrepareAnimSource( NOT_FOUND );
@@ -1253,6 +1297,8 @@ void EDGUIAssetAnimBundle::PrepareAnim( size_t aid )
 			m_AN_endFrame.SetValue( "" );
 		
 		m_AN_group.Add( &m_AN_cont );
+		
+		UpdatePreviewAnim();
 	}
 	else
 		m_AN_group.Clear();
@@ -1282,6 +1328,11 @@ int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
 			if( e->target == &m_outputCategory ){ ABA.outputCategory = m_outputCategory.m_value; }
 			if( e->target == &m_outputName ){ ABA.outputName = m_outputName.m_value; }
 			if( e->target == &m_bundlePrefix ){ ABA.bundlePrefix = m_bundlePrefix.m_value; }
+			if( e->target == &m_previewMesh )
+			{
+				ABA.previewMesh = m_previewMesh.m_value;
+				UpdatePreviewAnim();
+			}
 			if( AN )
 			{
 				bool edited = false;
@@ -1301,6 +1352,17 @@ int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
 				if( e->target == &m_AS_prefix ){ AS->prefix = m_AS_prefix.m_value; edited = true; }
 				if( edited )
 					ReloadAnimSourceList();
+			}
+			break;
+		case EDGUI_EVENT_PROPCHANGE:
+			if( e->target != &m_previewMesh )
+			{
+				ABA.ri.rev_asset++;
+			}
+			if( e->target == &m_AN_source || e->target == &m_AN_startFrame ||
+				e->target == &m_AN_endFrame )
+			{
+				UpdatePreviewAnim();
 			}
 			break;
 		case EDGUI_EVENT_BTNCLICK:

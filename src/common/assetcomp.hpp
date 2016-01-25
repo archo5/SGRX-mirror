@@ -2,6 +2,7 @@
 
 #pragma once
 #include <engine.hpp>
+#include <enganim.hpp>
 
 
 
@@ -327,6 +328,7 @@ struct SGRX_AnimBundleAsset
 	String outputCategory;
 	String outputName;
 	String bundlePrefix;
+	String previewMesh;
 	Array< SGRX_ABAnimation > anims;
 	Array< SGRX_ABAnimSource > sources;
 };
@@ -343,6 +345,8 @@ struct SGRX_AssetScript
 	bool SaveAssetInfo( const StringView& path );
 	bool LoadOutputInfo( const StringView& path );
 	bool SaveOutputInfo( const StringView& path );
+	
+	MeshHandle GetMesh( StringView path );
 	
 	HashTable< String, String > categories;
 	Array< SGRX_TextureAsset > textureAssets;
@@ -379,5 +383,6 @@ typedef Handle< SGRX_Scene3D > ImpScene3DHandle;
 SGRX_IFP32Handle SGRX_ProcessTextureAsset( const SGRX_TextureAsset& TA );
 TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset& TA );
 MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA );
+AnimHandle SGRX_ProcessSingleAnim( const SGRX_AnimBundleAsset& ABA, int i );
 void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force = false );
 

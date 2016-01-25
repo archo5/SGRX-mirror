@@ -6,7 +6,6 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "assetcomp.hpp"
-#include <enganim.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -825,6 +824,8 @@ bool SGRX_AnimBundleAsset::Parse( ConfigReader& cread )
 			outputName = value;
 		else if( key == "BUNDLE_PREFIX" )
 			bundlePrefix = value;
+		else if( key == "PREVIEW_MESH" )
+			previewMesh = value;
 		else if( key == "ANIM_BUNDLE_END" )
 			return true;
 		else if( key == "SOURCE" )
@@ -877,6 +878,7 @@ void SGRX_AnimBundleAsset::Generate( String& out )
 	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
 	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
 	out.append( " BUNDLE_PREFIX " ); out.append( bundlePrefix ); out.append( "\n" );
+	out.append( " PREVIEW_MESH " ); out.append( previewMesh ); out.append( "\n" );
 	for( size_t i = 0; i < sources.size(); ++i )
 	{
 		out.append( " SOURCE " );
@@ -1030,6 +1032,7 @@ enum EAssetType
 	AT_Unknown = 0,
 	AT_Texture,
 	AT_Mesh,
+	AT_AnimBundle,
 };
 
 struct AssetInfoItem
@@ -1103,6 +1106,16 @@ bool SGRX_AssetScript::LoadAssetInfo( const StringView& path )
 				MA.ri.rev_asset = item.rev_asset;
 			}
 			break;
+		case AT_AnimBundle:
+			for( size_t j = 0; j < animBundleAssets.size(); ++j )
+			{
+				SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
+				if( ABA.outputCategory != item.category ||
+					ABA.outputName != item.name )
+					continue;
+				ABA.ri.rev_asset = item.rev_asset;
+			}
+			break;
 		}
 	}
 	
@@ -1117,14 +1130,20 @@ bool SGRX_AssetScript::SaveAssetInfo( const StringView& path )
 	Array< AssetInfoItem > items;
 	for( size_t j = 0; j < textureAssets.size(); ++j )
 	{
-		SGRX_TextureAsset& TA = textureAssets[ j ];
+		const SGRX_TextureAsset& TA = textureAssets[ j ];
 		AssetInfoItem item = { AT_Texture, TA.outputCategory, TA.outputName, TA.ri.rev_asset };
 		items.push_back( item );
 	}
 	for( size_t j = 0; j < meshAssets.size(); ++j )
 	{
-		SGRX_MeshAsset& MA = meshAssets[ j ];
+		const SGRX_MeshAsset& MA = meshAssets[ j ];
 		AssetInfoItem item = { AT_Mesh, MA.outputCategory, MA.outputName, MA.ri.rev_asset };
+		items.push_back( item );
+	}
+	for( size_t j = 0; j < animBundleAssets.size(); ++j )
+	{
+		const SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
+		AssetInfoItem item = { AT_AnimBundle, ABA.outputCategory, ABA.outputName, ABA.ri.rev_asset };
 		items.push_back( item );
 	}
 	tw << items;
@@ -1171,6 +1190,18 @@ bool SGRX_AssetScript::LoadOutputInfo( const StringView& path )
 				MA.ri.rev_output = item.rev_output;
 			}
 			break;
+		case AT_AnimBundle:
+			for( size_t j = 0; j < animBundleAssets.size(); ++j )
+			{
+				SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
+				if( ABA.outputCategory != item.category ||
+					ABA.outputName != item.name )
+					continue;
+				ABA.ri.ts_source = item.ts_source;
+				ABA.ri.ts_output = item.ts_output;
+				ABA.ri.rev_output = item.rev_output;
+			}
+			break;
 		}
 	}
 	
@@ -1185,21 +1216,41 @@ bool SGRX_AssetScript::SaveOutputInfo( const StringView& path )
 	Array< AssetOutputItem > items;
 	for( size_t j = 0; j < textureAssets.size(); ++j )
 	{
-		SGRX_TextureAsset& TA = textureAssets[ j ];
+		const SGRX_TextureAsset& TA = textureAssets[ j ];
 		AssetOutputItem item = { AT_Texture, TA.outputCategory, TA.outputName,
 			TA.ri.ts_source, TA.ri.ts_output, TA.ri.rev_output };
 		items.push_back( item );
 	}
 	for( size_t j = 0; j < meshAssets.size(); ++j )
 	{
-		SGRX_MeshAsset& MA = meshAssets[ j ];
+		const SGRX_MeshAsset& MA = meshAssets[ j ];
 		AssetOutputItem item = { AT_Mesh, MA.outputCategory, MA.outputName,
 			MA.ri.ts_source, MA.ri.ts_output, MA.ri.rev_output };
+		items.push_back( item );
+	}
+	for( size_t j = 0; j < animBundleAssets.size(); ++j )
+	{
+		const SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
+		AssetOutputItem item = { AT_AnimBundle, ABA.outputCategory, ABA.outputName,
+			ABA.ri.ts_source, ABA.ri.ts_output, ABA.ri.rev_output };
 		items.push_back( item );
 	}
 	tw << items;
 	
 	return FS_SaveTextFile( path, data );
+}
+
+
+MeshHandle SGRX_AssetScript::GetMesh( StringView path )
+{
+	StringView catName = path.until( "/" );
+	StringView fname = path.after( "/" );
+	StringView catPath = GetCategoryPath( catName );
+	char bfr[ 520 ];
+	sgrx_snprintf( bfr, 520, "%s/%s.ssm",
+		StackString<256>(catPath).str,
+		StackString<256>(fname).str );
+	return GR_GetMesh( bfr );
 }
 
 
@@ -1953,8 +2004,11 @@ struct AnimProcessor
 		Array< Quat > outRot;
 		Array< Vec3 > outScl;
 		
+		unsigned startFrame = AN.startFrame >= 0 ? AN.startFrame : 0;
+		unsigned endFrame = AN.endFrame >= 0 ? AN.endFrame : unsigned( anim->mDuration );
+		
 		AnimHandle out = new SGRX_Animation;
-		out->frameCount = anim->mDuration;
+		out->frameCount = endFrame - startFrame + 1;
 		out->speed = anim->mTicksPerSecond;
 		for( unsigned i = 0; i < anim->mNumChannels; ++i )
 		{
@@ -1978,7 +2032,7 @@ struct AnimProcessor
 			{
 				aiVector3D tmp( 0, 0, 0 );
 				if( na->mNumPositionKeys )
-					tmp = _InterpKeys( na->mPositionKeys, na->mNumPositionKeys, f );
+					tmp = _InterpKeys( na->mPositionKeys, na->mNumPositionKeys, f + startFrame );
 				outPos[ f ] = V3( tmp.x, tmp.y, tmp.z );
 				diffPos = diffPos || ( f > 1 && outPos[ f ] != outPos[ f - 1 ] );
 			}
@@ -1987,7 +2041,7 @@ struct AnimProcessor
 			{
 				aiQuaternion tmp( 1, 0, 0, 0 );
 				if( na->mNumRotationKeys )
-					tmp = _InterpKeys( na->mRotationKeys, na->mNumRotationKeys, f );
+					tmp = _InterpKeys( na->mRotationKeys, na->mNumRotationKeys, f + startFrame );
 				outRot[ f ] = QUAT( tmp.x, tmp.y, tmp.z, tmp.w );
 				diffRot = diffRot || ( f > 1 && outRot[ f ] != outRot[ f - 1 ] );
 			}
@@ -1996,7 +2050,7 @@ struct AnimProcessor
 			{
 				aiVector3D tmp( 1, 1, 1 );
 				if( na->mNumScalingKeys )
-					tmp = _InterpKeys( na->mScalingKeys, na->mNumScalingKeys, f );
+					tmp = _InterpKeys( na->mScalingKeys, na->mNumScalingKeys, f + startFrame );
 				outScl[ f ] = V3( tmp.x, tmp.y, tmp.z );
 				diffScl = diffScl || ( f > 1 && outScl[ f ] != outScl[ f - 1 ] );
 			}

@@ -55,6 +55,12 @@ struct EDGUITextureAssetPicker : EDGUILongEnumPicker
 	void Reload();
 };
 
+struct EDGUIMeshAssetPicker : EDGUILongEnumPicker
+{
+	EDGUIMeshAssetPicker();
+	void Reload();
+};
+
 struct EDGUIAssetPathPicker : EDGUILongEnumPicker, IDirEntryHandler
 {
 	EDGUIAssetPathPicker();
@@ -89,6 +95,7 @@ struct EDGUIPickers
 	EDGUITextureOutputFormat textureOutputFormat;
 	EDGUICategoryPicker category;
 	EDGUITextureAssetPicker textureAsset;
+	EDGUIMeshAssetPicker meshAsset;
 	EDGUIAssetPathPicker assetPath;
 	EDGUIASMeshNamePicker meshName;
 	EDGUIASAnimNamePicker animName;
@@ -286,6 +293,7 @@ struct EDGUIAssetMeshList : EDGUILayoutRow
 struct EDGUIAssetAnimBundle : EDGUILayoutRow
 {
 	EDGUIAssetAnimBundle();
+	void UpdatePreviewAnim();
 	void Prepare( size_t abid );
 	void ReloadAnimSourceList();
 	void PrepareAnimSource( size_t sid );
@@ -303,6 +311,7 @@ struct EDGUIAssetAnimBundle : EDGUILayoutRow
 	EDGUIPropRsrc m_outputCategory;
 	EDGUIPropString m_outputName;
 	EDGUIPropString m_bundlePrefix;
+	EDGUIPropRsrc m_previewMesh;
 	// animation
 	EDGUIGroup m_AN_group;
 	EDGUILayoutRow m_AN_cont;
@@ -425,6 +434,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	// preview data
 	TextureHandle m_texPreview;
 	MeshInstHandle m_meshPrevInst;
+	AnimHandle m_animPreview;
 };
 
 
