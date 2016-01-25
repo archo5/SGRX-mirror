@@ -1577,6 +1577,25 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 	return tex;
 }
 
+struct VertexSkin
+{
+	uint8_t weights[4];
+	uint8_t indices[4];
+};
+
+struct VertexWeight
+{
+	uint8_t boneID;
+	float weight;
+	
+	static int RevSort( const void* a, const void* b )
+	{
+		SGRX_CAST( VertexWeight*, vwa, a );
+		SGRX_CAST( VertexWeight*, vwb, b );
+		return vwa->weight == vwb->weight ? 0 : ( vwa->weight > vwb->weight ? -1 : 1 );
+	}
+};
+
 struct MeshAssetInputs
 {
 	bool pos;
@@ -1587,12 +1606,15 @@ struct MeshAssetInputs
 	bool tx1;
 	bool tx2;
 	bool tx3;
+	bool skin;
 	// additional flags
 	bool y2z;
 	bool flip_uvy;
 	// matrices
 	Mat4 tf_pos;
 	Mat4 tf_nrm;
+	// skinning data
+	VertexSkin* vertexSkin;
 };
 
 static size_t _InsertVertex( ByteArray& out,
@@ -1694,6 +1716,15 @@ static size_t _InsertVertex( ByteArray& out,
 		p += sizeof(ov);
 	}
 	
+	if( fmt.skin )
+	{
+		if( fmt.vertexSkin )
+			memcpy( p, &fmt.vertexSkin[ idx ], 8 );
+		else
+			memset( p, 0, 8 );
+		p += 8;
+	}
+	
 	return out.find_or_add_bytes( bfr, p - bfr, from );
 }
 
@@ -1726,18 +1757,52 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 	return out;
 }
 
-static void _EnumNodes( const char* base, const Mat4& ptf, const aiNode* N, HashTable<String, Mat4>& out )
+struct NodeParentInfo
+{
+	StringView name;
+	Mat4 totalXF;
+	int depth;
+};
+
+static void _EnumNodes( const char* base, const Mat4& ptf, const aiNode* N,
+	HashTable<String, Mat4>& out, HashTable<StringView, NodeParentInfo>& outPN, int depth = 0 )
 {
 	Mat4 local = Mat4::CreateFromPtr( N->mTransformation[0] );
 	local.Transpose();
-	Mat4 mytf = ptf * local;
+	Mat4 mytf = local * ptf;
 	char buf[ 1024 ];
 	sgrx_snprintf( buf, 1024, "%s/%s", base, N->mName.C_Str() );
 	out.set( buf, mytf );
 	
+	LOG << "NODE " << N->mName.C_Str() << " TOTAL " << mytf;
+	
+	NodeParentInfo NPI = { "", mytf, depth };
+	if( N->mParent )
+		NPI.name = N->mParent->mName.C_Str();
+	outPN.set( N->mName.C_Str(), NPI );
+	
 	for( unsigned i = 0; i < N->mNumChildren; ++i )
-		_EnumNodes( buf, mytf, N->mChildren[ i ], out );
+		_EnumNodes( buf, mytf, N->mChildren[ i ], out, outPN, depth + 1 );
 }
+
+struct BoneInfo
+{
+	BoneInfo() : parentID( -1 ), offset( Mat4::Identity ), depth( 0 ){}
+	bool operator == ( const BoneInfo& o ) const { return name == o.name; }
+	
+	static int DepthSort( const void* a, const void* b )
+	{
+		SGRX_CAST( BoneInfo*, bia, a );
+		SGRX_CAST( BoneInfo*, bib, b );
+		return bia->depth == bib->depth ? 0 : ( bia->depth < bib->depth ? -1 : 1 );
+	}
+	
+	StringView name;
+	StringView parentName;
+	int parentID;
+	Mat4 offset;
+	int depth;
+};
 
 MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA )
 {
@@ -1761,7 +1826,8 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	const aiScene* S = scene->m_scene;
 	
 	HashTable<String, Mat4> nodes;
-	_EnumNodes( "", Mat4::Identity, S->mRootNode, nodes );
+	HashTable<StringView, NodeParentInfo> parentInfo;
+	_EnumNodes( "", Mat4::Identity, S->mRootNode, nodes, parentInfo );
 	
 	// enumerate mesh data
 	Mat4 part_xfs[ 16 ];
@@ -1770,6 +1836,8 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	fmt.y2z = MA.rotateY2Z;
 	fmt.flip_uvy = MA.flipUVY;
 	int numparts = MA.parts.size();
+	Array< BoneInfo > boneInfo;
+	HashTable< StringView, NoValue > boneNames;
 	for( int i = 0; i < numparts; ++i )
 	{
 		SGRX_MeshAssetPart* MP = MA.parts[ i ];
@@ -1793,6 +1861,72 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		if( mesh->mTextureCoords[1] ) fmt.tx1 = true;
 		if( mesh->mTextureCoords[2] ) fmt.tx2 = true;
 		if( mesh->mTextureCoords[3] ) fmt.tx3 = true;
+		if( mesh->mBones )
+		{
+			fmt.skin = true;
+			for( unsigned b = 0; b < mesh->mNumBones; ++b )
+			{
+				BoneInfo tmpl;
+				tmpl.name = mesh->mBones[ b ]->mName.C_Str();
+				Mat4 off = Mat4::CreateFromPtr( mesh->mBones[ b ]->mOffsetMatrix[0] );
+				off.Transpose();
+				off.InvertTo( tmpl.offset );
+				boneInfo.find_or_add( tmpl );
+				boneNames.set( tmpl.name, NoValue() );
+			}
+		}
+	}
+	
+	// check if total bone count is valid
+	unsigned MAX_BONES = SGRX_MAX_MESH_BONES;
+	if( boneInfo.size() > MAX_BONES )
+	{
+		printf( "CANNOT SKIN THE MESH - TOO MANY BONES USED (%d, max=%d)\n",
+			int(boneInfo.size()), MAX_BONES );
+		fmt.skin = false;
+	}
+	
+	// gather bone hierarchy info
+	int numParentless = 0;
+	for( size_t b = 0; b < boneInfo.size(); ++b )
+	{
+		BoneInfo& BI = boneInfo[ b ];
+		NodeParentInfo* NPI = parentInfo.getptr( BI.name );
+		while( NPI && NPI->name.size() && boneNames.isset( NPI->name ) == false )
+			NPI = parentInfo.getptr( NPI->name );
+		if( NPI == NULL )
+		{
+			printf( "CANNOT SKIN THE MESH - BONE NAME NOT FOUND IN HIERARCHY (%s)\n",
+				StackPath(BI.name).str );
+			fmt.skin = false;
+			break;
+		}
+		BI.parentName = NPI->name;
+		BI.offset = BI.offset;// * NPI->totalXF;
+		BI.depth = NPI->depth;
+		
+		numParentless += NPI->name.size() == 0;
+	}
+	if( numParentless != 1 )
+	{
+		printf( "CANNOT SKIN THE MESH - INVALID NUMBER OF PARENTLESS BONES (%d, req=1)\n",
+			numParentless );
+		fmt.skin = false;
+	}
+	
+	// calculate order & parent IDs
+	qsort( boneInfo.data(), boneInfo.size(), sizeof(BoneInfo), BoneInfo::DepthSort );
+	for( size_t b = 0; b < boneInfo.size(); ++b )
+	{
+		BoneInfo& BI = boneInfo[ b ];
+		for( size_t pb = 0; pb < b; ++pb )
+		{
+			if( boneInfo[ pb ].name == BI.parentName )
+			{
+				BI.parentID = pb;
+				break;
+			}
+		}
 	}
 	
 	// generate vdecl
@@ -1809,6 +1943,12 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		if( fmt.tx1 ){ p[0] = '1'; p[1] = 'f'; p[2] = '2'; p += 3; vsize += 8; }
 		if( fmt.tx2 ){ p[0] = '2'; p[1] = 'f'; p[2] = '2'; p += 3; vsize += 8; }
 		if( fmt.tx3 ){ p[0] = '3'; p[1] = 'f'; p[2] = '2'; p += 3; vsize += 8; }
+		if( fmt.skin )
+		{
+			*p++ = 'w'; *p++ = 'b'; *p++ = '4';
+			*p++ = 'i'; *p++ = 'b'; *p++ = '4';
+			vsize += 8;
+		}
 		*p = 0;
 	}
 	VertexDeclHandle vdh = GR_GetVertexDecl( vfmt_bfr );
@@ -1817,6 +1957,8 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		puts( "Failed to create vertex decl." );
 		return NULL;
 	}
+	
+	Array< VertexSkin > vertexSkin;
 	
 	// generate vertex/index/part data
 	ByteArray vdata;
@@ -1842,6 +1984,70 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		{
 			fmt.tf_pos = Mat4::Identity;
 			fmt.tf_nrm = Mat4::Identity;
+		}
+		
+		fmt.vertexSkin = NULL;
+		if( fmt.skin )
+		{
+			Array< Array< VertexWeight > > vertexWeights;
+			vertexWeights.resize( mesh->mNumVertices );
+			
+			// gather vertex influences
+			for( unsigned b = 0; b < mesh->mNumBones; ++b )
+			{
+				aiBone* B = mesh->mBones[ b ];
+				for( unsigned w = 0; w < B->mNumWeights; ++w )
+				{
+					const aiVertexWeight& W = B->mWeights[ w ];
+					BoneInfo test;
+					test.name = B->mName.C_Str();
+					VertexWeight weight = { boneInfo.find_first_at( test ), W.mWeight };
+					vertexWeights[ W.mVertexId ].push_back( weight );
+				}
+			}
+			
+			// sort, filter, normalize, move, pad influences
+			vertexSkin.clear();
+			vertexSkin.resize( vertexWeights.size() );
+			for( size_t v = 0; v < vertexWeights.size(); ++v )
+			{
+				Array< VertexWeight >& VW = vertexWeights[ v ];
+				// sort
+				qsort( VW.data(), VW.size(),
+					sizeof(VertexWeight), VertexWeight::RevSort );
+				// filter
+				if( VW.size() > 4 )
+					VW.resize( 4 );
+				// normalize
+				if( VW.size() )
+				{
+					float total = 0;
+					for( size_t w = 0; w < VW.size(); ++w )
+						total += VW[ w ].weight;
+					if( total != 0 )
+					{
+						for( size_t w = 0; w < VW.size(); ++w )
+							VW[ w ].weight /= total;
+					}
+				}
+				// move
+				VertexSkin vsk;
+				size_t w = 0;
+				for( ; w < VW.size(); ++w )
+				{
+					vsk.weights[ w ] = VW[ w ].weight * 255;
+					vsk.indices[ w ] = VW[ w ].boneID;
+				}
+				// pad
+				for( ; w < 4; ++w )
+				{
+					vsk.weights[ w ] = 0;
+					vsk.indices[ w ] = 0;
+				}
+				vertexSkin[ v ] = vsk;
+			}
+			
+			fmt.vertexSkin = vertexSkin.data();
 		}
 		
 		size_t voff = vdata.size() / vsize;
@@ -1888,6 +2094,28 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	dstMesh->m_vdata = vdata;
 	dstMesh->m_idata = idata;
 	dstMesh->m_dataFlags = MDF_MTLINFO;
+	
+	if( fmt.skin )
+	{
+		// generate bone data
+		for( size_t b = 0; b < boneInfo.size(); ++b )
+		{
+			SGRX_MeshBone& MB = dstMesh->m_bones[ b ];
+			MB.name = boneInfo[ b ].name;
+			MB.skinOffset = boneInfo[ b ].offset;
+			MB.invSkinOffset = Mat4::Identity;
+			MB.skinOffset.InvertTo( MB.invSkinOffset );
+			MB.parent_id = boneInfo[ b ].parentID;
+			if( MB.parent_id >= 0 )
+				MB.boneOffset = MB.skinOffset * dstMesh->m_bones[ MB.parent_id ].invSkinOffset;
+			else
+				MB.boneOffset = MB.skinOffset;
+			LOG << "BONE OFF " << MB.boneOffset;
+		}
+		dstMesh->m_numBones = boneInfo.size();
+		
+		dstMesh->m_dataFlags |= MDF_SKINNED;
+	}
 	
 	return dstMesh;
 }
@@ -1966,6 +2194,8 @@ struct AnimProcessor
 	
 	AnimHandle ProcessAnim( int i )
 	{
+		if( i < 0 || i >= (int) m_ABA.anims.size() )
+			return NULL;
 		const SGRX_ABAnimation& AN = m_ABA.anims[ i ];
 		
 		StringView source = AN.source;

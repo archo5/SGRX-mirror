@@ -353,6 +353,11 @@ void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
 	m_currentAnims.push_back( A );
 }
 
+void AnimPlayer::Stop()
+{
+	m_currentAnims.clear();
+}
+
 bool AnimPlayer::CheckMarker( const StringView& name )
 {
 	for( size_t i = 0; i < m_currentAnims.size(); ++i )

@@ -32,21 +32,27 @@ void FC_SetTexture( TextureHandle tex )
 {
 	g_UIFrame->m_texPreview = tex;
 	g_UIFrame->m_meshPrevInst->enabled = false;
-	g_UIFrame->m_animPreview = NULL;
+	g_UIFrame->m_meshPrevInst->skin_matrices.resize( 0 );
+	g_UIFrame->m_animPreview.Prepare( NULL );
+	g_UIFrame->m_animPreview.Stop();
 }
 void FC_SetMesh( MeshHandle mesh )
 {
 	g_UIFrame->m_texPreview = NULL;
 	g_UIFrame->m_meshPrevInst->SetMesh( mesh );
 	g_UIFrame->m_meshPrevInst->enabled = mesh != NULL;
-	g_UIFrame->m_animPreview = NULL;
+	g_UIFrame->m_meshPrevInst->skin_matrices.resize( 0 );
+	g_UIFrame->m_animPreview.Prepare( NULL );
+	g_UIFrame->m_animPreview.Stop();
 }
 void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
 {
 	g_UIFrame->m_texPreview = NULL;
 	g_UIFrame->m_meshPrevInst->SetMesh( mesh );
 	g_UIFrame->m_meshPrevInst->enabled = mesh != NULL;
-	g_UIFrame->m_animPreview = anim;
+	g_UIFrame->m_meshPrevInst->skin_matrices.resize( mesh->m_numBones );
+	g_UIFrame->m_animPreview.Prepare( mesh );
+	g_UIFrame->m_animPreview.Play( anim );
 }
 
 
@@ -1656,7 +1662,7 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuButtons.Add( &m_MB_Cat0 );
 	m_UIMenuButtons.Add( &m_MBSave );
 	m_UIMenuButtons.Add( &m_MBRun );
-	m_UIMenuButtons.Add( &m_MBForceRun );
+//	m_UIMenuButtons.Add( &m_MBForceRun );
 	m_UIMenuButtons.Add( &m_MB_Cat1 );
 	m_UIMenuButtons.Add( &m_MBEditScript );
 	m_UIMenuButtons.Add( &m_MBEditTextures );
@@ -1913,6 +1919,9 @@ struct ASEditor : IGame
 	void OnTick( float dt, uint32_t gametime )
 	{
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+		AnimInfo info;
+		g_UIFrame->m_animPreview.Advance( dt, &info );
+		GR_ApplyAnimator( &g_UIFrame->m_animPreview, g_UIFrame->m_meshPrevInst );
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_UIFrame->Draw();
 	}

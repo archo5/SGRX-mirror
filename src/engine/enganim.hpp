@@ -169,6 +169,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
+	ENGINE_EXPORT void Stop();
 	ENGINE_EXPORT bool CheckMarker( const StringView& name );
 	
 	void ClearBlendFactors( float f ){ GR_ClearFactors( m_blendFactors, f ); }

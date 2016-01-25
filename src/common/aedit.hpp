@@ -434,7 +434,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	// preview data
 	TextureHandle m_texPreview;
 	MeshInstHandle m_meshPrevInst;
-	AnimHandle m_animPreview;
+	AnimPlayer m_animPreview;
 };
 
 
