@@ -1862,6 +1862,28 @@ struct AnimBundle
 	}
 };
 
+template< class T > typename T::elem_type _InterpKeys( T* keys, unsigned size, double at )
+{
+	Assimp::Interpolator<T> lerper;
+	
+	ASSERT( size != 0 );
+	
+	if( keys[ 0 ].mTime >= at )
+		return keys[ 0 ].mValue;
+	
+	for( unsigned i = 1; i < size; ++i )
+	{
+		if( keys[ i ].mTime > at )
+		{
+			typename T::elem_type out;
+			lerper( out, keys[ i - 1 ], keys[ i ], at );
+			return out;
+		}
+	}
+	
+	return keys[ size - 1 ].mValue;
+}
+
 struct AnimProcessor
 {
 	AnimProcessor( const SGRX_AnimBundleAsset& ABA ) : m_ABA( ABA ){}
@@ -1873,7 +1895,7 @@ struct AnimProcessor
 			if( m_ABA.sources[ i ].file == name )
 				return _GetSourceData( i );
 		}
-		ASSERT( name && !"not a registered source" );
+		puts( "ERROR: source file not registered" );
 		return NULL;
 	}
 	ImpScene3DHandle _GetSourceData( int id )
@@ -1882,6 +1904,11 @@ struct AnimProcessor
 		if( h )
 			return h;
 		h = new SGRX_Scene3D( m_ABA.sources[ id ].file, SIOF_Anims );
+		if( !h->m_scene )
+		{
+			printf( "ERROR: failed to load source: %s\n", StackPath(h->m_path).str );
+			return NULL;
+		}
 		m_sourceData.set( id, h );
 		return h;
 	}
@@ -1890,8 +1917,104 @@ struct AnimProcessor
 	{
 		const SGRX_ABAnimation& AN = m_ABA.anims[ i ];
 		
-		printf( " NOT IMPL \n" );
-		return NULL;
+		StringView source = AN.source;
+		StringView animFile = source.until( ":" );
+		StringView animName = source.after( ":" );
+		
+		ImpScene3DHandle scene = _GetSourceData( animFile );
+		if( !scene )
+			return NULL;
+		
+		aiAnimation* anim = NULL;
+		for( unsigned i = 0; i < scene->m_scene->mNumAnimations; ++i )
+		{
+			aiAnimation* a = scene->m_scene->mAnimations[ i ];;
+			if( StringView( a->mName.C_Str() ) == animName )
+			{
+				anim = a;
+				break;
+			}
+		}
+		if( !anim )
+		{
+			printf( "ERROR: animation not found in file: %s\n", StackPath(source).str );
+			return NULL;
+		}
+		
+		printf( "# anim name: %s, channels: %d, length (ticks): %g, ticks/sec: %g\n",
+			anim->mName.C_Str(), anim->mNumChannels, anim->mDuration, anim->mTicksPerSecond );
+		if( !anim->mNumChannels )
+		{
+			printf( "ERROR: no node animation channels found\n" );
+			return NULL;
+		}
+		
+		Array< Vec3 > outPos;
+		Array< Quat > outRot;
+		Array< Vec3 > outScl;
+		
+		AnimHandle out = new SGRX_Animation;
+		out->frameCount = anim->mDuration;
+		out->speed = anim->mTicksPerSecond;
+		for( unsigned i = 0; i < anim->mNumChannels; ++i )
+		{
+			aiNodeAnim* na = anim->mChannels[ i ];
+			printf( "# track node: %s, pos.keys: %d, rot.keys: %d, scale keys: %d\n",
+				na->mNodeName.C_Str(), na->mNumPositionKeys,
+				na->mNumRotationKeys, na->mNumScalingKeys );
+			
+			outPos.clear();
+			outRot.clear();
+			outScl.clear();
+			outPos.resize( out->frameCount );
+			outRot.resize( out->frameCount );
+			outScl.resize( out->frameCount );
+			
+			bool diffPos = false;
+			bool diffRot = false;
+			bool diffScl = false;
+			
+			for( unsigned f = 0; f < out->frameCount; ++f )
+			{
+				aiVector3D tmp( 0, 0, 0 );
+				if( na->mNumPositionKeys )
+					tmp = _InterpKeys( na->mPositionKeys, na->mNumPositionKeys, f );
+				outPos[ f ] = V3( tmp.x, tmp.y, tmp.z );
+				diffPos = diffPos || ( f > 1 && outPos[ f ] != outPos[ f - 1 ] );
+			}
+			
+			for( unsigned f = 0; f < out->frameCount; ++f )
+			{
+				aiQuaternion tmp( 1, 0, 0, 0 );
+				if( na->mNumRotationKeys )
+					tmp = _InterpKeys( na->mRotationKeys, na->mNumRotationKeys, f );
+				outRot[ f ] = QUAT( tmp.x, tmp.y, tmp.z, tmp.w );
+				diffRot = diffRot || ( f > 1 && outRot[ f ] != outRot[ f - 1 ] );
+			}
+			
+			for( unsigned f = 0; f < out->frameCount; ++f )
+			{
+				aiVector3D tmp( 1, 1, 1 );
+				if( na->mNumScalingKeys )
+					tmp = _InterpKeys( na->mScalingKeys, na->mNumScalingKeys, f );
+				outScl[ f ] = V3( tmp.x, tmp.y, tmp.z );
+				diffScl = diffScl || ( f > 1 && outScl[ f ] != outScl[ f - 1 ] );
+			}
+			
+			Vec3SAV trkPos = outPos;
+			if( !diffPos )
+				trkPos = trkPos.part( 0, 1 );
+			QuatSAV trkRot = outRot;
+			if( !diffRot )
+				trkRot = trkRot.part( 0, 1 );
+			Vec3SAV trkScl = outScl;
+			if( !diffScl )
+				trkScl = trkScl.part( 0, 1 );
+			
+			out->AddTrack( na->mNodeName.C_Str(), trkPos, trkRot, trkScl );
+		}
+		
+		return out;
 	}
 	
 	const SGRX_AnimBundleAsset& m_ABA;
@@ -2015,7 +2138,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_AnimBundleAsset& ABA = script.animBundleAssets[ aid ];
 		StringView catPath = script.categories.getcopy( ABA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, "%s/%s.ssm",
+		sgrx_snprintf( bfr, 520, "%s/%s.anb",
 			StackString<256>(catPath).str,
 			StackString<256>(ABA.outputName).str );
 		if( force == false &&

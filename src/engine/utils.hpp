@@ -1918,6 +1918,17 @@ template< class T > struct StridingArrayView
 	FINLINE StridingArrayView() : m_data( NULL ), m_count( 0 ), m_stride( 0 ){}
 	FINLINE StridingArrayView( const void* data, size_t count, size_t stride = sizeof(T) ) :
 		m_data( (const char*) data ), m_count( count ), m_stride( stride ){}
+	FINLINE StridingArrayView( const Array<T>& arr ) :
+		m_data( (const char*) arr.m_data ), m_count( arr.m_size ), m_stride( sizeof(T) ){}
+	FINLINE StridingArrayView( const ArrayView<T>& av ) :
+		m_data( (const char*) av.m_data ), m_count( av.m_size ), m_stride( sizeof(T) ){}
+	FINLINE StridingArrayView( const StridingArrayView& sav ) :
+		m_data( sav.m_data ), m_count( sav.m_count ), m_stride( sav.m_stride ){}
+	
+	FINLINE const void* data() const { return m_data; }
+	FINLINE size_t size() const { return m_count; }
+	FINLINE size_t stride() const { return m_stride; }
+	FINLINE operator bool() const { return m_data && m_count; }
 	
 	FINLINE T operator [] ( size_t i ) const
 	{
@@ -1927,10 +1938,32 @@ template< class T > struct StridingArrayView
 		return out;
 	}
 	
-	FINLINE const void* data() const { return m_data; }
-	FINLINE size_t size() const { return m_count; }
-	FINLINE size_t stride() const { return m_stride; }
-	FINLINE operator bool() const { return m_data && m_count; }
+	FINLINE StridingArrayView part( size_t start, size_t count = NOT_FOUND ) const
+	{
+		if( start > m_count )
+			start = m_count;
+		if( count > m_count || start + count > m_count )
+			count = m_count - start;
+		return StridingArrayView( m_data + start * m_stride, count, m_stride );
+	}
+	FINLINE bool skip( size_t n )
+	{
+		if( n > m_count )
+		{
+			m_data += m_count * m_stride;
+			m_count = 0;
+			return false;
+		}
+		m_data += n * m_stride;
+		m_count -= n;
+		return true;
+	}
+	FINLINE StridingArrayView take( size_t n )
+	{
+		StridingArrayView p = part( 0, n );
+		skip( n );
+		return p;
+	}
 };
 
 typedef StridingArrayView< Vec3 > Vec3SAV;
