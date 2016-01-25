@@ -233,6 +233,10 @@ inline int getbin( char c ){ return c - '0'; }
 
 template< class T > T TMIN( const T& a, const T& b ){ return a < b ? a : b; }
 template< class T > T TMAX( const T& a, const T& b ){ return a > b ? a : b; }
+template< class T > T TCLAMP( const T& v, const T& vmin, const T& vmax )
+{
+	return v < vmin ? vmin : ( v > vmax ? vmax : v );
+}
 template< class T > void TMEMSET( T* a, size_t c, const T& v )
 {
 	for( size_t i = 0; i < c; ++i )
@@ -1839,6 +1843,100 @@ struct SGRX_Regex
 };
 
 
+template< class T > struct IF_GCC(ENGINE_EXPORT) ArrayView
+{
+	typedef T value_type;
+	
+	const T* m_data;
+	size_t m_size;
+	
+	FINLINE ArrayView() : m_data( NULL ), m_size( 0 ){}
+	FINLINE ArrayView( const T* data, size_t size ) : m_data( data ), m_size( size ){}
+	FINLINE ArrayView( const Array<T>& arr ) : m_data( arr.m_data ), m_size( arr.m_size ){}
+	FINLINE ArrayView( const ArrayView& av ) : m_data( av.m_data ), m_size( av.m_size ){}
+	
+	FINLINE const T* data() const { return m_data; }
+	FINLINE size_t size() const { return m_size; }
+	FINLINE operator bool() const { return m_data && m_size; }
+	FINLINE const T* begin() const { return m_data; }
+	FINLINE const T* end() const { return m_data + m_size; }
+	
+	FINLINE const T& operator [] ( size_t i ) const { ASSERT( i < m_size ); return m_data[ i ]; }
+	
+	FINLINE bool operator == ( const ArrayView& av ) const
+	{
+		if( m_size != av.m_size )
+			return false;
+		for( size_t i = 0; i < m_size; ++i )
+		{
+			if( !( m_data[ i ] == av.m_data[ i ] ) )
+				return false;
+		}
+		return true;
+	}
+	FINLINE bool operator != ( const ArrayView& av ) const { return !( *this == av ); }
+	
+	FINLINE ArrayView part( size_t start, size_t count = NOT_FOUND ) const
+	{
+		if( start > m_size )
+			start = m_size;
+		if( count > m_size || start + count > m_size )
+			count = m_size - start;
+		return ArrayView( m_data + start, count );
+	}
+	FINLINE bool skip( size_t n )
+	{
+		if( n > m_size )
+		{
+			m_data += m_size;
+			m_size = 0;
+			return false;
+		}
+		m_data += n;
+		m_size -= n;
+		return true;
+	}
+	FINLINE ArrayView take( size_t n )
+	{
+		ArrayView p = part( 0, n );
+		skip( n );
+		return p;
+	}
+	
+	FINLINE operator Array<T> () const { return Array<T>( m_data, m_size ); }
+};
+
+
+template< class T > struct StridingArrayView
+{
+	typedef T value_type;
+	
+	const char* m_data;
+	size_t m_count;
+	size_t m_stride;
+	
+	FINLINE StridingArrayView() : m_data( NULL ), m_count( 0 ), m_stride( 0 ){}
+	FINLINE StridingArrayView( const void* data, size_t count, size_t stride = sizeof(T) ) :
+		m_data( (const char*) data ), m_count( count ), m_stride( stride ){}
+	
+	FINLINE T operator [] ( size_t i ) const
+	{
+		ASSERT( i < m_count );
+		T out;
+		memcpy( &out, m_data + m_stride * i, sizeof(T) );
+		return out;
+	}
+	
+	FINLINE const void* data() const { return m_data; }
+	FINLINE size_t size() const { return m_count; }
+	FINLINE size_t stride() const { return m_stride; }
+	FINLINE operator bool() const { return m_data && m_count; }
+};
+
+typedef StridingArrayView< Vec3 > Vec3SAV;
+typedef StridingArrayView< Quat > QuatSAV;
+
+
 struct IF_GCC(ENGINE_EXPORT) IProcessor
 {
 	ENGINE_EXPORT virtual void Process( void* data ) = 0;
@@ -2458,6 +2556,26 @@ struct ByteWriter
 	FINLINE ByteWriter& padding( size_t sz ){ output->reserve( output->size() + sz ); while( sz --> 0 ) output->push_back( 0 ); return *this; }
 	FINLINE ByteWriter& _write( const void* ptr, size_t sz ){ output->append( (uint8_t*) ptr, sz ); return *this; }
 	FINLINE void* at() const { return NULL; }
+	
+	FINLINE uint32_t beginChunk( const char* mkr )
+	{
+		marker( mkr );
+		padding( 4 ); // uint32_t
+		return output->size();
+	}
+	FINLINE void endChunk( uint32_t at )
+	{
+		uint32_t size = output->size() - at;
+		ASSERT( at >= 4 && at <= size );
+		memcpy( &(*output)[ at - 4 ], &size, 4 ); // uint32_t
+	}
+	FINLINE ByteWriter& smallString( StringView str )
+	{
+		ASSERT( str.size() <= 255 );
+		write< uint8_t >( str.size() );
+		memory( str.data(), str.size() );
+		return *this;
+	}
 	
 	ByteArray* output;
 };

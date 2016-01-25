@@ -13,33 +13,68 @@ ENGINE_EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& me
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_Animation : SGRX_RCRsrc
 {
+	struct Track
+	{
+		String name;
+		uint32_t offset;
+		uint16_t posFrames;
+		uint16_t rotFrames;
+		uint16_t sclFrames;
+		uint16_t flags; // reserved, use 0
+		
+		template< class T > void Serialize( T& arch )
+		{
+			arch << name;
+			arch << offset;
+			arch << posFrames;
+			arch << rotFrames;
+			arch << sclFrames;
+			arch << flags;
+		}
+	};
 	struct Marker
 	{
 		char name[ MAX_ANIM_MARKER_NAME_LENGTH ]; // engine.hpp
-		int frame;
+		uint16_t frame;
 		
 		StringView GetName()
 		{
 			return StringView( name, sgrx_snlen( name, MAX_ANIM_MARKER_NAME_LENGTH ) );
 		}
+		
+		template< class T > void Serialize( T& arch )
+		{
+			arch.memory( name, MAX_ANIM_MARKER_NAME_LENGTH );
+			arch << frame;
+		}
 	};
 	
+	ENGINE_EXPORT SGRX_Animation();
 	ENGINE_EXPORT ~SGRX_Animation();
 	
-	ENGINE_EXPORT Vec3* GetPosition( int track );
-	ENGINE_EXPORT Quat* GetRotation( int track );
-	ENGINE_EXPORT Vec3* GetScale( int track );
-	
+	ENGINE_EXPORT int FindTrackID( StringView name );
 	ENGINE_EXPORT void GetState( int track, float framePos, Vec3& outpos, Quat& outrot, Vec3& outscl );
 	ENGINE_EXPORT bool CheckMarker( const StringView& name, float fp0, float fp1 );
 	
-	String name;
-	int frameCount;
-	float speed;
-	size_t nameSize;
+	ENGINE_EXPORT void ClearTracks();
+	ENGINE_EXPORT void AddTrack( StringView name, Vec3SAV pos, QuatSAV rot, Vec3SAV scl );
+	
+	template< class T > void Serialize( T& arch )
+	{
+		uint32_t anim_chunk = arch.beginChunk( "ANIM" );
+		arch << speed;
+		arch << frameCount;
+		arch << data;
+		arch << tracks;
+		arch << markers;
+		arch.endChunk( anim_chunk );
+	}
+	
 	Array< float > data;
-	Array< String > trackNames;
+	Array< Track > tracks;
 	Array< Marker > markers;
+	float speed;
+	uint16_t frameCount;
 };
 
 struct AnimHandle : Handle< SGRX_Animation >

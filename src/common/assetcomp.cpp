@@ -6,6 +6,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "assetcomp.hpp"
+#include <enganim.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -927,6 +928,14 @@ void SGRX_AnimBundleAsset::GetDesc( String& out )
 	out = bfr;
 }
 
+uint32_t SGRX_AnimBundleAsset::LastSourceModTime()
+{
+	uint32_t t = 0;
+	for( size_t i = 0; i < sources.size(); ++i )
+		t = TMAX( t, FS_FileModTime( sources[ i ].file ) );
+	return t;
+}
+
 bool SGRX_AssetScript::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -1195,7 +1204,8 @@ bool SGRX_AssetScript::SaveOutputInfo( const StringView& path )
 
 
 
-SGRX_Scene3D::SGRX_Scene3D( const StringView& path ) : m_imp(NULL), m_scene(NULL)
+SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof ) :
+	m_path( path ), m_imp( NULL ), m_scene( NULL )
 {
 	ByteArray data;
 	if( FS_LoadBinaryFile( path, data ) == false )
@@ -1268,6 +1278,19 @@ void SGRX_Scene3D::GetMeshList( Array< String >& out )
 //		out.push_back( m_scene->mMeshes[ i ]->mName.C_Str() );
 //	}
 	
+}
+
+void SGRX_Scene3D::GetAnimList( Array< String >& out )
+{
+	if( m_scene == NULL )
+		return;
+	for( unsigned i = 0; i < m_scene->mNumAnimations; ++i )
+	{
+		aiAnimation* anim = m_scene->mAnimations[ i ];
+		out.push_back( m_path );
+		out.last().append( ":" );
+		out.last().append( anim->mName.C_Str() );
+	}
 }
 
 
@@ -1818,6 +1841,85 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	return dstMesh;
 }
 
+
+
+
+struct AnimBundle
+{
+	Array< AnimHandle > anims;
+	
+	void Serialize( ByteWriter& arch )
+	{
+		uint32_t sgrx_begin = arch.beginChunk( "SGRXANBD" );
+		
+		for( size_t i = 0; i < anims.size(); ++i )
+		{
+			anims[ i ]->Serialize( arch );
+			arch.smallString( anims[ i ]->m_key );
+		}
+		
+		arch.endChunk( sgrx_begin );
+	}
+};
+
+struct AnimProcessor
+{
+	AnimProcessor( const SGRX_AnimBundleAsset& ABA ) : m_ABA( ABA ){}
+	
+	ImpScene3DHandle _GetSourceData( StringView name )
+	{
+		for( size_t i = 0; i < m_ABA.sources.size(); ++i )
+		{
+			if( m_ABA.sources[ i ].file == name )
+				return _GetSourceData( i );
+		}
+		ASSERT( name && !"not a registered source" );
+		return NULL;
+	}
+	ImpScene3DHandle _GetSourceData( int id )
+	{
+		ImpScene3DHandle h = m_sourceData.getcopy( id );
+		if( h )
+			return h;
+		h = new SGRX_Scene3D( m_ABA.sources[ id ].file, SIOF_Anims );
+		m_sourceData.set( id, h );
+		return h;
+	}
+	
+	AnimHandle ProcessAnim( int i )
+	{
+		const SGRX_ABAnimation& AN = m_ABA.anims[ i ];
+		
+		printf( " NOT IMPL \n" );
+		return NULL;
+	}
+	
+	const SGRX_AnimBundleAsset& m_ABA;
+	HashTable< int, ImpScene3DHandle > m_sourceData;
+};
+
+AnimHandle SGRX_ProcessSingleAnim( const SGRX_AnimBundleAsset& ABA, int i )
+{
+	AnimProcessor AP( ABA );
+	return AP.ProcessAnim( i );
+}
+
+bool SGRX_ProcessAnimBundleAsset( const SGRX_AnimBundleAsset& ABA, AnimBundle& out )
+{
+	AnimProcessor AP( ABA );
+	for( size_t i = 0; i < ABA.anims.size(); ++i )
+	{
+		AnimHandle anim = AP.ProcessAnim( i );
+		if( !anim )
+			return false;
+		out.anims.push_back( anim );
+	}
+	return true;
+}
+
+
+
+
 void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 {
 	puts( "processing assets...");
@@ -1899,6 +2001,44 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 			MA.ri.rev_output = MA.ri.rev_asset;
 			MA.ri.ts_source = FS_FileModTime( MA.sourceFile );
 			MA.ri.ts_output = FS_FileModTime( bfr );
+			printf( "|----------- saved!\n" );
+		}
+		else
+		{
+			printf( "ERROR: failed to save file to %s\n", bfr );
+		}
+	}
+	
+	puts( "- animations..." );
+	for( size_t aid = 0; aid < script.animBundleAssets.size(); ++aid )
+	{
+		SGRX_AnimBundleAsset& ABA = script.animBundleAssets[ aid ];
+		StringView catPath = script.categories.getcopy( ABA.outputCategory );
+		char bfr[ 520 ];
+		sgrx_snprintf( bfr, 520, "%s/%s.ssm",
+			StackString<256>(catPath).str,
+			StackString<256>(ABA.outputName).str );
+		if( force == false &&
+			ABA.ri.rev_output == ABA.ri.rev_asset &&
+			ABA.ri.ts_source != 0 &&
+			ABA.ri.ts_output != 0 &&
+			ABA.ri.ts_source == ABA.LastSourceModTime() &&
+			ABA.ri.ts_output == FS_FileModTime( bfr ) )
+			continue;
+		
+		AnimBundle bundle;
+		if( SGRX_ProcessAnimBundleAsset( ABA, bundle ) == false )
+			continue;
+		
+		ByteArray data;
+		ByteWriter bw( &data );
+		bundle.Serialize( bw );
+		
+		if( FS_SaveBinaryFile( bfr, data.data(), data.size() ) )
+		{
+			ABA.ri.rev_output = ABA.ri.rev_asset;
+			ABA.ri.ts_source = ABA.LastSourceModTime();
+			ABA.ri.ts_output = FS_FileModTime( bfr );
 			printf( "|----------- saved!\n" );
 		}
 		else

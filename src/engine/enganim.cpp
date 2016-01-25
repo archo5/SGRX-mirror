@@ -4,45 +4,64 @@
 #include "physics.hpp"
 
 
+SGRX_Animation::SGRX_Animation() : speed( 0 ), frameCount( 0 )
+{
+}
+
 SGRX_Animation::~SGRX_Animation()
 {
 }
 
-Vec3* SGRX_Animation::GetPosition( int track )
+int SGRX_Animation::FindTrackID( StringView name )
 {
-	return (Vec3*) &data[ track * 10 * frameCount ];
-}
-
-Quat* SGRX_Animation::GetRotation( int track )
-{
-	return (Quat*) &data[ track * 10 * frameCount + 3 * frameCount ];
-}
-
-Vec3* SGRX_Animation::GetScale( int track )
-{
-	return (Vec3*) &data[ track * 10 * frameCount + 7 * frameCount ];
+	for( size_t i = 0; i < tracks.size(); ++i )
+	{
+		if( tracks[ i ].name == name )
+			return i;
+	}
+	return NOT_FOUND;
 }
 
 void SGRX_Animation::GetState( int track, float framePos, Vec3& outpos, Quat& outrot, Vec3& outscl )
 {
-	Vec3* pos = GetPosition( track );
-	Quat* rot = GetRotation( track );
-	Vec3* scl = GetScale( track );
+	const Track& T = tracks[ track ];
 	
-	if( framePos < 0 )
-		framePos = 0;
-	else if( framePos > frameCount )
-		framePos = frameCount;
+	ASSERT( T.posFrames == 1 || T.posFrames == frameCount );
+	ASSERT( T.rotFrames == 1 || T.rotFrames == frameCount );
+	ASSERT( T.sclFrames == 1 || T.sclFrames == frameCount );
 	
+	// calculate data pointers
+	float* at = &data[ T.offset ];
+	Vec3* pos = (Vec3*) at;
+	at += T.posFrames * 3;
+	Quat* rot = (Quat*) at;
+	at += T.rotFrames * 4;
+	Vec3* scl = (Vec3*) at;
+	
+	// find interpolation frames & factor
+	float q = fmodf( framePos, 1.0f );
 	int f0 = floor( framePos );
 	int f1 = f0 + 1;
-	if( f1 >= frameCount )
-		f1 = f0;
-	float q = framePos - f0;
 	
-	outpos = TLERP( pos[ f0 ], pos[ f1 ], q );
-	outrot = TLERP( rot[ f0 ], rot[ f1 ], q );
-	outscl = TLERP( scl[ f0 ], scl[ f1 ], q );
+	int flast = frameCount - 1;
+	f0 = TCLAMP( f0, 0, flast );
+	f1 = TCLAMP( f1, 0, flast );
+	
+	// interpolate
+	if( T.posFrames == 1 )
+		outpos = *pos;
+	else
+		outpos = TLERP( pos[ f0 ], pos[ f1 ], q );
+	
+	if( T.rotFrames == 1 )
+		outrot = *rot;
+	else
+		outrot = TLERP( rot[ f0 ], rot[ f1 ], q );
+	
+	if( T.sclFrames == 1 )
+		outscl = *scl;
+	else
+		outscl = TLERP( scl[ f0 ], scl[ f1 ], q );
 }
 
 bool SGRX_Animation::CheckMarker( const StringView& name, float fp0, float fp1 )
@@ -55,6 +74,38 @@ bool SGRX_Animation::CheckMarker( const StringView& name, float fp0, float fp1 )
 			return true;
 	}
 	return false;
+}
+
+void SGRX_Animation::ClearTracks()
+{
+	data.clear();
+	tracks.clear();
+}
+
+void SGRX_Animation::AddTrack( StringView name, Vec3SAV pos, QuatSAV rot, Vec3SAV scl )
+{
+	ASSERT( pos.size() == 1 || pos.size() == frameCount );
+	ASSERT( pos.size() == 1 || pos.size() == frameCount );
+	ASSERT( pos.size() == 1 || pos.size() == frameCount );
+	
+	Track T = { name, data.size(), pos.size(), rot.size(), scl.size(), 0 };
+	tracks.push_back( T );
+	
+	for( size_t i = 0; i < pos.size(); ++i )
+	{
+		Vec3 tmp = pos[ i ];
+		data.append( &tmp.x, 3 );
+	}
+	for( size_t i = 0; i < rot.size(); ++i )
+	{
+		Quat tmp = rot[ i ];
+		data.append( &tmp.x, 4 );
+	}
+	for( size_t i = 0; i < scl.size(); ++i )
+	{
+		Vec3 tmp = scl[ i ];
+		data.append( &tmp.x, 3 );
+	}
 }
 
 bool Animator::Prepare( const MeshHandle& mesh )
@@ -341,7 +392,7 @@ int* AnimPlayer::_getTrackIds( const AnimHandle& anim )
 		ids = new int [ m_factors.size() ];
 		for( size_t i = 0; i < m_factors.size(); ++i )
 		{
-			ids[ i ] = anim->trackNames.find_first_at( m_mesh->m_bones[ i ].name );
+			ids[ i ] = anim->FindTrackID( m_mesh->m_bones[ i ].name );
 		}
 		m_animCache.set( anim, ids );
 	}

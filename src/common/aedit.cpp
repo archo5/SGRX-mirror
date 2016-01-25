@@ -189,6 +189,23 @@ void EDGUIASMeshNamePicker::Reload()
 	_Search( m_searchString );
 }
 
+EDGUIASAnimNamePicker::EDGUIASAnimNamePicker()
+{
+	m_looseSearch = true;
+	Reload();
+}
+void EDGUIASAnimNamePicker::Reload()
+{
+	m_options.clear();
+	for( size_t i = 0; i < m_scenes.size(); ++i )
+	{
+		if( !m_scenes[ i ] )
+			continue;
+		m_scenes[ i ]->GetAnimList( m_options );
+	}
+	_Search( m_searchString );
+}
+
 EDGUICreatePickButton::EDGUICreatePickButton( EDGUIRsrcPicker* rsrcPicker, const StringView& def ) :
 	EDGUIPropRsrc( rsrcPicker, def )
 {
@@ -1087,7 +1104,7 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	m_group( true, "Animation bundle" ),
 	m_outputCategory( &g_UIPickers->category ),
 	m_AN_group( true, "Animation" ),
-	m_AN_source( &TMPRSRC ),
+	m_AN_source( &g_UIPickers->animName ),
 	m_ANL_group( true, "Animation list" ),
 	m_ANL_editButton( false ),
 	m_AS_group( true, "Animation source" ),
@@ -1176,6 +1193,8 @@ void EDGUIAssetAnimBundle::ReloadAnimSourceList()
 		ABA.sources[ i ].GetDesc( m_ASL_buttons.m_options[ i ] );
 	}
 	m_ASL_buttons.UpdateOptions();
+	
+	ReloadImpScenes();
 }
 
 void EDGUIAssetAnimBundle::PrepareAnimSource( size_t sid )
@@ -1237,6 +1256,17 @@ void EDGUIAssetAnimBundle::PrepareAnim( size_t aid )
 	}
 	else
 		m_AN_group.Clear();
+}
+
+void EDGUIAssetAnimBundle::ReloadImpScenes()
+{
+	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
+	g_UIPickers->ClearAnimScenes();
+	for( size_t i = 0; i < ABA.sources.size(); ++i )
+	{
+		g_UIPickers->AddAnimScene( new SGRX_Scene3D( ABA.sources[ i ].file, SIOF_Anims ) );
+	}
+	g_UIPickers->animName.Reload();
 }
 
 int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )

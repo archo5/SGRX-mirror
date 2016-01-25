@@ -320,6 +320,7 @@ struct SGRX_AnimBundleAsset
 	void Generate( String& out );
 	void GetFullName( String& out );
 	void GetDesc( String& out );
+	uint32_t LastSourceModTime();
 	
 	SGRX_RevInfo ri;
 	
@@ -356,13 +357,20 @@ struct SGRX_AssetScript
 #ifndef ASSIMP_SCENE_TYPE
 #define ASSIMP_SCENE_TYPE const void
 #endif
+enum SceneImportOptimizedFor
+{
+	SIOF_Meshes,
+	SIOF_Anims,
+};
 struct SGRX_Scene3D : SGRX_RefCounted
 {
-	SGRX_Scene3D( const StringView& path );
+	SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof = SIOF_Meshes );
 	~SGRX_Scene3D();
 	
 	void GetMeshList( Array< String >& out );
+	void GetAnimList( Array< String >& out );
 	
+	String m_path;
 	ASSIMP_IMPORTER_TYPE* m_imp;
 	ASSIMP_SCENE_TYPE* m_scene;
 };

@@ -2153,33 +2153,20 @@ static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
 	
 	SGRX_Animation* nanim = new SGRX_Animation;
 	
-	nanim->name.assign( AN.name, AN.nameSize );
+	nanim->m_key.assign( AN.name, AN.nameSize );
 	nanim->frameCount = AN.frameCount;
 	nanim->speed = AN.speed;
 	nanim->data.resize( AN.trackCount * 10 * AN.frameCount );
 	for( int t = 0; t < AN.trackCount; ++t )
 	{
 		const AnimFileParser::Track& TRK = afp->trackData[ AN.trackDataOff + t ];
-		nanim->trackNames.push_back( StringView( TRK.name, TRK.nameSize ) );
-		
+		StringView trackName( TRK.name, TRK.nameSize );
 		float* indata = TRK.dataPtr;
-		Vec3* posdata = nanim->GetPosition( t );
-		Quat* rotdata = nanim->GetRotation( t );
-		Vec3* scldata = nanim->GetScale( t );
 		
-		for( uint32_t f = 0; f < AN.frameCount; ++f )
-		{
-			posdata[ f ].x = indata[ f * 10 + 0 ];
-			posdata[ f ].y = indata[ f * 10 + 1 ];
-			posdata[ f ].z = indata[ f * 10 + 2 ];
-			rotdata[ f ].x = indata[ f * 10 + 3 ];
-			rotdata[ f ].y = indata[ f * 10 + 4 ];
-			rotdata[ f ].z = indata[ f * 10 + 5 ];
-			rotdata[ f ].w = indata[ f * 10 + 6 ];
-			scldata[ f ].x = indata[ f * 10 + 7 ];
-			scldata[ f ].y = indata[ f * 10 + 8 ];
-			scldata[ f ].z = indata[ f * 10 + 9 ];
-		}
+		nanim->AddTrack( trackName
+			, Vec3SAV( indata + 0, AN.frameCount, sizeof(float) * 10 )
+			, QuatSAV( indata + 3, AN.frameCount, sizeof(float) * 10 )
+			, Vec3SAV( indata + 7, AN.frameCount, sizeof(float) * 10 ) );
 	}
 	nanim->markers.resize( AN.markerCount );
 	for( int m = 0; m < AN.markerCount; ++m )
@@ -2217,11 +2204,11 @@ int GR_LoadAnims( const StringView& path, const StringView& prefix )
 		
 		if( prefix )
 		{
-			anim->name.insert( 0, prefix.data(), prefix.size() );
+			anim->m_key.insert( 0, prefix.data(), prefix.size() );
 		}
 		
 		numanims++;
-		g_Anims->set( anim->name, anim );
+		g_Anims->set( anim->m_key, anim );
 	}
 	
 	LOG << "Loaded " << numanims << " animations from " << path << " with prefix " << prefix;

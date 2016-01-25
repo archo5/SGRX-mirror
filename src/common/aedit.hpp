@@ -73,6 +73,14 @@ struct EDGUIASMeshNamePicker : EDGUILongEnumPicker
 	ImpScene3DHandle m_scene;
 };
 
+struct EDGUIASAnimNamePicker : EDGUILongEnumPicker
+{
+	EDGUIASAnimNamePicker();
+	void Reload();
+	
+	Array< ImpScene3DHandle > m_scenes;
+};
+
 struct EDGUIPickers
 {
 	EDGUIMtlBlendMode blendMode;
@@ -83,11 +91,20 @@ struct EDGUIPickers
 	EDGUITextureAssetPicker textureAsset;
 	EDGUIAssetPathPicker assetPath;
 	EDGUIASMeshNamePicker meshName;
+	EDGUIASAnimNamePicker animName;
 	EDGUIShaderPicker shader;
 	
 	void SetMesh( SGRX_Scene3D* scene )
 	{
 		meshName.m_scene = scene;
+	}
+	void ClearAnimScenes()
+	{
+		animName.m_scenes.clear();
+	}
+	void AddAnimScene( SGRX_Scene3D* scene )
+	{
+		animName.m_scenes.push_back( scene );
 	}
 };
 
@@ -274,6 +291,7 @@ struct EDGUIAssetAnimBundle : EDGUILayoutRow
 	void PrepareAnimSource( size_t sid );
 	void ReloadAnimList();
 	void PrepareAnim( size_t aid );
+	void ReloadImpScenes();
 	virtual int OnEvent( EDGUIEvent* e );
 	
 	EDGUILayoutColumn m_topCol;
