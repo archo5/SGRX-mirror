@@ -52,6 +52,7 @@ void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
 	g_UIFrame->m_meshPrevInst->enabled = mesh != NULL;
 	g_UIFrame->m_meshPrevInst->skin_matrices.resize( mesh->m_numBones );
 	g_UIFrame->m_animPreview.Prepare( mesh );
+	g_UIFrame->m_animPreview.Stop();
 	g_UIFrame->m_animPreview.Play( anim );
 }
 
@@ -1710,16 +1711,27 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 
 void EDGUIMainFrame::DebugDraw()
 {
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
 	if( m_texPreview )
 	{
 		const TextureInfo& info = m_texPreview.GetInfo();
 		float aspect = safe_fdiv( info.width, info.height );
 		float w = 2 * TMAX( 1.0f, aspect );
 		float h = 2 / TMIN( 1.0f, aspect );
-		BatchRenderer& br = GR2D_GetBatchRenderer();
 		br.Reset();
 		br.SetTexture( m_texPreview );
 		br.Box( 0, 0, w, h );
+	}
+	
+	SGRX_IMesh* mesh = m_meshPrevInst->GetMesh();
+	if( mesh )
+	{
+		br.Reset();
+		for( int i = 0; i < mesh->m_numBones; ++i )
+		{
+			br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + ( 1 - float(i) / mesh->m_numBones ) * 0.1f );
+		}
 	}
 }
 
@@ -1920,8 +1932,8 @@ struct ASEditor : IGame
 	{
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		AnimInfo info;
-		g_UIFrame->m_animPreview.Advance( dt, &info );
 		GR_ApplyAnimator( &g_UIFrame->m_animPreview, g_UIFrame->m_meshPrevInst );
+		g_UIFrame->m_animPreview.Advance( dt, &info );
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_UIFrame->Draw();
 	}

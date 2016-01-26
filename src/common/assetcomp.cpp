@@ -1774,8 +1774,6 @@ static void _EnumNodes( const char* base, const Mat4& ptf, const aiNode* N,
 	sgrx_snprintf( buf, 1024, "%s/%s", base, N->mName.C_Str() );
 	out.set( buf, mytf );
 	
-	LOG << "NODE " << N->mName.C_Str() << " TOTAL " << mytf;
-	
 	NodeParentInfo NPI = { "", mytf, depth };
 	if( N->mParent )
 		NPI.name = N->mParent->mName.C_Str();
@@ -1871,6 +1869,8 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 				Mat4 off = Mat4::CreateFromPtr( mesh->mBones[ b ]->mOffsetMatrix[0] );
 				off.Transpose();
 				off.InvertTo( tmpl.offset );
+				if( MP->optTransform ? MP->optTransform > 0 : MA.transform )
+					tmpl.offset = tmpl.offset * part_xfs[ i ];
 				boneInfo.find_or_add( tmpl );
 				boneNames.set( tmpl.name, NoValue() );
 			}
@@ -1902,7 +1902,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 			break;
 		}
 		BI.parentName = NPI->name;
-		BI.offset = BI.offset;// * NPI->totalXF;
+		BI.offset = BI.offset;
 		BI.depth = NPI->depth;
 		
 		numParentless += NPI->name.size() == 0;
@@ -2110,7 +2110,6 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 				MB.boneOffset = MB.skinOffset * dstMesh->m_bones[ MB.parent_id ].invSkinOffset;
 			else
 				MB.boneOffset = MB.skinOffset;
-			LOG << "BONE OFF " << MB.boneOffset;
 		}
 		dstMesh->m_numBones = boneInfo.size();
 		
@@ -2155,7 +2154,8 @@ template< class T > typename T::elem_type _InterpKeys( T* keys, unsigned size, d
 		if( keys[ i ].mTime > at )
 		{
 			typename T::elem_type out;
-			lerper( out, keys[ i - 1 ], keys[ i ], at );
+			lerper( out, keys[ i - 1 ], keys[ i ],
+				TREVLERP<double>( keys[ i - 1 ].mTime, keys[ i ].mTime, at ) );
 			return out;
 		}
 	}
@@ -2192,6 +2192,19 @@ struct AnimProcessor
 		return h;
 	}
 	
+	void _EnumInvTransforms( aiNode* N, HashTable< StringView, Mat4 >& invXFs )
+	{
+		Mat4 mytf = Mat4::CreateFromPtr( N->mTransformation[0] );
+		mytf.Transpose();
+		Mat4 invtf = Mat4::Identity;
+		mytf.InvertTo( invtf );
+		
+		invXFs.set( N->mName.C_Str(), invtf );
+		
+		for( unsigned i = 0; i < N->mNumChildren; ++i )
+			_EnumInvTransforms( N->mChildren[ i ], invXFs );
+	}
+	
 	AnimHandle ProcessAnim( int i )
 	{
 		if( i < 0 || i >= (int) m_ABA.anims.size() )
@@ -2203,8 +2216,11 @@ struct AnimProcessor
 		StringView animName = source.after( ":" );
 		
 		ImpScene3DHandle scene = _GetSourceData( animFile );
-		if( !scene )
+		if( !scene || !scene->m_scene )
 			return NULL;
+		
+		HashTable< StringView, Mat4 > invXF;
+		_EnumInvTransforms( scene->m_scene->mRootNode, invXF );
 		
 		aiAnimation* anim = NULL;
 		for( unsigned i = 0; i < scene->m_scene->mNumAnimations; ++i )
@@ -2254,17 +2270,12 @@ struct AnimProcessor
 			outRot.resize( out->frameCount );
 			outScl.resize( out->frameCount );
 			
-			bool diffPos = false;
-			bool diffRot = false;
-			bool diffScl = false;
-			
 			for( unsigned f = 0; f < out->frameCount; ++f )
 			{
 				aiVector3D tmp( 0, 0, 0 );
 				if( na->mNumPositionKeys )
 					tmp = _InterpKeys( na->mPositionKeys, na->mNumPositionKeys, f + startFrame );
 				outPos[ f ] = V3( tmp.x, tmp.y, tmp.z );
-				diffPos = diffPos || ( f > 1 && outPos[ f ] != outPos[ f - 1 ] );
 			}
 			
 			for( unsigned f = 0; f < out->frameCount; ++f )
@@ -2272,8 +2283,7 @@ struct AnimProcessor
 				aiQuaternion tmp( 1, 0, 0, 0 );
 				if( na->mNumRotationKeys )
 					tmp = _InterpKeys( na->mRotationKeys, na->mNumRotationKeys, f + startFrame );
-				outRot[ f ] = QUAT( tmp.x, tmp.y, tmp.z, tmp.w );
-				diffRot = diffRot || ( f > 1 && outRot[ f ] != outRot[ f - 1 ] );
+				outRot[ f ] = QUAT( tmp.x, tmp.y, tmp.z, tmp.w ).Normalized();
 			}
 			
 			for( unsigned f = 0; f < out->frameCount; ++f )
@@ -2282,7 +2292,34 @@ struct AnimProcessor
 				if( na->mNumScalingKeys )
 					tmp = _InterpKeys( na->mScalingKeys, na->mNumScalingKeys, f + startFrame );
 				outScl[ f ] = V3( tmp.x, tmp.y, tmp.z );
-				diffScl = diffScl || ( f > 1 && outScl[ f ] != outScl[ f - 1 ] );
+			}
+			
+			Mat4* p_invNodeXF = invXF.getptr( na->mNodeName.C_Str() );
+			if( !p_invNodeXF )
+			{
+				printf( "ERROR: no node found with matching name: %s\n", na->mNodeName.C_Str() );
+				return NULL;
+			}
+			Mat4 invNodeXF = *p_invNodeXF;
+			
+			bool diffPos = false;
+			bool diffRot = false;
+			bool diffScl = false;
+			
+			// make transform relative to bone
+			for( unsigned f = 0; f < out->frameCount; ++f )
+			{
+				Mat4 orig = Mat4::CreateSRT( outScl[ f ], outRot[ f ], outPos[ f ] );
+				
+				Mat4 fxf = orig * invNodeXF;
+				
+				outScl[ f ] = fxf.GetScale();
+				outRot[ f ] = fxf.GetRotationQuaternion();
+				outPos[ f ] = fxf.GetTranslation();
+				
+				diffScl = diffScl || ( f >= 1 && outScl[ f ] != outScl[ f - 1 ] );
+				diffRot = diffRot || ( f >= 1 && outRot[ f ] != outRot[ f - 1 ] );
+				diffPos = diffPos || ( f >= 1 && outPos[ f ] != outPos[ f - 1 ] );
 			}
 			
 			Vec3SAV trkPos = outPos;

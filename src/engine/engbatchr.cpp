@@ -454,6 +454,19 @@ BatchRenderer& BatchRenderer::Tick( const Vec3& pos, float radius, const Mat4& t
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::Axis( const Mat4& transform, float size )
+{
+	Vec3 pos = transform.TransformPos( V3(0) );
+	Vec3 ax = transform.TransformNormal( V3(1,0,0) ).Normalized() * size;
+	Vec3 ay = transform.TransformNormal( V3(0,1,0) ).Normalized() * size;
+	Vec3 az = transform.TransformNormal( V3(0,0,1) ).Normalized() * size;
+	SetPrimitiveType( PT_Lines );
+	Col( 1, 0, 0 ); Pos( pos ); Pos( pos + ax );
+	Col( 0, 1, 0 ); Pos( pos ); Pos( pos + ay );
+	Col( 0, 0, 1 ); Pos( pos ); Pos( pos + az );
+	return *this;
+}
+
 static const float cos135deg = cosf( FLT_PI * 0.75f );
 BatchRenderer& BatchRenderer::AAPoly( const Vec2* polydata, size_t polysize, float z )
 {

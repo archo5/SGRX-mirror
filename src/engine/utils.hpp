@@ -614,7 +614,7 @@ struct ENGINE_EXPORT Quat
 	FINLINE Quat operator - () const { Quat q = { -x, -y, -z, -w }; return q; }
 	
 	FINLINE bool operator == ( const Quat& o ) const { return x == o.x && y == o.y && z == o.z && w == o.w; }
-	FINLINE bool operator != ( const Quat& o ) const { return x != o.x && y != o.y && z != o.z && w != o.w; }
+	FINLINE bool operator != ( const Quat& o ) const { return x != o.x || y != o.y || z != o.z || w != o.w; }
 	
 	Vec3 Transform( const Vec3& p ) const // TODO FIX
 	{

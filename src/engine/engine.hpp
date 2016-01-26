@@ -1695,6 +1695,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, Vec2 angles, int verts );
 	ENGINE_EXPORT BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
 	ENGINE_EXPORT BatchRenderer& Tick( const Vec3& pos, float radius, const Mat4& transform = Mat4::Identity );
+	ENGINE_EXPORT BatchRenderer& Axis( const Mat4& transform = Mat4::Identity, float size = 0.1f );
 	
 	ENGINE_EXPORT BatchRenderer& AAPoly( const Vec2* polydata, size_t polysize, float z = 0 );
 	ENGINE_EXPORT BatchRenderer& AARect( float x0, float y0, float x1, float y1, float z = 0 );
