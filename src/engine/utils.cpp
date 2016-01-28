@@ -2609,7 +2609,7 @@ int TestSystems()
 	if( barr.size() != TESTSER_SIZE ) return 601;
 	TextWriter( &carr ) << src;
 	if( !carr.size() ) return 602;
-	ByteReader br( &barr );
+	ByteReader br( barr );
 	br << dst;
 	if( br.error ) return 603;
 	if( src != dst ) return 604;

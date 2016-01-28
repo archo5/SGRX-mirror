@@ -285,7 +285,7 @@ bool AnimCharacter::Load( const StringView& sv )
 	ByteArray ba;
 	if( !FS_LoadBinaryFile( sv, ba ) )
 		return false;
-	ByteReader br( &ba );
+	ByteReader br( ba );
 	Serialize( br );
 	if( br.error )
 		return false;

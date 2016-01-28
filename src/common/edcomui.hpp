@@ -275,7 +275,7 @@ inline String ED_GetMeshFromChar( const StringView& charpath )
 		return String();
 	
 	// basic unserialization to retrieve mesh
-	ByteReader br( &ba );
+	ByteReader br( ba );
 	br.marker( "SGRXCHAR" );
 	SerializeVersionHelper<ByteReader> arch( br, 2 );
 	String mesh;

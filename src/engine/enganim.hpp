@@ -24,7 +24,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Animation : SGRX_RCRsrc
 		
 		template< class T > void Serialize( T& arch )
 		{
-			arch << name;
+			arch.smallString( name );
 			arch << offset;
 			arch << posFrames;
 			arch << rotFrames;
@@ -82,6 +82,14 @@ struct AnimHandle : Handle< SGRX_Animation >
 	AnimHandle() : Handle(){}
 	AnimHandle( const AnimHandle& h ) : Handle( h ){}
 	AnimHandle( SGRX_Animation* anm ) : Handle( anm ){}
+};
+
+struct SGRX_AnimBundle
+{
+	Array< AnimHandle > anims;
+	
+	ENGINE_EXPORT void Serialize( ByteReader& arch );
+	ENGINE_EXPORT void Serialize( ByteWriter& arch );
 };
 
 // Track-track mapping for animators to find the matching track indices
@@ -240,6 +248,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
 
 
 ENGINE_EXPORT int GR_LoadAnims( const StringView& path, const StringView& prefix = StringView() );
+ENGINE_EXPORT bool GR_ReadAnimBundle( const StringView& path, SGRX_AnimBundle& out );
 ENGINE_EXPORT AnimHandle GR_GetAnim( const StringView& name );
 ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool applyinv = true, Mat4* base = NULL );
 ENGINE_EXPORT bool GR_ApplyAnimator( const Animator* animator, SGRX_MeshInstance* meshinst );

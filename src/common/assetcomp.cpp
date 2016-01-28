@@ -1261,7 +1261,19 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof
 	ByteArray data;
 	if( FS_LoadBinaryFile( path, data ) == false )
 	{
-		printf( "Could not load 3D scene file: %s\n", StackString<1024>(path).str );
+		printf( "Could not load 3D scene file: %s\n", StackPath(path).str );
+		return;
+	}
+	
+	if( data.size() > 8 && memcmp( data.data(), "SGRXANBD", 8 ) == 0 )
+	{
+		ByteReader br( data );
+		br << m_animBundle;
+		if( br.error )
+		{
+			printf( "Could not load animation bundle (SGRXANBD): %s\n", StackPath(path).str );
+			m_animBundle.anims.clear();
+		}
 		return;
 	}
 	
@@ -1271,7 +1283,6 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof
 	//	aiProcess_JoinIdenticalVertices |
 		aiProcess_Triangulate |
 		aiProcess_GenSmoothNormals |
-		aiProcess_LimitBoneWeights |
 		aiProcess_FlipWindingOrder;
 	m_scene = m_imp->ReadFileFromMemory( data.data(), data.size(),
 		flags, StackString<32>(path.after_all(".")) );
@@ -1333,6 +1344,17 @@ void SGRX_Scene3D::GetMeshList( Array< String >& out )
 
 void SGRX_Scene3D::GetAnimList( Array< String >& out )
 {
+	if( m_animBundle.anims.size() )
+	{
+		for( size_t i = 0; i < m_animBundle.anims.size(); ++i )
+		{
+			out.push_back( m_path );
+			out.last().append( ":" );
+			out.last().append( m_animBundle.anims[ i ]->m_key );
+		}
+		return;
+	}
+	
 	if( m_scene == NULL )
 		return;
 	for( unsigned i = 0; i < m_scene->mNumAnimations; ++i )
@@ -2122,24 +2144,6 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 
 
 
-struct AnimBundle
-{
-	Array< AnimHandle > anims;
-	
-	void Serialize( ByteWriter& arch )
-	{
-		uint32_t sgrx_begin = arch.beginChunk( "SGRXANBD" );
-		
-		for( size_t i = 0; i < anims.size(); ++i )
-		{
-			anims[ i ]->Serialize( arch );
-			arch.smallString( anims[ i ]->m_key );
-		}
-		
-		arch.endChunk( sgrx_begin );
-	}
-};
-
 template< class T > typename T::elem_type _InterpKeys( T* keys, unsigned size, double at )
 {
 	Assimp::Interpolator<T> lerper;
@@ -2183,7 +2187,7 @@ struct AnimProcessor
 		if( h )
 			return h;
 		h = new SGRX_Scene3D( m_ABA.sources[ id ].file, SIOF_Anims );
-		if( !h->m_scene )
+		if( !h->m_scene && !h->m_animBundle.anims.size() )
 		{
 			printf( "ERROR: failed to load source: %s\n", StackPath(h->m_path).str );
 			return NULL;
@@ -2199,10 +2203,35 @@ struct AnimProcessor
 		Mat4 invtf = Mat4::Identity;
 		mytf.InvertTo( invtf );
 		
+		LOG << "NODE XF " << N->mName.C_Str() << ": " << mytf;
+		
 		invXFs.set( N->mName.C_Str(), invtf );
 		
 		for( unsigned i = 0; i < N->mNumChildren; ++i )
 			_EnumInvTransforms( N->mChildren[ i ], invXFs );
+	}
+	
+	static void _AddAnimTracks( AnimHandle out, StringView name, Vec3SAV trkPos, QuatSAV trkRot, Vec3SAV trkScl )
+	{
+		bool diffPos = false;
+		bool diffRot = false;
+		bool diffScl = false;
+		
+		for( unsigned f = 0; f < out->frameCount; ++f )
+		{
+			diffScl = diffScl || ( f >= 1 && trkRot[ f ] != trkRot[ f - 1 ] );
+			diffRot = diffRot || ( f >= 1 && trkRot[ f ] != trkRot[ f - 1 ] );
+			diffPos = diffPos || ( f >= 1 && trkPos[ f ] != trkPos[ f - 1 ] );
+		}
+		
+		if( !diffPos )
+			trkPos = trkPos.part( 0, 1 );
+		if( !diffRot )
+			trkRot = trkRot.part( 0, 1 );
+		if( !diffScl )
+			trkScl = trkScl.part( 0, 1 );
+		
+		out->AddTrack( name, trkPos, trkRot, trkScl );
 	}
 	
 	AnimHandle ProcessAnim( int i )
@@ -2216,8 +2245,75 @@ struct AnimProcessor
 		StringView animName = source.after( ":" );
 		
 		ImpScene3DHandle scene = _GetSourceData( animFile );
-		if( !scene || !scene->m_scene )
+		if( !scene )
 			return NULL;
+		
+		Array< Vec3 > outPos;
+		Array< Quat > outRot;
+		Array< Vec3 > outScl;
+		
+		if( scene->m_animBundle.anims.size() )
+		{
+			size_t anim_id = NOT_FOUND;
+			for( size_t i = 0; i < scene->m_animBundle.anims.size(); ++i )
+			{
+				if( scene->m_animBundle.anims[ i ]->m_key == animName )
+				{
+					anim_id = i;
+					break;
+				}
+			}
+			if( anim_id == NOT_FOUND )
+			{
+				printf( "ERROR: animation not found in file: %s\n", StackPath(source).str );
+				return NULL;
+			}
+			AnimHandle srcAnim = scene->m_animBundle.anims[ anim_id ];
+			
+			unsigned startFrame = AN.startFrame >= 0 ? AN.startFrame : 0;
+			unsigned endFrame = AN.endFrame >= 0 ? AN.endFrame : unsigned( srcAnim->frameCount );
+			
+			AnimHandle out = new SGRX_Animation;
+			out->frameCount = endFrame - startFrame + 1;
+			out->speed = srcAnim->speed;
+			
+			// add tracks
+			for( size_t t = 0; t < srcAnim->tracks.size(); ++t )
+			{
+				outPos.clear();
+				outRot.clear();
+				outScl.clear();
+				outPos.resize( out->frameCount );
+				outRot.resize( out->frameCount );
+				outScl.resize( out->frameCount );
+				
+				for( unsigned f = 0; f < out->frameCount; ++f )
+				{
+					srcAnim->GetState( t, f + startFrame, outPos[ f ], outRot[ f ], outScl[ f ] );
+				}
+				
+				_AddAnimTracks( out, srcAnim->tracks[ t ].name, outPos, outRot, outScl );
+			}
+			
+			// add markers
+			for( size_t m = 0; m < srcAnim->markers.size(); ++m )
+			{
+				SGRX_Animation::Marker M = srcAnim->markers[ m ];
+				if( M.frame >= startFrame && M.frame <= endFrame )
+				{
+					M.frame -= startFrame;
+					out->markers.push_back( M );
+				}
+			}
+			
+			return out;
+		}
+		
+		if( !scene->m_scene )
+		{
+			printf( "ERROR: no scene!\n" );
+			return NULL;
+		}
 		
 		HashTable< StringView, Mat4 > invXF;
 		_EnumInvTransforms( scene->m_scene->mRootNode, invXF );
@@ -2225,7 +2321,7 @@ struct AnimProcessor
 		aiAnimation* anim = NULL;
 		for( unsigned i = 0; i < scene->m_scene->mNumAnimations; ++i )
 		{
-			aiAnimation* a = scene->m_scene->mAnimations[ i ];;
+			aiAnimation* a = scene->m_scene->mAnimations[ i ];
 			if( StringView( a->mName.C_Str() ) == animName )
 			{
 				anim = a;
@@ -2246,16 +2342,13 @@ struct AnimProcessor
 			return NULL;
 		}
 		
-		Array< Vec3 > outPos;
-		Array< Quat > outRot;
-		Array< Vec3 > outScl;
-		
 		unsigned startFrame = AN.startFrame >= 0 ? AN.startFrame : 0;
 		unsigned endFrame = AN.endFrame >= 0 ? AN.endFrame : unsigned( anim->mDuration );
 		
 		AnimHandle out = new SGRX_Animation;
 		out->frameCount = endFrame - startFrame + 1;
 		out->speed = anim->mTicksPerSecond;
+		
 		for( unsigned i = 0; i < anim->mNumChannels; ++i )
 		{
 			aiNodeAnim* na = anim->mChannels[ i ];
@@ -2269,6 +2362,14 @@ struct AnimProcessor
 			outPos.resize( out->frameCount );
 			outRot.resize( out->frameCount );
 			outScl.resize( out->frameCount );
+			
+			Mat4* p_invNodeXF = invXF.getptr( na->mNodeName.C_Str() );
+			if( !p_invNodeXF )
+			{
+				printf( "ERROR: no node found with matching name: %s\n", na->mNodeName.C_Str() );
+				return NULL;
+			}
+			Mat4 invNodeXF = *p_invNodeXF;
 			
 			for( unsigned f = 0; f < out->frameCount; ++f )
 			{
@@ -2294,18 +2395,6 @@ struct AnimProcessor
 				outScl[ f ] = V3( tmp.x, tmp.y, tmp.z );
 			}
 			
-			Mat4* p_invNodeXF = invXF.getptr( na->mNodeName.C_Str() );
-			if( !p_invNodeXF )
-			{
-				printf( "ERROR: no node found with matching name: %s\n", na->mNodeName.C_Str() );
-				return NULL;
-			}
-			Mat4 invNodeXF = *p_invNodeXF;
-			
-			bool diffPos = false;
-			bool diffRot = false;
-			bool diffScl = false;
-			
 			// make transform relative to bone
 			for( unsigned f = 0; f < out->frameCount; ++f )
 			{
@@ -2316,23 +2405,9 @@ struct AnimProcessor
 				outScl[ f ] = fxf.GetScale();
 				outRot[ f ] = fxf.GetRotationQuaternion();
 				outPos[ f ] = fxf.GetTranslation();
-				
-				diffScl = diffScl || ( f >= 1 && outScl[ f ] != outScl[ f - 1 ] );
-				diffRot = diffRot || ( f >= 1 && outRot[ f ] != outRot[ f - 1 ] );
-				diffPos = diffPos || ( f >= 1 && outPos[ f ] != outPos[ f - 1 ] );
 			}
 			
-			Vec3SAV trkPos = outPos;
-			if( !diffPos )
-				trkPos = trkPos.part( 0, 1 );
-			QuatSAV trkRot = outRot;
-			if( !diffRot )
-				trkRot = trkRot.part( 0, 1 );
-			Vec3SAV trkScl = outScl;
-			if( !diffScl )
-				trkScl = trkScl.part( 0, 1 );
-			
-			out->AddTrack( na->mNodeName.C_Str(), trkPos, trkRot, trkScl );
+			_AddAnimTracks( out, na->mNodeName.C_Str(), outPos, outRot, outScl );
 		}
 		
 		return out;
@@ -2348,7 +2423,7 @@ AnimHandle SGRX_ProcessSingleAnim( const SGRX_AnimBundleAsset& ABA, int i )
 	return AP.ProcessAnim( i );
 }
 
-bool SGRX_ProcessAnimBundleAsset( const SGRX_AnimBundleAsset& ABA, AnimBundle& out )
+bool SGRX_ProcessAnimBundleAsset( const SGRX_AnimBundleAsset& ABA, SGRX_AnimBundle& out )
 {
 	AnimProcessor AP( ABA );
 	for( size_t i = 0; i < ABA.anims.size(); ++i )
@@ -2470,7 +2545,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 			ABA.ri.ts_output == FS_FileModTime( bfr ) )
 			continue;
 		
-		AnimBundle bundle;
+		SGRX_AnimBundle bundle;
 		if( SGRX_ProcessAnimBundleAsset( ABA, bundle ) == false )
 			continue;
 		

@@ -87,7 +87,7 @@ SGRX_ConvexPointSet* SGRX_ConvexPointSet::Create( const StringView& path )
 		return NULL;
 	}
 	SGRX_ConvexPointSet* cps = new SGRX_ConvexPointSet;
-	ByteReader br( &data );
+	ByteReader br( data );
 	cps->Serialize( br );
 	if( cps->data.points.size() == 0 )
 	{
@@ -2184,36 +2184,26 @@ int GR_LoadAnims( const StringView& path, const StringView& prefix )
 {
 	LOG_FUNCTION;
 	
-	ByteArray ba;
-	if( !FS_LoadBinaryFile( path, ba ) )
-	{
-		LOG << "Failed to load animation file: " << path;
-		return 0;
-	}
-	AnimFileParser afp( ba );
-	if( afp.error )
-	{
-		LOG << "Failed to parse animation file (" << path << ") - " << afp.error;
-		return 0;
-	}
+	SGRX_AnimBundle bundle;
+	if( !GR_ReadAnimBundle( path, bundle ) )
+		return false;
 	
-	int numanims = 0;
-	for( int i = 0; i < (int) afp.animData.size(); ++i )
+	for( size_t i = 0; i < bundle.anims.size(); ++i )
 	{
-		SGRX_Animation* anim = _create_animation( &afp, i );
+		SGRX_Animation* anim = bundle.anims[ i ];
 		
 		if( prefix )
 		{
-			anim->m_key.insert( 0, prefix.data(), prefix.size() );
+			anim->m_key.insert( 0, prefix );
 		}
 		
-		numanims++;
 		g_Anims->set( anim->m_key, anim );
 	}
 	
-	LOG << "Loaded " << numanims << " animations from " << path << " with prefix " << prefix;
+	LOG << "Loaded " << bundle.anims.size() << " animations"
+		" from " << path << " with prefix " << prefix;
 	
-	return numanims;
+	return bundle.anims.size();
 }
 
 AnimHandle GR_GetAnim( const StringView& name )

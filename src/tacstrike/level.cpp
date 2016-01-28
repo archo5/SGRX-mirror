@@ -252,7 +252,7 @@ bool GameLevel::Load( const StringView& levelname )
 	
 	m_levelName = levelname;
 	
-	ByteReader br( &ba );
+	ByteReader br( ba );
 	LC_Level levelData;
 	br << levelData;
 	
@@ -265,7 +265,7 @@ bool GameLevel::Load( const StringView& levelname )
 		
 		for( size_t i = 0; i < m_systems.size(); ++i )
 		{
-			m_systems[ i ]->LoadChunk( type, C.ptr, C.size );
+			m_systems[ i ]->LoadChunk( type, ByteView( C.ptr, C.size ) );
 		}
 		
 		if( type == LC_FILE_ENTS_NAME )
@@ -273,7 +273,7 @@ bool GameLevel::Load( const StringView& levelname )
 			LOG_FUNCTION_ARG( "ENTITIES" );
 			
 			LC_Chunk_Ents ents;
-			ByteReader ebr( C.ptr, C.size );
+			ByteReader ebr( ByteView( C.ptr, C.size ) );
 			ebr << ents;
 			
 			Array< LC_ScriptedEntity >& SEA = ents.entities; // scripted entity array

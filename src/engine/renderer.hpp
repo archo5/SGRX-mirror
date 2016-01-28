@@ -106,7 +106,7 @@ struct AnimFileParser
 	
 	AnimFileParser( ByteArray& data )
 	{
-		ByteReader br( &data );
+		ByteReader br( data );
 		error = Parse( br );
 		if( !error && br.error )
 			error = "failed to read data";

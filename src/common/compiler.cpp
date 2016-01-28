@@ -245,7 +245,7 @@ bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_
 		else
 		{
 			mesh->indices.resize( M->m_idata.size() / sizeof(uint16_t) );
-			ByteReader br( &M->m_idata );
+			ByteReader br( M->m_idata );
 			for( size_t i = 0; i < mesh->indices.size(); ++i )
 			{
 				uint16_t idx = 0;

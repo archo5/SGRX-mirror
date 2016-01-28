@@ -119,7 +119,7 @@ void EdBlockEditTransform::RestoreState()
 	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
-		ByteReader br( &m_objectStateData, SO.offset );
+		ByteReader br( m_objectStateData, SO.offset );
 		g_EdWorld->m_objects[ SO.id ]->Serialize( br );
 		g_EdWorld->m_objects[ SO.id ]->RegenerateMesh();
 	}
@@ -229,7 +229,7 @@ void EdBlockMoveTransform::ApplyTransform()
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
 		EdObject* obj = g_EdWorld->m_objects[ SO.id ];
-		ByteReader br( &m_objectStateData, SO.offset );
+		ByteReader br( m_objectStateData, SO.offset );
 		obj->Serialize( br );
 		if( m_extend )
 		{
@@ -290,7 +290,7 @@ void EdVertexMoveTransform::ApplyTransform()
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
 		EdObject* obj = g_EdWorld->m_objects[ SO.id ];
-		ByteReader br( &m_objectStateData, SO.offset );
+		ByteReader br( m_objectStateData, SO.offset );
 		obj->Serialize( br );
 		obj->MoveSelectedVertices( m_transform );
 		if( m_project )

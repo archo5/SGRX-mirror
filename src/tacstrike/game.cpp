@@ -352,7 +352,8 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
 	//	GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
-		GR_LoadAnims( "meshes/tstest.ssm.anm" );
+	//	GR_LoadAnims( "meshes/tstest.ssm.anm" );
+		GR_LoadAnims( "meshes/tstest.anb" );
 //		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		
 		g_GameLevel->Load( "ai-test-suite" );

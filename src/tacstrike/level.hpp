@@ -108,7 +108,7 @@ struct IGameLevelSystem : LevelScrObj
 	virtual void OnPostLevelLoad(){}
 	virtual void OnLevelDestroy(){ delete this; }
 	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar ){ return false; }
-	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size ){ return false; }
+	virtual bool LoadChunk( const StringView& type, ByteView data ){ return false; }
 	virtual void Clear(){}
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}

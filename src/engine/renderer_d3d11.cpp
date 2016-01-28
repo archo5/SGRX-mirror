@@ -1219,7 +1219,7 @@ SGRX_IVertexShader* D3D11Renderer::CreateVertexShader( const StringView& path, B
 	LOG_FUNCTION;
 	
 	HRESULT hr;
-	ByteReader br( &code );
+	ByteReader br( code );
 	br.marker( "CVSH\x7f", 5 );
 	
 	int32_t len = 0;
@@ -1253,7 +1253,7 @@ SGRX_IPixelShader* D3D11Renderer::CreatePixelShader( const StringView& path, Byt
 	LOG_FUNCTION;
 	
 	HRESULT hr;
-	ByteReader br( &code );
+	ByteReader br( code );
 	br.marker( "CPSH\x7f", 5 );
 	
 	int32_t len = 0;

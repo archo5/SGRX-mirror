@@ -617,7 +617,7 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 		return;
 	}
 	
-	ByteReader br( &ba );
+	ByteReader br( ba );
 	br.marker( "SGRXLMCH" );
 	if( br.error )
 	{

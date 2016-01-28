@@ -1009,7 +1009,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		
 		ResetEditorState();
 		
-		ByteReader br( &data );
+		ByteReader br( data );
 		g_EdPS->Serialize( br );
 		if( br.error )
 		{

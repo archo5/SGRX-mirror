@@ -1906,6 +1906,8 @@ template< class T > struct IF_GCC(ENGINE_EXPORT) ArrayView
 	FINLINE operator Array<T> () const { return Array<T>( m_data, m_size ); }
 };
 
+typedef ArrayView< uint8_t > ByteView;
+
 
 template< class T > struct StridingArrayView
 {
@@ -2459,8 +2461,9 @@ template< class T > struct SerializeVersionHelper
 		return *this;
 	}
 	
-	FINLINE void* at() const { return arch->at(); }
+	FINLINE const void* at() const { return arch->at(); }
 	
+	FINLINE bool hasError() const { return arch->hasError(); }
 	FINLINE SerializeVersionHelper& memory( void* ptr, size_t sz ){ arch->memory( ptr, sz ); return *this; }
 	FINLINE SerializeVersionHelper& charbuf( char* ptr, size_t sz ){ arch->charbuf( ptr, sz ); return *this; }
 	FINLINE SerializeVersionHelper& marker( const char* str ){ return marker( str, StringLength( str ) ); }
@@ -2508,8 +2511,7 @@ template< class T > struct SerializeVersionHelper
 
 struct ByteReader
 {
-	ByteReader( uint8_t* ptr, size_t sz, size_t p = 0 ) : input_ptr( ptr ), input_size( sz ), pos( p ), error( false ){}
-	ByteReader( ByteArray* ba, size_t p = 0 ) : input_ptr( ba->data() ), input_size( ba->size() ), pos( p ), error( false ){}
+	ByteReader( ByteView bv, size_t p = 0 ) : input_ptr( bv.data() ), input_size( bv.size() ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 0, IsBinary = 1 };
 	FINLINE ByteReader& operator << ( bool& v ){ uint8_t u; _read( &u, sizeof(u) ); v = !!u; return *this; }
 	FINLINE ByteReader& operator << ( char& v ){ _read( &v, sizeof(v) ); return *this; }
@@ -2524,6 +2526,7 @@ struct ByteReader
 	FINLINE ByteReader& operator << ( float& v ){ _read( &v, sizeof(v) ); return *this; }
 	FINLINE ByteReader& operator << ( double& v ){ _read( &v, sizeof(v) ); return *this; }
 	template< class T > ByteReader& operator << ( T& v ){ v.Serialize( *this ); return *this; }
+	FINLINE bool hasError() const { return error; }
 	FINLINE ByteReader& memory( void* ptr, size_t sz ){ return _read( ptr, sz ); }
 	FINLINE ByteReader& charbuf( char* ptr, size_t sz ){ return _read( ptr, sz ); }
 	FINLINE ByteReader& marker( const char* str ){ return marker( str, StringLength( str ) ); }
@@ -2556,9 +2559,52 @@ struct ByteReader
 		}
 		return *this;
 	}
-	FINLINE void* at() const { return &input_ptr[ pos ]; }
+	FINLINE const void* at() const { return &input_ptr[ pos ]; }
+	FINLINE bool atEnd() const { return pos >= input_size; }
 	
-	uint8_t* input_ptr;
+	ByteView readChunk( const char* mkr )
+	{
+		marker( mkr );
+		uint32_t size = 0;
+		*this << size;
+		if( pos + size > input_size )
+		{
+			error = true;
+			return ByteView();
+		}
+		return ByteView( input_ptr + pos, size );
+	}
+	FINLINE uint32_t beginChunk( const char* mkr )
+	{
+		marker( mkr );
+		padding( 4 ); // uint32_t
+		return pos;
+	}
+	FINLINE void endChunk( uint32_t at )
+	{
+		if( at < 4 || at > pos )
+		{
+			error = true;
+			return;
+		}
+		uint32_t size;
+		memcpy( &size, &input_ptr[ at - 4 ], 4 );
+		if( at + size != pos )
+		{
+		//	printf( "chunk err at=%d size=%d pos=%d\n", (int)at, (int)size, (int)pos );
+			error = true;
+		}
+	}
+	FINLINE ByteReader& smallString( String& out )
+	{
+		uint8_t size = 0;
+		*this << size;
+		out.resize( size );
+		memory( out.data(), out.size() );
+		return *this;
+	}
+	
+	const uint8_t* input_ptr;
 	size_t input_size;
 	size_t pos;
 	bool error;
@@ -2582,6 +2628,7 @@ struct ByteWriter
 	FINLINE ByteWriter& operator << ( double& v ){ _write( &v, sizeof(v) ); return *this; }
 	template< class T > ByteWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
 	template< class T > FINLINE ByteWriter& write( T v ){ (*this) << v; return *this; }
+	FINLINE bool hasError() const { return false; }
 	FINLINE ByteWriter& memory( const void* ptr, size_t sz ){ return _write( ptr, sz ); }
 	FINLINE ByteWriter& charbuf( const char* ptr, size_t sz ){ return _write( ptr, sz ); }
 	FINLINE ByteWriter& marker( const char* str ){ return marker( str, StringLength( str ) ); }
@@ -2598,8 +2645,8 @@ struct ByteWriter
 	}
 	FINLINE void endChunk( uint32_t at )
 	{
+		ASSERT( at >= 4 && at <= output->size() );
 		uint32_t size = output->size() - at;
-		ASSERT( at >= 4 && at <= size );
 		memcpy( &(*output)[ at - 4 ], &size, 4 ); // uint32_t
 	}
 	FINLINE ByteWriter& smallString( StringView str )
@@ -2630,6 +2677,7 @@ struct TextReader
 	FINLINE TextReader& operator << ( float& v ){ v = (float) String_ParseFloat( _read() ); return *this; }
 	FINLINE TextReader& operator << ( double& v ){ v = String_ParseFloat( _read() ); return *this; }
 	template< class T > TextReader& operator << ( T& v ){ v.Serialize( *this ); return *this; }
+	FINLINE bool hasError() const { return error; }
 	TextReader& memory( void* ptr, size_t sz )
 	{
 		StringView it = _read();
@@ -2723,6 +2771,7 @@ struct TextWriter
 	FINLINE TextWriter& operator << ( float& v ){ char bfr[ 1500 ]; sgrx_snprintf( bfr, 1500, "%.6g\n", v ); _write( bfr ); return *this; }
 	FINLINE TextWriter& operator << ( double& v ){ char bfr[ 1500 ]; sgrx_snprintf( bfr, 1500, "%.18g\n", v ); _write( bfr ); return *this; }
 	template< class T > TextWriter& operator << ( T& v ){ v.Serialize( *this ); return *this; }
+	FINLINE bool hasError() const { return false; }
 	TextWriter& memory( void* ptr, size_t sz )
 	{
 		char bfr[ 32 ];

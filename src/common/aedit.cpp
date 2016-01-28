@@ -1725,12 +1725,24 @@ void EDGUIMainFrame::DebugDraw()
 	}
 	
 	SGRX_IMesh* mesh = m_meshPrevInst->GetMesh();
-	if( mesh )
+	if( mesh && m_meshPrevInst->enabled )
 	{
 		br.Reset();
-		for( int i = 0; i < mesh->m_numBones; ++i )
+		if( m_meshPrevInst->skin_matrices.size() )
 		{
-			br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + ( 1 - float(i) / mesh->m_numBones ) * 0.1f );
+			for( size_t i = 0; i < m_meshPrevInst->skin_matrices.size(); ++i )
+			{
+				float sxt = ( 1 - float(i) / m_meshPrevInst->skin_matrices.size() );
+				br.Axis( mesh->m_bones[ i ].skinOffset * m_meshPrevInst->skin_matrices[ i ], 0.1f + sxt * 0.1f );
+			}
+		}
+		else
+		{
+			for( int i = 0; i < mesh->m_numBones; ++i )
+			{
+				float sxt = ( 1 - float(i) / mesh->m_numBones );
+				br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + sxt * 0.1f );
+			}
 		}
 	}
 }

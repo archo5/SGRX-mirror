@@ -138,7 +138,7 @@ void LevelMapSystem::Clear()
 	m_mapItemData.clear();
 }
 
-bool LevelMapSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t size )
+bool LevelMapSystem::LoadChunk( const StringView& type, ByteView data )
 {
 	if( type != LC_FILE_MAPL_NAME )
 		return false;
@@ -146,7 +146,7 @@ bool LevelMapSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t siz
 	LOG_FUNCTION_ARG( "MAPL chunk" );
 	
 	LC_Chunk_Mapl parser = { &m_lines };
-	ByteReader br( ptr, size );
+	ByteReader br( data );
 	br << parser;
 	if( br.error )
 	{
@@ -709,7 +709,7 @@ bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data, sgsVa
 	return false;
 }
 
-bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t size )
+bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 {
 	if( type != LC_FILE_GEOM_NAME )
 		return false;
@@ -717,7 +717,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t si
 	Array< LC_MeshInst > meshInstDefs;
 	LC_PhysicsMesh phyMesh;
 	LC_Chunk_Geom geom = { &meshInstDefs, &m_lights, &m_ltSamples, &phyMesh };
-	ByteReader br( ptr, size );
+	ByteReader br( data );
 	br << geom;
 	if( br.error )
 	{
@@ -1573,14 +1573,14 @@ bool AIDBSystem::CanHearSound( Vec3 pos, int i )
 	return ( pos - S.position ).Length() < S.radius;
 }
 
-bool AIDBSystem::LoadChunk( const StringView& type, uint8_t* ptr, size_t size )
+bool AIDBSystem::LoadChunk( const StringView& type, ByteView data )
 {
 	if( type != LC_FILE_PFND_NAME )
 		return false;
 	
 	LOG_FUNCTION_ARG( "PFND chunk" );
 	
-	m_pathfinder.Load( ptr, size );
+	m_pathfinder.Load( data );
 	return true;
 }
 

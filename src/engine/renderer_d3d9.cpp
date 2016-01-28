@@ -887,7 +887,7 @@ SGRX_IVertexShader* D3D9Renderer::CreateVertexShader( const StringView& path, By
 	LOG_FUNCTION;
 	
 	HRESULT hr;
-	ByteReader br( &code );
+	ByteReader br( code );
 	br.marker( "CVSH\x7f", 5 );
 	
 	int32_t len = 0;
@@ -917,7 +917,7 @@ SGRX_IPixelShader* D3D9Renderer::CreatePixelShader( const StringView& path, Byte
 	LOG_FUNCTION;
 	
 	HRESULT hr;
-	ByteReader br( &code );
+	ByteReader br( code );
 	br.marker( "CPSH\x7f", 5 );
 	
 	int32_t len = 0;

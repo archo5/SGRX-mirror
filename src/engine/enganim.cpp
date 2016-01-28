@@ -108,6 +108,34 @@ void SGRX_Animation::AddTrack( StringView name, Vec3SAV pos, QuatSAV rot, Vec3SA
 	}
 }
 
+void SGRX_AnimBundle::Serialize( ByteReader& arch )
+{
+	ByteView anbd_chunk = arch.readChunk( "SGRXANBD" );
+	ByteReader anr( anbd_chunk );
+	
+	anims.clear();
+	while( !anr.atEnd() && !anr.error )
+	{
+		AnimHandle anim = new SGRX_Animation;
+		anim->Serialize( anr );
+		anr.smallString( anim->m_key );
+		anims.push_back( anim );
+	}
+}
+
+void SGRX_AnimBundle::Serialize( ByteWriter& arch )
+{
+	uint32_t anbd_chunk = arch.beginChunk( "SGRXANBD" );
+	
+	for( size_t i = 0; i < anims.size(); ++i )
+	{
+		anims[ i ]->Serialize( arch );
+		arch.smallString( anims[ i ]->m_key );
+	}
+	
+	arch.endChunk( anbd_chunk );
+}
+
 bool Animator::Prepare( const MeshHandle& mesh )
 {
 	SGRX_IMesh* M = mesh;
@@ -769,6 +797,22 @@ void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const Stri
 }
 
 
+bool GR_ReadAnimBundle( const StringView& path, SGRX_AnimBundle& out )
+{
+	LOG_FUNCTION;
+	
+	ByteArray ba;
+	if( !FS_LoadBinaryFile( path, ba ) )
+	{
+		LOG << "Failed to load animation bundle file: " << path;
+		return false;
+	}
+	
+	ByteReader br( ba );
+	br << out;
+	return !br.error;
+}
+
 bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool applyinv, Mat4* base )
 {
 	SGRX_IMesh* mesh = animator->m_mesh;
@@ -1155,7 +1199,7 @@ bool ParticleSystem::Load( const StringView& sv )
 	ByteArray ba;
 	if( !FS_LoadBinaryFile( sv, ba ) )
 		return false;
-	ByteReader br( &ba );
+	ByteReader br( ba );
 	Serialize( br, false );
 	return !br.error;
 }

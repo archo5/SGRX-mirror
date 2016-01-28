@@ -170,7 +170,7 @@ struct LevelMapSystem : IGameLevelSystem
 	
 	LevelMapSystem( GameLevel* lev );
 	void Clear();
-	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
+	bool LoadChunk( const StringView& type, ByteView data );
 	void UpdateItem( Entity* e, const MapItemInfo& data );
 	void RemoveItem( Entity* e );
 	void DrawUI();
@@ -358,7 +358,7 @@ struct LevelCoreSystem : IGameLevelSystem
 	LevelCoreSystem( GameLevel* lev );
 	virtual void Clear();
 	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar );
-	virtual bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
+	virtual bool LoadChunk( const StringView& type, ByteView data );
 	
 	Array< MeshInstHandle > m_meshInsts;
 	Array< LightHandle > m_lightInsts;
@@ -586,7 +586,7 @@ struct AIDBSystem : IGameLevelSystem
 	AISound GetSoundInfo( int i ){ return m_sounds[ i ]; }
 	
 	AIDBSystem( GameLevel* lev );
-	bool LoadChunk( const StringView& type, uint8_t* ptr, size_t size );
+	bool LoadChunk( const StringView& type, ByteView data );
 	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
 	AIRoom* FindRoomByPos( Vec3 pos );
