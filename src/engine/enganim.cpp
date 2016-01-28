@@ -306,7 +306,7 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		A.prev_fade_at = A.fade_at;
 		A.fade_at += deltaTime;
 		
-		float animTime = AN->frameCount / AN->speed;
+		float animTime = AN->GetAnimTime();
 		if( !A.once )
 		{
 			A.at = fmodf( A.at, animTime );
@@ -347,7 +347,7 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 				continue;
 			
 			AN->GetState( tid, A.at * AN->speed, P, R, S );
-			float animTime = AN->frameCount / AN->speed;
+			float animTime = AN->GetAnimTime();
 			float q = A.once ?
 				smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
 				smoothlerp_oneway( A.fade_at, 0, A.fadetime );

@@ -2559,6 +2559,18 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			{
 				g_PhyWorld->DebugDraw();
 			}
+			
+			// draw bones
+			if( 1 )
+			{
+				br.Reset();
+				SGRX_IMesh* mesh = g_AnimChar->m_cachedMeshInst->GetMesh();
+				for( int i = 0; i < mesh->m_numBones; ++i )
+				{
+					float sxt = ( 1 - float(i) / mesh->m_numBones );
+					br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + sxt * 0.1f );
+				}
+			}
 		}
 	}
 	

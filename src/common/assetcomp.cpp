@@ -2270,8 +2270,12 @@ struct AnimProcessor
 			}
 			AnimHandle srcAnim = scene->m_animBundle.anims[ anim_id ];
 			
+			printf( "# anim name: %s, channels: %d, length (ticks): %d, ticks/sec: %g\n",
+				StackPath(srcAnim->m_key).str, (int) srcAnim->tracks.size(),
+				(int) srcAnim->frameCount - 1, srcAnim->speed );
+			
 			unsigned startFrame = AN.startFrame >= 0 ? AN.startFrame : 0;
-			unsigned endFrame = AN.endFrame >= 0 ? AN.endFrame : unsigned( srcAnim->frameCount );
+			unsigned endFrame = AN.endFrame >= 0 ? AN.endFrame : unsigned( srcAnim->frameCount - 1 );
 			
 			AnimHandle out = new SGRX_Animation;
 			out->frameCount = endFrame - startFrame + 1;

@@ -70,6 +70,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Animation : SGRX_RCRsrc
 		arch.endChunk( anim_chunk );
 	}
 	
+	FINLINE float GetAnimTime(){ return safe_fdiv( frameCount - 1, speed ); }
+	
 	Array< float > data;
 	Array< Track > tracks;
 	Array< Marker > markers;

@@ -674,7 +674,7 @@ def parse_animations( armobj, boneorder, filepath ):
 			for bonename in boneorder:
 				anim_tracks[ bonename ] = []
 			frame_begin, frame_end = [ int(x) for x in action.frame_range ]
-			for frame in range( frame_begin, frame_end ):
+			for frame in range( frame_begin, frame_end + 1 ):
 				bpy.context.scene.frame_set( frame )
 				for bonename in boneorder:
 					bone = armobj.pose.bones[ bonename ]
@@ -709,7 +709,7 @@ def parse_animations( armobj, boneorder, filepath ):
 				#
 			else:
 				print( "Did not find it, will append the whole action." )
-				animations.append({ "name": action.name, "frames": frame_end - frame_begin, "tracks": anim_tracks, "markers" : anim_markers, "speed": animspeed })
+				animations.append({ "name": action.name, "frames": frame_end - frame_begin + 1, "tracks": anim_tracks, "markers" : anim_markers, "speed": animspeed })
 			#
 		#
 		armobj.animation_data.action = oldact
