@@ -220,8 +220,112 @@ def write_anims( f, anims ):
 		
 		write_buffer( f, animbuf )
 	#
+#
+
+def serialize_vec3_array( arr ):
+	out = bytes()
+	for item in arr:
+		out += struct.pack( "fff", item.x, item.y, item.z )
+	return out
+
+def serialize_quat_array( arr ):
+	out = bytes()
+	for item in arr:
+		out += struct.pack( "ffff", item.x, item.y, item.z, item.w )
+	return out
+
+def wrap_small_string( strdata ):
+	data = bytes( strdata, "UTF-8" )
+	return struct.pack( "B", len(data) ) + data
+
+def wrap_chunk( name, data ):
+	return bytes( name, "UTF-8" ) + struct.pack( "L", len( data ) ) + data
+
+def reduce_array( arr ):
+	if len(arr) > 1:
+		diff = False
+		for item in arr:
+			if item != arr[0]:
+				diff = True
+				break
+		if diff == False:
+			arr = arr[:1]
+	return arr
+
+def write_anims_anbd( f, anims ):
 	
-	return
+	print( "--- ANIMATIONS' STATS ---" )
+	print( "Count: %d" % len( anims ) )
+	
+	anbd_chunk = bytes()
+	
+	i = 0
+	for anim in anims:
+		i += 1
+		print( "Animation #%d: %s" % ( i, anim["name"] ) )
+		
+		a_name = anim["name"]
+		a_frames = anim["frames"]
+		a_tracks = anim["tracks"]
+		a_markers = anim["markers"]
+		a_speed = anim["speed"]
+		
+		anim_chunk = struct.pack( "fH", a_speed, a_frames )
+		
+		# parse animation
+		float_data = bytes()
+		track_data = bytes()
+		track_count = 0
+		
+		for track_name, track_matrices in a_tracks.items():
+			track_offset = len( float_data ) // 4
+			pos_arr = []
+			rot_arr = []
+			scl_arr = []
+			
+			# decompose animation matrices into position/rotation/scale
+			for fid in range(a_frames):
+				mtx = track_matrices[ fid ]
+				
+				pos = mtx.to_translation()
+				rot = mtx.to_quaternion()
+				scl = mtx.to_scale()
+				
+				pos_arr.append( pos )
+				rot_arr.append( rot )
+				scl_arr.append( scl )
+			#
+			
+			# see if each list is constant and reduce it if so
+			pos_arr = reduce_array( pos_arr )
+			rot_arr = reduce_array( rot_arr )
+			scl_arr = reduce_array( scl_arr )
+			
+			track_data += wrap_small_string( track_name )
+			track_data += struct.pack( "LHHHH", track_offset, len(pos_arr), len(rot_arr), len(scl_arr), 0 )
+			track_count += 1
+			
+			float_data += serialize_vec3_array( pos_arr )
+			float_data += serialize_quat_array( rot_arr )
+			float_data += serialize_vec3_array( scl_arr )
+		#
+		
+		# floats
+		anim_chunk += struct.pack( "L", len( float_data ) // 4 ) + float_data
+		
+		# tracks
+		anim_chunk += struct.pack( "L", track_count ) + track_data
+		
+		# markers
+		anim_chunk += struct.pack( "L", len( a_markers ) )
+		for marker in a_markers:
+			anim_chunk += struct.pack( "16sH", bytes( marker["name"], "UTF-8" ), marker["frame"] )
+		
+		anbd_chunk += wrap_chunk( "ANIM", anim_chunk ) + wrap_small_string( a_name )
+	#
+	
+	anbd_chunk = wrap_chunk( "SGRXANBD", anbd_chunk )
+	f.write( anbd_chunk )
 #
 
 def addCached( olist, o, minpos = 0 ):
@@ -559,72 +663,7 @@ def generate_bone_order( armdata ):
 	return bonelist
 #
 
-def write_ss3dmesh( ctx, filepath ):
-	print( "\n\\\\\n>>> SS3DMESH Exporter v0.5!\n//\n\n" )
-	print( "Exporting..." )
-	
-	textures = {}
-	print( "Parsing textures... ", end="" )
-	for tex in bpy.data.textures:
-		texpath = ""
-		if hasattr( tex, "image" ) and tex.image != None:
-			texpath = tex.image.filepath[ 2: ]
-		textures[ tex.name ] = texpath
-	print( "OK!" )
-	
-	print( "Parsing nodes... ", end="" )
-	geom_node = bpy.context.active_object
-	if geom_node == None:
-		scene = ctx.scene
-		for node in scene.objects:
-			if node.type == "MESH":
-				geom_node = node
-				break
-	#
-	if geom_node == None:
-		print( "ERROR: no MESH nodes!" )
-		return {'FAILED'}
-	print( "OK!" )
-	
-	materials = []
-	print( "Parsing materials... ", end="" )
-	for mtl in geom_node.data.materials:
-		outmtl = { "textures": [], "shader": "default", "flags": 0, "blendmode": 0 }
-		for tex in  mtl.texture_slots:
-			outmtl["textures"].append( textures[ tex.name ] if tex != None else "" )
-		while len(outmtl["textures"]) and outmtl["textures"][-1] == "":
-			outmtl["textures"].pop()
-		shdr = find_in_userdata( mtl, "shader" )
-		if type( shdr ) == str:
-			outmtl["shader"] = shdr
-		bmode = find_in_userdata( mtl, "blendmode" )
-		if type( bmode ) == str:
-			if bmode == "none":
-				outmtl["blendmode"] = 0
-			if bmode == "basic":
-				outmtl["blendmode"] = 1
-			if bmode == "additive":
-				outmtl["blendmode"] = 2
-			if bmode == "multiply":
-				outmtl["blendmode"] = 3
-		if find_in_userdata( mtl, "unlit", False ):
-			outmtl["flags"] |= 1
-		if find_in_userdata( mtl, "nocull", False ):
-			outmtl["flags"] |= 2
-		materials.append( outmtl )
-	print( "OK!" )
-	
-	armobj = parse_armature( geom_node )
-	if armobj is None:
-		armdata = None
-	else:
-		armdata = armobj.data
-	boneorder = generate_bone_order( armdata )
-	
-	print( "Generating geometry... ", end="" )
-	meshdata = parse_geometry( geom_node.data, materials, geom_node.vertex_groups if len(geom_node.vertex_groups) else None, boneorder )
-	print( "OK!" )
-	
+def parse_animations( armobj, boneorder, filepath ):
 	animations = []
 	if armobj is not None and armobj.animation_data is not None:
 		print( "Generating animations... " )
@@ -676,25 +715,137 @@ def write_ss3dmesh( ctx, filepath ):
 		armobj.animation_data.action = oldact
 		print( "\tOK!" )
 	#
+	return animations
+#
+
+def write_ss3dmesh( ctx, filepath ):
+	print( "\n\\\\\n>>> SS3DMESH Exporter v0.5!\n//\n\n" )
+	print( "Exporting..." )
+	
+	textures = {}
+	print( "Parsing textures... ", end="" )
+	for tex in bpy.data.textures:
+		texpath = ""
+		if hasattr( tex, "image" ) and tex.image != None:
+			texpath = tex.image.filepath[ 2: ]
+		textures[ tex.name ] = texpath
+	print( "OK!" )
+	
+	print( "Parsing nodes... ", end="" )
+	geom_node = bpy.context.active_object
+	if geom_node == None:
+		scene = ctx.scene
+		for node in scene.objects:
+			if node.type == "MESH":
+				geom_node = node
+				break
+	#
+	if geom_node == None:
+		print( "ERROR: no MESH nodes in the active object!" )
+		return {'CANCELLED'}
+	print( "OK!" )
+	
+	materials = []
+	print( "Parsing materials... ", end="" )
+	for mtl in geom_node.data.materials:
+		outmtl = { "textures": [], "shader": "default", "flags": 0, "blendmode": 0 }
+		for tex in  mtl.texture_slots:
+			outmtl["textures"].append( textures[ tex.name ] if tex != None else "" )
+		while len(outmtl["textures"]) and outmtl["textures"][-1] == "":
+			outmtl["textures"].pop()
+		shdr = find_in_userdata( mtl, "shader" )
+		if type( shdr ) == str:
+			outmtl["shader"] = shdr
+		bmode = find_in_userdata( mtl, "blendmode" )
+		if type( bmode ) == str:
+			if bmode == "none":
+				outmtl["blendmode"] = 0
+			if bmode == "basic":
+				outmtl["blendmode"] = 1
+			if bmode == "additive":
+				outmtl["blendmode"] = 2
+			if bmode == "multiply":
+				outmtl["blendmode"] = 3
+		if find_in_userdata( mtl, "unlit", False ):
+			outmtl["flags"] |= 1
+		if find_in_userdata( mtl, "nocull", False ):
+			outmtl["flags"] |= 2
+		materials.append( outmtl )
+	print( "OK!" )
+	
+	armobj = parse_armature( geom_node )
+	if armobj is None:
+		armdata = None
+	else:
+		armdata = armobj.data
+	boneorder = generate_bone_order( armdata )
+	
+	print( "Generating geometry... ", end="" )
+	meshdata = parse_geometry( geom_node.data, materials, geom_node.vertex_groups if len(geom_node.vertex_groups) else None, boneorder )
+	print( "OK!" )
+	
+	print( "Parsing animations..." )
+	animations = parse_animations( armobj, boneorder, filepath )
+	print( "OK!" )
 	
 	print( "Writing mesh... " )
-	f = open( filepath, 'wb' )
-	write_mesh( f, meshdata, armdata, boneorder )
-	f.close()
+	with open( filepath, 'wb' ) as f:
+		write_mesh( f, meshdata, armdata, boneorder )
 	
 	if len(animations) == 0:
 		print( "No animations found!" )
 	else:
 		print( "Writing animations... " )
-		f = open( filepath + ".anm", 'wb' )
-		write_anims( f, animations )
-		f.close()
+		with open( filepath + ".anm", 'wb' ) as f:
+			write_anims( f, animations )
 	#
 	
 	print( "\n\\\\\n>>> Done!\n//\n\n" )
 
 	return {'CANCELLED'}
 #
+
+def write_sgrxanbd( ctx, filepath ):
+	print( "\n\\\\\n>>> SGRXANBD Exporter v0.5!\n//\n\n" )
+	print( "Exporting..." )
+	
+	print( "Parsing nodes... ", end="" )
+	geom_node = bpy.context.active_object
+	if geom_node == None:
+		scene = ctx.scene
+		for node in scene.objects:
+			if node.type == "MESH":
+				geom_node = node
+				break
+	#
+	if geom_node == None:
+		print( "ERROR: no MESH nodes in the active object!" )
+		return {'CANCELLED'}
+	print( "OK!" )
+	
+	armobj = parse_armature( geom_node )
+	if armobj is None:
+		print( "No armature found" )
+		return {'CANCELLED'}
+	else:
+		armdata = armobj.data
+	boneorder = generate_bone_order( armdata )
+	
+	print( "Parsing animations..." )
+	animations = parse_animations( armobj, boneorder, filepath )
+	print( "OK!" )
+	
+	if len(animations) == 0:
+		print( "No animations found!" )
+	else:
+		print( "Writing animations... " )
+		with open( filepath, 'wb' ) as f:
+			write_anims_anbd( f, animations )
+	#
+	
+	print( "\n\\\\\n>>> Done!\n//\n\n" )
+
+	return {'CANCELLED'}
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
@@ -705,16 +856,16 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty
 class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	'''SS3DMESH Exporter'''
 	bl_idname = "export.ss3dmesh"
-	bl_label = "Export .ssm"
+	bl_label = "[SGRX] Export .ssm"
 	bl_options = {'REGISTER', 'UNDO'}
 
 	# ExportHelper mixin class uses this
 	filename_ext = ".ssm"
 
 	filter_glob = StringProperty(
-			default = "*.ssm",
-			options = {'HIDDEN'},
-		)
+		default = "*.ssm",
+		options = {'HIDDEN'},
+	)
 
 	@classmethod
 	def poll( cls, ctx ):
@@ -723,10 +874,31 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	def execute( self, ctx ):
 		return write_ss3dmesh( ctx, self.filepath )
 
+class ExportSGRXANBD( bpy.types.Operator, ExportHelper ):
+	'''SGRXANBD (anim. bundle) Exporter'''
+	bl_idname = "export.sgrxanbd"
+	bl_label = "[SGRX] Export .anb"
+	bl_options = {'REGISTER', 'UNDO'}
+	
+	filename_ext = ".anb"
+	
+	filter_glob = StringProperty(
+		default = "*.anb",
+		options = {'HIDDEN'},
+	)
+	
+	@classmethod
+	def poll( cls, ctx ):
+		return ctx.active_object is not None
+	
+	def execute( self, ctx ):
+		return write_sgrxanbd( ctx, self.filepath )
+
 
 # Only needed if you want to add into a dynamic menu
 def menu_func_export( self, ctx ):
 	self.layout.operator( ExportSS3DMESH.bl_idname, text="SS3DMESH Exporter" )
+	self.layout.operator( ExportSGRXANBD.bl_idname, text="SGRXANBD (anim. bundle) Exporter" )
 
 
 
@@ -785,6 +957,7 @@ class DialogPanel(bpy.types.Panel):
 
 def register():
 	bpy.utils.register_class( ExportSS3DMESH )
+	bpy.utils.register_class( ExportSGRXANBD )
 	bpy.utils.register_class( DialogOperator )
 	bpy.utils.register_class( DialogPanel )
 	bpy.types.INFO_MT_file_export.append( menu_func_export )
@@ -793,6 +966,7 @@ def register():
 
 def unregister():
 	bpy.utils.unregister_class( ExportSS3DMESH )
+	bpy.utils.unregister_class( ExportSGRXANBD )
 	bpy.utils.unregister_class( DialogOperator )
 	bpy.utils.unregister_class( DialogPanel )
 	bpy.types.INFO_MT_file_export.remove( menu_func_export )
