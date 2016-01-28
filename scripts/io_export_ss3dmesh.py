@@ -3,10 +3,10 @@ import bpy
 from bpy.props import *
 from mathutils import *
 from pprint import pprint
-import math
-import struct
+from copy import copy
+from itertools import islice
+import math, struct, csv, sys
 import os.path
-import csv
 
 
 """ FORMAT
@@ -83,9 +83,10 @@ def write_buffer( f, bytebuf ):
 def write_part( f, part ):
 	if len( part["textures"] ) > 8:
 		raise Exception( "too many textures (max. 8 allowed)" )
-	f.write( struct.pack( "=BBLLLLB", part["flags"], part["blendmode"],
-		part["voff"], part["vcount"], part["ioff"], part["icount"],
-		len( part["textures"] ) ) )
+	f.write( struct.pack( "=BB", part["flags"], part["blendmode"] ) )
+	write_smallbuf( f, part["name"] )
+	f.write( struct.pack( "=LLLLB", part["voff"], part["vcount"],
+		part["ioff"], part["icount"], len( part["textures"] ) ) )
 	write_smallbuf( f, bytes( part["shader"], "UTF-8" ) )
 	for tex in part["textures"]:
 		write_smallbuf( f, tex.replace("\\", "/") )
@@ -118,7 +119,8 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			part["flags"], part["blendmode"], len( part["textures"] ), part["shader"] ) )
 	
 	f.write( bytes( "SS3DMESH", "UTF-8" ) )
-	f.write( struct.pack( "L", 0x100 + # mesh data flags, 0x100 = extended mtl data
+	# mesh data flags, 0x100 = extended mtl data, 0x200 = part name data
+	f.write( struct.pack( "L", 0x100 + 0x200 +
 		(1 if is_i32 else 0) * 0x01 + \
 		(1 if is_skinned else 0) * 0x80 ) )
 	f.write( struct.pack( "6f", bbmin.x, bbmin.y, bbmin.z, bbmax.x, bbmax.y, bbmax.z ) )
@@ -344,8 +346,44 @@ def find_in_userdata( obj, key, default = None ):
 	return default
 #
 
-def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
+def parse_materials( geom_node, textures ):
+	materials = []
+	print( "Parsing materials... ", end="" )
+	for mtl in geom_node.data.materials:
+		outmtl = { "textures": [], "shader": "default", "flags": 0, "blendmode": 0 }
+		for tex in  mtl.texture_slots:
+			outmtl["textures"].append( textures[ tex.name ] if tex != None else "" )
+		while len(outmtl["textures"]) and outmtl["textures"][-1] == "":
+			outmtl["textures"].pop()
+		shdr = find_in_userdata( mtl, "shader" )
+		if type( shdr ) == str:
+			outmtl["shader"] = shdr
+		bmode = find_in_userdata( mtl, "blendmode" )
+		if type( bmode ) == str:
+			if bmode == "none":
+				outmtl["blendmode"] = 0
+			if bmode == "basic":
+				outmtl["blendmode"] = 1
+			if bmode == "additive":
+				outmtl["blendmode"] = 2
+			if bmode == "multiply":
+				outmtl["blendmode"] = 3
+		if find_in_userdata( mtl, "unlit", False ):
+			outmtl["flags"] |= 1
+		if find_in_userdata( mtl, "nocull", False ):
+			outmtl["flags"] |= 2
+		materials.append( outmtl )
+	print( "OK!" )
+	return materials
+
+def parse_geometry( geom_node, textures, opt_boneorder ):
 	
+	MESH = geom_node.data
+	opt_vgroups = geom_node.vertex_groups if len(geom_node.vertex_groups) else None
+	
+	materials = parse_materials( geom_node, textures )
+	
+	print( "Generating geometry... ", end="" )
 	MESH.calc_normals_split()
 	
 	# SORT BY MATERIAL
@@ -474,6 +512,7 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 		mtl_id = foundMIDs[ mtl_num ]
 		vroot = len(vertices)
 		outpart = {
+			"name": geom_node.name + "#" + str(mtl_num),
 			"voff": len(vertices),
 			"vcount": 0,
 			"ioff": len(indices),
@@ -631,11 +670,97 @@ def parse_geometry( MESH, materials, opt_vgroups, opt_boneorder ):
 		format += "ib4wb4"
 	#
 	
+	print( "OK!" )
+	
 	return {
 		"bbmin": bbmin, "bbmax": bbmax,
 		"vertices": vertices, "indices": indices,
-		"format": format, "parts": parts
+		"format": format, "parts": parts,
 	}
+#
+
+def gen_empty_mesh_data():
+	return {
+		"bbmin": Vector([ sys.float_info.max, sys.float_info.max, sys.float_info.max ]),
+		"bbmax": Vector([ -sys.float_info.max, -sys.float_info.max, -sys.float_info.max ]),
+		"vertices": [], "indices": [], "format": "pf3nf3", "parts": [],
+	}
+#
+
+def mesh_data_add( meshdata, ndata ):
+	# AABB
+	if meshdata["bbmin"].x > ndata["bbmin"].x:
+		meshdata["bbmin"].x = ndata["bbmin"].x
+	if meshdata["bbmin"].y > ndata["bbmin"].y:
+		meshdata["bbmin"].y = ndata["bbmin"].y
+	if meshdata["bbmin"].z > ndata["bbmin"].z:
+		meshdata["bbmin"].z = ndata["bbmin"].z
+	if meshdata["bbmax"].x < ndata["bbmax"].x:
+		meshdata["bbmax"].x = ndata["bbmax"].x
+	if meshdata["bbmax"].y < ndata["bbmax"].y:
+		meshdata["bbmax"].y = ndata["bbmax"].y
+	if meshdata["bbmax"].z < ndata["bbmax"].z:
+		meshdata["bbmax"].z = ndata["bbmax"].z
+	
+	# parts
+	for part in ndata["parts"]:
+		part = copy(part)
+		part["voff"] += len(meshdata["vertices"])
+		part["ioff"] += len(meshdata["indices"])
+		meshdata["parts"].append( part )
+	
+	# format diff
+	format_part_order = [ "pf3", "nf3", "tf4", "0f2", "1f2",
+		"3f2", "4f2", "cb4", "ib4", "wb4", "DUMMY",
+	]
+	# - split into chunks
+	fmt_A = meshdata["format"]
+	fmt_A = [fmt_A[i:i+3] for i in range(0, len(fmt_A), 3)] + [ "DUMMY" ]
+	fmt_B = ndata["format"]
+	fmt_B = [fmt_B[i:i+3] for i in range(0, len(fmt_B), 3)] + [ "DUMMY" ]
+	
+	# - iterate through
+	i = 0
+	while i < len(fmt_A) or i < len(fmt_B):
+		if fmt_A[ i ] == fmt_B[ i ]:
+			i += 1
+			continue
+		# - formats not equal, need to pad one side
+		# - pad the side whose index is higher
+		if format_part_order.index( fmt_A[ i ] ) > format_part_order.index( fmt_B[ i ] ):
+			fmt_tgt = fmt_A
+			fmt_src = fmt_B
+			data_tgt = meshdata["vertices"]
+		else:
+			fmt_src = fmt_A
+			fmt_tgt = fmt_B
+			data_tgt = ndata["vertices"]
+		# - pad the format
+		curfmt = fmt_src[ i ]
+		fmt_tgt.insert( i, curfmt )
+		# - calculate padding offset
+		pad_offset = 0
+		for f in islice( fmt_src, i ):
+			nominal = 4 if f[1] == "f" else 1
+			multiplier = int(f[2])
+			pad_offset += nominal * multiplier
+		# - calculate padding data
+		if curfmt == "pf3" or curfmt == "nf3":
+			raise Exception( "UNEXPECTED PADDING FORMAT" )
+		pad_core = struct.pack( "B", 0 )
+		pad_mult = int(curfmt[2])
+		pad_data = pad_core * pad_mult
+		# - perform padding on each vertex
+		for i in range( len( data_tgt ) ):
+			data_tgt[ i ] = data_tgt[ i ][ : pad_offset ] + pad_data + data_tgt[ i ][ pad_offset : ]
+		# - move on because formats have been made equal here
+		i += 1
+	# - set new format
+	meshdata["format"] = "".join( fmt_src[:-1] )
+	
+	# combine vertex/index data
+	meshdata["vertices"] += ndata["vertices"]
+	meshdata["indices"] += ndata["indices"]
 #
 
 def parse_armature( node ):
@@ -718,10 +843,7 @@ def parse_animations( armobj, boneorder, filepath ):
 	return animations
 #
 
-def write_ss3dmesh( ctx, filepath ):
-	print( "\n\\\\\n>>> SS3DMESH Exporter v0.5!\n//\n\n" )
-	print( "Exporting..." )
-	
+def parse_textures():
 	textures = {}
 	print( "Parsing textures... ", end="" )
 	for tex in bpy.data.textures:
@@ -730,74 +852,54 @@ def write_ss3dmesh( ctx, filepath ):
 			texpath = tex.image.filepath[ 2: ]
 		textures[ tex.name ] = texpath
 	print( "OK!" )
+	return textures
+
+def write_ss3dmesh( ctx, props ):
+	filepath = props.filepath
+	print( "\n\\\\\n>>> SS3DMESH Exporter v0.5!\n//\n\n" )
+	print( "Exporting..." )
 	
-	print( "Parsing nodes... ", end="" )
-	geom_node = bpy.context.active_object
-	if geom_node == None:
-		scene = ctx.scene
-		for node in scene.objects:
-			if node.type == "MESH":
-				geom_node = node
-				break
-	#
-	if geom_node == None:
-		print( "ERROR: no MESH nodes in the active object!" )
-		return {'CANCELLED'}
-	print( "OK!" )
+	textures = parse_textures()
 	
-	materials = []
-	print( "Parsing materials... ", end="" )
-	for mtl in geom_node.data.materials:
-		outmtl = { "textures": [], "shader": "default", "flags": 0, "blendmode": 0 }
-		for tex in  mtl.texture_slots:
-			outmtl["textures"].append( textures[ tex.name ] if tex != None else "" )
-		while len(outmtl["textures"]) and outmtl["textures"][-1] == "":
-			outmtl["textures"].pop()
-		shdr = find_in_userdata( mtl, "shader" )
-		if type( shdr ) == str:
-			outmtl["shader"] = shdr
-		bmode = find_in_userdata( mtl, "blendmode" )
-		if type( bmode ) == str:
-			if bmode == "none":
-				outmtl["blendmode"] = 0
-			if bmode == "basic":
-				outmtl["blendmode"] = 1
-			if bmode == "additive":
-				outmtl["blendmode"] = 2
-			if bmode == "multiply":
-				outmtl["blendmode"] = 3
-		if find_in_userdata( mtl, "unlit", False ):
-			outmtl["flags"] |= 1
-		if find_in_userdata( mtl, "nocull", False ):
-			outmtl["flags"] |= 2
-		materials.append( outmtl )
-	print( "OK!" )
+	meshdata = gen_empty_mesh_data()
+	armobj = None
+	boneorder = []
+	for node in ctx.scene.objects:
+		if node.type != "MESH":
+			continue
+		
+		if props.export_selected and not node.select:
+			continue
+		
+		cur_armobj = parse_armature( node )
+		# do not allow multiple armatures
+		if armobj is not None and cur_armobj is not None and armobj is not cur_armobj:
+			props.report( {"ERROR"}, "multiple armatures are not supported" )
+			return {'CANCELLED'}
+		# do this only for the first time
+		if armobj is None and cur_armobj is not None:
+			armobj = cur_armobj
+			armdata = None if armobj is None else armobj.data
+			boneorder = generate_bone_order( armdata )
+		cur_meshdata = parse_geometry( node, textures, boneorder )
+		mesh_data_add( meshdata, cur_meshdata )
 	
-	armobj = parse_armature( geom_node )
-	if armobj is None:
-		armdata = None
-	else:
-		armdata = armobj.data
-	boneorder = generate_bone_order( armdata )
-	
-	print( "Generating geometry... ", end="" )
-	meshdata = parse_geometry( geom_node.data, materials, geom_node.vertex_groups if len(geom_node.vertex_groups) else None, boneorder )
-	print( "OK!" )
-	
-	print( "Parsing animations..." )
-	animations = parse_animations( armobj, boneorder, filepath )
-	print( "OK!" )
+	if props.export_anim:
+		print( "Parsing animations..." )
+		animations = parse_animations( armobj, boneorder, filepath )
+		print( "OK!" )
 	
 	print( "Writing mesh... " )
 	with open( filepath, 'wb' ) as f:
 		write_mesh( f, meshdata, armdata, boneorder )
 	
-	if len(animations) == 0:
-		print( "No animations found!" )
-	else:
-		print( "Writing animations... " )
-		with open( filepath + ".anm", 'wb' ) as f:
-			write_anims( f, animations )
+	if props.export_anim:
+		if len(animations) == 0:
+			print( "No animations found!" )
+		else:
+			print( "Writing animations... " )
+			with open( filepath + ".anm", 'wb' ) as f:
+				write_anims( f, animations )
 	#
 	
 	print( "\n\\\\\n>>> Done!\n//\n\n" )
@@ -812,8 +914,7 @@ def write_sgrxanbd( ctx, filepath ):
 	print( "Parsing nodes... ", end="" )
 	geom_node = bpy.context.active_object
 	if geom_node == None:
-		scene = ctx.scene
-		for node in scene.objects:
+		for node in ctx.scene.objects:
 			if node.type == "MESH":
 				geom_node = node
 				break
@@ -866,13 +967,15 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 		default = "*.ssm",
 		options = {'HIDDEN'},
 	)
+	export_anim = BoolProperty(name="Export animation", default=False)
+	export_selected = BoolProperty(name="Export selected mesh only", default=True)
 
 	@classmethod
 	def poll( cls, ctx ):
 		return ctx.active_object is not None
 
 	def execute( self, ctx ):
-		return write_ss3dmesh( ctx, self.filepath )
+		return write_ss3dmesh( ctx, self )
 
 class ExportSGRXANBD( bpy.types.Operator, ExportHelper ):
 	'''SGRXANBD (anim. bundle) Exporter'''

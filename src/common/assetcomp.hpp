@@ -377,6 +377,7 @@ struct SGRX_Scene3D : SGRX_RefCounted
 	String m_path;
 	ASSIMP_IMPORTER_TYPE* m_imp;
 	ASSIMP_SCENE_TYPE* m_scene;
+	MeshHandle m_mesh;
 	SGRX_AnimBundle m_animBundle;
 };
 typedef Handle< SGRX_Scene3D > ImpScene3DHandle;

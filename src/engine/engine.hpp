@@ -994,8 +994,9 @@ struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
 #define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
 #define MDF_SKINNED       0x80 /* mesh has bone data (name, offset, parent id) */
 #define MDF_MTLINFO      0x100 /* mesh has material info (flags, blend mode) */
+#define MDF_PARTNAMES    0x200 /* mesh has part name info */
 
-#define MDF__PUBFLAGMASK (0x01|0x80|0x100)
+#define MDF__PUBFLAGMASK (0x01|0x80|0x100|0x200)
 #define MDF__PUBFLAGBASE  0
 
 #define SGRX_MAX_MESH_TEXTURES 8
@@ -1012,6 +1013,8 @@ struct SGRX_MeshPart
 	String textures[ SGRX_MAX_MESH_TEXTURES ];
 	uint8_t mtlFlags;
 	uint8_t mtlBlendMode;
+	
+	String name;
 	
 	TriTree m_triTree;
 	

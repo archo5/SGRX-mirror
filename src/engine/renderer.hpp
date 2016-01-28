@@ -36,6 +36,9 @@ struct MeshFilePartData
 	uint8_t flags;
 	uint8_t blendMode;
 	
+	uint8_t nameStrSize;
+	char* nameStr;
+	
 	uint8_t materialTextureCount; /* 0 - 8 */
 	uint8_t materialStringSizes[ SGRX_MAX_MESH_TEXTURES + 1 ];
 	char* materialStrings[ SGRX_MAX_MESH_TEXTURES + 1 ];

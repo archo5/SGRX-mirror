@@ -263,6 +263,14 @@ const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out )
 			pout->flags = buf[ off++ ];
 			pout->blendMode = buf[ off++ ];
 		}
+		if( out->dataFlags & MDF_PARTNAMES )
+		{
+			if( off + 19 > size )
+				return "mesh incomplete (corrupted part data)";
+			if( !md_parse_smallbuf( buf + off, size - off, &pout->nameStr, &pout->nameStrSize ) )
+				return "failed to parse part name";
+			off += 1 + pout->nameStrSize;
+		}
 		if( off + 18 > size )
 			return "mesh incomplete (corrupted part data)";
 		memcpy( &pout->vertexOffset, buf + off, 4 ); off += 4;

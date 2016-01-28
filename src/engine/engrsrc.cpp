@@ -2129,6 +2129,11 @@ MeshHandle GR_GetMesh( const StringView& path )
 		{
 			P.textures[ tid ] = StringView( mfd.parts[ i ].materialStrings[ tid + 1 ], mfd.parts[ i ].materialStringSizes[ tid + 1 ] );
 		}
+		
+		if( mfd.dataFlags & MDF_PARTNAMES )
+		{
+			P.name.assign( mfd.parts[ i ].nameStr, mfd.parts[ i ].nameStrSize );
+		}
 	}
 	
 	mesh->m_vdata.append( (const uint8_t*) mfd.vertexData, mfd.vertexDataSize );

@@ -1277,6 +1277,12 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof
 		return;
 	}
 	
+	if( data.size() > 8 && memcmp( data.data(), "SS3DMESH", 8 ) == 0 )
+	{
+		puts("TODO");
+		return;
+	}
+	
 	m_imp = new Assimp::Importer;
 	int flags =
 		aiProcess_CalcTangentSpace |
