@@ -1279,7 +1279,7 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof
 	
 	if( data.size() > 8 && memcmp( data.data(), "SS3DMESH", 8 ) == 0 )
 	{
-		m_mesh = GR_GetMesh( path );
+		m_mesh = GR_GetMesh( path, true );
 		if( !m_mesh )
 		{
 			printf( "Could not load SS3DMESH: %s\n", StackPath(path).str );

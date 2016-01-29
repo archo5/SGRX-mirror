@@ -114,8 +114,8 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 	print( "Format string: " + format )
 	print( "Part count: %d" % ( len(parts) ) )
 	for part_id, part in enumerate( parts ):
-		print( "- part %d: voff=%d vcount=%d ioff=%d icount=%d flags=%d blendmode=%d texcount=%d shader='%s'" % (
-			part_id, part["voff"], part["vcount"], part["ioff"], part["icount"],
+		print( "- part %d: name=%s voff=%d vcount=%d ioff=%d icount=%d flags=%d blendmode=%d texcount=%d shader='%s'" % (
+			part_id, part["name"], part["voff"], part["vcount"], part["ioff"], part["icount"],
 			part["flags"], part["blendmode"], len( part["textures"] ), part["shader"] ) )
 	
 	f.write( bytes( "SS3DMESH", "UTF-8" ) )
@@ -505,6 +505,7 @@ def parse_geometry( geom_node, textures, opt_boneorder ):
 	vertices = []
 	indices = []
 	parts = []
+	defmtl = { "textures": [], "shader": "default", "flags": 0, "blendmode": 0 }
 	
 	mtl_num = -1
 	for part in genParts:
@@ -517,10 +518,10 @@ def parse_geometry( geom_node, textures, opt_boneorder ):
 			"vcount": 0,
 			"ioff": len(indices),
 			"icount": 0,
-			"flags": materials[ mtl_id ]["flags"],
-			"blendmode": materials[ mtl_id ]["blendmode"],
-			"shader": materials[ mtl_id ]["shader"],
-			"textures": materials[ mtl_id ]["textures"]
+			"flags": materials[ mtl_id ]["flags"] if mtl_id in materials else defmtl["flags"],
+			"blendmode": materials[ mtl_id ]["blendmode"] if mtl_id in materials else defmtl["blendmode"],
+			"shader": materials[ mtl_id ]["shader"] if mtl_id in materials else defmtl["shader"],
+			"textures": materials[ mtl_id ]["textures"] if mtl_id in materials else defmtl["textures"],
 		}
 		
 		for face in part:
@@ -714,10 +715,10 @@ def mesh_data_add( meshdata, ndata ):
 		"3f2", "4f2", "cb4", "ib4", "wb4", "DUMMY",
 	]
 	# - split into chunks
-	fmt_A = meshdata["format"]
-	fmt_A = [fmt_A[i:i+3] for i in range(0, len(fmt_A), 3)] + [ "DUMMY" ]
-	fmt_B = ndata["format"]
-	fmt_B = [fmt_B[i:i+3] for i in range(0, len(fmt_B), 3)] + [ "DUMMY" ]
+	oldfmt_A = meshdata["format"]
+	oldfmt_B = ndata["format"]
+	fmt_A = [oldfmt_A[i:i+3] for i in range(0, len(oldfmt_A), 3)] + [ "DUMMY" ]
+	fmt_B = [oldfmt_B[i:i+3] for i in range(0, len(oldfmt_B), 3)] + [ "DUMMY" ]
 	
 	# - iterate through
 	i = 0
@@ -747,16 +748,34 @@ def mesh_data_add( meshdata, ndata ):
 		# - calculate padding data
 		if curfmt == "pf3" or curfmt == "nf3":
 			raise Exception( "UNEXPECTED PADDING FORMAT" )
-		pad_core = struct.pack( "B", 0 )
+		pad_core = struct.pack( "f", 0.0 ) if curfmt[1] == "f" else struct.pack( "B", 0 )
 		pad_mult = int(curfmt[2])
 		pad_data = pad_core * pad_mult
+		# print( "pad with %d bytes of data by format %s" % ( len(pad_data), curfmt ) )
 		# - perform padding on each vertex
-		for i in range( len( data_tgt ) ):
-			data_tgt[ i ] = data_tgt[ i ][ : pad_offset ] + pad_data + data_tgt[ i ][ pad_offset : ]
+		for v in range( len( data_tgt ) ):
+			data_tgt[ v ] = data_tgt[ v ][ : pad_offset ] + pad_data + data_tgt[ v ][ pad_offset : ]
 		# - move on because formats have been made equal here
 		i += 1
+	#
+	
 	# - set new format
-	meshdata["format"] = "".join( fmt_src[:-1] )
+	meshdata["format"] = "".join( fmt_A[:-1] )
+	
+	# validate vertex size
+	if len(meshdata["vertices"]) > 0 and len(ndata["vertices"]) > 0:
+		if len(meshdata["vertices"][0]) != len(ndata["vertices"][0]):
+			raise Exception(
+				"Vertex sizes not equal: old=%d new=%d fmtA=%s fmtB=%s newfmtA=%s newfmtB=%s" % (
+					len(meshdata["vertices"][0]),
+					len(ndata["vertices"][0]),
+					oldfmt_A,
+					oldfmt_B,
+					"".join( fmt_A[:-1] ),
+					"".join( fmt_B[:-1] ),
+				)
+			)
+	#
 	
 	# combine vertex/index data
 	meshdata["vertices"] += ndata["vertices"]
@@ -863,6 +882,7 @@ def write_ss3dmesh( ctx, props ):
 	
 	meshdata = gen_empty_mesh_data()
 	armobj = None
+	armdata = None
 	boneorder = []
 	for node in ctx.scene.objects:
 		if node.type != "MESH":

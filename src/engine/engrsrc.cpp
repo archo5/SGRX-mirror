@@ -2095,6 +2095,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 		delete mesh;
 		return NULL;
 	}
+	mesh->m_vertexDecl = vdh; // in case dataonly = false
 	
 	mesh->m_dataFlags = mfd.dataFlags;
 	mesh->m_boundsMin = mfd.boundsMin;
