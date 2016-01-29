@@ -2051,7 +2051,7 @@ MeshHandle GR_CreateMesh()
 	return mesh;
 }
 
-MeshHandle GR_GetMesh( const StringView& path )
+MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 {
 	LOG_FUNCTION_ARG( path );
 	
@@ -2087,8 +2087,8 @@ MeshHandle GR_GetMesh( const StringView& path )
 	mesh = g_Renderer->CreateMesh();
 	if( !mesh ||
 		!( vdh = GR_GetVertexDecl( StringView( mfd.formatData, mfd.formatSize ) ) ) ||
-		!mesh->SetVertexData( mfd.vertexData, mfd.vertexDataSize, vdh ) ||
-		!mesh->SetIndexData( mfd.indexData, mfd.indexDataSize, ( mfd.dataFlags & MDF_INDEX_32 ) != 0 ) ||
+		( dataonly == false && !mesh->SetVertexData( mfd.vertexData, mfd.vertexDataSize, vdh ) ) ||
+		( dataonly == false && !mesh->SetIndexData( mfd.indexData, mfd.indexDataSize, ( mfd.dataFlags & MDF_INDEX_32 ) != 0 ) ) ||
 		!mesh->SetBoneData( bones, mfd.numBones ) )
 	{
 		LOG << "...while trying to create mesh: " << path;
@@ -2138,52 +2138,19 @@ MeshHandle GR_GetMesh( const StringView& path )
 	
 	mesh->m_vdata.append( (const uint8_t*) mfd.vertexData, mfd.vertexDataSize );
 	mesh->m_idata.append( (const uint8_t*) mfd.indexData, mfd.indexDataSize );
-	mesh->GenerateTriangleTree();
-	mesh->m_key = path;
-	g_Meshes->set( mesh->m_key, mesh );
+	
+	if( dataonly == false )
+	{
+		mesh->GenerateTriangleTree();
+		mesh->m_key = path;
+		g_Meshes->set( mesh->m_key, mesh );
+	}
 	
 	LOG << "Created mesh: " << path;
 	return mesh;
 }
 
 
-
-static SGRX_Animation* _create_animation( AnimFileParser* afp, int anim )
-{
-	LOG_FUNCTION;
-	
-	ASSERT( anim >= 0 && anim < (int) afp->animData.size() );
-	
-	const AnimFileParser::Anim& AN = afp->animData[ anim ];
-	
-	SGRX_Animation* nanim = new SGRX_Animation;
-	
-	nanim->m_key.assign( AN.name, AN.nameSize );
-	nanim->frameCount = AN.frameCount;
-	nanim->speed = AN.speed;
-	nanim->data.resize( AN.trackCount * 10 * AN.frameCount );
-	for( int t = 0; t < AN.trackCount; ++t )
-	{
-		const AnimFileParser::Track& TRK = afp->trackData[ AN.trackDataOff + t ];
-		StringView trackName( TRK.name, TRK.nameSize );
-		float* indata = TRK.dataPtr;
-		
-		nanim->AddTrack( trackName
-			, Vec3SAV( indata + 0, AN.frameCount, sizeof(float) * 10 )
-			, QuatSAV( indata + 3, AN.frameCount, sizeof(float) * 10 )
-			, Vec3SAV( indata + 7, AN.frameCount, sizeof(float) * 10 ) );
-	}
-	nanim->markers.resize( AN.markerCount );
-	for( int m = 0; m < AN.markerCount; ++m )
-	{
-		const AnimFileParser::Marker& MRK = afp->markerData[ AN.markerDataOff + m ];
-		SGRX_Animation::Marker& MOUT = nanim->markers[ m ];
-		memcpy( MOUT.name, MRK.name, MAX_ANIM_MARKER_NAME_LENGTH );
-		MOUT.frame = MRK.frame;
-	}
-	
-	return nanim;
-}
 
 int GR_LoadAnims( const StringView& path, const StringView& prefix )
 {

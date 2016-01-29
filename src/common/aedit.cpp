@@ -1173,6 +1173,7 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	
 	m_AS_fileName.caption = "Source file";
 	m_AS_prefix.caption = "Prefix";
+	m_AS_addAll.caption = "Add all animations from this source";
 	
 	m_ASL_btnAdd.caption = "Add animation source";
 	
@@ -1195,6 +1196,7 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	
 	m_AS_cont.Add( &m_AS_fileName );
 	m_AS_cont.Add( &m_AS_prefix );
+	m_AS_cont.Add( &m_AS_addAll );
 	
 	m_ASL_buttons.Add( &m_ASL_editButton );
 	m_ASL_group.Add( &m_ASL_btnAdd );
@@ -1408,6 +1410,20 @@ int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
 				m_frame->UpdateMouse();
 				m_AN_group.Clear();
 				return 1;
+			}
+			if( e->target == &m_AS_addAll && AS )
+			{
+				ImpScene3DHandle sh = new SGRX_Scene3D( AS->file, SIOF_Anims );
+				Array< String > anims;
+				sh->GetAnimList( anims );
+				for( size_t i = 0; i < anims.size(); ++i )
+				{
+					ABA.anims.push_back( SGRX_ABAnimation() );
+					ABA.anims.last().source = anims[ i ];
+				}
+				ABA.ri.rev_asset++;
+				ReloadAnimList();
+				m_frame->UpdateMouse();
 			}
 			if( e->target == &m_ASL_btnAdd )
 			{

@@ -1623,6 +1623,9 @@ struct String : Array< char >
 	FINLINE void append( const struct StringView& sv );
 	FINLINE void append( const char* str, size_t sz ){ Array::append( str, sz ); }
 	FINLINE void append( const char* str ){ append( str, StringLength( str ) ); }
+	FINLINE void insert( size_t at, char val ){ Array::insert( at, val ); }
+	FINLINE void insert( size_t at, const char* data, size_t size ){ Array::insert( at, data, size ); }
+	FINLINE void insert( size_t i, const struct StringView& sv );
 	template< class TA > void Serialize( TA& arch )
 	{
 		uint32_t sz = m_size;
@@ -1830,6 +1833,11 @@ FINLINE StringView SV( const StringView& sv ){ return sv; }
 FINLINE void String::append( const StringView& sv )
 {
 	append( sv.m_str, sv.m_size );
+}
+
+FINLINE void String::insert( size_t i, const struct StringView& sv )
+{
+	insert( i, sv.m_str, sv.m_size );
 }
 
 struct SGRX_Regex

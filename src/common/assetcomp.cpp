@@ -1279,7 +1279,11 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof
 	
 	if( data.size() > 8 && memcmp( data.data(), "SS3DMESH", 8 ) == 0 )
 	{
-		puts("TODO");
+		m_mesh = GR_GetMesh( path );
+		if( !m_mesh )
+		{
+			printf( "Could not load SS3DMESH: %s\n", StackPath(path).str );
+		}
 		return;
 	}
 	
@@ -1322,11 +1326,8 @@ static void aiNode_GetMeshList( StringView path, const aiScene* S, aiNode* N, Ar
 		unsigned mid = N->mMeshes[ i ];
 		aiMesh* M = S->mMeshes[ mid ];
 		meshpath = subpath;
-		meshpath.append( "|" );
+		meshpath.append( ":" );
 		meshpath.append( M->mName.C_Str() );
-		char bfr[ 32 ];
-		sgrx_snprintf( bfr, 32, "[%d]", mid );
-		meshpath.append( bfr );
 		out.push_back( meshpath );
 	}
 	
@@ -1338,6 +1339,15 @@ static void aiNode_GetMeshList( StringView path, const aiScene* S, aiNode* N, Ar
 
 void SGRX_Scene3D::GetMeshList( Array< String >& out )
 {
+	if( m_mesh )
+	{
+		for( size_t i = 0; i < m_mesh->m_meshParts.size(); ++i )
+		{
+			out.push_back( m_mesh->m_meshParts[ i ].name );
+		}
+		return;
+	}
+	
 	if( m_scene == NULL )
 		return;
 	aiNode_GetMeshList( "", m_scene, m_scene->mRootNode, out );
@@ -1646,7 +1656,7 @@ struct MeshAssetInputs
 };
 
 static size_t _InsertVertex( ByteArray& out,
-	const MeshAssetInputs& fmt, aiMesh* mesh, unsigned idx, size_t from )
+	const MeshAssetInputs& fmt, const aiMesh* mesh, unsigned idx, size_t from )
 {
 	uint8_t bfr[ 256 ];
 	uint8_t* p = bfr;
@@ -1830,6 +1840,26 @@ struct BoneInfo
 	int depth;
 };
 
+static const aiMesh* _FindMeshByName( const aiScene* S, StringView name )
+{
+	for( unsigned i = 0; i < S->mNumMeshes; ++i )
+	{
+		if( SV( S->mMeshes[ i ]->mName.C_Str() ) == name )
+			return S->mMeshes[ i ];
+	}
+	return NULL;
+}
+
+static const SGRX_MeshPart* _FindMeshPartByName( const SGRX_IMesh* M, StringView name )
+{
+	for( size_t i = 0; i < M->m_meshParts.size(); ++i )
+	{
+		if( M->m_meshParts[ i ].name == name )
+			return &M->m_meshParts[ i ];
+	}
+	return NULL;
+}
+
 MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAsset& MA )
 {
 	if( MA.parts.size() < 1 || MA.parts.size() > 16 )
@@ -1844,6 +1874,69 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		StackString<256>(MA.outputName).str );
 	
 	ImpScene3DHandle scene = new SGRX_Scene3D( MA.sourceFile );
+	
+	if( scene->m_mesh )
+	{
+		ByteArray vdata;
+		ByteArray idata;
+		Array< SGRX_MeshPart > mparts;
+		
+		SGRX_IMesh* srcM = scene->m_mesh;
+		size_t vsize = srcM->m_vertexDecl.GetInfo().size;
+		size_t isize = ( srcM->m_dataFlags & MDF_INDEX_32 ) ? 4 : 2;
+		VertexDeclHandle vdh = srcM->m_vertexDecl;
+		for( size_t i = 0; i < MA.parts.size(); ++i )
+		{
+			SGRX_MeshAssetPart* MP = MA.parts[ i ];
+			const SGRX_MeshPart* srcMP = _FindMeshPartByName( srcM, MP->meshName );
+			if( srcMP == NULL )
+			{
+				printf( "Mesh part \"%s\" was not found!\n", StackPath( MP->meshName ).str );
+				return NULL;
+			}
+			
+			size_t voff = vdata.size() / vsize;
+			size_t ioff = idata.size() / isize;
+			
+			vdata.append( &srcM->m_vdata[ srcMP->vertexOffset * vsize ], srcMP->vertexCount * vsize );
+			idata.append( &srcM->m_idata[ srcMP->indexOffset * isize ], srcMP->indexCount * isize );
+			
+			SGRX_MeshPart outMP;
+			outMP.vertexOffset = voff;
+			outMP.indexOffset = ioff;
+			outMP.vertexCount = vdata.size() / vsize - voff;
+			outMP.indexCount = idata.size() / isize - ioff;
+			outMP.shader = MP->shader;
+			for( int t = 0; t < 8; ++t )
+				outMP.textures[ t ] = SGRX_TexIDToPath( AS, MP->textures[ t ] );
+			outMP.mtlFlags = MP->mtlFlags;
+			outMP.mtlBlendMode = MP->mtlBlendMode;
+			mparts.push_back( outMP );
+			
+			printf( "| part %d: mesh=%p vc=%d ic=%d shader=%s\n",
+				i, srcMP, int(outMP.vertexCount), int(outMP.indexCount),
+				StackPath(outMP.shader).str );
+		}
+		
+		MeshHandle dstMesh = GR_CreateMesh();
+		dstMesh->SetVertexData( vdata.data(), vdata.size(), vdh );
+		dstMesh->SetAABBFromVertexData( vdata.data(), vdata.size(), vdh );
+		dstMesh->SetIndexData( idata.data(), idata.size(), isize == 4 );
+		dstMesh->SetPartData( mparts.data(), mparts.size() );
+		dstMesh->m_vdata = vdata;
+		dstMesh->m_idata = idata;
+		dstMesh->m_dataFlags = MDF_MTLINFO | ( isize == 4 ? MDF_INDEX_32 : 0 );
+		
+		if( srcM->m_dataFlags & MDF_SKINNED )
+		{
+			memcpy( dstMesh->m_bones, srcM->m_bones, sizeof(srcM->m_bones) );
+			dstMesh->m_numBones = srcM->m_numBones;
+			dstMesh->m_dataFlags |= MDF_SKINNED;
+		}
+		
+		return dstMesh;
+	}
+	
 	if( scene->m_scene == NULL )
 	{
 		printf( "Failed to load %s\n", StackString<256>(MA.sourceFile).str );
@@ -1857,7 +1950,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	
 	// enumerate mesh data
 	Mat4 part_xfs[ 16 ];
-	aiMesh* part_ptrs[ 16 ] = {0};
+	const aiMesh* part_ptrs[ 16 ] = {0};
 	MeshAssetInputs fmt = {0};
 	fmt.y2z = MA.rotateY2Z;
 	fmt.flip_uvy = MA.flipUVY;
@@ -1867,17 +1960,19 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	for( int i = 0; i < numparts; ++i )
 	{
 		SGRX_MeshAssetPart* MP = MA.parts[ i ];
-		unsigned meshID = String_ParseInt( StringView(MP->meshName).after_last("[").until("]") );
-		if( meshID >= S->mNumMeshes )
+		const aiMesh* mesh = _FindMeshByName( S, SV( MP->meshName ).after(":") );
+		if( mesh == NULL )
 		{
-			printf( "Mesh ID %d out of bounds (count=%d)\n", meshID, S->mNumMeshes );
+			printf( "Mesh part \"%s\" was not found!\n", StackPath( MP->meshName ).str );
 			return NULL;
 		}
-		aiMesh* mesh = S->mMeshes[ meshID ];
-		ASSERT( mesh && "Mesh with a valid ID must have a valid aiMesh*" );
-		ASSERT( mesh->mPrimitiveTypes == aiPrimitiveType_TRIANGLE );
+		if( mesh->mPrimitiveTypes != aiPrimitiveType_TRIANGLE )
+		{
+			printf( "Mesh has wrong primitive type (expected TRIANGLE)\n" );
+			return NULL;
+		}
 		part_ptrs[ i ] = mesh;
-		part_xfs[ i ] = nodes.getcopy( StringView(MP->meshName).until("|"), Mat4::Identity );
+		part_xfs[ i ] = nodes.getcopy( SV( MP->meshName ).until(":"), Mat4::Identity );
 		// update format
 		if( mesh->mVertices ) fmt.pos = true;
 		if( mesh->mNormals ) fmt.nrm = true;
@@ -1995,7 +2090,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	for( int i = 0; i < numparts; ++i )
 	{
 		SGRX_MeshAssetPart* MP = MA.parts[ i ];
-		aiMesh* mesh = part_ptrs[ i ];
+		const aiMesh* mesh = part_ptrs[ i ];
 		bool transform = MP->optTransform ? MP->optTransform > 0 : MA.transform;
 		
 		if( transform )
@@ -2284,6 +2379,7 @@ struct AnimProcessor
 			unsigned endFrame = AN.endFrame >= 0 ? AN.endFrame : unsigned( srcAnim->frameCount - 1 );
 			
 			AnimHandle out = new SGRX_Animation;
+			out->m_key = srcAnim->m_key;
 			out->frameCount = endFrame - startFrame + 1;
 			out->speed = srcAnim->speed;
 			
@@ -2356,6 +2452,7 @@ struct AnimProcessor
 		unsigned endFrame = AN.endFrame >= 0 ? AN.endFrame : unsigned( anim->mDuration );
 		
 		AnimHandle out = new SGRX_Animation;
+		out->m_key = anim->mName.C_Str();
 		out->frameCount = endFrame - startFrame + 1;
 		out->speed = anim->mTicksPerSecond;
 		
@@ -2441,6 +2538,20 @@ bool SGRX_ProcessAnimBundleAsset( const SGRX_AnimBundleAsset& ABA, SGRX_AnimBund
 		AnimHandle anim = AP.ProcessAnim( i );
 		if( !anim )
 			return false;
+		
+		const SGRX_ABAnimation& AN = ABA.anims[ i ];
+		if( AN.name.size() )
+			anim->m_key = AN.name;
+		for( size_t i = 0; i < ABA.sources.size(); ++i )
+		{
+			if( ABA.sources[ i ].file == SV( AN.source ).until(":") )
+			{
+				anim->m_key.insert( 0, ABA.sources[ i ].prefix );
+				break;
+			}
+		}
+		anim->m_key.insert( 0, ABA.bundlePrefix );
+		
 		out.anims.push_back( anim );
 	}
 	return true;

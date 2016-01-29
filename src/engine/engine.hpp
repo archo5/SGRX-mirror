@@ -1922,7 +1922,7 @@ ENGINE_EXPORT RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state
 ENGINE_EXPORT VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl );
 ENGINE_EXPORT VtxInputMapHandle GR_GetVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertexDecl* vd );
 ENGINE_EXPORT MeshHandle GR_CreateMesh();
-ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path );
+ENGINE_EXPORT MeshHandle GR_GetMesh( const StringView& path, bool dataonly = false );
 ENGINE_EXPORT void GR_PreserveResourcePtr( SGRX_RefCounted* rsrc );
 template< class T > void GR_PreserveResource( T& handle ){ GR_PreserveResourcePtr( handle.item ); }
 

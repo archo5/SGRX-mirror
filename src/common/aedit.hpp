@@ -329,6 +329,7 @@ struct EDGUIAssetAnimBundle : EDGUILayoutRow
 	EDGUILayoutRow m_AS_cont;
 	EDGUIPropRsrc m_AS_fileName;
 	EDGUIPropString m_AS_prefix;
+	EDGUIButton m_AS_addAll;
 	// anim. source list
 	EDGUIGroup m_ASL_group;
 	EDGUIButton m_ASL_btnAdd;
