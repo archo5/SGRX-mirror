@@ -359,13 +359,27 @@ struct SGRX_AssetScript
 #define ASSIMP_IMPORTER_TYPE void
 #endif
 #ifndef ASSIMP_SCENE_TYPE
-#define ASSIMP_SCENE_TYPE const void
+#define ASSIMP_SCENE_TYPE void
+#endif
+#ifndef ASSIMP_NODE_TYPE
+#define ASSIMP_NODE_TYPE void
+#endif
+#ifndef ASSIMP_MESH_TYPE
+#define ASSIMP_MESH_TYPE void
 #endif
 enum SceneImportOptimizedFor
 {
 	SIOF_Meshes,
 	SIOF_Anims,
 };
+
+struct AIMeshInfo
+{
+	const ASSIMP_NODE_TYPE* node;
+	const ASSIMP_MESH_TYPE* mesh;
+};
+typedef HashTable< String, AIMeshInfo > AIMeshTable;
+
 struct SGRX_Scene3D : SGRX_RefCounted
 {
 	SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof = SIOF_Meshes );
@@ -374,9 +388,12 @@ struct SGRX_Scene3D : SGRX_RefCounted
 	void GetMeshList( Array< String >& out );
 	void GetAnimList( Array< String >& out );
 	
+	AIMeshInfo FindAssimpMesh( StringView name );
+	
 	String m_path;
 	ASSIMP_IMPORTER_TYPE* m_imp;
-	ASSIMP_SCENE_TYPE* m_scene;
+	const ASSIMP_SCENE_TYPE* m_scene;
+	AIMeshTable m_aiMeshTable;
 	MeshHandle m_mesh;
 	SGRX_AnimBundle m_animBundle;
 };

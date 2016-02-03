@@ -1,7 +1,9 @@
 
 
 #define ASSIMP_IMPORTER_TYPE Assimp::Importer
-#define ASSIMP_SCENE_TYPE const aiScene
+#define ASSIMP_SCENE_TYPE aiScene
+#define ASSIMP_NODE_TYPE aiNode
+#define ASSIMP_MESH_TYPE aiMesh
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -1255,6 +1257,41 @@ MeshHandle SGRX_AssetScript::GetMesh( StringView path )
 
 
 
+static void aiNode_GetMeshList( StringView path, const aiScene* S, aiNode* N,
+	AIMeshTable& out, HashTable< String, int >& counts )
+{
+	String subpath = path;
+	subpath.append( "/" );
+	subpath.append( N->mName.C_Str() );
+	
+	String meshpath = subpath;
+	for( unsigned i = 0; i < N->mNumMeshes; ++i )
+	{
+		unsigned mid = N->mMeshes[ i ];
+		aiMesh* M = S->mMeshes[ mid ];
+		meshpath = subpath;
+		meshpath.append( ":" );
+		meshpath.append( M->mName.C_Str() );
+		
+		int curcount = counts.getcopy( meshpath, 0 );
+		if( curcount )
+		{
+			char bfr[ 32 ];
+			sgrx_snprintf( bfr, 32, "#%d", curcount );
+			meshpath.append( bfr );
+		}
+		counts.set( meshpath, curcount + 1 );
+		
+		AIMeshInfo info = { N, M };
+		out.set( meshpath, info );
+	}
+	
+	for( unsigned i = 0; i < N->mNumChildren; ++i )
+	{
+		aiNode_GetMeshList( subpath, S, N->mChildren[ i ], out, counts );
+	}
+}
+
 SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof ) :
 	m_path( path ), m_imp( NULL ), m_scene( NULL )
 {
@@ -1302,6 +1339,11 @@ SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof
 		m_imp = NULL;
 		return;
 	}
+	else
+	{
+		HashTable< String, int > nameCounts;
+		aiNode_GetMeshList( "", m_scene, m_scene->mRootNode, m_aiMeshTable, nameCounts );
+	}
 }
 
 SGRX_Scene3D::~SGRX_Scene3D()
@@ -1312,29 +1354,6 @@ SGRX_Scene3D::~SGRX_Scene3D()
 		m_imp = NULL;
 	}
 	m_scene = NULL;
-}
-
-static void aiNode_GetMeshList( StringView path, const aiScene* S, aiNode* N, Array< String >& out )
-{
-	String subpath = path;
-	subpath.append( "/" );
-	subpath.append( N->mName.C_Str() );
-	
-	String meshpath = subpath;
-	for( unsigned i = 0; i < N->mNumMeshes; ++i )
-	{
-		unsigned mid = N->mMeshes[ i ];
-		aiMesh* M = S->mMeshes[ mid ];
-		meshpath = subpath;
-		meshpath.append( ":" );
-		meshpath.append( M->mName.C_Str() );
-		out.push_back( meshpath );
-	}
-	
-	for( unsigned i = 0; i < N->mNumChildren; ++i )
-	{
-		aiNode_GetMeshList( subpath, S, N->mChildren[ i ], out );
-	}
 }
 
 void SGRX_Scene3D::GetMeshList( Array< String >& out )
@@ -1350,12 +1369,11 @@ void SGRX_Scene3D::GetMeshList( Array< String >& out )
 	
 	if( m_scene == NULL )
 		return;
-	aiNode_GetMeshList( "", m_scene, m_scene->mRootNode, out );
-//	for( unsigned i = 0; i < m_scene->mNumMeshes; ++i )
-//	{
-//		out.push_back( m_scene->mMeshes[ i ]->mName.C_Str() );
-//	}
 	
+	for( size_t i = 0; i < m_aiMeshTable.size(); ++i )
+	{
+		out.push_back( m_aiMeshTable.item( i ).key );
+	}
 }
 
 void SGRX_Scene3D::GetAnimList( Array< String >& out )
@@ -1380,6 +1398,15 @@ void SGRX_Scene3D::GetAnimList( Array< String >& out )
 		out.last().append( ":" );
 		out.last().append( anim->mName.C_Str() );
 	}
+}
+
+AIMeshInfo SGRX_Scene3D::FindAssimpMesh( StringView name )
+{
+	AIMeshInfo* info = m_aiMeshTable.getptr( name );
+	if( info )
+		return *info;
+	AIMeshInfo out = { NULL, NULL };
+	return out;
 }
 
 
@@ -1840,16 +1867,6 @@ struct BoneInfo
 	int depth;
 };
 
-static const aiMesh* _FindMeshByName( const aiScene* S, StringView name )
-{
-	for( unsigned i = 0; i < S->mNumMeshes; ++i )
-	{
-		if( SV( S->mMeshes[ i ]->mName.C_Str() ) == name )
-			return S->mMeshes[ i ];
-	}
-	return NULL;
-}
-
 static const SGRX_MeshPart* _FindMeshPartByName( const SGRX_IMesh* M, StringView name )
 {
 	for( size_t i = 0; i < M->m_meshParts.size(); ++i )
@@ -1960,7 +1977,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 	for( int i = 0; i < numparts; ++i )
 	{
 		SGRX_MeshAssetPart* MP = MA.parts[ i ];
-		const aiMesh* mesh = _FindMeshByName( S, SV( MP->meshName ).after(":") );
+		const aiMesh* mesh = scene->FindAssimpMesh( MP->meshName ).mesh;
 		if( mesh == NULL )
 		{
 			printf( "Mesh part \"%s\" was not found!\n", StackPath( MP->meshName ).str );
@@ -2000,41 +2017,44 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		}
 	}
 	
-	// check if total bone count is valid
-	unsigned MAX_BONES = SGRX_MAX_MESH_BONES;
-	if( boneInfo.size() > MAX_BONES )
+	if( fmt.skin )
 	{
-		printf( "CANNOT SKIN THE MESH - TOO MANY BONES USED (%d, max=%d)\n",
-			int(boneInfo.size()), MAX_BONES );
-		fmt.skin = false;
-	}
-	
-	// gather bone hierarchy info
-	int numParentless = 0;
-	for( size_t b = 0; b < boneInfo.size(); ++b )
-	{
-		BoneInfo& BI = boneInfo[ b ];
-		NodeParentInfo* NPI = parentInfo.getptr( BI.name );
-		while( NPI && NPI->name.size() && boneNames.isset( NPI->name ) == false )
-			NPI = parentInfo.getptr( NPI->name );
-		if( NPI == NULL )
+		// check if total bone count is valid
+		unsigned MAX_BONES = SGRX_MAX_MESH_BONES;
+		if( boneInfo.size() > MAX_BONES )
 		{
-			printf( "CANNOT SKIN THE MESH - BONE NAME NOT FOUND IN HIERARCHY (%s)\n",
-				StackPath(BI.name).str );
+			printf( "CANNOT SKIN THE MESH - TOO MANY BONES USED (%d, max=%d)\n",
+				int(boneInfo.size()), MAX_BONES );
 			fmt.skin = false;
-			break;
 		}
-		BI.parentName = NPI->name;
-		BI.offset = BI.offset;
-		BI.depth = NPI->depth;
 		
-		numParentless += NPI->name.size() == 0;
-	}
-	if( numParentless != 1 )
-	{
-		printf( "CANNOT SKIN THE MESH - INVALID NUMBER OF PARENTLESS BONES (%d, req=1)\n",
-			numParentless );
-		fmt.skin = false;
+		// gather bone hierarchy info
+		int numParentless = 0;
+		for( size_t b = 0; b < boneInfo.size(); ++b )
+		{
+			BoneInfo& BI = boneInfo[ b ];
+			NodeParentInfo* NPI = parentInfo.getptr( BI.name );
+			while( NPI && NPI->name.size() && boneNames.isset( NPI->name ) == false )
+				NPI = parentInfo.getptr( NPI->name );
+			if( NPI == NULL )
+			{
+				printf( "CANNOT SKIN THE MESH - BONE NAME NOT FOUND IN HIERARCHY (%s)\n",
+					StackPath(BI.name).str );
+				fmt.skin = false;
+				break;
+			}
+			BI.parentName = NPI->name;
+			BI.offset = BI.offset;
+			BI.depth = NPI->depth;
+			
+			numParentless += NPI->name.size() == 0;
+		}
+		if( numParentless != 1 )
+		{
+			printf( "CANNOT SKIN THE MESH - INVALID NUMBER OF PARENTLESS BONES (%d, req=1)\n",
+				numParentless );
+			fmt.skin = false;
+		}
 	}
 	
 	// calculate order & parent IDs
