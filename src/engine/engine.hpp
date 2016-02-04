@@ -919,6 +919,9 @@ struct VDeclInfo
 				return types[ i ];
 		return -1;
 	}
+	
+	ENGINE_EXPORT void TransformVertices( Mat4 xf, void* data, size_t vtxCount ) const;
+	ENGINE_EXPORT void TransformTexcoords( Vec4 mul, Vec4 add, void* data, size_t vtxCount ) const;
 };
 
 #define SGRX_VDECL_DECAL "pf3nf30f3tb4cb4xb4"
@@ -1015,6 +1018,7 @@ struct SGRX_MeshPart
 	uint8_t mtlBlendMode;
 	
 	String name;
+	Mat4 nodeTransform;
 	
 	TriTree m_triTree;
 	

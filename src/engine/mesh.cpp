@@ -265,11 +265,14 @@ const char* MeshData_Parse( char* buf, size_t size, MeshFileData* out )
 		}
 		if( out->dataFlags & MDF_PARTNAMES )
 		{
-			if( off + 19 > size )
+			if( off + 19 + 16 * 4 > size )
 				return "mesh incomplete (corrupted part data)";
 			if( !md_parse_smallbuf( buf + off, size - off, &pout->nameStr, &pout->nameStrSize ) )
 				return "failed to parse part name";
 			off += 1 + pout->nameStrSize;
+			// node transform matrix
+			memcpy( &pout->nodeTransform, buf + off, 16 * 4 );
+			off += 16 * 4;
 		}
 		if( off + 18 > size )
 			return "mesh incomplete (corrupted part data)";

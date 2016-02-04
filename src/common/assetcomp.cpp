@@ -1899,9 +1899,9 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		Array< SGRX_MeshPart > mparts;
 		
 		SGRX_IMesh* srcM = scene->m_mesh;
-		size_t vsize = srcM->m_vertexDecl.GetInfo().size;
-		size_t isize = ( srcM->m_dataFlags & MDF_INDEX_32 ) ? 4 : 2;
 		VertexDeclHandle vdh = srcM->m_vertexDecl;
+		size_t vsize = vdh.GetInfo().size;
+		size_t isize = ( srcM->m_dataFlags & MDF_INDEX_32 ) ? 4 : 2;
 		for( size_t i = 0; i < MA.parts.size(); ++i )
 		{
 			SGRX_MeshAssetPart* MP = MA.parts[ i ];
@@ -1918,6 +1918,16 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 			vdata.append( &srcM->m_vdata[ srcMP->vertexOffset * vsize ], srcMP->vertexCount * vsize );
 			idata.append( &srcM->m_idata[ srcMP->indexOffset * isize ], srcMP->indexCount * isize );
 			
+			bool transform = MP->optTransform ? MP->optTransform > 0 : MA.transform;
+			if( transform )
+			{
+				vdh.GetInfo().TransformVertices(
+					srcMP->nodeTransform,
+					&vdata[ voff * vsize ],
+					srcMP->vertexCount
+				);
+			}
+			
 			SGRX_MeshPart outMP;
 			outMP.vertexOffset = voff;
 			outMP.indexOffset = ioff;
@@ -1933,6 +1943,22 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 			printf( "| part %d: mesh=%p vc=%d ic=%d shader=%s\n",
 				i, srcMP, int(outMP.vertexCount), int(outMP.indexCount),
 				StackPath(outMP.shader).str );
+		}
+		
+		if( MA.flipUVY )
+		{
+			vdh.GetInfo().TransformTexcoords(
+				V4( 1, -1, 1, 1 ),
+				V4( 0, 1, 0, 0 ),
+				vdata.data(),
+				vdata.size() / vsize );
+		}
+		if( MA.rotateY2Z )
+		{
+			vdh.GetInfo().TransformVertices(
+				Mat4::CreateRotationX( -M_PI / 2 ),
+				vdata.data(),
+				vdata.size() / vsize );
 		}
 		
 		MeshHandle dstMesh = GR_CreateMesh();

@@ -80,11 +80,19 @@ def write_buffer( f, bytebuf ):
 	f.write( bytebuf )
 #
 
+def serialize_matrix( m ):
+	return struct.pack( "16f",
+		m[0][0], m[1][0], m[2][0], m[3][0],
+		m[0][1], m[1][1], m[2][1], m[3][1],
+		m[0][2], m[1][2], m[2][2], m[3][2],
+		m[0][3], m[1][3], m[2][3], m[3][3] )
+
 def write_part( f, part ):
 	if len( part["textures"] ) > 8:
 		raise Exception( "too many textures (max. 8 allowed)" )
 	f.write( struct.pack( "=BB", part["flags"], part["blendmode"] ) )
 	write_smallbuf( f, part["name"] )
+	f.write( serialize_matrix( part[ "mtx" ] ) )
 	f.write( struct.pack( "=LLLLB", part["voff"], part["vcount"],
 		part["ioff"], part["icount"], len( part["textures"] ) ) )
 	write_smallbuf( f, bytes( part["shader"], "UTF-8" ) )
@@ -161,10 +169,7 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			#
 			# print(m)
 			f.write( struct.pack( "B", pid ) )
-			f.write( struct.pack( "4f", m[0][0], m[1][0], m[2][0], m[3][0] ) )
-			f.write( struct.pack( "4f", m[0][1], m[1][1], m[2][1], m[3][1] ) )
-			f.write( struct.pack( "4f", m[0][2], m[1][2], m[2][2], m[3][2] ) )
-			f.write( struct.pack( "4f", m[0][3], m[1][3], m[2][3], m[3][3] ) )
+			f.write( serialize_matrix( m ) )
 		#
 	#
 	
@@ -376,9 +381,25 @@ def parse_materials( geom_node, textures ):
 	print( "OK!" )
 	return materials
 
-def parse_geometry( geom_node, textures, opt_boneorder ):
+def parse_geometry( geom_node, textures, opt_boneorder, props ):
 	
-	MESH = geom_node.data
+	if props.apply_modifiers == "NONE":
+		MESH = geom_node.to_mesh( bpy.context.scene, False, "PREVIEW" )
+	else:
+		preview_settings = []
+		if props.apply_modifiers == "SKIPARM":
+			for mod in geom_node.modifiers:
+				preview_settings.append( mod.show_viewport )
+				if mod.type == "ARMATURE":
+					mod.show_viewport = False
+		#
+		MESH = geom_node.to_mesh( bpy.context.scene, True, "PREVIEW" )
+		if props.apply_modifiers == "SKIPARM":
+			for i, mod in enumerate( geom_node.modifiers ):
+				mod.show_viewport = preview_settings[ i ]
+		#
+	#
+		
 	opt_vgroups = geom_node.vertex_groups if len(geom_node.vertex_groups) else None
 	
 	materials = parse_materials( geom_node, textures )
@@ -514,6 +535,7 @@ def parse_geometry( geom_node, textures, opt_boneorder ):
 		vroot = len(vertices)
 		outpart = {
 			"name": geom_node.name + "#" + str(mtl_num),
+			"mtx": geom_node.matrix_world,
 			"voff": len(vertices),
 			"vcount": 0,
 			"ioff": len(indices),
@@ -672,6 +694,9 @@ def parse_geometry( geom_node, textures, opt_boneorder ):
 	#
 	
 	print( "OK!" )
+	
+	if MESH is not geom_node.data:
+		bpy.data.meshes.remove( MESH )
 	
 	return {
 		"bbmin": bbmin, "bbmax": bbmax,
@@ -901,7 +926,7 @@ def write_ss3dmesh( ctx, props ):
 			armobj = cur_armobj
 			armdata = None if armobj is None else armobj.data
 			boneorder = generate_bone_order( armdata )
-		cur_meshdata = parse_geometry( node, textures, boneorder )
+		cur_meshdata = parse_geometry( node, textures, boneorder, props )
 		mesh_data_add( meshdata, cur_meshdata )
 	
 	if props.export_anim:
@@ -974,6 +999,13 @@ from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 
 
+apply_mod_ui_items = [
+	( "none", "None", "Don't apply any modifiers" ),
+	( "skiparm", "All except armatures", "Apply non-armature modifiers" ),
+	( "all", "All", "Apply all modifiers" ),
+]
+
+
 class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	'''SS3DMESH Exporter'''
 	bl_idname = "export.ss3dmesh"
@@ -989,6 +1021,8 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	)
 	export_anim = BoolProperty(name="Export animation", default=False)
 	export_selected = BoolProperty(name="Export selected mesh only", default=True)
+	apply_modifiers = EnumProperty(items=apply_mod_ui_items,
+		name="Apply modifiers", default="skiparm")
 
 	@classmethod
 	def poll( cls, ctx ):

@@ -226,6 +226,109 @@ const SGRX_RenderState& RenderStateHandle::GetInfo()
 }
 
 
+void VDeclInfo::TransformVertices( Mat4 xf, void* data, size_t vtxCount ) const
+{
+	SGRX_CAST( uint8_t*, bytes, data );
+	for( size_t i = 0; i < vtxCount; ++i )
+	{
+		for( uint8_t e = 0; e < count; ++e )
+		{
+			if( usages[ e ] != VDECLUSAGE_POSITION &&
+				usages[ e ] != VDECLUSAGE_NORMAL &&
+				usages[ e ] != VDECLUSAGE_TANGENT )
+				continue;
+			if( types[ e ] == VDECLTYPE_BCOL4 )
+				continue;
+			
+			uint8_t type = types[ e ];
+			if( usages[ e ] == VDECLUSAGE_TANGENT )
+				type = VDECLTYPE_FLOAT3;
+			Vec4 value = { 0, 0, 0, 1 };
+			switch( type )
+			{
+			case VDECLTYPE_FLOAT4:
+				value.w = ((float*)(bytes + offsets[ e ]))[3];
+			case VDECLTYPE_FLOAT3:
+				value.z = ((float*)(bytes + offsets[ e ]))[2];
+			case VDECLTYPE_FLOAT2:
+				value.y = ((float*)(bytes + offsets[ e ]))[1];
+			case VDECLTYPE_FLOAT1:
+				value.x = ((float*)(bytes + offsets[ e ]))[0];
+			}
+			
+			if( usages[ e ] != VDECLUSAGE_POSITION )
+				value.w = 0;
+			value = xf.Transform( value );
+			if( usages[ e ] == VDECLUSAGE_POSITION && value.w != 0 )
+				value /= value.w;
+			
+			switch( type )
+			{
+			case VDECLTYPE_FLOAT4:
+				((float*)(bytes + offsets[ e ]))[3] = value.w;
+			case VDECLTYPE_FLOAT3:
+				((float*)(bytes + offsets[ e ]))[2] = value.z;
+			case VDECLTYPE_FLOAT2:
+				((float*)(bytes + offsets[ e ]))[1] = value.y;
+			case VDECLTYPE_FLOAT1:
+				((float*)(bytes + offsets[ e ]))[0] = value.x;
+			}
+		}
+		bytes += size;
+	}
+}
+
+void VDeclInfo::TransformTexcoords( Vec4 mul, Vec4 add, void* data, size_t vtxCount ) const
+{
+	SGRX_CAST( uint8_t*, bytes, data );
+	for( size_t i = 0; i < vtxCount; ++i )
+	{
+		for( uint8_t e = 0; e < count; ++e )
+		{
+			if( usages[ e ] != VDECLUSAGE_TEXTURE0 &&
+				usages[ e ] != VDECLUSAGE_TEXTURE1 &&
+				usages[ e ] != VDECLUSAGE_TEXTURE2 &&
+				usages[ e ] != VDECLUSAGE_TEXTURE3 )
+				continue;
+			
+			Vec4 value = { 0, 0, 0, 0 };
+			switch( types[ e ] )
+			{
+			case VDECLTYPE_BCOL4:
+				value = Col32ToVec4( *(uint32_t*)(bytes + offsets[ e ]) );
+				break;
+			case VDECLTYPE_FLOAT4:
+				value.w = ((float*)(bytes + offsets[ e ]))[3];
+			case VDECLTYPE_FLOAT3:
+				value.z = ((float*)(bytes + offsets[ e ]))[2];
+			case VDECLTYPE_FLOAT2:
+				value.y = ((float*)(bytes + offsets[ e ]))[1];
+			case VDECLTYPE_FLOAT1:
+				value.x = ((float*)(bytes + offsets[ e ]))[0];
+			}
+			
+			value = value * mul + add;
+			
+			switch( types[ e ] )
+			{
+			case VDECLTYPE_BCOL4:
+				*(uint32_t*)(bytes + offsets[ e ]) = Vec4ToCol32( value );
+				break;
+			case VDECLTYPE_FLOAT4:
+				((float*)(bytes + offsets[ e ]))[3] = value.w;
+			case VDECLTYPE_FLOAT3:
+				((float*)(bytes + offsets[ e ]))[2] = value.z;
+			case VDECLTYPE_FLOAT2:
+				((float*)(bytes + offsets[ e ]))[1] = value.y;
+			case VDECLTYPE_FLOAT1:
+				((float*)(bytes + offsets[ e ]))[0] = value.x;
+			}
+		}
+		bytes += size;
+	}
+}
+
+
 SGRX_IVertexDecl::~SGRX_IVertexDecl()
 {
 	g_VertexDecls->unset( m_key );
@@ -2134,6 +2237,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 		if( mfd.dataFlags & MDF_PARTNAMES )
 		{
 			P.name.assign( mfd.parts[ i ].nameStr, mfd.parts[ i ].nameStrSize );
+			P.nodeTransform = mfd.parts[ i ].nodeTransform;
 		}
 	}
 	

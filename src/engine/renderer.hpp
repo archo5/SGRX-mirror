@@ -38,6 +38,7 @@ struct MeshFilePartData
 	
 	uint8_t nameStrSize;
 	char* nameStr;
+	Mat4 nodeTransform;
 	
 	uint8_t materialTextureCount; /* 0 - 8 */
 	uint8_t materialStringSizes[ SGRX_MAX_MESH_TEXTURES + 1 ];
