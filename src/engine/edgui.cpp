@@ -1049,7 +1049,7 @@ void EDGUIButton::SetHighlight( bool hl )
 }
 
 
-EDGUIBtnList::EDGUIBtnList()
+EDGUIBtnList::EDGUIBtnList() : m_highlight( -1 )
 {
 	type = EDGUI_ITEM_BTNLIST;
 	tyname = "btnlist";

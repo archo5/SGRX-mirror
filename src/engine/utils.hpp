@@ -2015,6 +2015,42 @@ typedef Handle< SGRX_RefCounted > GenericHandle;
 typedef Handle< SGRX_RCXFItem > XFItemHandle;
 
 
+struct RCString_Data : SGRX_RefCounted
+{
+	RCString_Data( const StringView& sv ) : m_str( NULL )
+	{
+		m_size = sv.size();
+		if( m_size )
+		{
+			m_str = new char[ m_size ];
+			memcpy( m_str, sv.data(), m_size );
+		}
+	}
+	~RCString_Data()
+	{
+		delete [] m_str;
+	}
+	StringView sv() const { return StringView( m_str, m_size ); }
+	char* m_str;
+	size_t m_size;
+};
+typedef Handle< RCString_Data > RCString_Handle;
+
+struct RCString : RCString_Handle
+{
+	RCString(){}
+	RCString( const RCString& o ) : RCString_Handle( o ){}
+	RCString( const StringView& sv ) : RCString_Handle( new RCString_Data( sv ) ){}
+	RCString( const String& s ) : RCString_Handle( new RCString_Data( s ) ){}
+	operator StringView () const { return item ? item->sv() : StringView(); }
+	operator String () const { return item ? String( item->sv() ) : String(); }
+	const char* c_str() const { return item ? item->m_str : NULL; }
+	const char* data() const { return item ? item->m_str : NULL; }
+	size_t size() const { return item ? item->m_size : 0; }
+	StringView view() const { return item ? item->sv() : StringView(); }
+};
+
+
 struct ConfigReader
 {
 	ConfigReader( const StringView& _it ) : it( _it.after_all( SPACE_CHARS ) ){}
@@ -2145,6 +2181,7 @@ inline Hash HashVar( double v ){ Hash out; memcpy( &out, &v, sizeof(out) ); retu
 inline Hash HashVar( void* v ){ return (Hash) v; }
 inline Hash HashVar( const String& s ){ return HashFunc( s.m_data, s.m_size ); }
 inline Hash HashVar( const StringView& sv ){ return HashFunc( sv.m_str, sv.m_size ); }
+inline Hash HashVar( const RCString& rcs ){ return HashVar( rcs.view() ); }
 
 template< class K, class V >
 struct HashTable

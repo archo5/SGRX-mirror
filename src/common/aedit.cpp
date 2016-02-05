@@ -1534,7 +1534,7 @@ EDGUIAssetCategoryForm::EDGUIAssetCategoryForm() :
 
 void EDGUIAssetCategoryForm::_UpdateButtonText()
 {
-	String* path = g_EdAS->categories.getptr( m_name.m_value );
+	RCString path = g_EdAS->categories.getcopy( m_name.m_value );
 	if( StringView(m_name.m_value) == "" )
 	{
 		m_btnSave.caption = "-- cannot save unnamed category --";
@@ -1543,9 +1543,9 @@ void EDGUIAssetCategoryForm::_UpdateButtonText()
 	{
 		m_btnSave.caption = "Save category";
 	}
-	else if( path )
+	else if( path.size() )
 	{
-		m_btnSave.caption = String_Concat( "Overwrite category path: ", *path );
+		m_btnSave.caption = String_Concat( "Overwrite category path: ", path );
 	}
 	else if( m_origName.size() == 0 )
 	{
@@ -1561,8 +1561,8 @@ void EDGUIAssetCategoryForm::Prepare( const StringView& name )
 {
 	m_origName = name;
 	m_name.SetValue( name );
-	String* path = g_EdAS->categories.getptr( name );
-	m_path.SetValue( path ? *path : "" );
+	RCString path = g_EdAS->categories.getcopy( name );
+	m_path.SetValue( path );
 	_UpdateButtonText();
 }
 

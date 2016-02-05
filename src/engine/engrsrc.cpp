@@ -664,7 +664,8 @@ SGRX_IMesh::SGRX_IMesh() :
 
 SGRX_IMesh::~SGRX_IMesh()
 {
-	g_Meshes->unset( m_key );
+	if( m_key.size() )
+		g_Meshes->unset( m_key );
 }
 
 bool SGRX_IMesh::ToMeshData( ByteArray& out )

@@ -1023,10 +1023,7 @@ bool SGRX_AssetScript::Save( const StringView& path )
 
 StringView SGRX_AssetScript::GetCategoryPath( const StringView& name )
 {
-	String* path = categories.getptr( name );
-	if( path )
-		return *path;
-	return "";
+	return categories.getcopy( name );
 }
 
 enum EAssetType
@@ -1797,7 +1794,7 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 {
 	StringView cat = texid.until( "/" );
 	StringView name = texid.after( "/" );
-	const String* catpath = AS->categories.getptr( cat );
+	RCString catpath = AS->categories.getcopy( cat );
 	if( catpath == NULL )
 		return "";
 	
@@ -1814,7 +1811,7 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 	if( TA == NULL )
 		return "";
 	
-	String out = *catpath;
+	String out = catpath;
 	out.append( "/" );
 	out.append( name );
 	out.append( "." );
@@ -1972,7 +1969,10 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 		
 		if( srcM->m_dataFlags & MDF_SKINNED )
 		{
-			memcpy( dstMesh->m_bones, srcM->m_bones, sizeof(srcM->m_bones) );
+			for( size_t i = 0; i < SGRX_ARRAY_SIZE( srcM->m_bones ); ++i )
+			{
+				dstMesh->m_bones[ i ] = srcM->m_bones[ i ];
+			}
 			dstMesh->m_numBones = srcM->m_numBones;
 			dstMesh->m_dataFlags |= MDF_SKINNED;
 		}

@@ -348,7 +348,7 @@ struct SGRX_AssetScript
 	
 	MeshHandle GetMesh( StringView path );
 	
-	HashTable< String, String > categories;
+	HashTable< RCString, RCString > categories;
 	Array< SGRX_TextureAsset > textureAssets;
 	Array< SGRX_MeshAsset > meshAssets;
 	Array< SGRX_AnimBundleAsset > animBundleAssets;
