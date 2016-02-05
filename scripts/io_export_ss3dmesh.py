@@ -838,6 +838,8 @@ def parse_animations( armobj, boneorder, filepath ):
 		print( "Generating animations... " )
 		oldact = armobj.animation_data.action
 		for action in bpy.data.actions:
+			if action.use_fake_user is False:
+				continue # do not export animations that are not pinned (likely to be deleted)
 			armobj.animation_data.action = action
 			anim_tracks = {}
 			for bonename in boneorder:
@@ -918,8 +920,10 @@ def write_ss3dmesh( ctx, props ):
 		
 		cur_armobj = parse_armature( node )
 		# do not allow multiple armatures
-		if armobj is not None and cur_armobj is not None and armobj is not cur_armobj:
-			props.report( {"ERROR"}, "multiple armatures are not supported" )
+		if armobj is not None and cur_armobj is not None and armobj.name != cur_armobj.name:
+			props.report( {"ERROR"},
+				"multiple armatures are not supported (curr=%s, new=%s)" % (
+					armobj.name, cur_armobj.name ) )
 			return {'CANCELLED'}
 		# do this only for the first time
 		if armobj is None and cur_armobj is not None:
@@ -1000,9 +1004,9 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty
 
 
 apply_mod_ui_items = [
-	( "none", "None", "Don't apply any modifiers" ),
-	( "skiparm", "All except armatures", "Apply non-armature modifiers" ),
-	( "all", "All", "Apply all modifiers" ),
+	( "NONE", "None", "Don't apply any modifiers" ),
+	( "SKIPARM", "All except armatures", "Apply non-armature modifiers" ),
+	( "ALL", "All", "Apply all modifiers" ),
 ]
 
 
@@ -1022,7 +1026,7 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	export_anim = BoolProperty(name="Export animation", default=False)
 	export_selected = BoolProperty(name="Export selected mesh only", default=True)
 	apply_modifiers = EnumProperty(items=apply_mod_ui_items,
-		name="Apply modifiers", default="skiparm")
+		name="Apply modifiers", default="SKIPARM")
 
 	@classmethod
 	def poll( cls, ctx ):
