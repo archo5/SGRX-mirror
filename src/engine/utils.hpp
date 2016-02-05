@@ -2038,16 +2038,19 @@ typedef Handle< RCString_Data > RCString_Handle;
 
 struct RCString : RCString_Handle
 {
-	RCString(){}
-	RCString( const RCString& o ) : RCString_Handle( o ){}
-	RCString( const StringView& sv ) : RCString_Handle( new RCString_Data( sv ) ){}
-	RCString( const String& s ) : RCString_Handle( new RCString_Data( s ) ){}
-	operator StringView () const { return item ? item->sv() : StringView(); }
-	operator String () const { return item ? String( item->sv() ) : String(); }
-	const char* c_str() const { return item ? item->m_str : NULL; }
-	const char* data() const { return item ? item->m_str : NULL; }
-	size_t size() const { return item ? item->m_size : 0; }
-	StringView view() const { return item ? item->sv() : StringView(); }
+	FINLINE RCString(){}
+	FINLINE RCString( const RCString& o ) : RCString_Handle( o ){}
+	FINLINE RCString( const StringView& sv ) : RCString_Handle( new RCString_Data( sv ) ){}
+	FINLINE RCString( const String& s ) : RCString_Handle( new RCString_Data( s ) ){}
+	FINLINE operator StringView () const { return item ? item->sv() : StringView(); }
+	FINLINE operator String () const { return item ? String( item->sv() ) : String(); }
+	FINLINE const char* c_str() const { return item ? item->m_str : NULL; }
+	FINLINE const char* data() const { return item ? item->m_str : NULL; }
+	FINLINE size_t size() const { return item ? item->m_size : 0; }
+	FINLINE StringView view() const { return item ? item->sv() : StringView(); }
+	
+	FINLINE bool operator == ( const RCString& o ) const { return view() == o.view(); }
+	FINLINE bool operator != ( const RCString& o ) const { return view() != o.view(); }
 };
 
 
