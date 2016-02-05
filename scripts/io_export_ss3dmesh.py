@@ -404,7 +404,7 @@ def parse_geometry( geom_node, textures, opt_boneorder, props ):
 	
 	materials = parse_materials( geom_node, textures )
 	
-	print( "Generating geometry... ", end="" )
+	print( "Generating geometry for %s... " % geom_node.name, end="" )
 	MESH.calc_normals_split()
 	
 	# SORT BY MATERIAL
@@ -446,8 +446,9 @@ def parse_geometry( geom_node, textures, opt_boneorder, props ):
 			for vid in range( len( face.vertices ) ):
 				v_id = face.vertices[ vid ]
 				l_id = face.loop_start + vid
+				VTX = MESH.vertices[ v_id ]
 				
-				pos_id = addCached( Plist, MESH.vertices[ v_id ].co )
+				pos_id = addCached( Plist, VTX.co )
 				if face.use_smooth != False:
 					nrm_id = addCached( Nlist, MESH.loops[ l_id ].normal )
 				else:
@@ -464,10 +465,10 @@ def parse_geometry( geom_node, textures, opt_boneorder, props ):
 				
 				if opt_vgroups != None and opt_boneorder != None:
 					groupweights = []
-					for vg in MESH.vertices[ v_id ].groups:
+					for vg in VTX.groups:
 						for grp in opt_vgroups:
 							if vg.group == grp.index:
-								groupweights.append([ opt_boneorder.index( grp.name ), grp.weight( v_id ) ])
+								groupweights.append([ opt_boneorder.index( grp.name ), vg.weight ])
 								break
 							#
 						#
@@ -481,7 +482,7 @@ def parse_geometry( geom_node, textures, opt_boneorder, props ):
 							break
 					# check if more than 4, warn / trim if so
 					if len(groupweights) > 4:
-						print( "Too many weights (%d > 4) for vertex %d at %s" % ( len(groupweights), v_id, MESH.vertices[ v_id ].co ) )
+						print( "Too many weights (%d > 4) for vertex %d at %s" % ( len(groupweights), v_id, VTX.co ) )
 						del groupweights[ 4: ]
 					if len(groupweights) == 0:
 						groupweights.append([ 0, 1.0 ])
