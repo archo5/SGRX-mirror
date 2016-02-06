@@ -100,8 +100,6 @@ def write_part( f, part ):
 		write_smallbuf( f, tex.replace("\\", "/") )
 #
 
-magicmtx = Matrix.Rotation( -math.pi/2, 4, "X" )
-
 def write_mesh( f, meshdata, armdata, boneorder ):
 	is_skinned = armdata != None
 	bbmin = meshdata["bbmin"]
@@ -159,9 +157,9 @@ def write_mesh( f, meshdata, armdata, boneorder ):
 			print( "Bone found: " + bone.name )
 			write_smallbuf( f, bone.name )
 			pid = 255
-			m = bone.matrix_local * magicmtx
+			m = bone.matrix_local
 			if bone.parent is not None:
-				m = ( bone.parent.matrix_local * magicmtx ).inverted() * m
+				m = bone.parent.matrix_local.inverted() * m
 				for bpid, pbone in enumerate(boneorder):
 					if bone.parent.name == pbone:
 						pid = bpid
@@ -851,7 +849,18 @@ def parse_animations( armobj, boneorder, filepath ):
 				for bonename in boneorder:
 					bone = armobj.pose.bones[ bonename ]
 					track = anim_tracks[ bonename ]
-					track.append( magicmtx.inverted() * bone.matrix_basis.copy() * magicmtx )
+					
+					# input: object space pose/anim matrices (CP, CA, PP, PA)
+					# output: pose space anim matrix (out)
+					# out = inv( inv(PP) * CP ) * ( inv(PA) * CA )
+					mtx_anim = bone.matrix
+					mtx_base = bone.bone.matrix_local
+					if bone.parent is not None:
+						mtx_anim = bone.parent.matrix.inverted() * mtx_anim
+						mtx_base = bone.parent.bone.matrix_local.inverted() * mtx_base
+					mtx = mtx_base.inverted() * mtx_anim
+					
+					track.append( mtx )
 				#
 			#
 			anim_markers = []
@@ -945,11 +954,13 @@ def write_ss3dmesh( ctx, props ):
 	
 	if props.export_anim:
 		if len(animations) == 0:
-			print( "No animations found!" )
+			props.report( {"WARNING"}, "No animations found!" )
 		else:
 			print( "Writing animations... " )
 			with open( filepath + ".anm", 'wb' ) as f:
 				write_anims( f, animations )
+			with open( filepath + ".anb", 'wb' ) as f:
+				write_anims_anbd( f, animations )
 	#
 	
 	print( "\n\\\\\n>>> Done!\n//\n\n" )
@@ -957,29 +968,29 @@ def write_ss3dmesh( ctx, props ):
 	return {'CANCELLED'}
 #
 
-def write_sgrxanbd( ctx, filepath ):
+def write_sgrxanbd( ctx, props ):
 	print( "\n\\\\\n>>> SGRXANBD Exporter v0.5!\n//\n\n" )
 	print( "Exporting..." )
 	
-	print( "Parsing nodes... ", end="" )
-	geom_node = bpy.context.active_object
-	if geom_node == None:
-		for node in ctx.scene.objects:
-			if node.type == "MESH":
-				geom_node = node
-				break
-	#
-	if geom_node == None:
-		print( "ERROR: no MESH nodes in the active object!" )
-		return {'CANCELLED'}
-	print( "OK!" )
+	filepath = props.filepath
 	
-	armobj = parse_armature( geom_node )
+	print( "Parsing nodes... ", end="" )
+	armobj = None
+	geom_node = bpy.context.active_object
+	if bpy.context.active_object.type == "ARMATURE":
+		armobj = bpy.context.active_object
+	for node in ctx.scene.objects:
+		if node.type == "ARMATURE":
+			armobj = node
+			break
+	#
 	if armobj is None:
-		print( "No armature found" )
+		props.report( {"ERROR"}, "No armature found!" )
 		return {'CANCELLED'}
 	else:
 		armdata = armobj.data
+	print( "OK!" )
+	
 	boneorder = generate_bone_order( armdata )
 	
 	print( "Parsing animations..." )
@@ -987,7 +998,7 @@ def write_sgrxanbd( ctx, filepath ):
 	print( "OK!" )
 	
 	if len(animations) == 0:
-		print( "No animations found!" )
+		props.report( {"WARNING"}, "No animations found!" )
 	else:
 		print( "Writing animations... " )
 		with open( filepath, 'wb' ) as f:
@@ -1016,10 +1027,10 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	bl_idname = "export.ss3dmesh"
 	bl_label = "[SGRX] Export .ssm"
 	bl_options = {'REGISTER', 'UNDO'}
-
+	
 	# ExportHelper mixin class uses this
 	filename_ext = ".ssm"
-
+	
 	filter_glob = StringProperty(
 		default = "*.ssm",
 		options = {'HIDDEN'},
@@ -1028,11 +1039,7 @@ class ExportSS3DMESH( bpy.types.Operator, ExportHelper ):
 	export_selected = BoolProperty(name="Export selected mesh only", default=True)
 	apply_modifiers = EnumProperty(items=apply_mod_ui_items,
 		name="Apply modifiers", default="SKIPARM")
-
-	@classmethod
-	def poll( cls, ctx ):
-		return ctx.active_object is not None
-
+	
 	def execute( self, ctx ):
 		return write_ss3dmesh( ctx, self )
 
@@ -1049,12 +1056,8 @@ class ExportSGRXANBD( bpy.types.Operator, ExportHelper ):
 		options = {'HIDDEN'},
 	)
 	
-	@classmethod
-	def poll( cls, ctx ):
-		return ctx.active_object is not None
-	
 	def execute( self, ctx ):
-		return write_sgrxanbd( ctx, self.filepath )
+		return write_sgrxanbd( ctx, self )
 
 
 # Only needed if you want to add into a dynamic menu
