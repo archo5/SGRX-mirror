@@ -204,6 +204,13 @@ static int _sgs_method__GameUIControl__DQuadExt( SGS_CTX )
 	data->DQuadExt( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5), sgs_GetVar<float>()(C,6), sgs_GetVar<float>()(C,7) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DCircleFill( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DCircleFill ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DCircleFill( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<int>()(C,4) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DButton( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DButton ) ) return 0;
@@ -321,6 +328,7 @@ int GameUIControl::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "DTex" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DTex ); return SGS_SUCCESS; }
 		SGS_CASE( "DQuad" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuad ); return SGS_SUCCESS; }
 		SGS_CASE( "DQuadExt" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuadExt ); return SGS_SUCCESS; }
+		SGS_CASE( "DCircleFill" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DCircleFill ); return SGS_SUCCESS; }
 		SGS_CASE( "DButton" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DButton ); return SGS_SUCCESS; }
 		SGS_CASE( "DAALine" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAALine ); return SGS_SUCCESS; }
 		SGS_CASE( "DAARectOutline" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAARectOutline ); return SGS_SUCCESS; }

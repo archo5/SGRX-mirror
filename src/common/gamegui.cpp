@@ -382,41 +382,41 @@ void GameUIControl::InvokeCallbacks( sgsString key )
 	}
 }
 
-bool GameUIControl::Hit( int x, int y )
+bool GameUIControl::Hit( int x, int y ) const
 {
 	return enabled && rx0 <= x && x < rx1 && ry0 <= y && y < ry1;
 }
 
-float GameUIControl::IX( float x )
+float GameUIControl::IX( float x ) const
 {
 	x = safe_fdiv( x, rwidth ); // to normalized coords
 	return TLERP( rx0, rx1, x ); // interpolate from precalc
 }
 
-float GameUIControl::IY( float y )
+float GameUIControl::IY( float y ) const
 {
 	y = safe_fdiv( y, rheight ); // to normalized coords
 	return TLERP( ry0, ry1, y ); // interpolate from precalc
 }
 
-float GameUIControl::IS( float s )
+float GameUIControl::IS( float s ) const
 {
 	return IX( s ) - IX( 0 );
 }
 
-float GameUIControl::InvIX( float x )
+float GameUIControl::InvIX( float x ) const
 {
 	x = TREVLERP<float>( rx0, rx1, x );
 	return x * rwidth;
 }
 
-float GameUIControl::InvIY( float y )
+float GameUIControl::InvIY( float y ) const
 {
 	y = TREVLERP<float>( ry0, ry1, y );
 	return y * rheight;
 }
 
-float GameUIControl::InvIS( float s )
+float GameUIControl::InvIS( float s ) const
 {
 	return InvIX( s ) - InvIX( 0 );
 }
@@ -516,6 +516,12 @@ void GameUIControl::DQuadExt( float x0, float y0, float x1, float y1,
 	int ssz = sgs_StackSize( C );
 	GR2D_GetBatchRenderer().QuadExt( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ),
 		tox, toy, ssz >= 7 ? tsx : 1.0f, ssz >= 8 ? tsy : 1.0f );
+}
+
+void GameUIControl::DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ )
+{
+	int ssz = sgs_StackSize( C );
+	GR2D_GetBatchRenderer().CircleFill( x, y, r, ssz >= 4 ? z : 0, ssz >+ 5 ? verts : -1 );
 }
 
 void GameUIControl::DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr )

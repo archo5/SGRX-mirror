@@ -158,9 +158,9 @@ struct GameUIControl
 	SGS_PROPERTY float yalign;
 	SGS_PROPERTY float xscale;
 	SGS_PROPERTY float yscale;
-	float _getSWidth() const { return width * xscale; }
+	float _getSWidth() const { return mode == GUI_ScrMode_FitXtd ? InvIS( rwidth ) : width * xscale; }
 	SGS_PROPERTY_FUNC( READ _getSWidth ) float swidth;
-	float _getSHeight() const { return height * yscale; }
+	float _getSHeight() const { return mode == GUI_ScrMode_FitXtd ? InvIS( rheight ) : height * yscale; }
 	SGS_PROPERTY_FUNC( READ _getSHeight ) float sheight;
 	float _getMinW() const { return TMIN( width, height ); }
 	SGS_PROPERTY_FUNC( READ _getMinW ) float minw;
@@ -209,13 +209,13 @@ struct GameUIControl
 	SGS_METHOD void RemoveCallback( sgsString key, sgsVariable func );
 	SGS_METHOD void InvokeCallbacks( sgsString key );
 	
-	SGS_METHOD bool Hit( int x, int y );
-	SGS_METHOD float IX( float x );
-	SGS_METHOD float IY( float y );
-	SGS_METHOD float IS( float s );
-	SGS_METHOD float InvIX( float x );
-	SGS_METHOD float InvIY( float y );
-	SGS_METHOD float InvIS( float s );
+	SGS_METHOD bool Hit( int x, int y ) const;
+	SGS_METHOD float IX( float x ) const;
+	SGS_METHOD float IY( float y ) const;
+	SGS_METHOD float IS( float s ) const;
+	SGS_METHOD float InvIX( float x ) const;
+	SGS_METHOD float InvIY( float y ) const;
+	SGS_METHOD float InvIS( float s ) const;
 	Handle GetHandle(){ return Handle( this ); }
 	
 	// ---
@@ -232,6 +232,7 @@ struct GameUIControl
 	SGS_METHOD void DQuad( float x0, float y0, float x1, float y1 );
 	SGS_METHOD void DQuadExt( float x0, float y0, float x1, float y1,
 		float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ );
+	SGS_METHOD void DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ );
 	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );
 	SGS_METHOD void DAALine( float x0, float y0, float x1, float y1, float w );
 	SGS_METHOD void DAARectOutline( float x0, float y0, float x1, float y1, float w );

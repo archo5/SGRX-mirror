@@ -304,7 +304,7 @@ static int xgm_vec2_dot( SGS_CTX )
 	
 	SGSFN( "vec2_dot" );
 	
-	if( !sgs_LoadArgs( C, "!x!x", sgs_ArgCheck_Vec2, v1, sgs_ArgCheck_Vec2, v2 ) )
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_Vec2, v1, sgs_ArgCheck_Vec2, v2 ) )
 		return 0;
 	
 	sgs_PushReal( C, XGM_VMUL_INNER2( v1, v2 ) );
@@ -525,7 +525,7 @@ static int xgm_vec3_dot( SGS_CTX )
 	
 	SGSFN( "vec3_dot" );
 	
-	if( !sgs_LoadArgs( C, "!x!x", sgs_ArgCheck_Vec3, v1, sgs_ArgCheck_Vec3, v2 ) )
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_Vec3, v1, sgs_ArgCheck_Vec3, v2 ) )
 		return 0;
 	
 	sgs_PushReal( C, XGM_VMUL_INNER3( v1, v2 ) );
@@ -538,7 +538,7 @@ static int xgm_vec3_cross( SGS_CTX )
 	
 	SGSFN( "vec3_cross" );
 	
-	if( !sgs_LoadArgs( C, "!x!x", sgs_ArgCheck_Vec3, v1, sgs_ArgCheck_Vec3, v2 ) )
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_Vec3, v1, sgs_ArgCheck_Vec3, v2 ) )
 		return 0;
 	
 	sgs_CreateVec3( C, NULL,
@@ -777,7 +777,7 @@ static int xgm_vec4_dot( SGS_CTX )
 	
 	SGSFN( "vec4_dot" );
 	
-	if( !sgs_LoadArgs( C, "!x!x", sgs_ArgCheck_Vec4, v1, sgs_ArgCheck_Vec4, v2 ) )
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_Vec4, v1, sgs_ArgCheck_Vec4, v2 ) )
 		return 0;
 	
 	sgs_PushReal( C, XGM_VMUL_INNER4( v1, v2 ) );
@@ -930,7 +930,7 @@ static int xgm_aabb2v( SGS_CTX )
 	
 	SGSFN( "aabb2v" );
 	
-	if( !sgs_LoadArgs( C, "!x!x", sgs_ArgCheck_Vec2, b, sgs_ArgCheck_Vec2, b + 2 ) )
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_Vec2, b, sgs_ArgCheck_Vec2, b + 2 ) )
 		return 0;
 	
 	sgs_CreateAABB2p( C, NULL, b );
@@ -978,6 +978,27 @@ static int xgm_aabb2_expand( SGS_CTX )
 	return 0;
 }
 
+static int xgm_aabb2_limit( SGS_CTX )
+{
+	XGM_VT bb[4], pt[2];
+	
+	SGSFN( "aabb2_limit" );
+	
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_AABB2, bb, sgs_ArgCheck_Vec2, pt ) )
+		return 0;
+	
+	if( pt[0] < bb[0] )
+		pt[0] = bb[0];
+	else if( pt[0] > bb[2] )
+		pt[0] = bb[2];
+	if( pt[1] < bb[1] )
+		pt[1] = bb[1];
+	else if( pt[1] > bb[3] )
+		pt[1] = bb[3];
+	
+	return sgs_CreateVec2p( C, NULL, pt );
+}
+
 static int xgm_aabb2_collide( SGS_CTX )
 {
 	XGM_VT b1[4], b2[4];
@@ -993,53 +1014,65 @@ static int xgm_aabb2_collide( SGS_CTX )
 		XGM_VT diff_x2 = b1[2] - b2[0];
 		XGM_VT diff_y1 = b2[3] - b1[1];
 		XGM_VT diff_y2 = b1[3] - b2[1];
-		XGM_VT out[2] =
-		{
-			diff_x1 < diff_x2 ? diff_x1 : -diff_x2,
-			diff_y1 < diff_y2 ? diff_y1 : -diff_y2,
-		};
-		return sgs_CreateVec2p( C, NULL, out );
+		if( diff_x1 < diff_x2 && diff_x1 < diff_y1 && diff_x1 < diff_y2 )
+			return sgs_CreateVec2( C, NULL, diff_x1, 0 );
+		if( diff_x2 < diff_y1 && diff_x2 < diff_y2 )
+			return sgs_CreateVec2( C, NULL, -diff_x2, 0 );
+		if( diff_y1 < diff_y2 )
+			return sgs_CreateVec2( C, NULL, 0, diff_y1 );
+		return sgs_CreateVec2( C, NULL, 0, -diff_y2 );
 	}
 	return 0;
 }
 
-static int xgm_aabb2_point_collide( SGS_CTX )
+static int xgm_aabb2_circle_collide( SGS_CTX )
 {
 	XGM_VT bb[4], pt[2];
+	float radius = 0;
 	
-	SGSFN( "aabb2_point_collide" );
+	SGSFN( "aabb2_circle_collide" );
 	
-	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_AABB2, bb, sgs_ArgCheck_Vec2, pt ) )
+	if( !sgs_LoadArgs( C, "xxf", sgs_ArgCheck_AABB2, bb, sgs_ArgCheck_Vec2, pt, &radius ) )
 		return 0;
 	
+	if( pt[0] >= bb[0] && pt[0] <= bb[2] && pt[1] >= bb[1] && pt[1] <= bb[3] )
 	{
-		XGM_VT dx1, dx2, dy1, dy2, adx1, adx2, ady1, ady2, vec[2], dist;
-		
-		dx1 = pt[0] - bb[0];
-		dx2 = pt[0] - bb[2];
-		dy1 = pt[1] - bb[1];
-		dy2 = pt[1] - bb[3];
-		adx1 = fabsf( dx1 );
-		adx2 = fabsf( dx2 );
-		ady1 = fabsf( dy1 );
-		ady2 = fabsf( dy2 );
-		
-		vec[0] = adx1 < adx2 ? dx1 : dx2;
-		vec[1] = ady1 < ady2 ? dy1 : dy2;
-		
-		if( pt[0] >= bb[0] && pt[0] <= bb[2] && pt[1] >= bb[1] && pt[1] <= bb[3] )
-		{
-			dist = adx1;
-			if( adx2 < dist ) dist = adx2;
-			if( ady1 < dist ) dist = ady1;
-			if( ady2 < dist ) dist = ady2;
-		}
-		else dist = sqrtf( XGM_VMUL_INNER2( vec, vec ) );
-		
-		sgs_PushReal( C, dist );
-		sgs_CreateVec2p( C, NULL, vec );
-		return 2;
+		XGM_VT diff_x1 = pt[0] - bb[0];
+		XGM_VT diff_x2 = -( pt[0] - bb[2] );
+		XGM_VT diff_y1 = pt[1] - bb[1];
+		XGM_VT diff_y2 = -( pt[1] - bb[3] );
+		if( diff_x1 < diff_x2 && diff_x1 < diff_y1 && diff_x1 < diff_y2 )
+			return sgs_CreateVec2( C, NULL, diff_x1 + radius, 0 );
+		if( diff_x2 < diff_y1 && diff_x2 < diff_y2 )
+			return sgs_CreateVec2( C, NULL, -diff_x2 - radius, 0 );
+		if( diff_y1 < diff_y2 )
+			return sgs_CreateVec2( C, NULL, 0, diff_y1 + radius );
+		return sgs_CreateVec2( C, NULL, 0, -diff_y2 - radius );
 	}
+	else
+	{
+		XGM_VT diff_x, diff_y, lensq;
+		XGM_VT clp_x = pt[0], clp_y = pt[1];
+		if( clp_x < bb[0] )
+			clp_x = bb[0];
+		else if( clp_x > bb[2] )
+			clp_x = bb[2];
+		if( clp_y < bb[1] )
+			clp_y = bb[1];
+		else if( clp_y > bb[3] )
+			clp_y = bb[3];
+		
+		diff_x = clp_x - pt[0];
+		diff_y = clp_y - pt[1];
+		lensq = diff_x * diff_x + diff_y * diff_y;
+		if( lensq < radius * radius )
+		{
+			XGM_VT len = sqrtf( lensq );
+			XGM_VT factor = ( len - radius ) / len;
+			return sgs_CreateVec2( C, NULL, -diff_x * factor, -diff_y * factor );
+		}
+	}
+	return 0;
 }
 
 
@@ -4875,8 +4908,9 @@ static sgs_RegFuncConst xgm_fconsts[] =
 	{ "aabb2v", xgm_aabb2v },
 	{ "aabb2_intersect", xgm_aabb2_intersect },
 	{ "aabb2_expand", xgm_aabb2_expand },
+	{ "aabb2_limit", xgm_aabb2_limit },
 	{ "aabb2_collide", xgm_aabb2_collide },
-	{ "aabb2_point_collide", xgm_aabb2_point_collide },
+	{ "aabb2_circle_collide", xgm_aabb2_circle_collide },
 	
 	{ "aabb3", xgm_aabb3 },
 	{ "aabb3v", xgm_aabb3v },
