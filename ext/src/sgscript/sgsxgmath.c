@@ -825,6 +825,8 @@ static int xgm_b2_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "center" ) return sgs_CreateVec2( C, NULL, (hdr[0]+hdr[2])*0.5f, (hdr[1]+hdr[3])*0.5f );
 		SGS_CASE( "area" )   return sgs_PushReal( C, (hdr[2] - hdr[0]) * (hdr[3] - hdr[1]) );
 		SGS_CASE( "valid" )  return sgs_PushBool( C, hdr[2] >= hdr[0] && hdr[3] >= hdr[1] );
+		SGS_CASE( "pos" )    return sgs_CreateVec2p( C, NULL, hdr );
+		SGS_CASE( "size" )   return sgs_CreateVec2( C, NULL, hdr[2] - hdr[0], hdr[3] - hdr[1] );
 		SGS_CASE( "expand" ) return sgs_PushCFunc( C, xgm_aabb2_expand );
 	}
 	return SGS_ENOTFND;
@@ -836,12 +838,36 @@ static int xgm_b2_setindex( SGS_ARGS_SETINDEXFUNC )
 	XGM_OHDR;
 	if( sgs_ParseString( C, 0, &str, NULL ) )
 	{
-		if( !strcmp( str, "x1" ) ) return sgs_ParseVT( C, 1, &hdr[0] ) ? SGS_SUCCESS : SGS_EINVAL;
-		if( !strcmp( str, "y1" ) ) return sgs_ParseVT( C, 1, &hdr[1] ) ? SGS_SUCCESS : SGS_EINVAL;
-		if( !strcmp( str, "x2" ) ) return sgs_ParseVT( C, 1, &hdr[2] ) ? SGS_SUCCESS : SGS_EINVAL;
-		if( !strcmp( str, "y2" ) ) return sgs_ParseVT( C, 1, &hdr[3] ) ? SGS_SUCCESS : SGS_EINVAL;
-		if( !strcmp( str, "p1" ) ) return sgs_ParseVec2( C, 1, hdr, 1 ) ? SGS_SUCCESS : SGS_EINVAL;
-		if( !strcmp( str, "p2" ) ) return sgs_ParseVec2( C, 1, hdr + 2, 1 ) ? SGS_SUCCESS : SGS_EINVAL;
+		SGS_CASE( "x1" ) return sgs_ParseVT( C, 1, &hdr[0] ) ? SGS_SUCCESS : SGS_EINVAL;
+		SGS_CASE( "y1" ) return sgs_ParseVT( C, 1, &hdr[1] ) ? SGS_SUCCESS : SGS_EINVAL;
+		SGS_CASE( "x2" ) return sgs_ParseVT( C, 1, &hdr[2] ) ? SGS_SUCCESS : SGS_EINVAL;
+		SGS_CASE( "y2" ) return sgs_ParseVT( C, 1, &hdr[3] ) ? SGS_SUCCESS : SGS_EINVAL;
+		SGS_CASE( "p1" ) return sgs_ParseVec2( C, 1, hdr, 0 ) ? SGS_SUCCESS : SGS_EINVAL;
+		SGS_CASE( "p2" ) return sgs_ParseVec2( C, 1, hdr + 2, 0 ) ? SGS_SUCCESS : SGS_EINVAL;
+		SGS_CASE( "pos" )
+		{
+			XGM_VT pos[2];
+			if( sgs_ParseVec2( C, 1, pos, 0 ) )
+			{
+				hdr[2] += pos[0] - hdr[0];
+				hdr[3] += pos[1] - hdr[1];
+				hdr[0] = pos[0];
+				hdr[1] = pos[1];
+				return SGS_SUCCESS;
+			}
+			return SGS_EINVAL;
+		}
+		SGS_CASE( "size" )
+		{
+			XGM_VT size[2];
+			if( sgs_ParseVec2( C, 1, size, 0 ) )
+			{
+				hdr[2] = hdr[0] + size[0];
+				hdr[3] = hdr[1] + size[1];
+				return SGS_SUCCESS;
+			}
+			return SGS_EINVAL;
+		}
 	}
 	return SGS_ENOTFND;
 }
@@ -950,6 +976,70 @@ static int xgm_aabb2_expand( SGS_CTX )
 			return sgs_ArgErrorExt( C, i, 0, "aabb2 or vec2", "" );
 	}
 	return 0;
+}
+
+static int xgm_aabb2_collide( SGS_CTX )
+{
+	XGM_VT b1[4], b2[4];
+	
+	SGSFN( "aabb2_collide" );
+	
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_AABB2, b1, sgs_ArgCheck_AABB2, b2 ) )
+		return 0;
+	
+	if( b1[0] < b2[2] && b2[0] < b1[2] && b1[1] < b2[3] && b2[1] < b1[3] )
+	{
+		XGM_VT diff_x1 = b2[2] - b1[0];
+		XGM_VT diff_x2 = b1[2] - b2[0];
+		XGM_VT diff_y1 = b2[3] - b1[1];
+		XGM_VT diff_y2 = b1[3] - b2[1];
+		XGM_VT out[2] =
+		{
+			diff_x1 < diff_x2 ? diff_x1 : -diff_x2,
+			diff_y1 < diff_y2 ? diff_y1 : -diff_y2,
+		};
+		return sgs_CreateVec2p( C, NULL, out );
+	}
+	return 0;
+}
+
+static int xgm_aabb2_point_collide( SGS_CTX )
+{
+	XGM_VT bb[4], pt[2];
+	
+	SGSFN( "aabb2_point_collide" );
+	
+	if( !sgs_LoadArgs( C, "xx", sgs_ArgCheck_AABB2, bb, sgs_ArgCheck_Vec2, pt ) )
+		return 0;
+	
+	{
+		XGM_VT dx1, dx2, dy1, dy2, adx1, adx2, ady1, ady2, vec[2], dist;
+		
+		dx1 = pt[0] - bb[0];
+		dx2 = pt[0] - bb[2];
+		dy1 = pt[1] - bb[1];
+		dy2 = pt[1] - bb[3];
+		adx1 = fabsf( dx1 );
+		adx2 = fabsf( dx2 );
+		ady1 = fabsf( dy1 );
+		ady2 = fabsf( dy2 );
+		
+		vec[0] = adx1 < adx2 ? dx1 : dx2;
+		vec[1] = ady1 < ady2 ? dy1 : dy2;
+		
+		if( pt[0] >= bb[0] && pt[0] <= bb[2] && pt[1] >= bb[1] && pt[1] <= bb[3] )
+		{
+			dist = adx1;
+			if( adx2 < dist ) dist = adx2;
+			if( ady1 < dist ) dist = ady1;
+			if( ady2 < dist ) dist = ady2;
+		}
+		else dist = sqrtf( XGM_VMUL_INNER2( vec, vec ) );
+		
+		sgs_PushReal( C, dist );
+		sgs_CreateVec2p( C, NULL, vec );
+		return 2;
+	}
 }
 
 
@@ -4784,6 +4874,9 @@ static sgs_RegFuncConst xgm_fconsts[] =
 	{ "aabb2", xgm_aabb2 },
 	{ "aabb2v", xgm_aabb2v },
 	{ "aabb2_intersect", xgm_aabb2_intersect },
+	{ "aabb2_expand", xgm_aabb2_expand },
+	{ "aabb2_collide", xgm_aabb2_collide },
+	{ "aabb2_point_collide", xgm_aabb2_point_collide },
 	
 	{ "aabb3", xgm_aabb3 },
 	{ "aabb3v", xgm_aabb3v },
