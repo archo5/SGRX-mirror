@@ -230,7 +230,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_ivPos( pos ), m_ivAimDir( dir ),
 	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
 	m_aimDir( YP(dir) ), m_aimDist( dir.Length() ),
-	m_infoFlags( IEST_HeatSource )
+	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 )
 {
 	m_typeName = "character";
 	typeOverride = "*human*";
@@ -256,7 +256,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_shadowInst->UpdateTransform();
 	m_shadowInst->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
 	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
-	m_shadowInst->enabled = false;
+	m_shadowInst->enabled = true;
 	
 	m_anLayers[0].anim = &m_anMainPlayer;
 	m_anLayers[1].anim = &m_anTopPlayer;
@@ -323,6 +323,8 @@ void TSCharacter::InitializeMesh( const StringView& path )
 
 void TSCharacter::ProcessAnims( float deltaTime )
 {
+	m_animTimeLeft -= deltaTime;
+	
 	// turning
 	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
 	Vec3 aimdir = V3( rundir.x, rundir.y, 0 );
@@ -342,6 +344,10 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	
 	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
 	float f_turn_top = ( atan2( aimdir.y, aimdir.x ) - M_PI / 2 ) / ( M_PI * 2 );
+	if( m_animTimeLeft > 0 )
+	{
+		f_turn_top = f_turn_btm;
+	}
 	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
 	{
 		AnimCharacter::Layer& L = m_animChar.layers[ i ];
@@ -362,7 +368,8 @@ void TSCharacter::FixedTick( float deltaTime )
 //		i_move = V2(0);
 		if( m_actState.timeoutMoveToStart > 0 )
 		{
-			m_anMainPlayer.Play( GR_GetAnim( "stand_with_gun_up" ), false, 0.2f );
+			if( !IsPlayingAnim() )
+				m_anMainPlayer.Play( GR_GetAnim( "stand_with_gun_up" ), false, 0.2f );
 			
 			m_bodyHandle->SetLinearVelocity( V3(0) );
 			if( ( m_actState.info.placePos - GetPosition() ).ToVec2().Length() < 0.1f )
@@ -383,7 +390,8 @@ void TSCharacter::FixedTick( float deltaTime )
 			// <<< TODO EVENTS >>>
 			if( pp < 0.01f && 0.01f <= cp )
 			{
-				m_anMainPlayer.Play( GR_GetAnim( "kneeling" ) );
+				if( !IsPlayingAnim() )
+					m_anMainPlayer.Play( GR_GetAnim( "kneeling" ) );
 				m_actState.target->OnEvent( "action_start" );
 			}
 		//	if( pp < 0.5f && 0.5f <= cp )
@@ -434,7 +442,8 @@ void TSCharacter::FixedTick( float deltaTime )
 		animname = "walk";
 #endif
 		
-		m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : anim_stand ), false, 0.2f );
+		if( !IsPlayingAnim() )
+			m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : anim_stand ), false, 0.2f );
 	}
 	
 	HandleMovementPhysics( deltaTime );
@@ -708,6 +717,28 @@ void TSCharacter::InterruptAction( bool force )
 	
 	m_actState.progress = 0;
 	m_actState.target = NULL;
+}
+
+void TSCharacter::PlayAnim( StringView name, bool loop )
+{
+	AnimHandle anim = GR_GetAnim( name );
+	if( anim == NULL )
+	{
+		LOG_WARNING << "TSCharacter::PlayAnim - anim not found: " << name;
+		return;
+	}
+	m_animTimeLeft = loop ? FLT_MAX : anim->GetAnimTime();
+	m_anMainPlayer.Play( anim );
+	m_anTopPlayer.Stop();
+}
+
+void TSCharacter::StopAnim()
+{
+	if( m_animTimeLeft > 0 )
+	{
+		m_animTimeLeft = 0;
+		// animation will be changed on next tick
+	}
 }
 
 void TSCharacter::Reset()

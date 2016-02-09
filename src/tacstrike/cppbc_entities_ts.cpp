@@ -136,6 +136,27 @@ static int _sgs_method__TSCharacter__SetPlayerMode( SGS_CTX )
 	data->SetPlayerMode( sgs_GetVar<bool>()(C,0) ); return 0;
 }
 
+static int _sgs_method__TSCharacter__IsPlayingAnim( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, IsPlayingAnim ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->IsPlayingAnim(  )); return 1;
+}
+
+static int _sgs_method__TSCharacter__PlayAnim( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, PlayAnim ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PlayAnim( sgs_GetVar<StringView>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
+}
+
+static int _sgs_method__TSCharacter__StopAnim( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, StopAnim ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->StopAnim(  ); return 0;
+}
+
 static int _sgs_method__TSCharacter__GetViewDir( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetViewDir ) ) return 0;
@@ -188,6 +209,9 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "ctrl" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_getCtrl() ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "SetPlayerMode" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__SetPlayerMode ); return SGS_SUCCESS; }
+		SGS_CASE( "IsPlayingAnim" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__IsPlayingAnim ); return SGS_SUCCESS; }
+		SGS_CASE( "PlayAnim" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__PlayAnim ); return SGS_SUCCESS; }
+		SGS_CASE( "StopAnim" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__StopAnim ); return SGS_SUCCESS; }
 		SGS_CASE( "GetViewDir" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetViewDir ); return SGS_SUCCESS; }
 		SGS_CASE( "GetAimDir" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetAimDir ); return SGS_SUCCESS; }
 		SGS_CASE( "timeSinceLastHit" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit ); return SGS_SUCCESS; }

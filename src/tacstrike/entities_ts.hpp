@@ -109,6 +109,10 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
 	
+	SGS_METHOD bool IsPlayingAnim() const { return m_animTimeLeft > 0; }
+	SGS_METHOD void PlayAnim( StringView name, bool loop );
+	SGS_METHOD void StopAnim();
+	
 	virtual bool IsAlive(){ return m_health > 0; }
 	virtual void Reset();
 	Vec3 GetPosition();
@@ -155,6 +159,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	
 	ActionState m_actState;
 	uint32_t m_infoFlags;
+	float m_animTimeLeft;
 	
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
