@@ -419,11 +419,20 @@ void TSCharacter::FixedTick( float deltaTime )
 	else
 	{
 		Vec2 i_move = GetInputV2( ACT_Chr_Move );
+		float i_speed = GetInputV3( ACT_Chr_Move ).z;
 		
 		// animate character
 		const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_gun_up";
+		const char* anim_walk_fw = m_isCrouching ? "crouch_walk" : "walk";
+		const char* anim_walk_bw = m_isCrouching ? "crouch_walk_bw" : "walk_bw";
 		const char* anim_run_fw = m_isCrouching ? "crouch_walk" : "run";
 		const char* anim_run_bw = m_isCrouching ? "crouch_walk_bw" : "run_bw";
+		
+		if( i_speed < 0.5f )
+		{
+			anim_run_fw = anim_walk_fw;
+			anim_run_bw = anim_walk_bw;
+		}
 		
 		const char* animname = anim_run_fw;
 		Vec2 md = i_move.Normalized();
@@ -442,8 +451,11 @@ void TSCharacter::FixedTick( float deltaTime )
 		animname = "walk";
 #endif
 		
+		if( i_move.Length() < 0.3f )
+			animname = anim_stand;
+		
 		if( !IsPlayingAnim() )
-			m_anMainPlayer.Play( GR_GetAnim( i_move.Length() > 0.5f ? animname : anim_stand ), false, 0.2f );
+			m_anMainPlayer.Play( GR_GetAnim( animname ), false, 0.2f );
 	}
 	
 	HandleMovementPhysics( deltaTime );
@@ -1277,7 +1289,7 @@ Vec3 TSEnemyController::GetInput( uint32_t iid )
 {
 	switch( iid )
 	{
-	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
+	case ACT_Chr_Move: return V3( i_move.x, i_move.y, i_speed );
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3( i_crouch );
 	case ACT_Chr_AimAt: return V3( i_aim_at /* y/n */, 8 /* speed */, 0 );

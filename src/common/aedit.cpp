@@ -1222,6 +1222,8 @@ void EDGUIAssetAnimBundle::Prepare( size_t abid )
 	g_UIPickers->meshAsset.Reload();
 	
 	m_abid = abid;
+	m_sid = NOT_FOUND;
+	m_aid = NOT_FOUND;
 	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ abid ];
 	
 	m_outputCategory.SetValue( ABA.outputCategory );
