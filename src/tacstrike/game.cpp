@@ -3,10 +3,6 @@
 #include "tsgame.hpp"
 
 
-GameLevel* g_GameLevel = NULL;
-SoundSystemHandle g_SoundSys;
-SGRX_LineSet g_DebugLines;
-
 InputState MOVE_LEFT( "move_left" );
 InputState MOVE_RIGHT( "move_right" );
 InputState MOVE_UP( "move_up" );
@@ -257,9 +253,9 @@ Vec3 TSFightGameMode::PickFurthestSpawnPoint( Vec3 from )
 #define MAX_TICK_SIZE (1.0f/15.0f)
 #define FIXED_TICK_SIZE (1.0f/30.0f)
 
-struct TACStrikeGame : IGame, SGRX_DebugDraw
+struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 {
-	TACStrikeGame() : m_accum( 0.0f )
+	TACStrikeGame()
 	{
 		RegisterCommonGameCVars();
 	}
@@ -280,7 +276,29 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		rs.vsync = false;
 		GR_SetVideoMode( rs );
 #endif
-		return true;
+		return IGame::OnConfigure( argc, argv );
+	}
+	
+	GameLevel* CreateLevel()
+	{
+		GameLevel* level = BaseGame::CreateLevel();
+		AddSystemToLevel<TSGameSystem>( level );
+		AddSystemToLevel<InfoEmissionSystem>( level );
+		AddSystemToLevel<LevelMapSystem>( level );
+		AddSystemToLevel<MessagingSystem>( level );
+		AddSystemToLevel<ObjectiveSystem>( level );
+		AddSystemToLevel<FlareSystem>( level );
+		AddSystemToLevel<LevelCoreSystem>( level );
+		AddSystemToLevel<ScriptedSequenceSystem>( level );
+		AddSystemToLevel<MusicSystem>( level );
+		AddSystemToLevel<DamageSystem>( level );
+		AddSystemToLevel<BulletSystem>( level );
+		AddSystemToLevel<AIDBSystem>( level );
+		AddSystemToLevel<CoverSystem>( level );
+		AddSystemToLevel<StockEntityCreationSystem>( level );
+	//	AddSystemToLevel<TSFightGameMode>( level );
+		AddSystemToLevel<DevelopSystem>( level );
+		return level;
 	}
 	
 	bool OnInitialize()
@@ -290,8 +308,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf:nohint" );
 		GR2D_LoadSVGIconFont( "tsicons", "ui/tsicons.svf" );
 		GR2D_SetFont( "core", 12 );
-		
-		g_SoundSys = SND_CreateSystem();
 		
 		Game_RegisterAction( &MOVE_LEFT );
 		Game_RegisterAction( &MOVE_RIGHT );
@@ -329,26 +345,6 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_A, &CROUCH );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &DO_ACTION );
 		
-		g_GameLevel = new GameLevel( PHY_CreateWorld() );
-		g_GameLevel->SetGlobalToSelf();
-		g_GameLevel->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
-		AddSystemToLevel<TSGameSystem>( g_GameLevel );
-		AddSystemToLevel<InfoEmissionSystem>( g_GameLevel );
-		AddSystemToLevel<LevelMapSystem>( g_GameLevel );
-		AddSystemToLevel<MessagingSystem>( g_GameLevel );
-		AddSystemToLevel<ObjectiveSystem>( g_GameLevel );
-		AddSystemToLevel<FlareSystem>( g_GameLevel );
-		AddSystemToLevel<LevelCoreSystem>( g_GameLevel );
-		AddSystemToLevel<ScriptedSequenceSystem>( g_GameLevel );
-		AddSystemToLevel<MusicSystem>( g_GameLevel );
-		AddSystemToLevel<DamageSystem>( g_GameLevel );
-		AddSystemToLevel<BulletSystem>( g_GameLevel );
-		AddSystemToLevel<AIDBSystem>( g_GameLevel );
-		AddSystemToLevel<CoverSystem>( g_GameLevel );
-		AddSystemToLevel<StockEntityCreationSystem>( g_GameLevel );
-	//	AddSystemToLevel<TSFightGameMode>( g_GameLevel );
-		AddSystemToLevel<DevelopSystem>( g_GameLevel );
-		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
 	//	GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
@@ -356,54 +352,15 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		GR_LoadAnims( "meshes/chars/tstest.anb" );
 //		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		
-		g_GameLevel->Load( "ai-test-suite" );
-	//	g_GameLevel->Load( "v3decotest" );
+		if( !BaseGame::OnInitialize() )
+			return false;
 		
-#if 0
-		mylight = g_GameLevel->GetScene()->CreateLight();
-		mylight->type = LIGHT_SPOT;
-		mylight->enabled = true;
-		mylight->position = V3(1,-1,1);
-		mylight->direction = V3(0.5f,0.5f,-0.5f);
-		mylight->color = V3(0.9f,0.8f,0.7f) * 10;
-		mylight->angle = 90;
-		mylight->range = 10;
-		mylight->cookieTexture = GR_GetTexture( "textures/cookies/default.png" );
-		mylight->shadowTexture = GR_CreateRenderTexture( 128, 128, RT_FORMAT_DEPTH );
-		mylight->hasShadows = true;
-		mylight->UpdateTransform();
-		
-		sgsVariable args = g_GameLevel->m_scriptCtx.CreateDict();
-		args.setprop( "position", g_GameLevel->m_scriptCtx.CreateVec3( V3(2,-2,1) ) );
-		args.setprop( "rot_angles", g_GameLevel->m_scriptCtx.CreateVec3( V3(0,0,0) ) );
-		myscritem = SGRX_ScriptedItem::Create(
-			g_GameLevel->m_scene,
-			g_GameLevel->GetPhyWorld(),
-			g_GameLevel->m_scriptCtx.C,
-			g_GameLevel->m_scriptCtx.GetGlobal( "SCRITEM_CREATE_window1" ),
-			args
-		);
-		myscritem->SetLightSampler( g_GameLevel );
-		myscritem->SetPSRaycast( g_GameLevel->GetSystem<DamageSystem>() );
-#endif
+		m_level->Load( "ai-test-suite" );
+	//	m_level->Load( "v3decotest" );
 		
 	//	Game_AddOverlayScreen( &g_PauseMenu );
 		cursor_dt = V2(0);
 		return true;
-	}
-	void OnDestroy()
-	{
-		if( myscritem )
-		{
-			myscritem->Release();
-			myscritem = NULL;
-		}
-		mylight = NULL;
-		
-		delete g_GameLevel;
-		g_GameLevel = NULL;
-		
-		g_SoundSys = NULL;
 	}
 	
 	Vec2 cursor_dt;
@@ -439,70 +396,10 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 				( e.key.keysym.mod & KMOD_CTRL ) &&
 				( e.key.keysym.mod & KMOD_SHIFT ) )
 			{
-				String levname = g_GameLevel->GetLevelName();
-				g_GameLevel->Load( levname );
+				String levname = m_level->GetLevelName();
+				m_level->Load( levname );
 			}
 		}
-	}
-	
-	void Game_FixedTick( float dt )
-	{
-		g_GameLevel->FixedTick( dt );
-		
-		if( myscritem ) myscritem->FixedTick( dt );
-	}
-	void Game_Tick( float dt, float bf )
-	{
-		g_GameLevel->Tick( dt, bf );
-		
-		if( myscritem )
-		{
-			myscritem->Tick( dt, bf );
-			myscritem->PreRender();
-		}
-		
-#ifdef TESTSHOOT
-		Vec3 CP, CD;
-		if( SHOOT.value && g_GameLevel->m_scene->camera.GetCursorRay(
-			Game_GetCursorPos().x / GR_GetWidth(), Game_GetCursorPos().y / GR_GetHeight(), CP, CD ) )
-		{
-			g_GameLevel->m_bulletSystem.Add( CP, CD * 10, 1, 1 );
-		}
-#endif
-	}
-	void Game_Render()
-	{
-	//	g_GameLevel->Draw();
-		SGRX_RenderScene rsinfo( V4( g_GameLevel->m_levelTime ), g_GameLevel->m_scene );
-		rsinfo.debugdraw = this;
-		rsinfo.postdraw = g_GameLevel;
-		GR_RenderScene( rsinfo );
-		
-		g_GameLevel->Draw2D();
-		
-		//
-		// TEST
-		//
-#if 0
-		GR2D_SetColor( 1 );
-		char bfr[ 1204 ];
-		sprintf( bfr, "meshes: %d, draw calls: %d", (int) GR_GetRenderStats().numVisMeshes, (int) GR_GetRenderStats().numMDrawCalls );
-	//	GR2D_SetFont( "core", 24 );
-	//	GR2D_DrawTextLine( bfr );
-		
-		GR2D_SetFont( "tsicons", 24 );
-		GR2D_DrawTextLine( 64, 64, "i" );
-		GR2D_SetFont( "tsicons", 48 );
-		GR2D_DrawTextLine( "#", HALIGN_LEFT, VALIGN_CENTER );
-		GR2D_SetFont( "core", 24 );
-		GR2D_DrawTextLine( " test: press " );
-		GR2D_SetFont( "tsicons", 24 );
-		GR2D_DrawTextLine( "t" );
-		GR2D_SetFont( "core", 24 );
-		GR2D_DrawTextLine( " to act " );
-		GR2D_SetFont( "tsicons", 24 );
-		GR2D_DrawTextLine( "!" );
-#endif
 	}
 	
 	void OnTick( float dt, uint32_t gametime )
@@ -512,47 +409,28 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		CURSOR_POS.x = clamp( CURSOR_POS.x, 0, GR_GetWidth() );
 		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
 		
-		g_SoundSys->Update();
-		g_GameLevel->ProcessEvents();
-		
-		if( dt > MAX_TICK_SIZE )
-			dt = MAX_TICK_SIZE;
-		if( SLOWDOWN_TEST.value )
-			dt *= 0.25f;
-		
-		m_accum += dt;
-		while( m_accum >= 0 )
-		{
-			Game_FixedTick( FIXED_TICK_SIZE );
-			m_accum -= FIXED_TICK_SIZE;
-		}
-		
-		Game_Tick( dt, ( m_accum + FIXED_TICK_SIZE ) / FIXED_TICK_SIZE );
-		
-		Game_Render();
+		BaseGame::OnTick( dt, gametime );
 	}
 	void DebugDraw()
 	{
-		g_GameLevel->DebugDraw();
-	//	g_GameLevel->GetScene()->DebugDraw_MeshRaycast();
+		m_level->DebugDraw();
 		
-		TSCharacter* PLY = (TSCharacter*) g_GameLevel->m_player;
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer();
+	//	BatchRenderer& br = GR2D_GetBatchRenderer();
 		
 #if TEST_PATHFINDER
 		br.Reset().Col( 1, 0, 0 );
 		
 		Vec3 otg = V3(0,0,0);
 		Array< Vec3 > path;
-		AIDBSystem* aidbSys = g_GameLevel->GetSystem<AIDBSystem>();
+		AIDBSystem* aidbSys = m_level->GetSystem<AIDBSystem>();
 		Vec3 rpos, rdir;
 		Vec2 cpn = Game_GetCursorPosNormalized();
 		SceneRaycastInfo srci;
-		if( g_GameLevel->GetScene()->camera.GetCursorRay( cpn.x, cpn.y, rpos, rdir ) &&
-			g_GameLevel->GetScene()->RaycastOne( rpos, rdir * 100, &srci ) &&
+		if( m_level->GetScene()->camera.GetCursorRay( cpn.x, cpn.y, rpos, rdir ) &&
+			m_level->GetScene()->RaycastOne( rpos, rdir * 100, &srci ) &&
 			aidbSys->m_pathfinder.FindPath(
-				PLY->GetPosition() + otg, rpos + rdir * 100 * srci.factor + otg, path ) &&
+				((TSCharacter*) m_level->m_player)->GetPosition() + otg,
+				rpos + rdir * 100 * srci.factor + otg, path ) &&
 			path.size() >= 2 )
 		{
 			br.SetPrimitiveType( PT_LineStrip );
@@ -563,15 +441,15 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		
 #if TEST_COVERSYSTEM
 		CSCoverInfo cinfo;
-		CoverSystem* CS = g_GameLevel->GetSystem<CoverSystem>();
-		Vec3 viewer_pos = PLY->GetPosition(); // V3(-8,10,1);
+		CoverSystem* CS = m_level->GetSystem<CoverSystem>();
+		Vec3 viewer_pos = ((TSCharacter*) m_level->m_player)->GetPosition(); // V3(-8,10,1);
 		CS->QueryLines( V3(-100), V3(100), 0.5f, 0.5f, viewer_pos, true, cinfo );
 		Vec4 sphere = V4( viewer_pos, 1 );
 		cinfo.ClipWithSpheres( &sphere, 1 );
 		for( size_t i = 0; i < cinfo.covers.size(); ++i )
 		{
 			CSCoverLine& CL = cinfo.covers[ i ];
-			g_DebugLines.DrawLine( CL.p0, CL.p1 );
+//			g_DebugLines.DrawLine( CL.p0, CL.p1 );
 		}
 		
 		static Array<Vec3> positions;
@@ -589,15 +467,10 @@ struct TACStrikeGame : IGame, SGRX_DebugDraw
 		br.Flush();
 #endif
 		
-		g_DebugLines.Flush();
+//		g_DebugLines.Flush();
 		
 //		g_PhyWorld->DebugDraw();
 	}
-	
-	float m_accum;
-	
-	SGRX_ScriptedItem* myscritem;
-	LightHandle mylight;
 }
 g_Game;
 

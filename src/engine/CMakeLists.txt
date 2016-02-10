@@ -96,16 +96,9 @@ set_target_properties( sgrx-script PROPERTIES
 )
 
 # Launchers
-add_executable( sgrx-debug launcher )
 add_executable( sgrx launcher )
-target_link_libraries( sgrx-debug sgrx-core )
 target_link_libraries( sgrx sgrx-core )
-set_target_properties( sgrx-debug PROPERTIES
+set_target_properties( sgrx PROPERTIES
 	COMPILE_FLAGS "${CORE_FLAGS}"
 	LINK_FLAGS "${CORE_FLAGS} ${LINK_STRIP_FLAG}"
-)
-set_target_properties( sgrx PROPERTIES
-	COMPILE_DEFINITIONS "SGRX_RELEASE=1"
-	COMPILE_FLAGS "${CORE_FLAGS}"
-	LINK_FLAGS "${CORE_FLAGS} ${LINK_STRIP_FLAG} ${LINK_WINDOWS_FLAG}"
 )

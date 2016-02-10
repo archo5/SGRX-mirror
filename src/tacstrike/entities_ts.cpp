@@ -466,7 +466,7 @@ void TSCharacter::FixedTick( float deltaTime )
 	{
 		Vec3 pos = m_bodyHandle->GetPosition();
 		Vec3 lvel = m_bodyHandle->GetLinearVelocity();
-		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
+		SoundEventInstanceHandle fsev = m_level->GetSoundSys()->CreateEventInstance( "/footsteps" );
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
@@ -613,7 +613,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		lvel.z = 4;
 		m_jumpTimeout = 0.5f;
 		
-		SoundEventInstanceHandle fsev = g_SoundSys->CreateEventInstance( "/footsteps" );
+		SoundEventInstanceHandle fsev = m_level->GetSoundSys()->CreateEventInstance( "/footsteps" );
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();

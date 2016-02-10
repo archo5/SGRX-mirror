@@ -724,6 +724,65 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 	if( flags.contains( ":mips" ) ) outusageflags |= TEXFLAGS_HASMIPS;
 }
 
+bool IGame::OnConfigure( int argc, char** argv )
+{
+	for( int i = 1; i < argc; )
+	{
+		int skip = OnArgument( argv[ i ], argc - i - 1, &argv[ i + 1 ] );
+		ASSERT( skip >= 0 );
+		if( skip <= 0 )
+			skip = 1;
+		i += skip;
+	}
+	return true;
+}
+
+int IGame::OnArgument( char* arg, int argcleft, char** argvleft )
+{
+	if( streq( arg, "D" ) ) return 1; // already processed
+	if( streq( arg, "-renderer" ) && argcleft )
+	{
+		g_RendererName = argvleft[0];
+		return 2;
+	}
+	if( streq( arg, "-display" ) && argcleft )
+	{
+		g_RenderSettings.display = String_ParseInt( argvleft[0] );
+		return 2;
+	}
+	if( streq( arg, "-width" ) && argcleft )
+	{
+		g_RenderSettings.width = String_ParseInt( argvleft[0] );
+		return 2;
+	}
+	if( streq( arg, "-height" ) && argcleft )
+	{
+		g_RenderSettings.height = String_ParseInt( argvleft[0] );
+		return 2;
+	}
+	if( streq( arg, "-rate" ) && argcleft )
+	{
+		g_RenderSettings.refresh_rate = String_ParseInt( argvleft[0] );
+		return 2;
+	}
+	if( streq( arg, "-windowed" ) )
+	{
+		g_RenderSettings.fullscreen = argcleft ? !String_ParseInt( argvleft[0] ) : false;
+		return argcleft ? 2 : 1;
+	}
+	if( streq( arg, "-fullscreen" ) )
+	{
+		g_RenderSettings.fullscreen = argcleft ? String_ParseInt( argvleft[0] ) : true;
+		return argcleft ? 2 : 1;
+	}
+	if( streq( arg, "-vsync" ) && argcleft )
+	{
+		g_RenderSettings.vsync = String_ParseBool( argvleft[0] );
+		return 2;
+	}
+	return 0;
+}
+
 void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
 #define RT_MAIN 0xfff0
@@ -1722,7 +1781,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	if( ret )
 	{
 		LOG << "Test FAILED with code: " << ret;
-		return 0;
+		return 1;
 	}
 	LOG << "Test completed successfully.";
 #endif
@@ -1736,10 +1795,21 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	{
 		if( i + 1 < argc )
 		{
-			if( !strcmp( argv[i], "-game" ) ){ g_GameLibName = argv[++i]; LOG << "ARG: Game library: " << g_GameLibName; }
-			else if( !strcmp( argv[i], "-dir" ) ){ g_GameDir = argv[++i]; LOG << "ARG: Game directory: " << g_GameDir; }
-			else if( !strcmp( argv[i], "-dir2" ) ){ g_GameDir = argv[++i]; LOG << "ARG: Game directory #2: " << g_GameDir2; }
-			else if( !strcmp( argv[i], "-renderer" ) ){ g_RendererName = argv[++i]; LOG << "ARG: Renderer: " << g_RendererName; }
+			if( strpeq( argv[i], "-game=" ) )
+			{
+				g_GameLibName = argv[i] + STRLIT_LEN("-game=");
+				LOG << "ARG: Game library: " << g_GameLibName;
+			}
+			else if( strpeq( argv[i], "-dir=" ) )
+			{
+				g_GameDir = argv[i] + STRLIT_LEN("-dir=");
+				LOG << "ARG: Game directory: " << g_GameDir;
+			}
+			else if( strpeq( argv[i], "-dir2=" ) )
+			{
+				g_GameDir = argv[i] + STRLIT_LEN("-dir2=");
+				LOG << "ARG: Game directory #2: " << g_GameDir2;
+			}
 		}
 	}
 	

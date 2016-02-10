@@ -201,6 +201,7 @@ struct GameLevel :
 	void SetPlayer( Entity* E ){ m_player = E; }
 	bool IsPaused() const { return m_paused || gcv_g_paused.value; }
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
+	SGRX_ISoundSystem* GetSoundSys() const { return m_soundSys; }
 	SGRX_Scene* GetScene() const { return m_scene; }
 	ScriptContext& GetScriptCtx(){ return m_scriptCtx; }
 	sgs_Context* GetSGSC() const { return m_scriptCtx.C; }
@@ -249,6 +250,7 @@ struct GameLevel :
 	SceneHandle m_scene;
 	ScriptContext m_scriptCtx;
 	PhyWorldHandle m_phyWorld;
+	SoundSystemHandle m_soundSys;
 	GUISysHandle m_guiSys;
 	
 	// UTILITIES
@@ -275,6 +277,13 @@ struct GameLevel :
 	Vec3 m_levelCameraInfo[2]; // position, direction
 };
 
+template< class T > T* AddSystemToLevel( GameLevel* lev )
+{
+	T* sys = new T( lev );
+	lev->AddSystem( sys );
+	return sys;
+}
+
 
 
 template< class T > void LevelScrObj::_InitScriptInterface( T* ptr )
@@ -286,5 +295,25 @@ template< class T > void LevelScrObj::_InitScriptInterface( T* ptr )
 	m_sgsObject = sgs_GetObjectStruct( C, -1 );
 	sgs_ObjAcquire( C, m_sgsObject );
 }
+
+
+struct BaseGame : IGame
+{
+	BaseGame();
+	virtual bool OnInitialize();
+	virtual void OnDestroy();
+	virtual GameLevel* CreateLevel();
+	virtual void Game_FixedTick( float dt );
+	virtual void Game_Tick( float dt, float bf );
+	virtual void Game_Render();
+	virtual void OnTick( float dt, uint32_t gametime );
+	
+	float m_maxTickSize;
+	float m_fixedTickSize;
+	float m_accum;
+	float m_timeMultiplier;
+	SoundSystemHandle m_soundSys;
+	GameLevel* m_level;
+};
 
 

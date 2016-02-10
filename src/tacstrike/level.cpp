@@ -393,15 +393,6 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	m_deltaTime = deltaTime;
 	m_levelTime += deltaTime;
 	
-//	if( !m_player )
-//	{
-//		m_scene->camera.position = m_levelCameraInfo[0];
-//		m_scene->camera.direction = m_levelCameraInfo[1];
-//		m_scene->camera.updir = V3(0,0,1);
-//		m_scene->camera.aspect = GR_GetWidth() / (float) GR_GetHeight();
-//		m_scene->camera.UpdateMatrices();
-//	}
-	
 	if( IsPaused() == false )
 	{
 		m_currentPhyTime += deltaTime;
@@ -602,4 +593,74 @@ void GameLevel::LightMesh( SGRX_MeshInstance* meshinst, Vec3 off )
 {
 	SGRX_LightSampler::LightMesh( meshinst, off );
 }
+
+
+BaseGame::BaseGame() :
+	m_maxTickSize( 1.0f/15.0f ),
+	m_fixedTickSize( 1.0f/30.0f ),
+	m_accum( 0 ),
+	m_timeMultiplier( 1 ),
+	m_level( NULL )
+{
+}
+
+bool BaseGame::OnInitialize()
+{
+	m_soundSys = SND_CreateSystem();
+	m_level = CreateLevel();
+	return true;
+}
+
+void BaseGame::OnDestroy()
+{
+	SAFE_DELETE( m_level );
+	m_soundSys = NULL;
+}
+
+GameLevel* BaseGame::CreateLevel()
+{
+	GameLevel* level = new GameLevel( PHY_CreateWorld() );
+	level->m_soundSys = m_soundSys;
+	level->SetGlobalToSelf();
+	level->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
+	return level;
+}
+
+void BaseGame::Game_FixedTick( float dt )
+{
+	m_level->FixedTick( dt );
+}
+
+void BaseGame::Game_Tick( float dt, float bf )
+{
+	m_level->Tick( dt, bf );
+}
+
+void BaseGame::Game_Render()
+{
+	m_level->Draw();
+	m_level->Draw2D();
+}
+
+void BaseGame::OnTick( float dt, uint32_t gametime )
+{
+	m_soundSys->Update();
+	m_level->ProcessEvents();
+	
+	if( dt > m_maxTickSize )
+		dt = m_maxTickSize;
+	dt *= m_timeMultiplier;
+	
+	m_accum += dt;
+	while( m_accum >= 0 )
+	{
+		Game_FixedTick( m_fixedTickSize );
+		m_accum -= m_fixedTickSize;
+	}
+	
+	Game_Tick( dt, ( m_accum + m_fixedTickSize ) / m_fixedTickSize );
+	
+	Game_Render();
+}
+
 

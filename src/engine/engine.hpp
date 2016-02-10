@@ -1886,11 +1886,12 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 
 struct IF_GCC(ENGINE_EXPORT) IGame
 {
-	virtual bool OnConfigure( int argc, char** argv ){ return true; }
+	ENGINE_EXPORT virtual bool OnConfigure( int argc, char** argv );
+	ENGINE_EXPORT virtual int OnArgument( char* arg, int argcleft, char** argvleft );
 	virtual bool OnInitialize(){ return true; }
 	virtual void OnDestroy(){}
 	virtual void OnEvent( const Event& e ){}
-	virtual void OnTick( float dt, uint32_t gametime ) = 0;
+	virtual void OnTick( float dt, uint32_t gametime ){}
 	
 	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
 	ENGINE_EXPORT virtual void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,

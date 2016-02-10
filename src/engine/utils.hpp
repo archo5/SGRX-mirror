@@ -54,21 +54,22 @@ ENGINE_EXPORT void sgrx_aligned_free( void* ptr );
 # if __STDC_VERSION__ >= 201112 && !defined __STDC_NO_THREADS__
 #  define THREAD_LOCAL _Thread_local
 # elif defined _WIN32 && ( \
-       defined _MSC_VER || \
-       defined __ICL || \
-       defined __DMC__ || \
-       defined __BORLANDC__ )
+		defined _MSC_VER || \
+		defined __ICL || \
+		defined __DMC__ || \
+		defined __BORLANDC__ )
 #  define THREAD_LOCAL __declspec(thread) 
 /* note that ICC (linux) and Clang are covered by __GNUC__ */
 # elif defined __GNUC__ || \
-       defined __SUNPRO_C || \
-       defined __xlC__
+		defined __SUNPRO_C || \
+		defined __xlC__
 #  define THREAD_LOCAL __thread
 # else
 #  error "Cannot define THREAD_LOCAL"
 # endif
 #endif
 
+#define SAFE_DELETE( x ) if(x){ delete x; x = NULL; }
 #define SGRX_STR_EXPAND( tok ) #tok
 #define SGRX_STR( tok ) SGRX_STR_EXPAND( tok )
 #define SGRX_CAST( t, to, from ) t to = (t) from
@@ -84,6 +85,8 @@ ENGINE_EXPORT void sgrx_aligned_free( void* ptr );
 
 
 // compiler/toolchain padding
+#define streq( a, b ) (!strcmp(a,b))
+#define strpeq( a, bp ) (!strncmp(a,bp,strlen(bp)))
 ENGINE_EXPORT void NOP( int x );
 ENGINE_EXPORT uint32_t sgrx_crc32( const void* buf, size_t len, uint32_t in_crc );
 ENGINE_EXPORT void sgrx_quicksort( void* array, size_t length, size_t size,

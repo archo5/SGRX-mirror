@@ -946,7 +946,7 @@ void MusicSystem::sgsSetTrack( StringView path )
 		m_music->Stop();
 	if( path )
 	{
-		m_music = g_SoundSys->CreateEventInstance( path );
+		m_music = m_level->GetSoundSys()->CreateEventInstance( path );
 		m_music->Start();
 	}
 	else
@@ -1109,7 +1109,7 @@ void DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 			mtl->particles.Trigger();
 			
 			// sound
-			SoundEventInstanceHandle sev = g_SoundSys->CreateEventInstance( mtl->sound );
+			SoundEventInstanceHandle sev = m_level->GetSoundSys()->CreateEventInstance( mtl->sound );
 			SGRX_Sound3DAttribs s3dattr = { pos, V3(0), nrm, Vec3Cross( dir, nrm ).Normalized() };
 			sev->Set3DAttribs( s3dattr );
 			sev->Start();

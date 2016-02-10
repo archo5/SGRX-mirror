@@ -143,7 +143,7 @@ SlidingDoor::SlidingDoor
 		rbinfo.mass = 0;
 		rbinfo.inertia = V3(0);
 		bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
-		soundEvent = g_SoundSys->CreateEventInstance( "/gate_open" );
+		soundEvent = m_level->GetSoundSys()->CreateEventInstance( "/gate_open" );
 		if( soundEvent )
 		{
 			SGRX_Sound3DAttribs s3dattr = { position, V3(0), V3(0), V3(0) };
@@ -353,7 +353,7 @@ ParticleFX::ParticleFX( GameLevel* lev, const StringView& name, const StringView
 	Entity( lev ), m_soundEventName( sndev ), m_position( pos )
 {
 	m_name = name;
-	m_soundEventOneShot = g_SoundSys->EventIsOneShot( sndev );
+	m_soundEventOneShot = m_level->GetSoundSys()->EventIsOneShot( sndev );
 	
 	char bfr[ 256 ] = {0};
 	sgrx_snprintf( bfr, sizeof(bfr), "psys/%.*s.psy", TMIN( 240, (int) psys.size() ), psys.data() );
@@ -373,7 +373,7 @@ void ParticleFX::Tick( float deltaTime, float blendFactor )
 	bool needstrig = m_psys.Tick( deltaTime );
 	if( needstrig && m_soundEventOneShot )
 	{
-		SoundEventInstanceHandle sndevinst = g_SoundSys->CreateEventInstance( m_soundEventName );
+		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
 		if( sndevinst )
 		{
 			SGRX_Sound3DAttribs s3dattr = { m_position, V3(0), V3(0), V3(0) };
@@ -392,7 +392,7 @@ void ParticleFX::OnEvent( const StringView& _type )
 	if( type == "trigger_enter" )
 	{
 		m_psys.Play();
-		SoundEventInstanceHandle sndevinst = g_SoundSys->CreateEventInstance( m_soundEventName );
+		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
 		if( sndevinst )
 		{
 			SGRX_Sound3DAttribs s3dattr = { m_position, V3(0), V3(0), V3(0) };
@@ -412,7 +412,7 @@ void ParticleFX::OnEvent( const StringView& _type )
 		m_psys.Trigger();
 		if( m_soundEventOneShot )
 		{
-			SoundEventInstanceHandle sndevinst = g_SoundSys->CreateEventInstance( m_soundEventName );
+			SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
 			if( sndevinst )
 			{
 				SGRX_Sound3DAttribs s3dattr = { m_position, V3(0), V3(0), V3(0) };

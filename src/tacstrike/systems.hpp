@@ -18,22 +18,6 @@
 
 
 //
-// GLOBAL INTERFACE
-//
-
-extern SoundSystemHandle g_SoundSys;
-extern SGRX_LineSet g_DebugLines;
-
-
-template< class T > T* AddSystemToLevel( GameLevel* lev )
-{
-	T* sys = new T( lev );
-	lev->AddSystem( sys );
-	return sys;
-}
-
-
-//
 // INTERFACES
 //
 
