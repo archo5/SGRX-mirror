@@ -1793,23 +1793,20 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	for( int i = 1; i < argc; ++i )
 	{
-		if( i + 1 < argc )
+		if( strpeq( argv[i], "-game=" ) )
 		{
-			if( strpeq( argv[i], "-game=" ) )
-			{
-				g_GameLibName = argv[i] + STRLIT_LEN("-game=");
-				LOG << "ARG: Game library: " << g_GameLibName;
-			}
-			else if( strpeq( argv[i], "-dir=" ) )
-			{
-				g_GameDir = argv[i] + STRLIT_LEN("-dir=");
-				LOG << "ARG: Game directory: " << g_GameDir;
-			}
-			else if( strpeq( argv[i], "-dir2=" ) )
-			{
-				g_GameDir = argv[i] + STRLIT_LEN("-dir2=");
-				LOG << "ARG: Game directory #2: " << g_GameDir2;
-			}
+			g_GameLibName = argv[i] + STRLIT_LEN("-game=");
+			LOG << "ARG: Game library: " << g_GameLibName;
+		}
+		else if( strpeq( argv[i], "-dir=" ) )
+		{
+			g_GameDir = argv[i] + STRLIT_LEN("-dir=");
+			LOG << "ARG: Game directory: " << g_GameDir;
+		}
+		else if( strpeq( argv[i], "-dir2=" ) )
+		{
+			g_GameDir = argv[i] + STRLIT_LEN("-dir2=");
+			LOG << "ARG: Game directory #2: " << g_GameDir2;
 		}
 	}
 	

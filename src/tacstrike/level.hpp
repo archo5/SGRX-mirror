@@ -57,6 +57,10 @@ struct LevelScrObj : SGRX_RefCounted
 	sgsHandle< GameLevel > _sgs_getLevel();
 	SGS_PROPERTY_FUNC( READ _sgs_getLevel ) SGS_ALIAS( sgsHandle< GameLevel > level );
 	
+	SGS_PROPERTY sgsVariable _data;
+	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
+	SGS_IFUNC( SETINDEX ) int _setindex( SGS_ARGS_SETINDEXFUNC );
+	
 	GameLevel* m_level;
 };
 

@@ -183,6 +183,96 @@ struct ScriptedItem : Entity
 };
 
 
+#define SCRENT_NUM_SLOTS 4
+#define SCRENT_RANGE_STR "[0-3]"
+
+struct ScriptedEntity : Entity, SGRX_MeshInstUserData
+{
+	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	
+	ScriptedEntity( GameLevel* lev, sgsVariable args );
+	~ScriptedEntity();
+	virtual void FixedTick( float deltaTime );
+	virtual void Tick( float deltaTime, float blendFactor );
+	virtual void OnEvent( const StringView& type );
+	void PreRender();
+	
+	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
+	
+	// - common
+	SGS_METHOD void SetMatrix( Mat4 mtx );
+	
+	// - mesh instance
+	SGS_METHOD void MICreate( int i, StringView path );
+	SGS_METHOD void MIDestroy( int i );
+	SGS_METHOD bool MIExists( int i );
+	SGS_METHOD void MISetMesh( int i, StringView path );
+	SGS_METHOD void MISetEnabled( int i, bool enabled );
+	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
+	SGS_METHOD void MISetShaderConst( int i, int v, Vec4 var );
+	
+	// - particle system
+	SGS_METHOD void PSCreate( int i, StringView path );
+	SGS_METHOD void PSDestroy( int i );
+	SGS_METHOD bool PSExists( int i );
+	SGS_METHOD void PSLoad( int i, StringView path );
+	SGS_METHOD void PSSetMatrix( int i, Mat4 mtx );
+	SGS_METHOD void PSSetMatrixFromMeshAABB( int i, int mi );
+	SGS_METHOD void PSPlay( int i );
+	SGS_METHOD void PSStop( int i );
+	SGS_METHOD void PSTrigger( int i );
+	
+	// - decal system
+	SGS_METHOD void DSCreate( StringView texDmgDecalPath,
+		StringView texOvrDecalPath, StringView texFalloffPath, uint32_t size );
+	SGS_METHOD void DSDestroy();
+	SGS_METHOD void DSResize( uint32_t size );
+	SGS_METHOD void DSClear();
+	
+	// - rigid bodies
+	SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec );
+	SGS_METHOD void RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec );
+	SGS_METHOD void RBDestroy( int i );
+	SGS_METHOD bool RBExists( int i );
+	SGS_METHOD void RBSetEnabled( int i, bool enabled );
+	SGS_METHOD Vec3 RBGetPosition( int i );
+	SGS_METHOD void RBSetPosition( int i, Vec3 v );
+	SGS_METHOD Quat RBGetRotation( int i );
+	SGS_METHOD void RBSetRotation( int i, Quat v );
+	SGS_METHOD Mat4 RBGetMatrix( int i );
+	SGS_METHOD void RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p );
+	
+	// - joints
+	SGS_METHOD void JTCreateHingeB2W( int i, int bi, SGRX_SIHingeJointInfo* spec );
+	SGS_METHOD void JTCreateHingeB2B( int i, int biA, int biB, SGRX_SIHingeJointInfo* spec );
+	SGS_METHOD void JTCreateConeTwistB2W( int i, int bi, SGRX_SIConeTwistJointInfo* spec );
+	SGS_METHOD void JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_SIConeTwistJointInfo* spec );
+	SGS_METHOD void JTDestroy( int i );
+	SGS_METHOD bool JTExists( int i );
+	SGS_METHOD void JTSetEnabled( int i, bool enabled );
+	// ---
+	
+	DecalSysHandle m_dmgDecalSys;
+	DecalSysHandle m_ovrDecalSys;
+	
+	MeshInstHandle m_meshes[ SCRENT_NUM_SLOTS ];
+	PartSysHandle m_partSys[ SCRENT_NUM_SLOTS ];
+	PhyRigidBodyHandle m_bodies[ SCRENT_NUM_SLOTS ];
+	PhyJointHandle m_joints[ SCRENT_NUM_SLOTS ];
+	IVState< Vec3 > m_bodyPos[ SCRENT_NUM_SLOTS ];
+	IVState< Quat > m_bodyRot[ SCRENT_NUM_SLOTS ];
+	Vec3 m_bodyPosLerp[ SCRENT_NUM_SLOTS ];
+	Quat m_bodyRotLerp[ SCRENT_NUM_SLOTS ];
+//	LightHandle m_lights[ SCRENT_NUM_SLOTS ];
+	
+	Mat4 m_transform;
+	Mat4 m_meshMatrices[ SCRENT_NUM_SLOTS ];
+	Mat4 m_partSysMatrices[ SCRENT_NUM_SLOTS ];
+//	Mat4 m_lightMatrices[ SCRENT_NUM_SLOTS ];
+};
+
+
 struct StockEntityCreationSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 999 };

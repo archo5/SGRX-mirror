@@ -424,8 +424,6 @@ void ParticleFX::OnEvent( const StringView& _type )
 }
 
 
-
-
 ScriptedItem::ScriptedItem( GameLevel* lev, const StringView& name, sgsVariable args ) : Entity( lev ), m_scrItem(NULL)
 {
 	char bfr[ 256 ];
@@ -474,6 +472,491 @@ void ScriptedItem::OnEvent( const StringView& type )
 		m_scrItem->EntityEvent( type );
 	}
 }
+
+
+
+#define SCRENT_OFSCHK( i, ret ) if( (i) < 0 || (i) >= 4 ){ \
+	sgs_Msg( C, SGS_WARNING, "wrong offset: %d outside " SCRENT_RANGE_STR, (int)(i) ); ret; }
+#define SCRENT_MESHCHK( i, ret ) if( m_meshes[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no mesh at offset %d", (int)(i) ); ret; }
+#define SCRENT_PSYSCHK( i, ret ) if( m_partSys[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no part.sys at offset %d", (int)(i) ); ret; }
+#define SCRENT_BODYCHK( i, ret ) if( m_bodies[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no body at offset %d", (int)(i) ); ret; }
+#define SCRENT_JOINTCHK( i, ret ) if( m_joints[ i ] == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no joint at offset %d", (int)(i) ); ret; }
+#define SCRENT_DSYSCHK( ret ) if( m_dmgDecalSys == NULL ){ \
+	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
+
+
+ScriptedEntity::ScriptedEntity( GameLevel* lev, sgsVariable args ) : Entity( lev )
+{
+}
+
+ScriptedEntity::~ScriptedEntity()
+{
+}
+
+void ScriptedEntity::FixedTick( float deltaTime )
+{
+	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	{
+		if( m_bodies[ i ] )
+		{
+			m_bodyPos[ i ].Advance( m_bodies[ i ]->GetPosition() );
+			m_bodyRot[ i ].Advance( m_bodies[ i ]->GetRotation() );
+		}
+	}
+	// fixed update event
+	if( _data.not_null() && _data.getprop( "fixedupdate" ).not_null() )
+	{
+		SGS_SCOPE;
+		sgs_PushReal( C, deltaTime );
+		GetScriptedObject().thiscall( C, "fixedupdate", 1 );
+	}
+}
+
+void ScriptedEntity::Tick( float deltaTime, float blendFactor )
+{
+	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	{
+		if( m_bodies[ i ] )
+		{
+			m_bodyPosLerp[ i ] = m_bodyPos[ i ].Get( blendFactor );
+			m_bodyRotLerp[ i ] = m_bodyRot[ i ].Get( blendFactor );
+		}
+	}
+	// update event
+	if( _data.not_null() && _data.getprop( "update" ).not_null() )
+	{
+		SGS_SCOPE;
+		sgs_PushReal( C, deltaTime );
+		sgs_PushReal( C, blendFactor );
+		GetScriptedObject().thiscall( C, "update", 2 );
+	}
+	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	{
+		if( m_partSys[ i ] )
+			m_partSys[ i ]->Tick( deltaTime );
+	}
+	
+	PreRender();
+}
+
+void ScriptedEntity::PreRender()
+{
+	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	{
+		if( m_meshes[ i ] )
+			m_level->LightMesh( m_meshes[ i ] );
+		if( m_partSys[ i ] )
+			m_partSys[ i ]->PreRender();
+	}
+	if( m_dmgDecalSys )
+		m_dmgDecalSys->Upload();
+	if( m_ovrDecalSys )
+		m_ovrDecalSys->Upload();
+	if( m_dmgDecalSys )
+		m_level->LightMesh( m_dmgDecalSys->m_meshInst );
+	if( m_ovrDecalSys )
+		m_level->LightMesh( m_ovrDecalSys->m_meshInst );
+}
+
+void ScriptedEntity::OnEvent( const StringView& type )
+{
+	if( _data.not_null() && _data.getprop( "onevent" ).not_null() )
+	{
+		SGS_SCOPE;
+		sgs_PushVar( C, type );
+		GetScriptedObject().thiscall( C, "onevent", 1 );
+	}
+}
+
+void ScriptedEntity::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
+{
+	if( evid == MIEVT_BulletHit && _data.not_null() && _data.getprop( "onhit" ).not_null() )
+	{
+		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
+		SGS_SCOPE;
+		sgs_CreateVec3p( C, NULL, &bhinfo->pos.x );
+		sgs_CreateVec3p( C, NULL, &bhinfo->vel.x );
+		int i = 0;
+		for( ; i < SCRENT_NUM_SLOTS; ++i )
+		{
+			if( MI == m_meshes[ i ] )
+			{
+				sgs_PushInt( C, i );
+				break;
+			}
+		}
+		if( i == SCRENT_NUM_SLOTS )
+			sgs_PushInt( C, -1 ); // wat
+		GetScriptedObject().thiscall( C, "onhit", 3 );
+	}
+}
+
+void ScriptedEntity::SetMatrix( Mat4 mtx )
+{
+	m_transform = mtx;
+	if( m_dmgDecalSys )
+		m_dmgDecalSys->m_meshInst->matrix = mtx;
+	if( m_ovrDecalSys )
+		m_ovrDecalSys->m_meshInst->matrix = mtx;
+	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	{
+		if( m_meshes[ i ] )
+			m_meshes[ i ]->matrix = m_meshMatrices[ i ] * mtx;
+		if( m_partSys[ i ] )
+			m_partSys[ i ]->SetTransform( m_partSysMatrices[ i ] * mtx );
+	}
+}
+
+void ScriptedEntity::MICreate( int i, StringView path )
+{
+	SCRENT_OFSCHK( i, return );
+	m_meshes[ i ] = m_level->GetScene()->CreateMeshInstance();
+	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * m_transform;
+	m_meshes[ i ]->userData = this;
+	if( path )
+		m_meshes[ i ]->SetMesh( path );
+}
+
+void ScriptedEntity::MIDestroy( int i )
+{
+	SCRENT_OFSCHK( i, return );
+	m_meshes[ i ] = NULL;
+}
+
+bool ScriptedEntity::MIExists( int i )
+{
+	SCRENT_OFSCHK( i, return false );
+	return m_meshes[ i ] != NULL;
+}
+
+void ScriptedEntity::MISetMesh( int i, StringView path )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_MESHCHK( i, return );
+	m_meshes[ i ]->SetMesh( path );
+}
+
+void ScriptedEntity::MISetEnabled( int i, bool enabled )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_MESHCHK( i, return );
+	m_meshes[ i ]->enabled = enabled;
+}
+
+void ScriptedEntity::MISetMatrix( int i, Mat4 mtx )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_MESHCHK( i, return );
+	m_meshMatrices[ i ] = mtx;
+	m_meshes[ i ]->matrix = mtx * m_transform;
+}
+
+void ScriptedEntity::MISetShaderConst( int i, int v, Vec4 var )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_MESHCHK( i, return );
+	if( v < 0 || v >= MAX_MI_CONSTANTS )
+	{
+		sgs_Msg( C, SGS_WARNING, "shader constant %d outside range [0;%d)", v, MAX_MI_CONSTANTS );
+		return;
+	}
+	m_meshes[ i ]->constants[ v ] = var;
+}
+
+void ScriptedEntity::PSCreate( int i, StringView path )
+{
+	SCRENT_OFSCHK( i, return );
+	m_partSys[ i ] = new ParticleSystem;
+	m_partSys[ i ]->AddToScene( m_level->GetScene() );
+	if( path )
+		m_partSys[ i ]->Load( path );
+	m_partSys[ i ]->SetTransform( m_partSysMatrices[ i ] * m_transform );
+}
+
+void ScriptedEntity::PSDestroy( int i )
+{
+	SCRENT_OFSCHK( i, return );
+	m_partSys[ i ] = NULL;
+}
+
+bool ScriptedEntity::PSExists( int i )
+{
+	SCRENT_OFSCHK( i, return false );
+	return m_partSys[ i ] != NULL;
+}
+
+void ScriptedEntity::PSLoad( int i, StringView path )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_PSYSCHK( i, return );
+	m_partSys[ i ]->Load( path );
+}
+
+void ScriptedEntity::PSSetMatrix( int i, Mat4 mtx )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_PSYSCHK( i, return );
+	m_partSysMatrices[ i ] = mtx;
+	m_partSys[ i ]->SetTransform( mtx * m_transform );
+}
+
+void ScriptedEntity::PSSetMatrixFromMeshAABB( int i, int mi )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_PSYSCHK( i, return );
+	SCRENT_OFSCHK( mi, return );
+	SCRENT_MESHCHK( mi, return );
+	SGRX_IMesh* M = m_meshes[ mi ]->GetMesh();
+	if( M == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "mesh is not loaded" );
+		return;
+	}
+	Vec3 diff = M->m_boundsMax - M->m_boundsMin;
+	Vec3 off = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f;
+	Mat4 mtx = Mat4::CreateScale( diff * 0.5f ) * Mat4::CreateTranslation( off );
+	m_partSysMatrices[ i ] = mtx;
+	m_partSys[ i ]->SetTransform( mtx * m_transform );
+}
+
+void ScriptedEntity::PSPlay( int i )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_PSYSCHK( i, return );
+	m_partSys[ i ]->Play();
+}
+
+void ScriptedEntity::PSStop( int i )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_PSYSCHK( i, return );
+	m_partSys[ i ]->Stop();
+}
+
+void ScriptedEntity::PSTrigger( int i )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_PSYSCHK( i, return );
+	m_partSys[ i ]->Trigger();
+}
+
+void ScriptedEntity::DSCreate( StringView texDmgDecalPath,
+	StringView texOvrDecalPath, StringView texFalloffPath, uint32_t size )
+{
+	if( sgs_StackSize( C ) < 4 )
+		size = 64*1024;
+	
+	m_dmgDecalSys = new SGRX_DecalSystem;
+	m_dmgDecalSys->Init( m_level->GetScene(), GR_GetTexture( texDmgDecalPath ), GR_GetTexture( texFalloffPath ) );
+	m_dmgDecalSys->SetSize( size );
+	m_dmgDecalSys->SetDynamic( true );
+	
+	dmgDecalSysOverride = m_dmgDecalSys;
+	
+	m_ovrDecalSys = new SGRX_DecalSystem;
+	m_ovrDecalSys->Init( m_level->GetScene(), GR_GetTexture( texOvrDecalPath ), GR_GetTexture( texFalloffPath ) );
+	m_ovrDecalSys->SetSize( size );
+	m_ovrDecalSys->SetDynamic( true );
+	
+	ovrDecalSysOverride = m_ovrDecalSys;
+}
+
+void ScriptedEntity::DSDestroy()
+{
+	m_dmgDecalSys = NULL;
+	m_ovrDecalSys = NULL;
+	dmgDecalSysOverride = NULL;
+	ovrDecalSysOverride = NULL;
+}
+
+void ScriptedEntity::DSResize( uint32_t size )
+{
+	SCRENT_DSYSCHK( return );
+	m_dmgDecalSys->SetSize( size );
+	m_ovrDecalSys->SetSize( size );
+}
+
+void ScriptedEntity::DSClear()
+{
+	SCRENT_DSYSCHK( return );
+	m_dmgDecalSys->ClearAllDecals();
+	m_ovrDecalSys->ClearAllDecals();
+}
+
+void ScriptedEntity::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_OFSCHK( mi, return );
+	SCRENT_MESHCHK( mi, return );
+	SGRX_IMesh* M = m_meshes[ mi ]->GetMesh();
+	if( M == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "mesh is not loaded" );
+		return;
+	}
+	SGRX_PhyRigidBodyInfo rbi;
+	if( spec )
+		rbi = *spec;
+	rbi.shape = m_level->GetPhyWorld()->CreateShapeFromMesh( M );
+	m_bodies[ i ] = m_level->GetPhyWorld()->CreateRigidBody( rbi );
+	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = rbi.position );
+	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = rbi.rotation );
+}
+
+void ScriptedEntity::RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec )
+{
+	SCRENT_OFSCHK( i, return );
+	ConvexPointSetHandle cpsh = GP_GetConvexPointSet( cpset );
+	if( cpsh == NULL )
+	{
+		sgs_Msg( C, SGS_WARNING, "failed to load convex point set" );
+		return;
+	}
+	SGRX_PhyRigidBodyInfo rbi;
+	if( spec )
+		rbi = *spec;
+	rbi.shape = m_level->GetPhyWorld()->CreateConvexHullShape( cpsh->data.points.data(), cpsh->data.points.size() );
+	m_bodies[ i ] = m_level->GetPhyWorld()->CreateRigidBody( rbi );
+	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = rbi.position );
+	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = rbi.rotation );
+}
+
+void ScriptedEntity::RBDestroy( int i )
+{
+	SCRENT_OFSCHK( i, return );
+	m_bodies[ i ] = NULL;
+}
+
+bool ScriptedEntity::RBExists( int i )
+{
+	SCRENT_OFSCHK( i, return false );
+	return m_bodies[ i ] != NULL;
+}
+
+void ScriptedEntity::RBSetEnabled( int i, bool enabled )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_BODYCHK( i, return );
+	m_bodies[ i ]->SetEnabled( enabled );
+}
+
+Vec3 ScriptedEntity::RBGetPosition( int i )
+{
+	SCRENT_OFSCHK( i, return V3(0) );
+	SCRENT_BODYCHK( i, return V3(0) );
+	return m_bodyPosLerp[ i ]; // m_bodies[ i ]->GetPosition();
+}
+
+void ScriptedEntity::RBSetPosition( int i, Vec3 v )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_BODYCHK( i, return );
+	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = v );
+	m_bodies[ i ]->SetPosition( v );
+}
+
+Quat ScriptedEntity::RBGetRotation( int i )
+{
+	SCRENT_OFSCHK( i, return Quat::Identity );
+	SCRENT_BODYCHK( i, return Quat::Identity );
+	return m_bodyRotLerp[ i ]; // m_bodies[ i ]->GetRotation();
+}
+
+void ScriptedEntity::RBSetRotation( int i, Quat v )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_BODYCHK( i, return );
+	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = v );
+	m_bodies[ i ]->SetRotation( v );
+}
+
+Mat4 ScriptedEntity::RBGetMatrix( int i )
+{
+	SCRENT_OFSCHK( i, return Mat4::Identity );
+	SCRENT_BODYCHK( i, return Mat4::Identity );
+	return Mat4::CreateRotationFromQuat( m_bodyRotLerp[ i ] ) // m_bodies[ i ]->GetRotation() )
+		* Mat4::CreateTranslation( m_bodyPosLerp[ i ] ); // m_bodies[ i ]->GetPosition() );
+}
+
+void ScriptedEntity::RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_BODYCHK( i, return );
+	if( sgs_StackSize( C ) >= 4 )
+		m_bodies[ i ]->ApplyForce( (EPhyForceType) type, v, p );
+	else
+		m_bodies[ i ]->ApplyCentralForce( (EPhyForceType) type, v );
+}
+
+void ScriptedEntity::JTCreateHingeB2W( int i, int bi, SGRX_SIHingeJointInfo* spec )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_OFSCHK( bi, return );
+	SCRENT_BODYCHK( bi, return );
+	SGRX_PhyHingeJointInfo hjinfo = *spec;
+	hjinfo.bodyA = m_bodies[ bi ];
+	m_joints[ i ] = m_level->GetPhyWorld()->CreateHingeJoint( hjinfo );
+}
+
+void ScriptedEntity::JTCreateHingeB2B( int i, int biA, int biB, SGRX_SIHingeJointInfo* spec )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_OFSCHK( biA, return );
+	SCRENT_BODYCHK( biA, return );
+	SCRENT_OFSCHK( biB, return );
+	SCRENT_BODYCHK( biB, return );
+	SGRX_PhyHingeJointInfo hjinfo = *spec;
+	hjinfo.bodyA = m_bodies[ biA ];
+	hjinfo.bodyB = m_bodies[ biB ];
+	m_joints[ i ] = m_level->GetPhyWorld()->CreateHingeJoint( hjinfo );
+}
+
+void ScriptedEntity::JTCreateConeTwistB2W( int i, int bi, SGRX_SIConeTwistJointInfo* spec )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_OFSCHK( bi, return );
+	SCRENT_BODYCHK( bi, return );
+	SGRX_PhyConeTwistJointInfo ctjinfo = *spec;
+	ctjinfo.bodyA = m_bodies[ bi ];
+	m_joints[ i ] = m_level->GetPhyWorld()->CreateConeTwistJoint( ctjinfo );
+}
+
+void ScriptedEntity::JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_SIConeTwistJointInfo* spec )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_OFSCHK( biA, return );
+	SCRENT_BODYCHK( biA, return );
+	SCRENT_OFSCHK( biB, return );
+	SCRENT_BODYCHK( biB, return );
+	SGRX_PhyConeTwistJointInfo ctjinfo = *spec;
+	ctjinfo.bodyA = m_bodies[ biA ];
+	ctjinfo.bodyB = m_bodies[ biB ];
+	m_joints[ i ] = m_level->GetPhyWorld()->CreateConeTwistJoint( ctjinfo );
+}
+
+void ScriptedEntity::JTDestroy( int i )
+{
+	SCRENT_OFSCHK( i, return );
+	m_joints[ i ] = NULL;
+}
+
+bool ScriptedEntity::JTExists( int i )
+{
+	SCRENT_OFSCHK( i, return false );
+	return m_joints[ i ] != NULL;
+}
+
+void ScriptedEntity::JTSetEnabled( int i, bool enabled )
+{
+	SCRENT_OFSCHK( i, return );
+	SCRENT_JOINTCHK( i, return );
+	m_joints[ i ]->SetEnabled( enabled );
+}
+
 
 
 StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
@@ -633,6 +1116,15 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 		);
 		m_level->AddEntity( SI );
 		outvar = SI->GetScriptedObject();
+		return true;
+	}
+	
+	///////////////////////////
+	if( type == "scripted_entity" )
+	{
+		ScriptedEntity* SE = new ScriptedEntity( m_level, data );
+		m_level->AddEntity( SE );
+		outvar = SE->GetScriptedObject();
 		return true;
 	}
 	
