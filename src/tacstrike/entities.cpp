@@ -491,6 +491,12 @@ void ScriptedItem::OnEvent( const StringView& type )
 
 ScriptedEntity::ScriptedEntity( GameLevel* lev, sgsVariable args ) : Entity( lev )
 {
+	m_transform = Mat4::Identity;
+	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
+	{
+		m_meshMatrices[ i ] = Mat4::Identity;
+		m_partSysMatrices[ i ] = Mat4::Identity;
+	}
 }
 
 ScriptedEntity::~ScriptedEntity()
@@ -508,11 +514,11 @@ void ScriptedEntity::FixedTick( float deltaTime )
 		}
 	}
 	// fixed update event
-	if( _data.not_null() && _data.getprop( "fixedupdate" ).not_null() )
+	if( GetScriptedObject().getprop( "FixedUpdate" ).not_null() )
 	{
 		SGS_SCOPE;
 		sgs_PushReal( C, deltaTime );
-		GetScriptedObject().thiscall( C, "fixedupdate", 1 );
+		GetScriptedObject().thiscall( C, "FixedUpdate", 1 );
 	}
 }
 
@@ -527,12 +533,12 @@ void ScriptedEntity::Tick( float deltaTime, float blendFactor )
 		}
 	}
 	// update event
-	if( _data.not_null() && _data.getprop( "update" ).not_null() )
+	if( GetScriptedObject().getprop( "Update" ).not_null() )
 	{
 		SGS_SCOPE;
 		sgs_PushReal( C, deltaTime );
 		sgs_PushReal( C, blendFactor );
-		GetScriptedObject().thiscall( C, "update", 2 );
+		GetScriptedObject().thiscall( C, "Update", 2 );
 	}
 	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
 	{
@@ -564,17 +570,17 @@ void ScriptedEntity::PreRender()
 
 void ScriptedEntity::OnEvent( const StringView& type )
 {
-	if( _data.not_null() && _data.getprop( "onevent" ).not_null() )
+	if( GetScriptedObject().getprop( "OnEvent" ).not_null() )
 	{
 		SGS_SCOPE;
 		sgs_PushVar( C, type );
-		GetScriptedObject().thiscall( C, "onevent", 1 );
+		GetScriptedObject().thiscall( C, "OnEvent", 1 );
 	}
 }
 
 void ScriptedEntity::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 {
-	if( evid == MIEVT_BulletHit && _data.not_null() && _data.getprop( "onhit" ).not_null() )
+	if( evid == MIEVT_BulletHit && GetScriptedObject().getprop( "OnHit" ).not_null() )
 	{
 		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
 		SGS_SCOPE;
@@ -591,7 +597,7 @@ void ScriptedEntity::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 		}
 		if( i == SCRENT_NUM_SLOTS )
 			sgs_PushInt( C, -1 ); // wat
-		GetScriptedObject().thiscall( C, "onhit", 3 );
+		GetScriptedObject().thiscall( C, "OnHit", 3 );
 	}
 }
 
