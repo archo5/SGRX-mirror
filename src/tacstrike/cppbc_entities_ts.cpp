@@ -32,10 +32,10 @@ int TSCamera::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__TSCamera__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "moveTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_moveTime ); return SGS_SUCCESS; }
 		SGS_CASE( "pauseTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_pauseTime ); return SGS_SUCCESS; }
 		SGS_CASE( "fov" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_fov ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<TSCamera*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -48,6 +48,7 @@ int TSCamera::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "moveTime" ){ static_cast<TSCamera*>( obj->data )->m_moveTime = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "pauseTime" ){ static_cast<TSCamera*>( obj->data )->m_pauseTime = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "fov" ){ static_cast<TSCamera*>( obj->data )->m_fov = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<TSCamera*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -75,12 +76,27 @@ int TSCamera::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst TSCamera__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__TSCamera__CallEvent },
+	{ NULL, NULL },
+};
+
+static int TSCamera__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		TSCamera__sgs_funcs,
+		-1, "TSCamera." );
+	return 1;
+}
+
 static sgs_ObjInterface TSCamera__sgs_interface =
 {
 	"TSCamera",
-	TSCamera::_sgs_destruct, TSCamera::_sgs_gcmark, TSCamera::_getindex, TSCamera::_setindex, NULL, NULL, TSCamera::_sgs_dump, NULL, NULL, NULL, 
+	TSCamera::_sgs_destruct, TSCamera::_sgs_gcmark, TSCamera::_sgs_getindex, TSCamera::_sgs_setindex, NULL, NULL, TSCamera::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface TSCamera::_sgs_interface(TSCamera__sgs_interface, &Entity::_sgs_interface);
+_sgsInterface TSCamera::_sgs_interface(TSCamera__sgs_interface, TSCamera__sgs_ifn, &Entity::_sgs_interface);
 
 
 static int _sgs_method__TSCharacter__CallEvent( SGS_CTX )
@@ -203,23 +219,10 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__CallEvent ); return SGS_SUCCESS; }
-		SGS_CASE( "GetInputV3" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetInputV3 ); return SGS_SUCCESS; }
-		SGS_CASE( "GetInputV2" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetInputV2 ); return SGS_SUCCESS; }
-		SGS_CASE( "GetInputF" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetInputF ); return SGS_SUCCESS; }
-		SGS_CASE( "GetInputB" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetInputB ); return SGS_SUCCESS; }
-		SGS_CASE( "IsAlive" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__IsAlive ); return SGS_SUCCESS; }
-		SGS_CASE( "Reset" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__Reset ); return SGS_SUCCESS; }
 		SGS_CASE( "ctrl" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_getCtrl() ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "SetPlayerMode" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__SetPlayerMode ); return SGS_SUCCESS; }
-		SGS_CASE( "IsPlayingAnim" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__IsPlayingAnim ); return SGS_SUCCESS; }
-		SGS_CASE( "PlayAnim" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__PlayAnim ); return SGS_SUCCESS; }
-		SGS_CASE( "StopAnim" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__StopAnim ); return SGS_SUCCESS; }
-		SGS_CASE( "GetViewDir" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetViewDir ); return SGS_SUCCESS; }
-		SGS_CASE( "GetAimDir" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetAimDir ); return SGS_SUCCESS; }
 		SGS_CASE( "timeSinceLastHit" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit ); return SGS_SUCCESS; }
-		SGS_CASE( "GetAttachmentPos" ){ sgs_PushCFunc( C, _sgs_method__TSCharacter__GetAttachmentPos ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -230,6 +233,7 @@ int TSCharacter::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "_data" ){ static_cast<TSCharacter*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ static_cast<TSCharacter*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ static_cast<TSCharacter*>( obj->data )->SetPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -257,12 +261,40 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__TSCharacter__CallEvent },
+	{ "GetInputV3", _sgs_method__TSCharacter__GetInputV3 },
+	{ "GetInputV2", _sgs_method__TSCharacter__GetInputV2 },
+	{ "GetInputF", _sgs_method__TSCharacter__GetInputF },
+	{ "GetInputB", _sgs_method__TSCharacter__GetInputB },
+	{ "IsAlive", _sgs_method__TSCharacter__IsAlive },
+	{ "Reset", _sgs_method__TSCharacter__Reset },
+	{ "SetPlayerMode", _sgs_method__TSCharacter__SetPlayerMode },
+	{ "IsPlayingAnim", _sgs_method__TSCharacter__IsPlayingAnim },
+	{ "PlayAnim", _sgs_method__TSCharacter__PlayAnim },
+	{ "StopAnim", _sgs_method__TSCharacter__StopAnim },
+	{ "GetViewDir", _sgs_method__TSCharacter__GetViewDir },
+	{ "GetAimDir", _sgs_method__TSCharacter__GetAimDir },
+	{ "GetAttachmentPos", _sgs_method__TSCharacter__GetAttachmentPos },
+	{ NULL, NULL },
+};
+
+static int TSCharacter__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		TSCharacter__sgs_funcs,
+		-1, "TSCharacter." );
+	return 1;
+}
+
 static sgs_ObjInterface TSCharacter__sgs_interface =
 {
 	"TSCharacter",
-	TSCharacter::_sgs_destruct, TSCharacter::_sgs_gcmark, TSCharacter::_getindex, TSCharacter::_setindex, NULL, NULL, TSCharacter::_sgs_dump, NULL, NULL, NULL, 
+	TSCharacter::_sgs_destruct, TSCharacter::_sgs_gcmark, TSCharacter::_sgs_getindex, TSCharacter::_sgs_setindex, NULL, NULL, TSCharacter::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, &Actor::_sgs_interface);
+_sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, TSCharacter__sgs_ifn, &Actor::_sgs_interface);
 
 
 static int _sgs_method__TSEnemyController__GetInput( SGS_CTX )
@@ -417,27 +449,9 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "GetInput" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetInput ); return SGS_SUCCESS; }
-		SGS_CASE( "Reset" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__Reset ); return SGS_SUCCESS; }
 		SGS_CASE( "inPlayerTeam" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_inPlayerTeam ); return SGS_SUCCESS; }
 		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
-		SGS_CASE( "CanSeePoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__CanSeePoint ); return SGS_SUCCESS; }
-		SGS_CASE( "LookingAtPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__LookingAtPoint ); return SGS_SUCCESS; }
-		SGS_CASE( "HasFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasFact ); return SGS_SUCCESS; }
-		SGS_CASE( "HasRecentFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasRecentFact ); return SGS_SUCCESS; }
-		SGS_CASE( "GetRecentFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetRecentFact ); return SGS_SUCCESS; }
-		SGS_CASE( "InsertFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__InsertFact ); return SGS_SUCCESS; }
-		SGS_CASE( "UpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__UpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "InsertOrUpdateFact" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__InsertOrUpdateFact ); return SGS_SUCCESS; }
-		SGS_CASE( "QueryCoverLines" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__QueryCoverLines ); return SGS_SUCCESS; }
-		SGS_CASE( "GetCoverPosition" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetCoverPosition ); return SGS_SUCCESS; }
-		SGS_CASE( "IsWalkable" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__IsWalkable ); return SGS_SUCCESS; }
-		SGS_CASE( "FindPath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__FindPath ); return SGS_SUCCESS; }
-		SGS_CASE( "HasPath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__HasPath ); return SGS_SUCCESS; }
-		SGS_CASE( "GetPathPointCount" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetPathPointCount ); return SGS_SUCCESS; }
-		SGS_CASE( "AdvancePath" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__AdvancePath ); return SGS_SUCCESS; }
-		SGS_CASE( "GetNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__GetNextPathPoint ); return SGS_SUCCESS; }
-		SGS_CASE( "RemoveNextPathPoint" ){ sgs_PushCFunc( C, _sgs_method__TSEnemyController__RemoveNextPathPoint ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<TSEnemyController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -447,6 +461,7 @@ int TSEnemyController::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<TSEnemyController*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "inPlayerTeam" ){ static_cast<TSEnemyController*>( obj->data )->m_inPlayerTeam = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<TSEnemyController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -470,10 +485,43 @@ int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst TSEnemyController__sgs_funcs[] =
+{
+	{ "GetInput", _sgs_method__TSEnemyController__GetInput },
+	{ "Reset", _sgs_method__TSEnemyController__Reset },
+	{ "CanSeePoint", _sgs_method__TSEnemyController__CanSeePoint },
+	{ "LookingAtPoint", _sgs_method__TSEnemyController__LookingAtPoint },
+	{ "HasFact", _sgs_method__TSEnemyController__HasFact },
+	{ "HasRecentFact", _sgs_method__TSEnemyController__HasRecentFact },
+	{ "GetRecentFact", _sgs_method__TSEnemyController__GetRecentFact },
+	{ "InsertFact", _sgs_method__TSEnemyController__InsertFact },
+	{ "UpdateFact", _sgs_method__TSEnemyController__UpdateFact },
+	{ "InsertOrUpdateFact", _sgs_method__TSEnemyController__InsertOrUpdateFact },
+	{ "QueryCoverLines", _sgs_method__TSEnemyController__QueryCoverLines },
+	{ "GetCoverPosition", _sgs_method__TSEnemyController__GetCoverPosition },
+	{ "IsWalkable", _sgs_method__TSEnemyController__IsWalkable },
+	{ "FindPath", _sgs_method__TSEnemyController__FindPath },
+	{ "HasPath", _sgs_method__TSEnemyController__HasPath },
+	{ "GetPathPointCount", _sgs_method__TSEnemyController__GetPathPointCount },
+	{ "AdvancePath", _sgs_method__TSEnemyController__AdvancePath },
+	{ "GetNextPathPoint", _sgs_method__TSEnemyController__GetNextPathPoint },
+	{ "RemoveNextPathPoint", _sgs_method__TSEnemyController__RemoveNextPathPoint },
+	{ NULL, NULL },
+};
+
+static int TSEnemyController__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		TSEnemyController__sgs_funcs,
+		-1, "TSEnemyController." );
+	return 1;
+}
+
 static sgs_ObjInterface TSEnemyController__sgs_interface =
 {
 	"TSEnemyController",
-	NULL, TSEnemyController::_sgs_gcmark, TSEnemyController::_getindex, TSEnemyController::_setindex, NULL, NULL, TSEnemyController::_sgs_dump, NULL, NULL, NULL, 
+	NULL, TSEnemyController::_sgs_gcmark, TSEnemyController::_sgs_getindex, TSEnemyController::_sgs_setindex, NULL, NULL, TSEnemyController::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface TSEnemyController::_sgs_interface(TSEnemyController__sgs_interface, &IActorController::_sgs_interface);
+_sgsInterface TSEnemyController::_sgs_interface(TSEnemyController__sgs_interface, TSEnemyController__sgs_ifn, &IActorController::_sgs_interface);
 

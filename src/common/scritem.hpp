@@ -117,8 +117,6 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	
 	// ---
-	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
-	SGS_IFUNC( SETINDEX ) int _setindex( SGS_ARGS_SETINDEXFUNC );
 	
 	// - common
 	SGS_METHOD void SetMatrix( Mat4 mtx );
@@ -174,6 +172,7 @@ struct SGRX_ScriptedItem : SGRX_MeshInstUserData
 	// ---
 	
 	sgsVariable m_variable;
+	SGS_BACKING_STORE( m_variable.var );
 	
 	SceneHandle m_scene;
 	PhyWorldHandle m_phyWorld;

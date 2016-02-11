@@ -46,13 +46,11 @@ int Trigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__Trigger__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
 		SGS_CASE( "once" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_once ); return SGS_SUCCESS; }
 		SGS_CASE( "done" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->m_done ); return SGS_SUCCESS; }
-		SGS_CASE( "Invoke" ){ sgs_PushCFunc( C, _sgs_method__Trigger__Invoke ); return SGS_SUCCESS; }
-		SGS_CASE( "SetupTrigger" ){ sgs_PushCFunc( C, _sgs_method__Trigger__SetupTrigger ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<Trigger*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -66,6 +64,7 @@ int Trigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "funcOut" ){ static_cast<Trigger*>( obj->data )->m_funcOut = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "once" ){ static_cast<Trigger*>( obj->data )->m_once = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "done" ){ static_cast<Trigger*>( obj->data )->m_done = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<Trigger*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -94,12 +93,29 @@ int Trigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst Trigger__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__Trigger__CallEvent },
+	{ "Invoke", _sgs_method__Trigger__Invoke },
+	{ "SetupTrigger", _sgs_method__Trigger__SetupTrigger },
+	{ NULL, NULL },
+};
+
+static int Trigger__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		Trigger__sgs_funcs,
+		-1, "Trigger." );
+	return 1;
+}
+
 static sgs_ObjInterface Trigger__sgs_interface =
 {
 	"Trigger",
-	Trigger::_sgs_destruct, Trigger::_sgs_gcmark, Trigger::_getindex, Trigger::_setindex, NULL, NULL, Trigger::_sgs_dump, NULL, NULL, NULL, 
+	Trigger::_sgs_destruct, Trigger::_sgs_gcmark, Trigger::_sgs_getindex, Trigger::_sgs_setindex, NULL, NULL, Trigger::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface Trigger::_sgs_interface(Trigger__sgs_interface, &Entity::_sgs_interface);
+_sgsInterface Trigger::_sgs_interface(Trigger__sgs_interface, Trigger__sgs_ifn, &Entity::_sgs_interface);
 
 
 static int _sgs_method__BoxTrigger__CallEvent( SGS_CTX )
@@ -145,14 +161,12 @@ int BoxTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__BoxTrigger__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
 		SGS_CASE( "once" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_once ); return SGS_SUCCESS; }
 		SGS_CASE( "done" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_done ); return SGS_SUCCESS; }
-		SGS_CASE( "Invoke" ){ sgs_PushCFunc( C, _sgs_method__BoxTrigger__Invoke ); return SGS_SUCCESS; }
-		SGS_CASE( "SetupTrigger" ){ sgs_PushCFunc( C, _sgs_method__BoxTrigger__SetupTrigger ); return SGS_SUCCESS; }
 		SGS_CASE( "matrix" ){ sgs_PushVar( C, static_cast<BoxTrigger*>( obj->data )->m_matrix ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<BoxTrigger*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -167,6 +181,7 @@ int BoxTrigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "once" ){ static_cast<BoxTrigger*>( obj->data )->m_once = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "done" ){ static_cast<BoxTrigger*>( obj->data )->m_done = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "matrix" ){ static_cast<BoxTrigger*>( obj->data )->m_matrix = sgs_GetVar<Mat4>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<BoxTrigger*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -196,12 +211,29 @@ int BoxTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst BoxTrigger__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__BoxTrigger__CallEvent },
+	{ "Invoke", _sgs_method__BoxTrigger__Invoke },
+	{ "SetupTrigger", _sgs_method__BoxTrigger__SetupTrigger },
+	{ NULL, NULL },
+};
+
+static int BoxTrigger__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		BoxTrigger__sgs_funcs,
+		-1, "BoxTrigger." );
+	return 1;
+}
+
 static sgs_ObjInterface BoxTrigger__sgs_interface =
 {
 	"BoxTrigger",
-	BoxTrigger::_sgs_destruct, BoxTrigger::_sgs_gcmark, BoxTrigger::_getindex, BoxTrigger::_setindex, NULL, NULL, BoxTrigger::_sgs_dump, NULL, NULL, NULL, 
+	BoxTrigger::_sgs_destruct, BoxTrigger::_sgs_gcmark, BoxTrigger::_sgs_getindex, BoxTrigger::_sgs_setindex, NULL, NULL, BoxTrigger::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface BoxTrigger::_sgs_interface(BoxTrigger__sgs_interface, &Trigger::_sgs_interface);
+_sgsInterface BoxTrigger::_sgs_interface(BoxTrigger__sgs_interface, BoxTrigger__sgs_ifn, &Trigger::_sgs_interface);
 
 
 static int _sgs_method__ProximityTrigger__CallEvent( SGS_CTX )
@@ -247,15 +279,13 @@ int ProximityTrigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__ProximityTrigger__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
 		SGS_CASE( "once" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_once ); return SGS_SUCCESS; }
 		SGS_CASE( "done" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_done ); return SGS_SUCCESS; }
-		SGS_CASE( "Invoke" ){ sgs_PushCFunc( C, _sgs_method__ProximityTrigger__Invoke ); return SGS_SUCCESS; }
-		SGS_CASE( "SetupTrigger" ){ sgs_PushCFunc( C, _sgs_method__ProximityTrigger__SetupTrigger ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_position ); return SGS_SUCCESS; }
 		SGS_CASE( "radius" ){ sgs_PushVar( C, static_cast<ProximityTrigger*>( obj->data )->m_radius ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<ProximityTrigger*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -271,6 +301,7 @@ int ProximityTrigger::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "done" ){ static_cast<ProximityTrigger*>( obj->data )->m_done = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ static_cast<ProximityTrigger*>( obj->data )->m_position = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "radius" ){ static_cast<ProximityTrigger*>( obj->data )->m_radius = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<ProximityTrigger*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -301,12 +332,29 @@ int ProximityTrigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst ProximityTrigger__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__ProximityTrigger__CallEvent },
+	{ "Invoke", _sgs_method__ProximityTrigger__Invoke },
+	{ "SetupTrigger", _sgs_method__ProximityTrigger__SetupTrigger },
+	{ NULL, NULL },
+};
+
+static int ProximityTrigger__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		ProximityTrigger__sgs_funcs,
+		-1, "ProximityTrigger." );
+	return 1;
+}
+
 static sgs_ObjInterface ProximityTrigger__sgs_interface =
 {
 	"ProximityTrigger",
-	ProximityTrigger::_sgs_destruct, ProximityTrigger::_sgs_gcmark, ProximityTrigger::_getindex, ProximityTrigger::_setindex, NULL, NULL, ProximityTrigger::_sgs_dump, NULL, NULL, NULL, 
+	ProximityTrigger::_sgs_destruct, ProximityTrigger::_sgs_gcmark, ProximityTrigger::_sgs_getindex, ProximityTrigger::_sgs_setindex, NULL, NULL, ProximityTrigger::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface ProximityTrigger::_sgs_interface(ProximityTrigger__sgs_interface, &Trigger::_sgs_interface);
+_sgsInterface ProximityTrigger::_sgs_interface(ProximityTrigger__sgs_interface, ProximityTrigger__sgs_ifn, &Trigger::_sgs_interface);
 
 
 static int _sgs_method__SlidingDoor__CallEvent( SGS_CTX )
@@ -352,15 +400,13 @@ int SlidingDoor::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__SlidingDoor__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "funcOut" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_funcOut ); return SGS_SUCCESS; }
 		SGS_CASE( "once" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_once ); return SGS_SUCCESS; }
 		SGS_CASE( "done" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_done ); return SGS_SUCCESS; }
-		SGS_CASE( "Invoke" ){ sgs_PushCFunc( C, _sgs_method__SlidingDoor__Invoke ); return SGS_SUCCESS; }
-		SGS_CASE( "SetupTrigger" ){ sgs_PushCFunc( C, _sgs_method__SlidingDoor__SetupTrigger ); return SGS_SUCCESS; }
 		SGS_CASE( "isSwitch" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_isSwitch ); return SGS_SUCCESS; }
 		SGS_CASE( "switchPred" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->m_switchPred ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<SlidingDoor*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -375,6 +421,7 @@ int SlidingDoor::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "once" ){ static_cast<SlidingDoor*>( obj->data )->m_once = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "done" ){ static_cast<SlidingDoor*>( obj->data )->m_done = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "switchPred" ){ static_cast<SlidingDoor*>( obj->data )->m_switchPred = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<SlidingDoor*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -405,12 +452,29 @@ int SlidingDoor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst SlidingDoor__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__SlidingDoor__CallEvent },
+	{ "Invoke", _sgs_method__SlidingDoor__Invoke },
+	{ "SetupTrigger", _sgs_method__SlidingDoor__SetupTrigger },
+	{ NULL, NULL },
+};
+
+static int SlidingDoor__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		SlidingDoor__sgs_funcs,
+		-1, "SlidingDoor." );
+	return 1;
+}
+
 static sgs_ObjInterface SlidingDoor__sgs_interface =
 {
 	"SlidingDoor",
-	SlidingDoor::_sgs_destruct, SlidingDoor::_sgs_gcmark, SlidingDoor::_getindex, SlidingDoor::_setindex, NULL, NULL, SlidingDoor::_sgs_dump, NULL, NULL, NULL, 
+	SlidingDoor::_sgs_destruct, SlidingDoor::_sgs_gcmark, SlidingDoor::_sgs_getindex, SlidingDoor::_sgs_setindex, NULL, NULL, SlidingDoor::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface SlidingDoor::_sgs_interface(SlidingDoor__sgs_interface, &Trigger::_sgs_interface);
+_sgsInterface SlidingDoor::_sgs_interface(SlidingDoor__sgs_interface, SlidingDoor__sgs_ifn, &Trigger::_sgs_interface);
 
 
 static int _sgs_method__PickupItem__CallEvent( SGS_CTX )
@@ -442,7 +506,7 @@ int PickupItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__PickupItem__CallEvent ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<PickupItem*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -452,6 +516,7 @@ int PickupItem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<PickupItem*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ static_cast<PickupItem*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<PickupItem*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -476,12 +541,27 @@ int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst PickupItem__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__PickupItem__CallEvent },
+	{ NULL, NULL },
+};
+
+static int PickupItem__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		PickupItem__sgs_funcs,
+		-1, "PickupItem." );
+	return 1;
+}
+
 static sgs_ObjInterface PickupItem__sgs_interface =
 {
 	"PickupItem",
-	PickupItem::_sgs_destruct, PickupItem::_sgs_gcmark, PickupItem::_getindex, PickupItem::_setindex, NULL, NULL, PickupItem::_sgs_dump, NULL, NULL, NULL, 
+	PickupItem::_sgs_destruct, PickupItem::_sgs_gcmark, PickupItem::_sgs_getindex, PickupItem::_sgs_setindex, NULL, NULL, PickupItem::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface PickupItem::_sgs_interface(PickupItem__sgs_interface, &Entity::_sgs_interface);
+_sgsInterface PickupItem::_sgs_interface(PickupItem__sgs_interface, PickupItem__sgs_ifn, &Entity::_sgs_interface);
 
 
 static int _sgs_method__Actionable__CallEvent( SGS_CTX )
@@ -513,12 +593,12 @@ int Actionable::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__Actionable__CallEvent ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_enabled ); return SGS_SUCCESS; }
 		SGS_CASE( "timeEstimate" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_info.timeEstimate ); return SGS_SUCCESS; }
 		SGS_CASE( "timeActual" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_info.timeActual ); return SGS_SUCCESS; }
 		SGS_CASE( "onSuccess" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_onSuccess ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_info.placePos ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<Actionable*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -533,6 +613,7 @@ int Actionable::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "timeEstimate" ){ static_cast<Actionable*>( obj->data )->m_info.timeEstimate = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "timeActual" ){ static_cast<Actionable*>( obj->data )->m_info.timeActual = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "onSuccess" ){ static_cast<Actionable*>( obj->data )->m_onSuccess = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<Actionable*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -562,12 +643,27 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst Actionable__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__Actionable__CallEvent },
+	{ NULL, NULL },
+};
+
+static int Actionable__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		Actionable__sgs_funcs,
+		-1, "Actionable." );
+	return 1;
+}
+
 static sgs_ObjInterface Actionable__sgs_interface =
 {
 	"Actionable",
-	NULL, Actionable::_sgs_gcmark, Actionable::_getindex, Actionable::_setindex, NULL, NULL, Actionable::_sgs_dump, NULL, NULL, NULL, 
+	NULL, Actionable::_sgs_gcmark, Actionable::_sgs_getindex, Actionable::_sgs_setindex, NULL, NULL, Actionable::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface Actionable::_sgs_interface(Actionable__sgs_interface, &Entity::_sgs_interface);
+_sgsInterface Actionable::_sgs_interface(Actionable__sgs_interface, Actionable__sgs_ifn, &Entity::_sgs_interface);
 
 
 static int _sgs_method__ScriptedEntity__CallEvent( SGS_CTX )
@@ -872,46 +968,7 @@ int ScriptedEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ScriptedEntity*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ScriptedEntity*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ sgs_PushVar( C, static_cast<ScriptedEntity*>( obj->data )->m_viewName ); return SGS_SUCCESS; }
-		SGS_CASE( "CallEvent" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__CallEvent ); return SGS_SUCCESS; }
-		SGS_CASE( "SetMatrix" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__SetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "MICreate" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__MICreate ); return SGS_SUCCESS; }
-		SGS_CASE( "MIDestroy" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__MIDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "MIExists" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__MIExists ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetMesh" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__MISetMesh ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetEnabled" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__MISetEnabled ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetMatrix" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__MISetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "MISetShaderConst" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__MISetShaderConst ); return SGS_SUCCESS; }
-		SGS_CASE( "PSCreate" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSCreate ); return SGS_SUCCESS; }
-		SGS_CASE( "PSDestroy" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "PSExists" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSExists ); return SGS_SUCCESS; }
-		SGS_CASE( "PSLoad" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSLoad ); return SGS_SUCCESS; }
-		SGS_CASE( "PSSetMatrix" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSSetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "PSSetMatrixFromMeshAABB" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSSetMatrixFromMeshAABB ); return SGS_SUCCESS; }
-		SGS_CASE( "PSPlay" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSPlay ); return SGS_SUCCESS; }
-		SGS_CASE( "PSStop" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSStop ); return SGS_SUCCESS; }
-		SGS_CASE( "PSTrigger" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__PSTrigger ); return SGS_SUCCESS; }
-		SGS_CASE( "DSCreate" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__DSCreate ); return SGS_SUCCESS; }
-		SGS_CASE( "DSDestroy" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__DSDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "DSResize" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__DSResize ); return SGS_SUCCESS; }
-		SGS_CASE( "DSClear" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__DSClear ); return SGS_SUCCESS; }
-		SGS_CASE( "RBCreateFromMesh" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBCreateFromMesh ); return SGS_SUCCESS; }
-		SGS_CASE( "RBCreateFromConvexPointSet" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBCreateFromConvexPointSet ); return SGS_SUCCESS; }
-		SGS_CASE( "RBDestroy" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "RBExists" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBExists ); return SGS_SUCCESS; }
-		SGS_CASE( "RBSetEnabled" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBSetEnabled ); return SGS_SUCCESS; }
-		SGS_CASE( "RBGetPosition" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBGetPosition ); return SGS_SUCCESS; }
-		SGS_CASE( "RBSetPosition" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBSetPosition ); return SGS_SUCCESS; }
-		SGS_CASE( "RBGetRotation" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBGetRotation ); return SGS_SUCCESS; }
-		SGS_CASE( "RBSetRotation" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBSetRotation ); return SGS_SUCCESS; }
-		SGS_CASE( "RBGetMatrix" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBGetMatrix ); return SGS_SUCCESS; }
-		SGS_CASE( "RBApplyForce" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__RBApplyForce ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateHingeB2W" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__JTCreateHingeB2W ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateHingeB2B" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__JTCreateHingeB2B ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateConeTwistB2W" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__JTCreateConeTwistB2W ); return SGS_SUCCESS; }
-		SGS_CASE( "JTCreateConeTwistB2B" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__JTCreateConeTwistB2B ); return SGS_SUCCESS; }
-		SGS_CASE( "JTDestroy" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__JTDestroy ); return SGS_SUCCESS; }
-		SGS_CASE( "JTExists" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__JTExists ); return SGS_SUCCESS; }
-		SGS_CASE( "JTSetEnabled" ){ sgs_PushCFunc( C, _sgs_method__ScriptedEntity__JTSetEnabled ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<ScriptedEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -921,6 +978,7 @@ int ScriptedEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<ScriptedEntity*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "viewName" ){ static_cast<ScriptedEntity*>( obj->data )->m_viewName = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<ScriptedEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
 
@@ -945,10 +1003,64 @@ int ScriptedEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst ScriptedEntity__sgs_funcs[] =
+{
+	{ "CallEvent", _sgs_method__ScriptedEntity__CallEvent },
+	{ "SetMatrix", _sgs_method__ScriptedEntity__SetMatrix },
+	{ "MICreate", _sgs_method__ScriptedEntity__MICreate },
+	{ "MIDestroy", _sgs_method__ScriptedEntity__MIDestroy },
+	{ "MIExists", _sgs_method__ScriptedEntity__MIExists },
+	{ "MISetMesh", _sgs_method__ScriptedEntity__MISetMesh },
+	{ "MISetEnabled", _sgs_method__ScriptedEntity__MISetEnabled },
+	{ "MISetMatrix", _sgs_method__ScriptedEntity__MISetMatrix },
+	{ "MISetShaderConst", _sgs_method__ScriptedEntity__MISetShaderConst },
+	{ "PSCreate", _sgs_method__ScriptedEntity__PSCreate },
+	{ "PSDestroy", _sgs_method__ScriptedEntity__PSDestroy },
+	{ "PSExists", _sgs_method__ScriptedEntity__PSExists },
+	{ "PSLoad", _sgs_method__ScriptedEntity__PSLoad },
+	{ "PSSetMatrix", _sgs_method__ScriptedEntity__PSSetMatrix },
+	{ "PSSetMatrixFromMeshAABB", _sgs_method__ScriptedEntity__PSSetMatrixFromMeshAABB },
+	{ "PSPlay", _sgs_method__ScriptedEntity__PSPlay },
+	{ "PSStop", _sgs_method__ScriptedEntity__PSStop },
+	{ "PSTrigger", _sgs_method__ScriptedEntity__PSTrigger },
+	{ "DSCreate", _sgs_method__ScriptedEntity__DSCreate },
+	{ "DSDestroy", _sgs_method__ScriptedEntity__DSDestroy },
+	{ "DSResize", _sgs_method__ScriptedEntity__DSResize },
+	{ "DSClear", _sgs_method__ScriptedEntity__DSClear },
+	{ "RBCreateFromMesh", _sgs_method__ScriptedEntity__RBCreateFromMesh },
+	{ "RBCreateFromConvexPointSet", _sgs_method__ScriptedEntity__RBCreateFromConvexPointSet },
+	{ "RBDestroy", _sgs_method__ScriptedEntity__RBDestroy },
+	{ "RBExists", _sgs_method__ScriptedEntity__RBExists },
+	{ "RBSetEnabled", _sgs_method__ScriptedEntity__RBSetEnabled },
+	{ "RBGetPosition", _sgs_method__ScriptedEntity__RBGetPosition },
+	{ "RBSetPosition", _sgs_method__ScriptedEntity__RBSetPosition },
+	{ "RBGetRotation", _sgs_method__ScriptedEntity__RBGetRotation },
+	{ "RBSetRotation", _sgs_method__ScriptedEntity__RBSetRotation },
+	{ "RBGetMatrix", _sgs_method__ScriptedEntity__RBGetMatrix },
+	{ "RBApplyForce", _sgs_method__ScriptedEntity__RBApplyForce },
+	{ "JTCreateHingeB2W", _sgs_method__ScriptedEntity__JTCreateHingeB2W },
+	{ "JTCreateHingeB2B", _sgs_method__ScriptedEntity__JTCreateHingeB2B },
+	{ "JTCreateConeTwistB2W", _sgs_method__ScriptedEntity__JTCreateConeTwistB2W },
+	{ "JTCreateConeTwistB2B", _sgs_method__ScriptedEntity__JTCreateConeTwistB2B },
+	{ "JTDestroy", _sgs_method__ScriptedEntity__JTDestroy },
+	{ "JTExists", _sgs_method__ScriptedEntity__JTExists },
+	{ "JTSetEnabled", _sgs_method__ScriptedEntity__JTSetEnabled },
+	{ NULL, NULL },
+};
+
+static int ScriptedEntity__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		ScriptedEntity__sgs_funcs,
+		-1, "ScriptedEntity." );
+	return 1;
+}
+
 static sgs_ObjInterface ScriptedEntity__sgs_interface =
 {
 	"ScriptedEntity",
-	NULL, ScriptedEntity::_sgs_gcmark, ScriptedEntity::_getindex, ScriptedEntity::_setindex, NULL, NULL, ScriptedEntity::_sgs_dump, NULL, NULL, NULL, 
+	NULL, ScriptedEntity::_sgs_gcmark, ScriptedEntity::_sgs_getindex, ScriptedEntity::_sgs_setindex, NULL, NULL, ScriptedEntity::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface ScriptedEntity::_sgs_interface(ScriptedEntity__sgs_interface, &Entity::_sgs_interface);
+_sgsInterface ScriptedEntity::_sgs_interface(ScriptedEntity__sgs_interface, ScriptedEntity__sgs_ifn, &Entity::_sgs_interface);
 

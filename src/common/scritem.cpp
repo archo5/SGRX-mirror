@@ -214,26 +214,6 @@ void SGRX_ScriptedItem::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* dat
 
 // ---
 
-int SGRX_ScriptedItem::_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGRX_CAST( SGRX_ScriptedItem*, SI, obj->data );
-	SGSBOOL res = sgs_PushIndex( C, SI->m_variable.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) );
-	if( res )
-		return res; // found
-	return _sgs_getindex( C, obj );
-}
-
-int SGRX_ScriptedItem::_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	SGRX_CAST( SGRX_ScriptedItem*, SI, obj->data );
-	if( _sgs_setindex( C, obj ) != SGS_SUCCESS )
-	{
-		sgs_SetIndex( C, SI->m_variable.var, sgs_StackItem( C, 0 ),
-			sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) );
-	}
-	return SGS_SUCCESS;
-}
-
 void SGRX_ScriptedItem::SetMatrix( Mat4 mtx )
 {
 	m_transform = mtx;

@@ -58,8 +58,7 @@ struct LevelScrObj : SGRX_RefCounted
 	SGS_PROPERTY_FUNC( READ _sgs_getLevel ) SGS_ALIAS( sgsHandle< GameLevel > level );
 	
 	SGS_PROPERTY sgsVariable _data;
-	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
-	SGS_IFUNC( SETINDEX ) int _setindex( SGS_ARGS_SETINDEXFUNC );
+	SGS_BACKING_STORE( _data.var );
 	
 	GameLevel* m_level;
 };
@@ -242,8 +241,6 @@ struct GameLevel :
 	SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint();
 	
 	// ---
-	SGS_IFUNC( GETINDEX ) int _getindex( SGS_ARGS_GETINDEXFUNC );
-	SGS_IFUNC( SETINDEX ) int _setindex( SGS_ARGS_SETINDEXFUNC );
 	
 	void LightMesh( SGRX_MeshInstance* meshinst, Vec3 off = V3(0) );
 	
@@ -272,6 +269,7 @@ struct GameLevel :
 	// LEVEL DATA
 	sgsVariable m_self;
 	sgsVariable m_metadata;
+	SGS_BACKING_STORE( m_metadata.var );
 	sgsVariable m_markerPositions;
 	bool m_paused;
 	double m_levelTime;

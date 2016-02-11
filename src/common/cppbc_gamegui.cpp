@@ -70,12 +70,26 @@ int GameUIEvent::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst GameUIEvent__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int GameUIEvent__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		GameUIEvent__sgs_funcs,
+		-1, "GameUIEvent." );
+	return 1;
+}
+
 static sgs_ObjInterface GameUIEvent__sgs_interface =
 {
 	"GameUIEvent",
 	GameUIEvent::_sgs_destruct, GameUIEvent::_sgs_gcmark, GameUIEvent::_sgs_getindex, GameUIEvent::_sgs_setindex, NULL, NULL, GameUIEvent::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface GameUIEvent::_sgs_interface(GameUIEvent__sgs_interface);
+_sgsInterface GameUIEvent::_sgs_interface(GameUIEvent__sgs_interface, GameUIEvent__sgs_ifn);
 
 
 static int _sgs_method__GameUIControl__IsIn( SGS_CTX )
@@ -305,37 +319,11 @@ int GameUIControl::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "shaders" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->shaders ); return SGS_SUCCESS; }
 		SGS_CASE( "hover" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->hover ); return SGS_SUCCESS; }
 		SGS_CASE( "focusable" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->focusable ); return SGS_SUCCESS; }
-		SGS_CASE( "IsIn" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__IsIn ); return SGS_SUCCESS; }
 		SGS_CASE( "visible" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->_getVisible() ); return SGS_SUCCESS; }
 		SGS_CASE( "focused" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->_getFocused() ); return SGS_SUCCESS; }
 		SGS_CASE( "clicked" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->_getClicked() ); return SGS_SUCCESS; }
 		SGS_CASE( "clickedL" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->_getClickedL() ); return SGS_SUCCESS; }
 		SGS_CASE( "clickedR" ){ sgs_PushVar( C, static_cast<GameUIControl*>( obj->data )->_getClickedR() ); return SGS_SUCCESS; }
-		SGS_CASE( "AddCallback" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__AddCallback ); return SGS_SUCCESS; }
-		SGS_CASE( "RemoveCallback" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__RemoveCallback ); return SGS_SUCCESS; }
-		SGS_CASE( "InvokeCallbacks" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__InvokeCallbacks ); return SGS_SUCCESS; }
-		SGS_CASE( "Hit" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__Hit ); return SGS_SUCCESS; }
-		SGS_CASE( "IX" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__IX ); return SGS_SUCCESS; }
-		SGS_CASE( "IY" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__IY ); return SGS_SUCCESS; }
-		SGS_CASE( "IS" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__IS ); return SGS_SUCCESS; }
-		SGS_CASE( "InvIX" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__InvIX ); return SGS_SUCCESS; }
-		SGS_CASE( "InvIY" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__InvIY ); return SGS_SUCCESS; }
-		SGS_CASE( "InvIS" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__InvIS ); return SGS_SUCCESS; }
-		SGS_CASE( "CreateScreen" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__CreateScreen ); return SGS_SUCCESS; }
-		SGS_CASE( "CreateControl" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__CreateControl ); return SGS_SUCCESS; }
-		SGS_CASE( "DReset" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DReset ); return SGS_SUCCESS; }
-		SGS_CASE( "DCol" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DCol ); return SGS_SUCCESS; }
-		SGS_CASE( "DTex" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DTex ); return SGS_SUCCESS; }
-		SGS_CASE( "DQuad" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuad ); return SGS_SUCCESS; }
-		SGS_CASE( "DQuadExt" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DQuadExt ); return SGS_SUCCESS; }
-		SGS_CASE( "DCircleFill" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DCircleFill ); return SGS_SUCCESS; }
-		SGS_CASE( "DButton" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DButton ); return SGS_SUCCESS; }
-		SGS_CASE( "DAALine" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAALine ); return SGS_SUCCESS; }
-		SGS_CASE( "DAARectOutline" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAARectOutline ); return SGS_SUCCESS; }
-		SGS_CASE( "DAACircleOutline" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DAACircleOutline ); return SGS_SUCCESS; }
-		SGS_CASE( "DFont" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DFont ); return SGS_SUCCESS; }
-		SGS_CASE( "DText" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DText ); return SGS_SUCCESS; }
-		SGS_CASE( "DTextLen" ){ sgs_PushCFunc( C, _sgs_method__GameUIControl__DTextLen ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -415,10 +403,50 @@ int GameUIControl::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	return SGS_SUCCESS;
 }
 
+static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
+{
+	{ "IsIn", _sgs_method__GameUIControl__IsIn },
+	{ "AddCallback", _sgs_method__GameUIControl__AddCallback },
+	{ "RemoveCallback", _sgs_method__GameUIControl__RemoveCallback },
+	{ "InvokeCallbacks", _sgs_method__GameUIControl__InvokeCallbacks },
+	{ "Hit", _sgs_method__GameUIControl__Hit },
+	{ "IX", _sgs_method__GameUIControl__IX },
+	{ "IY", _sgs_method__GameUIControl__IY },
+	{ "IS", _sgs_method__GameUIControl__IS },
+	{ "InvIX", _sgs_method__GameUIControl__InvIX },
+	{ "InvIY", _sgs_method__GameUIControl__InvIY },
+	{ "InvIS", _sgs_method__GameUIControl__InvIS },
+	{ "CreateScreen", _sgs_method__GameUIControl__CreateScreen },
+	{ "CreateControl", _sgs_method__GameUIControl__CreateControl },
+	{ "DReset", _sgs_method__GameUIControl__DReset },
+	{ "DCol", _sgs_method__GameUIControl__DCol },
+	{ "DTex", _sgs_method__GameUIControl__DTex },
+	{ "DQuad", _sgs_method__GameUIControl__DQuad },
+	{ "DQuadExt", _sgs_method__GameUIControl__DQuadExt },
+	{ "DCircleFill", _sgs_method__GameUIControl__DCircleFill },
+	{ "DButton", _sgs_method__GameUIControl__DButton },
+	{ "DAALine", _sgs_method__GameUIControl__DAALine },
+	{ "DAARectOutline", _sgs_method__GameUIControl__DAARectOutline },
+	{ "DAACircleOutline", _sgs_method__GameUIControl__DAACircleOutline },
+	{ "DFont", _sgs_method__GameUIControl__DFont },
+	{ "DText", _sgs_method__GameUIControl__DText },
+	{ "DTextLen", _sgs_method__GameUIControl__DTextLen },
+	{ NULL, NULL },
+};
+
+static int GameUIControl__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		GameUIControl__sgs_funcs,
+		-1, "GameUIControl." );
+	return 1;
+}
+
 static sgs_ObjInterface GameUIControl__sgs_interface =
 {
 	"GameUIControl",
 	GameUIControl::_sgs_destruct, GameUIControl::_sgs_gcmark, GameUIControl::_getindex, GameUIControl::_setindex, NULL, NULL, GameUIControl::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface GameUIControl::_sgs_interface(GameUIControl__sgs_interface);
+_sgsInterface GameUIControl::_sgs_interface(GameUIControl__sgs_interface, GameUIControl__sgs_ifn);
 

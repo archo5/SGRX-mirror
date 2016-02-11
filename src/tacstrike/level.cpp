@@ -47,26 +47,6 @@ void LevelScrObj::AddSelfToLevel( StringView name )
 	m_level->AddEntry( name, GetScriptedObject() );
 }
 
-int LevelScrObj::_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGRX_CAST( LevelScrObj*, LSO, obj->data );
-	SGSBOOL res = sgs_PushIndex( C, LSO->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) );
-	if( res )
-		return res; // found
-	return _sgs_getindex( C, obj );
-}
-
-int LevelScrObj::_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	SGRX_CAST( LevelScrObj*, LSO, obj->data );
-	if( _sgs_setindex( C, obj ) != SGS_SUCCESS )
-	{
-		sgs_SetIndex( C, LSO->_data.var, sgs_StackItem( C, 0 ),
-			sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) );
-	}
-	return SGS_SUCCESS;
-}
-
 sgsHandle< GameLevel > LevelScrObj::_sgs_getLevel()
 {
 	return sgsHandle< GameLevel >( m_level );
@@ -587,26 +567,6 @@ SGS_MULTRET GameLevel::sgsGetCursorWorldPoint()
 
 
 // ---
-
-int GameLevel::_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGRX_CAST( GameLevel*, LVL, obj->data );
-	SGSBOOL res = sgs_PushIndex( C, LVL->m_metadata.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) );
-	if( res )
-		return res; // found
-	return _sgs_getindex( C, obj );
-}
-
-int GameLevel::_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	SGRX_CAST( GameLevel*, LVL, obj->data );
-	if( _sgs_setindex( C, obj ) != SGS_SUCCESS )
-	{
-		sgs_SetIndex( C, LVL->m_metadata.var, sgs_StackItem( C, 0 ),
-			sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) );
-	}
-	return SGS_SUCCESS;
-}
 
 
 void GameLevel::LightMesh( SGRX_MeshInstance* meshinst, Vec3 off )
