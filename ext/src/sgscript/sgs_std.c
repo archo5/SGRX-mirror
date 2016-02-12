@@ -2394,7 +2394,7 @@ static int sgsstd_mm_getindex_router( SGS_CTX )
 	sgs_Variable func, movar;
 	SGSFN( "mm_getindex_router" );
 	
-	if( sgs_StackSize( C ) < 1 ) goto fail;
+	if( sgs_StackSize( C ) != 1 ) goto fail;
 	if( !sgs_Method( C ) || sgs_ItemType( C, 0 ) != SGS_VT_OBJECT ) goto fail;
 	if( !( movar.data.O = sgs_ObjGetMetaObj( sgs_GetObjectStruct( C, 0 ) ) ) ) goto fail;
 	movar.type = SGS_VT_OBJECT;
@@ -2404,7 +2404,7 @@ static int sgsstd_mm_getindex_router( SGS_CTX )
 	sgs_StringConcat( C, 2 );
 	if( sgs_GetIndex( C, movar, sgs_StackItem( C, -1 ), &func, SGS_FALSE ) == SGS_FALSE ) goto fail;
 	
-	sgs_SetStackSize( C, 1 );
+	sgs_SetStackSize( C, 1 ); /* this */
 	sgs_ThisCall( C, func, 0, 1 );
 	sgs_Release( C, &func );
 	return 1;
@@ -2418,7 +2418,7 @@ static int sgsstd_mm_setindex_router( SGS_CTX )
 	sgs_Variable func, movar;
 	SGSFN( "mm_setindex_router" );
 	
-	if( sgs_StackSize( C ) < 2 ) goto fail;
+	if( sgs_StackSize( C ) != 2 ) goto fail;
 	if( !sgs_Method( C ) || sgs_ItemType( C, 0 ) != SGS_VT_OBJECT ) goto fail;
 	if( !( movar.data.O = sgs_ObjGetMetaObj( sgs_GetObjectStruct( C, 0 ) ) ) ) goto fail;
 	movar.type = SGS_VT_OBJECT;
@@ -2428,11 +2428,11 @@ static int sgsstd_mm_setindex_router( SGS_CTX )
 	sgs_StringConcat( C, 2 );
 	if( sgs_GetIndex( C, movar, sgs_StackItem( C, -1 ), &func, SGS_FALSE ) == SGS_FALSE ) goto fail;
 	
-	sgs_SetStackSize( C, 3 );
-	sgs_PopSkip( C, 1, 1 );
+	sgs_SetStackSize( C, 3 ); /* this, arg:key[0], arg:value[1] */
+	sgs_PopSkip( C, 1, 1 ); /* this, arg:value[1] */
 	sgs_ThisCall( C, func, 1, 0 );
 	sgs_Release( C, &func );
-	return 0;
+	return sgs_GetBool( C, -1 );
 	
 fail:
 	return 0;
