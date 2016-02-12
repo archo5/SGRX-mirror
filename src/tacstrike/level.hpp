@@ -210,6 +210,7 @@ struct GameLevel :
 	sgs_Context* GetSGSC() const { return m_scriptCtx.C; }
 	GameUISystem* GetGUI(){ return m_guiSys; }
 	float GetDeltaTime() const { return m_deltaTime; }
+	bool GetEditorMode() const { return m_editorMode; }
 	
 	bool Load( const StringView& levelname );
 	sgsVariable CreateEntity( const StringView& type, sgsVariable data );
@@ -261,6 +262,7 @@ struct GameLevel :
 	float m_deltaTime;
 	String m_levelName;
 	String m_nextLevel;
+	bool m_editorMode;
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entNameMap;

@@ -191,7 +191,7 @@ struct ScriptedEntity : Entity, SGRX_MeshInstUserData
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	
-	ScriptedEntity( GameLevel* lev, sgsVariable args );
+	ScriptedEntity( GameLevel* lev );
 	~ScriptedEntity();
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );

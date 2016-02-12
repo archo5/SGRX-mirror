@@ -71,6 +71,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
 	m_deltaTime( 0 ),
+	m_editorMode( false ),
 	m_paused( false ),
 	m_levelTime( 0 ),
 	m_player( NULL )
@@ -322,7 +323,10 @@ sgsVariable GameLevel::CreateEntity( const StringView& type, sgsVariable data )
 	///////////////////////////
 	if( type == "marker" )
 	{
-		m_markerPositions.setprop( data.getprop("name"), data.getprop("position") );
+		if( !GetEditorMode() )
+		{
+			m_markerPositions.setprop( data.getprop("name"), data.getprop("position") );
+		}
 		return sgsVariable();
 	}
 	

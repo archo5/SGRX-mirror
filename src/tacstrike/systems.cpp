@@ -687,15 +687,18 @@ bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data, sgsVa
 	///////////////////////////
 	if( type == "solidbox" )
 	{
-		Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
-		SGRX_PhyRigidBodyInfo rbinfo;
-		rbinfo.group = 2;
-		rbinfo.shape = m_level->GetPhyWorld()->CreateAABBShape( -scale, scale );
-		rbinfo.mass = 0;
-		rbinfo.inertia = V3(0);
-		rbinfo.position = data.getprop("position").get<Vec3>();
-		rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
-		m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+		if( !m_level->GetEditorMode() )
+		{
+			Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
+			SGRX_PhyRigidBodyInfo rbinfo;
+			rbinfo.group = 2;
+			rbinfo.shape = m_level->GetPhyWorld()->CreateAABBShape( -scale, scale );
+			rbinfo.mass = 0;
+			rbinfo.inertia = V3(0);
+			rbinfo.position = data.getprop("position").get<Vec3>();
+			rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
+			m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+		}
 		return true;
 	}
 	

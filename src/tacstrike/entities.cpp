@@ -489,7 +489,7 @@ void ScriptedItem::OnEvent( const StringView& type )
 	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
 
 
-ScriptedEntity::ScriptedEntity( GameLevel* lev, sgsVariable args ) : Entity( lev )
+ScriptedEntity::ScriptedEntity( GameLevel* lev ) : Entity( lev )
 {
 	m_transform = Mat4::Identity;
 	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
@@ -1070,11 +1070,14 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	CoverSystem* coverSys = m_level->GetSystem<CoverSystem>();
 	if( type == "cover" && coverSys )
 	{
-		Mat4 mtx = Mat4::CreateSXT(
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
-			data.getprop("position").get<Vec3>() );
-		coverSys->AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
+		if( !m_level->GetEditorMode() )
+		{
+			Mat4 mtx = Mat4::CreateSXT(
+				data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+				Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
+				data.getprop("position").get<Vec3>() );
+			coverSys->AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
+		}
 		return true;
 	}
 	
@@ -1082,13 +1085,16 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	AIDBSystem* aidbSys = m_level->GetSystem<AIDBSystem>();
 	if( type == "room" && aidbSys )
 	{
-		Mat4 mtx = Mat4::CreateSXT(
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
-			data.getprop("position").get<Vec3>() );
-		aidbSys->AddRoomPart(
-			data.getprop("name").get<StringView>(), mtx,
-			data.getprop("negative").get<bool>(), data.getprop("cell_size").get<float>() );
+		if( !m_level->GetEditorMode() )
+		{
+			Mat4 mtx = Mat4::CreateSXT(
+				data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
+				Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
+				data.getprop("position").get<Vec3>() );
+			aidbSys->AddRoomPart(
+				data.getprop("name").get<StringView>(), mtx,
+				data.getprop("negative").get<bool>(), data.getprop("cell_size").get<float>() );
+		}
 	}
 	
 	///////////////////////////
@@ -1128,9 +1134,10 @@ bool StockEntityCreationSystem::AddEntity( const StringView& type, sgsVariable d
 	///////////////////////////
 	if( type == "scripted_entity" )
 	{
-		ScriptedEntity* SE = new ScriptedEntity( m_level, data );
+		ScriptedEntity* SE = new ScriptedEntity( m_level );
 		m_level->AddEntity( SE );
 		outvar = SE->GetScriptedObject();
+		// TODO: AssignProperties( outvar, data );
 		return true;
 	}
 	
