@@ -1590,32 +1590,27 @@ TSGameSystem::TSGameSystem( GameLevel* lev )
 	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
-bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar )
+Entity* TSGameSystem::AddEntity( StringView type )
 {
+#if 0
 #ifndef TSGAME_NO_PLAYER
 	///////////////////////////
 	if( type == "player" )
 	{
-		TSCharacter* P = new TSCharacter
-		(
-			m_level,
-			data.getprop("position").get<Vec3>(),
-			data.getprop("viewdir").get<Vec3>()
-		);
+		TSCharacter* P = new TSCharacter( m_level );
 		P->SetPlayerMode( true );
 		P->InitializeMesh( "chars/tstest.chr" );
 		P->ctrl = &m_playerCtrl;
-		m_level->AddEntity( P );
 		m_level->SetPlayer( P );
-		outvar = P->GetScriptedObject();
-		return true;
+		return P;
 	}
 #endif
 	
 	///////////////////////////
 	if( type == "camera" )
 	{
-		TSCamera* CAM = new TSCamera
+		return new TSCamera( m_level );
+#if 0
 		(
 			m_level,
 			data.getprop("name").get<StringView>(),
@@ -1626,31 +1621,22 @@ bool TSGameSystem::AddEntity( const StringView& type, sgsVariable data, sgsVaria
 			data.getprop("dir0").get<Vec3>(),
 			data.getprop("dir1").get<Vec3>()
 		);
-		m_level->AddEntity( CAM );
-		outvar = CAM->GetScriptedObject();
-		return true;
+#endif
 	}
 	
 	///////////////////////////
 	if( type == "enemy_start" || type == "enemy" )
 	{
-		TSCharacter* E = new TSCharacter
-		(
-			m_level,
-			data.getprop("position").get<Vec3>(),
-			data.getprop("viewdir").get<Vec3>()
-		);
+		TSCharacter* E = new TSCharacter( m_level );
 		E->SetPlayerMode( false );
 		E->InitializeMesh( "chars/tstest.chr" );
-		E->m_name = data.getprop("name").get<StringView>();
+	//	E->m_name = data.getprop("name").get<StringView>();
 		m_level->MapEntityByName( E );
-		E->ctrl = new TSEnemyController( m_level, E, data );
-		m_level->AddEntity( E );
-		outvar = E->GetScriptedObject();
-		return true;
+		E->ctrl = new TSEnemyController( m_level, E );
+		return E;
 	}
-	
-	return false;
+#endif
+	return NULL;
 }
 
 void TSGameSystem::Tick( float deltaTime, float blendFactor )

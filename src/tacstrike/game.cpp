@@ -30,6 +30,7 @@ CVarFloat gcv_ts_fight_timeleft( "ts_fight_timeleft" );
 CVarInt gcv_ts_fight_p1_points( "ts_fight_p1_points" );
 CVarInt gcv_ts_fight_p2_points( "ts_fight_p2_points" );
 
+#if 0
 //static sgs_Prof prof;
 TSFightGameMode::TSFightGameMode( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ), m_state( GS_Intro ),
@@ -247,7 +248,7 @@ Vec3 TSFightGameMode::PickFurthestSpawnPoint( Vec3 from )
 	}
 	return fp != NOT_FOUND ? m_spawnPoints[ fp ] : from;
 }
-
+#endif
 
 
 #define MAX_TICK_SIZE (1.0f/15.0f)

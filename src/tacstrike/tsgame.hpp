@@ -5,7 +5,7 @@
 #include "entities_ts.hpp"
 
 
-
+#if 0
 struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 {
 	enum GameState
@@ -40,4 +40,5 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 	ActorCtrlHandle m_actorCtrl_enm;
 	Array< Vec3 > m_spawnPoints;
 };
+#endif
 

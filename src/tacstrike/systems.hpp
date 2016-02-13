@@ -78,9 +78,9 @@ struct InfoEmissionSystem : IGameLevelSystem
 	void Clear();
 	void UpdateEmitter( Entity* e, const Data& data );
 	void RemoveEmitter( Entity* e );
-	bool QuerySphereAny( const Vec3& pos, float rad, uint32_t types );
+	SGS_METHOD bool QuerySphereAny( Vec3 pos, float rad, uint32_t types );
 	bool QuerySphereAll( IESProcessor* proc, const Vec3& pos, float rad, uint32_t types );
-	bool QueryBB( const Mat4& mtx, uint32_t types );
+	SGS_METHOD bool QueryBB( Mat4 mtx, uint32_t types );
 	Entity* QueryOneRay( const Vec3& from, const Vec3& to, uint32_t types );
 	
 	SGS_METHOD_NAMED( Update ) void sgsUpdate( Entity::ScrHandle e, Vec3 pos, float rad, uint32_t types );
@@ -341,7 +341,6 @@ struct LevelCoreSystem : IGameLevelSystem
 	
 	LevelCoreSystem( GameLevel* lev );
 	virtual void Clear();
-	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar );
 	virtual bool LoadChunk( const StringView& type, ByteView data );
 	
 	Array< MeshInstHandle > m_meshInsts;

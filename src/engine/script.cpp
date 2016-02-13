@@ -48,6 +48,18 @@ bool ScriptVarIterator::Advance()
 }
 
 
+void ScriptAssignProperties( sgsVariable to, sgsVariable from )
+{
+	if( !( from.not_null() && to.not_null() ) )
+		return;
+	ScriptVarIterator it( from );
+	while( it.Advance() )
+	{
+		to.setindex( it.GetKey(), it.GetValue() );
+	}
+}
+
+
 ScriptContext::ScriptContext() : C(NULL)
 {
 	Reset();
@@ -64,10 +76,7 @@ static int euler2quat( SGS_CTX )
 	Vec3 angles;
 	if( !sgs_LoadArgs( C, "x", sgs_ArgCheck_Vec3, &angles.x ) )
 		return 0;
-	angles = DEG2RAD( angles );
-	Quat rot = ( Quat::CreateAxisAngle( 1,0,0, angles.x ) *
-		Quat::CreateAxisAngle( 0,1,0, angles.y ) ) *
-		Quat::CreateAxisAngle( 0,0,1, angles.z );
+	Quat rot = Quat::CreateFromXYZ( DEG2RAD( angles ) );
 	return sgs_CreateQuat( C, NULL, rot.x, rot.y, rot.z, rot.w );
 }
 static sgs_RegFuncConst g_sgrxmath_rfc[] =

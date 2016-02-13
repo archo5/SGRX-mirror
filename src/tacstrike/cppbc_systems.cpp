@@ -3,6 +3,18 @@
 
 #include "systems.hpp"
 
+static int _sgs_method__InfoEmissionSystem__QuerySphereAny( SGS_CTX )
+{
+	InfoEmissionSystem* data; if( !SGS_PARSE_METHOD( C, InfoEmissionSystem::_sgs_interface, data, InfoEmissionSystem, QuerySphereAny ) ) return 0;
+	sgs_PushVar(C,data->QuerySphereAny( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<uint32_t>()(C,2) )); return 1;
+}
+
+static int _sgs_method__InfoEmissionSystem__QueryBB( SGS_CTX )
+{
+	InfoEmissionSystem* data; if( !SGS_PARSE_METHOD( C, InfoEmissionSystem::_sgs_interface, data, InfoEmissionSystem, QueryBB ) ) return 0;
+	sgs_PushVar(C,data->QueryBB( sgs_GetVar<Mat4>()(C,0), sgs_GetVar<uint32_t>()(C,1) )); return 1;
+}
+
 static int _sgs_method__InfoEmissionSystem__Update( SGS_CTX )
 {
 	InfoEmissionSystem* data; if( !SGS_PARSE_METHOD( C, InfoEmissionSystem::_sgs_interface, data, InfoEmissionSystem, Update ) ) return 0;
@@ -55,6 +67,8 @@ int InfoEmissionSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst InfoEmissionSystem__sgs_funcs[] =
 {
+	{ "QuerySphereAny", _sgs_method__InfoEmissionSystem__QuerySphereAny },
+	{ "QueryBB", _sgs_method__InfoEmissionSystem__QueryBB },
 	{ "Update", _sgs_method__InfoEmissionSystem__Update },
 	{ "Remove", _sgs_method__InfoEmissionSystem__Remove },
 	{ NULL, NULL },

@@ -566,6 +566,10 @@ void SGRX_Thread::Join()
 
 const Quat Quat::Identity = { 0, 0, 0, 1 };
 
+Vec3 Quat::ToXYZ() const
+{
+	return Mat4::CreateRotationFromQuat( *this ).GetXYZAngles();
+}
 
 static Quat CalcNearestQuat( const Quat& root, const Quat& qd )
 {

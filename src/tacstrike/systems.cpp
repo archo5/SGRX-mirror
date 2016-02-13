@@ -37,7 +37,7 @@ void InfoEmissionSystem::RemoveEmitter( Entity* e )
 	m_emissionData.unset( e );
 }
 
-bool InfoEmissionSystem::QuerySphereAny( const Vec3& pos, float rad, uint32_t types )
+bool InfoEmissionSystem::QuerySphereAny( Vec3 pos, float rad, uint32_t types )
 {
 	for( size_t i = 0; i < m_emissionData.size(); ++i )
 	{
@@ -71,7 +71,7 @@ bool InfoEmissionSystem::QuerySphereAll( IESProcessor* proc, const Vec3& pos, fl
 	return ret;
 }
 
-bool InfoEmissionSystem::QueryBB( const Mat4& mtx, uint32_t types )
+bool InfoEmissionSystem::QueryBB( Mat4 mtx, uint32_t types )
 {
 	for( size_t i = 0; i < m_emissionData.size(); ++i )
 	{
@@ -682,36 +682,6 @@ void LevelCoreSystem::Clear()
 	m_ltSamples.SetSamples( NULL, 0 );
 }
 
-bool LevelCoreSystem::AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar )
-{
-	///////////////////////////
-	if( type == "solidbox" )
-	{
-		if( !m_level->GetEditorMode() )
-		{
-			Vec3 scale = data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>();
-			SGRX_PhyRigidBodyInfo rbinfo;
-			rbinfo.group = 2;
-			rbinfo.shape = m_level->GetPhyWorld()->CreateAABBShape( -scale, scale );
-			rbinfo.mass = 0;
-			rbinfo.inertia = V3(0);
-			rbinfo.position = data.getprop("position").get<Vec3>();
-			rbinfo.rotation = Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion();
-			m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
-		}
-		return true;
-	}
-	
-	///////////////////////////
-	if( type == "mesharray" ||
-		type == "m3sh" )
-	{
-		return true;
-	}
-	
-	return false;
-}
-
 bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 {
 	if( type != LC_FILE_GEOM_NAME )
@@ -719,7 +689,8 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 	
 	Array< LC_MeshInst > meshInstDefs;
 	LC_PhysicsMesh phyMesh;
-	LC_Chunk_Geom geom = { &meshInstDefs, &m_lights, &m_ltSamples, &phyMesh };
+	Array< LC_SolidBox > solidBoxes;
+	LC_Chunk_Geom geom = { &meshInstDefs, &m_lights, &m_ltSamples, &phyMesh, &solidBoxes };
 	ByteReader br( data );
 	br << geom;
 	if( br.error )
@@ -743,7 +714,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 		}
 	}
 	
-	// create static geometry
+	// create physics geometry - mesh
 	{
 		LOG_FUNCTION_ARG( "PHY_MESH" );
 		
@@ -759,6 +730,23 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 			phyMesh.positions.data(), phyMesh.positions.size(),
 			fixedidcs.data(), fixedidcs.size(), true );
 		m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+	}
+	
+	// create physics geometry - boxes
+	{
+		LOG_FUNCTION_ARG( "PHY_BOXES" );
+		for( size_t i = 0; i < solidBoxes.size(); ++i )
+		{
+			const LC_SolidBox& SB = solidBoxes[ i ];
+			SGRX_PhyRigidBodyInfo rbinfo;
+			rbinfo.group = 2;
+			rbinfo.shape = m_level->GetPhyWorld()->CreateAABBShape( -SB.scale, SB.scale );
+			rbinfo.mass = 0;
+			rbinfo.inertia = V3(0);
+			rbinfo.position = SB.position;
+			rbinfo.rotation = SB.rotation;
+			m_levelBodies.push_back( m_level->GetPhyWorld()->CreateRigidBody( rbinfo ) );
+		}
 	}
 	
 	// load mesh instances

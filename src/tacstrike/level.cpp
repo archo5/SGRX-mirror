@@ -100,11 +100,6 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_metadata = m_scriptCtx.CreateDict();
 	AddEntry( "positions", m_markerPositions );
 	
-	m_playerSpawnInfo[0] = V3(0);
-	m_levelCameraInfo[0] = V3(0);
-	m_playerSpawnInfo[1] = V3(1,0,0);
-	m_levelCameraInfo[1] = V3(1,0,0);
-	
 	m_scene = GR_CreateScene();
 	m_scene->clearColor = 0;
 	m_scene->camera.position = Vec3::Create( 4, 4, 4 );
@@ -148,12 +143,6 @@ void GameLevel::SetGlobalToSelf()
 void GameLevel::AddSystem( IGameLevelSystem* sys )
 {
 	m_systems.push_back( sys );
-}
-
-void GameLevel::AddEntity( Entity* E )
-{
-	E->InitScriptInterface();
-	m_entities.push_back( E );
 }
 
 void GameLevel::AddEntry( const StringView& name, sgsVariable var )
@@ -286,7 +275,25 @@ bool GameLevel::Load( const StringView& levelname )
 					LOG << "BAD PARAMS FOR ENTITY " << SEA[ i ].type;
 					continue;
 				}
-				CreateEntity( SEA[ i ].type, data );
+				Entity* E = CreateEntity( SEA[ i ].type );
+				if( E )
+					ScriptAssignProperties( E->GetScriptedObject(), data );
+			}
+		}
+		else if( type == LC_FILE_MRKR_NAME )
+		{
+			LOG_FUNCTION_ARG( "MARKERS" );
+			
+			LC_Chunk_Mrkr mrkr;
+			ByteReader mbr( ByteView( C.ptr, C.size ) );
+			mbr << mrkr;
+			
+			for( size_t i = 0; i < mrkr.markers.size(); ++i )
+			{
+				const LC_Marker& M = mrkr.markers[ i ];
+				m_markerPositions.setprop(
+					m_scriptCtx.CreateString( M.name ),
+					m_scriptCtx.CreateVec3( M.pos ) );
 			}
 		}
 	}
@@ -298,40 +305,26 @@ bool GameLevel::Load( const StringView& levelname )
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->OnPostLevelLoad();
 	
-	if( 0&& !m_player )
-	{
-		sgsVariable data = m_scriptCtx.CreateDict();
-		data.setprop( "position", m_scriptCtx.CreateVec3( m_playerSpawnInfo[0] ) );
-		data.setprop( "viewdir", m_scriptCtx.CreateVec3( m_playerSpawnInfo[1] ) );
-		CreateEntity( "player", data );
-		ASSERT( m_player && "player must be created by one of the systems" );
-	}
 	m_scriptCtx.GlobalCall( "onLevelStart" );
 	
 	return true;
 }
 
-sgsVariable GameLevel::CreateEntity( const StringView& type, sgsVariable data )
+Entity* GameLevel::CreateEntity( const StringView& type )
 {
 	for( size_t i = 0; i < m_systems.size(); ++i )
 	{
-		sgsVariable outvar;
-		if( m_systems[ i ]->AddEntity( type, data, outvar ) )
-			return outvar;
-	}
-	
-	///////////////////////////
-	if( type == "marker" )
-	{
-		if( !GetEditorMode() )
+		Entity* ent = m_systems[ i ]->AddEntity( type );
+		if( ent )
 		{
-			m_markerPositions.setprop( data.getprop("name"), data.getprop("position") );
+			ent->InitScriptInterface();
+			m_entities.push_back( ent );
+			return ent;
 		}
-		return sgsVariable();
 	}
 	
 	LOG << "ENTITY TYPE NOT FOUND: " << type;
-	return sgsVariable();
+	return NULL;
 }
 
 void GameLevel::DestroyEntity( Entity* eptr )
@@ -507,9 +500,10 @@ Entity* GameLevel::FindEntityByName( const StringView& name )
 	return m_entNameMap.getcopy( name );
 }
 
-sgsVariable GameLevel::sgsCreateEntity( StringView type, sgsVariable data )
+sgsVariable GameLevel::sgsCreateEntity( StringView type )
 {
-	return CreateEntity( type, data );
+	Entity* E = CreateEntity( type );
+	return E ? E->GetScriptedObject() : sgsVariable();
 }
 
 void GameLevel::sgsDestroyEntity( sgsVariable eh )
@@ -555,7 +549,7 @@ SGS_MULTRET GameLevel::sgsWorldToScreenPx( Vec3 pos )
 	return 2;
 }
 
-SGS_MULTRET GameLevel::sgsGetCursorWorldPoint()
+SGS_MULTRET GameLevel::sgsGetCursorWorldPoint( uint32_t layers )
 {
 	Vec2 cpn = Game_GetCursorPosNormalized();
 	Vec3 pos, dir, end;
@@ -563,7 +557,7 @@ SGS_MULTRET GameLevel::sgsGetCursorWorldPoint()
 		return 0;
 	SceneRaycastInfo hitinfo;
 	end = pos + dir * m_scene->camera.zfar;
-	if( !m_scene->RaycastOne( pos, end, &hitinfo ) )
+	if( !m_scene->RaycastOne( pos, end, &hitinfo, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
 		return 0;
 	sgs_PushVar( C, TLERP( pos, end, hitinfo.factor ) );
 	return 1;

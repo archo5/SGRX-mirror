@@ -1,0 +1,114 @@
+
+//
+// Entity extension function
+//
+function CreateEntityExt( iface_name, base )
+{
+	E = level.CreateEntity( base, null );
+	E._data = {};
+	iface = _G[ iface_name ];
+	omo = metaobj_get( E );
+	iomo = metaobj_get( iface );
+	if( iomo !== null && iomo !== omo )
+		ERROR( "redefining metaobject for \"" $ iface_name $ "\"" );
+	metaobj_set( iface, omo );
+	metaobj_set( E, iface );
+	metamethods_enable( E, true );
+	return E;
+}
+
+
+//
+// Trigger Entity Core
+//
+global Trigger = { __getindex = mm_getindex_router, __setindex = mm_setindex_router };
+
+function Trigger.Init()
+{
+	this.
+	{
+		func = null,
+		funcOut = null,
+		once = true,
+		done = false,
+		currState = false,
+		lastState = false,
+		mask = IEST_Player,
+	};
+}
+
+function Trigger.Invoke( newstate )
+{
+	newstate = tobool( newstate );
+	curfn = if( newstate, this.func, this.funcOut );
+	if( curfn !== null )
+	{
+		curfn( newstate );
+	}
+}
+
+function Trigger.UpdateState( newstate )
+{
+	if( this.currState != newstate && !this.done )
+	{
+		this.currState = newstate;
+		this.Invoke( newstate );
+		if( this.once && newstate == this.lastState ) // once on, once off
+			this.done = true;
+	}
+}
+
+function Trigger.SetupTrigger( once, fn, fnout )
+{
+	this.done = false;
+	this.once = tobool( once );
+	this.func = fn;
+	if( typeof(fnout) == "bool" )
+		this.funcOut = if( fnout, fn, null );
+	else
+		this.funcOut = fnout ?? fn;
+}
+
+
+//
+// Trigger Entity - Box
+//
+global BoxTrigger = clone( Trigger );
+
+function BoxTrigger.Update( dt )
+{
+	this.UpdateState( level.infoEmitters.QueryBB( this.transform, this.mask ) );
+}
+
+function ENTCREATE_BoxTrigger()
+{
+	E = CreateEntityExt( "BoxTrigger", "Entity" );
+	E.Init();
+	return E;
+}
+
+
+//
+// Trigger Entity - Sphere
+//
+global SphereTrigger = clone( Trigger );
+
+function SphereTrigger.Init()
+{
+	ti = Trigger.Init; this!ti();
+	//this!Trigger.Init();
+	this.radius = 1;
+}
+
+function SphereTrigger.Update( dt )
+{
+	this.UpdateState( level.infoEmitters.QuerySphereAny( this.position, this.radius, this.mask ) );
+}
+
+function ENTCREATE_SphereTrigger()
+{
+	E = CreateEntityExt( "SphereTrigger", "Entity" );
+	E.Init();
+	return E;
+}
+

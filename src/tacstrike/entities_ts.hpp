@@ -281,7 +281,7 @@ struct TSGameSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 1000 };
 	TSGameSystem( GameLevel* lev );
-	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar );
+	virtual Entity* AddEntity( StringView type );
 	virtual void Tick( float deltaTime, float blendFactor );
 	virtual void DrawUI();
 	

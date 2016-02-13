@@ -145,13 +145,27 @@ struct LC_PhysicsMesh
 
 // Level geometry system
 #define LC_FILE_GEOM_NAME "GEOM"
-#define LC_FILE_GEOM_VERSION 0
+#define LC_FILE_GEOM_VERSION 1
+struct LC_SolidBox
+{
+	Vec3 position;
+	Quat rotation;
+	Vec3 scale;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << position;
+		arch << rotation;
+		arch << scale;
+	}
+};
 struct LC_Chunk_Geom
 {
 	Array< LC_MeshInst >* meshinsts;
 	Array< LC_Light >* lights;
 	SGRX_LightTree* lightTree;
 	LC_PhysicsMesh* physics;
+	Array< LC_SolidBox >* solidBoxes;
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -160,6 +174,7 @@ struct LC_Chunk_Geom
 		svh << *lights;
 		svh << *lightTree;
 		svh << *physics;
+		svh( *solidBoxes, svh.version >= 1 );
 	}
 };
 
@@ -187,6 +202,31 @@ struct LC_Chunk_Ents
 	{
 		SerializeVersionHelper<T> svh( arch, LC_FILE_ENTS_VERSION );
 		svh << entities;
+	}
+};
+
+// Level marker definitions
+#define LC_FILE_MRKR_NAME "MRKR"
+#define LC_FILE_MRKR_VERSION 0
+struct LC_Marker
+{
+	StringView name;
+	Vec3 pos;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.stringView( name );
+		arch << pos;
+	}
+};
+struct LC_Chunk_Mrkr
+{
+	Array< LC_Marker > markers;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_MRKR_VERSION );
+		svh << markers;
 	}
 };
 

@@ -186,8 +186,10 @@ struct SGRX_ScopedMtxLock
 
 #define FLT_PI float(M_PI)
 #define DBL_PI M_PI
-#define DEG2RAD( x ) ((x)/180.0f*FLT_PI)
-#define RAD2DEG( x ) ((x)*180.0f/FLT_PI)
+#define F_DEG2RAD (FLT_PI/180.0f)
+#define F_RAD2DEG (180.0f/FLT_PI)
+#define DEG2RAD( x ) ((x)*F_DEG2RAD)
+#define RAD2DEG( x ) ((x)*F_RAD2DEG)
 
 #define COLOR_F2B( x ) (uint8_t( clamp( x, 0, 1 ) * 255 ))
 #define COLOR_RGBA(r,g,b,a) ((uint32_t)((((int)(a)&0xff)<<24)|(((int)(b)&0xff)<<16)|(((int)(g)&0xff)<<8)|((int)(r)&0xff)))
@@ -598,6 +600,12 @@ struct ENGINE_EXPORT Quat
 		};
 		return q.Normalized();
 	}
+	static Quat CreateFromXYZ( const Vec3& angles )
+	{
+		return ( Quat::CreateAxisAngle( 1,0,0, angles.x ) *
+			Quat::CreateAxisAngle( 0,1,0, angles.y ) ) *
+			Quat::CreateAxisAngle( 0,0,1, angles.z );
+	}
 	
 	FINLINE Quat operator + ( const Quat& o ) const { Quat q = { x + o.x, y + o.y, z + o.z, w + o.w }; return q; }
 	FINLINE Quat operator - ( const Quat& o ) const { Quat q = { x - o.x, y - o.y, z - o.z, w - o.w }; return q; }
@@ -663,6 +671,7 @@ struct ENGINE_EXPORT Quat
 		float s = 1.0f / iwsq;
 		return V3( x * s, y * s, z * s );
 	}
+	Vec3 ToXYZ() const;
 };
 	
 FINLINE Quat operator * ( float f, const Quat& q ){ Quat out = { f * q.x, f * q.y, f * q.z, f * q.w }; return out; }
@@ -2558,6 +2567,11 @@ template< class T > struct SerializeVersionHelper
 	FINLINE SerializeVersionHelper& operator << ( float& v ){ _serialize( v ); return *this; }
 	FINLINE SerializeVersionHelper& operator << ( double& v ){ _serialize( v ); return *this; }
 	template< class ST > SerializeVersionHelper& operator << ( ST& v ){ v.Serialize( *this ); return *this; }
+	FINLINE SerializeVersionHelper& stringView( StringView& sv )
+	{
+		arch->stringView( sv );
+		return *this;
+	}
 };
 
 struct ByteReader
@@ -2654,6 +2668,14 @@ struct ByteReader
 		memory( out.data(), out.size() );
 		return *this;
 	}
+	FINLINE ByteReader& stringView( StringView& sv )
+	{
+		uint32_t size = 0;
+		*this << size;
+		sv.m_str = error ? NULL : (const char*) &input_ptr[ pos ];
+		sv.m_size = error ? 0 : size;
+		return *this;
+	}
 	
 	const uint8_t* input_ptr;
 	size_t input_size;
@@ -2705,6 +2727,13 @@ struct ByteWriter
 		ASSERT( str.size() <= 255 );
 		write< uint8_t >( str.size() );
 		memory( str.data(), str.size() );
+		return *this;
+	}
+	FINLINE ByteWriter& stringView( StringView& sv )
+	{
+		uint32_t size = sv.size();
+		*this << size;
+		_write( sv.data(), size );
 		return *this;
 	}
 	

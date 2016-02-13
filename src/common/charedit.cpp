@@ -24,8 +24,8 @@ AnimCharacter* g_AnimChar;
 AnimMixer::Layer g_AnimMixLayers[2];
 
 
-inline Quat EA2Q( Vec3 v ){ return Mat4::CreateRotationXYZ( DEG2RAD( v ) ).GetRotationQuaternion(); }
-inline Vec3 Q2EA( Quat q ){ return RAD2DEG( Mat4::CreateRotationFromQuat( q ).GetXYZAngles() ); }
+inline Quat EA2Q( Vec3 v ){ return Quat::CreateFromXYZ( DEG2RAD( v ) ); }
+inline Vec3 Q2EA( Quat q ){ return RAD2DEG( q.ToXYZ() ); }
 inline StringView BodyType2String( uint8_t t )
 {
 	if( t == AnimCharacter::BodyType_Sphere ) return "Sphere";

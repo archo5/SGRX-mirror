@@ -186,22 +186,20 @@ struct ScriptedItem : Entity
 #define SCRENT_NUM_SLOTS 4
 #define SCRENT_RANGE_STR "[0-3]"
 
-struct ScriptedEntity : Entity, SGRX_MeshInstUserData
+struct MultiEntity : Entity, SGRX_MeshInstUserData
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	
-	ScriptedEntity( GameLevel* lev );
-	~ScriptedEntity();
+	MultiEntity( GameLevel* lev );
+	~MultiEntity();
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );
 	virtual void OnEvent( const StringView& type );
 	void PreRender();
 	
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
-	
-	// - common
-	SGS_METHOD void SetMatrix( Mat4 mtx );
+	virtual void OnTransformUpdate();
 	
 	// - mesh instance
 	SGS_METHOD void MICreate( int i, StringView path );
@@ -211,6 +209,7 @@ struct ScriptedEntity : Entity, SGRX_MeshInstUserData
 	SGS_METHOD void MISetEnabled( int i, bool enabled );
 	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
 	SGS_METHOD void MISetShaderConst( int i, int v, Vec4 var );
+	SGS_METHOD void MISetLayers( int i, uint32_t layers );
 	
 	// - particle system
 	SGS_METHOD void PSCreate( int i, StringView path );
@@ -266,7 +265,6 @@ struct ScriptedEntity : Entity, SGRX_MeshInstUserData
 	Quat m_bodyRotLerp[ SCRENT_NUM_SLOTS ];
 //	LightHandle m_lights[ SCRENT_NUM_SLOTS ];
 	
-	Mat4 m_transform;
 	Mat4 m_meshMatrices[ SCRENT_NUM_SLOTS ];
 	Mat4 m_partSysMatrices[ SCRENT_NUM_SLOTS ];
 //	Mat4 m_lightMatrices[ SCRENT_NUM_SLOTS ];
@@ -277,7 +275,7 @@ struct StockEntityCreationSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 999 };
 	StockEntityCreationSystem( GameLevel* lev );
-	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar );
+	virtual Entity* AddEntity( StringView type );
 };
 
 

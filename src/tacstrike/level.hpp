@@ -80,6 +80,25 @@ struct IActorController : LevelScrObj
 typedef Handle< IActorController > ActorCtrlHandle;
 
 
+struct Transform
+{
+	Transform() : position( V3(0) ), rotation( Quat::Identity ), scale( V3(1) ){}
+	
+	Vec3 position;
+	Quat rotation;
+	Vec3 scale;
+	
+	Mat4 GetMatrix() const { return Mat4::CreateSRT( scale, rotation, position ); }
+	void SetMatrix( Mat4 m )
+	{
+		position = m.GetTranslation();
+		rotation = m.GetRotationQuaternion();
+		scale = m.GetScale();
+	}
+	Vec3 GetRotationXYZ() const { return rotation.ToXYZ(); }
+	void SetRotationXYZ( Vec3 v ){ rotation = Quat::CreateFromXYZ( v ); }
+};
+
 struct Entity : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
@@ -90,9 +109,23 @@ struct Entity : LevelScrObj
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual void OnEvent( const StringView& type ){}
+	virtual void OnTransformUpdate(){}
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
+	
+	Transform m_transform;
+	
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE m_transform.position
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 position );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE m_transform.rotation
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Quat rotation );
+	SGS_PROPERTY_FUNC( READ m_transform.GetRotationXYZ WRITE m_transform.SetRotationXYZ
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 rotationXYZ );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE m_transform.scale
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 scale );
+	SGS_PROPERTY_FUNC( READ m_transform.GetMatrix WRITE m_transform.SetMatrix
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Mat4 transform );
 	
 	SGS_PROPERTY_FUNC( READ VARNAME typeName ) StringView m_typeName;
 	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_name;
@@ -110,7 +143,7 @@ struct IGameLevelSystem : LevelScrObj
 	{}
 	virtual void OnPostLevelLoad(){}
 	virtual void OnLevelDestroy(){ delete this; }
-	virtual bool AddEntity( const StringView& type, sgsVariable data, sgsVariable& outvar ){ return false; }
+	virtual Entity* AddEntity( StringView type ){ return NULL; }
 	virtual bool LoadChunk( const StringView& type, ByteView data ){ return false; }
 	virtual void Clear(){}
 	virtual void FixedTick( float deltaTime ){}
@@ -196,7 +229,6 @@ struct GameLevel :
 		}
 		return NULL;
 	}
-	void AddEntity( Entity* E );
 	void AddEntry( const StringView& name, sgsVariable var );
 	
 	// system/entity interface
@@ -213,7 +245,7 @@ struct GameLevel :
 	bool GetEditorMode() const { return m_editorMode; }
 	
 	bool Load( const StringView& levelname );
-	sgsVariable CreateEntity( const StringView& type, sgsVariable data );
+	Entity* CreateEntity( const StringView& type );
 	void DestroyEntity( Entity* eptr );
 	StackShortName GenerateName();
 	void ClearLevel();
@@ -232,14 +264,14 @@ struct GameLevel :
 	void MapEntityByName( Entity* e );
 	void UnmapEntityByName( Entity* e );
 	Entity* FindEntityByName( const StringView& name );
-	SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type, sgsVariable data );
+	SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type );
 	SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
 	SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
 	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
 	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
 	SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
-	SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint();
+	SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
 	
 	// ---
 	
@@ -277,8 +309,6 @@ struct GameLevel :
 	double m_levelTime;
 	Array< Entity* > m_entities;
 	Entity* m_player;
-	Vec3 m_playerSpawnInfo[2]; // position, direction
-	Vec3 m_levelCameraInfo[2]; // position, direction
 };
 
 template< class T > T* AddSystemToLevel( GameLevel* lev )

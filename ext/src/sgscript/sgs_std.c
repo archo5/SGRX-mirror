@@ -3378,9 +3378,6 @@ static int sgsstd_include( SGS_CTX )
 	if( !sgs_LoadArgs( C, "m|b", &fnstr, &fnsize, &over ) )
 		return 0;
 	
-	if( !over && sgsstd__chkinc( C, 0 ) )
-		goto success;
-	
 	ret = sgsstd__inclib( C, fnstr, over );
 	if( ret )
 		goto success;
@@ -3419,6 +3416,14 @@ static int sgsstd_include( SGS_CTX )
 		}
 		
 		sgs_PushString( C, mb.ptr );
+		// copy found path to replace arg0
+		sgs_SetStackItem( C, 0, sgs_StackItem( C, -1 ) );
+		if( !over && sgsstd__chkinc( C, 0 ) )
+		{
+			sgs_membuf_destroy( &mb, C );
+			goto success;
+		}
+		
 		sgs_PushString( C, " - include" );
 		sgs_StringConcat( C, 2 );
 		SGSFN( sgs_GetStringPtr( C, -1 ) );

@@ -74,6 +74,8 @@ struct ScriptVarIterator
 	sgsVariable m_iter;
 };
 
+SCRIPT_EXPORT void ScriptAssignProperties( sgsVariable to, sgsVariable from );
+
 struct ScriptContext
 {
 	SCRIPT_EXPORT ScriptContext();
