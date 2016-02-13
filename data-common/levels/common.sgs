@@ -95,8 +95,7 @@ global SphereTrigger = clone( Trigger );
 
 function SphereTrigger.Init()
 {
-	ti = Trigger.Init; this!ti();
-	//this!Trigger.Init();
+	this!Trigger.Init();
 	this.radius = 1;
 }
 
@@ -110,5 +109,107 @@ function ENTCREATE_SphereTrigger()
 	E = CreateEntityExt( "SphereTrigger", "Entity" );
 	E.Init();
 	return E;
+}
+
+
+//
+// Door Entity Core
+//
+global DoorCore = clone( Trigger );
+
+// callbacks
+function DoorCore.OnDoorMoveStart(){}
+function DoorCore.OnDoorMoveEnd(){}
+function DoorCore.OnDoorMove(){} // physics
+function DoorCore.OnDoorPreRender( bf ){} // transform
+
+function DoorCore.Init()
+{
+	this!Trigger.Init();
+	
+	this.
+	{
+		openPosition = vec3(0),
+		openRotation = quat(),
+		closedPosition = vec3(0),
+		closedRotation = quat(),
+		openingTime = 1,
+		initialState = false,
+		targetState = false,
+		openState = 0.0,
+		openTarget = 0.0,
+	};
+	
+	this._pPos = this._cPos = this.GetCurrentPosition();
+	this._pRot = this._cRot = this.GetCurrentRotation();
+	
+	this.OnDoorMove();
+	this.OnDoorPreRender( 1.0 );
+}
+
+function DoorCore.Open(){ this.targetState = true; }
+function DoorCore.Close(){ this.targetState = false; }
+function DoorCore.Toggle(){ this.targetState = !this.targetState; }
+
+function DoorCore.GetCurrentPosition()
+{
+	return lerp( this.closedPosition, this.openPosition, this.openState );
+}
+
+function DoorCore.GetCurrentRotation()
+{
+	return lerp( this.closedRotation, this.openRotation, this.openState );
+}
+
+function DoorCore.GetInterpolatedPosition( bf )
+{
+	return lerp( this._pPos, this._cPos, bf );
+}
+
+function DoorCore.GetInterpolatedRotation( bf )
+{
+	return lerp( this._pRot, this._cRot, bf );
+}
+
+function DoorCore.FixedUpdate( dt )
+{
+	if( this.openState != this.openTarget )
+	{
+		df = this.openTarget - this.openState;
+		df /= this.openingTime;
+		df_len = abs( df );
+		df_dir = sign( df );
+		if( this.openingTime > 0 )
+		{
+			df_len /= this.openingTime;
+			if( df_len > dt )
+				df_len = dt;
+		}
+		else
+			df_len = 1;
+		this.openState = clamp( this.openState + df_len * df_dir, 0.0, 1.0 );
+		
+		this.OnDoorMove();
+		if( this.openState == this.openTarget )
+		{
+			this.UpdateState( this.openTarget );
+			this.OnDoorMoveEnd();
+		}
+	}
+	else if( this.openTarget != toreal( this.targetState ) )
+	{
+		this.openTarget = toreal( this.targetState );
+		this.OnDoorMoveStart();
+	}
+	
+	this._pPos = this._cPos;
+	this._pRot = this._cRot;
+	this._cPos = this.GetCurrentPosition();
+	this._cRot = this.GetCurrentRotation();
+}
+
+function DoorCore.Update( dt, bf )
+{
+	this.OnDoorPreRender( bf );
 }
 
