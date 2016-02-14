@@ -54,13 +54,52 @@ sgsHandle< GameLevel > LevelScrObj::_sgs_getLevel()
 
 
 Entity::Entity( GameLevel* lev ) :
-	LevelScrObj( lev ), m_typeName("<unknown>")
+	LevelScrObj( lev ),
+	m_infoMask( 0 ),
+	m_infoTarget( V3(0) ),
+	m_typeName("<unknown>")
 {
 }
 
 Entity::~Entity()
 {
 	m_level->UnmapEntityByName( this );
+	m_level->m_infoEmitSet.Unregister( this );
+}
+
+void Entity::FixedTick( float deltaTime )
+{
+	sgsVariable fn_fixedupdate = GetScriptedObject().getprop( "FixedUpdate" );
+	if( fn_fixedupdate.not_null() )
+	{
+		sgs_PushReal( C, deltaTime );
+		GetScriptedObject().thiscall( C, fn_fixedupdate, 1 );
+	}
+}
+
+void Entity::Tick( float deltaTime, float blendFactor )
+{
+	sgsVariable fn_update = GetScriptedObject().getprop( "Update" );
+	if( fn_update.not_null() )
+	{
+		sgs_PushReal( C, deltaTime );
+		sgs_PushReal( C, blendFactor );
+		GetScriptedObject().thiscall( C, fn_update, 2 );
+	}
+}
+
+void Entity::OnTransformUpdate()
+{
+	GetScriptedObject().thiscall( C, "OnTransformUpdate" );
+}
+
+void Entity::SetInfoMask( uint32_t mask )
+{
+	if( mask && !m_infoMask )
+		m_level->m_infoEmitSet.Register( this );
+	else if( !mask && m_infoMask )
+		m_level->m_infoEmitSet.Unregister( this );
+	m_infoMask = mask;
 }
 
 
@@ -94,6 +133,18 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		m_sgsObject = sgs_GetObjectStruct( C, -1 );
 		sgs_ObjAcquire( C, m_sgsObject );
 	}
+	
+	// register basic constants
+	sgs_RegIntConst ric[] =
+	{
+		{ "IEST_InteractiveItem", IEST_InteractiveItem },
+		{ "IEST_HeatSource", IEST_HeatSource },
+		{ "IEST_Player", IEST_Player },
+		{ "IEST_Target", IEST_Target },
+		{ "IEST_AIAlert", IEST_AIAlert },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( C, ric, -1 );
 	
 	// create marker pos. array
 	m_markerPositions = m_scriptCtx.CreateDict();
@@ -518,13 +569,6 @@ Entity::ScrHandle GameLevel::sgsFindEntity( StringView name )
 	return Entity::ScrHandle( FindEntityByName( name ) );
 }
 
-void GameLevel::CallEntityByName( StringView name, StringView action )
-{
-	Entity* e = m_entNameMap.getcopy( name );
-	if( e )
-		e->OnEvent( action );
-}
-
 void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
 {
 	m_scene->camera.position = pos;
@@ -564,7 +608,69 @@ SGS_MULTRET GameLevel::sgsGetCursorWorldPoint( uint32_t layers )
 }
 
 
-// ---
+
+bool GameLevel::Query( EntityProcessor* optProc, uint32_t mask )
+{
+	return m_infoEmitSet.Query( InfoEmitEntitySet::NoTest(), mask, optProc );
+}
+
+bool GameLevel::QuerySphere( EntityProcessor* optProc, uint32_t mask, Vec3 pos, float rad )
+{
+	InfoEmitEntitySet::SphereTest test = { pos, rad * rad };
+	return m_infoEmitSet.Query( test, mask, optProc );
+}
+
+bool GameLevel::QueryOBB( EntityProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax )
+{
+	InfoEmitEntitySet::OBBTest test = { bbmin, bbmax, mtx.Inverted() };
+	return m_infoEmitSet.Query( test, mask, optProc );
+}
+
+struct EP_sgsFunc : EntityProcessor
+{
+	sgsVariable func;
+	EP_sgsFunc( sgsVariable src ) : func( src ){}
+	bool ProcessEntity( Entity* E )
+	{
+		SGS_CSCOPE( func.get_ctx() );
+		sgs_PushVar( func.get_ctx(), E->GetScriptedObject() );
+		func.call( func.get_ctx(), 1, 1 );
+		return sgs_GetBool( func.get_ctx(), -1 );
+	}
+};
+
+bool GameLevel::sgsQuery( sgsVariable optProc, uint32_t mask )
+{
+	if( optProc.not_null() )
+	{
+		EP_sgsFunc ep( optProc );
+		return Query( &ep, mask );
+	}
+	return Query( NULL, mask );
+}
+
+bool GameLevel::sgsQuerySphere( sgsVariable optProc, uint32_t mask, Vec3 pos, float rad )
+{
+	if( optProc.not_null() )
+	{
+		EP_sgsFunc ep( optProc );
+		return QuerySphere( &ep, mask, pos, rad );
+	}
+	return QuerySphere( NULL, mask, pos, rad );
+}
+
+bool GameLevel::sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax )
+{
+	if( sgs_StackSize( C ) < 4 ) bbmin = V3(-1);
+	if( sgs_StackSize( C ) < 5 ) bbmax = V3(1);
+	if( optProc.not_null() )
+	{
+		EP_sgsFunc ep( optProc );
+		return QueryOBB( &ep, mask, mtx, bbmin, bbmax );
+	}
+	return QueryOBB( NULL, mask, mtx, bbmin, bbmax );
+}
+
 
 
 void GameLevel::LightMesh( SGRX_MeshInstance* meshinst, Vec3 off )

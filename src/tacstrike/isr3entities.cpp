@@ -566,11 +566,11 @@ ISR3Enemy::~ISR3Enemy()
 {
 }
 
-struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
+struct IESEnemyViewProc : EntityProcessor
 {
-	bool Process( Entity* ent, const InfoEmissionSystem::Data& data )
+	bool ProcessEntity( Entity* ent )
 	{
-		Vec3 enemypos = data.pos;// + V3(0,0,1); // FIXME MAYBE?
+		Vec3 enemypos = ent->GetWorldInfoTarget();// + V3(0,0,1); // FIXME MAYBE?
 		
 		// verify the find
 		Vec3 vieworigin = enemy->GetPosition();

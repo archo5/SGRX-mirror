@@ -50,15 +50,13 @@ void Trigger::sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout )
 BoxTrigger::BoxTrigger( GameLevel* lev, StringView name, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
 	Trigger( lev ), m_matrix( Mat4::CreateSRT( scl, rot, pos ) )
 {
-	m_matrix.InvertTo( m_matrix );
-	
 	m_name = name;
 	m_level->MapEntityByName( this );
 }
 
 void BoxTrigger::FixedTick( float deltaTime )
 {
-	Update( m_level->GetSystem<InfoEmissionSystem>()->QueryBB( m_matrix, IEST_Player ) );
+	Update( m_level->QueryOBB( NULL, IEST_Player, m_matrix ) );
 }
 
 
@@ -71,7 +69,7 @@ ProximityTrigger::ProximityTrigger( GameLevel* lev, StringView name, const Vec3&
 
 void ProximityTrigger::FixedTick( float deltaTime )
 {
-	Update( m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAny( m_position, m_radius, IEST_Player ) );
+	Update( m_level->QuerySphere( NULL, IEST_Player, m_position, m_radius ) );
 }
 
 
@@ -188,11 +186,10 @@ void SlidingDoor::FixedTick( float deltaTime )
 	{
 		if( !m_done )
 		{
-			InfoEmissionSystem::Data D = { position, 0.5f, IEST_InteractiveItem };
-			m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+			SetInfoMask( IEST_InteractiveItem );
 		}
 		else
-			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+			SetInfoMask( 0 );
 	}
 }
 
@@ -243,8 +240,7 @@ PickupItem::PickupItem( GameLevel* lev, const StringView& name, const StringView
 	m_meshInst->matrix = Mat4::CreateSRT( scl, rot, pos );
 	m_level->LightMesh( m_meshInst );
 	
-	InfoEmissionSystem::Data D = { pos, 0.5f, IEST_InteractiveItem };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	SetInfoMask( IEST_InteractiveItem );
 }
 
 void PickupItem::OnEvent( const StringView& type )
@@ -259,7 +255,7 @@ void PickupItem::OnEvent( const StringView& type )
 		bool keep = sgs_GetVar<bool>()( C, -1 );
 		if( keep == false )
 		{
-			m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+			SetInfoMask( 0 );
 			m_meshInst->enabled = false;
 		}
 	}
@@ -289,7 +285,7 @@ Actionable::Actionable( GameLevel* lev, const StringView& name, const StringView
 	m_info.timeActual = 0.5f;
 	
 	m_name = name;
-	m_viewName = name;
+//	m_viewName = name;
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	
 	char bfr[ 256 ] = {0};
@@ -320,7 +316,7 @@ void Actionable::OnEvent( const StringView& type )
 			bool keep = sgs_GetVar<bool>()( C, -1 );
 			if( keep == false )
 			{
-				m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+				SetInfoMask( 0 );
 			}
 		}
 	}
@@ -339,12 +335,11 @@ void Actionable::SetEnabled( bool v )
 	m_enabled = v;
 	if( v )
 	{
-		InfoEmissionSystem::Data D = { m_info.placePos, 0.5f, IEST_InteractiveItem };
-		m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+		SetInfoMask( IEST_InteractiveItem );
 	}
 	else
 	{
-		m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+		SetInfoMask( 0 );
 	}
 }
 
@@ -512,13 +507,8 @@ void MultiEntity::FixedTick( float deltaTime )
 			m_bodyRot[ i ].Advance( m_bodies[ i ]->GetRotation() );
 		}
 	}
-	// fixed update event
-	if( GetScriptedObject().getprop( "FixedUpdate" ).not_null() )
-	{
-		SGS_SCOPE;
-		sgs_PushReal( C, deltaTime );
-		GetScriptedObject().thiscall( C, "FixedUpdate", 1 );
-	}
+	
+	Entity::FixedTick( deltaTime );
 }
 
 void MultiEntity::Tick( float deltaTime, float blendFactor )
@@ -531,19 +521,14 @@ void MultiEntity::Tick( float deltaTime, float blendFactor )
 			m_bodyRotLerp[ i ] = m_bodyRot[ i ].Get( blendFactor );
 		}
 	}
-	// update event
-	if( GetScriptedObject().getprop( "Update" ).not_null() )
-	{
-		SGS_SCOPE;
-		sgs_PushReal( C, deltaTime );
-		sgs_PushReal( C, blendFactor );
-		GetScriptedObject().thiscall( C, "Update", 2 );
-	}
+	
 	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
 	{
 		if( m_partSys[ i ] )
 			m_partSys[ i ]->Tick( deltaTime );
 	}
+	
+	Entity::Tick( deltaTime, blendFactor );
 	
 	PreRender();
 }
@@ -565,16 +550,6 @@ void MultiEntity::PreRender()
 		m_level->LightMesh( m_dmgDecalSys->m_meshInst );
 	if( m_ovrDecalSys )
 		m_level->LightMesh( m_ovrDecalSys->m_meshInst );
-}
-
-void MultiEntity::OnEvent( const StringView& type )
-{
-	if( GetScriptedObject().getprop( "OnEvent" ).not_null() )
-	{
-		SGS_SCOPE;
-		sgs_PushVar( C, type );
-		GetScriptedObject().thiscall( C, "OnEvent", 1 );
-	}
 }
 
 void MultiEntity::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
@@ -602,7 +577,7 @@ void MultiEntity::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 
 void MultiEntity::OnTransformUpdate()
 {
-	Mat4 mtx = m_transform.GetMatrix();
+	Mat4 mtx = GetWorldMatrix();
 	if( m_dmgDecalSys )
 		m_dmgDecalSys->m_meshInst->matrix = mtx;
 	if( m_ovrDecalSys )
@@ -620,7 +595,7 @@ void MultiEntity::MICreate( int i, StringView path )
 {
 	SCRENT_OFSCHK( i, return );
 	m_meshes[ i ] = m_level->GetScene()->CreateMeshInstance();
-	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * m_transform.GetMatrix();
+	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * GetWorldMatrix();
 	m_meshes[ i ]->userData = this;
 	if( path )
 		m_meshes[ i ]->SetMesh( path );
@@ -657,7 +632,7 @@ void MultiEntity::MISetMatrix( int i, Mat4 mtx )
 	SCRENT_OFSCHK( i, return );
 	SCRENT_MESHCHK( i, return );
 	m_meshMatrices[ i ] = mtx;
-	m_meshes[ i ]->matrix = mtx * m_transform.GetMatrix();
+	m_meshes[ i ]->matrix = mtx * GetWorldMatrix();
 }
 
 void MultiEntity::MISetShaderConst( int i, int v, Vec4 var )
@@ -686,7 +661,7 @@ void MultiEntity::PSCreate( int i, StringView path )
 	m_partSys[ i ]->AddToScene( m_level->GetScene() );
 	if( path )
 		m_partSys[ i ]->Load( path );
-	m_partSys[ i ]->SetTransform( m_partSysMatrices[ i ] * m_transform.GetMatrix() );
+	m_partSys[ i ]->SetTransform( m_partSysMatrices[ i ] * GetWorldMatrix() );
 }
 
 void MultiEntity::PSDestroy( int i )
@@ -713,7 +688,7 @@ void MultiEntity::PSSetMatrix( int i, Mat4 mtx )
 	SCRENT_OFSCHK( i, return );
 	SCRENT_PSYSCHK( i, return );
 	m_partSysMatrices[ i ] = mtx;
-	m_partSys[ i ]->SetTransform( mtx * m_transform.GetMatrix() );
+	m_partSys[ i ]->SetTransform( mtx * GetWorldMatrix() );
 }
 
 void MultiEntity::PSSetMatrixFromMeshAABB( int i, int mi )
@@ -732,7 +707,7 @@ void MultiEntity::PSSetMatrixFromMeshAABB( int i, int mi )
 	Vec3 off = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f;
 	Mat4 mtx = Mat4::CreateScale( diff * 0.5f ) * Mat4::CreateTranslation( off );
 	m_partSysMatrices[ i ] = mtx;
-	m_partSys[ i ]->SetTransform( mtx * m_transform.GetMatrix() );
+	m_partSys[ i ]->SetTransform( mtx * GetWorldMatrix() );
 }
 
 void MultiEntity::PSPlay( int i )

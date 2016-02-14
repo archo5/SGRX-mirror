@@ -195,7 +195,6 @@ struct MultiEntity : Entity, SGRX_MeshInstUserData
 	~MultiEntity();
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );
-	virtual void OnEvent( const StringView& type );
 	void PreRender();
 	
 	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );

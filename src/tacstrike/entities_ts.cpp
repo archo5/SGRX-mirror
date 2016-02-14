@@ -195,8 +195,8 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 	m_level->GetSystem<FlareSystem>()->UpdateFlare( this, FD );
 	
 	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "origin" ) );
-	InfoEmissionSystem::Data D = { tgtpos, 0.5f, IEST_Target };
-	m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+	SetInfoMask( IEST_Target );
+	SetInfoTarget( tgtpos );
 	
 	LevelMapSystem* lms = m_level->GetSystem<LevelMapSystem>();
 	if( lms )
@@ -287,7 +287,6 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 
 TSCharacter::~TSCharacter()
 {
-	m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
 }
 
 void TSCharacter::SetPlayerMode( bool isPlayer )
@@ -392,7 +391,7 @@ void TSCharacter::FixedTick( float deltaTime )
 			{
 				if( !IsPlayingAnim() )
 					m_anMainPlayer.Play( GR_GetAnim( "kneeling" ) );
-				m_actState.target->OnEvent( "action_start" );
+				m_actState.target->GetScriptedObject().thiscall( C, "OnActionStart" );
 			}
 		//	if( pp < 0.5f && 0.5f <= cp )
 		//	{
@@ -402,7 +401,7 @@ void TSCharacter::FixedTick( float deltaTime )
 			if( m_actState.progress >= m_actState.info.timeActual )
 			{
 				// end of action
-				m_actState.target->OnEvent( "action_end" );
+				m_actState.target->GetScriptedObject().thiscall( C, "OnActionEnd" );
 				m_actState.timeoutEnding = IA_NEEDS_LONG_END( m_actState.info.type ) ? 1 : 0;
 			}
 		}
@@ -505,8 +504,8 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	if( m_health > 0 )
 	{
 		Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
-		InfoEmissionSystem::Data D = { tgtpos, 0.5f, m_infoFlags };
-		m_level->GetSystem<InfoEmissionSystem>()->UpdateEmitter( this, D );
+		SetInfoMask( m_infoFlags );
+		SetInfoTarget( tgtpos );
 	}
 	
 	
@@ -683,13 +682,13 @@ void TSCharacter::BeginClosestAction( float maxdist )
 		return;
 	
 	Vec3 QP = GetQueryPosition();
-	IESItemGather ies_gather;
-	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
-	if( ies_gather.items.size() )
+	EntityGather iact_gather;
+	m_level->QuerySphere( &iact_gather, IEST_InteractiveItem, QP, 5 );
+	if( iact_gather.items.size() )
 	{
-		ies_gather.DistanceSort( QP );
-		if( ( ies_gather.items[ 0 ].D.pos - QP ).Length() < maxdist )
-			BeginAction( ies_gather.items[ 0 ].E );
+		iact_gather.DistanceSort( QP );
+		if( ( iact_gather.items[ 0 ].E->GetWorldInfoTarget() - QP ).Length() < maxdist )
+			BeginAction( iact_gather.items[ 0 ].E );
 	}
 }
 
@@ -792,7 +791,7 @@ void TSCharacter::OnDeath()
 	m_bodyHandle->SetEnabled( false );
 	m_animChar.EnablePhysics();
 	m_anLayers[3].factor = 1;
-	m_level->GetSystem<InfoEmissionSystem>()->RemoveEmitter( this );
+	SetInfoMask( 0 );
 	
 	// event
 	Game_FireEvent( TSEV_CharDied, this );
@@ -885,8 +884,7 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 	{
 		m_pDist = 0.5f;
 		m_closestEnt = NULL;
-		lock = m_level->GetSystem<InfoEmissionSystem>()
-			->QuerySphereAll( this, pos, 8.0f, IEST_Target );
+		lock = m_level->QuerySphere( this, IEST_Target, pos, 8.0f );
 		if( m_aimPtr == NULL || m_aimPtr == m_closestEnt )
 		{
 			m_aimPoint = m_closestPoint;
@@ -920,8 +918,7 @@ void TSAimHelper::DrawUI()
 {
 	m_pDist = 0.5f;
 	m_closestEnt = NULL;
-	m_level->GetSystem<InfoEmissionSystem>()
-		->QuerySphereAll( this, m_pos, 8.0f, IEST_Target );
+	m_level->QuerySphere( this, IEST_Target, m_pos, 8.0f );
 	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
@@ -985,31 +982,32 @@ Vec3 TSAimHelper::_CalcRCPos( Vec3 pos )
 	return V3(0);
 }
 
-bool TSAimHelper::Process( Entity* E, const InfoEmissionSystem::Data& D )
+bool TSAimHelper::ProcessEntity( Entity* E )
 {
-	if( D.types & IEST_Player )
+	if( E->GetInfoMask() & IEST_Player )
 		return true;
 	
+	Vec3 tgtPos = E->GetWorldInfoTarget();
 	SceneRaycastCallback_Any srcb;
-	m_level->GetScene()->RaycastAll( m_pos, D.pos, &srcb, 0x1 );
+	m_level->GetScene()->RaycastAll( m_pos, tgtPos, &srcb, 0x1 );
 	if( srcb.m_hit )
 		return true;
 	
 	if( E == m_aimPtr )
 	{
 		m_closestEnt = m_aimPtr;
-		m_closestPoint = D.pos;
+		m_closestPoint = tgtPos;
 		return false;
 	}
 	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	float bsz = TMIN( screen_size.x, screen_size.y );
 	Vec2 curpos = m_cp * screen_size;
-	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( D.pos ).ToVec2() * screen_size;
+	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( tgtPos ).ToVec2() * screen_size;
 	float npdist = ( curpos - scrpos ).Length();
 	if( npdist < m_pDist * bsz )
 	{
 		m_closestEnt = E;
-		m_closestPoint = D.pos;
+		m_closestPoint = tgtPos;
 		m_pDist = npdist / bsz;
 	}
 	return true;
@@ -1121,12 +1119,12 @@ struct TSEC_FindChar : AIFactDistance
 	uint32_t curTime;
 };
 
-struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
+struct EPEnemyViewProc : EntityProcessor
 {
-	IESEnemyViewProc() : sawEnemy(false){}
-	bool Process( Entity* ent, const InfoEmissionSystem::Data& data )
+	EPEnemyViewProc() : sawEnemy(false){}
+	bool ProcessEntity( Entity* ent )
 	{
-		Vec3 enemypos = data.pos;
+		Vec3 enemypos = ent->GetWorldInfoTarget();
 		
 		// verify the find
 		if( enemy->CanSeePoint( enemypos ) == false )
@@ -1135,7 +1133,7 @@ struct IESEnemyViewProc : InfoEmissionSystem::IESProcessor
 		// TODO friendlies
 		AIFactStorage& FS = enemy->m_factStorage;
 		
-		if( data.types & IEST_AIAlert )
+		if( ent->GetInfoMask() & IEST_AIAlert )
 		{
 			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
@@ -1239,11 +1237,11 @@ void TSEnemyController::FixedTick( float deltaTime )
 		}
 	}
 	// - vision
-	IESEnemyViewProc evp;
+	EPEnemyViewProc evp;
 	evp.curtime = curTime;
 	evp.enemy = this;
-	m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &evp,
-		m_char->GetPosition(), 10.0f, ( m_inPlayerTeam ? IEST_Target : IEST_Player ) | IEST_AIAlert );
+	uint32_t qmask = ( m_inPlayerTeam ? IEST_Target : IEST_Player ) | IEST_AIAlert;
+	m_level->QuerySphere( &evp, qmask, m_char->GetPosition(), 10.0f );
 	
 	// tick ESO
 	{
@@ -1700,16 +1698,16 @@ void TSGameSystem::DrawUI()
 		float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
 		
 		Vec3 QP = P->GetQueryPosition();
-		IESItemGather ies_gather;
-		m_level->GetSystem<InfoEmissionSystem>()->QuerySphereAll( &ies_gather, QP, 5, IEST_InteractiveItem );
-		if( ies_gather.items.size() )
+		EntityGather iact_gather;
+		m_level->QuerySphere( &iact_gather, IEST_InteractiveItem, QP, 5 );
+		if( iact_gather.items.size() )
 		{
-			ies_gather.DistanceSort( QP );
-			for( size_t i = ies_gather.items.size(); i > 0; )
+			iact_gather.DistanceSort( QP );
+			for( size_t i = iact_gather.items.size(); i > 0; )
 			{
 				i--;
-				Entity* E = ies_gather.items[ i ].E;
-				Vec3 pos = ies_gather.items[ i ].D.pos;
+				Entity* E = iact_gather.items[ i ].E;
+				Vec3 pos = E->GetWorldInfoTarget();
 				bool infront;
 				Vec2 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
 				if( infront )
@@ -1735,7 +1733,8 @@ void TSGameSystem::DrawUI()
 					br.AAStroke( irect, 4, 2, true );
 					
 					GR2D_SetFont( "mono", 15 );
-					GR2D_DrawTextLine( round( clp1.x + 4 ), round( clp1.y - 48 + 4 ), E->m_viewName );
+					StringView name = E->GetScriptedObject().getprop( "viewName" ).get<StringView>();
+					GR2D_DrawTextLine( round( clp1.x + 4 ), round( clp1.y - 48 + 4 ), name );
 				}
 			}
 		}

@@ -118,7 +118,6 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	Vec3 GetPosition();
 	void SetPosition( Vec3 pos );
 	
-	virtual void OnEvent( const StringView& type ){}
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	void Hit( float pwr );
 	virtual void OnDeath();
@@ -170,7 +169,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 };
 
 
-struct TSAimHelper : InfoEmissionSystem::IESProcessor
+struct TSAimHelper : EntityProcessor
 {
 	TSAimHelper( GameLevel* lev );
 	void Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock );
@@ -189,7 +188,7 @@ struct TSAimHelper : InfoEmissionSystem::IESProcessor
 	float m_aimFactor;
 	
 	// lock target query
-	virtual bool Process( Entity* E, const InfoEmissionSystem::Data& D );
+	virtual bool ProcessEntity( Entity* E );
 	float m_pDist;
 	void* m_closestEnt;
 	Vec3 m_closestPoint;

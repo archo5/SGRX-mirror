@@ -35,7 +35,6 @@ struct ISR3Drone : Entity, SGRX_MeshInstUserData
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
 	
-	virtual void OnEvent( const StringView& type ){}
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	void Hit( float pwr );
 	virtual void OnDeath(){}

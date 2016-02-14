@@ -82,56 +82,112 @@ typedef Handle< IActorController > ActorCtrlHandle;
 
 struct Transform
 {
-	Transform() : position( V3(0) ), rotation( Quat::Identity ), scale( V3(1) ){}
+	Transform() :
+		_localPosition( V3(0) ),
+		_localRotation( Quat::Identity ),
+		_localScale( V3(1) ),
+		_worldMatrix( Mat4::Identity ),
+		_invWorldMatrix( Mat4::Identity ),
+		_updateOnEdit( true )
+	{}
 	
-	Vec3 position;
-	Quat rotation;
-	Vec3 scale;
+	Vec3 _localPosition;
+	Quat _localRotation;
+	Vec3 _localScale;
+	Mat4 _worldMatrix;
+	Mat4 _invWorldMatrix;
+	bool _updateOnEdit;
 	
-	Mat4 GetMatrix() const { return Mat4::CreateSRT( scale, rotation, position ); }
-	void SetMatrix( Mat4 m )
+	void OnEdit()
 	{
-		position = m.GetTranslation();
-		rotation = m.GetRotationQuaternion();
-		scale = m.GetScale();
+		if( _updateOnEdit == false )
+			return;
+		_worldMatrix = GetLocalMatrix();
+		_invWorldMatrix = _worldMatrix.Inverted();
 	}
-	Vec3 GetRotationXYZ() const { return rotation.ToXYZ(); }
-	void SetRotationXYZ( Vec3 v ){ rotation = Quat::CreateFromXYZ( v ); }
+	
+	FINLINE Mat4 GetLocalMatrix() const
+	{
+		return Mat4::CreateSRT( _localScale, _localRotation, _localPosition );
+	}
+	FINLINE void SetLocalMatrix( Mat4 m )
+	{
+		_localPosition = m.GetTranslation();
+		_localRotation = m.GetRotationQuaternion();
+		_localScale = m.GetScale();
+		OnEdit();
+	}
+	FINLINE Vec3 GetLocalPosition() const { return _localPosition; }
+	FINLINE void SetLocalPosition( Vec3 p ){ _localPosition = p; OnEdit(); }
+	FINLINE Quat GetLocalRotation() const { return _localRotation; }
+	FINLINE void SetLocalRotation( Quat q ){ _localRotation = q; OnEdit(); }
+	FINLINE Vec3 GetLocalRotationXYZ() const { return _localRotation.ToXYZ(); }
+	FINLINE void SetLocalRotationXYZ( Vec3 v ){ _localRotation = Quat::CreateFromXYZ( v ); OnEdit(); }
+	FINLINE Vec3 GetLocalScale() const { return _localScale; }
+	FINLINE void SetLocalScale( Vec3 s ){ _localScale = s; OnEdit(); }
+	
+	FINLINE Vec3 GetWorldPosition() const { return _worldMatrix.GetTranslation(); }
+	FINLINE Mat4 GetWorldMatrix() const { return _worldMatrix; }
+	
+	FINLINE Vec3 LocalToWorld( Vec3 p ) const { return _worldMatrix.TransformPos( p ); }
+	FINLINE Vec3 WorldToLocal( Vec3 p ) const { return _invWorldMatrix.TransformPos( p ); }
 };
 
-struct Entity : LevelScrObj
+struct Entity : LevelScrObj, Transform
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	typedef sgsHandle< Entity > ScrHandle;
 	
 	Entity( GameLevel* lev );
 	~Entity();
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
-	virtual void OnEvent( const StringView& type ){}
-	virtual void OnTransformUpdate(){}
+	virtual void FixedTick( float deltaTime );
+	virtual void Tick( float deltaTime, float blendFactor );
+	virtual void OnTransformUpdate();
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	
-	Transform m_transform;
+	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }
+	void SetInfoMask( uint32_t mask );
+	FINLINE Vec3 GetInfoTarget() const { return m_infoTarget; }
+	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
+	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
 	
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE m_transform.position
+	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 position );
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE m_transform.rotation
+	SGS_PROPERTY_FUNC( READ GetLocalRotation WRITE SetLocalRotation
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Quat rotation );
-	SGS_PROPERTY_FUNC( READ m_transform.GetRotationXYZ WRITE m_transform.SetRotationXYZ
+	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 rotationXYZ );
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE m_transform.scale
+	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 scale );
-	SGS_PROPERTY_FUNC( READ m_transform.GetMatrix WRITE m_transform.SetMatrix
+	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Mat4 transform );
+	
+	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 localPosition );
+	SGS_PROPERTY_FUNC( READ GetLocalRotation WRITE SetLocalRotation
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Quat localRotation );
+	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 localRotationXYZ );
+	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 localScale );
+	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix
+		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Mat4 localTransform );
+	
+	SGS_PROPERTY_FUNC( READ GetInfoMask WRITE SetInfoMask VARNAME infoMask ) uint32_t m_infoMask;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME localInfoTarget ) Vec3 m_infoTarget;
+	SGS_PROPERTY_FUNC( READ GetWorldInfoTarget ) SGS_ALIAS( Vec3 infoTarget );
 	
 	SGS_PROPERTY_FUNC( READ VARNAME typeName ) StringView m_typeName;
 	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_name;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME viewName ) String m_viewName;
-	SGS_METHOD_NAMED( CallEvent ) SGS_ALIAS( void OnEvent( StringView type ) );
 };
+
+#define IEST_InteractiveItem 0x0001
+#define IEST_HeatSource      0x0002
+#define IEST_Player          0x0004
+#define IEST_Target          0x0010
+#define IEST_AIAlert         0x0020
 
 
 struct IGameLevelSystem : LevelScrObj
@@ -203,6 +259,105 @@ struct Actor : Entity
 };
 
 
+struct EntityProcessor
+{
+	virtual bool ProcessEntity( Entity* e ) = 0;
+};
+
+struct EntityGather : EntityProcessor
+{
+	struct Item
+	{
+		Entity* E;
+		float sortkey;
+	};
+	
+	bool ProcessEntity( Entity* E )
+	{
+		Item item = { E, 0 };
+		items.push_back( item );
+		return true;
+	}
+	
+	static int sort_func( const void* A, const void* B )
+	{
+		SGRX_CAST( Item*, a, A );
+		SGRX_CAST( Item*, b, B );
+		return a->sortkey == b->sortkey ? 0 : ( a->sortkey < b->sortkey ? -1 : 1 );
+	}
+	void Sort()
+	{
+		qsort( items.data(), items.size(), sizeof(Item), sort_func );
+	}
+	void DistanceSort( Vec3 pos )
+	{
+		for( size_t i = 0; i < items.size(); ++i )
+			items[ i ].sortkey = ( items[ i ].E->GetWorldPosition() - pos ).LengthSq();
+		Sort();
+	}
+	
+	Array< Item > items;
+};
+
+struct InfoEmitEntitySet
+{
+	void Clear(){ m_entities.clear(); }
+	void Register( Entity* e ){ m_entities.set( e, NoValue() ); }
+	void Unregister( Entity* e ){ m_entities.unset( e ); }
+	
+	struct NoTest
+	{
+		FINLINE bool operator () ( Entity* E ) const { return true; }
+	};
+	struct SphereTest
+	{
+		Vec3 position;
+		float radius_squared;
+		FINLINE bool operator () ( Entity* E ) const
+		{
+			return ( E->GetWorldInfoTarget() - position ).LengthSq() <= radius_squared;
+		}
+	};
+	struct OBBTest
+	{
+		Vec3 bbmin;
+		Vec3 bbmax;
+		Mat4 inverse_matrix;
+		FINLINE bool operator () ( Entity* E ) const
+		{
+			Vec3 tp = inverse_matrix.TransformPos( E->GetWorldInfoTarget() );
+			if( tp.x >= bbmin.x && tp.x <= bbmax.x &&
+				tp.y >= bbmin.y && tp.y <= bbmax.y &&
+				tp.z >= bbmin.z && tp.z <= bbmax.z )
+				return true;
+			return false;
+		}
+	};
+	template< class T > bool Query( const T& test, uint32_t types, EntityProcessor* proc = NULL )
+	{
+		bool ret = false;
+		for( size_t i = 0; i < m_entities.size(); ++i )
+		{
+			Entity* E = m_entities.item( i ).key;
+			if( !( E->m_infoMask & types ) )
+				continue;
+			
+			if( !test( E ) )
+				continue;
+			
+			if( !proc )
+				return true;
+			
+			if( proc->ProcessEntity( E ) )
+				return true;
+			ret = true;
+		}
+		return ret;
+	}
+	
+	HashTable< Entity*, NoValue > m_entities;
+};
+
 typedef StackString<16> StackShortName;
 
 struct GameLevel :
@@ -267,11 +422,17 @@ struct GameLevel :
 	SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type );
 	SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
 	SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
-	SGS_METHOD_NAMED( CallEntity ) void CallEntityByName( StringView name, StringView action );
 	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
 	SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
 	SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
+	
+	bool Query( EntityProcessor* optProc, uint32_t mask );
+	bool QuerySphere( EntityProcessor* optProc, uint32_t mask, Vec3 pos, float rad );
+	bool QueryOBB( EntityProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin = V3(-1), Vec3 bbmax = V3(1) );
+	SGS_METHOD_NAMED( Query ) bool sgsQuery( sgsVariable optProc, uint32_t mask );
+	SGS_METHOD_NAMED( QuerySphere ) bool sgsQuerySphere( sgsVariable optProc, uint32_t mask, Vec3 pos, float rad );
+	SGS_METHOD_NAMED( QueryOBB ) bool sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax );
 	
 	// ---
 	
@@ -298,6 +459,7 @@ struct GameLevel :
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entNameMap;
+	InfoEmitEntitySet m_infoEmitSet;
 	Array< IGameLevelSystem* > m_systems;
 	
 	// LEVEL DATA

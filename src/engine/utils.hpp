@@ -1074,6 +1074,12 @@ struct ENGINE_EXPORT Mat4
 	
 #define InvertTo InvertTo_ // linker errors
 	bool InvertTo( Mat4& out ) const;
+	FINLINE Mat4 Inverted() const
+	{
+		Mat4 out = Mat4::Identity;
+		InvertTo( out );
+		return out;
+	}
 	FINLINE void Transpose()
 	{
 		TSWAP( m[1][0], m[0][1] );
