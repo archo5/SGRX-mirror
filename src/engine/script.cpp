@@ -90,6 +90,64 @@ static void sgrx_math_lib( SGS_CTX )
 }
 
 
+static int Input_GetValue( SGS_CTX )
+{
+	char* str = NULL;
+	SGSFN( "Input_GetValue" );
+	if( !sgs_LoadArgs( C, "s", &str ) )
+		return 0;
+	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
+	if( !is )
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+	return sgs_PushReal( C, is->value );
+}
+
+static int Input_GetState( SGS_CTX )
+{
+	char* str = NULL;
+	SGSFN( "Input_GetState" );
+	if( !sgs_LoadArgs( C, "s", &str ) )
+		return 0;
+	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
+	if( !is )
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+	return sgs_PushBool( C, is->state );
+}
+
+static int Input_GetPressed( SGS_CTX )
+{
+	char* str = NULL;
+	SGSFN( "Input_GetPressed" );
+	if( !sgs_LoadArgs( C, "s", &str ) )
+		return 0;
+	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
+	if( !is )
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+	return sgs_PushBool( C, is->IsPressed() );
+}
+
+static int Input_GetReleased( SGS_CTX )
+{
+	char* str = NULL;
+	SGSFN( "Input_GetReleased" );
+	if( !sgs_LoadArgs( C, "s", &str ) )
+		return 0;
+	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
+	if( !is )
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+	return sgs_PushBool( C, is->IsReleased() );
+}
+
+static sgs_RegFuncConst g_input_rfc[] =
+{
+	{ "Input_GetValue", Input_GetValue },
+	{ "Input_GetState", Input_GetState },
+	{ "Input_GetPressed", Input_GetPressed },
+	{ "Input_GetReleased", Input_GetReleased },
+	SGS_RC_END(),
+};
+
+
 static int BR_Reset( SGS_CTX )
 {
 	SGSFN( "BR_Reset" );
@@ -229,6 +287,11 @@ void ScriptContext::Reset()
 	xgm_module_entry_point( C );
 	sgrx_math_lib( C );
 	sgs_SetScriptFSFunc( C, sgs_scriptfs_sgrx, NULL );
+}
+
+void ScriptContext::RegisterInputAPI()
+{
+	sgs_RegFuncConsts( C, g_input_rfc, -1 );
 }
 
 void ScriptContext::RegisterBatchRenderer()
