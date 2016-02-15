@@ -1,27 +1,26 @@
 
 //
-// Entity extension function
+// Entity extension functions
 //
-function CreateEntityExt( iface_name, base )
+_R.entities = {};
+function ENTITY( name, inhname )
 {
-	E = level.CreateEntity( base, null );
-	E._data = {};
-	iface = _G[ iface_name ];
-	omo = metaobj_get( E );
-	iomo = metaobj_get( iface );
-	if( iomo !== null && iomo !== omo )
-		ERROR( "redefining metaobject for \"" $ iface_name $ "\"" );
-	metaobj_set( iface, omo );
-	metaobj_set( E, iface );
-	metamethods_enable( E, true );
-	return E;
+	data = _G[ name ];
+	data.
+	{
+		__inherit = inhname,
+		__getindex = mm_getindex_router,
+		__setindex = mm_setindex_router
+	};
+	sym_register( name, data );
+	_R.entities[ name ] = data;
 }
 
 
 //
 // Trigger Entity Core
 //
-global Trigger = { __getindex = mm_getindex_router, __setindex = mm_setindex_router };
+global Trigger = {};
 
 function Trigger.Init()
 {
@@ -74,17 +73,11 @@ function Trigger.SetupTrigger( once, fn, fnout )
 // Trigger Entity - Box
 //
 global BoxTrigger = clone( Trigger );
+ENTITY( "BoxTrigger", "Entity" );
 
 function BoxTrigger.Update( dt )
 {
-	this.UpdateState( level.infoEmitters.QueryBB( this.transform, this.mask ) );
-}
-
-function ENTCREATE_BoxTrigger()
-{
-	E = CreateEntityExt( "BoxTrigger", "Entity" );
-	E.Init();
-	return E;
+	this.UpdateState( level.QueryOBB( null, this.mask, this.transform ) );
 }
 
 
@@ -92,6 +85,7 @@ function ENTCREATE_BoxTrigger()
 // Trigger Entity - Sphere
 //
 global SphereTrigger = clone( Trigger );
+ENTITY( "SphereTrigger", "Entity" );
 
 function SphereTrigger.Init()
 {
@@ -101,14 +95,7 @@ function SphereTrigger.Init()
 
 function SphereTrigger.Update( dt )
 {
-	this.UpdateState( level.infoEmitters.QuerySphereAny( this.position, this.radius, this.mask ) );
-}
-
-function ENTCREATE_SphereTrigger()
-{
-	E = CreateEntityExt( "SphereTrigger", "Entity" );
-	E.Init();
-	return E;
+	this.UpdateState( level.QuerySphere( null, this.mask, this.position, this.radius ) );
 }
 
 

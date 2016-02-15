@@ -375,8 +375,41 @@ Entity* GameLevel::CreateEntity( const StringView& type )
 		}
 	}
 	
-	LOG << "ENTITY TYPE NOT FOUND: " << type;
-	return NULL;
+	sgsVariable eclass = m_scriptCtx.GetGlobal( type );
+	if( !eclass.not_null() )
+	{
+		LOG << "ENTITY TYPE NOT FOUND: " << type;
+		sgs_Msg( GetSGSC(), SGS_ERROR, "failed to find entity: %s", StackPath(type).str );
+		return NULL;
+	}
+	
+	StringView native_name = eclass.getprop("__inherit").get<StringView>();
+	Entity* ent = CreateEntity( native_name );
+	if( !ent )
+	{
+		LOG_ERROR << "FAILED to create scripted entity '" << type << "'"
+			<< " - could not find native entity '" << native_name << "'";
+		return NULL;
+	}
+	ent->_data = m_scriptCtx.CreateDict();
+	sgsVariable ESO = ent->GetScriptedObject();
+	sgsVariable ent_orig_metaobj = ESO.get_meta_obj();
+	sgsVariable eclass_orig_metaobj = eclass.get_meta_obj();
+	if( eclass_orig_metaobj.not_null() &&
+		ent_orig_metaobj.get_object_struct() != eclass_orig_metaobj.get_object_struct() )
+	{
+		LOG_ERROR << "FAILED to create scripted entity: redefining metaobject for '" << type << "'";
+		delete ent;
+		return NULL;
+	}
+	eclass.set_meta_obj( ent_orig_metaobj );
+	ESO.set_meta_obj( eclass );
+	ESO.enable_metamethods( true );
+	
+	sgsVariable fn_init = ESO.getprop("Init");
+	if( fn_init.not_null() )
+		ESO.thiscall( GetSGSC(), fn_init );
+	return ent;
 }
 
 void GameLevel::DestroyEntity( Entity* eptr )

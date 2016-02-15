@@ -457,6 +457,15 @@ public:
 			_acquire();
 		}
 	}
+	sgsVariable( sgs_Context* c, sgs_VarObj* o ) : C(sgs_RootContext(c))
+	{
+		var.type = SGS_VT_NULL;
+		if( o )
+		{
+			sgs_InitObjectPtr( &var, o );
+			// acquired by ^this
+		}
+	}
 	sgsVariable( const sgsString& s ) : C(sgs_RootContext(s.get_ctx()))
 	{
 		if( s.str != NULL )
@@ -548,12 +557,23 @@ public:
 	bool not_null() const { return var.type != SGS_VT_NULL; }
 	bool is_object( sgs_ObjInterface* iface ){ return !!sgs_IsObjectP( &var, iface ); }
 	template< class T > bool is_handle(){ return sgs_IsObjectP( &var, T::_sgs_interface ); }
+	sgs_VarObj* get_object_struct() const { return var.type == SGS_VT_OBJECT ? var.data.O : NULL; }
 	template< class T > T* get_object_data(){ return (T*) sgs_GetObjectDataP( &var ); }
 	template< class T > sgsHandle<T> get_handle(){ return sgsHandle<T>( C, &var ); }
 	template< class T > sgsHandle<T> downcast(){ return sgsHandle<T>( C, &var, true ); }
 	int type_id() const { return (int) var.type; }
 	bool is_string() const { return var.type == SGS_VT_STRING; }
 	sgsString get_string(){ return is_string() ? sgsString( C, var.data.S ) : sgsString(); }
+	void set_meta_obj( sgsVariable metaobj )
+	{
+		sgs_ObjSetMetaObj( C, get_object_struct(), metaobj.get_object_struct() );
+	}
+	sgsVariable get_meta_obj()
+	{
+		return sgsVariable( C, sgs_ObjGetMetaObj( get_object_struct() ) );
+	}
+	bool get_metamethods_enabled(){ return sgs_ObjGetMetaMethodEnable( get_object_struct() ); }
+	void enable_metamethods( bool e ){ sgs_ObjSetMetaMethodEnable( get_object_struct(), e ); }
 	
 	/* indexing */
 	sgsVariable getsubitem( sgsVariable key, bool prop )
