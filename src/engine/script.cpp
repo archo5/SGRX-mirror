@@ -9,7 +9,7 @@ ScriptVarIterator::ScriptVarIterator( SGS_CTX, sgs_Variable* var )
 	_Init( C, var );
 }
 
-ScriptVarIterator::ScriptVarIterator( sgsVariable& var )
+ScriptVarIterator::ScriptVarIterator( sgsVariable var )
 {
 	_Init( var.get_ctx(), &var.var );
 }
@@ -354,6 +354,20 @@ sgsVariable ScriptContext::Unserialize( const StringView& sv )
 	return out;
 }
 
+String ScriptContext::ToSGSON( sgsVariable var, const char* tab )
+{
+	sgs_SerializeSGSONFmt( C, var.var, tab );
+	String out = sgsVariable( C, -1 ).get<StringView>();
+	sgs_Pop( C, 1 );
+	return out;
+}
+
+sgsVariable ScriptContext::ParseSGSON( const StringView& sv )
+{
+	sgs_UnserializeSGSONExt( C, sv.data(), sv.size(), sgs_MakeNull() );
+	return sgsVariable( C, sgsVariable::PickAndPop );
+}
+
 sgsString ScriptContext::CreateString( const StringView& sv )
 {
 	return sgsString( C, sv.data(), sv.size() );
@@ -362,6 +376,13 @@ sgsString ScriptContext::CreateString( const StringView& sv )
 sgsVariable ScriptContext::CreateStringVar( const StringView& sv )
 {
 	return sgsVariable().set( CreateString( sv ) );
+}
+
+sgsVariable ScriptContext::CreateArray( int args )
+{
+	sgsVariable out( C );
+	sgs_CreateArray( C, &out.var, args );
+	return out;
 }
 
 sgsVariable ScriptContext::CreateDict( int args )

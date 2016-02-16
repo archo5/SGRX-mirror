@@ -327,7 +327,8 @@ typedef uint64_t ActionInput;
 #define ACTINPUT_GET_VALUE( iid ) ((iid)&0xffffffff)
 
 struct IGame;
-ENGINE_EXPORT IGame* Game_Change( IGame* ng );
+typedef Handle< IGame > GameHandle;
+ENGINE_EXPORT GameHandle Game_Change( IGame* ng );
 ENGINE_EXPORT void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid );
 ENGINE_EXPORT void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid = 0 );
 ENGINE_EXPORT void Game_FireEvent( SGRX_EventID eid, const EventData& edata );
@@ -1890,7 +1891,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 	}
 };
 
-struct IF_GCC(ENGINE_EXPORT) IGame
+struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 {
 	ENGINE_EXPORT virtual bool OnConfigure( int argc, char** argv );
 	ENGINE_EXPORT virtual int OnArgument( char* arg, int argcleft, char** argvleft );

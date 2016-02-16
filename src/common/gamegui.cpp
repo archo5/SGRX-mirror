@@ -369,7 +369,7 @@ void GameUIControl::InvokeCallbacks( sgsString key )
 		int sz = sgs_ArraySize( event.var );
 		for( int i = 0; i < sz; ++i )
 		{
-			self.thiscall( C, event.getindex( sgsVariable( C ).set( (sgs_Int) i ) ) );
+			self.thiscall( C, event.getindex( sgsVariable( C ).set_int( i ) ) );
 		}
 	}
 	else if( sgs_IsCallableP( &event.var ) )

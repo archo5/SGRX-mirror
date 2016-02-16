@@ -472,12 +472,11 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		
 //		g_PhyWorld->DebugDraw();
 	}
-}
-g_Game;
+};
 
 
 extern "C" EXPORT IGame* CreateGame()
 {
-	return &g_Game;
+	return new TACStrikeGame;
 }
 

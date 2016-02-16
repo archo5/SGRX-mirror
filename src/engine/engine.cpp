@@ -102,7 +102,7 @@ static bool g_HasFocus = true;
 static bool g_WindowVisible = true;
 static SDL_Window* g_Window = NULL;
 static void* g_GameLib = NULL;
-IGame* g_Game = NULL;
+GameHandle g_Game = NULL;
 static uint32_t g_GameTime = 0;
 static ActionMap* g_ActionMap;
 static CObjMap* g_CObjs;
@@ -333,9 +333,9 @@ void SGRX_IEventHandler::UnregisterHandler( SGRX_EventID eid )
 // GAME SYSTEMS
 //
 
-IGame* Game_Change( IGame* ng )
+GameHandle Game_Change( IGame* ng )
 {
-	IGame* old = g_Game;
+	GameHandle old = g_Game;
 	g_Game = ng;
 	return old;
 }
@@ -1944,6 +1944,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	}
 	
 	g_Game->OnDestroy();
+	g_Game = NULL;
 	Game_RemoveAllOverlayScreens();
 	
 	free_graphics();

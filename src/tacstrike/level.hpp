@@ -499,8 +499,8 @@ struct BaseEditor
 	~BaseEditor();
 	
 	void* m_lib;
-	IGame* m_editorGame;
-	IGame* m_origGame;
+	GameHandle m_editorGame;
+	GameHandle m_origGame;
 };
 
 struct BaseGame : IGame

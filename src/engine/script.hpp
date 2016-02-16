@@ -64,7 +64,7 @@ SGS_DECL_DUMPDATA_INT( Mat4 );
 struct ScriptVarIterator
 {
 	SCRIPT_EXPORT ScriptVarIterator( SGS_CTX, sgs_Variable* var );
-	SCRIPT_EXPORT ScriptVarIterator( sgsVariable& var );
+	SCRIPT_EXPORT ScriptVarIterator( sgsVariable var );
 	SCRIPT_EXPORT void _Init( SGS_CTX, sgs_Variable* var );
 	
 	SCRIPT_EXPORT sgsVariable GetKey();
@@ -93,9 +93,12 @@ struct ScriptContext
 	
 	SCRIPT_EXPORT String Serialize( sgsVariable var );
 	SCRIPT_EXPORT sgsVariable Unserialize( const StringView& sv );
+	SCRIPT_EXPORT String ToSGSON( sgsVariable var, const char* tab = "\t" );
+	SCRIPT_EXPORT sgsVariable ParseSGSON( const StringView& sv );
 	
 	SCRIPT_EXPORT sgsString CreateString( const StringView& sv );
 	SCRIPT_EXPORT sgsVariable CreateStringVar( const StringView& sv );
+	SCRIPT_EXPORT sgsVariable CreateArray( int args = 0 );
 	SCRIPT_EXPORT sgsVariable CreateDict( int args = 0 );
 	SCRIPT_EXPORT sgsVariable CreateVec2( const Vec2& v );
 	SCRIPT_EXPORT sgsVariable CreateVec3( const Vec3& v );

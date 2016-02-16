@@ -1868,6 +1868,91 @@ EdWorld::~EdWorld()
 	Reset();
 }
 
+void EdWorld::FLoad( sgsVariable obj )
+{
+	int version = obj.getprop("version").get<int>();
+	
+	sgsVariable lighting = obj.getprop("lighting");
+	{
+		m_ctlAmbientColor.SetValue( lighting.getprop("ambientColor").get<Vec3>() );
+		m_ctlDirLightDir.SetValue( lighting.getprop("dirLightDir").get<Vec2>() );
+		m_ctlDirLightColor.SetValue( lighting.getprop("dirLightColor").get<Vec3>() );
+		m_ctlDirLightDivergence.SetValue( lighting.getprop("dirLightDvg").get<float>() );
+		m_ctlDirLightNumSamples.SetValue( lighting.getprop("dirLightNumSamples").get<int>() );
+		m_ctlLightmapClearColor.SetValue( lighting.getprop("lightmapClearColor").get<Vec3>() );
+		m_ctlLightmapDetail.SetValue( lighting.getprop("lightmapDetail").get<float>() );
+		m_ctlLightmapBlurSize.SetValue( lighting.getprop("lightmapBlurSize").get<float>() );
+		m_ctlAODistance.SetValue( lighting.getprop("aoDist").get<float>() );
+		m_ctlAOMultiplier.SetValue( lighting.getprop("aoMult").get<float>() );
+		m_ctlAOFalloff.SetValue( lighting.getprop("aoFalloff").get<float>() );
+		m_ctlAOEffect.SetValue( lighting.getprop("aoEffect").get<float>() );
+		m_ctlAOColor.SetValue( lighting.getprop("aoColor").get<Vec3>() );
+		m_ctlAONumSamples.SetValue( lighting.getprop("aoNumSamples").get<int>() );
+		m_ctlSampleDensity.SetValue( lighting.getprop("sampleDensity").getdef<float>( 1.0f ) );
+	}
+	
+	sgsVariable objects = obj.getprop("objects");
+	{
+		ScriptVarIterator it( objects );
+		while( it.Advance() )
+		{
+			sgsVariable object = it.GetValue();
+			int type = object.getprop("type").get<int>();
+			EdObject* obj = NULL;
+			switch( type )
+			{
+			case ObjType_Block: obj = new EdBlock; break;
+			case ObjType_Patch: obj = new EdPatch; break;
+			case ObjType_MeshPath: obj = new EdMeshPath; break;
+			case ObjType_Entity: obj = new EdEntity; break;
+			default:
+				LOG_ERROR << "Failed to load World!";
+				continue;
+			}
+			obj->FLoad( object, version );
+			AddObject( obj );
+		}
+	}
+}
+
+sgsVariable EdWorld::FSave()
+{
+	int version = MAP_FILE_VERSION;
+	
+	sgsVariable lighting = FNewDict();
+	{
+		lighting.setprop( "ambientColor", g_Level->GetScriptCtx().CreateVec3( m_ctlAmbientColor.m_value ) );
+		lighting.setprop( "dirLightDir", g_Level->GetScriptCtx().CreateVec2( m_ctlDirLightDir.m_value ) );
+		lighting.setprop( "dirLightColor", g_Level->GetScriptCtx().CreateVec3( m_ctlDirLightColor.m_value ) );
+		lighting.setprop( "dirLightDvg", sgsVariable().set( m_ctlDirLightDivergence.m_value ) );
+		lighting.setprop( "dirLightNumSamples", sgsVariable().set<sgs_Int>( m_ctlDirLightNumSamples.m_value ) );
+		lighting.setprop( "lightmapClearColor", g_Level->GetScriptCtx().CreateVec3( m_ctlLightmapClearColor.m_value ) );
+		lighting.setprop( "lightmapDetail", sgsVariable().set( m_ctlLightmapDetail.m_value ) );
+		lighting.setprop( "lightmapBlurSize", sgsVariable().set( m_ctlLightmapBlurSize.m_value ) );
+		lighting.setprop( "aoDist", sgsVariable().set( m_ctlAODistance.m_value ) );
+		lighting.setprop( "aoMult", sgsVariable().set( m_ctlAOMultiplier.m_value ) );
+		lighting.setprop( "aoFalloff", sgsVariable().set( m_ctlAOFalloff.m_value ) );
+		lighting.setprop( "aoEffect", sgsVariable().set( m_ctlAOEffect.m_value ) );
+		lighting.setprop( "aoColor", g_Level->GetScriptCtx().CreateVec3( m_ctlAOColor.m_value ) );
+		lighting.setprop( "aoNumSamples", sgsVariable().set<sgs_Int>( m_ctlAONumSamples.m_value ) );
+		lighting.setprop( "sampleDensity", sgsVariable().set( m_ctlSampleDensity.m_value ) );
+	}
+	
+	sgsVariable objects = FNewDict();
+	for( size_t i = 0; i < m_objects.size(); ++i )
+	{
+		EdObject* obj = m_objects[ i ];
+		sgsVariable objdata = obj->FSave( version );
+		FSaveProp( objdata, "type", obj->m_type );
+		FArrayAppend( objects, objdata );
+	}
+	
+	sgsVariable out = FNewDict();
+	out.setprop( "version", sgsVariable().set<sgs_Int>( version ) );
+	out.setprop( "lighting", lighting );
+	out.setprop( "objects", objects );
+}
+
 void EdWorld::Reset()
 {
 	while( m_objects.size() )
@@ -3038,11 +3123,29 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 	
 	ResetEditorState();
 	
-	TextReader tr( &data );
-	g_EdWorld->Serialize( tr );
-	if( tr.error )
+	if( SV(data).part( 0, 5 ) == "WORLD" )
 	{
-		LOG_ERROR << "FAILED TO READ LEVEL FILE (at " << (int) tr.pos << "): " << bfr;
+		TextReader tr( &data );
+		g_EdWorld->Serialize( tr );
+		if( tr.error )
+		{
+			LOG_ERROR << "FAILED TO READ LEVEL FILE (at " << (int) tr.pos << "): " << bfr;
+			return;
+		}
+	}
+	else if( SV(data).part( 0, 1 ) == "{" )
+	{
+		sgsVariable parsed = g_Level->GetScriptCtx().ParseSGSON( data );
+		if( !parsed.not_null() )
+		{
+			LOG_ERROR << "FAILED TO READ LEVEL FILE: " << bfr;
+			return;
+		}
+		g_EdWorld->FLoad( parsed );
+	}
+	else
+	{
+		LOG_ERROR << "UNKNOWN LEVEL FILE FORMAT: " << bfr;
 		return;
 	}
 	
@@ -3263,15 +3366,16 @@ void MapEditor::SetBaseGame( BaseGame* game )
 }
 
 
-MapEditor g_Game;
+MapEditor* g_Game;
 
 extern "C" EXPORT IGame* CreateGame()
 {
-	return &g_Game;
+	g_Game = new MapEditor;
+	return g_Game;
 }
 
 extern "C" EXPORT void SetBaseGame( BaseGame* game )
 {
-	g_Game.SetBaseGame( game );
+	g_Game->SetBaseGame( game );
 }
 

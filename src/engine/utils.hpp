@@ -1350,6 +1350,11 @@ struct Handle
 	T* operator -> () const { return item; }
 	T& operator * () const { return *item; }
 	operator T* () const { return item; }
+	template< class S > void Serialize( S& arch )
+	{
+		ASSERT( item );
+		arch << *item;
+	}
 };
 
 
@@ -1846,7 +1851,7 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 };
 
 // shorthand single arg autoconversion
-FINLINE StringView SV( const StringView& sv ){ return sv; }
+FINLINE StringView SV( const StringView& sv = StringView() ){ return sv; }
 
 FINLINE void String::append( const StringView& sv )
 {

@@ -712,6 +712,8 @@ struct EdObject
 	virtual void Serialize( SVHTW& arch ) = 0;
 	virtual void Serialize( SVHBR& arch ) = 0;
 	virtual void Serialize( SVHBW& arch ) = 0;
+	virtual void FLoad( sgsVariable data, int version ) = 0;
+	virtual sgsVariable FSave( int version ) = 0;
 	virtual Vec3 GetPosition() const = 0;
 	virtual void SetPosition( const Vec3& p ) = 0;
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const = 0;
@@ -781,6 +783,105 @@ struct EDGUIPaintProps : EDGUILayoutRow
 
 
 
+template< class T > T FLoadProp( sgsVariable obj, const char* prop, const T& def )
+{
+	return FLoadVar( obj.getprop( prop ), def );
+}
+bool FLoadVar( sgsVariable v, bool def )
+{
+	return v.getdef( def );
+}
+int FLoadVar( sgsVariable v, int def )
+{
+	return v.getdef( def );
+}
+uint32_t FLoadVar( sgsVariable v, uint32_t def )
+{
+	return v.getdef( def );
+}
+float FLoadVar( sgsVariable v, float def )
+{
+	return v.getdef( def );
+}
+StringView FLoadVar( sgsVariable v, StringView def )
+{
+	return v.getdef( def );
+}
+Vec2 FLoadVar( sgsVariable v, Vec2 def )
+{
+	return V2( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ) );
+}
+Vec3 FLoadVar( sgsVariable v, Vec3 def )
+{
+	return V3( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ), FLoadProp( v, "z", def.z ) );
+}
+
+sgsVariable FNewDict()
+{
+	return g_Level->GetScriptCtx().CreateDict();
+}
+sgsVariable FNewArray()
+{
+	return g_Level->GetScriptCtx().CreateArray();
+}
+void FArrayAppend( sgsVariable arr, sgsVariable val )
+{
+	SGS_CSCOPE( g_Level->GetSGSC() );
+	g_Level->GetScriptCtx().Push( val );
+	sgs_ArrayPush( g_Level->GetSGSC(), arr.var, 1 );
+}
+template< class T > void FSaveProp( sgsVariable obj, const char* prop, T value );
+template< class T > void FSaveProp( sgsVariable obj, const char* prop, Array<T>& values );
+sgsVariable FVar( bool val )
+{
+	return sgsVariable().set_bool( val );
+}
+sgsVariable FVar( int val )
+{
+	return sgsVariable().set_int( val );
+}
+sgsVariable FVar( uint32_t val )
+{
+	return sgsVariable().set_int( val );
+}
+sgsVariable FVar( float val )
+{
+	return sgsVariable().set_real( val );
+}
+sgsVariable FVar( StringView val )
+{
+	return g_Level->GetScriptCtx().CreateString( val );
+}
+sgsVariable FVar( Vec2 val )
+{
+	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
+	FSaveProp( v, "x", val.x );
+	FSaveProp( v, "y", val.y );
+	return v;
+}
+sgsVariable FVar( Vec3 val )
+{
+	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
+	FSaveProp( v, "x", val.x );
+	FSaveProp( v, "y", val.y );
+	FSaveProp( v, "z", val.z );
+	return v;
+}
+template< class T > void FSaveProp( sgsVariable obj, const char* prop, T value )
+{
+	obj.setprop( prop, FVar( value ) );
+}
+template< class T > void FSaveProp( sgsVariable obj, const char* prop, Array<T>& values )
+{
+	sgsVariable arr = FNewArray();
+	for( size_t i = 0; i < values.size(); ++i )
+	{
+		FArrayAppend( arr, FVar( values[ i ] ) );
+	}
+}
+
+
+
 //
 // BLOCKS
 //
@@ -788,7 +889,7 @@ struct EDGUIPaintProps : EDGUILayoutRow
 #define ED_TEXGEN_COORDS 0
 #define ED_TEXGEN_STRETCH 1
 
-struct EdSurface
+struct EdSurface : SGRX_RefCounted
 {
 	String texname;
 	int texgenmode;
@@ -835,7 +936,48 @@ struct EdSurface
 		arch( xfit, arch.version >= 3, 0 );
 		arch( yfit, arch.version >= 3, 0 );
 	}
+	void FLoad( sgsVariable data, int version )
+	{
+		UNUSED( version );
+		uint32_t oldsurfid = surface_id;
+		surface_id = FLoadProp( data, "surface_id", 0 );
+		if( surface_id != oldsurfid )
+		{
+			if( oldsurfid )
+				g_EdLGCont->DeleteSurface( oldsurfid );
+			if( surface_id )
+				g_EdLGCont->RequestSurface( surface_id );
+		}
+		texname = FLoadProp( data, "texture", SV() );
+		texgenmode = FLoadProp( data, "texgenmode", ED_TEXGEN_COORDS );
+		xoff = FLoadProp( data, "xoff", 0.0f );
+		yoff = FLoadProp( data, "yoff", 0.0f );
+		scale = FLoadProp( data, "scale", 1.0f );
+		aspect = FLoadProp( data, "aspect", 1.0f );
+		angle = FLoadProp( data, "angle", 0.0f );
+		lmquality = FLoadProp( data, "lmquality", 1.0f );
+		xfit = FLoadProp( data, "xfit", 0 );
+		yfit = FLoadProp( data, "yfit", 0 );
+	}
+	sgsVariable FSave( int version )
+	{
+		UNUSED( version );
+		sgsVariable out = FNewDict();
+		FSaveProp( out, "surface_id", int(surface_id) );
+		FSaveProp( out, "texture", texname );
+		FSaveProp( out, "texgenmode", texgenmode );
+		FSaveProp( out, "xoff", xoff );
+		FSaveProp( out, "yoff", yoff );
+		FSaveProp( out, "scale", scale );
+		FSaveProp( out, "aspect", aspect );
+		FSaveProp( out, "angle", angle );
+		FSaveProp( out, "lmquality", lmquality );
+		FSaveProp( out, "xfit", xfit );
+		FSaveProp( out, "yfit", yfit );
+		return out;
+	}
 };
+typedef Handle< EdSurface > EdSurfHandle;
 
 
 struct EdBlock : EdObject
@@ -851,7 +993,7 @@ struct EdBlock : EdObject
 	float z0, z1;
 	
 	Array< Vec3 > poly;
-	Array< EdSurface > surfaces;
+	Array< EdSurfHandle > surfaces;
 	Array< bool > subsel;
 	
 	uint32_t solid_id;
@@ -889,6 +1031,62 @@ struct EdBlock : EdObject
 			subsel.resize_using( GetNumVerts() + GetNumSurfs(), false );
 			RegenerateMesh();
 		}
+	}
+	void FLoad( sgsVariable data, int version )
+	{
+		// type already parsed
+		uint32_t oldsolidid = solid_id;
+		if( solid_id != oldsolidid )
+		{
+			if( oldsolidid )
+				g_EdLGCont->DeleteSolid( oldsolidid );
+			if( solid_id )
+				g_EdLGCont->RequestSolid( solid_id );
+		}
+		solid_id = FLoadProp( data, "solid_id", 0 );
+		group = FLoadProp( data, "group", 0 );
+		position = FLoadProp( data, "position", V3(0) );
+		z0 = FLoadProp( data, "z0", 0 );
+		z1 = FLoadProp( data, "z1", 0 );
+		
+		// poly
+		{
+			ScriptVarIterator it( data.getprop( "poly" ) );
+			poly.clear();
+			while( it.Advance() )
+			{
+				poly.push_back( FLoadVar( it.GetValue(), V3(0) ) );
+			}
+		}
+		
+		// surfaces
+		{
+			ScriptVarIterator it( data.getprop( "surfaces" ) );
+			surfaces.clear();
+			while( it.Advance() )
+			{
+				EdSurfHandle surf = new EdSurface;
+				surf->FLoad( it.GetValue(), version );
+				surfaces.push_back( surf );
+			}
+		}
+	}
+	sgsVariable FSave( int version )
+	{
+		sgsVariable out = FNewDict();
+		FSaveProp( out, "solid_id", int(solid_id) );
+		FSaveProp( out, "group", group );
+		FSaveProp( out, "position", position );
+		FSaveProp( out, "z0", z0 );
+		FSaveProp( out, "z1", z1 );
+		FSaveProp( out, "poly", poly );
+		sgsVariable out_surfaces = FNewArray();
+		for( size_t i = 0; i < surfaces.size(); ++i )
+		{
+			FArrayAppend( out_surfaces, surfaces[ i ]->FSave( version ) );
+		}
+		out.setprop( "surfaces", out_surfaces );
+		return out;
 	}
 	
 	virtual int GetNumVerts() const { return poly.size() * 2; }
@@ -1021,6 +1219,9 @@ struct EDGUIBlockProps : EDGUILayoutRow
 // PATCHES
 //
 
+static const char* patch_texpropnames[ MAX_PATCH_LAYERS ] = { "tex0", "tex1", "tex2", "tex3" };
+static const char* patch_colpropnames[ MAX_PATCH_LAYERS ] = { "col0", "col1", "col2", "col3" };
+
 struct EdPatchVtx
 {
 	Vec3 pos;
@@ -1035,6 +1236,28 @@ struct EdPatchVtx
 			arch << tex[ i ];
 			arch << col[ i ];
 		}
+	}
+	void FLoad( sgsVariable data, int version )
+	{
+		UNUSED( version );
+		pos = FLoadProp( data, "pos", V3(0) );
+		for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+		{
+			tex[ i ] = FLoadProp( data, patch_texpropnames[ i ], V2(0) );
+			col[ i ] = FLoadProp( data, patch_colpropnames[ i ], uint32_t(0xffffffff) );
+		}
+	}
+	sgsVariable FSave( int version )
+	{
+		UNUSED( version );
+		sgsVariable out = FNewDict();
+		FSaveProp( out, "pos", pos );
+		for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+		{
+			FSaveProp( out, patch_texpropnames[ i ], tex[ i ] );
+			FSaveProp( out, patch_colpropnames[ i ], col[ i ] );
+		}
+		return out;
 	}
 };
 
@@ -1068,6 +1291,37 @@ struct EdPatchLayerInfo
 		arch << angle;
 		float lmq = 0;
 		arch( lmq, arch.version < 6 );
+	}
+	void FLoad( sgsVariable data, int version )
+	{
+		UNUSED( version );
+		uint32_t oldsurfid = surface_id;
+		surface_id = FLoadProp( data, "surface_id", 0 );
+		if( surface_id != oldsurfid )
+		{
+			if( oldsurfid )
+				g_EdLGCont->DeleteSurface( oldsurfid );
+			if( surface_id )
+				g_EdLGCont->RequestSurface( surface_id );
+		}
+		texname = FLoadProp( data, "texture", SV() );
+		xoff = FLoadProp( data, "xoff", 0.0f );
+		yoff = FLoadProp( data, "yoff", 0.0f );
+		scale = FLoadProp( data, "scale", 1.0f );
+		aspect = FLoadProp( data, "aspect", 1.0f );
+		angle = FLoadProp( data, "angle", 0.0f );
+	}
+	sgsVariable FSave( int version )
+	{
+		UNUSED( version );
+		sgsVariable out = FNewDict();
+		FSaveProp( out, "texture", texname );
+		FSaveProp( out, "xoff", xoff );
+		FSaveProp( out, "yoff", yoff );
+		FSaveProp( out, "scale", scale );
+		FSaveProp( out, "aspect", aspect );
+		FSaveProp( out, "angle", angle );
+		return out;
 	}
 	
 	String texname;
@@ -1174,6 +1428,90 @@ struct EdPatch : EdObject
 		for( int l = 0; l < MAX_PATCH_LAYERS; ++l )
 			arch << layers[ l ];
 	}
+	void FLoad( sgsVariable data, int version )
+	{
+		// type already parsed
+		group = FLoadProp( data, "group", 0 );
+		position = FLoadProp( data, "position", V3(0) );
+		xsize = FLoadProp( data, "xsize", 2 );
+		ysize = FLoadProp( data, "ysize", 2 );
+		blend = FLoadProp( data, "blend", 0 );
+		m_isLMSolid = FLoadProp( data, "isLMSolid", true );
+		m_isPhySolid = FLoadProp( data, "isPhySolid", true );
+		lmquality = FLoadProp( data, "lmquality", 1.0f );
+		
+		// vertices
+		{
+			ScriptVarIterator it( data.getprop( "vertices" ) );
+			for( int y = 0; y < ysize; ++y )
+			{
+				for( int x = 0; x < xsize; ++x )
+				{
+					it.Advance();
+					vertices[ x + y * MAX_PATCH_WIDTH ].FLoad( it.GetValue(), version );
+				}
+			}
+		}
+		
+		// edgeflip
+		{
+			ScriptVarIterator it( data.getprop( "edgeflip" ) );
+			for( int y = 0; y < ysize; ++y )
+			{
+				it.Advance();
+				edgeflip[ y ] = FLoadVar( it.GetValue(), 0 );
+			}
+		}
+		
+		// layers
+		{
+			ScriptVarIterator it( data.getprop( "layers" ) );
+			for( int l = 0; l < MAX_PATCH_LAYERS; ++l )
+			{
+				it.Advance();
+				layers[ l ].FLoad( it.GetValue(), version );
+			}
+		}
+	}
+	sgsVariable FSave( int version )
+	{
+		sgsVariable out = FNewDict();
+		
+		FSaveProp( out, "group", group );
+		FSaveProp( out, "position", position );
+		FSaveProp( out, "xsize", xsize );
+		FSaveProp( out, "ysize", ysize );
+		FSaveProp( out, "blend", blend );
+		FSaveProp( out, "isLMSolid", m_isLMSolid );
+		FSaveProp( out, "isPhySolid", m_isPhySolid );
+		FSaveProp( out, "lmquality", lmquality );
+		
+		sgsVariable out_vertices = FNewArray();
+		for( int y = 0; y < ysize; ++y )
+		{
+			for( int x = 0; x < xsize; ++x )
+			{
+				FArrayAppend( out_vertices, vertices[ x + y * MAX_PATCH_WIDTH ].FSave( version ) );
+			}
+		}
+		out.setprop( "vertices", out_vertices );
+		
+		sgsVariable out_edgeflip = FNewArray();
+		for( int y = 0; y < ysize; ++y )
+		{
+			FArrayAppend( out_edgeflip, FVar( edgeflip[ y ] ) );
+		}
+		out.setprop( "edgeflip", out_edgeflip );
+		
+		sgsVariable out_layers = FNewArray();
+		for( int l = 0; l < MAX_PATCH_LAYERS; ++l )
+		{
+			FArrayAppend( out_layers, layers[ l ].FSave( version ) );
+		}
+		out.setprop( "layers", out_layers );
+		
+		return out;
+	}
 	
 	static EdPatch* CreatePatchFromSurface( EdBlock& B, int sid );
 	
@@ -1261,6 +1599,20 @@ struct EdMeshPathPoint
 	{
 		arch << pos << smooth;
 	}
+	void FLoad( sgsVariable data, int version )
+	{
+		UNUSED( version );
+		pos = FLoadProp( data, "pos", V3(0) );
+		smooth = FLoadProp( data, "smooth", false );
+	}
+	sgsVariable FSave( int version )
+	{
+		UNUSED( version );
+		sgsVariable out = FNewDict();
+		FSaveProp( out, "pos", pos );
+		FSaveProp( out, "smooth", smooth );
+		return out;
+	}
 	
 	Vec3 pos;
 	bool smooth;
@@ -1297,6 +1649,38 @@ struct EdMeshPathPart
 		arch << angle;
 		float lmq = 0;
 		arch( lmq, arch.version < 6 );
+	}
+	void FLoad( sgsVariable data, int version )
+	{
+		UNUSED( version );
+		uint32_t oldsurfid = surface_id;
+		surface_id = FLoadProp( data, "surface_id", 0 );
+		if( surface_id != oldsurfid )
+		{
+			if( oldsurfid )
+				g_EdLGCont->DeleteSurface( oldsurfid );
+			if( surface_id )
+				g_EdLGCont->RequestSurface( surface_id );
+		}
+		texname = FLoadProp( data, "texture", SV() );
+		xoff = FLoadProp( data, "xoff", 0.0f );
+		yoff = FLoadProp( data, "yoff", 0.0f );
+		scale = FLoadProp( data, "scale", 1.0f );
+		aspect = FLoadProp( data, "aspect", 1.0f );
+		angle = FLoadProp( data, "angle", 0.0f );
+	}
+	sgsVariable FSave( int version )
+	{
+		UNUSED( version );
+		sgsVariable out = FNewDict();
+		FSaveProp( out, "surface_id", surface_id );
+		FSaveProp( out, "texture", texname );
+		FSaveProp( out, "xoff", xoff );
+		FSaveProp( out, "yoff", yoff );
+		FSaveProp( out, "scale", scale );
+		FSaveProp( out, "aspect", aspect );
+		FSaveProp( out, "angle", angle );
+		return out;
 	}
 	
 	String texname;
@@ -1374,6 +1758,30 @@ struct EdMeshPath : EdObject
 		arch << m_points;
 		for( int mp = 0; mp < MAX_MESHPATH_PARTS; ++mp )
 			arch << m_parts[ mp ];
+	}
+	void FLoad( sgsVariable data, int version )
+	{
+		// type already parsed
+		group = FLoadProp( data, "group", 0 );
+		m_position = FLoadProp( data, "position", V3(0) );
+		m_meshName = FLoadProp( data, "meshName", SV() );
+		m_lmquality = FLoadProp( data, "lmquality", 1.0f );
+		m_isLMSolid = FLoadProp( data, "isLMSolid", true );
+		m_isPhySolid = FLoadProp( data, "isPhySolid", false );
+		m_doSmoothing = FLoadProp( data, "doSmoothing", false );
+		m_isDynamic = FLoadProp( data, "isDynamic", false );
+		m_intervalScaleOffset = FLoadProp( data, "intervalScaleOffset", V2(1,0) );
+		m_pipeModeOvershoot = FLoadProp( data, "pipeModeOvershoot", 0 );
+		m_rotAngles = FLoadProp( data, "rotAngles", V3(0) );
+		m_scaleUni = FLoadProp( data, "scaleUni", 1.0f );
+		m_scaleSep = FLoadProp( data, "scaleSep", V3(1) );
+		m_turnMode = FLoadProp( data, "turnMode", 0 );
+	}
+	sgsVariable FSave( int version )
+	{
+		sgsVariable out = FNewDict();
+		// TODO!!!!!!
+		return out;
 	}
 	
 	Vec3 m_position;
@@ -1531,6 +1939,15 @@ struct EDGUIEntButton : EDGUIButton
 	}
 	
 	EdEntityHandle m_ent_handle;
+};
+
+
+struct EdEntNew : EdEntity
+{
+	virtual void Serialize( SVHTR& arch ){}
+	virtual void Serialize( SVHTW& arch ){}
+	virtual void Serialize( SVHBR& arch ){}
+	virtual void Serialize( SVHBW& arch ){}
 };
 
 
@@ -2032,6 +2449,8 @@ struct EdWorld : EDGUILayoutRow
 			}
 		}
 	}
+	void FLoad( sgsVariable obj );
+	sgsVariable FSave();
 	
 	void Reset();
 	void TestData();

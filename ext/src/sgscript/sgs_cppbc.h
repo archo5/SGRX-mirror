@@ -618,9 +618,9 @@ public:
 	template< class T > T get();
 	template< class T > T getdef( const T& def ){ if( not_null() ) return get<T>(); else return def; }
 	sgsVariable& set_null(){ _release(); var = sgs_MakeNull(); return *this; }
-	sgsVariable& set( bool v ){ _release(); var = sgs_MakeBool( v ); return *this; }
-	sgsVariable& set( sgs_Int v ){ _release(); var = sgs_MakeInt( v ); return *this; }
-	sgsVariable& set( sgs_Real v ){ _release(); var = sgs_MakeReal( v ); return *this; }
+	sgsVariable& set_bool( bool v ){ _release(); var = sgs_MakeBool( v ); return *this; }
+	sgsVariable& set_int( sgs_Int v ){ _release(); var = sgs_MakeInt( v ); return *this; }
+	sgsVariable& set_real( sgs_Real v ){ _release(); var = sgs_MakeReal( v ); return *this; }
 	sgsVariable& set( sgsString v ){ _release(); if( v.not_null() ){ C = v.get_ctx(); var.type = SGS_VT_STRING; var.data.S = v.str; _acquire(); } return *this; }
 	sgsVariable& set( sgs_CFunc v ){ _release(); var = sgs_MakeCFunc( v ); return *this; }
 	template< class T > sgsVariable& set( sgsHandle< T > v ){ _release(); C = v.object->C; sgs_InitObjectPtr( C, &var, v.object ); return *this; }
