@@ -46,6 +46,31 @@ void Sys_FatalError( const StringView& err )
 	exit( EXIT_FAILURE );
 }
 
+void* Sys_LoadLib( const char* path )
+{
+	void* ret = SDL_LoadObject( path );
+	if( !ret )
+	{
+		LOG_ERROR << "Failed to load library at " << path;
+	}
+	return ret;
+}
+
+void Sys_UnloadLib( void* lib )
+{
+	SDL_UnloadObject( lib );
+}
+
+void* Sys_GetProc( void* lib, const char* name )
+{
+	void* ret = SDL_LoadFunction( lib, name );
+	if( !ret )
+	{
+		LOG_ERROR << "Failed to retrieve function address of " << name;
+	}
+	return ret;
+}
+
 
 //
 // GLOBALS
@@ -308,6 +333,12 @@ void SGRX_IEventHandler::UnregisterHandler( SGRX_EventID eid )
 // GAME SYSTEMS
 //
 
+IGame* Game_Change( IGame* ng )
+{
+	IGame* old = g_Game;
+	g_Game = ng;
+	return old;
+}
 
 void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
 {

@@ -29,6 +29,10 @@ ENGINE_EXPORT uint32_t GetTimeMsec();
 ENGINE_EXPORT void Thread_Sleep( uint32_t msec );
 ENGINE_EXPORT void Sys_FatalError( const StringView& err );
 
+ENGINE_EXPORT void* Sys_LoadLib( const char* path );
+ENGINE_EXPORT void Sys_UnloadLib( void* lib );
+ENGINE_EXPORT void* Sys_GetProc( void* lib, const char* name );
+
 ENGINE_EXPORT void Window_SetTitle( const StringView& text );
 ENGINE_EXPORT bool Window_HasClipboardText();
 ENGINE_EXPORT bool Window_GetClipboardText( String& out );
@@ -322,6 +326,8 @@ typedef uint64_t ActionInput;
 #define ACTINPUT_GET_TYPE( iid ) (((iid)>>32ull)&0xffffffff)
 #define ACTINPUT_GET_VALUE( iid ) ((iid)&0xffffffff)
 
+struct IGame;
+ENGINE_EXPORT IGame* Game_Change( IGame* ng );
 ENGINE_EXPORT void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid );
 ENGINE_EXPORT void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid = 0 );
 ENGINE_EXPORT void Game_FireEvent( SGRX_EventID eid, const EventData& edata );

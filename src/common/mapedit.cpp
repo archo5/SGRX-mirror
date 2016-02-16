@@ -3126,139 +3126,152 @@ void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 // EDITOR ENTRY POINT
 //
 
-struct MapEditor : IGame
+bool MapEditor::OnInitialize()
 {
-	bool OnInitialize()
+	GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
+	GR2D_SetFont( "core", 12 );
+	
+	g_Level = g_BaseGame->CreateLevel();
+	g_ScriptCtx = new ScriptContext;
+	g_ScriptCtx->RegisterBatchRenderer();
+	sgs_RegIntConsts( g_ScriptCtx->C, g_ent_scripted_ric, -1 );
+	sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
+	sgs_RegFuncConsts( g_ScriptCtx->C, g_editor_rfc, -1 );
+	ScrItem_InstallAPI( g_ScriptCtx->C );
+	
+	LOG << "\nLoading scripted entities:";
+	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
+	LOG << "\nLoading scripted items:";
+	LOG << g_ScriptCtx->ExecFile( "data/scritems.sgs" );
+	LOG << "\nLoading completed\n\n";
+	
+	g_UISurfTexPicker = new EDGUISDTexPicker;
+	g_UISurfMtlPicker = new EDGUISurfMtlPicker;
+	g_UIMeshPicker = new EDGUIMeshPicker;
+	g_UICharPicker = new EDGUICharUsePicker;
+	g_UIPartSysPicker = new EDGUIPartSysPicker;
+	g_UISoundPicker = new EDGUISoundPicker;
+	g_UIScrItemPicker = new EDGUIScrItemPicker( g_ScriptCtx );
+	g_UIScrFnPicker = new EDGUIScrFnPicker( g_ScriptCtx );
+	g_UILevelOpenPicker = new EDGUILevelOpenPicker;
+	g_UILevelSavePicker = new EDGUILevelSavePicker;
+	
+	// core layout
+	g_EdLGCont = new EdLevelGraphicsCont;
+	g_EdScene = GR_CreateScene();
+	g_EdScene->camera.position = Vec3::Create(3,3,3);
+	g_EdScene->camera.UpdateMatrices();
+	g_EdPhyWorld = PHY_CreateWorld();
+	g_EdWorld = new EdWorld();
+	g_EdWorld->RegenerateMeshes();
+	g_UIFrame = new EDGUIMainFrame();
+	g_UIFrame->PostInit();
+	g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
+	
+	// param area
+	g_UIFrame->AddToParamList( g_EdWorld );
+	
+	return true;
+}
+
+void MapEditor::OnDestroy()
+{
+	delete g_UILevelSavePicker;
+	g_UILevelSavePicker = NULL;
+	delete g_UILevelOpenPicker;
+	g_UILevelOpenPicker = NULL;
+	delete g_UIScrItemPicker;
+	g_UIScrItemPicker = NULL;
+	delete g_UIScrFnPicker;
+	g_UIScrFnPicker = NULL;
+	delete g_UIPartSysPicker;
+	g_UIPartSysPicker = NULL;
+	delete g_UISoundPicker;
+	g_UISoundPicker = NULL;
+	delete g_UICharPicker;
+	g_UICharPicker = NULL;
+	delete g_UIMeshPicker;
+	g_UIMeshPicker = NULL;
+	delete g_UISurfMtlPicker;
+	g_UISurfMtlPicker = NULL;
+	delete g_UISurfTexPicker;
+	g_UISurfTexPicker = NULL;
+	delete g_UIFrame;
+	g_UIFrame = NULL;
+	delete g_EdWorld;
+	g_EdWorld = NULL;
+	g_EdPhyWorld = NULL;
+	g_EdScene = NULL;
+	delete g_EdLGCont;
+	g_EdLGCont = NULL;
+	delete g_ScriptCtx;
+	g_ScriptCtx = NULL;
+	delete g_Level;
+}
+
+void MapEditor::OnEvent( const Event& e )
+{
+	if( e.type == SDL_KEYDOWN )
 	{
-		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
-		GR2D_SetFont( "core", 12 );
-		
-		g_ScriptCtx = new ScriptContext;
-		g_ScriptCtx->RegisterBatchRenderer();
-		sgs_RegIntConsts( g_ScriptCtx->C, g_ent_scripted_ric, -1 );
-		sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
-		sgs_RegFuncConsts( g_ScriptCtx->C, g_editor_rfc, -1 );
-		ScrItem_InstallAPI( g_ScriptCtx->C );
-		
-		LOG << "\nLoading scripted entities:";
-		LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
-		LOG << "\nLoading scripted items:";
-		LOG << g_ScriptCtx->ExecFile( "data/scritems.sgs" );
-		LOG << "\nLoading completed\n\n";
-		
-		g_UISurfTexPicker = new EDGUISDTexPicker;
-		g_UISurfMtlPicker = new EDGUISurfMtlPicker;
-		g_UIMeshPicker = new EDGUIMeshPicker;
-		g_UICharPicker = new EDGUICharUsePicker;
-		g_UIPartSysPicker = new EDGUIPartSysPicker;
-		g_UISoundPicker = new EDGUISoundPicker;
-		g_UIScrItemPicker = new EDGUIScrItemPicker( g_ScriptCtx );
-		g_UIScrFnPicker = new EDGUIScrFnPicker( g_ScriptCtx );
-		g_UILevelOpenPicker = new EDGUILevelOpenPicker;
-		g_UILevelSavePicker = new EDGUILevelSavePicker;
-		
-		// core layout
-		g_EdLGCont = new EdLevelGraphicsCont;
-		g_EdScene = GR_CreateScene();
-		g_EdScene->camera.position = Vec3::Create(3,3,3);
-		g_EdScene->camera.UpdateMatrices();
-		g_EdPhyWorld = PHY_CreateWorld();
-		g_EdWorld = new EdWorld();
-		g_EdWorld->RegenerateMeshes();
-		g_UIFrame = new EDGUIMainFrame();
-		g_UIFrame->PostInit();
-		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
-		
-		// param area
-		g_UIFrame->AddToParamList( g_EdWorld );
-		
-		return true;
-	}
-	void OnDestroy()
-	{
-		delete g_UILevelSavePicker;
-		g_UILevelSavePicker = NULL;
-		delete g_UILevelOpenPicker;
-		g_UILevelOpenPicker = NULL;
-		delete g_UIScrItemPicker;
-		g_UIScrItemPicker = NULL;
-		delete g_UIScrFnPicker;
-		g_UIScrFnPicker = NULL;
-		delete g_UIPartSysPicker;
-		g_UIPartSysPicker = NULL;
-		delete g_UISoundPicker;
-		g_UISoundPicker = NULL;
-		delete g_UICharPicker;
-		g_UICharPicker = NULL;
-		delete g_UIMeshPicker;
-		g_UIMeshPicker = NULL;
-		delete g_UISurfMtlPicker;
-		g_UISurfMtlPicker = NULL;
-		delete g_UISurfTexPicker;
-		g_UISurfTexPicker = NULL;
-		delete g_UIFrame;
-		g_UIFrame = NULL;
-		delete g_EdWorld;
-		g_EdWorld = NULL;
-		g_EdPhyWorld = NULL;
-		g_EdScene = NULL;
-		delete g_EdLGCont;
-		g_EdLGCont = NULL;
-		delete g_ScriptCtx;
-		g_ScriptCtx = NULL;
-	}
-	void OnEvent( const Event& e )
-	{
-		if( e.type == SDL_KEYDOWN )
+		if( e.key.keysym.sym == SDLK_F2 )
 		{
-			if( e.key.keysym.sym == SDLK_F2 )
+			// TODO
+			// GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
+		}
+		if( e.key.keysym.sym == SDLK_F3 )
+		{
+			// TODO
+			// GR_SetRenderPasses( g_RenderPasses_Fullbright, SGRX_ARRAY_SIZE( g_RenderPasses_Fullbright ) );
+		}
+		if( e.key.keysym.sym == SDLK_F5 )
+		{
+			if( g_EdLGCont->m_lmRenderer == NULL )
 			{
-				// TODO
-				// GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
-			}
-			if( e.key.keysym.sym == SDLK_F3 )
-			{
-				// TODO
-				// GR_SetRenderPasses( g_RenderPasses_Fullbright, SGRX_ARRAY_SIZE( g_RenderPasses_Fullbright ) );
-			}
-			if( e.key.keysym.sym == SDLK_F5 )
-			{
-				if( g_EdLGCont->m_lmRenderer == NULL )
-				{
-					g_EdLGCont->InvalidateAll();
-					g_EdLGCont->ILMBeginRender();
-				}
-			}
-			if( e.key.keysym.sym == SDLK_F6 )
-			{
+				g_EdLGCont->InvalidateAll();
 				g_EdLGCont->ILMBeginRender();
 			}
-			if( e.key.keysym.sym == SDLK_F7 )
-			{
-				g_EdLGCont->ILMAbort();
-			}
-			if( e.key.keysym.sym == SDLK_F9 )
-			{
-				g_EdLGCont->STRegenerate();
-			}
 		}
-		g_UIFrame->EngineEvent( &e );
-		g_EdWorld->m_groupMgr.ProcessDestroyQueue();
+		if( e.key.keysym.sym == SDLK_F6 )
+		{
+			g_EdLGCont->ILMBeginRender();
+		}
+		if( e.key.keysym.sym == SDLK_F7 )
+		{
+			g_EdLGCont->ILMAbort();
+		}
+		if( e.key.keysym.sym == SDLK_F9 )
+		{
+			g_EdLGCont->STRegenerate();
+		}
 	}
-	void OnTick( float dt, uint32_t gametime )
-	{
-		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-		g_EdLGCont->ApplyInvalidation();
-		g_EdLGCont->ILMCheck();
-		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
-		g_UIFrame->Draw();
-	}
+	g_UIFrame->EngineEvent( &e );
+	g_EdWorld->m_groupMgr.ProcessDestroyQueue();
 }
-g_Game;
 
+void MapEditor::OnTick( float dt, uint32_t gametime )
+{
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+	g_EdLGCont->ApplyInvalidation();
+	g_EdLGCont->ILMCheck();
+	g_UIFrame->m_UIRenderView.UpdateCamera( dt );
+	g_UIFrame->Draw();
+}
+
+void MapEditor::SetBaseGame( BaseGame* game )
+{
+	g_BaseGame = game;
+}
+
+
+MapEditor g_Game;
 
 extern "C" EXPORT IGame* CreateGame()
 {
 	return &g_Game;
+}
+
+extern "C" EXPORT void SetBaseGame( BaseGame* game )
+{
+	g_Game.SetBaseGame( game );
 }
 

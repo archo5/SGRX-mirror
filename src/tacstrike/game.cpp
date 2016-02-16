@@ -277,7 +277,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		rs.vsync = false;
 		GR_SetVideoMode( rs );
 #endif
-		return IGame::OnConfigure( argc, argv );
+		return BaseGame::OnConfigure( argc, argv );
 	}
 	
 	GameLevel* CreateLevel()

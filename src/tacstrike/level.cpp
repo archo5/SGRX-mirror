@@ -1,6 +1,7 @@
 
 
 #include "level.hpp"
+#include "mapedit.hpp"
 
 
 sgs_ObjInterface g_sgsobj_empty_handle[1] = {{ "empty_handle", NULL }};
@@ -713,13 +714,61 @@ void GameLevel::LightMesh( SGRX_MeshInstance* meshinst, Vec3 off )
 }
 
 
+BaseEditor::BaseEditor( BaseGame* game ) : m_editorGame( NULL ), m_origGame( NULL )
+{
+	m_lib = Sys_LoadLib( "editor.dll" );
+	if( !m_lib )
+		return;
+	IGame* (*pfnCreateGame)() = (IGame*(*)()) Sys_GetProc( m_lib, "CreateGame" );
+	if( !pfnCreateGame )
+		return;
+	void (*pfnSetBaseGame)(BaseGame*) = (void(*)(BaseGame*)) Sys_GetProc( m_lib, "SetBaseGame" );
+	m_editorGame = (*pfnCreateGame)();
+	(*pfnSetBaseGame)( game );
+	m_origGame = Game_Change( m_editorGame );
+}
+
+BaseEditor::~BaseEditor()
+{
+	Game_Change( m_origGame );
+	if( m_lib )
+	{
+		Sys_UnloadLib( m_lib );
+		m_lib = NULL;
+	}
+}
+
+
 BaseGame::BaseGame() :
 	m_maxTickSize( 1.0f/15.0f ),
 	m_fixedTickSize( 1.0f/30.0f ),
 	m_accum( 0 ),
 	m_timeMultiplier( 1 ),
-	m_level( NULL )
+	m_level( NULL ),
+	m_editor( NULL ),
+	m_needsEditor( false )
 {
+}
+
+int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
+{
+	if( streq( arg, "EDIT" ) )
+	{
+		m_needsEditor = true;
+		return 1;
+	}
+	return 0;
+}
+
+bool BaseGame::OnConfigure( int argc, char** argv )
+{
+	IGame::OnConfigure( argc, argv );
+	if( m_needsEditor )
+	{
+		m_editor = new BaseEditor( this );
+		return m_editor->m_editorGame->OnConfigure( argc, argv );
+	}
+	return true;
 }
 
 bool BaseGame::OnInitialize()

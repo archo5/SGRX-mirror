@@ -9,8 +9,8 @@
 #include <physics.hpp>
 #include <script.hpp>
 
-#include "levelcache.hpp"
-#include "gamegui.hpp"
+#include "../common/levelcache.hpp"
+#include "../common/gamegui.hpp"
 
 
 extern CVarBool gcv_cl_gui;
@@ -493,9 +493,21 @@ template< class T > void LevelScrObj::_InitScriptInterface( T* ptr )
 }
 
 
+struct BaseEditor
+{
+	BaseEditor( struct BaseGame* game );
+	~BaseEditor();
+	
+	void* m_lib;
+	IGame* m_editorGame;
+	IGame* m_origGame;
+};
+
 struct BaseGame : IGame
 {
 	BaseGame();
+	virtual int OnArgument( char* arg, int argcleft, char** argvleft );
+	virtual bool OnConfigure( int argc, char** argv );
 	virtual bool OnInitialize();
 	virtual void OnDestroy();
 	virtual GameLevel* CreateLevel();
@@ -510,6 +522,8 @@ struct BaseGame : IGame
 	float m_timeMultiplier;
 	SoundSystemHandle m_soundSys;
 	GameLevel* m_level;
+	BaseEditor* m_editor;
+	bool m_needsEditor;
 };
 
 

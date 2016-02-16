@@ -5,6 +5,7 @@
 #include "edutils.hpp"
 #include "edcomui.hpp"
 #include "scritem.hpp"
+#include "../tacstrike/level.hpp" // TODO MOVE
 
 
 // v0: initial
@@ -51,6 +52,8 @@ MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelOpenPicker* g_UILevelOpenPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
 MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
+MAPEDIT_GLOBAL( BaseGame* g_BaseGame );
+MAPEDIT_GLOBAL( GameLevel* g_Level );
 
 
 
@@ -2506,6 +2509,16 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	// extra stuff
 	EDGUIButton m_btnDumpLMInfo;
+};
+
+
+struct MapEditor : IGame
+{
+	bool OnInitialize();
+	void OnDestroy();
+	void OnEvent( const Event& e );
+	void OnTick( float dt, uint32_t gametime );
+	void SetBaseGame( BaseGame* game );
 };
 
 
