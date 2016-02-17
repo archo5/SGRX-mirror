@@ -314,7 +314,7 @@ void SGSPropInterface::Data2Fields()
 		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*) F.property)->SetValue( val.get<Vec3>() ); break;
 		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*) F.property)->SetValue( val.get<StringView>() ); break;
 		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*) F.property)->SetValue( val.get<StringView>() ); break;
-		case EDGUI_ITEM_PROP_SCRITEM: ((EDGUIPropScrItem*) F.property)->SetProps( val ); break;
+	//	case EDGUI_ITEM_PROP_SCRITEM: ((EDGUIPropScrItem*) F.property)->SetProps( val ); break;
 		}
 	}
 }
@@ -334,7 +334,7 @@ void SGSPropInterface::Fields2Data()
 		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
 		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
 		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_SCRITEM: data.setprop( F.key, ((EDGUIPropScrItem*) F.property)->GetProps() ); break;
+	//	case EDGUI_ITEM_PROP_SCRITEM: data.setprop( F.key, ((EDGUIPropScrItem*) F.property)->GetProps() ); break;
 		}
 	}
 	m_data = data;
@@ -342,6 +342,7 @@ void SGSPropInterface::Fields2Data()
 
 void SGSPropInterface::AddField( sgsString key, StringView name, EDGUIProperty* prop )
 {
+#if 0
 	if( prop->type == EDGUI_ITEM_PROP_SCRITEM )
 	{
 		SGRX_CAST( EDGUIPropScrItem*, psi, prop );
@@ -349,6 +350,7 @@ void SGSPropInterface::AddField( sgsString key, StringView name, EDGUIProperty* 
 		psi->m_group.SetOpen( true );
 	}
 	else
+#endif
 	{
 		prop->caption = name;
 	}
@@ -358,6 +360,7 @@ void SGSPropInterface::AddField( sgsString key, StringView name, EDGUIProperty* 
 }
 
 
+#if 0
 EDGUIPropScrItem::EDGUIPropScrItem( EDGUIPropVec3* posprop, const StringView& def ) :
 	m_group( true, "Scripted item" ),
 	m_ctlScrItem( g_UIScrItemPicker, def ),
@@ -471,7 +474,6 @@ sgsVariable EDGUIPropScrItem::GetProps()
 }
 
 
-#if 0
 EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 	EdEntity( isproto ),
 	m_subEntAddBtn( NULL ),
@@ -783,7 +785,7 @@ void EdEntScripted::SetScriptedItem( StringView name, sgsVariable args )
 
 EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
 {
-	ASSERT( strcmp( tyname, o.tyname ) == 0 );
+	m_entityType = o.m_entityType;
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		m_fields[ i ].property->TakeValue( o.m_fields[ i ].property );
@@ -794,9 +796,58 @@ EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
 
 EdEntity* EdEntNew::CloneEntity()
 {
-	EdEntNew* N = new EdEntNew( tyname, false );
+	EdEntNew* N = new EdEntNew( m_entityType );
 	*N = *this;
 	return N;
+}
+
+void EdEntNew::FLoad( sgsVariable data, int version )
+{
+	UNUSED( version );
+	ASSERT( data.getprop( "entity_type" ) == m_entityType );
+	sgsVariable props = data.getprop( "props" );
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		Field& F = m_fields[ i ];
+		sgsVariable val = data.getprop( F.key );
+		switch( F.property->type )
+		{
+		case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*)F.property)->SetValue( FLoadVar( val, false ) ); break;
+		case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*)F.property)->SetValue( FLoadVar( val, int32_t(0) ) ); break;
+		case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*)F.property)->SetValue( FLoadVar( val, 0.0f ) ); break;
+		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)F.property)->SetValue( FLoadVar( val, V2(0) ) ); break;
+		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*)F.property)->SetValue( FLoadVar( val, V3(0) ) ); break;
+		case EDGUI_ITEM_PROP_STRING:
+		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropString*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
+		}
+	}
+}
+
+sgsVariable EdEntNew::FSave( int version )
+{
+	UNUSED( version );
+	sgsVariable props = FNewDict();
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		Field& F = m_fields[ i ];
+		sgsVariable val;
+		switch( F.property->type )
+		{
+		case EDGUI_ITEM_PROP_BOOL: val = FVar( ((EDGUIPropBool*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_INT: val = FVar( ((EDGUIPropInt*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_FLOAT: val = FVar( ((EDGUIPropFloat*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_VEC2: val = FVar( ((EDGUIPropVec2*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_VEC3: val = FVar( ((EDGUIPropVec3*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_STRING:
+		case EDGUI_ITEM_PROP_RSRC: val = FVar( ((EDGUIPropString*)F.property)->m_value ); break;
+		}
+		props.setprop( F.key, val );
+	}
+	
+	sgsVariable out = FNewDict();
+	out.setprop( "entity_type", m_entityType );
+	out.setprop( "props", props );
+	return out;
 }
 
 void EdEntNew::ClearFields()
@@ -937,6 +988,7 @@ static int EE_AddFieldSound( SGS_CTX )
 		new EDGUIPropRsrc( g_UISoundPicker, sgs_GetVar<StringView>()( C, 3 ) ) );
 	return 0;
 }
+#if 0
 static int EE_AddFieldScrFn( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldScrFn" );
@@ -1037,6 +1089,7 @@ static int EE_SetScriptedItem( SGS_CTX )
 	E->SetScriptedItem( sgs_GetVar<StringView>()( C, 1 ), sgsVariable( C, 2 ) );
 	return 0;
 }
+#endif
 
 static int EE_SetChangeFunc( SGS_CTX )
 {
@@ -1101,6 +1154,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldChar", EE_AddFieldChar },
 	{ "EE_AddFieldPartSys", EE_AddFieldPartSys },
 	{ "EE_AddFieldSound", EE_AddFieldSound },
+#if 0
 	{ "EE_AddFieldScrFn", EE_AddFieldScrFn },
 	{ "EE_AddFieldScrItem", EE_AddFieldScrItem },
 	{ "EE_AddButtonSubent", EE_AddButtonSubent },
@@ -1109,6 +1163,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_SetMeshInstanceData", EE_SetMeshInstanceData },
 	{ "EE_GetMeshAABB", EE_GetMeshAABB },
 	{ "EE_SetScriptedItem", EE_SetScriptedItem },
+#endif
 	{ "EE_SetChangeFunc", EE_SetChangeFunc },
 	{ "EE_SetDebugDrawFunc", EE_SetDebugDrawFunc },
 	{ "EE_SetGatherFunc", EE_SetGatherFunc },
@@ -1145,6 +1200,8 @@ EDGUIEntList::EDGUIEntList() :
 #endif
 	Array< StringView > ents;
 	g_Level->EnumEntities( ents );
+	
+	ASSERT( ents.size() > 0 && "No entities were found!" );
 	
 	m_button_count = ents.size();
 	m_buttons = new EDGUIButton[ m_button_count ];

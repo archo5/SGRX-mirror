@@ -229,6 +229,27 @@ void EdBlock::SpecialAction( ESpecialAction act )
 		}
 		break;
 		
+	case SA_Remove:
+		if( CanDoSpecialAction( SA_Remove ) )
+		{
+			int numverts = GetNumVerts();
+			int selverts[ MAX_BLOCK_POLYGONS ] = {0};
+			for( int i = 0; i < numverts; ++i )
+			{
+				if( IsVertexSelected( i ) )
+					selverts[ i % poly.size() ] = 1;
+			}
+			for( int i = (int) poly.size() - 1; i >= 0; --i )
+			{
+				if( selverts[ i ] )
+				{
+					poly.erase( i );
+					surfaces.erase( i );
+				}
+			}
+			RegenerateMesh();
+		}
+		
 	default:
 		break;
 	}
@@ -248,6 +269,27 @@ bool EdBlock::CanDoSpecialAction( ESpecialAction act )
 			}
 		}
 		break;
+		
+	case SA_Remove:
+		{
+			int numverts = GetNumVerts();
+			int selverts[ MAX_BLOCK_POLYGONS ] = {0};
+			for( int i = 0; i < numverts; ++i )
+			{
+				if( IsVertexSelected( i ) )
+					selverts[ i % poly.size() ] = 1;
+			}
+			int numsel = 0;
+			for( size_t i = 0; i < poly.size(); ++i )
+			{
+				if( selverts[ i ] )
+					numsel++;
+			}
+			numverts /= 2;
+			// > must have at least 1 vertex selected
+			// > at least 3 poly verts must remain after deletion
+			return numsel > 0 && numverts - numsel >= 3;
+		}
 		
 	default:
 		break;
@@ -358,7 +400,10 @@ EdObject* EdBlock::Clone()
 	EdBlock* blk = new EdBlock( *this );
 	blk->solid_id = 0;
 	for( size_t i = 0; i < blk->surfaces.size(); ++i )
+	{
+		blk->surfaces[ i ] = new EdSurface( *blk->surfaces[ i ] );
 		blk->surfaces[ i ]->surface_id = 0;
+	}
 	return blk;
 }
 
@@ -494,7 +539,7 @@ void EdBlock::RegenerateMesh()
 	// SIDES
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		EdSurface BS = *surfaces[ i ];
+		EdSurface& BS = *surfaces[ i ];
 		
 		vertices.clear();
 		indices.clear();

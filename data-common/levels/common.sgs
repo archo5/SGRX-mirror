@@ -2,7 +2,6 @@
 //
 // Entity extension functions
 //
-_R.entities = {};
 function ENTITY( name, inhname )
 {
 	data = _G[ name ];
@@ -13,7 +12,7 @@ function ENTITY( name, inhname )
 		__setindex = mm_setindex_router
 	};
 	sym_register( name, data );
-	_R.entities[ name ] = data;
+	level.entity_types[ name ] = data;
 }
 
 

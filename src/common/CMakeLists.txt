@@ -17,7 +17,7 @@ add_library( editor SHARED
 	mapedit mapedit_ent mapedit_block mapedit_mpath mapedit_patch mapedit_edit
 	compiler scritem cppbc_scritem )
 target_link_libraries( editor
-	sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
+	coregamelib sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
 	recast detour lighter )
 set_target_properties( editor PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src;${EXTDIR}/src/recast/Recast/Include;${EXTDIR}/src/recast/Detour/Include"

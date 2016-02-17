@@ -1904,7 +1904,9 @@ void EdWorld::FLoad( sgsVariable obj )
 			case ObjType_Block: obj = new EdBlock; break;
 			case ObjType_Patch: obj = new EdPatch; break;
 			case ObjType_MeshPath: obj = new EdMeshPath; break;
-			case ObjType_Entity: obj = new EdEntNew; break;
+			case ObjType_Entity:
+				obj = new EdEntNew( object.getprop( "entity_type" ).get_string() );
+				break;
 			default:
 				LOG_ERROR << "Failed to load World!";
 				continue;
@@ -1938,7 +1940,7 @@ sgsVariable EdWorld::FSave()
 		FSaveProp( lighting, "sampleDensity", m_ctlSampleDensity.m_value );
 	}
 	
-	sgsVariable objects = FNewDict();
+	sgsVariable objects = FNewArray();
 	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
 		EdObject* obj = m_objects[ i ];
@@ -3070,7 +3072,7 @@ void EDGUIMainFrame::ResetEditorState()
 
 void EDGUIMainFrame::Level_New()
 {
-	g_UIScrFnPicker->m_levelName = m_fileName = "";
+////	g_UIScrFnPicker->m_levelName = m_fileName = "";
 	g_EdWorld->Reset();
 	g_EdLGCont->Reset();
 	ResetEditorState();
@@ -3157,16 +3159,21 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 	
 	g_EdLGCont->LoadLightmaps( str );
 	
-	g_UIScrFnPicker->m_levelName = m_fileName = str;
+//	g_UIScrFnPicker->m_levelName = m_fileName = str;
 }
 
 void EDGUIMainFrame::Level_Real_Save( const String& str )
 {
 	LOG << "Trying to save level: " << str;
 	String data;
+	
+#if 1
+	data = g_Level->GetScriptCtx().ToSGSON( g_EdWorld->FSave() );
+#else
 	TextWriter arch( &data );
 	
 	arch << *g_EdWorld;
+#endif
 	
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
@@ -3178,7 +3185,7 @@ void EDGUIMainFrame::Level_Real_Save( const String& str )
 	
 	g_EdLGCont->SaveLightmaps( str );
 	
-	g_UIScrFnPicker->m_levelName = m_fileName = str;
+//	g_UIScrFnPicker->m_levelName = m_fileName = str;
 }
 
 void EDGUIMainFrame::Level_Real_Compile()
@@ -3241,18 +3248,16 @@ bool MapEditor::OnInitialize()
 	GR2D_SetFont( "core", 12 );
 	
 	g_Level = g_BaseGame->CreateLevel();
-	g_ScriptCtx = new ScriptContext;
-	g_ScriptCtx->RegisterBatchRenderer();
-	sgs_RegIntConsts( g_ScriptCtx->C, g_ent_scripted_ric, -1 );
-	sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
-//	sgs_RegFuncConsts( g_ScriptCtx->C, g_editor_rfc, -1 );
-	ScrItem_InstallAPI( g_ScriptCtx->C );
+	sgs_RegIntConsts( g_Level->GetSGSC(), g_ent_scripted_ric, -1 );
+	sgs_RegFuncConsts( g_Level->GetSGSC(), g_ent_scripted_rfc, -1 );
+//	sgs_RegFuncConsts( g_Level->GetSGSC(), g_editor_rfc, -1 );
+	ScrItem_InstallAPI( g_Level->GetSGSC() );
 	
-	LOG << "\nLoading scripted entities:";
-	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
-	LOG << "\nLoading scripted items:";
-	LOG << g_ScriptCtx->ExecFile( "data/scritems.sgs" );
-	LOG << "\nLoading completed\n\n";
+//	LOG << "\nLoading scripted entities:";
+//	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
+//	LOG << "\nLoading scripted items:";
+//	LOG << g_ScriptCtx->ExecFile( "data/scritems.sgs" );
+//	LOG << "\nLoading completed\n\n";
 	
 	g_UISurfTexPicker = new EDGUISDTexPicker;
 	g_UISurfMtlPicker = new EDGUISurfMtlPicker;
@@ -3260,8 +3265,8 @@ bool MapEditor::OnInitialize()
 	g_UICharPicker = new EDGUICharUsePicker;
 	g_UIPartSysPicker = new EDGUIPartSysPicker;
 	g_UISoundPicker = new EDGUISoundPicker;
-	g_UIScrItemPicker = new EDGUIScrItemPicker( g_ScriptCtx );
-	g_UIScrFnPicker = new EDGUIScrFnPicker( g_ScriptCtx );
+//	g_UIScrItemPicker = new EDGUIScrItemPicker( g_ScriptCtx );
+//	g_UIScrFnPicker = new EDGUIScrFnPicker( g_ScriptCtx );
 	g_UILevelOpenPicker = new EDGUILevelOpenPicker;
 	g_UILevelSavePicker = new EDGUILevelSavePicker;
 	
@@ -3289,10 +3294,10 @@ void MapEditor::OnDestroy()
 	g_UILevelSavePicker = NULL;
 	delete g_UILevelOpenPicker;
 	g_UILevelOpenPicker = NULL;
-	delete g_UIScrItemPicker;
-	g_UIScrItemPicker = NULL;
-	delete g_UIScrFnPicker;
-	g_UIScrFnPicker = NULL;
+//	delete g_UIScrItemPicker;
+//	g_UIScrItemPicker = NULL;
+//	delete g_UIScrFnPicker;
+//	g_UIScrFnPicker = NULL;
 	delete g_UIPartSysPicker;
 	g_UIPartSysPicker = NULL;
 	delete g_UISoundPicker;
@@ -3313,8 +3318,6 @@ void MapEditor::OnDestroy()
 	g_EdScene = NULL;
 	delete g_EdLGCont;
 	g_EdLGCont = NULL;
-	delete g_ScriptCtx;
-	g_ScriptCtx = NULL;
 	delete g_Level;
 }
 

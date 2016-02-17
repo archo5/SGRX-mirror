@@ -147,9 +147,14 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	};
 	sgs_RegIntConsts( C, ric, -1 );
 	
+	// init backing store
+	m_metadata = m_scriptCtx.CreateDict();
+	
+	// create entity type map
+	AddEntry( "entity_types", m_scriptCtx.CreateDict() );
+	
 	// create marker pos. array
 	m_markerPositions = m_scriptCtx.CreateDict();
-	m_metadata = m_scriptCtx.CreateDict();
 	AddEntry( "positions", m_markerPositions );
 	
 	m_scene = GR_CreateScene();
@@ -364,7 +369,7 @@ bool GameLevel::Load( const StringView& levelname )
 
 void GameLevel::EnumEntities( Array< StringView >& out )
 {
-	sgsVariable entarr = m_scriptCtx.Registry().getprop( "entities" );
+	sgsVariable entarr = m_self.getprop( "entity_types" );
 	ScriptVarIterator it( entarr );
 	while( it.Advance() )
 	{

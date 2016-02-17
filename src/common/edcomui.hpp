@@ -378,6 +378,7 @@ struct EDGUISoundPicker : EDGUIRsrcPicker
 };
 
 
+#if 0
 struct EDGUIScrItemPicker : EDGUIRsrcPicker
 {
 	EDGUIScrItemPicker( ScriptContext* sctx ) : m_scriptCtx( sctx )
@@ -468,6 +469,7 @@ struct EDGUIScrFnPicker : EDGUIRsrcPicker
 	ScriptContext* m_scriptCtx;
 	String m_levelName;
 };
+#endif
 
 
 struct EDGUILevelPicker : EDGUIRsrcPicker, IDirEntryHandler

@@ -35,7 +35,6 @@
 #else
 #  define MAPEDIT_GLOBAL( x ) extern x
 #endif
-MAPEDIT_GLOBAL( ScriptContext* g_ScriptCtx );
 MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( PhyWorldHandle g_EdPhyWorld );
@@ -47,8 +46,8 @@ MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
 MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
 MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );
-MAPEDIT_GLOBAL( struct EDGUIScrItemPicker* g_UIScrItemPicker );
-MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
+// MAPEDIT_GLOBAL( struct EDGUIScrItemPicker* g_UIScrItemPicker );
+// MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelOpenPicker* g_UILevelOpenPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
 MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
@@ -787,44 +786,44 @@ template< class T > T FLoadProp( sgsVariable obj, const char* prop, const T& def
 {
 	return FLoadVar( obj.getprop( prop ), def );
 }
-bool FLoadVar( sgsVariable v, bool def )
+inline bool FLoadVar( sgsVariable v, bool def )
 {
 	return v.getdef( def );
 }
-int FLoadVar( sgsVariable v, int def )
+inline int FLoadVar( sgsVariable v, int def )
 {
 	return v.getdef( def );
 }
-uint32_t FLoadVar( sgsVariable v, uint32_t def )
+inline uint32_t FLoadVar( sgsVariable v, uint32_t def )
 {
 	return v.getdef( def );
 }
-float FLoadVar( sgsVariable v, float def )
+inline float FLoadVar( sgsVariable v, float def )
 {
 	return v.getdef( def );
 }
-StringView FLoadVar( sgsVariable v, StringView def )
+inline StringView FLoadVar( sgsVariable v, StringView def )
 {
 	return v.getdef( def );
 }
-Vec2 FLoadVar( sgsVariable v, Vec2 def )
+inline Vec2 FLoadVar( sgsVariable v, Vec2 def )
 {
 	return V2( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ) );
 }
-Vec3 FLoadVar( sgsVariable v, Vec3 def )
+inline Vec3 FLoadVar( sgsVariable v, Vec3 def )
 {
 	return V3( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ), FLoadProp( v, "z", def.z ) );
 }
 
-sgsVariable FNewDict()
+inline sgsVariable FNewDict()
 {
 	return g_Level->GetScriptCtx().CreateDict();
 }
-sgsVariable FNewArray()
+inline sgsVariable FNewArray()
 {
 	return g_Level->GetScriptCtx().CreateArray();
 }
-void FArrayAppend( sgsVariable arr, sgsVariable val )
+inline void FArrayAppend( sgsVariable arr, sgsVariable val )
 {
 	SGS_CSCOPE( g_Level->GetSGSC() );
 	g_Level->GetScriptCtx().Push( val );
@@ -832,22 +831,22 @@ void FArrayAppend( sgsVariable arr, sgsVariable val )
 }
 template< class T > void FSaveProp( sgsVariable obj, const char* prop, T value );
 template< class T > void FSaveProp( sgsVariable obj, const char* prop, Array<T>& values );
-sgsVariable FVar( bool val ){ return sgsVariable().set_bool( val ); }
-sgsVariable FVar( int val ){ return sgsVariable().set_int( val ); }
-sgsVariable FVar( uint32_t val ){ return sgsVariable().set_int( val ); }
-sgsVariable FVar( float val ){ return sgsVariable().set_real( val ); }
-sgsVariable FVar( StringView val )
+inline sgsVariable FVar( bool val ){ return sgsVariable().set_bool( val ); }
+inline sgsVariable FVar( int val ){ return sgsVariable().set_int( val ); }
+inline sgsVariable FVar( uint32_t val ){ return sgsVariable().set_int( val ); }
+inline sgsVariable FVar( float val ){ return sgsVariable().set_real( val ); }
+inline sgsVariable FVar( StringView val )
 {
 	return g_Level->GetScriptCtx().CreateString( val );
 }
-sgsVariable FVar( Vec2 val )
+inline sgsVariable FVar( Vec2 val )
 {
 	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
 	FSaveProp( v, "x", val.x );
 	FSaveProp( v, "y", val.y );
 	return v;
 }
-sgsVariable FVar( Vec3 val )
+inline sgsVariable FVar( Vec3 val )
 {
 	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
 	FSaveProp( v, "x", val.x );
@@ -2126,7 +2125,7 @@ struct EdEntLightSample : EdEntity
 };
 
 
-#define EDGUI_ITEM_PROP_SCRITEM 1001
+// #define EDGUI_ITEM_PROP_SCRITEM 1001
 
 struct SGSPropInterface
 {
@@ -2233,12 +2232,19 @@ struct EdEntNew : EdEntity, SGSPropInterface
 	virtual void Serialize( SVHBR& arch ){}
 	virtual void Serialize( SVHBW& arch ){}
 	
+	EdEntNew( sgsString type ) : EdEntity( false ), m_entityType( type )
+	{
+	}
 	EdEntNew& operator = ( const EdEntNew& o );
 	virtual EdEntity* CloneEntity();
+	void FLoad( sgsVariable data, int version );
+	sgsVariable FSave( int version );
 	
 	// SGSPropInterface
 	void ClearFields();
 	EDGUIGroup& GetGroup(){ return m_group; }
+	
+	sgsString m_entityType;
 };
 
 

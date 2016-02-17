@@ -387,6 +387,7 @@ struct GameLevel :
 	void AddEntry( const StringView& name, sgsVariable var );
 	
 	// system/entity interface
+	sgsVariable GetScriptedObject(){ return m_self; }
 	StringView GetLevelName() const { return m_levelName; }
 	void SetPlayer( Entity* E ){ m_player = E; }
 	bool IsPaused() const { return m_paused || gcv_g_paused.value; }
@@ -404,7 +405,7 @@ struct GameLevel :
 	{
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
 		m_scriptCtx.SetGlobal( type, iface );
-		m_scriptCtx.Registry().getprop( "entities" ).setprop( m_scriptCtx.CreateStringVar( type ), iface );
+		m_self.getprop( "entity_types" ).setprop( m_scriptCtx.CreateStringVar( type ), iface );
 	}
 	void EnumEntities( Array< StringView >& out );
 	Entity* CreateEntity( const StringView& type );

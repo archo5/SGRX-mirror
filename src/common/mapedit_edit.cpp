@@ -1542,7 +1542,7 @@ void EdAddEntityEditMode::_AddNewEntity()
 {
 	Vec2 pos = g_UIFrame->GetCursorPlanePos();
 	
-	EdEntity* N = new EdEntNew; //m_entityProps->CloneEntity();
+	EdEntity* N = new EdEntNew( FVar( m_entType ).get_string() ); //m_entityProps->CloneEntity();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
 	g_EdWorld->AddObject( N );
 }
