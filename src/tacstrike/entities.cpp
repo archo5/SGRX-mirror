@@ -948,8 +948,10 @@ void MultiEntity::JTSetEnabled( int i, bool enabled )
 
 StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	ScrItem_InstallAPI( lev->GetSGSC() );
-	lev->GetScriptCtx().Include( "data/scritems" );
+//	ScrItem_InstallAPI( lev->GetSGSC() );
+//	lev->GetScriptCtx().Include( "data/scritems" );
+	lev->RegisterNativeEntity<Entity>( "Entity" );
+	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
 }
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )

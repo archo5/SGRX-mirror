@@ -1870,25 +1870,25 @@ EdWorld::~EdWorld()
 
 void EdWorld::FLoad( sgsVariable obj )
 {
-	int version = obj.getprop("version").get<int>();
+	int version = FLoadProp( obj, "version", 0 );
 	
 	sgsVariable lighting = obj.getprop("lighting");
 	{
-		m_ctlAmbientColor.SetValue( lighting.getprop("ambientColor").get<Vec3>() );
-		m_ctlDirLightDir.SetValue( lighting.getprop("dirLightDir").get<Vec2>() );
-		m_ctlDirLightColor.SetValue( lighting.getprop("dirLightColor").get<Vec3>() );
-		m_ctlDirLightDivergence.SetValue( lighting.getprop("dirLightDvg").get<float>() );
-		m_ctlDirLightNumSamples.SetValue( lighting.getprop("dirLightNumSamples").get<int>() );
-		m_ctlLightmapClearColor.SetValue( lighting.getprop("lightmapClearColor").get<Vec3>() );
-		m_ctlLightmapDetail.SetValue( lighting.getprop("lightmapDetail").get<float>() );
-		m_ctlLightmapBlurSize.SetValue( lighting.getprop("lightmapBlurSize").get<float>() );
-		m_ctlAODistance.SetValue( lighting.getprop("aoDist").get<float>() );
-		m_ctlAOMultiplier.SetValue( lighting.getprop("aoMult").get<float>() );
-		m_ctlAOFalloff.SetValue( lighting.getprop("aoFalloff").get<float>() );
-		m_ctlAOEffect.SetValue( lighting.getprop("aoEffect").get<float>() );
-		m_ctlAOColor.SetValue( lighting.getprop("aoColor").get<Vec3>() );
-		m_ctlAONumSamples.SetValue( lighting.getprop("aoNumSamples").get<int>() );
-		m_ctlSampleDensity.SetValue( lighting.getprop("sampleDensity").getdef<float>( 1.0f ) );
+		m_ctlAmbientColor.SetValue( FLoadProp( lighting, "ambientColor", V3( 0, 0, 0.1f ) ) );
+		m_ctlDirLightDir.SetValue( FLoadProp( lighting, "dirLightDir", V2(0) ) );
+		m_ctlDirLightColor.SetValue( FLoadProp( lighting, "dirLightColor", V3(0) ) );
+		m_ctlDirLightDivergence.SetValue( FLoadProp( lighting, "dirLightDvg", 10.0f ) );
+		m_ctlDirLightNumSamples.SetValue( FLoadProp( lighting, "dirLightNumSamples", 15 ) );
+		m_ctlLightmapClearColor.SetValue( FLoadProp( lighting, "lightmapClearColor", V3(0) ) );
+		m_ctlLightmapDetail.SetValue( FLoadProp( lighting, "lightmapDetail", 1.0f ) );
+		m_ctlLightmapBlurSize.SetValue( FLoadProp( lighting, "lightmapBlurSize", 1.0f ) );
+		m_ctlAODistance.SetValue( FLoadProp( lighting, "aoDist", 2.0f ) );
+		m_ctlAOMultiplier.SetValue( FLoadProp( lighting, "aoMult", 1.0f ) );
+		m_ctlAOFalloff.SetValue( FLoadProp( lighting, "aoFalloff", 2.0f ) );
+		m_ctlAOEffect.SetValue( FLoadProp( lighting, "aoEffect", 0.0f ) );
+		m_ctlAOColor.SetValue( FLoadProp( lighting, "aoColor", V3(0) ) );
+		m_ctlAONumSamples.SetValue( FLoadProp( lighting, "aoNumSamples", 15 ) );
+		m_ctlSampleDensity.SetValue( FLoadProp( lighting, "sampleDensity", 1.0f ) );
 	}
 	
 	sgsVariable objects = obj.getprop("objects");
@@ -1904,7 +1904,7 @@ void EdWorld::FLoad( sgsVariable obj )
 			case ObjType_Block: obj = new EdBlock; break;
 			case ObjType_Patch: obj = new EdPatch; break;
 			case ObjType_MeshPath: obj = new EdMeshPath; break;
-			case ObjType_Entity: obj = new EdEntity; break;
+			case ObjType_Entity: obj = new EdEntNew; break;
 			default:
 				LOG_ERROR << "Failed to load World!";
 				continue;
@@ -1921,21 +1921,21 @@ sgsVariable EdWorld::FSave()
 	
 	sgsVariable lighting = FNewDict();
 	{
-		lighting.setprop( "ambientColor", g_Level->GetScriptCtx().CreateVec3( m_ctlAmbientColor.m_value ) );
-		lighting.setprop( "dirLightDir", g_Level->GetScriptCtx().CreateVec2( m_ctlDirLightDir.m_value ) );
-		lighting.setprop( "dirLightColor", g_Level->GetScriptCtx().CreateVec3( m_ctlDirLightColor.m_value ) );
-		lighting.setprop( "dirLightDvg", sgsVariable().set( m_ctlDirLightDivergence.m_value ) );
-		lighting.setprop( "dirLightNumSamples", sgsVariable().set<sgs_Int>( m_ctlDirLightNumSamples.m_value ) );
-		lighting.setprop( "lightmapClearColor", g_Level->GetScriptCtx().CreateVec3( m_ctlLightmapClearColor.m_value ) );
-		lighting.setprop( "lightmapDetail", sgsVariable().set( m_ctlLightmapDetail.m_value ) );
-		lighting.setprop( "lightmapBlurSize", sgsVariable().set( m_ctlLightmapBlurSize.m_value ) );
-		lighting.setprop( "aoDist", sgsVariable().set( m_ctlAODistance.m_value ) );
-		lighting.setprop( "aoMult", sgsVariable().set( m_ctlAOMultiplier.m_value ) );
-		lighting.setprop( "aoFalloff", sgsVariable().set( m_ctlAOFalloff.m_value ) );
-		lighting.setprop( "aoEffect", sgsVariable().set( m_ctlAOEffect.m_value ) );
-		lighting.setprop( "aoColor", g_Level->GetScriptCtx().CreateVec3( m_ctlAOColor.m_value ) );
-		lighting.setprop( "aoNumSamples", sgsVariable().set<sgs_Int>( m_ctlAONumSamples.m_value ) );
-		lighting.setprop( "sampleDensity", sgsVariable().set( m_ctlSampleDensity.m_value ) );
+		FSaveProp( lighting, "ambientColor", m_ctlAmbientColor.m_value );
+		FSaveProp( lighting, "dirLightDir", m_ctlDirLightDir.m_value );
+		FSaveProp( lighting, "dirLightColor", m_ctlDirLightColor.m_value );
+		FSaveProp( lighting, "dirLightDvg", m_ctlDirLightDivergence.m_value );
+		FSaveProp( lighting, "dirLightNumSamples", m_ctlDirLightNumSamples.m_value );
+		FSaveProp( lighting, "lightmapClearColor", m_ctlLightmapClearColor.m_value );
+		FSaveProp( lighting, "lightmapDetail", m_ctlLightmapDetail.m_value );
+		FSaveProp( lighting, "lightmapBlurSize", m_ctlLightmapBlurSize.m_value );
+		FSaveProp( lighting, "aoDist", m_ctlAODistance.m_value );
+		FSaveProp( lighting, "aoMult", m_ctlAOMultiplier.m_value );
+		FSaveProp( lighting, "aoFalloff", m_ctlAOFalloff.m_value );
+		FSaveProp( lighting, "aoEffect", m_ctlAOEffect.m_value );
+		FSaveProp( lighting, "aoColor", m_ctlAOColor.m_value );
+		FSaveProp( lighting, "aoNumSamples", m_ctlAONumSamples.m_value );
+		FSaveProp( lighting, "sampleDensity", m_ctlSampleDensity.m_value );
 	}
 	
 	sgsVariable objects = FNewDict();
@@ -1948,9 +1948,11 @@ sgsVariable EdWorld::FSave()
 	}
 	
 	sgsVariable out = FNewDict();
-	out.setprop( "version", sgsVariable().set<sgs_Int>( version ) );
+	FSaveProp( out, "version", version );
 	out.setprop( "lighting", lighting );
 	out.setprop( "objects", objects );
+	
+	return out;
 }
 
 void EdWorld::Reset()
@@ -1981,7 +1983,7 @@ void EdWorld::TestData()
 	EdSurface surf;
 	surf.texname = "null";
 	for( int i = 0; i < 6; ++i )
-		b1.surfaces.push_back( surf );
+		b1.surfaces.push_back( new EdSurface( surf ) );
 	b1.subsel.resize( b1.GetNumElements() );
 	b1.ClearSelection();
 	
@@ -2334,6 +2336,7 @@ bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchf
 	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent, skip, mask );
 }
 
+#if 0
 EdEntity* EdWorld::CreateScriptedEntity( const StringView& name, sgsVariable params )
 {
 	EdEntity* e = ENT_FindProtoByName( StackString< 128 >( name ) );
@@ -2356,6 +2359,7 @@ EdEntity* EdWorld::CreateScriptedEntity( const StringView& name, sgsVariable par
 	es->Fields2Data();
 	return es;
 }
+#endif
 
 void EdWorld::AddObject( EdObject* obj )
 {
@@ -2641,6 +2645,7 @@ LC_Light EdWorld::GetDirLightInfo()
 
 
 
+#if 0
 static int edscrAddScriptedEntity( SGS_CTX )
 {
 	SGSFN( "AddScriptedEntity" );
@@ -2660,6 +2665,7 @@ static sgs_RegFuncConst g_editor_rfc[] =
 	{ "AddScriptedEntity", edscrAddScriptedEntity },
 	{ NULL, NULL },
 };
+#endif
 
 
 
@@ -2689,7 +2695,7 @@ void EDGUIMultiObjectProps::Prepare( bool selsurf )
 			{
 				if( selsurf && B->IsSurfaceSelected( s ) == false )
 					continue;
-				StringView tt = B->surfaces[ s ].texname;
+				StringView tt = B->surfaces[ s ]->texname;
 				if( tt && tex != tt )
 				{
 					if( tex.size() )
@@ -2752,7 +2758,7 @@ int EDGUIMultiObjectProps::OnEvent( EDGUIEvent* e )
 					{
 						if( m_selsurf && B->IsSurfaceSelected( s ) == false )
 							continue;
-						B->surfaces[ s ].texname = m_mtl.m_value;
+						B->surfaces[ s ]->texname = m_mtl.m_value;
 					}
 					obj->RegenerateMesh();
 				}
@@ -3239,7 +3245,7 @@ bool MapEditor::OnInitialize()
 	g_ScriptCtx->RegisterBatchRenderer();
 	sgs_RegIntConsts( g_ScriptCtx->C, g_ent_scripted_ric, -1 );
 	sgs_RegFuncConsts( g_ScriptCtx->C, g_ent_scripted_rfc, -1 );
-	sgs_RegFuncConsts( g_ScriptCtx->C, g_editor_rfc, -1 );
+//	sgs_RegFuncConsts( g_ScriptCtx->C, g_editor_rfc, -1 );
 	ScrItem_InstallAPI( g_ScriptCtx->C );
 	
 	LOG << "\nLoading scripted entities:";

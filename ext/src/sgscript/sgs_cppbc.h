@@ -860,6 +860,15 @@ template< class T > T sgsVariable::get()
 }
 
 
+template< class T > sgsVariable sgs_GetClassInterface( SGS_CTX )
+{
+	sgsVariable out( C );
+	if( T::_sgs_interface.iface_func )
+		sgs_InitInterface( C, &out.var, T::_sgs_interface.iface_func );
+	return out;
+}
+
+
 template< class T > void sgs_CreateClass( SGS_CTX, sgs_Variable* out, T* inst )
 {
 	sgs_CreateObject( C, out, inst, T::_sgs_interface );

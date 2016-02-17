@@ -358,7 +358,7 @@ EdObject* EdBlock::Clone()
 	EdBlock* blk = new EdBlock( *this );
 	blk->solid_id = 0;
 	for( size_t i = 0; i < blk->surfaces.size(); ++i )
-		blk->surfaces[ i ].surface_id = 0;
+		blk->surfaces[ i ]->surface_id = 0;
 	return blk;
 }
 
@@ -468,7 +468,7 @@ void EdBlock::RegenerateMesh()
 	bool hasclip = false;
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		EdSurface& BS = surfaces[ i ];
+		EdSurface& BS = *surfaces[ i ];
 		if( BS.texname == SV("clip") )
 		{
 			hasclip = true;
@@ -494,7 +494,7 @@ void EdBlock::RegenerateMesh()
 	// SIDES
 	for( size_t i = 0; i < poly.size(); ++i )
 	{
-		EdSurface& BS = surfaces[ i ];
+		EdSurface BS = *surfaces[ i ];
 		
 		vertices.clear();
 		indices.clear();
@@ -540,7 +540,7 @@ void EdBlock::RegenerateMesh()
 	// TOP
 	for(;;)
 	{
-		EdSurface& BS = surfaces[ poly.size() ];
+		EdSurface& BS = *surfaces[ poly.size() ];
 		
 		vertices.clear();
 		indices.clear();
@@ -581,7 +581,7 @@ void EdBlock::RegenerateMesh()
 	// BOTTOM
 	for(;;)
 	{
-		EdSurface& BS = surfaces[ poly.size() + 1 ];
+		EdSurface& BS = *surfaces[ poly.size() + 1 ];
 		
 		vertices.clear();
 		indices.clear();
@@ -651,18 +651,18 @@ int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit )
 		{
 			int i = sid;
 			size_t i1 = ( i + 1 ) % poly.size();
-			outbuf[5] = outbuf[0] = _MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy );
-			outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy );
-			outbuf[3] = outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy );
-			outbuf[4] = _MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy );
+			outbuf[5] = outbuf[0] = _MakeGenVtx( poly[i], z0, *surfaces[i], tgx, tgy );
+			outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, *surfaces[i], tgx, tgy );
+			outbuf[3] = outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, *surfaces[i], tgx, tgy );
+			outbuf[4] = _MakeGenVtx( poly[i1], z0, *surfaces[i], tgx, tgy );
 		}
 		else if( sid == (int) poly.size() )
 		{
 			for( size_t i = 1; i + 1 < poly.size(); ++i )
 			{
-				outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z1 + poly[0].z, surfaces[ poly.size() ], tgx, tgy );
-				outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
-				outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i+1], z1 + poly[i+1].z, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z1 + poly[0].z, *surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i], z1 + poly[i].z, *surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i+1], z1 + poly[i+1].z, *surfaces[ poly.size() ], tgx, tgy );
 			}
 			retval = ( poly.size() - 2 ) * 3;
 		}
@@ -670,14 +670,14 @@ int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit )
 		{
 			for( size_t i = 1; i + 1 < poly.size(); ++i )
 			{
-				outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z0, surfaces[ poly.size() ], tgx, tgy );
-				outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() ], tgx, tgy );
-				outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i+1], z0, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+0 ] = _MakeGenVtx( poly[0], z0, *surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+1 ] = _MakeGenVtx( poly[i], z0, *surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ (i-1)*3+2 ] = _MakeGenVtx( poly[i+1], z0, *surfaces[ poly.size() ], tgx, tgy );
 			}
 			retval = ( poly.size() - 2 ) * 3;
 		}
 		if( fit )
-			_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
+			_PostFitTexcoords( *surfaces[ sid ], outbuf, retval );
 		return retval;
 	}
 	else
@@ -689,16 +689,16 @@ int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit )
 		{
 			int i = sid;
 			size_t i1 = ( i + 1 ) % poly.size();
-			outbuf[0] = _MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy );
-			outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy );
-			outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy );
-			outbuf[3] = _MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy );
+			outbuf[0] = _MakeGenVtx( poly[i], z0, *surfaces[i], tgx, tgy );
+			outbuf[1] = _MakeGenVtx( poly[i], z1 + poly[i].z, *surfaces[i], tgx, tgy );
+			outbuf[2] = _MakeGenVtx( poly[i1], z1 + poly[i1].z, *surfaces[i], tgx, tgy );
+			outbuf[3] = _MakeGenVtx( poly[i1], z0, *surfaces[i], tgx, tgy );
 		}
 		else if( sid == (int) poly.size() )
 		{
 			for( size_t i = 0; i < poly.size(); ++i )
 			{
-				outbuf[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, *surfaces[ poly.size() ], tgx, tgy );
 			}
 			retval = poly.size();
 		}
@@ -706,12 +706,12 @@ int EdBlock::GenerateSurface( LCVertex* outbuf, int sid, bool tri, bool fit )
 		{
 			for( size_t i = 0; i < poly.size(); ++i )
 			{
-				outbuf[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() ], tgx, tgy );
+				outbuf[ i ] = _MakeGenVtx( poly[i], z0, *surfaces[ poly.size() ], tgx, tgy );
 			}
 			retval = poly.size();
 		}
 		if( fit )
-			_PostFitTexcoords( surfaces[ sid ], outbuf, retval );
+			_PostFitTexcoords( *surfaces[ sid ], outbuf, retval );
 		return retval;
 	}
 }
@@ -729,10 +729,10 @@ void EdBlock::Export( OBJExporter& objex )
 			size_t i1 = ( i + 1 ) % poly.size();
 			LevelCache::Vertex verts[] =
 			{
-				_MakeGenVtx( poly[i], z0, surfaces[i], tgx, tgy ),
-				_MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[i], tgx, tgy ),
-				_MakeGenVtx( poly[i1], z1 + poly[i1].z, surfaces[i], tgx, tgy ),
-				_MakeGenVtx( poly[i1], z0, surfaces[i], tgx, tgy ),
+				_MakeGenVtx( poly[i], z0, *surfaces[i], tgx, tgy ),
+				_MakeGenVtx( poly[i], z1 + poly[i].z, *surfaces[i], tgx, tgy ),
+				_MakeGenVtx( poly[i1], z1 + poly[i1].z, *surfaces[i], tgx, tgy ),
+				_MakeGenVtx( poly[i1], z0, *surfaces[i], tgx, tgy ),
 			};
 			objex.AddVertex( verts[0].pos, V2( verts[0].tx0, verts[0].ty0 ), nrm );
 			objex.AddVertex( verts[1].pos, V2( verts[1].tx0, verts[1].ty0 ), nrm );
@@ -750,7 +750,7 @@ void EdBlock::Export( OBJExporter& objex )
 		_GetTexVecs( poly.size(), tgx, tgy );
 		Vec3 nrm = -Vec3Cross( tgx, tgy ).Normalized();
 		for( size_t i = 0; i < poly.size(); ++i )
-			verts[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, surfaces[ poly.size() ], tgx, tgy );
+			verts[ poly.size() - 1 - i ] = _MakeGenVtx( poly[i], z1 + poly[i].z, *surfaces[ poly.size() ], tgx, tgy );
 		for( size_t i = 1; i < poly.size() - 1; ++i )
 		{
 			objex.AddVertex( verts[0].pos, V2( verts[0].tx0, verts[0].ty0 ), nrm );
@@ -766,7 +766,7 @@ void EdBlock::Export( OBJExporter& objex )
 		_GetTexVecs( poly.size() + 1, tgx, tgy );
 		Vec3 nrm = -Vec3Cross( tgx, tgy ).Normalized();
 		for( size_t i = 0; i < poly.size(); ++i )
-			verts[ i ] = _MakeGenVtx( poly[i], z0, surfaces[ poly.size() + 1 ], tgx, tgy );
+			verts[ i ] = _MakeGenVtx( poly[i], z0, *surfaces[ poly.size() + 1 ], tgx, tgy );
 		for( size_t i = 1; i < poly.size() - 1; ++i )
 		{
 			objex.AddVertex( verts[0].pos, V2( verts[0].tx0, verts[0].ty0 ), nrm );
@@ -848,12 +848,12 @@ int EDGUIVertexProps::OnEvent( EDGUIEvent* e )
 			Vec3 mid_fin = { mid.x, mid.y, ( m_out->poly[ befat ].z + m_out->poly[ insat ].z ) * 0.5f };
 			
 			size_t oldpolysize = m_out->poly.size();
-			EdSurface Scopy = m_out->surfaces[ befat ];
+			EdSurface Scopy = *m_out->surfaces[ befat ];
 			Scopy.surface_id = 0;
 			m_out->poly.insert( insat, mid_fin );
 			if( (int) insat < m_vid )
 				m_vid++;
-			m_out->surfaces.insert( insat, Scopy );
+			m_out->surfaces.insert( insat, new EdSurface( Scopy ) );
 			
 			m_out->subsel.insert( oldpolysize * 2 + insat, false );
 			m_out->subsel.insert( oldpolysize + insat, false );
@@ -912,11 +912,11 @@ void EDGUISurfaceProps::Prepare( EdBlock* block, int sid )
 {
 	m_out = block;
 	m_sid = sid;
-	EdSurface& S = block->surfaces[ sid ];
+	EdSurface* S = block->surfaces[ sid ];
 	
 	char bfr[ 32 ];
 	sgrx_snprintf( bfr, sizeof(bfr), "Surface #%d", sid );
-	LoadParams( S, bfr );
+	LoadParams( *S, bfr );
 }
 
 void EDGUISurfaceProps::LoadParams( EdSurface& S, const char* name )
@@ -968,7 +968,7 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 		}
 		if( m_out && e->target == &m_resetOffScaleAsp )
 		{
-			EdSurface& S = m_out->surfaces[ m_sid ];
+			EdSurface& S = *m_out->surfaces[ m_sid ];
 			S.xoff = 0;
 			S.yoff = 0;
 			S.scale = 1;
@@ -978,7 +978,7 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 		}
 		if( m_out && e->target == &m_applyFit )
 		{
-			EdSurface& S = m_out->surfaces[ m_sid ];
+			EdSurface& S = *m_out->surfaces[ m_sid ];
 			float xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
 			LCVertex vertices[ MAX_BLOCK_POLYGONS ];
 			int vcount = m_out->GenerateSurface( vertices, m_sid, false, false );
@@ -1029,33 +1029,33 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 		{
 			if( e->target == &m_tex )
 			{
-				m_out->surfaces[ m_sid ].texname = m_tex.m_value;
+				m_out->surfaces[ m_sid ]->texname = m_tex.m_value;
 			}
 			else if( e->target == &m_off )
 			{
-				m_out->surfaces[ m_sid ].xoff = m_off.m_value.x;
-				m_out->surfaces[ m_sid ].yoff = m_off.m_value.y;
+				m_out->surfaces[ m_sid ]->xoff = m_off.m_value.x;
+				m_out->surfaces[ m_sid ]->yoff = m_off.m_value.y;
 			}
 			else if( e->target == &m_scaleasp )
 			{
-				m_out->surfaces[ m_sid ].scale = m_scaleasp.m_value.x;
-				m_out->surfaces[ m_sid ].aspect = m_scaleasp.m_value.y;
+				m_out->surfaces[ m_sid ]->scale = m_scaleasp.m_value.x;
+				m_out->surfaces[ m_sid ]->aspect = m_scaleasp.m_value.y;
 			}
 			else if( e->target == &m_angle )
 			{
-				m_out->surfaces[ m_sid ].angle = m_angle.m_value;
+				m_out->surfaces[ m_sid ]->angle = m_angle.m_value;
 			}
 			else if( e->target == &m_lmquality )
 			{
-				m_out->surfaces[ m_sid ].lmquality = m_lmquality.m_value;
+				m_out->surfaces[ m_sid ]->lmquality = m_lmquality.m_value;
 			}
 			else if( e->target == &m_xfit )
 			{
-				m_out->surfaces[ m_sid ].xfit = m_xfit.m_value;
+				m_out->surfaces[ m_sid ]->xfit = m_xfit.m_value;
 			}
 			else if( e->target == &m_yfit )
 			{
-				m_out->surfaces[ m_sid ].yfit = m_yfit.m_value;
+				m_out->surfaces[ m_sid ]->yfit = m_yfit.m_value;
 			}
 			m_out->RegenerateMesh();
 		}

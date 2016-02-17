@@ -106,6 +106,7 @@ struct ScriptContext
 	
 	template< class T > void Push( const T& v ){ sgs_PushVar( C, v ); }
 	
+	SCRIPT_EXPORT sgsVariable Registry();
 	SCRIPT_EXPORT sgsVariable GetGlobal( const StringView& name );
 	SCRIPT_EXPORT void SetGlobal( const StringView& name, sgsVariable val );
 	

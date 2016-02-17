@@ -1,7 +1,6 @@
 
 
 #include "level.hpp"
-#include "mapedit.hpp"
 
 
 sgs_ObjInterface g_sgsobj_empty_handle[1] = {{ "empty_handle", NULL }};
@@ -361,6 +360,16 @@ bool GameLevel::Load( const StringView& levelname )
 	m_scriptCtx.GlobalCall( "onLevelStart" );
 	
 	return true;
+}
+
+void GameLevel::EnumEntities( Array< StringView >& out )
+{
+	sgsVariable entarr = m_scriptCtx.Registry().getprop( "entities" );
+	ScriptVarIterator it( entarr );
+	while( it.Advance() )
+	{
+		out.push_back( it.GetKey().get<StringView>() );
+	}
 }
 
 Entity* GameLevel::CreateEntity( const StringView& type )

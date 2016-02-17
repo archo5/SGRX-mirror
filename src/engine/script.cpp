@@ -413,6 +413,14 @@ sgsVariable ScriptContext::CreateQuat( const Quat& v )
 	return out;
 }
 
+sgsVariable ScriptContext::Registry()
+{
+	sgsVariable out( C );
+	out.var = sgs_Registry( C, SGS_REG_ROOT );
+	out._acquire();
+	return out;
+}
+
 sgsVariable ScriptContext::GetGlobal( const StringView& name )
 {
 	sgsVariable key = sgsString( C, name.data(), name.size() ).get_variable();

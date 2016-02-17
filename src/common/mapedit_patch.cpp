@@ -1028,12 +1028,12 @@ EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 	patch->vertices[1] = pverts[1];
 	patch->vertices[1+MAX_PATCH_WIDTH] = pverts[2];
 	patch->vertices[0+MAX_PATCH_WIDTH] = pverts[3];
-	EdSurface& S = B.surfaces[ sid ];
-	patch->layers[0].texname = S.texname;
-	patch->layers[0].xoff = S.xoff;
-	patch->layers[0].yoff = S.yoff;
-	patch->layers[0].scale = S.scale;
-	patch->layers[0].aspect = S.aspect;
+	EdSurface* S = B.surfaces[ sid ];
+	patch->layers[0].texname = S->texname;
+	patch->layers[0].xoff = S->xoff;
+	patch->layers[0].yoff = S->yoff;
+	patch->layers[0].scale = S->scale;
+	patch->layers[0].aspect = S->aspect;
 	return patch;
 }
 

@@ -832,22 +832,10 @@ void FArrayAppend( sgsVariable arr, sgsVariable val )
 }
 template< class T > void FSaveProp( sgsVariable obj, const char* prop, T value );
 template< class T > void FSaveProp( sgsVariable obj, const char* prop, Array<T>& values );
-sgsVariable FVar( bool val )
-{
-	return sgsVariable().set_bool( val );
-}
-sgsVariable FVar( int val )
-{
-	return sgsVariable().set_int( val );
-}
-sgsVariable FVar( uint32_t val )
-{
-	return sgsVariable().set_int( val );
-}
-sgsVariable FVar( float val )
-{
-	return sgsVariable().set_real( val );
-}
+sgsVariable FVar( bool val ){ return sgsVariable().set_bool( val ); }
+sgsVariable FVar( int val ){ return sgsVariable().set_int( val ); }
+sgsVariable FVar( uint32_t val ){ return sgsVariable().set_int( val ); }
+sgsVariable FVar( float val ){ return sgsVariable().set_real( val ); }
 sgsVariable FVar( StringView val )
 {
 	return g_Level->GetScriptCtx().CreateString( val );
@@ -1776,11 +1764,62 @@ struct EdMeshPath : EdObject
 		m_scaleUni = FLoadProp( data, "scaleUni", 1.0f );
 		m_scaleSep = FLoadProp( data, "scaleSep", V3(1) );
 		m_turnMode = FLoadProp( data, "turnMode", 0 );
+		
+		// points
+		{
+			ScriptVarIterator it( data.getprop( "points" ) );
+			m_points.clear();
+			while( it.Advance() )
+			{
+				EdMeshPathPoint mpp;
+				mpp.FLoad( it.GetValue(), version );
+				m_points.push_back( mpp );
+			}
+		}
+		
+		// parts
+		{
+			ScriptVarIterator it( data.getprop( "parts" ) );
+			for( int mp = 0; mp < MAX_MESHPATH_PARTS; ++mp )
+			{
+				it.Advance();
+				m_parts[ mp ].FLoad( it.GetValue(), version );
+			}
+		}
 	}
 	sgsVariable FSave( int version )
 	{
 		sgsVariable out = FNewDict();
-		// TODO!!!!!!
+		
+		FSaveProp( out, "group", group );
+		FSaveProp( out, "position", m_position );
+		FSaveProp( out, "meshName", m_meshName );
+		FSaveProp( out, "lmquality", m_lmquality );
+		FSaveProp( out, "isLMSolid", m_isLMSolid );
+		FSaveProp( out, "isPhySolid", m_isPhySolid );
+		FSaveProp( out, "doSmoothing", m_doSmoothing );
+		FSaveProp( out, "isDynamic", m_isDynamic );
+		FSaveProp( out, "intervalScaleOffset", m_intervalScaleOffset );
+		FSaveProp( out, "pipeModeOvershoot", m_pipeModeOvershoot );
+		FSaveProp( out, "rotAngles", m_rotAngles );
+		FSaveProp( out, "scaleUni", m_scaleUni );
+		FSaveProp( out, "scaleSep", m_scaleSep );
+		FSaveProp( out, "turnMode", m_turnMode );
+		
+		sgsVariable out_points = FNewArray();
+		for( size_t i = 0; i < m_points.size(); ++i )
+		{
+			FArrayAppend( out_points, m_points[ i ].FSave( version ) );
+		}
+		out.setprop( "points", out_points );
+		
+		sgsVariable out_parts = FNewArray();
+		for( int i = 0; i < MAX_MESHPATH_PARTS; ++i )
+		{
+			FArrayAppend( out_parts, m_parts[ i ].FSave( version ) );
+		}
+		out.setprop( "parts", out_parts );
+		
 		return out;
 	}
 	
@@ -1930,25 +1969,6 @@ struct EdEntity : EDGUILayoutRow, EdObject
 };
 
 typedef Handle< EdEntity > EdEntityHandle;
-
-struct EDGUIEntButton : EDGUIButton
-{
-	EDGUIEntButton()
-	{
-		tyname = "entity-button";
-	}
-	
-	EdEntityHandle m_ent_handle;
-};
-
-
-struct EdEntNew : EdEntity
-{
-	virtual void Serialize( SVHTR& arch ){}
-	virtual void Serialize( SVHTW& arch ){}
-	virtual void Serialize( SVHBR& arch ){}
-	virtual void Serialize( SVHBW& arch ){}
-};
 
 
 
@@ -2206,6 +2226,22 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 };
 
 
+struct EdEntNew : EdEntity, SGSPropInterface
+{
+	virtual void Serialize( SVHTR& arch ){}
+	virtual void Serialize( SVHTW& arch ){}
+	virtual void Serialize( SVHBR& arch ){}
+	virtual void Serialize( SVHBW& arch ){}
+	
+	EdEntNew& operator = ( const EdEntNew& o );
+	virtual EdEntity* CloneEntity();
+	
+	// SGSPropInterface
+	void ClearFields();
+	EDGUIGroup& GetGroup(){ return m_group; }
+};
+
+
 
 /////////////
 ////////////
@@ -2216,20 +2252,22 @@ extern sgs_RegFuncConst g_ent_scripted_rfc[];
 
 struct EDGUIEntList : EDGUIGroup
 {
+#if 0
 	struct Decl
 	{
 		const char* name;
 		EdEntity* ent;
 	};
-	
+#endif
 	EDGUIEntList();
 	~EDGUIEntList();
 	virtual int OnEvent( EDGUIEvent* e );
 	
-	EDGUIEntButton* m_buttons;
+	EDGUIButton* m_buttons;
 	int m_button_count;
 };
 
+#if 0
 EdEntity* ENT_FindProtoByName( const char* name );
 
 inline void World_AddObject( EdObject* obj );
@@ -2318,6 +2356,7 @@ template< class T > EdEntity* ENT_Unserialize( T& arch, bool fixMissing = false 
 	
 	return e;
 }
+#endif
 
 
 //
@@ -2386,8 +2425,10 @@ struct EdWorld : EDGUILayoutRow
 			svh << numents;
 			for( size_t i = 0; i < m_entities.size(); ++i )
 			{
+#if 0
 				if( m_entities[ i ]->m_ownerEnt == NULL )
 					ENT_Serialize( svh, m_entities[ i ] );
+#endif
 			}
 			
 			int32_t numpatches = m_patches.size();
@@ -2422,9 +2463,11 @@ struct EdWorld : EDGUILayoutRow
 			svh << numents;
 			for( int32_t i = 0; i < numents; ++i )
 			{
+#if 0
 				EdEntity* e = ENT_Unserialize( svh, true );
 				if( e )
 					AddObject( e );
+#endif
 			}
 			
 			int32_t numpatches;
@@ -2471,7 +2514,7 @@ struct EdWorld : EDGUILayoutRow
 	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
 		float outdst[1], int outent[1], EdObject** skip = NULL, int mask = SelMask_ALL );
 	
-	EdEntity* CreateScriptedEntity( const StringView& name, sgsVariable params );
+//	EdEntity* CreateScriptedEntity( const StringView& name, sgsVariable params );
 	void AddObject( EdObject* obj );
 	void DeleteObject( EdObject* obj );
 	
@@ -2823,10 +2866,13 @@ struct EdAddEntityEditMode : EdEditMode
 	int OnUIEvent( EDGUIEvent* e );
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
-	void SetEntityType( const EdEntityHandle& eh );
+	void SetEntityType( const StringView& eh );
 	void _AddNewEntity();
 	
+#if 0
 	EdEntityHandle m_entityProps;
+#endif
+	String m_entType;
 	EDGUIEntList m_entGroup;
 };
 

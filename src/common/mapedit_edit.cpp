@@ -504,8 +504,8 @@ void EdDrawBlockEditMode::_AddNewBlock()
 	B.GenCenterPos( g_UIFrame->m_snapProps );
 	for( size_t i = 0; i < m_drawnVerts.size() + 2; ++i )
 	{
-		EdSurface S;
-		m_newSurfProps.BounceBack( S );
+		EdSurfHandle S = new EdSurface;
+		m_newSurfProps.BounceBack( *S );
 		B.surfaces.push_back( S );
 	}
 	B.subsel.resize( B.GetNumElements() );
@@ -1462,11 +1462,11 @@ void EdPaintSurfsEditMode::OnViewEvent( EDGUIEvent* e )
 	}
 	if( e->type == EDGUI_EVENT_KEYDOWN && !e->key.repeat && e->key.engkey == SDLK_g && m_paintBlock >= 0 && m_paintSurf >= 0 )
 	{
-		m_paintSurfProps.LoadParams( g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
+		m_paintSurfProps.LoadParams( *g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
 	}
 	if( dopaint && m_paintBlock >= 0 && m_paintSurf >= 0 )
 	{
-		m_paintSurfProps.BounceBack( g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
+		m_paintSurfProps.BounceBack( *g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
 		g_EdWorld->m_blocks[ m_paintBlock ]->RegenerateMesh();
 	}
 	
@@ -1483,15 +1483,15 @@ void EdPaintSurfsEditMode::Draw()
 
 EdAddEntityEditMode::EdAddEntityEditMode()
 {
-	m_entityProps = m_entGroup.m_buttons[0].m_ent_handle;
+	m_entType = m_entGroup.m_buttons[0].caption;
 }
 
 void EdAddEntityEditMode::OnEnter()
 {
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBAddEntity );
-	g_UIFrame->SetCursorPlaneHeight( m_entityProps->Pos().z );
+	g_UIFrame->SetCursorPlaneHeight( 0 ); // m_entityProps->Pos().z );
 	g_UIFrame->AddToParamList( &m_entGroup );
-	g_UIFrame->AddToParamList( m_entityProps );
+//	g_UIFrame->AddToParamList( m_entityProps );
 }
 
 int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
@@ -1499,14 +1499,16 @@ int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_SETENTITY:
-		SetEntityType( ((EDGUIEntButton*)e->target)->m_ent_handle );
+		SetEntityType( e->target->caption );
 		break;
 		
 	case EDGUI_EVENT_PROPEDIT:
+#if 0
 		if( e->target == &m_entityProps->m_ctlPos )
 		{
 			g_UIFrame->SetCursorPlaneHeight( m_entityProps->Pos().z );
 		}
+#endif
 		break;
 	}
 	return EdEditMode::OnUIEvent( e );
@@ -1528,19 +1530,19 @@ void EdAddEntityEditMode::Draw()
 	g_UIFrame->DrawCursor( false );
 }
 
-void EdAddEntityEditMode::SetEntityType( const EdEntityHandle& eh )
+void EdAddEntityEditMode::SetEntityType( const StringView& eh )
 {
-	m_entityProps = eh;
+	m_entType = eh;
 	g_UIFrame->ClearParamList();
 	g_UIFrame->AddToParamList( &m_entGroup );
-	g_UIFrame->AddToParamList( m_entityProps );
+//	g_UIFrame->AddToParamList( m_entityProps );
 }
 
 void EdAddEntityEditMode::_AddNewEntity()
 {
 	Vec2 pos = g_UIFrame->GetCursorPlanePos();
 	
-	EdEntity* N = m_entityProps->CloneEntity();
+	EdEntity* N = new EdEntNew; //m_entityProps->CloneEntity();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
 	g_EdWorld->AddObject( N );
 }

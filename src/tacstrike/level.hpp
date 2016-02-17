@@ -400,6 +400,13 @@ struct GameLevel :
 	bool GetEditorMode() const { return m_editorMode; }
 	
 	bool Load( const StringView& levelname );
+	template< class T > void RegisterNativeEntity( StringView type )
+	{
+		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
+		m_scriptCtx.SetGlobal( type, iface );
+		m_scriptCtx.Registry().getprop( "entities" ).setprop( m_scriptCtx.CreateStringVar( type ), iface );
+	}
+	void EnumEntities( Array< StringView >& out );
 	Entity* CreateEntity( const StringView& type );
 	void DestroyEntity( Entity* eptr );
 	StackShortName GenerateName();

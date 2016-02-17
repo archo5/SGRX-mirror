@@ -52,6 +52,7 @@ void EdEntity::DebugDraw()
 }
 
 
+#if 0
 EdEntMesh::EdEntMesh( bool isproto ) :
 	EdEntity( isproto ),
 	m_ctlAngles( V3(0), 2, V3(0), V3(360) ),
@@ -289,6 +290,7 @@ EdEntity* EdEntLightSample::CloneEntity()
 	*N = *this;
 	return N;
 }
+#endif
 
 
 SGSPropInterface::SGSPropInterface()
@@ -310,8 +312,8 @@ void SGSPropInterface::Data2Fields()
 		case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*) F.property)->SetValue( val.get<float>() ); break;
 		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*) F.property)->SetValue( val.get<Vec2>() ); break;
 		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*) F.property)->SetValue( val.get<Vec3>() ); break;
-		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*) F.property)->SetValue( val.get<String>() ); break;
-		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*) F.property)->SetValue( val.get<String>() ); break;
+		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*) F.property)->SetValue( val.get<StringView>() ); break;
+		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*) F.property)->SetValue( val.get<StringView>() ); break;
 		case EDGUI_ITEM_PROP_SCRITEM: ((EDGUIPropScrItem*) F.property)->SetProps( val ); break;
 		}
 	}
@@ -319,19 +321,19 @@ void SGSPropInterface::Data2Fields()
 
 void SGSPropInterface::Fields2Data()
 {
-	sgsVariable data = g_ScriptCtx->CreateDict();
+	sgsVariable data = FNewDict();
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		Field& F = m_fields[ i ];
 		switch( F.property->type )
 		{
-		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, sgsVariable().set(((EDGUIPropBool*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, sgsVariable().set( (sgs_Int) ((EDGUIPropInt*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, sgsVariable().set(((EDGUIPropFloat*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, g_ScriptCtx->CreateVec2( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, g_ScriptCtx->CreateVec3( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, g_ScriptCtx->CreateStringVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, g_ScriptCtx->CreateStringVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FVar(((EDGUIPropBool*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, FVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FVar(((EDGUIPropFloat*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
 		case EDGUI_ITEM_PROP_SCRITEM: data.setprop( F.key, ((EDGUIPropScrItem*) F.property)->GetProps() ); break;
 		}
 	}
@@ -469,6 +471,7 @@ sgsVariable EDGUIPropScrItem::GetProps()
 }
 
 
+#if 0
 EdEntScripted::EdEntScripted( const char* enttype, bool isproto ) :
 	EdEntity( isproto ),
 	m_subEntAddBtn( NULL ),
@@ -775,6 +778,38 @@ void EdEntScripted::SetScriptedItem( StringView name, sgsVariable args )
 		cached_scritem->Release();
 	cached_scritem = nsi;
 }
+#endif
+
+
+EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
+{
+	ASSERT( strcmp( tyname, o.tyname ) == 0 );
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		m_fields[ i ].property->TakeValue( o.m_fields[ i ].property );
+	}
+	Fields2Data();
+	return *this;
+}
+
+EdEntity* EdEntNew::CloneEntity()
+{
+	EdEntNew* N = new EdEntNew( tyname, false );
+	*N = *this;
+	return N;
+}
+
+void EdEntNew::ClearFields()
+{
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		if( m_fields[ i ].property == &m_ctlPos )
+			continue;
+		delete m_fields[ i ].property;
+	}
+	m_fields.clear();
+}
+
 
 static int EE_AddFieldBool( SGS_CTX )
 {
@@ -1085,6 +1120,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 EDGUIEntList::EDGUIEntList() :
 	EDGUIGroup( true, "Pick an entity type" )
 {
+#if 0
 	Array< Decl > ents;
 	Decl coreents[] =
 	{
@@ -1106,14 +1142,16 @@ EDGUIEntList::EDGUIEntList() :
 			ents.push_back( decl );
 		}
 	}
+#endif
+	Array< StringView > ents;
+	g_Level->EnumEntities( ents );
 	
 	m_button_count = ents.size();
-	m_buttons = new EDGUIEntButton[ m_button_count ];
+	m_buttons = new EDGUIButton[ m_button_count ];
 	
 	for( int i = 0; i < m_button_count; ++i )
 	{
-		m_buttons[ i ].caption = ents[ i ].name;
-		m_buttons[ i ].m_ent_handle = ents[ i ].ent;
+		m_buttons[ i ].caption = ents[ i ];
 		
 		Add( &m_buttons[ i ] );
 	}
@@ -1147,6 +1185,7 @@ int EDGUIEntList::OnEvent( EDGUIEvent* e )
 	return EDGUIGroup::OnEvent( e );
 }
 
+#if 0
 EdEntity* ENT_FindProtoByName( const char* name )
 {
 	for( int i = 0; i < g_EdEntList->m_button_count; ++i )
@@ -1157,6 +1196,7 @@ EdEntity* ENT_FindProtoByName( const char* name )
 	}
 	return NULL;
 }
+#endif
 
 
 
