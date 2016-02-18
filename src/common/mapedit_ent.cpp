@@ -783,6 +783,28 @@ void EdEntScripted::SetScriptedItem( StringView name, sgsVariable args )
 #endif
 
 
+EdEntNew::EdEntNew( sgsString type, bool isproto ) : EdEntity( isproto ), m_entityType( type )
+{
+	StringView typestr( type.c_str(), type.size() );
+	sgsVariable eiface = g_Level->GetEntityInterface( typestr );
+	m_iconTex = GR_GetTexture( eiface.getprop("ED_Icon").getdef<StringView>( "editor/icons/default.png" ) );
+	
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s properties", StackString<240>(typestr).str );
+	m_group.caption = bfr;
+	m_group.SetOpen( true );
+//	m_group.Add( &m_ctlPos );
+	Add( &m_group );
+	
+	{
+		SGS_CSCOPE( g_Level->GetSGSC() );
+		sgs_PushPtr( g_Level->GetSGSC(), (void*) GetPropInterface() );
+		eiface.thiscall( g_Level->GetSGSC(), "ED_PropInfo", 1 );
+	}
+	
+	Fields2Data();
+}
+
 EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
 {
 	m_entityType = o.m_entityType;
@@ -796,7 +818,7 @@ EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
 
 EdEntity* EdEntNew::CloneEntity()
 {
-	EdEntNew* N = new EdEntNew( m_entityType );
+	EdEntNew* N = new EdEntNew( m_entityType, false );
 	*N = *this;
 	return N;
 }
@@ -1204,11 +1226,12 @@ EDGUIEntList::EDGUIEntList() :
 	ASSERT( ents.size() > 0 && "No entities were found!" );
 	
 	m_button_count = ents.size();
-	m_buttons = new EDGUIButton[ m_button_count ];
+	m_buttons = new EDGUIEntButton[ m_button_count ];
 	
 	for( int i = 0; i < m_button_count; ++i )
 	{
 		m_buttons[ i ].caption = ents[ i ];
+		m_buttons[ i ].protoEnt = new EdEntNew( FVar( ents[ i ] ).get_string(), true );
 		
 		Add( &m_buttons[ i ] );
 	}

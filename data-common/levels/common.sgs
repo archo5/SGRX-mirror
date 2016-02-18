@@ -1,5 +1,15 @@
 
 //
+// Editor helper functions
+function PropInfo_XForm( eptr )
+{
+	EE_AddFieldVec3( eptr, "position", "Position", 0, 2 );
+	EE_AddFieldVec3( eptr, "rotationXYZ", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldVec3( eptr, "scale", "Scale", 1, 2, 0.01, 100 );
+}
+
+
+//
 // Entity extension functions
 //
 function ENTITY( name, inhname )
@@ -13,6 +23,12 @@ function ENTITY( name, inhname )
 	};
 	sym_register( name, data );
 	level.entity_types[ name ] = data;
+}
+
+Entity.ED_Icon = "editor/icons/default.png";
+function Entity.ED_PropInfo( eptr )
+{
+	PropInfo_XForm( eptr );
 }
 
 
@@ -73,6 +89,12 @@ function Trigger.SetupTrigger( once, fn, fnout )
 //
 global BoxTrigger = clone( Trigger );
 ENTITY( "BoxTrigger", "Entity" );
+
+BoxTrigger.ED_Icon = "editor/icons/trigger.png";
+function BoxTrigger.ED_PropInfo( eptr )
+{
+	PropInfo_XForm( eptr );
+}
 
 function BoxTrigger.Update( dt )
 {

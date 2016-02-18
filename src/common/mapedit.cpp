@@ -1801,6 +1801,18 @@ void EDGUIPaintProps::_UpdateColor()
 
 
 
+void ReconfigureEntities( StringView levname )
+{
+	g_Level->GetScriptCtx().Include( "levels/_template" );
+	if( levname )
+	{
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, sizeof(bfr), "levels/%s", StackString<240>(levname).str );
+		g_Level->GetScriptCtx().Include( bfr );
+	}
+}
+
+
 EdWorld::EdWorld() :
 	m_ctlGroup( true, "Level properties" ),
 	m_ctlAmbientColor( V3(0,0,0.1f), 2, V3(0), V3(1,1,100) ),
@@ -1860,6 +1872,7 @@ EdWorld::EdWorld() :
 	m_ctlGroup.Add( &m_ctlAONumSamples );
 	m_ctlGroup.Add( &m_ctlSampleDensity );
 	
+	ReconfigureEntities( "" );
 	TestData();
 }
 
@@ -1905,7 +1918,7 @@ void EdWorld::FLoad( sgsVariable obj )
 			case ObjType_Patch: obj = new EdPatch; break;
 			case ObjType_MeshPath: obj = new EdMeshPath; break;
 			case ObjType_Entity:
-				obj = new EdEntNew( object.getprop( "entity_type" ).get_string() );
+				obj = new EdEntNew( object.getprop( "entity_type" ).get_string(), false );
 				break;
 			default:
 				LOG_ERROR << "Failed to load World!";
@@ -3072,7 +3085,7 @@ void EDGUIMainFrame::ResetEditorState()
 
 void EDGUIMainFrame::Level_New()
 {
-////	g_UIScrFnPicker->m_levelName = m_fileName = "";
+	ReconfigureEntities( "" );
 	g_EdWorld->Reset();
 	g_EdLGCont->Reset();
 	ResetEditorState();
@@ -3130,6 +3143,7 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 	}
 	
 	ResetEditorState();
+	ReconfigureEntities( str );
 	
 	if( SV(data).part( 0, 5 ) == "WORLD" )
 	{
@@ -3159,7 +3173,7 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 	
 	g_EdLGCont->LoadLightmaps( str );
 	
-//	g_UIScrFnPicker->m_levelName = m_fileName = str;
+	m_fileName = str;
 }
 
 void EDGUIMainFrame::Level_Real_Save( const String& str )
@@ -3185,7 +3199,8 @@ void EDGUIMainFrame::Level_Real_Save( const String& str )
 	
 	g_EdLGCont->SaveLightmaps( str );
 	
-//	g_UIScrFnPicker->m_levelName = m_fileName = str;
+	m_fileName = str;
+	ReconfigureEntities( str );
 }
 
 void EDGUIMainFrame::Level_Real_Compile()

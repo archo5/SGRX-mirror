@@ -2232,9 +2232,7 @@ struct EdEntNew : EdEntity, SGSPropInterface
 	virtual void Serialize( SVHBR& arch ){}
 	virtual void Serialize( SVHBW& arch ){}
 	
-	EdEntNew( sgsString type ) : EdEntity( false ), m_entityType( type )
-	{
-	}
+	EdEntNew( sgsString type, bool isproto );
 	EdEntNew& operator = ( const EdEntNew& o );
 	virtual EdEntity* CloneEntity();
 	void FLoad( sgsVariable data, int version );
@@ -2256,6 +2254,13 @@ struct EdEntNew : EdEntity, SGSPropInterface
 extern sgs_RegIntConst g_ent_scripted_ric[];
 extern sgs_RegFuncConst g_ent_scripted_rfc[];
 
+struct EDGUIEntButton : EDGUIButton
+{
+	EDGUIEntButton(){ tyname = "entity-button"; }
+	
+	EdEntityHandle protoEnt;
+};
+
 struct EDGUIEntList : EDGUIGroup
 {
 #if 0
@@ -2269,7 +2274,7 @@ struct EDGUIEntList : EDGUIGroup
 	~EDGUIEntList();
 	virtual int OnEvent( EDGUIEvent* e );
 	
-	EDGUIButton* m_buttons;
+	EDGUIEntButton* m_buttons;
 	int m_button_count;
 };
 
@@ -2872,13 +2877,10 @@ struct EdAddEntityEditMode : EdEditMode
 	int OnUIEvent( EDGUIEvent* e );
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
-	void SetEntityType( const StringView& eh );
+	void SetEntityType( const EdEntityHandle& eh );
 	void _AddNewEntity();
 	
-#if 0
 	EdEntityHandle m_entityProps;
-#endif
-	String m_entType;
 	EDGUIEntList m_entGroup;
 };
 

@@ -377,6 +377,11 @@ void GameLevel::EnumEntities( Array< StringView >& out )
 	}
 }
 
+sgsVariable GameLevel::GetEntityInterface( StringView name )
+{
+	return m_self.getprop( "entity_types" ).getprop( m_scriptCtx.CreateString( name ) );
+}
+
 Entity* GameLevel::CreateEntity( const StringView& type )
 {
 	for( size_t i = 0; i < m_systems.size(); ++i )

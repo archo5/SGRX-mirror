@@ -1483,7 +1483,7 @@ void EdPaintSurfsEditMode::Draw()
 
 EdAddEntityEditMode::EdAddEntityEditMode()
 {
-	m_entType = m_entGroup.m_buttons[0].caption;
+	m_entityProps = m_entGroup.m_buttons[0].protoEnt;
 }
 
 void EdAddEntityEditMode::OnEnter()
@@ -1491,7 +1491,7 @@ void EdAddEntityEditMode::OnEnter()
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBAddEntity );
 	g_UIFrame->SetCursorPlaneHeight( 0 ); // m_entityProps->Pos().z );
 	g_UIFrame->AddToParamList( &m_entGroup );
-//	g_UIFrame->AddToParamList( m_entityProps );
+	g_UIFrame->AddToParamList( m_entityProps );
 }
 
 int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
@@ -1499,7 +1499,7 @@ int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_SETENTITY:
-		SetEntityType( e->target->caption );
+		SetEntityType( ((EDGUIEntButton*)e->target)->protoEnt );
 		break;
 		
 	case EDGUI_EVENT_PROPEDIT:
@@ -1530,19 +1530,19 @@ void EdAddEntityEditMode::Draw()
 	g_UIFrame->DrawCursor( false );
 }
 
-void EdAddEntityEditMode::SetEntityType( const StringView& eh )
+void EdAddEntityEditMode::SetEntityType( const EdEntityHandle& eh )
 {
-	m_entType = eh;
+	m_entityProps = eh;
 	g_UIFrame->ClearParamList();
 	g_UIFrame->AddToParamList( &m_entGroup );
-//	g_UIFrame->AddToParamList( m_entityProps );
+	g_UIFrame->AddToParamList( m_entityProps );
 }
 
 void EdAddEntityEditMode::_AddNewEntity()
 {
 	Vec2 pos = g_UIFrame->GetCursorPlanePos();
 	
-	EdEntity* N = new EdEntNew( FVar( m_entType ).get_string() ); //m_entityProps->CloneEntity();
+	EdEntity* N = m_entityProps->CloneEntity();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
 	g_EdWorld->AddObject( N );
 }

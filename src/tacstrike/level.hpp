@@ -407,6 +407,7 @@ struct GameLevel :
 		m_scriptCtx.SetGlobal( type, iface );
 		m_self.getprop( "entity_types" ).setprop( m_scriptCtx.CreateStringVar( type ), iface );
 	}
+	sgsVariable GetEntityInterface( StringView name );
 	void EnumEntities( Array< StringView >& out );
 	Entity* CreateEntity( const StringView& type );
 	void DestroyEntity( Entity* eptr );
