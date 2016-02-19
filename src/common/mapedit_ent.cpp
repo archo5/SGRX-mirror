@@ -293,71 +293,6 @@ EdEntity* EdEntLightSample::CloneEntity()
 #endif
 
 
-SGSPropInterface::SGSPropInterface()
-{
-}
-
-void SGSPropInterface::Data2Fields()
-{
-	for( size_t i = 0; i < m_fields.size(); ++i )
-	{
-		Field& F = m_fields[ i ];
-		sgsVariable val = m_data.getprop( F.key );
-		if( val.type_id() == SGS_VT_NULL )
-			continue;
-		switch( F.property->type )
-		{
-		case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*) F.property)->SetValue( val.get<bool>() ); break;
-		case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*) F.property)->SetValue( val.get<int>() ); break;
-		case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*) F.property)->SetValue( val.get<float>() ); break;
-		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*) F.property)->SetValue( val.get<Vec2>() ); break;
-		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*) F.property)->SetValue( val.get<Vec3>() ); break;
-		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*) F.property)->SetValue( val.get<StringView>() ); break;
-		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*) F.property)->SetValue( val.get<StringView>() ); break;
-	//	case EDGUI_ITEM_PROP_SCRITEM: ((EDGUIPropScrItem*) F.property)->SetProps( val ); break;
-		}
-	}
-}
-
-void SGSPropInterface::Fields2Data()
-{
-	sgsVariable data = FNewDict();
-	for( size_t i = 0; i < m_fields.size(); ++i )
-	{
-		Field& F = m_fields[ i ];
-		switch( F.property->type )
-		{
-		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FIntVar(((EDGUIPropBool*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, FIntVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FIntVar(((EDGUIPropFloat*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FIntVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
-	//	case EDGUI_ITEM_PROP_SCRITEM: data.setprop( F.key, ((EDGUIPropScrItem*) F.property)->GetProps() ); break;
-		}
-	}
-	m_data = data;
-}
-
-void SGSPropInterface::AddField( sgsString key, StringView name, EDGUIProperty* prop )
-{
-#if 0
-	if( prop->type == EDGUI_ITEM_PROP_SCRITEM )
-	{
-		SGRX_CAST( EDGUIPropScrItem*, psi, prop );
-		psi->m_group.caption = name;
-		psi->m_group.SetOpen( true );
-	}
-	else
-#endif
-	{
-		prop->caption = name;
-	}
-	Field F = { key, prop };
-	m_fields.push_back( F );
-	GetGroup().Add( prop );
-}
 
 
 #if 0
@@ -797,11 +732,16 @@ EdEntNew::EdEntNew( sgsString type, bool isproto ) : EdEntity( isproto ), m_enti
 	
 	{
 		SGS_CSCOPE( g_Level->GetSGSC() );
-		sgs_PushPtr( g_Level->GetSGSC(), (void*) GetPropInterface() );
+		sgs_PushPtr( g_Level->GetSGSC(), this );
 		eiface.thiscall( g_Level->GetSGSC(), "ED_PropInfo", 1 );
 	}
 	
 	Fields2Data();
+}
+
+EdEntNew::~EdEntNew()
+{
+	ClearFields();
 }
 
 EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
@@ -908,6 +848,55 @@ void EdEntNew::SetPosition( const Vec3& pos )
 	Fields2Data();
 }
 
+void EdEntNew::Data2Fields()
+{
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		Field& F = m_fields[ i ];
+		sgsVariable val = m_data.getprop( F.key );
+		if( val.type_id() == SGS_VT_NULL )
+			continue;
+		switch( F.property->type )
+		{
+		case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*) F.property)->SetValue( val.get<bool>() ); break;
+		case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*) F.property)->SetValue( val.get<int>() ); break;
+		case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*) F.property)->SetValue( val.get<float>() ); break;
+		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*) F.property)->SetValue( val.get<Vec2>() ); break;
+		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*) F.property)->SetValue( val.get<Vec3>() ); break;
+		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*) F.property)->SetValue( val.get<StringView>() ); break;
+		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*) F.property)->SetValue( val.get<StringView>() ); break;
+		}
+	}
+}
+
+void EdEntNew::Fields2Data()
+{
+	sgsVariable data = FNewDict();
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		Field& F = m_fields[ i ];
+		switch( F.property->type )
+		{
+		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FIntVar(((EDGUIPropBool*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, FIntVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FIntVar(((EDGUIPropFloat*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FIntVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
+		}
+	}
+	m_data = data;
+}
+
+void EdEntNew::AddField( sgsString key, StringView name, EDGUIProperty* prop )
+{
+	prop->caption = name;
+	Field F = { key, prop };
+	m_fields.push_back( F );
+	m_group.Add( prop );
+}
+
 void EdEntNew::ClearFields()
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
@@ -921,7 +910,7 @@ void EdEntNew::ClearFields()
 static int EE_AddFieldBool( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldBool" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	bool def = sgs_StackSize( C ) > 3 ? sgs_GetVar<bool>()( C, 3 ) : false;
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
@@ -932,7 +921,7 @@ static int EE_AddFieldBool( SGS_CTX )
 static int EE_AddFieldInt( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldInt" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	int32_t def = sgs_StackSize( C ) > 3 ? sgs_GetVar<int32_t>()( C, 3 ) : 0;
 	int32_t min = sgs_StackSize( C ) > 4 ? sgs_GetVar<int32_t>()( C, 4 ) : 0x80000000;
 	int32_t max = sgs_StackSize( C ) > 5 ? sgs_GetVar<int32_t>()( C, 5 ) : 0x7fffffff;
@@ -945,7 +934,7 @@ static int EE_AddFieldInt( SGS_CTX )
 static int EE_AddFieldFloat( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldFloat" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	float def = sgs_StackSize( C ) > 3 ? sgs_GetVar<float>()( C, 3 ) : 0;
 	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	float min = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
@@ -959,7 +948,7 @@ static int EE_AddFieldFloat( SGS_CTX )
 static int EE_AddFieldVec2( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec2" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	Vec2 def = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec2>()( C, 3 ) : V2(0);
 	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	Vec2 min = sgs_StackSize( C ) > 5 ? sgs_GetVar<Vec2>()( C, 5 ) : V2(-FLT_MAX);
@@ -973,7 +962,7 @@ static int EE_AddFieldVec2( SGS_CTX )
 static int EE_AddFieldVec3( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec3" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	Vec3 def = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec3>()( C, 3 ) : V3(0);
 	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	Vec3 min = sgs_StackSize( C ) > 5 ? sgs_GetVar<Vec3>()( C, 5 ) : V3(-FLT_MAX);
@@ -987,7 +976,7 @@ static int EE_AddFieldVec3( SGS_CTX )
 static int EE_AddFieldString( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldString" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -997,7 +986,7 @@ static int EE_AddFieldString( SGS_CTX )
 static int EE_AddFieldMesh( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldMesh" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -1007,7 +996,7 @@ static int EE_AddFieldMesh( SGS_CTX )
 static int EE_AddFieldTex( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldTex" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -1017,7 +1006,7 @@ static int EE_AddFieldTex( SGS_CTX )
 static int EE_AddFieldChar( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldChar" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -1027,7 +1016,7 @@ static int EE_AddFieldChar( SGS_CTX )
 static int EE_AddFieldPartSys( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldPartSys" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -1037,7 +1026,7 @@ static int EE_AddFieldPartSys( SGS_CTX )
 static int EE_AddFieldSound( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldSound" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -1048,7 +1037,7 @@ static int EE_AddFieldSound( SGS_CTX )
 static int EE_AddFieldScrFn( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldScrFn" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -1058,7 +1047,7 @@ static int EE_AddFieldScrFn( SGS_CTX )
 static int EE_AddFieldScrItem( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldScrItem" );
-	SGRX_CAST( SGSPropInterface*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
 	EDGUIPropVec3* posprop = E->IsScrEnt() ?
 		&((EdEntScripted*)E)->m_ctlPos :
 		((EDGUIPropScrItem*)E)->m_pctlPos;
@@ -1071,7 +1060,7 @@ static int EE_AddFieldScrItem( SGS_CTX )
 static int EE_AddButtonSubent( SGS_CTX )
 {
 	SGSFN( "EE_AddButtonSubent" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -1082,7 +1071,7 @@ static int EE_AddButtonSubent( SGS_CTX )
 static int EE_SetChar( SGS_CTX )
 {
 	SGSFN( "EE_SetChar" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -1094,7 +1083,7 @@ static int EE_SetChar( SGS_CTX )
 static int EE_SetMeshInstanceCount( SGS_CTX )
 {
 	SGSFN( "EE_SetMeshInstanceCount" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -1104,7 +1093,7 @@ static int EE_SetMeshInstanceCount( SGS_CTX )
 static int EE_SetMeshInstanceData( SGS_CTX )
 {
 	SGSFN( "EE_SetMeshInstanceData" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -1125,7 +1114,7 @@ static int EE_SetMeshInstanceData( SGS_CTX )
 static int EE_GetMeshAABB( SGS_CTX )
 {
 	SGSFN( "EE_GetMeshAABB" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -1138,19 +1127,18 @@ static int EE_GetMeshAABB( SGS_CTX )
 static int EE_SetScriptedItem( SGS_CTX )
 {
 	SGSFN( "EE_SetScriptedItem" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
 	E->SetScriptedItem( sgs_GetVar<StringView>()( C, 1 ), sgsVariable( C, 2 ) );
 	return 0;
 }
-#endif
 
 static int EE_SetChangeFunc( SGS_CTX )
 {
 	SGSFN( "EE_SetChangeFunc" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -1160,7 +1148,7 @@ static int EE_SetChangeFunc( SGS_CTX )
 static int EE_SetDebugDrawFunc( SGS_CTX )
 {
 	SGSFN( "EE_SetDebugDrawFunc" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -1170,13 +1158,14 @@ static int EE_SetDebugDrawFunc( SGS_CTX )
 static int EE_SetGatherFunc( SGS_CTX )
 {
 	SGSFN( "EE_SetGatherFunc" );
-	SGRX_CAST( SGSPropInterface*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
 	E->onGather = sgs_GetVar<sgsVariable>()( C, 1 );
 	return 0;
 }
+#endif
 
 static int EE_GenMatrix_SRaP( SGS_CTX )
 {
@@ -1219,10 +1208,10 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_SetMeshInstanceData", EE_SetMeshInstanceData },
 	{ "EE_GetMeshAABB", EE_GetMeshAABB },
 	{ "EE_SetScriptedItem", EE_SetScriptedItem },
-#endif
 	{ "EE_SetChangeFunc", EE_SetChangeFunc },
 	{ "EE_SetDebugDrawFunc", EE_SetDebugDrawFunc },
 	{ "EE_SetGatherFunc", EE_SetGatherFunc },
+#endif
 	{ "EE_GenMatrix_SRaP", EE_GenMatrix_SRaP },
 	SGS_RC_END(),
 };

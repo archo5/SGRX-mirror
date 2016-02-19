@@ -2143,32 +2143,7 @@ struct EdEntLightSample : EdEntity
 };
 
 
-// #define EDGUI_ITEM_PROP_SCRITEM 1001
-
-struct SGSPropInterface
-{
-	struct Field
-	{
-		sgsString key;
-		EDGUIProperty* property;
-	};
-	
-	SGSPropInterface();
-	
-	virtual void ClearFields() = 0;
-	void Data2Fields();
-	void Fields2Data();
-	SGSPropInterface* GetPropInterface(){ return this; } // instead of casting away multiple inheritance..
-	
-	void AddField( sgsString key, StringView name, EDGUIProperty* prop );
-	
-	virtual EDGUIGroup& GetGroup() = 0;
-	virtual bool IsScrEnt(){ return false; }
-	
-	sgsVariable m_data;
-	Array< Field > m_fields;
-};
-
+#if 0
 struct EDGUIPropScrItem : EDGUIProperty, SGSPropInterface
 {
 	EDGUIPropScrItem( EDGUIPropVec3* posprop, const StringView& def = "" );
@@ -2241,16 +2216,23 @@ struct EdEntScripted : EdEntity, SGSPropInterface
 	MeshInstHandle cached_specmeshinst;
 	SGRX_ScriptedItem* cached_scritem;
 };
+#endif
 
-
-struct EdEntNew : EdEntity, SGSPropInterface
+struct EdEntNew : EdEntity
 {
+	struct Field
+	{
+		sgsString key;
+		EDGUIProperty* property;
+	};
+	
 	virtual void Serialize( SVHTR& arch ){}
 	virtual void Serialize( SVHTW& arch ){}
 	virtual void Serialize( SVHBR& arch );
 	virtual void Serialize( SVHBW& arch );
 	
 	EdEntNew( sgsString type, bool isproto );
+	~EdEntNew();
 	EdEntNew& operator = ( const EdEntNew& o );
 	virtual EdEntity* CloneEntity();
 	void FLoad( sgsVariable data, int version );
@@ -2258,10 +2240,14 @@ struct EdEntNew : EdEntity, SGSPropInterface
 	virtual void SetPosition( const Vec3& pos );
 	
 	// SGSPropInterface
+	void Data2Fields();
+	void Fields2Data();
+	void AddField( sgsString key, StringView name, EDGUIProperty* prop );
 	void ClearFields();
-	EDGUIGroup& GetGroup(){ return m_group; }
 	
 	sgsString m_entityType;
+	sgsVariable m_data;
+	Array< Field > m_fields;
 };
 
 

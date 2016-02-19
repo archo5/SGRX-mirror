@@ -1505,7 +1505,7 @@ int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_PROPEDIT:
 		for( size_t i = 0; i < ((EdEntNew*)m_entityProps.item)->m_fields.size(); ++i )
 		{
-			SGSPropInterface::Field& F = ((EdEntNew*)m_entityProps.item)->m_fields[ i ];
+			EdEntNew::Field& F = ((EdEntNew*)m_entityProps.item)->m_fields[ i ];
 			if( F.property == e->target &&
 				F.property->type == EDGUI_ITEM_PROP_VEC3 &&
 				F.key.equals( "position" ) )
