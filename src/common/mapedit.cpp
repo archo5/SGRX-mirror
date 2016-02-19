@@ -1883,6 +1883,8 @@ EdWorld::~EdWorld()
 
 void EdWorld::FLoad( sgsVariable obj )
 {
+	Reset();
+	
 	int version = FLoadProp( obj, "version", 0 );
 	
 	sgsVariable lighting = obj.getprop("lighting");

@@ -854,6 +854,22 @@ inline sgsVariable FVar( Vec3 val )
 	FSaveProp( v, "z", val.z );
 	return v;
 }
+inline sgsVariable FIntVar( bool val ){ return sgsVariable().set_bool( val ); }
+inline sgsVariable FIntVar( int val ){ return sgsVariable().set_int( val ); }
+inline sgsVariable FIntVar( uint32_t val ){ return sgsVariable().set_int( val ); }
+inline sgsVariable FIntVar( float val ){ return sgsVariable().set_real( val ); }
+inline sgsVariable FIntVar( StringView val )
+{
+	return g_Level->GetScriptCtx().CreateString( val );
+}
+inline sgsVariable FIntVar( Vec2 val )
+{
+	return g_Level->GetScriptCtx().CreateVec2( val );
+}
+inline sgsVariable FIntVar( Vec3 val )
+{
+	return g_Level->GetScriptCtx().CreateVec3( val );
+}
 template< class T > void FSaveProp( sgsVariable obj, const char* prop, T value )
 {
 	obj.setprop( prop, FVar( value ) );
@@ -865,6 +881,7 @@ template< class T > void FSaveProp( sgsVariable obj, const char* prop, Array<T>&
 	{
 		FArrayAppend( arr, FVar( values[ i ] ) );
 	}
+	obj.setprop( prop, arr );
 }
 
 
@@ -1023,6 +1040,7 @@ struct EdBlock : EdObject
 	{
 		// type already parsed
 		uint32_t oldsolidid = solid_id;
+		solid_id = FLoadProp( data, "solid_id", 0 );
 		if( solid_id != oldsolidid )
 		{
 			if( oldsolidid )
@@ -1030,7 +1048,6 @@ struct EdBlock : EdObject
 			if( solid_id )
 				g_EdLGCont->RequestSolid( solid_id );
 		}
-		solid_id = FLoadProp( data, "solid_id", 0 );
 		group = FLoadProp( data, "group", 0 );
 		position = FLoadProp( data, "position", V3(0) );
 		z0 = FLoadProp( data, "z0", 0 );
@@ -1057,6 +1074,9 @@ struct EdBlock : EdObject
 				surfaces.push_back( surf );
 			}
 		}
+		
+		subsel.resize_using( GetNumVerts() + GetNumSurfs(), false );
+		RegenerateMesh();
 	}
 	sgsVariable FSave( int version )
 	{
@@ -1911,19 +1931,17 @@ struct EdEntity : EDGUILayoutRow, EdObject
 		EdObject( ObjType_Entity ),
 		m_isproto( isproto ),
 		m_group( true, "Entity properties" ),
-		m_ctlPos( V3(0), 2, V3(-8192), V3(8192) )
+		m_pos( V3(0) )
 	{
-		tyname = "_entity_overrideme_";
-		
-		m_ctlPos.caption = "Position";
+		tyname = "entity";
 	}
 	
 	void BeforeDelete();
 	void LoadIcon();
 	
-	const Vec3& Pos() const { return m_ctlPos.m_value; }
+	const Vec3& Pos() const { return m_pos; }
 	virtual Vec3 GetPosition() const { return Pos(); }
-	virtual void SetPosition( const Vec3& pos ){ m_ctlPos.SetValue( pos ); }
+	virtual void SetPosition( const Vec3& pos ){ m_pos = pos; }
 	virtual void ScaleVertices( const Vec3& ){}
 	
 	virtual int OnEvent( EDGUIEvent* e ){ return EDGUILayoutRow::OnEvent( e ); }
@@ -1960,7 +1978,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	
 	bool m_isproto;
 	EDGUIGroup m_group;
-	EDGUIPropVec3 m_ctlPos;
+	Vec3 m_pos;
 	TextureHandle m_iconTex;
 	
 	Handle< EdEntity > m_ownerEnt;
@@ -1984,7 +2002,7 @@ struct EdEntMesh : EdEntity
 	const Vec3& RotAngles() const { return m_ctlAngles.m_value; }
 	float ScaleUni() const { return m_ctlScaleUni.m_value; }
 	const Vec3& ScaleSep() const { return m_ctlScaleSep.m_value; }
-	Mat4 Matrix() const { return Mat4::CreateSRT( m_ctlScaleSep.m_value * m_ctlScaleUni.m_value, DEG2RAD( m_ctlAngles.m_value ), m_ctlPos.m_value ); }
+	Mat4 Matrix() const { return Mat4::CreateSRT( m_ctlScaleSep.m_value * m_ctlScaleUni.m_value, DEG2RAD( m_ctlAngles.m_value ), m_pos ); }
 	
 	EdEntMesh& operator = ( const EdEntMesh& o );
 	virtual EdEntity* CloneEntity();
@@ -2000,7 +2018,7 @@ struct EdEntMesh : EdEntity
 			if( m_meshID )
 				g_EdLGCont->RequestMesh( m_meshID );
 		}
-		arch << m_ctlPos;
+		arch << m_pos;
 		arch << m_ctlAngles;
 		arch << m_ctlScaleUni;
 		arch << m_ctlScaleSep;
@@ -2060,7 +2078,7 @@ struct EdEntLight : EdEntity
 			if( m_lightID )
 				g_EdLGCont->RequestLight( m_lightID );
 		}
-		arch << m_ctlPos;
+		arch << m_pos;
 		arch << m_ctlRange;
 		arch << m_ctlPower;
 		arch << m_ctlColorHSV;
@@ -2114,7 +2132,7 @@ struct EdEntLightSample : EdEntity
 	
 	template< class T > void SerializeT( T& arch )
 	{
-		arch << m_ctlPos;
+		arch << m_pos;
 	}
 	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
@@ -2229,14 +2247,15 @@ struct EdEntNew : EdEntity, SGSPropInterface
 {
 	virtual void Serialize( SVHTR& arch ){}
 	virtual void Serialize( SVHTW& arch ){}
-	virtual void Serialize( SVHBR& arch ){}
-	virtual void Serialize( SVHBW& arch ){}
+	virtual void Serialize( SVHBR& arch );
+	virtual void Serialize( SVHBW& arch );
 	
 	EdEntNew( sgsString type, bool isproto );
 	EdEntNew& operator = ( const EdEntNew& o );
 	virtual EdEntity* CloneEntity();
 	void FLoad( sgsVariable data, int version );
 	sgsVariable FSave( int version );
+	virtual void SetPosition( const Vec3& pos );
 	
 	// SGSPropInterface
 	void ClearFields();

@@ -1,9 +1,14 @@
 
 //
 // Editor helper functions
+_G.
+{
+	EDPI_Pos_Min = -8192,
+	EDPI_Pos_Max = 8192,
+};
 function PropInfo_XForm( eptr )
 {
-	EE_AddFieldVec3( eptr, "position", "Position", 0, 2 );
+	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
 	EE_AddFieldVec3( eptr, "rotationXYZ", "Rotation", 0, 2, 0, 360 );
 	EE_AddFieldVec3( eptr, "scale", "Scale", 1, 2, 0.01, 100 );
 }

@@ -327,13 +327,13 @@ void SGSPropInterface::Fields2Data()
 		Field& F = m_fields[ i ];
 		switch( F.property->type )
 		{
-		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FVar(((EDGUIPropBool*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, FVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FVar(((EDGUIPropFloat*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FIntVar(((EDGUIPropBool*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, FIntVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FIntVar(((EDGUIPropFloat*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FIntVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
 	//	case EDGUI_ITEM_PROP_SCRITEM: data.setprop( F.key, ((EDGUIPropScrItem*) F.property)->GetProps() ); break;
 		}
 	}
@@ -793,7 +793,6 @@ EdEntNew::EdEntNew( sgsString type, bool isproto ) : EdEntity( isproto ), m_enti
 	sgrx_snprintf( bfr, 256, "%s properties", StackString<240>(typestr).str );
 	m_group.caption = bfr;
 	m_group.SetOpen( true );
-//	m_group.Add( &m_ctlPos );
 	Add( &m_group );
 	
 	{
@@ -807,6 +806,7 @@ EdEntNew::EdEntNew( sgsString type, bool isproto ) : EdEntity( isproto ), m_enti
 
 EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
 {
+	m_pos = o.m_pos;
 	m_entityType = o.m_entityType;
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
@@ -823,6 +823,23 @@ EdEntity* EdEntNew::CloneEntity()
 	return N;
 }
 
+void EdEntNew::Serialize( SVHBR& arch )
+{
+	arch << m_pos;
+	String data;
+	arch << data;
+	m_data = g_Level->GetScriptCtx().Unserialize( data );
+	Data2Fields();
+}
+
+void EdEntNew::Serialize( SVHBW& arch )
+{
+	arch << m_pos;
+	String data;
+	data = g_Level->GetScriptCtx().Serialize( m_data );
+	arch << data;
+}
+
 void EdEntNew::FLoad( sgsVariable data, int version )
 {
 	UNUSED( version );
@@ -831,18 +848,23 @@ void EdEntNew::FLoad( sgsVariable data, int version )
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		Field& F = m_fields[ i ];
-		sgsVariable val = data.getprop( F.key );
+		sgsVariable val = props.getprop( F.key );
 		switch( F.property->type )
 		{
 		case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*)F.property)->SetValue( FLoadVar( val, false ) ); break;
 		case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*)F.property)->SetValue( FLoadVar( val, int32_t(0) ) ); break;
 		case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*)F.property)->SetValue( FLoadVar( val, 0.0f ) ); break;
 		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)F.property)->SetValue( FLoadVar( val, V2(0) ) ); break;
-		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*)F.property)->SetValue( FLoadVar( val, V3(0) ) ); break;
+		case EDGUI_ITEM_PROP_VEC3:
+			((EDGUIPropVec3*)F.property)->SetValue( FLoadVar( val, V3(0) ) );
+			if( F.key.equals( "position" ) )
+				m_pos = ((EDGUIPropVec3*)F.property)->m_value;
+			break;
 		case EDGUI_ITEM_PROP_STRING:
 		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropString*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
 		}
 	}
+	Fields2Data();
 }
 
 sgsVariable EdEntNew::FSave( int version )
@@ -872,12 +894,24 @@ sgsVariable EdEntNew::FSave( int version )
 	return out;
 }
 
+void EdEntNew::SetPosition( const Vec3& pos )
+{
+	EdEntity::SetPosition( pos );
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		Field& F = m_fields[ i ];
+		if( F.key.equals( "position" ) && F.property->type == EDGUI_ITEM_PROP_VEC3 )
+		{
+			((EDGUIPropVec3*)F.property)->SetValue( m_pos );
+		}
+	}
+	Fields2Data();
+}
+
 void EdEntNew::ClearFields()
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		if( m_fields[ i ].property == &m_ctlPos )
-			continue;
 		delete m_fields[ i ].property;
 	}
 	m_fields.clear();

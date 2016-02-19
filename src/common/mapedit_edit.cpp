@@ -1489,7 +1489,7 @@ EdAddEntityEditMode::EdAddEntityEditMode()
 void EdAddEntityEditMode::OnEnter()
 {
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBAddEntity );
-	g_UIFrame->SetCursorPlaneHeight( 0 ); // m_entityProps->Pos().z );
+	g_UIFrame->SetCursorPlaneHeight( m_entityProps->Pos().z );
 	g_UIFrame->AddToParamList( &m_entGroup );
 	g_UIFrame->AddToParamList( m_entityProps );
 }
@@ -1503,12 +1503,16 @@ int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
 		break;
 		
 	case EDGUI_EVENT_PROPEDIT:
-#if 0
-		if( e->target == &m_entityProps->m_ctlPos )
+		for( size_t i = 0; i < ((EdEntNew*)m_entityProps.item)->m_fields.size(); ++i )
 		{
-			g_UIFrame->SetCursorPlaneHeight( m_entityProps->Pos().z );
+			SGSPropInterface::Field& F = ((EdEntNew*)m_entityProps.item)->m_fields[ i ];
+			if( F.property == e->target &&
+				F.property->type == EDGUI_ITEM_PROP_VEC3 &&
+				F.key.equals( "position" ) )
+			{
+				g_UIFrame->SetCursorPlaneHeight( ((EDGUIPropVec3*)F.property)->m_value.z );
+			}
 		}
-#endif
 		break;
 	}
 	return EdEditMode::OnUIEvent( e );
