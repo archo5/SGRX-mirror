@@ -1350,9 +1350,17 @@ struct Handle
 	T* operator -> () const { return item; }
 	T& operator * () const { return *item; }
 	operator T* () const { return item; }
+	enum InitBeforeUnserialize{ IBU };
 	template< class S > void Serialize( S& arch )
 	{
-		ASSERT( item );
+		if( S::IsReader && !item )
+		{
+			item = new T( IBU );
+		}
+		else
+		{
+			ASSERT( item );
+		}
 		arch << *item;
 	}
 };

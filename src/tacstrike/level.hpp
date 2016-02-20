@@ -21,9 +21,6 @@ extern sgs_ObjInterface g_sgsobj_empty_handle[1];
 
 
 typedef uint32_t TimeVal;
-typedef uint32_t EntityID;
-
-#define ENTID_NONE ((EntityID)0)
 
 
 struct LevelScrObj : SGRX_RefCounted
@@ -143,6 +140,9 @@ struct Entity : LevelScrObj, Transform
 	
 	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }
 	void SetInfoMask( uint32_t mask );
+	FINLINE StringView GetID() const { return StringView( m_id.c_str(), m_id.size() ); }
+	FINLINE void SetID( StringView id );
+	FINLINE void sgsSetID( sgsString id );
 	FINLINE Vec3 GetInfoTarget() const { return m_infoTarget; }
 	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
 	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
@@ -173,8 +173,8 @@ struct Entity : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME localInfoTarget ) Vec3 m_infoTarget;
 	SGS_PROPERTY_FUNC( READ GetWorldInfoTarget ) SGS_ALIAS( Vec3 infoTarget );
 	
-	SGS_PROPERTY_FUNC( READ VARNAME typeName ) StringView m_typeName;
-	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_name;
+	SGS_PROPERTY sgsString name;
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetID VARNAME id ) sgsString m_id;
 };
 
 #define IEST_InteractiveItem 0x0001
@@ -419,9 +419,9 @@ struct GameLevel :
 	void PostDraw();
 	
 	SGS_METHOD_NAMED( SetLevel ) void SetNextLevel( StringView name );
-	void MapEntityByName( Entity* e );
-	void UnmapEntityByName( Entity* e );
-	Entity* FindEntityByName( const StringView& name );
+	void _MapEntityByID( Entity* e );
+	void _UnmapEntityByID( Entity* e );
+	Entity* FindEntityByID( const StringView& name );
 	SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type );
 	SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
 	SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
@@ -461,7 +461,7 @@ struct GameLevel :
 	bool m_editorMode;
 	
 	// SYSTEMS
-	HashTable< StringView, Entity* > m_entNameMap;
+	HashTable< StringView, Entity* > m_entIDMap;
 	InfoEmitEntitySet m_infoEmitSet;
 	Array< IGameLevelSystem* > m_systems;
 	
@@ -493,6 +493,22 @@ template< class T > void LevelScrObj::_InitScriptInterface( T* ptr )
 	C = m_level->GetSGSC();
 	m_sgsObject = sgs_GetObjectStruct( C, -1 );
 	sgs_ObjAcquire( C, m_sgsObject );
+}
+
+FINLINE void Entity::SetID( StringView id )
+{
+	sgsSetID( m_level->GetScriptCtx().CreateString( id ) );
+}
+
+FINLINE void Entity::sgsSetID( sgsString id )
+{
+	if( m_id.same_as( id ) )
+		return;
+	if( m_id.size() )
+		m_level->_UnmapEntityByID( this );
+	m_id = id;
+	if( m_id.size() )
+		m_level->_MapEntityByID( this );
 }
 
 

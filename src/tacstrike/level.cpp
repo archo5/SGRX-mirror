@@ -56,14 +56,13 @@ sgsHandle< GameLevel > LevelScrObj::_sgs_getLevel()
 Entity::Entity( GameLevel* lev ) :
 	LevelScrObj( lev ),
 	m_infoMask( 0 ),
-	m_infoTarget( V3(0) ),
-	m_typeName("<unknown>")
+	m_infoTarget( V3(0) )
 {
 }
 
 Entity::~Entity()
 {
-	m_level->UnmapEntityByName( this );
+	m_level->_UnmapEntityByID( this );
 	m_level->m_infoEmitSet.Unregister( this );
 }
 
@@ -591,19 +590,19 @@ void GameLevel::SetNextLevel( StringView name )
 	m_nextLevel = name;
 }
 
-void GameLevel::MapEntityByName( Entity* e )
+void GameLevel::_MapEntityByID( Entity* e )
 {
-	m_entNameMap[ e->m_name ] = e;
+	m_entIDMap[ e->GetID() ] = e;
 }
 
-void GameLevel::UnmapEntityByName( Entity* e )
+void GameLevel::_UnmapEntityByID( Entity* e )
 {
-	m_entNameMap.unset( e->m_name );
+	m_entIDMap.unset( e->GetID() );
 }
 
-Entity* GameLevel::FindEntityByName( const StringView& name )
+Entity* GameLevel::FindEntityByID( const StringView& name )
 {
-	return m_entNameMap.getcopy( name );
+	return m_entIDMap.getcopy( name );
 }
 
 sgsVariable GameLevel::sgsCreateEntity( StringView type )
@@ -621,7 +620,7 @@ void GameLevel::sgsDestroyEntity( sgsVariable eh )
 
 Entity::ScrHandle GameLevel::sgsFindEntity( StringView name )
 {
-	return Entity::ScrHandle( FindEntityByName( name ) );
+	return Entity::ScrHandle( FindEntityByID( name ) );
 }
 
 void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )

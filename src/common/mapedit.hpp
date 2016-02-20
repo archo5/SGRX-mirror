@@ -913,6 +913,14 @@ struct EdSurface : SGRX_RefCounted
 		xfit( 0 ), yfit( 0 ),
 		surface_id( 0 )
 	{}
+	EdSurface( Handle<EdSurface>::InitBeforeUnserialize ) :
+		texgenmode( ED_TEXGEN_COORDS ),
+		xoff( 0 ), yoff( 0 ),
+		scale( 1 ), aspect( 1 ),
+		angle( 0 ), lmquality( 1 ),
+		xfit( 0 ), yfit( 0 ),
+		surface_id( 0 )
+	{}
 	~EdSurface()
 	{
 		if( surface_id )
@@ -2479,6 +2487,52 @@ struct EdWorld : EDGUILayoutRow
 			svh << numents;
 			for( int32_t i = 0; i < numents; ++i )
 			{
+				String ty;
+				
+				svh.marker( "ENTITY" );
+				svh << ty;
+				
+				if( ty == SV("Mesh") )
+				{
+				}
+				else if( ty == SV("Light") )
+				{
+				}
+				else if( ty == SV("Light sample") )
+				{
+				}
+				else
+				{
+					SGS_CTX = g_Level->GetSGSC();
+					SGS_CSCOPE( C );
+					Vec3 pos;
+					Array< uint32_t > meshIDs;
+					String srlzdata;
+					
+					svh << pos;
+					svh << meshIDs;
+					svh << srlzdata;
+					sgsVariable sgsdata = g_Level->GetScriptCtx().Unserialize( srlzdata );
+					
+					sgs_PushVar( C, pos );
+					sgs_PushVar( C, sgsdata );
+					if( g_Level->GetScriptCtx().GlobalCall( String_Concat( "ENT_UPG1_", ty ), 2, 2 ) &&
+						sgs_ItemType( C, -2 ) != SGS_VT_NULL &&
+						sgs_ItemType( C, -1 ) != SGS_VT_NULL )
+					{
+						sgsVariable object = FNewDict();
+						object.setprop( "entity_type", sgs_GetVar<sgsString>()( C, -2 ) );
+						object.setprop( "props", sgs_GetVar<sgsVariable>()( C, -1 ) );
+						EdEntNew* obj = new EdEntNew( sgs_GetVar<sgsString>()( C, -2 ), false );
+						obj->FLoad( object, MAP_FILE_VERSION );
+						AddObject( obj );
+					}
+					else
+					{
+						sgs_Msg( g_Level->GetSGSC(), SGS_WARNING, "Failed to upgrade entity '%s'!",
+							StackPath(ty).str );
+					}
+				}
 #if 0
 				EdEntity* e = ENT_Unserialize( svh, true );
 				if( e )

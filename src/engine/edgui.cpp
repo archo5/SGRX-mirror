@@ -11,6 +11,7 @@ EDGUIItem::EDGUIItem() :
 	id2( 0 ),
 	backColor( EDGUI_THEME_MAIN_BACK_COLOR ),
 	textColor( EDGUI_THEME_MAIN_TEXT_COLOR ),
+	enableMultiClick( false ),
 	m_parent( NULL ),
 	m_frame( NULL ),
 	x0( 0 ), y0( 0 ), x1( 0 ), y1( 0 ),
@@ -63,7 +64,7 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_MOUSEENTER: m_mouseOn = true; Invalidate(); return 1;
 	case EDGUI_EVENT_MOUSELEAVE: m_mouseOn = false; Invalidate(); return 1;
 	case EDGUI_EVENT_BTNDOWN:
-		if( e->mouse.button == 0 )
+		if( e->mouse.button == 0 || enableMultiClick )
 			m_clicked = true;
 		if( m_frame->m_keyboardFocus != this )
 		{
@@ -73,7 +74,8 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 		Invalidate();
 		return 1;
 	case EDGUI_EVENT_BTNUP:
-		if( e->mouse.button == 0 ) m_clicked = false;
+		if( e->mouse.button == 0 || enableMultiClick )
+			m_clicked = false;
 		if( m_mouseOn )
 		{
 			EDGUIEvent se = *e;
@@ -1015,7 +1017,7 @@ int EDGUIButton::OnEvent( EDGUIEvent* e )
 		
 	case EDGUI_EVENT_BTNDOWN:
 	case EDGUI_EVENT_BTNUP:
-		if( e->mouse.button == EDGUI_MB_LEFT )
+		if( e->mouse.button == EDGUI_MB_LEFT || enableMultiClick )
 		{
 			EDGUIItem::OnEvent( e );
 			OnChangeState();
@@ -2506,6 +2508,67 @@ int EDGUIPropString::_FindOffset( int x, int y )
 		lenmin = lenmax;
 	}
 	return i;
+}
+
+
+EDGUIPropEnumSB::EDGUIPropEnumSB() : m_at( -1 ), m_value( 0 )
+{
+	tyname = "property-enum-sb";
+	type = EDGUI_ITEM_PROP_ENUM_SB;
+	Add( &m_button );
+	m_button.enableMultiClick = true;
+}
+
+int EDGUIPropEnumSB::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			m_at += e->mouse.button == EDGUI_MB_RIGHT ? -1 : 1;
+			if( m_at < 0 )
+				m_at = int32_t(m_enum.size()) - 1;
+			else if( m_at >= int32_t(m_enum.size()) )
+				m_at = 0;
+			m_at = TMIN( m_at, int32_t(m_enum.size()) - 1 );
+			m_value = m_at >= 0 ? m_enum[ m_at ].value : 0;
+			_UpdateButton();
+			Edited();
+			Changed();
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+void EDGUIPropEnumSB::_UpdateButton()
+{
+	if( m_at >= 0 )
+		m_button.caption = m_enum[ m_at ].name;
+	else
+	{
+		char bfr[ 32 ];
+		sgrx_snprintf( bfr, 32, "<unknown> [%d]", (int) m_value );
+		m_button.caption = bfr;
+	}
+}
+
+void EDGUIPropEnumSB::SetValue( int32_t v )
+{
+	m_value = v;
+	m_at = -1;
+	for( size_t i = 0; i < m_enum.size(); ++i )
+	{
+		if( m_enum[ i ].value == v )
+		{
+			m_at = i;
+			break;
+		}
+	}
+	_UpdateButton();
 }
 
 

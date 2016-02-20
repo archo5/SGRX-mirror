@@ -35,8 +35,8 @@ int TSCamera::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		SGS_CASE( "moveTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_moveTime ); return SGS_SUCCESS; }
 		SGS_CASE( "pauseTime" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_pauseTime ); return SGS_SUCCESS; }
 		SGS_CASE( "fov" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->m_fov ); return SGS_SUCCESS; }
@@ -71,6 +71,8 @@ int TSCamera::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 			static_cast<TSCamera*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
 		SGS_CASE( "infoMask" ){ static_cast<TSCamera*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ static_cast<TSCamera*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<TSCamera*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<TSCamera*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "moveTime" ){ static_cast<TSCamera*>( obj->data )->m_moveTime = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "pauseTime" ){ static_cast<TSCamera*>( obj->data )->m_pauseTime = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "fov" ){ static_cast<TSCamera*>( obj->data )->m_fov = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
@@ -101,8 +103,8 @@ int TSCamera::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->GetInfoMask(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_infoTarget, depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_typeName, depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_id, depth ).push( C ); }
 		{ sgs_PushString( C, "\nmoveTime = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_moveTime, depth ).push( C ); }
 		{ sgs_PushString( C, "\npauseTime = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_pauseTime, depth ).push( C ); }
 		{ sgs_PushString( C, "\nfov = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_fov, depth ).push( C ); }
@@ -259,8 +261,8 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		SGS_CASE( "ctrl" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_getCtrl() ); return SGS_SUCCESS; }
 		SGS_CASE( "timeSinceLastHit" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -293,6 +295,8 @@ int TSCharacter::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 			static_cast<TSCharacter*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
 		SGS_CASE( "infoMask" ){ static_cast<TSCharacter*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ static_cast<TSCharacter*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<TSCharacter*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<TSCharacter*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -320,8 +324,8 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetInfoMask(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_infoTarget, depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_typeName, depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_id, depth ).push( C ); }
 		{ sgs_PushString( C, "\nctrl = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_getCtrl(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ntimeSinceLastHit = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit, depth ).push( C ); }
 		sgs_StringConcat( C, 38 );

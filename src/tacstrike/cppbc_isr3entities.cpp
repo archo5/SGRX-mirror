@@ -35,8 +35,8 @@ int ISR3Drone::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<ISR3Drone*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -68,6 +68,8 @@ int ISR3Drone::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 			static_cast<ISR3Drone*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
 		SGS_CASE( "infoMask" ){ static_cast<ISR3Drone*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ static_cast<ISR3Drone*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<ISR3Drone*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<ISR3Drone*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<ISR3Drone*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -95,8 +97,8 @@ int ISR3Drone::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetInfoMask(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->m_infoTarget, depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->m_typeName, depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->m_id, depth ).push( C ); }
 		sgs_StringConcat( C, 34 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
@@ -159,8 +161,8 @@ int ISR3Player::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<ISR3Player*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -192,6 +194,8 @@ int ISR3Player::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 			static_cast<ISR3Player*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
 		SGS_CASE( "infoMask" ){ static_cast<ISR3Player*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ static_cast<ISR3Player*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<ISR3Player*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<ISR3Player*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<ISR3Player*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -219,8 +223,8 @@ int ISR3Player::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetInfoMask(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->m_infoTarget, depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->m_typeName, depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->m_id, depth ).push( C ); }
 		sgs_StringConcat( C, 34 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
@@ -304,8 +308,8 @@ int ISR3Enemy::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
-		SGS_CASE( "typeName" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->m_typeName ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<ISR3Enemy*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -337,6 +341,8 @@ int ISR3Enemy::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 			static_cast<ISR3Enemy*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
 		SGS_CASE( "infoMask" ){ static_cast<ISR3Enemy*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ static_cast<ISR3Enemy*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<ISR3Enemy*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<ISR3Enemy*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<ISR3Enemy*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -364,8 +370,8 @@ int ISR3Enemy::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetInfoMask(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->m_infoTarget, depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntypeName = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->m_typeName, depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->m_id, depth ).push( C ); }
 		sgs_StringConcat( C, 34 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );

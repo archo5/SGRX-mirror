@@ -31,9 +31,52 @@ function ENTITY( name, inhname )
 }
 
 Entity.ED_Icon = "editor/icons/default.png";
+function PropInfo_Entity( eptr )
+{
+	EE_AddFieldString( eptr, "name", "Name", "" );
+	EE_AddFieldString( eptr, "id", "Global ID", "" );
+	PropInfo_XForm( eptr );
+}
 function Entity.ED_PropInfo( eptr )
 {
-	PropInfo_XForm( eptr );
+	PropInfo_Entity( eptr );
+}
+
+
+//
+// Entity Editor Extensions
+//
+global Marker = {};
+ENTITY( "Marker", "Entity" );
+
+Marker.ED_Icon = "editor/icons/marker.png";
+function Marker.ED_PropInfo( eptr )
+{
+	EE_AddFieldString( eptr, "name", "Name", "" );
+	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
+}
+
+Light.ED_Icon = "editor/icons/light.png";
+function Light.ED_PropInfo( eptr )
+{
+	PropInfo_Entity( eptr );
+	EE_AddFieldBool( eptr, "isStatic", "Is static?", false );
+	EE_AddFieldEnumSB( eptr, "type", "Light type", LIGHT_POINT,
+		map{ [LIGHT_POINT] = "Point", [LIGHT_SPOT] = "Spot" } );
+	EE_AddFieldBool( eptr, "enabled", "Is enabled?", true );
+	EE_AddFieldVec3( eptr, "color", "Color", vec3(0.1,0.4,1), 2, 0, 1 );
+	EE_AddFieldFloat( eptr, "intensity", "Intensity", 1, 2, -1000, 1000 );
+	EE_AddFieldFloat( eptr, "range", "Range", 1, 2, 0, EDPI_Pos_Max );
+	EE_AddFieldFloat( eptr, "angle", "[spot] Outer angle", 0, 2, 0, 180 );
+	EE_AddFieldFloat( eptr, "innerAngle", "[spot] Inner angle", 0, 2, 0, 180 );
+	EE_AddFieldFloat( eptr, "aspect", "[spot] Aspect ratio", 1, 2, 0.01, 100 );
+	EE_AddFieldFloat( eptr, "spotCurve", "[spot] Curve", 1, 2, 0.01, 100 );
+	EE_AddFieldFloat( eptr, "radius", "Light radius", 0.1, 2, 0, 100 );
+	EE_AddFieldBool( eptr, "hasShadows", "Has shadows?", true );
+	EE_AddFieldTex( eptr, "cookieTexture", "[spot] Cookie texture",
+		"textures/cookies/default.png" );
+	EE_AddFieldFloat( eptr, "flareSize", "Flare size", 0, 2, 0, 100 );
+	EE_AddFieldVec3( eptr, "flareOffset", "Flare offset", 0, 2, 0, 100 );
 }
 
 
@@ -98,7 +141,7 @@ ENTITY( "BoxTrigger", "Entity" );
 BoxTrigger.ED_Icon = "editor/icons/trigger.png";
 function BoxTrigger.ED_PropInfo( eptr )
 {
-	PropInfo_XForm( eptr );
+	PropInfo_Entity( eptr );
 }
 
 function BoxTrigger.Update( dt )

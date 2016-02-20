@@ -3270,6 +3270,7 @@ bool MapEditor::OnInitialize()
 //	sgs_RegFuncConsts( g_Level->GetSGSC(), g_editor_rfc, -1 );
 	ScrItem_InstallAPI( g_Level->GetSGSC() );
 	
+	g_Level->GetScriptCtx().ExecFile( "levels/upgrade1.sgs" );
 //	LOG << "\nLoading scripted entities:";
 //	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
 //	LOG << "\nLoading scripted items:";

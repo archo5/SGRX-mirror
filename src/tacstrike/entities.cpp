@@ -47,32 +47,6 @@ void Trigger::sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout )
 }
 
 
-BoxTrigger::BoxTrigger( GameLevel* lev, StringView name, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
-	Trigger( lev ), m_matrix( Mat4::CreateSRT( scl, rot, pos ) )
-{
-	m_name = name;
-	m_level->MapEntityByName( this );
-}
-
-void BoxTrigger::FixedTick( float deltaTime )
-{
-	Update( m_level->QueryOBB( NULL, IEST_Player, m_matrix ) );
-}
-
-
-ProximityTrigger::ProximityTrigger( GameLevel* lev, StringView name, const Vec3& pos, float rad ) :
-	Trigger( lev ), m_position( pos ), m_radius( rad )
-{
-	m_name = name;
-	m_level->MapEntityByName( this );
-}
-
-void ProximityTrigger::FixedTick( float deltaTime )
-{
-	Update( m_level->QuerySphere( NULL, IEST_Player, m_position, m_radius ) );
-}
-
-
 void SlidingDoor::_UpdatePhysics()
 {
 	if( !bodyHandle )
@@ -117,7 +91,7 @@ SlidingDoor::SlidingDoor
 	m_bbMin( V3(-1) ), m_bbMax( V3(1) ),
 	m_ivPos( V3(0) ), m_ivRot( Quat::Identity )
 {
-	m_name = name;
+	SetID( name );
 	meshInst = m_level->GetScene()->CreateMeshInstance();
 	
 	char bfr[ 256 ] = {0};
@@ -153,8 +127,6 @@ SlidingDoor::SlidingDoor
 	m_ivPos.prev = m_ivPos.curr = TLERP( pos_closed, pos_open, open_factor );
 	m_ivRot.prev = m_ivRot.curr = TLERP( rot_closed, rot_open, open_factor );
 	_UpdateTransforms( 1 );
-	
-	m_level->MapEntityByName( this );
 }
 
 void SlidingDoor::FixedTick( float deltaTime )
@@ -231,7 +203,7 @@ PickupItem::PickupItem( GameLevel* lev, const StringView& name, const StringView
 	int count, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl ) :
 	Entity( lev ), m_type( type ), m_count( count ), m_pos( pos )
 {
-	m_name = name;
+	SetID( name );
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	
 	char bfr[ 256 ] = {0};
@@ -284,7 +256,7 @@ Actionable::Actionable( GameLevel* lev, const StringView& name, const StringView
 	m_info.timeEstimate = 0.5f;
 	m_info.timeActual = 0.5f;
 	
-	m_name = name;
+	SetID( name );
 //	m_viewName = name;
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	
@@ -295,8 +267,6 @@ Actionable::Actionable( GameLevel* lev, const StringView& name, const StringView
 	m_level->LightMesh( m_meshInst );
 	
 	SetEnabled( true );
-	
-	m_level->MapEntityByName( this );
 }
 
 void Actionable::OnEvent( const StringView& type )
@@ -347,7 +317,7 @@ void Actionable::SetEnabled( bool v )
 ParticleFX::ParticleFX( GameLevel* lev, const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start ) :
 	Entity( lev ), m_soundEventName( sndev ), m_position( pos )
 {
-	m_name = name;
+	SetID( name );
 	m_soundEventOneShot = m_level->GetSoundSys()->EventIsOneShot( sndev );
 	
 	char bfr[ 256 ] = {0};
@@ -359,8 +329,6 @@ ParticleFX::ParticleFX( GameLevel* lev, const StringView& name, const StringView
 	
 	if( start )
 		OnEvent( "trigger_enter" );
-	
-	m_level->MapEntityByName( this );
 }
 
 void ParticleFX::Tick( float deltaTime, float blendFactor )
@@ -1041,31 +1009,6 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 Entity* StockEntityCreationSystem::AddEntity( StringView type )
 {
 #if 0
-	///////////////////////////
-	if( type == "trigger" )
-	{
-		return new BoxTrigger
-		(
-			m_level,
-			data.getprop("name").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>()
-		);
-	}
-	
-	///////////////////////////
-	if( type == "trigger_prox" )
-	{
-		return new ProximityTrigger
-		(
-			m_level,
-			data.getprop("name").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			data.getprop("distance").get<float>()
-		);
-	}
-	
 	///////////////////////////
 	if( type == "door_slide" )
 	{

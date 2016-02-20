@@ -107,6 +107,7 @@
 #define EDGUI_ITEM_PROP_VEC3   106
 #define EDGUI_ITEM_PROP_VEC4   107
 #define EDGUI_ITEM_PROP_RSRC   108
+#define EDGUI_ITEM_PROP_ENUM_SB 109
 #define EDGUI_ITEM_PROP_DEF_BOOL 201
 
 
@@ -192,6 +193,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIItem
 	uint32_t id1, id2;
 	uint32_t backColor;
 	uint32_t textColor;
+	bool enableMultiClick;
 	String caption;
 	EDGUIItemArray m_subitems;
 	EDGUIItem* m_parent;
@@ -577,6 +579,28 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIPropString : EDGUIProperty
 	int m_fsel_to;
 	bool m_selecting;
 	String m_chars;
+};
+
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropEnumSB : EDGUIProperty
+{
+	struct Entry
+	{
+		RCString name;
+		int32_t value;
+	};
+	
+	ENGINE_EXPORT EDGUIPropEnumSB();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void _UpdateButton();
+	PROP_INTERFACE( EDGUIPropEnumSB );
+	template< class T > void Serialize( T& arch ){ arch << m_value; }
+	
+	ENGINE_EXPORT void SetValue( int32_t v );
+	
+	int32_t m_at;
+	int32_t m_value;
+	Array< Entry > m_enum;
+	EDGUIButton m_button;
 };
 
 struct IF_GCC(ENGINE_EXPORT) EDGUIPropRsrc : EDGUIProperty

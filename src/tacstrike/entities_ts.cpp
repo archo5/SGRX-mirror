@@ -56,8 +56,7 @@ TSCamera::TSCamera(
 	m_moveTime( 3.0f ), m_pauseTime( 2.0f ),
 	m_fov( 30.0f )
 {
-	m_typeName = "camera";
-	m_name = name;
+	SetID( name );
 	
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, 256, "chars/%s.chr", StackString<200>( charname ).str );
@@ -74,8 +73,6 @@ TSCamera::TSCamera(
 	MI->layers = 0x2;
 	MI->matrix = Mat4::CreateSRT( scl, rot, pos );
 	m_level->LightMesh( MI );
-	
-	m_level->MapEntityByName( this );
 }
 
 void TSCamera::FixedTick( float deltaTime )
@@ -232,7 +229,6 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_aimDir( YP(dir) ), m_aimDist( dir.Length() ),
 	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 )
 {
-	m_typeName = "character";
 	typeOverride = "*human*";
 	
 	SGRX_PhyRigidBodyInfo rbinfo;

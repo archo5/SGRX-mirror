@@ -32,29 +32,6 @@ struct Trigger : Entity
 	SGS_METHOD_NAMED( SetupTrigger ) void sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout );
 };
 
-struct BoxTrigger : Trigger
-{
-	SGS_OBJECT_INHERIT( Trigger );
-	ENT_SGS_IMPLEMENT;
-	
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME matrix ) Mat4 m_matrix;
-	
-	BoxTrigger( GameLevel* lev, StringView name, const Vec3& pos, const Quat& rot, const Vec3& scl );
-	virtual void FixedTick( float deltaTime );
-};
-
-struct ProximityTrigger : Trigger
-{
-	SGS_OBJECT_INHERIT( Trigger );
-	ENT_SGS_IMPLEMENT;
-	
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME position ) Vec3 m_position;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME radius ) float m_radius;
-	
-	ProximityTrigger( GameLevel* lev, StringView name, const Vec3& pos, float rad );
-	virtual void FixedTick( float deltaTime );
-};
-
 struct SlidingDoor : Trigger
 {
 	SGS_OBJECT_INHERIT( Trigger );

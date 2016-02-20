@@ -864,6 +864,7 @@ void EdEntNew::Data2Fields()
 		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*) F.property)->SetValue( val.get<Vec2>() ); break;
 		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*) F.property)->SetValue( val.get<Vec3>() ); break;
 		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*) F.property)->SetValue( val.get<StringView>() ); break;
+		case EDGUI_ITEM_PROP_ENUM_SB: ((EDGUIPropEnumSB*) F.property)->SetValue( val.get<int>() ); break;
 		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*) F.property)->SetValue( val.get<StringView>() ); break;
 		}
 	}
@@ -883,6 +884,7 @@ void EdEntNew::Fields2Data()
 		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
 		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
 		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_ENUM_SB: data.setprop( F.key, FIntVar( ((EDGUIPropEnumSB*) F.property)->m_value) ); break;
 		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FIntVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
 		}
 	}
@@ -981,6 +983,21 @@ static int EE_AddFieldString( SGS_CTX )
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
 		new EDGUIPropString( sgs_GetVar<StringView>()( C, 3 ) ) );
+	return 0;
+}
+static int EE_AddFieldEnumSB( SGS_CTX )
+{
+	SGSFN( "EE_AddFieldEnumSB" );
+	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	EDGUIPropEnumSB* P = new EDGUIPropEnumSB;
+	ScriptVarIterator it( sgs_GetVar<sgsVariable>()( C, 4 ) );
+	while( it.Advance() )
+	{
+		EDGUIPropEnumSB::Entry E = { it.GetValue().get<StringView>(), it.GetKey().get<int32_t>() };
+		P->m_enum.push_back( E );
+	}
+	P->SetValue( sgs_GetVar<int32_t>()( C, 3 ) );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<StringView>()( C, 2 ), P );
 	return 0;
 }
 static int EE_AddFieldMesh( SGS_CTX )
@@ -1194,6 +1211,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldVec2", EE_AddFieldVec2 },
 	{ "EE_AddFieldVec3", EE_AddFieldVec3 },
 	{ "EE_AddFieldString", EE_AddFieldString },
+	{ "EE_AddFieldEnumSB", EE_AddFieldEnumSB },
 	{ "EE_AddFieldMesh", EE_AddFieldMesh },
 	{ "EE_AddFieldTex", EE_AddFieldTex },
 	{ "EE_AddFieldChar", EE_AddFieldChar },
