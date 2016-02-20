@@ -7,6 +7,7 @@ add_library( coregamelib STATIC
 	level.hpp level.cpp cppbc_level.cpp
 	entities.hpp entities.cpp cppbc_entities.cpp
 	systems.hpp systems.cpp cppbc_systems.cpp
+	../common/gfwcore.hpp ../common/gfwcore.cpp ../common/cppbc_gfwcore.cpp
 	../common/gamegui.hpp ../common/gamegui.cpp ../common/cppbc_gamegui.cpp
 	../common/scritem.hpp ../common/scritem.cpp ../common/cppbc_scritem.cpp )
 set_target_properties( coregamelib PROPERTIES

@@ -183,6 +183,76 @@ struct ScriptedItem : Entity
 };
 
 
+struct LightEntity : Entity
+{
+	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	
+	LightEntity( GameLevel* lev );
+	~LightEntity();
+	virtual void OnTransformUpdate()
+	{
+		if( m_light )
+		{
+			m_light->SetTransform( GetWorldMatrix() );
+			m_light->UpdateTransform();
+		}
+	}
+	
+	void _UpdateLight();
+	void _UpdateShadows();
+	void _UpdateFlare();
+	
+#define RETNIFNOLIGHT if( !m_light ) return;
+	bool IsStatic() const { return m_isStatic; }
+	void SetStatic( bool v ){ m_isStatic = v; _UpdateLight(); }
+	int GetType() const { return m_type; }
+	void SetType( int v ){ m_type = v; RETNIFNOLIGHT; m_light->type = v; _UpdateShadows(); }
+	bool IsEnabled() const { return m_isEnabled; }
+	void SetEnabled( bool v ){ m_isEnabled = v; RETNIFNOLIGHT; m_light->enabled = v; }
+	Vec3 GetColor() const { return m_color; }
+	void SetColor( Vec3 v ){ m_color = v; RETNIFNOLIGHT; m_light->color = v * m_intensity; }
+	float GetIntensity() const { return m_intensity; }
+	void SetIntensity( float v ){ m_intensity = v; RETNIFNOLIGHT; m_light->color = m_color * v; }
+	float GetRange() const { return m_range; }
+	void SetRange( float v ){ m_range = v; RETNIFNOLIGHT; m_light->range = v; m_light->UpdateTransform(); }
+	float GetPower() const { return m_power; }
+	void SetPower( float v ){ m_power = v; RETNIFNOLIGHT; m_light->power = v; }
+	float GetAngle() const { return m_angle; }
+	void SetAngle( float v ){ m_angle = v; RETNIFNOLIGHT; m_light->angle = v; m_light->UpdateTransform(); }
+	float GetAspect() const { return m_aspect; }
+	void SetAspect( float v ){ m_aspect = v; RETNIFNOLIGHT; m_light->aspect = v; m_light->UpdateTransform(); }
+	bool HasShadows() const { return m_hasShadows; }
+	void SetShadows( bool v ){ m_hasShadows = v; RETNIFNOLIGHT; m_light->hasShadows = v; _UpdateShadows(); }
+	float GetFlareSize() const { return m_flareSize; }
+	void SetFlareSize( float v ){ m_flareSize = v; _UpdateFlare(); }
+	Vec3 GetFlareOffset() const { return m_flareOffset; }
+	void SetFlareOffset( Vec3 v ){ m_flareOffset = v; _UpdateFlare(); }
+	TextureHandle GetCookieTexture() const { return m_cookieTexture; }
+	void SetCookieTexture( TextureHandle h ){ m_cookieTexture = h; RETNIFNOLIGHT; m_light->cookieTexture = h; }
+	
+	SGS_PROPERTY_FUNC( READ IsStatic WRITE SetStatic VARNAME isStatic ) bool m_isStatic;
+	SGS_PROPERTY_FUNC( READ GetType WRITE SetType VARNAME type ) int m_type;
+	SGS_PROPERTY_FUNC( READ IsEnabled WRITE SetEnabled VARNAME enabled ) bool m_isEnabled;
+	SGS_PROPERTY_FUNC( READ GetColor WRITE SetColor VARNAME color ) Vec3 m_color;
+	SGS_PROPERTY_FUNC( READ GetIntensity WRITE SetIntensity VARNAME intensity ) float m_intensity;
+	SGS_PROPERTY_FUNC( READ GetRange WRITE SetRange VARNAME range ) float m_range;
+	SGS_PROPERTY_FUNC( READ GetPower WRITE SetPower VARNAME power ) float m_power;
+	SGS_PROPERTY_FUNC( READ GetAngle WRITE SetAngle VARNAME angle ) float m_angle;
+	SGS_PROPERTY_FUNC( READ GetAspect WRITE SetAspect VARNAME aspect ) float m_aspect;
+	SGS_PROPERTY_FUNC( READ HasShadows WRITE SetShadows VARNAME hasShadows ) bool m_hasShadows;
+	SGS_PROPERTY_FUNC( READ GetCookieTexture WRITE SetCookieTexture VARNAME cookieTexture ) TextureHandle m_cookieTexture;
+	SGS_PROPERTY_FUNC( READ GetFlareSize WRITE SetFlareSize VARNAME flareSize ) float m_flareSize;
+	SGS_PROPERTY_FUNC( READ GetFlareOffset WRITE SetFlareOffset VARNAME flareOffset ) Vec3 m_flareOffset;
+	// parameters for static lights only
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME innerAngle ) float m_innerAngle;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME spotCurve ) float m_spotCurve;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME lightRadius ) float lightRadius;
+	
+	LightHandle m_light;
+};
+
+
 #define SCRENT_NUM_SLOTS 4
 #define SCRENT_RANGE_STR "[0-3]"
 

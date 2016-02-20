@@ -119,6 +119,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	
 	m_scriptCtx.RegisterInputAPI();
 	m_scriptCtx.RegisterBatchRenderer();
+	GFWRegisterCore( m_scriptCtx.C );
 	
 	m_guiSys = new GameUISystem( &m_scriptCtx );
 	

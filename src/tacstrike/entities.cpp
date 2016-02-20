@@ -469,6 +469,89 @@ void ScriptedItem::OnEvent( const StringView& type )
 }
 
 
+LightEntity::LightEntity( GameLevel* lev ) : Entity( lev ),
+	m_isStatic( false ),
+	m_type( LIGHT_POINT ),
+	m_isEnabled( true ),
+	m_color( V3(1) ),
+	m_intensity( 1 ),
+	m_range( 1 ),
+	m_power( 2 ),
+	m_angle( 65 ),
+	m_aspect( 1 ),
+	m_hasShadows( true ),
+	m_flareSize( 0 ),
+	m_flareOffset( V3(0) ),
+	m_innerAngle( 0 ),
+	m_spotCurve( 1 ),
+	lightRadius( 0.1f )
+{
+	_UpdateLight();
+	_UpdateShadows();
+	_UpdateFlare();
+}
+
+LightEntity::~LightEntity()
+{
+	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
+	if( FS )
+		FS->RemoveFlare( this );
+}
+
+void LightEntity::_UpdateLight()
+{
+	bool need = !m_isStatic;
+	if( !need && m_light )
+		m_light = NULL;
+	else if( need && !m_light )
+	{
+		m_light = m_level->GetScene()->CreateLight();
+		m_light->position = V3(0);
+		m_light->direction = V3(0,0,-1);
+		m_light->updir = V3(0,-1,0);
+		m_light->color = m_color * m_intensity;
+		m_light->range = m_range;
+		m_light->power = m_power;
+		m_light->angle = m_angle;
+		m_light->aspect = m_aspect;
+		m_light->hasShadows = m_hasShadows;
+		m_light->SetTransform( GetWorldMatrix() );
+		m_light->UpdateTransform();
+		_UpdateShadows();
+	}
+}
+
+void LightEntity::_UpdateShadows()
+{
+	bool need = m_hasShadows && m_type == LIGHT_SPOT;
+	if( !need && m_light->shadowTexture )
+		m_light->shadowTexture = NULL;
+	else if( need && !m_light->shadowTexture )
+		m_light->shadowTexture = GR_CreateRenderTexture( 512, 512, RT_FORMAT_DEPTH );
+}
+
+void LightEntity::_UpdateFlare()
+{
+	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
+	if( FS )
+	{
+		bool need = m_flareSize > 0;
+		if( !need )
+			FS->RemoveFlare( this );
+		else
+		{
+			FSFlare F =
+			{
+				LocalToWorld( m_flareOffset ),
+				m_color * m_intensity,
+				m_flareSize,
+				m_isEnabled
+			};
+			FS->UpdateFlare( this, F );
+		}
+	}
+}
+
 
 #define SCRENT_OFSCHK( i, ret ) if( (i) < 0 || (i) >= 4 ){ \
 	sgs_Msg( C, SGS_WARNING, "wrong offset: %d outside " SCRENT_RANGE_STR, (int)(i) ); ret; }
@@ -951,6 +1034,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 //	ScrItem_InstallAPI( lev->GetSGSC() );
 //	lev->GetScriptCtx().Include( "data/scritems" );
 	lev->RegisterNativeEntity<Entity>( "Entity" );
+	lev->RegisterNativeEntity<LightEntity>( "Light" );
 	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
 }
 
@@ -1096,6 +1180,7 @@ Entity* StockEntityCreationSystem::AddEntity( StringView type )
 #endif
 	
 	if( type == "Entity" ) return new Entity( m_level );
+	if( type == "Light" ) return new LightEntity( m_level );
 	if( type == "MultiEntity" ) return new MultiEntity( m_level );
 	
 	return NULL;

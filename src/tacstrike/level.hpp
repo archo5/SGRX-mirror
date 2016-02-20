@@ -2,13 +2,7 @@
 
 #pragma once
 
-#include <engine.hpp>
-#include <enganim.hpp>
-#include <pathfinding.hpp>
-#include <sound.hpp>
-#include <physics.hpp>
-#include <script.hpp>
-
+#include "../common/gfwcore.hpp"
 #include "../common/levelcache.hpp"
 #include "../common/gamegui.hpp"
 
