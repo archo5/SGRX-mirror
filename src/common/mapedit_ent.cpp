@@ -378,29 +378,6 @@ static int EE_AddFieldSound( SGS_CTX )
 	return 0;
 }
 #if 0
-static int EE_AddFieldScrFn( SGS_CTX )
-{
-	SGSFN( "EE_AddFieldScrFn" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropRsrc( g_UIScrFnPicker, sgs_GetVar<StringView>()( C, 3 ) ) );
-	return 0;
-}
-static int EE_AddFieldScrItem( SGS_CTX )
-{
-	SGSFN( "EE_AddFieldScrItem" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EDGUIPropVec3* posprop = E->IsScrEnt() ?
-		&((EdEntScripted*)E)->m_ctlPos :
-		((EDGUIPropScrItem*)E)->m_pctlPos;
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropScrItem( posprop, sgs_GetVar<StringView>()( C, 3 ) ) );
-	return 0;
-}
 static int EE_AddButtonSubent( SGS_CTX )
 {
 	SGSFN( "EE_AddButtonSubent" );
@@ -545,8 +522,6 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldPartSys", EE_AddFieldPartSys },
 	{ "EE_AddFieldSound", EE_AddFieldSound },
 #if 0
-	{ "EE_AddFieldScrFn", EE_AddFieldScrFn },
-	{ "EE_AddFieldScrItem", EE_AddFieldScrItem },
 	{ "EE_AddButtonSubent", EE_AddButtonSubent },
 	{ "EE_SetChar", EE_SetChar },
 	{ "EE_SetMeshInstanceCount", EE_SetMeshInstanceCount },

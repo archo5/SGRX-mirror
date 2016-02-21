@@ -900,6 +900,264 @@ static sgs_ObjInterface LightEntity__sgs_interface =
 _sgsInterface LightEntity::_sgs_interface(LightEntity__sgs_interface, LightEntity__sgs_ifn, &Entity::_sgs_interface);
 
 
+int SGRX_RigidBodyInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SGRX_RigidBodyInfo*>( obj->data )->C = C;
+	static_cast<SGRX_RigidBodyInfo*>( obj->data )->~SGRX_RigidBodyInfo();
+	return SGS_SUCCESS;
+}
+
+int SGRX_RigidBodyInfo::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_RigidBodyInfo*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int SGRX_RigidBodyInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_RigidBodyInfo*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->position ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->rotation ); return SGS_SUCCESS; }
+		SGS_CASE( "friction" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->friction ); return SGS_SUCCESS; }
+		SGS_CASE( "restitution" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->restitution ); return SGS_SUCCESS; }
+		SGS_CASE( "mass" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->mass ); return SGS_SUCCESS; }
+		SGS_CASE( "inertia" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->inertia ); return SGS_SUCCESS; }
+		SGS_CASE( "linearDamping" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->linearDamping ); return SGS_SUCCESS; }
+		SGS_CASE( "angularDamping" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->angularDamping ); return SGS_SUCCESS; }
+		SGS_CASE( "linearFactor" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->linearFactor ); return SGS_SUCCESS; }
+		SGS_CASE( "angularFactor" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->angularFactor ); return SGS_SUCCESS; }
+		SGS_CASE( "kinematic" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->kinematic ); return SGS_SUCCESS; }
+		SGS_CASE( "canSleep" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->canSleep ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->enabled ); return SGS_SUCCESS; }
+		SGS_CASE( "group" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->group ); return SGS_SUCCESS; }
+		SGS_CASE( "mask" ){ sgs_PushVar( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->mask ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_RigidBodyInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_RigidBodyInfo*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "position" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->position = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->rotation = sgs_GetVar<Quat>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "friction" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->friction = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "restitution" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->restitution = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "mass" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->mass = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "inertia" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->inertia = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "linearDamping" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->linearDamping = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "angularDamping" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->angularDamping = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "linearFactor" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->linearFactor = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "angularFactor" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->angularFactor = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "kinematic" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->kinematic = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "canSleep" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->canSleep = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->enabled = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "group" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->group = sgs_GetVar<uint16_t>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "mask" ){ static_cast<SGRX_RigidBodyInfo*>( obj->data )->mask = sgs_GetVar<uint16_t>()( C, 1 ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_RigidBodyInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_RigidBodyInfo*>( obj->data )->C, C );
+	char bfr[ 50 ];
+	sprintf( bfr, "SGRX_RigidBodyInfo (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->position, depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->rotation, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfriction = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->friction, depth ).push( C ); }
+		{ sgs_PushString( C, "\nrestitution = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->restitution, depth ).push( C ); }
+		{ sgs_PushString( C, "\nmass = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->mass, depth ).push( C ); }
+		{ sgs_PushString( C, "\ninertia = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->inertia, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlinearDamping = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->linearDamping, depth ).push( C ); }
+		{ sgs_PushString( C, "\nangularDamping = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->angularDamping, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlinearFactor = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->linearFactor, depth ).push( C ); }
+		{ sgs_PushString( C, "\nangularFactor = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->angularFactor, depth ).push( C ); }
+		{ sgs_PushString( C, "\nkinematic = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->kinematic, depth ).push( C ); }
+		{ sgs_PushString( C, "\ncanSleep = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->canSleep, depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->enabled, depth ).push( C ); }
+		{ sgs_PushString( C, "\ngroup = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->group, depth ).push( C ); }
+		{ sgs_PushString( C, "\nmask = " ); sgs_DumpData( C, static_cast<SGRX_RigidBodyInfo*>( obj->data )->mask, depth ).push( C ); }
+		sgs_StringConcat( C, 30 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst SGRX_RigidBodyInfo__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int SGRX_RigidBodyInfo__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		SGRX_RigidBodyInfo__sgs_funcs,
+		-1, "SGRX_RigidBodyInfo." );
+	return 1;
+}
+
+static sgs_ObjInterface SGRX_RigidBodyInfo__sgs_interface =
+{
+	"SGRX_RigidBodyInfo",
+	SGRX_RigidBodyInfo::_sgs_destruct, SGRX_RigidBodyInfo::_sgs_gcmark, SGRX_RigidBodyInfo::_sgs_getindex, SGRX_RigidBodyInfo::_sgs_setindex, NULL, NULL, SGRX_RigidBodyInfo::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface SGRX_RigidBodyInfo::_sgs_interface(SGRX_RigidBodyInfo__sgs_interface, SGRX_RigidBodyInfo__sgs_ifn);
+
+
+int SGRX_HingeJointInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SGRX_HingeJointInfo*>( obj->data )->C = C;
+	static_cast<SGRX_HingeJointInfo*>( obj->data )->~SGRX_HingeJointInfo();
+	return SGS_SUCCESS;
+}
+
+int SGRX_HingeJointInfo::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_HingeJointInfo*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int SGRX_HingeJointInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_HingeJointInfo*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "pivotA" ){ sgs_PushVar( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->pivotA ); return SGS_SUCCESS; }
+		SGS_CASE( "pivotB" ){ sgs_PushVar( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->pivotB ); return SGS_SUCCESS; }
+		SGS_CASE( "axisA" ){ sgs_PushVar( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->axisA ); return SGS_SUCCESS; }
+		SGS_CASE( "axisB" ){ sgs_PushVar( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->axisB ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_HingeJointInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_HingeJointInfo*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "pivotA" ){ static_cast<SGRX_HingeJointInfo*>( obj->data )->pivotA = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "pivotB" ){ static_cast<SGRX_HingeJointInfo*>( obj->data )->pivotB = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "axisA" ){ static_cast<SGRX_HingeJointInfo*>( obj->data )->axisA = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "axisB" ){ static_cast<SGRX_HingeJointInfo*>( obj->data )->axisB = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_HingeJointInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_HingeJointInfo*>( obj->data )->C, C );
+	char bfr[ 51 ];
+	sprintf( bfr, "SGRX_HingeJointInfo (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\npivotA = " ); sgs_DumpData( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->pivotA, depth ).push( C ); }
+		{ sgs_PushString( C, "\npivotB = " ); sgs_DumpData( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->pivotB, depth ).push( C ); }
+		{ sgs_PushString( C, "\naxisA = " ); sgs_DumpData( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->axisA, depth ).push( C ); }
+		{ sgs_PushString( C, "\naxisB = " ); sgs_DumpData( C, static_cast<SGRX_HingeJointInfo*>( obj->data )->axisB, depth ).push( C ); }
+		sgs_StringConcat( C, 8 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst SGRX_HingeJointInfo__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int SGRX_HingeJointInfo__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		SGRX_HingeJointInfo__sgs_funcs,
+		-1, "SGRX_HingeJointInfo." );
+	return 1;
+}
+
+static sgs_ObjInterface SGRX_HingeJointInfo__sgs_interface =
+{
+	"SGRX_HingeJointInfo",
+	SGRX_HingeJointInfo::_sgs_destruct, SGRX_HingeJointInfo::_sgs_gcmark, SGRX_HingeJointInfo::_sgs_getindex, SGRX_HingeJointInfo::_sgs_setindex, NULL, NULL, SGRX_HingeJointInfo::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface SGRX_HingeJointInfo::_sgs_interface(SGRX_HingeJointInfo__sgs_interface, SGRX_HingeJointInfo__sgs_ifn);
+
+
+int SGRX_ConeTwistJointInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->C = C;
+	static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->~SGRX_ConeTwistJointInfo();
+	return SGS_SUCCESS;
+}
+
+int SGRX_ConeTwistJointInfo::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int SGRX_ConeTwistJointInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "frameA" ){ sgs_PushVar( C, static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->frameA ); return SGS_SUCCESS; }
+		SGS_CASE( "frameB" ){ sgs_PushVar( C, static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->frameB ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_ConeTwistJointInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "frameA" ){ static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->frameA = sgs_GetVar<Mat4>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "frameB" ){ static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->frameB = sgs_GetVar<Mat4>()( C, 1 ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGRX_ConeTwistJointInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->C, C );
+	char bfr[ 55 ];
+	sprintf( bfr, "SGRX_ConeTwistJointInfo (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nframeA = " ); sgs_DumpData( C, static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->frameA, depth ).push( C ); }
+		{ sgs_PushString( C, "\nframeB = " ); sgs_DumpData( C, static_cast<SGRX_ConeTwistJointInfo*>( obj->data )->frameB, depth ).push( C ); }
+		sgs_StringConcat( C, 4 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst SGRX_ConeTwistJointInfo__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int SGRX_ConeTwistJointInfo__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		SGRX_ConeTwistJointInfo__sgs_funcs,
+		-1, "SGRX_ConeTwistJointInfo." );
+	return 1;
+}
+
+static sgs_ObjInterface SGRX_ConeTwistJointInfo__sgs_interface =
+{
+	"SGRX_ConeTwistJointInfo",
+	SGRX_ConeTwistJointInfo::_sgs_destruct, SGRX_ConeTwistJointInfo::_sgs_gcmark, SGRX_ConeTwistJointInfo::_sgs_getindex, SGRX_ConeTwistJointInfo::_sgs_setindex, NULL, NULL, SGRX_ConeTwistJointInfo::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface SGRX_ConeTwistJointInfo::_sgs_interface(SGRX_ConeTwistJointInfo__sgs_interface, SGRX_ConeTwistJointInfo__sgs_ifn);
+
+
 static int _sgs_method__MultiEntity__MICreate( SGS_CTX )
 {
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MICreate ) ) return 0;
@@ -1051,14 +1309,14 @@ static int _sgs_method__MultiEntity__RBCreateFromMesh( SGS_CTX )
 {
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBCreateFromMesh ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBCreateFromMesh( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_SIRigidBodyInfo>()(C,2) ); return 0;
+	data->RBCreateFromMesh( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_RigidBodyInfo>()(C,2) ); return 0;
 }
 
 static int _sgs_method__MultiEntity__RBCreateFromConvexPointSet( SGS_CTX )
 {
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBCreateFromConvexPointSet ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBCreateFromConvexPointSet( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVarObj<SGRX_SIRigidBodyInfo>()(C,2) ); return 0;
+	data->RBCreateFromConvexPointSet( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVarObj<SGRX_RigidBodyInfo>()(C,2) ); return 0;
 }
 
 static int _sgs_method__MultiEntity__RBDestroy( SGS_CTX )
@@ -1128,28 +1386,28 @@ static int _sgs_method__MultiEntity__JTCreateHingeB2W( SGS_CTX )
 {
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateHingeB2W ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateHingeB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_SIHingeJointInfo>()(C,2) ); return 0;
+	data->JTCreateHingeB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_HingeJointInfo>()(C,2) ); return 0;
 }
 
 static int _sgs_method__MultiEntity__JTCreateHingeB2B( SGS_CTX )
 {
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateHingeB2B ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateHingeB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_SIHingeJointInfo>()(C,3) ); return 0;
+	data->JTCreateHingeB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_HingeJointInfo>()(C,3) ); return 0;
 }
 
 static int _sgs_method__MultiEntity__JTCreateConeTwistB2W( SGS_CTX )
 {
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateConeTwistB2W ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateConeTwistB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_SIConeTwistJointInfo>()(C,2) ); return 0;
+	data->JTCreateConeTwistB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_ConeTwistJointInfo>()(C,2) ); return 0;
 }
 
 static int _sgs_method__MultiEntity__JTCreateConeTwistB2B( SGS_CTX )
 {
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateConeTwistB2B ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateConeTwistB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_SIConeTwistJointInfo>()(C,3) ); return 0;
+	data->JTCreateConeTwistB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_ConeTwistJointInfo>()(C,3) ); return 0;
 }
 
 static int _sgs_method__MultiEntity__JTDestroy( SGS_CTX )

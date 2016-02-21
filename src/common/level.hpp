@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "../common/gfwcore.hpp"
-#include "../common/levelcache.hpp"
-#include "../common/gamegui.hpp"
+#include "gfwcore.hpp"
+#include "levelcache.hpp"
+#include "gamegui.hpp"
 
 
 extern CVarBool gcv_cl_gui;

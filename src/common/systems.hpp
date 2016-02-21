@@ -10,7 +10,6 @@
 
 #include "level.hpp"
 #include "pathfinding.hpp"
-#include "../common/scritem.hpp"
 
 
 // SYSTEM ID ALLOCATION (increment to allocate)
@@ -20,6 +19,32 @@
 //
 // INTERFACES
 //
+
+
+enum MeshInstEvent
+{
+	MIEVT_BulletHit = 1,
+};
+
+struct MI_BulletHit_Data
+{
+	Vec3 pos;
+	Vec3 vel;
+};
+
+struct SGRX_MeshInstUserData
+{
+	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL),
+		ovrDecalSysOverride(NULL), ownerType(0), typeOverride(NULL){}
+	virtual ~SGRX_MeshInstUserData(){}
+	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data ){}
+	SGRX_DecalSystem* dmgDecalSysOverride;
+	SGRX_DecalSystem* ovrDecalSysOverride;
+	uint32_t ownerType;
+	const char* typeOverride;
+};
+
+
 
 enum EInteractionType
 {

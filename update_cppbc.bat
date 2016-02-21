@@ -2,7 +2,6 @@
 @echo.
 @echo in src/common
 sgsvm -p ../../ext/src/sgscript/cppbc.sgs gfwcore.hpp
-sgsvm -p ../../ext/src/sgscript/cppbc.sgs scritem.hpp
 sgsvm -p ../../ext/src/sgscript/cppbc.sgs gamegui.hpp
 sgsvm -p ../../ext/src/sgscript/cppbc.sgs level.hpp
 sgsvm -p ../../ext/src/sgscript/cppbc.sgs entities.hpp -i level.hpp

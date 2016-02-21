@@ -2353,31 +2353,6 @@ bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchf
 	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent, skip, mask );
 }
 
-#if 0
-EdEntity* EdWorld::CreateScriptedEntity( const StringView& name, sgsVariable params )
-{
-	EdEntity* e = ENT_FindProtoByName( StackString< 128 >( name ) );
-	if( e == NULL )
-		return NULL;
-	
-	e = e->CloneEntity();
-	if( e == NULL )
-		return NULL;
-	
-	if( e->IsScriptedEnt() == false )
-	{
-		delete e;
-		return NULL;
-	}
-	
-	SGRX_CAST( EdEntScripted*, es, e );
-	es->m_data = params;
-	es->Data2Fields();
-	es->Fields2Data();
-	return es;
-}
-#endif
-
 void EdWorld::AddObject( EdObject* obj )
 {
 	m_objects.push_back( obj );
@@ -2659,30 +2634,6 @@ LC_Light EdWorld::GetDirLightInfo()
 	L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;
 	return L;
 }
-
-
-
-#if 0
-static int edscrAddScriptedEntity( SGS_CTX )
-{
-	SGSFN( "AddScriptedEntity" );
-	StringView name = sgs_GetVar<StringView>()( C, 0 );
-	sgsVariable params = sgs_GetVar<sgsVariable>()( C, 1 );
-	if( name == "Mesh" || name == "Light" || name == "Light sample" )
-		return sgs_Msg( C, SGS_WARNING, "Requested entity is not scripted: %s", StackString<128>(name).str );
-	EdObject* E = g_EdWorld->CreateScriptedEntity( name, params );
-	if( E == NULL )
-		return sgs_Msg( C, SGS_WARNING, "Could not find entity: %s", StackString<128>(name).str );
-	g_EdWorld->AddObject( E );
-	return 0;
-}
-
-static sgs_RegFuncConst g_editor_rfc[] =
-{
-	{ "AddScriptedEntity", edscrAddScriptedEntity },
-	{ NULL, NULL },
-};
-#endif
 
 
 
@@ -3267,14 +3218,10 @@ bool MapEditor::OnInitialize()
 	g_Level = g_BaseGame->CreateLevel();
 	sgs_RegIntConsts( g_Level->GetSGSC(), g_ent_scripted_ric, -1 );
 	sgs_RegFuncConsts( g_Level->GetSGSC(), g_ent_scripted_rfc, -1 );
-//	sgs_RegFuncConsts( g_Level->GetSGSC(), g_editor_rfc, -1 );
-	ScrItem_InstallAPI( g_Level->GetSGSC() );
 	
 	g_Level->GetScriptCtx().ExecFile( "levels/upgrade1.sgs" );
 //	LOG << "\nLoading scripted entities:";
 //	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
-//	LOG << "\nLoading scripted items:";
-//	LOG << g_ScriptCtx->ExecFile( "data/scritems.sgs" );
 //	LOG << "\nLoading completed\n\n";
 	
 	g_UISurfTexPicker = new EDGUISDTexPicker;
@@ -3283,8 +3230,6 @@ bool MapEditor::OnInitialize()
 	g_UICharPicker = new EDGUICharUsePicker( true );
 	g_UIPartSysPicker = new EDGUIPartSysPicker;
 	g_UISoundPicker = new EDGUISoundPicker;
-//	g_UIScrItemPicker = new EDGUIScrItemPicker( g_ScriptCtx );
-//	g_UIScrFnPicker = new EDGUIScrFnPicker( g_ScriptCtx );
 	g_UILevelOpenPicker = new EDGUILevelOpenPicker;
 	g_UILevelSavePicker = new EDGUILevelSavePicker;
 	
@@ -3312,10 +3257,6 @@ void MapEditor::OnDestroy()
 	g_UILevelSavePicker = NULL;
 	delete g_UILevelOpenPicker;
 	g_UILevelOpenPicker = NULL;
-//	delete g_UIScrItemPicker;
-//	g_UIScrItemPicker = NULL;
-//	delete g_UIScrFnPicker;
-//	g_UIScrFnPicker = NULL;
 	delete g_UIPartSysPicker;
 	g_UIPartSysPicker = NULL;
 	delete g_UISoundPicker;

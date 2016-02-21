@@ -4,7 +4,6 @@
 #include "compiler.hpp"
 #include "edutils.hpp"
 #include "edcomui.hpp"
-#include "scritem.hpp"
 #include "level.hpp"
 
 
@@ -46,8 +45,6 @@ MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
 MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
 MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );
-// MAPEDIT_GLOBAL( struct EDGUIScrItemPicker* g_UIScrItemPicker );
-// MAPEDIT_GLOBAL( struct EDGUIScrFnPicker* g_UIScrFnPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelOpenPicker* g_UILevelOpenPicker );
 MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
 MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
@@ -2108,42 +2105,7 @@ struct EdWorld : EDGUILayoutRow
 		
 		if( T::IsWriter )
 		{
-			int32_t numblocks = m_blocks.size();
-			svh << numblocks;
-			for( size_t i = 0; i < m_blocks.size(); ++i )
-			{
-				svh << *m_blocks[ i ].item;
-			}
-			
-			int32_t numents = 0;
-			for( size_t i = 0; i < m_entities.size(); ++i )
-				if( m_entities[ i ]->m_ownerEnt == NULL )
-					numents++;
-			svh << numents;
-			for( size_t i = 0; i < m_entities.size(); ++i )
-			{
-#if 0
-				if( m_entities[ i ]->m_ownerEnt == NULL )
-					ENT_Serialize( svh, m_entities[ i ] );
-#endif
-			}
-			
-			int32_t numpatches = m_patches.size();
-			svh << numpatches;
-			for( size_t i = 0; i < m_patches.size(); ++i )
-			{
-				svh << *m_patches[ i ].item;
-			}
-			
-			if( svh.version >= 8 )
-			{
-				int32_t numpaths = m_mpaths.size();
-				svh << numpaths;
-				for( size_t i = 0; i < m_mpaths.size(); ++i )
-				{
-					svh << *m_mpaths[ i ].item;
-				}
-			}
+			ASSERT( !"Writing the old file format is no longer supported" );
 		}
 		else
 		{
@@ -2301,11 +2263,6 @@ struct EdWorld : EDGUILayoutRow
 					sgs_Msg( g_Level->GetSGSC(), SGS_WARNING, "Subentities CANNOT BE UPGRADED" );
 					return;
 				}
-#if 0
-				EdEntity* e = ENT_Unserialize( svh, true );
-				if( e )
-					AddObject( e );
-#endif
 			}
 			
 			int32_t numpatches;

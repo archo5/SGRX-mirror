@@ -8,8 +8,7 @@ add_library( coregamelib STATIC
 	entities.hpp entities.cpp cppbc_entities.cpp
 	systems.hpp systems.cpp cppbc_systems.cpp
 	gfwcore.hpp gfwcore.cpp cppbc_gfwcore.cpp
-	gamegui.hpp gamegui.cpp cppbc_gamegui.cpp
-	scritem.hpp scritem.cpp cppbc_scritem.cpp )
+	gamegui.hpp gamegui.cpp cppbc_gamegui.cpp )
 set_target_properties( coregamelib PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
 	COMPILE_FLAGS "${CORE_FLAGS}"
@@ -29,7 +28,7 @@ set_target_properties( lighter PROPERTIES
 # Editor
 add_library( editor SHARED
 	mapedit mapedit_ent mapedit_block mapedit_mpath mapedit_patch mapedit_edit
-	compiler scritem cppbc_scritem )
+	compiler )
 target_link_libraries( editor
 	coregamelib sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
 	recast detour lighter )

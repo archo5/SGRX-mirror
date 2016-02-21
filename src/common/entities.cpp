@@ -387,56 +387,6 @@ void ParticleFX::OnEvent( const StringView& _type )
 }
 
 
-ScriptedItem::ScriptedItem( GameLevel* lev, const StringView& name, sgsVariable args ) : Entity( lev ), m_scrItem(NULL)
-{
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, 256, "SCRITEM_CREATE_%s", StackString<200>(name).str );
-	sgsVariable func = m_level->m_scriptCtx.GetGlobal( bfr );
-	if( func.not_null() )
-	{
-		sgs_Variable pvar = sgs_MakePtr( this );
-		args.setprop( "__entity", sgsVariable( m_level->m_scriptCtx.C, &pvar ) );
-		
-		m_scrItem = SGRX_ScriptedItem::Create(
-			m_level->GetScene(), m_level->GetPhyWorld(), m_level->m_scriptCtx.C,
-			func, args );
-		m_scrItem->SetLightSampler( m_level );
-		m_scrItem->PreRender();
-	}
-}
-
-ScriptedItem::~ScriptedItem()
-{
-	if( m_scrItem )
-		m_scrItem->Release();
-}
-
-void ScriptedItem::FixedTick( float deltaTime )
-{
-	if( m_scrItem )
-	{
-		m_scrItem->FixedTick( deltaTime );
-	}
-}
-
-void ScriptedItem::Tick( float deltaTime, float blendFactor )
-{
-	if( m_scrItem )
-	{
-		m_scrItem->Tick( deltaTime, blendFactor );
-		m_scrItem->PreRender();
-	}
-}
-
-void ScriptedItem::OnEvent( const StringView& type )
-{
-	if( m_scrItem )
-	{
-		m_scrItem->EntityEvent( type );
-	}
-}
-
-
 MeshEntity::MeshEntity( GameLevel* lev ) : Entity( lev ),
 	m_isStatic( true ),
 	m_isVisible( true ),
@@ -585,23 +535,67 @@ void LightEntity::_UpdateFlare()
 }
 
 
-#define SCRENT_OFSCHK( i, ret ) if( (i) < 0 || (i) >= 4 ){ \
-	sgs_Msg( C, SGS_WARNING, "wrong offset: %d outside " SCRENT_RANGE_STR, (int)(i) ); ret; }
-#define SCRENT_MESHCHK( i, ret ) if( m_meshes[ i ] == NULL ){ \
+
+
+static int RigidBodyInfo( SGS_CTX )
+{
+	SGS_CREATECLASS( C, NULL, SGRX_RigidBodyInfo, () );
+	return 1;
+}
+
+static int HingeJointInfo( SGS_CTX )
+{
+	SGS_CREATECLASS( C, NULL, SGRX_HingeJointInfo, () );
+	return 1;
+}
+
+static int ConeTwistJointInfo( SGS_CTX )
+{
+	SGS_CREATECLASS( C, NULL, SGRX_ConeTwistJointInfo, () );
+	return 1;
+}
+
+static sgs_RegIntConst multient_intconsts[] =
+{
+	{ "ForceType_Velocity", ForceType_Velocity },
+	{ "ForceType_Impulse", ForceType_Impulse },
+	{ "ForceType_Acceleration", ForceType_Acceleration },
+	{ "ForceType_Force", ForceType_Force },
+	{ NULL, 0 },
+};
+
+static sgs_RegFuncConst multient_funcconsts[] =
+{
+	{ "RigidBodyInfo", RigidBodyInfo },
+	{ "HingeJointInfo", HingeJointInfo },
+	{ "ConeTwistJointInfo", ConeTwistJointInfo },
+	{ NULL, NULL },
+};
+
+void MultiEnt_InstallAPI( SGS_CTX )
+{
+	sgs_RegIntConsts( C, multient_intconsts, -1 );
+	sgs_RegFuncConsts( C, multient_funcconsts, -1 );
+}
+
+
+#define MULTIENT_OFSCHK( i, ret ) if( (i) < 0 || (i) >= 4 ){ \
+	sgs_Msg( C, SGS_WARNING, "wrong offset: %d outside " MULTIENT_RANGE_STR, (int)(i) ); ret; }
+#define MULTIENT_MESHCHK( i, ret ) if( m_meshes[ i ] == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no mesh at offset %d", (int)(i) ); ret; }
-#define SCRENT_PSYSCHK( i, ret ) if( m_partSys[ i ] == NULL ){ \
+#define MULTIENT_PSYSCHK( i, ret ) if( m_partSys[ i ] == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no part.sys at offset %d", (int)(i) ); ret; }
-#define SCRENT_BODYCHK( i, ret ) if( m_bodies[ i ] == NULL ){ \
+#define MULTIENT_BODYCHK( i, ret ) if( m_bodies[ i ] == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no body at offset %d", (int)(i) ); ret; }
-#define SCRENT_JOINTCHK( i, ret ) if( m_joints[ i ] == NULL ){ \
+#define MULTIENT_JOINTCHK( i, ret ) if( m_joints[ i ] == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no joint at offset %d", (int)(i) ); ret; }
-#define SCRENT_DSYSCHK( ret ) if( m_dmgDecalSys == NULL ){ \
+#define MULTIENT_DSYSCHK( ret ) if( m_dmgDecalSys == NULL ){ \
 	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
 
 
 MultiEntity::MultiEntity( GameLevel* lev ) : Entity( lev )
 {
-	for( int i = 0; i < SCRITEM_NUM_SLOTS; ++i )
+	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
 		m_meshMatrices[ i ] = Mat4::Identity;
 		m_partSysMatrices[ i ] = Mat4::Identity;
@@ -614,7 +608,7 @@ MultiEntity::~MultiEntity()
 
 void MultiEntity::FixedTick( float deltaTime )
 {
-	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
 		if( m_bodies[ i ] )
 		{
@@ -628,7 +622,7 @@ void MultiEntity::FixedTick( float deltaTime )
 
 void MultiEntity::Tick( float deltaTime, float blendFactor )
 {
-	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
 		if( m_bodies[ i ] )
 		{
@@ -637,7 +631,7 @@ void MultiEntity::Tick( float deltaTime, float blendFactor )
 		}
 	}
 	
-	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
 		if( m_partSys[ i ] )
 			m_partSys[ i ]->Tick( deltaTime );
@@ -650,7 +644,7 @@ void MultiEntity::Tick( float deltaTime, float blendFactor )
 
 void MultiEntity::PreRender()
 {
-	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
 		if( m_meshes[ i ] )
 			m_level->LightMesh( m_meshes[ i ] );
@@ -676,7 +670,7 @@ void MultiEntity::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 		sgs_CreateVec3p( C, NULL, &bhinfo->pos.x );
 		sgs_CreateVec3p( C, NULL, &bhinfo->vel.x );
 		int i = 0;
-		for( ; i < SCRENT_NUM_SLOTS; ++i )
+		for( ; i < MULTIENT_NUM_SLOTS; ++i )
 		{
 			if( MI == m_meshes[ i ] )
 			{
@@ -684,7 +678,7 @@ void MultiEntity::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 				break;
 			}
 		}
-		if( i == SCRENT_NUM_SLOTS )
+		if( i == MULTIENT_NUM_SLOTS )
 			sgs_PushInt( C, -1 ); // wat
 		GetScriptedObject().thiscall( C, "OnHit", 3 );
 	}
@@ -697,7 +691,7 @@ void MultiEntity::OnTransformUpdate()
 		m_dmgDecalSys->m_meshInst->matrix = mtx;
 	if( m_ovrDecalSys )
 		m_ovrDecalSys->m_meshInst->matrix = mtx;
-	for( int i = 0; i < SCRENT_NUM_SLOTS; ++i )
+	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
 		if( m_meshes[ i ] )
 			m_meshes[ i ]->matrix = m_meshMatrices[ i ] * mtx;
@@ -708,7 +702,7 @@ void MultiEntity::OnTransformUpdate()
 
 void MultiEntity::MICreate( int i, StringView path )
 {
-	SCRENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
 	m_meshes[ i ] = m_level->GetScene()->CreateMeshInstance();
 	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * GetWorldMatrix();
 	m_meshes[ i ]->userData = this;
@@ -718,42 +712,42 @@ void MultiEntity::MICreate( int i, StringView path )
 
 void MultiEntity::MIDestroy( int i )
 {
-	SCRENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
 	m_meshes[ i ] = NULL;
 }
 
 bool MultiEntity::MIExists( int i )
 {
-	SCRENT_OFSCHK( i, return false );
+	MULTIENT_OFSCHK( i, return false );
 	return m_meshes[ i ] != NULL;
 }
 
 void MultiEntity::MISetMesh( int i, StringView path )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_MESHCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_MESHCHK( i, return );
 	m_meshes[ i ]->SetMesh( path );
 }
 
 void MultiEntity::MISetEnabled( int i, bool enabled )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_MESHCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_MESHCHK( i, return );
 	m_meshes[ i ]->enabled = enabled;
 }
 
 void MultiEntity::MISetMatrix( int i, Mat4 mtx )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_MESHCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_MESHCHK( i, return );
 	m_meshMatrices[ i ] = mtx;
 	m_meshes[ i ]->matrix = mtx * GetWorldMatrix();
 }
 
 void MultiEntity::MISetShaderConst( int i, int v, Vec4 var )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_MESHCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_MESHCHK( i, return );
 	if( v < 0 || v >= MAX_MI_CONSTANTS )
 	{
 		sgs_Msg( C, SGS_WARNING, "shader constant %d outside range [0;%d)", v, MAX_MI_CONSTANTS );
@@ -764,14 +758,14 @@ void MultiEntity::MISetShaderConst( int i, int v, Vec4 var )
 
 void MultiEntity::MISetLayers( int i, uint32_t layers )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_MESHCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_MESHCHK( i, return );
 	m_meshes[ i ]->layers = layers;
 }
 
 void MultiEntity::PSCreate( int i, StringView path )
 {
-	SCRENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
 	m_partSys[ i ] = new ParticleSystem;
 	m_partSys[ i ]->AddToScene( m_level->GetScene() );
 	if( path )
@@ -781,37 +775,37 @@ void MultiEntity::PSCreate( int i, StringView path )
 
 void MultiEntity::PSDestroy( int i )
 {
-	SCRENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
 	m_partSys[ i ] = NULL;
 }
 
 bool MultiEntity::PSExists( int i )
 {
-	SCRENT_OFSCHK( i, return false );
+	MULTIENT_OFSCHK( i, return false );
 	return m_partSys[ i ] != NULL;
 }
 
 void MultiEntity::PSLoad( int i, StringView path )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_PSYSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_PSYSCHK( i, return );
 	m_partSys[ i ]->Load( path );
 }
 
 void MultiEntity::PSSetMatrix( int i, Mat4 mtx )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_PSYSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_PSYSCHK( i, return );
 	m_partSysMatrices[ i ] = mtx;
 	m_partSys[ i ]->SetTransform( mtx * GetWorldMatrix() );
 }
 
 void MultiEntity::PSSetMatrixFromMeshAABB( int i, int mi )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_PSYSCHK( i, return );
-	SCRENT_OFSCHK( mi, return );
-	SCRENT_MESHCHK( mi, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_PSYSCHK( i, return );
+	MULTIENT_OFSCHK( mi, return );
+	MULTIENT_MESHCHK( mi, return );
 	SGRX_IMesh* M = m_meshes[ mi ]->GetMesh();
 	if( M == NULL )
 	{
@@ -827,22 +821,22 @@ void MultiEntity::PSSetMatrixFromMeshAABB( int i, int mi )
 
 void MultiEntity::PSPlay( int i )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_PSYSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_PSYSCHK( i, return );
 	m_partSys[ i ]->Play();
 }
 
 void MultiEntity::PSStop( int i )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_PSYSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_PSYSCHK( i, return );
 	m_partSys[ i ]->Stop();
 }
 
 void MultiEntity::PSTrigger( int i )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_PSYSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_PSYSCHK( i, return );
 	m_partSys[ i ]->Trigger();
 }
 
@@ -877,23 +871,23 @@ void MultiEntity::DSDestroy()
 
 void MultiEntity::DSResize( uint32_t size )
 {
-	SCRENT_DSYSCHK( return );
+	MULTIENT_DSYSCHK( return );
 	m_dmgDecalSys->SetSize( size );
 	m_ovrDecalSys->SetSize( size );
 }
 
 void MultiEntity::DSClear()
 {
-	SCRENT_DSYSCHK( return );
+	MULTIENT_DSYSCHK( return );
 	m_dmgDecalSys->ClearAllDecals();
 	m_ovrDecalSys->ClearAllDecals();
 }
 
-void MultiEntity::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec )
+void MultiEntity::RBCreateFromMesh( int i, int mi, SGRX_RigidBodyInfo* spec )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_OFSCHK( mi, return );
-	SCRENT_MESHCHK( mi, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( mi, return );
+	MULTIENT_MESHCHK( mi, return );
 	SGRX_IMesh* M = m_meshes[ mi ]->GetMesh();
 	if( M == NULL )
 	{
@@ -909,9 +903,9 @@ void MultiEntity::RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec )
 	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = rbi.rotation );
 }
 
-void MultiEntity::RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec )
+void MultiEntity::RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_RigidBodyInfo* spec )
 {
-	SCRENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
 	ConvexPointSetHandle cpsh = GP_GetConvexPointSet( cpset );
 	if( cpsh == NULL )
 	{
@@ -929,111 +923,111 @@ void MultiEntity::RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRi
 
 void MultiEntity::RBDestroy( int i )
 {
-	SCRENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
 	m_bodies[ i ] = NULL;
 }
 
 bool MultiEntity::RBExists( int i )
 {
-	SCRENT_OFSCHK( i, return false );
+	MULTIENT_OFSCHK( i, return false );
 	return m_bodies[ i ] != NULL;
 }
 
 void MultiEntity::RBSetEnabled( int i, bool enabled )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_BODYCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_BODYCHK( i, return );
 	m_bodies[ i ]->SetEnabled( enabled );
 }
 
 Vec3 MultiEntity::RBGetPosition( int i )
 {
-	SCRENT_OFSCHK( i, return V3(0) );
-	SCRENT_BODYCHK( i, return V3(0) );
+	MULTIENT_OFSCHK( i, return V3(0) );
+	MULTIENT_BODYCHK( i, return V3(0) );
 	return m_bodyPosLerp[ i ]; // m_bodies[ i ]->GetPosition();
 }
 
 void MultiEntity::RBSetPosition( int i, Vec3 v )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_BODYCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_BODYCHK( i, return );
 	m_bodyPos[ i ] = IVState<Vec3>( m_bodyPosLerp[ i ] = v );
 	m_bodies[ i ]->SetPosition( v );
 }
 
 Quat MultiEntity::RBGetRotation( int i )
 {
-	SCRENT_OFSCHK( i, return Quat::Identity );
-	SCRENT_BODYCHK( i, return Quat::Identity );
+	MULTIENT_OFSCHK( i, return Quat::Identity );
+	MULTIENT_BODYCHK( i, return Quat::Identity );
 	return m_bodyRotLerp[ i ]; // m_bodies[ i ]->GetRotation();
 }
 
 void MultiEntity::RBSetRotation( int i, Quat v )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_BODYCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_BODYCHK( i, return );
 	m_bodyRot[ i ] = IVState<Quat>( m_bodyRotLerp[ i ] = v );
 	m_bodies[ i ]->SetRotation( v );
 }
 
 Mat4 MultiEntity::RBGetMatrix( int i )
 {
-	SCRENT_OFSCHK( i, return Mat4::Identity );
-	SCRENT_BODYCHK( i, return Mat4::Identity );
+	MULTIENT_OFSCHK( i, return Mat4::Identity );
+	MULTIENT_BODYCHK( i, return Mat4::Identity );
 	return Mat4::CreateRotationFromQuat( m_bodyRotLerp[ i ] ) // m_bodies[ i ]->GetRotation() )
 		* Mat4::CreateTranslation( m_bodyPosLerp[ i ] ); // m_bodies[ i ]->GetPosition() );
 }
 
 void MultiEntity::RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_BODYCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_BODYCHK( i, return );
 	if( sgs_StackSize( C ) >= 4 )
 		m_bodies[ i ]->ApplyForce( (EPhyForceType) type, v, p );
 	else
 		m_bodies[ i ]->ApplyCentralForce( (EPhyForceType) type, v );
 }
 
-void MultiEntity::JTCreateHingeB2W( int i, int bi, SGRX_SIHingeJointInfo* spec )
+void MultiEntity::JTCreateHingeB2W( int i, int bi, SGRX_HingeJointInfo* spec )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_OFSCHK( bi, return );
-	SCRENT_BODYCHK( bi, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( bi, return );
+	MULTIENT_BODYCHK( bi, return );
 	SGRX_PhyHingeJointInfo hjinfo = *spec;
 	hjinfo.bodyA = m_bodies[ bi ];
 	m_joints[ i ] = m_level->GetPhyWorld()->CreateHingeJoint( hjinfo );
 }
 
-void MultiEntity::JTCreateHingeB2B( int i, int biA, int biB, SGRX_SIHingeJointInfo* spec )
+void MultiEntity::JTCreateHingeB2B( int i, int biA, int biB, SGRX_HingeJointInfo* spec )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_OFSCHK( biA, return );
-	SCRENT_BODYCHK( biA, return );
-	SCRENT_OFSCHK( biB, return );
-	SCRENT_BODYCHK( biB, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( biA, return );
+	MULTIENT_BODYCHK( biA, return );
+	MULTIENT_OFSCHK( biB, return );
+	MULTIENT_BODYCHK( biB, return );
 	SGRX_PhyHingeJointInfo hjinfo = *spec;
 	hjinfo.bodyA = m_bodies[ biA ];
 	hjinfo.bodyB = m_bodies[ biB ];
 	m_joints[ i ] = m_level->GetPhyWorld()->CreateHingeJoint( hjinfo );
 }
 
-void MultiEntity::JTCreateConeTwistB2W( int i, int bi, SGRX_SIConeTwistJointInfo* spec )
+void MultiEntity::JTCreateConeTwistB2W( int i, int bi, SGRX_ConeTwistJointInfo* spec )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_OFSCHK( bi, return );
-	SCRENT_BODYCHK( bi, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( bi, return );
+	MULTIENT_BODYCHK( bi, return );
 	SGRX_PhyConeTwistJointInfo ctjinfo = *spec;
 	ctjinfo.bodyA = m_bodies[ bi ];
 	m_joints[ i ] = m_level->GetPhyWorld()->CreateConeTwistJoint( ctjinfo );
 }
 
-void MultiEntity::JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_SIConeTwistJointInfo* spec )
+void MultiEntity::JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_ConeTwistJointInfo* spec )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_OFSCHK( biA, return );
-	SCRENT_BODYCHK( biA, return );
-	SCRENT_OFSCHK( biB, return );
-	SCRENT_BODYCHK( biB, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( biA, return );
+	MULTIENT_BODYCHK( biA, return );
+	MULTIENT_OFSCHK( biB, return );
+	MULTIENT_BODYCHK( biB, return );
 	SGRX_PhyConeTwistJointInfo ctjinfo = *spec;
 	ctjinfo.bodyA = m_bodies[ biA ];
 	ctjinfo.bodyB = m_bodies[ biB ];
@@ -1042,20 +1036,20 @@ void MultiEntity::JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_SIConeTwis
 
 void MultiEntity::JTDestroy( int i )
 {
-	SCRENT_OFSCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
 	m_joints[ i ] = NULL;
 }
 
 bool MultiEntity::JTExists( int i )
 {
-	SCRENT_OFSCHK( i, return false );
+	MULTIENT_OFSCHK( i, return false );
 	return m_joints[ i ] != NULL;
 }
 
 void MultiEntity::JTSetEnabled( int i, bool enabled )
 {
-	SCRENT_OFSCHK( i, return );
-	SCRENT_JOINTCHK( i, return );
+	MULTIENT_OFSCHK( i, return );
+	MULTIENT_JOINTCHK( i, return );
 	m_joints[ i ]->SetEnabled( enabled );
 }
 
@@ -1063,8 +1057,7 @@ void MultiEntity::JTSetEnabled( int i, bool enabled )
 
 StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-//	ScrItem_InstallAPI( lev->GetSGSC() );
-//	lev->GetScriptCtx().Include( "data/scritems" );
+	MultiEnt_InstallAPI( lev->GetSGSC() );
 	lev->RegisterNativeEntity<Entity>( "Entity" );
 	lev->RegisterNativeEntity<MeshEntity>( "Mesh" );
 	lev->RegisterNativeEntity<LightEntity>( "Light" );
@@ -1173,21 +1166,10 @@ Entity* StockEntityCreationSystem::AddEntity( StringView type )
 			data.getprop("start").get<bool>()
 		);
 	}
-	
-	///////////////////////////
-	if( type == "scritem" )
-	{
-		sgsVariable scritem = data.getprop("scritem");
-		return new ScriptedItem
-		(
-			m_level,
-			scritem.getprop("__type").get<StringView>(),
-			scritem
-		);
-	}
 #endif
 	
 	if( type == "Entity" ) return new Entity( m_level );
+	if( type == "Mesh" ) return new MeshEntity( m_level );
 	if( type == "Light" ) return new LightEntity( m_level );
 	if( type == "MultiEntity" ) return new MultiEntity( m_level );
 	

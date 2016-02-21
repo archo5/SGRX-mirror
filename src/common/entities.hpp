@@ -148,18 +148,6 @@ struct ParticleFX : Entity
 };
 
 
-struct ScriptedItem : Entity
-{
-	SGRX_ScriptedItem* m_scrItem;
-	
-	ScriptedItem( GameLevel* lev, const StringView& name, sgsVariable args );
-	~ScriptedItem();
-	virtual void FixedTick( float deltaTime );
-	virtual void Tick( float deltaTime, float blendFactor );
-	virtual void OnEvent( const StringView& type );
-};
-
-
 struct MeshEntity : Entity
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
@@ -268,8 +256,61 @@ struct LightEntity : Entity
 };
 
 
-#define SCRENT_NUM_SLOTS 4
-#define SCRENT_RANGE_STR "[0-3]"
+
+struct SGRX_RigidBodyInfo : SGRX_PhyRigidBodyInfo
+{
+	typedef sgsHandle< SGRX_RigidBodyInfo > Handle;
+	
+	SGS_OBJECT;
+	
+	SGS_PROPERTY SGS_ALIAS( Vec3 position );
+	SGS_PROPERTY SGS_ALIAS( Quat rotation );
+	SGS_PROPERTY SGS_ALIAS( float friction );
+	SGS_PROPERTY SGS_ALIAS( float restitution );
+	SGS_PROPERTY SGS_ALIAS( float mass );
+	SGS_PROPERTY SGS_ALIAS( Vec3 inertia );
+	SGS_PROPERTY SGS_ALIAS( float linearDamping );
+	SGS_PROPERTY SGS_ALIAS( float angularDamping );
+	SGS_PROPERTY SGS_ALIAS( Vec3 linearFactor );
+	SGS_PROPERTY SGS_ALIAS( Vec3 angularFactor );
+	SGS_PROPERTY SGS_ALIAS( bool kinematic );
+	SGS_PROPERTY SGS_ALIAS( bool canSleep );
+	SGS_PROPERTY SGS_ALIAS( bool enabled );
+	SGS_PROPERTY SGS_ALIAS( uint16_t group );
+	SGS_PROPERTY SGS_ALIAS( uint16_t mask );
+};
+
+struct SGRX_HingeJointInfo : SGRX_PhyHingeJointInfo
+{
+	typedef sgsHandle< SGRX_HingeJointInfo > Handle;
+	
+	SGS_OBJECT;
+	
+	SGS_PROPERTY SGS_ALIAS( Vec3 pivotA );
+	SGS_PROPERTY SGS_ALIAS( Vec3 pivotB );
+	SGS_PROPERTY SGS_ALIAS( Vec3 axisA );
+	SGS_PROPERTY SGS_ALIAS( Vec3 axisB );
+};
+
+struct SGRX_ConeTwistJointInfo : SGRX_PhyConeTwistJointInfo
+{
+	typedef sgsHandle< SGRX_ConeTwistJointInfo > Handle;
+	
+	SGS_OBJECT;
+	
+	SGS_PROPERTY SGS_ALIAS( Mat4 frameA );
+	SGS_PROPERTY SGS_ALIAS( Mat4 frameB );
+};
+
+
+#define ForceType_Velocity PFT_Velocity
+#define ForceType_Impulse PFT_Impulse
+#define ForceType_Acceleration PFT_Acceleration
+#define ForceType_Force PFT_Force
+
+
+#define MULTIENT_NUM_SLOTS 4
+#define MULTIENT_RANGE_STR "[0-3]"
 
 struct MultiEntity : Entity, SGRX_MeshInstUserData
 {
@@ -314,8 +355,8 @@ struct MultiEntity : Entity, SGRX_MeshInstUserData
 	SGS_METHOD void DSClear();
 	
 	// - rigid bodies
-	SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_SIRigidBodyInfo* spec );
-	SGS_METHOD void RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_SIRigidBodyInfo* spec );
+	SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_RigidBodyInfo* spec );
+	SGS_METHOD void RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_RigidBodyInfo* spec );
 	SGS_METHOD void RBDestroy( int i );
 	SGS_METHOD bool RBExists( int i );
 	SGS_METHOD void RBSetEnabled( int i, bool enabled );
@@ -327,10 +368,10 @@ struct MultiEntity : Entity, SGRX_MeshInstUserData
 	SGS_METHOD void RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p );
 	
 	// - joints
-	SGS_METHOD void JTCreateHingeB2W( int i, int bi, SGRX_SIHingeJointInfo* spec );
-	SGS_METHOD void JTCreateHingeB2B( int i, int biA, int biB, SGRX_SIHingeJointInfo* spec );
-	SGS_METHOD void JTCreateConeTwistB2W( int i, int bi, SGRX_SIConeTwistJointInfo* spec );
-	SGS_METHOD void JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_SIConeTwistJointInfo* spec );
+	SGS_METHOD void JTCreateHingeB2W( int i, int bi, SGRX_HingeJointInfo* spec );
+	SGS_METHOD void JTCreateHingeB2B( int i, int biA, int biB, SGRX_HingeJointInfo* spec );
+	SGS_METHOD void JTCreateConeTwistB2W( int i, int bi, SGRX_ConeTwistJointInfo* spec );
+	SGS_METHOD void JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_ConeTwistJointInfo* spec );
 	SGS_METHOD void JTDestroy( int i );
 	SGS_METHOD bool JTExists( int i );
 	SGS_METHOD void JTSetEnabled( int i, bool enabled );
@@ -339,19 +380,19 @@ struct MultiEntity : Entity, SGRX_MeshInstUserData
 	DecalSysHandle m_dmgDecalSys;
 	DecalSysHandle m_ovrDecalSys;
 	
-	MeshInstHandle m_meshes[ SCRENT_NUM_SLOTS ];
-	PartSysHandle m_partSys[ SCRENT_NUM_SLOTS ];
-	PhyRigidBodyHandle m_bodies[ SCRENT_NUM_SLOTS ];
-	PhyJointHandle m_joints[ SCRENT_NUM_SLOTS ];
-	IVState< Vec3 > m_bodyPos[ SCRENT_NUM_SLOTS ];
-	IVState< Quat > m_bodyRot[ SCRENT_NUM_SLOTS ];
-	Vec3 m_bodyPosLerp[ SCRENT_NUM_SLOTS ];
-	Quat m_bodyRotLerp[ SCRENT_NUM_SLOTS ];
-//	LightHandle m_lights[ SCRENT_NUM_SLOTS ];
+	MeshInstHandle m_meshes[ MULTIENT_NUM_SLOTS ];
+	PartSysHandle m_partSys[ MULTIENT_NUM_SLOTS ];
+	PhyRigidBodyHandle m_bodies[ MULTIENT_NUM_SLOTS ];
+	PhyJointHandle m_joints[ MULTIENT_NUM_SLOTS ];
+	IVState< Vec3 > m_bodyPos[ MULTIENT_NUM_SLOTS ];
+	IVState< Quat > m_bodyRot[ MULTIENT_NUM_SLOTS ];
+	Vec3 m_bodyPosLerp[ MULTIENT_NUM_SLOTS ];
+	Quat m_bodyRotLerp[ MULTIENT_NUM_SLOTS ];
+//	LightHandle m_lights[ MULTIENT_NUM_SLOTS ];
 	
-	Mat4 m_meshMatrices[ SCRENT_NUM_SLOTS ];
-	Mat4 m_partSysMatrices[ SCRENT_NUM_SLOTS ];
-//	Mat4 m_lightMatrices[ SCRENT_NUM_SLOTS ];
+	Mat4 m_meshMatrices[ MULTIENT_NUM_SLOTS ];
+	Mat4 m_partSysMatrices[ MULTIENT_NUM_SLOTS ];
+//	Mat4 m_lightMatrices[ MULTIENT_NUM_SLOTS ];
 };
 
 

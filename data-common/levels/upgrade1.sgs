@@ -34,6 +34,5 @@ function ENT_UPG1_m3sh( pos, data )
 		lightingMode = if( data.dynlit, LM_Dynamic, LM_Static ),
 		castLMS = data.castlms,
 	};
-	printvar(data);
 	return "Mesh", data;
 }
