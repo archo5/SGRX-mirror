@@ -305,6 +305,7 @@ struct LevelCache
 	Array< LC_Light > m_lights;
 	Array< LC_ScriptedEntity > m_scriptents;
 	LC_PhysicsMesh m_phyMesh;
+	Array< LC_SolidBox > m_solidBoxes;
 	LC_PhysicsMesh m_navMesh;
 	SGRX_LightTree* m_sampleTree;
 	Array< Vec2 > m_lines;

@@ -3,15 +3,16 @@ cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 # Core game library
-add_library( coregamelib STATIC
+add_library( sgrx-gfw SHARED
 	level.hpp level.cpp cppbc_level.cpp
 	entities.hpp entities.cpp cppbc_entities.cpp
 	systems.hpp systems.cpp cppbc_systems.cpp
 	gfwcore.hpp gfwcore.cpp cppbc_gfwcore.cpp
 	gamegui.hpp gamegui.cpp cppbc_gamegui.cpp )
-set_target_properties( coregamelib PROPERTIES
+target_link_libraries( sgrx-gfw sgrx-pathfinding sgrx-script sgrx-core )
+set_target_properties( sgrx-gfw PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
-	COMPILE_FLAGS "${CORE_FLAGS}"
+	COMPILE_FLAGS "${CORE_FLAGS} -DGFW_BUILDING"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
 
@@ -30,7 +31,7 @@ add_library( editor SHARED
 	mapedit mapedit_ent mapedit_block mapedit_mpath mapedit_patch mapedit_edit
 	compiler )
 target_link_libraries( editor
-	coregamelib sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
+	sgrx-gfw sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
 	recast detour lighter )
 set_target_properties( editor PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${EXTDIR}/src;${EXTDIR}/src/recast/Recast/Include;${EXTDIR}/src/recast/Detour/Include"

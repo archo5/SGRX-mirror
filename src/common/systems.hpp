@@ -96,16 +96,16 @@ struct MapItemInfo
 	float sizeRight;
 };
 
-struct LevelMapSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) LevelMapSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 9 };
 	
-	LevelMapSystem( GameLevel* lev );
-	void Clear();
-	bool LoadChunk( const StringView& type, ByteView data );
-	void UpdateItem( Entity* e, const MapItemInfo& data );
-	void RemoveItem( Entity* e );
-	void DrawUI();
+	GFW_EXPORT LevelMapSystem( GameLevel* lev );
+	GFW_EXPORT void Clear();
+	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
+	GFW_EXPORT void UpdateItem( Entity* e, const MapItemInfo& data );
+	GFW_EXPORT void RemoveItem( Entity* e );
+	GFW_EXPORT void DrawUI();
 	
 	Vec2 m_viewPos;
 
@@ -132,7 +132,7 @@ struct MSMessage
 	float position;
 };
 
-struct MessagingSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) MessagingSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -141,13 +141,13 @@ struct MessagingSystem : IGameLevelSystem
 	
 	Array< MSMessage > m_messages;
 	
-	MessagingSystem( GameLevel* lev );
-	void Clear();
-	void AddMessage( MSMessage::Type type, const StringView& sv, float tmlength = 3 );
-	void Tick( float deltaTime, float blendFactor );
-	void DrawUI();
+	GFW_EXPORT MessagingSystem( GameLevel* lev );
+	GFW_EXPORT void Clear();
+	GFW_EXPORT void AddMessage( MSMessage::Type type, const StringView& sv, float tmlength = 3 );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void DrawUI();
 	
-	SGS_METHOD_NAMED( Add ) void sgsAddMsg( int type, StringView text, float time );
+	GFW_EXPORT SGS_METHOD_NAMED( Add ) void sgsAddMsg( int type, StringView text, float time );
 	
 	TextureHandle m_tx_icon_info;
 	TextureHandle m_tx_icon_warning;
@@ -184,32 +184,32 @@ struct OSObjStats
 	int numCancelled;
 };
 
-struct ObjectiveSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) ObjectiveSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 3 };
 	
-	ObjectiveSystem( GameLevel* lev );
-	void Clear();
-	int AddObjective(
+	GFW_EXPORT ObjectiveSystem( GameLevel* lev );
+	GFW_EXPORT void Clear();
+	GFW_EXPORT int AddObjective(
 		const StringView& title,
 		OSObjective::State state,
 		const StringView& desc = "",
 		bool required = false,
 		Vec3* location = NULL );
-	OSObjStats GetStats();
-	void Tick( float deltaTime, float blendFactor );
-	void DrawUI();
+	GFW_EXPORT OSObjStats GetStats();
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void DrawUI();
 	
-	bool _CheckRange( int i );
-	SGS_METHOD_NAMED( Add ) int sgsAddObj( StringView title, int state, StringView desc, bool req, Vec3 loc );
-	SGS_METHOD_NAMED( GetTitle ) StringView sgsGetTitle( int i );
-	SGS_METHOD_NAMED( SetTitle ) void sgsSetTitle( int i, StringView title );
-	SGS_METHOD_NAMED( GetState ) int sgsGetState( int i );
-	SGS_METHOD_NAMED( SetState ) void sgsSetState( int i, int state );
-	SGS_METHOD_NAMED( SetLocation ) void sgsSetLocation( int i, Vec3 loc );
+	GFW_EXPORT bool _CheckRange( int i );
+	GFW_EXPORT SGS_METHOD_NAMED( Add ) int sgsAddObj( StringView title, int state, StringView desc, bool req, Vec3 loc );
+	GFW_EXPORT SGS_METHOD_NAMED( GetTitle ) StringView sgsGetTitle( int i );
+	GFW_EXPORT SGS_METHOD_NAMED( SetTitle ) void sgsSetTitle( int i, StringView title );
+	GFW_EXPORT SGS_METHOD_NAMED( GetState ) int sgsGetState( int i );
+	GFW_EXPORT SGS_METHOD_NAMED( SetState ) void sgsSetState( int i, int state );
+	GFW_EXPORT SGS_METHOD_NAMED( SetLocation ) void sgsSetLocation( int i, Vec3 loc );
 	
 	InputState SHOW_OBJECTIVES;
 	
@@ -223,25 +223,25 @@ struct ObjectiveSystem : IGameLevelSystem
 };
 
 
-struct HelpTextSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) HelpTextSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 13 };
 	
-	HelpTextSystem( GameLevel* lev );
-	void Clear();
-	void SetText( StringView text, float alpha = 1, float fadetime = 0, float fadeto = 0 );
-	void Tick( float deltaTime, float blendFactor );
-	void DrawUI();
+	GFW_EXPORT HelpTextSystem( GameLevel* lev );
+	GFW_EXPORT void Clear();
+	GFW_EXPORT void SetText( StringView text, float alpha = 1, float fadetime = 0, float fadeto = 0 );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void DrawUI();
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME text ) String m_text;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME alpha ) float m_alpha;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME fadeTime ) float m_fadeTime;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME fadeTo ) float m_fadeTo;
-	SGS_METHOD_NAMED( Clear ) void sgsClear();
-	SGS_METHOD_NAMED( SetText ) void sgsSetText( StringView text, float alpha, float fadetime, float fadeto );
+	GFW_EXPORT SGS_METHOD_NAMED( Clear ) void sgsClear();
+	GFW_EXPORT SGS_METHOD_NAMED( SetText ) void sgsSetText( StringView text, float alpha, float fadetime, float fadeto );
 	
 	// renderer access
 	SGS_PROPERTY_FUNC( READ WRITE VALIDATE renderer SOURCE renderer->fontSize ) SGS_ALIAS( int fontSize );
@@ -260,21 +260,21 @@ struct FSFlare
 	bool enabled;
 };
 
-struct FlareSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) FlareSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 4 };
 	
-	FlareSystem( GameLevel* lev );
-	void Clear();
-	void UpdateFlare( void* handle, const FSFlare& flare );
-	bool RemoveFlare( void* handle );
-	void PostDraw();
+	GFW_EXPORT FlareSystem( GameLevel* lev );
+	GFW_EXPORT void Clear();
+	GFW_EXPORT void UpdateFlare( void* handle, const FSFlare& flare );
+	GFW_EXPORT bool RemoveFlare( void* handle );
+	GFW_EXPORT void PostDraw();
 	
-	SGS_METHOD_NAMED( Update ) void sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled );
-	SGS_METHOD_NAMED( Remove ) void sgsRemove( void* handle );
+	GFW_EXPORT SGS_METHOD_NAMED( Update ) void sgsUpdate( void* handle, Vec3 pos, Vec3 col, float size, bool enabled );
+	GFW_EXPORT SGS_METHOD_NAMED( Remove ) void sgsRemove( void* handle );
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME layers ) uint32_t m_layers;
 	
 	HashTable< void*, FSFlare > m_flares;
@@ -283,13 +283,13 @@ struct FlareSystem : IGameLevelSystem
 };
 
 
-struct LevelCoreSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) LevelCoreSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 10 };
 	
-	LevelCoreSystem( GameLevel* lev );
-	virtual void Clear();
-	virtual bool LoadChunk( const StringView& type, ByteView data );
+	GFW_EXPORT LevelCoreSystem( GameLevel* lev );
+	GFW_EXPORT virtual void Clear();
+	GFW_EXPORT virtual bool LoadChunk( const StringView& type, ByteView data );
 	
 	Array< MeshInstHandle > m_meshInsts;
 	Array< LightHandle > m_lightInsts;
@@ -299,38 +299,38 @@ struct LevelCoreSystem : IGameLevelSystem
 };
 
 
-struct ScriptedSequenceSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) ScriptedSequenceSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 11 };
 	
-	ScriptedSequenceSystem( GameLevel* lev );
-	void Tick( float deltaTime, float blendFactor );
-	void DrawUI();
+	GFW_EXPORT ScriptedSequenceSystem( GameLevel* lev );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void DrawUI();
 	void _StartCutscene(){ m_time = 0; }
 	
 	InputState m_cmdSkip;
-	SGS_METHOD_NAMED( Start ) void sgsStart( sgsVariable func, float t );
+	GFW_EXPORT SGS_METHOD_NAMED( Start ) void sgsStart( sgsVariable func, float t );
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _StartCutscene VARNAME func ) sgsVariable m_func;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME time ) float m_time;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME subtitle ) String m_subtitle;
 };
 
 
-struct MusicSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) MusicSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 12 };
 	
-	MusicSystem( GameLevel* lev );
-	~MusicSystem();
+	GFW_EXPORT MusicSystem( GameLevel* lev );
+	GFW_EXPORT ~MusicSystem();
 	
-	SGS_METHOD_NAMED( SetTrack ) void sgsSetTrack( StringView path );
-	SGS_METHOD_NAMED( SetVar ) void sgsSetVar( StringView name, float val );
+	GFW_EXPORT SGS_METHOD_NAMED( SetTrack ) void sgsSetTrack( StringView path );
+	GFW_EXPORT SGS_METHOD_NAMED( SetVar ) void sgsSetVar( StringView name, float val );
 	
 	SoundEventInstanceHandle m_music;
 };
@@ -344,7 +344,7 @@ enum GameActorType // = SGRX_MeshInstUserData::ownerType
 };
 
 
-struct DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
+struct IF_GCC(GFW_EXPORT) DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 {
 	enum { e_system_uid = 5 };
 	
@@ -359,16 +359,16 @@ struct DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 	};
 	typedef Handle< Material > MtlHandle;
 	
-	DamageSystem( GameLevel* lev );
-	~DamageSystem();
-	const char* Init( SceneHandle scene, SGRX_LightSampler* sampler );
-	void Free();
-	void Tick( float deltaTime, float blendFactor );
-	void AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
+	GFW_EXPORT DamageSystem( GameLevel* lev );
+	GFW_EXPORT ~DamageSystem();
+	GFW_EXPORT const char* Init( SceneHandle scene, SGRX_LightSampler* sampler );
+	GFW_EXPORT void Free();
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 		const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
 		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
-	void AddBlood( Vec3 pos, Vec3 dir );
-	void Clear();
+	GFW_EXPORT void AddBlood( Vec3 pos, Vec3 dir );
+	GFW_EXPORT void Clear();
 	
 	void DoFX( const Vec3& pos, const Vec3& nrm, uint32_t fx )
 	{
@@ -400,12 +400,12 @@ struct BulletSystem : IGameLevelSystem
 	};
 	typedef Array< Bullet > BulletArray;
 	
-	BulletSystem( GameLevel* lev );
+	GFW_EXPORT BulletSystem( GameLevel* lev );
 	
-	void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	
-	void Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, uint32_t ownerType );
-	void Clear();
+	GFW_EXPORT void Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, uint32_t ownerType );
+	GFW_EXPORT void Clear();
 	
 	BulletArray m_bullets;
 	DamageSystem* m_damageSystem;
@@ -438,9 +438,9 @@ struct AIRoomPart
 	float cell_size;
 };
 
-struct AIRoom : SGRX_RCRsrc
+struct IF_GCC(GFW_EXPORT) AIRoom : SGRX_RCRsrc
 {
-	bool IsInside( Vec3 pos );
+	GFW_EXPORT bool IsInside( Vec3 pos );
 	
 	Array< AIRoomPart > parts;
 };
@@ -460,7 +460,7 @@ enum AIFactType // some basic fact types
 	FT_Position_Foe,
 };
 
-struct AIFact
+struct IF_GCC(GFW_EXPORT) AIFact
 {
 	SGS_OBJECT_LITE;
 	
@@ -472,31 +472,31 @@ struct AIFact
 	SGS_PROPERTY TimeVal expires;
 };
 
-struct AIFactDistance
+struct IF_GCC(GFW_EXPORT) AIFactDistance
 {
-	virtual float GetDistance( const AIFact& fact ) = 0;
-	virtual Vec3 GetPosition() = 0;
+	GFW_EXPORT virtual float GetDistance( const AIFact& fact ) = 0;
+	GFW_EXPORT virtual Vec3 GetPosition() = 0;
 };
 
-struct AIFactStorage
+struct IF_GCC(GFW_EXPORT) AIFactStorage
 {
-	AIFactStorage();
-	void Clear();
-	void SortCreatedDesc();
-	void Process( TimeVal curTime );
-	bool HasFact( uint32_t typemask );
-	bool HasRecentFact( uint32_t typemask, TimeVal maxtime );
-	AIFact* GetRecentFact( uint32_t typemask, TimeVal maxtime );
-	void Insert( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
-	void RemoveExt( uint32_t* types, size_t typecount );
+	GFW_EXPORT AIFactStorage();
+	GFW_EXPORT void Clear();
+	GFW_EXPORT void SortCreatedDesc();
+	GFW_EXPORT void Process( TimeVal curTime );
+	GFW_EXPORT bool HasFact( uint32_t typemask );
+	GFW_EXPORT bool HasRecentFact( uint32_t typemask, TimeVal maxtime );
+	GFW_EXPORT AIFact* GetRecentFact( uint32_t typemask, TimeVal maxtime );
+	GFW_EXPORT void Insert( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
+	GFW_EXPORT void RemoveExt( uint32_t* types, size_t typecount );
 	void Remove( uint32_t type ){ RemoveExt( &type, 1 ); }
-	bool Update( uint32_t type, Vec3 pos, float rad,
+	GFW_EXPORT bool Update( uint32_t type, Vec3 pos, float rad,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	void InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
+	GFW_EXPORT void InsertOrUpdate( uint32_t type, Vec3 pos, float rad,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	bool CustomUpdate( AIFactDistance& distfn,
+	GFW_EXPORT bool CustomUpdate( AIFactDistance& distfn,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
-	void CustomInsertOrUpdate( AIFactDistance& distfn, uint32_t type,
+	GFW_EXPORT void CustomInsertOrUpdate( AIFactDistance& distfn, uint32_t type,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	
 	Array< AIFact > facts;
@@ -505,7 +505,7 @@ struct AIFactStorage
 	uint32_t m_next_fact_id;
 };
 
-struct AIDBSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) AIDBSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -513,38 +513,38 @@ struct AIDBSystem : IGameLevelSystem
 	enum { e_system_uid = 7 };
 	
 	int GetNumSounds(){ return m_sounds.size(); }
-	bool CanHearSound( Vec3 pos, int i );
+	GFW_EXPORT bool CanHearSound( Vec3 pos, int i );
 	AISound GetSoundInfo( int i ){ return m_sounds[ i ]; }
 	
-	AIDBSystem( GameLevel* lev );
-	bool LoadChunk( const StringView& type, ByteView data );
-	void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
-	void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
-	AIRoom* FindRoomByPos( Vec3 pos );
-	void Tick( float deltaTime, float blendFactor );
-	void FixedTick( float deltaTime );
-	void DebugDrawWorld();
+	GFW_EXPORT AIDBSystem( GameLevel* lev );
+	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
+	GFW_EXPORT void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
+	GFW_EXPORT void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
+	GFW_EXPORT AIRoom* FindRoomByPos( Vec3 pos );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void FixedTick( float deltaTime );
+	GFW_EXPORT void DebugDrawWorld();
 	
 	SGRX_Pathfinder m_pathfinder;
 	Array< AISound > m_sounds;
 	HashTable< StringView, AIRoomHandle > m_rooms;
 	AIFactStorage m_globalFacts;
 	
-	SGS_METHOD_NAMED( AddSound ) void sgsAddSound( Vec3 pos, float rad, float timeout, int type );
+	GFW_EXPORT SGS_METHOD_NAMED( AddSound ) void sgsAddSound( Vec3 pos, float rad, float timeout, int type );
 	
-	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
-	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
-	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime );
-	SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
-	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+	GFW_EXPORT SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
+	GFW_EXPORT SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime );
+	GFW_EXPORT SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
+	GFW_EXPORT SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro,
+	GFW_EXPORT SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro,
 		uint32_t type, Vec3 pos, float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	SGS_MULTRET sgsPushRoom( sgs_Context* coro, AIRoom* room );
-	SGS_METHOD_NAMED( GetRoomList ) SGS_MULTRET sgsGetRoomList( sgs_Context* coro );
-	SGS_METHOD_NAMED( GetRoomNameByPos ) sgsString sgsGetRoomNameByPos( sgs_Context* coro, Vec3 pos );
-	SGS_METHOD_NAMED( GetRoomByPos ) SGS_MULTRET sgsGetRoomByPos( sgs_Context* coro, Vec3 pos );
-	SGS_METHOD_NAMED( GetRoomPoints ) SGS_MULTRET sgsGetRoomPoints( sgs_Context* coro, StringView name );
+	GFW_EXPORT SGS_MULTRET sgsPushRoom( sgs_Context* coro, AIRoom* room );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomList ) SGS_MULTRET sgsGetRoomList( sgs_Context* coro );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomNameByPos ) sgsString sgsGetRoomNameByPos( sgs_Context* coro, Vec3 pos );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomByPos ) SGS_MULTRET sgsGetRoomByPos( sgs_Context* coro, Vec3 pos );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomPoints ) SGS_MULTRET sgsGetRoomPoints( sgs_Context* coro, StringView name );
 };
 
 
@@ -554,7 +554,7 @@ struct CSCoverLine
 	Vec3 p1;
 };
 
-struct CSCoverInfo
+struct IF_GCC(GFW_EXPORT) CSCoverInfo
 {
 	struct Shape
 	{
@@ -562,13 +562,13 @@ struct CSCoverInfo
 		int numPlanes;
 	};
 	
-	void Clear();
-	bool GetPosition( Vec3 position, float distpow, Vec3& out, float interval = 0.1f );
-	void ClipWithSpheres( Vec4* spheres, int count );
+	GFW_EXPORT void Clear();
+	GFW_EXPORT bool GetPosition( Vec3 position, float distpow, Vec3& out, float interval = 0.1f );
+	GFW_EXPORT void ClipWithSpheres( Vec4* spheres, int count );
 	
-	size_t _GetBestFactorID();
-	void _CullWithShadowLines( size_t firstcover, Vec4 P );
-	void _CullWithSolids();
+	GFW_EXPORT size_t _GetBestFactorID();
+	GFW_EXPORT void _CullWithShadowLines( size_t firstcover, Vec4 P );
+	GFW_EXPORT void _CullWithSolids();
 	
 	Array< Vec4 > planes;
 	Array< Shape > shapes;
@@ -576,7 +576,7 @@ struct CSCoverInfo
 	Array< float > factors;
 };
 
-struct CoverSystem : IGameLevelSystem
+struct IF_GCC(GFW_EXPORT) CoverSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 8 };
 	
@@ -598,16 +598,16 @@ struct CoverSystem : IGameLevelSystem
 		Vec3 nup; // upwards extension direction if p0/p1 match
 #endif
 	};
-	struct CoverPoint
+	struct IF_GCC(GFW_EXPORT) CoverPoint
 	{
 		Vec3 pos;
 		Vec3 nout;
 		Vec3 nup;
 		
-		void AdjustNormals( Vec3 newout, Vec3 newup );
+		GFW_EXPORT void AdjustNormals( Vec3 newout, Vec3 newup );
 		bool operator == ( const CoverPoint& o ) const { return pos == o.pos; }
 	};
-	struct EdgeMesh : SGRX_RCRsrc
+	struct IF_GCC(GFW_EXPORT) EdgeMesh : SGRX_RCRsrc
 	{
 		// silhouette info
 		Array< Edge > edges;
@@ -626,17 +626,17 @@ struct CoverSystem : IGameLevelSystem
 		Vec3 obb_min;
 		Vec3 obb_max;
 		
-		bool InAABB( const Vec3& ibmin, const Vec3& ibmax ) const;
-		bool PointInBox( Vec3 pt ) const;
-		void CalcCoverLines();
+		GFW_EXPORT bool InAABB( const Vec3& ibmin, const Vec3& ibmax ) const;
+		GFW_EXPORT bool PointInBox( Vec3 pt ) const;
+		GFW_EXPORT void CalcCoverLines();
 	};
 	typedef Handle< EdgeMesh > EdgeMeshHandle;
 	
 	CoverSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
-	void Clear();
-	void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
+	GFW_EXPORT void Clear();
+	GFW_EXPORT void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
 	
-	void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
+	GFW_EXPORT void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
 		float height, Vec3 viewer, bool visible, CSCoverInfo& cinfo );
 	
 	Array< EdgeMeshHandle > m_edgeMeshes;
@@ -644,14 +644,14 @@ struct CoverSystem : IGameLevelSystem
 };
 
 
-struct DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
+struct IF_GCC(GFW_EXPORT) DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
 {
 	enum { e_system_uid = 14 };
 	
-	DevelopSystem( GameLevel* lev );
-	void HandleEvent( SGRX_EventID eid, const EventData& edata );
-	void Tick( float deltaTime, float blendFactor );
-	void DrawUI();
+	GFW_EXPORT DevelopSystem( GameLevel* lev );
+	GFW_EXPORT void HandleEvent( SGRX_EventID eid, const EventData& edata );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void DrawUI();
 	
 	bool screenshotMode : 1;
 	bool moveMult : 1;

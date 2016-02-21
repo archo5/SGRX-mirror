@@ -9,8 +9,14 @@
 #include <physics.hpp>
 #include <script.hpp>
 
+#ifdef GFW_BUILDING
+#  define GFW_EXPORT __declspec(dllexport)
+#else
+#  define GFW_EXPORT __declspec(dllimport)
+#endif
 
-struct SGSTextureHandle
+
+struct IF_GCC(GFW_EXPORT) SGSTextureHandle
 {
 	SGS_OBJECT;
 	
@@ -29,7 +35,10 @@ struct SGSTextureHandle
 
 template<> inline void sgs_PushVar<TextureHandle>( SGS_CTX, const TextureHandle& v )
 {
-	SGS_CREATECLASS( C, NULL, SGSTextureHandle, ( v ) );
+	if( !v )
+		sgs_PushNull( C );
+	else
+		SGS_CREATECLASS( C, NULL, SGSTextureHandle, ( v ) );
 }
 template<> struct sgs_GetVar<TextureHandle>
 {
@@ -42,7 +51,7 @@ template<> struct sgs_GetVar<TextureHandle>
 };
 
 
-struct SGSMeshHandle
+struct IF_GCC(GFW_EXPORT) SGSMeshHandle
 {
 	SGS_OBJECT;
 	
@@ -61,7 +70,10 @@ struct SGSMeshHandle
 
 template<> inline void sgs_PushVar<MeshHandle>( SGS_CTX, const MeshHandle& v )
 {
-	SGS_CREATECLASS( C, NULL, SGSMeshHandle, ( v ) );
+	if( !v )
+		sgs_PushNull( C );
+	else
+		SGS_CREATECLASS( C, NULL, SGSMeshHandle, ( v ) );
 }
 template<> struct sgs_GetVar<MeshHandle>
 {
@@ -74,5 +86,5 @@ template<> struct sgs_GetVar<MeshHandle>
 };
 
 
-void GFWRegisterCore( SGS_CTX );
+GFW_EXPORT void GFWRegisterCore( SGS_CTX );
 

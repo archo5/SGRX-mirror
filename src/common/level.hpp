@@ -7,11 +7,11 @@
 #include "gamegui.hpp"
 
 
-extern CVarBool gcv_cl_gui;
-extern CVarBool gcv_cl_debug;
-extern CVarBool gcv_g_paused;
+extern GFW_EXPORT CVarBool gcv_cl_gui;
+extern GFW_EXPORT CVarBool gcv_cl_debug;
+extern GFW_EXPORT CVarBool gcv_g_paused;
 
-void RegisterCommonGameCVars();
+GFW_EXPORT void RegisterCommonGameCVars();
 
 
 struct GameLevel;
@@ -23,23 +23,23 @@ extern sgs_ObjInterface g_sgsobj_empty_handle[1];
 typedef uint32_t TimeVal;
 
 
-struct LevelScrObj : SGRX_RefCounted
+struct IF_GCC(GFW_EXPORT) LevelScrObj : SGRX_RefCounted
 {
 	SGS_OBJECT SGS_NO_DESTRUCT;
 	typedef sgsHandle< LevelScrObj > ScrHandle;
 	
-	LevelScrObj( GameLevel* lev );
-	virtual ~LevelScrObj();
+	GFW_EXPORT LevelScrObj( GameLevel* lev );
+	GFW_EXPORT virtual ~LevelScrObj();
 	
 	template< class T > void _InitScriptInterface( T* ptr );
-	void DestroyScriptInterface();
+	GFW_EXPORT void DestroyScriptInterface();
 #define ENT_SGS_IMPLEMENT \
 	virtual void InitScriptInterface(){ if( m_sgsObject == NULL ) _InitScriptInterface( this ); }
 	
 	ENT_SGS_IMPLEMENT;
 	
 	sgsVariable GetScriptedObject(){ return ScrHandle( this ).get_variable(); }
-	void AddSelfToLevel( StringView name );
+	GFW_EXPORT void AddSelfToLevel( StringView name );
 	
 	virtual void* GetInterfaceImpl( uint32_t iface_id ){ return NULL; }
 	template< class T > T* GetInterface(){ return (T*) GetInterfaceImpl( T::e_iface_uid ); }
@@ -55,7 +55,7 @@ struct LevelScrObj : SGRX_RefCounted
 };
 
 
-struct IActorController : LevelScrObj
+struct IF_GCC(GFW_EXPORT) IActorController : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	typedef sgsHandle< IActorController > ScrHandle;
@@ -71,7 +71,7 @@ struct IActorController : LevelScrObj
 typedef Handle< IActorController > ActorCtrlHandle;
 
 
-struct Transform
+struct IF_GCC(GFW_EXPORT) Transform
 {
 	Transform() :
 		_localPosition( V3(0) ),
@@ -112,14 +112,14 @@ struct Transform
 	FINLINE void SetLocalPosition( Vec3 p ){ _localPosition = p; OnEdit(); }
 	FINLINE Quat GetLocalRotation() const { return _localRotation; }
 	FINLINE void SetLocalRotation( Quat q ){ _localRotation = q; OnEdit(); }
-	FINLINE Vec3 GetLocalRotationXYZ() const { return _localRotation.ToXYZ(); }
-	FINLINE void SetLocalRotationXYZ( Vec3 v ){ _localRotation = Quat::CreateFromXYZ( v ); OnEdit(); }
+	FINLINE Vec3 GetLocalRotationXYZ() const { return RAD2DEG( _localRotation.ToXYZ() ); }
+	FINLINE void SetLocalRotationXYZ( Vec3 v ){ _localRotation = Quat::CreateFromXYZ( DEG2RAD( v ) ); OnEdit(); }
 	FINLINE Vec3 GetLocalScale() const { return _localScale; }
 	FINLINE void SetLocalScale( Vec3 s ){ _localScale = s; OnEdit(); }
 	
 	FINLINE Vec3 GetWorldPosition() const { return _worldMatrix.GetTranslation(); }
 	FINLINE Quat GetWorldRotation() const { return _worldMatrix.GetRotationQuaternion(); }
-	FINLINE Vec3 GetWorldRotationXYZ() const { return _worldMatrix.GetRotationQuaternion().ToXYZ(); }
+	FINLINE Vec3 GetWorldRotationXYZ() const { return RAD2DEG( _worldMatrix.GetRotationQuaternion().ToXYZ() ); }
 	FINLINE Vec3 GetWorldScale() const { return _worldMatrix.GetScale(); }
 	FINLINE Mat4 GetWorldMatrix() const { return _worldMatrix; }
 	
@@ -127,22 +127,22 @@ struct Transform
 	FINLINE Vec3 WorldToLocal( Vec3 p ) const { return _invWorldMatrix.TransformPos( p ); }
 };
 
-struct Entity : LevelScrObj, Transform
+struct IF_GCC(GFW_EXPORT) Entity : LevelScrObj, Transform
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	typedef sgsHandle< Entity > ScrHandle;
 	
-	Entity( GameLevel* lev );
-	~Entity();
-	virtual void FixedTick( float deltaTime );
-	virtual void Tick( float deltaTime, float blendFactor );
-	virtual void OnTransformUpdate();
+	GFW_EXPORT Entity( GameLevel* lev );
+	GFW_EXPORT ~Entity();
+	GFW_EXPORT virtual void FixedTick( float deltaTime );
+	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT virtual void OnTransformUpdate();
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	
 	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }
-	void SetInfoMask( uint32_t mask );
+	GFW_EXPORT void SetInfoMask( uint32_t mask );
 	FINLINE StringView GetID() const { return StringView( m_id.c_str(), m_id.size() ); }
 	FINLINE void SetID( StringView id );
 	FINLINE void sgsSetID( sgsString id );
@@ -187,7 +187,7 @@ struct Entity : LevelScrObj, Transform
 #define IEST_AIAlert         0x0020
 
 
-struct IGameLevelSystem : LevelScrObj
+struct IF_GCC(GFW_EXPORT) IGameLevelSystem : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	
@@ -211,7 +211,7 @@ struct IGameLevelSystem : LevelScrObj
 };
 
 
-struct Actor : Entity
+struct IF_GCC(GFW_EXPORT) Actor : Entity
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
@@ -357,7 +357,7 @@ struct InfoEmitEntitySet
 
 typedef StackString<16> StackShortName;
 
-struct GameLevel :
+struct IF_GCC(GFW_EXPORT) GameLevel :
 	SGRX_PostDraw,
 	SGRX_DebugDraw,
 	SGRX_LightTreeSampler,
@@ -365,13 +365,13 @@ struct GameLevel :
 {
 	SGS_OBJECT SGS_NO_DESTRUCT;
 	
-	GameLevel( PhyWorldHandle phyWorld );
-	virtual ~GameLevel();
-	virtual void HandleEvent( SGRX_EventID eid, const EventData& edata );
+	GFW_EXPORT GameLevel( PhyWorldHandle phyWorld );
+	GFW_EXPORT virtual ~GameLevel();
+	GFW_EXPORT virtual void HandleEvent( SGRX_EventID eid, const EventData& edata );
 	
 	// configuration
-	void SetGlobalToSelf();
-	void AddSystem( IGameLevelSystem* sys );
+	GFW_EXPORT void SetGlobalToSelf();
+	GFW_EXPORT void AddSystem( IGameLevelSystem* sys );
 	template< class T > T* GetSystem() const
 	{
 		for( size_t i = 0; i < m_systems.size(); ++i )
@@ -381,7 +381,7 @@ struct GameLevel :
 		}
 		return NULL;
 	}
-	void AddEntry( const StringView& name, sgsVariable var );
+	GFW_EXPORT void AddEntry( const StringView& name, sgsVariable var );
 	
 	// system/entity interface
 	sgsVariable GetScriptedObject(){ return m_self; }
@@ -397,52 +397,52 @@ struct GameLevel :
 	float GetDeltaTime() const { return m_deltaTime; }
 	bool GetEditorMode() const { return m_editorMode; }
 	
-	bool Load( const StringView& levelname );
+	GFW_EXPORT bool Load( const StringView& levelname );
 	template< class T > void RegisterNativeEntity( StringView type )
 	{
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
 		m_scriptCtx.SetGlobal( type, iface );
 		m_self.getprop( "entity_types" ).setprop( m_scriptCtx.CreateStringVar( type ), iface );
 	}
-	sgsVariable GetEntityInterface( StringView name );
-	void EnumEntities( Array< StringView >& out );
-	Entity* CreateEntity( const StringView& type );
-	void DestroyEntity( Entity* eptr );
-	StackShortName GenerateName();
-	void ClearLevel();
+	GFW_EXPORT sgsVariable GetEntityInterface( StringView name );
+	GFW_EXPORT void EnumEntities( Array< StringView >& out );
+	GFW_EXPORT Entity* CreateEntity( const StringView& type );
+	GFW_EXPORT void DestroyEntity( Entity* eptr );
+	GFW_EXPORT StackShortName GenerateName();
+	GFW_EXPORT void ClearLevel();
 	
-	void ProcessEvents();
-	void FixedTick( float deltaTime );
-	void Tick( float deltaTime, float blendFactor );
-	void Draw2D();
-	void Draw();
+	GFW_EXPORT void ProcessEvents();
+	GFW_EXPORT void FixedTick( float deltaTime );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void Draw2D();
+	GFW_EXPORT void Draw();
 	
 	// interface implementations
-	void DebugDraw();
-	void PostDraw();
+	GFW_EXPORT void DebugDraw();
+	GFW_EXPORT void PostDraw();
 	
-	SGS_METHOD_NAMED( SetLevel ) void SetNextLevel( StringView name );
-	void _MapEntityByID( Entity* e );
-	void _UnmapEntityByID( Entity* e );
-	Entity* FindEntityByID( const StringView& name );
-	SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type );
-	SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
-	SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
-	SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
-	SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
-	SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
-	SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
+	GFW_EXPORT SGS_METHOD_NAMED( SetLevel ) void SetNextLevel( StringView name );
+	GFW_EXPORT void _MapEntityByID( Entity* e );
+	GFW_EXPORT void _UnmapEntityByID( Entity* e );
+	GFW_EXPORT Entity* FindEntityByID( const StringView& name );
+	GFW_EXPORT SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type );
+	GFW_EXPORT SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
+	GFW_EXPORT SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
+	GFW_EXPORT SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
+	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
+	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
+	GFW_EXPORT SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
 	
-	bool Query( EntityProcessor* optProc, uint32_t mask );
-	bool QuerySphere( EntityProcessor* optProc, uint32_t mask, Vec3 pos, float rad );
-	bool QueryOBB( EntityProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin = V3(-1), Vec3 bbmax = V3(1) );
-	SGS_METHOD_NAMED( Query ) bool sgsQuery( sgsVariable optProc, uint32_t mask );
-	SGS_METHOD_NAMED( QuerySphere ) bool sgsQuerySphere( sgsVariable optProc, uint32_t mask, Vec3 pos, float rad );
-	SGS_METHOD_NAMED( QueryOBB ) bool sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax );
+	GFW_EXPORT bool Query( EntityProcessor* optProc, uint32_t mask );
+	GFW_EXPORT bool QuerySphere( EntityProcessor* optProc, uint32_t mask, Vec3 pos, float rad );
+	GFW_EXPORT bool QueryOBB( EntityProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin = V3(-1), Vec3 bbmax = V3(1) );
+	GFW_EXPORT SGS_METHOD_NAMED( Query ) bool sgsQuery( sgsVariable optProc, uint32_t mask );
+	GFW_EXPORT SGS_METHOD_NAMED( QuerySphere ) bool sgsQuerySphere( sgsVariable optProc, uint32_t mask, Vec3 pos, float rad );
+	GFW_EXPORT SGS_METHOD_NAMED( QueryOBB ) bool sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax );
 	
 	// ---
 	
-	void LightMesh( SGRX_MeshInstance* meshinst, Vec3 off = V3(0) );
+	GFW_EXPORT void LightMesh( SGRX_MeshInstance* meshinst, Vec3 off = V3(0) );
 	
 	SGS_METHOD TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
 	SGS_METHOD TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
@@ -517,26 +517,27 @@ FINLINE void Entity::sgsSetID( sgsString id )
 
 struct BaseEditor
 {
-	BaseEditor( struct BaseGame* game );
-	~BaseEditor();
+	GFW_EXPORT BaseEditor( struct BaseGame* game );
+	GFW_EXPORT ~BaseEditor();
 	
 	void* m_lib;
 	GameHandle m_editorGame;
 	GameHandle m_origGame;
 };
 
-struct BaseGame : IGame
+struct IF_GCC(GFW_EXPORT) BaseGame : IGame
 {
-	BaseGame();
-	virtual int OnArgument( char* arg, int argcleft, char** argvleft );
-	virtual bool OnConfigure( int argc, char** argv );
-	virtual bool OnInitialize();
-	virtual void OnDestroy();
-	virtual GameLevel* CreateLevel();
-	virtual void Game_FixedTick( float dt );
-	virtual void Game_Tick( float dt, float bf );
-	virtual void Game_Render();
-	virtual void OnTick( float dt, uint32_t gametime );
+	GFW_EXPORT BaseGame();
+	GFW_EXPORT virtual int OnArgument( char* arg, int argcleft, char** argvleft );
+	GFW_EXPORT virtual bool OnConfigure( int argc, char** argv );
+	GFW_EXPORT virtual bool OnInitialize();
+	GFW_EXPORT virtual void OnDestroy();
+	GFW_EXPORT virtual PhyWorldHandle CreatePhyWorld() = 0;
+	GFW_EXPORT virtual GameLevel* CreateLevel();
+	GFW_EXPORT virtual void Game_FixedTick( float dt );
+	GFW_EXPORT virtual void Game_Tick( float dt, float bf );
+	GFW_EXPORT virtual void Game_Render();
+	GFW_EXPORT virtual void OnTick( float dt, uint32_t gametime );
 	
 	float m_maxTickSize;
 	float m_fixedTickSize;

@@ -36,7 +36,6 @@
 #endif
 MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
-MAPEDIT_GLOBAL( PhyWorldHandle g_EdPhyWorld );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EdLevelGraphicsCont* g_EdLGCont );
 MAPEDIT_GLOBAL( struct EDGUISDTexPicker* g_UISurfTexPicker );
@@ -863,6 +862,17 @@ inline sgsVariable FIntVar( Vec2 val )
 inline sgsVariable FIntVar( Vec3 val )
 {
 	return g_Level->GetScriptCtx().CreateVec3( val );
+}
+inline sgsVariable FIntVar( MeshHandle mh )
+{
+	sgs_PushVar( g_Level->GetSGSC(), mh );
+	
+	return sgsVariable( g_Level->GetSGSC(), sgsVariable::PickAndPop );
+}
+inline sgsVariable FIntVar( TextureHandle th )
+{
+	sgs_PushVar( g_Level->GetSGSC(), th );
+	return sgsVariable( g_Level->GetSGSC(), sgsVariable::PickAndPop );
 }
 template< class T > void FSaveProp( sgsVariable obj, const char* prop, T value )
 {
@@ -1936,16 +1946,14 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	~EdEntity();
 	
 	void BeforeDelete();
-	void LoadIcon();
 	
 	const Vec3& Pos() const { return m_pos; }
 	virtual Vec3 GetPosition() const { return Pos(); }
 	virtual void SetPosition( const Vec3& pos );
 	virtual void ScaleVertices( const Vec3& ){}
 	
-	virtual int OnEvent( EDGUIEvent* e ){ return EDGUILayoutRow::OnEvent( e ); }
+	virtual int OnEvent( EDGUIEvent* e );
 	
-	virtual bool IsScriptedEnt(){ return false; }
 	virtual void UpdateCache( LevelCache& LC ){}
 	
 	virtual EdObject* Clone();
@@ -1974,6 +1982,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	void FLoad( sgsVariable data, int version );
 	sgsVariable FSave( int version );
 	
+	void UpdateRealEnt( Field* curF );
 	void Data2Fields();
 	void Fields2Data();
 	void AddField( sgsString key, StringView name, EDGUIProperty* prop );
@@ -1987,6 +1996,8 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	sgsString m_entityType;
 	sgsVariable m_data;
 	Array< Field > m_fields;
+	
+	Entity* m_realEnt;
 	
 	Handle< EdEntity > m_ownerEnt;
 	Array< Handle< EdEntity > > m_subEnts;
@@ -2156,6 +2167,7 @@ struct EdWorld : EDGUILayoutRow
 					sgsVariable props = FNewDict();
 					FSaveProp( props, "position", pos );
 					FSaveProp( props, "rotationXYZ", rotation );
+					FSaveProp( props, "scale", V3(1) );
 					FSaveProp( props, "isStatic", !dynamic );
 					FSaveProp( props, "type", isSpot ? LIGHT_SPOT : LIGHT_POINT );
 					FSaveProp( props, "enabled", true );
@@ -2533,6 +2545,7 @@ struct EdEditBlockEditMode : EdEditMode
 	EdEditBlockEditMode();
 	void OnEnter();
 	void OnTransformEnd();
+	int OnUIEvent( EDGUIEvent* e );
 	void OnViewEvent( EDGUIEvent* e );
 	void Draw();
 	bool _CanDo( ESpecialAction act );

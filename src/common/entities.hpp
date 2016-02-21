@@ -12,7 +12,7 @@
 #include "systems.hpp"
 
 
-struct Trigger : Entity
+struct IF_GCC(GFW_EXPORT) Trigger : Entity
 {
 	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
@@ -25,14 +25,14 @@ struct Trigger : Entity
 	
 	bool m_currState;
 	
-	Trigger( GameLevel* lev, bool laststate = false );
-	SGS_METHOD void Invoke( bool newstate );
-	void Update( bool newstate );
+	GFW_EXPORT Trigger( GameLevel* lev, bool laststate = false );
+	GFW_EXPORT SGS_METHOD void Invoke( bool newstate );
+	GFW_EXPORT void Update( bool newstate );
 	
-	SGS_METHOD_NAMED( SetupTrigger ) void sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout );
+	GFW_EXPORT SGS_METHOD_NAMED( SetupTrigger ) void sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout );
 };
 
-struct SlidingDoor : Trigger
+struct IF_GCC(GFW_EXPORT) SlidingDoor : Trigger
 {
 	SGS_OBJECT_INHERIT( Trigger );
 	ENT_SGS_IMPLEMENT;
@@ -63,9 +63,9 @@ struct SlidingDoor : Trigger
 	IVState< Vec3 > m_ivPos;
 	IVState< Quat > m_ivRot;
 	
-	void _UpdatePhysics();
-	void _UpdateTransforms( float bf );
-	SlidingDoor(
+	GFW_EXPORT void _UpdatePhysics();
+	GFW_EXPORT void _UpdateTransforms( float bf );
+	GFW_EXPORT SlidingDoor(
 		GameLevel* lev,
 		const StringView& name,
 		const StringView& mesh,
@@ -80,12 +80,12 @@ struct SlidingDoor : Trigger
 		bool istate,
 		bool isswitch = false
 	);
-	virtual void FixedTick( float deltaTime );
-	virtual void Tick( float deltaTime, float blendFactor );
-	virtual void OnEvent( const StringView& type );
+	GFW_EXPORT virtual void FixedTick( float deltaTime );
+	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT virtual void OnEvent( const StringView& type );
 };
 
-struct PickupItem : Entity, IInteractiveEntity
+struct IF_GCC(GFW_EXPORT) PickupItem : Entity, IInteractiveEntity
 {
 	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
@@ -95,10 +95,10 @@ struct PickupItem : Entity, IInteractiveEntity
 	int m_count;
 	Vec3 m_pos;
 	
-	PickupItem( GameLevel* lev, const StringView& name, const StringView& type, int count,
+	GFW_EXPORT PickupItem( GameLevel* lev, const StringView& name, const StringView& type, int count,
 		const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl );
-	virtual void OnEvent( const StringView& type );
-	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
+	GFW_EXPORT virtual void OnEvent( const StringView& type );
+	GFW_EXPORT virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
 	
 	virtual void* GetInterfaceImpl( uint32_t iface_id )
 	{
@@ -107,9 +107,9 @@ struct PickupItem : Entity, IInteractiveEntity
 	}
 };
 
-struct Actionable : Entity, IInteractiveEntity
+struct IF_GCC(GFW_EXPORT) Actionable : Entity, IInteractiveEntity
 {
-	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
+	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
 	
 	MeshInstHandle m_meshInst;
@@ -121,10 +121,10 @@ struct Actionable : Entity, IInteractiveEntity
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME onSuccess ) sgsVariable m_onSuccess;
 	SGS_PROPERTY_FUNC( READ VARNAME position ) SGS_ALIAS( Vec3 m_info.placePos );
 	
-	Actionable( GameLevel* lev, const StringView& name, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir );
-	virtual void OnEvent( const StringView& type );
-	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
-	void SetEnabled( bool v );
+	GFW_EXPORT Actionable( GameLevel* lev, const StringView& name, const StringView& mesh, const Vec3& pos, const Quat& rot, const Vec3& scl, const Vec3& placeoff, const Vec3& placedir );
+	GFW_EXPORT virtual void OnEvent( const StringView& type );
+	GFW_EXPORT virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out );
+	GFW_EXPORT void SetEnabled( bool v );
 	
 	virtual void* GetInterfaceImpl( uint32_t iface_id )
 	{
@@ -134,7 +134,7 @@ struct Actionable : Entity, IInteractiveEntity
 };
 
 
-struct ParticleFX : Entity
+struct IF_GCC(GFW_EXPORT) ParticleFX : Entity
 {
 	ParticleSystem m_psys;
 	String m_soundEventName;
@@ -142,34 +142,34 @@ struct ParticleFX : Entity
 	SoundEventInstanceHandle m_soundEventInst;
 	Vec3 m_position;
 	
-	ParticleFX( GameLevel* lev, const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start );
-	virtual void Tick( float deltaTime, float blendFactor );
-	virtual void OnEvent( const StringView& type );
+	GFW_EXPORT ParticleFX( GameLevel* lev, const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start );
+	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT virtual void OnEvent( const StringView& type );
 };
 
 
-struct MeshEntity : Entity
+struct IF_GCC(GFW_EXPORT) MeshEntity : Entity
 {
-	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
+	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
 	
-	MeshEntity( GameLevel* lev );
-	~MeshEntity();
-	virtual void OnTransformUpdate();
-	void _UpdateShape();
-	void _UpdateBody();
+	GFW_EXPORT MeshEntity( GameLevel* lev );
+	GFW_EXPORT ~MeshEntity();
+	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT void _UpdateLighting();
+	GFW_EXPORT void _UpdateBody();
 	
 	bool IsStatic() const { return m_isStatic; }
 	void SetStatic( bool v ){ if( m_isStatic != v ){ m_body = NULL; } m_isStatic = v; _UpdateBody(); }
 	bool IsVisible() const { return m_isVisible; }
 	void SetVisible( bool v ){ m_isVisible = v; m_meshInst->enabled = v; }
 	MeshHandle GetMesh() const { return m_mesh; }
-	void SetMesh( MeshHandle mesh );
+	GFW_EXPORT void SetMesh( MeshHandle mesh );
 	bool IsSolid() const { return m_isSolid; }
 	void SetSolid( bool v ){ m_isSolid = v; _UpdateBody(); }
 	bool GetLightingMode() const { return m_lightingMode; }
-	void SetLightingMode( bool v ){ m_lightingMode = v;
-		m_meshInst->SetLightingMode( (SGRX_LightingMode) v ); }
+	void SetLightingMode( int v ){ m_lightingMode = v;
+		m_meshInst->SetLightingMode( (SGRX_LightingMode) v ); _UpdateLighting(); }
 	
 	SGS_PROPERTY_FUNC( READ IsStatic WRITE SetStatic VARNAME isStatic ) bool m_isStatic;
 	SGS_PROPERTY_FUNC( READ IsVisible WRITE SetVisible VARNAME visible ) bool m_isVisible;
@@ -186,13 +186,13 @@ struct MeshEntity : Entity
 };
 
 
-struct LightEntity : Entity
+struct IF_GCC(GFW_EXPORT) LightEntity : Entity
 {
-	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
+	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
 	
-	LightEntity( GameLevel* lev );
-	~LightEntity();
+	GFW_EXPORT LightEntity( GameLevel* lev );
+	GFW_EXPORT ~LightEntity();
 	virtual void OnTransformUpdate()
 	{
 		if( m_light )
@@ -202,9 +202,9 @@ struct LightEntity : Entity
 		}
 	}
 	
-	void _UpdateLight();
-	void _UpdateShadows();
-	void _UpdateFlare();
+	GFW_EXPORT void _UpdateLight();
+	GFW_EXPORT void _UpdateShadows();
+	GFW_EXPORT void _UpdateFlare();
 	
 #define RETNIFNOLIGHT if( !m_light ) return;
 	bool IsStatic() const { return m_isStatic; }
@@ -312,69 +312,69 @@ struct SGRX_ConeTwistJointInfo : SGRX_PhyConeTwistJointInfo
 #define MULTIENT_NUM_SLOTS 4
 #define MULTIENT_RANGE_STR "[0-3]"
 
-struct MultiEntity : Entity, SGRX_MeshInstUserData
+struct IF_GCC(GFW_EXPORT) MultiEntity : Entity, SGRX_MeshInstUserData
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	
-	MultiEntity( GameLevel* lev );
-	~MultiEntity();
-	virtual void FixedTick( float deltaTime );
-	virtual void Tick( float deltaTime, float blendFactor );
-	void PreRender();
+	GFW_EXPORT MultiEntity( GameLevel* lev );
+	GFW_EXPORT ~MultiEntity();
+	GFW_EXPORT virtual void FixedTick( float deltaTime );
+	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void PreRender();
 	
-	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
-	virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
+	GFW_EXPORT virtual void OnTransformUpdate();
 	
 	// - mesh instance
-	SGS_METHOD void MICreate( int i, StringView path );
-	SGS_METHOD void MIDestroy( int i );
-	SGS_METHOD bool MIExists( int i );
-	SGS_METHOD void MISetMesh( int i, StringView path );
-	SGS_METHOD void MISetEnabled( int i, bool enabled );
-	SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
-	SGS_METHOD void MISetShaderConst( int i, int v, Vec4 var );
-	SGS_METHOD void MISetLayers( int i, uint32_t layers );
+	GFW_EXPORT SGS_METHOD void MICreate( int i, StringView path );
+	GFW_EXPORT SGS_METHOD void MIDestroy( int i );
+	GFW_EXPORT SGS_METHOD bool MIExists( int i );
+	GFW_EXPORT SGS_METHOD void MISetMesh( int i, StringView path );
+	GFW_EXPORT SGS_METHOD void MISetEnabled( int i, bool enabled );
+	GFW_EXPORT SGS_METHOD void MISetMatrix( int i, Mat4 mtx );
+	GFW_EXPORT SGS_METHOD void MISetShaderConst( int i, int v, Vec4 var );
+	GFW_EXPORT SGS_METHOD void MISetLayers( int i, uint32_t layers );
 	
 	// - particle system
-	SGS_METHOD void PSCreate( int i, StringView path );
-	SGS_METHOD void PSDestroy( int i );
-	SGS_METHOD bool PSExists( int i );
-	SGS_METHOD void PSLoad( int i, StringView path );
-	SGS_METHOD void PSSetMatrix( int i, Mat4 mtx );
-	SGS_METHOD void PSSetMatrixFromMeshAABB( int i, int mi );
-	SGS_METHOD void PSPlay( int i );
-	SGS_METHOD void PSStop( int i );
-	SGS_METHOD void PSTrigger( int i );
+	GFW_EXPORT SGS_METHOD void PSCreate( int i, StringView path );
+	GFW_EXPORT SGS_METHOD void PSDestroy( int i );
+	GFW_EXPORT SGS_METHOD bool PSExists( int i );
+	GFW_EXPORT SGS_METHOD void PSLoad( int i, StringView path );
+	GFW_EXPORT SGS_METHOD void PSSetMatrix( int i, Mat4 mtx );
+	GFW_EXPORT SGS_METHOD void PSSetMatrixFromMeshAABB( int i, int mi );
+	GFW_EXPORT SGS_METHOD void PSPlay( int i );
+	GFW_EXPORT SGS_METHOD void PSStop( int i );
+	GFW_EXPORT SGS_METHOD void PSTrigger( int i );
 	
 	// - decal system
-	SGS_METHOD void DSCreate( StringView texDmgDecalPath,
+	GFW_EXPORT SGS_METHOD void DSCreate( StringView texDmgDecalPath,
 		StringView texOvrDecalPath, StringView texFalloffPath, uint32_t size );
-	SGS_METHOD void DSDestroy();
-	SGS_METHOD void DSResize( uint32_t size );
-	SGS_METHOD void DSClear();
+	GFW_EXPORT SGS_METHOD void DSDestroy();
+	GFW_EXPORT SGS_METHOD void DSResize( uint32_t size );
+	GFW_EXPORT SGS_METHOD void DSClear();
 	
 	// - rigid bodies
-	SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_RigidBodyInfo* spec );
-	SGS_METHOD void RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_RigidBodyInfo* spec );
-	SGS_METHOD void RBDestroy( int i );
-	SGS_METHOD bool RBExists( int i );
-	SGS_METHOD void RBSetEnabled( int i, bool enabled );
-	SGS_METHOD Vec3 RBGetPosition( int i );
-	SGS_METHOD void RBSetPosition( int i, Vec3 v );
-	SGS_METHOD Quat RBGetRotation( int i );
-	SGS_METHOD void RBSetRotation( int i, Quat v );
-	SGS_METHOD Mat4 RBGetMatrix( int i );
-	SGS_METHOD void RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p );
+	GFW_EXPORT SGS_METHOD void RBCreateFromMesh( int i, int mi, SGRX_RigidBodyInfo* spec );
+	GFW_EXPORT SGS_METHOD void RBCreateFromConvexPointSet( int i, StringView cpset, SGRX_RigidBodyInfo* spec );
+	GFW_EXPORT SGS_METHOD void RBDestroy( int i );
+	GFW_EXPORT SGS_METHOD bool RBExists( int i );
+	GFW_EXPORT SGS_METHOD void RBSetEnabled( int i, bool enabled );
+	GFW_EXPORT SGS_METHOD Vec3 RBGetPosition( int i );
+	GFW_EXPORT SGS_METHOD void RBSetPosition( int i, Vec3 v );
+	GFW_EXPORT SGS_METHOD Quat RBGetRotation( int i );
+	GFW_EXPORT SGS_METHOD void RBSetRotation( int i, Quat v );
+	GFW_EXPORT SGS_METHOD Mat4 RBGetMatrix( int i );
+	GFW_EXPORT SGS_METHOD void RBApplyForce( int i, int type, Vec3 v, /*opt*/ Vec3 p );
 	
 	// - joints
-	SGS_METHOD void JTCreateHingeB2W( int i, int bi, SGRX_HingeJointInfo* spec );
-	SGS_METHOD void JTCreateHingeB2B( int i, int biA, int biB, SGRX_HingeJointInfo* spec );
-	SGS_METHOD void JTCreateConeTwistB2W( int i, int bi, SGRX_ConeTwistJointInfo* spec );
-	SGS_METHOD void JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_ConeTwistJointInfo* spec );
-	SGS_METHOD void JTDestroy( int i );
-	SGS_METHOD bool JTExists( int i );
-	SGS_METHOD void JTSetEnabled( int i, bool enabled );
+	GFW_EXPORT SGS_METHOD void JTCreateHingeB2W( int i, int bi, SGRX_HingeJointInfo* spec );
+	GFW_EXPORT SGS_METHOD void JTCreateHingeB2B( int i, int biA, int biB, SGRX_HingeJointInfo* spec );
+	GFW_EXPORT SGS_METHOD void JTCreateConeTwistB2W( int i, int bi, SGRX_ConeTwistJointInfo* spec );
+	GFW_EXPORT SGS_METHOD void JTCreateConeTwistB2B( int i, int biA, int biB, SGRX_ConeTwistJointInfo* spec );
+	GFW_EXPORT SGS_METHOD void JTDestroy( int i );
+	GFW_EXPORT SGS_METHOD bool JTExists( int i );
+	GFW_EXPORT SGS_METHOD void JTSetEnabled( int i, bool enabled );
 	// ---
 	
 	DecalSysHandle m_dmgDecalSys;
@@ -399,14 +399,14 @@ struct MultiEntity : Entity, SGRX_MeshInstUserData
 struct StockEntityCreationSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 999 };
-	StockEntityCreationSystem( GameLevel* lev );
-	virtual Entity* AddEntity( StringView type );
+	GFW_EXPORT StockEntityCreationSystem( GameLevel* lev );
+	GFW_EXPORT virtual Entity* AddEntity( StringView type );
 };
 
 
 
 
-
+#if 0
 // max_clip - clip capacity
 // max_bag - ammo bag capacity
 // bullet_speed - units per second
@@ -463,5 +463,6 @@ struct Weapon
 	Vec2 m_direction;
 	float m_owner_speed;
 };
+#endif
 
 

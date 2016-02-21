@@ -48,7 +48,8 @@ EdEntity::EdEntity( sgsString type, bool isproto ) :
 	m_isproto( isproto ),
 	m_group( true, "Entity properties" ),
 	m_pos( V3(0) ),
-	m_entityType( type )
+	m_entityType( type ),
+	m_realEnt( NULL )
 {
 	tyname = "entity";
 	
@@ -69,11 +70,23 @@ EdEntity::EdEntity( sgsString type, bool isproto ) :
 	}
 	
 	Fields2Data();
+	
+	if( !isproto )
+	{
+		m_realEnt = g_Level->CreateEntity( typestr );
+		UpdateRealEnt( NULL );
+	}
 }
 
 EdEntity::~EdEntity()
 {
 	ClearFields();
+	
+	if( m_realEnt )
+	{
+		g_Level->DestroyEntity( m_realEnt );
+		m_realEnt = NULL;
+	}
 }
 
 EdEntity& EdEntity::operator = ( const EdEntity& o )
@@ -138,6 +151,7 @@ void EdEntity::FLoad( sgsVariable data, int version )
 		}
 	}
 	Fields2Data();
+	UpdateRealEnt( NULL );
 }
 
 sgsVariable EdEntity::FSave( int version )
@@ -177,9 +191,34 @@ void EdEntity::SetPosition( const Vec3& pos )
 		if( F.key.equals( "position" ) && F.property->type == EDGUI_ITEM_PROP_VEC3 )
 		{
 			((EDGUIPropVec3*)F.property)->SetValue( m_pos );
+			UpdateRealEnt( &F );
 		}
 	}
 	Fields2Data();
+}
+
+int EdEntity::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		for( size_t i = 0; i < m_fields.size(); ++i )
+		{
+			Field& F = m_fields[ i ];
+			if( F.key.equals( "position" ) && F.property->type == EDGUI_ITEM_PROP_VEC3 )
+			{
+				m_pos = ((EDGUIPropVec3*)F.property)->m_value;
+			}
+			Fields2Data();
+			if( F.property == e->target )
+			{
+				UpdateRealEnt( &F );
+			}
+		}
+		break;
+	}
+	return EDGUILayoutRow::OnEvent( e );
 }
 
 void EdEntity::Data2Fields()
@@ -212,9 +251,9 @@ void EdEntity::Fields2Data()
 		Field& F = m_fields[ i ];
 		switch( F.property->type )
 		{
-		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FIntVar(((EDGUIPropBool*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FIntVar( ((EDGUIPropBool*) F.property)->m_value) ); break;
 		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, FIntVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FIntVar(((EDGUIPropFloat*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FIntVar( ((EDGUIPropFloat*) F.property)->m_value) ); break;
 		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
 		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
 		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
@@ -223,6 +262,40 @@ void EdEntity::Fields2Data()
 		}
 	}
 	m_data = data;
+}
+
+void EdEntity::UpdateRealEnt( Field* curF )
+{
+	if( !m_realEnt )
+		return;
+//	printf("%p\n",curF);
+	sgsVariable so = m_realEnt->GetScriptedObject();
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		Field& F = m_fields[ i ];
+		if( curF && curF != &F )
+			continue;
+		switch( F.property->type )
+		{
+		case EDGUI_ITEM_PROP_BOOL: so.setprop( F.key, FIntVar( ((EDGUIPropBool*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_INT: so.setprop( F.key, FIntVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_FLOAT: so.setprop( F.key, FIntVar( ((EDGUIPropFloat*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_VEC2: so.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_VEC3: so.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_STRING: so.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
+		case EDGUI_ITEM_PROP_ENUM_SB: so.setprop( F.key, FIntVar( ((EDGUIPropEnumSB*) F.property)->m_value) ); break;
+		case EDGUI_ITEM_PROP_RSRC:
+			// requires type-specific actions
+			{
+				SGRX_CAST( EDGUIPropRsrc*, rp, F.property );
+				if( rp->m_rsrcPicker == g_UIMeshPicker )
+					so.setprop( F.key, FIntVar( GR_GetMesh( rp->m_value ) ) );
+				else if( rp->m_rsrcPicker == g_UISurfTexPicker )
+					so.setprop( F.key, FIntVar( GR_GetTexture( rp->m_value ) ) );
+			}
+			break;
+		}
+	}
 }
 
 void EdEntity::AddField( sgsString key, StringView name, EDGUIProperty* prop )

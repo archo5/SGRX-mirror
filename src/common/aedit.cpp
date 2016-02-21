@@ -1929,7 +1929,6 @@ struct ASEditor : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
-	//	g_UITexPicker = new EDGUISDTexPicker( "textures/particles" );
 		g_UIPickers = new EDGUIPickers;
 		
 		// core layout
@@ -1946,8 +1945,6 @@ struct ASEditor : IGame
 	{
 		delete g_UIPickers;
 		g_UIPickers = NULL;
-	//	delete g_UITexPicker;
-	//	g_UITexPicker = NULL;
 		delete g_UIFrame;
 		g_UIFrame = NULL;
 		delete g_EdAS;

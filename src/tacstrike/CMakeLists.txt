@@ -14,7 +14,7 @@ set_target_properties( testsuite PROPERTIES
 
 # Game
 add_library( game SHARED game entities_ts cppbc_entities_ts ) # gameui tsui
-target_link_libraries( game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
+target_link_libraries( game sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DTSGAME"
@@ -24,7 +24,7 @@ set_target_properties( game PROPERTIES
 if(0)
 # BRSD 4 Game
 add_library( jmpgame SHARED brsd4game entities_brsd4 )
-target_link_libraries( jmpgame coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
+target_link_libraries( jmpgame sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( jmpgame PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DBRSD4GAME"
@@ -33,7 +33,7 @@ set_target_properties( jmpgame PROPERTIES
 
 # LD33 Game
 add_library( ld33game SHARED ld33game entities_ld33 cppbc_entities_ts )
-target_link_libraries( ld33game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
+target_link_libraries( ld33game sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( ld33game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DLD33GAME"
@@ -42,7 +42,7 @@ set_target_properties( ld33game PROPERTIES
 
 # MLD62 Game
 add_library( mld62game SHARED mld62game )
-target_link_libraries( mld62game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
+target_link_libraries( mld62game sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( mld62game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DMLD62GAME"
@@ -51,7 +51,7 @@ set_target_properties( mld62game PROPERTIES
 
 # ISR3 Game
 add_library( isr3game SHARED isr3game isr3entities cppbc_isr3entities entities_ts cppbc_entities_ts )
-target_link_libraries( isr3game coregamelib sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
+target_link_libraries( isr3game sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( isr3game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DISR3GAME"

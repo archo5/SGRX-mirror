@@ -25,6 +25,8 @@ function ENT_UPG1_m3sh( pos, data )
 {
 	data =
 	{
+		isStatic = true,
+		visible = true,
 		mesh = "meshes/" $ data.mesh $ ".ssm",
 		position = unpack_vec3( data.position ),
 		rotationXYZ = unpack_vec3( data.rot_angles ),

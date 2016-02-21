@@ -406,11 +406,20 @@ MeshEntity::~MeshEntity()
 void MeshEntity::OnTransformUpdate()
 {
 	m_meshInst->SetTransform( GetWorldMatrix() );
+	_UpdateLighting();
 	if( m_body )
 	{
 		m_body->SetPosition( GetWorldPosition() );
 		m_body->SetRotation( GetWorldRotation() );
 		m_body->GetShape()->SetScale( GetWorldScale() );
+	}
+}
+
+void MeshEntity::_UpdateLighting()
+{
+	if( m_lightingMode == SGRX_LM_Dynamic )
+	{
+		m_level->LightMesh( m_meshInst );
 	}
 }
 

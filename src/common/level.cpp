@@ -792,7 +792,8 @@ bool BaseGame::OnConfigure( int argc, char** argv )
 
 bool BaseGame::OnInitialize()
 {
-	m_soundSys = SND_CreateSystem();
+	if( !m_soundSys )
+		return false;
 	m_level = CreateLevel();
 	return true;
 }
@@ -805,7 +806,7 @@ void BaseGame::OnDestroy()
 
 GameLevel* BaseGame::CreateLevel()
 {
-	GameLevel* level = new GameLevel( PHY_CreateWorld() );
+	GameLevel* level = new GameLevel( CreatePhyWorld() );
 	level->m_soundSys = m_soundSys;
 	level->SetGlobalToSelf();
 	level->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );

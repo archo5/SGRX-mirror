@@ -548,6 +548,18 @@ static void YesNoText( bool yes )
 	}
 }
 
+int EdEditBlockEditMode::OnUIEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		g_EdWorld->GetSelectedObjectAABB( m_selAABB );
+		break;
+	}
+	return EdEditMode::OnUIEvent( e );
+}
+
 void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 {
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )

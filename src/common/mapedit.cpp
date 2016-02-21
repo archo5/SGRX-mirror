@@ -580,6 +580,7 @@ EdLevelGraphicsCont::EdLevelGraphicsCont()
 	: m_nextSolidID(1), m_nextMeshID(1), m_nextSurfID(1), m_nextLightID(1),
 	m_invalidSamples(false), m_alrInvalidSamples(false), m_lmRenderer(NULL)
 {
+	g_Level->m_lightTree = &m_sampleTree;
 }
 
 EdLevelGraphicsCont::~EdLevelGraphicsCont()
@@ -3235,10 +3236,9 @@ bool MapEditor::OnInitialize()
 	
 	// core layout
 	g_EdLGCont = new EdLevelGraphicsCont;
-	g_EdScene = GR_CreateScene();
+	g_EdScene = g_Level->GetScene();
 	g_EdScene->camera.position = Vec3::Create(3,3,3);
 	g_EdScene->camera.UpdateMatrices();
-	g_EdPhyWorld = PHY_CreateWorld();
 	g_EdWorld = new EdWorld();
 	g_EdWorld->RegenerateMeshes();
 	g_UIFrame = new EDGUIMainFrame();
@@ -3273,7 +3273,6 @@ void MapEditor::OnDestroy()
 	g_UIFrame = NULL;
 	delete g_EdWorld;
 	g_EdWorld = NULL;
-	g_EdPhyWorld = NULL;
 	g_EdScene = NULL;
 	delete g_EdLGCont;
 	g_EdLGCont = NULL;
