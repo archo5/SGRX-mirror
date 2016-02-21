@@ -2,6 +2,20 @@
 cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
+# Core game library
+add_library( coregamelib STATIC
+	level.hpp level.cpp cppbc_level.cpp
+	entities.hpp entities.cpp cppbc_entities.cpp
+	systems.hpp systems.cpp cppbc_systems.cpp
+	gfwcore.hpp gfwcore.cpp cppbc_gfwcore.cpp
+	gamegui.hpp gamegui.cpp cppbc_gamegui.cpp
+	scritem.hpp scritem.cpp cppbc_scritem.cpp )
+set_target_properties( coregamelib PROPERTIES
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
+	COMPILE_FLAGS "${CORE_FLAGS}"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+
 if(NOT RESTRICTED)
 # Lightmap renderer
 add_library( lighter SHARED
