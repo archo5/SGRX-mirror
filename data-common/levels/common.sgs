@@ -56,6 +56,30 @@ function Marker.ED_PropInfo( eptr )
 	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
 }
 
+global LightSample = {};
+ENTITY( "LightSample", "Entity" );
+
+LightSample.ED_Icon = "editor/icons/ltsample.png";
+function LightSample.ED_PropInfo( eptr )
+{
+	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
+}
+
+Mesh.ED_Icon = "editor/icons/mesh.png";
+function Mesh.ED_PropInfo( eptr )
+{
+	PropInfo_Entity( eptr );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh" );
+	EE_AddFieldBool( eptr, "isStatic", "Is static?", true );
+	EE_AddFieldBool( eptr, "visible", "Is visible?", true );
+	EE_AddFieldBool( eptr, "solid", "Is solid?", true );
+	EE_AddFieldEnumSB( eptr, "lightingMode", "Lighting mode", LM_Static,
+		map{ [LM_Unlit] = "Unlit", [LM_Static] = "Static",
+		[LM_Dynamic] = "Dynamic", [LM_Decal] = "Decal" } );
+	EE_AddFieldFloat( eptr, "lmQuality", "Lightmap quality", 1, 2, 0.01, 100 );
+	EE_AddFieldBool( eptr, "castLMS", "[dyn] Cast lightmap shadow", true );
+}
+
 Light.ED_Icon = "editor/icons/light.png";
 function Light.ED_PropInfo( eptr )
 {

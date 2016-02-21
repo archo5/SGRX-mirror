@@ -118,6 +118,9 @@ struct Transform
 	FINLINE void SetLocalScale( Vec3 s ){ _localScale = s; OnEdit(); }
 	
 	FINLINE Vec3 GetWorldPosition() const { return _worldMatrix.GetTranslation(); }
+	FINLINE Quat GetWorldRotation() const { return _worldMatrix.GetRotationQuaternion(); }
+	FINLINE Vec3 GetWorldRotationXYZ() const { return _worldMatrix.GetRotationQuaternion().ToXYZ(); }
+	FINLINE Vec3 GetWorldScale() const { return _worldMatrix.GetScale(); }
 	FINLINE Mat4 GetWorldMatrix() const { return _worldMatrix; }
 	
 	FINLINE Vec3 LocalToWorld( Vec3 p ) const { return _worldMatrix.TransformPos( p ); }
@@ -147,15 +150,15 @@ struct Entity : LevelScrObj, Transform
 	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
 	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
 	
-	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition
+	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetLocalPosition
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 position );
-	SGS_PROPERTY_FUNC( READ GetLocalRotation WRITE SetLocalRotation
+	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Quat rotation );
-	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ
+	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 rotationXYZ );
-	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale
+	SGS_PROPERTY_FUNC( READ GetWorldScale WRITE SetLocalScale
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 scale );
-	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix
+	SGS_PROPERTY_FUNC( READ GetWorldMatrix WRITE SetLocalMatrix
 		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Mat4 transform );
 	
 	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition

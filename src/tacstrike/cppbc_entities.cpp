@@ -36,11 +36,11 @@ int Trigger::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<Trigger*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -106,11 +106,11 @@ int Trigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<Trigger*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
@@ -190,11 +190,11 @@ int SlidingDoor::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -263,11 +263,11 @@ int SlidingDoor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<SlidingDoor*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
@@ -335,11 +335,11 @@ int PickupItem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<PickupItem*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -397,11 +397,11 @@ int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<PickupItem*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
@@ -462,10 +462,10 @@ int Actionable::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->_data ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->m_info.placePos ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<Actionable*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -531,10 +531,10 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->_data, depth ).push( C ); }
 		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->m_info.placePos, depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<Actionable*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
@@ -579,6 +579,153 @@ static sgs_ObjInterface Actionable__sgs_interface =
 _sgsInterface Actionable::_sgs_interface(Actionable__sgs_interface, Actionable__sgs_ifn, &Entity::_sgs_interface);
 
 
+int MeshEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<MeshEntity*>( obj->data )->C = C;
+	static_cast<MeshEntity*>( obj->data )->~MeshEntity();
+	return SGS_SUCCESS;
+}
+
+int MeshEntity::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MeshEntity*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int MeshEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MeshEntity*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
+		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
+		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_id ); return SGS_SUCCESS; }
+		SGS_CASE( "isStatic" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->IsStatic() ); return SGS_SUCCESS; }
+		SGS_CASE( "visible" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->IsVisible() ); return SGS_SUCCESS; }
+		SGS_CASE( "mesh" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetMesh() ); return SGS_SUCCESS; }
+		SGS_CASE( "solid" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->IsSolid() ); return SGS_SUCCESS; }
+		SGS_CASE( "lightingMode" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLightingMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "lmQuality" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_lmQuality ); return SGS_SUCCESS; }
+		SGS_CASE( "castsLMS" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_castsLMS ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<MeshEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int MeshEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MeshEntity*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<MeshEntity*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ static_cast<MeshEntity*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ static_cast<MeshEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ static_cast<MeshEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ static_cast<MeshEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ static_cast<MeshEntity*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ static_cast<MeshEntity*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ static_cast<MeshEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ static_cast<MeshEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ static_cast<MeshEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "localTransform" ){ static_cast<MeshEntity*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) );
+			static_cast<MeshEntity*>( obj->data )->OnTransformUpdate(); return SGS_SUCCESS; }
+		SGS_CASE( "infoMask" ){ static_cast<MeshEntity*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localInfoTarget" ){ static_cast<MeshEntity*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<MeshEntity*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<MeshEntity*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "isStatic" ){ static_cast<MeshEntity*>( obj->data )->SetStatic( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "visible" ){ static_cast<MeshEntity*>( obj->data )->SetVisible( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "mesh" ){ static_cast<MeshEntity*>( obj->data )->SetMesh( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "solid" ){ static_cast<MeshEntity*>( obj->data )->SetSolid( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "lightingMode" ){ static_cast<MeshEntity*>( obj->data )->SetLightingMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "lmQuality" ){ static_cast<MeshEntity*>( obj->data )->m_lmQuality = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "castsLMS" ){ static_cast<MeshEntity*>( obj->data )->m_castsLMS = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<MeshEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int MeshEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MeshEntity*>( obj->data )->C, C );
+	char bfr[ 42 ];
+	sprintf( bfr, "MeshEntity (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLocalScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetInfoMask(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_infoTarget, depth ).push( C ); }
+		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_id, depth ).push( C ); }
+		{ sgs_PushString( C, "\nisStatic = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->IsStatic(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nvisible = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->IsVisible(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmesh = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetMesh(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nsolid = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->IsSolid(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLightingMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlmQuality = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_lmQuality, depth ).push( C ); }
+		{ sgs_PushString( C, "\ncastsLMS = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_castsLMS, depth ).push( C ); }
+		sgs_StringConcat( C, 48 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst MeshEntity__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int MeshEntity__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		MeshEntity__sgs_funcs,
+		-1, "MeshEntity." );
+	return 1;
+}
+
+static sgs_ObjInterface MeshEntity__sgs_interface =
+{
+	"MeshEntity",
+	NULL, MeshEntity::_sgs_gcmark, MeshEntity::_sgs_getindex, MeshEntity::_sgs_setindex, NULL, NULL, MeshEntity::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface MeshEntity::_sgs_interface(MeshEntity__sgs_interface, MeshEntity__sgs_ifn, &Entity::_sgs_interface);
+
+
 int LightEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<LightEntity*>( obj->data )->C = C;
@@ -598,11 +745,11 @@ int LightEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -692,11 +839,11 @@ int LightEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
@@ -1045,11 +1192,11 @@ int MultiEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -1107,11 +1254,11 @@ int MultiEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }

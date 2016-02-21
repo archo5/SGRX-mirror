@@ -437,6 +437,70 @@ void ScriptedItem::OnEvent( const StringView& type )
 }
 
 
+MeshEntity::MeshEntity( GameLevel* lev ) : Entity( lev ),
+	m_isStatic( true ),
+	m_isVisible( true ),
+	m_isSolid( true ),
+	m_lightingMode( SGRX_LM_Static ),
+	m_lmQuality( 1 ),
+	m_castsLMS( true )
+{
+	m_meshInst = m_level->GetScene()->CreateMeshInstance();
+	_UpdateBody();
+}
+
+MeshEntity::~MeshEntity()
+{
+}
+
+void MeshEntity::OnTransformUpdate()
+{
+	m_meshInst->SetTransform( GetWorldMatrix() );
+	if( m_body )
+	{
+		m_body->SetPosition( GetWorldPosition() );
+		m_body->SetRotation( GetWorldRotation() );
+		m_body->GetShape()->SetScale( GetWorldScale() );
+	}
+}
+
+void MeshEntity::_UpdateBody()
+{
+	bool need = m_isSolid && m_mesh;
+	if( !need && m_body )
+	{
+		m_body = NULL;
+		m_phyShape = NULL;
+	}
+	else if( need && !m_body )
+	{
+		if( !m_phyShape )
+		{
+			m_phyShape = m_level->GetPhyWorld()->CreateShapeFromMesh( m_mesh );
+			m_phyShape->SetScale( GetWorldScale() );
+		}
+		
+		SGRX_PhyRigidBodyInfo rbi;
+		rbi.shape = m_phyShape;
+		rbi.position = GetWorldPosition();
+		rbi.rotation = GetWorldRotation();
+		rbi.kinematic = !m_isStatic;
+		m_body = m_level->GetPhyWorld()->CreateRigidBody( rbi );
+	}
+}
+
+void MeshEntity::SetMesh( MeshHandle mesh )
+{
+	if( m_mesh == mesh )
+		return;
+	m_mesh = mesh;
+	m_phyShape = NULL;
+	m_body = NULL;
+	m_meshInst->SetMesh( mesh );
+	_UpdateBody();
+}
+
+
 LightEntity::LightEntity( GameLevel* lev ) : Entity( lev ),
 	m_isStatic( false ),
 	m_type( LIGHT_POINT ),
@@ -1002,6 +1066,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 //	ScrItem_InstallAPI( lev->GetSGSC() );
 //	lev->GetScriptCtx().Include( "data/scritems" );
 	lev->RegisterNativeEntity<Entity>( "Entity" );
+	lev->RegisterNativeEntity<MeshEntity>( "Mesh" );
 	lev->RegisterNativeEntity<LightEntity>( "Light" );
 	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
 }

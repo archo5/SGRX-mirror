@@ -22,11 +22,11 @@ int ISR3Drone::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -84,11 +84,11 @@ int ISR3Drone::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Drone*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
@@ -148,11 +148,11 @@ int ISR3Player::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -210,11 +210,11 @@ int ISR3Player::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Player*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
@@ -295,11 +295,11 @@ int ISR3Enemy::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
@@ -357,11 +357,11 @@ int ISR3Enemy::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<ISR3Enemy*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }

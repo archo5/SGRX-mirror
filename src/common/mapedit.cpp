@@ -3279,8 +3279,8 @@ bool MapEditor::OnInitialize()
 	
 	g_UISurfTexPicker = new EDGUISDTexPicker;
 	g_UISurfMtlPicker = new EDGUISurfMtlPicker;
-	g_UIMeshPicker = new EDGUIMeshPicker;
-	g_UICharPicker = new EDGUICharUsePicker;
+	g_UIMeshPicker = new EDGUIMeshPicker( true );
+	g_UICharPicker = new EDGUICharUsePicker( true );
 	g_UIPartSysPicker = new EDGUIPartSysPicker;
 	g_UISoundPicker = new EDGUISoundPicker;
 //	g_UIScrItemPicker = new EDGUIScrItemPicker( g_ScriptCtx );

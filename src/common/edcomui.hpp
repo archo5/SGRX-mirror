@@ -346,7 +346,7 @@ struct EDGUIPartSysPicker : EDGUIRsrcPicker, IDirEntryHandler
 		LOG << "[P]: " << name;
 		if( !isdir && name.ends_with( ".psy" ) )
 		{
-			m_options.push_back( name.part( 0, name.size() - 4 ) );
+			m_options.push_back( name );
 		}
 		return true;
 	}

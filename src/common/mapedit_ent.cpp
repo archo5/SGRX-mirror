@@ -800,8 +800,9 @@ void EdEntNew::FLoad( sgsVariable data, int version )
 			if( F.key.equals( "position" ) )
 				m_pos = ((EDGUIPropVec3*)F.property)->m_value;
 			break;
-		case EDGUI_ITEM_PROP_STRING:
-		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropString*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
+		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
+		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
+		case EDGUI_ITEM_PROP_ENUM_SB: ((EDGUIPropEnumSB*)F.property)->SetValue( FLoadVar( val, 0 ) ); break;
 		}
 	}
 	Fields2Data();
@@ -822,8 +823,9 @@ sgsVariable EdEntNew::FSave( int version )
 		case EDGUI_ITEM_PROP_FLOAT: val = FVar( ((EDGUIPropFloat*)F.property)->m_value ); break;
 		case EDGUI_ITEM_PROP_VEC2: val = FVar( ((EDGUIPropVec2*)F.property)->m_value ); break;
 		case EDGUI_ITEM_PROP_VEC3: val = FVar( ((EDGUIPropVec3*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_STRING:
-		case EDGUI_ITEM_PROP_RSRC: val = FVar( ((EDGUIPropString*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_STRING: val = FVar( ((EDGUIPropString*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_RSRC: val = FVar( ((EDGUIPropRsrc*)F.property)->m_value ); break;
+		case EDGUI_ITEM_PROP_ENUM_SB: val = FVar( ((EDGUIPropEnumSB*)F.property)->m_value ); break;
 		}
 		props.setprop( F.key, val );
 	}

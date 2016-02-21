@@ -2001,6 +2001,7 @@ typedef Handle< EdEntity > EdEntityHandle;
 ////////////
 ///////////
 
+#if 0
 struct EdEntMesh : EdEntity
 {
 	EdEntMesh( bool isproto = true );
@@ -2151,7 +2152,6 @@ struct EdEntLightSample : EdEntity
 };
 
 
-#if 0
 struct EDGUIPropScrItem : EDGUIProperty, SGSPropInterface
 {
 	EDGUIPropScrItem( EDGUIPropVec3* posprop, const StringView& def = "" );
@@ -2492,20 +2492,107 @@ struct EdWorld : EDGUILayoutRow
 				svh.marker( "ENTITY" );
 				svh << ty;
 				
-				if( ty == SV("Mesh") )
+				SGS_CTX = g_Level->GetSGSC();
+				SGS_CSCOPE( C );
+				Vec3 pos = V3(0);
+				
+				if( ty == SV("mesh") )
 				{
+					uint32_t mid = 0;
+					Vec3 angles, scaleSep;
+					float scaleUni;
+					String mesh;
+					
+					svh( mid, svh.version >= 5 );
+					svh << pos;
+					svh << angles;
+					svh << scaleUni;
+					svh << scaleSep;
+					svh << mesh;
+					
+					sgsVariable props = FNewDict();
+					FSaveProp( props, "position", pos );
+					FSaveProp( props, "rotationXYZ", angles );
+					FSaveProp( props, "scale", scaleSep * scaleUni );
+					FSaveProp( props, "mesh", mesh );
+					FSaveProp( props, "isStatic", true );
+					
+					sgsVariable object = FNewDict();
+					FSaveProp( object, "entity_type", SV("Mesh") );
+					object.setprop( "props", props );
+					EdEntNew* obj = new EdEntNew( FVar( SV("Mesh") ).get_string(), false );
+					obj->FLoad( object, MAP_FILE_VERSION );
+					AddObject( obj );
 				}
-				else if( ty == SV("Light") )
+				else if( ty == SV("light") )
 				{
+					uint32_t lid = 0;
+					Vec3 colorHSV, flareOffset = V3(0), rotation;
+					float range, power, radius, flareSize, innerAngle, outerAngle, curve;
+					int32_t shadowSampleCount = 0;
+					bool dynamic = false, isSpot;
+					
+					svh( lid, svh.version >= 5 );
+					svh << pos;
+					svh << range;
+					svh << power;
+					svh << colorHSV;
+					svh << radius;
+					if( svh.version >= 7 )
+						svh << dynamic;
+					svh << shadowSampleCount;
+					svh << flareSize;
+					if( svh.version >= 2 )
+						svh << flareOffset;
+					svh << isSpot;
+					svh << rotation;
+					svh << innerAngle;
+					svh << outerAngle;
+					svh << curve;
+					
+					sgsVariable props = FNewDict();
+					FSaveProp( props, "position", pos );
+					FSaveProp( props, "rotationXYZ", rotation );
+					FSaveProp( props, "isStatic", !dynamic );
+					FSaveProp( props, "type", isSpot ? LIGHT_SPOT : LIGHT_POINT );
+					FSaveProp( props, "enabled", true );
+					FSaveProp( props, "color", HSV( V3(colorHSV.x,colorHSV.y,1) ) );
+					FSaveProp( props, "intensity", colorHSV.z );
+					FSaveProp( props, "range", range );
+					FSaveProp( props, "power", power );
+					FSaveProp( props, "angle", outerAngle );
+					FSaveProp( props, "aspect", 1.0f );
+					FSaveProp( props, "innerAngle", innerAngle );
+					FSaveProp( props, "spotCurve", curve );
+					FSaveProp( props, "lightRadius", radius );
+					FSaveProp( props, "hasShadows", true );
+					props.setprop( "cookieTexture", sgsVariable() ); // NULL
+					FSaveProp( props, "flareSize", flareSize );
+					FSaveProp( props, "flareOffset", flareOffset );
+					
+					sgsVariable object = FNewDict();
+					FSaveProp( object, "entity_type", SV("Light") );
+					object.setprop( "props", props );
+					EdEntNew* obj = new EdEntNew( FVar( SV("Light") ).get_string(), false );
+					obj->FLoad( object, MAP_FILE_VERSION );
+					AddObject( obj );
 				}
-				else if( ty == SV("Light sample") )
+				else if( ty == SV("ltsample") )
 				{
+					svh << pos;
+					
+					sgsVariable props = FNewDict();
+					FSaveProp( props, "position", pos );
+					
+					sgsVariable object = FNewDict();
+					FSaveProp( object, "entity_type", SV("LightSample") );
+					object.setprop( "props", props );
+					EdEntNew* obj = new EdEntNew( FVar( SV("LightSample") ).get_string(), false );
+					obj->FLoad( object, MAP_FILE_VERSION );
+					AddObject( obj );
 				}
 				else
 				{
-					SGS_CTX = g_Level->GetSGSC();
-					SGS_CSCOPE( C );
-					Vec3 pos;
 					Array< uint32_t > meshIDs;
 					String srlzdata;
 					
@@ -2532,6 +2619,14 @@ struct EdWorld : EDGUILayoutRow
 						sgs_Msg( g_Level->GetSGSC(), SGS_WARNING, "Failed to upgrade entity '%s'!",
 							StackPath(ty).str );
 					}
+				}
+				
+				int32_t size = 0;
+				svh( size, svh.version >= 4, 0 );
+				if( size > 0 )
+				{
+					sgs_Msg( g_Level->GetSGSC(), SGS_WARNING, "Subentities CANNOT BE UPGRADED" );
+					return;
 				}
 #if 0
 				EdEntity* e = ENT_Unserialize( svh, true );

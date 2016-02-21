@@ -10,3 +10,30 @@ function ENT_UPG1_marker( pos, data )
 	data.position = unpack_vec3( data.position );
 	return "Marker", data;
 }
+
+function ENT_UPG1_player_start( pos, data )
+{
+	data =
+	{
+		name = "PLAYER_START",
+		position = unpack_vec3( data.position ),
+	};
+	return "Marker", data;
+}
+
+function ENT_UPG1_m3sh( pos, data )
+{
+	data =
+	{
+		mesh = "meshes/" $ data.mesh $ ".ssm",
+		position = unpack_vec3( data.position ),
+		rotationXYZ = unpack_vec3( data.rot_angles ),
+		scale = unpack_vec3( data.scale_uni * data.scale_sep ),
+		lmQuality = data.lmquality,
+		solid = data.solid,
+		lightingMode = if( data.dynlit, LM_Dynamic, LM_Static ),
+		castLMS = data.castlms,
+	};
+	printvar(data);
+	return "Mesh", data;
+}

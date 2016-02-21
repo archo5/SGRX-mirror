@@ -160,6 +160,44 @@ struct ScriptedItem : Entity
 };
 
 
+struct MeshEntity : Entity
+{
+	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	
+	MeshEntity( GameLevel* lev );
+	~MeshEntity();
+	virtual void OnTransformUpdate();
+	void _UpdateShape();
+	void _UpdateBody();
+	
+	bool IsStatic() const { return m_isStatic; }
+	void SetStatic( bool v ){ if( m_isStatic != v ){ m_body = NULL; } m_isStatic = v; _UpdateBody(); }
+	bool IsVisible() const { return m_isVisible; }
+	void SetVisible( bool v ){ m_isVisible = v; m_meshInst->enabled = v; }
+	MeshHandle GetMesh() const { return m_mesh; }
+	void SetMesh( MeshHandle mesh );
+	bool IsSolid() const { return m_isSolid; }
+	void SetSolid( bool v ){ m_isSolid = v; _UpdateBody(); }
+	bool GetLightingMode() const { return m_lightingMode; }
+	void SetLightingMode( bool v ){ m_lightingMode = v;
+		m_meshInst->SetLightingMode( (SGRX_LightingMode) v ); }
+	
+	SGS_PROPERTY_FUNC( READ IsStatic WRITE SetStatic VARNAME isStatic ) bool m_isStatic;
+	SGS_PROPERTY_FUNC( READ IsVisible WRITE SetVisible VARNAME visible ) bool m_isVisible;
+	SGS_PROPERTY_FUNC( READ GetMesh WRITE SetMesh VARNAME mesh ) MeshHandle m_mesh;
+	SGS_PROPERTY_FUNC( READ IsSolid WRITE SetSolid VARNAME solid ) bool m_isSolid;
+	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
+	// editor-only static mesh parameters
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME lmQuality ) float m_lmQuality;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME castsLMS ) bool m_castsLMS;
+	
+	MeshInstHandle m_meshInst;
+	PhyShapeHandle m_phyShape;
+	PhyRigidBodyHandle m_body;
+};
+
+
 struct LightEntity : Entity
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
@@ -221,7 +259,7 @@ struct LightEntity : Entity
 	SGS_PROPERTY_FUNC( READ GetCookieTexture WRITE SetCookieTexture VARNAME cookieTexture ) TextureHandle m_cookieTexture;
 	SGS_PROPERTY_FUNC( READ GetFlareSize WRITE SetFlareSize VARNAME flareSize ) float m_flareSize;
 	SGS_PROPERTY_FUNC( READ GetFlareOffset WRITE SetFlareOffset VARNAME flareOffset ) Vec3 m_flareOffset;
-	// parameters for static lights only
+	// editor-only static light parameters
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME innerAngle ) float m_innerAngle;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME spotCurve ) float m_spotCurve;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME lightRadius ) float lightRadius;

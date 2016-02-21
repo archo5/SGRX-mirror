@@ -996,9 +996,6 @@ struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
 	virtual void MRC_DebugDraw( SGRX_MeshInstance* mi ) = 0;
 };
 
-#define INDEX_16 0
-#define INDEX_32 1
-
 /* mesh data flags */
 #define MDF_INDEX_32      0x01
 #define MDF_DYNAMIC       0x04 /* dynamic buffer updating */
