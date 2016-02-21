@@ -1503,9 +1503,9 @@ int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
 		break;
 		
 	case EDGUI_EVENT_PROPEDIT:
-		for( size_t i = 0; i < ((EdEntNew*)m_entityProps.item)->m_fields.size(); ++i )
+		for( size_t i = 0; i < m_entityProps->m_fields.size(); ++i )
 		{
-			EdEntNew::Field& F = ((EdEntNew*)m_entityProps.item)->m_fields[ i ];
+			EdEntity::Field& F = m_entityProps->m_fields[ i ];
 			if( F.property == e->target &&
 				F.property->type == EDGUI_ITEM_PROP_VEC3 &&
 				F.key.equals( "position" ) )
@@ -1546,7 +1546,7 @@ void EdAddEntityEditMode::_AddNewEntity()
 {
 	Vec2 pos = g_UIFrame->GetCursorPlanePos();
 	
-	EdEntity* N = m_entityProps->CloneEntity();
+	EdEntity* N = (EdEntity*) m_entityProps->Clone();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
 	g_EdWorld->AddObject( N );
 }

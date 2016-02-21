@@ -43,8 +43,15 @@ void EdEntity::DebugDraw()
 }
 
 
-EdEntNew::EdEntNew( sgsString type, bool isproto ) : EdEntity( isproto ), m_entityType( type )
+EdEntity::EdEntity( sgsString type, bool isproto ) :
+	EdObject( ObjType_Entity ),
+	m_isproto( isproto ),
+	m_group( true, "Entity properties" ),
+	m_pos( V3(0) ),
+	m_entityType( type )
 {
+	tyname = "entity";
+	
 	StringView typestr( type.c_str(), type.size() );
 	sgsVariable eiface = g_Level->GetEntityInterface( typestr );
 	m_iconTex = GR_GetTexture( eiface.getprop("ED_Icon").getdef<StringView>( "editor/icons/default.png" ) );
@@ -64,12 +71,12 @@ EdEntNew::EdEntNew( sgsString type, bool isproto ) : EdEntity( isproto ), m_enti
 	Fields2Data();
 }
 
-EdEntNew::~EdEntNew()
+EdEntity::~EdEntity()
 {
 	ClearFields();
 }
 
-EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
+EdEntity& EdEntity::operator = ( const EdEntity& o )
 {
 	m_pos = o.m_pos;
 	m_entityType = o.m_entityType;
@@ -81,14 +88,14 @@ EdEntNew& EdEntNew::operator = ( const EdEntNew& o )
 	return *this;
 }
 
-EdEntity* EdEntNew::CloneEntity()
+EdObject* EdEntity::Clone()
 {
-	EdEntNew* N = new EdEntNew( m_entityType, false );
+	EdEntity* N = new EdEntity( m_entityType, false );
 	*N = *this;
 	return N;
 }
 
-void EdEntNew::Serialize( SVHBR& arch )
+void EdEntity::Serialize( SVHBR& arch )
 {
 	arch << m_pos;
 	String data;
@@ -97,7 +104,7 @@ void EdEntNew::Serialize( SVHBR& arch )
 	Data2Fields();
 }
 
-void EdEntNew::Serialize( SVHBW& arch )
+void EdEntity::Serialize( SVHBW& arch )
 {
 	arch << m_pos;
 	String data;
@@ -105,7 +112,7 @@ void EdEntNew::Serialize( SVHBW& arch )
 	arch << data;
 }
 
-void EdEntNew::FLoad( sgsVariable data, int version )
+void EdEntity::FLoad( sgsVariable data, int version )
 {
 	UNUSED( version );
 	ASSERT( data.getprop( "entity_type" ) == m_entityType );
@@ -133,7 +140,7 @@ void EdEntNew::FLoad( sgsVariable data, int version )
 	Fields2Data();
 }
 
-sgsVariable EdEntNew::FSave( int version )
+sgsVariable EdEntity::FSave( int version )
 {
 	UNUSED( version );
 	sgsVariable props = FNewDict();
@@ -161,9 +168,9 @@ sgsVariable EdEntNew::FSave( int version )
 	return out;
 }
 
-void EdEntNew::SetPosition( const Vec3& pos )
+void EdEntity::SetPosition( const Vec3& pos )
 {
-	EdEntity::SetPosition( pos );
+	m_pos = pos;
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		Field& F = m_fields[ i ];
@@ -175,7 +182,7 @@ void EdEntNew::SetPosition( const Vec3& pos )
 	Fields2Data();
 }
 
-void EdEntNew::Data2Fields()
+void EdEntity::Data2Fields()
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
@@ -197,7 +204,7 @@ void EdEntNew::Data2Fields()
 	}
 }
 
-void EdEntNew::Fields2Data()
+void EdEntity::Fields2Data()
 {
 	sgsVariable data = FNewDict();
 	for( size_t i = 0; i < m_fields.size(); ++i )
@@ -218,7 +225,7 @@ void EdEntNew::Fields2Data()
 	m_data = data;
 }
 
-void EdEntNew::AddField( sgsString key, StringView name, EDGUIProperty* prop )
+void EdEntity::AddField( sgsString key, StringView name, EDGUIProperty* prop )
 {
 	prop->caption = name;
 	Field F = { key, prop };
@@ -226,7 +233,7 @@ void EdEntNew::AddField( sgsString key, StringView name, EDGUIProperty* prop )
 	m_group.Add( prop );
 }
 
-void EdEntNew::ClearFields()
+void EdEntity::ClearFields()
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
@@ -239,7 +246,7 @@ void EdEntNew::ClearFields()
 static int EE_AddFieldBool( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldBool" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	bool def = sgs_StackSize( C ) > 3 ? sgs_GetVar<bool>()( C, 3 ) : false;
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
@@ -250,7 +257,7 @@ static int EE_AddFieldBool( SGS_CTX )
 static int EE_AddFieldInt( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldInt" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	int32_t def = sgs_StackSize( C ) > 3 ? sgs_GetVar<int32_t>()( C, 3 ) : 0;
 	int32_t min = sgs_StackSize( C ) > 4 ? sgs_GetVar<int32_t>()( C, 4 ) : 0x80000000;
 	int32_t max = sgs_StackSize( C ) > 5 ? sgs_GetVar<int32_t>()( C, 5 ) : 0x7fffffff;
@@ -263,7 +270,7 @@ static int EE_AddFieldInt( SGS_CTX )
 static int EE_AddFieldFloat( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldFloat" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	float def = sgs_StackSize( C ) > 3 ? sgs_GetVar<float>()( C, 3 ) : 0;
 	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	float min = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
@@ -277,7 +284,7 @@ static int EE_AddFieldFloat( SGS_CTX )
 static int EE_AddFieldVec2( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec2" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	Vec2 def = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec2>()( C, 3 ) : V2(0);
 	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	Vec2 min = sgs_StackSize( C ) > 5 ? sgs_GetVar<Vec2>()( C, 5 ) : V2(-FLT_MAX);
@@ -291,7 +298,7 @@ static int EE_AddFieldVec2( SGS_CTX )
 static int EE_AddFieldVec3( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec3" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	Vec3 def = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec3>()( C, 3 ) : V3(0);
 	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	Vec3 min = sgs_StackSize( C ) > 5 ? sgs_GetVar<Vec3>()( C, 5 ) : V3(-FLT_MAX);
@@ -305,7 +312,7 @@ static int EE_AddFieldVec3( SGS_CTX )
 static int EE_AddFieldString( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldString" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -315,7 +322,7 @@ static int EE_AddFieldString( SGS_CTX )
 static int EE_AddFieldEnumSB( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldEnumSB" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	EDGUIPropEnumSB* P = new EDGUIPropEnumSB;
 	ScriptVarIterator it( sgs_GetVar<sgsVariable>()( C, 4 ) );
 	while( it.Advance() )
@@ -330,7 +337,7 @@ static int EE_AddFieldEnumSB( SGS_CTX )
 static int EE_AddFieldMesh( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldMesh" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -340,7 +347,7 @@ static int EE_AddFieldMesh( SGS_CTX )
 static int EE_AddFieldTex( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldTex" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -350,7 +357,7 @@ static int EE_AddFieldTex( SGS_CTX )
 static int EE_AddFieldChar( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldChar" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -360,7 +367,7 @@ static int EE_AddFieldChar( SGS_CTX )
 static int EE_AddFieldPartSys( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldPartSys" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -370,7 +377,7 @@ static int EE_AddFieldPartSys( SGS_CTX )
 static int EE_AddFieldSound( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldSound" );
-	SGRX_CAST( EdEntNew*, E, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
@@ -381,7 +388,7 @@ static int EE_AddFieldSound( SGS_CTX )
 static int EE_AddButtonSubent( SGS_CTX )
 {
 	SGSFN( "EE_AddButtonSubent" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -392,7 +399,7 @@ static int EE_AddButtonSubent( SGS_CTX )
 static int EE_SetChar( SGS_CTX )
 {
 	SGSFN( "EE_SetChar" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -404,7 +411,7 @@ static int EE_SetChar( SGS_CTX )
 static int EE_SetMeshInstanceCount( SGS_CTX )
 {
 	SGSFN( "EE_SetMeshInstanceCount" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -414,7 +421,7 @@ static int EE_SetMeshInstanceCount( SGS_CTX )
 static int EE_SetMeshInstanceData( SGS_CTX )
 {
 	SGSFN( "EE_SetMeshInstanceData" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -435,7 +442,7 @@ static int EE_SetMeshInstanceData( SGS_CTX )
 static int EE_GetMeshAABB( SGS_CTX )
 {
 	SGSFN( "EE_GetMeshAABB" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -448,7 +455,7 @@ static int EE_GetMeshAABB( SGS_CTX )
 static int EE_SetScriptedItem( SGS_CTX )
 {
 	SGSFN( "EE_SetScriptedItem" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -459,7 +466,7 @@ static int EE_SetScriptedItem( SGS_CTX )
 static int EE_SetChangeFunc( SGS_CTX )
 {
 	SGSFN( "EE_SetChangeFunc" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -469,7 +476,7 @@ static int EE_SetChangeFunc( SGS_CTX )
 static int EE_SetDebugDrawFunc( SGS_CTX )
 {
 	SGSFN( "EE_SetDebugDrawFunc" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -479,7 +486,7 @@ static int EE_SetDebugDrawFunc( SGS_CTX )
 static int EE_SetGatherFunc( SGS_CTX )
 {
 	SGSFN( "EE_SetGatherFunc" );
-	SGRX_CAST( EdEntNew*, PI, sgs_GetVar<void*>()( C, 0 ) );
+	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
 	if( PI->IsScrEnt() == false )
 		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
 	SGRX_CAST( EdEntScripted*, E, PI );
@@ -551,7 +558,7 @@ EDGUIEntList::EDGUIEntList() :
 	for( int i = 0; i < m_button_count; ++i )
 	{
 		m_buttons[ i ].caption = ents[ i ];
-		m_buttons[ i ].protoEnt = new EdEntNew( FVar( ents[ i ] ).get_string(), true );
+		m_buttons[ i ].protoEnt = new EdEntity( FVar( ents[ i ] ).get_string(), true );
 		
 		Add( &m_buttons[ i ] );
 	}

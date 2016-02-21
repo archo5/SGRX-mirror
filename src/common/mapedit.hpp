@@ -687,7 +687,6 @@ enum ESpecialAction
 };
 
 typedef SerializeVersionHelper<TextReader> SVHTR;
-typedef SerializeVersionHelper<TextWriter> SVHTW;
 typedef SerializeVersionHelper<ByteReader> SVHBR;
 typedef SerializeVersionHelper<ByteWriter> SVHBW;
 
@@ -705,7 +704,6 @@ struct EdObject
 	
 	virtual EdObject* Clone() = 0;
 	virtual void Serialize( SVHTR& arch ) = 0;
-	virtual void Serialize( SVHTW& arch ) = 0;
 	virtual void Serialize( SVHBR& arch ) = 0;
 	virtual void Serialize( SVHBW& arch ) = 0;
 	virtual void FLoad( sgsVariable data, int version ) = 0;
@@ -743,7 +741,6 @@ struct EdObject
 	
 	// utility functions
 	void Serialize( TextReader& arch ){ SerializeVersionHelper<TextReader> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
-	void Serialize( TextWriter& arch ){ SerializeVersionHelper<TextWriter> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
 	void Serialize( ByteReader& arch ){ SerializeVersionHelper<ByteReader> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
 	void Serialize( ByteWriter& arch ){ SerializeVersionHelper<ByteWriter> svh( arch, MAP_FILE_VERSION ); Serialize( svh ); }
 	void UISelectElement( int i, bool mod );
@@ -1136,7 +1133,6 @@ struct EdBlock : EdObject
 	
 	virtual EdObject* Clone();
 	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
-	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], int* outsurf ) const;
@@ -1362,7 +1358,6 @@ struct EdPatch : EdObject
 	
 	virtual EdObject* Clone();
 	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
-	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	virtual Vec3 GetPosition() const { return position; }
@@ -1721,7 +1716,6 @@ struct EdMeshPath : EdObject
 	
 	virtual EdObject* Clone();
 	virtual void Serialize( SVHTR& arch ){ SerializeT( arch ); }
-	virtual void Serialize( SVHTW& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); }
 	virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	virtual Vec3 GetPosition() const { return m_position; }
@@ -1932,21 +1926,21 @@ struct EDGUIMeshPathProps : EDGUILayoutRow
 
 struct EdEntity : EDGUILayoutRow, EdObject
 {
-	EdEntity( bool isproto ) :
-		EdObject( ObjType_Entity ),
-		m_isproto( isproto ),
-		m_group( true, "Entity properties" ),
-		m_pos( V3(0) )
+	struct Field
 	{
-		tyname = "entity";
-	}
+		sgsString key;
+		EDGUIProperty* property;
+	};
+	
+	EdEntity( sgsString type, bool isproto );
+	~EdEntity();
 	
 	void BeforeDelete();
 	void LoadIcon();
 	
 	const Vec3& Pos() const { return m_pos; }
 	virtual Vec3 GetPosition() const { return Pos(); }
-	virtual void SetPosition( const Vec3& pos ){ m_pos = pos; }
+	virtual void SetPosition( const Vec3& pos );
 	virtual void ScaleVertices( const Vec3& ){}
 	
 	virtual int OnEvent( EDGUIEvent* e ){ return EDGUILayoutRow::OnEvent( e ); }
@@ -1954,15 +1948,8 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	virtual bool IsScriptedEnt(){ return false; }
 	virtual void UpdateCache( LevelCache& LC ){}
 	
-	virtual EdEntity* CloneEntity() = 0;
-	
-	virtual EdObject* Clone()
-	{
-		EdObject* obj = CloneEntity();
-		obj->selected = selected;
-		obj->group = group;
-		return obj;
-	}
+	virtual EdObject* Clone();
+	EdEntity& operator = ( const EdEntity& o );
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& rdir, float outdst[1] ) const
 	{
 		return RaySphereIntersect( rpos, rdir, Pos(), 0.2f, outdst );
@@ -1981,50 +1968,31 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	virtual void SetLocalVertex( int i, const Vec3& pos ){}
 	virtual void MoveSelectedVertices( const Vec3& t ){ /* NO VERTICES BY DEFAULT */ }
 	
+	virtual void Serialize( SVHTR& arch ){}
+	virtual void Serialize( SVHBR& arch );
+	virtual void Serialize( SVHBW& arch );
+	void FLoad( sgsVariable data, int version );
+	sgsVariable FSave( int version );
+	
+	void Data2Fields();
+	void Fields2Data();
+	void AddField( sgsString key, StringView name, EDGUIProperty* prop );
+	void ClearFields();
+	
 	bool m_isproto;
 	EDGUIGroup m_group;
 	Vec3 m_pos;
 	TextureHandle m_iconTex;
+	
+	sgsString m_entityType;
+	sgsVariable m_data;
+	Array< Field > m_fields;
 	
 	Handle< EdEntity > m_ownerEnt;
 	Array< Handle< EdEntity > > m_subEnts;
 };
 
 typedef Handle< EdEntity > EdEntityHandle;
-
-
-
-struct EdEntNew : EdEntity
-{
-	struct Field
-	{
-		sgsString key;
-		EDGUIProperty* property;
-	};
-	
-	virtual void Serialize( SVHTR& arch ){}
-	virtual void Serialize( SVHTW& arch ){}
-	virtual void Serialize( SVHBR& arch );
-	virtual void Serialize( SVHBW& arch );
-	
-	EdEntNew( sgsString type, bool isproto );
-	~EdEntNew();
-	EdEntNew& operator = ( const EdEntNew& o );
-	virtual EdEntity* CloneEntity();
-	void FLoad( sgsVariable data, int version );
-	sgsVariable FSave( int version );
-	virtual void SetPosition( const Vec3& pos );
-	
-	// SGSPropInterface
-	void Data2Fields();
-	void Fields2Data();
-	void AddField( sgsString key, StringView name, EDGUIProperty* prop );
-	void ClearFields();
-	
-	sgsString m_entityType;
-	sgsVariable m_data;
-	Array< Field > m_fields;
-};
 
 
 
@@ -2155,7 +2123,7 @@ struct EdWorld : EDGUILayoutRow
 					sgsVariable object = FNewDict();
 					FSaveProp( object, "entity_type", SV("Mesh") );
 					object.setprop( "props", props );
-					EdEntNew* obj = new EdEntNew( FVar( SV("Mesh") ).get_string(), false );
+					EdEntity* obj = new EdEntity( FVar( SV("Mesh") ).get_string(), false );
 					obj->FLoad( object, MAP_FILE_VERSION );
 					AddObject( obj );
 				}
@@ -2208,7 +2176,7 @@ struct EdWorld : EDGUILayoutRow
 					sgsVariable object = FNewDict();
 					FSaveProp( object, "entity_type", SV("Light") );
 					object.setprop( "props", props );
-					EdEntNew* obj = new EdEntNew( FVar( SV("Light") ).get_string(), false );
+					EdEntity* obj = new EdEntity( FVar( SV("Light") ).get_string(), false );
 					obj->FLoad( object, MAP_FILE_VERSION );
 					AddObject( obj );
 				}
@@ -2222,7 +2190,7 @@ struct EdWorld : EDGUILayoutRow
 					sgsVariable object = FNewDict();
 					FSaveProp( object, "entity_type", SV("LightSample") );
 					object.setprop( "props", props );
-					EdEntNew* obj = new EdEntNew( FVar( SV("LightSample") ).get_string(), false );
+					EdEntity* obj = new EdEntity( FVar( SV("LightSample") ).get_string(), false );
 					obj->FLoad( object, MAP_FILE_VERSION );
 					AddObject( obj );
 				}
@@ -2245,7 +2213,7 @@ struct EdWorld : EDGUILayoutRow
 						sgsVariable object = FNewDict();
 						object.setprop( "entity_type", sgs_GetVar<sgsString>()( C, -2 ) );
 						object.setprop( "props", sgs_GetVar<sgsVariable>()( C, -1 ) );
-						EdEntNew* obj = new EdEntNew( sgs_GetVar<sgsString>()( C, -2 ), false );
+						EdEntity* obj = new EdEntity( sgs_GetVar<sgsString>()( C, -2 ), false );
 						obj->FLoad( object, MAP_FILE_VERSION );
 						AddObject( obj );
 					}

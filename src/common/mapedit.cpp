@@ -1920,7 +1920,7 @@ void EdWorld::FLoad( sgsVariable obj )
 			case ObjType_Patch: obj = new EdPatch; break;
 			case ObjType_MeshPath: obj = new EdMeshPath; break;
 			case ObjType_Entity:
-				obj = new EdEntNew( object.getprop( "entity_type" ).get_string(), false );
+				obj = new EdEntity( object.getprop( "entity_type" ).get_string(), false );
 				break;
 			default:
 				LOG_ERROR << "Failed to load World!";
