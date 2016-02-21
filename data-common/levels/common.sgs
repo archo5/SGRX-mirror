@@ -48,6 +48,13 @@ function Entity.ED_PropInfo( eptr )
 //
 global Marker = {};
 ENTITY( "Marker", "Entity" );
+function Marker.EditorDrawWorld()
+{
+	printvar(this);
+	BR_Reset();
+	BR_Col( 0.9, 0.2, 0.1, 0.8 );
+	BR_Tick( this.position, 0.1 );
+}
 
 Marker.ED_Icon = "editor/icons/marker.png";
 function Marker.ED_PropInfo( eptr )
@@ -58,11 +65,24 @@ function Marker.ED_PropInfo( eptr )
 
 global LightSample = {};
 ENTITY( "LightSample", "Entity" );
-
 LightSample.ED_Icon = "editor/icons/ltsample.png";
 function LightSample.ED_PropInfo( eptr )
 {
 	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
+}
+
+global SolidBox = {};
+ENTITY( "SolidBox", "Entity" );
+SolidBox.ED_Icon = "editor/icons/trigger.png";
+function SolidBox.ED_PropInfo( eptr )
+{
+	PropInfo_XForm( eptr );
+}
+function SolidBox.EditorDrawWorld()
+{
+	BR_Reset();
+	BR_Col( 0.2, 0.3, 0.8, 0.8 );
+	BR_AABB( -1, 1, this.transform );
 }
 
 Mesh.ED_Icon = "editor/icons/mesh.png";

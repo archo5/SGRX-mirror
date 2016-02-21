@@ -19,6 +19,11 @@ void EdEntity::BeforeDelete()
 
 void EdEntity::DebugDraw()
 {
+	if( m_realEnt )
+	{
+		m_realEnt->EditorDrawWorld();
+	}
+	
 	if( m_subEnts.size() )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();

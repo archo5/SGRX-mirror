@@ -89,7 +89,16 @@ void Entity::Tick( float deltaTime, float blendFactor )
 
 void Entity::OnTransformUpdate()
 {
-	GetScriptedObject().thiscall( C, "OnTransformUpdate" );
+	sgsVariable fn = GetScriptedObject().getprop( "OnTransformUpdate" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
+void Entity::EditorDrawWorld()
+{
+	sgsVariable fn = GetScriptedObject().getprop( "EditorDrawWorld" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
 }
 
 void Entity::SetInfoMask( uint32_t mask )

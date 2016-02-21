@@ -140,6 +140,7 @@ struct IF_GCC(GFW_EXPORT) Entity : LevelScrObj, Transform
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
+	GFW_EXPORT virtual void EditorDrawWorld();
 	
 	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }
 	GFW_EXPORT void SetInfoMask( uint32_t mask );

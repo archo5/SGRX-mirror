@@ -156,6 +156,7 @@ struct IF_GCC(GFW_EXPORT) MeshEntity : Entity
 	GFW_EXPORT MeshEntity( GameLevel* lev );
 	GFW_EXPORT ~MeshEntity();
 	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void EditorDrawWorld();
 	GFW_EXPORT void _UpdateLighting();
 	GFW_EXPORT void _UpdateBody();
 	

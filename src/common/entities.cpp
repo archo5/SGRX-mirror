@@ -415,6 +415,17 @@ void MeshEntity::OnTransformUpdate()
 	}
 }
 
+void MeshEntity::EditorDrawWorld()
+{
+	if( m_mesh )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		br.Reset();
+		br.Col( 0.2f, 0.7f, 0.9f, 0.8f );
+		br.AABB( m_mesh->m_boundsMin, m_mesh->m_boundsMax, GetWorldMatrix() );
+	}
+}
+
 void MeshEntity::_UpdateLighting()
 {
 	if( m_lightingMode == SGRX_LM_Dynamic )
