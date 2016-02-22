@@ -1,8 +1,7 @@
 
 
 #pragma once
-#include "engine.hpp"
-#include "script.hpp"
+#include "gfwcore.hpp"
 
 
 #define GUI_REG_KEY 484
@@ -67,7 +66,7 @@
 struct GameUIControl;
 
 
-struct GameUIEvent
+EXP_STRUCT GameUIEvent
 {
 	SGS_OBJECT_LITE;
 	
@@ -104,7 +103,7 @@ struct GameUIEvent
 SGS_DEFAULT_LITE_OBJECT_INTERFACE( GameUIEvent );
 
 
-struct GameUISystem : SGRX_RefCounted
+EXP_STRUCT GameUISystem : SGRX_RefCounted
 {
 	GameUISystem( ScriptContext* scrctx );
 	~GameUISystem();
@@ -141,7 +140,7 @@ struct GameUISystem : SGRX_RefCounted
 typedef Handle< GameUISystem > GUISysHandle;
 
 
-struct GameUIControl
+EXP_STRUCT GameUIControl
 {
 	typedef sgsHandle< GameUIControl > Handle;
 	

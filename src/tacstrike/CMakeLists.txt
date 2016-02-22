@@ -3,9 +3,8 @@ cmake_minimum_required( VERSION 2.8 )
 set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 # Test Suite
-add_library( testsuite SHARED testsuite.cpp
-	../common/gamegui.hpp ../common/gamegui.cpp ../common/cppbc_gamegui.cpp )
-target_link_libraries( testsuite sgrx-core sgrx-script )
+add_library( testsuite SHARED testsuite.cpp )
+target_link_libraries( testsuite sgrx-gfw sgrx-core sgrx-script )
 set_target_properties( testsuite PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DTESTSUITE"
@@ -20,6 +19,7 @@ set_target_properties( game PROPERTIES
 	COMPILE_FLAGS "${CORE_FLAGS} -DTSGAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
+cppbc_headers( entities_ts.hpp )
 
 if(0)
 # BRSD 4 Game
@@ -50,6 +50,7 @@ set_target_properties( mld62game PROPERTIES
 )
 
 # ISR3 Game
+cppbc_headers( isr3entities.hpp )
 add_library( isr3game SHARED isr3game isr3entities cppbc_isr3entities entities_ts cppbc_entities_ts )
 target_link_libraries( isr3game sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( isr3game PROPERTIES

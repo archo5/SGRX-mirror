@@ -15,8 +15,10 @@
 #  define GFW_EXPORT __declspec(dllimport)
 #endif
 
+#define EXP_STRUCT struct SGS_CPPBC_IGNORE(IF_GCC(GFW_EXPORT))
 
-struct IF_GCC(GFW_EXPORT) SGSTextureHandle
+
+EXP_STRUCT SGSTextureHandle
 {
 	SGS_OBJECT;
 	
@@ -51,7 +53,7 @@ template<> struct sgs_GetVar<TextureHandle>
 };
 
 
-struct IF_GCC(GFW_EXPORT) SGSMeshHandle
+EXP_STRUCT SGSMeshHandle
 {
 	SGS_OBJECT;
 	

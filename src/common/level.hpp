@@ -23,7 +23,7 @@ extern sgs_ObjInterface g_sgsobj_empty_handle[1];
 typedef uint32_t TimeVal;
 
 
-struct IF_GCC(GFW_EXPORT) LevelScrObj : SGRX_RefCounted
+EXP_STRUCT LevelScrObj : SGRX_RefCounted
 {
 	SGS_OBJECT SGS_NO_DESTRUCT;
 	typedef sgsHandle< LevelScrObj > ScrHandle;
@@ -55,7 +55,7 @@ struct IF_GCC(GFW_EXPORT) LevelScrObj : SGRX_RefCounted
 };
 
 
-struct IF_GCC(GFW_EXPORT) IActorController : LevelScrObj
+EXP_STRUCT IActorController : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	typedef sgsHandle< IActorController > ScrHandle;
@@ -71,7 +71,7 @@ struct IF_GCC(GFW_EXPORT) IActorController : LevelScrObj
 typedef Handle< IActorController > ActorCtrlHandle;
 
 
-struct IF_GCC(GFW_EXPORT) Transform
+EXP_STRUCT Transform
 {
 	Transform() :
 		_localPosition( V3(0) ),
@@ -127,7 +127,7 @@ struct IF_GCC(GFW_EXPORT) Transform
 	FINLINE Vec3 WorldToLocal( Vec3 p ) const { return _invWorldMatrix.TransformPos( p ); }
 };
 
-struct IF_GCC(GFW_EXPORT) Entity : LevelScrObj, Transform
+EXP_STRUCT Entity : LevelScrObj, Transform
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
@@ -189,7 +189,7 @@ struct IF_GCC(GFW_EXPORT) Entity : LevelScrObj, Transform
 #define IEST_AIAlert         0x0020
 
 
-struct IF_GCC(GFW_EXPORT) IGameLevelSystem : LevelScrObj
+EXP_STRUCT IGameLevelSystem : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	
@@ -213,7 +213,7 @@ struct IF_GCC(GFW_EXPORT) IGameLevelSystem : LevelScrObj
 };
 
 
-struct IF_GCC(GFW_EXPORT) Actor : Entity
+EXP_STRUCT Actor : Entity
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
@@ -359,7 +359,7 @@ struct InfoEmitEntitySet
 
 typedef StackString<16> StackShortName;
 
-struct IF_GCC(GFW_EXPORT) GameLevel :
+EXP_STRUCT GameLevel :
 	SGRX_PostDraw,
 	SGRX_DebugDraw,
 	SGRX_LightTreeSampler,
@@ -527,7 +527,7 @@ struct BaseEditor
 	GameHandle m_origGame;
 };
 
-struct IF_GCC(GFW_EXPORT) BaseGame : IGame
+EXP_STRUCT BaseGame : IGame
 {
 	GFW_EXPORT BaseGame();
 	GFW_EXPORT virtual int OnArgument( char* arg, int argcleft, char** argvleft );

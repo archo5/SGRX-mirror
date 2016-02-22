@@ -4,17 +4,19 @@ set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 # Core game library
 add_library( sgrx-gfw SHARED
-	level.hpp level.cpp cppbc_level.cpp
-	entities.hpp entities.cpp cppbc_entities.cpp
-	systems.hpp systems.cpp cppbc_systems.cpp
-	gfwcore.hpp gfwcore.cpp cppbc_gfwcore.cpp
-	gamegui.hpp gamegui.cpp cppbc_gamegui.cpp )
+	level.hpp level.cpp
+	entities.hpp entities.cpp
+	systems.hpp systems.cpp
+	gfwcore.hpp gfwcore.cpp
+	gamegui.hpp gamegui.cpp
+	cppbc_gfw.cpp )
 target_link_libraries( sgrx-gfw sgrx-pathfinding sgrx-script sgrx-core )
 set_target_properties( sgrx-gfw PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
 	COMPILE_FLAGS "${CORE_FLAGS} -DGFW_BUILDING"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
+cppbc_headers( sgrx-gfw gfw.hpp )
 
 if(NOT RESTRICTED)
 # Lightmap renderer

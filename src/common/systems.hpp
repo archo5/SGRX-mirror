@@ -96,7 +96,7 @@ struct MapItemInfo
 	float sizeRight;
 };
 
-struct IF_GCC(GFW_EXPORT) LevelMapSystem : IGameLevelSystem
+EXP_STRUCT LevelMapSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 9 };
 	
@@ -132,7 +132,7 @@ struct MSMessage
 	float position;
 };
 
-struct IF_GCC(GFW_EXPORT) MessagingSystem : IGameLevelSystem
+EXP_STRUCT MessagingSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -184,7 +184,7 @@ struct OSObjStats
 	int numCancelled;
 };
 
-struct IF_GCC(GFW_EXPORT) ObjectiveSystem : IGameLevelSystem
+EXP_STRUCT ObjectiveSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -223,7 +223,7 @@ struct IF_GCC(GFW_EXPORT) ObjectiveSystem : IGameLevelSystem
 };
 
 
-struct IF_GCC(GFW_EXPORT) HelpTextSystem : IGameLevelSystem
+EXP_STRUCT HelpTextSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -260,7 +260,7 @@ struct FSFlare
 	bool enabled;
 };
 
-struct IF_GCC(GFW_EXPORT) FlareSystem : IGameLevelSystem
+EXP_STRUCT FlareSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -283,7 +283,7 @@ struct IF_GCC(GFW_EXPORT) FlareSystem : IGameLevelSystem
 };
 
 
-struct IF_GCC(GFW_EXPORT) LevelCoreSystem : IGameLevelSystem
+EXP_STRUCT LevelCoreSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 10 };
 	
@@ -299,7 +299,7 @@ struct IF_GCC(GFW_EXPORT) LevelCoreSystem : IGameLevelSystem
 };
 
 
-struct IF_GCC(GFW_EXPORT) ScriptedSequenceSystem : IGameLevelSystem
+EXP_STRUCT ScriptedSequenceSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -319,7 +319,7 @@ struct IF_GCC(GFW_EXPORT) ScriptedSequenceSystem : IGameLevelSystem
 };
 
 
-struct IF_GCC(GFW_EXPORT) MusicSystem : IGameLevelSystem
+EXP_STRUCT MusicSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -344,7 +344,7 @@ enum GameActorType // = SGRX_MeshInstUserData::ownerType
 };
 
 
-struct IF_GCC(GFW_EXPORT) DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
+EXP_STRUCT DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 {
 	enum { e_system_uid = 5 };
 	
@@ -438,7 +438,7 @@ struct AIRoomPart
 	float cell_size;
 };
 
-struct IF_GCC(GFW_EXPORT) AIRoom : SGRX_RCRsrc
+EXP_STRUCT AIRoom : SGRX_RCRsrc
 {
 	GFW_EXPORT bool IsInside( Vec3 pos );
 	
@@ -460,7 +460,7 @@ enum AIFactType // some basic fact types
 	FT_Position_Foe,
 };
 
-struct IF_GCC(GFW_EXPORT) AIFact
+EXP_STRUCT AIFact
 {
 	SGS_OBJECT_LITE;
 	
@@ -472,13 +472,13 @@ struct IF_GCC(GFW_EXPORT) AIFact
 	SGS_PROPERTY TimeVal expires;
 };
 
-struct IF_GCC(GFW_EXPORT) AIFactDistance
+EXP_STRUCT AIFactDistance
 {
 	GFW_EXPORT virtual float GetDistance( const AIFact& fact ) = 0;
 	GFW_EXPORT virtual Vec3 GetPosition() = 0;
 };
 
-struct IF_GCC(GFW_EXPORT) AIFactStorage
+EXP_STRUCT AIFactStorage
 {
 	GFW_EXPORT AIFactStorage();
 	GFW_EXPORT void Clear();
@@ -505,7 +505,7 @@ struct IF_GCC(GFW_EXPORT) AIFactStorage
 	uint32_t m_next_fact_id;
 };
 
-struct IF_GCC(GFW_EXPORT) AIDBSystem : IGameLevelSystem
+EXP_STRUCT AIDBSystem : IGameLevelSystem
 {
 	SGS_OBJECT_LITE;
 	SGS_NO_DESTRUCT;
@@ -554,7 +554,7 @@ struct CSCoverLine
 	Vec3 p1;
 };
 
-struct IF_GCC(GFW_EXPORT) CSCoverInfo
+EXP_STRUCT CSCoverInfo
 {
 	struct Shape
 	{
@@ -576,7 +576,7 @@ struct IF_GCC(GFW_EXPORT) CSCoverInfo
 	Array< float > factors;
 };
 
-struct IF_GCC(GFW_EXPORT) CoverSystem : IGameLevelSystem
+EXP_STRUCT CoverSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 8 };
 	
@@ -598,7 +598,7 @@ struct IF_GCC(GFW_EXPORT) CoverSystem : IGameLevelSystem
 		Vec3 nup; // upwards extension direction if p0/p1 match
 #endif
 	};
-	struct IF_GCC(GFW_EXPORT) CoverPoint
+	EXP_STRUCT CoverPoint
 	{
 		Vec3 pos;
 		Vec3 nout;
@@ -607,7 +607,7 @@ struct IF_GCC(GFW_EXPORT) CoverSystem : IGameLevelSystem
 		GFW_EXPORT void AdjustNormals( Vec3 newout, Vec3 newup );
 		bool operator == ( const CoverPoint& o ) const { return pos == o.pos; }
 	};
-	struct IF_GCC(GFW_EXPORT) EdgeMesh : SGRX_RCRsrc
+	EXP_STRUCT EdgeMesh : SGRX_RCRsrc
 	{
 		// silhouette info
 		Array< Edge > edges;
@@ -644,7 +644,7 @@ struct IF_GCC(GFW_EXPORT) CoverSystem : IGameLevelSystem
 };
 
 
-struct IF_GCC(GFW_EXPORT) DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
+EXP_STRUCT DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
 {
 	enum { e_system_uid = 14 };
 	

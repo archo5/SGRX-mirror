@@ -12,7 +12,7 @@
 #include "systems.hpp"
 
 
-struct IF_GCC(GFW_EXPORT) Trigger : Entity
+EXP_STRUCT Trigger : Entity
 {
 	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
@@ -32,7 +32,7 @@ struct IF_GCC(GFW_EXPORT) Trigger : Entity
 	GFW_EXPORT SGS_METHOD_NAMED( SetupTrigger ) void sgsSetupTrigger( bool once, sgsVariable fn, sgsVariable fnout );
 };
 
-struct IF_GCC(GFW_EXPORT) SlidingDoor : Trigger
+EXP_STRUCT SlidingDoor : Trigger
 {
 	SGS_OBJECT_INHERIT( Trigger );
 	ENT_SGS_IMPLEMENT;
@@ -85,7 +85,7 @@ struct IF_GCC(GFW_EXPORT) SlidingDoor : Trigger
 	GFW_EXPORT virtual void OnEvent( const StringView& type );
 };
 
-struct IF_GCC(GFW_EXPORT) PickupItem : Entity, IInteractiveEntity
+EXP_STRUCT PickupItem : Entity, IInteractiveEntity
 {
 	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
@@ -107,7 +107,7 @@ struct IF_GCC(GFW_EXPORT) PickupItem : Entity, IInteractiveEntity
 	}
 };
 
-struct IF_GCC(GFW_EXPORT) Actionable : Entity, IInteractiveEntity
+EXP_STRUCT Actionable : Entity, IInteractiveEntity
 {
 	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
@@ -134,7 +134,7 @@ struct IF_GCC(GFW_EXPORT) Actionable : Entity, IInteractiveEntity
 };
 
 
-struct IF_GCC(GFW_EXPORT) ParticleFX : Entity
+EXP_STRUCT ParticleFX : Entity
 {
 	ParticleSystem m_psys;
 	String m_soundEventName;
@@ -148,7 +148,7 @@ struct IF_GCC(GFW_EXPORT) ParticleFX : Entity
 };
 
 
-struct IF_GCC(GFW_EXPORT) MeshEntity : Entity
+EXP_STRUCT MeshEntity : Entity
 {
 	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
@@ -179,7 +179,7 @@ struct IF_GCC(GFW_EXPORT) MeshEntity : Entity
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME lmQuality ) float m_lmQuality;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME castLMS ) bool m_castLMS;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME castLMSs ) bool m_castLMS;
 	
 	MeshInstHandle m_meshInst;
 	PhyShapeHandle m_phyShape;
@@ -187,7 +187,7 @@ struct IF_GCC(GFW_EXPORT) MeshEntity : Entity
 };
 
 
-struct IF_GCC(GFW_EXPORT) LightEntity : Entity
+EXP_STRUCT LightEntity : Entity
 {
 	SGS_OBJECT_INHERIT( Entity );
 	ENT_SGS_IMPLEMENT;
@@ -313,7 +313,7 @@ struct SGRX_ConeTwistJointInfo : SGRX_PhyConeTwistJointInfo
 #define MULTIENT_NUM_SLOTS 4
 #define MULTIENT_RANGE_STR "[0-3]"
 
-struct IF_GCC(GFW_EXPORT) MultiEntity : Entity, SGRX_MeshInstUserData
+EXP_STRUCT MultiEntity : Entity, SGRX_MeshInstUserData
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
