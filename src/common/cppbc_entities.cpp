@@ -619,7 +619,7 @@ int MeshEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "solid" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->IsSolid() ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLightingMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_lmQuality ); return SGS_SUCCESS; }
-		SGS_CASE( "castsLMS" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_castsLMS ); return SGS_SUCCESS; }
+		SGS_CASE( "castLMS" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_castLMS ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<MeshEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -659,7 +659,7 @@ int MeshEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "solid" ){ static_cast<MeshEntity*>( obj->data )->SetSolid( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ static_cast<MeshEntity*>( obj->data )->SetLightingMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ static_cast<MeshEntity*>( obj->data )->m_lmQuality = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "castsLMS" ){ static_cast<MeshEntity*>( obj->data )->m_castsLMS = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "castLMS" ){ static_cast<MeshEntity*>( obj->data )->m_castLMS = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<MeshEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -695,7 +695,7 @@ int MeshEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nsolid = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->IsSolid(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLightingMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlmQuality = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_lmQuality, depth ).push( C ); }
-		{ sgs_PushString( C, "\ncastsLMS = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_castsLMS, depth ).push( C ); }
+		{ sgs_PushString( C, "\ncastLMS = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_castLMS, depth ).push( C ); }
 		sgs_StringConcat( C, 48 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );

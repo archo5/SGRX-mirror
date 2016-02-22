@@ -38,3 +38,27 @@ function ENT_UPG1_m3sh( pos, data )
 	};
 	return "Mesh", data;
 }
+
+function ENT_UPG1_room( pos, data )
+{
+	data =
+	{
+		position = unpack_vec3( data.position ),
+		rotationXYZ = unpack_vec3( data.rot_angles ),
+		scale = unpack_vec3( data.scale_uni * data.scale_sep ),
+		negative = data.negative,
+		cellSize = data.cell_size,
+	};
+	return "AIRoom", data;
+}
+
+function ENT_UPG1_cover( pos, data )
+{
+	data =
+	{
+		position = unpack_vec3( data.position ),
+		rotationXYZ = unpack_vec3( data.rot_angles ),
+		scale = unpack_vec3( data.scale_uni * data.scale_sep ),
+	};
+	return "AICover", data;
+}

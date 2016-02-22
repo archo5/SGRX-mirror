@@ -393,7 +393,7 @@ MeshEntity::MeshEntity( GameLevel* lev ) : Entity( lev ),
 	m_isSolid( true ),
 	m_lightingMode( SGRX_LM_Static ),
 	m_lmQuality( 1 ),
-	m_castsLMS( true )
+	m_castLMS( true )
 {
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	_UpdateBody();

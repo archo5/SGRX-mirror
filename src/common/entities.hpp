@@ -179,7 +179,7 @@ struct IF_GCC(GFW_EXPORT) MeshEntity : Entity
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME lmQuality ) float m_lmQuality;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME castsLMS ) bool m_castsLMS;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME castLMS ) bool m_castLMS;
 	
 	MeshInstHandle m_meshInst;
 	PhyShapeHandle m_phyShape;

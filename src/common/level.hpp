@@ -130,6 +130,7 @@ struct IF_GCC(GFW_EXPORT) Transform
 struct IF_GCC(GFW_EXPORT) Entity : LevelScrObj, Transform
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
 	typedef sgsHandle< Entity > ScrHandle;
 	
 	GFW_EXPORT Entity( GameLevel* lev );
