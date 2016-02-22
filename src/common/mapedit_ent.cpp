@@ -110,6 +110,9 @@ EdObject* EdEntity::Clone()
 {
 	EdEntity* N = new EdEntity( m_entityType, false );
 	*N = *this;
+	N->UpdateRealEnt( NULL );
+	N->selected = selected;
+	N->group = group;
 	return N;
 }
 

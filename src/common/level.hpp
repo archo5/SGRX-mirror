@@ -77,24 +77,84 @@ EXP_STRUCT Transform
 		_localPosition( V3(0) ),
 		_localRotation( Quat::Identity ),
 		_localScale( V3(1) ),
+		_parent( NULL ),
 		_worldMatrix( Mat4::Identity ),
 		_invWorldMatrix( Mat4::Identity ),
-		_updateOnEdit( true )
+		_outdated( true ),
+		_inTransformUpdate( false ),
+		_destroying( false )
 	{}
+	~Transform()
+	{
+		_destroying = true;
+		while( _ch.size() )
+			_ch.last()->_SetParent( NULL, true );
+		_SetParent( NULL );
+	}
 	
 	Vec3 _localPosition;
 	Quat _localRotation;
 	Vec3 _localScale;
-	Mat4 _worldMatrix;
-	Mat4 _invWorldMatrix;
-	bool _updateOnEdit;
+	Transform* _parent;
+	Array< Transform* > _ch;
+	mutable Mat4 _worldMatrix;
+	mutable Mat4 _invWorldMatrix;
+	mutable bool _outdated;
+	bool _inTransformUpdate;
+	bool _destroying;
 	
+	GFW_EXPORT virtual void OnTransformUpdate() = 0;
+	void _OnTransformUpdate()
+	{
+		if( _destroying )
+			return;
+		if( _inTransformUpdate )
+		{
+			LOG_WARNING << "OnTransformUpdate recursion - transform modified in callback";
+			return;
+		}
+		_inTransformUpdate = true;
+		OnTransformUpdate();
+		_inTransformUpdate = false;
+	}
+	
+	FINLINE Mat4 _GetInvParentMtx()
+	{
+		return _parent ? _parent->_invWorldMatrix : Mat4::Identity;
+	}
+	FINLINE void _SetParent( Transform* nptf, bool preserveWorldTransform = false )
+	{
+		if( _parent == nptf )
+			return;
+		if( _parent )
+		{
+			_parent->_ch.remove_first( this );
+			_parent = NULL;
+		}
+		if( nptf )
+		{
+			_parent = nptf;
+			nptf->_ch.push_back( this );
+		}
+		if( preserveWorldTransform )
+			SetWorldMatrix( _worldMatrix );
+		OnEdit();
+	}
+#define TF_ONREAD if(_outdated) OnRead();
+	void OnRead() const
+	{
+		_worldMatrix = GetLocalMatrix();
+		if( _parent )
+			_worldMatrix = _worldMatrix * _parent->GetWorldMatrix();
+		_invWorldMatrix = _worldMatrix.Inverted();
+		_outdated = false;
+	}
 	void OnEdit()
 	{
-		if( _updateOnEdit == false )
-			return;
-		_worldMatrix = GetLocalMatrix();
-		_invWorldMatrix = _worldMatrix.Inverted();
+		_outdated = true;
+		_OnTransformUpdate();
+		for( size_t i = 0; i < _ch.size(); ++i )
+			_ch[ i ]->OnEdit();
 	}
 	
 	FINLINE Mat4 GetLocalMatrix() const
@@ -117,21 +177,25 @@ EXP_STRUCT Transform
 	FINLINE Vec3 GetLocalScale() const { return _localScale; }
 	FINLINE void SetLocalScale( Vec3 s ){ _localScale = s; OnEdit(); }
 	
-	FINLINE Vec3 GetWorldPosition() const { return _worldMatrix.GetTranslation(); }
-	FINLINE Quat GetWorldRotation() const { return _worldMatrix.GetRotationQuaternion(); }
-	FINLINE Vec3 GetWorldRotationXYZ() const { return RAD2DEG( _worldMatrix.GetRotationQuaternion().ToXYZ() ); }
-	FINLINE Vec3 GetWorldScale() const { return _worldMatrix.GetScale(); }
-	FINLINE Mat4 GetWorldMatrix() const { return _worldMatrix; }
+	FINLINE Vec3 GetWorldPosition() const { TF_ONREAD; return _worldMatrix.GetTranslation(); }
+	FINLINE Quat GetWorldRotation() const { TF_ONREAD; return _worldMatrix.GetRotationQuaternion(); }
+	FINLINE Vec3 GetWorldRotationXYZ() const { TF_ONREAD; return RAD2DEG( _worldMatrix.GetRotationQuaternion().ToXYZ() ); }
+	FINLINE Vec3 GetWorldScale() const { TF_ONREAD; return _worldMatrix.GetScale(); }
+	FINLINE Mat4 GetWorldMatrix() const { TF_ONREAD; return _worldMatrix; }
+	void SetWorldMatrix( Mat4 mtx ){ SetLocalMatrix( mtx * _GetInvParentMtx() ); }
 	
-	FINLINE Vec3 LocalToWorld( Vec3 p ) const { return _worldMatrix.TransformPos( p ); }
-	FINLINE Vec3 WorldToLocal( Vec3 p ) const { return _invWorldMatrix.TransformPos( p ); }
+	FINLINE Vec3 LocalToWorld( Vec3 p ) const { TF_ONREAD; return _worldMatrix.TransformPos( p ); }
+	FINLINE Vec3 WorldToLocal( Vec3 p ) const { TF_ONREAD; return _invWorldMatrix.TransformPos( p ); }
+#undef TF_ONREAD
 };
+
+struct Entity;
+typedef sgsHandle< Entity > EntityScrHandle;
 
 EXP_STRUCT Entity : LevelScrObj, Transform
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
-	typedef sgsHandle< Entity > ScrHandle;
 	
 	GFW_EXPORT Entity( GameLevel* lev );
 	GFW_EXPORT ~Entity();
@@ -152,27 +216,20 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
 	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
 	
-	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetLocalPosition
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 position );
-	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Quat rotation );
-	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 rotationXYZ );
-	SGS_PROPERTY_FUNC( READ GetWorldScale WRITE SetLocalScale
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 scale );
-	SGS_PROPERTY_FUNC( READ GetWorldMatrix WRITE SetLocalMatrix
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Mat4 transform );
+	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetLocalPosition ) SGS_ALIAS( Vec3 position );
+	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat rotation );
+	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 rotationXYZ );
+	SGS_PROPERTY_FUNC( READ GetWorldScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 scale );
+	SGS_PROPERTY_FUNC( READ GetWorldMatrix WRITE SetWorldMatrix ) SGS_ALIAS( Mat4 transform );
 	
-	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 localPosition );
-	SGS_PROPERTY_FUNC( READ GetLocalRotation WRITE SetLocalRotation
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Quat localRotation );
-	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 localRotationXYZ );
-	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Vec3 localScale );
-	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix
-		WRITE_CALLBACK OnTransformUpdate ) SGS_ALIAS( Mat4 localTransform );
+	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition ) SGS_ALIAS( Vec3 localPosition );
+	SGS_PROPERTY_FUNC( READ GetLocalRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat localRotation );
+	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 localRotationXYZ );
+	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 localScale );
+	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix ) SGS_ALIAS( Mat4 localTransform );
+	
+	EntityScrHandle _sgsGetParent(){ return EntityScrHandle( this ); }
+	SGS_PROPERTY_FUNC( READ _sgsGetParent WRITE _SetParent ) SGS_ALIAS( EntityScrHandle parent );
 	
 	SGS_PROPERTY_FUNC( READ GetInfoMask WRITE SetInfoMask VARNAME infoMask ) uint32_t m_infoMask;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME localInfoTarget ) Vec3 m_infoTarget;

@@ -218,6 +218,7 @@ function MeshArray._ReconfigEntity( e, i )
 	e.lightingMode = this.lightingMode;
 	e.lmQuality = this.lmQuality;
 	e.castLMS = this.castLMS;
+	e.parent = this;
 }
 function MeshArray._ReadjustParts( norec )
 {
@@ -248,7 +249,7 @@ function MeshArray.__set_offset( off )
 	if( typeof( off ) != "vec3" )
 		ERROR( "wrong type for 'vec3 offset'" );
 	this._data.offset = off;
-	this._ReadjustParts( true );
+	this._ReadjustParts();
 }
 function MeshArray.__set_count( cnt )
 {
@@ -258,6 +259,7 @@ function MeshArray.__set_count( cnt )
 	this._data.count = cnt;
 	this._ReadjustParts( true );
 }
+function MeshArray.OnTransformUpdate(){ this._ReadjustParts(); }
 function MeshArray.__set_mesh( m ){ this._data.mesh = m; this._ReadjustParts(); }
 function MeshArray.__set_solid( s ){ this._data.solid = s; this._ReadjustParts(); }
 function MeshArray.__set_lightingMode( lm ){ this._data.lightingMode = lm; this._ReadjustParts(); }

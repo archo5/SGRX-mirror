@@ -39,6 +39,26 @@ function ENT_UPG1_m3sh( pos, data )
 	return "Mesh", data;
 }
 
+function ENT_UPG1_mesharray( pos, data )
+{
+	data =
+	{
+		position = unpack_vec3( data.position ),
+		rotationXYZ = unpack_vec3( data.rot_angles ),
+		scale = unpack_vec3( data.scale_uni * data.scale_sep ),
+		
+		offset = data.offset,
+		count = data.count,
+		
+		mesh = "meshes/" $ data.mesh $ ".ssm",
+		solid = true,
+		lightingMode = LM_Static,
+		lmQuality = 1.0,
+		castLMS = true,
+	};
+	return "MeshArray", data;
+}
+
 function ENT_UPG1_room( pos, data )
 {
 	data =
