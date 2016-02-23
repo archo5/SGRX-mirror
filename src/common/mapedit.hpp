@@ -38,7 +38,7 @@ MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EdLevelGraphicsCont* g_EdLGCont );
-MAPEDIT_GLOBAL( struct EDGUISDTexPicker* g_UISurfTexPicker );
+MAPEDIT_GLOBAL( struct EDGUITexturePicker* g_UITexturePicker );
 MAPEDIT_GLOBAL( struct EDGUISurfMtlPicker* g_UISurfMtlPicker );
 MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
@@ -1982,6 +1982,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	void FLoad( sgsVariable data, int version );
 	sgsVariable FSave( int version );
 	
+	void SetID( StringView idstr );
 	void UpdateRealEnt( Field* curF );
 	void Data2Fields();
 	void Fields2Data();
@@ -2365,8 +2366,11 @@ struct EdWorld : EDGUILayoutRow
 		return NULL;
 	}
 	
+	void SetEntityID( EdEntity* e );
+	
 	VertexDeclHandle m_vd;
 	
+	int32_t m_nextID;
 	Array< EdBlockHandle > m_blocks;
 	Array< EdEntityHandle > m_entities;
 	Array< EdPatchHandle > m_patches;

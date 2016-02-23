@@ -66,6 +66,13 @@ Entity::~Entity()
 	m_level->m_infoEmitSet.Unregister( this );
 }
 
+void Entity::OnDestroy()
+{
+	sgsVariable fn = GetScriptedObject().getprop( "OnDestroy" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
 void Entity::FixedTick( float deltaTime )
 {
 	sgsVariable fn_fixedupdate = GetScriptedObject().getprop( "FixedUpdate" );
@@ -90,6 +97,13 @@ void Entity::Tick( float deltaTime, float blendFactor )
 void Entity::OnTransformUpdate()
 {
 	sgsVariable fn = GetScriptedObject().getprop( "OnTransformUpdate" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
+void Entity::OnIDUpdate()
+{
+	sgsVariable fn = GetScriptedObject().getprop( "OnIDUpdate" );
 	if( fn.not_null() )
 		GetScriptedObject().thiscall( C, fn );
 }
@@ -443,6 +457,7 @@ Entity* GameLevel::CreateEntity( const StringView& type )
 
 void GameLevel::DestroyEntity( Entity* eptr )
 {
+	eptr->OnDestroy();
 	delete eptr;
 	m_entities.remove_all( eptr );
 }

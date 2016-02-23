@@ -10,7 +10,7 @@ struct EDGUIMainFrame* g_UIFrame;
 SceneHandle g_EdScene;
 struct EdParticleSystem* g_EdPS;
 struct EdDualGraph* g_UIGraphEd;
-struct EDGUISDTexPicker* g_UITexPicker;
+struct EDGUITexturePicker* g_UITexPicker;
 struct EDGUIShaderPicker* g_UIShaderPicker;
 struct EDGUIMeshPicker* g_UIMeshPicker;
 struct EDGUIPSOpenPicker* g_UIPSOpenPicker;
@@ -1081,7 +1081,7 @@ struct PSEditor : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
-		g_UITexPicker = new EDGUISDTexPicker( "textures/particles" );
+		g_UITexPicker = new EDGUITexturePicker(); // "textures/particles" );
 		g_UIShaderPicker = new EDGUIShaderPicker;
 		g_UIMeshPicker = new EDGUIMeshPicker;
 		g_UIPSOpenPicker = new EDGUIPSOpenPicker;

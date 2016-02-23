@@ -153,7 +153,11 @@ void EdEntity::FLoad( sgsVariable data, int version )
 			if( F.key.equals( "position" ) )
 				m_pos = ((EDGUIPropVec3*)F.property)->m_value;
 			break;
-		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
+		case EDGUI_ITEM_PROP_STRING:
+			((EDGUIPropString*)F.property)->SetValue( FLoadVar( val, SV("") ) );
+			if( F.key.equals( "id" ) && ((EDGUIPropString*)F.property)->m_value.size() == 0 )
+				g_EdWorld->SetEntityID( this );
+			break;
 		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
 		case EDGUI_ITEM_PROP_ENUM_SB: ((EDGUIPropEnumSB*)F.property)->SetValue( FLoadVar( val, 0 ) ); break;
 		}
@@ -272,6 +276,20 @@ void EdEntity::Fields2Data()
 	m_data = data;
 }
 
+void EdEntity::SetID( StringView idstr )
+{
+	for( size_t i = 0; i < m_fields.size(); ++i )
+	{
+		Field& F = m_fields[ i ];
+		if( F.property->type == EDGUI_ITEM_PROP_STRING && F.key.equals( "id" ) )
+		{
+			((EDGUIPropString*) F.property)->SetValue( idstr );
+			UpdateRealEnt( &F );
+		}
+	}
+	Fields2Data();
+}
+
 void EdEntity::UpdateRealEnt( Field* curF )
 {
 	if( !m_realEnt )
@@ -298,7 +316,7 @@ void EdEntity::UpdateRealEnt( Field* curF )
 				SGRX_CAST( EDGUIPropRsrc*, rp, F.property );
 				if( rp->m_rsrcPicker == g_UIMeshPicker )
 					so.setprop( F.key, FIntVar( GR_GetMesh( rp->m_value ) ) );
-				else if( rp->m_rsrcPicker == g_UISurfTexPicker )
+				else if( rp->m_rsrcPicker == g_UITexturePicker )
 					so.setprop( F.key, FIntVar( GR_GetTexture( rp->m_value ) ) );
 			}
 			break;
@@ -432,7 +450,7 @@ static int EE_AddFieldTex( SGS_CTX )
 	E->AddField(
 		sgs_GetVar<sgsString>()( C, 1 ),
 		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropRsrc( g_UISurfTexPicker, sgs_GetVar<StringView>()( C, 3 ) ) );
+		new EDGUIPropRsrc( g_UITexturePicker, sgs_GetVar<StringView>()( C, 3 ) ) );
 	return 0;
 }
 static int EE_AddFieldChar( SGS_CTX )

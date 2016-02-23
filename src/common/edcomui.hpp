@@ -119,9 +119,9 @@ struct EDGUIShaderPicker : EDGUIRsrcPicker, IDirEntryHandler
 	}
 };
 
-struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
+struct EDGUITexturePicker : EDGUIRsrcPicker, IDirEntryHandler
 {
-	EDGUISDTexPicker( const StringView& dir = "textures" ) : m_dir( String_Concat( dir, "/" ) )
+	EDGUITexturePicker( const StringView& dir = "textures" ) : m_dir( String_Concat( dir, "/" ) )
 	{
 		caption = "Pick a texture";
 		Reload();
@@ -138,11 +138,22 @@ struct EDGUISDTexPicker : EDGUIRsrcPicker, IDirEntryHandler
 	}
 	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
 	{
-		LOG << "[T]: " << name;
-		if( !isdir && name.ends_with( ".png" ) )
+		if( name == "." || name == ".." )
+			return true;
+		
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
+		LOG << "[T]: " << bfr;
+		StringView fullname = bfr;
+		
+		if( isdir )
 		{
-			m_options.push_back( name.part( 0, name.size() - 4 ) );
-			m_textures.push_back( GR_GetTexture( String_Concat( m_dir, name ) ) );
+			FS_IterateDirectory( fullname, this );
+		}
+		else if( name.ends_with( ".png" ) || name.ends_with( ".stx" ) )
+		{
+			m_options.push_back( fullname );
+			m_textures.push_back( GR_GetTexture( fullname ) );
 		}
 		return true;
 	}

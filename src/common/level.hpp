@@ -199,9 +199,11 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	
 	GFW_EXPORT Entity( GameLevel* lev );
 	GFW_EXPORT ~Entity();
+	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void FixedTick( float deltaTime );
 	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
 	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void OnIDUpdate();
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
@@ -246,6 +248,20 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 #define IEST_AIAlert         0x0020
 
 
+struct EditorEntity
+{
+	StringView type;
+	sgsVariable props;
+	bool remove;
+};
+
+struct EditorSystemCompiler
+{
+	virtual ~EditorSystemCompiler(){}
+	virtual bool GenerateChunk( ByteArray& out );
+	virtual void ProcessEntity( EditorEntity& ent );
+};
+
 EXP_STRUCT IGameLevelSystem : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
@@ -265,6 +281,8 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 	virtual void PostDraw(){}
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
+	
+	virtual EditorSystemCompiler* EditorGetSystemCompiler(){ return NULL; }
 	
 	uint32_t m_system_uid;
 };
@@ -571,6 +589,7 @@ FINLINE void Entity::sgsSetID( sgsString id )
 	m_id = id;
 	if( m_id.size() )
 		m_level->_MapEntityByID( this );
+	OnIDUpdate();
 }
 
 

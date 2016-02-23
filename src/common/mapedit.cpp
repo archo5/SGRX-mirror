@@ -1815,6 +1815,7 @@ void ReconfigureEntities( StringView levname )
 
 
 EdWorld::EdWorld() :
+	m_nextID( 0 ),
 	m_ctlGroup( true, "Level properties" ),
 	m_ctlAmbientColor( V3(0,0,0.1f), 2, V3(0), V3(1,1,100) ),
 	m_ctlDirLightDir( V2(0,0), 2, V2(-8192), V2(8192) ),
@@ -1887,6 +1888,7 @@ void EdWorld::FLoad( sgsVariable obj )
 	Reset();
 	
 	int version = FLoadProp( obj, "version", 0 );
+	m_nextID = FLoadProp( obj, "id", 0 );
 	
 	sgsVariable lighting = obj.getprop("lighting");
 	{
@@ -1967,6 +1969,7 @@ sgsVariable EdWorld::FSave()
 	
 	sgsVariable out = FNewDict();
 	FSaveProp( out, "version", version );
+	FSaveProp( out, "id", m_nextID );
 	out.setprop( "lighting", lighting );
 	out.setprop( "objects", objects );
 	
@@ -1983,6 +1986,7 @@ void EdWorld::Reset()
 	m_mpaths.clear();
 	m_objects.clear();
 	g_EdLGCont->Reset();
+	m_nextID = 0;
 }
 
 void EdWorld::TestData()
@@ -2636,6 +2640,14 @@ LC_Light EdWorld::GetDirLightInfo()
 	return L;
 }
 
+void EdWorld::SetEntityID( EdEntity* e )
+{
+	int32_t id = m_nextID++;
+	char bfr[ 32 ];
+	sgrx_snprintf( bfr, 32, "ent%d", (int) id );
+	e->SetID( bfr );
+}
+
 
 
 EDGUIMultiObjectProps::EDGUIMultiObjectProps() :
@@ -3225,7 +3237,7 @@ bool MapEditor::OnInitialize()
 //	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
 //	LOG << "\nLoading completed\n\n";
 	
-	g_UISurfTexPicker = new EDGUISDTexPicker;
+	g_UITexturePicker = new EDGUITexturePicker;
 	g_UISurfMtlPicker = new EDGUISurfMtlPicker;
 	g_UIMeshPicker = new EDGUIMeshPicker( true );
 	g_UICharPicker = new EDGUICharUsePicker( true );
@@ -3267,8 +3279,8 @@ void MapEditor::OnDestroy()
 	g_UIMeshPicker = NULL;
 	delete g_UISurfMtlPicker;
 	g_UISurfMtlPicker = NULL;
-	delete g_UISurfTexPicker;
-	g_UISurfTexPicker = NULL;
+	delete g_UITexturePicker;
+	g_UITexturePicker = NULL;
 	delete g_UIFrame;
 	g_UIFrame = NULL;
 	delete g_EdWorld;

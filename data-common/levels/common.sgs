@@ -210,6 +210,11 @@ function MeshArray.Init()
 	};
 	this._ReadjustParts();
 }
+function MeshArray.OnDestroy()
+{
+	for( i = 0; i < this._entities.size; ++i )
+		level.DestroyEntity( this._entities[ i ] );
+}
 function MeshArray._ReconfigEntity( e, i )
 {
 	e.position = this.offset * i;

@@ -508,6 +508,7 @@ void LightEntity::_UpdateLight()
 	else if( need && !m_light )
 	{
 		m_light = m_level->GetScene()->CreateLight();
+		m_light->type = m_type;
 		m_light->position = V3(0);
 		m_light->direction = V3(0,0,-1);
 		m_light->updir = V3(0,-1,0);
