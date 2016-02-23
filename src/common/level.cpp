@@ -414,6 +414,7 @@ Entity* GameLevel::CreateEntity( const StringView& type )
 		{
 			ent->InitScriptInterface();
 			m_entities.push_back( ent );
+			_OnAddEntity( ent );
 			return ent;
 		}
 	}
@@ -452,14 +453,28 @@ Entity* GameLevel::CreateEntity( const StringView& type )
 	sgsVariable fn_init = ESO.getprop("Init");
 	if( fn_init.not_null() )
 		ESO.thiscall( GetSGSC(), fn_init );
+	_OnAddEntity( ent );
 	return ent;
 }
 
 void GameLevel::DestroyEntity( Entity* eptr )
 {
+	_OnRemoveEntity( eptr );
 	eptr->OnDestroy();
 	delete eptr;
 	m_entities.remove_all( eptr );
+}
+
+void GameLevel::_OnAddEntity( Entity* ent )
+{
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->OnAddEntity( ent );
+}
+
+void GameLevel::_OnRemoveEntity( Entity* ent )
+{
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->OnAddEntity( ent );
 }
 
 StackShortName GameLevel::GenerateName()

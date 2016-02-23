@@ -173,6 +173,7 @@ function Light.ED_PropInfo( eptr )
 	EE_AddFieldVec3( eptr, "color", "Color", vec3(0.9,0.7,0.5), 2, 0, 1 );
 	EE_AddFieldFloat( eptr, "intensity", "Intensity", 1, 2, -1000, 1000 );
 	EE_AddFieldFloat( eptr, "range", "Range", 1, 2, 0, EDPI_Pos_Max );
+	EE_AddFieldFloat( eptr, "power", "Power", 2, 2, 0.01, 100 );
 	EE_AddFieldFloat( eptr, "angle", "[spot] Outer angle", 75, 2, 0, 180 );
 	EE_AddFieldFloat( eptr, "innerAngle", "[spot] Inner angle", 0, 2, 0, 180 );
 	EE_AddFieldFloat( eptr, "aspect", "[spot] Aspect ratio", 1, 2, 0.01, 100 );
@@ -215,6 +216,11 @@ function MeshArray.OnDestroy()
 	for( i = 0; i < this._entities.size; ++i )
 		level.DestroyEntity( this._entities[ i ] );
 }
+function MeshArray.OnIDUpdate()
+{
+	for( i = 0; i < this._entities.size; ++i )
+		this._entities[ i ].id = this.id $ "#" $ i;
+}
 function MeshArray._ReconfigEntity( e, i )
 {
 	e.position = this.offset * i;
@@ -245,6 +251,7 @@ function MeshArray._ReadjustParts( norec )
 	while( this._entities.size < this.count )
 	{
 		e = level.CreateEntity( "Mesh" );
+		e.id = this.id $ "#" $ this._entities.size;
 		this._ReconfigEntity( e, this._entities.size );
 		this._entities.push( e );
 	}

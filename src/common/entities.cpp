@@ -393,7 +393,8 @@ MeshEntity::MeshEntity( GameLevel* lev ) : Entity( lev ),
 	m_isSolid( true ),
 	m_lightingMode( SGRX_LM_Static ),
 	m_lmQuality( 1 ),
-	m_castLMS( true )
+	m_castLMS( true ),
+	m_edLGCID( 0 )
 {
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	_UpdateBody();
@@ -413,6 +414,7 @@ void MeshEntity::OnTransformUpdate()
 		m_body->SetRotation( GetWorldRotation() );
 		m_body->GetShape()->SetScale( GetWorldScale() );
 	}
+	_UpEv();
 }
 
 void MeshEntity::EditorDrawWorld()
@@ -432,6 +434,7 @@ void MeshEntity::_UpdateLighting()
 	{
 		m_level->LightMesh( m_meshInst );
 	}
+	_UpEv();
 }
 
 void MeshEntity::_UpdateBody()
@@ -457,6 +460,7 @@ void MeshEntity::_UpdateBody()
 		rbi.kinematic = !m_isStatic;
 		m_body = m_level->GetPhyWorld()->CreateRigidBody( rbi );
 	}
+	_UpEv();
 }
 
 void MeshEntity::SetMesh( MeshHandle mesh )
@@ -468,6 +472,7 @@ void MeshEntity::SetMesh( MeshHandle mesh )
 	m_body = NULL;
 	m_meshInst->SetMesh( mesh );
 	_UpdateBody();
+	// _UpEv already called
 }
 
 
@@ -486,7 +491,8 @@ LightEntity::LightEntity( GameLevel* lev ) : Entity( lev ),
 	m_flareOffset( V3(0) ),
 	m_innerAngle( 0 ),
 	m_spotCurve( 1 ),
-	lightRadius( 0.1f )
+	m_lightRadius( 0.1f ),
+	m_edLGCID( 0 )
 {
 	_UpdateLight();
 	_UpdateShadows();

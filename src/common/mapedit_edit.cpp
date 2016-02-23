@@ -1560,6 +1560,7 @@ void EdAddEntityEditMode::_AddNewEntity()
 	
 	EdEntity* N = (EdEntity*) m_entityProps->Clone();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
+	g_EdWorld->SetEntityID( N );
 	g_EdWorld->AddObject( N );
 }
 

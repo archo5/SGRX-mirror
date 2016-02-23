@@ -12,6 +12,14 @@
 #include "systems.hpp"
 
 
+enum CoreEntityEventIDs
+{
+	EID_Type_CoreEntity = 10000,
+	EID_MeshUpdate,
+	EID_LightUpdate,
+};
+
+
 EXP_STRUCT Trigger : Entity
 {
 	SGS_OBJECT_INHERIT( Entity );
@@ -160,10 +168,12 @@ EXP_STRUCT MeshEntity : Entity
 	GFW_EXPORT void _UpdateLighting();
 	GFW_EXPORT void _UpdateBody();
 	
+	FINLINE void _UpEv(){ Game_FireEvent( EID_MeshUpdate, this ); }
+	
 	bool IsStatic() const { return m_isStatic; }
 	void SetStatic( bool v ){ if( m_isStatic != v ){ m_body = NULL; } m_isStatic = v; _UpdateBody(); }
 	bool IsVisible() const { return m_isVisible; }
-	void SetVisible( bool v ){ m_isVisible = v; m_meshInst->enabled = v; }
+	void SetVisible( bool v ){ m_isVisible = v; m_meshInst->enabled = v; _UpEv(); }
 	MeshHandle GetMesh() const { return m_mesh; }
 	GFW_EXPORT void SetMesh( MeshHandle mesh );
 	bool IsSolid() const { return m_isSolid; }
@@ -178,12 +188,13 @@ EXP_STRUCT MeshEntity : Entity
 	SGS_PROPERTY_FUNC( READ IsSolid WRITE SetSolid VARNAME solid ) bool m_isSolid;
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
 	// editor-only static mesh parameters
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME lmQuality ) float m_lmQuality;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME castLMS ) bool m_castLMS;
+	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lmQuality ) float m_lmQuality;
+	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME castLMS ) bool m_castLMS;
 	
 	MeshInstHandle m_meshInst;
 	PhyShapeHandle m_phyShape;
 	PhyRigidBodyHandle m_body;
+	uint32_t m_edLGCID;
 };
 
 
@@ -201,15 +212,18 @@ EXP_STRUCT LightEntity : Entity
 			m_light->SetTransform( GetWorldMatrix() );
 			m_light->UpdateTransform();
 		}
+		_UpEv();
 	}
 	
 	GFW_EXPORT void _UpdateLight();
 	GFW_EXPORT void _UpdateShadows();
 	GFW_EXPORT void _UpdateFlare();
 	
-#define RETNIFNOLIGHT if( !m_light ) return;
+	FINLINE void _UpEv(){ Game_FireEvent( EID_LightUpdate, this ); }
+	
+#define RETNIFNOLIGHT _UpEv(); if( !m_light ) return;
 	bool IsStatic() const { return m_isStatic; }
-	void SetStatic( bool v ){ m_isStatic = v; _UpdateLight(); }
+	void SetStatic( bool v ){ m_isStatic = v; _UpEv(); _UpdateLight(); }
 	int GetType() const { return m_type; }
 	void SetType( int v ){ m_type = v; RETNIFNOLIGHT; m_light->type = v; _UpdateShadows(); }
 	bool IsEnabled() const { return m_isEnabled; }
@@ -249,11 +263,12 @@ EXP_STRUCT LightEntity : Entity
 	SGS_PROPERTY_FUNC( READ GetFlareSize WRITE SetFlareSize VARNAME flareSize ) float m_flareSize;
 	SGS_PROPERTY_FUNC( READ GetFlareOffset WRITE SetFlareOffset VARNAME flareOffset ) Vec3 m_flareOffset;
 	// editor-only static light parameters
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME innerAngle ) float m_innerAngle;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME spotCurve ) float m_spotCurve;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME lightRadius ) float lightRadius;
+	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME innerAngle ) float m_innerAngle;
+	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME spotCurve ) float m_spotCurve;
+	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lightRadius ) float m_lightRadius;
 	
 	LightHandle m_light;
+	uint32_t m_edLGCID;
 };
 
 

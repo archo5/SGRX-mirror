@@ -5,6 +5,7 @@
 #include "edutils.hpp"
 #include "edcomui.hpp"
 #include "level.hpp"
+#include "entities.hpp"
 
 
 // v0: initial
@@ -498,9 +499,20 @@ struct EdLGCLightInfo : LC_Light
 		outerangle = 45;
 		spotcurve = 1;
 	}
+	
+	bool IntersectsAABB( Vec3 bbmin, Vec3 bbmax, Mat4 mtx ) const
+	{
+		Mat4 invmtx = Mat4::Identity;
+		mtx.InvertTo( invmtx );
+		Vec3 locpos = invmtx.TransformPos( pos );
+		Vec3 inbbpos = Vec3::Min( Vec3::Max( locpos, bbmin ), bbmax );
+		Vec3 locdist = inbbpos - locpos;
+		Vec3 world_dist = mtx.TransformNormal( locdist );
+		return world_dist.LengthSq() < range;
+	}
 };
 
-struct EdLevelGraphicsCont
+struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 {
 	struct PrevMeshData
 	{
@@ -511,12 +523,6 @@ struct EdLevelGraphicsCont
 	struct Solid
 	{
 		Array< Vec4 > planes;
-	};
-	struct Mesh
-	{
-		String meshpath;
-		EdLGCRenderInfo info;
-		MeshInstHandle meshInst;
 	};
 	struct Surface
 	{
@@ -531,12 +537,15 @@ struct EdLevelGraphicsCont
 		
 		void RecalcTangents();
 	};
+	struct Mesh
+	{
+		EdLGCMeshInfo info;
+		MeshEntity* ent;
+	};
 	struct Light
 	{
 		EdLGCLightInfo info;
-		LightHandle dynLight;
-		
-		bool IntersectsAABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& mtx ) const;
+		LightEntity* ent;
 	};
 	struct LMap : SGRX_RefCounted
 	{
@@ -567,14 +576,13 @@ struct EdLevelGraphicsCont
 	typedef Handle< LMap > LMapHandle;
 	
 	typedef HashTable< uint32_t, Solid > SolidTable;
-	typedef HashTable< uint32_t, Mesh > MeshTable;
 	typedef HashTable< uint32_t, Surface > SurfaceTable;
-	typedef HashTable< uint32_t, Light > LightTable;
 	typedef HashTable< uint32_t, LMapHandle > LMapTable;
 	typedef HashTable< uint32_t, uint32_t > InvLMIDTable;
 	typedef HashTable< uint32_t, PrevMeshData > MovedMeshSet;
+	typedef HashTable< Entity*, uint32_t > EntityLMIDTable;
 	
-	EdLevelGraphicsCont();
+	EdLevelGraphicsCont( GameLevel* lev );
 	~EdLevelGraphicsCont();
 	void Reset();
 	void LoadLightmaps( const StringView& levname );
@@ -611,7 +619,6 @@ struct EdLevelGraphicsCont
 	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
 	void DeleteMesh( uint32_t id );
 	void UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshInfo* info );
-	bool GetMeshAABB( uint32_t id, Vec3 out[2] );
 	
 	uint32_t CreateSurface( EdLGCSurfaceInfo* info = NULL );
 	void RequestSurface( uint32_t id, EdLGCSurfaceInfo* info = NULL );
@@ -628,15 +635,19 @@ struct EdLevelGraphicsCont
 		return int(m_invalidLightmaps.size()) + int(m_invalidSamples);
 	}
 	
+	virtual void OnAddEntity( Entity* ent );
+	virtual void OnRemoveEntity( Entity* ent );
+	virtual void HandleEvent( SGRX_EventID eid, const EventData& edata );
+	
 	uint32_t m_nextSolidID;
-	uint32_t m_nextMeshID;
 	uint32_t m_nextSurfID;
-	uint32_t m_nextLightID;
+	uint32_t m_nextMeshEntID;
+	uint32_t m_nextLightEntID;
 	
 	SolidTable m_solids;
-	MeshTable m_meshes;
 	SurfaceTable m_surfaces;
-	LightTable m_lights;
+	HashTable< uint32_t, Mesh > m_meshes;
+	HashTable< uint32_t, Light > m_lights;
 	LMapTable m_lightmaps;
 	SGRX_LightTree m_sampleTree;
 	
@@ -646,7 +657,7 @@ struct EdLevelGraphicsCont
 	InvLMIDTable m_alrInvalidLightmaps;
 	MovedMeshSet m_movedMeshes;
 	MovedMeshSet m_movedSurfs;
-	LightTable m_movedLights;
+	HashTable< uint32_t, EdLGCLightInfo > m_movedLights;
 	
 	LMRenderer* m_lmRenderer;
 };

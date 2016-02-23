@@ -34,7 +34,8 @@ EXP_STRUCT LevelScrObj : SGRX_RefCounted
 	template< class T > void _InitScriptInterface( T* ptr );
 	GFW_EXPORT void DestroyScriptInterface();
 #define ENT_SGS_IMPLEMENT \
-	virtual void InitScriptInterface(){ if( m_sgsObject == NULL ) _InitScriptInterface( this ); }
+	virtual void InitScriptInterface(){ if( m_sgsObject == NULL ) _InitScriptInterface( this ); } \
+	virtual sgs_ObjInterface* GetSGSInterface() const { return _sgs_interface; }
 	
 	ENT_SGS_IMPLEMENT;
 	
@@ -186,11 +187,15 @@ EXP_STRUCT Transform
 	
 	FINLINE Vec3 LocalToWorld( Vec3 p ) const { TF_ONREAD; return _worldMatrix.TransformPos( p ); }
 	FINLINE Vec3 WorldToLocal( Vec3 p ) const { TF_ONREAD; return _invWorldMatrix.TransformPos( p ); }
+	FINLINE Vec3 LocalToWorldDir( Vec3 d ) const { TF_ONREAD; return _worldMatrix.TransformNormal( d ); }
+	FINLINE Vec3 WorldToLocalDir( Vec3 d ) const { TF_ONREAD; return _invWorldMatrix.TransformNormal( d ); }
 #undef TF_ONREAD
 };
 
 struct Entity;
 typedef sgsHandle< Entity > EntityScrHandle;
+
+#define ENTITY_IS_A( ent, cls ) ((ent)->GetSGSInterface() == cls::_sgs_interface)
 
 EXP_STRUCT Entity : LevelScrObj, Transform
 {
@@ -270,6 +275,9 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 		LevelScrObj( lev ), m_system_uid( uid )
 	{}
 	virtual void OnPostLevelLoad(){}
+	virtual void OnAddEntity( Entity* ent ){}
+	virtual void OnRemoveEntity( Entity* ent ){}
+	virtual void OnEntityChangeID( Entity* ent, StringView prev ){}
 	virtual void OnLevelDestroy(){ delete this; }
 	virtual Entity* AddEntity( StringView type ){ return NULL; }
 	virtual bool LoadChunk( const StringView& type, ByteView data ){ return false; }
@@ -485,6 +493,8 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT void EnumEntities( Array< StringView >& out );
 	GFW_EXPORT Entity* CreateEntity( const StringView& type );
 	GFW_EXPORT void DestroyEntity( Entity* eptr );
+	GFW_EXPORT void _OnAddEntity( Entity* ent );
+	GFW_EXPORT void _OnRemoveEntity( Entity* ent );
 	GFW_EXPORT StackShortName GenerateName();
 	GFW_EXPORT void ClearLevel();
 	
@@ -584,12 +594,17 @@ FINLINE void Entity::sgsSetID( sgsString id )
 {
 	if( m_id.same_as( id ) )
 		return;
+	sgsString prev = m_id;
 	if( m_id.size() )
 		m_level->_UnmapEntityByID( this );
 	m_id = id;
 	if( m_id.size() )
 		m_level->_MapEntityByID( this );
 	OnIDUpdate();
+	for( size_t i = 0; i < m_level->m_systems.size(); ++i )
+	{
+		m_level->m_systems[ i ]->OnEntityChangeID( this, StringView( prev.c_str(), prev.size() ) );
+	}
 }
 
 
