@@ -260,11 +260,13 @@ struct EditorEntity
 	bool remove;
 };
 
-struct EditorSystemCompiler
+struct IF_GCC(GFW_EXPORT) IEditorSystemCompiler
 {
-	virtual ~EditorSystemCompiler(){}
-	virtual bool GenerateChunk( ByteArray& out );
-	virtual void ProcessEntity( EditorEntity& ent );
+	virtual ~IEditorSystemCompiler();
+	virtual bool GenerateChunk( ByteArray& out ){ return false; }
+	virtual void ProcessEntity( EditorEntity& ent ) = 0;
+	
+	GFW_EXPORT void WrapChunk( ByteArray& chunk, const char id[4] );
 };
 
 EXP_STRUCT IGameLevelSystem : LevelScrObj
@@ -290,7 +292,7 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 	
-	virtual EditorSystemCompiler* EditorGetSystemCompiler(){ return NULL; }
+	virtual IEditorSystemCompiler* EditorGetSystemCompiler(){ return NULL; }
 	
 	uint32_t m_system_uid;
 };
@@ -533,6 +535,9 @@ EXP_STRUCT GameLevel :
 	
 	SGS_METHOD TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
 	SGS_METHOD TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
+	
+	// Editor
+	void GetEditorCompilers( Array< IEditorSystemCompiler* >& out );
 	
 	// ENGINE OBJECTS
 	SceneHandle m_scene;

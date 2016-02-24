@@ -1277,7 +1277,7 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
 		Mesh& M = m_meshes.item( i ).value;
-		if( M.info.rflags & LM_MESHINST_EDITOR_ONLY )
+		if( M.ent->m_isStatic == false || M.ent->m_isVisible == false )
 			continue;
 		
 		LC_Lightmap lm;
@@ -1290,7 +1290,8 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 	
 	for( size_t i = 0; i < m_lights.size(); ++i )
 	{
-		LC.AddLight( m_lights[ i ].info );
+		if( m_lights[ i ].ent->m_isStatic )
+			LC.AddLight( m_lights[ i ].info );
 	}
 }
 
@@ -3124,8 +3125,46 @@ void EDGUIMainFrame::Level_Real_Compile()
 	
 	g_EdLGCont->UpdateCache( lcache );
 	
+	// gather system compilers
+	Array< IEditorSystemCompiler* > ESCs;
+	g_Level->GetEditorCompilers( ESCs );
+	
+	// compile entities
 	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
-		g_EdWorld->m_entities[ i ]->UpdateCache( lcache );
+	{
+		EdEntity* E = g_EdWorld->m_entities[ i ];
+		EditorEntity EE =
+		{
+			// type
+			StringView( E->m_entityType.c_str(), E->m_entityType.size() ),
+			// props
+			E->m_data,
+			// remove
+			false
+		};
+		
+		for( size_t i = 0; i < ESCs.size(); ++i )
+		{
+			ESCs[ i ]->ProcessEntity( EE );
+		}
+		
+		if( !EE.remove )
+		{
+			lcache.m_scriptents.push_back( LC_ScriptedEntity() );
+			LC_ScriptedEntity& LCSE = lcache.m_scriptents.last();
+			LCSE.type = EE.type;
+			LCSE.serialized_params = g_Level->GetScriptCtx().Serialize( EE.props );
+		}
+	}
+	
+	for( size_t i = 0; i < ESCs.size(); ++i )
+	{
+		ByteArray chunk;
+		if( ESCs[ i ]->GenerateChunk( chunk ) && chunk.size() )
+			lcache.m_chunkData.append( chunk );
+		
+		SAFE_DELETE( ESCs[ i ] );
+	}
 	
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );

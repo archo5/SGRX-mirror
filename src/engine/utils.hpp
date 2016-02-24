@@ -2691,8 +2691,12 @@ struct ByteReader
 	{
 		uint32_t size = 0;
 		*this << size;
+		if( pos + size > input_size )
+			error = true;
 		sv.m_str = error ? NULL : (const char*) &input_ptr[ pos ];
 		sv.m_size = error ? 0 : size;
+		if( !error )
+			pos += size;
 		return *this;
 	}
 	

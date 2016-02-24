@@ -125,6 +125,64 @@ void Entity::SetInfoMask( uint32_t mask )
 }
 
 
+IEditorSystemCompiler::~IEditorSystemCompiler()
+{
+}
+
+void IEditorSystemCompiler::WrapChunk( ByteArray& chunk, const char id[4] )
+{
+	uint32_t size = chunk.size();
+	uint8_t prepbytes[4];
+	memcpy( prepbytes, id, 4 );
+	memcpy( prepbytes + 4, &size, 4 );
+	chunk.insert( 0, prepbytes, 8 );
+}
+
+
+struct GameLevelSystemCompiler : IEditorSystemCompiler
+{
+	bool GenerateChunk( ByteArray& out )
+	{
+		ByteWriter bw( &out );
+		bw << markers;
+		WrapChunk( out, LC_FILE_MRKR_NAME );
+		return true;
+	}
+	
+	void ProcessEntity( EditorEntity& ent )
+	{
+		// disable static mesh/mesharray entities
+		if( ent.type == "Mesh" )
+		{
+			if( ent.props.getprop( "isStatic" ).get<bool>() )
+			{
+				ent.remove = true;
+			}
+			return;
+		}
+		if( ent.type == "MeshArray" )
+		{
+			ent.remove = true;
+			return;
+		}
+		
+		// combine position markers into a chunk
+		if( ent.type == "Marker" )
+		{
+			sgsString name = ent.props.getprop("name").get_string();
+			Vec3 pos = ent.props.getprop("position").get<Vec3>();
+			LC_Marker M = { StringView( name.c_str(), name.size() ), pos };
+			markerNameRefs.push_back( name );
+			markers.markers.push_back( M );
+			ent.remove = true;
+			return;
+		}
+	}
+	
+	Array< sgsString > markerNameRefs;
+	LC_Chunk_Mrkr markers;
+};
+
 
 GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_phyWorld( phyWorld ),
@@ -765,10 +823,21 @@ bool GameLevel::sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 
 }
 
 
-
 void GameLevel::LightMesh( SGRX_MeshInstance* meshinst, Vec3 off )
 {
 	SGRX_LightSampler::LightMesh( meshinst, off );
+}
+
+
+void GameLevel::GetEditorCompilers( Array< IEditorSystemCompiler* >& out )
+{
+	for( size_t i = 0; i < m_systems.size(); ++i )
+	{
+		IEditorSystemCompiler* esc = m_systems[ i ]->EditorGetSystemCompiler();
+		if( esc )
+			out.push_back( esc );
+	}
+	out.push_back( new GameLevelSystemCompiler );
 }
 
 

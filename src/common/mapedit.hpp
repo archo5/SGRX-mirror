@@ -1073,8 +1073,8 @@ struct EdBlock : EdObject
 		}
 		group = FLoadProp( data, "group", 0 );
 		position = FLoadProp( data, "position", V3(0) );
-		z0 = FLoadProp( data, "z0", 0 );
-		z1 = FLoadProp( data, "z1", 0 );
+		z0 = FLoadProp( data, "z0", 0.0f );
+		z1 = FLoadProp( data, "z1", 0.0f );
 		
 		// poly
 		{
@@ -1964,8 +1964,6 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	virtual void ScaleVertices( const Vec3& ){}
 	
 	virtual int OnEvent( EDGUIEvent* e );
-	
-	virtual void UpdateCache( LevelCache& LC ){}
 	
 	virtual EdObject* Clone();
 	EdEntity& operator = ( const EdEntity& o );

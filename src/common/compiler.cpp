@@ -1284,6 +1284,17 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 		level.chunks.push_back( chunk );
 	}
 	
+	// misc. chunks
+	Array< LC_Chunk > misc_chunks;
+	ByteReader mcbr( m_chunkData );
+	while( !mcbr.atEnd() )
+	{
+		LC_Chunk chk;
+		mcbr << chk;
+		misc_chunks.push_back( chk );
+	}
+	level.chunks.append( misc_chunks );
+	
 	ByteArray ba;
 	ByteWriter bw( &ba );
 	bw << level;

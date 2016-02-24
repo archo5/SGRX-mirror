@@ -309,6 +309,7 @@ struct LevelCache
 	LC_PhysicsMesh m_navMesh;
 	SGRX_LightTree* m_sampleTree;
 	Array< Vec2 > m_lines;
+	ByteArray m_chunkData;
 };
 
 
