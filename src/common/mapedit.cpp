@@ -612,7 +612,7 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 	}
 	
 	ByteReader br( ba );
-	br.marker( "SGRXLMCH" );
+	br.marker( "SGRXLMC2" );
 	if( br.error )
 	{
 		LOG_WARNING << "LMCACHE: File format error";
@@ -631,8 +631,25 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 			LOG_WARNING << "LMCACHE: missing 'LM', load error at " << br.pos;
 			break;
 		}
+		StringView meshid;
 		uint32_t lmid = 0;
 		br << lmid;
+		if( lmid == 0 )
+		{
+			br.stringView( meshid );
+		//	printf("LOAD LIGHTMAP MESH: %s\n", StackString<256>(meshid).str);
+		}
+		if( meshid.size() )
+		{
+			// find the mesh by ID
+			for( size_t i = 0; i < m_meshes.size(); ++i )
+			{
+				if( m_meshes.item( i ).value.ent->GetID() == meshid )
+				{
+					lmid = LGC_MESH_LMID( m_meshes.item( i ).key );
+				}
+			}
+		}
 		br << LM;
 		if( m_lightmaps.isset( lmid ) )
 		{
@@ -665,7 +682,7 @@ void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
 {
 	ByteArray ba;
 	ByteWriter bw( &ba );
-	bw.marker( "SGRXLMCH" );
+	bw.marker( "SGRXLMC2" );
 	
 	bw << m_invalidSamples;
 	bw << m_sampleTree;
@@ -673,7 +690,27 @@ void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
 	for( size_t i = 0; i < m_lightmaps.size(); ++i )
 	{
 		bw.marker( "LM" );
-		bw << m_lightmaps.item( i ).key;
+		uint32_t lmid = m_lightmaps.item( i ).key;
+		StringView meshid;
+		if( LGC_IS_MESH_LMID( lmid ) )
+		{
+			uint32_t mid = LGC_LMID_GET_ID( lmid );
+			Mesh* M = m_meshes.getptr( mid );
+			if( M )
+			{
+				meshid = M->ent->GetID();
+			}
+		}
+		if( meshid.size() )
+		{
+			bw.write<uint32_t>(0);
+			bw.stringView( meshid );
+		//	printf("SAVE LIGHTMAP MESH: %s\n", StackString<256>(meshid).str);
+		}
+		else
+		{
+			bw << lmid;
+		}
 		bw << *m_lightmaps.item( i ).value;
 	}
 	
@@ -1583,6 +1620,11 @@ void EdLevelGraphicsCont::OnRemoveEntity( Entity* ent )
 	{
 		SGRX_CAST( LightEntity*, LE, ent );
 		uint32_t id = LE->m_edLGCID;
+		
+		InvalidateLight( id );
+		ApplyInvalidation();
+		m_movedLights.unset( id );
+		
 		ASSERT( m_lights.isset( id ) );
 		m_lights.unset( id );
 		if( id && id == m_nextLightEntID - 1 )
@@ -1593,6 +1635,11 @@ void EdLevelGraphicsCont::OnRemoveEntity( Entity* ent )
 	{
 		SGRX_CAST( MeshEntity*, ME, ent );
 		uint32_t id = ME->m_edLGCID;
+		
+		InvalidateMesh( id );
+		ApplyInvalidation();
+		m_movedMeshes.unset( id );
+		
 		ASSERT( m_meshes.isset( id ) );
 		m_lightmaps.unset( LGC_MESH_LMID( id ) );
 		m_meshes.unset( id );

@@ -532,7 +532,7 @@ void GameLevel::_OnAddEntity( Entity* ent )
 void GameLevel::_OnRemoveEntity( Entity* ent )
 {
 	for( size_t i = 0; i < m_systems.size(); ++i )
-		m_systems[ i ]->OnAddEntity( ent );
+		m_systems[ i ]->OnRemoveEntity( ent );
 }
 
 StackShortName GameLevel::GenerateName()

@@ -111,6 +111,7 @@ EdObject* EdEntity::Clone()
 	EdEntity* N = new EdEntity( m_entityType, false );
 	*N = *this;
 	N->UpdateRealEnt( NULL );
+	g_EdWorld->SetEntityID( N );
 	N->selected = selected;
 	N->group = group;
 	return N;
