@@ -56,12 +56,11 @@ EXP_STRUCT LevelScrObj : SGRX_RefCounted
 };
 
 
-EXP_STRUCT IActorController : LevelScrObj
+EXP_STRUCT IActorController
 {
-	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
-	typedef sgsHandle< IActorController > ScrHandle;
+	SGS_OBJECT;
 	
-	IActorController( GameLevel* lev ) : LevelScrObj( lev ){}
+	virtual ~IActorController(){}
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual SGS_METHOD Vec3 GetInput( uint32_t iid ){ return V3(0); }
@@ -69,7 +68,7 @@ EXP_STRUCT IActorController : LevelScrObj
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
 };
-typedef Handle< IActorController > ActorCtrlHandle;
+typedef sgsHandle< IActorController > ActorCtrlScrHandle;
 
 
 EXP_STRUCT Transform
@@ -235,7 +234,7 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 localScale );
 	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix ) SGS_ALIAS( Mat4 localTransform );
 	
-	EntityScrHandle _sgsGetParent(){ return EntityScrHandle( this ); }
+	EntityScrHandle _sgsGetParent(){ return EntityScrHandle( (Entity*) _parent ); }
 	SGS_PROPERTY_FUNC( READ _sgsGetParent WRITE _SetParent ) SGS_ALIAS( EntityScrHandle parent );
 	
 	SGS_PROPERTY_FUNC( READ GetInfoMask WRITE SetInfoMask VARNAME infoMask ) uint32_t m_infoMask;
@@ -335,10 +334,7 @@ EXP_STRUCT Actor : Entity
 	virtual Vec3 GetPosition(){ return V3(0); }
 	virtual void SetPosition( Vec3 pos ){} // teleport to this place
 	
-	ActorCtrlHandle ctrl;
-	
-	IActorController::ScrHandle _getCtrl(){ return IActorController::ScrHandle(ctrl); }
-	SGS_PROPERTY_FUNC( READ _getCtrl ) SGS_ALIAS( sgsHandle<IActorController> ctrl );
+	SGS_PROPERTY ActorCtrlScrHandle ctrl;
 	SGS_PROPERTY_FUNC( READ GetPosition WRITE SetPosition ) SGS_ALIAS( Vec3 position );
 };
 
@@ -443,6 +439,8 @@ struct InfoEmitEntitySet
 };
 
 typedef StackString<16> StackShortName;
+
+typedef sgsHandle< struct GameLevel > GameLevelScrHandle;
 
 EXP_STRUCT GameLevel :
 	SGRX_PostDraw,

@@ -1014,7 +1014,7 @@ bool TSAimHelper::ProcessEntity( Entity* E )
 #ifndef TSGAME_NO_PLAYER
 
 
-TSPlayerController::TSPlayerController( GameLevel* lev ) : IActorController( lev ),
+TSPlayerController::TSPlayerController( GameLevel* lev ) :
 	m_aimHelper( lev ), i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
 {
 }
@@ -1052,21 +1052,29 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	return V3(0);
 }
 
+sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
+{
+	if( !lev )
+	{
+		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
+		return sgsVariable();
+	}
+	SGS_CREATECLASS( C, NULL, TSPlayerController, ( lev ) );
+	return sgsVariable( C, sgsVariable::PickAndPop );
+}
+
 #endif
 
 
 
 TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args ) :
-	IActorController( lev ),
+	m_level( lev ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
 	m_inPlayerTeam( false ),
 	m_aidb( m_level->GetSystem<AIDBSystem>() ),
 	m_coverSys( m_level->GetSystem<CoverSystem>() ), m_char( chr )
 {
-	// create controller scripted object
-	InitScriptInterface();
-	
 	// create ESO (enemy scripted object)
 	{
 		chr->InitScriptInterface();
@@ -1089,8 +1097,6 @@ TSEnemyController::~TSEnemyController()
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		m_enemyState.thiscall( C, "destroy" );
 	}
-	
-	DestroyScriptInterface();
 }
 
 struct TSEC_FindChar : AIFactDistance
@@ -1573,14 +1579,12 @@ bool TSEnemyController::sgsRemoveNextPathPoint()
 TSGameSystem::TSGameSystem( GameLevel* lev )
 	: IGameLevelSystem( lev, e_system_uid )
 #ifndef TSGAME_NO_PLAYER
-	, m_playerCtrl( lev )
 	, m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 ), m_prevCrouchValue( 0 )
 #endif
 {
 	register_tsent_cvars(); // TODO global init?
-#ifndef TSGAME_NO_PLAYER
-	m_playerCtrl.Acquire();
-#endif
+	m_level->GetScriptCtx().SetGlobal( "TSPlayerController",
+		sgs_GetClassInterface<TSPlayerController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().Include( "data/enemy" );
 	
 	lev->RegisterNativeEntity<TSCharacter>( "TSCharacter" );
@@ -1643,7 +1647,7 @@ void TSGameSystem::Tick( float deltaTime, float blendFactor )
 	if( P && !m_level->IsPaused() )
 	{
 		// crouch UI
-		float crouchVal = m_playerCtrl.GetInput( ACT_Chr_Crouch ).x;
+		float crouchVal = 0.0f; // m_playerCtrl.GetInput( ACT_Chr_Crouch ).x;
 		bool crouch = crouchVal > 0.5f;
 		if( crouchVal != m_prevCrouchValue )
 		{
@@ -1655,7 +1659,7 @@ void TSGameSystem::Tick( float deltaTime, float blendFactor )
 		m_standIconShowTimeout = TMAX( m_standIconShowTimeout - deltaTime, crouch ? 0.0f : 1.0f );
 		
 		// camera
-		TSAimHelper& AH = m_playerCtrl.m_aimHelper;
+		TSAimHelper& AH = *(TSAimHelper*)NULL; // m_playerCtrl.m_aimHelper;
 		Vec3 pos = P->GetInterpPos();
 		float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
 		Vec2 cursor_pos = CURSOR_POS;
@@ -1738,7 +1742,7 @@ void TSGameSystem::DrawUI()
 			}
 		}
 		
-		m_playerCtrl.m_aimHelper.DrawUI();
+	//	m_playerCtrl.m_aimHelper.DrawUI();
 		
 		GR2D_SetFont( "tsicons", bsz * 0.2f );
 		br.Col( 1, 0.25f * m_crouchIconShowTimeout );

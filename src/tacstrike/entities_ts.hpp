@@ -2,9 +2,12 @@
 
 #pragma once
 #include <engext.hpp>
+#include <script.hpp>
 
+SGS_CPPBC_INHERIT_BEGIN
 #include "level.hpp"
 #include "systems.hpp"
+SGS_CPPBC_INHERIT_END
 
 
 extern CVarBool g_cv_notarget;
@@ -199,6 +202,8 @@ struct TSAimHelper : EntityProcessor
 
 struct TSPlayerController : IActorController
 {
+	SGS_OBJECT_INHERIT( IActorController );
+	
 	TSAimHelper m_aimHelper;
 	Vec2 i_move;
 	Vec3 i_aim_target;
@@ -207,6 +212,8 @@ struct TSPlayerController : IActorController
 	TSPlayerController( GameLevel* lev );
 	void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
+	
+	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
 
 #endif
@@ -214,9 +221,9 @@ struct TSPlayerController : IActorController
 
 struct TSEnemyController : IActorController
 {
-	SGS_OBJECT_INHERIT( IActorController ) SGS_NO_DESTRUCT;
-	ENT_SGS_IMPLEMENT;
+	SGS_OBJECT_INHERIT( IActorController );
 	
+	GameLevel* m_level;
 	bool i_crouch;
 	Vec2 i_move;
 	float i_speed;
@@ -285,7 +292,6 @@ struct TSGameSystem : IGameLevelSystem
 	virtual void DrawUI();
 	
 #ifndef TSGAME_NO_PLAYER
-	TSPlayerController m_playerCtrl;
 	float m_crouchIconShowTimeout;
 	float m_standIconShowTimeout;
 	float m_prevCrouchValue;

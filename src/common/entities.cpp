@@ -732,7 +732,7 @@ void MultiEntity::MICreate( int i, StringView path )
 	MULTIENT_OFSCHK( i, return );
 	m_meshes[ i ] = m_level->GetScene()->CreateMeshInstance();
 	m_meshes[ i ]->matrix = m_meshMatrices[ i ] * GetWorldMatrix();
-	m_meshes[ i ]->userData = this;
+	m_meshes[ i ]->userData = (SGRX_MeshInstUserData*) this;
 	if( path )
 		m_meshes[ i ]->SetMesh( path );
 }
