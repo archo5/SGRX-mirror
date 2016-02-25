@@ -12,14 +12,14 @@ set_target_properties( testsuite PROPERTIES
 )
 
 # Game
-add_library( game SHARED game entities_ts cppbc_entities_ts ) # gameui tsui
+add_library( game SHARED game.cpp entities_ts.hpp entities_ts.cpp cppbc_entities_ts.cpp ) # gameui tsui
 target_link_libraries( game sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet sgrx-pathfinding )
 set_target_properties( game PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DTSGAME"
 	LINK_FLAGS "${CORE_FLAGS}"
 )
-cppbc_headers( entities_ts.hpp )
+cppbc_headers( game entities_ts.hpp )
 
 if(0)
 # BRSD 4 Game

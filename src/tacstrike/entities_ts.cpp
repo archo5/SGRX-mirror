@@ -219,14 +219,14 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 
 
 
-TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
+TSCharacter::TSCharacter( GameLevel* lev ) :
 	Actor( lev ),
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_health( 100 ), m_armor( 0 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
-	m_ivPos( pos ), m_ivAimDir( dir ),
-	m_position( pos ), m_moveDir( V2(0) ), m_turnAngle( atan2( dir.y, dir.x ) ),
-	m_aimDir( YP(dir) ), m_aimDist( dir.Length() ),
+	m_ivPos( V3(0) ), m_ivAimDir( V3(1,0,0) ),
+	m_position( V3(0) ), m_moveDir( V2(0) ), m_turnAngle( 0 ),
+	m_aimDir( YP(V3(1,0,0)) ), m_aimDist( 1 ),
 	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 )
 {
 	typeOverride = "*human*";
@@ -237,7 +237,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	rbinfo.shape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
 	rbinfo.mass = 70;
 	rbinfo.inertia = V3(0);
-	rbinfo.position = pos + V3(0,0,1);
+	rbinfo.position = V3(0) + V3(0,0,1);
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
@@ -272,7 +272,7 @@ TSCharacter::TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir ) :
 	m_shootLT = m_level->GetScene()->CreateLight();
 	m_shootLT->type = LIGHT_POINT;
 	m_shootLT->enabled = false;
-	m_shootLT->position = pos;
+	m_shootLT->position = V3(0);
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*1;
 	m_shootLT->range = 4;
 	m_shootLT->power = 4;
@@ -1582,6 +1582,8 @@ TSGameSystem::TSGameSystem( GameLevel* lev )
 	m_playerCtrl.Acquire();
 #endif
 	m_level->GetScriptCtx().Include( "data/enemy" );
+	
+	lev->RegisterNativeEntity<TSCharacter>( "TSCharacter" );
 }
 
 Entity* TSGameSystem::AddEntity( StringView type )
@@ -1630,6 +1632,7 @@ Entity* TSGameSystem::AddEntity( StringView type )
 		return E;
 	}
 #endif
+	if( type == "TSCharacter" ) return new TSCharacter( m_level );
 	return NULL;
 }
 

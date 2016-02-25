@@ -93,10 +93,10 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 		InteractInfo info;
 	};
 	
-	TSCharacter( GameLevel* lev, const Vec3& pos, const Vec3& dir );
+	TSCharacter( GameLevel* lev );
 	~TSCharacter();
 	SGS_METHOD void SetPlayerMode( bool isPlayer );
-	void InitializeMesh( const StringView& path );
+	SGS_METHOD void InitializeMesh( const StringView& path );
 	void ProcessAnims( float deltaTime );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
