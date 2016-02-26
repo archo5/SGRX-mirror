@@ -910,40 +910,6 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 	}
 }
 
-void TSAimHelper::DrawUI()
-{
-	m_pDist = 0.5f;
-	m_closestEnt = NULL;
-	m_level->QuerySphere( this, IEST_Target, m_pos, 8.0f );
-	
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	
-	float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
-	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	Vec2 cursor_pos = m_cp * screen_size;
-	Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( m_pos ).ToVec2() * screen_size;
-	
-	// target cursor
-	if( m_aimPtr == NULL && m_closestEnt )
-	{
-		Vec2 cp = m_level->GetScene()->camera.WorldToScreen( m_closestPoint ).ToVec2() * screen_size;
-		float cursor_size = bsz / 20 * powf( 1 - m_pDist * 1.9f, 0.5f );
-		float cursor_angle = ( cp - player_pos ).Angle() + M_PI;
-		br.Reset().Col( 1, 0.5f ).SetTexture( m_tex_cursor ).TurnedBox( cp.x, cp.y,
-			cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
-	}
-	
-	// main cursor
-	{
-		Vec2 target_pos = m_level->GetScene()->camera.WorldToScreen( m_aimPoint ).ToVec2() * screen_size;
-		Vec2 cp = TLERP( cursor_pos, target_pos, m_aimFactor );
-		float cursor_size = bsz / 20;
-		float cursor_angle = ( cp - player_pos ).Angle() + M_PI;
-		br.Reset().SetTexture( m_tex_cursor ).TurnedBox( cp.x, cp.y,
-			cosf( cursor_angle ) * cursor_size, sinf( cursor_angle ) * cursor_size );
-	}
-}
-
 Vec3 TSAimHelper::GetAimPoint()
 {
 	return TLERP( m_rcPoint, m_aimPoint, m_aimFactor );
@@ -1050,6 +1016,13 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
 	}
 	return V3(0);
+}
+
+void TSPlayerController::CalcUIAimInfo()
+{
+	m_aimHelper.m_pDist = 0.5f;
+	m_aimHelper.m_closestEnt = NULL;
+	m_aimHelper.m_level->QuerySphere( &m_aimHelper, IEST_Target, m_aimHelper.m_pos, 8.0f );
 }
 
 sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )

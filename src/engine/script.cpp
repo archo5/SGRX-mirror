@@ -138,12 +138,20 @@ static int Input_GetReleased( SGS_CTX )
 	return sgs_PushBool( C, is->IsReleased() );
 }
 
+static int Input_GetCursorPos( SGS_CTX )
+{
+	SGSFN( "Input_GetCursorPos" );
+	sgs_PushVar( C, Game_GetCursorPos() );
+	return 1;
+}
+
 static sgs_RegFuncConst g_input_rfc[] =
 {
 	{ "Input_GetValue", Input_GetValue },
 	{ "Input_GetState", Input_GetState },
 	{ "Input_GetPressed", Input_GetPressed },
 	{ "Input_GetReleased", Input_GetReleased },
+	{ "Input_GetCursorPos", Input_GetCursorPos },
 	SGS_RC_END(),
 };
 

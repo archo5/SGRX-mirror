@@ -310,6 +310,13 @@ static int _sgs_method__GameUIControl__IS( SGS_CTX )
 	sgs_PushVar(C,data->IS( sgs_GetVar<float>()(C,0) )); return 1;
 }
 
+static int _sgs_method__GameUIControl__IP( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, IP ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->IP( sgs_GetVar<Vec2>()(C,0) )); return 1;
+}
+
 static int _sgs_method__GameUIControl__InvIX( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, InvIX ) ) return 0;
@@ -329,6 +336,13 @@ static int _sgs_method__GameUIControl__InvIS( SGS_CTX )
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, InvIS ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->InvIS( sgs_GetVar<float>()(C,0) )); return 1;
+}
+
+static int _sgs_method__GameUIControl__InvIP( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, InvIP ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->InvIP( sgs_GetVar<Vec2>()(C,0) )); return 1;
 }
 
 static int _sgs_method__GameUIControl__CreateScreen( SGS_CTX )
@@ -378,6 +392,13 @@ static int _sgs_method__GameUIControl__DQuadExt( SGS_CTX )
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DQuadExt ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->DQuadExt( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5), sgs_GetVar<float>()(C,6), sgs_GetVar<float>()(C,7) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DTurnedBox( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DTurnedBox ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DTurnedBox( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
 }
 
 static int _sgs_method__GameUIControl__DCircleFill( SGS_CTX )
@@ -575,9 +596,11 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "IX", _sgs_method__GameUIControl__IX },
 	{ "IY", _sgs_method__GameUIControl__IY },
 	{ "IS", _sgs_method__GameUIControl__IS },
+	{ "IP", _sgs_method__GameUIControl__IP },
 	{ "InvIX", _sgs_method__GameUIControl__InvIX },
 	{ "InvIY", _sgs_method__GameUIControl__InvIY },
 	{ "InvIS", _sgs_method__GameUIControl__InvIS },
+	{ "InvIP", _sgs_method__GameUIControl__InvIP },
 	{ "CreateScreen", _sgs_method__GameUIControl__CreateScreen },
 	{ "CreateControl", _sgs_method__GameUIControl__CreateControl },
 	{ "DReset", _sgs_method__GameUIControl__DReset },
@@ -585,6 +608,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DTex", _sgs_method__GameUIControl__DTex },
 	{ "DQuad", _sgs_method__GameUIControl__DQuad },
 	{ "DQuadExt", _sgs_method__GameUIControl__DQuadExt },
+	{ "DTurnedBox", _sgs_method__GameUIControl__DTurnedBox },
 	{ "DCircleFill", _sgs_method__GameUIControl__DCircleFill },
 	{ "DButton", _sgs_method__GameUIControl__DButton },
 	{ "DAALine", _sgs_method__GameUIControl__DAALine },

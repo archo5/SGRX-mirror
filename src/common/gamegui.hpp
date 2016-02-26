@@ -212,9 +212,11 @@ EXP_STRUCT GameUIControl
 	SGS_METHOD float IX( float x ) const;
 	SGS_METHOD float IY( float y ) const;
 	SGS_METHOD float IS( float s ) const;
+	SGS_METHOD Vec2 IP( Vec2 p ) const { return V2( IX( p.x ), IY( p.y ) ); }
 	SGS_METHOD float InvIX( float x ) const;
 	SGS_METHOD float InvIY( float y ) const;
 	SGS_METHOD float InvIS( float s ) const;
+	SGS_METHOD Vec2 InvIP( Vec2 p ) const { return V2( InvIX( p.x ), InvIY( p.y ) ); }
 	Handle GetHandle(){ return Handle( this ); }
 	
 	// ---
@@ -231,6 +233,7 @@ EXP_STRUCT GameUIControl
 	SGS_METHOD void DQuad( float x0, float y0, float x1, float y1 );
 	SGS_METHOD void DQuadExt( float x0, float y0, float x1, float y1,
 		float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ );
+	SGS_METHOD void DTurnedBox( float x, float y, float dx, float dy, float z /* = 0 */ );
 	SGS_METHOD void DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ );
 	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );
 	SGS_METHOD void DAALine( float x0, float y0, float x1, float y1, float w );

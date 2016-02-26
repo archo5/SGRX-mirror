@@ -381,6 +381,13 @@ static int _sgs_method__TSPlayerController__Reset( SGS_CTX )
 	data->Reset(  ); return 0;
 }
 
+static int _sgs_method__TSPlayerController__CalcUIAimInfo( SGS_CTX )
+{
+	TSPlayerController* data; if( !SGS_PARSE_METHOD( C, TSPlayerController::_sgs_interface, data, TSPlayerController, CalcUIAimInfo ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->CalcUIAimInfo(  ); return 0;
+}
+
 static int _sgs_method__TSPlayerController__Create( SGS_CTX )
 {
 	SGSFN( "TSPlayerController.Create" );
@@ -404,6 +411,11 @@ int TSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSPlayerController*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "ahShouldDrawClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP() ); return SGS_SUCCESS; }
+		SGS_CASE( "ahClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_closestPoint ); return SGS_SUCCESS; }
+		SGS_CASE( "ahAimPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimPoint ); return SGS_SUCCESS; }
+		SGS_CASE( "ahAimFactor" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimFactor ); return SGS_SUCCESS; }
+		SGS_CASE( "ahCPDistance" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_pDist ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
@@ -422,7 +434,12 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		sgs_StringConcat( C, 0 );
+		{ sgs_PushString( C, "\nahShouldDrawClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nahClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_closestPoint, depth ).push( C ); }
+		{ sgs_PushString( C, "\nahAimPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimPoint, depth ).push( C ); }
+		{ sgs_PushString( C, "\nahAimFactor = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimFactor, depth ).push( C ); }
+		{ sgs_PushString( C, "\nahCPDistance = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_pDist, depth ).push( C ); }
+		sgs_StringConcat( C, 10 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -434,6 +451,7 @@ static sgs_RegFuncConst TSPlayerController__sgs_funcs[] =
 {
 	{ "GetInput", _sgs_method__TSPlayerController__GetInput },
 	{ "Reset", _sgs_method__TSPlayerController__Reset },
+	{ "CalcUIAimInfo", _sgs_method__TSPlayerController__CalcUIAimInfo },
 	{ "Create", _sgs_method__TSPlayerController__Create },
 	{ NULL, NULL },
 };

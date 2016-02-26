@@ -176,7 +176,6 @@ struct TSAimHelper : EntityProcessor
 {
 	TSAimHelper( GameLevel* lev );
 	void Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock );
-	void DrawUI();
 	Vec3 GetAimPoint();
 	
 	Vec3 _CalcRCPos( Vec3 pos );
@@ -212,6 +211,14 @@ struct TSPlayerController : IActorController
 	TSPlayerController( GameLevel* lev );
 	void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
+	
+	SGS_METHOD void CalcUIAimInfo();
+	bool _shouldDrawCP() const { return m_aimHelper.m_aimPtr == NULL && m_aimHelper.m_closestEnt; }
+	SGS_PROPERTY_FUNC( READ _shouldDrawCP ) SGS_ALIAS( bool ahShouldDrawClosestPoint );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_closestPoint ) SGS_ALIAS( Vec3 ahClosestPoint );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_aimPoint ) SGS_ALIAS( Vec3 ahAimPoint );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_aimFactor ) SGS_ALIAS( float ahAimFactor );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_pDist ) SGS_ALIAS( float ahCPDistance );
 	
 	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };

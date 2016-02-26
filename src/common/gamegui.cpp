@@ -268,8 +268,14 @@ void GameUIControl::Draw( float dt )
 				ry1 = ry0 + th;
 				if( mode == GUI_ScrMode_FitXtd )
 				{
-					rwidth = parent->rwidth;
-					rheight = parent->rheight;
+					if( self_aspect > parent_aspect )
+					{
+						rheight = rwidth / parent_aspect;
+					}
+					else
+					{
+						rwidth = rheight * parent_aspect;
+					}
 					rx0 = parent->rx0;
 					ry0 = parent->ry0;
 					rx1 = parent->rx1;
@@ -518,10 +524,16 @@ void GameUIControl::DQuadExt( float x0, float y0, float x1, float y1,
 		tox, toy, ssz >= 7 ? tsx : 1.0f, ssz >= 8 ? tsy : 1.0f );
 }
 
+void GameUIControl::DTurnedBox( float x, float y, float dx, float dy, float z /* = 0 */ )
+{
+	int ssz = sgs_StackSize( C );
+	GR2D_GetBatchRenderer().TurnedBox( IX( x ), IY( y ), IS( dx ), IS( dy ), ssz >= 5 ? z : 0 );
+}
+
 void GameUIControl::DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ )
 {
 	int ssz = sgs_StackSize( C );
-	GR2D_GetBatchRenderer().CircleFill( x, y, r, ssz >= 4 ? z : 0, ssz >+ 5 ? verts : -1 );
+	GR2D_GetBatchRenderer().CircleFill( x, y, r, ssz >= 4 ? z : 0, ssz >= 5 ? verts : -1 );
 }
 
 void GameUIControl::DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr )
