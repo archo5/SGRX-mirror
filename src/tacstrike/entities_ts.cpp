@@ -1549,16 +1549,26 @@ bool TSEnemyController::sgsRemoveNextPathPoint()
 
 
 
-TSGameSystem::TSGameSystem( GameLevel* lev )
-	: IGameLevelSystem( lev, e_system_uid )
-#ifndef TSGAME_NO_PLAYER
-	, m_crouchIconShowTimeout( 0 ), m_standIconShowTimeout( 1 ), m_prevCrouchValue( 0 )
-#endif
+static sgs_RegIntConst g_ts_ints[] =
+{
+	{ "ACT_Chr_Move", ACT_Chr_Move },
+	{ "ACT_Chr_Turn", ACT_Chr_Turn },
+	{ "ACT_Chr_Crouch", ACT_Chr_Crouch },
+	{ "ACT_Chr_AimAt", ACT_Chr_AimAt },
+	{ "ACT_Chr_AimTarget", ACT_Chr_AimTarget },
+	{ "ACT_Chr_Shoot", ACT_Chr_Shoot },
+	{ "ACT_Chr_DoAction", ACT_Chr_DoAction },
+	{ NULL, 0 },
+};
+
+TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	register_tsent_cvars(); // TODO global init?
 	m_level->GetScriptCtx().SetGlobal( "TSPlayerController",
 		sgs_GetClassInterface<TSPlayerController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().Include( "data/enemy" );
+	
+	sgs_RegIntConsts( m_level->GetSGSC(), g_ts_ints, -1 );
 	
 	lev->RegisterNativeEntity<TSCharacter>( "TSCharacter" );
 }
@@ -1619,18 +1629,6 @@ void TSGameSystem::Tick( float deltaTime, float blendFactor )
 	SGRX_CAST( TSCharacter*, P, m_level->m_player );
 	if( P && !m_level->IsPaused() )
 	{
-		// crouch UI
-		float crouchVal = 0.0f; // m_playerCtrl.GetInput( ACT_Chr_Crouch ).x;
-		bool crouch = crouchVal > 0.5f;
-		if( crouchVal != m_prevCrouchValue )
-		{
-			m_crouchIconShowTimeout = crouch ? 2 : 0;
-			m_standIconShowTimeout = crouch ? 0 : 2;
-			m_prevCrouchValue = crouchVal;
-		}
-		m_crouchIconShowTimeout = TMAX( m_crouchIconShowTimeout - deltaTime, crouch ? 1.0f : 0.0f );
-		m_standIconShowTimeout = TMAX( m_standIconShowTimeout - deltaTime, crouch ? 0.0f : 1.0f );
-		
 		// camera
 		TSAimHelper& AH = *(TSAimHelper*)NULL; // m_playerCtrl.m_aimHelper;
 		Vec3 pos = P->GetInterpPos();
@@ -1654,76 +1652,6 @@ void TSGameSystem::Tick( float deltaTime, float blendFactor )
 		MapItemInfo mymapitem = { MI_Object_Player, pos, V3(0), 0, 0 };
 		m_level->GetSystem<LevelMapSystem>()->UpdateItem( P, mymapitem );
 		m_level->GetSystem<LevelMapSystem>()->m_viewPos = pos.ToVec2();
-	}
-#endif
-}
-
-void TSGameSystem::DrawUI()
-{
-#ifndef TSGAME_NO_PLAYER
-	
-	// UI
-	SGRX_CAST( TSCharacter*, P, m_level->m_player );
-	if( P )
-	{
-		SGRX_FontSettings fs;
-		GR2D_GetFontSettings( &fs );
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-		float bsz = TMIN( GR_GetWidth(), GR_GetHeight() );
-		
-		Vec3 QP = P->GetQueryPosition();
-		EntityGather iact_gather;
-		m_level->QuerySphere( &iact_gather, IEST_InteractiveItem, QP, 5 );
-		if( iact_gather.items.size() )
-		{
-			iact_gather.DistanceSort( QP );
-			for( size_t i = iact_gather.items.size(); i > 0; )
-			{
-				i--;
-				Entity* E = iact_gather.items[ i ].E;
-				Vec3 pos = E->GetWorldInfoTarget();
-				bool infront;
-				Vec2 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront ).ToVec2() * screen_size;
-				if( infront )
-				{
-					float dst = ( QP - pos ).Length();
-					bool activate = i == 0 && dst < 2;
-					Vec2 dir = V2( 2, -1 ).Normalized();
-					Vec2 clp0 = screenpos + dir * 12;
-					Vec2 clp1 = screenpos + dir * 64;
-					Vec2 cline[2] = { clp0, clp1 };
-					Vec2 addX = V2( 0, -48 ), addY = V2( 120, 0 );
-					Vec2 irect[4] = { clp1, clp1 + addY, clp1 + addX + addY, clp1 + addX };
-					float a = smoothlerp_oneway( dst, 5.0f, 4.0f );
-					
-					br.Reset();
-					if( activate )
-					{
-						br.Col( 0.9f, 0.1f, 0, 0.5f * a ).CircleFill( screenpos.x, screenpos.y, 12 );
-					}
-					br.Col( 0, 0.5f * a ).QuadWH( clp1.x, clp1.y, 120, -48 );
-					br.Col( 0.905f, 1 * a ).AACircleOutline( screenpos.x, screenpos.y, 12, 2 );
-					br.AAStroke( cline, 2, 2, false );
-					br.AAStroke( irect, 4, 2, true );
-					
-					GR2D_SetFont( "mono", 15 );
-					StringView name = E->GetScriptedObject().getprop( "viewName" ).get<StringView>();
-					GR2D_DrawTextLine( round( clp1.x + 4 ), round( clp1.y - 48 + 4 ), name );
-				}
-			}
-		}
-		
-	//	m_playerCtrl.m_aimHelper.DrawUI();
-		
-		GR2D_SetFont( "tsicons", bsz * 0.2f );
-		br.Col( 1, 0.25f * m_crouchIconShowTimeout );
-		GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0a", HALIGN_LEFT, VALIGN_BOTTOM );
-		br.Col( 1, 0.25f * m_standIconShowTimeout );
-		GR2D_DrawTextLine( round( bsz * 0.1f ), round( screen_size.y - bsz * 0.1f ), "\x0b", HALIGN_LEFT, VALIGN_BOTTOM );
-		
-		GR2D_SetFontSettings( &fs );
 	}
 #endif
 }

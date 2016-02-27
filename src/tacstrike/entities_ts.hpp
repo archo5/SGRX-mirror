@@ -125,7 +125,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	void Hit( float pwr );
 	virtual void OnDeath();
 	
-	Vec3 GetQueryPosition();
+	SGS_METHOD Vec3 GetQueryPosition();
 	SGS_METHOD Vec3 GetViewDir();
 	SGS_METHOD Vec3 GetAimDir();
 	Mat4 GetBulletOutputMatrix();
@@ -296,13 +296,6 @@ struct TSGameSystem : IGameLevelSystem
 	TSGameSystem( GameLevel* lev );
 	virtual Entity* AddEntity( StringView type );
 	virtual void Tick( float deltaTime, float blendFactor );
-	virtual void DrawUI();
-	
-#ifndef TSGAME_NO_PLAYER
-	float m_crouchIconShowTimeout;
-	float m_standIconShowTimeout;
-	float m_prevCrouchValue;
-#endif
 };
 
 

@@ -231,6 +231,7 @@ EXP_STRUCT GameUIControl
 	SGS_METHOD void DCol( float a, float b, float c, float d );
 	SGS_METHOD void DTex( StringView name );
 	SGS_METHOD void DQuad( float x0, float y0, float x1, float y1 );
+	SGS_METHOD void DQuadWH( float x, float y, float w, float h );
 	SGS_METHOD void DQuadExt( float x0, float y0, float x1, float y1,
 		float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ );
 	SGS_METHOD void DTurnedBox( float x, float y, float dx, float dy, float z /* = 0 */ );

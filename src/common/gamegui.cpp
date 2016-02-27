@@ -516,6 +516,12 @@ void GameUIControl::DQuad( float x0, float y0, float x1, float y1 )
 	GR2D_GetBatchRenderer().Quad( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ) );
 }
 
+void GameUIControl::DQuadWH( float x, float y, float w, float h )
+{
+	float x1 = x + w, y1 = y + h;
+	GR2D_GetBatchRenderer().Quad( IX( x ), IY( y ), IX( x1 ), IY( y1 ) );
+}
+
 void GameUIControl::DQuadExt( float x0, float y0, float x1, float y1,
 	float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ )
 {
@@ -533,7 +539,7 @@ void GameUIControl::DTurnedBox( float x, float y, float dx, float dy, float z /*
 void GameUIControl::DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ )
 {
 	int ssz = sgs_StackSize( C );
-	GR2D_GetBatchRenderer().CircleFill( x, y, r, ssz >= 4 ? z : 0, ssz >= 5 ? verts : -1 );
+	GR2D_GetBatchRenderer().CircleFill( IX( x ), IY( y ), IS( r ), ssz >= 4 ? z : 0, ssz >= 5 ? verts : -1 );
 }
 
 void GameUIControl::DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr )

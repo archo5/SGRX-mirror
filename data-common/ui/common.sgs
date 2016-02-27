@@ -9,6 +9,14 @@ function min(a,b){ return if(a<b,a,b); }
 function max(a,b){ return if(a>b,a,b); }
 function clamp(v,min,max){ return if(v<min,min,if(v>max,max,v)); }
 function lerp(a,b,t){ return a * (1-t) + b * t; }
+function saturate( x ){ return if( x < 0.0, 0.0, if( x > 1.0, 1.0, x ) ); }
+function smoothstep( x ){ return x * x * ( 3.0 - 2.0 * x ); }
+function smoothlerp_oneway( t, a, b )
+{
+	if( b == a )
+		return 1.0;
+	return smoothstep( saturate( ( t - a ) / ( b - a ) ) );
+}
 
 function CallEvents( evcb, key )
 {

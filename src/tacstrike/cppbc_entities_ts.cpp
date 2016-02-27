@@ -208,6 +208,13 @@ static int _sgs_method__TSCharacter__StopAnim( SGS_CTX )
 	data->StopAnim(  ); return 0;
 }
 
+static int _sgs_method__TSCharacter__GetQueryPosition( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetQueryPosition ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetQueryPosition(  )); return 1;
+}
+
 static int _sgs_method__TSCharacter__GetViewDir( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetViewDir ) ) return 0;
@@ -344,6 +351,7 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "IsPlayingAnim", _sgs_method__TSCharacter__IsPlayingAnim },
 	{ "PlayAnim", _sgs_method__TSCharacter__PlayAnim },
 	{ "StopAnim", _sgs_method__TSCharacter__StopAnim },
+	{ "GetQueryPosition", _sgs_method__TSCharacter__GetQueryPosition },
 	{ "GetViewDir", _sgs_method__TSCharacter__GetViewDir },
 	{ "GetAimDir", _sgs_method__TSCharacter__GetAimDir },
 	{ "GetAttachmentPos", _sgs_method__TSCharacter__GetAttachmentPos },

@@ -387,6 +387,13 @@ static int _sgs_method__GameUIControl__DQuad( SGS_CTX )
 	data->DQuad( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DQuadWH( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DQuadWH ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DQuadWH( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DQuadExt( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DQuadExt ) ) return 0;
@@ -607,6 +614,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DCol", _sgs_method__GameUIControl__DCol },
 	{ "DTex", _sgs_method__GameUIControl__DTex },
 	{ "DQuad", _sgs_method__GameUIControl__DQuad },
+	{ "DQuadWH", _sgs_method__GameUIControl__DQuadWH },
 	{ "DQuadExt", _sgs_method__GameUIControl__DQuadExt },
 	{ "DTurnedBox", _sgs_method__GameUIControl__DTurnedBox },
 	{ "DCircleFill", _sgs_method__GameUIControl__DCircleFill },
