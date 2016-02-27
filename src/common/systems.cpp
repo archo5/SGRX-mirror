@@ -774,14 +774,20 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
 #define RT_REFL 0xffe0
 	
-	int W = GR_GetWidth();
-	int H = GR_GetHeight();
+	int reflW = GR_GetWidth();
+	int reflH = GR_GetHeight();
+	if( info.viewport )
+	{
+		reflW = info.viewport->x1 - info.viewport->x0;
+		reflH = info.viewport->y1 - info.viewport->y0;
+	}
 	SGRX_Scene* scene = info.scene;
 	SGRX_Camera origCamera = scene->camera;
+	SGRX_Viewport* origViewport = info.viewport;
 	
 	// RENDER REFLECTIONS
-	TextureHandle rttREFL = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_REFL );
-	DepthStencilSurfHandle dssREFL = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_REFL );
+	TextureHandle rttREFL = GR_GetRenderTarget( reflW, reflH, RT_FORMAT_COLOR_HDR16, RT_REFL );
+	DepthStencilSurfHandle dssREFL = GR_GetDepthStencilSurface( reflW, reflH, RT_FORMAT_COLOR_HDR16, RT_REFL );
 	
 	GR_PreserveResource( rttREFL );
 	GR_PreserveResource( dssREFL );
@@ -798,12 +804,13 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		scene->camera.direction = Vec3Reflect( scene->camera.direction, plane.ToVec3() );
 		scene->camera.updir = Vec3Reflect( scene->camera.updir, plane.ToVec3() );
 		scene->camera.UpdateMatrices();
-	//	scene->camera.mProj = scene->camera.mProj * Mat4::CreateScale( -1, 1, 1 );
+		info.viewport = NULL;
 		
 		OnDrawSceneGeom( ctrl, info, rttREFL, dssREFL );
 	}
 	
 	scene->camera = origCamera;
+	info.viewport = origViewport;
 	
 	// RENDER MAIN SCENE
 	ctrl->m_overrideTextures[ 11 ] = rttREFL; // GR_GetTexture( "textures/unit.png" );
