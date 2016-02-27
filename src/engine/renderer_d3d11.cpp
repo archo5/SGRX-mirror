@@ -474,7 +474,7 @@ struct D3D11Renderer : IRenderer
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawImmediate( SGRX_ImmDrawData& idd );
 	
-	void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
+	void DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
 	bool ResetDevice();
 	void SetVertexShader( const SGRX_IVertexShader* shd );
@@ -1803,7 +1803,7 @@ void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 }
 
 
-void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
+void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
 	LOG_FUNCTION;
 	

@@ -1,6 +1,7 @@
 
 
 #include "systems.hpp"
+#include "entities.hpp"
 #include "level.hpp"
 
 
@@ -735,6 +736,27 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 	}
 	
 	return true;
+}
+
+
+GFXSystem::GFXSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+{
+}
+
+void GFXSystem::OnAddEntity( Entity* ent )
+{
+	if( ENTITY_IS_A( ent, ReflectionPlaneEntity ) )
+	{
+		m_reflectPlanes.push_back( ent );
+	}
+}
+
+void GFXSystem::OnRemoveEntity( Entity* ent )
+{
+	if( ENTITY_IS_A( ent, ReflectionPlaneEntity ) )
+	{
+		m_reflectPlanes.remove_first( ent );
+	}
 }
 
 
@@ -2206,7 +2228,8 @@ void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 	if( eid == EID_WindowEvent )
 	{
 		SGRX_CAST( Event*, ev, edata.GetUserData() );
-		if( ev->type == SDL_KEYDOWN && ev->key.repeat == 0 && ev->key.keysym.sym == SDLK_F2 )
+		if( m_level->GetEditorMode() == false &&
+			ev->type == SDL_KEYDOWN && ev->key.repeat == 0 && ev->key.keysym.sym == SDLK_F2 )
 		{
 			screenshotMode = !screenshotMode;
 			if( screenshotMode )

@@ -348,16 +348,17 @@ __CODE__
 	}
 #endif // NUM_SPOTLIGHTS
 	
-#if LMODE == 0 // -- unlit
+	// PRE-LIGHT modifier addons
+#if LMODE == 0 || defined(MOD_UNLIT) // -- unlit
 	totalDiffuse = float3(1,1,1);
 	totalSpecular = float3(0,0,0);
-#endif // LMODE == 0
+#endif
 	
 	RT0 = float4( totalDiffuse * outDiffuseColor + totalSpecular * outSpecularColor + outEmissiveLight, outOpacity );
 	RT1 = float4( outDistortion, 0, outOpacity );
 	RT2 = float4( inViewPos.z, 0, 0, 1 );
 	
-	// modifier addons
+	// POST-LIGHT modifier addons
 #ifdef MOD_BLENDCOLOR
 	RT0.rgb = lerp( RT0.rgb,
 		gInstanceData[ MOD_BLENDCOLOR ].rgb,

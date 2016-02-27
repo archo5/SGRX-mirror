@@ -272,6 +272,15 @@ EXP_STRUCT LightEntity : Entity
 };
 
 
+EXP_STRUCT ReflectionPlaneEntity : Entity
+{
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT ReflectionPlaneEntity( GameLevel* lev );
+};
+
+
 
 struct SGRX_RigidBodyInfo : SGRX_PhyRigidBodyInfo
 {

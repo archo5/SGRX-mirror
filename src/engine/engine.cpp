@@ -741,6 +741,192 @@ void Game_End()
 }
 
 
+
+SGRX_RenderDirector::SGRX_RenderDirector() : m_curMode(0){}
+
+SGRX_RenderDirector::~SGRX_RenderDirector(){}
+
+void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
+{
+#define RT_MAIN 0xfff0
+#define RT_HBLUR 0xfff1
+#define RT_VBLUR 0xfff2
+#define RT_HBLUR2 0xfff3
+#define RT_VBLUR2 0xfff4
+#define RT_HPASS 0xfff5
+#define RT_DEPTH 0xfff6
+	
+	// preserve state
+	Mat4 viewMtx = g_BatchRenderer->viewMatrix;
+	
+	// shortcuts
+	SGRX_Scene* scene = info.scene;
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	int W = GR_GetWidth();
+	int H = GR_GetHeight();
+	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
+	int W16 = TMAX( W4 / 4, 1 ), H16 = TMAX( H4 / 4, 1 );
+	
+	// load shaders
+	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
+	PixelShaderHandle pppsh_highpass = GR_GetPixelShader( "sys_pp_highpass" );
+	PixelShaderHandle pppsh_blur = GR_GetPixelShader( "sys_pp_blur" );
+	
+	GR_PreserveResource( pppsh_final );
+	GR_PreserveResource( pppsh_highpass );
+	GR_PreserveResource( pppsh_blur );
+	
+	int shadow_pass_id = scene->FindPass( SGRX_FP_Shadow );
+	// initial actions
+	if( m_curMode != SGRX_RDMode_Unlit )
+	{
+		ctrl->RenderShadows( scene, shadow_pass_id );
+	}
+	ctrl->SortRenderItems( scene );
+	
+	// prepare render targets
+	TextureHandle rttMAIN, rttHPASS, rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2, rttDEPTH;
+	DepthStencilSurfHandle dssMAIN;
+	if( info.enablePostProcessing )
+	{
+		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
+		rttDEPTH = GR_GetRenderTarget( W, H, RT_FORMAT_DEPTH, RT_DEPTH );
+		rttHPASS = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_HPASS );
+		rttHBLUR = GR_GetRenderTarget( W4, H, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
+		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
+		rttHBLUR2 = GR_GetRenderTarget( W16, H4, RT_FORMAT_COLOR_HDR16, RT_HBLUR2 );
+		rttVBLUR2 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_VBLUR2 );
+		dssMAIN = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
+		
+		GR_PreserveResource( rttMAIN );
+		GR_PreserveResource( rttDEPTH );
+		GR_PreserveResource( rttHPASS );
+		GR_PreserveResource( rttHBLUR );
+		GR_PreserveResource( rttVBLUR );
+		GR_PreserveResource( rttHBLUR2 );
+		GR_PreserveResource( rttVBLUR2 );
+		GR_PreserveResource( dssMAIN );
+		
+		ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttDEPTH );
+		ctrl->RenderTypes( scene, shadow_pass_id, 1, SGRX_TY_Solid );
+	}
+	
+	// draw things
+	OnDrawSceneGeom( ctrl, info, rttMAIN, dssMAIN );
+	
+	// post-process
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
+	if( info.enablePostProcessing )
+	{
+		br.Reset();
+		br.ShaderData.push_back( V4(0) );
+		
+		float spread = 3.5f;
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHPASS );
+		br.SetTexture( rttMAIN ).SetShader( pppsh_highpass ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W ), 0 );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR );
+		br.SetTexture( rttHPASS ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H ) );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR );
+		br.SetTexture( rttHBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W4 ), 0 );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR2 );
+		br.SetTexture( rttVBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H4 ) );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR2 );
+		br.SetTexture( rttHBLUR2 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
+		br.SetTexture( 0, rttMAIN )
+		  .SetTexture( 2, rttVBLUR )
+		  .SetTexture( 3, rttVBLUR2 )
+		  .SetTexture( 4, rttDEPTH ).SetShader( pppsh_final ).VPQuad( info.viewport ).Flush();
+	}
+	else
+	{
+		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
+		br.Reset().SetTexture( rttMAIN ).VPQuad( info.viewport ).Flush();
+	}
+	
+	// debug rendering from camera viewpoint and optional depth clipping
+	if( info.debugdraw )
+	{
+		ctrl->SetRenderTargets( dssMAIN, 0, 0, 0, 1 );
+		if( info.viewport )
+			GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
+		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
+		br.Flush().Reset();
+		info.debugdraw->DebugDraw();
+		br.Flush();
+		if( info.viewport )
+			GR2D_UnsetViewport();
+		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
+	}
+	
+	GR2D_SetViewMatrix( viewMtx );
+	br.Reset();
+}
+
+void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+	TextureHandle rtt, DepthStencilSurfHandle dss )
+{
+	SGRX_Scene* scene = info.scene;
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, scene->clearColor, 1, rtt );
+	if( info.viewport )
+		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
+	
+	if( m_curMode == SGRX_RDMode_Unlit )
+	{
+		int unlit_pass_id = scene->FindPass( SGRX_FP_Base | SGRX_FP_NoPoint | SGRX_FP_NoSpot, ":MOD_UNLIT" );
+		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Transparent );
+	}
+	else
+	{
+		int base_pass_id = scene->FindPass( SGRX_FP_Base );
+		int spot_pass_id = scene->FindPass( SGRX_FP_Spot );
+		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Transparent );
+		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Transparent );
+	}
+	
+	if( info.postdraw )
+	{
+		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
+		br.Flush().Reset();
+		info.postdraw->PostDraw();
+		br.Flush();
+	}
+}
+
+int SGRX_RenderDirector::GetModeCount()
+{
+	return 2;
+}
+
+void SGRX_RenderDirector::SetMode( int mode )
+{
+	int modeCount = GetModeCount();
+	if( mode >= 0 && mode < modeCount )
+		m_curMode = mode;
+	else
+		ASSERT( !"SGRX_RenderDirector::SetMode - invalid mode ID" );
+}
+
+
+
 void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags )
 {
 	if( flags.contains( ":nosrgb" ) ) outusageflags &= ~TEXFLAGS_SRGB;
@@ -812,154 +998,6 @@ int IGame::OnArgument( char* arg, int argcleft, char** argvleft )
 		return 2;
 	}
 	return 0;
-}
-
-void IGame::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
-{
-#define RT_MAIN 0xfff0
-#define RT_HBLUR 0xfff1
-#define RT_VBLUR 0xfff2
-#define RT_HBLUR2 0xfff3
-#define RT_VBLUR2 0xfff4
-#define RT_HPASS 0xfff5
-#define RT_DEPTH 0xfff6
-	
-	// preserve state
-	Mat4 viewMtx = g_BatchRenderer->viewMatrix;
-	
-	// shortcuts
-	SGRX_Scene* scene = info.scene;
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	
-	int W = GR_GetWidth();
-	int H = GR_GetHeight();
-	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
-	int W16 = TMAX( W4 / 4, 1 ), H16 = TMAX( H4 / 4, 1 );
-	
-	// load shaders
-	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
-	PixelShaderHandle pppsh_highpass = GR_GetPixelShader( "sys_pp_highpass" );
-	PixelShaderHandle pppsh_blur = GR_GetPixelShader( "sys_pp_blur" );
-	
-	GR_PreserveResource( pppsh_final );
-	GR_PreserveResource( pppsh_highpass );
-	GR_PreserveResource( pppsh_blur );
-	
-	// initial actions
-	ctrl->RenderShadows( scene, 0 );
-	ctrl->SortRenderItems( scene );
-	
-	// prepare render targets
-	TextureHandle rttMAIN, rttHPASS, rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2, rttDEPTH;
-	DepthStencilSurfHandle dssMAIN;
-	if( info.enablePostProcessing )
-	{
-		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
-		rttDEPTH = GR_GetRenderTarget( W, H, RT_FORMAT_DEPTH, RT_DEPTH );
-		rttHPASS = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_HPASS );
-		rttHBLUR = GR_GetRenderTarget( W4, H, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
-		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
-		rttHBLUR2 = GR_GetRenderTarget( W16, H4, RT_FORMAT_COLOR_HDR16, RT_HBLUR2 );
-		rttVBLUR2 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_VBLUR2 );
-		dssMAIN = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
-		
-		GR_PreserveResource( rttMAIN );
-		GR_PreserveResource( rttDEPTH );
-		GR_PreserveResource( rttHPASS );
-		GR_PreserveResource( rttHBLUR );
-		GR_PreserveResource( rttVBLUR );
-		GR_PreserveResource( rttHBLUR2 );
-		GR_PreserveResource( rttVBLUR2 );
-		GR_PreserveResource( dssMAIN );
-		
-		ctrl->SetRenderTargets( dssMAIN, SGRX_RT_ClearAll, 0, 0, 1, rttDEPTH );
-		ctrl->RenderTypes( scene, 0, 1, SGRX_TY_Solid );
-	}
-	
-	// draw things
-	OnDrawSceneGeom( ctrl, info, rttMAIN, dssMAIN );
-	
-	// post-process
-	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
-	if( info.enablePostProcessing )
-	{
-		br.Reset();
-		br.ShaderData.push_back( V4(0) );
-		
-		float spread = 3.5f;
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHPASS );
-		br.SetTexture( rttMAIN ).SetShader( pppsh_highpass ).Quad( 0, 0, 1, 1 ).Flush();
-		
-		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W ), 0 );
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR );
-		br.SetTexture( rttHPASS ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
-		
-		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H ) );
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR );
-		br.SetTexture( rttHBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
-		
-		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W4 ), 0 );
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR2 );
-		br.SetTexture( rttVBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
-		
-		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H4 ) );
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR2 );
-		br.SetTexture( rttHBLUR2 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
-		
-		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
-		br.SetTexture( 0, rttMAIN )
-		  .SetTexture( 2, rttVBLUR )
-		  .SetTexture( 3, rttVBLUR2 )
-		  .SetTexture( 4, rttDEPTH ).SetShader( pppsh_final ).VPQuad( info.viewport ).Flush();
-	}
-	else
-	{
-		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
-		br.Reset().SetTexture( rttMAIN ).VPQuad( info.viewport ).Flush();
-	}
-	
-	// debug rendering from camera viewpoint and optional depth clipping
-	if( info.debugdraw )
-	{
-		ctrl->SetRenderTargets( dssMAIN, 0, 0, 0, 1 );
-		if( info.viewport )
-			GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
-		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
-		br.Flush().Reset();
-		info.debugdraw->DebugDraw();
-		br.Flush();
-		if( info.viewport )
-			GR2D_UnsetViewport();
-		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
-	}
-	
-	GR2D_SetViewMatrix( viewMtx );
-	br.Reset();
-}
-
-void IGame::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-	TextureHandle rtt, DepthStencilSurfHandle dss )
-{
-	SGRX_Scene* scene = info.scene;
-	BatchRenderer& br = GR2D_GetBatchRenderer();
-	
-	ctrl->SetRenderTargets( dss, SGRX_RT_ClearAll, 0, scene->clearColor, 1, rtt );
-	if( info.viewport )
-		GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
-	
-	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Solid );
-	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Solid );
-	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Decal );
-	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Decal );
-	ctrl->RenderTypes( scene, 1, 1, SGRX_TY_Transparent );
-	ctrl->RenderTypes( scene, 3, 4, SGRX_TY_Transparent );
-	if( info.postdraw )
-	{
-		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
-		br.Flush().Reset();
-		info.postdraw->PostDraw();
-		br.Flush();
-	}
 }
 
 void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out )
@@ -1442,6 +1480,25 @@ int GR_GetWidth(){ return g_RenderSettings.width; }
 int GR_GetHeight(){ return g_RenderSettings.height; }
 
 
+static SGRX_RenderDirector g_DefaultRenderDirector;
+
+SGRX_RenderDirector* GR_GetDefaultRenderDirector()
+{
+	return &g_DefaultRenderDirector;
+}
+
+SGRX_RenderScene::SGRX_RenderScene(
+	const Vec4& tv,
+	const SceneHandle& sh,
+	bool enablePP
+) :
+	timevals( tv ),
+	scene( sh ),
+	enablePostProcessing( enablePP ),
+	viewport( NULL ),
+	postdraw( NULL ),
+	debugdraw( NULL )
+{}
 
 void GR_RenderScene( SGRX_RenderScene& info )
 {
@@ -1450,7 +1507,7 @@ void GR_RenderScene( SGRX_RenderScene& info )
 	
 	info.scene->m_timevals = info.timevals;
 	g_Renderer->_RS_PreProcess( info.scene );
-	g_Game->OnDrawScene( g_Renderer, info );
+	info.scene->director->OnDrawScene( g_Renderer, info );
 }
 
 RenderStats& GR_GetRenderStats()

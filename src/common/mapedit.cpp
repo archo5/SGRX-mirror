@@ -3263,6 +3263,7 @@ bool MapEditor::OnInitialize()
 	GR2D_SetFont( "core", 12 );
 	
 	g_Level = g_BaseGame->CreateLevel();
+	g_Level->m_editorMode = true;
 	sgs_RegIntConsts( g_Level->GetSGSC(), g_ent_scripted_ric, -1 );
 	sgs_RegFuncConsts( g_Level->GetSGSC(), g_ent_scripted_rfc, -1 );
 	
@@ -3331,13 +3332,11 @@ void MapEditor::OnEvent( const Event& e )
 	{
 		if( e.key.keysym.sym == SDLK_F2 )
 		{
-			// TODO
-			// GR_SetRenderPasses( g_RenderPasses_Main, SGRX_ARRAY_SIZE( g_RenderPasses_Main ) );
+			g_Level->GetScene()->director->SetMode( 0 );
 		}
 		if( e.key.keysym.sym == SDLK_F3 )
 		{
-			// TODO
-			// GR_SetRenderPasses( g_RenderPasses_Fullbright, SGRX_ARRAY_SIZE( g_RenderPasses_Fullbright ) );
+			g_Level->GetScene()->director->SetMode( 1 );
 		}
 		if( e.key.keysym.sym == SDLK_F5 )
 		{

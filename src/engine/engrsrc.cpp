@@ -1611,14 +1611,20 @@ void SceneRaycastCallback_Sorting::AddResult( SceneRaycastInfo* info )
 
 static SGRX_RenderPass g_DefaultRenderPasses[] =
 {
-	// shadow pass
-	{ true, false, 0, 0, "sys_lighting" },
-	{ false, true, 16, 0, "sys_lighting" },
-	{ false, false, 16, 0, "sys_lighting" },
-	{ false, false, 0, 2, "sys_lighting" },
+	{ true, false, 0, 0, "sys_lighting" }, // shadow pass
+	{ false, true, 16, 0, "sys_lighting" }, // base + 16 point lights
+	{ false, false, 16, 0, "sys_lighting" }, // 16 point lights
+	{ false, false, 0, 2, "sys_lighting" }, // 2 spotlights
+	{ false, true, 0, 0, "sys_lighting:MOD_UNLIT" }, // unlit pass
 };
 
+ArrayView<SGRX_RenderPass> GR_GetDefaultRenderPasses()
+{
+	return ArrayView<SGRX_RenderPass>( g_DefaultRenderPasses, SGRX_ARRAY_SIZE( g_DefaultRenderPasses ) );
+}
+
 SGRX_Scene::SGRX_Scene() :
+	director( GR_GetDefaultRenderDirector() ),
 	cullScene( NULL ),
 	fogColor( Vec3::Create( 0.5 ) ),
 	fogHeightFactor( 0 ),
@@ -1655,10 +1661,34 @@ SGRX_Scene::~SGRX_Scene()
 	LOG << "Deleted scene: " << this;
 }
 
-void SGRX_Scene::SetRenderPasses( SGRX_RenderPass* passes, int count )
+void SGRX_Scene::SetRenderPasses( const SGRX_RenderPass* passes, size_t count )
 {
 	m_passes.assign( passes, count );
 	OnUpdate();
+}
+
+int SGRX_Scene::FindPass( uint32_t flags, StringView shader )
+{
+	for( size_t i = 0; i < m_passes.size(); ++i )
+	{
+		const SGRX_RenderPass& RP = m_passes[ i ];
+		if( !!( flags & SGRX_FP_Shadow ) != RP.isShadowPass )
+			continue;
+		if( !!( flags & SGRX_FP_Base ) != RP.isBasePass )
+			continue;
+		if( !!( flags & SGRX_FP_Point ) && RP.numPL == 0 )
+			continue;
+		if( !!( flags & SGRX_FP_Spot ) && RP.numSL == 0 )
+			continue;
+		if( !!( flags & SGRX_FP_NoPoint ) && RP.numPL != 0 )
+			continue;
+		if( !!( flags & SGRX_FP_NoSpot ) && RP.numSL != 0 )
+			continue;
+		if( shader.size() > 0 && RP.shader.contains( shader ) == false )
+			continue;
+		return i;
+	}
+	return -1;
 }
 
 void SGRX_Scene::SetDefines( StringView defines )

@@ -13,7 +13,7 @@
 
 
 // SYSTEM ID ALLOCATION (increment to allocate)
-// last id = 14
+// last id = 15
 
 
 //
@@ -296,6 +296,18 @@ EXP_STRUCT LevelCoreSystem : IGameLevelSystem
 	Array< PhyRigidBodyHandle > m_levelBodies;
 	Array< LC_Light > m_lights;
 	SGRX_LightTree m_ltSamples;
+};
+
+
+EXP_STRUCT GFXSystem : IGameLevelSystem
+{
+	enum { e_system_uid = 15 };
+	
+	GFW_EXPORT GFXSystem( GameLevel* lev );
+	GFW_EXPORT void OnAddEntity( Entity* ent );
+	GFW_EXPORT void OnRemoveEntity( Entity* ent );
+	
+	Array< Entity* > m_reflectPlanes;
 };
 
 

@@ -1458,11 +1458,22 @@ struct SGRX_RenderPass
 	StringView shader;
 };
 
+// FindPass requirement flags
+#define SGRX_FP_Shadow  0x0001
+#define SGRX_FP_Base    0x0002
+#define SGRX_FP_Point   0x0004
+#define SGRX_FP_Spot    0x0008
+#define SGRX_FP_NoPoint 0x0040
+#define SGRX_FP_NoSpot  0x0080
+
 struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 {
 	ENGINE_EXPORT SGRX_Scene();
 	ENGINE_EXPORT virtual ~SGRX_Scene();
-	ENGINE_EXPORT void SetRenderPasses( SGRX_RenderPass* passes, int count );
+	ENGINE_EXPORT void SetRenderPasses( const SGRX_RenderPass* passes, size_t count );
+	FINLINE void SetRenderPasses( ArrayView<SGRX_RenderPass> passes )
+		{ SetRenderPasses( passes.data(), passes.size() ); }
+	ENGINE_EXPORT int FindPass( uint32_t flags, StringView shader = SV() );
 	ENGINE_EXPORT void SetDefines( StringView defines );
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
 	ENGINE_EXPORT LightHandle CreateLight();
@@ -1489,6 +1500,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	Vec4 m_timevals; // temporary?
 	MeshInstHandle m_projMeshInst;
 	
+	struct SGRX_RenderDirector* director;
 	SGRX_CullScene* cullScene;
 	SGRX_Camera camera;
 	
@@ -1772,35 +1784,6 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_LineSet
 	Array< Point > m_lines;
 };
 
-struct ENGINE_EXPORT SGRX_PostDraw
-{
-	virtual void PostDraw() = 0;
-};
-
-struct ENGINE_EXPORT SGRX_DebugDraw
-{
-	virtual void DebugDraw() = 0;
-};
-
-struct SGRX_RenderScene
-{
-	SGRX_RenderScene( const Vec4& tv, const SceneHandle& sh, bool enablePP = true ) :
-		timevals( tv ),
-		scene( sh ),
-		enablePostProcessing( enablePP ),
-		viewport( NULL ),
-		postdraw( NULL ),
-		debugdraw( NULL )
-	{}
-	
-	Vec4 timevals;
-	SceneHandle scene;
-	bool enablePostProcessing;
-	SGRX_Viewport* viewport;
-	SGRX_PostDraw* postdraw;
-	SGRX_DebugDraw* debugdraw;
-};
-
 struct SGRX_FontSettings
 {
 	String font;
@@ -1863,14 +1846,15 @@ struct SGRX_RTClearInfo
 	float clearDepth;
 };
 
+
 struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 {
 	ENGINE_EXPORT virtual ~SGRX_IRenderControl();
 	ENGINE_EXPORT virtual void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info, TextureHandle rts[4] ) = 0;
 	ENGINE_EXPORT virtual void SortRenderItems( SGRX_Scene* scene ) = 0;
-	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, uint8_t pass_id ) = 0;
-	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount ) = 0;
-	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, uint8_t types ) = 0;
+	ENGINE_EXPORT virtual void RenderShadows( SGRX_Scene* scene, int pass_id ) = 0;
+	ENGINE_EXPORT virtual void RenderMeshes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types, SGRX_MeshInstance** milist, size_t micount ) = 0;
+	ENGINE_EXPORT virtual void RenderTypes( SGRX_Scene* scene, int pass_id, int maxrepeat, uint8_t types ) = 0;
 	
 	// shortcuts
 	FINLINE void SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTClearInfo& info,
@@ -1888,6 +1872,54 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 	}
 };
 
+struct SGRX_RenderScene;
+
+#define SGRX_RDMode_Normal 0
+#define SGRX_RDMode_Unlit 1
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_RenderDirector
+{
+	ENGINE_EXPORT SGRX_RenderDirector();
+	ENGINE_EXPORT virtual ~SGRX_RenderDirector();
+	
+	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
+	ENGINE_EXPORT virtual void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+		TextureHandle rtt, DepthStencilSurfHandle dss );
+	
+	ENGINE_EXPORT virtual int GetModeCount();
+	FINLINE int GetMode(){ return m_curMode; }
+	ENGINE_EXPORT void SetMode( int mode );
+	
+	int m_curMode;
+};
+
+struct ENGINE_EXPORT SGRX_PostDraw
+{
+	virtual void PostDraw() = 0;
+};
+
+struct ENGINE_EXPORT SGRX_DebugDraw
+{
+	virtual void DebugDraw() = 0;
+};
+
+struct ENGINE_EXPORT SGRX_RenderScene
+{
+	ENGINE_EXPORT SGRX_RenderScene(
+		const Vec4& tv,
+		const SceneHandle& sh,
+		bool enablePP = true
+	);
+	
+	Vec4 timevals;
+	SceneHandle scene;
+	bool enablePostProcessing;
+	SGRX_Viewport* viewport;
+	SGRX_PostDraw* postdraw;
+	SGRX_DebugDraw* debugdraw;
+};
+
+
 struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 {
 	ENGINE_EXPORT virtual bool OnConfigure( int argc, char** argv );
@@ -1896,10 +1928,6 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	virtual void OnDestroy(){}
 	virtual void OnEvent( const Event& e ){}
 	virtual void OnTick( float dt, uint32_t gametime ){}
-	
-	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
-	ENGINE_EXPORT virtual void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-		TextureHandle rtt, DepthStencilSurfHandle dss );
 	
 	ENGINE_EXPORT virtual void OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out );
 	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const StringView& defines, const SGRX_Material& mtl,
@@ -1936,6 +1964,8 @@ ENGINE_EXPORT void GR_PreserveResourcePtr( SGRX_RefCounted* rsrc );
 template< class T > void GR_PreserveResource( T& handle ){ GR_PreserveResourcePtr( handle.item ); }
 
 ENGINE_EXPORT SceneHandle GR_CreateScene();
+ENGINE_EXPORT ArrayView<SGRX_RenderPass> GR_GetDefaultRenderPasses();
+ENGINE_EXPORT SGRX_RenderDirector* GR_GetDefaultRenderDirector();
 ENGINE_EXPORT void GR_RenderScene( SGRX_RenderScene& info );
 ENGINE_EXPORT RenderStats& GR_GetRenderStats();
 

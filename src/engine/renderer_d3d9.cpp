@@ -272,7 +272,7 @@ struct D3D9Renderer : IRenderer
 	void SetMatrix( bool view, const Mat4& mtx );
 	void DrawImmediate( SGRX_ImmDrawData& idd );
 	
-	virtual void DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
+	virtual void DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end );
 	
 #if 0
 	void _RS_RenderPass_Projectors( size_t pass_id );
@@ -1319,7 +1319,7 @@ void D3D9Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 	100-115: instance data
 */
 
-void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, uint8_t pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
+void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat, const SGRX_Camera& cam, RenderItem* start, RenderItem* end )
 {
 	SGRX_RenderPass& PASS = scene->m_passes[ pass_id ];
 	if( PASS.isShadowPass )

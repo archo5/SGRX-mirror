@@ -187,6 +187,18 @@ function Light.ED_PropInfo( eptr )
 }
 
 
+function ReflectionPlane.ED_PropInfo( eptr )
+{
+	PropInfo_Entity( eptr );
+}
+function ReflectionPlane.EditorDrawWorld()
+{
+	BR_Reset();
+	BR_Col( 0.2, 0.8, 0.9, 0.8 );
+	BR_AABB( vec3(-1,-1,0), vec3(1,1,0), this.transform );
+}
+
+
 //
 // Mesh Array
 //

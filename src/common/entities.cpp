@@ -562,6 +562,11 @@ void LightEntity::_UpdateFlare()
 }
 
 
+ReflectionPlaneEntity::ReflectionPlaneEntity( GameLevel* lev ) : Entity( lev )
+{
+}
+
+
 
 
 static int RigidBodyInfo( SGS_CTX )
@@ -1088,6 +1093,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	lev->RegisterNativeEntity<Entity>( "Entity" );
 	lev->RegisterNativeEntity<MeshEntity>( "Mesh" );
 	lev->RegisterNativeEntity<LightEntity>( "Light" );
+	lev->RegisterNativeEntity<ReflectionPlaneEntity>( "ReflectionPlane" );
 	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
 }
 
@@ -1198,6 +1204,7 @@ Entity* StockEntityCreationSystem::AddEntity( StringView type )
 	if( type == "Entity" ) return new Entity( m_level );
 	if( type == "Mesh" ) return new MeshEntity( m_level );
 	if( type == "Light" ) return new LightEntity( m_level );
+	if( type == "ReflectionPlane" ) return new ReflectionPlaneEntity( m_level );
 	if( type == "MultiEntity" ) return new MultiEntity( m_level );
 	
 	return NULL;
