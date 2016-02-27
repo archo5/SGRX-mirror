@@ -760,9 +760,53 @@ void GFXSystem::OnRemoveEntity( Entity* ent )
 	}
 }
 
+FINLINE float PointPlaneSignedDistance( const Vec3& pos, const Vec4& plane )
+{
+	return Vec3Dot( plane.ToVec3(), pos ) - plane.w;
+}
+
+FINLINE Vec3 Vec3ReflectPos( const Vec3& pos, const Vec4& plane )
+{
+	return pos - plane.ToVec3() * ( PointPlaneSignedDistance( pos, plane ) * 2 );
+}
+
 void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
-	ctrl->m_overrideTextures[ 11 ] = GR_GetTexture( "textures/unit.png" );
+#define RT_REFL 0xffe0
+	
+	int W = GR_GetWidth();
+	int H = GR_GetHeight();
+	SGRX_Scene* scene = info.scene;
+	SGRX_Camera origCamera = scene->camera;
+	
+	// RENDER REFLECTIONS
+	TextureHandle rttREFL = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_REFL );
+	DepthStencilSurfHandle dssREFL = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_REFL );
+	
+	GR_PreserveResource( rttREFL );
+	GR_PreserveResource( dssREFL );
+	
+	for( size_t i = 0; i < m_reflectPlanes.size(); ++i )
+	{
+		Entity* RPE = m_reflectPlanes[ i ];
+		
+		Vec3 pos = RPE->GetWorldPosition();
+		Vec3 dir = RPE->LocalToWorldDir( V3(0,0,1) ).Normalized();
+		Vec4 plane = V4( dir, Vec3Dot( dir, pos ) );
+		
+		scene->camera.position = Vec3ReflectPos( scene->camera.position, plane );
+		scene->camera.direction = Vec3Reflect( scene->camera.direction, plane.ToVec3() );
+		scene->camera.updir = Vec3Reflect( scene->camera.updir, plane.ToVec3() );
+		scene->camera.UpdateMatrices();
+	//	scene->camera.mProj = scene->camera.mProj * Mat4::CreateScale( -1, 1, 1 );
+		
+		OnDrawSceneGeom( ctrl, info, rttREFL, dssREFL );
+	}
+	
+	scene->camera = origCamera;
+	
+	// RENDER MAIN SCENE
+	ctrl->m_overrideTextures[ 11 ] = rttREFL; // GR_GetTexture( "textures/unit.png" );
 	GR_PreserveResource( ctrl->m_overrideTextures[ 0 ] );
 	SGRX_RenderDirector::OnDrawScene( ctrl, info );
 }
