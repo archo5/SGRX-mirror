@@ -179,7 +179,7 @@ NEEDS_TEXTURE_2D(7);
 NEEDS_TEXTURE_2D(8);
 NEEDS_TEXTURE_2D(9);
 NEEDS_TEXTURE_CUBE(10);
-NEEDS_TEXTURE_CUBE(11);
+NEEDS_TEXTURE_2D(11);
 #define InstTex0 Tex8
 #define InstTex1 Tex9
 #define InstTex2 Tex10
@@ -303,6 +303,7 @@ __CODE__
 	totalDiffuse *= LIGHT_MULTIPLIER;
 	totalDiffuse += /* gAmbLightColor + */ outAmbientDiffuseLight;
 	totalSpecular += outAmbientSpecularLight; // + TEXSAMPLE_CUBE_LOD( InstTex1, refWorld.xzy, 0 ).rgb;
+	totalSpecular += TEXSAMPLE_2D( InstTex3, projPos.xy / projPos.w * float2(0.5,-0.5) + 0.5 );
 	
 	/* DIRECTIONAL LIGHT *--disabled--/
 	totalDiffuse += saturate( dot( outNormal, gDirLightDir ) ) * gDirLightColor;

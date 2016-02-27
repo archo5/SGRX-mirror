@@ -1870,6 +1870,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 		TextureHandle rts[4] = { rt0, rt1, rt2, rt3 };
 		SetRenderTargets( dss, info, rts );
 	}
+	
+	TextureHandle m_overrideTextures[ SGRX_MAX_TEXTURES ];
 };
 
 struct SGRX_RenderScene;

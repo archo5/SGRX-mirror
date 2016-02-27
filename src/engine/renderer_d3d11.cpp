@@ -1873,6 +1873,8 @@ void D3D11Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat
 		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
 		{
 			D3D11Texture* tex = (D3D11Texture*) MTL.textures[ i ].item;
+			if( m_overrideTextures[ i ] )
+				tex = (D3D11Texture*) m_overrideTextures[ i ].item;
 			srvs[ i ] = tex ? ((D3D11Texture*)tex)->m_rsrcView : NULL;
 			smps[ i ] = tex ? ((D3D11Texture*)tex)->m_sampState : m_sampState;
 		}

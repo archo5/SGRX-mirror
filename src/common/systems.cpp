@@ -741,6 +741,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 
 GFXSystem::GFXSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
+	lev->GetScene()->director = this;
 }
 
 void GFXSystem::OnAddEntity( Entity* ent )
@@ -757,6 +758,13 @@ void GFXSystem::OnRemoveEntity( Entity* ent )
 	{
 		m_reflectPlanes.remove_first( ent );
 	}
+}
+
+void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
+{
+	ctrl->m_overrideTextures[ 11 ] = GR_GetTexture( "textures/unit.png" );
+	GR_PreserveResource( ctrl->m_overrideTextures[ 0 ] );
+	SGRX_RenderDirector::OnDrawScene( ctrl, info );
 }
 
 

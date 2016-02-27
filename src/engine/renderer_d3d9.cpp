@@ -1377,7 +1377,7 @@ void D3D9Renderer::DoRenderItems( SGRX_Scene* scene, int pass_id, int maxrepeat,
 		
 		// instance state
 		for( int i = 0; i < SGRX_MAX_TEXTURES; ++i )
-			SetTexture( i, MTL.textures[ i ] );
+			SetTexture( i, m_overrideTextures[ i ] ? m_overrideTextures[ i ] : MTL.textures[ i ] );
 		if( MI->skin_matrices.size() )
 			VS_SetVec4Array( 42, (const Vec4*) &MI->skin_matrices[0], MI->skin_matrices.size() * 4 );
 		VS_SetVec4Array( 25, &MI->constants[0], 16 );

@@ -1,0 +1,10 @@
+float4 diff = TEXSAMPLE_2D( Tex0, inTex0.xy );
+diff = diff * diff * icol;
+float3 normal = TEXSAMPLE_2D( Tex1, inTex0.xy ).rgb * 2 - 1;
+outDiffuseColor = diff.rgb;
+outNormal = mul( normal, TBN );
+float fresnel = 1 - abs( dot( outNormal, normalize(viewPos) ) );
+outSpecularColor = float3( 1, 1, 1 ) * ( fresnel );
+outOpacity = diff.a * ( fresnel * 0.5 + 0.5 );
+outSpecularPower = 64;
+outDistortion = outNormal.xy / viewPos.z;

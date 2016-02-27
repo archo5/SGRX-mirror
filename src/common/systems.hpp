@@ -299,13 +299,15 @@ EXP_STRUCT LevelCoreSystem : IGameLevelSystem
 };
 
 
-EXP_STRUCT GFXSystem : IGameLevelSystem
+EXP_STRUCT GFXSystem : IGameLevelSystem, SGRX_RenderDirector
 {
 	enum { e_system_uid = 15 };
 	
 	GFW_EXPORT GFXSystem( GameLevel* lev );
 	GFW_EXPORT void OnAddEntity( Entity* ent );
 	GFW_EXPORT void OnRemoveEntity( Entity* ent );
+	
+	GFW_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
 	
 	Array< Entity* > m_reflectPlanes;
 };

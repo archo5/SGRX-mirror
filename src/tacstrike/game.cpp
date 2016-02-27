@@ -291,6 +291,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		AddSystemToLevel<ObjectiveSystem>( level );
 		AddSystemToLevel<FlareSystem>( level );
 		AddSystemToLevel<LevelCoreSystem>( level );
+		AddSystemToLevel<GFXSystem>( level );
 		AddSystemToLevel<ScriptedSequenceSystem>( level );
 		AddSystemToLevel<MusicSystem>( level );
 		AddSystemToLevel<DamageSystem>( level );

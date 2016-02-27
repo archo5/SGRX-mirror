@@ -886,6 +886,7 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 	if( m_curMode == SGRX_RDMode_Unlit )
 	{
 		int unlit_pass_id = scene->FindPass( SGRX_FP_Base | SGRX_FP_NoPoint | SGRX_FP_NoSpot, ":MOD_UNLIT" );
+		
 		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Solid );
 		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Decal );
 		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Transparent );
@@ -893,12 +894,17 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 	else
 	{
 		int base_pass_id = scene->FindPass( SGRX_FP_Base );
+		int point_pass_id = scene->FindPass( SGRX_FP_Point );
 		int spot_pass_id = scene->FindPass( SGRX_FP_Spot );
+		
 		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Solid );
+		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Solid );
 		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Solid );
 		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Decal );
+		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Decal );
 		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Decal );
 		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Transparent );
+		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Transparent );
 		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Transparent );
 	}
 	
@@ -1508,6 +1514,9 @@ void GR_RenderScene( SGRX_RenderScene& info )
 	info.scene->m_timevals = info.timevals;
 	g_Renderer->_RS_PreProcess( info.scene );
 	info.scene->director->OnDrawScene( g_Renderer, info );
+	
+	for( size_t i = 0; i < SGRX_MAX_TEXTURES; ++i )
+		g_Renderer->m_overrideTextures[ i ] = NULL;
 }
 
 RenderStats& GR_GetRenderStats()
