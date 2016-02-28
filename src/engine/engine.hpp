@@ -355,22 +355,6 @@ ENGINE_EXPORT Vec2 Game_GetCursorPosNormalized();
 ENGINE_EXPORT void Game_SetCursorPos( int x, int y );
 ENGINE_EXPORT void Game_ShowCursor( bool show );
 
-
-struct ENGINE_EXPORT IScreen
-{
-	virtual ~IScreen(){}
-	virtual void OnStart(){}
-	virtual void OnEnd(){}
-	virtual bool OnEvent( const Event& e ) = 0; // return value - whether event is inhibited
-	virtual bool Draw( float delta ) = 0; // return value - whether to remove
-};
-
-ENGINE_EXPORT bool Game_HasOverlayScreens();
-ENGINE_EXPORT bool Game_HasOverlayScreen( IScreen* screen );
-ENGINE_EXPORT void Game_AddOverlayScreen( IScreen* screen );
-ENGINE_EXPORT void Game_RemoveOverlayScreen( IScreen* screen );
-ENGINE_EXPORT void Game_RemoveAllOverlayScreens();
-
 ENGINE_EXPORT void Game_End();
 
 

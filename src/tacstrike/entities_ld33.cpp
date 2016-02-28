@@ -221,7 +221,6 @@ void LD33Player::DrawUI()
 
 
 
-#define TSGAME_NO_PLAYER
 #include "entities_ts.cpp"
 
 

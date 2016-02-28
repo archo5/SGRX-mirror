@@ -110,7 +110,6 @@ static Vec2 g_CursorPos = {0,0};
 static Vec2 g_CursorScale = {0,0};
 static EventLinksByID g_EventLinksByID;
 static EventLinksByHandler g_EventLinksByHandler;
-static Array< IScreen* > g_OverlayScreens;
 static Array< FileSysHandle > g_FileSystems;
 
 static RenderSettings g_RenderSettings = { 0, 1280, 720, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
@@ -579,63 +578,9 @@ void Game_ShowCursor( bool show )
 }
 
 
-bool Game_HasOverlayScreens()
-{
-	return g_OverlayScreens.size() != 0;
-}
-
-bool Game_HasOverlayScreen( IScreen* screen )
-{
-	return g_OverlayScreens.has( screen );
-}
-
-void Game_AddOverlayScreen( IScreen* screen )
-{
-	LOG_FUNCTION;
-	g_OverlayScreens.push_back( screen );
-	screen->OnStart();
-}
-
-void Game_RemoveOverlayScreen( IScreen* screen )
-{
-	LOG_FUNCTION;
-	if( g_OverlayScreens.has( screen ) )
-	{
-		screen->OnEnd();
-		g_OverlayScreens.remove_all( screen );
-	}
-}
-
-void Game_RemoveAllOverlayScreens()
-{
-	LOG_FUNCTION;
-	while( g_OverlayScreens.size() )
-	{
-		Game_RemoveOverlayScreen( g_OverlayScreens.last() );
-	}
-}
-
-static void process_overlay_screens( float dt )
-{
-	LOG_FUNCTION;
-	for( size_t i = 0; i < g_OverlayScreens.size(); ++i )
-	{
-		IScreen* scr = g_OverlayScreens[ i ];
-		if( scr->Draw( dt ) )
-		{
-			g_OverlayScreens.erase( i-- );
-			if( !g_OverlayScreens.has( scr ) )
-				scr->OnEnd();
-		}
-	}
-}
-
-
 void Game_OnEvent( const Event& e )
 {
 	LOG_FUNCTION;
-	
-	Game_FireEvent( EID_WindowEvent, EventData( (void*) &e ) );
 	
 	if( e.type == SDL_WINDOWEVENT )
 	{
@@ -661,16 +606,6 @@ void Game_OnEvent( const Event& e )
 	{
 		g_CursorPos.x = e.motion.x;
 		g_CursorPos.y = e.motion.y;
-	}
-	
-	g_Game->OnEvent( e );
-	
-	for( size_t i = g_OverlayScreens.size(); i > 0; )
-	{
-		i--;
-		IScreen* screen = g_OverlayScreens[ i ];
-		if( screen->OnEvent( e ) )
-			return; // event inhibited
 	}
 	
 	if( e.type == SDL_CONTROLLERBUTTONDOWN || e.type == SDL_CONTROLLERBUTTONUP )
@@ -706,6 +641,10 @@ void Game_OnEvent( const Event& e )
 				cmd->_SetState( e.button.state );
 		}
 	}
+	
+	g_Game->OnEvent( e );
+	
+	Game_FireEvent( EID_WindowEvent, EventData( (void*) &e ) );
 }
 
 static void renderer_clear_rts()
@@ -725,8 +664,6 @@ void Game_Process( float dt )
 	}
 	
 	g_Game->OnTick( dt, g_GameTime );
-	
-	process_overlay_screens( dt );
 	
 	g_BatchRenderer->Flush();
 	
@@ -2011,7 +1948,6 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	g_Game->OnDestroy();
 	g_Game = NULL;
-	Game_RemoveAllOverlayScreens();
 	
 	free_graphics();
 	

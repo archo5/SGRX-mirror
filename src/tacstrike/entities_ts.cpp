@@ -82,7 +82,7 @@ void TSCamera::FixedTick( float deltaTime )
 	{
 		Vec3 ppos = V3(0);
 #ifdef TSGAME
-		ppos = static_cast<TSCharacter*>(m_level->m_player)->GetPosition();
+		ppos = static_cast<TSCharacter*>(m_level->m_player)->GetWorldPosition();
 #endif
 		Mat4 viewmtx, originmtx, invviewmtx = Mat4::Identity, invoriginmtx = Mat4::Identity;
 		m_animChar.GetAttachmentMatrix( 0, viewmtx );
@@ -227,7 +227,8 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	m_ivPos( V3(0) ), m_ivAimDir( V3(1,0,0) ),
 	m_position( V3(0) ), m_moveDir( V2(0) ), m_turnAngle( 0 ),
 	m_aimDir( YP(V3(1,0,0)) ), m_aimDist( 1 ),
-	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 )
+	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 ),
+	m_skipTransformUpdate( false )
 {
 	typeOverride = "*human*";
 	
@@ -285,6 +286,15 @@ TSCharacter::~TSCharacter()
 {
 }
 
+void TSCharacter::OnTransformUpdate()
+{
+	if( m_skipTransformUpdate )
+		return;
+	Vec3 pos = GetWorldPosition();
+	m_bodyHandle->SetPosition( pos );
+	m_ivPos.Set( pos );
+}
+
 void TSCharacter::SetPlayerMode( bool isPlayer )
 {
 	if( isPlayer )
@@ -326,7 +336,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	float aimspeed = GetInputV2( ACT_Chr_AimAt ).y;
 	if( GetInputB( ACT_Chr_AimAt ) )
 	{
-		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetPosition();
+		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetWorldPosition();
 	}
 	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
 	m_aimDist = aimdir.Length();
@@ -367,7 +377,7 @@ void TSCharacter::FixedTick( float deltaTime )
 				m_anMainPlayer.Play( GR_GetAnim( "stand_with_gun_up" ), false, 0.2f );
 			
 			m_bodyHandle->SetLinearVelocity( V3(0) );
-			if( ( m_actState.info.placePos - GetPosition() ).ToVec2().Length() < 0.1f )
+			if( ( m_actState.info.placePos - GetWorldPosition() ).ToVec2().Length() < 0.1f )
 			{
 				m_actState.timeoutMoveToStart = 0;
 			}
@@ -431,7 +441,7 @@ void TSCharacter::FixedTick( float deltaTime )
 		
 		const char* animname = anim_run_fw;
 		Vec2 md = i_move.Normalized();
-		if( Vec2Dot( md, GetAimDir().ToVec2() ) < 0 )
+		if( Vec2Dot( md, GetAimDir_FT().ToVec2() ) < 0 )
 		{
 			md = -md;
 			animname = anim_run_bw;
@@ -493,7 +503,9 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	m_level->LightMesh( MI, V3(0,0,m_isCrouching ? 0.6f : 1) );
 	
 	m_animChar.PreRender( blendFactor );
-	m_interpPos = m_ivPos.Get( blendFactor );
+	m_skipTransformUpdate = true;
+	SetWorldPosition( m_ivPos.Get( blendFactor ) );
+	m_skipTransformUpdate = false;
 	m_interpAimDir = m_ivAimDir.Get( blendFactor );
 	
 	
@@ -537,7 +549,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootLT->UpdateTransform();
 		m_shootLT->enabled = true;
 		m_shootTimeout += 0.1f;
-		m_level->GetSystem<AIDBSystem>()->AddSound( GetInterpPos(), 10, 0.2f, AIS_Shot );
+		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 10, 0.2f, AIS_Shot );
 		
 		Mat4 inv = Mat4::Identity;
 		m_animChar.m_cachedMeshInst->matrix.InvertTo( inv );
@@ -667,9 +679,9 @@ void TSCharacter::TurnTo( const Vec2& turnDir, float speedDelta )
 
 void TSCharacter::PushTo( const Vec3& pos, float speedDelta )
 {
-	Vec2 diff = pos.ToVec2() - GetPosition().ToVec2();
+	Vec2 diff = pos.ToVec2() - GetWorldPosition().ToVec2();
 	diff = diff.Normalized() * TMIN( speedDelta, diff.Length() );
-	m_bodyHandle->SetPosition( GetPosition() + V3( diff.x, diff.y, 0 ) );
+	m_bodyHandle->SetPosition( GetWorldPosition() + V3( diff.x, diff.y, 0 ) );
 }
 
 void TSCharacter::BeginClosestAction( float maxdist )
@@ -677,7 +689,7 @@ void TSCharacter::BeginClosestAction( float maxdist )
 	if( IsInAction() )
 		return;
 	
-	Vec3 QP = GetQueryPosition();
+	Vec3 QP = GetQueryPosition_FT();
 	EntityGather iact_gather;
 	m_level->QuerySphere( &iact_gather, IEST_InteractiveItem, QP, 5 );
 	if( iact_gather.items.size() )
@@ -694,7 +706,7 @@ bool TSCharacter::BeginAction( Entity* E )
 		return false;
 	
 	IInteractiveEntity* IE = E->GetInterface<IInteractiveEntity>();
-	if( IE == NULL || IE->GetInteractionInfo( GetQueryPosition(), &m_actState.info ) == false )
+	if( IE == NULL || IE->GetInteractionInfo( GetQueryPosition_FT(), &m_actState.info ) == false )
 		return false;
 	
 	m_actState.timeoutMoveToStart = 1;
@@ -756,18 +768,6 @@ void TSCharacter::Reset()
 	m_bodyHandle->SetEnabled( true );
 }
 
-Vec3 TSCharacter::GetPosition()
-{
-	return m_bodyHandle->GetPosition();
-}
-
-void TSCharacter::SetPosition( Vec3 pos )
-{
-	m_bodyHandle->SetPosition( pos );
-	m_ivPos.Advance( pos );
-	m_ivPos.Advance( pos );
-}
-
 void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 {
 	if( evid == MIEVT_BulletHit )
@@ -815,21 +815,6 @@ void TSCharacter::Hit( float pwr )
 	}
 }
 
-Vec3 TSCharacter::GetQueryPosition()
-{
-	return GetPosition() + V3(0,0,0.5f);
-}
-
-Vec3 TSCharacter::GetViewDir()
-{
-	return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 );
-}
-
-Vec3 TSCharacter::GetAimDir()
-{
-	return m_aimDir.ToVec3();
-}
-
 Mat4 TSCharacter::GetBulletOutputMatrix()
 {
 	Mat4 out = m_animChar.m_cachedMeshInst->matrix;
@@ -842,16 +827,6 @@ Mat4 TSCharacter::GetBulletOutputMatrix()
 		}
 	}
 	return out;
-}
-
-Vec3 TSCharacter::GetInterpPos()
-{
-	return m_interpPos + V3(0,0,1);
-}
-
-Vec3 TSCharacter::GetInterpAimDir()
-{
-	return m_interpAimDir;
 }
 
 Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
@@ -977,9 +952,6 @@ bool TSAimHelper::ProcessEntity( Entity* E )
 
 
 
-#ifndef TSGAME_NO_PLAYER
-
-
 TSPlayerController::TSPlayerController( GameLevel* lev ) :
 	m_aimHelper( lev ), i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
 {
@@ -987,6 +959,14 @@ TSPlayerController::TSPlayerController( GameLevel* lev ) :
 
 void TSPlayerController::Tick( float deltaTime, float blendFactor )
 {
+	if( m_entity && ENTITY_IS_A( m_entity, TSCharacter ) )
+	{
+		SGRX_CAST( TSCharacter*, P, m_entity );
+		Vec3 pos = P->GetWorldPosition();
+		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+		m_aimHelper.Tick( deltaTime, pos, CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
+	}
+	
 	i_move = V2
 	(
 		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
@@ -1035,8 +1015,6 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 	SGS_CREATECLASS( C, NULL, TSPlayerController, ( lev ) );
 	return sgsVariable( C, sgsVariable::PickAndPop );
 }
-
-#endif
 
 
 
@@ -1174,7 +1152,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	TSEC_FindChar fchr;
 	{
 		fchr.type = FT_Position_Friend;
-		fchr.pos = m_char->GetPosition();
+		fchr.pos = m_char->GetPosition_FT();
 		fchr.speed = 10;
 		fchr.curTime = curTime;
 	}
@@ -1183,7 +1161,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	// - sounds
 	for( int i = 0; i < m_aidb->GetNumSounds(); ++i )
 	{
-		if( m_aidb->CanHearSound( m_char->GetPosition(), i ) == false )
+		if( m_aidb->CanHearSound( m_char->GetPosition_FT(), i ) == false )
 			continue;
 		AISound S = m_aidb->GetSoundInfo( i );
 		
@@ -1216,7 +1194,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	evp.curtime = curTime;
 	evp.enemy = this;
 	uint32_t qmask = ( m_inPlayerTeam ? IEST_Target : IEST_Player ) | IEST_AIAlert;
-	m_level->QuerySphere( &evp, qmask, m_char->GetPosition(), 10.0f );
+	m_level->QuerySphere( &evp, qmask, m_char->GetPosition_FT(), 10.0f );
 	
 	// tick ESO
 	{
@@ -1246,8 +1224,8 @@ void TSEnemyController::Tick( float deltaTime, float blendFactor )
 			MapItemInfo mii = {0};
 			
 			mii.type = MI_Object_Enemy | MI_State_Normal;
-			mii.position = m_char->GetInterpPos();
-			mii.direction = m_char->GetInterpAimDir();
+			mii.position = m_char->GetWorldPosition();
+			mii.direction = m_char->GetAimDir();
 			mii.sizeFwd = 10;
 			mii.sizeRight = 8;
 			
@@ -1288,7 +1266,7 @@ void TSEnemyController::DebugDrawWorld()
 	if( gcv_dbg_aifacts.value )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
-		Vec3 pos = m_char->GetPosition();
+		Vec3 pos = m_char->GetWorldPosition();
 		
 		m_factStorage.SortCreatedDesc();
 		
@@ -1307,7 +1285,7 @@ void TSEnemyController::DebugDrawUI()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	Vec3 pos = m_char->GetPosition();
+	Vec3 pos = m_char->GetWorldPosition();
 	bool infront;
 	Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
 	if( !infront )
@@ -1390,8 +1368,8 @@ void TSEnemyController::DebugDrawUI()
 
 bool TSEnemyController::CanSeePoint( Vec3 pt )
 {
-	Vec3 vieworigin = m_char->GetPosition();
-	Vec3 viewdir = m_char->GetAimDir();
+	Vec3 vieworigin = m_char->GetPosition_FT();
+	Vec3 viewdir = m_char->GetAimDir_FT();
 	Vec3 view2pos = pt - vieworigin;
 	
 	// check immediate proximity
@@ -1414,8 +1392,8 @@ bool TSEnemyController::CanSeePoint( Vec3 pt )
 
 bool TSEnemyController::LookingAtPoint( Vec3 pt )
 {
-	Vec3 vieworigin = m_char->GetPosition();
-	Vec3 viewdir = m_char->GetAimDir();
+	Vec3 vieworigin = m_char->GetPosition_FT();
+	Vec3 viewdir = m_char->GetAimDir_FT();
 	Vec3 view2pos = pt - vieworigin;
 	
 	// increase vertical FOV
@@ -1495,7 +1473,7 @@ bool TSEnemyController::sgsIsWalkable( Vec3 pos, Vec3 ext )
 
 bool TSEnemyController::sgsFindPath( const Vec3& to )
 {
-	m_aidb->m_pathfinder.FindPath( m_char->GetPosition(), to, m_path );
+	m_aidb->m_pathfinder.FindPath( m_char->GetPosition_FT(), to, m_path );
 	return m_path.size();
 }
 
@@ -1576,19 +1554,6 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 Entity* TSGameSystem::AddEntity( StringView type )
 {
 #if 0
-#ifndef TSGAME_NO_PLAYER
-	///////////////////////////
-	if( type == "player" )
-	{
-		TSCharacter* P = new TSCharacter( m_level );
-		P->SetPlayerMode( true );
-		P->InitializeMesh( "chars/tstest.chr" );
-		P->ctrl = &m_playerCtrl;
-		m_level->SetPlayer( P );
-		return P;
-	}
-#endif
-	
 	///////////////////////////
 	if( type == "camera" )
 	{
@@ -1625,35 +1590,16 @@ Entity* TSGameSystem::AddEntity( StringView type )
 
 void TSGameSystem::Tick( float deltaTime, float blendFactor )
 {
-#ifndef TSGAME_NO_PLAYER
 	SGRX_CAST( TSCharacter*, P, m_level->m_player );
 	if( P && !m_level->IsPaused() )
 	{
-		// camera
-		TSAimHelper& AH = *(TSAimHelper*)NULL; // m_playerCtrl.m_aimHelper;
-		Vec3 pos = P->GetInterpPos();
-		float bmsz = ( GR_GetWidth() + GR_GetHeight() );// * 0.5f;
-		Vec2 cursor_pos = CURSOR_POS;
-		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-		Vec2 player_pos = m_level->GetScene()->camera.WorldToScreen( pos ).ToVec2() * screen_size;
-		Vec2 diff = ( cursor_pos - player_pos ) / bmsz;
-		AH.Tick( deltaTime, pos, CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
-		Vec3 camtgt = TLERP( pos, AH.m_aimPoint, 0.1f * smoothstep( AH.m_aimFactor ) );
-		
-		SGRX_Camera& CAM = m_level->GetScene()->camera;
-		CAM.znear = 0.1f;
-		CAM.angle = 90;
-		CAM.updir = V3(0,-1,0);
-		CAM.direction = V3(-diff.x,diff.y,-5);
-		CAM.position = camtgt + V3(-diff.x,diff.y,0) * 2 + V3(0,0,1) * 6;
-		CAM.UpdateMatrices();
-		
+#if 0
 		// map
 		MapItemInfo mymapitem = { MI_Object_Player, pos, V3(0), 0, 0 };
 		m_level->GetSystem<LevelMapSystem>()->UpdateItem( P, mymapitem );
 		m_level->GetSystem<LevelMapSystem>()->m_viewPos = pos.ToVec2();
-	}
 #endif
+	}
 }
 
 

@@ -197,7 +197,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 {
 	LOG_FUNCTION;
 	
-	m_scriptCtx.RegisterInputAPI();
+	m_scriptCtx.RegisterEngineCoreAPI();
 	m_scriptCtx.RegisterBatchRenderer();
 	GFWRegisterCore( m_scriptCtx.C );
 	

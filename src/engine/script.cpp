@@ -90,6 +90,13 @@ static void sgrx_math_lib( SGS_CTX )
 }
 
 
+static int sgsGame_GetScreenSize( SGS_CTX )
+{
+	SGSFN( "Game_GetScreenSize" );
+	sgs_PushVar( C, Game_GetScreenSize() );
+	return 1;
+}
+
 static int Input_GetValue( SGS_CTX )
 {
 	char* str = NULL;
@@ -145,8 +152,9 @@ static int Input_GetCursorPos( SGS_CTX )
 	return 1;
 }
 
-static sgs_RegFuncConst g_input_rfc[] =
+static sgs_RegFuncConst g_engine_rfc[] =
 {
+	{ "Game_GetScreenSize", sgsGame_GetScreenSize },
 	{ "Input_GetValue", Input_GetValue },
 	{ "Input_GetState", Input_GetState },
 	{ "Input_GetPressed", Input_GetPressed },
@@ -297,9 +305,9 @@ void ScriptContext::Reset()
 	sgs_SetScriptFSFunc( C, sgs_scriptfs_sgrx, NULL );
 }
 
-void ScriptContext::RegisterInputAPI()
+void ScriptContext::RegisterEngineCoreAPI()
 {
-	sgs_RegFuncConsts( C, g_input_rfc, -1 );
+	sgs_RegFuncConsts( C, g_engine_rfc, -1 );
 }
 
 void ScriptContext::RegisterBatchRenderer()

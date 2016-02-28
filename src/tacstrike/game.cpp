@@ -414,6 +414,8 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		CURSOR_POS += cursor_dt;
 		CURSOR_POS.x = clamp( CURSOR_POS.x, 0, GR_GetWidth() );
 		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
+		m_level->GetScriptCtx().SetGlobal( "CURSOR_POS",
+			m_level->GetScriptCtx().CreateVec2( CURSOR_POS ) );
 		
 		BaseGame::OnTick( dt, gametime );
 	}

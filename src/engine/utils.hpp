@@ -265,6 +265,7 @@ template< class T > struct IVState
 	FINLINE IVState() : prev(DefaultValue<T>()), curr(DefaultValue<T>()) {}
 	FINLINE IVState( const T& start ) : prev(start), curr(start) {}
 	FINLINE void Advance( const T& next ){ prev = curr; curr = next; }
+	FINLINE void Set( const T& val ){ prev = val; curr = val; }
 	FINLINE T Get( float q ){ return TLERP( prev, curr, q ); }
 	
 	T prev;

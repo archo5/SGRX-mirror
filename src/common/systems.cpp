@@ -854,7 +854,7 @@ void ScriptedSequenceSystem::DrawUI()
 	int size_y = GR_GetHeight();
 	int sqr = TMIN( size_x, size_y );
 	
-	if( m_func.not_null() && Game_HasOverlayScreens() == false )
+	if( m_func.not_null() )
 	{
 		GR2D_SetFont( "core", sqr / 40 );
 		GR2D_SetColor( 1, 1 );

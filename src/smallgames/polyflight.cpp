@@ -14,65 +14,6 @@ InputState SHOOT( "shoot" );
 InputState DASH( "dash" );
 
 
-
-struct SplashScreen : IScreen
-{
-	float m_timer;
-	TextureHandle m_tx_crage;
-	TextureHandle m_tx_back;
-	
-	SplashScreen() : m_timer(0)
-	{
-	}
-	
-	void OnStart()
-	{
-		m_timer = 0;
-		m_tx_crage = GR_GetTexture( "ui/crage_logo.png" );
-		m_tx_back = GR_GetTexture( "ui/flare_bg.png" );
-	}
-	void OnEnd()
-	{
-		m_tx_crage = NULL;
-		m_tx_back = NULL;
-	}
-	
-	bool OnEvent( const Event& e )
-	{
-		if( m_timer > 0.5 && ( e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN ) )
-		{
-			m_timer = 5;
-		}
-		return true;
-	}
-	bool Draw( float delta )
-	{
-		m_timer += delta;
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		br.UnsetTexture()
-			.Col( 0, 1 )
-			.Quad( 0, 0, GR_GetWidth(), GR_GetHeight() );
-		
-		float vis_crage = smoothlerp_range( m_timer, 0, 1, 3, 5 );
-		if( vis_crage )
-		{
-			// background
-			float maxw = TMAX( GR_GetWidth(), GR_GetHeight() ) + 50;
-			br.SetTexture( m_tx_back ).Col( 1, vis_crage ).QuadWH( 0, -m_timer * 10, maxw, maxw );
-			
-			// logo
-			const TextureInfo& texinfo = m_tx_crage.GetInfo();
-			float scale = GR_GetWidth() / 1024.0f;
-			br.SetTexture( m_tx_crage ).Box( GR_GetWidth() / 2.0f, GR_GetHeight() / 2.1f, texinfo.width * scale, texinfo.height * scale );
-		}
-		
-		return m_timer > 5;
-	}
-}
-g_SplashScreen;
-
-
 struct GameLevel
 {
 	struct Rock
@@ -193,7 +134,6 @@ struct PolyFlightGame : IGame
 		Game_BindKeyToAction( SDLK_z, &SHOOT );
 		Game_BindKeyToAction( SDLK_x, &DASH );
 		
-	//	Game_AddOverlayScreen( &g_SplashScreen );
 		g_GameLevel = new GameLevel;
 		
 		return true;

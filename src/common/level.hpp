@@ -56,21 +56,6 @@ EXP_STRUCT LevelScrObj : SGRX_RefCounted
 };
 
 
-EXP_STRUCT IActorController
-{
-	SGS_OBJECT;
-	
-	virtual ~IActorController(){}
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
-	virtual SGS_METHOD Vec3 GetInput( uint32_t iid ){ return V3(0); }
-	virtual SGS_METHOD void Reset(){}
-	virtual void DebugDrawWorld(){}
-	virtual void DebugDrawUI(){}
-};
-typedef sgsHandle< IActorController > ActorCtrlScrHandle;
-
-
 EXP_STRUCT Transform
 {
 	Transform() :
@@ -181,6 +166,7 @@ EXP_STRUCT Transform
 	FINLINE Quat GetWorldRotation() const { TF_ONREAD; return _worldMatrix.GetRotationQuaternion(); }
 	FINLINE Vec3 GetWorldRotationXYZ() const { TF_ONREAD; return RAD2DEG( _worldMatrix.GetRotationQuaternion().ToXYZ() ); }
 	FINLINE Vec3 GetWorldScale() const { TF_ONREAD; return _worldMatrix.GetScale(); }
+	void SetWorldPosition( Vec3 v ){ _localPosition += _GetInvParentMtx().TransformPos( v - GetWorldPosition() ); OnEdit(); }
 	FINLINE Mat4 GetWorldMatrix() const { TF_ONREAD; return _worldMatrix; }
 	void SetWorldMatrix( Mat4 mtx ){ SetLocalMatrix( mtx * _GetInvParentMtx() ); }
 	
@@ -222,7 +208,7 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
 	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
 	
-	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetLocalPosition ) SGS_ALIAS( Vec3 position );
+	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetWorldPosition ) SGS_ALIAS( Vec3 position );
 	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat rotation );
 	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 rotationXYZ );
 	SGS_PROPERTY_FUNC( READ GetWorldScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 scale );
@@ -297,12 +283,32 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 };
 
 
+EXP_STRUCT IActorController
+{
+	SGS_OBJECT;
+	
+	FINLINE IActorController() : m_entity(NULL){}
+	virtual ~IActorController(){}
+	virtual void FixedTick( float deltaTime ){}
+	virtual void Tick( float deltaTime, float blendFactor ){}
+	virtual SGS_METHOD Vec3 GetInput( uint32_t iid ){ return V3(0); }
+	virtual SGS_METHOD void Reset(){}
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
+	
+	struct Entity* m_entity;
+	SGS_PROPERTY_FUNC( READ VARNAME entity ) SGS_ALIAS( EntityScrHandle m_entity );
+};
+typedef sgsHandle< IActorController > ActorCtrlScrHandle;
+
+
 EXP_STRUCT Actor : Entity
 {
 	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	
 	Actor( GameLevel* lev ) : Entity( lev ){}
+	~Actor(){ if( ctrl.not_null() ) ctrl->m_entity = NULL; }
 	FINLINE SGS_METHOD Vec3 GetInputV3( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ) : V3(0); }
 	FINLINE SGS_METHOD Vec2 GetInputV2( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).ToVec2() : V2(0); }
 	FINLINE SGS_METHOD float GetInputF( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x : 0; }
@@ -310,11 +316,13 @@ EXP_STRUCT Actor : Entity
 	
 	virtual void FixedTick( float deltaTime )
 	{
+		Entity::FixedTick( deltaTime );
 		if( ctrl )
 			ctrl->FixedTick( deltaTime );
 	}
 	virtual void Tick( float deltaTime, float blendFactor )
 	{
+		Entity::Tick( deltaTime, blendFactor );
 		if( ctrl )
 			ctrl->Tick( deltaTime, blendFactor );
 	}
@@ -331,11 +339,16 @@ EXP_STRUCT Actor : Entity
 	
 	virtual SGS_METHOD bool IsAlive(){ return true; }
 	virtual SGS_METHOD void Reset(){} // make alive again
-	virtual Vec3 GetPosition(){ return V3(0); }
-	virtual void SetPosition( Vec3 pos ){} // teleport to this place
 	
-	SGS_PROPERTY ActorCtrlScrHandle ctrl;
-	SGS_PROPERTY_FUNC( READ GetPosition WRITE SetPosition ) SGS_ALIAS( Vec3 position );
+	FINLINE void sgsSetCtrl( ActorCtrlScrHandle nc )
+	{
+		if( ctrl && ctrl->m_entity == this )
+			ctrl->m_entity = NULL;
+		ctrl = nc;
+		if( nc )
+			nc->m_entity = this;
+	}
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetCtrl ) ActorCtrlScrHandle ctrl;
 };
 
 
@@ -533,6 +546,14 @@ EXP_STRUCT GameLevel :
 	
 	SGS_METHOD TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
 	SGS_METHOD TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
+	
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.position ) SGS_ALIAS( Vec3 cameraPosition );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.direction ) SGS_ALIAS( Vec3 cameraDirection );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.updir ) SGS_ALIAS( Vec3 cameraUpdir );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.znear ) SGS_ALIAS( float cameraZNear );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.zfar ) SGS_ALIAS( float cameraZFar );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.angle ) SGS_ALIAS( float cameraAngle );
+	SGS_METHOD void UpdateCameraMatrices(){ GetScene()->camera.UpdateMatrices(); }
 	
 	// Editor
 	void GetEditorCompilers( Array< IEditorSystemCompiler* >& out );

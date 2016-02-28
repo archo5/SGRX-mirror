@@ -82,7 +82,7 @@ struct ScriptContext
 	SCRIPT_EXPORT ~ScriptContext();
 	
 	SCRIPT_EXPORT void Reset();
-	SCRIPT_EXPORT void RegisterInputAPI();
+	SCRIPT_EXPORT void RegisterEngineCoreAPI();
 	SCRIPT_EXPORT void RegisterBatchRenderer();
 	
 	SCRIPT_EXPORT bool EvalFile( const StringView& path, sgsVariable* outvar = NULL );

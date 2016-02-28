@@ -98,6 +98,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	
 	TSCharacter( GameLevel* lev );
 	~TSCharacter();
+	virtual void OnTransformUpdate();
 	SGS_METHOD void SetPlayerMode( bool isPlayer );
 	SGS_METHOD void InitializeMesh( const StringView& path );
 	void ProcessAnims( float deltaTime );
@@ -118,20 +119,19 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	
 	virtual bool IsAlive(){ return m_health > 0; }
 	virtual void Reset();
-	Vec3 GetPosition();
-	void SetPosition( Vec3 pos );
 	
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	void Hit( float pwr );
 	virtual void OnDeath();
 	
-	SGS_METHOD Vec3 GetQueryPosition();
-	SGS_METHOD Vec3 GetViewDir();
-	SGS_METHOD Vec3 GetAimDir();
+	SGS_METHOD Vec3 GetQueryPosition_FT(){ return GetPosition_FT() + V3(0,0,0.5f); }
+	SGS_METHOD Vec3 GetPosition_FT(){ return m_bodyHandle->GetPosition(); }
+	SGS_METHOD Vec3 GetViewDir_FT(){ return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 ); }
+	SGS_METHOD Vec3 GetAimDir_FT(){ return m_aimDir.ToVec3(); }
 	Mat4 GetBulletOutputMatrix();
 	
-	Vec3 GetInterpPos();
-	Vec3 GetInterpAimDir();
+	SGS_METHOD Vec3 GetQueryPosition(){ return GetWorldPosition() + V3(0,0,0.5f); }
+	SGS_METHOD Vec3 GetAimDir(){ return m_interpAimDir; }
 	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
@@ -167,6 +167,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	LightHandle m_shootLT;
 	float m_shootTimeout;
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
+	bool m_skipTransformUpdate;
 	
 	SGS_METHOD_NAMED( GetAttachmentPos ) Vec3 sgsGetAttachmentPos( StringView atch, Vec3 off );
 };
@@ -197,8 +198,6 @@ struct TSAimHelper : EntityProcessor
 };
 
 
-#ifndef TSGAME_NO_PLAYER
-
 struct TSPlayerController : IActorController
 {
 	SGS_OBJECT_INHERIT( IActorController );
@@ -222,8 +221,6 @@ struct TSPlayerController : IActorController
 	
 	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
-
-#endif
 
 
 struct TSEnemyController : IActorController
