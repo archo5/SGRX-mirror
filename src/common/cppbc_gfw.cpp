@@ -1358,6 +1358,90 @@ static sgs_ObjInterface GameLevel__sgs_interface =
 _sgsInterface GameLevel::_sgs_interface(GameLevel__sgs_interface, GameLevel__sgs_ifn);
 
 
+static int _sgs_method__LevelMapSystem__Remove( SGS_CTX )
+{
+	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Remove ) ) return 0;
+	data->RemoveItem( sgs_GetVarObj<Entity>()(C,0) ); return 0;
+}
+
+static int _sgs_method__LevelMapSystem__DrawUIRect( SGS_CTX )
+{
+	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, DrawUIRect ) ) return 0;
+	data->DrawUIRect( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
+}
+
+static int _sgs_method__LevelMapSystem__Update( SGS_CTX )
+{
+	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Update ) ) return 0;
+	data->sgsUpdate( sgs_GetVarObj<Entity>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5) ); return 0;
+}
+
+int LevelMapSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<LevelMapSystem*>( obj->data )->~LevelMapSystem();
+	return SGS_SUCCESS;
+}
+
+int LevelMapSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int LevelMapSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "viewPos" ){ sgs_PushVar( C, static_cast<LevelMapSystem*>( obj->data )->viewPos ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int LevelMapSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "viewPos" ){ static_cast<LevelMapSystem*>( obj->data )->viewPos = sgs_GetVar<Vec2>()( C, 1 ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int LevelMapSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 46 ];
+	sprintf( bfr, "LevelMapSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nviewPos = " ); sgs_DumpData( C, static_cast<LevelMapSystem*>( obj->data )->viewPos, depth ).push( C ); }
+		sgs_StringConcat( C, 2 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst LevelMapSystem__sgs_funcs[] =
+{
+	{ "Remove", _sgs_method__LevelMapSystem__Remove },
+	{ "DrawUIRect", _sgs_method__LevelMapSystem__DrawUIRect },
+	{ "Update", _sgs_method__LevelMapSystem__Update },
+	{ NULL, NULL },
+};
+
+static int LevelMapSystem__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		LevelMapSystem__sgs_funcs,
+		-1, "LevelMapSystem." );
+	return 1;
+}
+
+static sgs_ObjInterface LevelMapSystem__sgs_interface =
+{
+	"LevelMapSystem",
+	NULL, LevelMapSystem::_sgs_gcmark, LevelMapSystem::_sgs_getindex, LevelMapSystem::_sgs_setindex, NULL, NULL, LevelMapSystem::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface LevelMapSystem::_sgs_interface(LevelMapSystem__sgs_interface, LevelMapSystem__sgs_ifn);
+
+
 static int _sgs_method__MessagingSystem__Add( SGS_CTX )
 {
 	MessagingSystem* data; if( !SGS_PARSE_METHOD( C, MessagingSystem::_sgs_interface, data, MessagingSystem, Add ) ) return 0;

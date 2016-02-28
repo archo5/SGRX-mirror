@@ -6,15 +6,39 @@
 
 
 
-LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), m_viewPos(V2(0))
+LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), viewPos(V2(0))
 {
+	_InitScriptInterface( this );
+	AddSelfToLevel( "map" );
+	
+	sgs_RegIntConst ric[] =
+	{
+		{ "MI_None", MI_None },
+		{ "MI_Mask_Object", MI_Mask_Object },
+		{ "MI_Mask_State", MI_Mask_State },
+		{ "MI_Object_Player", MI_Object_Player },
+		{ "MI_Object_Enemy", MI_Object_Enemy },
+		{ "MI_Object_Camera", MI_Object_Camera },
+		{ "MI_State_Normal", MI_State_Normal },
+		{ "MI_State_Suspicious", MI_State_Suspicious },
+		{ "MI_State_Alerted", MI_State_Alerted },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
+	
 	m_tex_mapline = GR_GetTexture( "ui/mapline.png" );
-	m_tex_mapframe = GR_GetTexture( "ui/mapframe.png" );
 }
 
 void LevelMapSystem::Clear()
 {
 	m_mapItemData.clear();
+	m_lines.clear();
+	viewPos = V2(0);
+}
+
+void LevelMapSystem::OnRemoveEntity( Entity* e )
+{
+	RemoveItem( e );
 }
 
 bool LevelMapSystem::LoadChunk( const StringView& type, ByteView data )
@@ -44,34 +68,15 @@ void LevelMapSystem::RemoveItem( Entity* e )
 	m_mapItemData.unset( e );
 }
 
-void LevelMapSystem::DrawUI()
+void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float linesize )
 {
-	if( m_level->m_player == NULL )
-		return;
-	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	int size_x = GR_GetWidth();
-	int size_y = GR_GetHeight();
-	int sqr = TMIN( size_x, size_y );
+	float map_aspect = safe_fdiv( x1 - x0, y1 - y0 );
 	
-	int safe_margin = sqr * 1 / 16;
-	int mapsize_x = sqr * 4 / 10;
-	int mapsize_y = sqr * 3 / 10;
-	int msm = 0; // sqr / 100;
-	float map_aspect = mapsize_x / (float) mapsize_y;
-	int x1 = size_x - safe_margin;
-	int x0 = x1 - mapsize_x;
-	int y0 = safe_margin;
-	int y1 = y0 + mapsize_y;
+	br.Reset().Col( 0.2f, 0.4f, 0.8f );
 	
-	br.Reset().Col( 0, 0.5f );
-	br.Quad( x0, y0, x1, y1 );
-	br.Flush();
-	
-	br.Reset().SetTexture( NULL ).Col( 0.2f, 0.4f, 0.8f );
-	
-	Mat4 lookat = Mat4::CreateLookAt( V3( m_viewPos.x, m_viewPos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
+	Mat4 lookat = Mat4::CreateLookAt( V3( viewPos.x, viewPos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
 	GR2D_SetViewMatrix( lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 ) );
 	
 	GR2D_SetScissorRect( x0, y0, x1, y1 );
@@ -147,10 +152,13 @@ void LevelMapSystem::DrawUI()
 	br.Flush();
 	GR2D_UnsetViewport();
 	GR2D_UnsetScissorRect();
-	
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-	
-	br.Reset().SetTexture( m_tex_mapframe ).Quad( x0 - msm, y0 - msm, x1 + msm, y1 + msm ).Flush();
+}
+
+void LevelMapSystem::sgsUpdate( Entity* e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt )
+{
+	MapItemInfo mii = { type, pos, dir, szfwd, szrt };
+	UpdateItem( e, mii );
 }
 
 

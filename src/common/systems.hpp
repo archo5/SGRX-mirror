@@ -98,22 +98,28 @@ struct MapItemInfo
 
 EXP_STRUCT LevelMapSystem : IGameLevelSystem
 {
+	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
+	
 	enum { e_system_uid = 9 };
 	
 	GFW_EXPORT LevelMapSystem( GameLevel* lev );
 	GFW_EXPORT void Clear();
+	GFW_EXPORT void OnRemoveEntity( Entity* e );
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
 	GFW_EXPORT void UpdateItem( Entity* e, const MapItemInfo& data );
-	GFW_EXPORT void RemoveItem( Entity* e );
-	GFW_EXPORT void DrawUI();
+	GFW_EXPORT SGS_METHOD_NAMED( Remove ) void RemoveItem( Entity* e );
 	
-	Vec2 m_viewPos;
+	GFW_EXPORT SGS_METHOD void DrawUIRect( float x0, float y0, float x1, float y1, float linesize );
+	
+	GFW_EXPORT SGS_METHOD_NAMED( Update ) void sgsUpdate( Entity* e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt );
+	
+	SGS_PROPERTY Vec2 viewPos;
 
 	HashTable< Entity*, MapItemInfo > m_mapItemData;
 	Array< Vec2 > m_lines;
 	
 	TextureHandle m_tex_mapline;
-	TextureHandle m_tex_mapframe;
 };
 
 

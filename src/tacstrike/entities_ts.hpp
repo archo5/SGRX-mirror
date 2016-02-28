@@ -182,7 +182,6 @@ struct TSAimHelper : EntityProcessor
 	Vec3 _CalcRCPos( Vec3 pos );
 	
 	GameLevel* m_level;
-	TextureHandle m_tex_cursor;
 	Vec3 m_pos;
 	Vec2 m_cp;
 	void* m_aimPtr;
@@ -292,7 +291,6 @@ struct TSGameSystem : IGameLevelSystem
 	enum { e_system_uid = 1000 };
 	TSGameSystem( GameLevel* lev );
 	virtual Entity* AddEntity( StringView type );
-	virtual void Tick( float deltaTime, float blendFactor );
 };
 
 

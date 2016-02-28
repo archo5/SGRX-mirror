@@ -841,7 +841,6 @@ TSAimHelper::TSAimHelper( GameLevel* lev ) :
 	m_aimPoint(V3(0)), m_rcPoint(V3(0)), m_aimFactor(0), m_pDist(0),
 	m_closestEnt(NULL), m_closestPoint(V3(0))
 {
-	m_tex_cursor = GR_GetTexture( "ui/crosshair.png" );
 }
 
 void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
@@ -962,7 +961,7 @@ void TSPlayerController::Tick( float deltaTime, float blendFactor )
 	if( m_entity && ENTITY_IS_A( m_entity, TSCharacter ) )
 	{
 		SGRX_CAST( TSCharacter*, P, m_entity );
-		Vec3 pos = P->GetWorldPosition();
+		Vec3 pos = P->GetQueryPosition();
 		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 		m_aimHelper.Tick( deltaTime, pos, CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
 	}
@@ -1586,20 +1585,6 @@ Entity* TSGameSystem::AddEntity( StringView type )
 #endif
 	if( type == "TSCharacter" ) return new TSCharacter( m_level );
 	return NULL;
-}
-
-void TSGameSystem::Tick( float deltaTime, float blendFactor )
-{
-	SGRX_CAST( TSCharacter*, P, m_level->m_player );
-	if( P && !m_level->IsPaused() )
-	{
-#if 0
-		// map
-		MapItemInfo mymapitem = { MI_Object_Player, pos, V3(0), 0, 0 };
-		m_level->GetSystem<LevelMapSystem>()->UpdateItem( P, mymapitem );
-		m_level->GetSystem<LevelMapSystem>()->m_viewPos = pos.ToVec2();
-#endif
-	}
 }
 
 
