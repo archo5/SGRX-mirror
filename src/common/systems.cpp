@@ -782,6 +782,9 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
 #define RT_REFL 0xffe0
 	
+	// shortcuts
+	SGRX_Scene* scene = info.scene;
+	
 	int reflW = GR_GetWidth();
 	int reflH = GR_GetHeight();
 	if( info.viewport )
@@ -789,9 +792,16 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		reflW = info.viewport->x1 - info.viewport->x0;
 		reflH = info.viewport->y1 - info.viewport->y0;
 	}
-	SGRX_Scene* scene = info.scene;
 	SGRX_Camera origCamera = scene->camera;
 	SGRX_Viewport* origViewport = info.viewport;
+	
+	// initial actions
+	int shadow_pass_id = scene->FindPass( SGRX_FP_Shadow );
+	if( m_curMode != SGRX_RDMode_Unlit )
+	{
+		ctrl->RenderShadows( scene, shadow_pass_id );
+	}
+	ctrl->SortRenderItems( scene );
 	
 	// RENDER REFLECTIONS
 	TextureHandle rttREFL = GR_GetRenderTarget( reflW, reflH, RT_FORMAT_COLOR_HDR16, RT_REFL );

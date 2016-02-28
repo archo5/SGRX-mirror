@@ -286,6 +286,8 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 EXP_STRUCT IActorController
 {
 	SGS_OBJECT;
+	typedef sgsHandle< IActorController > ScrHandle;
+	sgsVariable GetScriptedObject(){ return ScrHandle( this ).get_variable(); }
 	
 	FINLINE IActorController() : m_entity(NULL){}
 	virtual ~IActorController(){}
@@ -297,7 +299,8 @@ EXP_STRUCT IActorController
 	virtual void DebugDrawUI(){}
 	
 	struct Entity* m_entity;
-	SGS_PROPERTY_FUNC( READ VARNAME entity ) SGS_ALIAS( EntityScrHandle m_entity );
+	sgsVariable sgsGetEntity(){ return m_entity->GetScriptedObject(); }
+	SGS_PROPERTY_FUNC( READ sgsGetEntity VARNAME entity ) SGS_ALIAS( sgsVariable m_entity );
 };
 typedef sgsHandle< IActorController > ActorCtrlScrHandle;
 

@@ -705,6 +705,7 @@ bool TSCharacter::BeginAction( Entity* E )
 	if( !E || IsInAction() )
 		return false;
 	
+#if 0
 	IInteractiveEntity* IE = E->GetInterface<IInteractiveEntity>();
 	if( IE == NULL || IE->GetInteractionInfo( GetQueryPosition_FT(), &m_actState.info ) == false )
 		return false;
@@ -712,6 +713,11 @@ bool TSCharacter::BeginAction( Entity* E )
 	m_actState.timeoutMoveToStart = 1;
 	m_actState.progress = 0;
 	m_actState.target = E;
+	return true;
+#endif
+	
+	sgs_PushVar( C, GetScriptedObject() );
+	E->GetScriptedObject().thiscall( C, "OnInteract", 1 );
 	return true;
 }
 
@@ -832,6 +838,65 @@ Mat4 TSCharacter::GetBulletOutputMatrix()
 Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
 {
 	return m_animChar.GetAttachmentPos( m_animChar.FindAttachment( atch ), off );
+}
+
+
+
+TSScriptedController::TSScriptedController( GameLevel* lev ) : m_level( lev )
+{
+	_data = lev->GetScriptCtx().CreateDict();
+}
+
+void TSScriptedController::FixedTick( float deltaTime )
+{
+	sgsVariable fn_fixedupdate = GetScriptedObject().getprop( "FixedUpdate" );
+	if( fn_fixedupdate.not_null() )
+	{
+		sgs_PushReal( C, deltaTime );
+		GetScriptedObject().thiscall( C, fn_fixedupdate, 1 );
+	}
+}
+
+void TSScriptedController::Tick( float deltaTime, float blendFactor )
+{
+	sgsVariable fn_update = GetScriptedObject().getprop( "Update" );
+	if( fn_update.not_null() )
+	{
+		sgs_PushReal( C, deltaTime );
+		sgs_PushReal( C, blendFactor );
+		GetScriptedObject().thiscall( C, fn_update, 2 );
+	}
+}
+
+Vec3 TSScriptedController::GetInput( uint32_t iid )
+{
+	sgsVariable fn_getinput = GetScriptedObject().getprop( "GetInput" );
+	if( fn_getinput.not_null() )
+	{
+		SGS_SCOPE;
+		sgs_PushInt( C, iid );
+		GetScriptedObject().thiscall( C, fn_getinput, 1, 1 );
+		return sgs_GetVar<Vec3>()( C, -1 );
+	}
+	return V3(0);
+}
+
+void TSScriptedController::Reset()
+{
+	sgsVariable fn_reset = GetScriptedObject().getprop( "Reset" );
+	if( fn_reset.not_null() )
+		GetScriptedObject().thiscall( C, fn_reset );
+}
+
+sgsVariable TSScriptedController::Create( SGS_CTX, GameLevelScrHandle lev )
+{
+	if( !lev )
+	{
+		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
+		return sgsVariable();
+	}
+	SGS_CREATECLASS( C, NULL, TSScriptedController, ( lev ) );
+	return sgsVariable( C, sgsVariable::PickAndPop );
 }
 
 
@@ -1541,6 +1606,8 @@ static sgs_RegIntConst g_ts_ints[] =
 TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	register_tsent_cvars(); // TODO global init?
+	m_level->GetScriptCtx().SetGlobal( "TSScriptedController",
+		sgs_GetClassInterface<TSScriptedController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().SetGlobal( "TSPlayerController",
 		sgs_GetClassInterface<TSPlayerController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().Include( "data/enemy" );

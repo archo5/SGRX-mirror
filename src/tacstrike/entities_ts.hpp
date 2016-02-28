@@ -173,6 +173,26 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 };
 
 
+struct TSScriptedController : IActorController
+{
+	SGS_OBJECT_INHERIT( IActorController );
+	SGS_BACKING_STORE( _data.var );
+	SGS_BACKING_STORE( _backing.var );
+	
+	TSScriptedController( GameLevel* lev );
+	void FixedTick( float deltaTime );
+	void Tick( float deltaTime, float blendFactor );
+	Vec3 GetInput( uint32_t iid );
+	void Reset();
+	
+	SGS_PROPERTY sgsVariable _data;
+	SGS_PROPERTY sgsVariable _backing;
+	SGS_PROPERTY_FUNC( READ VARNAME level ) GameLevel* m_level;
+	
+	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
+};
+
+
 struct TSAimHelper : EntityProcessor
 {
 	TSAimHelper( GameLevel* lev );

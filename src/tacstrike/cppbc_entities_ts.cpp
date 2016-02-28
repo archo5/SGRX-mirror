@@ -399,6 +399,108 @@ static sgs_ObjInterface TSCharacter__sgs_interface =
 _sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, TSCharacter__sgs_ifn, &Actor::_sgs_interface);
 
 
+static int _sgs_method__TSScriptedController__GetInput( SGS_CTX )
+{
+	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, GetInput ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetInput( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSScriptedController__Reset( SGS_CTX )
+{
+	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, Reset ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Reset(  ); return 0;
+}
+
+static int _sgs_method__TSScriptedController__Create( SGS_CTX )
+{
+	SGSFN( "TSScriptedController.Create" );
+	sgs_PushVar(C,TSScriptedController::Create( C, sgs_GetVar<GameLevelScrHandle>()(C,0) )); return 1;
+}
+
+int TSScriptedController::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<TSScriptedController*>( obj->data )->C = C;
+	static_cast<TSScriptedController*>( obj->data )->~TSScriptedController();
+	return SGS_SUCCESS;
+}
+
+int TSScriptedController::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSScriptedController*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int TSScriptedController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSScriptedController*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->sgsGetEntity() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "_backing" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_backing ); return SGS_SUCCESS; }
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->m_level ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<TSScriptedController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+		if( sgs_PushIndex( C, static_cast<TSScriptedController*>( obj->data )->_backing.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int TSScriptedController::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSScriptedController*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<TSScriptedController*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "_backing" ){ static_cast<TSScriptedController*>( obj->data )->_backing = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<TSScriptedController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+		if( sgs_SetIndex( C, static_cast<TSScriptedController*>( obj->data )->_backing.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int TSScriptedController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSScriptedController*>( obj->data )->C, C );
+	char bfr[ 52 ];
+	sprintf( bfr, "TSScriptedController (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->sgsGetEntity(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\n_backing = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_backing, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->m_level, depth ).push( C ); }
+		sgs_StringConcat( C, 8 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst TSScriptedController__sgs_funcs[] =
+{
+	{ "GetInput", _sgs_method__TSScriptedController__GetInput },
+	{ "Reset", _sgs_method__TSScriptedController__Reset },
+	{ "Create", _sgs_method__TSScriptedController__Create },
+	{ NULL, NULL },
+};
+
+static int TSScriptedController__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		TSScriptedController__sgs_funcs,
+		-1, "TSScriptedController." );
+	return 1;
+}
+
+static sgs_ObjInterface TSScriptedController__sgs_interface =
+{
+	"TSScriptedController",
+	TSScriptedController::_sgs_destruct, TSScriptedController::_sgs_gcmark, TSScriptedController::_sgs_getindex, TSScriptedController::_sgs_setindex, NULL, NULL, TSScriptedController::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface TSScriptedController::_sgs_interface(TSScriptedController__sgs_interface, TSScriptedController__sgs_ifn, &IActorController::_sgs_interface);
+
+
 static int _sgs_method__TSPlayerController__GetInput( SGS_CTX )
 {
 	TSPlayerController* data; if( !SGS_PARSE_METHOD( C, TSPlayerController::_sgs_interface, data, TSPlayerController, GetInput ) ) return 0;
@@ -443,7 +545,7 @@ int TSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSPlayerController*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_entity ); return SGS_SUCCESS; }
+		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->sgsGetEntity() ); return SGS_SUCCESS; }
 		SGS_CASE( "ahShouldDrawClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP() ); return SGS_SUCCESS; }
 		SGS_CASE( "ahClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_closestPoint ); return SGS_SUCCESS; }
 		SGS_CASE( "ahAimPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimPoint ); return SGS_SUCCESS; }
@@ -467,7 +569,7 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_entity, depth ).push( C ); }
+		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->sgsGetEntity(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahShouldDrawClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_closestPoint, depth ).push( C ); }
 		{ sgs_PushString( C, "\nahAimPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimPoint, depth ).push( C ); }
@@ -657,7 +759,7 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSEnemyController*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_entity ); return SGS_SUCCESS; }
+		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->sgsGetEntity() ); return SGS_SUCCESS; }
 		SGS_CASE( "inPlayerTeam" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_inPlayerTeam ); return SGS_SUCCESS; }
 		SGS_CASE( "state" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_enemyState ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
@@ -679,7 +781,7 @@ int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->m_entity, depth ).push( C ); }
+		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->sgsGetEntity(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ninPlayerTeam = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->m_inPlayerTeam, depth ).push( C ); }
 		{ sgs_PushString( C, "\nstate = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->m_enemyState, depth ).push( C ); }
 		sgs_StringConcat( C, 6 );
