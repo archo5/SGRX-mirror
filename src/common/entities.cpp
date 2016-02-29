@@ -795,6 +795,20 @@ void MultiEntity::MISetLayers( int i, uint32_t layers )
 	m_meshes[ i ]->layers = layers;
 }
 
+MeshHandle MultiEntity::sgsGetMI0Mesh()
+{
+	MULTIENT_OFSCHK( 0, return NULL );
+	MULTIENT_MESHCHK( 0, return NULL );
+	return m_meshes[ 0 ]->GetMesh();
+}
+
+void MultiEntity::sgsSetMI0Mesh( MeshHandle m )
+{
+	MULTIENT_OFSCHK( 0, return );
+	MULTIENT_MESHCHK( 0, return );
+	m_meshes[ 0 ]->SetMesh( m );
+}
+
 void MultiEntity::PSCreate( int i, StringView path )
 {
 	MULTIENT_OFSCHK( i, return );

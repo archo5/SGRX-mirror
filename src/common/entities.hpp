@@ -361,6 +361,10 @@ EXP_STRUCT MultiEntity : Entity, SGRX_MeshInstUserData
 	GFW_EXPORT SGS_METHOD void MISetShaderConst( int i, int v, Vec4 var );
 	GFW_EXPORT SGS_METHOD void MISetLayers( int i, uint32_t layers );
 	
+	GFW_EXPORT MeshHandle sgsGetMI0Mesh();
+	GFW_EXPORT void sgsSetMI0Mesh( MeshHandle m );
+	SGS_PROPERTY_FUNC( READ sgsGetMI0Mesh WRITE sgsSetMI0Mesh ) SGS_ALIAS( MeshHandle mi0mesh );
+	
 	// - particle system
 	GFW_EXPORT SGS_METHOD void PSCreate( int i, StringView path );
 	GFW_EXPORT SGS_METHOD void PSDestroy( int i );

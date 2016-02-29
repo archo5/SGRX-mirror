@@ -208,6 +208,17 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
 	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
 	
+	FINLINE SGS_METHOD EntityScrHandle GetChild( int i )
+	{
+		if( i < 0 || i >= (int) _ch.size() )
+		{
+			sgs_Msg( C, SGS_WARNING, "child index (%d) out of bounds [0;%d)", i, (int) _ch.size() );
+			return EntityScrHandle();
+		}
+		return EntityScrHandle( (Entity*) _ch[ i ] );
+	}
+	SGS_PROPERTY_FUNC( READ SOURCE _ch.size() ) SGS_ALIAS( int childCount );
+	
 	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetWorldPosition ) SGS_ALIAS( Vec3 position );
 	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat rotation );
 	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 rotationXYZ );
