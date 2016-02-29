@@ -114,8 +114,12 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	~BulletPhyRigidBody();
 	
 	virtual PhyShapeHandle GetShape() const { return m_shape; }
-	virtual void SetEnabled( bool enabled );
-	virtual void WakeUp(){ m_body->activate( true ); }
+	virtual void SetShape( PhyShapeHandle s )
+	{
+		m_body->setCollisionShape( ((BulletPhyShape*)s.item)->m_colShape );
+		m_shape = s;
+	}
+	
 	virtual Vec3 GetPosition() const { return BV2V( m_body->getCenterOfMassPosition() ); }
 	virtual void SetPosition( const Vec3& v )
 	{
@@ -132,14 +136,70 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 		if( m_body->isKinematicObject() )
 			m_body->getMotionState()->setWorldTransform( m_body->getWorldTransform() );
 	}
+	
 	virtual Vec3 GetLinearVelocity() const { return BV2V( m_body->getLinearVelocity() ); }
 	virtual void SetLinearVelocity( const Vec3& v ){ m_body->setLinearVelocity( V2BV( v ) ); }
 	virtual Vec3 GetAngularVelocity() const { return BV2V( m_body->getAngularVelocity() ); }
 	virtual void SetAngularVelocity( const Vec3& v ){ m_body->setAngularVelocity( V2BV( v ) ); }
+	
+	virtual float GetFriction() const { return m_body->getFriction(); }
+	virtual void SetFriction( float v ){ m_body->setFriction( v ); }
+	virtual float GetRestitution() const { return m_body->getRestitution(); }
+	virtual void SetRestitution( float v ){ m_body->setRestitution( v ); }
+	virtual float GetMass() const { float inv = m_body->getInvMass(); return inv != 0 ? 1.0f / inv : 0; }
+	virtual Vec3 GetInertia() const
+	{
+		Vec3 inv = BV2V( m_body->getInvInertiaDiagLocal() );
+		return V3(
+			inv.x != 0 ? 1.0f / inv.x : 0,
+			inv.y != 0 ? 1.0f / inv.y : 0,
+			inv.z != 0 ? 1.0f / inv.z : 0 );
+	}
+	virtual void SetMassAndInertia( float mass, const Vec3& inertia ) const
+	{
+		m_body->setMassProps( mass, V2BV( inertia ) );
+	}
+	
+	virtual float GetLinearDamping() const { return m_body->getLinearDamping(); }
+	virtual void SetLinearDamping( float v ){ m_body->setDamping( v, m_body->getAngularDamping() ); }
+	virtual float GetAngularDamping() const { return m_body->getAngularDamping(); }
+	virtual void SetAngularDamping( float v ){ m_body->setDamping( m_body->getLinearDamping(), v ); }
 	virtual Vec3 GetLinearFactor() const { return BV2V( m_body->getLinearFactor() ); }
 	virtual void SetLinearFactor( const Vec3& v ){ m_body->setLinearFactor( V2BV( v ) ); }
 	virtual Vec3 GetAngularFactor() const { return BV2V( m_body->getAngularFactor() ); }
 	virtual void SetAngularFactor( const Vec3& v ){ m_body->setAngularFactor( V2BV( v ) ); }
+	
+	virtual bool IsKinematic() const { return m_body->isKinematicObject(); }
+	virtual void SetKinematic( bool v )
+	{
+		int flags = m_body->getCollisionFlags();
+		if( v )
+			flags |= btCollisionObject::CF_KINEMATIC_OBJECT;
+		else
+			flags &= ~btCollisionObject::CF_KINEMATIC_OBJECT;
+		m_body->setCollisionFlags( flags );
+	}
+	virtual bool CanSleep() const { return m_body->getActivationState() == DISABLE_DEACTIVATION; }
+	virtual void SetCanSleep( bool v )
+	{
+		int state = m_body->getActivationState();
+		if( v && state == ISLAND_SLEEPING )
+			return; // already sleeping, do not disturb
+		m_body->forceActivationState( v ? 0 : DISABLE_DEACTIVATION );
+	}
+	virtual void WakeUp(){ m_body->activate( true ); }
+	virtual bool GetEnabled() const { return m_body->isInWorld(); }
+	virtual void SetEnabled( bool enabled );
+	virtual uint16_t GetGroup() const { return m_group; }
+	virtual uint16_t GetMask() const { return m_mask; }
+	virtual void SetGroupAndMask( uint16_t group, uint16_t mask )
+	{
+		m_group = group;
+		m_mask = mask;
+		SetEnabled( false ); // call removeRigidBody
+		SetEnabled( true ); // call addRigidBody with new group/mask
+	}
+	
 	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v );
 	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p );
 	

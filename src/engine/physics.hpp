@@ -79,20 +79,46 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 	virtual ~SGRX_IPhyRigidBody(){}
 	
 	virtual PhyShapeHandle GetShape() const = 0;
-	virtual void SetEnabled( bool enabled ) = 0;
-	virtual void WakeUp() = 0;
+	virtual void SetShape( PhyShapeHandle s ) = 0;
+	
 	virtual Vec3 GetPosition() const = 0;
 	virtual void SetPosition( const Vec3& v ) = 0;
 	virtual Quat GetRotation() const = 0;
 	virtual void SetRotation( const Quat& v ) = 0;
+	
 	virtual Vec3 GetLinearVelocity() const = 0;
 	virtual void SetLinearVelocity( const Vec3& v ) = 0;
 	virtual Vec3 GetAngularVelocity() const = 0;
 	virtual void SetAngularVelocity( const Vec3& v ) = 0;
+	
+	virtual float GetFriction() const = 0;
+	virtual void SetFriction( float v ) = 0;
+	virtual float GetRestitution() const = 0;
+	virtual void SetRestitution( float v ) = 0;
+	virtual float GetMass() const = 0;
+	virtual Vec3 GetInertia() const = 0;
+	virtual void SetMassAndInertia( float mass, const Vec3& inertia ) const = 0;
+	
+	virtual float GetLinearDamping() const = 0;
+	virtual void SetLinearDamping( float v ) = 0;
+	virtual float GetAngularDamping() const = 0;
+	virtual void SetAngularDamping( float v ) = 0;
 	virtual Vec3 GetLinearFactor() const = 0;
 	virtual void SetLinearFactor( const Vec3& v ) = 0;
 	virtual Vec3 GetAngularFactor() const = 0;
 	virtual void SetAngularFactor( const Vec3& v ) = 0;
+	
+	virtual bool IsKinematic() const = 0;
+	virtual void SetKinematic( bool v ) = 0;
+	virtual bool CanSleep() const = 0;
+	virtual void SetCanSleep( bool v ) = 0;
+	virtual void WakeUp() = 0;
+	virtual bool GetEnabled() const = 0;
+	virtual void SetEnabled( bool enabled ) = 0;
+	virtual uint16_t GetGroup() const = 0;
+	virtual uint16_t GetMask() const = 0;
+	virtual void SetGroupAndMask( uint16_t group, uint16_t mask ) = 0;
+	
 	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v ) = 0;
 	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p ) = 0;
 };
