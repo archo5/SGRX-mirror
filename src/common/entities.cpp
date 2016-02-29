@@ -562,6 +562,51 @@ void LightEntity::_UpdateFlare()
 }
 
 
+RigidBodyEntity::RigidBodyEntity( GameLevel* lev ) :
+	Entity( lev ),
+	shapeType( ShapeType_AABB ),
+	shapeRadius( 0.5f ),
+	shapeHeight( 1.0f ),
+	shapeExtents( V3(0.5f) ),
+	shapeMinExtents( V3(-0.5f) )
+{
+	_UpdateShape();
+	SGRX_PhyRigidBodyInfo rbinfo;
+	rbinfo.shape = m_shape;
+	m_body = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
+}
+
+void RigidBodyEntity::FixedTick( float deltaTime )
+{
+	Entity::FixedTick( deltaTime );
+}
+
+void RigidBodyEntity::Tick( float deltaTime, float blendFactor )
+{
+	Entity::Tick( deltaTime, blendFactor );
+}
+
+void RigidBodyEntity::_UpdateShape()
+{
+	PhyWorldHandle pw = m_level->GetPhyWorld();
+	if( shapeType == ShapeType_Box )
+		m_shape = pw->CreateBoxShape( shapeExtents );
+	else if( shapeType == ShapeType_Sphere )
+		m_shape = pw->CreateSphereShape( shapeRadius );
+	else if( shapeType == ShapeType_Cylinder )
+		m_shape = pw->CreateCylinderShape( shapeExtents );
+	else if( shapeType == ShapeType_Capsule )
+		m_shape = pw->CreateCapsuleShape( shapeRadius, shapeHeight );
+	else if( shapeType == ShapeType_Mesh )
+		m_shape = pw->CreateShapeFromMesh( shapeMesh );
+	else // AABB / other
+		m_shape = pw->CreateAABBShape( shapeMinExtents, shapeExtents );
+	
+	if( m_body )
+		m_body->SetShape( m_shape );
+}
+
+
 ReflectionPlaneEntity::ReflectionPlaneEntity( GameLevel* lev ) : Entity( lev )
 {
 }
@@ -1104,9 +1149,21 @@ void MultiEntity::JTSetEnabled( int i, bool enabled )
 StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	MultiEnt_InstallAPI( lev->GetSGSC() );
+	sgs_RegIntConst ric[] =
+	{
+		{ "ShapeType_AABB", ShapeType_AABB },
+		{ "ShapeType_Box", ShapeType_Box },
+		{ "ShapeType_Sphere", ShapeType_Sphere },
+		{ "ShapeType_Cylinder", ShapeType_Cylinder },
+		{ "ShapeType_Capsule", ShapeType_Capsule },
+		{ "ShapeType_Mesh", ShapeType_Mesh },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( lev->GetSGSC(), ric, -1 );
 	lev->RegisterNativeEntity<Entity>( "Entity" );
 	lev->RegisterNativeEntity<MeshEntity>( "Mesh" );
 	lev->RegisterNativeEntity<LightEntity>( "Light" );
+	lev->RegisterNativeEntity<RigidBodyEntity>( "RigidBody" );
 	lev->RegisterNativeEntity<ReflectionPlaneEntity>( "ReflectionPlane" );
 	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
 }

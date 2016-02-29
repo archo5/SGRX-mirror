@@ -3090,6 +3090,192 @@ static sgs_ObjInterface LightEntity__sgs_interface =
 _sgsInterface LightEntity::_sgs_interface(LightEntity__sgs_interface, LightEntity__sgs_ifn, &Entity::_sgs_interface);
 
 
+static int _sgs_method__RigidBodyEntity__GetChild( SGS_CTX )
+{
+	RigidBodyEntity* data; if( !SGS_PARSE_METHOD( C, RigidBodyEntity::_sgs_interface, data, RigidBodyEntity, GetChild ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+int RigidBodyEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<RigidBodyEntity*>( obj->data )->C = C;
+	static_cast<RigidBodyEntity*>( obj->data )->~RigidBodyEntity();
+	return SGS_SUCCESS;
+}
+
+int RigidBodyEntity::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<RigidBodyEntity*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int RigidBodyEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<RigidBodyEntity*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->_sgsGetParent() ); return SGS_SUCCESS; }
+		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
+		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
+		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->m_id ); return SGS_SUCCESS; }
+		SGS_CASE( "linearVelocity" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetLinearVelocity() ); return SGS_SUCCESS; }
+		SGS_CASE( "angularVelocity" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetAngularVelocity() ); return SGS_SUCCESS; }
+		SGS_CASE( "friction" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetFriction() ); return SGS_SUCCESS; }
+		SGS_CASE( "restitution" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetRestitution() ); return SGS_SUCCESS; }
+		SGS_CASE( "mass" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetMass() ); return SGS_SUCCESS; }
+		SGS_CASE( "inertia" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetInertia() ); return SGS_SUCCESS; }
+		SGS_CASE( "linearDamping" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetLinearDamping() ); return SGS_SUCCESS; }
+		SGS_CASE( "angularDamping" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetAngularDamping() ); return SGS_SUCCESS; }
+		SGS_CASE( "kinematic" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->IsKinematic() ); return SGS_SUCCESS; }
+		SGS_CASE( "canSleep" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->CanSleep() ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->IsEnabled() ); return SGS_SUCCESS; }
+		SGS_CASE( "group" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetGroup() ); return SGS_SUCCESS; }
+		SGS_CASE( "mask" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->GetMask() ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeType" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->shapeType ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeRadius" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->shapeRadius ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeHeight" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->shapeHeight ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeExtents" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->shapeExtents ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeMinExtents" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->shapeMinExtents ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeMesh" ){ sgs_PushVar( C, static_cast<RigidBodyEntity*>( obj->data )->shapeMesh ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<RigidBodyEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int RigidBodyEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<RigidBodyEntity*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<RigidBodyEntity*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ static_cast<RigidBodyEntity*>( obj->data )->SetWorldPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ static_cast<RigidBodyEntity*>( obj->data )->SetWorldMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localTransform" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "parent" ){ static_cast<RigidBodyEntity*>( obj->data )->_SetParent( sgs_GetVar<EntityScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "infoMask" ){ static_cast<RigidBodyEntity*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localInfoTarget" ){ static_cast<RigidBodyEntity*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<RigidBodyEntity*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<RigidBodyEntity*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "linearVelocity" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLinearVelocity( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "angularVelocity" ){ static_cast<RigidBodyEntity*>( obj->data )->SetAngularVelocity( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "friction" ){ static_cast<RigidBodyEntity*>( obj->data )->SetFriction( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "restitution" ){ static_cast<RigidBodyEntity*>( obj->data )->SetRestitution( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "mass" ){ static_cast<RigidBodyEntity*>( obj->data )->SetMass( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "inertia" ){ static_cast<RigidBodyEntity*>( obj->data )->SetInertia( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "linearDamping" ){ static_cast<RigidBodyEntity*>( obj->data )->SetLinearDamping( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "angularDamping" ){ static_cast<RigidBodyEntity*>( obj->data )->SetAngularDamping( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "kinematic" ){ static_cast<RigidBodyEntity*>( obj->data )->SetKinematic( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "canSleep" ){ static_cast<RigidBodyEntity*>( obj->data )->SetCanSleep( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<RigidBodyEntity*>( obj->data )->SetEnabled( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "group" ){ static_cast<RigidBodyEntity*>( obj->data )->SetGroup( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "mask" ){ static_cast<RigidBodyEntity*>( obj->data )->SetMask( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeType" ){ static_cast<RigidBodyEntity*>( obj->data )->SetShapeType( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeRadius" ){ static_cast<RigidBodyEntity*>( obj->data )->SetShapeRadius( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeHeight" ){ static_cast<RigidBodyEntity*>( obj->data )->SetShapeHeight( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeExtents" ){ static_cast<RigidBodyEntity*>( obj->data )->SetShapeExtents( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeMinExtents" ){ static_cast<RigidBodyEntity*>( obj->data )->SetShapeMinExtents( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "shapeMesh" ){ static_cast<RigidBodyEntity*>( obj->data )->SetShapeMesh( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<RigidBodyEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int RigidBodyEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<RigidBodyEntity*>( obj->data )->C, C );
+	char bfr[ 47 ];
+	sprintf( bfr, "RigidBodyEntity (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->_ch.size(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->_sgsGetParent(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetInfoMask(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->m_infoTarget, depth ).push( C ); }
+		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->m_id, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlinearVelocity = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetLinearVelocity(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nangularVelocity = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetAngularVelocity(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nfriction = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetFriction(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrestitution = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetRestitution(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmass = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetMass(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ninertia = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetInertia(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlinearDamping = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetLinearDamping(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nangularDamping = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetAngularDamping(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nkinematic = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->IsKinematic(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ncanSleep = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->CanSleep(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->IsEnabled(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ngroup = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetGroup(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmask = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->GetMask(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nshapeType = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->shapeType, depth ).push( C ); }
+		{ sgs_PushString( C, "\nshapeRadius = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->shapeRadius, depth ).push( C ); }
+		{ sgs_PushString( C, "\nshapeHeight = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->shapeHeight, depth ).push( C ); }
+		{ sgs_PushString( C, "\nshapeExtents = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->shapeExtents, depth ).push( C ); }
+		{ sgs_PushString( C, "\nshapeMinExtents = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->shapeMinExtents, depth ).push( C ); }
+		{ sgs_PushString( C, "\nshapeMesh = " ); sgs_DumpData( C, static_cast<RigidBodyEntity*>( obj->data )->shapeMesh, depth ).push( C ); }
+		sgs_StringConcat( C, 76 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst RigidBodyEntity__sgs_funcs[] =
+{
+	{ "GetChild", _sgs_method__RigidBodyEntity__GetChild },
+	{ NULL, NULL },
+};
+
+static int RigidBodyEntity__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		RigidBodyEntity__sgs_funcs,
+		-1, "RigidBodyEntity." );
+	return 1;
+}
+
+static sgs_ObjInterface RigidBodyEntity__sgs_interface =
+{
+	"RigidBodyEntity",
+	RigidBodyEntity::_sgs_destruct, RigidBodyEntity::_sgs_gcmark, RigidBodyEntity::_sgs_getindex, RigidBodyEntity::_sgs_setindex, NULL, NULL, RigidBodyEntity::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface RigidBodyEntity::_sgs_interface(RigidBodyEntity__sgs_interface, RigidBodyEntity__sgs_ifn, &Entity::_sgs_interface);
+
+
 static int _sgs_method__ReflectionPlaneEntity__GetChild( SGS_CTX )
 {
 	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, GetChild ) ) return 0;

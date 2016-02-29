@@ -272,6 +272,94 @@ EXP_STRUCT LightEntity : Entity
 };
 
 
+#define ShapeType_AABB 0
+#define ShapeType_Box 1
+#define ShapeType_Sphere 2
+#define ShapeType_Cylinder 3
+#define ShapeType_Capsule 4
+#define ShapeType_Mesh 5
+
+EXP_STRUCT RigidBodyEntity : Entity
+{
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT RigidBodyEntity( GameLevel* lev );
+	GFW_EXPORT void FixedTick( float deltaTime );
+	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	virtual void OnTransformUpdate()
+	{
+		m_body->SetPosition( GetWorldPosition() );
+		m_body->SetRotation( GetWorldRotation() );
+		m_shape->SetScale( GetWorldScale() );
+	}
+	GFW_EXPORT void _UpdateShape();
+	
+	FINLINE Vec3 GetLinearVelocity() const { return m_body->GetLinearVelocity(); }
+	FINLINE void SetLinearVelocity( Vec3 v ){ m_body->SetLinearVelocity( v ); }
+	FINLINE Vec3 GetAngularVelocity() const { return m_body->GetAngularVelocity(); }
+	FINLINE void SetAngularVelocity( Vec3 v ){ m_body->SetAngularVelocity( v ); }
+	FINLINE float GetFriction() const { return m_body->GetFriction(); }
+	FINLINE void SetFriction( float v ){ m_body->SetFriction( v ); }
+	FINLINE float GetRestitution() const { return m_body->GetRestitution(); }
+	FINLINE void SetRestitution( float v ){ m_body->SetRestitution( v ); }
+	FINLINE float GetMass() const { return m_body->GetMass(); }
+	FINLINE void SetMass( float v ){ m_body->SetMassAndInertia( v, m_body->GetInertia() ); }
+	FINLINE Vec3 GetInertia() const { return m_body->GetInertia(); }
+	FINLINE void SetInertia( Vec3 v ){ m_body->SetMassAndInertia( m_body->GetMass(), v ); }
+	FINLINE float GetLinearDamping() const { return m_body->GetLinearDamping(); }
+	FINLINE void SetLinearDamping( float v ){ m_body->SetLinearDamping( v ); }
+	FINLINE float GetAngularDamping() const { return m_body->GetAngularDamping(); }
+	FINLINE void SetAngularDamping( float v ){ m_body->SetAngularDamping( v ); }
+	FINLINE bool IsKinematic() const { return m_body->IsKinematic(); }
+	FINLINE void SetKinematic( bool v ){ m_body->SetKinematic( v ); }
+	FINLINE bool CanSleep() const { return m_body->CanSleep(); }
+	FINLINE void SetCanSleep( bool v ){ m_body->SetCanSleep( v ); }
+	FINLINE bool IsEnabled() const { return m_body->GetEnabled(); }
+	FINLINE void SetEnabled( bool v ){ m_body->SetEnabled( v ); }
+	FINLINE uint16_t GetGroup() const { return m_body->GetGroup(); }
+	FINLINE void SetGroup( uint16_t v ){ m_body->SetGroupAndMask( v, GetMask() ); }
+	FINLINE uint16_t GetMask() const { return m_body->GetMask(); }
+	FINLINE void SetMask( uint16_t v ){ m_body->SetGroupAndMask( GetGroup(), v ); }
+	
+	void SetShapeType( int type ){ if( type == shapeType ) return; shapeType = type; _UpdateShape(); }
+	void SetShapeRadius( float radius ){ if( radius == shapeRadius ) return; shapeRadius = radius;
+		if( shapeType == ShapeType_Sphere || shapeType == ShapeType_Capsule ){ _UpdateShape(); } }
+	void SetShapeHeight( float height ){ if( height == shapeHeight ) return; shapeHeight = height;
+		if( shapeType == ShapeType_Capsule ){ _UpdateShape(); } }
+	void SetShapeExtents( Vec3 extents ){ if( extents == shapeExtents ) return; shapeExtents = extents;
+		if( shapeType == ShapeType_Box || shapeType == ShapeType_Cylinder || shapeType == ShapeType_AABB ) _UpdateShape(); }
+	void SetShapeMinExtents( Vec3 minExtents ){ if( minExtents == shapeMinExtents ) return; shapeMinExtents = minExtents;
+		if( shapeType == ShapeType_AABB ){ _UpdateShape(); } }
+	void SetShapeMesh( MeshHandle mesh ){ if( mesh == shapeMesh ) return; shapeMesh = mesh;
+		if( shapeType == ShapeType_Mesh ){ _UpdateShape(); } }
+	
+	SGS_PROPERTY_FUNC( READ GetLinearVelocity WRITE SetLinearVelocity ) SGS_ALIAS( Vec3 linearVelocity );
+	SGS_PROPERTY_FUNC( READ GetAngularVelocity WRITE SetAngularVelocity ) SGS_ALIAS( Vec3 angularVelocity );
+	SGS_PROPERTY_FUNC( READ GetFriction WRITE SetFriction ) SGS_ALIAS( float friction );
+	SGS_PROPERTY_FUNC( READ GetRestitution WRITE SetRestitution ) SGS_ALIAS( float restitution );
+	SGS_PROPERTY_FUNC( READ GetMass WRITE SetMass ) SGS_ALIAS( float mass );
+	SGS_PROPERTY_FUNC( READ GetInertia WRITE SetInertia ) SGS_ALIAS( Vec3 inertia );
+	SGS_PROPERTY_FUNC( READ GetLinearDamping WRITE SetLinearDamping ) SGS_ALIAS( float linearDamping );
+	SGS_PROPERTY_FUNC( READ GetAngularDamping WRITE SetAngularDamping ) SGS_ALIAS( float angularDamping );
+	SGS_PROPERTY_FUNC( READ IsKinematic WRITE SetKinematic ) SGS_ALIAS( float kinematic );
+	SGS_PROPERTY_FUNC( READ CanSleep WRITE SetCanSleep ) SGS_ALIAS( float canSleep );
+	SGS_PROPERTY_FUNC( READ IsEnabled WRITE SetEnabled ) SGS_ALIAS( float enabled );
+	SGS_PROPERTY_FUNC( READ GetGroup WRITE SetGroup ) SGS_ALIAS( float group );
+	SGS_PROPERTY_FUNC( READ GetMask WRITE SetMask ) SGS_ALIAS( float mask );
+	
+	SGS_PROPERTY_FUNC( READ WRITE SetShapeType ) int shapeType;
+	SGS_PROPERTY_FUNC( READ WRITE SetShapeRadius ) float shapeRadius;
+	SGS_PROPERTY_FUNC( READ WRITE SetShapeHeight ) float shapeHeight;
+	SGS_PROPERTY_FUNC( READ WRITE SetShapeExtents ) Vec3 shapeExtents;
+	SGS_PROPERTY_FUNC( READ WRITE SetShapeMinExtents ) Vec3 shapeMinExtents;
+	SGS_PROPERTY_FUNC( READ WRITE SetShapeMesh ) MeshHandle shapeMesh;
+	
+	PhyRigidBodyHandle m_body;
+	PhyShapeHandle m_shape;
+};
+
+
 EXP_STRUCT ReflectionPlaneEntity : Entity
 {
 	SGS_OBJECT_INHERIT( Entity );
