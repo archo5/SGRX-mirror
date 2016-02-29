@@ -1275,6 +1275,7 @@ Entity* StockEntityCreationSystem::AddEntity( StringView type )
 	if( type == "Entity" ) return new Entity( m_level );
 	if( type == "Mesh" ) return new MeshEntity( m_level );
 	if( type == "Light" ) return new LightEntity( m_level );
+	if( type == "RigidBody" ) return new RigidBodyEntity( m_level );
 	if( type == "ReflectionPlane" ) return new ReflectionPlaneEntity( m_level );
 	if( type == "MultiEntity" ) return new MultiEntity( m_level );
 	
