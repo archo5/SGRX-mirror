@@ -724,6 +724,34 @@ static int _sgs_method__Entity__GetChild( SGS_CTX )
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
 }
 
+static int _sgs_method__Entity__LocalToWorld( SGS_CTX )
+{
+	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Entity__WorldToLocal( SGS_CTX )
+{
+	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Entity__LocalToWorldDir( SGS_CTX )
+{
+	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Entity__WorldToLocalDir( SGS_CTX )
+{
+	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
 int Entity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<Entity*>( obj->data )->C = C;
@@ -826,6 +854,10 @@ int Entity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst Entity__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__Entity__GetChild },
+	{ "LocalToWorld", _sgs_method__Entity__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__Entity__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__Entity__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__Entity__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -1008,6 +1040,34 @@ static int _sgs_method__Actor__GetChild( SGS_CTX )
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
 }
 
+static int _sgs_method__Actor__LocalToWorld( SGS_CTX )
+{
+	Actor* data; if( !SGS_PARSE_METHOD( C, Actor::_sgs_interface, data, Actor, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Actor__WorldToLocal( SGS_CTX )
+{
+	Actor* data; if( !SGS_PARSE_METHOD( C, Actor::_sgs_interface, data, Actor, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Actor__LocalToWorldDir( SGS_CTX )
+{
+	Actor* data; if( !SGS_PARSE_METHOD( C, Actor::_sgs_interface, data, Actor, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Actor__WorldToLocalDir( SGS_CTX )
+{
+	Actor* data; if( !SGS_PARSE_METHOD( C, Actor::_sgs_interface, data, Actor, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
 static int _sgs_method__Actor__GetInputV3( SGS_CTX )
 {
 	Actor* data; if( !SGS_PARSE_METHOD( C, Actor::_sgs_interface, data, Actor, GetInputV3 ) ) return 0;
@@ -1155,6 +1215,10 @@ int Actor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst Actor__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__Actor__GetChild },
+	{ "LocalToWorld", _sgs_method__Actor__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__Actor__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__Actor__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__Actor__WorldToLocalDir },
 	{ "GetInputV3", _sgs_method__Actor__GetInputV3 },
 	{ "GetInputV2", _sgs_method__Actor__GetInputV2 },
 	{ "GetInputF", _sgs_method__Actor__GetInputF },
@@ -2176,6 +2240,34 @@ static int _sgs_method__Trigger__GetChild( SGS_CTX )
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
 }
 
+static int _sgs_method__Trigger__LocalToWorld( SGS_CTX )
+{
+	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Trigger__WorldToLocal( SGS_CTX )
+{
+	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Trigger__LocalToWorldDir( SGS_CTX )
+{
+	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Trigger__WorldToLocalDir( SGS_CTX )
+{
+	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
 static int _sgs_method__Trigger__Invoke( SGS_CTX )
 {
 	Trigger* data; if( !SGS_PARSE_METHOD( C, Trigger::_sgs_interface, data, Trigger, Invoke ) ) return 0;
@@ -2304,6 +2396,10 @@ int Trigger::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst Trigger__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__Trigger__GetChild },
+	{ "LocalToWorld", _sgs_method__Trigger__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__Trigger__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__Trigger__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__Trigger__WorldToLocalDir },
 	{ "Invoke", _sgs_method__Trigger__Invoke },
 	{ "SetupTrigger", _sgs_method__Trigger__SetupTrigger },
 	{ NULL, NULL },
@@ -2331,6 +2427,34 @@ static int _sgs_method__SlidingDoor__GetChild( SGS_CTX )
 	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__SlidingDoor__LocalToWorld( SGS_CTX )
+{
+	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__SlidingDoor__WorldToLocal( SGS_CTX )
+{
+	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__SlidingDoor__LocalToWorldDir( SGS_CTX )
+{
+	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__SlidingDoor__WorldToLocalDir( SGS_CTX )
+{
+	SlidingDoor* data; if( !SGS_PARSE_METHOD( C, SlidingDoor::_sgs_interface, data, SlidingDoor, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 static int _sgs_method__SlidingDoor__Invoke( SGS_CTX )
@@ -2466,6 +2590,10 @@ int SlidingDoor::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst SlidingDoor__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__SlidingDoor__GetChild },
+	{ "LocalToWorld", _sgs_method__SlidingDoor__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__SlidingDoor__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__SlidingDoor__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__SlidingDoor__WorldToLocalDir },
 	{ "Invoke", _sgs_method__SlidingDoor__Invoke },
 	{ "SetupTrigger", _sgs_method__SlidingDoor__SetupTrigger },
 	{ NULL, NULL },
@@ -2493,6 +2621,34 @@ static int _sgs_method__PickupItem__GetChild( SGS_CTX )
 	PickupItem* data; if( !SGS_PARSE_METHOD( C, PickupItem::_sgs_interface, data, PickupItem, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__PickupItem__LocalToWorld( SGS_CTX )
+{
+	PickupItem* data; if( !SGS_PARSE_METHOD( C, PickupItem::_sgs_interface, data, PickupItem, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__PickupItem__WorldToLocal( SGS_CTX )
+{
+	PickupItem* data; if( !SGS_PARSE_METHOD( C, PickupItem::_sgs_interface, data, PickupItem, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__PickupItem__LocalToWorldDir( SGS_CTX )
+{
+	PickupItem* data; if( !SGS_PARSE_METHOD( C, PickupItem::_sgs_interface, data, PickupItem, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__PickupItem__WorldToLocalDir( SGS_CTX )
+{
+	PickupItem* data; if( !SGS_PARSE_METHOD( C, PickupItem::_sgs_interface, data, PickupItem, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 int PickupItem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -2597,6 +2753,10 @@ int PickupItem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst PickupItem__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__PickupItem__GetChild },
+	{ "LocalToWorld", _sgs_method__PickupItem__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__PickupItem__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__PickupItem__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__PickupItem__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -2622,6 +2782,34 @@ static int _sgs_method__Actionable__GetChild( SGS_CTX )
 	Actionable* data; if( !SGS_PARSE_METHOD( C, Actionable::_sgs_interface, data, Actionable, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Actionable__LocalToWorld( SGS_CTX )
+{
+	Actionable* data; if( !SGS_PARSE_METHOD( C, Actionable::_sgs_interface, data, Actionable, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Actionable__WorldToLocal( SGS_CTX )
+{
+	Actionable* data; if( !SGS_PARSE_METHOD( C, Actionable::_sgs_interface, data, Actionable, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Actionable__LocalToWorldDir( SGS_CTX )
+{
+	Actionable* data; if( !SGS_PARSE_METHOD( C, Actionable::_sgs_interface, data, Actionable, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__Actionable__WorldToLocalDir( SGS_CTX )
+{
+	Actionable* data; if( !SGS_PARSE_METHOD( C, Actionable::_sgs_interface, data, Actionable, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 int Actionable::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -2738,6 +2926,10 @@ int Actionable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst Actionable__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__Actionable__GetChild },
+	{ "LocalToWorld", _sgs_method__Actionable__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__Actionable__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__Actionable__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__Actionable__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -2763,6 +2955,34 @@ static int _sgs_method__MeshEntity__GetChild( SGS_CTX )
 	MeshEntity* data; if( !SGS_PARSE_METHOD( C, MeshEntity::_sgs_interface, data, MeshEntity, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MeshEntity__LocalToWorld( SGS_CTX )
+{
+	MeshEntity* data; if( !SGS_PARSE_METHOD( C, MeshEntity::_sgs_interface, data, MeshEntity, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MeshEntity__WorldToLocal( SGS_CTX )
+{
+	MeshEntity* data; if( !SGS_PARSE_METHOD( C, MeshEntity::_sgs_interface, data, MeshEntity, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MeshEntity__LocalToWorldDir( SGS_CTX )
+{
+	MeshEntity* data; if( !SGS_PARSE_METHOD( C, MeshEntity::_sgs_interface, data, MeshEntity, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MeshEntity__WorldToLocalDir( SGS_CTX )
+{
+	MeshEntity* data; if( !SGS_PARSE_METHOD( C, MeshEntity::_sgs_interface, data, MeshEntity, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 int MeshEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -2890,6 +3110,10 @@ int MeshEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst MeshEntity__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__MeshEntity__GetChild },
+	{ "LocalToWorld", _sgs_method__MeshEntity__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__MeshEntity__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__MeshEntity__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__MeshEntity__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -2915,6 +3139,34 @@ static int _sgs_method__LightEntity__GetChild( SGS_CTX )
 	LightEntity* data; if( !SGS_PARSE_METHOD( C, LightEntity::_sgs_interface, data, LightEntity, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__LightEntity__LocalToWorld( SGS_CTX )
+{
+	LightEntity* data; if( !SGS_PARSE_METHOD( C, LightEntity::_sgs_interface, data, LightEntity, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__LightEntity__WorldToLocal( SGS_CTX )
+{
+	LightEntity* data; if( !SGS_PARSE_METHOD( C, LightEntity::_sgs_interface, data, LightEntity, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__LightEntity__LocalToWorldDir( SGS_CTX )
+{
+	LightEntity* data; if( !SGS_PARSE_METHOD( C, LightEntity::_sgs_interface, data, LightEntity, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__LightEntity__WorldToLocalDir( SGS_CTX )
+{
+	LightEntity* data; if( !SGS_PARSE_METHOD( C, LightEntity::_sgs_interface, data, LightEntity, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 int LightEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -3070,6 +3322,10 @@ int LightEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst LightEntity__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__LightEntity__GetChild },
+	{ "LocalToWorld", _sgs_method__LightEntity__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__LightEntity__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__LightEntity__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__LightEntity__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -3095,6 +3351,34 @@ static int _sgs_method__RigidBodyEntity__GetChild( SGS_CTX )
 	RigidBodyEntity* data; if( !SGS_PARSE_METHOD( C, RigidBodyEntity::_sgs_interface, data, RigidBodyEntity, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__RigidBodyEntity__LocalToWorld( SGS_CTX )
+{
+	RigidBodyEntity* data; if( !SGS_PARSE_METHOD( C, RigidBodyEntity::_sgs_interface, data, RigidBodyEntity, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__RigidBodyEntity__WorldToLocal( SGS_CTX )
+{
+	RigidBodyEntity* data; if( !SGS_PARSE_METHOD( C, RigidBodyEntity::_sgs_interface, data, RigidBodyEntity, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__RigidBodyEntity__LocalToWorldDir( SGS_CTX )
+{
+	RigidBodyEntity* data; if( !SGS_PARSE_METHOD( C, RigidBodyEntity::_sgs_interface, data, RigidBodyEntity, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__RigidBodyEntity__WorldToLocalDir( SGS_CTX )
+{
+	RigidBodyEntity* data; if( !SGS_PARSE_METHOD( C, RigidBodyEntity::_sgs_interface, data, RigidBodyEntity, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 int RigidBodyEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -3256,6 +3540,10 @@ int RigidBodyEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst RigidBodyEntity__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__RigidBodyEntity__GetChild },
+	{ "LocalToWorld", _sgs_method__RigidBodyEntity__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__RigidBodyEntity__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__RigidBodyEntity__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__RigidBodyEntity__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -3281,6 +3569,34 @@ static int _sgs_method__ReflectionPlaneEntity__GetChild( SGS_CTX )
 	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ReflectionPlaneEntity__LocalToWorld( SGS_CTX )
+{
+	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ReflectionPlaneEntity__WorldToLocal( SGS_CTX )
+{
+	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ReflectionPlaneEntity__LocalToWorldDir( SGS_CTX )
+{
+	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ReflectionPlaneEntity__WorldToLocalDir( SGS_CTX )
+{
+	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 int ReflectionPlaneEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -3385,6 +3701,10 @@ int ReflectionPlaneEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst ReflectionPlaneEntity__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__ReflectionPlaneEntity__GetChild },
+	{ "LocalToWorld", _sgs_method__ReflectionPlaneEntity__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__ReflectionPlaneEntity__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__ReflectionPlaneEntity__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__ReflectionPlaneEntity__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -3668,6 +3988,34 @@ static int _sgs_method__MultiEntity__GetChild( SGS_CTX )
 	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, GetChild ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MultiEntity__LocalToWorld( SGS_CTX )
+{
+	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MultiEntity__WorldToLocal( SGS_CTX )
+{
+	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MultiEntity__LocalToWorldDir( SGS_CTX )
+{
+	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__MultiEntity__WorldToLocalDir( SGS_CTX )
+{
+	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 static int _sgs_method__MultiEntity__MICreate( SGS_CTX )
@@ -4048,6 +4396,10 @@ int MultiEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst MultiEntity__sgs_funcs[] =
 {
 	{ "GetChild", _sgs_method__MultiEntity__GetChild },
+	{ "LocalToWorld", _sgs_method__MultiEntity__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__MultiEntity__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__MultiEntity__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__MultiEntity__WorldToLocalDir },
 	{ "MICreate", _sgs_method__MultiEntity__MICreate },
 	{ "MIDestroy", _sgs_method__MultiEntity__MIDestroy },
 	{ "MIExists", _sgs_method__MultiEntity__MIExists },

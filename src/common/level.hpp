@@ -234,6 +234,11 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	EntityScrHandle _sgsGetParent(){ return EntityScrHandle( (Entity*) _parent ); }
 	SGS_PROPERTY_FUNC( READ _sgsGetParent WRITE _SetParent ) SGS_ALIAS( EntityScrHandle parent );
 	
+	SGS_METHOD SGS_ALIAS( Vec3 LocalToWorld( Vec3 p ) );
+	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocal( Vec3 p ) );
+	SGS_METHOD SGS_ALIAS( Vec3 LocalToWorldDir( Vec3 p ) );
+	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocalDir( Vec3 p ) );
+	
 	SGS_PROPERTY_FUNC( READ GetInfoMask WRITE SetInfoMask VARNAME infoMask ) uint32_t m_infoMask;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME localInfoTarget ) Vec3 m_infoTarget;
 	SGS_PROPERTY_FUNC( READ GetWorldInfoTarget ) SGS_ALIAS( Vec3 infoTarget );

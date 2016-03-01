@@ -79,9 +79,28 @@ static int euler2quat( SGS_CTX )
 	Quat rot = Quat::CreateFromXYZ( DEG2RAD( angles ) );
 	return sgs_CreateQuat( C, NULL, rot.x, rot.y, rot.z, rot.w );
 }
+static int quat2euler( SGS_CTX )
+{
+	Quat rot;
+	if( !sgs_LoadArgs( C, "x", sgs_ArgCheck_Quat, &rot.x ) )
+		return 0;
+	Vec3 angles = RAD2DEG( rot.ToXYZ() );
+	return sgs_CreateVec3( C, NULL, angles.x, angles.y, angles.z );
+}
+static int quat_slerp( SGS_CTX )
+{
+	Quat A, B;
+	float q;
+	if( !sgs_LoadArgs( C, "xxf", sgs_ArgCheck_Quat, &A.x, sgs_ArgCheck_Quat, &B.x, &q ) )
+		return 0;
+	Quat R = QuatSlerp( A, B, q );
+	return sgs_CreateQuat( C, NULL, R.x, R.y, R.z, R.w );
+}
 static sgs_RegFuncConst g_sgrxmath_rfc[] =
 {
 	{ "euler2quat", euler2quat },
+	{ "quat2euler", quat2euler },
+	{ "quat_slerp", quat_slerp },
 	SGS_RC_END(),
 };
 static void sgrx_math_lib( SGS_CTX )

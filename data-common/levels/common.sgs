@@ -1,4 +1,7 @@
 
+function lerp( a, b, s ){ return a * ( 1 - s ) + b * s; }
+function sign( x ){ return if( x != 0, if( x > 0, 1, -1 ), 0 ); }
+
 //
 // Editor helper functions
 _G.
@@ -446,24 +449,37 @@ function DoorCore.Init()
 {
 	this!Trigger.Init();
 	
-	this.
+	this._data.
 	{
 		openPosition = vec3(0),
 		openRotation = quat(),
 		closedPosition = vec3(0),
 		closedRotation = quat(),
 		openingTime = 1,
-		initialState = false,
 		targetState = false,
 		openState = 0.0,
 		openTarget = 0.0,
 	};
 	
+	this._OnReposition();
+}
+
+function DoorCore._OnReposition()
+{
 	this._pPos = this._cPos = this.GetCurrentPosition();
 	this._pRot = this._cRot = this.GetCurrentRotation();
-	
 	this.OnDoorMove();
 	this.OnDoorPreRender( 1.0 );
+}
+
+function DoorCore.__get_initialState(){ return this.openState; }
+function DoorCore.__set_initialState( v )
+{
+	v = toreal( v );
+	this.targetState = v > 0.5;
+	this.openState = v;
+	this.openTarget = v;
+	this._OnReposition();
 }
 
 function DoorCore.Open(){ this.targetState = true; }
@@ -477,7 +493,7 @@ function DoorCore.GetCurrentPosition()
 
 function DoorCore.GetCurrentRotation()
 {
-	return lerp( this.closedRotation, this.openRotation, this.openState );
+	return quat_slerp( this.closedRotation, this.openRotation, this.openState );
 }
 
 function DoorCore.GetInterpolatedPosition( bf )
@@ -487,7 +503,7 @@ function DoorCore.GetInterpolatedPosition( bf )
 
 function DoorCore.GetInterpolatedRotation( bf )
 {
-	return lerp( this._pRot, this._cRot, bf );
+	return quat_slerp( this._pRot, this._cRot, bf );
 }
 
 function DoorCore.FixedUpdate( dt )
@@ -530,5 +546,111 @@ function DoorCore.FixedUpdate( dt )
 function DoorCore.Update( dt, bf )
 {
 	this.OnDoorPreRender( bf );
+}
+
+
+global BasicDoor = clone( DoorCore );
+ENTITY( "BasicDoor", "Entity" );
+
+function BasicDoor.Init()
+{
+	this!DoorCore.Init();
+	
+	this.
+	{
+		meshEnt = level.CreateEntity( "Mesh" ).
+		{
+			name = "door",
+			parent = this,
+			isStatic = false,
+			lightingMode = LM_Dynamic,
+			solid = false,
+		},
+		bodyEnt = level.CreateEntity( "RigidBody" ).
+		{
+			name = "door",
+			parent = this,
+			shapeType = ShapeType_AABB,
+			kinematic = true,
+		},
+	};
+}
+
+function BasicDoor.OnDestroy()
+{
+	level.DestroyEntity( this.meshEnt );
+	level.DestroyEntity( this.bodyEnt );
+}
+
+function BasicDoor.__get_mesh(){ return this.meshEnt.mesh; }
+function BasicDoor.__set_mesh( v )
+{
+	if( typeof(v) == "string" )
+		v = GR_GetMesh( v );
+	this.meshEnt.mesh = v;
+	if( v !== null )
+	{
+		this.bodyEnt.shapeExtents = v.boundsMax;
+		this.bodyEnt.shapeMinExtents = v.boundsMin;
+	}
+}
+function BasicDoor.__set_closedPosition( v ){ this._data.closedPosition = v; this._OnReposition(); }
+function BasicDoor.__set_openPosition( v ){ this._data.openPosition = v; this._OnReposition(); }
+function BasicDoor.__get_closedRotationXYZ(){ return quat2euler( this.closedRotation ); }
+function BasicDoor.__set_closedRotationXYZ( v ){ this.closedRotation = euler2quat( v ); this._OnReposition(); }
+function BasicDoor.__get_openRotationXYZ(){ return quat2euler( this.openRotation ); }
+function BasicDoor.__set_openRotationXYZ( v ){ this.openRotation = euler2quat( v ); this._OnReposition(); }
+
+function BasicDoor._MoveDoor( p, r )
+{
+	for( i = 0, cc = this.childCount; i < cc; ++i )
+	{
+		ch = this.GetChild( i );
+		if( ch.name != "door" )
+			continue;
+		ch.localPosition = p;
+		ch.localRotation = r;
+	}
+}
+
+function BasicDoor.OnDoorMove()
+{
+	this._MoveDoor(
+		this.GetCurrentPosition(),
+		this.GetCurrentRotation()
+	);
+}
+
+function BasicDoor.OnDoorPreRender( bf )
+{
+	this._MoveDoor(
+		this.GetInterpolatedPosition( bf ),
+		this.GetInterpolatedRotation( bf )
+	);
+}
+
+function BasicDoor.ED_PropInfo( eptr )
+{
+	PropInfo_Entity( eptr );
+	EE_AddFieldMesh( eptr, "mesh", "Mesh" );
+	EE_AddFieldVec3( eptr, "closedPosition", "Closed position", vec3(0,0,0), 2, -100, 100 );
+	EE_AddFieldVec3( eptr, "closedRotationXYZ", "Closed rotation", vec3(0,0,0), 2, 0, 360 );
+	EE_AddFieldVec3( eptr, "openPosition", "Open position", vec3(0,0,1), 2, -100, 100 );
+	EE_AddFieldVec3( eptr, "openRotationXYZ", "Open rotation", vec3(0,0,0), 2, 0, 360 );
+	EE_AddFieldFloat( eptr, "openingTime", "Opening time", 1, 2, 0.01, 100 );
+	EE_AddFieldFloat( eptr, "initialState", "Initial openness", 0, 2, 0, 1 );
+}
+
+function BasicDoor.EditorDrawWorld()
+{
+	BR_Reset();
+	BR_Col( 0.6, 0.6, 0.1, 1 );
+	BR_AABB( this.bodyEnt.shapeMinExtents,
+		this.bodyEnt.shapeExtents,
+		this.bodyEnt.transform );
+	BR_Col( 0.8, 0.3, 0.1, 1 );
+	BR_Tick( this.LocalToWorld( this.closedPosition ), 0.1 );
+	BR_Col( 0.3, 0.8, 0.1, 1 );
+	BR_Tick( this.LocalToWorld( this.openPosition ), 0.1 );
 }
 
