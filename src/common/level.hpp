@@ -388,7 +388,7 @@ struct EntityGather : EntityProcessor
 	{
 		Item item = { E, 0 };
 		items.push_back( item );
-		return true;
+		return false;
 	}
 	
 	static int sort_func( const void* A, const void* B )
