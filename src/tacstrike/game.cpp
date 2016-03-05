@@ -416,6 +416,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
 		m_level->GetScriptCtx().SetGlobal( "CURSOR_POS",
 			m_level->GetScriptCtx().CreateVec2( CURSOR_POS ) );
+		m_timeMultiplier = SLOWDOWN_TEST.state ? 0.25f : 1.0f;
 		
 		BaseGame::OnTick( dt, gametime );
 	}

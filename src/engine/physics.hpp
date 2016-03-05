@@ -34,6 +34,11 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyShape : SGRX_RefCounted
 	
 	virtual Vec3 CalcInertia( float mass ) const = 0;
 	
+	virtual int GetChildShapeCount() = 0;
+	virtual void AddChildShape( SGRX_IPhyShape* shape, Vec3 pos = V3(0), Quat rot = Quat::Identity ) = 0;
+	virtual void RemoveChildShapeByType( SGRX_IPhyShape* shape ) = 0;
+	virtual void UpdateChildShapeTransform( int i, Vec3 pos, Quat rot = Quat::Identity ) = 0;
+	
 protected:
 	int _type;
 };
@@ -121,6 +126,7 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 	
 	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v ) = 0;
 	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p ) = 0;
+	virtual void FlushContacts() = 0;
 };
 typedef Handle< SGRX_IPhyRigidBody > PhyRigidBodyHandle;
 
@@ -197,6 +203,7 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyWorld : SGRX_RefCounted
 	virtual PhyShapeHandle CreateAABBShape( const Vec3& min, const Vec3& max ) = 0;
 	virtual PhyShapeHandle CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false ) = 0;
 	virtual PhyShapeHandle CreateShapeFromMesh( SGRX_IMesh* mesh ) = 0;
+	virtual PhyShapeHandle CreateCompoundShape() = 0;
 	
 	virtual PhyRigidBodyHandle CreateRigidBody( const SGRX_PhyRigidBodyInfo& info ) = 0;
 	virtual PhyJointHandle CreateHingeJoint( const SGRX_PhyHingeJointInfo& info ) = 0;

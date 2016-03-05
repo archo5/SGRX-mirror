@@ -50,6 +50,11 @@ struct BulletPhyShape : SGRX_IPhyShape
 		return BV2V( outi );
 	}
 	
+	virtual int GetChildShapeCount(){ return 0; }
+	virtual void AddChildShape( SGRX_IPhyShape* shape, Vec3 pos = V3(0), Quat rot = Quat::Identity ){}
+	virtual void RemoveChildShapeByType( SGRX_IPhyShape* shape ){}
+	virtual void UpdateChildShapeTransform( int i, Vec3 pos, Quat rot = Quat::Identity ){}
+	
 	btCollisionShape* m_colShape;
 };
 
@@ -105,6 +110,48 @@ struct BulletTriMeshShape : BulletPhyShape
 	}
 	
 	btTriangleMesh m_meshIface;
+};
+
+struct BulletCompoundShape : BulletPhyShape
+{
+	BulletCompoundShape()
+	{
+		m_colShape = new btCompoundShape();
+		_Init();
+	}
+	~BulletCompoundShape()
+	{
+		for( int i = 0, num = CS()->getNumChildShapes(); i < num; ++i )
+		{
+			((BulletPhyShape*) CS()->getChildShape( i )->getUserPointer())->Release();
+		}
+	}
+	FINLINE btCompoundShape* CS(){ return (btCompoundShape*) m_colShape; }
+	
+	virtual int GetChildShapeCount()
+	{
+		return CS()->getNumChildShapes();
+	}
+	virtual void AddChildShape( SGRX_IPhyShape* shape, Vec3 pos, Quat rot )
+	{
+		shape->Acquire();
+		btTransform tf( Q2BM3( rot ), V2BV( pos ) );
+		CS()->addChildShape( tf, ((BulletPhyShape*) shape)->m_colShape );
+	}
+	virtual void RemoveChildShapeByType( SGRX_IPhyShape* shape )
+	{
+		int numBefore = CS()->getNumChildShapes();
+		CS()->removeChildShape( ((BulletPhyShape*) shape)->m_colShape );
+		int removed = numBefore - CS()->getNumChildShapes();
+		while( removed --> 0 )
+			shape->Release();
+	}
+	virtual void UpdateChildShapeTransform( int i, Vec3 pos, Quat rot )
+	{
+		ASSERT( i >= 0 && i < CS()->getNumChildShapes() );
+		btTransform tf( Q2BM3( rot ), V2BV( pos ) );
+		CS()->updateChildTransform( i, tf );
+	}
 };
 
 
@@ -172,12 +219,19 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	virtual bool IsKinematic() const { return m_body->isKinematicObject(); }
 	virtual void SetKinematic( bool v )
 	{
+		SetEnabled( false ); // call removeRigidBody
 		int flags = m_body->getCollisionFlags();
 		if( v )
-			flags |= btCollisionObject::CF_KINEMATIC_OBJECT;
+		{
+			m_body->setMassProps( 0, btVector3(0,0,0) );
+			m_body->setCollisionFlags( flags | btCollisionObject::CF_KINEMATIC_OBJECT );
+			m_body->setWorldTransform( m_body->getWorldTransform() );
+			m_body->getMotionState()->setWorldTransform( m_body->getWorldTransform() );
+			m_body->forceActivationState( DISABLE_DEACTIVATION );
+		}
 		else
-			flags &= ~btCollisionObject::CF_KINEMATIC_OBJECT;
-		m_body->setCollisionFlags( flags );
+			m_body->setCollisionFlags( flags & ~btCollisionObject::CF_KINEMATIC_OBJECT );
+		SetEnabled( true ); // call addRigidBody to update broadphase?
 	}
 	virtual bool CanSleep() const { return m_body->getActivationState() == DISABLE_DEACTIVATION; }
 	virtual void SetCanSleep( bool v )
@@ -202,6 +256,7 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 	
 	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v );
 	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p );
+	virtual void FlushContacts();
 	
 	struct BulletPhyWorld* m_world;
 	btRigidBody* m_body;
@@ -264,6 +319,7 @@ struct BulletPhyWorld : SGRX_IPhyWorld
 	virtual PhyShapeHandle CreateAABBShape( const Vec3& min, const Vec3& max );
 	virtual PhyShapeHandle CreateTriMeshShape( const Vec3* verts, size_t vcount, const void* idcs, size_t icount, bool index32 = false );
 	virtual PhyShapeHandle CreateShapeFromMesh( SGRX_IMesh* mesh );
+	virtual PhyShapeHandle CreateCompoundShape();
 	
 	virtual PhyRigidBodyHandle CreateRigidBody( const SGRX_PhyRigidBodyInfo& info );
 	virtual PhyJointHandle CreateHingeJoint( const SGRX_PhyHingeJointInfo& info );
@@ -313,6 +369,7 @@ BulletPhyRigidBody::BulletPhyRigidBody( struct BulletPhyWorld* world, const SGRX
 	if( rbinfo.kinematic )
 	{
 		m_body->setCollisionFlags( m_body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT );
+		m_body->setActivationState( DISABLE_DEACTIVATION );
 	}
 	if( !rbinfo.canSleep )
 	{
@@ -394,6 +451,12 @@ void BulletPhyRigidBody::ApplyForce( EPhyForceType type, const Vec3& v, const Ve
 	}
 }
 
+void BulletPhyRigidBody::FlushContacts()
+{
+	m_world->m_broadphase->getOverlappingPairCache()->cleanProxyFromPairs(
+		m_body->getBroadphaseProxy(), m_world->m_collisionDispatcher );
+}
+
 
 void BulletPhyJoint::_SetEnabled( btTypedConstraint* ct, bool enabled )
 {
@@ -408,7 +471,7 @@ void BulletPhyJoint::_SetEnabled( btTypedConstraint* ct, bool enabled )
 inline Mat4 M2JFM( const Mat4& m )
 {
 	// there's probably a quicker way but..
-	Vec3 tr = m.GetTranslation();
+//	Vec3 tr = m.GetTranslation();
 	return m;
 		//* Mat4::CreateTranslation( -tr )
 		//* Mat4::Basis( V3(0,0,1), V3(-1,0,0), V3(0,1,0), true )
@@ -668,6 +731,11 @@ PhyShapeHandle BulletPhyWorld::CreateShapeFromMesh( SGRX_IMesh* mesh )
 		}
 		return CreateTriMeshShape( vdata.data(), vdata.size(), indices.data(), indices.size(), i32 );
 	}
+}
+
+PhyShapeHandle BulletPhyWorld::CreateCompoundShape()
+{
+	return new BulletCompoundShape();
 }
 
 PhyRigidBodyHandle BulletPhyWorld::CreateRigidBody( const SGRX_PhyRigidBodyInfo& info )

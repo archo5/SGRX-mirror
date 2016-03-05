@@ -571,7 +571,7 @@ function BasicDoor.Init()
 			name = "door",
 			parent = this,
 			shapeType = ShapeType_AABB,
-			kinematic = true,
+		//	kinematic = true,
 		},
 	};
 }

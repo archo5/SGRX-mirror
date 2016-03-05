@@ -232,10 +232,15 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 {
 	typeOverride = "*human*";
 	
+	PhyShapeHandle baseShape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
+	PhyShapeHandle fullShape = m_level->GetPhyWorld()->CreateCompoundShape();
+	fullShape->AddChildShape( baseShape );
+	fullShape->AddChildShape( baseShape, V3( 0, -0.5f, 0 ) );
+	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
 	rbinfo.restitution = 0;
-	rbinfo.shape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
+	rbinfo.shape = fullShape;
 	rbinfo.mass = 70;
 	rbinfo.inertia = V3(0);
 	rbinfo.position = V3(0) + V3(0,0,1);
@@ -342,6 +347,11 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	m_aimDist = aimdir.Length();
 	aimdir = m_aimDir.ToVec3();
 	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
+	
+	Vec2 totalShape2Offset = rundir.Normalized() * 0.2f + aimdir.ToVec2().Normalized() * 0.4f;
+	m_bodyHandle->GetShape()->UpdateChildShapeTransform( 1,
+		V3( totalShape2Offset.x, totalShape2Offset.y, 0 ) );
+	m_bodyHandle->FlushContacts();
 	
 	// committing to animator
 	if( Vec2Dot( rundir, aimdir.ToVec2() ) < -0.1f )
