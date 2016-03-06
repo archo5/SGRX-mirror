@@ -104,6 +104,20 @@ BatchRenderer& BatchRenderer::Quad( float x0, float y0, float x1, float y1, floa
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::QuadTexRect( float x0, float y0, float x1, float y1,
+	float tx0, float ty0, float tx1, float ty1 )
+{
+	float z = 0;
+	SetPrimitiveType( PT_Triangles );
+	Tex( tx0, ty0 ); Pos( x0, y0, z );
+	Tex( tx1, ty0 ); Pos( x1, y0, z );
+	Tex( tx1, ty1 ); Pos( x1, y1, z );
+	Prev( 0 );
+	Tex( tx0, ty1 ); Pos( x0, y1, z );
+	Prev( 4 );
+	return *this;
+}
+
 BatchRenderer& BatchRenderer::QuadExt( float x0, float y0, float x1, float y1,
 	float tox, float toy, float tsx, float tsy, float z )
 {

@@ -760,6 +760,20 @@ SGS_MULTRET GameLevel::sgsGetCursorWorldPoint( uint32_t layers )
 	return 1;
 }
 
+SGS_MULTRET GameLevel::sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ )
+{
+	Vec2 cpn = Game_GetCursorPosNormalized();
+	Vec3 pos, dir, end;
+	if( !m_scene->camera.GetCursorRay( cpn.x, cpn.y, pos, dir ) )
+		return 0;
+	SceneRaycastInfo hitinfo;
+	end = pos + dir * m_scene->camera.zfar;
+	if( !m_scene->RaycastOne( pos, end, &hitinfo, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
+		return 0;
+	sgs_PushPtr( C, hitinfo.meshinst.item );
+	return 1;
+}
+
 
 
 bool GameLevel::Query( EntityProcessor* optProc, uint32_t mask )

@@ -152,7 +152,7 @@ void MeshEntity::_UpdateBody()
 	_UpEv();
 }
 
-void MeshEntity::SetMesh( MeshHandle mesh )
+void MeshEntity::SetMeshData( MeshHandle mesh )
 {
 	if( m_mesh == mesh )
 		return;
@@ -162,6 +162,16 @@ void MeshEntity::SetMesh( MeshHandle mesh )
 	m_meshInst->SetMesh( mesh );
 	_UpdateBody();
 	// _UpEv already called
+}
+
+void MeshEntity::SetShaderConst( int v, Vec4 var )
+{
+	if( v < 0 || v >= MAX_MI_CONSTANTS )
+	{
+		sgs_Msg( C, SGS_WARNING, "shader constant %d outside range [0;%d)", v, MAX_MI_CONSTANTS );
+		return;
+	}
+	m_meshInst->constants[ v ] = var;
 }
 
 

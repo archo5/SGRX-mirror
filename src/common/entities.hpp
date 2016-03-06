@@ -52,22 +52,28 @@ EXP_STRUCT MeshEntity : Entity
 	void SetStatic( bool v ){ if( m_isStatic != v ){ m_body = NULL; } m_isStatic = v; _UpdateBody(); }
 	bool IsVisible() const { return m_isVisible; }
 	void SetVisible( bool v ){ m_isVisible = v; m_meshInst->enabled = v; _UpEv(); }
-	MeshHandle GetMesh() const { return m_mesh; }
-	GFW_EXPORT void SetMesh( MeshHandle mesh );
+	MeshHandle GetMeshData() const { return m_mesh; }
+	GFW_EXPORT void SetMeshData( MeshHandle mesh );
+	StringView GetMeshPath() const { return m_mesh ? m_mesh->m_key : ""; }
+	void SetMeshPath( StringView path ){ SetMeshData( GR_GetMesh( path ) ); }
 	bool IsSolid() const { return m_isSolid; }
 	void SetSolid( bool v ){ m_isSolid = v; _UpdateBody(); }
 	bool GetLightingMode() const { return m_lightingMode; }
 	void SetLightingMode( int v ){ m_lightingMode = v;
 		m_meshInst->SetLightingMode( (SGRX_LightingMode) v ); _UpdateLighting(); }
 	
+	SGS_PROPERTY_FUNC( READ SOURCE m_meshInst.item ) SGS_ALIAS( void* meshInst );
 	SGS_PROPERTY_FUNC( READ IsStatic WRITE SetStatic VARNAME isStatic ) bool m_isStatic;
 	SGS_PROPERTY_FUNC( READ IsVisible WRITE SetVisible VARNAME visible ) bool m_isVisible;
-	SGS_PROPERTY_FUNC( READ GetMesh WRITE SetMesh VARNAME mesh ) MeshHandle m_mesh;
+	SGS_PROPERTY_FUNC( READ GetMeshData WRITE SetMeshData VARNAME meshData ) MeshHandle m_mesh;
+	SGS_PROPERTY_FUNC( READ GetMeshPath WRITE SetMeshPath ) SGS_ALIAS( StringView mesh );
 	SGS_PROPERTY_FUNC( READ IsSolid WRITE SetSolid VARNAME solid ) bool m_isSolid;
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lmQuality ) float m_lmQuality;
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME castLMS ) bool m_castLMS;
+	
+	GFW_EXPORT SGS_METHOD void SetShaderConst( int v, Vec4 var );
 	
 	MeshInstHandle m_meshInst;
 	PhyShapeHandle m_phyShape;
@@ -124,8 +130,10 @@ EXP_STRUCT LightEntity : Entity
 	void SetFlareSize( float v ){ m_flareSize = v; _UpdateFlare(); }
 	Vec3 GetFlareOffset() const { return m_flareOffset; }
 	void SetFlareOffset( Vec3 v ){ m_flareOffset = v; _UpdateFlare(); }
-	TextureHandle GetCookieTexture() const { return m_cookieTexture; }
-	void SetCookieTexture( TextureHandle h ){ m_cookieTexture = h; RETNIFNOLIGHT; m_light->cookieTexture = h; }
+	TextureHandle GetCookieTextureData() const { return m_cookieTexture; }
+	void SetCookieTextureData( TextureHandle h ){ m_cookieTexture = h; RETNIFNOLIGHT; m_light->cookieTexture = h; }
+	StringView GetCookieTexturePath() const { return m_cookieTexture ? m_cookieTexture->m_key : ""; }
+	void SetCookieTexturePath( StringView path ){ SetCookieTextureData( GR_GetTexture( path ) ); }
 	
 	SGS_PROPERTY_FUNC( READ IsStatic WRITE SetStatic VARNAME isStatic ) bool m_isStatic;
 	SGS_PROPERTY_FUNC( READ GetType WRITE SetType VARNAME type ) int m_type;
@@ -137,7 +145,8 @@ EXP_STRUCT LightEntity : Entity
 	SGS_PROPERTY_FUNC( READ GetAngle WRITE SetAngle VARNAME angle ) float m_angle;
 	SGS_PROPERTY_FUNC( READ GetAspect WRITE SetAspect VARNAME aspect ) float m_aspect;
 	SGS_PROPERTY_FUNC( READ HasShadows WRITE SetShadows VARNAME hasShadows ) bool m_hasShadows;
-	SGS_PROPERTY_FUNC( READ GetCookieTexture WRITE SetCookieTexture VARNAME cookieTexture ) TextureHandle m_cookieTexture;
+	SGS_PROPERTY_FUNC( READ GetCookieTextureData WRITE SetCookieTextureData VARNAME cookieTextureData ) TextureHandle m_cookieTexture;
+	SGS_PROPERTY_FUNC( READ GetCookieTexturePath WRITE SetCookieTexturePath ) SGS_ALIAS( StringView cookieTexture );
 	SGS_PROPERTY_FUNC( READ GetFlareSize WRITE SetFlareSize VARNAME flareSize ) float m_flareSize;
 	SGS_PROPERTY_FUNC( READ GetFlareOffset WRITE SetFlareOffset VARNAME flareOffset ) Vec3 m_flareOffset;
 	// editor-only static light parameters

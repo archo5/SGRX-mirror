@@ -585,15 +585,16 @@ function BasicDoor.OnDestroy()
 function BasicDoor.__get_mesh(){ return this.meshEnt.mesh; }
 function BasicDoor.__set_mesh( v )
 {
-	if( typeof(v) == "string" )
-		v = GR_GetMesh( v );
 	this.meshEnt.mesh = v;
-	if( v !== null )
+	md = this.meshEnt.meshData;
+	if( md !== null )
 	{
-		this.bodyEnt.shapeExtents = v.boundsMax;
-		this.bodyEnt.shapeMinExtents = v.boundsMin;
+		this.bodyEnt.shapeExtents = md.boundsMax;
+		this.bodyEnt.shapeMinExtents = md.boundsMin;
 	}
 }
+function BasicDoor.__get_castLMS(){ return this.meshEnt.castLMS; }
+function BasicDoor.__set_castLMS( v ){ this.meshEnt.castLMS = v; }
 function BasicDoor.__set_closedPosition( v ){ this._data.closedPosition = v; this._OnReposition(); }
 function BasicDoor.__set_openPosition( v ){ this._data.openPosition = v; this._OnReposition(); }
 function BasicDoor.__get_closedRotationXYZ(){ return quat2euler( this.closedRotation ); }
@@ -639,6 +640,7 @@ function BasicDoor.ED_PropInfo( eptr )
 	EE_AddFieldVec3( eptr, "openRotationXYZ", "Open rotation", vec3(0,0,0), 2, 0, 360 );
 	EE_AddFieldFloat( eptr, "openingTime", "Opening time", 1, 2, 0.01, 100 );
 	EE_AddFieldFloat( eptr, "initialState", "Initial openness", 0, 2, 0, 1 );
+	EE_AddFieldBool( eptr, "castLMS", "[dyn] Cast lightmap shadow", true );
 }
 
 function BasicDoor.EditorDrawWorld()

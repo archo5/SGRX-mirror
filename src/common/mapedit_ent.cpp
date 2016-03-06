@@ -316,9 +316,9 @@ void EdEntity::UpdateRealEnt( Field* curF )
 			{
 				SGRX_CAST( EDGUIPropRsrc*, rp, F.property );
 				if( rp->m_rsrcPicker == g_UIMeshPicker )
-					so.setprop( F.key, FIntVar( GR_GetMesh( rp->m_value ) ) );
+					so.setprop( F.key, FIntVar( rp->m_value ) );
 				else if( rp->m_rsrcPicker == g_UITexturePicker )
-					so.setprop( F.key, FIntVar( GR_GetTexture( rp->m_value ) ) );
+					so.setprop( F.key, FIntVar( rp->m_value ) );
 			}
 			break;
 		}

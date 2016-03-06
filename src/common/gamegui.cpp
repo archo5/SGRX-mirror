@@ -522,6 +522,12 @@ void GameUIControl::DQuadWH( float x, float y, float w, float h )
 	GR2D_GetBatchRenderer().Quad( IX( x ), IY( y ), IX( x1 ), IY( y1 ) );
 }
 
+void GameUIControl::DQuadTexRect( float x0, float y0, float x1, float y1,
+	float tx0, float ty0, float tx1, float ty1 )
+{
+	GR2D_GetBatchRenderer().QuadTexRect( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ), tx0, ty0, tx1, ty1 );
+}
+
 void GameUIControl::DQuadExt( float x0, float y0, float x1, float y1,
 	float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ )
 {

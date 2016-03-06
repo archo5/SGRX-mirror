@@ -551,6 +551,7 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
 	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
 	GFW_EXPORT SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
+	GFW_EXPORT SGS_METHOD_NAMED( GetCursorMeshInst ) SGS_MULTRET sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ );
 	
 	GFW_EXPORT bool Query( EntityProcessor* optProc, uint32_t mask );
 	GFW_EXPORT bool QuerySphere( EntityProcessor* optProc, uint32_t mask, Vec3 pos, float rad );

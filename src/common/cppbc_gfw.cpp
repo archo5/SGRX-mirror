@@ -394,6 +394,13 @@ static int _sgs_method__GameUIControl__DQuadWH( SGS_CTX )
 	data->DQuadWH( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DQuadTexRect( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DQuadTexRect ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DQuadTexRect( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5), sgs_GetVar<float>()(C,6), sgs_GetVar<float>()(C,7) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DQuadExt( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DQuadExt ) ) return 0;
@@ -615,6 +622,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DTex", _sgs_method__GameUIControl__DTex },
 	{ "DQuad", _sgs_method__GameUIControl__DQuad },
 	{ "DQuadWH", _sgs_method__GameUIControl__DQuadWH },
+	{ "DQuadTexRect", _sgs_method__GameUIControl__DQuadTexRect },
 	{ "DQuadExt", _sgs_method__GameUIControl__DQuadExt },
 	{ "DTurnedBox", _sgs_method__GameUIControl__DTurnedBox },
 	{ "DCircleFill", _sgs_method__GameUIControl__DCircleFill },
@@ -1301,6 +1309,13 @@ static int _sgs_method__GameLevel__GetCursorWorldPoint( SGS_CTX )
 	return data->sgsGetCursorWorldPoint( sgs_GetVar<uint32_t>()(C,0) );
 }
 
+static int _sgs_method__GameLevel__GetCursorMeshInst( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, GetCursorMeshInst ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	return data->sgsGetCursorMeshInst( sgs_GetVar<uint32_t>()(C,0) );
+}
+
 static int _sgs_method__GameLevel__Query( SGS_CTX )
 {
 	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, Query ) ) return 0;
@@ -1416,6 +1431,7 @@ static sgs_RegFuncConst GameLevel__sgs_funcs[] =
 	{ "WorldToScreen", _sgs_method__GameLevel__WorldToScreen },
 	{ "WorldToScreenPx", _sgs_method__GameLevel__WorldToScreenPx },
 	{ "GetCursorWorldPoint", _sgs_method__GameLevel__GetCursorWorldPoint },
+	{ "GetCursorMeshInst", _sgs_method__GameLevel__GetCursorMeshInst },
 	{ "Query", _sgs_method__GameLevel__Query },
 	{ "QuerySphere", _sgs_method__GameLevel__QuerySphere },
 	{ "QueryOBB", _sgs_method__GameLevel__QueryOBB },
@@ -2268,6 +2284,13 @@ static int _sgs_method__MeshEntity__WorldToLocalDir( SGS_CTX )
 	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
+static int _sgs_method__MeshEntity__SetShaderConst( SGS_CTX )
+{
+	MeshEntity* data; if( !SGS_PARSE_METHOD( C, MeshEntity::_sgs_interface, data, MeshEntity, SetShaderConst ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetShaderConst( sgs_GetVar<int>()(C,0), sgs_GetVar<Vec4>()(C,1) ); return 0;
+}
+
 int MeshEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<MeshEntity*>( obj->data )->C = C;
@@ -2304,9 +2327,11 @@ int MeshEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->name ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_id ); return SGS_SUCCESS; }
+		SGS_CASE( "meshInst" ){ sgs_PushPtr( C, static_cast<MeshEntity*>( obj->data )->m_meshInst.item ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->IsStatic() ); return SGS_SUCCESS; }
 		SGS_CASE( "visible" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->IsVisible() ); return SGS_SUCCESS; }
-		SGS_CASE( "mesh" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetMesh() ); return SGS_SUCCESS; }
+		SGS_CASE( "meshData" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetMeshData() ); return SGS_SUCCESS; }
+		SGS_CASE( "mesh" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetMeshPath() ); return SGS_SUCCESS; }
 		SGS_CASE( "solid" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->IsSolid() ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->GetLightingMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ sgs_PushVar( C, static_cast<MeshEntity*>( obj->data )->m_lmQuality ); return SGS_SUCCESS; }
@@ -2337,7 +2362,8 @@ int MeshEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "id" ){ static_cast<MeshEntity*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ static_cast<MeshEntity*>( obj->data )->SetStatic( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "visible" ){ static_cast<MeshEntity*>( obj->data )->SetVisible( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "mesh" ){ static_cast<MeshEntity*>( obj->data )->SetMesh( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "meshData" ){ static_cast<MeshEntity*>( obj->data )->SetMeshData( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "mesh" ){ static_cast<MeshEntity*>( obj->data )->SetMeshPath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "solid" ){ static_cast<MeshEntity*>( obj->data )->SetSolid( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ static_cast<MeshEntity*>( obj->data )->SetLightingMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ static_cast<MeshEntity*>( obj->data )->m_lmQuality = sgs_GetVar<float>()( C, 1 );
@@ -2375,14 +2401,16 @@ int MeshEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->name, depth ).push( C ); }
 		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_id, depth ).push( C ); }
+		{ sgs_PushString( C, "\nmeshInst = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_meshInst.item, depth ).push( C ); }
 		{ sgs_PushString( C, "\nisStatic = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->IsStatic(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nvisible = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->IsVisible(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nmesh = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetMesh(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmeshData = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetMeshData(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmesh = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetMeshPath(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nsolid = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->IsSolid(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->GetLightingMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlmQuality = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_lmQuality, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncastLMS = " ); sgs_DumpData( C, static_cast<MeshEntity*>( obj->data )->m_castLMS, depth ).push( C ); }
-		sgs_StringConcat( C, 52 );
+		sgs_StringConcat( C, 56 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -2397,6 +2425,7 @@ static sgs_RegFuncConst MeshEntity__sgs_funcs[] =
 	{ "WorldToLocal", _sgs_method__MeshEntity__WorldToLocal },
 	{ "LocalToWorldDir", _sgs_method__MeshEntity__LocalToWorldDir },
 	{ "WorldToLocalDir", _sgs_method__MeshEntity__WorldToLocalDir },
+	{ "SetShaderConst", _sgs_method__MeshEntity__SetShaderConst },
 	{ NULL, NULL },
 };
 
@@ -2498,7 +2527,8 @@ int LightEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "angle" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetAngle() ); return SGS_SUCCESS; }
 		SGS_CASE( "aspect" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetAspect() ); return SGS_SUCCESS; }
 		SGS_CASE( "hasShadows" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->HasShadows() ); return SGS_SUCCESS; }
-		SGS_CASE( "cookieTexture" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetCookieTexture() ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTextureData" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetCookieTextureData() ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTexture" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetCookieTexturePath() ); return SGS_SUCCESS; }
 		SGS_CASE( "flareSize" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetFlareSize() ); return SGS_SUCCESS; }
 		SGS_CASE( "flareOffset" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->GetFlareOffset() ); return SGS_SUCCESS; }
 		SGS_CASE( "innerAngle" ){ sgs_PushVar( C, static_cast<LightEntity*>( obj->data )->m_innerAngle ); return SGS_SUCCESS; }
@@ -2538,7 +2568,8 @@ int LightEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "angle" ){ static_cast<LightEntity*>( obj->data )->SetAngle( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "aspect" ){ static_cast<LightEntity*>( obj->data )->SetAspect( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "hasShadows" ){ static_cast<LightEntity*>( obj->data )->SetShadows( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "cookieTexture" ){ static_cast<LightEntity*>( obj->data )->SetCookieTexture( sgs_GetVar<TextureHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTextureData" ){ static_cast<LightEntity*>( obj->data )->SetCookieTextureData( sgs_GetVar<TextureHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTexture" ){ static_cast<LightEntity*>( obj->data )->SetCookieTexturePath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "flareSize" ){ static_cast<LightEntity*>( obj->data )->SetFlareSize( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "flareOffset" ){ static_cast<LightEntity*>( obj->data )->SetFlareOffset( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "innerAngle" ){ static_cast<LightEntity*>( obj->data )->m_innerAngle = sgs_GetVar<float>()( C, 1 );
@@ -2588,13 +2619,14 @@ int LightEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nangle = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetAngle(), depth ).push( C ); }
 		{ sgs_PushString( C, "\naspect = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetAspect(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nhasShadows = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->HasShadows(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ncookieTexture = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetCookieTexture(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ncookieTextureData = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetCookieTextureData(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ncookieTexture = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetCookieTexturePath(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nflareSize = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetFlareSize(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nflareOffset = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->GetFlareOffset(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ninnerAngle = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->m_innerAngle, depth ).push( C ); }
 		{ sgs_PushString( C, "\nspotCurve = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->m_spotCurve, depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightRadius = " ); sgs_DumpData( C, static_cast<LightEntity*>( obj->data )->m_lightRadius, depth ).push( C ); }
-		sgs_StringConcat( C, 70 );
+		sgs_StringConcat( C, 72 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
