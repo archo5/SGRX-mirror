@@ -2623,9 +2623,13 @@ int TestSystems()
 	if( src != dst ) return 606;
 	
 	Vec3 rot_angles = DEG2RAD( V3(25,50,75) );
+	Quat rot_quat = Quat::CreateFromXYZ( rot_angles );
 	Mat4 rot_mtx = Mat4::CreateRotationXYZ( rot_angles );
+	Vec3 quat_rot_angles = rot_quat.ToXYZ();
 	Vec3 out_rot_angles = rot_mtx.GetXYZAngles();
 	if( !( rot_angles - out_rot_angles ).NearZero() ) return 701;
+	if( !( quat_rot_angles - out_rot_angles ).NearZero() ) return 702;
+	if( !( rot_angles - quat_rot_angles ).NearZero() ) return 703;
 	
 	Vec3 tri0[3] = { V3(0,0,0), V3(2,0,0), V3(0,3,0) };
 	if( PointTriangleDistance( V3(0.5f,0.5f,0), tri0[0], tri0[1], tri0[2] ) != 0.0f ) return 801;

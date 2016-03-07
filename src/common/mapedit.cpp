@@ -1327,8 +1327,8 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 	
 	for( size_t i = 0; i < m_lights.size(); ++i )
 	{
-		if( m_lights[ i ].ent->m_isStatic )
-			LC.AddLight( m_lights[ i ].info );
+		if( m_lights.item( i ).value.ent->m_isStatic )
+			LC.AddLight( m_lights.item( i ).value.info );
 	}
 }
 

@@ -226,6 +226,24 @@ static int BR_SphereOutline( SGS_CTX )
 	GR2D_GetBatchRenderer().SphereOutline( pos, rad, verts );
 	return 0;
 }
+static int BR_ConeOutline( SGS_CTX )
+{
+	Vec3 pos, dir, up;
+	float radius;
+	Vec2 angles;
+	int32_t verts;
+	SGSFN( "BR_ConeOutline" );
+	if( !sgs_LoadArgs( C, "xxxfxl",
+		sgs_ArgCheck_Vec3, &pos.x,
+		sgs_ArgCheck_Vec3, &dir.x,
+		sgs_ArgCheck_Vec3, &up.x,
+		&radius,
+		sgs_ArgCheck_Vec2, &angles.x,
+		&verts ) )
+		return 0;
+	GR2D_GetBatchRenderer().ConeOutline( pos, dir, up, radius, angles, verts );
+	return 0;
+}
 static int BR_AABB( SGS_CTX )
 {
 	Vec3 pmin = {0}, pmax = {0};
@@ -262,6 +280,7 @@ static sgs_RegFuncConst g_batchrenderer_rfc[] =
 	{ "BR_Col", BR_Col },
 	{ "BR_Pos", BR_Pos },
 	{ "BR_SphereOutline", BR_SphereOutline },
+	{ "BR_ConeOutline", BR_ConeOutline },
 	{ "BR_AABB", BR_AABB },
 	{ "BR_Tick", BR_Tick },
 	{ "BR_SetPrimitiveType", BR_SetPrimitiveType },

@@ -612,7 +612,7 @@ struct ENGINE_EXPORT Quat
 	FINLINE Quat operator - ( const Quat& o ) const { Quat q = { x - o.x, y - o.y, z - o.z, w - o.w }; return q; }
 	Quat operator * ( const Quat& o ) const
 	{
-		const Quat& q1 = *this, &q2 = o;
+		const Quat& q1 = o, &q2 = *this;
 		Quat q =
 		{
 			 q1.x * q2.w + q1.y * q2.z - q1.z * q2.y + q1.w * q2.x,

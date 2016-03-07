@@ -3,6 +3,7 @@
 #include "tsgame.hpp"
 
 
+InputState ESCAPE( "escape" );
 InputState MOVE_LEFT( "move_left" );
 InputState MOVE_RIGHT( "move_right" );
 InputState MOVE_UP( "move_up" );
@@ -314,6 +315,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		GR2D_LoadSVGIconFont( "tsicons", "ui/tsicons.svf" );
 		GR2D_SetFont( "core", 12 );
 		
+		Game_RegisterAction( &ESCAPE );
 		Game_RegisterAction( &MOVE_LEFT );
 		Game_RegisterAction( &MOVE_RIGHT );
 		Game_RegisterAction( &MOVE_UP );
@@ -326,6 +328,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		Game_RegisterAction( &CROUCH );
 		Game_RegisterAction( &DO_ACTION );
 		
+		Game_BindKeyToAction( SDLK_ESCAPE, &ESCAPE );
 		Game_BindKeyToAction( SDLK_a, &MOVE_LEFT );
 		Game_BindKeyToAction( SDLK_d, &MOVE_RIGHT );
 		Game_BindKeyToAction( SDLK_w, &MOVE_UP );
@@ -340,6 +343,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		Game_BindKeyToAction( SDLK_SPACE, &DO_ACTION );
 		Game_BindKeyToAction( SDLK_TAB, &SLOWDOWN_TEST );
 		
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_START, &ESCAPE );
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_LEFTX, &MOVE_X );
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_LEFTY, &MOVE_Y );
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_RIGHTX, &AIM_X );
@@ -360,8 +364,8 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !BaseGame::OnInitialize() )
 			return false;
 		
-	//	m_level->Load( "ai-test-suite" );
-		m_level->Load( "gp-test-suite" );
+		m_level->Load( "ai-test-suite" );
+	//	m_level->Load( "gp-test-suite" );
 	//	m_level->Load( "v3decotest" );
 		
 	//	Game_AddOverlayScreen( &g_PauseMenu );
