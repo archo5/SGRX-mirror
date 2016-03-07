@@ -886,22 +886,6 @@ Entity* StockEntityCreationSystem::AddEntity( StringView type )
 	}
 	
 	///////////////////////////
-	AIDBSystem* aidbSys = m_level->GetSystem<AIDBSystem>();
-	if( type == "room" && aidbSys )
-	{
-		if( !m_level->GetEditorMode() )
-		{
-			Mat4 mtx = Mat4::CreateSXT(
-				data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-				Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
-				data.getprop("position").get<Vec3>() );
-			aidbSys->AddRoomPart(
-				data.getprop("name").get<StringView>(), mtx,
-				data.getprop("negative").get<bool>(), data.getprop("cell_size").get<float>() );
-		}
-	}
-	
-	///////////////////////////
 	if( type == "particle_fx" )
 	{
 		return new ParticleFX

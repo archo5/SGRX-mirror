@@ -1510,6 +1510,69 @@ bool AIRoom::IsInside( Vec3 pos )
 }
 
 
+
+#define LC_FILE_AIRM_NAME "AIRM"
+#define LC_FILE_AIRM_VERSION 0
+struct LC_AIRoom
+{
+	StringView name;
+	Mat4 transform;
+	bool negative;
+	float cell_size;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.stringView( name );
+		arch << transform;
+		arch << negative;
+		arch << cell_size;
+	}
+};
+struct LC_Chunk_AIRM
+{
+	Array< LC_AIRoom > rooms;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_AIRM_VERSION );
+		svh << rooms;
+	}
+};
+
+struct LC_AIDB_Compiler : IEditorSystemCompiler
+{
+	bool GenerateChunk( ByteArray& out )
+	{
+		ByteWriter bw( &out );
+		bw << data;
+		WrapChunk( out, LC_FILE_AIRM_NAME );
+		return true;
+	}
+	void ProcessEntity( EditorEntity& ent )
+	{
+		if( ent.type == "AIRoom" )
+		{
+			LC_AIRoom room =
+			{
+				ent.props.getprop("name").get<StringView>(),
+				Mat4::CreateSRT(
+					ent.props.getprop("scale").get<Vec3>(),
+					DEG2RAD( ent.props.getprop("rotationXYZ").get<Vec3>() ),
+					ent.props.getprop("position").get<Vec3>() ),
+				ent.props.getprop("negative").get<bool>(),
+				ent.props.getprop("cellSize").get<float>(),
+			};
+			data.rooms.push_back( room );
+			ent.remove = true;
+			return;
+		}
+	}
+	
+	LC_Chunk_AIRM data;
+};
+
+
+
 AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	_InitScriptInterface( this );
@@ -1543,13 +1606,35 @@ bool AIDBSystem::CanHearSound( Vec3 pos, int i )
 
 bool AIDBSystem::LoadChunk( const StringView& type, ByteView data )
 {
-	if( type != LC_FILE_PFND_NAME )
-		return false;
-	
-	LOG_FUNCTION_ARG( "PFND chunk" );
-	
-	m_pathfinder.Load( data );
-	return true;
+	if( type == LC_FILE_PFND_NAME )
+	{
+		LOG_FUNCTION_ARG( "PFND chunk" );
+		m_pathfinder.Load( data );
+		return true;
+	}
+	if( type == LC_FILE_AIRM_NAME )
+	{
+		LOG_FUNCTION_ARG( "AIRM chunk" );
+		LC_Chunk_AIRM airm;
+		ByteReader br( data );
+		br << airm;
+		for( size_t i = 0; i < airm.rooms.size(); ++i )
+		{
+			AddRoomPart(
+				airm.rooms[ i ].name,
+				airm.rooms[ i ].transform,
+				airm.rooms[ i ].negative,
+				airm.rooms[ i ].cell_size
+			);
+		}
+		return true;
+	}
+	return false;
+}
+
+IEditorSystemCompiler* AIDBSystem::EditorGetSystemCompiler()
+{
+	return new LC_AIDB_Compiler;
 }
 
 void AIDBSystem::AddSound( Vec3 pos, float rad, float timeout, AISoundType type )
@@ -2091,6 +2176,85 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 			coveridcs.push_back( pos1 );
 		}
 	}
+}
+
+
+
+#define LC_FILE_COVR_NAME "COVR"
+#define LC_FILE_COVR_VERSION 0
+struct LC_AICover
+{
+	StringView name;
+	Mat4 transform;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.stringView( name );
+		arch << transform;
+	}
+};
+struct LC_Chunk_COVR
+{
+	Array< LC_AICover > covers;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_COVR_VERSION );
+		svh << covers;
+	}
+};
+
+struct LC_CoverSys_Compiler : IEditorSystemCompiler
+{
+	bool GenerateChunk( ByteArray& out )
+	{
+		ByteWriter bw( &out );
+		bw << data;
+		WrapChunk( out, LC_FILE_COVR_NAME );
+		return true;
+	}
+	void ProcessEntity( EditorEntity& ent )
+	{
+		if( ent.type == "AICover" )
+		{
+			LC_AICover cover =
+			{
+				ent.props.getprop("name").get<StringView>(),
+				Mat4::CreateSRT(
+					ent.props.getprop("scale").get<Vec3>(),
+					DEG2RAD( ent.props.getprop("rotationXYZ").get<Vec3>() ),
+					ent.props.getprop("position").get<Vec3>() ),
+			};
+			data.covers.push_back( cover );
+			ent.remove = true;
+			return;
+		}
+	}
+	
+	LC_Chunk_COVR data;
+};
+
+
+
+bool CoverSystem::LoadChunk( const StringView& type, ByteView data )
+{
+	if( type == LC_FILE_COVR_NAME )
+	{
+		LC_Chunk_COVR chunk;
+		ByteReader br( data );
+		br << chunk;
+		for( size_t i = 0; i < chunk.covers.size(); ++i )
+		{
+			AddAABB( chunk.covers[ i ].name, V3(-1), V3(1), chunk.covers[ i ].transform );
+		}
+		return true;
+	}
+	return false;
+}
+
+IEditorSystemCompiler* CoverSystem::EditorGetSystemCompiler()
+{
+	return new LC_CoverSys_Compiler;
 }
 
 void CoverSystem::Clear()

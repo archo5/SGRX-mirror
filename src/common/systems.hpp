@@ -538,6 +538,7 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	
 	GFW_EXPORT AIDBSystem( GameLevel* lev );
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
+	GFW_EXPORT IEditorSystemCompiler* EditorGetSystemCompiler();
 	GFW_EXPORT void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	GFW_EXPORT void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
 	GFW_EXPORT AIRoom* FindRoomByPos( Vec3 pos );
@@ -653,6 +654,8 @@ EXP_STRUCT CoverSystem : IGameLevelSystem
 	typedef Handle< EdgeMesh > EdgeMeshHandle;
 	
 	CoverSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
+	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
+	GFW_EXPORT IEditorSystemCompiler* EditorGetSystemCompiler();
 	GFW_EXPORT void Clear();
 	GFW_EXPORT void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
 	
