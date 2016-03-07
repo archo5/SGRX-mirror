@@ -1092,8 +1092,8 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 
 
 
-TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args ) :
-	m_level( lev ),
+TSEnemyController::TSEnemyController( TSCharacter* chr ) :
+	m_level( chr->m_level ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
 	m_inPlayerTeam( false ),
@@ -1106,8 +1106,7 @@ TSEnemyController::TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVaria
 		SGS_CSCOPE( m_level->m_scriptCtx.C );
 		sgs_PushObjectPtr( m_level->m_scriptCtx.C, m_sgsObject );
 		sgs_PushObjectPtr( m_level->m_scriptCtx.C, chr->m_sgsObject );
-		m_level->m_scriptCtx.Push( args );
-		if( m_level->m_scriptCtx.GlobalCall( "TSEnemy_Create", 3, 1 ) == false )
+		if( m_level->m_scriptCtx.GlobalCall( "TSEnemy_Create", 2, 1 ) == false )
 		{
 			LOG_ERROR << "FAILED to create enemy state";
 		}
@@ -1599,6 +1598,17 @@ bool TSEnemyController::sgsRemoveNextPathPoint()
 	return false;
 }
 
+sgsVariable TSEnemyController::Create( SGS_CTX, EntityScrHandle chr )
+{
+	if( !chr || !ENTITY_IS_A( chr, TSCharacter ) )
+	{
+		sgs_Msg( C, SGS_WARNING, "argument 1 must be TSCharacter" );
+		return sgsVariable();
+	}
+	SGS_CREATECLASS( C, NULL, TSEnemyController, ( (TSCharacter*) (Entity*) chr ) );
+	return sgsVariable( C, sgsVariable::PickAndPop );
+}
+
 
 
 static sgs_RegIntConst g_ts_ints[] =
@@ -1620,6 +1630,8 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 		sgs_GetClassInterface<TSScriptedController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().SetGlobal( "TSPlayerController",
 		sgs_GetClassInterface<TSPlayerController>( m_level->GetSGSC() ) );
+	m_level->GetScriptCtx().SetGlobal( "TSEnemyController",
+		sgs_GetClassInterface<TSEnemyController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().Include( "data/enemy" );
 	
 	sgs_RegIntConsts( m_level->GetSGSC(), g_ts_ints, -1 );
@@ -1646,18 +1658,6 @@ Entity* TSGameSystem::AddEntity( StringView type )
 			data.getprop("dir1").get<Vec3>()
 		);
 #endif
-	}
-	
-	///////////////////////////
-	if( type == "enemy_start" || type == "enemy" )
-	{
-		TSCharacter* E = new TSCharacter( m_level );
-		E->SetPlayerMode( false );
-		E->InitializeMesh( "chars/tstest.chr" );
-	//	E->m_name = data.getprop("name").get<StringView>();
-		m_level->MapEntityByName( E );
-		E->ctrl = new TSEnemyController( m_level, E );
-		return E;
 	}
 #endif
 	if( type == "TSCharacter" ) return new TSCharacter( m_level );

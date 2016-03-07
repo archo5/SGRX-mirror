@@ -167,6 +167,10 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	LightHandle m_shootLT;
 	float m_shootTimeout;
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
+	void SetViewDir( Vec3 v ){ m_moveDir = v.ToVec2().Normalized(); }
+	SGS_PROPERTY_FUNC( WRITE SetViewDir ) SGS_ALIAS( Vec3 viewDir );
+	void SetFootPosition( Vec3 p ){ SetWorldPosition( p + V3(0,0,1.5f) ); }
+	SGS_PROPERTY_FUNC( WRITE SetFootPosition ) SGS_ALIAS( Vec3 footPosition );
 	bool m_skipTransformUpdate;
 	
 	SGS_METHOD_NAMED( GetAttachmentPos ) Vec3 sgsGetAttachmentPos( StringView atch, Vec3 off );
@@ -265,7 +269,7 @@ struct TSEnemyController : IActorController
 	CoverSystem* m_coverSys;
 	TSCharacter* m_char;
 	
-	TSEnemyController( GameLevel* lev, TSCharacter* chr, sgsVariable args );
+	TSEnemyController( TSCharacter* chr );
 	~TSEnemyController();
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );
@@ -302,6 +306,8 @@ struct TSEnemyController : IActorController
 	SGS_METHOD_NAMED( AdvancePath ) bool sgsAdvancePath( float dist );
 	SGS_METHOD_NAMED( GetNextPathPoint ) sgsMaybe<Vec3> sgsGetNextPathPoint();
 	SGS_METHOD_NAMED( RemoveNextPathPoint ) bool sgsRemoveNextPathPoint();
+	
+	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, EntityScrHandle chr );
 };
 
 

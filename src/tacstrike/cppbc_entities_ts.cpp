@@ -3,6 +3,41 @@
 
 #include "entities_ts.hpp"
 
+static int _sgs_method__TSCamera__GetChild( SGS_CTX )
+{
+	TSCamera* data; if( !SGS_PARSE_METHOD( C, TSCamera::_sgs_interface, data, TSCamera, GetChild ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCamera__LocalToWorld( SGS_CTX )
+{
+	TSCamera* data; if( !SGS_PARSE_METHOD( C, TSCamera::_sgs_interface, data, TSCamera, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCamera__WorldToLocal( SGS_CTX )
+{
+	TSCamera* data; if( !SGS_PARSE_METHOD( C, TSCamera::_sgs_interface, data, TSCamera, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCamera__LocalToWorldDir( SGS_CTX )
+{
+	TSCamera* data; if( !SGS_PARSE_METHOD( C, TSCamera::_sgs_interface, data, TSCamera, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCamera__WorldToLocalDir( SGS_CTX )
+{
+	TSCamera* data; if( !SGS_PARSE_METHOD( C, TSCamera::_sgs_interface, data, TSCamera, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
 int TSCamera::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<TSCamera*>( obj->data )->C = C;
@@ -22,6 +57,7 @@ int TSCamera::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<TSCamera*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
@@ -82,6 +118,7 @@ int TSCamera::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->_ch.size(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
@@ -101,7 +138,7 @@ int TSCamera::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nmoveTime = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_moveTime, depth ).push( C ); }
 		{ sgs_PushString( C, "\npauseTime = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_pauseTime, depth ).push( C ); }
 		{ sgs_PushString( C, "\nfov = " ); sgs_DumpData( C, static_cast<TSCamera*>( obj->data )->m_fov, depth ).push( C ); }
-		sgs_StringConcat( C, 42 );
+		sgs_StringConcat( C, 44 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -111,6 +148,11 @@ int TSCamera::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSCamera__sgs_funcs[] =
 {
+	{ "GetChild", _sgs_method__TSCamera__GetChild },
+	{ "LocalToWorld", _sgs_method__TSCamera__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__TSCamera__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__TSCamera__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__TSCamera__WorldToLocalDir },
 	{ NULL, NULL },
 };
 
@@ -130,6 +172,41 @@ static sgs_ObjInterface TSCamera__sgs_interface =
 };
 _sgsInterface TSCamera::_sgs_interface(TSCamera__sgs_interface, TSCamera__sgs_ifn, &Entity::_sgs_interface);
 
+
+static int _sgs_method__TSCharacter__GetChild( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetChild ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCharacter__LocalToWorld( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCharacter__WorldToLocal( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCharacter__LocalToWorldDir( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__TSCharacter__WorldToLocalDir( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
 
 static int _sgs_method__TSCharacter__GetInputV3( SGS_CTX )
 {
@@ -276,6 +353,7 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
@@ -319,6 +397,8 @@ int TSCharacter::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "name" ){ static_cast<TSCharacter*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ static_cast<TSCharacter*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "ctrl" ){ static_cast<TSCharacter*>( obj->data )->sgsSetCtrl( sgs_GetVar<ActorCtrlScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "viewDir" ){ static_cast<TSCharacter*>( obj->data )->SetViewDir( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "footPosition" ){ static_cast<TSCharacter*>( obj->data )->SetFootPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -333,6 +413,7 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_ch.size(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
@@ -351,7 +432,7 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_id, depth ).push( C ); }
 		{ sgs_PushString( C, "\nctrl = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->ctrl, depth ).push( C ); }
 		{ sgs_PushString( C, "\ntimeSinceLastHit = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit, depth ).push( C ); }
-		sgs_StringConcat( C, 40 );
+		sgs_StringConcat( C, 42 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -361,6 +442,11 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 {
+	{ "GetChild", _sgs_method__TSCharacter__GetChild },
+	{ "LocalToWorld", _sgs_method__TSCharacter__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__TSCharacter__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__TSCharacter__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__TSCharacter__WorldToLocalDir },
 	{ "GetInputV3", _sgs_method__TSCharacter__GetInputV3 },
 	{ "GetInputV2", _sgs_method__TSCharacter__GetInputV2 },
 	{ "GetInputF", _sgs_method__TSCharacter__GetInputF },
@@ -742,6 +828,12 @@ static int _sgs_method__TSEnemyController__RemoveNextPathPoint( SGS_CTX )
 	sgs_PushVar(C,data->sgsRemoveNextPathPoint(  )); return 1;
 }
 
+static int _sgs_method__TSEnemyController__Create( SGS_CTX )
+{
+	SGSFN( "TSEnemyController.Create" );
+	sgs_PushVar(C,TSEnemyController::Create( C, sgs_GetVar<EntityScrHandle>()(C,0) )); return 1;
+}
+
 int TSEnemyController::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<TSEnemyController*>( obj->data )->C = C;
@@ -813,6 +905,7 @@ static sgs_RegFuncConst TSEnemyController__sgs_funcs[] =
 	{ "AdvancePath", _sgs_method__TSEnemyController__AdvancePath },
 	{ "GetNextPathPoint", _sgs_method__TSEnemyController__GetNextPathPoint },
 	{ "RemoveNextPathPoint", _sgs_method__TSEnemyController__RemoveNextPathPoint },
+	{ "Create", _sgs_method__TSEnemyController__Create },
 	{ NULL, NULL },
 };
 
