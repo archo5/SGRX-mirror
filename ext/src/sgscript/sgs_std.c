@@ -2816,7 +2816,8 @@ int sgs_ProcessSubthreads( SGS_CTX, sgs_Real dt )
 			}
 			else if( v->val.data.R <= 0 )
 			{
-				sgs_ResumeStateExp( thctx, 0, 1 );
+				sgs_PushReal( thctx, dt );
+				sgs_ResumeStateExp( thctx, 1, 1 );
 				v->val.data.R = sgs_GetReal( thctx, -1 );
 				sgs_Pop( thctx, 1 );
 			}
