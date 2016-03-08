@@ -153,8 +153,6 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	Vec3 m_interpPos;
 	Vec3 m_interpAimDir;
 	
-	Vec3 m_position;
-	Vec2 m_moveDir;
 	float m_turnAngle;
 	YawPitch m_aimDir;
 	float m_aimDist;
@@ -167,7 +165,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	LightHandle m_shootLT;
 	float m_shootTimeout;
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
-	void SetViewDir( Vec3 v ){ m_moveDir = v.ToVec2().Normalized(); }
+	void SetViewDir( Vec3 v ){ m_turnAngle = v.ToVec2().Normalized().Angle(); }
 	SGS_PROPERTY_FUNC( WRITE SetViewDir ) SGS_ALIAS( Vec3 viewDir );
 	void SetFootPosition( Vec3 p ){ SetWorldPosition( p + V3(0,0,1.5f) ); }
 	SGS_PROPERTY_FUNC( WRITE SetFootPosition ) SGS_ALIAS( Vec3 footPosition );

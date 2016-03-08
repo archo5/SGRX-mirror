@@ -561,9 +561,9 @@ bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 	return true;
 }
 
-bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm )
+bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace )
 {
-	outwm = m_cachedMeshInst->matrix;
+	outwm = worldspace ? m_cachedMeshInst->matrix : Mat4::Identity;
 	if( !m_cachedMesh )
 		return false;
 	if( which < 0 || which >= (int) attachments.size() )

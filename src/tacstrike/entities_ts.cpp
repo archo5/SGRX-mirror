@@ -225,7 +225,7 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	m_health( 100 ), m_armor( 0 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_ivPos( V3(0) ), m_ivAimDir( V3(1,0,0) ),
-	m_position( V3(0) ), m_moveDir( V2(0) ), m_turnAngle( 0 ),
+	m_turnAngle( 0 ),
 	m_aimDir( YP(V3(1,0,0)) ), m_aimDist( 1 ),
 	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 ),
 	m_skipTransformUpdate( false )
@@ -521,7 +521,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	
 	if( m_health > 0 )
 	{
-		Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "target" ) );
+		Vec3 tgtpos = m_animChar.GetLocalAttachmentPos( m_animChar.FindAttachment( "target" ) );
 		SetInfoMask( m_infoFlags );
 		SetInfoTarget( tgtpos );
 	}

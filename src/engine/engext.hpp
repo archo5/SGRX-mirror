@@ -289,7 +289,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT bool GetJointMatrix( int which, bool parent, Mat4& outwm );
 	ENGINE_EXPORT void _GetHitboxMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
-	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm );
+	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace = true );
 	ENGINE_EXPORT bool ApplyMask( const StringView& name, Animator* tgt );
 	ENGINE_EXPORT int FindAttachment( const StringView& name );
 	ENGINE_EXPORT void SortEnsureAttachments( const StringView* atchnames, int count );
@@ -297,15 +297,19 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
 	ENGINE_EXPORT void MRC_DebugDraw( SGRX_MeshInstance* mi );
 	
-	FINLINE Mat4 GetAttachmentMatrix( int which )
+	FINLINE Mat4 GetAttachmentMatrix( int which, bool worldspace = true )
 	{
 		Mat4 out = Mat4::Identity;
-		GetAttachmentMatrix( which, out );
+		GetAttachmentMatrix( which, out, worldspace );
 		return out;
 	}
 	FINLINE Vec3 GetAttachmentPos( int which, Vec3 p = V3(0) )
 	{
 		return GetAttachmentMatrix( which ).TransformPos( p );
+	}
+	FINLINE Vec3 GetLocalAttachmentPos( int which, Vec3 p = V3(0) )
+	{
+		return GetAttachmentMatrix( which, false ).TransformPos( p );
 	}
 	
 	String mesh;
