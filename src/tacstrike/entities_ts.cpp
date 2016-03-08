@@ -1092,35 +1092,20 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 
 
 
-TSEnemyController::TSEnemyController( TSCharacter* chr ) :
-	m_level( chr->m_level ),
+TSEnemyController::TSEnemyController( GameLevel* lev ) :
+	m_level( lev ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
 	m_inPlayerTeam( false ),
 	m_aidb( m_level->GetSystem<AIDBSystem>() ),
-	m_coverSys( m_level->GetSystem<CoverSystem>() ), m_char( chr )
+	m_coverSys( m_level->GetSystem<CoverSystem>() )
 {
-	// create ESO (enemy scripted object)
-	{
-		chr->InitScriptInterface();
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		sgs_PushObjectPtr( m_level->m_scriptCtx.C, m_sgsObject );
-		sgs_PushObjectPtr( m_level->m_scriptCtx.C, chr->m_sgsObject );
-		if( m_level->m_scriptCtx.GlobalCall( "TSEnemy_Create", 2, 1 ) == false )
-		{
-			LOG_ERROR << "FAILED to create enemy state";
-		}
-		m_enemyState = sgsVariable( m_level->m_scriptCtx.C, -1 );
-	}
+	_data = m_level->GetScriptCtx().CreateDict();
+	GetScriptedObject().thiscall( C, "Init" );
 }
 
 TSEnemyController::~TSEnemyController()
 {
-	// destroy ESO
-	{
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_enemyState.thiscall( C, "destroy" );
-	}
 }
 
 struct TSEC_FindChar : AIFactDistance
@@ -1217,6 +1202,10 @@ struct TSEC_FindSoundSource : AIFactDistance
 
 void TSEnemyController::FixedTick( float deltaTime )
 {
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return;
+	
 	TimeVal curTime = m_level->GetPhyTime();
 	
 	// process facts
@@ -1225,7 +1214,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	TSEC_FindChar fchr;
 	{
 		fchr.type = FT_Position_Friend;
-		fchr.pos = m_char->GetPosition_FT();
+		fchr.pos = chr->GetPosition_FT();
 		fchr.speed = 10;
 		fchr.curTime = curTime;
 	}
@@ -1234,7 +1223,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	// - sounds
 	for( int i = 0; i < m_aidb->GetNumSounds(); ++i )
 	{
-		if( m_aidb->CanHearSound( m_char->GetPosition_FT(), i ) == false )
+		if( m_aidb->CanHearSound( chr->GetPosition_FT(), i ) == false )
 			continue;
 		AISound S = m_aidb->GetSoundInfo( i );
 		
@@ -1267,46 +1256,27 @@ void TSEnemyController::FixedTick( float deltaTime )
 	evp.curtime = curTime;
 	evp.enemy = this;
 	uint32_t qmask = ( m_inPlayerTeam ? IEST_Target : IEST_Player ) | IEST_AIAlert;
-	m_level->QuerySphere( &evp, qmask, m_char->GetPosition_FT(), 10.0f );
+	m_level->QuerySphere( &evp, qmask, chr->GetPosition_FT(), 10.0f );
 	
 	// tick ESO
-	{
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_level->m_scriptCtx.Push( deltaTime );
-		m_enemyState.thiscall( C, "tick", 1 );
-		
-		i_crouch = m_enemyState[ "i_crouch" ].get<bool>();
-		i_move = m_enemyState[ "i_move" ].get<Vec2>();
-		i_speed = m_enemyState[ "i_speed" ].get<float>();
-		i_turn = m_enemyState[ "i_turn" ].get<Vec3>();
-		sgsVariable aim_target = m_enemyState[ "i_aim_target" ];
-		i_aim_at = aim_target.not_null();
-		i_aim_target = aim_target.get<Vec3>();
-		i_shoot = m_enemyState[ "i_shoot" ].get<bool>();
-		i_act = m_enemyState[ "i_act" ].get<bool>();
-	}
+	m_level->m_scriptCtx.Push( deltaTime );
+	GetScriptedObject().thiscall( C, "tick", 1 );
+	
+	i_crouch = _data[ "i_crouch" ].get<bool>();
+	i_move = _data[ "i_move" ].get<Vec2>();
+	i_speed = _data[ "i_speed" ].get<float>();
+	i_turn = _data[ "i_turn" ].get<Vec3>();
+	sgsVariable aim_target = _data[ "i_aim_target" ];
+	i_aim_at = aim_target.not_null();
+	i_aim_target = aim_target.get<Vec3>();
+	i_shoot = _data[ "i_shoot" ].get<bool>();
+	i_act = _data[ "i_act" ].get<bool>();
 }
 
 void TSEnemyController::Tick( float deltaTime, float blendFactor )
 {
-	LevelMapSystem* lms = m_level->GetSystem<LevelMapSystem>();
-	if( lms )
-	{
-		if( m_char->m_health > 0 )
-		{
-			MapItemInfo mii = {0};
-			
-			mii.type = MI_Object_Enemy | MI_State_Normal;
-			mii.position = m_char->GetWorldPosition();
-			mii.direction = m_char->GetAimDir();
-			mii.sizeFwd = 10;
-			mii.sizeRight = 8;
-			
-			lms->UpdateItem( m_char, mii );
-		}
-		else
-			lms->RemoveItem( m_char );
-	}
+	UNUSED( deltaTime );
+	UNUSED( blendFactor );
 }
 
 Vec3 TSEnemyController::GetInput( uint32_t iid )
@@ -1327,19 +1297,19 @@ Vec3 TSEnemyController::GetInput( uint32_t iid )
 void TSEnemyController::Reset()
 {
 	m_factStorage.Clear();
-	
-	{
-		SGS_CSCOPE( m_level->m_scriptCtx.C );
-		m_enemyState.thiscall( C, "reset", 0 );
-	}
+	GetScriptedObject().thiscall( C, "Reset" );
 }
 
 void TSEnemyController::DebugDrawWorld()
 {
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return;
+	
 	if( gcv_dbg_aifacts.value )
 	{
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
-		Vec3 pos = m_char->GetWorldPosition();
+		Vec3 pos = chr->GetWorldPosition();
 		
 		m_factStorage.SortCreatedDesc();
 		
@@ -1356,9 +1326,13 @@ void TSEnemyController::DebugDrawWorld()
 
 void TSEnemyController::DebugDrawUI()
 {
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return;
+	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	Vec3 pos = m_char->GetWorldPosition();
+	Vec3 pos = chr->GetWorldPosition();
 	bool infront;
 	Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( pos, &infront );
 	if( !infront )
@@ -1419,7 +1393,7 @@ void TSEnemyController::DebugDrawUI()
 	{
 		char bfr[ 512 ];
 		
-		sgs_Context* T = m_enemyState.getprop("coro_ai_main").var.data.T;
+		sgs_Context* T = _data.getprop("coro_ai_main").var.data.T;
 		sgs_StackFrame* sf = sgs_GetFramePtr( T, NULL, 0 );
 		while( sf )
 		{
@@ -1441,8 +1415,12 @@ void TSEnemyController::DebugDrawUI()
 
 bool TSEnemyController::CanSeePoint( Vec3 pt )
 {
-	Vec3 vieworigin = m_char->GetPosition_FT();
-	Vec3 viewdir = m_char->GetAimDir_FT();
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return false;
+	
+	Vec3 vieworigin = chr->GetPosition_FT();
+	Vec3 viewdir = chr->GetAimDir_FT();
 	Vec3 view2pos = pt - vieworigin;
 	
 	// check immediate proximity
@@ -1465,8 +1443,12 @@ bool TSEnemyController::CanSeePoint( Vec3 pt )
 
 bool TSEnemyController::LookingAtPoint( Vec3 pt )
 {
-	Vec3 vieworigin = m_char->GetPosition_FT();
-	Vec3 viewdir = m_char->GetAimDir_FT();
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return false;
+	
+	Vec3 vieworigin = chr->GetPosition_FT();
+	Vec3 viewdir = chr->GetAimDir_FT();
 	Vec3 view2pos = pt - vieworigin;
 	
 	// increase vertical FOV
@@ -1546,8 +1528,12 @@ bool TSEnemyController::sgsIsWalkable( Vec3 pos, Vec3 ext )
 
 bool TSEnemyController::sgsFindPath( const Vec3& to )
 {
-	m_aidb->m_pathfinder.FindPath( m_char->GetPosition_FT(), to, m_path );
-	return m_path.size();
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return false;
+	
+	m_aidb->m_pathfinder.FindPath( chr->GetPosition_FT(), to, m_path );
+	return m_path.size() > 0;
 }
 
 bool TSEnemyController::sgsHasPath()
@@ -1598,14 +1584,14 @@ bool TSEnemyController::sgsRemoveNextPathPoint()
 	return false;
 }
 
-sgsVariable TSEnemyController::Create( SGS_CTX, EntityScrHandle chr )
+sgsVariable TSEnemyController::Create( SGS_CTX, GameLevelScrHandle lev )
 {
-	if( !chr || !ENTITY_IS_A( chr, TSCharacter ) )
+	if( !lev )
 	{
-		sgs_Msg( C, SGS_WARNING, "argument 1 must be TSCharacter" );
+		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
 		return sgsVariable();
 	}
-	SGS_CREATECLASS( C, NULL, TSEnemyController, ( (TSCharacter*) (Entity*) chr ) );
+	SGS_CREATECLASS( C, NULL, TSEnemyController, ( lev ) );
 	return sgsVariable( C, sgsVariable::PickAndPop );
 }
 

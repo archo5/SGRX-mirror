@@ -871,21 +871,6 @@ Entity* StockEntityCreationSystem::AddEntity( StringView type )
 {
 #if 0
 	///////////////////////////
-	CoverSystem* coverSys = m_level->GetSystem<CoverSystem>();
-	if( type == "cover" && coverSys )
-	{
-		if( !m_level->GetEditorMode() )
-		{
-			Mat4 mtx = Mat4::CreateSXT(
-				data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-				Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ),
-				data.getprop("position").get<Vec3>() );
-			coverSys->AddAABB( data.getprop("name").get<StringView>(), V3(-1), V3(1), mtx );
-		}
-		return true;
-	}
-	
-	///////////////////////////
 	if( type == "particle_fx" )
 	{
 		return new ParticleFX

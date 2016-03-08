@@ -155,7 +155,7 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 }
 
-void LevelMapSystem::sgsUpdate( Entity* e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt )
+void LevelMapSystem::sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt )
 {
 	MapItemInfo mii = { type, pos, dir, szfwd, szrt };
 	UpdateItem( e, mii );

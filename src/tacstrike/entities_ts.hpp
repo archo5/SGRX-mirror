@@ -142,7 +142,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	AnimPlayer m_anTopPlayer;
 	AnimMixer::Layer m_anLayers[4];
 	
-	float m_health;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;
 	
 	float m_footstepTime;
@@ -261,15 +261,22 @@ struct TSEnemyController : IActorController
 	bool i_act;
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME inPlayerTeam ) bool m_inPlayerTeam;
-	SGS_PROPERTY_FUNC( READ VARNAME state ) sgsVariable m_enemyState;
+	SGS_PROPERTY sgsVariable _data;
+	SGS_BACKING_STORE( _data.var );
+	
 	AIFactStorage m_factStorage;
 	CSCoverInfo m_coverInfo;
 	Array< Vec3 > m_path;
 	AIDBSystem* m_aidb;
 	CoverSystem* m_coverSys;
-	TSCharacter* m_char;
+	TSCharacter* GetChar()
+	{
+		return m_entity && ENTITY_IS_A( m_entity, TSCharacter )
+			? (TSCharacter*) m_entity
+			: NULL;
+	}
 	
-	TSEnemyController( TSCharacter* chr );
+	TSEnemyController( GameLevel* lev );
 	~TSEnemyController();
 	virtual void FixedTick( float deltaTime );
 	virtual void Tick( float deltaTime, float blendFactor );
@@ -307,7 +314,7 @@ struct TSEnemyController : IActorController
 	SGS_METHOD_NAMED( GetNextPathPoint ) sgsMaybe<Vec3> sgsGetNextPathPoint();
 	SGS_METHOD_NAMED( RemoveNextPathPoint ) bool sgsRemoveNextPathPoint();
 	
-	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, EntityScrHandle chr );
+	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
 
 

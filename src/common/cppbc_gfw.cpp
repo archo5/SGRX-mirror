@@ -1473,7 +1473,7 @@ static int _sgs_method__LevelMapSystem__DrawUIRect( SGS_CTX )
 static int _sgs_method__LevelMapSystem__Update( SGS_CTX )
 {
 	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Update ) ) return 0;
-	data->sgsUpdate( sgs_GetVarObj<Entity>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5) ); return 0;
+	data->sgsUpdate( sgs_GetVar<EntityScrHandle>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5) ); return 0;
 }
 
 int LevelMapSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
