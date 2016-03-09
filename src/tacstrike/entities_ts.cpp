@@ -1094,6 +1094,74 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 
 
 
+TPSPlayerController::TPSPlayerController( GameLevel* lev ) :
+	m_level( lev ), m_angles( YP(0) ),
+	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
+{
+}
+
+void TPSPlayerController::Tick( float deltaTime, float blendFactor )
+{
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return;
+	
+	Vec2 joystick_aim = V2( AIM_X.value, AIM_Y.value );
+	joystick_aim = -joystick_aim.Normalized() *
+		TCLAMP( TREVLERP<float>( 0.2f, 1.0f, joystick_aim.Length() ), 0.0f, 1.0f );
+	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
+	m_angles.pitch += joystick_aim.y * 10 * deltaTime;
+	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/2.01f, FLT_PI/2.01f );
+	
+	Vec2 move = V2
+	(
+		MOVE_X.value + MOVE_RIGHT.value - MOVE_LEFT.value,
+		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
+	);
+	SGRX_Camera& CAM = m_level->GetScene()->camera;
+	if( !m_level->GetCursorWorldPoint( &i_aim_target, 0xffffffff, V2(0.5f) ) )
+		i_aim_target = CAM.position + CAM.direction.Normalized() * 1000;
+	Vec2 fwd = CAM.direction.ToVec2().Normalized();
+	Vec2 rgt = CAM.GetRight().ToVec2().Normalized();
+	i_move = fwd * -move.y + rgt * move.x;
+	i_turn = V3(0);
+	if( i_move.Length() > 0.1f )
+	{
+		Vec2 md = i_move;
+		if( Vec2Dot( ( i_aim_target - chr->GetWorldPosition() ).ToVec2(), md ) < 0 )
+			md = -md;
+		i_turn = V3( md.x, md.y, 8 );
+	}
+}
+
+Vec3 TPSPlayerController::GetInput( uint32_t iid )
+{
+	switch( iid )
+	{
+	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
+	case ACT_Chr_Turn: return i_turn;
+	case ACT_Chr_Crouch: return V3(CROUCH.value);
+	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
+	case ACT_Chr_AimTarget: return i_aim_target;
+	case ACT_Chr_Shoot: return V3(SHOOT.value);
+	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
+	}
+	return V3(0);
+}
+
+sgsVariable TPSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
+{
+	if( !lev )
+	{
+		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
+		return sgsVariable();
+	}
+	SGS_CREATECLASS( C, NULL, TPSPlayerController, ( lev ) );
+	return sgsVariable( C, sgsVariable::PickAndPop );
+}
+
+
+
 TSEnemyController::TSEnemyController( GameLevel* lev ) :
 	m_level( lev ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
@@ -1618,6 +1686,8 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 		sgs_GetClassInterface<TSScriptedController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().SetGlobal( "TSPlayerController",
 		sgs_GetClassInterface<TSPlayerController>( m_level->GetSGSC() ) );
+	m_level->GetScriptCtx().SetGlobal( "TPSPlayerController",
+		sgs_GetClassInterface<TPSPlayerController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().SetGlobal( "TSEnemyController",
 		sgs_GetClassInterface<TSEnemyController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().Include( "data/enemy" );

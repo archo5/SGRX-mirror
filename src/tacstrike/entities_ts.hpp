@@ -244,6 +244,32 @@ struct TSPlayerController : IActorController
 };
 
 
+struct TPSPlayerController : IActorController
+{
+	SGS_OBJECT_INHERIT( IActorController );
+	
+	GameLevel* m_level;
+	YawPitch m_angles;
+	Vec2 i_move;
+	Vec3 i_aim_target;
+	Vec3 i_turn;
+	
+	TPSPlayerController( GameLevel* lev );
+	void Tick( float deltaTime, float blendFactor );
+	virtual Vec3 GetInput( uint32_t iid );
+	
+	TSCharacter* GetChar()
+	{
+		return m_entity && ENTITY_IS_A( m_entity, TSCharacter )
+			? (TSCharacter*) m_entity
+			: NULL;
+	}
+	
+	SGS_PROPERTY_FUNC( READ SOURCE m_angles.ToVec3() ) SGS_ALIAS( Vec3 direction );
+	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
+};
+
+
 struct TSEnemyController : IActorController
 {
 	SGS_OBJECT_INHERIT( IActorController );

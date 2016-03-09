@@ -744,17 +744,25 @@ SGS_MULTRET GameLevel::sgsWorldToScreenPx( Vec3 pos )
 	return 2;
 }
 
-SGS_MULTRET GameLevel::sgsGetCursorWorldPoint( uint32_t layers )
+bool GameLevel::GetCursorWorldPoint( Vec3* isp, uint32_t layers, Vec2 cpn )
 {
-	Vec2 cpn = Game_GetCursorPosNormalized();
 	Vec3 pos, dir, end;
 	if( !m_scene->camera.GetCursorRay( cpn.x, cpn.y, pos, dir ) )
-		return 0;
+		return false;
 	SceneRaycastInfo hitinfo;
 	end = pos + dir * m_scene->camera.zfar;
-	if( !m_scene->RaycastOne( pos, end, &hitinfo, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
+	if( !m_scene->RaycastOne( pos, end, &hitinfo, layers ) )
+		return false;
+	*isp = TLERP( pos, end, hitinfo.factor );
+	return true;
+}
+
+SGS_MULTRET GameLevel::sgsGetCursorWorldPoint( uint32_t layers )
+{
+	Vec3 p;
+	if( !GetCursorWorldPoint( &p, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
 		return 0;
-	sgs_PushVar( C, TLERP( pos, end, hitinfo.factor ) );
+	sgs_PushVar( C, p );
 	return 1;
 }
 

@@ -1363,6 +1363,7 @@ struct SGRX_Camera
 	
 	ENGINE_EXPORT Vec3 WorldToScreen( const Vec3& pos, bool* infront = NULL );
 	ENGINE_EXPORT bool GetCursorRay( float x, float y, Vec3& pos, Vec3& dir ) const;
+	FINLINE Vec3 GetRight(){ return Vec3Cross( direction, updir ).Normalized(); }
 	
 	Vec3 position;
 	Vec3 direction;
