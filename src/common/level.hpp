@@ -503,7 +503,6 @@ EXP_STRUCT GameLevel :
 	// system/entity interface
 	sgsVariable GetScriptedObject(){ return m_self; }
 	StringView GetLevelName() const { return m_levelName; }
-	void SetPlayer( Entity* E ){ m_player = E; }
 	bool IsPaused() const { return m_paused || gcv_g_paused.value; }
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
 	SGRX_ISoundSystem* GetSoundSys() const { return m_soundSys; }
@@ -539,6 +538,9 @@ EXP_STRUCT GameLevel :
 	// interface implementations
 	GFW_EXPORT void DebugDraw();
 	GFW_EXPORT void PostDraw();
+	
+	// serialization
+	template< class T > void Serialize( T& arch );
 	
 	GFW_EXPORT SGS_METHOD_NAMED( SetLevel ) void SetNextLevel( StringView name );
 	GFW_EXPORT void _MapEntityByID( Entity* e );
@@ -607,7 +609,6 @@ EXP_STRUCT GameLevel :
 	bool m_paused;
 	double m_levelTime;
 	Array< Entity* > m_entities;
-	Entity* m_player;
 };
 
 template< class T > T* AddSystemToLevel( GameLevel* lev )
@@ -615,6 +616,41 @@ template< class T > T* AddSystemToLevel( GameLevel* lev )
 	T* sys = new T( lev );
 	lev->AddSystem( sys );
 	return sys;
+}
+
+#define SGRX_LEVEL_SAVE_FILE_VERSION 1
+template< class T > void GameLevel::Serialize( T& arch )
+{
+	arch.marker( "SGRX_LEVEL_SAVE_FILE" );
+	SerializeVersionHelper<T> svh( arch, SGRX_LEVEL_SAVE_FILE_VERSION );
+	
+	// name
+	svh << m_levelName;
+	
+	// misc. basic variables
+	svh << m_nameIDGen;
+	svh << m_currentTickTime;
+	svh << m_currentPhyTime;
+	svh << m_deltaTime;
+	svh << m_nextLevel;
+//	svh << m_editorMode; -- editor mode not serialized
+	svh << m_paused;
+	svh << m_levelTime;
+	
+//	svh << m_entIDMap; -- will be restored when loading entities
+//	svh << m_infoEmitSet; -- will be restored when loading entities
+	// m_systems -- TODO
+	
+	// m_self -- TODO
+	// m_metadata -- TODO
+	// m_markerPositions -- TODO
+//	svh << m_entities; -- will be restored when loading entities
+	
+	// m_scene -- TODO [camera]
+	// m_scriptCtx -- TODO
+	// m_phyWorld -- TODO
+	// m_soundSys -- TODO
+	// m_guiSys -- TODO
 }
 
 

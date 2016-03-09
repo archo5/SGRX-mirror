@@ -192,8 +192,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_deltaTime( 0 ),
 	m_editorMode( false ),
 	m_paused( false ),
-	m_levelTime( 0 ),
-	m_player( NULL )
+	m_levelTime( 0 )
 {
 	LOG_FUNCTION;
 	
@@ -551,7 +550,6 @@ void GameLevel::ClearLevel()
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		delete m_entities[ i ];
 	m_entities.clear();
-	m_player = NULL;
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Clear();

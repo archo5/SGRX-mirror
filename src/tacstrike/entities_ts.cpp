@@ -78,6 +78,7 @@ TSCamera::TSCamera(
 void TSCamera::FixedTick( float deltaTime )
 {
 	m_playerVisible = false;
+#if 0
 	if( m_level->m_player )
 	{
 		Vec3 ppos = V3(0);
@@ -105,6 +106,7 @@ void TSCamera::FixedTick( float deltaTime )
 			}
 		}
 	}
+#endif
 	
 	if( m_alertTimeout > 0 )
 	{

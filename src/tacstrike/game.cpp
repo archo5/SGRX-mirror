@@ -364,7 +364,8 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !BaseGame::OnInitialize() )
 			return false;
 		
-		m_level->Load( "ai-test-suite" );
+		m_level->Load( "srlz-test" );
+	//	m_level->Load( "ai-test-suite" );
 	//	m_level->Load( "gp-test-suite" );
 	//	m_level->Load( "v3decotest" );
 		
