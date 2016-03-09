@@ -229,6 +229,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	
 	// init backing store
 	m_metadata = m_scriptCtx.CreateDict();
+	m_persistent = m_scriptCtx.CreateDict();
 	
 	// create entity type map
 	AddEntry( "entity_types", m_scriptCtx.CreateDict() );
@@ -555,15 +556,6 @@ void GameLevel::ClearLevel()
 		m_systems[ i ]->Clear();
 }
 
-void GameLevel::ProcessEvents()
-{
-	if( m_nextLevel.size() != 0 )
-	{
-		Load( m_nextLevel );
-		m_nextLevel = "";
-	}
-}
-
 void GameLevel::FixedTick( float deltaTime )
 {
 	if( IsPaused() == false )
@@ -680,11 +672,6 @@ void GameLevel::Draw()
 	rsinfo.debugdraw = this;
 	rsinfo.postdraw = this;
 	GR_RenderScene( rsinfo );
-}
-
-void GameLevel::SetNextLevel( StringView name )
-{
-	m_nextLevel = name;
 }
 
 void GameLevel::_MapEntityByID( Entity* e )
@@ -943,6 +930,18 @@ GameLevel* BaseGame::CreateLevel()
 	return level;
 }
 
+void BaseGame::OnLevelChange()
+{
+	String nextLevel = m_level->m_nextLevel;
+	String persistentData = m_level->GetScriptCtx().Serialize( m_level->m_persistent );
+	
+	delete m_level;
+	
+	m_level = CreateLevel();
+	m_level->m_persistent = m_level->GetScriptCtx().Unserialize( persistentData );
+	m_level->Load( nextLevel );
+}
+
 void BaseGame::Game_FixedTick( float dt )
 {
 	m_level->FixedTick( dt );
@@ -962,7 +961,12 @@ void BaseGame::Game_Render()
 void BaseGame::OnTick( float dt, uint32_t gametime )
 {
 	m_soundSys->Update();
-	m_level->ProcessEvents();
+	
+	// events
+	if( m_level->m_nextLevel.size() )
+	{
+		OnLevelChange();
+	}
 	
 	if( dt > m_maxTickSize )
 		dt = m_maxTickSize;

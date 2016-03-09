@@ -529,7 +529,6 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT StackShortName GenerateName();
 	GFW_EXPORT void ClearLevel();
 	
-	GFW_EXPORT void ProcessEvents();
 	GFW_EXPORT void FixedTick( float deltaTime );
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	GFW_EXPORT void Draw2D();
@@ -542,7 +541,6 @@ EXP_STRUCT GameLevel :
 	// serialization
 	template< class T > void Serialize( T& arch );
 	
-	GFW_EXPORT SGS_METHOD_NAMED( SetLevel ) void SetNextLevel( StringView name );
 	GFW_EXPORT void _MapEntityByID( Entity* e );
 	GFW_EXPORT void _UnmapEntityByID( Entity* e );
 	GFW_EXPORT Entity* FindEntityByID( const StringView& name );
@@ -594,7 +592,7 @@ EXP_STRUCT GameLevel :
 	double m_currentPhyTime;
 	float m_deltaTime;
 	String m_levelName;
-	String m_nextLevel;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME nextLevel ) String m_nextLevel;
 	bool m_editorMode;
 	
 	// SYSTEMS
@@ -605,6 +603,7 @@ EXP_STRUCT GameLevel :
 	// LEVEL DATA
 	sgsVariable m_self;
 	sgsVariable m_metadata;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME persistent ) sgsVariable m_persistent;
 	SGS_BACKING_STORE( m_metadata.var );
 	sgsVariable m_markerPositions;
 	bool m_paused;
@@ -708,6 +707,7 @@ EXP_STRUCT BaseGame : IGame
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual PhyWorldHandle CreatePhyWorld() = 0;
 	GFW_EXPORT virtual GameLevel* CreateLevel();
+	GFW_EXPORT virtual void OnLevelChange();
 	GFW_EXPORT virtual void Game_FixedTick( float dt );
 	GFW_EXPORT virtual void Game_Tick( float dt, float bf );
 	GFW_EXPORT virtual void Game_Render();
