@@ -367,13 +367,13 @@ bool GameLevel::Load( const StringView& levelname )
 		LOG_FUNCTION_ARG( "CORE/CLEAR/SCRIPT" );
 		
 		char bfr[ 256 ];
-		sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s/cache", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_COMPILED_SFX, TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		if( !FS_LoadBinaryFile( bfr, ba ) )
 			return false;
 		
 		ClearLevel();
 		
-		sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		m_scriptCtx.Include( bfr );
 	}
 	

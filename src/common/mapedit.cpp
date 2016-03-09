@@ -602,7 +602,7 @@ void EdLevelGraphicsCont::Reset()
 void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 {
 	char fname[ 256 ];
-	sgrx_snprintf( fname, sizeof(fname), "levels/%s/lmcache", StackString<200>(levname).str );
+	sgrx_snprintf( fname, sizeof(fname), SGRX_LEVELS_DIR "%s" SGRX_LEVEL_LMCACHE_SFX, StackString<200>(levname).str );
 	
 	ByteArray ba;
 	if( FS_LoadBinaryFile( fname, ba ) == false )
@@ -715,8 +715,12 @@ void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
 	}
 	
 	char path[ 256 ], fname[ 256 ];
-	sgrx_snprintf( path, sizeof(path), "levels/%s", StackString<200>(levname).str );
-	sgrx_snprintf( fname, sizeof(fname), "levels/%s/lmcache", StackString<200>(levname).str );
+	sgrx_snprintf( path, sizeof(path),
+		SGRX_LEVELS_DIR "%s" SGRX_LEVEL_DIR_SFX,
+		StackString<200>(levname).str );
+	sgrx_snprintf( fname, sizeof(fname),
+		SGRX_LEVELS_DIR "%s" SGRX_LEVEL_LMCACHE_SFX,
+		StackString<200>(levname).str );
 	
 	FS_DirCreate( path );
 	FS_SaveBinaryFile( fname, ba.data(), ba.size() );
@@ -3214,7 +3218,7 @@ void EDGUIMainFrame::Level_Real_Compile()
 	}
 	
 	char bfr[ 256 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
 	
 	if( !lcache.SaveCache( g_UISurfMtlPicker->m_materials, bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";

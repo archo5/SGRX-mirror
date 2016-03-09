@@ -1299,7 +1299,7 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 	ByteWriter bw( &ba );
 	bw << level;
 	
-	return FS_SaveBinaryFile( String_Concat( path, "/cache" ), ba.data(), ba.size() );
+	return FS_SaveBinaryFile( String_Concat( path, SGRX_LEVELDIR_COMPILED_SFX ), ba.data(), ba.size() );
 }
 
 
