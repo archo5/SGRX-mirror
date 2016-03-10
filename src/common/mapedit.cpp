@@ -3194,6 +3194,19 @@ void EDGUIMainFrame::Level_Real_Compile()
 			false
 		};
 		
+		// HARDCODED :(
+		if( EE.type == "SolidBox" )
+		{
+			LC_SolidBox sb =
+			{
+				EE.props["position"].get<Vec3>(),
+				Quat::CreateFromXYZ( EE.props["rotationXYZ"].get<Vec3>() ),
+				EE.props["scale"].get<Vec3>(),
+			};
+			lcache.m_solidBoxes.push_back( sb );
+			EE.remove = true;
+		}
+		
 		for( size_t i = 0; i < ESCs.size(); ++i )
 		{
 			ESCs[ i ]->ProcessEntity( EE );

@@ -626,7 +626,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 		{
 			const LC_SolidBox& SB = solidBoxes[ i ];
 			SGRX_PhyRigidBodyInfo rbinfo;
-			rbinfo.group = 2;
+			rbinfo.group = 1;
 			rbinfo.shape = m_level->GetPhyWorld()->CreateAABBShape( -SB.scale, SB.scale );
 			rbinfo.mass = 0;
 			rbinfo.inertia = V3(0);

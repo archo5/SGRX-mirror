@@ -516,7 +516,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	
 	m_animChar.PreRender( blendFactor );
 	m_skipTransformUpdate = true;
-	SetWorldPosition( m_ivPos.Get( blendFactor ) );
+	SetWorldPosition( pos );
 	m_skipTransformUpdate = false;
 	m_interpAimDir = m_ivAimDir.Get( blendFactor );
 	
@@ -1095,9 +1095,10 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 
 
 TPSPlayerController::TPSPlayerController( GameLevel* lev ) :
-	m_level( lev ), m_angles( YP(0) ),
+	m_level( lev ), m_angles( YP(0) ), m_cameraPos( V3(0) ),
 	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
 {
+	m_castShape = lev->GetPhyWorld()->CreateSphereShape( 0.2f );
 }
 
 void TPSPlayerController::Tick( float deltaTime, float blendFactor )
@@ -1112,6 +1113,10 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
 	m_angles.pitch += joystick_aim.y * 10 * deltaTime;
 	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/2.01f, FLT_PI/2.01f );
+	
+	m_cameraPos = chr->GetWorldPosition() + V3(0,0,1);
+	SafePosPush( m_cameraPos, V3(0,0,1) );
+	SafePosPush( m_cameraPos, -m_angles.ToVec3() );
 	
 	Vec2 move = V2
 	(
@@ -1147,6 +1152,20 @@ Vec3 TPSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
 	}
 	return V3(0);
+}
+
+void TPSPlayerController::SafePosPush( Vec3& pos, Vec3 dir )
+{
+	SGRX_PhyRaycastInfo rcinfo;
+	if( m_level->GetPhyWorld()->ConvexCast( m_castShape,
+			pos, pos + dir, 0x0001, 0x0001, &rcinfo ) )
+	{
+		pos += dir * rcinfo.factor;
+	}
+	else
+	{
+		pos += dir;
+	}
 }
 
 sgsVariable TPSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )

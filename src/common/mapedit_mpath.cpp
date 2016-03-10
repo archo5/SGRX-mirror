@@ -385,9 +385,7 @@ size_t EdMeshPath::PlaceItem( LCVDataEdit& edit, float at, float off )
 
 void EdMeshPath::RegenerateMesh()
 {
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "meshes/%s.ssm", StackString<240>(m_meshName).str );
-	m_cachedMesh = GR_GetMesh( bfr );
+	m_cachedMesh = GR_GetMesh( m_meshName );
 	if( !m_cachedMesh )
 		return;
 	
