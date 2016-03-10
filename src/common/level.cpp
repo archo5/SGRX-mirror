@@ -94,6 +94,15 @@ void Entity::Tick( float deltaTime, float blendFactor )
 	}
 }
 
+void Entity::PreRender()
+{
+	sgsVariable fn_prerender = GetScriptedObject().getprop( "PreRender" );
+	if( fn_prerender.not_null() )
+	{
+		GetScriptedObject().thiscall( C, fn_prerender );
+	}
+}
+
 void Entity::OnTransformUpdate()
 {
 	sgsVariable fn = GetScriptedObject().getprop( "OnTransformUpdate" );
@@ -592,6 +601,8 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
+	for( size_t i = 0; i < m_entities.size(); ++i )
+		m_entities[ i ]->PreRender();
 	
 	sgs_ProcessSubthreads( m_scriptCtx.C, deltaTime );
 }

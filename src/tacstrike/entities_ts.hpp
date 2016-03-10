@@ -250,7 +250,7 @@ struct TPSPlayerController : IActorController
 	
 	GameLevel* m_level;
 	YawPitch m_angles;
-	SGS_PROPERTY_FUNC( READ VARNAME cameraPos ) Vec3 m_cameraPos;
+	SGS_PROPERTY_FUNC( READ GetCameraPos ) SGS_ALIAS( Vec3 cameraPos );
 	Vec2 i_move;
 	Vec3 i_aim_target;
 	Vec3 i_turn;
@@ -261,6 +261,7 @@ struct TPSPlayerController : IActorController
 	void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
 	void SafePosPush( Vec3& pos, Vec3 dir );
+	SGS_METHOD Vec3 GetCameraPos();
 	TSCharacter* GetChar()
 	{
 		return m_entity && ENTITY_IS_A( m_entity, TSCharacter )

@@ -712,6 +712,13 @@ static int _sgs_method__TPSPlayerController__Reset( SGS_CTX )
 	data->Reset(  ); return 0;
 }
 
+static int _sgs_method__TPSPlayerController__GetCameraPos( SGS_CTX )
+{
+	TPSPlayerController* data; if( !SGS_PARSE_METHOD( C, TPSPlayerController::_sgs_interface, data, TPSPlayerController, GetCameraPos ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetCameraPos(  )); return 1;
+}
+
 static int _sgs_method__TPSPlayerController__Create( SGS_CTX )
 {
 	SGSFN( "TPSPlayerController.Create" );
@@ -736,7 +743,7 @@ int TPSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TPSPlayerController*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->sgsGetEntity() ); return SGS_SUCCESS; }
-		SGS_CASE( "cameraPos" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->m_cameraPos ); return SGS_SUCCESS; }
+		SGS_CASE( "cameraPos" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->GetCameraPos() ); return SGS_SUCCESS; }
 		SGS_CASE( "direction" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->m_angles.ToVec3() ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
@@ -757,7 +764,7 @@ int TPSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	if( depth > 0 )
 	{
 		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->sgsGetEntity(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ncameraPos = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->m_cameraPos, depth ).push( C ); }
+		{ sgs_PushString( C, "\ncameraPos = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->GetCameraPos(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ndirection = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->m_angles.ToVec3(), depth ).push( C ); }
 		sgs_StringConcat( C, 6 );
 		sgs_PadString( C );
@@ -771,6 +778,7 @@ static sgs_RegFuncConst TPSPlayerController__sgs_funcs[] =
 {
 	{ "GetInput", _sgs_method__TPSPlayerController__GetInput },
 	{ "Reset", _sgs_method__TPSPlayerController__Reset },
+	{ "GetCameraPos", _sgs_method__TPSPlayerController__GetCameraPos },
 	{ "Create", _sgs_method__TPSPlayerController__Create },
 	{ NULL, NULL },
 };

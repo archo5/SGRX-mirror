@@ -188,7 +188,6 @@ struct LC_Chunk_Geom
 			svh.stringView( skyTexture );
 		else if( T::IsReader )
 			skyTexture = SV();
-		printf("SAVING:%s\n",StackString<256>(skyTexture).str);
 	}
 };
 

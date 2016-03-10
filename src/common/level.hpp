@@ -192,6 +192,7 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void FixedTick( float deltaTime );
 	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void OnIDUpdate();
 	
@@ -309,6 +310,7 @@ EXP_STRUCT IActorController
 	virtual ~IActorController(){}
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
+	virtual void PreRender(){}
 	virtual SGS_METHOD Vec3 GetInput( uint32_t iid ){ return V3(0); }
 	virtual SGS_METHOD void Reset(){}
 	virtual void DebugDrawWorld(){}
@@ -344,6 +346,12 @@ EXP_STRUCT Actor : Entity
 		Entity::Tick( deltaTime, blendFactor );
 		if( ctrl )
 			ctrl->Tick( deltaTime, blendFactor );
+	}
+	virtual void PreRender()
+	{
+		Entity::PreRender();
+		if( ctrl )
+			ctrl->PreRender();
 	}
 	virtual void DebugDrawWorld()
 	{

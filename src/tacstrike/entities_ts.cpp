@@ -1095,7 +1095,7 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 
 
 TPSPlayerController::TPSPlayerController( GameLevel* lev ) :
-	m_level( lev ), m_angles( YP(0) ), m_cameraPos( V3(0) ),
+	m_level( lev ), m_angles( YP(0) ),
 	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
 {
 	m_castShape = lev->GetPhyWorld()->CreateSphereShape( 0.2f );
@@ -1113,10 +1113,6 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
 	m_angles.pitch += joystick_aim.y * 10 * deltaTime;
 	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/2.01f, FLT_PI/2.01f );
-	
-	m_cameraPos = chr->GetWorldPosition() + V3(0,0,1);
-	SafePosPush( m_cameraPos, V3(0,0,1) );
-	SafePosPush( m_cameraPos, -m_angles.ToVec3() );
 	
 	Vec2 move = V2
 	(
@@ -1166,6 +1162,17 @@ void TPSPlayerController::SafePosPush( Vec3& pos, Vec3 dir )
 	{
 		pos += dir;
 	}
+}
+
+Vec3 TPSPlayerController::GetCameraPos()
+{
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return V3(0);
+	Vec3 campos = chr->GetWorldPosition() + V3(0,0,1);
+	SafePosPush( campos, V3(0,0,1) );
+	SafePosPush( campos, -m_angles.ToVec3() );
+	return campos;
 }
 
 sgsVariable TPSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
