@@ -2280,8 +2280,11 @@ struct EdWorld : EDGUILayoutRow
 	void FLoad( sgsVariable obj );
 	sgsVariable FSave();
 	
+	virtual int OnEvent( EDGUIEvent* e );
+	
 	void Reset();
 	void TestData();
+	void ReloadSkybox();
 	void RegenerateMeshes();
 	void DrawWires_Objects( EdObject* hl, bool tonedown = false );
 	void DrawWires_Blocks( EdObject* hl );
@@ -2405,6 +2408,7 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIPropVec3 m_ctlAOColor;
 	EDGUIPropInt m_ctlAONumSamples;
 	EDGUIPropFloat m_ctlSampleDensity;
+	EDGUIPropRsrc m_ctlSkyboxTexture;
 	
 	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;

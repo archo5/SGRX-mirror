@@ -586,6 +586,13 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 		return true;
 	}
 	
+	// SKYBOX
+	if( geom.skyTexture )
+	{
+		LOG_FUNCTION_ARG( "SKYBOX" );
+		m_level->GetScene()->skyTexture = GR_GetTexture( geom.skyTexture );
+	}
+	
 	// LOAD FLARES
 	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
 	if( FS )
@@ -824,7 +831,7 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 		scene->camera.UpdateMatrices();
 		info.viewport = NULL;
 		
-		OnDrawSceneGeom( ctrl, info, rttREFL, dssREFL );
+		OnDrawSceneGeom( ctrl, info, rttREFL, dssREFL, NULL );
 	}
 	
 	scene->camera = origCamera;

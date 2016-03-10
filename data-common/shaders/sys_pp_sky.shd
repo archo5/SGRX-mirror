@@ -1,0 +1,22 @@
+#include "__eq"
+
+NEEDS_TEXTURE_CUBE(0);
+#define texSKY Tex0
+
+UNIFORM_BUFFER( core_data, 0 )
+	UNIFORM_VAR( float4x4 mInvView, 0 );
+	UNIFORM_VAR( float3 cameraPos, 4 );
+	UNIFORM_VAR( float4 fogRGBS, 5 );
+	UNIFORM_VAR( float4 fogDATA, 6 );
+	UNIFORM_VAR( float4 projDATA, 7 );
+UNIFORM_BUFFER_END;
+
+void main( float2 itex : TEXCOORD0
+	ARG_OUT_RT0 )
+{
+	float2 fpos = lerp( projDATA.xy, projDATA.zw, itex );
+	float3 sbcoord = normalize( mul( mInvView, float4( fpos, 1, 0 ) ).xyz );
+	sbcoord = sbcoord.xzy;
+	RT0 = float4( TEXSAMPLE_CUBE_LOD( texSKY, sbcoord, 0 ).rgb, 1 );
+}
+

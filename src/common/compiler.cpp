@@ -1243,7 +1243,15 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 	
 	// core data
 	ByteArray ba_geom;
-	LC_Chunk_Geom ch_geom = { &m_meshinst, &m_lights, m_sampleTree, &m_phyMesh, &m_solidBoxes };
+	LC_Chunk_Geom ch_geom =
+	{
+		&m_meshinst,
+		&m_lights,
+		m_sampleTree,
+		&m_phyMesh,
+		&m_solidBoxes,
+		m_skyTexture,
+	};
 	ByteWriter( &ba_geom ) << ch_geom;
 	{
 		memcpy( chunk.sys_id, LC_FILE_GEOM_NAME, sizeof(chunk.sys_id) );

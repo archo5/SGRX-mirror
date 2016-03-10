@@ -750,7 +750,7 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	}
 	
 	// draw things
-	OnDrawSceneGeom( ctrl, info, rttMAIN, dssMAIN );
+	OnDrawSceneGeom( ctrl, info, rttMAIN, dssMAIN, rttDEPTH );
 	
 	// post-process
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
@@ -811,7 +811,7 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 }
 
 void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-	TextureHandle rtt, DepthStencilSurfHandle dss )
+	TextureHandle rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH )
 {
 	SGRX_Scene* scene = info.scene;
 	BatchRenderer& br = GR2D_GetBatchRenderer();
@@ -825,6 +825,9 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 		int unlit_pass_id = scene->FindPass( SGRX_FP_Base | SGRX_FP_NoPoint | SGRX_FP_NoSpot, ":MOD_UNLIT" );
 		
 		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Solid );
+		
+		OnDrawFog( ctrl, info, rttDEPTH );
+		
 		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Decal );
 		ctrl->RenderTypes( scene, unlit_pass_id, 1, SGRX_TY_Transparent );
 	}
@@ -837,6 +840,9 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Solid );
 		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Solid );
 		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Solid );
+		
+		OnDrawFog( ctrl, info, rttDEPTH );
+		
 		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Decal );
 		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Decal );
 		ctrl->RenderTypes( scene, spot_pass_id, 4, SGRX_TY_Decal );
@@ -852,6 +858,37 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 		info.postdraw->PostDraw();
 		br.Flush();
 	}
+}
+
+void SGRX_RenderDirector::OnDrawFog( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info, TextureHandle rttDEPTH )
+{
+	SGRX_Scene* scene = info.scene;
+	if( !scene->skyTexture || !rttDEPTH )
+		return;
+	
+	SGRX_Camera& CAM = scene->camera;
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
+	
+	PixelShaderHandle pppsh_sky = GR_GetPixelShader( "sys_pp_sky" );
+	GR_PreserveResource( pppsh_sky );
+	
+	br.Reset();
+	br.ShaderData.resize( 8 );
+	memcpy( &br.ShaderData[0], &CAM.mInvView, sizeof(Mat4) );
+	br.ShaderData[4] = V4( CAM.position, 1 );
+	br.ShaderData[5] = V4( scene->fogColor.Pow( 2.0 ), scene->fogHeightFactor );
+	br.ShaderData[6] = V4( scene->fogDensity, scene->fogHeightDensity, scene->fogStartHeight, scene->fogMinDist );
+	float fsx = safe_fdiv( 1, CAM.mProj.m[0][0] );
+	float fsy = safe_fdiv( 1, CAM.mProj.m[1][1] );
+	br.ShaderData[7] = V4( -fsx, fsy, fsx, -fsy );
+	
+	br.RenderState.depthEnable = 1;
+	br.RenderState.depthWriteEnable = 0;
+	
+	br.SetShader( pppsh_sky );
+	br.SetTexture( scene->skyTexture );
+	br.Quad( 0, 0, 1, 1, 1 ).Flush().Reset();
 }
 
 int SGRX_RenderDirector::GetModeCount()

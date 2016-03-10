@@ -927,6 +927,8 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		dtd.CPUAccessFlags = 0;
 		dtd.SampleDesc.Count = 1;
 		dtd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		if( texinfo->type == TEXTYPE_CUBE )
+			dtd.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
 		
 		D3D11_SUBRESOURCE_DATA srd[ 128 ];
 		memset( &srd, 0, sizeof(srd) );
@@ -942,7 +944,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 					TextureInfo_GetMipInfo( texinfo, mip, &mipinfo );
 					TextureInfo_GetCopyDims( &mipinfo, &crs, &crc );
 					
-					srd[ at ].pSysMem = (char*) data + TextureData_GetMipDataOffset( texinfo, 0, mip );
+					srd[ at ].pSysMem = (char*) data + TextureData_GetMipDataOffset( texinfo, side, mip );
 					srd[ at ].SysMemPitch = crs;
 					at++;
 				}
@@ -957,11 +959,30 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 			return NULL;
 		}
 		
-		hr = m_dev->CreateShaderResourceView( tex2d, NULL, &srv );
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+		memset( &srvd, 0, sizeof(srvd) );
+		srvd.Format = dtd.Format;
+		if( texinfo->type == TEXTYPE_CUBE )
+		{
+			srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+			srvd.TextureCube.MostDetailedMip = 0;
+			srvd.TextureCube.MipLevels = -1;
+		}
+		else
+		{
+			srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			srvd.Texture2D.MostDetailedMip = 0;
+			srvd.Texture2D.MipLevels = -1;
+		}
+		
+		hr = m_dev->CreateShaderResourceView( tex2d, &srvd, &srv );
 		if( FAILED( hr ) || !srv )
 		{
-			LOG_ERROR << "could not create D3D11 shader resource view for texture (type: 2D, w: " << texinfo->width << ", h: " <<
-				texinfo->height << ", mips: " << texinfo->mipcount << ", fmt: " << texinfo->format << ", d3dfmt: " << texfmt2d3d( texinfo->format );
+			LOG_ERROR << "could not create D3D11 shader resource view for texture (type: "
+				<< ( texinfo->type == TEXTYPE_CUBE ? "CUBE" : "2D" )
+				<< ", w: " << texinfo->width << ", h: " << texinfo->height
+				<< ", mips: " << texinfo->mipcount << ", fmt: " << texinfo->format
+				<< ", d3dfmt: " << texfmt2d3d( texinfo->format );
 			SAFE_RELEASE( tex2d );
 			return NULL;
 		}
@@ -1795,8 +1816,8 @@ void D3D11Renderer::DrawImmediate( SGRX_ImmDrawData& idd )
 	m_ctx->IASetPrimitiveTopology( conv_prim_type( idd.primType ) );
 	m_ctx->IASetInputLayout( ((D3D11VertexInputMapping*) idd.vertexInputMapping)->m_inputLayout );
 	ID3D11Buffer* vbufs[2] = { m_vertbuf_batchverts, m_vertbuf_defaults };
-	static const UINT strides[2] = { idd.vertexDecl->m_info.size, sizeof(BackupVertexData) };
-	static const UINT offsets[2] = { 0, 0 };
+	const UINT strides[2] = { idd.vertexDecl->m_info.size, sizeof(BackupVertexData) };
+	const UINT offsets[2] = { 0, 0 };
 	m_ctx->IASetVertexBuffers( 0, 2, vbufs, strides, offsets );
 	
 	m_ctx->Draw( idd.vertexCount, 0 );

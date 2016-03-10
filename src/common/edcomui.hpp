@@ -150,7 +150,7 @@ struct EDGUITexturePicker : EDGUIRsrcPicker, IDirEntryHandler
 		{
 			FS_IterateDirectory( fullname, this );
 		}
-		else if( name.ends_with( ".png" ) || name.ends_with( ".stx" ) )
+		else if( name.ends_with( ".png" ) || name.ends_with( ".stx" ) || name.ends_with( ".dds" ) )
 		{
 			m_options.push_back( fullname );
 			m_textures.push_back( GR_GetTexture( fullname ) );

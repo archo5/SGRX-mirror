@@ -1873,7 +1873,9 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_RenderDirector
 	
 	ENGINE_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
 	ENGINE_EXPORT virtual void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
-		TextureHandle rtt, DepthStencilSurfHandle dss );
+		TextureHandle rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH );
+	ENGINE_EXPORT virtual void OnDrawFog( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+		TextureHandle rttDEPTH );
 	
 	ENGINE_EXPORT virtual int GetModeCount();
 	FINLINE int GetMode(){ return m_curMode; }
