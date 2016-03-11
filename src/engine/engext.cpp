@@ -149,7 +149,7 @@ void AnimRagdoll::Advance( float deltaTime, AnimInfo* info )
 		{
 			Vec3 pos = B.bodyHandle->GetPosition();
 			Quat rot = B.bodyHandle->GetRotation();
-			Quat nrot = rot * B.relRot.Inverted();
+			Quat nrot = B.relRot.Inverted() * rot;
 			m_positions[ i ] = pos - Mat4::CreateRotationFromQuat(nrot).TransformNormal( B.relPos );
 			m_rotations[ i ] = nrot;
 		}
@@ -359,7 +359,7 @@ void AnimCharacter::RecalcLayerState()
 					{
 						m_layerAnimator.m_positions[ LT.bone_id ] -= m_layerAnimator.m_positions[ parent_id ];
 						m_layerAnimator.m_rotations[ LT.bone_id ] =
-							m_layerAnimator.m_rotations[ LT.bone_id ] * m_layerAnimator.m_rotations[ parent_id ].Inverted();
+							m_layerAnimator.m_rotations[ parent_id ].Inverted() * m_layerAnimator.m_rotations[ LT.bone_id ];
 					}
 				}
 				break;
