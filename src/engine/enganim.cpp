@@ -567,6 +567,8 @@ void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 					fdir = m_skinOffsets[ F.boneID ].TransformNormal( fdir );
 				}
 				Vec3 fpush = fdir.Normalized() * amount;
+				GR2D_GetBatchRenderer().lines.DrawLine( fpos, fpos + fdir,
+					COLOR_RGB(255,0,0), COLOR_RGB(0,255,0) );
 				for( int i = 0; i < count; ++i )
 				{
 					float distfac = TMIN( 1.0f, ( F.pos - m_bonePositions[ i ] ).Length() / F.radius );

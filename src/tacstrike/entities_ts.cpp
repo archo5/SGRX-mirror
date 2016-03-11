@@ -567,7 +567,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_animChar.m_cachedMeshInst->matrix.InvertTo( inv );
 		Vec3 forcePos = inv.TransformPos( origin );
 		Vec3 forceDir = inv.TransformNormal( -dir ).Normalized();
-		AnD.AddModelForce( forcePos, forceDir * 0.2f, 1.0f );
+		AnD.AddLocalForce( forcePos, forceDir * 0.2f, 1.0f );
 	}
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	

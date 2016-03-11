@@ -1633,6 +1633,25 @@ struct SGRX_ImmDrawData
 };
 
 
+struct IF_GCC(ENGINE_EXPORT) SGRX_LineSet
+{
+	struct Point
+	{
+		Vec3 pos;
+		uint32_t color;
+	};
+	
+	ENGINE_EXPORT SGRX_LineSet();
+	ENGINE_EXPORT void IncreaseLimit( size_t maxlines );
+	ENGINE_EXPORT void DrawLine( const Vec3& p1, const Vec3& p2, uint32_t col = COLOR_RGB(255,0,0) );
+	ENGINE_EXPORT void DrawLine( const Vec3& p1, const Vec3& p2, uint32_t c1, uint32_t c2 );
+	ENGINE_EXPORT void Flush();
+	
+	Array< Point > m_lines;
+	size_t m_nextPos;
+	size_t m_curCount;
+};
+
 struct BatchRenderer
 {
 	struct Vertex
@@ -1755,20 +1774,8 @@ struct BatchRenderer
 	Mat4 worldMatrix;
 	Mat4 viewMatrix;
 	Mat4 invMatrix;
-};
-
-struct IF_GCC(ENGINE_EXPORT) SGRX_LineSet
-{
-	struct Point
-	{
-		Vec3 pos;
-		uint32_t color;
-	};
 	
-	ENGINE_EXPORT void DrawLine( const Vec3& p1, const Vec3& p2, uint32_t col = COLOR_RGB(255,0,0) );
-	ENGINE_EXPORT void Flush();
-	
-	Array< Point > m_lines;
+	SGRX_LineSet lines;
 };
 
 struct SGRX_FontSettings

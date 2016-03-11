@@ -636,11 +636,11 @@ void GameLevel::Draw2D()
 
 void GameLevel::DebugDraw()
 {
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.lines.Flush();
+	
 	if( gcv_cl_debug.value )
 	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		UNUSED( br );
-		
 		m_phyWorld->DebugDraw();
 		
 		for( size_t i = 0; i < m_systems.size(); ++i )

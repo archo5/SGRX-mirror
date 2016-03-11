@@ -782,23 +782,44 @@ void BatchRenderer::_RecalcMatrices()
 }
 
 
+SGRX_LineSet::SGRX_LineSet() : m_nextPos(0), m_curCount(0)
+{
+	IncreaseLimit( 1024 );
+}
+
+void SGRX_LineSet::IncreaseLimit( size_t maxlines )
+{
+	if( maxlines * 2 > m_lines.size() )
+	{
+		m_lines.resize( maxlines * 2 );
+	}
+}
+
 void SGRX_LineSet::DrawLine( const Vec3& p1, const Vec3& p2, uint32_t col )
 {
-	Point pt1 = { p1, col };
-	Point pt2 = { p2, col };
-	m_lines.push_back( pt1 );
-	m_lines.push_back( pt2 );
+	DrawLine( p1, p2, col, col );
+}
+
+void SGRX_LineSet::DrawLine( const Vec3& p1, const Vec3& p2, uint32_t c1, uint32_t c2 )
+{
+	Point pt1 = { p1, c1 };
+	Point pt2 = { p2, c2 };
+	m_lines[ m_nextPos ] = pt1;
+	m_lines[ m_nextPos+1 ] = pt2;
+	m_curCount = TMAX( m_nextPos + 2, m_curCount );
+	m_nextPos = ( m_nextPos + 2 ) % ( m_lines.size() * 2 );
 }
 
 void SGRX_LineSet::Flush()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset().SetPrimitiveType( PT_Lines );
-	for( size_t i = 0; i < m_lines.size(); ++i )
+	for( size_t i = 0; i < m_curCount; ++i )
 	{
 		br.Colu( m_lines[ i ].color ).Pos( m_lines[ i ].pos );
 	}
 	br.Flush();
-	m_lines.clear();
+	m_nextPos = 0;
+	m_curCount = 0;
 }
 
 
