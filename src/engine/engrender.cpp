@@ -186,15 +186,15 @@ uint64_t IRenderer::_RS_GenSortKey( const Mat4& view, SGRX_MeshInstance* MI, uin
 	// bytes 55-62: sort index
 	out |= uint64_t( MI->sortidx & 0xff ) << 54;
 	float dist = 1 / ( 1 + fabsf( view.TransformPos( MI->matrix.GetTranslation() ).z ) );
-	if( DI.type & SGRX_TY_Transparent )
+	if( DI.type & (SGRX_TY_Decal|SGRX_TY_Transparent) )
 	{
 		// bytes 33-54: depth
-		out |= uint64_t( ( 1 - dist ) * 0x3fffff ) << 32;
+		out |= uint64_t( dist * 0x3fffff ) << 32;
 	}
 	else
 	{
 		// bytes 1-22: depth backwards
-		out |= uint64_t( dist * 0x3fffff ) << 0;
+		out |= uint64_t( ( 1 - dist ) * 0x3fffff ) << 0;
 	}
 	
 	return out;
