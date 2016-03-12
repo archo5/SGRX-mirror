@@ -1093,15 +1093,47 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
 	if( decal )
 	{
 		SGRX_CAST( SGRX_Vertex_Decal*, dvs, vbuf );
-		for( int i = 0; i < pcount; ++i )
+		if( inv_zn2zf /* perspective distance correction */ )
 		{
-			Vec4 vtp = vpmtx.Transform( V4( *(Vec3*)(vbuf + i * 48), 1.0f ) );
-			dvs[ i ].texcoord = V3
-			(
-				safe_fdiv( vtp.x, vtp.w ) * 0.5f + 0.5f,
-				safe_fdiv( vtp.y, vtp.w ) * 0.5f + 0.5f,
-				vtp.z * inv_zn2zf
-			);
+			for( int i = 0; i < pcount; ++i )
+			{
+				Vec4 vtp = vpmtx.Transform( V4( *(Vec3*)(vbuf + i * 48), 1.0f ) );
+				if( vtp.w )
+				{
+					float rcp_vtp_w = 1.0f / vtp.w;
+					dvs[ i ].texcoord = V3
+					(
+						vtp.x * rcp_vtp_w * 0.5f + 0.5f,
+						vtp.y * rcp_vtp_w * 0.5f + 0.5f,
+						vtp.z * inv_zn2zf
+					);
+				}
+				else
+				{
+					dvs[ i ].texcoord = V3(0);
+				}
+			}
+		}
+		else
+		{
+			for( int i = 0; i < pcount; ++i )
+			{
+				Vec4 vtp = vpmtx.Transform( V4( *(Vec3*)(vbuf + i * 48), 1.0f ) );
+				if( vtp.w )
+				{
+					float rcp_vtp_w = 1.0f / vtp.w;
+					dvs[ i ].texcoord = V3
+					(
+						vtp.x * rcp_vtp_w * 0.5f + 0.5f,
+						vtp.y * rcp_vtp_w * 0.5f + 0.5f,
+						vtp.z * rcp_vtp_w * 0.5f + 0.5f
+					);
+				}
+				else
+				{
+					dvs[ i ].texcoord = V3(0);
+				}
+			}
 		}
 	}
 	for( int i = 1; i < pcount - 1; ++i )

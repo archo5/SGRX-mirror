@@ -884,14 +884,15 @@ void SGRX_DecalSystem::_GenDecalMatrix( const DecalProjectionInfo& projInfo, Mat
 		float aspect = DMPI.size.x / DMPI.size.y * projInfo.aspectMult;
 		znear = dist * 0.001f;
 		projMtx = Mat4::CreatePerspective( projInfo.fovAngleDeg, aspect, projInfo.aamix, znear, dist );
+		*out_invzn2zf = safe_fdiv( 1, dist - znear );
 	}
 	else
 	{
 		Vec2 psz = DMPI.size.ToVec2() * 0.5f * projInfo.orthoScale;
 		projMtx = Mat4::CreateOrtho( V3( -psz.x, -psz.y, 0 ), V3( psz.x, psz.y, DMPI.size.z * projInfo.distanceScale ) );
+		*out_invzn2zf = 0;
 	}
 	*outVPM = viewMtx * projMtx;
-	*out_invzn2zf = safe_fdiv( 1, dist - znear );
 }
 
 
