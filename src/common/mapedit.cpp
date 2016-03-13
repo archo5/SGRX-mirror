@@ -3232,6 +3232,12 @@ void EDGUIMainFrame::Level_Real_Compile()
 			lcache.m_solidBoxes.push_back( sb );
 			EE.remove = true;
 		}
+		if( EE.type == "MapLayer" )
+		{
+			LC_Map_Layer ml = { 0, 0, EE.props["position"].get<Vec3>().z };
+			lcache.m_mapLayers.push_back( ml );
+			EE.remove = true;
+		}
 		
 		for( size_t i = 0; i < ESCs.size(); ++i )
 		{

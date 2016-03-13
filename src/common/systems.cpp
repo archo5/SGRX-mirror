@@ -6,7 +6,7 @@
 
 
 
-LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), viewPos(V2(0))
+LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), viewPos(V3(0))
 {
 	_InitScriptInterface( this );
 	AddSelfToLevel( "map" );
@@ -33,7 +33,8 @@ void LevelMapSystem::Clear()
 {
 	m_mapItemData.clear();
 	m_lines.clear();
-	viewPos = V2(0);
+	m_layers.clear();
+	viewPos = V3(0);
 }
 
 void LevelMapSystem::OnRemoveEntity( Entity* e )
@@ -48,7 +49,7 @@ bool LevelMapSystem::LoadChunk( const StringView& type, ByteView data )
 	
 	LOG_FUNCTION_ARG( "MAPL chunk" );
 	
-	LC_Chunk_Mapl parser = { &m_lines };
+	LC_Chunk_Mapl parser = { &m_lines, &m_layers };
 	ByteReader br( data );
 	br << parser;
 	if( br.error )
@@ -74,7 +75,7 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 	
 	float map_aspect = safe_fdiv( x1 - x0, y1 - y0 );
 	
-	br.Reset().Col( 0.2f, 0.4f, 0.8f );
+	br.Reset();
 	
 	Mat4 lookat = Mat4::CreateLookAt( V3( viewPos.x, viewPos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
 	GR2D_SetViewMatrix( lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 ) );
@@ -82,12 +83,28 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 	GR2D_SetScissorRect( x0, y0, x1, y1 );
 	GR2D_SetViewport( x0, y0, x1, y1 );
 	
-	for( size_t i = 0; i < m_lines.size(); i += 2 )
+	int closest = 0;
+	float cdist = FLT_MAX;
+	for( int lid = 0; lid < (int) m_layers.size(); ++lid )
 	{
-		Vec2 l0 = m_lines[ i ];
-		Vec2 l1 = m_lines[ i + 1 ];
-		
-		br.TexLine( l0, l1, 0.1f );
+		float dist = fabsf( m_layers[ lid ].height - viewPos.z );
+		if( dist < cdist )
+		{
+			cdist = dist;
+			closest = lid;
+		}
+	}
+	for( int lid = 0; lid < (int) m_layers.size(); ++lid )
+	{
+		float alpha = clamp( 1 - fabsf( lid - closest ) / 4.0f, 0, 1 );
+		br.Col( 0.2f, 0.4f, 0.8f, alpha );
+		for( uint32_t i = m_layers[ lid ].from; i < m_layers[ lid ].to; i += 2 )
+		{
+			Vec2 l0 = m_lines[ i ];
+			Vec2 l1 = m_lines[ i + 1 ];
+			
+			br.TexLine( l0, l1, 0.1f );
+		}
 	}
 	
 	for( size_t i = 0; i < m_mapItemData.size(); ++i )

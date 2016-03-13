@@ -842,51 +842,72 @@ void LevelCache::RemoveHiddenSurfaces()
 	}
 }
 
+static int map_layer_height_sort( const void* a, const void* b )
+{
+	SGRX_CAST( LC_Map_Layer*, A, a );
+	SGRX_CAST( LC_Map_Layer*, B, b );
+	return A->height == B->height ? 0 : ( A->height < B->height ? -1 : 1 );
+}
+
 void LevelCache::GenerateLines()
 {
-	for( size_t p = 0; p < m_meshParts.size(); ++p )
+	qsort( m_mapLayers.data(), m_mapLayers.size(), sizeof(LC_Map_Layer), map_layer_height_sort );
+	for( size_t layer_id = 0; layer_id < m_mapLayers.size(); ++layer_id )
 	{
-		Part& P = m_meshParts[ p ];
-		
-		for( size_t mpv = 0; mpv + 2 < P.m_vertices.size(); mpv += 3 )
+		m_mapLayers[ layer_id ].from = m_mapLines.size();
+		float height = m_mapLayers[ layer_id ].height;
+		for( size_t p = 0; p < m_meshParts.size(); ++p )
 		{
-			Vertex* verts = &P.m_vertices[ mpv ];
-			int vcount = 3;
+			Part& P = m_meshParts[ p ];
 			
-			// ADD LINES
-			Vec3 isps[ 2 ];
-			int ispc = 0;
-			for( int i = 0; i < vcount && ispc < 2; ++i )
+			for( size_t mpv = 0; mpv + 2 < P.m_vertices.size(); mpv += 3 )
 			{
-				Vec3 v0 = verts[ i ].pos;
-				Vec3 v1 = verts[ ( i + 1 ) % vcount ].pos;
-				if( ( v0.z <= LINE_HEIGHT && v1.z >= LINE_HEIGHT ) ||
-					( v0.z >= LINE_HEIGHT && v1.z <= LINE_HEIGHT ) )
+				Vertex* verts = &P.m_vertices[ mpv ];
+				int vcount = 3;
+				
+				Vec3 nrm = Vec3Cross( verts[1].pos - verts[0].pos, verts[2].pos - verts[0].pos ).Normalized();
+				if( fabsf( Vec3Dot( nrm, V3(0,0,1) ) ) > cosf(FLT_PI/4.0f) )
 				{
-					if( v1.z == v0.z )
+					// surface is too flat
+					continue;
+				}
+				
+				// ADD LINES
+				Vec3 isps[ 2 ];
+				int ispc = 0;
+				for( int i = 0; i < vcount && ispc < 2; ++i )
+				{
+					Vec3 v0 = verts[ i ].pos;
+					Vec3 v1 = verts[ ( i + 1 ) % vcount ].pos;
+					if( ( v0.z <= height && v1.z >= height ) ||
+						( v0.z >= height && v1.z <= height ) )
 					{
-						break; // going to be easier (less code dup) to insert these separately (polygons are closed)
-					}
-					else
-					{
-						Vec3 isp = TLERP( v0, v1, ( LINE_HEIGHT - v0.z ) / ( v1.z - v0.z ) );
-						int at = 0;
-						for( ; at < ispc; ++at )
-							if( ( isps[ at ] - isp ).LengthSq() < SMALL_FLOAT )
-								break;
-						if( at == ispc )
+						if( v1.z == v0.z )
 						{
-							isps[ ispc++ ] = isp;
+							break; // going to be easier (less code dup) to insert these separately (polygons are closed)
+						}
+						else
+						{
+							Vec3 isp = TLERP( v0, v1, ( height - v0.z ) / ( v1.z - v0.z ) );
+							int at = 0;
+							for( ; at < ispc; ++at )
+								if( ( isps[ at ] - isp ).LengthSq() < SMALL_FLOAT )
+									break;
+							if( at == ispc )
+							{
+								isps[ ispc++ ] = isp;
+							}
 						}
 					}
 				}
-			}
-			if( ispc == 2 )
-			{
-				Vec2 line[] = { isps[0].ToVec2(), isps[1].ToVec2() };
-				m_lines.append( line, 2 );
+				if( ispc == 2 )
+				{
+					Vec2 line[] = { isps[0].ToVec2(), isps[1].ToVec2() };
+					m_mapLines.append( line, 2 );
+				}
 			}
 		}
+		m_mapLayers[ layer_id ].to = m_mapLines.size();
 	}
 }
 
@@ -1273,7 +1294,7 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 	
 	// map system
 	ByteArray ba_mapl;
-	LC_Chunk_Mapl ch_mapl = { &m_lines };
+	LC_Chunk_Mapl ch_mapl = { &m_mapLines, &m_mapLayers };
 	ByteWriter( &ba_mapl ) << ch_mapl;
 	{
 		memcpy( chunk.sys_id, LC_FILE_MAPL_NAME, sizeof(chunk.sys_id) );

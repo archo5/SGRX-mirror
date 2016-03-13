@@ -114,10 +114,11 @@ EXP_STRUCT LevelMapSystem : IGameLevelSystem
 	
 	GFW_EXPORT SGS_METHOD_NAMED( Update ) void sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt );
 	
-	SGS_PROPERTY Vec2 viewPos;
+	SGS_PROPERTY Vec3 viewPos;
 
 	HashTable< Entity*, MapItemInfo > m_mapItemData;
 	Array< Vec2 > m_lines;
+	Array< LC_Map_Layer > m_layers;
 	
 	TextureHandle m_tex_mapline;
 };

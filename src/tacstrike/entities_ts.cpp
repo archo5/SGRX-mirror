@@ -1134,13 +1134,13 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 			Vec3 ppos = chr->GetWorldPosition();
 			Vec2 planedir = ( ppos - scene->camera.position ).ToVec2().Normalized();
 			Vec3 planedir3 = V3( planedir.x, planedir.y, 0 );
-			Vec4 plane = V4( planedir3, Vec3Dot( planedir3, ppos ) );
+			Vec4 plane = V4( planedir3, Vec3Dot( planedir3, ppos ) + 0.1f ); // safety offset
 			
 			// offset ray up to center plane
 			float dsts[2];
 			if( RayPlaneIntersect( start, dir, plane, dsts ) )
 			{
-				start += dir * dsts[0] * 1.01f;
+				start += dir * dsts[0];
 			}
 			
 			SceneRaycastInfo hitinfo;

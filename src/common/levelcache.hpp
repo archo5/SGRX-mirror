@@ -245,15 +245,30 @@ struct LC_Chunk_Mrkr
 
 // Level map system
 #define LC_FILE_MAPL_NAME "MAPL"
-#define LC_FILE_MAPL_VERSION 0
+#define LC_FILE_MAPL_VERSION 1
+struct LC_Map_Layer
+{
+	uint32_t from;
+	uint32_t to;
+	float height;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << from;
+		arch << to;
+		arch << height;
+	}
+};
 struct LC_Chunk_Mapl
 {
 	Array< Vec2 >* lines;
+	Array< LC_Map_Layer >* layers;
 	
 	template< class T > void Serialize( T& arch )
 	{
 		SerializeVersionHelper<T> svh( arch, LC_FILE_MAPL_VERSION );
 		svh << *lines;
+		svh( *layers, svh.version >= 1 );
 	}
 };
 

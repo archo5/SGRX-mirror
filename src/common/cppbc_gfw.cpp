@@ -1495,7 +1495,7 @@ int LevelMapSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 int LevelMapSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "viewPos" ){ static_cast<LevelMapSystem*>( obj->data )->viewPos = sgs_GetVar<Vec2>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "viewPos" ){ static_cast<LevelMapSystem*>( obj->data )->viewPos = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 

@@ -309,7 +309,8 @@ struct LevelCache
 	StringView m_skyTexture;
 	LC_PhysicsMesh m_navMesh;
 	SGRX_LightTree* m_sampleTree;
-	Array< Vec2 > m_lines;
+	Array< Vec2 > m_mapLines;
+	Array< LC_Map_Layer > m_mapLayers;
 	ByteArray m_chunkData;
 };
 
