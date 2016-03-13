@@ -1111,16 +1111,46 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 		TCLAMP( TREVLERP<float>( 0.2f, 1.0f, joystick_aim.Length() ), 0.0f, 1.0f );
 	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
 	m_angles.pitch += joystick_aim.y * 10 * deltaTime;
-	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/2.01f, FLT_PI/2.01f );
+	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/3.0f, FLT_PI/3.0f );
 	
 	Vec2 move = V2
 	(
 		MOVE_X.value + MOVE_RIGHT.value - MOVE_LEFT.value,
 		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
 	);
-	SGRX_Camera& CAM = m_level->GetScene()->camera;
-	if( !m_level->GetCursorWorldPoint( &i_aim_target, 0xffffffff, V2(0.5f) ) )
-		i_aim_target = CAM.position + CAM.direction.Normalized() * 1000;
+	SGRX_Scene* scene = m_level->GetScene();
+	SGRX_Camera& CAM = scene->camera;
+	
+	// raycast for direction
+	i_aim_target = CAM.position + CAM.direction.Normalized() * 1000;
+	{
+		Vec3 pos, dir;
+		if( scene->camera.GetCursorRay( 0.5f, 0.5f, pos, dir ) )
+		{
+			Vec3 start = pos;
+			Vec3 end = pos + dir * scene->camera.zfar;
+			
+			// center plane
+			Vec3 ppos = chr->GetWorldPosition();
+			Vec2 planedir = ( ppos - scene->camera.position ).ToVec2().Normalized();
+			Vec3 planedir3 = V3( planedir.x, planedir.y, 0 );
+			Vec4 plane = V4( planedir3, Vec3Dot( planedir3, ppos ) );
+			
+			// offset ray up to center plane
+			float dsts[2];
+			if( RayPlaneIntersect( start, dir, plane, dsts ) )
+			{
+				start += dir * dsts[0] * 1.01f;
+			}
+			
+			SceneRaycastInfo hitinfo;
+			if( scene->RaycastOne( start, end, &hitinfo, 0xffffffff ) )
+			{
+				i_aim_target = TLERP( start, end, hitinfo.factor );
+			}
+		}
+	}
+	
 	Vec2 fwd = CAM.direction.ToVec2().Normalized();
 	Vec2 rgt = CAM.GetRight().ToVec2().Normalized();
 	i_move = fwd * -move.y + rgt * move.x;
