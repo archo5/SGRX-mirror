@@ -1662,7 +1662,7 @@ void EdLevelGraphicsCont::HandleEvent( SGRX_EventID eid, const EventData& edata 
 		{
 			EdLGCMeshInfo& info = m_meshes[ ME->m_edLGCID ].info;
 			InvalidateMesh( ME->m_edLGCID );
-		//	InvalidateLightmap( LGC_MESH_LMID( ME->m_edLGCID ) );
+			InvalidateLightmap( LGC_MESH_LMID( ME->m_edLGCID ) );
 			ReadMeshInfo( &info, ME );
 			InvalidateMesh( ME->m_edLGCID );
 		}

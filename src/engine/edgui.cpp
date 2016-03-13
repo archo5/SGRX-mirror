@@ -1218,7 +1218,9 @@ int EDGUINumberWheel::OnEvent( EDGUIEvent* e )
 		return 1;
 		
 	case EDGUI_EVENT_TEXTINPUT:
-		if( e->text.text[0] == '.' || ( e->text.text[0] >= '0' && e->text.text[0] <= '9' ) )
+		if( e->text.text[0] == '.' ||
+			e->text.text[0] == '-' ||
+			( e->text.text[0] >= '0' && e->text.text[0] <= '9' ) )
 		{
 			m_textValue.append( e->text.text );
 			_Text2Num();

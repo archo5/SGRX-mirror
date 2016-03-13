@@ -124,6 +124,7 @@ void EdEntity::Serialize( SVHBR& arch )
 	arch << data;
 	m_data = g_Level->GetScriptCtx().Unserialize( data );
 	Data2Fields();
+	UpdateRealEnt( NULL );
 }
 
 void EdEntity::Serialize( SVHBW& arch )

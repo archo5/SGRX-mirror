@@ -47,9 +47,9 @@ void EdBlock::MoveSelectedVertices( const Vec3& tfv )
 	
 	Vec3 t = tfv;
 	
-	if( numbottom || IsSurfaceSelected( GetNumSurfs() - 2 ) )
+	if( numbottom || IsSurfaceSelected( GetNumSurfs() - 1 ) )
 		z0 += t.z;
-	if( numtop == pc || IsSurfaceSelected( GetNumSurfs() - 1 ) )
+	if( numtop == pc || IsSurfaceSelected( GetNumSurfs() - 2 ) )
 	{
 		z1 += t.z;
 		t.z = 0;
@@ -59,8 +59,8 @@ void EdBlock::MoveSelectedVertices( const Vec3& tfv )
 	
 	// either top or bottom is fully selected
 	if( numtop == pc || numbottom == pc || 
-		IsSurfaceSelected( GetNumSurfs() - 2 ) ||
-		IsSurfaceSelected( GetNumSurfs() - 1 ) )
+		IsSurfaceSelected( GetNumSurfs() - 1 ) ||
+		IsSurfaceSelected( GetNumSurfs() - 2 ) )
 	{
 		position += t;
 		return;
@@ -1001,14 +1001,15 @@ int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
 			EdPatch* p = EdPatch::CreatePatchFromSurface( *m_out, m_sid );
 			if( p )
 			{
+				m_out->selected = false;
 				p->selected = true;
 				if( e->target != &m_makeBlendPatch )
 				{
 					p->blend = PATCH_IS_SOLID;
 					g_EdWorld->DeleteObject( m_out );
-					g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 				}
 				g_EdWorld->AddObject( p );
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 			}
 		}
 		if( m_out && e->target == &m_resetOffScaleAsp )

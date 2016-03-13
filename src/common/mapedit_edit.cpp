@@ -55,6 +55,10 @@ int EdBasicEditTransform::OnViewEvent( EDGUIEvent* e )
 	return 1;
 }
 
+EdBlockEditTransform::EdBlockEditTransform() : m_subpointCenter(false)
+{
+}
+
 bool EdBlockEditTransform::OnEnter()
 {
 	if( g_EdWorld->GetNumSelectedObjects() == 0 )
@@ -108,8 +112,23 @@ void EdBlockEditTransform::SaveState()
 		ByteWriter bw( &m_objectStateData );
 		obj->Serialize( bw );
 		
-		cp += obj->FindCenter();
-		cpc++;
+		if( m_subpointCenter )
+		{
+			int numel = obj->GetNumElements();
+			for( int el = 0; el < numel; ++el )
+			{
+				if( obj->IsElementSelected( el ) )
+				{
+					cp += obj->GetElementPoint( el );
+					cpc++;
+				}
+			}
+		}
+		else
+		{
+			cp += obj->FindCenter();
+			cpc++;
+		}
 	}
 	m_origin = g_UIFrame->Snapped( cp / cpc );
 }
@@ -257,6 +276,7 @@ void EdBlockMoveTransform::RecalcTransform()
 
 EdVertexMoveTransform::EdVertexMoveTransform() : m_project(false)
 {
+	m_subpointCenter = true;
 }
 
 int EdVertexMoveTransform::OnViewEvent( EDGUIEvent* e )

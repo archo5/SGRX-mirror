@@ -2485,6 +2485,7 @@ struct EdBlockEditTransform : EdBasicEditTransform
 		int offset;
 	};
 	
+	EdBlockEditTransform();
 	virtual bool OnEnter();
 	virtual int OnViewEvent( EDGUIEvent* e );
 	virtual void SaveState();
@@ -2495,6 +2496,7 @@ struct EdBlockEditTransform : EdBasicEditTransform
 	ByteArray m_objectStateData;
 	ConstraintMode m_cmode;
 	Vec3 m_origin;
+	bool m_subpointCenter;
 	
 	// extending
 	bool m_extend;
