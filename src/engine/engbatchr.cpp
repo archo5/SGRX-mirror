@@ -807,7 +807,7 @@ void SGRX_LineSet::DrawLine( const Vec3& p1, const Vec3& p2, uint32_t c1, uint32
 	m_lines[ m_nextPos ] = pt1;
 	m_lines[ m_nextPos+1 ] = pt2;
 	m_curCount = TMAX( m_nextPos + 2, m_curCount );
-	m_nextPos = ( m_nextPos + 2 ) % ( m_lines.size() * 2 );
+	m_nextPos = ( m_nextPos + 2 ) % m_lines.size();
 }
 
 void SGRX_LineSet::Flush()

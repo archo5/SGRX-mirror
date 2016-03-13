@@ -561,17 +561,17 @@ void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 			else
 			{
 				// directional force
+				Vec3 fpos = F.pos;
 				Vec3 fdir = F.dir;
 				if( F.boneID >= 0 )
 				{
+					fpos = m_skinOffsets[ F.boneID ].TransformPos( fpos );
 					fdir = m_skinOffsets[ F.boneID ].TransformNormal( fdir );
 				}
 				Vec3 fpush = fdir.Normalized() * amount;
-				GR2D_GetBatchRenderer().lines.DrawLine( fpos, fpos + fdir,
-					COLOR_RGB(255,0,0), COLOR_RGB(0,255,0) );
 				for( int i = 0; i < count; ++i )
 				{
-					float distfac = TMIN( 1.0f, ( F.pos - m_bonePositions[ i ] ).Length() / F.radius );
+					float distfac = TMIN( 1.0f, ( fpos - m_bonePositions[ i ] ).Length() / F.radius );
 					distfac = powf( 1 - distfac, F.power );
 					m_bonePositions[ i ] += fpush * distfac;
 				}
@@ -650,7 +650,7 @@ void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 		( curxf * skinXF[ i ] ).InvertTo( inv );
 		avgtgt = inv.TransformPos( avgtgt ).Normalized();
 		avgpos = m_invSkinOffsets[ i ].TransformPos( avgpos ).Normalized();
-		m_rotations[ i ] = m_rotations[ i ] * Quat::CreateAxisAxis( avgpos, avgtgt );
+		m_rotations[ i ] = Quat::CreateAxisAxis( avgpos, avgtgt ) * m_rotations[ i ];
 		
 		skinXF[ i ] = Mat4::CreateSRT(
 			m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * skinXF[ i ];

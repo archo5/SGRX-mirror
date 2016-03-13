@@ -563,10 +563,9 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootTimeout += 0.1f;
 		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 10, 0.2f, AIS_Shot );
 		
-		Mat4 inv = Mat4::Identity;
-		m_animChar.m_cachedMeshInst->matrix.InvertTo( inv );
+		Mat4 inv = m_animChar.m_cachedMeshInst->matrix.Inverted();
 		Vec3 forcePos = inv.TransformPos( origin );
-		Vec3 forceDir = inv.TransformNormal( -dir ).Normalized();
+		Vec3 forceDir = inv.TransformNormal( mtx.TransformNormal(V3(0,0,-1)) ).Normalized();
 		AnD.AddLocalForce( forcePos, forceDir * 0.2f, 1.0f );
 	}
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );

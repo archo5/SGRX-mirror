@@ -838,6 +838,7 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	info.viewport = origViewport;
 	
 	// RENDER MAIN SCENE
+	ctrl->m_overrideTextures[ 10 ] = scene->skyTexture;
 	ctrl->m_overrideTextures[ 11 ] = rttREFL; // GR_GetTexture( "textures/unit.png" );
 	GR_PreserveResource( ctrl->m_overrideTextures[ 0 ] );
 	SGRX_RenderDirector::OnDrawScene( ctrl, info );
