@@ -589,10 +589,10 @@ void GameLevel::FixedTick( float deltaTime )
 void GameLevel::Tick( float deltaTime, float blendFactor )
 {
 	m_deltaTime = deltaTime;
-	m_levelTime += deltaTime;
 	
 	if( IsPaused() == false )
 	{
+		m_levelTime += deltaTime;
 		m_currentPhyTime += deltaTime;
 		
 		for( size_t i = 0; i < m_entities.size(); ++i )
