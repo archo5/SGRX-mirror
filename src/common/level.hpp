@@ -599,7 +599,7 @@ EXP_STRUCT GameLevel :
 	double m_currentTickTime;
 	double m_currentPhyTime;
 	float m_deltaTime;
-	String m_levelName;
+	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_levelName;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME nextLevel ) String m_nextLevel;
 	bool m_editorMode;
 	
@@ -614,7 +614,7 @@ EXP_STRUCT GameLevel :
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME persistent ) sgsVariable m_persistent;
 	SGS_BACKING_STORE( m_metadata.var );
 	sgsVariable m_markerPositions;
-	bool m_paused;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME paused ) bool m_paused;
 	double m_levelTime;
 	Array< Entity* > m_entities;
 };

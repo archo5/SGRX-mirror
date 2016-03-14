@@ -195,7 +195,7 @@ int GameUIControl::OnEvent( const GameUIEvent& e )
 	SGS_SCOPE;
 	sgsVariable obj = Handle( this ).get_variable();
 	sgs_CreateLiteClassFrom( C, NULL, &e );
-	sgs_SetGlobal( C, m_system->m_str_GUIEvent.get_variable().var, sgsVariable( C, -1 ).var );
+//	sgs_SetGlobal( C, m_system->m_str_GUIEvent.get_variable().var, sgsVariable( C, -1 ).var );
 	obj.thiscall( C, eventCallback, 1, 1 );
 	return sgs_GetInt( C, -1 );
 }

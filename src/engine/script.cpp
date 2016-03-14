@@ -116,6 +116,13 @@ static int sgsGame_GetScreenSize( SGS_CTX )
 	return 1;
 }
 
+static int sgsGame_End( SGS_CTX )
+{
+	SGSFN( "Game_End" );
+	Game_End();
+	return 0;
+}
+
 static int Input_GetValue( SGS_CTX )
 {
 	char* str = NULL;
@@ -174,6 +181,7 @@ static int Input_GetCursorPos( SGS_CTX )
 static sgs_RegFuncConst g_engine_rfc[] =
 {
 	{ "Game_GetScreenSize", sgsGame_GetScreenSize },
+	{ "Game_End", sgsGame_End },
 	{ "Input_GetValue", Input_GetValue },
 	{ "Input_GetState", Input_GetState },
 	{ "Input_GetPressed", Input_GetPressed },

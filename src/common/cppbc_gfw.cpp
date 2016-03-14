@@ -1374,8 +1374,10 @@ int GameLevel::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "cameraZNear" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.znear ); return SGS_SUCCESS; }
 		SGS_CASE( "cameraZFar" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.zfar ); return SGS_SUCCESS; }
 		SGS_CASE( "cameraAngle" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.angle ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_levelName ); return SGS_SUCCESS; }
 		SGS_CASE( "nextLevel" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_nextLevel ); return SGS_SUCCESS; }
 		SGS_CASE( "persistent" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_persistent ); return SGS_SUCCESS; }
+		SGS_CASE( "paused" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_paused ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<GameLevel*>( obj->data )->m_metadata.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -1392,6 +1394,7 @@ int GameLevel::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "cameraAngle" ){ static_cast<GameLevel*>( obj->data )->GetScene()->camera.angle = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "nextLevel" ){ static_cast<GameLevel*>( obj->data )->m_nextLevel = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "persistent" ){ static_cast<GameLevel*>( obj->data )->m_persistent = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "paused" ){ static_cast<GameLevel*>( obj->data )->m_paused = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<GameLevel*>( obj->data )->m_metadata.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -1410,9 +1413,11 @@ int GameLevel::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ncameraZNear = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.znear, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncameraZFar = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.zfar, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncameraAngle = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.angle, depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_levelName, depth ).push( C ); }
 		{ sgs_PushString( C, "\nnextLevel = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_nextLevel, depth ).push( C ); }
 		{ sgs_PushString( C, "\npersistent = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_persistent, depth ).push( C ); }
-		sgs_StringConcat( C, 16 );
+		{ sgs_PushString( C, "\npaused = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_paused, depth ).push( C ); }
+		sgs_StringConcat( C, 20 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
