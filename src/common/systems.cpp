@@ -708,13 +708,16 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 			
 			MI->matrix = MID.m_mtx;
 			
-			if( MID.m_flags & LM_MESHINST_DYNLIT )
+			if( MID.m_flags & LM_MESHINST_UNLIT )
+			{
+				MI->SetLightingMode( SGRX_LM_Unlit );
+			}
+			else if( MID.m_flags & LM_MESHINST_DYNLIT )
 			{
 				MI->SetLightingMode( SGRX_LM_Dynamic );
 				m_level->LightMesh( MI );
 			}
-			
-			if( ( MID.m_flags & LM_MESHINST_DECAL ) != 0 && MI->GetMesh() )
+			else if( ( MID.m_flags & LM_MESHINST_DECAL ) != 0 && MI->GetMesh() )
 			{
 				MI->SetAllMtlFlags( SGRX_MtlFlag_Decal, 0 );
 				MI->SetAllBlendModes( SGRX_MtlBlend_Basic );

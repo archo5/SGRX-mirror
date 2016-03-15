@@ -260,6 +260,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	TACStrikeGame()
 	{
 		RegisterCommonGameCVars();
+		m_mapName = "b5-1";
 	}
 	
 	bool OnConfigure( int argc, char* argv[] )
@@ -364,8 +365,10 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !BaseGame::OnInitialize() )
 			return false;
 		
+		m_level->m_enableLoadingScreen = false;
+		m_level->Load( m_mapName );
 	//	m_level->Load( "tpstest" );
-		m_level->Load( "b5-1" );
+	//	m_level->Load( "b5-1" );
 	//	m_level->Load( "ai-test-suite" );
 	//	m_level->Load( "gp-test-suite" );
 	//	m_level->Load( "v3decotest" );

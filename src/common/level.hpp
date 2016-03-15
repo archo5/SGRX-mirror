@@ -602,6 +602,7 @@ EXP_STRUCT GameLevel :
 	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_levelName;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME nextLevel ) String m_nextLevel;
 	bool m_editorMode;
+	bool m_enableLoadingScreen;
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entIDMap;
@@ -729,6 +730,7 @@ EXP_STRUCT BaseGame : IGame
 	GameLevel* m_level;
 	BaseEditor* m_editor;
 	bool m_needsEditor;
+	StringView m_mapName;
 };
 
 

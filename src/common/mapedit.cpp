@@ -1027,13 +1027,13 @@ static bool MtlIsSolid( const StringView& name )
 
 static bool RenderInfoNeedsLM( const EdLGCRenderInfo& rinfo )
 {
-	return ( rinfo.rflags & LM_MESHINST_DYNLIT ) == 0;
+	return ( rinfo.rflags & (LM_MESHINST_DYNLIT|LM_MESHINST_UNLIT) ) == 0;
 }
 
 static bool RenderInfoIsSolid( const EdLGCRenderInfo& rinfo )
 {
 	return ( rinfo.rflags & LM_MESHINST_DECAL ) == 0 &&
-		( ( rinfo.rflags & LM_MESHINST_DYNLIT ) == 0 || ( rinfo.rflags & LM_MESHINST_CASTLMS ) != 0 );
+		( rinfo.rflags & LM_MESHINST_CASTLMS ) != 0;
 }
 
 bool EdLevelGraphicsCont::ILMBeginRender()
@@ -1523,7 +1523,12 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			if( diff == 1 )
 				InvalidateLightmap( LGC_SURF_LMID( id ) );
 		}
-		S.meshInst->SetLightingMode( info->rflags & LM_MESHINST_DYNLIT ? SGRX_LM_Dynamic : SGRX_LM_Static );
+		SGRX_LightingMode lmode = SGRX_LM_Static;
+		if( info->rflags & LM_MESHINST_DYNLIT )
+			lmode = SGRX_LM_Dynamic;
+		if( info->rflags & LM_MESHINST_UNLIT )
+			lmode = SGRX_LM_Unlit;
+		S.meshInst->SetLightingMode( lmode );
 		SGRX_Material& mtl = S.meshInst->GetMaterial( 0 );
 		bool decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
 		
@@ -1578,6 +1583,7 @@ static void ReadMeshInfo( EdLGCMeshInfo* out, MeshEntity* me )
 	out->rflags = 0
 		| ( me->m_isSolid ? LM_MESHINST_SOLID : 0 )
 		| ( !me->m_isStatic || me->m_lightingMode == SGRX_LM_Dynamic ? LM_MESHINST_DYNLIT : 0 )
+		| ( me->m_lightingMode == SGRX_LM_Unlit ? LM_MESHINST_UNLIT : 0 )
 		| ( me->m_castLMS ? LM_MESHINST_CASTLMS : 0 )
 		| ( me->m_lightingMode == SGRX_LM_Decal ? LM_MESHINST_DECAL : 0 );
 	out->lmdetail = me->m_lmQuality;
@@ -1935,8 +1941,9 @@ void EdWorld::FLoad( sgsVariable obj )
 				continue;
 			}
 			obj->FLoad( object, version );
-			AddObject( obj );
+			AddObject( obj, false );
 		}
+		RegenerateMeshes();
 	}
 }
 
@@ -2383,7 +2390,7 @@ bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchf
 	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent, skip, mask );
 }
 
-void EdWorld::AddObject( EdObject* obj )
+void EdWorld::AddObject( EdObject* obj, bool regen )
 {
 	m_objects.push_back( obj );
 	if( obj->m_type == ObjType_Block )
@@ -2394,7 +2401,8 @@ void EdWorld::AddObject( EdObject* obj )
 		m_patches.push_back( (EdPatch*) obj );
 	if( obj->m_type == ObjType_MeshPath )
 		m_mpaths.push_back( (EdMeshPath*) obj );
-	obj->RegenerateMesh();
+	if( regen )
+		obj->RegenerateMesh();
 }
 
 void EdWorld::DeleteObject( EdObject* obj )
@@ -2559,19 +2567,24 @@ bool EdWorld::GetSelectedObjectAABB( Vec3 outaabb[2] )
 	return ret;
 }
 
-void EdWorld::SelectObject( int oid, bool mod )
+void EdWorld::SelectObject( int oid, int mod )
 {
-	if( mod )
-	{
-		if( oid != -1 )
-			m_objects[ oid ]->selected = !m_objects[ oid ]->selected;
-	}
-	else
+	if( mod == SELOBJ_ONLY )
 	{
 		for( size_t i = 0; i < m_objects.size(); ++i )
 			m_objects[ i ]->selected = false;
 		if( oid != -1 )
 			m_objects[ oid ]->selected = true;
+	}
+	else
+	{
+		if( oid != -1 )
+		{
+			if( mod == SELOBJ_TOGGLE )
+				m_objects[ oid ]->selected = !m_objects[ oid ]->selected;
+			else
+				m_objects[ oid ]->selected = !!mod;
+		}
 	}
 }
 

@@ -537,7 +537,8 @@ void EdDrawBlockEditMode::_AddNewBlock()
 EdEditBlockEditMode::EdEditBlockEditMode() :
 	m_selMask( 0xf ),
 	m_hlObj( -1 ),
-	m_curObj( -1 )
+	m_curObj( -1 ),
+	m_keys( 0 )
 {}
 
 void EdEditBlockEditMode::OnEnter()
@@ -582,9 +583,17 @@ int EdEditBlockEditMode::OnUIEvent( EDGUIEvent* e )
 
 void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 {
-	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
+	if( e->type == EDGUI_EVENT_BTNDOWN && e->mouse.button == 0 ) m_keys |= 1;
+	if( e->type == EDGUI_EVENT_BTNUP && e->mouse.button == 0 ) m_keys &= ~1;
+	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_LALT ) m_keys |= 2;
+	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_LALT ) m_keys &= ~2;
+	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_LSHIFT ) m_keys |= 4;
+	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_LSHIFT ) m_keys &= 4;
+	
+	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 && ( m_keys & 2 ) == 0 )
 	{
-		g_EdWorld->SelectObject( m_hlObj, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
+		g_EdWorld->SelectObject( m_hlObj,
+			( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 ? SELOBJ_TOGGLE : SELOBJ_ONLY );
 		m_numSel = g_EdWorld->GetNumSelectedObjects();
 		m_curObj = g_EdWorld->GetOnlySelectedObject();
 		_ReloadBlockProps();
@@ -592,6 +601,10 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	if( e->type == EDGUI_EVENT_MOUSEMOVE )
 	{
 		_MouseMove();
+		if( ( m_keys & 3 ) == 3 )
+		{
+			g_EdWorld->SelectObject( m_hlObj, ( m_keys & 4 ) == 0 ? SELOBJ_ENABLE : SELOBJ_DISABLE );
+		}
 	}
 	if( e->type == EDGUI_EVENT_KEYDOWN )
 	{

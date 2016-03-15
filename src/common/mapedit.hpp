@@ -2303,7 +2303,7 @@ struct EdWorld : EDGUILayoutRow
 		float outdst[1], int outent[1], EdObject** skip = NULL, int mask = SelMask_ALL );
 	
 //	EdEntity* CreateScriptedEntity( const StringView& name, sgsVariable params );
-	void AddObject( EdObject* obj );
+	void AddObject( EdObject* obj, bool regen = true );
 	void DeleteObject( EdObject* obj );
 	
 	void DeleteSelectedObjects();
@@ -2312,7 +2312,12 @@ struct EdWorld : EDGUILayoutRow
 	int GetNumSelectedObjects();
 	int GetOnlySelectedObject();
 	bool GetSelectedObjectAABB( Vec3 outaabb[2] );
-	void SelectObject( int oid, bool mod );
+	
+#define SELOBJ_ONLY -1
+#define SELOBJ_TOGGLE -2
+#define SELOBJ_ENABLE 1
+#define SELOBJ_DISABLE 0
+	void SelectObject( int oid, int mod );
 	
 	Vec3 FindCenterOfGroup( int32_t grp );
 	void FixTransformsOfGroup( int32_t grp );
@@ -2587,6 +2592,7 @@ struct EdEditBlockEditMode : EdEditMode
 	
 	EdBlockMoveTransform m_transform;
 	EDGUIMultiObjectProps m_moprops;
+	int m_keys;
 };
 
 struct EdEditVertexEditMode : EdEditMode

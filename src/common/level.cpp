@@ -200,6 +200,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_currentPhyTime( 0 ),
 	m_deltaTime( 0 ),
 	m_editorMode( false ),
+	m_enableLoadingScreen( true ),
 	m_paused( false ),
 	m_levelTime( 0 )
 {
@@ -301,16 +302,22 @@ void GameLevel::AddEntry( const StringView& name, sgsVariable var )
 
 struct LoadingScreen
 {
-	LoadingScreen() : m_running(true), m_alpha(0), m_alphaTgt(1)
+	LoadingScreen( bool enable ) : m_running(enable), m_alpha(0), m_alphaTgt(1)
 	{
-		m_thread.Start( _Proc, this );
-		sgrx_sleep( 500 );
+		if( enable )
+		{
+			m_thread.Start( _Proc, this );
+			sgrx_sleep( 500 );
+		}
 	}
 	~LoadingScreen()
 	{
-		m_alphaTgt = 0;
-		sgrx_sleep( 500 );
-		m_running = false;
+		if( m_running )
+		{
+			m_alphaTgt = 0;
+			sgrx_sleep( 500 );
+			m_running = false;
+		}
 	}
 	
 	void Run()
@@ -368,7 +375,7 @@ bool GameLevel::Load( const StringView& levelname )
 {
 	LOG_FUNCTION_ARG( levelname );
 	
-	LoadingScreen LS;
+	LoadingScreen LS( m_enableLoadingScreen );
 	
 	ByteArray ba;
 	
@@ -895,6 +902,7 @@ BaseGame::BaseGame() :
 	m_editor( NULL ),
 	m_needsEditor( false )
 {
+	m_mapName = "<UNSPECIFIED>";
 }
 
 int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
@@ -903,6 +911,10 @@ int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
 	{
 		m_needsEditor = true;
 		return 1;
+	}
+	if( strpeq( arg, "-map=" ) )
+	{
+		m_mapName = arg + 5;
 	}
 	return 0;
 }

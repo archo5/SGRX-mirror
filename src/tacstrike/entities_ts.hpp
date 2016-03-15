@@ -269,7 +269,8 @@ struct TPSPlayerController : IActorController
 			: NULL;
 	}
 	
-	SGS_PROPERTY_FUNC( READ SOURCE m_angles.ToVec3() ) SGS_ALIAS( Vec3 direction );
+	void SetDir( Vec3 v ){ m_angles = YP(v); }
+	SGS_PROPERTY_FUNC( READ WRITE SetDir SOURCE m_angles.ToVec3() ) SGS_ALIAS( Vec3 direction );
 	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
 

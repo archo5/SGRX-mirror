@@ -752,6 +752,7 @@ int TPSPlayerController::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TPSPlayerController*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "direction" ){ static_cast<TPSPlayerController*>( obj->data )->SetDir( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
 
