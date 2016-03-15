@@ -1188,6 +1188,8 @@ BulletSystem::BulletSystem( GameLevel* lev ) :
 	IGameLevelSystem( lev, e_system_uid ),
 	m_damageSystem( lev->GetSystem<DamageSystem>() )
 {
+	_InitScriptInterface( this );
+	AddSelfToLevel( "bulletSystem" );
 }
 
 void BulletSystem::Tick( float deltaTime, float blendFactor )
@@ -1205,104 +1207,7 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 		Vec3 p1 = B.position;
 		Vec3 p2 = p1 + B.velocity * deltaTime;
 		
-		SceneRaycastCallback_Sorting cb( &m_tmpStore );
-		m_level->GetScene()->RaycastAll( p1, p2, &cb, 0xffffffff );
-		#ifdef TSGAME
-	//	g_DebugLines.DrawLine( p1, p2, m_tmpStore.size() ? COLOR_RGB(255,0,0) : COLOR_RGB(255,255,0) );
-		#endif
-		
-		// sorted list of raycast hits
-		bool remb = false;
-		if( m_tmpStore.size() )
-		{
-			for( size_t hitid = 0; hitid < m_tmpStore.size(); ++hitid )
-			{
-				SceneRaycastInfo& HIT = m_tmpStore[ hitid ];
-				if( HIT.meshinst->enabled == false )
-					continue;
-				
-				float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
-				SGRX_MeshInstUserData* mii = (SGRX_MeshInstUserData*) HIT.meshinst->userData;
-				if( mii && mii->ownerType == B.ownerType )
-					continue;
-				
-				StringView decalType = "unknown";
-				if( mii && mii->typeOverride )
-				{
-					decalType = mii->typeOverride;
-				}
-				else
-				{
-					SGRX_IMesh* mesh = HIT.meshinst->GetMesh();
-					if( HIT.partID >= 0 && HIT.partID < (int) mesh->m_meshParts.size() )
-					{
-						SGRX_MeshPart& MP = mesh->m_meshParts[ HIT.partID ];
-						if( MP.textures[0].size() &&
-							( MP.mtlBlendMode == SGRX_MtlBlend_None ||
-							MP.mtlBlendMode == SGRX_MtlBlend_Basic ) )
-						{
-							decalType = MP.textures[0];
-						//	printf("%s\n", StackString<256>(decalType).str);
-						}
-					}
-				}
-				
-				// apply damage to hit point
-				Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
-				SGRX_DecalSystem* dmgDecalSys = mii ? mii->dmgDecalSysOverride : NULL;
-				bool needDecal = ( HIT.meshinst->allowStaticDecals || dmgDecalSys ) &&
-					HIT.meshinst->IsSkinned() == false;
-				m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
-					needDecal ? HIT.meshinst->GetMesh() : NULL,
-					-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );
-				
-				// blood?
-				if( decalType == "*human*" )
-				{
-					m_damageSystem->AddBlood( hitpoint, B.dir );
-				}
-				
-				// send event
-				if( mii )
-				{
-					MI_BulletHit_Data data = { hitpoint, B.velocity };
-					mii->OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
-				}
-				
-				// handling wall penetration
-				B.numSolidRefs += entryIfL0 < 0 ? 1 : -1;
-				if( B.numSolidRefs == 1 )
-				{
-					// entry into solid
-					B.intersectStart = hitpoint;
-					// todo upgrade
-					remb = true;
-					break;
-				}
-				else if( B.numSolidRefs == 0 )
-				{
-					// genuine exit, calculate penetration
-					float dist = ( hitpoint - B.intersectStart ).Length();
-					float q = dist * 50;
-					float speedScale = q < 1 ? 1 : 1 / q;
-					speedScale = ( speedScale - 1 ) * 1.15f + 1;
-					if( speedScale < 0 )
-					{
-						remb = true;
-						break;
-					}
-					B.velocity *= speedScale;
-				}
-				else if( B.numSolidRefs < 0 )
-				{
-					// fake exit, abort all
-					remb = true;
-					break;
-				}
-			}
-		}
-		// make sure mesh instance handles are freed
-		m_tmpStore.clear();
+		bool remb = _ProcessBullet( p1, p2, B );
 		
 		if( remb )
 			m_bullets.erase( i-- );
@@ -1311,10 +1216,120 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 	}
 }
 
-void BulletSystem::Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, uint32_t ownerType )
+void BulletSystem::Add( Vec3 pos, Vec3 vel, float timeleft, float dmg, uint32_t ownerType )
 {
 	Bullet B = { pos, vel, vel.Normalized(), timeleft, dmg, ownerType };
 	m_bullets.push_back( B );
+}
+
+bool BulletSystem::Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType )
+{
+	Vec3 dir = ( p2 - p1 ).Normalized();
+	Bullet B = { p1, dir * dmg, dir, 0, dmg, ownerType };
+	return _ProcessBullet( p1, p2, B );
+}
+
+bool BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
+{
+	SceneRaycastCallback_Sorting cb( &m_tmpStore );
+	m_level->GetScene()->RaycastAll( p1, p2, &cb, 0xffffffff );
+	#ifdef TSGAME
+//	g_DebugLines.DrawLine( p1, p2, m_tmpStore.size() ? COLOR_RGB(255,0,0) : COLOR_RGB(255,255,0) );
+	#endif
+	
+	// sorted list of raycast hits
+	bool remb = false;
+	if( m_tmpStore.size() )
+	{
+		for( size_t hitid = 0; hitid < m_tmpStore.size(); ++hitid )
+		{
+			SceneRaycastInfo& HIT = m_tmpStore[ hitid ];
+			if( HIT.meshinst->enabled == false )
+				continue;
+			
+			float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
+			SGRX_MeshInstUserData* mii = (SGRX_MeshInstUserData*) HIT.meshinst->userData;
+			if( mii && mii->ownerType == B.ownerType )
+				continue;
+			
+			StringView decalType = "unknown";
+			if( mii && mii->typeOverride )
+			{
+				decalType = mii->typeOverride;
+			}
+			else
+			{
+				SGRX_IMesh* mesh = HIT.meshinst->GetMesh();
+				if( HIT.partID >= 0 && HIT.partID < (int) mesh->m_meshParts.size() )
+				{
+					SGRX_MeshPart& MP = mesh->m_meshParts[ HIT.partID ];
+					if( MP.textures[0].size() &&
+						( MP.mtlBlendMode == SGRX_MtlBlend_None ||
+						MP.mtlBlendMode == SGRX_MtlBlend_Basic ) )
+					{
+						decalType = MP.textures[0];
+					//	printf("%s\n", StackString<256>(decalType).str);
+					}
+				}
+			}
+			
+			// apply damage to hit point
+			Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
+			SGRX_DecalSystem* dmgDecalSys = mii ? mii->dmgDecalSysOverride : NULL;
+			bool needDecal = ( HIT.meshinst->allowStaticDecals || dmgDecalSys ) &&
+				HIT.meshinst->IsSkinned() == false;
+			m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
+				needDecal ? HIT.meshinst->GetMesh() : NULL,
+				-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );
+			
+			// blood?
+			if( decalType == "*human*" )
+			{
+				m_damageSystem->AddBlood( hitpoint, B.dir );
+			}
+			
+			// send event
+			if( mii )
+			{
+				MI_BulletHit_Data data = { hitpoint, B.velocity };
+				mii->OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
+			}
+			
+			// handling wall penetration
+			B.numSolidRefs += entryIfL0 < 0 ? 1 : -1;
+			if( B.numSolidRefs == 1 )
+			{
+				// entry into solid
+				B.intersectStart = hitpoint;
+				// todo upgrade
+				remb = true;
+				break;
+			}
+			else if( B.numSolidRefs == 0 )
+			{
+				// genuine exit, calculate penetration
+				float dist = ( hitpoint - B.intersectStart ).Length();
+				float q = dist * 50;
+				float speedScale = q < 1 ? 1 : 1 / q;
+				speedScale = ( speedScale - 1 ) * 1.15f + 1;
+				if( speedScale < 0 )
+				{
+					remb = true;
+					break;
+				}
+				B.velocity *= speedScale;
+			}
+			else if( B.numSolidRefs < 0 )
+			{
+				// fake exit, abort all
+				remb = true;
+				break;
+			}
+		}
+	}
+	// make sure mesh instance handles are freed
+	m_tmpStore.clear();
+	return remb;
 }
 
 void BulletSystem::Clear()

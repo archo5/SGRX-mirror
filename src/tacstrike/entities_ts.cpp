@@ -783,6 +783,7 @@ void TSCharacter::Reset()
 	m_animChar.DisablePhysics();
 	m_anLayers[3].factor = 0;
 	m_bodyHandle->SetEnabled( true );
+	m_animChar.m_cachedMeshInst->layers = 0xffffffff;
 }
 
 void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
@@ -805,6 +806,7 @@ void TSCharacter::OnDeath()
 	m_animChar.EnablePhysics();
 	m_anLayers[3].factor = 1;
 	SetInfoMask( 0 );
+	m_animChar.m_cachedMeshInst->layers = 0;
 	
 	// event
 	Game_FireEvent( TSEV_CharDied, this );
@@ -1198,7 +1200,8 @@ Vec3 TPSPlayerController::GetCameraPos()
 	TSCharacter* chr = GetChar();
 	if( !chr )
 		return V3(0);
-	Vec3 campos = chr->GetWorldPosition() + V3(0,0,1);
+	Vec3 campos = chr->GetWorldPosition();
+	campos += V3(0,0,1);
 	SafePosPush( campos, V3(0,0,1) );
 	SafePosPush( campos, -m_angles.ToVec3() );
 	return campos;

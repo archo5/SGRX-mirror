@@ -405,6 +405,9 @@ EXP_STRUCT DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 
 struct BulletSystem : IGameLevelSystem
 {
+	SGS_OBJECT_LITE;
+	SGS_NO_DESTRUCT;
+	
 	enum { e_system_uid = 6 };
 	
 	struct Bullet
@@ -425,8 +428,11 @@ struct BulletSystem : IGameLevelSystem
 	
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	
-	GFW_EXPORT void Add( const Vec3& pos, const Vec3& vel, float timeleft, float dmg, uint32_t ownerType );
+	GFW_EXPORT SGS_METHOD void Add( Vec3 pos, Vec3 vel, float timeleft, float dmg, uint32_t ownerType );
+	GFW_EXPORT SGS_METHOD bool Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType );
 	GFW_EXPORT void Clear();
+	
+	bool _ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B );
 	
 	BulletArray m_bullets;
 	DamageSystem* m_damageSystem;

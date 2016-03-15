@@ -2037,6 +2037,80 @@ static sgs_ObjInterface MusicSystem__sgs_interface =
 _sgsInterface MusicSystem::_sgs_interface(MusicSystem__sgs_interface, MusicSystem__sgs_ifn);
 
 
+static int _sgs_method__BulletSystem__Add( SGS_CTX )
+{
+	BulletSystem* data; if( !SGS_PARSE_METHOD( C, BulletSystem::_sgs_interface, data, BulletSystem, Add ) ) return 0;
+	data->Add( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<uint32_t>()(C,4) ); return 0;
+}
+
+static int _sgs_method__BulletSystem__Zap( SGS_CTX )
+{
+	BulletSystem* data; if( !SGS_PARSE_METHOD( C, BulletSystem::_sgs_interface, data, BulletSystem, Zap ) ) return 0;
+	sgs_PushVar(C,data->Zap( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<uint32_t>()(C,3) )); return 1;
+}
+
+int BulletSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<BulletSystem*>( obj->data )->~BulletSystem();
+	return SGS_SUCCESS;
+}
+
+int BulletSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int BulletSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int BulletSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int BulletSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 44 ];
+	sprintf( bfr, "BulletSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst BulletSystem__sgs_funcs[] =
+{
+	{ "Add", _sgs_method__BulletSystem__Add },
+	{ "Zap", _sgs_method__BulletSystem__Zap },
+	{ NULL, NULL },
+};
+
+static int BulletSystem__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		BulletSystem__sgs_funcs,
+		-1, "BulletSystem." );
+	return 1;
+}
+
+static sgs_ObjInterface BulletSystem__sgs_interface =
+{
+	"BulletSystem",
+	NULL, BulletSystem::_sgs_gcmark, BulletSystem::_sgs_getindex, BulletSystem::_sgs_setindex, NULL, NULL, BulletSystem::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface BulletSystem::_sgs_interface(BulletSystem__sgs_interface, BulletSystem__sgs_ifn);
+
+
 int AIFact::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<AIFact*>( obj->data )->~AIFact();

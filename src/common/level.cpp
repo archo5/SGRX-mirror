@@ -916,7 +916,7 @@ int BaseGame::OnArgument( char* arg, int argcleft, char** argvleft )
 	{
 		m_mapName = arg + 5;
 	}
-	return 0;
+	return IGame::OnArgument( arg, argcleft, argvleft );
 }
 
 bool BaseGame::OnConfigure( int argc, char** argv )

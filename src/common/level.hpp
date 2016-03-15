@@ -582,7 +582,11 @@ EXP_STRUCT GameLevel :
 	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.znear ) SGS_ALIAS( float cameraZNear );
 	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.zfar ) SGS_ALIAS( float cameraZFar );
 	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.angle ) SGS_ALIAS( float cameraAngle );
-	SGS_METHOD void UpdateCameraMatrices(){ GetScene()->camera.UpdateMatrices(); }
+	SGS_METHOD void UpdateCameraMatrices()
+	{
+		GetScene()->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+		GetScene()->camera.UpdateMatrices();
+	}
 	
 	// Editor
 	void GetEditorCompilers( Array< IEditorSystemCompiler* >& out );
