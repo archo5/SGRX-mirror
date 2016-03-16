@@ -291,6 +291,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		AddSystemToLevel<LevelMapSystem>( level );
 		AddSystemToLevel<MessagingSystem>( level );
 		AddSystemToLevel<ObjectiveSystem>( level );
+		AddSystemToLevel<HelpTextSystem>( level );
 		AddSystemToLevel<FlareSystem>( level );
 		AddSystemToLevel<LevelCoreSystem>( level );
 		AddSystemToLevel<GFXSystem>( level );
@@ -303,6 +304,13 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		AddSystemToLevel<StockEntityCreationSystem>( level );
 	//	AddSystemToLevel<TSFightGameMode>( level );
 		AddSystemToLevel<DevelopSystem>( level );
+		
+		HelpTextSystem* HTS = level->GetSystem<HelpTextSystem>();
+		HTS->renderer = &htr;
+		htr.lineHeightFactor = 1.4f;
+		htr.buttonTex = GR_GetTexture( "ui/key.png" );
+		htr.SetNamedFont( "", "core" );
+		
 		return level;
 	}
 	
@@ -376,6 +384,12 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	//	Game_AddOverlayScreen( &g_PauseMenu );
 		cursor_dt = V2(0);
 		return true;
+	}
+	
+	void OnDestroy()
+	{
+		BaseGame::OnDestroy();
+		htr.buttonTex = NULL;
 	}
 	
 	Vec2 cursor_dt;
@@ -489,6 +503,8 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		
 //		g_PhyWorld->DebugDraw();
 	}
+	
+	SGRX_HelpTextRenderer htr;
 };
 
 

@@ -410,11 +410,11 @@ function Trigger.Invoke( newstate )
 
 function Trigger.UpdateState( newstate )
 {
-	if( this.currState != newstate && !this.done )
+	if( this.once < 0 || ( this.currState != newstate && !this.done ) )
 	{
 		this.currState = newstate;
 		this.Invoke( newstate );
-		if( this.once && newstate == this.lastState ) // once on, once off
+		if( this.once > 0 && newstate == this.lastState ) // once on, once off
 			this.done = true;
 	}
 }
@@ -422,7 +422,7 @@ function Trigger.UpdateState( newstate )
 function Trigger.SetupTrigger( once, fn, fnout )
 {
 	this.done = false;
-	this.once = tobool( once );
+	this.once = toint( once );
 	this.func = fn;
 	if( typeof(fnout) == "bool" )
 		this.funcOut = if( fnout, fn, null );

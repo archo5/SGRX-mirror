@@ -146,7 +146,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	float m_armor;
 	
 	float m_footstepTime;
-	bool m_isCrouching;
+	SGS_PROPERTY_FUNC( READ VARNAME isCrouching ) bool m_isCrouching;
 	bool m_isOnGround;
 	IVState< Vec3 > m_ivPos;
 	IVState< Vec3 > m_ivAimDir;

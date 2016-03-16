@@ -470,7 +470,7 @@ void HelpTextSystem::Tick( float deltaTime, float blendFactor )
 	}
 }
 
-void HelpTextSystem::DrawUI()
+void HelpTextSystem::DrawText()
 {
 	if( m_text.size() && m_alpha > 0 )
 	{

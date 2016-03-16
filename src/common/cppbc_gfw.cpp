@@ -1714,6 +1714,12 @@ static sgs_ObjInterface ObjectiveSystem__sgs_interface =
 _sgsInterface ObjectiveSystem::_sgs_interface(ObjectiveSystem__sgs_interface, ObjectiveSystem__sgs_ifn);
 
 
+static int _sgs_method__HelpTextSystem__DrawText( SGS_CTX )
+{
+	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, DrawText ) ) return 0;
+	data->DrawText(  ); return 0;
+}
+
 static int _sgs_method__HelpTextSystem__Clear( SGS_CTX )
 {
 	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, Clear ) ) return 0;
@@ -1787,6 +1793,7 @@ int HelpTextSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst HelpTextSystem__sgs_funcs[] =
 {
+	{ "DrawText", _sgs_method__HelpTextSystem__DrawText },
 	{ "Clear", _sgs_method__HelpTextSystem__Clear },
 	{ "SetText", _sgs_method__HelpTextSystem__SetText },
 	{ NULL, NULL },

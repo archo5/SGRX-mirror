@@ -241,7 +241,7 @@ EXP_STRUCT HelpTextSystem : IGameLevelSystem
 	GFW_EXPORT void Clear();
 	GFW_EXPORT void SetText( StringView text, float alpha = 1, float fadetime = 0, float fadeto = 0 );
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
-	GFW_EXPORT void DrawUI();
+	GFW_EXPORT SGS_METHOD void DrawText();
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME text ) String m_text;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME alpha ) float m_alpha;

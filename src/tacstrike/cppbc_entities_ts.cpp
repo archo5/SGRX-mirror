@@ -372,6 +372,7 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		SGS_CASE( "ctrl" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->ctrl ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_health ); return SGS_SUCCESS; }
+		SGS_CASE( "isCrouching" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_isCrouching ); return SGS_SUCCESS; }
 		SGS_CASE( "timeSinceLastHit" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
@@ -434,8 +435,9 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_id, depth ).push( C ); }
 		{ sgs_PushString( C, "\nctrl = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->ctrl, depth ).push( C ); }
 		{ sgs_PushString( C, "\nhealth = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_health, depth ).push( C ); }
+		{ sgs_PushString( C, "\nisCrouching = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_isCrouching, depth ).push( C ); }
 		{ sgs_PushString( C, "\ntimeSinceLastHit = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit, depth ).push( C ); }
-		sgs_StringConcat( C, 44 );
+		sgs_StringConcat( C, 46 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
