@@ -546,6 +546,9 @@ StringView Game_GetInputName( ActionInput iid )
 		case ACTINPUT_TYPE_BUTTON+SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return "[gamepad] RB";
 		case ACTINPUT_TYPE_BUTTON+SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return "[gamepad] LB";
 		case ACTINPUT_TYPE_BUTTON+SDL_CONTROLLER_BUTTON_X: return "[gamepad] X";
+		case ACTINPUT_TYPE_BUTTON+SDL_CONTROLLER_BUTTON_Y: return "[gamepad] Y";
+		case ACTINPUT_TYPE_BUTTON+SDL_CONTROLLER_BUTTON_A: return "[gamepad] A";
+		case ACTINPUT_TYPE_BUTTON+SDL_CONTROLLER_BUTTON_B: return "[gamepad] B";
 		}
 		return "<Unknown ctrl. input>";
 	}
