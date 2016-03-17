@@ -1267,7 +1267,12 @@ struct EPEnemyViewProc : EntityProcessor
 		
 		// verify the find
 		if( enemy->CanSeePoint( enemypos ) == false )
-			return true;
+		{
+			if( ENTITY_IS_A( ent, TSCharacter ) == false )
+				return true;
+			if( enemy->CanSeePoint( ((TSCharacter*)ent)->sgsGetAttachmentPos( "head", V3(0) ) ) == false )
+				return true;
+		}
 		
 		// TODO friendlies
 		AIFactStorage& FS = enemy->m_factStorage;
