@@ -1461,12 +1461,6 @@ static sgs_ObjInterface GameLevel__sgs_interface =
 _sgsInterface GameLevel::_sgs_interface(GameLevel__sgs_interface, GameLevel__sgs_ifn);
 
 
-static int _sgs_method__LevelMapSystem__Remove( SGS_CTX )
-{
-	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Remove ) ) return 0;
-	data->RemoveItem( sgs_GetVarObj<Entity>()(C,0) ); return 0;
-}
-
 static int _sgs_method__LevelMapSystem__DrawUIRect( SGS_CTX )
 {
 	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, DrawUIRect ) ) return 0;
@@ -1477,6 +1471,12 @@ static int _sgs_method__LevelMapSystem__Update( SGS_CTX )
 {
 	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Update ) ) return 0;
 	data->sgsUpdate( sgs_GetVar<EntityScrHandle>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5) ); return 0;
+}
+
+static int _sgs_method__LevelMapSystem__Remove( SGS_CTX )
+{
+	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Remove ) ) return 0;
+	data->sgsRemove( sgs_GetVar<EntityScrHandle>()(C,0) ); return 0;
 }
 
 int LevelMapSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -1522,9 +1522,9 @@ int LevelMapSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst LevelMapSystem__sgs_funcs[] =
 {
-	{ "Remove", _sgs_method__LevelMapSystem__Remove },
 	{ "DrawUIRect", _sgs_method__LevelMapSystem__DrawUIRect },
 	{ "Update", _sgs_method__LevelMapSystem__Update },
+	{ "Remove", _sgs_method__LevelMapSystem__Remove },
 	{ NULL, NULL },
 };
 

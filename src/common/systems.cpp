@@ -178,6 +178,11 @@ void LevelMapSystem::sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir,
 	UpdateItem( e, mii );
 }
 
+void LevelMapSystem::sgsRemove( EntityScrHandle e )
+{
+	RemoveItem( e );
+}
+
 
 MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
@@ -463,7 +468,7 @@ void HelpTextSystem::SetText( StringView text, float alpha, float fadetime, floa
 
 void HelpTextSystem::Tick( float deltaTime, float blendFactor )
 {
-	if( m_fadeTime > 0 )
+	if( m_fadeTime > 0 && m_level->IsPaused() == false )
 	{
 		float diff = m_fadeTo - m_alpha;
 		m_alpha += TMIN( fabsf( diff ), deltaTime / m_fadeTime ) * sign( diff );
