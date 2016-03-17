@@ -1689,8 +1689,7 @@ void AIDBSystem::AddSound( Vec3 pos, float rad, float timeout, AISoundType type 
 void AIDBSystem::AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size )
 {
 	AIRoom* rh = m_rooms.getcopy( name );
-	AIRoomPart part = { xf, xf, xf.GetScale(), negative, cell_size };
-	xf.InvertTo( part.inv_bbox_xf );
+	AIRoomPart part = { xf, xf.Inverted(), xf.GetScale(), negative, cell_size };
 	if( rh )
 	{
 		rh->parts.push_back( part );
