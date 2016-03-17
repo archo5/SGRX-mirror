@@ -588,7 +588,7 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_LALT ) m_keys |= 2;
 	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_LALT ) m_keys &= ~2;
 	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_LSHIFT ) m_keys |= 4;
-	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_LSHIFT ) m_keys &= 4;
+	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_LSHIFT ) m_keys &= ~4;
 	
 	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 && ( m_keys & 2 ) == 0 )
 	{
