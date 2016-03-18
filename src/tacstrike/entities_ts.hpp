@@ -72,6 +72,7 @@ enum TSActions
 	ACT_Chr_Move, // v3 (x/y-dir, z-speed)
 	ACT_Chr_Turn, // v3 (x/y-dir, z-speed-rad/sec)
 	ACT_Chr_Crouch, // .x>0.5 => b
+	ACT_Chr_Jump, // .x>0.5 => b
 	ACT_Chr_AimAt, // .x>0.5 => b, y = speed (special channel)
 	ACT_Chr_AimTarget, // v3
 	ACT_Chr_Shoot, // .x>0.5 => b
@@ -164,6 +165,8 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
 	float m_shootTimeout;
+	float m_jumpTimeout;
+	float m_canJumpTimeout;
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	void SetViewDir( Vec3 v ){ m_turnAngle = v.ToVec2().Normalized().Angle(); }
 	SGS_PROPERTY_FUNC( WRITE SetViewDir ) SGS_ALIAS( Vec3 viewDir );

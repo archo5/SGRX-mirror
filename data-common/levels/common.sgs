@@ -498,6 +498,7 @@ function DoorCore.Init()
 		targetState = false,
 		openState = 0.0,
 		openTarget = 0.0,
+		ev_finished = event(true),
 	};
 	
 	this._OnReposition();
@@ -521,9 +522,21 @@ function DoorCore.__set_initialState( v )
 	this._OnReposition();
 }
 
-function DoorCore.Open(){ this.targetState = true; }
-function DoorCore.Close(){ this.targetState = false; }
-function DoorCore.Toggle(){ this.targetState = !this.targetState; }
+function DoorCore.Open()
+{
+	this.targetState = true;
+	this.ev_finished.signaled = false;
+}
+function DoorCore.Close()
+{
+	this.targetState = false;
+	this.ev_finished.signaled = false;
+}
+function DoorCore.Toggle()
+{
+	this.targetState = !this.targetState;
+	this.ev_finished.signaled = false;
+}
 
 function DoorCore.GetCurrentPosition()
 {
@@ -575,6 +588,7 @@ function DoorCore.FixedUpdate( dt )
 		this.openTarget = toreal( this.targetState );
 		this.OnDoorMoveStart();
 	}
+	this.ev_finished.signaled = this.openState == this.openTarget;
 	
 	this._pPos = this._cPos;
 	this._pRot = this._cRot;

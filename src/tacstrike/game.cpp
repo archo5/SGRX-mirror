@@ -18,6 +18,7 @@ InputState RELOAD( "reload" );
 InputState SLOW_WALK( "slow_walk" );
 InputState SPRINT( "sprint" );
 InputState CROUCH( "crouch" );
+InputState JUMP( "jump" );
 InputState SHOW_OBJECTIVES( "show_objectives" );
 InputState DO_ACTION( "do_action" );
 InputState SLOWDOWN_TEST( "slowdown_test" );
@@ -308,7 +309,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		HelpTextSystem* HTS = level->GetSystem<HelpTextSystem>();
 		HTS->renderer = &htr;
 		htr.lineHeightFactor = 1.4f;
-		htr.buttonTex = GR_GetTexture( "ui/key.png" );
+	//	htr.buttonTex = GR_GetTexture( "ui/key.png" );
 		htr.SetNamedFont( "", "core" );
 		
 		return level;
@@ -349,7 +350,12 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	//	Game_BindKeyToAction( SDLK_LCTRL, &SLOW_WALK );
 		Game_BindKeyToAction( SDLK_LSHIFT, &SPRINT );
 		Game_BindKeyToAction( SDLK_LCTRL, &CROUCH );
+#if 0
 		Game_BindKeyToAction( SDLK_SPACE, &DO_ACTION );
+#else
+		Game_BindKeyToAction( SDLK_f, &DO_ACTION );
+		Game_BindKeyToAction( SDLK_SPACE, &JUMP );
+#endif
 		Game_BindKeyToAction( SDLK_TAB, &SLOWDOWN_TEST );
 		
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_START, &ESCAPE );
@@ -362,6 +368,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_Y, &RELOAD );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_A, &CROUCH );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &DO_ACTION );
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_B, &JUMP );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		

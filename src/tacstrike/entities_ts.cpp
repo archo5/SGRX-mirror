@@ -29,6 +29,7 @@ extern InputState SHOOT;
 extern InputState LOCK_ON;
 extern InputState RELOAD;
 extern InputState CROUCH;
+extern InputState JUMP;
 extern InputState DO_ACTION;
 
 
@@ -286,6 +287,8 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	m_shootLT->power = 4;
 	m_shootLT->UpdateTransform();
 	m_shootTimeout = 0;
+	m_jumpTimeout = 0;
+	m_canJumpTimeout = 0;
 	m_timeSinceLastHit = 9999;
 }
 
@@ -471,7 +474,7 @@ void TSCharacter::FixedTick( float deltaTime )
 		if( i_move.Length() < 0.3f )
 			animname = anim_stand;
 		
-		if( !IsPlayingAnim() )
+		if( !IsPlayingAnim() && m_isOnGround && m_jumpTimeout == 0 )
 			m_anMainPlayer.Play( GR_GetAnim( animname ), false, 0.2f );
 	}
 	
@@ -577,8 +580,8 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 void TSCharacter::HandleMovementPhysics( float deltaTime )
 {
 	// disabled features
-	bool jump = false;
-	float m_jumpTimeout = 1, m_canJumpTimeout = 1;
+	bool jump = GetInputB( ACT_Chr_Jump );
+//	float m_jumpTimeout = 1, m_canJumpTimeout = 1;
 	
 	SGRX_PhyRaycastInfo rcinfo;
 	SGRX_PhyRaycastInfo rcinfo2;
@@ -628,13 +631,16 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	}
 	if( !m_jumpTimeout && m_canJumpTimeout && jump )
 	{
-		lvel.z = 4;
+		lvel.z = 2.5f; // 4;
+		lvel += (lvel * V3(1,1,0)).Normalized() * 3;
 		m_jumpTimeout = 0.5f;
 		
 		SoundEventInstanceHandle fsev = m_level->GetSoundSys()->CreateEventInstance( "/footsteps" );
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
+		
+		m_anMainPlayer.Play( GR_GetAnim( "jump" ) );
 	}
 	
 	if( !m_isOnGround && ground )
@@ -1067,6 +1073,7 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3(CROUCH.value);
+	case ACT_Chr_Jump: return V3(JUMP.value);
 	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
 	case ACT_Chr_Shoot: return V3(SHOOT.value);
@@ -1173,6 +1180,7 @@ Vec3 TPSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3(CROUCH.value);
+	case ACT_Chr_Jump: return V3(JUMP.value);
 	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
 	case ACT_Chr_Shoot: return V3(SHOOT.value);
@@ -1735,6 +1743,7 @@ static sgs_RegIntConst g_ts_ints[] =
 	{ "ACT_Chr_Move", ACT_Chr_Move },
 	{ "ACT_Chr_Turn", ACT_Chr_Turn },
 	{ "ACT_Chr_Crouch", ACT_Chr_Crouch },
+	{ "ACT_Chr_Jump", ACT_Chr_Jump },
 	{ "ACT_Chr_AimAt", ACT_Chr_AimAt },
 	{ "ACT_Chr_AimTarget", ACT_Chr_AimTarget },
 	{ "ACT_Chr_Shoot", ACT_Chr_Shoot },
