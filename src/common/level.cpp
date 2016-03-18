@@ -73,6 +73,16 @@ void Entity::OnDestroy()
 		GetScriptedObject().thiscall( C, fn );
 }
 
+void Entity::PrePhysicsFixedTick( float deltaTime )
+{
+	sgsVariable fn_prephysicsfixedupdate = GetScriptedObject().getprop( "PrePhysicsFixedUpdate" );
+	if( fn_prephysicsfixedupdate.not_null() )
+	{
+		sgs_PushReal( C, deltaTime );
+		GetScriptedObject().thiscall( C, fn_prephysicsfixedupdate, 1 );
+	}
+}
+
 void Entity::FixedTick( float deltaTime )
 {
 	sgsVariable fn_fixedupdate = GetScriptedObject().getprop( "FixedUpdate" );
@@ -577,6 +587,9 @@ void GameLevel::FixedTick( float deltaTime )
 	if( IsPaused() == false )
 	{
 		m_currentTickTime += deltaTime;
+		
+		for( size_t i = 0; i < m_entities.size(); ++i )
+			m_entities[ i ]->PrePhysicsFixedTick( deltaTime );
 		
 		int ITERS = 10;
 		for( int i = 0; i < ITERS; ++i )

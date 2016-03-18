@@ -190,6 +190,7 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	GFW_EXPORT Entity( GameLevel* lev );
 	GFW_EXPORT ~Entity();
 	GFW_EXPORT virtual void OnDestroy();
+	GFW_EXPORT virtual void PrePhysicsFixedTick( float deltaTime );
 	GFW_EXPORT virtual void FixedTick( float deltaTime );
 	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
 	GFW_EXPORT virtual void PreRender();

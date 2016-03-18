@@ -558,7 +558,7 @@ function DoorCore.GetInterpolatedRotation( bf )
 	return quat_slerp( this._pRot, this._cRot, bf );
 }
 
-function DoorCore.FixedUpdate( dt )
+function DoorCore.PrePhysicsFixedUpdate( dt )
 {
 	if( this.openState != this.openTarget )
 	{

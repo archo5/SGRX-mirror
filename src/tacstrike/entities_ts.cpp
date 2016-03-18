@@ -227,6 +227,8 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_health( 100 ), m_armor( 0 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
+	m_jumpTimeout(0), m_canJumpTimeout(0),
+	m_groundBody(NULL), m_groundLocalPos(V3(0)), m_groundWorldPos(V3(0)),
 	m_ivPos( V3(0) ), m_ivAimDir( V3(1,0,0) ),
 	m_turnAngle( 0 ),
 	m_aimDir( YP(V3(1,0,0)) ), m_aimDist( 1 ),
@@ -287,8 +289,6 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	m_shootLT->power = 4;
 	m_shootLT->UpdateTransform();
 	m_shootTimeout = 0;
-	m_jumpTimeout = 0;
-	m_canJumpTimeout = 0;
 	m_timeSinceLastHit = 9999;
 }
 
@@ -577,6 +577,29 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	m_shootPS.PreRender();
 }
 
+void TSCharacter::_HandleGroundBody( Vec3& pos, SGRX_IPhyRigidBody* body, float dt )
+{
+	ASSERT( body );
+	Mat4 bodyWorldMatrix = Mat4::CreateSRT( V3(1), body->GetRotation(), body->GetPosition() );
+	if( body == m_groundBody )
+	{
+		Vec3 newWorldPos = bodyWorldMatrix.TransformPos( m_groundLocalPos );
+		pos += newWorldPos - m_groundWorldPos;
+		m_groundVelocity = newWorldPos - m_groundWorldPos;
+		if( dt > 0 )
+			m_groundVelocity /= dt;
+		m_groundWorldPos = newWorldPos;
+	}
+	else
+	{
+		m_groundBody = body;
+		Mat4 invBodyWorldMatrix = bodyWorldMatrix.Inverted();
+		m_groundWorldPos = pos;
+		m_groundLocalPos = invBodyWorldMatrix.TransformPos( pos );
+		m_groundVelocity = V3(0);
+	}
+}
+
 void TSCharacter::HandleMovementPhysics( float deltaTime )
 {
 	// disabled features
@@ -624,15 +647,21 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		Vec3 v = m_bodyHandle->GetPosition();
 		float tgt = rcinfo.point.z + cheight;
 		v.z += TMIN( deltaTime * 5, fabsf( tgt - v.z ) ) * sign( tgt - v.z );
+		_HandleGroundBody( v, rcinfo.body, deltaTime );
 		m_bodyHandle->SetPosition( v );
 		lvel.z = 0;
 		ground = true;
 		m_canJumpTimeout = 0.5f;
 	}
+	else
+	{
+		m_groundBody = NULL;
+	}
 	if( !m_jumpTimeout && m_canJumpTimeout && jump )
 	{
 		lvel.z = 2.5f; // 4;
 		lvel += (lvel * V3(1,1,0)).Normalized() * 3;
+		lvel += m_groundVelocity;
 		m_jumpTimeout = 0.5f;
 		
 		SoundEventInstanceHandle fsev = m_level->GetSoundSys()->CreateEventInstance( "/footsteps" );

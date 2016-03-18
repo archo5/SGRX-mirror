@@ -105,6 +105,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	void ProcessAnims( float deltaTime );
 	void FixedTick( float deltaTime );
 	void Tick( float deltaTime, float blendFactor );
+	void _HandleGroundBody( Vec3& pos, SGRX_IPhyRigidBody* body, float dt );
 	void HandleMovementPhysics( float deltaTime );
 	void TurnTo( const Vec2& turnDir, float speedDelta );
 	void PushTo( const Vec3& pos, float speedDelta );
@@ -149,6 +150,17 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	float m_footstepTime;
 	SGS_PROPERTY_FUNC( READ VARNAME isCrouching ) bool m_isCrouching;
 	bool m_isOnGround;
+	float m_jumpTimeout;
+	float m_canJumpTimeout;
+	
+	// if current body matches this pointer, relative position to body is preserved
+	// {
+	void* m_groundBody;
+	Vec3 m_groundLocalPos;
+	Vec3 m_groundWorldPos;
+	Vec3 m_groundVelocity;
+	// }
+	
 	IVState< Vec3 > m_ivPos;
 	IVState< Vec3 > m_ivAimDir;
 	Vec3 m_interpPos;
@@ -165,8 +177,6 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;
 	float m_shootTimeout;
-	float m_jumpTimeout;
-	float m_canJumpTimeout;
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	void SetViewDir( Vec3 v ){ m_turnAngle = v.ToVec2().Normalized().Angle(); }
 	SGS_PROPERTY_FUNC( WRITE SetViewDir ) SGS_ALIAS( Vec3 viewDir );
