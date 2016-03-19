@@ -196,7 +196,7 @@ function Light.ED_PropInfo( eptr )
 	EE_AddFieldTex( eptr, "cookieTexture", "[spot] Cookie texture",
 		"textures/cookies/default.png" );
 	EE_AddFieldFloat( eptr, "flareSize", "Flare size", 0, 2, 0, 100 );
-	EE_AddFieldVec3( eptr, "flareOffset", "Flare offset", 0, 2, 0, 100 );
+	EE_AddFieldVec3( eptr, "flareOffset", "Flare offset", 0, 2, -100, 100 );
 }
 function Light.EditorDrawWorld()
 {
@@ -566,6 +566,7 @@ function DoorCore.PrePhysicsFixedUpdate( dt )
 		df /= this.openingTime;
 		df_len = abs( df );
 		df_dir = sign( df );
+		df_len += 0.001;
 		if( this.openingTime > 0 )
 		{
 			df_len /= this.openingTime;

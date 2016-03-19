@@ -336,6 +336,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		Game_RegisterAction( &SLOW_WALK );
 		Game_RegisterAction( &SPRINT );
 		Game_RegisterAction( &CROUCH );
+		Game_RegisterAction( &JUMP );
 		Game_RegisterAction( &DO_ACTION );
 		
 		Game_BindKeyToAction( SDLK_ESCAPE, &ESCAPE );
