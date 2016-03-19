@@ -309,8 +309,8 @@ EXP_STRUCT IActorController
 	
 	FINLINE IActorController() : m_entity(NULL){}
 	virtual ~IActorController(){}
-	virtual void FixedTick( float deltaTime ){}
-	virtual void Tick( float deltaTime, float blendFactor ){}
+	virtual SGS_METHOD void FixedTick( float deltaTime ){}
+	virtual SGS_METHOD void Tick( float deltaTime, float blendFactor ){}
 	virtual void PreRender(){}
 	virtual SGS_METHOD Vec3 GetInput( uint32_t iid ){ return V3(0); }
 	virtual SGS_METHOD void Reset(){}

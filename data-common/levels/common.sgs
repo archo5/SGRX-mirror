@@ -563,18 +563,17 @@ function DoorCore.PrePhysicsFixedUpdate( dt )
 	if( this.openState != this.openTarget )
 	{
 		df = this.openTarget - this.openState;
-		df /= this.openingTime;
 		df_len = abs( df );
 		df_dir = sign( df );
-		df_len += 0.001;
 		if( this.openingTime > 0 )
 		{
-			df_len /= this.openingTime;
-			if( df_len > dt )
-				df_len = dt;
+			dtot = dt / this.openingTime;
+			if( df_len > dtot )
+				df_len = dtot;
 		}
 		else
 			df_len = 1;
+		df_len += 0.001;
 		this.openState = clamp( this.openState + df_len * df_dir, 0.0, 1.0 );
 		
 		this.OnDoorMove();
@@ -645,10 +644,13 @@ function BasicDoor.__set_mesh( v )
 	{
 		this.bodyEnt.shapeExtents = md.boundsMax;
 		this.bodyEnt.shapeMinExtents = md.boundsMin;
+		this.bodyEnt.shapeMesh = md;
 	}
 }
 function BasicDoor.__get_castLMS(){ return this.meshEnt.castLMS; }
 function BasicDoor.__set_castLMS( v ){ this.meshEnt.castLMS = v; }
+function BasicDoor.__get_meshCollisions(){ return this.bodyEnt.shapeType == ShapeType_Mesh; }
+function BasicDoor.__set_meshCollisions( v ){ this.bodyEnt.shapeType = if( v, ShapeType_Mesh, ShapeType_AABB ); }
 function BasicDoor.__set_closedPosition( v ){ this._data.closedPosition = v; this._OnReposition(); }
 function BasicDoor.__set_openPosition( v ){ this._data.openPosition = v; this._OnReposition(); }
 function BasicDoor.__get_closedRotationXYZ(){ return quat2euler( this.closedRotation ); }
@@ -695,6 +697,7 @@ function BasicDoor.ED_PropInfo( eptr )
 	EE_AddFieldFloat( eptr, "openingTime", "Opening time", 1, 2, 0.01, 100 );
 	EE_AddFieldFloat( eptr, "initialState", "Initial openness", 0, 2, 0, 1 );
 	EE_AddFieldBool( eptr, "castLMS", "[dyn] Cast lightmap shadow", true );
+	EE_AddFieldBool( eptr, "meshCollisions", "Mesh collisions", false );
 }
 
 function BasicDoor.EditorDrawWorld()

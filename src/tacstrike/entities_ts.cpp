@@ -1232,11 +1232,8 @@ void TPSPlayerController::SafePosPush( Vec3& pos, Vec3 dir )
 	}
 }
 
-Vec3 TPSPlayerController::GetCameraPos()
+Vec3 TPSPlayerController::GetCameraPos( TSCharacter* chr )
 {
-	TSCharacter* chr = GetChar();
-	if( !chr )
-		return V3(0);
 	Vec3 campos = chr->GetWorldPosition();
 	campos += V3(0,0,1);
 	SafePosPush( campos, V3(0,0,1) );

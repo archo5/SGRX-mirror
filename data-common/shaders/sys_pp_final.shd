@@ -27,7 +27,7 @@ void main( float2 itex : TEXCOORD0
 	ocol = max( 0, ocol );
 	ocol = pow( ocol, 1.0 / 2.0 );
 	float3 bloom = TEXSAMPLE_2D( texBLOOM, itex ).rgb + TEXSAMPLE_2D( texBLOOM2, itex ).rgb;
-	ocol += sqrt(bloom);
+	ocol += bloom;//sqrt(bloom);
 	if(0){
 		float3 avg = dot( ocol, 0.333333 );
 		ocol = lerp( avg, ocol, 1.3 );

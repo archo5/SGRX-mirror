@@ -490,6 +490,20 @@ static sgs_ObjInterface TSCharacter__sgs_interface =
 _sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, TSCharacter__sgs_ifn, &Actor::_sgs_interface);
 
 
+static int _sgs_method__TSScriptedController__FixedTick( SGS_CTX )
+{
+	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, FixedTick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedTick( sgs_GetVar<float>()(C,0) ); return 0;
+}
+
+static int _sgs_method__TSScriptedController__Tick( SGS_CTX )
+{
+	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, Tick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Tick( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
 static int _sgs_method__TSScriptedController__GetInput( SGS_CTX )
 {
 	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, GetInput ) ) return 0;
@@ -569,6 +583,8 @@ int TSScriptedController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSScriptedController__sgs_funcs[] =
 {
+	{ "FixedTick", _sgs_method__TSScriptedController__FixedTick },
+	{ "Tick", _sgs_method__TSScriptedController__Tick },
 	{ "GetInput", _sgs_method__TSScriptedController__GetInput },
 	{ "Reset", _sgs_method__TSScriptedController__Reset },
 	{ "Create", _sgs_method__TSScriptedController__Create },
@@ -591,6 +607,20 @@ static sgs_ObjInterface TSScriptedController__sgs_interface =
 };
 _sgsInterface TSScriptedController::_sgs_interface(TSScriptedController__sgs_interface, TSScriptedController__sgs_ifn, &IActorController::_sgs_interface);
 
+
+static int _sgs_method__TSPlayerController__FixedTick( SGS_CTX )
+{
+	TSPlayerController* data; if( !SGS_PARSE_METHOD( C, TSPlayerController::_sgs_interface, data, TSPlayerController, FixedTick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedTick( sgs_GetVar<float>()(C,0) ); return 0;
+}
+
+static int _sgs_method__TSPlayerController__Tick( SGS_CTX )
+{
+	TSPlayerController* data; if( !SGS_PARSE_METHOD( C, TSPlayerController::_sgs_interface, data, TSPlayerController, Tick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Tick( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
 
 static int _sgs_method__TSPlayerController__GetInput( SGS_CTX )
 {
@@ -676,6 +706,8 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSPlayerController__sgs_funcs[] =
 {
+	{ "FixedTick", _sgs_method__TSPlayerController__FixedTick },
+	{ "Tick", _sgs_method__TSPlayerController__Tick },
 	{ "GetInput", _sgs_method__TSPlayerController__GetInput },
 	{ "Reset", _sgs_method__TSPlayerController__Reset },
 	{ "CalcUIAimInfo", _sgs_method__TSPlayerController__CalcUIAimInfo },
@@ -700,6 +732,20 @@ static sgs_ObjInterface TSPlayerController__sgs_interface =
 _sgsInterface TSPlayerController::_sgs_interface(TSPlayerController__sgs_interface, TSPlayerController__sgs_ifn, &IActorController::_sgs_interface);
 
 
+static int _sgs_method__TPSPlayerController__FixedTick( SGS_CTX )
+{
+	TPSPlayerController* data; if( !SGS_PARSE_METHOD( C, TPSPlayerController::_sgs_interface, data, TPSPlayerController, FixedTick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedTick( sgs_GetVar<float>()(C,0) ); return 0;
+}
+
+static int _sgs_method__TPSPlayerController__Tick( SGS_CTX )
+{
+	TPSPlayerController* data; if( !SGS_PARSE_METHOD( C, TPSPlayerController::_sgs_interface, data, TPSPlayerController, Tick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Tick( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
 static int _sgs_method__TPSPlayerController__GetInput( SGS_CTX )
 {
 	TPSPlayerController* data; if( !SGS_PARSE_METHOD( C, TPSPlayerController::_sgs_interface, data, TPSPlayerController, GetInput ) ) return 0;
@@ -718,7 +764,7 @@ static int _sgs_method__TPSPlayerController__GetCameraPos( SGS_CTX )
 {
 	TPSPlayerController* data; if( !SGS_PARSE_METHOD( C, TPSPlayerController::_sgs_interface, data, TPSPlayerController, GetCameraPos ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetCameraPos(  )); return 1;
+	sgs_PushVar(C,data->GetCameraPos( sgs_GetVarObj<TSCharacter>()(C,0) )); return 1;
 }
 
 static int _sgs_method__TPSPlayerController__Create( SGS_CTX )
@@ -745,7 +791,6 @@ int TPSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TPSPlayerController*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->sgsGetEntity() ); return SGS_SUCCESS; }
-		SGS_CASE( "cameraPos" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->GetCameraPos() ); return SGS_SUCCESS; }
 		SGS_CASE( "direction" ){ sgs_PushVar( C, static_cast<TPSPlayerController*>( obj->data )->m_angles.ToVec3() ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
 }
@@ -767,9 +812,8 @@ int TPSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	if( depth > 0 )
 	{
 		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->sgsGetEntity(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ncameraPos = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->GetCameraPos(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ndirection = " ); sgs_DumpData( C, static_cast<TPSPlayerController*>( obj->data )->m_angles.ToVec3(), depth ).push( C ); }
-		sgs_StringConcat( C, 6 );
+		sgs_StringConcat( C, 4 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -779,6 +823,8 @@ int TPSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TPSPlayerController__sgs_funcs[] =
 {
+	{ "FixedTick", _sgs_method__TPSPlayerController__FixedTick },
+	{ "Tick", _sgs_method__TPSPlayerController__Tick },
 	{ "GetInput", _sgs_method__TPSPlayerController__GetInput },
 	{ "Reset", _sgs_method__TPSPlayerController__Reset },
 	{ "GetCameraPos", _sgs_method__TPSPlayerController__GetCameraPos },
@@ -802,6 +848,20 @@ static sgs_ObjInterface TPSPlayerController__sgs_interface =
 };
 _sgsInterface TPSPlayerController::_sgs_interface(TPSPlayerController__sgs_interface, TPSPlayerController__sgs_ifn, &IActorController::_sgs_interface);
 
+
+static int _sgs_method__TSEnemyController__FixedTick( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, FixedTick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedTick( sgs_GetVar<float>()(C,0) ); return 0;
+}
+
+static int _sgs_method__TSEnemyController__Tick( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, Tick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Tick( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
 
 static int _sgs_method__TSEnemyController__GetInput( SGS_CTX )
 {
@@ -997,6 +1057,8 @@ int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSEnemyController__sgs_funcs[] =
 {
+	{ "FixedTick", _sgs_method__TSEnemyController__FixedTick },
+	{ "Tick", _sgs_method__TSEnemyController__Tick },
 	{ "GetInput", _sgs_method__TSEnemyController__GetInput },
 	{ "Reset", _sgs_method__TSEnemyController__Reset },
 	{ "CanSeePoint", _sgs_method__TSEnemyController__CanSeePoint },

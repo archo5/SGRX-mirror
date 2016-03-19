@@ -958,6 +958,20 @@ static sgs_ObjInterface IGameLevelSystem__sgs_interface =
 _sgsInterface IGameLevelSystem::_sgs_interface(IGameLevelSystem__sgs_interface, IGameLevelSystem__sgs_ifn, &LevelScrObj::_sgs_interface);
 
 
+static int _sgs_method__IActorController__FixedTick( SGS_CTX )
+{
+	IActorController* data; if( !SGS_PARSE_METHOD( C, IActorController::_sgs_interface, data, IActorController, FixedTick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedTick( sgs_GetVar<float>()(C,0) ); return 0;
+}
+
+static int _sgs_method__IActorController__Tick( SGS_CTX )
+{
+	IActorController* data; if( !SGS_PARSE_METHOD( C, IActorController::_sgs_interface, data, IActorController, Tick ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Tick( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
+}
+
 static int _sgs_method__IActorController__GetInput( SGS_CTX )
 {
 	IActorController* data; if( !SGS_PARSE_METHOD( C, IActorController::_sgs_interface, data, IActorController, GetInput ) ) return 0;
@@ -1019,6 +1033,8 @@ int IActorController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst IActorController__sgs_funcs[] =
 {
+	{ "FixedTick", _sgs_method__IActorController__FixedTick },
+	{ "Tick", _sgs_method__IActorController__Tick },
 	{ "GetInput", _sgs_method__IActorController__GetInput },
 	{ "Reset", _sgs_method__IActorController__Reset },
 	{ NULL, NULL },
