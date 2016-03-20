@@ -126,8 +126,8 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	void Hit( float pwr );
 	virtual void OnDeath();
 	
-	SGS_METHOD Vec3 GetQueryPosition_FT(){ return GetPosition_FT() + V3(0,0,0.5f); }
-	SGS_METHOD Vec3 GetPosition_FT(){ return m_bodyHandle->GetPosition(); }
+	SGS_METHOD Vec3 GetQueryPosition_FT(){ return m_bodyHandle->GetPosition(); }
+	SGS_METHOD Vec3 GetPosition_FT(){ return m_ivPos.curr; }
 	SGS_METHOD Vec3 GetViewDir_FT(){ return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 ); }
 	SGS_METHOD Vec3 GetAimDir_FT(){ return m_aimDir.ToVec3(); }
 	Mat4 GetBulletOutputMatrix();
@@ -274,6 +274,7 @@ struct TPSPlayerController : IActorController
 	virtual Vec3 GetInput( uint32_t iid );
 	void SafePosPush( Vec3& pos, Vec3 dir );
 	SGS_METHOD Vec3 GetCameraPos( TSCharacter* chr );
+	SGS_METHOD void UpdateMoveAim( bool tick );
 	TSCharacter* GetChar()
 	{
 		return m_entity && ENTITY_IS_A( m_entity, TSCharacter )

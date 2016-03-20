@@ -346,7 +346,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	float aimspeed = GetInputV2( ACT_Chr_AimAt ).y;
 	if( GetInputB( ACT_Chr_AimAt ) )
 	{
-		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetWorldPosition();
+		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetPosition_FT();
 	}
 	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
 	m_aimDist = aimdir.Length();
@@ -385,6 +385,7 @@ void TSCharacter::FixedTick( float deltaTime )
 	
 	if( IsInAction() )
 	{
+#if 0
 //		i_move = V2(0);
 		if( m_actState.timeoutMoveToStart > 0 )
 		{
@@ -435,6 +436,7 @@ void TSCharacter::FixedTick( float deltaTime )
 				InterruptAction( true );
 			}
 		}
+#endif
 	}
 	else
 	{
@@ -479,6 +481,12 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 	
 	HandleMovementPhysics( deltaTime );
+	
+	sgsVariable fn_afterfixedpos = GetScriptedObject()[ "AfterFixedPos" ];
+	if( fn_afterfixedpos.not_null() )
+	{
+		GetScriptedObject().thiscall( C, fn_afterfixedpos );
+	}
 	
 	ProcessAnims( deltaTime );
 	
@@ -1140,66 +1148,12 @@ TPSPlayerController::TPSPlayerController( GameLevel* lev ) :
 
 void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 {
-	TSCharacter* chr = GetChar();
-	if( !chr )
-		return;
-	
 	Vec2 joystick_aim = V2( AIM_X.value, AIM_Y.value );
 	joystick_aim = -joystick_aim.Normalized() *
 		TCLAMP( TREVLERP<float>( 0.2f, 1.0f, joystick_aim.Length() ), 0.0f, 1.0f );
 	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
 	m_angles.pitch += joystick_aim.y * 10 * deltaTime;
 	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/3.0f, FLT_PI/3.0f );
-	
-	Vec2 move = V2
-	(
-		MOVE_X.value + MOVE_RIGHT.value - MOVE_LEFT.value,
-		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
-	);
-	SGRX_Scene* scene = m_level->GetScene();
-	SGRX_Camera& CAM = scene->camera;
-	
-	// raycast for direction
-	i_aim_target = CAM.position + CAM.direction.Normalized() * 1000;
-	{
-		Vec3 pos, dir;
-		if( scene->camera.GetCursorRay( 0.5f, 0.5f, pos, dir ) )
-		{
-			Vec3 start = pos;
-			Vec3 end = pos + dir * scene->camera.zfar;
-			
-			// center plane
-			Vec3 ppos = chr->GetWorldPosition();
-			Vec2 planedir = ( ppos - scene->camera.position ).ToVec2().Normalized();
-			Vec3 planedir3 = V3( planedir.x, planedir.y, 0 );
-			Vec4 plane = V4( planedir3, Vec3Dot( planedir3, ppos ) + 0.1f ); // safety offset
-			
-			// offset ray up to center plane
-			float dsts[2];
-			if( RayPlaneIntersect( start, dir, plane, dsts ) )
-			{
-				start += dir * dsts[0];
-			}
-			
-			SceneRaycastInfo hitinfo;
-			if( scene->RaycastOne( start, end, &hitinfo, 0xffffffff ) )
-			{
-				i_aim_target = TLERP( start, end, hitinfo.factor );
-			}
-		}
-	}
-	
-	Vec2 fwd = CAM.direction.ToVec2().Normalized();
-	Vec2 rgt = CAM.GetRight().ToVec2().Normalized();
-	i_move = fwd * -move.y + rgt * move.x;
-	i_turn = V3(0);
-	if( i_move.Length() > 0.1f )
-	{
-		Vec2 md = i_move;
-		if( Vec2Dot( ( i_aim_target - chr->GetWorldPosition() ).ToVec2(), md ) < 0 )
-			md = -md;
-		i_turn = V3( md.x, md.y, 8 );
-	}
 }
 
 Vec3 TPSPlayerController::GetInput( uint32_t iid )
@@ -1234,11 +1188,82 @@ void TPSPlayerController::SafePosPush( Vec3& pos, Vec3 dir )
 
 Vec3 TPSPlayerController::GetCameraPos( TSCharacter* chr )
 {
-	Vec3 campos = chr->GetWorldPosition();
+	Vec3 campos = chr->GetPosition_FT();
 	campos += V3(0,0,1);
 	SafePosPush( campos, V3(0,0,1) );
 	SafePosPush( campos, -m_angles.ToVec3() );
 	return campos;
+}
+
+struct SceneRaycastCallback_NotChar : SceneRaycastCallback_Closest
+{
+	virtual void AddResult( SceneRaycastInfo* info )
+	{
+		if( info->meshinst != chr->m_animChar.m_cachedMeshInst )
+			SceneRaycastCallback_Closest::AddResult( info );
+	}
+	TSCharacter* chr;
+};
+
+void TPSPlayerController::UpdateMoveAim( bool tick )
+{
+	Vec2 move = V2
+	(
+		MOVE_X.value + MOVE_RIGHT.value - MOVE_LEFT.value,
+		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
+	);
+	SGRX_Scene* scene = m_level->GetScene();
+	SGRX_Camera& CAM = scene->camera;
+	
+	TSCharacter* chr = GetChar();
+	if( !chr )
+		return;
+	
+	// raycast for direction
+	i_aim_target = CAM.position + CAM.direction.Normalized() * 1000;
+	{
+		Vec3 pos, dir;
+		if( scene->camera.GetCursorRay( 0.5f, 0.5f, pos, dir ) )
+		{
+			Vec3 start = pos;
+			Vec3 end = pos + dir * scene->camera.zfar;
+			
+			// center plane
+			Vec3 ppos = tick ? chr->GetWorldPosition() : chr->GetPosition_FT();
+			Vec2 planedir = ( ppos - scene->camera.position ).ToVec2().Normalized();
+			Vec3 planedir3 = V3( planedir.x, planedir.y, 0 );
+			Vec4 plane = V4( planedir3, Vec3Dot( planedir3, ppos ) + 0.1f ); // safety offset
+			
+			// offset ray up to center plane
+			float dsts[2];
+			if( RayPlaneIntersect( start, dir, plane, dsts ) )
+			{
+				start += dir * dsts[0];
+			}
+			
+			SceneRaycastCallback_NotChar ncrc;
+			{
+				ncrc.chr = chr;
+			}
+			scene->RaycastAll( start, end, &ncrc, 0xffffffff );
+			if( ncrc.m_hit )
+			{
+				i_aim_target = TLERP( start, end, ncrc.m_closest.factor );
+			}
+		}
+	}
+	
+	Vec2 fwd = CAM.direction.ToVec2().Normalized();
+	Vec2 rgt = CAM.GetRight().ToVec2().Normalized();
+	i_move = fwd * -move.y + rgt * move.x;
+	i_turn = V3(0);
+	if( i_move.Length() > 0.1f )
+	{
+		Vec2 md = i_move;
+		if( Vec2Dot( ( i_aim_target - chr->GetWorldPosition() ).ToVec2(), md ) < 0 )
+			md = -md;
+		i_turn = V3( md.x, md.y, 8 );
+	}
 }
 
 sgsVariable TPSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
@@ -1381,7 +1406,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	TSEC_FindChar fchr;
 	{
 		fchr.type = FT_Position_Friend;
-		fchr.pos = chr->GetPosition_FT();
+		fchr.pos = chr->GetQueryPosition_FT();
 		fchr.speed = 10;
 		fchr.curTime = curTime;
 	}
@@ -1390,7 +1415,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	// - sounds
 	for( int i = 0; i < m_aidb->GetNumSounds(); ++i )
 	{
-		if( m_aidb->CanHearSound( chr->GetPosition_FT(), i ) == false )
+		if( m_aidb->CanHearSound( chr->GetQueryPosition_FT(), i ) == false )
 			continue;
 		AISound S = m_aidb->GetSoundInfo( i );
 		
@@ -1423,7 +1448,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	evp.curtime = curTime;
 	evp.enemy = this;
 	uint32_t qmask = ( m_inPlayerTeam ? IEST_Target : IEST_Player ) | IEST_AIAlert;
-	m_level->QuerySphere( &evp, qmask, chr->GetPosition_FT(), 10.0f );
+	m_level->QuerySphere( &evp, qmask, chr->GetQueryPosition_FT(), 10.0f );
 	
 	// tick ESO
 	m_level->m_scriptCtx.Push( deltaTime );
@@ -1586,7 +1611,7 @@ bool TSEnemyController::CanSeePoint( Vec3 pt )
 	if( !chr )
 		return false;
 	
-	Vec3 vieworigin = chr->GetPosition_FT();
+	Vec3 vieworigin = chr->GetQueryPosition_FT();
 	Vec3 viewdir = chr->GetAimDir_FT();
 	Vec3 view2pos = pt - vieworigin;
 	
@@ -1614,7 +1639,7 @@ bool TSEnemyController::LookingAtPoint( Vec3 pt )
 	if( !chr )
 		return false;
 	
-	Vec3 vieworigin = chr->GetPosition_FT();
+	Vec3 vieworigin = chr->GetQueryPosition_FT();
 	Vec3 viewdir = chr->GetAimDir_FT();
 	Vec3 view2pos = pt - vieworigin;
 	
@@ -1699,7 +1724,7 @@ bool TSEnemyController::sgsFindPath( const Vec3& to )
 	if( !chr )
 		return false;
 	
-	m_aidb->m_pathfinder.FindPath( chr->GetPosition_FT(), to, m_path );
+	m_aidb->m_pathfinder.FindPath( chr->GetQueryPosition_FT() - V3(0,0,0.5f), to, m_path );
 	return m_path.size() > 0;
 }
 

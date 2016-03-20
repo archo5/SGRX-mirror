@@ -767,6 +767,13 @@ static int _sgs_method__TPSPlayerController__GetCameraPos( SGS_CTX )
 	sgs_PushVar(C,data->GetCameraPos( sgs_GetVarObj<TSCharacter>()(C,0) )); return 1;
 }
 
+static int _sgs_method__TPSPlayerController__UpdateMoveAim( SGS_CTX )
+{
+	TPSPlayerController* data; if( !SGS_PARSE_METHOD( C, TPSPlayerController::_sgs_interface, data, TPSPlayerController, UpdateMoveAim ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->UpdateMoveAim( sgs_GetVar<bool>()(C,0) ); return 0;
+}
+
 static int _sgs_method__TPSPlayerController__Create( SGS_CTX )
 {
 	SGSFN( "TPSPlayerController.Create" );
@@ -828,6 +835,7 @@ static sgs_RegFuncConst TPSPlayerController__sgs_funcs[] =
 	{ "GetInput", _sgs_method__TPSPlayerController__GetInput },
 	{ "Reset", _sgs_method__TPSPlayerController__Reset },
 	{ "GetCameraPos", _sgs_method__TPSPlayerController__GetCameraPos },
+	{ "UpdateMoveAim", _sgs_method__TPSPlayerController__UpdateMoveAim },
 	{ "Create", _sgs_method__TPSPlayerController__Create },
 	{ NULL, NULL },
 };
