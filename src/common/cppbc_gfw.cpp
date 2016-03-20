@@ -2349,6 +2349,184 @@ static sgs_ObjInterface AIDBSystem__sgs_interface =
 _sgsInterface AIDBSystem::_sgs_interface(AIDBSystem__sgs_interface, AIDBSystem__sgs_ifn);
 
 
+static int _sgs_method__ParticleFX__GetChild( SGS_CTX )
+{
+	ParticleFX* data; if( !SGS_PARSE_METHOD( C, ParticleFX::_sgs_interface, data, ParticleFX, GetChild ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ParticleFX__LocalToWorld( SGS_CTX )
+{
+	ParticleFX* data; if( !SGS_PARSE_METHOD( C, ParticleFX::_sgs_interface, data, ParticleFX, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ParticleFX__WorldToLocal( SGS_CTX )
+{
+	ParticleFX* data; if( !SGS_PARSE_METHOD( C, ParticleFX::_sgs_interface, data, ParticleFX, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ParticleFX__LocalToWorldDir( SGS_CTX )
+{
+	ParticleFX* data; if( !SGS_PARSE_METHOD( C, ParticleFX::_sgs_interface, data, ParticleFX, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ParticleFX__WorldToLocalDir( SGS_CTX )
+{
+	ParticleFX* data; if( !SGS_PARSE_METHOD( C, ParticleFX::_sgs_interface, data, ParticleFX, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__ParticleFX__Trigger( SGS_CTX )
+{
+	ParticleFX* data; if( !SGS_PARSE_METHOD( C, ParticleFX::_sgs_interface, data, ParticleFX, Trigger ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Trigger(  ); return 0;
+}
+
+int ParticleFX::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<ParticleFX*>( obj->data )->C = C;
+	static_cast<ParticleFX*>( obj->data )->~ParticleFX();
+	return SGS_SUCCESS;
+}
+
+int ParticleFX::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleFX*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int ParticleFX::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleFX*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->_sgsGetParent() ); return SGS_SUCCESS; }
+		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
+		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
+		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_id ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_soundEventName ); return SGS_SUCCESS; }
+		SGS_CASE( "particleSystemPath" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_partSysPath ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_enabled ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<ParticleFX*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int ParticleFX::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleFX*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<ParticleFX*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "position" ){ static_cast<ParticleFX*>( obj->data )->SetWorldPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "rotation" ){ static_cast<ParticleFX*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "rotationXYZ" ){ static_cast<ParticleFX*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "scale" ){ static_cast<ParticleFX*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ static_cast<ParticleFX*>( obj->data )->SetWorldMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ static_cast<ParticleFX*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ static_cast<ParticleFX*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ static_cast<ParticleFX*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ static_cast<ParticleFX*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localTransform" ){ static_cast<ParticleFX*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "parent" ){ static_cast<ParticleFX*>( obj->data )->_SetParent( sgs_GetVar<EntityScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "infoMask" ){ static_cast<ParticleFX*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "localInfoTarget" ){ static_cast<ParticleFX*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "name" ){ static_cast<ParticleFX*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<ParticleFX*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ static_cast<ParticleFX*>( obj->data )->sgsSetSoundEvent( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "particleSystemPath" ){ static_cast<ParticleFX*>( obj->data )->sgsSetParticleSystem( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<ParticleFX*>( obj->data )->sgsSetPlaying( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<ParticleFX*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int ParticleFX::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleFX*>( obj->data )->C, C );
+	char bfr[ 42 ];
+	sprintf( bfr, "ParticleFX (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->_ch.size(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetWorldScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetLocalScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->_sgsGetParent(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetInfoMask(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_infoTarget, depth ).push( C ); }
+		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_id, depth ).push( C ); }
+		{ sgs_PushString( C, "\nsoundEvent = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_soundEventName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nparticleSystemPath = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_partSysPath, depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_enabled, depth ).push( C ); }
+		sgs_StringConcat( C, 44 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst ParticleFX__sgs_funcs[] =
+{
+	{ "GetChild", _sgs_method__ParticleFX__GetChild },
+	{ "LocalToWorld", _sgs_method__ParticleFX__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__ParticleFX__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__ParticleFX__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__ParticleFX__WorldToLocalDir },
+	{ "Trigger", _sgs_method__ParticleFX__Trigger },
+	{ NULL, NULL },
+};
+
+static int ParticleFX__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		ParticleFX__sgs_funcs,
+		-1, "ParticleFX." );
+	return 1;
+}
+
+static sgs_ObjInterface ParticleFX__sgs_interface =
+{
+	"ParticleFX",
+	ParticleFX::_sgs_destruct, ParticleFX::_sgs_gcmark, ParticleFX::_sgs_getindex, ParticleFX::_sgs_setindex, NULL, NULL, ParticleFX::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface ParticleFX::_sgs_interface(ParticleFX__sgs_interface, ParticleFX__sgs_ifn, &Entity::_sgs_interface);
+
+
 static int _sgs_method__MeshEntity__GetChild( SGS_CTX )
 {
 	MeshEntity* data; if( !SGS_PARSE_METHOD( C, MeshEntity::_sgs_interface, data, MeshEntity, GetChild ) ) return 0;

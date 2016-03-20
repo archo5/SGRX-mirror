@@ -159,6 +159,15 @@ function AIRoom.EditorDrawWorld()
 }
 
 
+function ParticleFX.ED_PropInfo( eptr )
+{
+	PropInfo_Entity( eptr );
+	EE_AddFieldPartSys( eptr, "particleSystemPath", "Particle system path", "psys/dustarea.psy" );
+	EE_AddFieldSound( eptr, "soundEvent", "Sound event", "" );
+	EE_AddFieldBool( eptr, "enabled", "Playing", true );
+}
+
+
 Mesh.ED_Icon = "editor/icons/mesh.png";
 function Mesh.ED_PropInfo( eptr )
 {

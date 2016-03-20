@@ -287,6 +287,10 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	
 	GameLevel* CreateLevel()
 	{
+		if( !m_soundSys )
+		{
+			m_soundSys = SND_CreateSystem();
+		}
 		GameLevel* level = BaseGame::CreateLevel();
 		AddSystemToLevel<TSGameSystem>( level );
 		AddSystemToLevel<LevelMapSystem>( level );
@@ -317,8 +321,10 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	
 	bool OnInitialize()
 	{
-		m_soundSys = SND_CreateSystem();
-		
+		if( !m_soundSys )
+		{
+			m_soundSys = SND_CreateSystem();
+		}
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_LoadFont( "fancy", "fonts/gratis.ttf" );
 		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf:nohint" );

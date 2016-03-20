@@ -22,15 +22,29 @@ enum CoreEntityEventIDs
 
 EXP_STRUCT ParticleFX : Entity
 {
+	SGS_OBJECT_INHERIT( Entity );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT ParticleFX( GameLevel* lev );
+	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void EditorDrawWorld();
+	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT virtual void PreRender();
+	
+	GFW_EXPORT void sgsSetParticleSystem( StringView path );
+	GFW_EXPORT void sgsSetSoundEvent( StringView name );
+	GFW_EXPORT void _StartSoundEvent();
+	GFW_EXPORT void sgsSetPlaying( bool playing );
+	
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetParticleSystem VARNAME particleSystemPath ) String m_partSysPath;
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetSoundEvent VARNAME soundEvent ) String m_soundEventName;
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetPlaying VARNAME enabled ) bool m_enabled;
+	
+	GFW_EXPORT SGS_METHOD void Trigger();
+	
 	ParticleSystem m_psys;
-	String m_soundEventName;
 	bool m_soundEventOneShot;
 	SoundEventInstanceHandle m_soundEventInst;
-	Vec3 m_position;
-	
-	GFW_EXPORT ParticleFX( GameLevel* lev, const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start );
-	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
-	GFW_EXPORT virtual void OnEvent( const StringView& type );
 };
 
 

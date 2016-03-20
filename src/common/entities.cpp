@@ -3,21 +3,26 @@
 #include "entities.hpp"
 
 
-ParticleFX::ParticleFX( GameLevel* lev, const StringView& name, const StringView& psys, const StringView& sndev, const Vec3& pos, const Quat& rot, const Vec3& scl, bool start ) :
-	Entity( lev ), m_soundEventName( sndev ), m_position( pos )
+ParticleFX::ParticleFX( GameLevel* lev ) : Entity( lev ), m_soundEventOneShot(false)
 {
-	SetID( name );
-	m_soundEventOneShot = m_level->GetSoundSys()->EventIsOneShot( sndev );
-	
-	char bfr[ 256 ] = {0};
-	sgrx_snprintf( bfr, sizeof(bfr), "psys/%.*s.psy", TMIN( 240, (int) psys.size() ), psys.data() );
-	m_psys.Load( bfr );
-	m_psys.AddToScene( m_level->GetScene() );
-	m_psys.SetTransform( Mat4::CreateSRT( scl, rot, pos ) );
-	m_psys.OnRenderUpdate();
-	
-	if( start )
-		OnEvent( "trigger_enter" );
+}
+
+void ParticleFX::OnTransformUpdate()
+{
+	m_psys.SetTransform( GetWorldMatrix() );
+	if( m_soundEventInst )
+	{
+		SGRX_Sound3DAttribs s3dattr = { GetWorldPosition(), V3(0), V3(0), V3(0) };
+		m_soundEventInst->Set3DAttribs( s3dattr );
+	}
+}
+
+void ParticleFX::EditorDrawWorld()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Reset();
+	br.Col( 0.9f, 0.5f, 0.1f, 0.8f );
+	br.AABB( V3(-1), V3(1), GetWorldMatrix() );
 }
 
 void ParticleFX::Tick( float deltaTime, float blendFactor )
@@ -28,49 +33,94 @@ void ParticleFX::Tick( float deltaTime, float blendFactor )
 		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
 		if( sndevinst )
 		{
-			SGRX_Sound3DAttribs s3dattr = { m_position, V3(0), V3(0), V3(0) };
+			SGRX_Sound3DAttribs s3dattr = { GetWorldPosition(), V3(0), V3(0), V3(0) };
 			sndevinst->Set3DAttribs( s3dattr );
 			sndevinst->Start();
 		}
 	}
+}
+
+void ParticleFX::PreRender()
+{
 	m_psys.PreRender();
 }
 
-void ParticleFX::OnEvent( const StringView& _type )
+void ParticleFX::sgsSetParticleSystem( StringView path )
 {
-	StringView type = _type;
-	if( type == "trigger_switch" )
-		type = m_psys.m_isPlaying ? "trigger_leave" : "trigger_enter";
-	if( type == "trigger_enter" )
+	if( path == m_partSysPath )
+		return;
+	
+	m_partSysPath = path;
+	// reload
+	m_psys.Load( path );
+	m_psys.AddToScene( m_level->GetScene() );
+	m_psys.SetTransform( GetWorldMatrix() );
+	m_psys.OnRenderUpdate();
+	
+	if( m_enabled )
 	{
 		m_psys.Play();
-		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
-		if( sndevinst )
-		{
-			SGRX_Sound3DAttribs s3dattr = { m_position, V3(0), V3(0), V3(0) };
-			sndevinst->Set3DAttribs( s3dattr );
-			sndevinst->Start();
-			if( !sndevinst->isOneShot )
-				m_soundEventInst = sndevinst;
-		}
 	}
-	else if( type == "trigger_leave" )
+}
+
+void ParticleFX::sgsSetSoundEvent( StringView name )
+{
+	if( name == m_soundEventName )
+		return;
+	// destroy previous effect
+	m_soundEventInst = NULL;
+	// set new one
+	m_soundEventName = name;
+	m_soundEventOneShot = m_level->GetSoundSys()->EventIsOneShot( name );
+	// if particle system already running, start it
+	if( m_enabled )
+	{
+		_StartSoundEvent();
+	}
+}
+
+void ParticleFX::_StartSoundEvent()
+{
+	SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
+	if( sndevinst )
+	{
+		SGRX_Sound3DAttribs s3dattr = { GetWorldPosition(), V3(0), V3(0), V3(0) };
+		sndevinst->Set3DAttribs( s3dattr );
+		sndevinst->Start();
+		if( !sndevinst->isOneShot )
+			m_soundEventInst = sndevinst;
+	}
+}
+
+void ParticleFX::sgsSetPlaying( bool playing )
+{
+	if( playing == m_enabled )
+		return;
+	
+	m_enabled = playing;
+	if( playing )
+	{
+		m_psys.Play();
+		_StartSoundEvent();
+	}
+	else
 	{
 		m_psys.Stop();
 		m_soundEventInst = NULL;
 	}
-	else if( type == "trigger_once" )
+}
+
+void ParticleFX::Trigger()
+{
+	m_psys.Trigger();
+	if( m_soundEventOneShot )
 	{
-		m_psys.Trigger();
-		if( m_soundEventOneShot )
+		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
+		if( sndevinst )
 		{
-			SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
-			if( sndevinst )
-			{
-				SGRX_Sound3DAttribs s3dattr = { m_position, V3(0), V3(0), V3(0) };
-				sndevinst->Set3DAttribs( s3dattr );
-				sndevinst->Start();
-			}
+			SGRX_Sound3DAttribs s3dattr = { GetWorldPosition(), V3(0), V3(0), V3(0) };
+			sndevinst->Set3DAttribs( s3dattr );
+			sndevinst->Start();
 		}
 	}
 }
@@ -860,6 +910,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	};
 	sgs_RegIntConsts( lev->GetSGSC(), ric, -1 );
 	lev->RegisterNativeEntity<Entity>( "Entity" );
+	lev->RegisterNativeEntity<ParticleFX>( "ParticleFX" );
 	lev->RegisterNativeEntity<MeshEntity>( "Mesh" );
 	lev->RegisterNativeEntity<LightEntity>( "Light" );
 	lev->RegisterNativeEntity<RigidBodyEntity>( "RigidBody" );
@@ -869,25 +920,8 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )
 {
-#if 0
-	///////////////////////////
-	if( type == "particle_fx" )
-	{
-		return new ParticleFX
-		(
-			m_level,
-			data.getprop("name").get<StringView>(),
-			data.getprop("partsys").get<StringView>(),
-			data.getprop("soundevent").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("start").get<bool>()
-		);
-	}
-#endif
-	
 	if( type == "Entity" ) return new Entity( m_level );
+	if( type == "ParticleFX" ) return new ParticleFX( m_level );
 	if( type == "Mesh" ) return new MeshEntity( m_level );
 	if( type == "Light" ) return new LightEntity( m_level );
 	if( type == "RigidBody" ) return new RigidBodyEntity( m_level );
