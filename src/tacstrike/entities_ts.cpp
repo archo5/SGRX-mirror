@@ -1141,7 +1141,7 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 
 TPSPlayerController::TPSPlayerController( GameLevel* lev ) :
 	m_level( lev ), m_angles( YP(0) ),
-	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
+	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) ), i_crouch(false)
 {
 	m_castShape = lev->GetPhyWorld()->CreateSphereShape( 0.2f );
 }
@@ -1154,6 +1154,11 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
 	m_angles.pitch += joystick_aim.y * 10 * deltaTime;
 	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/3.0f, FLT_PI/3.0f );
+	
+	if( CROUCH.IsPressed() )
+	{
+		i_crouch = !i_crouch;
+	}
 }
 
 Vec3 TPSPlayerController::GetInput( uint32_t iid )
@@ -1162,7 +1167,7 @@ Vec3 TPSPlayerController::GetInput( uint32_t iid )
 	{
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
-	case ACT_Chr_Crouch: return V3(CROUCH.value);
+	case ACT_Chr_Crouch: return V3(i_crouch);
 	case ACT_Chr_Jump: return V3(JUMP.value);
 	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;

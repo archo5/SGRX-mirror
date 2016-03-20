@@ -266,6 +266,7 @@ struct TPSPlayerController : IActorController
 	Vec2 i_move;
 	Vec3 i_aim_target;
 	Vec3 i_turn;
+	bool i_crouch;
 	
 	PhyShapeHandle m_castShape;
 	
