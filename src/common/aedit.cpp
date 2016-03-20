@@ -93,6 +93,7 @@ EDGUIImageFilterType::EDGUIImageFilterType()
 {
 	caption = "Pick an image filter";
 	m_options.push_back( "Resize" );
+	m_options.push_back( "Rearrange" );
 	m_options.push_back( "Sharpen" );
 	m_options.push_back( "To linear" );
 	m_options.push_back( "From linear" );
@@ -360,6 +361,33 @@ int EDGUIImgFilter_Resize::OnEvent( EDGUIEvent* e )
 	return EDGUIImgFilterBase::OnEvent( e );
 }
 
+EDGUIImgFilter_Rearrange::EDGUIImgFilter_Rearrange( SGRX_ImageFilter* iflt ) :
+	EDGUIImgFilterBase( iflt ),
+	m_width( 16, 1, 4096 )
+{
+	SGRX_ImageFilter_Rearrange* F = iflt->upcast<SGRX_ImageFilter_Rearrange>();
+	m_width.SetValue( F->width );
+	
+	m_width.caption = "Width";
+	
+	Add( &m_width );
+}
+
+int EDGUIImgFilter_Rearrange::OnEvent( EDGUIEvent* e )
+{
+	if( m_hfilter )
+	{
+		SGRX_ImageFilter_Rearrange* F = m_hfilter->upcast<SGRX_ImageFilter_Rearrange>();
+		switch( e->type )
+		{
+		case EDGUI_EVENT_PROPEDIT:
+			if( e->target == &m_width ) F->width = m_width.m_value;
+			break;
+		}
+	}
+	return EDGUIImgFilterBase::OnEvent( e );
+}
+
 EDGUIImgFilter_Sharpen::EDGUIImgFilter_Sharpen( SGRX_ImageFilter* iflt ) :
 	EDGUIImgFilterBase( iflt ),
 	m_factor( 1, 2, 0, 100 ),
@@ -611,6 +639,7 @@ void EDGUIAssetTexture::EditFilter( SGRX_ImageFilter* IF )
 	switch( IF->GetType() )
 	{
 	case SGRX_AIF_Resize: newflt = new EDGUIImgFilter_Resize( IF ); break;
+	case SGRX_AIF_Rearrange: newflt = new EDGUIImgFilter_Rearrange( IF ); break;
 	case SGRX_AIF_Sharpen: newflt = new EDGUIImgFilter_Sharpen( IF ); break;
 	case SGRX_AIF_ToLinear: newflt = new EDGUIImgFilterBase( IF, true ); break;
 	case SGRX_AIF_FromLinear: newflt = new EDGUIImgFilterBase( IF, true ); break;
@@ -659,6 +688,7 @@ int EDGUIAssetTexture::OnEvent( EDGUIEvent* e )
 				switch( g_UIPickers->imageFilterType.GetPickedType() )
 				{
 				case SGRX_AIF_Resize: IF = new SGRX_ImageFilter_Resize; break;
+				case SGRX_AIF_Rearrange: IF = new SGRX_ImageFilter_Rearrange; break;
 				case SGRX_AIF_Sharpen: IF = new SGRX_ImageFilter_Sharpen; break;
 				case SGRX_AIF_ToLinear: IF = new SGRX_ImageFilter_Linear( false ); break;
 				case SGRX_AIF_FromLinear: IF = new SGRX_ImageFilter_Linear( true ); break;

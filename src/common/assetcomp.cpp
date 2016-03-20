@@ -15,26 +15,68 @@
 
 
 
-SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height )
+SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height, int depth )
 {
 	if( width < 1 || width > 4096 ||
-		height < 1 || height > 4096 )
+		height < 1 || height > 4096 ||
+		depth < 1 || depth > 4096 )
 	{
 		printf( "ERROR: resize - size out of bounds" );
 		return NULL;
 	}
-	if( image->GetWidth() == width && image->GetHeight() == height )
+	if( image->GetWidth() == width &&
+		image->GetHeight() == height &&
+		image->GetDepth() == depth )
 		return image;
 	
-	float fw = width, fh = height;
+	float fw = width, fh = height, fd = depth;
 	float xoff = TMAX( 0.0f, image->GetWidth() / fw - 1.0f ) / ( image->GetWidth() * 2 );
 	float yoff = TMAX( 0.0f, image->GetHeight() / fh - 1.0f ) / ( image->GetHeight() * 2 );
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( width, height );
-	for( int y = 0; y < height; ++y )
+	float zoff = TMAX( 0.0f, image->GetDepth() / fh - 1.0f ) / ( image->GetDepth() * 2 );
+	SGRX_IFP32Handle out = new SGRX_ImageFP32( width, height, depth, 1 );
+	for( int s = 0; s < image->GetSides(); ++s )
 	{
-		for( int x = 0; x < width; ++x )
+		if( image->GetDepth() == 1 )
 		{
-			out->Pixel( x, y ) = image->GetLerp( xoff + x / fw, yoff + y / fh );
+			// lerp into slice 1
+			for( int y = 0; y < height; ++y )
+			{
+				for( int x = 0; x < width; ++x )
+				{
+					out->Pixel( x, y, 0, s ) = image->GetLerpXY(
+						xoff + x / fw,
+						yoff + y / fh,
+						s );
+				}
+			}
+			// copy to other slices if they exist
+			for( int z = 1; z < depth; ++z )
+			{
+				for( int y = 0; y < height; ++y )
+				{
+					for( int x = 0; x < width; ++x )
+					{
+						out->Pixel( x, y, z, s ) = out->Pixel( x, y, 0, s );
+					}
+				}
+			}
+		}
+		else
+		{
+			for( int z = 0; z < depth; ++z )
+			{
+				for( int y = 0; y < height; ++y )
+				{
+					for( int x = 0; x < width; ++x )
+					{
+						out->Pixel( x, y, z, s ) = image->GetLerpXYZ(
+							xoff + x / fw,
+							yoff + y / fh,
+							zoff + z / fd,
+							s );
+					}
+				}
+			}
 		}
 	}
 	return out;
@@ -42,7 +84,7 @@ SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height 
 
 SGRX_IFP32Handle SGRX_ImagePower( SGRX_ImageFP32* image, float power )
 {
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	SGRX_IFP32Handle out = image->CreateUninitializedCopy();
 	for( size_t i = 0; i < image->Size(); ++i )
 	{
 		Vec4 col =
@@ -61,6 +103,7 @@ SGRX_IFP32Handle SGRX_ImagePower( SGRX_ImageFP32* image, float power )
 static const char* assetimgfiltype_string_table[] =
 {
 	"resize",
+	"rearrange",
 	"sharpen",
 	"to_linear",
 	"from_linear",
@@ -149,6 +192,8 @@ bool SGRX_ImageFilter_Resize::Parse( ConfigReader& cread )
 			width = String_ParseInt( value );
 		else if( key == "HEIGHT" )
 			height = String_ParseInt( value );
+		else if( key == "DEPTH" )
+			height = String_ParseInt( value );
 		else if( key == "SRGB" )
 			srgb = String_ParseBool( value );
 		else if( key == "FILTER_END" )
@@ -169,8 +214,9 @@ void SGRX_ImageFilter_Resize::Generate( String& out )
 	sgrx_snprintf( bfr, 128,
 		"  WIDTH %d\n"
 		"  HEIGHT %d\n"
+		"  DEPTH %d\n"
 		"  SRGB %s\n",
-		width, height, srgb ? "true" : "false" );
+		width, height, depth, srgb ? "true" : "false" );
 	out.append( bfr );
 }
 
@@ -179,9 +225,58 @@ SGRX_IFP32Handle SGRX_ImageFilter_Resize::Process( SGRX_ImageFP32* image, SGRX_I
 	SGRX_IFP32Handle out = image;
 	if( srgb )
 		out = SGRX_ImagePower( out, 2.2f );
-	out = SGRX_ResizeImage( out, width, height );
+	out = SGRX_ResizeImage( out, width, height, depth );
 	if( srgb )
 		out = SGRX_ImagePower( out, 1.0f / 2.2f );
+	return out;
+}
+
+bool SGRX_ImageFilter_Rearrange::Parse( ConfigReader& cread )
+{
+	StringView key, value;
+	while( cread.Read( key, value ) )
+	{
+		if( key == "WIDTH" )
+			width = String_ParseInt( value );
+		else if( key == "FILTER_END" )
+			return true;
+		else
+		{
+			LOG_ERROR << "Unrecognized AssetScript/ImgFilter(resize) command: " << key << "=" << value;
+			return false;
+		}
+	}
+	LOG_ERROR << "Incomplete AssetScript/ImgFilter(resize) data";
+	return false;
+}
+
+void SGRX_ImageFilter_Rearrange::Generate( String& out )
+{
+	char bfr[ 128 ];
+	sgrx_snprintf( bfr, 128,
+		"  WIDTH %d\n",
+		width );
+	out.append( bfr );
+}
+
+SGRX_IFP32Handle SGRX_ImageFilter_Rearrange::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
+{
+	SGRX_IFP32Handle out = image;
+	int numslices = image->GetWidth() / width;
+	if( numslices >= 1 )
+	{
+		out = new SGRX_ImageFP32( width, image->GetHeight(), numslices, 1 );
+		for( int i = 0; i < numslices; ++i )
+		{
+			for( int y = 0; y < image->GetHeight(); ++y )
+			{
+				for( int x = 0; x < width; ++x )
+				{
+					out->Pixel( x, y, i, 0 ) = image->Pixel( x + i * width, y, 0, 0 );
+				}
+			}
+		}
+	}
 	return out;
 }
 
@@ -245,25 +340,35 @@ void SGRX_ImageFilter_Sharpen::Generate( String& out )
 	GenerateCMFParams( out );
 }
 
-template< int w, int h >
+template< int w, int h, int d >
 SGRX_IFP32Handle SGRX_ImageConvolutionFilter(
 	SGRX_ImageFP32* image, float* kernel )
 {
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
-	int hw = w / 2, hh = h / 2;
-	for( int y = 0; y < image->GetHeight(); ++y )
+	SGRX_IFP32Handle out = image->CreateUninitializedCopy();
+	int hw = w / 2, hh = h / 2, hd = d / 2;
+	for( int s = 0; s < image->GetSides(); ++s )
 	{
-		for( int x = 0; x < image->GetWidth(); ++x )
+		for( int z = 0; z < image->GetDepth(); ++z )
 		{
-			Vec4 col = V4(0);
-			for( int ky = 0; ky < h; ++ky )
+			for( int y = 0; y < image->GetHeight(); ++y )
 			{
-				for( int kx = 0; kx < w; ++kx )
+				for( int x = 0; x < image->GetWidth(); ++x )
 				{
-					col += image->GetClamped( x - hw + kx, y - hh + ky ) * kernel[ kx + ky * w ];
+					Vec4 col = V4(0);
+					for( int kz = 0; kz < d; ++kz )
+					{
+						for( int ky = 0; ky < h; ++ky )
+						{
+							for( int kx = 0; kx < w; ++kx )
+							{
+								col += image->GetClamped( x - hw + kx, y - hh + ky, z - hd + kz, s )
+									* kernel[ kx + ky * w + kz * w * h ];
+							}
+						}
+					}
+					out->Pixel( x, y, z, s ) = col;
 				}
 			}
-			out->Pixel( x, y ) = col;
 		}
 	}
 	return out;
@@ -292,7 +397,7 @@ SGRX_IFP32Handle SGRX_ImageFilter_Sharpen::Process( SGRX_ImageFP32* image, SGRX_
 		b, c, b,
 		a, b, a,
 	};
-	SGRX_IFP32Handle dst = SGRX_ImageConvolutionFilter<3,3>( image, filter );
+	SGRX_IFP32Handle dst = SGRX_ImageConvolutionFilter<3,3,1>( image, filter );
 	CMFBlend( image, dst );
 	return dst;
 }
@@ -374,7 +479,7 @@ SGRX_IFP32Handle SGRX_ImageFilter_ExpandRange::Process( SGRX_ImageFP32* image, S
 	Vec4 diff = cmax - cmin;
 	if( diff.x == 0 || diff.y == 0 || diff.z == 0 || diff.w == 0 )
 		return image;
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	SGRX_IFP32Handle out = image->CreateUninitializedCopy();
 	for( size_t i = 0; i < image->Size(); ++i )
 	{
 		Vec4 col =
@@ -447,7 +552,7 @@ void SGRX_ImageFilter_BCP::Generate( String& out )
 
 SGRX_IFP32Handle SGRX_ImageFilter_BCP::Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs )
 {
-	SGRX_IFP32Handle out = new SGRX_ImageFP32( image->GetWidth(), image->GetHeight() );
+	SGRX_IFP32Handle out = image->CreateUninitializedCopy();
 	for( size_t i = 0; i < image->Size(); ++i )
 		(*out)[ i ] = (*image)[ i ];
 	if( apply_bc1 )
@@ -566,6 +671,8 @@ bool SGRX_TextureAsset::Parse( ConfigReader& cread )
 			SGRX_ImgFilterHandle IF;
 			if( value == "resize" )
 				IF = new SGRX_ImageFilter_Resize;
+			else if( value == "rearrange" )
+				IF = new SGRX_ImageFilter_Rearrange;
 			else if( value == "sharpen" )
 				IF = new SGRX_ImageFilter_Sharpen;
 			else if( value == "to_linear" )
@@ -1427,7 +1534,7 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 		return NULL;
 	}
 	
-	SGRX_IFP32Handle ih = new SGRX_ImageFP32( w, h );
+	SGRX_IFP32Handle ih = new SGRX_ImageFP32( w, h, 1, 1 );
 	memcpy( ih->GetData(), coldata, sizeof(Vec4) * w * h );
 	
 	stbi_image_free( coldata );
@@ -1436,8 +1543,8 @@ SGRX_IFP32Handle SGRX_LoadImage( const StringView& path )
 
 void SGRX_ImageF32ToRGBA8( SGRX_ImageFP32* image, ByteArray& outdata )
 {
-	size_t off = outdata.size(), pxcount = image->GetWidth() * image->GetHeight();
-	outdata.resize( off + image->GetWidth() * image->GetHeight() * 4 );
+	size_t off = outdata.size(), pxcount = image->Size();
+	outdata.resize( off + pxcount * 4 );
 	uint8_t* data = &outdata[ off ];
 	for( size_t i = 0; i < pxcount; ++i )
 	{
@@ -1539,18 +1646,26 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 			if( TA.mips )
 			{
 				flags |= TEXFLAGS_HASMIPS;
-				while( mips.last()->GetWidth() != 1 || mips.last()->GetHeight() != 1 )
+				while( mips.last()->GetWidth() != 1
+					|| mips.last()->GetHeight() != 1
+					|| mips.last()->GetDepth() != 1 )
 				{
 					int w1 = TMAX( mips.last()->GetWidth() / 2, 1 );
 					int h1 = TMAX( mips.last()->GetHeight() / 2, 1 );
-					mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1 ) );
+					int d1 = TMAX( mips.last()->GetDepth() / 2, 1 );
+					mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1, d1 ) );
 				}
 			}
 			for( size_t i = 0; i < mips.size(); ++i )
 				SGRX_ImageF32ToRGBA8( mips[ i ], imagedata );
 			
 			filedata.append( "STX\0", 4 );
-			TextureInfo info = { TEXTYPE_2D, mips.size(),
+			int type = TEXTYPE_2D;
+			if( image->GetSides() > 1 )
+				type = TEXTYPE_CUBE;
+			if( image->GetDepth() > 1 )
+				type = TEXTYPE_VOLUME;
+			TextureInfo info = { type, mips.size(),
 				image->GetWidth(), image->GetHeight(),
 				1, TEXFORMAT_RGBA8, flags };
 			filedata.append( &info, sizeof(info) );
@@ -1619,11 +1734,14 @@ TextureHandle SGRX_FP32ToTexture( SGRX_ImageFP32* image, const SGRX_TextureAsset
 	if( TA.mips )
 	{
 		flags |= TEXFLAGS_HASMIPS;
-		while( mips.last()->GetWidth() != 1 || mips.last()->GetHeight() != 1 )
+		while( mips.last()->GetWidth() != 1
+			|| mips.last()->GetHeight() != 1
+			|| mips.last()->GetDepth() != 1 )
 		{
 			int w1 = TMAX( mips.last()->GetWidth() / 2, 1 );
 			int h1 = TMAX( mips.last()->GetHeight() / 2, 1 );
-			mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1 ) );
+			int d1 = TMAX( mips.last()->GetDepth() / 2, 1 );
+			mips.push_back( SGRX_ResizeImage( mips.last(), w1, h1, d1 ) );
 		}
 	}
 	
@@ -2650,7 +2768,8 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 			TA.ri.rev_output = TA.ri.rev_asset;
 			TA.ri.ts_source = FS_FileModTime( TA.sourceFile );
 			TA.ri.ts_output = FS_FileModTime( bfr );
-			printf( "|----------- saved!\n" );
+			printf( "|----------- saved! [%dx%dx%d|%d]\n",
+				image->GetWidth(), image->GetHeight(), image->GetDepth(), image->GetSides() );
 		}
 	}
 	

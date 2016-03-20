@@ -147,6 +147,14 @@ struct EDGUIImgFilter_Resize : EDGUIImgFilterBase
 	EDGUIPropBool m_srgb;
 };
 
+struct EDGUIImgFilter_Rearrange : EDGUIImgFilterBase
+{
+	EDGUIImgFilter_Rearrange( SGRX_ImageFilter* iflt );
+	virtual int OnEvent( EDGUIEvent* e );
+	
+	EDGUIPropInt m_width;
+};
+
 struct EDGUIImgFilter_Sharpen : EDGUIImgFilterBase
 {
 	EDGUIImgFilter_Sharpen( SGRX_ImageFilter* iflt );

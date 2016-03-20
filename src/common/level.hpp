@@ -289,6 +289,7 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 	virtual void Clear(){}
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
+	virtual void PreRender(){}
 	virtual void DrawUI(){}
 	
 	virtual void PostDraw(){}

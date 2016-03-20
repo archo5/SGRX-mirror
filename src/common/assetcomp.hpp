@@ -8,30 +8,57 @@
 
 struct SGRX_ImageFP32 : SGRX_RefCounted
 {
-	FINLINE SGRX_ImageFP32() : m_width(0), m_height(0){}
-	FINLINE SGRX_ImageFP32( int w, int h ){ Resize( w, h ); }
-	FINLINE void Resize( int w, int h )
+	FINLINE SGRX_ImageFP32() : m_width(0), m_height(0), m_depth(0), m_sides(0){}
+	FINLINE SGRX_ImageFP32( int w, int h, int d, int s ){ Resize( w, h, d, s ); }
+	FINLINE void Resize( int w, int h, int d, int s )
 	{
-		m_pixels.resize( w * h );
+		m_pixels.resize( w * h * d * s );
 		m_width = w;
 		m_height = h;
+		m_depth = d;
+		m_sides = s;
 	}
 	FINLINE size_t Size() const { return m_pixels.size(); }
 	FINLINE int GetWidth() const { return m_width; }
 	FINLINE int GetHeight() const { return m_height; }
+	FINLINE int GetDepth() const { return m_depth; }
+	FINLINE int GetSides() const { return m_sides; }
 	FINLINE const Vec4* GetData() const { return m_pixels.data(); }
 	FINLINE Vec4* GetData(){ return m_pixels.data(); }
 	FINLINE const Vec4& operator [] ( size_t i ) const { return m_pixels[ i ]; }
 	FINLINE Vec4& operator [] ( size_t i ){ return m_pixels[ i ]; }
-	FINLINE const Vec4& Pixel( int x, int y ) const { return m_pixels[ x + y * m_width ]; }
-	FINLINE Vec4& Pixel( int x, int y ){ return m_pixels[ x + y * m_width ]; }
-	FINLINE Vec4 GetClamped( int x, int y ) const
+	FINLINE const Vec4& Pixel( int x, int y, int z, int s ) const
+	{
+		return m_pixels[
+			x +
+			y * m_width +
+			z * m_width * m_height +
+			s * m_width * m_height * m_depth
+		];
+	}
+	FINLINE Vec4& Pixel( int x, int y, int z, int s )
+	{
+		return m_pixels[
+			x +
+			y * m_width +
+			z * m_width * m_height +
+			s * m_width * m_height * m_depth
+		];
+	}
+	FINLINE Vec4 GetClamped( int x, int y, int z, int s ) const
 	{
 		x = TMAX( 0, TMIN( m_width - 1, x ) );
 		y = TMAX( 0, TMIN( m_height - 1, y ) );
-		return m_pixels[ x + y * m_width ];
+		z = TMAX( 0, TMIN( m_depth - 1, z ) );
+		s = TMAX( 0, TMIN( m_sides - 1, s ) );
+		return m_pixels[
+			x +
+			y * m_width +
+			z * m_width * m_height +
+			s * m_width * m_height * m_depth
+		];
 	}
-	FINLINE Vec4 GetLerp( float x, float y ) const
+	FINLINE Vec4 GetLerpXY( float x, float y, int s ) const
 	{
 		int x0 = int( floor( x * m_width ) ) % m_width; if( x0 < 0 ) x0 += m_width;
 		int x1 = int( ceil(  x * m_width ) ) % m_width; if( x1 < 0 ) x1 += m_width;
@@ -39,14 +66,40 @@ struct SGRX_ImageFP32 : SGRX_RefCounted
 		int y1 = int( ceil(  y * m_height ) ) % m_height; if( y1 < 0 ) y1 += m_height;
 		float qx = fmodf( x * m_width, 1.0f );
 		float qy = fmodf( y * m_height, 1.0f );
-		Vec4 c00 = Pixel( x0, y0 ), c10 = Pixel( x1, y0 );
-		Vec4 c01 = Pixel( x0, y1 ), c11 = Pixel( x1, y1 );
+		Vec4 c00 = Pixel( x0, y0, 0, s ), c10 = Pixel( x1, y0, 0, s );
+		Vec4 c01 = Pixel( x0, y1, 0, s ), c11 = Pixel( x1, y1, 0, s );
 		return TLERP( TLERP( c00, c10, qx ), TLERP( c01, c11, qx ), qy );
+	}
+	FINLINE Vec4 GetLerpXYZ( float x, float y, float z, int s ) const
+	{
+		int x0 = int( floor( x * m_width ) ) % m_width; if( x0 < 0 ) x0 += m_width;
+		int x1 = int( ceil(  x * m_width ) ) % m_width; if( x1 < 0 ) x1 += m_width;
+		int y0 = int( floor( y * m_height ) ) % m_height; if( y0 < 0 ) y0 += m_height;
+		int y1 = int( ceil(  y * m_height ) ) % m_height; if( y1 < 0 ) y1 += m_height;
+		int z0 = int( floor( z * m_depth ) ) % m_depth; if( z0 < 0 ) z0 += m_depth;
+		int z1 = int( ceil(  z * m_depth ) ) % m_depth; if( z1 < 0 ) z1 += m_depth;
+		float qx = fmodf( x * m_width, 1.0f );
+		float qy = fmodf( y * m_height, 1.0f );
+		float qz = fmodf( z * m_depth, 1.0f );
+		Vec4 c000 = Pixel( x0, y0, z0, s ), c100 = Pixel( x1, y0, z0, s );
+		Vec4 c010 = Pixel( x0, y1, z0, s ), c110 = Pixel( x1, y1, z0, s );
+		Vec4 c001 = Pixel( x0, y0, z1, s ), c101 = Pixel( x1, y0, z1, s );
+		Vec4 c011 = Pixel( x0, y1, z1, s ), c111 = Pixel( x1, y1, z1, s );
+		return TLERP(
+			TLERP( TLERP( c000, c100, qx ), TLERP( c010, c110, qx ), qy ),
+			TLERP( TLERP( c001, c101, qx ), TLERP( c011, c111, qx ), qy ),
+			qz );
+	}
+	SGRX_ImageFP32* CreateUninitializedCopy()
+	{
+		return new SGRX_ImageFP32( m_width, m_height, m_depth, m_sides );
 	}
 	
 	Array< Vec4 > m_pixels;
 	int m_width;
 	int m_height;
+	int m_depth;
+	int m_sides;
 };
 typedef Handle< SGRX_ImageFP32 > SGRX_IFP32Handle;
 SGRX_IFP32Handle SGRX_ResizeImage( SGRX_ImageFP32* image, int width, int height );
@@ -56,6 +109,7 @@ enum SGRX_AssetImageFilterType
 {
 	SGRX_AIF_Unknown = 0,
 	SGRX_AIF_Resize,
+	SGRX_AIF_Rearrange,
 	SGRX_AIF_Sharpen,
 	SGRX_AIF_ToLinear,
 	SGRX_AIF_FromLinear,
@@ -99,7 +153,7 @@ typedef Handle< SGRX_ImageFilter > SGRX_ImgFilterHandle;
 
 struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 {
-	SGRX_ImageFilter_Resize() : width(256), height(256), srgb(false){}
+	SGRX_ImageFilter_Resize() : width(256), height(256), depth(1), srgb(false){}
 	SGRX_IF_CLONE( SGRX_ImageFilter_Resize );
 	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Resize; }
 	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Resize; }
@@ -110,7 +164,23 @@ struct SGRX_ImageFilter_Resize : SGRX_ImageFilter
 	
 	int width;
 	int height;
+	int depth;
 	bool srgb;
+};
+
+struct SGRX_ImageFilter_Rearrange : SGRX_ImageFilter
+{
+	// Convert a 2D slice list into a volume texture
+	SGRX_ImageFilter_Rearrange() : width(16){}
+	SGRX_IF_CLONE( SGRX_ImageFilter_Rearrange );
+	static bool IsType( SGRX_AssetImageFilterType ift ){ return ift == SGRX_AIF_Rearrange; }
+	SGRX_AssetImageFilterType GetType() const { return SGRX_AIF_Rearrange; }
+	const char* GetName() const { return "rearrange"; }
+	bool Parse( ConfigReader& cread );
+	void Generate( String& out );
+	SGRX_IFP32Handle Process( SGRX_ImageFP32* image, SGRX_ImageFilterState& ifs );
+	
+	int width;
 };
 
 enum SGRX_ImgFltSharpen_Mode

@@ -682,6 +682,7 @@ EXP_STRUCT DevelopSystem : IGameLevelSystem, SGRX_IEventHandler
 	GFW_EXPORT DevelopSystem( GameLevel* lev );
 	GFW_EXPORT void HandleEvent( SGRX_EventID eid, const EventData& edata );
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
+	GFW_EXPORT void PreRender();
 	GFW_EXPORT void DrawUI();
 	
 	bool screenshotMode : 1;

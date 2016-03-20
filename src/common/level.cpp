@@ -623,6 +623,8 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		m_entities[ i ]->PreRender();
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->PreRender();
 	
 	sgs_ProcessSubthreads( m_scriptCtx.C, deltaTime );
 }

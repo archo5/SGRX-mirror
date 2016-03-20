@@ -2615,6 +2615,19 @@ void DevelopSystem::Tick( float deltaTime, float blendFactor )
 				-M_PI*0.5f + SMALL_FLOAT,
 				M_PI*0.5f - SMALL_FLOAT );
 		}
+	}
+	
+	if( justEnabledConsole )
+		justEnabledConsole = false;
+}
+
+void DevelopSystem::PreRender()
+{
+	if( screenshotMode )
+	{
+		Vec3 up = V3(0,0,1);
+		Vec3 dir = cameraDir.ToVec3();
+		Mat4 rollMat = Mat4::CreateRotationAxisAngle( dir, cameraRoll );
 		
 		SGRX_Camera& CAM = m_level->GetScene()->camera;
 		CAM.position = cameraPos;
@@ -2622,9 +2635,6 @@ void DevelopSystem::Tick( float deltaTime, float blendFactor )
 		CAM.updir = rollMat.TransformNormal( up ).Normalized();
 		CAM.UpdateMatrices();
 	}
-	
-	if( justEnabledConsole )
-		justEnabledConsole = false;
 }
 
 void DevelopSystem::DrawUI()
