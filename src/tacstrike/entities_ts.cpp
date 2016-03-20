@@ -346,7 +346,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	float aimspeed = GetInputV2( ACT_Chr_AimAt ).y;
 	if( GetInputB( ACT_Chr_AimAt ) )
 	{
-		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetPosition_FT();
+		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetQueryPosition_FT();
 	}
 	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
 	m_aimDist = aimdir.Length();
@@ -1620,8 +1620,11 @@ bool TSEnemyController::CanSeePoint( Vec3 pt )
 		return true;
 	
 	// increase vertical FOV
-	viewdir.z *= 0.5f;
-	view2pos.z *= 0.5f;
+//	viewdir.z *= 0.5f;
+//	view2pos.z *= 0.5f;
+	// reduce vertical FOV
+	viewdir.z *= 4;
+	view2pos.z *= 4;
 	
 	float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
 	if( vpdot < cosf(DEG2RAD(40.0f)) )
