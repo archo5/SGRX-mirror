@@ -450,8 +450,8 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 //
 
 #define LIGHTTREE_SAMPLE_EXTENTS 10.0f
-#define LIGHTTREE_MIN_SPLIT_SIZE 4
-#define LIGHTTREE_MAX_SPLIT_DEPTH 16
+#define LIGHTTREE_MIN_SPLIT_SIZE 32
+#define LIGHTTREE_MAX_SPLIT_DEPTH 8
 
 struct _LightTree_SortIndices_Data
 {
@@ -522,28 +522,55 @@ void _LightTree_MakeNode( SGRX_LightTree* LT, int32_t node,
 	}
 }
 
+
+#ifdef DEBUG_LIGHT_TREE
+int lt_samples = 0;
+int lt_nodes = 0;
+int lt_nodes_all = 0;
+#endif
 void _LightTree_TestNode( SGRX_LightTree* LT, int32_t node, const Vec3 qbb[3],
                           SGRX_LightTree::Colors* outaddcol, float* outaddwt )
 {
+#ifdef DEBUG_LIGHT_TREE
+	lt_nodes_all++;
+#endif
 	SGRX_LightTree::Node& N = LT->m_nodes[ node ];
 	if( qbb[0].x > N.bbmax.x || qbb[1].x < N.bbmin.x ||
 		qbb[0].y > N.bbmax.y || qbb[1].y < N.bbmin.y ||
 		qbb[0].z > N.bbmax.z || qbb[1].z < N.bbmin.z )
 		return;
 	
+#ifdef DEBUG_LIGHT_TREE
+	lt_nodes++;
+#endif
 	// samples
 	if( N.sdo != -1 )
 	{
 		size_t chcount = LT->m_sampidx[ N.sdo ], off = N.sdo + 1;
+		
+#ifdef DEBUG_LIGHT_TREE
+		lt_samples += chcount;
+#endif
+		
+		SGRX_LightTree::Colors tmpout;
+		tmpout.Clear();
+		float tmpwt = 0;
+		
+		// gather
 		for( size_t i = 0; i < chcount; ++i )
 		{
 			size_t idx = LT->m_sampidx[ i + off ];
-			 // distfac: max = 100 to avoid precision issues
+			// distfac: max = 100 to avoid precision issues
 			float distfac = powf( 2.0f / ( 1.0f + ( qbb[2] - LT->m_pos[ idx ] ).Length() ), 16.0f );
 			for( int c = 0; c < 6; ++c )
-				outaddcol->color[ c ] += LT->m_colors[ idx ].color[ c ] * distfac;
-			*outaddwt += distfac;
+				tmpout.color[ c ] += LT->m_colors[ idx ].color[ c ] * distfac;
+			tmpwt += distfac;
 		}
+		
+		// commit
+		for( int c = 0; c < 6; ++c )
+			outaddcol->color[ c ] += tmpout.color[ c ];
+		*outaddwt += tmpwt;
 	}
 	
 	// child nodes
@@ -606,7 +633,21 @@ void SGRX_LightTree::GetColors( Vec3 pos, Colors* out )
 	
 	if( m_nodes.size() )
 	{
+#ifdef DEBUG_LIGHT_TREE
+		int s = lt_samples;
+		int n = lt_nodes;
+		int a = lt_nodes_all;
+#endif
+		
 		_LightTree_TestNode( this, 0, qbb, &col, &total_weight );
+		
+#ifdef DEBUG_LIGHT_TREE
+		LOG << "LIGHT TREE SAMPLING SESSION AT " << pos << ":"
+			<< "\n- samples found: " << ( lt_samples - s )
+			<< "\n- nodes processed: " << ( lt_nodes - n )
+			<< "\n- nodes traversed: " << ( lt_nodes_all - a );
+#endif
+		
 		if( total_weight > SMALL_FLOAT )
 		{
 			for( int c = 0; c < 6; ++c )

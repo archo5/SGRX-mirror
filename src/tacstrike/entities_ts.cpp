@@ -263,7 +263,7 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	m_shadowInst->UpdateTransform();
 	m_shadowInst->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
 	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
-	m_shadowInst->enabled = true;
+	m_shadowInst->enabled = false;//true;
 	
 	m_anLayers[0].anim = &m_anMainPlayer;
 	m_anLayers[1].anim = &m_anTopPlayer;
