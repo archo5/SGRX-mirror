@@ -2427,8 +2427,8 @@ int ParticleFX::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->name ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_id ); return SGS_SUCCESS; }
-		SGS_CASE( "soundEvent" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_soundEventName ); return SGS_SUCCESS; }
 		SGS_CASE( "particleSystemPath" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_partSysPath ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_soundEventName ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<ParticleFX*>( obj->data )->m_enabled ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<ParticleFX*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
@@ -2454,8 +2454,8 @@ int ParticleFX::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "localInfoTarget" ){ static_cast<ParticleFX*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ static_cast<ParticleFX*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ static_cast<ParticleFX*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "soundEvent" ){ static_cast<ParticleFX*>( obj->data )->sgsSetSoundEvent( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "particleSystemPath" ){ static_cast<ParticleFX*>( obj->data )->sgsSetParticleSystem( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ static_cast<ParticleFX*>( obj->data )->sgsSetSoundEvent( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ static_cast<ParticleFX*>( obj->data )->sgsSetPlaying( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<ParticleFX*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
@@ -2488,8 +2488,8 @@ int ParticleFX::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->name, depth ).push( C ); }
 		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_id, depth ).push( C ); }
-		{ sgs_PushString( C, "\nsoundEvent = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_soundEventName, depth ).push( C ); }
 		{ sgs_PushString( C, "\nparticleSystemPath = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_partSysPath, depth ).push( C ); }
+		{ sgs_PushString( C, "\nsoundEvent = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_soundEventName, depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<ParticleFX*>( obj->data )->m_enabled, depth ).push( C ); }
 		sgs_StringConcat( C, 44 );
 		sgs_PadString( C );
