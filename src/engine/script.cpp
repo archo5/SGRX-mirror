@@ -116,6 +116,16 @@ static int sgsGame_GetScreenSize( SGS_CTX )
 	return 1;
 }
 
+static int sgsGame_ShowCursor( SGS_CTX )
+{
+	SGSFN( "Game_ShowCursor" );
+	sgs_Bool show = 0;
+	if( !sgs_LoadArgs( C, "b", &show ) )
+		return 0;
+	Game_ShowCursor( show );
+	return 0;
+}
+
 static int sgsGame_End( SGS_CTX )
 {
 	SGSFN( "Game_End" );
@@ -181,6 +191,7 @@ static int Input_GetCursorPos( SGS_CTX )
 static sgs_RegFuncConst g_engine_rfc[] =
 {
 	{ "Game_GetScreenSize", sgsGame_GetScreenSize },
+	{ "Game_ShowCursor", sgsGame_ShowCursor },
 	{ "Game_End", sgsGame_End },
 	{ "Input_GetValue", Input_GetValue },
 	{ "Input_GetState", Input_GetState },

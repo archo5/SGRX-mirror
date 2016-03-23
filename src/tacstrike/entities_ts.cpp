@@ -1141,7 +1141,8 @@ sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
 
 TPSPlayerController::TPSPlayerController( GameLevel* lev ) :
 	m_level( lev ), m_angles( YP(0) ),
-	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) ), i_crouch(false)
+	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) ), i_crouch(false),
+	lastFrameReset( false )
 {
 	m_castShape = lev->GetPhyWorld()->CreateSphereShape( 0.2f );
 }
@@ -1153,6 +1154,19 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 		TCLAMP( TREVLERP<float>( 0.2f, 1.0f, joystick_aim.Length() ), 0.0f, 1.0f );
 	m_angles.yaw += joystick_aim.x * 10 * deltaTime;
 	m_angles.pitch += joystick_aim.y * 10 * deltaTime;
+	
+	int hx = GR_GetWidth() / 2;
+	int hy = GR_GetHeight() / 2;
+	Vec2 mouse_aim = V2(0);
+	if( lastFrameReset )
+	{
+		mouse_aim = Game_GetCursorPos() - V2( hx, hy );
+	}
+	lastFrameReset = true;
+	Game_SetCursorPos( hx, hy );
+	m_angles.yaw -= mouse_aim.x * 0.01f;
+	m_angles.pitch -= mouse_aim.y * 0.01f;
+	
 	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/3.0f, FLT_PI/3.0f );
 	
 	if( CROUCH.IsPressed() )
@@ -1191,9 +1205,9 @@ void TPSPlayerController::SafePosPush( Vec3& pos, Vec3 dir )
 	}
 }
 
-Vec3 TPSPlayerController::GetCameraPos( TSCharacter* chr )
+Vec3 TPSPlayerController::GetCameraPos( TSCharacter* chr, bool tick )
 {
-	Vec3 campos = chr->GetPosition_FT();
+	Vec3 campos = tick ? chr->GetWorldPosition() : chr->GetPosition_FT();
 	campos += V3(0,0,1);
 	SafePosPush( campos, V3(0,0,1) );
 	SafePosPush( campos, -m_angles.ToVec3() );

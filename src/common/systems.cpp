@@ -1121,9 +1121,10 @@ void DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 	
 	if( decalID != -1 && targetMesh )
 	{
+		Vec3 dpdir = -nrm;
 		DecalProjectionInfo projInfo =
 		{
-			pos, dir, fabsf( Vec3Dot( dir, V3(0,0,1) ) ) > 0.99f ? V3(0,1,0) : V3(0,0,1),
+			pos, dpdir, fabsf( Vec3Dot( dpdir, V3(0,0,1) ) ) > 0.99f ? V3(0,1,0) : V3(0,0,1),
 			0, scale, 1, 0.5f, scale, 0.5f, false,
 			m_bulletDecalInfo[ decalID ]
 		};

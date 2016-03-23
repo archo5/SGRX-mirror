@@ -269,12 +269,13 @@ struct TPSPlayerController : IActorController
 	bool i_crouch;
 	
 	PhyShapeHandle m_castShape;
+	SGS_PROPERTY bool lastFrameReset;
 	
 	TPSPlayerController( GameLevel* lev );
 	SGS_METHOD void Tick( float deltaTime, float blendFactor );
 	virtual Vec3 GetInput( uint32_t iid );
 	void SafePosPush( Vec3& pos, Vec3 dir );
-	SGS_METHOD Vec3 GetCameraPos( TSCharacter* chr );
+	SGS_METHOD Vec3 GetCameraPos( TSCharacter* chr, bool tick );
 	SGS_METHOD void UpdateMoveAim( bool tick );
 	TSCharacter* GetChar()
 	{
