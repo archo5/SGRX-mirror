@@ -251,6 +251,7 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	rbinfo.position = V3(0) + V3(0,0,1);
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
+	rbinfo.mask = 1|2;
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
 	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.25f) );
 	
@@ -458,7 +459,7 @@ void TSCharacter::FixedTick( float deltaTime )
 		
 		const char* animname = anim_run_fw;
 		Vec2 md = i_move.Normalized();
-		if( Vec2Dot( md, GetAimDir_FT().ToVec2() ) < 0 )
+		if( Vec2Dot( md, GetAimDir_FT().ToVec2() ) < -0.2f )
 		{
 			md = -md;
 			animname = anim_run_bw;
@@ -847,6 +848,7 @@ void TSCharacter::OnDeath()
 {
 	m_bodyHandle->SetEnabled( false );
 	m_animChar.EnablePhysics();
+	m_animChar.m_anDeformer.forces.clear();
 	m_anLayers[3].factor = 1;
 	SetInfoMask( 0 );
 	m_animChar.m_cachedMeshInst->layers = 0;
@@ -1279,7 +1281,7 @@ void TPSPlayerController::UpdateMoveAim( bool tick )
 	if( i_move.Length() > 0.1f )
 	{
 		Vec2 md = i_move;
-		if( Vec2Dot( ( i_aim_target - chr->GetWorldPosition() ).ToVec2(), md ) < 0 )
+		if( Vec2Dot( ( i_aim_target - chr->GetWorldPosition() ).ToVec2(), md ) < -0.1f )
 			md = -md;
 		i_turn = V3( md.x, md.y, 8 );
 	}

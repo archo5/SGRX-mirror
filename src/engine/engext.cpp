@@ -24,6 +24,7 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 	rbinfo.restitution = 0.02f;
 	rbinfo.linearDamping = 0.1f;
 	rbinfo.angularDamping = 0.1f;
+	rbinfo.group = 4;
 	
 	for( size_t i = 0; i < m_factors.size(); ++i )
 	{
