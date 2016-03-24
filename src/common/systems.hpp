@@ -372,10 +372,13 @@ EXP_STRUCT DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 	
 	struct Material : SGRX_RefCounted
 	{
+		Material() : isSolid(true){}
+		
 		String match;
 		Array< int > decalIDs;
 		ParticleSystem particles;
 		String sound;
+		bool isSolid;
 		
 		bool CheckMatch( const StringView& test ) const { return match.size() == 0 || test.contains( match ); }
 	};
@@ -386,7 +389,7 @@ EXP_STRUCT DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 	GFW_EXPORT const char* Init( SceneHandle scene, SGRX_LightSampler* sampler );
 	GFW_EXPORT void Free();
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
-	GFW_EXPORT void AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
+	GFW_EXPORT bool AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 		const StringView& type, SGRX_IMesh* m_targetMesh, int partID,
 		const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale = 1.0f );
 	GFW_EXPORT void AddBlood( Vec3 pos, Vec3 dir );
@@ -430,10 +433,10 @@ struct BulletSystem : IGameLevelSystem
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	
 	GFW_EXPORT SGS_METHOD void Add( Vec3 pos, Vec3 vel, float timeleft, float dmg, uint32_t ownerType );
-	GFW_EXPORT SGS_METHOD bool Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType );
+	GFW_EXPORT SGS_METHOD float Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType );
 	GFW_EXPORT void Clear();
 	
-	bool _ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B );
+	float _ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B );
 	
 	BulletArray m_bullets;
 	DamageSystem* m_damageSystem;

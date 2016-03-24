@@ -1011,6 +1011,10 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 			if( cur_mtl == NULL )
 				return "mtl_ command has no material";
 		}
+		if( key == "mtl_solid" )
+		{
+			cur_mtl->isSolid = String_ParseBool( value );
+		}
 		if( key == "mtl_decal" )
 		{
 			int id = m_bulletDecalInfo.size();
@@ -1088,10 +1092,11 @@ void DamageSystem::Tick( float deltaTime, float blendFactor )
 	}
 }
 
-void DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
+bool DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 	const StringView& type, SGRX_IMesh* targetMesh, int partID,
 	const Mat4& worldMatrix, const Vec3& pos, const Vec3& dir, const Vec3& nrm, float scale )
 {
+	bool solid = true;
 	int decalID = -1;
 	for( size_t i = 0; i < m_bulletDecalMaterials.size(); ++i )
 	{
@@ -1115,6 +1120,7 @@ void DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 			sev->Set3DAttribs( s3dattr );
 			sev->Start();
 			
+			solid = mtl->isSolid;
 			break;
 		}
 	}
@@ -1135,6 +1141,8 @@ void DamageSystem::AddBulletDamage( SGRX_DecalSystem* dmgDecalSysOverride,
 		else
 			dmgDecalSysOverride->AddDecal( projInfo, targetMesh, partID, worldMatrix );
 	}
+	
+	return solid;
 }
 
 struct DmgSys_GenBlood : IProcessor
@@ -1213,7 +1221,7 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 		Vec3 p1 = B.position;
 		Vec3 p2 = p1 + B.velocity * deltaTime;
 		
-		bool remb = _ProcessBullet( p1, p2, B );
+		bool remb = _ProcessBullet( p1, p2, B ) >= 0;
 		
 		if( remb )
 			m_bullets.erase( i-- );
@@ -1228,14 +1236,14 @@ void BulletSystem::Add( Vec3 pos, Vec3 vel, float timeleft, float dmg, uint32_t 
 	m_bullets.push_back( B );
 }
 
-bool BulletSystem::Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType )
+float BulletSystem::Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType )
 {
 	Vec3 dir = ( p2 - p1 ).Normalized();
 	Bullet B = { p1, dir * dmg, dir, 0, dmg, ownerType };
 	return _ProcessBullet( p1, p2, B );
 }
 
-bool BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
+float BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 {
 	SceneRaycastCallback_Sorting cb( &m_tmpStore );
 	m_level->GetScene()->RaycastAll( p1, p2, &cb, 0xffffffff );
@@ -1244,6 +1252,7 @@ bool BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 	#endif
 	
 	// sorted list of raycast hits
+	float outdst = -1;
 	bool remb = false;
 	if( m_tmpStore.size() )
 	{
@@ -1280,11 +1289,12 @@ bool BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 			}
 			
 			// apply damage to hit point
+			outdst = HIT.factor;
 			Vec3 hitpoint = TLERP( p1, p2, HIT.factor );
 			SGRX_DecalSystem* dmgDecalSys = mii ? mii->dmgDecalSysOverride : NULL;
 			bool needDecal = ( HIT.meshinst->allowStaticDecals || dmgDecalSys ) &&
 				HIT.meshinst->IsSkinned() == false;
-			m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
+			bool isSolid = m_damageSystem->AddBulletDamage( dmgDecalSys, decalType,
 				needDecal ? HIT.meshinst->GetMesh() : NULL,
 				-1, HIT.meshinst->matrix, hitpoint, B.dir, HIT.normal );
 			
@@ -1300,6 +1310,9 @@ bool BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 				MI_BulletHit_Data data = { hitpoint, B.velocity };
 				mii->OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
 			}
+			
+			if( !isSolid )
+				continue;
 			
 			// handling wall penetration
 			B.numSolidRefs += entryIfL0 < 0 ? 1 : -1;
@@ -1335,7 +1348,7 @@ bool BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 	}
 	// make sure mesh instance handles are freed
 	m_tmpStore.clear();
-	return remb;
+	return remb ? outdst : -1;
 }
 
 void BulletSystem::Clear()

@@ -531,7 +531,7 @@ struct ENGINE_EXPORT RenderStats
 #define RT_FORMAT_COLOR_LDR8  0x4002 // 8bit [0;1] color range
 #define RT_FORMAT_USE_MSAA    0x8000
 
-struct TextureInfo /* 16 bytes */
+struct TextureInfo /* 12 bytes */
 {
 	uint8_t type; /* TEXTYPE */
 	uint8_t mipcount;
