@@ -1187,6 +1187,9 @@ void EdLevelGraphicsCont::STRegenerate()
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
 		Mesh& M = m_meshes.item( i ).value;
+		if( M.ent->IsStatic() == false )
+			continue;
+		
 		SGRX_IMesh* mesh = M.ent->m_meshInst->GetMesh();
 		if( mesh == NULL )
 			continue;
