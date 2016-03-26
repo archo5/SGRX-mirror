@@ -261,7 +261,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	TACStrikeGame()
 	{
 		RegisterCommonGameCVars();
-		m_mapName = "b5-1";
+		m_mapName = "b5-mainmenu";
 	}
 	
 	bool OnConfigure( int argc, char* argv[] )
