@@ -363,6 +363,7 @@ ENGINE_EXPORT void Game_End();
 #define TEXFLAGS_LERP    0x04
 #define TEXFLAGS_CLAMP_X 0x10
 #define TEXFLAGS_CLAMP_Y 0x20
+#define TEXFLAGS_CLAMP_Z 0x40
 
 struct IF_GCC(ENGINE_EXPORT) IDirEntryHandler
 {
@@ -547,6 +548,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ITexture : SGRX_RCRsrc
 	ENGINE_EXPORT SGRX_ITexture();
 	ENGINE_EXPORT virtual ~SGRX_ITexture();
 	ENGINE_EXPORT virtual bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h ) = 0;
+	ENGINE_EXPORT virtual bool UploadRGBA8Part3D( void* data, int mip, int x, int y, int z, int w, int h, int d ) = 0;
 	
 	TextureInfo m_info;
 	bool m_isRenderTexture;
@@ -562,6 +564,7 @@ struct TextureHandle : Handle< SGRX_ITexture >
 	ENGINE_EXPORT const TextureInfo& GetInfo() const;
 	ENGINE_EXPORT Vec2 GetInvSize( Vec2 def = V2(0) ) const;
 	ENGINE_EXPORT bool UploadRGBA8Part( void* data, int mip = 0, int w = -1, int h = -1, int x = 0, int y = 0 );
+	ENGINE_EXPORT bool UploadRGBA8Part3D( void* data, int mip = 0, int w = -1, int h = -1, int d = -1, int x = 0, int y = 0, int z = 0 );
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IDepthStencilSurface : SGRX_RefCounted
@@ -1930,6 +1933,7 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	ENGINE_EXPORT virtual void OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material& mtl, SGRX_RenderState& out );
 	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const StringView& defines, const SGRX_Material& mtl,
 		SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
+	ENGINE_EXPORT virtual TextureHandle OnCreateSysTexture( const StringView& key );
 	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name );
 	ENGINE_EXPORT virtual bool GetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, ByteArray& outdata );
@@ -1945,7 +1949,8 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 ENGINE_EXPORT int GR_GetWidth();
 ENGINE_EXPORT int GR_GetHeight();
 
-ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips );
+ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips, const void* data );
+ENGINE_EXPORT TextureHandle GR_CreateTexture3D( int width, int height, int depth, int format, uint32_t flags, int mips, const void* data );
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
 ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
 ENGINE_EXPORT TextureHandle GR_GetRenderTarget( int width, int height, int format, int extra );

@@ -556,12 +556,10 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 		ExportRGBA8( convdata.data(), convdata.data() + ( width * height ) );
 		
 		texture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8,
-			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
-		texture->UploadRGBA8Part( convdata.data(), 0, 0, 0, width, height );
+			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, convdata.data() );
 		
 		nmtexture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8,
-			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
-		nmtexture->UploadRGBA8Part( &convdata[width*height], 0, 0, 0, width, height );
+			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, &convdata[width*height] );
 	}
 	else
 	{

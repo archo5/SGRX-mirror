@@ -46,7 +46,8 @@ size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI )
 	return 0;
 }
 
-void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount )
+void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize,
+	size_t* outcopyrowcount, size_t* outcopyslicecount )
 {
 	size_t width = TI->width, height = TI->height, depth = TI->depth;
 	int bpu = 0;
@@ -74,6 +75,13 @@ void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, siz
 	case TEXTYPE_CUBE: *outcopyrowsize = width * bpu; *outcopyrowcount = width; break;
 	case TEXTYPE_VOLUME: *outcopyrowsize = width * bpu; *outcopyrowcount = height * depth; break;
 	default: *outcopyrowsize = 0; *outcopyrowcount = 0; break;
+	}
+	// if requested explicit slice count, give it and remove it from row count
+	if( outcopyslicecount )
+	{
+		*outcopyslicecount = TI->type == TEXTYPE_VOLUME ? depth : 1;
+		if( TI->type == TEXTYPE_VOLUME )
+			*outcopyrowcount = height;
 	}
 }
 

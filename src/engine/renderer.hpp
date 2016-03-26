@@ -9,7 +9,8 @@
 ///
 
 ENGINE_EXPORT size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI );
-ENGINE_EXPORT void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize, size_t* outcopyrowcount );
+ENGINE_EXPORT void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize,
+	size_t* outcopyrowcount, size_t* outcopyslicecount = NULL );
 ENGINE_EXPORT bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo );
 
 struct TextureData
@@ -262,7 +263,7 @@ struct IF_GCC(ENGINE_EXPORT) IRenderer : SGRX_IRenderControl
 	ENGINE_EXPORT virtual void SetViewport( int x0, int y0, int x1, int y1 ) = 0;
 	ENGINE_EXPORT virtual void SetScissorRect( int* rect ) = 0;
 	
-	ENGINE_EXPORT virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL ) = 0;
+	ENGINE_EXPORT virtual SGRX_ITexture* CreateTexture( TextureInfo* texinfo, const void* data = NULL ) = 0;
 	ENGINE_EXPORT virtual SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo ) = 0;
 	ENGINE_EXPORT virtual SGRX_IDepthStencilSurface* CreateDepthStencilSurface( int width, int height, int format ) = 0;
 	ENGINE_EXPORT virtual bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors ) = 0;

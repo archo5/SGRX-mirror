@@ -691,15 +691,11 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 			if( MID.m_lmap.width && MID.m_lmap.height )
 			{
 				TextureHandle lmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
-					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
-				lmtex->UploadRGBA8Part( MID.m_lmap.data.data(),
-					0, 0, 0, MID.m_lmap.width, MID.m_lmap.height );
+					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, MID.m_lmap.data.data() );
 				MI->SetMITexture( 0, lmtex );
 				
 				TextureHandle nmtex = GR_CreateTexture( MID.m_lmap.width, MID.m_lmap.height, TEXFORMAT_RGBA8,
-					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1 );
-				nmtex->UploadRGBA8Part( MID.m_lmap.nmdata.data(),
-					0, 0, 0, MID.m_lmap.width, MID.m_lmap.height );
+					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, MID.m_lmap.nmdata.data() );
 				MI->SetMITexture( 1, nmtex );
 				
 				MI->SetLightingMode( SGRX_LM_Static );

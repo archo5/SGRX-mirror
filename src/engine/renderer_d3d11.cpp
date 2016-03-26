@@ -304,6 +304,7 @@ struct D3D11Texture : SGRX_ITexture
 	virtual ~D3D11Texture();
 	
 	bool UploadRGBA8Part( void* data, int mip, int x, int y, int w, int h );
+	bool UploadRGBA8Part3D( void* data, int mip, int x, int y, int z, int w, int h, int d );
 };
 
 struct D3D11RenderTexture : D3D11Texture
@@ -460,7 +461,7 @@ struct D3D11Renderer : IRenderer
 	void _SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( int* rect );
 	
-	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
+	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, const void* data );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
 	SGRX_IDepthStencilSurface* CreateDepthStencilSurface( int width, int height, int format );
 	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
@@ -863,6 +864,12 @@ bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, in
 	
 	SGRX_ScopedMtxLock LOCK( &m_renderer->m_mutex );
 	
+	if( m_info.type != TEXTYPE_2D )
+	{
+		LOG_ERROR << "texture not 2D";
+		return false;
+	}
+	
 	// sure, we copied... nothing
 	if( !w || !h )
 		return true;
@@ -885,8 +892,6 @@ bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, in
 		{
 			uint8_t* dst = (uint8_t*)msr.pData + msr.RowPitch * j;
 			memcpy( dst, ((uint32_t*)data) + w * j, w * 4 );
-	//		if( m_info.format == TEXFORMAT_RGBA8 )
-	//			swap4b2ms( (uint32_t*) dst, w, 0xff0000, 16, 0xff, 16 );
 		}
 		
 		m_renderer->m_ctx->Unmap( m_ptr.res, mip );
@@ -900,7 +905,57 @@ bool D3D11Texture::UploadRGBA8Part( void* data, int mip, int x, int y, int w, in
 	return true;
 }
 
-SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
+bool D3D11Texture::UploadRGBA8Part3D( void* data, int mip, int x, int y, int z, int w, int h, int d )
+{
+	LOG_FUNCTION;
+	
+	SGRX_ScopedMtxLock LOCK( &m_renderer->m_mutex );
+	
+	if( m_info.type != TEXTYPE_VOLUME )
+	{
+		LOG_ERROR << "texture not 3D";
+		return false;
+	}
+	
+	// sure, we copied... nothing
+	if( !w || !h || !d )
+		return true;
+	
+	bool dyn = false;
+	if( dyn )
+	{
+		D3D11_MAPPED_SUBRESOURCE msr;
+		
+		bool whole = x == 0 && y == 0 && z == 0 && w == m_info.width && h == m_info.height && d == m_info.depth;
+		HRESULT hr = m_renderer->m_ctx->Map( m_ptr.res, mip, whole ? D3D11_MAP_WRITE_DISCARD : D3D11_MAP_WRITE, 0, &msr );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to map D3D11 texture";
+			return false;
+		}
+		*(uint8_t**)&msr.pData += msr.DepthPitch * z + msr.RowPitch * y + 4 * x;
+		
+		for( int k = 0; k < d; ++k )
+		{
+			for( int j = 0; j < h; ++j )
+			{
+				uint8_t* dst = (uint8_t*)msr.pData + msr.RowPitch * j + msr.DepthPitch * k;
+				memcpy( dst, ((uint32_t*)data) + w * j + w * h * k, w * 4 );
+			}
+		}
+		
+		m_renderer->m_ctx->Unmap( m_ptr.res, mip );
+	}
+	else
+	{
+		D3D11_BOX box = { x, y, z, x + w, y + h, z + d };
+		m_renderer->m_ctx->UpdateSubresource( m_ptr.res, mip, &box, data, w * 4, w * h * 4 );
+	}
+	
+	return true;
+}
+
+SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, const void* data )
 {
 	LOG_FUNCTION;
 	
@@ -930,7 +985,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		if( texinfo->type == TEXTYPE_CUBE )
 			dtd.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
 		
-		D3D11_SUBRESOURCE_DATA srd[ 128 ];
+		D3D11_SUBRESOURCE_DATA srd[ 6 * 16 ];
 		memset( &srd, 0, sizeof(srd) );
 		if( data )
 		{
@@ -993,7 +1048,7 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 			texinfo->flags & TEXFLAGS_LERP ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_MIN_MAG_MIP_POINT,
 			texinfo->flags & TEXFLAGS_CLAMP_X ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
 			texinfo->flags & TEXFLAGS_CLAMP_Y ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
-			D3D11_TEXTURE_ADDRESS_WRAP,
+			texinfo->flags & TEXFLAGS_CLAMP_Z ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
 			0, 16, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
 		};
 		if( create_sampstate( m_dev, &sdesc, &samp ) )
@@ -1007,6 +1062,94 @@ SGRX_ITexture* D3D11Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		T->m_renderer = this;
 		T->m_info = *texinfo;
 		T->m_ptr.tex2d = tex2d;
+		T->m_sampState = samp;
+		T->m_rsrcView = srv;
+		m_ownTextures.set( T, true );
+		return T;
+	}
+	else if( texinfo->type == TEXTYPE_VOLUME )
+	{
+		ID3D11Texture3D* tex3d = NULL;
+		ID3D11SamplerState* samp = NULL;
+		ID3D11ShaderResourceView* srv = NULL;
+		
+		D3D11_TEXTURE3D_DESC dtd;
+		memset( &dtd, 0, sizeof(dtd) );
+		dtd.Width = texinfo->width;
+		dtd.Height = texinfo->height;
+		dtd.Depth = texinfo->depth;
+		dtd.MipLevels = texinfo->mipcount;
+		dtd.Format = texfmt2d3d( texinfo->format );
+		dtd.Usage = D3D11_USAGE_DEFAULT;
+		dtd.CPUAccessFlags = 0;
+		dtd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		
+		D3D11_SUBRESOURCE_DATA srd[ 16 ];
+		memset( &srd, 0, sizeof(srd) );
+		if( data )
+		{
+			TextureInfo mipinfo;
+			for( int mip = 0; mip < texinfo->mipcount; ++mip )
+			{
+				size_t crs, crc, csc;
+				
+				TextureInfo_GetMipInfo( texinfo, mip, &mipinfo );
+				TextureInfo_GetCopyDims( &mipinfo, &crs, &crc, &csc );
+				
+				srd[ mip ].pSysMem = (char*) data + TextureData_GetMipDataOffset( texinfo, 0, mip );
+				srd[ mip ].SysMemPitch = crs;
+				// 'csc' was requested to obtain a good value for 'crc':
+				srd[ mip ].SysMemSlicePitch = crs * crc;
+			}
+		}
+		
+		hr = m_dev->CreateTexture3D( &dtd, data ? srd : NULL, &tex3d );
+		if( FAILED( hr ) || !tex3d )
+		{
+			LOG_ERROR << "could not create D3D11 texture (type: 3D, w: " << texinfo->width << ", h: "
+				<< texinfo->height << ", d: " << texinfo->depth << ", mips: " << texinfo->mipcount
+				<< ", fmt: " << texinfo->format << ", d3dfmt: " << texfmt2d3d( texinfo->format );
+			return NULL;
+		}
+		
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+		memset( &srvd, 0, sizeof(srvd) );
+		srvd.Format = dtd.Format;
+		srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+		srvd.Texture3D.MostDetailedMip = 0;
+		srvd.Texture3D.MipLevels = -1;
+		
+		hr = m_dev->CreateShaderResourceView( tex3d, &srvd, &srv );
+		if( FAILED( hr ) || !srv )
+		{
+			LOG_ERROR << "could not create D3D11 shader resource view for texture (type: 3D"
+				<< ", w: " << texinfo->width << ", h: " << texinfo->height
+				<< ", mips: " << texinfo->mipcount << ", fmt: " << texinfo->format
+				<< ", d3dfmt: " << texfmt2d3d( texinfo->format );
+			SAFE_RELEASE( tex3d );
+			return NULL;
+		}
+		
+		D3D11_SAMPLER_DESC sdesc =
+		{
+		//	texinfo->flags & TEXFLAGS_LERP ? D3D11_FILTER_MIN_MAG_MIP_LINEAR : D3D11_FILTER_MIN_MAG_MIP_POINT,
+			texinfo->flags & TEXFLAGS_LERP ? D3D11_FILTER_ANISOTROPIC : D3D11_FILTER_MIN_MAG_MIP_POINT,
+			texinfo->flags & TEXFLAGS_CLAMP_X ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
+			texinfo->flags & TEXFLAGS_CLAMP_Y ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
+			texinfo->flags & TEXFLAGS_CLAMP_Z ? D3D11_TEXTURE_ADDRESS_CLAMP : D3D11_TEXTURE_ADDRESS_WRAP,
+			0, 16, D3D11_COMPARISON_NEVER, {0,0,0,0}, 0, D3D11_FLOAT32_MAX
+		};
+		if( create_sampstate( m_dev, &sdesc, &samp ) )
+		{
+			SAFE_RELEASE( tex3d );
+			SAFE_RELEASE( srv );
+			return NULL;
+		}
+		
+		D3D11Texture* T = new D3D11Texture;
+		T->m_renderer = this;
+		T->m_info = *texinfo;
+		T->m_ptr.tex3d = tex3d;
 		T->m_sampState = samp;
 		T->m_rsrcView = srv;
 		m_ownTextures.set( T, true );

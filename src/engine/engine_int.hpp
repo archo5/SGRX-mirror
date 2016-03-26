@@ -197,7 +197,7 @@ struct RasterCache
 		};
 		for( int i = 0; i < numpages; ++i )
 		{
-			m_pages[ i ].texture = GR_CreateTexture( w, h, TEXFORMAT_RGBA8, 0, 1 );
+			m_pages[ i ].texture = GR_CreateTexture( w, h, TEXFORMAT_RGBA8, 0, 1, NULL );
 			m_pages[ i ].tree.clear();
 			m_pages[ i ].tree.push_back( root );
 		}

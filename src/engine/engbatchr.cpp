@@ -30,9 +30,8 @@ BatchRenderer::BatchRenderer( struct IRenderer* r ) : m_renderer( r ), m_diff( f
 	m_vertexDecl = GR_GetVertexDecl( "pf3cb40f2" );
 	m_defVShader = GR_GetVertexShader( "sys_batchvtx" );
 	m_defPShader = GR_GetPixelShader( "sys_batchvtx" );
-	m_whiteTex = GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, 0, 1 );
 	uint32_t whiteCol = 0xffffffff;
-	m_whiteTex.UploadRGBA8Part( &whiteCol );
+	m_whiteTex = GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, 0, 1, &whiteCol );
 	
 	m_currState.vshader = m_nextState.vshader = m_defVShader;
 	m_currState.pshader = m_nextState.pshader = m_defPShader;

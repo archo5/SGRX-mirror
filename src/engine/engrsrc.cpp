@@ -183,6 +183,35 @@ bool TextureHandle::UploadRGBA8Part( void* data, int mip, int w, int h, int x, i
 	return item->UploadRGBA8Part( data, mip, x, y, w, h );
 }
 
+bool TextureHandle::UploadRGBA8Part3D( void* data, int mip, int w, int h, int d, int x, int y, int z )
+{
+	LOG_FUNCTION;
+	
+	if( !item )
+		return false;
+	
+	const TextureInfo& TI = item->m_info;
+	
+	if( mip < 0 || mip >= TI.mipcount )
+	{
+		LOG_ERROR << "Cannot UploadRGBA8Part - mip count out of bounds (" << mip << "/" << TI.mipcount << ")";
+		return false;
+	}
+	
+	TextureInfo mti;
+	if( !TextureInfo_GetMipInfo( &TI, mip, &mti ) )
+	{
+		LOG_ERROR << "Cannot UploadRGBA8Part - failed to get mip info (" << mip << ")";
+		return false;
+	}
+	
+	if( w < 0 ) w = mti.width;
+	if( h < 0 ) h = mti.height;
+	if( d < 0 ) d = mti.depth;
+	
+	return item->UploadRGBA8Part3D( data, mip, x, y, z, w, h, d );
+}
+
 
 SGRX_IDepthStencilSurface::SGRX_IDepthStencilSurface() : m_width(0), m_height(0), m_format(0), m_key(0)
 {
@@ -1874,12 +1903,12 @@ void SGRX_SceneTree::UpdateTransforms()
 
 
 
-TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips )
+TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips, const void* data )
 {
 	LOG_FUNCTION;
 	
 	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format, flags };
-	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, NULL );
+	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, data );
 	if( !tex )
 	{
 		// error is already printed
@@ -1888,42 +1917,68 @@ TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flag
 	
 	tex->m_info = ti;
 	
-	LOG << "Created 2D texture: " << width << "x" << height << ", format=" << format << ", mips=" << mips;
+	LOG << "Created 2D texture: " << width << "x" << height
+		<< ", format=" << format << ", mips=" << mips;
 	return tex;
 }
 
-TextureHandle GR_GetTexture( const StringView& path )
+TextureHandle GR_CreateTexture3D( int width, int height, int depth, int format, uint32_t flags, int mips, const void* data )
 {
-	LOG_FUNCTION_ARG( path );
+	LOG_FUNCTION;
 	
-	SGRX_ITexture* tx = g_Textures->getcopy( path );
-	if( tx )
-		return tx;
-	
-	uint32_t usageflags;
-	ByteArray imgdata;
-	if( !g_Game->OnLoadTexture( path, imgdata, usageflags ) )
-	{
-		LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
-		return TextureHandle();
-	}
-	
-	TextureData texdata;
-	if( !TextureData_Load( &texdata, imgdata, path ) )
-	{
-		// error is already printed
-		return TextureHandle();
-	}
-	texdata.info.flags = usageflags;
-	
-	SGRX_ITexture* tex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
+	TextureInfo ti = { TEXTYPE_2D, mips, width, height, depth, format, flags };
+	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, data );
 	if( !tex )
 	{
 		// error is already printed
 		return TextureHandle();
 	}
 	
-	tex->m_info = texdata.info;
+	tex->m_info = ti;
+	
+	LOG << "Created 3D texture: " << width << "x" << height << "x" << depth
+		<< ", format=" << format << ", mips=" << mips;
+	return tex;
+}
+
+TextureHandle GR_GetTexture( const StringView& path )
+{
+	TextureHandle tex;
+	LOG_FUNCTION_ARG( path );
+	
+	tex = g_Textures->getcopy( path );
+	if( tex )
+		return tex;
+	
+	tex = g_Game->OnCreateSysTexture( path );
+	if( !tex )
+	{
+		// it's a regular texture
+		uint32_t usageflags;
+		ByteArray imgdata;
+		if( !g_Game->OnLoadTexture( path, imgdata, usageflags ) )
+		{
+			LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
+			return TextureHandle();
+		}
+		
+		TextureData texdata;
+		if( !TextureData_Load( &texdata, imgdata, path ) )
+		{
+			// error is already printed
+			return TextureHandle();
+		}
+		texdata.info.flags = usageflags;
+		
+		tex = g_Renderer->CreateTexture( &texdata.info, texdata.data.data() );
+		if( !tex )
+		{
+			// error is already printed
+			return TextureHandle();
+		}
+		tex->m_info = texdata.info;
+	}
+	
 	tex->m_key.append( path.data(), path.size() );
 	g_Textures->set( tex->m_key, tex );
 	

@@ -916,8 +916,10 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 	if( flags.contains( ":srgb" ) ) outusageflags |= TEXFLAGS_SRGB;
 	if( flags.contains( ":wrapx" ) ) outusageflags &= ~TEXFLAGS_CLAMP_X;
 	if( flags.contains( ":wrapy" ) ) outusageflags &= ~TEXFLAGS_CLAMP_Y;
+	if( flags.contains( ":wrapz" ) ) outusageflags &= ~TEXFLAGS_CLAMP_Z;
 	if( flags.contains( ":clampx" ) ) outusageflags |= TEXFLAGS_CLAMP_X;
 	if( flags.contains( ":clampy" ) ) outusageflags |= TEXFLAGS_CLAMP_Y;
+	if( flags.contains( ":clampz" ) ) outusageflags |= TEXFLAGS_CLAMP_Z;
 	if( flags.contains( ":nolerp" ) ) outusageflags &= ~TEXFLAGS_LERP;
 	if( flags.contains( ":lerp" ) ) outusageflags |= TEXFLAGS_LERP;
 	if( flags.contains( ":nomips" ) ) outusageflags &= ~TEXFLAGS_HASMIPS;
@@ -1074,6 +1076,22 @@ void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass,
 		name.append( ":SKIN" );
 	
 	VS = GR_GetVertexShader( name );
+}
+
+TextureHandle IGame::OnCreateSysTexture( const StringView& key )
+{
+	if( key == "sys:lut_default" )
+	{
+		uint32_t data[8] =
+		{
+			COLOR_RGB(0,0,0), COLOR_RGB(255,0,0), COLOR_RGB(0,255,0), COLOR_RGB(255,255,0),
+			COLOR_RGB(0,0,255), COLOR_RGB(255,0,255), COLOR_RGB(0,255,255), COLOR_RGB(255,255,255),
+		};
+		return GR_CreateTexture3D( 2, 2, 2, TEXFORMAT_RGBA8,
+			TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y | TEXFLAGS_CLAMP_Z, 1, data );
+	}
+	
+	return NULL;
 }
 
 bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags )

@@ -49,7 +49,7 @@ static void swap4b2ms( uint32_t* data, int size, int mask1, int shift1R, int mas
 	}
 }
 
-static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, int side, int mip )
+static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, const void* data, int side, int mip )
 {
 	int ret;
 	uint8_t *src, *dst;
@@ -73,6 +73,36 @@ static void texdatacopy( D3DLOCKED_RECT* plr, TextureInfo* texinfo, void* data, 
 			swap4b2ms( (uint32_t*) dst, copyrowsize / 4, 0xff0000, 16, 0xff, 16 );
 		src += copyrowsize;
 		dst += plr->Pitch;
+	}
+}
+
+static void texdatacopy( D3DLOCKED_BOX* plb, TextureInfo* texinfo, const void* data, int mip )
+{
+	int ret;
+	uint8_t *src, *dst;
+	size_t i, j, off, copyrowsize = 0, copyrowcount = 0, copyslicecount = 0;
+	TextureInfo mipTI;
+	
+	off = TextureData_GetMipDataOffset( texinfo, 0, mip );
+	ret = TextureInfo_GetMipInfo( texinfo, mip, &mipTI );
+	ASSERT( ret );
+	
+//	printf( "read mip=%d at %d\n", mip, off );
+	
+	src = ((uint8_t*)data) + off;
+	dst = (uint8_t*)plb->pBits;
+	TextureInfo_GetCopyDims( &mipTI, &copyrowsize, &copyrowcount, &copyslicecount );
+	
+	for( j = 0; j < copyslicecount; ++j )
+	{
+		for( i = 0; i < copyrowcount; ++i )
+		{
+			uint8_t* rdst = dst + plb->SlicePitch * j + plb->RowPitch * i;
+			memcpy( rdst, src, copyrowsize );
+			if( texinfo->format == TEXFORMAT_RGBA8 )
+				swap4b2ms( (uint32_t*) rdst, copyrowsize / 4, 0xff0000, 16, 0xff, 16 );
+			src += copyrowsize;
+		}
 	}
 }
 
@@ -105,6 +135,12 @@ struct D3D9Texture : SGRX_ITexture
 	{
 		LOG_FUNCTION;
 		
+		if( m_info.type != TEXTYPE_2D )
+		{
+			LOG_ERROR << "texture not 2D";
+			return false;
+		}
+		
 	//	RECT rct = { x, y, x + w, y + h };
 		D3DLOCKED_RECT lr;
 		HRESULT hr = m_ptr.tex2d->LockRect( mip, &lr, NULL, 0 );
@@ -124,6 +160,47 @@ struct D3D9Texture : SGRX_ITexture
 		}
 		
 		hr = m_ptr.tex2d->UnlockRect( mip );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to unlock D3D9 texture";
+			return false;
+		}
+		
+		return true;
+	}
+	
+	bool UploadRGBA8Part3D( void* data, int mip, int x, int y, int z, int w, int h, int d )
+	{
+		LOG_FUNCTION;
+		
+		if( m_info.type != TEXTYPE_VOLUME )
+		{
+			LOG_ERROR << "texture not 3D";
+			return false;
+		}
+		
+	//	RECT rct = { x, y, x + w, y + h };
+		D3DLOCKED_BOX lr;
+		HRESULT hr = m_ptr.vol->LockBox( mip, &lr, NULL, 0 );
+		if( FAILED( hr ) )
+		{
+			LOG_ERROR << "failed to lock D3D9 texture";
+			return false;
+		}
+		*(uint8_t**)&lr.pBits += lr.SlicePitch * z + lr.RowPitch * y + 4 * x;
+		
+		for( int k = 0; k < d; ++k )
+		{
+			for( int j = 0; j < h; ++j )
+			{
+				uint8_t* dst = (uint8_t*)lr.pBits + lr.RowPitch * j + lr.SlicePitch * k;
+				memcpy( dst, ((uint32_t*)data) + w * j + w * h * k, w * 4 );
+				if( m_info.format == TEXFORMAT_RGBA8 )
+					swap4b2ms( (uint32_t*) dst, w, 0xff0000, 16, 0xff, 16 );
+			}
+		}
+		
+		hr = m_ptr.vol->UnlockBox( mip );
 		if( FAILED( hr ) )
 		{
 			LOG_ERROR << "failed to unlock D3D9 texture";
@@ -258,7 +335,7 @@ struct D3D9Renderer : IRenderer
 	void SetViewport( int x0, int y0, int x1, int y1 );
 	void SetScissorRect( int* rect );
 	
-	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, void* data = NULL );
+	SGRX_ITexture* CreateTexture( TextureInfo* texinfo, const void* data );
 	SGRX_ITexture* CreateRenderTexture( TextureInfo* texinfo );
 	SGRX_IDepthStencilSurface* CreateDepthStencilSurface( int width, int height, int format );
 	bool CompileShader( const StringView& path, EShaderType shadertype, const StringView& code, ByteArray& outcomp, String& outerrors );
@@ -581,7 +658,7 @@ D3D9Texture::~D3D9Texture()
 	SAFE_RELEASE( m_ptr.base );
 }
 
-SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
+SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, const void* data )
 {
 	LOG_FUNCTION;
 	
@@ -635,7 +712,8 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 	{
 		IDirect3DCubeTexture9* d3dtex;
 		
-		hr = m_dev->CreateCubeTexture( texinfo->width, texinfo->mipcount, 0, texfmt2d3d( texinfo->format ), D3DPOOL_MANAGED, &d3dtex, NULL );
+		hr = m_dev->CreateCubeTexture( texinfo->width, texinfo->mipcount, 0,
+			texfmt2d3d( texinfo->format ), D3DPOOL_MANAGED, &d3dtex, NULL );
 		
 		if( data )
 		{
@@ -668,6 +746,44 @@ SGRX_ITexture* D3D9Renderer::CreateTexture( TextureInfo* texinfo, void* data )
 		T->m_renderer = this;
 		T->m_info = *texinfo;
 		T->m_ptr.cube = d3dtex;
+		m_ownTextures.set( T, true );
+		return T;
+	}
+	else if( texinfo->type == TEXTYPE_VOLUME )
+	{
+		IDirect3DVolumeTexture9* d3dtex;
+		
+		hr = m_dev->CreateVolumeTexture( texinfo->width, texinfo->height, texinfo->depth,
+			texinfo->mipcount, 0, texfmt2d3d( texinfo->format ), D3DPOOL_MANAGED, &d3dtex, NULL );
+		
+		if( data )
+		{
+			// load all mip levels into it
+			for( int mip = 0; mip < texinfo->mipcount; ++mip )
+			{
+				D3DLOCKED_BOX lr;
+				hr = d3dtex->LockBox( mip, &lr, NULL, D3DLOCK_DISCARD );
+				if( FAILED( hr ) )
+				{
+					LOG_ERROR << "failed to lock D3D9 texture";
+					return NULL;
+				}
+				
+				texdatacopy( &lr, texinfo, data, mip );
+				
+				hr = d3dtex->UnlockBox( mip );
+				if( FAILED( hr ) )
+				{
+					LOG_ERROR << "failed to unlock D3D9 texture";
+					return NULL;
+				}
+			}
+		}
+		
+		D3D9Texture* T = new D3D9Texture;
+		T->m_renderer = this;
+		T->m_info = *texinfo;
+		T->m_ptr.vol = d3dtex;
 		m_ownTextures.set( T, true );
 		return T;
 	}
@@ -1667,6 +1783,7 @@ void D3D9Renderer::_SetTextureInt( int slot, IDirect3DBaseTexture9* tex, uint32_
 		m_dev->SetSamplerState( slot, D3DSAMP_MIPFILTER, ( flags & TEXFLAGS_HASMIPS ) ? D3DTEXF_LINEAR : D3DTEXF_NONE );
 		m_dev->SetSamplerState( slot, D3DSAMP_ADDRESSU, ( flags & TEXFLAGS_CLAMP_X ) ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP );
 		m_dev->SetSamplerState( slot, D3DSAMP_ADDRESSV, ( flags & TEXFLAGS_CLAMP_Y ) ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP );
+		m_dev->SetSamplerState( slot, D3DSAMP_ADDRESSW, ( flags & TEXFLAGS_CLAMP_Z ) ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP );
 		m_dev->SetSamplerState( slot, D3DSAMP_SRGBTEXTURE, ( flags & TEXFLAGS_SRGB ) ? 1 : 0 );
 	}
 }
