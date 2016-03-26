@@ -2269,16 +2269,19 @@ void CoverSystem::EdgeMesh::CalcCoverLines()
 
 
 #define LC_FILE_COVR_NAME "COVR"
-#define LC_FILE_COVR_VERSION 0
+#define LC_FILE_COVR_VERSION 1
+// v1: added 'negative'
 struct LC_AICover
 {
 	StringView name;
 	Mat4 transform;
+	bool negative;
 	
 	template< class T > void Serialize( T& arch )
 	{
 		arch.stringView( name );
 		arch << transform;
+		arch( negative, arch.version >= 1, false );
 	}
 };
 struct LC_Chunk_COVR
@@ -2312,6 +2315,7 @@ struct LC_CoverSys_Compiler : IEditorSystemCompiler
 					ent.props.getprop("scale").get<Vec3>(),
 					DEG2RAD( ent.props.getprop("rotationXYZ").get<Vec3>() ),
 					ent.props.getprop("position").get<Vec3>() ),
+				ent.props.getprop("negative").get<bool>(),
 			};
 			data.covers.push_back( cover );
 			ent.remove = true;
@@ -2333,7 +2337,8 @@ bool CoverSystem::LoadChunk( const StringView& type, ByteView data )
 		br << chunk;
 		for( size_t i = 0; i < chunk.covers.size(); ++i )
 		{
-			AddAABB( chunk.covers[ i ].name, V3(-1), V3(1), chunk.covers[ i ].transform );
+			AddAABB( chunk.covers[ i ].name, V3(-1), V3(1),
+				chunk.covers[ i ].transform, chunk.covers[ i ].negative );
 		}
 		return true;
 	}
@@ -2351,7 +2356,7 @@ void CoverSystem::Clear()
 	m_edgeMeshesByName.clear();
 }
 
-void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
+void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx, bool negative )
 {
 	EdgeMesh* EM = new EdgeMesh;
 	EM->m_key = name;
@@ -2361,6 +2366,7 @@ void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx )
 	EM->obb_min = bbmin;
 	EM->obb_max = bbmax;
 	EM->enabled = true;
+	EM->negative = negative;
 	
 	Mat4 ntx;
 	mtx.GenNormalMatrix( ntx );
@@ -2431,6 +2437,22 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
 		if( EM->enabled == false )
 			continue;
 		if( EM->InAABB( bbmin, bbmax ) == false )
+			continue;
+		
+		// generate solids
+		{
+			CSCoverInfo::Shape sh = { cinfo.planes.size(), 0 };
+			cinfo.shapes.push_back( sh );
+			for( size_t i = 0; i < EM->planes.size(); ++i )
+			{
+				Vec4 P = EM->planes[ i ];
+				P.w += dist - SMALL_FLOAT;
+				cinfo.planes.push_back( P );
+				cinfo.shapes.last().numPlanes++;
+			}
+		}
+		
+		if( EM->negative )
 			continue;
 		
 		// produce lines
@@ -2520,19 +2542,6 @@ void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
 					cinfo.planes.push_back( P );
 					cinfo.shapes.last().numPlanes++;
 				}
-			}
-		}
-		
-		// generate solids
-		{
-			CSCoverInfo::Shape sh = { cinfo.planes.size(), 0 };
-			cinfo.shapes.push_back( sh );
-			for( size_t i = 0; i < EM->planes.size(); ++i )
-			{
-				Vec4 P = EM->planes[ i ];
-				P.w += dist - SMALL_FLOAT;
-				cinfo.planes.push_back( P );
-				cinfo.shapes.last().numPlanes++;
 			}
 		}
 	}

@@ -654,6 +654,7 @@ EXP_STRUCT CoverSystem : IGameLevelSystem
 		Vec3 bbmin;
 		Vec3 bbmax;
 		bool enabled;
+		bool negative;
 		
 		Mat4 inv_bbox_xf;
 		Vec3 obb_min;
@@ -669,7 +670,7 @@ EXP_STRUCT CoverSystem : IGameLevelSystem
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
 	GFW_EXPORT IEditorSystemCompiler* EditorGetSystemCompiler();
 	GFW_EXPORT void Clear();
-	GFW_EXPORT void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx );
+	GFW_EXPORT void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx, bool negative );
 	
 	GFW_EXPORT void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
 		float height, Vec3 viewer, bool visible, CSCoverInfo& cinfo );

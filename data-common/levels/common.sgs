@@ -110,6 +110,7 @@ AICover.ED_Icon = "editor/icons/trigger.png";
 function AICover.ED_PropInfo( eptr )
 {
 	PropInfo_Entity( eptr );
+	EE_AddFieldBool( eptr, "negative", "Is negative (excluding)?", false );
 }
 function AICover.EditorDrawWorld()
 {
