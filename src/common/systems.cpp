@@ -19,6 +19,7 @@ LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_syst
 		{ "MI_Object_Player", MI_Object_Player },
 		{ "MI_Object_Enemy", MI_Object_Enemy },
 		{ "MI_Object_Camera", MI_Object_Camera },
+		{ "MI_Object_Objective", MI_Object_Objective },
 		{ "MI_State_Normal", MI_State_Normal },
 		{ "MI_State_Suspicious", MI_State_Suspicious },
 		{ "MI_State_Alerted", MI_State_Alerted },
@@ -78,7 +79,9 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 	br.Reset();
 	
 	Mat4 lookat = Mat4::CreateLookAt( V3( viewPos.x, viewPos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
-	GR2D_SetViewMatrix( lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 ) );
+	Mat4 viewproj = lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 );
+	Mat4 inv_vp = viewproj.Inverted();
+	GR2D_SetViewMatrix( viewproj );
 	
 	GR2D_SetScissorRect( x0, y0, x1, y1 );
 	GR2D_SetViewport( x0, y0, x1, y1 );
@@ -116,6 +119,27 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 		{
 			br.Reset().SetTexture( m_tex_mapline )
 				.Col( 0.2f, 0.9f, 0.1f ).Box( viewpos.x, viewpos.y, 1, 1 );
+		}
+		else if( ( mii.type & MI_Mask_Object ) == MI_Object_Objective )
+		{
+			Vec2 tv = viewproj.TransformPos( V3( viewpos, 0 ) ).ToVec2();
+			Vec2 tv_abs = V2( fabsf( tv.x ), fabsf( tv.y ) );
+			br.Reset().SetTexture( m_tex_mapline ).Col( 0.9f, 0.2f, 0.1f );
+			if( tv_abs.x > 1 || tv_abs.y > 1 )
+			{
+				// render as line at the edge
+				tv /= TMAX( tv_abs.x, tv_abs.y );
+				Vec2 tv1 = tv * 0.9f;
+				br.TexLine(
+					inv_vp.TransformPos( V3( tv, 0 ) ).ToVec2(),
+					inv_vp.TransformPos( V3( tv1, 0 ) ).ToVec2(),
+					0.5f );
+			}
+			else
+			{
+				// render as regular point in map
+				br.Box( viewpos.x, viewpos.y, 2, 2 );
+			}
 		}
 		else
 		{

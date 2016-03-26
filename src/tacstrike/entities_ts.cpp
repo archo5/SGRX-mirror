@@ -1160,12 +1160,15 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 	int hx = GR_GetWidth() / 2;
 	int hy = GR_GetHeight() / 2;
 	Vec2 mouse_aim = V2(0);
-	if( lastFrameReset )
+	if( GetChar() && GetChar()->IsAlive() )
 	{
-		mouse_aim = Game_GetCursorPos() - V2( hx, hy );
+		if( lastFrameReset )
+		{
+			mouse_aim = Game_GetCursorPos() - V2( hx, hy );
+		}
+		lastFrameReset = true;
+		Game_SetCursorPos( hx, hy );
 	}
-	lastFrameReset = true;
-	Game_SetCursorPos( hx, hy );
 	m_angles.yaw -= mouse_aim.x * 0.01f;
 	m_angles.pitch -= mouse_aim.y * 0.01f;
 	

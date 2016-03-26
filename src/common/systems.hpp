@@ -82,6 +82,7 @@ enum EMapItemType
 	MI_Object_Player = 0x0100,
 	MI_Object_Enemy = 0x0200,
 	MI_Object_Camera = 0x0300,
+	MI_Object_Objective = 0x0400,
 	MI_State_Normal = 0x0001,
 	MI_State_Suspicious = 0x0002,
 	MI_State_Alerted = 0x0003,
