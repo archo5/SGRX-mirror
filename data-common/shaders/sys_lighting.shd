@@ -282,8 +282,12 @@ __CODE__
 #if LMODE == 1 || LMODE == 3 // -- static / decal
 	float3 LN = mul( mInvView, outNormal );
 	float4 contribData = TEXSAMPLE_2D( InstTex1, inTex1.xy );
+	// brightness compensation value
+	float BRDot = saturate( dot( outNormal, inNormal ) );
+	// contribution [dot] surface normal
+	float LMDot = saturate( dot( contribData.xyz * 2 - 1, LN ) );
 	totalDiffuse = TEXSAMPLE_2D( InstTex0, inTex1.xy ).rgb *
-		lerp( 1, saturate( dot( contribData.xyz * 2 - 1, LN ) ), contribData.w );
+		lerp( 1, LMDot / BRDot, contribData.w );
 #if LMODE == 3 // -- decal
 	totalDiffuse *= icol.rgb;
 #endif // LMODE == 3

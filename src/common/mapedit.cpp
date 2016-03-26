@@ -446,7 +446,12 @@ void LMNormalF32ToRGBA( uint32_t* pxout, Vec4* pxin, int width, int height )
 	{
 		Vec4 indata = pxin[ i ];
 		indata = V4( indata.ToVec3() * 0.5f + 0.5f, indata.w );
-		pxout[ i ] = COLOR_RGB( indata.x * 255, indata.y * 255, indata.z * 255 );
+		pxout[ i ] = COLOR_RGBA(
+			indata.x * 255,
+			indata.y * 255,
+			indata.z * 255,
+			indata.w * 255
+		);
 	}
 }
 
