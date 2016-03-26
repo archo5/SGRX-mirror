@@ -154,7 +154,10 @@ struct LC_PhysicsMesh
 
 // Level geometry system
 #define LC_FILE_GEOM_NAME "GEOM"
-#define LC_FILE_GEOM_VERSION 2
+// v1: added solid boxes
+// v2: added sky texture
+// v3: added cLUT texture
+#define LC_FILE_GEOM_VERSION 3
 struct LC_SolidBox
 {
 	Vec3 position;
@@ -176,6 +179,7 @@ struct LC_Chunk_Geom
 	LC_PhysicsMesh* physics;
 	Array< LC_SolidBox >* solidBoxes;
 	StringView skyTexture;
+	StringView clutTexture;
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -189,6 +193,10 @@ struct LC_Chunk_Geom
 			svh.stringView( skyTexture );
 		else if( T::IsReader )
 			skyTexture = SV();
+		if( svh.version >= 3 )
+			svh.stringView( clutTexture );
+		else if( T::IsReader )
+			clutTexture = SV();
 	}
 };
 

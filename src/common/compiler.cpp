@@ -1272,6 +1272,7 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 		&m_phyMesh,
 		&m_solidBoxes,
 		m_skyTexture,
+		m_clutTexture,
 	};
 	ByteWriter( &ba_geom ) << ch_geom;
 	{

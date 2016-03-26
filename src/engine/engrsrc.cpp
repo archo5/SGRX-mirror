@@ -1926,7 +1926,7 @@ TextureHandle GR_CreateTexture3D( int width, int height, int depth, int format, 
 {
 	LOG_FUNCTION;
 	
-	TextureInfo ti = { TEXTYPE_2D, mips, width, height, depth, format, flags };
+	TextureInfo ti = { TEXTYPE_VOLUME, mips, width, height, depth, format, flags };
 	SGRX_ITexture* tex = g_Renderer->CreateTexture( &ti, data );
 	if( !tex )
 	{
@@ -2412,6 +2412,7 @@ SceneHandle GR_CreateScene()
 	LOG_FUNCTION;
 	
 	SGRX_Scene* scene = new SGRX_Scene;
+	scene->clutTexture = GR_GetTexture( "sys:lut_default" );
 	
 	LOG << "Created scene";
 	return scene;

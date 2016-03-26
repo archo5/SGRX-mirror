@@ -263,6 +263,7 @@ SGRX_IFP32Handle SGRX_ImageFilter_Rearrange::Process( SGRX_ImageFP32* image, SGR
 {
 	SGRX_IFP32Handle out = image;
 	int numslices = image->GetWidth() / width;
+	printf( "%d slices; ", numslices );
 	if( numslices >= 1 )
 	{
 		out = new SGRX_ImageFP32( width, image->GetHeight(), numslices, 1 );
@@ -1667,7 +1668,7 @@ bool SGRX_SaveImage( const StringView& path, SGRX_ImageFP32* image, const SGRX_T
 				type = TEXTYPE_VOLUME;
 			TextureInfo info = { type, mips.size(),
 				image->GetWidth(), image->GetHeight(),
-				1, TEXFORMAT_RGBA8, flags };
+				image->GetDepth(), TEXFORMAT_RGBA8, flags };
 			filedata.append( &info, sizeof(info) );
 			uint32_t datasize = imagedata.size();
 			filedata.append( &datasize, sizeof(datasize) );

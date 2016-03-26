@@ -1846,7 +1846,8 @@ EdWorld::EdWorld() :
 	m_ctlAOColor( V3(0,0,0), 2, V3(0), V3(1,1,100) ),
 	m_ctlAONumSamples( 15, 0, 256 ),
 	m_ctlSampleDensity( 1.0f, 2, 0.01f, 100.0f ),
-	m_ctlSkyboxTexture( g_UITexturePicker )
+	m_ctlSkyboxTexture( g_UITexturePicker ),
+	m_ctlLUTTexture( g_UITexturePicker )
 {
 	tyname = "world";
 	m_ctlAmbientColor.caption = "Ambient color";
@@ -1867,6 +1868,7 @@ EdWorld::EdWorld() :
 	m_ctlAONumSamples.caption = "AO sample count";
 	m_ctlSampleDensity.caption = "Sample density";
 	m_ctlSkyboxTexture.caption = "Skybox texture";
+	m_ctlLUTTexture.caption = "Default post-process cLUT";
 	m_vd = GR_GetVertexDecl( LCVertex_DECL );
 	
 	Add( &m_ctlGroup );
@@ -1888,6 +1890,7 @@ EdWorld::EdWorld() :
 	m_ctlGroup.Add( &m_ctlAONumSamples );
 	m_ctlGroup.Add( &m_ctlSampleDensity );
 	m_ctlGroup.Add( &m_ctlSkyboxTexture );
+	m_ctlGroup.Add( &m_ctlLUTTexture );
 	
 	ReconfigureEntities( "" );
 	TestData();
@@ -1923,7 +1926,9 @@ void EdWorld::FLoad( sgsVariable obj )
 		m_ctlAONumSamples.SetValue( FLoadProp( lighting, "aoNumSamples", 15 ) );
 		m_ctlSampleDensity.SetValue( FLoadProp( lighting, "sampleDensity", 1.0f ) );
 		m_ctlSkyboxTexture.SetValue( FLoadProp( lighting, "skyboxTexture", SV() ) );
+		m_ctlLUTTexture.SetValue( FLoadProp( lighting, "clutTexture", SV() ) );
 		ReloadSkybox();
+		ReloadCLUT();
 	}
 	
 	sgsVariable objects = obj.getprop("objects");
@@ -1975,6 +1980,7 @@ sgsVariable EdWorld::FSave()
 		FSaveProp( lighting, "aoNumSamples", m_ctlAONumSamples.m_value );
 		FSaveProp( lighting, "sampleDensity", m_ctlSampleDensity.m_value );
 		FSaveProp( lighting, "skyboxTexture", m_ctlSkyboxTexture.m_value );
+		FSaveProp( lighting, "clutTexture", m_ctlLUTTexture.m_value );
 	}
 	
 	sgsVariable objects = FNewArray();
@@ -2045,6 +2051,10 @@ int EdWorld::OnEvent( EDGUIEvent* e )
 		{
 			ReloadSkybox();
 		}
+		if( e->target == &m_ctlLUTTexture )
+		{
+			ReloadCLUT();
+		}
 		break;
 	}
 	return EDGUILayoutRow::OnEvent( e );
@@ -2059,6 +2069,14 @@ void EdWorld::RegenerateMeshes()
 void EdWorld::ReloadSkybox()
 {
 	g_Level->GetScene()->skyTexture = GR_GetTexture( m_ctlSkyboxTexture.m_value );
+}
+
+void EdWorld::ReloadCLUT()
+{
+	TextureHandle t = GR_GetTexture( m_ctlLUTTexture.m_value );
+	if( !t )
+		t = GR_GetTexture( "sys:lut_default" );
+	g_Level->GetScene()->clutTexture = t;
 }
 
 void EdWorld::DrawWires_Objects( EdObject* hl, bool tonedown )
@@ -3218,6 +3236,7 @@ void EDGUIMainFrame::Level_Real_Compile()
 	LOG << "Compiling level";
 	LevelCache lcache( &g_EdLGCont->m_sampleTree );
 	lcache.m_skyTexture = g_EdWorld->m_ctlSkyboxTexture.m_value;
+	lcache.m_clutTexture = g_EdWorld->m_ctlLUTTexture.m_value;
 	
 	g_EdLGCont->UpdateCache( lcache );
 	

@@ -307,6 +307,7 @@ struct LevelCache
 	LC_PhysicsMesh m_phyMesh;
 	Array< LC_SolidBox > m_solidBoxes;
 	StringView m_skyTexture;
+	StringView m_clutTexture;
 	LC_PhysicsMesh m_navMesh;
 	SGRX_LightTree* m_sampleTree;
 	Array< Vec2 > m_mapLines;

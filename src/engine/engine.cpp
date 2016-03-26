@@ -783,10 +783,18 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 		br.SetTexture( rttHBLUR2 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
 		
 		ctrl->SetRenderTargets( NULL, 0, 0, 0, 1 );
+		{
+			const TextureInfo& clutInfo = scene->clutTexture.GetInfo();
+			br.ShaderData[0] = V4(
+				safe_fdiv( 0.5f, clutInfo.width ),
+				safe_fdiv( 0.5f, clutInfo.height ),
+				safe_fdiv( 0.5f, clutInfo.depth ), 0 );
+		}
 		br.SetTexture( 0, rttMAIN )
 		  .SetTexture( 2, rttVBLUR )
 		  .SetTexture( 3, rttVBLUR2 )
-		  .SetTexture( 4, rttDEPTH ).SetShader( pppsh_final ).VPQuad( info.viewport ).Flush();
+		  .SetTexture( 4, rttDEPTH )
+		  .SetTexture( 5, scene->clutTexture ).SetShader( pppsh_final ).VPQuad( info.viewport ).Flush();
 	}
 	else
 	{

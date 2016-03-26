@@ -615,6 +615,13 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 		m_level->GetScene()->skyTexture = GR_GetTexture( geom.skyTexture );
 	}
 	
+	// cLUT
+	if( geom.clutTexture )
+	{
+		LOG_FUNCTION_ARG( "CLUT" );
+		m_level->GetScene()->clutTexture = GR_GetTexture( geom.clutTexture );
+	}
+	
 	// LOAD FLARES
 	FlareSystem* FS = m_level->GetSystem<FlareSystem>();
 	if( FS )

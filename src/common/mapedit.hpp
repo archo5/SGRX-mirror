@@ -2285,6 +2285,7 @@ struct EdWorld : EDGUILayoutRow
 	void Reset();
 	void TestData();
 	void ReloadSkybox();
+	void ReloadCLUT();
 	void RegenerateMeshes();
 	void DrawWires_Objects( EdObject* hl, bool tonedown = false );
 	void DrawWires_Blocks( EdObject* hl );
@@ -2414,6 +2415,7 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIPropInt m_ctlAONumSamples;
 	EDGUIPropFloat m_ctlSampleDensity;
 	EDGUIPropRsrc m_ctlSkyboxTexture;
+	EDGUIPropRsrc m_ctlLUTTexture;
 	
 	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;

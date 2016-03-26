@@ -1505,6 +1505,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	Vec3 dirLightDir;
 	
 	TextureHandle skyTexture;
+	TextureHandle clutTexture;
 };
 
 struct SceneHandle : Handle< SGRX_Scene >
