@@ -270,6 +270,11 @@ struct LevelCache
 		int m_div;
 	};
 	
+	struct PathArea : Array< Vec2 >
+	{
+		float z0, z1;
+	};
+	
 	struct Solid : Array< Vec4 > {};
 	
 	LevelCache( SGRX_LightTree* sampleTree );
@@ -316,6 +321,7 @@ struct LevelCache
 	SGRX_LightTree* m_sampleTree;
 	Array< Vec2 > m_mapLines;
 	Array< LC_Map_Layer > m_mapLayers;
+	Array< PathArea > m_pathAreas;
 	ByteArray m_chunkData;
 };
 

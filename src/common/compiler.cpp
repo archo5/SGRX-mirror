@@ -1353,7 +1353,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	}
 	
 	Vec3 bmin = V3(FLT_MAX), bmax = V3(-FLT_MAX);
-	Array< Vec3 > recastVerts;
+	Array< Vec3 > recastVerts, areaVerts;
 	recastVerts.resize( m_navMesh.positions.size() );
 	for( size_t i = 0; i < m_navMesh.positions.size(); ++i )
 	{
@@ -1401,7 +1401,6 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	int regionMergeSize = 10;
 	float edgeMaxLen = 12.0f;
 	float edgeMaxError = 0.3f;
-	float vertsPerPoly = 6.0f;
 	float detailSampleDist = 3.0f;
 	float detailSampleMaxError = 0.5f;
 	SamplePartitionType partitionType = SAMPLE_PARTITION_WATERSHED;
@@ -1419,7 +1418,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	cfg.maxSimplificationError = edgeMaxError;
 	cfg.minRegionArea = (int)rcSqr(regionMinSize);		// Note: area = size*size
 	cfg.mergeRegionArea = (int)rcSqr(regionMergeSize);	// Note: area = size*size
-	cfg.maxVertsPerPoly = (int)vertsPerPoly;
+	cfg.maxVertsPerPoly = DT_VERTS_PER_POLYGON;
 	cfg.detailSampleDist = detailSampleDist < 0.9f ? 0 : cellSize * detailSampleDist;
 	cfg.detailSampleMaxError = cellHeight * detailSampleMaxError;
 	
@@ -1478,7 +1477,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	// Step 3. Filter walkables surfaces.
 	//
 	
-	// Once all geoemtry is rasterized, we do initial pass of filtering to
+	// Once all geometry is rasterized, we do initial pass of filtering to
 	// remove unwanted overhangs caused by the conservative rasterization
 	// as well as filter spans where the character cannot possibly stand.
 	rcFilterLowHangingWalkableObstacles( prcctx, cfg.walkableClimb, *rchf );
@@ -1515,14 +1514,17 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 		goto fail;
 	}
 	
-#if 0
-	TODO
-	
-	// (Optional) Mark areas.
-	const ConvexVolume* vols = m_geom->getConvexVolumes();
-	for (int i  = 0; i < m_geom->getConvexVolumeCount(); ++i)
-		rcMarkConvexPolyArea(prcctx, vols[i].verts, vols[i].nverts, vols[i].hmin, vols[i].hmax, (unsigned char)vols[i].area, *cchf);
-#endif
+	for( size_t i = 0; i < m_pathAreas.size(); ++i )
+	{
+		const PathArea& PA = m_pathAreas[ i ];
+		areaVerts.resize( PA.size() );
+		for( size_t v = 0; v < PA.size(); ++v )
+		{
+			areaVerts[ v ] = V3( PA[ v ].x, 0, PA[ v ].y );
+		}
+		rcMarkConvexPolyArea( prcctx, &areaVerts.data()->x, areaVerts.size(),
+			PA.z0, PA.z1, 0 /* AREA ID [0-63] */, *cchf );
+	}
 	
 	// Partition the heightfield so that we can use simple algorithm later to triangulate the walkable areas.
 	// There are 3 martitioning methods, each with some pros and cons:
@@ -1649,9 +1651,6 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	// (Optional) Step 8. Create Detour data from Recast poly mesh.
 	//
 	
-	// The GUI may allow more max points per polygon than Detour can handle.
-	// Only build the detour navmesh if we do not exceed the limit.
-	if (cfg.maxVertsPerPoly <= DT_VERTS_PER_POLYGON)
 	{
 		unsigned char* navData = 0;
 		int navDataSize = 0;
@@ -1659,7 +1658,7 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 		// Update poly flags from areas.
 		for (int i = 0; i < pmesh->npolys; ++i)
 		{
-			pmesh->flags[i] = 1;
+			pmesh->flags[ i ] = pmesh->areas[ i ] > 0 ? 1 : 0;
 		}
 		
 		dtNavMeshCreateParams params;

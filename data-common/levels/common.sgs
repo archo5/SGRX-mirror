@@ -120,6 +120,22 @@ function AICover.EditorDrawWorld()
 }
 
 
+global AIPathArea = {};
+ENTITY( "AIPathArea", "Entity" );
+
+AIPathArea.ED_Icon = "editor/icons/trigger.png";
+function AIPathArea.ED_PropInfo( eptr )
+{
+	PropInfo_XForm( eptr );
+}
+function AIPathArea.EditorDrawWorld()
+{
+	BR_Reset();
+	BR_Col( 0.2, 0.6, 0.8, 0.8 );
+	BR_AABB( -1, 1, this.transform );
+}
+
+
 global AIRoom = {};
 ENTITY( "AIRoom", "Entity" );
 function AIRoom.Init()

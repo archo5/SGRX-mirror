@@ -3276,6 +3276,24 @@ void EDGUIMainFrame::Level_Real_Compile()
 			lcache.m_mapLayers.push_back( ml );
 			EE.remove = true;
 		}
+		if( EE.type == "AIPathArea" )
+		{
+			Mat4 xf = Mat4::CreateSRT(
+				EE.props["scale"].get<Vec3>(),
+				EE.props["rotationXYZ"].get<Vec3>(),
+				EE.props["position"].get<Vec3>() );
+			
+			LevelCache::PathArea PA;
+			PA.push_back( xf.TransformPos( V3(-1,1,0) ).ToVec2() );
+			PA.push_back( xf.TransformPos( V3(1,1,0) ).ToVec2() );
+			PA.push_back( xf.TransformPos( V3(1,-1,0) ).ToVec2() );
+			PA.push_back( xf.TransformPos( V3(-1,-1,0) ).ToVec2() );
+			PA.z0 = xf.TransformPos( V3(0,0,-1) ).z;
+			PA.z1 = xf.TransformPos( V3(0,0,1) ).z;
+			
+			lcache.m_pathAreas.push_back( PA );
+			EE.remove = true;
+		}
 		
 		for( size_t i = 0; i < ESCs.size(); ++i )
 		{
