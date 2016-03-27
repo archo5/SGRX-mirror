@@ -1065,8 +1065,7 @@ void GameUISystem::MoveFocus( float x, float y )
 {
 	FocusSearch fs( m_kbdFocusCtrl, V2( x, y ) );
 	( m_focusRootCtrl ? m_focusRootCtrl : m_rootCtrl )->_FindBestFocus( fs );
-	if( fs.bestctrl )
-		m_kbdFocusCtrl = fs.bestctrl;
+	m_kbdFocusCtrl = fs.bestctrl;
 }
 
 void GameUISystem::PrecacheTexture( const StringView& texname )
