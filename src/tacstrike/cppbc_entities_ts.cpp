@@ -264,6 +264,13 @@ static int _sgs_method__TSCharacter__InitializeMesh( SGS_CTX )
 	data->InitializeMesh( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
+static int _sgs_method__TSCharacter__IsTouchingPoint( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, IsTouchingPoint ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->IsTouchingPoint( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) )); return 1;
+}
+
 static int _sgs_method__TSCharacter__IsPlayingAnim( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, IsPlayingAnim ) ) return 0;
@@ -460,6 +467,7 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "Reset", _sgs_method__TSCharacter__Reset },
 	{ "SetPlayerMode", _sgs_method__TSCharacter__SetPlayerMode },
 	{ "InitializeMesh", _sgs_method__TSCharacter__InitializeMesh },
+	{ "IsTouchingPoint", _sgs_method__TSCharacter__IsTouchingPoint },
 	{ "IsPlayingAnim", _sgs_method__TSCharacter__IsPlayingAnim },
 	{ "PlayAnim", _sgs_method__TSCharacter__PlayAnim },
 	{ "StopAnim", _sgs_method__TSCharacter__StopAnim },

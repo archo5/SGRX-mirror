@@ -468,7 +468,8 @@ void EdMeshPath::RegenerateMesh()
 		S.rflags = 0
 			| (m_isLMSolid ? LM_MESHINST_CASTLMS : 0)
 			| (m_isPhySolid ? LM_MESHINST_SOLID : 0)
-			| (m_isDynamic ? LM_MESHINST_DYNLIT : 0);
+			| (m_isDynamic ? LM_MESHINST_DYNLIT : 0)
+			| (m_skipCut ? LM_MESHINST_ED_SKIPCUT : 0);
 		S.lmdetail = m_lmquality;
 		S.decalLayer = 0;
 		
@@ -752,6 +753,7 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_blkGroup( NULL ),
 	m_isLMSolid( true ),
 	m_isPhySolid( false ),
+	m_skipCut( false ),
 	m_doSmoothing( false ),
 	m_isDynamic( false ),
 	m_lmquality( 1, 2, 0.01f, 100.0f ),
@@ -768,6 +770,7 @@ EDGUIMeshPathProps::EDGUIMeshPathProps() :
 	m_blkGroup.caption = "Group";
 	m_isLMSolid.caption = "Casts lightmap shadows?";
 	m_isPhySolid.caption = "Is solid?";
+	m_skipCut.caption = "Skip cutting";
 	m_doSmoothing.caption = "Perform smoothing?";
 	m_isDynamic.caption = "Is dynamic?";
 	m_lmquality.caption = "Lightmap quality";
@@ -794,6 +797,7 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_group.Add( &m_blkGroup );
 	m_group.Add( &m_isLMSolid );
 	m_group.Add( &m_isPhySolid );
+	m_group.Add( &m_skipCut );
 	m_group.Add( &m_doSmoothing );
 	m_group.Add( &m_isDynamic );
 	m_group.Add( &m_lmquality );
@@ -808,6 +812,7 @@ void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
 	m_pos.SetValue( mpath->m_position );
 	m_isLMSolid.SetValue( mpath->m_isLMSolid );
 	m_isPhySolid.SetValue( mpath->m_isPhySolid );
+	m_skipCut.SetValue( mpath->m_skipCut );
 	m_doSmoothing.SetValue( mpath->m_doSmoothing );
 	m_isDynamic.SetValue( mpath->m_isDynamic );
 	m_lmquality.SetValue( mpath->m_lmquality );
@@ -846,6 +851,7 @@ int EDGUIMeshPathProps::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_meshName ) m_out->m_meshName = m_meshName.m_value;
 		else if( e->target == &m_isLMSolid ) m_out->m_isLMSolid = m_isLMSolid.m_value;
 		else if( e->target == &m_isPhySolid ) m_out->m_isPhySolid = m_isPhySolid.m_value;
+		else if( e->target == &m_skipCut ) m_out->m_skipCut = m_skipCut.m_value;
 		else if( e->target == &m_doSmoothing ) m_out->m_doSmoothing = m_doSmoothing.m_value;
 		else if( e->target == &m_isDynamic ) m_out->m_isDynamic = m_isDynamic.m_value;
 		else if( e->target == &m_lmquality ) m_out->m_lmquality = m_lmquality.m_value;

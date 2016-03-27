@@ -115,6 +115,8 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
 	
+	SGS_METHOD bool IsTouchingPoint( Vec3 p, float hmargin, float vmargin ) const;
+	
 	SGS_METHOD bool IsPlayingAnim() const { return m_animTimeLeft > 0; }
 	SGS_METHOD void PlayAnim( StringView name, bool loop );
 	SGS_METHOD void StopAnim();
@@ -126,11 +128,11 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	void Hit( float pwr );
 	virtual void OnDeath();
 	
-	SGS_METHOD Vec3 GetQueryPosition_FT(){ return m_bodyHandle->GetPosition(); }
-	SGS_METHOD Vec3 GetPosition_FT(){ return m_ivPos.curr; }
-	SGS_METHOD Vec3 GetViewDir_FT(){ return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 ); }
-	SGS_METHOD Vec3 GetAimDir_FT(){ return m_aimDir.ToVec3(); }
-	Mat4 GetBulletOutputMatrix();
+	SGS_METHOD Vec3 GetQueryPosition_FT() const { return m_bodyHandle->GetPosition(); }
+	SGS_METHOD Vec3 GetPosition_FT() const { return m_ivPos.curr; }
+	SGS_METHOD Vec3 GetViewDir_FT() const { return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 ); }
+	SGS_METHOD Vec3 GetAimDir_FT() const { return m_aimDir.ToVec3(); }
+	Mat4 GetBulletOutputMatrix() const;
 	
 	SGS_METHOD Vec3 GetQueryPosition(){ return GetWorldPosition() + V3(0,0,0.5f); }
 	SGS_METHOD Vec3 GetAimDir(){ return m_interpAimDir; }
@@ -152,6 +154,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	bool m_isOnGround;
 	float m_jumpTimeout;
 	float m_canJumpTimeout;
+	Vec2 m_cachedBodyExtOffset;
 	
 	// if current body matches this pointer, relative position to body is preserved
 	// {

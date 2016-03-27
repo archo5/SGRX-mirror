@@ -289,7 +289,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	ENGINE_EXPORT bool GetJointMatrix( int which, bool parent, Mat4& outwm );
 	ENGINE_EXPORT void _GetHitboxMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
-	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace = true );
+	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace = true ) const;
 	ENGINE_EXPORT bool ApplyMask( const StringView& name, Animator* tgt );
 	ENGINE_EXPORT int FindAttachment( const StringView& name );
 	ENGINE_EXPORT void SortEnsureAttachments( const StringView* atchnames, int count );

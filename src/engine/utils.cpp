@@ -835,7 +835,7 @@ const Mat4 Mat4::Identity =
 
 
 
-float PointLineDistance( const Vec3& pt, const Vec3& l0, const Vec3& l1 )
+Vec3 PointLineDistance3( const Vec3& pt, const Vec3& l0, const Vec3& l1 )
 {
 	Vec3 lN = ( l1 - l0 ).Normalized();
 	float lD = Vec3Dot( lN, pt ); // point projections
@@ -846,7 +846,7 @@ float PointLineDistance( const Vec3& pt, const Vec3& l0, const Vec3& l1 )
 	float q = fabsf( dst ) > SMALL_FLOAT ? ( lD - lD0 ) / dst : 0.5f;
 	q = clamp( q, 0, 1 ); // limit projection factor within line
 	Vec3 cp = TLERP( l0, l1, q ); // closest point
-	return ( cp - pt ).Length(); // distance from closest point
+	return pt - cp; // distance from closest point
 }
 
 float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 )

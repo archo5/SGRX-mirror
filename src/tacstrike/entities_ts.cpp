@@ -227,7 +227,7 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
 	m_health( 100 ), m_armor( 0 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
-	m_jumpTimeout(0), m_canJumpTimeout(0),
+	m_jumpTimeout(0), m_canJumpTimeout(0), m_cachedBodyExtOffset(V2(0)),
 	m_groundBody(NULL), m_groundLocalPos(V3(0)), m_groundWorldPos(V3(0)),
 	m_ivPos( V3(0) ), m_ivAimDir( V3(1,0,0) ),
 	m_turnAngle( 0 ),
@@ -355,6 +355,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
 	
 	Vec2 totalShape2Offset = rundir.Normalized() * 0.2f + aimdir.ToVec2().Normalized() * 0.4f;
+	m_cachedBodyExtOffset = totalShape2Offset;
 	m_bodyHandle->GetShape()->UpdateChildShapeTransform( 1,
 		V3( totalShape2Offset.x, totalShape2Offset.y, 0 ) );
 	m_bodyHandle->FlushContacts();
@@ -799,6 +800,17 @@ void TSCharacter::InterruptAction( bool force )
 	m_actState.target = NULL;
 }
 
+bool TSCharacter::IsTouchingPoint( Vec3 p, float hmargin, float vmargin ) const
+{
+	Vec3 p0 = GetPosition_FT() + V3(0,0,1);
+	Vec3 p1 = p0 + V3( m_cachedBodyExtOffset, 0 );
+	Vec3 dist = PointLineDistance3( p, p0, p1 );
+	// horizontal/vertical signed distances
+	float hsd = dist.ToVec2().Length() - 0.3f - hmargin;
+	float vsd = fabsf( dist.z ) - 1.0f - vmargin;
+	return hsd <= 0 && vsd <= 0;
+}
+
 void TSCharacter::PlayAnim( StringView name, bool loop )
 {
 	AnimHandle anim = GR_GetAnim( name );
@@ -879,7 +891,7 @@ void TSCharacter::Hit( float pwr )
 	}
 }
 
-Mat4 TSCharacter::GetBulletOutputMatrix()
+Mat4 TSCharacter::GetBulletOutputMatrix() const
 {
 	Mat4 out = m_animChar.m_cachedMeshInst->matrix;
 	for( size_t i = 0; i < m_animChar.attachments.size(); ++i )

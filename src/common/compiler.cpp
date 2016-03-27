@@ -630,8 +630,9 @@ void LevelCache::AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
 	P.m_mtlname = mtlname;
 	P.m_lightmap = lm;
 	P.m_lmalloc = -1;
-	P.m_flags = flags;
+	P.m_flags = flags & ~LM_MESHINST_ED__FLAGS;
 	P.m_decalLayer = decalLayer;
+	P.m_skipCut = ( flags & LM_MESHINST_ED_SKIPCUT ) != 0;
 }
 
 size_t LevelCache::AddSolid( const Vec4* planes, int count )
@@ -758,6 +759,8 @@ void LevelCache::RemoveHiddenSurfaces()
 	for( size_t p = 0; p < m_meshParts.size(); ++p )
 	{
 		Part& P = m_meshParts[ p ];
+		if( P.m_skipCut )
+			continue;
 		
 		// load the polygons
 		m_polies.clear();
@@ -1249,10 +1252,10 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 {
 	FS_DirCreate( path );
 	
-	GatherMeshes();
+	LOG_TIME( GatherMeshes() );
 	
-	RemoveHiddenSurfaces();
-	GenerateLines();
+	LOG_TIME( RemoveHiddenSurfaces() );
+	LOG_TIME( GenerateLines() );
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{

@@ -562,14 +562,14 @@ bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 	return true;
 }
 
-bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace )
+bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace ) const
 {
 	outwm = worldspace ? m_cachedMeshInst->matrix : Mat4::Identity;
 	if( !m_cachedMesh )
 		return false;
 	if( which < 0 || which >= (int) attachments.size() )
 		return false;
-	Attachment& AT = attachments[ which ];
+	const Attachment& AT = attachments[ which ];
 	
 	if( AT.bone_id >= 0 )
 	{

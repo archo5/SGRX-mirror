@@ -1200,7 +1200,11 @@ ENGINE_EXPORT Quat TransformQuaternion( const Quat& q, const Mat4& m );
 
 
 
-ENGINE_EXPORT float PointLineDistance( const Vec3& pt, const Vec3& l0, const Vec3& l1 );
+ENGINE_EXPORT Vec3 PointLineDistance3( const Vec3& pt, const Vec3& l0, const Vec3& l1 );
+FINLINE float PointLineDistance( const Vec3& pt, const Vec3& l0, const Vec3& l1 )
+{
+	return PointLineDistance3( pt, l0, l1 ).Length();
+}
 ENGINE_EXPORT float PointTriangleDistance( const Vec3& pt, const Vec3& t0, const Vec3& t1, const Vec3& t2 );
 ENGINE_EXPORT bool TriangleIntersect( const Vec3& ta0, const Vec3& ta1, const Vec3& ta2, const Vec3& tb0, const Vec3& tb1, const Vec3& tb2 );
 ENGINE_EXPORT bool TriangleAABBIntersect( const Vec3& t0, const Vec3& t1, const Vec3& t2, const Vec3& bbmin, const Vec3& bbmax );
@@ -3259,6 +3263,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 #define LOG_XTD( x ) SGRX_Log::MakeLoggable( x )
 #define LOG_FUNCTION SGRX_Log::RegFunc __regfn( __FUNCTION__, __FILE__, __LINE__ )
 #define LOG_FUNCTION_ARG( x ) SGRX_Log::RegFunc __regfn( __FUNCTION__, __FILE__, __LINE__, x )
+#define LOG_TIME( x ) { double _t0 = sgrx_hqtime(); { x; } double _t1 = sgrx_hqtime(); \
+	LOG << "TIME[" #x "]: " << ( _t1 - _t0 ); }
 
 
 

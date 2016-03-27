@@ -168,6 +168,9 @@ typedef Handle< MapMaterial > MapMaterialHandle;
 typedef HashTable< StringView, MapMaterialHandle > MapMaterialMap;
 
 
+#define LM_MESHINST_ED__FLAGS 0xffff0000
+#define LM_MESHINST_ED_SKIPCUT 0x80000000
+
 
 #define LCVertex_DECL "pf3nf3tf4cb40f21f2"
 
@@ -253,6 +256,7 @@ struct LevelCache
 		int m_lmalloc;
 		uint32_t m_flags;
 		int m_decalLayer; // -1 if none
+		bool m_skipCut;
 	};
 	
 	struct Mesh

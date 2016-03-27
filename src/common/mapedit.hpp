@@ -1729,7 +1729,7 @@ enum EMPATH_TurnMode
 struct EdMeshPath : EdObject
 {
 	EdMeshPath() : EdObject( ObjType_MeshPath ), m_position( V3(0) ), m_lmquality( 1 ),
-		m_isLMSolid( true ), m_isPhySolid( false ), m_doSmoothing( false ), m_isDynamic( false ),
+		m_isLMSolid( true ), m_isPhySolid( false ), m_skipCut( false ), m_doSmoothing( false ), m_isDynamic( false ),
 		m_intervalScaleOffset(V2(1,0)), m_pipeModeOvershoot(0),
 		m_rotAngles( V3(0) ), m_scaleUni( 1 ), m_scaleSep( V3(1) ), m_turnMode(0)
 	{
@@ -1774,6 +1774,7 @@ struct EdMeshPath : EdObject
 		arch << m_lmquality;
 		arch( m_isLMSolid, arch.version >= 9, true );
 		arch << m_isPhySolid;
+		arch << m_skipCut; // - 27.03.2016
 		arch << m_doSmoothing;
 		arch << m_isDynamic;
 		arch << m_intervalScaleOffset;
@@ -1795,6 +1796,7 @@ struct EdMeshPath : EdObject
 		m_lmquality = FLoadProp( data, "lmquality", 1.0f );
 		m_isLMSolid = FLoadProp( data, "isLMSolid", true );
 		m_isPhySolid = FLoadProp( data, "isPhySolid", false );
+		m_skipCut = FLoadProp( data, "skipCut", false );
 		m_doSmoothing = FLoadProp( data, "doSmoothing", false );
 		m_isDynamic = FLoadProp( data, "isDynamic", false );
 		m_intervalScaleOffset = FLoadProp( data, "intervalScaleOffset", V2(1,0) );
@@ -1836,6 +1838,7 @@ struct EdMeshPath : EdObject
 		FSaveProp( out, "lmquality", m_lmquality );
 		FSaveProp( out, "isLMSolid", m_isLMSolid );
 		FSaveProp( out, "isPhySolid", m_isPhySolid );
+		FSaveProp( out, "skipCut", m_skipCut );
 		FSaveProp( out, "doSmoothing", m_doSmoothing );
 		FSaveProp( out, "isDynamic", m_isDynamic );
 		FSaveProp( out, "intervalScaleOffset", m_intervalScaleOffset );
@@ -1867,6 +1870,7 @@ struct EdMeshPath : EdObject
 	float m_lmquality;
 	bool m_isLMSolid;
 	bool m_isPhySolid;
+	bool m_skipCut;
 	bool m_doSmoothing;
 	bool m_isDynamic;
 	Vec2 m_intervalScaleOffset;
@@ -1927,6 +1931,7 @@ struct EDGUIMeshPathProps : EDGUILayoutRow
 	EDGUIPropRsrc m_blkGroup;
 	EDGUIPropBool m_isLMSolid;
 	EDGUIPropBool m_isPhySolid;
+	EDGUIPropBool m_skipCut;
 	EDGUIPropBool m_doSmoothing;
 	EDGUIPropBool m_isDynamic;
 	EDGUIPropFloat m_lmquality;
