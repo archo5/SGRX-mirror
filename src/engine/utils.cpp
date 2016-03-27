@@ -1973,12 +1973,17 @@ bool FileExists( const StringView& path )
 	return path;
 }
 
+time_t ToUTCTime( time_t v )
+{
+	return mktime( gmtime( &v ) );
+}
+
 uint32_t FileModTime( const StringView& path )
 {
 	struct stat info;
 	if( stat( StackPath( path ), &info ) == -1 )
 		return 0;
-	return TMAX( info.st_ctime, info.st_mtime );
+	return ToUTCTime( TMAX( info.st_ctime, info.st_mtime ) );
 }
 
 bool LoadItemListFile( const StringView& path, ItemList& out )
