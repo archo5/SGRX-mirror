@@ -193,7 +193,7 @@ bool SGRX_ImageFilter_Resize::Parse( ConfigReader& cread )
 		else if( key == "HEIGHT" )
 			height = String_ParseInt( value );
 		else if( key == "DEPTH" )
-			height = String_ParseInt( value );
+			depth = String_ParseInt( value );
 		else if( key == "SRGB" )
 			srgb = String_ParseBool( value );
 		else if( key == "FILTER_END" )
