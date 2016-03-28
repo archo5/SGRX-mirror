@@ -353,6 +353,7 @@ EXP_STRUCT MultiEntity : Entity, SGRX_MeshInstUserData
 	GFW_EXPORT MeshHandle sgsGetMI0Mesh();
 	GFW_EXPORT void sgsSetMI0Mesh( MeshHandle m );
 	SGS_PROPERTY_FUNC( READ sgsGetMI0Mesh WRITE sgsSetMI0Mesh ) SGS_ALIAS( MeshHandle mi0mesh );
+	SGS_PROPERTY Vec3 mi0sampleOffset;
 	
 	// - particle system
 	GFW_EXPORT SGS_METHOD void PSCreate( int i, StringView path );

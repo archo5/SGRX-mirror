@@ -3921,6 +3921,7 @@ int MultiEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->name ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		SGS_CASE( "mi0mesh" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->sgsGetMI0Mesh() ); return SGS_SUCCESS; }
+		SGS_CASE( "mi0sampleOffset" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->mi0sampleOffset ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<MultiEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -3946,6 +3947,7 @@ int MultiEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "name" ){ static_cast<MultiEntity*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ static_cast<MultiEntity*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "mi0mesh" ){ static_cast<MultiEntity*>( obj->data )->sgsSetMI0Mesh( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "mi0sampleOffset" ){ static_cast<MultiEntity*>( obj->data )->mi0sampleOffset = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<MultiEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -3978,7 +3980,8 @@ int MultiEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->name, depth ).push( C ); }
 		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->m_id, depth ).push( C ); }
 		{ sgs_PushString( C, "\nmi0mesh = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->sgsGetMI0Mesh(), depth ).push( C ); }
-		sgs_StringConcat( C, 40 );
+		{ sgs_PushString( C, "\nmi0sampleOffset = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->mi0sampleOffset, depth ).push( C ); }
+		sgs_StringConcat( C, 42 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

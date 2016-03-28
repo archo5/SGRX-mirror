@@ -292,6 +292,13 @@ static int _sgs_method__TSCharacter__StopAnim( SGS_CTX )
 	data->StopAnim(  ); return 0;
 }
 
+static int _sgs_method__TSCharacter__Hit( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, Hit ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Hit( sgs_GetVar<float>()(C,0) ); return 0;
+}
+
 static int _sgs_method__TSCharacter__GetQueryPosition_FT( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetQueryPosition_FT ) ) return 0;
@@ -471,6 +478,7 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "IsPlayingAnim", _sgs_method__TSCharacter__IsPlayingAnim },
 	{ "PlayAnim", _sgs_method__TSCharacter__PlayAnim },
 	{ "StopAnim", _sgs_method__TSCharacter__StopAnim },
+	{ "Hit", _sgs_method__TSCharacter__Hit },
 	{ "GetQueryPosition_FT", _sgs_method__TSCharacter__GetQueryPosition_FT },
 	{ "GetPosition_FT", _sgs_method__TSCharacter__GetPosition_FT },
 	{ "GetViewDir_FT", _sgs_method__TSCharacter__GetViewDir_FT },

@@ -125,7 +125,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	virtual void Reset();
 	
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
-	void Hit( float pwr );
+	SGS_METHOD void Hit( float pwr );
 	virtual void OnDeath();
 	
 	SGS_METHOD Vec3 GetQueryPosition_FT() const { return m_bodyHandle->GetPosition(); }

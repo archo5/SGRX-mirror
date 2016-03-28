@@ -246,6 +246,9 @@ function Light.EditorDrawWorld()
 		BR_Col( 0.9, 0.5, 0.1, 0.5 );
 		BR_SphereOutline( p, r2, 32 );
 	}
+	
+	BR_Col( 0.9, 0.8, 0.1, 1 );
+	BR_Tick( this.LocalToWorld( this.flareOffset ), 0.1 );
 }
 
 

@@ -419,7 +419,8 @@ void MultiEnt_InstallAPI( SGS_CTX )
 	sgs_Msg( C, SGS_WARNING, "no decal sys" ); ret; }
 
 
-MultiEntity::MultiEntity( GameLevel* lev ) : Entity( lev )
+MultiEntity::MultiEntity( GameLevel* lev ) : Entity( lev ),
+	mi0sampleOffset( V3(0) )
 {
 	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
@@ -473,7 +474,7 @@ void MultiEntity::PreRender()
 	for( int i = 0; i < MULTIENT_NUM_SLOTS; ++i )
 	{
 		if( m_meshes[ i ] )
-			m_level->LightMesh( m_meshes[ i ] );
+			m_level->LightMesh( m_meshes[ i ], i == 0 ? mi0sampleOffset : V3(0) );
 		if( m_partSys[ i ] )
 			m_partSys[ i ]->PreRender();
 	}
