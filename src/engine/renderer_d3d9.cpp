@@ -317,8 +317,8 @@ struct D3D9Renderer : IRenderer
 {
 	D3D9Renderer()
 	{
-		m_world.SetIdentity();
-		m_view.SetIdentity();
+		m_world = Mat4::Identity;
+		m_view = Mat4::Identity;
 		m_crs.InitOpposite();
 		memset( &m_viewport, 0, sizeof(m_viewport) );
 	}

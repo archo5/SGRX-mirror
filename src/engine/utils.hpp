@@ -813,18 +813,6 @@ struct ENGINE_EXPORT Mat4
 	
 	static const Mat4 Identity;
 	
-	void SetIdentity()
-	{
-		for( int i = 0; i < 4; ++i )
-			for( int j = 0; j < 4; ++j )
-				m[i][j] = i == j;
-	}
-	static Mat4 CreateIdentity()
-	{
-		Mat4 m;
-		m.SetIdentity();
-		return m;
-	}
 	static Mat4 CreateFromPtr( const float* v16f )
 	{
 		Mat4 m;
@@ -954,8 +942,7 @@ struct ENGINE_EXPORT Mat4
 	}
 	static FINLINE Mat4 CreateTranslation( float x, float y, float z )
 	{
-		Mat4 out;
-		out.SetIdentity();
+		Mat4 out = Identity;
 		out.m[3][0] = x;
 		out.m[3][1] = y;
 		out.m[3][2] = z;
@@ -1133,7 +1120,7 @@ struct ENGINE_EXPORT Mat4
 	
 	void Scale( Vec3 scale )
 	{
-		SetIdentity();
+		*this = Identity;
 		m[0][0] = scale.x;
 		m[1][1] = scale.y;
 		m[2][2] = scale.z;

@@ -800,7 +800,7 @@ bool SGRX_IMesh::RecalcBoneMatrices()
 		if( !skinOffsets[ b ].InvertTo( m_bones[ b ].invSkinOffset ) )
 		{
 			LOG_WARNING << "RecalcBoneMatrices: failed to invert skin offset matrix #" << b;
-			m_bones[ b ].invSkinOffset.SetIdentity();
+			m_bones[ b ].invSkinOffset = Mat4::Identity;
 		}
 	}
 	return true;
@@ -1428,7 +1428,7 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	sortidx( 0 ),
 	m_invalid( true )
 {
-	matrix.SetIdentity();
+	matrix = Mat4::Identity;
 	for( int i = 0; i < MAX_MI_CONSTANTS; ++i )
 		constants[ i ] = Vec4::Create( 0 );
 }

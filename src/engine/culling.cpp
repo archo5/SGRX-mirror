@@ -26,8 +26,7 @@ static void get_frustum_from_camera( const SGRX_Camera* CAM, SGRX_CullSceneCamer
 	out->frustum.znear = CAM->znear;
 	out->frustum.zfar = CAM->zfar;
 	out->viewProjMatrix.Multiply( CAM->mView, CAM->mProj );
-	out->invViewProjMatrix.SetIdentity();
-	out->viewProjMatrix.InvertTo( out->invViewProjMatrix );
+	out->invViewProjMatrix = out->viewProjMatrix.Inverted();
 }
 
 static void get_frustum_from_light( const SGRX_Light* L, SGRX_CullSceneCamera* out )
@@ -39,8 +38,7 @@ static void get_frustum_from_light( const SGRX_Light* L, SGRX_CullSceneCamera* o
 	out->frustum.znear = L->_tf_range * 0.001f;
 	out->frustum.zfar = L->_tf_range;
 	out->viewProjMatrix = L->viewProjMatrix;
-	out->invViewProjMatrix.SetIdentity();
-	out->viewProjMatrix.InvertTo( out->invViewProjMatrix );
+	out->invViewProjMatrix = out->viewProjMatrix.Inverted();
 }
 
 static uint32_t _SGRX_Cull_Frustum_MeshList( SGRX_CullSceneCamera* frustum, bool spotlight, Array< SGRX_MeshInstance* >& MIBuf, ByteArray& scratchMem, SGRX_Scene* S )

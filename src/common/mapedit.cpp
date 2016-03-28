@@ -585,6 +585,12 @@ EdLevelGraphicsCont::~EdLevelGraphicsCont()
 		delete m_lmRenderer;
 }
 
+void EdLevelGraphicsCont::OnDestroy()
+{
+	Game_UnregisterEventHandler( this, EID_MeshUpdate );
+	Game_UnregisterEventHandler( this, EID_LightUpdate );
+}
+
 void EdLevelGraphicsCont::Reset()
 {
 	m_nextSolidID = 1;
@@ -3427,7 +3433,8 @@ void MapEditor::OnDestroy()
 	g_EdWorld = NULL;
 	g_EdScene = NULL;
 //	delete g_EdLGCont;
-//	g_EdLGCont = NULL;
+	g_EdLGCont->OnDestroy();
+	g_EdLGCont = NULL;
 	delete g_Level;
 }
 

@@ -584,6 +584,7 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 	
 	EdLevelGraphicsCont( GameLevel* lev );
 	~EdLevelGraphicsCont();
+	void OnDestroy();
 	void Reset();
 	void LoadLightmaps( const StringView& levname );
 	void SaveLightmaps( const StringView& levname );
