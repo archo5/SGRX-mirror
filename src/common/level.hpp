@@ -532,7 +532,7 @@ EXP_STRUCT GameLevel :
 	}
 	GFW_EXPORT sgsVariable GetEntityInterface( StringView name );
 	GFW_EXPORT void EnumEntities( Array< StringView >& out );
-	GFW_EXPORT Entity* _CreateNativeEntity( const StringView& type );
+	GFW_EXPORT Entity* _CreateEntityReal( const StringView& type );
 	GFW_EXPORT Entity* CreateEntity( const StringView& type );
 	GFW_EXPORT void DestroyEntity( Entity* eptr );
 	GFW_EXPORT void _OnAddEntity( Entity* ent );

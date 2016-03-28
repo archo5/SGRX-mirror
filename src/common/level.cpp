@@ -497,7 +497,7 @@ sgsVariable GameLevel::GetEntityInterface( StringView name )
 	return m_self.getprop( "entity_types" ).getprop( m_scriptCtx.CreateString( name ) );
 }
 
-Entity* GameLevel::_CreateNativeEntity( const StringView& type )
+Entity* GameLevel::_CreateEntityReal( const StringView& type )
 {
 	for( size_t i = 0; i < m_systems.size(); ++i )
 	{
@@ -509,17 +509,6 @@ Entity* GameLevel::_CreateNativeEntity( const StringView& type )
 			return ent;
 		}
 	}
-	return NULL;
-}
-
-Entity* GameLevel::CreateEntity( const StringView& type )
-{
-	Entity* ent = _CreateNativeEntity( type );
-	if( ent )
-	{
-		_OnAddEntity( ent );
-		return ent;
-	}
 	
 	sgsVariable eclass = m_scriptCtx.GetGlobal( type );
 	if( !eclass.not_null() )
@@ -530,7 +519,7 @@ Entity* GameLevel::CreateEntity( const StringView& type )
 	}
 	
 	StringView native_name = eclass.getprop("__inherit").get<StringView>();
-	ent = _CreateNativeEntity( native_name );
+	Entity* ent = _CreateEntityReal( native_name );
 	if( !ent )
 	{
 		LOG_ERROR << "FAILED to create scripted entity '" << type << "'"
@@ -555,7 +544,14 @@ Entity* GameLevel::CreateEntity( const StringView& type )
 	sgsVariable fn_init = ESO.getprop("Init");
 	if( fn_init.not_null() )
 		ESO.thiscall( GetSGSC(), fn_init );
-	_OnAddEntity( ent );
+	return ent;
+}
+
+Entity* GameLevel::CreateEntity( const StringView& type )
+{
+	Entity* ent = _CreateEntityReal( type );
+	if( ent )
+		_OnAddEntity( ent );
 	return ent;
 }
 
