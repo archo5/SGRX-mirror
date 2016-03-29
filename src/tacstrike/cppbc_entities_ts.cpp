@@ -385,7 +385,9 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->name ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		SGS_CASE( "ctrl" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->ctrl ); return SGS_SUCCESS; }
+		SGS_CASE( "moveRefPos" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetMoveRefPos() ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_health ); return SGS_SUCCESS; }
+		SGS_CASE( "damageMultiplier" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_damageMultiplier ); return SGS_SUCCESS; }
 		SGS_CASE( "isCrouching" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_isCrouching ); return SGS_SUCCESS; }
 		SGS_CASE( "timeSinceLastHit" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -414,6 +416,7 @@ int TSCharacter::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "id" ){ static_cast<TSCharacter*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "ctrl" ){ static_cast<TSCharacter*>( obj->data )->sgsSetCtrl( sgs_GetVar<ActorCtrlScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ static_cast<TSCharacter*>( obj->data )->m_health = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "damageMultiplier" ){ static_cast<TSCharacter*>( obj->data )->m_damageMultiplier = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "viewDir" ){ static_cast<TSCharacter*>( obj->data )->SetViewDir( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "footPosition" ){ static_cast<TSCharacter*>( obj->data )->SetFootPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<TSCharacter*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -448,10 +451,12 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->name, depth ).push( C ); }
 		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_id, depth ).push( C ); }
 		{ sgs_PushString( C, "\nctrl = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->ctrl, depth ).push( C ); }
+		{ sgs_PushString( C, "\nmoveRefPos = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetMoveRefPos(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nhealth = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_health, depth ).push( C ); }
+		{ sgs_PushString( C, "\ndamageMultiplier = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_damageMultiplier, depth ).push( C ); }
 		{ sgs_PushString( C, "\nisCrouching = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_isCrouching, depth ).push( C ); }
 		{ sgs_PushString( C, "\ntimeSinceLastHit = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit, depth ).push( C ); }
-		sgs_StringConcat( C, 46 );
+		sgs_StringConcat( C, 50 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

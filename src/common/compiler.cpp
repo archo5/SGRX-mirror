@@ -1391,10 +1391,10 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	//
 	// Step 1. Initialize build config.
 	//
-	float cellSize = 0.3f;
+	float cellSize = 0.2f;
 	float cellHeight = 0.2f;
 	float agentHeight = 1.5f;
-	float agentRadius = 0.3f;
+	float agentRadius = 0.4f;
 	float agentMaxClimb = 0.2f;
 	float agentMaxSlope = 45.0f;
 	int regionMinSize = 2;

@@ -225,7 +225,7 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 TSCharacter::TSCharacter( GameLevel* lev ) :
 	Actor( lev ),
 	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
-	m_health( 100 ), m_armor( 0 ),
+	m_health( 100 ), m_armor( 0 ), m_damageMultiplier( 1 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_jumpTimeout(0), m_canJumpTimeout(0), m_cachedBodyExtOffset(V2(0)),
 	m_groundBody(NULL), m_groundLocalPos(V3(0)), m_groundWorldPos(V3(0)),
@@ -811,6 +811,11 @@ bool TSCharacter::IsTouchingPoint( Vec3 p, float hmargin, float vmargin ) const
 	return hsd <= 0 && vsd <= 0;
 }
 
+Vec3 TSCharacter::GetMoveRefPos() const
+{
+	return GetPosition_FT() + V3(0,0,1) + V3( m_cachedBodyExtOffset * 0.5f, 0 );
+}
+
 void TSCharacter::PlayAnim( StringView name, bool loop )
 {
 	AnimHandle anim = GR_GetAnim( name );
@@ -871,6 +876,7 @@ void TSCharacter::OnDeath()
 
 void TSCharacter::Hit( float pwr )
 {
+	pwr *= m_damageMultiplier;
 //	float m_health = 1000000;
 	if( m_health > 0 )
 	{
@@ -1658,9 +1664,12 @@ bool TSEnemyController::CanSeePoint( Vec3 pt )
 	// increase vertical FOV
 //	viewdir.z *= 0.5f;
 //	view2pos.z *= 0.5f;
-	// reduce vertical FOV
-	viewdir.z *= 4;
-	view2pos.z *= 4;
+	// reduce vertical FOV upwards
+	if( view2pos.z > 0 )
+	{
+		viewdir.z *= 4;
+		view2pos.z *= 4;
+	}
 	
 	float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
 	if( vpdot < cosf(DEG2RAD(40.0f)) )

@@ -116,6 +116,8 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	void InterruptAction( bool force );
 	
 	SGS_METHOD bool IsTouchingPoint( Vec3 p, float hmargin, float vmargin ) const;
+	Vec3 GetMoveRefPos() const;
+	SGS_PROPERTY_FUNC( READ GetMoveRefPos ) SGS_ALIAS( Vec3 moveRefPos );
 	
 	SGS_METHOD bool IsPlayingAnim() const { return m_animTimeLeft > 0; }
 	SGS_METHOD void PlayAnim( StringView name, bool loop );
@@ -148,6 +150,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME damageMultiplier ) float m_damageMultiplier;
 	
 	float m_footstepTime;
 	SGS_PROPERTY_FUNC( READ VARNAME isCrouching ) bool m_isCrouching;
