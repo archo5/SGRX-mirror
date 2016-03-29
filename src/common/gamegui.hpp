@@ -11,6 +11,7 @@
 #define GUI_ScrMode_Fit 1
 #define GUI_ScrMode_Crop 2
 #define GUI_ScrMode_FitXtd 3
+#define GUI_ScrMode_Stretch 4
 
 #define GUI_Event_MouseMove  10
 #define GUI_Event_MouseEnter 11

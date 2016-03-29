@@ -282,6 +282,13 @@ void GameUIControl::Draw( float dt )
 					ry1 = parent->ry1;
 				}
 			}
+			else if( mode == GUI_ScrMode_Stretch )
+			{
+				rx0 = parent->rx0;
+				ry0 = parent->ry0;
+				rx1 = parent->rx1;
+				ry1 = parent->ry1;
+			}
 			else
 			{
 				rx0 = parent->IX( x );
@@ -692,6 +699,7 @@ sgs_RegIntConst sgs_iconsts[] =
 	{ "GUI_ScrMode_Fit", GUI_ScrMode_Fit },
 	{ "GUI_ScrMode_Crop", GUI_ScrMode_Crop },
 	{ "GUI_ScrMode_FitXtd", GUI_ScrMode_FitXtd },
+	{ "GUI_ScrMode_Stretch", GUI_ScrMode_Stretch },
 	
 	{ "GUI_Event_MouseMove", GUI_Event_MouseMove },
 	{ "GUI_Event_MouseEnter", GUI_Event_MouseEnter },
