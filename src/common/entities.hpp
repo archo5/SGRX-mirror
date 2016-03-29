@@ -125,7 +125,7 @@ EXP_STRUCT LightEntity : Entity
 	int GetType() const { return m_type; }
 	void SetType( int v ){ m_type = v; RETNIFNOLIGHT; m_light->type = v; _UpdateShadows(); }
 	bool IsEnabled() const { return m_isEnabled; }
-	void SetEnabled( bool v ){ m_isEnabled = v; RETNIFNOLIGHT; m_light->enabled = v; }
+	void SetEnabled( bool v ){ m_isEnabled = v; _UpdateFlare(); RETNIFNOLIGHT; m_light->enabled = v; }
 	Vec3 GetColor() const { return m_color; }
 	void SetColor( Vec3 v ){ m_color = v; RETNIFNOLIGHT; m_light->color = v * m_intensity; }
 	float GetIntensity() const { return m_intensity; }
