@@ -328,6 +328,7 @@ typedef uint64_t ActionInput;
 
 struct IGame;
 typedef Handle< IGame > GameHandle;
+ENGINE_EXPORT GameHandle Game_Get();
 ENGINE_EXPORT GameHandle Game_Change( IGame* ng );
 ENGINE_EXPORT void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid );
 ENGINE_EXPORT void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid = 0 );

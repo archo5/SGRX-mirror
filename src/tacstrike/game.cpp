@@ -325,6 +325,9 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		{
 			m_soundSys = SND_CreateSystem();
 		}
+		m_soundSys->Load( "sound/master.bank" );
+		m_soundSys->Load( "sound/master.strings.bank" );
+		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_LoadFont( "fancy", "fonts/gratis.ttf" );
 		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf:nohint" );

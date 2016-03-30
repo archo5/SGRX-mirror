@@ -1346,6 +1346,13 @@ static int _sgs_method__GameLevel__QueryOBB( SGS_CTX )
 	sgs_PushVar(C,data->sgsQueryOBB( sgs_GetVar<sgsVariable>()(C,0), sgs_GetVar<uint32_t>()(C,1), sgs_GetVar<Mat4>()(C,2), sgs_GetVar<Vec3>()(C,3), sgs_GetVar<Vec3>()(C,4) )); return 1;
 }
 
+static int _sgs_method__GameLevel__PlaySound( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, PlaySound ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PlaySound( sgs_GetVar<StringView>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<Vec3>()(C,2) ); return 0;
+}
+
 static int _sgs_method__GameLevel__GetTickTime( SGS_CTX )
 {
 	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, GetTickTime ) ) return 0;
@@ -1454,6 +1461,7 @@ static sgs_RegFuncConst GameLevel__sgs_funcs[] =
 	{ "Query", _sgs_method__GameLevel__Query },
 	{ "QuerySphere", _sgs_method__GameLevel__QuerySphere },
 	{ "QueryOBB", _sgs_method__GameLevel__QueryOBB },
+	{ "PlaySound", _sgs_method__GameLevel__PlaySound },
 	{ "GetTickTime", _sgs_method__GameLevel__GetTickTime },
 	{ "GetPhyTime", _sgs_method__GameLevel__GetPhyTime },
 	{ "UpdateCameraMatrices", _sgs_method__GameLevel__UpdateCameraMatrices },

@@ -492,7 +492,7 @@ void TSCharacter::FixedTick( float deltaTime )
 	
 	ProcessAnims( deltaTime );
 	
-	if( m_anMainPlayer.CheckMarker( "step" ) )
+	if( IsAlive() && m_anMainPlayer.CheckMarker( "step" ) )
 	{
 		Vec3 pos = m_bodyHandle->GetPosition();
 		Vec3 lvel = m_bodyHandle->GetLinearVelocity();

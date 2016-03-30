@@ -332,6 +332,8 @@ void SGRX_IEventHandler::UnregisterHandler( SGRX_EventID eid )
 // GAME SYSTEMS
 //
 
+GameHandle Game_Get(){ return g_Game; }
+
 GameHandle Game_Change( IGame* ng )
 {
 	GameHandle old = g_Game;

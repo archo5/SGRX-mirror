@@ -760,6 +760,14 @@ void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
 	m_scene->camera.position = pos;
 	m_scene->camera.direction = dir;
 	m_scene->camera.UpdateMatrices();
+	if( m_soundSys )
+	{
+		SGRX_Sound3DAttribs attr =
+		{
+			pos, V3(0), dir, m_scene->camera.updir,
+		};
+		m_soundSys->Set3DAttribs( attr );
+	}
 }
 
 SGS_MULTRET GameLevel::sgsWorldToScreen( Vec3 pos )
@@ -880,6 +888,21 @@ bool GameLevel::sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 
 }
 
 
+void GameLevel::PlaySound( StringView name, Vec3 pos, Vec3 dir )
+{
+	if( !m_soundSys )
+		return;
+	
+	SoundEventInstanceHandle ev = m_soundSys->CreateEventInstance( name );
+	if( ev )
+	{
+		SGRX_Sound3DAttribs attr = { pos, V3(0), dir, V3(0,0,1) };
+		ev->Set3DAttribs( attr );
+		ev->Start();
+	}
+}
+
+
 void GameLevel::LightMesh( SGRX_MeshInstance* meshinst, Vec3 off )
 {
 	SGRX_LightSampler::LightMesh( meshinst, off );
@@ -922,6 +945,19 @@ BaseEditor::~BaseEditor()
 	}
 }
 
+
+static int SetOverlayMusic( SGS_CTX )
+{
+	SGRX_CAST( BaseGame*, g, Game_Get().item );
+	g->SetOverlayMusic( sgs_GetVar<StringView>()( C, 0 ) );
+	return 0;
+}
+
+static sgs_RegFuncConst basegame_api[] =
+{
+	{ "SetOverlayMusic", SetOverlayMusic },
+	{ NULL, NULL },
+};
 
 BaseGame::BaseGame() :
 	m_maxTickSize( 1.0f/15.0f ),
@@ -971,6 +1007,7 @@ bool BaseGame::OnInitialize()
 void BaseGame::OnDestroy()
 {
 	SAFE_DELETE( m_level );
+	SetOverlayMusic( SV() );
 	m_soundSys = NULL;
 }
 
@@ -978,6 +1015,7 @@ GameLevel* BaseGame::CreateLevel()
 {
 	GameLevel* level = new GameLevel( CreatePhyWorld() );
 	level->m_soundSys = m_soundSys;
+	sgs_RegFuncConsts( level->GetSGSC(), basegame_api, -1 );
 	level->SetGlobalToSelf();
 	level->GetPhyWorld()->SetGravity( V3( 0, 0, -9.81f ) );
 	return level;
@@ -1035,6 +1073,32 @@ void BaseGame::OnTick( float dt, uint32_t gametime )
 	Game_Tick( dt, ( m_accum + m_fixedTickSize ) / m_fixedTickSize );
 	
 	Game_Render();
+}
+
+void BaseGame::SetOverlayMusic( StringView path )
+{
+	if( !m_soundSys )
+	{
+		LOG_WARNING << "BaseGame::SetOverlayMusic - no sound system";
+		return;
+	}
+	
+	if( m_ovrMusicPath == path )
+	{
+		return;
+	}
+	m_ovrMusicPath = path;
+	
+	if( m_ovrMusic )
+	{
+		m_ovrMusic->Stop();
+	}
+	m_ovrMusic = NULL;
+	if( path )
+	{
+		m_ovrMusic = m_soundSys->CreateEventInstance( path );
+		m_ovrMusic->Start();
+	}
 }
 
 

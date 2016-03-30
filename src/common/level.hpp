@@ -572,6 +572,8 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT SGS_METHOD_NAMED( QuerySphere ) bool sgsQuerySphere( sgsVariable optProc, uint32_t mask, Vec3 pos, float rad );
 	GFW_EXPORT SGS_METHOD_NAMED( QueryOBB ) bool sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax );
 	
+	GFW_EXPORT SGS_METHOD void PlaySound( StringView name, Vec3 pos, Vec3 dir );
+	
 	// ---
 	
 	GFW_EXPORT void LightMesh( SGRX_MeshInstance* meshinst, Vec3 off = V3(0) );
@@ -729,11 +731,15 @@ EXP_STRUCT BaseGame : IGame
 	GFW_EXPORT virtual void Game_Render();
 	GFW_EXPORT virtual void OnTick( float dt, uint32_t gametime );
 	
+	GFW_EXPORT virtual void SetOverlayMusic( StringView path );
+	
 	float m_maxTickSize;
 	float m_fixedTickSize;
 	float m_accum;
 	float m_timeMultiplier;
 	SoundSystemHandle m_soundSys;
+	SoundEventInstanceHandle m_ovrMusic;
+	String m_ovrMusicPath;
 	GameLevel* m_level;
 	BaseEditor* m_editor;
 	bool m_needsEditor;

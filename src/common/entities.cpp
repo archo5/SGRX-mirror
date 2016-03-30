@@ -73,7 +73,9 @@ void ParticleFX::sgsSetSoundEvent( StringView name )
 	m_soundEventName = name;
 	m_soundEventOneShot = m_level->GetSoundSys()->EventIsOneShot( name );
 	// if particle system already running, start it
-	if( m_enabled )
+	// do not start one-shot events here because ...
+	// ... this is generally called during resource creation
+	if( m_enabled && !m_soundEventOneShot )
 	{
 		_StartSoundEvent();
 	}
