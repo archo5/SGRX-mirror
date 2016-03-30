@@ -576,6 +576,8 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootTimeout += 0.1f;
 		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 10, 0.2f, AIS_Shot );
 		
+		m_level->PlaySound( "/mp5_shot", origin, dir );
+		
 		Mat4 inv = m_animChar.m_cachedMeshInst->matrix.Inverted();
 		Vec3 forcePos = inv.TransformPos( origin );
 		Vec3 forceDir = inv.TransformNormal( mtx.TransformNormal(V3(0,0,-1)) ).Normalized();
