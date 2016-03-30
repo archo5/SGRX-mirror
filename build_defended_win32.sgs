@@ -1,0 +1,126 @@
+
+include "io", "os", "re", "string";
+
+function ensure_dir( dst )
+{
+	parts = string_explode( dst, "/" );
+	parts.pop();
+	total = "";
+	foreach( part : parts )
+	{
+		if( total )
+			total $= "/";
+		total $= part;
+		@io_dir_create( total );
+	}
+}
+function write( to, data )
+{
+	println( "file ", to );
+	ensure_dir( to );
+	return io_file_write( to, data );
+}
+function read( from ){ return io_file_read( from ); }
+function excluded( path, exclude )
+{
+	foreach( e : exclude )
+	{
+		if( @e.when )
+		{
+			if( !re_match( path, e.when ) )
+				continue;
+			if( !re_match( path, e.in ) )
+			{
+				println( "excluded ", path, " by ", e );
+				return true;
+			}
+		}
+		else if( re_match( path, e.ex ) )
+		{
+			println( "excluded ", path, " by ", e );
+			return true;
+		}
+	}
+	return false;
+}
+function copy( dst, src, exclude )
+{
+	if( excluded( src, exclude ) )
+		return;
+	
+	stat = io_stat( src );
+	if( stat.type == FST_DIR )
+	{
+		foreach( real, name : io_dir( src ) )
+		{
+			if( !real )
+				continue;
+			copy( dst $ "/" $ name, src $ "/" $ name, exclude );
+		}
+	}
+	else if( stat.type == FST_FILE )
+	{
+		write( dst, read( src ) );
+	}
+}
+
+// ========================
+
+_G.
+{
+	OUT = "staging/defended_win32/",
+	engine_binaries =
+	[
+		"d3dx9_42.dll",
+		"fmod.dll",
+		"fmodstudio.dll",
+		"game.dll",
+		"SDL2.dll",
+		"sgrx-core.dll",
+		"sgrx-gfw.dll",
+		"sgrx-physics-bullet.dll",
+		"sgrx-render-d3d11.dll",
+		"sgrx-script.dll",
+		"sgrx-sound-fmod.dll",
+		"sgrx.exe",
+	],
+	config_text = """
+game game
+dir data-defended
+dir2 data-common
+renderer d3d11
+""",
+	copy_ops =
+	{
+		"data-common" = "data-common",
+		"data-defended" = "data-tacstrike",
+	},
+	exclude_paths =
+	[
+		{ ex = "#/assets/#" },
+		{ ex = "#/shadercache_d3d9/#" },
+		{ ex = "#/editor_lightmaps$#" },
+		{ ex = "#.tle$#" },
+		{ ex = "#.info$#" },
+		{ ex = "#/assets.txt$#" },
+		{ ex = "#/group.obj$#" },
+		{ ex = "#/gun-01.jpg$#" },
+		{ ex = "#/h_t_01.jpg$#" },
+		{ ex = "#/crage_logo.png$#" },
+		{ ex = "#/logo.png$#" },
+		{ ex = "#/myflag-logo.png$#" },
+		{ in = "#/levels/b5-|tsents.sgs#", when = "#/levels/#" },
+		{ in = "#/textures/sky/dusk1.dds$#", when = "#/textures/sky/#" },
+	],
+};
+
+//remove( OUT );
+write( OUT $ "config.cfg", config_text );
+foreach( bin : engine_binaries )
+{
+	write( OUT $ bin, read( "bin/" $ bin ) );
+}
+foreach( dst, src : copy_ops )
+{
+	copy( OUT $ dst, src, exclude_paths );
+}
