@@ -898,7 +898,8 @@ void GameUISystem::EngineEvent( const Event& eev )
 		
 		m_kbdFocusCtrl->BubblingEvent( ev, true );
 		
-		if( down && ( ev.key.key == GUI_Key_Enter || ev.key.key == GUI_Key_Activate ) )
+		if( down && ( ev.key.key == GUI_Key_Enter || ev.key.key == GUI_Key_Activate )
+			&& ( engmod & (KMOD_CTRL|KMOD_ALT) ) == 0 )
 		{
 			ev.type = GUI_Event_KeyActivate;
 			m_kbdFocusCtrl->BubblingEvent( ev, true );

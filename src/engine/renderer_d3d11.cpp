@@ -64,7 +64,10 @@
 #define RENDERER_EXPORT __declspec(dllexport)
 
 
-const GUID g_ID3D11Texture2D = {0x6f15aaf2, 0xd208, 0x4e89, {0x9a,0xb4, 0x48,0x95,0x35,0xd3,0x4f,0x9c}};
+const GUID g_IID_ID3D11Texture2D = {0x6f15aaf2,0xd208,0x4e89,{0x9a,0xb4,0x48,0x95,0x35,0xd3,0x4f,0x9c}};
+const GUID g_IID_IDXGIDevice = {0x54ec77fa,0x1377,0x44e6,{0x8c,0x32,0x88,0xfd,0x5f,0x44,0xc8,0x4c}};
+const GUID g_IID_IDXGIAdapter = {0x2411e7e1,0x12ac,0x4ccf,{0xbd,0x14,0x97,0x98,0xe8,0x53,0x4d,0xc0}};
+const GUID g_IID_IDXGIFactory = {0x7b7166ec,0x21c7,0x44ae,{0xb2,0x1a,0xc9,0xae,0x32,0x1a,0xe3,0x69}};
 
 
 static DXGI_FORMAT texfmt2d3d( int fmt )
@@ -585,8 +588,22 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		return NULL;
 	}
 	
+	// remove Alt+Enter behavior
+	{
+		IDXGIDevice* pDXGIDevice;
+		IDXGIAdapter* pDXGIAdapter;
+		IDXGIFactory* pIDXGIFactory;
+		
+		hr = device->QueryInterface( g_IID_IDXGIDevice, (void**) &pDXGIDevice );
+		ASSERT( !FAILED( hr ) );
+		hr = pDXGIDevice->GetParent( g_IID_IDXGIAdapter, (void**) &pDXGIAdapter );
+		ASSERT( !FAILED( hr ) );
+		pDXGIAdapter->GetParent( g_IID_IDXGIFactory, (void**) &pIDXGIFactory );
+		pIDXGIFactory->MakeWindowAssociation( (HWND) windowHandle, DXGI_MWA_NO_ALT_ENTER );
+	}
+	
 	// Backbuffer
-	hr = swapChain->GetBuffer( 0, g_ID3D11Texture2D, (void**) &backBuffer );
+	hr = swapChain->GetBuffer( 0, g_IID_ID3D11Texture2D, (void**) &backBuffer );
 	if( FAILED( hr ) || backBuffer == NULL )
 	{
 		LOG_ERROR << "Failed to retrieve D3D11 backbuffer";
@@ -726,7 +743,7 @@ void D3D11Renderer::Modify( const RenderSettings& settings )
 	}
 	
 	// Backbuffer
-	hr = m_swapChain->GetBuffer( 0, g_ID3D11Texture2D, (void**) &m_backBuffer );
+	hr = m_swapChain->GetBuffer( 0, g_IID_ID3D11Texture2D, (void**) &m_backBuffer );
 	if( FAILED( hr ) || m_backBuffer == NULL )
 	{
 		LOG_ERROR << "Failed to retrieve D3D11 backbuffer";

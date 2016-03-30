@@ -574,6 +574,11 @@ Vec2 Game_GetCursorPosNormalized()
 
 void Game_SetCursorPos( int x, int y )
 {
+	if( g_RenderSettings.fullscreen == FULLSCREEN_WINDOWED )
+	{
+		x /= g_CursorScale.x;
+		y /= g_CursorScale.y;
+	}
 	SDL_WarpMouseInWindow( g_Window, x, y );
 }
 
@@ -586,6 +591,17 @@ void Game_ShowCursor( bool show )
 void Game_OnEvent( const Event& e )
 {
 	LOG_FUNCTION;
+	
+	if( e.type == SDL_KEYDOWN && e.key.repeat == 0 &&
+		e.key.keysym.sym == SDLK_RETURN &&
+		( e.key.keysym.mod == KMOD_LALT ||
+			e.key.keysym.mod == KMOD_RALT ) )
+	{
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.fullscreen = rs.fullscreen ? FULLSCREEN_NONE : FULLSCREEN_WINDOWED;
+		GR_SetVideoMode( rs );
+	}
 	
 	if( e.type == SDL_WINDOWEVENT )
 	{
