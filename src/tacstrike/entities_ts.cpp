@@ -502,6 +502,7 @@ void TSCharacter::FixedTick( float deltaTime )
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
+		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 4, 0.2f, AIS_Footstep );
 	}
 	
 	m_animChar.FixedTick( deltaTime );
@@ -682,6 +683,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
+		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 4, 0.2f, AIS_Footstep );
 		
 		m_anMainPlayer.Play( GR_GetAnim( "jump" ) );
 	}
