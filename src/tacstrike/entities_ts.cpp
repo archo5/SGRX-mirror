@@ -1189,7 +1189,6 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 		if( Game_WasPSCP() )
 		{
 			mouse_aim = Game_GetCursorPos() - V2( hx, hy );
-			LOG << "AIM " << mouse_aim;
 		}
 		Game_PostSetCursorPos( hx, hy );
 	}
