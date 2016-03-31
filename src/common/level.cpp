@@ -605,7 +605,7 @@ void GameLevel::FixedTick( float deltaTime )
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->PrePhysicsFixedTick( deltaTime );
 		
-		int ITERS = 1;
+		int ITERS = 2;
 		for( int i = 0; i < ITERS; ++i )
 			m_phyWorld->Step( deltaTime / ITERS );
 		

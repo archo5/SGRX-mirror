@@ -313,7 +313,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		HelpTextSystem* HTS = level->GetSystem<HelpTextSystem>();
 		HTS->renderer = &htr;
 		htr.lineHeightFactor = 1.4f;
-	//	htr.buttonTex = GR_GetTexture( "ui/key.png" );
+		htr.buttonTex = GR_GetTexture( "ui/key.png" );
 		htr.SetNamedFont( "", "core" );
 		
 		return level;

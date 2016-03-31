@@ -68,6 +68,8 @@ struct SGRX_PhyRigidBodyInfo
 	bool enabled;
 	uint16_t group;
 	uint16_t mask;
+	float ccdSweptSphereRadius;
+	float ccdMotionThreshold;
 };
 
 enum EPhyForceType
@@ -123,6 +125,11 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 	virtual uint16_t GetGroup() const = 0;
 	virtual uint16_t GetMask() const = 0;
 	virtual void SetGroupAndMask( uint16_t group, uint16_t mask ) = 0;
+	
+	virtual float GetCCDSweptSphereRadius() const = 0;
+	virtual void SetCCDSweptSphereRadius( float v ) = 0;
+	virtual float GetCCDMotionThreshold() const = 0;
+	virtual void SetCCDMotionThreshold( float v ) = 0;
 	
 	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v ) = 0;
 	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p ) = 0;

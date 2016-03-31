@@ -108,6 +108,10 @@ static ActionMap* g_ActionMap;
 static CObjMap* g_CObjs;
 static Vec2 g_CursorPos = {0,0};
 static Vec2 g_CursorScale = {0,0};
+static int g_PCPX = 0;
+static int g_PCPY = 0;
+static bool g_PCPE = false;
+static int g_PCPLFR = 0;
 static EventLinksByID g_EventLinksByID;
 static EventLinksByHandler g_EventLinksByHandler;
 static Array< FileSysHandle > g_FileSystems;
@@ -580,6 +584,18 @@ void Game_SetCursorPos( int x, int y )
 		y /= g_CursorScale.y;
 	}
 	SDL_WarpMouseInWindow( g_Window, x, y );
+}
+
+void Game_PostSetCursorPos( int x, int y )
+{
+	g_PCPX = x;
+	g_PCPY = y;
+	g_PCPE = true;
+}
+
+bool Game_WasPSCP()
+{
+	return g_PCPLFR == 1;
 }
 
 void Game_ShowCursor( bool show )
@@ -1753,22 +1769,27 @@ static void free_graphics()
 {
 	LOG_FUNCTION;
 	
+	LOG << LOG_DATE << "  Freeing internal graphics resources";
+	
 	g_Renderer->UnloadInternalResources();
 	g_Renderer->_RS_ProjectorFree();
-	
-	delete g_Joysticks;
-	g_Joysticks = NULL;
 	
 	SGRX_INT_DestroyBatchRendering();
 	SGRX_INT_DestroyResourceTables();
 	
+	LOG << LOG_DATE << "  Destroying renderer";
+	
 	g_Renderer->Destroy();
 	g_Renderer = NULL;
+	
+	LOG << LOG_DATE << "  Unloading renderer library";
 	
 	g_RfnFree();
 	
 	SDL_UnloadObject( g_RenderLib );
 	g_RenderLib = NULL;
+	
+	LOG << LOG_DATE << "  Destroying main window";
 	
 	SDL_DestroyWindow( g_Window );
 	g_Window = NULL;
@@ -2020,6 +2041,17 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 			}
 			Game_OnEvent( event );
 		}
+		if( g_PCPLFR == 2 )
+			g_PCPLFR = 1;
+		if( g_PCPE )
+		{
+			g_PCPE = false;
+			if( g_PCPLFR == 0 )
+				g_PCPLFR = 2;
+			Game_SetCursorPos( g_PCPX, g_PCPY );
+		}
+		else if( g_PCPLFR > 0 )
+			g_PCPLFR--;
 		
 		uint32_t curtime = GetTimeMsec();
 		uint32_t dt = curtime - prevtime;
@@ -2033,9 +2065,16 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	g_Game->OnDestroy();
 	g_Game = NULL;
 	
+	delete g_Joysticks;
+	g_Joysticks = NULL;
+	
 	free_graphics();
 	
+	LOG << LOG_DATE << "  Unloading game library";
+	
 	SDL_UnloadObject( g_GameLib );
+	
+	LOG << LOG_DATE << "  Freeing some internal engine data";
 	
 	delete g_ActionMap;
 	delete g_CObjs;

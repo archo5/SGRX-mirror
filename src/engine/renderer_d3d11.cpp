@@ -68,6 +68,7 @@ const GUID g_IID_ID3D11Texture2D = {0x6f15aaf2,0xd208,0x4e89,{0x9a,0xb4,0x48,0x9
 const GUID g_IID_IDXGIDevice = {0x54ec77fa,0x1377,0x44e6,{0x8c,0x32,0x88,0xfd,0x5f,0x44,0xc8,0x4c}};
 const GUID g_IID_IDXGIAdapter = {0x2411e7e1,0x12ac,0x4ccf,{0xbd,0x14,0x97,0x98,0xe8,0x53,0x4d,0xc0}};
 const GUID g_IID_IDXGIFactory = {0x7b7166ec,0x21c7,0x44ae,{0xb2,0x1a,0xc9,0xae,0x32,0x1a,0xe3,0x69}};
+const GUID g_IID_ID3D11Debug = {0x79cf2233,0x7536,0x4948,{0x9d,0x36,0x1e,0x46,0x92,0xdc,0x57,0x60}};
 
 
 static DXGI_FORMAT texfmt2d3d( int fmt )
@@ -590,9 +591,9 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	
 	// remove Alt+Enter behavior
 	{
-		IDXGIDevice* pDXGIDevice;
-		IDXGIAdapter* pDXGIAdapter;
-		IDXGIFactory* pIDXGIFactory;
+		IDXGIDevice* pDXGIDevice = NULL;
+		IDXGIAdapter* pDXGIAdapter = NULL;
+		IDXGIFactory* pIDXGIFactory = NULL;
 		
 		hr = device->QueryInterface( g_IID_IDXGIDevice, (void**) &pDXGIDevice );
 		ASSERT( !FAILED( hr ) );
@@ -600,6 +601,9 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 		ASSERT( !FAILED( hr ) );
 		pDXGIAdapter->GetParent( g_IID_IDXGIFactory, (void**) &pIDXGIFactory );
 		pIDXGIFactory->MakeWindowAssociation( (HWND) windowHandle, DXGI_MWA_NO_ALT_ENTER );
+		SAFE_RELEASE( pIDXGIFactory );
+		SAFE_RELEASE( pDXGIAdapter );
+		SAFE_RELEASE( pDXGIDevice );
 	}
 	
 	// Backbuffer
@@ -703,7 +707,18 @@ void D3D11Renderer::Destroy()
 	SAFE_RELEASE( m_backBuffer );
 	SAFE_RELEASE( m_swapChain );
 	SAFE_RELEASE( m_ctx );
+	
+//	ID3D11Debug* dbg = NULL;
+//	m_dev->QueryInterface( g_IID_ID3D11Debug, (void**) &dbg );
+	
 	SAFE_RELEASE( m_dev );
+	
+//	if( dbg )
+//	{
+//		dbg->ReportLiveDeviceObjects( D3D11_RLDO_DETAIL );
+//		dbg->Release();
+//	}
+	
 	delete this;
 }
 

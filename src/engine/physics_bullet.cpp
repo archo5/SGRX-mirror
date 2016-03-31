@@ -254,6 +254,11 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 		SetEnabled( true ); // call addRigidBody with new group/mask
 	}
 	
+	virtual float GetCCDSweptSphereRadius() const { return m_body->getCcdSweptSphereRadius(); }
+	virtual void SetCCDSweptSphereRadius( float v ){ m_body->setCcdSweptSphereRadius( v ); }
+	virtual float GetCCDMotionThreshold() const { return m_body->getCcdMotionThreshold(); }
+	virtual void SetCCDMotionThreshold( float v ){ m_body->setCcdMotionThreshold( v ); }
+	
 	virtual void ApplyCentralForce( EPhyForceType type, const Vec3& v );
 	virtual void ApplyForce( EPhyForceType type, const Vec3& v, const Vec3& p );
 	virtual void FlushContacts();

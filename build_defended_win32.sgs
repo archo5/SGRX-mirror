@@ -94,6 +94,7 @@ renderer d3d11
 	{
 		"data-common" = "data-common",
 		"data-defended" = "data-tacstrike",
+		"defended_readme_lv.txt" = "staging/defended_readme_lv.txt",
 	},
 	exclude_paths =
 	[

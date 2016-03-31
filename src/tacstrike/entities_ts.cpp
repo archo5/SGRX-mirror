@@ -252,6 +252,8 @@ TSCharacter::TSCharacter( GameLevel* lev ) :
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
 	rbinfo.mask = 1|2;
+	rbinfo.ccdSweptSphereRadius = 0.3f;
+	rbinfo.ccdMotionThreshold = 0.001f;
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
 	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.25f) );
 	
@@ -1182,15 +1184,16 @@ void TPSPlayerController::Tick( float deltaTime, float blendFactor )
 	Vec2 mouse_aim = V2(0);
 	if( GetChar() && GetChar()->IsAlive() )
 	{
-		if( lastFrameReset )
+		if( Game_WasPSCP() )
 		{
 			mouse_aim = Game_GetCursorPos() - V2( hx, hy );
+			LOG << "AIM " << mouse_aim;
 		}
-		lastFrameReset = true;
-		Game_SetCursorPos( hx, hy );
+		Game_PostSetCursorPos( hx, hy );
 	}
-	m_angles.yaw -= mouse_aim.x * 0.01f;
-	m_angles.pitch -= mouse_aim.y * 0.01f;
+	float mouse_speed = 0.007f; // 0.01f;
+	m_angles.yaw -= mouse_aim.x * mouse_speed;
+	m_angles.pitch -= mouse_aim.y * mouse_speed;
 	
 	m_angles.pitch = TCLAMP( m_angles.pitch, -FLT_PI/3.0f, FLT_PI/3.0f );
 	
