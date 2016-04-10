@@ -4,6 +4,8 @@ cmake_policy( SET CMP0048 NEW )
 project( SGRX )
 
 include( cppbc.cmake )
+include( mpdgen.cmake )
+set( MPDGEN_PATH ${CMAKE_SOURCE_DIR}/mpdgen.sgs )
 
 
 set(SRCDIR "${CMAKE_SOURCE_DIR}/src")

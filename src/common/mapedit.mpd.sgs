@@ -1,0 +1,55 @@
+
+STRUCT("Vec2",
+{
+	props =
+	[
+		{ name = "x", type = "float" },
+		{ name = "y", type = "float" },
+	],
+});
+
+STRUCT("Vec3",
+{
+	props =
+	[
+		{ name = "x", type = "float" },
+		{ name = "y", type = "float" },
+		{ name = "z", type = "float" },
+	],
+});
+
+STRUCT("String",
+{
+	index = { subtype = "int8_t" },
+	props =
+	[
+		{ name = "data", type = "mpd_StringView", get = "mpd_StringView::create(_OBJ_->data(), _OBJ_->size())", set = "_OBJ_->assign(_VAR_.get_stringview().str, _VAR_.get_stringview().size)" },
+		{ name = "size", type = "int32_t", get = "_OBJ_->size()", set = "_OBJ_->resize(_VAR_.get_int32())" },
+	],
+});
+
+STRUCT("EdWorldLightingInfo",
+{
+	props =
+	[
+		{ name = "ambientColor", type = "Vec3", metadata = { label = "Ambient color" } },
+		{ name = "dirLightDir", type = "Vec2" },
+		{ name = "dirLightColor", type = "Vec3" },
+		{ name = "dirLightDivergence", type = "float" },
+		{ name = "dirLightNumSamples", type = "int32_t" },
+		{ name = "lightmapClearColor", type = "Vec3" },
+	//	{ name = "radNumBounces", type = "int32_t" },
+		{ name = "lightmapDetail", type = "float" },
+		{ name = "lightmapBlurSize", type = "float" },
+		{ name = "aoDistance", type = "float" },
+		{ name = "aoMultiplier", type = "float" },
+		{ name = "aoFalloff", type = "float" },
+		{ name = "aoEffect", type = "float" },
+	//	{ name = "aoDivergence", type = "float" },
+		{ name = "aoColor", type = "Vec3" },
+		{ name = "aoNumSamples", type = "int32_t" },
+		{ name = "sampleDensity", type = "float" },
+		{ name = "skyboxTexture", type = "String" },
+		{ name = "lutTexture", type = "String" },
+	],
+});

@@ -3,6 +3,8 @@
 #define MAPEDIT_DEFINE_GLOBALS
 #include "mapedit.hpp"
 
+#include "mapedit.mpd.hpp"
+
 
 
 EDGUIPropRsrc_PickParentGroup::EDGUIPropRsrc_PickParentGroup( int32_t id, EDGUIGroupPicker* gp, const StringView& value ) :

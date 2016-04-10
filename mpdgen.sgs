@@ -1,0 +1,406 @@
+
+include "string";
+
+global structs = {};
+
+function STRUCT( name, info )
+{
+	if( isset( structs, name ) )
+	{
+		ERROR( "type '" $ name $ "' is already defined" );
+	}
+	info.{ name };
+	if( @info.typeval === null )
+		info.typeval = "mpdt_Struct";
+	if( info.typeval == "mpdt_Struct" || info.typeval == "mpdt_Pointer" || info.typeval == "mpdt_Enum" )
+	{
+		info.typestruct = name $ "_MPD::inst()";
+	}
+	else
+	{
+		info.typestruct = "0";
+	}
+	if( @info.props === null )
+		info.props = [];
+	else
+	{
+		foreach( prop : info.props )
+		{
+			if( @prop.ref === null )
+				prop.ref = "_OBJ_->" $ prop.name;
+			if( @prop.get === null )
+				prop.get = prop.ref;
+			if( @prop.set === null )
+				prop.set = prop.ref $ " = mpd_var_get<_TYPE_ >(_VAR_)";
+		}
+	}
+	index = @info.index;
+	if( index )
+	{
+		if( @index.subtype === null )
+			ERROR( name $ "|index: subtype unspecified" );
+		if( @index.type === null )
+			index.type = "int32_t";
+		if( @index.ref === null )
+			index.ref = "(*(_OBJ_))[mpd_var_get<" $ index.type $ " >(_INDEX_)]";
+		if( @index.get === null )
+			index.get = index.ref;
+		if( @index.set === null )
+			index.set = index.ref $ " = mpd_var_get<_SUBTYPE_ >(_VAR_)";
+	}
+	if( @info.values === null )
+		info.values = {};
+	else
+	{
+		foreach( key, value : info.values )
+		{
+			if( typeof(value) != "dict" )
+			{
+				info.values[ key ] = { value = value };
+			}
+		}
+	}
+	if( !@info.nativetype )
+		info.nativetype = info.name;
+	if( !@info.all_natives )
+		info.all_natives = [];
+	info.all_natives.push( info.nativetype );
+	structs[ name ] = info;
+}
+
+function POINTER( name, subtype, all_natives )
+{
+	STRUCT( name, { typeval = "mpdt_Pointer", subtype, nativetype = subtype $ "*", all_natives } );
+}
+
+function ENUM( name, values )
+{
+	STRUCT( name, { typeval = "mpdt_Enum", values } );
+}
+
+function DEFINE_BASETYPE( name, typeval )
+{
+	STRUCT( name, { typeval } );
+}
+
+function GET_TYPE( name )
+{
+	t = @structs[ name ];
+	if( t === null )
+	{
+		ERROR( "type '" $ name $ "' was not found" );
+	}
+	return t;
+}
+
+DEFINE_BASETYPE( "mpd_StringView", "mpdt_ConstString" );
+DEFINE_BASETYPE( "int8_t", "mpdt_Int8" );
+DEFINE_BASETYPE( "int16_t", "mpdt_Int16" );
+DEFINE_BASETYPE( "int32_t", "mpdt_Int32" );
+DEFINE_BASETYPE( "int64_t", "mpdt_Int64" );
+DEFINE_BASETYPE( "uint8_t", "mpdt_UInt8" );
+DEFINE_BASETYPE( "uint16_t", "mpdt_UInt16" );
+DEFINE_BASETYPE( "uint32_t", "mpdt_UInt32" );
+DEFINE_BASETYPE( "uint64_t", "mpdt_UInt64" );
+DEFINE_BASETYPE( "float", "mpdt_Float32" );
+DEFINE_BASETYPE( "double", "mpdt_Float64" );
+
+eval_file( argv[1] );
+
+
+
+global CESC_REP = { '"' = '\\"' };
+function CEsc( s )
+{
+	s = string_translate( s, CESC_REP );
+	return '"' $ s $ '"';
+}
+
+function TypeInfoPart( t )
+{
+	info = GET_TYPE( t );
+	return "{ " $ CEsc( t ) $ ", " $ info.typeval $ ", " $ info.typestruct $ " }";
+}
+
+
+// header
+print '\n';
+print '#ifndef MPD_API_HPP\n';
+print '#  define MPD_API_HPP "mpd_api.hpp"\n';
+print '#endif\n';
+print '#include MPD_API_HPP\n\n';
+
+// metadata
+foreach( struct : structs )
+{
+	if( struct.typeval != "mpdt_Struct" &&
+		struct.typeval != "mpdt_Enum" &&
+		struct.typeval != "mpdt_Pointer" )
+		continue;
+	
+	// metadata struct
+	print "struct ", struct.name, "_MPD : struct_MPD<", struct.name, "_MPD, ", struct.nativetype, ">\n{\n";
+	
+	// core
+	print '\tstatic const char* name(){ return "', struct.name, '"; }\n';
+	print "\tstatic const ", struct.name, "_MPD* inst(){ static const ", struct.name, "_MPD mpd; return &mpd; }\n";
+	print "\tstatic const mpd_KeyValue* metadata();\n";
+	print "\n";
+	
+	// properties
+	print "\tstatic int propcount(){ return ", struct.props.size, "; }\n";
+	print "\tstatic const mpd_PropInfo* props();\n";
+	print "\tstatic mpd_Variant getprop( ", struct.nativetype, " const*, int );\n";
+	print "\tstatic bool setprop( ", struct.nativetype, "*, int, const mpd_Variant& );\n";
+	print "\n";
+	
+	// index
+	if( @struct.index )
+	{
+		print "\tstatic const mpd_TypeInfo* indextypes(){ static const mpd_TypeInfo types[] = { ", TypeInfoPart( struct.index.type ), ", ", TypeInfoPart( struct.index.subtype ), " }; return types; }\n";
+	}
+	else
+	{
+		print "\tstatic const mpd_TypeInfo* indextypes(){ return 0; }\n";
+	}
+	print "\tstatic mpd_Variant getindex( ", struct.nativetype, " const*, const mpd_Variant& );\n";
+	print "\tstatic bool setindex( ", struct.nativetype, "*, const mpd_Variant&, const mpd_Variant& );\n";
+	print "\n";
+	
+	// values
+	print "\tstatic int valuecount(){ return ", dict_size( struct.values ), "; }\n";
+	print "\tstatic const mpd_EnumValue* values();\n";
+	print "\n";
+	
+	// dump
+	print "\tstatic void dump( MPD_STATICDUMP_ARGS(", struct.nativetype, ") );\n";
+	
+	print "};\n\n";
+	
+	// external dumping function
+	print "MPD_DUMPDATA_WRAPPER(", struct.name, ", ", struct.nativetype, ");\n";
+	
+	// type resolution
+	foreach( nt : struct.all_natives )
+	{
+		print "template<> struct mpd_MetaType<", nt, " > : ", struct.name, "_MPD {};\n";
+		print "template<> struct mpd_MetaType<", nt, " const> : ", struct.name, "_MPD {};\n";
+	}
+	print "template<> struct mpd_MetaType<", struct.name, "_MPD> : ", struct.name, "_MPD {};\n\n";
+}
+print "\n";
+
+
+
+// function implementations:
+// - to avoid "specialization after instantiation" errors
+// - to allow recursive referencing
+
+function print_metadata( varname, srcdict )
+{
+	if( srcdict )
+	{
+		print "\tstatic const mpd_KeyValue ", varname, "[] =\n";
+		print "\t{\n";
+		foreach( key, val : srcdict )
+		{
+			key = tostring( key );
+			val = tostring( val );
+			print "\t\t{ ", CEsc( key ), ", ", key.length, ", ", CEsc( val ), ", ", val.length, ", ", toint( val ), ", (float) ", toreal( val ), " },\n";
+		}
+		print "\t\t{ 0, 0, 0, 0, 0, 0 }\n";
+		print "\t};\n";
+	}
+	else
+	{
+		print "\tstatic const mpd_KeyValue ", varname, "[] = { { 0, 0, 0, 0, 0, 0 } };\n";
+	}
+}
+
+foreach( struct : structs )
+{
+	if( struct.typeval != "mpdt_Struct" &&
+		struct.typeval != "mpdt_Enum" &&
+		struct.typeval != "mpdt_Pointer" )
+		continue;
+	
+	// TYPE METADATA
+	if( !@struct.metadata )
+	{
+		print "const mpd_KeyValue* ", struct.name, "_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }\n";
+	}
+	else
+	{
+		print "const mpd_KeyValue* ", struct.name, "_MPD::metadata()\n";
+		print "{\n";
+		print_metadata( "data", struct.metadata );
+		print "\treturn data;\n";
+		print "}\n";
+	}
+	
+	// PROPERTY INFO & INTERFACE
+	if( struct.props.size == 0 )
+	{
+		print "const mpd_PropInfo* ", struct.name, "_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }\n";
+		print "mpd_Variant ", struct.name, "_MPD::getprop( ", struct.nativetype, " const*, int ){ return mpd_Variant(); }\n";
+		print "bool ", struct.name, "_MPD::setprop( ", struct.nativetype, "*, int, const mpd_Variant& ){ return false; }\n";
+	}
+	else
+	{
+		// PROPERTIES
+		print "const mpd_PropInfo* ", struct.name, "_MPD::props()\n";
+		print "{\n";
+		foreach( prop : struct.props )
+		{
+			print_metadata( prop.name $ "_metadata", @prop.metadata );
+		}
+		print "\tstatic const mpd_PropInfo data[] =\n";
+		print "\t{\n";
+		foreach( prop : struct.props )
+		{
+			print "\t\t{ ", CEsc( prop.name ), ", ", prop.name.length, ", ", TypeInfoPart( prop.type ), ", ", prop.name, "_metadata },\n";
+		}
+		print "\t\t{ 0, 0, { 0, mpdt_None, 0 }, 0 },\n";
+		print "\t};\n";
+		print "\treturn data;\n";
+		print "}\n";
+		
+		// GETPROP
+		print "mpd_Variant ", struct.name, "_MPD::getprop( ", struct.nativetype, " const* obj, int prop )\n";
+		print "{\n";
+		print "\tswitch( prop )\n";
+		print "\t{\n";
+		foreach( i, prop : struct.props )
+		{
+			if( prop.get === false )
+			{
+				print "\tcase ", i, ": return mpd_Variant();\n";
+			}
+			else
+			{
+				pntype = GET_TYPE( prop.type ).nativetype;
+				prop_get = string_translate( prop.get, { _OBJ_ = "obj", _TYPE_ = pntype } );
+				print "\tcase ", i, ": return (", pntype, " const&) ", prop_get, ";\n";
+			}
+		}
+		print "\tdefault: return mpd_Variant();\n";
+		print "\t}\n";
+		print "}\n";
+		
+		// SETPROP
+		print "bool ", struct.name, "_MPD::setprop( ", struct.nativetype, "* obj, int prop, const mpd_Variant& val )\n";
+		print "{\n";
+		print "\tswitch( prop )\n";
+		print "\t{\n";
+		foreach( i, prop : struct.props )
+		{
+			if( prop.set === false )
+			{
+				print "\tcase ", i, ": return false;\n";
+			}
+			else
+			{
+				pntype = GET_TYPE( prop.type ).nativetype;
+				prop_set = string_translate( prop.set, { _OBJ_ = "obj", _VAR_ = "val", _TYPE_ = pntype } );
+				print "\tcase ", i, ": ", prop_set, "; return true;\n";
+			}
+		}
+		print "\tdefault: return false;\n";
+		print "\t}\n";
+		print "}\n";
+	}
+	
+	// INDEXING
+	if( @struct.index === null )
+	{
+		print "mpd_Variant ", struct.name, "_MPD::getindex( ", struct.nativetype, " const*, const mpd_Variant& ){ return mpd_Variant(); }\n";
+		print "bool ", struct.name, "_MPD::setindex( ", struct.nativetype, "*, const mpd_Variant&, const mpd_Variant& ){ return false; }\n";
+	}
+	else
+	{
+		idx = struct.index;
+		// GETINDEX
+		print "mpd_Variant ", struct.name, "_MPD::getindex( ", struct.nativetype, " const* obj, const mpd_Variant& key )\n";
+		print "{\n";
+		insubtype = GET_TYPE( idx.subtype ).nativetype;
+		index_get = string_translate( idx.get, { _OBJ_ = "obj", _INDEX_ = "key", _SUBTYPE_ = insubtype } );
+		print "\treturn (", insubtype, " const&)", index_get, ";\n";
+		print "}\n";
+		
+		// SETINDEX
+		print "bool ", struct.name, "_MPD::setindex( ", struct.nativetype, "* obj, const mpd_Variant& key, const mpd_Variant& val )\n";
+		print "{\n";
+		insubtype = GET_TYPE( idx.subtype ).nativetype;
+		index_set = string_translate( idx.set, { _OBJ_ = "obj", _INDEX_ = "key", _VAR_ = "val", _SUBTYPE_ = insubtype } );
+		print "\t", index_set, ";\n";
+		print "\treturn true;\n";
+		print "}\n";
+	}
+	
+	// ENUM VALUES
+	if( dict_size( struct.values ) == 0 )
+	{
+		print "const mpd_EnumValue* ", struct.name, "_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }\n";
+	}
+	else
+	{
+		print "const mpd_EnumValue* ", struct.name, "_MPD::values()\n";
+		print "{\n";
+		foreach( key, info : struct.values )
+		{
+			print_metadata( key $ "_metadata", @info.metadata );
+		}
+		print "\tstatic const mpd_EnumValue data[] =\n";
+		print "\t{\n";
+		foreach( key, info : struct.values )
+		{
+			value = tostring(@info.value);
+			if( value == ENUM )
+				value = key;
+			print "\t\t{ ", CEsc( key ), ", ", key.length, ", ", value, ", ", key, "_metadata },\n";
+		}
+		print "\t\t{ 0, 0, 0, 0 },\n";
+		print "\t};\n";
+		print "\treturn data;\n";
+		print "}\n";
+	}
+	
+	// DUMP
+	print "void ", struct.name, "_MPD::dump( MPD_STATICDUMP_ARGS(", struct.nativetype, ") )\n";
+	print "{\n";
+	print "\tMPD_DUMPDATA_USESTATICARGS;\n";
+	if( struct.typeval == "mpdt_Pointer" )
+	{
+		print '\tprintf( "[', struct.name, '] %s", *pdata ? "-> " : "null" );\n';
+		print '\tif( *pdata && level < limit )\n';
+		print '\t\tmpd_DumpData<', struct.subtype, '>( **pdata, limit, level );\n';
+	}
+	else if( dict_size( struct.values ) )
+	{
+		print '\tprintf( "', struct.name, '::%s (%d)", value2name( *pdata ), (int)*pdata );\n';
+	}
+	else
+	{
+		print '\tprintf( "struct ', struct.name, '\\n" );\n';
+		print '\tMPD_DUMPLEV( 0 ); printf( "{\\n" );\n';
+		print '\tif( level < limit )\n';
+		print '\t{\n';
+		foreach( prop : struct.props )
+		{
+			if( prop.get === false )
+				continue;
+			prop_get = string_translate( prop.get, { _OBJ_ = "pdata" } );
+			print "\t\tMPD_DUMP_PROP( ", GET_TYPE( prop.type ).nativetype, ", ", prop.name, ", ", prop_get, " );\n";
+		}
+		print '\t}\n';
+		print '\telse\n';
+		print '\t{\n';
+		print '\t\tMPD_DUMPLEV( 1 ); printf( "...\\n" );\n';
+		print '\t}\n';
+		print '\tMPD_DUMPLEV( 0 ); printf( "}" );\n';
+	}
+	print "}\n";
+	
+	print "\n";
+}
+

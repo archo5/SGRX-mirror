@@ -2052,6 +2052,29 @@ struct EDGUIEntList : EDGUIGroup
 // WORLD
 //
 
+struct EdWorldLightingInfo
+{
+	Vec3 ambientColor;
+	Vec2 dirLightDir;
+	Vec3 dirLightColor;
+	float dirLightDivergence;
+	int32_t dirLightNumSamples;
+	Vec3 lightmapClearColor;
+//	int32_t radNumBounces;
+	float lightmapDetail;
+	float lightmapBlurSize;
+	float aoDistance;
+	float aoMultiplier;
+	float aoFalloff;
+	float aoEffect;
+//	float aoDivergence;
+	Vec3 aoColor;
+	int32_t aoNumSamples;
+	float sampleDensity;
+	String skyboxTexture;
+	String lutTexture;
+};
+
 enum SelectionMask
 {
 	SelMask_Blocks = 0x1,
