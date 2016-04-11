@@ -40,13 +40,8 @@ set_target_properties( sgrx-render-d3d9 PROPERTIES
 endif()
 
 # Renderer - D3D11
-if(MSVC)
-	set(D3DCOMPILER_LIB d3dcompiler)
-else()
-	set(D3DCOMPILER_LIB d3dcompiler_42)
-endif()
 add_library( sgrx-render-d3d11 SHARED renderer_d3d11 )
-target_link_libraries( sgrx-render-d3d11 d3d11 ${D3DCOMPILER_LIB} sgrx-core )
+target_link_libraries( sgrx-render-d3d11 d3d11 sgrx-core )
 set_target_properties( sgrx-render-d3d11 PROPERTIES
 	INCLUDE_DIRECTORIES "D:/DXSDK/Include"
 	COMPILE_FLAGS "${CORE_FLAGS} ${MINGW_D3D_FLAGS} -DENABLE_SHADER_COMPILING"

@@ -58,6 +58,40 @@
 #include "renderer.hpp"
 
 
+#ifdef ENABLE_SHADER_COMPILING
+void* g_D3DCompilerDLL = NULL;
+pD3DCompile g_pfnD3DCompile = NULL;
+
+#define SGRX_D3DCOMPILER_DLL "d3dcompiler_42.dll"
+
+void LoadD3DCompiler()
+{
+	g_D3DCompilerDLL = Sys_LoadLib( SGRX_D3DCOMPILER_DLL );
+	if( !g_D3DCompilerDLL )
+	{
+		LOG_WARNING << LOG_DATE << "    " SGRX_D3DCOMPILER_DLL " is unavailable - shader compilation is disabled";
+		return;
+	}
+	g_pfnD3DCompile = (pD3DCompile) Sys_GetProc( g_D3DCompilerDLL, "D3DCompile" );
+	if( !g_pfnD3DCompile )
+	{
+		LOG_ERROR << LOG_DATE << "    D3DCompile function was not found - strange system configuration";
+		return;
+	}
+}
+
+void UnloadD3DCompiler()
+{
+	g_pfnD3DCompile = NULL;
+	if( g_D3DCompilerDLL )
+	{
+		Sys_UnloadLib( g_D3DCompilerDLL );
+		g_D3DCompilerDLL = NULL;
+	}
+}
+#endif
+
+
 #define SAFE_RELEASE( x ) if( x ){ (x)->Release(); x = NULL; }
 
 
@@ -529,12 +563,18 @@ struct D3D11Renderer : IRenderer
 
 extern "C" RENDERER_EXPORT bool Initialize( const char** outname )
 {
+#ifdef ENABLE_SHADER_COMPILING
+	LoadD3DCompiler();
+#endif
 	*outname = "Direct3D11";
 	return true;
 }
 
 extern "C" RENDERER_EXPORT void Free()
 {
+#ifdef ENABLE_SHADER_COMPILING
+	UnloadD3DCompiler();
+#endif
 }
 
 extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& settings, void* windowHandle )
@@ -1345,69 +1385,74 @@ bool D3D11Renderer::CompileShader( const StringView& path, EShaderType shadertyp
 	SGRX_ScopedMtxLock LOCK( &m_mutex );
 	
 #ifdef ENABLE_SHADER_COMPILING
-	HRESULT hr;
-	ID3DBlob *outbuf = NULL, *outerr = NULL;
-	
-	static const D3D_SHADER_MACRO vsmacros[] = { { "VS", "1" }, { NULL, NULL } };
-	static const D3D_SHADER_MACRO psmacros[] = { { "PS", "1" }, { NULL, NULL } };
-	
-	ByteWriter bw( &outcomp );
-	
-	const D3D_SHADER_MACRO* macros = NULL;
-	const char* tyname = "unknown";
-	const char* profile = "---";
-	switch( shadertype )
+	if( g_pfnD3DCompile )
 	{
-	case ShaderType_Vertex:
-		macros = vsmacros;
-		tyname = "vertex";
-		profile = "vs_4_0";
-		bw.marker( "CVSH\x7f", 5 );
-		break;
-	case ShaderType_Pixel:
-		macros = psmacros;
-		tyname = "pixel";
-		profile = "ps_4_0";
-		bw.marker( "CPSH\x7f", 5 );
-		break;
-	}
-	
-	hr = D3DCompile( code.data(), code.size(), StackPath( path ), macros, NULL, "main", profile, D3D10_SHADER_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
-	if( FAILED( hr ) )
-	{
-		if( outerr )
+		HRESULT hr;
+		ID3DBlob *outbuf = NULL, *outerr = NULL;
+		
+		static const D3D_SHADER_MACRO vsmacros[] = { { "VS", "1" }, { NULL, NULL } };
+		static const D3D_SHADER_MACRO psmacros[] = { { "PS", "1" }, { NULL, NULL } };
+		
+		ByteWriter bw( &outcomp );
+		
+		const D3D_SHADER_MACRO* macros = NULL;
+		const char* tyname = "unknown";
+		const char* profile = "---";
+		switch( shadertype )
 		{
-			const char* errtext = (const char*) outerr->GetBufferPointer();
-			outerrors.append( STRLIT_BUF( "Errors in " ) );
-			outerrors.append( tyname, strlen( tyname ) );
-			outerrors.append( STRLIT_BUF( " shader compilation:\n" ) );
-			outerrors.append( errtext, TMIN( strlen( errtext ), (size_t) outerr->GetBufferSize() ) );
+		case ShaderType_Vertex:
+			macros = vsmacros;
+			tyname = "vertex";
+			profile = "vs_4_0";
+			bw.marker( "CVSH\x7f", 5 );
+			break;
+		case ShaderType_Pixel:
+			macros = psmacros;
+			tyname = "pixel";
+			profile = "ps_4_0";
+			bw.marker( "CPSH\x7f", 5 );
+			break;
 		}
-		else
+		
+		hr = g_pfnD3DCompile( code.data(), code.size(), StackPath( path ), macros, NULL, "main", profile, D3D10_SHADER_OPTIMIZATION_LEVEL3, 0, &outbuf, &outerr );
+		if( FAILED( hr ) )
 		{
-			outerrors.append( STRLIT_BUF( "Unknown error in " ) );
-			outerrors.append( tyname, strlen( tyname ) );
-			outerrors.append( STRLIT_BUF( " shader compilation" ) );
+			if( outerr )
+			{
+				const char* errtext = (const char*) outerr->GetBufferPointer();
+				outerrors.append( STRLIT_BUF( "Errors in " ) );
+				outerrors.append( tyname, strlen( tyname ) );
+				outerrors.append( STRLIT_BUF( " shader compilation:\n" ) );
+				outerrors.append( errtext, TMIN( strlen( errtext ), (size_t) outerr->GetBufferSize() ) );
+			}
+			else
+			{
+				outerrors.append( STRLIT_BUF( "Unknown error in " ) );
+				outerrors.append( tyname, strlen( tyname ) );
+				outerrors.append( STRLIT_BUF( " shader compilation" ) );
+			}
+			
+			SAFE_RELEASE( outbuf );
+			SAFE_RELEASE( outerr );
+			return false;
 		}
+		
+		int32_t shsize = outbuf->GetBufferSize();
+		bw << shsize;
+		bw.memory( outbuf->GetBufferPointer(), shsize );
 		
 		SAFE_RELEASE( outbuf );
 		SAFE_RELEASE( outerr );
+		
+		return true;
+	}
+	else
+#endif // ENABLE_SHADER_COMPILING
+	{
+		LOG << "<<< D3D11 SHADER COMPILATION IS NOT ALLOWED IN THIS BUILD >>>";
+		LOG << "Uncompiled shader: " << path;
 		return false;
 	}
-	
-	int32_t shsize = outbuf->GetBufferSize();
-	bw << shsize;
-	bw.memory( outbuf->GetBufferPointer(), shsize );
-	
-	SAFE_RELEASE( outbuf );
-	SAFE_RELEASE( outerr );
-	
-	return true;
-#else
-	LOG << "<<< D3D11 SHADER COMPILATION IS NOT ALLOWED IN THIS BUILD >>>";
-	LOG << "Uncompiled shader: " << path;
-	return false;
-#endif // ENABLE_SHADER_COMPILING
 }
 
 SGRX_IVertexShader* D3D11Renderer::CreateVertexShader( const StringView& path, ByteArray& code )

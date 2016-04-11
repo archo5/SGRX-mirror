@@ -71,7 +71,6 @@ _G.
 	OUT = "staging/defended_win32/",
 	engine_binaries =
 	[
-		"d3dx9_42.dll",
 		"fmod.dll",
 		"fmodstudio.dll",
 		"game.dll",
