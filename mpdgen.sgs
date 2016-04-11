@@ -125,6 +125,7 @@ function TypeInfoPart( t )
 
 // header
 print '\n';
+print '#pragma once\n';
 print '#ifndef MPD_API_HPP\n';
 print '#  define MPD_API_HPP "mpd_api.hpp"\n';
 print '#endif\n';

@@ -6,6 +6,8 @@
 #include <script.hpp>
 #include <sound.hpp>
 
+#include "mpd_api.hpp"
+
 
 // nullifies mesh lighting
 inline void lmm_prepmeshinst( MeshInstHandle mih )
@@ -465,6 +467,71 @@ struct EDGUILevelSavePicker : EDGUILevelPicker
 	{
 		_OnPickResource();
 	}
+};
+
+
+//
+// property inspector
+//
+
+struct EDGUIPropertyList : EDGUIGroup
+{
+	void SetData( mpd_Variant data )
+	{
+		m_data = data;
+		_Recreate();
+	}
+	void _Recreate()
+	{
+		m_items.clear();
+		_CreateProperty( this, m_data );
+	}
+	void _CreateProperty( EDGUIItem* prt, mpd_Variant item )
+	{
+		if( item.get_type() == mpdt_Struct )
+		{
+			const virtual_MPD* info = item.get_typeinfo();
+			ASSERT( info );
+			EDGUIGroup* group = new EDGUIGroup( true, info->vname() );
+			
+			for( int i = 0, pc = info->vpropcount(); i < pc; ++i )
+			{
+				_CreateProperty( group, item.getpropbyid( i ) );
+			}
+			
+			m_items.push_back( group );
+			prt->Add( group );
+		}
+		else if( item.get_type() == mpdt_Enum )
+		{
+			const virtual_MPD* info = item.get_typeinfo();
+			ASSERT( info );
+			EDGUIPropEnumSB* pesb = new EDGUIPropEnumSB;
+			
+			const mpd_EnumValue* v = info->vvalues();
+			while( v->name )
+			{
+				EDGUIPropEnumSB::Entry entry = { StringView( v->name, v->namesz ), v->value };
+				pesb->m_enum.push_back( entry );
+				++v;
+			}
+			
+			m_items.push_back( pesb );
+			prt->Add( pesb );
+		}
+		else
+		{
+			EDGUILabel* label = new EDGUILabel;
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "<unsupported type:%d name:%s>", (int) item.get_type(), item.get_name() );
+			label->caption = bfr;
+			m_items.push_back( label );
+			prt->Add( label );
+		}
+	}
+	
+	mpd_Variant m_data;
+	EDGUIItemRefArray m_items;
 };
 
 

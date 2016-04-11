@@ -1,5 +1,6 @@
 
 
+#pragma once
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
@@ -37,6 +38,29 @@ enum mpd_Type
 	mpdt_Float32,
 	mpdt_Float64,
 };
+
+inline const char* mpd_TypeToName( mpd_Type t )
+{
+	switch( t )
+	{
+	case mpdt_None: return "<none>";
+	case mpdt_Struct: return "<struct>";
+	case mpdt_Pointer: return "<pointer>";
+	case mpdt_Enum: return "<enum>";
+	case mpdt_ConstString: return "<const_string>";
+	case mpdt_Int8: return "int8";
+	case mpdt_Int16: return "int16";
+	case mpdt_Int32: return "int32";
+	case mpdt_Int64: return "int64";
+	case mpdt_UInt8: return "uint8";
+	case mpdt_UInt16: return "uint16";
+	case mpdt_UInt32: return "uint32";
+	case mpdt_UInt64: return "uint64";
+	case mpdt_Float32: return "float32";
+	case mpdt_Float64: return "float64";
+	default: return "<unknown>";
+	}
+}
 
 struct mpd_StringView
 {
@@ -174,7 +198,15 @@ struct mpd_Variant
 	mpd_Variant( const char* str, size_t size ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ){ data.s.str = str; data.s.size = size; }
 	mpd_Variant( mpd_StringView sv ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ){ data.s = sv; }
 	
+	const char* get_name() const
+	{
+		if( mpdata )
+			return mpdata->vname();
+		else
+			return mpd_TypeToName( type );
+	}
 	mpd_Type get_type() const { return type; }
+	const virtual_MPD* get_typeinfo() const { return mpdata; }
 	
 	mpd_Variant get_target() const
 	{
@@ -297,31 +329,31 @@ private:
 };
 template<> inline void mpd_DumpData<mpd_Variant>( MPD_DUMPDATA_ARGS(mpd_Variant) ){ data.dump( limit, level ); }
 
-mpd_Variant virtual_MPD::vgetprop( const void*, int ) const
+mpd_Variant inline virtual_MPD::vgetprop( const void*, int ) const
 {
 	return mpd_Variant();
 }
-mpd_Variant virtual_MPD::vgetindex( const void*, const mpd_Variant& ) const
+mpd_Variant inline virtual_MPD::vgetindex( const void*, const mpd_Variant& ) const
 {
 	return mpd_Variant();
 }
 
-template< class T > T mpd_var_get( const mpd_Variant& v ){ return v.get_obj<T>(); }
-template<> int8_t mpd_var_get<int8_t>( const mpd_Variant& v ){ return v.get_int8(); }
-template<> int16_t mpd_var_get<int16_t>( const mpd_Variant& v ){ return v.get_int16(); }
-template<> int32_t mpd_var_get<int32_t>( const mpd_Variant& v ){ return v.get_int32(); }
-template<> int64_t mpd_var_get<int64_t>( const mpd_Variant& v ){ return v.get_int64(); }
-template<> uint8_t mpd_var_get<uint8_t>( const mpd_Variant& v ){ return v.get_uint8(); }
-template<> uint16_t mpd_var_get<uint16_t>( const mpd_Variant& v ){ return v.get_uint16(); }
-template<> uint32_t mpd_var_get<uint32_t>( const mpd_Variant& v ){ return v.get_uint32(); }
-template<> uint64_t mpd_var_get<uint64_t>( const mpd_Variant& v ){ return v.get_uint64(); }
-template<> float mpd_var_get<float>( const mpd_Variant& v ){ return v.get_float32(); }
-template<> double mpd_var_get<double>( const mpd_Variant& v ){ return v.get_float64(); }
+template< class T > inline T mpd_var_get( const mpd_Variant& v ){ return v.get_obj<T>(); }
+template<> inline int8_t mpd_var_get<int8_t>( const mpd_Variant& v ){ return v.get_int8(); }
+template<> inline int16_t mpd_var_get<int16_t>( const mpd_Variant& v ){ return v.get_int16(); }
+template<> inline int32_t mpd_var_get<int32_t>( const mpd_Variant& v ){ return v.get_int32(); }
+template<> inline int64_t mpd_var_get<int64_t>( const mpd_Variant& v ){ return v.get_int64(); }
+template<> inline uint8_t mpd_var_get<uint8_t>( const mpd_Variant& v ){ return v.get_uint8(); }
+template<> inline uint16_t mpd_var_get<uint16_t>( const mpd_Variant& v ){ return v.get_uint16(); }
+template<> inline uint32_t mpd_var_get<uint32_t>( const mpd_Variant& v ){ return v.get_uint32(); }
+template<> inline uint64_t mpd_var_get<uint64_t>( const mpd_Variant& v ){ return v.get_uint64(); }
+template<> inline float mpd_var_get<float>( const mpd_Variant& v ){ return v.get_float32(); }
+template<> inline double mpd_var_get<double>( const mpd_Variant& v ){ return v.get_float64(); }
 
 //
 // --- METADATA ---
 //
-void mpd_DumpMetadata( const mpd_KeyValue* md )
+inline void mpd_DumpMetadata( const mpd_KeyValue* md )
 {
 	if( md->key )
 	{
@@ -334,7 +366,7 @@ void mpd_DumpMetadata( const mpd_KeyValue* md )
 		printf( "]" );
 	}
 }
-template< class T > void mpd_DumpInfo()
+template< class T > inline void mpd_DumpInfo()
 {
 	typedef mpd_MetaType<T> MT;
 	printf( "%s %s", MT::valuecount() ? "enum" : "struct", MT::name() );
@@ -370,7 +402,7 @@ template< class T > void mpd_DumpInfo()
 	printf( "}\n" );
 }
 
-void mpd_DumpInfo( const virtual_MPD* type, int limit = 5, int level = 0, bool _int_subprop = false )
+inline void mpd_DumpInfo( const virtual_MPD* type, int limit = 5, int level = 0, bool _int_subprop = false )
 {
 	if( !_int_subprop )
 		__mpd_reprint( "\t", level );
@@ -515,11 +547,11 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 	virtual int64_t vname2value( mpd_StringView name, int64_t def = 0 ){ return name2value( name, def ); }
 };
 
-template< class T > const char* mpd_Value2Name( T val, const char* def = "<unknown>" )
+template< class T > inline const char* mpd_Value2Name( T val, const char* def = "<unknown>" )
 {
 	return mpd_MetaType<T>::value2name( val, def );
 }
-template< class T > T mpd_Name2Value( mpd_StringView name, T def = (T) 0 )
+template< class T > inline T mpd_Name2Value( mpd_StringView name, T def = (T) 0 )
 {
 	return (T) mpd_MetaType<T>::name2value( name, def );
 }

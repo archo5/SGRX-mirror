@@ -166,7 +166,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIEvent
 
 typedef Array< struct EDGUIItem* > EDGUIItemArray;
 
-struct IF_GCC(ENGINE_EXPORT) EDGUIItem
+struct IF_GCC(ENGINE_EXPORT) EDGUIItem : virtual SGRX_RefCounted
 {
 	ENGINE_EXPORT EDGUIItem();
 	ENGINE_EXPORT virtual ~EDGUIItem();
@@ -204,6 +204,8 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIItem
 	bool m_mouseOn;
 	bool m_clicked;
 };
+typedef Handle< EDGUIItem > EDGUIItemHandle;
+typedef Array< EDGUIItemHandle > EDGUIItemRefArray;
 
 struct IF_GCC(ENGINE_EXPORT) EDGUIFrame : EDGUIItem
 {

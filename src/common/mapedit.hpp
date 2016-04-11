@@ -429,14 +429,11 @@ typedef SerializeVersionHelper<TextReader> SVHTR;
 typedef SerializeVersionHelper<ByteReader> SVHBR;
 typedef SerializeVersionHelper<ByteWriter> SVHBW;
 
-struct EdObject
+struct EdObject : virtual SGRX_RefCounted
 {
-	EdObject( uint8_t ty ) : m_refcount(0), m_type(ty), selected(false), group(0) {}
-	EdObject( const EdObject& o ) : m_refcount(0), m_type(o.m_type), selected(o.selected), group(o.group) {}
+	EdObject( uint8_t ty ) : m_type(ty), selected(false), group(0) {}
+	EdObject( const EdObject& o ) : m_type(o.m_type), selected(o.selected), group(o.group) {}
 	virtual ~EdObject(){}
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	int32_t m_refcount;
 	uint8_t m_type;
 	bool selected;
 	int32_t group;
