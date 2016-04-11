@@ -39,6 +39,23 @@ enum mpd_Type
 	mpdt_Float64,
 };
 
+inline bool mpd_TypeIsInteger( mpd_Type t )
+{
+	return t == mpdt_Int8
+		|| t == mpdt_Int16
+		|| t == mpdt_Int32
+		|| t == mpdt_Int64
+		|| t == mpdt_UInt8
+		|| t == mpdt_UInt16
+		|| t == mpdt_UInt32
+		|| t == mpdt_UInt64;
+}
+
+inline bool mpd_TypeIsFloat( mpd_Type t )
+{
+	return t == mpdt_Float32 || t == mpdt_Float64;
+}
+
 inline const char* mpd_TypeToName( mpd_Type t )
 {
 	switch( t )
@@ -118,6 +135,19 @@ struct mpd_KeyValue
 	size_t valuesz;
 	int32_t value_i32;
 	float value_float;
+	
+	const mpd_KeyValue* find_ext( const char* name, size_t size ) const
+	{
+		const mpd_KeyValue* kv = this;
+		while( kv->key )
+		{
+			if( kv->keysz == size && memcmp( kv->key, name, size ) == 0 )
+				return kv;
+			++kv;
+		}
+		return NULL;
+	}
+	const mpd_KeyValue* find( const char* name ) const { return find_ext( name, strlen( name ) ); }
 };
 
 struct mpd_TypeInfo
@@ -158,14 +188,14 @@ struct virtual_MPD
 	virtual bool vsetindex( void* obj, const mpd_Variant& key, const mpd_Variant& val ) const { (void) obj; (void) key; (void) val; return false; }
 	virtual void vdump( const void* p, int limit, int level ) const { (void) p; (void) limit; (void) level; }
 	
-	virtual const mpd_PropInfo* vprop( int i ){ (void) i; return 0; }
-	virtual const mpd_PropInfo* vfindprop_ext( const char* name, size_t namesz ){ (void) name; (void) namesz; return 0; }
-	virtual const mpd_PropInfo* vfindprop( const char* name ){ (void) name; return 0; }
+	virtual const mpd_PropInfo* vprop( int i ) const { (void) i; return 0; }
+	virtual const mpd_PropInfo* vfindprop_ext( const char* name, size_t namesz ) const { (void) name; (void) namesz; return 0; }
+	virtual const mpd_PropInfo* vfindprop( const char* name ) const { (void) name; return 0; }
 	virtual int vfindpropid_ext( const char* name, size_t sz ) const { (void) name; (void) sz; return -1; }
 	virtual int vfindpropid( const char* name ) const { (void) name; return -1; }
-	virtual int vprop2id( const mpd_PropInfo* prop ){ (void) prop; return -1; }
-	virtual const char* vvalue2name( int32_t val, const char* def = "<unknown>" ){ (void) val; (void) def; return 0; }
-	virtual int64_t vname2value( mpd_StringView name, int64_t def = 0 ){ (void) name; return def; }
+	virtual int vprop2id( const mpd_PropInfo* prop ) const { (void) prop; return -1; }
+	virtual const char* vvalue2name( int32_t val, const char* def = "<unknown>" ) const { (void) val; (void) def; return 0; }
+	virtual int64_t vname2value( mpd_StringView name, int64_t def = 0 ) const { (void) name; return def; }
 };
 
 struct none_MPD : virtual_MPD
@@ -537,14 +567,14 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 	virtual bool vsetindex( void* obj, const mpd_Variant& key, const mpd_Variant& val ) const { return T::setindex( (type*) obj, key, val ); }
 	virtual void vdump( const void* p, int limit, int level ) const { T::dump( (type const*) p, limit, level ); }
 	// - virtual helper function wrappers
-	virtual const mpd_PropInfo* vprop( int i ){ return prop( i ); }
-	virtual const mpd_PropInfo* vfindprop_ext( const char* name, size_t namesz ){ return findprop_ext( name, namesz ); }
-	virtual const mpd_PropInfo* vfindprop( const char* name ){ return findprop( name ); }
+	virtual const mpd_PropInfo* vprop( int i ) const { return prop( i ); }
+	virtual const mpd_PropInfo* vfindprop_ext( const char* name, size_t namesz ) const { return findprop_ext( name, namesz ); }
+	virtual const mpd_PropInfo* vfindprop( const char* name ) const { return findprop( name ); }
 	virtual int vfindpropid_ext( const char* name, size_t sz ) const { return findpropid_ext( name, sz ); }
 	virtual int vfindpropid( const char* name ) const { return findpropid( name ); }
-	virtual int vprop2id( const mpd_PropInfo* prop ){ return prop2id( prop ); }
-	virtual const char* vvalue2name( int64_t val, const char* def = "<unknown>" ){ return value2name( val, def ); }
-	virtual int64_t vname2value( mpd_StringView name, int64_t def = 0 ){ return name2value( name, def ); }
+	virtual int vprop2id( const mpd_PropInfo* prop ) const { return prop2id( prop ); }
+	virtual const char* vvalue2name( int64_t val, const char* def = "<unknown>" ) const { return value2name( val, def ); }
+	virtual int64_t vname2value( mpd_StringView name, int64_t def = 0 ) const { return name2value( name, def ); }
 };
 
 template< class T > inline const char* mpd_Value2Name( T val, const char* def = "<unknown>" )

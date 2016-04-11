@@ -2816,8 +2816,7 @@ int sgs_ProcessSubthreads( SGS_CTX, sgs_Real dt )
 			}
 			else if( v->val.data.R <= 0 )
 			{
-				sgs_PushReal( thctx, dt );
-				sgs_ResumeStateExp( thctx, 1, 1 );
+				sgs_ResumeStateExp( thctx, 0, 1 );
 				v->val.data.R = sgs_GetReal( thctx, -1 );
 				sgs_Pop( thctx, 1 );
 			}
@@ -4751,43 +4750,46 @@ SGSBOOL sgsSTD_GlobalGet( SGS_CTX, sgs_Variable* out, sgs_Variable* idx )
 	
 	name = sgs_var_cstr( idx );
 	
-	if( strcmp( name, "_G" ) == 0 )
+	if( idx->data.S->size == 2 && name[0] == '_' )
 	{
-		sgs_Variable tmp;
-		sgs_InitObjectPtr( &tmp, obj );
-		sgs_Release( C, out );
-		*out = tmp;
-		return SGS_TRUE;
-	}
-	
-	if( strcmp( name, "_R" ) == 0 )
-	{
-		SGS_SHCTX_USE;
-		sgs_Release( C, out );
-		sgs_InitObjectPtr( out, RLBP );
-		return SGS_TRUE;
-	}
-	
-	if( strcmp( name, "_T" ) == 0 )
-	{
-		sgs_Variable tmp;
-		sgs_InitThreadPtr( &tmp, C );
-		sgs_Release( C, out );
-		*out = tmp;
-		return SGS_TRUE;
-	}
-	
-	if( strcmp( name, "_F" ) == 0 )
-	{
-		sgs_Variable tmp = sgs_MakeNull();
-		if( C->sf_last )
+		if( name[1] == 'G' )
 		{
-			tmp = C->sf_last->func;
-			sgs_Acquire( C, &tmp );
+			sgs_Variable tmp;
+			sgs_InitObjectPtr( &tmp, obj );
+			VAR_RELEASE( out );
+			*out = tmp;
+			return SGS_TRUE;
 		}
-		sgs_Release( C, out );
-		*out = tmp;
-		return SGS_TRUE;
+		
+		if( name[1] == 'R' )
+		{
+			SGS_SHCTX_USE;
+			VAR_RELEASE( out );
+			sgs_InitObjectPtr( out, RLBP );
+			return SGS_TRUE;
+		}
+		
+		if( name[1] == 'T' )
+		{
+			sgs_Variable tmp;
+			sgs_InitThreadPtr( &tmp, C );
+			VAR_RELEASE( out );
+			*out = tmp;
+			return SGS_TRUE;
+		}
+		
+		if( name[1] == 'F' )
+		{
+			sgs_Variable tmp = sgs_MakeNull();
+			if( C->sf_last )
+			{
+				tmp = C->sf_last->func;
+				VAR_ACQUIRE( &tmp );
+			}
+			VAR_RELEASE( out );
+			*out = tmp;
+			return SGS_TRUE;
+		}
 	}
 	
 	if( obj->mm_enable )
@@ -4797,21 +4799,21 @@ SGSBOOL sgsSTD_GlobalGet( SGS_CTX, sgs_Variable* out, sgs_Variable* idx )
 		obv.type = SGS_VT_OBJECT;
 		obv.data.O = obj;
 		ret = sgs_GetIndex( C, obv, *idx, &tmp, 0 );
-		sgs_Release( C, out );
+		VAR_RELEASE( out );
 		*out = tmp;
 		return ret;
 	}
 	
 	if( ( pair = sgs_vht_get( ht, idx ) ) != NULL )
 	{
-		sgs_Release( C, out );
+		VAR_RELEASE( out );
 		*out = pair->val;
-		sgs_Acquire( C, out );
+		VAR_ACQUIRE( out );
 		return SGS_TRUE;
 	}
 	
 	sgs_Msg( C, SGS_WARNING, "variable '%s' was not found", sgs_str_cstr( idx->data.S ) );
-	sgs_Release( C, out );
+	VAR_RELEASE( out );
 	return SGS_FALSE;
 }
 
@@ -4826,24 +4828,27 @@ SGSBOOL sgsSTD_GlobalSet( SGS_CTX, sgs_Variable* idx, sgs_Variable* val )
 	
 	name = sgs_var_cstr( idx );
 	
-	if( strcmp( name, "_G" ) == 0 )
+	if( idx->data.S->size == 2 && name[0] == '_' )
 	{
-		if( val->type != SGS_VT_OBJECT ||
-			( val->data.O->iface != sgsstd_dict_iface && val->data.O->iface != sgsstd_map_iface ) )
+		if( name[1] == 'G' )
 		{
-			sgs_Msg( C, SGS_ERROR, "_G only accepts 'map'/'dict' values" );
+			if( val->type != SGS_VT_OBJECT ||
+				( val->data.O->iface != sgsstd_dict_iface && val->data.O->iface != sgsstd_map_iface ) )
+			{
+				sgs_Msg( C, SGS_ERROR, "_G only accepts 'map'/'dict' values" );
+				return SGS_FALSE;
+			}
+			sgs_SetEnv( C, *val );
+			return SGS_TRUE;
+		}
+		
+		if( name[1] == 'R' ||
+			name[1] == 'T' ||
+			name[1] == 'F' )
+		{
+			sgs_Msg( C, SGS_WARNING, "cannot change %s", name );
 			return SGS_FALSE;
 		}
-		sgs_SetEnv( C, *val );
-		return SGS_TRUE;
-	}
-	
-	if( strcmp( name, "_R" ) == 0 ||
-		strcmp( name, "_T" ) == 0 ||
-		strcmp( name, "_F" ) == 0 )
-	{
-		sgs_Msg( C, SGS_WARNING, "cannot change %s", name );
-		return SGS_FALSE;
 	}
 	
 	if( obj->mm_enable )

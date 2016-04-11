@@ -474,7 +474,7 @@ struct EDGUILevelSavePicker : EDGUILevelPicker
 // property inspector
 //
 
-struct EDGUIPropertyList : EDGUIGroup
+struct EDGUIPropertyList : EDGUILayoutRow
 {
 	void SetData( mpd_Variant data )
 	{
@@ -486,38 +486,175 @@ struct EDGUIPropertyList : EDGUIGroup
 		m_items.clear();
 		_CreateProperty( this, m_data );
 	}
-	void _CreateProperty( EDGUIItem* prt, mpd_Variant item )
+	void _CreateProperty( EDGUIItem* prt, mpd_Variant item, StringView name = SV(), const mpd_KeyValue* propinfo = NULL )
 	{
-		if( item.get_type() == mpdt_Struct )
+		mpd_Type type = item.get_type();
+		if( type == mpdt_Struct || type == mpdt_Pointer )
 		{
 			const virtual_MPD* info = item.get_typeinfo();
 			ASSERT( info );
-			EDGUIGroup* group = new EDGUIGroup( true, info->vname() );
 			
-			for( int i = 0, pc = info->vpropcount(); i < pc; ++i )
+			if( !strcmp( info->vname(), "String" ) )
 			{
-				_CreateProperty( group, item.getpropbyid( i ) );
+				mpd_StringView sv = item.getprop("data").get_stringview();
+				StringView value( sv.str, sv.size );
+				
+				EDGUIProperty* prop = NULL;
+				if( propinfo )
+				{
+					const mpd_KeyValue* kv = propinfo->find( "edit" );
+					if( kv )
+					{
+						EDGUIRsrcPicker* pck = m_pickers.getcopy( StringView( kv->value, kv->valuesz ) );
+						if( pck )
+							prop = new EDGUIPropRsrc( pck, value );
+					}
+				}
+				if( !prop )
+					prop = new EDGUIPropString( value );
+				prop->caption = name;
+				m_items.push_back( prop );
+				prt->Add( prop );
 			}
-			
-			m_items.push_back( group );
-			prt->Add( group );
+			else if( !strcmp( info->vname(), "Vec2" ) )
+			{
+				Vec2 vmin = V2(-FLT_MAX), vmax = V2(FLT_MAX);
+				int prec = 2;
+				if( propinfo )
+				{
+					const mpd_KeyValue* kv;
+					kv = propinfo->find("min");
+					if( kv )
+						vmin = *(Vec2*)kv->value;
+					kv = propinfo->find("max");
+					if( kv )
+						vmax = *(Vec2*)kv->value;
+					kv = propinfo->find("prec");
+					if( kv )
+						prec = kv->value_i32;
+				}
+				
+				EDGUIPropVec2* prop = new EDGUIPropVec2( item.get_obj<Vec2>(), prec, vmin, vmax );
+				prop->caption = name;
+				m_items.push_back( prop );
+				prt->Add( prop );
+			}
+			else if( !strcmp( info->vname(), "Vec3" ) )
+			{
+				Vec3 vmin = V3(-FLT_MAX), vmax = V3(FLT_MAX);
+				int prec = 2;
+				if( propinfo )
+				{
+					const mpd_KeyValue* kv;
+					kv = propinfo->find("min");
+					if( kv )
+						vmin = *(Vec3*)kv->value;
+					kv = propinfo->find("max");
+					if( kv )
+						vmax = *(Vec3*)kv->value;
+					kv = propinfo->find("prec");
+					if( kv )
+						prec = kv->value_i32;
+				}
+				
+				EDGUIPropVec3* prop = new EDGUIPropVec3( item.get_obj<Vec3>(), prec, vmin, vmax );
+				prop->caption = name;
+				m_items.push_back( prop );
+				prt->Add( prop );
+			}
+			else
+			{
+				StringView gname = name;
+				if( !gname )
+				{
+					const mpd_KeyValue* kv = info->vmetadata()->find( "label" );
+					if( kv )
+						gname = StringView( kv->value, kv->valuesz );
+				}
+				if( !gname )
+					gname = info->vname();
+				EDGUIGroup* group = new EDGUIGroup( true, gname );
+				
+				for( int i = 0, pc = info->vpropcount(); i < pc; ++i )
+				{
+					const mpd_PropInfo* p = info->vprop( i );
+					StringView propname( p->name, p->namesz );
+					const mpd_KeyValue* kv = p->metadata->find( "label" );
+					if( kv )
+						propname = StringView( kv->value, kv->valuesz );
+					_CreateProperty( group, item.getpropbyid( i ), propname, p->metadata );
+				}
+				
+				m_items.push_back( group );
+				prt->Add( group );
+			}
 		}
-		else if( item.get_type() == mpdt_Enum )
+		else if( type == mpdt_Enum )
 		{
 			const virtual_MPD* info = item.get_typeinfo();
 			ASSERT( info );
-			EDGUIPropEnumSB* pesb = new EDGUIPropEnumSB;
+			EDGUIPropEnumSB* prop = new EDGUIPropEnumSB;
 			
 			const mpd_EnumValue* v = info->vvalues();
 			while( v->name )
 			{
 				EDGUIPropEnumSB::Entry entry = { StringView( v->name, v->namesz ), v->value };
-				pesb->m_enum.push_back( entry );
+				prop->m_enum.push_back( entry );
 				++v;
 			}
 			
-			m_items.push_back( pesb );
-			prt->Add( pesb );
+			m_items.push_back( prop );
+			prt->Add( prop );
+		}
+		else if( mpd_TypeIsInteger( type ) )
+		{
+			int32_t vmin = (int32_t) 0x80000000, vmax = (int32_t) 0x7fffffff;
+			if( propinfo )
+			{
+				const mpd_KeyValue* kv;
+				kv = propinfo->find("min");
+				if( kv )
+					vmin = kv->value_i32;
+				kv = propinfo->find("max");
+				if( kv )
+					vmax = kv->value_i32;
+			}
+			
+			EDGUIPropInt* prop = new EDGUIPropInt( item.get_int32(), vmin, vmax );
+			prop->caption = name;
+			m_items.push_back( prop );
+			prt->Add( prop );
+		}
+		else if( mpd_TypeIsFloat( type ) )
+		{
+			float vmin = -FLT_MAX, vmax = FLT_MAX;
+			int prec = 2;
+			if( propinfo )
+			{
+				const mpd_KeyValue* kv;
+				kv = propinfo->find("min");
+				if( kv )
+					vmin = kv->value_float;
+				kv = propinfo->find("max");
+				if( kv )
+					vmax = kv->value_float;
+				kv = propinfo->find("prec");
+				if( kv )
+					prec = kv->value_i32;
+			}
+			
+			EDGUIPropFloat* prop = new EDGUIPropFloat( item.get_float32(), prec, vmin, vmax );
+			prop->caption = name;
+			m_items.push_back( prop );
+			prt->Add( prop );
+		}
+		else if( type == mpdt_ConstString )
+		{
+			mpd_StringView sv = item.get_stringview();
+			EDGUIPropString* prop = new EDGUIPropString( StringView( sv.str, sv.size ) );
+			prop->caption = name;
+			m_items.push_back( prop );
+			prt->Add( prop );
 		}
 		else
 		{
@@ -532,6 +669,7 @@ struct EDGUIPropertyList : EDGUIGroup
 	
 	mpd_Variant m_data;
 	EDGUIItemRefArray m_items;
+	HashTable< StringView, EDGUIRsrcPicker* > m_pickers;
 };
 
 

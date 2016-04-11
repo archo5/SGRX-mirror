@@ -1779,6 +1779,27 @@ struct EDGUIEntList : EDGUIGroup
 
 struct EdWorldLightingInfo
 {
+	EdWorldLightingInfo()
+	{
+		ambientColor = V3(0,0,0.1f);
+		dirLightDir = V2(0);
+		dirLightColor = V3(0);
+		dirLightDivergence = 10;
+		dirLightNumSamples = 15;
+		lightmapClearColor = V3(0);
+	//	radNumBounces = 2;
+		lightmapDetail = 2;
+		lightmapBlurSize = 1;
+		aoDistance = 2;
+		aoMultiplier = 1;
+		aoFalloff = 2;
+		aoEffect = 0;
+	//	aoDivergence = 0;
+		aoColor = V3(0);
+		aoNumSamples = 15;
+		sampleDensity = 1.0f;
+	}
+	
 	Vec3 ambientColor;
 	Vec2 dirLightDir;
 	Vec3 dirLightColor;
@@ -2170,6 +2191,9 @@ struct EdWorld : EDGUILayoutRow
 	EDGUIPropFloat m_ctlSampleDensity;
 	EDGUIPropRsrc m_ctlSkyboxTexture;
 	EDGUIPropRsrc m_ctlLUTTexture;
+	
+	EdWorldLightingInfo m_lighting;
+	EDGUIPropertyList m_propList;
 	
 	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;

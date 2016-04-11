@@ -1,4 +1,5 @@
 
+#pragma once
 #ifndef MPD_API_HPP
 #  define MPD_API_HPP "mpd_api.hpp"
 #endif
@@ -274,30 +275,134 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 	MPD_DUMPLEV( 0 ); printf( "}" );
 }
 
-const mpd_KeyValue* EdWorldLightingInfo_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_KeyValue* EdWorldLightingInfo_MPD::metadata()
+{
+	static const mpd_KeyValue data[] =
+	{
+		{ "label", 5, "Lighting info", 13, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	return data;
+}
 const mpd_PropInfo* EdWorldLightingInfo_MPD::props()
 {
 	static const mpd_KeyValue ambientColor_metadata[] =
 	{
 		{ "label", 5, "Ambient color", 13, 0, (float) 0 },
+		{ "min", 3, """\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""", 12, 0, (float) 0 },
+		{ "max", 3, """\x00""""\x00""""\x80""?""\x00""""\x00""""\x80""?""\x00""""\x00""""\xc8""B", 12, 0, (float) 0 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
-	static const mpd_KeyValue dirLightDir_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue dirLightColor_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue dirLightDivergence_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue dirLightNumSamples_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue lightmapClearColor_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue lightmapDetail_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue lightmapBlurSize_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue aoDistance_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue aoMultiplier_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue aoFalloff_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue aoEffect_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue aoColor_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue aoNumSamples_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue sampleDensity_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue skyboxTexture_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue lutTexture_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
+	static const mpd_KeyValue dirLightDir_metadata[] =
+	{
+		{ "label", 5, "Dir.light direction (dX,dY)", 27, 0, (float) 0 },
+		{ "min", 3, """\x00""""\x00""""\x00""""\xc6""""\x00""""\x00""""\x00""""\xc6""", 8, 0, (float) 0 },
+		{ "max", 3, """\x00""""\x00""""\x00""F""\x00""""\x00""""\x00""F", 8, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue dirLightColor_metadata[] =
+	{
+		{ "label", 5, "Dir.light color (HSV)", 21, 0, (float) 0 },
+		{ "min", 3, """\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""", 12, 0, (float) 0 },
+		{ "max", 3, """\x00""""\x00""""\x80""?""\x00""""\x00""""\x80""?""\x00""""\x00""""\xc8""B", 12, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue dirLightDivergence_metadata[] =
+	{
+		{ "label", 5, "Dir.light divergence", 20, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "180", 3, 180, (float) 180 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue dirLightNumSamples_metadata[] =
+	{
+		{ "label", 5, "Dir.light sample count", 22, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "256", 3, 256, (float) 256 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue lightmapClearColor_metadata[] =
+	{
+		{ "label", 5, "Lightmap clear color (HSV)", 26, 0, (float) 0 },
+		{ "min", 3, """\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""", 12, 0, (float) 0 },
+		{ "max", 3, """\x00""""\x00""""\x80""?""\x00""""\x00""""\x80""?""\x00""""\x00""""\xc8""B", 12, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue lightmapDetail_metadata[] =
+	{
+		{ "label", 5, "Lightmap detail", 15, 0, (float) 0 },
+		{ "min", 3, "0.01", 4, 0, (float) 0.01 },
+		{ "max", 3, "16", 2, 16, (float) 16 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue lightmapBlurSize_metadata[] =
+	{
+		{ "label", 5, "Lightmap blur size", 18, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "10", 2, 10, (float) 10 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue aoDistance_metadata[] =
+	{
+		{ "label", 5, "AO distance", 11, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "100", 3, 100, (float) 100 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue aoMultiplier_metadata[] =
+	{
+		{ "label", 5, "AO multiplier", 13, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "2", 1, 2, (float) 2 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue aoFalloff_metadata[] =
+	{
+		{ "label", 5, "AO falloff", 10, 0, (float) 0 },
+		{ "min", 3, "0.01", 4, 0, (float) 0.01 },
+		{ "max", 3, "100", 3, 100, (float) 100 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue aoEffect_metadata[] =
+	{
+		{ "label", 5, "AO effect", 9, 0, (float) 0 },
+		{ "min", 3, "-1", 2, -1, (float) -1 },
+		{ "max", 3, "1", 1, 1, (float) 1 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue aoColor_metadata[] =
+	{
+		{ "label", 5, "AO color (HSV)", 14, 0, (float) 0 },
+		{ "min", 3, """\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""""\x00""", 12, 0, (float) 0 },
+		{ "max", 3, """\x00""""\x00""""\x80""?""\x00""""\x00""""\x80""?""\x00""""\x00""""\xc8""B", 12, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue aoNumSamples_metadata[] =
+	{
+		{ "label", 5, "AO sample count", 15, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "256", 3, 256, (float) 256 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue sampleDensity_metadata[] =
+	{
+		{ "label", 5, "Sample density", 14, 0, (float) 0 },
+		{ "min", 3, "0.01", 4, 0, (float) 0.01 },
+		{ "max", 3, "100", 3, 100, (float) 100 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue skyboxTexture_metadata[] =
+	{
+		{ "label", 5, "Skybox texture", 14, 0, (float) 0 },
+		{ "edit", 4, "texture", 7, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue lutTexture_metadata[] =
+	{
+		{ "label", 5, "Default post-process cLUT", 25, 0, (float) 0 },
+		{ "edit", 4, "texture", 7, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
 	static const mpd_PropInfo data[] =
 	{
 		{ "ambientColor", 12, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, ambientColor_metadata },

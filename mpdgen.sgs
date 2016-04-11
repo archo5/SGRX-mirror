@@ -1,5 +1,5 @@
 
-include "string";
+include "fmt", "string";
 
 global structs = {};
 
@@ -109,11 +109,10 @@ eval_file( argv[1] );
 
 
 
-global CESC_REP = { '"' = '\\"' };
 function CEsc( s )
 {
-	s = string_translate( s, CESC_REP );
-	return '"' $ s $ '"';
+	// escape all unprintable characters and quote (") as ""\xHH""
+	return '"' $ fmt_custom_encode( s, "^ !#-~", '""\\x', 4, 2, '""' ) $ '"';
 }
 
 function TypeInfoPart( t )
