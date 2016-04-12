@@ -625,6 +625,72 @@ template< class T > void FSaveProp( sgsVariable obj, const char* prop, Array<T>&
 	obj.setprop( prop, arr );
 }
 
+inline void FLoadVarData( sgsVariable obj, mpd_Variant item )
+{
+	ASSERT( item.get_type() == mpdt_Struct || item.get_type() == mpdt_Pointer );
+	const virtual_MPD* info = item.get_typeinfo();
+	ASSERT( info );
+	for( int i = 0; i < info->vpropcount(); ++i )
+	{
+		const mpd_PropInfo* p = info->vprop( i );
+		sgsVariable pval = obj.getprop( p->name );
+		if( p->type.cls == mpdt_Struct || p->type.cls == mpdt_Pointer )
+		{
+			if( !strcmp( p->type.name, "String" ) )
+			{
+				StringView sval = pval.get<StringView>();
+				item.getpropbyid( i ).setprop( "data", mpd_Variant( sval.data(), sval.size() ) );
+			}
+			else
+			{
+				FLoadVarData( pval, item.getpropbyid( i ) );
+			}
+		}
+		else if( mpd_TypeIsInteger( p->type.cls ) )
+		{
+			item.setpropbyid( i, pval.get<sgs_Int>() );
+		}
+		else if( mpd_TypeIsFloat( p->type.cls ) )
+		{
+			item.setpropbyid( i, pval.get<sgs_Real>() );
+		}
+	}
+}
+
+inline sgsVariable FSaveVarData( mpd_Variant item )
+{
+	mpd_Type t = item.get_type();
+	if( t == mpdt_Struct || t == mpdt_Pointer )
+	{
+		const virtual_MPD* info = item.get_typeinfo();
+		ASSERT( info );
+		if( !strcmp( info->vname(), "String" ) )
+		{
+			mpd_StringView sv = item.getprop("data").get_stringview();
+			return FIntVar( StringView( sv.str, sv.size ) );
+		}
+		else
+		{
+			sgsVariable out = FNewDict();
+			for( int i = 0; i < info->vpropcount(); ++i )
+			{
+				const mpd_PropInfo* p = info->vprop( i );
+				out.setprop( p->name, FSaveVarData( item.getpropbyid( i ) ) );
+			}
+			return out;
+		}
+	}
+	else if( mpd_TypeIsInteger( t ) )
+	{
+		return sgsVariable().set_int( item.get_int64() );
+	}
+	else if( mpd_TypeIsFloat( t ) )
+	{
+		return sgsVariable().set_real( item.get_float64() );
+	}
+	return sgsVariable();
+}
+
 
 
 //
@@ -1784,14 +1850,14 @@ struct EdWorldLightingInfo
 		ambientColor = V3(0,0,0.1f);
 		dirLightDir = V2(0);
 		dirLightColor = V3(0);
-		dirLightDivergence = 10;
+		dirLightDvg = 10;
 		dirLightNumSamples = 15;
 		lightmapClearColor = V3(0);
 	//	radNumBounces = 2;
 		lightmapDetail = 2;
 		lightmapBlurSize = 1;
-		aoDistance = 2;
-		aoMultiplier = 1;
+		aoDist = 2;
+		aoMult = 1;
 		aoFalloff = 2;
 		aoEffect = 0;
 	//	aoDivergence = 0;
@@ -1803,14 +1869,14 @@ struct EdWorldLightingInfo
 	Vec3 ambientColor;
 	Vec2 dirLightDir;
 	Vec3 dirLightColor;
-	float dirLightDivergence;
+	float dirLightDvg;
 	int32_t dirLightNumSamples;
 	Vec3 lightmapClearColor;
 //	int32_t radNumBounces;
 	float lightmapDetail;
 	float lightmapBlurSize;
-	float aoDistance;
-	float aoMultiplier;
+	float aoDist;
+	float aoMult;
 	float aoFalloff;
 	float aoEffect;
 //	float aoDivergence;
@@ -1818,7 +1884,7 @@ struct EdWorldLightingInfo
 	int32_t aoNumSamples;
 	float sampleDensity;
 	String skyboxTexture;
-	String lutTexture;
+	String clutTexture;
 };
 
 enum SelectionMask

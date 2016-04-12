@@ -496,6 +496,31 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		Clear();
 		Add( data );
 	}
+	void Reload()
+	{
+		for( size_t i = 0; i < m_items.size(); ++i )
+		{
+			Item& ITM = m_items[ i ];
+			EDGUIItem* ctrl = ITM.item;
+			mpd_Variant val = ITM.cont.getpropbyid( ITM.prop - ITM.cont.get_typeinfo()->vprops() );
+			mpd_StringView ts;
+			switch( ctrl->type )
+			{
+			case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*)ctrl)->SetValue( mpd_var_get<int32_t>( val ) ); break;
+			case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*)ctrl)->SetValue( mpd_var_get<float>( val ) ); break;
+			case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)ctrl)->SetValue( mpd_var_get<Vec2>( val ) ); break;
+			case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*)ctrl)->SetValue( mpd_var_get<Vec3>( val ) ); break;
+			case EDGUI_ITEM_PROP_STRING:
+				ts = val.get_stringview();
+				((EDGUIPropString*)ctrl)->SetValue( StringView( ts.str, ts.size ) );
+				break;
+			case EDGUI_ITEM_PROP_RSRC:
+				ts = val.get_stringview();
+				((EDGUIPropRsrc*)ctrl)->SetValue( StringView( ts.str, ts.size ) );
+				break;
+			}
+		}
+	}
 	StringView _GetPropName( const mpd_PropInfo* p )
 	{
 		StringView propname;
@@ -709,7 +734,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				}
 				if( val.get_type() != mpdt_None )
 				{
-					ITM.cont.setprop_ext( ITM.prop->name, ITM.prop->namesz, val );
+					ITM.cont.setpropbyid( ITM.prop - ITM.cont.get_typeinfo()->vprops(), val );
 				//	mpd_DumpData( ITM.cont );
 				}
 			}

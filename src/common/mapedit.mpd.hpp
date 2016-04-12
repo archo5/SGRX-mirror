@@ -307,7 +307,7 @@ const mpd_PropInfo* EdWorldLightingInfo_MPD::props()
 		{ "max", 3, """\x00""""\x00""""\x80""?""\x00""""\x00""""\x80""?""\x00""""\x00""""\xc8""B", 12, 0, (float) 0 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
-	static const mpd_KeyValue dirLightDivergence_metadata[] =
+	static const mpd_KeyValue dirLightDvg_metadata[] =
 	{
 		{ "label", 5, "Dir.light divergence", 20, 0, (float) 0 },
 		{ "min", 3, "0", 1, 0, (float) 0 },
@@ -342,14 +342,14 @@ const mpd_PropInfo* EdWorldLightingInfo_MPD::props()
 		{ "max", 3, "10", 2, 10, (float) 10 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
-	static const mpd_KeyValue aoDistance_metadata[] =
+	static const mpd_KeyValue aoDist_metadata[] =
 	{
 		{ "label", 5, "AO distance", 11, 0, (float) 0 },
 		{ "min", 3, "0", 1, 0, (float) 0 },
 		{ "max", 3, "100", 3, 100, (float) 100 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
-	static const mpd_KeyValue aoMultiplier_metadata[] =
+	static const mpd_KeyValue aoMult_metadata[] =
 	{
 		{ "label", 5, "AO multiplier", 13, 0, (float) 0 },
 		{ "min", 3, "0", 1, 0, (float) 0 },
@@ -397,7 +397,7 @@ const mpd_PropInfo* EdWorldLightingInfo_MPD::props()
 		{ "edit", 4, "texture", 7, 0, (float) 0 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
-	static const mpd_KeyValue lutTexture_metadata[] =
+	static const mpd_KeyValue clutTexture_metadata[] =
 	{
 		{ "label", 5, "Default post-process cLUT", 25, 0, (float) 0 },
 		{ "edit", 4, "texture", 7, 0, (float) 0 },
@@ -408,20 +408,20 @@ const mpd_PropInfo* EdWorldLightingInfo_MPD::props()
 		{ "ambientColor", 12, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, ambientColor_metadata },
 		{ "dirLightDir", 11, { "Vec2", mpdt_Struct, Vec2_MPD::inst() }, dirLightDir_metadata },
 		{ "dirLightColor", 13, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, dirLightColor_metadata },
-		{ "dirLightDivergence", 18, { "float", mpdt_Float32, 0 }, dirLightDivergence_metadata },
+		{ "dirLightDvg", 11, { "float", mpdt_Float32, 0 }, dirLightDvg_metadata },
 		{ "dirLightNumSamples", 18, { "int32_t", mpdt_Int32, 0 }, dirLightNumSamples_metadata },
 		{ "lightmapClearColor", 18, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, lightmapClearColor_metadata },
 		{ "lightmapDetail", 14, { "float", mpdt_Float32, 0 }, lightmapDetail_metadata },
 		{ "lightmapBlurSize", 16, { "float", mpdt_Float32, 0 }, lightmapBlurSize_metadata },
-		{ "aoDistance", 10, { "float", mpdt_Float32, 0 }, aoDistance_metadata },
-		{ "aoMultiplier", 12, { "float", mpdt_Float32, 0 }, aoMultiplier_metadata },
+		{ "aoDist", 6, { "float", mpdt_Float32, 0 }, aoDist_metadata },
+		{ "aoMult", 6, { "float", mpdt_Float32, 0 }, aoMult_metadata },
 		{ "aoFalloff", 9, { "float", mpdt_Float32, 0 }, aoFalloff_metadata },
 		{ "aoEffect", 8, { "float", mpdt_Float32, 0 }, aoEffect_metadata },
 		{ "aoColor", 7, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, aoColor_metadata },
 		{ "aoNumSamples", 12, { "int32_t", mpdt_Int32, 0 }, aoNumSamples_metadata },
 		{ "sampleDensity", 13, { "float", mpdt_Float32, 0 }, sampleDensity_metadata },
 		{ "skyboxTexture", 13, { "String", mpdt_Struct, String_MPD::inst() }, skyboxTexture_metadata },
-		{ "lutTexture", 10, { "String", mpdt_Struct, String_MPD::inst() }, lutTexture_metadata },
+		{ "clutTexture", 11, { "String", mpdt_Struct, String_MPD::inst() }, clutTexture_metadata },
 		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
 	};
 	return data;
@@ -433,20 +433,20 @@ mpd_Variant EdWorldLightingInfo_MPD::getprop( EdWorldLightingInfo const* obj, in
 	case 0: return (Vec3 const&) obj->ambientColor;
 	case 1: return (Vec2 const&) obj->dirLightDir;
 	case 2: return (Vec3 const&) obj->dirLightColor;
-	case 3: return (float const&) obj->dirLightDivergence;
+	case 3: return (float const&) obj->dirLightDvg;
 	case 4: return (int32_t const&) obj->dirLightNumSamples;
 	case 5: return (Vec3 const&) obj->lightmapClearColor;
 	case 6: return (float const&) obj->lightmapDetail;
 	case 7: return (float const&) obj->lightmapBlurSize;
-	case 8: return (float const&) obj->aoDistance;
-	case 9: return (float const&) obj->aoMultiplier;
+	case 8: return (float const&) obj->aoDist;
+	case 9: return (float const&) obj->aoMult;
 	case 10: return (float const&) obj->aoFalloff;
 	case 11: return (float const&) obj->aoEffect;
 	case 12: return (Vec3 const&) obj->aoColor;
 	case 13: return (int32_t const&) obj->aoNumSamples;
 	case 14: return (float const&) obj->sampleDensity;
 	case 15: return (String const&) obj->skyboxTexture;
-	case 16: return (String const&) obj->lutTexture;
+	case 16: return (String const&) obj->clutTexture;
 	default: return mpd_Variant();
 	}
 }
@@ -457,20 +457,20 @@ bool EdWorldLightingInfo_MPD::setprop( EdWorldLightingInfo* obj, int prop, const
 	case 0: obj->ambientColor = mpd_var_get<Vec3 >(val); return true;
 	case 1: obj->dirLightDir = mpd_var_get<Vec2 >(val); return true;
 	case 2: obj->dirLightColor = mpd_var_get<Vec3 >(val); return true;
-	case 3: obj->dirLightDivergence = mpd_var_get<float >(val); return true;
+	case 3: obj->dirLightDvg = mpd_var_get<float >(val); return true;
 	case 4: obj->dirLightNumSamples = mpd_var_get<int32_t >(val); return true;
 	case 5: obj->lightmapClearColor = mpd_var_get<Vec3 >(val); return true;
 	case 6: obj->lightmapDetail = mpd_var_get<float >(val); return true;
 	case 7: obj->lightmapBlurSize = mpd_var_get<float >(val); return true;
-	case 8: obj->aoDistance = mpd_var_get<float >(val); return true;
-	case 9: obj->aoMultiplier = mpd_var_get<float >(val); return true;
+	case 8: obj->aoDist = mpd_var_get<float >(val); return true;
+	case 9: obj->aoMult = mpd_var_get<float >(val); return true;
 	case 10: obj->aoFalloff = mpd_var_get<float >(val); return true;
 	case 11: obj->aoEffect = mpd_var_get<float >(val); return true;
 	case 12: obj->aoColor = mpd_var_get<Vec3 >(val); return true;
 	case 13: obj->aoNumSamples = mpd_var_get<int32_t >(val); return true;
 	case 14: obj->sampleDensity = mpd_var_get<float >(val); return true;
 	case 15: obj->skyboxTexture = mpd_var_get<String >(val); return true;
-	case 16: obj->lutTexture = mpd_var_get<String >(val); return true;
+	case 16: obj->clutTexture = mpd_var_get<String >(val); return true;
 	default: return false;
 	}
 }
@@ -487,20 +487,20 @@ void EdWorldLightingInfo_MPD::dump( MPD_STATICDUMP_ARGS(EdWorldLightingInfo) )
 		MPD_DUMP_PROP( Vec3, ambientColor, pdata->ambientColor );
 		MPD_DUMP_PROP( Vec2, dirLightDir, pdata->dirLightDir );
 		MPD_DUMP_PROP( Vec3, dirLightColor, pdata->dirLightColor );
-		MPD_DUMP_PROP( float, dirLightDivergence, pdata->dirLightDivergence );
+		MPD_DUMP_PROP( float, dirLightDvg, pdata->dirLightDvg );
 		MPD_DUMP_PROP( int32_t, dirLightNumSamples, pdata->dirLightNumSamples );
 		MPD_DUMP_PROP( Vec3, lightmapClearColor, pdata->lightmapClearColor );
 		MPD_DUMP_PROP( float, lightmapDetail, pdata->lightmapDetail );
 		MPD_DUMP_PROP( float, lightmapBlurSize, pdata->lightmapBlurSize );
-		MPD_DUMP_PROP( float, aoDistance, pdata->aoDistance );
-		MPD_DUMP_PROP( float, aoMultiplier, pdata->aoMultiplier );
+		MPD_DUMP_PROP( float, aoDist, pdata->aoDist );
+		MPD_DUMP_PROP( float, aoMult, pdata->aoMult );
 		MPD_DUMP_PROP( float, aoFalloff, pdata->aoFalloff );
 		MPD_DUMP_PROP( float, aoEffect, pdata->aoEffect );
 		MPD_DUMP_PROP( Vec3, aoColor, pdata->aoColor );
 		MPD_DUMP_PROP( int32_t, aoNumSamples, pdata->aoNumSamples );
 		MPD_DUMP_PROP( float, sampleDensity, pdata->sampleDensity );
 		MPD_DUMP_PROP( String, skyboxTexture, pdata->skyboxTexture );
-		MPD_DUMP_PROP( String, lutTexture, pdata->lutTexture );
+		MPD_DUMP_PROP( String, clutTexture, pdata->clutTexture );
 	}
 	else
 	{

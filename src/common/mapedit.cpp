@@ -637,6 +637,8 @@ void EdWorld::FLoad( sgsVariable obj )
 		ReloadSkybox();
 		ReloadCLUT();
 	}
+	FLoadVarData( lighting, &m_lighting );
+	m_propList.Reload();
 	
 	sgsVariable objects = obj.getprop("objects");
 	{
