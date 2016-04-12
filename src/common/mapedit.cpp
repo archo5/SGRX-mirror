@@ -596,7 +596,7 @@ EdWorld::EdWorld() :
 	m_ctlGroup.Add( &m_ctlLUTTexture );
 	
 	m_propList.m_pickers[ "texture" ] = g_UITexturePicker;
-	m_propList.SetData( &m_lighting );
+	m_propList.Set( &m_lighting );
 	Add( &m_propList );
 	
 	ReconfigureEntities( "" );

@@ -291,7 +291,7 @@ struct mpd_Variant
 	template< class T > T get_obj() const
 	{
 		typedef mpd_MetaType<T> MT;
-		if( type == mpdt_Struct && mpdata == MT::inst() )
+		if( ( type == mpdt_Struct || type == mpdt_Pointer ) && mpdata == MT::inst() )
 			return *(T*) data.p;
 		else
 			return T();
