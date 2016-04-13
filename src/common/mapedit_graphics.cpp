@@ -668,16 +668,16 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 	m_lmRenderer = new LMRenderer;
 	
 	LMRenderer::Config& cfg = m_lmRenderer->config;
-	cfg.ambientColor = HSV( g_EdWorld->m_ctlAmbientColor.m_value );
-	cfg.lightmapClearColor = HSV( g_EdWorld->m_ctlLightmapClearColor.m_value );
-	cfg.lightmapDetail = g_EdWorld->m_ctlLightmapDetail.m_value;
-	cfg.lightmapBlurSize = g_EdWorld->m_ctlLightmapBlurSize.m_value;
-	cfg.aoDistance = g_EdWorld->m_ctlAODistance.m_value;
-	cfg.aoMultiplier = g_EdWorld->m_ctlAOMultiplier.m_value;
-	cfg.aoFalloff = g_EdWorld->m_ctlAOFalloff.m_value;
-	cfg.aoEffect = g_EdWorld->m_ctlAOEffect.m_value;
-	cfg.aoColor = HSV( g_EdWorld->m_ctlAOColor.m_value );
-	cfg.aoNumSamples = g_EdWorld->m_ctlAONumSamples.m_value;
+	cfg.ambientColor = HSV( g_EdWorld->m_lighting.ambientColor );
+	cfg.lightmapClearColor = HSV( g_EdWorld->m_lighting.lightmapClearColor );
+	cfg.lightmapDetail = g_EdWorld->m_lighting.lightmapDetail;
+	cfg.lightmapBlurSize = g_EdWorld->m_lighting.lightmapBlurSize;
+	cfg.aoDistance = g_EdWorld->m_lighting.aoDist;
+	cfg.aoMultiplier = g_EdWorld->m_lighting.aoMult;
+	cfg.aoFalloff = g_EdWorld->m_lighting.aoFalloff;
+	cfg.aoEffect = g_EdWorld->m_lighting.aoEffect;
+	cfg.aoColor = HSV( g_EdWorld->m_lighting.aoColor );
+	cfg.aoNumSamples = g_EdWorld->m_lighting.aoNumSamples;
 	
 	if( m_invalidSamples )
 	{
@@ -687,7 +687,7 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 		}
 	}
 	
-	if( g_EdWorld->m_ctlDirLightColor.m_value.z > 0 )
+	if( g_EdWorld->m_lighting.dirLightColor.z > 0 )
 	{
 		m_lmRenderer->AddLight( g_EdWorld->GetDirLightInfo() );
 	}
@@ -799,7 +799,7 @@ void EdLevelGraphicsCont::STRegenerate()
 	if( m_lmRenderer )
 		return;
 	
-	float density = g_EdWorld->m_ctlSampleDensity.m_value;
+	float density = g_EdWorld->m_lighting.sampleDensity;
 	float stepsize = density ? 1.0f / density : 1.0f;
 	
 	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );

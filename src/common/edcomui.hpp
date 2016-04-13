@@ -481,10 +481,12 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		EDGUIItemHandle item;
 		mpd_Variant cont;
 		const mpd_PropInfo* prop;
+		size_t parent_id;
 	};
 	
 	void Clear()
 	{
+		m_lastEditedItem = NOT_FOUND;
 		m_items.clear();
 	}
 	void Add( mpd_Variant data )
@@ -511,11 +513,11 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)ctrl)->SetValue( mpd_var_get<Vec2>( val ) ); break;
 			case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*)ctrl)->SetValue( mpd_var_get<Vec3>( val ) ); break;
 			case EDGUI_ITEM_PROP_STRING:
-				ts = val.get_stringview();
+				ts = val.getprop("data").get_stringview();
 				((EDGUIPropString*)ctrl)->SetValue( StringView( ts.str, ts.size ) );
 				break;
 			case EDGUI_ITEM_PROP_RSRC:
-				ts = val.get_stringview();
+				ts = val.getprop("data").get_stringview();
 				((EDGUIPropRsrc*)ctrl)->SetValue( StringView( ts.str, ts.size ) );
 				break;
 			}
@@ -533,15 +535,16 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		}
 		return propname;
 	}
-	void _AddProp( EDGUIItem* prt, EDGUIItem* prop, mpd_Variant cont, const mpd_PropInfo* propinfo, StringView name = SV() )
+	void _AddProp( EDGUIItem* prt, EDGUIItem* prop, mpd_Variant cont, const mpd_PropInfo* propinfo, size_t pid, StringView name = SV() )
 	{
 		prop->id1 = m_items.size();
 		prop->caption = name ? name : _GetPropName( propinfo );
-		Item item = { prop, cont, propinfo };
+		Item item = { prop, cont, propinfo, pid };
 		m_items.push_back( item );
 		prt->Add( prop );
 	}
-	void _CreateProperty( EDGUIItem* prt, mpd_Variant item, mpd_Variant cont = mpd_Variant(), const mpd_PropInfo* propinfo = NULL )
+	void _CreateProperty( EDGUIItem* prt, mpd_Variant item,
+		mpd_Variant cont = mpd_Variant(), const mpd_PropInfo* propinfo = NULL, size_t pid = NOT_FOUND )
 	{
 		mpd_Type type = item.get_type();
 		if( type == mpdt_Struct || type == mpdt_Pointer )
@@ -567,7 +570,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				}
 				if( !prop )
 					prop = new EDGUIPropString( value );
-				_AddProp( prt, prop, item, item.get_typeinfo()->vfindprop("data"), _GetPropName( propinfo ) );
+				_AddProp( prt, prop, cont, propinfo, pid );
 			}
 			else if( !strcmp( info->vname(), "Vec2" ) )
 			{
@@ -588,7 +591,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				}
 				
 				EDGUIPropVec2* prop = new EDGUIPropVec2( item.get_obj<Vec2>(), prec, vmin, vmax );
-				_AddProp( prt, prop, cont, propinfo );
+				_AddProp( prt, prop, cont, propinfo, pid );
 			}
 			else if( !strcmp( info->vname(), "Vec3" ) )
 			{
@@ -609,7 +612,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				}
 				
 				EDGUIPropVec3* prop = new EDGUIPropVec3( item.get_obj<Vec3>(), prec, vmin, vmax );
-				_AddProp( prt, prop, cont, propinfo );
+				_AddProp( prt, prop, cont, propinfo, pid );
 			}
 			else
 			{
@@ -623,14 +626,14 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				if( !gname )
 					gname = info->vname();
 				EDGUIGroup* group = new EDGUIGroup( true, gname );
+				size_t mypid = m_items.size();
+				_AddProp( prt, group, cont, propinfo, pid );
 				
 				for( int i = 0, pc = info->vpropcount(); i < pc; ++i )
 				{
 					const mpd_PropInfo* p = info->vprop( i );
-					_CreateProperty( group, item.getpropbyid( i ), item, p );
+					_CreateProperty( group, item.getpropbyid( i ), item, p, mypid );
 				}
-				
-				_AddProp( prt, group, cont, propinfo );
 			}
 		}
 		else if( type == mpdt_Enum )
@@ -647,7 +650,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				++v;
 			}
 			
-			_AddProp( prt, prop, cont, propinfo );
+			_AddProp( prt, prop, cont, propinfo, pid );
 		}
 		else if( mpd_TypeIsInteger( type ) )
 		{
@@ -664,7 +667,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			}
 			
 			EDGUIPropInt* prop = new EDGUIPropInt( item.get_int32(), vmin, vmax );
-			_AddProp( prt, prop, cont, propinfo );
+			_AddProp( prt, prop, cont, propinfo, pid );
 		}
 		else if( mpd_TypeIsFloat( type ) )
 		{
@@ -685,18 +688,18 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			}
 			
 			EDGUIPropFloat* prop = new EDGUIPropFloat( item.get_float32(), prec, vmin, vmax );
-			_AddProp( prt, prop, cont, propinfo );
+			_AddProp( prt, prop, cont, propinfo, pid );
 		}
 		else if( type == mpdt_ConstString )
 		{
 			mpd_StringView sv = item.get_stringview();
 			EDGUIPropString* prop = new EDGUIPropString( StringView( sv.str, sv.size ) );
-			_AddProp( prt, prop, cont, propinfo );
+			_AddProp( prt, prop, cont, propinfo, pid );
 		}
 		else
 		{
 			EDGUILabel* label = new EDGUILabel;
-			_AddProp( prt, label, cont, propinfo );
+			_AddProp( prt, label, cont, propinfo, pid );
 			
 			char bfr[ 256 ];
 			sgrx_snprintf( bfr, 256, "<unsupported type:%d name:%s>", (int) item.get_type(), item.get_name() );
@@ -709,12 +712,15 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		{
 		case EDGUI_EVENT_PROPEDIT:
 		case EDGUI_EVENT_PROPCHANGE:
+			if( e->target != this )
 			{
 				size_t which = e->target->id1;
 				Item& ITM = m_items[ which ];
 				if( !ITM.prop )
 					break;
 				
+				mpd_Variant cont = ITM.cont;
+				const mpd_PropInfo* prop = ITM.prop;
 				StringView ts;
 				mpd_Variant val;
 				switch( e->target->type )
@@ -726,24 +732,48 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				case EDGUI_ITEM_PROP_STRING:
 					ts = ((EDGUIPropString*)e->target)->m_value;
 					val = mpd_Variant( ts.data(), ts.size() );
+					cont = ITM.cont.getpropbyid( prop - cont.get_typeinfo()->vprops() );
+					prop = cont.get_typeinfo()->vfindprop("data");
 					break;
 				case EDGUI_ITEM_PROP_RSRC:
 					ts = ((EDGUIPropRsrc*)e->target)->m_value;
 					val = mpd_Variant( ts.data(), ts.size() );
+					cont = ITM.cont.getpropbyid( prop - cont.get_typeinfo()->vprops() );
+					prop = cont.get_typeinfo()->vfindprop("data");
 					break;
 				}
 				if( val.get_type() != mpdt_None )
 				{
-					ITM.cont.setpropbyid( ITM.prop - ITM.cont.get_typeinfo()->vprops(), val );
+					cont.setpropbyid( prop - cont.get_typeinfo()->vprops(), val );
 				//	mpd_DumpData( ITM.cont );
 				}
+				
+				m_lastEditedItem = which;
+				if( e->type == EDGUI_EVENT_PROPEDIT )
+					Edited();
+				else
+					Changed();
 			}
 			break;
 		}
 		return EDGUILayoutRow::OnEvent( e );
 	}
 	
+	bool WasPropEdited( mpd_Variant item, const mpd_PropInfo* p ) const
+	{
+		size_t iid = m_lastEditedItem;
+		while( iid < m_items.size() )
+		{
+			const Item& ITM = m_items[ iid ];
+			if( ITM.cont == item && ITM.prop == p )
+				return true;
+			iid = ITM.parent_id;
+		}
+		return false;
+	}
+	
 	Array< Item > m_items;
+	size_t m_lastEditedItem;
 	HashTable< StringView, EDGUIRsrcPicker* > m_pickers;
 };
 

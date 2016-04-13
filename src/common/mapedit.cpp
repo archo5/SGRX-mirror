@@ -530,70 +530,10 @@ void ReconfigureEntities( StringView levname )
 
 
 EdWorld::EdWorld() :
-	m_nextID( 0 ),
-	m_ctlGroup( true, "Level properties" ),
-	m_ctlAmbientColor( V3(0,0,0.1f), 2, V3(0), V3(1,1,100) ),
-	m_ctlDirLightDir( V2(0,0), 2, V2(-8192), V2(8192) ),
-	m_ctlDirLightColor( V3(0,0,0.0f), 2, V3(0), V3(1,1,100) ),
-	m_ctlDirLightDivergence( 10, 2, 0, 180 ),
-	m_ctlDirLightNumSamples( 15, 0, 256 ),
-	m_ctlLightmapClearColor( V3(0,0,0), 2, V3(0), V3(1,1,100) ),
-//	m_ctlRADNumBounces( 2, 0, 256 ),
-	m_ctlLightmapDetail( 1, 2, 0.01f, 16 ),
-	m_ctlLightmapBlurSize( 1, 2, 0, 10 ),
-	m_ctlAODistance( 2, 2, 0, 100 ),
-	m_ctlAOMultiplier( 1, 2, 0, 2 ),
-	m_ctlAOFalloff( 2, 2, 0.01f, 100.0f ),
-	m_ctlAOEffect( 0, 2, -1, 1 ),
-//	m_ctlAODivergence( 0, 2, 0, 1 ),
-	m_ctlAOColor( V3(0,0,0), 2, V3(0), V3(1,1,100) ),
-	m_ctlAONumSamples( 15, 0, 256 ),
-	m_ctlSampleDensity( 1.0f, 2, 0.01f, 100.0f ),
-	m_ctlSkyboxTexture( g_UITexturePicker ),
-	m_ctlLUTTexture( g_UITexturePicker )
+	m_nextID( 0 )
 {
 	tyname = "world";
-	m_ctlAmbientColor.caption = "Ambient color";
-	m_ctlDirLightDir.caption = "Dir.light direction (dX,dY)";
-	m_ctlDirLightColor.caption = "Dir.light color (HSV)";
-	m_ctlDirLightDivergence.caption = "Dir.light divergence";
-	m_ctlDirLightNumSamples.caption = "Dir.light sample count";
-	m_ctlLightmapClearColor.caption = "Lightmap clear color (HSV)";
-//	m_ctlRADNumBounces.caption = "Radiosity bounce count";
-	m_ctlLightmapDetail.caption = "Lightmap detail";
-	m_ctlLightmapBlurSize.caption = "Lightmap blur size";
-	m_ctlAODistance.caption = "AO distance";
-	m_ctlAOMultiplier.caption = "AO multiplier";
-	m_ctlAOFalloff.caption = "AO falloff";
-	m_ctlAOEffect.caption = "AO effect";
-//	m_ctlAODivergence.caption = "AO divergence";
-	m_ctlAOColor.caption = "AO color";
-	m_ctlAONumSamples.caption = "AO sample count";
-	m_ctlSampleDensity.caption = "Sample density";
-	m_ctlSkyboxTexture.caption = "Skybox texture";
-	m_ctlLUTTexture.caption = "Default post-process cLUT";
 	m_vd = GR_GetVertexDecl( LCVertex_DECL );
-	
-	Add( &m_ctlGroup );
-	m_ctlGroup.Add( &m_ctlAmbientColor );
-	m_ctlGroup.Add( &m_ctlDirLightDir );
-	m_ctlGroup.Add( &m_ctlDirLightColor );
-	m_ctlGroup.Add( &m_ctlDirLightDivergence );
-	m_ctlGroup.Add( &m_ctlDirLightNumSamples );
-	m_ctlGroup.Add( &m_ctlLightmapClearColor );
-//	m_ctlGroup.Add( &m_ctlRADNumBounces );
-	m_ctlGroup.Add( &m_ctlLightmapDetail );
-	m_ctlGroup.Add( &m_ctlLightmapBlurSize );
-	m_ctlGroup.Add( &m_ctlAODistance );
-	m_ctlGroup.Add( &m_ctlAOMultiplier );
-	m_ctlGroup.Add( &m_ctlAOFalloff );
-	m_ctlGroup.Add( &m_ctlAOEffect );
-//	m_ctlGroup.Add( &m_ctlAODivergence );
-	m_ctlGroup.Add( &m_ctlAOColor );
-	m_ctlGroup.Add( &m_ctlAONumSamples );
-	m_ctlGroup.Add( &m_ctlSampleDensity );
-	m_ctlGroup.Add( &m_ctlSkyboxTexture );
-	m_ctlGroup.Add( &m_ctlLUTTexture );
 	
 	m_propList.m_pickers[ "texture" ] = g_UITexturePicker;
 	m_propList.Set( &m_lighting );
@@ -615,30 +555,7 @@ void EdWorld::FLoad( sgsVariable obj )
 	int version = FLoadProp( obj, "version", 0 );
 	m_nextID = FLoadProp( obj, "id", 0 );
 	
-	sgsVariable lighting = obj.getprop("lighting");
-	{
-		m_ctlAmbientColor.SetValue( FLoadProp( lighting, "ambientColor", V3( 0, 0, 0.1f ) ) );
-		m_ctlDirLightDir.SetValue( FLoadProp( lighting, "dirLightDir", V2(0) ) );
-		m_ctlDirLightColor.SetValue( FLoadProp( lighting, "dirLightColor", V3(0) ) );
-		m_ctlDirLightDivergence.SetValue( FLoadProp( lighting, "dirLightDvg", 10.0f ) );
-		m_ctlDirLightNumSamples.SetValue( FLoadProp( lighting, "dirLightNumSamples", 15 ) );
-		m_ctlLightmapClearColor.SetValue( FLoadProp( lighting, "lightmapClearColor", V3(0) ) );
-		m_ctlLightmapDetail.SetValue( FLoadProp( lighting, "lightmapDetail", 1.0f ) );
-		m_ctlLightmapBlurSize.SetValue( FLoadProp( lighting, "lightmapBlurSize", 1.0f ) );
-		m_ctlAODistance.SetValue( FLoadProp( lighting, "aoDist", 2.0f ) );
-		m_ctlAOMultiplier.SetValue( FLoadProp( lighting, "aoMult", 1.0f ) );
-		m_ctlAOFalloff.SetValue( FLoadProp( lighting, "aoFalloff", 2.0f ) );
-		m_ctlAOEffect.SetValue( FLoadProp( lighting, "aoEffect", 0.0f ) );
-		m_ctlAOColor.SetValue( FLoadProp( lighting, "aoColor", V3(0) ) );
-		m_ctlAONumSamples.SetValue( FLoadProp( lighting, "aoNumSamples", 15 ) );
-		m_ctlSampleDensity.SetValue( FLoadProp( lighting, "sampleDensity", 1.0f ) );
-		m_ctlSkyboxTexture.SetValue( FLoadProp( lighting, "skyboxTexture", SV() ) );
-		m_ctlLUTTexture.SetValue( FLoadProp( lighting, "clutTexture", SV() ) );
-		ReloadSkybox();
-		ReloadCLUT();
-	}
-	FLoadVarData( lighting, &m_lighting );
-	m_propList.Reload();
+	FLoadVarData( obj.getprop("lighting"), &m_lighting );
 	
 	sgsVariable objects = obj.getprop("objects");
 	{
@@ -671,26 +588,7 @@ sgsVariable EdWorld::FSave()
 {
 	int version = MAP_FILE_VERSION;
 	
-	sgsVariable lighting = FNewDict();
-	{
-		FSaveProp( lighting, "ambientColor", m_ctlAmbientColor.m_value );
-		FSaveProp( lighting, "dirLightDir", m_ctlDirLightDir.m_value );
-		FSaveProp( lighting, "dirLightColor", m_ctlDirLightColor.m_value );
-		FSaveProp( lighting, "dirLightDvg", m_ctlDirLightDivergence.m_value );
-		FSaveProp( lighting, "dirLightNumSamples", m_ctlDirLightNumSamples.m_value );
-		FSaveProp( lighting, "lightmapClearColor", m_ctlLightmapClearColor.m_value );
-		FSaveProp( lighting, "lightmapDetail", m_ctlLightmapDetail.m_value );
-		FSaveProp( lighting, "lightmapBlurSize", m_ctlLightmapBlurSize.m_value );
-		FSaveProp( lighting, "aoDist", m_ctlAODistance.m_value );
-		FSaveProp( lighting, "aoMult", m_ctlAOMultiplier.m_value );
-		FSaveProp( lighting, "aoFalloff", m_ctlAOFalloff.m_value );
-		FSaveProp( lighting, "aoEffect", m_ctlAOEffect.m_value );
-		FSaveProp( lighting, "aoColor", m_ctlAOColor.m_value );
-		FSaveProp( lighting, "aoNumSamples", m_ctlAONumSamples.m_value );
-		FSaveProp( lighting, "sampleDensity", m_ctlSampleDensity.m_value );
-		FSaveProp( lighting, "skyboxTexture", m_ctlSkyboxTexture.m_value );
-		FSaveProp( lighting, "clutTexture", m_ctlLUTTexture.m_value );
-	}
+	sgsVariable lighting = FSaveVarData( m_lighting );
 	
 	sgsVariable objects = FNewArray();
 	for( size_t i = 0; i < m_objects.size(); ++i )
@@ -756,13 +654,18 @@ int EdWorld::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_ctlSkyboxTexture )
+		if( e->target == &m_propList )
 		{
-			ReloadSkybox();
-		}
-		if( e->target == &m_ctlLUTTexture )
-		{
-			ReloadCLUT();
+			typedef mpd_MetaType<EdWorldLightingInfo> MT;
+			
+			if( m_propList.WasPropEdited( &m_lighting, MT::prop(MT::PID_skyboxTexture) ) )
+			{
+				ReloadSkybox();
+			}
+			if( m_propList.WasPropEdited( &m_lighting, MT::prop(MT::PID_clutTexture) ) )
+			{
+				ReloadCLUT();
+			}
 		}
 		break;
 	}
@@ -777,12 +680,12 @@ void EdWorld::RegenerateMeshes()
 
 void EdWorld::ReloadSkybox()
 {
-	g_Level->GetScene()->skyTexture = GR_GetTexture( m_ctlSkyboxTexture.m_value );
+	g_Level->GetScene()->skyTexture = GR_GetTexture( m_lighting.skyboxTexture );
 }
 
 void EdWorld::ReloadCLUT()
 {
-	TextureHandle t = GR_GetTexture( m_ctlLUTTexture.m_value );
+	TextureHandle t = GR_GetTexture( m_lighting.clutTexture );
 	if( !t )
 		t = GR_GetTexture( "sys:lut_default" );
 	g_Level->GetScene()->clutTexture = t;
@@ -1403,11 +1306,11 @@ LC_Light EdWorld::GetDirLightInfo()
 	LC_Light L;
 	L.type = LM_LIGHT_DIRECT;
 	L.range = 1024;
-	Vec2 dir = g_EdWorld->m_ctlDirLightDir.m_value;
+	Vec2 dir = g_EdWorld->m_lighting.dirLightDir;
 	L.dir = -V3( dir.x, dir.y, -1 ).Normalized();
-	L.color = HSV( g_EdWorld->m_ctlDirLightColor.m_value );
-	L.light_radius = g_EdWorld->m_ctlDirLightDivergence.m_value / 180.0f;
-	L.num_shadow_samples = g_EdWorld->m_ctlDirLightNumSamples.m_value;
+	L.color = HSV( g_EdWorld->m_lighting.dirLightColor );
+	L.light_radius = g_EdWorld->m_lighting.dirLightDvg / 180.0f;
+	L.num_shadow_samples = g_EdWorld->m_lighting.dirLightNumSamples;
 	return L;
 }
 
@@ -1908,6 +1811,7 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 		return;
 	}
 	
+	g_EdWorld->m_propList.Reload();
 	g_EdLGCont->LoadLightmaps( str );
 	
 	m_fileName = str;
@@ -1944,8 +1848,8 @@ void EDGUIMainFrame::Level_Real_Compile()
 {
 	LOG << "Compiling level";
 	LevelCache lcache( &g_EdLGCont->m_sampleTree );
-	lcache.m_skyTexture = g_EdWorld->m_ctlSkyboxTexture.m_value;
-	lcache.m_clutTexture = g_EdWorld->m_ctlLUTTexture.m_value;
+	lcache.m_skyTexture = g_EdWorld->m_lighting.skyboxTexture;
+	lcache.m_clutTexture = g_EdWorld->m_lighting.clutTexture;
 	
 	g_EdLGCont->UpdateCache( lcache );
 	

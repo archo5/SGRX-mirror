@@ -296,6 +296,41 @@ struct mpd_Variant
 		else
 			return T();
 	}
+	const void* get_voidptr() const
+	{
+		return type == mpdt_Struct || type == mpdt_Pointer ? data.p : NULL;
+	}
+	
+	bool operator == ( const mpd_Variant& o ) const
+	{
+		if( type != o.type )
+			return false;
+		switch( type )
+		{
+		case mpdt_Struct:
+		case mpdt_Pointer:
+			return data.p == o.data.p;
+		case mpdt_ConstString:
+			return data.s.str == o.data.s.str && data.s.size == o.data.s.size;
+		case mpdt_Enum:
+		case mpdt_Int8:
+		case mpdt_Int16:
+		case mpdt_Int32:
+		case mpdt_Int64:
+			return data.i == o.data.i;
+		case mpdt_UInt8:
+		case mpdt_UInt16:
+		case mpdt_UInt32:
+		case mpdt_UInt64:
+			return data.u == o.data.u;
+		case mpdt_Float32:
+		case mpdt_Float64:
+			return data.f == o.data.f;
+		default:
+			return false;
+		}
+	}
+	bool operator != ( const mpd_Variant& o ) const { return !( *this == o ); }
 	
 	mpd_Variant getpropbyid( int id ) const
 	{

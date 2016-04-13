@@ -1909,29 +1909,29 @@ struct EdWorld : EDGUILayoutRow
 		arch.marker( "WORLD" );
 		SerializeVersionHelper<T> svh( arch, MAP_FILE_VERSION );
 		
-		svh << m_ctlAmbientColor;
-		svh << m_ctlDirLightDir;
-		svh << m_ctlDirLightColor;
-		svh << m_ctlDirLightDivergence;
-		svh << m_ctlDirLightNumSamples;
-		svh << m_ctlLightmapClearColor;
+		svh << m_lighting.ambientColor;
+		svh << m_lighting.dirLightDir;
+		svh << m_lighting.dirLightColor;
+		svh << m_lighting.dirLightDvg;
+		svh << m_lighting.dirLightNumSamples;
+		svh << m_lighting.lightmapClearColor;
 		int radNumBounces = 0;
 		svh( radNumBounces, svh.version < 6 );
-	//	svh << m_ctlRADNumBounces;
-		svh << m_ctlLightmapDetail;
-		svh << m_ctlLightmapBlurSize;
-		svh << m_ctlAODistance;
-		svh << m_ctlAOMultiplier;
-		svh << m_ctlAOFalloff;
-		svh << m_ctlAOEffect;
-	//	svh << m_ctlAODivergence;
-		svh << m_ctlAOColor;
-		svh << m_ctlAONumSamples;
+	//	svh << m_lighting.radNumBounces;
+		svh << m_lighting.lightmapDetail;
+		svh << m_lighting.lightmapBlurSize;
+		svh << m_lighting.aoDist;
+		svh << m_lighting.aoMult;
+		svh << m_lighting.aoFalloff;
+		svh << m_lighting.aoEffect;
+	//	svh << m_lighting.aoDivergence;
+		svh << m_lighting.aoColor;
+		svh << m_lighting.aoNumSamples;
 		
 		if( svh.version >= 6 )
-			svh << m_ctlSampleDensity;
+			svh << m_lighting.sampleDensity;
 		else if( T::IsReader )
-			m_ctlSampleDensity.SetValue( 1.0f );
+			m_lighting.sampleDensity = 1.0f;
 		
 		if( T::IsWriter )
 		{
@@ -2236,27 +2236,6 @@ struct EdWorld : EDGUILayoutRow
 	Array< EdMeshPathHandle > m_mpaths;
 	Array< EdObjectHandle > m_objects;
 	EdGroupManager m_groupMgr;
-	
-	EDGUIGroup m_ctlGroup;
-	EDGUIPropVec3 m_ctlAmbientColor;
-	EDGUIPropVec2 m_ctlDirLightDir;
-	EDGUIPropVec3 m_ctlDirLightColor;
-	EDGUIPropFloat m_ctlDirLightDivergence;
-	EDGUIPropInt m_ctlDirLightNumSamples;
-	EDGUIPropVec3 m_ctlLightmapClearColor;
-//	EDGUIPropInt m_ctlRADNumBounces;
-	EDGUIPropFloat m_ctlLightmapDetail;
-	EDGUIPropFloat m_ctlLightmapBlurSize;
-	EDGUIPropFloat m_ctlAODistance;
-	EDGUIPropFloat m_ctlAOMultiplier;
-	EDGUIPropFloat m_ctlAOFalloff;
-	EDGUIPropFloat m_ctlAOEffect;
-//	EDGUIPropFloat m_ctlAODivergence;
-	EDGUIPropVec3 m_ctlAOColor;
-	EDGUIPropInt m_ctlAONumSamples;
-	EDGUIPropFloat m_ctlSampleDensity;
-	EDGUIPropRsrc m_ctlSkyboxTexture;
-	EDGUIPropRsrc m_ctlLUTTexture;
 	
 	EdWorldLightingInfo m_lighting;
 	EDGUIPropertyList m_propList;

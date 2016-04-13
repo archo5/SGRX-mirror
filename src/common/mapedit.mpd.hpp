@@ -7,6 +7,12 @@
 
 struct Vec2_MPD : struct_MPD<Vec2_MPD, Vec2>
 {
+	enum PIDS
+	{
+		PID_x,
+		PID_y,
+	};
+
 	static const char* name(){ return "Vec2"; }
 	static const Vec2_MPD* inst(){ static const Vec2_MPD mpd; return &mpd; }
 	static const mpd_KeyValue* metadata();
@@ -33,6 +39,13 @@ template<> struct mpd_MetaType<Vec2_MPD> : Vec2_MPD {};
 
 struct Vec3_MPD : struct_MPD<Vec3_MPD, Vec3>
 {
+	enum PIDS
+	{
+		PID_x,
+		PID_y,
+		PID_z,
+	};
+
 	static const char* name(){ return "Vec3"; }
 	static const Vec3_MPD* inst(){ static const Vec3_MPD mpd; return &mpd; }
 	static const mpd_KeyValue* metadata();
@@ -59,6 +72,12 @@ template<> struct mpd_MetaType<Vec3_MPD> : Vec3_MPD {};
 
 struct String_MPD : struct_MPD<String_MPD, String>
 {
+	enum PIDS
+	{
+		PID_data,
+		PID_size,
+	};
+
 	static const char* name(){ return "String"; }
 	static const String_MPD* inst(){ static const String_MPD mpd; return &mpd; }
 	static const mpd_KeyValue* metadata();
@@ -85,6 +104,27 @@ template<> struct mpd_MetaType<String_MPD> : String_MPD {};
 
 struct EdWorldLightingInfo_MPD : struct_MPD<EdWorldLightingInfo_MPD, EdWorldLightingInfo>
 {
+	enum PIDS
+	{
+		PID_ambientColor,
+		PID_dirLightDir,
+		PID_dirLightColor,
+		PID_dirLightDvg,
+		PID_dirLightNumSamples,
+		PID_lightmapClearColor,
+		PID_lightmapDetail,
+		PID_lightmapBlurSize,
+		PID_aoDist,
+		PID_aoMult,
+		PID_aoFalloff,
+		PID_aoEffect,
+		PID_aoColor,
+		PID_aoNumSamples,
+		PID_sampleDensity,
+		PID_skyboxTexture,
+		PID_clutTexture,
+	};
+
 	static const char* name(){ return "EdWorldLightingInfo"; }
 	static const EdWorldLightingInfo_MPD* inst(){ static const EdWorldLightingInfo_MPD mpd; return &mpd; }
 	static const mpd_KeyValue* metadata();

@@ -141,6 +141,19 @@ foreach( struct : structs )
 	// metadata struct
 	print "struct ", struct.name, "_MPD : struct_MPD<", struct.name, "_MPD, ", struct.nativetype, ">\n{\n";
 	
+	// property enum
+	if( struct.props )
+	{
+		print "\tenum PIDS\n";
+		print "\t{\n";
+		foreach( prop : struct.props )
+		{
+			print "\t\tPID_", prop.name, ",\n";
+		}
+		print "\t};\n";
+		print "\n";
+	}
+	
 	// core
 	print '\tstatic const char* name(){ return "', struct.name, '"; }\n';
 	print "\tstatic const ", struct.name, "_MPD* inst(){ static const ", struct.name, "_MPD mpd; return &mpd; }\n";
