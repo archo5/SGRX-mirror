@@ -39,6 +39,19 @@ STRUCT("String",
 	],
 });
 
+STRUCT("EdSnapProps",
+{
+	metadata = { label = "Snapping properties" },
+	props =
+	[
+		{ name = "enableSnap", type = "bool", metadata = { label = "Enable snapping" } },
+		{ name = "snapVerts", type = "bool", metadata = { label = "Snap to vertices" } },
+		{ name = "snapRange", type = "float", metadata = { label = "Max. distance", min = 0.01, max = 1 } },
+		{ name = "snapGrid", type = "float", metadata = { label = "Grid unit size", min = 0.01, max = 100 } },
+		{ name = "projDist", type = "float", metadata = { label = "Proj. distance", min = 0, max = 1 } },
+	]
+});
+
 STRUCT("EdWorldLightingInfo",
 {
 	metadata = { label = "Lighting info" },

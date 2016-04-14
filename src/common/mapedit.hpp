@@ -187,60 +187,39 @@ struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
 
 
 
-struct EDGUISnapProps : EDGUILayoutRow
+struct EdSnapProps
 {
-	EDGUISnapProps() :
-		m_group( true, "Snapping properties" ),
-		m_enableSnap( true ),
-		m_snapVerts( true ),
-		m_snapRange( 0.2f, 2, 0.01f, 1.0f ),
-		m_snapGrid( 0.1f, 2, 0.01f, 100.0f ),
-		m_projDist( 0.01f, 2, 0, 1 )
+	EdSnapProps()
 	{
-		tyname = "snapprops";
-		
-		m_enableSnap.caption = "Enable snapping";
-		m_snapVerts.caption = "Snap to vertices";
-		m_snapRange.caption = "Max. distance";
-		m_snapGrid.caption = "Grid unit size";
-		m_projDist.caption = "Proj. distance";
-		
-		m_group.Add( &m_enableSnap );
-		m_group.Add( &m_snapVerts );
-		m_group.Add( &m_snapRange );
-		m_group.Add( &m_snapGrid );
-		m_group.Add( &m_projDist );
-		Add( &m_group );
+		enableSnap = true;
+		snapVerts = true;
+		snapRange = 0.2f;
+		snapGrid = 0.1f;
+		projDist = 0.01f;
 	}
-	
-	bool IsSnapEnabled(){ return m_enableSnap.m_value; }
-	bool IsSnapVertices(){ return m_snapVerts.m_value; }
-	float GetSnapMaxDist(){ return m_snapRange.m_value; }
-	float GetSnapGridSize(){ return m_snapGrid.m_value; }
 	
 	static float Round( float v ){ return round( v ); }
 	static Vec2 Round( Vec2 v ){ return V2( Round( v.x ), Round( v.y ) ); }
 	static Vec3 Round( Vec3 v ){ return V3( Round( v.x ), Round( v.y ), Round( v.z ) ); }
 	template< class T > void Snap( T& pos )
 	{
-		if( !m_enableSnap.m_value )
+		if( !enableSnap )
 			return;
 		
-		if( m_snapVerts.m_value )
+		if( snapVerts )
 		{
 		}
 		
-		pos /= m_snapGrid.m_value;
+		pos /= snapGrid;
 		pos = Round( pos );
-		pos *= m_snapGrid.m_value;
+		pos *= snapGrid;
 	}
 	
-	EDGUIGroup m_group;
-	EDGUIPropBool m_enableSnap;
-	EDGUIPropBool m_snapVerts;
-	EDGUIPropFloat m_snapRange;
-	EDGUIPropFloat m_snapGrid;
-	EDGUIPropFloat m_projDist;
+	bool enableSnap;
+	bool snapVerts;
+	float snapRange;
+	float snapGrid;
+	float projDist;
 };
 
 
@@ -941,7 +920,7 @@ struct EdBlock : EdObject
 	uint16_t _AddVtx( const Vec3& vpos, float z, const EdSurface& S, const Vec3& tgx, const Vec3& tgy, Array< LCVertex >& vertices, uint16_t voff );
 	void _PostFitTexcoords( const EdSurface& S, LCVertex* vertices, size_t vcount );
 	
-	void GenCenterPos( EDGUISnapProps& SP );
+	void GenCenterPos( EdSnapProps& SP );
 	virtual Vec3 FindCenter() const;
 	
 	virtual EdObject* Clone();
@@ -2567,7 +2546,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	
 	// extra edit data
 	TextureHandle m_txMarker;
-	EDGUISnapProps m_snapProps;
+	EdSnapProps m_snapProps;
 	int m_keyMod;
 	
 	// core layout

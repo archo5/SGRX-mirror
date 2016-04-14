@@ -102,6 +102,41 @@ template<> struct mpd_MetaType<String > : String_MPD {};
 template<> struct mpd_MetaType<String const> : String_MPD {};
 template<> struct mpd_MetaType<String_MPD> : String_MPD {};
 
+struct EdSnapProps_MPD : struct_MPD<EdSnapProps_MPD, EdSnapProps>
+{
+	enum PIDS
+	{
+		PID_enableSnap,
+		PID_snapVerts,
+		PID_snapRange,
+		PID_snapGrid,
+		PID_projDist,
+	};
+
+	static const char* name(){ return "EdSnapProps"; }
+	static const EdSnapProps_MPD* inst(){ static const EdSnapProps_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 5; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( EdSnapProps const*, int );
+	static bool setprop( EdSnapProps*, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ return 0; }
+	static mpd_Variant getindex( EdSnapProps const*, const mpd_Variant& );
+	static bool setindex( EdSnapProps*, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static void dump( MPD_STATICDUMP_ARGS(EdSnapProps) );
+};
+
+MPD_DUMPDATA_WRAPPER(EdSnapProps, EdSnapProps);
+template<> struct mpd_MetaType<EdSnapProps > : EdSnapProps_MPD {};
+template<> struct mpd_MetaType<EdSnapProps const> : EdSnapProps_MPD {};
+template<> struct mpd_MetaType<EdSnapProps_MPD> : EdSnapProps_MPD {};
+
 struct EdWorldLightingInfo_MPD : struct_MPD<EdWorldLightingInfo_MPD, EdWorldLightingInfo>
 {
 	enum PIDS
@@ -150,6 +185,7 @@ template<> struct mpd_MetaType<EdWorldLightingInfo const> : EdWorldLightingInfo_
 template<> struct mpd_MetaType<EdWorldLightingInfo_MPD> : EdWorldLightingInfo_MPD {};
 
 
+#ifdef MPD_IMPL
 const mpd_KeyValue* Vec2_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
 const mpd_PropInfo* Vec2_MPD::props()
 {
@@ -307,6 +343,106 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 	{
 		MPD_DUMP_PROP( mpd_StringView, data, mpd_StringView::create(pdata->data(), pdata->size()) );
 		MPD_DUMP_PROP( int32_t, size, pdata->size() );
+	}
+	else
+	{
+		MPD_DUMPLEV( 1 ); printf( "...\n" );
+	}
+	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
+const mpd_KeyValue* EdSnapProps_MPD::metadata()
+{
+	static const mpd_KeyValue data[] =
+	{
+		{ "label", 5, "Snapping properties", 19, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	return data;
+}
+const mpd_PropInfo* EdSnapProps_MPD::props()
+{
+	static const mpd_KeyValue enableSnap_metadata[] =
+	{
+		{ "label", 5, "Enable snapping", 15, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue snapVerts_metadata[] =
+	{
+		{ "label", 5, "Snap to vertices", 16, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue snapRange_metadata[] =
+	{
+		{ "label", 5, "Max. distance", 13, 0, (float) 0 },
+		{ "min", 3, "0.01", 4, 0, (float) 0.01 },
+		{ "max", 3, "1", 1, 1, (float) 1 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue snapGrid_metadata[] =
+	{
+		{ "label", 5, "Grid unit size", 14, 0, (float) 0 },
+		{ "min", 3, "0.01", 4, 0, (float) 0.01 },
+		{ "max", 3, "100", 3, 100, (float) 100 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_KeyValue projDist_metadata[] =
+	{
+		{ "label", 5, "Proj. distance", 14, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "1", 1, 1, (float) 1 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_PropInfo data[] =
+	{
+		{ "enableSnap", 10, { "bool", mpdt_Bool, 0 }, enableSnap_metadata },
+		{ "snapVerts", 9, { "bool", mpdt_Bool, 0 }, snapVerts_metadata },
+		{ "snapRange", 9, { "float", mpdt_Float32, 0 }, snapRange_metadata },
+		{ "snapGrid", 8, { "float", mpdt_Float32, 0 }, snapGrid_metadata },
+		{ "projDist", 8, { "float", mpdt_Float32, 0 }, projDist_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+	};
+	return data;
+}
+mpd_Variant EdSnapProps_MPD::getprop( EdSnapProps const* obj, int prop )
+{
+	switch( prop )
+	{
+	case 0: return (bool const&) obj->enableSnap;
+	case 1: return (bool const&) obj->snapVerts;
+	case 2: return (float const&) obj->snapRange;
+	case 3: return (float const&) obj->snapGrid;
+	case 4: return (float const&) obj->projDist;
+	default: return mpd_Variant();
+	}
+}
+bool EdSnapProps_MPD::setprop( EdSnapProps* obj, int prop, const mpd_Variant& val )
+{
+	switch( prop )
+	{
+	case 0: obj->enableSnap = mpd_var_get<bool >(val); return true;
+	case 1: obj->snapVerts = mpd_var_get<bool >(val); return true;
+	case 2: obj->snapRange = mpd_var_get<float >(val); return true;
+	case 3: obj->snapGrid = mpd_var_get<float >(val); return true;
+	case 4: obj->projDist = mpd_var_get<float >(val); return true;
+	default: return false;
+	}
+}
+mpd_Variant EdSnapProps_MPD::getindex( EdSnapProps const*, const mpd_Variant& ){ return mpd_Variant(); }
+bool EdSnapProps_MPD::setindex( EdSnapProps*, const mpd_Variant&, const mpd_Variant& ){ return false; }
+const mpd_EnumValue* EdSnapProps_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+void EdSnapProps_MPD::dump( MPD_STATICDUMP_ARGS(EdSnapProps) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "struct EdSnapProps\n" );
+	MPD_DUMPLEV( 0 ); printf( "{\n" );
+	if( level < limit )
+	{
+		MPD_DUMP_PROP( bool, enableSnap, pdata->enableSnap );
+		MPD_DUMP_PROP( bool, snapVerts, pdata->snapVerts );
+		MPD_DUMP_PROP( float, snapRange, pdata->snapRange );
+		MPD_DUMP_PROP( float, snapGrid, pdata->snapGrid );
+		MPD_DUMP_PROP( float, projDist, pdata->projDist );
 	}
 	else
 	{
@@ -549,3 +685,4 @@ void EdWorldLightingInfo_MPD::dump( MPD_STATICDUMP_ARGS(EdWorldLightingInfo) )
 	MPD_DUMPLEV( 0 ); printf( "}" );
 }
 
+#endif

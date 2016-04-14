@@ -27,6 +27,7 @@ enum mpd_Type
 	mpdt_Pointer,
 	mpdt_Enum,
 	mpdt_ConstString,
+	mpdt_Bool,
 	mpdt_Int8,
 	mpdt_Int16,
 	mpdt_Int32,
@@ -65,6 +66,7 @@ inline const char* mpd_TypeToName( mpd_Type t )
 	case mpdt_Pointer: return "<pointer>";
 	case mpdt_Enum: return "<enum>";
 	case mpdt_ConstString: return "<const_string>";
+	case mpdt_Bool: return "bool";
 	case mpdt_Int8: return "int8";
 	case mpdt_Int16: return "int16";
 	case mpdt_Int32: return "int32";
@@ -106,6 +108,7 @@ inline void __mpd_reprint( const char* text, int count )
 #define MPD_DUMPDATA_USEARGS (void) data; (void) limit; (void) level;
 #define MPD_DUMPDATA_USESTATICARGS (void) pdata; (void) limit; (void) level;
 template< class T > void mpd_DumpData( T const& data, int limit = 5, int level = 0 ){ printf( "<unknown>" ); }
+template<> inline void mpd_DumpData<bool>( MPD_DUMPDATA_ARGS(bool) ){ MPD_DUMPDATA_USEARGS; printf( "bool (%s)", data ? "true" : "false" ); }
 template<> inline void mpd_DumpData<int8_t>( MPD_DUMPDATA_ARGS(int8_t) ){ MPD_DUMPDATA_USEARGS; printf( "int8 (%d)", (int) data ); }
 template<> inline void mpd_DumpData<int16_t>( MPD_DUMPDATA_ARGS(int16_t) ){ MPD_DUMPDATA_USEARGS; printf( "int16 (%d)", (int) data ); }
 template<> inline void mpd_DumpData<int32_t>( MPD_DUMPDATA_ARGS(int32_t) ){ MPD_DUMPDATA_USEARGS; printf( "int32 (%d)", (int) data ); }
@@ -201,6 +204,10 @@ struct virtual_MPD
 struct none_MPD : virtual_MPD
 {
 	static none_MPD* inst(){ static none_MPD none; return &none; }
+	const char* vname() const { return "none"; }
+	const mpd_KeyValue* vmetadata() const { static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+	const mpd_PropInfo* vprops() const { static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+	const mpd_EnumValue* vvalues() const { static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
 };
 
 template< class T > struct mpd_MetaType : none_MPD
@@ -214,6 +221,7 @@ struct mpd_Variant
 	template< class T > mpd_Variant( T& v ) : type( mpdt_Struct ), mpdata( mpd_MetaType<T>::inst() ){ data.p = const_cast<void*>((const void*) &v); }
 	mpd_Variant( mpd_Variant& p ) : type( p.type ), mpdata( p.mpdata ), data( p.data ){}
 	mpd_Variant( const mpd_Variant& p ) : type( p.type ), mpdata( p.mpdata ), data( p.data ){}
+	mpd_Variant( bool v ) : type( mpdt_Bool ), mpdata( none_MPD::inst() ){ data.u = v ? 1 : 0; }
 	mpd_Variant( int8_t v ) : type( mpdt_Int8 ), mpdata( none_MPD::inst() ){ data.i = v; }
 	mpd_Variant( int16_t v ) : type( mpdt_Int16 ), mpdata( none_MPD::inst() ){ data.i = v; }
 	mpd_Variant( int32_t v ) : type( mpdt_Int32 ), mpdata( none_MPD::inst() ){ data.i = v; }
@@ -255,6 +263,30 @@ struct mpd_Variant
 		mpd_StringView sv = { NULL, 0 };
 		return sv;
 	}
+	bool get_bool() const
+	{
+		mpd_Variant p = get_target();
+		switch( p.type )
+		{
+		case mpdt_Enum:
+		case mpdt_Int8:
+		case mpdt_Int16:
+		case mpdt_Int32:
+		case mpdt_Int64:
+			return 0 != p.data.i;
+		case mpdt_Bool:
+		case mpdt_UInt8:
+		case mpdt_UInt16:
+		case mpdt_UInt32:
+		case mpdt_UInt64:
+			return 0 != p.data.u;
+		case mpdt_Float32:
+		case mpdt_Float64:
+			return 0 != p.data.f;
+		default:
+			return false;
+		}
+	}
 	template< class T > T _get_numeric() const
 	{
 		mpd_Variant p = get_target();
@@ -266,6 +298,7 @@ struct mpd_Variant
 		case mpdt_Int32:
 		case mpdt_Int64:
 			return (T) p.data.i;
+		case mpdt_Bool:
 		case mpdt_UInt8:
 		case mpdt_UInt16:
 		case mpdt_UInt32:
@@ -318,6 +351,7 @@ struct mpd_Variant
 		case mpdt_Int32:
 		case mpdt_Int64:
 			return data.i == o.data.i;
+		case mpdt_Bool:
 		case mpdt_UInt8:
 		case mpdt_UInt16:
 		case mpdt_UInt32:
@@ -366,6 +400,7 @@ struct mpd_Variant
 			fwrite( data.s.str, data.s.size, 1, stdout );
 			printf( "\"" );
 			break;
+		case mpdt_Bool: mpd_DumpData( (bool) data.u, limit, level ); break;
 		case mpdt_Int8: mpd_DumpData( (int8_t) data.i, limit, level ); break;
 		case mpdt_Int16: mpd_DumpData( (int16_t) data.i, limit, level ); break;
 		case mpdt_Int32: mpd_DumpData( (int32_t) data.i, limit, level ); break;
@@ -404,6 +439,7 @@ mpd_Variant inline virtual_MPD::vgetindex( const void*, const mpd_Variant& ) con
 }
 
 template< class T > inline T mpd_var_get( const mpd_Variant& v ){ return v.get_obj<T>(); }
+template<> inline bool mpd_var_get<bool>( const mpd_Variant& v ){ return v.get_bool(); }
 template<> inline int8_t mpd_var_get<int8_t>( const mpd_Variant& v ){ return v.get_int8(); }
 template<> inline int16_t mpd_var_get<int16_t>( const mpd_Variant& v ){ return v.get_int16(); }
 template<> inline int32_t mpd_var_get<int32_t>( const mpd_Variant& v ){ return v.get_int32(); }

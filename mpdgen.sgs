@@ -94,6 +94,7 @@ function GET_TYPE( name )
 }
 
 DEFINE_BASETYPE( "mpd_StringView", "mpdt_ConstString" );
+DEFINE_BASETYPE( "bool", "mpdt_Bool" );
 DEFINE_BASETYPE( "int8_t", "mpdt_Int8" );
 DEFINE_BASETYPE( "int16_t", "mpdt_Int16" );
 DEFINE_BASETYPE( "int32_t", "mpdt_Int32" );
@@ -230,6 +231,7 @@ function print_metadata( varname, srcdict )
 	}
 }
 
+print "#ifdef MPD_IMPL\n";
 foreach( struct : structs )
 {
 	if( struct.typeval != "mpdt_Struct" &&
@@ -416,4 +418,5 @@ foreach( struct : structs )
 	
 	print "\n";
 }
+print "#endif\n";
 

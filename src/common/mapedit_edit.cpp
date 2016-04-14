@@ -2,6 +2,8 @@
 
 #include "mapedit.hpp"
 
+#include "mapedit.mpd.hpp"
+
 
 
 Vec2 ED_GetCursorPos()
@@ -345,7 +347,8 @@ void EdDrawBlockEditMode::OnEnter()
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBDrawBlock );
 	g_UIFrame->SetCursorPlaneHeight( m_newBlockPropZ0.m_value );
 	m_drawnVerts.clear();
-	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
+	g_EdWorld->m_propList.Set( &g_UIFrame->m_snapProps );
+	g_UIFrame->AddToParamList( &g_EdWorld->m_propList );
 	g_UIFrame->AddToParamList( &m_newBlockPropZ0 );
 	g_UIFrame->AddToParamList( &m_newBlockPropZ1 );
 	g_UIFrame->AddToParamList( &m_newSurfProps );
@@ -832,7 +835,8 @@ void EdEditBlockEditMode::_ReloadBlockProps()
 	m_hlBBEl = GetClosestActivePoint();
 	
 	g_UIFrame->ClearParamList();
-	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
+	g_EdWorld->m_propList.Set( &g_UIFrame->m_snapProps );
+	g_UIFrame->AddToParamList( &g_EdWorld->m_propList );
 	m_moprops.Prepare( false );
 	g_UIFrame->AddToParamList( &m_moprops );
 	if( m_curObj >= 0 )
@@ -1224,7 +1228,8 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 	m_canExtendSurfs = numsurfexblocks && numsurfselblocks;
 	
 	g_UIFrame->ClearParamList();
-	g_UIFrame->AddToParamList( &g_UIFrame->m_snapProps );
+	g_EdWorld->m_propList.Set( &g_UIFrame->m_snapProps );
+	g_UIFrame->AddToParamList( &g_EdWorld->m_propList );
 	m_moprops.Prepare( true );
 	g_UIFrame->AddToParamList( &m_moprops );
 	if( surfprops.block != -1 )

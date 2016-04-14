@@ -364,7 +364,7 @@ void EdBlock::_PostFitTexcoords( const EdSurface& S, LCVertex* vertices, size_t 
 	}
 }
 
-void EdBlock::GenCenterPos( EDGUISnapProps& SP )
+void EdBlock::GenCenterPos( EdSnapProps& SP )
 {
 	if( !poly.size() )
 		return;

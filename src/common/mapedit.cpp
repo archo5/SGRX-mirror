@@ -3,6 +3,7 @@
 #define MAPEDIT_DEFINE_GLOBALS
 #include "mapedit.hpp"
 
+#define MPD_IMPL
 #include "mapedit.mpd.hpp"
 
 
@@ -433,7 +434,7 @@ void EdObject::ProjectSelectedVertices()
 		
 		if( dst < FLT_MAX )
 		{
-			dst -= g_UIFrame->m_snapProps.m_projDist.m_value;
+			dst -= g_UIFrame->m_snapProps.projDist;
 			SetLocalVertex( i, origin + dir * dst );
 		}
 	}

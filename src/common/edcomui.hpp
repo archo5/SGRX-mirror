@@ -508,6 +508,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			mpd_StringView ts;
 			switch( ctrl->type )
 			{
+			case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*)ctrl)->SetValue( mpd_var_get<bool>( val ) ); break;
 			case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*)ctrl)->SetValue( mpd_var_get<int32_t>( val ) ); break;
 			case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*)ctrl)->SetValue( mpd_var_get<float>( val ) ); break;
 			case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)ctrl)->SetValue( mpd_var_get<Vec2>( val ) ); break;
@@ -652,6 +653,11 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			
 			_AddProp( prt, prop, cont, propinfo, pid );
 		}
+		else if( type == mpdt_Bool )
+		{
+			EDGUIPropBool* prop = new EDGUIPropBool( item.get_bool() );
+			_AddProp( prt, prop, cont, propinfo, pid );
+		}
 		else if( mpd_TypeIsInteger( type ) )
 		{
 			int32_t vmin = (int32_t) 0x80000000, vmax = (int32_t) 0x7fffffff;
@@ -725,6 +731,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				mpd_Variant val;
 				switch( e->target->type )
 				{
+				case EDGUI_ITEM_PROP_BOOL: val = ((EDGUIPropBool*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_INT: val = ((EDGUIPropInt*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_FLOAT: val = ((EDGUIPropFloat*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_VEC2: val = &((EDGUIPropVec2*)e->target)->m_value; break;
