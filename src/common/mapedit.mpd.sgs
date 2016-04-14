@@ -52,6 +52,15 @@ STRUCT("EdSnapProps",
 	]
 });
 
+STRUCT("EdMultiObjectProps",
+{
+	metadata = { label = "Multiple objects" },
+	props =
+	[
+		{ name = "m_mtl", type = "String", set = "_OBJ_->OnSetMtl(_VAR_.get_obj<String>())", metadata = { label = "Material", edit = "material" } },
+	]
+});
+
 STRUCT("EdWorldLightingInfo",
 {
 	metadata = { label = "Lighting info" },

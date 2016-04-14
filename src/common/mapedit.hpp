@@ -2230,14 +2230,14 @@ struct EdWorld : EDGUILayoutRow
 
 inline void World_AddObject( EdObject* obj ){ g_EdWorld->AddObject( obj ); }
 
-struct EDGUIMultiObjectProps : EDGUILayoutRow
+struct EdMultiObjectProps
 {
-	EDGUIMultiObjectProps();
+	EdMultiObjectProps();
 	void Prepare( bool selsurf = false );
-	virtual int OnEvent( EDGUIEvent* e );
+	void OnSetMtl( StringView name );
+	void OnSetMtl( mpd_StringView sv ){ OnSetMtl( StringView( sv.str, sv.size ) ); }
 	
-	EDGUIGroup m_group;
-	EDGUIPropRsrc m_mtl;
+	String m_mtl;
 	bool m_selsurf;
 };
 
@@ -2395,7 +2395,7 @@ struct EdEditBlockEditMode : EdEditMode
 	int m_hlBBEl;
 	
 	EdBlockMoveTransform m_transform;
-	EDGUIMultiObjectProps m_moprops;
+	EdMultiObjectProps m_moprops;
 	int m_keys;
 };
 
@@ -2422,7 +2422,7 @@ struct EdEditVertexEditMode : EdEditMode
 	ActivePoint m_hlAP;
 	Array< int > m_selObjList;
 	EdVertexMoveTransform m_transform;
-	EDGUIMultiObjectProps m_moprops;
+	EdMultiObjectProps m_moprops;
 };
 
 struct EdPaintVertsEditMode : EdEditMode

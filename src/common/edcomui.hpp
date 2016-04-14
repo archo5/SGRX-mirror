@@ -505,7 +505,6 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			Item& ITM = m_items[ i ];
 			EDGUIItem* ctrl = ITM.item;
 			mpd_Variant val = ITM.cont.getpropbyid( ITM.prop - ITM.cont.get_typeinfo()->vprops() );
-			mpd_StringView ts;
 			switch( ctrl->type )
 			{
 			case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*)ctrl)->SetValue( mpd_var_get<bool>( val ) ); break;
@@ -513,14 +512,8 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*)ctrl)->SetValue( mpd_var_get<float>( val ) ); break;
 			case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)ctrl)->SetValue( mpd_var_get<Vec2>( val ) ); break;
 			case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*)ctrl)->SetValue( mpd_var_get<Vec3>( val ) ); break;
-			case EDGUI_ITEM_PROP_STRING:
-				ts = val.getprop("data").get_stringview();
-				((EDGUIPropString*)ctrl)->SetValue( StringView( ts.str, ts.size ) );
-				break;
-			case EDGUI_ITEM_PROP_RSRC:
-				ts = val.getprop("data").get_stringview();
-				((EDGUIPropRsrc*)ctrl)->SetValue( StringView( ts.str, ts.size ) );
-				break;
+			case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*)ctrl)->SetValue( val.get_obj<String>() ); break;
+			case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*)ctrl)->SetValue( val.get_obj<String>() ); break;
 			}
 		}
 	}
@@ -555,8 +548,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			
 			if( !strcmp( info->vname(), "String" ) )
 			{
-				mpd_StringView sv = item.getprop("data").get_stringview();
-				StringView value( sv.str, sv.size );
+				String value = item.get_obj<String>();
 				
 				EDGUIProperty* prop = NULL;
 				if( propinfo )
@@ -736,18 +728,8 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				case EDGUI_ITEM_PROP_FLOAT: val = ((EDGUIPropFloat*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_VEC2: val = &((EDGUIPropVec2*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_VEC3: val = &((EDGUIPropVec3*)e->target)->m_value; break;
-				case EDGUI_ITEM_PROP_STRING:
-					ts = ((EDGUIPropString*)e->target)->m_value;
-					val = mpd_Variant( ts.data(), ts.size() );
-					cont = ITM.cont.getpropbyid( prop - cont.get_typeinfo()->vprops() );
-					prop = cont.get_typeinfo()->vfindprop("data");
-					break;
-				case EDGUI_ITEM_PROP_RSRC:
-					ts = ((EDGUIPropRsrc*)e->target)->m_value;
-					val = mpd_Variant( ts.data(), ts.size() );
-					cont = ITM.cont.getpropbyid( prop - cont.get_typeinfo()->vprops() );
-					prop = cont.get_typeinfo()->vfindprop("data");
-					break;
+				case EDGUI_ITEM_PROP_STRING: val = &((EDGUIPropString*)e->target)->m_value; break;
+				case EDGUI_ITEM_PROP_RSRC: val = &((EDGUIPropRsrc*)e->target)->m_value; break;
 				}
 				if( val.get_type() != mpdt_None )
 				{

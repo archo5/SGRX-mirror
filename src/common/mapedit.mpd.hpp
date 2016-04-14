@@ -137,6 +137,37 @@ template<> struct mpd_MetaType<EdSnapProps > : EdSnapProps_MPD {};
 template<> struct mpd_MetaType<EdSnapProps const> : EdSnapProps_MPD {};
 template<> struct mpd_MetaType<EdSnapProps_MPD> : EdSnapProps_MPD {};
 
+struct EdMultiObjectProps_MPD : struct_MPD<EdMultiObjectProps_MPD, EdMultiObjectProps>
+{
+	enum PIDS
+	{
+		PID_m_mtl,
+	};
+
+	static const char* name(){ return "EdMultiObjectProps"; }
+	static const EdMultiObjectProps_MPD* inst(){ static const EdMultiObjectProps_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 1; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( EdMultiObjectProps const*, int );
+	static bool setprop( EdMultiObjectProps*, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ return 0; }
+	static mpd_Variant getindex( EdMultiObjectProps const*, const mpd_Variant& );
+	static bool setindex( EdMultiObjectProps*, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static void dump( MPD_STATICDUMP_ARGS(EdMultiObjectProps) );
+};
+
+MPD_DUMPDATA_WRAPPER(EdMultiObjectProps, EdMultiObjectProps);
+template<> struct mpd_MetaType<EdMultiObjectProps > : EdMultiObjectProps_MPD {};
+template<> struct mpd_MetaType<EdMultiObjectProps const> : EdMultiObjectProps_MPD {};
+template<> struct mpd_MetaType<EdMultiObjectProps_MPD> : EdMultiObjectProps_MPD {};
+
 struct EdWorldLightingInfo_MPD : struct_MPD<EdWorldLightingInfo_MPD, EdWorldLightingInfo>
 {
 	enum PIDS
@@ -443,6 +474,65 @@ void EdSnapProps_MPD::dump( MPD_STATICDUMP_ARGS(EdSnapProps) )
 		MPD_DUMP_PROP( float, snapRange, pdata->snapRange );
 		MPD_DUMP_PROP( float, snapGrid, pdata->snapGrid );
 		MPD_DUMP_PROP( float, projDist, pdata->projDist );
+	}
+	else
+	{
+		MPD_DUMPLEV( 1 ); printf( "...\n" );
+	}
+	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
+const mpd_KeyValue* EdMultiObjectProps_MPD::metadata()
+{
+	static const mpd_KeyValue data[] =
+	{
+		{ "label", 5, "Multiple objects", 16, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	return data;
+}
+const mpd_PropInfo* EdMultiObjectProps_MPD::props()
+{
+	static const mpd_KeyValue m_mtl_metadata[] =
+	{
+		{ "label", 5, "Material", 8, 0, (float) 0 },
+		{ "edit", 4, "material", 8, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_PropInfo data[] =
+	{
+		{ "m_mtl", 5, { "String", mpdt_Struct, String_MPD::inst() }, m_mtl_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+	};
+	return data;
+}
+mpd_Variant EdMultiObjectProps_MPD::getprop( EdMultiObjectProps const* obj, int prop )
+{
+	switch( prop )
+	{
+	case 0: return (String const&) obj->m_mtl;
+	default: return mpd_Variant();
+	}
+}
+bool EdMultiObjectProps_MPD::setprop( EdMultiObjectProps* obj, int prop, const mpd_Variant& val )
+{
+	switch( prop )
+	{
+	case 0: obj->OnSetMtl(val.get_obj<String>()); return true;
+	default: return false;
+	}
+}
+mpd_Variant EdMultiObjectProps_MPD::getindex( EdMultiObjectProps const*, const mpd_Variant& ){ return mpd_Variant(); }
+bool EdMultiObjectProps_MPD::setindex( EdMultiObjectProps*, const mpd_Variant&, const mpd_Variant& ){ return false; }
+const mpd_EnumValue* EdMultiObjectProps_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+void EdMultiObjectProps_MPD::dump( MPD_STATICDUMP_ARGS(EdMultiObjectProps) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "struct EdMultiObjectProps\n" );
+	MPD_DUMPLEV( 0 ); printf( "{\n" );
+	if( level < limit )
+	{
+		MPD_DUMP_PROP( String, m_mtl, pdata->m_mtl );
 	}
 	else
 	{

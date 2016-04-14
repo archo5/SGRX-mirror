@@ -537,6 +537,7 @@ EdWorld::EdWorld() :
 	m_vd = GR_GetVertexDecl( LCVertex_DECL );
 	
 	m_propList.m_pickers[ "texture" ] = g_UITexturePicker;
+	m_propList.m_pickers[ "material" ] = g_UISurfMtlPicker;
 	m_propList.Set( &m_lighting );
 	Add( &m_propList );
 	
@@ -1325,17 +1326,12 @@ void EdWorld::SetEntityID( EdEntity* e )
 
 
 
-EDGUIMultiObjectProps::EDGUIMultiObjectProps() :
-	m_group( true, "Multiple objects" ),
-	m_mtl( g_UISurfMtlPicker, "" ),
+EdMultiObjectProps::EdMultiObjectProps() :
 	m_selsurf( false )
 {
-	m_mtl.caption = "Material";
-	m_group.Add( &m_mtl );
-	Add( &m_group );
 }
 
-void EDGUIMultiObjectProps::Prepare( bool selsurf )
+void EdMultiObjectProps::Prepare( bool selsurf )
 {
 	m_selsurf = selsurf;
 	String tex;
@@ -1356,7 +1352,7 @@ void EDGUIMultiObjectProps::Prepare( bool selsurf )
 				{
 					if( tex.size() )
 					{
-						m_mtl.SetValue( "" );
+						m_mtl = "";
 						return;
 					}
 					tex = tt;
@@ -1371,7 +1367,7 @@ void EDGUIMultiObjectProps::Prepare( bool selsurf )
 			{
 				if( tex.size() )
 				{
-					m_mtl.SetValue( "" );
+					m_mtl = "";
 					return;
 				}
 				tex = tt;
@@ -1385,57 +1381,48 @@ void EDGUIMultiObjectProps::Prepare( bool selsurf )
 			{
 				if( tex.size() )
 				{
-					m_mtl.SetValue( "" );
+					m_mtl = "";
 					return;
 				}
 				tex = tt;
 			}
 		}
 	}
-	m_mtl.SetValue( tex );
+	m_mtl = tex;
 }
 
-int EDGUIMultiObjectProps::OnEvent( EDGUIEvent* e )
+void EdMultiObjectProps::OnSetMtl( StringView name )
 {
-	switch( e->type )
+	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
 	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_mtl )
+		EdObject* obj = g_EdWorld->m_objects[ i ];
+		if( obj->selected == false )
+			continue;
+		if( obj->m_type == ObjType_Block )
 		{
-			for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+			SGRX_CAST( EdBlock*, B, obj );
+			for( size_t s = 0; s < B->surfaces.size(); ++s )
 			{
-				EdObject* obj = g_EdWorld->m_objects[ i ];
-				if( obj->selected == false )
+				if( m_selsurf && B->IsSurfaceSelected( s ) == false )
 					continue;
-				if( obj->m_type == ObjType_Block )
-				{
-					SGRX_CAST( EdBlock*, B, obj );
-					for( size_t s = 0; s < B->surfaces.size(); ++s )
-					{
-						if( m_selsurf && B->IsSurfaceSelected( s ) == false )
-							continue;
-						B->surfaces[ s ]->texname = m_mtl.m_value;
-					}
-					obj->RegenerateMesh();
-				}
-				else if( obj->m_type == ObjType_Patch )
-				{
-					SGRX_CAST( EdPatch*, P, obj );
-					P->layers[0].texname = m_mtl.m_value;
-					obj->RegenerateMesh();
-				}
-				else if( obj->m_type == ObjType_MeshPath )
-				{
-					SGRX_CAST( EdMeshPath*, MP, obj );
-					MP->m_parts[0].texname = m_mtl.m_value;
-					obj->RegenerateMesh();
-				}
+				B->surfaces[ s ]->texname = name;
 			}
-			g_UIFrame->SetEditMode( g_UIFrame->m_editMode );
+			obj->RegenerateMesh();
 		}
-		break;
+		else if( obj->m_type == ObjType_Patch )
+		{
+			SGRX_CAST( EdPatch*, P, obj );
+			P->layers[0].texname = name;
+			obj->RegenerateMesh();
+		}
+		else if( obj->m_type == ObjType_MeshPath )
+		{
+			SGRX_CAST( EdMeshPath*, MP, obj );
+			MP->m_parts[0].texname = name;
+			obj->RegenerateMesh();
+		}
 	}
-	return EDGUILayoutRow::OnEvent( e );
+//	g_UIFrame->SetEditMode( g_UIFrame->m_editMode );
 }
 
 
