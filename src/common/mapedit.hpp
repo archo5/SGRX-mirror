@@ -1822,6 +1822,17 @@ struct EDGUIEntList : EDGUIGroup
 // WORLD
 //
 
+struct EdWorldBasicInfo
+{
+	EdWorldBasicInfo()
+	{
+		prefabMode = false;
+	}
+	
+	bool prefabMode;
+//	Array< Vec3 > points;
+};
+
 struct EdWorldLightingInfo
 {
 	EdWorldLightingInfo()
@@ -2216,6 +2227,7 @@ struct EdWorld : EDGUILayoutRow
 	Array< EdObjectHandle > m_objects;
 	EdGroupManager m_groupMgr;
 	
+	EdWorldBasicInfo m_info;
 	EdWorldLightingInfo m_lighting;
 	EDGUIPropertyList m_propList;
 	
@@ -2526,6 +2538,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	void Level_Real_Open( const String& str );
 	void Level_Real_Save( const String& str );
 	void Level_Real_Compile();
+	void Level_Real_Compile_Default();
+	void Level_Real_Compile_Prefabs();
 	void SetEditMode( EdEditMode* em );
 	void SetEditTransform( EdEditTransform* et );
 	void SetModeHighlight( EDGUIButton* mybtn );

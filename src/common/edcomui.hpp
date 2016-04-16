@@ -627,6 +627,12 @@ struct EDGUIPropertyList : EDGUILayoutRow
 					const mpd_PropInfo* p = info->vprop( i );
 					_CreateProperty( group, item.getpropbyid( i ), item, p, mypid );
 				}
+				
+				const mpd_TypeInfo* indextypes = info->vindextypes();
+				if( indextypes )
+				{
+					// array type
+				}
 			}
 		}
 		else if( type == mpdt_Enum )

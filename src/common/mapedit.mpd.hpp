@@ -5,7 +5,7 @@
 #endif
 #include MPD_API_HPP
 
-struct Vec2_MPD : struct_MPD<Vec2_MPD, Vec2>
+struct Vec2_MPD : struct_MPD<Vec2_MPD, Vec2 >
 {
 	enum PIDS
 	{
@@ -37,7 +37,7 @@ template<> struct mpd_MetaType<Vec2 > : Vec2_MPD {};
 template<> struct mpd_MetaType<Vec2 const> : Vec2_MPD {};
 template<> struct mpd_MetaType<Vec2_MPD> : Vec2_MPD {};
 
-struct Vec3_MPD : struct_MPD<Vec3_MPD, Vec3>
+struct Vec3_MPD : struct_MPD<Vec3_MPD, Vec3 >
 {
 	enum PIDS
 	{
@@ -70,7 +70,7 @@ template<> struct mpd_MetaType<Vec3 > : Vec3_MPD {};
 template<> struct mpd_MetaType<Vec3 const> : Vec3_MPD {};
 template<> struct mpd_MetaType<Vec3_MPD> : Vec3_MPD {};
 
-struct String_MPD : struct_MPD<String_MPD, String>
+struct String_MPD : struct_MPD<String_MPD, String >
 {
 	enum PIDS
 	{
@@ -102,7 +102,7 @@ template<> struct mpd_MetaType<String > : String_MPD {};
 template<> struct mpd_MetaType<String const> : String_MPD {};
 template<> struct mpd_MetaType<String_MPD> : String_MPD {};
 
-struct EdSnapProps_MPD : struct_MPD<EdSnapProps_MPD, EdSnapProps>
+struct EdSnapProps_MPD : struct_MPD<EdSnapProps_MPD, EdSnapProps >
 {
 	enum PIDS
 	{
@@ -137,7 +137,7 @@ template<> struct mpd_MetaType<EdSnapProps > : EdSnapProps_MPD {};
 template<> struct mpd_MetaType<EdSnapProps const> : EdSnapProps_MPD {};
 template<> struct mpd_MetaType<EdSnapProps_MPD> : EdSnapProps_MPD {};
 
-struct EdMultiObjectProps_MPD : struct_MPD<EdMultiObjectProps_MPD, EdMultiObjectProps>
+struct EdMultiObjectProps_MPD : struct_MPD<EdMultiObjectProps_MPD, EdMultiObjectProps >
 {
 	enum PIDS
 	{
@@ -168,7 +168,69 @@ template<> struct mpd_MetaType<EdMultiObjectProps > : EdMultiObjectProps_MPD {};
 template<> struct mpd_MetaType<EdMultiObjectProps const> : EdMultiObjectProps_MPD {};
 template<> struct mpd_MetaType<EdMultiObjectProps_MPD> : EdMultiObjectProps_MPD {};
 
-struct EdWorldLightingInfo_MPD : struct_MPD<EdWorldLightingInfo_MPD, EdWorldLightingInfo>
+struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
+{
+	enum PIDS
+	{
+		PID_size,
+	};
+
+	static const char* name(){ return "Vec3Array"; }
+	static const Vec3Array_MPD* inst(){ static const Vec3Array_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 1; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( Array<Vec3> const*, int );
+	static bool setprop( Array<Vec3>*, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ static const mpd_TypeInfo types[] = { { "int32_t", mpdt_Int32, 0 }, { "Vec3", mpdt_Struct, Vec3_MPD::inst() } }; return types; }
+	static mpd_Variant getindex( Array<Vec3> const*, const mpd_Variant& );
+	static bool setindex( Array<Vec3>*, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static void dump( MPD_STATICDUMP_ARGS(Array<Vec3>) );
+};
+
+MPD_DUMPDATA_WRAPPER(Vec3Array, Array<Vec3>);
+template<> struct mpd_MetaType<Array<Vec3> > : Vec3Array_MPD {};
+template<> struct mpd_MetaType<Array<Vec3> const> : Vec3Array_MPD {};
+template<> struct mpd_MetaType<Vec3Array_MPD> : Vec3Array_MPD {};
+
+struct EdWorldBasicInfo_MPD : struct_MPD<EdWorldBasicInfo_MPD, EdWorldBasicInfo >
+{
+	enum PIDS
+	{
+		PID_prefabMode,
+	};
+
+	static const char* name(){ return "EdWorldBasicInfo"; }
+	static const EdWorldBasicInfo_MPD* inst(){ static const EdWorldBasicInfo_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 1; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( EdWorldBasicInfo const*, int );
+	static bool setprop( EdWorldBasicInfo*, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ return 0; }
+	static mpd_Variant getindex( EdWorldBasicInfo const*, const mpd_Variant& );
+	static bool setindex( EdWorldBasicInfo*, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static void dump( MPD_STATICDUMP_ARGS(EdWorldBasicInfo) );
+};
+
+MPD_DUMPDATA_WRAPPER(EdWorldBasicInfo, EdWorldBasicInfo);
+template<> struct mpd_MetaType<EdWorldBasicInfo > : EdWorldBasicInfo_MPD {};
+template<> struct mpd_MetaType<EdWorldBasicInfo const> : EdWorldBasicInfo_MPD {};
+template<> struct mpd_MetaType<EdWorldBasicInfo_MPD> : EdWorldBasicInfo_MPD {};
+
+struct EdWorldLightingInfo_MPD : struct_MPD<EdWorldLightingInfo_MPD, EdWorldLightingInfo >
 {
 	enum PIDS
 	{
@@ -533,6 +595,121 @@ void EdMultiObjectProps_MPD::dump( MPD_STATICDUMP_ARGS(EdMultiObjectProps) )
 	if( level < limit )
 	{
 		MPD_DUMP_PROP( String, m_mtl, pdata->m_mtl );
+	}
+	else
+	{
+		MPD_DUMPLEV( 1 ); printf( "...\n" );
+	}
+	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
+const mpd_KeyValue* Vec3Array_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_PropInfo* Vec3Array_MPD::props()
+{
+	static const mpd_KeyValue size_metadata[] =
+	{
+		{ "label", 5, "Size", 4, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_PropInfo data[] =
+	{
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+	};
+	return data;
+}
+mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int prop )
+{
+	switch( prop )
+	{
+	case 0: return (int32_t const&) obj->size();
+	default: return mpd_Variant();
+	}
+}
+bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int prop, const mpd_Variant& val )
+{
+	switch( prop )
+	{
+	case 0: obj->resize(val.get_int32()); return true;
+	default: return false;
+	}
+}
+mpd_Variant Vec3Array_MPD::getindex( Array<Vec3> const* obj, const mpd_Variant& key )
+{
+	return (Vec3 const&)(*(obj))[mpd_var_get<int32_t >(key)];
+}
+bool Vec3Array_MPD::setindex( Array<Vec3>* obj, const mpd_Variant& key, const mpd_Variant& val )
+{
+	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<Vec3 >(val);
+	return true;
+}
+const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+void Vec3Array_MPD::dump( MPD_STATICDUMP_ARGS(Array<Vec3>) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "struct Vec3Array\n" );
+	MPD_DUMPLEV( 0 ); printf( "{\n" );
+	if( level < limit )
+	{
+		MPD_DUMP_PROP( int32_t, size, pdata->size() );
+	}
+	else
+	{
+		MPD_DUMPLEV( 1 ); printf( "...\n" );
+	}
+	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
+const mpd_KeyValue* EdWorldBasicInfo_MPD::metadata()
+{
+	static const mpd_KeyValue data[] =
+	{
+		{ "label", 5, "Basic info", 10, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	return data;
+}
+const mpd_PropInfo* EdWorldBasicInfo_MPD::props()
+{
+	static const mpd_KeyValue prefabMode_metadata[] =
+	{
+		{ "label", 5, "Prefab mode", 11, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_PropInfo data[] =
+	{
+		{ "prefabMode", 10, { "bool", mpdt_Bool, 0 }, prefabMode_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+	};
+	return data;
+}
+mpd_Variant EdWorldBasicInfo_MPD::getprop( EdWorldBasicInfo const* obj, int prop )
+{
+	switch( prop )
+	{
+	case 0: return (bool const&) obj->prefabMode;
+	default: return mpd_Variant();
+	}
+}
+bool EdWorldBasicInfo_MPD::setprop( EdWorldBasicInfo* obj, int prop, const mpd_Variant& val )
+{
+	switch( prop )
+	{
+	case 0: obj->prefabMode = mpd_var_get<bool >(val); return true;
+	default: return false;
+	}
+}
+mpd_Variant EdWorldBasicInfo_MPD::getindex( EdWorldBasicInfo const*, const mpd_Variant& ){ return mpd_Variant(); }
+bool EdWorldBasicInfo_MPD::setindex( EdWorldBasicInfo*, const mpd_Variant&, const mpd_Variant& ){ return false; }
+const mpd_EnumValue* EdWorldBasicInfo_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+void EdWorldBasicInfo_MPD::dump( MPD_STATICDUMP_ARGS(EdWorldBasicInfo) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "struct EdWorldBasicInfo\n" );
+	MPD_DUMPLEV( 0 ); printf( "{\n" );
+	if( level < limit )
+	{
+		MPD_DUMP_PROP( bool, prefabMode, pdata->prefabMode );
 	}
 	else
 	{

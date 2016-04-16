@@ -538,7 +538,9 @@ EdWorld::EdWorld() :
 	
 	m_propList.m_pickers[ "texture" ] = g_UITexturePicker;
 	m_propList.m_pickers[ "material" ] = g_UISurfMtlPicker;
-	m_propList.Set( &m_lighting );
+	m_propList.Clear();
+	m_propList.Add( &m_info );
+	m_propList.Add( &m_lighting );
 	Add( &m_propList );
 	
 	ReconfigureEntities( "" );
@@ -557,6 +559,7 @@ void EdWorld::FLoad( sgsVariable obj )
 	int version = FLoadProp( obj, "version", 0 );
 	m_nextID = FLoadProp( obj, "id", 0 );
 	
+	FLoadVarData( obj.getprop("info"), &m_info );
 	FLoadVarData( obj.getprop("lighting"), &m_lighting );
 	
 	sgsVariable objects = obj.getprop("objects");
@@ -590,8 +593,6 @@ sgsVariable EdWorld::FSave()
 {
 	int version = MAP_FILE_VERSION;
 	
-	sgsVariable lighting = FSaveVarData( m_lighting );
-	
 	sgsVariable objects = FNewArray();
 	for( size_t i = 0; i < m_objects.size(); ++i )
 	{
@@ -604,7 +605,8 @@ sgsVariable EdWorld::FSave()
 	sgsVariable out = FNewDict();
 	FSaveProp( out, "version", version );
 	FSaveProp( out, "id", m_nextID );
-	out.setprop( "lighting", lighting );
+	out.setprop( "info", FSaveVarData( m_info ) );
+	out.setprop( "lighting", FSaveVarData( m_lighting ) );
 	out.setprop( "objects", objects );
 	
 	return out;
@@ -621,6 +623,10 @@ void EdWorld::Reset()
 	m_objects.clear();
 	g_EdLGCont->Reset();
 	m_nextID = 0;
+	m_info = EdWorldBasicInfo();
+	m_lighting = EdWorldLightingInfo();
+	
+	m_propList.Reload();
 }
 
 void EdWorld::TestData()
@@ -1834,6 +1840,14 @@ void EDGUIMainFrame::Level_Real_Save( const String& str )
 
 void EDGUIMainFrame::Level_Real_Compile()
 {
+	if( g_EdWorld->m_info.prefabMode )
+		Level_Real_Compile_Prefabs();
+	else
+		Level_Real_Compile_Default();
+}
+
+void EDGUIMainFrame::Level_Real_Compile_Default()
+{
 	LOG << "Compiling level";
 	LevelCache lcache( &g_EdLGCont->m_sampleTree );
 	lcache.m_skyTexture = g_EdWorld->m_lighting.skyboxTexture;
@@ -1926,6 +1940,24 @@ void EDGUIMainFrame::Level_Real_Compile()
 		LOG_ERROR << "FAILED TO SAVE CACHE";
 	else
 		LOG << "Level is compiled";
+}
+
+void EDGUIMainFrame::Level_Real_Compile_Prefabs()
+{
+	String data;
+	
+	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
+	{
+		EdEntity* ent = g_EdWorld->m_entities[ i ];
+		UNUSED( ent );
+	}
+	
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s.pfb.sgs", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
+	if( !SaveTextFile( bfr, data ) )
+		LOG_ERROR << "FAILED TO SAVE PREFAB";
+	else
+		LOG << "Prefab script is compiled";
 }
 
 void EDGUIMainFrame::SetEditMode( EdEditMode* em )

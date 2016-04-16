@@ -61,6 +61,26 @@ STRUCT("EdMultiObjectProps",
 	]
 });
 
+STRUCT("Vec3Array",
+{
+	nativetype = "Array<Vec3>",
+	index = { subtype = "Vec3" },
+	props =
+	[
+		{ name = "size", type = "int32_t", get = "_OBJ_->size()", set = "_OBJ_->resize(_VAR_.get_int32())", metadata = { label = "Size" } },
+	]
+});
+
+STRUCT("EdWorldBasicInfo",
+{
+	metadata = { label = "Basic info" },
+	props =
+	[
+		{ name = "prefabMode", type = "bool", metadata = { label = "Prefab mode" } },
+	//	{ name = "points", type = "Vec3Array", metadata = { label = "Points" } },
+	]
+});
+
 STRUCT("EdWorldLightingInfo",
 {
 	metadata = { label = "Lighting info" },

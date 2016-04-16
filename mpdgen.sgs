@@ -140,7 +140,7 @@ foreach( struct : structs )
 		continue;
 	
 	// metadata struct
-	print "struct ", struct.name, "_MPD : struct_MPD<", struct.name, "_MPD, ", struct.nativetype, ">\n{\n";
+	print "struct ", struct.name, "_MPD : struct_MPD<", struct.name, "_MPD, ", struct.nativetype, " >\n{\n";
 	
 	// property enum
 	if( struct.props )

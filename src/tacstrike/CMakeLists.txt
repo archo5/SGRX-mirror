@@ -21,6 +21,15 @@ set_target_properties( game PROPERTIES
 )
 cppbc_headers( game entities_ts.hpp )
 
+# Wheels Game
+add_library( wheelsgame SHARED wheelsgame.cpp )
+target_link_libraries( wheelsgame sgrx-gfw sgrx-core sgrx-script sgrx-sound-fmod sgrx-physics-bullet )
+set_target_properties( wheelsgame PROPERTIES
+	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
+	COMPILE_FLAGS "${CORE_FLAGS} -DWHEELSGAME"
+	LINK_FLAGS "${CORE_FLAGS}"
+)
+
 if(0)
 # BRSD 4 Game
 add_library( jmpgame SHARED brsd4game entities_brsd4 )
