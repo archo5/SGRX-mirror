@@ -1084,7 +1084,64 @@ void EDGUIButton::SetHighlight( bool hl )
 }
 
 
-EDGUIBtnList::EDGUIBtnList() : m_highlight( -1 ), m_opened( -1 ), m_editControl( NULL )
+int EDGUIItemModel::GetItemID( int i )
+{
+	return i;
+}
+
+
+int EDGUIItemNameFilterModel::GetSourceItemID( int i )
+{
+	return i;
+}
+
+void EDGUIItemNameFilterModel::GetSourceItemSearchText( int i, String& out )
+{
+	GetSourceItemName( i, out );
+}
+
+int EDGUIItemNameFilterModel::GetItemCount()
+{
+	return m_filtered.size();
+}
+
+int EDGUIItemNameFilterModel::GetItemID( int i )
+{
+	return GetSourceItemID( m_filtered[ i ] );
+}
+
+void EDGUIItemNameFilterModel::GetItemName( int i, String& out )
+{
+	GetSourceItemName( m_filtered[ i ], out );
+}
+
+void EDGUIItemNameFilterModel::Search( StringView text )
+{
+	String cachedText;
+	m_filtered.clear();
+	for( int i = 0, count = GetSourceItemCount(); i < count; ++i )
+	{
+		GetSourceItemSearchText( i, cachedText );
+		if( StringView(cachedText).match_loose( text ) )
+		{
+			m_filtered.push_back( i );
+		}
+	}
+}
+
+void EDGUIItemNameFilterModel::All()
+{
+	int i = 0, count = GetSourceItemCount();
+	m_filtered.clear();
+	m_filtered.reserve( count );
+	for( ; i < count; ++i )
+	{
+		m_filtered.push_back( i );
+	}
+}
+
+
+EDGUIBtnList::EDGUIBtnList() : m_highlight( -1 ), m_opened( -1 ), m_model( NULL ), m_editControl( NULL )
 {
 	type = EDGUI_ITEM_BTNLIST;
 	tyname = "btnlist";
@@ -1102,7 +1159,7 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 			x1 = e->layout.x1;
 			y0 = e->layout.y0;
 			int hl = m_highlight;
-			int cy0 = _GetButtonYPos( hl >= 0 ? hl : m_options.size() );
+			int cy0 = _GetButtonYPos( hl >= 0 ? hl : -1 );
 			for( size_t i = 0; i < m_subitems.size(); ++i )
 			{
 				if( m_subitems[ i ] == m_editControl )
@@ -1115,7 +1172,7 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 				int cy0 = y0 + ( m_opened + 1 ) * EDGUI_THEME_BUTTON_HEIGHT;
 				SetSubitemLayout( m_editControl, x0, cy0, x1, cy0 );
 			}
-			y1 = _GetButtonYPos( m_options.size() );
+			y1 = _GetButtonYPos( m_model ? m_model->GetItemCount() : 0 );
 			
 			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
 			if( m_parent )
@@ -1129,14 +1186,16 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 		break;
 		
 	case EDGUI_EVENT_PAINT:
-		if( textColor )
+		if( textColor && m_model )
 		{
 			GR2D_GetBatchRenderer().Reset().Colu( textColor );
-			for( size_t i = 0; i < m_options.size(); ++i )
+			for( int i = 0, count = m_model->GetItemCount(); i < count; ++i )
 			{
+				m_cachedTextAlloc = "";
+				m_model->GetItemName( i, m_cachedTextAlloc );
 				GR2D_DrawTextLine( x0 + 2,
 					_GetButtonYPos( i ) + EDGUI_THEME_BUTTON_HEIGHT / 2,
-					m_options[ i ], HALIGN_LEFT, VALIGN_CENTER );
+					m_cachedTextAlloc, HALIGN_LEFT, VALIGN_CENTER );
 			}
 		}
 		if( m_highlight >= 0 )
@@ -1167,17 +1226,21 @@ void EDGUIBtnList::UpdateOptions()
 
 void EDGUIBtnList::SetHighlight( int hl )
 {
-	if( hl < -1 || hl >= (int) m_options.size() )
+	int itemCount = m_model ? m_model->GetItemCount() : 0;
+	if( hl < -1 || hl >= itemCount )
 		hl = -1;
 	m_highlight = hl;
-	int cy0 = _GetButtonYPos( hl >= 0 ? hl : m_options.size() );
+	int cy0 = _GetButtonYPos( hl >= 0 ? hl : itemCount );
+	m_cachedTextAlloc = "";
+	if( hl >= 0 && m_model )
+		m_model->GetItemName( hl, m_cachedTextAlloc );
 	for( size_t i = 0; i < m_subitems.size(); ++i )
 	{
 		if( m_subitems[ i ] == m_editControl )
 			continue;
+		m_subitems[ i ]->SetCaption( m_cachedTextAlloc );
 		SetSubitemLayout( m_subitems[ i ], x0, cy0, x1, cy0 + EDGUI_THEME_BUTTON_HEIGHT );
-		m_subitems[ i ]->SetCaption( hl >= 0 ? m_options[ hl ] : "" );
-		_RecursiveSetID2( m_subitems[ i ], m_idTable.size() && hl >= 0 ? m_idTable[ hl ] : hl );
+		_RecursiveSetID2( m_subitems[ i ], hl >= 0 && m_model ? m_model->GetItemID( hl ) : hl );
 	}
 }
 

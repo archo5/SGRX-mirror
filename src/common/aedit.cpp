@@ -524,6 +524,7 @@ int EDGUIImgFilter_BCP::OnEvent( EDGUIEvent* e )
 	return EDGUIImgFilterBase::OnEvent( e );
 }
 
+
 EDGUIAssetTexture::EDGUIAssetTexture() :
 	m_sfgroup( true, "Selected filter" ),
 	m_flgroup( true, "Filters" ),
@@ -543,6 +544,7 @@ EDGUIAssetTexture::EDGUIAssetTexture() :
 	
 	m_filterButtons.Add( &m_filterEditButton );
 	m_filterButtons.m_editControl = &m_sfgroup;
+	m_filterButtons.m_model = &m_texFilterModel;
 	m_flgroup.Add( &m_filterBtnAdd );
 	m_flgroup.Add( &m_filterButtons );
 	
@@ -560,14 +562,8 @@ EDGUIAssetTexture::~EDGUIAssetTexture()
 void EDGUIAssetTexture::ReloadFilterList()
 {
 	SGRX_TextureAsset& TA = g_EdAS->textureAssets[ m_tid ];
-	
-	m_filterButtons.m_options.resize( TA.filters.size() );
-	for( size_t i = 0; i < TA.filters.size(); ++i )
-	{
-		m_filterButtons.m_options[ i ] = TA.filters[ i ]->GetName();
-	}
+	m_texFilterModel.texAsset = &TA;
 	m_filterButtons.UpdateOptions();
-	
 	UpdatePreviewTexture();
 }
 
@@ -673,6 +669,7 @@ int EDGUIAssetTexture::OnEvent( EDGUIEvent* e )
 			{
 				g_EdAS->textureAssets.erase( m_tid );
 				m_tid = NOT_FOUND;
+				m_texFilterModel.texAsset = NULL;
 				FC_EditTextureList();
 				return 1;
 			}
@@ -721,6 +718,16 @@ int EDGUIAssetTexture::OnEvent( EDGUIEvent* e )
 	return EDGUILayoutRow::OnEvent( e );
 }
 
+
+struct EDGUITextureModel : EDGUIItemNameFilterModel
+{
+	int GetSourceItemCount(){ return g_EdAS->textureAssets.size(); }
+	void GetSourceItemName( int i, String& out ){ g_EdAS->textureAssets[ i ].GetDesc( out ); }
+	void GetSourceItemSearchText( int i, String& out ){ g_EdAS->textureAssets[ i ].GetFullName( out ); }
+}
+g_TextureModel;
+
+
 EDGUIAssetTextureList::EDGUIAssetTextureList() :
 	m_group( true, "Texture assets" ),
 	m_editButton( false )
@@ -728,6 +735,8 @@ EDGUIAssetTextureList::EDGUIAssetTextureList() :
 	m_btnAdd.caption = "Add texture";
 	m_filter.caption = "Filter";
 	
+	g_TextureModel.All();
+	m_buttons.m_model = &g_TextureModel;
 	m_buttons.Add( &m_editButton );
 	m_group.Add( &m_buttons );
 	Add( &m_btnAdd );
@@ -737,21 +746,7 @@ EDGUIAssetTextureList::EDGUIAssetTextureList() :
 
 void EDGUIAssetTextureList::Prepare()
 {
-	m_buttons.m_options.clear();
-	m_buttons.m_idTable.clear();
-	m_buttons.m_options.reserve( g_EdAS->textureAssets.size() );
-	m_buttons.m_idTable.reserve( g_EdAS->textureAssets.size() );
-	for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
-	{
-		String name;
-		g_EdAS->textureAssets[ i ].GetFullName( name );
-		if( StringView(name).match_loose( m_filter.m_value ) )
-		{
-			g_EdAS->textureAssets[ i ].GetDesc( name );
-			m_buttons.m_options.push_back( name );
-			m_buttons.m_idTable.push_back( i );
-		}
-	}
+	g_TextureModel.Search( m_filter.m_value );
 	m_buttons.UpdateOptions();
 }
 
@@ -787,6 +782,7 @@ int EDGUIAssetTextureList::OnEvent( EDGUIEvent* e )
 	}
 	return EDGUILayoutRow::OnEvent( e );
 }
+
 
 EDGUIAssetMesh::EDGUIAssetMesh() :
 	m_group( true, "Mesh" ),
@@ -834,6 +830,7 @@ EDGUIAssetMesh::EDGUIAssetMesh() :
 	m_group.Add( &m_transform );
 	
 	m_MPLBtnAdd.caption = "Add part";
+	m_MPLButtons.m_model = &m_meshPartModel;
 	m_MPLButtons.Add( &m_MPLEditButton );
 	m_MPLgroup.Add( &m_MPLBtnAdd );
 	m_MPLgroup.Add( &m_MPLButtons );
@@ -888,14 +885,8 @@ void EDGUIAssetMesh::UpdatePreviewMesh()
 void EDGUIAssetMesh::ReloadPartList()
 {
 	SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
-	
-	m_MPLButtons.m_options.resize( MA.parts.size() );
-	for( size_t i = 0; i < MA.parts.size(); ++i )
-	{
-		MA.parts[ i ]->GetDesc( i, m_MPLButtons.m_options[ i ] );
-	}
+	m_meshPartModel.meshAsset = &MA;
 	m_MPLButtons.UpdateOptions();
-	
 	UpdatePreviewMesh();
 }
 
@@ -1013,6 +1004,7 @@ int EDGUIAssetMesh::OnEvent( EDGUIEvent* e )
 			{
 				g_EdAS->meshAssets.erase( m_mid );
 				m_mid = NOT_FOUND;
+				m_meshPartModel.meshAsset = NULL;
 				FC_EditMeshList();
 				return 1;
 			}
@@ -1058,6 +1050,16 @@ int EDGUIAssetMesh::OnEvent( EDGUIEvent* e )
 	return EDGUILayoutRow::OnEvent( e );
 }
 
+
+struct EDGUIMeshModel : EDGUIItemNameFilterModel
+{
+	int GetSourceItemCount(){ return g_EdAS->meshAssets.size(); }
+	void GetSourceItemName( int i, String& out ){ g_EdAS->meshAssets[ i ].GetDesc( out ); }
+	void GetSourceItemSearchText( int i, String& out ){ g_EdAS->meshAssets[ i ].GetFullName( out ); }
+}
+g_MeshModel;
+
+
 EDGUIAssetMeshList::EDGUIAssetMeshList() :
 	m_group( true, "Mesh assets" ),
 	m_editButton( false )
@@ -1065,6 +1067,8 @@ EDGUIAssetMeshList::EDGUIAssetMeshList() :
 	m_btnAdd.caption = "Add mesh";
 	m_filter.caption = "Filter";
 	
+	g_MeshModel.All();
+	m_buttons.m_model = &g_MeshModel;
 	m_buttons.Add( &m_editButton );
 	m_group.Add( &m_buttons );
 	Add( &m_btnAdd );
@@ -1074,21 +1078,7 @@ EDGUIAssetMeshList::EDGUIAssetMeshList() :
 
 void EDGUIAssetMeshList::Prepare()
 {
-	m_buttons.m_options.clear();
-	m_buttons.m_idTable.clear();
-	m_buttons.m_options.reserve( g_EdAS->meshAssets.size() );
-	m_buttons.m_idTable.reserve( g_EdAS->meshAssets.size() );
-	for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
-	{
-		String name;
-		g_EdAS->meshAssets[ i ].GetFullName( name );
-		if( StringView(name).match_loose( m_filter.m_value ) )
-		{
-			g_EdAS->meshAssets[ i ].GetDesc( name );
-			m_buttons.m_options.push_back( name );
-			m_buttons.m_idTable.push_back( i );
-		}
-	}
+	g_MeshModel.Search( m_filter.m_value );
 	m_buttons.UpdateOptions();
 }
 
@@ -1124,6 +1114,7 @@ int EDGUIAssetMeshList::OnEvent( EDGUIEvent* e )
 	}
 	return EDGUILayoutRow::OnEvent( e );
 }
+
 
 EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	m_group( true, "Animation bundle" ),
@@ -1177,6 +1168,7 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	m_AN_cont.Add( &m_AN_startFrame );
 	m_AN_cont.Add( &m_AN_endFrame );
 	
+	m_ANL_buttons.m_model = &m_animModel;
 	m_ANL_buttons.Add( &m_ANL_editButton );
 	m_ANL_group.Add( &m_ANL_btnAdd );
 	m_ANL_group.Add( &m_ANL_buttons );
@@ -1185,6 +1177,7 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	m_AS_cont.Add( &m_AS_prefix );
 	m_AS_cont.Add( &m_AS_addAll );
 	
+	m_ASL_buttons.m_model = &m_sourceModel;
 	m_ASL_buttons.Add( &m_ASL_editButton );
 	m_ASL_group.Add( &m_ASL_btnAdd );
 	m_ASL_group.Add( &m_ASL_buttons );
@@ -1228,14 +1221,8 @@ void EDGUIAssetAnimBundle::Prepare( size_t abid )
 void EDGUIAssetAnimBundle::ReloadAnimSourceList()
 {
 	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
-	
-	m_ASL_buttons.m_options.resize( ABA.sources.size() );
-	for( size_t i = 0; i < ABA.sources.size(); ++i )
-	{
-		ABA.sources[ i ].GetDesc( m_ASL_buttons.m_options[ i ] );
-	}
+	m_sourceModel.abAsset = &ABA;
 	m_ASL_buttons.UpdateOptions();
-	
 	ReloadImpScenes();
 }
 
@@ -1258,12 +1245,7 @@ void EDGUIAssetAnimBundle::PrepareAnimSource( size_t sid )
 void EDGUIAssetAnimBundle::ReloadAnimList()
 {
 	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
-	
-	m_ANL_buttons.m_options.resize( ABA.anims.size() );
-	for( size_t i = 0; i < ABA.anims.size(); ++i )
-	{
-		ABA.anims[ i ].GetDesc( m_ANL_buttons.m_options[ i ] );
-	}
+	m_animModel.abAsset = &ABA;
 	m_ANL_buttons.UpdateOptions();
 	OnChangeLayout();
 }
@@ -1377,6 +1359,8 @@ int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
 			if( e->target == &m_btnDelete )
 			{
 				g_EdAS->animBundleAssets.erase( m_abid );
+				m_animModel.abAsset = NULL;
+				m_sourceModel.abAsset = NULL;
 				m_abid = NOT_FOUND;
 				FC_EditAnimBundleList();
 				return 1;
@@ -1439,6 +1423,16 @@ int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
 	return EDGUILayoutRow::OnEvent( e );
 }
 
+
+struct EDGUIAnimBundleModel : EDGUIItemNameFilterModel
+{
+	int GetSourceItemCount(){ return g_EdAS->animBundleAssets.size(); }
+	void GetSourceItemName( int i, String& out ){ g_EdAS->animBundleAssets[ i ].GetDesc( out ); }
+	void GetSourceItemSearchText( int i, String& out ){ g_EdAS->animBundleAssets[ i ].GetFullName( out ); }
+}
+g_AnimBundleModel;
+
+
 EDGUIAssetAnimBundleList::EDGUIAssetAnimBundleList() :
 	m_group( true, "Anim. bundle assets" ),
 	m_editButton( false )
@@ -1446,6 +1440,8 @@ EDGUIAssetAnimBundleList::EDGUIAssetAnimBundleList() :
 	m_btnAdd.caption = "Add anim. bundle";
 	m_filter.caption = "Filter";
 	
+	g_AnimBundleModel.All();
+	m_buttons.m_model = &g_AnimBundleModel;
 	m_buttons.Add( &m_editButton );
 	m_group.Add( &m_buttons );
 	Add( &m_btnAdd );
@@ -1455,21 +1451,7 @@ EDGUIAssetAnimBundleList::EDGUIAssetAnimBundleList() :
 
 void EDGUIAssetAnimBundleList::Prepare()
 {
-	m_buttons.m_options.clear();
-	m_buttons.m_idTable.clear();
-	m_buttons.m_options.reserve( g_EdAS->animBundleAssets.size() );
-	m_buttons.m_idTable.reserve( g_EdAS->animBundleAssets.size() );
-	for( size_t i = 0; i < g_EdAS->animBundleAssets.size(); ++i )
-	{
-		String name;
-		g_EdAS->animBundleAssets[ i ].GetFullName( name );
-		if( StringView(name).match_loose( m_filter.m_value ) )
-		{
-			g_EdAS->animBundleAssets[ i ].GetDesc( name );
-			m_buttons.m_options.push_back( name );
-			m_buttons.m_idTable.push_back( i );
-		}
-	}
+	g_AnimBundleModel.Search( m_filter.m_value );
 	m_buttons.UpdateOptions();
 }
 
@@ -1577,6 +1559,22 @@ int EDGUIAssetCategoryForm::OnEvent( EDGUIEvent* e )
 	return EDGUILayoutRow::OnEvent( e );
 }
 
+
+struct EDGUICategoryModel : EDGUIItemNameFilterModel
+{
+	int GetSourceItemCount(){ return g_EdAS->categories.size(); }
+	void GetSourceItemName( int i, String& out )
+	{
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "%s => %s",
+			StackString<100>( g_EdAS->categories.item( i ).key ).str,
+			StackString<100>( g_EdAS->categories.item( i ).value ).str );
+		out = bfr;
+	}
+}
+g_CategoryModel;
+
+
 EDGUIAssetCategoryList::EDGUIAssetCategoryList() :
 	m_cgroup( true, "Categories" ),
 	m_ctgEditButton( false )
@@ -1584,6 +1582,8 @@ EDGUIAssetCategoryList::EDGUIAssetCategoryList() :
 	m_ctgBtnAdd.caption = "Add category";
 	m_filter.caption = "Filter";
 	
+	g_CategoryModel.All();
+	m_ctgButtons.m_model = &g_CategoryModel;
 	m_ctgButtons.Add( &m_ctgEditButton );
 	
 	m_cgroup.Add( &m_ctgButtons );
@@ -1595,22 +1595,7 @@ EDGUIAssetCategoryList::EDGUIAssetCategoryList() :
 
 void EDGUIAssetCategoryList::Prepare()
 {
-	m_ctgButtons.m_options.clear();
-	m_ctgButtons.m_idTable.clear();
-	m_ctgButtons.m_options.reserve( g_EdAS->categories.size() );
-	m_ctgButtons.m_idTable.reserve( g_EdAS->categories.size() );
-	for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
-	{
-		char bfr[ 256 ];
-		sgrx_snprintf( bfr, 256, "%s => %s",
-			StackString<100>( g_EdAS->categories.item( i ).key ).str,
-			StackString<100>( g_EdAS->categories.item( i ).value ).str );
-		if( StringView(bfr).match_loose( m_filter.m_value ) )
-		{
-			m_ctgButtons.m_options.push_back( bfr );
-			m_ctgButtons.m_idTable.push_back( i );
-		}
-	}
+	g_CategoryModel.Search( m_filter.m_value );
 	m_ctgButtons.UpdateOptions();
 }
 
@@ -2044,12 +2029,11 @@ struct ASEditor : IGame
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_UIFrame->Draw();
 	}
-}
-g_Game;
+};
 
 
 extern "C" EXPORT IGame* CreateGame()
 {
-	return &g_Game;
+	return new ASEditor;
 }
 

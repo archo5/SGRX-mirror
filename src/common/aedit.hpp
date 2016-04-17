@@ -189,6 +189,14 @@ struct EDGUIImgFilter_BCP : EDGUIImgFilterBase
 };
 
 
+struct EDGUITexFilterModel : EDGUIItemModel
+{
+	EDGUITexFilterModel() : texAsset( NULL ){}
+	int GetItemCount(){ return texAsset ? texAsset->filters.size() : 0; }
+	void GetItemName( int i, String& out ){ if( texAsset ) out = texAsset->filters[ i ]->GetName(); }
+	SGRX_TextureAsset* texAsset;
+};
+
 struct EDGUIAssetTexture : EDGUILayoutRow
 {
 	EDGUIAssetTexture();
@@ -212,6 +220,7 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 	EDGUIBtnList m_filterButtons;
 	EDGUIListItemButton m_filterEditButton;
 	size_t m_tid;
+	EDGUITexFilterModel m_texFilterModel;
 };
 
 struct EDGUIAssetTextureList : EDGUILayoutRow
@@ -225,6 +234,14 @@ struct EDGUIAssetTextureList : EDGUILayoutRow
 	EDGUIPropString m_filter;
 	EDGUIBtnList m_buttons;
 	EDGUIListItemButton m_editButton;
+};
+
+struct EDGUIMeshPartModel : EDGUIItemModel
+{
+	EDGUIMeshPartModel() : meshAsset( NULL ){}
+	int GetItemCount(){ return meshAsset ? meshAsset->parts.size() : 0; }
+	void GetItemName( int i, String& out ){ if( meshAsset ) meshAsset->parts[ i ]->GetDesc( i, out ); }
+	SGRX_MeshAsset* meshAsset;
 };
 
 struct EDGUIAssetMesh : EDGUILayoutRow
@@ -275,6 +292,7 @@ struct EDGUIAssetMesh : EDGUILayoutRow
 	size_t m_mid;
 	size_t m_pid;
 	ImpScene3DHandle m_scene;
+	EDGUIMeshPartModel m_meshPartModel;
 };
 
 struct EDGUIAssetMeshList : EDGUILayoutRow
@@ -288,6 +306,21 @@ struct EDGUIAssetMeshList : EDGUILayoutRow
 	EDGUIPropString m_filter;
 	EDGUIBtnList m_buttons;
 	EDGUIListItemButton m_editButton;
+};
+
+struct EDGUIABAnimModel : EDGUIItemModel
+{
+	EDGUIABAnimModel() : abAsset( NULL ){}
+	int GetItemCount(){ return abAsset ? abAsset->anims.size() : 0; }
+	void GetItemName( int i, String& out ){ if( abAsset ) abAsset->anims[ i ].GetDesc( out ); }
+	SGRX_AnimBundleAsset* abAsset;
+};
+struct EDGUIABSourceModel : EDGUIItemModel
+{
+	EDGUIABSourceModel() : abAsset( NULL ){}
+	int GetItemCount(){ return abAsset ? abAsset->sources.size() : 0; }
+	void GetItemName( int i, String& out ){ if( abAsset ) abAsset->sources[ i ].GetDesc( out ); }
+	SGRX_AnimBundleAsset* abAsset;
 };
 
 struct EDGUIAssetAnimBundle : EDGUILayoutRow
@@ -339,6 +372,9 @@ struct EDGUIAssetAnimBundle : EDGUILayoutRow
 	size_t m_abid;
 	size_t m_sid;
 	size_t m_aid;
+	
+	EDGUIABAnimModel m_animModel;
+	EDGUIABSourceModel m_sourceModel;
 };
 
 struct EDGUIAssetAnimBundleList : EDGUILayoutRow

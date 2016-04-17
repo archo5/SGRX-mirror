@@ -1472,6 +1472,49 @@ struct EDGUILayerTransformProps : EDGUILayoutRow
 };
 
 
+struct EDGUILayerTransformModel : EDGUIItemModel
+{
+	EDGUILayerTransformModel() : layer(NULL){}
+	int GetItemCount(){ return layer ? layer->transforms.size() : 0; }
+	void GetItemName( int i, String& out )
+	{
+		if( !layer )
+			return;
+		char bfr[ 256 ];
+		AnimCharacter::LayerTransform& LT = layer->transforms[ i ];
+		StackString<200> bname( LT.bone );
+		switch( LT.type )
+		{
+		case AnimCharacter::TransformType_None:
+			sgrx_snprintf( bfr, 256, "#%d, disabled", (int) i );
+			break;
+		case AnimCharacter::TransformType_UndoParent:
+			sgrx_snprintf( bfr, 256, "#%d, undo parent transform @ %s", (int) i, bname.str );
+			break;
+		case AnimCharacter::TransformType_Move:
+			{
+				Vec3& O = LT.posaxis;
+				sgrx_snprintf( bfr, 256, "#%d, move by %g;%g;%g @ %s",
+					(int) i, O.x, O.y, O.z, bname.str );
+			}
+			break;
+		case AnimCharacter::TransformType_Rotate:
+			{
+				Vec3& A = LT.posaxis;
+				sgrx_snprintf( bfr, 256, "#%d, rotate by %g degrees around %g;%g;%g @ %s",
+					(int) i, LT.angle, A.x, A.y, A.z, bname.str );
+			}
+			break;
+		default:
+			sgrx_snprintf( bfr, 256, "#%d, unknown? (type=%d)", (int) i, (int) LT.type );
+			break;
+		}
+		out = bfr;
+	}
+	AnimCharacter::Layer* layer;
+};
+
+
 struct EDGUILayerProps : EDGUILayoutRow
 {
 	EDGUILayerProps() :
@@ -1485,6 +1528,7 @@ struct EDGUILayerProps : EDGUILayoutRow
 		m_testFactor.caption = "Test factor";
 		m_btnAdd.caption = "Add transform";
 		
+		m_ltfButtons.m_model = &m_layerTransformModel;
 		m_ltfButtons.Add( &m_editButton );
 		m_group.Add( &m_ltfButtons );
 		
@@ -1506,41 +1550,7 @@ struct EDGUILayerProps : EDGUILayoutRow
 		m_name.SetValue( L.name );
 		m_testFactor.SetValue( L.amount );
 		
-		m_ltfButtons.m_options.clear();
-		m_ltfButtons.m_options.resize( L.transforms.size() );
-		for( size_t i = 0; i < L.transforms.size(); ++i )
-		{
-			char bfr[ 256 ];
-			AnimCharacter::LayerTransform& LT = L.transforms[ i ];
-			StackString<200> bname( LT.bone );
-			switch( LT.type )
-			{
-			case AnimCharacter::TransformType_None:
-				sgrx_snprintf( bfr, 256, "#%d, disabled", (int) i );
-				break;
-			case AnimCharacter::TransformType_UndoParent:
-				sgrx_snprintf( bfr, 256, "#%d, undo parent transform @ %s", (int) i, bname.str );
-				break;
-			case AnimCharacter::TransformType_Move:
-				{
-					Vec3& O = LT.posaxis;
-					sgrx_snprintf( bfr, 256, "#%d, move by %g;%g;%g @ %s",
-						(int) i, O.x, O.y, O.z, bname.str );
-				}
-				break;
-			case AnimCharacter::TransformType_Rotate:
-				{
-					Vec3& A = LT.posaxis;
-					sgrx_snprintf( bfr, 256, "#%d, rotate by %g degrees around %g;%g;%g @ %s",
-						(int) i, LT.angle, A.x, A.y, A.z, bname.str );
-				}
-				break;
-			default:
-				sgrx_snprintf( bfr, 256, "#%d, unknown? (type=%d)", (int) i, (int) LT.type );
-				break;
-			}
-			m_ltfButtons.m_options[ i ] = bfr;
-		}
+		m_layerTransformModel.layer = &L;
 		m_ltfButtons.UpdateOptions();
 	}
 	
@@ -1584,6 +1594,7 @@ struct EDGUILayerProps : EDGUILayoutRow
 				{
 					L.transforms.erase( m_editButton.id2 );
 					Prepare( m_lid );
+					m_layerTransformModel.layer = NULL;
 					return 1;
 				}
 				break;
@@ -1609,7 +1620,16 @@ struct EDGUILayerProps : EDGUILayoutRow
 	EDGUIBtnList m_ltfButtons;
 	EDGUIListItemButton m_editButton;
 	int m_lid;
+	EDGUILayerTransformModel m_layerTransformModel;
 };
+
+
+struct EDGUILayerModel : EDGUIItemModel
+{
+	int GetItemCount(){ return g_AnimChar->layers.size(); }
+	void GetItemName( int i, String& out ){ out = g_AnimChar->layers[ i ].name; }
+}
+g_LayerModel;
 
 
 struct EDGUILayerListProps : EDGUILayoutRow
@@ -1621,6 +1641,7 @@ struct EDGUILayerListProps : EDGUILayoutRow
 		
 		m_btnAdd.caption = "Add layer";
 		
+		m_layerButtons.m_model = &g_LayerModel;
 		m_layerButtons.Add( &m_editButton );
 		m_group.Add( &m_layerButtons );
 		
@@ -1630,12 +1651,6 @@ struct EDGUILayerListProps : EDGUILayoutRow
 	
 	void Prepare()
 	{
-		m_layerButtons.m_options.clear();
-		m_layerButtons.m_options.resize( g_AnimChar->layers.size() );
-		for( size_t i = 0; i < g_AnimChar->layers.size(); ++i )
-		{
-			m_layerButtons.m_options[ i ] = g_AnimChar->layers[ i ].name;
-		}
 		m_layerButtons.UpdateOptions();
 	}
 	
@@ -1781,6 +1796,25 @@ struct EDGUIMaskCmdProps : EDGUILayoutRow
 };
 
 
+struct EDGUIMaskCmdModel : EDGUIItemModel
+{
+	EDGUIMaskCmdModel() : mask(NULL){}
+	int GetItemCount(){ return mask ? mask->cmds.size() : 0; }
+	void GetItemName( int i, String& out )
+	{
+		if( !mask )
+			return;
+		char bfr[ 256 ];
+		AnimCharacter::MaskCmd& MC = mask->cmds[ i ];
+		StackString<200> bname( MC.bone );
+		sgrx_snprintf( bfr, 256, "#%d, %f @ %s%s", (int) i,
+			MC.weight, bname.str, MC.children ? ", incl. children" : "" );
+		out = bfr;
+	}
+	AnimCharacter::Mask* mask;
+};
+
+
 struct EDGUIMaskProps : EDGUILayoutRow
 {
 	EDGUIMaskProps() :
@@ -1794,6 +1828,7 @@ struct EDGUIMaskProps : EDGUILayoutRow
 		m_name.caption = "Name";
 		m_btnAdd.caption = "Add command";
 		
+		m_mcmdButtons.m_model = &m_maskCmdModel;
 		m_mcmdButtons.Add( &m_editButton );
 		m_group.Add( &m_mcmdButtons );
 		
@@ -1814,17 +1849,7 @@ struct EDGUIMaskProps : EDGUILayoutRow
 		
 		m_name.SetValue( M.name );
 		
-		m_mcmdButtons.m_options.clear();
-		m_mcmdButtons.m_options.resize( M.cmds.size() );
-		for( size_t i = 0; i < M.cmds.size(); ++i )
-		{
-			char bfr[ 256 ];
-			AnimCharacter::MaskCmd& MC = M.cmds[ i ];
-			StackString<200> bname( MC.bone );
-			sgrx_snprintf( bfr, 256, "#%d, %f @ %s%s", (int) i,
-				MC.weight, bname.str, MC.children ? ", incl. children" : "" );
-			m_mcmdButtons.m_options[ i ] = bfr;
-		}
+		m_maskCmdModel.mask = &M;
 		m_mcmdButtons.UpdateOptions();
 	}
 	
@@ -1868,6 +1893,7 @@ struct EDGUIMaskProps : EDGUILayoutRow
 				{
 					M.cmds.erase( m_editButton.id2 );
 					Prepare( m_mid );
+					m_maskCmdModel.mask = NULL;
 					return 1;
 				}
 				break;
@@ -1889,7 +1915,16 @@ struct EDGUIMaskProps : EDGUILayoutRow
 	EDGUIListItemButton m_editButton;
 	EDGUIPropFloat m_previewSize;
 	int m_mid;
+	EDGUIMaskCmdModel m_maskCmdModel;
 };
+
+
+struct EDGUIMaskModel : EDGUIItemModel
+{
+	int GetItemCount(){ return g_AnimChar->masks.size(); }
+	void GetItemName( int i, String& out ){ out = g_AnimChar->masks[ i ].name; }
+}
+g_MaskModel;
 
 
 struct EDGUIMaskListProps : EDGUILayoutRow
@@ -1902,6 +1937,7 @@ struct EDGUIMaskListProps : EDGUILayoutRow
 		
 		m_btnAdd.caption = "Add mask";
 		
+		m_maskButtons.m_model = &g_MaskModel;
 		m_maskButtons.Add( &m_editButton );
 		m_group.Add( &m_maskButtons );
 		
@@ -1911,12 +1947,6 @@ struct EDGUIMaskListProps : EDGUILayoutRow
 	
 	void Prepare()
 	{
-		m_maskButtons.m_options.clear();
-		m_maskButtons.m_options.resize( g_AnimChar->masks.size() );
-		for( size_t i = 0; i < g_AnimChar->masks.size(); ++i )
-		{
-			m_maskButtons.m_options[ i ] = g_AnimChar->masks[ i ].name;
-		}
 		m_maskButtons.UpdateOptions();
 	}
 	
@@ -2882,12 +2912,11 @@ struct CSEditor : IGame
 	}
 	
 	bool phySlow;
-}
-g_Game;
+};
 
 
 extern "C" EXPORT IGame* CreateGame()
 {
-	return &g_Game;
+	return new CSEditor;
 }
 

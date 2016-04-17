@@ -316,6 +316,30 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIButton : EDGUIItem
 };
 
 
+struct IF_GCC(ENGINE_EXPORT) EDGUIItemModel
+{
+	ENGINE_EXPORT virtual int GetItemCount() = 0;
+	ENGINE_EXPORT virtual int GetItemID( int i );
+	ENGINE_EXPORT virtual void GetItemName( int i, String& out ) = 0;
+};
+
+struct IF_GCC(ENGINE_EXPORT) EDGUIItemNameFilterModel : EDGUIItemModel
+{
+	ENGINE_EXPORT virtual int GetSourceItemCount() = 0;
+	ENGINE_EXPORT virtual int GetSourceItemID( int i );
+	ENGINE_EXPORT virtual void GetSourceItemName( int i, String& out ) = 0;
+	ENGINE_EXPORT virtual void GetSourceItemSearchText( int i, String& out );
+	
+	ENGINE_EXPORT virtual int GetItemCount();
+	ENGINE_EXPORT virtual int GetItemID( int i );
+	ENGINE_EXPORT virtual void GetItemName( int i, String& out );
+	
+	ENGINE_EXPORT void Search( StringView text );
+	ENGINE_EXPORT void All();
+	
+	Array< int > m_filtered;
+};
+
 struct IF_GCC(ENGINE_EXPORT) EDGUIBtnList : EDGUIItem
 {
 	ENGINE_EXPORT EDGUIBtnList();
@@ -332,9 +356,9 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIBtnList : EDGUIItem
 	
 	int m_highlight;
 	int m_opened;
-	Array< String > m_options;
-	Array< uint32_t > m_idTable;
+	EDGUIItemModel* m_model;
 	EDGUIItem* m_editControl;
+	String m_cachedTextAlloc;
 };
 
 
