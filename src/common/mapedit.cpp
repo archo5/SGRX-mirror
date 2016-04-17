@@ -533,15 +533,7 @@ void ReconfigureEntities( StringView levname )
 EdWorld::EdWorld() :
 	m_nextID( 0 )
 {
-	tyname = "world";
 	m_vd = GR_GetVertexDecl( LCVertex_DECL );
-	
-	m_propList.m_pickers[ "texture" ] = g_UITexturePicker;
-	m_propList.m_pickers[ "material" ] = g_UISurfMtlPicker;
-	m_propList.Clear();
-	m_propList.Add( &m_info );
-	m_propList.Add( &m_lighting );
-	Add( &m_propList );
 	
 	ReconfigureEntities( "" );
 	TestData();
@@ -625,8 +617,6 @@ void EdWorld::Reset()
 	m_nextID = 0;
 	m_info = EdWorldBasicInfo();
 	m_lighting = EdWorldLightingInfo();
-	
-	m_propList.Reload();
 }
 
 void EdWorld::TestData()
@@ -655,29 +645,6 @@ void EdWorld::TestData()
 	AddObject( b1.Clone() );
 	
 	RegenerateMeshes();
-}
-
-int EdWorld::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_propList )
-		{
-			typedef mpd_MetaType<EdWorldLightingInfo> MT;
-			
-			if( m_propList.WasPropEdited( &m_lighting, MT::prop(MT::PID_skyboxTexture) ) )
-			{
-				ReloadSkybox();
-			}
-			if( m_propList.WasPropEdited( &m_lighting, MT::prop(MT::PID_clutTexture) ) )
-			{
-				ReloadCLUT();
-			}
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
 }
 
 void EdWorld::RegenerateMeshes()
@@ -1482,6 +1449,8 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuButtonsRgt.Add( &m_MBLevelInfo );
 	
 	// extra stuff
+	m_propList.m_pickers[ "texture" ] = g_UITexturePicker;
+	m_propList.m_pickers[ "material" ] = g_UISurfMtlPicker;
 	m_btnDumpLMInfo.caption = "Dump lightmap info";
 	
 	m_txMarker = GR_GetTexture( "editor/marker.png" );
@@ -1805,8 +1774,10 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 		return;
 	}
 	
-	g_EdWorld->m_propList.Reload();
+	m_propList.Reload();
 	g_EdLGCont->LoadLightmaps( str );
+	g_EdWorld->ReloadSkybox();
+	g_EdWorld->ReloadCLUT();
 	
 	m_fileName = str;
 }
@@ -2029,9 +2000,6 @@ bool MapEditor::OnInitialize()
 	g_UIFrame = new EDGUIMainFrame();
 	g_UIFrame->PostInit();
 	g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
-	
-	// param area
-	g_UIFrame->AddToParamList( g_EdWorld );
 	
 	return true;
 }

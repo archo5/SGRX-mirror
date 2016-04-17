@@ -17,6 +17,24 @@
 
 #define EXP_STRUCT struct SGS_CPPBC_IGNORE(IF_GCC(GFW_EXPORT))
 
+#define GFW_DEFINE_HANDLE_CPPBC_CONV( NTYPE, SGSTYPE ) \
+	template<> inline void sgs_PushVar<NTYPE>( SGS_CTX, const NTYPE& v ) \
+	{ \
+		if( !v ) \
+			sgs_PushNull( C ); \
+		else \
+			SGS_CREATECLASS( C, NULL, SGSTYPE, ( v ) ); \
+	} \
+	template<> struct sgs_GetVar<NTYPE> \
+	{ \
+		NTYPE operator () ( SGS_CTX, sgs_StkIdx item ) \
+		{ \
+			if( sgs_IsObject( C, item, SGSTYPE::_sgs_interface ) ) \
+				return ((SGSTYPE*)sgs_GetObjectData( C, item ))->h; \
+			return NULL; \
+		} \
+	};
+
 
 EXP_STRUCT SGSTextureHandle
 {
@@ -34,23 +52,7 @@ EXP_STRUCT SGSTextureHandle
 	
 	TextureHandle h;
 };
-
-template<> inline void sgs_PushVar<TextureHandle>( SGS_CTX, const TextureHandle& v )
-{
-	if( !v )
-		sgs_PushNull( C );
-	else
-		SGS_CREATECLASS( C, NULL, SGSTextureHandle, ( v ) );
-}
-template<> struct sgs_GetVar<TextureHandle>
-{
-	TextureHandle operator () ( SGS_CTX, sgs_StkIdx item )
-	{
-		if( sgs_IsObject( C, item, SGSTextureHandle::_sgs_interface ) )
-			return ((SGSTextureHandle*)sgs_GetObjectData( C, item ))->h;
-		return NULL;
-	}
-};
+GFW_DEFINE_HANDLE_CPPBC_CONV( TextureHandle, SGSTextureHandle );
 
 
 EXP_STRUCT SGSMeshHandle
@@ -69,23 +71,50 @@ EXP_STRUCT SGSMeshHandle
 	
 	MeshHandle h;
 };
+GFW_DEFINE_HANDLE_CPPBC_CONV( MeshHandle, SGSMeshHandle );
 
-template<> inline void sgs_PushVar<MeshHandle>( SGS_CTX, const MeshHandle& v )
+
+EXP_STRUCT SGSMeshInstHandle
 {
-	if( !v )
-		sgs_PushNull( C );
-	else
-		SGS_CREATECLASS( C, NULL, SGSMeshHandle, ( v ) );
-}
-template<> struct sgs_GetVar<MeshHandle>
-{
-	MeshHandle operator () ( SGS_CTX, sgs_StkIdx item )
+	SGS_OBJECT;
+	
+	SGSMeshInstHandle( MeshInstHandle _h ) : h(_h){}
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE h->layers ) SGS_ALIAS( uint32_t layers );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE h->enabled ) SGS_ALIAS( bool enabled );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE h->allowStaticDecals ) SGS_ALIAS( bool allowStaticDecals );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE h->sortidx ) SGS_ALIAS( uint32_t sortidx );
+	SGS_PROPERTY_FUNC( READ WRITE SOURCE h->matrix ) SGS_ALIAS( Mat4 transform );
+	MeshHandle sgsGetMesh() const { return h->GetMesh(); }
+	SGS_PROPERTY_FUNC( READ sgsGetMesh WRITE h->SetMesh ) SGS_ALIAS( MeshHandle mesh );
+	int sgsGetLightingMode() const { return h->GetLightingMode(); }
+	void sgsSetLightingMode( int m ){ h->SetLightingMode( (SGRX_LightingMode) m ); }
+	SGS_PROPERTY_FUNC( READ sgsGetLightingMode WRITE sgsSetLightingMode ) SGS_ALIAS( int lightingMode );
+	SGS_PROPERTY_FUNC( READ h->GetMaterialCount WRITE h->SetMaterialCount ) SGS_ALIAS( uint16_t materialCount );
+	
+	SGS_METHOD void SetMesh( sgsVariable handleOrPath, bool mtls )
 	{
-		if( sgs_IsObject( C, item, SGSMeshHandle::_sgs_interface ) )
-			return ((SGSMeshHandle*)sgs_GetObjectData( C, item ))->h;
-		return NULL;
+		if( sgs_StackSize( C ) < 2 ) mtls = true;
+		if( handleOrPath.is_string() )
+		{
+			sgsString s = handleOrPath.get_string();
+			h->SetMesh( StringView( s.c_str(), s.size() ), mtls );
+			return;
+		}
+		h->SetMesh( sgs_GetVar<MeshHandle>()( C, 0 ) );
 	}
+	SGS_METHOD void SetMITexture( int i, TextureHandle tex )
+	{
+		if( i < 0 || i >= 4 )
+		{
+			sgs_Msg( C, SGS_WARNING, "slot %d out of bounds [0;4)", i );
+			return;
+		}
+		h->SetMITexture( i, tex );
+	}
+	
+	MeshInstHandle h;
 };
+GFW_DEFINE_HANDLE_CPPBC_CONV( MeshInstHandle, SGSMeshInstHandle );
 
 
 GFW_EXPORT void GFWRegisterCore( SGS_CTX );

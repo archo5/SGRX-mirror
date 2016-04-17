@@ -1187,6 +1187,18 @@ FINLINE char sgrx_tolower( char a )
 	return a;
 }
 
+bool StringView::equal_lower( const StringView& o )
+{
+	if( m_size != o.m_size )
+		return false;
+	for( size_t i = 0; i < m_size; ++i )
+	{
+		if( sgrx_tolower( m_str[ i ] ) != o.m_str[ i ] )
+			return false;
+	}
+	return true;
+}
+
 bool StringView::match_loose( const StringView& substr )
 {
 #define MAX_ML_CHARS 256
@@ -1665,6 +1677,20 @@ struct StackWString
 	}
 	operator const WCHAR* (){ return str; }
 };
+template< int N >
+struct StackUnWString
+{
+	static const int bufsize = N * 4 + 1;
+	char str[ bufsize ];
+	int size;
+	StackUnWString( const WCHAR* wstr, size_t wsize = NOT_FOUND )
+	{
+		if( wsize == NOT_FOUND )
+			wsize = wcslen( wstr );
+		size = WideCharToMultiByte( CP_UTF8, 0, wstr, wsize, str, bufsize, NULL, NULL );
+		str[ size ] = 0;
+	}
+};
 #endif
 
 
@@ -1831,6 +1857,7 @@ bool CWDGet( String& path )
 		if( cchars )
 		{
 			path.resize( cchars );
+			path = NormalizePath( path );
 			return true;
 		}
 	}
@@ -1851,6 +1878,82 @@ bool CWDSet( const StringView& path )
 	return SetCurrentDirectoryW( StackWString< MAX_PATH >( path ) ) != FALSE;
 #else
 	return chdir( StackString< 4096 >( path ) ) == 0;
+#endif
+}
+
+String NormalizePath( const StringView& path )
+{
+	return String_Replace( path, "\\", "/" );
+}
+
+bool IsAbsPath( const StringView& path )
+{
+#ifdef _WIN32
+	return path.size() >= 2 && path[1] == ':';
+#else
+	return path.starts_with( "/" );
+#endif
+}
+
+bool PathIsUnder( const StringView& path, const StringView& base )
+{
+	StringView nmpath = path.until_last( "/" );
+	StringView nmbase = base.until_last( "/" );
+	return nmpath.starts_with( nmbase ) &&
+		( nmpath.size() == nmbase.size() ||
+		nmpath[ nmbase.size() ] == '/' );
+}
+
+String GetRelativePath( const StringView& path, const StringView& base )
+{
+	String out;
+	String apath = AbsPath( path );
+	String abase = AbsPath( base );
+	
+	StringView sbase = SV( abase );
+	if( sbase.ends_with( "/" ) )
+		sbase.part( 0, sbase.size() - 1 );
+	while( !PathIsUnder( apath, sbase ) )
+	{
+		out.append( "../" );
+		sbase = sbase.until_last( "/" );
+	}
+	out.append( SV( apath ).part( sbase.size() + 1 ) );
+	return out;
+}
+
+String AbsPath( const StringView& path )
+{
+	String cwd;
+	CWDGet( cwd );
+	if( cwd.size() )
+	{
+		if( !IsAbsPath( path ) )
+		{
+			if( cwd.last() != '/' )
+				cwd.push_back( '/' );
+			cwd.append( path );
+			return cwd;
+		}
+	}
+	return path;
+}
+
+String RealPath( const StringView& path )
+{
+#ifdef _WIN32
+	WCHAR out[ MAX_PATH + 1 ] = {0};
+	DWORD num = GetFullPathNameW( StackWString< MAX_PATH >( path ), MAX_PATH, out, NULL );
+	if( num > 0 && num <= MAX_PATH )
+	{
+		StackUnWString< MAX_PATH > uws( out, num );
+		return NormalizePath( StringView( uws.str, uws.size ) );
+	}
+	return String();
+#else
+	char out[ PATH_MAX + 1 ] = {0};
+	char* ret = realpath( StackPath(path).str, out );
+	return ret ? ret : "";
 #endif
 }
 

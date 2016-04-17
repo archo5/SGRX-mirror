@@ -37,6 +37,7 @@ ENGINE_EXPORT void Window_SetTitle( const StringView& text );
 ENGINE_EXPORT bool Window_HasClipboardText();
 ENGINE_EXPORT bool Window_GetClipboardText( String& out );
 ENGINE_EXPORT bool Window_SetClipboardText( const StringView& text );
+ENGINE_EXPORT void Window_EnableDragDrop( bool enable );
 
 typedef SDL_Event Event;
 
@@ -1336,12 +1337,10 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	IMeshRaycast* raycastOverride;
 	void* userData;
 	Mat4 matrix;
-	Vec4 color;
 	SGRX_LightingMode m_lightingMode;
 	uint32_t layers;
 	uint32_t enabled : 1;
 	uint32_t allowStaticDecals : 1;
-//	uint32_t dynamic : 1;
 	uint8_t sortidx;
 	
 	Vec4 constants[ MAX_MI_CONSTANTS ];

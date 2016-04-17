@@ -1981,8 +1981,100 @@ struct ASEditor : IGame
 		g_EdAS = NULL;
 		g_EdScene = NULL;
 	}
+	static bool IsImageFile( StringView path )
+	{
+		StringView ext = path.after_last( "." );
+		return ext.equal_lower( "png" )
+			|| ext.equal_lower( "jpg" )
+			|| ext.equal_lower( "jpeg" )
+			|| ext.equal_lower( "dds" )
+			|| ext.equal_lower( "tga" )
+			|| ext.equal_lower( "bmp" );
+	}
+	static bool IsMeshFile( StringView path )
+	{
+		StringView ext = path.after_last( "." );
+		return ext.equal_lower( "dae" )
+			|| ext.equal_lower( "fbx" )
+			|| ext.equal_lower( "obj" );
+	}
 	void OnEvent( const Event& e )
 	{
+		if( e.type == SDL_DROPFILE )
+		{
+			String path = RealPath( e.drop.file );
+			if( ( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICatList ) ||
+				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) ||
+				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UITextureList ) ||
+				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UITexture ) ) &&
+				IsImageFile( path ) )
+			{
+				String rootpath;
+				FS_FindRealPath( "assets", rootpath );
+				rootpath = RealPath( rootpath );
+				if( PathIsUnder( path, rootpath ) )
+				{
+					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
+					String category = "";
+					if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) )
+					{
+						category = g_UIFrame->m_UICategory.m_name.m_value;
+					}
+					else if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UITexture ) )
+					{
+						category = g_UIFrame->m_UITexture.m_outputCategory.m_value;
+					}
+					String name = SV( subpath ).after_last( "/" ).until_last( "." );
+					LOG << "Dropped image";
+					LOG << "file:" << subpath;
+					LOG << "name:" << name;
+					LOG << "category:" << category;
+					
+					SGRX_TextureAsset ta;
+					ta.sourceFile = subpath;
+					ta.outputCategory = category;
+					ta.outputName = name;
+					ta.outputType = SGRX_TOF_STX_RGBA32;
+					g_EdAS->textureAssets.push_back( ta );
+					FC_EditTexture( g_EdAS->textureAssets.size() - 1 );
+				}
+			}
+			if( ( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICatList ) ||
+				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) ||
+				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UIMeshList ) ||
+				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UIMesh ) ) &&
+				IsMeshFile( path ) )
+			{
+				String rootpath;
+				FS_FindRealPath( "assets", rootpath );
+				rootpath = RealPath( rootpath );
+				if( PathIsUnder( path, rootpath ) )
+				{
+					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
+					String category = "";
+					if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) )
+					{
+						category = g_UIFrame->m_UICategory.m_name.m_value;
+					}
+					else if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UIMesh ) )
+					{
+						category = g_UIFrame->m_UIMesh.m_outputCategory.m_value;
+					}
+					String name = SV( subpath ).after_last( "/" ).until_last( "." );
+					LOG << "Dropped mesh";
+					LOG << "file:" << subpath;
+					LOG << "name:" << name;
+					LOG << "category:" << category;
+					
+					SGRX_MeshAsset ma;
+					ma.sourceFile = subpath;
+					ma.outputCategory = category;
+					ma.outputName = name;
+					g_EdAS->meshAssets.push_back( ma );
+					FC_EditMesh( g_EdAS->meshAssets.size() - 1 );
+				}
+			}
+		}
 		g_UIFrame->EngineEvent( &e );
 	}
 	void OnTick( float dt, uint32_t gametime )

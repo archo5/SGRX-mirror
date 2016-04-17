@@ -347,8 +347,8 @@ void EdDrawBlockEditMode::OnEnter()
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBDrawBlock );
 	g_UIFrame->SetCursorPlaneHeight( m_newBlockPropZ0.m_value );
 	m_drawnVerts.clear();
-	g_EdWorld->m_propList.Set( &g_UIFrame->m_snapProps );
-	g_UIFrame->AddToParamList( &g_EdWorld->m_propList );
+	g_UIFrame->m_propList.Set( &g_UIFrame->m_snapProps );
+	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
 	g_UIFrame->AddToParamList( &m_newBlockPropZ0 );
 	g_UIFrame->AddToParamList( &m_newBlockPropZ1 );
 	g_UIFrame->AddToParamList( &m_newSurfProps );
@@ -835,10 +835,10 @@ void EdEditBlockEditMode::_ReloadBlockProps()
 	m_hlBBEl = GetClosestActivePoint();
 	
 	g_UIFrame->ClearParamList();
-	g_EdWorld->m_propList.Set( &g_UIFrame->m_snapProps );
+	g_UIFrame->m_propList.Set( &g_UIFrame->m_snapProps );
 	m_moprops.Prepare( false );
-	g_EdWorld->m_propList.Add( &m_moprops );
-	g_UIFrame->AddToParamList( &g_EdWorld->m_propList );
+	g_UIFrame->m_propList.Add( &m_moprops );
+	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
 	if( m_curObj >= 0 )
 	{
 		g_UIFrame->AddToParamList( g_EdWorld->GetObjProps( m_curObj ) );
@@ -1228,10 +1228,10 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 	m_canExtendSurfs = numsurfexblocks && numsurfselblocks;
 	
 	g_UIFrame->ClearParamList();
-	g_EdWorld->m_propList.Set( &g_UIFrame->m_snapProps );
+	g_UIFrame->m_propList.Set( &g_UIFrame->m_snapProps );
 	m_moprops.Prepare( true );
-	g_EdWorld->m_propList.Add( &m_moprops );
-	g_UIFrame->AddToParamList( &g_EdWorld->m_propList );
+	g_UIFrame->m_propList.Add( &m_moprops );
+	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
 	if( surfprops.block != -1 )
 		g_UIFrame->AddToParamList( g_EdWorld->GetSurfProps( surfprops.block, surfprops.point ) );
 	if( vertprops.block != -1 )
@@ -1617,7 +1617,10 @@ void EdEditGroupEditMode::Draw()
 void EdEditLevelEditMode::OnEnter()
 {
 	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBLevelInfo );
-	g_UIFrame->AddToParamList( g_EdWorld );
+	g_UIFrame->m_propList.Clear();
+	g_UIFrame->m_propList.Add( &g_EdWorld->m_info );
+	g_UIFrame->m_propList.Add( &g_EdWorld->m_lighting );
+	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
 	g_UIFrame->AddToParamList( &g_UIFrame->m_btnDumpLMInfo );
 }
 

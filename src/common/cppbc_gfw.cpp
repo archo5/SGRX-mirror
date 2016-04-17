@@ -165,6 +165,111 @@ static sgs_ObjInterface SGSMeshHandle__sgs_interface =
 _sgsInterface SGSMeshHandle::_sgs_interface(SGSMeshHandle__sgs_interface, SGSMeshHandle__sgs_ifn);
 
 
+static int _sgs_method__SGSMeshInstHandle__SetMesh( SGS_CTX )
+{
+	SGSMeshInstHandle* data; if( !SGS_PARSE_METHOD( C, SGSMeshInstHandle::_sgs_interface, data, SGSMeshInstHandle, SetMesh ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetMesh( sgs_GetVar<sgsVariable>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
+}
+
+static int _sgs_method__SGSMeshInstHandle__SetMITexture( SGS_CTX )
+{
+	SGSMeshInstHandle* data; if( !SGS_PARSE_METHOD( C, SGSMeshInstHandle::_sgs_interface, data, SGSMeshInstHandle, SetMITexture ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetMITexture( sgs_GetVar<int>()(C,0), sgs_GetVar<TextureHandle>()(C,1) ); return 0;
+}
+
+int SGSMeshInstHandle::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SGSMeshInstHandle*>( obj->data )->C = C;
+	static_cast<SGSMeshInstHandle*>( obj->data )->~SGSMeshInstHandle();
+	return SGS_SUCCESS;
+}
+
+int SGSMeshInstHandle::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGSMeshInstHandle*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int SGSMeshInstHandle::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGSMeshInstHandle*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "layers" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->layers ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->enabled ); return SGS_SUCCESS; }
+		SGS_CASE( "allowStaticDecals" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->allowStaticDecals ); return SGS_SUCCESS; }
+		SGS_CASE( "sortidx" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->sortidx ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->matrix ); return SGS_SUCCESS; }
+		SGS_CASE( "mesh" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->sgsGetMesh() ); return SGS_SUCCESS; }
+		SGS_CASE( "lightingMode" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->sgsGetLightingMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "materialCount" ){ sgs_PushVar( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->GetMaterialCount() ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGSMeshInstHandle::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGSMeshInstHandle*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "layers" ){ static_cast<SGSMeshInstHandle*>( obj->data )->h->layers = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<SGSMeshInstHandle*>( obj->data )->h->enabled = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "allowStaticDecals" ){ static_cast<SGSMeshInstHandle*>( obj->data )->h->allowStaticDecals = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "sortidx" ){ static_cast<SGSMeshInstHandle*>( obj->data )->h->sortidx = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "transform" ){ static_cast<SGSMeshInstHandle*>( obj->data )->h->matrix = sgs_GetVar<Mat4>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "mesh" ){ static_cast<SGSMeshInstHandle*>( obj->data )->h->SetMesh( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "lightingMode" ){ static_cast<SGSMeshInstHandle*>( obj->data )->sgsSetLightingMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "materialCount" ){ static_cast<SGSMeshInstHandle*>( obj->data )->h->SetMaterialCount( sgs_GetVar<uint16_t>()( C, 1 ) ); return SGS_SUCCESS; }
+	SGS_END_INDEXFUNC;
+}
+
+int SGSMeshInstHandle::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SGSMeshInstHandle*>( obj->data )->C, C );
+	char bfr[ 49 ];
+	sprintf( bfr, "SGSMeshInstHandle (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlayers = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->layers, depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->enabled, depth ).push( C ); }
+		{ sgs_PushString( C, "\nallowStaticDecals = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->allowStaticDecals, depth ).push( C ); }
+		{ sgs_PushString( C, "\nsortidx = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->sortidx, depth ).push( C ); }
+		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->matrix, depth ).push( C ); }
+		{ sgs_PushString( C, "\nmesh = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->sgsGetMesh(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->sgsGetLightingMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmaterialCount = " ); sgs_DumpData( C, static_cast<SGSMeshInstHandle*>( obj->data )->h->GetMaterialCount(), depth ).push( C ); }
+		sgs_StringConcat( C, 16 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst SGSMeshInstHandle__sgs_funcs[] =
+{
+	{ "SetMesh", _sgs_method__SGSMeshInstHandle__SetMesh },
+	{ "SetMITexture", _sgs_method__SGSMeshInstHandle__SetMITexture },
+	{ NULL, NULL },
+};
+
+static int SGSMeshInstHandle__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		SGSMeshInstHandle__sgs_funcs,
+		-1, "SGSMeshInstHandle." );
+	return 1;
+}
+
+static sgs_ObjInterface SGSMeshInstHandle__sgs_interface =
+{
+	"SGSMeshInstHandle",
+	SGSMeshInstHandle::_sgs_destruct, SGSMeshInstHandle::_sgs_gcmark, SGSMeshInstHandle::_sgs_getindex, SGSMeshInstHandle::_sgs_setindex, NULL, NULL, SGSMeshInstHandle::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface SGSMeshInstHandle::_sgs_interface(SGSMeshInstHandle__sgs_interface, SGSMeshInstHandle__sgs_ifn);
+
+
 int GameUIEvent::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameUIEvent*>( obj->data )->~GameUIEvent();

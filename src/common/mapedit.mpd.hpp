@@ -912,8 +912,8 @@ bool EdWorldLightingInfo_MPD::setprop( EdWorldLightingInfo* obj, int prop, const
 	case 12: obj->aoColor = mpd_var_get<Vec3 >(val); return true;
 	case 13: obj->aoNumSamples = mpd_var_get<int32_t >(val); return true;
 	case 14: obj->sampleDensity = mpd_var_get<float >(val); return true;
-	case 15: obj->skyboxTexture = mpd_var_get<String >(val); return true;
-	case 16: obj->clutTexture = mpd_var_get<String >(val); return true;
+	case 15: obj->skyboxTexture = mpd_var_get<String >(val); g_EdWorld->ReloadSkybox(); return true;
+	case 16: obj->clutTexture = mpd_var_get<String >(val); g_EdWorld->ReloadCLUT(); return true;
 	default: return false;
 	}
 }

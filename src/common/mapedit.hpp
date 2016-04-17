@@ -1886,7 +1886,7 @@ enum SelectionMask
 	SelMask_ALL = 0xf
 };
 
-struct EdWorld : EDGUILayoutRow
+struct EdWorld
 {
 	EdWorld();
 	~EdWorld();
@@ -2111,8 +2111,6 @@ struct EdWorld : EDGUILayoutRow
 	void FLoad( sgsVariable obj );
 	sgsVariable FSave();
 	
-	virtual int OnEvent( EDGUIEvent* e );
-	
 	void Reset();
 	void TestData();
 	void ReloadSkybox();
@@ -2229,7 +2227,6 @@ struct EdWorld : EDGUILayoutRow
 	
 	EdWorldBasicInfo m_info;
 	EdWorldLightingInfo m_lighting;
-	EDGUIPropertyList m_propList;
 	
 	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;
@@ -2589,6 +2586,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBLevelInfo;
 	
 	// extra stuff
+	EDGUIPropertyList m_propList;
 	EDGUIButton m_btnDumpLMInfo;
 };
 

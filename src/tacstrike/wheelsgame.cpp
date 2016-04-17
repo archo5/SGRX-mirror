@@ -134,7 +134,6 @@ struct WheelsGame : BaseGame
 		m_level->m_enableLoadingScreen = false;
 		m_level->Load( m_mapName );
 		
-		cursor_dt = V2(0);
 		return true;
 	}
 	
@@ -144,33 +143,9 @@ struct WheelsGame : BaseGame
 		htr.buttonTex = NULL;
 	}
 	
-	Vec2 cursor_dt;
 	void OnEvent( const Event& e )
 	{
-		if( e.type == SDL_MOUSEMOTION )
-		{
-			CURSOR_POS = Game_GetCursorPos();
-		}
-		else if( e.type == SDL_CONTROLLERAXISMOTION )
-		{
-#if 1
-			float rad = TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.05f;
-			Vec2 off = V2( AIM_X.value, AIM_Y.value );
-			if( off.Length() > 0.35f )
-			{
-				cursor_dt = off.Normalized() *
-					powf( TREVLERP<float>( 0.35f, 0.75f, off.Length() ), 1.5f ) * rad;
-			}
-			else
-				cursor_dt = V2(0);
-#else
-			float rad = TMAX( GR_GetWidth(), GR_GetHeight() ) * 0.5f;
-			Vec2 off = V2( AIM_X.value, AIM_Y.value );
-			if( off.Length() > 0.1f )
-				CURSOR_POS = Game_GetScreenSize() * 0.5f + off * rad;
-#endif
-		}
-		else if( e.type == SDL_KEYDOWN )
+		if( e.type == SDL_KEYDOWN )
 		{
 			if( e.key.keysym.sym == SDLK_r &&
 				e.key.repeat == 0 &&
@@ -185,12 +160,6 @@ struct WheelsGame : BaseGame
 	
 	void OnTick( float dt, uint32_t gametime )
 	{
-	//	CURSOR_POS += V2( AIM_X.value, AIM_Y.value ) * TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.03f;
-		CURSOR_POS += cursor_dt;
-		CURSOR_POS.x = clamp( CURSOR_POS.x, 0, GR_GetWidth() );
-		CURSOR_POS.y = clamp( CURSOR_POS.y, 0, GR_GetHeight() );
-		m_level->GetScriptCtx().SetGlobal( "CURSOR_POS",
-			m_level->GetScriptCtx().CreateVec2( CURSOR_POS ) );
 		m_timeMultiplier = SLOWDOWN_TEST.state ? 0.25f : 1.0f;
 		
 		BaseGame::OnTick( dt, gametime );

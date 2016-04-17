@@ -317,7 +317,10 @@ foreach( struct : structs )
 			{
 				pntype = GET_TYPE( prop.type ).nativetype;
 				prop_set = string_translate( prop.set, { _OBJ_ = "obj", _VAR_ = "val", _TYPE_ = pntype } );
-				print "\tcase ", i, ": ", prop_set, "; return true;\n";
+				print "\tcase ", i, ": ", prop_set, ";";
+				if( @prop.after_set )
+					print " ", prop.after_set, ";";
+				print " return true;\n";
 			}
 		}
 		print "\tdefault: return false;\n";

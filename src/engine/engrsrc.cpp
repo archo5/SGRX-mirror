@@ -1419,12 +1419,10 @@ SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
 	raycastOverride( NULL ),
 	userData( NULL ),
-	color( Vec4::Create( 1 ) ),
 	m_lightingMode( SGRX_LM_Dynamic ),
 	layers( 0x1 ),
 	enabled( true ),
 	allowStaticDecals( false ),
-//	dynamic( false ),
 	sortidx( 0 ),
 	m_invalid( true )
 {

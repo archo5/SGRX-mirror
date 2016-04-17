@@ -125,6 +125,22 @@ bool EDGUIItem::Remove( EDGUIItem* subitem )
 	return true;
 }
 
+bool EDGUIItem::Has( const EDGUIItem* subitem ) const
+{
+	while( subitem )
+	{
+		if( subitem == this )
+			return true;
+		subitem = subitem->m_parent;
+	}
+	return false;
+}
+
+bool EDGUIItem::HasChild( const EDGUIItem* subitem ) const
+{
+	return subitem->m_parent == this;
+}
+
 void EDGUIItem::Clear()
 {
 	while( m_subitems.size() )

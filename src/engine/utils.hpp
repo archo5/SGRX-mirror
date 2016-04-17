@@ -1845,6 +1845,7 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 	int64_t parse_int();
 	double parse_float();
 	
+	ENGINE_EXPORT bool equal_lower( const StringView& o );
 	ENGINE_EXPORT bool match_loose( const StringView& substr );
 	ENGINE_EXPORT bool match( const StringView& regex );
 	
@@ -2944,6 +2945,13 @@ ENGINE_EXPORT bool DirCreate( const StringView& path );
 
 ENGINE_EXPORT bool CWDGet( String& path );
 ENGINE_EXPORT bool CWDSet( const StringView& path );
+
+ENGINE_EXPORT String NormalizePath( const StringView& path );
+ENGINE_EXPORT bool IsAbsPath( const StringView& path );
+ENGINE_EXPORT bool PathIsUnder( const StringView& path, const StringView& base );
+ENGINE_EXPORT String GetRelativePath( const StringView& path, const StringView& base );
+ENGINE_EXPORT String AbsPath( const StringView& path );
+ENGINE_EXPORT String RealPath( const StringView& path );
 
 ENGINE_EXPORT bool LoadBinaryFile( const StringView& path, ByteArray& out );
 ENGINE_EXPORT bool SaveBinaryFile( const StringView& path, const void* data, size_t size );

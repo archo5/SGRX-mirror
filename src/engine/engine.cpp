@@ -225,6 +225,11 @@ bool Window_SetClipboardText( const StringView& text )
 	return 0 == SDL_SetClipboardText( String_Concat( text, StringView( "\0", 1 ) ).data() );
 }
 
+void Window_EnableDragDrop( bool enable )
+{
+	SDL_EventState( SDL_DROPFILE, enable ? SDL_ENABLE : SDL_DISABLE );
+}
+
 
 
 CObj::~CObj()
@@ -2040,6 +2045,10 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 				event.button.y *= g_CursorScale.y;
 			}
 			Game_OnEvent( event );
+			if( event.type == SDL_DROPFILE )
+			{
+				SDL_free( event.drop.file );
+			}
 		}
 		if( g_PCPLFR == 2 )
 			g_PCPLFR = 1;

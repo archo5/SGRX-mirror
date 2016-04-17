@@ -174,6 +174,8 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIItem : virtual SGRX_RefCounted
 	
 	ENGINE_EXPORT bool Add( EDGUIItem* subitem );
 	ENGINE_EXPORT bool Remove( EDGUIItem* subitem );
+	ENGINE_EXPORT bool Has( const EDGUIItem* subitem ) const;
+	ENGINE_EXPORT bool HasChild( const EDGUIItem* subitem ) const;
 	ENGINE_EXPORT void Clear();
 	ENGINE_EXPORT void SubstChildPtr( const EDGUIItem* find, EDGUIItem* repl );
 	void Invalidate(){}
