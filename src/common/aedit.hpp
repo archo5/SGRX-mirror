@@ -203,19 +203,10 @@ struct EDGUIAssetTexture : EDGUILayoutRow
 	EDGUIButton m_btnDuplicate;
 	EDGUIButton m_btnDelete;
 	EDGUIPropertyList m_propList;
-//	EDGUIGroup m_group;
-//	EDGUIPropRsrc m_sourceFile;
-//	EDGUIPropRsrc m_outputCategory;
-//	EDGUIPropString m_outputName;
-//	EDGUIPropRsrc m_outputType;
-//	EDGUIPropBool m_isSRGB;
-//	EDGUIPropBool m_mips;
-//	EDGUIPropBool m_lerp;
-//	EDGUIPropBool m_clampx;
-//	EDGUIPropBool m_clampy;
+	
 	EDGUILayoutColumn m_columnList;
 	EDGUIGroup m_sfgroup;
-	EDGUILayoutRow* m_curFilter;
+	EDGUIItemHandle m_curFilter;
 	EDGUIGroup m_flgroup;
 	EDGUICreatePickButton m_filterBtnAdd;
 	EDGUIBtnList m_filterButtons;

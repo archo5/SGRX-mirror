@@ -229,6 +229,21 @@ void EDGUIItem::_SetFrame( EDGUIFrame* frame )
 		m_subitems[ i ]->_SetFrame( frame );
 }
 
+void EDGUIItem::_DebugDraw( int depth )
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.SetPrimitiveType( PT_LineStrip );
+	br.Col( 0.1f, 0.9f / powf( depth + 1, 0.5f ), 0.1f );
+	br.Pos( x0, y0 );
+	br.Pos( x1, y0 );
+	br.Pos( x1, y1 );
+	br.Pos( x0, y1 );
+	br.Pos( x0, y0 );
+	GR2D_DrawTextLine( x0, y0, tyname );
+	for( size_t i = 0; i < m_subitems.size(); ++i )
+		m_subitems[ i ]->_DebugDraw( depth + 1 );
+}
+
 void EDGUIItem::Edited( EDGUIItem* tgt )
 {
 	EDGUIEvent ev = { EDGUI_EVENT_PROPEDIT, tgt ? tgt : this };
@@ -408,6 +423,8 @@ void EDGUIFrame::Draw()
 {
 	EDGUIEvent ev = { EDGUI_EVENT_PAINT, this };
 	OnEvent( &ev );
+	
+//	_DebugDraw( 0 );
 }
 
 bool EDGUIFrame::PushScissorRect( int _x0, int _y0, int _x1, int _y1 )
@@ -1067,7 +1084,7 @@ void EDGUIButton::SetHighlight( bool hl )
 }
 
 
-EDGUIBtnList::EDGUIBtnList() : m_highlight( -1 )
+EDGUIBtnList::EDGUIBtnList() : m_highlight( -1 ), m_opened( -1 ), m_editControl( NULL )
 {
 	type = EDGUI_ITEM_BTNLIST;
 	tyname = "btnlist";
@@ -1080,23 +1097,35 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 	switch( e->type )
 	{
 	case EDGUI_EVENT_LAYOUT:
-		x0 = e->layout.x0;
-		x1 = e->layout.x1;
-		y0 = e->layout.y0;
-		y1 = y0 + EDGUI_THEME_BUTTON_HEIGHT * m_options.size();
 		{
+			x0 = e->layout.x0;
+			x1 = e->layout.x1;
+			y0 = e->layout.y0;
 			int hl = m_highlight;
-			int cy0 = y0 + ( hl >= 0 ? hl : m_options.size() ) * EDGUI_THEME_BUTTON_HEIGHT;
+			int cy0 = _GetButtonYPos( hl >= 0 ? hl : m_options.size() );
 			for( size_t i = 0; i < m_subitems.size(); ++i )
 			{
+				if( m_subitems[ i ] == m_editControl )
+					continue;
 				SetSubitemLayout( m_subitems[ i ], x0, cy0, x1, cy0 + EDGUI_THEME_BUTTON_HEIGHT );
 			}
+			
+			if( m_editControl && m_opened >= 0 )
+			{
+				int cy0 = y0 + ( m_opened + 1 ) * EDGUI_THEME_BUTTON_HEIGHT;
+				SetSubitemLayout( m_editControl, x0, cy0, x1, cy0 );
+			}
+			y1 = _GetButtonYPos( m_options.size() );
+			
+			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+			if( m_parent )
+				m_parent->OnEvent( &se );
 		}
 		return 1;
 		
 	case EDGUI_EVENT_MOUSEENTER:
 	case EDGUI_EVENT_MOUSEMOVE:
-		SetHighlight( ( e->mouse.y - y0 ) / EDGUI_THEME_BUTTON_HEIGHT );
+		SetHighlight( _GetButtonFromYPos( e->mouse.y ) );
 		break;
 		
 	case EDGUI_EVENT_PAINT:
@@ -1106,7 +1135,7 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 			for( size_t i = 0; i < m_options.size(); ++i )
 			{
 				GR2D_DrawTextLine( x0 + 2,
-					y0 + EDGUI_THEME_BUTTON_HEIGHT / 2 + i * EDGUI_THEME_BUTTON_HEIGHT,
+					_GetButtonYPos( i ) + EDGUI_THEME_BUTTON_HEIGHT / 2,
 					m_options[ i ], HALIGN_LEFT, VALIGN_CENTER );
 			}
 		}
@@ -1114,9 +1143,13 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 		{
 			for( size_t i = 0; i < m_subitems.size(); ++i )
 			{
+				if( m_subitems[ i ] == m_editControl )
+					continue;
 				m_subitems[ i ]->OnEvent( e );
 			}
 		}
+		if( m_editControl && m_opened >= 0 )
+			m_editControl->OnEvent( e );
 		return 1;
 		
 	}
@@ -1137,9 +1170,11 @@ void EDGUIBtnList::SetHighlight( int hl )
 	if( hl < -1 || hl >= (int) m_options.size() )
 		hl = -1;
 	m_highlight = hl;
-	int cy0 = y0 + ( hl >= 0 ? hl : m_options.size() ) * EDGUI_THEME_BUTTON_HEIGHT;
+	int cy0 = _GetButtonYPos( hl >= 0 ? hl : m_options.size() );
 	for( size_t i = 0; i < m_subitems.size(); ++i )
 	{
+		if( m_subitems[ i ] == m_editControl )
+			continue;
 		SetSubitemLayout( m_subitems[ i ], x0, cy0, x1, cy0 + EDGUI_THEME_BUTTON_HEIGHT );
 		m_subitems[ i ]->SetCaption( hl >= 0 ? m_options[ hl ] : "" );
 		_RecursiveSetID2( m_subitems[ i ], m_idTable.size() && hl >= 0 ? m_idTable[ hl ] : hl );
@@ -1152,6 +1187,58 @@ void EDGUIBtnList::_RecursiveSetID2( EDGUIItem* item, uint32_t val )
 	for( size_t i = 0; i < item->m_subitems.size(); ++i )
 	{
 		_RecursiveSetID2( item->m_subitems[ i ], val );
+	}
+}
+
+int EDGUIBtnList::_GetButtonYPos( int b )
+{
+	int r = y0 + b * EDGUI_THEME_BUTTON_HEIGHT;
+	if( m_editControl && Has( m_editControl ) && r >= m_editControl->y0 )
+		r += m_editControl->y1 - m_editControl->y0;
+	return r;
+}
+
+int EDGUIBtnList::_GetButtonFromYPos( int y )
+{
+	if( m_editControl && Has( m_editControl ) && y >= m_editControl->y0 )
+		y -= m_editControl->y1 - m_editControl->y0;
+	return ( y - y0 ) / EDGUI_THEME_BUTTON_HEIGHT;
+}
+
+void EDGUIBtnList::OpenEditor( int i )
+{
+	if( m_editControl )
+	{
+		m_opened = i;
+		Add( m_editControl );
+		OnChangeLayout();
+		if( m_frame )
+			m_frame->UpdateMouse();
+	}
+}
+
+void EDGUIBtnList::CloseEditor()
+{
+	m_opened = -1;
+	if( m_editControl )
+	{
+		Remove( m_editControl );
+		if( m_frame )
+			m_frame->UpdateMouse();
+	}
+}
+
+void EDGUIBtnList::OnSwapItems( int a, int b )
+{
+	if( !m_editControl )
+		return;
+	if( m_opened == a )
+	{
+		OpenEditor( b );
+	}
+	else if( m_opened == b )
+	{
+		OpenEditor( a );
 	}
 }
 

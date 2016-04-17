@@ -186,6 +186,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIItem : virtual SGRX_RefCounted
 	ENGINE_EXPORT void ReshapeLayout();
 	ENGINE_EXPORT void SetSubitemLayout( EDGUIItem* subitem, int _x0, int _y0, int _x1, int _y1 );
 	ENGINE_EXPORT void _SetFrame( struct EDGUIFrame* frame );
+	ENGINE_EXPORT void _DebugDraw( int depth );
 	ENGINE_EXPORT void Edited( EDGUIItem* tgt = NULL );
 	ENGINE_EXPORT void Changed( EDGUIItem* tgt = NULL );
 	ENGINE_EXPORT virtual void SetCaption( const StringView& text );
@@ -322,10 +323,18 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIBtnList : EDGUIItem
 	ENGINE_EXPORT void UpdateOptions();
 	ENGINE_EXPORT void SetHighlight( int hl );
 	ENGINE_EXPORT void _RecursiveSetID2( EDGUIItem* item, uint32_t val );
+	ENGINE_EXPORT int _GetButtonYPos( int b );
+	ENGINE_EXPORT int _GetButtonFromYPos( int y );
+	
+	ENGINE_EXPORT void OpenEditor( int i );
+	ENGINE_EXPORT void CloseEditor();
+	ENGINE_EXPORT void OnSwapItems( int a, int b );
 	
 	int m_highlight;
+	int m_opened;
 	Array< String > m_options;
 	Array< uint32_t > m_idTable;
+	EDGUIItem* m_editControl;
 };
 
 

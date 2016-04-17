@@ -526,7 +526,6 @@ int EDGUIImgFilter_BCP::OnEvent( EDGUIEvent* e )
 
 EDGUIAssetTexture::EDGUIAssetTexture() :
 	m_sfgroup( true, "Selected filter" ),
-	m_curFilter( NULL ),
 	m_flgroup( true, "Filters" ),
 	m_filterBtnAdd( &g_UIPickers->imageFilterType ),
 	m_tid( NOT_FOUND )
@@ -543,24 +542,19 @@ EDGUIAssetTexture::EDGUIAssetTexture() :
 	m_filterBtnAdd.SetValue( "Pick filter to add" );
 	
 	m_filterButtons.Add( &m_filterEditButton );
+	m_filterButtons.m_editControl = &m_sfgroup;
 	m_flgroup.Add( &m_filterBtnAdd );
 	m_flgroup.Add( &m_filterButtons );
 	
 	Add( &m_topCol );
 	Add( &m_propList );
-	Add( &m_columnList );
-	m_columnList.Add( &m_sfgroup );
-	m_columnList.Add( &m_flgroup );
+	Add( &m_flgroup );
 }
 
 EDGUIAssetTexture::~EDGUIAssetTexture()
 {
 	m_sfgroup.Clear();
-	if( m_curFilter )
-	{
-		delete m_curFilter;
-		m_curFilter = NULL;
-	}
+	m_curFilter = NULL;
 }
 
 void EDGUIAssetTexture::ReloadFilterList()
@@ -596,11 +590,7 @@ void EDGUIAssetTexture::Prepare( size_t tid )
 	m_propList.Set( TA );
 	
 	m_sfgroup.Clear();
-	if( m_curFilter )
-	{
-		delete m_curFilter;
-		m_curFilter = NULL;
-	}
+	m_curFilter = NULL;
 	
 	ReloadFilterList();
 }
@@ -621,8 +611,6 @@ void EDGUIAssetTexture::EditFilter( SGRX_ImageFilter* IF )
 	}
 	if( newflt )
 	{
-		if( m_curFilter )
-			delete m_curFilter;
 		m_curFilter = newflt;
 		m_sfgroup.Clear();
 		m_sfgroup.Add( m_curFilter );
@@ -661,6 +649,7 @@ int EDGUIAssetTexture::OnEvent( EDGUIEvent* e )
 					TA.filters.push_back( IF );
 					ReloadFilterList();
 					EditFilter( IF );
+					m_filterButtons.OpenEditor( TA.filters.size() - 1 );
 					return 1;
 				}
 			}
@@ -690,29 +679,37 @@ int EDGUIAssetTexture::OnEvent( EDGUIEvent* e )
 			if( e->target == &m_filterEditButton )
 			{
 				EditFilter( TA.filters[ m_filterEditButton.id2 ] );
+				m_filterButtons.OpenEditor( m_filterEditButton.id2 );
 				m_frame->UpdateMouse();
 				return 1;
 			}
 			if( e->target == &m_filterEditButton.m_up )
 			{
-				size_t i = m_filterEditButton.id2;
+				int i = m_filterEditButton.id2;
 				if( i > 0 )
+				{
 					TSWAP( TA.filters[ i ], TA.filters[ i - 1 ] );
+					m_filterButtons.OnSwapItems( i, i - 1 );
+				}
 				ReloadFilterList();
 				m_frame->UpdateMouse();
 				return 1;
 			}
 			if( e->target == &m_filterEditButton.m_dn )
 			{
-				size_t i = m_filterEditButton.id2;
-				if( i < TA.filters.size() - 1 )
+				int i = m_filterEditButton.id2;
+				if( i < (int) TA.filters.size() - 1 )
+				{
 					TSWAP( TA.filters[ i ], TA.filters[ i + 1 ] );
+					m_filterButtons.OnSwapItems( i, i + 1 );
+				}
 				ReloadFilterList();
 				m_frame->UpdateMouse();
 				return 1;
 			}
 			if( e->target == &m_filterEditButton.m_del )
 			{
+				m_filterButtons.CloseEditor();
 				TA.filters.erase( m_filterEditButton.id2 );
 				ReloadFilterList();
 				m_frame->UpdateMouse();
