@@ -68,7 +68,8 @@ set_target_properties( psedit PROPERTIES
 )
 
 # Character editor
-add_library( charedit SHARED charedit )
+mpd_spec( charedit.mpd.hpp charedit.mpd.sgs )
+add_library( charedit SHARED charedit.cpp charedit.mpd.hpp )
 target_link_libraries( charedit sgrx-core sgrx-physics-bullet )
 set_target_properties( charedit PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine"

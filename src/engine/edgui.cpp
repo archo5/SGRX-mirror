@@ -1084,6 +1084,10 @@ void EDGUIButton::SetHighlight( bool hl )
 }
 
 
+EDGUIItemModel::~EDGUIItemModel()
+{
+}
+
 int EDGUIItemModel::GetItemID( int i )
 {
 	return i;

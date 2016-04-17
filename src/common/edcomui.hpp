@@ -476,6 +476,39 @@ struct EDGUILevelSavePicker : EDGUILevelPicker
 
 struct EDGUIPropertyList : EDGUILayoutRow
 {
+	struct PLArrayList : EDGUIBtnList, EDGUIItemModel
+	{
+		PLArrayList()
+		{
+			m_model = this;
+			Add( &m_subbtn );
+		}
+		
+		int GetItemCount()
+		{
+			mpd_Variant sz = m_item.getprop("__size");
+			if( sz.get_type() != mpdt_None )
+				return sz.get_int32();
+			return m_item.getprop("size").get_int32();
+		}
+		void GetItemName( int i, String& out )
+		{
+			mpd_Variant subitem = m_item.getindex( i );
+			mpd_StringView sv = subitem.getprop("__name").get_stringview();
+			if( sv.size )
+			{
+				out.assign( sv.str, sv.size );
+			}
+			else
+			{
+				out = subitem.get_name();
+			}
+		}
+		
+		EDGUIListItemButton m_subbtn;
+		mpd_Variant m_item;
+	};
+	
 	struct Item
 	{
 		EDGUIItemHandle item;
@@ -638,7 +671,9 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				const mpd_TypeInfo* indextypes = info->vindextypes();
 				if( indextypes )
 				{
-					// array type
+					PLArrayList* blist = new PLArrayList();
+					blist->m_item = item;
+					_AddProp( prt, blist, cont, propinfo, pid );
 				}
 			}
 		}

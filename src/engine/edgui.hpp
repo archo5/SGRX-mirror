@@ -318,6 +318,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIButton : EDGUIItem
 
 struct IF_GCC(ENGINE_EXPORT) EDGUIItemModel
 {
+	ENGINE_EXPORT virtual ~EDGUIItemModel();
 	ENGINE_EXPORT virtual int GetItemCount() = 0;
 	ENGINE_EXPORT virtual int GetItemID( int i );
 	ENGINE_EXPORT virtual void GetItemName( int i, String& out ) = 0;

@@ -8,6 +8,13 @@
 #include "edcomui.hpp"
 
 
+inline Quat EA2Q( Vec3 v ){ return Quat::CreateFromXYZ( DEG2RAD( v ) ); }
+inline Vec3 Q2EA( Quat q ){ return RAD2DEG( q.ToXYZ() ); }
+
+#define MPD_IMPL
+#include "charedit.mpd.hpp"
+
+
 struct EDGUIMainFrame* g_UIFrame;
 PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
@@ -24,8 +31,6 @@ AnimCharacter* g_AnimChar;
 AnimMixer::Layer g_AnimMixLayers[2];
 
 
-inline Quat EA2Q( Vec3 v ){ return Quat::CreateFromXYZ( DEG2RAD( v ) ); }
-inline Vec3 Q2EA( Quat q ){ return RAD2DEG( q.ToXYZ() ); }
 inline StringView BodyType2String( uint8_t t )
 {
 	if( t == AnimCharacter::BodyType_Sphere ) return "Sphere";
@@ -2763,6 +2768,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIMaskListProps m_maskListProps;
 	EDGUICharProps m_charProps;
 	EDGUIRagdollTestProps m_ragdollTestProps;
+	EDGUIPropertyList m_propList;
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;
@@ -2856,6 +2862,10 @@ struct CSEditor : IGame
 		
 		// param area
 		g_UIFrame->ResetEditorState();
+		
+		g_UIFrame->m_propList.Set( g_AnimChar );
+		g_UIFrame->ClearParamList();
+		g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
 		
 		return true;
 	}

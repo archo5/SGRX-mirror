@@ -102,7 +102,7 @@ inline void __mpd_reprint( const char* text, int count )
 
 #define MPD_STATICDUMP_ARGS(ty) ty const* pdata, int limit, int level
 #define MPD_DUMPLEV( add ) __mpd_reprint( "\t", level + add )
-#define MPD_DUMP_PROP( ty, name, getter ) __mpd_reprint( "\t", level + 1 ); printf( "%s = ", #name ); mpd_DumpData<ty>( getter, limit, level + 1 ); printf( "\n" );
+#define MPD_DUMP_PROP( ty, name, getter ) __mpd_reprint( "\t", level + 1 ); printf( "%s = ", #name ); mpd_DumpData<ty>( (ty const&) getter, limit, level + 1 ); printf( "\n" );
 #define MPD_DUMPDATA_ARGS(ty) ty const& data, int limit, int level
 #define MPD_DUMPDATA_WRAPPER(ty,nty) template<> inline void mpd_DumpData<nty>( MPD_DUMPDATA_ARGS(nty) ){ ty##_MPD::dump( &data, limit, level ); }
 #define MPD_DUMPDATA_USEARGS (void) data; (void) limit; (void) level;

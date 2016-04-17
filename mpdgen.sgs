@@ -377,11 +377,18 @@ foreach( struct : structs )
 		}
 		print "\tstatic const mpd_EnumValue data[] =\n";
 		print "\t{\n";
+		eprefix = "";
+		if( nt = @struct.nativetype )
+		{
+			pos = string_find_rev( nt, "::" );
+			if( pos !== null )
+				eprefix = string_part( nt, 0, pos + 2 );
+		}
 		foreach( key, info : struct.values )
 		{
 			value = tostring(@info.value);
 			if( value == ENUM )
-				value = key;
+				value = eprefix $ key;
 			print "\t\t{ ", CEsc( key ), ", ", key.length, ", ", value, ", ", key, "_metadata },\n";
 		}
 		print "\t\t{ 0, 0, 0, 0 },\n";
