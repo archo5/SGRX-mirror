@@ -1,0 +1,51 @@
+
+include "fmt";
+
+function MD_VEC2( x, y )
+{
+	return fmt_pack( "2f", x, y ?? x );
+}
+function MD_VEC3( x, y, z )
+{
+	return fmt_pack( "3f", x, y ?? x, z ?? x );
+}
+
+STRUCT("Vec2",
+{
+	props =
+	[
+		{ name = "x", type = "float" },
+		{ name = "y", type = "float" },
+	],
+});
+
+STRUCT("Vec3",
+{
+	props =
+	[
+		{ name = "x", type = "float" },
+		{ name = "y", type = "float" },
+		{ name = "z", type = "float" },
+	],
+});
+
+STRUCT("String",
+{
+	index = { subtype = "int8_t" },
+	props =
+	[
+		{ name = "data", type = "mpd_StringView", get = "mpd_StringView::create(_OBJ_->data(), _OBJ_->size())", set = "_OBJ_->assign(_VAR_.get_stringview().str, _VAR_.get_stringview().size)" },
+		{ name = "size", type = "int32_t", get = "_OBJ_->size()", set = "_OBJ_->resize(_VAR_.get_int32())" },
+	],
+});
+
+STRUCT("Vec3Array",
+{
+	nativetype = "Array<Vec3>",
+	index = { subtype = "Vec3" },
+	props =
+	[
+		{ name = "size", type = "int32_t", get = "_OBJ_->size()", set = "_OBJ_->resize(_VAR_.get_int32())", metadata = { label = "Size" } },
+	]
+});
+

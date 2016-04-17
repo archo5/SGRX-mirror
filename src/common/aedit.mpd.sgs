@@ -1,0 +1,32 @@
+
+include "common.mpd";
+
+
+ENUM("SGRX_TextureOutputFormat",
+{
+	metadata = { label = "Texture output format" },
+	values =
+	{
+		SGRX_TOF_PNG_RGBA32 = { value = ENUM, metadata = { label = "PNG/RGBA32" } },
+		SGRX_TOF_STX_RGBA32 = { value = ENUM, metadata = { label = "STX/RGBA32" } },
+	}
+});
+
+
+STRUCT("SGRX_TextureAsset",
+{
+	metadata = { label = "Texture asset" },
+	props =
+	[
+		{ name = "sourceFile", type = "String", metadata = { label = "Source file", edit = "file" } },
+		{ name = "outputCategory", type = "String", metadata = { label = "Output category", edit = "category", edit_requestReload = true } },
+		{ name = "outputName", type = "String", metadata = { label = "Output name" } },
+		{ name = "outputType", type = "SGRX_TextureOutputFormat", metadata = { label = "Output type" } },
+		{ name = "isSRGB", type = "bool", metadata = { label = "Is SGRB?" } },
+		{ name = "mips", type = "bool", metadata = { label = "Generate mipmaps?" } },
+		{ name = "lerp", type = "bool", metadata = { label = "Use linear interpolation?" } },
+		{ name = "clampx", type = "bool", metadata = { label = "Clamp X" } },
+		{ name = "clampy", type = "bool", metadata = { label = "Clamp Y" } },
+	]
+});
+

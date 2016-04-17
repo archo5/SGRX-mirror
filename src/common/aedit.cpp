@@ -2,6 +2,9 @@
 
 #include "aedit.hpp"
 
+#define MPD_IMPL
+#include "aedit.mpd.hpp"
+
 
 #define ASSET_SCRIPT_NAME "assets.txt"
 #define ASSET_INFO_NAME "asset_revs.info"
@@ -522,43 +525,20 @@ int EDGUIImgFilter_BCP::OnEvent( EDGUIEvent* e )
 }
 
 EDGUIAssetTexture::EDGUIAssetTexture() :
-	m_group( true, "Texture" ),
-	m_sourceFile( &g_UIPickers->assetPath ),
-	m_outputCategory( &g_UIPickers->category ),
-	m_outputType( &g_UIPickers->textureOutputFormat ),
 	m_sfgroup( true, "Selected filter" ),
 	m_curFilter( NULL ),
 	m_flgroup( true, "Filters" ),
 	m_filterBtnAdd( &g_UIPickers->imageFilterType ),
 	m_tid( NOT_FOUND )
 {
-	m_outputCategory.m_requestReload = true;
-	
 	m_btnDuplicate.caption = "Duplicate";
 	m_btnDelete.caption = "Delete";
 	
 	m_topCol.Add( &m_btnDuplicate );
 	m_topCol.Add( &m_btnDelete );
 	
-	m_sourceFile.caption = "Source file";
-	m_outputCategory.caption = "Output category";
-	m_outputName.caption = "Output name";
-	m_outputType.caption = "Output type";
-	m_isSRGB.caption = "Is SRGB?";
-	m_mips.caption = "Generate mipmaps?";
-	m_lerp.caption = "Use linear interpolation?";
-	m_clampx.caption = "Clamp X";
-	m_clampy.caption = "Clamp Y";
-	
-	m_group.Add( &m_sourceFile );
-	m_group.Add( &m_outputCategory );
-	m_group.Add( &m_outputName );
-	m_group.Add( &m_outputType );
-	m_group.Add( &m_isSRGB );
-	m_group.Add( &m_mips );
-	m_group.Add( &m_lerp );
-	m_group.Add( &m_clampx );
-	m_group.Add( &m_clampy );
+	m_propList.m_pickers[ "file" ] = &g_UIPickers->assetPath;
+	m_propList.m_pickers[ "category" ] = &g_UIPickers->category;
 	
 	m_filterBtnAdd.SetValue( "Pick filter to add" );
 	
@@ -567,7 +547,7 @@ EDGUIAssetTexture::EDGUIAssetTexture() :
 	m_flgroup.Add( &m_filterButtons );
 	
 	Add( &m_topCol );
-	Add( &m_group );
+	Add( &m_propList );
 	Add( &m_columnList );
 	m_columnList.Add( &m_sfgroup );
 	m_columnList.Add( &m_flgroup );
@@ -613,15 +593,7 @@ void EDGUIAssetTexture::Prepare( size_t tid )
 	m_tid = tid;
 	SGRX_TextureAsset& TA = g_EdAS->textureAssets[ tid ];
 	
-	m_sourceFile.SetValue( TA.sourceFile );
-	m_outputCategory.SetValue( TA.outputCategory );
-	m_outputName.SetValue( TA.outputName );
-	m_outputType.SetValue( SGRX_TextureOutputFormat_ToString( TA.outputType ) );
-	m_isSRGB.SetValue( TA.isSRGB );
-	m_mips.SetValue( TA.mips );
-	m_lerp.SetValue( TA.lerp );
-	m_clampx.SetValue( TA.clampx );
-	m_clampy.SetValue( TA.clampy );
+	m_propList.Set( TA );
 	
 	m_sfgroup.Clear();
 	if( m_curFilter )
@@ -670,18 +642,6 @@ int EDGUIAssetTexture::OnEvent( EDGUIEvent* e )
 		switch( e->type )
 		{
 		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_sourceFile ){ TA.sourceFile = m_sourceFile.m_value; }
-			if( e->target == &m_outputCategory ){ TA.outputCategory = m_outputCategory.m_value; }
-			if( e->target == &m_outputName ){ TA.outputName = m_outputName.m_value; }
-			if( e->target == &m_outputType )
-			{
-				TA.outputType = SGRX_TextureOutputFormat_FromString( m_outputType.m_value );
-			}
-			if( e->target == &m_isSRGB ){ TA.isSRGB = m_isSRGB.m_value; }
-			if( e->target == &m_mips ){ TA.mips = m_mips.m_value; }
-			if( e->target == &m_lerp ){ TA.lerp = m_lerp.m_value; }
-			if( e->target == &m_clampx ){ TA.clampx = m_clampx.m_value; }
-			if( e->target == &m_clampy ){ TA.clampy = m_clampy.m_value; }
 			if( e->target == &m_filterBtnAdd )
 			{
 				SGRX_ImageFilter* IF = NULL;
@@ -1996,7 +1956,8 @@ struct ASEditor : IGame
 		StringView ext = path.after_last( "." );
 		return ext.equal_lower( "dae" )
 			|| ext.equal_lower( "fbx" )
-			|| ext.equal_lower( "obj" );
+			|| ext.equal_lower( "obj" )
+			|| ext.equal_lower( "ssm" );
 	}
 	void OnEvent( const Event& e )
 	{
@@ -2022,7 +1983,7 @@ struct ASEditor : IGame
 					}
 					else if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UITexture ) )
 					{
-						category = g_UIFrame->m_UITexture.m_outputCategory.m_value;
+						category = g_EdAS->textureAssets[ g_UIFrame->m_UITexture.m_tid ].outputCategory;
 					}
 					String name = SV( subpath ).after_last( "/" ).until_last( "." );
 					LOG << "Dropped image";

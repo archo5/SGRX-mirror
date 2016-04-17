@@ -216,9 +216,12 @@ template< class T > struct mpd_MetaType : none_MPD
 
 struct mpd_Variant
 {
+	enum TagEnum { Enum };
+	
 	mpd_Variant() : type( mpdt_None ), mpdata( none_MPD::inst() ){}
 	template< class T > mpd_Variant( T* v ) : type( mpdt_Pointer ), mpdata( mpd_MetaType<T>::inst() ){ data.p = const_cast<void*>((const void*) v); }
 	template< class T > mpd_Variant( T& v ) : type( mpdt_Struct ), mpdata( mpd_MetaType<T>::inst() ){ data.p = const_cast<void*>((const void*) &v); }
+	template< class T > mpd_Variant( T v, TagEnum ) : type( mpdt_Enum ), mpdata( mpd_MetaType<T>::inst() ){ data.i = v; }
 	mpd_Variant( mpd_Variant& p ) : type( p.type ), mpdata( p.mpdata ), data( p.data ){}
 	mpd_Variant( const mpd_Variant& p ) : type( p.type ), mpdata( p.mpdata ), data( p.data ){}
 	mpd_Variant( bool v ) : type( mpdt_Bool ), mpdata( none_MPD::inst() ){ data.u = v ? 1 : 0; }
@@ -311,6 +314,7 @@ struct mpd_Variant
 			return (T) 0;
 		}
 	}
+	int64_t get_enum() const { return _get_numeric<int64_t>(); }
 	int8_t get_int8() const { return _get_numeric<int8_t>(); }
 	int16_t get_int16() const { return _get_numeric<int16_t>(); }
 	int32_t get_int32() const { return _get_numeric<int32_t>(); }

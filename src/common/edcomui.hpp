@@ -513,6 +513,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)ctrl)->SetValue( mpd_var_get<Vec2>( val ) ); break;
 			case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*)ctrl)->SetValue( mpd_var_get<Vec3>( val ) ); break;
 			case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*)ctrl)->SetValue( val.get_obj<String>() ); break;
+			case EDGUI_ITEM_PROP_ENUM_SB: ((EDGUIPropEnumSB*)ctrl)->SetValue( val.get_enum() ); break;
 			case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*)ctrl)->SetValue( val.get_obj<String>() ); break;
 			}
 		}
@@ -558,7 +559,13 @@ struct EDGUIPropertyList : EDGUILayoutRow
 					{
 						EDGUIRsrcPicker* pck = m_pickers.getcopy( StringView( kv->value, kv->valuesz ) );
 						if( pck )
-							prop = new EDGUIPropRsrc( pck, value );
+						{
+							EDGUIPropRsrc* pr;
+							prop = pr = new EDGUIPropRsrc( pck, value );
+							kv = propinfo->metadata->find( "edit_requestReload" );
+							if( kv && kv->value_i32 )
+								pr->m_requestReload = true;
+						}
 					}
 				}
 				if( !prop )
@@ -644,10 +651,15 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			const mpd_EnumValue* v = info->vvalues();
 			while( v->name )
 			{
-				EDGUIPropEnumSB::Entry entry = { StringView( v->name, v->namesz ), v->value };
+				StringView label( v->name, v->namesz );
+				const mpd_KeyValue* kv = v->metadata->find( "label" );
+				if( kv )
+					label = StringView( kv->value, kv->valuesz );
+				EDGUIPropEnumSB::Entry entry = { label, v->value };
 				prop->m_enum.push_back( entry );
 				++v;
 			}
+			prop->SetValue( item.get_enum() );
 			
 			_AddProp( prt, prop, cont, propinfo, pid );
 		}
@@ -735,6 +747,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				case EDGUI_ITEM_PROP_VEC2: val = &((EDGUIPropVec2*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_VEC3: val = &((EDGUIPropVec3*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_STRING: val = &((EDGUIPropString*)e->target)->m_value; break;
+				case EDGUI_ITEM_PROP_ENUM_SB: val = &((EDGUIPropEnumSB*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_RSRC: val = &((EDGUIPropRsrc*)e->target)->m_value; break;
 				}
 				if( val.get_type() != mpdt_None )

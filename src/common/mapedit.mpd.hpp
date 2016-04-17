@@ -102,6 +102,37 @@ template<> struct mpd_MetaType<String > : String_MPD {};
 template<> struct mpd_MetaType<String const> : String_MPD {};
 template<> struct mpd_MetaType<String_MPD> : String_MPD {};
 
+struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
+{
+	enum PIDS
+	{
+		PID_size,
+	};
+
+	static const char* name(){ return "Vec3Array"; }
+	static const Vec3Array_MPD* inst(){ static const Vec3Array_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 1; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( Array<Vec3> const*, int );
+	static bool setprop( Array<Vec3>*, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ static const mpd_TypeInfo types[] = { { "int32_t", mpdt_Int32, 0 }, { "Vec3", mpdt_Struct, Vec3_MPD::inst() } }; return types; }
+	static mpd_Variant getindex( Array<Vec3> const*, const mpd_Variant& );
+	static bool setindex( Array<Vec3>*, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static void dump( MPD_STATICDUMP_ARGS(Array<Vec3>) );
+};
+
+MPD_DUMPDATA_WRAPPER(Vec3Array, Array<Vec3>);
+template<> struct mpd_MetaType<Array<Vec3> > : Vec3Array_MPD {};
+template<> struct mpd_MetaType<Array<Vec3> const> : Vec3Array_MPD {};
+template<> struct mpd_MetaType<Vec3Array_MPD> : Vec3Array_MPD {};
+
 struct EdSnapProps_MPD : struct_MPD<EdSnapProps_MPD, EdSnapProps >
 {
 	enum PIDS
@@ -167,37 +198,6 @@ MPD_DUMPDATA_WRAPPER(EdMultiObjectProps, EdMultiObjectProps);
 template<> struct mpd_MetaType<EdMultiObjectProps > : EdMultiObjectProps_MPD {};
 template<> struct mpd_MetaType<EdMultiObjectProps const> : EdMultiObjectProps_MPD {};
 template<> struct mpd_MetaType<EdMultiObjectProps_MPD> : EdMultiObjectProps_MPD {};
-
-struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
-{
-	enum PIDS
-	{
-		PID_size,
-	};
-
-	static const char* name(){ return "Vec3Array"; }
-	static const Vec3Array_MPD* inst(){ static const Vec3Array_MPD mpd; return &mpd; }
-	static const mpd_KeyValue* metadata();
-
-	static int propcount(){ return 1; }
-	static const mpd_PropInfo* props();
-	static mpd_Variant getprop( Array<Vec3> const*, int );
-	static bool setprop( Array<Vec3>*, int, const mpd_Variant& );
-
-	static const mpd_TypeInfo* indextypes(){ static const mpd_TypeInfo types[] = { { "int32_t", mpdt_Int32, 0 }, { "Vec3", mpdt_Struct, Vec3_MPD::inst() } }; return types; }
-	static mpd_Variant getindex( Array<Vec3> const*, const mpd_Variant& );
-	static bool setindex( Array<Vec3>*, const mpd_Variant&, const mpd_Variant& );
-
-	static int valuecount(){ return 0; }
-	static const mpd_EnumValue* values();
-
-	static void dump( MPD_STATICDUMP_ARGS(Array<Vec3>) );
-};
-
-MPD_DUMPDATA_WRAPPER(Vec3Array, Array<Vec3>);
-template<> struct mpd_MetaType<Array<Vec3> > : Vec3Array_MPD {};
-template<> struct mpd_MetaType<Array<Vec3> const> : Vec3Array_MPD {};
-template<> struct mpd_MetaType<Vec3Array_MPD> : Vec3Array_MPD {};
 
 struct EdWorldBasicInfo_MPD : struct_MPD<EdWorldBasicInfo_MPD, EdWorldBasicInfo >
 {
@@ -444,6 +444,63 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 	MPD_DUMPLEV( 0 ); printf( "}" );
 }
 
+const mpd_KeyValue* Vec3Array_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_PropInfo* Vec3Array_MPD::props()
+{
+	static const mpd_KeyValue size_metadata[] =
+	{
+		{ "label", 5, "Size", 4, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_PropInfo data[] =
+	{
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+	};
+	return data;
+}
+mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int prop )
+{
+	switch( prop )
+	{
+	case 0: return (int32_t const&) obj->size();
+	default: return mpd_Variant();
+	}
+}
+bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int prop, const mpd_Variant& val )
+{
+	switch( prop )
+	{
+	case 0: obj->resize(val.get_int32()); return true;
+	default: return false;
+	}
+}
+mpd_Variant Vec3Array_MPD::getindex( Array<Vec3> const* obj, const mpd_Variant& key )
+{
+	return (Vec3 const&)(*(obj))[mpd_var_get<int32_t >(key)];
+}
+bool Vec3Array_MPD::setindex( Array<Vec3>* obj, const mpd_Variant& key, const mpd_Variant& val )
+{
+	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<Vec3 >(val);
+	return true;
+}
+const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+void Vec3Array_MPD::dump( MPD_STATICDUMP_ARGS(Array<Vec3>) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "struct Vec3Array\n" );
+	MPD_DUMPLEV( 0 ); printf( "{\n" );
+	if( level < limit )
+	{
+		MPD_DUMP_PROP( int32_t, size, pdata->size() );
+	}
+	else
+	{
+		MPD_DUMPLEV( 1 ); printf( "...\n" );
+	}
+	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
 const mpd_KeyValue* EdSnapProps_MPD::metadata()
 {
 	static const mpd_KeyValue data[] =
@@ -595,63 +652,6 @@ void EdMultiObjectProps_MPD::dump( MPD_STATICDUMP_ARGS(EdMultiObjectProps) )
 	if( level < limit )
 	{
 		MPD_DUMP_PROP( String, m_mtl, pdata->m_mtl );
-	}
-	else
-	{
-		MPD_DUMPLEV( 1 ); printf( "...\n" );
-	}
-	MPD_DUMPLEV( 0 ); printf( "}" );
-}
-
-const mpd_KeyValue* Vec3Array_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-const mpd_PropInfo* Vec3Array_MPD::props()
-{
-	static const mpd_KeyValue size_metadata[] =
-	{
-		{ "label", 5, "Size", 4, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
-	};
-	static const mpd_PropInfo data[] =
-	{
-		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
-	};
-	return data;
-}
-mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int prop )
-{
-	switch( prop )
-	{
-	case 0: return (int32_t const&) obj->size();
-	default: return mpd_Variant();
-	}
-}
-bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int prop, const mpd_Variant& val )
-{
-	switch( prop )
-	{
-	case 0: obj->resize(val.get_int32()); return true;
-	default: return false;
-	}
-}
-mpd_Variant Vec3Array_MPD::getindex( Array<Vec3> const* obj, const mpd_Variant& key )
-{
-	return (Vec3 const&)(*(obj))[mpd_var_get<int32_t >(key)];
-}
-bool Vec3Array_MPD::setindex( Array<Vec3>* obj, const mpd_Variant& key, const mpd_Variant& val )
-{
-	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<Vec3 >(val);
-	return true;
-}
-const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
-void Vec3Array_MPD::dump( MPD_STATICDUMP_ARGS(Array<Vec3>) )
-{
-	MPD_DUMPDATA_USESTATICARGS;
-	printf( "struct Vec3Array\n" );
-	MPD_DUMPLEV( 0 ); printf( "{\n" );
-	if( level < limit )
-	{
-		MPD_DUMP_PROP( int32_t, size, pdata->size() );
 	}
 	else
 	{
