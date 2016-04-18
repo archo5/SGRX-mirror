@@ -246,6 +246,13 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 			arch( name );
 			arch( cmds );
 		}
+		
+		void __tostring( int i, String* out )
+		{
+			char bfr[ 128 ];
+			sgrx_snprintf( bfr, 128, "Mask #%d: \"%s\"", i + 1, StackString<100>(name).str );
+			*out = bfr;
+		}
 	};
 	
 	template< class T > void Serialize( T& basearch )

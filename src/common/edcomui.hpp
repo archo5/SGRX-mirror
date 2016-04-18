@@ -545,6 +545,12 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		void GetItemName( int i, String& out )
 		{
 			mpd_Variant subitem = m_item.getindex( i );
+			
+			// try to get name differently
+			mpd_Variant args[] = { i, &out };
+			if( subitem.methodcall( "__tostring", args, 2 ) )
+				return;
+			
 			mpd_StringView sv = subitem.getprop("__name").get_stringview();
 			if( sv.size )
 			{
@@ -590,6 +596,10 @@ struct EDGUIPropertyList : EDGUILayoutRow
 						SwapElements( m_subbtn.id2, m_subbtn.id2 + 1 );
 					}
 				}
+				break;
+			case EDGUI_EVENT_PROPEDIT:
+			case EDGUI_EVENT_PROPCHANGE:
+				m_btnList.UpdateOptions();
 				break;
 			}
 			return EDGUILayoutRow::OnEvent( e );
@@ -660,7 +670,8 @@ struct EDGUIPropertyList : EDGUILayoutRow
 	void _AddProp( EDGUIItem* prt, EDGUIItem* prop, mpd_Variant cont, const mpd_PropInfo* propinfo, size_t pid, StringView name = SV() )
 	{
 		prop->id1 = m_items.size();
-		if( prop->type != EDGUI_ITEM_PLARRAYLIST )
+		if( prop->type != EDGUI_ITEM_PLARRAYLIST &&
+			prop->type != EDGUI_ITEM_GROUP )
 		{
 			prop->caption = name ? name : _GetPropName( propinfo );
 		}
@@ -764,6 +775,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				if( !gname )
 					gname = info->vname();
 				EDGUIGroup* group = new EDGUIGroup( true, gname );
+				
 				size_t mypid = m_items.size();
 				_AddProp( prt, group, cont, propinfo, pid );
 				

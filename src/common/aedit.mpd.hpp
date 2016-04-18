@@ -29,6 +29,10 @@ struct Vec2_MPD : struct_MPD<Vec2_MPD, Vec2 >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Vec2*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(Vec2) );
 };
 
@@ -62,6 +66,10 @@ struct Vec3_MPD : struct_MPD<Vec3_MPD, Vec3 >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Vec3*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(Vec3) );
 };
 
@@ -94,6 +102,10 @@ struct String_MPD : struct_MPD<String_MPD, String >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( String*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(String) );
 };
 
@@ -101,6 +113,36 @@ MPD_DUMPDATA_WRAPPER(String, String);
 template<> struct mpd_MetaType<String > : String_MPD {};
 template<> struct mpd_MetaType<String const> : String_MPD {};
 template<> struct mpd_MetaType<String_MPD> : String_MPD {};
+
+struct StringPtr_MPD : struct_MPD<StringPtr_MPD, String* >
+{
+	static const char* name(){ return "StringPtr"; }
+	static const StringPtr_MPD* inst(){ static const StringPtr_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 0; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( String* const*, int );
+	static bool setprop( String**, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ return 0; }
+	static mpd_Variant getindex( String* const*, const mpd_Variant& );
+	static bool setindex( String**, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( String**, int, const mpd_Variant*, int );
+
+	static void dump( MPD_STATICDUMP_ARGS(String*) );
+};
+
+MPD_DUMPDATA_WRAPPER(StringPtr, String*);
+template<> struct mpd_MetaType<String* > : StringPtr_MPD {};
+template<> struct mpd_MetaType<String* const> : StringPtr_MPD {};
+template<> struct mpd_MetaType<StringPtr_MPD> : StringPtr_MPD {};
 
 struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
 {
@@ -124,6 +166,10 @@ struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Array<Vec3>*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(Array<Vec3>) );
 };
@@ -150,6 +196,10 @@ struct SGRX_TextureOutputFormat_MPD : struct_MPD<SGRX_TextureOutputFormat_MPD, S
 
 	static int valuecount(){ return 2; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( SGRX_TextureOutputFormat*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(SGRX_TextureOutputFormat) );
 };
@@ -189,6 +239,10 @@ struct SGRX_TextureAsset_MPD : struct_MPD<SGRX_TextureAsset_MPD, SGRX_TextureAss
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( SGRX_TextureAsset*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(SGRX_TextureAsset) );
 };
@@ -233,7 +287,9 @@ bool Vec2_MPD::setprop( Vec2* obj, int prop, const mpd_Variant& val )
 }
 mpd_Variant Vec2_MPD::getindex( Vec2 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec2_MPD::setindex( Vec2*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec2_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec2_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec2_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec2_MPD::methodcall( Vec2*, int, const mpd_Variant*, int ){}
 void Vec2_MPD::dump( MPD_STATICDUMP_ARGS(Vec2) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -288,7 +344,9 @@ bool Vec3_MPD::setprop( Vec3* obj, int prop, const mpd_Variant& val )
 }
 mpd_Variant Vec3_MPD::getindex( Vec3 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec3_MPD::setindex( Vec3*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec3_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec3_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec3_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec3_MPD::methodcall( Vec3*, int, const mpd_Variant*, int ){}
 void Vec3_MPD::dump( MPD_STATICDUMP_ARGS(Vec3) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -347,7 +405,9 @@ bool String_MPD::setindex( String* obj, const mpd_Variant& key, const mpd_Varian
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<int8_t >(val);
 	return true;
 }
-const mpd_EnumValue* String_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* String_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* String_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void String_MPD::methodcall( String*, int, const mpd_Variant*, int ){}
 void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -363,6 +423,23 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 		MPD_DUMPLEV( 1 ); printf( "...\n" );
 	}
 	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
+const mpd_KeyValue* StringPtr_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+mpd_Variant StringPtr_MPD::getprop( String* const*, int ){ return mpd_Variant(); }
+bool StringPtr_MPD::setprop( String**, int, const mpd_Variant& ){ return false; }
+mpd_Variant StringPtr_MPD::getindex( String* const*, const mpd_Variant& ){ return mpd_Variant(); }
+bool StringPtr_MPD::setindex( String**, const mpd_Variant&, const mpd_Variant& ){ return false; }
+const mpd_EnumValue* StringPtr_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* StringPtr_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void StringPtr_MPD::methodcall( String**, int, const mpd_Variant*, int ){}
+void StringPtr_MPD::dump( MPD_STATICDUMP_ARGS(String*) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "[StringPtr] %s", *pdata ? "-> " : "null" );
+	if( *pdata && level < limit )
+		mpd_DumpData<String>( **pdata, limit, level );
 }
 
 const mpd_KeyValue* Vec3Array_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
@@ -405,7 +482,9 @@ bool Vec3Array_MPD::setindex( Array<Vec3>* obj, const mpd_Variant& key, const mp
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<Vec3 >(val);
 	return true;
 }
-const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec3Array_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec3Array_MPD::methodcall( Array<Vec3>*, int, const mpd_Variant*, int ){}
 void Vec3Array_MPD::dump( MPD_STATICDUMP_ARGS(Array<Vec3>) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -456,6 +535,8 @@ const mpd_EnumValue* SGRX_TextureOutputFormat_MPD::values()
 	};
 	return data;
 }
+const mpd_MethodInfo* SGRX_TextureOutputFormat_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void SGRX_TextureOutputFormat_MPD::methodcall( SGRX_TextureOutputFormat*, int, const mpd_Variant*, int ){}
 void SGRX_TextureOutputFormat_MPD::dump( MPD_STATICDUMP_ARGS(SGRX_TextureOutputFormat) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -570,7 +651,9 @@ bool SGRX_TextureAsset_MPD::setprop( SGRX_TextureAsset* obj, int prop, const mpd
 }
 mpd_Variant SGRX_TextureAsset_MPD::getindex( SGRX_TextureAsset const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool SGRX_TextureAsset_MPD::setindex( SGRX_TextureAsset*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* SGRX_TextureAsset_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* SGRX_TextureAsset_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* SGRX_TextureAsset_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void SGRX_TextureAsset_MPD::methodcall( SGRX_TextureAsset*, int, const mpd_Variant*, int ){}
 void SGRX_TextureAsset_MPD::dump( MPD_STATICDUMP_ARGS(SGRX_TextureAsset) )
 {
 	MPD_DUMPDATA_USESTATICARGS;

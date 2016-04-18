@@ -179,6 +179,10 @@ STRUCT("AnimCharacter_Mask",
 {
 	metadata = { label = "Mask" },
 	nativetype = "AnimCharacter::Mask",
+	methods =
+	{
+		__tostring = { params = [ "int32_t", "StringPtr" ] },
+	},
 	props =
 	[
 		{ name = "name", type = "String", metadata = { label = "Name" } },
@@ -190,6 +194,10 @@ STRUCT("AnimCharacter_MaskArray",
 {
 	nativetype = "Array<AnimCharacter::Mask>",
 	index = { subtype = "AnimCharacter_Mask" },
+	methods =
+	{
+		move_item = { params = [ "int32_t", "int32_t" ] },
+	},
 	props =
 	[
 		{ name = "__size", type = "int32_t", get = "_OBJ_->size()", set = "_OBJ_->resize(_VAR_.get_int32())", metadata = { visible = false, min = 0, max = 1000 } },

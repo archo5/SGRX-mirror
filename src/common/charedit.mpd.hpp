@@ -29,6 +29,10 @@ struct Vec2_MPD : struct_MPD<Vec2_MPD, Vec2 >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Vec2*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(Vec2) );
 };
 
@@ -62,6 +66,10 @@ struct Vec3_MPD : struct_MPD<Vec3_MPD, Vec3 >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Vec3*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(Vec3) );
 };
 
@@ -94,6 +102,10 @@ struct String_MPD : struct_MPD<String_MPD, String >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( String*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(String) );
 };
 
@@ -101,6 +113,36 @@ MPD_DUMPDATA_WRAPPER(String, String);
 template<> struct mpd_MetaType<String > : String_MPD {};
 template<> struct mpd_MetaType<String const> : String_MPD {};
 template<> struct mpd_MetaType<String_MPD> : String_MPD {};
+
+struct StringPtr_MPD : struct_MPD<StringPtr_MPD, String* >
+{
+	static const char* name(){ return "StringPtr"; }
+	static const StringPtr_MPD* inst(){ static const StringPtr_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 0; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( String* const*, int );
+	static bool setprop( String**, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ return 0; }
+	static mpd_Variant getindex( String* const*, const mpd_Variant& );
+	static bool setindex( String**, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( String**, int, const mpd_Variant*, int );
+
+	static void dump( MPD_STATICDUMP_ARGS(String*) );
+};
+
+MPD_DUMPDATA_WRAPPER(StringPtr, String*);
+template<> struct mpd_MetaType<String* > : StringPtr_MPD {};
+template<> struct mpd_MetaType<String* const> : StringPtr_MPD {};
+template<> struct mpd_MetaType<StringPtr_MPD> : StringPtr_MPD {};
 
 struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
 {
@@ -124,6 +166,10 @@ struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Array<Vec3>*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(Array<Vec3>) );
 };
@@ -151,6 +197,10 @@ struct AnimCharacter_BodyType_MPD : struct_MPD<AnimCharacter_BodyType_MPD, AnimC
 	static int valuecount(){ return 4; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::BodyType*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::BodyType) );
 };
 
@@ -177,6 +227,10 @@ struct AnimCharacter_JointType_MPD : struct_MPD<AnimCharacter_JointType_MPD, Ani
 	static int valuecount(){ return 3; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::JointType*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::JointType) );
 };
 
@@ -202,6 +256,10 @@ struct AnimCharacter_TransformType_MPD : struct_MPD<AnimCharacter_TransformType_
 
 	static int valuecount(){ return 4; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::TransformType*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::TransformType) );
 };
@@ -237,6 +295,10 @@ struct AnimCharacter_HitBox_MPD : struct_MPD<AnimCharacter_HitBox_MPD, AnimChara
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::HitBox*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::HitBox) );
 };
 
@@ -270,6 +332,10 @@ struct AnimCharacter_Body_MPD : struct_MPD<AnimCharacter_Body_MPD, AnimCharacter
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::Body*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::Body) );
 };
@@ -310,6 +376,10 @@ struct AnimCharacter_Joint_MPD : struct_MPD<AnimCharacter_Joint_MPD, AnimCharact
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::Joint*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::Joint) );
 };
 
@@ -344,6 +414,10 @@ struct AnimCharacter_BoneInfo_MPD : struct_MPD<AnimCharacter_BoneInfo_MPD, AnimC
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::BoneInfo*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::BoneInfo) );
 };
 
@@ -377,6 +451,10 @@ struct AnimCharacter_Attachment_MPD : struct_MPD<AnimCharacter_Attachment_MPD, A
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::Attachment*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::Attachment) );
 };
@@ -413,6 +491,10 @@ struct AnimCharacter_LayerTransform_MPD : struct_MPD<AnimCharacter_LayerTransfor
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::LayerTransform*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::LayerTransform) );
 };
 
@@ -438,6 +520,10 @@ struct AnimCharacter_LayerTransformArray_MPD : struct_MPD<AnimCharacter_LayerTra
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Array<AnimCharacter::LayerTransform>*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::LayerTransform>) );
 };
@@ -472,6 +558,10 @@ struct AnimCharacter_Layer_MPD : struct_MPD<AnimCharacter_Layer_MPD, AnimCharact
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::Layer*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::Layer) );
 };
 
@@ -505,6 +595,10 @@ struct AnimCharacter_MaskCmd_MPD : struct_MPD<AnimCharacter_MaskCmd_MPD, AnimCha
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::MaskCmd*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::MaskCmd) );
 };
 
@@ -535,6 +629,10 @@ struct AnimCharacter_MaskCmdArray_MPD : struct_MPD<AnimCharacter_MaskCmdArray_MP
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Array<AnimCharacter::MaskCmd>*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::MaskCmd>) );
 };
@@ -568,6 +666,10 @@ struct AnimCharacter_Mask_MPD : struct_MPD<AnimCharacter_Mask_MPD, AnimCharacter
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 1; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter::Mask*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter::Mask) );
 };
 
@@ -598,6 +700,10 @@ struct AnimCharacter_MaskArray_MPD : struct_MPD<AnimCharacter_MaskArray_MPD, Arr
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 1; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Array<AnimCharacter::Mask>*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::Mask>) );
 };
@@ -630,6 +736,10 @@ struct AnimCharacter_MPD : struct_MPD<AnimCharacter_MPD, AnimCharacter >
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( AnimCharacter*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(AnimCharacter) );
 };
@@ -674,7 +784,9 @@ bool Vec2_MPD::setprop( Vec2* obj, int prop, const mpd_Variant& val )
 }
 mpd_Variant Vec2_MPD::getindex( Vec2 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec2_MPD::setindex( Vec2*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec2_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec2_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec2_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec2_MPD::methodcall( Vec2*, int, const mpd_Variant*, int ){}
 void Vec2_MPD::dump( MPD_STATICDUMP_ARGS(Vec2) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -729,7 +841,9 @@ bool Vec3_MPD::setprop( Vec3* obj, int prop, const mpd_Variant& val )
 }
 mpd_Variant Vec3_MPD::getindex( Vec3 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec3_MPD::setindex( Vec3*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec3_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec3_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec3_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec3_MPD::methodcall( Vec3*, int, const mpd_Variant*, int ){}
 void Vec3_MPD::dump( MPD_STATICDUMP_ARGS(Vec3) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -788,7 +902,9 @@ bool String_MPD::setindex( String* obj, const mpd_Variant& key, const mpd_Varian
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<int8_t >(val);
 	return true;
 }
-const mpd_EnumValue* String_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* String_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* String_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void String_MPD::methodcall( String*, int, const mpd_Variant*, int ){}
 void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -804,6 +920,23 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 		MPD_DUMPLEV( 1 ); printf( "...\n" );
 	}
 	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
+const mpd_KeyValue* StringPtr_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+mpd_Variant StringPtr_MPD::getprop( String* const*, int ){ return mpd_Variant(); }
+bool StringPtr_MPD::setprop( String**, int, const mpd_Variant& ){ return false; }
+mpd_Variant StringPtr_MPD::getindex( String* const*, const mpd_Variant& ){ return mpd_Variant(); }
+bool StringPtr_MPD::setindex( String**, const mpd_Variant&, const mpd_Variant& ){ return false; }
+const mpd_EnumValue* StringPtr_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* StringPtr_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void StringPtr_MPD::methodcall( String**, int, const mpd_Variant*, int ){}
+void StringPtr_MPD::dump( MPD_STATICDUMP_ARGS(String*) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "[StringPtr] %s", *pdata ? "-> " : "null" );
+	if( *pdata && level < limit )
+		mpd_DumpData<String>( **pdata, limit, level );
 }
 
 const mpd_KeyValue* Vec3Array_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
@@ -846,7 +979,9 @@ bool Vec3Array_MPD::setindex( Array<Vec3>* obj, const mpd_Variant& key, const mp
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<Vec3 >(val);
 	return true;
 }
-const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec3Array_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec3Array_MPD::methodcall( Array<Vec3>*, int, const mpd_Variant*, int ){}
 void Vec3Array_MPD::dump( MPD_STATICDUMP_ARGS(Array<Vec3>) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -893,6 +1028,8 @@ const mpd_EnumValue* AnimCharacter_BodyType_MPD::values()
 	};
 	return data;
 }
+const mpd_MethodInfo* AnimCharacter_BodyType_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_BodyType_MPD::methodcall( AnimCharacter::BodyType*, int, const mpd_Variant*, int ){}
 void AnimCharacter_BodyType_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::BodyType) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -927,6 +1064,8 @@ const mpd_EnumValue* AnimCharacter_JointType_MPD::values()
 	};
 	return data;
 }
+const mpd_MethodInfo* AnimCharacter_JointType_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_JointType_MPD::methodcall( AnimCharacter::JointType*, int, const mpd_Variant*, int ){}
 void AnimCharacter_JointType_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::JointType) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -963,6 +1102,8 @@ const mpd_EnumValue* AnimCharacter_TransformType_MPD::values()
 	};
 	return data;
 }
+const mpd_MethodInfo* AnimCharacter_TransformType_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_TransformType_MPD::methodcall( AnimCharacter::TransformType*, int, const mpd_Variant*, int ){}
 void AnimCharacter_TransformType_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::TransformType) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1034,7 +1175,9 @@ bool AnimCharacter_HitBox_MPD::setprop( AnimCharacter::HitBox* obj, int prop, co
 }
 mpd_Variant AnimCharacter_HitBox_MPD::getindex( AnimCharacter::HitBox const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_HitBox_MPD::setindex( AnimCharacter::HitBox*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_HitBox_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_HitBox_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_HitBox_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_HitBox_MPD::methodcall( AnimCharacter::HitBox*, int, const mpd_Variant*, int ){}
 void AnimCharacter_HitBox_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::HitBox) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1119,7 +1262,9 @@ bool AnimCharacter_Body_MPD::setprop( AnimCharacter::Body* obj, int prop, const 
 }
 mpd_Variant AnimCharacter_Body_MPD::getindex( AnimCharacter::Body const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_Body_MPD::setindex( AnimCharacter::Body*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_Body_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_Body_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_Body_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_Body_MPD::methodcall( AnimCharacter::Body*, int, const mpd_Variant*, int ){}
 void AnimCharacter_Body_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::Body) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1244,7 +1389,9 @@ bool AnimCharacter_Joint_MPD::setprop( AnimCharacter::Joint* obj, int prop, cons
 }
 mpd_Variant AnimCharacter_Joint_MPD::getindex( AnimCharacter::Joint const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_Joint_MPD::setindex( AnimCharacter::Joint*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_Joint_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_Joint_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_Joint_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_Joint_MPD::methodcall( AnimCharacter::Joint*, int, const mpd_Variant*, int ){}
 void AnimCharacter_Joint_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::Joint) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1334,7 +1481,9 @@ bool AnimCharacter_BoneInfo_MPD::setprop( AnimCharacter::BoneInfo* obj, int prop
 }
 mpd_Variant AnimCharacter_BoneInfo_MPD::getindex( AnimCharacter::BoneInfo const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_BoneInfo_MPD::setindex( AnimCharacter::BoneInfo*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_BoneInfo_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_BoneInfo_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_BoneInfo_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_BoneInfo_MPD::methodcall( AnimCharacter::BoneInfo*, int, const mpd_Variant*, int ){}
 void AnimCharacter_BoneInfo_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::BoneInfo) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1419,7 +1568,9 @@ bool AnimCharacter_Attachment_MPD::setprop( AnimCharacter::Attachment* obj, int 
 }
 mpd_Variant AnimCharacter_Attachment_MPD::getindex( AnimCharacter::Attachment const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_Attachment_MPD::setindex( AnimCharacter::Attachment*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_Attachment_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_Attachment_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_Attachment_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_Attachment_MPD::methodcall( AnimCharacter::Attachment*, int, const mpd_Variant*, int ){}
 void AnimCharacter_Attachment_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::Attachment) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1512,7 +1663,9 @@ bool AnimCharacter_LayerTransform_MPD::setprop( AnimCharacter::LayerTransform* o
 }
 mpd_Variant AnimCharacter_LayerTransform_MPD::getindex( AnimCharacter::LayerTransform const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_LayerTransform_MPD::setindex( AnimCharacter::LayerTransform*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_LayerTransform_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_LayerTransform_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_LayerTransform_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_LayerTransform_MPD::methodcall( AnimCharacter::LayerTransform*, int, const mpd_Variant*, int ){}
 void AnimCharacter_LayerTransform_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::LayerTransform) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1546,7 +1699,9 @@ bool AnimCharacter_LayerTransformArray_MPD::setindex( Array<AnimCharacter::Layer
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<AnimCharacter::LayerTransform >(val);
 	return true;
 }
-const mpd_EnumValue* AnimCharacter_LayerTransformArray_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_LayerTransformArray_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_LayerTransformArray_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_LayerTransformArray_MPD::methodcall( Array<AnimCharacter::LayerTransform>*, int, const mpd_Variant*, int ){}
 void AnimCharacter_LayerTransformArray_MPD::dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::LayerTransform>) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1611,7 +1766,9 @@ bool AnimCharacter_Layer_MPD::setprop( AnimCharacter::Layer* obj, int prop, cons
 }
 mpd_Variant AnimCharacter_Layer_MPD::getindex( AnimCharacter::Layer const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_Layer_MPD::setindex( AnimCharacter::Layer*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_Layer_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_Layer_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_Layer_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_Layer_MPD::methodcall( AnimCharacter::Layer*, int, const mpd_Variant*, int ){}
 void AnimCharacter_Layer_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::Layer) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1691,7 +1848,9 @@ bool AnimCharacter_MaskCmd_MPD::setprop( AnimCharacter::MaskCmd* obj, int prop, 
 }
 mpd_Variant AnimCharacter_MaskCmd_MPD::getindex( AnimCharacter::MaskCmd const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_MaskCmd_MPD::setindex( AnimCharacter::MaskCmd*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_MaskCmd_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_MaskCmd_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_MaskCmd_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_MaskCmd_MPD::methodcall( AnimCharacter::MaskCmd*, int, const mpd_Variant*, int ){}
 void AnimCharacter_MaskCmd_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::MaskCmd) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1752,7 +1911,9 @@ bool AnimCharacter_MaskCmdArray_MPD::setindex( Array<AnimCharacter::MaskCmd>* ob
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<AnimCharacter::MaskCmd >(val);
 	return true;
 }
-const mpd_EnumValue* AnimCharacter_MaskCmdArray_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_MaskCmdArray_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_MaskCmdArray_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_MaskCmdArray_MPD::methodcall( Array<AnimCharacter::MaskCmd>*, int, const mpd_Variant*, int ){}
 void AnimCharacter_MaskCmdArray_MPD::dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::MaskCmd>) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1818,7 +1979,30 @@ bool AnimCharacter_Mask_MPD::setprop( AnimCharacter::Mask* obj, int prop, const 
 }
 mpd_Variant AnimCharacter_Mask_MPD::getindex( AnimCharacter::Mask const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_Mask_MPD::setindex( AnimCharacter::Mask*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_Mask_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_Mask_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_Mask_MPD::methods()
+{
+	static const mpd_KeyValue __tostring_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
+	static const mpd_TypeInfo __tostring_params[] =
+	{
+		{ "int32_t", mpdt_Int32, 0 },
+		{ "StringPtr", mpdt_Pointer, StringPtr_MPD::inst() },
+		{ 0, mpdt_None, 0 }
+	};
+	static const mpd_MethodInfo data[] =
+	{
+		{ "__tostring", 10, __tostring_params, 2, __tostring_metadata },
+		{ 0, 0, 0, 0, 0 },
+	};
+	return data;
+}
+void AnimCharacter_Mask_MPD::methodcall( AnimCharacter::Mask* obj, int id, const mpd_Variant* args, int argcount )
+{
+	switch( id )
+	{
+	case 0: obj->__tostring(mpd_var_get<int32_t >(0 < argcount ? args[0] : mpd_Variant()), (1 < argcount ? args[1] : mpd_Variant()).get_ptr<String >()); break;
+	}
+}
 void AnimCharacter_Mask_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::Mask) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1878,7 +2062,30 @@ bool AnimCharacter_MaskArray_MPD::setindex( Array<AnimCharacter::Mask>* obj, con
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<AnimCharacter::Mask >(val);
 	return true;
 }
-const mpd_EnumValue* AnimCharacter_MaskArray_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_MaskArray_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_MaskArray_MPD::methods()
+{
+	static const mpd_KeyValue move_item_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
+	static const mpd_TypeInfo move_item_params[] =
+	{
+		{ "int32_t", mpdt_Int32, 0 },
+		{ "int32_t", mpdt_Int32, 0 },
+		{ 0, mpdt_None, 0 }
+	};
+	static const mpd_MethodInfo data[] =
+	{
+		{ "move_item", 9, move_item_params, 2, move_item_metadata },
+		{ 0, 0, 0, 0, 0 },
+	};
+	return data;
+}
+void AnimCharacter_MaskArray_MPD::methodcall( Array<AnimCharacter::Mask>* obj, int id, const mpd_Variant* args, int argcount )
+{
+	switch( id )
+	{
+	case 0: obj->move_item(mpd_var_get<int32_t >(0 < argcount ? args[0] : mpd_Variant()), mpd_var_get<int32_t >(1 < argcount ? args[1] : mpd_Variant())); break;
+	}
+}
 void AnimCharacter_MaskArray_MPD::dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::Mask>) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -1945,7 +2152,9 @@ bool AnimCharacter_MPD::setprop( AnimCharacter* obj, int prop, const mpd_Variant
 }
 mpd_Variant AnimCharacter_MPD::getindex( AnimCharacter const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool AnimCharacter_MPD::setindex( AnimCharacter*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* AnimCharacter_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* AnimCharacter_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void AnimCharacter_MPD::methodcall( AnimCharacter*, int, const mpd_Variant*, int ){}
 void AnimCharacter_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter) )
 {
 	MPD_DUMPDATA_USESTATICARGS;

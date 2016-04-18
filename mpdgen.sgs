@@ -60,6 +60,8 @@ function STRUCT( name, info )
 			}
 		}
 	}
+	if( @info.methods === null )
+		info.methods = {};
 	if( !@info.nativetype )
 		info.nativetype = info.name;
 	if( !@info.all_natives )
@@ -184,6 +186,12 @@ foreach( struct : structs )
 	// values
 	print "\tstatic int valuecount(){ return ", dict_size( struct.values ), "; }\n";
 	print "\tstatic const mpd_EnumValue* values();\n";
+	print "\n";
+	
+	// methods
+	print "\tstatic int methodcount(){ return ", dict_size( struct.methods ), "; }\n";
+	print "\tstatic const mpd_MethodInfo* methods();\n";
+	print "\tstatic void methodcall( ", struct.nativetype, "*, int, const mpd_Variant*, int );\n";
 	print "\n";
 	
 	// dump
@@ -365,7 +373,7 @@ foreach( struct : structs )
 	// ENUM VALUES
 	if( dict_size( struct.values ) == 0 )
 	{
-		print "const mpd_EnumValue* ", struct.name, "_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }\n";
+		print "const mpd_EnumValue* ", struct.name, "_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }\n";
 	}
 	else
 	{
@@ -394,6 +402,68 @@ foreach( struct : structs )
 		print "\t\t{ 0, 0, 0, 0 },\n";
 		print "\t};\n";
 		print "\treturn data;\n";
+		print "}\n";
+	}
+	
+	// METHODS
+	if( dict_size( struct.methods ) == 0 )
+	{
+		print "const mpd_MethodInfo* ", struct.name, "_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }\n";
+		print "void ", struct.name, "_MPD::methodcall( ", struct.nativetype, "*, int, const mpd_Variant*, int ){}\n";
+	}
+	else
+	{
+		print "const mpd_MethodInfo* ", struct.name, "_MPD::methods()\n";
+		print "{\n";
+		foreach( name, method : struct.methods )
+		{
+			print_metadata( name $ "_metadata", @method.metadata );
+			print "\tstatic const mpd_TypeInfo ", name, "_params[] =\n";
+			print "\t{\n";
+			foreach( type : method.params )
+			{
+				print "\t\t", TypeInfoPart( type ), ",\n";
+			}
+			print "\t\t{ 0, mpdt_None, 0 }\n";
+			print "\t};\n";
+		}
+		print "\tstatic const mpd_MethodInfo data[] =\n";
+		print "\t{\n";
+		foreach( name, method : struct.methods )
+		{
+			print "\t\t{ ", CEsc( name ), ", ", name.length, ", ", name, "_params, ", method.params.size, ", ", name, "_metadata },\n";
+		}
+		print "\t\t{ 0, 0, 0, 0, 0 },\n";
+		print "\t};\n";
+		print "\treturn data;\n";
+		print "}\n";
+		print "void ", struct.name, "_MPD::methodcall( ", struct.nativetype, "* obj, int id, const mpd_Variant* args, int argcount )\n";
+		print "{\n";
+		print "\tswitch( id )\n";
+		print "\t{\n";
+		i = 0;
+		foreach( name, method : struct.methods )
+		{
+			print "\tcase ", i, ": ";
+			print "obj->", name, "(";
+			foreach( p, type : method.params )
+			{
+				if( p )
+					print ", ";
+				typeinfo = GET_TYPE( type );
+				if( typeinfo.typeval == "mpdt_Pointer" )
+				{
+					print "(", p, " < argcount ? args[", p, "] : mpd_Variant()).get_ptr<", typeinfo.subtype, " >()";
+				}
+				else
+				{
+					print "mpd_var_get<", typeinfo.nativetype, " >(", p, " < argcount ? args[", p, "] : mpd_Variant())";
+				}
+			}
+			print "); break;\n";
+			i++;
+		}
+		print "\t}\n";
 		print "}\n";
 	}
 	

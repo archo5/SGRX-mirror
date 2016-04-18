@@ -1487,6 +1487,16 @@ struct Array
 		}
 		return id;
 	}
+	void move_item( size_t from, size_t to )
+	{
+		ASSERT( from < m_size );
+		ASSERT( to < m_size );
+		size_t incr = to > from ? 1 : size_t(-1);
+		for( ; to != from; from += incr )
+		{
+			TSWAP( m_data[ from ], m_data[ from + incr ] );
+		}
+	}
 	
 	size_t find_first_at( const T& what, size_t from = 0 ) const
 	{

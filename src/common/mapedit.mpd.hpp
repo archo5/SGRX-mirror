@@ -29,6 +29,10 @@ struct Vec2_MPD : struct_MPD<Vec2_MPD, Vec2 >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Vec2*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(Vec2) );
 };
 
@@ -62,6 +66,10 @@ struct Vec3_MPD : struct_MPD<Vec3_MPD, Vec3 >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Vec3*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(Vec3) );
 };
 
@@ -94,6 +102,10 @@ struct String_MPD : struct_MPD<String_MPD, String >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( String*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(String) );
 };
 
@@ -101,6 +113,36 @@ MPD_DUMPDATA_WRAPPER(String, String);
 template<> struct mpd_MetaType<String > : String_MPD {};
 template<> struct mpd_MetaType<String const> : String_MPD {};
 template<> struct mpd_MetaType<String_MPD> : String_MPD {};
+
+struct StringPtr_MPD : struct_MPD<StringPtr_MPD, String* >
+{
+	static const char* name(){ return "StringPtr"; }
+	static const StringPtr_MPD* inst(){ static const StringPtr_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 0; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( String* const*, int );
+	static bool setprop( String**, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ return 0; }
+	static mpd_Variant getindex( String* const*, const mpd_Variant& );
+	static bool setindex( String**, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( String**, int, const mpd_Variant*, int );
+
+	static void dump( MPD_STATICDUMP_ARGS(String*) );
+};
+
+MPD_DUMPDATA_WRAPPER(StringPtr, String*);
+template<> struct mpd_MetaType<String* > : StringPtr_MPD {};
+template<> struct mpd_MetaType<String* const> : StringPtr_MPD {};
+template<> struct mpd_MetaType<StringPtr_MPD> : StringPtr_MPD {};
 
 struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
 {
@@ -124,6 +166,10 @@ struct Vec3Array_MPD : struct_MPD<Vec3Array_MPD, Array<Vec3> >
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Array<Vec3>*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(Array<Vec3>) );
 };
@@ -160,6 +206,10 @@ struct EdSnapProps_MPD : struct_MPD<EdSnapProps_MPD, EdSnapProps >
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( EdSnapProps*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(EdSnapProps) );
 };
 
@@ -191,6 +241,10 @@ struct EdMultiObjectProps_MPD : struct_MPD<EdMultiObjectProps_MPD, EdMultiObject
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( EdMultiObjectProps*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(EdMultiObjectProps) );
 };
 
@@ -221,6 +275,10 @@ struct EdWorldBasicInfo_MPD : struct_MPD<EdWorldBasicInfo_MPD, EdWorldBasicInfo 
 
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( EdWorldBasicInfo*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(EdWorldBasicInfo) );
 };
@@ -269,6 +327,10 @@ struct EdWorldLightingInfo_MPD : struct_MPD<EdWorldLightingInfo_MPD, EdWorldLigh
 	static int valuecount(){ return 0; }
 	static const mpd_EnumValue* values();
 
+	static int methodcount(){ return 0; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( EdWorldLightingInfo*, int, const mpd_Variant*, int );
+
 	static void dump( MPD_STATICDUMP_ARGS(EdWorldLightingInfo) );
 };
 
@@ -312,7 +374,9 @@ bool Vec2_MPD::setprop( Vec2* obj, int prop, const mpd_Variant& val )
 }
 mpd_Variant Vec2_MPD::getindex( Vec2 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec2_MPD::setindex( Vec2*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec2_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec2_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec2_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec2_MPD::methodcall( Vec2*, int, const mpd_Variant*, int ){}
 void Vec2_MPD::dump( MPD_STATICDUMP_ARGS(Vec2) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -367,7 +431,9 @@ bool Vec3_MPD::setprop( Vec3* obj, int prop, const mpd_Variant& val )
 }
 mpd_Variant Vec3_MPD::getindex( Vec3 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec3_MPD::setindex( Vec3*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec3_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec3_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec3_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec3_MPD::methodcall( Vec3*, int, const mpd_Variant*, int ){}
 void Vec3_MPD::dump( MPD_STATICDUMP_ARGS(Vec3) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -426,7 +492,9 @@ bool String_MPD::setindex( String* obj, const mpd_Variant& key, const mpd_Varian
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<int8_t >(val);
 	return true;
 }
-const mpd_EnumValue* String_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* String_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* String_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void String_MPD::methodcall( String*, int, const mpd_Variant*, int ){}
 void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -442,6 +510,23 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 		MPD_DUMPLEV( 1 ); printf( "...\n" );
 	}
 	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
+const mpd_KeyValue* StringPtr_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+mpd_Variant StringPtr_MPD::getprop( String* const*, int ){ return mpd_Variant(); }
+bool StringPtr_MPD::setprop( String**, int, const mpd_Variant& ){ return false; }
+mpd_Variant StringPtr_MPD::getindex( String* const*, const mpd_Variant& ){ return mpd_Variant(); }
+bool StringPtr_MPD::setindex( String**, const mpd_Variant&, const mpd_Variant& ){ return false; }
+const mpd_EnumValue* StringPtr_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* StringPtr_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void StringPtr_MPD::methodcall( String**, int, const mpd_Variant*, int ){}
+void StringPtr_MPD::dump( MPD_STATICDUMP_ARGS(String*) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "[StringPtr] %s", *pdata ? "-> " : "null" );
+	if( *pdata && level < limit )
+		mpd_DumpData<String>( **pdata, limit, level );
 }
 
 const mpd_KeyValue* Vec3Array_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
@@ -484,7 +569,9 @@ bool Vec3Array_MPD::setindex( Array<Vec3>* obj, const mpd_Variant& key, const mp
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<Vec3 >(val);
 	return true;
 }
-const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* Vec3Array_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void Vec3Array_MPD::methodcall( Array<Vec3>*, int, const mpd_Variant*, int ){}
 void Vec3Array_MPD::dump( MPD_STATICDUMP_ARGS(Array<Vec3>) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -580,7 +667,9 @@ bool EdSnapProps_MPD::setprop( EdSnapProps* obj, int prop, const mpd_Variant& va
 }
 mpd_Variant EdSnapProps_MPD::getindex( EdSnapProps const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool EdSnapProps_MPD::setindex( EdSnapProps*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* EdSnapProps_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* EdSnapProps_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* EdSnapProps_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void EdSnapProps_MPD::methodcall( EdSnapProps*, int, const mpd_Variant*, int ){}
 void EdSnapProps_MPD::dump( MPD_STATICDUMP_ARGS(EdSnapProps) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -643,7 +732,9 @@ bool EdMultiObjectProps_MPD::setprop( EdMultiObjectProps* obj, int prop, const m
 }
 mpd_Variant EdMultiObjectProps_MPD::getindex( EdMultiObjectProps const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool EdMultiObjectProps_MPD::setindex( EdMultiObjectProps*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* EdMultiObjectProps_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* EdMultiObjectProps_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* EdMultiObjectProps_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void EdMultiObjectProps_MPD::methodcall( EdMultiObjectProps*, int, const mpd_Variant*, int ){}
 void EdMultiObjectProps_MPD::dump( MPD_STATICDUMP_ARGS(EdMultiObjectProps) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -701,7 +792,9 @@ bool EdWorldBasicInfo_MPD::setprop( EdWorldBasicInfo* obj, int prop, const mpd_V
 }
 mpd_Variant EdWorldBasicInfo_MPD::getindex( EdWorldBasicInfo const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool EdWorldBasicInfo_MPD::setindex( EdWorldBasicInfo*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* EdWorldBasicInfo_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* EdWorldBasicInfo_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* EdWorldBasicInfo_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void EdWorldBasicInfo_MPD::methodcall( EdWorldBasicInfo*, int, const mpd_Variant*, int ){}
 void EdWorldBasicInfo_MPD::dump( MPD_STATICDUMP_ARGS(EdWorldBasicInfo) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
@@ -919,7 +1012,9 @@ bool EdWorldLightingInfo_MPD::setprop( EdWorldLightingInfo* obj, int prop, const
 }
 mpd_Variant EdWorldLightingInfo_MPD::getindex( EdWorldLightingInfo const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool EdWorldLightingInfo_MPD::setindex( EdWorldLightingInfo*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* EdWorldLightingInfo_MPD::values(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_EnumValue none = { 0, 0, 0, &kvnone }; return &none; }
+const mpd_EnumValue* EdWorldLightingInfo_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* EdWorldLightingInfo_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+void EdWorldLightingInfo_MPD::methodcall( EdWorldLightingInfo*, int, const mpd_Variant*, int ){}
 void EdWorldLightingInfo_MPD::dump( MPD_STATICDUMP_ARGS(EdWorldLightingInfo) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
