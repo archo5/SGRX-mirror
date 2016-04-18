@@ -189,6 +189,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIItem : virtual SGRX_RefCounted
 	ENGINE_EXPORT void _DebugDraw( int depth );
 	ENGINE_EXPORT void Edited( EDGUIItem* tgt = NULL );
 	ENGINE_EXPORT void Changed( EDGUIItem* tgt = NULL );
+	ENGINE_EXPORT void PostLayoutParent();
 	ENGINE_EXPORT virtual void SetCaption( const StringView& text );
 	
 	const char* tyname;

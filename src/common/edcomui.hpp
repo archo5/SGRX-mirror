@@ -474,14 +474,65 @@ struct EDGUILevelSavePicker : EDGUILevelPicker
 // property inspector
 //
 
+#define EDGUI_ITEM_PROPERTY_LIST 501
+#define EDGUI_ITEM_PLARRAYLIST 502
+
 struct EDGUIPropertyList : EDGUILayoutRow
 {
-	struct PLArrayList : EDGUIBtnList, EDGUIItemModel
+	struct PLArrayList : EDGUILayoutRow, EDGUIItemModel
 	{
-		PLArrayList()
+		PLArrayList( EDGUIPropertyList* owner ) : m_owner( owner )
 		{
-			m_model = this;
-			Add( &m_subbtn );
+			type = EDGUI_ITEM_PLARRAYLIST;
+			m_addBtn.caption = "Add item";
+			
+			m_btnList.m_model = this;
+			m_btnList.Add( &m_subbtn );
+			
+			Add( &m_addBtn );
+			Add( &m_btnList );
+		}
+		~PLArrayList()
+		{
+			m_btnList.m_editControl = NULL;
+		}
+		
+		void AddElement()
+		{
+			int oic = GetItemCount();
+			m_item.setprop( "__size", oic + 1 );
+			m_item.setprop( "size", oic + 1 );
+		//	m_item.setindex( oic, 
+			m_btnList.UpdateOptions();
+			OpenEditor( oic );
+		}
+		void DeleteElement( int i )
+		{
+			m_btnList.UpdateOptions();
+			CloseEditor();
+		}
+		void SwapElements( int a, int b )
+		{
+			m_btnList.OnSwapItems( a, b );
+			m_btnList.UpdateOptions();
+		}
+		
+		void OpenEditor( int i )
+		{
+			if( !m_subPropList )
+			{
+				m_subPropList = new EDGUIPropertyList;
+				m_subPropList->m_pickers = m_owner->m_pickers;
+				m_btnList.m_editControl = m_subPropList;
+			}
+			m_subPropList->Set( m_item.getindex( i ) );
+			m_btnList.OpenEditor( i );
+		}
+		void CloseEditor()
+		{
+			m_btnList.CloseEditor();
+			if( m_subPropList )
+				m_subPropList->Clear();
 		}
 		
 		int GetItemCount()
@@ -501,12 +552,55 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			}
 			else
 			{
-				out = subitem.get_name();
+				const mpd_KeyValue* kv = subitem.get_typeinfo()->vmetadata()->find( "label" );
+				if( kv )
+					out.assign( kv->value, kv->valuesz );
+				else
+					out = subitem.get_name();
 			}
 		}
+		virtual int OnEvent( EDGUIEvent* e )
+		{
+			switch( e->type )
+			{
+			case EDGUI_EVENT_BTNCLICK:
+				if( e->target == &m_addBtn )
+				{
+					AddElement();
+				}
+				else if( e->target == &m_subbtn )
+				{
+					OpenEditor( m_subbtn.id2 );
+				}
+				else if( e->target == &m_subbtn.m_del )
+				{
+					DeleteElement( m_subbtn.id2 );
+				}
+				else if( e->target == &m_subbtn.m_up )
+				{
+					if( m_subbtn.id2 > 0 )
+					{
+						SwapElements( m_subbtn.id2, m_subbtn.id2 - 1 );
+					}
+				}
+				else if( e->target == &m_subbtn.m_dn )
+				{
+					if( (int) m_subbtn.id2 < GetItemCount() - 1 )
+					{
+						SwapElements( m_subbtn.id2, m_subbtn.id2 + 1 );
+					}
+				}
+				break;
+			}
+			return EDGUILayoutRow::OnEvent( e );
+		}
 		
+		EDGUIButton m_addBtn;
+		EDGUIBtnList m_btnList;
 		EDGUIListItemButton m_subbtn;
 		mpd_Variant m_item;
+		EDGUIPropertyList* m_owner;
+		Handle<EDGUIPropertyList> m_subPropList;
 	};
 	
 	struct Item
@@ -566,7 +660,10 @@ struct EDGUIPropertyList : EDGUILayoutRow
 	void _AddProp( EDGUIItem* prt, EDGUIItem* prop, mpd_Variant cont, const mpd_PropInfo* propinfo, size_t pid, StringView name = SV() )
 	{
 		prop->id1 = m_items.size();
-		prop->caption = name ? name : _GetPropName( propinfo );
+		if( prop->type != EDGUI_ITEM_PLARRAYLIST )
+		{
+			prop->caption = name ? name : _GetPropName( propinfo );
+		}
 		Item item = { prop, cont, propinfo, pid };
 		m_items.push_back( item );
 		prt->Add( prop );
@@ -574,6 +671,14 @@ struct EDGUIPropertyList : EDGUILayoutRow
 	void _CreateProperty( EDGUIItem* prt, mpd_Variant item,
 		mpd_Variant cont = mpd_Variant(), const mpd_PropInfo* propinfo = NULL, size_t pid = NOT_FOUND )
 	{
+		// check if visible
+		if( propinfo )
+		{
+			const mpd_KeyValue* kv = propinfo->metadata->find( "visible" );
+			if( kv && !kv->value_i32 )
+				return;
+		}
+		
 		mpd_Type type = item.get_type();
 		if( type == mpdt_Struct || type == mpdt_Pointer )
 		{
@@ -671,9 +776,9 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				const mpd_TypeInfo* indextypes = info->vindextypes();
 				if( indextypes )
 				{
-					PLArrayList* blist = new PLArrayList();
+					PLArrayList* blist = new PLArrayList( this );
 					blist->m_item = item;
-					_AddProp( prt, blist, cont, propinfo, pid );
+					_AddProp( group, blist, cont, propinfo, pid );
 				}
 			}
 		}
@@ -796,6 +901,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 					Edited();
 				else
 					Changed();
+				return 0;
 			}
 			break;
 		}

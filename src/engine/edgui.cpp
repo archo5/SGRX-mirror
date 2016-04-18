@@ -66,7 +66,7 @@ int EDGUIItem::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_BTNDOWN:
 		if( e->mouse.button == 0 || enableMultiClick )
 			m_clicked = true;
-		if( m_frame->m_keyboardFocus != this )
+		if( m_frame && m_frame->m_keyboardFocus != this )
 		{
 			EDGUIEvent se = { EDGUI_EVENT_SETFOCUS, this };
 			OnEvent( &se );
@@ -254,6 +254,13 @@ void EDGUIItem::Changed( EDGUIItem* tgt )
 {
 	EDGUIEvent ev = { EDGUI_EVENT_PROPCHANGE, tgt ? tgt : this };
 	BubblingEvent( &ev );
+}
+
+void EDGUIItem::PostLayoutParent()
+{
+	EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
+	if( m_parent )
+		m_parent->OnEvent( &se );
 }
 
 void EDGUIItem::SetCaption( const StringView& text )
@@ -605,6 +612,11 @@ void EDGUIFrame::_Unlink( EDGUIItem* item )
 		m_clickTargets[2] = NULL;
 	if( m_lastClickItem == item )
 		m_lastClickItem = NULL;
+	if( m_hover == item )
+	{
+		m_hover = NULL;
+		m_hoverTrail.clear();
+	}
 }
 
 void EDGUIFrame::_SetFocus( EDGUIItem* item )
@@ -638,9 +650,7 @@ int EDGUILayoutRow::OnEvent( EDGUIEvent* e )
 				at = m_subitems[ i ]->y1;
 			}
 			y1 = at;
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
-			if( m_parent )
-				m_parent->OnEvent( &se );
+			PostLayoutParent();
 		}
 		return 1;
 		
@@ -650,9 +660,7 @@ int EDGUILayoutRow::OnEvent( EDGUIEvent* e )
 	case EDGUI_EVENT_POSTLAYOUT:
 		{
 			y1 = m_subitems.size() ? m_subitems.last()->y1 : y0;
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
-			if( m_parent )
-				m_parent->OnEvent( &se );
+			PostLayoutParent();
 		}
 		return 1;
 	}
@@ -690,9 +698,7 @@ int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 						y1 = m_subitems[ i ]->y1;
 				}
 			}
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
-			if( m_parent )
-				m_parent->OnEvent( &se );
+			PostLayoutParent();
 		}
 		return 1;
 		
@@ -707,9 +713,7 @@ int EDGUILayoutColumn::OnEvent( EDGUIEvent* e )
 				if( m_subitems[ i ]->y1 > y1 )
 					y1 = m_subitems[ i ]->y1;
 			}
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
-			if( m_parent )
-				m_parent->OnEvent( &se );
+			PostLayoutParent();
 		}
 		return 1;
 	}
@@ -957,9 +961,7 @@ int EDGUIGroup::OnEvent( EDGUIEvent* e )
 				}
 				y1 = at;
 			}
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
-			if( m_parent )
-				m_parent->OnEvent( &se );
+			PostLayoutParent();
 		}
 		return 1;
 		
@@ -1178,9 +1180,7 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 			}
 			y1 = _GetButtonYPos( m_model ? m_model->GetItemCount() : 0 );
 			
-			EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
-			if( m_parent )
-				m_parent->OnEvent( &se );
+			PostLayoutParent();
 		}
 		return 1;
 		
@@ -1215,6 +1215,14 @@ int EDGUIBtnList::OnEvent( EDGUIEvent* e )
 			m_editControl->OnEvent( e );
 		return 1;
 		
+	case EDGUI_EVENT_PRELAYOUT:
+		return 1;
+		
+	case EDGUI_EVENT_POSTLAYOUT:
+		y1 = _GetButtonYPos( m_model ? m_model->GetItemCount() : 0 );
+		PostLayoutParent();
+		break;
+		
 	}
 	return EDGUIItem::OnEvent( e );
 }
@@ -1223,9 +1231,7 @@ void EDGUIBtnList::UpdateOptions()
 {
 	OnChangeLayout();
 	SetHighlight( -1 );
-	EDGUIEvent se = { EDGUI_EVENT_POSTLAYOUT, this };
-	if( m_parent )
-		m_parent->OnEvent( &se );
+	PostLayoutParent();
 }
 
 void EDGUIBtnList::SetHighlight( int hl )

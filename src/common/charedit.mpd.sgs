@@ -159,8 +159,8 @@ STRUCT("AnimCharacter_MaskCmd",
 	nativetype = "AnimCharacter::MaskCmd",
 	props =
 	[
-		{ name = "bone", type = "String", metadata = { label = "Bone" } },
-		{ name = "weight", type = "float", metadata = { label = "Weight" } },
+		{ name = "bone", type = "String", metadata = { label = "Bone", edit = "bone", edit_requestReload = true } },
+		{ name = "weight", type = "float", metadata = { label = "Weight", min = 0, max = 1 } },
 		{ name = "children", type = "bool", metadata = { label = "Include children" } },
 	]
 });
@@ -169,6 +169,10 @@ STRUCT("AnimCharacter_MaskCmdArray",
 {
 	nativetype = "Array<AnimCharacter::MaskCmd>",
 	index = { subtype = "AnimCharacter_MaskCmd" },
+	props =
+	[
+		{ name = "__size", type = "int32_t", get = "_OBJ_->size()", set = "_OBJ_->resize(_VAR_.get_int32())", metadata = { visible = false, min = 0, max = 1000 } },
+	]
 });
 
 STRUCT("AnimCharacter_Mask",
@@ -197,7 +201,7 @@ STRUCT("AnimCharacter",
 	metadata = { label = "Character" },
 	props =
 	[
-		{ name = "mesh", type = "String", metadata = { label = "Mesh" } },
+		{ name = "mesh", type = "String", metadata = { label = "Mesh", edit = "mesh" } },
 		{ name = "masks", type = "AnimCharacter_MaskArray", metadata = { label = "Masks" } },
 	]
 });

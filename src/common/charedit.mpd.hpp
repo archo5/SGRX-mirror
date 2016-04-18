@@ -515,11 +515,16 @@ template<> struct mpd_MetaType<AnimCharacter_MaskCmd_MPD> : AnimCharacter_MaskCm
 
 struct AnimCharacter_MaskCmdArray_MPD : struct_MPD<AnimCharacter_MaskCmdArray_MPD, Array<AnimCharacter::MaskCmd> >
 {
+	enum PIDS
+	{
+		PID___size,
+	};
+
 	static const char* name(){ return "AnimCharacter_MaskCmdArray"; }
 	static const AnimCharacter_MaskCmdArray_MPD* inst(){ static const AnimCharacter_MaskCmdArray_MPD mpd; return &mpd; }
 	static const mpd_KeyValue* metadata();
 
-	static int propcount(){ return 0; }
+	static int propcount(){ return 1; }
 	static const mpd_PropInfo* props();
 	static mpd_Variant getprop( Array<AnimCharacter::MaskCmd> const*, int );
 	static bool setprop( Array<AnimCharacter::MaskCmd>*, int, const mpd_Variant& );
@@ -1639,11 +1644,15 @@ const mpd_PropInfo* AnimCharacter_MaskCmd_MPD::props()
 	static const mpd_KeyValue bone_metadata[] =
 	{
 		{ "label", 5, "Bone", 4, 0, (float) 0 },
+		{ "edit", 4, "bone", 4, 0, (float) 0 },
+		{ "edit_requestReload", 18, "true", 4, 1, (float) 1 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
 	static const mpd_KeyValue weight_metadata[] =
 	{
 		{ "label", 5, "Weight", 6, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "1", 1, 1, (float) 1 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
 	static const mpd_KeyValue children_metadata[] =
@@ -1702,9 +1711,38 @@ void AnimCharacter_MaskCmd_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::MaskCmd
 }
 
 const mpd_KeyValue* AnimCharacter_MaskCmdArray_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-const mpd_PropInfo* AnimCharacter_MaskCmdArray_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
-mpd_Variant AnimCharacter_MaskCmdArray_MPD::getprop( Array<AnimCharacter::MaskCmd> const*, int ){ return mpd_Variant(); }
-bool AnimCharacter_MaskCmdArray_MPD::setprop( Array<AnimCharacter::MaskCmd>*, int, const mpd_Variant& ){ return false; }
+const mpd_PropInfo* AnimCharacter_MaskCmdArray_MPD::props()
+{
+	static const mpd_KeyValue __size_metadata[] =
+	{
+		{ "visible", 7, "false", 5, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "1000", 4, 1000, (float) 1000 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_PropInfo data[] =
+	{
+		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, __size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+	};
+	return data;
+}
+mpd_Variant AnimCharacter_MaskCmdArray_MPD::getprop( Array<AnimCharacter::MaskCmd> const* obj, int prop )
+{
+	switch( prop )
+	{
+	case 0: return (int32_t const&) obj->size();
+	default: return mpd_Variant();
+	}
+}
+bool AnimCharacter_MaskCmdArray_MPD::setprop( Array<AnimCharacter::MaskCmd>* obj, int prop, const mpd_Variant& val )
+{
+	switch( prop )
+	{
+	case 0: obj->resize(val.get_int32()); return true;
+	default: return false;
+	}
+}
 mpd_Variant AnimCharacter_MaskCmdArray_MPD::getindex( Array<AnimCharacter::MaskCmd> const* obj, const mpd_Variant& key )
 {
 	return (AnimCharacter::MaskCmd const&)(*(obj))[mpd_var_get<int32_t >(key)];
@@ -1722,6 +1760,7 @@ void AnimCharacter_MaskCmdArray_MPD::dump( MPD_STATICDUMP_ARGS(Array<AnimCharact
 	MPD_DUMPLEV( 0 ); printf( "{\n" );
 	if( level < limit )
 	{
+		MPD_DUMP_PROP( int32_t, __size, pdata->size() );
 	}
 	else
 	{
@@ -1870,6 +1909,7 @@ const mpd_PropInfo* AnimCharacter_MPD::props()
 	static const mpd_KeyValue mesh_metadata[] =
 	{
 		{ "label", 5, "Mesh", 4, 0, (float) 0 },
+		{ "edit", 4, "mesh", 4, 0, (float) 0 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
 	static const mpd_KeyValue masks_metadata[] =
