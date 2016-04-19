@@ -1095,6 +1095,11 @@ int EDGUIItemModel::GetItemID( int i )
 	return i;
 }
 
+int EDGUIItemModel::GetItemNum( int id )
+{
+	return id;
+}
+
 
 int EDGUIItemNameFilterModel::GetSourceItemID( int i )
 {
@@ -1153,6 +1158,11 @@ EDGUIBtnList::EDGUIBtnList() : m_highlight( -1 ), m_opened( -1 ), m_model( NULL 
 	tyname = "btnlist";
 	backColor = EDGUI_THEME_BUTTON_BACK_COLOR;
 	textColor = EDGUI_THEME_BUTTON_TEXT_COLOR;
+}
+
+EDGUIBtnList::~EDGUIBtnList()
+{
+	m_model = NULL;
 }
 
 int EDGUIBtnList::OnEvent( EDGUIEvent* e )
@@ -1788,6 +1798,154 @@ void EDGUIRsrcPicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Col( 0.9f, 1.0f );
 	GR2D_DrawTextLine( ( x0 + x1 ) / 2, ( y0 + y1 ) / 2, m_options[ i ], HALIGN_CENTER, VALIGN_CENTER );
+}
+
+
+void ListWrapper( EDGUIEvent* e, int x0, int y0, int x1, int y1, int which, int count )
+{
+	if( e->type == EDGUI_EVENT_PAINT )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		int diff = y1 - y0;
+		y0 -= diff * which;
+		y1 += diff * ( count - which - 1 );
+		Vec2 line[] = { V2(x0,y0), V2(x1,y0), V2(x1,y1), V2(x0,y1) };
+		br.Reset().Colu( EDGUI_THEME_BUTTON_TEXT_COLOR ).AAStroke( line, 4, 4, true );
+	}
+}
+
+bool ListItemButton( EDGUIEvent* e, StringView text, int x0, int y0, int x1, int y1, int i, int& io_hl, int& io_picked )
+{
+	if( e->type == EDGUI_EVENT_MOUSEMOVE )
+	{
+		if( e->mouse.x >= x0 && e->mouse.x < x1 &&
+			e->mouse.y >= y0 && e->mouse.y < x1 )
+		{
+			io_hl = i;
+		}
+		else if( i == io_hl )
+			io_hl = -1;
+	}
+	else if( e->type == EDGUI_EVENT_BTNDOWN )
+	{
+		io_picked = io_hl;
+	}
+	else if( e->type == EDGUI_EVENT_BTNUP )
+	{
+		int ohl = io_hl, opk = io_picked;
+		if( i == io_picked )
+			io_picked = -1;
+		if( i == ohl && i == opk )
+			return true;
+	}
+	else if( e->type == EDGUI_EVENT_PAINT )
+	{
+		TextureHandle tx = GR_GetTexture( "editor/btn_n.png" );
+		GR_PreserveResource( tx );
+		uint32_t bcol = i == io_picked ?
+			EDGUI_THEME_BUTTON_BACK_COLOR_CLICKED :
+			( i == io_hl ? EDGUI_THEME_BUTTON_BACK_COLOR_MOUSEON : EDGUI_THEME_BUTTON_BACK_COLOR );
+		GR2D_GetBatchRenderer().Reset().Colu( bcol ).SetTexture( tx )
+			.Button( V4( float(x0), float(y0), float(x1), float(y1) ), V4(4.0f), V4(4.0f/32.0f) );
+		if( text )
+		{
+			GR2D_GetBatchRenderer().Reset().Colu( EDGUI_THEME_BUTTON_TEXT_COLOR );
+			GR2D_DrawTextLine( round(( x0 + x1 ) / 2.0f), round(( y0 + y1 ) / 2.0f), text, HALIGN_CENTER, VALIGN_CENTER );
+		}
+	}
+	return false;
+}
+
+
+EDGUISelectOverlay::EDGUISelectOverlay() :
+	m_model( NULL ), m_owner( NULL ), cx0( 0 ), cy0( 0 ), cx1( 0 ), cy1( 0 ), m_which( 0 ),
+	m_highlight( -1 ), m_picked( -1 ), m_value( 0 )
+{
+	type = EDGUI_ITEM_QUESTION;
+	tyname = "question";
+	backColor = EDGUI_THEME_OVERLAY_COLOR;
+}
+
+int EDGUISelectOverlay::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_ADDED:
+	case EDGUI_EVENT_SETFOCUS:
+		m_frame->_SetFocus( this );
+		return 1;
+		
+	case EDGUI_EVENT_PAINT:
+		{
+			BatchRenderer& br = GR2D_GetBatchRenderer();
+			br.Reset().Colu( backColor ).Quad( x0, y0, x1, y1 );
+		}
+		break;
+		
+	case EDGUI_EVENT_KEYDOWN:
+		if( e->key.engkey == SDLK_ESCAPE )
+		{
+			Close();
+			return 1;
+		}
+		break;
+	}
+	
+	if( m_owner )
+	{
+		int count = m_model->GetItemCount();
+		ListWrapper( e, cx0, cy0, cx1, cy1, m_which, count );
+		for( int i = 0; i < count; ++i )
+		{
+			m_cachedTextAlloc = "";
+			m_model->GetItemName( i, m_cachedTextAlloc );
+			int yoff = ( cy1 - cy0 ) * ( i - m_which );
+			if( ListItemButton( e, m_cachedTextAlloc, cx0, cy0 + yoff, cx1, cy1 + yoff, i, m_highlight, m_picked ) )
+			{
+				m_value = m_model->GetItemID( i );
+				_OnChoose();
+			}
+		}
+	}
+	if( e->type == EDGUI_EVENT_BTNUP )
+	{
+		Close();
+	}
+	
+	return EDGUIItem::OnEvent( e );
+}
+
+void EDGUISelectOverlay::Open( EDGUIItem* owner, int value )
+{
+	m_owner = owner;
+	m_value = value;
+	cx0 = owner->x0;
+	cy0 = owner->y0;
+	cx1 = owner->x1;
+	cy1 = owner->y1;
+	m_which = 0;
+	for( int i = 0, count = m_model->GetItemCount(); i < count; ++i )
+	{
+		if( m_model->GetItemID( i ) == value )
+		{
+			m_which = i;
+			break;
+		}
+	}
+}
+
+void EDGUISelectOverlay::Close()
+{
+	if( m_parent )
+		m_parent->Remove( this );
+	m_owner = NULL;
+}
+
+void EDGUISelectOverlay::_OnChoose()
+{
+	m_owner->Edited( this );
+	m_owner->Changed( this );
+	Close();
 }
 
 
@@ -2747,6 +2905,55 @@ void EDGUIPropEnumSB::SetValue( int32_t v )
 		}
 	}
 	_UpdateButton();
+}
+
+
+EDGUIPropEnumSel::EDGUIPropEnumSel( EDGUIItemModel* model, int32_t def ) :
+	m_value( def )
+{
+	tyname = "property-enum-sel";
+	type = EDGUI_ITEM_PROP_ENUM_SEL;
+	m_selOvr.m_model = model;
+	_UpdateButton();
+	Add( &m_button );
+}
+
+int EDGUIPropEnumSel::OnEvent( EDGUIEvent* e )
+{
+	switch( e->type )
+	{
+	case EDGUI_EVENT_PROPEDIT:
+	case EDGUI_EVENT_PROPCHANGE:
+		if( e->target == &m_selOvr )
+		{
+			m_value = m_selOvr.m_value;
+			_UpdateButton();
+			EDGUIEvent se = { e->type, this };
+			BubblingEvent( &se );
+			return 0;
+		}
+		break;
+		
+	case EDGUI_EVENT_BTNCLICK:
+		_Begin( e );
+		if( Hit( e->mouse.x, e->mouse.y ) )
+		{
+			m_selOvr.Open( this, m_value );
+			m_frame->Add( &m_selOvr );
+		}
+		_End( e );
+		return 1;
+	}
+	return EDGUIProperty::OnEvent( e );
+}
+
+void EDGUIPropEnumSel::_UpdateButton()
+{
+	int i = m_selOvr.m_model->GetItemNum( m_value );
+	if( i >= 0 )
+		m_selOvr.m_model->GetItemName( i, m_button.caption );
+	else
+		m_button.caption = "<unknown>";
 }
 
 

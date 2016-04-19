@@ -109,6 +109,20 @@ STRUCT("AnimCharacter_BoneInfo",
 	]
 });
 
+STRUCT("AnimCharacter_BoneInfoArray",
+{
+	nativetype = "Array<AnimCharacter::BoneInfo>",
+	index = { subtype = "AnimCharacter_BoneInfo" },
+	methods =
+	{
+		move_item = { params = [ "int32_t", "int32_t" ] },
+	},
+	props =
+	[
+		{ name = "__size", type = "int32_t", get = "_OBJ_->size()", set = "_OBJ_->resize(_VAR_.get_int32())", metadata = { visible = false, min = 0, max = 1000 } },
+	]
+});
+
 STRUCT("AnimCharacter_Attachment",
 {
 	metadata = { label = "Attachment" },
@@ -210,6 +224,7 @@ STRUCT("AnimCharacter",
 	props =
 	[
 		{ name = "mesh", type = "String", metadata = { label = "Mesh", edit = "mesh" } },
+		{ name = "bones", type = "AnimCharacter_BoneInfoArray", metadata = { label = "Bones" } },
 		{ name = "masks", type = "AnimCharacter_MaskArray", metadata = { label = "Masks" } },
 	]
 });

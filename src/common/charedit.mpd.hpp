@@ -426,6 +426,41 @@ template<> struct mpd_MetaType<AnimCharacter::BoneInfo > : AnimCharacter_BoneInf
 template<> struct mpd_MetaType<AnimCharacter::BoneInfo const> : AnimCharacter_BoneInfo_MPD {};
 template<> struct mpd_MetaType<AnimCharacter_BoneInfo_MPD> : AnimCharacter_BoneInfo_MPD {};
 
+struct AnimCharacter_BoneInfoArray_MPD : struct_MPD<AnimCharacter_BoneInfoArray_MPD, Array<AnimCharacter::BoneInfo> >
+{
+	enum PIDS
+	{
+		PID___size,
+	};
+
+	static const char* name(){ return "AnimCharacter_BoneInfoArray"; }
+	static const AnimCharacter_BoneInfoArray_MPD* inst(){ static const AnimCharacter_BoneInfoArray_MPD mpd; return &mpd; }
+	static const mpd_KeyValue* metadata();
+
+	static int propcount(){ return 1; }
+	static const mpd_PropInfo* props();
+	static mpd_Variant getprop( Array<AnimCharacter::BoneInfo> const*, int );
+	static bool setprop( Array<AnimCharacter::BoneInfo>*, int, const mpd_Variant& );
+
+	static const mpd_TypeInfo* indextypes(){ static const mpd_TypeInfo types[] = { { "int32_t", mpdt_Int32, 0 }, { "AnimCharacter_BoneInfo", mpdt_Struct, AnimCharacter_BoneInfo_MPD::inst() } }; return types; }
+	static mpd_Variant getindex( Array<AnimCharacter::BoneInfo> const*, const mpd_Variant& );
+	static bool setindex( Array<AnimCharacter::BoneInfo>*, const mpd_Variant&, const mpd_Variant& );
+
+	static int valuecount(){ return 0; }
+	static const mpd_EnumValue* values();
+
+	static int methodcount(){ return 1; }
+	static const mpd_MethodInfo* methods();
+	static void methodcall( Array<AnimCharacter::BoneInfo>*, int, const mpd_Variant*, int );
+
+	static void dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::BoneInfo>) );
+};
+
+MPD_DUMPDATA_WRAPPER(AnimCharacter_BoneInfoArray, Array<AnimCharacter::BoneInfo>);
+template<> struct mpd_MetaType<Array<AnimCharacter::BoneInfo> > : AnimCharacter_BoneInfoArray_MPD {};
+template<> struct mpd_MetaType<Array<AnimCharacter::BoneInfo> const> : AnimCharacter_BoneInfoArray_MPD {};
+template<> struct mpd_MetaType<AnimCharacter_BoneInfoArray_MPD> : AnimCharacter_BoneInfoArray_MPD {};
+
 struct AnimCharacter_Attachment_MPD : struct_MPD<AnimCharacter_Attachment_MPD, AnimCharacter::Attachment >
 {
 	enum PIDS
@@ -718,6 +753,7 @@ struct AnimCharacter_MPD : struct_MPD<AnimCharacter_MPD, AnimCharacter >
 	enum PIDS
 	{
 		PID_mesh,
+		PID_bones,
 		PID_masks,
 	};
 
@@ -725,7 +761,7 @@ struct AnimCharacter_MPD : struct_MPD<AnimCharacter_MPD, AnimCharacter >
 	static const AnimCharacter_MPD* inst(){ static const AnimCharacter_MPD mpd; return &mpd; }
 	static const mpd_KeyValue* metadata();
 
-	static int propcount(){ return 2; }
+	static int propcount(){ return 3; }
 	static const mpd_PropInfo* props();
 	static mpd_Variant getprop( AnimCharacter const*, int );
 	static bool setprop( AnimCharacter*, int, const mpd_Variant& );
@@ -1503,6 +1539,88 @@ void AnimCharacter_BoneInfo_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::BoneIn
 	MPD_DUMPLEV( 0 ); printf( "}" );
 }
 
+const mpd_KeyValue* AnimCharacter_BoneInfoArray_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_PropInfo* AnimCharacter_BoneInfoArray_MPD::props()
+{
+	static const mpd_KeyValue __size_metadata[] =
+	{
+		{ "visible", 7, "false", 5, 0, (float) 0 },
+		{ "min", 3, "0", 1, 0, (float) 0 },
+		{ "max", 3, "1000", 4, 1000, (float) 1000 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
+	static const mpd_PropInfo data[] =
+	{
+		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, __size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+	};
+	return data;
+}
+mpd_Variant AnimCharacter_BoneInfoArray_MPD::getprop( Array<AnimCharacter::BoneInfo> const* obj, int prop )
+{
+	switch( prop )
+	{
+	case 0: return (int32_t const&) obj->size();
+	default: return mpd_Variant();
+	}
+}
+bool AnimCharacter_BoneInfoArray_MPD::setprop( Array<AnimCharacter::BoneInfo>* obj, int prop, const mpd_Variant& val )
+{
+	switch( prop )
+	{
+	case 0: obj->resize(val.get_int32()); return true;
+	default: return false;
+	}
+}
+mpd_Variant AnimCharacter_BoneInfoArray_MPD::getindex( Array<AnimCharacter::BoneInfo> const* obj, const mpd_Variant& key )
+{
+	return (AnimCharacter::BoneInfo const&)(*(obj))[mpd_var_get<int32_t >(key)];
+}
+bool AnimCharacter_BoneInfoArray_MPD::setindex( Array<AnimCharacter::BoneInfo>* obj, const mpd_Variant& key, const mpd_Variant& val )
+{
+	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<AnimCharacter::BoneInfo >(val);
+	return true;
+}
+const mpd_EnumValue* AnimCharacter_BoneInfoArray_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* AnimCharacter_BoneInfoArray_MPD::methods()
+{
+	static const mpd_KeyValue move_item_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
+	static const mpd_TypeInfo move_item_params[] =
+	{
+		{ "int32_t", mpdt_Int32, 0 },
+		{ "int32_t", mpdt_Int32, 0 },
+		{ 0, mpdt_None, 0 }
+	};
+	static const mpd_MethodInfo data[] =
+	{
+		{ "move_item", 9, move_item_params, 2, move_item_metadata },
+		{ 0, 0, 0, 0, 0 },
+	};
+	return data;
+}
+void AnimCharacter_BoneInfoArray_MPD::methodcall( Array<AnimCharacter::BoneInfo>* obj, int id, const mpd_Variant* args, int argcount )
+{
+	switch( id )
+	{
+	case 0: obj->move_item(mpd_var_get<int32_t >(0 < argcount ? args[0] : mpd_Variant()), mpd_var_get<int32_t >(1 < argcount ? args[1] : mpd_Variant())); break;
+	}
+}
+void AnimCharacter_BoneInfoArray_MPD::dump( MPD_STATICDUMP_ARGS(Array<AnimCharacter::BoneInfo>) )
+{
+	MPD_DUMPDATA_USESTATICARGS;
+	printf( "struct AnimCharacter_BoneInfoArray\n" );
+	MPD_DUMPLEV( 0 ); printf( "{\n" );
+	if( level < limit )
+	{
+		MPD_DUMP_PROP( int32_t, __size, pdata->size() );
+	}
+	else
+	{
+		MPD_DUMPLEV( 1 ); printf( "...\n" );
+	}
+	MPD_DUMPLEV( 0 ); printf( "}" );
+}
+
 const mpd_KeyValue* AnimCharacter_Attachment_MPD::metadata()
 {
 	static const mpd_KeyValue data[] =
@@ -2119,6 +2237,11 @@ const mpd_PropInfo* AnimCharacter_MPD::props()
 		{ "edit", 4, "mesh", 4, 0, (float) 0 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
+	static const mpd_KeyValue bones_metadata[] =
+	{
+		{ "label", 5, "Bones", 5, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
 	static const mpd_KeyValue masks_metadata[] =
 	{
 		{ "label", 5, "Masks", 5, 0, (float) 0 },
@@ -2127,6 +2250,7 @@ const mpd_PropInfo* AnimCharacter_MPD::props()
 	static const mpd_PropInfo data[] =
 	{
 		{ "mesh", 4, { "String", mpdt_Struct, String_MPD::inst() }, mesh_metadata },
+		{ "bones", 5, { "AnimCharacter_BoneInfoArray", mpdt_Struct, AnimCharacter_BoneInfoArray_MPD::inst() }, bones_metadata },
 		{ "masks", 5, { "AnimCharacter_MaskArray", mpdt_Struct, AnimCharacter_MaskArray_MPD::inst() }, masks_metadata },
 		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
 	};
@@ -2137,7 +2261,8 @@ mpd_Variant AnimCharacter_MPD::getprop( AnimCharacter const* obj, int prop )
 	switch( prop )
 	{
 	case 0: return (String const&) obj->mesh;
-	case 1: return (Array<AnimCharacter::Mask> const&) obj->masks;
+	case 1: return (Array<AnimCharacter::BoneInfo> const&) obj->bones;
+	case 2: return (Array<AnimCharacter::Mask> const&) obj->masks;
 	default: return mpd_Variant();
 	}
 }
@@ -2146,7 +2271,8 @@ bool AnimCharacter_MPD::setprop( AnimCharacter* obj, int prop, const mpd_Variant
 	switch( prop )
 	{
 	case 0: obj->mesh = mpd_var_get<String >(val); return true;
-	case 1: obj->masks = mpd_var_get<Array<AnimCharacter::Mask> >(val); return true;
+	case 1: obj->bones = mpd_var_get<Array<AnimCharacter::BoneInfo> >(val); return true;
+	case 2: obj->masks = mpd_var_get<Array<AnimCharacter::Mask> >(val); return true;
 	default: return false;
 	}
 }
@@ -2163,6 +2289,7 @@ void AnimCharacter_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter) )
 	if( level < limit )
 	{
 		MPD_DUMP_PROP( String, mesh, pdata->mesh );
+		MPD_DUMP_PROP( Array<AnimCharacter::BoneInfo>, bones, pdata->bones );
 		MPD_DUMP_PROP( Array<AnimCharacter::Mask>, masks, pdata->masks );
 	}
 	else

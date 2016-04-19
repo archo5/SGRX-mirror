@@ -247,6 +247,7 @@ struct EDGUIMeshPartModel : EDGUIItemModel
 struct EDGUIAssetMesh : EDGUILayoutRow
 {
 	EDGUIAssetMesh();
+	~EDGUIAssetMesh();
 	void UpdatePreviewMesh();
 	void ReloadPartList();
 	void ReloadImpScene();
@@ -326,6 +327,7 @@ struct EDGUIABSourceModel : EDGUIItemModel
 struct EDGUIAssetAnimBundle : EDGUILayoutRow
 {
 	EDGUIAssetAnimBundle();
+	~EDGUIAssetAnimBundle();
 	void UpdatePreviewAnim();
 	void Prepare( size_t abid );
 	void ReloadAnimSourceList();

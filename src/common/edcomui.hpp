@@ -613,12 +613,41 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		Handle<EDGUIPropertyList> m_subPropList;
 	};
 	
+	struct EnumModel : EDGUIItemModel
+	{
+		EnumModel( const virtual_MPD* info ) : m_info( info ){}
+		int GetItemCount(){ return m_info->vvaluecount(); }
+		int GetItemID( int i ){ return m_info->vvalue( i )->value; }
+		int GetItemNum( int id ){ return m_info->vvalue2num( id, -1 ); }
+		void GetItemName( int i, String& out )
+		{
+			const mpd_EnumValue* v = m_info->vvalue( i );
+			StringView label( v->name, v->namesz );
+			const mpd_KeyValue* kv = v->metadata->find( "label" );
+			if( kv )
+				label = StringView( kv->value, kv->valuesz );
+			out = label;
+		}
+		
+		const virtual_MPD* m_info;
+	};
+	
 	struct Item
 	{
+		~Item()
+		{
+			if( model )
+			{
+				// delete item before model
+				item = NULL;
+			}
+		}
+		
 		EDGUIItemHandle item;
 		mpd_Variant cont;
 		const mpd_PropInfo* prop;
 		size_t parent_id;
+		Handle<EDGUIItemModel> model;
 	};
 	
 	void Clear()
@@ -651,6 +680,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*)ctrl)->SetValue( mpd_var_get<Vec3>( val ) ); break;
 			case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*)ctrl)->SetValue( val.get_obj<String>() ); break;
 			case EDGUI_ITEM_PROP_ENUM_SB: ((EDGUIPropEnumSB*)ctrl)->SetValue( val.get_enum() ); break;
+			case EDGUI_ITEM_PROP_ENUM_SEL: ((EDGUIPropEnumSel*)ctrl)->SetValue( val.get_enum() ); break;
 			case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*)ctrl)->SetValue( val.get_obj<String>() ); break;
 			}
 		}
@@ -675,7 +705,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		{
 			prop->caption = name ? name : _GetPropName( propinfo );
 		}
-		Item item = { prop, cont, propinfo, pid };
+		Item item = { prop, cont, propinfo, pid, NULL };
 		m_items.push_back( item );
 		prt->Add( prop );
 	}
@@ -798,22 +828,11 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		{
 			const virtual_MPD* info = item.get_typeinfo();
 			ASSERT( info );
-			EDGUIPropEnumSB* prop = new EDGUIPropEnumSB;
-			
-			const mpd_EnumValue* v = info->vvalues();
-			while( v->name )
-			{
-				StringView label( v->name, v->namesz );
-				const mpd_KeyValue* kv = v->metadata->find( "label" );
-				if( kv )
-					label = StringView( kv->value, kv->valuesz );
-				EDGUIPropEnumSB::Entry entry = { label, v->value };
-				prop->m_enum.push_back( entry );
-				++v;
-			}
-			prop->SetValue( item.get_enum() );
+			EnumModel* model = new EnumModel( info );
+			EDGUIPropEnumSel* prop = new EDGUIPropEnumSel( model, item.get_enum() );
 			
 			_AddProp( prt, prop, cont, propinfo, pid );
+			m_items.last().model = model;
 		}
 		else if( type == mpdt_Bool )
 		{
@@ -900,6 +919,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				case EDGUI_ITEM_PROP_VEC3: val = &((EDGUIPropVec3*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_STRING: val = &((EDGUIPropString*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_ENUM_SB: val = &((EDGUIPropEnumSB*)e->target)->m_value; break;
+				case EDGUI_ITEM_PROP_ENUM_SEL: val = ((EDGUIPropEnumSel*)e->target)->m_value; break;
 				case EDGUI_ITEM_PROP_RSRC: val = &((EDGUIPropRsrc*)e->target)->m_value; break;
 				}
 				if( val.get_type() != mpdt_None )

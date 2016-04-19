@@ -196,7 +196,7 @@ struct virtual_MPD
 	virtual const mpd_EnumValue* vvalues() const { return 0; }
 	virtual int vmethodcount() const { return 0; }
 	virtual const mpd_MethodInfo* vmethods() const { return 0; }
-	virtual struct mpd_Variant vgetprop( const void* p, int i ) const;
+	virtual struct mpd_Variant vgetprop( const void*, int ) const;
 	virtual bool vsetprop( void*, int, const mpd_Variant& ) const { return false; }
 	virtual struct mpd_Variant vgetindex( const void*, const mpd_Variant& ) const;
 	virtual bool vsetindex( void*, const mpd_Variant&, const mpd_Variant& ) const { return false; }
@@ -209,14 +209,16 @@ struct virtual_MPD
 	virtual int vfindpropid_ext( const char*, size_t ) const { return -1; }
 	virtual int vfindpropid( const char* ) const { return -1; }
 	virtual int vprop2id( const mpd_PropInfo* ) const { return -1; }
-	virtual const char* vvalue2name( int32_t, const char* = "<unknown>" ) const { return 0; }
+	virtual const mpd_EnumValue* vvalue( int ) const { return 0; }
+	virtual const char* vvalue2name( int64_t, const char* def = "<unknown>" ) const { return def; }
 	virtual int64_t vname2value( mpd_StringView, int64_t def = 0 ) const { return def; }
-	virtual const mpd_MethodInfo* vmethod( int i ) const { return 0; }
-	virtual const mpd_MethodInfo* vfindmethod_ext( const char* name, size_t namesz ) const { return 0; }
-	virtual const mpd_MethodInfo* vfindmethod( const char* name ) const { return 0; }
-	virtual int vfindmethodid_ext( const char* name, size_t namesz ) const { return -1; }
-	virtual int vfindmethodid( const char* name ) const { return -1; }
-	virtual int vmethod2id( const mpd_MethodInfo* m ) const { return -1; }
+	virtual int vvalue2num( int64_t, int def = -1 ) const { return def; }
+	virtual const mpd_MethodInfo* vmethod( int ) const { return 0; }
+	virtual const mpd_MethodInfo* vfindmethod_ext( const char*, size_t ) const { return 0; }
+	virtual const mpd_MethodInfo* vfindmethod( const char* ) const { return 0; }
+	virtual int vfindmethodid_ext( const char*, size_t ) const { return -1; }
+	virtual int vfindmethodid( const char* ) const { return -1; }
+	virtual int vmethod2id( const mpd_MethodInfo* ) const { return -1; }
 };
 
 struct none_MPD : virtual_MPD
@@ -663,6 +665,12 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 		return pid;
 	}
 	
+	static const mpd_EnumValue* value( int i )
+	{
+		if( unsigned(i) >= unsigned(T::valuecount()) )
+			return NULL;
+		return &T::values()[ i ];
+	}
 	static const char* value2name( int64_t val, const char* def = "<unknown>" )
 	{
 		const mpd_EnumValue* v = T::values();
@@ -681,6 +689,17 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 		{
 			if( v->namesz == name.size && memcmp( name.str, v->name, name.size ) == 0 )
 				return v->value;
+			++v;
+		}
+		return def;
+	}
+	static int value2num( int64_t val, int def = -1 )
+	{
+		const mpd_EnumValue* v = T::values();
+		while( v->name )
+		{
+			if( v->value == val )
+				return v - T::values();
 			++v;
 		}
 		return def;
@@ -749,8 +768,10 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 	virtual int vfindpropid_ext( const char* name, size_t sz ) const { return findpropid_ext( name, sz ); }
 	virtual int vfindpropid( const char* name ) const { return findpropid( name ); }
 	virtual int vprop2id( const mpd_PropInfo* prop ) const { return prop2id( prop ); }
+	virtual const mpd_EnumValue* vvalue( int i ) const { return value( i ); }
 	virtual const char* vvalue2name( int64_t val, const char* def = "<unknown>" ) const { return value2name( val, def ); }
 	virtual int64_t vname2value( mpd_StringView name, int64_t def = 0 ) const { return name2value( name, def ); }
+	virtual int vvalue2num( int64_t val, int def = -1 ) const { return value2num( val, def ); }
 	virtual const mpd_MethodInfo* vmethod( int i ) const { return method( i ); }
 	virtual const mpd_MethodInfo* vfindmethod_ext( const char* name, size_t namesz ) const { return findmethod_ext( name, namesz ); }
 	virtual const mpd_MethodInfo* vfindmethod( const char* name ) const { return findmethod( name ); }

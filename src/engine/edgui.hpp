@@ -108,6 +108,7 @@
 #define EDGUI_ITEM_PROP_VEC4   107
 #define EDGUI_ITEM_PROP_RSRC   108
 #define EDGUI_ITEM_PROP_ENUM_SB 109
+#define EDGUI_ITEM_PROP_ENUM_SEL 110
 #define EDGUI_ITEM_PROP_DEF_BOOL 201
 
 
@@ -317,11 +318,12 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIButton : EDGUIItem
 };
 
 
-struct IF_GCC(ENGINE_EXPORT) EDGUIItemModel
+struct IF_GCC(ENGINE_EXPORT) EDGUIItemModel : SGRX_RefCounted
 {
 	ENGINE_EXPORT virtual ~EDGUIItemModel();
 	ENGINE_EXPORT virtual int GetItemCount() = 0;
 	ENGINE_EXPORT virtual int GetItemID( int i );
+	ENGINE_EXPORT virtual int GetItemNum( int id );
 	ENGINE_EXPORT virtual void GetItemName( int i, String& out ) = 0;
 };
 
@@ -345,6 +347,7 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIItemNameFilterModel : EDGUIItemModel
 struct IF_GCC(ENGINE_EXPORT) EDGUIBtnList : EDGUIItem
 {
 	ENGINE_EXPORT EDGUIBtnList();
+	ENGINE_EXPORT ~EDGUIBtnList();
 	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
 	ENGINE_EXPORT void UpdateOptions();
 	ENGINE_EXPORT void SetHighlight( int hl );
@@ -391,7 +394,6 @@ struct IF_GCC(ENGINE_EXPORT) EDGUINumberWheel : EDGUIItem
 	EDGUIItem* m_owner;
 };
 
-
 struct IF_GCC(ENGINE_EXPORT) EDGUIRsrcPicker : EDGUIItem
 {
 	ENGINE_EXPORT EDGUIRsrcPicker();
@@ -429,6 +431,21 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIRsrcPicker : EDGUIItem
 	int m_mouseY;
 };
 
+struct IF_GCC(ENGINE_EXPORT) EDGUISelectOverlay : EDGUIItem
+{
+	ENGINE_EXPORT EDGUISelectOverlay();
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	
+	ENGINE_EXPORT void Open( EDGUIItem* owner, int value );
+	ENGINE_EXPORT void Close();
+	ENGINE_EXPORT virtual void _OnChoose();
+	
+	String m_cachedTextAlloc;
+	EDGUIItemModel* m_model;
+	EDGUIItem* m_owner;
+	int cx0, cy0, cx1, cy1, m_which;
+	int m_highlight, m_picked, m_value;
+};
 
 struct IF_GCC(ENGINE_EXPORT) EDGUIQuestion : EDGUIItem
 {
@@ -639,6 +656,21 @@ struct IF_GCC(ENGINE_EXPORT) EDGUIPropEnumSB : EDGUIProperty
 	int32_t m_at;
 	int32_t m_value;
 	Array< Entry > m_enum;
+	EDGUIButton m_button;
+};
+
+struct IF_GCC(ENGINE_EXPORT) EDGUIPropEnumSel : EDGUIProperty
+{
+	ENGINE_EXPORT EDGUIPropEnumSel( EDGUIItemModel* model, int32_t def = 0 );
+	ENGINE_EXPORT virtual int OnEvent( EDGUIEvent* e );
+	ENGINE_EXPORT void _UpdateButton();
+	void SetValue( int32_t v ){ m_value = v; _UpdateButton(); }
+	PROP_INTERFACE( EDGUIPropEnumSel );
+	template< class T > void Serialize( T& arch ){ arch << m_value; }
+	
+	int32_t m_value;
+	
+	EDGUISelectOverlay m_selOvr;
 	EDGUIButton m_button;
 };
 

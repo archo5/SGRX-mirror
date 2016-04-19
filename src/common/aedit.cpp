@@ -555,6 +555,7 @@ EDGUIAssetTexture::EDGUIAssetTexture() :
 
 EDGUIAssetTexture::~EDGUIAssetTexture()
 {
+	m_filterButtons.m_model = NULL;
 	m_sfgroup.Clear();
 	m_curFilter = NULL;
 }
@@ -875,6 +876,11 @@ EDGUIAssetMesh::EDGUIAssetMesh() :
 	Add( &m_MPLgroup );
 }
 
+EDGUIAssetMesh::~EDGUIAssetMesh()
+{
+	m_MPLButtons.m_model = NULL;
+}
+
 void EDGUIAssetMesh::UpdatePreviewMesh()
 {
 	SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
@@ -1188,6 +1194,12 @@ EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
 	Add( &m_ANL_group );
 	Add( &m_AS_group );
 	Add( &m_ASL_group );
+}
+
+EDGUIAssetAnimBundle::~EDGUIAssetAnimBundle()
+{
+	m_ANL_buttons.m_model = NULL;
+	m_ASL_buttons.m_model = NULL;
 }
 
 void EDGUIAssetAnimBundle::UpdatePreviewAnim()
