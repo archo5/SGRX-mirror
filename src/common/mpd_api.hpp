@@ -161,11 +161,16 @@ struct mpd_TypeInfo
 	const struct virtual_MPD* virt;
 };
 
+#define MPD_PROP_HAS_GETTER   0x0001
+#define MPD_PROP_HAS_SETTER   0x0002
+#define MPD_PROP_BOXED_GETTER 0x0004
+
 struct mpd_PropInfo
 {
 	const char* name;
 	size_t namesz;
 	mpd_TypeInfo type;
+	unsigned flags;
 	const mpd_KeyValue* metadata;
 };
 
@@ -229,7 +234,7 @@ struct none_MPD : virtual_MPD
 	static none_MPD* inst(){ static none_MPD none; return &none; }
 	const char* vname() const { return "none"; }
 	const mpd_KeyValue* vmetadata() const { static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-	const mpd_PropInfo* vprops() const { static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0 }; return &none; }
+	const mpd_PropInfo* vprops() const { static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, 0 }; return &none; }
 	const mpd_EnumValue* vvalues() const { static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
 	const mpd_MethodInfo* vmethods() const { static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
 };
@@ -476,8 +481,8 @@ struct mpd_Variant
 			return mpdata->vgetprop( data.p, id );
 		return mpd_Variant();
 	}
-	mpd_Variant getprop( const char* name ) const { return mpdata ? getpropbyid( mpdata->vfindpropid( name ) ) : mpd_Variant(); }
-	mpd_Variant getprop_ext( const char* name, size_t sz ) const { return mpdata ? getpropbyid( mpdata->vfindpropid_ext( name, sz ) ) : mpd_Variant(); }
+	mpd_Variant getprop( const char* name ) const { return getpropbyid( mpdata->vfindpropid( name ) ); }
+	mpd_Variant getprop_ext( const char* name, size_t sz ) const { return getpropbyid( mpdata->vfindpropid_ext( name, sz ) ); }
 	bool setpropbyid( int id, const mpd_Variant& val ) const
 	{
 		if( ( type == mpdt_Struct || type == mpdt_Pointer ) && data.p )
@@ -490,7 +495,7 @@ struct mpd_Variant
 	bool setindex( const mpd_Variant& key, const mpd_Variant& val ) const { return mpdata->vsetindex( data.p, key, val ); }
 	bool methodcallbyid( int id, const mpd_Variant* args, int argcount ) const
 	{
-		if( ( type == mpdt_Struct || type == mpdt_Pointer ) && data.p && mpdata && id >= 0 && id < mpdata->vmethodcount() )
+		if( ( type == mpdt_Struct || type == mpdt_Pointer ) && data.p && id >= 0 && id < mpdata->vmethodcount() )
 		{
 			mpdata->vmethodcall( data.p, id, args, argcount );
 			return true;
@@ -499,7 +504,7 @@ struct mpd_Variant
 	}
 	bool methodcall( const char* name, const mpd_Variant* args, int argcount ) const
 	{
-		if( ( type == mpdt_Struct || type == mpdt_Pointer ) && data.p && mpdata )
+		if( ( type == mpdt_Struct || type == mpdt_Pointer ) && data.p )
 		{
 			int id = mpdata->vfindmethodid( name );
 			if( id < 0 )
@@ -578,6 +583,59 @@ template<> inline uint32_t mpd_var_get<uint32_t>( const mpd_Variant& v ){ return
 template<> inline uint64_t mpd_var_get<uint64_t>( const mpd_Variant& v ){ return v.get_uint64(); }
 template<> inline float mpd_var_get<float>( const mpd_Variant& v ){ return v.get_float32(); }
 template<> inline double mpd_var_get<double>( const mpd_Variant& v ){ return v.get_float64(); }
+
+struct mpd_Location
+{
+	mpd_Location( const mpd_Variant& c = mpd_Variant(), int p = -1 ) : cont( c ), prop_id( p ){}
+	mpd_Location( const mpd_Variant& c, const char* propname ) : cont( c ), prop_id( c.get_typeinfo()->vfindpropid( propname ) ){}
+	
+	mpd_Variant get_var() const
+	{
+		if( prop_id >= 0 &&
+			(unsigned) prop_id < (unsigned) cont.get_typeinfo()->vpropcount() &&
+			!( cont.get_typeinfo()->vprop( prop_id )->flags & MPD_PROP_BOXED_GETTER ) )
+			return cont.getpropbyid( prop_id );
+		return cont;
+	}
+	const void* get_ptr() const { return get_var().get_voidptr(); }
+	bool operator == ( const mpd_Location& o ) const
+	{
+		if( cont == o.cont && prop_id == o.prop_id )
+			return true;
+		const void* p1 = get_ptr();
+		const void* p2 = o.get_ptr();
+		return p1 && p2 && p1 == p2;
+	}
+	bool operator != ( const mpd_Location& o ) const { return !( *this == o ); }
+	void contains_many( const mpd_Location* llist, int count, bool* outlist ) const
+	{
+		for( int i = 0; i < count; ++i )
+		{
+			if( !outlist[ i ] && *this == llist[ i ] )
+				outlist[ i ] = true;
+		}
+		mpd_Variant ch = get_var();
+		for( int i = 0, iend = ch.get_typeinfo()->vpropcount(); i < iend; ++i )
+		{
+			mpd_Location( ch, i ).contains_many( llist, count, outlist );
+		}
+	}
+	bool contains( const mpd_Location& o ) const
+	{
+		if( *this == o )
+			return true;
+		mpd_Variant ch = get_var();
+		for( int i = 0, iend = ch.get_typeinfo()->vpropcount(); i < iend; ++i )
+		{
+			if( mpd_Location( ch, i ).contains( o ) )
+				return true;
+		}
+		return false;
+	}
+	
+	mpd_Variant cont;
+	int prop_id;
+};
 
 //
 // --- METADATA ---
@@ -724,9 +782,9 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 		const mpd_PropInfo* p = findprop( name );
 		return p ? ( p - T::props() ) : -1;
 	}
-	static int prop2id( const mpd_PropInfo* prop )
+	static int prop2id( const mpd_PropInfo* p )
 	{
-		int pid = ( prop - T::props() );
+		int pid = ( p - T::props() );
 		if( unsigned(pid) >= unsigned(T::propcount()) )
 			return -1;
 		return pid;
@@ -822,8 +880,8 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 	virtual const mpd_EnumValue* vvalues() const { return T::values(); }
 	virtual int vmethodcount() const { return T::methodcount(); }
 	virtual const mpd_MethodInfo* vmethods() const { return T::methods(); }
-	virtual mpd_Variant vgetprop( const void* obj, int prop ) const { return T::getprop( (type const*) obj, prop ); }
-	virtual bool vsetprop( void* obj, int prop, const mpd_Variant& data ) const { return T::setprop( (type*) obj, prop, data ); }
+	virtual mpd_Variant vgetprop( const void* obj, int p ) const { return T::getprop( (type const*) obj, p ); }
+	virtual bool vsetprop( void* obj, int p, const mpd_Variant& data ) const { return T::setprop( (type*) obj, p, data ); }
 	virtual struct mpd_Variant vgetindex( const void* obj, const mpd_Variant& key ) const { return T::getindex( (type const*) obj, key ); }
 	virtual bool vsetindex( void* obj, const mpd_Variant& key, const mpd_Variant& val ) const { return T::setindex( (type*) obj, key, val ); }
 	virtual void vmethodcall( void* obj, int id, const mpd_Variant* args, int argcount ) const { return T::methodcall( (type*) obj, id, args, argcount ); }
@@ -836,7 +894,7 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 	virtual const mpd_PropInfo* vfindprop( const char* name ) const { return findprop( name ); }
 	virtual int vfindpropid_ext( const char* name, size_t sz ) const { return findpropid_ext( name, sz ); }
 	virtual int vfindpropid( const char* name ) const { return findpropid( name ); }
-	virtual int vprop2id( const mpd_PropInfo* prop ) const { return prop2id( prop ); }
+	virtual int vprop2id( const mpd_PropInfo* p ) const { return prop2id( p ); }
 	virtual const mpd_EnumValue* vvalue( int i ) const { return value( i ); }
 	virtual const char* vvalue2name( int64_t val, const char* def = "<unknown>" ) const { return value2name( val, def ); }
 	virtual int64_t vname2value( mpd_StringView name, int64_t def = 0 ) const { return name2value( name, def ); }

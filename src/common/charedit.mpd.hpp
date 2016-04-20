@@ -283,13 +283,14 @@ struct AnimCharacter_HitBox_MPD : struct_MPD<AnimCharacter_HitBox_MPD, AnimChara
 		PID_position,
 		PID_extents,
 		PID_multiplier,
+		PID_xform_hitbox,
 	};
 
 	static const char* name(){ return "AnimCharacter_HitBox"; }
 	static const AnimCharacter_HitBox_MPD* inst(){ static const AnimCharacter_HitBox_MPD mpd; return &mpd; }
 	static const mpd_KeyValue* metadata();
 
-	static int propcount(){ return 4; }
+	static int propcount(){ return 5; }
 	static const mpd_PropInfo* props();
 	static mpd_Variant getprop( AnimCharacter::HitBox const*, int );
 	static bool setprop( AnimCharacter::HitBox*, int, const mpd_Variant& );
@@ -800,27 +801,27 @@ const mpd_PropInfo* Vec2_MPD::props()
 	static const mpd_KeyValue y_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "x", 1, { "float", mpdt_Float32, 0 }, x_metadata },
-		{ "y", 1, { "float", mpdt_Float32, 0 }, y_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
+		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec2_MPD::getprop( Vec2 const* obj, int prop )
+mpd_Variant Vec2_MPD::getprop( Vec2 const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (float const&) obj->x;
 	case 1: return (float const&) obj->y;
 	default: return mpd_Variant();
 	}
 }
-bool Vec2_MPD::setprop( Vec2* obj, int prop, const mpd_Variant& val )
+bool Vec2_MPD::setprop( Vec2* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->x = mpd_var_get<float >(val); return true;
 	case 1: obj->y = mpd_var_get<float >(val); return true;
@@ -857,17 +858,17 @@ const mpd_PropInfo* Vec3_MPD::props()
 	static const mpd_KeyValue z_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "x", 1, { "float", mpdt_Float32, 0 }, x_metadata },
-		{ "y", 1, { "float", mpdt_Float32, 0 }, y_metadata },
-		{ "z", 1, { "float", mpdt_Float32, 0 }, z_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
+		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
+		{ "z", 1, { "float", mpdt_Float32, 0 }, 0, z_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int prop )
+mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (float const&) obj->x;
 	case 1: return (float const&) obj->y;
@@ -875,11 +876,11 @@ mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int prop )
 	default: return mpd_Variant();
 	}
 }
-bool Vec3_MPD::setprop( Vec3* obj, int prop, const mpd_Variant& val )
+bool Vec3_MPD::setprop( Vec3* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->x = mpd_var_get<float >(val); return true;
 	case 1: obj->y = mpd_var_get<float >(val); return true;
@@ -917,27 +918,27 @@ const mpd_PropInfo* String_MPD::props()
 	static const mpd_KeyValue size_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "data", 4, { "mpd_StringView", mpdt_ConstString, 0 }, data_metadata },
-		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "data", 4, { "mpd_StringView", mpdt_ConstString, 0 }, 0, data_metadata },
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant String_MPD::getprop( String const* obj, int prop )
+mpd_Variant String_MPD::getprop( String const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (mpd_StringView const&) mpd_StringView::create(obj->data(), obj->size());
 	case 1: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool String_MPD::setprop( String* obj, int prop, const mpd_Variant& val )
+bool String_MPD::setprop( String* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->assign(val.get_stringview().str, val.get_stringview().size); return true;
 	case 1: obj->resize(val.get_int32()); return true;
@@ -974,7 +975,7 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 }
 
 const mpd_KeyValue* StringPtr_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant StringPtr_MPD::getprop( String* const*, int ){ return mpd_Variant(); }
 bool StringPtr_MPD::setprop( String**, int, const mpd_Variant& ){ return false; }
 mpd_Variant StringPtr_MPD::getindex( String* const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -1000,25 +1001,25 @@ const mpd_PropInfo* Vec3Array_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int prop )
+mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int prop, const mpd_Variant& val )
+bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->resize(val.get_int32()); return true;
 	default: return false;
@@ -1061,7 +1062,7 @@ const mpd_KeyValue* AnimCharacter_BodyType_MPD::metadata()
 	};
 	return data;
 }
-const mpd_PropInfo* AnimCharacter_BodyType_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* AnimCharacter_BodyType_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant AnimCharacter_BodyType_MPD::getprop( AnimCharacter::BodyType const*, int ){ return mpd_Variant(); }
 bool AnimCharacter_BodyType_MPD::setprop( AnimCharacter::BodyType*, int, const mpd_Variant& ){ return false; }
 mpd_Variant AnimCharacter_BodyType_MPD::getindex( AnimCharacter::BodyType const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -1115,7 +1116,7 @@ const mpd_KeyValue* AnimCharacter_JointType_MPD::metadata()
 	};
 	return data;
 }
-const mpd_PropInfo* AnimCharacter_JointType_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* AnimCharacter_JointType_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant AnimCharacter_JointType_MPD::getprop( AnimCharacter::JointType const*, int ){ return mpd_Variant(); }
 bool AnimCharacter_JointType_MPD::setprop( AnimCharacter::JointType*, int, const mpd_Variant& ){ return false; }
 mpd_Variant AnimCharacter_JointType_MPD::getindex( AnimCharacter::JointType const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -1163,7 +1164,7 @@ const mpd_KeyValue* AnimCharacter_TransformType_MPD::metadata()
 	};
 	return data;
 }
-const mpd_PropInfo* AnimCharacter_TransformType_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* AnimCharacter_TransformType_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant AnimCharacter_TransformType_MPD::getprop( AnimCharacter::TransformType const*, int ){ return mpd_Variant(); }
 bool AnimCharacter_TransformType_MPD::setprop( AnimCharacter::TransformType*, int, const mpd_Variant& ){ return false; }
 mpd_Variant AnimCharacter_TransformType_MPD::getindex( AnimCharacter::TransformType const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -1239,38 +1240,47 @@ const mpd_PropInfo* AnimCharacter_HitBox_MPD::props()
 		{ "label", 5, "Multiplier", 10, 0, (float) 0 },
 		{ 0, 0, 0, 0, 0, 0 }
 	};
+	static const mpd_KeyValue xform_hitbox_metadata[] =
+	{
+		{ "button", 6, "1", 1, 1, (float) 1 },
+		{ "label", 5, "Select hitbox for XForm", 23, 0, (float) 0 },
+		{ 0, 0, 0, 0, 0, 0 }
+	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "rotationAngles", 14, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, rotationAngles_metadata },
-		{ "position", 8, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, position_metadata },
-		{ "extents", 7, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, extents_metadata },
-		{ "multiplier", 10, { "float", mpdt_Float32, 0 }, multiplier_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "rotationAngles", 14, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, rotationAngles_metadata },
+		{ "position", 8, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, position_metadata },
+		{ "extents", 7, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, extents_metadata },
+		{ "multiplier", 10, { "float", mpdt_Float32, 0 }, 0, multiplier_metadata },
+		{ "xform_hitbox", 12, { 0, mpdt_None, 0 }, 0, xform_hitbox_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_HitBox_MPD::getprop( AnimCharacter::HitBox const* obj, int prop )
+mpd_Variant AnimCharacter_HitBox_MPD::getprop( AnimCharacter::HitBox const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return mpd_Variant( (Vec3 const&) Q2EA(obj->rotation), mpd_Variant::Box );
 	case 1: return (Vec3 const&) obj->position;
 	case 2: return (Vec3 const&) obj->extents;
 	case 3: return (float const&) obj->multiplier;
+	case 4: return mpd_Variant();
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_HitBox_MPD::setprop( AnimCharacter::HitBox* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_HitBox_MPD::setprop( AnimCharacter::HitBox* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->rotation = EA2Q(val.get_obj<Vec3>()); return true;
 	case 1: obj->position = mpd_var_get<Vec3 >(val); return true;
 	case 2: obj->extents = mpd_var_get<Vec3 >(val); return true;
 	case 3: obj->multiplier = mpd_var_get<float >(val); return true;
+	case 4: return false;
 	default: return false;
 	}
 }
@@ -1331,18 +1341,18 @@ const mpd_PropInfo* AnimCharacter_Body_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "rotationAngles", 14, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, rotationAngles_metadata },
-		{ "position", 8, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, position_metadata },
-		{ "type", 4, { "AnimCharacter_BodyType", mpdt_Enum, AnimCharacter_BodyType_MPD::inst() }, type_metadata },
-		{ "size", 4, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "rotationAngles", 14, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, rotationAngles_metadata },
+		{ "position", 8, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, position_metadata },
+		{ "type", 4, { "AnimCharacter_BodyType", mpdt_Enum, AnimCharacter_BodyType_MPD::inst() }, 0, type_metadata },
+		{ "size", 4, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_Body_MPD::getprop( AnimCharacter::Body const* obj, int prop )
+mpd_Variant AnimCharacter_Body_MPD::getprop( AnimCharacter::Body const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return mpd_Variant( (Vec3 const&) Q2EA(obj->rotation), mpd_Variant::Box );
 	case 1: return (Vec3 const&) obj->position;
@@ -1351,11 +1361,11 @@ mpd_Variant AnimCharacter_Body_MPD::getprop( AnimCharacter::Body const* obj, int
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_Body_MPD::setprop( AnimCharacter::Body* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_Body_MPD::setprop( AnimCharacter::Body* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->rotation = EA2Q(val.get_obj<Vec3>()); return true;
 	case 1: obj->position = mpd_var_get<Vec3 >(val); return true;
@@ -1446,23 +1456,23 @@ const mpd_PropInfo* AnimCharacter_Joint_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "parent_name", 11, { "String", mpdt_Struct, String_MPD::inst() }, parent_name_metadata },
-		{ "type", 4, { "AnimCharacter_JointType", mpdt_Enum, AnimCharacter_JointType_MPD::inst() }, type_metadata },
-		{ "self_position", 13, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, self_position_metadata },
-		{ "self_rotationAngles", 19, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, self_rotationAngles_metadata },
-		{ "prnt_position", 13, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, prnt_position_metadata },
-		{ "prnt_rotationAngles", 19, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, prnt_rotationAngles_metadata },
-		{ "turn_limit_1", 12, { "float", mpdt_Float32, 0 }, turn_limit_1_metadata },
-		{ "turn_limit_2", 12, { "float", mpdt_Float32, 0 }, turn_limit_2_metadata },
-		{ "twist_limit", 11, { "float", mpdt_Float32, 0 }, twist_limit_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "parent_name", 11, { "String", mpdt_Struct, String_MPD::inst() }, 0, parent_name_metadata },
+		{ "type", 4, { "AnimCharacter_JointType", mpdt_Enum, AnimCharacter_JointType_MPD::inst() }, 0, type_metadata },
+		{ "self_position", 13, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, self_position_metadata },
+		{ "self_rotationAngles", 19, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, self_rotationAngles_metadata },
+		{ "prnt_position", 13, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, prnt_position_metadata },
+		{ "prnt_rotationAngles", 19, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, prnt_rotationAngles_metadata },
+		{ "turn_limit_1", 12, { "float", mpdt_Float32, 0 }, 0, turn_limit_1_metadata },
+		{ "turn_limit_2", 12, { "float", mpdt_Float32, 0 }, 0, turn_limit_2_metadata },
+		{ "twist_limit", 11, { "float", mpdt_Float32, 0 }, 0, twist_limit_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_Joint_MPD::getprop( AnimCharacter::Joint const* obj, int prop )
+mpd_Variant AnimCharacter_Joint_MPD::getprop( AnimCharacter::Joint const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->parent_name;
 	case 1: return mpd_Variant( (AnimCharacter::JointType) obj->type, mpd_Variant::Enum );
@@ -1476,11 +1486,11 @@ mpd_Variant AnimCharacter_Joint_MPD::getprop( AnimCharacter::Joint const* obj, i
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_Joint_MPD::setprop( AnimCharacter::Joint* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_Joint_MPD::setprop( AnimCharacter::Joint* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->parent_name = mpd_var_get<String >(val); return true;
 	case 1: obj->type = mpd_var_get<AnimCharacter::JointType >(val); return true;
@@ -1556,18 +1566,18 @@ const mpd_PropInfo* AnimCharacter_BoneInfo_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, name_metadata },
-		{ "hitbox", 6, { "AnimCharacter_HitBox", mpdt_Struct, AnimCharacter_HitBox_MPD::inst() }, hitbox_metadata },
-		{ "body", 4, { "AnimCharacter_Body", mpdt_Struct, AnimCharacter_Body_MPD::inst() }, body_metadata },
-		{ "joint", 5, { "AnimCharacter_Joint", mpdt_Struct, AnimCharacter_Joint_MPD::inst() }, joint_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, name_metadata },
+		{ "hitbox", 6, { "AnimCharacter_HitBox", mpdt_Struct, AnimCharacter_HitBox_MPD::inst() }, 0, hitbox_metadata },
+		{ "body", 4, { "AnimCharacter_Body", mpdt_Struct, AnimCharacter_Body_MPD::inst() }, 0, body_metadata },
+		{ "joint", 5, { "AnimCharacter_Joint", mpdt_Struct, AnimCharacter_Joint_MPD::inst() }, 0, joint_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_BoneInfo_MPD::getprop( AnimCharacter::BoneInfo const* obj, int prop )
+mpd_Variant AnimCharacter_BoneInfo_MPD::getprop( AnimCharacter::BoneInfo const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->name;
 	case 1: return (AnimCharacter::HitBox const&) obj->hitbox;
@@ -1576,11 +1586,11 @@ mpd_Variant AnimCharacter_BoneInfo_MPD::getprop( AnimCharacter::BoneInfo const* 
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_BoneInfo_MPD::setprop( AnimCharacter::BoneInfo* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_BoneInfo_MPD::setprop( AnimCharacter::BoneInfo* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->name = mpd_var_get<String >(val); return true;
 	case 1: obj->hitbox = mpd_var_get<AnimCharacter::HitBox >(val); return true;
@@ -1625,25 +1635,25 @@ const mpd_PropInfo* AnimCharacter_BoneInfoArray_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, __size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, 0, __size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_BoneInfoArray_MPD::getprop( Array<AnimCharacter::BoneInfo> const* obj, int prop )
+mpd_Variant AnimCharacter_BoneInfoArray_MPD::getprop( Array<AnimCharacter::BoneInfo> const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_BoneInfoArray_MPD::setprop( Array<AnimCharacter::BoneInfo>* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_BoneInfoArray_MPD::setprop( Array<AnimCharacter::BoneInfo>* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->resize(val.get_int32()); return true;
 	default: return false;
@@ -1731,18 +1741,18 @@ const mpd_PropInfo* AnimCharacter_Attachment_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, name_metadata },
-		{ "bone", 4, { "String", mpdt_Struct, String_MPD::inst() }, bone_metadata },
-		{ "rotationAngles", 14, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, rotationAngles_metadata },
-		{ "position", 8, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, position_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, name_metadata },
+		{ "bone", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, bone_metadata },
+		{ "rotationAngles", 14, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, rotationAngles_metadata },
+		{ "position", 8, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, position_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_Attachment_MPD::getprop( AnimCharacter::Attachment const* obj, int prop )
+mpd_Variant AnimCharacter_Attachment_MPD::getprop( AnimCharacter::Attachment const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->name;
 	case 1: return (String const&) obj->bone;
@@ -1751,11 +1761,11 @@ mpd_Variant AnimCharacter_Attachment_MPD::getprop( AnimCharacter::Attachment con
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_Attachment_MPD::setprop( AnimCharacter::Attachment* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_Attachment_MPD::setprop( AnimCharacter::Attachment* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->name = mpd_var_get<String >(val); return true;
 	case 1: obj->bone = mpd_var_get<String >(val); return true;
@@ -1826,19 +1836,19 @@ const mpd_PropInfo* AnimCharacter_LayerTransform_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "bone", 4, { "String", mpdt_Struct, String_MPD::inst() }, bone_metadata },
-		{ "type", 4, { "AnimCharacter_TransformType", mpdt_Enum, AnimCharacter_TransformType_MPD::inst() }, type_metadata },
-		{ "posaxis", 7, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, posaxis_metadata },
-		{ "angle", 5, { "float", mpdt_Float32, 0 }, angle_metadata },
-		{ "base", 4, { "float", mpdt_Float32, 0 }, base_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "bone", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, bone_metadata },
+		{ "type", 4, { "AnimCharacter_TransformType", mpdt_Enum, AnimCharacter_TransformType_MPD::inst() }, 0, type_metadata },
+		{ "posaxis", 7, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, posaxis_metadata },
+		{ "angle", 5, { "float", mpdt_Float32, 0 }, 0, angle_metadata },
+		{ "base", 4, { "float", mpdt_Float32, 0 }, 0, base_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_LayerTransform_MPD::getprop( AnimCharacter::LayerTransform const* obj, int prop )
+mpd_Variant AnimCharacter_LayerTransform_MPD::getprop( AnimCharacter::LayerTransform const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->bone;
 	case 1: return mpd_Variant( (AnimCharacter::TransformType) obj->type, mpd_Variant::Enum );
@@ -1848,11 +1858,11 @@ mpd_Variant AnimCharacter_LayerTransform_MPD::getprop( AnimCharacter::LayerTrans
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_LayerTransform_MPD::setprop( AnimCharacter::LayerTransform* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_LayerTransform_MPD::setprop( AnimCharacter::LayerTransform* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->bone = mpd_var_get<String >(val); return true;
 	case 1: obj->type = mpd_var_get<AnimCharacter::TransformType >(val); return true;
@@ -1888,7 +1898,7 @@ void AnimCharacter_LayerTransform_MPD::dump( MPD_STATICDUMP_ARGS(AnimCharacter::
 }
 
 const mpd_KeyValue* AnimCharacter_LayerTransformArray_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-const mpd_PropInfo* AnimCharacter_LayerTransformArray_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* AnimCharacter_LayerTransformArray_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant AnimCharacter_LayerTransformArray_MPD::getprop( Array<AnimCharacter::LayerTransform> const*, int ){ return mpd_Variant(); }
 bool AnimCharacter_LayerTransformArray_MPD::setprop( Array<AnimCharacter::LayerTransform>*, int, const mpd_Variant& ){ return false; }
 mpd_Variant AnimCharacter_LayerTransformArray_MPD::getindex( Array<AnimCharacter::LayerTransform> const* obj, const mpd_Variant& key )
@@ -1938,17 +1948,17 @@ const mpd_PropInfo* AnimCharacter_Layer_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, name_metadata },
-		{ "transforms", 10, { "AnimCharacter_LayerTransformArray", mpdt_Struct, AnimCharacter_LayerTransformArray_MPD::inst() }, transforms_metadata },
-		{ "amount", 6, { "float", mpdt_Float32, 0 }, amount_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, name_metadata },
+		{ "transforms", 10, { "AnimCharacter_LayerTransformArray", mpdt_Struct, AnimCharacter_LayerTransformArray_MPD::inst() }, 0, transforms_metadata },
+		{ "amount", 6, { "float", mpdt_Float32, 0 }, 0, amount_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_Layer_MPD::getprop( AnimCharacter::Layer const* obj, int prop )
+mpd_Variant AnimCharacter_Layer_MPD::getprop( AnimCharacter::Layer const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->name;
 	case 1: return (Array<AnimCharacter::LayerTransform> const&) obj->transforms;
@@ -1956,11 +1966,11 @@ mpd_Variant AnimCharacter_Layer_MPD::getprop( AnimCharacter::Layer const* obj, i
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_Layer_MPD::setprop( AnimCharacter::Layer* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_Layer_MPD::setprop( AnimCharacter::Layer* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->name = mpd_var_get<String >(val); return true;
 	case 1: obj->transforms = mpd_var_get<Array<AnimCharacter::LayerTransform> >(val); return true;
@@ -2023,17 +2033,17 @@ const mpd_PropInfo* AnimCharacter_MaskCmd_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "bone", 4, { "String", mpdt_Struct, String_MPD::inst() }, bone_metadata },
-		{ "weight", 6, { "float", mpdt_Float32, 0 }, weight_metadata },
-		{ "children", 8, { "bool", mpdt_Bool, 0 }, children_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "bone", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, bone_metadata },
+		{ "weight", 6, { "float", mpdt_Float32, 0 }, 0, weight_metadata },
+		{ "children", 8, { "bool", mpdt_Bool, 0 }, 0, children_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_MaskCmd_MPD::getprop( AnimCharacter::MaskCmd const* obj, int prop )
+mpd_Variant AnimCharacter_MaskCmd_MPD::getprop( AnimCharacter::MaskCmd const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->bone;
 	case 1: return (float const&) obj->weight;
@@ -2041,11 +2051,11 @@ mpd_Variant AnimCharacter_MaskCmd_MPD::getprop( AnimCharacter::MaskCmd const* ob
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_MaskCmd_MPD::setprop( AnimCharacter::MaskCmd* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_MaskCmd_MPD::setprop( AnimCharacter::MaskCmd* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->bone = mpd_var_get<String >(val); return true;
 	case 1: obj->weight = mpd_var_get<float >(val); return true;
@@ -2088,25 +2098,25 @@ const mpd_PropInfo* AnimCharacter_MaskCmdArray_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, __size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, 0, __size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_MaskCmdArray_MPD::getprop( Array<AnimCharacter::MaskCmd> const* obj, int prop )
+mpd_Variant AnimCharacter_MaskCmdArray_MPD::getprop( Array<AnimCharacter::MaskCmd> const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_MaskCmdArray_MPD::setprop( Array<AnimCharacter::MaskCmd>* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_MaskCmdArray_MPD::setprop( Array<AnimCharacter::MaskCmd>* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->resize(val.get_int32()); return true;
 	default: return false;
@@ -2163,27 +2173,27 @@ const mpd_PropInfo* AnimCharacter_Mask_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, name_metadata },
-		{ "cmds", 4, { "AnimCharacter_MaskCmdArray", mpdt_Struct, AnimCharacter_MaskCmdArray_MPD::inst() }, cmds_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "name", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, name_metadata },
+		{ "cmds", 4, { "AnimCharacter_MaskCmdArray", mpdt_Struct, AnimCharacter_MaskCmdArray_MPD::inst() }, 0, cmds_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_Mask_MPD::getprop( AnimCharacter::Mask const* obj, int prop )
+mpd_Variant AnimCharacter_Mask_MPD::getprop( AnimCharacter::Mask const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->name;
 	case 1: return (Array<AnimCharacter::MaskCmd> const&) obj->cmds;
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_Mask_MPD::setprop( AnimCharacter::Mask* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_Mask_MPD::setprop( AnimCharacter::Mask* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->name = mpd_var_get<String >(val); return true;
 	case 1: obj->cmds = mpd_var_get<Array<AnimCharacter::MaskCmd> >(val); return true;
@@ -2245,25 +2255,25 @@ const mpd_PropInfo* AnimCharacter_MaskArray_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, __size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "__size", 6, { "int32_t", mpdt_Int32, 0 }, 0, __size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_MaskArray_MPD::getprop( Array<AnimCharacter::Mask> const* obj, int prop )
+mpd_Variant AnimCharacter_MaskArray_MPD::getprop( Array<AnimCharacter::Mask> const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_MaskArray_MPD::setprop( Array<AnimCharacter::Mask>* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_MaskArray_MPD::setprop( Array<AnimCharacter::Mask>* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->resize(val.get_int32()); return true;
 	default: return false;
@@ -2347,17 +2357,17 @@ const mpd_PropInfo* AnimCharacter_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "mesh", 4, { "String", mpdt_Struct, String_MPD::inst() }, mesh_metadata },
-		{ "bones", 5, { "AnimCharacter_BoneInfoArray", mpdt_Struct, AnimCharacter_BoneInfoArray_MPD::inst() }, bones_metadata },
-		{ "masks", 5, { "AnimCharacter_MaskArray", mpdt_Struct, AnimCharacter_MaskArray_MPD::inst() }, masks_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "mesh", 4, { "String", mpdt_Struct, String_MPD::inst() }, 0, mesh_metadata },
+		{ "bones", 5, { "AnimCharacter_BoneInfoArray", mpdt_Struct, AnimCharacter_BoneInfoArray_MPD::inst() }, 0, bones_metadata },
+		{ "masks", 5, { "AnimCharacter_MaskArray", mpdt_Struct, AnimCharacter_MaskArray_MPD::inst() }, 0, masks_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant AnimCharacter_MPD::getprop( AnimCharacter const* obj, int prop )
+mpd_Variant AnimCharacter_MPD::getprop( AnimCharacter const* obj, int p )
 {
 	(void) obj;
-	switch( prop )
+	switch( p )
 	{
 	case 0: return (String const&) obj->mesh;
 	case 1: return (Array<AnimCharacter::BoneInfo> const&) obj->bones;
@@ -2365,11 +2375,11 @@ mpd_Variant AnimCharacter_MPD::getprop( AnimCharacter const* obj, int prop )
 	default: return mpd_Variant();
 	}
 }
-bool AnimCharacter_MPD::setprop( AnimCharacter* obj, int prop, const mpd_Variant& val )
+bool AnimCharacter_MPD::setprop( AnimCharacter* obj, int p, const mpd_Variant& val )
 {
 	(void) obj;
 	(void) val;
-	switch( prop )
+	switch( p )
 	{
 	case 0: obj->mesh = mpd_var_get<String >(val); return true;
 	case 1: obj->bones = mpd_var_get<Array<AnimCharacter::BoneInfo> >(val); return true;

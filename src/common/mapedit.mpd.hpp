@@ -348,24 +348,27 @@ const mpd_PropInfo* Vec2_MPD::props()
 	static const mpd_KeyValue y_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "x", 1, { "float", mpdt_Float32, 0 }, x_metadata },
-		{ "y", 1, { "float", mpdt_Float32, 0 }, y_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
+		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec2_MPD::getprop( Vec2 const* obj, int prop )
+mpd_Variant Vec2_MPD::getprop( Vec2 const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (float const&) obj->x;
 	case 1: return (float const&) obj->y;
 	default: return mpd_Variant();
 	}
 }
-bool Vec2_MPD::setprop( Vec2* obj, int prop, const mpd_Variant& val )
+bool Vec2_MPD::setprop( Vec2* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->x = mpd_var_get<float >(val); return true;
 	case 1: obj->y = mpd_var_get<float >(val); return true;
@@ -402,16 +405,17 @@ const mpd_PropInfo* Vec3_MPD::props()
 	static const mpd_KeyValue z_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "x", 1, { "float", mpdt_Float32, 0 }, x_metadata },
-		{ "y", 1, { "float", mpdt_Float32, 0 }, y_metadata },
-		{ "z", 1, { "float", mpdt_Float32, 0 }, z_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
+		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
+		{ "z", 1, { "float", mpdt_Float32, 0 }, 0, z_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int prop )
+mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (float const&) obj->x;
 	case 1: return (float const&) obj->y;
@@ -419,9 +423,11 @@ mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int prop )
 	default: return mpd_Variant();
 	}
 }
-bool Vec3_MPD::setprop( Vec3* obj, int prop, const mpd_Variant& val )
+bool Vec3_MPD::setprop( Vec3* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->x = mpd_var_get<float >(val); return true;
 	case 1: obj->y = mpd_var_get<float >(val); return true;
@@ -459,24 +465,27 @@ const mpd_PropInfo* String_MPD::props()
 	static const mpd_KeyValue size_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "data", 4, { "mpd_StringView", mpdt_ConstString, 0 }, data_metadata },
-		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "data", 4, { "mpd_StringView", mpdt_ConstString, 0 }, 0, data_metadata },
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant String_MPD::getprop( String const* obj, int prop )
+mpd_Variant String_MPD::getprop( String const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (mpd_StringView const&) mpd_StringView::create(obj->data(), obj->size());
 	case 1: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool String_MPD::setprop( String* obj, int prop, const mpd_Variant& val )
+bool String_MPD::setprop( String* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->assign(val.get_stringview().str, val.get_stringview().size); return true;
 	case 1: obj->resize(val.get_int32()); return true;
@@ -513,7 +522,7 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 }
 
 const mpd_KeyValue* StringPtr_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant StringPtr_MPD::getprop( String* const*, int ){ return mpd_Variant(); }
 bool StringPtr_MPD::setprop( String**, int, const mpd_Variant& ){ return false; }
 mpd_Variant StringPtr_MPD::getindex( String* const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -539,22 +548,25 @@ const mpd_PropInfo* Vec3Array_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int prop )
+mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int prop, const mpd_Variant& val )
+bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->resize(val.get_int32()); return true;
 	default: return false;
@@ -632,18 +644,19 @@ const mpd_PropInfo* EdSnapProps_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "enableSnap", 10, { "bool", mpdt_Bool, 0 }, enableSnap_metadata },
-		{ "snapVerts", 9, { "bool", mpdt_Bool, 0 }, snapVerts_metadata },
-		{ "snapRange", 9, { "float", mpdt_Float32, 0 }, snapRange_metadata },
-		{ "snapGrid", 8, { "float", mpdt_Float32, 0 }, snapGrid_metadata },
-		{ "projDist", 8, { "float", mpdt_Float32, 0 }, projDist_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "enableSnap", 10, { "bool", mpdt_Bool, 0 }, 0, enableSnap_metadata },
+		{ "snapVerts", 9, { "bool", mpdt_Bool, 0 }, 0, snapVerts_metadata },
+		{ "snapRange", 9, { "float", mpdt_Float32, 0 }, 0, snapRange_metadata },
+		{ "snapGrid", 8, { "float", mpdt_Float32, 0 }, 0, snapGrid_metadata },
+		{ "projDist", 8, { "float", mpdt_Float32, 0 }, 0, projDist_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant EdSnapProps_MPD::getprop( EdSnapProps const* obj, int prop )
+mpd_Variant EdSnapProps_MPD::getprop( EdSnapProps const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (bool const&) obj->enableSnap;
 	case 1: return (bool const&) obj->snapVerts;
@@ -653,9 +666,11 @@ mpd_Variant EdSnapProps_MPD::getprop( EdSnapProps const* obj, int prop )
 	default: return mpd_Variant();
 	}
 }
-bool EdSnapProps_MPD::setprop( EdSnapProps* obj, int prop, const mpd_Variant& val )
+bool EdSnapProps_MPD::setprop( EdSnapProps* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->enableSnap = mpd_var_get<bool >(val); return true;
 	case 1: obj->snapVerts = mpd_var_get<bool >(val); return true;
@@ -709,22 +724,25 @@ const mpd_PropInfo* EdMultiObjectProps_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "m_mtl", 5, { "String", mpdt_Struct, String_MPD::inst() }, m_mtl_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "m_mtl", 5, { "String", mpdt_Struct, String_MPD::inst() }, 0, m_mtl_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant EdMultiObjectProps_MPD::getprop( EdMultiObjectProps const* obj, int prop )
+mpd_Variant EdMultiObjectProps_MPD::getprop( EdMultiObjectProps const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (String const&) obj->m_mtl;
 	default: return mpd_Variant();
 	}
 }
-bool EdMultiObjectProps_MPD::setprop( EdMultiObjectProps* obj, int prop, const mpd_Variant& val )
+bool EdMultiObjectProps_MPD::setprop( EdMultiObjectProps* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->OnSetMtl(val.get_obj<String>()); return true;
 	default: return false;
@@ -769,22 +787,25 @@ const mpd_PropInfo* EdWorldBasicInfo_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "prefabMode", 10, { "bool", mpdt_Bool, 0 }, prefabMode_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "prefabMode", 10, { "bool", mpdt_Bool, 0 }, 0, prefabMode_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant EdWorldBasicInfo_MPD::getprop( EdWorldBasicInfo const* obj, int prop )
+mpd_Variant EdWorldBasicInfo_MPD::getprop( EdWorldBasicInfo const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (bool const&) obj->prefabMode;
 	default: return mpd_Variant();
 	}
 }
-bool EdWorldBasicInfo_MPD::setprop( EdWorldBasicInfo* obj, int prop, const mpd_Variant& val )
+bool EdWorldBasicInfo_MPD::setprop( EdWorldBasicInfo* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->prefabMode = mpd_var_get<bool >(val); return true;
 	default: return false;
@@ -941,30 +962,31 @@ const mpd_PropInfo* EdWorldLightingInfo_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "ambientColor", 12, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, ambientColor_metadata },
-		{ "dirLightDir", 11, { "Vec2", mpdt_Struct, Vec2_MPD::inst() }, dirLightDir_metadata },
-		{ "dirLightColor", 13, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, dirLightColor_metadata },
-		{ "dirLightDvg", 11, { "float", mpdt_Float32, 0 }, dirLightDvg_metadata },
-		{ "dirLightNumSamples", 18, { "int32_t", mpdt_Int32, 0 }, dirLightNumSamples_metadata },
-		{ "lightmapClearColor", 18, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, lightmapClearColor_metadata },
-		{ "lightmapDetail", 14, { "float", mpdt_Float32, 0 }, lightmapDetail_metadata },
-		{ "lightmapBlurSize", 16, { "float", mpdt_Float32, 0 }, lightmapBlurSize_metadata },
-		{ "aoDist", 6, { "float", mpdt_Float32, 0 }, aoDist_metadata },
-		{ "aoMult", 6, { "float", mpdt_Float32, 0 }, aoMult_metadata },
-		{ "aoFalloff", 9, { "float", mpdt_Float32, 0 }, aoFalloff_metadata },
-		{ "aoEffect", 8, { "float", mpdt_Float32, 0 }, aoEffect_metadata },
-		{ "aoColor", 7, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, aoColor_metadata },
-		{ "aoNumSamples", 12, { "int32_t", mpdt_Int32, 0 }, aoNumSamples_metadata },
-		{ "sampleDensity", 13, { "float", mpdt_Float32, 0 }, sampleDensity_metadata },
-		{ "skyboxTexture", 13, { "String", mpdt_Struct, String_MPD::inst() }, skyboxTexture_metadata },
-		{ "clutTexture", 11, { "String", mpdt_Struct, String_MPD::inst() }, clutTexture_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "ambientColor", 12, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, ambientColor_metadata },
+		{ "dirLightDir", 11, { "Vec2", mpdt_Struct, Vec2_MPD::inst() }, 0, dirLightDir_metadata },
+		{ "dirLightColor", 13, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, dirLightColor_metadata },
+		{ "dirLightDvg", 11, { "float", mpdt_Float32, 0 }, 0, dirLightDvg_metadata },
+		{ "dirLightNumSamples", 18, { "int32_t", mpdt_Int32, 0 }, 0, dirLightNumSamples_metadata },
+		{ "lightmapClearColor", 18, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, lightmapClearColor_metadata },
+		{ "lightmapDetail", 14, { "float", mpdt_Float32, 0 }, 0, lightmapDetail_metadata },
+		{ "lightmapBlurSize", 16, { "float", mpdt_Float32, 0 }, 0, lightmapBlurSize_metadata },
+		{ "aoDist", 6, { "float", mpdt_Float32, 0 }, 0, aoDist_metadata },
+		{ "aoMult", 6, { "float", mpdt_Float32, 0 }, 0, aoMult_metadata },
+		{ "aoFalloff", 9, { "float", mpdt_Float32, 0 }, 0, aoFalloff_metadata },
+		{ "aoEffect", 8, { "float", mpdt_Float32, 0 }, 0, aoEffect_metadata },
+		{ "aoColor", 7, { "Vec3", mpdt_Struct, Vec3_MPD::inst() }, 0, aoColor_metadata },
+		{ "aoNumSamples", 12, { "int32_t", mpdt_Int32, 0 }, 0, aoNumSamples_metadata },
+		{ "sampleDensity", 13, { "float", mpdt_Float32, 0 }, 0, sampleDensity_metadata },
+		{ "skyboxTexture", 13, { "String", mpdt_Struct, String_MPD::inst() }, 0, skyboxTexture_metadata },
+		{ "clutTexture", 11, { "String", mpdt_Struct, String_MPD::inst() }, 0, clutTexture_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant EdWorldLightingInfo_MPD::getprop( EdWorldLightingInfo const* obj, int prop )
+mpd_Variant EdWorldLightingInfo_MPD::getprop( EdWorldLightingInfo const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (Vec3 const&) obj->ambientColor;
 	case 1: return (Vec2 const&) obj->dirLightDir;
@@ -986,9 +1008,11 @@ mpd_Variant EdWorldLightingInfo_MPD::getprop( EdWorldLightingInfo const* obj, in
 	default: return mpd_Variant();
 	}
 }
-bool EdWorldLightingInfo_MPD::setprop( EdWorldLightingInfo* obj, int prop, const mpd_Variant& val )
+bool EdWorldLightingInfo_MPD::setprop( EdWorldLightingInfo* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->ambientColor = mpd_var_get<Vec3 >(val); return true;
 	case 1: obj->dirLightDir = mpd_var_get<Vec2 >(val); return true;

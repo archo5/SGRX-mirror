@@ -13,6 +13,11 @@ function QUAT_AS_ANGLES( varname, srcname, guiname )
 	};
 }
 
+function BUTTON( id, text )
+{
+	return { name = id, type = null, metadata = { button = 1, label = text } };
+}
+
 
 ENUM("AnimCharacter_BodyType",
 {
@@ -62,6 +67,7 @@ STRUCT("AnimCharacter_HitBox",
 		{ name = "position", type = "Vec3", metadata = { label = "Position" } },
 		{ name = "extents", type = "Vec3", metadata = { label = "Extents" } },
 		{ name = "multiplier", type = "float", metadata = { label = "Multiplier" } },
+		BUTTON( "xform_hitbox", "Select hitbox for XForm" ),
 	]
 });
 

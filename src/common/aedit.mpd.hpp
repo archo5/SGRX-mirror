@@ -202,9 +202,11 @@ struct SGRX_TextureOutputFormat_MPD : struct_MPD<SGRX_TextureOutputFormat_MPD, S
 	static void methodcall( SGRX_TextureOutputFormat*, int, const mpd_Variant*, int );
 
 	static void dump( MPD_STATICDUMP_ARGS(SGRX_TextureOutputFormat) );
+	static void dump_enumval( MPD_STATICDUMP_ARGS(int64_t) ){ SGRX_TextureOutputFormat v = (SGRX_TextureOutputFormat) *pdata; dump( &v, limit, level ); }
 };
 
 MPD_DUMPDATA_WRAPPER(SGRX_TextureOutputFormat, SGRX_TextureOutputFormat);
+template<> inline SGRX_TextureOutputFormat mpd_var_get<SGRX_TextureOutputFormat >( const mpd_Variant& v ){ return (SGRX_TextureOutputFormat) v.get_enum(); }
 template<> struct mpd_MetaType<SGRX_TextureOutputFormat > : SGRX_TextureOutputFormat_MPD {};
 template<> struct mpd_MetaType<SGRX_TextureOutputFormat const> : SGRX_TextureOutputFormat_MPD {};
 template<> struct mpd_MetaType<SGRX_TextureOutputFormat_MPD> : SGRX_TextureOutputFormat_MPD {};
@@ -261,24 +263,27 @@ const mpd_PropInfo* Vec2_MPD::props()
 	static const mpd_KeyValue y_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "x", 1, { "float", mpdt_Float32, 0 }, x_metadata },
-		{ "y", 1, { "float", mpdt_Float32, 0 }, y_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
+		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec2_MPD::getprop( Vec2 const* obj, int prop )
+mpd_Variant Vec2_MPD::getprop( Vec2 const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (float const&) obj->x;
 	case 1: return (float const&) obj->y;
 	default: return mpd_Variant();
 	}
 }
-bool Vec2_MPD::setprop( Vec2* obj, int prop, const mpd_Variant& val )
+bool Vec2_MPD::setprop( Vec2* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->x = mpd_var_get<float >(val); return true;
 	case 1: obj->y = mpd_var_get<float >(val); return true;
@@ -315,16 +320,17 @@ const mpd_PropInfo* Vec3_MPD::props()
 	static const mpd_KeyValue z_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "x", 1, { "float", mpdt_Float32, 0 }, x_metadata },
-		{ "y", 1, { "float", mpdt_Float32, 0 }, y_metadata },
-		{ "z", 1, { "float", mpdt_Float32, 0 }, z_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
+		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
+		{ "z", 1, { "float", mpdt_Float32, 0 }, 0, z_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int prop )
+mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (float const&) obj->x;
 	case 1: return (float const&) obj->y;
@@ -332,9 +338,11 @@ mpd_Variant Vec3_MPD::getprop( Vec3 const* obj, int prop )
 	default: return mpd_Variant();
 	}
 }
-bool Vec3_MPD::setprop( Vec3* obj, int prop, const mpd_Variant& val )
+bool Vec3_MPD::setprop( Vec3* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->x = mpd_var_get<float >(val); return true;
 	case 1: obj->y = mpd_var_get<float >(val); return true;
@@ -372,24 +380,27 @@ const mpd_PropInfo* String_MPD::props()
 	static const mpd_KeyValue size_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
 	static const mpd_PropInfo data[] =
 	{
-		{ "data", 4, { "mpd_StringView", mpdt_ConstString, 0 }, data_metadata },
-		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "data", 4, { "mpd_StringView", mpdt_ConstString, 0 }, 0, data_metadata },
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant String_MPD::getprop( String const* obj, int prop )
+mpd_Variant String_MPD::getprop( String const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (mpd_StringView const&) mpd_StringView::create(obj->data(), obj->size());
 	case 1: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool String_MPD::setprop( String* obj, int prop, const mpd_Variant& val )
+bool String_MPD::setprop( String* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->assign(val.get_stringview().str, val.get_stringview().size); return true;
 	case 1: obj->resize(val.get_int32()); return true;
@@ -426,7 +437,7 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 }
 
 const mpd_KeyValue* StringPtr_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant StringPtr_MPD::getprop( String* const*, int ){ return mpd_Variant(); }
 bool StringPtr_MPD::setprop( String**, int, const mpd_Variant& ){ return false; }
 mpd_Variant StringPtr_MPD::getindex( String* const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -452,22 +463,25 @@ const mpd_PropInfo* Vec3Array_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int prop )
+mpd_Variant Vec3Array_MPD::getprop( Array<Vec3> const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (int32_t const&) obj->size();
 	default: return mpd_Variant();
 	}
 }
-bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int prop, const mpd_Variant& val )
+bool Vec3Array_MPD::setprop( Array<Vec3>* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->resize(val.get_int32()); return true;
 	default: return false;
@@ -510,7 +524,7 @@ const mpd_KeyValue* SGRX_TextureOutputFormat_MPD::metadata()
 	};
 	return data;
 }
-const mpd_PropInfo* SGRX_TextureOutputFormat_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, &kvnone }; return &none; }
+const mpd_PropInfo* SGRX_TextureOutputFormat_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
 mpd_Variant SGRX_TextureOutputFormat_MPD::getprop( SGRX_TextureOutputFormat const*, int ){ return mpd_Variant(); }
 bool SGRX_TextureOutputFormat_MPD::setprop( SGRX_TextureOutputFormat*, int, const mpd_Variant& ){ return false; }
 mpd_Variant SGRX_TextureOutputFormat_MPD::getindex( SGRX_TextureOutputFormat const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -540,7 +554,7 @@ void SGRX_TextureOutputFormat_MPD::methodcall( SGRX_TextureOutputFormat*, int, c
 void SGRX_TextureOutputFormat_MPD::dump( MPD_STATICDUMP_ARGS(SGRX_TextureOutputFormat) )
 {
 	MPD_DUMPDATA_USESTATICARGS;
-	printf( "SGRX_TextureOutputFormat::%s (%d)", value2name( *pdata ), (int)*pdata );
+	printf( "SGRX_TextureOutputFormat::%s (%d)", value2name( *pdata ), (int) *pdata );
 }
 
 const mpd_KeyValue* SGRX_TextureAsset_MPD::metadata()
@@ -604,27 +618,28 @@ const mpd_PropInfo* SGRX_TextureAsset_MPD::props()
 	};
 	static const mpd_PropInfo data[] =
 	{
-		{ "sourceFile", 10, { "String", mpdt_Struct, String_MPD::inst() }, sourceFile_metadata },
-		{ "outputCategory", 14, { "String", mpdt_Struct, String_MPD::inst() }, outputCategory_metadata },
-		{ "outputName", 10, { "String", mpdt_Struct, String_MPD::inst() }, outputName_metadata },
-		{ "outputType", 10, { "SGRX_TextureOutputFormat", mpdt_Enum, SGRX_TextureOutputFormat_MPD::inst() }, outputType_metadata },
-		{ "isSRGB", 6, { "bool", mpdt_Bool, 0 }, isSRGB_metadata },
-		{ "mips", 4, { "bool", mpdt_Bool, 0 }, mips_metadata },
-		{ "lerp", 4, { "bool", mpdt_Bool, 0 }, lerp_metadata },
-		{ "clampx", 6, { "bool", mpdt_Bool, 0 }, clampx_metadata },
-		{ "clampy", 6, { "bool", mpdt_Bool, 0 }, clampy_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0 },
+		{ "sourceFile", 10, { "String", mpdt_Struct, String_MPD::inst() }, 0, sourceFile_metadata },
+		{ "outputCategory", 14, { "String", mpdt_Struct, String_MPD::inst() }, 0, outputCategory_metadata },
+		{ "outputName", 10, { "String", mpdt_Struct, String_MPD::inst() }, 0, outputName_metadata },
+		{ "outputType", 10, { "SGRX_TextureOutputFormat", mpdt_Enum, SGRX_TextureOutputFormat_MPD::inst() }, 0, outputType_metadata },
+		{ "isSRGB", 6, { "bool", mpdt_Bool, 0 }, 0, isSRGB_metadata },
+		{ "mips", 4, { "bool", mpdt_Bool, 0 }, 0, mips_metadata },
+		{ "lerp", 4, { "bool", mpdt_Bool, 0 }, 0, lerp_metadata },
+		{ "clampx", 6, { "bool", mpdt_Bool, 0 }, 0, clampx_metadata },
+		{ "clampy", 6, { "bool", mpdt_Bool, 0 }, 0, clampy_metadata },
+		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
 	};
 	return data;
 }
-mpd_Variant SGRX_TextureAsset_MPD::getprop( SGRX_TextureAsset const* obj, int prop )
+mpd_Variant SGRX_TextureAsset_MPD::getprop( SGRX_TextureAsset const* obj, int p )
 {
-	switch( prop )
+	(void) obj;
+	switch( p )
 	{
 	case 0: return (String const&) obj->sourceFile;
 	case 1: return (String const&) obj->outputCategory;
 	case 2: return (String const&) obj->outputName;
-	case 3: return mpd_Variant( (SGRX_TextureOutputFormat const&) obj->outputType, mpd_Variant::Enum );
+	case 3: return mpd_Variant( (SGRX_TextureOutputFormat) obj->outputType, mpd_Variant::Enum );
 	case 4: return (bool const&) obj->isSRGB;
 	case 5: return (bool const&) obj->mips;
 	case 6: return (bool const&) obj->lerp;
@@ -633,9 +648,11 @@ mpd_Variant SGRX_TextureAsset_MPD::getprop( SGRX_TextureAsset const* obj, int pr
 	default: return mpd_Variant();
 	}
 }
-bool SGRX_TextureAsset_MPD::setprop( SGRX_TextureAsset* obj, int prop, const mpd_Variant& val )
+bool SGRX_TextureAsset_MPD::setprop( SGRX_TextureAsset* obj, int p, const mpd_Variant& val )
 {
-	switch( prop )
+	(void) obj;
+	(void) val;
+	switch( p )
 	{
 	case 0: obj->sourceFile = mpd_var_get<String >(val); return true;
 	case 1: obj->outputCategory = mpd_var_get<String >(val); return true;
@@ -664,7 +681,7 @@ void SGRX_TextureAsset_MPD::dump( MPD_STATICDUMP_ARGS(SGRX_TextureAsset) )
 		MPD_DUMP_PROP( String, sourceFile, pdata->sourceFile );
 		MPD_DUMP_PROP( String, outputCategory, pdata->outputCategory );
 		MPD_DUMP_PROP( String, outputName, pdata->outputName );
-		MPD_DUMP_PROP( SGRX_TextureOutputFormat, outputType, pdata->outputType );
+		MPD_DUMP_PROP( SGRX_TextureOutputFormat, outputType, (SGRX_TextureOutputFormat) pdata->outputType );
 		MPD_DUMP_PROP( bool, isSRGB, pdata->isSRGB );
 		MPD_DUMP_PROP( bool, mips, pdata->mips );
 		MPD_DUMP_PROP( bool, lerp, pdata->lerp );

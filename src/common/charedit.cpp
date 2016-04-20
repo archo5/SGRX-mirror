@@ -2253,6 +2253,39 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 			{
 				CH_Real_Save( g_UICharSavePicker->GetValue() );
 			}
+			if( e->target == &m_propList )
+			{
+				if( m_propList.WasPropEdited( mpd_Location( g_AnimChar, "mesh" ) ) )
+				{
+					LOG << "Picked MESH: " << g_AnimChar->mesh;
+					g_AnimChar->_OnRenderUpdate();
+					SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
+					if( M )
+					{
+						for( int i = 0; i < M->m_numBones; ++i )
+						{
+							StringView name = M->m_bones[ i ].name;
+							size_t j = 0;
+							for( ; j < g_AnimChar->bones.size(); ++j )
+							{
+								if( g_AnimChar->bones[ j ].name == name )
+									break;
+							}
+							if( j == g_AnimChar->bones.size() )
+							{
+								AnimCharacter::BoneInfo B;
+								B.name = name;
+								g_AnimChar->bones.push_back( B );
+							}
+						}
+					}
+					reload_mesh_vertices();
+					g_AnimChar->RecalcBoneIDs();
+					lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
+					g_UIBonePicker->Reload();
+					m_propList.Reload();
+				}
+			}
 			return 1;
 		}
 		return EDGUIFrame::OnEvent( e );
@@ -2682,6 +2715,10 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_charProps.Prepare();
 		AddToParamList( &m_charProps );
 		SetActiveMode( &m_MBEditChar );
+		
+		m_propList.Set( g_AnimChar );
+		ClearParamList();
+		AddToParamList( &m_propList );
 	}
 	void CH_New()
 	{

@@ -596,7 +596,8 @@ struct EDGUIPropertyList : EDGUILayoutRow
 						SwapElements( m_subbtn.id2, m_subbtn.id2 + 1 );
 					}
 				}
-				break;
+				// do not allow bubbling for this event
+				return 0;
 			case EDGUI_EVENT_PROPEDIT:
 			case EDGUI_EVENT_PROPCHANGE:
 				m_btnList.UpdateOptions();
@@ -648,6 +649,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		const mpd_PropInfo* prop;
 		size_t parent_id;
 		Handle<EDGUIItemModel> model;
+		mpd_Location loc;
 	};
 	
 	void Clear()
@@ -705,7 +707,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		{
 			prop->caption = name ? name : _GetPropName( propinfo );
 		}
-		Item item = { prop, cont, propinfo, pid, NULL };
+		Item item = { prop, cont, propinfo, pid, NULL, mpd_Location( cont, cont.get_typeinfo()->vprop2id( propinfo ) ) };
 		m_items.push_back( item );
 		prt->Add( prop );
 	}
@@ -883,6 +885,11 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			EDGUIPropString* prop = new EDGUIPropString( StringView( sv.str, sv.size ) );
 			_AddProp( prt, prop, cont, propinfo, pid );
 		}
+		else if( propinfo && propinfo->metadata->find( "button" ) )
+		{
+			EDGUIButton* button = new EDGUIButton;
+			_AddProp( prt, button, cont, propinfo, pid );
+		}
 		else
 		{
 			EDGUILabel* label = new EDGUILabel;
@@ -936,6 +943,21 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				return 0;
 			}
 			break;
+		case EDGUI_EVENT_BTNCLICK:
+			if( e->target != this )
+			{
+				size_t which = e->target->id1;
+				Item& ITM = m_items[ which ];
+				if( !ITM.prop )
+					break;
+				
+				m_lastEditedItem = which;
+				EDGUIEvent sub = *e;
+				sub.target = this;
+				BubblingEvent( &sub );
+				return 0;
+			}
+			break;
 		}
 		return EDGUILayoutRow::OnEvent( e );
 	}
@@ -947,6 +969,18 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		{
 			const Item& ITM = m_items[ iid ];
 			if( ITM.cont == item && ITM.prop == p )
+				return true;
+			iid = ITM.parent_id;
+		}
+		return false;
+	}
+	bool WasPropEdited( const mpd_Location& loc ) const
+	{
+		size_t iid = m_lastEditedItem;
+		while( iid < m_items.size() )
+		{
+			const Item& ITM = m_items[ iid ];
+			if( ITM.loc == loc )
 				return true;
 			iid = ITM.parent_id;
 		}
