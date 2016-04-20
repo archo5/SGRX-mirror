@@ -20,10 +20,10 @@ ENUM("AnimCharacter_BodyType",
 	nativetype = "AnimCharacter::BodyType",
 	values =
 	{
-		BodyType_None = { value = ENUM, label = "None" },
-		BodyType_Sphere = { value = ENUM, label = "Sphere" },
-		BodyType_Capsule = { value = ENUM, label = "Capsule" },
-		BodyType_Box = { value = ENUM, label = "Box" },
+		BodyType_None = { value = ENUM, metadata = { label = "None" } },
+		BodyType_Sphere = { value = ENUM, metadata = { label = "Sphere" } },
+		BodyType_Capsule = { value = ENUM, metadata = { label = "Capsule" } },
+		BodyType_Box = { value = ENUM, metadata = { label = "Box" } },
 	}
 });
 
@@ -33,9 +33,9 @@ ENUM("AnimCharacter_JointType",
 	nativetype = "AnimCharacter::JointType",
 	values =
 	{
-		JointType_None = { value = ENUM, label = "None" },
-		JointType_Hinge = { value = ENUM, label = "Hinge" },
-		JointType_ConeTwist = { value = ENUM, label = "ConeTwist" },
+		JointType_None = { value = ENUM, metadata = { label = "None" } },
+		JointType_Hinge = { value = ENUM, metadata = { label = "Hinge" } },
+		JointType_ConeTwist = { value = ENUM, metadata = { label = "ConeTwist" } },
 	}
 });
 
@@ -45,10 +45,10 @@ ENUM("AnimCharacter_TransformType",
 	nativetype = "AnimCharacter::TransformType",
 	values =
 	{
-		TransformType_None = { value = ENUM, label = "None" },
-		TransformType_UndoParent = { value = ENUM, label = "UndoParent" },
-		TransformType_Move = { value = ENUM, label = "Move" },
-		TransformType_Rotate = { value = ENUM, label = "Rotate" },
+		TransformType_None = { value = ENUM, metadata = { label = "None" } },
+		TransformType_UndoParent = { value = ENUM, metadata = { label = "UndoParent" } },
+		TransformType_Move = { value = ENUM, metadata = { label = "Move" } },
+		TransformType_Rotate = { value = ENUM, metadata = { label = "Rotate" } },
 	}
 });
 

@@ -2856,6 +2856,9 @@ struct CSEditor : IGame
 		// param area
 		g_UIFrame->ResetEditorState();
 		
+	//	g_AnimChar->bones.push_back( AnimCharacter::BoneInfo() );
+	//	mpd_DumpData( *g_AnimChar );
+	//	mpd_DumpData( g_AnimChar->bones[0] );
 		g_UIFrame->m_propList.Set( g_AnimChar );
 		g_UIFrame->ClearParamList();
 		g_UIFrame->AddToParamList( &g_UIFrame->m_propList );

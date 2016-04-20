@@ -3,6 +3,16 @@ include "fmt", "string";
 
 global structs = {};
 
+function is_boxable_type( t )
+{
+	info = @GET_TYPE( t );
+	if( info === null )
+	{
+		ERROR( "cannot determine boxability of type '" $ t $ "', it must be specified manually" );
+	}
+	return info.typeval == "mpdt_Struct";
+}
+
 function STRUCT( name, info )
 {
 	if( isset( structs, name ) )
@@ -32,6 +42,8 @@ function STRUCT( name, info )
 				prop.get = prop.ref;
 			if( @prop.set === null )
 				prop.set = prop.ref $ " = mpd_var_get<_TYPE_ >(_VAR_)";
+			if( @prop.box === null )
+				prop.box = prop.get != prop.ref && is_boxable_type( prop.type );
 		}
 	}
 	index = @info.index;
@@ -196,11 +208,21 @@ foreach( struct : structs )
 	
 	// dump
 	print "\tstatic void dump( MPD_STATICDUMP_ARGS(", struct.nativetype, ") );\n";
+	if( struct.values )
+	{
+		print "\tstatic void dump_enumval( MPD_STATICDUMP_ARGS(int64_t) ){ ", struct.nativetype, " v = (", struct.nativetype, ") *pdata; dump( &v, limit, level ); }\n";
+	}
 	
 	print "};\n\n";
 	
 	// external dumping function
 	print "MPD_DUMPDATA_WRAPPER(", struct.name, ", ", struct.nativetype, ");\n";
+	
+	// data retrieval from variant
+	if( struct.values )
+	{
+		print "template<> inline ", struct.nativetype, " mpd_var_get<", struct.nativetype, " >( const mpd_Variant& v ){ return (", struct.nativetype, ") v.get_enum(); }\n";
+	}
 	
 	// type resolution
 	foreach( nt : struct.all_natives )
@@ -291,6 +313,7 @@ foreach( struct : structs )
 		// GETPROP
 		print "mpd_Variant ", struct.name, "_MPD::getprop( ", struct.nativetype, " const* obj, int prop )\n";
 		print "{\n";
+		print "\t(void) obj;\n";
 		print "\tswitch( prop )\n";
 		print "\t{\n";
 		foreach( i, prop : struct.props )
@@ -305,7 +328,11 @@ foreach( struct : structs )
 				prop_get = string_translate( prop.get, { _OBJ_ = "obj", _TYPE_ = pntype } );
 				if( GET_TYPE( prop.type ).typeval == "mpdt_Enum" )
 				{
-					print "\tcase ", i, ": return mpd_Variant( (", pntype, " const&) ", prop_get, ", mpd_Variant::Enum );\n";
+					print "\tcase ", i, ": return mpd_Variant( (", pntype, ") ", prop_get, ", mpd_Variant::Enum );\n";
+				}
+				else if( prop.box )
+				{
+					print "\tcase ", i, ": return mpd_Variant( (", pntype, " const&) ", prop_get, ", mpd_Variant::Box );\n";
 				}
 				else
 				{
@@ -320,6 +347,8 @@ foreach( struct : structs )
 		// SETPROP
 		print "bool ", struct.name, "_MPD::setprop( ", struct.nativetype, "* obj, int prop, const mpd_Variant& val )\n";
 		print "{\n";
+		print "\t(void) obj;\n";
+		print "\t(void) val;\n";
 		print "\tswitch( prop )\n";
 		print "\t{\n";
 		foreach( i, prop : struct.props )
@@ -479,7 +508,7 @@ foreach( struct : structs )
 	}
 	else if( dict_size( struct.values ) )
 	{
-		print '\tprintf( "', struct.name, '::%s (%d)", value2name( *pdata ), (int)*pdata );\n';
+		print '\tprintf( "', struct.name, '::%s (%d)", value2name( *pdata ), (int) *pdata );\n';
 	}
 	else
 	{
@@ -492,6 +521,8 @@ foreach( struct : structs )
 			if( prop.get === false )
 				continue;
 			prop_get = string_translate( prop.get, { _OBJ_ = "pdata" } );
+			if( GET_TYPE( prop.type ).typeval == "mpdt_Enum" )
+				prop_get = "(" $ GET_TYPE( prop.type ).nativetype $ ") " $ prop_get;
 			print "\t\tMPD_DUMP_PROP( ", GET_TYPE( prop.type ).nativetype, ", ", prop.name, ", ", prop_get, " );\n";
 		}
 		print '\t}\n';

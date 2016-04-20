@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <assert.h>
 
 #ifndef __STDC_FORMAT_MACROS
 #  define __STDC_FORMAT_MACROS 1
@@ -202,7 +203,9 @@ struct virtual_MPD
 	virtual bool vsetindex( void*, const mpd_Variant&, const mpd_Variant& ) const { return false; }
 	virtual void vmethodcall( void*, int, const mpd_Variant*, int ) const {}
 	virtual void vdump( const void*, int, int ) const {}
+	virtual void vdump_enumval( int64_t, int, int ) const {}
 	
+	virtual void vdestruct( void* ) const {}
 	virtual const mpd_PropInfo* vprop( int ) const { return 0; }
 	virtual const mpd_PropInfo* vfindprop_ext( const char*, size_t ) const { return 0; }
 	virtual const mpd_PropInfo* vfindprop( const char* ) const { return 0; }
@@ -235,30 +238,88 @@ template< class T > struct mpd_MetaType : none_MPD
 {
 };
 
+struct mpd_BoxData
+{
+	template< class T > static mpd_BoxData* create( const T& v )
+	{
+		struct Data
+		{
+			mpd_BoxData header;
+			T data;
+		};
+		assert( offsetof( Data, header ) == 0 );
+		
+		mpd_BoxData* data = (mpd_BoxData*) malloc( sizeof(Data) );
+		data->refcount = 0;
+		data->offset = offsetof( Data, data );
+		new (data->data()) T(v);
+		return data;
+	}
+	
+	int32_t refcount;
+	unsigned offset; // don't need 64 bits here
+	
+	void* data(){ return ((char*)this) + offset; }
+	void acquire(){ refcount++; }
+	void release( const virtual_MPD* info )
+	{
+		refcount--;
+		assert( refcount >= 0 );
+		if( refcount == 0 )
+		{
+			info->vdestruct( data() );
+			free( this );
+		}
+	}
+};
+
 struct mpd_Variant
 {
 	enum TagEnum { Enum };
+	enum TagBox { Box };
 	
-	mpd_Variant() : type( mpdt_None ), mpdata( none_MPD::inst() ){}
-	template< class T > mpd_Variant( T* v ) : type( mpdt_Pointer ), mpdata( mpd_MetaType<T>::inst() ){ data.p = const_cast<void*>((const void*) v); }
-	template< class T > mpd_Variant( T& v ) : type( mpdt_Struct ), mpdata( mpd_MetaType<T>::inst() ){ data.p = const_cast<void*>((const void*) &v); }
-	template< class T > mpd_Variant( T v, TagEnum ) : type( mpdt_Enum ), mpdata( mpd_MetaType<T>::inst() ){ data.i = v; }
-	mpd_Variant( mpd_Variant& p ) : type( p.type ), mpdata( p.mpdata ), data( p.data ){}
-	mpd_Variant( const mpd_Variant& p ) : type( p.type ), mpdata( p.mpdata ), data( p.data ){}
-	mpd_Variant( bool v ) : type( mpdt_Bool ), mpdata( none_MPD::inst() ){ data.u = v ? 1 : 0; }
-	mpd_Variant( int8_t v ) : type( mpdt_Int8 ), mpdata( none_MPD::inst() ){ data.i = v; }
-	mpd_Variant( int16_t v ) : type( mpdt_Int16 ), mpdata( none_MPD::inst() ){ data.i = v; }
-	mpd_Variant( int32_t v ) : type( mpdt_Int32 ), mpdata( none_MPD::inst() ){ data.i = v; }
-	mpd_Variant( int64_t v ) : type( mpdt_Int64 ), mpdata( none_MPD::inst() ){ data.i = v; }
-	mpd_Variant( uint8_t v ) : type( mpdt_UInt8 ), mpdata( none_MPD::inst() ){ data.u = v; }
-	mpd_Variant( uint16_t v ) : type( mpdt_UInt16 ), mpdata( none_MPD::inst() ){ data.u = v; }
-	mpd_Variant( uint32_t v ) : type( mpdt_UInt32 ), mpdata( none_MPD::inst() ){ data.u = v; }
-	mpd_Variant( uint64_t v ) : type( mpdt_UInt64 ), mpdata( none_MPD::inst() ){ data.u = v; }
-	mpd_Variant( float v ) : type( mpdt_Float32 ), mpdata( none_MPD::inst() ){ data.f = v; }
-	mpd_Variant( double v ) : type( mpdt_Float64 ), mpdata( none_MPD::inst() ){ data.f = v; }
-	mpd_Variant( const char* str ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ){ data.s.str = str; data.s.size = strlen( str ); }
-	mpd_Variant( const char* str, size_t size ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ){ data.s.str = str; data.s.size = size; }
-	mpd_Variant( mpd_StringView sv ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ){ data.s = sv; }
+	mpd_Variant() : type( mpdt_None ), mpdata( none_MPD::inst() ), box( NULL ){}
+	template< class T > mpd_Variant( T* v ) : type( mpdt_Pointer ), mpdata( mpd_MetaType<T>::inst() ), box( NULL ){ data.p = const_cast<void*>((const void*) v); }
+	template< class T > mpd_Variant( T& v ) : type( mpdt_Struct ), mpdata( mpd_MetaType<T>::inst() ), box( NULL ){ data.p = const_cast<void*>((const void*) &v); }
+	template< class T > mpd_Variant( T v, TagEnum ) : type( mpdt_Enum ), mpdata( mpd_MetaType<T>::inst() ), box( NULL ){ data.i = v; }
+	mpd_Variant( mpd_Variant& p ) : type( p.type ), mpdata( p.mpdata ), data( p.data ), box( NULL ){}
+	mpd_Variant( bool v ) : type( mpdt_Bool ), mpdata( none_MPD::inst() ), box( NULL ){ data.u = v ? 1 : 0; }
+	mpd_Variant( int8_t v ) : type( mpdt_Int8 ), mpdata( none_MPD::inst() ), box( NULL ){ data.i = v; }
+	mpd_Variant( int16_t v ) : type( mpdt_Int16 ), mpdata( none_MPD::inst() ), box( NULL ){ data.i = v; }
+	mpd_Variant( int32_t v ) : type( mpdt_Int32 ), mpdata( none_MPD::inst() ), box( NULL ){ data.i = v; }
+	mpd_Variant( int64_t v ) : type( mpdt_Int64 ), mpdata( none_MPD::inst() ), box( NULL ){ data.i = v; }
+	mpd_Variant( uint8_t v ) : type( mpdt_UInt8 ), mpdata( none_MPD::inst() ), box( NULL ){ data.u = v; }
+	mpd_Variant( uint16_t v ) : type( mpdt_UInt16 ), mpdata( none_MPD::inst() ), box( NULL ){ data.u = v; }
+	mpd_Variant( uint32_t v ) : type( mpdt_UInt32 ), mpdata( none_MPD::inst() ), box( NULL ){ data.u = v; }
+	mpd_Variant( uint64_t v ) : type( mpdt_UInt64 ), mpdata( none_MPD::inst() ), box( NULL ){ data.u = v; }
+	mpd_Variant( float v ) : type( mpdt_Float32 ), mpdata( none_MPD::inst() ), box( NULL ){ data.f = v; }
+	mpd_Variant( double v ) : type( mpdt_Float64 ), mpdata( none_MPD::inst() ), box( NULL ){ data.f = v; }
+	mpd_Variant( const char* str ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ), box( NULL ){ data.s.str = str; data.s.size = strlen( str ); }
+	mpd_Variant( const char* str, size_t size ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ), box( NULL ){ data.s.str = str; data.s.size = size; }
+	mpd_Variant( mpd_StringView sv ) : type( mpdt_ConstString ), mpdata( none_MPD::inst() ), box( NULL ){ data.s = sv; }
+	template< class T > mpd_Variant( const T& v, TagBox ) : type( mpdt_Struct ), mpdata( mpd_MetaType<T>::inst() ), box( mpd_BoxData::create( v ) ){ box->acquire(); data.p = box->data(); }
+	~mpd_Variant()
+	{
+		if( box )
+			box->release( mpdata );
+	}
+	mpd_Variant( const mpd_Variant& v ) : type( v.type ), mpdata( v.mpdata ), data( v.data ), box( v.box )
+	{
+		if( box )
+			box->acquire();
+	}
+	mpd_Variant& operator = ( const mpd_Variant& v )
+	{
+		if( box )
+			box->release( mpdata );
+		type = v.type;
+		mpdata = v.mpdata;
+		data = v.data;
+		box = v.box;
+		if( box )
+			box->acquire();
+		return *this;
+	}
 	
 	const char* get_name() const
 	{
@@ -456,8 +517,10 @@ struct mpd_Variant
 		case mpdt_None: printf( "<none>" ); break;
 		case mpdt_Struct:
 		case mpdt_Pointer:
-		case mpdt_Enum:
 			mpdata->vdump( data.p, limit, level );
+			break;
+		case mpdt_Enum:
+			mpdata->vdump_enumval( data.i, limit, level );
 			break;
 		case mpdt_ConstString:
 			printf( "[%d]\"", (int) data.s.size );
@@ -490,6 +553,7 @@ private:
 		double f;
 	}
 	data;
+	mpd_BoxData* box;
 };
 template<> inline void mpd_DumpData<mpd_Variant>( MPD_DUMPDATA_ARGS(mpd_Variant) ){ data.dump( limit, level ); }
 
@@ -624,6 +688,9 @@ inline void mpd_DumpInfo( const virtual_MPD* type, int limit = 5, int level = 0,
 template< class T, class ST > struct struct_MPD : virtual_MPD
 {
 	typedef ST type;
+	
+	// variant/enum dumping hack
+	static void dump_enumval( MPD_STATICDUMP_ARGS(int64_t) ){ MPD_DUMPDATA_USESTATICARGS; }
 	
 	// helper functions
 	static const mpd_PropInfo* prop( int i )
@@ -761,7 +828,9 @@ template< class T, class ST > struct struct_MPD : virtual_MPD
 	virtual bool vsetindex( void* obj, const mpd_Variant& key, const mpd_Variant& val ) const { return T::setindex( (type*) obj, key, val ); }
 	virtual void vmethodcall( void* obj, int id, const mpd_Variant* args, int argcount ) const { return T::methodcall( (type*) obj, id, args, argcount ); }
 	virtual void vdump( const void* p, int limit, int level ) const { T::dump( (type const*) p, limit, level ); }
+	virtual void vdump_enumval( int64_t v, int limit, int level ) const { T::dump_enumval( &v, limit, level ); }
 	// - virtual helper function wrappers
+	virtual void vdestruct( void* obj ) const { ((type*) obj)->~type(); }
 	virtual const mpd_PropInfo* vprop( int i ) const { return prop( i ); }
 	virtual const mpd_PropInfo* vfindprop_ext( const char* name, size_t namesz ) const { return findprop_ext( name, namesz ); }
 	virtual const mpd_PropInfo* vfindprop( const char* name ) const { return findprop( name ); }
