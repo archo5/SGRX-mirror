@@ -502,17 +502,36 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			int oic = GetItemCount();
 			m_item.setprop( "__size", oic + 1 );
 			m_item.setprop( "size", oic + 1 );
-		//	m_item.setindex( oic, 
 			m_btnList.UpdateOptions();
 			OpenEditor( oic );
 		}
 		void DeleteElement( int i )
 		{
-			m_btnList.UpdateOptions();
+			int oic = GetItemCount();
+			if( i >= oic )
+				return;
 			CloseEditor();
+			
+			// move element to end
+			mpd_Variant args1[] = { i, oic - 1 };
+			m_item.methodcall( "move_item", args1, 2 );
+			
+			m_item.setprop( "__size", oic - 1 );
+			m_item.setprop( "size", oic - 1 );
+			m_btnList.UpdateOptions();
 		}
 		void SwapElements( int a, int b )
 		{
+			if( b < a )
+				TSWAP( a, b );
+			
+			// move a to b
+			mpd_Variant args1[] = { a, b };
+			m_item.methodcall( "move_item", args1, 2 );
+			// move b (position changed from swapping) to a
+			mpd_Variant args2[] = { b - 1, a };
+			m_item.methodcall( "move_item", args2, 2 );
+			
 			m_btnList.OnSwapItems( a, b );
 			m_btnList.UpdateOptions();
 		}
