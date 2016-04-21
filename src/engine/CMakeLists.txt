@@ -12,6 +12,7 @@ add_library( sgrx-core SHARED
 	enganim.cpp enganim.hpp
 	engext.cpp engext.hpp
 	edgui.cpp edgui.hpp
+	nkgui.cpp nkgui.hpp
 	image.cpp font.cpp mesh.cpp culling.cpp
 	utils.cpp utils.hpp
 	dds.c dds.h

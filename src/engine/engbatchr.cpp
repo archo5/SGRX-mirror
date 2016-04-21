@@ -539,34 +539,6 @@ BatchRenderer& BatchRenderer::AAPoly( const Vec2* polydata, size_t polysize, flo
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::AARect( float x0, float y0, float x1, float y1, float z )
-{
-	Vec2 verts[] = { V2(x0,y0), V2(x1,y0), V2(x1,y1), V2(x0,y1) };
-	AAPoly( verts, 4, z );
-	return *this;
-}
-
-BatchRenderer& BatchRenderer::AACircle( float x, float y, float r, float z, int verts )
-{
-	if( verts < 0 )
-		verts = r * M_PI * 2;
-	if( verts >= 3 )
-	{
-		m_polyCache.clear();
-		m_polyCache.resize( verts );
-		float ad = M_PI * 2.0f / verts;
-		float a = ad;
-		for( int i = 0; i < verts; ++i )
-		{
-			float cs = sinf( a ), cc = cosf( a );
-			m_polyCache[ i ] = V2( x + cs * r, y + cc * r );
-			a += ad;
-		}
-		AAPoly( m_polyCache.data(), m_polyCache.size(), z );
-	}
-	return *this;
-}
-
 BatchRenderer& BatchRenderer::AAStroke( const Vec2* linedata, size_t linesize, float width, bool closed, float z )
 {
 	if( linesize < 2 )
@@ -635,10 +607,24 @@ BatchRenderer& BatchRenderer::AAStroke( const Vec2* linedata, size_t linesize, f
 	return *this;
 }
 
-BatchRenderer& BatchRenderer::AACircleOutline( float x, float y, float r, float width, float z, int verts )
+BatchRenderer& BatchRenderer::AARect( float x0, float y0, float x1, float y1, float z )
+{
+	Vec2 verts[] = { V2(x0,y0), V2(x1,y0), V2(x1,y1), V2(x0,y1) };
+	AAPoly( verts, 4, z );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::AARectOutline( float x0, float y0, float x1, float y1, float width, float z )
+{
+	Vec2 verts[] = { V2(x0,y0), V2(x1,y0), V2(x1,y1), V2(x0,y1) };
+	AAStroke( verts, 4, width, true, z );
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::AAEllipsoid( float x, float y, float rx, float ry, float z, int verts )
 {
 	if( verts < 0 )
-		verts = r * M_PI * 2;
+		verts = TMAX( rx, ry ) * M_PI * 2;
 	if( verts >= 3 )
 	{
 		m_polyCache.clear();
@@ -648,12 +634,43 @@ BatchRenderer& BatchRenderer::AACircleOutline( float x, float y, float r, float 
 		for( int i = 0; i < verts; ++i )
 		{
 			float cs = sinf( a ), cc = cosf( a );
-			m_polyCache[ i ] = V2( x + cs * r, y + cc * r );
+			m_polyCache[ i ] = V2( x + cs * rx, y + cc * ry );
+			a += ad;
+		}
+		AAPoly( m_polyCache.data(), m_polyCache.size(), z );
+	}
+	return *this;
+}
+
+BatchRenderer& BatchRenderer::AAEllipsoidOutline( float x, float y, float rx, float ry, float width, float z, int verts )
+{
+	if( verts < 0 )
+		verts = TMAX( rx, ry ) * M_PI * 2;
+	if( verts >= 3 )
+	{
+		m_polyCache.clear();
+		m_polyCache.resize( verts );
+		float ad = M_PI * 2.0f / verts;
+		float a = ad;
+		for( int i = 0; i < verts; ++i )
+		{
+			float cs = sinf( a ), cc = cosf( a );
+			m_polyCache[ i ] = V2( x + cs * rx, y + cc * ry );
 			a += ad;
 		}
 		AAStroke( m_polyCache.data(), m_polyCache.size(), width, true, z );
 	}
 	return *this;
+}
+
+BatchRenderer& BatchRenderer::AACircle( float x, float y, float r, float z, int verts )
+{
+	return AAEllipsoid( x, y, r, r, z, verts );
+}
+
+BatchRenderer& BatchRenderer::AACircleOutline( float x, float y, float r, float width, float z, int verts )
+{
+	return AAEllipsoidOutline( x, y, r, r, width, z, verts );
 }
 
 bool BatchRenderer::CheckSetTexture( int i, const TextureHandle& tex )

@@ -4,6 +4,7 @@
 #include <enganim.hpp>
 #include <engext.hpp>
 #include <edgui.hpp>
+#include <nkgui.hpp>
 #include <physics.hpp>
 #include "edcomui.hpp"
 
@@ -2853,6 +2854,9 @@ struct CSEditor : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
+		SGRX_nk_init( &guictx );
+		nk_input_begin( &guictx );
+		
 		g_UIMeshPicker = new EDGUIMeshPicker( true );
 		g_UICharOpenPicker = new EDGUICharOpenPicker;
 		g_UICharSavePicker = new EDGUICharSavePicker;
@@ -2936,15 +2940,21 @@ struct CSEditor : IGame
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
 		g_PhyWorld = NULL;
+		
+		nk_input_end( &guictx );
+		SGRX_nk_free( &guictx );
 	}
 	void OnEvent( const Event& e )
 	{
 		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_TAB ) phySlow = true;
 		if( e.type == SDL_KEYUP && e.key.keysym.sym == SDLK_TAB ) phySlow = false;
 		g_UIFrame->EngineEvent( &e );
+		SGRX_nk_event( &guictx, e );
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
+		nk_input_end( &guictx );
+		
 		g_XFormState.OnUpdate(
 			g_UIFrame->m_UIRenderView.CPToNormalized( Game_GetCursorPos() ),
 			g_UIFrame->m_UIRenderView.GetViewSize() );
@@ -2963,8 +2973,33 @@ struct CSEditor : IGame
 		g_AnimChar->m_anDeformer.forces[ 0 ].pos = g_EdScene->camera.position;
 		g_AnimChar->m_anDeformer.forces[ 0 ].dir = g_EdScene->camera.direction;
 #endif
+		
+		{struct nk_panel layout;
+		struct nk_context* ctx = &guictx;
+		if (nk_begin(ctx, &layout, "Demo", nk_rect(50, 50, 200, 200),
+			NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+			NK_WINDOW_CLOSABLE|NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
+		{
+			enum {EASY, HARD};
+			static int op = EASY;
+			static int property = 20;
+
+			nk_layout_row_static(ctx, 30, 80, 1);
+			if (nk_button_label(ctx, "button", NK_BUTTON_DEFAULT))
+				fprintf(stdout, "button pressed\n");
+			nk_layout_row_dynamic(ctx, 30, 2);
+			if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
+			if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
+			nk_layout_row_dynamic(ctx, 25, 1);
+			nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
+		}
+		nk_end(ctx);}
+		
+		SGRX_nk_render( &guictx );
+		nk_input_begin( &guictx );
 	}
 	
+	SGRX_nk_context guictx;
 	bool phySlow;
 };
 
