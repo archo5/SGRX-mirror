@@ -131,6 +131,7 @@ template<> inline void mpd_DumpData<mpd_StringView>( MPD_DUMPDATA_ARGS(mpd_Strin
 //
 // --- TYPE CONVERSION / DATA TRANSPORT ---
 //
+#define mpd_KeyValue_NONE_INIT { 0, 0, 0, 0, 0, 0 }
 struct mpd_KeyValue
 {
 	const char* key;
@@ -152,8 +153,14 @@ struct mpd_KeyValue
 		return NULL;
 	}
 	const mpd_KeyValue* find( const char* name ) const { return find_ext( name, strlen( name ) ); }
+	static const mpd_KeyValue* none()
+	{
+		static const mpd_KeyValue data = mpd_KeyValue_NONE_INIT;
+		return &data;
+	}
 };
 
+#define mpd_TypeInfo_NONE_INIT { 0, mpdt_None, 0 }
 struct mpd_TypeInfo
 {
 	const char* name;
@@ -165,6 +172,7 @@ struct mpd_TypeInfo
 #define MPD_PROP_HAS_SETTER   0x0002
 #define MPD_PROP_BOXED_GETTER 0x0004
 
+#define mpd_PropInfo_NONE_INIT { 0, 0, mpd_TypeInfo_NONE_INIT, 0, 0 }
 struct mpd_PropInfo
 {
 	const char* name;
@@ -172,8 +180,15 @@ struct mpd_PropInfo
 	mpd_TypeInfo type;
 	unsigned flags;
 	const mpd_KeyValue* metadata;
+	
+	static const mpd_PropInfo* none()
+	{
+		static const mpd_PropInfo data = mpd_PropInfo_NONE_INIT;
+		return &data;
+	}
 };
 
+#define mpd_MethodInfo_NONE_INIT { 0, 0, 0, 0, 0 }
 struct mpd_MethodInfo
 {
 	const char* name;
@@ -181,14 +196,27 @@ struct mpd_MethodInfo
 	const mpd_TypeInfo* params;
 	int paramcount;
 	const mpd_KeyValue* metadata;
+	
+	static const mpd_MethodInfo* none()
+	{
+		static const mpd_MethodInfo data = mpd_MethodInfo_NONE_INIT;
+		return &data;
+	}
 };
 
+#define mpd_EnumValue_NONE_INIT { 0, 0, 0, 0 }
 struct mpd_EnumValue
 {
 	const char* name;
 	size_t namesz;
 	int64_t value;
 	const mpd_KeyValue* metadata;
+	
+	static const mpd_EnumValue* none()
+	{
+		static const mpd_EnumValue data = mpd_EnumValue_NONE_INIT;
+		return &data;
+	}
 };
 
 struct virtual_MPD
@@ -233,10 +261,10 @@ struct none_MPD : virtual_MPD
 {
 	static none_MPD* inst(){ static none_MPD none; return &none; }
 	const char* vname() const { return "none"; }
-	const mpd_KeyValue* vmetadata() const { static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-	const mpd_PropInfo* vprops() const { static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, 0 }; return &none; }
-	const mpd_EnumValue* vvalues() const { static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
-	const mpd_MethodInfo* vmethods() const { static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+	const mpd_KeyValue* vmetadata() const { return mpd_KeyValue::none(); }
+	const mpd_PropInfo* vprops() const { return mpd_PropInfo::none(); }
+	const mpd_EnumValue* vvalues() const { return mpd_EnumValue::none(); }
+	const mpd_MethodInfo* vmethods() const { return mpd_MethodInfo::none(); }
 };
 
 template< class T > struct mpd_MetaType : none_MPD
@@ -514,6 +542,7 @@ struct mpd_Variant
 		}
 		return false;
 	}
+	const mpd_KeyValue* metadata() const { return mpdata->vmetadata(); }
 	void dump( int limit = 5, int level = 0 ) const
 	{
 		switch( type )
@@ -589,15 +618,22 @@ struct mpd_Location
 	mpd_Location( const mpd_Variant& c = mpd_Variant(), int p = -1 ) : cont( c ), prop_id( p ){}
 	mpd_Location( const mpd_Variant& c, const char* propname ) : cont( c ), prop_id( c.get_typeinfo()->vfindpropid( propname ) ){}
 	
-	mpd_Variant get_var() const
+	const mpd_PropInfo* get_propinfo() const { return cont.get_typeinfo()->vprop( prop_id ); }
+	const mpd_KeyValue* prop_metadata() const
 	{
-		if( prop_id >= 0 &&
-			(unsigned) prop_id < (unsigned) cont.get_typeinfo()->vpropcount() &&
-			!( cont.get_typeinfo()->vprop( prop_id )->flags & MPD_PROP_BOXED_GETTER ) )
+		const mpd_PropInfo* prop = get_propinfo();
+		return prop ? prop->metadata : mpd_KeyValue::none();
+	}
+	mpd_Variant locvar() const
+	{
+		const mpd_PropInfo* prop = get_propinfo();
+		if( prop && !( prop->flags & MPD_PROP_BOXED_GETTER ) )
 			return cont.getpropbyid( prop_id );
 		return cont;
 	}
-	const void* get_ptr() const { return get_var().get_voidptr(); }
+	bool has_prop() const { return prop_id >= 0 && (unsigned) prop_id < (unsigned) cont.get_typeinfo()->vpropcount(); }
+	mpd_Location subprop( const char* name ) const { return mpd_Location( locvar(), name ); }
+	const void* get_ptr() const { return locvar().get_voidptr(); }
 	bool operator == ( const mpd_Location& o ) const
 	{
 		if( cont == o.cont && prop_id == o.prop_id )
@@ -614,7 +650,7 @@ struct mpd_Location
 			if( !outlist[ i ] && *this == llist[ i ] )
 				outlist[ i ] = true;
 		}
-		mpd_Variant ch = get_var();
+		mpd_Variant ch = locvar();
 		for( int i = 0, iend = ch.get_typeinfo()->vpropcount(); i < iend; ++i )
 		{
 			mpd_Location( ch, i ).contains_many( llist, count, outlist );
@@ -624,7 +660,7 @@ struct mpd_Location
 	{
 		if( *this == o )
 			return true;
-		mpd_Variant ch = get_var();
+		mpd_Variant ch = locvar();
 		for( int i = 0, iend = ch.get_typeinfo()->vpropcount(); i < iend; ++i )
 		{
 			if( mpd_Location( ch, i ).contains( o ) )
@@ -632,6 +668,10 @@ struct mpd_Location
 		}
 		return false;
 	}
+	
+	// variant API wrapping
+	mpd_Variant get_var() const { return has_prop() ? cont.getpropbyid( prop_id ) : cont; }
+	bool set_var( const mpd_Variant& v ) const { return cont.setpropbyid( prop_id, v ); }
 	
 	mpd_Variant cont;
 	int prop_id;

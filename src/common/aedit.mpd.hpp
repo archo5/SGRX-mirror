@@ -256,16 +256,16 @@ template<> struct mpd_MetaType<SGRX_TextureAsset_MPD> : SGRX_TextureAsset_MPD {}
 
 
 #ifdef MPD_IMPL
-const mpd_KeyValue* Vec2_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_KeyValue* Vec2_MPD::metadata(){ return mpd_KeyValue::none(); }
 const mpd_PropInfo* Vec2_MPD::props()
 {
-	static const mpd_KeyValue x_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue y_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
+	static const mpd_KeyValue x_metadata[] = { mpd_KeyValue_NONE_INIT };
+	static const mpd_KeyValue y_metadata[] = { mpd_KeyValue_NONE_INIT };
 	static const mpd_PropInfo data[] =
 	{
 		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
 		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
+		mpd_PropInfo_NONE_INIT
 	};
 	return data;
 }
@@ -292,8 +292,8 @@ bool Vec2_MPD::setprop( Vec2* obj, int p, const mpd_Variant& val )
 }
 mpd_Variant Vec2_MPD::getindex( Vec2 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec2_MPD::setindex( Vec2*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec2_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
-const mpd_MethodInfo* Vec2_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+const mpd_EnumValue* Vec2_MPD::values(){ return mpd_EnumValue::none(); }
+const mpd_MethodInfo* Vec2_MPD::methods(){ return mpd_MethodInfo::none(); }
 void Vec2_MPD::methodcall( Vec2*, int, const mpd_Variant*, int ){}
 void Vec2_MPD::dump( MPD_STATICDUMP_ARGS(Vec2) )
 {
@@ -312,18 +312,18 @@ void Vec2_MPD::dump( MPD_STATICDUMP_ARGS(Vec2) )
 	MPD_DUMPLEV( 0 ); printf( "}" );
 }
 
-const mpd_KeyValue* Vec3_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_KeyValue* Vec3_MPD::metadata(){ return mpd_KeyValue::none(); }
 const mpd_PropInfo* Vec3_MPD::props()
 {
-	static const mpd_KeyValue x_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue y_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue z_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
+	static const mpd_KeyValue x_metadata[] = { mpd_KeyValue_NONE_INIT };
+	static const mpd_KeyValue y_metadata[] = { mpd_KeyValue_NONE_INIT };
+	static const mpd_KeyValue z_metadata[] = { mpd_KeyValue_NONE_INIT };
 	static const mpd_PropInfo data[] =
 	{
 		{ "x", 1, { "float", mpdt_Float32, 0 }, 0, x_metadata },
 		{ "y", 1, { "float", mpdt_Float32, 0 }, 0, y_metadata },
 		{ "z", 1, { "float", mpdt_Float32, 0 }, 0, z_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
+		mpd_PropInfo_NONE_INIT
 	};
 	return data;
 }
@@ -352,8 +352,8 @@ bool Vec3_MPD::setprop( Vec3* obj, int p, const mpd_Variant& val )
 }
 mpd_Variant Vec3_MPD::getindex( Vec3 const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool Vec3_MPD::setindex( Vec3*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* Vec3_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
-const mpd_MethodInfo* Vec3_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+const mpd_EnumValue* Vec3_MPD::values(){ return mpd_EnumValue::none(); }
+const mpd_MethodInfo* Vec3_MPD::methods(){ return mpd_MethodInfo::none(); }
 void Vec3_MPD::methodcall( Vec3*, int, const mpd_Variant*, int ){}
 void Vec3_MPD::dump( MPD_STATICDUMP_ARGS(Vec3) )
 {
@@ -373,16 +373,16 @@ void Vec3_MPD::dump( MPD_STATICDUMP_ARGS(Vec3) )
 	MPD_DUMPLEV( 0 ); printf( "}" );
 }
 
-const mpd_KeyValue* String_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_KeyValue* String_MPD::metadata(){ return mpd_KeyValue::none(); }
 const mpd_PropInfo* String_MPD::props()
 {
-	static const mpd_KeyValue data_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
-	static const mpd_KeyValue size_metadata[] = { { 0, 0, 0, 0, 0, 0 } };
+	static const mpd_KeyValue data_metadata[] = { mpd_KeyValue_NONE_INIT };
+	static const mpd_KeyValue size_metadata[] = { mpd_KeyValue_NONE_INIT };
 	static const mpd_PropInfo data[] =
 	{
 		{ "data", 4, { "mpd_StringView", mpdt_ConstString, 0 }, 0, data_metadata },
 		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
+		mpd_PropInfo_NONE_INIT
 	};
 	return data;
 }
@@ -416,8 +416,8 @@ bool String_MPD::setindex( String* obj, const mpd_Variant& key, const mpd_Varian
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<int8_t >(val);
 	return true;
 }
-const mpd_EnumValue* String_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
-const mpd_MethodInfo* String_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+const mpd_EnumValue* String_MPD::values(){ return mpd_EnumValue::none(); }
+const mpd_MethodInfo* String_MPD::methods(){ return mpd_MethodInfo::none(); }
 void String_MPD::methodcall( String*, int, const mpd_Variant*, int ){}
 void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 {
@@ -436,14 +436,14 @@ void String_MPD::dump( MPD_STATICDUMP_ARGS(String) )
 	MPD_DUMPLEV( 0 ); printf( "}" );
 }
 
-const mpd_KeyValue* StringPtr_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
-const mpd_PropInfo* StringPtr_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
+const mpd_KeyValue* StringPtr_MPD::metadata(){ return mpd_KeyValue::none(); }
+const mpd_PropInfo* StringPtr_MPD::props(){ return mpd_PropInfo::none(); }
 mpd_Variant StringPtr_MPD::getprop( String* const*, int ){ return mpd_Variant(); }
 bool StringPtr_MPD::setprop( String**, int, const mpd_Variant& ){ return false; }
 mpd_Variant StringPtr_MPD::getindex( String* const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool StringPtr_MPD::setindex( String**, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* StringPtr_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
-const mpd_MethodInfo* StringPtr_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+const mpd_EnumValue* StringPtr_MPD::values(){ return mpd_EnumValue::none(); }
+const mpd_MethodInfo* StringPtr_MPD::methods(){ return mpd_MethodInfo::none(); }
 void StringPtr_MPD::methodcall( String**, int, const mpd_Variant*, int ){}
 void StringPtr_MPD::dump( MPD_STATICDUMP_ARGS(String*) )
 {
@@ -453,18 +453,18 @@ void StringPtr_MPD::dump( MPD_STATICDUMP_ARGS(String*) )
 		mpd_DumpData<String>( **pdata, limit, level );
 }
 
-const mpd_KeyValue* Vec3Array_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }
+const mpd_KeyValue* Vec3Array_MPD::metadata(){ return mpd_KeyValue::none(); }
 const mpd_PropInfo* Vec3Array_MPD::props()
 {
 	static const mpd_KeyValue size_metadata[] =
 	{
 		{ "label", 5, "Size", 4, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_PropInfo data[] =
 	{
 		{ "size", 4, { "int32_t", mpdt_Int32, 0 }, 0, size_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
+		mpd_PropInfo_NONE_INIT
 	};
 	return data;
 }
@@ -496,8 +496,8 @@ bool Vec3Array_MPD::setindex( Array<Vec3>* obj, const mpd_Variant& key, const mp
 	(*(obj))[mpd_var_get<int32_t >(key)] = mpd_var_get<Vec3 >(val);
 	return true;
 }
-const mpd_EnumValue* Vec3Array_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
-const mpd_MethodInfo* Vec3Array_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+const mpd_EnumValue* Vec3Array_MPD::values(){ return mpd_EnumValue::none(); }
+const mpd_MethodInfo* Vec3Array_MPD::methods(){ return mpd_MethodInfo::none(); }
 void Vec3Array_MPD::methodcall( Array<Vec3>*, int, const mpd_Variant*, int ){}
 void Vec3Array_MPD::dump( MPD_STATICDUMP_ARGS(Array<Vec3>) )
 {
@@ -520,11 +520,11 @@ const mpd_KeyValue* SGRX_TextureOutputFormat_MPD::metadata()
 	static const mpd_KeyValue data[] =
 	{
 		{ "label", 5, "Texture output format", 21, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	return data;
 }
-const mpd_PropInfo* SGRX_TextureOutputFormat_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }
+const mpd_PropInfo* SGRX_TextureOutputFormat_MPD::props(){ return mpd_PropInfo::none(); }
 mpd_Variant SGRX_TextureOutputFormat_MPD::getprop( SGRX_TextureOutputFormat const*, int ){ return mpd_Variant(); }
 bool SGRX_TextureOutputFormat_MPD::setprop( SGRX_TextureOutputFormat*, int, const mpd_Variant& ){ return false; }
 mpd_Variant SGRX_TextureOutputFormat_MPD::getindex( SGRX_TextureOutputFormat const*, const mpd_Variant& ){ return mpd_Variant(); }
@@ -534,22 +534,22 @@ const mpd_EnumValue* SGRX_TextureOutputFormat_MPD::values()
 	static const mpd_KeyValue SGRX_TOF_PNG_RGBA32_metadata[] =
 	{
 		{ "label", 5, "PNG/RGBA32", 10, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue SGRX_TOF_STX_RGBA32_metadata[] =
 	{
 		{ "label", 5, "STX/RGBA32", 10, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_EnumValue data[] =
 	{
 		{ "SGRX_TOF_PNG_RGBA32", 19, SGRX_TOF_PNG_RGBA32, SGRX_TOF_PNG_RGBA32_metadata },
 		{ "SGRX_TOF_STX_RGBA32", 19, SGRX_TOF_STX_RGBA32, SGRX_TOF_STX_RGBA32_metadata },
-		{ 0, 0, 0, 0 },
+		mpd_EnumValue_NONE_INIT
 	};
 	return data;
 }
-const mpd_MethodInfo* SGRX_TextureOutputFormat_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+const mpd_MethodInfo* SGRX_TextureOutputFormat_MPD::methods(){ return mpd_MethodInfo::none(); }
 void SGRX_TextureOutputFormat_MPD::methodcall( SGRX_TextureOutputFormat*, int, const mpd_Variant*, int ){}
 void SGRX_TextureOutputFormat_MPD::dump( MPD_STATICDUMP_ARGS(SGRX_TextureOutputFormat) )
 {
@@ -562,7 +562,7 @@ const mpd_KeyValue* SGRX_TextureAsset_MPD::metadata()
 	static const mpd_KeyValue data[] =
 	{
 		{ "label", 5, "Texture asset", 13, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	return data;
 }
@@ -572,49 +572,49 @@ const mpd_PropInfo* SGRX_TextureAsset_MPD::props()
 	{
 		{ "label", 5, "Source file", 11, 0, (float) 0 },
 		{ "edit", 4, "file", 4, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue outputCategory_metadata[] =
 	{
 		{ "label", 5, "Output category", 15, 0, (float) 0 },
 		{ "edit", 4, "category", 8, 0, (float) 0 },
 		{ "edit_requestReload", 18, "true", 4, 1, (float) 1 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue outputName_metadata[] =
 	{
 		{ "label", 5, "Output name", 11, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue outputType_metadata[] =
 	{
 		{ "label", 5, "Output type", 11, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue isSRGB_metadata[] =
 	{
 		{ "label", 5, "Is SGRB?", 8, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue mips_metadata[] =
 	{
 		{ "label", 5, "Generate mipmaps?", 17, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue lerp_metadata[] =
 	{
 		{ "label", 5, "Use linear interpolation?", 25, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue clampx_metadata[] =
 	{
 		{ "label", 5, "Clamp X", 7, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_KeyValue clampy_metadata[] =
 	{
 		{ "label", 5, "Clamp Y", 7, 0, (float) 0 },
-		{ 0, 0, 0, 0, 0, 0 }
+		mpd_KeyValue_NONE_INIT
 	};
 	static const mpd_PropInfo data[] =
 	{
@@ -627,7 +627,7 @@ const mpd_PropInfo* SGRX_TextureAsset_MPD::props()
 		{ "lerp", 4, { "bool", mpdt_Bool, 0 }, 0, lerp_metadata },
 		{ "clampx", 6, { "bool", mpdt_Bool, 0 }, 0, clampx_metadata },
 		{ "clampy", 6, { "bool", mpdt_Bool, 0 }, 0, clampy_metadata },
-		{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },
+		mpd_PropInfo_NONE_INIT
 	};
 	return data;
 }
@@ -668,8 +668,8 @@ bool SGRX_TextureAsset_MPD::setprop( SGRX_TextureAsset* obj, int p, const mpd_Va
 }
 mpd_Variant SGRX_TextureAsset_MPD::getindex( SGRX_TextureAsset const*, const mpd_Variant& ){ return mpd_Variant(); }
 bool SGRX_TextureAsset_MPD::setindex( SGRX_TextureAsset*, const mpd_Variant&, const mpd_Variant& ){ return false; }
-const mpd_EnumValue* SGRX_TextureAsset_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }
-const mpd_MethodInfo* SGRX_TextureAsset_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }
+const mpd_EnumValue* SGRX_TextureAsset_MPD::values(){ return mpd_EnumValue::none(); }
+const mpd_MethodInfo* SGRX_TextureAsset_MPD::methods(){ return mpd_MethodInfo::none(); }
 void SGRX_TextureAsset_MPD::methodcall( SGRX_TextureAsset*, int, const mpd_Variant*, int ){}
 void SGRX_TextureAsset_MPD::dump( MPD_STATICDUMP_ARGS(SGRX_TextureAsset) )
 {

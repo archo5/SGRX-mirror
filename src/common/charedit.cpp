@@ -2242,6 +2242,17 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 				SetActiveMode( e->target );
 			}
 			
+			else if( e->target == &m_propList )
+			{
+				puts("EDITED PROP");
+				puts(StackPath(m_propList.EditedPropName()));
+				if( m_propList.EditedPropName() == "xform_hitbox" )
+				{
+					g_XFormState.name = m_propList.GetEditedProp<AnimCharacter::BoneInfo>()->name;
+					g_XFormState.type = TT_BoneHitbox;
+				}
+			}
+			
 			return 1;
 			
 		case EDGUI_EVENT_PROPCHANGE:

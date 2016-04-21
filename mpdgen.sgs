@@ -160,7 +160,7 @@ function CEsc( s )
 function TypeInfoPart( t )
 {
 	if( t === null )
-		return "{ 0, mpdt_None, 0 }";
+		return "mpd_TypeInfo_NONE_INIT";
 	info = GET_TYPE( t );
 	return "{ " $ CEsc( t ) $ ", " $ info.typeval $ ", " $ info.typestruct $ " }";
 }
@@ -281,12 +281,12 @@ function print_metadata( varname, srcdict )
 			sval = tostring( val );
 			print "\t\t{ ", CEsc( key ), ", ", key.length, ", ", CEsc( sval ), ", ", sval.length, ", ", toint( val ), ", (float) ", toreal( val ), " },\n";
 		}
-		print "\t\t{ 0, 0, 0, 0, 0, 0 }\n";
+		print "\t\tmpd_KeyValue_NONE_INIT\n";
 		print "\t};\n";
 	}
 	else
 	{
-		print "\tstatic const mpd_KeyValue ", varname, "[] = { { 0, 0, 0, 0, 0, 0 } };\n";
+		print "\tstatic const mpd_KeyValue ", varname, "[] = { mpd_KeyValue_NONE_INIT };\n";
 	}
 }
 
@@ -301,7 +301,7 @@ foreach( struct : structs )
 	// TYPE METADATA
 	if( !@struct.metadata )
 	{
-		print "const mpd_KeyValue* ", struct.name, "_MPD::metadata(){ static const mpd_KeyValue none = { 0, 0, 0, 0, 0, 0 }; return &none; }\n";
+		print "const mpd_KeyValue* ", struct.name, "_MPD::metadata(){ return mpd_KeyValue::none(); }\n";
 	}
 	else
 	{
@@ -315,7 +315,7 @@ foreach( struct : structs )
 	// PROPERTY INFO & INTERFACE
 	if( struct.props.size == 0 )
 	{
-		print "const mpd_PropInfo* ", struct.name, "_MPD::props(){ static const mpd_KeyValue kvnone = { 0, 0, 0, 0, 0, 0 }; static const mpd_PropInfo none = { 0, 0, { 0, mpdt_None, 0 }, 0, &kvnone }; return &none; }\n";
+		print "const mpd_PropInfo* ", struct.name, "_MPD::props(){ return mpd_PropInfo::none(); }\n";
 		print "mpd_Variant ", struct.name, "_MPD::getprop( ", struct.nativetype, " const*, int ){ return mpd_Variant(); }\n";
 		print "bool ", struct.name, "_MPD::setprop( ", struct.nativetype, "*, int, const mpd_Variant& ){ return false; }\n";
 	}
@@ -334,7 +334,7 @@ foreach( struct : structs )
 		{
 			print "\t\t{ ", CEsc( prop.name ), ", ", prop.name.length, ", ", TypeInfoPart( prop.type ), ", ", prop.flags, ", ", prop.name, "_metadata },\n";
 		}
-		print "\t\t{ 0, 0, { 0, mpdt_None, 0 }, 0, 0 },\n";
+		print "\t\tmpd_PropInfo_NONE_INIT\n";
 		print "\t};\n";
 		print "\treturn data;\n";
 		print "}\n";
@@ -431,7 +431,7 @@ foreach( struct : structs )
 	// ENUM VALUES
 	if( dict_size( struct.values ) == 0 )
 	{
-		print "const mpd_EnumValue* ", struct.name, "_MPD::values(){ static const mpd_EnumValue none = { 0, 0, 0, 0 }; return &none; }\n";
+		print "const mpd_EnumValue* ", struct.name, "_MPD::values(){ return mpd_EnumValue::none(); }\n";
 	}
 	else
 	{
@@ -457,7 +457,7 @@ foreach( struct : structs )
 				value = eprefix $ key;
 			print "\t\t{ ", CEsc( key ), ", ", key.length, ", ", value, ", ", key, "_metadata },\n";
 		}
-		print "\t\t{ 0, 0, 0, 0 },\n";
+		print "\t\tmpd_EnumValue_NONE_INIT\n";
 		print "\t};\n";
 		print "\treturn data;\n";
 		print "}\n";
@@ -466,7 +466,7 @@ foreach( struct : structs )
 	// METHODS
 	if( dict_size( struct.methods ) == 0 )
 	{
-		print "const mpd_MethodInfo* ", struct.name, "_MPD::methods(){ static const mpd_MethodInfo none = { 0, 0, 0, 0, 0 }; return &none; }\n";
+		print "const mpd_MethodInfo* ", struct.name, "_MPD::methods(){ return mpd_MethodInfo::none(); }\n";
 		print "void ", struct.name, "_MPD::methodcall( ", struct.nativetype, "*, int, const mpd_Variant*, int ){}\n";
 	}
 	else
@@ -482,7 +482,7 @@ foreach( struct : structs )
 			{
 				print "\t\t", TypeInfoPart( type ), ",\n";
 			}
-			print "\t\t{ 0, mpdt_None, 0 }\n";
+			print "\t\tmpd_TypeInfo_NONE_INIT\n";
 			print "\t};\n";
 		}
 		print "\tstatic const mpd_MethodInfo data[] =\n";
@@ -491,7 +491,7 @@ foreach( struct : structs )
 		{
 			print "\t\t{ ", CEsc( name ), ", ", name.length, ", ", name, "_params, ", method.params.size, ", ", name, "_metadata },\n";
 		}
-		print "\t\t{ 0, 0, 0, 0, 0 },\n";
+		print "\t\tmpd_MethodInfo_NONE_INIT,\n";
 		print "\t};\n";
 		print "\treturn data;\n";
 		print "}\n";

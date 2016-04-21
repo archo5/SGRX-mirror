@@ -592,14 +592,17 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				if( e->target == &m_addBtn )
 				{
 					AddElement();
+					return 0;
 				}
 				else if( e->target == &m_subbtn )
 				{
 					OpenEditor( m_subbtn.id2 );
+					return 0;
 				}
 				else if( e->target == &m_subbtn.m_del )
 				{
 					DeleteElement( m_subbtn.id2 );
+					return 0;
 				}
 				else if( e->target == &m_subbtn.m_up )
 				{
@@ -607,6 +610,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 					{
 						SwapElements( m_subbtn.id2, m_subbtn.id2 - 1 );
 					}
+					return 0;
 				}
 				else if( e->target == &m_subbtn.m_dn )
 				{
@@ -614,9 +618,9 @@ struct EDGUIPropertyList : EDGUILayoutRow
 					{
 						SwapElements( m_subbtn.id2, m_subbtn.id2 + 1 );
 					}
+					return 0;
 				}
-				// do not allow bubbling for this event
-				return 0;
+				break;
 			case EDGUI_EVENT_PROPEDIT:
 			case EDGUI_EVENT_PROPCHANGE:
 				m_btnList.UpdateOptions();
@@ -664,11 +668,9 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		}
 		
 		EDGUIItemHandle item;
-		mpd_Variant cont;
-		const mpd_PropInfo* prop;
+		mpd_Location loc;
 		size_t parent_id;
 		Handle<EDGUIItemModel> model;
-		mpd_Location loc;
 	};
 	
 	void Clear()
@@ -678,7 +680,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 	}
 	void Add( mpd_Variant data )
 	{
-		_CreateProperty( this, data );
+		_CreateProperty( this, mpd_Location( data ) );
 	}
 	void Set( mpd_Variant data )
 	{
@@ -691,7 +693,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		{
 			Item& ITM = m_items[ i ];
 			EDGUIItem* ctrl = ITM.item;
-			mpd_Variant val = ITM.cont.getpropbyid( ITM.prop - ITM.cont.get_typeinfo()->vprops() );
+			mpd_Variant val = ITM.loc.get_var();
 			switch( ctrl->type )
 			{
 			case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*)ctrl)->SetValue( mpd_var_get<bool>( val ) ); break;
@@ -718,29 +720,26 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		}
 		return propname;
 	}
-	void _AddProp( EDGUIItem* prt, EDGUIItem* prop, mpd_Variant cont, const mpd_PropInfo* propinfo, size_t pid, StringView name = SV() )
+	void _AddProp( EDGUIItem* prt, EDGUIItem* prop, mpd_Location loc, size_t pid, StringView name = SV() )
 	{
 		prop->id1 = m_items.size();
 		if( prop->type != EDGUI_ITEM_PLARRAYLIST &&
 			prop->type != EDGUI_ITEM_GROUP )
 		{
-			prop->caption = name ? name : _GetPropName( propinfo );
+			prop->caption = name ? name : _GetPropName( loc.get_propinfo() );
 		}
-		Item item = { prop, cont, propinfo, pid, NULL, mpd_Location( cont, cont.get_typeinfo()->vprop2id( propinfo ) ) };
+		Item item = { prop, loc, pid, NULL };
 		m_items.push_back( item );
 		prt->Add( prop );
 	}
-	void _CreateProperty( EDGUIItem* prt, mpd_Variant item,
-		mpd_Variant cont = mpd_Variant(), const mpd_PropInfo* propinfo = NULL, size_t pid = NOT_FOUND )
+	void _CreateProperty( EDGUIItem* prt, mpd_Location loc, size_t pid = NOT_FOUND )
 	{
 		// check if visible
-		if( propinfo )
-		{
-			const mpd_KeyValue* kv = propinfo->metadata->find( "visible" );
-			if( kv && !kv->value_i32 )
-				return;
-		}
+		const mpd_KeyValue* kv = loc.prop_metadata()->find( "visible" );
+		if( kv && !kv->value_i32 )
+			return;
 		
+		mpd_Variant item = loc.get_var();
 		mpd_Type type = item.get_type();
 		if( type == mpdt_Struct || type == mpdt_Pointer )
 		{
@@ -752,71 +751,63 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				String value = item.get_obj<String>();
 				
 				EDGUIProperty* prop = NULL;
-				if( propinfo )
+				const mpd_KeyValue* kv = loc.prop_metadata()->find( "edit" );
+				if( kv )
 				{
-					const mpd_KeyValue* kv = propinfo->metadata->find( "edit" );
-					if( kv )
+					EDGUIRsrcPicker* pck = m_pickers.getcopy( StringView( kv->value, kv->valuesz ) );
+					if( pck )
 					{
-						EDGUIRsrcPicker* pck = m_pickers.getcopy( StringView( kv->value, kv->valuesz ) );
-						if( pck )
-						{
-							EDGUIPropRsrc* pr;
-							prop = pr = new EDGUIPropRsrc( pck, value );
-							kv = propinfo->metadata->find( "edit_requestReload" );
-							if( kv && kv->value_i32 )
-								pr->m_requestReload = true;
-						}
+						EDGUIPropRsrc* pr;
+						prop = pr = new EDGUIPropRsrc( pck, value );
+						kv = loc.prop_metadata()->find( "edit_requestReload" );
+						if( kv && kv->value_i32 )
+							pr->m_requestReload = true;
 					}
 				}
+				
 				if( !prop )
 					prop = new EDGUIPropString( value );
-				_AddProp( prt, prop, cont, propinfo, pid );
+				_AddProp( prt, prop, loc, pid );
 			}
 			else if( !strcmp( info->vname(), "Vec2" ) )
 			{
 				Vec2 vmin = V2(-FLT_MAX), vmax = V2(FLT_MAX);
 				int prec = 2;
-				if( propinfo )
-				{
-					const mpd_KeyValue* kv;
-					kv = propinfo->metadata->find("min");
-					if( kv )
-						vmin = *(Vec2*)kv->value;
-					kv = propinfo->metadata->find("max");
-					if( kv )
-						vmax = *(Vec2*)kv->value;
-					kv = propinfo->metadata->find("prec");
-					if( kv )
-						prec = kv->value_i32;
-				}
+				const mpd_KeyValue* kv;
+				kv = loc.prop_metadata()->find("min");
+				if( kv )
+					vmin = *(Vec2*)kv->value;
+				kv = loc.prop_metadata()->find("max");
+				if( kv )
+					vmax = *(Vec2*)kv->value;
+				kv = loc.prop_metadata()->find("prec");
+				if( kv )
+					prec = kv->value_i32;
 				
 				EDGUIPropVec2* prop = new EDGUIPropVec2( item.get_obj<Vec2>(), prec, vmin, vmax );
-				_AddProp( prt, prop, cont, propinfo, pid );
+				_AddProp( prt, prop, loc, pid );
 			}
 			else if( !strcmp( info->vname(), "Vec3" ) )
 			{
 				Vec3 vmin = V3(-FLT_MAX), vmax = V3(FLT_MAX);
 				int prec = 2;
-				if( propinfo )
-				{
-					const mpd_KeyValue* kv;
-					kv = propinfo->metadata->find("min");
-					if( kv )
-						vmin = *(Vec3*)kv->value;
-					kv = propinfo->metadata->find("max");
-					if( kv )
-						vmax = *(Vec3*)kv->value;
-					kv = propinfo->metadata->find("prec");
-					if( kv )
-						prec = kv->value_i32;
-				}
+				const mpd_KeyValue* kv;
+				kv = loc.prop_metadata()->find("min");
+				if( kv )
+					vmin = *(Vec3*)kv->value;
+				kv = loc.prop_metadata()->find("max");
+				if( kv )
+					vmax = *(Vec3*)kv->value;
+				kv = loc.prop_metadata()->find("prec");
+				if( kv )
+					prec = kv->value_i32;
 				
 				EDGUIPropVec3* prop = new EDGUIPropVec3( item.get_obj<Vec3>(), prec, vmin, vmax );
-				_AddProp( prt, prop, cont, propinfo, pid );
+				_AddProp( prt, prop, loc, pid );
 			}
 			else
 			{
-				StringView gname = _GetPropName( propinfo );
+				StringView gname = _GetPropName( loc.get_propinfo() );
 				if( !gname )
 				{
 					const mpd_KeyValue* kv = info->vmetadata()->find( "label" );
@@ -828,12 +819,11 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				EDGUIGroup* group = new EDGUIGroup( true, gname );
 				
 				size_t mypid = m_items.size();
-				_AddProp( prt, group, cont, propinfo, pid );
+				_AddProp( prt, group, loc, pid );
 				
 				for( int i = 0, pc = info->vpropcount(); i < pc; ++i )
 				{
-					const mpd_PropInfo* p = info->vprop( i );
-					_CreateProperty( group, item.getpropbyid( i ), item, p, mypid );
+					_CreateProperty( group, mpd_Location( loc.get_var(), i ), mypid );
 				}
 				
 				const mpd_TypeInfo* indextypes = info->vindextypes();
@@ -841,7 +831,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				{
 					PLArrayList* blist = new PLArrayList( this );
 					blist->m_item = item;
-					_AddProp( group, blist, cont, propinfo, pid );
+					_AddProp( group, blist, loc, pid );
 				}
 			}
 		}
@@ -852,67 +842,61 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			EnumModel* model = new EnumModel( info );
 			EDGUIPropEnumSel* prop = new EDGUIPropEnumSel( model, item.get_enum() );
 			
-			_AddProp( prt, prop, cont, propinfo, pid );
+			_AddProp( prt, prop, loc, pid );
 			m_items.last().model = model;
 		}
 		else if( type == mpdt_Bool )
 		{
 			EDGUIPropBool* prop = new EDGUIPropBool( item.get_bool() );
-			_AddProp( prt, prop, cont, propinfo, pid );
+			_AddProp( prt, prop, loc, pid );
 		}
 		else if( mpd_TypeIsInteger( type ) )
 		{
 			int32_t vmin = (int32_t) 0x80000000, vmax = (int32_t) 0x7fffffff;
-			if( propinfo )
-			{
-				const mpd_KeyValue* kv;
-				kv = propinfo->metadata->find("min");
-				if( kv )
-					vmin = kv->value_i32;
-				kv = propinfo->metadata->find("max");
-				if( kv )
-					vmax = kv->value_i32;
-			}
+			const mpd_KeyValue* kv;
+			kv = loc.prop_metadata()->find("min");
+			if( kv )
+				vmin = kv->value_i32;
+			kv = loc.prop_metadata()->find("max");
+			if( kv )
+				vmax = kv->value_i32;
 			
 			EDGUIPropInt* prop = new EDGUIPropInt( item.get_int32(), vmin, vmax );
-			_AddProp( prt, prop, cont, propinfo, pid );
+			_AddProp( prt, prop, loc, pid );
 		}
 		else if( mpd_TypeIsFloat( type ) )
 		{
 			float vmin = -FLT_MAX, vmax = FLT_MAX;
 			int prec = 2;
-			if( propinfo )
-			{
-				const mpd_KeyValue* kv;
-				kv = propinfo->metadata->find("min");
-				if( kv )
-					vmin = kv->value_float;
-				kv = propinfo->metadata->find("max");
-				if( kv )
-					vmax = kv->value_float;
-				kv = propinfo->metadata->find("prec");
-				if( kv )
-					prec = kv->value_i32;
-			}
+			const mpd_KeyValue* kv;
+			kv = loc.prop_metadata()->find("min");
+			if( kv )
+				vmin = kv->value_float;
+			kv = loc.prop_metadata()->find("max");
+			if( kv )
+				vmax = kv->value_float;
+			kv = loc.prop_metadata()->find("prec");
+			if( kv )
+				prec = kv->value_i32;
 			
 			EDGUIPropFloat* prop = new EDGUIPropFloat( item.get_float32(), prec, vmin, vmax );
-			_AddProp( prt, prop, cont, propinfo, pid );
+			_AddProp( prt, prop, loc, pid );
 		}
 		else if( type == mpdt_ConstString )
 		{
 			mpd_StringView sv = item.get_stringview();
 			EDGUIPropString* prop = new EDGUIPropString( StringView( sv.str, sv.size ) );
-			_AddProp( prt, prop, cont, propinfo, pid );
+			_AddProp( prt, prop, loc, pid );
 		}
-		else if( propinfo && propinfo->metadata->find( "button" ) )
+		else if( loc.prop_metadata()->find( "button" ) )
 		{
 			EDGUIButton* button = new EDGUIButton;
-			_AddProp( prt, button, cont, propinfo, pid );
+			_AddProp( prt, button, loc, pid );
 		}
 		else
 		{
 			EDGUILabel* label = new EDGUILabel;
-			_AddProp( prt, label, cont, propinfo, pid );
+			_AddProp( prt, label, loc, pid );
 			
 			char bfr[ 256 ];
 			sgrx_snprintf( bfr, 256, "<unsupported type:%d name:%s>", (int) item.get_type(), item.get_name() );
@@ -929,11 +913,10 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			{
 				size_t which = e->target->id1;
 				Item& ITM = m_items[ which ];
-				if( !ITM.prop )
+				if( !ITM.loc.has_prop() )
 					break;
 				
-				mpd_Variant cont = ITM.cont;
-				const mpd_PropInfo* prop = ITM.prop;
+				mpd_Location loc = ITM.loc;
 				StringView ts;
 				mpd_Variant val;
 				switch( e->target->type )
@@ -950,8 +933,8 @@ struct EDGUIPropertyList : EDGUILayoutRow
 				}
 				if( val.get_type() != mpdt_None )
 				{
-					cont.setpropbyid( prop - cont.get_typeinfo()->vprops(), val );
-				//	mpd_DumpData( ITM.cont );
+					loc.set_var( val );
+				//	mpd_DumpData( loc.cont );
 				}
 				
 				m_lastEditedItem = which;
@@ -967,7 +950,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			{
 				size_t which = e->target->id1;
 				Item& ITM = m_items[ which ];
-				if( !ITM.prop )
+				if( !ITM.loc.has_prop() )
 					break;
 				
 				m_lastEditedItem = which;
@@ -981,18 +964,6 @@ struct EDGUIPropertyList : EDGUILayoutRow
 		return EDGUILayoutRow::OnEvent( e );
 	}
 	
-	bool WasPropEdited( mpd_Variant item, const mpd_PropInfo* p ) const
-	{
-		size_t iid = m_lastEditedItem;
-		while( iid < m_items.size() )
-		{
-			const Item& ITM = m_items[ iid ];
-			if( ITM.cont == item && ITM.prop == p )
-				return true;
-			iid = ITM.parent_id;
-		}
-		return false;
-	}
 	bool WasPropEdited( const mpd_Location& loc ) const
 	{
 		size_t iid = m_lastEditedItem;
@@ -1004,6 +975,28 @@ struct EDGUIPropertyList : EDGUILayoutRow
 			iid = ITM.parent_id;
 		}
 		return false;
+	}
+	StringView EditedPropName() const
+	{
+		if( m_lastEditedItem < m_items.size() )
+		{
+			const mpd_PropInfo* prop = m_items[ m_lastEditedItem ].loc.get_propinfo();
+			if( prop )
+				return prop->name;
+		}
+		return SV();
+	}
+	template< class T > T* GetEditedProp() const
+	{
+		size_t iid = m_lastEditedItem;
+		while( iid < m_items.size() )
+		{
+			const Item& ITM = m_items[ iid ];
+			if( ITM.loc.locvar().get_typeinfo() == mpd_MetaType<T>::inst() )
+				return ITM.loc.locvar().get_ptr<T>();
+			iid = ITM.parent_id;
+		}
+		return NULL;
 	}
 	
 	Array< Item > m_items;
