@@ -12,7 +12,7 @@ add_library( sgrx-core SHARED
 	enganim.cpp enganim.hpp
 	engext.cpp engext.hpp
 	edgui.cpp edgui.hpp
-	nkgui.cpp nkgui.hpp
+	imgui.cpp imgui.hpp
 	image.cpp font.cpp mesh.cpp culling.cpp
 	utils.cpp utils.hpp
 	dds.c dds.h
@@ -21,6 +21,7 @@ add_library( sgrx-core SHARED
 	${EXTDIR}/src/libjpg1 ${EXTDIR}/src/libjpg2 ${EXTDIR}/src/libjpg3
 	${EXTDIR}/src/freetype1
 	${EXTDIR}/src/sgscript/sgs_regex.c
+	${EXTDIR}/src/imgui/imgui.cpp ${EXTDIR}/src/imgui/imgui_draw.cpp ${EXTDIR}/src/imgui/imgui_demo.cpp
 )
 target_link_libraries( sgrx-core SDL2 )
 set_target_properties( sgrx-core PROPERTIES

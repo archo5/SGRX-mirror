@@ -265,7 +265,7 @@ static int create_buf( ID3D11DeviceContext* ctx, ID3D11Device* device,
 		return -1;
 	}
 	
-	return dyn ? upload_buf( ctx, *out, true, true, NULL, numbytes ) : 0;
+	return dyn ? upload_buf( ctx, *out, true, true, data, numbytes ) : 0;
 }
 
 

@@ -90,7 +90,7 @@ void SGRX_nk_event( SGRX_nk_context* ctx, const Event& e )
 	}
 	else if( e.type == SDL_MOUSEWHEEL )
 	{
-		nk_input_scroll( ctx, e.wheel.y / 120.0f );
+		nk_input_scroll( ctx, e.wheel.y );
 	}
 }
 
@@ -101,12 +101,14 @@ void SGRX_nk_render( SGRX_nk_context* ctx )
 	Array< Vec2 > tmpverts;
 	nk_foreach( cmd, ctx )
 	{
+		br.Reset();
+		br.RenderState.scissorEnable = true;
 		switch( cmd->type )
 		{
 		case NK_COMMAND_NOP: break;
 		case NK_COMMAND_SCISSOR: {
 			SGRX_CAST( const struct nk_command_scissor*, c, cmd );
-			GR2D_SetScissorRect( c->x, c->y, c->x + c->w, c->y + c->h );
+			GR2D_SetScissorRect( c->x - 1, c->y - 1, c->x + c->w + 1, c->y + c->h + 1 );
 		} break;
 		case NK_COMMAND_LINE: {
 			SGRX_CAST( const struct nk_command_line*, c, cmd );

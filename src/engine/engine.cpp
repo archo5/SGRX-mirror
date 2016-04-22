@@ -1400,7 +1400,7 @@ bool BasicFileSystem::FindRealPath( const StringView& path, String& out )
 	LOG_FUNCTION;
 	out = m_fileRoot;
 	out.append( path );
-	return true;
+	return ::FileExists( out );
 }
 
 bool BasicFileSystem::FileExists( const StringView& path )
