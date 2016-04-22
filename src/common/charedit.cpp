@@ -2845,6 +2845,62 @@ void CE_UpdateParamList(){ g_UIFrame->AutoUpdateParamList(); }
 
 
 
+void EditBoneInfo( AnimCharacter::BoneInfo& bi )
+{
+	static const char* bi_body_types[] = { "None", "Sphere", "Capsule", "Box" };
+	static const char* bi_joint_types[] = { "None", "Hinge", "Cone/twist" };
+	
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	if( ImGui::TreeNode( &bi, "Bone: %s [id=%d]", StackString<256>(bi.name).str, bi.bone_id ) )
+	{
+		if( IMGUIEditString( "Name", bi.name, 256 ) )
+			bi.bone_id = g_AnimChar->_FindBone( bi.name );
+		
+		IMGUI_GROUP( "Hitbox",
+		{
+			IMGUIEditVec3( "Position", bi.hitbox.position, -100, 100 );
+			IMGUIEditQuat( "Rotation", bi.hitbox.rotation );
+			IMGUIEditVec3( "Extents", bi.hitbox.extents, 0.01f, 100 );
+			IMGUIEditFloat( "Multiplier", bi.hitbox.multiplier, 0, 1000 );
+		});
+		IMGUI_GROUP( "Body",
+		{
+			IMGUIEditVec3( "Position", bi.body.position, -100, 100 );
+			IMGUIEditQuat( "Rotation", bi.body.rotation );
+			IMGUI_COMBOBOX( "Type", bi.body.type, bi_body_types );
+			if( bi.body.type == AnimCharacter::BodyType_Sphere ||
+				bi.body.type == AnimCharacter::BodyType_Capsule )
+				IMGUIEditFloat( "Radius", bi.body.size.x, 0.01f, 100 );
+			if( bi.body.type == AnimCharacter::BodyType_Capsule )
+				IMGUIEditFloat( "Height", bi.body.size.z, 0.01f, 100 );
+			if( bi.body.type == AnimCharacter::BodyType_Box )
+				IMGUIEditVec3( "Size", bi.body.size, 0.01f, 100 );
+		});
+		IMGUI_GROUP( "Joint",
+		{
+			IMGUI_COMBOBOX( "Type", bi.joint.type, bi_joint_types );
+			IMGUIEditVec3( "Position [self]", bi.joint.self_position, -100, 100 );
+			IMGUIEditQuat( "Rotation [self]", bi.joint.self_rotation );
+			IMGUIEditVec3( "Position [parent]", bi.joint.prnt_position, -100, 100 );
+			IMGUIEditQuat( "Rotation [parent]", bi.joint.prnt_rotation );
+			if( bi.joint.type == AnimCharacter::JointType_Hinge )
+			{
+				IMGUIEditFloat( "Min. rotation", bi.joint.turn_limit_1, -360, 360 );
+				IMGUIEditFloat( "Max. rotation", bi.joint.turn_limit_2, -360, 360 );
+			}
+			if( bi.joint.type == AnimCharacter::JointType_ConeTwist )
+			{
+				IMGUIEditFloat( "X limit", bi.joint.turn_limit_1, 0, 360 );
+				IMGUIEditFloat( "Y limit", bi.joint.turn_limit_2, 0, 360 );
+				IMGUIEditFloat( "Twist limit", bi.joint.twist_limit, 0, 360 );
+			}
+		});
+		
+		ImGui::TreePop();
+	}
+}
+
+
 
 struct CSEditor : IGame
 {
@@ -2907,7 +2963,7 @@ struct CSEditor : IGame
 		// param area
 		g_UIFrame->ResetEditorState();
 		
-	//	g_AnimChar->bones.push_back( AnimCharacter::BoneInfo() );
+		g_AnimChar->bones.push_back( AnimCharacter::BoneInfo() );
 	//	mpd_DumpData( *g_AnimChar );
 	//	mpd_DumpData( g_AnimChar->bones[0] );
 		g_UIFrame->m_propList.Set( g_AnimChar );
@@ -2994,17 +3050,15 @@ struct CSEditor : IGame
 			}
 			
 			static float f = 0.5f;
-			if( ImGui::BeginChild( "test", ImVec2(400,200), true ) )
+			IMGUI_HSPLIT( 0.6f,
 			{
 				ImGui::DragFloat( "test1", &f );
-				ImGui::EndChild();
-			}
-			ImGui::SameLine( GR_GetWidth() * 0.5f );
-			if( ImGui::BeginChild( "testx", ImVec2(400,200), true ) )
+				IMGUIEditString( "mesh", g_AnimChar->mesh, 256 );
+			},
 			{
 				ImGui::DragFloat( "test2", &f );
-				ImGui::EndChild();
-			}
+				IMGUIEditArray( g_AnimChar->bones, EditBoneInfo, "Add bone" );
+			});
 			
 			ImGui::PopStyleVar( 1 );
 			ImGui::End();

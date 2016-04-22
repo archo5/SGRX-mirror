@@ -179,3 +179,61 @@ void SGRX_IMGUI_Render()
 }
 
 
+bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec )
+{
+	return ImGui::DragFloat( label, &v, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
+}
+
+bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec )
+{
+	return ImGui::DragFloat3( label, &v.x, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
+}
+
+bool IMGUIEditQuat( const char* label, Quat& v )
+{
+	static int quatEditMode = 0;
+	const char* qemNames[] = { "Euler angles", "Quaternion" };
+	const char* qemShortNames[] = { "EA", "Q" };
+	
+	ImGui::PushID( label );
+	if( ImGui::Button( qemShortNames[ quatEditMode ] ) )
+		ImGui::OpenPopup( "selQEM" );
+	
+	if( ImGui::BeginPopup( "selQEM" ) )
+	{
+		ImGui::Text( "Quaternion editing mode" );
+		ImGui::Separator();
+		for( unsigned i = 0; i < SGRX_ARRAY_SIZE( qemNames ); ++i )
+			if( ImGui::Selectable( qemNames[ i ] ) )
+				quatEditMode = i;
+		ImGui::EndPopup();
+	}
+	ImGui::PopID();
+	
+	ImGui::SameLine();
+	
+	if( quatEditMode == 0 )
+	{
+		Vec3 angles = RAD2DEG( v.ToXYZ() );
+		if( ImGui::DragFloat3( label, &angles.x, 0.01f, -360, 360, "%g", 2 ) )
+		{
+			v = Quat::CreateFromXYZ( DEG2RAD( angles ) );
+			return true;
+		}
+		return false;
+	}
+	else
+	{
+		return ImGui::DragFloat4( label, &v.x, 0.01f, -100, 100, "%g", 2 );
+	}
+}
+
+bool IMGUIEditString( const char* label, String& str, int maxsize )
+{
+	str.reserve( maxsize );
+	bool ret = ImGui::InputText( label, str.data(), str.capacity() );
+	str.resize( sgrx_snlen( str.data(), str.capacity() ) );
+	return ret;
+}
+
+
