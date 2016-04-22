@@ -2972,9 +2972,48 @@ struct CSEditor : IGame
 		g_AnimChar->m_anDeformer.forces[ 0 ].dir = g_EdScene->camera.direction;
 #endif
 		
+		ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(0,0) );
+		ImGui::PushStyleVar( ImGuiStyleVar_WindowRounding, 0 );
+		ImGui::SetNextWindowPos( ImVec2(0,0) );
+		ImGui::SetNextWindowSize( ImVec2( GR_GetWidth(), GR_GetHeight() ) );
+		if( ImGui::Begin( "main", NULL,
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_MenuBar ) )
+		{
+			ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(4,4) );
+			if( ImGui::BeginMenuBar() )
+			{
+				if( ImGui::BeginMenu( "File" ) )
+				{
+					ImGui::MenuItem( "New" );
+					ImGui::EndMenu();
+				}
+				ImGui::EndMenuBar();
+			}
+			
+			static float f = 0.5f;
+			if( ImGui::BeginChild( "test", ImVec2(400,200), true ) )
+			{
+				ImGui::DragFloat( "test1", &f );
+				ImGui::EndChild();
+			}
+			ImGui::SameLine( GR_GetWidth() * 0.5f );
+			if( ImGui::BeginChild( "testx", ImVec2(400,200), true ) )
+			{
+				ImGui::DragFloat( "test2", &f );
+				ImGui::EndChild();
+			}
+			
+			ImGui::PopStyleVar( 1 );
+			ImGui::End();
+		}
+		ImGui::PopStyleVar( 2 );
+		
 		static bool show_test_window = true;
 		ImGui::SetNextWindowPos( ImVec2(650, 20), ImGuiSetCond_FirstUseEver );
-		ImGui::ShowTestWindow( &show_test_window );
+	//	ImGui::ShowTestWindow( &show_test_window );
 		
 		SGRX_IMGUI_Render();
 		SGRX_IMGUI_ClearEvents();

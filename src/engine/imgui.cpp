@@ -101,8 +101,7 @@ void SGRX_IMGUI_Init()
 	String fontpath;
 	if( FS_FindRealPath( "fonts/lato-regular.ttf", fontpath ) )
 	{
-		puts(StackPath( fontpath ));
-		io.Fonts->AddFontFromFileTTF( StackPath( fontpath ), 16.0f );
+		io.Fonts->AddFontFromFileTTF( StackPath( fontpath ), 14.0f );
 	}
 }
 
