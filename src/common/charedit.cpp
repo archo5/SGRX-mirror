@@ -2845,6 +2845,48 @@ void CE_UpdateParamList(){ g_UIFrame->AutoUpdateParamList(); }
 
 
 
+bool PickBoneName( const char* label, String& name, int& id, int self = -1 )
+{
+	String namelist = "<None>";
+	namelist.push_back( '\0' );
+	for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+	{
+		if( self >= 0 )
+		{
+			int pb = i;
+			while( pb >= 0 )
+			{
+				if( pb == self )
+					break;
+				pb = g_AnimChar->FindParentBone( pb );
+			}
+			// can't have child bones/self in the list
+			if( pb >= 0 )
+				continue;
+		}
+		
+		int pb = i;
+		for(;;)
+		{
+			pb = g_AnimChar->FindParentBone( pb );
+			if( pb < 0 )
+				break;
+			namelist.push_back( '-' );
+		}
+		namelist.append( g_AnimChar->bones[ i ].name );
+		namelist.push_back( '\0' );
+	}
+	namelist.push_back( '\0' );
+	id++;
+	bool ret = ImGui::Combo( label, &id, namelist.data() );
+	id--;
+	if( ret && id >= 0 && id < (int) g_AnimChar->bones.size() )
+	{
+		name = g_AnimChar->bones[ id ].name;
+	}
+	return ret;
+}
+
 void EditBoneInfo( AnimCharacter::BoneInfo& bi )
 {
 	static const char* bi_body_types[] = { "None", "Sphere", "Capsule", "Box" };
@@ -2856,14 +2898,14 @@ void EditBoneInfo( AnimCharacter::BoneInfo& bi )
 		if( IMGUIEditString( "Name", bi.name, 256 ) )
 			bi.bone_id = g_AnimChar->_FindBone( bi.name );
 		
-		IMGUI_GROUP( "Hitbox",
+		IMGUI_GROUP( "Hitbox", true,
 		{
 			IMGUIEditVec3( "Position", bi.hitbox.position, -100, 100 );
 			IMGUIEditQuat( "Rotation", bi.hitbox.rotation );
 			IMGUIEditVec3( "Extents", bi.hitbox.extents, 0.01f, 100 );
 			IMGUIEditFloat( "Multiplier", bi.hitbox.multiplier, 0, 1000 );
 		});
-		IMGUI_GROUP( "Body",
+		IMGUI_GROUP( "Body", true,
 		{
 			IMGUIEditVec3( "Position", bi.body.position, -100, 100 );
 			IMGUIEditQuat( "Rotation", bi.body.rotation );
@@ -2876,8 +2918,18 @@ void EditBoneInfo( AnimCharacter::BoneInfo& bi )
 			if( bi.body.type == AnimCharacter::BodyType_Box )
 				IMGUIEditVec3( "Size", bi.body.size, 0.01f, 100 );
 		});
-		IMGUI_GROUP( "Joint",
+		IMGUI_GROUP( "Joint", true,
 		{
+			int self = -1;
+			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			{
+				if( &g_AnimChar->bones[ i ] == &bi )
+				{
+					self = i;
+					break;
+				}
+			}
+			PickBoneName( "Parent bone", bi.joint.parent_name, bi.joint.parent_id, self );
 			IMGUI_COMBOBOX( "Type", bi.joint.type, bi_joint_types );
 			IMGUIEditVec3( "Position [self]", bi.joint.self_position, -100, 100 );
 			IMGUIEditQuat( "Rotation [self]", bi.joint.self_rotation );
@@ -2894,6 +2946,125 @@ void EditBoneInfo( AnimCharacter::BoneInfo& bi )
 				IMGUIEditFloat( "Y limit", bi.joint.turn_limit_2, 0, 360 );
 				IMGUIEditFloat( "Twist limit", bi.joint.twist_limit, 0, 360 );
 			}
+		});
+		
+		ImGui::TreePop();
+	}
+}
+
+void EditAttachmentInfo( AnimCharacter::Attachment& atch )
+{
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	if( ImGui::TreeNode( &atch, "Attachment: %s", StackString<256>(atch.name).str ) )
+	{
+		IMGUIEditString( "Name", atch.name, 256 );
+		PickBoneName( "Bone", atch.bone, atch.bone_id );
+		IMGUIEditVec3( "Position", atch.position, -100, 100 );
+		IMGUIEditQuat( "Rotation", atch.rotation );
+		
+		ImGui::TreePop();
+	}
+}
+
+void EditLayerTransformInfo( AnimCharacter::LayerTransform& ltf )
+{
+	static const char* bi_transform_types[] = { "None", "Undo parent transform", "Move", "Rotate" };
+	
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	bool ret = false;
+	if( ltf.type == AnimCharacter::TransformType_None )
+	{
+		ret = ImGui::TreeNode( &ltf, "Layer transform: None" );
+	}
+	else if( ltf.type == AnimCharacter::TransformType_UndoParent )
+	{
+		ret = ImGui::TreeNode( &ltf, "Layer transform: Undo parent transform" );
+	}
+	else if( ltf.type == AnimCharacter::TransformType_Move )
+	{
+		ret = ImGui::TreeNode( &ltf, "Layer transform: Move by (%g;%g;%g)",
+			ltf.posaxis.x, ltf.posaxis.y, ltf.posaxis.z );
+	}
+	else if( ltf.type == AnimCharacter::TransformType_Rotate )
+	{
+		ret = ImGui::TreeNode( &ltf, "Layer transform: Rotate by %g around (%g;%g;%g)",
+			ltf.angle, ltf.posaxis.x, ltf.posaxis.y, ltf.posaxis.z );
+	}
+	else
+	{
+		ret = ImGui::TreeNode( &ltf, "Layer transform: <Unknown!>" );
+	}
+	if( ret )
+	{
+		PickBoneName( "Bone", ltf.bone, ltf.bone_id );
+		
+		IMGUI_COMBOBOX( "Type", ltf.type, bi_transform_types );
+		
+		if( ltf.type == AnimCharacter::TransformType_Move )
+			IMGUIEditVec3( "Offset", ltf.posaxis, -100, 100 );
+		else if( ltf.type == AnimCharacter::TransformType_Rotate )
+		{
+			IMGUIEditVec3( "Axis", ltf.posaxis, -100, 100 );
+			IMGUIEditFloat( "Angle", ltf.angle, -360, 360 );
+		}
+		if( ltf.type == AnimCharacter::TransformType_Move ||
+			ltf.type == AnimCharacter::TransformType_Rotate )
+		{
+			IMGUIEditFloat( "Base factor", ltf.base, -100, 100 );
+		}
+		
+		ImGui::TreePop();
+	}
+}
+
+void EditLayerInfo( AnimCharacter::Layer& layer )
+{
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	if( ImGui::TreeNode( &layer, "Layer: %s", StackString<256>(layer.name).str ) )
+	{
+		IMGUIEditString( "Name", layer.name, 256 );
+		IMGUI_GROUP( "Transforms", true,
+		{
+			IMGUIEditArray( layer.transforms, EditLayerTransformInfo, "Add transform" );
+		});
+		IMGUIEditFloat( "Test factor", layer.amount, -100, 100 );
+		
+		ImGui::TreePop();
+	}
+}
+
+void EditMaskCmdInfo( AnimCharacter::MaskCmd& mcmd )
+{
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	if( ImGui::TreeNode( &mcmd, "Mask command: %s, weight = %g%s",
+		StackString<256>(mcmd.bone).str, mcmd.weight, mcmd.children ? ", incl. children" : "" ) )
+	{
+		int id = -1;
+		for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+		{
+			if( g_AnimChar->bones[ i ].name == mcmd.bone )
+			{
+				id = i;
+				break;
+			}
+		}
+		PickBoneName( "Bone", mcmd.bone, id );
+		IMGUIEditFloat( "Weight", mcmd.weight, 0, 1 );
+		ImGui::Checkbox( "Include children?", &mcmd.children );
+		
+		ImGui::TreePop();
+	}
+}
+
+void EditMaskInfo( AnimCharacter::Mask& mask )
+{
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	if( ImGui::TreeNode( &mask, "Mask: %s", StackString<256>(mask.name).str ) )
+	{
+		IMGUIEditString( "Name", mask.name, 256 );
+		IMGUI_GROUP( "Commands", true,
+		{
+			IMGUIEditArray( mask.cmds, EditMaskCmdInfo, "Add command" );
 		});
 		
 		ImGui::TreePop();
@@ -3056,8 +3227,22 @@ struct CSEditor : IGame
 				IMGUIEditString( "mesh", g_AnimChar->mesh, 256 );
 			},
 			{
-				ImGui::DragFloat( "test2", &f );
-				IMGUIEditArray( g_AnimChar->bones, EditBoneInfo, "Add bone" );
+				IMGUI_GROUP( "Bones", false,
+				{
+					IMGUIEditArray( g_AnimChar->bones, EditBoneInfo, "Add bone" );
+				});
+				IMGUI_GROUP( "Attachments", false,
+				{
+					IMGUIEditArray( g_AnimChar->attachments, EditAttachmentInfo, "Add attachment" );
+				});
+				IMGUI_GROUP( "Layers", false,
+				{
+					IMGUIEditArray( g_AnimChar->layers, EditLayerInfo, "Add layer" );
+				});
+				IMGUI_GROUP( "Masks", false,
+				{
+					IMGUIEditArray( g_AnimChar->masks, EditMaskInfo, "Add mask" );
+				});
 			});
 			
 			ImGui::PopStyleVar( 1 );

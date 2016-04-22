@@ -71,7 +71,7 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 		right; ImGui::EndChild(); \
 	}
 
-#define IMGUI_GROUP( name, cont ) ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing ); \
+#define IMGUI_GROUP( name, opened, cont ) ImGui::SetNextTreeNodeOpened( opened, ImGuiSetCond_Appearing ); \
 	if( ImGui::TreeNode( name ) ){ cont; ImGui::TreePop(); }
 
 template< class T > bool IMGUIListbox( const char* name, T& val, const char** list, int lsize )
