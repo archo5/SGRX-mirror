@@ -32,6 +32,8 @@ AnimCharacter* g_AnimChar;
 AnimMixer::Layer g_AnimMixLayers[2];
 
 
+IMGUIRenderView* g_NUIRenderView;
+IMGUIFilePicker* g_NUICharFilePicker;
 IMGUIMeshPicker* g_NUIMeshPicker;
 
 
@@ -2404,252 +2406,6 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		return true;
 	}
 	
-	void DebugDraw()
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		
-		if( g_AnimChar && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
-		{
-			if( m_showBodies )
-			{
-				br.Reset();
-				for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
-				{
-					Mat4 wm;
-					if( g_AnimChar->GetBodyMatrix( i, wm ) )
-					{
-						Vec3 size = g_AnimChar->bones[ i ].body.size;
-						if( (int) i == m_boneProps.m_bid )
-							br.Col( 0.8f, 0.1f, 0.9f, 0.8f );
-						else
-							br.Col( 0.5f, 0.1f, 0.9f, 0.5f );
-						switch( g_AnimChar->bones[ i ].body.type )
-						{
-						case AnimCharacter::BodyType_Sphere:
-							br.SphereOutline( wm.TransformPos( V3(0) ), size.x, 32 );
-							break;
-						case AnimCharacter::BodyType_Capsule:
-							br.CapsuleOutline( wm.TransformPos( V3(0) ), size.x,
-								wm.TransformNormal( V3(0,0,1) ).Normalized(), ( size.z - size.x ) * 2, 32 );
-							break;
-						case AnimCharacter::BodyType_Box:
-							br.AABB( -size, size, wm );
-							break;
-						}
-					}
-				}
-			}
-			
-			if( m_showJoints )
-			{
-				br.Reset();
-				for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
-				{
-					float a = 0.5f;
-					float d = 0.1f;
-					
-					AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ i ];
-					if( BI.joint.type == AnimCharacter::JointType_None )
-						continue;
-					
-					Mat4 wm;
-					if( g_AnimChar->GetJointMatrix( i, true, wm ) )
-					{
-						br.SetPrimitiveType( PT_Lines );
-						br.Col( 0.9f, 0.9f, 0.9f, a );
-						br.Pos( wm.TransformPos( V3(0,0,0) ) );
-						br.Col( 1, 0, 0, a );
-						br.Pos( wm.TransformPos( V3(d,0,0) ) );
-						
-						br.Prev( 1 );
-						br.Col( 0, 1, 0, a );
-						br.Pos( wm.TransformPos( V3(0,d,0) ) );
-						
-						br.Prev( 1 );
-						br.Col( 0, 0, 1, a );
-						br.Pos( wm.TransformPos( V3(0,0,d) ) );
-						
-						switch( BI.joint.type )
-						{
-						case AnimCharacter::JointType_Hinge:
-							br.Col( 1, 0.5f, 0, a );
-							br.ConeOutline(
-								wm.TransformPos( V3(0,0,0) ),
-								wm.TransformNormal( V3(0,0,1) ),
-								wm.TransformNormal( V3(0,-1,0) ),
-								0.1f,
-								V2( BI.joint.turn_limit_1, 0 ),
-								32 );
-							break;
-						case AnimCharacter::JointType_ConeTwist:
-							br.Col( 1, 1, 0, a );
-							br.ConeOutline(
-								wm.TransformPos( V3(0,0,0) ),
-								wm.TransformNormal( V3(0,0,1) ),
-								wm.TransformNormal( V3(0,-1,0) ),
-								0.1f,
-								V2( BI.joint.turn_limit_1, BI.joint.turn_limit_2 ),
-								32 );
-							break;
-						case AnimCharacter::JointType_None: break;
-						}
-					}
-					
-					if( g_AnimChar->GetJointMatrix( i, false, wm ) )
-					{
-						br.SetPrimitiveType( PT_Lines );
-						br.Col( 0.6f, 0.6f, 0.6f, a );
-						br.Pos( wm.TransformPos( V3(0,0,0) ) );
-						br.Col( 1, 0, 0, a );
-						br.Pos( wm.TransformPos( V3(d,0,0) ) );
-						
-						br.Prev( 1 );
-						br.Col( 0, 1, 0, a );
-						br.Pos( wm.TransformPos( V3(0,d,0) ) );
-						
-						br.Prev( 1 );
-						br.Col( 0, 0, 1, a );
-						br.Pos( wm.TransformPos( V3(0,0,d) ) );
-						
-#if 0
-						switch( BI.joint.type )
-						{
-						default:;
-						}
-#endif
-					}
-				}
-			}
-			
-			if( m_showHitboxes )
-			{
-				SceneRaycastCallback_Closest srcc;
-				Vec3 p0 = g_UIFrame->m_UIRenderView.crpos;
-				Vec3 p1 = p0 + g_UIFrame->m_UIRenderView.crdir * 1000;
-				g_AnimChar->RaycastAll( p0, p1, &srcc );
-				
-				br.Reset();
-				for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
-				{
-					bool hit = srcc.m_hit && g_AnimChar->bones[ i ].bone_id == srcc.m_closest.boneID;
-					Mat4 wm;
-					Vec3 ext;
-					if( g_AnimChar->GetHitboxOBB( i, wm, ext ) )
-					{
-						if( (int) i == m_boneProps.m_bid )
-						{
-							if( hit )
-								br.Col( 0.9f, 0.8f, 0.1f, 0.9f );
-							else
-								br.Col( 0.1f, 0.8f, 0.9f, 0.8f );
-						}
-						else
-						{
-							if( hit )
-								br.Col( 0.9f, 0.5f, 0.1f, 0.6f );
-							else
-								br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
-						}
-						br.AABB( -ext, ext, wm );
-					}
-				}
-			}
-			
-			// draw attachments
-			if( m_showAttachments )
-			{
-				br.Reset();
-				br.SetPrimitiveType( PT_Lines );
-				for( size_t i = 0; i < g_AnimChar->attachments.size(); ++i )
-				{
-					Mat4 wm;
-					if( g_AnimChar->GetAttachmentMatrix( i, wm ) )
-					{
-						float a, d = 0.8f;
-						if( (int) i == m_atchProps.m_aid )
-							br.Col( 0.9f, 0.9f, 0.9f, a = 0.8f );
-						else
-							br.Col( 0.6f, 0.6f, 0.6f, a = 0.5f );
-						br.Pos( wm.TransformPos( V3(0,0,0) ) );
-						br.Col( 1, 0, 0, a );
-						br.Pos( wm.TransformPos( V3(d,0,0) ) );
-						
-						br.Prev( 1 );
-						br.Col( 0, 1, 0, a );
-						br.Pos( wm.TransformPos( V3(0,d,0) ) );
-						
-						br.Prev( 1 );
-						br.Col( 0, 0, 1, a );
-						br.Pos( wm.TransformPos( V3(0,0,d) ) );
-					}
-				}
-			}
-			
-			// draw current mask
-			if( m_showMasks && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
-			{
-				br.Reset();
-				
-				for( size_t i = 0; i < g_AnimChar->masks.size(); ++i )
-				{
-					if( (int) i != m_maskProps.m_mid )
-						continue; // displaying more than one at a time would lead to excessive noise
-					
-					float maskdata[ SGRX_MAX_MESH_BONES ] = {0};
-					
-					AnimCharacter::Mask& M = g_AnimChar->masks[ i ];
-					for( size_t j = 0; j < M.cmds.size(); ++j )
-					{
-						AnimCharacter::MaskCmd& MC = M.cmds[ j ];
-						int bone_id = g_AnimChar->_FindBone( MC.bone );
-						if( bone_id >= 0 )
-						{
-							maskdata[ bone_id ] = MC.weight;
-							if( MC.children )
-							{
-								for( int b = 0; b < g_AnimChar->m_cachedMesh->m_numBones; ++b )
-								{
-									if( g_AnimChar->m_cachedMesh->IsBoneUnder( b, bone_id ) )
-										maskdata[ b ] = MC.weight;
-								}
-							}
-						}
-					}
-					
-					for( int bone_id = 0; bone_id < g_AnimChar->m_cachedMesh->m_numBones; ++bone_id )
-					{
-						Mat4 bmtx = g_AnimChar->m_cachedMeshInst->matrix;
-						if( g_AnimChar->m_cachedMeshInst->IsSkinned() )
-							bmtx = g_AnimChar->m_cachedMeshInst->skin_matrices[ bone_id ] * bmtx;
-						bmtx = g_AnimChar->m_cachedMesh->m_bones[ bone_id ].skinOffset * bmtx;
-						
-						Vec3 pos = bmtx.TransformPos( V3(0) );
-						br.Col( 0.1f + ( 1 - maskdata[ bone_id ] ) * 0.8f, 0.1f + maskdata[ bone_id ] * 0.8f, 0.1f );
-						br.Tick( pos, m_maskProps.m_previewSize.m_value );
-					}
-				}
-			}
-			
-			// draw physics
-			if( m_showPhysics )
-			{
-				g_PhyWorld->DebugDraw();
-			}
-			
-			// draw bones
-			if( 1 )
-			{
-				br.Reset();
-				SGRX_IMesh* mesh = g_AnimChar->m_cachedMeshInst->GetMesh();
-				for( int i = 0; i < mesh->m_numBones; ++i )
-				{
-					float sxt = ( 1 - float(i) / mesh->m_numBones );
-					br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + sxt * 0.1f );
-				}
-			}
-		}
-	}
-	
 	void AddToParamList( EDGUIItem* item )
 	{
 		m_UIParamList.Add( item );
@@ -2791,6 +2547,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		m_fileName = str;
 	}
 	
+	void DebugDraw(){}
+	
 	String m_fileName;
 	
 	bool m_showBodies;
@@ -2846,6 +2604,278 @@ void FC_EditMaskCmd( int mid, int cid ){ g_UIFrame->EditMaskCmd( mid, cid ); }
 void FC_EditMask( int which ){ g_UIFrame->EditMask( which ); }
 void CE_UpdateParamList(){ g_UIFrame->AutoUpdateParamList(); }
 
+
+
+
+
+
+
+
+
+
+String g_fileName;
+
+bool g_showBodies = true;
+bool g_showJoints = true;
+bool g_showHitboxes = true;
+bool g_showAttachments = true;
+bool g_showMasks = true;
+bool g_showPhysics = true;
+float g_maskPreviewTickSize = 0.04f;
+
+
+
+void DebugDraw()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	
+	if( g_AnimChar && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
+	{
+		if( g_showBodies )
+		{
+			br.Reset();
+			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			{
+				Mat4 wm;
+				if( g_AnimChar->GetBodyMatrix( i, wm ) )
+				{
+					Vec3 size = g_AnimChar->bones[ i ].body.size;
+				//	if( (int) i == m_boneProps.m_bid )
+				//		br.Col( 0.8f, 0.1f, 0.9f, 0.8f );
+				//	else
+						br.Col( 0.5f, 0.1f, 0.9f, 0.5f );
+					switch( g_AnimChar->bones[ i ].body.type )
+					{
+					case AnimCharacter::BodyType_Sphere:
+						br.SphereOutline( wm.TransformPos( V3(0) ), size.x, 32 );
+						break;
+					case AnimCharacter::BodyType_Capsule:
+						br.CapsuleOutline( wm.TransformPos( V3(0) ), size.x,
+							wm.TransformNormal( V3(0,0,1) ).Normalized(), ( size.z - size.x ) * 2, 32 );
+						break;
+					case AnimCharacter::BodyType_Box:
+						br.AABB( -size, size, wm );
+						break;
+					}
+				}
+			}
+		}
+		
+		if( g_showJoints )
+		{
+			br.Reset();
+			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			{
+				float a = 0.5f;
+				float d = 0.1f;
+				
+				AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ i ];
+				if( BI.joint.type == AnimCharacter::JointType_None )
+					continue;
+				
+				Mat4 wm;
+				if( g_AnimChar->GetJointMatrix( i, true, wm ) )
+				{
+					br.SetPrimitiveType( PT_Lines );
+					br.Col( 0.9f, 0.9f, 0.9f, a );
+					br.Pos( wm.TransformPos( V3(0,0,0) ) );
+					br.Col( 1, 0, 0, a );
+					br.Pos( wm.TransformPos( V3(d,0,0) ) );
+					
+					br.Prev( 1 );
+					br.Col( 0, 1, 0, a );
+					br.Pos( wm.TransformPos( V3(0,d,0) ) );
+					
+					br.Prev( 1 );
+					br.Col( 0, 0, 1, a );
+					br.Pos( wm.TransformPos( V3(0,0,d) ) );
+					
+					switch( BI.joint.type )
+					{
+					case AnimCharacter::JointType_Hinge:
+						br.Col( 1, 0.5f, 0, a );
+						br.ConeOutline(
+							wm.TransformPos( V3(0,0,0) ),
+							wm.TransformNormal( V3(0,0,1) ),
+							wm.TransformNormal( V3(0,-1,0) ),
+							0.1f,
+							V2( BI.joint.turn_limit_1, 0 ),
+							32 );
+						break;
+					case AnimCharacter::JointType_ConeTwist:
+						br.Col( 1, 1, 0, a );
+						br.ConeOutline(
+							wm.TransformPos( V3(0,0,0) ),
+							wm.TransformNormal( V3(0,0,1) ),
+							wm.TransformNormal( V3(0,-1,0) ),
+							0.1f,
+							V2( BI.joint.turn_limit_1, BI.joint.turn_limit_2 ),
+							32 );
+						break;
+					case AnimCharacter::JointType_None: break;
+					}
+				}
+				
+				if( g_AnimChar->GetJointMatrix( i, false, wm ) )
+				{
+					br.SetPrimitiveType( PT_Lines );
+					br.Col( 0.6f, 0.6f, 0.6f, a );
+					br.Pos( wm.TransformPos( V3(0,0,0) ) );
+					br.Col( 1, 0, 0, a );
+					br.Pos( wm.TransformPos( V3(d,0,0) ) );
+					
+					br.Prev( 1 );
+					br.Col( 0, 1, 0, a );
+					br.Pos( wm.TransformPos( V3(0,d,0) ) );
+					
+					br.Prev( 1 );
+					br.Col( 0, 0, 1, a );
+					br.Pos( wm.TransformPos( V3(0,0,d) ) );
+					
+#if 0
+					switch( BI.joint.type )
+					{
+					default:;
+					}
+#endif
+				}
+			}
+		}
+		
+		if( g_showHitboxes )
+		{
+			SceneRaycastCallback_Closest srcc;
+			Vec3 p0 = g_UIFrame->m_UIRenderView.crpos;
+			Vec3 p1 = p0 + g_UIFrame->m_UIRenderView.crdir * 1000;
+			g_AnimChar->RaycastAll( p0, p1, &srcc );
+			
+			br.Reset();
+			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
+			{
+				bool hit = srcc.m_hit && g_AnimChar->bones[ i ].bone_id == srcc.m_closest.boneID;
+				Mat4 wm;
+				Vec3 ext;
+				if( g_AnimChar->GetHitboxOBB( i, wm, ext ) )
+				{
+#if 0
+					if( (int) i == m_boneProps.m_bid )
+					{
+						if( hit )
+							br.Col( 0.9f, 0.8f, 0.1f, 0.9f );
+						else
+							br.Col( 0.1f, 0.8f, 0.9f, 0.8f );
+					}
+					else
+#endif
+					{
+						if( hit )
+							br.Col( 0.9f, 0.5f, 0.1f, 0.6f );
+						else
+							br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
+					}
+					br.AABB( -ext, ext, wm );
+				}
+			}
+		}
+		
+		// draw attachments
+		if( g_showAttachments )
+		{
+			br.Reset();
+			br.SetPrimitiveType( PT_Lines );
+			for( size_t i = 0; i < g_AnimChar->attachments.size(); ++i )
+			{
+				Mat4 wm;
+				if( g_AnimChar->GetAttachmentMatrix( i, wm ) )
+				{
+					float a, d = 0.8f;
+#if 0
+					if( (int) i == m_atchProps.m_aid )
+						br.Col( 0.9f, 0.9f, 0.9f, a = 0.8f );
+					else
+#endif
+						br.Col( 0.6f, 0.6f, 0.6f, a = 0.5f );
+					br.Pos( wm.TransformPos( V3(0,0,0) ) );
+					br.Col( 1, 0, 0, a );
+					br.Pos( wm.TransformPos( V3(d,0,0) ) );
+					
+					br.Prev( 1 );
+					br.Col( 0, 1, 0, a );
+					br.Pos( wm.TransformPos( V3(0,d,0) ) );
+					
+					br.Prev( 1 );
+					br.Col( 0, 0, 1, a );
+					br.Pos( wm.TransformPos( V3(0,0,d) ) );
+				}
+			}
+		}
+		
+		// draw current mask
+		if( g_showMasks && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
+		{
+			br.Reset();
+			
+			for( size_t i = 0; i < g_AnimChar->masks.size(); ++i )
+			{
+#if 0
+				if( (int) i != m_maskProps.m_mid )
+					continue; // displaying more than one at a time would lead to excessive noise
+#endif
+				
+				float maskdata[ SGRX_MAX_MESH_BONES ] = {0};
+				
+				AnimCharacter::Mask& M = g_AnimChar->masks[ i ];
+				for( size_t j = 0; j < M.cmds.size(); ++j )
+				{
+					AnimCharacter::MaskCmd& MC = M.cmds[ j ];
+					int bone_id = g_AnimChar->_FindBone( MC.bone );
+					if( bone_id >= 0 )
+					{
+						maskdata[ bone_id ] = MC.weight;
+						if( MC.children )
+						{
+							for( int b = 0; b < g_AnimChar->m_cachedMesh->m_numBones; ++b )
+							{
+								if( g_AnimChar->m_cachedMesh->IsBoneUnder( b, bone_id ) )
+									maskdata[ b ] = MC.weight;
+							}
+						}
+					}
+				}
+				
+				for( int bone_id = 0; bone_id < g_AnimChar->m_cachedMesh->m_numBones; ++bone_id )
+				{
+					Mat4 bmtx = g_AnimChar->m_cachedMeshInst->matrix;
+					if( g_AnimChar->m_cachedMeshInst->IsSkinned() )
+						bmtx = g_AnimChar->m_cachedMeshInst->skin_matrices[ bone_id ] * bmtx;
+					bmtx = g_AnimChar->m_cachedMesh->m_bones[ bone_id ].skinOffset * bmtx;
+					
+					Vec3 pos = bmtx.TransformPos( V3(0) );
+					br.Col( 0.1f + ( 1 - maskdata[ bone_id ] ) * 0.8f, 0.1f + maskdata[ bone_id ] * 0.8f, 0.1f );
+					br.Tick( pos, g_maskPreviewTickSize );
+				}
+			}
+		}
+		
+		// draw physics
+		if( g_showPhysics )
+		{
+			g_PhyWorld->DebugDraw();
+		}
+		
+		// draw bones
+		if( 1 )
+		{
+			br.Reset();
+			SGRX_IMesh* mesh = g_AnimChar->m_cachedMeshInst->GetMesh();
+			for( int i = 0; i < mesh->m_numBones; ++i )
+			{
+				float sxt = ( 1 - float(i) / mesh->m_numBones );
+				br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + sxt * 0.1f );
+			}
+		}
+	}
+}
 
 
 bool PickBoneName( const char* label, String& name, int& id, int self = -1 )
@@ -3076,7 +3106,7 @@ void EditMaskInfo( AnimCharacter::Mask& mask )
 
 void EditAnimChar( AnimCharacter& ac )
 {
-	if( g_NUIMeshPicker->Use( "mesh", ac.mesh ) )
+	if( g_NUIMeshPicker->Property( "Pick mesh", "mesh", ac.mesh ) )
 	{
 		LOG << "Picked MESH: " << ac.mesh;
 		ac._OnRenderUpdate();
@@ -3123,10 +3153,21 @@ void EditAnimChar( AnimCharacter& ac )
 }
 
 
+struct CharRenderView : IMGUIRenderView
+{
+	CharRenderView() : IMGUIRenderView( g_EdScene ){}
+	void DebugDraw()
+	{
+		::DebugDraw();
+	}
+};
+
+
 enum EditorMode
 {
 	EditChar,
 	RagdollTest,
+	MiscProps,
 };
 
 
@@ -3138,19 +3179,7 @@ struct CSEditor : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
-		SGRX_IMGUI_Init();
-		
-		g_NUIMeshPicker = new IMGUIMeshPicker;
-		
-		g_UIMeshPicker = new EDGUIMeshPicker( true );
-		g_UICharOpenPicker = new EDGUICharOpenPicker;
-		g_UICharSavePicker = new EDGUICharSavePicker;
-		g_UIBonePicker = new EDGUIBonePicker;
-		g_UIBodyType = new EDGUIBodyType;
-		g_UIJointType = new EDGUIJointType;
-		g_UITransformType = new EDGUITransformType;
-		
-		// core layout
+		// core data
 		g_PhyWorld = PHY_CreateWorld();
 		g_PhyWorld->SetGravity( V3( 0, 0, -9.81f ) );
 		g_EdScene = GR_CreateScene();
@@ -3164,9 +3193,13 @@ struct CSEditor : IGame
 		g_AnimMixLayers[ 1 ].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
 		g_AnimChar->m_anMixer.layers = g_AnimMixLayers;
 		g_AnimChar->m_anMixer.layerCount = sizeof(g_AnimMixLayers) / sizeof(g_AnimMixLayers[0]);
-		g_UIFrame = new EDGUIMainFrame();
-		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
+		// TEST
+#if 0
+		g_AnimChar->m_anDeformer.AddModelForce( V3(-0.5f,0.5f,1), V3(1,-1,0), 0.7f, 1, 0.5f );
+#endif
+		
+		// floor mesh
 		g_FloorMeshInst = g_EdScene->CreateMeshInstance();
 		g_FloorMeshInst->SetMesh( GR_CreateMesh() );
 		SGRX_Material mtl;
@@ -3185,10 +3218,17 @@ struct CSEditor : IGame
 		g_FloorBody = g_PhyWorld->CreateRigidBody( frbi );
 		floor_mesh_update( 2, 0 );
 		
-		// TEST
-#if 0
-		g_AnimChar->m_anDeformer.AddModelForce( V3(-0.5f,0.5f,1), V3(1,-1,0), 0.7f, 1, 0.5f );
-#endif
+		// OLD GUI
+		g_UIFrame = new EDGUIMainFrame();
+		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
+		
+		g_UIMeshPicker = new EDGUIMeshPicker( true );
+		g_UICharOpenPicker = new EDGUICharOpenPicker;
+		g_UICharSavePicker = new EDGUICharSavePicker;
+		g_UIBonePicker = new EDGUIBonePicker;
+		g_UIBodyType = new EDGUIBodyType;
+		g_UIJointType = new EDGUIJointType;
+		g_UITransformType = new EDGUITransformType;
 		
 		// param area
 		g_UIFrame->ResetEditorState();
@@ -3199,6 +3239,14 @@ struct CSEditor : IGame
 		g_UIFrame->m_propList.Set( g_AnimChar );
 		g_UIFrame->ClearParamList();
 	//	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
+		// ------
+		
+		SGRX_IMGUI_Init();
+		
+		g_NUIRenderView = new CharRenderView;
+		g_NUICharFilePicker = new IMGUIFilePicker( "chars", ".chr" );
+		g_NUIMeshPicker = new IMGUIMeshPicker;
+		
 		
 		return true;
 	}
@@ -3220,13 +3268,16 @@ struct CSEditor : IGame
 		g_UIMeshPicker = NULL;
 		delete g_UIFrame;
 		g_UIFrame = NULL;
-		delete g_AnimChar;
+		
+		delete g_NUIMeshPicker;
+		delete g_NUICharFilePicker;
+		delete g_NUIRenderView;
+		
 		g_FloorMeshInst = NULL;
+		delete g_AnimChar;
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
 		g_PhyWorld = NULL;
-		
-		delete g_NUIMeshPicker;
 		
 		SGRX_IMGUI_Free();
 	}
@@ -3234,7 +3285,7 @@ struct CSEditor : IGame
 	{
 		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_TAB ) phySlow = true;
 		if( e.type == SDL_KEYUP && e.key.keysym.sym == SDLK_TAB ) phySlow = false;
-		g_UIFrame->EngineEvent( &e );
+	//	g_UIFrame->EngineEvent( &e );
 		SGRX_IMGUI_Event( e );
 	}
 	void OnTick( float dt, uint32_t gametime )
@@ -3246,13 +3297,12 @@ struct CSEditor : IGame
 			g_UIFrame->m_UIRenderView.GetViewSize() );
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_AnimChar->RecalcLayerState();
 		g_AnimChar->FixedTick( dt );
 		for( int i = 0; i < (phySlow?1:10); ++i )
 			g_PhyWorld->Step( dt / 10 );
 		g_AnimChar->PreRender( 1 );
-		g_UIFrame->Draw();
+		
 #if 0
 		//float fac = sinf( g_AnimChar->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;
 		g_AnimChar->m_anDeformer.forces[ 0 ].amount = 1;//fac * 0.5f;
@@ -3270,19 +3320,38 @@ struct CSEditor : IGame
 			ImGuiWindowFlags_NoMove |
 			ImGuiWindowFlags_MenuBar ) )
 		{
+			bool needOpen = false;
+			bool needSave = false;
+			bool needSaveAs = false;
+			
 			ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(4,4) );
 			if( ImGui::BeginMenuBar() )
 			{
 				if( ImGui::BeginMenu( "File" ) )
 				{
-					ImGui::MenuItem( "New" );
+					if( ImGui::MenuItem( "New" ) )
+					{
+						g_fileName = "";
+						delete g_AnimChar;
+						g_AnimChar = new AnimCharacter( g_EdScene, g_PhyWorld );
+					}
+					if( ImGui::MenuItem( "Open" ) ) needOpen = true;
+					if( ImGui::MenuItem( "Save" ) ) needSave = true;
+					if( ImGui::MenuItem( "Save As" ) ) needSaveAs = true;
+					ImGui::Separator();
+					if( ImGui::MenuItem( "Exit" ) ){ Game_End(); }
 					ImGui::EndMenu();
 				}
+				ImGui::SameLine( 0, 50 );
+				ImGui::Text( "Character file: %s", g_fileName.size() ? StackPath(g_fileName).str : "<none>" );
+				ImGui::SameLine( 0, 50 );
 				ImGui::Text( "Edit mode:" );
 				ImGui::SameLine();
 				ImGui::RadioButton( "Character", &m_mode, EditChar );
 				ImGui::SameLine();
 				ImGui::RadioButton( "Ragdoll test", &m_mode, RagdollTest );
+				ImGui::SameLine();
+				ImGui::RadioButton( "Misc. settings", &m_mode, MiscProps );
 				ImGui::EndMenuBar();
 			}
 			
@@ -3290,6 +3359,8 @@ struct CSEditor : IGame
 			IMGUI_HSPLIT( 0.6f,
 			{
 				ImGui::DragFloat( "test1", &f );
+				g_NUIRenderView->Process( dt );
+				ImGui::DragFloat( "test2", &f );
 			},
 			{
 				if( m_mode == EditChar )
@@ -3325,16 +3396,68 @@ struct CSEditor : IGame
 						g_AnimChar->WakeUp();
 					}
 				}
+				else if( m_mode == MiscProps )
+				{
+					IMGUI_GROUP( "Display options", true,
+					{
+						ImGui::Checkbox( "Show bodies", &g_showBodies );
+						ImGui::Checkbox( "Show joints", &g_showJoints );
+						ImGui::Checkbox( "Show hitboxes", &g_showHitboxes );
+						ImGui::Checkbox( "Show attachments", &g_showAttachments );
+						ImGui::Checkbox( "Show masks", &g_showMasks );
+						ImGui::Checkbox( "Show physics", &g_showPhysics );
+						IMGUIEditFloat( "Mask preview tick size", g_maskPreviewTickSize, 0.001f, 1 );
+					});
+					g_NUIRenderView->EditCameraParams();
+				}
 			});
+			
+			//
+			// OPEN
+			//
+			String fn;
+#define OPEN_CAPTION "Open character (.chr) file"
+			if( needOpen )
+				g_NUICharFilePicker->OpenPopup( OPEN_CAPTION );
+			if( g_NUICharFilePicker->Popup( OPEN_CAPTION, fn, false ) )
+			{
+				if( g_AnimChar->Load( fn ) )
+				{
+					g_fileName = fn;
+				}
+				else
+				{
+					IMGUIError( "Cannot open file: %s", StackPath(fn).str );
+				}
+			}
+			
+			//
+			// SAVE
+			//
+			fn = g_fileName;
+#define SAVE_CAPTION "Save character (.chr) file"
+			if( needSaveAs || ( needSave && g_fileName.size() == 0 ) )
+				g_NUICharFilePicker->OpenPopup( SAVE_CAPTION );
+			
+			bool canSave = needSave && g_fileName.size();
+			if( g_NUICharFilePicker->Popup( SAVE_CAPTION, fn, true ) )
+				canSave = fn.size();
+			if( canSave )
+			{
+				if( g_AnimChar->Save( fn ) )
+				{
+					g_fileName = fn;
+				}
+				else
+				{
+					IMGUIError( "Cannot save file: %s", StackPath(fn).str );
+				}
+			}
 			
 			ImGui::PopStyleVar( 1 );
 			ImGui::End();
 		}
 		ImGui::PopStyleVar( 2 );
-		
-		static bool show_test_window = true;
-		ImGui::SetNextWindowPos( ImVec2(650, 20), ImGuiSetCond_FirstUseEver );
-	//	ImGui::ShowTestWindow( &show_test_window );
 		
 		SGRX_IMGUI_Render();
 		SGRX_IMGUI_ClearEvents();

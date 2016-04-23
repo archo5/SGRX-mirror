@@ -114,6 +114,15 @@ inline int sgrx_sncopy( char* buf, size_t len, const char* str, size_t ilen = (s
 	return 0;
 }
 
+inline int sgrx_vsnprintf( char* buf, size_t len, const char* fmt, va_list args )
+{
+	if( len == 0 )
+		return -1;
+	int ret = vsnprintf( buf, len, fmt, args );
+	buf[ len - 1 ] = 0;
+	return ret;
+}
+
 inline int sgrx_snprintf( char* buf, size_t len, const char* fmt, ... )
 {
 	if( len == 0 )

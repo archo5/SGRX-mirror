@@ -173,8 +173,10 @@ void SGRX_IMGUI_NewFrame()
 	ImGui::NewFrame();
 }
 
+void _IMGUI_DrawError();
 void SGRX_IMGUI_Render()
 {
+	_IMGUI_DrawError();
 	ImGui::Render();
 }
 
@@ -236,6 +238,28 @@ bool IMGUIEditString( const char* label, String& str, int maxsize )
 	return ret;
 }
 
+bool IMGUIModalError( const char* caption, const char* text, ... )
+{
+	bool ret = false;
+		puts("Q");
+	if( ImGui::BeginPopupModal( caption, NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
+	{
+		va_list args;
+		va_start( args, text );
+		ImGui::TextV( text, args );
+		va_end( args );
+		
+		puts("A");
+		if( ImGui::Button( "OK" ) )
+		{
+			ImGui::CloseCurrentPopup();
+			ret = true;
+		}
+		ImGui::EndPopup();
+	}
+	return ret;
+}
+
 
 
 inline void lmm_prepmeshinst( MeshInstHandle mih )
@@ -246,21 +270,174 @@ inline void lmm_prepmeshinst( MeshInstHandle mih )
 }
 
 
-bool IMGUIMeshPickerCore::Use( const char* label, String& str )
+char g_errorStr[ 4096 ];
+bool g_errorOpen = false;
+
+void _IMGUI_DrawError()
 {
-	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select>",
-		ImVec2( ImGui::GetContentRegionAvail().x * (2.f/3.f), 20 ) ) )
+	if( g_errorOpen )
 	{
-		ImGui::OpenPopup( m_caption );
+		ImGui::OpenPopup( "Error" );
+		g_errorOpen = false;
 	}
-	ImGui::SameLine();
-	ImGui::Text( "%s", label );
+	if( ImGui::BeginPopupModal( "Error", NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
+	{
+		ImGui::Text( g_errorStr );
+		if( ImGui::Button( "OK" ) )
+			ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
+	}
+}
+
+void IMGUIErrorStr( StringView str )
+{
+	sgrx_sncopy( g_errorStr, 4096, str.data(), str.size() );
+	g_errorOpen = true;
+}
+
+void IMGUIError( const char* str, ... )
+{
+	va_list args;
+	va_start( args, str );
+	sgrx_vsnprintf( g_errorStr, 4096, str, args );
+	va_end( args );
+	g_errorOpen = true;
+}
+
+
+IMGUIRenderView::IMGUIRenderView( SGRX_Scene* scene ) :
+	crpos( V3(0) ),
+	crdir( V3(0) ),
+	cursor_aim( false ),
+	cursor_hpos( V2(0) ),
+	crplaneheight( 0 ),
+	m_scene( scene )
+{
+	Vec3 dir = m_scene->camera.direction;
+	Vec2 dir2 = V2( dir.x, dir.y ).Normalized();
+	hangle = atan2( dir2.y, dir2.x );
+	vangle = asin( m_scene->camera.direction.z );
+}
+
+void IMGUIRenderView::Process( float deltaTime )
+{
+	// not-ctrl-or-alt
+	bool ncoa = !( ImGui::IsKeyDown( SDL_SCANCODE_LCTRL )
+		|| ImGui::IsKeyDown( SDL_SCANCODE_RCTRL )
+		|| ImGui::IsKeyDown( SDL_SCANCODE_LALT )
+		|| ImGui::IsKeyDown( SDL_SCANCODE_RALT ) );
+	bool movefwd = ncoa && ImGui::IsKeyDown( SDLK_w );
+	bool movebwd = ncoa && ImGui::IsKeyDown( SDLK_s );
+	bool movelft = ncoa && ImGui::IsKeyDown( SDLK_a );
+	bool movergt = ncoa && ImGui::IsKeyDown( SDLK_d );
+	bool movefast = ncoa && ImGui::IsKeyDown( SDL_SCANCODE_LSHIFT );
+	bool moveup = ncoa && ImGui::IsKeyDown( SDLK_q );
+	bool movedn = ncoa && ImGui::IsKeyDown( SDLK_z );
 	
+	cursor_aim = false;
+	ImVec2 gcp = ImGui::GetCursorPos();
+	ImVec2 gwsz = ImGui::GetWindowSize();
+	Vec2 cp = { safe_fdiv( gcp.x, gwsz.x ), safe_fdiv( gcp.y, gwsz.y ) };
+	if( m_scene->camera.GetCursorRay( cp.x, cp.y, crpos, crdir ) )
+	{
+		float dsts[2];
+		if( RayPlaneIntersect( crpos, crdir, V4(0,0,1,crplaneheight), dsts ) && dsts[0] > 0 )
+		{
+			Vec3 isp = crpos + crdir * dsts[0];
+			cursor_hpos = V2( isp.x, isp.y );
+			cursor_aim = true;
+		}
+	}
+	
+	// update camera
+	float speed = 1;
+	if( movefast )
+		speed *= 10;
+	speed *= deltaTime;
+	
+	if( ImGui::IsMouseDragging( 1, 0 ) )
+	{
+		ImVec2 rdrag = ncoa ? ImGui::GetMouseDragDelta( 1, 0 ) : ImVec2(0,0);
+		hangle -= rdrag.x * 0.01f;
+		vangle -= rdrag.y * 0.01f;
+		vangle = clamp( vangle, (float) -M_PI * 0.49f, (float) M_PI * 0.49f );
+		ImGui::ResetMouseDragDelta( 1 );
+	}
+	
+	float c_hangle = cos( hangle ), s_hangle = sin( hangle ), c_vangle = cos( vangle ), s_vangle = sin( vangle );
+	Vec3 dir = { c_hangle * c_vangle, s_hangle * c_vangle, s_vangle };
+	Vec3 up = m_scene->camera.updir;
+	Vec3 rgt = Vec3Cross( dir, up ).Normalized();
+	m_scene->camera.direction = dir;
+	m_scene->camera.position += ( dir * ( movefwd - movebwd ) + rgt * ( movergt - movelft ) + up * ( moveup - movedn ) ) * speed;
+	m_scene->camera.aspect = safe_fdiv( gwsz.x, gwsz.y );
+	
+	m_scene->camera.UpdateMatrices();
+	
+	ImVec2 gwp = ImGui::GetWindowPos();
+	m_vp.x0 = gwp.x;
+	m_vp.y0 = gwp.y;
+	m_vp.x1 = gwp.x + gwsz.x;
+	m_vp.y1 = gwp.y + gwsz.y;
+	ImGui::GetWindowDrawList()->AddCallback( IMGUIRenderView::_StaticDraw, this );
+}
+
+void IMGUIRenderView::_StaticDraw( const ImDrawList* parent_list, const ImDrawCmd* cmd )
+{
+	SGRX_CAST( IMGUIRenderView*, rv, cmd->UserCallbackData );
+	SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), rv->m_scene );
+	rsinfo.viewport = &rv->m_vp;
+	rsinfo.debugdraw = rv;
+	GR_RenderScene( rsinfo );
+}
+
+void IMGUIRenderView::DebugDraw()
+{
+}
+
+void IMGUIRenderView::EditCameraParams()
+{
+	IMGUI_GROUP( "Camera", true,
+	{
+		SGRX_Camera& CAM = m_scene->camera;
+		
+		IMGUIEditVec3( "Position", CAM.position, -10000, 10000 );
+		if( IMGUIEditVec3( "Direction", CAM.direction, -100, 100 ) )
+			CAM.direction.Normalize();
+		if( IMGUIEditVec3( "Up direction", CAM.updir, -100, 100 ) )
+			CAM.updir.Normalize();
+		IMGUIEditFloat( "Angle", CAM.angle, 1, 179 );
+		// no aspect ratio editing - it's automatically calculated
+		IMGUIEditFloat( "Aspect/angle mix H-V", CAM.aamix, 0, 1 );
+		IMGUIEditFloat( "Z near", CAM.znear, 0.0001f, 100000 );
+		IMGUIEditFloat( "Z far", CAM.zfar, 0.0001f, 100000 );
+	});
+}
+
+
+IMGUIPickerCore::IMGUIPickerCore() :
+	m_itemSize( ImVec2( 256, 32 ) ),
+	m_looseSearch( true )
+{
+}
+
+IMGUIPickerCore::~IMGUIPickerCore()
+{
+}
+
+void IMGUIPickerCore::OpenPopup( const char* caption )
+{
+	Reload();
+	ImGui::OpenPopup( caption );
+}
+
+bool IMGUIPickerCore::Popup( const char* caption, String& str )
+{
 	bool opened = true;
 	bool changed = false;
 	ImGui::SetNextWindowPos( ImVec2( 20, 20 ), ImGuiSetCond_Appearing );
 	ImGui::SetNextWindowSize( ImGui::GetIO().DisplaySize - ImVec2( 40, 40 ), ImGuiSetCond_Appearing );
-	if( ImGui::BeginPopupModal( m_caption, &opened, 0 ) )
+	if( ImGui::BeginPopupModal( caption, &opened, 0 ) )
 	{
 		String prev = m_searchString;
 		IMGUIEditString( "Search query", m_searchString, 256 );
@@ -269,11 +446,7 @@ bool IMGUIMeshPickerCore::Use( const char* label, String& str )
 		
 		ImGui::Separator();
 		
-		ImDrawList* idl = ImGui::GetWindowDrawList();
-		int width = 128;
-		int height = 128;
-		ImVec2 btnSize( width, height );
-		int ncols = ImGui::GetContentRegionAvail().x / width;
+		int ncols = ImGui::GetContentRegionAvail().x / m_itemSize.x;
 		for( size_t i = 0; i < m_filtered.size(); ++i )
 		{
 			int x = i % ncols;
@@ -281,27 +454,20 @@ bool IMGUIMeshPickerCore::Use( const char* label, String& str )
 			
 			if( x )
 				ImGui::SameLine();
-			ImVec2 cp = ImGui::GetCursorPos()
-				- ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() )
-				+ ImGui::GetWindowPos();
 			
-			const Entry& E = m_entries[ m_filtered[ i ] ];
-			ImGui::PushID( E.path.c_str() );
-			if( ImGui::Button( "##btn", btnSize ) )
+			RCString path = GetEntryPath( m_filtered[ i ] );
+			ImGui::PushID( path.c_str() );
+			if( EntryUI( m_filtered[ i ] ) )
 			{
-				str = E.path;
+				str = path;
 				opened = false;
 				changed = true;
 			}
 			ImGui::PopID();
-			
-			_StaticDrawItemData data =
-			{
-				this, m_filtered[ i ], cp.x, cp.y, cp.x + width, cp.y + height,
-			};
-			idl->AddCallback( IMGUIMeshPickerCore::_StaticDrawItem, new _StaticDrawItemData(data) );
 		}
 		
+		if( ImGui::IsKeyPressed( SDLK_ESCAPE ) )
+			opened = false;
 		if( !opened )
 			ImGui::CloseCurrentPopup();
 		ImGui::EndPopup();
@@ -310,38 +476,138 @@ bool IMGUIMeshPickerCore::Use( const char* label, String& str )
 	return changed;
 }
 
-void IMGUIMeshPickerCore::_Search( StringView text )
+bool IMGUIPickerCore::Property( const char* caption, const char* label, String& str )
 {
+	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select>",
+		ImVec2( ImGui::GetContentRegionAvail().x * (2.f/3.f), 20 ) ) )
+	{
+		OpenPopup( caption );
+	}
+	ImGui::SameLine();
+	ImGui::Text( "%s", label );
+	return Popup( caption, str );
+}
+
+void IMGUIPickerCore::Reload()
+{
+}
+
+void IMGUIPickerCore::_Search( StringView text )
+{
+	size_t count = GetEntryCount();
 	m_filtered.clear();
 	if( !text )
 	{
-		for( size_t i = 0; i < m_entries.size(); ++i )
+		for( size_t i = 0; i < count; ++i )
 			m_filtered.push_back( i );
 	}
 	else if( m_looseSearch )
 	{
-		for( size_t i = 0; i < m_entries.size(); ++i )
+		for( size_t i = 0; i < count; ++i )
 		{
-			if( m_entries[ i ].path.view().match_loose( text ) )
+			if( GetEntryPath( i ).view().match_loose( text ) )
 				m_filtered.push_back( i );
 		}
 	}
 	else
 	{
-		for( size_t i = 0; i < m_entries.size(); ++i )
+		for( size_t i = 0; i < count; ++i )
 		{
-			if( m_entries[ i ].path.view().find_first_at( text ) != NOT_FOUND )
+			if( GetEntryPath( i ).view().find_first_at( text ) != NOT_FOUND )
 				m_filtered.push_back( i );
 		}
 	}
 }
 
+bool IMGUIPickerCore::EntryUI( size_t i )
+{
+	return ImGui::Button( GetEntryPath( i ).c_str(), m_itemSize );
+}
+
+
+IMGUIFilePicker::IMGUIFilePicker( const char* dir, const char* ext )
+{
+	m_directory = dir;
+	m_extension = ext;
+	Reload();
+}
+
+bool IMGUIFilePicker::Popup( const char* caption, String& str, bool save )
+{
+	m_saveMode = save;
+	return IMGUIPickerCore::Popup( caption, str );
+}
+
+void IMGUIFilePicker::Reload()
+{
+	LOG << "Reloading files, dir=" << m_directory << ", ext=" << m_extension;
+	m_entries.clear();
+	FS_IterateDirectory( m_directory, this );
+	_Search( m_searchString );
+}
+
+bool IMGUIFilePicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+{
+	if( name == "." || name == ".." )
+		return true;
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
+	LOG << "[F]: " << bfr;
+	StringView fullname = bfr;
+	if( isdir )
+	{
+		FS_IterateDirectory( fullname, this );
+	}
+	else if( name.ends_with( m_extension ) )
+	{
+		m_entries.push_back( fullname );
+	}
+	return true;
+}
+
+bool IMGUIFilePicker::EntryUI( size_t i )
+{
+	bool ret = IMGUIPickerCore::EntryUI( i );
+	
+	const char* popupName = m_saveMode ? "Overwrite file" : "Open file";
+	if( ret )
+		ImGui::OpenPopup( popupName );
+	
+	ret = false;
+	if( ImGui::BeginPopupModal( popupName, NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
+	{
+		if( m_saveMode )
+			ImGui::Text( "Do you really want to overwrite this file?" );
+		else
+			ImGui::Text( "Do you really want to open this file?" );
+		
+		ImGui::Separator();
+		ImGui::Text( "%s", GetEntryPath( i ).c_str() );
+		ImGui::Separator();
+		
+		if( ImGui::Button( "Yes" ) )
+		{
+			ret = true;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine( 0, 20 );
+		if( ImGui::Button( "No" ) )
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		
+		ImGui::EndPopup();
+	}
+	
+	return ret;
+}
+
+
 IMGUIMeshPickerCore::IMGUIMeshPickerCore() :
-	m_caption( "Pick mesh" ),
 	m_customCamera( false ),
-	m_looseSearch( true ),
 	m_scene( GR_CreateScene() )
 {
+	m_itemSize = ImVec2( 128, 128 );
 }
 
 IMGUIMeshPickerCore::~IMGUIMeshPickerCore()
@@ -407,6 +673,24 @@ void IMGUIMeshPickerCore::_StaticDrawItem( const ImDrawList* parent_list, const 
 	data->self->_DrawItem( data->i, data->x0, data->y0, data->x1, data->y1 );
 	delete data;
 	const_cast<void*&>(cmd->UserCallbackData) = NULL;
+}
+
+bool IMGUIMeshPickerCore::EntryUI( size_t i )
+{
+	ImVec2 cp = ImGui::GetCursorPos()
+		- ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() )
+		+ ImGui::GetWindowPos();
+	
+	bool ret = ImGui::Button( "##btn", m_itemSize );
+	
+	_StaticDrawItemData data =
+	{
+		this, i, cp.x, cp.y, cp.x + m_itemSize.x, cp.y + m_itemSize.y,
+	};
+	ImGui::GetWindowDrawList()->AddCallback(
+		IMGUIMeshPickerCore::_StaticDrawItem, new _StaticDrawItemData(data) );
+	
+	return ret;
 }
 
 

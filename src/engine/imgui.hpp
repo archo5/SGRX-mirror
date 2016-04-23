@@ -27,9 +27,71 @@ ENGINE_EXPORT bool IMGUIEditFloat( const char* label, float& v, float vmin, floa
 ENGINE_EXPORT bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
+ENGINE_EXPORT void IMGUIErrorStr( StringView str );
+ENGINE_EXPORT void IMGUIError( const char* str, ... );
 
 
-struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore
+struct IF_GCC(ENGINE_EXPORT) IMGUIRenderView : SGRX_RefCounted, SGRX_DebugDraw
+{
+	ENGINE_EXPORT IMGUIRenderView( SGRX_Scene* scene );
+	ENGINE_EXPORT void Process( float deltaTime );
+	ENGINE_EXPORT static void _StaticDraw( const ImDrawList* parent_list, const ImDrawCmd* cmd );
+	ENGINE_EXPORT virtual void DebugDraw();
+	
+	ENGINE_EXPORT void EditCameraParams();
+	
+	float hangle;
+	float vangle;
+	
+	Vec3 crpos, crdir;
+	bool cursor_aim;
+	Vec2 cursor_hpos;
+	float crplaneheight;
+	SGRX_Scene* m_scene;
+	SGRX_Viewport m_vp;
+};
+
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
+{
+	ENGINE_EXPORT IMGUIPickerCore();
+	ENGINE_EXPORT virtual ~IMGUIPickerCore();
+	
+	ENGINE_EXPORT virtual void OpenPopup( const char* caption );
+	ENGINE_EXPORT virtual bool Popup( const char* caption, String& str );
+	ENGINE_EXPORT virtual bool Property( const char* caption, const char* label, String& str );
+	ENGINE_EXPORT virtual void Reload();
+	ENGINE_EXPORT void _Search( StringView text );
+	
+	virtual size_t GetEntryCount() const = 0;
+	virtual RCString GetEntryPath( size_t i ) const = 0;
+	ENGINE_EXPORT virtual bool EntryUI( size_t i );
+	
+	ImVec2 m_itemSize;
+	// search
+	bool m_looseSearch;
+	String m_searchString;
+	Array< int > m_filtered;
+};
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIPickerCore, IDirEntryHandler
+{
+	ENGINE_EXPORT IMGUIFilePicker( const char* dir, const char* ext );
+	ENGINE_EXPORT bool Popup( const char* caption, String& str, bool save );
+	ENGINE_EXPORT void Reload();
+	
+	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
+	virtual size_t GetEntryCount() const { return m_entries.size(); }
+	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]; }
+	ENGINE_EXPORT virtual bool EntryUI( size_t i );
+	
+	bool m_saveMode;
+	const char* m_directory;
+	const char* m_extension;
+	Array< RCString > m_entries;
+};
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore : IMGUIPickerCore
 {
 	struct Entry
 	{
@@ -37,11 +99,9 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore
 		MeshInstHandle mesh;
 	};
 	
-	ENGINE_EXPORT bool Use( const char* label, String& str );
-	ENGINE_EXPORT void _Search( StringView text );
-	
 	ENGINE_EXPORT IMGUIMeshPickerCore();
-	ENGINE_EXPORT virtual ~IMGUIMeshPickerCore();
+	ENGINE_EXPORT ~IMGUIMeshPickerCore();
+	
 	ENGINE_EXPORT void Clear();
 	ENGINE_EXPORT void AddMesh( StringView path, StringView rsrcpath = SV() );
 	
@@ -53,12 +113,12 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore
 	};
 	ENGINE_EXPORT static void _StaticDrawItem( const ImDrawList* parent_list, const ImDrawCmd* cmd );
 	
-	const char* m_caption;
+	virtual size_t GetEntryCount() const { return m_entries.size(); }
+	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ].path; }
+	ENGINE_EXPORT virtual bool EntryUI( size_t i );
+	
 	bool m_customCamera;
-	bool m_looseSearch;
 	Array< Entry > m_entries;
-	Array< int > m_filtered;
-	String m_searchString;
 	SceneHandle m_scene;
 };
 
