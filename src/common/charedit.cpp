@@ -2061,10 +2061,10 @@ static void floor_mesh_update( float size, float height )
 {
 	FMVertex verts[4] =
 	{
-		{ { -size, -size, 0 }, {0,0,1}, { +size, -size } },
-		{ { +size, -size, 0 }, {0,0,1}, { -size, -size } },
-		{ { +size, +size, 0 }, {0,0,1}, { -size, +size } },
-		{ { -size, +size, 0 }, {0,0,1}, { +size, +size } },
+		{ { -size, -size, height }, {0,0,1}, { +size, -size } },
+		{ { +size, -size, height }, {0,0,1}, { -size, -size } },
+		{ { +size, +size, height }, {0,0,1}, { -size, +size } },
+		{ { -size, +size, height }, {0,0,1}, { +size, +size } },
 	};
 	uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
 	SGRX_MeshPart part = { 0, 4, 0, 6 };
@@ -2733,7 +2733,7 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 		
 		m_propList.Set( g_AnimChar );
 		ClearParamList();
-		AddToParamList( &m_propList );
+	//	AddToParamList( &m_propList );
 	}
 	void CH_New()
 	{
@@ -3074,11 +3074,65 @@ void EditMaskInfo( AnimCharacter::Mask& mask )
 	}
 }
 
+void EditAnimChar( AnimCharacter& ac )
+{
+	if( g_NUIMeshPicker->Use( "mesh", ac.mesh ) )
+	{
+		LOG << "Picked MESH: " << ac.mesh;
+		ac._OnRenderUpdate();
+		SGRX_IMesh* M = ac.m_cachedMesh;
+		if( M )
+		{
+			for( int i = 0; i < M->m_numBones; ++i )
+			{
+				StringView name = M->m_bones[ i ].name;
+				size_t j = 0;
+				for( ; j < ac.bones.size(); ++j )
+				{
+					if( ac.bones[ j ].name == name )
+						break;
+				}
+				if( j == ac.bones.size() )
+				{
+					AnimCharacter::BoneInfo B;
+					B.name = name;
+					ac.bones.push_back( B );
+				}
+			}
+		}
+		reload_mesh_vertices();
+		ac.RecalcBoneIDs();
+		lmm_prepmeshinst( ac.m_cachedMeshInst );
+	}
+	IMGUI_GROUP( "Bones", false,
+	{
+		IMGUIEditArray( ac.bones, EditBoneInfo, "Add bone" );
+	});
+	IMGUI_GROUP( "Attachments", false,
+	{
+		IMGUIEditArray( ac.attachments, EditAttachmentInfo, "Add attachment" );
+	});
+	IMGUI_GROUP( "Layers", false,
+	{
+		IMGUIEditArray( ac.layers, EditLayerInfo, "Add layer" );
+	});
+	IMGUI_GROUP( "Masks", false,
+	{
+		IMGUIEditArray( ac.masks, EditMaskInfo, "Add mask" );
+	});
+}
+
+
+enum EditorMode
+{
+	EditChar,
+	RagdollTest,
+};
 
 
 struct CSEditor : IGame
 {
-	CSEditor() : phySlow(false){}
+	CSEditor() : m_mode(EditChar), phySlow(false){}
 	bool OnInitialize()
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
@@ -3144,7 +3198,7 @@ struct CSEditor : IGame
 	//	mpd_DumpData( g_AnimChar->bones[0] );
 		g_UIFrame->m_propList.Set( g_AnimChar );
 		g_UIFrame->ClearParamList();
-		g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
+	//	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
 		
 		return true;
 	}
@@ -3224,6 +3278,11 @@ struct CSEditor : IGame
 					ImGui::MenuItem( "New" );
 					ImGui::EndMenu();
 				}
+				ImGui::Text( "Edit mode:" );
+				ImGui::SameLine();
+				ImGui::RadioButton( "Character", &m_mode, EditChar );
+				ImGui::SameLine();
+				ImGui::RadioButton( "Ragdoll test", &m_mode, RagdollTest );
 				ImGui::EndMenuBar();
 			}
 			
@@ -3233,50 +3292,39 @@ struct CSEditor : IGame
 				ImGui::DragFloat( "test1", &f );
 			},
 			{
-				if( g_NUIMeshPicker->Use( "mesh", g_AnimChar->mesh ) )
+				if( m_mode == EditChar )
 				{
-					LOG << "Picked MESH: " << g_AnimChar->mesh;
-					g_AnimChar->_OnRenderUpdate();
-					SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
-					if( M )
+					EditAnimChar( *g_AnimChar );
+				}
+				else if( m_mode == RagdollTest )
+				{
+					static float floor_size = 2;
+					static float floor_height = 0;
+					bool fup = false;
+					fup |= IMGUIEditFloat( "Floor size", floor_size, 0.01f, 100 );
+					fup |= IMGUIEditFloat( "Floor height", floor_height, -100, 100 );
+					if( fup )
+						floor_mesh_update( floor_size, floor_height );
+					
+					if( ImGui::Button( "Start" ) )
 					{
-						for( int i = 0; i < M->m_numBones; ++i )
+						if( g_AnimChar->m_anRagdoll.m_enabled == false )
 						{
-							StringView name = M->m_bones[ i ].name;
-							size_t j = 0;
-							for( ; j < g_AnimChar->bones.size(); ++j )
-							{
-								if( g_AnimChar->bones[ j ].name == name )
-									break;
-							}
-							if( j == g_AnimChar->bones.size() )
-							{
-								AnimCharacter::BoneInfo B;
-								B.name = name;
-								g_AnimChar->bones.push_back( B );
-							}
+							g_AnimChar->m_anRagdoll.Initialize( g_AnimChar );
+							g_AnimChar->EnablePhysics();
 						}
 					}
-					reload_mesh_vertices();
-					g_AnimChar->RecalcBoneIDs();
-					lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
+					ImGui::SameLine();
+					if( ImGui::Button( "Stop" ) )
+					{
+						g_AnimChar->DisablePhysics();
+					}
+					ImGui::SameLine();
+					if( ImGui::Button( "Wake up" ) )
+					{
+						g_AnimChar->WakeUp();
+					}
 				}
-				IMGUI_GROUP( "Bones", false,
-				{
-					IMGUIEditArray( g_AnimChar->bones, EditBoneInfo, "Add bone" );
-				});
-				IMGUI_GROUP( "Attachments", false,
-				{
-					IMGUIEditArray( g_AnimChar->attachments, EditAttachmentInfo, "Add attachment" );
-				});
-				IMGUI_GROUP( "Layers", false,
-				{
-					IMGUIEditArray( g_AnimChar->layers, EditLayerInfo, "Add layer" );
-				});
-				IMGUI_GROUP( "Masks", false,
-				{
-					IMGUIEditArray( g_AnimChar->masks, EditMaskInfo, "Add mask" );
-				});
 			});
 			
 			ImGui::PopStyleVar( 1 );
@@ -3292,6 +3340,7 @@ struct CSEditor : IGame
 		SGRX_IMGUI_ClearEvents();
 	}
 	
+	int m_mode;
 	bool phySlow;
 };
 

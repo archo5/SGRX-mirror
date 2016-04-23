@@ -346,6 +346,7 @@ IMGUIMeshPickerCore::IMGUIMeshPickerCore() :
 
 IMGUIMeshPickerCore::~IMGUIMeshPickerCore()
 {
+	Clear();
 }
 
 void IMGUIMeshPickerCore::Clear()
