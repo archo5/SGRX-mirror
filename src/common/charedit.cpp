@@ -32,6 +32,9 @@ AnimCharacter* g_AnimChar;
 AnimMixer::Layer g_AnimMixLayers[2];
 
 
+IMGUIMeshPicker* g_NUIMeshPicker;
+
+
 inline StringView BodyType2String( uint8_t t )
 {
 	if( t == AnimCharacter::BodyType_Sphere ) return "Sphere";
@@ -3083,6 +3086,8 @@ struct CSEditor : IGame
 		
 		SGRX_IMGUI_Init();
 		
+		g_NUIMeshPicker = new IMGUIMeshPicker;
+		
 		g_UIMeshPicker = new EDGUIMeshPicker( true );
 		g_UICharOpenPicker = new EDGUICharOpenPicker;
 		g_UICharSavePicker = new EDGUICharSavePicker;
@@ -3167,6 +3172,8 @@ struct CSEditor : IGame
 		g_EdScene = NULL;
 		g_PhyWorld = NULL;
 		
+		delete g_NUIMeshPicker;
+		
 		SGRX_IMGUI_Free();
 	}
 	void OnEvent( const Event& e )
@@ -3224,9 +3231,36 @@ struct CSEditor : IGame
 			IMGUI_HSPLIT( 0.6f,
 			{
 				ImGui::DragFloat( "test1", &f );
-				IMGUIEditString( "mesh", g_AnimChar->mesh, 256 );
 			},
 			{
+				if( g_NUIMeshPicker->Use( "mesh", g_AnimChar->mesh ) )
+				{
+					LOG << "Picked MESH: " << g_AnimChar->mesh;
+					g_AnimChar->_OnRenderUpdate();
+					SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
+					if( M )
+					{
+						for( int i = 0; i < M->m_numBones; ++i )
+						{
+							StringView name = M->m_bones[ i ].name;
+							size_t j = 0;
+							for( ; j < g_AnimChar->bones.size(); ++j )
+							{
+								if( g_AnimChar->bones[ j ].name == name )
+									break;
+							}
+							if( j == g_AnimChar->bones.size() )
+							{
+								AnimCharacter::BoneInfo B;
+								B.name = name;
+								g_AnimChar->bones.push_back( B );
+							}
+						}
+					}
+					reload_mesh_vertices();
+					g_AnimChar->RecalcBoneIDs();
+					lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
+				}
 				IMGUI_GROUP( "Bones", false,
 				{
 					IMGUIEditArray( g_AnimChar->bones, EditBoneInfo, "Add bone" );

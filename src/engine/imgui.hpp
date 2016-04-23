@@ -11,6 +11,7 @@
 
 
 FINLINE ImVec2 operator + ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x + b.x, a.y + b.y ); }
+FINLINE ImVec2 operator - ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x - b.x, a.y - b.y ); }
 FINLINE ImVec2 operator * ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x * b.x, a.y * b.y ); }
 
 
@@ -26,6 +27,47 @@ ENGINE_EXPORT bool IMGUIEditFloat( const char* label, float& v, float vmin, floa
 ENGINE_EXPORT bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
+
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore
+{
+	struct Entry
+	{
+		RCString path;
+		MeshInstHandle mesh;
+	};
+	
+	ENGINE_EXPORT bool Use( const char* label, String& str );
+	ENGINE_EXPORT void _Search( StringView text );
+	
+	ENGINE_EXPORT IMGUIMeshPickerCore();
+	ENGINE_EXPORT virtual ~IMGUIMeshPickerCore();
+	ENGINE_EXPORT void Clear();
+	ENGINE_EXPORT void AddMesh( StringView path, StringView rsrcpath = SV() );
+	
+	ENGINE_EXPORT void _DrawItem( int i, int x0, int y0, int x1, int y1 );
+	struct _StaticDrawItemData
+	{
+		IMGUIMeshPickerCore* self;
+		int i, x0, y0, x1, y1;
+	};
+	ENGINE_EXPORT static void _StaticDrawItem( const ImDrawList* parent_list, const ImDrawCmd* cmd );
+	
+	const char* m_caption;
+	bool m_customCamera;
+	bool m_looseSearch;
+	Array< Entry > m_entries;
+	Array< int > m_filtered;
+	String m_searchString;
+	SceneHandle m_scene;
+};
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPicker : IMGUIMeshPickerCore, IDirEntryHandler
+{
+	ENGINE_EXPORT IMGUIMeshPicker();
+	ENGINE_EXPORT void Reload();
+	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
+};
 
 
 template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, const char* addbtn = "Add" )

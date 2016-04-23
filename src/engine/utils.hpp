@@ -2057,8 +2057,9 @@ struct RCString_Data : SGRX_RefCounted
 		m_size = sv.size();
 		if( m_size )
 		{
-			m_str = new char[ m_size ];
+			m_str = new char[ m_size + 1 ];
 			memcpy( m_str, sv.data(), m_size );
+			m_str[ m_size ] = '\0';
 		}
 	}
 	~RCString_Data()

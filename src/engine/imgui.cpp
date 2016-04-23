@@ -237,3 +237,211 @@ bool IMGUIEditString( const char* label, String& str, int maxsize )
 }
 
 
+
+inline void lmm_prepmeshinst( MeshInstHandle mih )
+{
+	mih->SetLightingMode( SGRX_LM_Dynamic );
+	for( int i = 10; i < 16; ++i )
+		mih->constants[ i ] = V4(0.15f);
+}
+
+
+bool IMGUIMeshPickerCore::Use( const char* label, String& str )
+{
+	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select>",
+		ImVec2( ImGui::GetContentRegionAvail().x * (2.f/3.f), 20 ) ) )
+	{
+		ImGui::OpenPopup( m_caption );
+	}
+	ImGui::SameLine();
+	ImGui::Text( "%s", label );
+	
+	bool opened = true;
+	bool changed = false;
+	ImGui::SetNextWindowPos( ImVec2( 20, 20 ), ImGuiSetCond_Appearing );
+	ImGui::SetNextWindowSize( ImGui::GetIO().DisplaySize - ImVec2( 40, 40 ), ImGuiSetCond_Appearing );
+	if( ImGui::BeginPopupModal( m_caption, &opened, 0 ) )
+	{
+		String prev = m_searchString;
+		IMGUIEditString( "Search query", m_searchString, 256 );
+		if( prev != m_searchString )
+			_Search( m_searchString );
+		
+		ImGui::Separator();
+		
+		ImDrawList* idl = ImGui::GetWindowDrawList();
+		int width = 128;
+		int height = 128;
+		ImVec2 btnSize( width, height );
+		int ncols = ImGui::GetContentRegionAvail().x / width;
+		for( size_t i = 0; i < m_filtered.size(); ++i )
+		{
+			int x = i % ncols;
+		//	int y = i / ncols;
+			
+			if( x )
+				ImGui::SameLine();
+			ImVec2 cp = ImGui::GetCursorPos()
+				- ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() )
+				+ ImGui::GetWindowPos();
+			
+			const Entry& E = m_entries[ m_filtered[ i ] ];
+			ImGui::PushID( E.path.c_str() );
+			if( ImGui::Button( "##btn", btnSize ) )
+			{
+				str = E.path;
+				opened = false;
+				changed = true;
+			}
+			ImGui::PopID();
+			
+			_StaticDrawItemData data =
+			{
+				this, m_filtered[ i ], cp.x, cp.y, cp.x + width, cp.y + height,
+			};
+			idl->AddCallback( IMGUIMeshPickerCore::_StaticDrawItem, new _StaticDrawItemData(data) );
+		}
+		
+		if( !opened )
+			ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
+	}
+	
+	return changed;
+}
+
+void IMGUIMeshPickerCore::_Search( StringView text )
+{
+	m_filtered.clear();
+	if( !text )
+	{
+		for( size_t i = 0; i < m_entries.size(); ++i )
+			m_filtered.push_back( i );
+	}
+	else if( m_looseSearch )
+	{
+		for( size_t i = 0; i < m_entries.size(); ++i )
+		{
+			if( m_entries[ i ].path.view().match_loose( text ) )
+				m_filtered.push_back( i );
+		}
+	}
+	else
+	{
+		for( size_t i = 0; i < m_entries.size(); ++i )
+		{
+			if( m_entries[ i ].path.view().find_first_at( text ) != NOT_FOUND )
+				m_filtered.push_back( i );
+		}
+	}
+}
+
+IMGUIMeshPickerCore::IMGUIMeshPickerCore() :
+	m_caption( "Pick mesh" ),
+	m_customCamera( false ),
+	m_looseSearch( true ),
+	m_scene( GR_CreateScene() )
+{
+}
+
+IMGUIMeshPickerCore::~IMGUIMeshPickerCore()
+{
+}
+
+void IMGUIMeshPickerCore::Clear()
+{
+	m_entries.clear();
+}
+
+void IMGUIMeshPickerCore::AddMesh( StringView path, StringView rsrcpath )
+{
+	MeshInstHandle mih = m_scene->CreateMeshInstance();
+	mih->SetMesh( path );
+	mih->enabled = false;
+	lmm_prepmeshinst( mih );
+	mih->Precache();
+	Entry e =
+	{
+		rsrcpath ? rsrcpath : path,
+		mih,
+	};
+	m_entries.push_back( e );
+}
+
+void IMGUIMeshPickerCore::_DrawItem( int i, int x0, int y0, int x1, int y1 )
+{
+	SGRX_Viewport vp = { x0 + 10, y0 + 4, x1 - 10, y1 - 16 };
+	
+	if( m_entries[ i ].mesh )
+	{
+		SGRX_IMesh* M = m_entries[ i ].mesh->GetMesh();
+		if( m_customCamera == false )
+		{
+			Vec3 dst = M->m_boundsMin - M->m_boundsMax;
+			Vec3 idst = V3( dst.x ? 1/dst.x : 1, dst.y ? 1/dst.y : 1, dst.z ? 1/dst.z : 1 );
+			if( idst.z > 0 )
+				idst.z = -idst.z;
+			m_scene->camera.direction = idst.Normalized();
+			m_scene->camera.position = ( M->m_boundsMax + M->m_boundsMin ) * 0.5f - m_scene->camera.direction * dst.Length() * 0.8f;
+			m_scene->camera.znear = 0.1f;
+			m_scene->camera.angle = 60;
+			m_scene->camera.UpdateMatrices();
+		}
+		
+		SGRX_RenderScene rsinfo( V4( GetTimeMsec() / 1000.0f ), m_scene );
+		rsinfo.viewport = &vp;
+		m_entries[ i ].mesh->enabled = true;
+		GR_RenderScene( rsinfo );
+		m_entries[ i ].mesh->enabled = false;
+	}
+	
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Col( 0.9f, 1.0f );
+	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_entries[ i ].path, HALIGN_CENTER, VALIGN_CENTER );
+}
+
+void IMGUIMeshPickerCore::_StaticDrawItem( const ImDrawList* parent_list, const ImDrawCmd* cmd )
+{
+	SGRX_CAST( _StaticDrawItemData*, data, cmd->UserCallbackData );
+	data->self->_DrawItem( data->i, data->x0, data->y0, data->x1, data->y1 );
+	delete data;
+	const_cast<void*&>(cmd->UserCallbackData) = NULL;
+}
+
+
+IMGUIMeshPicker::IMGUIMeshPicker()
+{
+	Reload();
+}
+
+void IMGUIMeshPicker::Reload()
+{
+	LOG << "Reloading meshes";
+	Array< MeshInstHandle > oldHandles;
+	for( size_t i = 0; i < m_entries.size(); ++i )
+		oldHandles.push_back( m_entries[ i ].mesh );
+	Clear();
+	FS_IterateDirectory( "meshes", this );
+	_Search( m_searchString );
+}
+
+bool IMGUIMeshPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+{
+	if( name == "." || name == ".." )
+		return true;
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
+	LOG << "[M]: " << bfr;
+	StringView fullname = bfr;
+	if( isdir )
+	{
+		FS_IterateDirectory( fullname, this );
+	}
+	else if( name.ends_with( ".ssm" ) )
+	{
+		AddMesh( fullname );
+	}
+	return true;
+}
+
+
