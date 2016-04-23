@@ -319,23 +319,29 @@ IMGUIRenderView::IMGUIRenderView( SGRX_Scene* scene ) :
 	vangle = asin( m_scene->camera.direction.z );
 }
 
-void IMGUIRenderView::Process( float deltaTime )
+bool IMGUIRenderView::CanAcceptKeyboardInput()
 {
-	// not-ctrl-or-alt
-	bool ncoa = !( ImGui::IsKeyDown( SDL_SCANCODE_LCTRL )
+	bool caki = !( ImGui::IsKeyDown( SDL_SCANCODE_LCTRL )
 		|| ImGui::IsKeyDown( SDL_SCANCODE_RCTRL )
 		|| ImGui::IsKeyDown( SDL_SCANCODE_LALT )
-		|| ImGui::IsKeyDown( SDL_SCANCODE_RALT ) );
-	bool movefwd = ncoa && ImGui::IsKeyDown( SDLK_w );
-	bool movebwd = ncoa && ImGui::IsKeyDown( SDLK_s );
-	bool movelft = ncoa && ImGui::IsKeyDown( SDLK_a );
-	bool movergt = ncoa && ImGui::IsKeyDown( SDLK_d );
-	bool movefast = ncoa && ImGui::IsKeyDown( SDL_SCANCODE_LSHIFT );
-	bool moveup = ncoa && ImGui::IsKeyDown( SDLK_q );
-	bool movedn = ncoa && ImGui::IsKeyDown( SDLK_z );
+		|| ImGui::IsKeyDown( SDL_SCANCODE_RALT ) )
+		&& !ImGui::GetIO().WantCaptureKeyboard;
+	return caki;
+}
+
+void IMGUIRenderView::Process( float deltaTime )
+{
+	bool caki = CanAcceptKeyboardInput();
+	bool movefwd = caki && ImGui::IsKeyDown( SDLK_w );
+	bool movebwd = caki && ImGui::IsKeyDown( SDLK_s );
+	bool movelft = caki && ImGui::IsKeyDown( SDLK_a );
+	bool movergt = caki && ImGui::IsKeyDown( SDLK_d );
+	bool movefast = caki && ImGui::IsKeyDown( SDL_SCANCODE_LSHIFT );
+	bool moveup = caki && ImGui::IsKeyDown( SDLK_q );
+	bool movedn = caki && ImGui::IsKeyDown( SDLK_z );
 	
 	cursor_aim = false;
-	ImVec2 gcp = ImGui::GetCursorPos();
+	ImVec2 gcp = ImGui::GetMousePos() - ImGui::GetWindowPos();
 	ImVec2 gwsz = ImGui::GetWindowSize();
 	Vec2 cp = { safe_fdiv( gcp.x, gwsz.x ), safe_fdiv( gcp.y, gwsz.y ) };
 	if( m_scene->camera.GetCursorRay( cp.x, cp.y, crpos, crdir ) )
@@ -357,7 +363,7 @@ void IMGUIRenderView::Process( float deltaTime )
 	
 	if( ImGui::IsMouseDragging( 1, 0 ) )
 	{
-		ImVec2 rdrag = ncoa ? ImGui::GetMouseDragDelta( 1, 0 ) : ImVec2(0,0);
+		ImVec2 rdrag = caki ? ImGui::GetMouseDragDelta( 1, 0 ) : ImVec2(0,0);
 		hangle -= rdrag.x * 0.01f;
 		vangle -= rdrag.y * 0.01f;
 		vangle = clamp( vangle, (float) -M_PI * 0.49f, (float) M_PI * 0.49f );
