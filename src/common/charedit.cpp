@@ -314,17 +314,17 @@ void calc_char_bone_info( int bid, int thres, float minbs, int mask )
 	}
 	if( mask & 4 )
 	{
+		Vec3 pbs = V3(0), bs = g_AnimChar->bones[ bid ].body.size.Abs();
 		int pbone = g_AnimChar->FindParentBone( bid );
 		while( pbone >= 0 )
 		{
-			Vec3 bs = g_AnimChar->bones[ pbone ].body.size.Abs();
-			if( bs.x < minbs || bs.y < minbs || bs.z < minbs )
+			pbs = g_AnimChar->bones[ pbone ].body.size.Abs();
+			if( pbs.x < minbs || pbs.y < minbs || pbs.z < minbs )
 				pbone = g_AnimChar->FindParentBone( pbone );
 			else
 				break;
 		}
-		Vec3 bs = g_AnimChar->bones[ bid ].body.size.Abs();
-		Vec3 pbs = g_AnimChar->bones[ pbone ].body.size.Abs();
+		
 		if( pbone < 0 || bs.x < minbs || bs.y < minbs || bs.z < minbs ||
 			pbs.x < minbs || pbs.y < minbs || pbs.z < minbs )
 		{
@@ -396,170 +396,6 @@ void calc_char_bone_info( int bid, int thres, float minbs, int mask )
 		}
 	}
 }
-
-
-
-static void YesNoText( bool yes )
-{
-	uint32_t origcol = GR2D_GetBatchRenderer().m_proto.color;
-	if( yes )
-	{
-		GR2D_SetColor( 0.1f, 1, 0 );
-		GR2D_DrawTextLine( "YES" );
-	}
-	else
-	{
-		GR2D_SetColor( 1, 0.1f, 0 );
-		GR2D_DrawTextLine( "NO" );
-	}
-	GR2D_GetBatchRenderer().Colu( origcol );
-}
-
-
-struct EDGUICharPicker : EDGUIRsrcPicker, IDirEntryHandler
-{
-	EDGUICharPicker(){ Reload(); }
-	void Reload()
-	{
-		LOG << "Reloading chars";
-		m_options.clear();
-		FS_IterateDirectory( "chars", this );
-		_Search( m_searchString );
-	}
-	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
-	{
-		if( isdir == false && name.ends_with( ".chr" ) )
-		{
-			m_options.push_back( name.part( 0, name.size() - 4 ) );
-		}
-		return true;
-	}
-	virtual void _OnChangeZoom()
-	{
-		EDGUIRsrcPicker::_OnChangeZoom();
-		m_itemHeight /= 4;
-	}
-	
-	virtual int OnEvent( EDGUIEvent* e )
-	{
-		if( e->type == EDGUI_EVENT_PROPCHANGE && e->target == &m_confirm )
-		{
-			if( m_confirm.m_value == 1 )
-			{
-				EDGUIRsrcPicker::_OnPickResource();
-			}
-			return 1;
-		}
-		return EDGUIRsrcPicker::OnEvent( e );
-	}
-	
-	EDGUIQuestion m_confirm;
-};
-
-struct EDGUICharOpenPicker : EDGUICharPicker
-{
-	EDGUICharOpenPicker()
-	{
-		caption = "Pick a character to open";
-		m_confirm.caption = "Do you really want to open the character? All unsaved changes will be lost!";
-	}
-	virtual void _OnPickResource()
-	{
-		m_confirm.Open( this );
-		m_frame->Add( &m_confirm );
-	}
-};
-
-struct EDGUICharSavePicker : EDGUICharPicker
-{
-	EDGUICharSavePicker()
-	{
-		caption = "Pick a character to save or write the name";
-		m_confirm.caption = "Do you really want to overwrite the character?";
-	}
-	virtual void _OnPickResource()
-	{
-		if( m_options.find_first_at( m_pickedOption ) == NOT_FOUND )
-			EDGUIRsrcPicker::_OnPickResource();
-		else
-		{
-			m_confirm.Open( this );
-			m_frame->Add( &m_confirm );
-		}
-	}
-	virtual void _OnConfirm()
-	{
-		_OnPickResource();
-	}
-};
-
-
-struct EDGUIBonePicker : EDGUIRsrcPicker
-{
-	EDGUIBonePicker()
-	{
-		caption = "Pick a bone to use";
-	}
-	void Reload()
-	{
-		LOG << "Reloading bones";
-		m_options.clear();
-		m_options.push_back( "" );
-		if( g_AnimChar == NULL || !g_AnimChar->m_cachedMesh )
-		{
-			LOG << "No mesh to load bones from";
-			return;
-		}
-		SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
-		for( int i = 0; i < M->m_numBones; ++i )
-		{
-			m_options.push_back( M->m_bones[ i ].name );
-		}
-		_Search( m_searchString );
-	}
-};
-
-
-struct EDGUIBodyType : EDGUIRsrcPicker
-{
-	EDGUIBodyType()
-	{
-		caption = "Pick a body type";
-		m_options.push_back( "None" );
-		m_options.push_back( "Sphere" );
-		m_options.push_back( "Capsule" );
-		m_options.push_back( "Box" );
-		_Search( m_searchString );
-	}
-};
-
-
-struct EDGUIJointType : EDGUIRsrcPicker
-{
-	EDGUIJointType()
-	{
-		caption = "Pick a joint type";
-		m_options.push_back( "None" );
-		m_options.push_back( "Hinge" );
-		m_options.push_back( "Cone Twist" );
-		_Search( m_searchString );
-	}
-};
-
-
-struct EDGUITransformType : EDGUIRsrcPicker
-{
-	EDGUITransformType()
-	{
-		caption = "Pick a transform type";
-		m_options.push_back( "None" );
-		m_options.push_back( "UndoParent" );
-		m_options.push_back( "Move" );
-		m_options.push_back( "Rotate" );
-		_Search( m_searchString );
-	}
-};
-
 
 
 // TRANSFORM TARGET
@@ -843,83 +679,6 @@ void XFormStateInfo::OnUpdate( Vec2 cp, Vec2 vsz )
 }
 
 
-
-struct EDGUIBoneProps : EDGUILayoutRow
-{
-	EDGUIBoneProps() :
-		m_recalc_minbs( 0.05f, 2, 0, 10 ),
-		m_recalc_thres( 96, 0, 255 ),
-		m_bid( -1 )
-	{
-	}
-	
-	virtual int OnEvent( EDGUIEvent* e )
-	{
-		if( e->target == &m_btn_recalc_joint )
-		{
-			calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 4 );
-		}
-		if( e->target == &m_btn_recalc_body )
-		{
-			calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 1 );
-		}
-		if( e->target == &m_btn_recalc_hitbox )
-		{
-			calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 2 );
-		}
-		if( e->target == &m_btn_recalc_both )
-		{
-			calc_char_bone_info( m_bid, m_recalc_thres.m_value, m_recalc_minbs.m_value, 1|2 );
-		}
-		return 0;
-	}
-	
-	EDGUIPropFloat m_recalc_minbs;
-	EDGUIButton m_btn_recalc_joint;
-	
-	EDGUIPropInt m_recalc_thres;
-	EDGUIButton m_btn_recalc_body;
-	EDGUIButton m_btn_recalc_hitbox;
-	EDGUIButton m_btn_recalc_both;
-	int m_bid;
-};
-
-
-void FC_EditBone( int which );
-struct EDGUIBoneListProps : EDGUILayoutRow
-{
-	EDGUIBoneListProps() :
-		m_recalc_minbs( 0.05f, 2, 0, 10 ),
-		m_recalc_thres( 96, 0, 255 )
-	{
-	}
-	
-	virtual int OnEvent( EDGUIEvent* e )
-	{
-		if( e->target == &m_btn_recalc_body ) _Recalc(1);
-		else if( e->target == &m_btn_recalc_hitbox ) _Recalc(2);
-		else if( e->target == &m_btn_recalc_both ) _Recalc(1|2);
-		else if( e->target == &m_btn_recalc_joint ) _Recalc(4);
-		return 0;
-	}
-	
-	void _Recalc( int mask )
-	{
-		for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
-			calc_char_bone_info( i, m_recalc_thres.m_value, m_recalc_minbs.m_value, mask );
-	}
-	
-	EDGUIPropFloat m_recalc_minbs;
-	EDGUIPropInt m_recalc_thres;
-	EDGUIButton m_btn_recalc_body;
-	EDGUIButton m_btn_recalc_hitbox;
-	EDGUIButton m_btn_recalc_both;
-	EDGUIButton m_btn_recalc_joint;
-};
-
-
-
-
 // Floor mesh
 
 struct FMVertex
@@ -963,6 +722,24 @@ bool g_showAttachments = true;
 bool g_showMasks = true;
 bool g_showPhysics = true;
 float g_maskPreviewTickSize = 0.04f;
+
+float g_recalcMinBoneSize = 0.05f;
+int g_recalcWeightThreshold = 96;
+bool g_recalcHitboxes = true;
+bool g_recalcBodies = true;
+bool g_recalcJoints = true;
+Array< bool > g_recalcWhichBones;
+
+size_t g_hoverBone = NOT_FOUND;
+size_t g_hoverAtch = NOT_FOUND;
+size_t g_hoverMask = NOT_FOUND;
+
+void SetHovered( size_t b, size_t a, size_t m )
+{
+	g_hoverBone = b;
+	g_hoverAtch = a;
+	g_hoverMask = m;
+}
 
 
 
@@ -1009,26 +786,29 @@ void PostViewUI()
 		}
 	}
 	
-#if 0
-	GR2D_GetBatchRenderer().Reset().Col( 0, 0.5f ).Quad( rx0, ry0, rx1, ry0 + 16 );
+	ImVec2 r0 = ImGui::GetWindowPos() + ImVec2( 1, 1 );
+	ImDrawList* idl = ImGui::GetWindowDrawList();
+	idl->PushClipRectFullScreen();
+	idl->AddRectFilled( r0, r0 + ImVec2( 610, 16 ), ImColor( 0.f, 0.f, 0.f, 0.5f ), 8.0f, 0x4 );
 	
-	GR2D_SetTextCursor( rx0, ry0 );
+	ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2(0,0) );
+	ImGui::SetCursorScreenPos( r0 + ImVec2( 4, -1 ) );
+	ImGui::Text( "Render items: [Bodies (1): " );
+	ImGui::SameLine(); IMGUIYesNo( g_showBodies );
+	ImGui::SameLine(); ImGui::Text( ", Joints (2): " );
+	ImGui::SameLine(); IMGUIYesNo( g_showJoints );
+	ImGui::SameLine(); ImGui::Text( ", Hitboxes (3): " );
+	ImGui::SameLine(); IMGUIYesNo( g_showHitboxes );
+	ImGui::SameLine(); ImGui::Text( ", Attachments (4): " );
+	ImGui::SameLine(); IMGUIYesNo( g_showAttachments );
+	ImGui::SameLine(); ImGui::Text( ", Masks (5): " );
+	ImGui::SameLine(); IMGUIYesNo( g_showMasks );
+	ImGui::SameLine(); ImGui::Text( ", Physics (6): " );
+	ImGui::SameLine(); IMGUIYesNo( g_showPhysics );
+	ImGui::SameLine(); ImGui::Text( "]" );
+	ImGui::PopStyleVar();
 	
-	GR2D_SetColor( 1, 1 );
-	GR2D_DrawTextLine( "Render items: [Bodies (1): " );
-	YesNoText( m_showBodies );
-	GR2D_DrawTextLine( ", Joints (2): " );
-	YesNoText( m_showJoints );
-	GR2D_DrawTextLine( ", Hitboxes (3): " );
-	YesNoText( m_showHitboxes );
-	GR2D_DrawTextLine( ", Attachments (4): " );
-	YesNoText( m_showAttachments );
-	GR2D_DrawTextLine( ", Masks (5): " );
-	YesNoText( m_showMasks );
-	GR2D_DrawTextLine( ", Physics (6): " );
-	YesNoText( m_showPhysics );
-	GR2D_DrawTextLine( "]" );
-#endif
+	idl->PopClipRect();
 }
 
 void DebugDraw()
@@ -1046,9 +826,9 @@ void DebugDraw()
 				if( g_AnimChar->GetBodyMatrix( i, wm ) )
 				{
 					Vec3 size = g_AnimChar->bones[ i ].body.size;
-				//	if( (int) i == m_boneProps.m_bid )
-				//		br.Col( 0.8f, 0.1f, 0.9f, 0.8f );
-				//	else
+					if( i == g_hoverBone )
+						br.Col( 0.8f, 0.1f, 0.9f, 0.8f );
+					else
 						br.Col( 0.5f, 0.1f, 0.9f, 0.5f );
 					switch( g_AnimChar->bones[ i ].body.type )
 					{
@@ -1163,8 +943,7 @@ void DebugDraw()
 				Vec3 ext;
 				if( g_AnimChar->GetHitboxOBB( i, wm, ext ) )
 				{
-#if 0
-					if( (int) i == m_boneProps.m_bid )
+					if( i == g_hoverBone )
 					{
 						if( hit )
 							br.Col( 0.9f, 0.8f, 0.1f, 0.9f );
@@ -1172,7 +951,6 @@ void DebugDraw()
 							br.Col( 0.1f, 0.8f, 0.9f, 0.8f );
 					}
 					else
-#endif
 					{
 						if( hit )
 							br.Col( 0.9f, 0.5f, 0.1f, 0.6f );
@@ -1195,11 +973,9 @@ void DebugDraw()
 				if( g_AnimChar->GetAttachmentMatrix( i, wm ) )
 				{
 					float a, d = 0.8f;
-#if 0
-					if( (int) i == m_atchProps.m_aid )
+					if( i == g_hoverAtch )
 						br.Col( 0.9f, 0.9f, 0.9f, a = 0.8f );
 					else
-#endif
 						br.Col( 0.6f, 0.6f, 0.6f, a = 0.5f );
 					br.Pos( wm.TransformPos( V3(0,0,0) ) );
 					br.Col( 1, 0, 0, a );
@@ -1223,10 +999,8 @@ void DebugDraw()
 			
 			for( size_t i = 0; i < g_AnimChar->masks.size(); ++i )
 			{
-#if 0
-				if( (int) i != m_maskProps.m_mid )
+				if( i != g_hoverMask )
 					continue; // displaying more than one at a time would lead to excessive noise
-#endif
 				
 				float maskdata[ SGRX_MAX_MESH_BONES ] = {0};
 				
@@ -1326,10 +1100,12 @@ bool PickBoneName( const char* label, String& name, int& id, int self = -1 )
 	return ret;
 }
 
-void EditBoneInfo( AnimCharacter::BoneInfo& bi )
+void EditBoneInfo( size_t self_id, AnimCharacter::BoneInfo& bi )
 {
 	static const char* bi_body_types[] = { "None", "Sphere", "Capsule", "Box" };
 	static const char* bi_joint_types[] = { "None", "Hinge", "Cone/twist" };
+	
+	ImVec2 cursorBegin = ImGui::GetCursorPos();
 	
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
 	if( ImGui::TreeNode( &bi, "Bone: %s [id=%d]", StackString<256>(bi.name).str, bi.bone_id ) )
@@ -1369,16 +1145,7 @@ void EditBoneInfo( AnimCharacter::BoneInfo& bi )
 		});
 		IMGUI_GROUP( "Joint", true,
 		{
-			int self = -1;
-			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
-			{
-				if( &g_AnimChar->bones[ i ] == &bi )
-				{
-					self = i;
-					break;
-				}
-			}
-			PickBoneName( "Parent bone", bi.joint.parent_name, bi.joint.parent_id, self );
+			PickBoneName( "Parent bone", bi.joint.parent_name, bi.joint.parent_id, self_id );
 			IMGUI_COMBOBOX( "Type", bi.joint.type, bi_joint_types );
 			IMGUIEditVec3( "Position [self]", bi.joint.self_position, -100, 100 );
 			IMGUIEditQuat( "Rotation [self]", bi.joint.self_rotation );
@@ -1409,10 +1176,19 @@ void EditBoneInfo( AnimCharacter::BoneInfo& bi )
 		
 		ImGui::TreePop();
 	}
+	
+	ImVec2 cursorEnd = ImGui::GetCursorPos();
+	ImGui::SetCursorPos( cursorBegin );
+	ImGui::InvisibleButton( "hl area", ImVec2( ImGui::GetContentRegionAvailWidth(), cursorEnd.y - cursorBegin.y ) );
+	if( ImGui::IsItemHovered() )
+		SetHovered( self_id, NOT_FOUND, NOT_FOUND );
+	ImGui::SetCursorPos( cursorEnd );
 }
 
-void EditAttachmentInfo( AnimCharacter::Attachment& atch )
+void EditAttachmentInfo( size_t self_id, AnimCharacter::Attachment& atch )
 {
+	ImVec2 cursorBegin = ImGui::GetCursorPos();
+	
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
 	if( ImGui::TreeNode( &atch, "Attachment: %s", StackString<256>(atch.name).str ) )
 	{
@@ -1428,9 +1204,16 @@ void EditAttachmentInfo( AnimCharacter::Attachment& atch )
 		
 		ImGui::TreePop();
 	}
+	
+	ImVec2 cursorEnd = ImGui::GetCursorPos();
+	ImGui::SetCursorPos( cursorBegin );
+	ImGui::InvisibleButton( "hl area", ImVec2( ImGui::GetContentRegionAvailWidth(), cursorEnd.y - cursorBegin.y ) );
+	if( ImGui::IsItemHovered() )
+		SetHovered( NOT_FOUND, self_id, NOT_FOUND );
+	ImGui::SetCursorPos( cursorEnd );
 }
 
-void EditLayerTransformInfo( AnimCharacter::LayerTransform& ltf )
+void EditLayerTransformInfo( size_t, AnimCharacter::LayerTransform& ltf )
 {
 	static const char* bi_transform_types[] = { "None", "Undo parent transform", "Move", "Rotate" };
 	
@@ -1481,7 +1264,7 @@ void EditLayerTransformInfo( AnimCharacter::LayerTransform& ltf )
 	}
 }
 
-void EditLayerInfo( AnimCharacter::Layer& layer )
+void EditLayerInfo( size_t, AnimCharacter::Layer& layer )
 {
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
 	if( ImGui::TreeNode( &layer, "Layer: %s", StackString<256>(layer.name).str ) )
@@ -1497,7 +1280,7 @@ void EditLayerInfo( AnimCharacter::Layer& layer )
 	}
 }
 
-void EditMaskCmdInfo( AnimCharacter::MaskCmd& mcmd )
+void EditMaskCmdInfo( size_t, AnimCharacter::MaskCmd& mcmd )
 {
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
 	if( ImGui::TreeNode( &mcmd, "Mask command: %s, weight = %g%s",
@@ -1520,8 +1303,10 @@ void EditMaskCmdInfo( AnimCharacter::MaskCmd& mcmd )
 	}
 }
 
-void EditMaskInfo( AnimCharacter::Mask& mask )
+void EditMaskInfo( size_t self_id, AnimCharacter::Mask& mask )
 {
+	ImVec2 cursorBegin = ImGui::GetCursorPos();
+	
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
 	if( ImGui::TreeNode( &mask, "Mask: %s", StackString<256>(mask.name).str ) )
 	{
@@ -1533,6 +1318,13 @@ void EditMaskInfo( AnimCharacter::Mask& mask )
 		
 		ImGui::TreePop();
 	}
+	
+	ImVec2 cursorEnd = ImGui::GetCursorPos();
+	ImGui::SetCursorPos( cursorBegin );
+	ImGui::InvisibleButton( "hl area", ImVec2( ImGui::GetContentRegionAvailWidth(), cursorEnd.y - cursorBegin.y ) );
+	if( ImGui::IsItemHovered() )
+		SetHovered( NOT_FOUND, NOT_FOUND, self_id );
+	ImGui::SetCursorPos( cursorEnd );
 }
 
 void EditAnimChar( AnimCharacter& ac )
@@ -1584,6 +1376,66 @@ void EditAnimChar( AnimCharacter& ac )
 }
 
 
+void BoneRecalcUI( AnimCharacter& ac )
+{
+	IMGUIEditFloat( "Min. bone size", g_recalcMinBoneSize, 0, 10 );
+	IMGUIEditInt( "Weight threshold", g_recalcWeightThreshold, 0, 255 );
+	
+	g_recalcWhichBones.resize_using( ac.bones.size(), false );
+	
+	if( ImGui::Button( "Recalculate bones", ImVec2( ImGui::GetContentRegionAvailWidth(), 20 ) ) )
+	{
+		int mask = 0;
+		if( g_recalcHitboxes ) mask |= 2;
+		if( g_recalcBodies ) mask |= 1;
+		if( g_recalcJoints ) mask |= 4;
+		for( size_t i = 0; i < g_recalcWhichBones.size(); ++i )
+		{
+			if( g_recalcWhichBones[ i ] )
+				calc_char_bone_info( i, g_recalcWeightThreshold, g_recalcMinBoneSize, mask );
+		}
+	}
+	
+	ImGui::Columns( 4 );
+	
+	// header
+	ImGui::Text( "Bones" );
+	ImGui::SameLine();
+	if( ImGui::Button( "All" ) )
+	{
+		TMEMSET( g_recalcWhichBones.data(), g_recalcWhichBones.size(), true );
+	}
+	ImGui::SameLine();
+	if( ImGui::Button( "None" ) )
+	{
+		TMEMSET( g_recalcWhichBones.data(), g_recalcWhichBones.size(), false );
+	}
+	ImGui::NextColumn();
+	ImGui::Text( "Hitbox" ); ImGui::SameLine(); IMGUIEditBool( "##rchitbox", g_recalcHitboxes );
+	ImGui::NextColumn();
+	ImGui::Text( "Body" ); ImGui::SameLine(); IMGUIEditBool( "##rcbody", g_recalcBodies );
+	ImGui::NextColumn();
+	ImGui::Text( "Joint" ); ImGui::SameLine(); IMGUIEditBool( "##rcjoint", g_recalcJoints );
+	ImGui::NextColumn();
+	
+	// bones
+	for( size_t i = 0; i < ac.bones.size(); ++i )
+	{
+		bool& rtb = g_recalcWhichBones[ i ];
+		IMGUIEditBool( StackPath(ac.bones[ i ].name).str, rtb );
+		ImGui::NextColumn();
+		IMGUIYesNo( rtb && g_recalcHitboxes );
+		ImGui::NextColumn();
+		IMGUIYesNo( rtb && g_recalcBodies );
+		ImGui::NextColumn();
+		IMGUIYesNo( rtb && g_recalcJoints );
+		ImGui::NextColumn();
+	}
+	
+	ImGui::Columns( 1 );
+}
+
+
 struct CharRenderView : IMGUIRenderView
 {
 	CharRenderView() : IMGUIRenderView( g_EdScene ){}
@@ -1597,15 +1449,18 @@ struct CharRenderView : IMGUIRenderView
 enum EditorMode
 {
 	EditChar,
+	RecalcBones,
 	RagdollTest,
 	MiscProps,
 };
 int g_mode = EditChar;
+float g_phySpeed = 1;
+int g_phyIters = 1;
 
 
 struct CSEditor : IGame
 {
-	CSEditor() : phySlow(false){}
+	CSEditor(){}
 	bool OnInitialize()
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
@@ -1676,8 +1531,6 @@ struct CSEditor : IGame
 	}
 	void OnEvent( const Event& e )
 	{
-		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_TAB ) phySlow = true;
-		if( e.type == SDL_KEYUP && e.key.keysym.sym == SDLK_TAB ) phySlow = false;
 		SGRX_IMGUI_Event( e );
 	}
 	void OnTick( float dt, uint32_t gametime )
@@ -1687,8 +1540,8 @@ struct CSEditor : IGame
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		g_AnimChar->RecalcLayerState();
 		g_AnimChar->FixedTick( dt );
-		for( int i = 0; i < (phySlow?1:10); ++i )
-			g_PhyWorld->Step( dt / 10 );
+		for( int i = 0; i < g_phyIters; ++i )
+			g_PhyWorld->Step( dt * g_phySpeed / g_phyIters );
 		
 		if( g_AnimChar->m_cachedMeshInst )
 			lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
@@ -1740,6 +1593,8 @@ struct CSEditor : IGame
 				ImGui::SameLine();
 				ImGui::RadioButton( "Character", &g_mode, EditChar );
 				ImGui::SameLine();
+				ImGui::RadioButton( "Recalc. bones", &g_mode, RecalcBones );
+				ImGui::SameLine();
 				ImGui::RadioButton( "Ragdoll test", &g_mode, RagdollTest );
 				ImGui::SameLine();
 				ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
@@ -1756,15 +1611,46 @@ struct CSEditor : IGame
 				{
 					EditAnimChar( *g_AnimChar );
 				}
+				else if( g_mode == RecalcBones )
+				{
+					BoneRecalcUI( *g_AnimChar );
+				}
 				else if( g_mode == RagdollTest )
 				{
 					static float floor_size = 2;
 					static float floor_height = 0;
-					bool fup = false;
-					fup |= IMGUIEditFloat( "Floor size", floor_size, 0.01f, 100 );
-					fup |= IMGUIEditFloat( "Floor height", floor_height, -100, 100 );
-					if( fup )
-						floor_mesh_update( floor_size, floor_height );
+					
+					IMGUI_GROUP( "Floor", true,
+					{
+						bool fup = false;
+						fup |= IMGUIEditFloat( "Size", floor_size, 0.01f, 100 );
+						fup |= IMGUIEditFloat( "Height", floor_height, -100, 100 );
+						if( fup )
+							floor_mesh_update( floor_size, floor_height );
+					});
+					
+					IMGUI_GROUP( "Physics", true,
+					{
+						IMGUIEditFloat( "Speed", g_phySpeed, 0.01f, 100.0f );
+						if( ImGui::Button( "x0.1" ) ){ g_phySpeed = 0.1f; }
+						ImGui::SameLine();
+						if( ImGui::Button( "x0.5" ) ){ g_phySpeed = 0.5f; }
+						ImGui::SameLine();
+						if( ImGui::Button( "Normal" ) ){ g_phySpeed = 1; }
+						ImGui::SameLine();
+						if( ImGui::Button( "x2" ) ){ g_phySpeed = 2; }
+						ImGui::SameLine();
+						if( ImGui::Button( "x10" ) ){ g_phySpeed = 10; }
+						
+						IMGUIEditInt( "Iteration count", g_phyIters, 1, 100 );
+						if( ImGui::Button( "1" ) ){ g_phyIters = 1; }
+						ImGui::SameLine();
+						if( ImGui::Button( "2" ) ){ g_phyIters = 2; }
+						ImGui::SameLine();
+						if( ImGui::Button( "5" ) ){ g_phyIters = 5; }
+						ImGui::SameLine();
+						if( ImGui::Button( "10" ) ){ g_phyIters = 10; }
+					});
 					
 					if( ImGui::Button( "Start" ) )
 					{
@@ -1813,6 +1699,7 @@ struct CSEditor : IGame
 				if( g_AnimChar->Load( fn ) )
 				{
 					g_fileName = fn;
+					reload_mesh_vertices();
 				}
 				else
 				{
@@ -1851,8 +1738,6 @@ struct CSEditor : IGame
 		SGRX_IMGUI_Render();
 		SGRX_IMGUI_ClearEvents();
 	}
-	
-	bool phySlow;
 };
 
 

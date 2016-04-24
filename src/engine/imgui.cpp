@@ -181,6 +181,16 @@ void SGRX_IMGUI_Render()
 }
 
 
+bool IMGUIEditBool( const char* label, bool& v )
+{
+	return ImGui::Checkbox( label, &v );
+}
+
+bool IMGUIEditInt_( const char* label, int& v, int vmin, int vmax )
+{
+	return ImGui::DragInt( label, &v, 1, vmin, vmax );
+}
+
 bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec )
 {
 	return ImGui::DragFloat( label, &v, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
@@ -238,28 +248,6 @@ bool IMGUIEditString( const char* label, String& str, int maxsize )
 	return ret;
 }
 
-bool IMGUIModalError( const char* caption, const char* text, ... )
-{
-	bool ret = false;
-		puts("Q");
-	if( ImGui::BeginPopupModal( caption, NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
-	{
-		va_list args;
-		va_start( args, text );
-		ImGui::TextV( text, args );
-		va_end( args );
-		
-		puts("A");
-		if( ImGui::Button( "OK" ) )
-		{
-			ImGui::CloseCurrentPopup();
-			ret = true;
-		}
-		ImGui::EndPopup();
-	}
-	return ret;
-}
-
 
 
 inline void lmm_prepmeshinst( MeshInstHandle mih )
@@ -302,6 +290,11 @@ void IMGUIError( const char* str, ... )
 	sgrx_vsnprintf( g_errorStr, 4096, str, args );
 	va_end( args );
 	g_errorOpen = true;
+}
+
+void IMGUIYesNo( bool v )
+{
+	ImGui::TextColored( v ? ImColor( 0.1f, 1.f, 0.f ) : ImColor( 1.f, 0.1f, 0.f ), v ? "YES" : "NO" );
 }
 
 
@@ -381,10 +374,10 @@ void IMGUIRenderView::Process( float deltaTime )
 	m_scene->camera.UpdateMatrices();
 	
 	ImVec2 gwp = ImGui::GetWindowPos();
-	m_vp.x0 = gwp.x;
-	m_vp.y0 = gwp.y;
-	m_vp.x1 = gwp.x + gwsz.x;
-	m_vp.y1 = gwp.y + gwsz.y;
+	m_vp.x0 = gwp.x + 1;
+	m_vp.y0 = gwp.y + 1;
+	m_vp.x1 = gwp.x + gwsz.x - 1;
+	m_vp.y1 = gwp.y + gwsz.y - 1;
 	ImGui::GetWindowDrawList()->AddCallback( IMGUIRenderView::_StaticDraw, this );
 }
 

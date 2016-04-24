@@ -23,12 +23,22 @@ ENGINE_EXPORT void SGRX_IMGUI_NewFrame();
 ENGINE_EXPORT void SGRX_IMGUI_Render();
 
 
+ENGINE_EXPORT bool IMGUIEditBool( const char* label, bool& v );
+ENGINE_EXPORT bool IMGUIEditInt_( const char* label, int& v, int vmin, int vmax );
+template< class T > IMGUIEditInt( const char* label, T& v, int vmin, int vmax )
+{
+	int iv = v;
+	bool ret = IMGUIEditInt_( label, iv, vmin, vmax );
+	v = iv;
+	return ret;
+}
 ENGINE_EXPORT bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
 ENGINE_EXPORT void IMGUIErrorStr( StringView str );
 ENGINE_EXPORT void IMGUIError( const char* str, ... );
+ENGINE_EXPORT void IMGUIYesNo( bool v );
 
 
 struct IF_GCC(ENGINE_EXPORT) IMGUIRenderView : SGRX_RefCounted, SGRX_DebugDraw
@@ -142,7 +152,7 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 	{
 		ImVec2 cp_before = ImGui::GetCursorPos();
 		float width = ImGui::GetContentRegionAvail().x;
-		editfn( data[ i ] );
+		editfn( i, data[ i ] );
 		ImVec2 cp_after = ImGui::GetCursorPos();
 		
 		if( i > 0 )
