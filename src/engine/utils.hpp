@@ -1700,6 +1700,17 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 	
 	FINLINE bool operator == ( const StringView& sv ) const { return m_size == sv.m_size && !memcmp( m_str, sv.m_str, m_size ); }
 	FINLINE bool operator != ( const StringView& sv ) const { return !( *this == sv ); }
+	FINLINE int compare_to( const StringView& other ) const
+	{
+		int rv = memcmp( m_str, other.m_str, TMIN( m_size, other.m_size ) );
+		if( rv )
+			return rv;
+		if( m_size < other.m_size )
+			return -1;
+		else if( m_size > other.m_size )
+			return 1;
+		return 0;
+	};
 	
 	FINLINE char ch() const { if( m_size ) return *m_str; else return 0; }
 	FINLINE bool contains( const StringView& substr ) const { return find_first_at( substr ) != NOT_FOUND; }

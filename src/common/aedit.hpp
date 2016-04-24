@@ -437,9 +437,6 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	void EditCategory( const StringView& name );
 	void EditCatList();
 	void ResetEditorState();
-	void ASCR_Open();
-	void ASCR_Save();
-	void ASCR_Run( bool force );
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;
@@ -469,11 +466,6 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIAssetAnimBundleList m_UIAnimBundleList;
 	EDGUIAssetCategoryForm m_UICategory;
 	EDGUIAssetCategoryList m_UICatList;
-	
-	// preview data
-	TextureHandle m_texPreview;
-	MeshInstHandle m_meshPrevInst;
-	AnimPlayer m_animPreview;
 };
 
 

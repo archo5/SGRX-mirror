@@ -1562,21 +1562,12 @@ struct CSEditor : IGame
 		g_AnimChar->m_anDeformer.forces[ 0 ].dir = g_EdScene->camera.direction;
 #endif
 		
-		ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(0,0) );
-		ImGui::PushStyleVar( ImGuiStyleVar_WindowRounding, 0 );
-		ImGui::SetNextWindowPos( ImVec2(0,0) );
-		ImGui::SetNextWindowSize( ImVec2( GR_GetWidth(), GR_GetHeight() ) );
-		if( ImGui::Begin( "main", NULL,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_MenuBar ) )
+		IMGUI_MAIN_WINDOW_BEGIN
 		{
 			bool needOpen = false;
 			bool needSave = false;
 			bool needSaveAs = false;
 			
-			ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(4,4) );
 			if( ImGui::BeginMenuBar() )
 			{
 				if( ImGui::BeginMenu( "File" ) )
@@ -1766,11 +1757,8 @@ struct CSEditor : IGame
 					IMGUIError( "Cannot save file: %s", StackPath(fn).str );
 				}
 			}
-			
-			ImGui::PopStyleVar( 1 );
-			ImGui::End();
 		}
-		ImGui::PopStyleVar( 2 );
+		IMGUI_MAIN_WINDOW_END;
 		
 		SGRX_IMGUI_Render();
 		SGRX_IMGUI_ClearEvents();

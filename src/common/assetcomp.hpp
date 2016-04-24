@@ -295,7 +295,33 @@ struct SGRX_RevInfo
 	uint32_t rev_asset;
 };
 
-struct SGRX_TextureAsset
+enum SGRX_AssetType
+{
+	SGRX_AT_Texture,
+	SGRX_AT_Mesh,
+	SGRX_AT_AnimBundle,
+};
+
+struct SGRX_TextureAsset;
+struct SGRX_MeshAsset;
+struct SGRX_AnimBundleAsset;
+
+struct SGRX_Asset
+{
+	SGRX_Asset( SGRX_AssetType t ) : assetType( t ){}
+	
+	SGRX_TextureAsset* ToTexture() const { return assetType == SGRX_AT_Texture ? (SGRX_TextureAsset*) this : NULL; }
+	SGRX_MeshAsset* ToMesh() const { return assetType == SGRX_AT_Mesh ? (SGRX_MeshAsset*) this : NULL; }
+	SGRX_AnimBundleAsset* ToAnimBundle() const { return assetType == SGRX_AT_AnimBundle ? (SGRX_AnimBundleAsset*) this : NULL; }
+	
+	SGRX_AssetType assetType;
+	
+	SGRX_RevInfo ri;
+	RCString outputCategory;
+	String outputName;
+};
+
+struct SGRX_TextureAsset : SGRX_Asset
 {
 	SGRX_TextureAsset();
 	void Clone( const SGRX_TextureAsset& other );
@@ -304,11 +330,7 @@ struct SGRX_TextureAsset
 	void GetFullName( String& out );
 	void GetDesc( String& out );
 	
-	SGRX_RevInfo ri;
-	
 	String sourceFile;
-	String outputCategory;
-	String outputName;
 	SGRX_TextureOutputFormat outputType;
 	bool isSRGB;
 	bool mips;
@@ -340,9 +362,10 @@ struct SGRX_MeshAssetPart : SGRX_RefCounted
 };
 typedef Handle< SGRX_MeshAssetPart > SGRX_MeshAPHandle;
 
-struct SGRX_MeshAsset
+struct SGRX_MeshAsset : SGRX_Asset
 {
 	SGRX_MeshAsset() :
+		SGRX_Asset( SGRX_AT_Mesh ),
 		rotateY2Z(false),
 		flipUVY(false),
 		transform(false)
@@ -353,11 +376,7 @@ struct SGRX_MeshAsset
 	void GetFullName( String& out );
 	void GetDesc( String& out );
 	
-	SGRX_RevInfo ri;
-	
 	String sourceFile;
-	String outputCategory;
-	String outputName;
 	bool rotateY2Z;
 	bool flipUVY;
 	bool transform;
@@ -383,9 +402,9 @@ struct SGRX_ABAnimation
 	int endFrame;
 };
 
-struct SGRX_AnimBundleAsset
+struct SGRX_AnimBundleAsset : SGRX_Asset
 {
-	SGRX_AnimBundleAsset(){}
+	SGRX_AnimBundleAsset() : SGRX_Asset( SGRX_AT_AnimBundle ){}
 	void Clone( const SGRX_AnimBundleAsset& other );
 	bool Parse( ConfigReader& cread );
 	void Generate( String& out );
@@ -395,8 +414,6 @@ struct SGRX_AnimBundleAsset
 	
 	SGRX_RevInfo ri;
 	
-	String outputCategory;
-	String outputName;
 	String bundlePrefix;
 	String previewMesh;
 	Array< SGRX_ABAnimation > anims;

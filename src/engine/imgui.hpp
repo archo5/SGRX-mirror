@@ -179,10 +179,39 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 	}
 }
 
+#define IMGUI_MAIN_WINDOW_BEGIN \
+	ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(0,0) ); \
+	ImGui::PushStyleVar( ImGuiStyleVar_WindowRounding, 0 ); \
+	ImGui::SetNextWindowPos( ImVec2(0,0) ); \
+	ImGui::SetNextWindowSize( ImVec2( GR_GetWidth(), GR_GetHeight() ) ); \
+	if( ImGui::Begin( "main", NULL, \
+		ImGuiWindowFlags_NoTitleBar | \
+		ImGuiWindowFlags_NoResize | \
+		ImGuiWindowFlags_NoMove | \
+		ImGuiWindowFlags_MenuBar ) ) \
+	{ \
+		ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(4,4) ); \
+		ImGui::PushStyleVar( ImGuiStyleVar_WindowRounding, 4 );
+#define IMGUI_MAIN_WINDOW_END \
+		ImGui::PopStyleVar( 2 ); \
+		ImGui::End(); \
+	} \
+	ImGui::PopStyleVar( 2 );
+
 #define IMGUI_HSPLIT( at, left, right ) \
 	if( ImGui::BeginChild( "hs:lft", ImGui::GetContentRegionAvail() * ImVec2( at, 1 ), true ) ){ \
 		left; ImGui::EndChild(); \
 	} ImGui::SameLine( ImGui::GetContentRegionAvail().x * at ); \
+	if( ImGui::BeginChild( "hs:rgt", ImGui::GetContentRegionAvail(), true ) ){ \
+		right; ImGui::EndChild(); \
+	}
+#define IMGUI_HSPLIT3( spl12, spl23, left, mid, right ) \
+	if( ImGui::BeginChild( "hs:lft", ImGui::GetContentRegionAvail() * ImVec2( spl12, 1 ), true ) ){ \
+		left; ImGui::EndChild(); \
+	} ImGui::SameLine( ImGui::GetContentRegionAvail().x * spl12 ); \
+	if( ImGui::BeginChild( "hs:mid", ImGui::GetContentRegionAvail() * ImVec2( ( spl23 - spl12 ) / ( 1 - spl12 ), 1 ), true ) ){ \
+		mid; ImGui::EndChild(); \
+	} ImGui::SameLine( ImGui::GetContentRegionAvail().x * spl23 ); \
 	if( ImGui::BeginChild( "hs:rgt", ImGui::GetContentRegionAvail(), true ) ){ \
 		right; ImGui::EndChild(); \
 	}

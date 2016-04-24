@@ -623,6 +623,7 @@ const char* SGRX_TextureOutputFormat_Ext( SGRX_TextureOutputFormat fmt )
 }
 
 SGRX_TextureAsset::SGRX_TextureAsset() :
+	SGRX_Asset( SGRX_AT_Texture ),
 	outputType(SGRX_TOF_PNG_RGBA32),
 	isSRGB(true), mips(true), lerp(true), clampx(false), clampy(false)
 {
