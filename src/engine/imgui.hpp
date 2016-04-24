@@ -34,6 +34,7 @@ template< class T > IMGUIEditInt( const char* label, T& v, int vmin, int vmax )
 }
 ENGINE_EXPORT bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec = 2 );
+ENGINE_EXPORT bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
 ENGINE_EXPORT void IMGUIErrorStr( StringView str );
@@ -234,7 +235,7 @@ template< class T > bool IMGUIComboBox( const char* name, T& val, const char** l
 	int curr = val;
 	bool ret = ImGui::Combo( name, &curr, list, lsize );
 	if( ret )
-		val = curr;
+		val = (T) curr;
 	return ret;
 }
 #define IMGUI_COMBOBOX( name, val, list ) IMGUIComboBox( name, val, list, SGRX_ARRAY_SIZE( list ) )

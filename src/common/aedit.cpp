@@ -1747,6 +1747,189 @@ void EDGUIMainFrame::ResetEditorState()
 
 
 
+//
+// ASSET
+//
+
+bool PickCategoryName( const char* label, String& name )
+{
+	int id = 0;
+	String namelist = "<None>";
+	namelist.push_back( '\0' );
+	for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
+	{
+		if( g_EdAS->categories.item( i ).key == name )
+			id = i + 1;
+		namelist.append( g_EdAS->categories.item( i ).key );
+		namelist.append( " (" );
+		namelist.append( g_EdAS->categories.item( i ).value );
+		namelist.append( ")" );
+		namelist.push_back( '\0' );
+	}
+	namelist.push_back( '\0' );
+	bool ret = ImGui::Combo( label, &id, namelist.data() );
+	if( ret )
+	{
+		if( id > 0 && id <= (int) g_EdAS->categories.size() )
+			name = g_EdAS->categories.item( id - 1 ).key;
+		else
+			name = "";
+	}
+	return ret;
+}
+
+void EditFilter( size_t i, SGRX_ImageFilter* IF )
+{
+	static const char* sharpen_modes[] = { "0-1", "1-1", "1-2" };
+	
+	switch( IF->GetType() )
+	{
+	case SGRX_AIF_Resize: {
+		SGRX_CAST( SGRX_ImageFilter_Resize*, F, IF );
+		IMGUI_GROUP( "Resize", true,
+		{
+			IMGUIEditInt( "Width", F->width, 1, 4096 );
+			IMGUIEditInt( "Height", F->height, 1, 4096 );
+			IMGUIEditInt( "Depth", F->depth, 1, 4096 );
+			IMGUIEditBool( "SRGB", F->srgb );
+		});
+		} break;
+	case SGRX_AIF_Rearrange: {
+		SGRX_CAST( SGRX_ImageFilter_Rearrange*, F, IF );
+		IMGUI_GROUP( "Rearrange", true,
+		{
+			IMGUIEditInt( "Width", F->width, 1, 4096 );
+		});
+		} break;
+	case SGRX_AIF_Sharpen: {
+		SGRX_CAST( SGRX_ImageFilter_Sharpen*, F, IF );
+		IMGUI_GROUP( "Sharpen", true,
+		{
+			IMGUIEditFloat( "Factor", F->factor, 0, 1 );
+			IMGUI_COMBOBOX( "Mode", F->mode, sharpen_modes );
+		});
+		} break;
+	case SGRX_AIF_ToLinear: {
+		IMGUI_GROUP( "To linear", true, { ImGui::Text( "- no parameters -" ); } );
+		} break;
+	case SGRX_AIF_FromLinear: {
+		IMGUI_GROUP( "From linear", true, { ImGui::Text( "- no parameters -" ); } );
+		} break;
+	case SGRX_AIF_ExpandRange: {
+		SGRX_CAST( SGRX_ImageFilter_ExpandRange*, F, IF );
+		IMGUI_GROUP( "Expand range", true,
+		{
+			IMGUIEditVec4( "Min. value", F->vmin, 0, 1 );
+			IMGUIEditVec4( "Max. value", F->vmax, 0, 1 );
+		});
+		} break;
+	case SGRX_AIF_BCP: {
+		SGRX_CAST( SGRX_ImageFilter_BCP*, F, IF );
+		IMGUI_GROUP( "Brightness/contrast/power", true,
+		{
+			IMGUIEditBool( "Apply brightness/contrast 1", F->apply_bc1 );
+			IMGUIEditFloat( "Brightness 1", F->brightness, -10, 10 );
+			IMGUIEditFloat( "Contrast 1", F->contrast, 0.01f, 100 );
+			IMGUIEditBool( "Apply power", F->apply_pow );
+			IMGUIEditFloat( "Power", F->power, 0.01f, 100 );
+			IMGUIEditBool( "Apply brightness/contrast 2", F->apply_bc2 );
+			IMGUIEditFloat( "Brightness 2", F->brightness_2, -10, 10 );
+			IMGUIEditFloat( "Contrast 2", F->contrast_2, 0.01f, 100 );
+		});
+		} break;
+	default: ImGui::Text( "<UNKNOWN FILTER>" ); break;
+	}
+}
+
+void EditTextureAsset( SGRX_TextureAsset& ta )
+{
+	bool chg = false;
+	bool rev = false;
+	
+	ImGui::Text( "Texture" );
+	ImGui::Separator();
+	
+	chg |= IMGUIEditString( "Source file", ta.sourceFile, 256 );
+	rev |= PickCategoryName( "Output category", ta.outputCategory );
+	rev |= IMGUIEditString( "Output name", ta.outputName, 256 );
+	
+	if( ImGui::Button( SGRX_TextureOutputFormat_ToString( ta.outputType ),
+		ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
+		ImGui::OpenPopup( "output_type" );
+	ImGui::SameLine();
+	ImGui::Text( "Output type" );
+	if( ImGui::BeginPopup( "output_type" ) )
+	{
+		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_PNG_RGBA32 ) ) )
+		{
+			ta.outputType = SGRX_TOF_PNG_RGBA32;
+			rev |= true;
+		}
+		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_RGBA32 ) ) )
+		{
+			ta.outputType = SGRX_TOF_STX_RGBA32;
+			rev |= true;
+		}
+		ImGui::EndPopup();
+	}
+	
+	chg |= IMGUIEditBool( "Is SRGB?", ta.isSRGB );
+	chg |= IMGUIEditBool( "Generate mipmaps", ta.mips );
+	chg |= IMGUIEditBool( "Use linear interpolation", ta.lerp );
+	chg |= IMGUIEditBool( "Clamp X", ta.clampx );
+	chg |= IMGUIEditBool( "Clamp Y", ta.clampy );
+	
+	ImGui::Separator();
+	ImGui::Text( "Filters" );
+	ImGui::Separator();
+	
+	IMGUIEditArray( ta.filters, EditFilter, "Add filter" );
+	
+	if( chg || rev )
+		ta.ri.rev_asset++;
+}
+
+void EditMeshAsset( SGRX_MeshAsset& ma )
+{
+	ImGui::Text( "Mesh" );
+	ImGui::Separator();
+	
+}
+
+void EditAnimBundleAsset( SGRX_AnimBundleAsset& aba )
+{
+	ImGui::Text( "Animation bundle" );
+	ImGui::Separator();
+	
+}
+
+SGRX_Asset* g_CurAsset;
+
+void SetCurAsset( SGRX_Asset* asset )
+{
+	g_CurAsset = asset;
+}
+
+void EditCurAsset()
+{
+	if( !g_CurAsset )
+	{
+		ImGui::Text( "Select asset on the left side to edit it" );
+		return;
+	}
+	switch( g_CurAsset->assetType )
+	{
+	case SGRX_AT_Texture: EditTextureAsset( *g_CurAsset->ToTexture() ); break;
+	case SGRX_AT_Mesh: EditMeshAsset( *g_CurAsset->ToMesh() ); break;
+	case SGRX_AT_AnimBundle: EditAnimBundleAsset( *g_CurAsset->ToAnimBundle() ); break;
+	}
+}
+
+
+//
+// ASSET LIST
+//
+
 enum EGroupBy
 {
 	GB_None,
@@ -1770,8 +1953,6 @@ bool g_ShowAnimBundles = true;
 int g_GroupBy = GB_Category;
 int g_SortBy = SB_Name_ASC;
 String g_Filter;
-SGRX_AssetType g_EdAssetType = SGRX_AT_Texture;
-size_t g_EdAssetID = NOT_FOUND;
 
 #define IMPL_ASSET_SORT_FN( name, test1, test2 ) \
 	int name( const void* a, const void* b ) \
@@ -1850,21 +2031,21 @@ void EditAssetList()
 		{
 			SGRX_Asset* A = assets[ i ];
 			
-			const char* curgroup = NULL;
+			StringView curgroup;
 			if( g_GroupBy == GB_Type )
 			{
 				curgroup = type_names[ A->assetType ];
 			}
 			else if( g_GroupBy == GB_Category )
 			{
-				curgroup = A->outputCategory.c_str();
+				curgroup = A->outputCategory;
 			}
-			if( SV(curgroup) != lastgroup )
+			if( curgroup != lastgroup )
 			{
 				if( lastopen )
 					ImGui::TreePop();
 			//	ImGui::SetNextWindowCollapsed( false, ImGuiSetCond_Appearing );
-				lastopen = ImGui::TreeNode( curgroup );
+				lastopen = ImGui::TreeNode( StackPath(curgroup) );
 				lastgroup = curgroup;
 			}
 			
@@ -1875,6 +2056,7 @@ void EditAssetList()
 					(int) A->outputCategory.size(), A->outputCategory.data() );
 				if( ImGui::MenuItem( bfr ) )
 				{
+					SetCurAsset( A );
 				}
 			}
 		}
@@ -2260,6 +2442,7 @@ struct ASEditor : IGame
 			{
 				if( g_mode == EditAssets )
 				{
+					EditCurAsset();
 				}
 				else if( g_mode == MiscProps )
 				{

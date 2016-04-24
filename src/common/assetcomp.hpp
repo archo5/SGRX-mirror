@@ -317,7 +317,7 @@ struct SGRX_Asset
 	SGRX_AssetType assetType;
 	
 	SGRX_RevInfo ri;
-	RCString outputCategory;
+	String outputCategory;
 	String outputName;
 };
 

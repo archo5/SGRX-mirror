@@ -201,6 +201,11 @@ bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec
 	return ImGui::DragFloat3( label, &v.x, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
 }
 
+bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float vmax, int prec )
+{
+	return ImGui::DragFloat4( label, &v.x, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
+}
+
 bool IMGUIEditQuat( const char* label, Quat& v )
 {
 	static int quatEditMode = 0;
