@@ -438,10 +438,11 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 	ImGui::SetNextWindowSize( ImGui::GetIO().DisplaySize - ImVec2( 40, 40 ), ImGuiSetCond_Appearing );
 	if( ImGui::BeginPopupModal( caption, &opened, 0 ) )
 	{
-		String prev = m_searchString;
-		IMGUIEditString( "Search query", m_searchString, 256 );
-		if( prev != m_searchString )
-			_Search( m_searchString );
+		if( SearchUI( str ) )
+		{
+			opened = false;
+			changed = true;
+		}
 		
 		ImGui::Separator();
 		
@@ -456,7 +457,7 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 			
 			RCString path = GetEntryPath( m_filtered[ i ] );
 			ImGui::PushID( path.c_str() );
-			if( EntryUI( m_filtered[ i ] ) )
+			if( EntryUI( m_filtered[ i ], str ) )
 			{
 				str = path;
 				opened = false;
@@ -491,6 +492,15 @@ void IMGUIPickerCore::Reload()
 {
 }
 
+bool IMGUIPickerCore::SearchUI( String& str )
+{
+	String prev = m_searchString;
+	IMGUIEditString( "Search query", m_searchString, 256 );
+	if( prev != m_searchString )
+		_Search( m_searchString );
+	return false;
+}
+
 void IMGUIPickerCore::_Search( StringView text )
 {
 	size_t count = GetEntryCount();
@@ -518,7 +528,7 @@ void IMGUIPickerCore::_Search( StringView text )
 	}
 }
 
-bool IMGUIPickerCore::EntryUI( size_t i )
+bool IMGUIPickerCore::EntryUI( size_t i, String& str )
 {
 	return ImGui::Button( GetEntryPath( i ).c_str(), m_itemSize );
 }
@@ -545,6 +555,48 @@ void IMGUIFilePicker::Reload()
 	_Search( m_searchString );
 }
 
+bool IMGUIFilePicker::SearchUI( String& str )
+{
+	IMGUIPickerCore::SearchUI( str );
+	if( m_saveMode )
+	{
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "%s/%s%s", m_directory, StackPath(m_searchString).str, m_extension );
+		
+		ImGui::SameLine();
+		if( ImGui::Button( "Save" ) )
+		{
+			if( !m_searchString.size() )
+			{
+				ImGui::OpenPopup( "ENONAME" );
+			}
+			else
+			{
+				if( !FS_FileExists( bfr ) )
+				{
+					str = bfr;
+					return true;
+				}
+				ImGui::OpenPopup( "Overwrite file" );
+			}
+		}
+		if( ImGui::BeginPopup( "ENONAME" ) )
+		{
+			ImGui::Text( "Please specify a name!" );
+			if( ImGui::Button( "OK" ) )
+				ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
+		}
+		
+		if( ConfirmPopup( "Overwrite file", "Do you really want to overwrite this file?", bfr ) )
+		{
+			str = bfr;
+			return true;
+		}
+	}
+	return false;
+}
+
 bool IMGUIFilePicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
 {
 	if( name == "." || name == ".." )
@@ -564,24 +616,28 @@ bool IMGUIFilePicker::HandleDirEntry( const StringView& loc, const StringView& n
 	return true;
 }
 
-bool IMGUIFilePicker::EntryUI( size_t i )
+bool IMGUIFilePicker::EntryUI( size_t i, String& str )
 {
-	bool ret = IMGUIPickerCore::EntryUI( i );
+	bool ret = IMGUIPickerCore::EntryUI( i, str );
 	
 	const char* popupName = m_saveMode ? "Overwrite file" : "Open file";
+	const char* labelText = m_saveMode ? "Do you really want to overwrite this file?"
+		: "Do you really want to open this file?";
 	if( ret )
 		ImGui::OpenPopup( popupName );
 	
-	ret = false;
-	if( ImGui::BeginPopupModal( popupName, NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
+	return ConfirmPopup( popupName, labelText, GetEntryPath( i ).c_str() );
+}
+
+bool IMGUIFilePicker::ConfirmPopup( const char* caption, const char* label, const char* file )
+{
+	bool ret = false;
+	if( ImGui::BeginPopupModal( caption, NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
 	{
-		if( m_saveMode )
-			ImGui::Text( "Do you really want to overwrite this file?" );
-		else
-			ImGui::Text( "Do you really want to open this file?" );
+		ImGui::Text( label );
 		
 		ImGui::Separator();
-		ImGui::Text( "%s", GetEntryPath( i ).c_str() );
+		ImGui::Text( "%s", file );
 		ImGui::Separator();
 		
 		if( ImGui::Button( "Yes" ) )
@@ -674,7 +730,7 @@ void IMGUIMeshPickerCore::_StaticDrawItem( const ImDrawList* parent_list, const 
 	const_cast<void*&>(cmd->UserCallbackData) = NULL;
 }
 
-bool IMGUIMeshPickerCore::EntryUI( size_t i )
+bool IMGUIMeshPickerCore::EntryUI( size_t i, String& str )
 {
 	ImVec2 cp = ImGui::GetCursorPos()
 		- ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() )

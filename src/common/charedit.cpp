@@ -1456,6 +1456,14 @@ enum EditorMode
 int g_mode = EditChar;
 float g_phySpeed = 1;
 int g_phyIters = 1;
+bool g_phyIIEnable = false;
+String g_phyIIBone;
+int g_phyIIBoneID = -1;
+Vec3 g_phyIIPos = V3(0);
+Vec3 g_phyIIDir = V3(0);
+float g_phyIIStrength = 1;
+float g_phyIIAtten = 1;
+float g_phyIIRadius = 10;
 
 
 struct CSEditor : IGame
@@ -1636,7 +1644,7 @@ struct CSEditor : IGame
 						ImGui::SameLine();
 						if( ImGui::Button( "x0.5" ) ){ g_phySpeed = 0.5f; }
 						ImGui::SameLine();
-						if( ImGui::Button( "Normal" ) ){ g_phySpeed = 1; }
+						if( ImGui::Button( "x1" ) ){ g_phySpeed = 1; }
 						ImGui::SameLine();
 						if( ImGui::Button( "x2" ) ){ g_phySpeed = 2; }
 						ImGui::SameLine();
@@ -1650,6 +1658,25 @@ struct CSEditor : IGame
 						if( ImGui::Button( "5" ) ){ g_phyIters = 5; }
 						ImGui::SameLine();
 						if( ImGui::Button( "10" ) ){ g_phyIters = 10; }
+						
+						IMGUI_GROUP( "Inital impulse", true,
+						{
+							IMGUIEditBool( "Enable", g_phyIIEnable );
+							if( g_phyIIEnable )
+							{
+								PickBoneName( "Bone", g_phyIIBone, g_phyIIBoneID );
+								IMGUIEditVec3( "Origin", g_phyIIPos, -10000, 10000 );
+								IMGUIEditVec3( "Direction", g_phyIIDir, -100, 100 );
+								if( ImGui::Button( "Set origin/direction from camera" ) )
+								{
+									g_phyIIPos = g_EdScene->camera.position;
+									g_phyIIDir = g_EdScene->camera.direction;
+								}
+								IMGUIEditFloat( "Strength", g_phyIIStrength, 0, 1000 );
+								IMGUIEditFloat( "Attenuation", g_phyIIAtten, 0, 10 );
+								IMGUIEditFloat( "Radius", g_phyIIRadius, 0, 100 );
+							}
+						});
 					});
 					
 					if( ImGui::Button( "Start" ) )
@@ -1658,6 +1685,16 @@ struct CSEditor : IGame
 						{
 							g_AnimChar->m_anRagdoll.Initialize( g_AnimChar );
 							g_AnimChar->EnablePhysics();
+							if( g_phyIIEnable )
+							{
+								g_AnimChar->m_anRagdoll.ApplyImpulseExt(
+									g_phyIIPos,
+									g_phyIIDir.Normalized() * g_phyIIStrength,
+									g_phyIIAtten,
+									g_phyIIRadius,
+									g_phyIIBoneID
+								);
+							}
 						}
 					}
 					ImGui::SameLine();

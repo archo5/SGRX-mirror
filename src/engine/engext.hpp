@@ -30,6 +30,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	ENGINE_EXPORT void EnablePhysics( const Mat4& worldMatrix );
 	ENGINE_EXPORT void DisablePhysics();
 	ENGINE_EXPORT void WakeUp();
+	ENGINE_EXPORT void ApplyImpulse( Vec3 origin, Vec3 imp, size_t bone = NOT_FOUND );
+	ENGINE_EXPORT void ApplyImpulseExt( Vec3 origin, Vec3 imp, float atten, float radius, size_t bone = NOT_FOUND );
 	
 	bool m_enabled;
 	float m_lastTickSize;

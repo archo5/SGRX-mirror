@@ -72,11 +72,12 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 	ENGINE_EXPORT virtual bool Popup( const char* caption, String& str );
 	ENGINE_EXPORT virtual bool Property( const char* caption, const char* label, String& str );
 	ENGINE_EXPORT virtual void Reload();
+	ENGINE_EXPORT virtual bool SearchUI( String& str );
 	ENGINE_EXPORT void _Search( StringView text );
 	
 	virtual size_t GetEntryCount() const = 0;
 	virtual RCString GetEntryPath( size_t i ) const = 0;
-	ENGINE_EXPORT virtual bool EntryUI( size_t i );
+	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 	
 	ImVec2 m_itemSize;
 	// search
@@ -90,11 +91,13 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIPickerCore, IDirEntryHandler
 	ENGINE_EXPORT IMGUIFilePicker( const char* dir, const char* ext );
 	ENGINE_EXPORT bool Popup( const char* caption, String& str, bool save );
 	ENGINE_EXPORT void Reload();
+	ENGINE_EXPORT virtual bool SearchUI( String& str );
 	
 	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
 	virtual size_t GetEntryCount() const { return m_entries.size(); }
 	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]; }
-	ENGINE_EXPORT virtual bool EntryUI( size_t i );
+	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
+	ENGINE_EXPORT virtual bool ConfirmPopup( const char* caption, const char* label, const char* file );
 	
 	bool m_saveMode;
 	const char* m_directory;
@@ -126,7 +129,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore : IMGUIPickerCore
 	
 	virtual size_t GetEntryCount() const { return m_entries.size(); }
 	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ].path; }
-	ENGINE_EXPORT virtual bool EntryUI( size_t i );
+	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 	
 	bool m_customCamera;
 	Array< Entry > m_entries;

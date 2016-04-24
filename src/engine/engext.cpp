@@ -267,6 +267,53 @@ void AnimRagdoll::WakeUp()
 	}
 }
 
+void AnimRagdoll::ApplyImpulse( Vec3 origin, Vec3 imp, size_t bone )
+{
+	if( bone < m_bones.size() )
+	{
+		if( m_bones[ bone ].bodyHandle )
+			m_bones[ bone ].bodyHandle->ApplyForce( PFT_Impulse, imp, origin );
+	}
+	else
+	{
+		for( size_t i = 0; i < m_bones.size(); ++i )
+		{
+			if( m_bones[ i ].bodyHandle )
+				m_bones[ i ].bodyHandle->ApplyForce( PFT_Impulse, imp, origin );
+		}
+	}
+}
+
+static float _CalcAtten( AnimRagdoll::Body& B, float att, float rad, Vec3 p )
+{
+	Vec3 bp = B.bodyHandle->GetPosition();
+	float dist = ( p - bp ).Length();
+	return powf( clamp( safe_fdiv( rad - dist, rad ), 0, 1 ), att );
+}
+
+void AnimRagdoll::ApplyImpulseExt( Vec3 origin, Vec3 imp, float atten, float radius, size_t bone )
+{
+	if( bone < m_bones.size() )
+	{
+		if( m_bones[ bone ].bodyHandle )
+		{
+			float a = _CalcAtten( m_bones[ bone ], atten, radius, origin );
+			m_bones[ bone ].bodyHandle->ApplyForce( PFT_Impulse, imp * a, origin );
+		}
+	}
+	else
+	{
+		for( size_t i = 0; i < m_bones.size(); ++i )
+		{
+			if( m_bones[ i ].bodyHandle )
+			{
+				float a = _CalcAtten( m_bones[ i ], atten, radius, origin );
+				m_bones[ i ].bodyHandle->ApplyForce( PFT_Impulse, imp * a, origin );
+			}
+		}
+	}
+}
+
 
 
 AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
