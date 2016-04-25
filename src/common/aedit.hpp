@@ -24,25 +24,6 @@ struct EDGUIMtlBlendMode : EDGUISmallEnumPicker
 	EDGUIMtlBlendMode();
 };
 
-struct EDGUIImageFilterSharpenMode : EDGUISmallEnumPicker
-{
-	EDGUIImageFilterSharpenMode();
-};
-
-struct EDGUIImageFilterType : EDGUISmallEnumPicker
-{
-	EDGUIImageFilterType();
-	SGRX_AssetImageFilterType GetPickedType() const
-	{
-		return SGRX_AssetImageFilterType( m_picked + 1 );
-	}
-};
-
-struct EDGUITextureOutputFormat : EDGUISmallEnumPicker
-{
-	EDGUITextureOutputFormat();
-};
-
 struct EDGUICategoryPicker : EDGUISmallEnumPicker
 {
 	EDGUICategoryPicker();
@@ -90,9 +71,6 @@ struct EDGUIASAnimNamePicker : EDGUILongEnumPicker
 struct EDGUIPickers
 {
 	EDGUIMtlBlendMode blendMode;
-	EDGUIImageFilterSharpenMode sharpenMode;
-	EDGUIImageFilterType imageFilterType;
-	EDGUITextureOutputFormat textureOutputFormat;
 	EDGUICategoryPicker category;
 	EDGUITextureAssetPicker textureAsset;
 	EDGUIMeshAssetPicker meshAsset;
@@ -115,126 +93,6 @@ struct EDGUIPickers
 	}
 };
 
-struct EDGUICreatePickButton : EDGUIPropRsrc
-{
-	EDGUICreatePickButton( EDGUIRsrcPicker* rsrcPicker, const StringView& def = StringView() );
-	virtual int OnEvent( EDGUIEvent* e );
-};
-
-
-struct EDGUIImgFilterBase : EDGUILayoutRow
-{
-	EDGUIImgFilterBase( SGRX_ImageFilter* iflt, bool addCMF = false );
-	void AddCMFFields();
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIPropFloat m_blend;
-	EDGUIPropBool m_cclamp;
-	EDGUIPropBool m_applyR;
-	EDGUIPropBool m_applyG;
-	EDGUIPropBool m_applyB;
-	EDGUIPropBool m_applyA;
-	SGRX_ImgFilterHandle m_hfilter;
-};
-
-struct EDGUIImgFilter_Resize : EDGUIImgFilterBase
-{
-	EDGUIImgFilter_Resize( SGRX_ImageFilter* iflt );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIPropInt m_width;
-	EDGUIPropInt m_height;
-	EDGUIPropBool m_srgb;
-};
-
-struct EDGUIImgFilter_Rearrange : EDGUIImgFilterBase
-{
-	EDGUIImgFilter_Rearrange( SGRX_ImageFilter* iflt );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIPropInt m_width;
-};
-
-struct EDGUIImgFilter_Sharpen : EDGUIImgFilterBase
-{
-	EDGUIImgFilter_Sharpen( SGRX_ImageFilter* iflt );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIPropFloat m_factor;
-	EDGUIPropRsrc m_mode;
-};
-
-struct EDGUIImgFilter_ExpandRange : EDGUIImgFilterBase
-{
-	EDGUIImgFilter_ExpandRange( SGRX_ImageFilter* iflt );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIPropVec4 m_vmin;
-	EDGUIPropVec4 m_vmax;
-};
-
-struct EDGUIImgFilter_BCP : EDGUIImgFilterBase
-{
-	EDGUIImgFilter_BCP( SGRX_ImageFilter* iflt );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIPropBool m_apply_bc1;
-	EDGUIPropFloat m_brightness;
-	EDGUIPropFloat m_contrast;
-	EDGUIPropBool m_apply_pow;
-	EDGUIPropFloat m_power;
-	EDGUIPropBool m_apply_bc2;
-	EDGUIPropFloat m_brightness_2;
-	EDGUIPropFloat m_contrast_2;
-};
-
-
-struct EDGUITexFilterModel : EDGUIItemModel
-{
-	EDGUITexFilterModel() : texAsset( NULL ){}
-	int GetItemCount(){ return texAsset ? texAsset->filters.size() : 0; }
-	void GetItemName( int i, String& out ){ if( texAsset ) out = texAsset->filters[ i ]->GetName(); }
-	SGRX_TextureAsset* texAsset;
-};
-
-struct EDGUIAssetTexture : EDGUILayoutRow
-{
-	EDGUIAssetTexture();
-	~EDGUIAssetTexture();
-	void ReloadFilterList();
-	void UpdatePreviewTexture();
-	void Prepare( size_t tid );
-	void EditFilter( SGRX_ImageFilter* IF );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUILayoutColumn m_topCol;
-	EDGUIButton m_btnDuplicate;
-	EDGUIButton m_btnDelete;
-	EDGUIPropertyList m_propList;
-	
-	EDGUILayoutColumn m_columnList;
-	EDGUIGroup m_sfgroup;
-	EDGUIItemHandle m_curFilter;
-	EDGUIGroup m_flgroup;
-	EDGUICreatePickButton m_filterBtnAdd;
-	EDGUIBtnList m_filterButtons;
-	EDGUIListItemButton m_filterEditButton;
-	size_t m_tid;
-	EDGUITexFilterModel m_texFilterModel;
-};
-
-struct EDGUIAssetTextureList : EDGUILayoutRow
-{
-	EDGUIAssetTextureList();
-	void Prepare();
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIGroup m_group;
-	EDGUIButton m_btnAdd;
-	EDGUIPropString m_filter;
-	EDGUIBtnList m_buttons;
-	EDGUIListItemButton m_editButton;
-};
 
 struct EDGUIMeshPartModel : EDGUIItemModel
 {
@@ -392,80 +250,28 @@ struct EDGUIAssetAnimBundleList : EDGUILayoutRow
 	EDGUIListItemButton m_editButton;
 };
 
-struct EDGUIAssetCategoryForm : EDGUILayoutRow
-{
-	EDGUIAssetCategoryForm();
-	void _UpdateButtonText();
-	void Prepare( const StringView& name );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	String m_origName;
-	EDGUIGroup m_group;
-	EDGUIPropString m_name;
-	EDGUIPropString m_path;
-	EDGUIButton m_btnSave;
-};
 
-struct EDGUIAssetCategoryList : EDGUILayoutRow
-{
-	EDGUIAssetCategoryList();
-	void Prepare();
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIGroup m_cgroup;
-	EDGUIButton m_ctgBtnAdd;
-	EDGUIPropString m_filter;
-	EDGUIBtnList m_ctgButtons;
-	EDGUIListItemButton m_ctgEditButton;
-};
-
-
-struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
+struct EDGUIMainFrame : EDGUIFrame
 {
 	EDGUIMainFrame();
-	int OnEvent( EDGUIEvent* e );
-	bool ViewEvent( EDGUIEvent* e ){ return true; }
-	void DebugDraw();
 	void AddToParamList( EDGUIItem* item );
 	void ClearParamList();
-	void EditTexture( size_t id );
-	void EditTextureList();
 	void EditMesh( size_t id );
 	void EditMeshList();
 	void EditAnimBundle( size_t id );
 	void EditAnimBundleList();
-	void EditCategory( const StringView& name );
-	void EditCatList();
-	void ResetEditorState();
 	
 	// core layout
 	EDGUILayoutSplitPane m_UIMenuSplit;
 	EDGUILayoutSplitPane m_UIParamSplit;
-	EDGUILayoutColumn m_UIMenuButtons;
 	EDGUIVScroll m_UIParamScroll;
 	EDGUILayoutRow m_UIParamList;
-	EDGUIRenderView m_UIRenderView;
-	
-	// menu
-	EDGUILabel m_MB_Cat0;
-	EDGUIButton m_MBSave;
-	EDGUIButton m_MBRun;
-	EDGUIButton m_MBForceRun;
-	EDGUILabel m_MB_Cat1;
-	EDGUIButton m_MBEditScript;
-	EDGUIButton m_MBEditTextures;
-	EDGUIButton m_MBEditMeshes;
-	EDGUIButton m_MBEditAnimBundles;
 	
 	// data edit views
-	EDGUIAssetTexture m_UITexture;
-	EDGUIAssetTextureList m_UITextureList;
 	EDGUIAssetMesh m_UIMesh;
 	EDGUIAssetMeshList m_UIMeshList;
 	EDGUIAssetAnimBundle m_UIAnimBundle;
 	EDGUIAssetAnimBundleList m_UIAnimBundleList;
-	EDGUIAssetCategoryForm m_UICategory;
-	EDGUIAssetCategoryList m_UICatList;
 };
 
 

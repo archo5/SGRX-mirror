@@ -66,6 +66,12 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIRenderView : SGRX_RefCounted, SGRX_DebugDraw
 
 struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 {
+	enum LayoutType
+	{
+		Layout_Grid,
+		Layout_List,
+	};
+	
 	ENGINE_EXPORT IMGUIPickerCore();
 	ENGINE_EXPORT virtual ~IMGUIPickerCore();
 	
@@ -80,6 +86,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 	virtual RCString GetEntryPath( size_t i ) const = 0;
 	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 	
+	LayoutType m_layoutType;
 	ImVec2 m_itemSize;
 	// search
 	bool m_looseSearch;
@@ -147,13 +154,15 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPicker : IMGUIMeshPickerCore, IDirEntryHan
 
 template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, const char* addbtn = "Add" )
 {
-	if( ImGui::Button( addbtn, ImVec2( ImGui::GetContentRegionAvail().x, 24 ) ) )
+	if( addbtn && ImGui::Button( addbtn, ImVec2( ImGui::GetContentRegionAvail().x, 24 ) ) )
 	{
 		data.push_back( T() );
 	}
 	
 	for( size_t i = 0; i < data.size(); ++i )
 	{
+		ImGui::PushID( i );
+		
 		ImVec2 cp_before = ImGui::GetCursorPos();
 		float width = ImGui::GetContentRegionAvail().x;
 		editfn( i, data[ i ] );
@@ -177,6 +186,8 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 		if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
 			data.erase( i-- );
 		ImGui::SetCursorPos( cp_after );
+		
+		ImGui::PopID();
 	}
 }
 

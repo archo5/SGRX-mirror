@@ -420,6 +420,7 @@ void IMGUIRenderView::EditCameraParams()
 
 
 IMGUIPickerCore::IMGUIPickerCore() :
+	m_layoutType( Layout_Grid ),
 	m_itemSize( ImVec2( 256, 32 ) ),
 	m_looseSearch( true )
 {
@@ -451,24 +452,42 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 		
 		ImGui::Separator();
 		
-		int ncols = ImGui::GetContentRegionAvail().x / m_itemSize.x;
-		for( size_t i = 0; i < m_filtered.size(); ++i )
+		if( m_layoutType == Layout_Grid )
 		{
-			int x = i % ncols;
-		//	int y = i / ncols;
-			
-			if( x )
-				ImGui::SameLine();
-			
-			RCString path = GetEntryPath( m_filtered[ i ] );
-			ImGui::PushID( path.c_str() );
-			if( EntryUI( m_filtered[ i ], str ) )
+			int ncols = ImGui::GetContentRegionAvail().x / m_itemSize.x;
+			for( size_t i = 0; i < m_filtered.size(); ++i )
 			{
-				str = path;
-				opened = false;
-				changed = true;
+				int x = i % ncols;
+			//	int y = i / ncols;
+				
+				if( x )
+					ImGui::SameLine();
+				
+				RCString path = GetEntryPath( m_filtered[ i ] );
+				ImGui::PushID( path.c_str() );
+				if( EntryUI( m_filtered[ i ], str ) )
+				{
+					str = path;
+					opened = false;
+					changed = true;
+				}
+				ImGui::PopID();
 			}
-			ImGui::PopID();
+		}
+		else if( m_layoutType == Layout_List )
+		{
+			for( size_t i = 0; i < m_filtered.size(); ++i )
+			{
+				RCString path = GetEntryPath( m_filtered[ i ] );
+				ImGui::PushID( path.c_str() );
+				if( EntryUI( m_filtered[ i ], str ) )
+				{
+					str = path;
+					opened = false;
+					changed = true;
+				}
+				ImGui::PopID();
+			}
 		}
 		
 		if( ImGui::IsKeyPressed( SDLK_ESCAPE ) )
@@ -535,12 +554,21 @@ void IMGUIPickerCore::_Search( StringView text )
 
 bool IMGUIPickerCore::EntryUI( size_t i, String& str )
 {
-	return ImGui::Button( GetEntryPath( i ).c_str(), m_itemSize );
+	if( m_layoutType == Layout_Grid )
+	{
+		return ImGui::Button( GetEntryPath( i ).c_str(), m_itemSize );
+	}
+	else if( m_layoutType == Layout_List )
+	{
+		return ImGui::Selectable( GetEntryPath( i ).c_str() );
+	}
+	return false;
 }
 
 
 IMGUIFilePicker::IMGUIFilePicker( const char* dir, const char* ext )
 {
+	m_saveMode = false;
 	m_directory = dir;
 	m_extension = ext;
 	Reload();

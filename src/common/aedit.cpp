@@ -21,20 +21,17 @@ EDGUIRsrcPicker TMPRSRC;
 
 
 struct AssetRenderView* g_NUIRenderView;
+struct IMGUIFilePicker* g_NUIAssetPicker;
 
 
 #define SGRX_GET_FLAG( v, fl ) (((v) & (fl)) != 0)
 #define SGRX_SET_FLAG( v, fl, b ) v = ((v) & ~(fl)) | ((b)?(fl):0)
 
 
-void FC_EditTexture( size_t id ){ g_UIFrame->EditTexture( id ); }
-void FC_EditTextureList(){ g_UIFrame->EditTextureList(); }
 void FC_EditMesh( size_t id ){ g_UIFrame->EditMesh( id ); }
 void FC_EditMeshList(){ g_UIFrame->EditMeshList(); }
 void FC_EditAnimBundle( size_t id ){ g_UIFrame->EditAnimBundle( id ); }
 void FC_EditAnimBundleList(){ g_UIFrame->EditAnimBundleList(); }
-void FC_EditCategory( const StringView& name ){ g_UIFrame->EditCategory( name ); }
-void FC_EditCatList(){ g_UIFrame->EditCatList(); }
 
 
 void EDGUISmallEnumPicker::_OnChangeZoom()
@@ -57,39 +54,6 @@ EDGUIMtlBlendMode::EDGUIMtlBlendMode()
 	m_options.push_back( "Basic" );
 	m_options.push_back( "Additive" );
 	m_options.push_back( "Multiply" );
-	_Search( m_searchString );
-}
-
-EDGUIImageFilterSharpenMode::EDGUIImageFilterSharpenMode()
-{
-	caption = "Pick the sharpening mode";
-	m_options.push_back( "0-1" );
-	m_options.push_back( "1-1" );
-	m_options.push_back( "1-2" );
-	_Search( m_searchString );
-}
-
-EDGUIImageFilterType::EDGUIImageFilterType()
-{
-	caption = "Pick an image filter";
-	m_options.push_back( "Resize" );
-	m_options.push_back( "Rearrange" );
-	m_options.push_back( "Sharpen" );
-	m_options.push_back( "To linear" );
-	m_options.push_back( "From linear" );
-	m_options.push_back( "Expand range" );
-	m_options.push_back( "Brightness/contrast/power" );
-	_Search( m_searchString );
-}
-
-EDGUITextureOutputFormat::EDGUITextureOutputFormat()
-{
-	caption = "Pick an texture output format";
-	for( int i = SGRX_TOF_Unknown + 1; i < SGRX_TOF__COUNT; ++i )
-	{
-		m_options.push_back( SGRX_TextureOutputFormat_ToString(
-			(SGRX_TextureOutputFormat) i ) );
-	}
 	_Search( m_searchString );
 }
 
@@ -223,542 +187,6 @@ void EDGUIASAnimNamePicker::Reload()
 		m_scenes[ i ]->GetAnimList( m_options );
 	}
 	_Search( m_searchString );
-}
-
-EDGUICreatePickButton::EDGUICreatePickButton( EDGUIRsrcPicker* rsrcPicker, const StringView& def ) :
-	EDGUIPropRsrc( rsrcPicker, def )
-{
-}
-int EDGUICreatePickButton::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-	case EDGUI_EVENT_PROPCHANGE:
-		if( e->target == m_rsrcPicker )
-		{
-			EDGUIEvent se = { e->type, this };
-			BubblingEvent( &se );
-			return 0;
-		}
-		break;
-	}
-	return EDGUIPropRsrc::OnEvent( e );
-}
-
-
-EDGUIImgFilterBase::EDGUIImgFilterBase( SGRX_ImageFilter* iflt, bool addCMF ) :
-	m_blend( 1, 3, 0, 1 ),
-	m_cclamp( true ),
-	m_applyR( true ),
-	m_applyG( true ),
-	m_applyB( true ),
-	m_applyA( true ),
-	m_hfilter( iflt )
-{
-	if( addCMF )
-		AddCMFFields();
-}
-
-void EDGUIImgFilterBase::AddCMFFields()
-{
-	m_blend.caption = "Blend factor";
-	m_cclamp.caption = "Clamp colors?";
-	m_applyR.caption = "Apply to R?";
-	m_applyG.caption = "Apply to G?";
-	m_applyB.caption = "Apply to B?";
-	m_applyA.caption = "Apply to A?";
-	
-	m_blend.SetValue( m_hfilter->blend );
-	m_cclamp.SetValue( m_hfilter->cclamp );
-	m_applyR.SetValue( ( m_hfilter->colors & 0x1 ) != 0 );
-	m_applyG.SetValue( ( m_hfilter->colors & 0x2 ) != 0 );
-	m_applyB.SetValue( ( m_hfilter->colors & 0x4 ) != 0 );
-	m_applyA.SetValue( ( m_hfilter->colors & 0x8 ) != 0 );
-	
-	Add( &m_blend );
-	Add( &m_cclamp );
-	Add( &m_applyR );
-	Add( &m_applyG );
-	Add( &m_applyB );
-	Add( &m_applyA );
-}
-
-int EDGUIImgFilterBase::OnEvent( EDGUIEvent* e )
-{
-	if( m_hfilter )
-	{
-		SGRX_ImageFilter* F = m_hfilter;
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_blend ){ F->blend = m_blend.m_value; }
-			if( e->target == &m_cclamp ){ F->cclamp = m_cclamp.m_value; }
-			if( e->target == &m_applyR ){ SGRX_SET_FLAG( F->colors, 0x1, m_applyR.m_value ); }
-			if( e->target == &m_applyG ){ SGRX_SET_FLAG( F->colors, 0x2, m_applyG.m_value ); }
-			if( e->target == &m_applyB ){ SGRX_SET_FLAG( F->colors, 0x4, m_applyB.m_value ); }
-			if( e->target == &m_applyA ){ SGRX_SET_FLAG( F->colors, 0x8, m_applyA.m_value ); }
-			break;
-		}
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-EDGUIImgFilter_Resize::EDGUIImgFilter_Resize( SGRX_ImageFilter* iflt ) :
-	EDGUIImgFilterBase( iflt ),
-	m_width( 256, 1, 4096 ),
-	m_height( 256, 1, 4096 ),
-	m_srgb( false )
-{
-	SGRX_ImageFilter_Resize* F = iflt->upcast<SGRX_ImageFilter_Resize>();
-	m_width.SetValue( F->width );
-	m_height.SetValue( F->height );
-	m_srgb.SetValue( F->srgb );
-	
-	m_width.caption = "Width";
-	m_height.caption = "Height";
-	m_srgb.caption = "SRGB?";
-	
-	Add( &m_width );
-	Add( &m_height );
-	Add( &m_srgb );
-}
-
-int EDGUIImgFilter_Resize::OnEvent( EDGUIEvent* e )
-{
-	if( m_hfilter )
-	{
-		SGRX_ImageFilter_Resize* F = m_hfilter->upcast<SGRX_ImageFilter_Resize>();
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_width ) F->width = m_width.m_value;
-			if( e->target == &m_height ) F->height = m_height.m_value;
-			if( e->target == &m_srgb ) F->srgb = m_srgb.m_value;
-			break;
-		}
-	}
-	return EDGUIImgFilterBase::OnEvent( e );
-}
-
-EDGUIImgFilter_Rearrange::EDGUIImgFilter_Rearrange( SGRX_ImageFilter* iflt ) :
-	EDGUIImgFilterBase( iflt ),
-	m_width( 16, 1, 4096 )
-{
-	SGRX_ImageFilter_Rearrange* F = iflt->upcast<SGRX_ImageFilter_Rearrange>();
-	m_width.SetValue( F->width );
-	
-	m_width.caption = "Width";
-	
-	Add( &m_width );
-}
-
-int EDGUIImgFilter_Rearrange::OnEvent( EDGUIEvent* e )
-{
-	if( m_hfilter )
-	{
-		SGRX_ImageFilter_Rearrange* F = m_hfilter->upcast<SGRX_ImageFilter_Rearrange>();
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_width ) F->width = m_width.m_value;
-			break;
-		}
-	}
-	return EDGUIImgFilterBase::OnEvent( e );
-}
-
-EDGUIImgFilter_Sharpen::EDGUIImgFilter_Sharpen( SGRX_ImageFilter* iflt ) :
-	EDGUIImgFilterBase( iflt ),
-	m_factor( 1, 2, 0, 100 ),
-	m_mode( &g_UIPickers->sharpenMode )
-{
-	SGRX_ImageFilter_Sharpen* F = iflt->upcast<SGRX_ImageFilter_Sharpen>();
-	m_factor.SetValue( F->factor );
-	m_mode.SetValue( SGRX_ImgFltSharpen_ToString( F->mode ) );
-	
-	m_factor.caption = "Factor";
-	m_mode.caption = "Mode";
-	
-	Add( &m_factor );
-	Add( &m_mode );
-	
-	AddCMFFields();
-}
-
-int EDGUIImgFilter_Sharpen::OnEvent( EDGUIEvent* e )
-{
-	if( m_hfilter )
-	{
-		SGRX_ImageFilter_Sharpen* F = m_hfilter->upcast<SGRX_ImageFilter_Sharpen>();
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_factor ) F->factor = m_factor.m_value;
-			if( e->target == &m_mode ) F->mode = SGRX_ImgFltSharpen_FromString( m_mode.m_value );
-			break;
-		}
-	}
-	return EDGUIImgFilterBase::OnEvent( e );
-}
-
-EDGUIImgFilter_ExpandRange::EDGUIImgFilter_ExpandRange( SGRX_ImageFilter* iflt ) :
-	EDGUIImgFilterBase( iflt ),
-	m_vmin( V4(0), 3, V4(0), V4(1) ),
-	m_vmax( V4(0,0,1,1), 3, V4(0), V4(1) )
-{
-	SGRX_ImageFilter_ExpandRange* F = iflt->upcast<SGRX_ImageFilter_ExpandRange>();
-	m_vmin.SetValue( F->vmin );
-	m_vmax.SetValue( F->vmax );
-	
-	m_vmin.caption = "Min. color";
-	m_vmax.caption = "Max. color";
-	
-	Add( &m_vmin );
-	Add( &m_vmax );
-	
-	AddCMFFields();
-}
-
-int EDGUIImgFilter_ExpandRange::OnEvent( EDGUIEvent* e )
-{
-	if( m_hfilter )
-	{
-		SGRX_ImageFilter_ExpandRange* F = m_hfilter->upcast<SGRX_ImageFilter_ExpandRange>();
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_vmin ) F->vmin = m_vmin.m_value;
-			if( e->target == &m_vmax ) F->vmax = m_vmax.m_value;
-			break;
-		}
-	}
-	return EDGUIImgFilterBase::OnEvent( e );
-}
-
-EDGUIImgFilter_BCP::EDGUIImgFilter_BCP( SGRX_ImageFilter* iflt ) :
-	EDGUIImgFilterBase( iflt ),
-	m_apply_bc1( true ),
-	m_brightness( 0, 2, -100, 100 ),
-	m_contrast( 1, 2, -100, 100 ),
-	m_apply_pow( false ),
-	m_power( 1, 2, 0.01f, 100 ),
-	m_apply_bc2( false ),
-	m_brightness_2( 0, 2, -100, 100 ),
-	m_contrast_2( 1, 2, -100, 100 )
-{
-	SGRX_ImageFilter_BCP* F = iflt->upcast<SGRX_ImageFilter_BCP>();
-	
-	m_apply_bc1.SetValue( F->apply_bc1 );
-	m_brightness.SetValue( F->brightness );
-	m_contrast.SetValue( F->contrast );
-	m_apply_pow.SetValue( F->apply_pow );
-	m_power.SetValue( F->power );
-	m_apply_bc2.SetValue( F->apply_bc2 );
-	m_brightness_2.SetValue( F->brightness_2 );
-	m_contrast_2.SetValue( F->contrast_2 );
-	
-	m_apply_bc1.caption = "Apply brightness/contrast-1";
-	m_brightness.caption = "Brightness [1]";
-	m_contrast.caption = "Contrast [1]";
-	m_apply_pow.caption = "Apply power";
-	m_power.caption = "Power";
-	m_apply_bc2.caption = "Apply brightness/contrast-2";
-	m_brightness_2.caption = "Brightness [2]";
-	m_contrast_2.caption = "Contrast [2]";
-	
-	Add( &m_apply_bc1 );
-	Add( &m_brightness );
-	Add( &m_contrast );
-	Add( &m_apply_pow );
-	Add( &m_power );
-	Add( &m_apply_bc2 );
-	Add( &m_brightness_2 );
-	Add( &m_contrast_2 );
-	
-	AddCMFFields();
-}
-
-int EDGUIImgFilter_BCP::OnEvent( EDGUIEvent* e )
-{
-	if( m_hfilter )
-	{
-		SGRX_ImageFilter_BCP* F = m_hfilter->upcast<SGRX_ImageFilter_BCP>();
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_apply_bc1 ) F->apply_bc1 = m_apply_bc1.m_value;
-			if( e->target == &m_brightness ) F->brightness = m_brightness.m_value;
-			if( e->target == &m_contrast ) F->contrast = m_contrast.m_value;
-			if( e->target == &m_apply_pow ) F->apply_pow = m_apply_pow.m_value;
-			if( e->target == &m_power ) F->power = m_power.m_value;
-			if( e->target == &m_apply_bc2 ) F->apply_bc2 = m_apply_bc2.m_value;
-			if( e->target == &m_brightness_2 ) F->brightness_2 = m_brightness_2.m_value;
-			if( e->target == &m_contrast_2 ) F->contrast_2 = m_contrast_2.m_value;
-			break;
-		}
-	}
-	return EDGUIImgFilterBase::OnEvent( e );
-}
-
-
-EDGUIAssetTexture::EDGUIAssetTexture() :
-	m_sfgroup( true, "Selected filter" ),
-	m_flgroup( true, "Filters" ),
-	m_filterBtnAdd( &g_UIPickers->imageFilterType ),
-	m_tid( NOT_FOUND )
-{
-	m_btnDuplicate.caption = "Duplicate";
-	m_btnDelete.caption = "Delete";
-	
-	m_topCol.Add( &m_btnDuplicate );
-	m_topCol.Add( &m_btnDelete );
-	
-	m_propList.m_pickers[ "file" ] = &g_UIPickers->assetPath;
-	m_propList.m_pickers[ "category" ] = &g_UIPickers->category;
-	
-	m_filterBtnAdd.SetValue( "Pick filter to add" );
-	
-	m_filterButtons.Add( &m_filterEditButton );
-	m_filterButtons.m_editControl = &m_sfgroup;
-	m_filterButtons.m_model = &m_texFilterModel;
-	m_flgroup.Add( &m_filterBtnAdd );
-	m_flgroup.Add( &m_filterButtons );
-	
-	Add( &m_topCol );
-	Add( &m_propList );
-	Add( &m_flgroup );
-}
-
-EDGUIAssetTexture::~EDGUIAssetTexture()
-{
-	m_filterButtons.m_model = NULL;
-	m_sfgroup.Clear();
-	m_curFilter = NULL;
-}
-
-void EDGUIAssetTexture::ReloadFilterList()
-{
-	SGRX_TextureAsset& TA = g_EdAS->textureAssets[ m_tid ];
-	m_texFilterModel.texAsset = &TA;
-	m_filterButtons.UpdateOptions();
-	UpdatePreviewTexture();
-}
-
-void EDGUIAssetTexture::UpdatePreviewTexture()
-{
-	SGRX_TextureAsset& TA = g_EdAS->textureAssets[ m_tid ];
-	TextureHandle tex;
-	SGRX_IFP32Handle img = SGRX_ProcessTextureAsset( TA );
-	tex = SGRX_FP32ToTexture( img, TA );
-	if( tex == NULL )
-		tex = GR_GetTexture( "textures/unit.png" );
-//	FC_SetTexture( tex );
-}
-
-void EDGUIAssetTexture::Prepare( size_t tid )
-{
-	m_tid = tid;
-	SGRX_TextureAsset& TA = g_EdAS->textureAssets[ tid ];
-	
-	m_propList.Set( TA );
-	
-	m_sfgroup.Clear();
-	m_curFilter = NULL;
-	
-	ReloadFilterList();
-}
-
-void EDGUIAssetTexture::EditFilter( SGRX_ImageFilter* IF )
-{
-	EDGUILayoutRow* newflt = NULL;
-	switch( IF->GetType() )
-	{
-	case SGRX_AIF_Resize: newflt = new EDGUIImgFilter_Resize( IF ); break;
-	case SGRX_AIF_Rearrange: newflt = new EDGUIImgFilter_Rearrange( IF ); break;
-	case SGRX_AIF_Sharpen: newflt = new EDGUIImgFilter_Sharpen( IF ); break;
-	case SGRX_AIF_ToLinear: newflt = new EDGUIImgFilterBase( IF, true ); break;
-	case SGRX_AIF_FromLinear: newflt = new EDGUIImgFilterBase( IF, true ); break;
-	case SGRX_AIF_ExpandRange: newflt = new EDGUIImgFilter_ExpandRange( IF ); break;
-	case SGRX_AIF_BCP: newflt = new EDGUIImgFilter_BCP( IF ); break;
-	default: break;
-	}
-	if( newflt )
-	{
-		m_curFilter = newflt;
-		m_sfgroup.Clear();
-		m_sfgroup.Add( m_curFilter );
-		char bfr[ 256 ];
-		sgrx_snprintf( bfr, 256, "Selected filter: %s",
-			SGRX_AssetImgFilterType_ToString( IF->GetType() ) );
-		m_sfgroup.caption = bfr;
-		m_sfgroup.SetOpen( true );
-	}
-}
-
-int EDGUIAssetTexture::OnEvent( EDGUIEvent* e )
-{
-	if( m_tid != NOT_FOUND )
-	{
-		SGRX_TextureAsset& TA = g_EdAS->textureAssets[ m_tid ];
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_filterBtnAdd )
-			{
-				SGRX_ImageFilter* IF = NULL;
-				switch( g_UIPickers->imageFilterType.GetPickedType() )
-				{
-				case SGRX_AIF_Resize: IF = new SGRX_ImageFilter_Resize; break;
-				case SGRX_AIF_Rearrange: IF = new SGRX_ImageFilter_Rearrange; break;
-				case SGRX_AIF_Sharpen: IF = new SGRX_ImageFilter_Sharpen; break;
-				case SGRX_AIF_ToLinear: IF = new SGRX_ImageFilter_Linear( false ); break;
-				case SGRX_AIF_FromLinear: IF = new SGRX_ImageFilter_Linear( true ); break;
-				case SGRX_AIF_ExpandRange: IF = new SGRX_ImageFilter_ExpandRange; break;
-				case SGRX_AIF_BCP: IF = new SGRX_ImageFilter_BCP; break;
-				default: break;
-				}
-				if( IF )
-				{
-					TA.filters.push_back( IF );
-					ReloadFilterList();
-					EditFilter( IF );
-					m_filterButtons.OpenEditor( TA.filters.size() - 1 );
-					return 1;
-				}
-			}
-			break;
-		case EDGUI_EVENT_PROPCHANGE:
-			TA.ri.rev_asset++;
-			UpdatePreviewTexture();
-			break;
-		case EDGUI_EVENT_BTNCLICK:
-			if( e->target == &m_btnDuplicate )
-			{
-				SGRX_TextureAsset TAcopy;
-				TAcopy.Clone( g_EdAS->textureAssets[ m_tid ] );
-				m_tid = g_EdAS->textureAssets.size();
-				TAcopy.outputName.append( " - Copy" );
-				g_EdAS->textureAssets.push_back( TAcopy );
-				Prepare( m_tid );
-				return 1;
-			}
-			if( e->target == &m_btnDelete )
-			{
-				g_EdAS->textureAssets.erase( m_tid );
-				m_tid = NOT_FOUND;
-				m_texFilterModel.texAsset = NULL;
-				FC_EditTextureList();
-				return 1;
-			}
-			if( e->target == &m_filterEditButton )
-			{
-				EditFilter( TA.filters[ m_filterEditButton.id2 ] );
-				m_filterButtons.OpenEditor( m_filterEditButton.id2 );
-				m_frame->UpdateMouse();
-				return 1;
-			}
-			if( e->target == &m_filterEditButton.m_up )
-			{
-				int i = m_filterEditButton.id2;
-				if( i > 0 )
-				{
-					TSWAP( TA.filters[ i ], TA.filters[ i - 1 ] );
-					m_filterButtons.OnSwapItems( i, i - 1 );
-				}
-				ReloadFilterList();
-				m_frame->UpdateMouse();
-				return 1;
-			}
-			if( e->target == &m_filterEditButton.m_dn )
-			{
-				int i = m_filterEditButton.id2;
-				if( i < (int) TA.filters.size() - 1 )
-				{
-					TSWAP( TA.filters[ i ], TA.filters[ i + 1 ] );
-					m_filterButtons.OnSwapItems( i, i + 1 );
-				}
-				ReloadFilterList();
-				m_frame->UpdateMouse();
-				return 1;
-			}
-			if( e->target == &m_filterEditButton.m_del )
-			{
-				m_filterButtons.CloseEditor();
-				TA.filters.erase( m_filterEditButton.id2 );
-				ReloadFilterList();
-				m_frame->UpdateMouse();
-				return 1;
-			}
-			break;
-		}
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-struct EDGUITextureModel : EDGUIItemNameFilterModel
-{
-	int GetSourceItemCount(){ return g_EdAS->textureAssets.size(); }
-	void GetSourceItemName( int i, String& out ){ g_EdAS->textureAssets[ i ].GetDesc( out ); }
-	void GetSourceItemSearchText( int i, String& out ){ g_EdAS->textureAssets[ i ].GetFullName( out ); }
-}
-g_TextureModel;
-
-
-EDGUIAssetTextureList::EDGUIAssetTextureList() :
-	m_group( true, "Texture assets" ),
-	m_editButton( false )
-{
-	m_btnAdd.caption = "Add texture";
-	m_filter.caption = "Filter";
-	
-	g_TextureModel.All();
-	m_buttons.m_model = &g_TextureModel;
-	m_buttons.Add( &m_editButton );
-	m_group.Add( &m_buttons );
-	Add( &m_btnAdd );
-	Add( &m_filter );
-	Add( &m_group );
-}
-
-void EDGUIAssetTextureList::Prepare()
-{
-	g_TextureModel.Search( m_filter.m_value );
-	m_buttons.UpdateOptions();
-}
-
-int EDGUIAssetTextureList::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_filter )
-		{
-			Prepare();
-		}
-		break;
-	case EDGUI_EVENT_BTNCLICK:
-		if( e->target == &m_btnAdd )
-		{
-			g_EdAS->textureAssets.push_back( SGRX_TextureAsset() );
-			FC_EditTexture( g_EdAS->textureAssets.size() - 1 );
-			return 1;
-		}
-		if( e->target == &m_editButton )
-		{
-			FC_EditTexture( m_editButton.id2 );
-			return 1;
-		}
-		if( e->target == &m_editButton.m_del )
-		{
-			g_EdAS->textureAssets.erase( m_editButton.id2 );
-			Prepare();
-			return 1;
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
 }
 
 
@@ -1477,209 +905,15 @@ int EDGUIAssetAnimBundleList::OnEvent( EDGUIEvent* e )
 	return EDGUILayoutRow::OnEvent( e );
 }
 
-EDGUIAssetCategoryForm::EDGUIAssetCategoryForm() :
-	m_group( true, "Edit category" )
-{
-	m_name.caption = "Name";
-	m_path.caption = "Path";
-	
-	m_group.Add( &m_name );
-	m_group.Add( &m_path );
-	m_group.Add( &m_btnSave );
-	
-	Add( &m_group );
-	
-	_UpdateButtonText();
-}
-
-void EDGUIAssetCategoryForm::_UpdateButtonText()
-{
-	RCString path = g_EdAS->categories.getcopy( m_name.m_value );
-	if( StringView(m_name.m_value) == "" )
-	{
-		m_btnSave.caption = "-- cannot save unnamed category --";
-	}
-	else if( m_name.m_value == m_origName )
-	{
-		m_btnSave.caption = "Save category";
-	}
-	else if( path.size() )
-	{
-		m_btnSave.caption = String_Concat( "Overwrite category path: ", path );
-	}
-	else if( m_origName.size() == 0 )
-	{
-		m_btnSave.caption = "Save category";
-	}
-	else
-	{
-		m_btnSave.caption = "Save and rename category";
-	}
-}
-
-void EDGUIAssetCategoryForm::Prepare( const StringView& name )
-{
-	m_origName = name;
-	m_name.SetValue( name );
-	RCString path = g_EdAS->categories.getcopy( name );
-	m_path.SetValue( path );
-	_UpdateButtonText();
-}
-
-int EDGUIAssetCategoryForm::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_name )
-		{
-			_UpdateButtonText();
-		}
-		break;
-	case EDGUI_EVENT_BTNCLICK:
-		if( e->target == &m_btnSave && m_name.m_value.size() )
-		{
-			g_EdAS->categories.unset( m_origName );
-			g_EdAS->categories.set( m_name.m_value, m_path.m_value );
-			FC_EditCatList();
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-struct EDGUICategoryModel : EDGUIItemNameFilterModel
-{
-	int GetSourceItemCount(){ return g_EdAS->categories.size(); }
-	void GetSourceItemName( int i, String& out )
-	{
-		char bfr[ 256 ];
-		sgrx_snprintf( bfr, 256, "%s => %s",
-			StackString<100>( g_EdAS->categories.item( i ).key ).str,
-			StackString<100>( g_EdAS->categories.item( i ).value ).str );
-		out = bfr;
-	}
-}
-g_CategoryModel;
-
-
-EDGUIAssetCategoryList::EDGUIAssetCategoryList() :
-	m_cgroup( true, "Categories" ),
-	m_ctgEditButton( false )
-{
-	m_ctgBtnAdd.caption = "Add category";
-	m_filter.caption = "Filter";
-	
-	g_CategoryModel.All();
-	m_ctgButtons.m_model = &g_CategoryModel;
-	m_ctgButtons.Add( &m_ctgEditButton );
-	
-	m_cgroup.Add( &m_ctgButtons );
-	
-	Add( &m_ctgBtnAdd );
-	Add( &m_filter );
-	Add( &m_cgroup );
-}
-
-void EDGUIAssetCategoryList::Prepare()
-{
-	g_CategoryModel.Search( m_filter.m_value );
-	m_ctgButtons.UpdateOptions();
-}
-
-int EDGUIAssetCategoryList::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_filter ) Prepare();
-		break;
-	case EDGUI_EVENT_BTNCLICK:
-		if( e->target == &m_ctgBtnAdd )
-		{
-			FC_EditCategory( "" );
-		}
-		if( e->target == &m_ctgEditButton )
-		{
-			FC_EditCategory( g_EdAS->categories.item( m_ctgEditButton.id2 ).key );
-		}
-		if( e->target == &m_ctgEditButton.m_del )
-		{
-			g_EdAS->categories.unset( g_EdAS->categories.item( m_ctgEditButton.id2 ).key );
-			Prepare();
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
 
 EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuSplit( true, 26, 0 ),
-	m_UIParamSplit( false, 0, 0.55f ),
-	m_UIRenderView( g_EdScene, this )
+	m_UIParamSplit( false, 0, 0.55f )
 {
-	tyname = "mainframe";
-	
-	Add( &m_UIMenuSplit );
-	m_UIMenuSplit.SetFirstPane( &m_UIMenuButtons );
 	m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
-	m_UIParamSplit.SetFirstPane( &m_UIRenderView );
 	m_UIParamSplit.SetSecondPane( &m_UIParamScroll );
 	m_UIParamScroll.Add( &m_UIParamList );
-	
-	// menu
-	m_MB_Cat0.caption = "File:";
-	m_MBSave.caption = "Save";
-	m_MBRun.caption = "Run";
-	m_MBForceRun.caption = "Force Run";
-	m_MB_Cat1.caption = "Edit:";
-	m_MBEditScript.caption = "Categories";
-	m_MBEditTextures.caption = "Textures";
-	m_MBEditMeshes.caption = "Meshes";
-	m_MBEditAnimBundles.caption = "Anim. bundles";
-	m_UIMenuButtons.Add( &m_MB_Cat0 );
-	m_UIMenuButtons.Add( &m_MBSave );
-	m_UIMenuButtons.Add( &m_MBRun );
-//	m_UIMenuButtons.Add( &m_MBForceRun );
-	m_UIMenuButtons.Add( &m_MB_Cat1 );
-	m_UIMenuButtons.Add( &m_MBEditScript );
-	m_UIMenuButtons.Add( &m_MBEditTextures );
-	m_UIMenuButtons.Add( &m_MBEditMeshes );
-	m_UIMenuButtons.Add( &m_MBEditAnimBundles );
 }
-
-int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_BTNCLICK:
-		if(0);
-		
-		else if( e->target == &m_MBEditScript )
-		{
-			EditCatList();
-		}
-		else if( e->target == &m_MBEditTextures )
-		{
-			EditTextureList();
-		}
-		else if( e->target == &m_MBEditMeshes )
-		{
-			EditMeshList();
-		}
-		else if( e->target == &m_MBEditAnimBundles )
-		{
-			EditAnimBundleList();
-		}
-		
-		return 1;
-	}
-	return EDGUIFrame::OnEvent( e );
-}
-
-void EDGUIMainFrame::DebugDraw(){}
 
 void EDGUIMainFrame::AddToParamList( EDGUIItem* item )
 {
@@ -1691,18 +925,6 @@ void EDGUIMainFrame::ClearParamList()
 		m_UIParamList.Remove( m_UIParamList.m_subitems.last() );
 }
 
-void EDGUIMainFrame::EditTexture( size_t id )
-{
-	ClearParamList();
-	m_UITexture.Prepare( id );
-	AddToParamList( &m_UITexture );
-}
-void EDGUIMainFrame::EditTextureList()
-{
-	ClearParamList();
-	m_UITextureList.Prepare();
-	AddToParamList( &m_UITextureList );
-}
 void EDGUIMainFrame::EditMesh( size_t id )
 {
 	ClearParamList();
@@ -1726,23 +948,6 @@ void EDGUIMainFrame::EditAnimBundleList()
 	ClearParamList();
 	m_UIAnimBundleList.Prepare();
 	AddToParamList( &m_UIAnimBundleList );
-}
-void EDGUIMainFrame::EditCategory( const StringView& name )
-{
-	ClearParamList();
-	m_UICategory.Prepare( name );
-	AddToParamList( &m_UICategory );
-}
-void EDGUIMainFrame::EditCatList()
-{
-	ClearParamList();
-	m_UICatList.Prepare();
-	AddToParamList( &m_UICatList );
-}
-
-void EDGUIMainFrame::ResetEditorState()
-{
-	EditCatList();
 }
 
 
@@ -1849,7 +1054,7 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 	ImGui::Text( "Texture" );
 	ImGui::Separator();
 	
-	chg |= IMGUIEditString( "Source file", ta.sourceFile, 256 );
+	chg |= g_NUIAssetPicker->Property( "Select source file", "Source file", ta.sourceFile );
 	rev |= PickCategoryName( "Output category", ta.outputCategory );
 	rev |= IMGUIEditString( "Output name", ta.outputName, 256 );
 	
@@ -1883,7 +1088,22 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 	ImGui::Text( "Filters" );
 	ImGui::Separator();
 	
-	IMGUIEditArray( ta.filters, EditFilter, "Add filter" );
+	if( ImGui::Button( "Add filter", ImVec2( ImGui::GetContentRegionAvail().x, 24 ) ) )
+		ImGui::OpenPopup( "add_filter" );
+	if( ImGui::BeginPopup( "add_filter" ) )
+	{
+		ImGui::Text( "Select filter type:" );
+		ImGui::Separator();
+		if( ImGui::Selectable( "Resize" ) ) ta.filters.push_back( new SGRX_ImageFilter_Resize );
+		if( ImGui::Selectable( "Rearrange" ) ) ta.filters.push_back( new SGRX_ImageFilter_Rearrange );
+		if( ImGui::Selectable( "Sharpen" ) ) ta.filters.push_back( new SGRX_ImageFilter_Sharpen );
+		if( ImGui::Selectable( "To linear" ) ) ta.filters.push_back( new SGRX_ImageFilter_Linear(false) );
+		if( ImGui::Selectable( "From linear" ) ) ta.filters.push_back( new SGRX_ImageFilter_Linear(true) );
+		if( ImGui::Selectable( "Expand range" ) ) ta.filters.push_back( new SGRX_ImageFilter_ExpandRange );
+		if( ImGui::Selectable( "Brightness/contrast/power" ) ) ta.filters.push_back( new SGRX_ImageFilter_BCP );
+		ImGui::EndPopup();
+	}
+	IMGUIEditArray( ta.filters, EditFilter, NULL );
 	
 	if( chg || rev )
 		ta.ri.rev_asset++;
@@ -1903,12 +1123,31 @@ void EditAnimBundleAsset( SGRX_AnimBundleAsset& aba )
 	
 }
 
+
 SGRX_Asset* g_CurAsset;
+String g_CurCategory;
+String g_CurCatName;
+String g_CurCatPath;
+bool g_RenameAssetCats = false;
 
 void SetCurAsset( SGRX_Asset* asset )
 {
 	g_CurAsset = asset;
 }
+void SetCurCategory( size_t i )
+{
+	if( i == NOT_FOUND )
+	{
+		g_CurCategory = "";
+		g_CurCatName = "";
+		g_CurCatPath = "";
+		return;
+	}
+	g_CurCategory = g_EdAS->categories.item( i ).key;
+	g_CurCatName = g_CurCategory;
+	g_CurCatPath = g_EdAS->categories.item( i ).value;
+}
+
 
 void EditCurAsset()
 {
@@ -1917,11 +1156,129 @@ void EditCurAsset()
 		ImGui::Text( "Select asset on the left side to edit it" );
 		return;
 	}
+	
+	ImGui::Columns( 2 );
+	if( ImGui::Button( "Duplicate", ImVec2( ImGui::GetContentRegionAvailWidth(), 16 ) ) )
+	{
+		switch( g_CurAsset->assetType )
+		{
+		case SGRX_AT_Texture: {
+				SGRX_TextureAsset new_asset = *g_CurAsset->ToTexture();
+				g_EdAS->textureAssets.push_back( new_asset );
+				g_CurAsset = &g_EdAS->textureAssets.last();
+			} break;
+		case SGRX_AT_Mesh: {
+				SGRX_MeshAsset new_asset = *g_CurAsset->ToMesh();
+				g_EdAS->meshAssets.push_back( new_asset );
+				g_CurAsset = &g_EdAS->meshAssets.last();
+			} break;
+		case SGRX_AT_AnimBundle: {
+				SGRX_AnimBundleAsset new_asset = *g_CurAsset->ToAnimBundle();
+				g_EdAS->animBundleAssets.push_back( new_asset );
+				g_CurAsset = &g_EdAS->animBundleAssets.last();
+			} break;
+		}
+		g_CurAsset->outputName.append( " - Copy" );
+	}
+	ImGui::NextColumn();
+	if( ImGui::Button( "Delete", ImVec2( ImGui::GetContentRegionAvailWidth(), 16 ) ) )
+	{
+		switch( g_CurAsset->assetType )
+		{
+		case SGRX_AT_Texture:
+			g_EdAS->textureAssets.erase( g_CurAsset->ToTexture() - g_EdAS->textureAssets.data() );
+			break;
+		case SGRX_AT_Mesh:
+			g_EdAS->meshAssets.erase( g_CurAsset->ToMesh() - g_EdAS->meshAssets.data() );
+			break;
+		case SGRX_AT_AnimBundle:
+			g_EdAS->animBundleAssets.erase( g_CurAsset->ToAnimBundle() - g_EdAS->animBundleAssets.data() );
+			break;
+		}
+		g_CurAsset = NULL;
+		return;
+	}
+	ImGui::Columns( 1 );
+	ImGui::Separator();
+	
 	switch( g_CurAsset->assetType )
 	{
 	case SGRX_AT_Texture: EditTextureAsset( *g_CurAsset->ToTexture() ); break;
 	case SGRX_AT_Mesh: EditMeshAsset( *g_CurAsset->ToMesh() ); break;
 	case SGRX_AT_AnimBundle: EditAnimBundleAsset( *g_CurAsset->ToAnimBundle() ); break;
+	}
+}
+
+
+void RenameAssetCat( SGRX_Asset* A )
+{
+	if( A->outputCategory == g_CurCategory )
+	{
+		A->outputCategory = g_CurCatName;
+		A->ri.rev_asset++;
+	}
+}
+
+void EditCurCategory()
+{
+	if( ImGui::Selectable( "Back to category list" ) )
+	{
+		SetCurCategory( NOT_FOUND );
+		return;
+	}
+	ImGui::Separator();
+	
+	ImGui::Text( "Edit category: %s", StackPath(g_CurCategory).str );
+	ImGui::Separator();
+	
+	IMGUIEditString( "Name", g_CurCatName, 256 );
+	IMGUIEditString( "Path", g_CurCatPath, 256 );
+	IMGUIEditBool( "Also edit asset categories on rename", g_RenameAssetCats );
+	
+	const char* act = g_CurCatName != g_CurCategory
+		? ( g_EdAS->categories.isset( g_CurCatName ) ? "Move/Overwrite" : "Move/rename" )
+		: "Edit";
+	if( ImGui::Button( act ) )
+	{
+		if( g_CurCatName != g_CurCategory )
+		{
+			g_EdAS->categories.unset( g_CurCategory );
+		}
+		g_EdAS->categories.set( g_CurCatName, g_CurCatPath );
+		
+		if( g_RenameAssetCats && g_CurCatName != g_CurCategory )
+		{
+			for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
+				RenameAssetCat( &g_EdAS->textureAssets[ i ] );
+			for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
+				RenameAssetCat( &g_EdAS->meshAssets[ i ] );
+			for( size_t i = 0; i < g_EdAS->animBundleAssets.size(); ++i )
+				RenameAssetCat( &g_EdAS->animBundleAssets[ i ] );
+		}
+		
+		SetCurCategory( NOT_FOUND );
+	}
+}
+
+void EditCategoryList()
+{
+	if( g_CurCategory.size() )
+	{
+		EditCurCategory();
+		return;
+	}
+	
+	ImGui::Text( "Categories" );
+	ImGui::Separator();
+	
+	for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
+	{
+		char bfr[ 256 ];
+		sgrx_snprintf( bfr, 256, "%s => %s",
+			StackString<100>( g_EdAS->categories.item( i ).key ).str,
+			StackString<100>( g_EdAS->categories.item( i ).value ).str );
+		if( ImGui::Selectable( bfr ) )
+			SetCurCategory( i );
 	}
 }
 
@@ -2049,7 +1406,7 @@ void EditAssetList()
 				lastgroup = curgroup;
 			}
 			
-			if( lastopen )
+			if( lastopen || g_GroupBy == GB_None )
 			{
 				sgrx_snprintf( bfr, 256, "[%s] %.*s [%.*s]", type_letters[ A->assetType ],
 					(int) A->outputName.size(), A->outputName.data(),
@@ -2160,8 +1517,6 @@ void ASCR_Open()
 		return;
 	}
 	g_EdAS->LoadAssetInfo( ASSET_INFO_NAME );
-	
-//	ResetEditorState();
 }
 
 void ASCR_Save()
@@ -2191,6 +1546,7 @@ void ASCR_Run( bool force )
 enum EditorMode
 {
 	EditAssets,
+	EditCategories,
 	MiscProps,
 };
 int g_mode = EditAssets;
@@ -2274,6 +1630,8 @@ struct ASEditor : IGame
 		SGRX_IMGUI_Init();
 		
 		g_NUIRenderView = new AssetRenderView;
+		g_NUIAssetPicker = new IMGUIFilePicker( "assets", "" );
+		g_NUIAssetPicker->m_layoutType = IMGUIPickerCore::Layout_List;
 		
 		ASCR_Open();
 		
@@ -2281,6 +1639,7 @@ struct ASEditor : IGame
 	}
 	void OnDestroy()
 	{
+		delete g_NUIAssetPicker;
 		delete g_NUIRenderView;
 		
 		delete g_UIPickers;
@@ -2316,11 +1675,7 @@ struct ASEditor : IGame
 		if( e.type == SDL_DROPFILE )
 		{
 			String path = RealPath( e.drop.file );
-			if( ( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICatList ) ||
-				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) ||
-				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UITextureList ) ||
-				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UITexture ) ) &&
-				IsImageFile( path ) )
+			if( IsImageFile( path ) )
 			{
 				String rootpath;
 				FS_FindRealPath( "assets", rootpath );
@@ -2329,14 +1684,8 @@ struct ASEditor : IGame
 				{
 					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
 					String category = "";
-					if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) )
-					{
-						category = g_UIFrame->m_UICategory.m_name.m_value;
-					}
-					else if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UITexture ) )
-					{
-						category = g_EdAS->textureAssets[ g_UIFrame->m_UITexture.m_tid ].outputCategory;
-					}
+					if( g_CurAsset )
+						category = g_CurAsset->outputCategory;
 					String name = SV( subpath ).after_last( "/" ).until_last( "." );
 					LOG << "Dropped image";
 					LOG << "file:" << subpath;
@@ -2349,14 +1698,10 @@ struct ASEditor : IGame
 					ta.outputName = name;
 					ta.outputType = SGRX_TOF_STX_RGBA32;
 					g_EdAS->textureAssets.push_back( ta );
-					FC_EditTexture( g_EdAS->textureAssets.size() - 1 );
+					SetCurAsset( &g_EdAS->textureAssets.last() );
 				}
 			}
-			if( ( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICatList ) ||
-				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) ||
-				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UIMeshList ) ||
-				g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UIMesh ) ) &&
-				IsMeshFile( path ) )
+			if( IsMeshFile( path ) )
 			{
 				String rootpath;
 				FS_FindRealPath( "assets", rootpath );
@@ -2365,14 +1710,8 @@ struct ASEditor : IGame
 				{
 					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
 					String category = "";
-					if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UICategory ) )
-					{
-						category = g_UIFrame->m_UICategory.m_name.m_value;
-					}
-					else if( g_UIFrame->m_UIParamList.Has( &g_UIFrame->m_UIMesh ) )
-					{
-						category = g_UIFrame->m_UIMesh.m_outputCategory.m_value;
-					}
+					if( g_CurAsset )
+						category = g_CurAsset->outputCategory;
 					String name = SV( subpath ).after_last( "/" ).until_last( "." );
 					LOG << "Dropped mesh";
 					LOG << "file:" << subpath;
@@ -2384,7 +1723,7 @@ struct ASEditor : IGame
 					ma.outputCategory = category;
 					ma.outputName = name;
 					g_EdAS->meshAssets.push_back( ma );
-					FC_EditMesh( g_EdAS->meshAssets.size() - 1 );
+					SetCurAsset( &g_EdAS->meshAssets.last() );
 				}
 			}
 		}
@@ -2427,6 +1766,8 @@ struct ASEditor : IGame
 				ImGui::SameLine();
 				ImGui::RadioButton( "Assets", &g_mode, EditAssets );
 				ImGui::SameLine();
+				ImGui::RadioButton( "Categories", &g_mode, EditCategories );
+				ImGui::SameLine();
 				ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
 				
 				ImGui::EndMenuBar();
@@ -2443,6 +1784,10 @@ struct ASEditor : IGame
 				if( g_mode == EditAssets )
 				{
 					EditCurAsset();
+				}
+				else if( g_mode == EditCategories )
+				{
+					EditCategoryList();
 				}
 				else if( g_mode == MiscProps )
 				{
