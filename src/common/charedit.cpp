@@ -3,10 +3,8 @@
 #include <engine.hpp>
 #include <enganim.hpp>
 #include <engext.hpp>
-#include <edgui.hpp>
 #include <imgui.hpp>
 #include <physics.hpp>
-#include "edcomui.hpp"
 
 
 inline Quat EA2Q( Vec3 v ){ return Quat::CreateFromXYZ( DEG2RAD( v ) ); }

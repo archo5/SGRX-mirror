@@ -1,7 +1,9 @@
 
 
-#include "aedit.hpp"
+#include <engine.hpp>
+#include <enganim.hpp>
 #include <imgui.hpp>
+#include "assetcomp.hpp"
 
 
 #define ASSET_SCRIPT_NAME "assets.txt"
@@ -11,436 +13,11 @@
 
 SceneHandle g_EdScene;
 SGRX_AssetScript* g_EdAS;
-EDGUIPickers* g_UIPickers;
 SGRX_Asset* g_CurAsset;
 
 
 struct AssetRenderView* g_NUIRenderView;
 struct IMGUIFilePicker* g_NUIAssetPicker;
-
-
-void EDGUISmallEnumPicker::_OnChangeZoom()
-{
-	EDGUIRsrcPicker::_OnChangeZoom();
-	m_itemHeight /= 4;
-}
-
-void EDGUILongEnumPicker::_OnChangeZoom()
-{
-	EDGUIRsrcPicker::_OnChangeZoom();
-	m_itemWidth = 300;
-	m_itemHeight = 16;
-}
-
-EDGUICategoryPicker::EDGUICategoryPicker()
-{
-	m_looseSearch = true;
-	Reload();
-}
-void EDGUICategoryPicker::Reload()
-{
-	m_options.clear();
-	if( g_EdAS )
-	{
-		for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
-		{
-			m_options.push_back( g_EdAS->categories.item( i ).key );
-		}
-	}
-	_Search( m_searchString );
-}
-
-EDGUIMeshAssetPicker::EDGUIMeshAssetPicker()
-{
-	m_looseSearch = true;
-	Reload();
-}
-void EDGUIMeshAssetPicker::Reload()
-{
-	m_options.clear();
-	if( g_EdAS )
-	{
-		for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
-		{
-			const SGRX_MeshAsset& TA = g_EdAS->meshAssets[ i ];
-			String opt = TA.outputCategory;
-			opt.append( "/" );
-			opt.append( TA.outputName );
-			m_options.push_back( opt );
-		}
-	}
-	_Search( m_searchString );
-}
-
-EDGUIAssetPathPicker::EDGUIAssetPathPicker() : m_depth(0)
-{
-	m_looseSearch = true;
-	Reload();
-}
-void EDGUIAssetPathPicker::AddOptionsFromDir( const StringView& path )
-{
-	if( m_depth > 32 )
-		return;
-	m_depth++;
-	FS_IterateDirectory( path, this );
-	m_depth--;
-}
-bool EDGUIAssetPathPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
-{
-	if( name == "." || name == ".." )
-		return true;
-	String path = loc;
-	path.append( "/" );
-	path.append( name );
-	if( isdir )
-	{
-		AddOptionsFromDir( path );
-	}
-	else
-	{
-		m_options.push_back( path );
-	}
-	return true;
-}
-void EDGUIAssetPathPicker::Reload()
-{
-	m_options.clear();
-	m_depth = 0;
-	AddOptionsFromDir( "assets" );
-	_Search( m_searchString );
-}
-
-EDGUIASAnimNamePicker::EDGUIASAnimNamePicker()
-{
-	m_looseSearch = true;
-	Reload();
-}
-void EDGUIASAnimNamePicker::Reload()
-{
-	m_options.clear();
-	for( size_t i = 0; i < m_scenes.size(); ++i )
-	{
-		if( !m_scenes[ i ] )
-			continue;
-		m_scenes[ i ]->GetAnimList( m_options );
-	}
-	_Search( m_searchString );
-}
-
-
-EDGUIAssetAnimBundle::EDGUIAssetAnimBundle() :
-	m_group( true, "Animation bundle" ),
-	m_outputCategory( &g_UIPickers->category ),
-	m_previewMesh( &g_UIPickers->meshAsset ),
-	m_AN_group( true, "Animation" ),
-	m_AN_source( &g_UIPickers->animName ),
-	m_ANL_group( true, "Animation list" ),
-	m_ANL_editButton( false ),
-	m_AS_group( true, "Animation source" ),
-	m_AS_fileName( &g_UIPickers->assetPath ),
-	m_ASL_group( true, "Animation source list" ),
-	m_ASL_editButton( false ),
-	m_abid( NOT_FOUND ),
-	m_sid( NOT_FOUND ),
-	m_aid( NOT_FOUND )
-{
-	m_outputCategory.m_requestReload = true;
-	
-	m_btnDuplicate.caption = "Duplicate";
-	m_btnDelete.caption = "Delete";
-	
-	m_outputCategory.caption = "Output category";
-	m_outputName.caption = "Output name";
-	m_bundlePrefix.caption = "Bundle prefix";
-	m_previewMesh.caption = "Preview mesh";
-	
-	m_AN_source.caption = "Source/name";
-	m_AN_name.caption = "Name override";
-	m_AN_startFrame.caption = "Start frame";
-	m_AN_endFrame.caption = "End frame";
-	
-	m_ANL_btnAdd.caption = "Add animation";
-	
-	m_AS_fileName.caption = "Source file";
-	m_AS_prefix.caption = "Prefix";
-	m_AS_addAll.caption = "Add all animations from this source";
-	
-	m_ASL_btnAdd.caption = "Add animation source";
-	
-	m_topCol.Add( &m_btnDuplicate );
-	m_topCol.Add( &m_btnDelete );
-	
-	m_group.Add( &m_outputCategory );
-	m_group.Add( &m_outputName );
-	m_group.Add( &m_bundlePrefix );
-	m_group.Add( &m_previewMesh );
-	
-	m_AN_cont.Add( &m_AN_source );
-	m_AN_cont.Add( &m_AN_name );
-	m_AN_cont.Add( &m_AN_startFrame );
-	m_AN_cont.Add( &m_AN_endFrame );
-	
-	m_ANL_buttons.m_model = &m_animModel;
-	m_ANL_buttons.Add( &m_ANL_editButton );
-	m_ANL_group.Add( &m_ANL_btnAdd );
-	m_ANL_group.Add( &m_ANL_buttons );
-	
-	m_AS_cont.Add( &m_AS_fileName );
-	m_AS_cont.Add( &m_AS_prefix );
-	m_AS_cont.Add( &m_AS_addAll );
-	
-	m_ASL_buttons.m_model = &m_sourceModel;
-	m_ASL_buttons.Add( &m_ASL_editButton );
-	m_ASL_group.Add( &m_ASL_btnAdd );
-	m_ASL_group.Add( &m_ASL_buttons );
-	
-	Add( &m_topCol );
-	Add( &m_group );
-	Add( &m_AN_group );
-	Add( &m_ANL_group );
-	Add( &m_AS_group );
-	Add( &m_ASL_group );
-}
-
-EDGUIAssetAnimBundle::~EDGUIAssetAnimBundle()
-{
-	m_ANL_buttons.m_model = NULL;
-	m_ASL_buttons.m_model = NULL;
-}
-
-void EDGUIAssetAnimBundle::UpdatePreviewAnim()
-{
-	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
-	AnimHandle anim = SGRX_ProcessSingleAnim( ABA, m_aid );
-//	FC_SetAnim( g_EdAS->GetMesh( m_previewMesh.m_value ), anim );
-}
-
-void EDGUIAssetAnimBundle::Prepare( size_t abid )
-{
-	g_UIPickers->meshAsset.Reload();
-	
-	m_abid = abid;
-	m_sid = NOT_FOUND;
-	m_aid = NOT_FOUND;
-	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ abid ];
-	
-	m_outputCategory.SetValue( ABA.outputCategory );
-	m_outputName.SetValue( ABA.outputName );
-	m_bundlePrefix.SetValue( ABA.bundlePrefix );
-	m_previewMesh.SetValue( ABA.previewMesh );
-	
-	ReloadAnimSourceList();
-	PrepareAnimSource( NOT_FOUND );
-	
-	ReloadAnimList();
-	PrepareAnim( NOT_FOUND );
-}
-
-void EDGUIAssetAnimBundle::ReloadAnimSourceList()
-{
-	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
-	m_sourceModel.abAsset = &ABA;
-	m_ASL_buttons.UpdateOptions();
-	ReloadImpScenes();
-}
-
-void EDGUIAssetAnimBundle::PrepareAnimSource( size_t sid )
-{
-	m_sid = sid;
-	
-	if( m_sid != NOT_FOUND )
-	{
-		const SGRX_ABAnimSource& AS = g_EdAS->animBundleAssets[ m_abid ].sources[ sid ];
-		m_AS_fileName.SetValue( AS.file );
-		m_AS_prefix.SetValue( AS.prefix );
-		
-		m_AS_group.Add( &m_AS_cont );
-	}
-	else
-		m_AS_group.Clear();
-}
-
-void EDGUIAssetAnimBundle::ReloadAnimList()
-{
-	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
-	m_animModel.abAsset = &ABA;
-	m_ANL_buttons.UpdateOptions();
-	OnChangeLayout();
-}
-
-void EDGUIAssetAnimBundle::PrepareAnim( size_t aid )
-{
-	m_aid = aid;
-	
-	if( m_aid != NOT_FOUND )
-	{
-		const SGRX_ABAnimation& AN = g_EdAS->animBundleAssets[ m_abid ].anims[ aid ];
-		m_AN_source.SetValue( AN.source );
-		m_AN_name.SetValue( AN.name );
-		
-		char bfr[ 32 ];
-		if( AN.startFrame != -1 )
-		{
-			sgrx_snprintf( bfr, 32, "%d", AN.startFrame );
-			m_AN_startFrame.SetValue( bfr );
-		}
-		else
-			m_AN_startFrame.SetValue( "" );
-		if( AN.endFrame != -1 )
-		{
-			sgrx_snprintf( bfr, 32, "%d", AN.endFrame );
-			m_AN_endFrame.SetValue( bfr );
-		}
-		else
-			m_AN_endFrame.SetValue( "" );
-		
-		m_AN_group.Add( &m_AN_cont );
-		
-		UpdatePreviewAnim();
-	}
-	else
-		m_AN_group.Clear();
-}
-
-void EDGUIAssetAnimBundle::ReloadImpScenes()
-{
-	SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
-	g_UIPickers->ClearAnimScenes();
-	for( size_t i = 0; i < ABA.sources.size(); ++i )
-	{
-		g_UIPickers->AddAnimScene( new SGRX_Scene3D( ABA.sources[ i ].file, SIOF_Anims ) );
-	}
-	g_UIPickers->animName.Reload();
-}
-
-int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
-{
-	if( m_abid != NOT_FOUND )
-	{
-		SGRX_AnimBundleAsset& ABA = g_EdAS->animBundleAssets[ m_abid ];
-		SGRX_ABAnimSource* AS = m_sid != NOT_FOUND ? &ABA.sources[ m_sid ] : NULL;
-		SGRX_ABAnimation* AN = m_aid != NOT_FOUND ? &ABA.anims[ m_aid ] : NULL;
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_outputCategory ){ ABA.outputCategory = m_outputCategory.m_value; }
-			if( e->target == &m_outputName ){ ABA.outputName = m_outputName.m_value; }
-			if( e->target == &m_bundlePrefix ){ ABA.bundlePrefix = m_bundlePrefix.m_value; }
-			if( e->target == &m_previewMesh )
-			{
-				ABA.previewMesh = m_previewMesh.m_value;
-				UpdatePreviewAnim();
-			}
-			if( AN )
-			{
-				bool edited = false;
-				if( e->target == &m_AN_source ){ AN->source = m_AN_source.m_value; edited = true; }
-				if( e->target == &m_AN_name ){ AN->name = m_AN_name.m_value; edited = true; }
-				if( e->target == &m_AN_startFrame ){ edited = true;
-					AN->startFrame = m_AN_startFrame.m_value.size() ? String_ParseInt( m_AN_startFrame.m_value ) : -1; }
-				if( e->target == &m_AN_endFrame ){ edited = true;
-					AN->endFrame = m_AN_endFrame.m_value.size() ? String_ParseInt( m_AN_endFrame.m_value ) : -1; }
-				if( edited )
-					ReloadAnimList();
-			}
-			if( AS )
-			{
-				bool edited = false;
-				if( e->target == &m_AS_fileName ){ AS->file = m_AS_fileName.m_value; edited = true; }
-				if( e->target == &m_AS_prefix ){ AS->prefix = m_AS_prefix.m_value; edited = true; }
-				if( edited )
-					ReloadAnimSourceList();
-			}
-			break;
-		case EDGUI_EVENT_PROPCHANGE:
-			if( e->target != &m_previewMesh )
-			{
-				ABA.ri.rev_asset++;
-			}
-			if( e->target == &m_AN_source || e->target == &m_AN_startFrame ||
-				e->target == &m_AN_endFrame )
-			{
-				UpdatePreviewAnim();
-			}
-			break;
-		case EDGUI_EVENT_BTNCLICK:
-			if( e->target == &m_btnDuplicate )
-			{
-				SGRX_AnimBundleAsset ABAcopy;
-				ABAcopy.Clone( g_EdAS->animBundleAssets[ m_abid ] );
-				m_abid = g_EdAS->animBundleAssets.size();
-				ABAcopy.outputName.append( " - Copy" );
-				g_EdAS->animBundleAssets.push_back( ABAcopy );
-				Prepare( m_abid );
-				return 1;
-			}
-			if( e->target == &m_btnDelete )
-			{
-				g_EdAS->animBundleAssets.erase( m_abid );
-				m_animModel.abAsset = NULL;
-				m_sourceModel.abAsset = NULL;
-				m_abid = NOT_FOUND;
-			//	FC_EditAnimBundleList();
-				return 1;
-			}
-			if( e->target == &m_ANL_btnAdd )
-			{
-				ABA.anims.push_back( SGRX_ABAnimation() );
-				ReloadAnimList();
-				m_frame->UpdateMouse();
-			}
-			if( e->target == &m_ANL_editButton )
-			{
-				PrepareAnim( m_ANL_editButton.id2 );
-			}
-			if( e->target == &m_ANL_editButton.m_del )
-			{
-				ABA.anims.erase( m_ANL_editButton.id2 );
-				m_aid = NOT_FOUND;
-				ReloadAnimList();
-				m_frame->UpdateMouse();
-				m_AN_group.Clear();
-				return 1;
-			}
-			if( e->target == &m_AS_addAll && AS )
-			{
-				ImpScene3DHandle sh = new SGRX_Scene3D( AS->file, SIOF_Anims );
-				Array< String > anims;
-				sh->GetAnimList( anims );
-				for( size_t i = 0; i < anims.size(); ++i )
-				{
-					ABA.anims.push_back( SGRX_ABAnimation() );
-					ABA.anims.last().source = anims[ i ];
-				}
-				ABA.ri.rev_asset++;
-				ReloadAnimList();
-				m_frame->UpdateMouse();
-			}
-			if( e->target == &m_ASL_btnAdd )
-			{
-				ABA.sources.push_back( SGRX_ABAnimSource() );
-				ReloadAnimSourceList();
-				m_frame->UpdateMouse();
-			}
-			if( e->target == &m_ASL_editButton )
-			{
-				PrepareAnimSource( m_ASL_editButton.id2 );
-			}
-			if( e->target == &m_ASL_editButton.m_del )
-			{
-				ABA.sources.erase( m_ASL_editButton.id2 );
-				m_sid = NOT_FOUND;
-				ReloadAnimSourceList();
-				m_frame->UpdateMouse();
-				m_AS_group.Clear();
-				return 1;
-			}
-			break;
-		}
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
 
 
 
@@ -630,15 +207,17 @@ void UpdateTexturePreview( SGRX_TextureAsset& ta )
 
 void EditTextureAsset( SGRX_TextureAsset& ta )
 {
-	bool chg = false;
-	bool rev = false;
+	ImGui::BeginChangeCheck();
 	
 	ImGui::Text( "Texture" );
 	ImGui::Separator();
 	
-	chg |= g_NUIAssetPicker->Property( "Select source file", "Source file", ta.sourceFile );
-	rev |= PickCategoryName( "Output category", ta.outputCategory );
-	rev |= IMGUIEditString( "Output name", ta.outputName, 256 );
+	g_NUIAssetPicker->Property( "Select source file", "Source file", ta.sourceFile );
+	
+	ImGui::BeginChangeMask( 1 );
+	PickCategoryName( "Output category", ta.outputCategory );
+	IMGUIEditString( "Output name", ta.outputName, 256 );
+	ImGui::EndChangeMask();
 	
 	if( ImGui::Button( SGRX_TextureOutputFormat_ToString( ta.outputType ),
 		ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
@@ -650,21 +229,21 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_PNG_RGBA32 ) ) )
 		{
 			ta.outputType = SGRX_TOF_PNG_RGBA32;
-			rev |= true;
+			ImGui::TriggerChangeCheck();
 		}
 		if( ImGui::Selectable( SGRX_TextureOutputFormat_ToString( SGRX_TOF_STX_RGBA32 ) ) )
 		{
 			ta.outputType = SGRX_TOF_STX_RGBA32;
-			rev |= true;
+			ImGui::TriggerChangeCheck();
 		}
 		ImGui::EndPopup();
 	}
 	
-	chg |= IMGUIEditBool( "Is SRGB?", ta.isSRGB );
-	chg |= IMGUIEditBool( "Generate mipmaps", ta.mips );
-	chg |= IMGUIEditBool( "Use linear interpolation", ta.lerp );
-	chg |= IMGUIEditBool( "Clamp X", ta.clampx );
-	chg |= IMGUIEditBool( "Clamp Y", ta.clampy );
+	IMGUIEditBool( "Is SRGB?", ta.isSRGB );
+	IMGUIEditBool( "Generate mipmaps", ta.mips );
+	IMGUIEditBool( "Use linear interpolation", ta.lerp );
+	IMGUIEditBool( "Clamp X", ta.clampx );
+	IMGUIEditBool( "Clamp Y", ta.clampy );
 	
 	ImGui::Separator();
 	ImGui::Text( "Filters" );
@@ -674,6 +253,7 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 		ImGui::OpenPopup( "add_filter" );
 	if( ImGui::BeginPopup( "add_filter" ) )
 	{
+		size_t ofs = ta.filters.size();
 		ImGui::Text( "Select filter type:" );
 		ImGui::Separator();
 		if( ImGui::Selectable( "Resize" ) ) ta.filters.push_back( new SGRX_ImageFilter_Resize );
@@ -684,12 +264,15 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 		if( ImGui::Selectable( "Expand range" ) ) ta.filters.push_back( new SGRX_ImageFilter_ExpandRange );
 		if( ImGui::Selectable( "Brightness/contrast/power" ) ) ta.filters.push_back( new SGRX_ImageFilter_BCP );
 		ImGui::EndPopup();
+		if( ta.filters.size() != ofs )
+			ImGui::TriggerChangeCheck();
 	}
 	IMGUIEditArray( ta.filters, EditFilter, NULL );
 	
-	if( chg || rev )
+	int chg = ImGui::EndChangeCheck();
+	if( chg & 1 )
 		ta.ri.rev_asset++;
-	if( chg )
+	if( chg & 2 )
 		UpdateTexturePreview( ta );
 }
 
@@ -768,6 +351,7 @@ bool PickShaderName( const char* label, String& str )
 			{
 				str = g_ShaderList[ i ];
 				ret = true;
+				ImGui::TriggerChangeCheck();
 			}
 		}
 		ImGui::EndPopup();
@@ -821,8 +405,7 @@ void UpdateMeshPreview( SGRX_MeshAsset& ma )
 
 void EditMeshAsset( SGRX_MeshAsset& ma )
 {
-	bool chg = false;
-	bool rev = false;
+	ImGui::BeginChangeCheck();
 	
 	ImGui::Text( "Mesh" );
 	ImGui::Separator();
@@ -830,19 +413,27 @@ void EditMeshAsset( SGRX_MeshAsset& ma )
 	bool src = g_NUIAssetPicker->Property( "Select source file", "Source file", ma.sourceFile );
 	if( src )
 		g_MeshAssetPartPicker.Reload( ma.sourceFile );
-	chg |= src;
-	rev |= PickCategoryName( "Output category", ma.outputCategory );
-	rev |= IMGUIEditString( "Output name", ma.outputName, 256 );
 	
-	chg |= IMGUIEditBool( "Rotate Y -> Z", ma.rotateY2Z );
-	chg |= IMGUIEditBool( "Flip UV/Y", ma.flipUVY );
-	chg |= IMGUIEditBool( "Transform", ma.transform );
+	ImGui::BeginChangeMask( 1 );
+	PickCategoryName( "Output category", ma.outputCategory );
+	IMGUIEditString( "Output name", ma.outputName, 256 );
+	ImGui::EndChangeMask();
 	
-	IMGUIEditArray( ma.parts, EditMeshPart, "Add mesh part" );
+	IMGUIEditBool( "Rotate Y -> Z", ma.rotateY2Z );
+	IMGUIEditBool( "Flip UV/Y", ma.flipUVY );
+	IMGUIEditBool( "Transform", ma.transform );
 	
-	if( chg || rev )
+	if( ImGui::Button( "Add mesh part", ImVec2( ImGui::GetContentRegionAvail().x, 24 ) ) )
+	{
+		ma.parts.push_back( new SGRX_MeshAssetPart );
+		ImGui::TriggerChangeCheck();
+	}
+	IMGUIEditArray( ma.parts, EditMeshPart, NULL );
+	
+	int chg = ImGui::EndChangeCheck();
+	if( chg & 1 )
 		ma.ri.rev_asset++;
-	if( chg )
+	if( chg & 2 )
 		UpdateMeshPreview( ma );
 }
 
@@ -876,7 +467,8 @@ void EditAnimButton( size_t i, SGRX_ABAnimation& anim )
 {
 	String desc;
 	anim.GetDesc( desc );
-	if( ImGui::Selectable( StackString<1024>(desc) ) )
+	if( ImGui::Selectable( StackString<1024>(desc), false, 0,
+		ImVec2( ImGui::GetContentRegionAvailWidth() - 98, 16 ) ) )
 	{
 		g_CurAnim = i;
 		UpdateAnimPreview( *g_CurAsset->ToAnimBundle() );
@@ -890,20 +482,48 @@ void EditAnimSource( size_t i, SGRX_ABAnimSource& src )
 	IMGUI_GROUP( StackPath(desc), true,
 	{
 		g_NUIAssetPicker->Property( "Choose the animation file", "File", src.file );
+		
+		ImGui::BeginChangeMask( 1 );
 		IMGUIEditString( "Prefix", src.prefix, 256 );
+		ImGui::EndChangeMask();
 	});
 }
 
+struct AnimAssetPartPicker : IMGUIEntryPicker
+{
+	void Reload( SGRX_AnimBundleAsset& aba )
+	{
+		m_entries.clear();
+		for( size_t i = 0; i < aba.sources.size(); ++i )
+		{
+			SGRX_ABAnimSource& as = aba.sources[ i ];
+			if( !as.file.size() )
+				continue;
+			ImpScene3DHandle scene = new SGRX_Scene3D( as.file, SIOF_Anims );
+			if( !scene )
+				continue;
+			Array< String > anims;
+			scene->GetAnimList( anims );
+			for( size_t j = 0; j < anims.size(); ++j )
+				m_entries.push_back( anims[ j ] );
+		}
+		_Search( m_searchString );
+	}
+}
+g_AnimAssetPartPicker;
+
 void EditAnimBundleAsset( SGRX_AnimBundleAsset& aba )
 {
-	bool chg = false;
-	bool rev = false;
+	ImGui::BeginChangeCheck();
 	
 	ImGui::Text( "Animation bundle" );
 	ImGui::Separator();
 	
-	rev |= PickCategoryName( "Output category", aba.outputCategory );
-	rev |= IMGUIEditString( "Output name", aba.outputName, 256 );
+	ImGui::BeginChangeMask( 1 );
+	PickCategoryName( "Output category", aba.outputCategory );
+	IMGUIEditString( "Output name", aba.outputName, 256 );
+	ImGui::EndChangeMask();
+	
 	g_MeshAssetPicker.Property( "Pick a mesh for animation preview", "Preview mesh", aba.previewMesh );
 	
 	if( g_CurAnim < aba.anims.size() )
@@ -912,38 +532,50 @@ void EditAnimBundleAsset( SGRX_AnimBundleAsset& aba )
 		{
 			SGRX_ABAnimation& anim = aba.anims[ g_CurAnim ];
 			
-			IMGUIEditString( "Source", anim.source, 256 ); // TODO PICK
+			g_AnimAssetPartPicker.Property( "Select animation source", "Source", anim.source );
+			
+			ImGui::BeginChangeMask( 1 );
 			IMGUIEditString( "Name", anim.name, 256 );
+			ImGui::EndChangeMask();
 			
 			bool ovrStart = anim.startFrame != -1;
 			if( IMGUIEditBool( "Override start frame", ovrStart ) )
 			{
-				chg = true;
 				if( ovrStart )
 					anim.startFrame = 0;
 				else
 					anim.startFrame = -1;
 			}
 			if( ovrStart )
-				chg |= IMGUIEditInt( "Start frame", anim.startFrame, 0, 99999 );
+				IMGUIEditInt( "Start frame", anim.startFrame, 0, 99999 );
 			
 			bool ovrEnd = anim.endFrame != -1;
 			if( IMGUIEditBool( "Override end frame", ovrEnd ) )
 			{
-				chg = true;
 				if( ovrEnd )
 					anim.endFrame = 100;
 				else
 					anim.endFrame = -1;
 			}
 			if( ovrEnd )
-				chg |= IMGUIEditInt( "End frame", anim.endFrame, 0, 99999 );
+				IMGUIEditInt( "End frame", anim.endFrame, 0, 99999 );
 		});
 	}
 	
 	IMGUIEditArray( aba.anims, EditAnimButton, "Add animation" );
 	
+	ImGui::BeginChangeCheck();
 	IMGUIEditArray( aba.sources, EditAnimSource, "Add source" );
+	if( ImGui::EndChangeCheck() & 2 )
+	{
+		g_AnimAssetPartPicker.Reload( aba );
+	}
+	
+	int chg = ImGui::EndChangeCheck();
+	if( chg & 1 )
+		aba.ri.rev_asset++;
+	if( chg & 2 )
+		UpdateAnimPreview( aba );
 }
 
 
@@ -967,6 +599,7 @@ void SetCurAsset( SGRX_Asset* asset )
 	if( asset->assetType == SGRX_AT_AnimBundle )
 	{
 		UpdateAnimPreview( *asset->ToAnimBundle() );
+		g_AnimAssetPartPicker.Reload( *asset->ToAnimBundle() );
 		g_CurAnim = NOT_FOUND;
 	}
 }
@@ -1154,7 +787,7 @@ String g_Filter;
 		SGRX_CAST( SGRX_Asset**, pb, b ); \
 		int t1 = test1; if( t1 ) return t1; \
 		int t2 = test2; if( t2 ) return t2; \
-		return 0; \
+		return pa - pb; \
 	}
 #define ISORT( sa, sb, p ) (int((sa)->p) - int((sb)->p))
 #define SCOMP( sa, sb, p ) (SV((sa)->p).compare_to( (sb)->p ))

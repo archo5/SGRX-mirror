@@ -139,6 +139,7 @@ void ImGui::ShowTestWindow(bool* p_opened)
     static bool no_scrollbar = false;
     static bool no_collapse = false;
     static bool no_menu = false;
+    static int version = 0;
 
     // Demonstrate the various window flags. Typically you would just use the default.
     ImGuiWindowFlags window_flags = 0;
@@ -156,6 +157,7 @@ void ImGui::ShowTestWindow(bool* p_opened)
         ImGui::End();
         return;
     }
+    ImGui::BeginChangeCheck();
 
     //ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.65f);    // 2/3 of the space for widget and 1/3 for labels
     ImGui::PushItemWidth(-140);                                 // Right align, keep 140 pixels for labels
@@ -191,6 +193,10 @@ void ImGui::ShowTestWindow(bool* p_opened)
             ImGui::MenuItem("About ImGui", NULL, &show_app_about);
             ImGui::EndMenu();
         }
+        char bfr[32];
+        sprintf(bfr, "[data version %d]", version);
+        if (ImGui::BeginMenu(bfr))
+            ImGui::EndMenu();
         ImGui::EndMenuBar();
     }
 
@@ -268,7 +274,7 @@ void ImGui::ShowTestWindow(bool* p_opened)
 
     if (ImGui::CollapsingHeader("Widgets"))
     {
-        if (ImGui::TreeNode("Tree"))
+        if (ImGui::TreeNode("Trees"))
         {
             for (int i = 0; i < 5; i++)
             {
@@ -412,7 +418,7 @@ void ImGui::ShowTestWindow(bool* p_opened)
                 for (int i = 0; i < 16; i++)
                 {
                     ImGui::PushID(i);
-                    if (ImGui::Selectable("Me", &selected[i], 0, ImVec2(50,50)))
+                    if (ImGui::Selectable("Sailor", &selected[i], 0, ImVec2(50,50)))
                     {
                         int x = i % 4, y = i / 4;
                         if (x > 0) selected[i - 1] ^= 1;
@@ -700,6 +706,45 @@ void ImGui::ShowTestWindow(bool* p_opened)
             ImGui::PopStyleVar();
 
             ImGui::Indent();
+            ImGui::TreePop();
+        }
+
+        if (ImGui::TreeNode("Change checks"))
+        {
+            static float group1changed = 0;
+            static float group2changed = 0;
+            static bool cc_value1 = 1;
+            static int cc_value2 = 0;
+            static float cc_value3 = 3.14f;
+
+            ImGui::TextColored(ImVec4(1, 1, 1, group1changed * 0.8f + 0.2f), "Group 1 changed");
+            ImGui::TextColored(ImVec4(1, 1, 1, group2changed * 0.8f + 0.2f), "Group 2 changed");
+
+            ImGui::BeginChangeCheck();
+
+            ImGui::Checkbox("Group 1 / 2 value", &cc_value1);
+
+            ImGui::BeginChangeMask(2);
+            ImGui::RadioButton("Group 2", &cc_value2, 0);
+            ImGui::SameLine();
+            ImGui::RadioButton("value", &cc_value2, 1);
+            ImGui::EndChangeMask();
+
+            ImGui::BeginChangeMask(1);
+            ImGui::SliderFloat("Group 1 value", &cc_value3, -10, 10);
+            ImGui::EndChangeMask();
+
+            ImU32 results = ImGui::EndChangeCheck();
+            if (results & 1)
+                group1changed = 1;
+            if (results & 2)
+                group2changed = 1;
+
+            if (group1changed > 0)
+                group1changed -= ImGui::GetIO().DeltaTime;
+            if (group2changed > 0)
+                group2changed -= ImGui::GetIO().DeltaTime;
+
             ImGui::TreePop();
         }
     }
@@ -1530,6 +1575,8 @@ void ImGui::ShowTestWindow(bool* p_opened)
         }
     }
 
+    if (ImGui::EndChangeCheck())
+        version++;
     ImGui::End();
 }
 
@@ -1863,7 +1910,7 @@ static void ShowExampleAppCustomRendering(bool* opened)
                 points.pop_back();
             }
         }
-        draw_list->PushClipRect(ImVec4(canvas_pos.x, canvas_pos.y, canvas_pos.x+canvas_size.x, canvas_pos.y+canvas_size.y));      // clip lines within the canvas (if we resize it, etc.)
+        draw_list->PushClipRect(canvas_pos, ImVec2(canvas_pos.x+canvas_size.x, canvas_pos.y+canvas_size.y));      // clip lines within the canvas (if we resize it, etc.)
         for (int i = 0; i < points.Size - 1; i += 2)
             draw_list->AddLine(ImVec2(canvas_pos.x + points[i].x, canvas_pos.y + points[i].y), ImVec2(canvas_pos.x + points[i+1].x, canvas_pos.y + points[i+1].y), 0xFF00FFFF, 2.0f);
         draw_list->PopClipRect();

@@ -247,20 +247,12 @@ bool IMGUIEditQuat( const char* label, Quat& v )
 
 bool IMGUIEditString( const char* label, String& str, int maxsize )
 {
-	str.reserve( maxsize );
+	str.resize_using( maxsize, '\0' );
 	bool ret = ImGui::InputText( label, str.data(), str.capacity() );
 	str.resize( sgrx_snlen( str.data(), str.capacity() ) );
 	return ret;
 }
 
-
-
-inline void lmm_prepmeshinst( MeshInstHandle mih )
-{
-	mih->SetLightingMode( SGRX_LM_Dynamic );
-	for( int i = 10; i < 16; ++i )
-		mih->constants[ i ] = V4(0.15f);
-}
 
 
 char g_errorStr[ 4096 ];
@@ -500,6 +492,8 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 		ImGui::EndPopup();
 	}
 	
+	if( changed )
+		ImGui::TriggerChangeCheck();
 	return changed;
 }
 

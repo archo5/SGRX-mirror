@@ -169,6 +169,7 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 	if( addbtn && ImGui::Button( addbtn, ImVec2( ImGui::GetContentRegionAvail().x, 24 ) ) )
 	{
 		data.push_back( T() );
+		ImGui::TriggerChangeCheck();
 	}
 	
 	for( size_t i = 0; i < data.size(); ++i )
@@ -184,19 +185,28 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 		{
 			ImGui::SetCursorPos( cp_before + ImVec2( width - 90, 0 ) );
 			if( ImGui::Button( "[up]", ImVec2( 30, 14 ) ) )
+			{
 				TSWAP( data[ i - 1 ], data[ i ] );
+				ImGui::TriggerChangeCheck();
+			}
 		}
 		
 		if( i < data.size() - 1 )
 		{
 			ImGui::SetCursorPos( cp_before + ImVec2( width - 60, 0 ) );
 			if( ImGui::Button( "[dn]", ImVec2( 30, 14 ) ) )
+			{
 				TSWAP( data[ i ], data[ i + 1 ] );
+				ImGui::TriggerChangeCheck();
+			}
 		}
 		
 		ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
 		if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
+		{
 			data.erase( i-- );
+			ImGui::TriggerChangeCheck();
+		}
 		ImGui::SetCursorPos( cp_after );
 		
 		ImGui::PopID();
@@ -268,5 +278,14 @@ template< class T > bool IMGUIComboBox( const char* name, T& val, const char** l
 }
 #define IMGUI_COMBOBOX( name, val, list ) IMGUIComboBox( name, val, list, SGRX_ARRAY_SIZE( list ) )
 
+
+
+
+inline void lmm_prepmeshinst( MeshInstHandle mih )
+{
+	mih->SetLightingMode( SGRX_LM_Dynamic );
+	for( int i = 10; i < 16; ++i )
+		mih->constants[ i ] = V4(0.15f);
+}
 
 

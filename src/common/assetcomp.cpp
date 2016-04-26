@@ -905,15 +905,18 @@ void SGRX_ABAnimSource::GetDesc( String& out )
 
 void SGRX_ABAnimation::GetDesc( String& out )
 {
-	char startbfr[ 32 ] = "(original)";
-	char endbfr[ 32 ] = "(original)";
+	char startbfr[ 32 ] = "~";
+	char endbfr[ 32 ] = "~";
 	if( startFrame != -1 )
 		sgrx_snprintf( startbfr, 32, "%d", startFrame );
 	if( endFrame != -1 )
 		sgrx_snprintf( endbfr, 32, "%d", endFrame );
 	char bfr[ 512 ];
-	sgrx_snprintf( bfr, 512, "%s (name override:%s, start:%s, end:%s)",
-		source.size() ? StackString<100>(source).str : "<unspecified>",
+	StringView src = SV(source).after_last(":");
+	if( !src )
+		src = source;
+	sgrx_snprintf( bfr, 512, "%s (nm.ovr:%s, start:%s, end:%s)",
+		src.size() ? StackString<100>(src).str : "<unspecified>",
 		name.size() ? StackString<100>(name).str : "<none>",
 		startbfr, endbfr );
 	out = bfr;
