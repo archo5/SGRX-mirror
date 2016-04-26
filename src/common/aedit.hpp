@@ -25,12 +25,6 @@ struct EDGUICategoryPicker : EDGUISmallEnumPicker
 	void Reload();
 };
 
-struct EDGUITextureAssetPicker : EDGUILongEnumPicker
-{
-	EDGUITextureAssetPicker();
-	void Reload();
-};
-
 struct EDGUIMeshAssetPicker : EDGUILongEnumPicker
 {
 	EDGUIMeshAssetPicker();
@@ -58,7 +52,6 @@ struct EDGUIASAnimNamePicker : EDGUILongEnumPicker
 struct EDGUIPickers
 {
 	EDGUICategoryPicker category;
-	EDGUITextureAssetPicker textureAsset;
 	EDGUIMeshAssetPicker meshAsset;
 	EDGUIAssetPathPicker assetPath;
 	EDGUIASAnimNamePicker animName;
@@ -142,19 +135,6 @@ struct EDGUIAssetAnimBundle : EDGUILayoutRow
 	
 	EDGUIABAnimModel m_animModel;
 	EDGUIABSourceModel m_sourceModel;
-};
-
-struct EDGUIAssetAnimBundleList : EDGUILayoutRow
-{
-	EDGUIAssetAnimBundleList();
-	void Prepare();
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIGroup m_group;
-	EDGUIButton m_btnAdd;
-	EDGUIPropString m_filter;
-	EDGUIBtnList m_buttons;
-	EDGUIListItemButton m_editButton;
 };
 
 

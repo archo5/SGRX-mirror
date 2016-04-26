@@ -12,6 +12,7 @@
 SceneHandle g_EdScene;
 SGRX_AssetScript* g_EdAS;
 EDGUIPickers* g_UIPickers;
+SGRX_Asset* g_CurAsset;
 
 
 struct AssetRenderView* g_NUIRenderView;
@@ -44,28 +45,6 @@ void EDGUICategoryPicker::Reload()
 		for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
 		{
 			m_options.push_back( g_EdAS->categories.item( i ).key );
-		}
-	}
-	_Search( m_searchString );
-}
-
-EDGUITextureAssetPicker::EDGUITextureAssetPicker()
-{
-	m_looseSearch = true;
-	Reload();
-}
-void EDGUITextureAssetPicker::Reload()
-{
-	m_options.clear();
-	if( g_EdAS )
-	{
-		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
-		{
-			const SGRX_TextureAsset& TA = g_EdAS->textureAssets[ i ];
-			String opt = TA.outputCategory;
-			opt.append( "/" );
-			opt.append( TA.outputName );
-			m_options.push_back( opt );
 		}
 	}
 	_Search( m_searchString );
@@ -463,70 +442,86 @@ int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
 }
 
 
-struct EDGUIAnimBundleModel : EDGUIItemNameFilterModel
-{
-	int GetSourceItemCount(){ return g_EdAS->animBundleAssets.size(); }
-	void GetSourceItemName( int i, String& out ){ g_EdAS->animBundleAssets[ i ].GetDesc( out ); }
-	void GetSourceItemSearchText( int i, String& out ){ g_EdAS->animBundleAssets[ i ].GetFullName( out ); }
-}
-g_AnimBundleModel;
 
 
-EDGUIAssetAnimBundleList::EDGUIAssetAnimBundleList() :
-	m_group( true, "Anim. bundle assets" ),
-	m_editButton( false )
+struct AssetRenderView : IMGUIRenderView
 {
-	m_btnAdd.caption = "Add anim. bundle";
-	m_filter.caption = "Filter";
-	
-	g_AnimBundleModel.All();
-	m_buttons.m_model = &g_AnimBundleModel;
-	m_buttons.Add( &m_editButton );
-	m_group.Add( &m_buttons );
-	Add( &m_btnAdd );
-	Add( &m_filter );
-	Add( &m_group );
-}
-
-void EDGUIAssetAnimBundleList::Prepare()
-{
-	g_AnimBundleModel.Search( m_filter.m_value );
-	m_buttons.UpdateOptions();
-}
-
-int EDGUIAssetAnimBundleList::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
+	AssetRenderView() : IMGUIRenderView( g_EdScene )
 	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_filter )
-		{
-			Prepare();
-		}
-		break;
-	case EDGUI_EVENT_BTNCLICK:
-		if( e->target == &m_btnAdd )
-		{
-			g_EdAS->animBundleAssets.push_back( SGRX_AnimBundleAsset() );
-		//	FC_EditAnimBundle( g_EdAS->animBundleAssets.size() - 1 );
-			return 1;
-		}
-		if( e->target == &m_editButton )
-		{
-		//	FC_EditAnimBundle( m_editButton.id2 );
-			return 1;
-		}
-		if( e->target == &m_editButton.m_del )
-		{
-			g_EdAS->animBundleAssets.erase( m_editButton.id2 );
-			Prepare();
-			return 1;
-		}
-		break;
+		m_meshPrevInst = m_scene->CreateMeshInstance();
+		lmm_prepmeshinst( m_meshPrevInst );
 	}
-	return EDGUILayoutRow::OnEvent( e );
-}
+	void DebugDraw()
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		
+		if( m_texPreview )
+		{
+			const TextureInfo& info = m_texPreview.GetInfo();
+			float aspect = safe_fdiv( info.width, info.height );
+			float w = 2 * TMAX( 1.0f, aspect );
+			float h = 2 / TMIN( 1.0f, aspect );
+			br.Reset();
+			br.SetTexture( m_texPreview );
+			br.Box( 0, 0, w, h );
+		}
+		
+		SGRX_IMesh* mesh = m_meshPrevInst->GetMesh();
+		if( mesh && m_meshPrevInst->enabled )
+		{
+			br.Reset();
+			if( m_meshPrevInst->skin_matrices.size() )
+			{
+				for( size_t i = 0; i < m_meshPrevInst->skin_matrices.size(); ++i )
+				{
+					float sxt = ( 1 - float(i) / m_meshPrevInst->skin_matrices.size() );
+					br.Axis( mesh->m_bones[ i ].skinOffset * m_meshPrevInst->skin_matrices[ i ], 0.1f + sxt * 0.1f );
+				}
+			}
+			else
+			{
+				for( int i = 0; i < mesh->m_numBones; ++i )
+				{
+					float sxt = ( 1 - float(i) / mesh->m_numBones );
+					br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + sxt * 0.1f );
+				}
+			}
+		}
+	}
+	
+	// preview data
+	TextureHandle m_texPreview;
+	MeshInstHandle m_meshPrevInst;
+	AnimPlayer m_animPreview;
+};
 
+void FC_SetTexture( TextureHandle tex )
+{
+	g_NUIRenderView->m_texPreview = tex;
+	g_NUIRenderView->m_meshPrevInst->enabled = false;
+	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( 0 );
+	g_NUIRenderView->m_animPreview.Prepare( NULL );
+	g_NUIRenderView->m_animPreview.Stop();
+}
+void FC_SetMesh( MeshHandle mesh )
+{
+	g_NUIRenderView->m_texPreview = NULL;
+	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
+	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
+	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( 0 );
+	g_NUIRenderView->m_animPreview.Prepare( NULL );
+	g_NUIRenderView->m_animPreview.Stop();
+}
+void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
+{
+	g_NUIRenderView->m_texPreview = NULL;
+	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
+	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
+	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( mesh->m_numBones );
+	g_NUIRenderView->m_animPreview.Prepare( mesh );
+	g_NUIRenderView->m_animPreview.Stop();
+	g_NUIRenderView->m_animPreview.Play( anim );
+}
 
 
 //
@@ -623,6 +618,16 @@ void EditFilter( size_t i, SGRX_ImageFilter* IF )
 	}
 }
 
+void UpdateTexturePreview( SGRX_TextureAsset& ta )
+{
+	TextureHandle tex;
+	SGRX_IFP32Handle img = SGRX_ProcessTextureAsset( ta );
+	tex = SGRX_FP32ToTexture( img, ta );
+	if( tex == NULL )
+		tex = GR_GetTexture( "textures/unit.png" );
+	FC_SetTexture( tex );
+}
+
 void EditTextureAsset( SGRX_TextureAsset& ta )
 {
 	bool chg = false;
@@ -684,6 +689,8 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 	
 	if( chg || rev )
 		ta.ri.rev_asset++;
+	if( chg )
+		UpdateTexturePreview( ta );
 }
 
 
@@ -806,6 +813,12 @@ void EditMeshPart( size_t i, SGRX_MeshAssetPart* mp )
 	});
 }
 
+void UpdateMeshPreview( SGRX_MeshAsset& ma )
+{
+	MeshHandle mesh = SGRX_ProcessMeshAsset( g_EdAS, ma );
+	FC_SetMesh( mesh );
+}
+
 void EditMeshAsset( SGRX_MeshAsset& ma )
 {
 	bool chg = false;
@@ -825,21 +838,115 @@ void EditMeshAsset( SGRX_MeshAsset& ma )
 	chg |= IMGUIEditBool( "Flip UV/Y", ma.flipUVY );
 	chg |= IMGUIEditBool( "Transform", ma.transform );
 	
-	IMGUIEditArray( ma.parts, EditMeshPart );
+	IMGUIEditArray( ma.parts, EditMeshPart, "Add mesh part" );
 	
 	if( chg || rev )
 		ma.ri.rev_asset++;
+	if( chg )
+		UpdateMeshPreview( ma );
+}
+
+
+struct MeshAssetPicker : IMGUIEntryPicker
+{
+	void Reload()
+	{
+		m_entries.clear();
+		for( size_t i = 0; i < g_EdAS->meshAssets.size(); ++i )
+		{
+			const SGRX_MeshAsset& TA = g_EdAS->meshAssets[ i ];
+			String opt = TA.outputCategory;
+			opt.append( "/" );
+			opt.append( TA.outputName );
+			m_entries.push_back( opt );
+		}
+		_Search( m_searchString );
+	}
+}
+g_MeshAssetPicker;
+
+size_t g_CurAnim = NOT_FOUND;
+void UpdateAnimPreview( SGRX_AnimBundleAsset& aba )
+{
+	AnimHandle anim = SGRX_ProcessSingleAnim( aba, g_CurAnim );
+	FC_SetAnim( g_EdAS->GetMesh( aba.previewMesh ), anim );
+}
+
+void EditAnimButton( size_t i, SGRX_ABAnimation& anim )
+{
+	String desc;
+	anim.GetDesc( desc );
+	if( ImGui::Selectable( StackString<1024>(desc) ) )
+	{
+		g_CurAnim = i;
+		UpdateAnimPreview( *g_CurAsset->ToAnimBundle() );
+	}
+}
+
+void EditAnimSource( size_t i, SGRX_ABAnimSource& src )
+{
+	String desc;
+	src.GetDesc( desc );
+	IMGUI_GROUP( StackPath(desc), true,
+	{
+		g_NUIAssetPicker->Property( "Choose the animation file", "File", src.file );
+		IMGUIEditString( "Prefix", src.prefix, 256 );
+	});
 }
 
 void EditAnimBundleAsset( SGRX_AnimBundleAsset& aba )
 {
+	bool chg = false;
+	bool rev = false;
+	
 	ImGui::Text( "Animation bundle" );
 	ImGui::Separator();
 	
+	rev |= PickCategoryName( "Output category", aba.outputCategory );
+	rev |= IMGUIEditString( "Output name", aba.outputName, 256 );
+	g_MeshAssetPicker.Property( "Pick a mesh for animation preview", "Preview mesh", aba.previewMesh );
+	
+	if( g_CurAnim < aba.anims.size() )
+	{
+		IMGUI_GROUP( "Animation", true,
+		{
+			SGRX_ABAnimation& anim = aba.anims[ g_CurAnim ];
+			
+			IMGUIEditString( "Source", anim.source, 256 ); // TODO PICK
+			IMGUIEditString( "Name", anim.name, 256 );
+			
+			bool ovrStart = anim.startFrame != -1;
+			if( IMGUIEditBool( "Override start frame", ovrStart ) )
+			{
+				chg = true;
+				if( ovrStart )
+					anim.startFrame = 0;
+				else
+					anim.startFrame = -1;
+			}
+			if( ovrStart )
+				chg |= IMGUIEditInt( "Start frame", anim.startFrame, 0, 99999 );
+			
+			bool ovrEnd = anim.endFrame != -1;
+			if( IMGUIEditBool( "Override end frame", ovrEnd ) )
+			{
+				chg = true;
+				if( ovrEnd )
+					anim.endFrame = 100;
+				else
+					anim.endFrame = -1;
+			}
+			if( ovrEnd )
+				chg |= IMGUIEditInt( "End frame", anim.endFrame, 0, 99999 );
+		});
+	}
+	
+	IMGUIEditArray( aba.anims, EditAnimButton, "Add animation" );
+	
+	IMGUIEditArray( aba.sources, EditAnimSource, "Add source" );
 }
 
 
-SGRX_Asset* g_CurAsset;
 String g_CurCategory;
 String g_CurCatName;
 String g_CurCatPath;
@@ -848,9 +955,19 @@ bool g_RenameAssetCats = false;
 void SetCurAsset( SGRX_Asset* asset )
 {
 	g_CurAsset = asset;
+	if( asset->assetType == SGRX_AT_Texture )
+	{
+		UpdateTexturePreview( *asset->ToTexture() );
+	}
 	if( asset->assetType == SGRX_AT_Mesh )
 	{
+		UpdateMeshPreview( *asset->ToMesh() );
 		g_MeshAssetPartPicker.Reload( asset->ToMesh()->sourceFile );
+	}
+	if( asset->assetType == SGRX_AT_AnimBundle )
+	{
+		UpdateAnimPreview( *asset->ToAnimBundle() );
+		g_CurAnim = NOT_FOUND;
 	}
 }
 void SetCurCategory( size_t i )
@@ -1145,87 +1262,6 @@ void EditAssetList()
 }
 
 
-
-struct AssetRenderView : IMGUIRenderView
-{
-	AssetRenderView() : IMGUIRenderView( g_EdScene )
-	{
-		m_meshPrevInst = m_scene->CreateMeshInstance();
-		lmm_prepmeshinst( m_meshPrevInst );
-	}
-	void DebugDraw()
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer();
-		
-		if( m_texPreview )
-		{
-			const TextureInfo& info = m_texPreview.GetInfo();
-			float aspect = safe_fdiv( info.width, info.height );
-			float w = 2 * TMAX( 1.0f, aspect );
-			float h = 2 / TMIN( 1.0f, aspect );
-			br.Reset();
-			br.SetTexture( m_texPreview );
-			br.Box( 0, 0, w, h );
-		}
-		
-		SGRX_IMesh* mesh = m_meshPrevInst->GetMesh();
-		if( mesh && m_meshPrevInst->enabled )
-		{
-			br.Reset();
-			if( m_meshPrevInst->skin_matrices.size() )
-			{
-				for( size_t i = 0; i < m_meshPrevInst->skin_matrices.size(); ++i )
-				{
-					float sxt = ( 1 - float(i) / m_meshPrevInst->skin_matrices.size() );
-					br.Axis( mesh->m_bones[ i ].skinOffset * m_meshPrevInst->skin_matrices[ i ], 0.1f + sxt * 0.1f );
-				}
-			}
-			else
-			{
-				for( int i = 0; i < mesh->m_numBones; ++i )
-				{
-					float sxt = ( 1 - float(i) / mesh->m_numBones );
-					br.Axis( mesh->m_bones[ i ].skinOffset, 0.1f + sxt * 0.1f );
-				}
-			}
-		}
-	}
-	
-	// preview data
-	TextureHandle m_texPreview;
-	MeshInstHandle m_meshPrevInst;
-	AnimPlayer m_animPreview;
-};
-
-void FC_SetTexture( TextureHandle tex )
-{
-	g_NUIRenderView->m_texPreview = tex;
-	g_NUIRenderView->m_meshPrevInst->enabled = false;
-	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( 0 );
-	g_NUIRenderView->m_animPreview.Prepare( NULL );
-	g_NUIRenderView->m_animPreview.Stop();
-}
-void FC_SetMesh( MeshHandle mesh )
-{
-	g_NUIRenderView->m_texPreview = NULL;
-	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
-	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
-	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( 0 );
-	g_NUIRenderView->m_animPreview.Prepare( NULL );
-	g_NUIRenderView->m_animPreview.Stop();
-}
-void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
-{
-	g_NUIRenderView->m_texPreview = NULL;
-	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
-	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
-	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( mesh->m_numBones );
-	g_NUIRenderView->m_animPreview.Prepare( mesh );
-	g_NUIRenderView->m_animPreview.Stop();
-	g_NUIRenderView->m_animPreview.Play( anim );
-}
-
-
 void ASCR_Open()
 {
 	LOG << "Trying to open asset script";
@@ -1339,6 +1375,7 @@ struct ASEditor : IGame
 		// core layout
 		g_EdScene = GR_CreateScene();
 		g_EdScene->camera.position = V3(3);
+		g_EdScene->camera.znear = 0.1f;
 		g_EdScene->camera.UpdateMatrices();
 		g_EdAS = new SGRX_AssetScript;
 		
