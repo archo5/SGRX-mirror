@@ -19,11 +19,6 @@ struct EDGUILongEnumPicker : EDGUIRsrcPicker
 	void _OnChangeZoom();
 };
 
-struct EDGUIMtlBlendMode : EDGUISmallEnumPicker
-{
-	EDGUIMtlBlendMode();
-};
-
 struct EDGUICategoryPicker : EDGUISmallEnumPicker
 {
 	EDGUICategoryPicker();
@@ -52,14 +47,6 @@ struct EDGUIAssetPathPicker : EDGUILongEnumPicker, IDirEntryHandler
 	int m_depth;
 };
 
-struct EDGUIASMeshNamePicker : EDGUILongEnumPicker
-{
-	EDGUIASMeshNamePicker();
-	void Reload();
-	
-	ImpScene3DHandle m_scene;
-};
-
 struct EDGUIASAnimNamePicker : EDGUILongEnumPicker
 {
 	EDGUIASAnimNamePicker();
@@ -70,19 +57,12 @@ struct EDGUIASAnimNamePicker : EDGUILongEnumPicker
 
 struct EDGUIPickers
 {
-	EDGUIMtlBlendMode blendMode;
 	EDGUICategoryPicker category;
 	EDGUITextureAssetPicker textureAsset;
 	EDGUIMeshAssetPicker meshAsset;
 	EDGUIAssetPathPicker assetPath;
-	EDGUIASMeshNamePicker meshName;
 	EDGUIASAnimNamePicker animName;
-	EDGUIShaderPicker shader;
 	
-	void SetMesh( SGRX_Scene3D* scene )
-	{
-		meshName.m_scene = scene;
-	}
 	void ClearAnimScenes()
 	{
 		animName.m_scenes.clear();
@@ -93,79 +73,6 @@ struct EDGUIPickers
 	}
 };
 
-
-struct EDGUIMeshPartModel : EDGUIItemModel
-{
-	EDGUIMeshPartModel() : meshAsset( NULL ){}
-	int GetItemCount(){ return meshAsset ? meshAsset->parts.size() : 0; }
-	void GetItemName( int i, String& out ){ if( meshAsset ) meshAsset->parts[ i ]->GetDesc( i, out ); }
-	SGRX_MeshAsset* meshAsset;
-};
-
-struct EDGUIAssetMesh : EDGUILayoutRow
-{
-	EDGUIAssetMesh();
-	~EDGUIAssetMesh();
-	void UpdatePreviewMesh();
-	void ReloadPartList();
-	void ReloadImpScene();
-	void Prepare( size_t mid );
-	void PreparePart( size_t pid );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUILayoutColumn m_topCol;
-	EDGUIButton m_btnDuplicate;
-	EDGUIButton m_btnDelete;
-	
-	EDGUIGroup m_group;
-	EDGUIPropRsrc m_sourceFile;
-	EDGUIPropRsrc m_outputCategory;
-	EDGUIPropString m_outputName;
-	EDGUIPropBool m_rotateY2Z;
-	EDGUIPropBool m_flipUVY;
-	EDGUIPropBool m_transform;
-	// mesh part
-	EDGUIGroup m_MPgroup;
-	EDGUILayoutRow m_MPart;
-	EDGUIPropRsrc m_MPmeshName;
-	EDGUIPropRsrc m_MPshader;
-	EDGUIPropRsrc m_MPtexture0;
-	EDGUIPropRsrc m_MPtexture1;
-	EDGUIPropRsrc m_MPtexture2;
-	EDGUIPropRsrc m_MPtexture3;
-	EDGUIPropRsrc m_MPtexture4;
-	EDGUIPropRsrc m_MPtexture5;
-	EDGUIPropRsrc m_MPtexture6;
-	EDGUIPropRsrc m_MPtexture7;
-	EDGUIPropBool m_MPmtlUnlit;
-	EDGUIPropBool m_MPmtlNocull;
-	EDGUIPropBool m_MPmtlDecal;
-	EDGUIPropRsrc m_MPmtlBlendMode;
-	EDGUIPropDefBool m_MPoptTransform;
-	// mesh part list
-	EDGUIGroup m_MPLgroup;
-	EDGUIButton m_MPLBtnAdd;
-	EDGUIBtnList m_MPLButtons;
-	EDGUIListItemButton m_MPLEditButton;
-	
-	size_t m_mid;
-	size_t m_pid;
-	ImpScene3DHandle m_scene;
-	EDGUIMeshPartModel m_meshPartModel;
-};
-
-struct EDGUIAssetMeshList : EDGUILayoutRow
-{
-	EDGUIAssetMeshList();
-	void Prepare();
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EDGUIGroup m_group;
-	EDGUIButton m_btnAdd;
-	EDGUIPropString m_filter;
-	EDGUIBtnList m_buttons;
-	EDGUIListItemButton m_editButton;
-};
 
 struct EDGUIABAnimModel : EDGUIItemModel
 {
@@ -248,30 +155,6 @@ struct EDGUIAssetAnimBundleList : EDGUILayoutRow
 	EDGUIPropString m_filter;
 	EDGUIBtnList m_buttons;
 	EDGUIListItemButton m_editButton;
-};
-
-
-struct EDGUIMainFrame : EDGUIFrame
-{
-	EDGUIMainFrame();
-	void AddToParamList( EDGUIItem* item );
-	void ClearParamList();
-	void EditMesh( size_t id );
-	void EditMeshList();
-	void EditAnimBundle( size_t id );
-	void EditAnimBundleList();
-	
-	// core layout
-	EDGUILayoutSplitPane m_UIMenuSplit;
-	EDGUILayoutSplitPane m_UIParamSplit;
-	EDGUIVScroll m_UIParamScroll;
-	EDGUILayoutRow m_UIParamList;
-	
-	// data edit views
-	EDGUIAssetMesh m_UIMesh;
-	EDGUIAssetMeshList m_UIMeshList;
-	EDGUIAssetAnimBundle m_UIAnimBundle;
-	EDGUIAssetAnimBundleList m_UIAnimBundleList;
 };
 
 

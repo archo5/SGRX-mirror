@@ -3,35 +3,19 @@
 #include "aedit.hpp"
 #include <imgui.hpp>
 
-#define MPD_IMPL
-#include "aedit.mpd.hpp"
-
 
 #define ASSET_SCRIPT_NAME "assets.txt"
 #define ASSET_INFO_NAME "asset_revs.info"
 #define OUTPUT_INFO_NAME "output_revs.info"
 
 
-struct EDGUIMainFrame* g_UIFrame;
 SceneHandle g_EdScene;
 SGRX_AssetScript* g_EdAS;
 EDGUIPickers* g_UIPickers;
 
-EDGUIRsrcPicker TMPRSRC;
-
 
 struct AssetRenderView* g_NUIRenderView;
 struct IMGUIFilePicker* g_NUIAssetPicker;
-
-
-#define SGRX_GET_FLAG( v, fl ) (((v) & (fl)) != 0)
-#define SGRX_SET_FLAG( v, fl, b ) v = ((v) & ~(fl)) | ((b)?(fl):0)
-
-
-void FC_EditMesh( size_t id ){ g_UIFrame->EditMesh( id ); }
-void FC_EditMeshList(){ g_UIFrame->EditMeshList(); }
-void FC_EditAnimBundle( size_t id ){ g_UIFrame->EditAnimBundle( id ); }
-void FC_EditAnimBundleList(){ g_UIFrame->EditAnimBundleList(); }
 
 
 void EDGUISmallEnumPicker::_OnChangeZoom()
@@ -45,16 +29,6 @@ void EDGUILongEnumPicker::_OnChangeZoom()
 	EDGUIRsrcPicker::_OnChangeZoom();
 	m_itemWidth = 300;
 	m_itemHeight = 16;
-}
-
-EDGUIMtlBlendMode::EDGUIMtlBlendMode()
-{
-	caption = "Pick the blending mode";
-	m_options.push_back( "None" );
-	m_options.push_back( "Basic" );
-	m_options.push_back( "Additive" );
-	m_options.push_back( "Multiply" );
-	_Search( m_searchString );
 }
 
 EDGUICategoryPicker::EDGUICategoryPicker()
@@ -157,21 +131,6 @@ void EDGUIAssetPathPicker::Reload()
 	_Search( m_searchString );
 }
 
-EDGUIASMeshNamePicker::EDGUIASMeshNamePicker()
-{
-	m_looseSearch = true;
-	Reload();
-}
-void EDGUIASMeshNamePicker::Reload()
-{
-	m_options.clear();
-	if( m_scene )
-	{
-		m_scene->GetMeshList( m_options );
-	}
-	_Search( m_searchString );
-}
-
 EDGUIASAnimNamePicker::EDGUIASAnimNamePicker()
 {
 	m_looseSearch = true;
@@ -187,343 +146,6 @@ void EDGUIASAnimNamePicker::Reload()
 		m_scenes[ i ]->GetAnimList( m_options );
 	}
 	_Search( m_searchString );
-}
-
-
-EDGUIAssetMesh::EDGUIAssetMesh() :
-	m_group( true, "Mesh" ),
-	m_sourceFile( &g_UIPickers->assetPath ),
-	m_outputCategory( &g_UIPickers->category ),
-	m_MPgroup( true, "Selected part" ),
-	m_MPmeshName( &g_UIPickers->meshName ),
-	m_MPshader( &g_UIPickers->shader ),
-	m_MPtexture0( &g_UIPickers->textureAsset ),
-	m_MPtexture1( &g_UIPickers->textureAsset ),
-	m_MPtexture2( &g_UIPickers->textureAsset ),
-	m_MPtexture3( &g_UIPickers->textureAsset ),
-	m_MPtexture4( &g_UIPickers->textureAsset ),
-	m_MPtexture5( &g_UIPickers->textureAsset ),
-	m_MPtexture6( &g_UIPickers->textureAsset ),
-	m_MPtexture7( &g_UIPickers->textureAsset ),
-	m_MPmtlUnlit( false ),
-	m_MPmtlNocull( false ),
-	m_MPmtlDecal( false ),
-	m_MPmtlBlendMode( &g_UIPickers->blendMode ),
-	m_MPLgroup( true, "Parts" ),
-	m_mid( NOT_FOUND ),
-	m_pid( NOT_FOUND )
-{
-	m_outputCategory.m_requestReload = true;
-	
-	m_btnDuplicate.caption = "Duplicate";
-	m_btnDelete.caption = "Delete";
-	
-	m_topCol.Add( &m_btnDuplicate );
-	m_topCol.Add( &m_btnDelete );
-	
-	m_sourceFile.caption = "Source file";
-	m_outputCategory.caption = "Output category";
-	m_outputName.caption = "Output name";
-	m_rotateY2Z.caption = "Rotate Y->Z";
-	m_flipUVY.caption = "Flip UV/Y";
-	m_transform.caption = "Transform";
-	
-	m_group.Add( &m_sourceFile );
-	m_group.Add( &m_outputCategory );
-	m_group.Add( &m_outputName );
-	m_group.Add( &m_rotateY2Z );
-	m_group.Add( &m_flipUVY );
-	m_group.Add( &m_transform );
-	
-	m_MPLBtnAdd.caption = "Add part";
-	m_MPLButtons.m_model = &m_meshPartModel;
-	m_MPLButtons.Add( &m_MPLEditButton );
-	m_MPLgroup.Add( &m_MPLBtnAdd );
-	m_MPLgroup.Add( &m_MPLButtons );
-	
-	m_MPmeshName.caption = "Mesh name";
-	m_MPshader.caption = "Shader";
-	m_MPtexture0.caption = "Texture 0";
-	m_MPtexture1.caption = "Texture 1";
-	m_MPtexture2.caption = "Texture 2";
-	m_MPtexture3.caption = "Texture 3";
-	m_MPtexture4.caption = "Texture 4";
-	m_MPtexture5.caption = "Texture 5";
-	m_MPtexture6.caption = "Texture 6";
-	m_MPtexture7.caption = "Texture 7";
-	m_MPmtlUnlit.caption = "Unlit?";
-	m_MPmtlNocull.caption = "Disable culling?";
-	m_MPmtlDecal.caption = "Decal?";
-	m_MPmtlBlendMode.caption = "Blend mode";
-	m_MPoptTransform.caption = "Transform (override)?";
-	
-	m_MPmeshName.m_requestReload = true;
-	
-	m_MPart.Add( &m_MPmeshName );
-	m_MPart.Add( &m_MPshader );
-	m_MPart.Add( &m_MPtexture0 );
-	m_MPart.Add( &m_MPtexture1 );
-	m_MPart.Add( &m_MPtexture2 );
-	m_MPart.Add( &m_MPtexture3 );
-	m_MPart.Add( &m_MPtexture4 );
-	m_MPart.Add( &m_MPtexture5 );
-	m_MPart.Add( &m_MPtexture6 );
-	m_MPart.Add( &m_MPtexture7 );
-	m_MPart.Add( &m_MPmtlUnlit );
-	m_MPart.Add( &m_MPmtlNocull );
-	m_MPart.Add( &m_MPmtlDecal );
-	m_MPart.Add( &m_MPmtlBlendMode );
-	m_MPart.Add( &m_MPoptTransform );
-	
-	Add( &m_topCol );
-	Add( &m_group );
-	Add( &m_MPgroup );
-	Add( &m_MPLgroup );
-}
-
-EDGUIAssetMesh::~EDGUIAssetMesh()
-{
-	m_MPLButtons.m_model = NULL;
-}
-
-void EDGUIAssetMesh::UpdatePreviewMesh()
-{
-	SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
-	MeshHandle mesh = SGRX_ProcessMeshAsset( g_EdAS, MA );
-//	FC_SetMesh( mesh );
-}
-
-void EDGUIAssetMesh::ReloadPartList()
-{
-	SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
-	m_meshPartModel.meshAsset = &MA;
-	m_MPLButtons.UpdateOptions();
-	UpdatePreviewMesh();
-}
-
-void EDGUIAssetMesh::ReloadImpScene()
-{
-	g_UIPickers->SetMesh( new SGRX_Scene3D( m_sourceFile.m_value ) );
-}
-
-void EDGUIAssetMesh::Prepare( size_t mid )
-{
-	g_UIPickers->textureAsset.Reload();
-	
-	m_mid = mid;
-	SGRX_MeshAsset& MA = g_EdAS->meshAssets[ mid ];
-	
-	m_sourceFile.SetValue( MA.sourceFile );
-	m_outputCategory.SetValue( MA.outputCategory );
-	m_outputName.SetValue( MA.outputName );
-	m_rotateY2Z.SetValue( MA.rotateY2Z );
-	m_flipUVY.SetValue( MA.flipUVY );
-	m_transform.SetValue( MA.transform );
-	
-	ReloadPartList();
-	PreparePart( NOT_FOUND );
-	
-	ReloadImpScene();
-}
-
-void EDGUIAssetMesh::PreparePart( size_t pid )
-{
-	m_pid = pid;
-	SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
-	SGRX_MeshAssetPart* MP = m_pid != NOT_FOUND ? MA.parts[ m_pid ] : NULL;
-	
-	m_MPmeshName.SetValue( MP ? MP->meshName : "" );
-	m_MPshader.SetValue( MP ? MP->shader : "" );
-	m_MPtexture0.SetValue( MP ? MP->textures[ 0 ] : "" );
-	m_MPtexture1.SetValue( MP ? MP->textures[ 1 ] : "" );
-	m_MPtexture2.SetValue( MP ? MP->textures[ 2 ] : "" );
-	m_MPtexture3.SetValue( MP ? MP->textures[ 3 ] : "" );
-	m_MPtexture4.SetValue( MP ? MP->textures[ 4 ] : "" );
-	m_MPtexture5.SetValue( MP ? MP->textures[ 5 ] : "" );
-	m_MPtexture6.SetValue( MP ? MP->textures[ 6 ] : "" );
-	m_MPtexture7.SetValue( MP ? MP->textures[ 7 ] : "" );
-	m_MPmtlUnlit.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Unlit ) : false );
-	m_MPmtlNocull.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Nocull ) : false );
-	m_MPmtlDecal.SetValue( MP ? SGRX_GET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Decal ) : false );
-	m_MPmtlBlendMode.SetValue( SGRX_MtlBlend_ToString( MP ? MP->mtlBlendMode : 0 ) );
-	m_MPoptTransform.SetValue( MP ? MP->optTransform : 0 );
-	m_MPgroup.Clear();
-	if( MP )
-		m_MPgroup.Add( &m_MPart );
-}
-
-int EDGUIAssetMesh::OnEvent( EDGUIEvent* e )
-{
-	if( m_mid != NOT_FOUND )
-	{
-		SGRX_MeshAsset& MA = g_EdAS->meshAssets[ m_mid ];
-		SGRX_MeshAssetPart* MP = m_pid != NOT_FOUND ? MA.parts[ m_pid ] : NULL;
-		switch( e->type )
-		{
-		case EDGUI_EVENT_PROPEDIT:
-			if( e->target == &m_sourceFile ){ MA.sourceFile = m_sourceFile.m_value; UpdatePreviewMesh(); }
-			if( e->target == &m_outputCategory ){ MA.outputCategory = m_outputCategory.m_value; }
-			if( e->target == &m_outputName ){ MA.outputName = m_outputName.m_value; }
-			if( e->target == &m_rotateY2Z ){ MA.rotateY2Z = m_rotateY2Z.m_value; UpdatePreviewMesh(); }
-			if( e->target == &m_flipUVY ){ MA.flipUVY = m_flipUVY.m_value; UpdatePreviewMesh(); }
-			if( e->target == &m_transform ){ MA.transform = m_transform.m_value; UpdatePreviewMesh(); }
-			if( MP )
-			{
-				bool ed = false;
-				if( e->target == &m_MPmeshName ){ ed = true; MP->meshName = m_MPmeshName.m_value; }
-				if( e->target == &m_MPshader ){ ed = true; MP->shader = m_MPshader.m_value; }
-				if( e->target == &m_MPtexture0 ){ ed = true; MP->textures[ 0 ] = m_MPtexture0.m_value; }
-				if( e->target == &m_MPtexture1 ){ ed = true; MP->textures[ 1 ] = m_MPtexture1.m_value; }
-				if( e->target == &m_MPtexture2 ){ ed = true; MP->textures[ 2 ] = m_MPtexture2.m_value; }
-				if( e->target == &m_MPtexture3 ){ ed = true; MP->textures[ 3 ] = m_MPtexture3.m_value; }
-				if( e->target == &m_MPtexture4 ){ ed = true; MP->textures[ 4 ] = m_MPtexture4.m_value; }
-				if( e->target == &m_MPtexture5 ){ ed = true; MP->textures[ 5 ] = m_MPtexture5.m_value; }
-				if( e->target == &m_MPtexture6 ){ ed = true; MP->textures[ 6 ] = m_MPtexture6.m_value; }
-				if( e->target == &m_MPtexture7 ){ ed = true; MP->textures[ 7 ] = m_MPtexture7.m_value; }
-				if( e->target == &m_MPmtlUnlit ){ ed = true;
-					SGRX_SET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Unlit, m_MPmtlUnlit.m_value ); }
-				if( e->target == &m_MPmtlNocull ){ ed = true;
-					SGRX_SET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Nocull, m_MPmtlNocull.m_value ); }
-				if( e->target == &m_MPmtlDecal ){ ed = true;
-					SGRX_SET_FLAG( MP->mtlFlags, SGRX_MtlFlag_Decal, m_MPmtlDecal.m_value ); }
-				if( e->target == &m_MPmtlBlendMode ){ ed = true;
-					MP->mtlBlendMode = SGRX_MtlBlend_FromString( m_MPmtlBlendMode.m_value ); }
-				if( e->target == &m_MPoptTransform ){ ed = true;
-					MP->optTransform = m_MPoptTransform.m_value; }
-				if( ed )
-				{
-					ReloadPartList();
-				}
-			}
-			break;
-		case EDGUI_EVENT_PROPCHANGE:
-			MA.ri.rev_asset++;
-			if( e->target == &m_sourceFile ){ ReloadImpScene(); }
-			break;
-		case EDGUI_EVENT_BTNCLICK:
-			if( e->target == &m_btnDuplicate )
-			{
-				SGRX_MeshAsset MAcopy;
-				MAcopy.Clone( g_EdAS->meshAssets[ m_mid ] );
-				m_mid = g_EdAS->meshAssets.size();
-				MAcopy.outputName.append( " - Copy" );
-				g_EdAS->meshAssets.push_back( MAcopy );
-				Prepare( m_mid );
-				return 1;
-			}
-			if( e->target == &m_btnDelete )
-			{
-				g_EdAS->meshAssets.erase( m_mid );
-				m_mid = NOT_FOUND;
-				m_meshPartModel.meshAsset = NULL;
-				FC_EditMeshList();
-				return 1;
-			}
-			if( e->target == &m_MPLBtnAdd )
-			{
-				MA.parts.push_back( new SGRX_MeshAssetPart );
-				ReloadPartList();
-				m_frame->UpdateMouse();
-			}
-			if( e->target == &m_MPLEditButton )
-			{
-				PreparePart( m_MPLEditButton.id2 );
-			}
-			if( e->target == &m_MPLEditButton.m_up )
-			{
-				size_t i = m_MPLEditButton.id2;
-				if( i > 0 )
-					TSWAP( MA.parts[ i ], MA.parts[ i - 1 ] );
-				ReloadPartList();
-				m_frame->UpdateMouse();
-				return 1;
-			}
-			if( e->target == &m_MPLEditButton.m_dn )
-			{
-				size_t i = m_MPLEditButton.id2;
-				if( i < MA.parts.size() - 1 )
-					TSWAP( MA.parts[ i ], MA.parts[ i + 1 ] );
-				ReloadPartList();
-				m_frame->UpdateMouse();
-				return 1;
-			}
-			if( e->target == &m_MPLEditButton.m_del )
-			{
-				MA.parts.erase( m_MPLEditButton.id2 );
-				m_pid = NOT_FOUND;
-				ReloadPartList();
-				m_frame->UpdateMouse();
-				return 1;
-			}
-			break;
-		}
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-struct EDGUIMeshModel : EDGUIItemNameFilterModel
-{
-	int GetSourceItemCount(){ return g_EdAS->meshAssets.size(); }
-	void GetSourceItemName( int i, String& out ){ g_EdAS->meshAssets[ i ].GetDesc( out ); }
-	void GetSourceItemSearchText( int i, String& out ){ g_EdAS->meshAssets[ i ].GetFullName( out ); }
-}
-g_MeshModel;
-
-
-EDGUIAssetMeshList::EDGUIAssetMeshList() :
-	m_group( true, "Mesh assets" ),
-	m_editButton( false )
-{
-	m_btnAdd.caption = "Add mesh";
-	m_filter.caption = "Filter";
-	
-	g_MeshModel.All();
-	m_buttons.m_model = &g_MeshModel;
-	m_buttons.Add( &m_editButton );
-	m_group.Add( &m_buttons );
-	Add( &m_btnAdd );
-	Add( &m_filter );
-	Add( &m_group );
-}
-
-void EDGUIAssetMeshList::Prepare()
-{
-	g_MeshModel.Search( m_filter.m_value );
-	m_buttons.UpdateOptions();
-}
-
-int EDGUIAssetMeshList::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_filter )
-		{
-			Prepare();
-		}
-		break;
-	case EDGUI_EVENT_BTNCLICK:
-		if( e->target == &m_btnAdd )
-		{
-			g_EdAS->meshAssets.push_back( SGRX_MeshAsset() );
-			FC_EditMesh( g_EdAS->meshAssets.size() - 1 );
-			return 1;
-		}
-		if( e->target == &m_editButton )
-		{
-			FC_EditMesh( m_editButton.id2 );
-			return 1;
-		}
-		if( e->target == &m_editButton.m_del )
-		{
-			g_EdAS->meshAssets.erase( m_editButton.id2 );
-			Prepare();
-			return 1;
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
 }
 
 
@@ -779,7 +401,7 @@ int EDGUIAssetAnimBundle::OnEvent( EDGUIEvent* e )
 				m_animModel.abAsset = NULL;
 				m_sourceModel.abAsset = NULL;
 				m_abid = NOT_FOUND;
-				FC_EditAnimBundleList();
+			//	FC_EditAnimBundleList();
 				return 1;
 			}
 			if( e->target == &m_ANL_btnAdd )
@@ -886,12 +508,12 @@ int EDGUIAssetAnimBundleList::OnEvent( EDGUIEvent* e )
 		if( e->target == &m_btnAdd )
 		{
 			g_EdAS->animBundleAssets.push_back( SGRX_AnimBundleAsset() );
-			FC_EditAnimBundle( g_EdAS->animBundleAssets.size() - 1 );
+		//	FC_EditAnimBundle( g_EdAS->animBundleAssets.size() - 1 );
 			return 1;
 		}
 		if( e->target == &m_editButton )
 		{
-			FC_EditAnimBundle( m_editButton.id2 );
+		//	FC_EditAnimBundle( m_editButton.id2 );
 			return 1;
 		}
 		if( e->target == &m_editButton.m_del )
@@ -903,51 +525,6 @@ int EDGUIAssetAnimBundleList::OnEvent( EDGUIEvent* e )
 		break;
 	}
 	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-EDGUIMainFrame::EDGUIMainFrame() :
-	m_UIMenuSplit( true, 26, 0 ),
-	m_UIParamSplit( false, 0, 0.55f )
-{
-	m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
-	m_UIParamSplit.SetSecondPane( &m_UIParamScroll );
-	m_UIParamScroll.Add( &m_UIParamList );
-}
-
-void EDGUIMainFrame::AddToParamList( EDGUIItem* item )
-{
-	m_UIParamList.Add( item );
-}
-void EDGUIMainFrame::ClearParamList()
-{
-	while( m_UIParamList.m_subitems.size() )
-		m_UIParamList.Remove( m_UIParamList.m_subitems.last() );
-}
-
-void EDGUIMainFrame::EditMesh( size_t id )
-{
-	ClearParamList();
-	m_UIMesh.Prepare( id );
-	AddToParamList( &m_UIMesh );
-}
-void EDGUIMainFrame::EditMeshList()
-{
-	ClearParamList();
-	m_UIMeshList.Prepare();
-	AddToParamList( &m_UIMeshList );
-}
-void EDGUIMainFrame::EditAnimBundle( size_t id )
-{
-	ClearParamList();
-	m_UIAnimBundle.Prepare( id );
-	AddToParamList( &m_UIAnimBundle );
-}
-void EDGUIMainFrame::EditAnimBundleList()
-{
-	ClearParamList();
-	m_UIAnimBundleList.Prepare();
-	AddToParamList( &m_UIAnimBundleList );
 }
 
 
@@ -1109,11 +686,149 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 		ta.ri.rev_asset++;
 }
 
+
+Array< RCString > g_ShaderList;
+
+struct ShaderFinder : IDirEntryHandler
+{
+	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+	{
+		if( name.starts_with( "mtl_" ) && name.ends_with( ".shd" ) )
+		{
+			g_ShaderList.push_back( name.part( 4, name.size() - 8 ) );
+		}
+		return true;
+	}
+};
+
+struct TexturePicker : IMGUIEntryPicker
+{
+	void Reload()
+	{
+		m_entries.clear();
+		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
+		{
+			const SGRX_TextureAsset& TA = g_EdAS->textureAssets[ i ];
+			String opt = TA.outputCategory;
+			opt.append( "/" );
+			opt.append( TA.outputName );
+			m_entries.push_back( opt );
+		}
+		_Search( m_searchString );
+	}
+}
+g_TexturePicker;
+
+struct MeshPartPicker : IMGUIEntryPicker
+{
+	void Reload( StringView path )
+	{
+		m_entries.clear();
+		Array< String > options;
+		ImpScene3DHandle scene = new SGRX_Scene3D( path );
+		if( scene )
+		{
+			scene->GetMeshList( options );
+		}
+		m_entries.resize( options.size() );
+		for( size_t i = 0; i < options.size(); ++i )
+			m_entries[ i ] = options[ i ];
+		_Search( m_searchString );
+	}
+}
+g_MeshAssetPartPicker;
+
+bool PickShaderName( const char* label, String& str )
+{
+	bool ret = false;
+	
+	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select shader>",
+		ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
+	{
+		g_ShaderList.clear();
+		ShaderFinder sf;
+		FS_IterateDirectory( "shaders", &sf );
+		ImGui::OpenPopup( "pick_shader" );
+	}
+	ImGui::SameLine();
+	ImGui::Text( label );
+	
+	if( ImGui::BeginPopup( "pick_shader" ) )
+	{
+		for( size_t i = 0; i < g_ShaderList.size(); ++i )
+		{
+			if( ImGui::Selectable( g_ShaderList[ i ].c_str() ) )
+			{
+				str = g_ShaderList[ i ];
+				ret = true;
+			}
+		}
+		ImGui::EndPopup();
+	}
+	return ret;
+}
+
+void EditMeshPart( size_t i, SGRX_MeshAssetPart* mp )
+{
+	static const char* texLabels[ 8 ] =
+	{
+		"Texture 0", "Texture 1", "Texture 2", "Texture 3",
+		"Texture 4", "Texture 5", "Texture 6", "Texture 7",
+	};
+	
+	IMGUI_GROUP( "Mesh part", true,
+	{
+		g_MeshAssetPartPicker.Property( "Pick mesh part name", "Mesh name", mp->meshName );
+		PickShaderName( "Shader", mp->shader );
+		
+		for( int i = 0; i < 8; ++i )
+		{
+			ImGui::PushID( i );
+			g_TexturePicker.Property( "Pick a texture asset", texLabels[ i ], mp->textures[ i ] );
+			ImGui::PopID();
+		}
+		
+		IMGUI_GROUP( "Material flags", true,
+		{
+			IMGUIEditIntFlags( "Unlit", mp->mtlFlags, SGRX_MtlFlag_Unlit );
+			IMGUIEditIntFlags( "Disable culling", mp->mtlFlags, SGRX_MtlFlag_Nocull );
+			IMGUIEditIntFlags( "Decal", mp->mtlFlags, SGRX_MtlFlag_Decal );
+		});
+		IMGUIComboBox( "Blend mode", mp->mtlBlendMode, "None\0Basic\0Additive\0Multiply\0" );
+		
+		ImGui::RadioButton( "Yes", &mp->optTransform, 1 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "Default", &mp->optTransform, 0 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "No", &mp->optTransform, -1 );
+		ImGui::SameLine( 0, 50 );
+		ImGui::Text( "Transform" );
+	});
+}
+
 void EditMeshAsset( SGRX_MeshAsset& ma )
 {
+	bool chg = false;
+	bool rev = false;
+	
 	ImGui::Text( "Mesh" );
 	ImGui::Separator();
 	
+	bool src = g_NUIAssetPicker->Property( "Select source file", "Source file", ma.sourceFile );
+	if( src )
+		g_MeshAssetPartPicker.Reload( ma.sourceFile );
+	chg |= src;
+	rev |= PickCategoryName( "Output category", ma.outputCategory );
+	rev |= IMGUIEditString( "Output name", ma.outputName, 256 );
+	
+	chg |= IMGUIEditBool( "Rotate Y -> Z", ma.rotateY2Z );
+	chg |= IMGUIEditBool( "Flip UV/Y", ma.flipUVY );
+	chg |= IMGUIEditBool( "Transform", ma.transform );
+	
+	IMGUIEditArray( ma.parts, EditMeshPart );
+	
+	if( chg || rev )
+		ma.ri.rev_asset++;
 }
 
 void EditAnimBundleAsset( SGRX_AnimBundleAsset& aba )
@@ -1133,6 +848,10 @@ bool g_RenameAssetCats = false;
 void SetCurAsset( SGRX_Asset* asset )
 {
 	g_CurAsset = asset;
+	if( asset->assetType == SGRX_AT_Mesh )
+	{
+		g_MeshAssetPartPicker.Reload( asset->ToMesh()->sourceFile );
+	}
 }
 void SetCurCategory( size_t i )
 {
@@ -1617,15 +1336,11 @@ struct ASEditor : IGame
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
-		g_UIPickers = new EDGUIPickers;
-		
 		// core layout
 		g_EdScene = GR_CreateScene();
 		g_EdScene->camera.position = V3(3);
 		g_EdScene->camera.UpdateMatrices();
 		g_EdAS = new SGRX_AssetScript;
-		g_UIFrame = new EDGUIMainFrame();
-		g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 		
 		SGRX_IMGUI_Init();
 		
@@ -1642,10 +1357,6 @@ struct ASEditor : IGame
 		delete g_NUIAssetPicker;
 		delete g_NUIRenderView;
 		
-		delete g_UIPickers;
-		g_UIPickers = NULL;
-		delete g_UIFrame;
-		g_UIFrame = NULL;
 		delete g_EdAS;
 		g_EdAS = NULL;
 		g_EdScene = NULL;

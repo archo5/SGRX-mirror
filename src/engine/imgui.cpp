@@ -450,7 +450,8 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 			changed = true;
 		}
 		
-		ImGui::Separator();
+	//	ImGui::Separator();
+		ImGui::BeginChild( "subframe", ImGui::GetContentRegionAvail(), true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysUseWindowPadding );
 		
 		if( m_layoutType == Layout_Grid )
 		{
@@ -489,6 +490,8 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 				ImGui::PopID();
 			}
 		}
+		
+		ImGui::EndChild();
 		
 		if( ImGui::IsKeyPressed( SDLK_ESCAPE ) )
 			opened = false;

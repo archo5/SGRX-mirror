@@ -32,6 +32,13 @@ template< class T > IMGUIEditInt( const char* label, T& v, int vmin, int vmax )
 	v = iv;
 	return ret;
 }
+template< class T > IMGUIEditIntFlags( const char* label, T& v, unsigned flag )
+{
+	unsigned iv = v;
+	bool ret = ImGui::CheckboxFlags( label, &iv, flag );
+	v = iv;
+	return ret;
+}
 ENGINE_EXPORT bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float vmax, int prec = 2 );
@@ -94,7 +101,15 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 	Array< int > m_filtered;
 };
 
-struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIPickerCore, IDirEntryHandler
+struct IF_GCC(ENGINE_EXPORT) IMGUIEntryPicker : IMGUIPickerCore
+{
+	virtual size_t GetEntryCount() const { return m_entries.size(); }
+	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]; }
+	
+	Array< RCString > m_entries;
+};
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIEntryPicker, IDirEntryHandler
 {
 	ENGINE_EXPORT IMGUIFilePicker( const char* dir, const char* ext );
 	ENGINE_EXPORT bool Popup( const char* caption, String& str, bool save );
@@ -102,15 +117,12 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIPickerCore, IDirEntryHandler
 	ENGINE_EXPORT virtual bool SearchUI( String& str );
 	
 	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
-	virtual size_t GetEntryCount() const { return m_entries.size(); }
-	virtual RCString GetEntryPath( size_t i ) const { return m_entries[ i ]; }
 	ENGINE_EXPORT virtual bool EntryUI( size_t i, String& str );
 	ENGINE_EXPORT virtual bool ConfirmPopup( const char* caption, const char* label, const char* file );
 	
 	bool m_saveMode;
 	const char* m_directory;
 	const char* m_extension;
-	Array< RCString > m_entries;
 };
 
 struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPickerCore : IMGUIPickerCore
@@ -235,18 +247,23 @@ template< class T > bool IMGUIListbox( const char* name, T& val, const char** li
 {
 	int curr = val;
 	bool ret = ImGui::ListBox( name, &curr, list, lsize );
-	if( ret )
-		val = curr;
+	val = curr;
 	return ret;
 }
 #define IMGUI_LISTBOX( name, val, list ) IMGUIListbox( name, val, list, SGRX_ARRAY_SIZE( list ) )
 
+template< class T > bool IMGUIComboBox( const char* name, T& val, const char* zssl )
+{
+	int curr = val;
+	bool ret = ImGui::Combo( name, &curr, zssl );
+	val = (T) curr;
+	return ret;
+}
 template< class T > bool IMGUIComboBox( const char* name, T& val, const char** list, int lsize )
 {
 	int curr = val;
 	bool ret = ImGui::Combo( name, &curr, list, lsize );
-	if( ret )
-		val = (T) curr;
+	val = (T) curr;
 	return ret;
 }
 #define IMGUI_COMBOBOX( name, val, list ) IMGUIComboBox( name, val, list, SGRX_ARRAY_SIZE( list ) )
