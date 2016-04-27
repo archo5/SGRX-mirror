@@ -40,6 +40,7 @@ template< class T > IMGUIEditIntFlags( const char* label, T& v, unsigned flag )
 	return ret;
 }
 ENGINE_EXPORT bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec = 2 );
+ENGINE_EXPORT bool IMGUIEditVec2( const char* label, Vec2& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );

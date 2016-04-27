@@ -3,7 +3,10 @@
 #include <engine.hpp>
 #include <enganim.hpp>
 #include <edgui.hpp>
+#include <imgui.hpp>
+#define lmm_prepmeshinst asdasd
 #include "edcomui.hpp"
+#undef lmm_prepmeshinst
 
 
 struct EDGUIMainFrame* g_UIFrame;
@@ -17,6 +20,10 @@ struct EDGUIPSOpenPicker* g_UIPSOpenPicker;
 struct EDGUIPSSavePicker* g_UIPSSavePicker;
 struct EDGUIPSISFXPicker* g_UIPSISFXPicker;
 
+
+ParticleSystem* g_PSys;
+struct IMGUIRenderView* g_NUIRenderView;
+struct IMGUIFilePicker* g_NUIPartSysPicker;
 
 
 struct EDGUIPSPicker : EDGUIRsrcPicker, IDirEntryHandler
@@ -800,7 +807,7 @@ struct EdParticleSystem : EDGUILayoutRow
 		m_psys = ParticleSystem();
 		AddDefaultEmitter();
 		
-		m_psys.AddToScene( g_EdScene );
+	//	m_psys.AddToScene( g_EdScene );
 		m_psys.OnRenderUpdate();
 		m_psys.SetTransform( Mat4::Identity );
 		m_psys.Play();
@@ -1072,6 +1079,145 @@ void EdParticleSystem::EditEmitter( size_t which )
 }
 
 
+void EditPSEmitter( ParticleSystem::Emitter& em )
+{
+	IMGUI_GROUP( "Spawn properties", true,
+	{
+		IMGUIEditInt( "Max. number of particles", em.spawn_MaxCount, 0, MAX_PARTICLES );
+		IMGUIEditInt( "# of particles to spawn", em.spawn_Count, 0, MAX_PARTICLES );
+		IMGUIEditInt( "# + random", em.spawn_CountExt, 0, MAX_PARTICLES );
+		IMGUIEditVec2( "Spawn time/rand. ext.", em.spawn_TimeExt, 0, MAX_TIME );
+	});
+	
+	IMGUI_GROUP( "Initial position", true,
+	{
+		IMGUIEditVec3( "Origin", em.create_Pos, -MAX_POS, MAX_POS );
+		IMGUIEditVec3( "Random extents", em.create_PosBox, 0, MAX_POS );
+		IMGUIEditFloat( "Random radius", em.create_PosRadius, 0, MAX_POS );
+	});
+	
+	IMGUI_GROUP( "Initial velocity", true,
+	{
+		IMGUIEditVec3( "V/micro/direction", em.create_VelMicroDir, -MAX_NORMAL, MAX_NORMAL );
+		IMGUIEditFloat( "V/micro/divergence", em.create_VelMicroDvg, 0, 1 );
+		IMGUIEditVec2( "V/micro/dist+rand.ext.", em.create_VelMicroDistExt, -MAX_VEL, MAX_VEL );
+		IMGUIEditVec3( "V/macro/direction", em.create_VelMacroDir, -MAX_NORMAL, MAX_NORMAL );
+		IMGUIEditFloat( "V/macro/divergence", em.create_VelMacroDvg, 0, 1 );
+		IMGUIEditVec2( "V/macro/dist+rand.ext.", em.create_VelMacroDistExt, -MAX_VEL, MAX_VEL );
+		IMGUIEditInt( "V - cluster size", em.create_VelCluster, 0, MAX_PARTICLES );
+		IMGUIEditInt( "V - cluster rand.ext.", em.create_VelClusterExt, 0, MAX_PARTICLES );
+	});
+	
+	IMGUI_GROUP( "Misc. properties", true,
+	{
+		IMGUIEditVec2( "Lifetime + rand.ext.", em.create_LifetimeExt, 0, MAX_TIME );
+		IMGUIEditVec2( "Angle / divergence", em.create_AngleDirDvg, 0, 360 );
+		IMGUIEditVec2( "Angular velocity / divergence", em.create_AngleVelDvg, -1000, 1000 );
+		IMGUIEditFloat( "Angle - acceleration", em.tick_AngleAcc, -10000, 10000 );
+		IMGUIEditFloat( "Gravity mulitplier", em.tick_GravityMult, 0, 100 );
+		IMGUIEditBool( "World space", em.absolute );
+	});
+}
+
+size_t g_CurEmitter = NOT_FOUND;
+
+void EditPSEmBtn( size_t i, ParticleSystem::Emitter& em )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "Emitter %d, tex0=%s", (int) i,
+		StackPath(em.render_Textures[0] ? em.render_Textures[0]->m_key : "<none>").str );
+	if( ImGui::Selectable( bfr, false, 0, ImVec2( ImGui::GetContentRegionAvailWidth() - 98, 20 ) ) )
+	{
+		g_CurEmitter = i;
+	}
+}
+
+void EditParticleSystem()
+{
+	ParticleSystem& ps = *g_PSys;
+	
+	if( g_CurEmitter < ps.emitters.size() )
+	{
+		if( ImGui::Selectable( "Back to system" ) )
+		{
+			g_CurEmitter = NOT_FOUND;
+			return;
+		}
+		ImGui::Separator();
+		
+		ImGui::Text( "Emitter %d", (int) g_CurEmitter );
+		ImGui::Separator();
+		
+		ImGui::Columns( 2 );
+		if( ImGui::Button( "Duplicate", ImVec2( ImGui::GetContentRegionAvailWidth(), 20 ) ) )
+		{
+			ParticleSystem::Emitter em = ps.emitters[ g_CurEmitter ];
+			ps.emitters.push_back( em );
+			g_CurEmitter = ps.emitters.size() - 1;
+		}
+		ImGui::NextColumn();
+		if( ImGui::Button( "Delete", ImVec2( ImGui::GetContentRegionAvailWidth(), 20 ) ) )
+		{
+			ps.emitters.erase( g_CurEmitter );
+			g_CurEmitter = NOT_FOUND;
+			return;
+		}
+		ImGui::Columns( 1 );
+		ImGui::Separator();
+		
+		EditPSEmitter( ps.emitters[ g_CurEmitter ] );
+		return;
+	}
+	
+	IMGUI_GROUP( "System", true,
+	{
+		IMGUIEditVec3( "Gravity", ps.gravity, -1000, 1000 );
+		IMGUIEditInt( "# Max. lighting groups", ps.maxGroupCount, 1, 1000 );
+		IMGUIEditFloat( "Global scale", ps.globalScale, 0.001f, 1000 );
+		IMGUIEditBool( "Looping", ps.looping );
+		IMGUIEditVec2( "Retrigger time/ext.", ps.retriggerTimeExt, 0, 1000 );
+	});
+	
+	IMGUI_GROUP( "Emitters", true,
+	{
+		IMGUIEditArray( ps.emitters, EditPSEmBtn, "Add emitter" );
+	});
+}
+
+
+String g_fileName;
+enum EditorMode
+{
+	EditPartSys,
+	MiscProps,
+};
+int g_mode = EditPartSys;
+
+
+void PSAddDefaultEmitter()
+{
+	if( g_UIGraphEd ) // order of initialization
+		g_UIGraphEd->UnsetCurve();
+	g_PSys->emitters.push_back( ParticleSystem::Emitter() );
+	ParticleSystem::Emitter& E = g_PSys->emitters.last();
+	E.curve_ColorVal.valueRange = V2(1);
+	E.curve_Opacity.valueRange = V2(0,1);
+	Vec2 opa[] = { V2(0,0), V2(1,0), V2(1,0), V2(0,0) };
+	E.curve_Opacity.values.append( opa, sizeof(opa)/sizeof(opa[0]) );
+	E.curve_Size.valueRange = V2(1);
+	E.create_VelMacroDvg = 0.5f;
+	E.render_Textures[0] = GR_GetTexture( "textures/particles/spark_fast.png" );
+}
+void PSCreate()
+{
+	g_PSys = new ParticleSystem;
+	PSAddDefaultEmitter();
+	
+	g_PSys->AddToScene( g_EdScene );
+	g_PSys->OnRenderUpdate();
+	g_PSys->SetTransform( Mat4::Identity );
+	g_PSys->Play();
+}
 
 
 struct PSEditor : IGame
@@ -1091,6 +1237,7 @@ struct PSEditor : IGame
 		// core layout
 		g_EdScene = GR_CreateScene();
 		g_EdScene->camera.position = V3(3);
+		g_EdScene->camera.znear = 0.1f;
 		g_EdScene->camera.UpdateMatrices();
 		g_EdPS = new EdParticleSystem;
 		g_UIFrame = new EDGUIMainFrame();
@@ -1099,10 +1246,23 @@ struct PSEditor : IGame
 		// param area
 		g_UIFrame->AddToParamList( g_EdPS->GetSystem() );
 		
+		PSCreate();
+		
+		SGRX_IMGUI_Init();
+		
+		g_NUIRenderView = new IMGUIRenderView( g_EdScene );
+		g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
+		
 		return true;
 	}
 	void OnDestroy()
 	{
+		delete g_NUIPartSysPicker;
+		delete g_NUIRenderView;
+		
+		delete g_PSys;
+		g_PSys = NULL;
+		
 		delete g_UIPSISFXPicker;
 		g_UIPSISFXPicker = NULL;
 		delete g_UIPSSavePicker;
@@ -1120,10 +1280,12 @@ struct PSEditor : IGame
 		delete g_EdPS;
 		g_EdPS = NULL;
 		g_EdScene = NULL;
+		
+		SGRX_IMGUI_Free();
 	}
 	void OnEvent( const Event& e )
 	{
-		g_UIFrame->EngineEvent( &e );
+		SGRX_IMGUI_Event( e );
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
@@ -1131,13 +1293,126 @@ struct PSEditor : IGame
 		g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 		g_EdPS->Tick( dt );
 		g_UIFrame->Draw();
+		
+		g_PSys->Tick( dt );
+		g_PSys->PreRender();
+		
+		SGRX_IMGUI_NewFrame();
+		
+		IMGUI_MAIN_WINDOW_BEGIN
+		{
+			bool needOpen = false;
+			bool needSave = false;
+			bool needSaveAs = false;
+			
+			if( ImGui::BeginMenuBar() )
+			{
+				if( ImGui::BeginMenu( "File" ) )
+				{
+					if( ImGui::MenuItem( "New" ) )
+					{
+						g_fileName = "";
+						delete g_PSys;
+						PSCreate();
+					}
+					if( ImGui::MenuItem( "Open" ) ) needOpen = true;
+					if( ImGui::MenuItem( "Save" ) ) needSave = true;
+					if( ImGui::MenuItem( "Save As" ) ) needSaveAs = true;
+					ImGui::Separator();
+					if( ImGui::MenuItem( "Exit" ) ){ Game_End(); }
+					ImGui::EndMenu();
+				}
+				ImGui::SameLine( 0, 50 );
+				ImGui::Text( "Particle system file: %s", g_fileName.size() ? StackPath(g_fileName).str : "<none>" );
+				
+				ImGui::SameLine( 0, 50 );
+				ImGui::Text( "Edit mode:" );
+				ImGui::SameLine();
+				ImGui::RadioButton( "Particle system", &g_mode, EditPartSys );
+				ImGui::SameLine();
+				ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
+				
+				ImGui::SameLine( 0, 50 );
+				if( ImGui::Button( "Play" ) )
+					g_PSys->Play();
+				ImGui::SameLine();
+				if( ImGui::Button( "Stop" ) )
+					g_PSys->Stop();
+				ImGui::SameLine();
+				if( ImGui::Button( "Trigger" ) )
+					g_PSys->Trigger();
+				
+				ImGui::EndMenuBar();
+			}
+			
+			IMGUI_HSPLIT( 0.7f,
+			{
+				g_NUIRenderView->Process( dt );
+			},
+			{
+				if( g_mode == EditPartSys )
+				{
+					EditParticleSystem();
+				}
+				else if( g_mode == MiscProps )
+				{
+					g_NUIRenderView->EditCameraParams();
+				}
+			});
+			
+			//
+			// OPEN
+			//
+			String fn;
+#define OPEN_CAPTION "Open particle system (.psy) file"
+			if( needOpen )
+				g_NUIPartSysPicker->OpenPopup( OPEN_CAPTION );
+			if( g_NUIPartSysPicker->Popup( OPEN_CAPTION, fn, false ) )
+			{
+				if( g_PSys->Load( fn ) )
+				{
+					g_fileName = fn;
+					g_PSys->Play();
+				}
+				else
+				{
+					IMGUIError( "Cannot open file: %s", StackPath(fn).str );
+				}
+			}
+			
+			//
+			// SAVE
+			//
+			fn = g_fileName;
+#define SAVE_CAPTION "Save particle system (.psy) file"
+			if( needSaveAs || ( needSave && g_fileName.size() == 0 ) )
+				g_NUIPartSysPicker->OpenPopup( SAVE_CAPTION );
+			
+			bool canSave = needSave && g_fileName.size();
+			if( g_NUIPartSysPicker->Popup( SAVE_CAPTION, fn, true ) )
+				canSave = fn.size();
+			if( canSave )
+			{
+				if( g_PSys->Save( fn ) )
+				{
+					g_fileName = fn;
+				}
+				else
+				{
+					IMGUIError( "Cannot save file: %s", StackPath(fn).str );
+				}
+			}
+		}
+		IMGUI_MAIN_WINDOW_END;
+		
+		SGRX_IMGUI_Render();
+		SGRX_IMGUI_ClearEvents();
 	}
-}
-g_Game;
+};
 
 
 extern "C" EXPORT IGame* CreateGame()
 {
-	return &g_Game;
+	return new PSEditor;
 }
 

@@ -196,6 +196,11 @@ bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int pr
 	return ImGui::DragFloat( label, &v, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
 }
 
+bool IMGUIEditVec2( const char* label, Vec2& v, float vmin, float vmax, int prec )
+{
+	return ImGui::DragFloat2( label, &v.x, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
+}
+
 bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec )
 {
 	return ImGui::DragFloat3( label, &v.x, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
