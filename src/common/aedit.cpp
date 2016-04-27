@@ -277,19 +277,6 @@ void EditTextureAsset( SGRX_TextureAsset& ta )
 }
 
 
-Array< RCString > g_ShaderList;
-
-struct ShaderFinder : IDirEntryHandler
-{
-	bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
-	{
-		if( name.starts_with( "mtl_" ) && name.ends_with( ".shd" ) )
-		{
-			g_ShaderList.push_back( name.part( 4, name.size() - 8 ) );
-		}
-		return true;
-	}
-};
 
 struct TexturePicker : IMGUIEntryPicker
 {
@@ -328,36 +315,7 @@ struct MeshPartPicker : IMGUIEntryPicker
 }
 g_MeshAssetPartPicker;
 
-bool PickShaderName( const char* label, String& str )
-{
-	bool ret = false;
-	
-	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select shader>",
-		ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
-	{
-		g_ShaderList.clear();
-		ShaderFinder sf;
-		FS_IterateDirectory( "shaders", &sf );
-		ImGui::OpenPopup( "pick_shader" );
-	}
-	ImGui::SameLine();
-	ImGui::Text( label );
-	
-	if( ImGui::BeginPopup( "pick_shader" ) )
-	{
-		for( size_t i = 0; i < g_ShaderList.size(); ++i )
-		{
-			if( ImGui::Selectable( g_ShaderList[ i ].c_str() ) )
-			{
-				str = g_ShaderList[ i ];
-				ret = true;
-				ImGui::TriggerChangeCheck();
-			}
-		}
-		ImGui::EndPopup();
-	}
-	return ret;
-}
+IMGUIShaderPicker g_ShaderPicker;
 
 void EditMeshPart( size_t i, SGRX_MeshAssetPart* mp )
 {
@@ -370,7 +328,7 @@ void EditMeshPart( size_t i, SGRX_MeshAssetPart* mp )
 	IMGUI_GROUP( "Mesh part", true,
 	{
 		g_MeshAssetPartPicker.Property( "Pick mesh part name", "Mesh name", mp->meshName );
-		PickShaderName( "Shader", mp->shader );
+		g_ShaderPicker.Property( "Shader", mp->shader );
 		
 		for( int i = 0; i < 8; ++i )
 		{

@@ -1259,7 +1259,7 @@ SGRX_Log& operator << ( SGRX_Log& L, const SGRX_Camera& cam )
 void SGRX_Camera::UpdateViewMatrix()
 {
 	mView.LookAt( position, direction, updir );
-	mView.InvertTo( mInvView );
+	mInvView = mView.Inverted();
 }
 
 void SGRX_Camera::UpdateProjMatrix()

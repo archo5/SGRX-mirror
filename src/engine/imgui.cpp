@@ -94,6 +94,7 @@ void SGRX_IMGUI_Init()
 	io.DisplaySize.x = GR_GetWidth();
 	io.DisplaySize.y = GR_GetHeight();
 	
+	io.IniFilename = NULL;
 	io.RenderDrawListsFn = sgrx_imgui_impl_RenderDrawLists;
 	io.SetClipboardTextFn = sgrx_imgui_impl_SetClipboardText;
 	io.GetClipboardTextFn = sgrx_imgui_impl_GetClipboardText;
@@ -209,6 +210,11 @@ bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float vmax, int prec
 bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float vmax, int prec )
 {
 	return ImGui::DragFloat4( label, &v.x, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
+}
+
+bool IMGUIEditFloatSlider( const char* label, float& v, float vmin, float vmax )
+{
+	return ImGui::SliderFloat( label, &v, vmin, vmax, "%g", 1 );
 }
 
 bool IMGUIEditQuat( const char* label, Quat& v )
@@ -693,11 +699,46 @@ bool IMGUIFilePicker::ConfirmPopup( const char* caption, const char* label, cons
 }
 
 
+IMGUIPreviewPickerCore::IMGUIPreviewPickerCore()
+{
+	m_itemSize = ImVec2( 128, 128 );
+}
+
+void IMGUIPreviewPickerCore::_DrawItem( int i, int x0, int y0, int x1, int y1 )
+{
+}
+
+void IMGUIPreviewPickerCore::_StaticDrawItem( const ImDrawList* parent_list, const ImDrawCmd* cmd )
+{
+	SGRX_CAST( _StaticDrawItemData*, data, cmd->UserCallbackData );
+	data->self->_DrawItem( data->i, data->x0, data->y0, data->x1, data->y1 );
+	delete data;
+	const_cast<void*&>(cmd->UserCallbackData) = NULL;
+}
+
+bool IMGUIPreviewPickerCore::EntryUI( size_t i, String& str )
+{
+	ImVec2 cp = ImGui::GetCursorPos()
+		- ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() )
+		+ ImGui::GetWindowPos();
+	
+	bool ret = ImGui::Button( "##btn", m_itemSize );
+	
+	_StaticDrawItemData data =
+	{
+		this, i, cp.x, cp.y, cp.x + m_itemSize.x, cp.y + m_itemSize.y,
+	};
+	ImGui::GetWindowDrawList()->AddCallback(
+		IMGUIMeshPickerCore::_StaticDrawItem, new _StaticDrawItemData(data) );
+	
+	return ret;
+}
+
+
 IMGUIMeshPickerCore::IMGUIMeshPickerCore() :
 	m_customCamera( false ),
 	m_scene( GR_CreateScene() )
 {
-	m_itemSize = ImVec2( 128, 128 );
 }
 
 IMGUIMeshPickerCore::~IMGUIMeshPickerCore()
@@ -757,30 +798,55 @@ void IMGUIMeshPickerCore::_DrawItem( int i, int x0, int y0, int x1, int y1 )
 	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, m_entries[ i ].path, HALIGN_CENTER, VALIGN_CENTER );
 }
 
-void IMGUIMeshPickerCore::_StaticDrawItem( const ImDrawList* parent_list, const ImDrawCmd* cmd )
+
+IMGUITexturePicker::IMGUITexturePicker()
 {
-	SGRX_CAST( _StaticDrawItemData*, data, cmd->UserCallbackData );
-	data->self->_DrawItem( data->i, data->x0, data->y0, data->x1, data->y1 );
-	delete data;
-	const_cast<void*&>(cmd->UserCallbackData) = NULL;
+	Reload();
 }
 
-bool IMGUIMeshPickerCore::EntryUI( size_t i, String& str )
+void IMGUITexturePicker::Reload()
 {
-	ImVec2 cp = ImGui::GetCursorPos()
-		- ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() )
-		+ ImGui::GetWindowPos();
+	LOG << "Reloading textures";
+	m_textures.clear();
+	m_textures.push_back( TextureHandle() );
+	FS_IterateDirectory( "textures", this );
+	_Search( m_searchString );
+}
+
+bool IMGUITexturePicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+{
+	if( name == "." || name == ".." )
+		return true;
 	
-	bool ret = ImGui::Button( "##btn", m_itemSize );
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
+	LOG << "[T]: " << bfr;
+	StringView fullname = bfr;
 	
-	_StaticDrawItemData data =
+	if( isdir )
 	{
-		this, i, cp.x, cp.y, cp.x + m_itemSize.x, cp.y + m_itemSize.y,
-	};
-	ImGui::GetWindowDrawList()->AddCallback(
-		IMGUIMeshPickerCore::_StaticDrawItem, new _StaticDrawItemData(data) );
+		FS_IterateDirectory( fullname, this );
+	}
+	else if( name.ends_with( ".png" ) || name.ends_with( ".stx" ) || name.ends_with( ".dds" ) )
+	{
+		TextureHandle th = GR_GetTexture( fullname );
+		if( th )
+			m_textures.push_back( th );
+	}
+	return true;
+}
+
+void IMGUITexturePicker::_DrawItem( int i, int x0, int y0, int x1, int y1 )
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	return ret;
+	br.Col( 1 );
+	br.SetTexture( m_textures[ i ] );
+	br.Quad( x0 + 10, y0 + 4, x1 - 10, y1 - 16 );
+	
+	br.Col( 0.9f, 1.0f );
+	StringView name = m_textures[ i ] ? SV(m_textures[ i ]->m_key) : SV("<none>");
+	GR2D_DrawTextLine( ( x0 + x1 ) / 2, y1 - 8, name, HALIGN_CENTER, VALIGN_CENTER );
 }
 
 
@@ -817,6 +883,46 @@ bool IMGUIMeshPicker::HandleDirEntry( const StringView& loc, const StringView& n
 		AddMesh( fullname );
 	}
 	return true;
+}
+
+
+bool IMGUIShaderPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+{
+	if( name.starts_with( "mtl_" ) && name.ends_with( ".shd" ) )
+	{
+		m_shaderList.push_back( name.part( 4, name.size() - 8 ) );
+	}
+	return true;
+}
+
+bool IMGUIShaderPicker::Property( const char* label, String& str )
+{
+	bool ret = false;
+	
+	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select shader>",
+		ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
+	{
+		m_shaderList.clear();
+		FS_IterateDirectory( "shaders", this );
+		ImGui::OpenPopup( "pick_shader" );
+	}
+	ImGui::SameLine();
+	ImGui::Text( label );
+	
+	if( ImGui::BeginPopup( "pick_shader" ) )
+	{
+		for( size_t i = 0; i < m_shaderList.size(); ++i )
+		{
+			if( ImGui::Selectable( m_shaderList[ i ].c_str() ) )
+			{
+				str = m_shaderList[ i ];
+				ret = true;
+				ImGui::TriggerChangeCheck();
+			}
+		}
+		ImGui::EndPopup();
+	}
+	return ret;
 }
 
 
