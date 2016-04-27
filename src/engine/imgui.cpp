@@ -917,11 +917,12 @@ bool IMGUIShaderPicker::Property( const char* label, String& str )
 			{
 				str = m_shaderList[ i ];
 				ret = true;
-				ImGui::TriggerChangeCheck();
 			}
 		}
 		ImGui::EndPopup();
 	}
+	if( ret )
+		ImGui::TriggerChangeCheck();
 	return ret;
 }
 
