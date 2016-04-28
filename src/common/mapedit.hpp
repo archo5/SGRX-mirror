@@ -3,9 +3,13 @@
 #pragma once
 #include "compiler.hpp"
 #include "edutils.hpp"
+#define lmm_prepmeshinst asdasdasd
 #include "edcomui.hpp"
+#undef lmm_prepmeshinst
 #include "level.hpp"
 #include "entities.hpp"
+
+#include <imgui.hpp>
 
 #include "mapedit_graphics.hpp"
 
@@ -52,6 +56,12 @@ MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
 MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
 MAPEDIT_GLOBAL( BaseGame* g_BaseGame );
 MAPEDIT_GLOBAL( GameLevel* g_Level );
+
+MAPEDIT_GLOBAL( IMGUIRenderView* g_NUIRenderView );
+MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUILevelPicker );
+MAPEDIT_GLOBAL( IMGUIMeshPicker* g_NUIMeshPicker );
+MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUIPartSysPicker );
+MAPEDIT_GLOBAL( IMGUITexturePicker* g_NUITexturePicker );
 
 
 
@@ -196,6 +206,15 @@ struct EdSnapProps
 		snapRange = 0.2f;
 		snapGrid = 0.1f;
 		projDist = 0.01f;
+	}
+	
+	void EditUI()
+	{
+		IMGUIEditBool( "Enable snapping", enableSnap );
+		IMGUIEditBool( "Snap to vertices", snapVerts );
+		IMGUIEditFloat( "Max. distance", snapRange, 0.01, 1 );
+		IMGUIEditFloat( "Grid unit size", snapGrid, 0.01, 100 );
+		IMGUIEditFloat( "Proj. distance", projDist, 0, 1 );
 	}
 	
 	static float Round( float v ){ return round( v ); }
@@ -1829,6 +1848,8 @@ struct EdWorldBasicInfo
 		prefabMode = false;
 	}
 	
+	void EditUI();
+	
 	bool prefabMode;
 //	Array< Vec3 > points;
 };
@@ -1855,6 +1876,8 @@ struct EdWorldLightingInfo
 		aoNumSamples = 15;
 		sampleDensity = 1.0f;
 	}
+	
+	void EditUI();
 	
 	Vec3 ambientColor;
 	Vec2 dirLightDir;
@@ -2227,6 +2250,7 @@ struct EdWorld
 	
 	EdWorldBasicInfo m_info;
 	EdWorldLightingInfo m_lighting;
+	void EditUI();
 	
 	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;
@@ -2590,6 +2614,17 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_btnDumpLMInfo;
 };
 
+
+enum EditorMode
+{
+	DrawBlock,
+	EditObjects,
+	PaintSurfs,
+	AddEntity,
+	EditGroups,
+	LevelInfo,
+	MiscProps,
+};
 
 struct MapEditor : IGame
 {

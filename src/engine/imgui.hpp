@@ -45,6 +45,7 @@ ENGINE_EXPORT bool IMGUIEditVec3( const char* label, Vec3& v, float vmin, float 
 ENGINE_EXPORT bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float vmax, int prec = 2 );
 ENGINE_EXPORT bool IMGUIEditFloatSlider( const char* label, float& v, float vmin, float vmax );
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );
+ENGINE_EXPORT bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval = 1.0f );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
 ENGINE_EXPORT void IMGUIErrorStr( StringView str );
 ENGINE_EXPORT void IMGUIError( const char* str, ... );

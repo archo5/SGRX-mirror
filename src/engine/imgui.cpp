@@ -256,6 +256,22 @@ bool IMGUIEditQuat( const char* label, Quat& v )
 	}
 }
 
+bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval )
+{
+	bool ret = false;
+	IMGUI_GROUP( label, true,
+	{
+		ImGui::ColorButton( ImColor::HSV( v.x, v.y, 0.5f ) );
+		ImGui::SameLine();
+		ret |= ImGui::DragFloat2( "Hue/sat.", &v.x, 0.01f, 0, 1, "%g", 1 );
+		
+		ImGui::ColorButton( ImColor::HSV( v.x, v.y, v.z ) );
+		ImGui::SameLine();
+		ret |= ImGui::DragFloat( "Value", &v.z, 0.01f, 0, maxval, "%g", 2 );
+	});
+	return ret;
+}
+
 bool IMGUIEditString( const char* label, String& str, int maxsize )
 {
 	str.resize_using( maxsize, '\0' );

@@ -530,6 +530,52 @@ void ReconfigureEntities( StringView levname )
 }
 
 
+void EdWorldBasicInfo::EditUI()
+{
+	IMGUI_GROUP( "Basic info", true,
+	{
+		IMGUIEditBool( "Prefab mode", prefabMode );
+	});
+}
+
+void EdWorldLightingInfo::EditUI()
+{
+	IMGUI_GROUP( "Lighting info", true,
+	{
+		IMGUIEditColorHSVHDR( "Ambient color", ambientColor, 100 );
+		IMGUIEditVec2( "Dir.light direction (dX,dY)", dirLightDir, -8192, 8192 );
+		IMGUIEditColorHSVHDR( "Dir.light color", dirLightColor, 100 );
+		IMGUIEditFloat( "Dir.light divergence", dirLightDvg, 0, 180 );
+		IMGUIEditInt( "Dir.light sample count", dirLightNumSamples, 0, 256 );
+		IMGUIEditColorHSVHDR( "Lightmap clear color", lightmapClearColor, 100 );
+	//	IMGUIEditInt( "Radiosity bounce count", radNumBounces, 0, 256 );
+		IMGUIEditFloat( "Lightmap detail", lightmapDetail, 0.01f, 16 );
+		IMGUIEditFloat( "Lightmap blur size", lightmapBlurSize, 0, 10 );
+		IMGUI_GROUP( "Ambient occlusion", true,
+		{
+			IMGUIEditFloat( "Distance", aoDist, 0, 100 );
+			IMGUIEditFloat( "Multiplier", aoMult, 0, 2 );
+			IMGUIEditFloat( "Falloff", aoFalloff, 0.01f, 100 );
+			IMGUIEditFloat( "Effect", aoEffect, -1, 1 );
+		//	IMGUIEditFloat( "Divergence", aoDivergence, 0, 1 );
+			IMGUIEditColorHSVHDR( "Color", aoColor, 100 );
+			IMGUIEditInt( "Sample count", aoNumSamples, 0, 256 );
+		});
+		IMGUIEditFloat( "Sample density", sampleDensity, 0.01f, 100 );
+		if( g_NUITexturePicker->Property( "Pick a skybox texture", "Skybox texture", skyboxTexture ) )
+			g_EdWorld->ReloadSkybox();
+		if( g_NUITexturePicker->Property( "Pick default post-process cLUT", "Default post-process cLUT", clutTexture ) )
+			g_EdWorld->ReloadCLUT();
+	});
+}
+
+void EdWorld::EditUI()
+{
+	m_info.EditUI();
+	m_lighting.EditUI();
+}
+
+
 EdWorld::EdWorld() :
 	m_nextID( 0 )
 {
@@ -1966,6 +2012,10 @@ void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
 // EDITOR ENTRY POINT
 //
 
+EdSnapProps g_SnapProps;
+int g_mode = LevelInfo;
+String g_fileName;
+
 bool MapEditor::OnInitialize()
 {
 	GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
@@ -2001,11 +2051,27 @@ bool MapEditor::OnInitialize()
 	g_UIFrame->PostInit();
 	g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 	
+	SGRX_IMGUI_Init();
+	
+	g_NUIRenderView = new IMGUIRenderView( g_EdScene );
+	g_NUILevelPicker = new IMGUIFilePicker( "levels", ".tle" );
+	g_NUIMeshPicker = new IMGUIMeshPicker();
+	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
+	g_NUITexturePicker = new IMGUITexturePicker();
+	
 	return true;
 }
 
 void MapEditor::OnDestroy()
 {
+	delete g_NUITexturePicker;
+	delete g_NUIPartSysPicker;
+	delete g_NUIMeshPicker;
+	delete g_NUILevelPicker;
+	delete g_NUIRenderView;
+	
+	SGRX_IMGUI_Free();
+	
 	delete g_UILevelSavePicker;
 	g_UILevelSavePicker = NULL;
 	delete g_UILevelOpenPicker;
@@ -2066,8 +2132,10 @@ void MapEditor::OnEvent( const Event& e )
 			g_EdLGCont->STRegenerate();
 		}
 	}
-	g_UIFrame->EngineEvent( &e );
+//	g_UIFrame->EngineEvent( &e );
 	g_EdWorld->m_groupMgr.ProcessDestroyQueue();
+	
+	SGRX_IMGUI_Event( e );
 }
 
 void MapEditor::OnTick( float dt, uint32_t gametime )
@@ -2075,8 +2143,129 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	g_EdLGCont->ApplyInvalidation();
 	g_EdLGCont->ILMCheck();
-	g_UIFrame->m_UIRenderView.UpdateCamera( dt );
+//	g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 	g_UIFrame->Draw();
+	
+	SGRX_IMGUI_NewFrame();
+	
+	IMGUI_MAIN_WINDOW_BEGIN
+	{
+		bool needOpen = false;
+		bool needSave = false;
+		bool needSaveAs = false;
+		
+		if( ImGui::BeginMenuBar() )
+		{
+			if( ImGui::BeginMenu( "File" ) )
+			{
+				if( ImGui::MenuItem( "New" ) )
+				{
+					g_fileName = "";
+					// TODO
+				}
+				if( ImGui::MenuItem( "Open" ) ) needOpen = true;
+				if( ImGui::MenuItem( "Save" ) ) needSave = true;
+				if( ImGui::MenuItem( "Save As" ) ) needSaveAs = true;
+				ImGui::Separator();
+				if( ImGui::MenuItem( "Exit" ) ){ Game_End(); }
+				ImGui::EndMenu();
+			}
+			ImGui::SameLine( 0, 50 );
+			ImGui::Text( "Level file: %s", g_fileName.size() ? StackPath(g_fileName).str : "<none>" );
+			
+			ImGui::SameLine( 0, 50 );
+			ImGui::Text( "Edit mode:" );
+			ImGui::SameLine();
+			ImGui::RadioButton( "Draw Block/Path", &g_mode, DrawBlock );
+			ImGui::SameLine();
+			ImGui::RadioButton( "Edit Objects", &g_mode, EditObjects );
+			ImGui::SameLine();
+			ImGui::RadioButton( "Paint Surfaces", &g_mode, PaintSurfs );
+			ImGui::SameLine();
+			ImGui::RadioButton( "Add Entity", &g_mode, AddEntity );
+			ImGui::SameLine();
+			ImGui::RadioButton( "Edit groups", &g_mode, EditGroups );
+			ImGui::SameLine();
+			ImGui::RadioButton( "Level Info", &g_mode, LevelInfo );
+			ImGui::SameLine();
+			ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
+			
+			ImGui::EndMenuBar();
+		}
+		
+		IMGUI_HSPLIT( 0.7f,
+		{
+			g_NUIRenderView->Process( dt );
+		},
+		{
+			if( g_mode == DrawBlock )
+			{
+				g_SnapProps.EditUI();
+			}
+			else if( g_mode == EditObjects )
+			{
+				g_SnapProps.EditUI();
+			}
+			else if( g_mode == PaintSurfs )
+			{
+				// TODO
+			}
+			else if( g_mode == AddEntity )
+			{
+				g_SnapProps.EditUI();
+			}
+			else if( g_mode == EditGroups )
+			{
+				// TODO
+			}
+			else if( g_mode == LevelInfo )
+			{
+				g_EdWorld->EditUI();
+			}
+			else if( g_mode == MiscProps )
+			{
+				g_NUIRenderView->EditCameraParams();
+			}
+		});
+		
+		//
+		// OPEN
+		//
+		String fn;
+#define OPEN_CAPTION "Open level (.tle) file"
+		if( needOpen )
+			g_NUILevelPicker->OpenPopup( OPEN_CAPTION );
+		if( g_NUILevelPicker->Popup( OPEN_CAPTION, fn, false ) )
+		{
+			// TODO
+			{
+				IMGUIError( "Cannot open file: %s", StackPath(fn).str );
+			}
+		}
+		
+		//
+		// SAVE
+		//
+		fn = g_fileName;
+#define SAVE_CAPTION "Save level (.tle) file"
+		if( needSaveAs || ( needSave && g_fileName.size() == 0 ) )
+			g_NUILevelPicker->OpenPopup( SAVE_CAPTION );
+		
+		bool canSave = needSave && g_fileName.size();
+		if( g_NUILevelPicker->Popup( SAVE_CAPTION, fn, true ) )
+			canSave = fn.size();
+		if( canSave )
+		{
+			// TODO
+			{
+				IMGUIError( "Cannot save file: %s", StackPath(fn).str );
+			}
+		}
+	}
+	IMGUI_MAIN_WINDOW_END;
+	
+	SGRX_IMGUI_Render();
+	SGRX_IMGUI_ClearEvents();
 }
 
 void MapEditor::SetBaseGame( BaseGame* game )
