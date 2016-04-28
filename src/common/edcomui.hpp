@@ -6,8 +6,6 @@
 #include <script.hpp>
 #include <sound.hpp>
 
-#include "mpd_api.hpp"
-
 
 // nullifies mesh lighting
 inline void lmm_prepmeshinst( MeshInstHandle mih )
@@ -474,6 +472,7 @@ struct EDGUILevelSavePicker : EDGUILevelPicker
 // property inspector
 //
 
+#if 0
 #define EDGUI_ITEM_PROPERTY_LIST 501
 #define EDGUI_ITEM_PLARRAYLIST 502
 
@@ -1003,6 +1002,7 @@ struct EDGUIPropertyList : EDGUILayoutRow
 	size_t m_lastEditedItem;
 	HashTable< StringView, EDGUIRsrcPicker* > m_pickers;
 };
+#endif
 
 
 //
@@ -1196,5 +1196,4 @@ struct EDGUIRenderView : EDGUIItem, SGRX_DebugDraw
 	SceneHandle m_edScene;
 	FrameInterface* m_mainframe;
 };
-
 

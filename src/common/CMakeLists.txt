@@ -29,14 +29,12 @@ set_target_properties( lighter PROPERTIES
 )
 
 # Editor
-mpd_spec( mapedit.mpd.hpp mapedit.mpd.sgs )
 add_library( editor SHARED
 	mapedit.hpp mapedit.cpp
 	mapedit_graphics.hpp mapedit_graphics.cpp
 	mapedit_edit.cpp
 	mapedit_ent.cpp mapedit_block.cpp mapedit_mpath.cpp mapedit_patch.cpp
-	compiler.hpp compiler.cpp
-	mapedit.mpd.hpp )
+	compiler.hpp compiler.cpp )
 target_link_libraries( editor
 	sgrx-gfw sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod
 	recast detour lighter )

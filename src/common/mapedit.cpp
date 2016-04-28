@@ -3,9 +3,6 @@
 #define MAPEDIT_DEFINE_GLOBALS
 #include "mapedit.hpp"
 
-#define MPD_IMPL
-#include "mapedit.mpd.hpp"
-
 
 
 EDGUIPropRsrc_PickParentGroup::EDGUIPropRsrc_PickParentGroup( int32_t id, EDGUIGroupPicker* gp, const StringView& value ) :
@@ -530,12 +527,70 @@ void ReconfigureEntities( StringView levname )
 }
 
 
+void EdWorldBasicInfo::FLoad( sgsVariable data )
+{
+	prefabMode = FLoadProp( data, "prefabMode", false );
+}
+
+sgsVariable EdWorldBasicInfo::FSave()
+{
+	sgsVariable data = FNewDict();
+	FSaveProp( data, "prefabMode", prefabMode );
+	return data;
+}
+
 void EdWorldBasicInfo::EditUI()
 {
 	IMGUI_GROUP( "Basic info", true,
 	{
 		IMGUIEditBool( "Prefab mode", prefabMode );
 	});
+}
+
+void EdWorldLightingInfo::FLoad( sgsVariable lighting )
+{
+	ambientColor = FLoadProp( lighting, "ambientColor", V3( 0, 0, 0.1f ) );
+	dirLightDir = FLoadProp( lighting, "dirLightDir", V2(0) );
+	dirLightColor = FLoadProp( lighting, "dirLightColor", V3(0) );
+	dirLightDvg = FLoadProp( lighting, "dirLightDvg", 10.0f );
+	dirLightNumSamples = FLoadProp( lighting, "dirLightNumSamples", 15 );
+	lightmapClearColor = FLoadProp( lighting, "lightmapClearColor", V3(0) );
+	lightmapDetail = FLoadProp( lighting, "lightmapDetail", 1.0f );
+	lightmapBlurSize = FLoadProp( lighting, "lightmapBlurSize", 1.0f );
+	aoDist = FLoadProp( lighting, "aoDist", 2.0f );
+	aoMult = FLoadProp( lighting, "aoMult", 1.0f );
+	aoFalloff = FLoadProp( lighting, "aoFalloff", 2.0f );
+	aoEffect = FLoadProp( lighting, "aoEffect", 0.0f );
+	aoColor = FLoadProp( lighting, "aoColor", V3(0) );
+	aoNumSamples = FLoadProp( lighting, "aoNumSamples", 15 );
+	sampleDensity = FLoadProp( lighting, "sampleDensity", 1.0f );
+	skyboxTexture = FLoadProp( lighting, "skyboxTexture", SV() );
+	clutTexture = FLoadProp( lighting, "clutTexture", SV() );
+}
+
+sgsVariable EdWorldLightingInfo::FSave()
+{
+	sgsVariable lighting = FNewDict();
+	{
+		FSaveProp( lighting, "ambientColor", ambientColor );
+		FSaveProp( lighting, "dirLightDir", dirLightDir );
+		FSaveProp( lighting, "dirLightColor", dirLightColor );
+		FSaveProp( lighting, "dirLightDvg", dirLightDvg );
+		FSaveProp( lighting, "dirLightNumSamples", dirLightNumSamples );
+		FSaveProp( lighting, "lightmapClearColor", lightmapClearColor );
+		FSaveProp( lighting, "lightmapDetail", lightmapDetail );
+		FSaveProp( lighting, "lightmapBlurSize", lightmapBlurSize );
+		FSaveProp( lighting, "aoDist", aoDist );
+		FSaveProp( lighting, "aoMult", aoMult );
+		FSaveProp( lighting, "aoFalloff", aoFalloff );
+		FSaveProp( lighting, "aoEffect", aoEffect );
+		FSaveProp( lighting, "aoColor", aoColor );
+		FSaveProp( lighting, "aoNumSamples", aoNumSamples );
+		FSaveProp( lighting, "sampleDensity", sampleDensity );
+		FSaveProp( lighting, "skyboxTexture", skyboxTexture );
+		FSaveProp( lighting, "clutTexture", clutTexture );
+	}
+	return lighting;
 }
 
 void EdWorldLightingInfo::EditUI()
@@ -597,8 +652,8 @@ void EdWorld::FLoad( sgsVariable obj )
 	int version = FLoadProp( obj, "version", 0 );
 	m_nextID = FLoadProp( obj, "id", 0 );
 	
-	FLoadVarData( obj.getprop("info"), &m_info );
-	FLoadVarData( obj.getprop("lighting"), &m_lighting );
+	m_info.FLoad( obj.getprop("info") );
+	m_lighting.FLoad( obj.getprop("lighting") );
 	
 	sgsVariable objects = obj.getprop("objects");
 	{
@@ -643,8 +698,8 @@ sgsVariable EdWorld::FSave()
 	sgsVariable out = FNewDict();
 	FSaveProp( out, "version", version );
 	FSaveProp( out, "id", m_nextID );
-	out.setprop( "info", FSaveVarData( m_info ) );
-	out.setprop( "lighting", FSaveVarData( m_lighting ) );
+	out.setprop( "info", m_info.FSave() );
+	out.setprop( "lighting", m_lighting.FSave() );
 	out.setprop( "objects", objects );
 	
 	return out;
@@ -1444,6 +1499,15 @@ void EdMultiObjectProps::OnSetMtl( StringView name )
 //	g_UIFrame->SetEditMode( g_UIFrame->m_editMode );
 }
 
+void EdMultiObjectProps::EditUI()
+{
+	IMGUI_GROUP( "Multiple objects", true,
+	{
+		if( IMGUIEditString( "Material", m_mtl, 256 ) )
+			OnSetMtl( m_mtl );
+	});
+}
+
 
 
 EDGUIMainFrame::EDGUIMainFrame() :
@@ -1473,38 +1537,18 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_MBSave.caption = "Save";
 	m_MBSaveAs.caption = "Save As";
 	m_MBCompile.caption = "Compile";
-	m_MB_Cat1.caption = "Edit:";
-	m_MBDrawBlock.caption = "Draw Block/Path";
-	m_MBEditObjects.caption = "Edit Objects";
-	m_MBPaintSurfs.caption = "Paint Surfaces";
-	m_MBAddEntity.caption = "Add Entity";
-	m_MBEditGroups.caption = "Edit groups";
-	m_MBLevelInfo.caption = "Level Info";
 	m_UIMenuButtonsLft.Add( &m_MB_Cat0 );
 	m_UIMenuButtonsLft.Add( &m_MBNew );
 	m_UIMenuButtonsLft.Add( &m_MBOpen );
 	m_UIMenuButtonsLft.Add( &m_MBSave );
 	m_UIMenuButtonsLft.Add( &m_MBSaveAs );
 	m_UIMenuButtonsLft.Add( &m_MBCompile );
-	m_UIMenuButtonsRgt.Add( &m_MB_Cat1 );
-	m_UIMenuButtonsRgt.Add( &m_MBDrawBlock );
-	m_UIMenuButtonsRgt.Add( &m_MBEditObjects );
-	m_UIMenuButtonsRgt.Add( &m_MBPaintSurfs );
-	m_UIMenuButtonsRgt.Add( &m_MBAddEntity );
-	m_UIMenuButtonsRgt.Add( &m_MBEditGroups );
-	m_UIMenuButtonsRgt.Add( &m_MBLevelInfo );
-	
-	// extra stuff
-	m_propList.m_pickers[ "texture" ] = g_UITexturePicker;
-	m_propList.m_pickers[ "material" ] = g_UISurfMtlPicker;
-	m_btnDumpLMInfo.caption = "Dump lightmap info";
 	
 	m_txMarker = GR_GetTexture( "editor/marker.png" );
 }
 
 void EDGUIMainFrame::PostInit()
 {
-	SetEditMode( &m_emEditLevel );
 }
 
 int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
@@ -1519,15 +1563,6 @@ int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
 		else if( e->target == &m_MBSave ) Level_Save();
 		else if( e->target == &m_MBSaveAs ) Level_SaveAs();
 		else if( e->target == &m_MBCompile ) Level_Compile();
-		
-		else if( e->target == &m_MBDrawBlock ) SetEditMode( &m_emDrawBlock );
-		else if( e->target == &m_MBEditObjects ) SetEditMode( &m_emEditObjs );
-		else if( e->target == &m_MBPaintSurfs ) SetEditMode( &m_emPaintSurfs );
-		else if( e->target == &m_MBAddEntity ) SetEditMode( &m_emAddEntity );
-		else if( e->target == &m_MBEditGroups ) SetEditMode( &m_emEditGroup );
-		else if( e->target == &m_MBLevelInfo ) SetEditMode( &m_emEditLevel );
-		
-		else if( e->target == &m_btnDumpLMInfo ) g_EdLGCont->DumpLightmapInfo();
 		
 		return 1;
 		
@@ -1670,32 +1705,32 @@ void EDGUIMainFrame::RefreshMouse()
 
 Vec3 EDGUIMainFrame::GetCursorRayPos()
 {
-	return m_UIRenderView.crpos;
+	return g_NUIRenderView->crpos;
 }
 
 Vec3 EDGUIMainFrame::GetCursorRayDir()
 {
-	return m_UIRenderView.crdir;
+	return g_NUIRenderView->crdir;
 }
 
 Vec2 EDGUIMainFrame::GetCursorPlanePos()
 {
-	return Snapped( m_UIRenderView.cursor_hpos );
+	return Snapped( g_NUIRenderView->cursor_hpos );
 }
 
 float EDGUIMainFrame::GetCursorPlaneHeight()
 {
-	return m_UIRenderView.crplaneheight;
+	return g_NUIRenderView->crplaneheight;
 }
 
 void EDGUIMainFrame::SetCursorPlaneHeight( float z )
 {
-	m_UIRenderView.crplaneheight = z;
+	g_NUIRenderView->crplaneheight = z;
 }
 
 bool EDGUIMainFrame::IsCursorAiming()
 {
-	return m_UIRenderView.cursor_aim;
+	return g_NUIRenderView->cursor_aim;
 }
 
 void EDGUIMainFrame::Snap( Vec2& v )
@@ -1820,7 +1855,6 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 		return;
 	}
 	
-	m_propList.Reload();
 	g_EdLGCont->LoadLightmaps( str );
 	g_EdWorld->ReloadSkybox();
 	g_EdWorld->ReloadCLUT();
@@ -1979,11 +2013,14 @@ void EDGUIMainFrame::Level_Real_Compile_Prefabs()
 
 void EDGUIMainFrame::SetEditMode( EdEditMode* em )
 {
+	if( em == m_editMode )
+		return;
 	if( m_editMode )
 		m_editMode->OnExit();
 	m_editMode = em;
 	ClearParamList();
-	em->OnEnter();
+	if( em )
+		em->OnEnter();
 }
 
 void EDGUIMainFrame::SetEditTransform( EdEditTransform* et )
@@ -1997,22 +2034,11 @@ void EDGUIMainFrame::SetEditTransform( EdEditTransform* et )
 	m_editTF = et && et->OnEnter() ? et : NULL;
 }
 
-void EDGUIMainFrame::SetModeHighlight( EDGUIButton* mybtn )
-{
-	m_MBDrawBlock.SetHighlight( mybtn == &m_MBDrawBlock );
-	m_MBEditObjects.SetHighlight( mybtn == &m_MBEditObjects );
-	m_MBPaintSurfs.SetHighlight( mybtn == &m_MBPaintSurfs );
-	m_MBAddEntity.SetHighlight( mybtn == &m_MBAddEntity );
-	m_MBEditGroups.SetHighlight( mybtn == &m_MBEditGroups );
-	m_MBLevelInfo.SetHighlight( mybtn == &m_MBLevelInfo );
-}
-
 
 //
 // EDITOR ENTRY POINT
 //
 
-EdSnapProps g_SnapProps;
 int g_mode = LevelInfo;
 String g_fileName;
 
@@ -2053,7 +2079,7 @@ bool MapEditor::OnInitialize()
 	
 	SGRX_IMGUI_Init();
 	
-	g_NUIRenderView = new IMGUIRenderView( g_EdScene );
+	g_NUIRenderView = new MapEditorRenderView();
 	g_NUILevelPicker = new IMGUIFilePicker( "levels", ".tle" );
 	g_NUIMeshPicker = new IMGUIMeshPicker();
 	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
@@ -2146,7 +2172,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 //	g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 	g_UIFrame->Draw();
 	
-	SGRX_IMGUI_NewFrame();
+	SGRX_IMGUI_NewFrame( dt );
 	
 	IMGUI_MAIN_WINDOW_BEGIN
 	{
@@ -2170,25 +2196,89 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 				if( ImGui::MenuItem( "Exit" ) ){ Game_End(); }
 				ImGui::EndMenu();
 			}
-			ImGui::SameLine( 0, 50 );
-			ImGui::Text( "Level file: %s", g_fileName.size() ? StackPath(g_fileName).str : "<none>" );
+			
+			ImGui::SameLine();
+			if( ImGui::Button( "Compile" ) )
+				g_UIFrame->Level_Compile();
+			
+			ImGui::SameLine();
+			if( ImGui::BeginMenu( "Lightmap" ) )
+			{
+				if( ImGui::MenuItem( "Rebuild all lightmaps", "F5" ) )
+				{
+					if( g_EdLGCont->m_lmRenderer == NULL )
+					{
+						g_EdLGCont->InvalidateAll();
+						g_EdLGCont->ILMBeginRender();
+					}
+				}
+				if( ImGui::MenuItem( "Update lightmaps", "F6" ) )
+				{
+					g_EdLGCont->ILMBeginRender();
+				}
+				if( ImGui::MenuItem( "Stop lightmap update", "F7" ) )
+				{
+					g_EdLGCont->ILMAbort();
+				}
+				if( ImGui::MenuItem( "Regenerate samples", "F9" ) )
+				{
+					g_EdLGCont->STRegenerate();
+				}
+				if( ImGui::MenuItem( "Dump lightmap info" ) )
+				{
+					g_EdLGCont->DumpLightmapInfo();
+				}
+				ImGui::EndMenu();
+			}
 			
 			ImGui::SameLine( 0, 50 );
 			ImGui::Text( "Edit mode:" );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Draw Block/Path", &g_mode, DrawBlock );
+			ImGui::RadioButton( "Draw block/path", &g_mode, DrawBlock );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Edit Objects", &g_mode, EditObjects );
+			ImGui::RadioButton( "Edit objects", &g_mode, EditObjects );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Paint Surfaces", &g_mode, PaintSurfs );
+			ImGui::RadioButton( "Paint surfaces", &g_mode, PaintSurfs );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Add Entity", &g_mode, AddEntity );
+			ImGui::RadioButton( "Add entity", &g_mode, AddEntity );
 			ImGui::SameLine();
 			ImGui::RadioButton( "Edit groups", &g_mode, EditGroups );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Level Info", &g_mode, LevelInfo );
+			ImGui::RadioButton( "Level info", &g_mode, LevelInfo );
 			ImGui::SameLine();
 			ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
+			
+			ImGui::SameLine( 0, 50 );
+			ImGui::Text( "Level file: %s", g_fileName.size() ? StackPath(g_fileName).str : "<none>" );
+			
+			if( g_mode == DrawBlock )
+			{
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emDrawBlock );
+			}
+			else if( g_mode == EditObjects )
+			{
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
+			}
+			else if( g_mode == PaintSurfs )
+			{
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintSurfs );
+			}
+			else if( g_mode == AddEntity )
+			{
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emAddEntity );
+			}
+			else if( g_mode == EditGroups )
+			{
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditGroup );
+			}
+			else if( g_mode == LevelInfo )
+			{
+				g_UIFrame->SetEditMode( NULL );
+			}
+			else if( g_mode == MiscProps )
+			{
+				g_UIFrame->SetEditMode( NULL );
+			}
 			
 			ImGui::EndMenuBar();
 		}
@@ -2196,34 +2286,35 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 		IMGUI_HSPLIT( 0.7f,
 		{
 			g_NUIRenderView->Process( dt );
+			
+			if( g_UIFrame->m_editMode )
+			{
+				bool canEdit = ImGui::IsWindowFocused();
+				g_UIFrame->m_editMode->ViewUI( canEdit );
+			}
 		},
 		{
-			if( g_mode == DrawBlock )
+			if( g_UIFrame->m_editMode )
+				g_UIFrame->m_editMode->EditUI();
+			
+			if( g_mode == LevelInfo )
 			{
-				g_SnapProps.EditUI();
-			}
-			else if( g_mode == EditObjects )
-			{
-				g_SnapProps.EditUI();
-			}
-			else if( g_mode == PaintSurfs )
-			{
-				// TODO
-			}
-			else if( g_mode == AddEntity )
-			{
-				g_SnapProps.EditUI();
-			}
-			else if( g_mode == EditGroups )
-			{
-				// TODO
-			}
-			else if( g_mode == LevelInfo )
-			{
+				ImGui::Text( "Level info" );
+				ImGui::Separator();
 				g_EdWorld->EditUI();
 			}
 			else if( g_mode == MiscProps )
 			{
+				ImGui::Text( "Misc. settings" );
+				ImGui::Separator();
+				IMGUI_GROUP( "Rendering mode", true,
+				{
+					int mode = g_Level->GetScene()->director->GetMode();
+					if( ImGui::RadioButton( "Normal", mode == 0 ) )
+						g_Level->GetScene()->director->SetMode( 0 );
+					if( ImGui::RadioButton( "Unlit", mode == 1 ) )
+						g_Level->GetScene()->director->SetMode( 1 );
+				});
 				g_NUIRenderView->EditCameraParams();
 			}
 		});

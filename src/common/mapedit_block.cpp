@@ -3,6 +3,50 @@
 #include "mapedit.hpp"
 
 
+void EdSurface::EditUI( EdBlock* B )
+{
+	IMGUI_GROUP( "Surface properties", true,
+	{
+		IMGUIEditString( "Material", texname, 256 ); // TODO
+		
+		Vec2 off = V2( xoff, yoff );
+		IMGUIEditVec2( "Offset", off, 0, 1 );
+		xoff = off.x; yoff = off.y;
+		
+		Vec2 scasp = V2( scale, aspect );
+		IMGUIEditVec2( "Scale/aspect", scasp, 0.001f, 1000 );
+		scale = scasp.x; aspect = scasp.y;
+		
+		IMGUIEditFloat( "Angle", angle, 0, 360 );
+		IMGUIEditFloat( "Lightmap quality", lmquality, 0.01f, 100 );
+		IMGUIEditInt( "Fit count on X", xfit, 0, 100 );
+		IMGUIEditInt( "Fit count on Y", yfit, 0, 100 );
+		
+		if( ImGui::Button( "Reset offset/scale/aspect" ) )
+		{
+			xoff = 0;
+			yoff = 0;
+			scale = 1;
+			aspect = 1;
+			ImGui::TriggerChangeCheck();
+		}
+		ImGui::SameLine();
+		if( ImGui::Button( "Apply fit" ) )
+		{
+		}
+		if( B )
+		{
+			if( ImGui::Button( "Make blend patch from surf." ) )
+			{
+			}
+			ImGui::SameLine();
+			if( ImGui::Button( "Convert block to patch" ) )
+			{
+			}
+		}
+	});
+}
+
 
 Vec3 EdBlock::GetLocalVertex( int i ) const
 {

@@ -401,7 +401,7 @@ struct PSEditor : IGame
 		g_PSys->Tick( dt );
 		g_PSys->PreRender();
 		
-		SGRX_IMGUI_NewFrame();
+		SGRX_IMGUI_NewFrame( dt );
 		
 		IMGUI_MAIN_WINDOW_BEGIN
 		{

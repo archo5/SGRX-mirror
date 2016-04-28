@@ -147,18 +147,15 @@ void SGRX_IMGUI_Event( const Event& e )
 	{
 		int key = e.key.keysym.sym & ~SDLK_SCANCODE_MASK;
 		io.KeysDown[ key ] = (e.type == SDL_KEYDOWN);
-		io.KeyShift = ((e.key.keysym.mod & KMOD_SHIFT) != 0);
-		io.KeyCtrl = ((e.key.keysym.mod & KMOD_CTRL) != 0);
-		io.KeyAlt = ((e.key.keysym.mod & KMOD_ALT) != 0);
-		io.KeySuper = ((e.key.keysym.mod & KMOD_GUI) != 0);
 	}
 }
 
-void SGRX_IMGUI_NewFrame()
+void SGRX_IMGUI_NewFrame( float dt )
 {
+	ImGuiIO& io = ImGui::GetIO();
+	
 	if( !g_FontTexture )
 	{
-		ImGuiIO& io = ImGui::GetIO();
 		unsigned char* pixels;
 		int width, height;
 		io.Fonts->GetTexDataAsAlpha8( &pixels, &width, &height );
@@ -170,6 +167,12 @@ void SGRX_IMGUI_NewFrame()
 		g_FontTexture = GR_CreateTexture( width, height, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, cpixels.data() );
 		io.Fonts->TexID = g_FontTexture.item;
 	}
+	
+	io.DeltaTime = dt;
+	io.KeyShift = io.KeysDown[ SDL_SCANCODE_LSHIFT ] || io.KeysDown[ SDL_SCANCODE_RSHIFT ];
+	io.KeyCtrl = io.KeysDown[ SDL_SCANCODE_LCTRL ] || io.KeysDown[ SDL_SCANCODE_RCTRL ];
+	io.KeyAlt = io.KeysDown[ SDL_SCANCODE_LALT ] || io.KeysDown[ SDL_SCANCODE_RALT ];
+	io.KeySuper = io.KeysDown[ SDL_SCANCODE_LGUI ] || io.KeysDown[ SDL_SCANCODE_RGUI ];
 	
 	ImGui::NewFrame();
 }
@@ -323,6 +326,7 @@ void IMGUIYesNo( bool v )
 
 
 IMGUIRenderView::IMGUIRenderView( SGRX_Scene* scene ) :
+	mouseOn( false ),
 	crpos( V3(0) ),
 	crdir( V3(0) ),
 	cursor_aim( false ),
@@ -342,7 +346,7 @@ bool IMGUIRenderView::CanAcceptKeyboardInput()
 		|| ImGui::IsKeyDown( SDL_SCANCODE_RCTRL )
 		|| ImGui::IsKeyDown( SDL_SCANCODE_LALT )
 		|| ImGui::IsKeyDown( SDL_SCANCODE_RALT ) )
-		&& !ImGui::GetIO().WantCaptureKeyboard;
+		&& ImGui::IsWindowFocused();
 	return caki;
 }
 
@@ -358,6 +362,7 @@ void IMGUIRenderView::Process( float deltaTime )
 	bool movedn = caki && ImGui::IsKeyDown( SDLK_z );
 	
 	cursor_aim = false;
+	mouseOn = ImGui::IsMouseHoveringWindow();
 	ImVec2 gcp = ImGui::GetMousePos() - ImGui::GetWindowPos();
 	ImVec2 gwsz = ImGui::GetWindowSize();
 	Vec2 cp = { safe_fdiv( gcp.x, gwsz.x ), safe_fdiv( gcp.y, gwsz.y ) };

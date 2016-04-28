@@ -1075,7 +1075,7 @@ struct ASEditor : IGame
 		GR_ApplyAnimator( &g_NUIRenderView->m_animPreview, g_NUIRenderView->m_meshPrevInst );
 		g_NUIRenderView->m_animPreview.Advance( dt, &info );
 		
-		SGRX_IMGUI_NewFrame();
+		SGRX_IMGUI_NewFrame( dt );
 		
 		IMGUI_MAIN_WINDOW_BEGIN
 		{

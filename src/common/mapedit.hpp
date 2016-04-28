@@ -57,7 +57,7 @@ MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
 MAPEDIT_GLOBAL( BaseGame* g_BaseGame );
 MAPEDIT_GLOBAL( GameLevel* g_Level );
 
-MAPEDIT_GLOBAL( IMGUIRenderView* g_NUIRenderView );
+MAPEDIT_GLOBAL( struct MapEditorRenderView* g_NUIRenderView );
 MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUILevelPicker );
 MAPEDIT_GLOBAL( IMGUIMeshPicker* g_NUIMeshPicker );
 MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUIPartSysPicker );
@@ -446,6 +446,7 @@ struct EdObject : virtual SGRX_RefCounted
 	virtual void SetPosition( const Vec3& p ) = 0;
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const = 0;
 	virtual void RegenerateMesh() = 0;
+	virtual void EditUI(){}
 	virtual Vec3 FindCenter() const = 0;
 	virtual void Export( OBJExporter& objex ){}
 	
@@ -623,72 +624,6 @@ template< class T > void FSaveProp( sgsVariable obj, const char* prop, Array<T>&
 	obj.setprop( prop, arr );
 }
 
-inline void FLoadVarData( sgsVariable obj, mpd_Variant item )
-{
-	ASSERT( item.get_type() == mpdt_Struct || item.get_type() == mpdt_Pointer );
-	const virtual_MPD* info = item.get_typeinfo();
-	ASSERT( info );
-	for( int i = 0; i < info->vpropcount(); ++i )
-	{
-		const mpd_PropInfo* p = info->vprop( i );
-		sgsVariable pval = obj.getprop( p->name );
-		if( p->type.cls == mpdt_Struct || p->type.cls == mpdt_Pointer )
-		{
-			if( !strcmp( p->type.name, "String" ) )
-			{
-				StringView sval = pval.get<StringView>();
-				item.getpropbyid( i ).setprop( "data", mpd_Variant( sval.data(), sval.size() ) );
-			}
-			else
-			{
-				FLoadVarData( pval, item.getpropbyid( i ) );
-			}
-		}
-		else if( mpd_TypeIsInteger( p->type.cls ) )
-		{
-			item.setpropbyid( i, pval.get<sgs_Int>() );
-		}
-		else if( mpd_TypeIsFloat( p->type.cls ) )
-		{
-			item.setpropbyid( i, pval.get<sgs_Real>() );
-		}
-	}
-}
-
-inline sgsVariable FSaveVarData( mpd_Variant item )
-{
-	mpd_Type t = item.get_type();
-	if( t == mpdt_Struct || t == mpdt_Pointer )
-	{
-		const virtual_MPD* info = item.get_typeinfo();
-		ASSERT( info );
-		if( !strcmp( info->vname(), "String" ) )
-		{
-			mpd_StringView sv = item.getprop("data").get_stringview();
-			return FIntVar( StringView( sv.str, sv.size ) );
-		}
-		else
-		{
-			sgsVariable out = FNewDict();
-			for( int i = 0; i < info->vpropcount(); ++i )
-			{
-				const mpd_PropInfo* p = info->vprop( i );
-				out.setprop( p->name, FSaveVarData( item.getpropbyid( i ) ) );
-			}
-			return out;
-		}
-	}
-	else if( mpd_TypeIsInteger( t ) )
-	{
-		return sgsVariable().set_int( item.get_int64() );
-	}
-	else if( mpd_TypeIsFloat( t ) )
-	{
-		return sgsVariable().set_real( item.get_float64() );
-	}
-	return sgsVariable();
-}
-
 
 
 //
@@ -732,6 +667,7 @@ struct EdSurface : SGRX_RefCounted
 			g_EdLGCont->DeleteSurface( surface_id );
 	}
 	
+	void EditUI( struct EdBlock* B = NULL );
 	template< class T > void Serialize( T& arch )
 	{
 		arch.marker( "SURFACE" );
@@ -1848,6 +1784,8 @@ struct EdWorldBasicInfo
 		prefabMode = false;
 	}
 	
+	void FLoad( sgsVariable data );
+	sgsVariable FSave();
 	void EditUI();
 	
 	bool prefabMode;
@@ -1877,6 +1815,8 @@ struct EdWorldLightingInfo
 		sampleDensity = 1.0f;
 	}
 	
+	void FLoad( sgsVariable data );
+	sgsVariable FSave();
 	void EditUI();
 	
 	Vec3 ambientColor;
@@ -2205,6 +2145,7 @@ struct EdWorld
 		}
 		return NULL;
 	}
+	void ObjEditUI( size_t oid ){ m_objects[ oid ]->EditUI(); }
 	EDGUIItem* GetVertProps( size_t oid, size_t vid )
 	{
 		EdObject* obj = m_objects[ oid ];
@@ -2268,7 +2209,7 @@ struct EdMultiObjectProps
 	EdMultiObjectProps();
 	void Prepare( bool selsurf = false );
 	void OnSetMtl( StringView name );
-	void OnSetMtl( mpd_StringView sv ){ OnSetMtl( StringView( sv.str, sv.size ) ); }
+	void EditUI();
 	
 	String m_mtl;
 	bool m_selsurf;
@@ -2372,6 +2313,8 @@ struct EdEditMode
 	virtual void OnExit(){}
 	virtual void OnTransformEnd(){}
 	virtual void OnDeleteObject( int oid ){ OnEnter(); }
+	virtual void ViewUI( bool canAcceptInput ){}
+	virtual void EditUI(){}
 	virtual int OnUIEvent( EDGUIEvent* e ){ return 0; }
 	virtual void OnViewEvent( EDGUIEvent* e );
 	virtual void Draw(){}
@@ -2388,16 +2331,16 @@ struct EdDrawBlockEditMode : EdEditMode
 
 	EdDrawBlockEditMode();
 	void OnEnter();
-	int OnUIEvent( EDGUIEvent* e );
-	void OnViewEvent( EDGUIEvent* e );
+	void ViewUI( bool canAcceptInput );
+	void EditUI();
 	void Draw();
 	void _AddNewBlock();
 	
-	ED_BlockDrawMode m_blockDrawMode;
+	int m_blockDrawMode;
 	Array< Vec2 > m_drawnVerts;
-	EDGUIPropFloat m_newBlockPropZ0;
-	EDGUIPropFloat m_newBlockPropZ1;
-	EDGUISurfaceProps m_newSurfProps;
+	float m_newZ0;
+	float m_newZ1;
+	EdSurface m_newSurf;
 };
 
 #define NUM_AABB_ACTIVE_POINTS 26
@@ -2406,8 +2349,8 @@ struct EdEditBlockEditMode : EdEditMode
 	EdEditBlockEditMode();
 	void OnEnter();
 	void OnTransformEnd();
-	int OnUIEvent( EDGUIEvent* e );
-	void OnViewEvent( EDGUIEvent* e );
+	void ViewUI( bool canAcceptInput );
+	void EditUI();
 	void Draw();
 	bool _CanDo( ESpecialAction act );
 	void _Do( ESpecialAction act );
@@ -2419,7 +2362,7 @@ struct EdEditBlockEditMode : EdEditMode
 	int GetClosestActivePoint();
 	static const char* GetActivePointExtName( int i );
 	
-	int m_selMask;
+	unsigned m_selMask;
 	int m_hlObj;
 	int m_curObj;
 	
@@ -2429,7 +2372,6 @@ struct EdEditBlockEditMode : EdEditMode
 	
 	EdBlockMoveTransform m_transform;
 	EdMultiObjectProps m_moprops;
-	int m_keys;
 };
 
 struct EdEditVertexEditMode : EdEditMode
@@ -2517,11 +2459,6 @@ struct EdEditGroupEditMode : EdEditMode
 	void Draw();
 };
 
-struct EdEditLevelEditMode : EdEditMode
-{
-	void OnEnter();
-};
-
 
 //
 // MAIN FRAME
@@ -2563,7 +2500,6 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	void Level_Real_Compile_Prefabs();
 	void SetEditMode( EdEditMode* em );
 	void SetEditTransform( EdEditTransform* et );
-	void SetModeHighlight( EDGUIButton* mybtn );
 	
 	String m_fileName;
 	
@@ -2577,7 +2513,6 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EdPaintSurfsEditMode m_emPaintSurfs;
 	EdAddEntityEditMode m_emAddEntity;
 	EdEditGroupEditMode m_emEditGroup;
-	EdEditLevelEditMode m_emEditLevel;
 	
 	// extra edit data
 	TextureHandle m_txMarker;
@@ -2601,17 +2536,16 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUIButton m_MBSave;
 	EDGUIButton m_MBSaveAs;
 	EDGUIButton m_MBCompile;
-	EDGUILabel m_MB_Cat1;
-	EDGUIButton m_MBDrawBlock;
-	EDGUIButton m_MBEditObjects;
-	EDGUIButton m_MBPaintSurfs;
-	EDGUIButton m_MBAddEntity;
-	EDGUIButton m_MBEditGroups;
-	EDGUIButton m_MBLevelInfo;
-	
-	// extra stuff
-	EDGUIPropertyList m_propList;
-	EDGUIButton m_btnDumpLMInfo;
+};
+
+
+struct MapEditorRenderView : IMGUIRenderView
+{
+	MapEditorRenderView() : IMGUIRenderView( g_EdScene ){}
+	void DebugDraw()
+	{
+		g_UIFrame->DebugDraw();
+	}
 };
 
 

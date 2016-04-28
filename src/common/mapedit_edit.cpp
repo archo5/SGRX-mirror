@@ -2,8 +2,6 @@
 
 #include "mapedit.hpp"
 
-#include "mapedit.mpd.hpp"
-
 
 
 Vec2 ED_GetCursorPos()
@@ -335,48 +333,42 @@ void EdEditMode::OnViewEvent( EDGUIEvent* e )
 
 EdDrawBlockEditMode::EdDrawBlockEditMode() :
 	m_blockDrawMode( BD_Polygon ),
-	m_newBlockPropZ0( 0, 2, -8192, 8192 ),
-	m_newBlockPropZ1( 2, 2, -8192, 8192 )
+	m_newZ0( 0 ),
+	m_newZ1( 2 )
 {
-	m_newBlockPropZ0.caption = "Bottom Z";
-	m_newBlockPropZ1.caption = "Top Z";
 }
 
 void EdDrawBlockEditMode::OnEnter()
 {
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBDrawBlock );
-	g_UIFrame->SetCursorPlaneHeight( m_newBlockPropZ0.m_value );
+	g_UIFrame->SetCursorPlaneHeight( m_newZ0 );
 	m_drawnVerts.clear();
-	g_UIFrame->m_propList.Set( &g_UIFrame->m_snapProps );
-	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
-	g_UIFrame->AddToParamList( &m_newBlockPropZ0 );
-	g_UIFrame->AddToParamList( &m_newBlockPropZ1 );
-	g_UIFrame->AddToParamList( &m_newSurfProps );
 }
 
-int EdDrawBlockEditMode::OnUIEvent( EDGUIEvent* e )
+void EdDrawBlockEditMode::EditUI()
 {
-	switch( e->type )
+	ImGui::Text( "Draw block/path" );
+	ImGui::Separator();
+	ImGui::Text( "Draw mode:" );
+	ImGui::RadioButton( "Polygon", &m_blockDrawMode, BD_Polygon );
+	ImGui::RadioButton( "Box strip", &m_blockDrawMode, BD_BoxStrip );
+	ImGui::RadioButton( "Mesh path", &m_blockDrawMode, BD_MeshPath );
+	ImGui::Separator();
+	g_UIFrame->m_snapProps.EditUI();
+	if( IMGUIEditFloat( "Bottom Z", m_newZ0, -8192, 8192 ) )
+		g_UIFrame->SetCursorPlaneHeight( m_newZ0 );
+	IMGUIEditFloat( "Top Z", m_newZ1, -8192, 8192 );
+	m_newSurf.EditUI();
+}
+
+void EdDrawBlockEditMode::ViewUI( bool canAcceptInput )
+{
+	if( canAcceptInput )
 	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_newBlockPropZ0 )
+		if( ImGui::IsMouseClicked( 0 ) && g_UIFrame->IsCursorAiming() && m_drawnVerts.size() < 14 )
 		{
-			g_UIFrame->SetCursorPlaneHeight( m_newBlockPropZ0.m_value );
+			m_drawnVerts.push_back( g_UIFrame->GetCursorPlanePos() );
 		}
-		break;
-	}
-	return EdEditMode::OnUIEvent( e );
-}
-
-void EdDrawBlockEditMode::OnViewEvent( EDGUIEvent* e )
-{
-	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 && g_UIFrame->IsCursorAiming() && m_drawnVerts.size() < 14 )
-	{
-		m_drawnVerts.push_back( g_UIFrame->GetCursorPlanePos() );
-	}
-	if( e->type == EDGUI_EVENT_KEYUP )
-	{
-		if( e->key.engkey == SDLK_RETURN )
+		if( ImGui::IsKeyReleased( SDLK_RETURN ) )
 		{
 			if( m_blockDrawMode == BD_Polygon )
 			{
@@ -423,38 +415,18 @@ void EdDrawBlockEditMode::OnViewEvent( EDGUIEvent* e )
 				m_drawnVerts.clear();
 			}
 		}
-		if( e->key.engkey == SDLK_ESCAPE )
+		if( ImGui::IsKeyReleased( SDLK_ESCAPE ) )
 		{
 			m_drawnVerts.clear();
 		}
-		if( e->key.engkey == SDLK_BACKSPACE && m_drawnVerts.size() )
+		if( ImGui::IsKeyReleased( SDLK_BACKSPACE ) && m_drawnVerts.size() )
 		{
 			m_drawnVerts.pop_back();
 		}
-		if( e->key.engkey == SDLK_1 ) m_blockDrawMode = BD_Polygon;
-		if( e->key.engkey == SDLK_2 ) m_blockDrawMode = BD_BoxStrip;
-		if( e->key.engkey == SDLK_3 ) m_blockDrawMode = BD_MeshPath;
+		if( ImGui::IsKeyReleased( SDLK_1 ) ) m_blockDrawMode = BD_Polygon;
+		if( ImGui::IsKeyReleased( SDLK_2 ) ) m_blockDrawMode = BD_BoxStrip;
+		if( ImGui::IsKeyReleased( SDLK_3 ) ) m_blockDrawMode = BD_MeshPath;
 	}
-	if( e->type == EDGUI_EVENT_PAINT )
-	{
-		int x0 = g_UIFrame->m_UIRenderView.x0;
-		int y0 = g_UIFrame->m_UIRenderView.y0;
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		
-		br.Reset().Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 16 );
-		
-		GR2D_SetColor( 1, 1 );
-		GR2D_SetTextCursor( x0, y0 );
-		if( m_blockDrawMode == BD_Polygon ){ br.Col( 0.1f, 1, 0 ); GR2D_DrawTextLine( ">>>" ); br.Col( 1 ); }
-		GR2D_DrawTextLine( "Polygon mode [1], " );
-		if( m_blockDrawMode == BD_BoxStrip ){ br.Col( 0.1f, 1, 0 ); GR2D_DrawTextLine( ">>>" ); br.Col( 1 ); }
-		GR2D_DrawTextLine( "AAQuad mode [2], " );
-		if( m_blockDrawMode == BD_MeshPath ){ br.Col( 0.1f, 1, 0 ); GR2D_DrawTextLine( ">>>" ); br.Col( 1 ); }
-		GR2D_DrawTextLine( "Path mode[3]" );
-	}
-	
-	EdEditMode::OnViewEvent( e );
 }
 
 void EdDrawBlockEditMode::Draw()
@@ -517,8 +489,8 @@ void EdDrawBlockEditMode::_AddNewBlock()
 {
 	EdBlock B;
 	B.position = V3(0);
-	B.z0 = m_newBlockPropZ0.m_value;
-	B.z1 = m_newBlockPropZ1.m_value;
+	B.z0 = m_newZ0;
+	B.z1 = m_newZ1;
 	B.poly.resize( m_drawnVerts.size() );
 	for( size_t i = 0; i < m_drawnVerts.size(); ++i )
 		B.poly[ i ] = V3( m_drawnVerts[ i ].x, m_drawnVerts[ i ].y, 0 );
@@ -527,9 +499,7 @@ void EdDrawBlockEditMode::_AddNewBlock()
 	B.GenCenterPos( g_UIFrame->m_snapProps );
 	for( size_t i = 0; i < m_drawnVerts.size() + 2; ++i )
 	{
-		EdSurfHandle S = new EdSurface;
-		m_newSurfProps.BounceBack( *S );
-		B.surfaces.push_back( S );
+		B.surfaces.push_back( new EdSurface( m_newSurf ) );
 	}
 	B.subsel.resize( B.GetNumElements() );
 	B.ClearSelection();
@@ -540,15 +510,13 @@ void EdDrawBlockEditMode::_AddNewBlock()
 EdEditBlockEditMode::EdEditBlockEditMode() :
 	m_selMask( 0xf ),
 	m_hlObj( -1 ),
-	m_curObj( -1 ),
-	m_keys( 0 )
+	m_curObj( -1 )
 {}
 
 void EdEditBlockEditMode::OnEnter()
 {
 	m_numSel = g_EdWorld->GetNumSelectedObjects();
 	m_curObj = g_EdWorld->GetOnlySelectedObject();
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditObjects );
 	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
 	_ReloadBlockProps();
 }
@@ -558,78 +526,48 @@ void EdEditBlockEditMode::OnTransformEnd()
 	_ReloadBlockProps();
 }
 
-static void YesNoText( bool yes )
+void EdEditBlockEditMode::ViewUI( bool canAcceptInput )
 {
-	if( yes )
-	{
-		GR2D_SetColor( 0.1f, 1, 0 );
-		GR2D_DrawTextLine( "YES" );
-	}
-	else
-	{
-		GR2D_SetColor( 1, 0.1f, 0 );
-		GR2D_DrawTextLine( "NO" );
-	}
-}
-
-int EdEditBlockEditMode::OnUIEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-	case EDGUI_EVENT_PROPCHANGE:
-		g_EdWorld->GetSelectedObjectAABB( m_selAABB );
-		break;
-	}
-	return EdEditMode::OnUIEvent( e );
-}
-
-void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
-{
-	if( e->type == EDGUI_EVENT_BTNDOWN && e->mouse.button == 0 ) m_keys |= 1;
-	if( e->type == EDGUI_EVENT_BTNUP && e->mouse.button == 0 ) m_keys &= ~1;
-	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_LALT ) m_keys |= 2;
-	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_LALT ) m_keys &= ~2;
-	if( e->type == EDGUI_EVENT_KEYDOWN && e->key.engkey == SDLK_LSHIFT ) m_keys |= 4;
-	if( e->type == EDGUI_EVENT_KEYUP && e->key.engkey == SDLK_LSHIFT ) m_keys &= ~4;
+	_MouseMove();
 	
-	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 && ( m_keys & 2 ) == 0 )
+	if( canAcceptInput )
 	{
-		g_EdWorld->SelectObject( m_hlObj,
-			( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 ? SELOBJ_TOGGLE : SELOBJ_ONLY );
-		m_numSel = g_EdWorld->GetNumSelectedObjects();
-		m_curObj = g_EdWorld->GetOnlySelectedObject();
-		_ReloadBlockProps();
-	}
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
-	{
-		_MouseMove();
-		if( ( m_keys & 3 ) == 3 )
+		bool lmbdown = ImGui::IsMouseDown( 0 );
+		bool altdown = ImGui::GetIO().KeyAlt;
+		bool shiftdown = ImGui::GetIO().KeyShift;
+		bool ctrldown = ImGui::GetIO().KeyCtrl;
+		
+		if( ImGui::IsMouseReleased( 0 ) && !altdown )
 		{
-			g_EdWorld->SelectObject( m_hlObj, ( m_keys & 4 ) == 0 ? SELOBJ_ENABLE : SELOBJ_DISABLE );
+			g_EdWorld->SelectObject( m_hlObj, ctrldown ? SELOBJ_TOGGLE : SELOBJ_ONLY );
+			m_numSel = g_EdWorld->GetNumSelectedObjects();
+			m_curObj = g_EdWorld->GetOnlySelectedObject();
+			_ReloadBlockProps();
 		}
-	}
-	if( e->type == EDGUI_EVENT_KEYDOWN )
-	{
+		
+		if( lmbdown && altdown )
+		{
+			g_EdWorld->SelectObject( m_hlObj, shiftdown ? SELOBJ_ENABLE : SELOBJ_DISABLE );
+		}
+		
 		m_hlBBEl = GetClosestActivePoint();
 		
 		// SELECT ALL/NONE
-		if( e->key.engkey == SDLK_a && e->key.engmod & KMOD_CTRL )
+		if( ImGui::IsKeyPressed( SDLK_a, false ) && ctrldown )
 		{
-			bool sel = ( e->key.engmod & KMOD_ALT ) == 0;
 			for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
 			{
-				g_EdWorld->m_objects[ i ]->selected = sel;
+				g_EdWorld->m_objects[ i ]->selected = !altdown;
 			}
 		}
 		// GRAB (MOVE)
-		if( e->key.engkey == SDLK_g )
+		if( ImGui::IsKeyPressed( SDLK_g, false ) )
 		{
 			m_transform.m_extend = false;
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
 		// EXTEND
-		if( e->key.engkey == SDLK_e && m_hlBBEl != -1 )
+		if( ImGui::IsKeyPressed( SDLK_e, false ) && m_hlBBEl != -1 )
 		{
 			m_transform.m_extend = true;
 			m_transform.m_xtdAABB[0] = m_selAABB[0];
@@ -638,16 +576,14 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
 		// DELETE
-		if( e->key.engkey == SDLK_DELETE )
+		if( ImGui::IsKeyPressed( SDLK_DELETE, false ) )
 		{
 			g_EdWorld->DeleteSelectedObjects();
 			m_curObj = -1;
-			_MouseMove();
 			_ReloadBlockProps();
-			g_UIFrame->RefreshMouse();
 		}
 		// DUPLICATE
-		if( e->key.engkey == SDLK_d && e->key.engmod & KMOD_CTRL )
+		if( ImGui::IsKeyPressed( SDLK_d, false ) && ctrldown )
 		{
 			if( g_EdWorld->DuplicateSelectedObjectsAndMoveSelection() )
 			{
@@ -659,39 +595,34 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 		}
 		
 		// MOVE BACK
-		if( e->key.engkey == SDLK_UP && e->key.engmod & KMOD_ALT ) _Do( SA_MoveBack );
+		if( ImGui::IsKeyPressed( SDL_SCANCODE_UP, false ) && altdown ) _Do( SA_MoveBack );
 		// MOVE FORWARD
-		if( e->key.engkey == SDLK_DOWN && e->key.engmod & KMOD_ALT ) _Do( SA_MoveFwd );
+		if( ImGui::IsKeyPressed( SDL_SCANCODE_DOWN, false ) && altdown ) _Do( SA_MoveFwd );
 		
 		// SELECTION
-		int sm = m_selMask;
-		if( e->key.engkey == SDLK_1 ) m_selMask ^= SelMask_Blocks;
-		if( e->key.engkey == SDLK_2 ) m_selMask ^= SelMask_Patches;
-		if( e->key.engkey == SDLK_3 ) m_selMask ^= SelMask_Entities;
-		if( e->key.engkey == SDLK_4 ) m_selMask ^= SelMask_MeshPaths;
-		if( sm != m_selMask )
-		{
-			_MouseMove();
-		}
+		if( ImGui::IsKeyPressed( SDLK_1, false ) ) m_selMask ^= SelMask_Blocks;
+		if( ImGui::IsKeyPressed( SDLK_2, false ) ) m_selMask ^= SelMask_Patches;
+		if( ImGui::IsKeyPressed( SDLK_3, false ) ) m_selMask ^= SelMask_Entities;
+		if( ImGui::IsKeyPressed( SDLK_4, false ) ) m_selMask ^= SelMask_MeshPaths;
 		
 		// TO VERTEX MODE
-		if( e->key.engkey == SDLK_v && e->key.engmod & KMOD_ALT )
+		if( ImGui::IsKeyPressed( SDLK_v, false ) && altdown )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
 		}
 		// TO PAINT MODE
-		if( e->key.engkey == SDLK_q && e->key.engmod & KMOD_ALT )
+		if( ImGui::IsKeyPressed( SDLK_q, false ) && altdown )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
 		}
 	}
-	if( e->type == EDGUI_EVENT_PAINT )
+	
+	// PAINT
 	{
-		int x0 = g_UIFrame->m_UIRenderView.x0;
-		int y0 = g_UIFrame->m_UIRenderView.y0;
+		ImVec2 r0 = ImGui::GetWindowPos() + ImVec2( 1, 1 );
+		ImVec2 r1 = r0 + ImGui::GetWindowSize() - ImVec2( 2, 2 );
+		ImDrawList* idl = ImGui::GetWindowDrawList();
 		char bfr[ 1024 ];
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 		
 		for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
 		{
@@ -709,49 +640,79 @@ void EdEditBlockEditMode::OnViewEvent( EDGUIEvent* e )
 			{
 				EdEntity* ent = rootent->m_subEnts[ i ];
 				Vec3 spos = g_EdScene->camera.WorldToScreen( ent->Pos() );
-				int x = TLERP( g_UIFrame->m_UIRenderView.x0, g_UIFrame->m_UIRenderView.x1, spos.x );
-				int y = TLERP( g_UIFrame->m_UIRenderView.y0, g_UIFrame->m_UIRenderView.y1, spos.y );
+				int x = TLERP( r0.x, r1.x, spos.x );
+				int y = TLERP( r0.y, r1.y, spos.y );
 				int which = ent->m_ownerEnt ? ent->m_ownerEnt->m_subEnts.find_first_at( ent ) : -1;
 				
 				sgrx_snprintf( bfr, 32, "%d", which );
-				int textlen = GR2D_GetTextLength( bfr );
-				br.Reset().Col( 0, 0.5f ).Quad( x, y, x + textlen, y + 16 );
-				br.Col( 1 );
-				GR2D_DrawTextLine( x, y, bfr, HALIGN_LEFT, VALIGN_TOP );
+				ImVec2 infoRectSize = ImGui::GetFont()->CalcTextSizeA( 14, FLT_MAX, 0, bfr );
+				idl->AddRectFilled( ImVec2( x, y ), ImVec2( x, y ) + infoRectSize, ImColor(0.f,0.f,0.f,0.5f), 4 );
+				idl->AddText( ImGui::GetFont(), 14, ImVec2( x, y ), ImColor(1,1,1), bfr );
 			}
 		}
 		
-		br.Reset().Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 32 + ( m_numSel && m_hlBBEl != -1 ? 16 : 0 ) );
+		idl->PushClipRectFullScreen();
+		int bgRectHeight = 32 + ( m_numSel && m_hlBBEl != -1 ? 16 : 0 );
+		idl->AddRectFilled( r0, r0 + ImVec2( 610, bgRectHeight ), ImColor( 0.f, 0.f, 0.f, 0.5f ), 8.0f, 0x4 );
 		
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( x0, y0, "Vertex mode [Alt+V], Paint mode [Alt+Q], "
-			"Select all [Ctrl+A], Select none [Ctrl+Alt+A]", HALIGN_LEFT, VALIGN_TOP );
-		GR2D_SetTextCursor( x0, y0 + 16 );
-		GR2D_DrawTextLine( "Selection mask: [Blocks: " );
-		YesNoText( ( m_selMask & SelMask_Blocks ) != 0 );
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( ", Patches: " );
-		YesNoText( ( m_selMask & SelMask_Patches ) != 0 );
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( ", Mesh paths: " );
-		YesNoText( ( m_selMask & SelMask_MeshPaths ) != 0 );
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( ", Entities: " );
-		YesNoText( ( m_selMask & SelMask_Entities ) != 0 );
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( "]" );
+		ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2(0,0) );
+		ImGui::SetCursorScreenPos( r0 + ImVec2( 4, -1 ) );
+		ImGui::Text( "Vertex mode [Alt+V], Paint mode [Alt+Q], Select all [Ctrl+A], Select none [Ctrl+Alt+A]" );
+		ImGui::SetCursorScreenPos( r0 + ImVec2( 4, 16 -1 ) );
+		ImGui::Text( "Selection mask: [Blocks: " );
+		ImGui::SameLine(); IMGUIYesNo( ( m_selMask & SelMask_Blocks ) != 0 );
+		ImGui::SameLine(); ImGui::Text( ", Patches: " );
+		ImGui::SameLine(); IMGUIYesNo( ( m_selMask & SelMask_Patches ) != 0 );
+		ImGui::SameLine(); ImGui::Text( ", Entities: " );
+		ImGui::SameLine(); IMGUIYesNo( ( m_selMask & SelMask_Entities ) != 0 );
+		ImGui::SameLine(); ImGui::Text( ", Mesh paths: " );
+		ImGui::SameLine(); IMGUIYesNo( ( m_selMask & SelMask_MeshPaths ) != 0 );
+		ImGui::SameLine(); ImGui::Text( "]" );
 		
 		if( m_numSel )
 		{
+			ImGui::SetCursorScreenPos( r0 + ImVec2( 4, 32 -1 ) );
 			sgrx_snprintf( bfr, 1024, "Press E to extend selection along %s%s%s",
 				GetActivePointExtName( m_hlBBEl ),
 				_CanDo( SA_MoveBack ) ? ", Move back [Alt+Up]" : "",
 				_CanDo( SA_MoveFwd ) ? ", Move forward [Alt+Down]" : "" );
-			GR2D_DrawTextLine( x0, y0 + 32, bfr, HALIGN_LEFT, VALIGN_TOP );
+			ImGui::Text( bfr );
 		}
+		ImGui::PopStyleVar();
+		
+		idl->PopClipRect();
+	}
+}
+
+void EdEditBlockEditMode::EditUI()
+{
+	ImGui::Text( "Edit objects" );
+	ImGui::Separator();
+	ImGui::Text( "Selection mask:" );
+	ImGui::Columns( 2 );
+	ImGui::CheckboxFlags( "Blocks", &m_selMask, SelMask_Blocks ); ImGui::NextColumn();
+	ImGui::CheckboxFlags( "Patches", &m_selMask, SelMask_Patches ); ImGui::NextColumn();
+	ImGui::CheckboxFlags( "Entities", &m_selMask, SelMask_Entities ); ImGui::NextColumn();
+	ImGui::CheckboxFlags( "Mesh paths", &m_selMask, SelMask_MeshPaths );
+	ImGui::Columns( 1 );
+	ImGui::Separator();
+	g_UIFrame->m_snapProps.EditUI();
+	ImGui::Separator();
+	
+	m_moprops.EditUI();
+	ImGui::Separator();
+	
+	ImGui::BeginChangeCheck();
+	
+	if( m_curObj >= 0 )
+	{
+		g_EdWorld->ObjEditUI( m_curObj );
 	}
 	
-	EdEditMode::OnViewEvent( e );
+	if( ImGui::EndChangeCheck() )
+	{
+		g_EdWorld->GetSelectedObjectAABB( m_selAABB );
+	}
 }
 
 void EdEditBlockEditMode::Draw()
@@ -833,16 +794,7 @@ void EdEditBlockEditMode::_ReloadBlockProps()
 {
 	g_EdWorld->GetSelectedObjectAABB( m_selAABB );
 	m_hlBBEl = GetClosestActivePoint();
-	
-	g_UIFrame->ClearParamList();
-	g_UIFrame->m_propList.Set( &g_UIFrame->m_snapProps );
 	m_moprops.Prepare( false );
-	g_UIFrame->m_propList.Add( &m_moprops );
-	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
-	if( m_curObj >= 0 )
-	{
-		g_UIFrame->AddToParamList( g_EdWorld->GetObjProps( m_curObj ) );
-	}
 }
 
 Vec3 EdEditBlockEditMode::GetActivePointFactor( int i )
@@ -1227,6 +1179,7 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 	
 	m_canExtendSurfs = numsurfexblocks && numsurfselblocks;
 	
+#if 0
 	g_UIFrame->ClearParamList();
 	g_UIFrame->m_propList.Set( &g_UIFrame->m_snapProps );
 	m_moprops.Prepare( true );
@@ -1236,6 +1189,7 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 		g_UIFrame->AddToParamList( g_EdWorld->GetSurfProps( surfprops.block, surfprops.point ) );
 	if( vertprops.block != -1 )
 		g_UIFrame->AddToParamList( g_EdWorld->GetVertProps( vertprops.block, vertprops.point ) );
+#endif
 }
 
 int EdEditVertexEditMode::GetNumObjectActivePoints( int b )
@@ -1478,7 +1432,6 @@ EdPaintSurfsEditMode::EdPaintSurfsEditMode() :
 
 void EdPaintSurfsEditMode::OnEnter()
 {
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBPaintSurfs );
 	m_paintBlock = -1;
 	m_paintSurf = -1;
 	m_isPainting = false;
@@ -1538,7 +1491,6 @@ EdAddEntityEditMode::EdAddEntityEditMode()
 
 void EdAddEntityEditMode::OnEnter()
 {
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBAddEntity );
 	g_UIFrame->SetCursorPlaneHeight( m_entityProps->Pos().z );
 	g_UIFrame->AddToParamList( &m_entGroup );
 	g_UIFrame->AddToParamList( m_entityProps );
@@ -1604,7 +1556,6 @@ void EdAddEntityEditMode::_AddNewEntity()
 
 void EdEditGroupEditMode::OnEnter()
 {
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBEditGroups );
 	g_EdWorld->m_groupMgr.PrepareCurrentEditGroup();
 	g_UIFrame->AddToParamList( &g_EdWorld->m_groupMgr );
 }
@@ -1612,16 +1563,6 @@ void EdEditGroupEditMode::OnEnter()
 void EdEditGroupEditMode::Draw()
 {
 	g_EdWorld->m_groupMgr.DrawGroups();
-}
-
-void EdEditLevelEditMode::OnEnter()
-{
-	g_UIFrame->SetModeHighlight( &g_UIFrame->m_MBLevelInfo );
-	g_UIFrame->m_propList.Clear();
-	g_UIFrame->m_propList.Add( &g_EdWorld->m_info );
-	g_UIFrame->m_propList.Add( &g_EdWorld->m_lighting );
-	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
-	g_UIFrame->AddToParamList( &g_UIFrame->m_btnDumpLMInfo );
 }
 
 

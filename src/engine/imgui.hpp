@@ -19,7 +19,7 @@ ENGINE_EXPORT void SGRX_IMGUI_Init();
 ENGINE_EXPORT void SGRX_IMGUI_Free();
 ENGINE_EXPORT void SGRX_IMGUI_ClearEvents();
 ENGINE_EXPORT void SGRX_IMGUI_Event( const Event& e );
-ENGINE_EXPORT void SGRX_IMGUI_NewFrame();
+ENGINE_EXPORT void SGRX_IMGUI_NewFrame( float dt );
 ENGINE_EXPORT void SGRX_IMGUI_Render();
 
 
@@ -65,6 +65,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIRenderView : SGRX_RefCounted, SGRX_DebugDraw
 	float hangle;
 	float vangle;
 	
+	bool mouseOn;
 	Vec3 crpos, crdir;
 	bool cursor_aim;
 	Vec2 cursor_hpos;

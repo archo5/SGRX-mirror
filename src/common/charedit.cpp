@@ -1541,7 +1541,7 @@ struct CSEditor : IGame
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
-		SGRX_IMGUI_NewFrame();
+		SGRX_IMGUI_NewFrame( dt );
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		g_AnimChar->RecalcLayerState();
