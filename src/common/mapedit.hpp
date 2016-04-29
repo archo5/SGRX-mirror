@@ -62,6 +62,7 @@ MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUILevelPicker );
 MAPEDIT_GLOBAL( IMGUIMeshPicker* g_NUIMeshPicker );
 MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUIPartSysPicker );
 MAPEDIT_GLOBAL( IMGUITexturePicker* g_NUITexturePicker );
+MAPEDIT_GLOBAL( struct IMGUISurfMtlPicker* g_NUISurfMtlPicker );
 
 
 
@@ -189,6 +190,126 @@ struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
 		mih->constants[ 15 ] *= V4( V3( 0.5f ), 1 );
 		mih->Precache();
 		m_meshInsts.push_back( mih );
+	}
+	
+	MeshHandle m_mesh;
+	MapMaterialMap m_materials;
+};
+
+struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
+{
+	IMGUISurfMtlPicker()
+	{
+		m_mesh = GR_CreateMesh();
+		
+		float size = 1;
+		SMPVertex verts[4] =
+		{
+			{ { -size, 0, -size }, {0,0,1}, {1,0,0,1}, { 0, 1 } },
+			{ { +size, 0, -size }, {0,0,1}, {1,0,0,1}, { 1, 1 } },
+			{ { +size, 0, +size }, {0,0,1}, {1,0,0,1}, { 1, 0 } },
+			{ { -size, 0, +size }, {0,0,1}, {1,0,0,1}, { 0, 0 } },
+		};
+		uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
+		SGRX_MeshPart part = { 0, 4, 0, 6 };
+		VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf3tf40f2" );
+		m_mesh->SetVertexData( verts, sizeof(verts), vdh );
+		m_mesh->SetIndexData( idcs, sizeof(idcs), false );
+		m_mesh->SetAABBFromVertexData( verts, sizeof(verts), vdh );
+		m_mesh->SetPartData( &part, 1 );
+		
+		m_scene->camera.direction = V3(0.05f,1,-0.05f).Normalized();
+		m_scene->camera.position = -m_scene->camera.direction * 2.0f;
+		m_scene->camera.znear = 0.1f;
+		m_scene->camera.angle = 60;
+		m_scene->camera.UpdateMatrices();
+		m_customCamera = true;
+		
+		Reload();
+	}
+	void Reload()
+	{
+		LOG << "Reloading surface materials";
+		Clear();
+	//	Entry e = { "", NULL };
+	//	m_entries.push_back( e );
+		
+		// parse material list
+		m_materials.clear();
+		String material_data;
+		if( FS_LoadTextFile( "editor/materials.txt", material_data ) )
+		{
+			MapMaterial mmdummy;
+			MapMaterial* mmtl = &mmdummy;
+			ConfigReader cfgread( material_data );
+			StringView key, value;
+			while( cfgread.Read( key, value ) )
+			{
+				if( key == "material" )
+				{
+					mmtl = new MapMaterial;
+					mmtl->name = value;
+					mmtl->texcount = 0;
+					mmtl->blendmode = SGRX_MtlBlend_None;
+					mmtl->flags = 0;
+					m_materials.set( mmtl->name, mmtl );
+					LOG << "[SMtl]: " << value;
+				}
+				else if( key == "shader" ) mmtl->shader = value;
+				else if( key == "blendmode" )
+				{
+					if( value == "basic" ) mmtl->blendmode = SGRX_MtlBlend_Basic;
+					else if( value == "additive" ) mmtl->blendmode = SGRX_MtlBlend_Additive;
+					else if( value == "multiply" ) mmtl->blendmode = SGRX_MtlBlend_Multiply;
+					else mmtl->blendmode = SGRX_MtlBlend_None;
+				}
+				else if( key == "unlit" ) mmtl->flags |= SGRX_MtlFlag_Unlit;
+				else if( key == "nocull" ) mmtl->flags |= SGRX_MtlFlag_Nocull;
+				else if( key == "0" ){ mmtl->texture[0] = value; mmtl->texcount = TMAX( mmtl->texcount, 0+1 ); }
+				else if( key == "1" ){ mmtl->texture[1] = value; mmtl->texcount = TMAX( mmtl->texcount, 1+1 ); }
+				else if( key == "2" ){ mmtl->texture[2] = value; mmtl->texcount = TMAX( mmtl->texcount, 2+1 ); }
+				else if( key == "3" ){ mmtl->texture[3] = value; mmtl->texcount = TMAX( mmtl->texcount, 3+1 ); }
+				else if( key == "4" ){ mmtl->texture[4] = value; mmtl->texcount = TMAX( mmtl->texcount, 4+1 ); }
+				else if( key == "5" ){ mmtl->texture[5] = value; mmtl->texcount = TMAX( mmtl->texcount, 5+1 ); }
+				else if( key == "6" ){ mmtl->texture[6] = value; mmtl->texcount = TMAX( mmtl->texcount, 6+1 ); }
+				else if( key == "7" ){ mmtl->texture[7] = value; mmtl->texcount = TMAX( mmtl->texcount, 7+1 ); }
+			}
+			LOG << "Loading completed";
+		}
+		else
+		{
+			LOG_ERROR << "FAILED to open editor/materials.txt";
+		}
+		
+		// load materials
+		for( size_t i = 0; i < m_materials.size(); ++i )
+		{
+			AddMtl( m_materials.item( i ).key, m_materials.item( i ).value );
+		}
+		
+		_Search( m_searchString );
+	}
+	void AddMtl( StringView name, MapMaterial* MM )
+	{
+		MeshInstHandle mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( m_mesh );
+		mih->enabled = false;
+		SGRX_Material mtl;
+		mtl.shader = MM->shader;
+		mtl.blendMode = MM->blendmode;
+		mtl.flags = MM->flags;
+		for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
+		{
+			if( MM->texture[ i ].size() )
+				mtl.textures[ i ] = GR_GetTexture( MM->texture[ i ] );
+		}
+		mih->materials.assign( &mtl, 1 );
+		lmm_prepmeshinst( mih );
+		mih->constants[ 14 ] *= V4( V3( 1.5f ), 1 );
+		mih->constants[ 15 ] *= V4( V3( 0.5f ), 1 );
+		mih->Precache();
+		Entry e = { name, mih };
+		m_entries.push_back( e );
 	}
 	
 	MeshHandle m_mesh;
@@ -666,8 +787,22 @@ struct EdSurface : SGRX_RefCounted
 		if( surface_id )
 			g_EdLGCont->DeleteSurface( surface_id );
 	}
+	EdSurface& operator = ( const EdSurface& o )
+	{
+		texname = o.texname;
+		texgenmode = o.texgenmode;
+		xoff = o.xoff;
+		yoff = o.yoff;
+		scale = o.scale;
+		aspect = o.aspect;
+		angle = o.angle;
+		lmquality = o.lmquality;
+		xfit = o.xfit;
+		yfit = o.yfit;
+		return *this;
+	}
 	
-	void EditUI( struct EdBlock* B = NULL );
+	bool EditUI( struct EdBlock* B = NULL, int sid = -1 );
 	template< class T > void Serialize( T& arch )
 	{
 		arch.marker( "SURFACE" );
@@ -844,6 +979,42 @@ struct EdBlock : EdObject
 		out.setprop( "surfaces", out_surfaces );
 		return out;
 	}
+	void EditUI()
+	{
+		ImGui::BeginChangeCheck();
+		
+		IMGUIEditVec3( "Position", position, -8192, 8192 );
+		
+		Vec2 zz = V2( z0, z1 );
+		IMGUIEditVec2( "Bottom/Top Z", zz, -8192, 8192 );
+		z0 = zz.x; z1 = zz.y;
+		
+		IMGUI_GROUP( "Vertices", false,
+		{
+			char bfr[ 32 ];
+			for( size_t i = 0; i < poly.size(); ++i )
+			{
+				sgrx_snprintf( bfr, 32, "#%d", (int) i );
+				IMGUIEditVec3( bfr, poly[ i ], -8192, 8192 );
+			}
+		});
+		
+		bool del = false;
+		IMGUI_GROUP( "Surfaces", false,
+		{
+			for( size_t i = 0; i < surfaces.size(); ++i )
+			{
+				ImGui::PushID( i );
+				del = surfaces[ i ]->EditUI( this, i );
+				ImGui::PopID();
+				if( del )
+					break;
+			}
+		});
+		
+		if( ImGui::EndChangeCheck() && !del )
+			RegenerateMesh();
+	}
 	
 	virtual int GetNumVerts() const { return poly.size() * 2; }
 	virtual Vec3 GetLocalVertex( int i ) const;
@@ -924,48 +1095,6 @@ struct EDGUIVertexProps : EDGUILayoutRow
 	EDGUIPropVec3 m_pos;
 	EDGUIButton m_insbef;
 	EDGUIButton m_insaft;
-};
-
-
-struct EDGUISurfaceProps : EDGUILayoutRow
-{
-	EDGUISurfaceProps();
-	void Prepare( EdBlock* block, int sid );
-	void LoadParams( EdSurface& S, const char* name = "Surface" );
-	void BounceBack( EdSurface& S );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdBlock* m_out;
-	int m_sid;
-	EDGUIGroup m_group;
-	EDGUIPropRsrc m_tex;
-	EDGUIPropVec2 m_off;
-	EDGUIPropVec2 m_scaleasp;
-	EDGUIPropFloat m_angle;
-	EDGUIPropFloat m_lmquality;
-	EDGUIPropInt m_xfit;
-	EDGUIPropInt m_yfit;
-	EDGUIButton m_resetOffScaleAsp;
-	EDGUIButton m_applyFit;
-	EDGUIButton m_makeBlendPatch;
-	EDGUIButton m_convertToPatch;
-};
-
-struct EDGUIBlockProps : EDGUILayoutRow
-{
-	EDGUIBlockProps();
-	void Prepare( EdBlock* block );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdBlock* m_out;
-	EDGUIGroup m_group;
-	EDGUIGroup m_vertGroup;
-	EDGUIPropFloat m_z0;
-	EDGUIPropFloat m_z1;
-	EDGUIPropVec3 m_pos;
-	EDGUIPropRsrc m_blkGroup;
-	Array< EDGUIPropVec3 > m_vertProps;
-	Array< EDGUISurfaceProps > m_surfProps;
 };
 
 
@@ -1091,7 +1220,8 @@ struct EdPatchLayerInfo
 
 struct EdPatch : EdObject
 {
-	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0), blend(0), lmquality(1)
+	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0),
+		blend(0), m_isLMSolid(false), m_isPhySolid(false), lmquality(1)
 	{
 		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
 		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
@@ -2124,11 +2254,6 @@ struct EdWorld
 	EDGUIItem* GetObjProps( size_t oid )
 	{
 		EdObject* obj = m_objects[ oid ];
-		if( obj->m_type == ObjType_Block )
-		{
-			m_ctlBlockProps.Prepare( (EdBlock*) obj );
-			return &m_ctlBlockProps;
-		}
 		if( obj->m_type == ObjType_Entity )
 		{
 			return (EdEntity*) obj;
@@ -2146,6 +2271,17 @@ struct EdWorld
 		return NULL;
 	}
 	void ObjEditUI( size_t oid ){ m_objects[ oid ]->EditUI(); }
+	void VertEditUI( size_t oid, size_t vid )
+	{
+	}
+	void SurfEditUI( size_t oid, size_t sid )
+	{
+		EdObject* obj = m_objects[ oid ];
+		if( obj->m_type == ObjType_Block )
+		{
+			((EdBlock*)obj)->surfaces[ sid ]->EditUI( (EdBlock*) obj, sid );
+		}
+	}
 	EDGUIItem* GetVertProps( size_t oid, size_t vid )
 	{
 		EdObject* obj = m_objects[ oid ];
@@ -2166,16 +2302,6 @@ struct EdWorld
 		}
 		return NULL;
 	}
-	EDGUIItem* GetSurfProps( size_t oid, size_t sid )
-	{
-		EdObject* obj = m_objects[ oid ];
-		if( obj->m_type == ObjType_Block )
-		{
-			m_ctlSurfProps.Prepare( (EdBlock*) obj, sid );
-			return &m_ctlSurfProps;
-		}
-		return NULL;
-	}
 	
 	void SetEntityID( EdEntity* e );
 	
@@ -2193,9 +2319,7 @@ struct EdWorld
 	EdWorldLightingInfo m_lighting;
 	void EditUI();
 	
-	EDGUIBlockProps m_ctlBlockProps;
 	EDGUIVertexProps m_ctlVertProps;
-	EDGUISurfaceProps m_ctlSurfProps;
 	EDGUIPatchProps m_ctlPatchProps;
 	EDGUIPatchVertProps m_ctlPatchVertProps;
 	EDGUIMeshPathProps m_ctlMeshPathProps;
@@ -2386,8 +2510,8 @@ struct EdEditVertexEditMode : EdEditMode
 	bool _CanDo( ESpecialAction act );
 	void _Do( ESpecialAction act );
 	void OnViewEvent( EDGUIEvent* e );
+	void EditUI();
 	void Draw();
-	void _ReloadVertSurfProps();
 	
 	int GetNumObjectActivePoints( int b );
 	Vec3 GetActivePoint( int b, int i );
@@ -2430,13 +2554,14 @@ struct EdPaintSurfsEditMode : EdEditMode
 {
 	EdPaintSurfsEditMode();
 	void OnEnter();
-	void OnViewEvent( EDGUIEvent* e );
+	void ViewUI( bool canAcceptInput );
+	void EditUI();
 	void Draw();
 	
 	int m_paintBlock;
 	int m_paintSurf;
 	bool m_isPainting;
-	EDGUISurfaceProps m_paintSurfProps;
+	EdSurface m_paintSurfTemplate;
 };
 
 struct EdAddEntityEditMode : EdEditMode

@@ -1503,7 +1503,7 @@ void EdMultiObjectProps::EditUI()
 {
 	IMGUI_GROUP( "Multiple objects", true,
 	{
-		if( IMGUIEditString( "Material", m_mtl, 256 ) )
+		if( g_NUISurfMtlPicker->Property( "Pick surface material", "Material", m_mtl ) )
 			OnSetMtl( m_mtl );
 	});
 }
@@ -2084,12 +2084,14 @@ bool MapEditor::OnInitialize()
 	g_NUIMeshPicker = new IMGUIMeshPicker();
 	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
 	g_NUITexturePicker = new IMGUITexturePicker();
+	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
 	
 	return true;
 }
 
 void MapEditor::OnDestroy()
 {
+	delete g_NUISurfMtlPicker;
 	delete g_NUITexturePicker;
 	delete g_NUIPartSysPicker;
 	delete g_NUIMeshPicker;
@@ -2234,51 +2236,29 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			ImGui::SameLine( 0, 50 );
 			ImGui::Text( "Edit mode:" );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Draw block/path", &g_mode, DrawBlock );
+			if( ImGui::RadioButton( "Draw block/path", &g_mode, DrawBlock ) )
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emDrawBlock );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Edit objects", &g_mode, EditObjects );
+			if( ImGui::RadioButton( "Edit objects", &g_mode, EditObjects ) )
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Paint surfaces", &g_mode, PaintSurfs );
+			if( ImGui::RadioButton( "Paint surfaces", &g_mode, PaintSurfs ) )
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintSurfs );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Add entity", &g_mode, AddEntity );
+			if( ImGui::RadioButton( "Add entity", &g_mode, AddEntity ) )
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emAddEntity );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Edit groups", &g_mode, EditGroups );
+			if( ImGui::RadioButton( "Edit groups", &g_mode, EditGroups ) )
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditGroup );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Level info", &g_mode, LevelInfo );
+			if( ImGui::RadioButton( "Level info", &g_mode, LevelInfo ) )
+				g_UIFrame->SetEditMode( NULL );
 			ImGui::SameLine();
-			ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
+			if( ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps ) )
+				g_UIFrame->SetEditMode( NULL );
 			
 			ImGui::SameLine( 0, 50 );
 			ImGui::Text( "Level file: %s", g_fileName.size() ? StackPath(g_fileName).str : "<none>" );
-			
-			if( g_mode == DrawBlock )
-			{
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emDrawBlock );
-			}
-			else if( g_mode == EditObjects )
-			{
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
-			}
-			else if( g_mode == PaintSurfs )
-			{
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintSurfs );
-			}
-			else if( g_mode == AddEntity )
-			{
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emAddEntity );
-			}
-			else if( g_mode == EditGroups )
-			{
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditGroup );
-			}
-			else if( g_mode == LevelInfo )
-			{
-				g_UIFrame->SetEditMode( NULL );
-			}
-			else if( g_mode == MiscProps )
-			{
-				g_UIFrame->SetEditMode( NULL );
-			}
 			
 			ImGui::EndMenuBar();
 		}

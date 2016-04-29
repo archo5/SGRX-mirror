@@ -1918,7 +1918,7 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 	StringView cat = texid.until( "/" );
 	StringView name = texid.after( "/" );
 	RCString catpath = AS->categories.getcopy( cat );
-	if( catpath == NULL )
+	if( catpath == "" )
 		return "";
 	
 	const SGRX_TextureAsset* TA = NULL;

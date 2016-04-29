@@ -2096,6 +2096,7 @@ struct RCString : RCString_Handle
 {
 	FINLINE RCString(){}
 	FINLINE RCString( const RCString& o ) : RCString_Handle( o ){}
+	FINLINE RCString( const char* s ) : RCString_Handle( new RCString_Data( s ) ){}
 	FINLINE RCString( const StringView& sv ) : RCString_Handle( new RCString_Data( sv ) ){}
 	FINLINE RCString( const String& s ) : RCString_Handle( new RCString_Data( s ) ){}
 	FINLINE operator StringView () const { return item ? item->sv() : StringView(); }
@@ -2105,8 +2106,8 @@ struct RCString : RCString_Handle
 	FINLINE size_t size() const { return item ? item->m_size : 0; }
 	FINLINE StringView view() const { return item ? item->sv() : StringView(); }
 	
-	FINLINE bool operator == ( const RCString& o ) const { return view() == o.view(); }
-	FINLINE bool operator != ( const RCString& o ) const { return view() != o.view(); }
+	FINLINE bool operator == ( const StringView& o ) const { return view() == o; }
+	FINLINE bool operator != ( const StringView& o ) const { return view() != o; }
 };
 
 

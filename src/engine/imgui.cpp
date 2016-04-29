@@ -192,7 +192,7 @@ bool IMGUIEditBool( const char* label, bool& v )
 
 bool IMGUIEditInt_( const char* label, int& v, int vmin, int vmax )
 {
-	return ImGui::DragInt( label, &v, 1, vmin, vmax );
+	return ImGui::DragInt( label, &v, 0.2f, vmin, vmax );
 }
 
 bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec )
@@ -342,16 +342,14 @@ IMGUIRenderView::IMGUIRenderView( SGRX_Scene* scene ) :
 
 bool IMGUIRenderView::CanAcceptKeyboardInput()
 {
-	bool caki = !( ImGui::IsKeyDown( SDL_SCANCODE_LCTRL )
-		|| ImGui::IsKeyDown( SDL_SCANCODE_RCTRL )
-		|| ImGui::IsKeyDown( SDL_SCANCODE_LALT )
-		|| ImGui::IsKeyDown( SDL_SCANCODE_RALT ) )
-		&& ImGui::IsWindowFocused();
-	return caki;
+	ImGuiIO& io = ImGui::GetIO();
+	return !( io.KeyCtrl || io.KeyAlt ) && ImGui::IsWindowFocused();
 }
 
 void IMGUIRenderView::Process( float deltaTime )
 {
+	if( ImGui::IsMouseDown( 1 ) )
+		ImGui::SetWindowFocus();
 	bool caki = CanAcceptKeyboardInput();
 	bool movefwd = caki && ImGui::IsKeyDown( SDLK_w );
 	bool movebwd = caki && ImGui::IsKeyDown( SDLK_s );

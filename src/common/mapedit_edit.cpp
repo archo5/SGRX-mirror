@@ -530,13 +530,13 @@ void EdEditBlockEditMode::ViewUI( bool canAcceptInput )
 {
 	_MouseMove();
 	
+	bool lmbdown = ImGui::IsMouseDown( 0 );
+	bool altdown = ImGui::GetIO().KeyAlt;
+	bool shiftdown = ImGui::GetIO().KeyShift;
+	bool ctrldown = ImGui::GetIO().KeyCtrl;
+	
 	if( canAcceptInput )
 	{
-		bool lmbdown = ImGui::IsMouseDown( 0 );
-		bool altdown = ImGui::GetIO().KeyAlt;
-		bool shiftdown = ImGui::GetIO().KeyShift;
-		bool ctrldown = ImGui::GetIO().KeyCtrl;
-		
 		if( ImGui::IsMouseReleased( 0 ) && !altdown )
 		{
 			g_EdWorld->SelectObject( m_hlObj, ctrldown ? SELOBJ_TOGGLE : SELOBJ_ONLY );
@@ -604,17 +604,17 @@ void EdEditBlockEditMode::ViewUI( bool canAcceptInput )
 		if( ImGui::IsKeyPressed( SDLK_2, false ) ) m_selMask ^= SelMask_Patches;
 		if( ImGui::IsKeyPressed( SDLK_3, false ) ) m_selMask ^= SelMask_Entities;
 		if( ImGui::IsKeyPressed( SDLK_4, false ) ) m_selMask ^= SelMask_MeshPaths;
-		
-		// TO VERTEX MODE
-		if( ImGui::IsKeyPressed( SDLK_v, false ) && altdown )
-		{
-			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
-		}
-		// TO PAINT MODE
-		if( ImGui::IsKeyPressed( SDLK_q, false ) && altdown )
-		{
-			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
-		}
+	}
+	
+	// TO VERTEX MODE
+	if( ImGui::IsKeyPressed( SDLK_v, false ) && altdown )
+	{
+		g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
+	}
+	// TO PAINT MODE
+	if( ImGui::IsKeyPressed( SDLK_q, false ) && altdown )
+	{
+		g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
 	}
 	
 	// PAINT
@@ -913,8 +913,6 @@ void EdEditVertexEditMode::OnEnter()
 			continue;
 		m_selObjList.push_back( i );
 	}
-	
-	_ReloadVertSurfProps();
 }
 
 bool EdEditVertexEditMode::_CanDo( ESpecialAction act )
@@ -978,8 +976,6 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 			else if( ( g_UIFrame->m_keyMod & KMOD_CTRL ) == 0 )
 				obj->ClearSelection();
 		}
-		
-		_ReloadVertSurfProps();
 	}
 	if( e->type == EDGUI_EVENT_MOUSEMOVE )
 	{
@@ -1098,43 +1094,9 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 	EdEditMode::OnViewEvent( e );
 }
 
-void EdEditVertexEditMode::Draw()
+void EdEditVertexEditMode::EditUI()
 {
-	g_EdWorld->DrawWires_Objects( m_hlAP.block != -1 ? (EdObject*) g_EdWorld->m_objects[ m_hlAP.block ] : NULL );
-	
-	if( g_UIFrame->m_editTF == NULL )
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		for( size_t b = 0; b < m_selObjList.size(); ++b )
-		{
-			int oid = m_selObjList[ b ];
-			int bpcount = GetNumObjectActivePoints( oid );
-			for( int i = 0; i < bpcount; ++i )
-			{
-				if( g_EdWorld->m_objects[ oid ]->IsElementSelected( i ) )
-				{
-					if( oid == m_hlAP.block && i == m_hlAP.point )
-						br.Col( 0.9f, 0.8f, 0.1f, 1 );
-					else
-						br.Col( 0.9f, 0.5f, 0.1f, 1 );
-				}
-				else
-				{
-					if( oid == m_hlAP.block && i == m_hlAP.point )
-						br.Col( 0.1f, 0.8f, 0.9f, 1 );
-					else
-						br.Col( 0.1f, 0.2f, 0.4f, 1 );
-				}
-				
-				Vec3 pp = GetActivePoint( oid, i );
-				br.Sprite( pp, 0.02f, 0.02f );
-			}
-		}
-	}
-}
-
-void EdEditVertexEditMode::_ReloadVertSurfProps()
-{
+	// determine if anything can be shown
 	int numsurfselblocks = 0;
 	int numsurfexblocks = 0;
 	ActivePoint surfprops = { -1, -1 };
@@ -1179,17 +1141,58 @@ void EdEditVertexEditMode::_ReloadVertSurfProps()
 	
 	m_canExtendSurfs = numsurfexblocks && numsurfselblocks;
 	
-#if 0
-	g_UIFrame->ClearParamList();
-	g_UIFrame->m_propList.Set( &g_UIFrame->m_snapProps );
+	ImGui::Text( "Edit vertices/surfaces" );
+	ImGui::Separator();
+	g_UIFrame->m_snapProps.EditUI();
 	m_moprops.Prepare( true );
-	g_UIFrame->m_propList.Add( &m_moprops );
-	g_UIFrame->AddToParamList( &g_UIFrame->m_propList );
+	m_moprops.EditUI();
+	
 	if( surfprops.block != -1 )
-		g_UIFrame->AddToParamList( g_EdWorld->GetSurfProps( surfprops.block, surfprops.point ) );
+	{
+		ImGui::Separator();
+		g_EdWorld->SurfEditUI( surfprops.block, surfprops.point );
+	}
+	
 	if( vertprops.block != -1 )
-		g_UIFrame->AddToParamList( g_EdWorld->GetVertProps( vertprops.block, vertprops.point ) );
-#endif
+	{
+		ImGui::Separator();
+		g_EdWorld->VertEditUI( vertprops.block, vertprops.point );
+	}
+}
+
+void EdEditVertexEditMode::Draw()
+{
+	g_EdWorld->DrawWires_Objects( m_hlAP.block != -1 ? (EdObject*) g_EdWorld->m_objects[ m_hlAP.block ] : NULL );
+	
+	if( g_UIFrame->m_editTF == NULL )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		for( size_t b = 0; b < m_selObjList.size(); ++b )
+		{
+			int oid = m_selObjList[ b ];
+			int bpcount = GetNumObjectActivePoints( oid );
+			for( int i = 0; i < bpcount; ++i )
+			{
+				if( g_EdWorld->m_objects[ oid ]->IsElementSelected( i ) )
+				{
+					if( oid == m_hlAP.block && i == m_hlAP.point )
+						br.Col( 0.9f, 0.8f, 0.1f, 1 );
+					else
+						br.Col( 0.9f, 0.5f, 0.1f, 1 );
+				}
+				else
+				{
+					if( oid == m_hlAP.block && i == m_hlAP.point )
+						br.Col( 0.1f, 0.8f, 0.9f, 1 );
+					else
+						br.Col( 0.1f, 0.2f, 0.4f, 1 );
+				}
+				
+				Vec3 pp = GetActivePoint( oid, i );
+				br.Sprite( pp, 0.02f, 0.02f );
+			}
+		}
+	}
 }
 
 int EdEditVertexEditMode::GetNumObjectActivePoints( int b )
@@ -1428,6 +1431,7 @@ EdPaintSurfsEditMode::EdPaintSurfsEditMode() :
 	m_paintSurf( -1 ),
 	m_isPainting( false )
 {
+	m_paintSurfTemplate.texname = "null";
 }
 
 void EdPaintSurfsEditMode::OnEnter()
@@ -1435,23 +1439,21 @@ void EdPaintSurfsEditMode::OnEnter()
 	m_paintBlock = -1;
 	m_paintSurf = -1;
 	m_isPainting = false;
-	g_UIFrame->AddToParamList( &m_paintSurfProps );
 }
 
-void EdPaintSurfsEditMode::OnViewEvent( EDGUIEvent* e )
+void EdPaintSurfsEditMode::ViewUI( bool canAcceptInput )
 {
-	Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
-	Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
-	
-	bool dopaint = false;
-	if( e->type == EDGUI_EVENT_BTNDOWN && e->mouse.button == 0 )
+	if( ImGui::IsWindowHovered() )
 	{
-		m_isPainting = true;
-		dopaint = true;
-	}
-	if( e->type == EDGUI_EVENT_BTNUP && e->mouse.button == 0 ) m_isPainting = false;
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
-	{
+		Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
+		Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
+		
+		m_isPainting = ImGui::IsMouseDown( 0 );
+		ImVec2 dd = ImGui::GetMouseDragDelta( 0, 0 );
+		bool dopaint = dd.x != 0 || dd.y != 0 || ImGui::IsMouseClicked( 0 );
+		if( dopaint )
+			ImGui::ResetMouseDragDelta( 0 );
+		
 		float outdst[1];
 		int outblock[1];
 		m_paintBlock = -1;
@@ -1460,20 +1462,22 @@ void EdPaintSurfsEditMode::OnViewEvent( EDGUIEvent* e )
 		m_paintSurf = -1;
 		if( m_paintBlock >= 0 && g_EdWorld->m_blocks[ m_paintBlock ]->RayIntersect( cursorRayPos, cursorRayDir, outdst, outblock ) )
 			m_paintSurf = outblock[0];
-		if( m_isPainting )
-			dopaint = true;
+		
+		if( ImGui::IsKeyPressed( SDLK_g, false ) && m_paintBlock >= 0 && m_paintSurf >= 0 )
+		{
+			m_paintSurfTemplate = *g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ];
+		}
+		if( dopaint && m_paintBlock >= 0 && m_paintSurf >= 0 )
+		{
+			*g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] = m_paintSurfTemplate;
+			g_EdWorld->m_blocks[ m_paintBlock ]->RegenerateMesh();
+		}
 	}
-	if( e->type == EDGUI_EVENT_KEYDOWN && !e->key.repeat && e->key.engkey == SDLK_g && m_paintBlock >= 0 && m_paintSurf >= 0 )
-	{
-		m_paintSurfProps.LoadParams( *g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
-	}
-	if( dopaint && m_paintBlock >= 0 && m_paintSurf >= 0 )
-	{
-		m_paintSurfProps.BounceBack( *g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] );
-		g_EdWorld->m_blocks[ m_paintBlock ]->RegenerateMesh();
-	}
-	
-	EdEditMode::OnViewEvent( e );
+}
+
+void EdPaintSurfsEditMode::EditUI()
+{
+	m_paintSurfTemplate.EditUI();
 }
 
 void EdPaintSurfsEditMode::Draw()
@@ -1483,6 +1487,7 @@ void EdPaintSurfsEditMode::Draw()
 		g_EdWorld->DrawPoly_BlockSurf( m_paintBlock, m_paintSurf, m_isPainting );
 	}
 }
+
 
 EdAddEntityEditMode::EdAddEntityEditMode()
 {

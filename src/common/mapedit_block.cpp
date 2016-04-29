@@ -3,11 +3,12 @@
 #include "mapedit.hpp"
 
 
-void EdSurface::EditUI( EdBlock* B )
+bool EdSurface::EditUI( EdBlock* B, int sid )
 {
+	bool del = false;
 	IMGUI_GROUP( "Surface properties", true,
 	{
-		IMGUIEditString( "Material", texname, 256 ); // TODO
+		g_NUISurfMtlPicker->Property( "Pick surface material", "Material", texname );
 		
 		Vec2 off = V2( xoff, yoff );
 		IMGUIEditVec2( "Offset", off, 0, 1 );
@@ -30,21 +31,76 @@ void EdSurface::EditUI( EdBlock* B )
 			aspect = 1;
 			ImGui::TriggerChangeCheck();
 		}
-		ImGui::SameLine();
-		if( ImGui::Button( "Apply fit" ) )
-		{
-		}
 		if( B )
 		{
-			if( ImGui::Button( "Make blend patch from surf." ) )
-			{
-			}
 			ImGui::SameLine();
-			if( ImGui::Button( "Convert block to patch" ) )
+			if( ImGui::Button( "Apply fit" ) )
 			{
+				EdSurface& S = *B->surfaces[ sid ];
+				float xmin = FLT_MAX;
+				float xmax = -FLT_MAX;
+				float ymin = FLT_MAX;
+				float ymax = -FLT_MAX;
+				LCVertex vertices[ MAX_BLOCK_POLYGONS ];
+				int vcount = B->GenerateSurface( vertices, sid, false, false );
+				for( int i = 0; i < vcount; ++i )
+				{
+					float x = vertices[ i ].tx0;
+					float y = vertices[ i ].ty0;
+					if( xmin > x ) xmin = x;
+					if( xmax < x ) xmax = x;
+					if( ymin > y ) ymin = y;
+					if( ymax < y ) ymax = y;
+				}
+				float xdst = xmax - xmin;
+				float ydst = ymax - ymin;
+				if( S.xfit )
+				{
+					S.scale *= xdst;
+					S.xoff -= xmin / S.scale;
+					if( S.yfit != 0 )
+						S.aspect *= xdst;
+				}
+				if( S.yfit )
+				{
+					if( S.xfit == 0 )
+						S.scale *= ydst;
+					else
+						S.aspect /= ydst;
+					S.yoff -= ymin / S.scale * S.aspect;
+				}
+				S.xoff = fmodf( S.xoff, 1 ); if( S.xoff < 0 ) S.xoff++;
+				S.yoff = fmodf( S.yoff, 1 ); if( S.yoff < 0 ) S.yoff++;
+				S.xfit = 0;
+				S.yfit = 0;
+				ImGui::TriggerChangeCheck();
+			}
+			int patchbtn = 0;
+			if( ImGui::Button( "Make blend patch from surf." ) ) patchbtn = 1;
+			ImGui::SameLine();
+			if( ImGui::Button( "Convert block to patch" ) ) patchbtn = 2;
+			if( patchbtn )
+			{
+				EdPatch* p = EdPatch::CreatePatchFromSurface( *B, sid );
+				if( p )
+				{
+					B->selected = false;
+					p->selected = true;
+					if( patchbtn == 2 )
+					{
+						p->blend = PATCH_IS_SOLID;
+						p->m_isLMSolid = true;
+						p->m_isPhySolid = true;
+						g_EdWorld->DeleteObject( B );
+						del = true;
+					}
+					g_EdWorld->AddObject( p );
+					g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
+				}
 			}
 		}
 	});
+	return del;
 }
 
 
@@ -955,299 +1011,4 @@ int EDGUIVertexProps::OnEvent( EDGUIEvent* e )
 	}
 	return EDGUILayoutRow::OnEvent( e );
 }
-
-
-EDGUISurfaceProps::EDGUISurfaceProps() :
-	m_out( NULL ),
-	m_sid( 0 ),
-	m_tex( g_UISurfMtlPicker, "null" ),
-	m_off( V2(0), 2, V2(0), V2(1) ),
-	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
-	m_angle( 0, 1, 0, 360 ),
-	m_lmquality( 1, 2, 0.01f, 100.0f ),
-	m_xfit( 0, 0, 100 ),
-	m_yfit( 0, 0, 100 )
-{
-	tyname = "surfaceprops";
-	m_group.caption = "Surface properties";
-	m_tex.caption = "Texture";
-	m_off.caption = "Offset";
-	m_scaleasp.caption = "Scale/Aspect";
-	m_angle.caption = "Angle";
-	m_lmquality.caption = "Lightmap quality";
-	m_xfit.caption = "Fit count on X";
-	m_yfit.caption = "Fit count on Y";
-	m_resetOffScaleAsp.caption = "Reset offset/scale/aspect";
-	m_applyFit.caption = "Apply fit";
-	m_makeBlendPatch.caption = "Make blend patch from surf.";
-	m_convertToPatch.caption = "Convert block to patch";
-	
-	m_group.Add( &m_tex );
-	m_group.Add( &m_off );
-	m_group.Add( &m_scaleasp );
-	m_group.Add( &m_angle );
-	m_group.Add( &m_lmquality );
-	m_group.Add( &m_xfit );
-	m_group.Add( &m_yfit );
-	m_group.Add( &m_resetOffScaleAsp );
-	m_group.Add( &m_applyFit );
-	m_group.Add( &m_makeBlendPatch );
-	m_group.Add( &m_convertToPatch );
-	m_group.SetOpen( true );
-	Add( &m_group );
-}
-
-void EDGUISurfaceProps::Prepare( EdBlock* block, int sid )
-{
-	m_out = block;
-	m_sid = sid;
-	EdSurface* S = block->surfaces[ sid ];
-	
-	char bfr[ 32 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "Surface #%d", sid );
-	LoadParams( *S, bfr );
-}
-
-void EDGUISurfaceProps::LoadParams( EdSurface& S, const char* name )
-{
-	m_group.caption = name;
-	m_group.SetOpen( true );
-	
-	m_tex.SetValue( S.texname );
-	m_off.SetValue( V2( S.xoff, S.yoff ) );
-	m_scaleasp.SetValue( V2( S.scale, S.aspect ) );
-	m_angle.SetValue( S.angle );
-	m_lmquality.SetValue( S.lmquality );
-	m_xfit.SetValue( S.xfit );
-	m_yfit.SetValue( S.yfit );
-}
-
-void EDGUISurfaceProps::BounceBack( EdSurface& S )
-{
-	S.texname = m_tex.m_value;
-	S.xoff = m_off.m_value.x;
-	S.yoff = m_off.m_value.y;
-	S.scale = m_scaleasp.m_value.x;
-	S.aspect = m_scaleasp.m_value.y;
-	S.angle = m_angle.m_value;
-	S.lmquality = m_lmquality.m_value;
-	S.xfit = m_xfit.m_value;
-	S.yfit = m_yfit.m_value;
-}
-
-int EDGUISurfaceProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_BTNCLICK:
-		if( m_out && ( e->target == &m_makeBlendPatch || e->target == &m_convertToPatch ) )
-		{
-			EdPatch* p = EdPatch::CreatePatchFromSurface( *m_out, m_sid );
-			if( p )
-			{
-				m_out->selected = false;
-				p->selected = true;
-				if( e->target != &m_makeBlendPatch )
-				{
-					p->blend = PATCH_IS_SOLID;
-					g_EdWorld->DeleteObject( m_out );
-				}
-				g_EdWorld->AddObject( p );
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
-			}
-		}
-		if( m_out && e->target == &m_resetOffScaleAsp )
-		{
-			EdSurface& S = *m_out->surfaces[ m_sid ];
-			S.xoff = 0;
-			S.yoff = 0;
-			S.scale = 1;
-			S.aspect = 1;
-			m_out->RegenerateMesh();
-			Prepare( m_out, m_sid );
-		}
-		if( m_out && e->target == &m_applyFit )
-		{
-			EdSurface& S = *m_out->surfaces[ m_sid ];
-			float xmin = FLT_MAX, xmax = -FLT_MAX, ymin = FLT_MAX, ymax = -FLT_MAX;
-			LCVertex vertices[ MAX_BLOCK_POLYGONS ];
-			int vcount = m_out->GenerateSurface( vertices, m_sid, false, false );
-			for( int i = 0; i < vcount; ++i )
-			{
-				float x = vertices[ i ].tx0;
-				float y = vertices[ i ].ty0;
-				if( xmin > x ) xmin = x;
-				if( xmax < x ) xmax = x;
-				if( ymin > y ) ymin = y;
-				if( ymax < y ) ymax = y;
-			}
-			float xdst = xmax - xmin, ydst = ymax - ymin;
-			if( S.xfit )
-			{
-				S.scale *= xdst;
-				S.xoff -= xmin / S.scale;
-				if( S.yfit != 0 )
-					S.aspect *= xdst;
-			}
-			if( S.yfit )
-			{
-				if( S.xfit == 0 )
-					S.scale *= ydst;
-				else
-					S.aspect /= ydst;
-				S.yoff -= ymin / S.scale * S.aspect;
-			}
-			S.xoff = fmodf( S.xoff, 1 ); if( S.xoff < 0 ) S.xoff++;
-			S.yoff = fmodf( S.yoff, 1 ); if( S.yoff < 0 ) S.yoff++;
-			S.xfit = 0;
-			S.yfit = 0;
-			m_out->RegenerateMesh();
-			Prepare( m_out, m_sid );
-		}
-		break;
-		
-	case EDGUI_EVENT_PROPEDIT:
-		if( m_out && (
-			e->target == &m_tex ||
-			e->target == &m_off ||
-			e->target == &m_scaleasp ||
-			e->target == &m_angle ||
-			e->target == &m_lmquality ||
-			e->target == &m_xfit ||
-			e->target == &m_yfit
-		) )
-		{
-			if( e->target == &m_tex )
-			{
-				m_out->surfaces[ m_sid ]->texname = m_tex.m_value;
-			}
-			else if( e->target == &m_off )
-			{
-				m_out->surfaces[ m_sid ]->xoff = m_off.m_value.x;
-				m_out->surfaces[ m_sid ]->yoff = m_off.m_value.y;
-			}
-			else if( e->target == &m_scaleasp )
-			{
-				m_out->surfaces[ m_sid ]->scale = m_scaleasp.m_value.x;
-				m_out->surfaces[ m_sid ]->aspect = m_scaleasp.m_value.y;
-			}
-			else if( e->target == &m_angle )
-			{
-				m_out->surfaces[ m_sid ]->angle = m_angle.m_value;
-			}
-			else if( e->target == &m_lmquality )
-			{
-				m_out->surfaces[ m_sid ]->lmquality = m_lmquality.m_value;
-			}
-			else if( e->target == &m_xfit )
-			{
-				m_out->surfaces[ m_sid ]->xfit = m_xfit.m_value;
-			}
-			else if( e->target == &m_yfit )
-			{
-				m_out->surfaces[ m_sid ]->yfit = m_yfit.m_value;
-			}
-			m_out->RegenerateMesh();
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-EDGUIBlockProps::EDGUIBlockProps() :
-	m_out( NULL ),
-	m_group( true, "Block properties" ),
-	m_vertGroup( false, "Vertices" ),
-	m_z0( 0, 2, -8192, 8192 ),
-	m_z1( 2, 2, -8192, 8192 ),
-	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
-	m_blkGroup( NULL )
-{
-	tyname = "blockprops";
-	m_z0.caption = "Bottom height";
-	m_z1.caption = "Top height";
-	m_pos.caption = "Position";
-	m_blkGroup.caption = "Group";
-}
-
-void EDGUIBlockProps::Prepare( EdBlock* block )
-{
-	m_out = block;
-	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
-	
-	Clear();
-	
-	Add( &m_group );
-	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( block->group ) );
-	m_group.Add( &m_blkGroup );
-	m_z0.SetValue( block->z0 );
-	m_group.Add( &m_z0 );
-	m_z1.SetValue( block->z1 );
-	m_group.Add( &m_z1 );
-	m_pos.SetValue( block->position );
-	m_group.Add( &m_pos );
-	m_group.Add( &m_vertGroup );
-	
-	m_vertProps.clear();
-	m_vertProps.resize( block->poly.size() );
-	for( size_t i = 0; i < block->poly.size(); ++i )
-	{
-		char bfr[ 4 ];
-		sgrx_snprintf( bfr, sizeof(bfr), "#%d", (int) i );
-		m_vertProps[ i ] = EDGUIPropVec3( block->poly[ i ], 2, V3(-8192), V3(8192) );
-		m_vertProps[ i ].caption = bfr;
-		m_vertProps[ i ].id1 = i;
-		m_vertGroup.Add( &m_vertProps[ i ] );
-	}
-	
-	m_surfProps.clear();
-	m_surfProps.resize( block->surfaces.size() );
-	for( size_t i = 0; i < block->surfaces.size(); ++i )
-	{
-		m_surfProps[ i ].Prepare( block, i );
-		m_group.Add( &m_surfProps[ i ] );
-	}
-}
-
-int EDGUIBlockProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_z0 || e->target == &m_z1 || e->target == &m_pos || e->target == &m_blkGroup )
-		{
-			if( e->target == &m_z0 )
-			{
-				m_out->z0 = m_z0.m_value;
-			}
-			else if( e->target == &m_z1 )
-			{
-				m_out->z1 = m_z1.m_value;
-			}
-			else if( e->target == &m_pos )
-			{
-				m_out->position = m_pos.m_value;
-			}
-			else if( e->target == &m_blkGroup )
-			{
-				EdGroup* grp = g_EdWorld->m_groupMgr.FindGroupByPath( m_blkGroup.m_value );
-				if( grp )
-					m_out->group = grp->m_id;
-			}
-			m_out->RegenerateMesh();
-		}
-		{
-			size_t at = m_vertGroup.m_subitems.find_first_at( e->target );
-			if( at != NOT_FOUND )
-			{
-				m_out->poly[ at ] = m_vertProps[ at ].m_value;
-				m_out->RegenerateMesh();
-			}
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
 
