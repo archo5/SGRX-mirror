@@ -464,7 +464,7 @@ void EdMeshPath::RegenerateMesh()
 		S.icount = edit.outIA.size();
 		S.mtlname = MP.texname;
 		S.lmsize = V2( edit.tex1off, 1 ) * sqrtf( edit.triarea_total ) * 2;
-		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
+		S.xform = g_EdWorld->GetGroupMatrix( group );
 		S.rflags = 0
 			| (m_isLMSolid ? LM_MESHINST_CASTLMS : 0)
 			| (m_isPhySolid ? LM_MESHINST_SOLID : 0)

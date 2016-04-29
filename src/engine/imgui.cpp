@@ -275,6 +275,20 @@ bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval )
 	return ret;
 }
 
+bool IMGUIEditColorRGBA32( const char* label, uint32_t& c )
+{
+	int v[4] =
+	{
+		COLOR_EXTRACT_R( c ),
+		COLOR_EXTRACT_G( c ),
+		COLOR_EXTRACT_B( c ),
+		COLOR_EXTRACT_A( c ),
+	};
+	bool ret = ImGui::DragInt4( label, v );
+	c = COLOR_RGBA( v[0], v[1], v[2], v[3] );
+	return ret;
+}
+
 bool IMGUIEditString( const char* label, String& str, int maxsize )
 {
 	str.resize_using( maxsize, '\0' );

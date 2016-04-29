@@ -57,7 +57,6 @@ MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
 MAPEDIT_GLOBAL( BaseGame* g_BaseGame );
 MAPEDIT_GLOBAL( GameLevel* g_Level );
 
-MAPEDIT_GLOBAL( struct MapEditorRenderView* g_NUIRenderView );
 MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUILevelPicker );
 MAPEDIT_GLOBAL( IMGUIMeshPicker* g_NUIMeshPicker );
 MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUIPartSysPicker );
@@ -568,6 +567,7 @@ struct EdObject : virtual SGRX_RefCounted
 	virtual bool RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1] ) const = 0;
 	virtual void RegenerateMesh() = 0;
 	virtual void EditUI(){}
+	virtual void VertEditUI( int v ){}
 	virtual Vec3 FindCenter() const = 0;
 	virtual void Export( OBJExporter& objex ){}
 	
@@ -979,42 +979,8 @@ struct EdBlock : EdObject
 		out.setprop( "surfaces", out_surfaces );
 		return out;
 	}
-	void EditUI()
-	{
-		ImGui::BeginChangeCheck();
-		
-		IMGUIEditVec3( "Position", position, -8192, 8192 );
-		
-		Vec2 zz = V2( z0, z1 );
-		IMGUIEditVec2( "Bottom/Top Z", zz, -8192, 8192 );
-		z0 = zz.x; z1 = zz.y;
-		
-		IMGUI_GROUP( "Vertices", false,
-		{
-			char bfr[ 32 ];
-			for( size_t i = 0; i < poly.size(); ++i )
-			{
-				sgrx_snprintf( bfr, 32, "#%d", (int) i );
-				IMGUIEditVec3( bfr, poly[ i ], -8192, 8192 );
-			}
-		});
-		
-		bool del = false;
-		IMGUI_GROUP( "Surfaces", false,
-		{
-			for( size_t i = 0; i < surfaces.size(); ++i )
-			{
-				ImGui::PushID( i );
-				del = surfaces[ i ]->EditUI( this, i );
-				ImGui::PopID();
-				if( del )
-					break;
-			}
-		});
-		
-		if( ImGui::EndChangeCheck() && !del )
-			RegenerateMesh();
-	}
+	void EditUI();
+	void VertEditUI( int vid );
 	
 	virtual int GetNumVerts() const { return poly.size() * 2; }
 	virtual Vec3 GetLocalVertex( int i ) const;
@@ -1083,21 +1049,6 @@ inline int intersect_lines( const Vec2& l1a, const Vec2& l1b, const Vec2& l2a, c
 }
 
 
-struct EDGUIVertexProps : EDGUILayoutRow
-{
-	EDGUIVertexProps();
-	void Prepare( EdBlock* block, int vid );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdBlock* m_out;
-	int m_vid;
-	EDGUIGroup m_group;
-	EDGUIPropVec3 m_pos;
-	EDGUIButton m_insbef;
-	EDGUIButton m_insaft;
-};
-
-
 
 //
 // PATCHES
@@ -1142,6 +1093,18 @@ struct EdPatchVtx
 			FSaveProp( out, patch_colpropnames[ i ], col[ i ] );
 		}
 		return out;
+	}
+	void EditUI()
+	{
+		IMGUIEditVec3( "Position", pos, -8192, 8192 );
+		IMGUIEditVec2( "Texcoord 0", tex[0], -8192, 8192 );
+		IMGUIEditVec2( "Texcoord 1", tex[1], -8192, 8192 );
+		IMGUIEditVec2( "Texcoord 2", tex[2], -8192, 8192 );
+		IMGUIEditVec2( "Texcoord 3", tex[3], -8192, 8192 );
+		IMGUIEditColorRGBA32( "Color 0", col[0] );
+		IMGUIEditColorRGBA32( "Color 1", col[1] );
+		IMGUIEditColorRGBA32( "Color 2", col[2] );
+		IMGUIEditColorRGBA32( "Color 3", col[3] );
 	}
 };
 
@@ -1207,6 +1170,7 @@ struct EdPatchLayerInfo
 		FSaveProp( out, "angle", angle );
 		return out;
 	}
+	void EditUI( struct EdPatch* P, int lid );
 	
 	String texname;
 	float xoff, yoff;
@@ -1397,6 +1361,9 @@ struct EdPatch : EdObject
 		return out;
 	}
 	
+	void EditUI();
+	void VertEditUI( int vid );
+	
 	static EdPatch* CreatePatchFromSurface( EdBlock& B, int sid );
 	
 	Vec3 position;
@@ -1413,62 +1380,6 @@ struct EdPatch : EdObject
 };
 
 typedef Handle< EdPatch > EdPatchHandle;
-
-
-struct EDGUIPatchVertProps : EDGUILayoutRow
-{
-	EDGUIPatchVertProps();
-	void Prepare( EdPatch* patch, int vid );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdPatch* m_out;
-	int m_vid;
-	EDGUIGroup m_group;
-	EDGUIPropVec3 m_pos;
-	EDGUIPropVec2 m_tex[ MAX_PATCH_LAYERS ];
-	EDGUIPropVec4 m_col[ MAX_PATCH_LAYERS ];
-};
-
-struct EDGUIPatchLayerProps : EDGUILayoutRow
-{
-	EDGUIPatchLayerProps();
-	void Prepare( EdPatch* patch, int lid );
-	void LoadParams( EdPatchLayerInfo& L, const char* name = "Layer" );
-	void BounceBack( EdPatchLayerInfo& L );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdPatch* m_out;
-	int m_lid;
-	EDGUIGroup m_group;
-	EDGUIPropRsrc m_tex;
-	EDGUIPropVec2 m_off;
-	EDGUIPropVec2 m_scaleasp;
-	EDGUIPropFloat m_angle;
-	EDGUILayoutColumn m_texGenCol;
-	EDGUILabel m_texGenLbl;
-	EDGUIButton m_genFit;
-	EDGUIButton m_genFitNat;
-	EDGUIButton m_genNatural;
-	EDGUIButton m_genPlanar;
-};
-
-struct EDGUIPatchProps : EDGUILayoutRow
-{
-	EDGUIPatchProps();
-	void Prepare( EdPatch* patch );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdPatch* m_out;
-	EDGUIGroup m_group;
-	EDGUIPropVec3 m_pos;
-	EDGUIPropRsrc m_blkGroup;
-	EDGUIPropBool m_isDecal;
-	EDGUIPropBool m_isLMSolid;
-	EDGUIPropBool m_isPhySolid;
-	EDGUIPropInt m_layerStart;
-	EDGUIPropFloat m_lmquality;
-	EDGUIPatchLayerProps m_layerProps[4];
-};
 
 
 //
@@ -2258,11 +2169,6 @@ struct EdWorld
 		{
 			return (EdEntity*) obj;
 		}
-		if( obj->m_type == ObjType_Patch )
-		{
-			m_ctlPatchProps.Prepare( (EdPatch*) obj );
-			return &m_ctlPatchProps;
-		}
 		if( obj->m_type == ObjType_MeshPath )
 		{
 			m_ctlMeshPathProps.Prepare( (EdMeshPath*) obj );
@@ -2273,28 +2179,26 @@ struct EdWorld
 	void ObjEditUI( size_t oid ){ m_objects[ oid ]->EditUI(); }
 	void VertEditUI( size_t oid, size_t vid )
 	{
+		ImGui::BeginChangeCheck();
+		m_objects[ oid ]->VertEditUI( vid );
+		if( ImGui::EndChangeCheck() )
+			m_objects[ oid ]->RegenerateMesh();
 	}
 	void SurfEditUI( size_t oid, size_t sid )
 	{
 		EdObject* obj = m_objects[ oid ];
+		ImGui::BeginChangeCheck();
 		if( obj->m_type == ObjType_Block )
 		{
-			((EdBlock*)obj)->surfaces[ sid ]->EditUI( (EdBlock*) obj, sid );
+			SGRX_CAST( EdBlock*, B, obj );
+			B->surfaces[ sid ]->EditUI( B, sid );
 		}
+		if( ImGui::EndChangeCheck() )
+			m_objects[ oid ]->RegenerateMesh();
 	}
 	EDGUIItem* GetVertProps( size_t oid, size_t vid )
 	{
 		EdObject* obj = m_objects[ oid ];
-		if( obj->m_type == ObjType_Block )
-		{
-			m_ctlVertProps.Prepare( (EdBlock*) obj, vid );
-			return &m_ctlVertProps;
-		}
-		if( obj->m_type == ObjType_Patch )
-		{
-			m_ctlPatchVertProps.Prepare( (EdPatch*) obj, vid );
-			return &m_ctlPatchVertProps;
-		}
 		if( obj->m_type == ObjType_MeshPath )
 		{
 			m_ctlMeshPathPointProps.Prepare( (EdMeshPath*) obj, vid );
@@ -2302,6 +2206,7 @@ struct EdWorld
 		}
 		return NULL;
 	}
+	Mat4 GetGroupMatrix( int ){ return Mat4::Identity; }
 	
 	void SetEntityID( EdEntity* e );
 	
@@ -2319,9 +2224,6 @@ struct EdWorld
 	EdWorldLightingInfo m_lighting;
 	void EditUI();
 	
-	EDGUIVertexProps m_ctlVertProps;
-	EDGUIPatchProps m_ctlPatchProps;
-	EDGUIPatchVertProps m_ctlPatchVertProps;
 	EDGUIMeshPathProps m_ctlMeshPathProps;
 	EDGUIMeshPathPointProps m_ctlMeshPathPointProps;
 };
@@ -2358,7 +2260,7 @@ struct EdEditTransform
 		return true;
 	}
 	virtual void OnExit(){}
-	virtual int OnViewEvent( EDGUIEvent* e ){ return 0; }
+	virtual int ViewUI(){ return 0; }
 	virtual void Draw(){}
 	
 	virtual void SaveState(){}
@@ -2371,7 +2273,7 @@ struct EdEditTransform
 
 struct EdBasicEditTransform : EdEditTransform
 {
-	virtual int OnViewEvent( EDGUIEvent* e );
+	virtual int ViewUI();
 };
 
 struct EdBlockEditTransform : EdBasicEditTransform
@@ -2394,7 +2296,7 @@ struct EdBlockEditTransform : EdBasicEditTransform
 	
 	EdBlockEditTransform();
 	virtual bool OnEnter();
-	virtual int OnViewEvent( EDGUIEvent* e );
+	virtual int ViewUI();
 	virtual void SaveState();
 	virtual void RestoreState();
 	Vec3 GetMovementVector( const Vec2& a, const Vec2& b );
@@ -2413,7 +2315,7 @@ struct EdBlockEditTransform : EdBasicEditTransform
 
 struct EdBlockMoveTransform : EdBlockEditTransform
 {
-	virtual int OnViewEvent( EDGUIEvent* e );
+	virtual int ViewUI();
 	virtual void Draw();
 	virtual void ApplyTransform();
 	virtual void RecalcTransform();
@@ -2424,7 +2326,7 @@ struct EdBlockMoveTransform : EdBlockEditTransform
 struct EdVertexMoveTransform : EdBlockMoveTransform
 {
 	EdVertexMoveTransform();
-	virtual int OnViewEvent( EDGUIEvent* e );
+	virtual int ViewUI();
 	virtual void ApplyTransform();
 	
 	bool m_project;
@@ -2437,7 +2339,7 @@ struct EdEditMode
 	virtual void OnExit(){}
 	virtual void OnTransformEnd(){}
 	virtual void OnDeleteObject( int oid ){ OnEnter(); }
-	virtual void ViewUI( bool canAcceptInput ){}
+	virtual void ViewUI(){}
 	virtual void EditUI(){}
 	virtual int OnUIEvent( EDGUIEvent* e ){ return 0; }
 	virtual void OnViewEvent( EDGUIEvent* e );
@@ -2455,7 +2357,7 @@ struct EdDrawBlockEditMode : EdEditMode
 
 	EdDrawBlockEditMode();
 	void OnEnter();
-	void ViewUI( bool canAcceptInput );
+	void ViewUI();
 	void EditUI();
 	void Draw();
 	void _AddNewBlock();
@@ -2473,7 +2375,7 @@ struct EdEditBlockEditMode : EdEditMode
 	EdEditBlockEditMode();
 	void OnEnter();
 	void OnTransformEnd();
-	void ViewUI( bool canAcceptInput );
+	void ViewUI();
 	void EditUI();
 	void Draw();
 	bool _CanDo( ESpecialAction act );
@@ -2509,7 +2411,7 @@ struct EdEditVertexEditMode : EdEditMode
 	void OnEnter();
 	bool _CanDo( ESpecialAction act );
 	void _Do( ESpecialAction act );
-	void OnViewEvent( EDGUIEvent* e );
+	void ViewUI();
 	void EditUI();
 	void Draw();
 	
@@ -2554,7 +2456,7 @@ struct EdPaintSurfsEditMode : EdEditMode
 {
 	EdPaintSurfsEditMode();
 	void OnEnter();
-	void ViewUI( bool canAcceptInput );
+	void ViewUI();
 	void EditUI();
 	void Draw();
 	
@@ -2585,15 +2487,21 @@ struct EdEditGroupEditMode : EdEditMode
 };
 
 
+struct MapEditorRenderView : IMGUIRenderView
+{
+	MapEditorRenderView() : IMGUIRenderView( g_EdScene ){}
+	void DebugDraw();
+};
+
+
 //
 // MAIN FRAME
 //
-struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
+struct EDGUIMainFrame : EDGUIFrame
 {
 	EDGUIMainFrame();
-	void PostInit();
-	int OnEvent( EDGUIEvent* e );
-	bool ViewEvent( EDGUIEvent* e );
+	bool ViewUI();
+	void EditUI();
 	void _DrawCursor( bool drawimg, float height );
 	void DrawCursor( bool drawimg = true );
 	void DebugDraw();
@@ -2612,14 +2520,9 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	Vec2 Snapped( const Vec2& v );
 	Vec3 Snapped( const Vec3& v );
 	
-	void ResetEditorState();
 	void Level_New();
-	void Level_Open();
-	void Level_Save();
-	void Level_SaveAs();
-	void Level_Compile();
-	void Level_Real_Open( const String& str );
-	void Level_Real_Save( const String& str );
+	bool Level_Real_Open( const StringView& str );
+	bool Level_Real_Save( const StringView& str );
 	void Level_Real_Compile();
 	void Level_Real_Compile_Default();
 	void Level_Real_Compile_Prefabs();
@@ -2652,25 +2555,8 @@ struct EDGUIMainFrame : EDGUIFrame, EDGUIRenderView::FrameInterface
 	EDGUILayoutColumn m_UIMenuButtonsRgt;
 	EDGUIVScroll m_UIParamScroll;
 	EDGUILayoutRow m_UIParamList;
-	EDGUIRenderView m_UIRenderView;
-
-	// menu
-	EDGUILabel m_MB_Cat0;
-	EDGUIButton m_MBNew;
-	EDGUIButton m_MBOpen;
-	EDGUIButton m_MBSave;
-	EDGUIButton m_MBSaveAs;
-	EDGUIButton m_MBCompile;
-};
-
-
-struct MapEditorRenderView : IMGUIRenderView
-{
-	MapEditorRenderView() : IMGUIRenderView( g_EdScene ){}
-	void DebugDraw()
-	{
-		g_UIFrame->DebugDraw();
-	}
+	
+	MapEditorRenderView m_NUIRenderView;
 };
 
 

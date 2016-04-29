@@ -104,6 +104,104 @@ bool EdSurface::EditUI( EdBlock* B, int sid )
 }
 
 
+void EdBlock::EditUI()
+{
+	ImGui::BeginChangeCheck();
+	
+	IMGUIEditVec3( "Position", position, -8192, 8192 );
+	
+	Vec2 zz = V2( z0, z1 );
+	IMGUIEditVec2( "Bottom/Top Z", zz, -8192, 8192 );
+	z0 = zz.x; z1 = zz.y;
+	
+	IMGUI_GROUP( "Vertices", false,
+	{
+		char bfr[ 32 ];
+		for( size_t i = 0; i < poly.size(); ++i )
+		{
+			sgrx_snprintf( bfr, 32, "#%d", (int) i );
+			IMGUIEditVec3( bfr, poly[ i ], -8192, 8192 );
+		}
+	});
+	
+	bool del = false;
+	IMGUI_GROUP( "Surfaces", false,
+	{
+		for( size_t i = 0; i < surfaces.size(); ++i )
+		{
+			ImGui::PushID( i );
+			del = surfaces[ i ]->EditUI( this, i );
+			ImGui::PopID();
+			if( del )
+				break;
+		}
+	});
+	
+	if( ImGui::EndChangeCheck() && !del )
+		RegenerateMesh();
+}
+
+void EdBlock::VertEditUI( int vid )
+{
+	if( vid >= (int) poly.size() )
+		vid -= poly.size();
+	if( vid < 0 || vid >= (int) poly.size() )
+		return;
+	
+	char bfr[ 32 ];
+	sgrx_snprintf( bfr, 32, "Vertex #%d", vid );
+	IMGUI_GROUP_BEGIN( bfr, true )
+	{
+		IMGUIEditVec3( "Position", poly[ vid ], -8192, 8192 );
+		ImGui::Text( "Insert" );
+		ImGui::SameLine();
+		bool bef = ImGui::Button( "before" );
+		ImGui::SameLine();
+		bool aft = ImGui::Button( "after" );
+		if( bef || aft )
+		{
+			size_t insat = vid, sz = poly.size();
+			if( aft )
+				insat = ( insat + 1 ) % sz;
+			size_t befat = ( insat + sz - 1 ) % sz;
+			
+			Vec2 p0 = poly[ ( befat + sz - 1 ) % sz ].ToVec2();
+			Vec2 p1 = poly[ befat ].ToVec2();
+			Vec2 p2 = poly[ insat ].ToVec2();
+			Vec2 p3 = poly[ ( insat + 1 ) % sz ].ToVec2();
+			Vec2 edge_normal = ( p2 - p1 ).Perp().Normalized();
+			Vec2 mid = ( p1 + p2 ) / 2;
+			Vec2 mid2 = mid;
+			float factor = 0.5f;
+			if( intersect_lines( p0, p1, p3, p2, &mid2 ) )
+			{
+				if( Vec2Dot( mid2, edge_normal ) < Vec2Dot( mid, edge_normal ) )
+					factor = -0.1f;
+				mid = TLERP( mid, mid2, factor );
+			}
+			else
+				mid += edge_normal;
+			Vec3 mid_fin = { mid.x, mid.y, ( poly[ befat ].z + poly[ insat ].z ) * 0.5f };
+			
+			size_t oldpolysize = poly.size();
+			EdSurface Scopy = *surfaces[ befat ];
+			Scopy.surface_id = 0;
+			poly.insert( insat, mid_fin );
+			if( (int) insat < vid )
+				vid++;
+			surfaces.insert( insat, new EdSurface( Scopy ) );
+			
+			subsel.insert( oldpolysize * 2 + insat, false );
+			subsel.insert( oldpolysize + insat, false );
+			subsel.insert( insat, false );
+			
+			ImGui::TriggerChangeCheck();
+		}
+	}
+	IMGUI_GROUP_END;
+}
+
+
 Vec3 EdBlock::GetLocalVertex( int i ) const
 {
 	Vec3 vp = poly[ i % poly.size() ];
@@ -512,7 +610,7 @@ bool EdBlock::RayIntersect( const Vec3& rpos, const Vec3& dir, float outdst[1], 
 	Vec3 pts[16];
 	int pcount = poly.size();
 	
-	Mat4 tf = g_EdWorld->m_groupMgr.GetMatrix( group );
+	Mat4 tf = g_EdWorld->GetGroupMatrix( group );
 	
 	// TOP
 	for( size_t i = 0; i < poly.size(); ++i )
@@ -581,7 +679,7 @@ void EdBlock::RegenerateMesh()
 	if( !g_EdWorld || poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
 		return;
 	
-	Mat4 mtx = g_EdWorld->m_groupMgr.GetMatrix( group );
+	Mat4 mtx = g_EdWorld->GetGroupMatrix( group );
 	
 	
 	// GENERATE PLANES
@@ -921,94 +1019,4 @@ void EdBlock::Export( OBJExporter& objex )
 	}
 }
 
-
-EDGUIVertexProps::EDGUIVertexProps() :
-	m_out( NULL ),
-	m_vid( 0 ),
-	m_pos( V3(0), 2, V3(-8192), V3(8192) )
-{
-	tyname = "blockvertprops";
-	m_group.caption = "Block vertex properties";
-	m_pos.caption = "Offset";
-	m_insbef.caption = "Insert before";
-	m_insaft.caption = "Insert after";
-	
-	m_group.Add( &m_pos );
-	m_group.Add( &m_insbef );
-	m_group.Add( &m_insaft );
-	m_group.SetOpen( true );
-	Add( &m_group );
-}
-
-void EDGUIVertexProps::Prepare( EdBlock* block, int vid )
-{
-	vid %= block->poly.size();
-	
-	m_out = block;
-	m_vid = vid;
-	
-	char bfr[ 32 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "Vertex #%d", vid );
-	m_group.caption = bfr;
-	m_group.SetOpen( true );
-	
-	m_pos.SetValue( block->poly[ vid ] );
-}
-
-int EDGUIVertexProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( m_out && e->target == &m_pos )
-		{
-			m_out->poly[ m_vid ] = m_pos.m_value;
-			m_out->RegenerateMesh();
-		}
-		break;
-	case EDGUI_EVENT_BTNCLICK:
-		if( ( e->target == &m_insbef || e->target == &m_insaft ) && m_out->poly.size() < 14 )
-		{
-			size_t insat = m_vid, sz = m_out->poly.size();
-			if( e->target == &m_insaft )
-				insat = ( insat + 1 ) % sz;
-			size_t befat = ( insat + sz - 1 ) % sz;
-			
-			Vec2 p0 = m_out->poly[ ( befat + sz - 1 ) % sz ].ToVec2();
-			Vec2 p1 = m_out->poly[ befat ].ToVec2();
-			Vec2 p2 = m_out->poly[ insat ].ToVec2();
-			Vec2 p3 = m_out->poly[ ( insat + 1 ) % sz ].ToVec2();
-			Vec2 edge_normal = ( p2 - p1 ).Perp().Normalized();
-			Vec2 mid = ( p1 + p2 ) / 2;
-			Vec2 mid2 = mid;
-			float factor = 0.5f;
-			if( intersect_lines( p0, p1, p3, p2, &mid2 ) )
-			{
-				if( Vec2Dot( mid2, edge_normal ) < Vec2Dot( mid, edge_normal ) )
-					factor = -0.1f;
-				mid = TLERP( mid, mid2, factor );
-			}
-			else
-				mid += edge_normal;
-			Vec3 mid_fin = { mid.x, mid.y, ( m_out->poly[ befat ].z + m_out->poly[ insat ].z ) * 0.5f };
-			
-			size_t oldpolysize = m_out->poly.size();
-			EdSurface Scopy = *m_out->surfaces[ befat ];
-			Scopy.surface_id = 0;
-			m_out->poly.insert( insat, mid_fin );
-			if( (int) insat < m_vid )
-				m_vid++;
-			m_out->surfaces.insert( insat, new EdSurface( Scopy ) );
-			
-			m_out->subsel.insert( oldpolysize * 2 + insat, false );
-			m_out->subsel.insert( oldpolysize + insat, false );
-			m_out->subsel.insert( insat, false );
-			
-			m_out->RegenerateMesh();
-			return 1;
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
 

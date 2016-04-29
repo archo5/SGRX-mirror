@@ -6,12 +6,12 @@
 
 Vec2 ED_GetCursorPos()
 {
-	EDGUIRenderView& rv = g_UIFrame->m_UIRenderView;
-	Vec2 cp = Game_GetCursorPos() - V2( rv.x0, rv.y0 );
+	MapEditorRenderView& rv = g_UIFrame->m_NUIRenderView;
+	Vec2 cp = Game_GetCursorPos() - V2( rv.m_vp.x0, rv.m_vp.y0 );
 	return V2
 	(
-		cp.x / ( rv.x1 - rv.x0 ) * 2 - 1,
-		cp.y / ( rv.y1 - rv.y0 ) * -2 + 1
+		cp.x / ( rv.m_vp.x1 - rv.m_vp.x0 ) * 2 - 1,
+		cp.y / ( rv.m_vp.y1 - rv.m_vp.y0 ) * -2 + 1
 	);
 }
 
@@ -39,18 +39,24 @@ Vec3 ED_RemapPos( const Vec3& p, Vec3 bbfrom[2], Vec3 bbto[2] )
 }
 
 
-int EdBasicEditTransform::OnViewEvent( EDGUIEvent* e )
+int EdBasicEditTransform::ViewUI()
 {
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
+	if( ImGui::IsWindowHovered() )
 	{
-		RecalcTransform();
-		ApplyTransform();
-	}
-	if( e->type == EDGUI_EVENT_BTNCLICK )
-	{
-		if( e->mouse.button == EDGUI_MB_RIGHT )
+		if( ImGui::GetIO().MouseDelta != ImVec2(0,0) )
+		{
+			RecalcTransform();
+			ApplyTransform();
+		}
+		if( ImGui::IsMouseClicked( 0 ) )
+		{
+			g_UIFrame->SetEditTransform( NULL );
+		}
+		if( ImGui::IsMouseClicked( 1 ) )
+		{
 			RestoreState();
-		g_UIFrame->SetEditTransform( NULL );
+			g_UIFrame->SetEditTransform( NULL );
+		}
 	}
 	return 1;
 }
@@ -67,32 +73,36 @@ bool EdBlockEditTransform::OnEnter()
 	return EdEditTransform::OnEnter();
 }
 
-int EdBlockEditTransform::OnViewEvent( EDGUIEvent* e )
+int EdBlockEditTransform::ViewUI()
 {
-	if( e->type == EDGUI_EVENT_KEYDOWN )
+	if( ImGui::IsWindowFocused() )
 	{
-		switch( e->key.engkey )
+		if( ImGui::IsKeyPressed( SDLK_x ) )
 		{
-		case SDLK_x:
 			if( m_cmode == XAxis ) m_cmode = XPlane;
 			else if( m_cmode == XPlane ) m_cmode = Camera;
 			else m_cmode = XAxis;
-			break;
-		case SDLK_y:
+			RecalcTransform();
+			ApplyTransform();
+		}
+		if( ImGui::IsKeyPressed( SDLK_y ) )
+		{
 			if( m_cmode == YAxis ) m_cmode = YPlane;
 			else if( m_cmode == YPlane ) m_cmode = Camera;
 			else m_cmode = YAxis;
-			break;
-		case SDLK_z:
+			RecalcTransform();
+			ApplyTransform();
+		}
+		if( ImGui::IsKeyPressed( SDLK_z ) )
+		{
 			if( m_cmode == ZAxis ) m_cmode = ZPlane;
 			else if( m_cmode == ZPlane ) m_cmode = Camera;
 			else m_cmode = ZAxis;
-			break;
+			RecalcTransform();
+			ApplyTransform();
 		}
-		RecalcTransform();
-		ApplyTransform();
 	}
-	return EdBasicEditTransform::OnViewEvent( e );
+	return EdBasicEditTransform::ViewUI();
 }
 
 void EdBlockEditTransform::SaveState()
@@ -182,30 +192,29 @@ Vec3 EdBlockEditTransform::GetMovementVector( const Vec2& a, const Vec2& b )
 	return V3(0);
 }
 
-int EdBlockMoveTransform::OnViewEvent( EDGUIEvent* e )
+int EdBlockMoveTransform::ViewUI()
 {
-	if( e->type == EDGUI_EVENT_PAINT )
+	int x0 = g_UIFrame->m_NUIRenderView.m_vp.x0;
+	int y1 = g_UIFrame->m_NUIRenderView.m_vp.y1;
+	char bfr[ 1024 ];
+	if( m_extend )
 	{
-		int x0 = g_UIFrame->m_UIRenderView.x0;
-		int y1 = g_UIFrame->m_UIRenderView.y1;
-		char bfr[ 1024 ];
-		if( m_extend )
-		{
-			// TODO: more detail?
-			sgrx_snprintf( bfr, 1024, "Extending blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
-		}
-		else
-		{
-			sgrx_snprintf( bfr, 1024, "Moving blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
-		}
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		br.Col( 0, 0.5f ).Quad( x0, y1 - 16, g_UIFrame->m_UIRenderView.x1, y1 );
-		
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
+		// TODO: more detail?
+		sgrx_snprintf( bfr, 1024, "Extending blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
 	}
-	return EdBlockEditTransform::OnViewEvent( e );
+	else
+	{
+		sgrx_snprintf( bfr, 1024, "Moving blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
+	}
+	
+	ImDrawList* idl = ImGui::GetWindowDrawList();
+	idl->PushClipRectFullScreen();
+	idl->AddRectFilled( ImVec2( x0, y1 - 16 ), ImVec2( x0 + 200, y1 ), ImColor(0.f,0.f,0.f,0.5f), 8.0f, 0x2 );
+	ImGui::SetCursorScreenPos( ImVec2( x0 + 4, y1 - 16 - 1 ) );
+	ImGui::Text( bfr );
+	idl->PopClipRect();
+	
+	return EdBlockEditTransform::ViewUI();
 }
 
 void EdBlockMoveTransform::Draw()
@@ -279,29 +288,28 @@ EdVertexMoveTransform::EdVertexMoveTransform() : m_project(false)
 	m_subpointCenter = true;
 }
 
-int EdVertexMoveTransform::OnViewEvent( EDGUIEvent* e )
+int EdVertexMoveTransform::ViewUI()
 {
-	if( e->type == EDGUI_EVENT_PAINT )
+	int x0 = g_UIFrame->m_NUIRenderView.m_vp.x0;
+	int y1 = g_UIFrame->m_NUIRenderView.m_vp.y1;
+	char bfr[ 1024 ];
+	sgrx_snprintf( bfr, 1024, "(P)rojection: [%s] | Moving vertices: %g ; %g ; %g",
+		m_project ? "ON" : "OFF", m_transform.x, m_transform.y, m_transform.z );
+	
+	ImDrawList* idl = ImGui::GetWindowDrawList();
+	idl->PushClipRectFullScreen();
+	idl->AddRectFilled( ImVec2( x0, y1 - 16 ), ImVec2( x0 + 200, y1 ), ImColor(0.f,0.f,0.f,0.5f), 8.0f, 0x2 );
+	ImGui::SetCursorScreenPos( ImVec2( x0 + 4, y1 - 16 - 1 ) );
+	ImGui::Text( bfr );
+	idl->PopClipRect();
+	
+	if( ImGui::IsWindowFocused() )
 	{
-		int x0 = g_UIFrame->m_UIRenderView.x0;
-		int y1 = g_UIFrame->m_UIRenderView.y1;
-		char bfr[ 1024 ];
-		sgrx_snprintf( bfr, 1024, "(P)rojection: [%s] | Moving vertices: %g ; %g ; %g",
-			m_project ? "ON" : "OFF", m_transform.x, m_transform.y, m_transform.z );
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		br.Col( 0, 0.5f ).Quad( x0, y1 - 16, g_UIFrame->m_UIRenderView.x1, y1 );
-		
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( x0, y1, bfr, HALIGN_LEFT, VALIGN_BOTTOM );
-		return 1;
-	}
-	if( e->type == EDGUI_EVENT_KEYDOWN )
-	{
-		if( e->key.engkey == SDLK_p )
+		if( ImGui::IsKeyPressed( SDLK_p ) )
 			m_project = !m_project;
 	}
-	return EdBlockMoveTransform::OnViewEvent( e );
+	
+	return EdBlockMoveTransform::ViewUI();
 }
 
 void EdVertexMoveTransform::ApplyTransform()
@@ -360,9 +368,9 @@ void EdDrawBlockEditMode::EditUI()
 	m_newSurf.EditUI();
 }
 
-void EdDrawBlockEditMode::ViewUI( bool canAcceptInput )
+void EdDrawBlockEditMode::ViewUI()
 {
-	if( canAcceptInput )
+	if( ImGui::IsWindowFocused() )
 	{
 		if( ImGui::IsMouseClicked( 0 ) && g_UIFrame->IsCursorAiming() && m_drawnVerts.size() < 14 )
 		{
@@ -526,7 +534,7 @@ void EdEditBlockEditMode::OnTransformEnd()
 	_ReloadBlockProps();
 }
 
-void EdEditBlockEditMode::ViewUI( bool canAcceptInput )
+void EdEditBlockEditMode::ViewUI()
 {
 	_MouseMove();
 	
@@ -535,9 +543,11 @@ void EdEditBlockEditMode::ViewUI( bool canAcceptInput )
 	bool shiftdown = ImGui::GetIO().KeyShift;
 	bool ctrldown = ImGui::GetIO().KeyCtrl;
 	
-	if( canAcceptInput )
+	m_hlBBEl = GetClosestActivePoint();
+	
+	if( ImGui::IsWindowHovered() )
 	{
-		if( ImGui::IsMouseReleased( 0 ) && !altdown )
+		if( ImGui::IsMouseClicked( 0 ) && !altdown )
 		{
 			g_EdWorld->SelectObject( m_hlObj, ctrldown ? SELOBJ_TOGGLE : SELOBJ_ONLY );
 			m_numSel = g_EdWorld->GetNumSelectedObjects();
@@ -549,9 +559,10 @@ void EdEditBlockEditMode::ViewUI( bool canAcceptInput )
 		{
 			g_EdWorld->SelectObject( m_hlObj, shiftdown ? SELOBJ_ENABLE : SELOBJ_DISABLE );
 		}
-		
-		m_hlBBEl = GetClosestActivePoint();
-		
+	}
+	
+	if( ImGui::IsWindowFocused() )
+	{
 		// SELECT ALL/NONE
 		if( ImGui::IsKeyPressed( SDLK_a, false ) && ctrldown )
 		{
@@ -962,9 +973,15 @@ void EdEditVertexEditMode::_Do( ESpecialAction act )
 	}
 }
 
-void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
+void EdEditVertexEditMode::ViewUI()
 {
-	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 )
+	m_hlAP = GetClosestActivePoint();
+	
+	bool altdown = ImGui::GetIO().KeyAlt;
+	bool shiftdown = ImGui::GetIO().KeyShift;
+	bool ctrldown = ImGui::GetIO().KeyCtrl;
+	
+	if( ImGui::IsWindowHovered() && ImGui::IsMouseClicked( 0 ) )
 	{
 		for( size_t b = 0; b < m_selObjList.size(); ++b )
 		{
@@ -972,24 +989,19 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 			EdObject* obj = g_EdWorld->m_objects[ oid ];
 			
 			if( oid == m_hlAP.block )
-				obj->UISelectElement( m_hlAP.point, ( g_UIFrame->m_keyMod & KMOD_CTRL ) != 0 );
-			else if( ( g_UIFrame->m_keyMod & KMOD_CTRL ) == 0 )
+				obj->UISelectElement( m_hlAP.point, ctrldown );
+			else if( !ctrldown )
 				obj->ClearSelection();
 		}
 	}
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
+	
+	if( ImGui::IsWindowFocused() )
 	{
-		m_hlAP = GetClosestActivePoint();
-	}
-	if( e->type == EDGUI_EVENT_KEYDOWN )
-	{
-		m_hlAP = GetClosestActivePoint();
-		
 		ESpecialAction satype = SA_None;
-		if( e->key.engkey == SDLK_i ) satype = SA_Invert;
-		if( e->key.engkey == SDLK_RIGHTBRACKET ) satype = SA_Subdivide;
-		if( e->key.engkey == SDLK_LEFTBRACKET ) satype = SA_Unsubdivide;
-		if( e->key.engkey == SDLK_f ) satype = SA_EdgeFlip;
+		if( ImGui::IsKeyPressed( SDLK_i ) ) satype = SA_Invert;
+		if( ImGui::IsKeyPressed( SDLK_RIGHTBRACKET ) ) satype = SA_Subdivide;
+		if( ImGui::IsKeyPressed( SDLK_LEFTBRACKET ) ) satype = SA_Unsubdivide;
+		if( ImGui::IsKeyPressed( SDLK_f ) ) satype = SA_EdgeFlip;
 		if( satype != SA_None )
 		{
 			for( size_t b = 0; b < m_selObjList.size(); ++b )
@@ -999,9 +1011,9 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		}
 		
 		// SELECT ALL/NONE
-		if( e->key.engkey == SDLK_a && e->key.engmod & KMOD_CTRL )
+		if( ImGui::IsKeyPressed( SDLK_a ) && ctrldown )
 		{
-			bool sel = ( e->key.engmod & KMOD_ALT ) == 0;
+			bool sel = !altdown;
 			for( size_t b = 0; b < m_selObjList.size(); ++b )
 			{
 				int oid = m_selObjList[ b ];
@@ -1013,85 +1025,66 @@ void EdEditVertexEditMode::OnViewEvent( EDGUIEvent* e )
 		}
 		
 		// EXTEND
-		if( e->key.engkey == SDLK_e )
-		{
-			_Do( SA_Extend );
-		}
+		if( ImGui::IsKeyPressed( SDLK_e ) ) _Do( SA_Extend );
 		// REMOVE
-		if( e->key.engkey == SDLK_DELETE )
-		{
-			_Do( SA_Remove );
-		}
+		if( ImGui::IsKeyPressed( SDLK_DELETE ) ) _Do( SA_Remove );
 		// EXTRACT PART
-		if( e->key.engkey == SDLK_x )
-		{
-			_Do( SA_ExtractPart );
-		}
+		if( ImGui::IsKeyPressed( SDLK_x ) ) _Do( SA_ExtractPart );
 		// DUPLICATE PART
-		if( e->key.engkey == SDLK_d && e->key.engmod & KMOD_CTRL )
-		{
-			_Do( SA_DuplicatePart );
-		}
+		if( ImGui::IsKeyPressed( SDLK_d ) && ctrldown ) _Do( SA_DuplicatePart );
 		// SURFS TO PATCHES
-		if( e->key.engkey == SDLK_s && e->key.engmod & KMOD_ALT )
-		{
-			_Do( SA_SurfsToPatches );
-		}
+		if( ImGui::IsKeyPressed( SDLK_s ) && altdown ) _Do( SA_SurfsToPatches );
 		// ROTATE (CCW)
-		if( e->key.engkey == SDLK_9 && e->key.engmod & KMOD_SHIFT )
-		{
-			_Do( SA_RotateCCW );
-		}
+		if( ImGui::IsKeyPressed( SDLK_9 ) && shiftdown ) _Do( SA_RotateCCW );
 		// ROTATE (CW)
-		if( e->key.engkey == SDLK_0 && e->key.engmod & KMOD_SHIFT )
-		{
-			_Do( SA_RotateCW );
-		}
+		if( ImGui::IsKeyPressed( SDLK_0 ) && shiftdown ) _Do( SA_RotateCW );
 		
 		// GRAB (MOVE)
-		if( e->key.engkey == SDLK_g )
+		if( ImGui::IsKeyPressed( SDLK_g ) )
 		{
 			m_transform.m_extend = false;
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
 		// TO BLOCK MODE
-		if( e->key.engkey == SDLK_b && e->key.engmod & KMOD_ALT )
+		if( ImGui::IsKeyPressed( SDLK_b ) && altdown )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 		}
 		// TO PAINT MODE
-		if( e->key.engkey == SDLK_q && e->key.engmod & KMOD_ALT )
+		if( ImGui::IsKeyPressed( SDLK_q ) && altdown )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintVerts );
 		}
 	}
-	if( e->type == EDGUI_EVENT_PAINT )
-	{
-		int x0 = g_UIFrame->m_UIRenderView.x0;
-		int y0 = g_UIFrame->m_UIRenderView.y0;
-		const char* acts0 = "Block mode [Alt+B], Paint mode [Alt+Q], Select all [Ctrl+A], Select none [Ctrl+Alt+A]";
-		String actlist = "Grab [G]";
-		if( _CanDo( SA_Invert ) ) actlist.append( ", Invert patch [I]" );
-		if( _CanDo( SA_Subdivide ) ) actlist.append( ", Subdivide [']']" );
-		if( _CanDo( SA_Unsubdivide ) ) actlist.append( ", Unsubdivide ['[']" );
-		if( _CanDo( SA_EdgeFlip ) ) actlist.append( ", Edge flip [F]" );
-		if( _CanDo( SA_Extend ) ) actlist.append( ", Extend [E]" );
-		if( _CanDo( SA_Remove ) ) actlist.append( ", Remove [Del]" );
-		if( _CanDo( SA_ExtractPart ) ) actlist.append( ", Extract part [X]" );
-		if( _CanDo( SA_DuplicatePart ) ) actlist.append( ", Duplicate part [Ctrl+D]" );
-		if( _CanDo( SA_SurfsToPatches ) ) actlist.append( ", Surfaces to patches [Alt+S]" );
-		if( _CanDo( SA_RotateCCW ) ) actlist.append( ", Rotate (CCW) [Shift+9/'(']" );
-		if( _CanDo( SA_RotateCW ) ) actlist.append( ", Rotate (CW) [Shift+0/')']" );
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 32 );
-		
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
-		GR2D_DrawTextLine( x0, y0 + 16, actlist, HALIGN_LEFT, VALIGN_TOP );
-	}
 	
-	EdEditMode::OnViewEvent( e );
+	
+	const char* acts0 = "Block mode [Alt+B], Paint mode [Alt+Q], Select all [Ctrl+A], Select none [Ctrl+Alt+A]";
+	String actlist = "Grab [G]";
+	if( _CanDo( SA_Invert ) ) actlist.append( ", Invert patch [I]" );
+	if( _CanDo( SA_Subdivide ) ) actlist.append( ", Subdivide [']']" );
+	if( _CanDo( SA_Unsubdivide ) ) actlist.append( ", Unsubdivide ['[']" );
+	if( _CanDo( SA_EdgeFlip ) ) actlist.append( ", Edge flip [F]" );
+	if( _CanDo( SA_Extend ) ) actlist.append( ", Extend [E]" );
+	if( _CanDo( SA_Remove ) ) actlist.append( ", Remove [Del]" );
+	if( _CanDo( SA_ExtractPart ) ) actlist.append( ", Extract part [X]" );
+	if( _CanDo( SA_DuplicatePart ) ) actlist.append( ", Duplicate part [Ctrl+D]" );
+	if( _CanDo( SA_SurfsToPatches ) ) actlist.append( ", Surfaces to patches [Alt+S]" );
+	if( _CanDo( SA_RotateCCW ) ) actlist.append( ", Rotate (CCW) [Shift+9/'(']" );
+	if( _CanDo( SA_RotateCW ) ) actlist.append( ", Rotate (CW) [Shift+0/')']" );
+	
+	ImVec2 r0 = ImGui::GetWindowPos() + ImVec2( 1, 1 );
+	ImDrawList* idl = ImGui::GetWindowDrawList();
+	
+	idl->PushClipRectFullScreen();
+	idl->AddRectFilled( r0, r0 + ImVec2( 610, 32 ), ImColor( 0.f, 0.f, 0.f, 0.5f ), 8.0f, 0x4 );
+	
+	ImGui::SetCursorScreenPos( r0 + ImVec2( 4, -1 ) );
+	ImGui::Text( acts0 );
+	ImGui::SetCursorScreenPos( r0 + ImVec2( 4, 16 -1 ) );
+	actlist.push_back( '\0' );
+	ImGui::Text( actlist.data() );
+	
+	idl->PopClipRect();
 }
 
 void EdEditVertexEditMode::EditUI()
@@ -1296,12 +1289,12 @@ void EdPaintVertsEditMode::OnViewEvent( EDGUIEvent* e )
 	}
 	if( e->type == EDGUI_EVENT_PAINT )
 	{
-		int x0 = g_UIFrame->m_UIRenderView.x0;
-		int y0 = g_UIFrame->m_UIRenderView.y0;
+		int x0 = g_UIFrame->m_NUIRenderView.m_vp.x0;
+		int y0 = g_UIFrame->m_NUIRenderView.m_vp.y0;
 		const char* acts0 = "Block mode [Alt+B], Vertex mode [Alt+V], Hold Alt to reverse painting";
 		
 		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_UIRenderView.x1, y0 + 16 );
+		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_NUIRenderView.m_vp.x1, y0 + 16 );
 		
 		GR2D_SetColor( 1, 1 );
 		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
@@ -1441,7 +1434,7 @@ void EdPaintSurfsEditMode::OnEnter()
 	m_isPainting = false;
 }
 
-void EdPaintSurfsEditMode::ViewUI( bool canAcceptInput )
+void EdPaintSurfsEditMode::ViewUI()
 {
 	if( ImGui::IsWindowHovered() )
 	{

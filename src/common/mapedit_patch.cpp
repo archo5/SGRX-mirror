@@ -4,6 +4,50 @@
 
 
 
+void EdPatchLayerInfo::EditUI( EdPatch* P, int lid )
+{
+	char bfr[ 32 ];
+	sgrx_snprintf( bfr, 32, "Layer #%d", lid );
+	IMGUI_GROUP_BEGIN( bfr, true )
+	{
+		g_NUISurfMtlPicker->Property( "Pick surface material", "Material", texname );
+		
+		ImGui::BeginChangeMask( 0 );
+		
+		Vec2 off = { xoff, yoff };
+		IMGUIEditVec2( "Offset", off, 0, 1 );
+		xoff = off.x; yoff = off.y;
+		
+		Vec2 scasp = { scale, aspect };
+		IMGUIEditVec2( "Scale / aspect", scasp, 0.01f, 100 );
+		scale = scasp.x; aspect = scasp.y;
+		
+		IMGUIEditFloat( "Angle", angle, 0, 360 );
+		
+		ImGui::EndChangeMask();
+		
+		bool texgen = false;
+		ImGui::Text( "Generate:" );
+		ImGui::SameLine();
+		if( ImGui::Button( "Fit" ) ){ texgen = true; P->TexGenFit( lid ); }
+		ImGui::SameLine();
+		if( ImGui::Button( "Fit/Ntrl." ) ){ texgen = true; P->TexGenFitNat( lid ); }
+		ImGui::SameLine();
+		if( ImGui::Button( "Natural" ) ){ texgen = true; P->TexGenNatural( lid ); }
+		ImGui::SameLine();
+		if( ImGui::Button( "Planar" ) ){ texgen = true; P->TexGenPlanar( lid ); }
+		
+		if( texgen )
+		{
+			P->TexGenPostProc( lid );
+			ImGui::TriggerChangeCheck();
+		}
+	}
+	IMGUI_GROUP_END;
+}
+
+
+
 static const uint16_t ones_mask[ 17 ] = { 0,
 	0x0001, 0x0003, 0x0007, 0x000f,
 	0x001f, 0x003f, 0x007f, 0x00ff,
@@ -194,7 +238,7 @@ void EdPatch::RegenerateMesh()
 		S.icount = outidcs.size();
 		S.mtlname = LI.texname;
 		S.lmsize = lmsize;
-		S.xform = g_EdWorld->m_groupMgr.GetMatrix( group );
+		S.xform = g_EdWorld->GetGroupMatrix( group );
 		S.rflags = 0
 			| (m_isLMSolid ? LM_MESHINST_CASTLMS : 0)
 			| (ovr ? LM_MESHINST_DECAL : 0)
@@ -1001,6 +1045,35 @@ void EdPatch::TexGenPostProc( int layer )
 }
 
 
+void EdPatch::EditUI()
+{
+	ImGui::BeginChangeCheck();
+	
+	IMGUIEditVec3( "Position", position, -8192, 8192 );
+	bool isDecal = ( blend & PATCH_IS_SOLID ) == 0;
+	int layer = blend & ~PATCH_IS_SOLID;
+	IMGUIEditBool( "Render as decal?", isDecal );
+	IMGUIEditBool( "Casts lightmap shadows?", m_isLMSolid );
+	IMGUIEditBool( "Is solid?", m_isPhySolid );
+	IMGUIEditFloat( "Lightmap quality", lmquality, 0.01f, 100 );
+	IMGUIEditInt( "Layer", layer, 0, 127 );
+	blend = layer | ( isDecal ? 0 : PATCH_IS_SOLID );
+	ImGui::Separator();
+	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
+	{
+		layers[ i ].EditUI( this, i );
+	}
+	
+	if( ImGui::EndChangeCheck() )
+		RegenerateMesh();
+}
+
+void EdPatch::VertEditUI( int vid )
+{
+	vertices[ ( vid % xsize ) + vid / xsize * MAX_PATCH_WIDTH ].EditUI();
+}
+
+
 EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 {
 	if( B.GetSurfaceNumVerts( sid ) != 4 )
@@ -1035,298 +1108,6 @@ EdPatch* EdPatch::CreatePatchFromSurface( EdBlock& B, int sid )
 	patch->layers[0].scale = S->scale;
 	patch->layers[0].aspect = S->aspect;
 	return patch;
-}
-
-
-EDGUIPatchVertProps::EDGUIPatchVertProps() :
-	m_out( NULL ),
-	m_vid( 0 ),
-	m_pos( V3(0), 2, V3(-8192), V3(8192) )
-{
-	tyname = "patchvertprops";
-	m_group.caption = "Patch vertex properties";
-	m_pos.caption = "Offset";
-	
-	m_group.Add( &m_pos );
-	char bfr[ 64 ];
-	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
-	{
-		m_col[ i ] = EDGUIPropVec4( V4(0), 2, V4(0), V4(1) );
-		sgrx_snprintf( bfr, 64, "Color #%d", i );
-		m_col[ i ].caption = bfr;
-		m_group.Add( &m_col[ i ] );
-	}
-	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
-	{
-		m_tex[ i ] = EDGUIPropVec2( V2(0), 2, V2(-8192), V2(8192) );
-		sgrx_snprintf( bfr, 64, "Texcoord #%d", i );
-		m_tex[ i ].caption = bfr;
-		m_group.Add( &m_tex[ i ] );
-	}
-	m_group.SetOpen( true );
-	Add( &m_group );
-}
-
-void EDGUIPatchVertProps::Prepare( EdPatch* patch, int vid )
-{
-	m_out = patch;
-	m_vid = vid % patch->xsize + vid / patch->xsize * MAX_PATCH_WIDTH;
-	
-	char bfr[ 32 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "Vertex #%d", vid );
-	m_group.caption = bfr;
-	m_group.SetOpen( true );
-	
-	m_pos.SetValue( patch->vertices[ m_vid ].pos );
-	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
-	{
-		m_tex[ i ].SetValue( patch->vertices[ m_vid ].tex[ i ] );
-		m_col[ i ].SetValue( Col32ToVec4( patch->vertices[ m_vid ].col[ i ] ) );
-	}
-}
-
-int EDGUIPatchVertProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( m_out && (
-			e->target == &m_pos ||
-			e->target == &m_col[0] ||
-			e->target == &m_col[1] ||
-			e->target == &m_col[2] ||
-			e->target == &m_col[3] ||
-			e->target == &m_tex[0] ||
-			e->target == &m_tex[1] ||
-			e->target == &m_tex[2] ||
-			e->target == &m_tex[3]
-			) )
-		{
-			EdPatchVtx& V = m_out->vertices[ m_vid ];
-			if( e->target == &m_pos ) V.pos = m_pos.m_value;
-			else if( e->target == &m_col[0] ) V.col[0] = Vec4ToCol32( m_col[0].m_value );
-			else if( e->target == &m_col[1] ) V.col[1] = Vec4ToCol32( m_col[1].m_value );
-			else if( e->target == &m_col[2] ) V.col[2] = Vec4ToCol32( m_col[2].m_value );
-			else if( e->target == &m_col[3] ) V.col[3] = Vec4ToCol32( m_col[3].m_value );
-			else if( e->target == &m_tex[0] ) V.tex[0] = m_tex[0].m_value;
-			else if( e->target == &m_tex[1] ) V.tex[1] = m_tex[1].m_value;
-			else if( e->target == &m_tex[2] ) V.tex[2] = m_tex[2].m_value;
-			else if( e->target == &m_tex[3] ) V.tex[3] = m_tex[3].m_value;
-			m_out->RegenerateMesh();
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-EDGUIPatchLayerProps::EDGUIPatchLayerProps() :
-	m_out( NULL ),
-	m_lid( 0 ),
-	m_tex( g_UISurfMtlPicker, "null" ),
-	m_off( V2(0), 2, V2(0), V2(1) ),
-	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
-	m_angle( 0, 1, 0, 360 )
-{
-	tyname = "patchlayerprops";
-	m_group.caption = "Surface properties";
-	m_tex.caption = "Texture";
-	m_off.caption = "Offset";
-	m_scaleasp.caption = "Scale/Aspect";
-	m_angle.caption = "Angle";
-	
-	m_texGenLbl.caption = "TexGen:";
-	m_genFit.caption = "Fit";
-	m_genFitNat.caption = "Fit/Ntrl.";
-	m_genNatural.caption = "Natural";
-	m_genPlanar.caption = "Planar";
-	
-	m_texGenCol.Add( &m_texGenLbl );
-	m_texGenCol.Add( &m_genFit );
-	m_texGenCol.Add( &m_genFitNat );
-	m_texGenCol.Add( &m_genNatural );
-	m_texGenCol.Add( &m_genPlanar );
-	
-	m_group.Add( &m_tex );
-	m_group.Add( &m_off );
-	m_group.Add( &m_scaleasp );
-	m_group.Add( &m_angle );
-	m_group.Add( &m_texGenCol );
-	m_group.SetOpen( true );
-	Add( &m_group );
-}
-
-void EDGUIPatchLayerProps::Prepare( EdPatch* patch, int lid )
-{
-	m_out = patch;
-	m_lid = lid;
-	EdPatchLayerInfo& L = patch->layers[ lid ];
-	
-	char bfr[ 32 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "Layer #%d", lid );
-	LoadParams( L, bfr );
-}
-
-void EDGUIPatchLayerProps::LoadParams( EdPatchLayerInfo& L, const char* name )
-{
-	m_group.caption = name;
-	m_group.SetOpen( true );
-	
-	m_tex.SetValue( L.texname );
-	m_off.SetValue( V2( L.xoff, L.yoff ) );
-	m_scaleasp.SetValue( V2( L.scale, L.aspect ) );
-	m_angle.SetValue( L.angle );
-}
-
-void EDGUIPatchLayerProps::BounceBack( EdPatchLayerInfo& L )
-{
-	L.texname = m_tex.m_value;
-	L.xoff = m_off.m_value.x;
-	L.yoff = m_off.m_value.y;
-	L.scale = m_scaleasp.m_value.x;
-	L.aspect = m_scaleasp.m_value.y;
-	L.angle = m_angle.m_value;
-}
-
-int EDGUIPatchLayerProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_BTNCLICK:
-		if( m_out && (
-			e->target == &m_genFit ||
-			e->target == &m_genFitNat ||
-			e->target == &m_genNatural ||
-			e->target == &m_genPlanar ) )
-		{
-			if( e->target == &m_genFit ) m_out->TexGenFit( m_lid );
-			else if( e->target == &m_genFitNat ) m_out->TexGenFitNat( m_lid );
-			else if( e->target == &m_genNatural ) m_out->TexGenNatural( m_lid );
-			else if( e->target == &m_genPlanar ) m_out->TexGenPlanar( m_lid );
-			
-			m_out->TexGenPostProc( m_lid );
-			
-			m_out->RegenerateMesh();
-		}
-		break;
-		
-	case EDGUI_EVENT_PROPEDIT:
-		if( m_out && (
-			e->target == &m_tex ||
-			e->target == &m_off ||
-			e->target == &m_scaleasp ||
-			e->target == &m_angle
-		) )
-		{
-			if( e->target == &m_tex )
-			{
-				m_out->layers[ m_lid ].texname = m_tex.m_value;
-				m_out->RegenerateMesh();
-			}
-			else if( e->target == &m_off )
-			{
-				m_out->layers[ m_lid ].xoff = m_off.m_value.x;
-				m_out->layers[ m_lid ].yoff = m_off.m_value.y;
-			}
-			else if( e->target == &m_scaleasp )
-			{
-				m_out->layers[ m_lid ].scale = m_scaleasp.m_value.x;
-				m_out->layers[ m_lid ].aspect = m_scaleasp.m_value.y;
-			}
-			else if( e->target == &m_angle )
-			{
-				m_out->layers[ m_lid ].angle = m_angle.m_value;
-			}
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-EDGUIPatchProps::EDGUIPatchProps() :
-	m_out( NULL ),
-	m_group( true, "Patch properties" ),
-	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
-	m_blkGroup( NULL ),
-	m_isDecal( false ),
-	m_isLMSolid( false ),
-	m_isPhySolid( false ),
-	m_layerStart( 0, 0, 127 ),
-	m_lmquality( 1, 2, 0.01f, 100.0f )
-{
-	tyname = "blockprops";
-	m_pos.caption = "Position";
-	m_blkGroup.caption = "Group";
-	m_isDecal.caption = "Render as decal?";
-	m_isLMSolid.caption = "Casts lightmap shadows?";
-	m_isPhySolid.caption = "Is solid?";
-	m_layerStart.caption = "Layer start";
-	m_lmquality.caption = "Lightmap quality";
-}
-
-void EDGUIPatchProps::Prepare( EdPatch* patch )
-{
-	m_out = patch;
-	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
-	m_isDecal.SetValue( ( patch->blend & PATCH_IS_SOLID ) == 0 );
-	m_isLMSolid.SetValue( patch->m_isLMSolid );
-	m_isPhySolid.SetValue( patch->m_isPhySolid );
-	m_layerStart.SetValue( patch->blend & ~PATCH_IS_SOLID );
-	
-	Clear();
-	
-	Add( &m_group );
-	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( patch->group ) );
-	m_group.Add( &m_blkGroup );
-	m_group.Add( &m_isDecal );
-	m_group.Add( &m_isLMSolid );
-	m_group.Add( &m_isPhySolid );
-	m_group.Add( &m_layerStart );
-	m_group.Add( &m_lmquality );
-	m_pos.SetValue( patch->position );
-	m_group.Add( &m_pos );
-	m_lmquality.SetValue( patch->lmquality );
-	
-	for( size_t i = 0; i < MAX_PATCH_LAYERS; ++i )
-	{
-		m_layerProps[ i ].Prepare( patch, i );
-		m_group.Add( &m_layerProps[ i ] );
-	}
-}
-
-int EDGUIPatchProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_pos || e->target == &m_blkGroup )
-		{
-			if( e->target == &m_pos )
-			{
-				m_out->position = m_pos.m_value;
-			}
-			else if( e->target == &m_blkGroup )
-			{
-				EdGroup* grp = g_EdWorld->m_groupMgr.FindGroupByPath( m_blkGroup.m_value );
-				if( grp )
-					m_out->group = grp->m_id;
-			}
-		}
-		else if( e->target == &m_isDecal || e->target == &m_layerStart )
-		{
-			uint8_t blend = m_layerStart.m_value;
-			if( m_isDecal.m_value == false )
-				blend |= PATCH_IS_SOLID;
-			m_out->blend = blend;
-		}
-		else if( e->target == &m_isLMSolid ) m_out->m_isLMSolid = m_isLMSolid.m_value;
-		else if( e->target == &m_isPhySolid ) m_out->m_isPhySolid = m_isPhySolid.m_value;
-		else if( e->target == &m_lmquality ) m_out->lmquality = m_lmquality.m_value;
-		m_out->RegenerateMesh();
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
 }
 
 

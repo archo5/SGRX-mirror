@@ -13,6 +13,8 @@
 FINLINE ImVec2 operator + ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x + b.x, a.y + b.y ); }
 FINLINE ImVec2 operator - ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x - b.x, a.y - b.y ); }
 FINLINE ImVec2 operator * ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x * b.x, a.y * b.y ); }
+FINLINE bool operator == ( const ImVec2& a, const ImVec2& b ){ return a.x == b.x && a.y == b.y; }
+FINLINE bool operator != ( const ImVec2& a, const ImVec2& b ){ return a.x != b.x || a.y != b.y; }
 
 
 ENGINE_EXPORT void SGRX_IMGUI_Init();
@@ -46,6 +48,7 @@ ENGINE_EXPORT bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float 
 ENGINE_EXPORT bool IMGUIEditFloatSlider( const char* label, float& v, float vmin, float vmax );
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );
 ENGINE_EXPORT bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval = 1.0f );
+ENGINE_EXPORT bool IMGUIEditColorRGBA32( const char* label, uint32_t& c );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
 ENGINE_EXPORT void IMGUIErrorStr( StringView str );
 ENGINE_EXPORT void IMGUIError( const char* str, ... );
@@ -284,6 +287,9 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 
 #define IMGUI_GROUP( name, opened, cont ) ImGui::SetNextTreeNodeOpened( opened, ImGuiSetCond_Appearing ); \
 	if( ImGui::TreeNode( name ) ){ cont; ImGui::TreePop(); }
+#define IMGUI_GROUP_BEGIN( name, opened ) ImGui::SetNextTreeNodeOpened( opened, ImGuiSetCond_Appearing ); \
+	if( ImGui::TreeNode( name ) ){
+#define IMGUI_GROUP_END ImGui::TreePop(); }
 
 template< class T > bool IMGUIListbox( const char* name, T& val, const char** list, int lsize )
 {

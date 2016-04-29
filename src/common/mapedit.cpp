@@ -783,7 +783,7 @@ void EdWorld::DrawWires_Blocks( EdObject* hl )
 	for( size_t i = 0; i < m_blocks.size(); ++i )
 	{
 		const EdBlock& B = *m_blocks[ i ];
-		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
+		GR2D_SetWorldMatrix( GetGroupMatrix( B.group ) );
 		
 		if( B.selected )
 		{
@@ -827,7 +827,7 @@ void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 		br.Col( 0.1f, 0.5, 0.9f, 0.1f );
 	
 	const EdBlock& B = *m_blocks[ block ];
-	GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
+	GR2D_SetWorldMatrix( GetGroupMatrix( B.group ) );
 	if( surf == (int) B.poly.size() )
 	{
 		for( size_t i = 0; i < B.poly.size(); ++i )
@@ -881,7 +881,7 @@ void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
 		br.Col( 0.1f, 0.5, 0.9f, 0.5f );
 	
 	const EdBlock& B = *m_blocks[ block ];
-	GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( B.group ) );
+	GR2D_SetWorldMatrix( GetGroupMatrix( B.group ) );
 	Vec3 P = V3( B.poly[ vert ].x + B.position.x, B.poly[ vert ].y + B.position.y, B.z0 + B.position.z );
 	
 	float s = 0.5f;
@@ -899,7 +899,7 @@ void EdWorld::DrawWires_Patches( EdObject* hl, bool tonedown )
 	for( size_t i = 0; i < m_patches.size(); ++i )
 	{
 		EdPatch* ptc = m_patches[ i ];
-		GR2D_SetWorldMatrix( m_groupMgr.GetMatrix( ptc->group ) );
+		GR2D_SetWorldMatrix( GetGroupMatrix( ptc->group ) );
 		
 		if( ptc->selected )
 			br.Col( 0.9f, 0.5, 0.1f, 0.9f * ga );
@@ -1123,12 +1123,14 @@ void EdWorld::DeleteObject( EdObject* obj )
 	size_t at = m_objects.find_first_at( obj );
 	m_objects.uerase( at );
 	
+#if 0
 	if( g_UIFrame )
 	{
 		EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
 		e.key.key = at;
 		g_UIFrame->ViewEvent( &e );
 	}
+#endif
 	
 	if( obj->m_type == ObjType_Block )
 	{
@@ -1171,12 +1173,14 @@ void EdWorld::DeleteSelectedObjects()
 		if( m_objects[ i ]->selected )
 		{
 			m_objects.uerase( i );
+#if 0
 			if( g_UIFrame )
 			{
 				EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
 				e.key.key = i;
 				g_UIFrame->ViewEvent( &e );
 			}
+#endif
 		}
 	}
 	
@@ -1267,7 +1271,7 @@ bool EdWorld::GetSelectedObjectAABB( Vec3 outaabb[2] )
 		EdObject* obj = m_objects[ i ];
 		if( obj->selected == false )
 			continue;
-		Mat4 gwm = m_groupMgr.GetMatrix( obj->group );
+		Mat4 gwm = GetGroupMatrix( obj->group );
 		for( int v = 0; v < obj->GetNumVerts(); ++v )
 		{
 			Vec3 p = gwm.TransformPos( obj->GetLocalVertex( v ) );
@@ -1509,6 +1513,11 @@ void EdMultiObjectProps::EditUI()
 }
 
 
+void MapEditorRenderView::DebugDraw()
+{
+	g_UIFrame->DebugDraw();
+}
+
 
 EDGUIMainFrame::EDGUIMainFrame() :
 	m_editTF( NULL ),
@@ -1516,8 +1525,7 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_keyMod( 0 ),
 	m_UIMenuSplit( true, 26, 0 ),
 	m_UIMenuLRSplit( false, 0, 0.4f ),
-	m_UIParamSplit( false, 0, 0.7f ),
-	m_UIRenderView( g_EdScene, this )
+	m_UIParamSplit( false, 0, 0.7f )
 {
 	tyname = "mainframe";
 	
@@ -1526,116 +1534,54 @@ EDGUIMainFrame::EDGUIMainFrame() :
 	m_UIMenuLRSplit.SetSecondPane( &m_UIMenuButtonsRgt );
 	m_UIMenuSplit.SetFirstPane( &m_UIMenuLRSplit );
 	m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
-	m_UIParamSplit.SetFirstPane( &m_UIRenderView );
 	m_UIParamSplit.SetSecondPane( &m_UIParamScroll );
 	m_UIParamScroll.Add( &m_UIParamList );
-	
-	// menu
-	m_MB_Cat0.caption = "File:";
-	m_MBNew.caption = "New";
-	m_MBOpen.caption = "Open";
-	m_MBSave.caption = "Save";
-	m_MBSaveAs.caption = "Save As";
-	m_MBCompile.caption = "Compile";
-	m_UIMenuButtonsLft.Add( &m_MB_Cat0 );
-	m_UIMenuButtonsLft.Add( &m_MBNew );
-	m_UIMenuButtonsLft.Add( &m_MBOpen );
-	m_UIMenuButtonsLft.Add( &m_MBSave );
-	m_UIMenuButtonsLft.Add( &m_MBSaveAs );
-	m_UIMenuButtonsLft.Add( &m_MBCompile );
 	
 	m_txMarker = GR_GetTexture( "editor/marker.png" );
 }
 
-void EDGUIMainFrame::PostInit()
+void EDGUIMainFrame::EditUI()
 {
-}
-
-int EDGUIMainFrame::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_BTNCLICK:
-		if(0);
-		
-		else if( e->target == &m_MBNew ) Level_New();
-		else if( e->target == &m_MBOpen ) Level_Open();
-		else if( e->target == &m_MBSave ) Level_Save();
-		else if( e->target == &m_MBSaveAs ) Level_SaveAs();
-		else if( e->target == &m_MBCompile ) Level_Compile();
-		
-		return 1;
-		
-	case EDGUI_EVENT_PROPCHANGE:
-		if( e->target == g_UILevelOpenPicker )
-		{
-			Level_Real_Open( g_UILevelOpenPicker->GetValue() );
-		}
-		if( e->target == g_UILevelSavePicker )
-		{
-			Level_Real_Save( g_UILevelSavePicker->GetValue() );
-		}
-		return 1;
-	}
 	if( m_editMode )
-	{
-		if( m_editMode->OnUIEvent( e ) )
-			return 1;
-	}
-	return EDGUIFrame::OnEvent( e );
+		m_editMode->EditUI();
 }
 
-bool EDGUIMainFrame::ViewEvent( EDGUIEvent* e )
+bool EDGUIMainFrame::ViewUI()
 {
-	if( e->type == EDGUI_EVENT_KEYDOWN || e->type == EDGUI_EVENT_KEYUP )
-	{
-		int mod = 0;
-		switch( e->key.engkey )
-		{
-		case SDLK_LSHIFT: mod = KMOD_LSHIFT; break;
-		case SDLK_RSHIFT: mod = KMOD_RSHIFT; break;
-		case SDLK_LCTRL: mod = KMOD_LCTRL; break;
-		case SDLK_RCTRL: mod = KMOD_RCTRL; break;
-		case SDLK_LALT: mod = KMOD_LALT; break;
-		case SDLK_RALT: mod = KMOD_RALT; break;
-		case SDLK_LGUI: mod = KMOD_LGUI; break;
-		case SDLK_RGUI: mod = KMOD_RGUI; break;
-		}
-		if( e->type == EDGUI_EVENT_KEYDOWN )
-			m_keyMod |= mod;
-		else
-			m_keyMod &= ~mod;
-	}
+	m_NUIRenderView.Process( ImGui::GetIO().DeltaTime );
 	
 	if( m_editTF )
 	{
-		if( m_editTF->OnViewEvent( e ) )
+		if( m_editTF->ViewUI() )
 			return false;
 	}
 	
 	if( m_editMode )
-		m_editMode->OnViewEvent( e );
+		m_editMode->ViewUI();
 	
-	if( e->type == EDGUI_EVENT_PAINT )
+	char bfr[ 1024 ];
+	int x1 = g_UIFrame->m_NUIRenderView.m_vp.x1;
+	int y1 = g_UIFrame->m_NUIRenderView.m_vp.y1;
+	
+	ImDrawList* idl = ImGui::GetWindowDrawList();
+	idl->PushClipRectFullScreen();
+	int vsz = g_EdLGCont->m_lmRenderer ? 32 : 16;
+	idl->AddRectFilled( ImVec2( x1 - 200, y1 - vsz ), ImVec2( x1, y1 ), ImColor(0.f,0.f,0.f,0.5f), 8.0f, 0x1 );
+	
+	sgrx_snprintf( bfr, 1024, "%d outdated lightmaps", g_EdLGCont->GetInvalidItemCount() );
+	ImGui::SetCursorScreenPos( ImVec2( x1 - 200 + 4, y1 - 16 - 1 ) );
+	ImGui::Text( bfr );
+	
+	if( g_EdLGCont->m_lmRenderer )
 	{
-		int x1 = g_UIFrame->m_UIRenderView.x1;
-		int y1 = g_UIFrame->m_UIRenderView.y1;
-	//	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		GR2D_SetColor( 1, 1 );
-		char bfr[ 1024 ];
-		
-		sgrx_snprintf( bfr, 1024, "%d outdated lightmaps",
-			g_EdLGCont->GetInvalidItemCount() );
-		GR2D_DrawTextLine( x1, y1, bfr, HALIGN_RIGHT, VALIGN_BOTTOM );
-		
-		if( g_EdLGCont->m_lmRenderer )
-		{
-			sgrx_snprintf( bfr, 1024, "rendering lightmaps (%s: %d%%)",
-				StackString<128>(g_EdLGCont->m_lmRenderer->stage).str,
-				int(g_EdLGCont->m_lmRenderer->completion * 100) );
-			GR2D_DrawTextLine( x1, y1 - 12, bfr, HALIGN_RIGHT, VALIGN_BOTTOM );
-		}
+		sgrx_snprintf( bfr, 1024, "rendering lightmaps (%s: %d%%)",
+			StackString<128>(g_EdLGCont->m_lmRenderer->stage).str,
+			int(g_EdLGCont->m_lmRenderer->completion * 100) );
+		ImGui::SetCursorScreenPos( ImVec2( x1 - 200 + 4, y1 - 32 - 1 ) );
+		ImGui::Text( bfr );
 	}
+	
+	idl->PopClipRect();
 	
 	return true;
 }
@@ -1674,8 +1620,8 @@ void EDGUIMainFrame::_DrawCursor( bool drawimg, float height )
 void EDGUIMainFrame::DrawCursor( bool drawimg )
 {
 	_DrawCursor( drawimg, 0 );
-	if( m_UIRenderView.crplaneheight )
-		_DrawCursor( drawimg, m_UIRenderView.crplaneheight );
+	if( m_NUIRenderView.crplaneheight )
+		_DrawCursor( drawimg, m_NUIRenderView.crplaneheight );
 }
 
 void EDGUIMainFrame::DebugDraw()
@@ -1705,32 +1651,32 @@ void EDGUIMainFrame::RefreshMouse()
 
 Vec3 EDGUIMainFrame::GetCursorRayPos()
 {
-	return g_NUIRenderView->crpos;
+	return m_NUIRenderView.crpos;
 }
 
 Vec3 EDGUIMainFrame::GetCursorRayDir()
 {
-	return g_NUIRenderView->crdir;
+	return m_NUIRenderView.crdir;
 }
 
 Vec2 EDGUIMainFrame::GetCursorPlanePos()
 {
-	return Snapped( g_NUIRenderView->cursor_hpos );
+	return Snapped( m_NUIRenderView.cursor_hpos );
 }
 
 float EDGUIMainFrame::GetCursorPlaneHeight()
 {
-	return g_NUIRenderView->crplaneheight;
+	return m_NUIRenderView.crplaneheight;
 }
 
 void EDGUIMainFrame::SetCursorPlaneHeight( float z )
 {
-	g_NUIRenderView->crplaneheight = z;
+	m_NUIRenderView.crplaneheight = z;
 }
 
 bool EDGUIMainFrame::IsCursorAiming()
 {
-	return g_NUIRenderView->cursor_aim;
+	return m_NUIRenderView.cursor_aim;
 }
 
 void EDGUIMainFrame::Snap( Vec2& v )
@@ -1762,71 +1708,24 @@ Vec3 EDGUIMainFrame::Snapped( const Vec3& v )
 }
 
 
-void EDGUIMainFrame::ResetEditorState()
-{
-	PostInit();
-}
-
 void EDGUIMainFrame::Level_New()
 {
 	ReconfigureEntities( "" );
 	g_EdWorld->Reset();
 	g_EdLGCont->Reset();
-	ResetEditorState();
 }
 
-void EDGUIMainFrame::Level_Open()
-{
-	g_UILevelOpenPicker->Reload();
-	g_UILevelOpenPicker->Open( this, "" );
-	m_frame->Add( g_UILevelOpenPicker );
-}
-
-void EDGUIMainFrame::Level_Save()
-{
-	if( m_fileName.size() )
-	{
-		Level_Real_Save( m_fileName );
-	}
-	else
-	{
-		Level_SaveAs();
-	}
-}
-
-void EDGUIMainFrame::Level_SaveAs()
-{
-	g_UILevelSavePicker->Reload();
-	g_UILevelSavePicker->Open( this, "" );
-	m_frame->Add( g_UILevelSavePicker );
-}
-
-void EDGUIMainFrame::Level_Compile()
-{
-	if( m_fileName.size() )
-	{
-		Level_Real_Compile();
-	}
-	else
-	{
-		Level_SaveAs();
-	}
-}
-
-void EDGUIMainFrame::Level_Real_Open( const String& str )
+bool EDGUIMainFrame::Level_Real_Open( const StringView& str )
 {
 	LOG << "Trying to open level: " << str;
 	
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
 	String data;
-	if( !FS_LoadTextFile( bfr, data ) )
+	if( !FS_LoadTextFile( str, data ) )
 	{
-		LOG_ERROR << "FAILED TO LOAD LEVEL FILE: " << bfr;
-		return;
+		LOG_ERROR << "FAILED TO LOAD LEVEL FILE: " << str;
+		return false;
 	}
 	
-	ResetEditorState();
 	ReconfigureEntities( str );
 	
 	if( SV(data).part( 0, 5 ) == "WORLD" )
@@ -1835,8 +1734,8 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 		g_EdWorld->Serialize( tr );
 		if( tr.error )
 		{
-			LOG_ERROR << "FAILED TO READ LEVEL FILE (at " << (int) tr.pos << "): " << bfr;
-			return;
+			LOG_ERROR << "FAILED TO READ LEVEL FILE (at " << (int) tr.pos << "): " << str;
+			return false;
 		}
 	}
 	else if( SV(data).part( 0, 1 ) == "{" )
@@ -1844,15 +1743,15 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 		sgsVariable parsed = g_Level->GetScriptCtx().ParseSGSON( data );
 		if( !parsed.not_null() )
 		{
-			LOG_ERROR << "FAILED TO READ LEVEL FILE: " << bfr;
-			return;
+			LOG_ERROR << "FAILED TO READ LEVEL FILE: " << str;
+			return false;
 		}
 		g_EdWorld->FLoad( parsed );
 	}
 	else
 	{
-		LOG_ERROR << "UNKNOWN LEVEL FILE FORMAT: " << bfr;
-		return;
+		LOG_ERROR << "UNKNOWN LEVEL FILE FORMAT: " << str;
+		return false;
 	}
 	
 	g_EdLGCont->LoadLightmaps( str );
@@ -1860,9 +1759,10 @@ void EDGUIMainFrame::Level_Real_Open( const String& str )
 	g_EdWorld->ReloadCLUT();
 	
 	m_fileName = str;
+	return true;
 }
 
-void EDGUIMainFrame::Level_Real_Save( const String& str )
+bool EDGUIMainFrame::Level_Real_Save( const StringView& str )
 {
 	LOG << "Trying to save level: " << str;
 	String data;
@@ -1875,18 +1775,17 @@ void EDGUIMainFrame::Level_Real_Save( const String& str )
 	arch << *g_EdWorld;
 #endif
 	
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "levels/%.*s.tle", TMIN( (int) str.size(), 200 ), str.data() );
-	if( !FS_SaveTextFile( bfr, data ) )
+	if( !FS_SaveTextFile( str, data ) )
 	{
-		LOG_ERROR << "FAILED TO SAVE LEVEL FILE: " << bfr;
-		return;
+		LOG_ERROR << "FAILED TO SAVE LEVEL FILE: " << str;
+		return false;
 	}
 	
 	g_EdLGCont->SaveLightmaps( str );
 	
 	m_fileName = str;
 	ReconfigureEntities( str );
+	return true;
 }
 
 void EDGUIMainFrame::Level_Real_Compile()
@@ -2040,12 +1939,13 @@ void EDGUIMainFrame::SetEditTransform( EdEditTransform* et )
 //
 
 int g_mode = LevelInfo;
-String g_fileName;
 
 bool MapEditor::OnInitialize()
 {
 	GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 	GR2D_SetFont( "core", 12 );
+	
+	SGRX_IMGUI_Init();
 	
 	g_Level = g_BaseGame->CreateLevel();
 	g_Level->m_editorMode = true;
@@ -2074,12 +1974,8 @@ bool MapEditor::OnInitialize()
 	g_EdWorld = new EdWorld();
 	g_EdWorld->RegenerateMeshes();
 	g_UIFrame = new EDGUIMainFrame();
-	g_UIFrame->PostInit();
 	g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
 	
-	SGRX_IMGUI_Init();
-	
-	g_NUIRenderView = new MapEditorRenderView();
 	g_NUILevelPicker = new IMGUIFilePicker( "levels", ".tle" );
 	g_NUIMeshPicker = new IMGUIMeshPicker();
 	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
@@ -2096,9 +1992,6 @@ void MapEditor::OnDestroy()
 	delete g_NUIPartSysPicker;
 	delete g_NUIMeshPicker;
 	delete g_NUILevelPicker;
-	delete g_NUIRenderView;
-	
-	SGRX_IMGUI_Free();
 	
 	delete g_UILevelSavePicker;
 	g_UILevelSavePicker = NULL;
@@ -2125,6 +2018,8 @@ void MapEditor::OnDestroy()
 	g_EdLGCont->OnDestroy();
 	g_EdLGCont = NULL;
 	delete g_Level;
+	
+	SGRX_IMGUI_Free();
 }
 
 void MapEditor::OnEvent( const Event& e )
@@ -2160,7 +2055,7 @@ void MapEditor::OnEvent( const Event& e )
 			g_EdLGCont->STRegenerate();
 		}
 	}
-//	g_UIFrame->EngineEvent( &e );
+	
 	g_EdWorld->m_groupMgr.ProcessDestroyQueue();
 	
 	SGRX_IMGUI_Event( e );
@@ -2171,7 +2066,6 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	g_EdLGCont->ApplyInvalidation();
 	g_EdLGCont->ILMCheck();
-//	g_UIFrame->m_UIRenderView.UpdateCamera( dt );
 	g_UIFrame->Draw();
 	
 	SGRX_IMGUI_NewFrame( dt );
@@ -2186,11 +2080,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 		{
 			if( ImGui::BeginMenu( "File" ) )
 			{
-				if( ImGui::MenuItem( "New" ) )
-				{
-					g_fileName = "";
-					// TODO
-				}
+				if( ImGui::MenuItem( "New" ) ) g_UIFrame->Level_New();
 				if( ImGui::MenuItem( "Open" ) ) needOpen = true;
 				if( ImGui::MenuItem( "Save" ) ) needSave = true;
 				if( ImGui::MenuItem( "Save As" ) ) needSaveAs = true;
@@ -2200,8 +2090,12 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			}
 			
 			ImGui::SameLine();
-			if( ImGui::Button( "Compile" ) )
-				g_UIFrame->Level_Compile();
+			if( g_UIFrame->m_fileName.size() )
+			{
+				if( ImGui::Button( "Compile" ) )
+					g_UIFrame->Level_Real_Compile();
+			}
+			else ImGui::Button( "Save before compiling" );
 			
 			ImGui::SameLine();
 			if( ImGui::BeginMenu( "Lightmap" ) )
@@ -2258,24 +2152,18 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 				g_UIFrame->SetEditMode( NULL );
 			
 			ImGui::SameLine( 0, 50 );
-			ImGui::Text( "Level file: %s", g_fileName.size() ? StackPath(g_fileName).str : "<none>" );
+			StringView lfn = g_UIFrame->m_fileName;
+			ImGui::Text( "Level file: %s", lfn.size() ? StackPath(lfn).str : "<none>" );
 			
 			ImGui::EndMenuBar();
 		}
 		
 		IMGUI_HSPLIT( 0.7f,
 		{
-			g_NUIRenderView->Process( dt );
-			
-			if( g_UIFrame->m_editMode )
-			{
-				bool canEdit = ImGui::IsWindowFocused();
-				g_UIFrame->m_editMode->ViewUI( canEdit );
-			}
+			g_UIFrame->ViewUI();
 		},
 		{
-			if( g_UIFrame->m_editMode )
-				g_UIFrame->m_editMode->EditUI();
+			g_UIFrame->EditUI();
 			
 			if( g_mode == LevelInfo )
 			{
@@ -2295,7 +2183,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 					if( ImGui::RadioButton( "Unlit", mode == 1 ) )
 						g_Level->GetScene()->director->SetMode( 1 );
 				});
-				g_NUIRenderView->EditCameraParams();
+				g_UIFrame->m_NUIRenderView.EditCameraParams();
 			}
 		});
 		
@@ -2308,7 +2196,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			g_NUILevelPicker->OpenPopup( OPEN_CAPTION );
 		if( g_NUILevelPicker->Popup( OPEN_CAPTION, fn, false ) )
 		{
-			// TODO
+			if( !g_UIFrame->Level_Real_Open( fn ) )
 			{
 				IMGUIError( "Cannot open file: %s", StackPath(fn).str );
 			}
@@ -2317,17 +2205,17 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 		//
 		// SAVE
 		//
-		fn = g_fileName;
+		fn = g_UIFrame->m_fileName;
 #define SAVE_CAPTION "Save level (.tle) file"
-		if( needSaveAs || ( needSave && g_fileName.size() == 0 ) )
+		if( needSaveAs || ( needSave && g_UIFrame->m_fileName.size() == 0 ) )
 			g_NUILevelPicker->OpenPopup( SAVE_CAPTION );
 		
-		bool canSave = needSave && g_fileName.size();
+		bool canSave = needSave && g_UIFrame->m_fileName.size();
 		if( g_NUILevelPicker->Popup( SAVE_CAPTION, fn, true ) )
 			canSave = fn.size();
 		if( canSave )
 		{
-			// TODO
+			if( !g_UIFrame->Level_Real_Save( fn ) )
 			{
 				IMGUIError( "Cannot save file: %s", StackPath(fn).str );
 			}
