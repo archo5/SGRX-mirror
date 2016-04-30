@@ -1477,11 +1477,10 @@ void EdAddEntityEditMode::ViewUI()
 	
 	for( size_t i = 0; i < m_entGroup.CurEntity()->m_fields.size(); ++i )
 	{
-		EdEntity::Field& F = m_entGroup.CurEntity()->m_fields[ i ];
-		if( F.property->type == EDGUI_ITEM_PROP_VEC3 &&
-			F.key.equals( "position" ) )
+		EdEntity::FieldBase* F = m_entGroup.CurEntity()->m_fields[ i ];
+		if( F->type == EdEntity::FT_Vec3 && F->key.equals( "position" ) )
 		{
-			g_UIFrame->SetCursorPlaneHeight( ((EDGUIPropVec3*)F.property)->m_value.z );
+			g_UIFrame->SetCursorPlaneHeight( ((EdEntity::FieldVec3*)F)->value.z );
 		}
 	}
 }

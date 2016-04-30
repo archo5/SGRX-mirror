@@ -4,6 +4,7 @@
 #define __STDC_FORMAT_MACROS 1
 #include <float.h>
 #include "engine.hpp"
+#include "sound.hpp"
 
 
 #define IMGUI_API ENGINE_EXPORT
@@ -116,6 +117,12 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIEntryPicker : IMGUIPickerCore
 	Array< RCString > m_entries;
 };
 
+struct IF_GCC(ENGINE_EXPORT) IMGUISoundPicker : IMGUIEntryPicker
+{
+	ENGINE_EXPORT void Reload();
+	SoundSystemHandle sys;
+};
+
 struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIEntryPicker, IDirEntryHandler
 {
 	ENGINE_EXPORT IMGUIFilePicker( const char* dir, const char* ext );
@@ -190,11 +197,24 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIMeshPicker : IMGUIMeshPickerCore, IDirEntryHan
 	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
 };
 
+struct IF_GCC(ENGINE_EXPORT) IMGUICharPicker : IMGUIMeshPickerCore, IDirEntryHandler
+{
+	ENGINE_EXPORT IMGUICharPicker();
+	ENGINE_EXPORT void Reload();
+	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
+};
+
 struct IF_GCC(ENGINE_EXPORT) IMGUIShaderPicker : IDirEntryHandler
 {
 	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
 	ENGINE_EXPORT bool Property( const char* label, String& str );
 	Array< RCString > m_shaderList;
+};
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIEnumPicker
+{
+	ENGINE_EXPORT bool Property( const char* label, int32_t& val );
+	HashTable< int32_t, RCString > m_entries;
 };
 
 

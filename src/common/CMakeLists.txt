@@ -74,12 +74,12 @@ set_target_properties( charedit PROPERTIES
 )
 
 # Cutscene editor
-add_library( csedit SHARED csedit )
-target_link_libraries( csedit sgrx-core )
-set_target_properties( csedit PROPERTIES
-	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
-	COMPILE_FLAGS "${CORE_FLAGS}"
-	LINK_FLAGS "${CORE_FLAGS}"
-)
+#add_library( csedit SHARED csedit )
+#target_link_libraries( csedit sgrx-core )
+#set_target_properties( csedit PROPERTIES
+#	INCLUDE_DIRECTORIES "${SRCDIR}/engine"
+#	COMPILE_FLAGS "${CORE_FLAGS}"
+#	LINK_FLAGS "${CORE_FLAGS}"
+#)
 endif()
 

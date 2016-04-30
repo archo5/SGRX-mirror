@@ -4,6 +4,57 @@
 
 
 
+void EdEntity::FieldBool::EditUI()
+{
+	IMGUIEditBool( caption.c_str(), value );
+}
+
+void EdEntity::FieldInt::EditUI()
+{
+	IMGUIEditInt( caption.c_str(), value, vmin, vmax );
+}
+
+void EdEntity::FieldFloat::EditUI()
+{
+	IMGUIEditFloat( caption.c_str(), value, vmin, vmax, prec );
+}
+
+void EdEntity::FieldVec2::EditUI()
+{
+	IMGUIEditVec2( caption.c_str(), value, vmin, vmax, prec );
+}
+
+void EdEntity::FieldVec3::EditUI()
+{
+	IMGUIEditVec3( caption.c_str(), value, vmin, vmax, prec );
+}
+
+void EdEntity::FieldString::EditUI()
+{
+	switch( type )
+	{
+	case FT_Mesh:
+		g_NUIMeshPicker->Property( "Select mesh", caption.c_str(), value );
+		break;
+	case FT_Tex:
+		g_NUITexturePicker->Property( "Select texture", caption.c_str(), value );
+		break;
+	case FT_Char:
+		g_NUICharPicker->Property( "Select character", caption.c_str(), value );
+		break;
+	case FT_PartSys:
+		g_NUIPartSysPicker->Property( "Select particle system", caption.c_str(), value );
+		break;
+	case FT_Sound:
+		g_NUISoundPicker->Property( "Select sound event", caption.c_str(), value );
+		break;
+	default:
+		IMGUIEditString( caption.c_str(), value, 256 );
+		break;
+	}
+}
+
+
 void EdEntity::BeforeDelete()
 {
 	if( m_ownerEnt )
@@ -51,22 +102,13 @@ void EdEntity::DebugDraw()
 EdEntity::EdEntity( sgsString type, bool isproto ) :
 	EdObject( ObjType_Entity ),
 	m_isproto( isproto ),
-	m_group( true, "Entity properties" ),
 	m_pos( V3(0) ),
 	m_entityType( type ),
 	m_realEnt( NULL )
 {
-	tyname = "entity";
-	
 	StringView typestr( type.c_str(), type.size() );
 	sgsVariable eiface = g_Level->GetEntityInterface( typestr );
 	m_iconTex = GR_GetTexture( eiface.getprop("ED_Icon").getdef<StringView>( "editor/icons/default.png" ) );
-	
-	char bfr[ 256 ];
-	sgrx_snprintf( bfr, 256, "%s properties", StackString<240>(typestr).str );
-	m_group.caption = bfr;
-	m_group.SetOpen( true );
-	Add( &m_group );
 	
 	{
 		SGS_CSCOPE( g_Level->GetSGSC() );
@@ -85,8 +127,6 @@ EdEntity::EdEntity( sgsString type, bool isproto ) :
 
 EdEntity::~EdEntity()
 {
-	ClearFields();
-	
 	if( m_realEnt )
 	{
 		g_Level->DestroyEntity( m_realEnt );
@@ -100,7 +140,7 @@ EdEntity& EdEntity::operator = ( const EdEntity& o )
 	m_entityType = o.m_entityType;
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		m_fields[ i ].property->TakeValue( o.m_fields[ i ].property );
+		m_fields[ i ] = m_fields[ i ]->Clone();
 	}
 	Fields2Data();
 	return *this;
@@ -142,27 +182,13 @@ void EdEntity::FLoad( sgsVariable data, int version )
 	sgsVariable props = data.getprop( "props" );
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		Field& F = m_fields[ i ];
-		sgsVariable val = props.getprop( F.key );
-		switch( F.property->type )
-		{
-		case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*)F.property)->SetValue( FLoadVar( val, false ) ); break;
-		case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*)F.property)->SetValue( FLoadVar( val, int32_t(0) ) ); break;
-		case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*)F.property)->SetValue( FLoadVar( val, 0.0f ) ); break;
-		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*)F.property)->SetValue( FLoadVar( val, V2(0) ) ); break;
-		case EDGUI_ITEM_PROP_VEC3:
-			((EDGUIPropVec3*)F.property)->SetValue( FLoadVar( val, V3(0) ) );
-			if( F.key.equals( "position" ) )
-				m_pos = ((EDGUIPropVec3*)F.property)->m_value;
-			break;
-		case EDGUI_ITEM_PROP_STRING:
-			((EDGUIPropString*)F.property)->SetValue( FLoadVar( val, SV("") ) );
-			if( F.key.equals( "id" ) && ((EDGUIPropString*)F.property)->m_value.size() == 0 )
-				g_EdWorld->SetEntityID( this );
-			break;
-		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*)F.property)->SetValue( FLoadVar( val, SV("") ) ); break;
-		case EDGUI_ITEM_PROP_ENUM_SB: ((EDGUIPropEnumSB*)F.property)->SetValue( FLoadVar( val, 0 ) ); break;
-		}
+		FieldBase* F = m_fields[ i ];
+		sgsVariable val = props.getprop( F->key );
+		F->SetFromVar( val );
+		if( F->type == FT_Vec3 && F->key.equals( "position" ) )
+			m_pos = ((FieldVec3*)F)->value;
+		if( F->type == FT_String && F->key.equals( "id" ) && ((FieldString*)F)->value.size() == 0 )
+			g_EdWorld->SetEntityID( this );
 	}
 	Fields2Data();
 	UpdateRealEnt( NULL );
@@ -174,20 +200,8 @@ sgsVariable EdEntity::FSave( int version )
 	sgsVariable props = FNewDict();
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		Field& F = m_fields[ i ];
-		sgsVariable val;
-		switch( F.property->type )
-		{
-		case EDGUI_ITEM_PROP_BOOL: val = FVar( ((EDGUIPropBool*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_INT: val = FVar( ((EDGUIPropInt*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_FLOAT: val = FVar( ((EDGUIPropFloat*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_VEC2: val = FVar( ((EDGUIPropVec2*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_VEC3: val = FVar( ((EDGUIPropVec3*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_STRING: val = FVar( ((EDGUIPropString*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_RSRC: val = FVar( ((EDGUIPropRsrc*)F.property)->m_value ); break;
-		case EDGUI_ITEM_PROP_ENUM_SB: val = FVar( ((EDGUIPropEnumSB*)F.property)->m_value ); break;
-		}
-		props.setprop( F.key, val );
+		FieldBase* F = m_fields[ i ];
+		props.setprop( F->key, F->ToVar() );
 	}
 	
 	sgsVariable out = FNewDict();
@@ -201,59 +215,47 @@ void EdEntity::SetPosition( const Vec3& pos )
 	m_pos = pos;
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		Field& F = m_fields[ i ];
-		if( F.key.equals( "position" ) && F.property->type == EDGUI_ITEM_PROP_VEC3 )
+		FieldBase* F = m_fields[ i ];
+		if( F->type == FT_Vec3 && F->key.equals( "position" ) )
 		{
-			((EDGUIPropVec3*)F.property)->SetValue( m_pos );
-			UpdateRealEnt( &F );
+			((FieldVec3*)F)->value = m_pos;
+			UpdateRealEnt( F );
 		}
 	}
 	Fields2Data();
 }
 
-int EdEntity::OnEvent( EDGUIEvent* e )
+void EdEntity::EditUI()
 {
-	switch( e->type )
+	ImGui::Text( "Entity '%s' properties", m_entityType.c_str() );
+	ImGui::Separator();
+	
+	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-	case EDGUI_EVENT_PROPEDIT:
-	case EDGUI_EVENT_PROPCHANGE:
-		for( size_t i = 0; i < m_fields.size(); ++i )
+		ImGui::BeginChangeCheck();
+		
+		FieldBase* F = m_fields[ i ];
+		F->EditUI();
+		
+		if( ImGui::EndChangeCheck() )
 		{
-			Field& F = m_fields[ i ];
-			if( F.key.equals( "position" ) && F.property->type == EDGUI_ITEM_PROP_VEC3 )
-			{
-				m_pos = ((EDGUIPropVec3*)F.property)->m_value;
-			}
+			if( F->type == FT_Vec3 && F->key.equals( "position" ) )
+				m_pos = ((FieldVec3*)F)->value;
 			Fields2Data();
-			if( F.property == e->target )
-			{
-				UpdateRealEnt( &F );
-			}
+			UpdateRealEnt( F );
 		}
-		break;
 	}
-	return EDGUILayoutRow::OnEvent( e );
 }
 
 void EdEntity::Data2Fields()
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		Field& F = m_fields[ i ];
-		sgsVariable val = m_data.getprop( F.key );
+		FieldBase* F = m_fields[ i ];
+		sgsVariable val = m_data.getprop( F->key );
 		if( val.type_id() == SGS_VT_NULL )
 			continue;
-		switch( F.property->type )
-		{
-		case EDGUI_ITEM_PROP_BOOL: ((EDGUIPropBool*) F.property)->SetValue( val.get<bool>() ); break;
-		case EDGUI_ITEM_PROP_INT: ((EDGUIPropInt*) F.property)->SetValue( val.get<int>() ); break;
-		case EDGUI_ITEM_PROP_FLOAT: ((EDGUIPropFloat*) F.property)->SetValue( val.get<float>() ); break;
-		case EDGUI_ITEM_PROP_VEC2: ((EDGUIPropVec2*) F.property)->SetValue( val.get<Vec2>() ); break;
-		case EDGUI_ITEM_PROP_VEC3: ((EDGUIPropVec3*) F.property)->SetValue( val.get<Vec3>() ); break;
-		case EDGUI_ITEM_PROP_STRING: ((EDGUIPropString*) F.property)->SetValue( val.get<StringView>() ); break;
-		case EDGUI_ITEM_PROP_ENUM_SB: ((EDGUIPropEnumSB*) F.property)->SetValue( val.get<int>() ); break;
-		case EDGUI_ITEM_PROP_RSRC: ((EDGUIPropRsrc*) F.property)->SetValue( val.get<StringView>() ); break;
-		}
+		F->SetFromIntVar( val );
 	}
 }
 
@@ -262,18 +264,8 @@ void EdEntity::Fields2Data()
 	sgsVariable data = FNewDict();
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		Field& F = m_fields[ i ];
-		switch( F.property->type )
-		{
-		case EDGUI_ITEM_PROP_BOOL: data.setprop( F.key, FIntVar( ((EDGUIPropBool*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_INT: data.setprop( F.key, FIntVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_FLOAT: data.setprop( F.key, FIntVar( ((EDGUIPropFloat*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_VEC2: data.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_VEC3: data.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_STRING: data.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_ENUM_SB: data.setprop( F.key, FIntVar( ((EDGUIPropEnumSB*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_RSRC: data.setprop( F.key, FIntVar( ((EDGUIPropRsrc*) F.property)->m_value ) ); break;
-		}
+		FieldBase* F = m_fields[ i ];
+		data.setprop( F->key, F->ToIntVar() );
 	}
 	m_data = data;
 }
@@ -282,17 +274,17 @@ void EdEntity::SetID( StringView idstr )
 {
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		Field& F = m_fields[ i ];
-		if( F.property->type == EDGUI_ITEM_PROP_STRING && F.key.equals( "id" ) )
+		FieldBase* F = m_fields[ i ];
+		if( F->type == FT_String && F->key.equals( "id" ) )
 		{
-			((EDGUIPropString*) F.property)->SetValue( idstr );
-			UpdateRealEnt( &F );
+			((FieldString*)F)->value = idstr;
+			UpdateRealEnt( F );
 		}
 	}
 	Fields2Data();
 }
 
-void EdEntity::UpdateRealEnt( Field* curF )
+void EdEntity::UpdateRealEnt( FieldBase* curF )
 {
 	if( !m_realEnt )
 		return;
@@ -300,47 +292,18 @@ void EdEntity::UpdateRealEnt( Field* curF )
 	sgsVariable so = m_realEnt->GetScriptedObject();
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
-		Field& F = m_fields[ i ];
-		if( curF && curF != &F )
+		FieldBase* F = m_fields[ i ];
+		if( curF && curF != F )
 			continue;
-		switch( F.property->type )
-		{
-		case EDGUI_ITEM_PROP_BOOL: so.setprop( F.key, FIntVar( ((EDGUIPropBool*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_INT: so.setprop( F.key, FIntVar( ((EDGUIPropInt*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_FLOAT: so.setprop( F.key, FIntVar( ((EDGUIPropFloat*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_VEC2: so.setprop( F.key, FIntVar( ((EDGUIPropVec2*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_VEC3: so.setprop( F.key, FIntVar( ((EDGUIPropVec3*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_STRING: so.setprop( F.key, FIntVar( ((EDGUIPropString*) F.property)->m_value ) ); break;
-		case EDGUI_ITEM_PROP_ENUM_SB: so.setprop( F.key, FIntVar( ((EDGUIPropEnumSB*) F.property)->m_value) ); break;
-		case EDGUI_ITEM_PROP_RSRC:
-			// requires type-specific actions
-			{
-				SGRX_CAST( EDGUIPropRsrc*, rp, F.property );
-				if( rp->m_rsrcPicker == g_UIMeshPicker )
-					so.setprop( F.key, FIntVar( rp->m_value ) );
-				else if( rp->m_rsrcPicker == g_UITexturePicker )
-					so.setprop( F.key, FIntVar( rp->m_value ) );
-			}
-			break;
-		}
+		so.setprop( F->key, F->ToIntVar() );
 	}
 }
 
-void EdEntity::AddField( sgsString key, StringView name, EDGUIProperty* prop )
+void EdEntity::AddField( sgsString key, sgsString name, FieldBase* F )
 {
-	prop->caption = name;
-	Field F = { key, prop };
+	F->key = key;
+	F->caption = name;
 	m_fields.push_back( F );
-	m_group.Add( prop );
-}
-
-void EdEntity::ClearFields()
-{
-	for( size_t i = 0; i < m_fields.size(); ++i )
-	{
-		delete m_fields[ i ].property;
-	}
-	m_fields.clear();
 }
 
 
@@ -348,141 +311,124 @@ static int EE_AddFieldBool( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldBool" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	bool def = sgs_StackSize( C ) > 3 ? sgs_GetVar<bool>()( C, 3 ) : false;
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropBool( def ) );
+	EdEntity::FieldBool* F = new EdEntity::FieldBool;
+	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<bool>()( C, 3 ) : false;
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldInt( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldInt" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	int32_t def = sgs_StackSize( C ) > 3 ? sgs_GetVar<int32_t>()( C, 3 ) : 0;
-	int32_t min = sgs_StackSize( C ) > 4 ? sgs_GetVar<int32_t>()( C, 4 ) : 0x80000000;
-	int32_t max = sgs_StackSize( C ) > 5 ? sgs_GetVar<int32_t>()( C, 5 ) : 0x7fffffff;
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropInt( def, min, max ) );
+	EdEntity::FieldInt* F = new EdEntity::FieldInt;
+	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<int32_t>()( C, 3 ) : 0;
+	F->vmin = sgs_StackSize( C ) > 4 ? sgs_GetVar<int32_t>()( C, 4 ) : 0x80000000;
+	F->vmax = sgs_StackSize( C ) > 5 ? sgs_GetVar<int32_t>()( C, 5 ) : 0x7fffffff;
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldFloat( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldFloat" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	float def = sgs_StackSize( C ) > 3 ? sgs_GetVar<float>()( C, 3 ) : 0;
-	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
-	float min = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
-	float max = sgs_StackSize( C ) > 6 ? sgs_GetVar<float>()( C, 6 ) : FLT_MAX;
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropFloat( def, prec, min, max ) );
+	EdEntity::FieldFloat* F = new EdEntity::FieldFloat;
+	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<float>()( C, 3 ) : 0;
+	F->prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
+	F->vmin = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
+	F->vmax = sgs_StackSize( C ) > 6 ? sgs_GetVar<float>()( C, 6 ) : FLT_MAX;
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldVec2( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec2" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	Vec2 def = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec2>()( C, 3 ) : V2(0);
-	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
-	Vec2 min = sgs_StackSize( C ) > 5 ? sgs_GetVar<Vec2>()( C, 5 ) : V2(-FLT_MAX);
-	Vec2 max = sgs_StackSize( C ) > 6 ? sgs_GetVar<Vec2>()( C, 6 ) : V2(FLT_MAX);
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropVec2( def, prec, min, max ) );
+	EdEntity::FieldVec2* F = new EdEntity::FieldVec2;
+	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec2>()( C, 3 ) : V2(0);
+	F->prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
+	F->vmin = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
+	F->vmax = sgs_StackSize( C ) > 6 ? sgs_GetVar<float>()( C, 6 ) : FLT_MAX;
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldVec3( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec3" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	Vec3 def = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec3>()( C, 3 ) : V3(0);
-	int prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
-	Vec3 min = sgs_StackSize( C ) > 5 ? sgs_GetVar<Vec3>()( C, 5 ) : V3(-FLT_MAX);
-	Vec3 max = sgs_StackSize( C ) > 6 ? sgs_GetVar<Vec3>()( C, 6 ) : V3(FLT_MAX);
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropVec3( def, prec, min, max ) );
+	EdEntity::FieldVec3* F = new EdEntity::FieldVec3;
+	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec3>()( C, 3 ) : V3(0);
+	F->prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
+	F->vmin = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
+	F->vmax = sgs_StackSize( C ) > 6 ? sgs_GetVar<float>()( C, 6 ) : FLT_MAX;
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldString( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldString" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropString( sgs_GetVar<StringView>()( C, 3 ) ) );
+	EdEntity::FieldString* F = new EdEntity::FieldString;
+	F->value = sgs_GetVar<StringView>()( C, 3 );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldEnumSB( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldEnumSB" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EDGUIPropEnumSB* P = new EDGUIPropEnumSB;
+	EdEntity::FieldEnumSB* F = new EdEntity::FieldEnumSB;
 	ScriptVarIterator it( sgs_GetVar<sgsVariable>()( C, 4 ) );
 	while( it.Advance() )
 	{
-		EDGUIPropEnumSB::Entry E = { it.GetValue().get<StringView>(), it.GetKey().get<int32_t>() };
-		P->m_enum.push_back( E );
+		F->m_picker.m_entries.set( it.GetKey().get<int32_t>(), it.GetValue().get<StringView>() );
 	}
-	P->SetValue( sgs_GetVar<int32_t>()( C, 3 ) );
-	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<StringView>()( C, 2 ), P );
+	F->value = sgs_GetVar<int32_t>()( C, 3 );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldMesh( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldMesh" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropRsrc( g_UIMeshPicker, sgs_GetVar<StringView>()( C, 3 ) ) );
+	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Mesh );
+	F->value = sgs_GetVar<StringView>()( C, 3 );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldTex( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldTex" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropRsrc( g_UITexturePicker, sgs_GetVar<StringView>()( C, 3 ) ) );
+	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Tex );
+	F->value = sgs_GetVar<StringView>()( C, 3 );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldChar( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldChar" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropRsrc( g_UICharPicker, sgs_GetVar<StringView>()( C, 3 ) ) );
+	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Char );
+	F->value = sgs_GetVar<StringView>()( C, 3 );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldPartSys( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldPartSys" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropRsrc( g_UIPartSysPicker, sgs_GetVar<StringView>()( C, 3 ) ) );
+	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_PartSys );
+	F->value = sgs_GetVar<StringView>()( C, 3 );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 static int EE_AddFieldSound( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldSound" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	E->AddField(
-		sgs_GetVar<sgsString>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		new EDGUIPropRsrc( g_UISoundPicker, sgs_GetVar<StringView>()( C, 3 ) ) );
+	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Sound );
+	F->value = sgs_GetVar<StringView>()( C, 3 );
+	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
 #if 0

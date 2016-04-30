@@ -13,7 +13,6 @@ EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, cons
 	m_mtxLocal( Mat4::Identity ),
 	m_mtxCombined( Mat4::Identity ),
 	m_needsPathUpdate( true ),
-	m_group( true, "Group" ),
 	m_name( name ),
 	m_parent( id ? groupMgr->GetPath( pid ) : StringView() ),
 	m_origin( V3(0) ),
@@ -1878,9 +1877,11 @@ bool MapEditor::OnInitialize()
 	
 	g_NUILevelPicker = new IMGUIFilePicker( "levels", ".tle" );
 	g_NUIMeshPicker = new IMGUIMeshPicker();
-	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
 	g_NUITexturePicker = new IMGUITexturePicker();
+	g_NUICharPicker = new IMGUICharPicker();
+	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
 	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
+	g_NUISoundPicker = new IMGUISoundPicker();
 	
 	g_Level = g_BaseGame->CreateLevel();
 	g_Level->m_editorMode = true;
@@ -1892,11 +1893,8 @@ bool MapEditor::OnInitialize()
 //	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
 //	LOG << "\nLoading completed\n\n";
 	
-	g_UITexturePicker = new EDGUITexturePicker;
-	g_UIMeshPicker = new EDGUIMeshPicker( true );
-	g_UICharPicker = new EDGUICharUsePicker( true );
-	g_UIPartSysPicker = new EDGUIPartSysPicker;
-	g_UISoundPicker = new EDGUISoundPicker;
+	g_NUISoundPicker->sys = g_Level->GetSoundSys();
+	g_NUISoundPicker->Reload();
 	
 	// core layout
 	g_EdLGCont = AddSystemToLevel<EdLevelGraphicsCont>( g_Level );
@@ -1912,22 +1910,6 @@ bool MapEditor::OnInitialize()
 
 void MapEditor::OnDestroy()
 {
-	delete g_NUISurfMtlPicker;
-	delete g_NUITexturePicker;
-	delete g_NUIPartSysPicker;
-	delete g_NUIMeshPicker;
-	delete g_NUILevelPicker;
-	
-	delete g_UIPartSysPicker;
-	g_UIPartSysPicker = NULL;
-	delete g_UISoundPicker;
-	g_UISoundPicker = NULL;
-	delete g_UICharPicker;
-	g_UICharPicker = NULL;
-	delete g_UIMeshPicker;
-	g_UIMeshPicker = NULL;
-	delete g_UITexturePicker;
-	g_UITexturePicker = NULL;
 	delete g_UIFrame;
 	g_UIFrame = NULL;
 	delete g_EdWorld;
@@ -1937,6 +1919,16 @@ void MapEditor::OnDestroy()
 	g_EdLGCont->OnDestroy();
 	g_EdLGCont = NULL;
 	delete g_Level;
+	
+	delete g_BaseGame;
+	
+	delete g_NUISurfMtlPicker;
+	delete g_NUIPartSysPicker;
+	delete g_NUISoundPicker;
+	delete g_NUICharPicker;
+	delete g_NUITexturePicker;
+	delete g_NUIMeshPicker;
+	delete g_NUILevelPicker;
 	
 	SGRX_IMGUI_Free();
 }

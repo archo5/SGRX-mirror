@@ -3,9 +3,6 @@
 #pragma once
 #include "compiler.hpp"
 #include "edutils.hpp"
-#define lmm_prepmeshinst asdasdasd
-#include "edcomui.hpp"
-#undef lmm_prepmeshinst
 #include "level.hpp"
 #include "entities.hpp"
 
@@ -32,9 +29,6 @@
 #define MAX_PATCH_LAYERS 4
 #define MAX_MESHPATH_PARTS 4
 
-#define EDGUI_EVENT_SETENTITY EDGUI_EVENT_USER + 1
-#define EDGUI_EVENT_DELOBJECT EDGUI_EVENT_USER + 2
-
 
 #ifdef MAPEDIT_DEFINE_GLOBALS
 #  define MAPEDIT_GLOBAL( x ) x = NULL
@@ -45,11 +39,6 @@ MAPEDIT_GLOBAL( struct EdMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EdLevelGraphicsCont* g_EdLGCont );
-MAPEDIT_GLOBAL( struct EDGUITexturePicker* g_UITexturePicker );
-MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
-MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
-MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
-MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );
 MAPEDIT_GLOBAL( BaseGame* g_BaseGame );
 MAPEDIT_GLOBAL( GameLevel* g_Level );
 
@@ -57,6 +46,8 @@ MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUILevelPicker );
 MAPEDIT_GLOBAL( IMGUIMeshPicker* g_NUIMeshPicker );
 MAPEDIT_GLOBAL( IMGUIFilePicker* g_NUIPartSysPicker );
 MAPEDIT_GLOBAL( IMGUITexturePicker* g_NUITexturePicker );
+MAPEDIT_GLOBAL( IMGUICharPicker* g_NUICharPicker );
+MAPEDIT_GLOBAL( IMGUISoundPicker* g_NUISoundPicker );
 MAPEDIT_GLOBAL( struct IMGUISurfMtlPicker* g_NUISurfMtlPicker );
 
 
@@ -269,7 +260,6 @@ struct EdGroup : SGRX_RefCounted
 	bool m_needsPathUpdate;
 	String m_path;
 	
-	EDGUIGroup m_group;
 	String m_name;
 	String m_parent;
 	Vec3 m_origin;
@@ -1509,12 +1499,60 @@ typedef Handle< EdMeshPath > EdMeshPathHandle;
 // ENTITIES
 //
 
-struct EdEntity : EDGUILayoutRow, EdObject
+struct EdEntity : EdObject
 {
-	struct Field
+	enum FieldType
 	{
+		FT_Bool,
+		FT_Int,
+		FT_Float,
+		FT_Vec2,
+		FT_Vec3,
+		FT_String,
+		FT_EnumSB,
+		FT_Mesh,
+		FT_Tex,
+		FT_Char,
+		FT_PartSys,
+		FT_Sound,
+	};
+	struct FieldBase : SGRX_RefCounted
+	{
+		FieldBase( FieldType t ) : type( t ){}
+		virtual FieldBase* Clone() = 0;
+		virtual void EditUI() = 0;
+		virtual void SetFromVar( sgsVariable var ) = 0;
+		virtual sgsVariable ToVar() = 0;
+		virtual void SetFromIntVar( sgsVariable var ) = 0;
+		virtual sgsVariable ToIntVar() = 0;
 		sgsString key;
-		EDGUIProperty* property;
+		sgsString caption;
+		FieldType type;
+	};
+	typedef Handle< FieldBase > HField;
+#define EFIELD_TYPE_( nm, ty, def, xtra ) struct Field##nm : FieldBase \
+	{ typedef ty T; T value; \
+		xtra \
+		Field##nm( FieldType t = FT_##nm ) : FieldBase( t ){} \
+		FieldBase* Clone(){ return new Field##nm( *this ); } \
+		virtual void EditUI(); \
+		void SetFromVar( sgsVariable var ){ value = FLoadVar( var, def ); } \
+		sgsVariable ToVar(){ return FVar( value ); } \
+		void SetFromIntVar( sgsVariable var ){ value = var.get<ty>(); } \
+		sgsVariable ToIntVar(){ return FIntVar( value ); } \
+	}
+#define EFIELD_TYPE( nm, ty, def ) EFIELD_TYPE_( nm, ty, def, ; )
+	EFIELD_TYPE( Bool, bool, false );
+	EFIELD_TYPE_( Int, int32_t, int32_t(0), T vmin; T vmax; );
+	EFIELD_TYPE_( Float, float, 0.0f, float vmin; float vmax; int prec; );
+	EFIELD_TYPE_( Vec2, Vec2, V2(0), float vmin; float vmax; int prec; );
+	EFIELD_TYPE_( Vec3, Vec3, V3(0), float vmin; float vmax; int prec; );
+	EFIELD_TYPE( String, String, String() );
+	struct FieldEnumSB : FieldInt
+	{
+		FieldEnumSB() : FieldInt( FT_EnumSB ){}
+		virtual void EditUI(){ m_picker.Property( caption.c_str(), value ); }
+		IMGUIEnumPicker m_picker;
 	};
 	
 	EdEntity( sgsString type, bool isproto );
@@ -1527,7 +1565,7 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	virtual void SetPosition( const Vec3& pos );
 	virtual void ScaleVertices( const Vec3& ){}
 	
-	virtual int OnEvent( EDGUIEvent* e );
+	virtual void EditUI();
 	
 	virtual EdObject* Clone();
 	EdEntity& operator = ( const EdEntity& o );
@@ -1556,20 +1594,18 @@ struct EdEntity : EDGUILayoutRow, EdObject
 	sgsVariable FSave( int version );
 	
 	void SetID( StringView idstr );
-	void UpdateRealEnt( Field* curF );
+	void UpdateRealEnt( FieldBase* curF );
 	void Data2Fields();
 	void Fields2Data();
-	void AddField( sgsString key, StringView name, EDGUIProperty* prop );
-	void ClearFields();
+	void AddField( sgsString key, sgsString name, FieldBase* F );
 	
 	bool m_isproto;
-	EDGUIGroup m_group;
 	Vec3 m_pos;
 	TextureHandle m_iconTex;
 	
 	sgsString m_entityType;
 	sgsVariable m_data;
-	Array< Field > m_fields;
+	Array< HField > m_fields;
 	
 	Entity* m_realEnt;
 	
@@ -1953,15 +1989,6 @@ struct EdWorld
 	
 	LC_Light GetDirLightInfo();
 	
-	EDGUIItem* GetObjProps( size_t oid )
-	{
-		EdObject* obj = m_objects[ oid ];
-		if( obj->m_type == ObjType_Entity )
-		{
-			return (EdEntity*) obj;
-		}
-		return NULL;
-	}
 	void EditUI();
 	void ObjEditUI( size_t oid ){ m_objects[ oid ]->EditUI(); }
 	void VertEditUI( size_t oid, size_t vid )

@@ -607,6 +607,14 @@ bool IMGUIPickerCore::EntryUI( size_t i, String& str )
 }
 
 
+void IMGUISoundPicker::Reload()
+{
+	LOG << "Enumerating sound events";
+	sys->EnumerateSoundEvents( m_entries );
+	_Search( m_searchString );
+}
+
+
 IMGUIFilePicker::IMGUIFilePicker( const char* dir, const char* ext )
 {
 	m_saveMode = false;
@@ -919,6 +927,60 @@ bool IMGUIMeshPicker::HandleDirEntry( const StringView& loc, const StringView& n
 }
 
 
+inline String ED_GetMeshFromChar( const StringView& charpath )
+{
+	ByteArray ba;
+	if( FS_LoadBinaryFile( charpath, ba ) == false )
+		return String();
+	
+	// basic unserialization to retrieve mesh
+	ByteReader br( ba );
+	br.marker( "SGRXCHAR" );
+	SerializeVersionHelper<ByteReader> arch( br, 2 );
+	String mesh;
+	arch( mesh );
+	return mesh;
+}
+
+IMGUICharPicker::IMGUICharPicker()
+{
+	Reload();
+}
+
+void IMGUICharPicker::Reload()
+{
+	LOG << "Reloading chars";
+	Array< MeshInstHandle > oldHandles;
+	for( size_t i = 0; i < m_entries.size(); ++i )
+		oldHandles.push_back( m_entries[ i ].mesh );
+	Clear();
+	FS_IterateDirectory( "chars", this );
+	_Search( m_searchString );
+}
+
+bool IMGUICharPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+{
+	if( name == "." || name == ".." )
+		return true;
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
+	LOG << "[Ch]: " << bfr;
+	StringView fullname = bfr;
+	if( isdir )
+	{
+		FS_IterateDirectory( fullname, this );
+	}
+	else if( name.ends_with( ".chr" ) )
+	{
+		String mesh = ED_GetMeshFromChar( fullname );
+		if( mesh.size() == 0 )
+			return true;
+		AddMesh( fullname, mesh );
+	}
+	return true;
+}
+
+
 bool IMGUIShaderPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
 {
 	if( name.starts_with( "mtl_" ) && name.ends_with( ".shd" ) )
@@ -954,6 +1016,37 @@ bool IMGUIShaderPicker::Property( const char* label, String& str )
 		}
 		ImGui::EndPopup();
 	}
+	if( ret )
+		ImGui::TriggerChangeCheck();
+	return ret;
+}
+
+
+bool IMGUIEnumPicker::Property( const char* label, int32_t& val )
+{
+	bool ret = false;
+	
+	RCString* pval = m_entries.getptr( val );
+	ImGui::PushID( label );
+	if( ImGui::Button( pval ? pval->c_str() : "<unknown value>",
+		ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
+		ImGui::OpenPopup( "pick_shader" );
+	ImGui::SameLine();
+	ImGui::Text( label );
+	
+	if( ImGui::BeginPopup( "pick_shader" ) )
+	{
+		for( size_t i = 0; i < m_entries.size(); ++i )
+		{
+			if( ImGui::Selectable( m_entries.item( i ).value.c_str() ) )
+			{
+				val = m_entries.item( i ).key;
+				ret = true;
+			}
+		}
+		ImGui::EndPopup();
+	}
+	ImGui::PopID();
 	if( ret )
 		ImGui::TriggerChangeCheck();
 	return ret;

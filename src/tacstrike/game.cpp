@@ -290,6 +290,8 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !m_soundSys )
 		{
 			m_soundSys = SND_CreateSystem();
+			m_soundSys->Load( "sound/master.bank" );
+			m_soundSys->Load( "sound/master.strings.bank" );
 		}
 		GameLevel* level = BaseGame::CreateLevel();
 		AddSystemToLevel<TSGameSystem>( level );
@@ -324,9 +326,9 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !m_soundSys )
 		{
 			m_soundSys = SND_CreateSystem();
+			m_soundSys->Load( "sound/master.bank" );
+			m_soundSys->Load( "sound/master.strings.bank" );
 		}
-		m_soundSys->Load( "sound/master.bank" );
-		m_soundSys->Load( "sound/master.strings.bank" );
 		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_LoadFont( "fancy", "fonts/gratis.ttf" );

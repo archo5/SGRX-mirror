@@ -118,7 +118,7 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 		}
 		return true;
 	}
-	bool EnumerateSoundEvents( Array< String >& out )
+	bool EnumerateSoundEvents( Array< RCString >& out )
 	{
 		// can we have more, realistically? not yet.
 #define MAX_ENUM_BANKS 128
@@ -168,8 +168,7 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 				}
 				else if( strncmp( bfr, "event:", 6 ) == 0 )
 				{
-					out.push_back( String() );
-					out.last().append( bfr + 6 );
+					out.push_back( bfr + 6 );
 				}
 			}
 		}

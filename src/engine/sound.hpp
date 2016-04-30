@@ -48,7 +48,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ISoundSystem : SGRX_RefCounted
 	
 	virtual void Update() = 0;
 	virtual bool Load( const StringView& file, bool async = false ) = 0;
-	virtual bool EnumerateSoundEvents( Array< String >& out ) = 0;
+	virtual bool EnumerateSoundEvents( Array< RCString >& out ) = 0;
 	virtual bool PreloadEventData( const StringView& name ) = 0;
 	virtual bool EventIsOneShot( const StringView& name ) = 0;
 	ENGINE_EXPORT SoundEventInstanceHandle CreateEventInstance( const StringView& name );
