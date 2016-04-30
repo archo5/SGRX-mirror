@@ -645,52 +645,37 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 };
 
 
-EDGUIEntList::EDGUIEntList() :
-	EDGUIGroup( true, "Pick an entity type" )
+static int _EEL_SortByName( const void* a, const void* b )
+{
+	return ((const StringView*)a)->compare_to( *(const StringView*)b );
+}
+
+EdEntList::EdEntList() : which( 0 )
 {
 	Array< StringView > ents;
 	g_Level->EnumEntities( ents );
 	
+	qsort( ents.data(), ents.size(), sizeof(ents[0]), _EEL_SortByName );
+	
 	ASSERT( ents.size() > 0 && "No entities were found!" );
 	
-	m_button_count = ents.size();
-	m_buttons = new EDGUIEntButton[ m_button_count ];
-	
-	for( int i = 0; i < m_button_count; ++i )
+	for( size_t i = 0; i < ents.size(); ++i )
 	{
-		m_buttons[ i ].caption = ents[ i ];
-		m_buttons[ i ].protoEnt = new EdEntity( FVar( ents[ i ] ).get_string(), true );
-		
-		Add( &m_buttons[ i ] );
+		sgsString name = FVar( ents[ i ] ).get_string();
+		Entity e = { name, new EdEntity( name, true ) };
+		entities.push_back( e );
 	}
-	
-	m_buttons[ 0 ].SetHighlight( true );
-	
-	g_EdEntList = this;
 }
 
-EDGUIEntList::~EDGUIEntList()
+void EdEntList::EditUI()
 {
-	g_EdEntList = NULL;
-	delete [] m_buttons;
-}
-
-int EDGUIEntList::OnEvent( EDGUIEvent* e )
-{
-	if( e->type == EDGUI_EVENT_BTNCLICK )
+	IMGUI_GROUP_BEGIN( "Entities", true )
+	for( size_t i = 0; i < entities.size(); ++i )
 	{
-		for( int i = 0; i < m_button_count; ++i )
-		{
-			bool found = e->target == &m_buttons[ i ];
-			m_buttons[ i ].SetHighlight( found );
-			if( found )
-			{
-				EDGUIEvent se = { EDGUI_EVENT_SETENTITY, &m_buttons[ i ] };
-				BubblingEvent( &se );
-			}
-		}
+		if( ImGui::RadioButton( entities[ i ].name.c_str(), which == i ) )
+			which = i;
 	}
-	return EDGUIGroup::OnEvent( e );
+	IMGUI_GROUP_END;
 }
 
 

@@ -1092,7 +1092,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 			if( S.mtlname.size() )
 			{
 				SGRX_Material& M = S.meshInst->GetMaterial( 0 );
-				MapMaterial* mtl = g_UISurfMtlPicker->m_materials.getcopy( S.mtlname );
+				MapMaterial* mtl = g_NUISurfMtlPicker->m_materials.getcopy( S.mtlname );
 				if( mtl )
 				{
 					M.shader = mtl->shader;
@@ -1156,7 +1156,7 @@ void EdLevelGraphicsCont::UpdateSurface( uint32_t id, uint32_t changes, EdLGCSur
 		
 		mtl.blendMode = SGRX_MtlBlend_None;
 		mtl.flags = 0;
-		MapMaterial* mapmtl = g_UISurfMtlPicker->m_materials.getcopy( S.mtlname );
+		MapMaterial* mapmtl = g_NUISurfMtlPicker->m_materials.getcopy( S.mtlname );
 		if( mapmtl )
 		{
 			mtl.blendMode = mapmtl->blendmode;

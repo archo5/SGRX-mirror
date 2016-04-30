@@ -331,14 +331,6 @@ void EdVertexMoveTransform::ApplyTransform()
 
 
 
-void EdEditMode::OnViewEvent( EDGUIEvent* e )
-{
-	if( e->type == EDGUI_EVENT_DELOBJECT )
-	{
-		OnDeleteObject( e->key.key );
-	}
-}
-
 EdDrawBlockEditMode::EdDrawBlockEditMode() :
 	m_blockDrawMode( BD_Polygon ),
 	m_newZ0( 0 ),
@@ -1251,68 +1243,59 @@ void EdPaintVertsEditMode::OnEnter()
 	m_originalVerts.resize( pcount );
 	
 	_TakeSnapshot();
-	
-	g_UIFrame->ClearParamList();
-	g_UIFrame->AddToParamList( &m_ctlPaintProps );
 }
 
-void EdPaintVertsEditMode::OnViewEvent( EDGUIEvent* e )
+void EdPaintVertsEditMode::ViewUI()
 {
-	bool dopaint = false;
-	if( e->type == EDGUI_EVENT_BTNDOWN && e->mouse.button == 0 )
+	bool altdown = ImGui::GetIO().KeyAlt;
+	bool hov = ImGui::IsWindowHovered();
+	m_isPainting = hov && ImGui::IsMouseDown( 0 );
+	bool dopaint = hov && ( ImGui::IsMouseClicked( 0 ) || ImGui::GetMouseDragDelta( 0, 0 ) != ImVec2(0,0) );
+	if( hov )
 	{
-		m_isPainting = true;
-		dopaint = true;
+		if( ImGui::IsMouseReleased( 0 ) )
+		{
+			_TakeSnapshot();
+		}
 	}
-	if( e->type == EDGUI_EVENT_BTNUP && e->mouse.button == 0 )
-	{
-		m_isPainting = false;
-		_TakeSnapshot();
-	}
-	if( e->type == EDGUI_EVENT_MOUSEMOVE )
-	{
-		if( m_isPainting )
-			dopaint = true;
-	}
-	if( e->type == EDGUI_EVENT_KEYDOWN )
+	if( ImGui::IsWindowFocused() )
 	{
 		// TO BLOCK MODE
-		if( e->key.engkey == SDLK_b && e->key.engmod & KMOD_ALT )
+		if( ImGui::IsKeyPressed( SDLK_b ) && altdown )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 		}
 		// TO VERTEX MODE
-		if( e->key.engkey == SDLK_v && e->key.engmod & KMOD_ALT )
+		if( ImGui::IsKeyPressed( SDLK_v ) && altdown )
 		{
 			g_UIFrame->SetEditMode( &g_UIFrame->m_emEditVertex );
 		}
 	}
-	if( e->type == EDGUI_EVENT_PAINT )
-	{
-		int x0 = g_UIFrame->m_NUIRenderView.m_vp.x0;
-		int y0 = g_UIFrame->m_NUIRenderView.m_vp.y0;
-		const char* acts0 = "Block mode [Alt+B], Vertex mode [Alt+V], Hold Alt to reverse painting";
-		
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		br.Col( 0, 0.5f ).Quad( x0, y0, g_UIFrame->m_NUIRenderView.m_vp.x1, y0 + 16 );
-		
-		GR2D_SetColor( 1, 1 );
-		GR2D_DrawTextLine( x0, y0, acts0, HALIGN_LEFT, VALIGN_TOP );
-	}
+	
+	const char* acts0 = "Block mode [Alt+B], Vertex mode [Alt+V], Hold Alt to reverse painting";
+	ImVec2 r0 = ImGui::GetWindowPos() + ImVec2( 1, 1 );
+	ImDrawList* idl = ImGui::GetWindowDrawList();
+	idl->PushClipRectFullScreen();
+	idl->AddRectFilled( r0, r0 + ImVec2( 610, 32 ), ImColor( 0.f, 0.f, 0.f, 0.5f ), 8.0f, 0x4 );
+	ImGui::SetCursorScreenPos( r0 + ImVec2( 4, -1 ) );
+	ImGui::Text( acts0 );
+	idl->PopClipRect();
 	
 	if( dopaint )
 		_DoPaint();
-	
-	EdEditMode::OnViewEvent( e );
 }
 
-int EdPaintVertsEditMode::OnUIEvent( EDGUIEvent* e )
+void EdPaintVertsEditMode::EditUI()
 {
-	if( e->type == EDGUI_EVENT_PROPEDIT && e->target == &m_ctlPaintProps.m_ctlLayerNum )
+	ImGui::BeginChangeCheck();
+	
+	m_paintProps.EditUI();
+	
+	uint32_t cc = ImGui::EndChangeCheck();
+	if( cc & 0x2 )
 	{
 		_TakeSnapshot();
 	}
-	return EdEditMode::OnUIEvent( e );
 }
 
 int EdPaintVertsEditMode::GetNumObjectActivePoints( int b )
@@ -1343,9 +1326,9 @@ void EdPaintVertsEditMode::Draw()
 		{
 			pos = cursorRayPos + cursorRayDir * outdst[0];
 			br.Col( 0.9f, 0.1f, 0.01f, 0.5f );
-			br.SphereOutline( pos, m_ctlPaintProps.m_ctlRadius.m_value * powf( 0.5f, m_ctlPaintProps.m_ctlFalloff.m_value ), 32 );
+			br.SphereOutline( pos, m_paintProps.radius * powf( 0.5f, m_paintProps.falloff ), 32 );
 			br.Col( 0.9f, 0.1f, 0.01f );
-			br.SphereOutline( pos, m_ctlPaintProps.m_ctlRadius.m_value, 32 );
+			br.SphereOutline( pos, m_paintProps.radius, 32 );
 		}
 		
 		for( size_t i = 0; i < m_selObjList.size(); ++i )
@@ -1357,7 +1340,7 @@ void EdPaintVertsEditMode::Draw()
 				Vec3 vpos;
 				Vec4 vcol;
 				obj->GetPaintVertex( v, 0, vpos, vcol );
-				float q = m_ctlPaintProps.GetDistanceFactor( vpos, pos );
+				float q = m_paintProps.GetDistanceFactor( vpos, pos );
 				if( q > 0 )
 					br.Col( q, 0, 0, 1 );
 				else
@@ -1370,7 +1353,7 @@ void EdPaintVertsEditMode::Draw()
 
 void EdPaintVertsEditMode::_TakeSnapshot()
 {
-	int layer_id = m_ctlPaintProps.GetLayerNum();
+	int layer_id = m_paintProps.layerNum;
 	int off = 0;
 	for( size_t i = 0; i < m_selObjList.size(); ++i )
 	{
@@ -1394,7 +1377,7 @@ void EdPaintVertsEditMode::_DoPaint()
 	if( g_EdWorld->RayPatchesIntersect( cursorRayPos, cursorRayDir, -1, outdst, NULL ) )
 	{
 		Vec3 pos = cursorRayPos + cursorRayDir * outdst[0];
-		int layer_id = m_ctlPaintProps.GetLayerNum();
+		int layer_id = m_paintProps.layerNum;
 		int off = 0;
 		for( size_t i = 0; i < m_selObjList.size(); ++i )
 		{
@@ -1406,11 +1389,11 @@ void EdPaintVertsEditMode::_DoPaint()
 				Vec4 vcol;
 				obj->GetPaintVertex( v, layer_id, vpos, vcol );
 				PaintVertex& PV = m_originalVerts[ off++ ];
-				float q = m_ctlPaintProps.GetDistanceFactor( vpos, pos ) / 60.0f; // assuming FPS limit - TODO FIX
+				float q = m_paintProps.GetDistanceFactor( vpos, pos ) / 60.0f; // assuming FPS limit - TODO FIX
 				PV.factor += q;
 				vpos = PV.pos;
 				vcol = PV.col;
-				m_ctlPaintProps.Paint( vpos, -cursorRayDir, vcol, PV.factor );
+				m_paintProps.Paint( vpos, -cursorRayDir, vcol, PV.factor );
 				obj->SetPaintVertex( v, layer_id, vpos, vcol );
 			}
 			obj->RegenerateMesh();
@@ -1482,50 +1465,31 @@ void EdPaintSurfsEditMode::Draw()
 }
 
 
-EdAddEntityEditMode::EdAddEntityEditMode()
+void EdAddEntityEditMode::ViewUI()
 {
-	m_entityProps = m_entGroup.m_buttons[0].protoEnt;
-}
-
-void EdAddEntityEditMode::OnEnter()
-{
-	g_UIFrame->SetCursorPlaneHeight( m_entityProps->Pos().z );
-	g_UIFrame->AddToParamList( &m_entGroup );
-	g_UIFrame->AddToParamList( m_entityProps );
-}
-
-int EdAddEntityEditMode::OnUIEvent( EDGUIEvent* e )
-{
-	switch( e->type )
+	if( ImGui::IsWindowHovered() )
 	{
-	case EDGUI_EVENT_SETENTITY:
-		SetEntityType( ((EDGUIEntButton*)e->target)->protoEnt );
-		break;
-		
-	case EDGUI_EVENT_PROPEDIT:
-		for( size_t i = 0; i < m_entityProps->m_fields.size(); ++i )
+		if( ImGui::IsMouseClicked( 0 ) && g_UIFrame->IsCursorAiming() )
 		{
-			EdEntity::Field& F = m_entityProps->m_fields[ i ];
-			if( F.property == e->target &&
-				F.property->type == EDGUI_ITEM_PROP_VEC3 &&
-				F.key.equals( "position" ) )
-			{
-				g_UIFrame->SetCursorPlaneHeight( ((EDGUIPropVec3*)F.property)->m_value.z );
-			}
+			_AddNewEntity();
 		}
-		break;
-	}
-	return EdEditMode::OnUIEvent( e );
-}
-
-void EdAddEntityEditMode::OnViewEvent( EDGUIEvent* e )
-{
-	if( e->type == EDGUI_EVENT_BTNCLICK && e->mouse.button == 0 && g_UIFrame->IsCursorAiming() )
-	{
-		_AddNewEntity();
 	}
 	
-	EdEditMode::OnViewEvent( e );
+	for( size_t i = 0; i < m_entGroup.CurEntity()->m_fields.size(); ++i )
+	{
+		EdEntity::Field& F = m_entGroup.CurEntity()->m_fields[ i ];
+		if( F.property->type == EDGUI_ITEM_PROP_VEC3 &&
+			F.key.equals( "position" ) )
+		{
+			g_UIFrame->SetCursorPlaneHeight( ((EDGUIPropVec3*)F.property)->m_value.z );
+		}
+	}
+}
+
+void EdAddEntityEditMode::EditUI()
+{
+	m_entGroup.CurEntity()->EditUI();
+	m_entGroup.EditUI();
 }
 
 void EdAddEntityEditMode::Draw()
@@ -1534,28 +1498,19 @@ void EdAddEntityEditMode::Draw()
 	g_UIFrame->DrawCursor( false );
 }
 
-void EdAddEntityEditMode::SetEntityType( const EdEntityHandle& eh )
-{
-	m_entityProps = eh;
-	g_UIFrame->ClearParamList();
-	g_UIFrame->AddToParamList( &m_entGroup );
-	g_UIFrame->AddToParamList( m_entityProps );
-}
-
 void EdAddEntityEditMode::_AddNewEntity()
 {
 	Vec2 pos = g_UIFrame->GetCursorPlanePos();
 	
-	EdEntity* N = (EdEntity*) m_entityProps->Clone();
+	EdEntity* N = (EdEntity*) m_entGroup.CurEntity()->Clone();
 	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
 	g_EdWorld->SetEntityID( N );
 	g_EdWorld->AddObject( N );
 }
 
-void EdEditGroupEditMode::OnEnter()
+void EdEditGroupEditMode::EditUI()
 {
-	g_EdWorld->m_groupMgr.PrepareCurrentEditGroup();
-	g_UIFrame->AddToParamList( &g_EdWorld->m_groupMgr );
+	g_EdWorld->m_groupMgr.EditUI();
 }
 
 void EdEditGroupEditMode::Draw()

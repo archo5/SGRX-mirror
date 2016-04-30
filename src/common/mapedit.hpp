@@ -41,19 +41,15 @@
 #else
 #  define MAPEDIT_GLOBAL( x ) extern x
 #endif
-MAPEDIT_GLOBAL( struct EDGUIMainFrame* g_UIFrame );
+MAPEDIT_GLOBAL( struct EdMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EdLevelGraphicsCont* g_EdLGCont );
 MAPEDIT_GLOBAL( struct EDGUITexturePicker* g_UITexturePicker );
-MAPEDIT_GLOBAL( struct EDGUISurfMtlPicker* g_UISurfMtlPicker );
 MAPEDIT_GLOBAL( struct EDGUIMeshPicker* g_UIMeshPicker );
 MAPEDIT_GLOBAL( struct EDGUICharUsePicker* g_UICharPicker );
 MAPEDIT_GLOBAL( struct EDGUIPartSysPicker* g_UIPartSysPicker );
 MAPEDIT_GLOBAL( struct EDGUISoundPicker* g_UISoundPicker );
-MAPEDIT_GLOBAL( struct EDGUILevelOpenPicker* g_UILevelOpenPicker );
-MAPEDIT_GLOBAL( struct EDGUILevelSavePicker* g_UILevelSavePicker );
-MAPEDIT_GLOBAL( struct EDGUIEntList* g_EdEntList );
 MAPEDIT_GLOBAL( BaseGame* g_BaseGame );
 MAPEDIT_GLOBAL( GameLevel* g_Level );
 
@@ -71,128 +67,6 @@ struct SMPVertex
 	Vec3 nrm;
 	Vec4 tng;
 	Vec2 tex;
-};
-
-struct EDGUISurfMtlPicker : EDGUIMeshPickerCore
-{
-	EDGUISurfMtlPicker()
-	{
-		m_mesh = GR_CreateMesh();
-		
-		float size = 1;
-		SMPVertex verts[4] =
-		{
-			{ { -size, 0, -size }, {0,0,1}, {1,0,0,1}, { 0, 1 } },
-			{ { +size, 0, -size }, {0,0,1}, {1,0,0,1}, { 1, 1 } },
-			{ { +size, 0, +size }, {0,0,1}, {1,0,0,1}, { 1, 0 } },
-			{ { -size, 0, +size }, {0,0,1}, {1,0,0,1}, { 0, 0 } },
-		};
-		uint16_t idcs[6] = { 0, 2, 1, 3, 2, 0 };
-		SGRX_MeshPart part = { 0, 4, 0, 6 };
-		VertexDeclHandle vdh = GR_GetVertexDecl( "pf3nf3tf40f2" );
-		m_mesh->SetVertexData( verts, sizeof(verts), vdh );
-		m_mesh->SetIndexData( idcs, sizeof(idcs), false );
-		m_mesh->SetAABBFromVertexData( verts, sizeof(verts), vdh );
-		m_mesh->SetPartData( &part, 1 );
-		
-		m_scene->camera.direction = V3(0.05f,1,-0.05f).Normalized();
-		m_scene->camera.position = -m_scene->camera.direction * 2.0f;
-		m_scene->camera.znear = 0.1f;
-		m_scene->camera.angle = 60;
-		m_scene->camera.UpdateMatrices();
-		m_customCamera = true;
-		
-		caption = "Pick a surface material";
-		Reload();
-	}
-	void Reload()
-	{
-		LOG << "Reloading surface materials";
-		m_options.clear();
-		Clear();
-		m_options.push_back( "<none>" );
-		m_meshInsts.push_back( NULL );
-		
-		// parse material list
-		m_materials.clear();
-		String material_data;
-		if( FS_LoadTextFile( "editor/materials.txt", material_data ) )
-		{
-			MapMaterial mmdummy;
-			MapMaterial* mmtl = &mmdummy;
-			ConfigReader cfgread( material_data );
-			StringView key, value;
-			while( cfgread.Read( key, value ) )
-			{
-				if( key == "material" )
-				{
-					mmtl = new MapMaterial;
-					mmtl->name = value;
-					mmtl->texcount = 0;
-					mmtl->blendmode = SGRX_MtlBlend_None;
-					mmtl->flags = 0;
-					m_materials.set( mmtl->name, mmtl );
-					LOG << "[SMtl]: " << value;
-				}
-				else if( key == "shader" ) mmtl->shader = value;
-				else if( key == "blendmode" )
-				{
-					if( value == "basic" ) mmtl->blendmode = SGRX_MtlBlend_Basic;
-					else if( value == "additive" ) mmtl->blendmode = SGRX_MtlBlend_Additive;
-					else if( value == "multiply" ) mmtl->blendmode = SGRX_MtlBlend_Multiply;
-					else mmtl->blendmode = SGRX_MtlBlend_None;
-				}
-				else if( key == "unlit" ) mmtl->flags |= SGRX_MtlFlag_Unlit;
-				else if( key == "nocull" ) mmtl->flags |= SGRX_MtlFlag_Nocull;
-				else if( key == "0" ){ mmtl->texture[0] = value; mmtl->texcount = TMAX( mmtl->texcount, 0+1 ); }
-				else if( key == "1" ){ mmtl->texture[1] = value; mmtl->texcount = TMAX( mmtl->texcount, 1+1 ); }
-				else if( key == "2" ){ mmtl->texture[2] = value; mmtl->texcount = TMAX( mmtl->texcount, 2+1 ); }
-				else if( key == "3" ){ mmtl->texture[3] = value; mmtl->texcount = TMAX( mmtl->texcount, 3+1 ); }
-				else if( key == "4" ){ mmtl->texture[4] = value; mmtl->texcount = TMAX( mmtl->texcount, 4+1 ); }
-				else if( key == "5" ){ mmtl->texture[5] = value; mmtl->texcount = TMAX( mmtl->texcount, 5+1 ); }
-				else if( key == "6" ){ mmtl->texture[6] = value; mmtl->texcount = TMAX( mmtl->texcount, 6+1 ); }
-				else if( key == "7" ){ mmtl->texture[7] = value; mmtl->texcount = TMAX( mmtl->texcount, 7+1 ); }
-			}
-			LOG << "Loading completed";
-		}
-		else
-		{
-			LOG_ERROR << "FAILED to open editor/materials.txt";
-		}
-		
-		// load materials
-		for( size_t i = 0; i < m_materials.size(); ++i )
-		{
-			m_options.push_back( m_materials.item( i ).key );
-			AddMtl( m_materials.item( i ).value );
-		}
-		
-		_Search( m_searchString );
-	}
-	void AddMtl( MapMaterial* MM )
-	{
-		MeshInstHandle mih = m_scene->CreateMeshInstance();
-		mih->SetMesh( m_mesh );
-		mih->enabled = false;
-		SGRX_Material mtl;
-		mtl.shader = MM->shader;
-		mtl.blendMode = MM->blendmode;
-		mtl.flags = MM->flags;
-		for( int i = 0; i < MAX_MATERIAL_TEXTURES; ++i )
-		{
-			if( MM->texture[ i ].size() )
-				mtl.textures[ i ] = GR_GetTexture( MM->texture[ i ] );
-		}
-		mih->materials.assign( &mtl, 1 );
-		lmm_prepmeshinst( mih );
-		mih->constants[ 14 ] *= V4( V3( 1.5f ), 1 );
-		mih->constants[ 15 ] *= V4( V3( 0.5f ), 1 );
-		mih->Precache();
-		m_meshInsts.push_back( mih );
-	}
-	
-	MeshHandle m_mesh;
-	MapMaterialMap m_materials;
 };
 
 struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
@@ -367,36 +241,24 @@ struct EdSnapProps
 // GROUPS
 //
 
-struct EDGUIPropRsrc_PickParentGroup : EDGUIPropRsrc
+struct EdGroup : SGRX_RefCounted
 {
-	EDGUIPropRsrc_PickParentGroup( int32_t id, struct EDGUIGroupPicker* gp, const StringView& value );
-	virtual void OnReload( bool after );
-	int32_t m_id;
-};
-
-struct EdGroup : EDGUILayoutRow
-{
-	// REFCOUNTED
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	int32_t m_refcount;
-	// REFCOUNTED END
-	
 	EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, const StringView& name );
-	virtual int OnEvent( EDGUIEvent* e );
 	Mat4 GetMatrix();
 	StringView GetPath();
 	EdGroup* Clone();
 	
-	StringView Name(){ return m_ctlName.m_value; }
+	StringView Name(){ return m_name; }
 	
 	template< class T > void Serialize( T& arch )
 	{
-		m_ctlOrigin.Serialize( arch );
-		m_ctlPos.Serialize( arch );
-		m_ctlAngles.Serialize( arch );
-		m_ctlScaleUni.Serialize( arch );
+		arch << m_origin;
+		arch << m_position;
+		arch << m_angles;
+		arch << m_scaleUni;
 	}
+	
+	void EditUI();
 	
 	EdGroupManager* m_groupMgr;
 	int32_t m_id;
@@ -408,46 +270,26 @@ struct EdGroup : EDGUILayoutRow
 	String m_path;
 	
 	EDGUIGroup m_group;
-	EDGUIPropString m_ctlName;
-	EDGUIPropRsrc_PickParentGroup m_ctlParent;
-	EDGUIPropVec3 m_ctlOrigin;
-	EDGUIPropVec3 m_ctlPos;
-	EDGUIPropVec3 m_ctlAngles;
-	EDGUIPropFloat m_ctlScaleUni;
-	
-	EDGUIButton m_addChild;
-	EDGUIButton m_deleteDisownParent;
-	EDGUIButton m_deleteDisownRoot;
-	EDGUIButton m_deleteRecursive;
-	EDGUIButton m_recalcOrigin;
-	EDGUIButton m_cloneGroup;
-	EDGUIButton m_cloneGroupWithSub;
-	EDGUIButton m_exportObj;
+	String m_name;
+	String m_parent;
+	Vec3 m_origin;
+	Vec3 m_position;
+	Vec3 m_angles;
+	float m_scaleUni;
 };
 typedef Handle< EdGroup > EdGroupHandle;
 typedef HashTable< int32_t, EdGroupHandle > EdGroupHandleMap;
 
-struct EDGUIGroupPicker : EDGUIRsrcPicker
+struct IMGUIGroupPicker : IMGUIEntryPicker
 {
-	EDGUIGroupPicker( EdGroupManager* groupMgr ) : m_groupMgr( groupMgr )
-	{
-		caption = "Pick a group";
-		Reload();
-	}
-	virtual void _OnChangeZoom()
-	{
-		EDGUIRsrcPicker::_OnChangeZoom();
-		m_itemHeight /= 4;
-	}
 	void Reload();
 	EdGroupManager* m_groupMgr;
 	int32_t m_ignoreID;
 };
 
-struct EdGroupManager : EDGUILayoutRow
+struct EdGroupManager
 {
 	EdGroupManager();
-	virtual int OnEvent( EDGUIEvent* e );
 	void DrawGroups();
 	void AddRootGroup();
 	Mat4 GetMatrix( int32_t id );
@@ -458,12 +300,13 @@ struct EdGroupManager : EDGUILayoutRow
 	EdGroup* FindGroupByPath( StringView path );
 	bool GroupHasParent( int32_t id, int32_t parent_id );
 	void PrepareEditGroup( EdGroup* grp );
-	void PrepareCurrentEditGroup();
 	void TransferGroupsToGroup( int32_t from, int32_t to );
 	void QueueDestroy( EdGroup* grp );
 	void ProcessDestroyQueue();
 	void MatrixInvalidate( int32_t id );
 	void PathInvalidate( int32_t id );
+	void EditUI();
+	void GroupProperty( const char* label, int& group );
 	
 	template< class T > void Serialize( T& arch )
 	{
@@ -482,7 +325,7 @@ struct EdGroupManager : EDGUILayoutRow
 						grp = m_groups.item( i ).value;
 						arch << grp->m_id;
 						arch << grp->m_parent_id;
-						grp->m_ctlName.Serialize( arch );
+						arch << grp->m_name;
 					}
 					else
 					{
@@ -503,10 +346,9 @@ struct EdGroupManager : EDGUILayoutRow
 	
 	Array< EdGroupHandle > m_destroyQueue;
 	EdGroupHandleMap m_groups;
-	EDGUIGroupPicker m_grpPicker;
+	IMGUIGroupPicker m_grpPicker;
 	int32_t m_lastGroupID;
-	EDGUIButton m_gotoRoot;
-	EDGUIPropRsrc m_editedGroup;
+	String m_editedGroup;
 };
 
 
@@ -605,27 +447,25 @@ struct EdObject : virtual SGRX_RefCounted
 
 typedef Handle< EdObject > EdObjectHandle;
 
-struct EDGUIPaintProps : EDGUILayoutRow
+struct EdPaintProps
 {
-	EDGUIPaintProps();
+	EdPaintProps();
 	
-	int GetLayerNum(){ return m_ctlLayerNum.m_value; }
+	void EditUI();
 	float GetDistanceFactor( const Vec3& vpos, const Vec3& bpos );
 	void Paint( Vec3& vpos, const Vec3& nrm, Vec4& vcol, float factor );
-	int OnEvent( EDGUIEvent* e );
 	void _UpdateColor();
 	
-	EDGUIGroup m_ctlGroup;
-	EDGUIPropInt m_ctlLayerNum;
-	EDGUIPropBool m_ctlPaintPos;
-	EDGUIPropBool m_ctlPaintColor;
-	EDGUIPropBool m_ctlPaintAlpha;
-	EDGUIPropFloat m_ctlRadius;
-	EDGUIPropFloat m_ctlFalloff;
-	EDGUIPropFloat m_ctlSculptSpeed;
-	EDGUIPropFloat m_ctlPaintSpeed;
-	EDGUIPropVec3 m_ctlColorHSV;
-	EDGUIPropFloat m_ctlAlpha;
+	int layerNum;
+	bool paintPos;
+	bool paintColor;
+	bool paintAlpha;
+	float radius;
+	float falloff;
+	float sculptSpeed;
+	float paintSpeed;
+	Vec3 colorHSV;
+	float alpha;
 	
 	Vec4 m_tgtColor;
 };
@@ -1408,6 +1248,11 @@ struct EdMeshPathPoint
 		FSaveProp( out, "smooth", smooth );
 		return out;
 	}
+	void EditUI()
+	{
+		IMGUIEditVec3( "Position", pos, -8192, 8192 );
+		IMGUIEditBool( "Smooth", smooth );
+	}
 	
 	Vec3 pos;
 	bool smooth;
@@ -1477,6 +1322,7 @@ struct EdMeshPathPart
 		FSaveProp( out, "angle", angle );
 		return out;
 	}
+	void EditUI();
 	
 	String texname;
 	float xoff, yoff;
@@ -1632,6 +1478,9 @@ struct EdMeshPath : EdObject
 		return out;
 	}
 	
+	void EditUI();
+	void VertEditUI( int vid );
+	
 	Vec3 m_position;
 	String m_meshName;
 	float m_lmquality;
@@ -1653,63 +1502,6 @@ struct EdMeshPath : EdObject
 };
 
 typedef Handle< EdMeshPath > EdMeshPathHandle;
-
-
-struct EDGUIMeshPathPointProps : EDGUILayoutRow
-{
-	EDGUIMeshPathPointProps();
-	void Prepare( EdMeshPath* mpath, int pid );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdMeshPath* m_out;
-	int m_pid;
-	EDGUIGroup m_group;
-	EDGUIPropVec3 m_pos;
-	EDGUIPropBool m_smooth;
-};
-
-struct EDGUIMeshPathPartProps : EDGUILayoutRow
-{
-	EDGUIMeshPathPartProps();
-	void Prepare( EdMeshPath* mpath, int pid );
-	void LoadParams( EdMeshPathPart& MP, const char* name = "Part" );
-	void BounceBack( EdMeshPathPart& MP );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdMeshPath* m_out;
-	int m_pid;
-	EDGUIGroup m_group;
-	EDGUIPropRsrc m_tex;
-	EDGUIPropVec2 m_off;
-	EDGUIPropVec2 m_scaleasp;
-	EDGUIPropFloat m_angle;
-};
-
-struct EDGUIMeshPathProps : EDGUILayoutRow
-{
-	EDGUIMeshPathProps();
-	void Prepare( EdMeshPath* mpath );
-	virtual int OnEvent( EDGUIEvent* e );
-	
-	EdMeshPath* m_out;
-	EDGUIGroup m_group;
-	EDGUIPropRsrc m_meshName;
-	EDGUIPropVec3 m_pos;
-	EDGUIPropRsrc m_blkGroup;
-	EDGUIPropBool m_isLMSolid;
-	EDGUIPropBool m_isPhySolid;
-	EDGUIPropBool m_skipCut;
-	EDGUIPropBool m_doSmoothing;
-	EDGUIPropBool m_isDynamic;
-	EDGUIPropFloat m_lmquality;
-	EDGUIPropVec2 m_intervalScaleOffset;
-	EDGUIPropInt m_pipeModeOvershoot;
-	EDGUIPropVec3 m_rotAngles;
-	EDGUIPropFloat m_scaleUni;
-	EDGUIPropVec3 m_scaleSep;
-	EDGUIPropInt m_turnMode;
-	EDGUIMeshPathPartProps m_partProps[ MAX_MESHPATH_PARTS ];
-};
 
 
 
@@ -1796,21 +1588,20 @@ typedef Handle< EdEntity > EdEntityHandle;
 extern sgs_RegIntConst g_ent_scripted_ric[];
 extern sgs_RegFuncConst g_ent_scripted_rfc[];
 
-struct EDGUIEntButton : EDGUIButton
+struct EdEntList
 {
-	EDGUIEntButton(){ tyname = "entity-button"; }
+	struct Entity
+	{
+		sgsString name;
+		EdEntityHandle eh;
+	};
 	
-	EdEntityHandle protoEnt;
-};
-
-struct EDGUIEntList : EDGUIGroup
-{
-	EDGUIEntList();
-	~EDGUIEntList();
-	virtual int OnEvent( EDGUIEvent* e );
+	EdEntList();
+	void EditUI();
+	EdEntityHandle CurEntity(){ return which < entities.size() ? entities[ which ].eh : NULL; }
 	
-	EDGUIEntButton* m_buttons;
-	int m_button_count;
+	Array< Entity > entities;
+	size_t which;
 };
 
 
@@ -2169,13 +1960,9 @@ struct EdWorld
 		{
 			return (EdEntity*) obj;
 		}
-		if( obj->m_type == ObjType_MeshPath )
-		{
-			m_ctlMeshPathProps.Prepare( (EdMeshPath*) obj );
-			return &m_ctlMeshPathProps;
-		}
 		return NULL;
 	}
+	void EditUI();
 	void ObjEditUI( size_t oid ){ m_objects[ oid ]->EditUI(); }
 	void VertEditUI( size_t oid, size_t vid )
 	{
@@ -2196,17 +1983,7 @@ struct EdWorld
 		if( ImGui::EndChangeCheck() )
 			m_objects[ oid ]->RegenerateMesh();
 	}
-	EDGUIItem* GetVertProps( size_t oid, size_t vid )
-	{
-		EdObject* obj = m_objects[ oid ];
-		if( obj->m_type == ObjType_MeshPath )
-		{
-			m_ctlMeshPathPointProps.Prepare( (EdMeshPath*) obj, vid );
-			return &m_ctlMeshPathPointProps;
-		}
-		return NULL;
-	}
-	Mat4 GetGroupMatrix( int ){ return Mat4::Identity; }
+	Mat4 GetGroupMatrix( int grp ){ return m_groupMgr.GetMatrix( grp ); }
 	
 	void SetEntityID( EdEntity* e );
 	
@@ -2222,10 +1999,6 @@ struct EdWorld
 	
 	EdWorldBasicInfo m_info;
 	EdWorldLightingInfo m_lighting;
-	void EditUI();
-	
-	EDGUIMeshPathProps m_ctlMeshPathProps;
-	EDGUIMeshPathPointProps m_ctlMeshPathPointProps;
 };
 
 inline void World_AddObject( EdObject* obj ){ g_EdWorld->AddObject( obj ); }
@@ -2338,11 +2111,8 @@ struct EdEditMode
 	virtual void OnEnter(){}
 	virtual void OnExit(){}
 	virtual void OnTransformEnd(){}
-	virtual void OnDeleteObject( int oid ){ OnEnter(); }
 	virtual void ViewUI(){}
 	virtual void EditUI(){}
-	virtual int OnUIEvent( EDGUIEvent* e ){ return 0; }
-	virtual void OnViewEvent( EDGUIEvent* e );
 	virtual void Draw(){}
 };
 
@@ -2437,8 +2207,8 @@ struct EdPaintVertsEditMode : EdEditMode
 	
 	EdPaintVertsEditMode();
 	void OnEnter();
-	void OnViewEvent( EDGUIEvent* e );
-	int OnUIEvent( EDGUIEvent* e );
+	void ViewUI();
+	void EditUI();
 	void Draw();
 	void _TakeSnapshot();
 	void _DoPaint();
@@ -2449,7 +2219,7 @@ struct EdPaintVertsEditMode : EdEditMode
 	bool m_isPainting;
 	Array< int > m_selObjList;
 	Array< PaintVertex > m_originalVerts;
-	EDGUIPaintProps m_ctlPaintProps;
+	EdPaintProps m_paintProps;
 };
 
 struct EdPaintSurfsEditMode : EdEditMode
@@ -2468,21 +2238,17 @@ struct EdPaintSurfsEditMode : EdEditMode
 
 struct EdAddEntityEditMode : EdEditMode
 {
-	EdAddEntityEditMode();
-	void OnEnter();
-	int OnUIEvent( EDGUIEvent* e );
-	void OnViewEvent( EDGUIEvent* e );
+	void ViewUI();
+	void EditUI();
 	void Draw();
-	void SetEntityType( const EdEntityHandle& eh );
 	void _AddNewEntity();
 	
-	EdEntityHandle m_entityProps;
-	EDGUIEntList m_entGroup;
+	EdEntList m_entGroup;
 };
 
 struct EdEditGroupEditMode : EdEditMode
 {
-	void OnEnter();
+	void EditUI();
 	void Draw();
 };
 
@@ -2497,18 +2263,16 @@ struct MapEditorRenderView : IMGUIRenderView
 //
 // MAIN FRAME
 //
-struct EDGUIMainFrame : EDGUIFrame
+struct EdMainFrame
 {
-	EDGUIMainFrame();
+	EdMainFrame();
 	bool ViewUI();
 	void EditUI();
 	void _DrawCursor( bool drawimg, float height );
 	void DrawCursor( bool drawimg = true );
 	void DebugDraw();
+	void OnDeleteObject( size_t i );
 	
-	void AddToParamList( EDGUIItem* item );
-	void ClearParamList();
-	void RefreshMouse();
 	Vec3 GetCursorRayPos();
 	Vec3 GetCursorRayDir();
 	Vec2 GetCursorPlanePos();
@@ -2545,17 +2309,6 @@ struct EDGUIMainFrame : EDGUIFrame
 	// extra edit data
 	TextureHandle m_txMarker;
 	EdSnapProps m_snapProps;
-	int m_keyMod;
-	
-	// core layout
-	EDGUILayoutSplitPane m_UIMenuSplit;
-	EDGUILayoutSplitPane m_UIMenuLRSplit;
-	EDGUILayoutSplitPane m_UIParamSplit;
-	EDGUILayoutColumn m_UIMenuButtonsLft;
-	EDGUILayoutColumn m_UIMenuButtonsRgt;
-	EDGUIVScroll m_UIParamScroll;
-	EDGUILayoutRow m_UIParamList;
-	
 	MapEditorRenderView m_NUIRenderView;
 };
 

@@ -285,6 +285,23 @@ struct LCVDataEdit
 };
 
 
+
+void EdMeshPathPart::EditUI()
+{
+	g_NUISurfMtlPicker->Property( "Pick surface material", "Material", texname );
+	
+	Vec2 off = { xoff, yoff };
+	IMGUIEditVec2( "Offset", off, 0, 1 );
+	xoff = off.x; yoff = off.y;
+	
+	Vec2 scasp = { scale, aspect };
+	IMGUIEditVec2( "Scale / aspect", scasp, 0.01f, 100 );
+	scale = scasp.x; aspect = scasp.y;
+	
+	IMGUIEditFloat( "Angle", angle, 0, 360 );
+}
+
+
 EdObject* EdMeshPath::Clone()
 {
 	EdMeshPath* mpc = new EdMeshPath( *this );
@@ -602,269 +619,58 @@ bool EdMeshPath::CanDoSpecialAction( ESpecialAction act )
 }
 
 
-EDGUIMeshPathPointProps::EDGUIMeshPathPointProps() :
-	m_out( NULL ),
-	m_pid( 0 ),
-	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
-	m_smooth( false )
+void EditMPPoint( int i, EdMeshPathPoint& p )
 {
-	tyname = "meshpathpointprops";
-	m_group.caption = "Mesh path point properties";
-	m_pos.caption = "Offset";
-	m_smooth.caption = "Smoothing?";
-	
-	m_group.Add( &m_pos );
-	m_group.Add( &m_smooth );
-	
-	m_group.SetOpen( true );
-	Add( &m_group );
-}
-
-void EDGUIMeshPathPointProps::Prepare( EdMeshPath* mpath, int pid )
-{
-	m_out = mpath;
-	m_pid = pid;
-	
 	char bfr[ 32 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "Point #%d", pid );
-	m_group.caption = bfr;
-	m_group.SetOpen( true );
-	
-	m_pos.SetValue( mpath->m_points[ m_pid ].pos );
-	m_smooth.SetValue( mpath->m_points[ m_pid ].smooth );
-}
-
-int EDGUIMeshPathPointProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
+	sgrx_snprintf( bfr, 32, "Point #%d", i );
+	IMGUI_GROUP( bfr, true,
 	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( m_out && ( e->target == &m_pos || e->target == &m_smooth ) )
+		p.EditUI();
+	});
+}
+	
+void EdMeshPath::EditUI()
+{
+	ImGui::BeginChangeCheck();
+	
+	g_EdWorld->m_groupMgr.GroupProperty( "Group", group );
+	g_NUIMeshPicker->Property( "Select mesh path template", "Mesh", m_meshName );
+	IMGUIEditVec3( "Position", m_position, -8192, 8192 );
+	IMGUIEditBool( "Casts lightmap shadows?", m_isLMSolid );
+	IMGUIEditBool( "Is solid?", m_isPhySolid );
+	IMGUIEditBool( "Skip cutting", m_skipCut );
+	IMGUIEditBool( "Perform smoothing", m_doSmoothing );
+	IMGUIEditBool( "Is dynamic?", m_isDynamic );
+	IMGUIEditFloat( "Lightmap quality", m_lmquality, 0.01f, 100 );
+	IMGUIEditFloat( "Interval scale", m_intervalScaleOffset.x, 0.01f, 100 );
+	IMGUIEditFloat( "Interval offset", m_intervalScaleOffset.y, -128, 128 );
+	IMGUIEditInt( "Pipe mode/overshoot", m_pipeModeOvershoot, 0, 32 );
+	IMGUIEditVec3( "Rotation (XYZ)", m_rotAngles, 0, 360 );
+	IMGUIEditFloat( "Scale (uniform)", m_scaleUni, 0.01f, 100 );
+	IMGUIEditVec3( "Scale (separate)", m_scaleSep, 0.01f, 100 );
+	IMGUIComboBox( "Turn mode", m_turnMode, "Horizontal\0Forward\0Horizontal/forward skew\0" );
+	
+	IMGUI_GROUP( "Points", false,
+	{
+		IMGUIEditArray( m_points, EditMPPoint, "Add point" );
+	});
+	for( int i = 0; i < MAX_MESHPATH_PARTS; ++i )
+	{
+		char bfr[ 32 ];
+		sgrx_snprintf( bfr, 32, "Part #%d", i );
+		IMGUI_GROUP( bfr, true,
 		{
-			EdMeshPathPoint& P = m_out->m_points[ m_pid ];
-			if( e->target == &m_pos ) P.pos = m_pos.m_value;
-			if( e->target == &m_smooth ) P.smooth = m_smooth.m_value;
-			m_out->RegenerateMesh();
-		}
-		break;
+			m_parts[ i ].EditUI();
+		});
 	}
-	return EDGUILayoutRow::OnEvent( e );
+	
+	if( ImGui::EndChangeCheck() )
+		RegenerateMesh();
 }
 
-
-EDGUIMeshPathPartProps::EDGUIMeshPathPartProps() :
-	m_out( NULL ),
-	m_pid( 0 ),
-	m_tex( g_UISurfMtlPicker, "null" ),
-	m_off( V2(0), 2, V2(0), V2(1) ),
-	m_scaleasp( V2(1), 2, V2(0.01f), V2(100) ),
-	m_angle( 0, 1, 0, 360 )
+void EdMeshPath::VertEditUI( int vid )
 {
-	tyname = "meshpathpartprops";
-	m_group.caption = "Part properties";
-	m_tex.caption = "Texture";
-	m_off.caption = "Offset";
-	m_scaleasp.caption = "Scale/Aspect";
-	m_angle.caption = "Angle";
-	
-	m_group.Add( &m_tex );
-	m_group.Add( &m_off );
-	m_group.Add( &m_scaleasp );
-	m_group.Add( &m_angle );
-	m_group.SetOpen( true );
-	Add( &m_group );
-}
-
-void EDGUIMeshPathPartProps::Prepare( EdMeshPath* mpath, int pid )
-{
-	m_out = mpath;
-	m_pid = pid;
-	EdMeshPathPart& MP = mpath->m_parts[ pid ];
-	
-	char bfr[ 32 ];
-	sgrx_snprintf( bfr, sizeof(bfr), "Part #%d", pid );
-	LoadParams( MP, bfr );
-}
-
-void EDGUIMeshPathPartProps::LoadParams( EdMeshPathPart& MP, const char* name )
-{
-	m_group.caption = name;
-	m_group.SetOpen( true );
-	
-	m_tex.SetValue( MP.texname );
-	m_off.SetValue( V2( MP.xoff, MP.yoff ) );
-	m_scaleasp.SetValue( V2( MP.scale, MP.aspect ) );
-	m_angle.SetValue( MP.angle );
-}
-
-void EDGUIMeshPathPartProps::BounceBack( EdMeshPathPart& MP )
-{
-	MP.texname = m_tex.m_value;
-	MP.xoff = m_off.m_value.x;
-	MP.yoff = m_off.m_value.y;
-	MP.scale = m_scaleasp.m_value.x;
-	MP.aspect = m_scaleasp.m_value.y;
-	MP.angle = m_angle.m_value;
-}
-
-int EDGUIMeshPathPartProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( m_out && (
-			e->target == &m_tex ||
-			e->target == &m_off ||
-			e->target == &m_scaleasp ||
-			e->target == &m_angle
-		) )
-		{
-			if( e->target == &m_tex )
-			{
-				m_out->m_parts[ m_pid ].texname = m_tex.m_value;
-			}
-			else if( e->target == &m_off )
-			{
-				m_out->m_parts[ m_pid ].xoff = m_off.m_value.x;
-				m_out->m_parts[ m_pid ].yoff = m_off.m_value.y;
-			}
-			else if( e->target == &m_scaleasp )
-			{
-				m_out->m_parts[ m_pid ].scale = m_scaleasp.m_value.x;
-				m_out->m_parts[ m_pid ].aspect = m_scaleasp.m_value.y;
-			}
-			else if( e->target == &m_angle )
-			{
-				m_out->m_parts[ m_pid ].angle = m_angle.m_value;
-			}
-			m_out->RegenerateMesh();
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-
-EDGUIMeshPathProps::EDGUIMeshPathProps() :
-	m_out( NULL ),
-	m_group( true, "Mesh path properties" ),
-	m_meshName( g_UIMeshPicker ),
-	m_pos( V3(0), 2, V3(-8192), V3(8192) ),
-	m_blkGroup( NULL ),
-	m_isLMSolid( true ),
-	m_isPhySolid( false ),
-	m_skipCut( false ),
-	m_doSmoothing( false ),
-	m_isDynamic( false ),
-	m_lmquality( 1, 2, 0.01f, 100.0f ),
-	m_intervalScaleOffset( V2(1,0), 2, V2(0.01f,-128), V2(100.0f,128) ),
-	m_pipeModeOvershoot( 0, 0, 32 ),
-	m_rotAngles( V3(0), 2, V3(0), V3(360) ),
-	m_scaleUni( 1, 2, 0.01f, 100.0f ),
-	m_scaleSep( V3(1), 2, V3(0.01f), V3(100.0f) ),
-	m_turnMode( 0, 0, 2 )
-{
-	tyname = "meshpartprops";
-	m_meshName.caption = "Mesh";
-	m_pos.caption = "Position";
-	m_blkGroup.caption = "Group";
-	m_isLMSolid.caption = "Casts lightmap shadows?";
-	m_isPhySolid.caption = "Is solid?";
-	m_skipCut.caption = "Skip cutting";
-	m_doSmoothing.caption = "Perform smoothing?";
-	m_isDynamic.caption = "Is dynamic?";
-	m_lmquality.caption = "Lightmap quality";
-	m_intervalScaleOffset.caption = "Interval scale/offset";
-	m_pipeModeOvershoot.caption = "Pipe mode?/overshoot";
-	m_rotAngles.caption = "Rotation (XYZ)";
-	m_scaleUni.caption = "Scale (uniform)";
-	m_scaleSep.caption = "Scale (separate)";
-	m_turnMode.caption = "Turn mode";
-}
-
-void EDGUIMeshPathProps::Prepare( EdMeshPath* mpath )
-{
-	m_out = mpath;
-	m_blkGroup.m_rsrcPicker = &g_EdWorld->m_groupMgr.m_grpPicker;
-	
-	Clear();
-	
-	Add( &m_group );
-	m_blkGroup.SetValue( g_EdWorld->m_groupMgr.GetPath( mpath->group ) );
-	
-	m_group.Add( &m_meshName );
-	m_group.Add( &m_pos );
-	m_group.Add( &m_blkGroup );
-	m_group.Add( &m_isLMSolid );
-	m_group.Add( &m_isPhySolid );
-	m_group.Add( &m_skipCut );
-	m_group.Add( &m_doSmoothing );
-	m_group.Add( &m_isDynamic );
-	m_group.Add( &m_lmquality );
-	m_group.Add( &m_intervalScaleOffset );
-	m_group.Add( &m_pipeModeOvershoot );
-	m_group.Add( &m_rotAngles );
-	m_group.Add( &m_scaleUni );
-	m_group.Add( &m_scaleSep );
-	m_group.Add( &m_turnMode );
-	
-	m_meshName.SetValue( mpath->m_meshName );
-	m_pos.SetValue( mpath->m_position );
-	m_isLMSolid.SetValue( mpath->m_isLMSolid );
-	m_isPhySolid.SetValue( mpath->m_isPhySolid );
-	m_skipCut.SetValue( mpath->m_skipCut );
-	m_doSmoothing.SetValue( mpath->m_doSmoothing );
-	m_isDynamic.SetValue( mpath->m_isDynamic );
-	m_lmquality.SetValue( mpath->m_lmquality );
-	m_intervalScaleOffset.SetValue( mpath->m_intervalScaleOffset );
-	m_pipeModeOvershoot.SetValue( mpath->m_pipeModeOvershoot );
-	m_rotAngles.SetValue( mpath->m_rotAngles );
-	m_scaleUni.SetValue( mpath->m_scaleUni );
-	m_scaleSep.SetValue( mpath->m_scaleSep );
-	m_turnMode.SetValue( mpath->m_turnMode );
-	
-	for( size_t i = 0; i < MAX_MESHPATH_PARTS; ++i )
-	{
-		m_partProps[ i ].Prepare( mpath, i );
-		m_group.Add( &m_partProps[ i ] );
-	}
-}
-
-int EDGUIMeshPathProps::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_pos || e->target == &m_blkGroup )
-		{
-			if( e->target == &m_pos )
-			{
-				m_out->m_position = m_pos.m_value;
-			}
-			else if( e->target == &m_blkGroup )
-			{
-				EdGroup* grp = g_EdWorld->m_groupMgr.FindGroupByPath( m_blkGroup.m_value );
-				if( grp )
-					m_out->group = grp->m_id;
-			}
-		}
-		else if( e->target == &m_meshName ) m_out->m_meshName = m_meshName.m_value;
-		else if( e->target == &m_isLMSolid ) m_out->m_isLMSolid = m_isLMSolid.m_value;
-		else if( e->target == &m_isPhySolid ) m_out->m_isPhySolid = m_isPhySolid.m_value;
-		else if( e->target == &m_skipCut ) m_out->m_skipCut = m_skipCut.m_value;
-		else if( e->target == &m_doSmoothing ) m_out->m_doSmoothing = m_doSmoothing.m_value;
-		else if( e->target == &m_isDynamic ) m_out->m_isDynamic = m_isDynamic.m_value;
-		else if( e->target == &m_lmquality ) m_out->m_lmquality = m_lmquality.m_value;
-		else if( e->target == &m_intervalScaleOffset ) m_out->m_intervalScaleOffset = m_intervalScaleOffset.m_value;
-		else if( e->target == &m_pipeModeOvershoot ) m_out->m_pipeModeOvershoot = m_pipeModeOvershoot.m_value;
-		else if( e->target == &m_rotAngles ) m_out->m_rotAngles = m_rotAngles.m_value;
-		else if( e->target == &m_scaleUni ) m_out->m_scaleUni = m_scaleUni.m_value;
-		else if( e->target == &m_scaleSep ) m_out->m_scaleSep = m_scaleSep.m_value;
-		else if( e->target == &m_turnMode ) m_out->m_turnMode = m_turnMode.m_value;
-		m_out->RegenerateMesh();
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
+	m_points[ vid ].EditUI();
 }
 
 

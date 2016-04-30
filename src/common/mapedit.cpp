@@ -5,20 +5,7 @@
 
 
 
-EDGUIPropRsrc_PickParentGroup::EDGUIPropRsrc_PickParentGroup( int32_t id, EDGUIGroupPicker* gp, const StringView& value ) :
-	EDGUIPropRsrc( gp, value ),
-	m_id( id )
-{
-}
-
-void EDGUIPropRsrc_PickParentGroup::OnReload( bool after )
-{
-	SGRX_CAST( EDGUIGroupPicker*, gp, m_rsrcPicker );
-	gp->m_ignoreID = after ? -1 : m_id;
-}
-
 EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, const StringView& name ) :
-	m_refcount( 0 ),
 	m_groupMgr( groupMgr ),
 	m_id( id ),
 	m_parent_id( pid ),
@@ -27,131 +14,21 @@ EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, cons
 	m_mtxCombined( Mat4::Identity ),
 	m_needsPathUpdate( true ),
 	m_group( true, "Group" ),
-	m_ctlName( name ),
-	m_ctlParent( id, &groupMgr->m_grpPicker, id ? groupMgr->GetPath( pid ) : StringView() ),
-	m_ctlOrigin( V3(0), 2, V3(-8192), V3(8192) ),
-	m_ctlPos( V3(0), 2, V3(-8192), V3(8192) ),
-	m_ctlAngles( V3(0), 2, V3(0), V3(360) ),
-	m_ctlScaleUni( 1, 2, 0.01f, 100.0f )
+	m_name( name ),
+	m_parent( id ? groupMgr->GetPath( pid ) : StringView() ),
+	m_origin( V3(0) ),
+	m_position( V3(0) ),
+	m_angles( V3(0) ),
+	m_scaleUni( 1 )
 {
-	m_ctlName.caption = "Name";
-	m_ctlParent.caption = "Parent";
-	m_ctlOrigin.caption = "Origin";
-	m_ctlPos.caption = "Position";
-	m_ctlAngles.caption = "Rotation";
-	m_ctlScaleUni.caption = "Scale (uniform)";
-	m_addChild.caption = "Add child";
-	m_deleteDisownParent.caption = "Delete group and subobjects -> parent";
-	m_deleteDisownRoot.caption = "Delete group and subobjects -> root";
-	m_deleteRecursive.caption = "Delete group and destroy subobjects";
-	m_recalcOrigin.caption = "Recalculate origin";
-	m_cloneGroup.caption = "Clone group only";
-	m_cloneGroupWithSub.caption = "Clone group with subobjects";
-	m_exportObj.caption = "Export group as .obj";
-	
-	m_group.Add( &m_ctlName );
-	if( m_id )
-	{
-		m_group.Add( &m_ctlParent );
-	}
-	m_group.Add( &m_ctlOrigin );
-	m_group.Add( &m_ctlPos );
-	m_group.Add( &m_ctlAngles );
-	m_group.Add( &m_ctlScaleUni );
-	m_group.Add( &m_addChild );
-	if( m_id )
-	{
-		m_group.Add( &m_deleteDisownParent );
-		m_group.Add( &m_deleteDisownRoot );
-		m_group.Add( &m_deleteRecursive );
-	}
-	m_group.Add( &m_recalcOrigin );
-	if( m_id )
-	{
-		m_group.Add( &m_cloneGroup );
-		m_group.Add( &m_cloneGroupWithSub );
-	}
-	m_group.Add( &m_exportObj );
-	
-	Add( &m_group );
-}
-
-int EdGroup::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_BTNCLICK:
-		if( e->target == &m_addChild )
-		{
-			m_groupMgr->PrepareEditGroup( m_groupMgr->AddGroup( m_id ) );
-		}
-		if( e->target == &m_deleteDisownParent )
-		{
-			g_EdWorld->TransferObjectsToGroup( m_id, m_parent_id );
-			m_groupMgr->TransferGroupsToGroup( m_id, m_parent_id );
-			m_groupMgr->QueueDestroy( this );
-		}
-		if( e->target == &m_deleteDisownRoot )
-		{
-			g_EdWorld->TransferObjectsToGroup( m_id, 0 );
-			m_groupMgr->TransferGroupsToGroup( m_id, 0 );
-			m_groupMgr->QueueDestroy( this );
-		}
-		if( e->target == &m_deleteRecursive )
-		{
-			m_groupMgr->QueueDestroy( this );
-		}
-		if( e->target == &m_recalcOrigin )
-		{
-			m_ctlOrigin.SetValue( g_EdWorld->FindCenterOfGroup( m_id ) );
-		}
-		if( e->target == &m_cloneGroup )
-		{
-			EdGroup* grp = Clone();
-			m_groupMgr->PrepareEditGroup( grp );
-		}
-		if( e->target == &m_cloneGroupWithSub )
-		{
-			EdGroup* grp = Clone();
-			g_EdWorld->CopyObjectsToGroup( m_id, grp->m_id );
-			m_groupMgr->PrepareEditGroup( grp );
-		}
-		if( e->target == &m_exportObj )
-		{
-			g_EdWorld->ExportGroupAsOBJ( m_id, "group.obj" );
-		}
-		break;
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_ctlOrigin ||
-			e->target == &m_ctlPos ||
-			e->target == &m_ctlAngles ||
-			e->target == &m_ctlScaleUni ||
-			e->target == &m_ctlParent )
-		{
-			m_groupMgr->MatrixInvalidate( m_id );
-		}
-		break;
-	case EDGUI_EVENT_PROPCHANGE:
-		if( e->target == &m_ctlParent )
-		{
-			m_parent_id = m_groupMgr->FindGroupByPath( m_ctlParent.m_value )->m_id;
-		}
-		if( e->target == &m_ctlName || e->target == &m_ctlParent )
-		{
-			m_groupMgr->PathInvalidate( m_id );
-			m_groupMgr->m_editedGroup.SetValue( GetPath() );
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
 }
 
 Mat4 EdGroup::GetMatrix()
 {
 	if( m_needsMtxUpdate )
 	{
-		m_mtxCombined = m_mtxLocal = Mat4::CreateTranslation( -m_ctlOrigin.m_value ) *
-			Mat4::CreateSRT( V3( m_ctlScaleUni.m_value ), DEG2RAD( m_ctlAngles.m_value ), m_ctlPos.m_value + m_ctlOrigin.m_value );
+		m_mtxCombined = m_mtxLocal = Mat4::CreateTranslation( -m_origin ) *
+			Mat4::CreateSRT( V3( m_scaleUni ), DEG2RAD( m_angles ), m_position + m_origin );
 		if( m_id )
 		{
 			m_mtxCombined = m_mtxCombined * m_groupMgr->GetMatrix( m_parent_id );
@@ -178,69 +55,128 @@ StringView EdGroup::GetPath()
 EdGroup* EdGroup::Clone()
 {
 	EdGroup* grp = m_groupMgr->AddGroup( m_parent_id );
-	grp->m_ctlOrigin.SetValue( m_ctlOrigin.m_value );
-	grp->m_ctlPos.SetValue( m_ctlPos.m_value );
-	grp->m_ctlAngles.SetValue( m_ctlAngles.m_value );
-	grp->m_ctlScaleUni.SetValue( m_ctlScaleUni.m_value );
+	grp->m_origin = m_origin;
+	grp->m_position = m_position;
+	grp->m_angles = m_angles;
+	grp->m_scaleUni = m_scaleUni;
 	return grp;
 }
 
-
-void EDGUIGroupPicker::Reload()
+void EdGroup::EditUI()
 {
-	m_options.clear();
+	// name/parent
+	bool chgname = IMGUIEditString( "Name", m_name, 256 );
+	bool chgprt = false;
+	
+	ImGui::BeginChangeCheck();
+	if( m_id )
+	{
+		m_groupMgr->m_grpPicker.m_ignoreID = m_id;
+		chgprt = m_groupMgr->m_grpPicker.Property( "Select parent group", "Parent", m_parent );
+		if( chgprt )
+		{
+			m_parent_id = m_groupMgr->FindGroupByPath( m_parent )->m_id;
+		}
+	}
+	
+	if( chgname || chgprt )
+	{
+		m_groupMgr->PathInvalidate( m_id );
+		m_groupMgr->m_editedGroup = GetPath();
+	}
+	
+	// transform
+	IMGUIEditVec3( "Origin", m_origin, -8192, 8192 );
+	IMGUIEditVec3( "Position", m_position, -8192, 8192 );
+	IMGUIEditVec3( "Rotation (XYZ)", m_angles, 0, 360 );
+	IMGUIEditFloat( "Scale (uniform)", m_scaleUni, 0.01f, 100.0f );
+	
+	if( ImGui::EndChangeCheck() )
+	{
+		m_groupMgr->MatrixInvalidate( m_id );
+	}
+	
+	// actions
+	if( ImGui::Button( "Add child" ) )
+	{
+		m_groupMgr->PrepareEditGroup( m_groupMgr->AddGroup( m_id ) );
+	}
+	if( m_id )
+	{
+		if( ImGui::Button( "Delete group and subobjects -> parent" ) )
+		{
+			g_EdWorld->TransferObjectsToGroup( m_id, m_parent_id );
+			m_groupMgr->TransferGroupsToGroup( m_id, m_parent_id );
+			m_groupMgr->QueueDestroy( this );
+		}
+		if( ImGui::Button( "Delete group and subobjects -> root" ) )
+		{
+			g_EdWorld->TransferObjectsToGroup( m_id, 0 );
+			m_groupMgr->TransferGroupsToGroup( m_id, 0 );
+			m_groupMgr->QueueDestroy( this );
+		}
+		if( ImGui::Button( "Delete group and destroy subobjects" ) )
+		{
+			m_groupMgr->QueueDestroy( this );
+		}
+	}
+	if( ImGui::Button( "Recalculate origin" ) )
+	{
+		m_origin = g_EdWorld->FindCenterOfGroup( m_id );
+	}
+	if( m_id )
+	{
+		if( ImGui::Button( "Clone group only" ) )
+		{
+			EdGroup* grp = Clone();
+			m_groupMgr->PrepareEditGroup( grp );
+		}
+		if( ImGui::Button( "Clone group with subobjects" ) )
+		{
+			EdGroup* grp = Clone();
+			g_EdWorld->CopyObjectsToGroup( m_id, grp->m_id );
+			m_groupMgr->PrepareEditGroup( grp );
+		}
+	}
+	if( ImGui::Button( "Export group as .obj" ) )
+	{
+		g_EdWorld->ExportGroupAsOBJ( m_id, "group.obj" );
+	}
+}
+
+
+void IMGUIGroupPicker::Reload()
+{
+	m_entries.clear();
 	for( size_t i = 0; i < m_groupMgr->m_groups.size(); ++i )
 	{
 		EdGroup* grp = m_groupMgr->m_groups.item( i ).value;
 		if( grp->m_id != m_ignoreID && m_groupMgr->GroupHasParent( grp->m_id, m_ignoreID ) == false )
-			m_options.push_back( grp->GetPath() );
+			m_entries.push_back( grp->GetPath() );
 	}
 	_Search( m_searchString );
 }
 
 
 EdGroupManager::EdGroupManager() :
-	m_grpPicker( this ),
-	m_lastGroupID(-1),
-	m_editedGroup( &m_grpPicker )
+	m_lastGroupID(-1)
 {
-	m_gotoRoot.caption = "Go to root";
-	m_editedGroup.caption = "Edited group";
-}
-
-int EdGroupManager::OnEvent( EDGUIEvent* e )
-{
-	switch( e->type )
-	{
-	case EDGUI_EVENT_BTNCLICK:
-		if( e->target == &m_gotoRoot )
-		{
-			PrepareEditGroup( FindGroupByID( 0 ) );
-		}
-		break;
-	case EDGUI_EVENT_PROPCHANGE:
-		if( e->target == &m_editedGroup )
-		{
-			PrepareCurrentEditGroup();
-		}
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
+	m_grpPicker.m_groupMgr = this;
 }
 
 void EdGroupManager::DrawGroups()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
-	EdGroup* grp = FindGroupByPath( m_editedGroup.m_value );
+	EdGroup* grp = FindGroupByPath( m_editedGroup );
 	while( grp )
 	{
 		Mat4 parent_mtx = grp->m_id ? GetMatrix( grp->m_parent_id ) : Mat4::Identity;
 		
 		br.Col( 0.8f, 0.05f, 0.01f );
-		br.Tick( grp->m_ctlPos.m_value + grp->m_ctlOrigin.m_value, 0.1f, parent_mtx );
+		br.Tick( grp->m_position + grp->m_origin, 0.1f, parent_mtx );
 		br.Col( 0.05f, 0.8f, 0.01f );
-		br.Tick( grp->m_ctlPos.m_value, 0.1f, parent_mtx );
+		br.Tick( grp->m_position, 0.1f, parent_mtx );
 		
 		if( grp->m_id == 0 )
 			break;
@@ -318,21 +254,7 @@ bool EdGroupManager::GroupHasParent( int32_t id, int32_t parent_id )
 
 void EdGroupManager::PrepareEditGroup( EdGroup* grp )
 {
-	Clear();
-	Add( &m_gotoRoot );
-	Add( &m_editedGroup );
-	if( grp )
-	{
-		m_editedGroup.SetValue( grp->GetPath() );
-		Add( grp );
-	}
-	else
-		m_editedGroup.SetValue( "" );
-}
-
-void EdGroupManager::PrepareCurrentEditGroup()
-{
-	PrepareEditGroup( FindGroupByPath( m_editedGroup.m_value ) );
+	m_editedGroup = grp ? grp->GetPath() : "";
 }
 
 void EdGroupManager::TransferGroupsToGroup( int32_t from, int32_t to )
@@ -392,6 +314,32 @@ void EdGroupManager::PathInvalidate( int32_t id )
 	}
 }
 
+void EdGroupManager::EditUI()
+{
+	if( ImGui::Button( "Go to root" ) )
+	{
+		PrepareEditGroup( FindGroupByID( 0 ) );
+	}
+	m_grpPicker.m_ignoreID = -1;
+	m_grpPicker.Property( "Select edited group", "Edited group", m_editedGroup );
+	EdGroup* grp = FindGroupByPath( m_editedGroup );
+	if( grp )
+	{
+		grp->EditUI();
+	}
+}
+
+void EdGroupManager::GroupProperty( const char* label, int& group )
+{
+	EdGroup* grp = FindGroupByID( group );
+	String gname = grp ? grp->m_name : "";
+	m_grpPicker.m_ignoreID = -1;
+	m_grpPicker.Property( "Select group", label, gname );
+	grp = FindGroupByPath( gname );
+	if( grp )
+		group = grp->m_id;
+}
+
 
 
 void EdObject::UISelectElement( int i, bool mod )
@@ -438,79 +386,90 @@ void EdObject::ProjectSelectedVertices()
 }
 
 
-EDGUIPaintProps::EDGUIPaintProps() :
-	m_ctlGroup( true, "Painting properties" ),
-	m_ctlLayerNum( 0, 0, 3 ),
-	m_ctlPaintPos( true ),
-	m_ctlPaintColor( true ),
-	m_ctlPaintAlpha( true ),
-	m_ctlRadius( 1.0f, 2, 0.0f, 64.0f ),
-	m_ctlFalloff( 1.0f, 2, 0.01f, 100.0f ),
-	m_ctlSculptSpeed( 1.0f, 2, 0.01f, 100.0f ),
-	m_ctlPaintSpeed( 1.0f, 2, 0.01f, 100.0f ),
-	m_ctlColorHSV( V3(0,0,1), 2, V3(0), V3(1,1,1) ),
-	m_ctlAlpha( 1.0f, 2, 0.0f, 1.0f )
+EdPaintProps::EdPaintProps() :
+	layerNum( 0 ),
+	paintPos( false ),
+	paintColor( false ),
+	paintAlpha( true ),
+	radius( 1 ),
+	falloff( 1 ),
+	sculptSpeed( 2 ),
+	paintSpeed( 2 ),
+	colorHSV( V3(0,0,1) ),
+	alpha( 1 )
 {
-	m_ctlLayerNum.caption = "Color layer [0-3]";
-	m_ctlPaintPos.caption = "Sculpt?";
-	m_ctlPaintColor.caption = "Paint color?";
-	m_ctlPaintAlpha.caption = "Paint alpha?";
-	m_ctlRadius.caption = "Brush radius";
-	m_ctlFalloff.caption = "Brush falloff";
-	m_ctlSculptSpeed.caption = "Sculpt speed";
-	m_ctlPaintSpeed.caption = "Paint speed";
-	m_ctlColorHSV.caption = "Color (HSV)";
-	m_ctlAlpha.caption = "Alpha";
-	
-	m_ctlGroup.Add( &m_ctlLayerNum );
-	m_ctlGroup.Add( &m_ctlPaintPos );
-	m_ctlGroup.Add( &m_ctlPaintColor );
-	m_ctlGroup.Add( &m_ctlPaintAlpha );
-	m_ctlGroup.Add( &m_ctlRadius );
-	m_ctlGroup.Add( &m_ctlFalloff );
-	m_ctlGroup.Add( &m_ctlSculptSpeed );
-	m_ctlGroup.Add( &m_ctlPaintSpeed );
-	m_ctlGroup.Add( &m_ctlColorHSV );
-	m_ctlGroup.Add( &m_ctlAlpha );
-	Add( &m_ctlGroup );
-	
 	_UpdateColor();
 }
 
-float EDGUIPaintProps::GetDistanceFactor( const Vec3& vpos, const Vec3& bpos )
+void EdPaintProps::EditUI()
+{
+	IMGUI_GROUP_BEGIN( "Painting properties", true )
+	{
+		ImGui::RadioButton( "0", &layerNum, 0 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "1", &layerNum, 1 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "2", &layerNum, 2 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "3", &layerNum, 3 );
+		ImGui::SameLine();
+		ImGui::Text( "Layer" );
+		
+		ImGui::BeginChangeMask( 1 );
+		
+		if( ImGui::RadioButton( "##sculpt", paintPos ) ){
+			paintPos = true; paintColor = false; paintAlpha = false; }
+		ImGui::SameLine();
+		IMGUIEditBool( "Sculpt", paintPos );
+		
+		if( ImGui::RadioButton( "##paintcolor", paintColor ) ){
+			paintPos = false; paintColor = true; paintAlpha = false; }
+		ImGui::SameLine();
+		IMGUIEditBool( "Paint color", paintColor );
+		
+		if( ImGui::RadioButton( "##paintalpha", paintAlpha ) ){
+			paintPos = false; paintColor = false; paintAlpha = true; }
+		ImGui::SameLine();
+		IMGUIEditBool( "Paint alpha", paintAlpha );
+		
+		_UpdateColor();
+		
+		ImGui::Separator();
+		
+		IMGUIEditFloatSlider( "Radius", radius, 0, 64, 2 );
+		IMGUIEditFloatSlider( "Falloff", falloff, 0.01f, 100.0f, 10 );
+		IMGUIEditFloatSlider( "Sculpt speed", sculptSpeed, 0.01f, 100.0f, 10 );
+		IMGUIEditFloatSlider( "Paint speed", paintSpeed, 0.01f, 100.0f, 10 );
+		IMGUIEditColorHSVHDR( "Color", colorHSV, 1 );
+		IMGUIEditFloatSlider( "Alpha", alpha, 0, 1 );
+		
+		ImGui::EndChangeMask();
+	}
+	IMGUI_GROUP_END;
+}
+
+float EdPaintProps::GetDistanceFactor( const Vec3& vpos, const Vec3& bpos )
 {
 	float dist = ( vpos - bpos ).Length();
-	return powf( 1 - clamp( dist / m_ctlRadius.m_value, 0, 1 ), m_ctlFalloff.m_value );
+	return powf( 1 - clamp( dist / radius, 0, 1 ), falloff );
 }
 
-void EDGUIPaintProps::Paint( Vec3& vpos, const Vec3& nrm, Vec4& vcol, float factor )
+void EdPaintProps::Paint( Vec3& vpos, const Vec3& nrm, Vec4& vcol, float factor )
 {
-	if( m_ctlPaintPos.m_value )
+	if( paintPos )
 	{
-		vpos += nrm * factor * m_ctlSculptSpeed.m_value * ( ( g_UIFrame->m_keyMod & KMOD_ALT ) ? -1 : 1 );
+		vpos += nrm * factor * sculptSpeed * ( ImGui::GetIO().KeyAlt ? -1 : 1 );
 	}
-	if( m_ctlPaintColor.m_value || m_ctlPaintAlpha.m_value )
+	if( paintColor || paintAlpha )
 	{
-		Vec4 cf = V4( V3( m_ctlPaintColor.m_value ), m_ctlPaintAlpha.m_value ) * clamp( m_ctlPaintSpeed.m_value * factor, 0, 1 );
-		vcol = TLERP( vcol, ( g_UIFrame->m_keyMod & KMOD_ALT ) ? V4(1) - m_tgtColor : m_tgtColor, cf );
+		Vec4 cf = V4( V3( paintColor ), paintAlpha ) * clamp( paintSpeed * factor, 0, 1 );
+		vcol = TLERP( vcol, ImGui::GetIO().KeyAlt ? V4(1) - m_tgtColor : m_tgtColor, cf );
 	}
 }
 
-int EDGUIPaintProps::OnEvent( EDGUIEvent* e )
+void EdPaintProps::_UpdateColor()
 {
-	switch( e->type )
-	{
-	case EDGUI_EVENT_PROPEDIT:
-		if( e->target == &m_ctlColorHSV || e->target == &m_ctlAlpha )
-			_UpdateColor();
-		break;
-	}
-	return EDGUILayoutRow::OnEvent( e );
-}
-
-void EDGUIPaintProps::_UpdateColor()
-{
-	m_tgtColor = V4( HSV( m_ctlColorHSV.m_value ), m_ctlAlpha.m_value );
+	m_tgtColor = V4( HSV( colorHSV ), alpha );
 }
 
 
@@ -1123,14 +1082,8 @@ void EdWorld::DeleteObject( EdObject* obj )
 	size_t at = m_objects.find_first_at( obj );
 	m_objects.uerase( at );
 	
-#if 0
 	if( g_UIFrame )
-	{
-		EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
-		e.key.key = at;
-		g_UIFrame->ViewEvent( &e );
-	}
-#endif
+		g_UIFrame->OnDeleteObject( at );
 	
 	if( obj->m_type == ObjType_Block )
 	{
@@ -1173,14 +1126,7 @@ void EdWorld::DeleteSelectedObjects()
 		if( m_objects[ i ]->selected )
 		{
 			m_objects.uerase( i );
-#if 0
-			if( g_UIFrame )
-			{
-				EDGUIEvent e = { EDGUI_EVENT_DELOBJECT, NULL };
-				e.key.key = i;
-				g_UIFrame->ViewEvent( &e );
-			}
-#endif
+			g_UIFrame->OnDeleteObject( i );
 		}
 	}
 	
@@ -1519,34 +1465,20 @@ void MapEditorRenderView::DebugDraw()
 }
 
 
-EDGUIMainFrame::EDGUIMainFrame() :
+EdMainFrame::EdMainFrame() :
 	m_editTF( NULL ),
-	m_editMode( NULL ),
-	m_keyMod( 0 ),
-	m_UIMenuSplit( true, 26, 0 ),
-	m_UIMenuLRSplit( false, 0, 0.4f ),
-	m_UIParamSplit( false, 0, 0.7f )
+	m_editMode( NULL )
 {
-	tyname = "mainframe";
-	
-	Add( &m_UIMenuSplit );
-	m_UIMenuLRSplit.SetFirstPane( &m_UIMenuButtonsLft );
-	m_UIMenuLRSplit.SetSecondPane( &m_UIMenuButtonsRgt );
-	m_UIMenuSplit.SetFirstPane( &m_UIMenuLRSplit );
-	m_UIMenuSplit.SetSecondPane( &m_UIParamSplit );
-	m_UIParamSplit.SetSecondPane( &m_UIParamScroll );
-	m_UIParamScroll.Add( &m_UIParamList );
-	
 	m_txMarker = GR_GetTexture( "editor/marker.png" );
 }
 
-void EDGUIMainFrame::EditUI()
+void EdMainFrame::EditUI()
 {
 	if( m_editMode )
 		m_editMode->EditUI();
 }
 
-bool EDGUIMainFrame::ViewUI()
+bool EdMainFrame::ViewUI()
 {
 	m_NUIRenderView.Process( ImGui::GetIO().DeltaTime );
 	
@@ -1586,7 +1518,7 @@ bool EDGUIMainFrame::ViewUI()
 	return true;
 }
 
-void EDGUIMainFrame::_DrawCursor( bool drawimg, float height )
+void EdMainFrame::_DrawCursor( bool drawimg, float height )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.UnsetTexture();
@@ -1617,14 +1549,14 @@ void EDGUIMainFrame::_DrawCursor( bool drawimg, float height )
 	}
 }
 
-void EDGUIMainFrame::DrawCursor( bool drawimg )
+void EdMainFrame::DrawCursor( bool drawimg )
 {
 	_DrawCursor( drawimg, 0 );
 	if( m_NUIRenderView.crplaneheight )
 		_DrawCursor( drawimg, m_NUIRenderView.crplaneheight );
 }
 
-void EDGUIMainFrame::DebugDraw()
+void EdMainFrame::DebugDraw()
 {
 	if( m_editMode )
 		m_editMode->Draw();
@@ -1632,75 +1564,65 @@ void EDGUIMainFrame::DebugDraw()
 		m_editTF->Draw();
 }
 
-
-void EDGUIMainFrame::AddToParamList( EDGUIItem* item )
+void EdMainFrame::OnDeleteObject( size_t )
 {
-	m_UIParamList.Add( item );
+	if( m_editMode )
+		m_editMode->OnEnter();
 }
 
-void EDGUIMainFrame::ClearParamList()
-{
-	while( m_UIParamList.m_subitems.size() )
-		m_UIParamList.Remove( m_UIParamList.m_subitems.last() );
-}
 
-void EDGUIMainFrame::RefreshMouse()
-{
-	m_frame->_HandleMouseMove( false );
-}
-
-Vec3 EDGUIMainFrame::GetCursorRayPos()
+Vec3 EdMainFrame::GetCursorRayPos()
 {
 	return m_NUIRenderView.crpos;
 }
 
-Vec3 EDGUIMainFrame::GetCursorRayDir()
+Vec3 EdMainFrame::GetCursorRayDir()
 {
 	return m_NUIRenderView.crdir;
 }
 
-Vec2 EDGUIMainFrame::GetCursorPlanePos()
+Vec2 EdMainFrame::GetCursorPlanePos()
 {
 	return Snapped( m_NUIRenderView.cursor_hpos );
 }
 
-float EDGUIMainFrame::GetCursorPlaneHeight()
+float EdMainFrame::GetCursorPlaneHeight()
 {
 	return m_NUIRenderView.crplaneheight;
 }
 
-void EDGUIMainFrame::SetCursorPlaneHeight( float z )
+void EdMainFrame::SetCursorPlaneHeight( float z )
 {
 	m_NUIRenderView.crplaneheight = z;
 }
 
-bool EDGUIMainFrame::IsCursorAiming()
+bool EdMainFrame::IsCursorAiming()
 {
 	return m_NUIRenderView.cursor_aim;
 }
 
-void EDGUIMainFrame::Snap( Vec2& v )
+void EdMainFrame::Snap( Vec2& v )
 {
-	if( m_keyMod & KMOD_ALT )
+	if( ImGui::GetIO().KeyAlt )
 		return;
 	m_snapProps.Snap( v );
 }
 
-void EDGUIMainFrame::Snap( Vec3& v )
+void EdMainFrame::Snap( Vec3& v )
 {
-	if( m_keyMod & KMOD_ALT )
+	if( ImGui::GetIO().KeyAlt )
 		return;
 	m_snapProps.Snap( v );
 }
 
-Vec2 EDGUIMainFrame::Snapped( const Vec2& v )
+Vec2 EdMainFrame::Snapped( const Vec2& v )
 {
 	Vec2 o = v;
 	Snap( o );
 	return o;
 }
 
-Vec3 EDGUIMainFrame::Snapped( const Vec3& v )
+Vec3 EdMainFrame::Snapped( const Vec3& v )
 {
 	Vec3 o = v;
 	Snap( o );
@@ -1708,14 +1630,22 @@ Vec3 EDGUIMainFrame::Snapped( const Vec3& v )
 }
 
 
-void EDGUIMainFrame::Level_New()
+static StringView LevelPathToName( StringView path )
+{
+	if( path.starts_with( "levels/" ) && path.ends_with( ".tle" ) )
+		return path.part( STRLIT_LEN( "levels/" ), path.size() - STRLIT_LEN( "levels/.tle" ) );
+	return path;
+}
+
+
+void EdMainFrame::Level_New()
 {
 	ReconfigureEntities( "" );
 	g_EdWorld->Reset();
 	g_EdLGCont->Reset();
 }
 
-bool EDGUIMainFrame::Level_Real_Open( const StringView& str )
+bool EdMainFrame::Level_Real_Open( const StringView& str )
 {
 	LOG << "Trying to open level: " << str;
 	
@@ -1726,7 +1656,7 @@ bool EDGUIMainFrame::Level_Real_Open( const StringView& str )
 		return false;
 	}
 	
-	ReconfigureEntities( str );
+	ReconfigureEntities( LevelPathToName( str ) );
 	
 	if( SV(data).part( 0, 5 ) == "WORLD" )
 	{
@@ -1754,7 +1684,7 @@ bool EDGUIMainFrame::Level_Real_Open( const StringView& str )
 		return false;
 	}
 	
-	g_EdLGCont->LoadLightmaps( str );
+	g_EdLGCont->LoadLightmaps( LevelPathToName( str ) );
 	g_EdWorld->ReloadSkybox();
 	g_EdWorld->ReloadCLUT();
 	
@@ -1762,7 +1692,7 @@ bool EDGUIMainFrame::Level_Real_Open( const StringView& str )
 	return true;
 }
 
-bool EDGUIMainFrame::Level_Real_Save( const StringView& str )
+bool EdMainFrame::Level_Real_Save( const StringView& str )
 {
 	LOG << "Trying to save level: " << str;
 	String data;
@@ -1781,14 +1711,14 @@ bool EDGUIMainFrame::Level_Real_Save( const StringView& str )
 		return false;
 	}
 	
-	g_EdLGCont->SaveLightmaps( str );
+	g_EdLGCont->SaveLightmaps( LevelPathToName( str ) );
 	
 	m_fileName = str;
-	ReconfigureEntities( str );
+	ReconfigureEntities( LevelPathToName( str ) );
 	return true;
 }
 
-void EDGUIMainFrame::Level_Real_Compile()
+void EdMainFrame::Level_Real_Compile()
 {
 	if( g_EdWorld->m_info.prefabMode )
 		Level_Real_Compile_Prefabs();
@@ -1796,7 +1726,7 @@ void EDGUIMainFrame::Level_Real_Compile()
 		Level_Real_Compile_Default();
 }
 
-void EDGUIMainFrame::Level_Real_Compile_Default()
+void EdMainFrame::Level_Real_Compile_Default()
 {
 	LOG << "Compiling level";
 	LevelCache lcache( &g_EdLGCont->m_sampleTree );
@@ -1886,13 +1816,13 @@ void EDGUIMainFrame::Level_Real_Compile_Default()
 	char bfr[ 256 ];
 	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
 	
-	if( !lcache.SaveCache( g_UISurfMtlPicker->m_materials, bfr ) )
+	if( !lcache.SaveCache( g_NUISurfMtlPicker->m_materials, bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
 	else
 		LOG << "Level is compiled";
 }
 
-void EDGUIMainFrame::Level_Real_Compile_Prefabs()
+void EdMainFrame::Level_Real_Compile_Prefabs()
 {
 	String data;
 	
@@ -1910,19 +1840,18 @@ void EDGUIMainFrame::Level_Real_Compile_Prefabs()
 		LOG << "Prefab script is compiled";
 }
 
-void EDGUIMainFrame::SetEditMode( EdEditMode* em )
+void EdMainFrame::SetEditMode( EdEditMode* em )
 {
 	if( em == m_editMode )
 		return;
 	if( m_editMode )
 		m_editMode->OnExit();
 	m_editMode = em;
-	ClearParamList();
 	if( em )
 		em->OnEnter();
 }
 
-void EDGUIMainFrame::SetEditTransform( EdEditTransform* et )
+void EdMainFrame::SetEditTransform( EdEditTransform* et )
 {
 	if( m_editTF )
 	{
@@ -1947,6 +1876,12 @@ bool MapEditor::OnInitialize()
 	
 	SGRX_IMGUI_Init();
 	
+	g_NUILevelPicker = new IMGUIFilePicker( "levels", ".tle" );
+	g_NUIMeshPicker = new IMGUIMeshPicker();
+	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
+	g_NUITexturePicker = new IMGUITexturePicker();
+	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
+	
 	g_Level = g_BaseGame->CreateLevel();
 	g_Level->m_editorMode = true;
 	sgs_RegIntConsts( g_Level->GetSGSC(), g_ent_scripted_ric, -1 );
@@ -1958,13 +1893,10 @@ bool MapEditor::OnInitialize()
 //	LOG << "\nLoading completed\n\n";
 	
 	g_UITexturePicker = new EDGUITexturePicker;
-	g_UISurfMtlPicker = new EDGUISurfMtlPicker;
 	g_UIMeshPicker = new EDGUIMeshPicker( true );
 	g_UICharPicker = new EDGUICharUsePicker( true );
 	g_UIPartSysPicker = new EDGUIPartSysPicker;
 	g_UISoundPicker = new EDGUISoundPicker;
-	g_UILevelOpenPicker = new EDGUILevelOpenPicker;
-	g_UILevelSavePicker = new EDGUILevelSavePicker;
 	
 	// core layout
 	g_EdLGCont = AddSystemToLevel<EdLevelGraphicsCont>( g_Level );
@@ -1973,14 +1905,7 @@ bool MapEditor::OnInitialize()
 	g_EdScene->camera.UpdateMatrices();
 	g_EdWorld = new EdWorld();
 	g_EdWorld->RegenerateMeshes();
-	g_UIFrame = new EDGUIMainFrame();
-	g_UIFrame->Resize( GR_GetWidth(), GR_GetHeight() );
-	
-	g_NUILevelPicker = new IMGUIFilePicker( "levels", ".tle" );
-	g_NUIMeshPicker = new IMGUIMeshPicker();
-	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
-	g_NUITexturePicker = new IMGUITexturePicker();
-	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
+	g_UIFrame = new EdMainFrame();
 	
 	return true;
 }
@@ -1993,10 +1918,6 @@ void MapEditor::OnDestroy()
 	delete g_NUIMeshPicker;
 	delete g_NUILevelPicker;
 	
-	delete g_UILevelSavePicker;
-	g_UILevelSavePicker = NULL;
-	delete g_UILevelOpenPicker;
-	g_UILevelOpenPicker = NULL;
 	delete g_UIPartSysPicker;
 	g_UIPartSysPicker = NULL;
 	delete g_UISoundPicker;
@@ -2005,8 +1926,6 @@ void MapEditor::OnDestroy()
 	g_UICharPicker = NULL;
 	delete g_UIMeshPicker;
 	g_UIMeshPicker = NULL;
-	delete g_UISurfMtlPicker;
-	g_UISurfMtlPicker = NULL;
 	delete g_UITexturePicker;
 	g_UITexturePicker = NULL;
 	delete g_UIFrame;
@@ -2066,7 +1985,6 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	g_EdLGCont->ApplyInvalidation();
 	g_EdLGCont->ILMCheck();
-	g_UIFrame->Draw();
 	
 	SGRX_IMGUI_NewFrame( dt );
 	

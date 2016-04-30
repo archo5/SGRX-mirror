@@ -1049,6 +1049,7 @@ void EdPatch::EditUI()
 {
 	ImGui::BeginChangeCheck();
 	
+	g_EdWorld->m_groupMgr.GroupProperty( "Group", group );
 	IMGUIEditVec3( "Position", position, -8192, 8192 );
 	bool isDecal = ( blend & PATCH_IS_SOLID ) == 0;
 	int layer = blend & ~PATCH_IS_SOLID;

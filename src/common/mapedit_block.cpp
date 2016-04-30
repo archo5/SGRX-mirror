@@ -108,6 +108,7 @@ void EdBlock::EditUI()
 {
 	ImGui::BeginChangeCheck();
 	
+	g_EdWorld->m_groupMgr.GroupProperty( "Group", group );
 	IMGUIEditVec3( "Position", position, -8192, 8192 );
 	
 	Vec2 zz = V2( z0, z1 );

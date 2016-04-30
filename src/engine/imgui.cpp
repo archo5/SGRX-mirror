@@ -215,9 +215,9 @@ bool IMGUIEditVec4( const char* label, Vec4& v, float vmin, float vmax, int prec
 	return ImGui::DragFloat4( label, &v.x, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );
 }
 
-bool IMGUIEditFloatSlider( const char* label, float& v, float vmin, float vmax )
+bool IMGUIEditFloatSlider( const char* label, float& v, float vmin, float vmax, float power )
 {
-	return ImGui::SliderFloat( label, &v, vmin, vmax, "%g", 1 );
+	return ImGui::SliderFloat( label, &v, vmin, vmax, "%g", power );
 }
 
 bool IMGUIEditQuat( const char* label, Quat& v )
