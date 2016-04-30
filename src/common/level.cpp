@@ -2,6 +2,8 @@
 
 #include "level.hpp"
 
+#include "resources.hpp"
+
 
 sgs_ObjInterface g_sgsobj_empty_handle[1] = {{ "empty_handle", NULL }};
 
@@ -144,6 +146,167 @@ void Entity::SetInfoMask( uint32_t mask )
 }
 
 
+
+GOResource::GOResource( GameObject* obj ) :
+	LevelScrObj( obj->m_level ),
+	m_obj( obj )
+{
+}
+
+int GOResourceTable::getindex( SGS_CTX, sgs_VarObj* obj )
+{
+	H_GOResource* h = ((GOResourceTable*)obj->data)->getptr( sgsString( C, 0 ) );
+	if( h )
+	{
+		(*h)->GetScriptedObject().push( C );
+		return 1;
+	}
+	return _sgs_getindex( C, obj );
+}
+
+GOBehavior::GOBehavior( GameObject* obj ) :
+	LevelScrObj( obj->m_level ),
+	m_obj( obj )
+{
+}
+
+int GOBehaviorTable::getindex( SGS_CTX, sgs_VarObj* obj )
+{
+	H_GOBehavior* h = ((GOBehaviorTable*)obj->data)->getptr( sgsString( C, 0 ) );
+	if( h )
+	{
+		(*h)->GetScriptedObject().push( C );
+		return 1;
+	}
+	return _sgs_getindex( C, obj );
+}
+
+void GOBehavior::OnDestroy()
+{
+	sgsVariable fn = GetScriptedObject().getprop( "OnDestroy" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
+void GOBehavior::PrePhysicsFixedUpdate()
+{
+	sgsVariable fn_prephysicsfixedupdate = GetScriptedObject().getprop( "PrePhysicsFixedUpdate" );
+	if( fn_prephysicsfixedupdate.not_null() )
+		GetScriptedObject().thiscall( C, fn_prephysicsfixedupdate );
+}
+
+void GOBehavior::FixedUpdate()
+{
+	sgsVariable fn_fixedupdate = GetScriptedObject().getprop( "FixedUpdate" );
+	if( fn_fixedupdate.not_null() )
+		GetScriptedObject().thiscall( C, fn_fixedupdate );
+}
+
+void GOBehavior::Update()
+{
+	sgsVariable fn_update = GetScriptedObject().getprop( "Update" );
+	if( fn_update.not_null() )
+		GetScriptedObject().thiscall( C, fn_update );
+}
+
+void GOBehavior::PreRender()
+{
+	sgsVariable fn_prerender = GetScriptedObject().getprop( "PreRender" );
+	if( fn_prerender.not_null() )
+		GetScriptedObject().thiscall( C, fn_prerender );
+}
+
+void GOBehavior::OnTransformUpdate()
+{
+	sgsVariable fn = GetScriptedObject().getprop( "OnTransformUpdate" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
+
+GameObject::GameObject( GameLevel* lev ) :
+	LevelScrObj( lev ),
+	m_resources( lev ),
+	m_behaviors( lev )
+{
+}
+
+GameObject::~GameObject()
+{
+}
+
+GOResource* GameObject::AddResource( sgsString name, uint32_t type )
+{
+	GOResource* rsrc = NULL;
+	if( type == GO_RSRC_MESH )
+		rsrc = new MeshResource( this );
+	if( rsrc )
+	{
+		rsrc->InitScriptInterface();
+		m_resources.set( name, rsrc );
+	}
+	return rsrc;
+}
+
+void GameObject::RemoveResource( sgsString name )
+{
+	m_resources.unset( name );
+}
+
+GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type )
+{
+	GOBehavior* bhvr = NULL;
+	if( bhvr )
+	{
+		bhvr->InitScriptInterface();
+		m_behaviors.set( name, bhvr );
+	}
+	return bhvr;
+}
+
+void GameObject::RemoveBehavior( sgsString name )
+{
+	m_behaviors.unset( name );
+}
+
+void GameObject::OnDestroy()
+{
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors.item( i ).value->OnDestroy();
+}
+
+void GameObject::PrePhysicsFixedUpdate()
+{
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors.item( i ).value->PrePhysicsFixedUpdate();
+}
+
+void GameObject::FixedUpdate()
+{
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors.item( i ).value->FixedUpdate();
+}
+
+void GameObject::Update()
+{
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors.item( i ).value->Update();
+}
+
+void GameObject::PreRender()
+{
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors.item( i ).value->PreRender();
+}
+
+void GameObject::OnTransformUpdate()
+{
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors.item( i ).value->OnTransformUpdate();
+}
+
+
+
 IEditorSystemCompiler::~IEditorSystemCompiler()
 {
 }
@@ -243,6 +406,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		{ "IEST_Player", IEST_Player },
 		{ "IEST_Target", IEST_Target },
 		{ "IEST_AIAlert", IEST_AIAlert },
+		{ "GO_RSRC_MESH", GO_RSRC_MESH },
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( C, ric, -1 );
@@ -588,6 +752,10 @@ void GameLevel::ClearLevel()
 	m_currentTickTime = 0;
 	m_currentPhyTime = 0;
 	
+	for( size_t i = 0; i < m_gameObjects.size(); ++i )
+		delete m_gameObjects[ i ];
+	m_gameObjects.clear();
+	
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		delete m_entities[ i ];
 	m_entities.clear();
@@ -604,6 +772,8 @@ void GameLevel::FixedTick( float deltaTime )
 		
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->PrePhysicsFixedTick( deltaTime );
+		for( size_t i = 0; i < m_gameObjects.size(); ++i )
+			m_gameObjects[ i ]->PrePhysicsFixedUpdate();
 		
 		int ITERS = 2;
 		for( int i = 0; i < ITERS; ++i )
@@ -611,6 +781,8 @@ void GameLevel::FixedTick( float deltaTime )
 		
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->FixedTick( deltaTime );
+		for( size_t i = 0; i < m_gameObjects.size(); ++i )
+			m_gameObjects[ i ]->FixedUpdate();
 		
 		sgsVariable fn_onLevelFixedTick = m_scriptCtx.GetGlobal( "onLevelFixedTick" );
 		if( fn_onLevelFixedTick.not_null() )
@@ -632,12 +804,16 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 		
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->Tick( deltaTime, blendFactor );
+		for( size_t i = 0; i < m_gameObjects.size(); ++i )
+			m_gameObjects[ i ]->Update();
 	}
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
 	for( size_t i = 0; i < m_entities.size(); ++i )
 		m_entities[ i ]->PreRender();
+	for( size_t i = 0; i < m_gameObjects.size(); ++i )
+		m_gameObjects[ i ]->PreRender();
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->PreRender();
 	
@@ -919,6 +1095,22 @@ void GameLevel::GetEditorCompilers( Array< IEditorSystemCompiler* >& out )
 	}
 	out.push_back( new GameLevelSystemCompiler );
 }
+
+
+
+GameObject* GameLevel::CreateGameObject()
+{
+	GameObject* go = new GameObject( this );
+	go->InitScriptInterface();
+	m_gameObjects.push_back( go );
+	return go;
+}
+
+sgsVariable GameLevel::sgsCreateGameObject()
+{
+	return CreateGameObject()->GetScriptedObject();
+}
+
 
 
 BaseEditor::BaseEditor( BaseGame* game ) : m_editorGame( NULL ), m_origGame( NULL )

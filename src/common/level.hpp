@@ -480,6 +480,107 @@ struct InfoEmitEntitySet
 	HashTable< Entity*, NoValue > m_entities;
 };
 
+
+struct GameObject;
+
+EXP_STRUCT GOResource : LevelScrObj
+{
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	typedef sgsHandle< GOResource > ScrHandle;
+	
+	GFW_EXPORT GOResource( GameObject* obj );
+	
+//	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
+	GameObject* m_obj;
+};
+typedef Handle< GOResource > H_GOResource;
+
+EXP_STRUCT GOResourceTable : LevelScrObj, HashTable< sgsString, H_GOResource >
+{
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	typedef sgsHandle< GOResourceTable > ScrHandle;
+	GOResourceTable( GameLevel* lev ) : LevelScrObj( lev ){}
+	SGS_IFUNC( getindex ) int getindex( SGS_CTX, sgs_VarObj* obj );
+};
+
+EXP_STRUCT GOBehavior : LevelScrObj
+{
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	typedef sgsHandle< GOBehavior > ScrHandle;
+	
+	GFW_EXPORT GOBehavior( GameObject* obj );
+	
+	GFW_EXPORT virtual void OnDestroy();
+	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
+	GFW_EXPORT virtual void FixedUpdate();
+	GFW_EXPORT virtual void Update();
+	GFW_EXPORT virtual void PreRender();
+	GFW_EXPORT virtual void OnTransformUpdate();
+	
+//	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
+	GameObject* m_obj;
+};
+typedef Handle< GOBehavior > H_GOBehavior;
+
+EXP_STRUCT GOBehaviorTable : LevelScrObj, HashTable< sgsString, H_GOBehavior >
+{
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	typedef sgsHandle< GOBehaviorTable > ScrHandle;
+	GOBehaviorTable( GameLevel* lev ) : LevelScrObj( lev ){}
+	SGS_IFUNC( getindex ) int getindex( SGS_CTX, sgs_VarObj* obj );
+};
+
+EXP_STRUCT GameObject : LevelScrObj, Transform
+{
+	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT GameObject( GameLevel* lev );
+	GFW_EXPORT ~GameObject();
+	
+	GFW_EXPORT GOResource* AddResource( sgsString name, uint32_t type );
+	GFW_EXPORT SGS_METHOD void RemoveResource( sgsString name );
+	
+	GFW_EXPORT GOBehavior* AddBehavior( sgsString name, sgsString type );
+	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsString name );
+	
+	GFW_EXPORT virtual void OnDestroy();
+	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
+	GFW_EXPORT virtual void FixedUpdate();
+	GFW_EXPORT virtual void Update();
+	GFW_EXPORT virtual void PreRender();
+	GFW_EXPORT virtual void OnTransformUpdate();
+	
+	GOResourceTable m_resources;
+	GOBehaviorTable m_behaviors;
+	
+	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetWorldPosition ) SGS_ALIAS( Vec3 position );
+	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat rotation );
+	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 rotationXYZ );
+	SGS_PROPERTY_FUNC( READ GetWorldScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 scale );
+	SGS_PROPERTY_FUNC( READ GetWorldMatrix WRITE SetWorldMatrix ) SGS_ALIAS( Mat4 transform );
+	
+	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition ) SGS_ALIAS( Vec3 localPosition );
+	SGS_PROPERTY_FUNC( READ GetLocalRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat localRotation );
+	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 localRotationXYZ );
+	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 localScale );
+	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix ) SGS_ALIAS( Mat4 localTransform );
+	
+	SGS_METHOD_NAMED( AddResource ) sgsVariable sgsAddResource( sgsString name, uint32_t type )
+	{ return AddResource( name, type )->GetScriptedObject(); }
+	SGS_METHOD_NAMED( AddBehavior ) sgsVariable sgsAddBehavior( sgsString name, sgsString type )
+	{ return AddBehavior( name, type )->GetScriptedObject(); }
+	GOResourceTable::ScrHandle _get_resources(){ return GOResourceTable::ScrHandle( &m_resources ); }
+	SGS_PROPERTY_FUNC( READ _get_resources ) SGS_ALIAS( GOResourceTable::ScrHandle resources );
+	GOBehaviorTable::ScrHandle _get_behaviors(){ return GOBehaviorTable::ScrHandle( &m_behaviors ); }
+	SGS_PROPERTY_FUNC( READ _get_behaviors ) SGS_ALIAS( GOBehaviorTable::ScrHandle behaviors );
+};
+
+
 typedef StackString<16> StackShortName;
 
 typedef sgsHandle< struct GameLevel > GameLevelScrHandle;
@@ -627,6 +728,11 @@ EXP_STRUCT GameLevel :
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME paused ) bool m_paused;
 	double m_levelTime;
 	Array< Entity* > m_entities;
+	
+	// GAMEOBJECT PROTO
+	GameObject* CreateGameObject();
+	GFW_EXPORT SGS_METHOD_NAMED( CreateGameObject ) sgsVariable sgsCreateGameObject();
+	Array< GameObject* > m_gameObjects;
 };
 
 template< class T > T* AddSystemToLevel( GameLevel* lev )
