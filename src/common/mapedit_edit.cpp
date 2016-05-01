@@ -1569,6 +1569,13 @@ void EdGameObjectEditMode::Draw()
 			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
 		br.SphereOutline( obj->GetWorldPosition(), 0.2f, 32 );
 	}
+	
+	if( m_selObj )
+		m_selObj->EditorDrawWorld();
+	
+	if( m_hoverObj && m_hoverObj != m_selObj )
+		m_hoverObj->EditorDrawWorld();
+	
 	g_UIFrame->DrawCursor( false );
 }
 

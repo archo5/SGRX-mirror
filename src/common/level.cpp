@@ -149,7 +149,8 @@ void Entity::SetInfoMask( uint32_t mask )
 
 GOResource::GOResource( GameObject* obj ) :
 	LevelScrObj( obj->m_level ),
-	m_obj( obj )
+	m_obj( obj ),
+	m_type( 0 )
 {
 }
 
@@ -158,6 +159,10 @@ void GOResource::OnTransformUpdate()
 }
 
 void GOResource::EditUI( EditorUIHelper* uih )
+{
+}
+
+void GOResource::EditorDrawWorld()
 {
 }
 
@@ -231,6 +236,17 @@ void GOBehavior::OnTransformUpdate()
 		GetScriptedObject().thiscall( C, fn );
 }
 
+void GOBehavior::EditUI( EditorUIHelper* )
+{
+	sgsVariable fn = GetScriptedObject().getprop( "EditorGUI" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
+void GOBehavior::EditorDrawWorld()
+{
+}
+
 
 GameObject::GameObject( GameLevel* lev ) :
 	LevelScrObj( lev ),
@@ -243,17 +259,29 @@ GameObject::~GameObject()
 {
 }
 
-GOResource* GameObject::AddResource( sgsString name, uint32_t type )
+GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 {
+	if( !ovr && m_resources.isset( name ) )
+		return NULL;
 	GOResource* rsrc = NULL;
 	if( type == GO_RSRC_MESH )
 		rsrc = new MeshResource( this );
 	if( rsrc )
 	{
+		rsrc->m_name = name;
+		rsrc->m_type = type;
 		rsrc->InitScriptInterface();
 		m_resources.set( name, rsrc );
 	}
 	return rsrc;
+}
+
+GOResource* GameObject::RequireResource( sgsString name, uint32_t type )
+{
+	GOResource* rsrc = m_resources.getcopy( name );
+	if( rsrc && rsrc->m_type == type )
+		return NULL;
+	return AddResource( name, type, true );
 }
 
 void GameObject::RemoveResource( sgsString name )
@@ -273,6 +301,7 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 		{
 			bhvr->InitScriptInterface();
 			m_behaviors.set( name, bhvr );
+			m_bhvr_order.push_back( bhvr );
 			return bhvr;
 		}
 	}
@@ -315,14 +344,35 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 	return bhvr;
 }
 
-GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type )
+GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type, bool ovr )
 {
-	return _CreateBehaviorReal( name, type );
+	if( !ovr && m_behaviors.isset( name ) )
+		return NULL;
+	GOBehavior* bhvr = _CreateBehaviorReal( name, type );
+	if( bhvr )
+	{
+		bhvr->m_name = name;
+		bhvr->m_type = type;
+	}
+	return bhvr;
+}
+
+GOBehavior* GameObject::RequireBehavior( sgsString name, sgsString type )
+{
+	GOBehavior* bhvr = m_behaviors.getcopy( name );
+	if( bhvr && bhvr->m_type == type )
+		return NULL;
+	return AddBehavior( name, type, true );
 }
 
 void GameObject::RemoveBehavior( sgsString name )
 {
-	m_behaviors.unset( name );
+	GOBehavior* bhvr = m_behaviors.getcopy( name );
+	if( bhvr )
+	{
+		m_bhvr_order.remove_first( bhvr );
+		m_behaviors.unset( name );
+	}
 }
 
 void GameObject::OnDestroy()
@@ -361,6 +411,14 @@ void GameObject::OnTransformUpdate()
 		m_resources.item( i ).value->OnTransformUpdate();
 	for( size_t i = 0; i < m_behaviors.size(); ++i )
 		m_behaviors.item( i ).value->OnTransformUpdate();
+}
+
+void GameObject::EditorDrawWorld()
+{
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->EditorDrawWorld();
+	for( size_t i = 0; i < m_behaviors.size(); ++i )
+		m_behaviors.item( i ).value->EditorDrawWorld();
 }
 
 

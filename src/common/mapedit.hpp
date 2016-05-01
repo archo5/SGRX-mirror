@@ -1480,6 +1480,8 @@ struct EdEntList
 bool EDGO_RayIntersect( GameObject* obj, Vec3 rpos, Vec3 rdir, float outdst[1] );
 void EDGO_EditUI( GameObject* obj );
 
+extern sgs_RegFuncConst g_imgui_rfc[];
+
 
 
 /////////////

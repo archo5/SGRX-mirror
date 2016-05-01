@@ -1894,6 +1894,7 @@ bool MapEditor::OnInitialize()
 	g_Level->m_editorMode = true;
 	sgs_RegIntConsts( g_Level->GetSGSC(), g_ent_scripted_ric, -1 );
 	sgs_RegFuncConsts( g_Level->GetSGSC(), g_ent_scripted_rfc, -1 );
+	sgs_RegFuncConsts( g_Level->GetSGSC(), g_imgui_rfc, -1 );
 	
 	g_Level->GetScriptCtx().ExecFile( "levels/upgrade1.sgs" );
 //	LOG << "\nLoading scripted entities:";
