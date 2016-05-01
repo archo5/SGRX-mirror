@@ -4,32 +4,32 @@
 
 
 
-void EdEntity::FieldBool::EditUI()
+void FieldBool::EditUI()
 {
 	IMGUIEditBool( caption.c_str(), value );
 }
 
-void EdEntity::FieldInt::EditUI()
+void FieldInt::EditUI()
 {
 	IMGUIEditInt( caption.c_str(), value, vmin, vmax );
 }
 
-void EdEntity::FieldFloat::EditUI()
+void FieldFloat::EditUI()
 {
 	IMGUIEditFloat( caption.c_str(), value, vmin, vmax, prec );
 }
 
-void EdEntity::FieldVec2::EditUI()
+void FieldVec2::EditUI()
 {
 	IMGUIEditVec2( caption.c_str(), value, vmin, vmax, prec );
 }
 
-void EdEntity::FieldVec3::EditUI()
+void FieldVec3::EditUI()
 {
 	IMGUIEditVec3( caption.c_str(), value, vmin, vmax, prec );
 }
 
-void EdEntity::FieldString::EditUI()
+void FieldString::EditUI()
 {
 	switch( type )
 	{
@@ -311,7 +311,7 @@ static int EE_AddFieldBool( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldBool" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldBool* F = new EdEntity::FieldBool;
+	FieldBool* F = new FieldBool;
 	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<bool>()( C, 3 ) : false;
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
@@ -320,7 +320,7 @@ static int EE_AddFieldInt( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldInt" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldInt* F = new EdEntity::FieldInt;
+	FieldInt* F = new FieldInt;
 	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<int32_t>()( C, 3 ) : 0;
 	F->vmin = sgs_StackSize( C ) > 4 ? sgs_GetVar<int32_t>()( C, 4 ) : 0x80000000;
 	F->vmax = sgs_StackSize( C ) > 5 ? sgs_GetVar<int32_t>()( C, 5 ) : 0x7fffffff;
@@ -331,7 +331,7 @@ static int EE_AddFieldFloat( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldFloat" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldFloat* F = new EdEntity::FieldFloat;
+	FieldFloat* F = new FieldFloat;
 	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<float>()( C, 3 ) : 0;
 	F->prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	F->vmin = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
@@ -343,7 +343,7 @@ static int EE_AddFieldVec2( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec2" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldVec2* F = new EdEntity::FieldVec2;
+	FieldVec2* F = new FieldVec2;
 	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec2>()( C, 3 ) : V2(0);
 	F->prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	F->vmin = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
@@ -355,7 +355,7 @@ static int EE_AddFieldVec3( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldVec3" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldVec3* F = new EdEntity::FieldVec3;
+	FieldVec3* F = new FieldVec3;
 	F->value = sgs_StackSize( C ) > 3 ? sgs_GetVar<Vec3>()( C, 3 ) : V3(0);
 	F->prec = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 2;
 	F->vmin = sgs_StackSize( C ) > 5 ? sgs_GetVar<float>()( C, 5 ) : -FLT_MAX;
@@ -367,7 +367,7 @@ static int EE_AddFieldString( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldString" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldString* F = new EdEntity::FieldString;
+	FieldString* F = new FieldString;
 	F->value = sgs_GetVar<StringView>()( C, 3 );
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
@@ -376,7 +376,7 @@ static int EE_AddFieldEnumSB( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldEnumSB" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldEnumSB* F = new EdEntity::FieldEnumSB;
+	FieldEnumSB* F = new FieldEnumSB;
 	ScriptVarIterator it( sgs_GetVar<sgsVariable>()( C, 4 ) );
 	while( it.Advance() )
 	{
@@ -390,7 +390,7 @@ static int EE_AddFieldMesh( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldMesh" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Mesh );
+	FieldString* F = new FieldString( FT_Mesh );
 	F->value = sgs_GetVar<StringView>()( C, 3 );
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
@@ -399,7 +399,7 @@ static int EE_AddFieldTex( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldTex" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Tex );
+	FieldString* F = new FieldString( FT_Tex );
 	F->value = sgs_GetVar<StringView>()( C, 3 );
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
@@ -408,7 +408,7 @@ static int EE_AddFieldChar( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldChar" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Char );
+	FieldString* F = new FieldString( FT_Char );
 	F->value = sgs_GetVar<StringView>()( C, 3 );
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
@@ -417,7 +417,7 @@ static int EE_AddFieldPartSys( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldPartSys" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_PartSys );
+	FieldString* F = new FieldString( FT_PartSys );
 	F->value = sgs_GetVar<StringView>()( C, 3 );
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
@@ -426,7 +426,7 @@ static int EE_AddFieldSound( SGS_CTX )
 {
 	SGSFN( "EE_AddFieldSound" );
 	SGRX_CAST( EdEntity*, E, sgs_GetVar<void*>()( C, 0 ) );
-	EdEntity::FieldString* F = new EdEntity::FieldString( EdEntity::FT_Sound );
+	FieldString* F = new FieldString( FT_Sound );
 	F->value = sgs_GetVar<StringView>()( C, 3 );
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;

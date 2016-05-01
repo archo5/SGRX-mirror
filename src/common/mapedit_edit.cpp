@@ -1477,10 +1477,10 @@ void EdAddEntityEditMode::ViewUI()
 	
 	for( size_t i = 0; i < m_entGroup.CurEntity()->m_fields.size(); ++i )
 	{
-		EdEntity::FieldBase* F = m_entGroup.CurEntity()->m_fields[ i ];
-		if( F->type == EdEntity::FT_Vec3 && F->key.equals( "position" ) )
+		FieldBase* F = m_entGroup.CurEntity()->m_fields[ i ];
+		if( F->type == FT_Vec3 && F->key.equals( "position" ) )
 		{
-			g_UIFrame->SetCursorPlaneHeight( ((EdEntity::FieldVec3*)F)->value.z );
+			g_UIFrame->SetCursorPlaneHeight( ((FieldVec3*)F)->value.z );
 		}
 	}
 }
@@ -1506,6 +1506,92 @@ void EdAddEntityEditMode::_AddNewEntity()
 	g_EdWorld->SetEntityID( N );
 	g_EdWorld->AddObject( N );
 }
+
+
+EdGameObjectEditMode::EdGameObjectEditMode() : m_hoverObj( NULL ), m_selObj( NULL )
+{
+}
+
+void EdGameObjectEditMode::ViewUI()
+{
+	if( ImGui::IsWindowHovered() )
+	{
+		Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
+		Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
+		
+		m_hoverObj = NULL;
+		float mindst = FLT_MAX;
+		float outdst[1] = { FLT_MAX };
+		for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+		{
+			if( EDGO_RayIntersect( g_Level->m_gameObjects[ i ], cursorRayPos, cursorRayDir, outdst ) && outdst[0] < mindst )
+			{
+				mindst = outdst[0];
+				m_hoverObj = g_Level->m_gameObjects[ i ];
+			}
+		}
+		
+		if( ImGui::IsMouseClicked( 0 ) )
+		{
+			if( m_selObj || m_hoverObj )
+			{
+				m_selObj = m_hoverObj;
+			}
+			else if( !m_selObj && g_UIFrame->IsCursorAiming() )
+			{
+				_AddNewGameObject();
+			}
+		}
+	}
+}
+
+void EdGameObjectEditMode::EditUI()
+{
+	if( m_selObj )
+	{
+		EDGO_EditUI( m_selObj );
+	}
+}
+
+void EdGameObjectEditMode::Draw()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+	{
+		GameObject* obj = g_Level->m_gameObjects[ i ];
+		if( obj == m_hoverObj && obj == m_selObj )
+			br.Col( 0.9f, 0.5, 0.9f, 0.7f );
+		else if( obj == m_hoverObj )
+			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
+		else if( obj == m_selObj )
+			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
+		else
+			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
+		br.SphereOutline( obj->GetWorldPosition(), 0.2f, 32 );
+	}
+	g_UIFrame->DrawCursor( false );
+}
+
+void EdGameObjectEditMode::_AddNewGameObject()
+{
+	m_selObj = g_Level->CreateGameObject();
+	m_selObj->SetWorldPosition( g_UIFrame->GetCursorPos() );
+}
+
+bool EdGameObjectEditMode::ResourcePicker( PickerType ptype,
+	const char* caption, const char* label, String& value )
+{
+	switch( ptype )
+	{
+	case PT_Mesh: return g_NUIMeshPicker->Property( caption, label, value );
+	case PT_PartSys: return g_NUIPartSysPicker->Property( caption, label, value );
+	case PT_Texture: return g_NUITexturePicker->Property( caption, label, value );
+	case PT_Char: return g_NUICharPicker->Property( caption, label, value );
+	case PT_Sound: return g_NUISoundPicker->Property( caption, label, value );
+	default: return IMGUIEditString( label, value, 256 );
+	}
+}
+
 
 void EdEditGroupEditMode::EditUI()
 {

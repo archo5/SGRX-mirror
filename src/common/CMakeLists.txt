@@ -34,7 +34,7 @@ add_library( editor SHARED
 	mapedit.hpp mapedit.cpp
 	mapedit_graphics.hpp mapedit_graphics.cpp
 	mapedit_edit.cpp
-	mapedit_ent.cpp mapedit_block.cpp mapedit_mpath.cpp mapedit_patch.cpp
+	mapedit_ent.cpp mapedit_block.cpp mapedit_mpath.cpp mapedit_patch.cpp mapedit_gameobj.cpp
 	compiler.hpp compiler.cpp )
 target_link_libraries( editor
 	sgrx-gfw sgrx-core sgrx-script sgrx-physics-bullet sgrx-sound-fmod

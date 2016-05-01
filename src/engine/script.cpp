@@ -496,7 +496,12 @@ sgsVariable ScriptContext::Registry()
 
 sgsVariable ScriptContext::GetGlobal( const StringView& name )
 {
-	sgsVariable key = sgsString( C, name.data(), name.size() ).get_variable();
+	return GetGlobal( sgsString( C, name.data(), name.size() ) );
+}
+
+sgsVariable ScriptContext::GetGlobal( sgsString name )
+{
+	sgsVariable key = name.get_variable();
 	sgsVariable out( C );
 	sgs_GetGlobal( C, key.var, &out.var );
 	return out;

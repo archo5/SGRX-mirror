@@ -47,6 +47,23 @@ function Entity.ED_PropInfo( eptr )
 
 
 //
+// Game object extension functions
+//
+function BEHAVIOR( name, inhname )
+{
+	data = _G[ name ];
+	data.
+	{
+		__inherit = inhname,
+		__getindex = mm_getindex_router,
+		__setindex = mm_setindex_router
+	};
+	sym_register( name, data );
+	level.behavior_types[ name ] = data;
+}
+
+
+//
 // Entity Editor Extensions
 //
 

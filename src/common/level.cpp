@@ -153,6 +153,14 @@ GOResource::GOResource( GameObject* obj ) :
 {
 }
 
+void GOResource::OnTransformUpdate()
+{
+}
+
+void GOResource::EditUI( EditorUIHelper* uih )
+{
+}
+
 int GOResourceTable::getindex( SGS_CTX, sgs_VarObj* obj )
 {
 	H_GOResource* h = ((GOResourceTable*)obj->data)->getptr( sgsString( C, 0 ) );
@@ -253,15 +261,63 @@ void GameObject::RemoveResource( sgsString name )
 	m_resources.unset( name );
 }
 
+GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
+{
+//	for( size_t i = 0; i < m_systems.size(); ++i )
+	{
+//		GOBehavior* bhvr = m_systems[ i ]->AddBehavior( type );
+		GOBehavior* bhvr = NULL;
+		if( type.equals( "Behavior" ) )
+			bhvr = new GOBehavior( this );
+		if( bhvr )
+		{
+			bhvr->InitScriptInterface();
+			m_behaviors.set( name, bhvr );
+			return bhvr;
+		}
+	}
+	
+	sgsVariable bclass = m_level->m_scriptCtx.GetGlobal( type );
+	if( !bclass.not_null() )
+	{
+		LOG << "BEHAVIOR TYPE NOT FOUND: " << type.c_str();
+		sgs_Msg( m_level->GetSGSC(), SGS_ERROR, "failed to find behavior: %s", type.c_str() );
+		return NULL;
+	}
+	
+	sgsString native_name = bclass.getprop("__inherit").get_string();
+	GOBehavior* bhvr = _CreateBehaviorReal( name, native_name );
+	if( !bhvr )
+	{
+		LOG_ERROR << "FAILED to create scripted behavior '" << type.c_str() << "'"
+			<< " - could not find native behavior '" << native_name.c_str() << "'";
+		return NULL;
+	}
+	bhvr->_data = m_level->m_scriptCtx.CreateDict();
+	sgsVariable BSO = bhvr->GetScriptedObject();
+	sgsVariable bhvr_orig_metaobj = BSO.get_meta_obj();
+	sgsVariable bclass_orig_metaobj = bclass.get_meta_obj();
+	if( bclass_orig_metaobj.not_null() &&
+		bhvr_orig_metaobj.get_object_struct() != bclass_orig_metaobj.get_object_struct() )
+	{
+		LOG_ERROR << "FAILED to create scripted behavior: redefining metaobject for '"
+			<< type.c_str() << "'";
+		delete bhvr;
+		return NULL;
+	}
+	bclass.set_meta_obj( bhvr_orig_metaobj );
+	BSO.set_meta_obj( bclass );
+	BSO.enable_metamethods( true );
+	
+	sgsVariable fn_init = BSO.getprop("Init");
+	if( fn_init.not_null() )
+		BSO.thiscall( m_level->GetSGSC(), fn_init );
+	return bhvr;
+}
+
 GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type )
 {
-	GOBehavior* bhvr = NULL;
-	if( bhvr )
-	{
-		bhvr->InitScriptInterface();
-		m_behaviors.set( name, bhvr );
-	}
-	return bhvr;
+	return _CreateBehaviorReal( name, type );
 }
 
 void GameObject::RemoveBehavior( sgsString name )
@@ -301,6 +357,8 @@ void GameObject::PreRender()
 
 void GameObject::OnTransformUpdate()
 {
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->OnTransformUpdate();
 	for( size_t i = 0; i < m_behaviors.size(); ++i )
 		m_behaviors.item( i ).value->OnTransformUpdate();
 }
@@ -417,6 +475,9 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	
 	// create entity type map
 	AddEntry( "entity_types", m_scriptCtx.CreateDict() );
+	
+	// create behavior type map
+	AddEntry( "behavior_types", m_scriptCtx.CreateDict() );
 	
 	// create marker pos. array
 	m_markerPositions = m_scriptCtx.CreateDict();
@@ -1109,6 +1170,21 @@ GameObject* GameLevel::CreateGameObject()
 sgsVariable GameLevel::sgsCreateGameObject()
 {
 	return CreateGameObject()->GetScriptedObject();
+}
+
+void GameLevel::EnumBehaviors( Array< StringView >& out )
+{
+	sgsVariable bhvrarr = m_self.getprop( "behavior_types" );
+	ScriptVarIterator it( bhvrarr );
+	while( it.Advance() )
+	{
+		out.push_back( it.GetKey().get<StringView>() );
+	}
+}
+
+sgsVariable GameLevel::GetBehaviorInterface( StringView name )
+{
+	return m_self.getprop( "behavior_types" ).getprop( m_scriptCtx.CreateString( name ) );
 }
 
 

@@ -483,6 +483,21 @@ struct InfoEmitEntitySet
 
 struct GameObject;
 
+struct EditorUIHelper
+{
+	enum PickerType
+	{
+		PT_Mesh,
+		PT_PartSys,
+		PT_Texture,
+		PT_Char,
+		PT_Sound,
+	};
+	
+	virtual bool ResourcePicker( PickerType ptype,
+		const char* caption, const char* label, String& value ) = 0;
+};
+
 EXP_STRUCT GOResource : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
@@ -490,6 +505,8 @@ EXP_STRUCT GOResource : LevelScrObj
 	typedef sgsHandle< GOResource > ScrHandle;
 	
 	GFW_EXPORT GOResource( GameObject* obj );
+	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih );
 	
 //	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
 	GameObject* m_obj;
@@ -501,7 +518,7 @@ EXP_STRUCT GOResourceTable : LevelScrObj, HashTable< sgsString, H_GOResource >
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	typedef sgsHandle< GOResourceTable > ScrHandle;
-	GOResourceTable( GameLevel* lev ) : LevelScrObj( lev ){}
+	GOResourceTable( GameLevel* lev ) : LevelScrObj( lev ){ InitScriptInterface(); }
 	SGS_IFUNC( getindex ) int getindex( SGS_CTX, sgs_VarObj* obj );
 };
 
@@ -522,6 +539,11 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	
 //	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
 	GameObject* m_obj;
+	
+	sgsHandle<struct GOResourceTable> _get_resources();
+	SGS_PROPERTY_FUNC( READ _get_resources ) SGS_ALIAS( GOResourceTable::ScrHandle resources );
+	sgsHandle<struct GOBehaviorTable> _get_behaviors();
+	SGS_PROPERTY_FUNC( READ _get_behaviors ) SGS_ALIAS( sgsHandle<struct GOBehaviorTable> behaviors );
 };
 typedef Handle< GOBehavior > H_GOBehavior;
 
@@ -530,7 +552,7 @@ EXP_STRUCT GOBehaviorTable : LevelScrObj, HashTable< sgsString, H_GOBehavior >
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
 	typedef sgsHandle< GOBehaviorTable > ScrHandle;
-	GOBehaviorTable( GameLevel* lev ) : LevelScrObj( lev ){}
+	GOBehaviorTable( GameLevel* lev ) : LevelScrObj( lev ){ InitScriptInterface(); }
 	SGS_IFUNC( getindex ) int getindex( SGS_CTX, sgs_VarObj* obj );
 };
 
@@ -546,6 +568,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT SGS_METHOD void RemoveResource( sgsString name );
 	
 	GFW_EXPORT GOBehavior* AddBehavior( sgsString name, sgsString type );
+	GFW_EXPORT GOBehavior* _CreateBehaviorReal( sgsString name, sgsString type );
 	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsString name );
 	
 	GFW_EXPORT virtual void OnDestroy();
@@ -579,6 +602,16 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GOBehaviorTable::ScrHandle _get_behaviors(){ return GOBehaviorTable::ScrHandle( &m_behaviors ); }
 	SGS_PROPERTY_FUNC( READ _get_behaviors ) SGS_ALIAS( GOBehaviorTable::ScrHandle behaviors );
 };
+
+inline sgsHandle<struct GOResourceTable> GOBehavior::_get_resources()
+{
+	return GOResourceTable::ScrHandle( &m_obj->m_resources );
+}
+
+inline sgsHandle<struct GOBehaviorTable> GOBehavior::_get_behaviors()
+{
+	return sgsHandle<struct GOBehaviorTable>( &m_obj->m_behaviors );
+}
 
 
 typedef StackString<16> StackShortName;
@@ -732,6 +765,14 @@ EXP_STRUCT GameLevel :
 	// GAMEOBJECT PROTO
 	GameObject* CreateGameObject();
 	GFW_EXPORT SGS_METHOD_NAMED( CreateGameObject ) sgsVariable sgsCreateGameObject();
+	template< class T > void RegisterNativeBehavior( StringView type )
+	{
+		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
+		m_scriptCtx.SetGlobal( type, iface );
+		m_self.getprop( "behavior_types" ).setprop( m_scriptCtx.CreateStringVar( type ), iface );
+	}
+	void EnumBehaviors( Array< StringView >& out );
+	sgsVariable GetBehaviorInterface( StringView name );
 	Array< GameObject* > m_gameObjects;
 };
 

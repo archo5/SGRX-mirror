@@ -1580,6 +1580,11 @@ Vec3 EdMainFrame::GetCursorRayDir()
 	return m_NUIRenderView.crdir;
 }
 
+Vec3 EdMainFrame::GetCursorPos()
+{
+	return V3( Snapped( m_NUIRenderView.cursor_hpos ), m_NUIRenderView.crplaneheight );
+}
+
 Vec2 EdMainFrame::GetCursorPlanePos()
 {
 	return Snapped( m_NUIRenderView.cursor_hpos );
@@ -1813,7 +1818,8 @@ void EdMainFrame::Level_Real_Compile_Default()
 	}
 	
 	char bfr[ 256 ];
-	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
+	StringView lname = LevelPathToName( m_fileName );
+	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) lname.size(), 200 ), lname.data() );
 	
 	if( !lcache.SaveCache( g_NUISurfMtlPicker->m_materials, bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
@@ -1832,7 +1838,8 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 	}
 	
 	char bfr[ 256 ];
-	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s.pfb.sgs", TMIN( (int) m_fileName.size(), 200 ), m_fileName.data() );
+	StringView lname = LevelPathToName( m_fileName );
+	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s.pfb.sgs", TMIN( (int) lname.size(), 200 ), lname.data() );
 	if( !SaveTextFile( bfr, data ) )
 		LOG_ERROR << "FAILED TO SAVE PREFAB";
 	else
@@ -2051,6 +2058,9 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			ImGui::SameLine();
 			if( ImGui::RadioButton( "Add entity", &g_mode, AddEntity ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emAddEntity );
+			ImGui::SameLine();
+			if( ImGui::RadioButton( "Game objects", &g_mode, GameObjects ) )
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emGameObjects );
 			ImGui::SameLine();
 			if( ImGui::RadioButton( "Edit groups", &g_mode, EditGroups ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditGroup );

@@ -110,6 +110,7 @@ struct ScriptContext
 	
 	SCRIPT_EXPORT sgsVariable Registry();
 	SCRIPT_EXPORT sgsVariable GetGlobal( const StringView& name );
+	SCRIPT_EXPORT sgsVariable GetGlobal( sgsString name );
 	SCRIPT_EXPORT void SetGlobal( const StringView& name, sgsVariable val );
 	
 	SCRIPT_EXPORT void Call( sgsVariable func, int args = 0, int ret = 0 );

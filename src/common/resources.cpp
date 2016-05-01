@@ -2,17 +2,21 @@
 
 #include "resources.hpp"
 
+#include "imgui.hpp"
+
 
 MeshResource::MeshResource( GameObject* obj ) : GOResource( obj ),
 	m_isStatic( true ),
 	m_isVisible( true ),
-	m_lightingMode( SGRX_LM_Static ),
+	m_lightingMode( SGRX_LM_Dynamic ),
 	m_lmQuality( 1 ),
 	m_castLMS( true ),
+	m_localMatrix( Mat4::Identity ),
 	m_edLGCID( 0 )
 {
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
-	OnTransformUpdate();
+	m_meshInst->SetLightingMode( (SGRX_LightingMode) m_lightingMode );
+	_UpdateMatrix();
 }
 
 MeshResource::~MeshResource()
@@ -21,7 +25,12 @@ MeshResource::~MeshResource()
 
 void MeshResource::OnTransformUpdate()
 {
-	m_meshInst->SetTransform( m_obj->GetWorldMatrix() );
+	_UpdateMatrix();
+}
+
+void MeshResource::_UpdateMatrix()
+{
+	m_meshInst->SetTransform( m_localMatrix * m_obj->GetWorldMatrix() );
 	_UpdateLighting();
 	_UpEv();
 }
@@ -33,8 +42,20 @@ void MeshResource::EditorDrawWorld()
 		BatchRenderer& br = GR2D_GetBatchRenderer();
 		br.Reset();
 		br.Col( 0.2f, 0.7f, 0.9f, 0.8f );
-		br.AABB( m_mesh->m_boundsMin, m_mesh->m_boundsMax, m_obj->GetWorldMatrix() );
+		br.AABB( m_mesh->m_boundsMin, m_mesh->m_boundsMax, m_meshInst->matrix );
 	}
+}
+
+void MeshResource::EditUI( EditorUIHelper* uih )
+{
+	String path = GetMeshPath();
+	if( uih->ResourcePicker( EditorUIHelper::PT_Mesh,
+		"Select mesh", "Mesh", path ) )
+		SetMeshPath( path );
+	
+	if( IMGUIComboBox( "Lighting mode", m_lightingMode,
+		"Unlit\0Static\0Dynamic\0Decal\0" ) )
+		SetLightingMode( m_lightingMode );
 }
 
 void MeshResource::_UpdateLighting()
