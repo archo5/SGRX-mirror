@@ -1892,14 +1892,15 @@ bool MapEditor::OnInitialize()
 	
 	g_Level = g_BaseGame->CreateLevel();
 	g_Level->m_editorMode = true;
+	
+	g_Level->GetScriptCtx().ExecFile( "editor/ext.sgs" );
+	
 	sgs_RegIntConsts( g_Level->GetSGSC(), g_ent_scripted_ric, -1 );
 	sgs_RegFuncConsts( g_Level->GetSGSC(), g_ent_scripted_rfc, -1 );
-	sgs_RegFuncConsts( g_Level->GetSGSC(), g_imgui_rfc, -1 );
+	sgs_StoreFuncConsts( g_Level->GetSGSC(),
+		g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ).var, g_imgui_rfc, -1, "ED_IMGUI." );
 	
 	g_Level->GetScriptCtx().ExecFile( "levels/upgrade1.sgs" );
-//	LOG << "\nLoading scripted entities:";
-//	LOG << g_ScriptCtx->ExecFile( "editor/entities.sgs" );
-//	LOG << "\nLoading completed\n\n";
 	
 	g_NUISoundPicker->sys = g_Level->GetSoundSys();
 	g_NUISoundPicker->Reload();

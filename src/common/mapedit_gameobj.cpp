@@ -15,6 +15,14 @@ void EDGO_EditUI( GameObject* obj )
 	ImGui::Text( "Game object properties" );
 	ImGui::Separator();
 	
+	String name( obj->m_name.c_str(), obj->m_name.size() );
+	if( IMGUIEditString( "Name", name, 256 ) )
+		obj->m_name = g_Level->m_scriptCtx.CreateString( name );
+	
+	String id( obj->m_id.c_str(), obj->m_id.size() );
+	if( IMGUIEditString( "ID", id, 256 ) )
+		obj->m_id = g_Level->m_scriptCtx.CreateString( id );
+	
 	Vec3 pos = obj->GetLocalPosition();
 	if( IMGUIEditVec3( "Position", pos, -8192, 8192 ) && pos != obj->GetLocalPosition() )
 		obj->SetLocalPosition( pos );
@@ -80,7 +88,8 @@ void EDGO_EditUI( GameObject* obj )
 				obj->m_bhvr_order[ i ]->m_name.c_str() );
 			IMGUI_GROUP_BEGIN( bfr, true )
 			{
-				obj->m_bhvr_order[ i ]->EditUI( &g_UIFrame->m_emGameObjects );
+				obj->m_bhvr_order[ i ]->EditUI( &g_UIFrame->m_emGameObjects,
+					g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ) );
 			}
 			IMGUI_GROUP_END;
 			
@@ -168,7 +177,8 @@ void EDGO_EditUI( GameObject* obj )
 				obj->m_resources.item( i ).key.c_str() );
 			IMGUI_GROUP_BEGIN( bfr, true )
 			{
-				obj->m_resources.item( i ).value->EditUI( &g_UIFrame->m_emGameObjects );
+				obj->m_resources.item( i ).value->EditUI( &g_UIFrame->m_emGameObjects,
+					g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ) );
 			}
 			IMGUI_GROUP_END;
 			
@@ -187,10 +197,112 @@ void EDGO_EditUI( GameObject* obj )
 	IMGUI_GROUP_END;
 }
 
+GameObject* EDGO_FLoad( sgsVariable data )
+{
+	GameObject* obj = g_Level->CreateGameObject();
+	
+	obj->m_name = data.getprop( "name" ).get_string();
+	obj->m_id = data.getprop( "id" ).get_string();
+	obj->SetLocalPosition( FLoadProp( data, "position", V3(0) ) );
+	obj->SetLocalRotation( FLoadProp( data, "rotation", Quat::Identity ) );
+	obj->SetLocalScale( FLoadProp( data, "scale", V3(1) ) );
+	
+	ScriptVarIterator it_rsrc( data.getprop( "resources" ) );
+	while( it_rsrc.Advance() )
+	{
+		sgsVariable data_rsrc = it_rsrc.GetValue();
+		sgsString name = data_rsrc.getprop( "__name" ).get_string();
+		uint32_t type = data_rsrc.getprop( "__type" ).get<uint32_t>();
+		
+		GOResource* rsrc = obj->AddResource( name, type );
+		if( rsrc == NULL )
+		{
+			LOG_ERROR << "FAILED TO LOAD RESOURCE type="
+				<< type << ", name=" << name.c_str();
+			continue;
+		}
+		
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
+		rsrc->EditLoad( data_rsrc,
+			g_Level->GetScriptCtx().GetGlobal( "ED_ILOAD" ) );
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+	}
+	
+	ScriptVarIterator it_bhvr( data.getprop( "behaviors" ) );
+	while( it_bhvr.Advance() )
+	{
+		sgsVariable data_bhvr = it_bhvr.GetValue();
+		sgsString name = data_bhvr.getprop( "__name" ).get_string();
+		sgsString type = data_bhvr.getprop( "__type" ).get_string();
+		
+		GOBehavior* bhvr = obj->AddBehavior( name, type );
+		if( bhvr == NULL )
+		{
+			LOG_ERROR << "FAILED TO LOAD BEHAVIOR type="
+				<< type.c_str() << ", name=" << name.c_str();
+			continue;
+		}
+		
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
+		bhvr->EditLoad( data_bhvr,
+			g_Level->GetScriptCtx().GetGlobal( "ED_ILOAD" ) );
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+	}
+	
+	return obj;
+}
+
+sgsVariable EDGO_FSave( GameObject* obj )
+{
+	sgsVariable data = FNewDict();
+	
+	data.setprop( "name", obj->m_name.get_variable() );
+	data.setprop( "id", obj->m_id.get_variable() );
+	FSaveProp( data, "position", obj->GetLocalPosition() );
+	FSaveProp( data, "rotation", obj->GetLocalRotation() );
+	FSaveProp( data, "scale", obj->GetLocalScale() );
+	
+	sgsVariable out_rsrc = FNewArray();
+	for( size_t i = 0; i < obj->m_resources.size(); ++i )
+	{
+		GOResource* rsrc = obj->m_resources.item( i ).value;
+		sgsVariable data_rsrc = FNewDict();
+		
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
+		rsrc->EditSave( data_rsrc,
+			g_Level->GetScriptCtx().GetGlobal( "ED_ISAVE" ) );
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+		
+		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
+		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_type ) );
+		FArrayAppend( out_rsrc, data_rsrc );
+	}
+	data.setprop( "resources", out_rsrc );
+	
+	sgsVariable out_bhvr = FNewArray();
+	for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+	{
+		GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+		sgsVariable data_bhvr = FNewDict();
+		
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
+		bhvr->EditSave( data_bhvr,
+			g_Level->GetScriptCtx().GetGlobal( "ED_ISAVE" ) );
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+		
+		data_bhvr.setprop( "__name", bhvr->m_name.get_variable() );
+		data_bhvr.setprop( "__type", bhvr->m_type.get_variable() );
+		FArrayAppend( out_bhvr, data_bhvr );
+	}
+	data.setprop( "behaviors", out_bhvr );
+	
+	return data;
+}
+
 
 static int IMGUI_EditFloat( SGS_CTX )
 {
-	SGSFN( "IMGUI_EditFloat" );
+	SGSFN( "ED_IMGUI.EditFloat" );
 	sgsString label( C, 0 );
 	sgsVariable obj( C, 1 );
 	sgsString prop( C, 2 );
@@ -206,7 +318,7 @@ static int IMGUI_EditFloat( SGS_CTX )
 }
 sgs_RegFuncConst g_imgui_rfc[] =
 {
-	{ "IMGUI_EditFloat", IMGUI_EditFloat },
+	{ "EditFloat", IMGUI_EditFloat },
 	SGS_RC_END(),
 };
 

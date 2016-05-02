@@ -460,6 +460,11 @@ inline Vec3 FLoadVar( sgsVariable v, Vec3 def )
 {
 	return V3( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ), FLoadProp( v, "z", def.z ) );
 }
+inline Quat FLoadVar( sgsVariable v, Quat def )
+{
+	return QUAT( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ),
+		FLoadProp( v, "z", def.z ), FLoadProp( v, "w", def.w ) );
+}
 
 inline sgsVariable FNewDict()
 {
@@ -498,6 +503,15 @@ inline sgsVariable FVar( Vec3 val )
 	FSaveProp( v, "x", val.x );
 	FSaveProp( v, "y", val.y );
 	FSaveProp( v, "z", val.z );
+	return v;
+}
+inline sgsVariable FVar( Quat val )
+{
+	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
+	FSaveProp( v, "x", val.x );
+	FSaveProp( v, "y", val.y );
+	FSaveProp( v, "z", val.z );
+	FSaveProp( v, "w", val.w );
 	return v;
 }
 inline sgsVariable FIntVar( bool val ){ return sgsVariable().set_bool( val ); }
@@ -1479,6 +1493,8 @@ struct EdEntList
 
 bool EDGO_RayIntersect( GameObject* obj, Vec3 rpos, Vec3 rdir, float outdst[1] );
 void EDGO_EditUI( GameObject* obj );
+GameObject* EDGO_FLoad( sgsVariable data );
+sgsVariable EDGO_FSave( GameObject* obj );
 
 extern sgs_RegFuncConst g_imgui_rfc[];
 

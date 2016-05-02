@@ -506,12 +506,14 @@ EXP_STRUCT GOResource : LevelScrObj
 	
 	GFW_EXPORT GOResource( GameObject* obj );
 	GFW_EXPORT virtual void OnTransformUpdate();
-	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih );
+	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih, sgsVariable iface );
+	GFW_EXPORT virtual void EditLoad( sgsVariable src, sgsVariable iface );
+	GFW_EXPORT virtual void EditSave( sgsVariable out, sgsVariable iface );
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
+	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	GameObject* m_obj;
-	uint32_t m_type;
+	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_type;
 	
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
@@ -542,12 +544,14 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	
-	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih );
+	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih, sgsVariable iface );
+	GFW_EXPORT virtual void EditLoad( sgsVariable src, sgsVariable iface );
+	GFW_EXPORT virtual void EditSave( sgsVariable out, sgsVariable iface );
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
+	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	GameObject* m_obj;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME __type ) sgsString m_type;
+	SGS_PROPERTY_FUNC( READ VARNAME __type ) sgsString m_type;
 	
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
@@ -593,6 +597,8 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME id ) sgsString m_id;
 	GOResourceTable m_resources;
 	GOBehaviorTable m_behaviors;
 	Array< H_GOBehavior > m_bhvr_order;

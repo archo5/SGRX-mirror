@@ -158,8 +158,24 @@ void GOResource::OnTransformUpdate()
 {
 }
 
-void GOResource::EditUI( EditorUIHelper* uih )
+void GOResource::EditUI( EditorUIHelper*, sgsVariable iface )
 {
+	sgsVariable fn = GetScriptedObject().getprop( "EditorGUI" );
+	if( fn.not_null() )
+	{
+		iface.push( C );
+		GetScriptedObject().thiscall( C, fn, 1 );
+	}
+}
+
+void GOResource::EditLoad( sgsVariable src, sgsVariable iface )
+{
+	EditUI( NULL, iface );
+}
+
+void GOResource::EditSave( sgsVariable out, sgsVariable iface )
+{
+	EditUI( NULL, iface );
 }
 
 void GOResource::EditorDrawWorld()
@@ -236,11 +252,24 @@ void GOBehavior::OnTransformUpdate()
 		GetScriptedObject().thiscall( C, fn );
 }
 
-void GOBehavior::EditUI( EditorUIHelper* )
+void GOBehavior::EditUI( EditorUIHelper*, sgsVariable iface )
 {
 	sgsVariable fn = GetScriptedObject().getprop( "EditorGUI" );
 	if( fn.not_null() )
-		GetScriptedObject().thiscall( C, fn );
+	{
+		iface.push( C );
+		GetScriptedObject().thiscall( C, fn, 1 );
+	}
+}
+
+void GOBehavior::EditLoad( sgsVariable src, sgsVariable iface )
+{
+	EditUI( NULL, iface );
+}
+
+void GOBehavior::EditSave( sgsVariable out, sgsVariable iface )
+{
+	EditUI( NULL, iface );
 }
 
 void GOBehavior::EditorDrawWorld()

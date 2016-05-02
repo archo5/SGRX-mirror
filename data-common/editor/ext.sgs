@@ -1,0 +1,17 @@
+
+global ED_IMGUI = {};
+global ED_ILOAD = {};
+global ED_ISAVE = {};
+
+// link to loaded/saved object data
+global ED_SDATA = null;
+
+function ED_ILOAD.EditFloat( lbl, obj, prop, vmin, vmax, prec )
+{
+	obj.prop = toreal( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
+{
+	ED_SDATA[ prop ] = toreal( obj.prop );
+}
+
