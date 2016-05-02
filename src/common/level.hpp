@@ -790,6 +790,7 @@ EXP_STRUCT GameLevel :
 	
 	// GAMEOBJECT PROTO
 	GameObject* CreateGameObject();
+	void DestroyGameObject( GameObject* obj );
 	GFW_EXPORT SGS_METHOD_NAMED( CreateGameObject ) sgsVariable sgsCreateGameObject();
 	template< class T > void RegisterNativeBehavior( StringView type )
 	{

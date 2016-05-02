@@ -629,12 +629,16 @@ void EdWorld::FLoad( sgsVariable obj )
 			case ObjType_Entity:
 				obj = new EdEntity( object.getprop( "entity_type" ).get_string(), false );
 				break;
+			case ObjType_GameObject:
+				EDGO_FLoad( object );
+				goto NotObject;
 			default:
 				LOG_ERROR << "Failed to load World!";
 				continue;
 			}
 			obj->FLoad( object, version );
 			AddObject( obj, false );
+NotObject:;
 		}
 		RegenerateMeshes();
 	}
@@ -645,11 +649,18 @@ sgsVariable EdWorld::FSave()
 	int version = MAP_FILE_VERSION;
 	
 	sgsVariable objects = FNewArray();
-	for( size_t i = 0; i < m_objects.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		EdObject* obj = m_objects[ i ];
+		EdObject* obj = m_edobjs[ i ];
 		sgsVariable objdata = obj->FSave( version );
 		FSaveProp( objdata, "type", obj->m_type );
+		FArrayAppend( objects, objdata );
+	}
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+	{
+		GameObject* obj = g_Level->m_gameObjects[ i ];
+		sgsVariable objdata = EDGO_FSave( obj );
+		FSaveProp( objdata, "type", (int) ObjType_GameObject );
 		FArrayAppend( objects, objdata );
 	}
 	
@@ -665,17 +676,17 @@ sgsVariable EdWorld::FSave()
 
 void EdWorld::Reset()
 {
-	while( m_objects.size() )
-		DeleteObject( m_objects.last() );
-	m_blocks.clear();
-	m_entities.clear();
-	m_patches.clear();
-	m_mpaths.clear();
-	m_objects.clear();
+	while( m_edobjs.size() )
+		DeleteObject( m_edobjs.last().item, false );
+	while( g_Level->m_gameObjects.size() )
+		DeleteObject( g_Level->m_gameObjects.last(), false );
+	m_edobjs.clear();
+	m_selection.clear();
 	g_EdLGCont->Reset();
 	m_nextID = 0;
 	m_info = EdWorldBasicInfo();
 	m_lighting = EdWorldLightingInfo();
+	g_UIFrame->OnDeleteObjects();
 }
 
 void EdWorld::TestData()
@@ -708,8 +719,9 @@ void EdWorld::TestData()
 
 void EdWorld::RegenerateMeshes()
 {
-	for( size_t i = 0; i < m_objects.size(); ++i )
-		m_objects[ i ]->RegenerateMesh();
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
+		m_edobjs[ i ]->RegenerateMesh();
+	// GameObject does not need this
 }
 
 void EdWorld::ReloadSkybox()
@@ -733,24 +745,27 @@ void EdWorld::DrawWires_Objects( EdObject* hl, bool tonedown )
 	DrawWires_MeshPaths( hl );
 }
 
-void EdWorld::DrawWires_Blocks( EdObject* hl )
+void EdWorld::DrawWires_Blocks( const EdObjIdx& hl )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
-	for( size_t i = 0; i < m_blocks.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		const EdBlock& B = *m_blocks[ i ];
+		if( m_edobjs[ i ]->m_type != ObjType_Block )
+			continue;
+		SGRX_CAST( EdBlock*, pB, m_edobjs[ i ].item );
+		EdBlock& B = *pB;
 		GR2D_SetWorldMatrix( GetGroupMatrix( B.group ) );
 		
 		if( B.selected )
 		{
-			if( &B == hl )
+			if( EdObjIdx(pB) == hl )
 				br.Col( 0.9f, 0.2f, 0.1f, 1 );
 			else
 				br.Col( 0.9f, 0.5f, 0.1f, 1 );
 		}
-		else if( &B == hl )
+		else if( EdObjIdx(pB) == hl )
 			br.Col( 0.1f, 0.8f, 0.9f, 0.9f );
 		else
 			br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
@@ -1062,148 +1077,78 @@ bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchf
 
 void EdWorld::AddObject( EdObject* obj, bool regen )
 {
-	m_objects.push_back( obj );
-	if( obj->m_type == ObjType_Block )
-		m_blocks.push_back( (EdBlock*) obj );
-	if( obj->m_type == ObjType_Entity )
-		m_entities.push_back( (EdEntity*) obj );
-	if( obj->m_type == ObjType_Patch )
-		m_patches.push_back( (EdPatch*) obj );
-	if( obj->m_type == ObjType_MeshPath )
-		m_mpaths.push_back( (EdMeshPath*) obj );
+	m_edobjs.push_back( obj );
 	if( regen )
 		obj->RegenerateMesh();
 }
 
-void EdWorld::DeleteObject( EdObject* obj )
+void EdWorld::DeleteObject( EdObjIdx idx, bool update )
 {
-	obj->Acquire();
-	size_t at = m_objects.find_first_at( obj );
-	m_objects.uerase( at );
+	if( idx.type == ObjType_NONE )
+		return;
 	
-	if( g_UIFrame )
-		g_UIFrame->OnDeleteObject( at );
-	
-	if( obj->m_type == ObjType_Block )
+	if( idx.type == ObjType_GameObject )
 	{
-		at = m_blocks.find_first_at( (EdBlock*) obj );
-		if( at != NOT_FOUND )
-			m_blocks.uerase( at );
+		m_selection.unset( idx.gameobj );
+		g_Level->DestroyGameObject( idx.gameobj );
+	}
+	else
+	{
+		m_selection.unset( idx.edobj );
+		m_edobjs.remove_first( idx.edobj );
 	}
 	
-	if( obj->m_type == ObjType_Patch )
-	{
-		at = m_patches.find_first_at( (EdPatch*) obj );
-		if( at != NOT_FOUND )
-			m_patches.uerase( at );
-	}
-	
-	if( obj->m_type == ObjType_MeshPath )
-	{
-		at = m_mpaths.find_first_at( (EdMeshPath*) obj );
-		if( at != NOT_FOUND )
-			m_mpaths.uerase( at );
-	}
-	
-	if( obj->m_type == ObjType_Entity )
-	{
-		SGRX_CAST( EdEntity*, E, obj );
-		E->BeforeDelete();
-		at = m_entities.find_first_at( E );
-		if( at != NOT_FOUND )
-			m_entities.uerase( at );
-	}
-	obj->Release();
+	if( update )
+		g_UIFrame->OnDeleteObjects();
 }
 
 void EdWorld::DeleteSelectedObjects()
 {
-	size_t i = m_objects.size();
-	while( i > 0 )
-	{
-		i--;
-		if( m_objects[ i ]->selected )
-		{
-			m_objects.uerase( i );
-			g_UIFrame->OnDeleteObject( i );
-		}
-	}
+	Array< EdObjIdx > sel;
+	sel.reserve( m_selection.size() );
+	for( size_t i = 0; i < m_selection.size(); ++i )
+		sel.push_back( m_selection.item( i ).key );
+	for( size_t i = 0; i < sel.size(); ++i )
+		DeleteObject( sel[ i ], false );
 	
-	i = m_blocks.size();
-	while( i > 0 )
-	{
-		i--;
-		if( m_blocks[ i ]->selected )
-			m_blocks.uerase( i );
-	}
-	
-	i = m_patches.size();
-	while( i > 0 )
-	{
-		i--;
-		if( m_patches[ i ]->selected )
-			m_patches.uerase( i );
-	}
-	
-	i = m_mpaths.size();
-	while( i > 0 )
-	{
-		i--;
-		if( m_mpaths[ i ]->selected )
-			m_mpaths.uerase( i );
-	}
-	
-	i = m_entities.size();
-	while( i > 0 )
-	{
-		i--;
-		if( m_entities[ i ]->selected )
-		{
-			((EdEntity*)m_entities[ i ])->BeforeDelete();
-			m_entities.uerase( i );
-		}
-	}
+	g_UIFrame->OnDeleteObjects();
 }
 
 bool EdWorld::DuplicateSelectedObjectsAndMoveSelection()
 {
-	size_t sz = m_objects.size();
-	for( size_t i = 0; i < sz; ++i )
+	Array< EdObjIdx > newsel;
+	for( size_t i = 0; i < m_selection.size(); ++i )
 	{
-		if( m_objects[ i ]->selected )
+		EdObjIdx idx = m_selection.item( i ).key;
+		if( idx.type == ObjType_GameObject )
 		{
-			EdObject* obj = m_objects[ i ]->Clone();
-			m_objects[ i ]->selected = false;
+			// TODO
+		}
+		else
+		{
+			EdObject* obj = idx.GetEdObject()->Clone();
+			newsel.push_back( obj );
 			AddObject( obj );
 		}
 	}
-	return m_objects.size() != sz;
+	
+	m_selection.clear();
+	for( size_t i = 0; i < newsel.size(); ++i )
+		m_selection.set( newsel[ i ], NoValue() );
+	
+	return newsel.size() != 0;
 }
 
 int EdWorld::GetNumSelectedObjects()
 {
-	// no specific perf requirements currently
-	int ns = 0;
-	for( size_t i = 0; i < m_objects.size(); ++i )
-		if( m_objects[ i ]->selected )
-			ns++;
-	return ns;
+	return m_selection.size();
 }
 
-int EdWorld::GetOnlySelectedObject()
+EdObjIdx EdWorld::GetOnlySelectedObject()
 {
-	int sb = -1;
-	int ns = 0;
-	for( size_t i = 0; i < m_objects.size(); ++i )
-	{
-		if( m_objects[ i ]->selected )
-		{
-			if( ns++ )
-				return -1;
-			sb = i;
-		}
-	}
-	return sb;
+	if( m_selection.size() != 1 )
+		return EdObjIdx();
+	return m_selection.item( 0 ).key;
 }
 
 bool EdWorld::GetSelectedObjectAABB( Vec3 outaabb[2] )
@@ -1211,40 +1156,56 @@ bool EdWorld::GetSelectedObjectAABB( Vec3 outaabb[2] )
 	bool ret = false;
 	outaabb[0] = V3(FLT_MAX);
 	outaabb[1] = V3(-FLT_MAX);
-	for( size_t i = 0; i < m_objects.size(); ++i )
+	for( size_t i = 0; i < m_selection.size(); ++i )
 	{
-		EdObject* obj = m_objects[ i ];
-		if( obj->selected == false )
-			continue;
-		Mat4 gwm = GetGroupMatrix( obj->group );
-		for( int v = 0; v < obj->GetNumVerts(); ++v )
+		EdObjIdx idx = m_selection.item( i ).key;
+		if( idx.type == ObjType_GameObject )
 		{
-			Vec3 p = gwm.TransformPos( obj->GetLocalVertex( v ) );
+			Vec3 p = idx.GetGameObject()->GetWorldPosition();
 			outaabb[0] = Vec3::Min( outaabb[0], p );
 			outaabb[1] = Vec3::Max( outaabb[1], p );
 		}
-		ret = obj->GetNumVerts() != 0;
+		else
+		{
+			EdObject* obj = idx.GetEdObject();
+			if( obj )
+			{
+				Mat4 gwm = GetGroupMatrix( obj->group );
+				for( int v = 0; v < obj->GetNumVerts(); ++v )
+				{
+					Vec3 p = gwm.TransformPos( obj->GetLocalVertex( v ) );
+					outaabb[0] = Vec3::Min( outaabb[0], p );
+					outaabb[1] = Vec3::Max( outaabb[1], p );
+				}
+				ret = obj->GetNumVerts() != 0;
+			}
+		}
 	}
 	return ret;
 }
 
-void EdWorld::SelectObject( int oid, int mod )
+void EdWorld::SelectObject( EdObjIdx idx, int mod )
 {
 	if( mod == SELOBJ_ONLY )
 	{
-		for( size_t i = 0; i < m_objects.size(); ++i )
-			m_objects[ i ]->selected = false;
-		if( oid != -1 )
-			m_objects[ oid ]->selected = true;
+		m_selection.clear();
+		if( idx.Valid() )
+			m_selection.set( idx, NoValue() );
 	}
 	else
 	{
-		if( oid != -1 )
+		if( idx.Valid() )
 		{
+			bool sel;
 			if( mod == SELOBJ_TOGGLE )
-				m_objects[ oid ]->selected = !m_objects[ oid ]->selected;
+				sel = !m_selection.isset( idx );
 			else
-				m_objects[ oid ]->selected = !!mod;
+				sel = !!mod;
+			
+			if( sel )
+				m_selection.set( idx, NoValue() );
+			else
+				m_selection.unset( idx );
 		}
 	}
 }
@@ -1253,11 +1214,11 @@ Vec3 EdWorld::FindCenterOfGroup( int32_t grp )
 {
 	Vec3 cp = V3(0);
 	int count = 0;
-	for( size_t i = 0; i < m_objects.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		if( m_objects[ i ]->group == grp )
+		if( m_edobjs[ i ]->group == grp )
 		{
-			cp += m_objects[ i ]->FindCenter();
+			cp += m_edobjs[ i ]->FindCenter();
 			count++;
 		}
 	}
@@ -1268,47 +1229,47 @@ Vec3 EdWorld::FindCenterOfGroup( int32_t grp )
 
 void EdWorld::FixTransformsOfGroup( int32_t grp )
 {
-	for( size_t i = 0; i < m_objects.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		if( m_objects[ i ]->group == grp )
-			m_objects[ i ]->RegenerateMesh();
+		if( m_edobjs[ i ]->group == grp )
+			m_edobjs[ i ]->RegenerateMesh();
 	}
 }
 
 void EdWorld::CopyObjectsToGroup( int32_t grpfrom, int32_t grpto )
 {
-	size_t oldsize = m_objects.size();
+	size_t oldsize = m_edobjs.size();
 	for( size_t i = 0; i < oldsize; ++i )
 	{
-		if( m_objects[ i ]->group == grpfrom )
+		if( m_edobjs[ i ]->group == grpfrom )
 		{
-			EdObject* obj = m_objects[ i ]->Clone();
+			EdObject* obj = m_edobjs[ i ]->Clone();
 			obj->group = grpto;
 			obj->RegenerateMesh();
-			m_objects.push_back( obj );
+			m_edobjs.push_back( obj );
 		}
 	}
 }
 
 void EdWorld::TransferObjectsToGroup( int32_t grpfrom, int32_t grpto )
 {
-	for( size_t i = 0; i < m_objects.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		if( m_objects[ i ]->group == grpfrom )
+		if( m_edobjs[ i ]->group == grpfrom )
 		{
-			m_objects[ i ]->group = grpto;
-			m_objects[ i ]->RegenerateMesh();
+			m_edobjs[ i ]->group = grpto;
+			m_edobjs[ i ]->RegenerateMesh();
 		}
 	}
 }
 
 void EdWorld::DeleteObjectsInGroup( int32_t grp )
 {
-	for( size_t i = 0; i < m_objects.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		if( m_objects[ i ]->group == grp )
+		if( m_edobjs[ i ]->group == grp )
 		{
-			m_objects.uerase( i-- );
+			m_edobjs.uerase( i-- );
 		}
 	}
 }
@@ -1316,11 +1277,11 @@ void EdWorld::DeleteObjectsInGroup( int32_t grp )
 void EdWorld::ExportGroupAsOBJ( int32_t grp, const StringView& name )
 {
 	OBJExporter objex;
-	for( size_t i = 0; i < m_objects.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		if( m_objects[ i ]->group == grp )
+		if( m_edobjs[ i ]->group == grp )
 		{
-			m_objects[ i ]->Export( objex );
+			m_edobjs[ i ]->Export( objex );
 		}
 	}
 	objex.Save( name, "Exported from SGRX editor" );
@@ -1358,14 +1319,12 @@ void EdMultiObjectProps::Prepare( bool selsurf )
 {
 	m_selsurf = selsurf;
 	String tex;
-	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+	for( size_t i = 0; i < g_EdWorld->m_selection.size(); ++i )
 	{
-		EdObject* obj = g_EdWorld->m_objects[ i ];
-		if( obj->selected == false )
-			continue;
-		if( obj->m_type == ObjType_Block )
+		EdObjIdx idx = g_EdWorld->m_selection.item( i ).key;
+		if( idx.type == ObjType_Block )
 		{
-			SGRX_CAST( EdBlock*, B, obj );
+			SGRX_CAST( EdBlock*, B, idx.edobj );
 			for( size_t s = 0; s < B->surfaces.size(); ++s )
 			{
 				if( selsurf && B->IsSurfaceSelected( s ) == false )
@@ -1382,9 +1341,9 @@ void EdMultiObjectProps::Prepare( bool selsurf )
 				}
 			}
 		}
-		else if( obj->m_type == ObjType_Patch )
+		else if( idx.type == ObjType_Patch )
 		{
-			SGRX_CAST( EdPatch*, P, obj );
+			SGRX_CAST( EdPatch*, P, idx.edobj );
 			StringView tt = P->layers[0].texname;
 			if( tt && tex != tt )
 			{
@@ -1396,9 +1355,9 @@ void EdMultiObjectProps::Prepare( bool selsurf )
 				tex = tt;
 			}
 		}
-		else if( obj->m_type == ObjType_MeshPath )
+		else if( idx.type == ObjType_MeshPath )
 		{
-			SGRX_CAST( EdMeshPath*, MP, obj );
+			SGRX_CAST( EdMeshPath*, MP, idx.edobj );
 			StringView tt = MP->m_parts[0].texname;
 			if( tt && tex != tt )
 			{
@@ -1416,33 +1375,31 @@ void EdMultiObjectProps::Prepare( bool selsurf )
 
 void EdMultiObjectProps::OnSetMtl( StringView name )
 {
-	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+	for( size_t i = 0; i < g_EdWorld->m_selection.size(); ++i )
 	{
-		EdObject* obj = g_EdWorld->m_objects[ i ];
-		if( obj->selected == false )
-			continue;
-		if( obj->m_type == ObjType_Block )
+		EdObjIdx idx = g_EdWorld->m_selection.item( i ).key;
+		if( idx.type == ObjType_Block )
 		{
-			SGRX_CAST( EdBlock*, B, obj );
+			SGRX_CAST( EdBlock*, B, idx.edobj );
 			for( size_t s = 0; s < B->surfaces.size(); ++s )
 			{
 				if( m_selsurf && B->IsSurfaceSelected( s ) == false )
 					continue;
 				B->surfaces[ s ]->texname = name;
 			}
-			obj->RegenerateMesh();
+			B->RegenerateMesh();
 		}
-		else if( obj->m_type == ObjType_Patch )
+		else if( idx.type == ObjType_Patch )
 		{
-			SGRX_CAST( EdPatch*, P, obj );
+			SGRX_CAST( EdPatch*, P, idx.edobj );
 			P->layers[0].texname = name;
-			obj->RegenerateMesh();
+			P->RegenerateMesh();
 		}
-		else if( obj->m_type == ObjType_MeshPath )
+		else if( idx.type == ObjType_MeshPath )
 		{
-			SGRX_CAST( EdMeshPath*, MP, obj );
+			SGRX_CAST( EdMeshPath*, MP, idx.edobj );
 			MP->m_parts[0].texname = name;
-			obj->RegenerateMesh();
+			MP->RegenerateMesh();
 		}
 	}
 //	g_UIFrame->SetEditMode( g_UIFrame->m_editMode );
@@ -1563,7 +1520,7 @@ void EdMainFrame::DebugDraw()
 		m_editTF->Draw();
 }
 
-void EdMainFrame::OnDeleteObject( size_t )
+void EdMainFrame::OnDeleteObjects()
 {
 	if( m_editMode )
 		m_editMode->OnEnter();
@@ -1744,9 +1701,12 @@ void EdMainFrame::Level_Real_Compile_Default()
 	g_Level->GetEditorCompilers( ESCs );
 	
 	// compile entities
-	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
+	for( size_t i = 0; i < g_EdWorld->m_edobjs.size(); ++i )
 	{
-		EdEntity* E = g_EdWorld->m_entities[ i ];
+		EdObject* O = g_EdWorld->m_edobjs[ i ];
+		if( O->m_type != ObjType_Entity )
+			continue;
+		SGRX_CAST( EdEntity*, E, O );
 		EditorEntity EE =
 		{
 			// type
@@ -1831,11 +1791,13 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 {
 	String data;
 	
+#if TODO
 	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
 	{
 		EdEntity* ent = g_EdWorld->m_entities[ i ];
 		UNUSED( ent );
 	}
+#endif
 	
 	char bfr[ 256 ];
 	StringView lname = LevelPathToName( m_fileName );

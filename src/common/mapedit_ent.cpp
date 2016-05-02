@@ -55,47 +55,12 @@ void FieldString::EditUI()
 }
 
 
-void EdEntity::BeforeDelete()
-{
-	if( m_ownerEnt )
-	{
-		m_ownerEnt->m_subEnts.uerase( m_ownerEnt->m_subEnts.find_first_at( this ) );
-	}
-	m_ownerEnt = NULL;
-	while( m_subEnts.size() )
-	{
-		g_EdWorld->DeleteObject( m_subEnts[0] );
-	}
-}
-
 void EdEntity::DebugDraw()
 {
 	if( m_realEnt )
 	{
 		m_realEnt->EditorDrawWorld();
 	}
-	
-	if( m_subEnts.size() )
-	{
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		if( m_subEnts.size() >= 2 )
-		{
-			br.Col( 0.0f, 0.1f, 0.9f ).SetPrimitiveType( PT_LineStrip );
-			br.Pos( m_subEnts.last()->Pos() );
-			for( size_t i = 0; i < m_subEnts.size(); ++i )
-			{
-				br.Pos( m_subEnts[ i ]->Pos() );
-			}
-		}
-		br.SetPrimitiveType( PT_Lines );
-		for( size_t i = 0; i < m_subEnts.size(); ++i )
-		{
-			br.Col( 0.0f, 0.4f, 0.9f ).Pos( Pos() );
-			br.Col( 0.0f, 0.1f, 0.9f ).Pos( m_subEnts[ i ]->Pos() );
-		}
-	}
-	if( m_ownerEnt && m_ownerEnt->selected == false )
-		m_ownerEnt->DebugDraw();
 }
 
 
@@ -431,116 +396,6 @@ static int EE_AddFieldSound( SGS_CTX )
 	E->AddField( sgs_GetVar<sgsString>()( C, 1 ), sgs_GetVar<sgsString>()( C, 2 ), F );
 	return 0;
 }
-#if 0
-static int EE_AddButtonSubent( SGS_CTX )
-{
-	SGSFN( "EE_AddButtonSubent" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->AddButtonSubent( sgs_GetVar<StringView>()( C, 1 ) );
-	return 0;
-}
-
-static int EE_SetChar( SGS_CTX )
-{
-	SGSFN( "EE_SetChar" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->SetSpecialMesh(
-		ED_GetMeshFromChar( sgs_GetVar<StringView>()( C, 1 ) ),
-		sgs_GetVar<Mat4>()( C, 2 ) );
-	return 0;
-}
-static int EE_SetMeshInstanceCount( SGS_CTX )
-{
-	SGSFN( "EE_SetMeshInstanceCount" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->SetMeshInstanceCount( sgs_GetVar<int>()( C, 1 ) );
-	return 0;
-}
-static int EE_SetMeshInstanceData( SGS_CTX )
-{
-	SGSFN( "EE_SetMeshInstanceData" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	int flags = LM_MESHINST_SOLID | LM_MESHINST_CASTLMS;
-	if( sgs_StackSize( C ) > 4 )
-		flags = sgs_GetVar<int>()( C, 4 );
-	float lmdetail = 1;
-	if( sgs_StackSize( C ) > 5 )
-		lmdetail = sgs_GetVar<float>()( C, 5 );
-	E->SetMeshInstanceData(
-		sgs_GetVar<int>()( C, 1 ),
-		sgs_GetVar<StringView>()( C, 2 ),
-		sgs_GetVar<Mat4>()( C, 3 ),
-		flags,
-		lmdetail );
-	return 0;
-}
-static int EE_GetMeshAABB( SGS_CTX )
-{
-	SGSFN( "EE_GetMeshAABB" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	Vec3 aabb[2];
-	E->GetMeshAABB( sgs_GetVar<int>()( C, 1 ), aabb );
-	sgs_PushVar( C, aabb[0] );
-	sgs_PushVar( C, aabb[1] );
-	return 2;
-}
-static int EE_SetScriptedItem( SGS_CTX )
-{
-	SGSFN( "EE_SetScriptedItem" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->SetScriptedItem( sgs_GetVar<StringView>()( C, 1 ), sgsVariable( C, 2 ) );
-	return 0;
-}
-
-static int EE_SetChangeFunc( SGS_CTX )
-{
-	SGSFN( "EE_SetChangeFunc" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->onChange = sgs_GetVar<sgsVariable>()( C, 1 );
-	return 0;
-}
-static int EE_SetDebugDrawFunc( SGS_CTX )
-{
-	SGSFN( "EE_SetDebugDrawFunc" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->onDebugDraw = sgs_GetVar<sgsVariable>()( C, 1 );
-	return 0;
-}
-static int EE_SetGatherFunc( SGS_CTX )
-{
-	SGSFN( "EE_SetGatherFunc" );
-	SGRX_CAST( EdEntity*, PI, sgs_GetVar<void*>()( C, 0 ) );
-	if( PI->IsScrEnt() == false )
-		return sgs_Msg( C, SGS_WARNING, "not scripted ent" );
-	SGRX_CAST( EdEntScripted*, E, PI );
-	E->onGather = sgs_GetVar<sgsVariable>()( C, 1 );
-	return 0;
-}
-#endif
 
 static int EE_GenMatrix_SRaP( SGS_CTX )
 {
@@ -575,17 +430,7 @@ sgs_RegFuncConst g_ent_scripted_rfc[] =
 	{ "EE_AddFieldChar", EE_AddFieldChar },
 	{ "EE_AddFieldPartSys", EE_AddFieldPartSys },
 	{ "EE_AddFieldSound", EE_AddFieldSound },
-#if 0
-	{ "EE_AddButtonSubent", EE_AddButtonSubent },
-	{ "EE_SetChar", EE_SetChar },
-	{ "EE_SetMeshInstanceCount", EE_SetMeshInstanceCount },
-	{ "EE_SetMeshInstanceData", EE_SetMeshInstanceData },
-	{ "EE_GetMeshAABB", EE_GetMeshAABB },
-	{ "EE_SetScriptedItem", EE_SetScriptedItem },
-	{ "EE_SetChangeFunc", EE_SetChangeFunc },
-	{ "EE_SetDebugDrawFunc", EE_SetDebugDrawFunc },
-	{ "EE_SetGatherFunc", EE_SetGatherFunc },
-#endif
+	
 	{ "EE_GenMatrix_SRaP", EE_GenMatrix_SRaP },
 	SGS_RC_END(),
 };

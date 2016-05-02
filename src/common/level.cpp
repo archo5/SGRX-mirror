@@ -1254,6 +1254,13 @@ GameObject* GameLevel::CreateGameObject()
 	return go;
 }
 
+void GameLevel::DestroyGameObject( GameObject* obj )
+{
+	obj->OnDestroy();
+	delete obj;
+	m_gameObjects.remove_first( obj );
+}
+
 sgsVariable GameLevel::sgsCreateGameObject()
 {
 	return CreateGameObject()->GetScriptedObject();

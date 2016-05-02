@@ -315,10 +315,15 @@ struct EdGroupManager
 
 enum EObjectType
 {
+	// not a type
+	ObjType_NONE = 0,
+	// EdObject-based
 	ObjType_Block = 1,
 	ObjType_Entity = 2,
 	ObjType_Patch = 3,
 	ObjType_MeshPath = 4,
+	// non-EdObject-based
+	ObjType_GameObject = 5,
 };
 
 enum ESpecialAction
@@ -345,7 +350,7 @@ typedef SerializeVersionHelper<TextReader> SVHTR;
 typedef SerializeVersionHelper<ByteReader> SVHBR;
 typedef SerializeVersionHelper<ByteWriter> SVHBW;
 
-struct EdObject : virtual SGRX_RefCounted
+struct EdObject : SGRX_RefCounted
 {
 	EdObject( uint8_t ty ) : m_type(ty), selected(false), group(0) {}
 	EdObject( const EdObject& o ) : m_type(o.m_type), selected(o.selected), group(o.group) {}
@@ -1409,8 +1414,6 @@ struct EdEntity : EdObject
 	EdEntity( sgsString type, bool isproto );
 	~EdEntity();
 	
-	void BeforeDelete();
-	
 	const Vec3& Pos() const { return m_pos; }
 	virtual Vec3 GetPosition() const { return Pos(); }
 	virtual void SetPosition( const Vec3& pos );
@@ -1459,9 +1462,6 @@ struct EdEntity : EdObject
 	Array< HField > m_fields;
 	
 	Entity* m_realEnt;
-	
-	Handle< EdEntity > m_ownerEnt;
-	Array< Handle< EdEntity > > m_subEnts;
 };
 
 typedef Handle< EdEntity > EdEntityHandle;
@@ -1581,6 +1581,30 @@ enum SelectionMask
 	SelMask_ALL = 0xf
 };
 
+struct EdObjIdx
+{
+	uint8_t type; // ObjType_*
+	union
+	{
+		EdObject* edobj;
+		GameObject* gameobj;
+		void* ptr;
+	};
+	
+	EdObjIdx() : type( ObjType_NONE ), ptr( NULL ){}
+	EdObjIdx( EdObject* o ) : type( o->m_type ), edobj( o ){}
+	EdObjIdx( GameObject* o ) : type( ObjType_GameObject ), gameobj( o ){}
+	EdObject* GetEdObject() const { return type != ObjType_NONE && type != ObjType_GameObject ? edobj : NULL; }
+	GameObject* GetGameObject() const { return type == ObjType_GameObject ? gameobj : NULL; }
+	bool Valid() const { return type != ObjType_NONE; }
+	bool operator == ( const EdObjIdx& o ){ return type == o.type && ptr == o.ptr; }
+};
+inline Hash HashVar( const EdObjIdx& idx )
+{
+	return HashVar( idx.type ) | HashVar( idx.ptr );
+}
+typedef Array< EdObjIdx > EdObjIdxArray;
+
 struct EdWorld
 {
 	EdWorld();
@@ -1594,9 +1618,11 @@ struct EdWorld
 	void TestData();
 	void ReloadSkybox();
 	void ReloadCLUT();
+	
+	void GetAllObjects( EdObjIdxArray& out );
 	void RegenerateMeshes();
 	void DrawWires_Objects( EdObject* hl, bool tonedown = false );
-	void DrawWires_Blocks( EdObject* hl );
+	void DrawWires_Blocks( const EdObjIdx& hl );
 	void DrawPoly_BlockSurf( int block, int surf, bool sel );
 	void DrawPoly_BlockVertex( int block, int vert, bool sel );
 	void DrawWires_Patches( EdObject* hl, bool tonedown = false );
@@ -1613,20 +1639,20 @@ struct EdWorld
 	
 //	EdEntity* CreateScriptedEntity( const StringView& name, sgsVariable params );
 	void AddObject( EdObject* obj, bool regen = true );
-	void DeleteObject( EdObject* obj );
+	void DeleteObject( EdObjIdx idx, bool update = true );
 	
 	void DeleteSelectedObjects();
 	// returns if there were any selected blocks
 	bool DuplicateSelectedObjectsAndMoveSelection();
 	int GetNumSelectedObjects();
-	int GetOnlySelectedObject();
+	EdObjIdx GetOnlySelectedObject();
 	bool GetSelectedObjectAABB( Vec3 outaabb[2] );
 	
 #define SELOBJ_ONLY -1
 #define SELOBJ_TOGGLE -2
 #define SELOBJ_ENABLE 1
 #define SELOBJ_DISABLE 0
-	void SelectObject( int oid, int mod );
+	void SelectObject( EdObjIdx idx, int mod );
 	
 	Vec3 FindCenterOfGroup( int32_t grp );
 	void FixTransformsOfGroup( int32_t grp );
@@ -1638,7 +1664,7 @@ struct EdWorld
 	LC_Light GetDirLightInfo();
 	
 	void EditUI();
-	void ObjEditUI( size_t oid ){ m_objects[ oid ]->EditUI(); }
+#if TODO
 	void VertEditUI( size_t oid, size_t vid )
 	{
 		ImGui::BeginChangeCheck();
@@ -1658,6 +1684,7 @@ struct EdWorld
 		if( ImGui::EndChangeCheck() )
 			m_objects[ oid ]->RegenerateMesh();
 	}
+#endif
 	Mat4 GetGroupMatrix( int grp ){ return m_groupMgr.GetMatrix( grp ); }
 	
 	void SetEntityID( EdEntity* e );
@@ -1665,11 +1692,8 @@ struct EdWorld
 	VertexDeclHandle m_vd;
 	
 	int32_t m_nextID;
-	Array< EdBlockHandle > m_blocks;
-	Array< EdEntityHandle > m_entities;
-	Array< EdPatchHandle > m_patches;
-	Array< EdMeshPathHandle > m_mpaths;
-	Array< EdObjectHandle > m_objects;
+	Array< EdObjectHandle > m_edobjs;
+	HashTable< EdObjIdx, NoValue > m_selection;
 	EdGroupManager m_groupMgr;
 	
 	EdWorldBasicInfo m_info;
@@ -1834,8 +1858,8 @@ struct EdEditBlockEditMode : EdEditMode
 	static const char* GetActivePointExtName( int i );
 	
 	unsigned m_selMask;
-	int m_hlObj;
-	int m_curObj;
+	EdObjIdx m_hlObj;
+	EdObjIdx m_curObj;
 	
 	Vec3 m_selAABB[2];
 	int m_numSel;
@@ -1961,7 +1985,7 @@ struct EdMainFrame
 	void _DrawCursor( bool drawimg, float height );
 	void DrawCursor( bool drawimg = true );
 	void DebugDraw();
-	void OnDeleteObject( size_t i );
+	void OnDeleteObjects();
 	
 	Vec3 GetCursorRayPos();
 	Vec3 GetCursorRayDir();

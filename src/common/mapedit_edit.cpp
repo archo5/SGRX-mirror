@@ -508,9 +508,7 @@ void EdDrawBlockEditMode::_AddNewBlock()
 
 
 EdEditBlockEditMode::EdEditBlockEditMode() :
-	m_selMask( 0xf ),
-	m_hlObj( -1 ),
-	m_curObj( -1 )
+	m_selMask( 0xf )
 {}
 
 void EdEditBlockEditMode::OnEnter()
@@ -558,9 +556,14 @@ void EdEditBlockEditMode::ViewUI()
 		// SELECT ALL/NONE
 		if( ImGui::IsKeyPressed( SDLK_a, false ) && ctrldown )
 		{
-			for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+			if( altdown )
+				g_EdWorld->m_selection.clear();
+			else
 			{
-				g_EdWorld->m_objects[ i ]->selected = !altdown;
+				EdObjIdxArray eoiarr;
+				g_EdWorld->GetAllObjects( eoiarr );
+				for( size_t i = 0; i < eoiarr.size(); ++i )
+					g_EdWorld->m_selection.set( eoiarr[ i ], NoValue() );
 			}
 		}
 		// GRAB (MOVE)
@@ -582,7 +585,7 @@ void EdEditBlockEditMode::ViewUI()
 		if( ImGui::IsKeyPressed( SDLK_DELETE, false ) )
 		{
 			g_EdWorld->DeleteSelectedObjects();
-			m_curObj = -1;
+			m_curObj = EdObjIdx();
 			_ReloadBlockProps();
 		}
 		// DUPLICATE
@@ -626,33 +629,6 @@ void EdEditBlockEditMode::ViewUI()
 		ImVec2 r1 = r0 + ImGui::GetWindowSize() - ImVec2( 2, 2 );
 		ImDrawList* idl = ImGui::GetWindowDrawList();
 		char bfr[ 1024 ];
-		
-		for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
-		{
-			SGRX_CAST( EdEntity*, curent, g_EdWorld->m_entities[ i ] );
-			if( curent->selected == false )
-				continue;
-			if( curent->m_ownerEnt == NULL && curent->m_subEnts.size() == 0 )
-				continue;
-			
-			EdEntity* rootent = curent;
-			if( rootent->m_ownerEnt )
-				rootent = rootent->m_ownerEnt;
-			
-			for( size_t i = 0; i < rootent->m_subEnts.size(); ++i )
-			{
-				EdEntity* ent = rootent->m_subEnts[ i ];
-				Vec3 spos = g_EdScene->camera.WorldToScreen( ent->Pos() );
-				int x = TLERP( r0.x, r1.x, spos.x );
-				int y = TLERP( r0.y, r1.y, spos.y );
-				int which = ent->m_ownerEnt ? ent->m_ownerEnt->m_subEnts.find_first_at( ent ) : -1;
-				
-				sgrx_snprintf( bfr, 32, "%d", which );
-				ImVec2 infoRectSize = ImGui::GetFont()->CalcTextSizeA( 14, FLT_MAX, 0, bfr );
-				idl->AddRectFilled( ImVec2( x, y ), ImVec2( x, y ) + infoRectSize, ImColor(0.f,0.f,0.f,0.5f), 4 );
-				idl->AddText( ImGui::GetFont(), 14, ImVec2( x, y ), ImColor(1,1,1), bfr );
-			}
-		}
 		
 		idl->PushClipRectFullScreen();
 		int bgRectHeight = 32 + ( m_numSel && m_hlBBEl != -1 ? 16 : 0 );
@@ -707,9 +683,12 @@ void EdEditBlockEditMode::EditUI()
 	
 	ImGui::BeginChangeCheck();
 	
-	if( m_curObj >= 0 )
+	if( m_curObj.Valid() )
 	{
-		g_EdWorld->ObjEditUI( m_curObj );
+		if( m_curObj.type == ObjType_GameObject )
+			EDGO_EditUI( m_curObj.GetGameObject() );
+		else
+			m_curObj.GetEdObject()->EditUI();
 	}
 	
 	if( ImGui::EndChangeCheck() )
@@ -720,7 +699,7 @@ void EdEditBlockEditMode::EditUI()
 
 void EdEditBlockEditMode::Draw()
 {
-	g_EdWorld->DrawWires_Objects( m_hlObj != -1 ? (EdObject*) g_EdWorld->m_objects[ m_hlObj ] : NULL );
+	g_EdWorld->DrawWires_Objects( m_hlObj );
 	
 	// if any block is selected..
 	if( m_numSel && g_UIFrame->m_editTF == NULL )
@@ -747,9 +726,6 @@ bool EdEditBlockEditMode::_CanDo( ESpecialAction act )
 	{
 	case SA_MoveBack:
 	case SA_MoveFwd:
-		for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
-			if( g_EdWorld->m_entities[ i ]->selected )
-				return true;
 		break;
 		
 	default:
@@ -764,22 +740,6 @@ void EdEditBlockEditMode::_Do( ESpecialAction act )
 	{
 	case SA_MoveBack:
 	case SA_MoveFwd:
-		for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
-		{
-			EdEntity* ent = g_EdWorld->m_entities[ i ];
-			if( ent->selected == false || ent->m_ownerEnt == NULL )
-				continue;
-			size_t at = ent->m_ownerEnt->m_subEnts.find_first_at( ent );
-			ASSERT( at != NOT_FOUND );
-			if( act == SA_MoveBack && at > 0 )
-			{
-				TSWAP( ent->m_ownerEnt->m_subEnts[ at - 1 ], ent->m_ownerEnt->m_subEnts[ at ] );
-			}
-			else if( act == SA_MoveFwd && at < ent->m_ownerEnt->m_subEnts.size() - 1 )
-			{
-				TSWAP( ent->m_ownerEnt->m_subEnts[ at + 1 ], ent->m_ownerEnt->m_subEnts[ at ] );
-			}
-		}
 		break;
 		
 	default:
