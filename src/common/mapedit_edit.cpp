@@ -392,28 +392,62 @@ void EdDrawBlockEditMode::OnEnter()
 
 void EdDrawBlockEditMode::EditUI()
 {
-	ImGui::Text( "Draw block/path" );
+	ImGui::Text( "Create objects" );
 	ImGui::Separator();
-	ImGui::Text( "Draw mode:" );
-	ImGui::RadioButton( "Polygon", &m_blockDrawMode, BD_Polygon );
-	ImGui::RadioButton( "Box strip", &m_blockDrawMode, BD_BoxStrip );
-	ImGui::RadioButton( "Mesh path", &m_blockDrawMode, BD_MeshPath );
+	ImGui::Text( "Mode:" );
+	ImGui::Columns( 3 );
+	ImGui::RadioButton( "Polygon", &m_blockDrawMode, BD_Polygon ); ImGui::NextColumn();
+	ImGui::RadioButton( "Box strip", &m_blockDrawMode, BD_BoxStrip ); ImGui::NextColumn();
+	ImGui::RadioButton( "Mesh path", &m_blockDrawMode, BD_MeshPath ); ImGui::NextColumn();
+	ImGui::RadioButton( "Entity", &m_blockDrawMode, BD_Entity ); ImGui::NextColumn();
+	ImGui::RadioButton( "Game object", &m_blockDrawMode, BD_GameObject );
+	ImGui::Columns( 1 );
 	ImGui::Separator();
+	
 	g_UIFrame->m_snapProps.EditUI();
 	if( IMGUIEditFloat( "Bottom Z", m_newZ0, -8192, 8192 ) )
 		g_UIFrame->SetCursorPlaneHeight( m_newZ0 );
 	IMGUIEditFloat( "Top Z", m_newZ1, -8192, 8192 );
-	m_newSurf.EditUI();
+	
+	if( m_blockDrawMode == BD_Entity )
+	{
+		m_entGroup.CurEntity()->EditUI();
+		m_entGroup.EditUI();
+	}
+	else if( m_blockDrawMode == BD_GameObject )
+	{
+		// ...
+	}
+	else
+	{
+		m_newSurf.EditUI();
+	}
 }
 
 void EdDrawBlockEditMode::ViewUI()
 {
+	if( ImGui::IsWindowHovered() )
+	{
+		if( ImGui::IsMouseClicked( 0 ) && g_UIFrame->IsCursorAiming() )
+		{
+			if( m_blockDrawMode == BD_Entity )
+			{
+				_AddNewEntity();
+			}
+			else if( m_blockDrawMode == BD_GameObject )
+			{
+				GameObject* obj = g_Level->CreateGameObject();
+				obj->SetWorldPosition( g_UIFrame->GetCursorPos() );
+			}
+			else if( m_drawnVerts.size() < 14 )
+			{
+				m_drawnVerts.push_back( g_UIFrame->GetCursorPlanePos() );
+			}
+		}
+	}
+	
 	if( ImGui::IsWindowFocused() )
 	{
-		if( ImGui::IsMouseClicked( 0 ) && g_UIFrame->IsCursorAiming() && m_drawnVerts.size() < 14 )
-		{
-			m_drawnVerts.push_back( g_UIFrame->GetCursorPlanePos() );
-		}
 		if( ImGui::IsKeyReleased( SDLK_RETURN ) )
 		{
 			if( m_blockDrawMode == BD_Polygon )
@@ -472,6 +506,8 @@ void EdDrawBlockEditMode::ViewUI()
 		if( ImGui::IsKeyReleased( SDLK_1 ) ) m_blockDrawMode = BD_Polygon;
 		if( ImGui::IsKeyReleased( SDLK_2 ) ) m_blockDrawMode = BD_BoxStrip;
 		if( ImGui::IsKeyReleased( SDLK_3 ) ) m_blockDrawMode = BD_MeshPath;
+		if( ImGui::IsKeyReleased( SDLK_4 ) ) m_blockDrawMode = BD_Entity;
+		if( ImGui::IsKeyReleased( SDLK_5 ) ) m_blockDrawMode = BD_GameObject;
 	}
 }
 
@@ -481,51 +517,62 @@ void EdDrawBlockEditMode::Draw()
 	
 	float planeHeight = g_UIFrame->GetCursorPlaneHeight();
 	
-	if( m_blockDrawMode == BD_Polygon && m_drawnVerts.size() >= 3 )
+	if( m_blockDrawMode == BD_Entity )
 	{
-		br.Col( 0.9f, 0.1f, 0, 0.3f );
-		br.Poly( m_drawnVerts.data(), m_drawnVerts.size(), planeHeight, sizeof(*m_drawnVerts.data()) );
+		g_EdWorld->DrawWires_Entities( EdObjIdx() );
 	}
-	if( m_blockDrawMode == BD_BoxStrip )
+	else if( m_blockDrawMode == BD_GameObject )
 	{
-		for( size_t i = 1; i < m_drawnVerts.size(); ++i )
+		g_EdWorld->DrawWires_GameObjects( EdObjIdx() );
+	}
+	else
+	{
+		if( m_blockDrawMode == BD_Polygon && m_drawnVerts.size() >= 3 )
 		{
 			br.Col( 0.9f, 0.1f, 0, 0.3f );
-			Vec2 p0 = m_drawnVerts[ i - 1 ];
-			Vec2 p1 = m_drawnVerts[ i ];
-			br.Quad( p0.x, p0.y, p1.x, p1.y, planeHeight );
+			br.Poly( m_drawnVerts.data(), m_drawnVerts.size(), planeHeight, sizeof(*m_drawnVerts.data()) );
 		}
-	}
-	if( m_drawnVerts.size() >= 2 )
-	{
-		br.Col( 0.9f, 0.1f, 0, 0.7f );
-		if( m_blockDrawMode == BD_MeshPath )
+		if( m_blockDrawMode == BD_BoxStrip )
 		{
-			br.SetPrimitiveType( PT_LineStrip );
-			for( size_t i = 0; i < m_drawnVerts.size(); ++i )
-			br.Pos( m_drawnVerts[ i ], planeHeight );
+			for( size_t i = 1; i < m_drawnVerts.size(); ++i )
+			{
+				br.Col( 0.9f, 0.1f, 0, 0.3f );
+				Vec2 p0 = m_drawnVerts[ i - 1 ];
+				Vec2 p1 = m_drawnVerts[ i ];
+				br.Quad( p0.x, p0.y, p1.x, p1.y, planeHeight );
+			}
 		}
-		else
+		if( m_drawnVerts.size() >= 2 )
 		{
-			br.PolyOutline( m_drawnVerts.data(), m_drawnVerts.size(), planeHeight, sizeof(*m_drawnVerts.data()) );
+			br.Col( 0.9f, 0.1f, 0, 0.7f );
+			if( m_blockDrawMode == BD_MeshPath )
+			{
+				br.SetPrimitiveType( PT_LineStrip );
+				for( size_t i = 0; i < m_drawnVerts.size(); ++i )
+				br.Pos( m_drawnVerts[ i ], planeHeight );
+			}
+			else
+			{
+				br.PolyOutline( m_drawnVerts.data(), m_drawnVerts.size(), planeHeight, sizeof(*m_drawnVerts.data()) );
+			}
 		}
-	}
-	for( size_t i = 0; i < m_drawnVerts.size(); ++i )
-	{
-		br.Col( 0.9f, 0.1f, 0, 0.8f );
-		br.CircleOutline( m_drawnVerts[i].x, m_drawnVerts[i].y, 0.02f, planeHeight, 16 );
-	}
-	if( ( m_blockDrawMode == BD_Polygon || m_blockDrawMode == BD_MeshPath ) &&
-		g_UIFrame->IsCursorAiming() )
-	{
-		Vec2 pos = g_UIFrame->GetCursorPlanePos();
-		if( m_drawnVerts.size() > 1 )
+		for( size_t i = 0; i < m_drawnVerts.size(); ++i )
 		{
-			br.Col( 0.9f, 0.1f, 0, 0.4f ).SetPrimitiveType( PT_LineStrip );
-			br.Pos( m_drawnVerts.last(), planeHeight );
-			br.Pos( pos, planeHeight );
-			if( m_blockDrawMode == BD_Polygon )
-				br.Pos( m_drawnVerts[0], planeHeight );
+			br.Col( 0.9f, 0.1f, 0, 0.8f );
+			br.CircleOutline( m_drawnVerts[i].x, m_drawnVerts[i].y, 0.02f, planeHeight, 16 );
+		}
+		if( ( m_blockDrawMode == BD_Polygon || m_blockDrawMode == BD_MeshPath ) &&
+			g_UIFrame->IsCursorAiming() )
+		{
+			Vec2 pos = g_UIFrame->GetCursorPlanePos();
+			if( m_drawnVerts.size() > 1 )
+			{
+				br.Col( 0.9f, 0.1f, 0, 0.4f ).SetPrimitiveType( PT_LineStrip );
+				br.Pos( m_drawnVerts.last(), planeHeight );
+				br.Pos( pos, planeHeight );
+				if( m_blockDrawMode == BD_Polygon )
+					br.Pos( m_drawnVerts[0], planeHeight );
+			}
 		}
 	}
 	g_UIFrame->DrawCursor();
@@ -550,6 +597,14 @@ void EdDrawBlockEditMode::_AddNewBlock()
 	B.subsel.resize( B.GetNumElements() );
 	B.ClearSelection();
 	g_EdWorld->AddObject( B.Clone() );
+}
+
+void EdDrawBlockEditMode::_AddNewEntity()
+{
+	EdEntity* N = (EdEntity*) m_entGroup.CurEntity()->Clone();
+	N->SetPosition( g_UIFrame->GetCursorPos() );
+	g_EdWorld->SetEntityID( N );
+	g_EdWorld->AddObject( N );
 }
 
 
@@ -714,7 +769,7 @@ void EdEditBlockEditMode::EditUI()
 	ImGui::Text( "Edit objects" );
 	ImGui::Separator();
 	ImGui::Text( "Selection mask:" );
-	ImGui::Columns( 2 );
+	ImGui::Columns( 3 );
 	ImGui::CheckboxFlags( "Blocks", &m_selMask, SelMask_Blocks ); ImGui::NextColumn();
 	ImGui::CheckboxFlags( "Patches", &m_selMask, SelMask_Patches ); ImGui::NextColumn();
 	ImGui::CheckboxFlags( "Entities", &m_selMask, SelMask_Entities ); ImGui::NextColumn();
@@ -1471,141 +1526,6 @@ void EdPaintSurfsEditMode::Draw()
 	if( m_paintBlock.Valid() && m_paintSurf >= 0 )
 	{
 		g_EdWorld->DrawPoly_BlockSurf( m_paintBlock, m_paintSurf, m_isPainting );
-	}
-}
-
-
-void EdAddEntityEditMode::ViewUI()
-{
-	if( ImGui::IsWindowHovered() )
-	{
-		if( ImGui::IsMouseClicked( 0 ) && g_UIFrame->IsCursorAiming() )
-		{
-			_AddNewEntity();
-		}
-	}
-	
-	for( size_t i = 0; i < m_entGroup.CurEntity()->m_fields.size(); ++i )
-	{
-		FieldBase* F = m_entGroup.CurEntity()->m_fields[ i ];
-		if( F->type == FT_Vec3 && F->key.equals( "position" ) )
-		{
-			g_UIFrame->SetCursorPlaneHeight( ((FieldVec3*)F)->value.z );
-		}
-	}
-}
-
-void EdAddEntityEditMode::EditUI()
-{
-	m_entGroup.CurEntity()->EditUI();
-	m_entGroup.EditUI();
-}
-
-void EdAddEntityEditMode::Draw()
-{
-	g_EdWorld->DrawWires_Entities( EdObjIdx() );
-	g_UIFrame->DrawCursor( false );
-}
-
-void EdAddEntityEditMode::_AddNewEntity()
-{
-	Vec2 pos = g_UIFrame->GetCursorPlanePos();
-	
-	EdEntity* N = (EdEntity*) m_entGroup.CurEntity()->Clone();
-	N->SetPosition( V3( pos.x, pos.y, N->Pos().z ) );
-	g_EdWorld->SetEntityID( N );
-	g_EdWorld->AddObject( N );
-}
-
-
-EdGameObjectEditMode::EdGameObjectEditMode() : m_hoverObj( NULL ), m_selObj( NULL )
-{
-}
-
-void EdGameObjectEditMode::ViewUI()
-{
-	if( ImGui::IsWindowHovered() )
-	{
-		Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
-		Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
-		
-		m_hoverObj = NULL;
-		float mindst = FLT_MAX;
-		float outdst[1] = { FLT_MAX };
-		for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
-		{
-			if( EDGO_RayIntersect( g_Level->m_gameObjects[ i ], cursorRayPos, cursorRayDir, outdst ) && outdst[0] < mindst )
-			{
-				mindst = outdst[0];
-				m_hoverObj = g_Level->m_gameObjects[ i ];
-			}
-		}
-		
-		if( ImGui::IsMouseClicked( 0 ) )
-		{
-			if( m_selObj || m_hoverObj )
-			{
-				m_selObj = m_hoverObj;
-			}
-			else if( !m_selObj && g_UIFrame->IsCursorAiming() )
-			{
-				_AddNewGameObject();
-			}
-		}
-	}
-}
-
-void EdGameObjectEditMode::EditUI()
-{
-	if( m_selObj )
-	{
-		EDGO_EditUI( m_selObj );
-	}
-}
-
-void EdGameObjectEditMode::Draw()
-{
-	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
-	{
-		GameObject* obj = g_Level->m_gameObjects[ i ];
-		if( obj == m_hoverObj && obj == m_selObj )
-			br.Col( 0.9f, 0.5, 0.9f, 0.7f );
-		else if( obj == m_hoverObj )
-			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
-		else if( obj == m_selObj )
-			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
-		else
-			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
-		br.SphereOutline( obj->GetWorldPosition(), 0.2f, 32 );
-	}
-	
-	if( m_selObj )
-		m_selObj->EditorDrawWorld();
-	
-	if( m_hoverObj && m_hoverObj != m_selObj )
-		m_hoverObj->EditorDrawWorld();
-	
-	g_UIFrame->DrawCursor( false );
-}
-
-void EdGameObjectEditMode::_AddNewGameObject()
-{
-	m_selObj = g_Level->CreateGameObject();
-	m_selObj->SetWorldPosition( g_UIFrame->GetCursorPos() );
-}
-
-bool EdGameObjectEditMode::ResourcePicker( PickerType ptype,
-	const char* caption, const char* label, String& value )
-{
-	switch( ptype )
-	{
-	case PT_Mesh: return g_NUIMeshPicker->Property( caption, label, value );
-	case PT_PartSys: return g_NUIPartSysPicker->Property( caption, label, value );
-	case PT_Texture: return g_NUITexturePicker->Property( caption, label, value );
-	case PT_Char: return g_NUICharPicker->Property( caption, label, value );
-	case PT_Sound: return g_NUISoundPicker->Property( caption, label, value );
-	default: return IMGUIEditString( label, value, 256 );
 	}
 }
 

@@ -24,6 +24,7 @@ add_library( sgrx-core SHARED
 	${EXTDIR}/src/imgui/imgui.cpp ${EXTDIR}/src/imgui/imgui_draw.cpp ${EXTDIR}/src/imgui/imgui_demo.cpp
 )
 target_link_libraries( sgrx-core SDL2 )
+target_link_libraries( sgrx-core ${LIB_UUID} )
 set_target_properties( sgrx-core PROPERTIES
 	INCLUDE_DIRECTORIES "${EXTDIR}/include;${EXTDIR}/include/freetype;${EXTDIR}/src;${EXTDIR}/src/zlib"
 	COMPILE_FLAGS "${CORE_FLAGS} -DENGINE_BUILDING"

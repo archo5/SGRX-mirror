@@ -6,12 +6,39 @@ global ED_ISAVE = {};
 // link to loaded/saved object data
 global ED_SDATA = null;
 
+function ED_ILOAD.EditBool( lbl, obj, prop )
+{
+	obj.(prop) = tobool( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.EditBool( lbl, obj, prop )
+{
+	ED_SDATA[ prop ] = tobool( obj.(prop) );
+}
+
 function ED_ILOAD.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
-	obj.prop = toreal( ED_SDATA[ prop ] );
+	obj.(prop) = toreal( ED_SDATA[ prop ] );
 }
 function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
-	ED_SDATA[ prop ] = toreal( obj.prop );
+	ED_SDATA[ prop ] = toreal( obj.(prop) );
+}
+
+function ED_ILOAD.PickMesh( lbl, obj, prop, caption )
+{
+	obj.(prop) = tostring( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.PickMesh( lbl, obj, prop, caption )
+{
+	ED_SDATA[ prop ] = tostring( obj.(prop) );
+}
+
+function ED_ILOAD.ComboNT( lbl, obj, prop, zssl )
+{
+	obj.(prop) = toint( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.ComboNT( lbl, obj, prop, zssl )
+{
+	ED_SDATA[ prop ] = toint( obj.(prop) );
 }
 

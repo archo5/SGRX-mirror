@@ -46,18 +46,6 @@ void MeshResource::EditorDrawWorld()
 	}
 }
 
-void MeshResource::EditUI( EditorUIHelper* uih )
-{
-	String path = GetMeshPath();
-	if( uih->ResourcePicker( EditorUIHelper::PT_Mesh,
-		"Select mesh", "Mesh", path ) )
-		SetMeshPath( path );
-	
-	if( IMGUIComboBox( "Lighting mode", m_lightingMode,
-		"Unlit\0Static\0Dynamic\0Decal\0" ) )
-		SetLightingMode( m_lightingMode );
-}
-
 void MeshResource::_UpdateLighting()
 {
 	if( m_lightingMode == SGRX_LM_Dynamic )

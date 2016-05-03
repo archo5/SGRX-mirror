@@ -180,6 +180,22 @@ struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
 	MapMaterialMap m_materials;
 };
 
+struct ImplEditorUIHelper : EditorUIHelper
+{
+	bool ResourcePicker( PickerType ptype, const char* caption, const char* label, String& value )
+	{
+		switch( ptype )
+		{
+		case PT_Mesh: return g_NUIMeshPicker->Property( caption, label, value );
+		case PT_PartSys: return g_NUIPartSysPicker->Property( caption, label, value );
+		case PT_Texture: return g_NUITexturePicker->Property( caption, label, value );
+		case PT_Char: return g_NUICharPicker->Property( caption, label, value );
+		case PT_Sound: return g_NUISoundPicker->Property( caption, label, value );
+		default: return IMGUIEditString( label, value, 256 );
+		}
+	}
+};
+
 
 
 struct EdSnapProps
@@ -1828,6 +1844,8 @@ struct EdDrawBlockEditMode : EdEditMode
 		BD_Polygon = 1,
 		BD_BoxStrip = 2,
 		BD_MeshPath = 3,
+		BD_Entity = 4,
+		BD_GameObject = 5,
 	};
 
 	EdDrawBlockEditMode();
@@ -1836,12 +1854,14 @@ struct EdDrawBlockEditMode : EdEditMode
 	void EditUI();
 	void Draw();
 	void _AddNewBlock();
+	void _AddNewEntity();
 	
 	int m_blockDrawMode;
 	Array< Vec2 > m_drawnVerts;
 	float m_newZ0;
 	float m_newZ1;
 	EdSurface m_newSurf;
+	EdEntList m_entGroup;
 };
 
 #define NUM_AABB_ACTIVE_POINTS 26
@@ -1936,31 +1956,6 @@ struct EdPaintSurfsEditMode : EdEditMode
 	EdSurface m_paintSurfTemplate;
 };
 
-struct EdAddEntityEditMode : EdEditMode
-{
-	void ViewUI();
-	void EditUI();
-	void Draw();
-	void _AddNewEntity();
-	
-	EdEntList m_entGroup;
-};
-
-struct EdGameObjectEditMode : EdEditMode, EditorUIHelper
-{
-	EdGameObjectEditMode();
-	void ViewUI();
-	void EditUI();
-	void Draw();
-	void _AddNewGameObject();
-	
-	bool ResourcePicker( PickerType ptype,
-		const char* caption, const char* label, String& value );
-	
-	GameObject* m_hoverObj;
-	GameObject* m_selObj;
-};
-
 struct EdEditGroupEditMode : EdEditMode
 {
 	void EditUI();
@@ -2019,8 +2014,6 @@ struct EdMainFrame
 	EdEditVertexEditMode m_emEditVertex;
 	EdPaintVertsEditMode m_emPaintVerts;
 	EdPaintSurfsEditMode m_emPaintSurfs;
-	EdAddEntityEditMode m_emAddEntity;
-	EdGameObjectEditMode m_emGameObjects;
 	EdEditGroupEditMode m_emEditGroup;
 	
 	// extra edit data
@@ -2032,11 +2025,9 @@ struct EdMainFrame
 
 enum EditorMode
 {
-	DrawBlock,
+	CreateObjs,
 	EditObjects,
 	PaintSurfs,
-	AddEntity,
-	GameObjects,
 	EditGroups,
 	LevelInfo,
 	MiscProps,

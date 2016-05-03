@@ -83,6 +83,9 @@ ENGINE_EXPORT void sgrx_aligned_free( void* ptr );
 #define __SGRX_GLUE(a,b) a ## b
 #define SGRX_CASSERT(expr, msg) typedef char SGRX_GLUE (compiler_verify_, msg) [(expr) ? (+1) : (-1)]
 
+extern const char* SGRX_HEX_LOWER;
+extern const char* SGRX_HEX_UPPER;
+
 
 // compiler/toolchain padding
 #define streq( a, b ) (!strcmp(a,b))
@@ -3000,6 +3003,69 @@ struct IL_Item
 typedef Array< IL_Item > ItemList;
 
 ENGINE_EXPORT bool LoadItemListFile( const StringView& path, ItemList& out );
+
+
+//
+// GUID
+//
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
+{
+	union
+	{
+		uint8_t bytes[16];
+		uint32_t u32[4];
+		struct
+		{
+			uint32_t a;
+			uint16_t b;
+			uint16_t c;
+			uint16_t d;
+			uint8_t e[6];
+		}
+		fmt;
+		struct
+		{
+			uint32_t a;
+			uint16_t b;
+			uint16_t c;
+			uint8_t d[8];
+		}
+		winfmt;
+	};
+	
+	static FINLINE SGRX_GUID Null()
+	{
+		SGRX_GUID o;
+		memset( &o, 0, sizeof(o) );
+		return o;
+	}
+	static FINLINE SGRX_GUID FromBytes( uint8_t bytes[16] )
+	{
+		SGRX_GUID o;
+		memcpy( &o, bytes, sizeof(o) );
+		return o;
+	}
+	ENGINE_EXPORT static SGRX_GUID Generate();
+	ENGINE_EXPORT static SGRX_GUID ParseString( StringView str );
+	ENGINE_EXPORT void ToCharArray( char* out, bool upper = false, bool nul = true );
+	ENGINE_EXPORT String ToString( bool upper = false );
+	
+	SGRX_GUID(){ memset( u32, 0, sizeof(u32) ); }
+	FINLINE bool operator == ( const SGRX_GUID& o ) const
+	{
+		return u32[0] == o.u32[0]
+			&& u32[1] == o.u32[1]
+			&& u32[2] == o.u32[2]
+			&& u32[3] == o.u32[3];
+	}
+	FINLINE bool operator != ( const SGRX_GUID& o ) const { return !( *this == o ); }
+};
+
+inline Hash HashVar( const SGRX_GUID& v )
+{
+	return v.u32[0] | v.u32[1] | v.u32[2] | v.u32[3];
+}
 
 
 

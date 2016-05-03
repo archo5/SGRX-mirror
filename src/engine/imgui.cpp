@@ -360,11 +360,11 @@ bool IMGUIRenderView::CanAcceptKeyboardInput()
 	return !( io.KeyCtrl || io.KeyAlt ) && ImGui::IsWindowFocused();
 }
 
-void IMGUIRenderView::Process( float deltaTime )
+void IMGUIRenderView::Process( float deltaTime, bool editable )
 {
 	if( ImGui::IsMouseDown( 1 ) )
 		ImGui::SetWindowFocus();
-	bool caki = CanAcceptKeyboardInput();
+	bool caki = CanAcceptKeyboardInput() && editable;
 	bool movefwd = caki && ImGui::IsKeyDown( SDLK_w );
 	bool movebwd = caki && ImGui::IsKeyDown( SDLK_s );
 	bool movelft = caki && ImGui::IsKeyDown( SDLK_a );

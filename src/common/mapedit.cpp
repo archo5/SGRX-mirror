@@ -1507,7 +1507,7 @@ void EdMainFrame::EditUI()
 
 bool EdMainFrame::ViewUI()
 {
-	m_NUIRenderView.Process( ImGui::GetIO().DeltaTime );
+	m_NUIRenderView.Process( ImGui::GetIO().DeltaTime, m_editTF == NULL );
 	
 	if( m_editTF )
 	{
@@ -2082,7 +2082,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			ImGui::SameLine( 0, 50 );
 			ImGui::Text( "Edit mode:" );
 			ImGui::SameLine();
-			if( ImGui::RadioButton( "Draw block/path", &g_mode, DrawBlock ) )
+			if( ImGui::RadioButton( "Create objects", &g_mode, CreateObjs ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emDrawBlock );
 			ImGui::SameLine();
 			if( ImGui::RadioButton( "Edit objects", &g_mode, EditObjects ) )
@@ -2090,12 +2090,6 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			ImGui::SameLine();
 			if( ImGui::RadioButton( "Paint surfaces", &g_mode, PaintSurfs ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintSurfs );
-			ImGui::SameLine();
-			if( ImGui::RadioButton( "Add entity", &g_mode, AddEntity ) )
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emAddEntity );
-			ImGui::SameLine();
-			if( ImGui::RadioButton( "Game objects", &g_mode, GameObjects ) )
-				g_UIFrame->SetEditMode( &g_UIFrame->m_emGameObjects );
 			ImGui::SameLine();
 			if( ImGui::RadioButton( "Edit groups", &g_mode, EditGroups ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditGroup );

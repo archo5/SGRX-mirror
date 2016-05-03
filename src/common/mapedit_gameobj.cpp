@@ -88,7 +88,8 @@ void EDGO_EditUI( GameObject* obj )
 				obj->m_bhvr_order[ i ]->m_name.c_str() );
 			IMGUI_GROUP_BEGIN( bfr, true )
 			{
-				obj->m_bhvr_order[ i ]->EditUI( &g_UIFrame->m_emGameObjects,
+				ImplEditorUIHelper ieuih;
+				obj->m_bhvr_order[ i ]->EditUI( &ieuih,
 					g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ) );
 			}
 			IMGUI_GROUP_END;
@@ -177,7 +178,8 @@ void EDGO_EditUI( GameObject* obj )
 				obj->m_resources.item( i ).key.c_str() );
 			IMGUI_GROUP_BEGIN( bfr, true )
 			{
-				obj->m_resources.item( i ).value->EditUI( &g_UIFrame->m_emGameObjects,
+				ImplEditorUIHelper ieuih;
+				obj->m_resources.item( i ).value->EditUI( &ieuih,
 					g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ) );
 			}
 			IMGUI_GROUP_END;
@@ -318,6 +320,20 @@ sgsVariable EDGO_FSave( GameObject* obj )
 }
 
 
+static int IMGUI_EditBool( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditBool" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	bool value = obj.getprop( prop ).get<bool>();
+	
+	if( IMGUIEditBool( label.c_str(), value ) )
+		obj.setprop( prop, sgsVariable().set_bool( value ) );
+	
+	return 0;
+}
+
 static int IMGUI_EditFloat( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.EditFloat" );
@@ -334,9 +350,45 @@ static int IMGUI_EditFloat( SGS_CTX )
 	
 	return 0;
 }
+
+static int IMGUI_PickMesh( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.PickMesh" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	sgsString caption( C, 3 );
+	String value = obj.getprop( prop ).get<StringView>();
+	
+	if( g_NUIMeshPicker->Property( caption.c_str(), label.c_str(), value ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	return 0;
+}
+
+static int IMGUI_ComboNT( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.ComboNT" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	sgsString zssl( C, 3 );
+	int value = obj.getprop( prop ).get<int>();
+	if( zssl.c_str()[ zssl.size() - 1 ] != '\0' )
+		return sgs_Msg( C, SGS_WARNING, "expected extra NUL character at end of string" );
+	
+	if( IMGUIComboBox( label.c_str(), value, zssl.c_str() ) )
+		obj.setprop( prop, sgsVariable().set_int( value ) );
+	
+	return 0;
+}
+
 sgs_RegFuncConst g_imgui_rfc[] =
 {
+	{ "EditBool", IMGUI_EditBool },
 	{ "EditFloat", IMGUI_EditFloat },
+	{ "PickMesh", IMGUI_PickMesh },
+	{ "ComboNT", IMGUI_ComboNT },
 	SGS_RC_END(),
 };
 

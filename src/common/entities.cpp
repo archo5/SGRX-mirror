@@ -1,6 +1,7 @@
 
 
 #include "entities.hpp"
+#include "resources.hpp"
 
 
 ParticleFX::ParticleFX( GameLevel* lev ) : Entity( lev ), m_soundEventOneShot(false)
@@ -919,6 +920,8 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	lev->RegisterNativeEntity<RigidBodyEntity>( "RigidBody" );
 	lev->RegisterNativeEntity<ReflectionPlaneEntity>( "ReflectionPlane" );
 	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
+	
+	lev->RegisterNativeClass<MeshResource>( "MeshResource" );
 }
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )

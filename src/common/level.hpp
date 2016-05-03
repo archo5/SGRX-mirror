@@ -514,6 +514,7 @@ EXP_STRUCT GOResource : LevelScrObj
 	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	GameObject* m_obj;
 	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_type;
+	SGRX_GUID m_src_guid;
 	
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
@@ -552,6 +553,7 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	GameObject* m_obj;
 	SGS_PROPERTY_FUNC( READ VARNAME __type ) sgsString m_type;
+	SGRX_GUID m_src_guid;
 	
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
@@ -602,6 +604,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GOResourceTable m_resources;
 	GOBehaviorTable m_behaviors;
 	Array< H_GOBehavior > m_bhvr_order;
+	SGRX_GUID m_src_guid;
 	
 	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetWorldPosition ) SGS_ALIAS( Vec3 position );
 	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat rotation );
@@ -684,6 +687,11 @@ EXP_STRUCT GameLevel :
 	bool GetEditorMode() const { return m_editorMode; }
 	
 	GFW_EXPORT bool Load( const StringView& levelname );
+	template< class T > void RegisterNativeClass( StringView type )
+	{
+		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
+		m_scriptCtx.SetGlobal( type, iface );
+	}
 	template< class T > void RegisterNativeEntity( StringView type )
 	{
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );

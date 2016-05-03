@@ -64,6 +64,24 @@ function BEHAVIOR( name, inhname )
 
 
 //
+// Resource Editor Extensions
+//
+
+function MeshResource.EditorGUI( ui )
+{
+	ui.PickMesh( "Mesh", this, "mesh", "Select mesh" );
+	ui.ComboNT( "Lighting mode", this, "lightingMode", "Unlit\0Static\0Dynamic\0Decal\0" );
+	ui.EditBool( "Is visible?", this, "visible" );
+	ui.EditBool( "Is static?", this, "isStatic" );
+	if( this.isStatic )
+	{
+		ui.EditFloat( "Lightmap quality", this, "lmQuality", 0.01, 100 );
+		ui.EditBool( "Casts lightmap shadows?", this, "castLMS" );
+	}
+}
+
+
+//
 // Entity Editor Extensions
 //
 

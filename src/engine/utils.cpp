@@ -17,12 +17,14 @@
 #  include <windows.h>
 #  include <sys/types.h>
 #  include <sys/stat.h>
+#  include <rpc.h>
 #  define _stat stat
 #else
 #  include <sys/time.h>
 #  include <sys/stat.h>
 #  include <unistd.h>
 #  include <pthread.h>
+#  include <uuid/uuid.h>
 #endif
 
 #include <sgscript/sgs_regex.h>
@@ -63,6 +65,10 @@ void sgrx_aligned_free( void* ptr ){ free( ptr ); }
 
 
 void NOP( int x ){}
+
+
+const char* SGRX_HEX_LOWER = "0123456789abcdef";
+const char* SGRX_HEX_UPPER = "0123456789ABCDEF";
 
 
 
@@ -2180,6 +2186,102 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 
 
 
+//
+// GUID
+//
+
+SGRX_GUID SGRX_GUID::Generate()
+{
+	SGRX_GUID out;
+#ifdef WIN32
+	UUID uuid;
+	UuidCreate( &uuid );
+	memcpy( &out, &uuid, sizeof(out) );
+#else
+	uuid_t uuid;
+	uuid_generate( uuid );
+	memcpy( &out, uuid, sizeof(out) );
+#endif
+	return out;
+}
+
+static bool guphex( uint8_t*& p, StringView& str )
+{
+	if( !hexchar( str[0] ) || !hexchar( str[1] ) )
+		return false;
+	*p++ = ( gethex( str[0] ) << 4 ) | gethex( str[1] );
+	str.skip( 2 );
+	return true;
+}
+
+SGRX_GUID SGRX_GUID::ParseString( StringView str )
+{
+	SGRX_GUID out;
+	if( str.size() >= 36 && str[8] == '-' && str[13] == '-'
+		&& str[18] == '-' && str[23] == '-' )
+	{
+		// RFC format
+		uint8_t* p = out.bytes;
+		for( int i = 0; i < 4; ++i ) if( !guphex( p, str ) ) goto error;
+		str.skip( 1 ); // '-'
+		for( int i = 0; i < 2; ++i ) if( !guphex( p, str ) ) goto error;
+		str.skip( 1 ); // '-'
+		for( int i = 0; i < 2; ++i ) if( !guphex( p, str ) ) goto error;
+		str.skip( 1 ); // '-'
+		for( int i = 0; i < 2; ++i ) if( !guphex( p, str ) ) goto error;
+		str.skip( 1 ); // '-'
+		for( int i = 0; i < 6; ++i ) if( !guphex( p, str ) ) goto error;
+	}
+	else if( str.size() >= 32 )
+	{
+		// hex byte list
+		uint8_t* p = out.bytes;
+		for( int i = 0; i < 16; ++i ) if( !guphex( p, str ) ) goto error;
+	}
+	return out;
+error:
+	return SGRX_GUID::Null();
+}
+
+void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul )
+{
+	const char* hex = upper ? SGRX_HEX_UPPER : SGRX_HEX_LOWER;
+	uint8_t* bp = bytes;
+	// first 4 bytes
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = '-';
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = '-';
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = '-';
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = '-';
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
+	if( nul )
+		*out = '\0';
+}
+
+String SGRX_GUID::ToString( bool upper )
+{
+	String out;
+	out.resize( 36 );
+	ToCharArray( out.data(), upper, false );
+	return out;
+}
+
+
+
 
 //
 // SPATIAL PARTITIONING
@@ -2746,6 +2848,14 @@ int TestSystems()
 	if( !CLOSE( PointTriangleDistance( V3(-1,0.5f,0), tri0[0], tri0[1], tri0[2] ), 1 ) ) return 804;
 	if( !CLOSE( PointTriangleDistance( V3(0.5f,-1,0), tri0[0], tri0[1], tri0[2] ), 1 ) ) return 805;
 	if( !CLOSE( PointTriangleDistance( V3(3,-1,0), tri0[0], tri0[1], tri0[2] ), V3(1,-1,0).Length() ) ) return 806;
+	
+	SGRX_GUID testuuid = SGRX_GUID::Generate();
+	if( testuuid == SGRX_GUID::Null() ) return 901;
+	String guidstr = testuuid.ToString();
+	if( guidstr.size() != 36 ) return 902;
+	SGRX_GUID parseduuid = SGRX_GUID::ParseString( guidstr );
+	if( parseduuid == SGRX_GUID::Null() ) return 903;
+	if( testuuid != parseduuid ) return 904;
 	
 	return 0;
 }
