@@ -111,32 +111,43 @@ void EdBlockEditTransform::SaveState()
 	int cpc = 0;
 	m_objStateMap.clear();
 	m_objectStateData.clear();
-	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+	for( size_t i = 0; i < g_EdWorld->m_selection.size(); ++i )
 	{
-		EdObject* obj = g_EdWorld->m_objects[ i ];
-		if( obj->selected == false )
-			continue;
-		
-		SavedObject SO = { i, m_objectStateData.size() };
+		EdObjIdx idx = g_EdWorld->m_selection.item( i ).key;
+		SavedObject SO = { idx, m_objectStateData.size() };
 		m_objStateMap.push_back( SO );
 		ByteWriter bw( &m_objectStateData );
-		obj->Serialize( bw );
 		
-		if( m_subpointCenter )
+		EdObject* obj = idx.GetEdObject();
+		GameObject* go = idx.GetGameObject();
+		
+		if( obj )
 		{
-			int numel = obj->GetNumElements();
-			for( int el = 0; el < numel; ++el )
+			obj->Serialize( bw );
+			
+			if( m_subpointCenter )
 			{
-				if( obj->IsElementSelected( el ) )
+				int numel = obj->GetNumElements();
+				for( int el = 0; el < numel; ++el )
 				{
-					cp += obj->GetElementPoint( el );
-					cpc++;
+					if( obj->IsElementSelected( el ) )
+					{
+						cp += obj->GetElementPoint( el );
+						cpc++;
+					}
 				}
 			}
+			else
+			{
+				cp += obj->FindCenter();
+				cpc++;
+			}
 		}
-		else
+		else if( go )
 		{
-			cp += obj->FindCenter();
+			EDGO_SerializeSpatial( go, bw );
+			
+			cp += go->GetWorldPosition();
 			cpc++;
 		}
 	}
@@ -149,8 +160,17 @@ void EdBlockEditTransform::RestoreState()
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
 		ByteReader br( m_objectStateData, SO.offset );
-		g_EdWorld->m_objects[ SO.id ]->Serialize( br );
-		g_EdWorld->m_objects[ SO.id ]->RegenerateMesh();
+		
+		EdObject* obj = SO.idx.GetEdObject();
+		GameObject* go = SO.idx.GetGameObject();
+		
+		if( obj )
+		{
+			obj->Serialize( br );
+			obj->RegenerateMesh();
+		}
+		else if( go )
+			EDGO_SerializeSpatial( go, br );
 	}
 }
 
@@ -253,27 +273,48 @@ void EdBlockMoveTransform::Draw()
 
 void EdBlockMoveTransform::ApplyTransform()
 {
+	RestoreState();
+	
 	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
-		EdObject* obj = g_EdWorld->m_objects[ SO.id ];
 		ByteReader br( m_objectStateData, SO.offset );
-		obj->Serialize( br );
-		if( m_extend )
+		
+		EdObject* obj = SO.idx.GetEdObject();
+		GameObject* go = SO.idx.GetGameObject();
+		
+		// m_extend only
+		Vec3 dstbb[2] = { m_xtdAABB[0], m_xtdAABB[1] };
+		if( m_xtdMask.x == 0 ) dstbb[0].x += m_transform.x; else if( m_xtdMask.x == 1 ) dstbb[1].x += m_transform.x;
+		if( m_xtdMask.y == 0 ) dstbb[0].y += m_transform.y; else if( m_xtdMask.y == 1 ) dstbb[1].y += m_transform.y;
+		if( m_xtdMask.z == 0 ) dstbb[0].z += m_transform.z; else if( m_xtdMask.z == 1 ) dstbb[1].z += m_transform.z;
+		// <<<
+		
+		if( obj )
 		{
-			Vec3 dstbb[2] = { m_xtdAABB[0], m_xtdAABB[1] };
-			if( m_xtdMask.x == 0 ) dstbb[0].x += m_transform.x; else if( m_xtdMask.x == 1 ) dstbb[1].x += m_transform.x;
-			if( m_xtdMask.y == 0 ) dstbb[0].y += m_transform.y; else if( m_xtdMask.y == 1 ) dstbb[1].y += m_transform.y;
-			if( m_xtdMask.z == 0 ) dstbb[0].z += m_transform.z; else if( m_xtdMask.z == 1 ) dstbb[1].z += m_transform.z;
-			obj->SetPosition( ED_RemapPos( obj->GetPosition(), m_xtdAABB, dstbb ) );
-			obj->ScaleVertices( TREVLERP( V3(0), m_xtdAABB[1] - m_xtdAABB[0], dstbb[1] - dstbb[0] ) );
+			if( m_extend )
+			{
+				obj->SetPosition( ED_RemapPos( obj->GetPosition(), m_xtdAABB, dstbb ) );
+				obj->ScaleVertices( TREVLERP( V3(0), m_xtdAABB[1] - m_xtdAABB[0], dstbb[1] - dstbb[0] ) );
+			}
+			else
+			{
+				// simple translation only
+				obj->SetPosition( obj->GetPosition() + m_transform );
+			}
+			obj->RegenerateMesh();
 		}
-		else
+		else if( go )
 		{
-			// simple translation only
-			obj->SetPosition( obj->GetPosition() + m_transform );
+			if( m_extend )
+			{
+				go->SetWorldPosition( ED_RemapPos( go->GetWorldPosition(), m_xtdAABB, dstbb ) );
+			}
+			else
+			{
+				go->SetWorldPosition( go->GetWorldPosition() + m_transform );
+			}
 		}
-		obj->RegenerateMesh();
 	}
 }
 
@@ -314,18 +355,23 @@ int EdVertexMoveTransform::ViewUI()
 
 void EdVertexMoveTransform::ApplyTransform()
 {
+	RestoreState();
+	
 	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
-		EdObject* obj = g_EdWorld->m_objects[ SO.id ];
 		ByteReader br( m_objectStateData, SO.offset );
-		obj->Serialize( br );
-		obj->MoveSelectedVertices( m_transform );
-		if( m_project )
+		
+		EdObject* obj = SO.idx.GetEdObject();
+		if( obj )
 		{
-			obj->ProjectSelectedVertices();
+			obj->MoveSelectedVertices( m_transform );
+			if( m_project )
+			{
+				obj->ProjectSelectedVertices();
+			}
+			obj->RegenerateMesh();
 		}
-		obj->RegenerateMesh();
 	}
 }
 
@@ -508,7 +554,7 @@ void EdDrawBlockEditMode::_AddNewBlock()
 
 
 EdEditBlockEditMode::EdEditBlockEditMode() :
-	m_selMask( 0xf )
+	m_selMask( SelMask_ALL )
 {}
 
 void EdEditBlockEditMode::OnEnter()
@@ -610,6 +656,7 @@ void EdEditBlockEditMode::ViewUI()
 		if( ImGui::IsKeyPressed( SDLK_2, false ) ) m_selMask ^= SelMask_Patches;
 		if( ImGui::IsKeyPressed( SDLK_3, false ) ) m_selMask ^= SelMask_Entities;
 		if( ImGui::IsKeyPressed( SDLK_4, false ) ) m_selMask ^= SelMask_MeshPaths;
+		if( ImGui::IsKeyPressed( SDLK_5, false ) ) m_selMask ^= SelMask_GameObjects;
 	}
 	
 	// TO VERTEX MODE
@@ -626,7 +673,6 @@ void EdEditBlockEditMode::ViewUI()
 	// PAINT
 	{
 		ImVec2 r0 = ImGui::GetWindowPos() + ImVec2( 1, 1 );
-		ImVec2 r1 = r0 + ImGui::GetWindowSize() - ImVec2( 2, 2 );
 		ImDrawList* idl = ImGui::GetWindowDrawList();
 		char bfr[ 1024 ];
 		
@@ -672,7 +718,8 @@ void EdEditBlockEditMode::EditUI()
 	ImGui::CheckboxFlags( "Blocks", &m_selMask, SelMask_Blocks ); ImGui::NextColumn();
 	ImGui::CheckboxFlags( "Patches", &m_selMask, SelMask_Patches ); ImGui::NextColumn();
 	ImGui::CheckboxFlags( "Entities", &m_selMask, SelMask_Entities ); ImGui::NextColumn();
-	ImGui::CheckboxFlags( "Mesh paths", &m_selMask, SelMask_MeshPaths );
+	ImGui::CheckboxFlags( "Mesh paths", &m_selMask, SelMask_MeshPaths ); ImGui::NextColumn();
+	ImGui::CheckboxFlags( "Game objects", &m_selMask, SelMask_GameObjects );
 	ImGui::Columns( 1 );
 	ImGui::Separator();
 	g_UIFrame->m_snapProps.EditUI();
@@ -866,15 +913,13 @@ int EdEditBlockEditMode::GetClosestActivePoint()
 
 void EdEditVertexEditMode::OnEnter()
 {
-	m_hlAP.block = -1;
+	m_hlAP.block = EdObjIdx();
 	m_hlAP.point = -1;
 	
 	m_selObjList.clear();
-	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+	for( size_t i = 0; i < g_EdWorld->m_selection.size(); ++i )
 	{
-		if( g_EdWorld->m_objects[ i ]->selected == false )
-			continue;
-		m_selObjList.push_back( i );
+		m_selObjList.push_back( g_EdWorld->m_selection.item( i ).key );
 	}
 }
 
@@ -882,9 +927,8 @@ bool EdEditVertexEditMode::_CanDo( ESpecialAction act )
 {
 	for( size_t b = 0; b < m_selObjList.size(); ++b )
 	{
-		int oid = m_selObjList[ b ];
-		EdObject* obj = g_EdWorld->m_objects[ oid ];
-		if( obj->CanDoSpecialAction( act ) )
+		EdObject* obj = m_selObjList[ b ].GetEdObject();
+		if( obj && obj->CanDoSpecialAction( act ) )
 			return true;
 	}
 	return false;
@@ -894,8 +938,9 @@ void EdEditVertexEditMode::_Do( ESpecialAction act )
 {
 	for( size_t b = 0; b < m_selObjList.size(); ++b )
 	{
-		int oid = m_selObjList[ b ];
-		EdObject* obj = g_EdWorld->m_objects[ oid ];
+		EdObject* obj = m_selObjList[ b ].GetEdObject();
+		if( !obj )
+			continue;
 		switch( act )
 		{
 		case SA_Extend:
@@ -937,13 +982,15 @@ void EdEditVertexEditMode::ViewUI()
 	{
 		for( size_t b = 0; b < m_selObjList.size(); ++b )
 		{
-			int oid = m_selObjList[ b ];
-			EdObject* obj = g_EdWorld->m_objects[ oid ];
-			
-			if( oid == m_hlAP.block )
-				obj->UISelectElement( m_hlAP.point, ctrldown );
-			else if( !ctrldown )
-				obj->ClearSelection();
+			EdObjIdx idx = m_selObjList[ b ];
+			EdObject* obj = idx.GetEdObject();
+			if( obj )
+			{
+				if( idx == m_hlAP.block )
+					obj->UISelectElement( m_hlAP.point, ctrldown );
+				else if( !ctrldown )
+					obj->ClearSelection();
+			}
 		}
 	}
 	
@@ -958,7 +1005,8 @@ void EdEditVertexEditMode::ViewUI()
 		{
 			for( size_t b = 0; b < m_selObjList.size(); ++b )
 			{
-				g_EdWorld->m_objects[ m_selObjList[ b ] ]->SpecialAction( satype );
+				if( m_selObjList[ b ].GetEdObject() )
+					m_selObjList[ b ].GetEdObject()->SpecialAction( satype );
 			}
 		}
 		
@@ -968,11 +1016,13 @@ void EdEditVertexEditMode::ViewUI()
 			bool sel = !altdown;
 			for( size_t b = 0; b < m_selObjList.size(); ++b )
 			{
-				int oid = m_selObjList[ b ];
-				EdObject* obj = g_EdWorld->m_objects[ oid ];
-				int numels = obj->GetNumElements();
-				for( int i = 0; i < numels; ++i )
-					obj->SelectElement( i, sel );
+				EdObject* obj = m_selObjList[ b ].GetEdObject();
+				if( obj )
+				{
+					int numels = obj->GetNumElements();
+					for( int i = 0; i < numels; ++i )
+						obj->SelectElement( i, sel );
+				}
 			}
 		}
 		
@@ -1044,42 +1094,45 @@ void EdEditVertexEditMode::EditUI()
 	// determine if anything can be shown
 	int numsurfselblocks = 0;
 	int numsurfexblocks = 0;
-	ActivePoint surfprops = { -1, -1 };
-	ActivePoint vertprops = { -1, -1 };
+	ActivePoint surfprops = { EdObjIdx(), -1 };
+	ActivePoint vertprops = { EdObjIdx(), -1 };
 	for( size_t b = 0; b < m_selObjList.size(); ++b )
 	{
-		int oid = m_selObjList[ b ];
-		EdObject* obj = g_EdWorld->m_objects[ oid ];
+		EdObjIdx idx = m_selObjList[ b ];
+		EdObject* obj = idx.GetEdObject();
 		
-		int nss = obj->GetNumSelectedSurfs();
-		numsurfselblocks += nss == 1;
-		numsurfexblocks += nss == 0 || nss == 1;
-		
-		int surf = obj->GetOnlySelectedSurface();
-		if( surf != -1 )
+		if( obj )
 		{
-			if( surfprops.block == -1 && surfprops.point == -1 )
+			int nss = obj->GetNumSelectedSurfs();
+			numsurfselblocks += nss == 1;
+			numsurfexblocks += nss == 0 || nss == 1;
+			
+			int surf = obj->GetOnlySelectedSurface();
+			if( surf != -1 )
 			{
-				surfprops.block = oid;
-				surfprops.point = surf;
+				if( surfprops.block.Valid() == false && surfprops.point == -1 )
+				{
+					surfprops.block = idx;
+					surfprops.point = surf;
+				}
+				else
+				{
+					surfprops.block = EdObjIdx();
+				}
 			}
-			else
+			
+			int vert = obj->GetOnlySelectedVertex();
+			if( vert != -1 )
 			{
-				surfprops.block = -1;
-			}
-		}
-		
-		int vert = obj->GetOnlySelectedVertex();
-		if( vert != -1 )
-		{
-			if( vertprops.block == -1 && vertprops.point == -1 )
-			{
-				vertprops.block = oid;
-				vertprops.point = vert;
-			}
-			else
-			{
-				vertprops.block = -1;
+				if( vertprops.block.Valid() == false && vertprops.point == -1 )
+				{
+					vertprops.block = idx;
+					vertprops.point = vert;
+				}
+				else
+				{
+					vertprops.block = EdObjIdx();
+				}
 			}
 		}
 	}
@@ -1092,13 +1145,13 @@ void EdEditVertexEditMode::EditUI()
 	m_moprops.Prepare( true );
 	m_moprops.EditUI();
 	
-	if( surfprops.block != -1 )
+	if( surfprops.block.Valid() )
 	{
 		ImGui::Separator();
 		g_EdWorld->SurfEditUI( surfprops.block, surfprops.point );
 	}
 	
-	if( vertprops.block != -1 )
+	if( vertprops.block.Valid() )
 	{
 		ImGui::Separator();
 		g_EdWorld->VertEditUI( vertprops.block, vertprops.point );
@@ -1107,74 +1160,70 @@ void EdEditVertexEditMode::EditUI()
 
 void EdEditVertexEditMode::Draw()
 {
-	g_EdWorld->DrawWires_Objects( m_hlAP.block != -1 ? (EdObject*) g_EdWorld->m_objects[ m_hlAP.block ] : NULL );
+	g_EdWorld->DrawWires_Objects( m_hlAP.block );
 	
-	if( g_UIFrame->m_editTF == NULL )
+	if( g_UIFrame->m_editTF )
+		return;
+	
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	for( size_t b = 0; b < m_selObjList.size(); ++b )
 	{
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		for( size_t b = 0; b < m_selObjList.size(); ++b )
+		EdObjIdx idx = m_selObjList[ b ];
+		EdObject* obj = idx.GetEdObject();
+		if( obj )
 		{
-			int oid = m_selObjList[ b ];
-			int bpcount = GetNumObjectActivePoints( oid );
+			int bpcount = obj->GetNumElements();
 			for( int i = 0; i < bpcount; ++i )
 			{
-				if( g_EdWorld->m_objects[ oid ]->IsElementSelected( i ) )
+				if( obj->IsElementSelected( i ) )
 				{
-					if( oid == m_hlAP.block && i == m_hlAP.point )
+					if( idx == m_hlAP.block && i == m_hlAP.point )
 						br.Col( 0.9f, 0.8f, 0.1f, 1 );
 					else
 						br.Col( 0.9f, 0.5f, 0.1f, 1 );
 				}
 				else
 				{
-					if( oid == m_hlAP.block && i == m_hlAP.point )
+					if( idx == m_hlAP.block && i == m_hlAP.point )
 						br.Col( 0.1f, 0.8f, 0.9f, 1 );
 					else
 						br.Col( 0.1f, 0.2f, 0.4f, 1 );
 				}
 				
-				Vec3 pp = GetActivePoint( oid, i );
+				Vec3 pp = obj->GetElementPoint( i );
 				br.Sprite( pp, 0.02f, 0.02f );
 			}
 		}
 	}
 }
 
-int EdEditVertexEditMode::GetNumObjectActivePoints( int b )
-{
-	EdObject* obj = g_EdWorld->m_objects[ b ];
-	return obj->GetNumElements();
-}
-
-Vec3 EdEditVertexEditMode::GetActivePoint( int b, int i )
-{
-	EdObject* obj = g_EdWorld->m_objects[ b ];
-	return obj->GetElementPoint( i );
-}
-
 EdEditVertexEditMode::ActivePoint EdEditVertexEditMode::GetClosestActivePoint()
 {
-	ActivePoint np = { -1, -1 };
+	ActivePoint np = { EdObjIdx(), -1 };
 	float minxydist = FLT_MAX;
 	Vec2 scp = ED_GetCursorPos();
 	Vec3 campos = g_EdScene->camera.position;
 	Vec3 camdir = g_EdScene->camera.direction;
 	for( size_t b = 0; b < m_selObjList.size(); ++b )
 	{
-		int oid = m_selObjList[ b ];
-		int bpcount = GetNumObjectActivePoints( oid );
-		for( int i = 0; i < bpcount; ++i )
+		EdObjIdx idx = m_selObjList[ b ];
+		EdObject* obj = idx.GetEdObject();
+		if( obj )
 		{
-			Vec3 ap = GetActivePoint( oid, i );
-			Vec2 sap = ED_GetScreenPos( ap );
-			
-			float curxydist = ( scp - sap ).Length();
-			float curzdist = Vec3Dot( ap, camdir ) - Vec3Dot( campos, camdir );
-			if( curzdist > 0 && curxydist < minxydist )
+			int bpcount = obj->GetNumElements();
+			for( int i = 0; i < bpcount; ++i )
 			{
-				np.block = oid;
-				np.point = i;
-				minxydist = curxydist;
+				Vec3 ap = obj->GetElementPoint( i );
+				Vec2 sap = ED_GetScreenPos( ap );
+				
+				float curxydist = ( scp - sap ).Length();
+				float curzdist = Vec3Dot( ap, camdir ) - Vec3Dot( campos, camdir );
+				if( curzdist > 0 && curxydist < minxydist )
+				{
+					np.block = idx;
+					np.point = i;
+					minxydist = curxydist;
+				}
 			}
 		}
 	}
@@ -1193,12 +1242,12 @@ void EdPaintVertsEditMode::OnEnter()
 	
 	m_selObjList.clear();
 	int pcount = 0;
-	for( size_t i = 0; i < g_EdWorld->m_objects.size(); ++i )
+	for( size_t i = 0; i < g_EdWorld->m_selection.size(); ++i )
 	{
-		if( g_EdWorld->m_objects[ i ]->selected == false )
-			continue;
-		pcount += g_EdWorld->m_objects[ i ]->GetNumPaintVerts();
-		m_selObjList.push_back( i );
+		EdObjIdx idx = g_EdWorld->m_selection.item( i ).key;
+		if( idx.GetEdObject() )
+			pcount += idx.GetEdObject()->GetNumPaintVerts();
+		m_selObjList.push_back( idx );
 	}
 	m_originalVerts.resize( pcount );
 	
@@ -1258,42 +1307,33 @@ void EdPaintVertsEditMode::EditUI()
 	}
 }
 
-int EdPaintVertsEditMode::GetNumObjectActivePoints( int b )
-{
-	EdObject* obj = g_EdWorld->m_objects[ b ];
-	return obj->GetNumElements();
-}
-
-Vec3 EdPaintVertsEditMode::GetActivePoint( int b, int i )
-{
-	EdObject* obj = g_EdWorld->m_objects[ b ];
-	return obj->GetElementPoint( i );
-}
-
 void EdPaintVertsEditMode::Draw()
 {
-	g_EdWorld->DrawWires_Objects( NULL, true );
+	g_EdWorld->DrawWires_Objects( EdObjIdx(), true );
 	
-	if( g_UIFrame->m_editTF == NULL )
+	if( g_UIFrame->m_editTF )
+		return;
+	
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	
+	Vec3 pos = V3(FLT_MAX);
+	Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
+	Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
+	float outdst[1];
+	if( g_EdWorld->RayObjectsIntersect( cursorRayPos, cursorRayDir, EdObjIdx(), outdst, NULL, NULL, SelMask_Patches ) )
 	{
-		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
-		
-		Vec3 pos = V3(FLT_MAX);
-		Vec3 cursorRayPos = g_UIFrame->GetCursorRayPos();
-		Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
-		float outdst[1];
-		if( g_EdWorld->RayPatchesIntersect( cursorRayPos, cursorRayDir, -1, outdst, NULL ) )
+		pos = cursorRayPos + cursorRayDir * outdst[0];
+		br.Col( 0.9f, 0.1f, 0.01f, 0.5f );
+		br.SphereOutline( pos, m_paintProps.radius * powf( 0.5f, m_paintProps.falloff ), 32 );
+		br.Col( 0.9f, 0.1f, 0.01f );
+		br.SphereOutline( pos, m_paintProps.radius, 32 );
+	}
+	
+	for( size_t i = 0; i < m_selObjList.size(); ++i )
+	{
+		EdObject* obj = m_selObjList[ i ].GetEdObject();
+		if( obj )
 		{
-			pos = cursorRayPos + cursorRayDir * outdst[0];
-			br.Col( 0.9f, 0.1f, 0.01f, 0.5f );
-			br.SphereOutline( pos, m_paintProps.radius * powf( 0.5f, m_paintProps.falloff ), 32 );
-			br.Col( 0.9f, 0.1f, 0.01f );
-			br.SphereOutline( pos, m_paintProps.radius, 32 );
-		}
-		
-		for( size_t i = 0; i < m_selObjList.size(); ++i )
-		{
-			EdObject* obj = g_EdWorld->m_objects[ m_selObjList[ i ] ];
 			int vcount = obj->GetNumPaintVerts();
 			for( int v = 0; v < vcount; ++v )
 			{
@@ -1317,13 +1357,16 @@ void EdPaintVertsEditMode::_TakeSnapshot()
 	int off = 0;
 	for( size_t i = 0; i < m_selObjList.size(); ++i )
 	{
-		EdObject* obj = g_EdWorld->m_objects[ m_selObjList[ i ] ];
-		int vcount = obj->GetNumPaintVerts();
-		for( int v = 0; v < vcount; ++v )
+		EdObject* obj = m_selObjList[ i ].GetEdObject();
+		if( obj )
 		{
-			PaintVertex pv = { V3(0), V4(1), 0 };
-			obj->GetPaintVertex( v, layer_id, pv.pos, pv.col );
-			m_originalVerts[ off++ ] = pv;
+			int vcount = obj->GetNumPaintVerts();
+			for( int v = 0; v < vcount; ++v )
+			{
+				PaintVertex pv = { V3(0), V4(1), 0 };
+				obj->GetPaintVertex( v, layer_id, pv.pos, pv.col );
+				m_originalVerts[ off++ ] = pv;
+			}
 		}
 	}
 }
@@ -1334,36 +1377,39 @@ void EdPaintVertsEditMode::_DoPaint()
 	Vec3 cursorRayDir = g_UIFrame->GetCursorRayDir();
 	
 	float outdst[1];
-	if( g_EdWorld->RayPatchesIntersect( cursorRayPos, cursorRayDir, -1, outdst, NULL ) )
+	if( g_EdWorld->RayObjectsIntersect( cursorRayPos, cursorRayDir, EdObjIdx(), outdst, NULL, NULL, SelMask_Patches ) )
 	{
 		Vec3 pos = cursorRayPos + cursorRayDir * outdst[0];
 		int layer_id = m_paintProps.layerNum;
 		int off = 0;
 		for( size_t i = 0; i < m_selObjList.size(); ++i )
 		{
-			EdObject* obj = g_EdWorld->m_objects[ m_selObjList[ i ] ];
-			int vcount = obj->GetNumPaintVerts();
-			for( int v = 0; v < vcount; ++v )
+			EdObject* obj = m_selObjList[ i ].GetEdObject();
+			if( obj )
 			{
-				Vec3 vpos;
-				Vec4 vcol;
-				obj->GetPaintVertex( v, layer_id, vpos, vcol );
-				PaintVertex& PV = m_originalVerts[ off++ ];
-				float q = m_paintProps.GetDistanceFactor( vpos, pos ) / 60.0f; // assuming FPS limit - TODO FIX
-				PV.factor += q;
-				vpos = PV.pos;
-				vcol = PV.col;
-				m_paintProps.Paint( vpos, -cursorRayDir, vcol, PV.factor );
-				obj->SetPaintVertex( v, layer_id, vpos, vcol );
+				int vcount = obj->GetNumPaintVerts();
+				for( int v = 0; v < vcount; ++v )
+				{
+					Vec3 vpos;
+					Vec4 vcol;
+					obj->GetPaintVertex( v, layer_id, vpos, vcol );
+					PaintVertex& PV = m_originalVerts[ off++ ];
+					float q = m_paintProps.GetDistanceFactor( vpos, pos ) / 60.0f; // assuming FPS limit - TODO FIX
+					PV.factor += q;
+					vpos = PV.pos;
+					vcol = PV.col;
+					m_paintProps.Paint( vpos, -cursorRayDir, vcol, PV.factor );
+					obj->SetPaintVertex( v, layer_id, vpos, vcol );
+				}
+				obj->RegenerateMesh();
 			}
-			obj->RegenerateMesh();
 		}
 	}
 }
 
 
 EdPaintSurfsEditMode::EdPaintSurfsEditMode() :
-	m_paintBlock( -1 ),
+	m_paintBlock( EdObjIdx() ),
 	m_paintSurf( -1 ),
 	m_isPainting( false )
 {
@@ -1372,7 +1418,7 @@ EdPaintSurfsEditMode::EdPaintSurfsEditMode() :
 
 void EdPaintSurfsEditMode::OnEnter()
 {
-	m_paintBlock = -1;
+	m_paintBlock = EdObjIdx();
 	m_paintSurf = -1;
 	m_isPainting = false;
 }
@@ -1391,22 +1437,26 @@ void EdPaintSurfsEditMode::ViewUI()
 			ImGui::ResetMouseDragDelta( 0 );
 		
 		float outdst[1];
-		int outblock[1];
-		m_paintBlock = -1;
-		if( g_EdWorld->RayBlocksIntersect( cursorRayPos, cursorRayDir, m_paintBlock, outdst, outblock ) )
-			m_paintBlock = outblock[0];
-		m_paintSurf = -1;
-		if( m_paintBlock >= 0 && g_EdWorld->m_blocks[ m_paintBlock ]->RayIntersect( cursorRayPos, cursorRayDir, outdst, outblock ) )
-			m_paintSurf = outblock[0];
+		EdObjIdx outblock[1];
+		int outsurf[1];
 		
-		if( ImGui::IsKeyPressed( SDLK_g, false ) && m_paintBlock >= 0 && m_paintSurf >= 0 )
+		m_paintBlock = EdObjIdx();
+		if( g_EdWorld->RayObjectsIntersect( cursorRayPos, cursorRayDir, m_paintBlock, outdst, outblock, NULL, SelMask_Blocks ) )
+			m_paintBlock = outblock[0];
+		SGRX_CAST( EdBlock*, B, m_paintBlock.GetEdObject() );
+		
+		m_paintSurf = -1;
+		if( B && B->RayIntersect( cursorRayPos, cursorRayDir, outdst, outsurf ) )
+			m_paintSurf = outsurf[0];
+		
+		if( ImGui::IsKeyPressed( SDLK_g, false ) && B && m_paintSurf >= 0 )
 		{
-			m_paintSurfTemplate = *g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ];
+			m_paintSurfTemplate = *B->surfaces[ m_paintSurf ];
 		}
-		if( dopaint && m_paintBlock >= 0 && m_paintSurf >= 0 )
+		if( dopaint && B && m_paintSurf >= 0 )
 		{
-			*g_EdWorld->m_blocks[ m_paintBlock ]->surfaces[ m_paintSurf ] = m_paintSurfTemplate;
-			g_EdWorld->m_blocks[ m_paintBlock ]->RegenerateMesh();
+			*B->surfaces[ m_paintSurf ] = m_paintSurfTemplate;
+			B->RegenerateMesh();
 		}
 	}
 }
@@ -1418,7 +1468,7 @@ void EdPaintSurfsEditMode::EditUI()
 
 void EdPaintSurfsEditMode::Draw()
 {
-	if( m_paintBlock >= 0 && m_paintSurf >= 0 )
+	if( m_paintBlock.Valid() && m_paintSurf >= 0 )
 	{
 		g_EdWorld->DrawPoly_BlockSurf( m_paintBlock, m_paintSurf, m_isPainting );
 	}
@@ -1453,7 +1503,7 @@ void EdAddEntityEditMode::EditUI()
 
 void EdAddEntityEditMode::Draw()
 {
-	g_EdWorld->DrawWires_Entities( NULL );
+	g_EdWorld->DrawWires_Entities( EdObjIdx() );
 	g_UIFrame->DrawCursor( false );
 }
 

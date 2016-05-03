@@ -362,7 +362,7 @@ void EdObject::ProjectSelectedVertices()
 {
 	Vec3 origin = g_EdScene->camera.position;
 	int numverts = GetNumVerts();
-	EdObject* skiplist[2] = { this, NULL };
+	EdObjIdx skiplist[2] = { this, EdObjIdx() };
 	for( int i = 0; i < numverts; ++i )
 	{
 		if( IsVertexSelected( i ) == false )
@@ -373,8 +373,9 @@ void EdObject::ProjectSelectedVertices()
 		Vec3 dir = ( pos - origin ).Normalized();
 		float dst = FLT_MAX;
 		float ndst = 0;
-		if( g_EdWorld->RayBlocksIntersect( origin, dir, -1, &ndst, NULL, skiplist ) && ndst < dst ) dst = ndst;
-		if( g_EdWorld->RayPatchesIntersect( origin, dir, -1, &ndst, NULL, skiplist ) && ndst < dst ) dst = ndst;
+		int mask = SelMask_Blocks | SelMask_Patches;
+		if( g_EdWorld->RayObjectsIntersect( origin, dir, EdObjIdx(), &ndst, NULL, skiplist, mask ) && ndst < dst )
+			dst = ndst;
 		
 		if( dst < FLT_MAX )
 		{
@@ -686,7 +687,8 @@ void EdWorld::Reset()
 	m_nextID = 0;
 	m_info = EdWorldBasicInfo();
 	m_lighting = EdWorldLightingInfo();
-	g_UIFrame->OnDeleteObjects();
+	if( g_UIFrame )
+		g_UIFrame->OnDeleteObjects();
 }
 
 void EdWorld::TestData()
@@ -717,6 +719,17 @@ void EdWorld::TestData()
 	RegenerateMeshes();
 }
 
+
+void EdWorld::GetAllObjects( EdObjIdxArray& out )
+{
+	out.reserve( m_edobjs.size() + g_Level->m_gameObjects.size() );
+	out.clear();
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
+		out.push_back( m_edobjs[ i ].item );
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+		out.push_back( g_Level->m_gameObjects[ i ] );
+}
+
 void EdWorld::RegenerateMeshes()
 {
 	for( size_t i = 0; i < m_edobjs.size(); ++i )
@@ -737,12 +750,13 @@ void EdWorld::ReloadCLUT()
 	g_Level->GetScene()->clutTexture = t;
 }
 
-void EdWorld::DrawWires_Objects( EdObject* hl, bool tonedown )
+void EdWorld::DrawWires_Objects( const EdObjIdx& hl, bool tonedown )
 {
 	DrawWires_Blocks( hl );
 	DrawWires_Patches( hl, tonedown );
 	DrawWires_Entities( hl );
 	DrawWires_MeshPaths( hl );
+	DrawWires_GameObjects( hl );
 }
 
 void EdWorld::DrawWires_Blocks( const EdObjIdx& hl )
@@ -788,8 +802,12 @@ void EdWorld::DrawWires_Blocks( const EdObjIdx& hl )
 	GR2D_SetWorldMatrix( Mat4::Identity );
 }
 
-void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
+void EdWorld::DrawPoly_BlockSurf( const EdObjIdx& block, int surf, bool sel )
 {
+	if( block.type != ObjType_Block )
+		return;
+	const EdBlock& B = *(EdBlock*)block.GetEdObject();
+	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	br.SetPrimitiveType( PT_TriangleStrip ).UnsetTexture();
@@ -799,7 +817,6 @@ void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 	else
 		br.Col( 0.1f, 0.5, 0.9f, 0.1f );
 	
-	const EdBlock& B = *m_blocks[ block ];
 	GR2D_SetWorldMatrix( GetGroupMatrix( B.group ) );
 	if( surf == (int) B.poly.size() )
 	{
@@ -842,8 +859,12 @@ void EdWorld::DrawPoly_BlockSurf( int block, int surf, bool sel )
 	GR2D_SetWorldMatrix( Mat4::Identity );
 }
 
-void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
+void EdWorld::DrawPoly_BlockVertex( const EdObjIdx& block, int vert, bool sel )
 {
+	if( block.type != ObjType_Block )
+		return;
+	const EdBlock& B = *(EdBlock*)block.GetEdObject();
+	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
@@ -853,7 +874,6 @@ void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
 	else
 		br.Col( 0.1f, 0.5, 0.9f, 0.5f );
 	
-	const EdBlock& B = *m_blocks[ block ];
 	GR2D_SetWorldMatrix( GetGroupMatrix( B.group ) );
 	Vec3 P = V3( B.poly[ vert ].x + B.position.x, B.poly[ vert ].y + B.position.y, B.z0 + B.position.z );
 	
@@ -863,20 +883,23 @@ void EdWorld::DrawPoly_BlockVertex( int block, int vert, bool sel )
 	br.Pos( P - V3(s,0,0) ).Pos( P + V3(0,s,0) ).Prev(0).Pos( P + V3(s,0,0) ).Prev(0).Pos( P - V3(0,s,0) ).Prev(0).Prev(6);
 }
 
-void EdWorld::DrawWires_Patches( EdObject* hl, bool tonedown )
+void EdWorld::DrawWires_Patches( const EdObjIdx& hl, bool tonedown )
 {
 	float ga = tonedown ? 0.5f : 1;
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
 	br.SetPrimitiveType( PT_Lines ).UnsetTexture();
-	for( size_t i = 0; i < m_patches.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		EdPatch* ptc = m_patches[ i ];
+		if( m_edobjs[ i ]->m_type != ObjType_Patch )
+			continue;
+		SGRX_CAST( EdPatch*, ptc, m_edobjs[ i ].item );
+		
 		GR2D_SetWorldMatrix( GetGroupMatrix( ptc->group ) );
 		
-		if( ptc->selected )
+		if( m_selection.isset( ptc ) )
 			br.Col( 0.9f, 0.5, 0.1f, 0.9f * ga );
-		else if( ptc == hl )
+		else if( EdObjIdx(ptc) == hl )
 			br.Col( 0.1f, 0.5, 0.9f, 0.7f * ga );
 		else
 			br.Col( 0.1f, 0.5, 0.9f, 0.25f * ga );
@@ -921,17 +944,20 @@ void EdWorld::DrawWires_Patches( EdObject* hl, bool tonedown )
 	GR2D_SetWorldMatrix( Mat4::Identity );
 }
 
-void EdWorld::DrawWires_Entities( EdObject* hl )
+void EdWorld::DrawWires_Entities( const EdObjIdx& hl )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
 	br.SetPrimitiveType( PT_Lines );
-	for( size_t i = 0; i < m_entities.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		EdEntity* ent = m_entities[ i ];
-		if( ent->selected )
+		if( m_edobjs[ i ]->m_type != ObjType_Entity )
+			continue;
+		SGRX_CAST( EdEntity*, ent, m_edobjs[ i ].item );
+		
+		if( m_selection.isset( ent ) )
 			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
-		else if( ent == hl )
+		else if( EdObjIdx(ent) == hl )
 			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
 		else
 			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
@@ -947,36 +973,47 @@ void EdWorld::DrawWires_Entities( EdObject* hl )
 	Vec3 axes[2] = { iv.TransformNormal( V3(1,0,0) ), iv.TransformNormal( V3(0,1,0) ) };
 	
 	br.Col( 1 );
-	for( size_t i = 0; i < m_entities.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		br.SetTexture( m_entities[ i ]->m_iconTex );
-		br.Sprite( m_entities[ i ]->Pos(), axes[0]*0.1f, axes[1]*0.1f );
+		if( m_edobjs[ i ]->m_type != ObjType_Entity )
+			continue;
+		SGRX_CAST( EdEntity*, ent, m_edobjs[ i ].item );
+		
+		br.SetTexture( ent->m_iconTex );
+		br.Sprite( ent->Pos(), axes[0]*0.1f, axes[1]*0.1f );
 	}
 	
 	// debug draw highlighted/selected entities
-	for( size_t i = 0; i < m_entities.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		EdEntity* ent = m_entities[ i ];
-		if( ent->selected )
-			m_entities[ i ]->DebugDraw();
+		if( m_edobjs[ i ]->m_type != ObjType_Entity )
+			continue;
+		SGRX_CAST( EdEntity*, ent, m_edobjs[ i ].item );
+		
+		if( m_selection.isset( ent ) )
+			ent->DebugDraw();
 	}
-	if( hl && hl->selected == false && hl->m_type == ObjType_Entity )
-		((EdEntity*)hl)->DebugDraw();
+	if( hl.GetEdObject() &&
+		hl.GetEdObject()->m_type == ObjType_Entity &&
+		!m_selection.isset( hl ) )
+		((EdEntity*)hl.GetEdObject())->DebugDraw();
 	
 	br.Flush();
 }
 
-void EdWorld::DrawWires_MeshPaths( EdObject* hl )
+void EdWorld::DrawWires_MeshPaths( const EdObjIdx& hl )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
 	br.SetPrimitiveType( PT_Lines );
-	for( size_t i = 0; i < m_mpaths.size(); ++i )
+	for( size_t i = 0; i < m_edobjs.size(); ++i )
 	{
-		EdMeshPath* mp = m_mpaths[ i ];
-		if( mp->selected )
+		if( m_edobjs[ i ]->m_type != ObjType_MeshPath )
+			continue;
+		SGRX_CAST( EdMeshPath*, mp, m_edobjs[ i ].item );
+		if( m_selection.isset( mp ) )
 			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
-		else if( mp == hl )
+		else if( EdObjIdx(mp) == hl )
 			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
 		else
 			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
@@ -995,10 +1032,39 @@ void EdWorld::DrawWires_MeshPaths( EdObject* hl )
 	}
 }
 
-
-static bool ObjInArray( EdObject* obj, EdObject** list )
+void EdWorld::DrawWires_GameObjects( const EdObjIdx& hl )
 {
-	while( *list )
+	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+	{
+		GameObject* obj = g_Level->m_gameObjects[ i ];
+		bool ishl = EdObjIdx(obj) == hl;
+		bool issel = m_selection.isset( obj );
+		if( ishl && issel )
+			br.Col( 0.9f, 0.5, 0.9f, 0.7f );
+		else if( ishl )
+			br.Col( 0.1f, 0.5, 0.9f, 0.7f );
+		else if( issel )
+			br.Col( 0.9f, 0.5, 0.1f, 0.9f );
+		else
+			br.Col( 0.1f, 0.5, 0.9f, 0.25f );
+		br.SphereOutline( obj->GetWorldPosition(), 0.2f, 32 );
+	}
+	
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+	{
+		GameObject* obj = g_Level->m_gameObjects[ i ];
+		if( m_selection.isset( obj ) )
+			obj->EditorDrawWorld();
+		else if( EdObjIdx(obj) == hl )
+			obj->EditorDrawWorld();
+	}
+}
+
+
+static bool ObjInArray( const EdObjIdx& obj, EdObjIdx* list )
+{
+	while( list->Valid() )
 	{
 		if( obj == *list )
 			return true;
@@ -1006,27 +1072,48 @@ static bool ObjInArray( EdObject* obj, EdObject** list )
 	}
 	return false;
 }
-template< typename T > bool _RayIntersect( T& item, const Vec3& pos, const Vec3& dir, float outdst[1] )
+bool _RayIntersect( const EdObjIdx& item, const Vec3& pos, const Vec3& dir, float outdst[1] )
 {
-	return item->RayIntersect( pos, dir, outdst );
+	if( item.GetGameObject() )
+		return RaySphereIntersect( pos, dir, item.GetGameObject()->GetWorldPosition(), 0.2f, outdst );
+	else if( item.GetEdObject() )
+		return item.GetEdObject()->RayIntersect( pos, dir, outdst );
+	return false;
 }
-int Obj2Mask( EdObject* obj )
+int Obj2Mask( const EdObjIdx& idx )
 {
-	if( obj->m_type == ObjType_Block ) return SelMask_Blocks;
-	if( obj->m_type == ObjType_Patch ) return SelMask_Patches;
-	if( obj->m_type == ObjType_MeshPath ) return SelMask_MeshPaths;
-	if( obj->m_type == ObjType_Entity ) return SelMask_Entities;
+	if( idx.type == ObjType_Block ) return SelMask_Blocks;
+	if( idx.type == ObjType_Patch ) return SelMask_Patches;
+	if( idx.type == ObjType_MeshPath ) return SelMask_MeshPaths;
+	if( idx.type == ObjType_Entity ) return SelMask_Entities;
+	if( idx.type == ObjType_GameObject ) return SelMask_GameObjects;
 	return 0;
 }
-//bool _RayIntersect( EdBlock& B, const Vec3& pos, const Vec3& dir, float outdst[1] ){ return B.RayIntersect( pos, dir, outdst ); }
-template< class T > bool RayItemsIntersect( T& items,
-	const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outitem[1], EdObject** skip, int mask )
+
+bool EdWorld::RayObjectsIntersect( const Vec3& pos, const Vec3& dir,
+	EdObjIdx searchfrom, float outdst[1], EdObjIdx outobj[1], EdObjIdx* skip, int mask )
 {
+	EdObjIdxArray items;
+	GetAllObjects( items );
+	
 	float ndst[1], mindst = FLT_MAX;
 	int curblk = -1;
-	if( searchfrom < 0 )
-		searchfrom = items.size();
-	for( int i = searchfrom - 1; i >= 0; --i )
+	
+	int searchpoint = 0;
+	if( searchfrom.Valid() )
+	{
+		for( int i = 0; i < (int) items.size(); ++i )
+		{
+			if( items[ i ] == searchfrom )
+			{
+				searchpoint = i;
+				break;
+			}
+		}
+	}
+	
+	// search after starting point in reverse
+	for( int i = searchpoint - 1; i >= 0; --i )
 	{
 		if( skip && ObjInArray( items[ i ], skip ) )
 			continue;
@@ -1038,7 +1125,9 @@ template< class T > bool RayItemsIntersect( T& items,
 			mindst = ndst[0];
 		}
 	}
-	for( int i = items.size() - 1; i >= searchfrom; --i )
+	
+	// continue search from other end until starting point in reverse
+	for( int i = items.size() - 1; i >= searchpoint; --i )
 	{
 		if( skip && ObjInArray( items[ i ], skip ) )
 			continue;
@@ -1050,29 +1139,10 @@ template< class T > bool RayItemsIntersect( T& items,
 			mindst = ndst[0];
 		}
 	}
+	
 	if( outdst ) outdst[0] = mindst;
-	if( outitem ) outitem[0] = curblk;
+	if( outobj ) outobj[0] = curblk >= 0 ? items[ curblk ] : EdObjIdx();
 	return curblk != -1;
-}
-
-bool EdWorld::RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outobj[1], EdObject** skip, int mask )
-{
-	return RayItemsIntersect( m_objects, pos, dir, searchfrom, outdst, outobj, skip, mask );
-}
-
-bool EdWorld::RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outblock[1], EdObject** skip, int mask )
-{
-	return RayItemsIntersect( m_blocks, pos, dir, searchfrom, outdst, outblock, skip, mask );
-}
-
-bool EdWorld::RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip, int mask )
-{
-	return RayItemsIntersect( m_entities, pos, dir, searchfrom, outdst, outent, skip, mask );
-}
-
-bool EdWorld::RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom, float outdst[1], int outent[1], EdObject** skip, int mask )
-{
-	return RayItemsIntersect( m_patches, pos, dir, searchfrom, outdst, outent, skip, mask );
 }
 
 void EdWorld::AddObject( EdObject* obj, bool regen )
@@ -1098,7 +1168,7 @@ void EdWorld::DeleteObject( EdObjIdx idx, bool update )
 		m_edobjs.remove_first( idx.edobj );
 	}
 	
-	if( update )
+	if( update && g_UIFrame )
 		g_UIFrame->OnDeleteObjects();
 }
 
@@ -1111,7 +1181,8 @@ void EdWorld::DeleteSelectedObjects()
 	for( size_t i = 0; i < sel.size(); ++i )
 		DeleteObject( sel[ i ], false );
 	
-	g_UIFrame->OnDeleteObjects();
+	if( g_UIFrame )
+		g_UIFrame->OnDeleteObjects();
 }
 
 bool EdWorld::DuplicateSelectedObjectsAndMoveSelection()

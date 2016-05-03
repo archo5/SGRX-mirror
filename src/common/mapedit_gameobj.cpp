@@ -197,6 +197,24 @@ void EDGO_EditUI( GameObject* obj )
 	IMGUI_GROUP_END;
 }
 
+void EDGO_SerializeSpatial( GameObject* obj, ByteWriter& bw )
+{
+	Vec3 pos = obj->GetLocalPosition();
+	Quat rot = obj->GetLocalRotation();
+	Vec3 scl = obj->GetLocalScale();
+	bw << pos << rot << scl;
+}
+
+void EDGO_SerializeSpatial( GameObject* obj, ByteReader& br )
+{
+	Vec3 pos, scl;
+	Quat rot;
+	br << pos << rot << scl;
+	obj->SetLocalPosition( pos );
+	obj->SetLocalRotation( rot );
+	obj->SetLocalScale( scl );
+}
+
 GameObject* EDGO_FLoad( sgsVariable data )
 {
 	GameObject* obj = g_Level->CreateGameObject();

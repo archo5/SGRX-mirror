@@ -1493,6 +1493,8 @@ struct EdEntList
 
 bool EDGO_RayIntersect( GameObject* obj, Vec3 rpos, Vec3 rdir, float outdst[1] );
 void EDGO_EditUI( GameObject* obj );
+void EDGO_SerializeSpatial( GameObject* obj, ByteReader& br );
+void EDGO_SerializeSpatial( GameObject* obj, ByteWriter& bw );
 GameObject* EDGO_FLoad( sgsVariable data );
 sgsVariable EDGO_FSave( GameObject* obj );
 
@@ -1578,7 +1580,8 @@ enum SelectionMask
 	SelMask_Patches = 0x2,
 	SelMask_Entities = 0x4,
 	SelMask_MeshPaths = 0x8,
-	SelMask_ALL = 0xf
+	SelMask_GameObjects = 0x10,
+	SelMask_ALL = 0x1f
 };
 
 struct EdObjIdx
@@ -1597,7 +1600,7 @@ struct EdObjIdx
 	EdObject* GetEdObject() const { return type != ObjType_NONE && type != ObjType_GameObject ? edobj : NULL; }
 	GameObject* GetGameObject() const { return type == ObjType_GameObject ? gameobj : NULL; }
 	bool Valid() const { return type != ObjType_NONE; }
-	bool operator == ( const EdObjIdx& o ){ return type == o.type && ptr == o.ptr; }
+	bool operator == ( const EdObjIdx& o ) const { return type == o.type && ptr == o.ptr; }
 };
 inline Hash HashVar( const EdObjIdx& idx )
 {
@@ -1621,21 +1624,17 @@ struct EdWorld
 	
 	void GetAllObjects( EdObjIdxArray& out );
 	void RegenerateMeshes();
-	void DrawWires_Objects( EdObject* hl, bool tonedown = false );
+	void DrawWires_Objects( const EdObjIdx& hl, bool tonedown = false );
 	void DrawWires_Blocks( const EdObjIdx& hl );
-	void DrawPoly_BlockSurf( int block, int surf, bool sel );
-	void DrawPoly_BlockVertex( int block, int vert, bool sel );
-	void DrawWires_Patches( EdObject* hl, bool tonedown = false );
-	void DrawWires_Entities( EdObject* hl );
-	void DrawWires_MeshPaths( EdObject* hl );
-	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
-		float outdst[1], int outobj[1], EdObject** skip = NULL, int mask = SelMask_ALL );
-	bool RayBlocksIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
-		float outdst[1], int outblock[1], EdObject** skip = NULL, int mask = SelMask_ALL );
-	bool RayEntitiesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
-		float outdst[1], int outent[1], EdObject** skip = NULL, int mask = SelMask_ALL );
-	bool RayPatchesIntersect( const Vec3& pos, const Vec3& dir, int searchfrom,
-		float outdst[1], int outent[1], EdObject** skip = NULL, int mask = SelMask_ALL );
+	void DrawPoly_BlockSurf( const EdObjIdx& block, int surf, bool sel );
+	void DrawPoly_BlockVertex( const EdObjIdx& block, int vert, bool sel );
+	void DrawWires_Patches( const EdObjIdx& hl, bool tonedown = false );
+	void DrawWires_Entities( const EdObjIdx& hl );
+	void DrawWires_MeshPaths( const EdObjIdx& hl );
+	void DrawWires_GameObjects( const EdObjIdx& hl );
+	
+	bool RayObjectsIntersect( const Vec3& pos, const Vec3& dir, EdObjIdx searchfrom,
+		float outdst[1], EdObjIdx outobj[1], EdObjIdx* skip = NULL, int mask = SelMask_ALL );
 	
 //	EdEntity* CreateScriptedEntity( const StringView& name, sgsVariable params );
 	void AddObject( EdObject* obj, bool regen = true );
@@ -1664,27 +1663,34 @@ struct EdWorld
 	LC_Light GetDirLightInfo();
 	
 	void EditUI();
-#if TODO
-	void VertEditUI( size_t oid, size_t vid )
+	
+	void VertEditUI( EdObjIdx idx, size_t vid )
 	{
-		ImGui::BeginChangeCheck();
-		m_objects[ oid ]->VertEditUI( vid );
-		if( ImGui::EndChangeCheck() )
-			m_objects[ oid ]->RegenerateMesh();
-	}
-	void SurfEditUI( size_t oid, size_t sid )
-	{
-		EdObject* obj = m_objects[ oid ];
-		ImGui::BeginChangeCheck();
-		if( obj->m_type == ObjType_Block )
+		EdObject* obj = idx.GetEdObject();
+		if( obj )
 		{
-			SGRX_CAST( EdBlock*, B, obj );
-			B->surfaces[ sid ]->EditUI( B, sid );
+			ImGui::BeginChangeCheck();
+			obj->VertEditUI( vid );
+			if( ImGui::EndChangeCheck() )
+				obj->RegenerateMesh();
 		}
-		if( ImGui::EndChangeCheck() )
-			m_objects[ oid ]->RegenerateMesh();
 	}
-#endif
+	void SurfEditUI( EdObjIdx idx, size_t sid )
+	{
+		EdObject* obj = idx.GetEdObject();
+		if( obj )
+		{
+			ImGui::BeginChangeCheck();
+			if( obj->m_type == ObjType_Block )
+			{
+				SGRX_CAST( EdBlock*, B, obj );
+				B->surfaces[ sid ]->EditUI( B, sid );
+			}
+			if( ImGui::EndChangeCheck() )
+				obj->RegenerateMesh();
+		}
+	}
+	
 	Mat4 GetGroupMatrix( int grp ){ return m_groupMgr.GetMatrix( grp ); }
 	
 	void SetEntityID( EdEntity* e );
@@ -1762,7 +1768,7 @@ struct EdBlockEditTransform : EdBasicEditTransform
 	};
 	struct SavedObject
 	{
-		int id;
+		EdObjIdx idx;
 		int offset;
 	};
 	
@@ -1873,7 +1879,7 @@ struct EdEditVertexEditMode : EdEditMode
 {
 	struct ActivePoint
 	{
-		int block;
+		EdObjIdx block;
 		int point;
 	};
 	
@@ -1884,13 +1890,11 @@ struct EdEditVertexEditMode : EdEditMode
 	void EditUI();
 	void Draw();
 	
-	int GetNumObjectActivePoints( int b );
-	Vec3 GetActivePoint( int b, int i );
 	ActivePoint GetClosestActivePoint();
 	
 	bool m_canExtendSurfs;
 	ActivePoint m_hlAP;
-	Array< int > m_selObjList;
+	Array< EdObjIdx > m_selObjList;
 	EdVertexMoveTransform m_transform;
 	EdMultiObjectProps m_moprops;
 };
@@ -1912,11 +1916,8 @@ struct EdPaintVertsEditMode : EdEditMode
 	void _TakeSnapshot();
 	void _DoPaint();
 	
-	int GetNumObjectActivePoints( int b );
-	Vec3 GetActivePoint( int b, int i );
-	
 	bool m_isPainting;
-	Array< int > m_selObjList;
+	Array< EdObjIdx > m_selObjList;
 	Array< PaintVertex > m_originalVerts;
 	EdPaintProps m_paintProps;
 };
@@ -1929,7 +1930,7 @@ struct EdPaintSurfsEditMode : EdEditMode
 	void EditUI();
 	void Draw();
 	
-	int m_paintBlock;
+	EdObjIdx m_paintBlock;
 	int m_paintSurf;
 	bool m_isPainting;
 	EdSurface m_paintSurfTemplate;
