@@ -15,6 +15,15 @@ function ED_ISAVE.EditBool( lbl, obj, prop )
 	ED_SDATA[ prop ] = tobool( obj.(prop) );
 }
 
+function ED_ILOAD.EditInt( lbl, obj, prop, vmin, vmax )
+{
+	obj.(prop) = toint( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.EditInt( lbl, obj, prop, vmin, vmax )
+{
+	ED_SDATA[ prop ] = toint( obj.(prop) );
+}
+
 function ED_ILOAD.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
 	obj.(prop) = toreal( ED_SDATA[ prop ] );
@@ -22,6 +31,26 @@ function ED_ILOAD.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
 	ED_SDATA[ prop ] = toreal( obj.(prop) );
+}
+
+function ED_ILOAD.EditXFMat4( lbl, obj, prop )
+{
+	a = ED_SDATA[ prop ];
+	m = mat4();
+	if( a != null )
+	{
+		for( i = 0; i < 16; ++i )
+			m[ i ] = a[ i ];
+	}
+	obj.(prop) = m;
+}
+function ED_ISAVE.EditXFMat4( lbl, obj, prop )
+{
+	m = obj.(prop);
+	a = [].resize( 16 );
+	for( i = 0; i < 16; ++i )
+		a[ i ] = m[ i ];
+	ED_SDATA[ prop ] = a;
 }
 
 function ED_ILOAD.PickMesh( lbl, obj, prop, caption )

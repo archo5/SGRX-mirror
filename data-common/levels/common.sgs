@@ -70,6 +70,8 @@ function BEHAVIOR( name, inhname )
 function MeshResource.EditorGUI( ui )
 {
 	ui.PickMesh( "Mesh", this, "mesh", "Select mesh" );
+	ui.EditXFMat4( "Matrix", this, "matrix" );
+	ui.ComboNT( "Matrix mode", this, "matrixMode", "Disabled\0Relative\0Absolute\0" );
 	ui.ComboNT( "Lighting mode", this, "lightingMode", "Unlit\0Static\0Dynamic\0Decal\0" );
 	ui.EditBool( "Is visible?", this, "visible" );
 	ui.EditBool( "Is static?", this, "isStatic" );

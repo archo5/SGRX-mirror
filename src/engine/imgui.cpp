@@ -259,6 +259,29 @@ bool IMGUIEditQuat( const char* label, Quat& v )
 	}
 }
 
+bool IMGUIEditXFMat4( const char* label, Mat4& v )
+{
+	Vec3 p = v.GetTranslation();
+	Quat r = v.GetRotationQuaternion();
+	Vec3 s = v.GetScale();
+	
+	bool chg = false;
+	ImGui::BeginGroup();
+	ImGui::Separator();
+	ImGui::Text( "%s", label );
+	chg |= IMGUIEditVec3( "Position", p, -8192, 8192 );
+	chg |= IMGUIEditQuat( "Rotation", r );
+	chg |= IMGUIEditVec3( "Scale", s, -8192, 8192 );
+	ImGui::Separator();
+	ImGui::EndGroup();
+	
+	if( chg )
+	{
+		v = Mat4::CreateSRT( s, r, p );
+	}
+	return chg;
+}
+
 bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval )
 {
 	bool ret = false;

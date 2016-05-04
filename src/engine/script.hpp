@@ -105,6 +105,7 @@ struct ScriptContext
 	SCRIPT_EXPORT sgsVariable CreateVec2( const Vec2& v );
 	SCRIPT_EXPORT sgsVariable CreateVec3( const Vec3& v );
 	SCRIPT_EXPORT sgsVariable CreateQuat( const Quat& v );
+	SCRIPT_EXPORT sgsVariable CreateMat4( const Mat4& v );
 	
 	template< class T > void Push( const T& v ){ sgs_PushVar( C, v ); }
 	

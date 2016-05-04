@@ -437,6 +437,7 @@ void EdDrawBlockEditMode::ViewUI()
 			else if( m_blockDrawMode == BD_GameObject )
 			{
 				GameObject* obj = g_Level->CreateGameObject();
+				obj->m_src_guid = SGRX_GUID::Generate();
 				obj->SetWorldPosition( g_UIFrame->GetCursorPos() );
 			}
 			else if( m_drawnVerts.size() < 14 )

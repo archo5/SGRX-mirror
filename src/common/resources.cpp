@@ -8,11 +8,11 @@
 MeshResource::MeshResource( GameObject* obj ) : GOResource( obj ),
 	m_isStatic( true ),
 	m_isVisible( true ),
+	m_localMatrix( Mat4::Identity ),
+	m_matrixMode( MM_Relative ),
 	m_lightingMode( SGRX_LM_Dynamic ),
 	m_lmQuality( 1 ),
-	m_castLMS( true ),
-	m_localMatrix( Mat4::Identity ),
-	m_edLGCID( 0 )
+	m_castLMS( true )
 {
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	m_meshInst->SetLightingMode( (SGRX_LightingMode) m_lightingMode );
@@ -30,7 +30,12 @@ void MeshResource::OnTransformUpdate()
 
 void MeshResource::_UpdateMatrix()
 {
-	m_meshInst->SetTransform( m_localMatrix * m_obj->GetWorldMatrix() );
+	if( m_matrixMode == MM_Relative )
+		m_meshInst->SetTransform( m_localMatrix * m_obj->GetWorldMatrix() );
+	else if( m_matrixMode == MM_Absolute )
+		m_meshInst->SetTransform( m_localMatrix );
+	else // MM_None / other
+		m_meshInst->SetTransform( m_obj->GetWorldMatrix() );
 	_UpdateLighting();
 	_UpEv();
 }

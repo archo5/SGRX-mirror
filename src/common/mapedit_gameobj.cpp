@@ -61,7 +61,10 @@ void EDGO_EditUI( GameObject* obj )
 				for( size_t i = 0; i < bhvrlist.size(); ++i )
 				{
 					if( ImGui::Selectable( StackString<256>(bhvrlist[ i ]) ) )
-						obj->AddBehavior( sgsname, g_Level->m_scriptCtx.CreateString( bhvrlist[ i ] ) );
+					{
+						GOBehavior* bhvr = obj->AddBehavior( sgsname, g_Level->m_scriptCtx.CreateString( bhvrlist[ i ] ) );
+						bhvr->m_src_guid = SGRX_GUID::Generate();
+					}
 				}
 				
 				if( sz != obj->m_behaviors.size() )
@@ -152,7 +155,10 @@ void EDGO_EditUI( GameObject* obj )
 				size_t sz = obj->m_resources.size();
 				
 				if( ImGui::Selectable( "Mesh resource" ) )
-					obj->AddResource( sgsname, GO_RSRC_MESH );
+				{
+					GOResource* rsrc = obj->AddResource( sgsname, GO_RSRC_MESH );
+					rsrc->m_src_guid = SGRX_GUID::Generate();
+				}
 				
 				if( sz != obj->m_resources.size() )
 					ImGui::TriggerChangeCheck();
@@ -223,6 +229,9 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	
 	obj->m_name = data.getprop( "name" ).get_string();
 	obj->m_id = data.getprop( "id" ).get_string();
+	SGRX_GUID guid = SGRX_GUID::ParseString(
+		data.getprop( "guid" ).get<StringView>() );
+	obj->m_src_guid = guid != SGRX_GUID::Null() ? guid : SGRX_GUID::Generate();
 	obj->SetLocalPosition( FLoadProp( data, "position", V3(0) ) );
 	obj->SetLocalRotation( FLoadProp( data, "rotation", Quat::Identity ) );
 	obj->SetLocalScale( FLoadProp( data, "scale", V3(1) ) );
@@ -233,6 +242,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 		sgsVariable data_rsrc = it_rsrc.GetValue();
 		sgsString name = data_rsrc.getprop( "__name" ).get_string();
 		uint32_t type = data_rsrc.getprop( "__type" ).get<uint32_t>();
+		SGRX_GUID guid = SGRX_GUID::ParseString(
+			data_rsrc.getprop( "__guid" ).get<StringView>() );
 		
 		GOResource* rsrc = obj->AddResource( name, type );
 		if( rsrc == NULL )
@@ -241,6 +252,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 				<< type << ", name=" << name.c_str();
 			continue;
 		}
+		rsrc->m_src_guid = guid != SGRX_GUID::Null() ?
+			guid : SGRX_GUID::Generate();
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
 		rsrc->EditLoad( data_rsrc,
@@ -254,6 +267,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 		sgsVariable data_bhvr = it_bhvr.GetValue();
 		sgsString name = data_bhvr.getprop( "__name" ).get_string();
 		sgsString type = data_bhvr.getprop( "__type" ).get_string();
+		SGRX_GUID guid = SGRX_GUID::ParseString(
+			data_bhvr.getprop( "__guid" ).get<StringView>() );
 		
 		GOBehavior* bhvr = obj->AddBehavior( name, type );
 		if( bhvr == NULL )
@@ -262,6 +277,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 				<< type.c_str() << ", name=" << name.c_str();
 			continue;
 		}
+		bhvr->m_src_guid = guid != SGRX_GUID::Null() ?
+			guid : SGRX_GUID::Generate();
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
 		bhvr->EditLoad( data_bhvr,
@@ -278,6 +295,7 @@ sgsVariable EDGO_FSave( GameObject* obj )
 	
 	data.setprop( "name", obj->m_name.get_variable() );
 	data.setprop( "id", obj->m_id.get_variable() );
+	data.setprop( "guid", g_Level->GetScriptCtx().CreateString( obj->m_src_guid.ToString() ) );
 	FSaveProp( data, "position", obj->GetLocalPosition() );
 	FSaveProp( data, "rotation", obj->GetLocalRotation() );
 	FSaveProp( data, "scale", obj->GetLocalScale() );
@@ -295,6 +313,8 @@ sgsVariable EDGO_FSave( GameObject* obj )
 		
 		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
 		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_type ) );
+		data_rsrc.setprop( "__guid",
+			g_Level->GetScriptCtx().CreateString( rsrc->m_src_guid.ToString() ) );
 		FArrayAppend( out_rsrc, data_rsrc );
 	}
 	data.setprop( "resources", out_rsrc );
@@ -312,6 +332,8 @@ sgsVariable EDGO_FSave( GameObject* obj )
 		
 		data_bhvr.setprop( "__name", bhvr->m_name.get_variable() );
 		data_bhvr.setprop( "__type", bhvr->m_type.get_variable() );
+		data_bhvr.setprop( "__guid",
+			g_Level->GetScriptCtx().CreateString( bhvr->m_src_guid.ToString() ) );
 		FArrayAppend( out_bhvr, data_bhvr );
 	}
 	data.setprop( "behaviors", out_bhvr );
@@ -334,6 +356,22 @@ static int IMGUI_EditBool( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_EditInt( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditInt" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	int value = obj.getprop( prop ).get<int>();
+	int vmin = sgs_StackSize( C ) > 3 ? sgs_GetVar<int>()( C, 3 ) : -FLT_MAX;
+	int vmax = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : FLT_MAX;
+	
+	if( IMGUIEditInt( label.c_str(), value, vmin, vmax ) )
+		obj.setprop( prop, sgsVariable().set_int( value ) );
+	
+	return 0;
+}
+
 static int IMGUI_EditFloat( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.EditFloat" );
@@ -347,6 +385,20 @@ static int IMGUI_EditFloat( SGS_CTX )
 	
 	if( IMGUIEditFloat( label.c_str(), value, vmin, vmax, prec ) )
 		obj.setprop( prop, sgsVariable().set_real( value ) );
+	
+	return 0;
+}
+
+static int IMGUI_EditXFMat4( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditXFMat4" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	Mat4 value = obj.getprop( prop ).get<Mat4>();
+	
+	if( IMGUIEditXFMat4( label.c_str(), value ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateMat4( value ) );
 	
 	return 0;
 }
@@ -386,7 +438,9 @@ static int IMGUI_ComboNT( SGS_CTX )
 sgs_RegFuncConst g_imgui_rfc[] =
 {
 	{ "EditBool", IMGUI_EditBool },
+	{ "EditInt", IMGUI_EditInt },
 	{ "EditFloat", IMGUI_EditFloat },
+	{ "EditXFMat4", IMGUI_EditXFMat4 },
 	{ "PickMesh", IMGUI_PickMesh },
 	{ "ComboNT", IMGUI_ComboNT },
 	SGS_RC_END(),

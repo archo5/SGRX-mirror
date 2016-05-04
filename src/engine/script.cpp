@@ -486,6 +486,13 @@ sgsVariable ScriptContext::CreateQuat( const Quat& v )
 	return out;
 }
 
+sgsVariable ScriptContext::CreateMat4( const Mat4& v )
+{
+	sgsVariable out( C );
+	sgs_CreateMat4( C, &out.var, v.a, 0 );
+	return out;
+}
+
 sgsVariable ScriptContext::Registry()
 {
 	sgsVariable out( C );
