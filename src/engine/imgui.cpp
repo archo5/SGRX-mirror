@@ -266,6 +266,7 @@ bool IMGUIEditXFMat4( const char* label, Mat4& v )
 	Vec3 s = v.GetScale();
 	
 	bool chg = false;
+	ImGui::PushID( label );
 	ImGui::BeginGroup();
 	ImGui::Separator();
 	ImGui::Text( "%s", label );
@@ -274,6 +275,7 @@ bool IMGUIEditXFMat4( const char* label, Mat4& v )
 	chg |= IMGUIEditVec3( "Scale", s, -8192, 8192 );
 	ImGui::Separator();
 	ImGui::EndGroup();
+	ImGui::PopID();
 	
 	if( chg )
 	{
@@ -285,16 +287,24 @@ bool IMGUIEditXFMat4( const char* label, Mat4& v )
 bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval )
 {
 	bool ret = false;
-	IMGUI_GROUP( label, true,
-	{
-		ImGui::ColorButton( ImColor::HSV( v.x, v.y, 0.5f ) );
-		ImGui::SameLine();
-		ret |= ImGui::DragFloat2( "Hue/sat.", &v.x, 0.01f, 0, 1, "%g", 1 );
-		
-		ImGui::ColorButton( ImColor::HSV( v.x, v.y, v.z ) );
-		ImGui::SameLine();
-		ret |= ImGui::DragFloat( "Value", &v.z, 0.01f, 0, maxval, "%g", 2 );
-	});
+	
+	ImGui::PushID( label );
+	ImGui::BeginGroup();
+	ImGui::Separator();
+	ImGui::Text( "%s", label );
+	
+	ImGui::ColorButton( ImColor::HSV( v.x, v.y, 0.5f ) );
+	ImGui::SameLine();
+	ret |= ImGui::DragFloat2( "Hue/sat.", &v.x, 0.01f, 0, 1, "%g", 1 );
+	
+	ImGui::ColorButton( ImColor::HSV( v.x, v.y, v.z ) );
+	ImGui::SameLine();
+	ret |= ImGui::DragFloat( "Value", &v.z, 0.01f, 0, maxval, "%g", 2 );
+	
+	ImGui::Separator();
+	ImGui::EndGroup();
+	ImGui::PopID();
+	
 	return ret;
 }
 

@@ -2190,6 +2190,8 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 // GUID
 //
 
+const SGRX_GUID SGRX_GUID::Null = SGRX_GUID();
+
 SGRX_GUID SGRX_GUID::Generate()
 {
 	SGRX_GUID out;
@@ -2240,7 +2242,7 @@ SGRX_GUID SGRX_GUID::ParseString( StringView str )
 	}
 	return out;
 error:
-	return SGRX_GUID::Null();
+	return SGRX_GUID::Null;
 }
 
 void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul )
@@ -2850,11 +2852,11 @@ int TestSystems()
 	if( !CLOSE( PointTriangleDistance( V3(3,-1,0), tri0[0], tri0[1], tri0[2] ), V3(1,-1,0).Length() ) ) return 806;
 	
 	SGRX_GUID testuuid = SGRX_GUID::Generate();
-	if( testuuid == SGRX_GUID::Null() ) return 901;
+	if( testuuid == SGRX_GUID::Null ) return 901;
 	String guidstr = testuuid.ToString();
 	if( guidstr.size() != 36 ) return 902;
 	SGRX_GUID parseduuid = SGRX_GUID::ParseString( guidstr );
-	if( parseduuid == SGRX_GUID::Null() ) return 903;
+	if( parseduuid == SGRX_GUID::Null ) return 903;
 	if( testuuid != parseduuid ) return 904;
 	
 	return 0;

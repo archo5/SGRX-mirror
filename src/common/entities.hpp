@@ -169,7 +169,7 @@ EXP_STRUCT LightEntity : Entity
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lightRadius ) float m_lightRadius;
 	
 	LightHandle m_light;
-	uint32_t m_edLGCID;
+	SGRX_GUID m_edLGCGUID;
 };
 
 

@@ -231,7 +231,7 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	obj->m_id = data.getprop( "id" ).get_string();
 	SGRX_GUID guid = SGRX_GUID::ParseString(
 		data.getprop( "guid" ).get<StringView>() );
-	obj->m_src_guid = guid != SGRX_GUID::Null() ? guid : SGRX_GUID::Generate();
+	obj->m_src_guid = guid.NotNull() ? guid : SGRX_GUID::Generate();
 	obj->SetLocalPosition( FLoadProp( data, "position", V3(0) ) );
 	obj->SetLocalRotation( FLoadProp( data, "rotation", Quat::Identity ) );
 	obj->SetLocalScale( FLoadProp( data, "scale", V3(1) ) );
@@ -252,8 +252,7 @@ GameObject* EDGO_FLoad( sgsVariable data )
 				<< type << ", name=" << name.c_str();
 			continue;
 		}
-		rsrc->m_src_guid = guid != SGRX_GUID::Null() ?
-			guid : SGRX_GUID::Generate();
+		rsrc->m_src_guid = guid.NotNull() ? guid : SGRX_GUID::Generate();
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
 		rsrc->EditLoad( data_rsrc,
@@ -277,8 +276,7 @@ GameObject* EDGO_FLoad( sgsVariable data )
 				<< type.c_str() << ", name=" << name.c_str();
 			continue;
 		}
-		bhvr->m_src_guid = guid != SGRX_GUID::Null() ?
-			guid : SGRX_GUID::Generate();
+		bhvr->m_src_guid = guid.NotNull() ? guid : SGRX_GUID::Generate();
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
 		bhvr->EditLoad( data_bhvr,

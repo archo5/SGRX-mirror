@@ -307,7 +307,7 @@ EdObject* EdMeshPath::Clone()
 	EdMeshPath* mpc = new EdMeshPath( *this );
 	for( int i = 0; i < MAX_MESHPATH_PARTS; ++i )
 	{
-		mpc->m_parts[ i ].surface_id = 0;
+		mpc->m_parts[ i ].surface_guid = SGRX_GUID::Null;
 	}
 	return mpc;
 }
@@ -490,10 +490,13 @@ void EdMeshPath::RegenerateMesh()
 		S.lmdetail = m_lmquality;
 		S.decalLayer = 0;
 		
-		if( MP.surface_id )
-			g_EdLGCont->UpdateSurface( MP.surface_id, LGC_CHANGE_ALL, &S );
+		if( MP.surface_guid.NotNull() )
+			g_EdLGCont->UpdateSurface( MP.surface_guid, LGC_CHANGE_ALL, &S );
 		else
-			MP.surface_id = g_EdLGCont->CreateSurface( &S );
+		{
+			MP.surface_guid = SGRX_GUID::Generate();
+			g_EdLGCont->RequestSurface( MP.surface_guid, &S );
+		}
 	}
 }
 

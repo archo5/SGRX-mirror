@@ -243,8 +243,7 @@ LightEntity::LightEntity( GameLevel* lev ) : Entity( lev ),
 	m_flareOffset( V3(0) ),
 	m_innerAngle( 0 ),
 	m_spotCurve( 1 ),
-	m_lightRadius( 0.1f ),
-	m_edLGCID( 0 )
+	m_lightRadius( 0.1f )
 {
 	_UpdateLight();
 	_UpdateShadows();

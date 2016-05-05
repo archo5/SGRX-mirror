@@ -3034,12 +3034,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 		winfmt;
 	};
 	
-	static FINLINE SGRX_GUID Null()
-	{
-		SGRX_GUID o;
-		memset( &o, 0, sizeof(o) );
-		return o;
-	}
+	static const SGRX_GUID Null;
 	static FINLINE SGRX_GUID FromBytes( uint8_t bytes[16] )
 	{
 		SGRX_GUID o;
@@ -3060,6 +3055,13 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 			&& u32[3] == o.u32[3];
 	}
 	FINLINE bool operator != ( const SGRX_GUID& o ) const { return !( *this == o ); }
+	FINLINE bool NotNull() const { return *this != Null; }
+	template< class T > void Serialize( T& arch )
+	{
+		if( T::IsText )
+			arch.marker( "GUID" );
+		arch << u32[0] << u32[1] << u32[2] << u32[3];
+	}
 };
 
 inline Hash HashVar( const SGRX_GUID& v )

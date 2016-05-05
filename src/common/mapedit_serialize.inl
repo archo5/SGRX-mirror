@@ -40,14 +40,14 @@ template< class T > void EdGroupManager::Serialize( T& arch )
 template< class T > void EdSurface::Serialize( T& arch )
 {
 	arch.marker( "SURFACE" );
-	uint32_t oldsurfid = surface_id;
-	arch( surface_id, arch.version >= 5 );
-	if( surface_id != oldsurfid )
+	SGRX_GUID oldsurfguid = surface_guid;
+	arch << surface_guid;
+	if( surface_guid != oldsurfguid )
 	{
-		if( oldsurfid )
-			g_EdLGCont->DeleteSurface( oldsurfid );
-		if( surface_id )
-			g_EdLGCont->RequestSurface( surface_id );
+		if( oldsurfguid.NotNull() )
+			g_EdLGCont->DeleteSurface( oldsurfguid );
+		if( surface_guid.NotNull() )
+			g_EdLGCont->RequestSurface( surface_guid );
 	}
 	arch << texname;
 	arch << texgenmode;
@@ -63,14 +63,14 @@ template< class T > void EdSurface::Serialize( T& arch )
 template< class T > void EdBlock::SerializeT( T& arch )
 {
 	arch.marker( "BLOCK" );
-	uint32_t oldsolidid = solid_id;
-	arch( solid_id, arch.version >= 5 );
-	if( solid_id != oldsolidid )
+	SGRX_GUID oldsolidguid = solid_guid;
+	arch << solid_guid;
+	if( solid_guid != oldsolidguid )
 	{
-		if( oldsolidid )
-			g_EdLGCont->DeleteSolid( oldsolidid );
-		if( solid_id )
-			g_EdLGCont->RequestSolid( solid_id );
+		if( oldsolidguid.NotNull() )
+			g_EdLGCont->DeleteSolid( oldsolidguid );
+		if( solid_guid.NotNull() )
+			g_EdLGCont->RequestSolid( solid_guid );
 	}
 	if( arch.version >= 3 )
 	{
@@ -109,14 +109,14 @@ template< class T > void EdPatchVtx::Serialize( T& arch )
 
 template< class T > void EdPatchLayerInfo::Serialize( T& arch )
 {
-	uint32_t oldsurfid = surface_id;
-	arch( surface_id, arch.version >= 5 );
-	if( surface_id != oldsurfid )
+	SGRX_GUID oldsurfguid = surface_guid;
+	arch << surface_guid;
+	if( surface_guid != oldsurfguid )
 	{
-		if( oldsurfid )
-			g_EdLGCont->DeleteSurface( oldsurfid );
-		if( surface_id )
-			g_EdLGCont->RequestSurface( surface_id );
+		if( oldsurfguid.NotNull() )
+			g_EdLGCont->DeleteSurface( oldsurfguid );
+		if( surface_guid.NotNull() )
+			g_EdLGCont->RequestSurface( surface_guid );
 	}
 	arch << texname;
 	arch << xoff << yoff;
@@ -151,14 +151,14 @@ template< class T > void EdPatch::SerializeT( T& arch )
 
 template< class T > void EdMeshPathPart::Serialize( T& arch )
 {
-	uint32_t oldsurfid = surface_id;
-	arch( surface_id, arch.version >= 5 );
-	if( surface_id != oldsurfid )
+	SGRX_GUID oldsurfguid = surface_guid;
+	arch << surface_guid;
+	if( surface_guid != oldsurfguid )
 	{
-		if( oldsurfid )
-			g_EdLGCont->DeleteSurface( oldsurfid );
-		if( surface_id )
-			g_EdLGCont->RequestSurface( surface_id );
+		if( oldsurfguid.NotNull() )
+			g_EdLGCont->DeleteSurface( oldsurfguid );
+		if( surface_guid.NotNull() )
+			g_EdLGCont->RequestSurface( surface_guid );
 	}
 	arch << texname;
 	arch << xoff << yoff;

@@ -74,9 +74,7 @@ struct EdLGCSurfaceInfo : EdLGCDrawableInfo
 	EdLGCSurfaceInfo() :
 		vdata(NULL), vcount(0),
 		idata(NULL), icount(0),
-		lmsize(V2(0)),
-		solid_id(0),
-		lmparent_id(0){}
+		lmsize(V2(0)){}
 	
 	// vidata
 	LCVertex* vdata;
@@ -87,9 +85,9 @@ struct EdLGCSurfaceInfo : EdLGCDrawableInfo
 	// mtldata
 	String mtlname;
 	// solid
-	uint32_t solid_id;
+	SGRX_GUID solid_guid;
 	// lmparent
-	uint32_t lmparent_id;
+	SGRX_GUID lmparent_guid;
 };
 
 #define LGC_LIGHT_CHANGE_SPEC 0x04
@@ -146,8 +144,8 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 		Array< uint16_t > indices;
 		Vec2 lmsize;
 		String mtlname;
-		uint32_t solid_id;
-		uint32_t lmparent_id;
+		SGRX_GUID solid_guid;
+		SGRX_GUID lmparent_guid;
 		
 		void RecalcTangents();
 	};
@@ -189,12 +187,12 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 	};
 	typedef Handle< LMap > LMapHandle;
 	
-	typedef HashTable< uint32_t, Solid > SolidTable;
-	typedef HashTable< uint32_t, Surface > SurfaceTable;
-	typedef HashTable< uint32_t, LMapHandle > LMapTable;
-	typedef HashTable< uint32_t, uint32_t > InvLMIDTable;
-	typedef HashTable< uint32_t, PrevMeshData > MovedMeshSet;
-	typedef HashTable< Entity*, uint32_t > EntityLMIDTable;
+	typedef HashTable< SGRX_GUID, Solid > SolidTable;
+	typedef HashTable< SGRX_GUID, Surface > SurfaceTable;
+	typedef HashTable< SGRX_GUID, LMapHandle > LMapTable;
+	typedef HashTable< SGRX_GUID, NoValue > InvLMIDSet;
+	typedef HashTable< SGRX_GUID, PrevMeshData > MovedMeshSet;
+	typedef HashTable< Entity*, SGRX_GUID > EntityLMIDTable;
 	
 	EdLevelGraphicsCont( GameLevel* lev );
 	~EdLevelGraphicsCont();
@@ -203,47 +201,35 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 	void LoadLightmaps( const StringView& levname );
 	void SaveLightmaps( const StringView& levname );
 	void DumpLightmapInfo();
-	void LightMesh( SGRX_MeshInstance* MI, uint32_t lmid );
+	void LightMesh( SGRX_MeshInstance* MI, SGRX_GUID lmguid );
 	void RelightAllMeshes();
-	void CreateLightmap( uint32_t lmid );
-	void ClearLightmap( uint32_t lmid );
-	void ApplyLightmap( uint32_t lmid );
-	void InvalidateLightmap( uint32_t lmid );
-	void ValidateLightmap( uint32_t lmid );
+	void CreateLightmap( SGRX_GUID lmguid );
+	void ClearLightmap( SGRX_GUID lmguid );
+	void ApplyLightmap( SGRX_GUID lmguid );
+	void InvalidateLightmap( SGRX_GUID lmguid );
+	void ValidateLightmap( SGRX_GUID lmguid );
 	void ApplyInvalidation();
-	void InvalidateMesh( uint32_t id );
-	void InvalidateSurface( uint32_t id );
-	void InvalidateLight( uint32_t id );
+	void InvalidateMesh( SGRX_GUID guid );
+	void InvalidateSurface( SGRX_GUID guid );
+	void InvalidateLight( SGRX_GUID guid );
 	
 	void InvalidateSamples();
 	void InvalidateAll();
-	bool IsInvalidated( uint32_t lmid );
+	bool IsInvalidated( SGRX_GUID lmguid );
 	bool ILMBeginRender();
 	void ILMAbort();
 	void ILMCheck();
 	void STRegenerate();
-	void ExportLightmap( uint32_t lmid, LC_Lightmap& outlm );
+	void ExportLightmap( SGRX_GUID lmguid, LC_Lightmap& outlm );
 	void UpdateCache( LevelCache& LC );
 	
-	uint32_t CreateSolid( EdLGCSolidInfo* info = NULL );
-	void RequestSolid( uint32_t id, EdLGCSolidInfo* info = NULL );
-	void DeleteSolid( uint32_t id );
-	void UpdateSolid( uint32_t id, EdLGCSolidInfo* info );
+	void RequestSolid( SGRX_GUID guid, EdLGCSolidInfo* info = NULL );
+	void DeleteSolid( SGRX_GUID guid );
+	void UpdateSolid( SGRX_GUID guid, EdLGCSolidInfo* info );
 	
-	uint32_t CreateMesh( EdLGCMeshInfo* info = NULL );
-	void RequestMesh( uint32_t id, EdLGCMeshInfo* info = NULL );
-	void DeleteMesh( uint32_t id );
-	void UpdateMesh( uint32_t id, uint32_t changes, EdLGCMeshInfo* info );
-	
-	uint32_t CreateSurface( EdLGCSurfaceInfo* info = NULL );
-	void RequestSurface( uint32_t id, EdLGCSurfaceInfo* info = NULL );
-	void DeleteSurface( uint32_t id );
-	void UpdateSurface( uint32_t id, uint32_t changes, EdLGCSurfaceInfo* info );
-	
-	uint32_t CreateLight( EdLGCLightInfo* info = NULL );
-	void RequestLight( uint32_t id, EdLGCLightInfo* info = NULL );
-	void DeleteLight( uint32_t id );
-	void UpdateLight( uint32_t id, uint32_t changes, EdLGCLightInfo* info );
+	void RequestSurface( SGRX_GUID guid, EdLGCSurfaceInfo* info = NULL );
+	void DeleteSurface( SGRX_GUID guid );
+	void UpdateSurface( SGRX_GUID guid, uint32_t changes, EdLGCSurfaceInfo* info );
 	
 	int GetInvalidItemCount()
 	{
@@ -254,25 +240,20 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 	virtual void OnRemoveEntity( Entity* ent );
 	virtual void HandleEvent( SGRX_EventID eid, const EventData& edata );
 	
-	uint32_t m_nextSolidID;
-	uint32_t m_nextSurfID;
-	uint32_t m_nextMeshEntID;
-	uint32_t m_nextLightEntID;
-	
 	SolidTable m_solids;
 	SurfaceTable m_surfaces;
-	HashTable< uint32_t, Mesh > m_meshes;
-	HashTable< uint32_t, Light > m_lights;
+	HashTable< SGRX_GUID, Mesh > m_meshes;
+	HashTable< SGRX_GUID, Light > m_lights;
 	LMapTable m_lightmaps;
 	SGRX_LightTree m_sampleTree;
 	
 	bool m_invalidSamples;
 	bool m_alrInvalidSamples;
-	InvLMIDTable m_invalidLightmaps;
-	InvLMIDTable m_alrInvalidLightmaps;
+	InvLMIDSet m_invalidLightmaps;
+	InvLMIDSet m_alrInvalidLightmaps;
 	MovedMeshSet m_movedMeshes;
 	MovedMeshSet m_movedSurfs;
-	HashTable< uint32_t, EdLGCLightInfo > m_movedLights;
+	HashTable< SGRX_GUID, EdLGCLightInfo > m_movedLights;
 	
 	LMRenderer* m_lmRenderer;
 };

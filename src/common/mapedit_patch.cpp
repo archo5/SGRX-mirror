@@ -172,7 +172,7 @@ EdObject* EdPatch::Clone()
 	EdPatch* ptc = new EdPatch( *this );
 	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
 	{
-		ptc->layers[ i ].surface_id = 0;
+		ptc->layers[ i ].surface_guid = SGRX_GUID::Null;
 	}
 	return ptc;
 }
@@ -246,10 +246,13 @@ void EdPatch::RegenerateMesh()
 		S.lmdetail = lmquality;
 		S.decalLayer = layer + ( blend & ~PATCH_IS_SOLID );
 		
-		if( LI.surface_id )
-			g_EdLGCont->UpdateSurface( LI.surface_id, LGC_CHANGE_ALL, &S );
+		if( LI.surface_guid.NotNull() )
+			g_EdLGCont->UpdateSurface( LI.surface_guid, LGC_CHANGE_ALL, &S );
 		else
-			LI.surface_id = g_EdLGCont->CreateSurface( &S );
+		{
+			LI.surface_guid = SGRX_GUID::Generate();
+			g_EdLGCont->RequestSurface( LI.surface_guid, &S );
+		}
 		
 		if( LI.texname.size() )
 			first = false;

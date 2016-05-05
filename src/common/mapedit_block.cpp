@@ -186,7 +186,7 @@ void EdBlock::VertEditUI( int vid )
 			
 			size_t oldpolysize = poly.size();
 			EdSurface Scopy = *surfaces[ befat ];
-			Scopy.surface_id = 0;
+			Scopy.surface_guid = SGRX_GUID::Generate();
 			poly.insert( insat, mid_fin );
 			if( (int) insat < vid )
 				vid++;
@@ -597,11 +597,11 @@ Vec3 EdBlock::FindCenter() const
 EdObject* EdBlock::Clone()
 {
 	EdBlock* blk = new EdBlock( *this );
-	blk->solid_id = 0;
+	blk->solid_guid = SGRX_GUID::Null;
 	for( size_t i = 0; i < blk->surfaces.size(); ++i )
 	{
 		blk->surfaces[ i ] = new EdSurface( *blk->surfaces[ i ] );
-		blk->surfaces[ i ]->surface_id = 0;
+		blk->surfaces[ i ]->surface_guid = SGRX_GUID::Null;
 	}
 	return blk;
 }
@@ -726,10 +726,13 @@ void EdBlock::RegenerateMesh()
 	EdLGCSolidInfo SOI;
 	SOI.planes = planes;
 	SOI.pcount = numplanes;
-	if( solid_id )
-		g_EdLGCont->UpdateSolid( solid_id, &SOI );
+	if( solid_guid.NotNull() )
+		g_EdLGCont->UpdateSolid( solid_guid, &SOI );
 	else
-		solid_id = g_EdLGCont->CreateSolid( &SOI );
+	{
+		solid_guid = SGRX_GUID::Generate();
+		g_EdLGCont->RequestSolid( solid_guid, &SOI );
+	}
 	
 	
 	Array< LCVertex > vertices;
@@ -773,12 +776,15 @@ void EdBlock::RegenerateMesh()
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
 		S.lmdetail = BS.lmquality;
-		S.solid_id = solid_id;
+		S.solid_guid = solid_guid;
 		
-		if( BS.surface_id )
-			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
+		if( BS.surface_guid.NotNull() )
+			g_EdLGCont->UpdateSurface( BS.surface_guid, LGC_CHANGE_ALL, &S );
 		else
-			BS.surface_id = g_EdLGCont->CreateSurface( &S );
+		{
+			BS.surface_guid = SGRX_GUID::Generate();
+			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
+		}
 	}
 	
 	// TOP
@@ -813,12 +819,15 @@ void EdBlock::RegenerateMesh()
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
 		S.lmdetail = BS.lmquality;
-		S.solid_id = solid_id;
+		S.solid_guid = solid_guid;
 		
-		if( BS.surface_id )
-			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
+		if( BS.surface_guid.NotNull() )
+			g_EdLGCont->UpdateSurface( BS.surface_guid, LGC_CHANGE_ALL, &S );
 		else
-			BS.surface_id = g_EdLGCont->CreateSurface( &S );
+		{
+			BS.surface_guid = SGRX_GUID::Generate();
+			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
+		}
 		break;
 	}
 	
@@ -854,12 +863,15 @@ void EdBlock::RegenerateMesh()
 		S.xform = mtx;
 		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
 		S.lmdetail = BS.lmquality;
-		S.solid_id = solid_id;
+		S.solid_guid = solid_guid;
 		
-		if( BS.surface_id )
-			g_EdLGCont->UpdateSurface( BS.surface_id, LGC_CHANGE_ALL, &S );
+		if( BS.surface_guid.NotNull() )
+			g_EdLGCont->UpdateSurface( BS.surface_guid, LGC_CHANGE_ALL, &S );
 		else
-			BS.surface_id = g_EdLGCont->CreateSurface( &S );
+		{
+			BS.surface_guid = SGRX_GUID::Generate();
+			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
+		}
 		break;
 	}
 }

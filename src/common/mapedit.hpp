@@ -5,6 +5,7 @@
 #include "edutils.hpp"
 #include "level.hpp"
 #include "entities.hpp"
+#include "resources.hpp"
 
 #include <imgui.hpp>
 
@@ -486,6 +487,11 @@ inline Quat FLoadVar( sgsVariable v, Quat def )
 	return QUAT( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ),
 		FLoadProp( v, "z", def.z ), FLoadProp( v, "w", def.w ) );
 }
+inline SGRX_GUID FLoadVar( sgsVariable v, SGRX_GUID def )
+{
+	SGRX_GUID guid = SGRX_GUID::ParseString( FLoadVar( v, SV() ) );
+	return guid.NotNull() ? guid : def;
+}
 
 inline sgsVariable FNewDict()
 {
@@ -534,6 +540,12 @@ inline sgsVariable FVar( Quat val )
 	FSaveProp( v, "z", val.z );
 	FSaveProp( v, "w", val.w );
 	return v;
+}
+inline sgsVariable FVar( SGRX_GUID val )
+{
+	char bfr[ 36 ];
+	val.ToCharArray( bfr, false, false );
+	return FVar( StringView( bfr, 36 ) );
 }
 inline sgsVariable FIntVar( bool val ){ return sgsVariable().set_bool( val ); }
 inline sgsVariable FIntVar( int val ){ return sgsVariable().set_int( val ); }
@@ -595,28 +607,26 @@ struct EdSurface : SGRX_RefCounted
 	float lmquality;
 	int xfit, yfit;
 	
-	uint32_t surface_id;
+	SGRX_GUID surface_guid;
 	
 	EdSurface() :
 		texgenmode( ED_TEXGEN_COORDS ),
 		xoff( 0 ), yoff( 0 ),
 		scale( 1 ), aspect( 1 ),
 		angle( 0 ), lmquality( 1 ),
-		xfit( 0 ), yfit( 0 ),
-		surface_id( 0 )
+		xfit( 0 ), yfit( 0 )
 	{}
 	EdSurface( Handle<EdSurface>::InitBeforeUnserialize ) :
 		texgenmode( ED_TEXGEN_COORDS ),
 		xoff( 0 ), yoff( 0 ),
 		scale( 1 ), aspect( 1 ),
 		angle( 0 ), lmquality( 1 ),
-		xfit( 0 ), yfit( 0 ),
-		surface_id( 0 )
+		xfit( 0 ), yfit( 0 )
 	{}
 	~EdSurface()
 	{
-		if( surface_id )
-			g_EdLGCont->DeleteSurface( surface_id );
+		if( surface_guid.NotNull() )
+			g_EdLGCont->DeleteSurface( surface_guid );
 	}
 	EdSurface& operator = ( const EdSurface& o )
 	{
@@ -638,14 +648,14 @@ struct EdSurface : SGRX_RefCounted
 	void FLoad( sgsVariable data, int version )
 	{
 		UNUSED( version );
-		uint32_t oldsurfid = surface_id;
-		surface_id = FLoadProp( data, "surface_id", 0 );
-		if( surface_id != oldsurfid )
+		SGRX_GUID oldsurfguid = surface_guid;
+		surface_guid = FLoadProp( data, "surface_guid", SGRX_GUID::Null );
+		if( surface_guid != oldsurfguid )
 		{
-			if( oldsurfid )
-				g_EdLGCont->DeleteSurface( oldsurfid );
-			if( surface_id )
-				g_EdLGCont->RequestSurface( surface_id );
+			if( oldsurfguid.NotNull() )
+				g_EdLGCont->DeleteSurface( oldsurfguid );
+			if( surface_guid.NotNull() )
+				g_EdLGCont->RequestSurface( surface_guid );
 		}
 		texname = FLoadProp( data, "texture", SV() );
 		texgenmode = FLoadProp( data, "texgenmode", ED_TEXGEN_COORDS );
@@ -662,7 +672,7 @@ struct EdSurface : SGRX_RefCounted
 	{
 		UNUSED( version );
 		sgsVariable out = FNewDict();
-		FSaveProp( out, "surface_id", int(surface_id) );
+		FSaveProp( out, "surface_guid", surface_guid );
 		FSaveProp( out, "texture", texname );
 		FSaveProp( out, "texgenmode", texgenmode );
 		FSaveProp( out, "xoff", xoff );
@@ -681,11 +691,11 @@ typedef Handle< EdSurface > EdSurfHandle;
 
 struct EdBlock : EdObject
 {
-	EdBlock() : EdObject( ObjType_Block ), position(V3(0)), z0(0), z1(1), solid_id(0){}
+	EdBlock() : EdObject( ObjType_Block ), position(V3(0)), z0(0), z1(1){}
 	~EdBlock()
 	{
-		if( solid_id )
-			g_EdLGCont->DeleteSolid( solid_id );
+		if( solid_guid.NotNull() )
+			g_EdLGCont->DeleteSolid( solid_guid );
 	}
 	
 	Vec3 position;
@@ -695,20 +705,20 @@ struct EdBlock : EdObject
 	Array< EdSurfHandle > surfaces;
 	Array< bool > subsel;
 	
-	uint32_t solid_id;
+	SGRX_GUID solid_guid;
 	
 	template< class T > void SerializeT( T& arch );
 	void FLoad( sgsVariable data, int version )
 	{
 		// type already parsed
-		uint32_t oldsolidid = solid_id;
-		solid_id = FLoadProp( data, "solid_id", 0 );
-		if( solid_id != oldsolidid )
+		SGRX_GUID oldsolidguid = solid_guid;
+		solid_guid = FLoadProp( data, "solid_guid", SGRX_GUID::Null );
+		if( solid_guid != oldsolidguid )
 		{
-			if( oldsolidid )
-				g_EdLGCont->DeleteSolid( oldsolidid );
-			if( solid_id )
-				g_EdLGCont->RequestSolid( solid_id );
+			if( oldsolidguid.NotNull() )
+				g_EdLGCont->DeleteSolid( oldsolidguid );
+			if( solid_guid.NotNull() )
+				g_EdLGCont->RequestSolid( solid_guid );
 		}
 		group = FLoadProp( data, "group", 0 );
 		position = FLoadProp( data, "position", V3(0) );
@@ -743,7 +753,7 @@ struct EdBlock : EdObject
 	sgsVariable FSave( int version )
 	{
 		sgsVariable out = FNewDict();
-		FSaveProp( out, "solid_id", int(solid_id) );
+		FSaveProp( out, "solid_guid", solid_guid );
 		FSaveProp( out, "group", group );
 		FSaveProp( out, "position", position );
 		FSaveProp( out, "z0", z0 );
@@ -883,26 +893,25 @@ struct EdPatchLayerInfo
 	EdPatchLayerInfo() :
 		xoff(0), yoff(0),
 		scale(1), aspect(1),
-		angle(0),
-		surface_id(0){}
+		angle(0){}
 	~EdPatchLayerInfo()
 	{
-		if( surface_id )
-			g_EdLGCont->DeleteSurface( surface_id );
+		if( surface_guid.NotNull() )
+			g_EdLGCont->DeleteSurface( surface_guid );
 	}
 	
 	template< class T > void Serialize( T& arch );
 	void FLoad( sgsVariable data, int version )
 	{
 		UNUSED( version );
-		uint32_t oldsurfid = surface_id;
-		surface_id = FLoadProp( data, "surface_id", 0 );
-		if( surface_id != oldsurfid )
+		SGRX_GUID oldsurfguid = surface_guid;
+		surface_guid = FLoadProp( data, "surface_guid", SGRX_GUID::Null );
+		if( surface_guid != oldsurfguid )
 		{
-			if( oldsurfid )
-				g_EdLGCont->DeleteSurface( oldsurfid );
-			if( surface_id )
-				g_EdLGCont->RequestSurface( surface_id );
+			if( oldsurfguid.NotNull() )
+				g_EdLGCont->DeleteSurface( oldsurfguid );
+			if( surface_guid.NotNull() )
+				g_EdLGCont->RequestSurface( surface_guid );
 		}
 		texname = FLoadProp( data, "texture", SV() );
 		xoff = FLoadProp( data, "xoff", 0.0f );
@@ -915,6 +924,7 @@ struct EdPatchLayerInfo
 	{
 		UNUSED( version );
 		sgsVariable out = FNewDict();
+		FSaveProp( out, "surface_guid", surface_guid );
 		FSaveProp( out, "texture", texname );
 		FSaveProp( out, "xoff", xoff );
 		FSaveProp( out, "yoff", yoff );
@@ -930,7 +940,7 @@ struct EdPatchLayerInfo
 	float scale, aspect;
 	float angle;
 	
-	uint32_t surface_id;
+	SGRX_GUID surface_guid;
 };
 
 #define PATCH_IS_SOLID 0x80
@@ -1158,26 +1168,25 @@ struct EdMeshPathPart
 	EdMeshPathPart() :
 		xoff(0), yoff(0),
 		scale(1), aspect(1),
-		angle(0),
-		surface_id(0){}
+		angle(0){}
 	~EdMeshPathPart()
 	{
-		if( surface_id )
-			g_EdLGCont->DeleteSurface( surface_id );
+		if( surface_guid.NotNull() )
+			g_EdLGCont->DeleteSurface( surface_guid );
 	}
 	
 	template< class T > void Serialize( T& arch );
 	void FLoad( sgsVariable data, int version )
 	{
 		UNUSED( version );
-		uint32_t oldsurfid = surface_id;
-		surface_id = FLoadProp( data, "surface_id", 0 );
-		if( surface_id != oldsurfid )
+		SGRX_GUID oldsurfguid = surface_guid;
+		surface_guid = FLoadProp( data, "surface_guid", SGRX_GUID::Null );
+		if( surface_guid != oldsurfguid )
 		{
-			if( oldsurfid )
-				g_EdLGCont->DeleteSurface( oldsurfid );
-			if( surface_id )
-				g_EdLGCont->RequestSurface( surface_id );
+			if( oldsurfguid.NotNull() )
+				g_EdLGCont->DeleteSurface( oldsurfguid );
+			if( surface_guid.NotNull() )
+				g_EdLGCont->RequestSurface( surface_guid );
 		}
 		texname = FLoadProp( data, "texture", SV() );
 		xoff = FLoadProp( data, "xoff", 0.0f );
@@ -1190,7 +1199,7 @@ struct EdMeshPathPart
 	{
 		UNUSED( version );
 		sgsVariable out = FNewDict();
-		FSaveProp( out, "surface_id", surface_id );
+		FSaveProp( out, "surface_guid", surface_guid );
 		FSaveProp( out, "texture", texname );
 		FSaveProp( out, "xoff", xoff );
 		FSaveProp( out, "yoff", yoff );
@@ -1206,7 +1215,7 @@ struct EdMeshPathPart
 	float scale, aspect;
 	float angle;
 	
-	uint32_t surface_id;
+	SGRX_GUID surface_guid;
 };
 
 enum EMPATH_TurnMode

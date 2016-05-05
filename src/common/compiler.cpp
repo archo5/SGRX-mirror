@@ -24,10 +24,10 @@ static LTRBOOL _LMRenderer_SizeFunc(
 	u32 out_size[2] )
 {
 	SGRX_CAST( LMRenderer*, LMR, config->userdata );
-	uint32_t lmid = 0;
-	ASSERT( inst_ident_size == sizeof(uint32_t) );
-	memcpy( &lmid, inst_ident, sizeof(uint32_t) );
-	Vec2 size = LMR->m_lmsizes.getcopy( lmid, V2(0) ) * config->global_size_factor;
+	SGRX_GUID lmguid;
+	ASSERT( inst_ident_size == sizeof(SGRX_GUID) );
+	memcpy( &lmguid, inst_ident, sizeof(lmguid) );
+	Vec2 size = LMR->m_lmsizes.getcopy( lmguid, V2(0) ) * config->global_size_factor;
 	if( size == V2(0) )
 	{
 		out_size[0] = 0;
@@ -119,7 +119,7 @@ bool LMRenderer::CheckStatus()
 }
 
 bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols,
-	Array< Vec4 >& outxyzf, uint32_t outlmidsize[3] )
+	Array< Vec4 >& outxyzf, OutLMInfo& outlminfo )
 {
 	if( which >= rendered_lightmap_count )
 		return false;
@@ -128,10 +128,10 @@ bool LMRenderer::GetLightmap( uint32_t which, Array< Vec3 >& outcols,
 	if( ltr_GetWorkOutput( m_scene, which, &wout ) == 0 )
 		return false;
 	
-	ASSERT( wout.inst_ident_size == 4 );
-	memcpy( &outlmidsize[0], wout.inst_ident, sizeof(uint32_t) );
-	outlmidsize[1] = wout.width;
-	outlmidsize[2] = wout.height;
+	ASSERT( wout.inst_ident_size == sizeof(outlminfo.guid) );
+	memcpy( &outlminfo.guid, wout.inst_ident, sizeof(outlminfo.guid) );
+	outlminfo.w = wout.width;
+	outlminfo.h = wout.height;
 	outcols.resize( wout.width * wout.height );
 	memcpy( outcols.data(), wout.lightmap_rgb, outcols.size_bytes() );
 	outxyzf.resize( wout.width * wout.height );
@@ -152,7 +152,7 @@ bool LMRenderer::GetSample( uint32_t which, Vec3 outcols[6] )
 	return true;
 }
 
-bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_t lmid, bool solid )
+bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, SGRX_GUID lmguid, bool solid )
 {
 	if( MI->GetMesh() == NULL )
 		return false;
@@ -277,11 +277,11 @@ bool LMRenderer::AddMeshInst( SGRX_MeshInstance* MI, const Vec2& lmsize, uint32_
 	memcpy( mi_info.matrix, &MI->matrix, sizeof(float)*16 );
 	mi_info.importance = 1;
 	mi_info.shadow = solid;
-	mi_info.ident = (char*) &lmid;
-	mi_info.ident_size = sizeof(lmid);
+	mi_info.ident = (char*) &lmguid;
+	mi_info.ident_size = sizeof(lmguid);
 	ltr_MeshAddInstance( mesh->ltrMesh, &mi_info );
 	
-	m_lmsizes.set( lmid, lmsize );
+	m_lmsizes.set( lmguid, lmsize );
 	
 	return true;
 }
