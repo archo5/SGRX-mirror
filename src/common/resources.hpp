@@ -34,7 +34,7 @@ EXP_STRUCT MeshResource : GOResource
 	GFW_EXPORT void _UpdateLighting();
 	GFW_EXPORT void _UpdateMatrix();
 	
-	FINLINE void _UpEv(){ }//Game_FireEvent( EID_MeshUpdate, this ); }
+	FINLINE void _UpEv(){ Game_FireEvent( EID_GOResourceUpdate, this ); }
 	
 	bool IsVisible() const { return m_isVisible; }
 	void SetVisible( bool v ){ m_isVisible = v; m_meshInst->enabled = v; _UpEv(); }

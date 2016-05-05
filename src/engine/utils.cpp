@@ -1849,6 +1849,23 @@ bool DirCreate( const StringView& path )
 #endif
 }
 
+bool FSItemExists( const StringView& path )
+{
+#ifdef _WIN32
+	WIN32_FILE_ATTRIBUTE_DATA attribs;
+	if( GetFileAttributesExW( StackWString< MAX_PATH >( path ), GetFileExInfoStandard, &attribs ) == FALSE )
+		return false;
+	return attribs.dwFileAttributes != INVALID_FILE_ATTRIBUTES;
+#else
+	struct stat info;
+	if( stat( path, &info ) != 0 )
+		return false;
+	else if( info.st_mode & (S_IFREG|S_IFDIR|S_IFLNK) )
+		return true;
+	return false;
+#endif
+}
+
 bool CWDGet( String& path )
 {
 #if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
@@ -2245,10 +2262,10 @@ error:
 	return SGRX_GUID::Null;
 }
 
-void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul )
+void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul ) const
 {
 	const char* hex = upper ? SGRX_HEX_UPPER : SGRX_HEX_LOWER;
-	uint8_t* bp = bytes;
+	const uint8_t* bp = bytes;
 	// first 4 bytes
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
@@ -2758,6 +2775,17 @@ SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
 	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
 	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
 	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
+	return *this;
+}
+SGRX_Log& SGRX_Log::operator << ( const SGRX_GUID& v )
+{
+	prelog();
+	if( out )
+	{
+		char bfr[ 37 ];
+		v.ToCharArray( bfr );
+		fprintf( out, "GUID(%s)", bfr );
+	}
 	return *this;
 }
 

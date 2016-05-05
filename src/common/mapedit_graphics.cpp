@@ -180,8 +180,9 @@ EdLevelGraphicsCont::EdLevelGraphicsCont( GameLevel* lev )
 {
 	g_Level->m_lightTree = &m_sampleTree;
 	
-	Game_RegisterEventHandler( this, EID_MeshUpdate );
-	Game_RegisterEventHandler( this, EID_LightUpdate );
+	Game_RegisterEventHandler( this, EID_GOResourceAdd );
+	Game_RegisterEventHandler( this, EID_GOResourceRemove );
+	Game_RegisterEventHandler( this, EID_GOResourceUpdate );
 }
 
 EdLevelGraphicsCont::~EdLevelGraphicsCont()
@@ -192,8 +193,9 @@ EdLevelGraphicsCont::~EdLevelGraphicsCont()
 
 void EdLevelGraphicsCont::OnDestroy()
 {
-	Game_UnregisterEventHandler( this, EID_MeshUpdate );
-	Game_UnregisterEventHandler( this, EID_LightUpdate );
+	Game_UnregisterEventHandler( this, EID_GOResourceAdd );
+	Game_UnregisterEventHandler( this, EID_GOResourceRemove );
+	Game_UnregisterEventHandler( this, EID_GOResourceUpdate );
 }
 
 void EdLevelGraphicsCont::Reset()
@@ -767,7 +769,7 @@ void EdLevelGraphicsCont::STRegenerate()
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
 		Mesh& M = m_meshes.item( i ).value;
-		if( M.ent->IsStatic() == false )
+		if( M.ent->m_isStatic == false )
 			continue;
 		
 		SGRX_IMesh* mesh = M.ent->m_meshInst->GetMesh();
@@ -1166,23 +1168,6 @@ void EdLevelGraphicsCont::OnAddEntity( Entity* ent )
 		m_lights.set( guid, L );
 		LE->m_edLGCGUID = guid;
 	}
-#if 0
-	if( ENTITY_IS_A( ent, MeshEntity ) )
-	{
-		SGRX_CAST( MeshEntity*, ME, ent );
-		uint32_t id = m_nextMeshEntID++;
-		ASSERT( LGC_IS_VALID_ID( id ) );
-		Mesh M;
-		{
-			ReadMeshInfo( &M.info, ME );
-			M.ent = ME;
-		}
-		ASSERT( M.ent );
-		m_meshes.set( id, M );
-		CreateLightmap( LGC_MESH_LMID( id ) );
-		ME->m_edLGCID = id;
-	}
-#endif
 }
 
 void EdLevelGraphicsCont::OnRemoveEntity( Entity* ent )
@@ -1201,41 +1186,59 @@ void EdLevelGraphicsCont::OnRemoveEntity( Entity* ent )
 		m_lights.unset( guid );
 		LE->m_edLGCGUID = SGRX_GUID::Null;
 	}
-#if 0
-	if( ENTITY_IS_A( ent, MeshEntity ) )
-	{
-		SGRX_CAST( MeshEntity*, ME, ent );
-		uint32_t id = ME->m_edLGCID;
-		
-		InvalidateMesh( id );
-		ApplyInvalidation();
-		m_movedMeshes.unset( id );
-		
-		ASSERT( m_meshes.isset( id ) );
-		m_lightmaps.unset( LGC_MESH_LMID( id ) );
-		m_meshes.unset( id );
-		if( id && id == m_nextMeshEntID - 1 )
-			m_nextMeshEntID--;
-		ME->m_edLGCID = 0;
-	}
-#endif
 }
 
 void EdLevelGraphicsCont::HandleEvent( SGRX_EventID eid, const EventData& edata )
 {
-	if( eid == EID_MeshUpdate )
+	if( eid == EID_GOResourceAdd )
 	{
-		SGRX_CAST( MeshResource*, MR, edata.GetUserData() );
-		if( MR->m_src_guid.NotNull() )
+		SGRX_CAST( GOResource*, rsrc, edata.GetUserData() );
+		if( rsrc->m_src_guid.IsNull() )
+			rsrc->m_src_guid.SetGenerated();
+		
+		if( ENTITY_IS_A( rsrc, MeshResource ) )
 		{
-			EdLGCMeshInfo& info = m_meshes[ MR->m_src_guid ].info;
-			InvalidateMesh( MR->m_src_guid );
-			InvalidateLightmap( MR->m_src_guid );
-			ReadMeshInfo( &info, MR );
-			InvalidateMesh( MR->m_src_guid );
+			SGRX_CAST( MeshResource*, MR, rsrc );
+			Mesh M;
+			{
+				ReadMeshInfo( &M.info, MR );
+				M.ent = MR;
+			}
+			m_meshes.set( MR->m_src_guid, M );
+			CreateLightmap( MR->m_src_guid );
 		}
 	}
-	else if( eid == EID_LightUpdate )
+	else if( eid == EID_GOResourceRemove )
+	{
+		SGRX_CAST( GOResource*, rsrc, edata.GetUserData() );
+		if( ENTITY_IS_A( rsrc, MeshResource ) )
+		{
+			SGRX_CAST( MeshResource*, MR, rsrc );
+			InvalidateMesh( MR->m_src_guid );
+			ApplyInvalidation();
+			m_movedMeshes.unset( MR->m_src_guid );
+			m_lightmaps.unset( MR->m_src_guid );
+			m_meshes.unset( MR->m_src_guid );
+		}
+	}
+	else if( eid == EID_GOResourceUpdate )
+	{
+		SGRX_CAST( GOResource*, rsrc, edata.GetUserData() );
+		if( ENTITY_IS_A( rsrc, MeshResource ) )
+		{
+			SGRX_CAST( MeshResource*, MR, rsrc );
+			if( MR->m_src_guid.NotNull() )
+			{
+				EdLGCMeshInfo& info = m_meshes[ MR->m_src_guid ].info;
+				InvalidateMesh( MR->m_src_guid );
+				InvalidateLightmap( MR->m_src_guid );
+				ReadMeshInfo( &info, MR );
+				InvalidateMesh( MR->m_src_guid );
+			}
+		}
+	}
+	
+	if( eid == EID_LightUpdate )
 	{
 		SGRX_CAST( LightEntity*, LE, edata.GetUserData() );
 		if( LE->m_edLGCGUID.NotNull() )

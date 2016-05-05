@@ -152,7 +152,7 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 	struct Mesh
 	{
 		EdLGCMeshInfo info;
-		struct MeshEntity* ent;
+		struct MeshResource* ent;
 	};
 	struct Light
 	{

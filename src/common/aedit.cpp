@@ -962,6 +962,7 @@ struct ASEditor : IGame
 	{
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
+		Window_EnableDragDrop( true );
 		
 		// core layout
 		g_EdScene = GR_CreateScene();
@@ -1013,13 +1014,15 @@ struct ASEditor : IGame
 	{
 		if( e.type == SDL_DROPFILE )
 		{
-			String path = RealPath( e.drop.file );
-			if( IsImageFile( path ) )
+			String rootpath;
+			if( FS_FindRealPath( "assets", rootpath ) )
 			{
-				String rootpath;
-				FS_FindRealPath( "assets", rootpath );
 				rootpath = RealPath( rootpath );
-				if( PathIsUnder( path, rootpath ) )
+				LOG << "Root: " << rootpath;
+				
+				String path = RealPath( e.drop.file );
+				LOG << "Dropped a file: " << path;
+				if( IsImageFile( path ) && PathIsUnder( path, rootpath ) )
 				{
 					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
 					String category = "";
@@ -1039,13 +1042,7 @@ struct ASEditor : IGame
 					g_EdAS->textureAssets.push_back( ta );
 					SetCurAsset( &g_EdAS->textureAssets.last() );
 				}
-			}
-			if( IsMeshFile( path ) )
-			{
-				String rootpath;
-				FS_FindRealPath( "assets", rootpath );
-				rootpath = RealPath( rootpath );
-				if( PathIsUnder( path, rootpath ) )
+				if( IsMeshFile( path ) && PathIsUnder( path, rootpath ) )
 				{
 					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
 					String category = "";

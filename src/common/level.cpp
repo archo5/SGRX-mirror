@@ -299,8 +299,14 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 	{
 		rsrc->m_name = name;
 		rsrc->m_type = type;
+		if( m_level->nextObjectGUID.NotNull() )
+		{
+			rsrc->m_src_guid = m_level->nextObjectGUID;
+			m_level->nextObjectGUID.SetNull();
+		}
 		rsrc->InitScriptInterface();
 		m_resources.set( name, rsrc );
+		Game_FireEvent( EID_GOResourceAdd, rsrc );
 	}
 	return rsrc;
 }
@@ -315,7 +321,12 @@ GOResource* GameObject::RequireResource( sgsString name, uint32_t type )
 
 void GameObject::RemoveResource( sgsString name )
 {
-	m_resources.unset( name );
+	GOResource* rsrc = m_resources.getcopy( name );
+	if( rsrc )
+	{
+		Game_FireEvent( EID_GOResourceRemove, rsrc );
+		m_resources.unset( name );
+	}
 }
 
 GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
@@ -382,6 +393,12 @@ GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type, bool ovr )
 	{
 		bhvr->m_name = name;
 		bhvr->m_type = type;
+		if( m_level->nextObjectGUID.NotNull() )
+		{
+			bhvr->m_src_guid = m_level->nextObjectGUID;
+			m_level->nextObjectGUID.SetNull();
+		}
+		Game_FireEvent( EID_GOBehaviorAdd, bhvr );
 	}
 	return bhvr;
 }
@@ -399,6 +416,7 @@ void GameObject::RemoveBehavior( sgsString name )
 	GOBehavior* bhvr = m_behaviors.getcopy( name );
 	if( bhvr )
 	{
+		Game_FireEvent( EID_GOBehaviorRemove, bhvr );
 		m_bhvr_order.remove_first( bhvr );
 		m_behaviors.unset( name );
 	}
@@ -1251,11 +1269,18 @@ GameObject* GameLevel::CreateGameObject()
 	GameObject* go = new GameObject( this );
 	go->InitScriptInterface();
 	m_gameObjects.push_back( go );
+	if( nextObjectGUID.NotNull() )
+	{
+		go->m_src_guid = nextObjectGUID;
+		nextObjectGUID.SetNull();
+	}
+	Game_FireEvent( EID_GOCreate, go );
 	return go;
 }
 
 void GameLevel::DestroyGameObject( GameObject* obj )
 {
+	Game_FireEvent( EID_GODestroy, obj );
 	obj->OnDestroy();
 	delete obj;
 	m_gameObjects.remove_first( obj );

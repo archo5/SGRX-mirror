@@ -2978,6 +2978,8 @@ private:
 ENGINE_EXPORT bool DirExists( const StringView& path );
 ENGINE_EXPORT bool DirCreate( const StringView& path );
 
+ENGINE_EXPORT bool FSItemExists( const StringView& path );
+
 ENGINE_EXPORT bool CWDGet( String& path );
 ENGINE_EXPORT bool CWDSet( const StringView& path );
 
@@ -3043,8 +3045,11 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 	}
 	ENGINE_EXPORT static SGRX_GUID Generate();
 	ENGINE_EXPORT static SGRX_GUID ParseString( StringView str );
-	ENGINE_EXPORT void ToCharArray( char* out, bool upper = false, bool nul = true );
+	ENGINE_EXPORT void ToCharArray( char* out, bool upper = false, bool nul = true ) const;
 	ENGINE_EXPORT String ToString( bool upper = false );
+	
+	void SetNull(){ *this = Null; }
+	void SetGenerated(){ *this = Generate(); }
 	
 	SGRX_GUID(){ memset( u32, 0, sizeof(u32) ); }
 	FINLINE bool operator == ( const SGRX_GUID& o ) const
@@ -3055,6 +3060,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 			&& u32[3] == o.u32[3];
 	}
 	FINLINE bool operator != ( const SGRX_GUID& o ) const { return !( *this == o ); }
+	FINLINE bool IsNull() const { return *this == Null; }
 	FINLINE bool NotNull() const { return *this != Null; }
 	template< class T > void Serialize( T& arch )
 	{
@@ -3344,6 +3350,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 	ENGINE_EXPORT SGRX_Log& operator << ( const Vec4& );
 	ENGINE_EXPORT SGRX_Log& operator << ( const Quat& );
 	ENGINE_EXPORT SGRX_Log& operator << ( const Mat4& );
+	ENGINE_EXPORT SGRX_Log& operator << ( const SGRX_GUID& );
 	template< class T > SGRX_Log& operator << ( const Loggable<T>& val ){ val.v.Log( *this ); return *this; }
 	template< class T > SGRX_Log& operator << ( const Array<T>& arr ){ *this << "ARRAY";
 		for( size_t i = 0; i < arr.size(); ++i ) *this << "\n\t" << i << ": " << arr[i]; return *this; }

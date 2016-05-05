@@ -15,12 +15,23 @@ GFW_EXPORT void RegisterCommonGameCVars();
 
 
 struct GameLevel;
+typedef uint32_t TimeVal;
 
 
 extern sgs_ObjInterface g_sgsobj_empty_handle[1];
 
 
-typedef uint32_t TimeVal;
+enum CoreLevelEventIDs
+{
+	EID_Type_CoreLevel = 9000,
+	EID_GOCreate,
+	EID_GODestroy,
+	EID_GOResourceAdd,
+	EID_GOResourceRemove,
+	EID_GOResourceUpdate,
+	EID_GOBehaviorAdd,
+	EID_GOBehaviorRemove,
+};
 
 
 EXP_STRUCT LevelScrObj : SGRX_RefCounted
@@ -809,6 +820,7 @@ EXP_STRUCT GameLevel :
 	void EnumBehaviors( Array< StringView >& out );
 	sgsVariable GetBehaviorInterface( StringView name );
 	Array< GameObject* > m_gameObjects;
+	SGRX_GUID nextObjectGUID;
 };
 
 template< class T > T* AddSystemToLevel( GameLevel* lev )

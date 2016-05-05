@@ -244,6 +244,7 @@ GameObject* EDGO_FLoad( sgsVariable data )
 		uint32_t type = data_rsrc.getprop( "__type" ).get<uint32_t>();
 		SGRX_GUID guid = SGRX_GUID::ParseString(
 			data_rsrc.getprop( "__guid" ).get<StringView>() );
+		g_Level->nextObjectGUID = guid.NotNull() ? guid : SGRX_GUID::Generate();
 		
 		GOResource* rsrc = obj->AddResource( name, type );
 		if( rsrc == NULL )
@@ -252,7 +253,6 @@ GameObject* EDGO_FLoad( sgsVariable data )
 				<< type << ", name=" << name.c_str();
 			continue;
 		}
-		rsrc->m_src_guid = guid.NotNull() ? guid : SGRX_GUID::Generate();
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
 		rsrc->EditLoad( data_rsrc,
@@ -268,6 +268,7 @@ GameObject* EDGO_FLoad( sgsVariable data )
 		sgsString type = data_bhvr.getprop( "__type" ).get_string();
 		SGRX_GUID guid = SGRX_GUID::ParseString(
 			data_bhvr.getprop( "__guid" ).get<StringView>() );
+		g_Level->nextObjectGUID = guid.NotNull() ? guid : SGRX_GUID::Generate();
 		
 		GOBehavior* bhvr = obj->AddBehavior( name, type );
 		if( bhvr == NULL )
