@@ -33,6 +33,17 @@ function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 	ED_SDATA[ prop ] = toreal( obj.(prop) );
 }
 
+function ED_ILOAD.EditColorRGBLDR( lbl, obj, prop )
+{
+	d = ED_SDATA[ prop ];
+	obj.(prop) = vec3( d.x, d.y, d.z );
+}
+function ED_ISAVE.EditColorRGBLDR( lbl, obj, prop )
+{
+	v = obj.(prop);
+	ED_SDATA[ prop ] = { x = v.x, y = v.y, z = v.z };
+}
+
 function ED_ILOAD.EditXFMat4( lbl, obj, prop )
 {
 	a = ED_SDATA[ prop ];
@@ -62,11 +73,20 @@ function ED_ISAVE.PickMesh( lbl, obj, prop, caption )
 	ED_SDATA[ prop ] = tostring( obj.(prop) );
 }
 
-function ED_ILOAD.ComboNT( lbl, obj, prop, zssl )
+function ED_ILOAD.PickTexture( lbl, obj, prop, caption )
+{
+	obj.(prop) = tostring( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.PickTexture( lbl, obj, prop, caption )
+{
+	ED_SDATA[ prop ] = tostring( obj.(prop) );
+}
+
+function ED_ILOAD.ComboNT( lbl, obj, prop, zssl, start )
 {
 	obj.(prop) = toint( ED_SDATA[ prop ] );
 }
-function ED_ISAVE.ComboNT( lbl, obj, prop, zssl )
+function ED_ISAVE.ComboNT( lbl, obj, prop, zssl, start )
 {
 	ED_SDATA[ prop ] = toint( obj.(prop) );
 }

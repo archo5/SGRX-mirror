@@ -37,7 +37,6 @@ void MeshResource::_UpdateMatrix()
 	else // MM_None / other
 		m_meshInst->SetTransform( m_obj->GetWorldMatrix() );
 	_UpdateLighting();
-	_UpEv();
 }
 
 void MeshResource::EditorDrawWorld()
@@ -77,6 +76,89 @@ void MeshResource::SetShaderConst( int v, Vec4 var )
 		return;
 	}
 	m_meshInst->constants[ v ] = var;
+}
+
+
+LightResource::LightResource( GameObject* obj ) : GOResource( obj ),
+	m_isStatic( false ),
+	m_type( LIGHT_POINT ),
+	m_isEnabled( true ),
+	m_color( V3(1) ),
+	m_intensity( 1 ),
+	m_range( 1 ),
+	m_power( 2 ),
+	m_angle( 65 ),
+	m_aspect( 1 ),
+	m_hasShadows( true ),
+	m_localMatrix( Mat4::Identity ),
+	m_matrixMode( MM_Relative ),
+	m_innerAngle( 0 ),
+	m_spotCurve( 1 ),
+	m_lightRadius( 0.1f )
+{
+	_UpdateLight();
+	_UpdateShadows();
+}
+
+LightResource::~LightResource()
+{
+}
+
+void LightResource::OnTransformUpdate()
+{
+	_UpdateMatrix();
+}
+
+void LightResource::_UpdateMatrix()
+{
+	if( m_light )
+	{
+		m_light->SetTransform( _GetFullMatrix() );
+		m_light->UpdateTransform();
+	}
+	_UpEv();
+}
+
+Mat4 LightResource::_GetFullMatrix()
+{
+	if( m_matrixMode == MM_Relative )
+		return m_localMatrix * m_obj->GetWorldMatrix();
+	else if( m_matrixMode == MM_Absolute )
+		return m_localMatrix;
+	else // MM_None / other
+		return m_obj->GetWorldMatrix();
+}
+
+void LightResource::_UpdateLight()
+{
+	bool need = !m_isStatic;
+	if( !need && m_light )
+		m_light = NULL;
+	else if( need && !m_light )
+	{
+		m_light = m_level->GetScene()->CreateLight();
+		m_light->type = m_type;
+		m_light->position = V3(0);
+		m_light->direction = V3(0,0,-1);
+		m_light->updir = V3(0,-1,0);
+		m_light->color = m_color * m_intensity;
+		m_light->range = m_range;
+		m_light->power = m_power;
+		m_light->angle = m_angle;
+		m_light->aspect = m_aspect;
+		m_light->hasShadows = m_hasShadows;
+		_UpdateMatrix();
+		_UpdateShadows();
+	}
+}
+
+void LightResource::_UpdateShadows()
+{
+	bool need = m_hasShadows && m_type == LIGHT_SPOT;
+	if( !need && m_light->shadowTexture )
+		m_light->shadowTexture = NULL;
+	else if( need && !m_light->shadowTexture )
+		m_light->shadowTexture = GR_CreateRenderTexture( 512, 512, RT_FORMAT_DEPTH );
 }
 
 

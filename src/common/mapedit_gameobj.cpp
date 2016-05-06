@@ -152,16 +152,18 @@ void EDGO_EditUI( GameObject* obj )
 			bool can = !used && sgsname.size();
 			if( can )
 			{
-				size_t sz = obj->m_resources.size();
+				GOResource* rsrc = NULL;
 				
 				if( ImGui::Selectable( "Mesh resource" ) )
-				{
-					GOResource* rsrc = obj->AddResource( sgsname, GO_RSRC_MESH );
-					rsrc->m_src_guid = SGRX_GUID::Generate();
-				}
+					rsrc = obj->AddResource( sgsname, GO_RSRC_MESH );
+				if( ImGui::Selectable( "Light resource" ) )
+					rsrc = obj->AddResource( sgsname, GO_RSRC_LIGHT );
 				
-				if( sz != obj->m_resources.size() )
+				if( rsrc )
+				{
+					rsrc->m_src_guid = SGRX_GUID::Generate();
 					ImGui::TriggerChangeCheck();
+				}
 			}
 			else
 			{
@@ -388,6 +390,20 @@ static int IMGUI_EditFloat( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_EditColorRGBLDR( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditColorRGBLDR" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	Vec3 value = obj.getprop( prop ).get<Vec3>();
+	
+	if( IMGUIEditColorRGBLDR( label.c_str(), value ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateVec3( value ) );
+	
+	return 0;
+}
+
 static int IMGUI_EditXFMat4( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.EditXFMat4" );
@@ -417,6 +433,21 @@ static int IMGUI_PickMesh( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_PickTexture( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.PickTexture" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	sgsString caption( C, 3 );
+	String value = obj.getprop( prop ).get<StringView>();
+	
+	if( g_NUITexturePicker->Property( caption.c_str(), label.c_str(), value ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	return 0;
+}
+
 static int IMGUI_ComboNT( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.ComboNT" );
@@ -424,11 +455,12 @@ static int IMGUI_ComboNT( SGS_CTX )
 	sgsVariable obj( C, 1 );
 	sgsString prop( C, 2 );
 	sgsString zssl( C, 3 );
+	int start = sgs_StackSize( C ) > 4 ? sgs_GetVar<int>()( C, 4 ) : 0;
 	int value = obj.getprop( prop ).get<int>();
 	if( zssl.c_str()[ zssl.size() - 1 ] != '\0' )
 		return sgs_Msg( C, SGS_WARNING, "expected extra NUL character at end of string" );
 	
-	if( IMGUIComboBox( label.c_str(), value, zssl.c_str() ) )
+	if( IMGUIComboBox( label.c_str(), value, zssl.c_str(), start ) )
 		obj.setprop( prop, sgsVariable().set_int( value ) );
 	
 	return 0;
@@ -446,8 +478,10 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "EditBool", IMGUI_EditBool },
 	{ "EditInt", IMGUI_EditInt },
 	{ "EditFloat", IMGUI_EditFloat },
+	{ "EditColorRGBLDR", IMGUI_EditColorRGBLDR },
 	{ "EditXFMat4", IMGUI_EditXFMat4 },
 	{ "PickMesh", IMGUI_PickMesh },
+	{ "PickTexture", IMGUI_PickTexture },
 	{ "ComboNT", IMGUI_ComboNT },
 	{ "Button", IMGUI_Button },
 	SGS_RC_END(),

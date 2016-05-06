@@ -135,8 +135,7 @@ MeshEntity::MeshEntity( GameLevel* lev ) : Entity( lev ),
 	m_isSolid( true ),
 	m_lightingMode( SGRX_LM_Static ),
 	m_lmQuality( 1 ),
-	m_castLMS( true ),
-	m_edLGCID( 0 )
+	m_castLMS( true )
 {
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	_UpdateBody();
@@ -921,6 +920,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
 	
 	lev->RegisterNativeClass<MeshResource>( "MeshResource" );
+	lev->RegisterNativeClass<LightResource>( "LightResource" );
 }
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )

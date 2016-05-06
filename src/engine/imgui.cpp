@@ -266,16 +266,14 @@ bool IMGUIEditXFMat4( const char* label, Mat4& v )
 	Vec3 s = v.GetScale();
 	
 	bool chg = false;
-	ImGui::PushID( label );
-	ImGui::BeginGroup();
-	ImGui::Separator();
-	ImGui::Text( "%s", label );
+	
+	IMGUI_GROUPCTL_BEGIN( label );
+	
 	chg |= IMGUIEditVec3( "Position", p, -8192, 8192 );
 	chg |= IMGUIEditQuat( "Rotation", r );
 	chg |= IMGUIEditVec3( "Scale", s, -8192, 8192 );
-	ImGui::Separator();
-	ImGui::EndGroup();
-	ImGui::PopID();
+	
+	IMGUI_GROUPCTL_END;
 	
 	if( chg )
 	{
@@ -288,10 +286,7 @@ bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval )
 {
 	bool ret = false;
 	
-	ImGui::PushID( label );
-	ImGui::BeginGroup();
-	ImGui::Separator();
-	ImGui::Text( "%s", label );
+	IMGUI_GROUPCTL_BEGIN( label );
 	
 	ImGui::ColorButton( ImColor::HSV( v.x, v.y, 0.5f ) );
 	ImGui::SameLine();
@@ -301,11 +296,14 @@ bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval )
 	ImGui::SameLine();
 	ret |= ImGui::DragFloat( "Value", &v.z, 0.01f, 0, maxval, "%g", 2 );
 	
-	ImGui::Separator();
-	ImGui::EndGroup();
-	ImGui::PopID();
+	IMGUI_GROUPCTL_END;
 	
 	return ret;
+}
+
+bool IMGUIEditColorRGBLDR( const char* label, Vec3& v )
+{
+	return ImGui::ColorEdit3( label, &v.x );
 }
 
 bool IMGUIEditColorRGBA32( const char* label, uint32_t& c )

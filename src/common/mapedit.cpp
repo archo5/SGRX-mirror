@@ -1939,7 +1939,7 @@ bool MapEditor::OnInitialize()
 	g_NUISoundPicker->Reload();
 	
 	// core layout
-	g_EdLGCont = AddSystemToLevel<EdLevelGraphicsCont>( g_Level );
+	g_EdLGCont = new EdLevelGraphicsCont();
 	g_EdScene = g_Level->GetScene();
 	g_EdScene->camera.position = Vec3::Create(3,3,3);
 	g_EdScene->camera.UpdateMatrices();
@@ -1957,8 +1957,7 @@ void MapEditor::OnDestroy()
 	delete g_EdWorld;
 	g_EdWorld = NULL;
 	g_EdScene = NULL;
-//	delete g_EdLGCont;
-	g_EdLGCont->OnDestroy();
+	delete g_EdLGCont;
 	g_EdLGCont = NULL;
 	delete g_Level;
 	

@@ -4764,3 +4764,135 @@ static sgs_ObjInterface MeshResource__sgs_interface =
 };
 _sgsInterface MeshResource::_sgs_interface(MeshResource__sgs_interface, MeshResource__sgs_ifn, &GOResource::_sgs_interface);
 
+
+int LightResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<LightResource*>( obj->data )->C = C;
+	static_cast<LightResource*>( obj->data )->~LightResource();
+	return SGS_SUCCESS;
+}
+
+int LightResource::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LightResource*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int LightResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LightResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "isStatic" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->IsStatic() ); return SGS_SUCCESS; }
+		SGS_CASE( "type" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetType() ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->IsEnabled() ); return SGS_SUCCESS; }
+		SGS_CASE( "color" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetColor() ); return SGS_SUCCESS; }
+		SGS_CASE( "intensity" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetIntensity() ); return SGS_SUCCESS; }
+		SGS_CASE( "range" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetRange() ); return SGS_SUCCESS; }
+		SGS_CASE( "power" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetPower() ); return SGS_SUCCESS; }
+		SGS_CASE( "angle" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetAngle() ); return SGS_SUCCESS; }
+		SGS_CASE( "aspect" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetAspect() ); return SGS_SUCCESS; }
+		SGS_CASE( "hasShadows" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->HasShadows() ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTextureData" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetCookieTextureData() ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTexture" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetCookieTexturePath() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrix" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "innerAngle" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_innerAngle ); return SGS_SUCCESS; }
+		SGS_CASE( "spotCurve" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_spotCurve ); return SGS_SUCCESS; }
+		SGS_CASE( "lightRadius" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_lightRadius ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<LightResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int LightResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LightResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<LightResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "isStatic" ){ static_cast<LightResource*>( obj->data )->SetStatic( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "type" ){ static_cast<LightResource*>( obj->data )->SetType( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<LightResource*>( obj->data )->SetEnabled( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "color" ){ static_cast<LightResource*>( obj->data )->SetColor( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "intensity" ){ static_cast<LightResource*>( obj->data )->SetIntensity( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "range" ){ static_cast<LightResource*>( obj->data )->SetRange( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "power" ){ static_cast<LightResource*>( obj->data )->SetPower( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "angle" ){ static_cast<LightResource*>( obj->data )->SetAngle( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "aspect" ){ static_cast<LightResource*>( obj->data )->SetAspect( sgs_GetVar<float>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "hasShadows" ){ static_cast<LightResource*>( obj->data )->SetShadows( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTextureData" ){ static_cast<LightResource*>( obj->data )->SetCookieTextureData( sgs_GetVar<TextureHandle>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "cookieTexture" ){ static_cast<LightResource*>( obj->data )->SetCookieTexturePath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrix" ){ static_cast<LightResource*>( obj->data )->SetMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<LightResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "innerAngle" ){ static_cast<LightResource*>( obj->data )->m_innerAngle = sgs_GetVar<float>()( C, 1 );
+			static_cast<LightResource*>( obj->data )->_UpEv(); return SGS_SUCCESS; }
+		SGS_CASE( "spotCurve" ){ static_cast<LightResource*>( obj->data )->m_spotCurve = sgs_GetVar<float>()( C, 1 );
+			static_cast<LightResource*>( obj->data )->_UpEv(); return SGS_SUCCESS; }
+		SGS_CASE( "lightRadius" ){ static_cast<LightResource*>( obj->data )->m_lightRadius = sgs_GetVar<float>()( C, 1 );
+			static_cast<LightResource*>( obj->data )->_UpEv(); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<LightResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LightResource*>( obj->data )->C, C );
+	char bfr[ 45 ];
+	sprintf( bfr, "LightResource (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nisStatic = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->IsStatic(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ntype = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetType(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->IsEnabled(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ncolor = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetColor(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nintensity = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetIntensity(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nrange = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetRange(), depth ).push( C ); }
+		{ sgs_PushString( C, "\npower = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetPower(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nangle = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetAngle(), depth ).push( C ); }
+		{ sgs_PushString( C, "\naspect = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetAspect(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nhasShadows = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->HasShadows(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ncookieTextureData = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetCookieTextureData(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ncookieTexture = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetCookieTexturePath(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrix = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ninnerAngle = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_innerAngle, depth ).push( C ); }
+		{ sgs_PushString( C, "\nspotCurve = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_spotCurve, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlightRadius = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_lightRadius, depth ).push( C ); }
+		sgs_StringConcat( C, 44 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst LightResource__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int LightResource__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		LightResource__sgs_funcs,
+		-1, "LightResource." );
+	return 1;
+}
+
+static sgs_ObjInterface LightResource__sgs_interface =
+{
+	"LightResource",
+	LightResource::_sgs_destruct, LightResource::_sgs_gcmark, LightResource::_sgs_getindex, LightResource::_sgs_setindex, NULL, NULL, LightResource::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface LightResource::_sgs_interface(LightResource__sgs_interface, LightResource__sgs_ifn, &GOResource::_sgs_interface);
+

@@ -305,6 +305,8 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 	GOResource* rsrc = NULL;
 	if( type == GO_RSRC_MESH )
 		rsrc = new MeshResource( this );
+	else if( type == GO_RSRC_LIGHT )
+		rsrc = new LightResource( this );
 	if( rsrc )
 	{
 		rsrc->m_name = name;
@@ -580,6 +582,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		{ "IEST_Target", IEST_Target },
 		{ "IEST_AIAlert", IEST_AIAlert },
 		{ "GO_RSRC_MESH", GO_RSRC_MESH },
+		{ "GO_RSRC_LIGHT", GO_RSRC_LIGHT },
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( C, ric, -1 );

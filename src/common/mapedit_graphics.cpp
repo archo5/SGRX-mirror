@@ -174,9 +174,8 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 	}
 }
 
-EdLevelGraphicsCont::EdLevelGraphicsCont( GameLevel* lev )
-	: IGameLevelSystem( lev, -1 ),
-	m_invalidSamples(false), m_alrInvalidSamples(false), m_lmRenderer(NULL)
+EdLevelGraphicsCont::EdLevelGraphicsCont()
+	: m_invalidSamples(false), m_alrInvalidSamples(false), m_lmRenderer(NULL)
 {
 	g_Level->m_lightTree = &m_sampleTree;
 	
@@ -187,15 +186,12 @@ EdLevelGraphicsCont::EdLevelGraphicsCont( GameLevel* lev )
 
 EdLevelGraphicsCont::~EdLevelGraphicsCont()
 {
-	if( m_lmRenderer )
-		delete m_lmRenderer;
-}
-
-void EdLevelGraphicsCont::OnDestroy()
-{
 	Game_UnregisterEventHandler( this, EID_GOResourceAdd );
 	Game_UnregisterEventHandler( this, EID_GOResourceRemove );
 	Game_UnregisterEventHandler( this, EID_GOResourceUpdate );
+	
+	if( m_lmRenderer )
+		delete m_lmRenderer;
 }
 
 void EdLevelGraphicsCont::Reset()
@@ -1119,24 +1115,25 @@ void EdLevelGraphicsCont::UpdateSurface( SGRX_GUID guid, uint32_t changes, EdLGC
 		InvalidateSurface( guid );
 }
 
-static void ReadLightInfo( EdLGCLightInfo* out, LightEntity* le )
+static void ReadLightInfo( EdLGCLightInfo* out, LightResource* lr )
 {
-	out->type = le->m_type == LIGHT_SPOT ? LM_LIGHT_SPOT : LM_LIGHT_POINT;
-	if( le->m_isStatic == false || le->m_isEnabled == false )
+	out->type = lr->m_type == LIGHT_SPOT ? LM_LIGHT_SPOT : LM_LIGHT_POINT;
+	if( lr->m_isStatic == false || lr->m_isEnabled == false )
 		out->type = -1;
-	out->pos = le->GetWorldPosition();
-	out->dir = le->LocalToWorldDir( V3(0,0,-1) );
-	out->up = le->LocalToWorldDir( V3(0,-1,0) );
-	out->range = le->m_range;
-	out->power = le->m_power;
-	out->light_radius = le->m_lightRadius;
-	out->color = le->m_color * le->m_intensity;
+	Mat4 mtx = lr->_GetFullMatrix();
+	out->pos = mtx.GetTranslation();
+	out->dir = mtx.TransformNormal( V3(0,0,-1) ).Normalized();
+	out->up = mtx.TransformNormal( V3(0,-1,0) ).Normalized();
+	out->range = lr->m_range;
+	out->power = lr->m_power;
+	out->light_radius = lr->m_lightRadius;
+	out->color = lr->m_color * lr->m_intensity;
 	out->num_shadow_samples = 0;
-	out->flaresize = le->m_flareSize;
-	out->flareoffset = le->m_flareOffset;
-	out->innerangle = le->m_innerAngle;
-	out->outerangle = le->m_angle;
-	out->spotcurve = le->m_spotCurve;
+	out->flaresize = 0; // lr->m_flareSize;
+	out->flareoffset = V3(0); // lr->m_flareOffset;
+	out->innerangle = lr->m_innerAngle;
+	out->outerangle = lr->m_angle;
+	out->spotcurve = lr->m_spotCurve;
 }
 
 static void ReadMeshInfo( EdLGCMeshInfo* out, MeshResource* mr )
@@ -1151,41 +1148,6 @@ static void ReadMeshInfo( EdLGCMeshInfo* out, MeshResource* mr )
 		| ( mr->m_lightingMode == SGRX_LM_Decal ? LM_MESHINST_DECAL : 0 );
 	out->lmdetail = mr->m_lmQuality;
 	out->decalLayer = 0;
-}
-
-void EdLevelGraphicsCont::OnAddEntity( Entity* ent )
-{
-	ASSERT( ent );
-	if( ENTITY_IS_A( ent, LightEntity ) )
-	{
-		SGRX_CAST( LightEntity*, LE, ent );
-		SGRX_GUID guid = SGRX_GUID::Generate();
-		Light L;
-		{
-			ReadLightInfo( &L.info, LE );
-			L.ent = LE;
-		}
-		m_lights.set( guid, L );
-		LE->m_edLGCGUID = guid;
-	}
-}
-
-void EdLevelGraphicsCont::OnRemoveEntity( Entity* ent )
-{
-	ASSERT( ent );
-	if( ENTITY_IS_A( ent, LightEntity ) )
-	{
-		SGRX_CAST( LightEntity*, LE, ent );
-		SGRX_GUID guid = LE->m_edLGCGUID;
-		
-		InvalidateLight( guid );
-		ApplyInvalidation();
-		m_movedLights.unset( guid );
-		
-		ASSERT( m_lights.isset( guid ) );
-		m_lights.unset( guid );
-		LE->m_edLGCGUID = SGRX_GUID::Null;
-	}
 }
 
 void EdLevelGraphicsCont::HandleEvent( SGRX_EventID eid, const EventData& edata )
@@ -1207,6 +1169,16 @@ void EdLevelGraphicsCont::HandleEvent( SGRX_EventID eid, const EventData& edata 
 			m_meshes.set( MR->m_src_guid, M );
 			CreateLightmap( MR->m_src_guid );
 		}
+		else if( ENTITY_IS_A( rsrc, LightResource ) )
+		{
+			SGRX_CAST( LightResource*, LR, rsrc );
+			Light L;
+			{
+				ReadLightInfo( &L.info, LR );
+				L.ent = LR;
+			}
+			m_lights.set( LR->m_src_guid, L );
+		}
 	}
 	else if( eid == EID_GOResourceRemove )
 	{
@@ -1219,6 +1191,14 @@ void EdLevelGraphicsCont::HandleEvent( SGRX_EventID eid, const EventData& edata 
 			m_movedMeshes.unset( MR->m_src_guid );
 			m_lightmaps.unset( MR->m_src_guid );
 			m_meshes.unset( MR->m_src_guid );
+		}
+		else if( ENTITY_IS_A( rsrc, LightResource ) )
+		{
+			SGRX_CAST( LightResource*, LR, rsrc );
+			InvalidateLight( LR->m_src_guid );
+			ApplyInvalidation();
+			m_movedLights.unset( LR->m_src_guid );
+			m_lights.unset( LR->m_src_guid );
 		}
 	}
 	else if( eid == EID_GOResourceUpdate )
@@ -1236,16 +1216,15 @@ void EdLevelGraphicsCont::HandleEvent( SGRX_EventID eid, const EventData& edata 
 				InvalidateMesh( MR->m_src_guid );
 			}
 		}
-	}
-	
-	if( eid == EID_LightUpdate )
-	{
-		SGRX_CAST( LightEntity*, LE, edata.GetUserData() );
-		if( LE->m_edLGCGUID.NotNull() )
+		else if( ENTITY_IS_A( rsrc, LightResource ) )
 		{
-			InvalidateLight( LE->m_edLGCGUID );
-			ReadLightInfo( &m_lights[ LE->m_edLGCGUID ].info, LE );
-			InvalidateLight( LE->m_edLGCGUID );
+			SGRX_CAST( LightResource*, LR, rsrc );
+			if( LR->m_src_guid.NotNull() )
+			{
+				InvalidateLight( LR->m_src_guid );
+				ReadLightInfo( &m_lights[ LR->m_src_guid ].info, LR );
+				InvalidateLight( LR->m_src_guid );
+			}
 		}
 	}
 }

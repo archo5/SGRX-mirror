@@ -124,7 +124,7 @@ struct EdLGCLightInfo : LC_Light
 	}
 };
 
-struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
+struct EdLevelGraphicsCont : SGRX_IEventHandler
 {
 	struct PrevMeshData
 	{
@@ -157,7 +157,7 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 	struct Light
 	{
 		EdLGCLightInfo info;
-		struct LightEntity* ent;
+		struct LightResource* ent;
 	};
 	struct LMap : SGRX_RefCounted
 	{
@@ -192,11 +192,9 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 	typedef HashTable< SGRX_GUID, LMapHandle > LMapTable;
 	typedef HashTable< SGRX_GUID, NoValue > InvLMIDSet;
 	typedef HashTable< SGRX_GUID, PrevMeshData > MovedMeshSet;
-	typedef HashTable< Entity*, SGRX_GUID > EntityLMIDTable;
 	
-	EdLevelGraphicsCont( GameLevel* lev );
+	EdLevelGraphicsCont();
 	~EdLevelGraphicsCont();
-	void OnDestroy();
 	void Reset();
 	void LoadLightmaps( const StringView& levname );
 	void SaveLightmaps( const StringView& levname );
@@ -236,8 +234,6 @@ struct EdLevelGraphicsCont : IGameLevelSystem, SGRX_IEventHandler
 		return int(m_invalidLightmaps.size()) + int(m_invalidSamples);
 	}
 	
-	virtual void OnAddEntity( Entity* ent );
-	virtual void OnRemoveEntity( Entity* ent );
 	virtual void HandleEvent( SGRX_EventID eid, const EventData& edata );
 	
 	SolidTable m_solids;

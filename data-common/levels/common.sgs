@@ -82,6 +82,32 @@ function MeshResource.EditorGUI( ui )
 	}
 }
 
+function LightResource.EditorGUI( ui )
+{
+	ui.ComboNT( "Type", this, "type", "Point light\0Spotlight\0", 1 );
+	ui.EditBool( "Enabled", this, "enabled" );
+	ui.EditBool( "Has shadows?", this, "hasShadows" );
+	ui.EditColorRGBLDR( "Color", this, "color" );
+	ui.EditFloat( "Intensity", this, "intensity", -1000, 1000 );
+	ui.EditFloat( "Range", this, "range", 0, 10000 );
+	ui.EditFloat( "Power", this, "power", 0.01, 100 );
+	if( this.type == LIGHT_SPOT )
+	{
+		ui.EditFloat( "Angle (outer)", this, "angle", 0, 180 );
+		ui.EditFloat( "Aspect", this, "aspect", 1/4096, 4096 );
+	}
+	ui.EditXFMat4( "Matrix", this, "matrix" );
+	ui.ComboNT( "Matrix mode", this, "matrixMode", "Disabled\0Relative\0Absolute\0" );
+	ui.PickTexture( "Cookie texture", this, "cookieTexture", "Select cookie texture" );
+	ui.EditBool( "Is static?", this, "isStatic" );
+	if( this.isStatic )
+	{
+		ui.EditFloat( "Angle (inner)", this, "innerAngle", 0, 180 );
+		ui.EditFloat( "Spotlight curve", this, "spotCurve", 0.01, 100 );
+		ui.EditFloat( "Light radius", this, "lightRadius", 0, 1000 );
+	}
+}
+
 //
 // Basic behaviors
 //

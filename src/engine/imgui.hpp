@@ -50,6 +50,7 @@ ENGINE_EXPORT bool IMGUIEditFloatSlider( const char* label, float& v, float vmin
 ENGINE_EXPORT bool IMGUIEditQuat( const char* label, Quat& v );
 ENGINE_EXPORT bool IMGUIEditXFMat4( const char* label, Mat4& v );
 ENGINE_EXPORT bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxval = 1.0f );
+ENGINE_EXPORT bool IMGUIEditColorRGBLDR( const char* label, Vec3& v );
 ENGINE_EXPORT bool IMGUIEditColorRGBA32( const char* label, uint32_t& c );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
 ENGINE_EXPORT void IMGUIErrorStr( StringView str );
@@ -311,28 +312,30 @@ template< class T, class F > void IMGUIEditArray( Array< T >& data, F& editfn, c
 #define IMGUI_GROUP_BEGIN( name, opened ) ImGui::SetNextTreeNodeOpened( opened, ImGuiSetCond_Appearing ); \
 	if( ImGui::TreeNode( name ) ){
 #define IMGUI_GROUP_END ImGui::TreePop(); }
+#define IMGUI_GROUPCTL_BEGIN( label ) ImGui::PushID( label ); ImGui::BeginGroup(); ImGui::Separator(); ImGui::Text( "%s", label );
+#define IMGUI_GROUPCTL_END ImGui::Separator(); ImGui::EndGroup(); ImGui::PopID();
 
-template< class T > bool IMGUIListbox( const char* name, T& val, const char** list, int lsize )
+template< class T > bool IMGUIListbox( const char* name, T& val, const char** list, int lsize, int start = 0 )
 {
-	int curr = val;
+	int curr = int(val) - start;
 	bool ret = ImGui::ListBox( name, &curr, list, lsize );
-	val = curr;
+	val = (T) ( curr + start );
 	return ret;
 }
 #define IMGUI_LISTBOX( name, val, list ) IMGUIListbox( name, val, list, SGRX_ARRAY_SIZE( list ) )
 
-template< class T > bool IMGUIComboBox( const char* name, T& val, const char* zssl )
+template< class T > bool IMGUIComboBox( const char* name, T& val, const char* zssl, int start = 0 )
 {
-	int curr = val;
+	int curr = int(val) - start;
 	bool ret = ImGui::Combo( name, &curr, zssl );
-	val = (T) curr;
+	val = (T) ( curr + start );
 	return ret;
 }
-template< class T > bool IMGUIComboBox( const char* name, T& val, const char** list, int lsize )
+template< class T > bool IMGUIComboBox( const char* name, T& val, const char** list, int lsize, int start = 0 )
 {
-	int curr = val;
+	int curr = int(val) - start;
 	bool ret = ImGui::Combo( name, &curr, list, lsize );
-	val = (T) curr;
+	val = (T) ( curr + start );
 	return ret;
 }
 #define IMGUI_COMBOBOX( name, val, list ) IMGUIComboBox( name, val, list, SGRX_ARRAY_SIZE( list ) )
