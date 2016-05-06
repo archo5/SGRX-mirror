@@ -193,6 +193,16 @@ int GOResourceTable::getindex( SGS_CTX, sgs_VarObj* obj )
 	return _sgs_getindex( C, obj );
 }
 
+sgsVariable GOResourceTable::sgsGetNames()
+{
+	for( size_t i = 0; i < size(); ++i )
+	{
+		item( i ).key.push( C );
+	}
+	sgs_CreateArray( C, NULL, size() );
+	return sgsVariable( C, sgsVariable::PickAndPop );
+}
+
 GOBehavior::GOBehavior( GameObject* obj ) :
 	LevelScrObj( obj->m_level ),
 	m_obj( obj )

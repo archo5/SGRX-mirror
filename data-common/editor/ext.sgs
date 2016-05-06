@@ -71,3 +71,6 @@ function ED_ISAVE.ComboNT( lbl, obj, prop, zssl )
 	ED_SDATA[ prop ] = toint( obj.(prop) );
 }
 
+function ED_ILOAD.Button( lbl ){}
+function ED_ISAVE.Button( lbl ){}
+

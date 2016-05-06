@@ -82,6 +82,65 @@ function MeshResource.EditorGUI( ui )
 	}
 }
 
+//
+// Basic behaviors
+//
+
+global BhMeshArray = {};
+BEHAVIOR( "BhMeshArray", "Behavior" );
+BhMeshArray._props = [
+	"isStatic", "visible", "mesh", "matrix",
+	"matrixMode", "lightingMode", "lmQuality", "castLMS"
+];
+function BhMeshArray.Init()
+{
+	this.object.RequireResource( "ma_0", GO_RSRC_MESH );
+	this.offset = mat4().translate( 0, 0, 1 );
+	this.count = 1;
+}
+function BhMeshArray.Rebuild()
+{
+	this.object.RequireResource( "ma_0", GO_RSRC_MESH );
+	r0 = this.resources[ "ma_0" ];
+	
+	// remove the too many meshes
+	names = this.resources.GetNames();
+	foreach( name : names )
+	{
+		if( string_part( name, 0, 3 ) == "ma_" )
+		{
+			which = toint( string_part( name, 3 ) );
+			if( which >= this.count )
+			{
+				this.object.RemoveResource( name );
+			}
+		}
+	}
+	
+	_props = this._props;
+	xfadd = mat4(this.offset);
+	for( i = 1; i < this.count; ++i )
+	{
+		name = "ma_" $ i;
+		this.object.RequireResource( name, GO_RSRC_MESH );
+		r = this.resources[ name ];
+		for( j = 0; j < _props.size; ++j )
+		{
+			prop = _props[ j ];
+			r.(prop) = r0.(prop);
+		}
+		r.matrix = r.matrix.multiply( xfadd );
+		xfadd.multiply( this.offset );
+	}
+}
+function BhMeshArray.EditorGUI( gui )
+{
+	gui.EditXFMat4( "Offset", this, "offset" );
+	gui.EditInt( "Count", this, "count", 1, 1000 );
+	if( gui.Button( "Regenerate" ) )
+		this.Rebuild();
+}
+
 
 //
 // Entity Editor Extensions

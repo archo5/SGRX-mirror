@@ -20,6 +20,15 @@ struct AssetRenderView* g_NUIRenderView;
 struct IMGUIFilePicker* g_NUIAssetPicker;
 
 
+enum EditorMode
+{
+	EditAssets,
+	EditCategories,
+	MiscProps,
+};
+int g_mode = EditAssets;
+
+
 
 struct AssetRenderView : IMGUIRenderView
 {
@@ -544,6 +553,7 @@ bool g_RenameAssetCats = false;
 
 void SetCurAsset( SGRX_Asset* asset )
 {
+	g_mode = EditAssets;
 	g_CurAsset = asset;
 	if( asset->assetType == SGRX_AT_Texture )
 	{
@@ -572,6 +582,7 @@ void SetCurCategory( size_t i )
 	}
 	g_CurCategory = g_EdAS->categories.item( i ).key;
 	g_CurCatName = g_CurCategory;
+	g_CurCatName.resize( sgrx_snlen( g_CurCatName.data(), g_CurCatName.size() ) );
 	g_CurCatPath = g_EdAS->categories.item( i ).value;
 }
 
@@ -665,7 +676,7 @@ void EditCurCategory()
 	const char* act = g_CurCatName != g_CurCategory
 		? ( g_EdAS->categories.isset( g_CurCatName ) ? "Move/Overwrite" : "Move/rename" )
 		: "Edit";
-	if( ImGui::Button( act ) )
+	if( g_CurCatName.size() && ImGui::Button( act ) )
 	{
 		if( g_CurCatName != g_CurCategory )
 		{
@@ -696,6 +707,12 @@ void EditCategoryList()
 	}
 	
 	ImGui::Text( "Categories" );
+	ImGui::SameLine();
+	if( ImGui::Button( "Add" ) )
+	{
+		g_EdAS->categories.set( StringView("\0",1), "" );
+		SetCurCategory( g_EdAS->categories.size() - 1 );
+	}
 	ImGui::Separator();
 	
 	for( size_t i = 0; i < g_EdAS->categories.size(); ++i )
@@ -887,15 +904,6 @@ void ASCR_Run( bool force )
 	SGRX_ProcessAssets( *g_EdAS, force );
 	g_EdAS->SaveOutputInfo( OUTPUT_INFO_NAME );
 }
-
-
-enum EditorMode
-{
-	EditAssets,
-	EditCategories,
-	MiscProps,
-};
-int g_mode = EditAssets;
 
 
 
@@ -1105,6 +1113,35 @@ struct ASEditor : IGame
 				ImGui::RadioButton( "Categories", &g_mode, EditCategories );
 				ImGui::SameLine();
 				ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
+				
+				ImGui::SameLine( 0, 50 );
+				if( ImGui::Button( "Create texture" ) )
+				{
+					SGRX_TextureAsset ta;
+					if( g_CurAsset )
+						ta.outputCategory = g_CurAsset->outputCategory;
+					ta.outputType = SGRX_TOF_STX_RGBA32;
+					g_EdAS->textureAssets.push_back( ta );
+					SetCurAsset( &g_EdAS->textureAssets.last() );
+				}
+				ImGui::SameLine();
+				if( ImGui::Button( "Create mesh" ) )
+				{
+					SGRX_MeshAsset ma;
+					if( g_CurAsset )
+						ma.outputCategory = g_CurAsset->outputCategory;
+					g_EdAS->meshAssets.push_back( ma );
+					SetCurAsset( &g_EdAS->meshAssets.last() );
+				}
+				ImGui::SameLine();
+				if( ImGui::Button( "Create anim. bundle" ) )
+				{
+					SGRX_AnimBundleAsset aba;
+					if( g_CurAsset )
+						aba.outputCategory = g_CurAsset->outputCategory;
+					g_EdAS->animBundleAssets.push_back( aba );
+					SetCurAsset( &g_EdAS->animBundleAssets.last() );
+				}
 				
 				ImGui::EndMenuBar();
 			}

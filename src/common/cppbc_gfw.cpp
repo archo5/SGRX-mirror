@@ -1452,6 +1452,13 @@ static sgs_ObjInterface GOResource__sgs_interface =
 _sgsInterface GOResource::_sgs_interface(GOResource__sgs_interface, GOResource__sgs_ifn, &LevelScrObj::_sgs_interface);
 
 
+static int _sgs_method__GOResourceTable__GetNames( SGS_CTX )
+{
+	GOResourceTable* data; if( !SGS_PARSE_METHOD( C, GOResourceTable::_sgs_interface, data, GOResourceTable, GetNames ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsGetNames(  )); return 1;
+}
+
 int GOResourceTable::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GOResourceTable*>( obj->data )->C = C;
@@ -1504,6 +1511,7 @@ int GOResourceTable::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst GOResourceTable__sgs_funcs[] =
 {
+	{ "GetNames", _sgs_method__GOResourceTable__GetNames },
 	{ NULL, NULL },
 };
 

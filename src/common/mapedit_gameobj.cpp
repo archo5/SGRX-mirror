@@ -434,6 +434,13 @@ static int IMGUI_ComboNT( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_Button( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.Button" );
+	sgsString label( C, 0 );
+	return sgs_PushBool( C, ImGui::Button( label.c_str() ) );
+}
+
 sgs_RegFuncConst g_imgui_rfc[] =
 {
 	{ "EditBool", IMGUI_EditBool },
@@ -442,6 +449,7 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "EditXFMat4", IMGUI_EditXFMat4 },
 	{ "PickMesh", IMGUI_PickMesh },
 	{ "ComboNT", IMGUI_ComboNT },
+	{ "Button", IMGUI_Button },
 	SGS_RC_END(),
 };
 

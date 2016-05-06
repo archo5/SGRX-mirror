@@ -539,6 +539,7 @@ EXP_STRUCT GOResourceTable : LevelScrObj, HashTable< sgsString, H_GOResource >
 	typedef sgsHandle< GOResourceTable > ScrHandle;
 	GOResourceTable( GameLevel* lev ) : LevelScrObj( lev ){ InitScriptInterface(); }
 	SGS_IFUNC( getindex ) int getindex( SGS_CTX, sgs_VarObj* obj );
+	SGS_METHOD_NAMED( GetNames ) sgsVariable sgsGetNames();
 };
 
 EXP_STRUCT GOBehavior : LevelScrObj
