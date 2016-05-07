@@ -63,7 +63,8 @@ void EDGO_EditUI( GameObject* obj )
 					if( ImGui::Selectable( StackString<256>(bhvrlist[ i ]) ) )
 					{
 						GOBehavior* bhvr = obj->AddBehavior( sgsname, g_Level->m_scriptCtx.CreateString( bhvrlist[ i ] ) );
-						bhvr->m_src_guid = SGRX_GUID::Generate();
+						if( bhvr->m_src_guid.IsNull() )
+							bhvr->m_src_guid.SetGenerated();
 					}
 				}
 				
@@ -161,7 +162,8 @@ void EDGO_EditUI( GameObject* obj )
 				
 				if( rsrc )
 				{
-					rsrc->m_src_guid = SGRX_GUID::Generate();
+					if( rsrc->m_src_guid.IsNull() )
+						rsrc->m_src_guid.SetGenerated();
 					ImGui::TriggerChangeCheck();
 				}
 			}
@@ -290,13 +292,17 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	return obj;
 }
 
-sgsVariable EDGO_FSave( GameObject* obj )
+sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 {
 	sgsVariable data = FNewDict();
 	
 	data.setprop( "name", obj->m_name.get_variable() );
 	data.setprop( "id", obj->m_id.get_variable() );
-	data.setprop( "guid", g_Level->GetScriptCtx().CreateString( obj->m_src_guid.ToString() ) );
+	if( guids )
+	{
+		data.setprop( "guid", g_Level->GetScriptCtx().CreateString(
+			obj->m_src_guid.ToString() ) );
+	}
 	FSaveProp( data, "position", obj->GetLocalPosition() );
 	FSaveProp( data, "rotation", obj->GetLocalRotation() );
 	FSaveProp( data, "scale", obj->GetLocalScale() );
@@ -314,8 +320,11 @@ sgsVariable EDGO_FSave( GameObject* obj )
 		
 		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
 		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_type ) );
-		data_rsrc.setprop( "__guid",
-			g_Level->GetScriptCtx().CreateString( rsrc->m_src_guid.ToString() ) );
+		if( guids )
+		{
+			data_rsrc.setprop( "__guid",
+				g_Level->GetScriptCtx().CreateString( rsrc->m_src_guid.ToString() ) );
+		}
 		FArrayAppend( out_rsrc, data_rsrc );
 	}
 	data.setprop( "resources", out_rsrc );
@@ -333,13 +342,22 @@ sgsVariable EDGO_FSave( GameObject* obj )
 		
 		data_bhvr.setprop( "__name", bhvr->m_name.get_variable() );
 		data_bhvr.setprop( "__type", bhvr->m_type.get_variable() );
-		data_bhvr.setprop( "__guid",
-			g_Level->GetScriptCtx().CreateString( bhvr->m_src_guid.ToString() ) );
+		if( guids )
+		{
+			data_bhvr.setprop( "__guid",
+				g_Level->GetScriptCtx().CreateString( bhvr->m_src_guid.ToString() ) );
+		}
 		FArrayAppend( out_bhvr, data_bhvr );
 	}
 	data.setprop( "behaviors", out_bhvr );
 	
 	return data;
+}
+
+GameObject* EDGO_Clone( GameObject* obj )
+{
+	sgsVariable data = EDGO_FSave( obj, false );
+	return EDGO_FLoad( data );
 }
 
 

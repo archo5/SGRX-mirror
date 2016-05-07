@@ -1193,7 +1193,8 @@ bool EdWorld::DuplicateSelectedObjectsAndMoveSelection()
 		EdObjIdx idx = m_selection.item( i ).key;
 		if( idx.type == ObjType_GameObject )
 		{
-			// TODO
+			GameObject* obj = EDGO_Clone( idx.GetGameObject() );
+			newsel.push_back( obj );
 		}
 		else
 		{
