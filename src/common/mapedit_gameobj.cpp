@@ -161,6 +161,8 @@ void EDGO_EditUI( GameObject* obj )
 					rsrc = obj->AddResource( sgsname, GO_RSRC_LIGHT );
 				if( ImGui::Selectable( "Particle system resource" ) )
 					rsrc = obj->AddResource( sgsname, GO_RSRC_PSYS );
+				if( ImGui::Selectable( "Rigid body resource" ) )
+					rsrc = obj->AddResource( sgsname, GO_RSRC_RBODY );
 				
 				if( rsrc )
 				{
@@ -460,6 +462,38 @@ static int IMGUI_EditFloat( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_EditVec3( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditVec3" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	Vec3 value = obj.getprop( prop ).get<Vec3>();
+	float vmin = sgs_StackSize( C ) > 3 ? sgs_GetVar<float>()( C, 3 ) : -FLT_MAX;
+	float vmax = sgs_StackSize( C ) > 4 ? sgs_GetVar<float>()( C, 4 ) : FLT_MAX;
+	int prec = sgs_StackSize( C ) > 5 ? sgs_GetVar<int>()( C, 5 ) : 2;
+	
+	if( IMGUIEditVec3( label.c_str(), value, vmin, vmax, prec ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateVec3( value ) );
+	
+	return 0;
+}
+
+static int IMGUI_EditMask( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditMask" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	int value = obj.getprop( prop ).get<int>();
+	int count = sgs_StackSize( C ) > 3 ? sgs_GetVar<int>()( C, 3 ) : 32;
+	
+	if( IMGUIEditMask( label.c_str(), value, count ) )
+		obj.setprop( prop, sgsVariable().set_int( value ) );
+	
+	return 0;
+}
+
 static int IMGUI_EditColorRGBLDR( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.EditColorRGBLDR" );
@@ -578,6 +612,8 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "EditBool", IMGUI_EditBool },
 	{ "EditInt", IMGUI_EditInt },
 	{ "EditFloat", IMGUI_EditFloat },
+	{ "EditVec3", IMGUI_EditVec3 },
+	{ "EditMask", IMGUI_EditMask },
 	{ "EditColorRGBLDR", IMGUI_EditColorRGBLDR },
 	{ "EditXFMat4", IMGUI_EditXFMat4 },
 	{ "PickMesh", IMGUI_PickMesh },

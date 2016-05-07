@@ -272,3 +272,46 @@ SGRX_Sound3DAttribs ParticleSystemResource::_Get3DAttribs()
 }
 
 
+RigidBodyResource::RigidBodyResource( GameObject* obj ) :
+	GOResource( obj ),
+	shapeType( ShapeType_AABB ),
+	shapeRadius( 0.5f ),
+	shapeHeight( 1.0f ),
+	shapeExtents( V3(0.5f) ),
+	shapeMinExtents( V3(-0.5f) )
+{
+	_UpdateShape();
+	SGRX_PhyRigidBodyInfo rbinfo;
+	rbinfo.shape = m_shape;
+	m_body = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
+}
+
+void RigidBodyResource::OnTransformUpdate()
+{
+	Mat4 xf = GetWorldMatrix();
+	m_body->SetPosition( xf.GetTranslation() );
+	m_body->SetRotation( xf.GetRotationQuaternion() );
+	m_shape->SetScale( xf.GetScale() );
+}
+
+void RigidBodyResource::_UpdateShape()
+{
+	PhyWorldHandle pw = m_level->GetPhyWorld();
+	if( shapeType == ShapeType_Box )
+		m_shape = pw->CreateBoxShape( shapeExtents );
+	else if( shapeType == ShapeType_Sphere )
+		m_shape = pw->CreateSphereShape( shapeRadius );
+	else if( shapeType == ShapeType_Cylinder )
+		m_shape = pw->CreateCylinderShape( shapeExtents );
+	else if( shapeType == ShapeType_Capsule )
+		m_shape = pw->CreateCapsuleShape( shapeRadius, shapeHeight );
+	else if( shapeType == ShapeType_Mesh )
+		m_shape = pw->CreateShapeFromMesh( shapeMesh );
+	else // AABB / other
+		m_shape = pw->CreateAABBShape( shapeMinExtents, shapeExtents );
+	
+	if( m_body )
+		m_body->SetShape( m_shape );
+}
+
+

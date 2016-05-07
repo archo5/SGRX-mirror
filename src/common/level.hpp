@@ -529,7 +529,7 @@ EXP_STRUCT GOResource : LevelScrObj
 	GFW_EXPORT virtual void EditorDrawWorld();
 	GFW_EXPORT virtual Vec3 EditorIconPos();
 	
-	GFW_EXPORT Mat4 GetWorldMatrix() const;
+	GFW_EXPORT SGS_METHOD Mat4 GetWorldMatrix() const;
 	Mat4 GetLocalMatrix() const { return m_localMatrix; }
 	void SetLocalMatrix( Mat4 m ){ m_localMatrix = m; OnTransformUpdate(); }
 	int GetMatrixMode() const { return m_matrixMode; }

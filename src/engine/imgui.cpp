@@ -195,6 +195,49 @@ bool IMGUIEditInt_( const char* label, int& v, int vmin, int vmax )
 	return ImGui::DragInt( label, &v, 0.2f, vmin, vmax );
 }
 
+bool IMGUIEditMask_( const char* label, uint64_t& flags, int count )
+{
+	if( count < 0 || count > 64 ) count = 64;
+	static const char* labels[ 64 ] =
+	{
+		"##00", "##01", "##02", "##03", "##04", "##05", "##06", "##07",
+		"##10", "##11", "##12", "##13", "##14", "##15", "##16", "##17",
+		"##20", "##21", "##22", "##23", "##24", "##25", "##26", "##27",
+		"##30", "##31", "##32", "##33", "##34", "##35", "##36", "##37",
+		"##40", "##41", "##42", "##43", "##44", "##45", "##46", "##47",
+		"##50", "##51", "##52", "##53", "##54", "##55", "##56", "##57",
+		"##60", "##61", "##62", "##63", "##64", "##65", "##66", "##67",
+		"##70", "##71", "##72", "##73", "##74", "##75", "##76", "##77",
+	};
+	
+	ImGui::BeginGroup();
+	
+	bool ret = false;
+	for( int i = 0; i < count; ++i )
+	{
+		if( i % 8 != 0 )
+			ImGui::SameLine();
+		
+		uint64_t flag = 1ULL << i;
+		bool v = ( flags & flag ) == flag;
+		bool pressed = ImGui::Checkbox( labels[ i ], &v );
+		if( pressed )
+		{
+			ret = true;
+			if( v )
+				flags |= flag;
+			else
+				flags &= ~flag;
+		}
+	}
+	
+	ImGui::EndGroup();
+	ImGui::SameLine();
+	ImGui::Text( "%s", label );
+	
+	return ret;
+}
+
 bool IMGUIEditFloat( const char* label, float& v, float vmin, float vmax, int prec )
 {
 	return ImGui::DragFloat( label, &v, pow( 0.1f, prec ), vmin, vmax, "%g", 2 );

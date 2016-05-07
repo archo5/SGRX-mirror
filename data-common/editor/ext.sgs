@@ -37,6 +37,31 @@ function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 }
 // default ED_ILCSV
 
+function ED_ILOAD.EditVec3( lbl, obj, prop, vmin, vmax, prec )
+{
+	d = ED_SDATA[ prop ];
+	obj.(prop) = vec3( d.x, d.y, d.z );
+}
+function ED_ISAVE.EditVec3( lbl, obj, prop, vmin, vmax, prec )
+{
+	v = obj.(prop);
+	ED_SDATA[ prop ] = { x = v.x, y = v.y, z = v.z };
+}
+function ED_ILCSV.EditVec3( lbl, obj, prop, vmin, vmax, prec )
+{
+	ED_SDATA[ prop ] = vec3( obj.(prop) );
+}
+
+function ED_ILOAD.EditMask( lbl, obj, prop, count )
+{
+	obj.(prop) = toint( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.EditMask( lbl, obj, prop, count )
+{
+	ED_SDATA[ prop ] = toint( obj.(prop) );
+}
+// default ED_ILCSV
+
 function ED_ILOAD.EditColorRGBLDR( lbl, obj, prop )
 {
 	d = ED_SDATA[ prop ];

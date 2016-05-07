@@ -195,6 +195,9 @@ Mat4 GOResource::GetWorldMatrix() const
 
 void GOResource::EditorDrawWorld()
 {
+	sgsVariable fn = GetScriptedObject().getprop( "EditorDrawWorld" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
 }
 
 int GOResourceTable::getindex( SGS_CTX, sgs_VarObj* obj )
@@ -324,6 +327,8 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 		rsrc = new LightResource( this );
 	else if( type == GO_RSRC_PSYS )
 		rsrc = new ParticleSystemResource( this );
+	else if( type == GO_RSRC_RBODY )
+		rsrc = new RigidBodyResource( this );
 	if( rsrc )
 	{
 		rsrc->m_name = name;
@@ -604,6 +609,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		{ "GO_RSRC_MESH", GO_RSRC_MESH },
 		{ "GO_RSRC_LIGHT", GO_RSRC_LIGHT },
 		{ "GO_RSRC_PSYS", GO_RSRC_PSYS },
+		{ "GO_RSRC_RBODY", GO_RSRC_RBODY },
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( C, ric, -1 );

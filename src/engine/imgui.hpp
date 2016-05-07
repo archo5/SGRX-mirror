@@ -28,17 +28,25 @@ ENGINE_EXPORT void SGRX_IMGUI_Render();
 
 ENGINE_EXPORT bool IMGUIEditBool( const char* label, bool& v );
 ENGINE_EXPORT bool IMGUIEditInt_( const char* label, int& v, int vmin, int vmax );
-template< class T > IMGUIEditInt( const char* label, T& v, int vmin, int vmax )
+template< class T > bool IMGUIEditInt( const char* label, T& v, int vmin, int vmax )
 {
 	int iv = v;
 	bool ret = IMGUIEditInt_( label, iv, vmin, vmax );
 	v = iv;
 	return ret;
 }
-template< class T > IMGUIEditIntFlags( const char* label, T& v, unsigned flag )
+template< class T > bool IMGUIEditIntFlags( const char* label, T& v, unsigned flag )
 {
 	unsigned iv = v;
 	bool ret = ImGui::CheckboxFlags( label, &iv, flag );
+	v = iv;
+	return ret;
+}
+ENGINE_EXPORT bool IMGUIEditMask_( const char* label, uint64_t& v, int count );
+template< class T > bool IMGUIEditMask( const char* label, T& v, int count )
+{
+	uint64_t iv = v;
+	bool ret = IMGUIEditMask_( label, iv, count );
 	v = iv;
 	return ret;
 }
