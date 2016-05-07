@@ -509,6 +509,12 @@ struct EditorUIHelper
 		const char* caption, const char* label, String& value ) = 0;
 };
 
+enum MatrixMode
+{
+	MM_Relative = 0,
+	MM_Absolute = 1,
+};
+
 EXP_STRUCT GOResource : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
@@ -521,14 +527,23 @@ EXP_STRUCT GOResource : LevelScrObj
 	GFW_EXPORT virtual void EditLoad( sgsVariable src, sgsVariable iface );
 	GFW_EXPORT virtual void EditSave( sgsVariable out, sgsVariable iface );
 	GFW_EXPORT virtual void EditorDrawWorld();
+	GFW_EXPORT virtual Vec3 EditorIconPos();
 	
-	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
-	GameObject* m_obj;
-	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_type;
-	SGRX_GUID m_src_guid;
-	
+	GFW_EXPORT Mat4 GetWorldMatrix() const;
+	Mat4 GetLocalMatrix() const { return m_localMatrix; }
+	void SetLocalMatrix( Mat4 m ){ m_localMatrix = m; OnTransformUpdate(); }
+	int GetMatrixMode() const { return m_matrixMode; }
+	void SetMatrixMode( int v ){ m_matrixMode = v; OnTransformUpdate(); }
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
+	
+	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
+	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_type;
+	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix VARNAME localMatrix ) Mat4 m_localMatrix;
+	SGS_PROPERTY_FUNC( READ GetMatrixMode WRITE SetMatrixMode VARNAME matrixMode ) int m_matrixMode;
+	
+	GameObject* m_obj;
+	SGRX_GUID m_src_guid;
 };
 typedef Handle< GOResource > H_GOResource;
 
@@ -688,17 +703,20 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT void AddEntry( const StringView& name, sgsVariable var );
 	
 	// system/entity interface
-	sgsVariable GetScriptedObject()  { return m_self; }
-	StringView GetLevelName() const  { return m_levelName; }
-	bool IsPaused() const            { return m_paused || gcv_g_paused.value; }
+	sgsVariable GetScriptedObject()     { return m_self; }
+	StringView GetLevelName() const     { return m_levelName; }
+	bool IsPaused() const               { return m_paused || gcv_g_paused.value; }
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
 	SGRX_ISoundSystem* GetSoundSys() const { return m_soundSys; }
-	SGRX_Scene* GetScene() const     { return m_scene; }
-	ScriptContext& GetScriptCtx()    { return m_scriptCtx; }
-	sgs_Context* GetSGSC() const     { return m_scriptCtx.C; }
-	GameUISystem* GetGUI()           { return m_guiSys; }
-	float GetDeltaTime() const       { return m_deltaTime; }
-	bool GetEditorMode() const       { return m_editorMode; }
+	SGRX_Scene* GetScene() const        { return m_scene; }
+	ScriptContext& GetScriptCtx()       { return m_scriptCtx; }
+	sgs_Context* GetSGSC() const        { return m_scriptCtx.C; }
+	GameUISystem* GetGUI()              { return m_guiSys; }
+	float GetDeltaTime() const          { return m_deltaTime; }
+	float GetBlendFactor() const        { return m_blendFactor; }
+	float GetTickDeltaTime() const      { return m_tickDeltaTime; }
+	float GetFixedTickDeltaTime() const { return m_fixedTickDeltaTime; }
+	bool GetEditorMode() const          { return m_editorMode; }
 	
 	GFW_EXPORT bool Load( const StringView& levelname );
 	template< class T > void RegisterNativeClass( StringView type )
@@ -790,6 +808,9 @@ EXP_STRUCT GameLevel :
 	double m_currentTickTime;
 	double m_currentPhyTime;
 	float m_deltaTime;
+	float m_blendFactor;
+	float m_tickDeltaTime;
+	float m_fixedTickDeltaTime;
 	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_levelName;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME nextLevel ) String m_nextLevel;
 	bool m_editorMode;

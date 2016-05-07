@@ -15,13 +15,9 @@
 
 #define GO_RSRC_MESH 1
 #define GO_RSRC_LIGHT 2
+#define GO_RSRC_PSYS 3
 
-enum MatrixMode
-{
-	MM_None = 0,
-	MM_Relative = 1,
-	MM_Absolute = 2,
-};
+
 
 EXP_STRUCT MeshResource : GOResource
 {
@@ -43,10 +39,6 @@ EXP_STRUCT MeshResource : GOResource
 	GFW_EXPORT void SetMeshData( MeshHandle mesh );
 	StringView GetMeshPath() const { return m_mesh ? SV(m_mesh->m_key) : SV(); }
 	void SetMeshPath( StringView path ){ SetMeshData( GR_GetMesh( path ) ); }
-	Mat4 GetMatrix() const { return m_localMatrix; }
-	void SetMatrix( Mat4 m ){ m_localMatrix = m; if( m_matrixMode != MM_None ) _UpdateMatrix(); }
-	int GetMatrixMode() const { return m_matrixMode; }
-	void SetMatrixMode( int v ){ m_matrixMode = v; _UpdateMatrix(); }
 	int GetLightingMode() const { return m_lightingMode; }
 	void SetLightingMode( int v ){ m_lightingMode = v;
 		m_meshInst->SetLightingMode( (SGRX_LightingMode) v ); _UpdateLighting(); }
@@ -56,8 +48,6 @@ EXP_STRUCT MeshResource : GOResource
 	SGS_PROPERTY_FUNC( READ IsVisible WRITE SetVisible VARNAME visible ) bool m_isVisible;
 	SGS_PROPERTY_FUNC( READ GetMeshData WRITE SetMeshData VARNAME meshData ) MeshHandle m_mesh;
 	SGS_PROPERTY_FUNC( READ GetMeshPath WRITE SetMeshPath ) SGS_ALIAS( StringView mesh );
-	SGS_PROPERTY_FUNC( READ GetMatrix WRITE SetMatrix VARNAME matrix ) Mat4 m_localMatrix;
-	SGS_PROPERTY_FUNC( READ GetMatrixMode WRITE SetMatrixMode VARNAME matrixMode ) int m_matrixMode;
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lmQuality ) float m_lmQuality;
@@ -78,7 +68,6 @@ EXP_STRUCT LightResource : GOResource
 	GFW_EXPORT ~LightResource();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT void _UpdateMatrix();
-	GFW_EXPORT Mat4 _GetFullMatrix();
 	GFW_EXPORT void _UpdateLight();
 	GFW_EXPORT void _UpdateShadows();
 	
@@ -105,10 +94,6 @@ EXP_STRUCT LightResource : GOResource
 	void SetAspect( float v ){ m_aspect = v; RETNIFNOLIGHT; m_light->aspect = v; m_light->UpdateTransform(); }
 	bool HasShadows() const { return m_hasShadows; }
 	void SetShadows( bool v ){ m_hasShadows = v; RETNIFNOLIGHT; m_light->hasShadows = v; _UpdateShadows(); }
-	Mat4 GetMatrix() const { return m_localMatrix; }
-	void SetMatrix( Mat4 m ){ m_localMatrix = m; RETNIFNOLIGHT; if( m_matrixMode != MM_None ) _UpdateMatrix(); }
-	int GetMatrixMode() const { return m_matrixMode; }
-	void SetMatrixMode( int v ){ m_matrixMode = v; RETNIFNOLIGHT; _UpdateMatrix(); }
 	TextureHandle GetCookieTextureData() const { return m_cookieTexture; }
 	void SetCookieTextureData( TextureHandle h ){ m_cookieTexture = h; RETNIFNOLIGHT; m_light->cookieTexture = h; }
 	StringView GetCookieTexturePath() const { return m_cookieTexture ? m_cookieTexture->m_key : ""; }
@@ -126,14 +111,41 @@ EXP_STRUCT LightResource : GOResource
 	SGS_PROPERTY_FUNC( READ HasShadows WRITE SetShadows VARNAME hasShadows ) bool m_hasShadows;
 	SGS_PROPERTY_FUNC( READ GetCookieTextureData WRITE SetCookieTextureData VARNAME cookieTextureData ) TextureHandle m_cookieTexture;
 	SGS_PROPERTY_FUNC( READ GetCookieTexturePath WRITE SetCookieTexturePath ) SGS_ALIAS( StringView cookieTexture );
-	SGS_PROPERTY_FUNC( READ GetMatrix WRITE SetMatrix VARNAME matrix ) Mat4 m_localMatrix;
-	SGS_PROPERTY_FUNC( READ GetMatrixMode WRITE SetMatrixMode VARNAME matrixMode ) int m_matrixMode;
 	// editor-only static light parameters
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME innerAngle ) float m_innerAngle;
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME spotCurve ) float m_spotCurve;
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lightRadius ) float m_lightRadius;
 	
 	LightHandle m_light;
+};
+
+
+EXP_STRUCT ParticleSystemResource : GOResource
+{
+	SGS_OBJECT_INHERIT( GOResource );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT ParticleSystemResource( GameObject* obj );
+	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void EditorDrawWorld();
+	GFW_EXPORT virtual void Tick();
+	GFW_EXPORT virtual void PreRender();
+	
+	GFW_EXPORT void sgsSetParticleSystem( StringView path );
+	GFW_EXPORT void sgsSetSoundEvent( StringView name );
+	GFW_EXPORT void _StartSoundEvent();
+	GFW_EXPORT void sgsSetPlaying( bool playing );
+	GFW_EXPORT SGRX_Sound3DAttribs _Get3DAttribs();
+	
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetParticleSystem VARNAME particleSystemPath ) String m_partSysPath;
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetSoundEvent VARNAME soundEvent ) String m_soundEventName;
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetPlaying VARNAME enabled ) bool m_enabled;
+	
+	GFW_EXPORT SGS_METHOD void Trigger();
+	
+	ParticleSystem m_psys;
+	bool m_soundEventOneShot;
+	SoundEventInstanceHandle m_soundEventInst;
 };
 
 

@@ -921,6 +921,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	
 	lev->RegisterNativeClass<MeshResource>( "MeshResource" );
 	lev->RegisterNativeClass<LightResource>( "LightResource" );
+	lev->RegisterNativeClass<ParticleSystemResource>( "ParticleSystemResource" );
 }
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )

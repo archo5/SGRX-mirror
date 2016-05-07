@@ -159,6 +159,8 @@ void EDGO_EditUI( GameObject* obj )
 					rsrc = obj->AddResource( sgsname, GO_RSRC_MESH );
 				if( ImGui::Selectable( "Light resource" ) )
 					rsrc = obj->AddResource( sgsname, GO_RSRC_LIGHT );
+				if( ImGui::Selectable( "Particle system resource" ) )
+					rsrc = obj->AddResource( sgsname, GO_RSRC_PSYS );
 				
 				if( rsrc )
 				{
@@ -516,6 +518,36 @@ static int IMGUI_PickTexture( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_PickPartSys( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.PickPartSys" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	sgsString caption( C, 3 );
+	String value = obj.getprop( prop ).get<StringView>();
+	
+	if( g_NUIPartSysPicker->Property( caption.c_str(), label.c_str(), value ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	return 0;
+}
+
+static int IMGUI_PickSound( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.PickSound" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	sgsString caption( C, 3 );
+	String value = obj.getprop( prop ).get<StringView>();
+	
+	if( g_NUISoundPicker->Property( caption.c_str(), label.c_str(), value ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	return 0;
+}
+
 static int IMGUI_ComboNT( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.ComboNT" );
@@ -550,6 +582,8 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "EditXFMat4", IMGUI_EditXFMat4 },
 	{ "PickMesh", IMGUI_PickMesh },
 	{ "PickTexture", IMGUI_PickTexture },
+	{ "PickPartSys", IMGUI_PickPartSys },
+	{ "PickSound", IMGUI_PickSound },
 	{ "ComboNT", IMGUI_ComboNT },
 	{ "Button", IMGUI_Button },
 	SGS_RC_END(),

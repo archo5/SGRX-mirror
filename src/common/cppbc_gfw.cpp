@@ -1393,9 +1393,11 @@ int GOResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
-		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<GOResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -1405,6 +1407,8 @@ int GOResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<GOResource*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<GOResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<GOResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<GOResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<GOResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -1419,10 +1423,12 @@ int GOResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_type, depth ).push( C ); }
-		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->_get_object(), depth ).push( C ); }
-		sgs_StringConcat( C, 10 );
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		sgs_StringConcat( C, 14 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -4674,16 +4680,16 @@ int MeshResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
-		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "meshInst" ){ sgs_PushPtr( C, static_cast<MeshResource*>( obj->data )->m_meshInst.item ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_isStatic ); return SGS_SUCCESS; }
 		SGS_CASE( "visible" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->IsVisible() ); return SGS_SUCCESS; }
 		SGS_CASE( "meshData" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMeshData() ); return SGS_SUCCESS; }
 		SGS_CASE( "mesh" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMeshPath() ); return SGS_SUCCESS; }
-		SGS_CASE( "matrix" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLightingMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_lmQuality ); return SGS_SUCCESS; }
 		SGS_CASE( "castLMS" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_castLMS ); return SGS_SUCCESS; }
@@ -4696,12 +4702,12 @@ int MeshResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MeshResource*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<MeshResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<MeshResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<MeshResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ static_cast<MeshResource*>( obj->data )->m_isStatic = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "visible" ){ static_cast<MeshResource*>( obj->data )->SetVisible( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "meshData" ){ static_cast<MeshResource*>( obj->data )->SetMeshData( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "mesh" ){ static_cast<MeshResource*>( obj->data )->SetMeshPath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "matrix" ){ static_cast<MeshResource*>( obj->data )->SetMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "matrixMode" ){ static_cast<MeshResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ static_cast<MeshResource*>( obj->data )->SetLightingMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ static_cast<MeshResource*>( obj->data )->m_lmQuality = sgs_GetVar<float>()( C, 1 );
 			static_cast<MeshResource*>( obj->data )->_UpEv(); return SGS_SUCCESS; }
@@ -4721,16 +4727,16 @@ int MeshResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_type, depth ).push( C ); }
-		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmeshInst = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_meshInst.item, depth ).push( C ); }
 		{ sgs_PushString( C, "\nisStatic = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_isStatic, depth ).push( C ); }
 		{ sgs_PushString( C, "\nvisible = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->IsVisible(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmeshData = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMeshData(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmesh = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMeshPath(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nmatrix = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLightingMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlmQuality = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_lmQuality, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncastLMS = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_castLMS, depth ).push( C ); }
@@ -4784,9 +4790,11 @@ int LightResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
-		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->IsStatic() ); return SGS_SUCCESS; }
 		SGS_CASE( "type" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetType() ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->IsEnabled() ); return SGS_SUCCESS; }
@@ -4799,8 +4807,6 @@ int LightResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "hasShadows" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->HasShadows() ); return SGS_SUCCESS; }
 		SGS_CASE( "cookieTextureData" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetCookieTextureData() ); return SGS_SUCCESS; }
 		SGS_CASE( "cookieTexture" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetCookieTexturePath() ); return SGS_SUCCESS; }
-		SGS_CASE( "matrix" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "innerAngle" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_innerAngle ); return SGS_SUCCESS; }
 		SGS_CASE( "spotCurve" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_spotCurve ); return SGS_SUCCESS; }
 		SGS_CASE( "lightRadius" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_lightRadius ); return SGS_SUCCESS; }
@@ -4813,6 +4819,8 @@ int LightResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LightResource*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<LightResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<LightResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<LightResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ static_cast<LightResource*>( obj->data )->SetStatic( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "type" ){ static_cast<LightResource*>( obj->data )->SetType( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ static_cast<LightResource*>( obj->data )->SetEnabled( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
@@ -4825,8 +4833,6 @@ int LightResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "hasShadows" ){ static_cast<LightResource*>( obj->data )->SetShadows( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "cookieTextureData" ){ static_cast<LightResource*>( obj->data )->SetCookieTextureData( sgs_GetVar<TextureHandle>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "cookieTexture" ){ static_cast<LightResource*>( obj->data )->SetCookieTexturePath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "matrix" ){ static_cast<LightResource*>( obj->data )->SetMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "matrixMode" ){ static_cast<LightResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "innerAngle" ){ static_cast<LightResource*>( obj->data )->m_innerAngle = sgs_GetVar<float>()( C, 1 );
 			static_cast<LightResource*>( obj->data )->_UpEv(); return SGS_SUCCESS; }
 		SGS_CASE( "spotCurve" ){ static_cast<LightResource*>( obj->data )->m_spotCurve = sgs_GetVar<float>()( C, 1 );
@@ -4847,9 +4853,11 @@ int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_type, depth ).push( C ); }
-		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nisStatic = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->IsStatic(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ntype = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetType(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->IsEnabled(), depth ).push( C ); }
@@ -4862,8 +4870,6 @@ int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nhasShadows = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->HasShadows(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ncookieTextureData = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetCookieTextureData(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ncookieTexture = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetCookieTexturePath(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nmatrix = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ninnerAngle = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_innerAngle, depth ).push( C ); }
 		{ sgs_PushString( C, "\nspotCurve = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_spotCurve, depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightRadius = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_lightRadius, depth ).push( C ); }
@@ -4895,4 +4901,105 @@ static sgs_ObjInterface LightResource__sgs_interface =
 	LightResource::_sgs_destruct, LightResource::_sgs_gcmark, LightResource::_sgs_getindex, LightResource::_sgs_setindex, NULL, NULL, LightResource::_sgs_dump, NULL, NULL, NULL, 
 };
 _sgsInterface LightResource::_sgs_interface(LightResource__sgs_interface, LightResource__sgs_ifn, &GOResource::_sgs_interface);
+
+
+static int _sgs_method__ParticleSystemResource__Trigger( SGS_CTX )
+{
+	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, Trigger ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Trigger(  ); return 0;
+}
+
+int ParticleSystemResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<ParticleSystemResource*>( obj->data )->C = C;
+	static_cast<ParticleSystemResource*>( obj->data )->~ParticleSystemResource();
+	return SGS_SUCCESS;
+}
+
+int ParticleSystemResource::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleSystemResource*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int ParticleSystemResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleSystemResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "particleSystemPath" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_partSysPath ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_soundEventName ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_enabled ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<ParticleSystemResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int ParticleSystemResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleSystemResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<ParticleSystemResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<ParticleSystemResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<ParticleSystemResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "particleSystemPath" ){ static_cast<ParticleSystemResource*>( obj->data )->sgsSetParticleSystem( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ static_cast<ParticleSystemResource*>( obj->data )->sgsSetSoundEvent( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<ParticleSystemResource*>( obj->data )->sgsSetPlaying( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<ParticleSystemResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int ParticleSystemResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ParticleSystemResource*>( obj->data )->C, C );
+	char bfr[ 54 ];
+	sprintf( bfr, "ParticleSystemResource (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nparticleSystemPath = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_partSysPath, depth ).push( C ); }
+		{ sgs_PushString( C, "\nsoundEvent = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_soundEventName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_enabled, depth ).push( C ); }
+		sgs_StringConcat( C, 20 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst ParticleSystemResource__sgs_funcs[] =
+{
+	{ "Trigger", _sgs_method__ParticleSystemResource__Trigger },
+	{ NULL, NULL },
+};
+
+static int ParticleSystemResource__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		ParticleSystemResource__sgs_funcs,
+		-1, "ParticleSystemResource." );
+	return 1;
+}
+
+static sgs_ObjInterface ParticleSystemResource__sgs_interface =
+{
+	"ParticleSystemResource",
+	ParticleSystemResource::_sgs_destruct, ParticleSystemResource::_sgs_gcmark, ParticleSystemResource::_sgs_getindex, ParticleSystemResource::_sgs_setindex, NULL, NULL, ParticleSystemResource::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface ParticleSystemResource::_sgs_interface(ParticleSystemResource__sgs_interface, ParticleSystemResource__sgs_ifn, &GOResource::_sgs_interface);
 

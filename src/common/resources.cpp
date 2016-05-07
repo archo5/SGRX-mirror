@@ -8,8 +8,6 @@
 MeshResource::MeshResource( GameObject* obj ) : GOResource( obj ),
 	m_isStatic( true ),
 	m_isVisible( true ),
-	m_localMatrix( Mat4::Identity ),
-	m_matrixMode( MM_Relative ),
 	m_lightingMode( SGRX_LM_Dynamic ),
 	m_lmQuality( 1 ),
 	m_castLMS( true )
@@ -30,12 +28,7 @@ void MeshResource::OnTransformUpdate()
 
 void MeshResource::_UpdateMatrix()
 {
-	if( m_matrixMode == MM_Relative )
-		m_meshInst->SetTransform( m_localMatrix * m_obj->GetWorldMatrix() );
-	else if( m_matrixMode == MM_Absolute )
-		m_meshInst->SetTransform( m_localMatrix );
-	else // MM_None / other
-		m_meshInst->SetTransform( m_obj->GetWorldMatrix() );
+	m_meshInst->SetTransform( GetWorldMatrix() );
 	_UpdateLighting();
 }
 
@@ -90,8 +83,6 @@ LightResource::LightResource( GameObject* obj ) : GOResource( obj ),
 	m_angle( 65 ),
 	m_aspect( 1 ),
 	m_hasShadows( true ),
-	m_localMatrix( Mat4::Identity ),
-	m_matrixMode( MM_Relative ),
 	m_innerAngle( 0 ),
 	m_spotCurve( 1 ),
 	m_lightRadius( 0.1f )
@@ -113,20 +104,10 @@ void LightResource::_UpdateMatrix()
 {
 	if( m_light )
 	{
-		m_light->SetTransform( _GetFullMatrix() );
+		m_light->SetTransform( GetWorldMatrix() );
 		m_light->UpdateTransform();
 	}
 	_UpEv();
-}
-
-Mat4 LightResource::_GetFullMatrix()
-{
-	if( m_matrixMode == MM_Relative )
-		return m_localMatrix * m_obj->GetWorldMatrix();
-	else if( m_matrixMode == MM_Absolute )
-		return m_localMatrix;
-	else // MM_None / other
-		return m_obj->GetWorldMatrix();
 }
 
 void LightResource::_UpdateLight()
@@ -159,6 +140,135 @@ void LightResource::_UpdateShadows()
 		m_light->shadowTexture = NULL;
 	else if( need && !m_light->shadowTexture )
 		m_light->shadowTexture = GR_CreateRenderTexture( 512, 512, RT_FORMAT_DEPTH );
+}
+
+
+ParticleSystemResource::ParticleSystemResource( GameObject* obj ) : GOResource( obj ), m_soundEventOneShot(false)
+{
+}
+
+void ParticleSystemResource::OnTransformUpdate()
+{
+	Mat4 mtx = GetWorldMatrix();
+	m_psys.SetTransform( mtx );
+	if( m_soundEventInst )
+	{
+		m_soundEventInst->Set3DAttribs( _Get3DAttribs() );
+	}
+}
+
+void ParticleSystemResource::EditorDrawWorld()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Reset();
+	br.Col( 0.9f, 0.5f, 0.1f, 0.8f );
+	br.AABB( V3(-1), V3(1), GetWorldMatrix() );
+}
+
+void ParticleSystemResource::Tick()
+{
+	bool needstrig = m_psys.Tick( m_level->GetDeltaTime() );
+	if( needstrig && m_soundEventOneShot )
+	{
+		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
+		if( sndevinst )
+		{
+			sndevinst->Set3DAttribs( _Get3DAttribs() );
+			sndevinst->Start();
+		}
+	}
+}
+
+void ParticleSystemResource::PreRender()
+{
+	m_psys.PreRender();
+}
+
+void ParticleSystemResource::sgsSetParticleSystem( StringView path )
+{
+	if( path == m_partSysPath )
+		return;
+	
+	m_partSysPath = path;
+	// reload
+	m_psys.Load( path );
+	m_psys.AddToScene( m_level->GetScene() );
+	m_psys.SetTransform( GetWorldMatrix() );
+	m_psys.OnRenderUpdate();
+	
+	if( m_enabled )
+	{
+		m_psys.Play();
+	}
+}
+
+void ParticleSystemResource::sgsSetSoundEvent( StringView name )
+{
+	if( name == m_soundEventName )
+		return;
+	// destroy previous effect
+	m_soundEventInst = NULL;
+	// set new one
+	m_soundEventName = name;
+	m_soundEventOneShot = m_level->GetSoundSys()->EventIsOneShot( name );
+	// if particle system already running, start it
+	// do not start one-shot events here because ...
+	// ... this is generally called during resource creation
+	if( m_enabled && !m_soundEventOneShot )
+	{
+		_StartSoundEvent();
+	}
+}
+
+void ParticleSystemResource::_StartSoundEvent()
+{
+	SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
+	if( sndevinst )
+	{
+		sndevinst->Set3DAttribs( _Get3DAttribs() );
+		sndevinst->Start();
+		if( !sndevinst->isOneShot )
+			m_soundEventInst = sndevinst;
+	}
+}
+
+void ParticleSystemResource::sgsSetPlaying( bool playing )
+{
+	printf("%s %s\n",playing?"true":"false",m_enabled?"true":"false");
+	if( playing == m_enabled )
+		return;
+	
+	m_enabled = playing;
+	if( playing )
+	{
+		m_psys.Play();
+		_StartSoundEvent();
+	}
+	else
+	{
+		m_psys.Stop();
+		m_soundEventInst = NULL;
+	}
+}
+
+void ParticleSystemResource::Trigger()
+{
+	m_psys.Trigger();
+	if( m_soundEventOneShot )
+	{
+		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
+		if( sndevinst )
+		{
+			sndevinst->Set3DAttribs( _Get3DAttribs() );
+			sndevinst->Start();
+		}
+	}
+}
+
+SGRX_Sound3DAttribs ParticleSystemResource::_Get3DAttribs()
+{
+	SGRX_Sound3DAttribs s3dattr = { GetWorldMatrix().GetTranslation(), V3(0), V3(0), V3(0) };
+	return s3dattr;
 }
 
 

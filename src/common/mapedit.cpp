@@ -1059,6 +1059,30 @@ void EdWorld::DrawWires_GameObjects( const EdObjIdx& hl )
 		else if( EdObjIdx(obj) == hl )
 			obj->EditorDrawWorld();
 	}
+	
+	// draw resource info
+	Mat4& iv = g_EdScene->camera.mInvView;
+	Vec3 axes[2] = { iv.TransformNormal( V3(1,0,0) ), iv.TransformNormal( V3(0,1,0) ) };
+	
+	br.Col( 1 );
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+	{
+		GameObject* obj = g_Level->m_gameObjects[ i ];
+		
+		for( size_t j = 0; j < obj->m_resources.size(); ++j )
+		{
+			GOResource* rsrc = obj->m_resources.item( j ).value;
+			
+			// icon
+			sgsVariable texpathvar = rsrc->GetScriptedObject().getprop( "ED_Icon" );
+			StringView texpath = texpathvar.getdef( SV( "editor/icons/default.png" ) );
+			TextureHandle th = GR_GetTexture( texpath );
+			GR_PreserveResource( th );
+			
+			br.SetTexture( th );
+			br.Sprite( rsrc->EditorIconPos(), axes[0]*0.1f, axes[1]*0.1f );
+		}
+	}
 }
 
 
@@ -2022,6 +2046,18 @@ void MapEditor::OnEvent( const Event& e )
 	SGRX_IMGUI_Event( e );
 }
 
+static bool ModeRB( const char* label, int mode, int key )
+{
+	if( ImGui::RadioButton( label, &g_mode, mode ) )
+		return true;
+	if( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( key, false ) )
+	{
+		g_mode = mode;
+		return true;
+	}
+	return false;
+}
+
 void MapEditor::OnTick( float dt, uint32_t gametime )
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
@@ -2090,22 +2126,22 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			ImGui::SameLine( 0, 50 );
 			ImGui::Text( "Edit mode:" );
 			ImGui::SameLine();
-			if( ImGui::RadioButton( "Create objects", &g_mode, CreateObjs ) )
+			if( ModeRB( "Create objects", CreateObjs, SDLK_1 ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emDrawBlock );
 			ImGui::SameLine();
-			if( ImGui::RadioButton( "Edit objects", &g_mode, EditObjects ) )
+			if( ModeRB( "Edit objects", EditObjects, SDLK_2 ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
 			ImGui::SameLine();
-			if( ImGui::RadioButton( "Paint surfaces", &g_mode, PaintSurfs ) )
+			if( ModeRB( "Paint surfaces", PaintSurfs, SDLK_3 ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emPaintSurfs );
 			ImGui::SameLine();
-			if( ImGui::RadioButton( "Edit groups", &g_mode, EditGroups ) )
+			if( ModeRB( "Edit groups", EditGroups, SDLK_4 ) )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditGroup );
 			ImGui::SameLine();
-			if( ImGui::RadioButton( "Level info", &g_mode, LevelInfo ) )
+			if( ModeRB( "Level info", LevelInfo, SDLK_5 ) )
 				g_UIFrame->SetEditMode( NULL );
 			ImGui::SameLine();
-			if( ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps ) )
+			if( ModeRB( "Misc. settings", MiscProps, SDLK_6 ) )
 				g_UIFrame->SetEditMode( NULL );
 			
 			ImGui::SameLine( 0, 50 );

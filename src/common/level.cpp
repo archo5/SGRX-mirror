@@ -149,8 +149,10 @@ void Entity::SetInfoMask( uint32_t mask )
 
 GOResource::GOResource( GameObject* obj ) :
 	LevelScrObj( obj->m_level ),
-	m_obj( obj ),
-	m_type( 0 )
+	m_type( 0 ),
+	m_localMatrix( Mat4::Identity ),
+	m_matrixMode( MM_Relative ),
+	m_obj( obj )
 {
 }
 
@@ -176,6 +178,19 @@ void GOResource::EditLoad( sgsVariable src, sgsVariable iface )
 void GOResource::EditSave( sgsVariable out, sgsVariable iface )
 {
 	EditUI( NULL, iface );
+}
+
+Vec3 GOResource::EditorIconPos()
+{
+	return GetWorldMatrix().GetTranslation();
+}
+
+Mat4 GOResource::GetWorldMatrix() const
+{
+	if( m_matrixMode == MM_Absolute )
+		return m_localMatrix;
+	else
+		return m_localMatrix * m_obj->GetWorldMatrix();
 }
 
 void GOResource::EditorDrawWorld()
@@ -307,6 +322,8 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 		rsrc = new MeshResource( this );
 	else if( type == GO_RSRC_LIGHT )
 		rsrc = new LightResource( this );
+	else if( type == GO_RSRC_PSYS )
+		rsrc = new ParticleSystemResource( this );
 	if( rsrc )
 	{
 		rsrc->m_name = name;
@@ -547,6 +564,9 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_currentTickTime( 0 ),
 	m_currentPhyTime( 0 ),
 	m_deltaTime( 0 ),
+	m_blendFactor( 0 ),
+	m_tickDeltaTime( 0 ),
+	m_fixedTickDeltaTime( 0 ),
 	m_editorMode( false ),
 	m_enableLoadingScreen( true ),
 	m_paused( false ),
@@ -583,6 +603,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		{ "IEST_AIAlert", IEST_AIAlert },
 		{ "GO_RSRC_MESH", GO_RSRC_MESH },
 		{ "GO_RSRC_LIGHT", GO_RSRC_LIGHT },
+		{ "GO_RSRC_PSYS", GO_RSRC_PSYS },
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( C, ric, -1 );
@@ -945,6 +966,9 @@ void GameLevel::ClearLevel()
 
 void GameLevel::FixedTick( float deltaTime )
 {
+	m_deltaTime = deltaTime;
+	m_fixedTickDeltaTime = deltaTime;
+	
 	if( IsPaused() == false )
 	{
 		m_currentTickTime += deltaTime;
@@ -975,6 +999,8 @@ void GameLevel::FixedTick( float deltaTime )
 void GameLevel::Tick( float deltaTime, float blendFactor )
 {
 	m_deltaTime = deltaTime;
+	m_blendFactor = blendFactor;
+	m_tickDeltaTime = deltaTime;
 	
 	if( IsPaused() == false )
 	{

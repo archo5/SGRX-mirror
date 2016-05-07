@@ -67,11 +67,12 @@ function BEHAVIOR( name, inhname )
 // Resource Editor Extensions
 //
 
+MeshResource.ED_Icon = "editor/icons/mesh.png";
 function MeshResource.EditorGUI( ui )
 {
 	ui.PickMesh( "Mesh", this, "mesh", "Select mesh" );
-	ui.EditXFMat4( "Matrix", this, "matrix" );
-	ui.ComboNT( "Matrix mode", this, "matrixMode", "Disabled\0Relative\0Absolute\0" );
+	ui.EditXFMat4( "Matrix", this, "localMatrix" );
+	ui.ComboNT( "Matrix mode", this, "matrixMode", "Relative\0Absolute\0" );
 	ui.ComboNT( "Lighting mode", this, "lightingMode", "Unlit\0Static\0Dynamic\0Decal\0" );
 	ui.EditBool( "Is visible?", this, "visible" );
 	ui.EditBool( "Is static?", this, "isStatic" );
@@ -82,6 +83,7 @@ function MeshResource.EditorGUI( ui )
 	}
 }
 
+LightResource.ED_Icon = "editor/icons/light.png";
 function LightResource.EditorGUI( ui )
 {
 	ui.ComboNT( "Type", this, "type", "Point light\0Spotlight\0", 1 );
@@ -96,8 +98,8 @@ function LightResource.EditorGUI( ui )
 		ui.EditFloat( "Angle (outer)", this, "angle", 0, 180 );
 		ui.EditFloat( "Aspect", this, "aspect", 1/4096, 4096 );
 	}
-	ui.EditXFMat4( "Matrix", this, "matrix" );
-	ui.ComboNT( "Matrix mode", this, "matrixMode", "Disabled\0Relative\0Absolute\0" );
+	ui.EditXFMat4( "Matrix", this, "localMatrix" );
+	ui.ComboNT( "Matrix mode", this, "matrixMode", "Relative\0Absolute\0" );
 	ui.PickTexture( "Cookie texture", this, "cookieTexture", "Select cookie texture" );
 	ui.EditBool( "Is static?", this, "isStatic" );
 	if( this.isStatic )
@@ -106,6 +108,16 @@ function LightResource.EditorGUI( ui )
 		ui.EditFloat( "Spotlight curve", this, "spotCurve", 0.01, 100 );
 		ui.EditFloat( "Light radius", this, "lightRadius", 0, 1000 );
 	}
+}
+
+ParticleSystemResource.ED_Icon = "editor/icons/particles.png";
+function ParticleSystemResource.EditorGUI( ui )
+{
+	ui.EditBool( "Enabled", this, "enabled" );
+	ui.PickPartSys( "Particle system", this, "particleSystemPath", "Select particle system" );
+	ui.PickSound( "Sound event", this, "soundEvent", "Select sound event" );
+	ui.EditXFMat4( "Matrix", this, "localMatrix" );
+	ui.ComboNT( "Matrix mode", this, "matrixMode", "Relative\0Absolute\0" );
 }
 
 //

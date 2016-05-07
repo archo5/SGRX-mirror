@@ -1120,7 +1120,7 @@ static void ReadLightInfo( EdLGCLightInfo* out, LightResource* lr )
 	out->type = lr->m_type == LIGHT_SPOT ? LM_LIGHT_SPOT : LM_LIGHT_POINT;
 	if( lr->m_isStatic == false || lr->m_isEnabled == false )
 		out->type = -1;
-	Mat4 mtx = lr->_GetFullMatrix();
+	Mat4 mtx = lr->GetWorldMatrix();
 	out->pos = mtx.GetTranslation();
 	out->dir = mtx.TransformNormal( V3(0,0,-1) ).Normalized();
 	out->up = mtx.TransformNormal( V3(0,-1,0) ).Normalized();
