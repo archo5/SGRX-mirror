@@ -1523,6 +1523,7 @@ void EDGO_SerializeSpatial( GameObject* obj, ByteWriter& bw );
 GameObject* EDGO_FLoad( sgsVariable data );
 sgsVariable EDGO_FSave( GameObject* obj, bool guids = true );
 GameObject* EDGO_Clone( GameObject* obj );
+void EDGO_LCSave( GameObject* obj, LC_GameObject* out );
 
 extern sgs_RegFuncConst g_imgui_rfc[];
 

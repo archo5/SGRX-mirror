@@ -1296,6 +1296,17 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 		level.chunks.push_back( chunk );
 	}
 	
+	// game object data
+	ByteArray ba_gobj;
+	LC_Chunk_Gobj ch_gobj = { m_gameObjects };
+	ByteWriter( &ba_gobj ) << ch_gobj;
+	{
+		memcpy( chunk.sys_id, LC_FILE_GOBJ_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = ba_gobj.data();
+		chunk.size = ba_gobj.size();
+		level.chunks.push_back( chunk );
+	}
+	
 	// map system
 	ByteArray ba_mapl;
 	LC_Chunk_Mapl ch_mapl = { &m_mapLines, &m_mapLayers };

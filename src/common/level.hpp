@@ -602,6 +602,8 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT GOBehavior* _CreateBehaviorReal( sgsString name, sgsString type );
 	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsString name );
 	
+	GameObject* GetParent() const { return (GameObject*) _parent; }
+	
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
 	GFW_EXPORT virtual void FixedUpdate();
@@ -686,17 +688,17 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT void AddEntry( const StringView& name, sgsVariable var );
 	
 	// system/entity interface
-	sgsVariable GetScriptedObject(){ return m_self; }
-	StringView GetLevelName() const { return m_levelName; }
-	bool IsPaused() const { return m_paused || gcv_g_paused.value; }
+	sgsVariable GetScriptedObject()  { return m_self; }
+	StringView GetLevelName() const  { return m_levelName; }
+	bool IsPaused() const            { return m_paused || gcv_g_paused.value; }
 	SGRX_IPhyWorld* GetPhyWorld() const { return m_phyWorld; }
 	SGRX_ISoundSystem* GetSoundSys() const { return m_soundSys; }
-	SGRX_Scene* GetScene() const { return m_scene; }
-	ScriptContext& GetScriptCtx(){ return m_scriptCtx; }
-	sgs_Context* GetSGSC() const { return m_scriptCtx.C; }
-	GameUISystem* GetGUI(){ return m_guiSys; }
-	float GetDeltaTime() const { return m_deltaTime; }
-	bool GetEditorMode() const { return m_editorMode; }
+	SGRX_Scene* GetScene() const     { return m_scene; }
+	ScriptContext& GetScriptCtx()    { return m_scriptCtx; }
+	sgs_Context* GetSGSC() const     { return m_scriptCtx.C; }
+	GameUISystem* GetGUI()           { return m_guiSys; }
+	float GetDeltaTime() const       { return m_deltaTime; }
+	bool GetEditorMode() const       { return m_editorMode; }
 	
 	GFW_EXPORT bool Load( const StringView& levelname );
 	template< class T > void RegisterNativeClass( StringView type )

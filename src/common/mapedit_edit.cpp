@@ -504,11 +504,18 @@ void EdDrawBlockEditMode::ViewUI()
 		{
 			m_drawnVerts.pop_back();
 		}
-		if( ImGui::IsKeyReleased( SDLK_1 ) ) m_blockDrawMode = BD_Polygon;
-		if( ImGui::IsKeyReleased( SDLK_2 ) ) m_blockDrawMode = BD_BoxStrip;
-		if( ImGui::IsKeyReleased( SDLK_3 ) ) m_blockDrawMode = BD_MeshPath;
-		if( ImGui::IsKeyReleased( SDLK_4 ) ) m_blockDrawMode = BD_Entity;
-		if( ImGui::IsKeyReleased( SDLK_5 ) ) m_blockDrawMode = BD_GameObject;
+		
+		bool altdown = ImGui::GetIO().KeyAlt;
+	//	bool shiftdown = ImGui::GetIO().KeyShift;
+		bool ctrldown = ImGui::GetIO().KeyCtrl;
+		if( !ctrldown && !altdown )
+		{
+			if( ImGui::IsKeyPressed( SDLK_1, false ) ) m_blockDrawMode = BD_Polygon;
+			if( ImGui::IsKeyPressed( SDLK_2, false ) ) m_blockDrawMode = BD_BoxStrip;
+			if( ImGui::IsKeyPressed( SDLK_3, false ) ) m_blockDrawMode = BD_MeshPath;
+			if( ImGui::IsKeyPressed( SDLK_4, false ) ) m_blockDrawMode = BD_Entity;
+			if( ImGui::IsKeyPressed( SDLK_5, false ) ) m_blockDrawMode = BD_GameObject;
+		}
 	}
 }
 
@@ -708,11 +715,14 @@ void EdEditBlockEditMode::ViewUI()
 		if( ImGui::IsKeyPressed( SDL_SCANCODE_DOWN, false ) && altdown ) _Do( SA_MoveFwd );
 		
 		// SELECTION
-		if( ImGui::IsKeyPressed( SDLK_1, false ) ) m_selMask ^= SelMask_Blocks;
-		if( ImGui::IsKeyPressed( SDLK_2, false ) ) m_selMask ^= SelMask_Patches;
-		if( ImGui::IsKeyPressed( SDLK_3, false ) ) m_selMask ^= SelMask_Entities;
-		if( ImGui::IsKeyPressed( SDLK_4, false ) ) m_selMask ^= SelMask_MeshPaths;
-		if( ImGui::IsKeyPressed( SDLK_5, false ) ) m_selMask ^= SelMask_GameObjects;
+		if( !ctrldown && !altdown )
+		{
+			if( ImGui::IsKeyPressed( SDLK_1, false ) ) m_selMask ^= SelMask_Blocks;
+			if( ImGui::IsKeyPressed( SDLK_2, false ) ) m_selMask ^= SelMask_Patches;
+			if( ImGui::IsKeyPressed( SDLK_3, false ) ) m_selMask ^= SelMask_Entities;
+			if( ImGui::IsKeyPressed( SDLK_4, false ) ) m_selMask ^= SelMask_MeshPaths;
+			if( ImGui::IsKeyPressed( SDLK_5, false ) ) m_selMask ^= SelMask_GameObjects;
+		}
 	}
 	
 	// TO VERTEX MODE
@@ -748,6 +758,8 @@ void EdEditBlockEditMode::ViewUI()
 		ImGui::SameLine(); IMGUIYesNo( ( m_selMask & SelMask_Entities ) != 0 );
 		ImGui::SameLine(); ImGui::Text( ", Mesh paths: " );
 		ImGui::SameLine(); IMGUIYesNo( ( m_selMask & SelMask_MeshPaths ) != 0 );
+		ImGui::SameLine(); ImGui::Text( ", Game objects: " );
+		ImGui::SameLine(); IMGUIYesNo( ( m_selMask & SelMask_GameObjects ) != 0 );
 		ImGui::SameLine(); ImGui::Text( "]" );
 		
 		if( m_numSel )

@@ -1840,6 +1840,14 @@ void EdMainFrame::Level_Real_Compile_Default()
 		}
 	}
 	
+	// compile game objects
+	lcache.m_gameObjects.resize( g_Level->m_gameObjects.size() );
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
+	{
+		EDGO_LCSave( g_Level->m_gameObjects[ i ], &lcache.m_gameObjects[ i ] );
+	}
+	
+	// generate system chunks
 	for( size_t i = 0; i < ESCs.size(); ++i )
 	{
 		ByteArray chunk;

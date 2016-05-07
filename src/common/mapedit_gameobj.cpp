@@ -360,6 +360,56 @@ GameObject* EDGO_Clone( GameObject* obj )
 	return EDGO_FLoad( data );
 }
 
+void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
+{
+	out->name = StringView( obj->m_name.c_str(), obj->m_name.size() );
+	out->id = StringView( obj->m_id.c_str(), obj->m_id.size() );
+	out->transform = obj->GetLocalMatrix();
+	out->guid = obj->m_src_guid;
+	out->parent_guid = obj->GetParent() ?
+		obj->GetParent()->m_src_guid : SGRX_GUID::Null;
+	
+	out->srlz_resources.reserve( obj->m_resources.size() );
+	for( size_t i = 0; i < obj->m_resources.size(); ++i )
+	{
+		GOResource* rsrc = obj->m_resources.item( i ).value;
+		sgsVariable data_rsrc = FNewDict();
+		
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
+		rsrc->EditSave( data_rsrc,
+			g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ) );
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+		
+		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
+		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_type ) );
+		data_rsrc.setprop( "__guid",
+			g_Level->GetScriptCtx().CreateString( rsrc->m_src_guid.ToString() ) );
+		
+		out->srlz_resources.push_back(
+			g_Level->GetScriptCtx().Serialize( data_rsrc ) );
+	}
+	
+	out->srlz_behaviors.reserve( obj->m_behaviors.size() );
+	for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+	{
+		GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+		sgsVariable data_bhvr = FNewDict();
+		
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
+		bhvr->EditSave( data_bhvr,
+			g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ) );
+		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+		
+		data_bhvr.setprop( "__name", bhvr->m_name.get_variable() );
+		data_bhvr.setprop( "__type", bhvr->m_type.get_variable() );
+		data_bhvr.setprop( "__guid",
+			g_Level->GetScriptCtx().CreateString( bhvr->m_src_guid.ToString() ) );
+		
+		out->srlz_behaviors.push_back(
+			g_Level->GetScriptCtx().Serialize( data_bhvr ) );
+	}
+}
+
 
 static int IMGUI_EditBool( SGS_CTX )
 {

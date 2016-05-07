@@ -2,6 +2,7 @@
 global ED_IMGUI = {};
 global ED_ILOAD = {};
 global ED_ISAVE = {};
+global ED_ILCSV = class({}, ED_ISAVE);
 
 // link to loaded/saved object data
 global ED_SDATA = null;
@@ -14,6 +15,7 @@ function ED_ISAVE.EditBool( lbl, obj, prop )
 {
 	ED_SDATA[ prop ] = tobool( obj.(prop) );
 }
+// default ED_ILCSV
 
 function ED_ILOAD.EditInt( lbl, obj, prop, vmin, vmax )
 {
@@ -23,6 +25,7 @@ function ED_ISAVE.EditInt( lbl, obj, prop, vmin, vmax )
 {
 	ED_SDATA[ prop ] = toint( obj.(prop) );
 }
+// default ED_ILCSV
 
 function ED_ILOAD.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
@@ -32,6 +35,7 @@ function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 {
 	ED_SDATA[ prop ] = toreal( obj.(prop) );
 }
+// default ED_ILCSV
 
 function ED_ILOAD.EditColorRGBLDR( lbl, obj, prop )
 {
@@ -42,6 +46,10 @@ function ED_ISAVE.EditColorRGBLDR( lbl, obj, prop )
 {
 	v = obj.(prop);
 	ED_SDATA[ prop ] = { x = v.x, y = v.y, z = v.z };
+}
+function ED_ILCSV.EditColorRGBLDR( lbl, obj, prop )
+{
+	ED_SDATA[ prop ] = vec3( obj.(prop) );
 }
 
 function ED_ILOAD.EditXFMat4( lbl, obj, prop )
@@ -63,6 +71,10 @@ function ED_ISAVE.EditXFMat4( lbl, obj, prop )
 		a[ i ] = m[ i ];
 	ED_SDATA[ prop ] = a;
 }
+function ED_ILCSV.EditXFMat4( lbl, obj, prop )
+{
+	ED_SDATA[ prop ] = mat4( obj.(prop) );
+}
 
 function ED_ILOAD.PickMesh( lbl, obj, prop, caption )
 {
@@ -72,6 +84,7 @@ function ED_ISAVE.PickMesh( lbl, obj, prop, caption )
 {
 	ED_SDATA[ prop ] = tostring( obj.(prop) );
 }
+// default ED_ILCSV
 
 function ED_ILOAD.PickTexture( lbl, obj, prop, caption )
 {
@@ -81,6 +94,7 @@ function ED_ISAVE.PickTexture( lbl, obj, prop, caption )
 {
 	ED_SDATA[ prop ] = tostring( obj.(prop) );
 }
+// default ED_ILCSV
 
 function ED_ILOAD.ComboNT( lbl, obj, prop, zssl, start )
 {
@@ -90,7 +104,9 @@ function ED_ISAVE.ComboNT( lbl, obj, prop, zssl, start )
 {
 	ED_SDATA[ prop ] = toint( obj.(prop) );
 }
+// default ED_ILCSV
 
 function ED_ILOAD.Button( lbl ){}
 function ED_ISAVE.Button( lbl ){}
+// default ED_ILCSV
 

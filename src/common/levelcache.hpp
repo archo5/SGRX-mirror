@@ -227,6 +227,42 @@ struct LC_Chunk_Ents
 	}
 };
 
+// Level game object definitions
+#define LC_FILE_GOBJ_NAME "GOBJ"
+#define LC_FILE_GOBJ_VERSION 0
+struct LC_GameObject
+{
+	String name;
+	String id;
+	Mat4 transform;
+	SGRX_GUID guid;
+	SGRX_GUID parent_guid;
+	// srlz_* contains [__name, __type, __guid] special vars
+	Array< String > srlz_resources;
+	Array< String > srlz_behaviors;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << name;
+		arch << id;
+		arch << transform;
+		arch << guid;
+		arch << parent_guid;
+		arch << srlz_resources;
+		arch << srlz_behaviors;
+	}
+};
+struct LC_Chunk_Gobj
+{
+	Array< LC_GameObject > gameObjects;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_GOBJ_VERSION );
+		svh << gameObjects;
+	}
+};
+
 // Level marker definitions
 #define LC_FILE_MRKR_NAME "MRKR"
 #define LC_FILE_MRKR_VERSION 0

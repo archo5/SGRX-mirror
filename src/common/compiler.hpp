@@ -320,6 +320,7 @@ struct LevelCache
 	Array< LC_MeshInst > m_meshinst;
 	Array< LC_Light > m_lights;
 	Array< LC_ScriptedEntity > m_scriptents;
+	Array< LC_GameObject > m_gameObjects;
 	LC_PhysicsMesh m_phyMesh;
 	Array< LC_SolidBox > m_solidBoxes;
 	StringView m_skyTexture;
