@@ -1,9 +1,18 @@
-float4 diff = TEXSAMPLE_2D_BIAS( Tex0, inTex0.xy, -0.5 );
-diff = diff * diff;// * icol;
-float3 normal = normalize(
-	TEXSAMPLE_2D( Tex1, inTex0.xy + float2(0.1,0.123)*timeVals.x ).rgb +
-	TEXSAMPLE_2D( Tex1, inTex0.xy + float2(-0.073,0.103)*timeVals.x ).rgb
-	) * 2 - 1;
+float2 tx_a = inTex0.xy + float2(0.1,0.123)*timeVals.x;
+float2 tx_b = inTex0.xy + float2(-0.073,0.103)*timeVals.x;
+
+float3 normal = normalize( (
+	TEXSAMPLE_2D( Tex1, tx_a ).rgb +
+	TEXSAMPLE_2D( Tex1, tx_b ).rgb
+	) * 0.5 * 2 - 1 );
+float4 diff = (
+	TEXSAMPLE_2D( Tex0, tx_a - normal.xy * 0.1 ) +
+	TEXSAMPLE_2D( Tex0, tx_b * 0.5 - normal.xy * 0.05 ) +
+	TEXSAMPLE_2D( Tex0, tx_a * 0.25 - normal.xy * 0.025 ) +
+	TEXSAMPLE_2D( Tex0, tx_b * 0.125 - normal.xy * 0.0125 )
+	) * 0.25;
+
+diff.rgb = diff.rgb * diff.rgb;// * icol;
 outDiffuseColor = diff.rgb;
 outNormal = mul( normal, TBN );
 float fresnel = 1 - abs( dot( outNormal, normalize(viewPos) ) );
