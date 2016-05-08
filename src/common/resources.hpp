@@ -97,7 +97,7 @@ EXP_STRUCT LightResource : GOResource
 	void SetShadows( bool v ){ m_hasShadows = v; RETNIFNOLIGHT; m_light->hasShadows = v; _UpdateShadows(); }
 	TextureHandle GetCookieTextureData() const { return m_cookieTexture; }
 	void SetCookieTextureData( TextureHandle h ){ m_cookieTexture = h; RETNIFNOLIGHT; m_light->cookieTexture = h; }
-	StringView GetCookieTexturePath() const { return m_cookieTexture ? m_cookieTexture->m_key : ""; }
+	StringView GetCookieTexturePath() const { return m_cookieTexture ? SV(m_cookieTexture->m_key) : SV(""); }
 	void SetCookieTexturePath( StringView path ){ SetCookieTextureData( GR_GetTexture( path ) ); }
 	
 	SGS_PROPERTY_FUNC( READ IsStatic WRITE SetStatic VARNAME isStatic ) bool m_isStatic;

@@ -1995,6 +1995,10 @@ int GameLevel::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "cameraZNear" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.znear ); return SGS_SUCCESS; }
 		SGS_CASE( "cameraZFar" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.zfar ); return SGS_SUCCESS; }
 		SGS_CASE( "cameraAngle" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.angle ); return SGS_SUCCESS; }
+		SGS_CASE( "deltaTime" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_deltaTime ); return SGS_SUCCESS; }
+		SGS_CASE( "blendFactor" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_blendFactor ); return SGS_SUCCESS; }
+		SGS_CASE( "tickDeltaTime" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_tickDeltaTime ); return SGS_SUCCESS; }
+		SGS_CASE( "fixedTickDeltaTime" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_fixedTickDeltaTime ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_levelName ); return SGS_SUCCESS; }
 		SGS_CASE( "nextLevel" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_nextLevel ); return SGS_SUCCESS; }
 		SGS_CASE( "persistent" ){ sgs_PushVar( C, static_cast<GameLevel*>( obj->data )->m_persistent ); return SGS_SUCCESS; }
@@ -2034,11 +2038,15 @@ int GameLevel::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ncameraZNear = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.znear, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncameraZFar = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.zfar, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncameraAngle = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->GetScene()->camera.angle, depth ).push( C ); }
+		{ sgs_PushString( C, "\ndeltaTime = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_deltaTime, depth ).push( C ); }
+		{ sgs_PushString( C, "\nblendFactor = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_blendFactor, depth ).push( C ); }
+		{ sgs_PushString( C, "\ntickDeltaTime = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_tickDeltaTime, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfixedTickDeltaTime = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_fixedTickDeltaTime, depth ).push( C ); }
 		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_levelName, depth ).push( C ); }
 		{ sgs_PushString( C, "\nnextLevel = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_nextLevel, depth ).push( C ); }
 		{ sgs_PushString( C, "\npersistent = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_persistent, depth ).push( C ); }
 		{ sgs_PushString( C, "\npaused = " ); sgs_DumpData( C, static_cast<GameLevel*>( obj->data )->m_paused, depth ).push( C ); }
-		sgs_StringConcat( C, 20 );
+		sgs_StringConcat( C, 28 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

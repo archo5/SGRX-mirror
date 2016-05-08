@@ -456,6 +456,16 @@ void GameObject::RemoveBehavior( sgsString name )
 	}
 }
 
+void GameObject::SetName( StringView nm )
+{
+	m_name = m_level->GetScriptCtx().CreateString( nm );
+}
+
+void GameObject::SetID( StringView id )
+{
+	m_id = m_level->GetScriptCtx().CreateString( id );
+}
+
 void GameObject::OnDestroy()
 {
 	for( size_t i = 0; i < m_behaviors.size(); ++i )
@@ -820,6 +830,79 @@ bool GameLevel::Load( const StringView& levelname )
 				Entity* E = CreateEntity( SEA[ i ].type );
 				if( E )
 					ScriptAssignProperties( E->GetScriptedObject(), data );
+			}
+		}
+		else if( type == LC_FILE_GOBJ_NAME )
+		{
+			LOG_FUNCTION_ARG( "GAME OBJECTS" );
+			
+			HashTable< SGRX_GUID, MeshResource* > meshResources;
+			
+			LC_Chunk_Gobj gobj;
+			ByteReader gbr( ByteView( C.ptr, C.size ) );
+			gbr << gobj;
+			
+			// create objects
+			for( size_t i = 0; i < gobj.gameObjects.size(); ++i )
+			{
+				LC_GameObject& GO = gobj.gameObjects[ i ];
+				
+				nextObjectGUID = GO.guid;
+				GameObject* obj = CreateGameObject();
+				obj->SetName( GO.name );
+				obj->SetID( GO.id );
+				obj->SetLocalMatrix( GO.transform );
+				
+				for( size_t j = 0; j < GO.srlz_resources.size(); ++j )
+				{
+					sgsVariable data = m_scriptCtx.Unserialize( GO.srlz_resources[ j ] );
+				//	puts(sgs_DebugDumpVar(GetSGSC(), data.var));sgs_Pop(GetSGSC(),1);
+					sgsString name = data.getprop( "__name" ).get_string();
+					uint32_t type = data.getprop( "__type" ).get<uint32_t>();
+					SGRX_GUID guid = SGRX_GUID::ParseString( data.getprop( "__guid" ).get_string().c_str() );
+					
+					nextObjectGUID = guid;
+					GOResource* rsrc = obj->AddResource( name, type );
+					if( rsrc )
+					{
+						if( type == GO_RSRC_MESH && guid.NotNull() )
+							meshResources.set( guid, (MeshResource*) rsrc );
+						ScriptAssignProperties( rsrc->GetScriptedObject(), data, "__" );
+					}
+				}
+				
+				for( size_t j = 0; j < GO.srlz_behaviors.size(); ++j )
+				{
+					sgsVariable data = m_scriptCtx.Unserialize( GO.srlz_behaviors[ j ] );
+				//	puts(sgs_DebugDumpVar(GetSGSC(), data.var));sgs_Pop(GetSGSC(),1);
+					sgsString name = data.getprop( "__name" ).get_string();
+					sgsString type = data.getprop( "__type" ).get_string();
+					SGRX_GUID guid = SGRX_GUID::ParseString( data.getprop( "__guid" ).get_string().c_str() );
+					
+					nextObjectGUID = guid;
+					GOBehavior* bhvr = obj->AddBehavior( name, type );
+					if( bhvr )
+						ScriptAssignProperties( bhvr->GetScriptedObject(), data, "__" );
+				}
+			}
+			
+			// apply lightmaps
+			for( size_t i = 0; i < gobj.lightmaps.size(); ++i )
+			{
+				LC_GOLightmap& LM = gobj.lightmaps[ i ];
+				MeshResource* MR = meshResources.getcopy( LM.rsrc_guid );
+				if( !MR )
+					continue;
+				if( !LM.lmap.width || !LM.lmap.height )
+					continue;
+				
+				TextureHandle lmtex = GR_CreateTexture( LM.lmap.width, LM.lmap.height, TEXFORMAT_RGBA8,
+					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, LM.lmap.data.data() );
+				MR->m_meshInst->SetMITexture( 0, lmtex );
+				
+				TextureHandle nmtex = GR_CreateTexture( LM.lmap.width, LM.lmap.height, TEXFORMAT_RGBA8,
+					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, LM.lmap.nmdata.data() );
+				MR->m_meshInst->SetMITexture( 1, nmtex );
 			}
 		}
 		else if( type == LC_FILE_MRKR_NAME )

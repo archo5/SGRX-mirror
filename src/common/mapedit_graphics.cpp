@@ -611,7 +611,7 @@ static bool RenderInfoNeedsLM( const EdLGCRenderInfo& rinfo )
 
 static bool RenderInfoIsSolid( const EdLGCRenderInfo& rinfo )
 {
-	return ( rinfo.rflags & LM_MESHINST_DECAL ) == 0 &&
+	return ( rinfo.rflags & (LM_MESHINST_DECAL|LM_MESHINST_TRANSPARENT) ) == 0 &&
 		( rinfo.rflags & LM_MESHINST_CASTLMS ) != 0;
 }
 
@@ -901,13 +901,16 @@ void EdLevelGraphicsCont::UpdateCache( LevelCache& LC )
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
 		Mesh& M = m_meshes.item( i ).value;
-		if( M.ent->m_isStatic == false || M.ent->m_isVisible == false )
+		if( M.ent->m_isStatic == false )//|| M.ent->m_isVisible == false )
 			continue;
 		
-		LC_Lightmap lm;
-		ExportLightmap( m_meshes.item( i ).key, lm );
+		LC_GOLightmap lm;
+		lm.rsrc_guid = m_meshes.item( i ).key;
+		ExportLightmap( m_meshes.item( i ).key, lm.lmap );
 		
-		LC.AddMeshInst( M.info.path, M.ent->m_meshInst->matrix, M.info.rflags, M.info.decalLayer, lm );
+		LC.m_gobj.lightmaps.push_back( lm );
+		
+	//	LC.AddMeshInst( M.info.path, M.ent->m_meshInst->matrix, M.info.rflags, M.info.decalLayer, lm );
 	}
 	
 	LC.AddLight( g_EdWorld->GetDirLightInfo() );
@@ -1089,7 +1092,6 @@ void EdLevelGraphicsCont::UpdateSurface( SGRX_GUID guid, uint32_t changes, EdLGC
 			lmode = SGRX_LM_Unlit;
 		S.meshInst->SetLightingMode( lmode );
 		SGRX_Material& mtl = S.meshInst->GetMaterial( 0 );
-		bool decal = ( info->rflags & LM_MESHINST_DECAL ) != 0;
 		
 		mtl.blendMode = SGRX_MtlBlend_None;
 		mtl.flags = 0;
@@ -1099,13 +1101,14 @@ void EdLevelGraphicsCont::UpdateSurface( SGRX_GUID guid, uint32_t changes, EdLGC
 			mtl.blendMode = mapmtl->blendmode;
 			mtl.flags = mapmtl->flags;
 		}
-		if( decal )
-		{
-			mtl.flags |= SGRX_MtlFlag_Decal;
+		
+		if( info->rflags & LM_MESHINST_VCOL )
+			mtl.flags |= SGRX_MtlFlag_VCol;
+		if( info->rflags & LM_MESHINST_TRANSPARENT )
 			mtl.blendMode = SGRX_MtlBlend_Basic;
-		}
-	//	mtl.flags = decal ? SGRX_MtlFlag_Decal : 0;
-	//	mtl.blendMode = decal ? SGRX_MtlBlend_Basic : SGRX_MtlBlend_None;
+		if( info->rflags & LM_MESHINST_DECAL )
+			mtl.flags |= SGRX_MtlFlag_Decal;
+		
 		S.meshInst->OnUpdate();
 		LightMesh( S.meshInst, guid );
 	}

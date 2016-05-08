@@ -48,14 +48,25 @@ bool ScriptVarIterator::Advance()
 }
 
 
-void ScriptAssignProperties( sgsVariable to, sgsVariable from )
+void ScriptAssignProperties( sgsVariable to, sgsVariable from, const char* exclprefix )
 {
 	if( !( from.not_null() && to.not_null() ) )
 		return;
+	
+	size_t eplen = exclprefix ? strlen( exclprefix ) : 0;
+	
 	ScriptVarIterator it( from );
 	while( it.Advance() )
 	{
-		to.setindex( it.GetKey(), it.GetValue() );
+		sgsVariable key = it.GetKey();
+		if( exclprefix && key.is_string() )
+		{
+			sgsString str = key.get_string();
+			if( str.size() > eplen &&
+				memcmp( str.c_str(), exclprefix, eplen ) == 0 )
+				continue;
+		}
+		to.setindex( key, it.GetValue() );
 	}
 }
 

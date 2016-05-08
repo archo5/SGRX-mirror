@@ -231,7 +231,7 @@ void EdPatch::RegenerateMesh()
 		outidcs.clear();
 		Vec2 lmsize = GenerateMeshData( outverts, outidcs, layer );
 		
-		bool ovr = first == false || ( blend & PATCH_IS_SOLID ) == 0;
+		bool ovr = first == false || renderMode == PRM_Decal;
 		S.vdata = outverts.data();
 		S.vcount = outverts.size();
 		S.idata = outidcs.data();
@@ -239,12 +239,13 @@ void EdPatch::RegenerateMesh()
 		S.mtlname = LI.texname;
 		S.lmsize = lmsize;
 		S.xform = g_EdWorld->GetGroupMatrix( group );
-		S.rflags = 0
+		S.rflags = LM_MESHINST_VCOL
 			| (m_isLMSolid ? LM_MESHINST_CASTLMS : 0)
-			| (ovr ? LM_MESHINST_DECAL : 0)
+			| (ovr ? (LM_MESHINST_DECAL|LM_MESHINST_TRANSPARENT) : 0)
+			| (renderMode == PRM_Transparent ? LM_MESHINST_TRANSPARENT : 0)
 			| (m_isPhySolid && first ? LM_MESHINST_SOLID : 0);
 		S.lmdetail = lmquality;
-		S.decalLayer = layer + ( blend & ~PATCH_IS_SOLID );
+		S.decalLayer = layer + blend;
 		
 		if( LI.surface_guid.NotNull() )
 			g_EdLGCont->UpdateSurface( LI.surface_guid, LGC_CHANGE_ALL, &S );
@@ -1054,14 +1055,11 @@ void EdPatch::EditUI()
 	
 	g_EdWorld->m_groupMgr.GroupProperty( "Group", group );
 	IMGUIEditVec3( "Position", position, -8192, 8192 );
-	bool isDecal = ( blend & PATCH_IS_SOLID ) == 0;
-	int layer = blend & ~PATCH_IS_SOLID;
-	IMGUIEditBool( "Render as decal?", isDecal );
+	IMGUIComboBox( "Render mode", renderMode, "Static\0Transparent\0Decal\0" );
 	IMGUIEditBool( "Casts lightmap shadows?", m_isLMSolid );
 	IMGUIEditBool( "Is solid?", m_isPhySolid );
 	IMGUIEditFloat( "Lightmap quality", lmquality, 0.01f, 100 );
-	IMGUIEditInt( "Layer", layer, 0, 127 );
-	blend = layer | ( isDecal ? 0 : PATCH_IS_SOLID );
+	IMGUIEditInt( "Layer", blend, 0, 127 );
 	ImGui::Separator();
 	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
 	{

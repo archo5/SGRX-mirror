@@ -756,7 +756,7 @@ void SGRX_DecalSystem::Init( SceneHandle scene, TextureHandle texDecal, TextureH
 	m_meshInst = scene->CreateMeshInstance();
 	m_meshInst->SetMesh( m_mesh );
 	SGRX_Material mtl;
-	mtl.flags = SGRX_MtlFlag_Decal;
+	mtl.flags = SGRX_MtlFlag_Decal | SGRX_MtlFlag_VCol;
 	mtl.blendMode = SGRX_MtlBlend_Basic;
 	mtl.shader = "decal";
 	mtl.textures[0] = texDecal;

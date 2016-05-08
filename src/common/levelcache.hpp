@@ -77,6 +77,8 @@ struct LC_Lightmap
 #define LM_MESHINST_CASTLMS 0x0004
 #define LM_MESHINST_DECAL 0x0008
 #define LM_MESHINST_EDITOR_ONLY 0x0010 // editor-only
+#define LM_MESHINST_TRANSPARENT 0x0040
+#define LM_MESHINST_VCOL 0x0080
 struct LC_MeshInst
 {
 	String m_meshname;
@@ -230,6 +232,17 @@ struct LC_Chunk_Ents
 // Level game object definitions
 #define LC_FILE_GOBJ_NAME "GOBJ"
 #define LC_FILE_GOBJ_VERSION 0
+struct LC_GOLightmap
+{
+	SGRX_GUID rsrc_guid;
+	LC_Lightmap lmap;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << rsrc_guid;
+		arch << lmap;
+	}
+};
 struct LC_GameObject
 {
 	String name;
@@ -255,11 +268,13 @@ struct LC_GameObject
 struct LC_Chunk_Gobj
 {
 	Array< LC_GameObject > gameObjects;
+	Array< LC_GOLightmap > lightmaps;
 	
 	template< class T > void Serialize( T& arch )
 	{
 		SerializeVersionHelper<T> svh( arch, LC_FILE_GOBJ_VERSION );
 		svh << gameObjects;
+		svh << lightmaps;
 	}
 };
 

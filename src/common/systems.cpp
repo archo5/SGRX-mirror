@@ -749,10 +749,14 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 				MI->SetLightingMode( SGRX_LM_Dynamic );
 				m_level->LightMesh( MI );
 			}
-			else if( ( MID.m_flags & LM_MESHINST_DECAL ) != 0 && MI->GetMesh() )
+			else if( ( MID.m_flags & (LM_MESHINST_DECAL|LM_MESHINST_TRANSPARENT|LM_MESHINST_VCOL) ) != 0 && MI->GetMesh() )
 			{
-				MI->SetAllMtlFlags( SGRX_MtlFlag_Decal, 0 );
-				MI->SetAllBlendModes( SGRX_MtlBlend_Basic );
+				if( MID.m_flags & LM_MESHINST_VCOL )
+					MI->SetAllMtlFlags( SGRX_MtlFlag_VCol, 0 );
+				if( MID.m_flags & LM_MESHINST_DECAL )
+					MI->SetAllMtlFlags( SGRX_MtlFlag_Decal, 0 );
+				if( MID.m_flags & LM_MESHINST_TRANSPARENT )
+					MI->SetAllBlendModes( SGRX_MtlBlend_Basic );
 				MI->sortidx = MID.m_decalLayer;
 			}
 			

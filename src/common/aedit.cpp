@@ -351,6 +351,7 @@ void EditMeshPart( size_t i, SGRX_MeshAssetPart* mp )
 			IMGUIEditIntFlags( "Unlit", mp->mtlFlags, SGRX_MtlFlag_Unlit );
 			IMGUIEditIntFlags( "Disable culling", mp->mtlFlags, SGRX_MtlFlag_Nocull );
 			IMGUIEditIntFlags( "Decal", mp->mtlFlags, SGRX_MtlFlag_Decal );
+			IMGUIEditIntFlags( "Vertex colors", mp->mtlFlags, SGRX_MtlFlag_VCol );
 		});
 		IMGUIComboBox( "Blend mode", mp->mtlBlendMode, "None\0Basic\0Additive\0Multiply\0" );
 		

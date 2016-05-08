@@ -1114,8 +1114,10 @@ void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass,
 	name.append( ":" );
 	name.append( defines ); // scene defines
 	
+	if( mtl.flags & SGRX_MtlFlag_VCol )
+		name.append( ":VCOL" ); // color multiplied by vertex color
 	if( mtl.flags & SGRX_MtlFlag_Decal )
-		name.append( ":DECAL" ); // color multiplied by vertex color, even with other lighting models
+		name.append( ":DECAL" ); // ???
 	
 	PS = GR_GetPixelShader( name );
 	

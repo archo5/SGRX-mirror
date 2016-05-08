@@ -179,10 +179,11 @@ function RigidBodyResource.EditorDrawWorld()
 // Basic behaviors
 //
 
+// === MESH ARRAY === //
 global BhMeshArray = {};
 BEHAVIOR( "BhMeshArray", "Behavior" );
 BhMeshArray._props = [
-	"isStatic", "visible", "mesh", "matrix",
+	"isStatic", "visible", "mesh", "localMatrix",
 	"matrixMode", "lightingMode", "lmQuality", "castLMS"
 ];
 function BhMeshArray.Init()
@@ -222,7 +223,7 @@ function BhMeshArray.Rebuild()
 			prop = _props[ j ];
 			r.(prop) = r0.(prop);
 		}
-		r.matrix = r.matrix.multiply( xfadd );
+		r.localMatrix = r.localMatrix.multiply( xfadd );
 		xfadd.multiply( this.offset );
 	}
 }
@@ -232,6 +233,22 @@ function BhMeshArray.EditorGUI( gui )
 	gui.EditInt( "Count", this, "count", 1, 1000 );
 	if( gui.Button( "Regenerate" ) )
 		this.Rebuild();
+}
+
+// === OBJECT ROTATOR === //
+global BhObjectRotate = {};
+BEHAVIOR( "BhObjectRotate", "Behavior" );
+function BhObjectRotate.Init()
+{
+	this.speed = vec3(0,0,180);
+}
+function BhObjectRotate.Update()
+{
+	this.object.rotationXYZ += this.speed * level.deltaTime;
+}
+function BhObjectRotate.EditorGUI( gui )
+{
+	gui.EditVec3( "Speed", this, "speed", -100000, 100000 );
 }
 
 

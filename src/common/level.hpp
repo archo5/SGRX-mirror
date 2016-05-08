@@ -618,6 +618,10 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsString name );
 	
 	GameObject* GetParent() const { return (GameObject*) _parent; }
+	StringView GetName() const    { return StringView( m_name.c_str(), m_name.size() ); }
+	GFW_EXPORT void SetName( StringView nm );
+	StringView GetID() const      { return StringView( m_id.c_str(), m_id.size() ); }
+	GFW_EXPORT void SetID( StringView id );
 	
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
@@ -807,10 +811,10 @@ EXP_STRUCT GameLevel :
 	uint32_t m_nameIDGen;
 	double m_currentTickTime;
 	double m_currentPhyTime;
-	float m_deltaTime;
-	float m_blendFactor;
-	float m_tickDeltaTime;
-	float m_fixedTickDeltaTime;
+	SGS_PROPERTY_FUNC( READ VARNAME deltaTime ) float m_deltaTime;
+	SGS_PROPERTY_FUNC( READ VARNAME blendFactor ) float m_blendFactor;
+	SGS_PROPERTY_FUNC( READ VARNAME tickDeltaTime ) float m_tickDeltaTime;
+	SGS_PROPERTY_FUNC( READ VARNAME fixedTickDeltaTime ) float m_fixedTickDeltaTime;
 	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_levelName;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME nextLevel ) String m_nextLevel;
 	bool m_editorMode;

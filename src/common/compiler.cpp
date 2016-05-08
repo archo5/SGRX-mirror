@@ -950,6 +950,10 @@ void LevelCache::GatherMeshes()
 				Mesh& M = m_meshes[ mid ];
 				Part& OP = m_meshParts[ M.m_partIDs[ 0 ] ];
 				
+				// different material flags
+				if( OP.m_flags != P.m_flags )
+					continue;
+				
 				// do not group dynlit meshes
 				if( ( OP.m_flags | P.m_flags ) & LM_MESHINST_DYNLIT )
 					continue;
@@ -1298,8 +1302,7 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 	
 	// game object data
 	ByteArray ba_gobj;
-	LC_Chunk_Gobj ch_gobj = { m_gameObjects };
-	ByteWriter( &ba_gobj ) << ch_gobj;
+	ByteWriter( &ba_gobj ) << m_gobj;
 	{
 		memcpy( chunk.sys_id, LC_FILE_GOBJ_NAME, sizeof(chunk.sys_id) );
 		chunk.ptr = ba_gobj.data();

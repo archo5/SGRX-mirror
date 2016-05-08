@@ -293,7 +293,9 @@ struct LevelCache
 	void AddMeshInst( const String& meshname, const Mat4& mtx,
 		uint32_t flags, int decalLayer, LC_Lightmap& lm )
 	{
-		flags &= (LM_MESHINST_SOLID|LM_MESHINST_DYNLIT|LM_MESHINST_CASTLMS|LM_MESHINST_DECAL);
+		flags &= (LM_MESHINST_SOLID|LM_MESHINST_DYNLIT
+			|LM_MESHINST_CASTLMS|LM_MESHINST_DECAL
+			|LM_MESHINST_TRANSPARENT|LM_MESHINST_VCOL);
 		LC_MeshInst MI = { meshname, mtx, flags, decalLayer, lm };
 		m_meshinst.push_back( MI );
 	}
@@ -320,7 +322,7 @@ struct LevelCache
 	Array< LC_MeshInst > m_meshinst;
 	Array< LC_Light > m_lights;
 	Array< LC_ScriptedEntity > m_scriptents;
-	Array< LC_GameObject > m_gameObjects;
+	LC_Chunk_Gobj m_gobj;
 	LC_PhysicsMesh m_phyMesh;
 	Array< LC_SolidBox > m_solidBoxes;
 	StringView m_skyTexture;

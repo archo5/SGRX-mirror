@@ -943,12 +943,18 @@ struct EdPatchLayerInfo
 	SGRX_GUID surface_guid;
 };
 
-#define PATCH_IS_SOLID 0x80
+enum EPatchRenderMode
+{
+	PRM_Solid = 0,
+	PRM_Transparent,
+	PRM_Decal,
+};
 
 struct EdPatch : EdObject
 {
 	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0),
-		blend(0), m_isLMSolid(false), m_isPhySolid(false), lmquality(1)
+		blend(0), renderMode(PRM_Solid), m_isLMSolid(false),
+		m_isPhySolid(false), lmquality(1)
 	{
 		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
 		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
@@ -1027,7 +1033,8 @@ struct EdPatch : EdObject
 		position = FLoadProp( data, "position", V3(0) );
 		xsize = FLoadProp( data, "xsize", 2 );
 		ysize = FLoadProp( data, "ysize", 2 );
-		blend = FLoadProp( data, "blend", 0 );
+		blend = FLoadProp( data, "blend", 0 ) & ~0x80;
+		renderMode = FLoadProp( data, "renderMode", int(PRM_Solid) );
 		m_isLMSolid = FLoadProp( data, "isLMSolid", true );
 		m_isPhySolid = FLoadProp( data, "isPhySolid", true );
 		lmquality = FLoadProp( data, "lmquality", 1.0f );
@@ -1074,6 +1081,7 @@ struct EdPatch : EdObject
 		FSaveProp( out, "xsize", xsize );
 		FSaveProp( out, "ysize", ysize );
 		FSaveProp( out, "blend", blend );
+		FSaveProp( out, "renderMode", renderMode );
 		FSaveProp( out, "isLMSolid", m_isLMSolid );
 		FSaveProp( out, "isPhySolid", m_isPhySolid );
 		FSaveProp( out, "lmquality", lmquality );
@@ -1117,6 +1125,7 @@ struct EdPatch : EdObject
 	int8_t xsize;
 	int8_t ysize;
 	uint8_t blend;
+	uint8_t renderMode;
 	bool m_isLMSolid;
 	bool m_isPhySolid;
 	float lmquality;

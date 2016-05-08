@@ -964,6 +964,7 @@ ENGINE_EXPORT void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf
 #define SGRX_MtlFlag_Nocull   0x02
 #define SGRX_MtlFlag_Decal    0x04 // depth offset, changed drawing order
 #define SGRX_MtlFlag_Disable  0x08
+#define SGRX_MtlFlag_VCol     0x10
 #define SGRX_MtlBlend_None     0
 #define SGRX_MtlBlend_Basic    1 // alpha blending
 #define SGRX_MtlBlend_Additive 2

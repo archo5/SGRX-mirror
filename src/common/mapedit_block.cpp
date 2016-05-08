@@ -88,11 +88,15 @@ bool EdSurface::EditUI( EdBlock* B, int sid )
 					p->selected = true;
 					if( patchbtn == 2 )
 					{
-						p->blend = PATCH_IS_SOLID;
+						p->renderMode = PRM_Solid;
 						p->m_isLMSolid = true;
 						p->m_isPhySolid = true;
 						g_EdWorld->DeleteObject( B );
 						del = true;
+					}
+					else
+					{
+						p->renderMode = PRM_Decal;
 					}
 					g_EdWorld->AddObject( p );
 					g_UIFrame->SetEditMode( &g_UIFrame->m_emEditObjs );
