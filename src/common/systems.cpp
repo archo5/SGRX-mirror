@@ -815,19 +815,15 @@ GFXSystem::GFXSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 	lev->GetScene()->director = this;
 }
 
-void GFXSystem::OnAddEntity( Entity* ent )
+void GFXSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 {
-	if( ENTITY_IS_A( ent, ReflectionPlaneEntity ) )
+	if( eid == EID_GOResourceAdd )
 	{
-		m_reflectPlanes.push_back( ent );
+		m_reflectPlanes.push_back( (GOResource*) edata.GetUserData() );
 	}
-}
-
-void GFXSystem::OnRemoveEntity( Entity* ent )
-{
-	if( ENTITY_IS_A( ent, ReflectionPlaneEntity ) )
+	else if( eid == EID_GOResourceRemove )
 	{
-		m_reflectPlanes.remove_first( ent );
+		m_reflectPlanes.remove_first( (GOResource*) edata.GetUserData() );
 	}
 }
 
@@ -875,10 +871,11 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	
 	for( size_t i = 0; i < m_reflectPlanes.size(); ++i )
 	{
-		Entity* RPE = m_reflectPlanes[ i ];
+		GOResource* RPE = m_reflectPlanes[ i ];
 		
-		Vec3 pos = RPE->GetWorldPosition();
-		Vec3 dir = RPE->LocalToWorldDir( V3(0,0,1) ).Normalized();
+		Mat4 xf = RPE->GetWorldMatrix();
+		Vec3 pos = xf.GetTranslation();
+		Vec3 dir = xf.TransformNormal( V3(0,0,1) ).Normalized();
 		Vec4 plane = V4( dir, Vec3Dot( dir, pos ) );
 		
 		scene->camera.position = Vec3ReflectPos( scene->camera.position, plane );

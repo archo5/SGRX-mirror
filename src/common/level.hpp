@@ -522,6 +522,11 @@ EXP_STRUCT GOResource : LevelScrObj
 	typedef sgsHandle< GOResource > ScrHandle;
 	
 	GFW_EXPORT GOResource( GameObject* obj );
+	GFW_EXPORT virtual void OnDestroy();
+	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
+	GFW_EXPORT virtual void FixedUpdate();
+	GFW_EXPORT virtual void Update();
+	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih, sgsVariable iface );
 	GFW_EXPORT virtual void EditLoad( sgsVariable src, sgsVariable iface );

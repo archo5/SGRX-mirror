@@ -163,6 +163,8 @@ void EDGO_EditUI( GameObject* obj )
 					rsrc = obj->AddResource( sgsname, GO_RSRC_PSYS );
 				if( ImGui::Selectable( "Rigid body resource" ) )
 					rsrc = obj->AddResource( sgsname, GO_RSRC_RBODY );
+				if( ImGui::Selectable( "Reflection plane resource" ) )
+					rsrc = obj->AddResource( sgsname, GO_RSRC_REFPLANE );
 				
 				if( rsrc )
 				{

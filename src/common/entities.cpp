@@ -4,12 +4,6 @@
 #include "resources.hpp"
 
 
-ReflectionPlaneEntity::ReflectionPlaneEntity( GameLevel* lev ) : Entity( lev )
-{
-}
-
-
-
 
 static int RigidBodyInfo( SGS_CTX )
 {
@@ -559,7 +553,6 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	};
 	sgs_RegIntConsts( lev->GetSGSC(), ric, -1 );
 	lev->RegisterNativeEntity<Entity>( "Entity" );
-	lev->RegisterNativeEntity<ReflectionPlaneEntity>( "ReflectionPlane" );
 	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
 	
 	lev->RegisterNativeClass<GOResource>( "GOResource" );
@@ -567,12 +560,12 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	lev->RegisterNativeClass<LightResource>( "LightResource" );
 	lev->RegisterNativeClass<ParticleSystemResource>( "ParticleSystemResource" );
 	lev->RegisterNativeClass<RigidBodyResource>( "RigidBodyResource" );
+	lev->RegisterNativeClass<ReflectionPlaneResource>( "ReflectionPlaneResource" );
 }
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )
 {
 	if( type == "Entity" ) return new Entity( m_level );
-	if( type == "ReflectionPlane" ) return new ReflectionPlaneEntity( m_level );
 	if( type == "MultiEntity" ) return new MultiEntity( m_level );
 	
 	return NULL;

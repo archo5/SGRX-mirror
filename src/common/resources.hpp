@@ -13,10 +13,13 @@
 
 
 
-#define GO_RSRC_MESH 1
-#define GO_RSRC_LIGHT 2
-#define GO_RSRC_PSYS 3
-#define GO_RSRC_RBODY 4
+#define GO_RSRC_MESH     1
+#define GO_RSRC_LIGHT    2
+#define GO_RSRC_PSYS     3
+#define GO_RSRC_RBODY    4
+#define GO_RSRC_JOINT    5 // TODO
+#define GO_RSRC_SNDSRC   6 // TODO
+#define GO_RSRC_REFPLANE 7
 
 
 
@@ -129,7 +132,7 @@ EXP_STRUCT ParticleSystemResource : GOResource
 	GFW_EXPORT ParticleSystemResource( GameObject* obj );
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void EditorDrawWorld();
-	GFW_EXPORT virtual void Tick();
+	GFW_EXPORT virtual void Update();
 	GFW_EXPORT virtual void PreRender();
 	
 	GFW_EXPORT void sgsSetParticleSystem( StringView path );
@@ -228,6 +231,15 @@ EXP_STRUCT RigidBodyResource : GOResource
 	
 	PhyRigidBodyHandle m_body;
 	PhyShapeHandle m_shape;
+};
+
+
+EXP_STRUCT ReflectionPlaneResource : GOResource
+{
+	SGS_OBJECT_INHERIT( GOResource );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT ReflectionPlaneResource( GameObject* obj );
 };
 
 

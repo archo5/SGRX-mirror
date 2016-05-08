@@ -143,7 +143,10 @@ void LightResource::_UpdateShadows()
 }
 
 
-ParticleSystemResource::ParticleSystemResource( GameObject* obj ) : GOResource( obj ), m_soundEventOneShot(false)
+ParticleSystemResource::ParticleSystemResource( GameObject* obj ) :
+	GOResource( obj ),
+	m_enabled( false ),
+	m_soundEventOneShot( false )
 {
 }
 
@@ -165,7 +168,7 @@ void ParticleSystemResource::EditorDrawWorld()
 	br.AABB( V3(-1), V3(1), GetWorldMatrix() );
 }
 
-void ParticleSystemResource::Tick()
+void ParticleSystemResource::Update()
 {
 	bool needstrig = m_psys.Tick( m_level->GetDeltaTime() );
 	if( needstrig && m_soundEventOneShot )
@@ -234,7 +237,6 @@ void ParticleSystemResource::_StartSoundEvent()
 
 void ParticleSystemResource::sgsSetPlaying( bool playing )
 {
-	printf("%s %s\n",playing?"true":"false",m_enabled?"true":"false");
 	if( playing == m_enabled )
 		return;
 	
@@ -312,6 +314,12 @@ void RigidBodyResource::_UpdateShape()
 	
 	if( m_body )
 		m_body->SetShape( m_shape );
+}
+
+
+ReflectionPlaneResource::ReflectionPlaneResource( GameObject* obj ) :
+	GOResource( obj )
+{
 }
 
 

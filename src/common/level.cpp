@@ -156,6 +156,26 @@ GOResource::GOResource( GameObject* obj ) :
 {
 }
 
+void GOResource::OnDestroy()
+{
+}
+
+void GOResource::PrePhysicsFixedUpdate()
+{
+}
+
+void GOResource::FixedUpdate()
+{
+}
+
+void GOResource::Update()
+{
+}
+
+void GOResource::PreRender()
+{
+}
+
 void GOResource::OnTransformUpdate()
 {
 }
@@ -329,6 +349,8 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 		rsrc = new ParticleSystemResource( this );
 	else if( type == GO_RSRC_RBODY )
 		rsrc = new RigidBodyResource( this );
+	else if( type == GO_RSRC_REFPLANE )
+		rsrc = new ReflectionPlaneResource( this );
 	if( rsrc )
 	{
 		rsrc->m_name = name;
@@ -468,48 +490,58 @@ void GameObject::SetID( StringView id )
 
 void GameObject::OnDestroy()
 {
-	for( size_t i = 0; i < m_behaviors.size(); ++i )
-		m_behaviors.item( i ).value->OnDestroy();
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->OnDestroy();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->OnDestroy();
 }
 
 void GameObject::PrePhysicsFixedUpdate()
 {
-	for( size_t i = 0; i < m_behaviors.size(); ++i )
-		m_behaviors.item( i ).value->PrePhysicsFixedUpdate();
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->PrePhysicsFixedUpdate();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->PrePhysicsFixedUpdate();
 }
 
 void GameObject::FixedUpdate()
 {
-	for( size_t i = 0; i < m_behaviors.size(); ++i )
-		m_behaviors.item( i ).value->FixedUpdate();
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->FixedUpdate();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->FixedUpdate();
 }
 
 void GameObject::Update()
 {
-	for( size_t i = 0; i < m_behaviors.size(); ++i )
-		m_behaviors.item( i ).value->Update();
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->Update();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->Update();
 }
 
 void GameObject::PreRender()
 {
-	for( size_t i = 0; i < m_behaviors.size(); ++i )
-		m_behaviors.item( i ).value->PreRender();
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->PreRender();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->PreRender();
 }
 
 void GameObject::OnTransformUpdate()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
 		m_resources.item( i ).value->OnTransformUpdate();
-	for( size_t i = 0; i < m_behaviors.size(); ++i )
-		m_behaviors.item( i ).value->OnTransformUpdate();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->OnTransformUpdate();
 }
 
 void GameObject::EditorDrawWorld()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
 		m_resources.item( i ).value->EditorDrawWorld();
-	for( size_t i = 0; i < m_behaviors.size(); ++i )
-		m_behaviors.item( i ).value->EditorDrawWorld();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->EditorDrawWorld();
 }
 
 

@@ -2964,167 +2964,6 @@ static sgs_ObjInterface AIDBSystem__sgs_interface =
 _sgsInterface AIDBSystem::_sgs_interface(AIDBSystem__sgs_interface, AIDBSystem__sgs_ifn);
 
 
-static int _sgs_method__ReflectionPlaneEntity__GetChild( SGS_CTX )
-{
-	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, GetChild ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__ReflectionPlaneEntity__LocalToWorld( SGS_CTX )
-{
-	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, LocalToWorld ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__ReflectionPlaneEntity__WorldToLocal( SGS_CTX )
-{
-	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, WorldToLocal ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__ReflectionPlaneEntity__LocalToWorldDir( SGS_CTX )
-{
-	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, LocalToWorldDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__ReflectionPlaneEntity__WorldToLocalDir( SGS_CTX )
-{
-	ReflectionPlaneEntity* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneEntity::_sgs_interface, data, ReflectionPlaneEntity, WorldToLocalDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-int ReflectionPlaneEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
-{
-	static_cast<ReflectionPlaneEntity*>( obj->data )->C = C;
-	static_cast<ReflectionPlaneEntity*>( obj->data )->~ReflectionPlaneEntity();
-	return SGS_SUCCESS;
-}
-
-int ReflectionPlaneEntity::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneEntity*>( obj->data )->C, C );
-	return SGS_SUCCESS;
-}
-
-int ReflectionPlaneEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneEntity*>( obj->data )->C, C );
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_sgsGetParent() ); return SGS_SUCCESS; }
-		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
-		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
-		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->name ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<ReflectionPlaneEntity*>( obj->data )->m_id ); return SGS_SUCCESS; }
-		if( sgs_PushIndex( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
-	SGS_END_INDEXFUNC;
-}
-
-int ReflectionPlaneEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneEntity*>( obj->data )->C, C );
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "_data" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetWorldPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetWorldMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->_SetParent( sgs_GetVar<EntityScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "infoMask" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localInfoTarget" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ static_cast<ReflectionPlaneEntity*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
-		if( sgs_SetIndex( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
-	SGS_END_INDEXFUNC;
-}
-
-int ReflectionPlaneEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneEntity*>( obj->data )->C, C );
-	char bfr[ 53 ];
-	sprintf( bfr, "ReflectionPlaneEntity (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
-	sgs_PushString( C, bfr );
-	if( depth > 0 )
-	{
-		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_ch.size(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->_sgsGetParent(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetInfoMask(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->m_infoTarget, depth ).push( C ); }
-		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->name, depth ).push( C ); }
-		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<ReflectionPlaneEntity*>( obj->data )->m_id, depth ).push( C ); }
-		sgs_StringConcat( C, 38 );
-		sgs_PadString( C );
-		sgs_PushString( C, "\n}" );
-		sgs_StringConcat( C, 3 );
-	}
-	return SGS_SUCCESS;
-}
-
-static sgs_RegFuncConst ReflectionPlaneEntity__sgs_funcs[] =
-{
-	{ "GetChild", _sgs_method__ReflectionPlaneEntity__GetChild },
-	{ "LocalToWorld", _sgs_method__ReflectionPlaneEntity__LocalToWorld },
-	{ "WorldToLocal", _sgs_method__ReflectionPlaneEntity__WorldToLocal },
-	{ "LocalToWorldDir", _sgs_method__ReflectionPlaneEntity__LocalToWorldDir },
-	{ "WorldToLocalDir", _sgs_method__ReflectionPlaneEntity__WorldToLocalDir },
-	{ NULL, NULL },
-};
-
-static int ReflectionPlaneEntity__sgs_ifn( SGS_CTX )
-{
-	sgs_CreateDict( C, NULL, 0 );
-	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
-		ReflectionPlaneEntity__sgs_funcs,
-		-1, "ReflectionPlaneEntity." );
-	return 1;
-}
-
-static sgs_ObjInterface ReflectionPlaneEntity__sgs_interface =
-{
-	"ReflectionPlaneEntity",
-	ReflectionPlaneEntity::_sgs_destruct, ReflectionPlaneEntity::_sgs_gcmark, ReflectionPlaneEntity::_sgs_getindex, ReflectionPlaneEntity::_sgs_setindex, NULL, NULL, ReflectionPlaneEntity::_sgs_dump, NULL, NULL, NULL, 
-};
-_sgsInterface ReflectionPlaneEntity::_sgs_interface(ReflectionPlaneEntity__sgs_interface, ReflectionPlaneEntity__sgs_ifn, &Entity::_sgs_interface);
-
-
 int SGRX_RigidBodyInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<SGRX_RigidBodyInfo*>( obj->data )->C = C;
@@ -4383,4 +4222,96 @@ static sgs_ObjInterface RigidBodyResource__sgs_interface =
 	RigidBodyResource::_sgs_destruct, RigidBodyResource::_sgs_gcmark, RigidBodyResource::_sgs_getindex, RigidBodyResource::_sgs_setindex, NULL, NULL, RigidBodyResource::_sgs_dump, NULL, NULL, NULL, 
 };
 _sgsInterface RigidBodyResource::_sgs_interface(RigidBodyResource__sgs_interface, RigidBodyResource__sgs_ifn, &GOResource::_sgs_interface);
+
+
+static int _sgs_method__ReflectionPlaneResource__GetWorldMatrix( SGS_CTX )
+{
+	ReflectionPlaneResource* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneResource::_sgs_interface, data, ReflectionPlaneResource, GetWorldMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetWorldMatrix(  )); return 1;
+}
+
+int ReflectionPlaneResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<ReflectionPlaneResource*>( obj->data )->C = C;
+	static_cast<ReflectionPlaneResource*>( obj->data )->~ReflectionPlaneResource();
+	return SGS_SUCCESS;
+}
+
+int ReflectionPlaneResource::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneResource*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int ReflectionPlaneResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<ReflectionPlaneResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int ReflectionPlaneResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<ReflectionPlaneResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<ReflectionPlaneResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<ReflectionPlaneResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<ReflectionPlaneResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int ReflectionPlaneResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ReflectionPlaneResource*>( obj->data )->C, C );
+	char bfr[ 55 ];
+	sprintf( bfr, "ReflectionPlaneResource (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		sgs_StringConcat( C, 14 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst ReflectionPlaneResource__sgs_funcs[] =
+{
+	{ "GetWorldMatrix", _sgs_method__ReflectionPlaneResource__GetWorldMatrix },
+	{ NULL, NULL },
+};
+
+static int ReflectionPlaneResource__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		ReflectionPlaneResource__sgs_funcs,
+		-1, "ReflectionPlaneResource." );
+	return 1;
+}
+
+static sgs_ObjInterface ReflectionPlaneResource__sgs_interface =
+{
+	"ReflectionPlaneResource",
+	ReflectionPlaneResource::_sgs_destruct, ReflectionPlaneResource::_sgs_gcmark, ReflectionPlaneResource::_sgs_getindex, ReflectionPlaneResource::_sgs_setindex, NULL, NULL, ReflectionPlaneResource::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface ReflectionPlaneResource::_sgs_interface(ReflectionPlaneResource__sgs_interface, ReflectionPlaneResource__sgs_ifn, &GOResource::_sgs_interface);
 
