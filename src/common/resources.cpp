@@ -296,6 +296,13 @@ void RigidBodyResource::OnTransformUpdate()
 	m_shape->SetScale( xf.GetScale() );
 }
 
+Mat4 RigidBodyResource::GetObjectWorldMatrix()
+{
+	Mat4 xf = Mat4::CreateSRT( V3(1), m_body->GetRotation(), m_body->GetPosition() );
+	xf = MatrixResourceToObject( xf );
+	return xf;
+}
+
 void RigidBodyResource::_UpdateShape()
 {
 	PhyWorldHandle pw = m_level->GetPhyWorld();
@@ -320,6 +327,27 @@ void RigidBodyResource::_UpdateShape()
 ReflectionPlaneResource::ReflectionPlaneResource( GameObject* obj ) :
 	GOResource( obj )
 {
+}
+
+
+
+BhResourceMoveObject::BhResourceMoveObject( GameObject* obj ) :
+	GOBehavior( obj )
+{
+}
+
+void BhResourceMoveObject::FixedUpdate()
+{
+	GOResource* rsrc = resource;
+	if( rsrc )
+		m_obj->SetWorldMatrix( rsrc->GetObjectWorldMatrix() );
+}
+
+void BhResourceMoveObject::Update()
+{
+	GOResource* rsrc = resource;
+	if( rsrc )
+		m_obj->SetWorldMatrix( rsrc->GetObjectWorldMatrix() );
 }
 
 

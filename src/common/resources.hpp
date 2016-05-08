@@ -167,6 +167,7 @@ EXP_STRUCT RigidBodyResource : GOResource
 	
 	GFW_EXPORT RigidBodyResource( GameObject* obj );
 	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual Mat4 GetObjectWorldMatrix();
 	GFW_EXPORT void _UpdateShape();
 	
 	FINLINE Vec3 GetLinearVelocity() const { return m_body->GetLinearVelocity(); }
@@ -240,6 +241,20 @@ EXP_STRUCT ReflectionPlaneResource : GOResource
 	ENT_SGS_IMPLEMENT;
 	
 	GFW_EXPORT ReflectionPlaneResource( GameObject* obj );
+};
+
+
+
+EXP_STRUCT BhResourceMoveObject : GOBehavior
+{
+	SGS_OBJECT_INHERIT( GOBehavior );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT BhResourceMoveObject( GameObject* obj );
+	GFW_EXPORT void FixedUpdate();
+	GFW_EXPORT void Update();
+	
+	SGS_PROPERTY GOResource::ScrHandle resource;
 };
 
 

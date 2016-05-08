@@ -561,6 +561,8 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	lev->RegisterNativeClass<ParticleSystemResource>( "ParticleSystemResource" );
 	lev->RegisterNativeClass<RigidBodyResource>( "RigidBodyResource" );
 	lev->RegisterNativeClass<ReflectionPlaneResource>( "ReflectionPlaneResource" );
+	
+	lev->RegisterNativeClass<BhResourceMoveObject>( "BhResourceMoveObject" );
 }
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )

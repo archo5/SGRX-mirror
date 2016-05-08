@@ -117,6 +117,17 @@ function ED_ILOAD.PickSound( lbl, obj, prop, caption ){ obj.(prop) = tostring( E
 function ED_ISAVE.PickSound( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ); }
 // default ED_ILCSV
 
+function ED_ILOAD.PickLocalRsrc( lbl, obj, prop, gobj )
+{
+	obj.(prop) = null;
+	// TODO delayed mapping
+}
+function ED_ISAVE.PickLocalRsrc( lbl, obj, prop, gobj )
+{
+	ED_SDATA[ prop ] = tostring( @obj.(prop).__guid ?? "" );
+}
+// default ED_ILCSV
+
 function ED_ILOAD.ComboNT( lbl, obj, prop, zssl, start )
 {
 	obj.(prop) = toint( ED_SDATA[ prop ] );

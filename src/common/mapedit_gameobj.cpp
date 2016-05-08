@@ -584,6 +584,45 @@ static int IMGUI_PickSound( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_PickLocalRsrc( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.PickLocalRsrc" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	GameObject* go = GameObject::ScrHandle( C, 3 );
+	GOResource* rsrc = obj.getprop( prop ).get_handle<GOResource>();
+	
+	if( !go )
+		return sgs_Msg( C, SGS_WARNING, "expected game object as argument 4" );
+	
+	ImGui::PushID( label.c_str() );
+	if( ImGui::Button( rsrc ? rsrc->m_name.c_str() : "<none>",
+			ImVec2( ImGui::GetContentRegionAvailWidth(), 20 ) ) )
+		ImGui::OpenPopup( "pick_local_rsrc" );
+	
+	if( ImGui::BeginPopup( "pick_local_rsrc" ) )
+	{
+		if( ImGui::Selectable( "<none>" ) )
+			obj.setprop( prop, sgsVariable() );
+		for( size_t i = 0; i < go->m_resources.size(); ++i )
+		{
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "[%s] %s",
+				go->m_resources.item( i ).value->GetSGSInterface()->name,
+				go->m_resources.item( i ).key.c_str() );
+			if( ImGui::Selectable( bfr ) )
+			{
+				obj.setprop( prop, go->m_resources.item( i ).value->GetScriptedObject() );
+			}
+		}
+		ImGui::EndPopup();
+	}
+	ImGui::PopID();
+	
+	return 0;
+}
+
 static int IMGUI_ComboNT( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.ComboNT" );
@@ -622,6 +661,7 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "PickTexture", IMGUI_PickTexture },
 	{ "PickPartSys", IMGUI_PickPartSys },
 	{ "PickSound", IMGUI_PickSound },
+	{ "PickLocalRsrc", IMGUI_PickLocalRsrc },
 	{ "ComboNT", IMGUI_ComboNT },
 	{ "Button", IMGUI_Button },
 	SGS_RC_END(),

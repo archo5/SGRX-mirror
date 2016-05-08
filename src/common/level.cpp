@@ -205,6 +205,19 @@ Vec3 GOResource::EditorIconPos()
 	return GetWorldMatrix().GetTranslation();
 }
 
+Mat4 GOResource::GetObjectWorldMatrix()
+{
+	return m_obj->GetWorldMatrix();
+}
+
+Mat4 GOResource::MatrixResourceToObject( Mat4 xf ) const
+{
+	if( m_matrixMode == MM_Absolute )
+		return xf;
+	else
+		return xf * m_localMatrix.Inverted();
+}
+
 Mat4 GOResource::GetWorldMatrix() const
 {
 	if( m_matrixMode == MM_Absolute )
@@ -1088,6 +1101,7 @@ void GameLevel::ClearLevel()
 void GameLevel::FixedTick( float deltaTime )
 {
 	m_deltaTime = deltaTime;
+	m_blendFactor = 1;
 	m_fixedTickDeltaTime = deltaTime;
 	
 	if( IsPaused() == false )

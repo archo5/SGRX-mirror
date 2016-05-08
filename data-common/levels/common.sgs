@@ -186,6 +186,13 @@ function ReflectionPlaneResource.EditorDrawWorld()
 // Basic behaviors
 //
 
+// === RESOURCE - MOVE OBJECT === //
+BEHAVIOR( "BhResourceMoveObject", "Behavior" );
+function BhResourceMoveObject.EditorGUI( ui )
+{
+	ui.PickLocalRsrc( "Resource", this, "resource", this.object );
+}
+
 // === MESH ARRAY === //
 global BhMeshArray = {};
 BEHAVIOR( "BhMeshArray", "Behavior" );
@@ -234,11 +241,11 @@ function BhMeshArray.Rebuild()
 		xfadd.multiply( this.offset );
 	}
 }
-function BhMeshArray.EditorGUI( gui )
+function BhMeshArray.EditorGUI( ui )
 {
-	gui.EditXFMat4( "Offset", this, "offset" );
-	gui.EditInt( "Count", this, "count", 1, 1000 );
-	if( gui.Button( "Regenerate" ) )
+	ui.EditXFMat4( "Offset", this, "offset" );
+	ui.EditInt( "Count", this, "count", 1, 1000 );
+	if( ui.Button( "Regenerate" ) )
 		this.Rebuild();
 }
 
@@ -253,9 +260,9 @@ function BhObjectRotate.Update()
 {
 	this.object.rotationXYZ += this.speed * level.deltaTime;
 }
-function BhObjectRotate.EditorGUI( gui )
+function BhObjectRotate.EditorGUI( ui )
 {
-	gui.EditVec3( "Speed", this, "speed", -100000, 100000 );
+	ui.EditVec3( "Speed", this, "speed", -100000, 100000 );
 }
 
 

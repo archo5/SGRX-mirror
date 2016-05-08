@@ -534,6 +534,10 @@ EXP_STRUCT GOResource : LevelScrObj
 	GFW_EXPORT virtual void EditorDrawWorld();
 	GFW_EXPORT virtual Vec3 EditorIconPos();
 	
+	// reimplement to allow moving object with this resource
+	GFW_EXPORT virtual Mat4 GetObjectWorldMatrix();
+	
+	GFW_EXPORT Mat4 MatrixResourceToObject( Mat4 xf ) const;
 	GFW_EXPORT SGS_METHOD Mat4 GetWorldMatrix() const;
 	Mat4 GetLocalMatrix() const { return m_localMatrix; }
 	void SetLocalMatrix( Mat4 m ){ m_localMatrix = m; OnTransformUpdate(); }
@@ -544,6 +548,7 @@ EXP_STRUCT GOResource : LevelScrObj
 	
 	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_type;
+	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
 	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix VARNAME localMatrix ) Mat4 m_localMatrix;
 	SGS_PROPERTY_FUNC( READ GetMatrixMode WRITE SetMatrixMode VARNAME matrixMode ) int m_matrixMode;
 	
@@ -586,6 +591,7 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	GameObject* m_obj;
 	SGS_PROPERTY_FUNC( READ VARNAME __type ) sgsString m_type;
 	SGRX_GUID m_src_guid;
+	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
 	
 	sgsHandle<GameObject> _get_object(){ return sgsHandle<GameObject>( m_obj ); }
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
@@ -609,6 +615,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
 	ENT_SGS_IMPLEMENT;
+	typedef sgsHandle< GameObject > ScrHandle;
 	
 	GFW_EXPORT GameObject( GameLevel* lev );
 	GFW_EXPORT ~GameObject();
@@ -639,6 +646,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME id ) sgsString m_id;
+	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
 	GOResourceTable m_resources;
 	GOBehaviorTable m_behaviors;
 	Array< H_GOBehavior > m_bhvr_order;

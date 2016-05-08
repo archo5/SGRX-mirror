@@ -1403,6 +1403,7 @@ int GOResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<GOResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -1433,9 +1434,10 @@ int GOResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
-		sgs_StringConcat( C, 14 );
+		sgs_StringConcat( C, 16 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -1567,6 +1569,7 @@ int GOBehavior::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<GOBehavior*>( obj->data )->_data ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<GOBehavior*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<GOBehavior*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<GOBehavior*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<GOBehavior*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<GOBehavior*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
 		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<GOBehavior*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
@@ -1595,10 +1598,11 @@ int GOBehavior::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<GOBehavior*>( obj->data )->_data, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<GOBehavior*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<GOBehavior*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<GOBehavior*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<GOBehavior*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<GOBehavior*>( obj->data )->_get_resources(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<GOBehavior*>( obj->data )->_get_behaviors(), depth ).push( C ); }
-		sgs_StringConcat( C, 14 );
+		sgs_StringConcat( C, 16 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -1763,6 +1767,7 @@ int GameObject::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->_data ); return SGS_SUCCESS; }
 		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_id ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
 		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
@@ -1812,6 +1817,7 @@ int GameObject::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_data, depth ).push( C ); }
 		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_id, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
@@ -1824,7 +1830,7 @@ int GameObject::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_get_resources(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_get_behaviors(), depth ).push( C ); }
-		sgs_StringConcat( C, 32 );
+		sgs_StringConcat( C, 34 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -3737,6 +3743,7 @@ int MeshResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "meshInst" ){ sgs_PushPtr( C, static_cast<MeshResource*>( obj->data )->m_meshInst.item ); return SGS_SUCCESS; }
@@ -3784,6 +3791,7 @@ int MeshResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmeshInst = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_meshInst.item, depth ).push( C ); }
@@ -3794,7 +3802,7 @@ int MeshResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLightingMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlmQuality = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_lmQuality, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncastLMS = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_castLMS, depth ).push( C ); }
-		sgs_StringConcat( C, 30 );
+		sgs_StringConcat( C, 32 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -3855,6 +3863,7 @@ int LightResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->IsStatic() ); return SGS_SUCCESS; }
@@ -3918,6 +3927,7 @@ int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nisStatic = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->IsStatic(), depth ).push( C ); }
@@ -3935,7 +3945,7 @@ int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninnerAngle = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_innerAngle, depth ).push( C ); }
 		{ sgs_PushString( C, "\nspotCurve = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_spotCurve, depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightRadius = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_lightRadius, depth ).push( C ); }
-		sgs_StringConcat( C, 44 );
+		sgs_StringConcat( C, 46 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -4002,6 +4012,7 @@ int ParticleSystemResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "particleSystemPath" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_partSysPath ); return SGS_SUCCESS; }
@@ -4038,12 +4049,13 @@ int ParticleSystemResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nparticleSystemPath = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_partSysPath, depth ).push( C ); }
 		{ sgs_PushString( C, "\nsoundEvent = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_soundEventName, depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_enabled, depth ).push( C ); }
-		sgs_StringConcat( C, 20 );
+		sgs_StringConcat( C, 22 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -4104,6 +4116,7 @@ int RigidBodyResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "linearVelocity" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLinearVelocity() ); return SGS_SUCCESS; }
@@ -4172,6 +4185,7 @@ int RigidBodyResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlinearVelocity = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLinearVelocity(), depth ).push( C ); }
@@ -4193,7 +4207,7 @@ int RigidBodyResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nshapeExtents = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeExtents, depth ).push( C ); }
 		{ sgs_PushString( C, "\nshapeMinExtents = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeMinExtents, depth ).push( C ); }
 		{ sgs_PushString( C, "\nshapeMesh = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeMesh, depth ).push( C ); }
-		sgs_StringConcat( C, 52 );
+		sgs_StringConcat( C, 54 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -4253,6 +4267,7 @@ int ReflectionPlaneResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<ReflectionPlaneResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -4283,9 +4298,10 @@ int ReflectionPlaneResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->_get_object(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
-		sgs_StringConcat( C, 14 );
+		sgs_StringConcat( C, 16 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -4314,4 +4330,91 @@ static sgs_ObjInterface ReflectionPlaneResource__sgs_interface =
 	ReflectionPlaneResource::_sgs_destruct, ReflectionPlaneResource::_sgs_gcmark, ReflectionPlaneResource::_sgs_getindex, ReflectionPlaneResource::_sgs_setindex, NULL, NULL, ReflectionPlaneResource::_sgs_dump, NULL, NULL, NULL, 
 };
 _sgsInterface ReflectionPlaneResource::_sgs_interface(ReflectionPlaneResource__sgs_interface, ReflectionPlaneResource__sgs_ifn, &GOResource::_sgs_interface);
+
+
+int BhResourceMoveObject::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<BhResourceMoveObject*>( obj->data )->C = C;
+	static_cast<BhResourceMoveObject*>( obj->data )->~BhResourceMoveObject();
+	return SGS_SUCCESS;
+}
+
+int BhResourceMoveObject::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhResourceMoveObject*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int BhResourceMoveObject::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhResourceMoveObject*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
+		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
+		SGS_CASE( "resource" ){ sgs_PushVar( C, static_cast<BhResourceMoveObject*>( obj->data )->resource ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<BhResourceMoveObject*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int BhResourceMoveObject::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhResourceMoveObject*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<BhResourceMoveObject*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "resource" ){ static_cast<BhResourceMoveObject*>( obj->data )->resource = sgs_GetVar<GOResource::ScrHandle>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<BhResourceMoveObject*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int BhResourceMoveObject::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhResourceMoveObject*>( obj->data )->C, C );
+	char bfr[ 52 ];
+	sprintf( bfr, "BhResourceMoveObject (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->_get_resources(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->_get_behaviors(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nresource = " ); sgs_DumpData( C, static_cast<BhResourceMoveObject*>( obj->data )->resource, depth ).push( C ); }
+		sgs_StringConcat( C, 18 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst BhResourceMoveObject__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int BhResourceMoveObject__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		BhResourceMoveObject__sgs_funcs,
+		-1, "BhResourceMoveObject." );
+	return 1;
+}
+
+static sgs_ObjInterface BhResourceMoveObject__sgs_interface =
+{
+	"BhResourceMoveObject",
+	BhResourceMoveObject::_sgs_destruct, BhResourceMoveObject::_sgs_gcmark, BhResourceMoveObject::_sgs_getindex, BhResourceMoveObject::_sgs_setindex, NULL, NULL, BhResourceMoveObject::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface BhResourceMoveObject::_sgs_interface(BhResourceMoveObject__sgs_interface, BhResourceMoveObject__sgs_ifn, &GOBehavior::_sgs_interface);
 
