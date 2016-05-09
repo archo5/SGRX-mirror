@@ -4,6 +4,32 @@ global ED_ILOAD = {};
 global ED_ISAVE = {};
 global ED_ILCSV = class({}, ED_ISAVE);
 
+function ED_ILOAD._Restart()
+{
+	this.links = [];
+	this.objmap = {};
+}
+function ED_ILOAD._ResolveLinks()
+{
+	omap = this.objmap;
+	foreach( link : this.links )
+	{
+		src = link.src;
+		dst = @omap[ link.dst ];
+		if( !dst )
+			println( "failed to resolve dst: ", link.dst );
+		if( src && dst )
+		{
+			src.(link.prop) = dst;
+		}
+	}
+	this._Restart();
+}
+function ED_ILCSV._Restart()
+{
+	this.links = [];
+}
+
 // link to loaded/saved object data
 global ED_SDATA = null;
 
@@ -101,26 +127,26 @@ function ED_ILCSV.EditXFMat4( lbl, obj, prop )
 	ED_SDATA[ prop ] = mat4( obj.(prop) );
 }
 
-function ED_ILOAD.PickMesh( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ); }
-function ED_ISAVE.PickMesh( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ); }
+function ED_ILOAD.PickMesh( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
+function ED_ISAVE.PickMesh( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
 // default ED_ILCSV
 
-function ED_ILOAD.PickTexture( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ); }
-function ED_ISAVE.PickTexture( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ); }
+function ED_ILOAD.PickTexture( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
+function ED_ISAVE.PickTexture( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
 // default ED_ILCSV
 
-function ED_ILOAD.PickPartSys( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ); }
-function ED_ISAVE.PickPartSys( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ); }
+function ED_ILOAD.PickPartSys( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
+function ED_ISAVE.PickPartSys( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
 // default ED_ILCSV
 
-function ED_ILOAD.PickSound( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ); }
-function ED_ISAVE.PickSound( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ); }
+function ED_ILOAD.PickSound( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
+function ED_ISAVE.PickSound( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
 // default ED_ILCSV
 
 function ED_ILOAD.PickLocalRsrc( lbl, obj, prop, gobj )
 {
 	obj.(prop) = null;
-	// TODO delayed mapping
+	this.links.push({ src = obj, prop, dst = tostring( ED_SDATA[ prop ] ?? guid ) });
 }
 function ED_ISAVE.PickLocalRsrc( lbl, obj, prop, gobj )
 {

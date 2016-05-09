@@ -233,6 +233,17 @@ void EDGO_SerializeSpatial( GameObject* obj, ByteReader& br )
 	obj->SetLocalScale( scl );
 }
 
+template< class T > void _EDGO_RegObj( T* obj )
+{
+	if( obj->m_src_guid.IsNull() )
+		return;
+	
+	ScriptContext& SC = g_Level->GetScriptCtx();
+	SC.GetGlobal( "ED_ILOAD" ).getprop( "objmap" ).setprop(
+		SC.CreateString( obj->m_src_guid.ToString() ).get_variable(),
+		obj->GetScriptedObject() );
+}
+
 GameObject* EDGO_FLoad( sgsVariable data )
 {
 	GameObject* obj = g_Level->CreateGameObject();
@@ -245,6 +256,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	obj->SetLocalPosition( FLoadProp( data, "position", V3(0) ) );
 	obj->SetLocalRotation( FLoadProp( data, "rotation", Quat::Identity ) );
 	obj->SetLocalScale( FLoadProp( data, "scale", V3(1) ) );
+	
+	_EDGO_RegObj( obj );
 	
 	ScriptVarIterator it_rsrc( data.getprop( "resources" ) );
 	while( it_rsrc.Advance() )
@@ -263,6 +276,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 				<< type << ", name=" << name.c_str();
 			continue;
 		}
+		
+		_EDGO_RegObj( rsrc );
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
 		rsrc->EditLoad( data_rsrc,
@@ -287,7 +302,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 				<< type.c_str() << ", name=" << name.c_str();
 			continue;
 		}
-		bhvr->m_src_guid = guid.NotNull() ? guid : SGRX_GUID::Generate();
+		
+		_EDGO_RegObj( bhvr );
 		
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
 		bhvr->EditLoad( data_bhvr,

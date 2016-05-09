@@ -608,6 +608,9 @@ void EdWorld::FLoad( sgsVariable obj )
 {
 	Reset();
 	
+	g_Level->GetScriptCtx().GetGlobal( "ED_ILOAD" ).
+		thiscall( g_Level->GetSGSC(), "_Restart" );
+	
 	int version = FLoadProp( obj, "version", 0 );
 	m_nextID = FLoadProp( obj, "id", 0 );
 	
@@ -643,6 +646,9 @@ NotObject:;
 		}
 		RegenerateMeshes();
 	}
+	
+	g_Level->GetScriptCtx().GetGlobal( "ED_ILOAD" ).
+		thiscall( g_Level->GetSGSC(), "_ResolveLinks" );
 }
 
 sgsVariable EdWorld::FSave()
