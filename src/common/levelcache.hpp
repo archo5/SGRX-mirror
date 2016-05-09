@@ -232,6 +232,19 @@ struct LC_Chunk_Ents
 // Level game object definitions
 #define LC_FILE_GOBJ_NAME "GOBJ"
 #define LC_FILE_GOBJ_VERSION 0
+struct LC_GOLink
+{
+	SGRX_GUID obj_guid;
+	SGRX_GUID dst_guid;
+	String prop;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << obj_guid;
+		arch << dst_guid;
+		arch << prop;
+	}
+};
 struct LC_GOLightmap
 {
 	SGRX_GUID rsrc_guid;
@@ -268,12 +281,14 @@ struct LC_GameObject
 struct LC_Chunk_Gobj
 {
 	Array< LC_GameObject > gameObjects;
+	Array< LC_GOLink > links;
 	Array< LC_GOLightmap > lightmaps;
 	
 	template< class T > void Serialize( T& arch )
 	{
 		SerializeVersionHelper<T> svh( arch, LC_FILE_GOBJ_VERSION );
 		svh << gameObjects;
+		svh << links;
 		svh << lightmaps;
 	}
 };

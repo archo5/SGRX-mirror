@@ -146,13 +146,21 @@ function ED_ISAVE.PickSound( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostr
 function ED_ILOAD.PickLocalRsrc( lbl, obj, prop, gobj )
 {
 	obj.(prop) = null;
-	this.links.push({ src = obj, prop, dst = tostring( ED_SDATA[ prop ] ?? guid ) });
+	this.links.push({ src = obj, prop, dst = tostring( ED_SDATA[ prop ] ?? "" ) });
 }
 function ED_ISAVE.PickLocalRsrc( lbl, obj, prop, gobj )
 {
 	ED_SDATA[ prop ] = tostring( @obj.(prop).__guid ?? "" );
 }
-// default ED_ILCSV
+function ED_ILCSV.PickLocalRsrc( lbl, obj, prop, gobj )
+{
+	ED_SDATA[ prop ] = null;
+	this.links.push({
+		src = tostring( @obj.__guid ?? "" ),
+		prop,
+		dst = tostring( @obj.(prop).__guid ?? "" )
+	});
+}
 
 function ED_ILOAD.ComboNT( lbl, obj, prop, zssl, start )
 {

@@ -882,6 +882,7 @@ bool GameLevel::Load( const StringView& levelname )
 			LOG_FUNCTION_ARG( "GAME OBJECTS" );
 			
 			HashTable< SGRX_GUID, MeshResource* > meshResources;
+			HashTable< SGRX_GUID, sgsVariable > idVars;
 			
 			LC_Chunk_Gobj gobj;
 			ByteReader gbr( ByteView( C.ptr, C.size ) );
@@ -898,6 +899,9 @@ bool GameLevel::Load( const StringView& levelname )
 				obj->SetID( GO.id );
 				obj->SetLocalMatrix( GO.transform );
 				
+				if( obj->m_src_guid.NotNull() )
+					idVars.set( obj->m_src_guid, obj->GetScriptedObject() );
+				
 				for( size_t j = 0; j < GO.srlz_resources.size(); ++j )
 				{
 					sgsVariable data = m_scriptCtx.Unserialize( GO.srlz_resources[ j ] );
@@ -910,6 +914,8 @@ bool GameLevel::Load( const StringView& levelname )
 					GOResource* rsrc = obj->AddResource( name, type );
 					if( rsrc )
 					{
+						if( guid.NotNull() )
+							idVars.set( guid, rsrc->GetScriptedObject() );
 						if( type == GO_RSRC_MESH && guid.NotNull() )
 							meshResources.set( guid, (MeshResource*) rsrc );
 						ScriptAssignProperties( rsrc->GetScriptedObject(), data, "__" );
@@ -927,7 +933,11 @@ bool GameLevel::Load( const StringView& levelname )
 					nextObjectGUID = guid;
 					GOBehavior* bhvr = obj->AddBehavior( name, type );
 					if( bhvr )
+					{
+						if( guid.NotNull() )
+							idVars.set( guid, bhvr->GetScriptedObject() );
 						ScriptAssignProperties( bhvr->GetScriptedObject(), data, "__" );
+					}
 				}
 			}
 			
@@ -948,6 +958,17 @@ bool GameLevel::Load( const StringView& levelname )
 				TextureHandle nmtex = GR_CreateTexture( LM.lmap.width, LM.lmap.height, TEXFORMAT_RGBA8,
 					TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y, 1, LM.lmap.nmdata.data() );
 				MR->m_meshInst->SetMITexture( 1, nmtex );
+			}
+			
+			// apply links
+			for( size_t i = 0; i < gobj.links.size(); ++i )
+			{
+				LC_GOLink& LNK = gobj.links[ i ];
+				
+				sgsVariable obj = idVars.getcopy( LNK.obj_guid );
+				sgsVariable dst = idVars.getcopy( LNK.dst_guid );
+				sgsVariable prop = GetScriptCtx().CreateString( LNK.prop ).get_variable();
+				obj.setprop( prop, dst );
 			}
 		}
 		else if( type == LC_FILE_MRKR_NAME )

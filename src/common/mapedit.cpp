@@ -1871,10 +1871,29 @@ void EdMainFrame::Level_Real_Compile_Default()
 	}
 	
 	// compile game objects
+	g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ).
+		thiscall( g_Level->GetSGSC(), "_Restart" );
 	lcache.m_gobj.gameObjects.resize( g_Level->m_gameObjects.size() );
 	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
 		EDGO_LCSave( g_Level->m_gameObjects[ i ], &lcache.m_gobj.gameObjects[ i ] );
+	}
+	// links
+	{
+		ScriptVarIterator svi(
+			g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV"
+				).getprop( "links" ) );
+		while( svi.Advance() )
+		{
+			sgsVariable lv = svi.GetValue();
+			LC_GOLink L =
+			{
+				SGRX_GUID::ParseString( lv.getprop( "src" ).get_string().c_str() ),
+				SGRX_GUID::ParseString( lv.getprop( "dst" ).get_string().c_str() ),
+				lv.getprop( "prop" ).get_string().c_str()
+			};
+			lcache.m_gobj.links.push_back( L );
+		}
 	}
 	
 	// generate system chunks
