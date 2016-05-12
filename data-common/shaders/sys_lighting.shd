@@ -205,8 +205,8 @@ void ApplyPointLight( inout float3 totalDiffuse, inout float3 totalSpecular,
 	float distFactor = pow( 1 - saturate( lightDist / PL.vposrad.w ), PL.colpow.w );
 	float NdotL = saturate( dot( viewNormal, lightDir ) );
 	
-	float RdotV = saturate( dot( reflect( lightDir, viewNormal ), viewDir ) );
-	float specAmount = pow( RdotV, specPower ) * sqrt( specPower );
+	float NdotH = saturate( dot( viewNormal, normalize( lightDir - viewDir ) ) );
+	float specAmount = pow( NdotH, specPower ) * sqrt( specPower );
 	
 	totalDiffuse += lightColor * NdotL * distFactor;
 	totalSpecular += lightColor * specAmount * distFactor;
