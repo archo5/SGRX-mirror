@@ -202,9 +202,21 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 			inv.y != 0 ? 1.0f / inv.y : 0,
 			inv.z != 0 ? 1.0f / inv.z : 0 );
 	}
-	virtual void SetMassAndInertia( float mass, const Vec3& inertia ) const
+	virtual void SetMassAndInertia( float mass, const Vec3& inertia )
 	{
+		bool mc0 = m_body->getInvMass() != 0;
+		bool mc1 = mass != 0;
 		m_body->setMassProps( mass, V2BV( inertia ) );
+		if( mc0 != mc1 )
+		{
+			uint32_t cf = m_body->getCollisionFlags();
+			if( mc1 )
+				m_body->setCollisionFlags( cf & ~btCollisionObject::CF_STATIC_OBJECT );
+			else
+				m_body->setCollisionFlags( cf | btCollisionObject::CF_STATIC_OBJECT );
+			SetEnabled( false ); // call removeRigidBody
+			SetEnabled( true ); // call addRigidBody with new mass props
+		}
 	}
 	
 	virtual float GetLinearDamping() const { return m_body->getLinearDamping(); }

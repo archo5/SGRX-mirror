@@ -104,7 +104,7 @@ struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyRigidBody : SGRX_RefCounted
 	virtual void SetRestitution( float v ) = 0;
 	virtual float GetMass() const = 0;
 	virtual Vec3 GetInertia() const = 0;
-	virtual void SetMassAndInertia( float mass, const Vec3& inertia ) const = 0;
+	virtual void SetMassAndInertia( float mass, const Vec3& inertia ) = 0;
 	
 	virtual float GetLinearDamping() const = 0;
 	virtual void SetLinearDamping( float v ) = 0;

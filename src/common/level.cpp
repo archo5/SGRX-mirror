@@ -406,6 +406,8 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 		GOBehavior* bhvr = NULL;
 		if( type.equals( "Behavior" ) )
 			bhvr = new GOBehavior( this );
+		if( type.equals( "BhResourceMoveObject" ) )
+			bhvr = new BhResourceMoveObject( this );
 		if( bhvr )
 		{
 			bhvr->InitScriptInterface();
@@ -1223,7 +1225,9 @@ void GameLevel::DebugDraw()
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->DebugDrawWorld();
 		
-		m_scriptCtx.GlobalCall( "onLevelDebugDraw" );
+		sgsVariable onLevelDebugDraw = m_scriptCtx.GetGlobal( "onLevelDebugDraw" );
+		if( onLevelDebugDraw.not_null() )
+			onLevelDebugDraw.call( GetSGSC() );
 		
 #if DRAW_SAMPLES
 		br.Reset().Col( 0, 1, 0 );
