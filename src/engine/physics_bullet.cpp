@@ -216,6 +216,8 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 				m_body->setCollisionFlags( cf | btCollisionObject::CF_STATIC_OBJECT );
 			SetEnabled( false ); // call removeRigidBody
 			SetEnabled( true ); // call addRigidBody with new mass props
+			if( mc1 )
+				WakeUp();
 		}
 	}
 	
@@ -245,7 +247,7 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 			m_body->setCollisionFlags( flags & ~btCollisionObject::CF_KINEMATIC_OBJECT );
 		SetEnabled( true ); // call addRigidBody to update broadphase?
 	}
-	virtual bool CanSleep() const { return m_body->getActivationState() == DISABLE_DEACTIVATION; }
+	virtual bool CanSleep() const { return m_body->getActivationState() != DISABLE_DEACTIVATION; }
 	virtual void SetCanSleep( bool v )
 	{
 		int state = m_body->getActivationState();
