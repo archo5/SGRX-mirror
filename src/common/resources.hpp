@@ -167,7 +167,8 @@ EXP_STRUCT RigidBodyResource : GOResource
 	
 	GFW_EXPORT RigidBodyResource( GameObject* obj );
 	GFW_EXPORT virtual void OnTransformUpdate();
-	GFW_EXPORT virtual Mat4 GetObjectWorldMatrix();
+	GFW_EXPORT virtual Mat4 GetWorldMatrix() const;
+	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
 	GFW_EXPORT void _UpdateShape();
 	
 	FINLINE Vec3 GetLinearVelocity() const { return m_body->GetLinearVelocity(); }
@@ -232,6 +233,8 @@ EXP_STRUCT RigidBodyResource : GOResource
 	
 	PhyRigidBodyHandle m_body;
 	PhyShapeHandle m_shape;
+	Vec3 m_prevPos;
+	Quat m_prevRot;
 };
 
 
@@ -245,6 +248,11 @@ EXP_STRUCT ReflectionPlaneResource : GOResource
 
 
 
+#define MoveMask_Position 0x01
+#define MoveMask_Rotation 0x02
+#define MoveMask_Scale    0x04
+#define MoveMask_ALL      0x07
+
 EXP_STRUCT BhResourceMoveObject : GOBehavior
 {
 	SGS_OBJECT_INHERIT( GOBehavior );
@@ -255,6 +263,22 @@ EXP_STRUCT BhResourceMoveObject : GOBehavior
 	GFW_EXPORT void Update();
 	
 	SGS_PROPERTY GOResource::ScrHandle resource;
+	SGS_PROPERTY uint8_t mask;
+};
+
+
+EXP_STRUCT BhResourceMoveResource : GOBehavior
+{
+	SGS_OBJECT_INHERIT( GOBehavior );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT BhResourceMoveResource( GameObject* obj );
+	GFW_EXPORT void FixedUpdate();
+	GFW_EXPORT void Update();
+	
+	SGS_PROPERTY GOResource::ScrHandle resource;
+	SGS_PROPERTY GOResource::ScrHandle follow;
+	SGS_PROPERTY uint8_t mask;
 };
 
 

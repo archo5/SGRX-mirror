@@ -193,6 +193,35 @@ BEHAVIOR( "BhResourceMoveObject", "Behavior" );
 function BhResourceMoveObject.EditorGUI( ui )
 {
 	ui.PickLocalRsrc( "Resource", this, "resource", this.object );
+	ui.EditFlag( "Transfer position", this, "mask", 0x01 );
+	ui.EditFlag( "Transfer rotation", this, "mask", 0x02 );
+	ui.EditFlag( "Transfer scale", this, "mask", 0x04 );
+}
+// === RESOURCE - MOVE RESOURCE === //
+BEHAVIOR( "BhResourceMoveResource", "Behavior" );
+function BhResourceMoveResource.EditorGUI( ui )
+{
+	ui.PickLocalRsrc( "Resource", this, "resource", this.object );
+	ui.PickLocalRsrc( "Follow", this, "follow", this.object );
+	ui.EditFlag( "Transfer position", this, "mask", 0x01 );
+	ui.EditFlag( "Transfer rotation", this, "mask", 0x02 );
+	ui.EditFlag( "Transfer scale", this, "mask", 0x04 );
+}
+
+// === OBJECT ROTATOR === //
+global BhObjectRotate = {};
+BEHAVIOR( "BhObjectRotate", "Behavior" );
+function BhObjectRotate.Init()
+{
+	this.speed = vec3(0,0,180);
+}
+function BhObjectRotate.Update()
+{
+//	this.object.rotationXYZ += this.speed * level.deltaTime;
+}
+function BhObjectRotate.EditorGUI( ui )
+{
+	ui.EditVec3( "Speed", this, "speed", -100000, 100000 );
 }
 
 // === MESH ARRAY === //
@@ -249,22 +278,6 @@ function BhMeshArray.EditorGUI( ui )
 	ui.EditInt( "Count", this, "count", 1, 1000 );
 	if( ui.Button( "Regenerate" ) )
 		this.Rebuild();
-}
-
-// === OBJECT ROTATOR === //
-global BhObjectRotate = {};
-BEHAVIOR( "BhObjectRotate", "Behavior" );
-function BhObjectRotate.Init()
-{
-	this.speed = vec3(0,0,180);
-}
-function BhObjectRotate.Update()
-{
-//	this.object.rotationXYZ += this.speed * level.deltaTime;
-}
-function BhObjectRotate.EditorGUI( ui )
-{
-	ui.EditVec3( "Speed", this, "speed", -100000, 100000 );
 }
 
 

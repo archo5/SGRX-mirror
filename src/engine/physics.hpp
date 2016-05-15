@@ -178,12 +178,19 @@ struct SGRX_PhyConeTwistJointInfo : SGRX_PhyJointBaseInfo
 
 struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyJoint : SGRX_RefCounted
 {
-	SGRX_IPhyJoint(){}
 	virtual ~SGRX_IPhyJoint(){}
 	
 	virtual void SetEnabled( bool enabled ) = 0;
+	virtual PhyRigidBodyHandle GetBodyA() const = 0;
+	virtual PhyRigidBodyHandle GetBodyB() const = 0;
 };
 typedef Handle< SGRX_IPhyJoint > PhyJointHandle;
+
+struct IF_GCC(PHYSICS_EXPORT) SGRX_IPhyHingeJoint : SGRX_IPhyJoint
+{
+	virtual Mat4 GetFrameOffsetA() = 0;
+	virtual Mat4 GetFrameOffsetB() = 0;
+};
 
 
 struct SGRX_PhyRaycastInfo

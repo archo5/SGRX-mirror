@@ -205,11 +205,6 @@ Vec3 GOResource::EditorIconPos()
 	return GetWorldMatrix().GetTranslation();
 }
 
-Mat4 GOResource::GetObjectWorldMatrix()
-{
-	return m_obj->GetWorldMatrix();
-}
-
 Mat4 GOResource::MatrixResourceToObject( Mat4 xf ) const
 {
 	if( m_matrixMode == MM_Absolute )
@@ -408,6 +403,8 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 			bhvr = new GOBehavior( this );
 		if( type.equals( "BhResourceMoveObject" ) )
 			bhvr = new BhResourceMoveObject( this );
+		if( type.equals( "BhResourceMoveResource" ) )
+			bhvr = new BhResourceMoveResource( this );
 		if( bhvr )
 		{
 			bhvr->InitScriptInterface();
@@ -546,9 +543,15 @@ void GameObject::PreRender()
 void GameObject::OnTransformUpdate()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
-		m_resources.item( i ).value->OnTransformUpdate();
+	{
+		if( m_resources.item( i ).value != _xfChangeInvoker )
+			m_resources.item( i ).value->OnTransformUpdate();
+	}
 	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->OnTransformUpdate();
+	{
+		if( m_bhvr_order[ i ] != _xfChangeInvoker )
+			m_bhvr_order[ i ]->OnTransformUpdate();
+	}
 }
 
 void GameObject::EditorDrawWorld()
@@ -629,6 +632,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_blendFactor( 0 ),
 	m_tickDeltaTime( 0 ),
 	m_fixedTickDeltaTime( 0 ),
+	m_eventType( LEV_None ),
 	m_editorMode( false ),
 	m_enableLoadingScreen( true ),
 	m_paused( false ),
@@ -1131,10 +1135,13 @@ void GameLevel::FixedTick( float deltaTime )
 	{
 		m_currentTickTime += deltaTime;
 		
+		m_eventType = LEV_PrePhysicsFixedUpdate;
 		for( size_t i = 0; i < m_entities.size(); ++i )
 			m_entities[ i ]->PrePhysicsFixedTick( deltaTime );
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->PrePhysicsFixedUpdate();
+		
+		m_eventType = LEV_FixedUpdate;
 		
 		int ITERS = 2;
 		for( int i = 0; i < ITERS; ++i )
@@ -1152,10 +1159,12 @@ void GameLevel::FixedTick( float deltaTime )
 			fn_onLevelFixedTick.call( C, 1 );
 		}
 	}
+	m_eventType = LEV_None;
 }
 
 void GameLevel::Tick( float deltaTime, float blendFactor )
 {
+	m_eventType = LEV_Update;
 	m_deltaTime = deltaTime;
 	m_blendFactor = blendFactor;
 	m_tickDeltaTime = deltaTime;
@@ -1181,6 +1190,7 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 		m_systems[ i ]->PreRender();
 	
 	sgs_ProcessSubthreads( m_scriptCtx.C, deltaTime );
+	m_eventType = LEV_None;
 }
 
 void GameLevel::Draw2D()

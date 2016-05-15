@@ -284,6 +284,14 @@ template< class T > struct IVState
 	T curr;
 };
 
+template< class T > struct TempSwapper
+{
+	TempSwapper( T& t, const T& v ) : tgt(t), backup(t){ tgt = v; }
+	~TempSwapper(){ tgt = backup; }
+	T& tgt;
+	T backup;
+};
+
 
 //
 // VEC2

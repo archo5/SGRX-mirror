@@ -497,6 +497,21 @@ static int IMGUI_EditVec3( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_EditFlag( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditFlag" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	int value = obj.getprop( prop ).get<int>();
+	int cflag = sgs_GetVar<int>()( C, 3 );
+	
+	if( IMGUIEditIntFlags( label.c_str(), value, cflag ) )
+		obj.setprop( prop, sgsVariable().set_int( value ) );
+	
+	return 0;
+}
+
 static int IMGUI_EditMask( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.EditMask" );
@@ -614,8 +629,10 @@ static int IMGUI_PickLocalRsrc( SGS_CTX )
 	
 	ImGui::PushID( label.c_str() );
 	if( ImGui::Button( rsrc ? rsrc->m_name.c_str() : "<none>",
-			ImVec2( ImGui::GetContentRegionAvailWidth(), 20 ) ) )
+			ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
 		ImGui::OpenPopup( "pick_local_rsrc" );
+	ImGui::SameLine();
+	ImGui::Text( "%s", label.c_str() );
 	
 	if( ImGui::BeginPopup( "pick_local_rsrc" ) )
 	{
@@ -670,6 +687,7 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "EditInt", IMGUI_EditInt },
 	{ "EditFloat", IMGUI_EditFloat },
 	{ "EditVec3", IMGUI_EditVec3 },
+	{ "EditFlag", IMGUI_EditFlag },
 	{ "EditMask", IMGUI_EditMask },
 	{ "EditColorRGBLDR", IMGUI_EditColorRGBLDR },
 	{ "EditXFMat4", IMGUI_EditXFMat4 },

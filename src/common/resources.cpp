@@ -282,25 +282,46 @@ RigidBodyResource::RigidBodyResource( GameObject* obj ) :
 	shapeExtents( V3(0.5f) ),
 	shapeMinExtents( V3(-0.5f) )
 {
+	Mat4 xf = GOResource::GetWorldMatrix();
 	_UpdateShape();
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.shape = m_shape;
+	rbinfo.position = m_prevPos = xf.GetTranslation();
+	rbinfo.rotation = m_prevRot = xf.GetRotationQuaternion();
 	m_body = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
 }
 
 void RigidBodyResource::OnTransformUpdate()
 {
-	Mat4 xf = GetWorldMatrix();
-	m_body->SetPosition( xf.GetTranslation() );
-	m_body->SetRotation( xf.GetRotationQuaternion() );
+	Mat4 xf = GOResource::GetWorldMatrix();
+	Vec3 pos = xf.GetTranslation();
+	Quat rot = xf.GetRotationQuaternion();
+	if( m_level->GetEventType() == LEV_FixedUpdate )
+	{
+		m_prevPos = pos;
+		m_prevRot = rot;
+	}
+	m_body->SetPosition( pos );
+	m_body->SetRotation( rot );
 	m_shape->SetScale( xf.GetScale() );
 }
 
-Mat4 RigidBodyResource::GetObjectWorldMatrix()
+Mat4 RigidBodyResource::GetWorldMatrix() const
 {
-	Mat4 xf = Mat4::CreateSRT( V3(1), m_body->GetRotation(), m_body->GetPosition() );
-	xf = MatrixResourceToObject( xf );
-	return xf;
+	Vec3 currPos = m_body->GetPosition();
+	Quat currRot = m_body->GetRotation();
+	if( m_level->GetEventType() == LEV_Update )
+	{
+		currPos = TLERP( m_prevPos, currPos, m_level->GetBlendFactor() );
+		currRot = TLERP( m_prevRot, currRot, m_level->GetBlendFactor() );
+	}
+	return Mat4::CreateSRT( m_shape->GetScale(), currRot, currPos );
+}
+
+void RigidBodyResource::PrePhysicsFixedUpdate()
+{
+	m_prevPos = m_body->GetPosition();
+	m_prevRot = m_body->GetRotation();
 }
 
 void RigidBodyResource::_UpdateShape()
@@ -332,22 +353,69 @@ ReflectionPlaneResource::ReflectionPlaneResource( GameObject* obj ) :
 
 
 BhResourceMoveObject::BhResourceMoveObject( GameObject* obj ) :
-	GOBehavior( obj )
+	GOBehavior( obj ), mask( MoveMask_Position | MoveMask_Rotation )
 {
 }
 
 void BhResourceMoveObject::FixedUpdate()
 {
 	GOResource* rsrc = resource;
-	if( rsrc )
-		m_obj->SetWorldMatrix( rsrc->GetObjectWorldMatrix() );
+	if( rsrc && mask )
+	{
+		TempSwapper<const void*> ts( m_obj->_xfChangeInvoker, rsrc );
+		if( mask == MoveMask_ALL )
+		{
+			m_obj->SetWorldMatrix( rsrc->GetWorldMatrix() );
+		}
+		else
+		{
+			Mat4 A = m_obj->GetWorldMatrix();
+			Mat4 B = rsrc->GetWorldMatrix();
+			Vec3 pos = ( mask & MoveMask_Position ? B : A ).GetTranslation();
+			Quat rot = ( mask & MoveMask_Rotation ? B : A ).GetRotationQuaternion();
+			Vec3 scl = ( mask & MoveMask_Scale ? B : A ).GetScale();
+			m_obj->SetWorldMatrix( Mat4::CreateSRT( scl, rot, pos ) );
+		}
+	}
 }
 
 void BhResourceMoveObject::Update()
 {
+	FixedUpdate();
+}
+
+
+BhResourceMoveResource::BhResourceMoveResource( GameObject* obj ) :
+	GOBehavior( obj ), mask( MoveMask_Position | MoveMask_Rotation )
+{
+}
+
+void BhResourceMoveResource::FixedUpdate()
+{
 	GOResource* rsrc = resource;
-	if( rsrc )
-		m_obj->SetWorldMatrix( rsrc->GetObjectWorldMatrix() );
+	GOResource* tgt = follow;
+	if( rsrc && tgt && mask )
+	{
+		rsrc->SetMatrixMode( MM_Absolute );
+		if( mask == MoveMask_ALL )
+		{
+			rsrc->SetLocalMatrix( tgt->GetWorldMatrix() );
+		}
+		else
+		{
+			Mat4 A = rsrc->GetWorldMatrix();
+			Mat4 B = tgt->GetWorldMatrix();
+			Vec3 pos = ( mask & MoveMask_Position ? B : A ).GetTranslation();
+			Quat rot = ( mask & MoveMask_Rotation ? B : A ).GetRotationQuaternion();
+			Vec3 scl = ( mask & MoveMask_Scale ? B : A ).GetScale();
+			rsrc->SetLocalMatrix( Mat4::CreateSRT( scl, rot, pos ) );
+		}
+	}
+}
+
+void BhResourceMoveResource::Update()
+{
+	FixedUpdate();
 }
 
 

@@ -78,6 +78,16 @@ function ED_ILCSV.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 	ED_SDATA[ prop ] = vec3( obj.(prop) );
 }
 
+function ED_ILOAD.EditFlag( lbl, obj, prop, flag )
+{
+	obj.(prop) = toint( ED_SDATA[ prop ] );
+}
+function ED_ISAVE.EditFlag( lbl, obj, prop, flag )
+{
+	ED_SDATA[ prop ] = toint( obj.(prop) );
+}
+// default ED_ILCSV
+
 function ED_ILOAD.EditMask( lbl, obj, prop, count )
 {
 	obj.(prop) = toint( ED_SDATA[ prop ] );

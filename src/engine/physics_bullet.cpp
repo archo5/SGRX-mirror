@@ -28,6 +28,12 @@ static FINLINE btMatrix3x3 Q2BM3( const Quat& q )
 {
 	return btMatrix3x3( Q2BQ( q ) );
 }
+static FINLINE Mat4 BT2M( const btTransform& t )
+{
+	Mat4 out;
+	t.getOpenGLMatrix( out.a );
+	return out;
+}
 
 
 struct BulletPhyShape : SGRX_IPhyShape
@@ -285,40 +291,50 @@ struct BulletPhyRigidBody : SGRX_IPhyRigidBody
 };
 
 
-struct BulletPhyJoint : SGRX_IPhyJoint
+template< class T > void BulletPhyJoint_SetEnabled( T* joint, bool enabled )
 {
-	BulletPhyJoint( struct BulletPhyWorld* w, bool dc ) :
-		m_world(w), m_disableCollisions(dc){}
-	virtual ~BulletPhyJoint(){}
-	
-	void _SetEnabled( btTypedConstraint* ct, bool enabled );
-	
-	struct BulletPhyWorld* m_world;
-	bool m_disableCollisions;
-	PhyRigidBodyHandle m_bodyA;
-	PhyRigidBodyHandle m_bodyB;
-};
+	if( enabled )
+		joint->m_world->m_world->addConstraint( joint->m_joint, joint->m_disableCollisions );
+	else
+		joint->m_world->m_world->removeConstraint( joint->m_joint );
+}
+#define BULLET_PHY_JOINT_COMMON( jtype ) \
+	struct BulletPhyWorld* m_world; \
+	bool m_disableCollisions; \
+	PhyRigidBodyHandle m_bodyA; \
+	PhyRigidBodyHandle m_bodyB; \
+	jtype* m_joint; \
+	virtual void SetEnabled( bool enabled ){ \
+		BulletPhyJoint_SetEnabled( this, enabled ); } \
+	virtual PhyRigidBodyHandle GetBodyA() const { \
+		return m_bodyA; } \
+	virtual PhyRigidBodyHandle GetBodyB() const { \
+		return m_bodyB; }
+#define BULLET_PHY_JOINT_COMMON_INIT( world, info ) \
+	m_world = world; \
+	m_disableCollisions = info.disableCollisions; \
+	m_bodyA = info.bodyA; \
+	m_bodyB = info.bodyB;
 
 
-struct BulletPhyHingeJoint : BulletPhyJoint
+struct BulletPhyHingeJoint : SGRX_IPhyHingeJoint
 {
 	BulletPhyHingeJoint( struct BulletPhyWorld* world, const SGRX_PhyHingeJointInfo& hjinfo );
 	virtual ~BulletPhyHingeJoint();
 	
-	virtual void SetEnabled( bool enabled ){ _SetEnabled( m_joint, enabled ); }
+	BULLET_PHY_JOINT_COMMON( btHingeConstraint );
 	
-	btHingeConstraint* m_joint;
+	virtual Mat4 GetFrameOffsetA(){ return BT2M( m_joint->getFrameOffsetA() ); }
+	virtual Mat4 GetFrameOffsetB(){ return BT2M( m_joint->getFrameOffsetB() ); }
 };
 
 
-struct BulletPhyConeTwistJoint : BulletPhyJoint
+struct BulletPhyConeTwistJoint : SGRX_IPhyJoint
 {
 	BulletPhyConeTwistJoint( struct BulletPhyWorld* world, const SGRX_PhyConeTwistJointInfo& ctjinfo );
 	virtual ~BulletPhyConeTwistJoint();
 	
-	virtual void SetEnabled( bool enabled ){ _SetEnabled( m_joint, enabled ); }
-	
-	btConeTwistConstraint* m_joint;
+	BULLET_PHY_JOINT_COMMON( btConeTwistConstraint );
 };
 
 
@@ -477,15 +493,6 @@ void BulletPhyRigidBody::FlushContacts()
 }
 
 
-void BulletPhyJoint::_SetEnabled( btTypedConstraint* ct, bool enabled )
-{
-	if( enabled )
-		m_world->m_world->addConstraint( ct, m_disableCollisions );
-	else
-		m_world->m_world->removeConstraint( ct );
-}
-
-
 // generate joint frame matrix
 inline Mat4 M2JFM( const Mat4& m )
 {
@@ -498,12 +505,12 @@ inline Mat4 M2JFM( const Mat4& m )
 }
 
 
-BulletPhyHingeJoint::BulletPhyHingeJoint( struct BulletPhyWorld* world,
-	const SGRX_PhyHingeJointInfo& hjinfo )
-	: BulletPhyJoint( world, hjinfo.disableCollisions )
+BulletPhyHingeJoint::BulletPhyHingeJoint(
+	struct BulletPhyWorld* world,
+	const SGRX_PhyHingeJointInfo& hjinfo
+)
 {
-	m_bodyA = hjinfo.bodyA;
-	m_bodyB = hjinfo.bodyB;
+	BULLET_PHY_JOINT_COMMON_INIT( world, hjinfo );
 	SGRX_CAST( BulletPhyRigidBody*, rbA, m_bodyA.item );
 	SGRX_CAST( BulletPhyRigidBody*, rbB, m_bodyB.item );
 	if( hjinfo.useFrames )
@@ -535,7 +542,7 @@ BulletPhyHingeJoint::BulletPhyHingeJoint( struct BulletPhyWorld* world,
 	}
 	if( hjinfo.enabled )
 	{
-		_SetEnabled( m_joint, true );
+		SetEnabled( true );
 	}
 }
 
@@ -546,12 +553,12 @@ BulletPhyHingeJoint::~BulletPhyHingeJoint()
 }
 
 
-BulletPhyConeTwistJoint::BulletPhyConeTwistJoint( struct BulletPhyWorld* world,
-	const SGRX_PhyConeTwistJointInfo& ctjinfo )
-	: BulletPhyJoint( world, ctjinfo.disableCollisions )
+BulletPhyConeTwistJoint::BulletPhyConeTwistJoint(
+	struct BulletPhyWorld* world,
+	const SGRX_PhyConeTwistJointInfo& ctjinfo
+)
 {
-	m_bodyA = ctjinfo.bodyA;
-	m_bodyB = ctjinfo.bodyB;
+	BULLET_PHY_JOINT_COMMON_INIT( world, ctjinfo );
 	SGRX_CAST( BulletPhyRigidBody*, rbA, m_bodyA.item );
 	SGRX_CAST( BulletPhyRigidBody*, rbB, m_bodyB.item );
 	btTransform frameA;
@@ -569,7 +576,7 @@ BulletPhyConeTwistJoint::BulletPhyConeTwistJoint( struct BulletPhyWorld* world,
 	m_joint->setLimit( ctjinfo.coneLimitX, ctjinfo.coneLimitY, ctjinfo.twistLimit );
 	if( ctjinfo.enabled )
 	{
-		_SetEnabled( m_joint, true );
+		SetEnabled( true );
 	}
 }
 

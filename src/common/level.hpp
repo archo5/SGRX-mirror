@@ -33,6 +33,14 @@ enum CoreLevelEventIDs
 	EID_GOBehaviorRemove,
 };
 
+enum LevelEventType
+{
+	LEV_None = 0,
+	LEV_PrePhysicsFixedUpdate,
+	LEV_FixedUpdate,
+	LEV_Update,
+};
+
 
 EXP_STRUCT LevelScrObj : SGRX_RefCounted
 {
@@ -98,6 +106,7 @@ EXP_STRUCT Transform
 	mutable bool _outdated;
 	bool _inTransformUpdate;
 	bool _destroying;
+	const void* _xfChangeInvoker;
 	
 	GFW_EXPORT virtual void OnTransformUpdate() = 0;
 	void _OnTransformUpdate()
@@ -534,11 +543,8 @@ EXP_STRUCT GOResource : LevelScrObj
 	GFW_EXPORT virtual void EditorDrawWorld();
 	GFW_EXPORT virtual Vec3 EditorIconPos();
 	
-	// reimplement to allow moving object with this resource
-	GFW_EXPORT virtual Mat4 GetObjectWorldMatrix();
-	
 	GFW_EXPORT Mat4 MatrixResourceToObject( Mat4 xf ) const;
-	GFW_EXPORT SGS_METHOD Mat4 GetWorldMatrix() const;
+	GFW_EXPORT virtual SGS_METHOD Mat4 GetWorldMatrix() const;
 	Mat4 GetLocalMatrix() const { return m_localMatrix; }
 	void SetLocalMatrix( Mat4 m ){ m_localMatrix = m; OnTransformUpdate(); }
 	int GetMatrixMode() const { return m_matrixMode; }
@@ -729,6 +735,7 @@ EXP_STRUCT GameLevel :
 	ScriptContext& GetScriptCtx()       { return m_scriptCtx; }
 	sgs_Context* GetSGSC() const        { return m_scriptCtx.C; }
 	GameUISystem* GetGUI()              { return m_guiSys; }
+	LevelEventType GetEventType() const { return m_eventType; }
 	float GetDeltaTime() const          { return m_deltaTime; }
 	float GetBlendFactor() const        { return m_blendFactor; }
 	float GetTickDeltaTime() const      { return m_tickDeltaTime; }
@@ -830,6 +837,7 @@ EXP_STRUCT GameLevel :
 	SGS_PROPERTY_FUNC( READ VARNAME fixedTickDeltaTime ) float m_fixedTickDeltaTime;
 	SGS_PROPERTY_FUNC( READ VARNAME name ) String m_levelName;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME nextLevel ) String m_nextLevel;
+	LevelEventType m_eventType;
 	bool m_editorMode;
 	bool m_enableLoadingScreen;
 	

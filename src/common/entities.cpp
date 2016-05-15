@@ -563,6 +563,7 @@ StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLe
 	lev->RegisterNativeClass<ReflectionPlaneResource>( "ReflectionPlaneResource" );
 	
 	lev->RegisterNativeClass<BhResourceMoveObject>( "BhResourceMoveObject" );
+	lev->RegisterNativeClass<BhResourceMoveResource>( "BhResourceMoveResource" );
 }
 
 Entity* StockEntityCreationSystem::AddEntity( StringView type )
