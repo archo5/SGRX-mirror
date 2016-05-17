@@ -538,6 +538,22 @@ void GameObject::OnTransformUpdate()
 	}
 }
 
+void GameObject::DebugDrawWorld()
+{
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->DebugDrawWorld();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->DebugDrawWorld();
+}
+
+void GameObject::DebugDrawUI()
+{
+	for( size_t i = 0; i < m_resources.size(); ++i )
+		m_resources.item( i ).value->DebugDrawUI();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->DebugDrawUI();
+}
+
 void GameObject::EditorDrawWorld()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
@@ -583,21 +599,6 @@ struct GameLevelSystemCompiler : IEditorSystemCompiler
 	
 	void ProcessEntity( EditorEntity& ent )
 	{
-		// disable static mesh/mesharray entities
-		if( ent.type == "Mesh" )
-		{
-			if( ent.props.getprop( "isStatic" ).get<bool>() )
-			{
-				ent.remove = true;
-			}
-			return;
-		}
-		if( ent.type == "MeshArray" )
-		{
-			ent.remove = true;
-			return;
-		}
-		
 		// combine position markers into a chunk
 		if( ent.type == "Marker" )
 		{
@@ -606,7 +607,6 @@ struct GameLevelSystemCompiler : IEditorSystemCompiler
 			LC_Marker M = { StringView( name.c_str(), name.size() ), pos };
 			markerNameRefs.push_back( name );
 			markers.markers.push_back( M );
-			ent.remove = true;
 			return;
 		}
 	}
@@ -879,29 +879,7 @@ bool GameLevel::Load( const StringView& levelname )
 			m_systems[ i ]->LoadChunk( type, ByteView( C.ptr, C.size ) );
 		}
 		
-		if( type == LC_FILE_ENTS_NAME )
-		{
-			LOG_FUNCTION_ARG( "ENTITIES" );
-			
-			LC_Chunk_Ents ents;
-			ByteReader ebr( ByteView( C.ptr, C.size ) );
-			ebr << ents;
-			
-			Array< LC_ScriptedEntity >& SEA = ents.entities; // scripted entity array
-			for( size_t i = 0; i < SEA.size(); ++i )
-			{
-				sgsVariable data = m_scriptCtx.Unserialize( SEA[ i ].serialized_params );
-				if( data.not_null() == false )
-				{
-					LOG << "BAD PARAMS FOR ENTITY " << SEA[ i ].type;
-					continue;
-				}
-				Entity* E = CreateEntity( SEA[ i ].type );
-				if( E )
-					ScriptAssignProperties( E->GetScriptedObject(), data );
-			}
-		}
-		else if( type == LC_FILE_GOBJ_NAME )
+		if( type == LC_FILE_GOBJ_NAME )
 		{
 			LOG_FUNCTION_ARG( "GAME OBJECTS" );
 			
@@ -1025,107 +1003,6 @@ bool GameLevel::Load( const StringView& levelname )
 	return true;
 }
 
-void GameLevel::EnumEntities( Array< StringView >& out )
-{
-	sgsVariable entarr = m_self.getprop( "entity_types" );
-	ScriptVarIterator it( entarr );
-	while( it.Advance() )
-	{
-		out.push_back( it.GetKey().get<StringView>() );
-	}
-}
-
-sgsVariable GameLevel::GetEntityInterface( StringView name )
-{
-	return m_self.getprop( "entity_types" ).getprop( m_scriptCtx.CreateString( name ) );
-}
-
-Entity* GameLevel::_CreateEntityReal( const StringView& type )
-{
-	for( size_t i = 0; i < m_systems.size(); ++i )
-	{
-		Entity* ent = m_systems[ i ]->AddEntity( type );
-		if( ent )
-		{
-			ent->InitScriptInterface();
-			m_entities.push_back( ent );
-			return ent;
-		}
-	}
-	
-	sgsVariable eclass = m_scriptCtx.GetGlobal( type );
-	if( !eclass.not_null() )
-	{
-		LOG << "ENTITY TYPE NOT FOUND: " << type;
-		sgs_Msg( GetSGSC(), SGS_ERROR, "failed to find entity: %s", StackPath(type).str );
-		return NULL;
-	}
-	
-	StringView native_name = eclass.getprop("__inherit").get<StringView>();
-	Entity* ent = _CreateEntityReal( native_name );
-	if( !ent )
-	{
-		LOG_ERROR << "FAILED to create scripted entity '" << type << "'"
-			<< " - could not find native entity '" << native_name << "'";
-		return NULL;
-	}
-	ent->_data = m_scriptCtx.CreateDict();
-	sgsVariable ESO = ent->GetScriptedObject();
-	sgsVariable ent_orig_metaobj = ESO.get_meta_obj();
-	sgsVariable eclass_orig_metaobj = eclass.get_meta_obj();
-	if( eclass_orig_metaobj.not_null() &&
-		ent_orig_metaobj.get_object_struct() != eclass_orig_metaobj.get_object_struct() )
-	{
-		LOG_ERROR << "FAILED to create scripted entity: redefining metaobject for '" << type << "'";
-		delete ent;
-		return NULL;
-	}
-	eclass.set_meta_obj( ent_orig_metaobj );
-	ESO.set_meta_obj( eclass );
-	ESO.enable_metamethods( true );
-	
-	sgsVariable fn_init = ESO.getprop("Init");
-	if( fn_init.not_null() )
-		ESO.thiscall( GetSGSC(), fn_init );
-	return ent;
-}
-
-Entity* GameLevel::CreateEntity( const StringView& type )
-{
-	Entity* ent = _CreateEntityReal( type );
-	if( ent )
-		_OnAddEntity( ent );
-	return ent;
-}
-
-void GameLevel::DestroyEntity( Entity* eptr )
-{
-	_OnRemoveEntity( eptr );
-	eptr->OnDestroy();
-	delete eptr;
-	m_entities.remove_all( eptr );
-}
-
-void GameLevel::_OnAddEntity( Entity* ent )
-{
-	for( size_t i = 0; i < m_systems.size(); ++i )
-		m_systems[ i ]->OnAddEntity( ent );
-}
-
-void GameLevel::_OnRemoveEntity( Entity* ent )
-{
-	for( size_t i = 0; i < m_systems.size(); ++i )
-		m_systems[ i ]->OnRemoveEntity( ent );
-}
-
-StackShortName GameLevel::GenerateName()
-{
-	m_nameIDGen++;
-	StackShortName tmp("");
-	sgrx_snprintf( tmp.str, 15, "_name%u", (unsigned int) m_nameIDGen );
-	return tmp;
-}
-
 void GameLevel::ClearLevel()
 {
 	m_currentTickTime = 0;
@@ -1134,10 +1011,6 @@ void GameLevel::ClearLevel()
 	for( size_t i = 0; i < m_gameObjects.size(); ++i )
 		delete m_gameObjects[ i ];
 	m_gameObjects.clear();
-	
-	for( size_t i = 0; i < m_entities.size(); ++i )
-		delete m_entities[ i ];
-	m_entities.clear();
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Clear();
@@ -1154,8 +1027,6 @@ void GameLevel::FixedTick( float deltaTime )
 		m_currentTickTime += deltaTime;
 		
 		m_eventType = LEV_PrePhysicsFixedUpdate;
-		for( size_t i = 0; i < m_entities.size(); ++i )
-			m_entities[ i ]->PrePhysicsFixedTick( deltaTime );
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->PrePhysicsFixedUpdate();
 		
@@ -1165,8 +1036,6 @@ void GameLevel::FixedTick( float deltaTime )
 		for( int i = 0; i < ITERS; ++i )
 			m_phyWorld->Step( deltaTime / ITERS );
 		
-		for( size_t i = 0; i < m_entities.size(); ++i )
-			m_entities[ i ]->FixedTick( deltaTime );
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->FixedUpdate();
 		
@@ -1192,16 +1061,12 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 		m_levelTime += deltaTime;
 		m_currentPhyTime += deltaTime;
 		
-		for( size_t i = 0; i < m_entities.size(); ++i )
-			m_entities[ i ]->Tick( deltaTime, blendFactor );
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->Update();
 	}
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
-	for( size_t i = 0; i < m_entities.size(); ++i )
-		m_entities[ i ]->PreRender();
 	for( size_t i = 0; i < m_gameObjects.size(); ++i )
 		m_gameObjects[ i ]->PreRender();
 	for( size_t i = 0; i < m_systems.size(); ++i )
@@ -1233,8 +1098,8 @@ void GameLevel::Draw2D()
 		for( size_t i = 0; i < m_systems.size(); ++i )
 			m_systems[ i ]->DebugDrawUI();
 		
-		for( size_t i = 0; i < m_entities.size(); ++i )
-			m_entities[ i ]->DebugDrawUI();
+		for( size_t i = 0; i < m_gameObjects.size(); ++i )
+			m_gameObjects[ i ]->DebugDrawUI();
 	}
 }
 
@@ -1250,8 +1115,8 @@ void GameLevel::DebugDraw()
 		for( size_t i = 0; i < m_systems.size(); ++i )
 			m_systems[ i ]->DebugDrawWorld();
 		
-		for( size_t i = 0; i < m_entities.size(); ++i )
-			m_entities[ i ]->DebugDrawWorld();
+		for( size_t i = 0; i < m_gameObjects.size(); ++i )
+			m_gameObjects[ i ]->DebugDrawWorld();
 		
 		sgsVariable onLevelDebugDraw = m_scriptCtx.GetGlobal( "onLevelDebugDraw" );
 		if( onLevelDebugDraw.not_null() )
@@ -1304,19 +1169,6 @@ void GameLevel::_UnmapEntityByID( Entity* e )
 Entity* GameLevel::FindEntityByID( const StringView& name )
 {
 	return m_entIDMap.getcopy( name );
-}
-
-sgsVariable GameLevel::sgsCreateEntity( StringView type )
-{
-	Entity* E = CreateEntity( type );
-	return E ? E->GetScriptedObject() : sgsVariable();
-}
-
-void GameLevel::sgsDestroyEntity( sgsVariable eh )
-{
-	Entity* E = eh.downcast<Entity>();
-	if( E )
-		DestroyEntity( E );
 }
 
 Entity::ScrHandle GameLevel::sgsFindEntity( StringView name )
@@ -1516,6 +1368,13 @@ void GameLevel::DestroyGameObject( GameObject* obj )
 sgsVariable GameLevel::sgsCreateGameObject()
 {
 	return CreateGameObject()->GetScriptedObject();
+}
+
+void GameLevel::sgsDestroyGameObject( sgsVariable oh )
+{
+	GameObject* obj = oh.downcast<GameObject>();
+	if( obj )
+		DestroyGameObject( obj );
 }
 
 void GameLevel::EnumBehaviors( Array< StringView >& out )

@@ -1555,20 +1555,6 @@ static sgs_ObjInterface GameObject__sgs_interface =
 _sgsInterface GameObject::_sgs_interface(GameObject__sgs_interface, GameObject__sgs_ifn, &LevelScrObj::_sgs_interface);
 
 
-static int _sgs_method__GameLevel__CreateEntity( SGS_CTX )
-{
-	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, CreateEntity ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsCreateEntity( sgs_GetVar<StringView>()(C,0) )); return 1;
-}
-
-static int _sgs_method__GameLevel__DestroyEntity( SGS_CTX )
-{
-	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, DestroyEntity ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->sgsDestroyEntity( sgs_GetVar<sgsVariable>()(C,0) ); return 0;
-}
-
 static int _sgs_method__GameLevel__FindEntity( SGS_CTX )
 {
 	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, FindEntity ) ) return 0;
@@ -1667,6 +1653,13 @@ static int _sgs_method__GameLevel__CreateGameObject( SGS_CTX )
 	sgs_PushVar(C,data->sgsCreateGameObject(  )); return 1;
 }
 
+static int _sgs_method__GameLevel__DestroyGameObject( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, DestroyGameObject ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->sgsDestroyGameObject( sgs_GetVar<sgsVariable>()(C,0) ); return 0;
+}
+
 int GameLevel::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameLevel*>( obj->data )->C = C;
@@ -1751,8 +1744,6 @@ int GameLevel::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst GameLevel__sgs_funcs[] =
 {
-	{ "CreateEntity", _sgs_method__GameLevel__CreateEntity },
-	{ "DestroyEntity", _sgs_method__GameLevel__DestroyEntity },
 	{ "FindEntity", _sgs_method__GameLevel__FindEntity },
 	{ "SetCameraPosDir", _sgs_method__GameLevel__SetCameraPosDir },
 	{ "WorldToScreen", _sgs_method__GameLevel__WorldToScreen },
@@ -1767,6 +1758,7 @@ static sgs_RegFuncConst GameLevel__sgs_funcs[] =
 	{ "GetPhyTime", _sgs_method__GameLevel__GetPhyTime },
 	{ "UpdateCameraMatrices", _sgs_method__GameLevel__UpdateCameraMatrices },
 	{ "CreateGameObject", _sgs_method__GameLevel__CreateGameObject },
+	{ "DestroyGameObject", _sgs_method__GameLevel__DestroyGameObject },
 	{ NULL, NULL },
 };
 

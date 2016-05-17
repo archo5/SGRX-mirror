@@ -202,33 +202,6 @@ struct LC_Chunk_Geom
 	}
 };
 
-// Level entity definitions
-#define LC_FILE_ENTS_NAME "ENTS"
-#define LC_FILE_ENTS_VERSION 0
-struct LC_ScriptedEntity
-{
-	String type;
-	String serialized_params;
-	Array< LC_ScriptedEntity > subentities;
-	
-	template< class T > void Serialize( T& arch )
-	{
-		arch << type;
-		arch << serialized_params;
-		arch << subentities;
-	}
-};
-struct LC_Chunk_Ents
-{
-	Array< LC_ScriptedEntity > entities;
-	
-	template< class T > void Serialize( T& arch )
-	{
-		SerializeVersionHelper<T> svh( arch, LC_FILE_ENTS_VERSION );
-		svh << entities;
-	}
-};
-
 // Level game object definitions
 #define LC_FILE_GOBJ_NAME "GOBJ"
 #define LC_FILE_GOBJ_VERSION 0

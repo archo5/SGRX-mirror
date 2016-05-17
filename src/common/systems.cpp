@@ -38,11 +38,6 @@ void LevelMapSystem::Clear()
 	viewPos = V3(0);
 }
 
-void LevelMapSystem::OnRemoveEntity( Entity* e )
-{
-	RemoveItem( e );
-}
-
 bool LevelMapSystem::LoadChunk( const StringView& type, ByteView data )
 {
 	if( type != LC_FILE_MAPL_NAME )
@@ -1653,7 +1648,6 @@ struct LC_AIDB_Compiler : IEditorSystemCompiler
 				ent.props.getprop("cellSize").get<float>(),
 			};
 			data.rooms.push_back( room );
-			ent.remove = true;
 			return;
 		}
 	}
@@ -2319,7 +2313,6 @@ struct LC_CoverSys_Compiler : IEditorSystemCompiler
 				ent.props.getprop("negative").get<bool>(),
 			};
 			data.covers.push_back( cover );
-			ent.remove = true;
 			return;
 		}
 	}

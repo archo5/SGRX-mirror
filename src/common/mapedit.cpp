@@ -1815,8 +1815,6 @@ void EdMainFrame::Level_Real_Compile_Default()
 			StringView( E->m_entityType.c_str(), E->m_entityType.size() ),
 			// props
 			E->m_data,
-			// remove
-			false
 		};
 		
 		// HARDCODED :(
@@ -1829,13 +1827,11 @@ void EdMainFrame::Level_Real_Compile_Default()
 				EE.props["scale"].get<Vec3>(),
 			};
 			lcache.m_solidBoxes.push_back( sb );
-			EE.remove = true;
 		}
 		if( EE.type == "MapLayer" )
 		{
 			LC_Map_Layer ml = { 0, 0, EE.props["position"].get<Vec3>().z };
 			lcache.m_mapLayers.push_back( ml );
-			EE.remove = true;
 		}
 		if( EE.type == "AIPathArea" )
 		{
@@ -1853,20 +1849,11 @@ void EdMainFrame::Level_Real_Compile_Default()
 			PA.z1 = xf.TransformPos( V3(0,0,1) ).z;
 			
 			lcache.m_pathAreas.push_back( PA );
-			EE.remove = true;
 		}
 		
 		for( size_t i = 0; i < ESCs.size(); ++i )
 		{
 			ESCs[ i ]->ProcessEntity( EE );
-		}
-		
-		if( !EE.remove )
-		{
-			lcache.m_scriptents.push_back( LC_ScriptedEntity() );
-			LC_ScriptedEntity& LCSE = lcache.m_scriptents.last();
-			LCSE.type = EE.type;
-			LCSE.serialized_params = g_Level->GetScriptCtx().Serialize( EE.props );
 		}
 	}
 	

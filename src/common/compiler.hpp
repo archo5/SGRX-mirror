@@ -321,7 +321,6 @@ struct LevelCache
 	Array< Part > m_meshParts;
 	Array< LC_MeshInst > m_meshinst;
 	Array< LC_Light > m_lights;
-	Array< LC_ScriptedEntity > m_scriptents;
 	LC_Chunk_Gobj m_gobj;
 	LC_PhysicsMesh m_phyMesh;
 	Array< LC_SolidBox > m_solidBoxes;

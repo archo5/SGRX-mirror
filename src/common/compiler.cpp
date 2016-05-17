@@ -1289,17 +1289,6 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 		level.chunks.push_back( chunk );
 	}
 	
-	// entity data
-	ByteArray ba_ents;
-	LC_Chunk_Ents ch_ents = { m_scriptents };
-	ByteWriter( &ba_ents ) << ch_ents;
-	{
-		memcpy( chunk.sys_id, LC_FILE_ENTS_NAME, sizeof(chunk.sys_id) );
-		chunk.ptr = ba_ents.data();
-		chunk.size = ba_ents.size();
-		level.chunks.push_back( chunk );
-	}
-	
 	// game object data
 	ByteArray ba_gobj;
 	ByteWriter( &ba_gobj ) << m_gobj;

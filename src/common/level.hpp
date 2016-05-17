@@ -271,7 +271,6 @@ struct EditorEntity
 {
 	StringView type;
 	sgsVariable props;
-	bool remove;
 };
 
 struct IF_GCC(GFW_EXPORT) IEditorSystemCompiler
@@ -291,11 +290,7 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 		LevelScrObj( lev ), m_system_uid( uid )
 	{}
 	virtual void OnPostLevelLoad(){}
-	virtual void OnAddEntity( Entity* ent ){}
-	virtual void OnRemoveEntity( Entity* ent ){}
-	virtual void OnEntityChangeID( Entity* ent, StringView prev ){}
 	virtual void OnLevelDestroy(){ delete this; }
-	virtual Entity* AddEntity( StringView type ){ return NULL; }
 	virtual bool LoadChunk( const StringView& type, ByteView data ){ return false; }
 	virtual void Clear(){}
 	virtual void FixedTick( float deltaTime ){}
@@ -362,6 +357,10 @@ EXP_STRUCT GOResource : LevelScrObj
 	GFW_EXPORT virtual void Update();
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
+	
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
+	
 	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih, sgsVariable iface );
 	GFW_EXPORT virtual void EditLoad( sgsVariable src, sgsVariable iface );
 	GFW_EXPORT virtual void EditSave( sgsVariable out, sgsVariable iface );
@@ -412,6 +411,9 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	GFW_EXPORT virtual void Update();
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
+	
+	virtual void DebugDrawWorld(){}
+	virtual void DebugDrawUI(){}
 	
 	GFW_EXPORT virtual void EditUI( EditorUIHelper* uih, sgsVariable iface );
 	GFW_EXPORT virtual void EditLoad( sgsVariable src, sgsVariable iface );
@@ -472,6 +474,9 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT virtual void Update();
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
+	
+	GFW_EXPORT virtual void DebugDrawWorld();
+	GFW_EXPORT virtual void DebugDrawUI();
 	
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
@@ -554,7 +559,7 @@ struct GameObjectProcessor
 	virtual bool ProcessGameObject( GameObject* obj ) = 0;
 };
 
-struct EntityGather : GameObjectProcessor
+struct GameObjectGather : GameObjectProcessor
 {
 	struct Item
 	{
@@ -651,8 +656,6 @@ struct InfoEmitGameObjectSet
 
 
 
-typedef StackString<16> StackShortName;
-
 typedef sgsHandle< struct GameLevel > GameLevelScrHandle;
 
 EXP_STRUCT GameLevel :
@@ -709,9 +712,6 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT Entity* _CreateEntityReal( const StringView& type );
 	GFW_EXPORT Entity* CreateEntity( const StringView& type );
 	GFW_EXPORT void DestroyEntity( Entity* eptr );
-	GFW_EXPORT void _OnAddEntity( Entity* ent );
-	GFW_EXPORT void _OnRemoveEntity( Entity* ent );
-	GFW_EXPORT StackShortName GenerateName();
 	GFW_EXPORT void ClearLevel();
 	
 	GFW_EXPORT void FixedTick( float deltaTime );
@@ -729,8 +729,6 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT void _MapEntityByID( Entity* e );
 	GFW_EXPORT void _UnmapEntityByID( Entity* e );
 	GFW_EXPORT Entity* FindEntityByID( const StringView& name );
-	GFW_EXPORT SGS_METHOD_NAMED( CreateEntity ) sgsVariable sgsCreateEntity( StringView type );
-	GFW_EXPORT SGS_METHOD_NAMED( DestroyEntity ) void sgsDestroyEntity( sgsVariable eh );
 	GFW_EXPORT SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
 	GFW_EXPORT SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
@@ -804,12 +802,12 @@ EXP_STRUCT GameLevel :
 	sgsVariable m_markerPositions;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME paused ) bool m_paused;
 	double m_levelTime;
-	Array< Entity* > m_entities;
 	
 	// GAMEOBJECT PROTO
 	GameObject* CreateGameObject();
 	void DestroyGameObject( GameObject* obj );
 	GFW_EXPORT SGS_METHOD_NAMED( CreateGameObject ) sgsVariable sgsCreateGameObject();
+	GFW_EXPORT SGS_METHOD_NAMED( DestroyGameObject ) void sgsDestroyGameObject( sgsVariable oh );
 	template< class T > void RegisterNativeBehavior( StringView type )
 	{
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
@@ -893,10 +891,6 @@ FINLINE void Entity::sgsSetID( sgsString id )
 	if( m_id.size() )
 		m_level->_MapEntityByID( this );
 	OnIDUpdate();
-	for( size_t i = 0; i < m_level->m_systems.size(); ++i )
-	{
-		m_level->m_systems[ i ]->OnEntityChangeID( this, StringView( prev.c_str(), prev.size() ) );
-	}
 }
 
 

@@ -106,7 +106,6 @@ EXP_STRUCT LevelMapSystem : IGameLevelSystem
 	
 	GFW_EXPORT LevelMapSystem( GameLevel* lev );
 	GFW_EXPORT void Clear();
-	GFW_EXPORT void OnRemoveEntity( Entity* e );
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
 	GFW_EXPORT void UpdateItem( Entity* e, const MapItemInfo& data );
 	GFW_EXPORT void RemoveItem( Entity* e );
