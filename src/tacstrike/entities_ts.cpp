@@ -38,6 +38,7 @@ extern InputState DO_ACTION;
 #define MAGNUM_CAMERA_VIEW_DIST 6.0f
 
 
+#if 0
 TSCamera::TSCamera(
 	GameLevel* lev,
 	const StringView& name,
@@ -76,8 +77,10 @@ TSCamera::TSCamera(
 	m_level->LightMesh( MI );
 }
 
-void TSCamera::FixedTick( float deltaTime )
+void TSCamera::FixedUpdate()
 {
+	float deltaTime = m_level->GetDeltaTime();
+	
 	m_playerVisible = false;
 #if 0
 	if( m_level->m_player )
@@ -175,9 +178,9 @@ void TSCamera::FixedTick( float deltaTime )
 	m_animChar.FixedTick( deltaTime );
 }
 
-void TSCamera::Tick( float deltaTime, float blendFactor )
+void TSCamera::Update()
 {
-	m_animChar.PreRender( blendFactor );
+	m_animChar.PreRender( m_level->GetBlendFactor() );
 	Mat4 mtx;
 	m_animChar.GetAttachmentMatrix( 2, mtx );
 	
@@ -195,8 +198,8 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 	m_level->GetSystem<FlareSystem>()->UpdateFlare( this, FD );
 	
 	Vec3 tgtpos = m_animChar.GetAttachmentPos( m_animChar.FindAttachment( "origin" ) );
-	SetInfoMask( IEST_Target );
-	SetInfoTarget( tgtpos );
+	m_obj->SetInfoMask( IEST_Target );
+	m_obj->SetInfoTarget( tgtpos );
 	
 	LevelMapSystem* lms = m_level->GetSystem<LevelMapSystem>();
 	if( lms )
@@ -219,6 +222,7 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 		lms->UpdateItem( this, mii );
 	}
 }
+#endif
 
 
 
@@ -385,8 +389,9 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	m_animChar.RecalcLayerState();
 }
 
-void TSCharacter::FixedTick( float deltaTime )
+void TSCharacter::FixedUpdate()
 {
+	float deltaTime = m_level->GetDeltaTime();
 	IController* ctrl = GetObjectController( m_obj );
 	
 	if( IsInAction() )
@@ -516,8 +521,10 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 }
 
-void TSCharacter::Tick( float deltaTime, float blendFactor )
+void TSCharacter::Update()
 {
+	float deltaTime = m_level->GetDeltaTime();
+	float blendFactor = m_level->GetBlendFactor();
 	IController* ctrl = GetObjectController( m_obj );
 	
 	Vec3 turn = ctrl->GetInputV3( ACT_Chr_Turn );
@@ -544,8 +551,8 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	if( m_health > 0 )
 	{
 		Vec3 tgtpos = m_animChar.GetLocalAttachmentPos( m_animChar.FindAttachment( "target" ) );
-		SetInfoMask( m_infoFlags );
-		SetInfoTarget( tgtpos );
+		m_obj->SetInfoMask( m_infoFlags );
+		m_obj->SetInfoTarget( tgtpos );
 	}
 	
 	
@@ -763,29 +770,29 @@ void TSCharacter::BeginClosestAction( float maxdist )
 	if( iact_gather.items.size() )
 	{
 		iact_gather.DistanceSort( QP );
-		if( ( iact_gather.items[ 0 ].E->GetWorldInfoTarget() - QP ).Length() < maxdist )
-			BeginAction( iact_gather.items[ 0 ].E );
+		if( ( iact_gather.items[ 0 ].obj->GetWorldInfoTarget() - QP ).Length() < maxdist )
+			BeginAction( iact_gather.items[ 0 ].obj );
 	}
 }
 
-bool TSCharacter::BeginAction( Entity* E )
+bool TSCharacter::BeginAction( GameObject* obj )
 {
-	if( !E || IsInAction() )
+	if( !obj || IsInAction() )
 		return false;
 	
 #if 0
-	IInteractiveEntity* IE = E->GetInterface<IInteractiveEntity>();
+	IInteractiveEntity* IE = obj->GetInterface<IInteractiveEntity>();
 	if( IE == NULL || IE->GetInteractionInfo( GetQueryPosition_FT(), &m_actState.info ) == false )
 		return false;
 	
 	m_actState.timeoutMoveToStart = 1;
 	m_actState.progress = 0;
-	m_actState.target = E;
+	m_actState.target = obj;
 	return true;
 #endif
 	
 	sgs_PushVar( C, GetScriptedObject() );
-	E->GetScriptedObject().thiscall( C, "OnInteract", 1 );
+	obj->GetScriptedObject().thiscall( C, "OnInteract", 1 );
 	return true;
 }
 
@@ -879,7 +886,7 @@ void TSCharacter::OnDeath()
 	m_animChar.EnablePhysics();
 	m_animChar.m_anDeformer.forces.clear();
 	m_anLayers[3].factor = 1;
-	SetInfoMask( 0 );
+	m_obj->SetInfoMask( 0 );
 	m_animChar.m_cachedMeshInst->layers = 0;
 	
 	// event
@@ -933,7 +940,7 @@ Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
 TSAimHelper::TSAimHelper( GameLevel* lev ) :
 	m_level(lev), m_pos(V3(0)), m_cp(V2(0)), m_aimPtr(NULL),
 	m_aimPoint(V3(0)), m_rcPoint(V3(0)), m_aimFactor(0), m_pDist(0),
-	m_closestEnt(NULL), m_closestPoint(V3(0))
+	m_closestObj(NULL), m_closestPoint(V3(0))
 {
 }
 
@@ -947,14 +954,14 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 	if( lock )
 	{
 		m_pDist = 0.5f;
-		m_closestEnt = NULL;
+		m_closestObj = NULL;
 		lock = m_level->QuerySphere( this, IEST_Target, pos, 8.0f );
-		if( m_aimPtr == NULL || m_aimPtr == m_closestEnt )
+		if( m_aimPtr == NULL || m_aimPtr == m_closestObj )
 		{
 			m_aimPoint = m_closestPoint;
 			if( m_aimFactor < SMALL_FLOAT )
 			{
-				m_aimPtr = m_closestEnt;
+				m_aimPtr = m_closestObj;
 			}
 		}
 		else
@@ -1012,20 +1019,20 @@ Vec3 TSAimHelper::_CalcRCPos( Vec3 pos )
 	return V3(0);
 }
 
-bool TSAimHelper::ProcessEntity( Entity* E )
+bool TSAimHelper::ProcessGameObject( GameObject* obj )
 {
-	if( E->GetInfoMask() & IEST_Player )
+	if( obj->GetInfoMask() & IEST_Player )
 		return true;
 	
-	Vec3 tgtPos = E->GetWorldInfoTarget();
+	Vec3 tgtPos = obj->GetWorldInfoTarget();
 	SceneRaycastCallback_Any srcb;
 	m_level->GetScene()->RaycastAll( m_pos, tgtPos, &srcb, 0x1 );
 	if( srcb.m_hit )
 		return true;
 	
-	if( E == m_aimPtr )
+	if( obj == m_aimPtr )
 	{
-		m_closestEnt = m_aimPtr;
+		m_closestObj = m_aimPtr;
 		m_closestPoint = tgtPos;
 		return false;
 	}
@@ -1036,7 +1043,7 @@ bool TSAimHelper::ProcessEntity( Entity* E )
 	float npdist = ( curpos - scrpos ).Length();
 	if( npdist < m_pDist * bsz )
 	{
-		m_closestEnt = E;
+		m_closestObj = obj;
 		m_closestPoint = tgtPos;
 		m_pDist = npdist / bsz;
 	}
@@ -1045,19 +1052,21 @@ bool TSAimHelper::ProcessEntity( Entity* E )
 
 
 
-TSPlayerController::TSPlayerController( GameLevel* lev ) :
-	m_aimHelper( lev ), i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
+TSPlayerController::TSPlayerController( GameObject* obj ) :
+	BhControllerBase( obj ),
+	m_aimHelper( obj->m_level ),
+	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
 {
 }
 
-void TSPlayerController::Tick( float deltaTime, float blendFactor )
+void TSPlayerController::Update()
 {
-	if( m_entity && ENTITY_IS_A( m_entity, TSCharacter ) )
+	TSCharacter* P = m_obj->FindBehaviorOfType<TSCharacter>();
+	if( P )
 	{
-		SGRX_CAST( TSCharacter*, P, m_entity );
 		Vec3 pos = P->GetQueryPosition();
 		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-		m_aimHelper.Tick( deltaTime, pos, CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
+		m_aimHelper.Tick( m_level->GetDeltaTime(), pos, CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
 	}
 	
 	i_move = V2
@@ -1095,33 +1104,24 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 void TSPlayerController::CalcUIAimInfo()
 {
 	m_aimHelper.m_pDist = 0.5f;
-	m_aimHelper.m_closestEnt = NULL;
+	m_aimHelper.m_closestObj = NULL;
 	m_aimHelper.m_level->QuerySphere( &m_aimHelper, IEST_Target, m_aimHelper.m_pos, 8.0f );
 }
 
-sgsVariable TSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
-{
-	if( !lev )
-	{
-		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
-		return sgsVariable();
-	}
-	SGS_CREATECLASS( C, NULL, TSPlayerController, ( lev ) );
-	return sgsVariable( C, sgsVariable::PickAndPop );
-}
 
 
-
-TPSPlayerController::TPSPlayerController( GameLevel* lev ) :
-	m_level( lev ), m_angles( YP(0) ),
+TPSPlayerController::TPSPlayerController( GameObject* obj ) :
+	BhControllerBase( obj ),
+	m_angles( YP(0) ),
 	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) ), i_crouch(false),
 	lastFrameReset( false )
 {
-	m_castShape = lev->GetPhyWorld()->CreateSphereShape( 0.2f );
+	m_castShape = m_level->GetPhyWorld()->CreateSphereShape( 0.2f );
 }
 
-void TPSPlayerController::Tick( float deltaTime, float blendFactor )
+void TPSPlayerController::Update()
 {
+	float deltaTime = m_level->GetDeltaTime();
 	Vec2 joystick_aim = V2( AIM_X.value, AIM_Y.value );
 	joystick_aim = -joystick_aim.Normalized() *
 		TCLAMP( TREVLERP<float>( 0.2f, 1.0f, joystick_aim.Length() ), 0.0f, 1.0f );
@@ -1261,21 +1261,10 @@ void TPSPlayerController::UpdateMoveAim( bool tick )
 	}
 }
 
-sgsVariable TPSPlayerController::Create( SGS_CTX, GameLevelScrHandle lev )
-{
-	if( !lev )
-	{
-		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
-		return sgsVariable();
-	}
-	SGS_CREATECLASS( C, NULL, TPSPlayerController, ( lev ) );
-	return sgsVariable( C, sgsVariable::PickAndPop );
-}
 
 
-
-TSEnemyController::TSEnemyController( GameLevel* lev ) :
-	m_level( lev ),
+TSEnemyController::TSEnemyController( GameObject* obj ) :
+	BhControllerBase( obj ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
 	m_inPlayerTeam( false ),
@@ -1312,26 +1301,27 @@ struct TSEC_FindChar : AIFactDistance
 	uint32_t curTime;
 };
 
-struct EPEnemyViewProc : EntityProcessor
+struct EPEnemyViewProc : GameObjectProcessor
 {
 	EPEnemyViewProc() : sawEnemy(false){}
-	bool ProcessEntity( Entity* ent )
+	bool ProcessGameObject( GameObject* obj )
 	{
-		Vec3 enemypos = ent->GetWorldInfoTarget();
+		Vec3 enemypos = obj->GetWorldInfoTarget();
 		
 		// verify the find
 		if( enemy->CanSeePoint( enemypos ) == false )
 		{
-			if( ENTITY_IS_A( ent, TSCharacter ) == false )
+			TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
+			if( !chr )
 				return true;
-			if( enemy->CanSeePoint( ((TSCharacter*)ent)->sgsGetAttachmentPos( "head", V3(0) ) ) == false )
+			if( enemy->CanSeePoint( chr->sgsGetAttachmentPos( "head", V3(0) ) ) == false )
 				return true;
 		}
 		
 		// TODO friendlies
 		AIFactStorage& FS = enemy->m_factStorage;
 		
-		if( ent->GetInfoMask() & IEST_AIAlert )
+		if( obj->GetInfoMask() & IEST_AIAlert )
 		{
 			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
@@ -1387,7 +1377,7 @@ struct TSEC_FindSoundSource : AIFactDistance
 	uint32_t curTime;
 };
 
-void TSEnemyController::FixedTick( float deltaTime )
+void TSEnemyController::FixedUpdate()
 {
 	TSCharacter* chr = GetChar();
 	if( !chr )
@@ -1446,7 +1436,7 @@ void TSEnemyController::FixedTick( float deltaTime )
 	m_level->QuerySphere( &evp, qmask, chr->GetQueryPosition_FT(), 10.0f );
 	
 	// tick ESO
-	m_level->m_scriptCtx.Push( deltaTime );
+	m_level->m_scriptCtx.Push( m_level->GetDeltaTime() );
 	GetScriptedObject().thiscall( C, "tick", 1 );
 	
 	i_crouch = _data[ "i_crouch" ].get<bool>();
@@ -1458,12 +1448,6 @@ void TSEnemyController::FixedTick( float deltaTime )
 	i_aim_target = aim_target.get<Vec3>();
 	i_shoot = _data[ "i_shoot" ].get<bool>();
 	i_act = _data[ "i_act" ].get<bool>();
-}
-
-void TSEnemyController::Tick( float deltaTime, float blendFactor )
-{
-	UNUSED( deltaTime );
-	UNUSED( blendFactor );
 }
 
 Vec3 TSEnemyController::GetInput( uint32_t iid )
@@ -1777,48 +1761,30 @@ bool TSEnemyController::sgsRemoveNextPathPoint()
 	return false;
 }
 
-sgsVariable TSEnemyController::Create( SGS_CTX, GameLevelScrHandle lev )
-{
-	if( !lev )
-	{
-		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
-		return sgsVariable();
-	}
-	SGS_CREATECLASS( C, NULL, TSEnemyController, ( lev ) );
-	return sgsVariable( C, sgsVariable::PickAndPop );
-}
-
-
-
-static sgs_RegIntConst g_ts_ints[] =
-{
-	{ "ACT_Chr_Move", ACT_Chr_Move },
-	{ "ACT_Chr_Turn", ACT_Chr_Turn },
-	{ "ACT_Chr_Crouch", ACT_Chr_Crouch },
-	{ "ACT_Chr_Jump", ACT_Chr_Jump },
-	{ "ACT_Chr_AimAt", ACT_Chr_AimAt },
-	{ "ACT_Chr_AimTarget", ACT_Chr_AimTarget },
-	{ "ACT_Chr_Shoot", ACT_Chr_Shoot },
-	{ "ACT_Chr_DoAction", ACT_Chr_DoAction },
-	{ NULL, 0 },
-};
 
 TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	register_tsent_cvars(); // TODO global init?
-	m_level->GetScriptCtx().SetGlobal( "TSScriptedController",
-		sgs_GetClassInterface<TSScriptedController>( m_level->GetSGSC() ) );
-	m_level->GetScriptCtx().SetGlobal( "TSPlayerController",
-		sgs_GetClassInterface<TSPlayerController>( m_level->GetSGSC() ) );
-	m_level->GetScriptCtx().SetGlobal( "TPSPlayerController",
-		sgs_GetClassInterface<TPSPlayerController>( m_level->GetSGSC() ) );
-	m_level->GetScriptCtx().SetGlobal( "TSEnemyController",
-		sgs_GetClassInterface<TSEnemyController>( m_level->GetSGSC() ) );
 	m_level->GetScriptCtx().Include( "data/enemy" );
 	
-	sgs_RegIntConsts( m_level->GetSGSC(), g_ts_ints, -1 );
+	static const sgs_RegIntConst g_ts_ints[] =
+	{
+		{ "ACT_Chr_Move", ACT_Chr_Move },
+		{ "ACT_Chr_Turn", ACT_Chr_Turn },
+		{ "ACT_Chr_Crouch", ACT_Chr_Crouch },
+		{ "ACT_Chr_Jump", ACT_Chr_Jump },
+		{ "ACT_Chr_AimAt", ACT_Chr_AimAt },
+		{ "ACT_Chr_AimTarget", ACT_Chr_AimTarget },
+		{ "ACT_Chr_Shoot", ACT_Chr_Shoot },
+		{ "ACT_Chr_DoAction", ACT_Chr_DoAction },
+		{ NULL, 0 },
+	};
+	sgs_RegIntConsts( lev->GetSGSC(), g_ts_ints, -1 );
 	
 	lev->RegisterNativeBehavior<TSCharacter>( "TSCharacter" );
+	lev->RegisterNativeBehavior<TSPlayerController>( "TSPlayerController" );
+	lev->RegisterNativeBehavior<TPSPlayerController>( "TPSPlayerController" );
+	lev->RegisterNativeBehavior<TSEnemyController>( "TSEnemyController" );
 }
 
 

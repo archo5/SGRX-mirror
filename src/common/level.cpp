@@ -56,16 +56,13 @@ sgsHandle< GameLevel > LevelScrObj::_sgs_getLevel()
 
 
 Entity::Entity( GameLevel* lev ) :
-	LevelScrObj( lev ),
-	m_infoMask( 0 ),
-	m_infoTarget( V3(0) )
+	LevelScrObj( lev )
 {
 }
 
 Entity::~Entity()
 {
 	m_level->_UnmapEntityByID( this );
-	m_level->m_infoEmitSet.Unregister( this );
 }
 
 void Entity::OnDestroy()
@@ -134,15 +131,6 @@ void Entity::EditorDrawWorld()
 	sgsVariable fn = GetScriptedObject().getprop( "EditorDrawWorld" );
 	if( fn.not_null() )
 		GetScriptedObject().thiscall( C, fn );
-}
-
-void Entity::SetInfoMask( uint32_t mask )
-{
-	if( mask && !m_infoMask )
-		m_level->m_infoEmitSet.Register( this );
-	else if( !mask && m_infoMask )
-		m_level->m_infoEmitSet.Unregister( this );
-	m_infoMask = mask;
 }
 
 
@@ -336,12 +324,15 @@ void GOBehavior::EditorDrawWorld()
 GameObject::GameObject( GameLevel* lev ) :
 	LevelScrObj( lev ),
 	m_resources( lev ),
-	m_behaviors( lev )
+	m_behaviors( lev ),
+	m_infoMask( 0 ),
+	m_infoTarget( V3(0) )
 {
 }
 
 GameObject::~GameObject()
 {
+	m_level->m_infoEmitSet.Unregister( this );
 }
 
 GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
@@ -553,6 +544,15 @@ void GameObject::EditorDrawWorld()
 		m_resources.item( i ).value->EditorDrawWorld();
 	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
 		m_bhvr_order[ i ]->EditorDrawWorld();
+}
+
+void GameObject::SetInfoMask( uint32_t mask )
+{
+	if( mask && !m_infoMask )
+		m_level->m_infoEmitSet.Register( this );
+	else if( !mask && m_infoMask )
+		m_level->m_infoEmitSet.Unregister( this );
+	m_infoMask = mask;
 }
 
 
@@ -1394,31 +1394,31 @@ SGS_MULTRET GameLevel::sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ 
 
 
 
-bool GameLevel::Query( EntityProcessor* optProc, uint32_t mask )
+bool GameLevel::Query( GameObjectProcessor* optProc, uint32_t mask )
 {
-	return m_infoEmitSet.Query( InfoEmitEntitySet::NoTest(), mask, optProc );
+	return m_infoEmitSet.Query( InfoEmitGameObjectSet::NoTest(), mask, optProc );
 }
 
-bool GameLevel::QuerySphere( EntityProcessor* optProc, uint32_t mask, Vec3 pos, float rad )
+bool GameLevel::QuerySphere( GameObjectProcessor* optProc, uint32_t mask, Vec3 pos, float rad )
 {
-	InfoEmitEntitySet::SphereTest test = { pos, rad * rad };
+	InfoEmitGameObjectSet::SphereTest test = { pos, rad * rad };
 	return m_infoEmitSet.Query( test, mask, optProc );
 }
 
-bool GameLevel::QueryOBB( EntityProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax )
+bool GameLevel::QueryOBB( GameObjectProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax )
 {
-	InfoEmitEntitySet::OBBTest test = { bbmin, bbmax, mtx.Inverted() };
+	InfoEmitGameObjectSet::OBBTest test = { bbmin, bbmax, mtx.Inverted() };
 	return m_infoEmitSet.Query( test, mask, optProc );
 }
 
-struct EP_sgsFunc : EntityProcessor
+struct EP_sgsFunc : GameObjectProcessor
 {
 	sgsVariable func;
 	EP_sgsFunc( sgsVariable src ) : func( src ){}
-	bool ProcessEntity( Entity* E )
+	bool ProcessGameObject( GameObject* obj )
 	{
 		SGS_CSCOPE( func.get_ctx() );
-		sgs_PushVar( func.get_ctx(), E->GetScriptedObject() );
+		sgs_PushVar( func.get_ctx(), obj->GetScriptedObject() );
 		func.call( func.get_ctx(), 1, 1 );
 		return sgs_GetBool( func.get_ctx(), -1 );
 	}

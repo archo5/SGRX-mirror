@@ -28,13 +28,14 @@ enum TSEventIDs
 };
 
 
-struct TSCamera : Entity
+#if 0
+struct TSCamera : GOBehavior
 {
-	SGS_OBJECT_INHERIT( Entity );
+	SGS_OBJECT_INHERIT( GOBehavior );
 	ENT_SGS_IMPLEMENT;
 	
 	TSCamera(
-		GameLevel* lev,
+		GameObject* obj,
 		const StringView& name,
 		const StringView& charname,
 		const Vec3& pos,
@@ -43,8 +44,8 @@ struct TSCamera : Entity
 		const Vec3& dir0,
 		const Vec3& dir1
 	);
-	void FixedTick( float deltaTime );
-	void Tick( float deltaTime, float blendFactor );
+	void FixedUpdate();
+	void Update();
 	
 	AnimCharacter m_animChar;
 	AnimMixer::Layer m_anLayers[1];
@@ -64,6 +65,7 @@ struct TSCamera : Entity
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME pauseTime ) float m_pauseTime;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME fov ) float m_fov;
 };
+#endif
 
 
 enum TSActions
@@ -94,7 +96,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 		float timeoutMoveToStart;
 		float timeoutEnding;
 		float progress;
-		Entity* target;
+		GameObject* target;
 		InteractInfo info;
 	};
 	
@@ -104,14 +106,14 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD void SetPlayerMode( bool isPlayer );
 	SGS_METHOD void InitializeMesh( const StringView& path );
 	void ProcessAnims( float deltaTime );
-	void FixedTick( float deltaTime );
-	void Tick( float deltaTime, float blendFactor );
+	void FixedUpdate();
+	void Update();
 	void _HandleGroundBody( Vec3& pos, SGRX_IPhyRigidBody* body, float dt );
 	void HandleMovementPhysics( float deltaTime );
 	void TurnTo( const Vec2& turnDir, float speedDelta );
 	void PushTo( const Vec3& pos, float speedDelta );
 	void BeginClosestAction( float maxdist );
-	bool BeginAction( Entity* E );
+	bool BeginAction( GameObject* obj );
 	bool IsInAction();
 	bool CanInterruptAction();
 	void InterruptAction( bool force );
@@ -137,8 +139,9 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD Vec3 GetAimDir_FT() const { return m_aimDir.ToVec3(); }
 	Mat4 GetBulletOutputMatrix() const;
 	
-	SGS_METHOD Vec3 GetQueryPosition(){ return m_obj->GetWorldPosition() + V3(0,0,0.5f); }
-	SGS_METHOD Vec3 GetAimDir(){ return m_interpAimDir; }
+	SGS_METHOD Vec3 GetWorldPosition() const { return m_obj->GetWorldPosition(); }
+	SGS_METHOD Vec3 GetQueryPosition() const { return m_obj->GetWorldPosition() + V3(0,0,0.5f); }
+	SGS_METHOD Vec3 GetAimDir() const { return m_interpAimDir; }
 	
 	PhyRigidBodyHandle m_bodyHandle;
 	PhyShapeHandle m_shapeHandle;
@@ -195,24 +198,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 };
 
 
-struct TSScriptedController : BhControllerBase
-{
-	SGS_OBJECT_INHERIT( BhControllerBase );
-	SGS_BACKING_STORE( _data.var );
-	SGS_BACKING_STORE( _backing.var );
-	
-	TSScriptedController( GameObject* obj );
-	void FixedUpdate();
-	void Update();
-	Vec3 GetInput( uint32_t iid );
-	void Reset();
-	
-	SGS_PROPERTY sgsVariable _data;
-	SGS_PROPERTY sgsVariable _backing;
-};
-
-
-struct TSAimHelper : EntityProcessor
+struct TSAimHelper : GameObjectProcessor
 {
 	TSAimHelper( GameLevel* lev );
 	void Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock );
@@ -229,43 +215,42 @@ struct TSAimHelper : EntityProcessor
 	float m_aimFactor;
 	
 	// lock target query
-	virtual bool ProcessEntity( Entity* E );
+	virtual bool ProcessGameObject( GameObject* obj );
 	float m_pDist;
-	void* m_closestEnt;
+	void* m_closestObj;
 	Vec3 m_closestPoint;
 };
 
 
-struct TSPlayerController : IActorController
+struct TSPlayerController : BhControllerBase
 {
-	SGS_OBJECT_INHERIT( IActorController );
+	SGS_OBJECT_INHERIT( BhControllerBase );
+	ENT_SGS_IMPLEMENT;
 	
 	TSAimHelper m_aimHelper;
 	Vec2 i_move;
 	Vec3 i_aim_target;
 	Vec3 i_turn;
 	
-	TSPlayerController( GameLevel* lev );
-	void Tick( float deltaTime, float blendFactor );
+	TSPlayerController( GameObject* obj );
+	virtual void Update();
 	virtual Vec3 GetInput( uint32_t iid );
 	
 	SGS_METHOD void CalcUIAimInfo();
-	bool _shouldDrawCP() const { return m_aimHelper.m_aimPtr == NULL && m_aimHelper.m_closestEnt; }
+	bool _shouldDrawCP() const { return m_aimHelper.m_aimPtr == NULL && m_aimHelper.m_closestObj; }
 	SGS_PROPERTY_FUNC( READ _shouldDrawCP ) SGS_ALIAS( bool ahShouldDrawClosestPoint );
 	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_closestPoint ) SGS_ALIAS( Vec3 ahClosestPoint );
 	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_aimPoint ) SGS_ALIAS( Vec3 ahAimPoint );
 	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_aimFactor ) SGS_ALIAS( float ahAimFactor );
 	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_pDist ) SGS_ALIAS( float ahCPDistance );
-	
-	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
 
 
-struct TPSPlayerController : IActorController
+struct TPSPlayerController : BhControllerBase
 {
-	SGS_OBJECT_INHERIT( IActorController );
+	SGS_OBJECT_INHERIT( BhControllerBase );
+	ENT_SGS_IMPLEMENT;
 	
-	GameLevel* m_level;
 	YawPitch m_angles;
 	Vec2 i_move;
 	Vec3 i_aim_target;
@@ -275,30 +260,27 @@ struct TPSPlayerController : IActorController
 	PhyShapeHandle m_castShape;
 	SGS_PROPERTY bool lastFrameReset;
 	
-	TPSPlayerController( GameLevel* lev );
-	SGS_METHOD void Tick( float deltaTime, float blendFactor );
+	TPSPlayerController( GameObject* obj );
+	virtual SGS_METHOD void Update();
 	virtual Vec3 GetInput( uint32_t iid );
 	void SafePosPush( Vec3& pos, Vec3 dir );
 	SGS_METHOD Vec3 GetCameraPos( TSCharacter* chr, bool tick );
 	SGS_METHOD void UpdateMoveAim( bool tick );
 	TSCharacter* GetChar()
 	{
-		return m_entity && ENTITY_IS_A( m_entity, TSCharacter )
-			? (TSCharacter*) m_entity
-			: NULL;
+		return m_obj->FindBehaviorOfType<TSCharacter>();
 	}
 	
 	void SetDir( Vec3 v ){ m_angles = YP(v); }
 	SGS_PROPERTY_FUNC( READ WRITE SetDir SOURCE m_angles.ToVec3() ) SGS_ALIAS( Vec3 direction );
-	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
 
 
-struct TSEnemyController : IActorController
+struct TSEnemyController : BhControllerBase
 {
-	SGS_OBJECT_INHERIT( IActorController );
+	SGS_OBJECT_INHERIT( BhControllerBase );
+	ENT_SGS_IMPLEMENT;
 	
-	GameLevel* m_level;
 	bool i_crouch;
 	Vec2 i_move;
 	float i_speed;
@@ -319,15 +301,12 @@ struct TSEnemyController : IActorController
 	CoverSystem* m_coverSys;
 	TSCharacter* GetChar()
 	{
-		return m_entity && ENTITY_IS_A( m_entity, TSCharacter )
-			? (TSCharacter*) m_entity
-			: NULL;
+		return m_obj->FindBehaviorOfType<TSCharacter>();
 	}
 	
-	TSEnemyController( GameLevel* lev );
+	TSEnemyController( GameObject* obj );
 	~TSEnemyController();
-	virtual void FixedTick( float deltaTime );
-	virtual void Tick( float deltaTime, float blendFactor );
+	virtual void FixedUpdate();
 	virtual Vec3 GetInput( uint32_t iid );
 	virtual void Reset();
 	void DebugDrawWorld();
@@ -361,8 +340,6 @@ struct TSEnemyController : IActorController
 	SGS_METHOD_NAMED( AdvancePath ) bool sgsAdvancePath( float dist );
 	SGS_METHOD_NAMED( GetNextPathPoint ) sgsMaybe<Vec3> sgsGetNextPathPoint();
 	SGS_METHOD_NAMED( RemoveNextPathPoint ) bool sgsRemoveNextPathPoint();
-	
-	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
 
 

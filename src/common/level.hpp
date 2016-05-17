@@ -221,14 +221,9 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	virtual void DebugDrawUI(){}
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
-	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }
-	GFW_EXPORT void SetInfoMask( uint32_t mask );
 	FINLINE StringView GetID() const { return StringView( m_id.c_str(), m_id.size() ); }
 	FINLINE void SetID( StringView id );
 	FINLINE void sgsSetID( sgsString id );
-	FINLINE Vec3 GetInfoTarget() const { return m_infoTarget; }
-	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
-	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
 	
 	FINLINE SGS_METHOD EntityScrHandle GetChild( int i )
 	{
@@ -260,10 +255,6 @@ EXP_STRUCT Entity : LevelScrObj, Transform
 	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocal( Vec3 p ) );
 	SGS_METHOD SGS_ALIAS( Vec3 LocalToWorldDir( Vec3 p ) );
 	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocalDir( Vec3 p ) );
-	
-	SGS_PROPERTY_FUNC( READ GetInfoMask WRITE SetInfoMask VARNAME infoMask ) uint32_t m_infoMask;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME localInfoTarget ) Vec3 m_infoTarget;
-	SGS_PROPERTY_FUNC( READ GetWorldInfoTarget ) SGS_ALIAS( Vec3 infoTarget );
 	
 	SGS_PROPERTY sgsString name;
 	SGS_PROPERTY_FUNC( READ WRITE sgsSetID VARNAME id ) sgsString m_id;
@@ -319,185 +310,6 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 	virtual IEditorSystemCompiler* EditorGetSystemCompiler(){ return NULL; }
 	
 	uint32_t m_system_uid;
-};
-
-
-EXP_STRUCT IActorController
-{
-	SGS_OBJECT;
-	typedef sgsHandle< IActorController > ScrHandle;
-	sgsVariable GetScriptedObject(){ return ScrHandle( this ).get_variable(); }
-	
-	FINLINE IActorController() : m_entity(NULL){}
-	virtual ~IActorController(){}
-	virtual SGS_METHOD void FixedTick( float deltaTime ){}
-	virtual SGS_METHOD void Tick( float deltaTime, float blendFactor ){}
-	virtual void PreRender(){}
-	virtual SGS_METHOD Vec3 GetInput( uint32_t iid ){ return V3(0); }
-	virtual SGS_METHOD void Reset(){}
-	virtual void DebugDrawWorld(){}
-	virtual void DebugDrawUI(){}
-	
-	struct Entity* m_entity;
-	sgsVariable sgsGetEntity(){ return m_entity->GetScriptedObject(); }
-	SGS_PROPERTY_FUNC( READ sgsGetEntity VARNAME entity ) SGS_ALIAS( sgsVariable m_entity );
-};
-typedef sgsHandle< IActorController > ActorCtrlScrHandle;
-
-
-EXP_STRUCT Actor : Entity
-{
-	SGS_OBJECT_INHERIT( Entity ) SGS_NO_DESTRUCT;
-	ENT_SGS_IMPLEMENT;
-	
-	Actor( GameLevel* lev ) : Entity( lev ){}
-	~Actor(){ if( ctrl.not_null() ) ctrl->m_entity = NULL; }
-	FINLINE SGS_METHOD Vec3 GetInputV3( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ) : V3(0); }
-	FINLINE SGS_METHOD Vec2 GetInputV2( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).ToVec2() : V2(0); }
-	FINLINE SGS_METHOD float GetInputF( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x : 0; }
-	FINLINE SGS_METHOD bool GetInputB( uint32_t iid ){ return ctrl ? ctrl->GetInput( iid ).x > 0.5f : false; }
-	
-	virtual void FixedTick( float deltaTime )
-	{
-		Entity::FixedTick( deltaTime );
-		if( ctrl )
-			ctrl->FixedTick( deltaTime );
-	}
-	virtual void Tick( float deltaTime, float blendFactor )
-	{
-		Entity::Tick( deltaTime, blendFactor );
-		if( ctrl )
-			ctrl->Tick( deltaTime, blendFactor );
-	}
-	virtual void PreRender()
-	{
-		Entity::PreRender();
-		if( ctrl )
-			ctrl->PreRender();
-	}
-	virtual void DebugDrawWorld()
-	{
-		if( ctrl )
-			ctrl->DebugDrawWorld();
-	}
-	virtual void DebugDrawUI()
-	{
-		if( ctrl )
-			ctrl->DebugDrawUI();
-	}
-	
-	virtual SGS_METHOD bool IsAlive(){ return true; }
-	virtual SGS_METHOD void Reset(){} // make alive again
-	
-	FINLINE void sgsSetCtrl( ActorCtrlScrHandle nc )
-	{
-		if( ctrl && ctrl->m_entity == this )
-			ctrl->m_entity = NULL;
-		ctrl = nc;
-		if( nc )
-			nc->m_entity = this;
-	}
-	SGS_PROPERTY_FUNC( READ WRITE sgsSetCtrl ) ActorCtrlScrHandle ctrl;
-};
-
-
-struct EntityProcessor
-{
-	virtual bool ProcessEntity( Entity* e ) = 0;
-};
-
-struct EntityGather : EntityProcessor
-{
-	struct Item
-	{
-		Entity* E;
-		float sortkey;
-	};
-	
-	bool ProcessEntity( Entity* E )
-	{
-		Item item = { E, 0 };
-		items.push_back( item );
-		return false;
-	}
-	
-	static int sort_func( const void* A, const void* B )
-	{
-		SGRX_CAST( Item*, a, A );
-		SGRX_CAST( Item*, b, B );
-		return a->sortkey == b->sortkey ? 0 : ( a->sortkey < b->sortkey ? -1 : 1 );
-	}
-	void Sort()
-	{
-		qsort( items.data(), items.size(), sizeof(Item), sort_func );
-	}
-	void DistanceSort( Vec3 pos )
-	{
-		for( size_t i = 0; i < items.size(); ++i )
-			items[ i ].sortkey = ( items[ i ].E->GetWorldPosition() - pos ).LengthSq();
-		Sort();
-	}
-	
-	Array< Item > items;
-};
-
-struct InfoEmitEntitySet
-{
-	void Clear(){ m_entities.clear(); }
-	void Register( Entity* e ){ m_entities.set( e, NoValue() ); }
-	void Unregister( Entity* e ){ m_entities.unset( e ); }
-	
-	struct NoTest
-	{
-		FINLINE bool operator () ( Entity* E ) const { return true; }
-	};
-	struct SphereTest
-	{
-		Vec3 position;
-		float radius_squared;
-		FINLINE bool operator () ( Entity* E ) const
-		{
-			return ( E->GetWorldInfoTarget() - position ).LengthSq() <= radius_squared;
-		}
-	};
-	struct OBBTest
-	{
-		Vec3 bbmin;
-		Vec3 bbmax;
-		Mat4 inverse_matrix;
-		FINLINE bool operator () ( Entity* E ) const
-		{
-			Vec3 tp = inverse_matrix.TransformPos( E->GetWorldInfoTarget() );
-			if( tp.x >= bbmin.x && tp.x <= bbmax.x &&
-				tp.y >= bbmin.y && tp.y <= bbmax.y &&
-				tp.z >= bbmin.z && tp.z <= bbmax.z )
-				return true;
-			return false;
-		}
-	};
-	template< class T > bool Query( const T& test, uint32_t types, EntityProcessor* proc = NULL )
-	{
-		bool ret = false;
-		for( size_t i = 0; i < m_entities.size(); ++i )
-		{
-			Entity* E = m_entities.item( i ).key;
-			if( !( E->m_infoMask & types ) )
-				continue;
-			
-			if( !test( E ) )
-				continue;
-			
-			if( !proc )
-				return true;
-			
-			if( proc->ProcessEntity( E ) )
-				return true;
-			ret = true;
-		}
-		return ret;
-	}
-	
-	HashTable< Entity*, NoValue > m_entities;
 };
 
 
@@ -683,6 +495,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 localScale );
 	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix ) SGS_ALIAS( Mat4 localTransform );
 	
+	// resources / behaviors
 	SGS_METHOD_NAMED( AddResource ) sgsVariable sgsAddResource( sgsString name, uint32_t type, bool ovr )
 	{ GOResource* rsrc = AddResource( name, type, ovr ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
 	SGS_METHOD_NAMED( AddBehavior ) sgsVariable sgsAddBehavior( sgsString name, sgsString type, bool ovr )
@@ -695,6 +508,30 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ _get_resources ) SGS_ALIAS( GOResourceTable::ScrHandle resources );
 	GOBehaviorTable::ScrHandle _get_behaviors(){ return GOBehaviorTable::ScrHandle( &m_behaviors ); }
 	SGS_PROPERTY_FUNC( READ _get_behaviors ) SGS_ALIAS( GOBehaviorTable::ScrHandle behaviors );
+	
+	template< class T > T* FindBehaviorOfType()
+	{
+		for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		{
+			GOBehavior* bhvr = m_bhvr_order[ i ];
+			T* tbh = sgsHandle<T>( bhvr->C, bhvr->m_sgsObject );
+			if( tbh )
+				return tbh;
+		}
+		return NULL;
+	}
+	
+	// info target
+	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }
+	GFW_EXPORT void SetInfoMask( uint32_t mask );
+
+	FINLINE Vec3 GetInfoTarget() const { return m_infoTarget; }
+	FINLINE void SetInfoTarget( Vec3 tgt ){ m_infoTarget = tgt; }
+	FINLINE Vec3 GetWorldInfoTarget() const { return LocalToWorld( m_infoTarget ); }
+
+	SGS_PROPERTY_FUNC( READ GetInfoMask WRITE SetInfoMask VARNAME infoMask ) uint32_t m_infoMask;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME localInfoTarget ) Vec3 m_infoTarget;
+	SGS_PROPERTY_FUNC( READ GetWorldInfoTarget ) SGS_ALIAS( Vec3 infoTarget );
 };
 
 inline sgsHandle<struct GOResourceTable> GOBehavior::_get_resources()
@@ -706,6 +543,112 @@ inline sgsHandle<struct GOBehaviorTable> GOBehavior::_get_behaviors()
 {
 	return sgsHandle<struct GOBehaviorTable>( &m_obj->m_behaviors );
 }
+
+
+
+
+
+
+struct GameObjectProcessor
+{
+	virtual bool ProcessGameObject( GameObject* obj ) = 0;
+};
+
+struct EntityGather : GameObjectProcessor
+{
+	struct Item
+	{
+		GameObject* obj;
+		float sortkey;
+	};
+	
+	bool ProcessGameObject( GameObject* obj )
+	{
+		Item item = { obj, 0 };
+		items.push_back( item );
+		return false;
+	}
+	
+	static int sort_func( const void* A, const void* B )
+	{
+		SGRX_CAST( Item*, a, A );
+		SGRX_CAST( Item*, b, B );
+		return a->sortkey == b->sortkey ? 0 : ( a->sortkey < b->sortkey ? -1 : 1 );
+	}
+	void Sort()
+	{
+		qsort( items.data(), items.size(), sizeof(Item), sort_func );
+	}
+	void DistanceSort( Vec3 pos )
+	{
+		for( size_t i = 0; i < items.size(); ++i )
+			items[ i ].sortkey = ( items[ i ].obj->GetWorldPosition() - pos ).LengthSq();
+		Sort();
+	}
+	
+	Array< Item > items;
+};
+
+struct InfoEmitGameObjectSet
+{
+	void Clear(){ m_gameObjects.clear(); }
+	void Register( GameObject* e ){ m_gameObjects.set( e, NoValue() ); }
+	void Unregister( GameObject* e ){ m_gameObjects.unset( e ); }
+	
+	struct NoTest
+	{
+		FINLINE bool operator () ( GameObject* E ) const { return true; }
+	};
+	struct SphereTest
+	{
+		Vec3 position;
+		float radius_squared;
+		FINLINE bool operator () ( GameObject* E ) const
+		{
+			return ( E->GetWorldInfoTarget() - position ).LengthSq() <= radius_squared;
+		}
+	};
+	struct OBBTest
+	{
+		Vec3 bbmin;
+		Vec3 bbmax;
+		Mat4 inverse_matrix;
+		FINLINE bool operator () ( GameObject* obj ) const
+		{
+			Vec3 tp = inverse_matrix.TransformPos( obj->GetWorldInfoTarget() );
+			if( tp.x >= bbmin.x && tp.x <= bbmax.x &&
+				tp.y >= bbmin.y && tp.y <= bbmax.y &&
+				tp.z >= bbmin.z && tp.z <= bbmax.z )
+				return true;
+			return false;
+		}
+	};
+	template< class T > bool Query( const T& test, uint32_t types, GameObjectProcessor* proc = NULL )
+	{
+		bool ret = false;
+		for( size_t i = 0; i < m_gameObjects.size(); ++i )
+		{
+			GameObject* obj = m_gameObjects.item( i ).key;
+			if( !( obj->m_infoMask & types ) )
+				continue;
+			
+			if( !test( obj ) )
+				continue;
+			
+			if( !proc )
+				return true;
+			
+			if( proc->ProcessGameObject( obj ) )
+				return true;
+			ret = true;
+		}
+		return ret;
+	}
+	
+	HashTable< GameObject*, NoValue > m_gameObjects;
+};
+
+
 
 
 typedef StackString<16> StackShortName;
@@ -796,9 +739,9 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
 	GFW_EXPORT SGS_METHOD_NAMED( GetCursorMeshInst ) SGS_MULTRET sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ );
 	
-	GFW_EXPORT bool Query( EntityProcessor* optProc, uint32_t mask );
-	GFW_EXPORT bool QuerySphere( EntityProcessor* optProc, uint32_t mask, Vec3 pos, float rad );
-	GFW_EXPORT bool QueryOBB( EntityProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin = V3(-1), Vec3 bbmax = V3(1) );
+	GFW_EXPORT bool Query( GameObjectProcessor* optProc, uint32_t mask );
+	GFW_EXPORT bool QuerySphere( GameObjectProcessor* optProc, uint32_t mask, Vec3 pos, float rad );
+	GFW_EXPORT bool QueryOBB( GameObjectProcessor* optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin = V3(-1), Vec3 bbmax = V3(1) );
 	GFW_EXPORT SGS_METHOD_NAMED( Query ) bool sgsQuery( sgsVariable optProc, uint32_t mask );
 	GFW_EXPORT SGS_METHOD_NAMED( QuerySphere ) bool sgsQuerySphere( sgsVariable optProc, uint32_t mask, Vec3 pos, float rad );
 	GFW_EXPORT SGS_METHOD_NAMED( QueryOBB ) bool sgsQueryOBB( sgsVariable optProc, uint32_t mask, Mat4 mtx, Vec3 bbmin, Vec3 bbmax );
@@ -850,7 +793,7 @@ EXP_STRUCT GameLevel :
 	
 	// SYSTEMS
 	HashTable< StringView, Entity* > m_entIDMap;
-	InfoEmitEntitySet m_infoEmitSet;
+	InfoEmitGameObjectSet m_infoEmitSet;
 	Array< IGameLevelSystem* > m_systems;
 	
 	// LEVEL DATA

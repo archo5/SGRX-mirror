@@ -36,8 +36,6 @@ struct TSFightGameMode : IGameLevelSystem, SGRX_IEventHandler
 	float m_timeSinceLastHit;
 	TSCharacter* m_player;
 	TSCharacter* m_enemy;
-	IActorController* m_actorCtrl_ply;
-	ActorCtrlHandle m_actorCtrl_enm;
 	Array< Vec3 > m_spawnPoints;
 };
 #endif
