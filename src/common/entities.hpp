@@ -156,14 +156,6 @@ EXP_STRUCT MultiEntity : Entity, SGRX_MeshInstUserData
 };
 
 
-struct StockEntityCreationSystem : IGameLevelSystem
-{
-	enum { e_system_uid = 999 };
-	GFW_EXPORT StockEntityCreationSystem( GameLevel* lev );
-	GFW_EXPORT virtual Entity* AddEntity( StringView type );
-};
-
-
 
 
 #if 0

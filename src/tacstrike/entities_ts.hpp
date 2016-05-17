@@ -7,6 +7,7 @@
 SGS_CPPBC_INHERIT_BEGIN
 #include "level.hpp"
 #include "systems.hpp"
+#include "resources.hpp"
 SGS_CPPBC_INHERIT_END
 
 
@@ -80,9 +81,9 @@ enum TSActions
 };
 
 
-struct TSCharacter : Actor, SGRX_MeshInstUserData
+struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 {
-	SGS_OBJECT_INHERIT( Actor );
+	SGS_OBJECT_INHERIT( GOBehavior );
 	ENT_SGS_IMPLEMENT;
 	
 	struct ActionState
@@ -97,7 +98,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 		InteractInfo info;
 	};
 	
-	TSCharacter( GameLevel* lev );
+	TSCharacter( GameObject* obj );
 	~TSCharacter();
 	virtual void OnTransformUpdate();
 	SGS_METHOD void SetPlayerMode( bool isPlayer );
@@ -136,7 +137,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	SGS_METHOD Vec3 GetAimDir_FT() const { return m_aimDir.ToVec3(); }
 	Mat4 GetBulletOutputMatrix() const;
 	
-	SGS_METHOD Vec3 GetQueryPosition(){ return GetWorldPosition() + V3(0,0,0.5f); }
+	SGS_METHOD Vec3 GetQueryPosition(){ return m_obj->GetWorldPosition() + V3(0,0,0.5f); }
 	SGS_METHOD Vec3 GetAimDir(){ return m_interpAimDir; }
 	
 	PhyRigidBodyHandle m_bodyHandle;
@@ -186,7 +187,7 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	void SetViewDir( Vec3 v ){ m_turnAngle = v.ToVec2().Normalized().Angle(); }
 	SGS_PROPERTY_FUNC( WRITE SetViewDir ) SGS_ALIAS( Vec3 viewDir );
-	void SetFootPosition( Vec3 p ){ SetWorldPosition( p + V3(0,0,1.5f) ); }
+	void SetFootPosition( Vec3 p ){ m_obj->SetWorldPosition( p + V3(0,0,1.5f) ); }
 	SGS_PROPERTY_FUNC( WRITE SetFootPosition ) SGS_ALIAS( Vec3 footPosition );
 	bool m_skipTransformUpdate;
 	
@@ -194,23 +195,20 @@ struct TSCharacter : Actor, SGRX_MeshInstUserData
 };
 
 
-struct TSScriptedController : IActorController
+struct TSScriptedController : BhControllerBase
 {
-	SGS_OBJECT_INHERIT( IActorController );
+	SGS_OBJECT_INHERIT( BhControllerBase );
 	SGS_BACKING_STORE( _data.var );
 	SGS_BACKING_STORE( _backing.var );
 	
-	TSScriptedController( GameLevel* lev );
-	void FixedTick( float deltaTime );
-	void Tick( float deltaTime, float blendFactor );
+	TSScriptedController( GameObject* obj );
+	void FixedUpdate();
+	void Update();
 	Vec3 GetInput( uint32_t iid );
 	void Reset();
 	
 	SGS_PROPERTY sgsVariable _data;
 	SGS_PROPERTY sgsVariable _backing;
-	SGS_PROPERTY_FUNC( READ VARNAME level ) GameLevel* m_level;
-	
-	SGS_STATICMETHOD sgsVariable Create( SGS_CTX, GameLevelScrHandle lev );
 };
 
 
@@ -373,7 +371,6 @@ struct TSGameSystem : IGameLevelSystem
 {
 	enum { e_system_uid = 1000 };
 	TSGameSystem( GameLevel* lev );
-	virtual Entity* AddEntity( StringView type );
 };
 
 

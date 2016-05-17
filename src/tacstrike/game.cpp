@@ -308,7 +308,6 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		AddSystemToLevel<BulletSystem>( level );
 		AddSystemToLevel<AIDBSystem>( level );
 		AddSystemToLevel<CoverSystem>( level );
-		AddSystemToLevel<StockEntityCreationSystem>( level );
 	//	AddSystemToLevel<TSFightGameMode>( level );
 		AddSystemToLevel<DevelopSystem>( level );
 		

@@ -538,42 +538,4 @@ void MultiEntity::JTSetEnabled( int i, bool enabled )
 
 
 
-StockEntityCreationSystem::StockEntityCreationSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
-{
-	MultiEnt_InstallAPI( lev->GetSGSC() );
-	sgs_RegIntConst ric[] =
-	{
-		{ "ShapeType_AABB", ShapeType_AABB },
-		{ "ShapeType_Box", ShapeType_Box },
-		{ "ShapeType_Sphere", ShapeType_Sphere },
-		{ "ShapeType_Cylinder", ShapeType_Cylinder },
-		{ "ShapeType_Capsule", ShapeType_Capsule },
-		{ "ShapeType_Mesh", ShapeType_Mesh },
-		{ NULL, 0 },
-	};
-	sgs_RegIntConsts( lev->GetSGSC(), ric, -1 );
-	lev->RegisterNativeEntity<Entity>( "Entity" );
-	lev->RegisterNativeEntity<MultiEntity>( "MultiEntity" );
-	
-	lev->RegisterNativeClass<GOResource>( "GOResource" );
-	lev->RegisterNativeClass<MeshResource>( "MeshResource" );
-	lev->RegisterNativeClass<LightResource>( "LightResource" );
-	lev->RegisterNativeClass<ParticleSystemResource>( "ParticleSystemResource" );
-	lev->RegisterNativeClass<RigidBodyResource>( "RigidBodyResource" );
-	lev->RegisterNativeClass<ReflectionPlaneResource>( "ReflectionPlaneResource" );
-	
-	lev->RegisterNativeClass<BhResourceMoveObject>( "BhResourceMoveObject" );
-	lev->RegisterNativeClass<BhResourceMoveResource>( "BhResourceMoveResource" );
-}
-
-Entity* StockEntityCreationSystem::AddEntity( StringView type )
-{
-	if( type == "Entity" ) return new Entity( m_level );
-	if( type == "MultiEntity" ) return new MultiEntity( m_level );
-	
-	return NULL;
-}
-
-
-
 

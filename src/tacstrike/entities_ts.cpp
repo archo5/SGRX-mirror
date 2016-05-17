@@ -222,9 +222,9 @@ void TSCamera::Tick( float deltaTime, float blendFactor )
 
 
 
-TSCharacter::TSCharacter( GameLevel* lev ) :
-	Actor( lev ),
-	m_animChar( lev->GetScene(), lev->GetPhyWorld() ),
+TSCharacter::TSCharacter( GameObject* obj ) :
+	GOBehavior( obj ),
+	m_animChar( obj->m_level->GetScene(), obj->m_level->GetPhyWorld() ),
 	m_health( 100 ), m_armor( 0 ), m_damageMultiplier( 1 ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_jumpTimeout(0), m_canJumpTimeout(0), m_cachedBodyExtOffset(V2(0)),
@@ -303,7 +303,7 @@ void TSCharacter::OnTransformUpdate()
 {
 	if( m_skipTransformUpdate )
 		return;
-	Vec3 pos = GetWorldPosition();
+	Vec3 pos = m_obj->GetWorldPosition();
 	m_bodyHandle->SetPosition( pos );
 	m_ivPos.Set( pos );
 }
@@ -341,15 +341,17 @@ void TSCharacter::InitializeMesh( const StringView& path )
 
 void TSCharacter::ProcessAnims( float deltaTime )
 {
+	IController* ctrl = GetObjectController( m_obj );
+	
 	m_animTimeLeft -= deltaTime;
 	
 	// turning
 	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
 	Vec3 aimdir = V3( rundir.x, rundir.y, 0 );
-	float aimspeed = GetInputV2( ACT_Chr_AimAt ).y;
-	if( GetInputB( ACT_Chr_AimAt ) )
+	float aimspeed = ctrl->GetInputV2( ACT_Chr_AimAt ).y;
+	if( ctrl->GetInputB( ACT_Chr_AimAt ) )
 	{
-		aimdir = GetInputV3( ACT_Chr_AimTarget ) - GetQueryPosition_FT();
+		aimdir = ctrl->GetInputV3( ACT_Chr_AimTarget ) - GetQueryPosition_FT();
 	}
 	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
 	m_aimDist = aimdir.Length();
@@ -385,7 +387,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 
 void TSCharacter::FixedTick( float deltaTime )
 {
-	Actor::FixedTick( deltaTime );
+	IController* ctrl = GetObjectController( m_obj );
 	
 	if( IsInAction() )
 	{
@@ -397,7 +399,7 @@ void TSCharacter::FixedTick( float deltaTime )
 				m_anMainPlayer.Play( GR_GetAnim( "stand_with_gun_up" ), false, 0.2f );
 			
 			m_bodyHandle->SetLinearVelocity( V3(0) );
-			if( ( m_actState.info.placePos - GetWorldPosition() ).ToVec2().Length() < 0.1f )
+			if( ( m_actState.info.placePos - m_obj->GetWorldPosition() ).ToVec2().Length() < 0.1f )
 			{
 				m_actState.timeoutMoveToStart = 0;
 			}
@@ -444,8 +446,8 @@ void TSCharacter::FixedTick( float deltaTime )
 	}
 	else
 	{
-		Vec2 i_move = GetInputV2( ACT_Chr_Move );
-		float i_speed = GetInputV3( ACT_Chr_Move ).z;
+		Vec2 i_move = ctrl->GetInputV2( ACT_Chr_Move );
+		float i_speed = ctrl->GetInputV3( ACT_Chr_Move ).z;
 		
 		// animate character
 		const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_gun_up";
@@ -502,13 +504,13 @@ void TSCharacter::FixedTick( float deltaTime )
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
-		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 4, 0.2f, AIS_Footstep );
+		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
 	}
 	
 	m_animChar.FixedTick( deltaTime );
 	m_timeSinceLastHit += deltaTime;
 	
-	if( GetInputB( ACT_Chr_DoAction ) )
+	if( ctrl->GetInputB( ACT_Chr_DoAction ) )
 	{
 		BeginClosestAction( 2 );
 	}
@@ -516,9 +518,9 @@ void TSCharacter::FixedTick( float deltaTime )
 
 void TSCharacter::Tick( float deltaTime, float blendFactor )
 {
-	Actor::Tick( deltaTime, blendFactor );
+	IController* ctrl = GetObjectController( m_obj );
 	
-	Vec3 turn = GetInputV3( ACT_Chr_Turn );
+	Vec3 turn = ctrl->GetInputV3( ACT_Chr_Turn );
 	if( turn.z > 0 )
 		TurnTo( turn.ToVec2(), turn.z * deltaTime );
 	
@@ -531,9 +533,11 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 	m_level->LightMesh( MI, V3(0,0,m_isCrouching ? 0.6f : 1) );
 	
 	m_animChar.PreRender( blendFactor );
-	m_skipTransformUpdate = true;
-	SetWorldPosition( pos );
-	m_skipTransformUpdate = false;
+	// update position
+	{
+		TempSwapper<const void*> ts( m_obj->_xfChangeInvoker, this );
+		m_obj->SetWorldPosition( pos );
+	}
 	m_interpAimDir = m_ivAimDir.Get( blendFactor );
 	
 	
@@ -564,11 +568,11 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootTimeout -= deltaTime;
 		m_shootLT->enabled = true;
 	}
-	if( GetInputB( ACT_Chr_Shoot ) && m_health > 0 && m_shootTimeout <= 0 )
+	if( ctrl->GetInputB( ACT_Chr_Shoot ) && m_health > 0 && m_shootTimeout <= 0 )
 	{
 		Mat4 mtx = GetBulletOutputMatrix();
 		Vec3 origin = mtx.TransformPos( V3(0) );
-		Vec3 dir = ( GetInputV3( ACT_Chr_AimTarget ) - origin ).Normalized();
+		Vec3 dir = ( ctrl->GetInputV3( ACT_Chr_AimTarget ) - origin ).Normalized();
 		dir = ( dir + V3( randf11(), randf11(), randf11() ) * 0.02f ).Normalized();
 		m_level->GetSystem<BulletSystem>()->Add( origin, dir * 100, 1, 1, ownerType );
 		m_shootPS.SetTransform( mtx );
@@ -577,7 +581,7 @@ void TSCharacter::Tick( float deltaTime, float blendFactor )
 		m_shootLT->UpdateTransform();
 		m_shootLT->enabled = true;
 		m_shootTimeout += 0.1f;
-		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 10, 0.2f, AIS_Shot );
+		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 10, 0.2f, AIS_Shot );
 		
 		m_level->PlaySound( "/mp5_shot", origin, dir );
 		
@@ -617,8 +621,10 @@ void TSCharacter::_HandleGroundBody( Vec3& pos, SGRX_IPhyRigidBody* body, float 
 
 void TSCharacter::HandleMovementPhysics( float deltaTime )
 {
+	IController* ctrl = GetObjectController( m_obj );
+	
 	// disabled features
-	bool jump = GetInputB( ACT_Chr_Jump );
+	bool jump = ctrl->GetInputB( ACT_Chr_Jump );
 //	float m_jumpTimeout = 1, m_canJumpTimeout = 1;
 	
 	SGRX_PhyRaycastInfo rcinfo;
@@ -630,7 +636,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	Vec3 pos = m_bodyHandle->GetPosition();
 	
 	bool prevCrouch = m_isCrouching;
-	m_isCrouching = GetInputB( ACT_Chr_Crouch );
+	m_isCrouching = ctrl->GetInputB( ACT_Chr_Crouch );
 	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
 		m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
 		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
@@ -683,7 +689,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		SGRX_Sound3DAttribs s3dattr = { pos, lvel, V3(0), V3(0) };
 		fsev->Set3DAttribs( s3dattr );
 		fsev->Start();
-		m_level->GetSystem<AIDBSystem>()->AddSound( GetWorldPosition(), 4, 0.2f, AIS_Footstep );
+		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
 		
 		m_anMainPlayer.Play( GR_GetAnim( "jump" ) );
 	}
@@ -694,13 +700,13 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	}
 	m_isOnGround = ground;
 	
-	Vec2 md = GetInputV2( ACT_Chr_Move );
+	Vec2 md = ctrl->GetInputV2( ACT_Chr_Move );
 	if( md.LengthSq() > 1 )
 		md.Normalize();
 	
 	Vec2 lvel2 = lvel.ToVec2();
 	
-	float maxspeed = 5 * GetInputV3( ACT_Chr_Move ).z;
+	float maxspeed = 5 * ctrl->GetInputV3( ACT_Chr_Move ).z;
 	float accel = ( md.NearZero() && !m_isCrouching ) ? 38 : 30;
 	if( m_isCrouching ){ accel = 5; maxspeed = 2.5f; }
 	if( !ground ){ accel = 10; }
@@ -741,9 +747,9 @@ void TSCharacter::TurnTo( const Vec2& turnDir, float speedDelta )
 
 void TSCharacter::PushTo( const Vec3& pos, float speedDelta )
 {
-	Vec2 diff = pos.ToVec2() - GetWorldPosition().ToVec2();
+	Vec2 diff = pos.ToVec2() - m_obj->GetWorldPosition().ToVec2();
 	diff = diff.Normalized() * TMIN( speedDelta, diff.Length() );
-	m_bodyHandle->SetPosition( GetWorldPosition() + V3( diff.x, diff.y, 0 ) );
+	m_bodyHandle->SetPosition( m_obj->GetWorldPosition() + V3( diff.x, diff.y, 0 ) );
 }
 
 void TSCharacter::BeginClosestAction( float maxdist )
@@ -920,65 +926,6 @@ Mat4 TSCharacter::GetBulletOutputMatrix() const
 Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
 {
 	return m_animChar.GetAttachmentPos( m_animChar.FindAttachment( atch ), off );
-}
-
-
-
-TSScriptedController::TSScriptedController( GameLevel* lev ) : m_level( lev )
-{
-	_data = lev->GetScriptCtx().CreateDict();
-}
-
-void TSScriptedController::FixedTick( float deltaTime )
-{
-	sgsVariable fn_fixedupdate = GetScriptedObject().getprop( "FixedUpdate" );
-	if( fn_fixedupdate.not_null() )
-	{
-		sgs_PushReal( C, deltaTime );
-		GetScriptedObject().thiscall( C, fn_fixedupdate, 1 );
-	}
-}
-
-void TSScriptedController::Tick( float deltaTime, float blendFactor )
-{
-	sgsVariable fn_update = GetScriptedObject().getprop( "Update" );
-	if( fn_update.not_null() )
-	{
-		sgs_PushReal( C, deltaTime );
-		sgs_PushReal( C, blendFactor );
-		GetScriptedObject().thiscall( C, fn_update, 2 );
-	}
-}
-
-Vec3 TSScriptedController::GetInput( uint32_t iid )
-{
-	sgsVariable fn_getinput = GetScriptedObject().getprop( "GetInput" );
-	if( fn_getinput.not_null() )
-	{
-		SGS_SCOPE;
-		sgs_PushInt( C, iid );
-		GetScriptedObject().thiscall( C, fn_getinput, 1, 1 );
-		return sgs_GetVar<Vec3>()( C, -1 );
-	}
-	return V3(0);
-}
-
-void TSScriptedController::Reset()
-{
-	sgsVariable fn_reset = GetScriptedObject().getprop( "Reset" );
-	if( fn_reset.not_null() )
-		GetScriptedObject().thiscall( C, fn_reset );
-}
-
-sgsVariable TSScriptedController::Create( SGS_CTX, GameLevelScrHandle lev )
-{
-	if( !lev )
-	{
-		sgs_Msg( C, SGS_WARNING, "argument 1 must be GameLevel" );
-		return sgsVariable();
-	}
-	SGS_CREATECLASS( C, NULL, TSScriptedController, ( lev ) );
-	return sgsVariable( C, sgsVariable::PickAndPop );
 }
 
 
@@ -1871,32 +1818,7 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 	
 	sgs_RegIntConsts( m_level->GetSGSC(), g_ts_ints, -1 );
 	
-	lev->RegisterNativeEntity<TSCharacter>( "TSCharacter" );
-}
-
-Entity* TSGameSystem::AddEntity( StringView type )
-{
-#if 0
-	///////////////////////////
-	if( type == "camera" )
-	{
-		return new TSCamera( m_level );
-#if 0
-		(
-			m_level,
-			data.getprop("name").get<StringView>(),
-			data.getprop("char").get<StringView>(),
-			data.getprop("position").get<Vec3>(),
-			Mat4::CreateRotationXYZ( DEG2RAD( data.getprop("rot_angles").get<Vec3>() ) ).GetRotationQuaternion(),
-			data.getprop("scale_sep").get<Vec3>() * data.getprop("scale_uni").get<float>(),
-			data.getprop("dir0").get<Vec3>(),
-			data.getprop("dir1").get<Vec3>()
-		);
-#endif
-	}
-#endif
-	if( type == "TSCharacter" ) return new TSCharacter( m_level );
-	return NULL;
+	lev->RegisterNativeBehavior<TSCharacter>( "TSCharacter" );
 }
 
 

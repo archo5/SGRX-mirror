@@ -173,83 +173,6 @@ static sgs_ObjInterface TSCamera__sgs_interface =
 _sgsInterface TSCamera::_sgs_interface(TSCamera__sgs_interface, TSCamera__sgs_ifn, &Entity::_sgs_interface);
 
 
-static int _sgs_method__TSCharacter__GetChild( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetChild ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__LocalToWorld( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, LocalToWorld ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__WorldToLocal( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, WorldToLocal ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__LocalToWorldDir( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, LocalToWorldDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__WorldToLocalDir( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, WorldToLocalDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__GetInputV3( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetInputV3 ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetInputV3( sgs_GetVar<uint32_t>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__GetInputV2( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetInputV2 ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetInputV2( sgs_GetVar<uint32_t>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__GetInputF( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetInputF ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetInputF( sgs_GetVar<uint32_t>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__GetInputB( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetInputB ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetInputB( sgs_GetVar<uint32_t>()(C,0) )); return 1;
-}
-
-static int _sgs_method__TSCharacter__IsAlive( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, IsAlive ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->IsAlive(  )); return 1;
-}
-
-static int _sgs_method__TSCharacter__Reset( SGS_CTX )
-{
-	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, Reset ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->Reset(  ); return 0;
-}
-
 static int _sgs_method__TSCharacter__SetPlayerMode( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SetPlayerMode ) ) return 0;
@@ -367,24 +290,12 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_sgsGetParent() ); return SGS_SUCCESS; }
-		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
-		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
-		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->name ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_id ); return SGS_SUCCESS; }
-		SGS_CASE( "ctrl" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->ctrl ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
+		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "moveRefPos" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->GetMoveRefPos() ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_health ); return SGS_SUCCESS; }
 		SGS_CASE( "damageMultiplier" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_damageMultiplier ); return SGS_SUCCESS; }
@@ -399,22 +310,6 @@ int TSCharacter::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSCharacter*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<TSCharacter*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ static_cast<TSCharacter*>( obj->data )->SetWorldPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ static_cast<TSCharacter*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ static_cast<TSCharacter*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ static_cast<TSCharacter*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ static_cast<TSCharacter*>( obj->data )->SetWorldMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ static_cast<TSCharacter*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ static_cast<TSCharacter*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ static_cast<TSCharacter*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ static_cast<TSCharacter*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ static_cast<TSCharacter*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ static_cast<TSCharacter*>( obj->data )->_SetParent( sgs_GetVar<EntityScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "infoMask" ){ static_cast<TSCharacter*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localInfoTarget" ){ static_cast<TSCharacter*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ static_cast<TSCharacter*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ static_cast<TSCharacter*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "ctrl" ){ static_cast<TSCharacter*>( obj->data )->sgsSetCtrl( sgs_GetVar<ActorCtrlScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ static_cast<TSCharacter*>( obj->data )->m_health = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "damageMultiplier" ){ static_cast<TSCharacter*>( obj->data )->m_damageMultiplier = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "viewDir" ){ static_cast<TSCharacter*>( obj->data )->SetViewDir( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
@@ -433,30 +328,18 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_ch.size(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_sgsGetParent(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetInfoMask(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_infoTarget, depth ).push( C ); }
-		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->name, depth ).push( C ); }
-		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_id, depth ).push( C ); }
-		{ sgs_PushString( C, "\nctrl = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->ctrl, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_get_resources(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmoveRefPos = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->GetMoveRefPos(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nhealth = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_health, depth ).push( C ); }
 		{ sgs_PushString( C, "\ndamageMultiplier = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_damageMultiplier, depth ).push( C ); }
 		{ sgs_PushString( C, "\nisCrouching = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_isCrouching, depth ).push( C ); }
 		{ sgs_PushString( C, "\ntimeSinceLastHit = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit, depth ).push( C ); }
-		sgs_StringConcat( C, 50 );
+		sgs_StringConcat( C, 26 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -466,17 +349,6 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 {
-	{ "GetChild", _sgs_method__TSCharacter__GetChild },
-	{ "LocalToWorld", _sgs_method__TSCharacter__LocalToWorld },
-	{ "WorldToLocal", _sgs_method__TSCharacter__WorldToLocal },
-	{ "LocalToWorldDir", _sgs_method__TSCharacter__LocalToWorldDir },
-	{ "WorldToLocalDir", _sgs_method__TSCharacter__WorldToLocalDir },
-	{ "GetInputV3", _sgs_method__TSCharacter__GetInputV3 },
-	{ "GetInputV2", _sgs_method__TSCharacter__GetInputV2 },
-	{ "GetInputF", _sgs_method__TSCharacter__GetInputF },
-	{ "GetInputB", _sgs_method__TSCharacter__GetInputB },
-	{ "IsAlive", _sgs_method__TSCharacter__IsAlive },
-	{ "Reset", _sgs_method__TSCharacter__Reset },
 	{ "SetPlayerMode", _sgs_method__TSCharacter__SetPlayerMode },
 	{ "InitializeMesh", _sgs_method__TSCharacter__InitializeMesh },
 	{ "IsTouchingPoint", _sgs_method__TSCharacter__IsTouchingPoint },
@@ -508,22 +380,8 @@ static sgs_ObjInterface TSCharacter__sgs_interface =
 	"TSCharacter",
 	TSCharacter::_sgs_destruct, TSCharacter::_sgs_gcmark, TSCharacter::_sgs_getindex, TSCharacter::_sgs_setindex, NULL, NULL, TSCharacter::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, TSCharacter__sgs_ifn, &Actor::_sgs_interface);
+_sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, TSCharacter__sgs_ifn, &GOBehavior::_sgs_interface);
 
-
-static int _sgs_method__TSScriptedController__FixedTick( SGS_CTX )
-{
-	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, FixedTick ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->FixedTick( sgs_GetVar<float>()(C,0) ); return 0;
-}
-
-static int _sgs_method__TSScriptedController__Tick( SGS_CTX )
-{
-	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, Tick ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->Tick( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
-}
 
 static int _sgs_method__TSScriptedController__GetInput( SGS_CTX )
 {
@@ -537,12 +395,6 @@ static int _sgs_method__TSScriptedController__Reset( SGS_CTX )
 	TSScriptedController* data; if( !SGS_PARSE_METHOD( C, TSScriptedController::_sgs_interface, data, TSScriptedController, Reset ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->Reset(  ); return 0;
-}
-
-static int _sgs_method__TSScriptedController__Create( SGS_CTX )
-{
-	SGSFN( "TSScriptedController.Create" );
-	sgs_PushVar(C,TSScriptedController::Create( C, sgs_GetVar<GameLevelScrHandle>()(C,0) )); return 1;
 }
 
 int TSScriptedController::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -562,10 +414,15 @@ int TSScriptedController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<TSScriptedController*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "entity" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->sgsGetEntity() ); return SGS_SUCCESS; }
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
+		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "_backing" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->_backing ); return SGS_SUCCESS; }
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<TSScriptedController*>( obj->data )->m_level ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<TSScriptedController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 		if( sgs_PushIndex( C, static_cast<TSScriptedController*>( obj->data )->_backing.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
@@ -590,11 +447,16 @@ int TSScriptedController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	sgs_PushString( C, bfr );
 	if( depth > 0 )
 	{
-		{ sgs_PushString( C, "\nentity = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->sgsGetEntity(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_get_resources(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_backing = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->_backing, depth ).push( C ); }
-		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<TSScriptedController*>( obj->data )->m_level, depth ).push( C ); }
-		sgs_StringConcat( C, 8 );
+		sgs_StringConcat( C, 18 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -604,11 +466,8 @@ int TSScriptedController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSScriptedController__sgs_funcs[] =
 {
-	{ "FixedTick", _sgs_method__TSScriptedController__FixedTick },
-	{ "Tick", _sgs_method__TSScriptedController__Tick },
 	{ "GetInput", _sgs_method__TSScriptedController__GetInput },
 	{ "Reset", _sgs_method__TSScriptedController__Reset },
-	{ "Create", _sgs_method__TSScriptedController__Create },
 	{ NULL, NULL },
 };
 
@@ -626,7 +485,7 @@ static sgs_ObjInterface TSScriptedController__sgs_interface =
 	"TSScriptedController",
 	TSScriptedController::_sgs_destruct, TSScriptedController::_sgs_gcmark, TSScriptedController::_sgs_getindex, TSScriptedController::_sgs_setindex, NULL, NULL, TSScriptedController::_sgs_dump, NULL, NULL, NULL, 
 };
-_sgsInterface TSScriptedController::_sgs_interface(TSScriptedController__sgs_interface, TSScriptedController__sgs_ifn, &IActorController::_sgs_interface);
+_sgsInterface TSScriptedController::_sgs_interface(TSScriptedController__sgs_interface, TSScriptedController__sgs_ifn, &BhControllerBase::_sgs_interface);
 
 
 static int _sgs_method__TSPlayerController__FixedTick( SGS_CTX )

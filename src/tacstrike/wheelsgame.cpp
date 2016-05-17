@@ -65,7 +65,6 @@ struct WheelsGame : BaseGame
 		AddSystemToLevel<ScriptedSequenceSystem>( level );
 		AddSystemToLevel<MusicSystem>( level );
 		AddSystemToLevel<DamageSystem>( level );
-		AddSystemToLevel<StockEntityCreationSystem>( level );
 		AddSystemToLevel<DevelopSystem>( level );
 		
 		HelpTextSystem* HTS = level->GetSystem<HelpTextSystem>();

@@ -349,16 +349,9 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 	if( !ovr && m_resources.isset( name ) )
 		return NULL;
 	GOResource* rsrc = NULL;
-	if( type == GO_RSRC_MESH )
-		rsrc = new MeshResource( this );
-	else if( type == GO_RSRC_LIGHT )
-		rsrc = new LightResource( this );
-	else if( type == GO_RSRC_PSYS )
-		rsrc = new ParticleSystemResource( this );
-	else if( type == GO_RSRC_RBODY )
-		rsrc = new RigidBodyResource( this );
-	else if( type == GO_RSRC_REFPLANE )
-		rsrc = new ReflectionPlaneResource( this );
+	GOResourceInfo* ri = m_level->m_goResourceMap.getptr( type );
+	if( ri )
+		rsrc = ri->createFunc( this );
 	if( rsrc )
 	{
 		rsrc->m_name = name;
@@ -662,15 +655,25 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	// register basic constants
 	sgs_RegIntConst ric[] =
 	{
+		// info flags
 		{ "IEST_InteractiveItem", IEST_InteractiveItem },
 		{ "IEST_HeatSource", IEST_HeatSource },
 		{ "IEST_Player", IEST_Player },
 		{ "IEST_Target", IEST_Target },
 		{ "IEST_AIAlert", IEST_AIAlert },
+		// basic resource types
 		{ "GO_RSRC_MESH", GO_RSRC_MESH },
 		{ "GO_RSRC_LIGHT", GO_RSRC_LIGHT },
 		{ "GO_RSRC_PSYS", GO_RSRC_PSYS },
 		{ "GO_RSRC_RBODY", GO_RSRC_RBODY },
+		// rigid body resource shape types
+		{ "ShapeType_AABB", ShapeType_AABB },
+		{ "ShapeType_Box", ShapeType_Box },
+		{ "ShapeType_Sphere", ShapeType_Sphere },
+		{ "ShapeType_Cylinder", ShapeType_Cylinder },
+		{ "ShapeType_Capsule", ShapeType_Capsule },
+		{ "ShapeType_Mesh", ShapeType_Mesh },
+		//
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( C, ric, -1 );
@@ -689,6 +692,21 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	m_markerPositions = m_scriptCtx.CreateDict();
 	AddEntry( "positions", m_markerPositions );
 	
+	// register resource base class
+	RegisterNativeClass<GOResource>( "GOResource" );
+	
+	// register core resources
+	MeshResource::Register( this );
+	LightResource::Register( this );
+	ParticleSystemResource::Register( this );
+	RigidBodyResource::Register( this );
+	ReflectionPlaneResource::Register( this );
+	
+	// register core behaviors
+	RegisterNativeBehavior<BhResourceMoveObject>( "BhResourceMoveObject" );
+	RegisterNativeBehavior<BhResourceMoveResource>( "BhResourceMoveResource" );
+	
+	// create the graphics scene
 	m_scene = GR_CreateScene();
 	m_scene->clearColor = 0;
 	m_scene->camera.position = Vec3::Create( 4, 4, 4 );

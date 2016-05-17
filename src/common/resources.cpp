@@ -419,3 +419,46 @@ void BhResourceMoveResource::Update()
 }
 
 
+BhControllerBase::BhControllerBase( GameObject* obj ) :
+	GOBehavior( obj )
+{
+	_data = m_level->GetScriptCtx().CreateDict();
+}
+
+Vec3 BhControllerBase::GetInput( uint32_t iid )
+{
+	sgsVariable fn_getinput = GetScriptedObject().getprop( "GetInput" );
+	if( fn_getinput.not_null() )
+	{
+		SGS_SCOPE;
+		sgs_PushInt( C, iid );
+		GetScriptedObject().thiscall( C, fn_getinput, 1, 1 );
+		return sgs_GetVar<Vec3>()( C, -1 );
+	}
+	return V3(0);
+}
+
+void BhControllerBase::Reset()
+{
+	sgsVariable fn_reset = GetScriptedObject().getprop( "Reset" );
+	if( fn_reset.not_null() )
+		GetScriptedObject().thiscall( C, fn_reset );
+}
+
+
+static IController g_DummyController;
+IController* GetObjectController( GameObject* obj, bool def )
+{
+	for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+	{
+		GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+		BhControllerBase* bcb = sgsHandle<BhControllerBase>(
+			obj->m_level->GetSGSC(), bhvr->m_sgsObject );
+		if( bcb && bcb->enabled )
+			return bcb;
+	}
+	
+	return def ? &g_DummyController : NULL;
+}
+
+

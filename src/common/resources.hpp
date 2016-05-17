@@ -27,6 +27,7 @@ EXP_STRUCT MeshResource : GOResource
 {
 	SGS_OBJECT_INHERIT( GOResource );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( MeshResource, GO_RSRC_MESH, "Mesh" );
 	
 	GFW_EXPORT MeshResource( GameObject* obj );
 	GFW_EXPORT ~MeshResource();
@@ -67,6 +68,7 @@ EXP_STRUCT LightResource : GOResource
 {
 	SGS_OBJECT_INHERIT( GOResource );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( LightResource, GO_RSRC_LIGHT, "Light" );
 	
 	GFW_EXPORT LightResource( GameObject* obj );
 	GFW_EXPORT ~LightResource();
@@ -128,6 +130,7 @@ EXP_STRUCT ParticleSystemResource : GOResource
 {
 	SGS_OBJECT_INHERIT( GOResource );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( ParticleSystemResource, GO_RSRC_PSYS, "Particle system" );
 	
 	GFW_EXPORT ParticleSystemResource( GameObject* obj );
 	GFW_EXPORT virtual void OnTransformUpdate();
@@ -164,6 +167,7 @@ EXP_STRUCT RigidBodyResource : GOResource
 {
 	SGS_OBJECT_INHERIT( GOResource );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( RigidBodyResource, GO_RSRC_RBODY, "Rigid body" );
 	
 	GFW_EXPORT RigidBodyResource( GameObject* obj );
 	GFW_EXPORT virtual void OnTransformUpdate();
@@ -242,6 +246,7 @@ EXP_STRUCT ReflectionPlaneResource : GOResource
 {
 	SGS_OBJECT_INHERIT( GOResource );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( ReflectionPlaneResource, GO_RSRC_REFPLANE, "Reflection plane" );
 	
 	GFW_EXPORT ReflectionPlaneResource( GameObject* obj );
 };
@@ -280,6 +285,37 @@ EXP_STRUCT BhResourceMoveResource : GOBehavior
 	SGS_PROPERTY GOResource::ScrHandle follow;
 	SGS_PROPERTY uint8_t mask;
 };
+
+
+EXP_STRUCT IController
+{
+	virtual Vec3 GetInput( uint32_t iid ){ return V3(0); }
+	virtual void Reset(){}
+	
+	FINLINE Vec3 GetInputV3( uint32_t iid ){ return GetInput( iid ); }
+	FINLINE Vec2 GetInputV2( uint32_t iid ){ return GetInput( iid ).ToVec2(); }
+	FINLINE float GetInputF( uint32_t iid ){ return GetInput( iid ).x; }
+	FINLINE bool GetInputB( uint32_t iid ){ return GetInput( iid ).x > 0.5f; }
+};
+
+EXP_STRUCT BhControllerBase : GOBehavior, IController
+{
+	SGS_OBJECT_INHERIT( GOBehavior );
+	ENT_SGS_IMPLEMENT;
+	
+	GFW_EXPORT BhControllerBase( GameObject* obj );
+	GFW_EXPORT virtual SGS_METHOD Vec3 GetInput( uint32_t iid );
+	GFW_EXPORT virtual SGS_METHOD void Reset();
+	
+	SGS_METHOD SGS_ALIAS( Vec3 GetInputV3( uint32_t iid ) );
+	SGS_METHOD SGS_ALIAS( Vec2 GetInputV2( uint32_t iid ) );
+	SGS_METHOD SGS_ALIAS( float GetInputF( uint32_t iid ) );
+	SGS_METHOD SGS_ALIAS( bool GetInputB( uint32_t iid ) );
+	
+	SGS_PROPERTY bool enabled;
+};
+
+GFW_EXPORT IController* GetObjectController( GameObject* obj, bool def = true );
 
 
 

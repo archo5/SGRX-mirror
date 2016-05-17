@@ -4514,3 +4514,138 @@ static sgs_ObjInterface BhResourceMoveResource__sgs_interface =
 };
 _sgsInterface BhResourceMoveResource::_sgs_interface(BhResourceMoveResource__sgs_interface, BhResourceMoveResource__sgs_ifn, &GOBehavior::_sgs_interface);
 
+
+static int _sgs_method__BhControllerBase__GetInput( SGS_CTX )
+{
+	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, GetInput ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetInput( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
+static int _sgs_method__BhControllerBase__Reset( SGS_CTX )
+{
+	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, Reset ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Reset(  ); return 0;
+}
+
+static int _sgs_method__BhControllerBase__GetInputV3( SGS_CTX )
+{
+	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, GetInputV3 ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetInputV3( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
+static int _sgs_method__BhControllerBase__GetInputV2( SGS_CTX )
+{
+	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, GetInputV2 ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetInputV2( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
+static int _sgs_method__BhControllerBase__GetInputF( SGS_CTX )
+{
+	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, GetInputF ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetInputF( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
+static int _sgs_method__BhControllerBase__GetInputB( SGS_CTX )
+{
+	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, GetInputB ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetInputB( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
+int BhControllerBase::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<BhControllerBase*>( obj->data )->C = C;
+	static_cast<BhControllerBase*>( obj->data )->~BhControllerBase();
+	return SGS_SUCCESS;
+}
+
+int BhControllerBase::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhControllerBase*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int BhControllerBase::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhControllerBase*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
+		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<BhControllerBase*>( obj->data )->enabled ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<BhControllerBase*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int BhControllerBase::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhControllerBase*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<BhControllerBase*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<BhControllerBase*>( obj->data )->enabled = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<BhControllerBase*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int BhControllerBase::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BhControllerBase*>( obj->data )->C, C );
+	char bfr[ 48 ];
+	sprintf( bfr, "BhControllerBase (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->_get_resources(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->_get_behaviors(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<BhControllerBase*>( obj->data )->enabled, depth ).push( C ); }
+		sgs_StringConcat( C, 18 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst BhControllerBase__sgs_funcs[] =
+{
+	{ "GetInput", _sgs_method__BhControllerBase__GetInput },
+	{ "Reset", _sgs_method__BhControllerBase__Reset },
+	{ "GetInputV3", _sgs_method__BhControllerBase__GetInputV3 },
+	{ "GetInputV2", _sgs_method__BhControllerBase__GetInputV2 },
+	{ "GetInputF", _sgs_method__BhControllerBase__GetInputF },
+	{ "GetInputB", _sgs_method__BhControllerBase__GetInputB },
+	{ NULL, NULL },
+};
+
+static int BhControllerBase__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		BhControllerBase__sgs_funcs,
+		-1, "BhControllerBase." );
+	return 1;
+}
+
+static sgs_ObjInterface BhControllerBase__sgs_interface =
+{
+	"BhControllerBase",
+	BhControllerBase::_sgs_destruct, BhControllerBase::_sgs_gcmark, BhControllerBase::_sgs_getindex, BhControllerBase::_sgs_setindex, NULL, NULL, BhControllerBase::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface BhControllerBase::_sgs_interface(BhControllerBase__sgs_interface, BhControllerBase__sgs_ifn, &GOBehavior::_sgs_interface);
+

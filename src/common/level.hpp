@@ -524,6 +524,19 @@ enum MatrixMode
 	MM_Absolute = 1,
 };
 
+struct GOResourceInfo
+{
+	StringView name;
+	struct GOResource* (*createFunc)( struct GameObject* );
+};
+
+#define IMPLEMENT_RESOURCE( cls, id, nm ) \
+	static GOResource* _Create( GameObject* go ){ return new cls( go ); } \
+	static void Register( GameLevel* lev ){ \
+		GOResourceInfo ri = { nm, _Create }; \
+		lev->RegisterNativeClass< cls >( _sgs_interface->name ); \
+		lev->m_goResourceMap.set( id, ri ); }
+
 EXP_STRUCT GOResource : LevelScrObj
 {
 	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
@@ -748,12 +761,6 @@ EXP_STRUCT GameLevel :
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
 		m_scriptCtx.SetGlobal( type, iface );
 	}
-	template< class T > void RegisterNativeEntity( StringView type )
-	{
-		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
-		m_scriptCtx.SetGlobal( type, iface );
-		m_self.getprop( "entity_types" ).setprop( m_scriptCtx.CreateStringVar( type ), iface );
-	}
 	GFW_EXPORT sgsVariable GetEntityInterface( StringView name );
 	GFW_EXPORT void EnumEntities( Array< StringView >& out );
 	GFW_EXPORT Entity* _CreateEntityReal( const StringView& type );
@@ -870,6 +877,7 @@ EXP_STRUCT GameLevel :
 	sgsVariable GetBehaviorInterface( StringView name );
 	Array< GameObject* > m_gameObjects;
 	SGRX_GUID nextObjectGUID;
+	HashTable< uint32_t, GOResourceInfo > m_goResourceMap;
 };
 
 template< class T > T* AddSystemToLevel( GameLevel* lev )
