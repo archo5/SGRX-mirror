@@ -69,6 +69,12 @@ static sgs_RegIntConst g_gfw_ints[] =
 	{ "LM_Dynamic", SGRX_LM_Dynamic },
 	{ "LM_Decal", SGRX_LM_Decal },
 	
+	// physics force types
+	{ "ForceType_Velocity", ForceType_Velocity },
+	{ "ForceType_Impulse", ForceType_Impulse },
+	{ "ForceType_Acceleration", ForceType_Acceleration },
+	{ "ForceType_Force", ForceType_Force },
+	
 	{ NULL, 0 },
 };
 

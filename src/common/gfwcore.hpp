@@ -117,5 +117,11 @@ EXP_STRUCT SGSMeshInstHandle
 GFW_DEFINE_HANDLE_CPPBC_CONV( MeshInstHandle, SGSMeshInstHandle );
 
 
+#define ForceType_Velocity PFT_Velocity
+#define ForceType_Impulse PFT_Impulse
+#define ForceType_Acceleration PFT_Acceleration
+#define ForceType_Force PFT_Force
+
+
 GFW_EXPORT void GFWRegisterCore( SGS_CTX );
 

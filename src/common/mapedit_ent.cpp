@@ -55,12 +55,30 @@ void FieldString::EditUI()
 }
 
 
+sgsVariable ENT_Store()
+{
+	return g_Level->GetScriptCtx().GetGlobal( "ED_ENTITY_TYPES" );
+}
+
+void ENT_EnumEntities( Array< StringView >& out )
+{
+	ScriptVarIterator it( ENT_Store() );
+	while( it.Advance() )
+	{
+		out.push_back( it.GetKey().get<StringView>() );
+	}
+}
+
+sgsVariable ENT_GetEntityInterface( StringView name )
+{
+	return ENT_Store().getprop( FVar( name ) );
+}
+
+
 void EdEntity::DebugDraw()
 {
-	if( m_realEnt )
-	{
-		m_realEnt->EditorDrawWorld();
-	}
+	sgsVariable fn = m_entIface.getprop( "EditorDrawWorld" );
+	m_data.thiscall( g_Level->GetSGSC(), fn );
 }
 
 
@@ -68,35 +86,25 @@ EdEntity::EdEntity( sgsString type, bool isproto ) :
 	EdObject( ObjType_Entity ),
 	m_isproto( isproto ),
 	m_pos( V3(0) ),
-	m_entityType( type ),
-	m_realEnt( NULL )
+	m_entityType( type )
 {
+	SGS_CTX = g_Level->GetSGSC();
+	
 	StringView typestr( type.c_str(), type.size() );
-	sgsVariable eiface = g_Level->GetEntityInterface( typestr );
-	m_iconTex = GR_GetTexture( eiface.getprop("ED_Icon").getdef<StringView>( "editor/icons/default.png" ) );
+	m_entIface = ENT_GetEntityInterface( typestr );
+	m_iconTex = GR_GetTexture( m_entIface.getprop("ED_Icon").getdef<StringView>( "editor/icons/default.png" ) );
 	
 	{
-		SGS_CSCOPE( g_Level->GetSGSC() );
-		sgs_PushPtr( g_Level->GetSGSC(), this );
-		eiface.thiscall( g_Level->GetSGSC(), "ED_PropInfo", 1 );
+		SGS_SCOPE;
+		sgs_PushPtr( C, this );
+		m_entIface.thiscall( C, "ED_PropInfo", 1 );
 	}
 	
 	Fields2Data();
-	
-	if( !isproto )
-	{
-		m_realEnt = g_Level->CreateEntity( typestr );
-		UpdateRealEnt( NULL );
-	}
 }
 
 EdEntity::~EdEntity()
 {
-	if( m_realEnt )
-	{
-		g_Level->DestroyEntity( m_realEnt );
-		m_realEnt = NULL;
-	}
 }
 
 EdEntity& EdEntity::operator = ( const EdEntity& o )
@@ -115,7 +123,6 @@ EdObject* EdEntity::Clone()
 {
 	EdEntity* N = new EdEntity( m_entityType, false );
 	*N = *this;
-	N->UpdateRealEnt( NULL );
 	g_EdWorld->SetEntityID( N );
 	N->selected = selected;
 	N->group = group;
@@ -129,7 +136,7 @@ void EdEntity::Serialize( SVHBR& arch )
 	arch << data;
 	m_data = g_Level->GetScriptCtx().Unserialize( data );
 	Data2Fields();
-	UpdateRealEnt( NULL );
+	Fields2Data();
 }
 
 void EdEntity::Serialize( SVHBW& arch )
@@ -156,7 +163,6 @@ void EdEntity::FLoad( sgsVariable data, int version )
 			g_EdWorld->SetEntityID( this );
 	}
 	Fields2Data();
-	UpdateRealEnt( NULL );
 }
 
 sgsVariable EdEntity::FSave( int version )
@@ -184,7 +190,6 @@ void EdEntity::SetPosition( const Vec3& pos )
 		if( F->type == FT_Vec3 && F->key.equals( "position" ) )
 		{
 			((FieldVec3*)F)->value = m_pos;
-			UpdateRealEnt( F );
 		}
 	}
 	Fields2Data();
@@ -207,7 +212,6 @@ void EdEntity::EditUI()
 			if( F->type == FT_Vec3 && F->key.equals( "position" ) )
 				m_pos = ((FieldVec3*)F)->value;
 			Fields2Data();
-			UpdateRealEnt( F );
 		}
 	}
 }
@@ -232,6 +236,7 @@ void EdEntity::Fields2Data()
 		FieldBase* F = m_fields[ i ];
 		data.setprop( F->key, F->ToIntVar() );
 	}
+	data.set_meta_obj( m_entIface );
 	m_data = data;
 }
 
@@ -243,25 +248,9 @@ void EdEntity::SetID( StringView idstr )
 		if( F->type == FT_String && F->key.equals( "id" ) )
 		{
 			((FieldString*)F)->value = idstr;
-			UpdateRealEnt( F );
 		}
 	}
 	Fields2Data();
-}
-
-void EdEntity::UpdateRealEnt( FieldBase* curF )
-{
-	if( !m_realEnt )
-		return;
-//	printf("%p\n",curF);
-	sgsVariable so = m_realEnt->GetScriptedObject();
-	for( size_t i = 0; i < m_fields.size(); ++i )
-	{
-		FieldBase* F = m_fields[ i ];
-		if( curF && curF != F )
-			continue;
-		so.setprop( F->key, F->ToIntVar() );
-	}
 }
 
 void EdEntity::AddField( sgsString key, sgsString name, FieldBase* F )
@@ -444,7 +433,7 @@ static int _EEL_SortByName( const void* a, const void* b )
 EdEntList::EdEntList() : which( 0 )
 {
 	Array< StringView > ents;
-	g_Level->EnumEntities( ents );
+	ENT_EnumEntities( ents );
 	
 	qsort( ents.data(), ents.size(), sizeof(ents[0]), _EEL_SortByName );
 	

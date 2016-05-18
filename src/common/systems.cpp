@@ -55,6 +55,7 @@ bool LevelMapSystem::LoadChunk( const StringView& type, ByteView data )
 	return true;
 }
 
+#if 0
 void LevelMapSystem::UpdateItem( Entity* e, const MapItemInfo& data )
 {
 	m_mapItemData[ e ] = data;
@@ -64,6 +65,7 @@ void LevelMapSystem::RemoveItem( Entity* e )
 {
 	m_mapItemData.unset( e );
 }
+#endif
 
 void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float linesize )
 {
@@ -191,6 +193,7 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 }
 
+#if 0
 void LevelMapSystem::sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt )
 {
 	MapItemInfo mii = { type, pos, dir, szfwd, szrt };
@@ -201,6 +204,7 @@ void LevelMapSystem::sgsRemove( EntityScrHandle e )
 {
 	RemoveItem( e );
 }
+#endif
 
 
 MessagingSystem::MessagingSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )

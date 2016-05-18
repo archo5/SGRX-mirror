@@ -55,85 +55,6 @@ sgsHandle< GameLevel > LevelScrObj::_sgs_getLevel()
 }
 
 
-Entity::Entity( GameLevel* lev ) :
-	LevelScrObj( lev )
-{
-}
-
-Entity::~Entity()
-{
-	m_level->_UnmapEntityByID( this );
-}
-
-void Entity::OnDestroy()
-{
-	sgsVariable fn = GetScriptedObject().getprop( "OnDestroy" );
-	if( fn.not_null() )
-		GetScriptedObject().thiscall( C, fn );
-}
-
-void Entity::PrePhysicsFixedTick( float deltaTime )
-{
-	sgsVariable fn_prephysicsfixedupdate = GetScriptedObject().getprop( "PrePhysicsFixedUpdate" );
-	if( fn_prephysicsfixedupdate.not_null() )
-	{
-		sgs_PushReal( C, deltaTime );
-		GetScriptedObject().thiscall( C, fn_prephysicsfixedupdate, 1 );
-	}
-}
-
-void Entity::FixedTick( float deltaTime )
-{
-	sgsVariable fn_fixedupdate = GetScriptedObject().getprop( "FixedUpdate" );
-	if( fn_fixedupdate.not_null() )
-	{
-		sgs_PushReal( C, deltaTime );
-		GetScriptedObject().thiscall( C, fn_fixedupdate, 1 );
-	}
-}
-
-void Entity::Tick( float deltaTime, float blendFactor )
-{
-	sgsVariable fn_update = GetScriptedObject().getprop( "Update" );
-	if( fn_update.not_null() )
-	{
-		sgs_PushReal( C, deltaTime );
-		sgs_PushReal( C, blendFactor );
-		GetScriptedObject().thiscall( C, fn_update, 2 );
-	}
-}
-
-void Entity::PreRender()
-{
-	sgsVariable fn_prerender = GetScriptedObject().getprop( "PreRender" );
-	if( fn_prerender.not_null() )
-	{
-		GetScriptedObject().thiscall( C, fn_prerender );
-	}
-}
-
-void Entity::OnTransformUpdate()
-{
-	sgsVariable fn = GetScriptedObject().getprop( "OnTransformUpdate" );
-	if( fn.not_null() )
-		GetScriptedObject().thiscall( C, fn );
-}
-
-void Entity::OnIDUpdate()
-{
-	sgsVariable fn = GetScriptedObject().getprop( "OnIDUpdate" );
-	if( fn.not_null() )
-		GetScriptedObject().thiscall( C, fn );
-}
-
-void Entity::EditorDrawWorld()
-{
-	sgsVariable fn = GetScriptedObject().getprop( "EditorDrawWorld" );
-	if( fn.not_null() )
-		GetScriptedObject().thiscall( C, fn );
-}
-
-
 
 GOResource::GOResource( GameObject* obj ) :
 	LevelScrObj( obj->m_level ),
@@ -296,6 +217,13 @@ void GOBehavior::OnTransformUpdate()
 		GetScriptedObject().thiscall( C, fn );
 }
 
+void GOBehavior::OnIDUpdate()
+{
+	sgsVariable fn = GetScriptedObject().getprop( "OnIDUpdate" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
 void GOBehavior::EditUI( EditorUIHelper*, sgsVariable iface )
 {
 	sgsVariable fn = GetScriptedObject().getprop( "EditorGUI" );
@@ -333,6 +261,7 @@ GameObject::GameObject( GameLevel* lev ) :
 GameObject::~GameObject()
 {
 	m_level->m_infoEmitSet.Unregister( this );
+	m_level->_UnmapGameObjectByID( this );
 }
 
 GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
@@ -474,16 +403,6 @@ void GameObject::RemoveBehavior( sgsString name )
 	}
 }
 
-void GameObject::SetName( StringView nm )
-{
-	m_name = m_level->GetScriptCtx().CreateString( nm );
-}
-
-void GameObject::SetID( StringView id )
-{
-	m_id = m_level->GetScriptCtx().CreateString( id );
-}
-
 void GameObject::OnDestroy()
 {
 	for( size_t i = 0; i < m_resources.size(); ++i )
@@ -536,6 +455,14 @@ void GameObject::OnTransformUpdate()
 		if( m_bhvr_order[ i ] != _xfChangeInvoker )
 			m_bhvr_order[ i ]->OnTransformUpdate();
 	}
+}
+
+void GameObject::OnIDUpdate()
+{
+//	for( size_t i = 0; i < m_resources.size(); ++i )
+//		m_resources.item( i ).value->OnIDUpdate();
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->OnIDUpdate();
 }
 
 void GameObject::DebugDrawWorld()
@@ -1156,26 +1083,6 @@ void GameLevel::Draw()
 	GR_RenderScene( rsinfo );
 }
 
-void GameLevel::_MapEntityByID( Entity* e )
-{
-	m_entIDMap[ e->GetID() ] = e;
-}
-
-void GameLevel::_UnmapEntityByID( Entity* e )
-{
-	m_entIDMap.unset( e->GetID() );
-}
-
-Entity* GameLevel::FindEntityByID( const StringView& name )
-{
-	return m_entIDMap.getcopy( name );
-}
-
-Entity::ScrHandle GameLevel::sgsFindEntity( StringView name )
-{
-	return Entity::ScrHandle( FindEntityByID( name ) );
-}
-
 void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
 {
 	m_scene->camera.position = pos;
@@ -1375,6 +1282,26 @@ void GameLevel::sgsDestroyGameObject( sgsVariable oh )
 	GameObject* obj = oh.downcast<GameObject>();
 	if( obj )
 		DestroyGameObject( obj );
+}
+
+void GameLevel::_MapGameObjectByID( GameObject* obj )
+{
+	m_gameObjIDMap[ obj->GetID() ] = obj;
+}
+
+void GameLevel::_UnmapGameObjectByID( GameObject* obj )
+{
+	m_gameObjIDMap.unset( obj->GetID() );
+}
+
+GameObject* GameLevel::FindGameObjectByID( const StringView& name )
+{
+	return m_gameObjIDMap.getcopy( name );
+}
+
+GameObject::ScrHandle GameLevel::sgsFindGameObject( StringView name )
+{
+	return GameObject::ScrHandle( FindGameObjectByID( name ) );
 }
 
 void GameLevel::EnumBehaviors( Array< StringView >& out )

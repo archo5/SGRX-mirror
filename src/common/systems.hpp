@@ -107,17 +107,17 @@ EXP_STRUCT LevelMapSystem : IGameLevelSystem
 	GFW_EXPORT LevelMapSystem( GameLevel* lev );
 	GFW_EXPORT void Clear();
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
-	GFW_EXPORT void UpdateItem( Entity* e, const MapItemInfo& data );
-	GFW_EXPORT void RemoveItem( Entity* e );
+//	GFW_EXPORT void UpdateItem( Entity* e, const MapItemInfo& data );
+//	GFW_EXPORT void RemoveItem( Entity* e );
 	
 	GFW_EXPORT SGS_METHOD void DrawUIRect( float x0, float y0, float x1, float y1, float linesize );
 	
-	GFW_EXPORT SGS_METHOD_NAMED( Update ) void sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt );
-	GFW_EXPORT SGS_METHOD_NAMED( Remove ) void sgsRemove( EntityScrHandle e );
+//	GFW_EXPORT SGS_METHOD_NAMED( Update ) void sgsUpdate( EntityScrHandle e, int type, Vec3 pos, Vec3 dir, float szfwd, float szrt );
+//	GFW_EXPORT SGS_METHOD_NAMED( Remove ) void sgsRemove( EntityScrHandle e );
 	
 	SGS_PROPERTY Vec3 viewPos;
 
-	HashTable< Entity*, MapItemInfo > m_mapItemData;
+	HashTable< GameObject*, MapItemInfo > m_mapItemData;
 	Array< Vec2 > m_lines;
 	Array< LC_Map_Layer > m_layers;
 	

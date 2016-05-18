@@ -830,159 +830,6 @@ static sgs_ObjInterface LevelScrObj__sgs_interface =
 _sgsInterface LevelScrObj::_sgs_interface(LevelScrObj__sgs_interface, LevelScrObj__sgs_ifn);
 
 
-static int _sgs_method__Entity__GetChild( SGS_CTX )
-{
-	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, GetChild ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__Entity__LocalToWorld( SGS_CTX )
-{
-	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, LocalToWorld ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__Entity__WorldToLocal( SGS_CTX )
-{
-	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, WorldToLocal ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__Entity__LocalToWorldDir( SGS_CTX )
-{
-	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, LocalToWorldDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__Entity__WorldToLocalDir( SGS_CTX )
-{
-	Entity* data; if( !SGS_PARSE_METHOD( C, Entity::_sgs_interface, data, Entity, WorldToLocalDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-int Entity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
-{
-	static_cast<Entity*>( obj->data )->C = C;
-	static_cast<Entity*>( obj->data )->~Entity();
-	return SGS_SUCCESS;
-}
-
-int Entity::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Entity*>( obj->data )->C, C );
-	return SGS_SUCCESS;
-}
-
-int Entity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Entity*>( obj->data )->C, C );
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->_sgsGetParent() ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->name ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<Entity*>( obj->data )->m_id ); return SGS_SUCCESS; }
-		if( sgs_PushIndex( C, static_cast<Entity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
-	SGS_END_INDEXFUNC;
-}
-
-int Entity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Entity*>( obj->data )->C, C );
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "_data" ){ static_cast<Entity*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ static_cast<Entity*>( obj->data )->SetWorldPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ static_cast<Entity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ static_cast<Entity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ static_cast<Entity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ static_cast<Entity*>( obj->data )->SetWorldMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ static_cast<Entity*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ static_cast<Entity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ static_cast<Entity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ static_cast<Entity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ static_cast<Entity*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ static_cast<Entity*>( obj->data )->_SetParent( sgs_GetVar<EntityScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ static_cast<Entity*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ static_cast<Entity*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
-		if( sgs_SetIndex( C, static_cast<Entity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
-	SGS_END_INDEXFUNC;
-}
-
-int Entity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<Entity*>( obj->data )->C, C );
-	char bfr[ 38 ];
-	sprintf( bfr, "Entity (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
-	sgs_PushString( C, bfr );
-	if( depth > 0 )
-	{
-		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->_ch.size(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetWorldScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->_sgsGetParent(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->name, depth ).push( C ); }
-		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<Entity*>( obj->data )->m_id, depth ).push( C ); }
-		sgs_StringConcat( C, 32 );
-		sgs_PadString( C );
-		sgs_PushString( C, "\n}" );
-		sgs_StringConcat( C, 3 );
-	}
-	return SGS_SUCCESS;
-}
-
-static sgs_RegFuncConst Entity__sgs_funcs[] =
-{
-	{ "GetChild", _sgs_method__Entity__GetChild },
-	{ "LocalToWorld", _sgs_method__Entity__LocalToWorld },
-	{ "WorldToLocal", _sgs_method__Entity__WorldToLocal },
-	{ "LocalToWorldDir", _sgs_method__Entity__LocalToWorldDir },
-	{ "WorldToLocalDir", _sgs_method__Entity__WorldToLocalDir },
-	{ NULL, NULL },
-};
-
-static int Entity__sgs_ifn( SGS_CTX )
-{
-	sgs_CreateDict( C, NULL, 0 );
-	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
-		Entity__sgs_funcs,
-		-1, "Entity." );
-	return 1;
-}
-
-static sgs_ObjInterface Entity__sgs_interface =
-{
-	"Entity",
-	NULL, Entity::_sgs_gcmark, Entity::_sgs_getindex, Entity::_sgs_setindex, NULL, NULL, Entity::_sgs_dump, NULL, NULL, NULL, 
-};
-_sgsInterface Entity::_sgs_interface(Entity__sgs_interface, Entity__sgs_ifn, &LevelScrObj::_sgs_interface);
-
-
 int IGameLevelSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<IGameLevelSystem*>( obj->data )->C = C;
@@ -1399,6 +1246,41 @@ static int _sgs_method__GameObject__RemoveBehavior( SGS_CTX )
 	data->RemoveBehavior( sgs_GetVar<sgsString>()(C,0) ); return 0;
 }
 
+static int _sgs_method__GameObject__LocalToWorld( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, LocalToWorld ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__GameObject__WorldToLocal( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, WorldToLocal ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__GameObject__LocalToWorldDir( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, LocalToWorldDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__GameObject__WorldToLocalDir( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, WorldToLocalDir ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
+}
+
+static int _sgs_method__GameObject__GetChild( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, GetChild ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsGetChild( sgs_GetVar<int>()(C,0) )); return 1;
+}
+
 static int _sgs_method__GameObject__AddResource( SGS_CTX )
 {
 	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, AddResource ) ) return 0;
@@ -1446,8 +1328,6 @@ int GameObject::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
 		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_name ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
 		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
@@ -1459,11 +1339,15 @@ int GameObject::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
 		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->_sgsGetParent() ); return SGS_SUCCESS; }
+		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
 		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
 		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "infoMask" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetInfoMask() ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_infoTarget ); return SGS_SUCCESS; }
 		SGS_CASE( "infoTarget" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->GetWorldInfoTarget() ); return SGS_SUCCESS; }
+		SGS_CASE( "m_name" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<GameObject*>( obj->data )->m_id ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<GameObject*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -1473,8 +1357,6 @@ int GameObject::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<GameObject*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<GameObject*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ static_cast<GameObject*>( obj->data )->m_name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ static_cast<GameObject*>( obj->data )->m_id = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "position" ){ static_cast<GameObject*>( obj->data )->SetWorldPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "rotation" ){ static_cast<GameObject*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "rotationXYZ" ){ static_cast<GameObject*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
@@ -1485,8 +1367,11 @@ int GameObject::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "localRotationXYZ" ){ static_cast<GameObject*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localScale" ){ static_cast<GameObject*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localTransform" ){ static_cast<GameObject*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "parent" ){ static_cast<GameObject*>( obj->data )->_SetParent( sgs_GetVar<ScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "infoMask" ){ static_cast<GameObject*>( obj->data )->SetInfoMask( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "localInfoTarget" ){ static_cast<GameObject*>( obj->data )->m_infoTarget = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "m_name" ){ static_cast<GameObject*>( obj->data )->m_name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "id" ){ static_cast<GameObject*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<GameObject*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -1501,8 +1386,6 @@ int GameObject::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	{
 		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
 		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_name, depth ).push( C ); }
-		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_id, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
@@ -1514,12 +1397,16 @@ int GameObject::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_sgsGetParent(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_ch.size(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_get_resources(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoMask = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetInfoMask(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalInfoTarget = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_infoTarget, depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoTarget = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->GetWorldInfoTarget(), depth ).push( C ); }
-		sgs_StringConcat( C, 40 );
+		{ sgs_PushString( C, "\nm_name = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<GameObject*>( obj->data )->m_id, depth ).push( C ); }
+		sgs_StringConcat( C, 44 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -1531,6 +1418,11 @@ static sgs_RegFuncConst GameObject__sgs_funcs[] =
 {
 	{ "RemoveResource", _sgs_method__GameObject__RemoveResource },
 	{ "RemoveBehavior", _sgs_method__GameObject__RemoveBehavior },
+	{ "LocalToWorld", _sgs_method__GameObject__LocalToWorld },
+	{ "WorldToLocal", _sgs_method__GameObject__WorldToLocal },
+	{ "LocalToWorldDir", _sgs_method__GameObject__LocalToWorldDir },
+	{ "WorldToLocalDir", _sgs_method__GameObject__WorldToLocalDir },
+	{ "GetChild", _sgs_method__GameObject__GetChild },
 	{ "AddResource", _sgs_method__GameObject__AddResource },
 	{ "AddBehavior", _sgs_method__GameObject__AddBehavior },
 	{ "RequireResource", _sgs_method__GameObject__RequireResource },
@@ -1554,13 +1446,6 @@ static sgs_ObjInterface GameObject__sgs_interface =
 };
 _sgsInterface GameObject::_sgs_interface(GameObject__sgs_interface, GameObject__sgs_ifn, &LevelScrObj::_sgs_interface);
 
-
-static int _sgs_method__GameLevel__FindEntity( SGS_CTX )
-{
-	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, FindEntity ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsFindEntity( sgs_GetVar<StringView>()(C,0) )); return 1;
-}
 
 static int _sgs_method__GameLevel__SetCameraPosDir( SGS_CTX )
 {
@@ -1660,6 +1545,13 @@ static int _sgs_method__GameLevel__DestroyGameObject( SGS_CTX )
 	data->sgsDestroyGameObject( sgs_GetVar<sgsVariable>()(C,0) ); return 0;
 }
 
+static int _sgs_method__GameLevel__FindGameObject( SGS_CTX )
+{
+	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, FindGameObject ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsFindGameObject( sgs_GetVar<StringView>()(C,0) )); return 1;
+}
+
 int GameLevel::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameLevel*>( obj->data )->C = C;
@@ -1744,7 +1636,6 @@ int GameLevel::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst GameLevel__sgs_funcs[] =
 {
-	{ "FindEntity", _sgs_method__GameLevel__FindEntity },
 	{ "SetCameraPosDir", _sgs_method__GameLevel__SetCameraPosDir },
 	{ "WorldToScreen", _sgs_method__GameLevel__WorldToScreen },
 	{ "WorldToScreenPx", _sgs_method__GameLevel__WorldToScreenPx },
@@ -1759,6 +1650,7 @@ static sgs_RegFuncConst GameLevel__sgs_funcs[] =
 	{ "UpdateCameraMatrices", _sgs_method__GameLevel__UpdateCameraMatrices },
 	{ "CreateGameObject", _sgs_method__GameLevel__CreateGameObject },
 	{ "DestroyGameObject", _sgs_method__GameLevel__DestroyGameObject },
+	{ "FindGameObject", _sgs_method__GameLevel__FindGameObject },
 	{ NULL, NULL },
 };
 
@@ -1783,18 +1675,6 @@ static int _sgs_method__LevelMapSystem__DrawUIRect( SGS_CTX )
 {
 	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, DrawUIRect ) ) return 0;
 	data->DrawUIRect( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
-}
-
-static int _sgs_method__LevelMapSystem__Update( SGS_CTX )
-{
-	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Update ) ) return 0;
-	data->sgsUpdate( sgs_GetVar<EntityScrHandle>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5) ); return 0;
-}
-
-static int _sgs_method__LevelMapSystem__Remove( SGS_CTX )
-{
-	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, Remove ) ) return 0;
-	data->sgsRemove( sgs_GetVar<EntityScrHandle>()(C,0) ); return 0;
 }
 
 int LevelMapSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -1841,8 +1721,6 @@ int LevelMapSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 static sgs_RegFuncConst LevelMapSystem__sgs_funcs[] =
 {
 	{ "DrawUIRect", _sgs_method__LevelMapSystem__DrawUIRect },
-	{ "Update", _sgs_method__LevelMapSystem__Update },
-	{ "Remove", _sgs_method__LevelMapSystem__Remove },
 	{ NULL, NULL },
 };
 
@@ -2907,477 +2785,6 @@ static sgs_ObjInterface SGRX_ConeTwistJointInfo__sgs_interface =
 	SGRX_ConeTwistJointInfo::_sgs_destruct, SGRX_ConeTwistJointInfo::_sgs_gcmark, SGRX_ConeTwistJointInfo::_sgs_getindex, SGRX_ConeTwistJointInfo::_sgs_setindex, NULL, NULL, SGRX_ConeTwistJointInfo::_sgs_dump, NULL, NULL, NULL, 
 };
 _sgsInterface SGRX_ConeTwistJointInfo::_sgs_interface(SGRX_ConeTwistJointInfo__sgs_interface, SGRX_ConeTwistJointInfo__sgs_ifn);
-
-
-static int _sgs_method__MultiEntity__GetChild( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, GetChild ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->GetChild( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__LocalToWorld( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, LocalToWorld ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorld( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__WorldToLocal( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, WorldToLocal ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocal( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__LocalToWorldDir( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, LocalToWorldDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->LocalToWorldDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__WorldToLocalDir( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, WorldToLocalDir ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__MICreate( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MICreate ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->MICreate( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__MIDestroy( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MIDestroy ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->MIDestroy( sgs_GetVar<int>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__MIExists( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MIExists ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->MIExists( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__MISetMesh( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MISetMesh ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->MISetMesh( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__MISetEnabled( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MISetEnabled ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->MISetEnabled( sgs_GetVar<int>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__MISetMatrix( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MISetMatrix ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->MISetMatrix( sgs_GetVar<int>()(C,0), sgs_GetVar<Mat4>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__MISetShaderConst( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MISetShaderConst ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->MISetShaderConst( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec4>()(C,2) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__MISetLayers( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, MISetLayers ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->MISetLayers( sgs_GetVar<int>()(C,0), sgs_GetVar<uint32_t>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSCreate( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSCreate ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSCreate( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSDestroy( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSDestroy ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSDestroy( sgs_GetVar<int>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSExists( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSExists ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->PSExists( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__PSLoad( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSLoad ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSLoad( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSSetMatrix( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSSetMatrix ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSSetMatrix( sgs_GetVar<int>()(C,0), sgs_GetVar<Mat4>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSSetMatrixFromMeshAABB( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSSetMatrixFromMeshAABB ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSSetMatrixFromMeshAABB( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSPlay( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSPlay ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSPlay( sgs_GetVar<int>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSStop( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSStop ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSStop( sgs_GetVar<int>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__PSTrigger( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, PSTrigger ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->PSTrigger( sgs_GetVar<int>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__DSCreate( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, DSCreate ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->DSCreate( sgs_GetVar<StringView>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVar<StringView>()(C,2), sgs_GetVar<uint32_t>()(C,3) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__DSDestroy( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, DSDestroy ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->DSDestroy(  ); return 0;
-}
-
-static int _sgs_method__MultiEntity__DSResize( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, DSResize ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->DSResize( sgs_GetVar<uint32_t>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__DSClear( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, DSClear ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->DSClear(  ); return 0;
-}
-
-static int _sgs_method__MultiEntity__RBCreateFromMesh( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBCreateFromMesh ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBCreateFromMesh( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_RigidBodyInfo>()(C,2) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__RBCreateFromConvexPointSet( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBCreateFromConvexPointSet ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBCreateFromConvexPointSet( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVarObj<SGRX_RigidBodyInfo>()(C,2) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__RBDestroy( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBDestroy ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBDestroy( sgs_GetVar<int>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__RBExists( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBExists ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->RBExists( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__RBSetEnabled( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBSetEnabled ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBSetEnabled( sgs_GetVar<int>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__RBGetPosition( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBGetPosition ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->RBGetPosition( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__RBSetPosition( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBSetPosition ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBSetPosition( sgs_GetVar<int>()(C,0), sgs_GetVar<Vec3>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__RBGetRotation( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBGetRotation ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->RBGetRotation( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__RBSetRotation( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBSetRotation ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBSetRotation( sgs_GetVar<int>()(C,0), sgs_GetVar<Quat>()(C,1) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__RBGetMatrix( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBGetMatrix ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->RBGetMatrix( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__RBApplyForce( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, RBApplyForce ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RBApplyForce( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<Vec3>()(C,3) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__JTCreateHingeB2W( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateHingeB2W ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateHingeB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_HingeJointInfo>()(C,2) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__JTCreateHingeB2B( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateHingeB2B ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateHingeB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_HingeJointInfo>()(C,3) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__JTCreateConeTwistB2W( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateConeTwistB2W ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateConeTwistB2W( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVarObj<SGRX_ConeTwistJointInfo>()(C,2) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__JTCreateConeTwistB2B( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTCreateConeTwistB2B ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTCreateConeTwistB2B( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVarObj<SGRX_ConeTwistJointInfo>()(C,3) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__JTDestroy( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTDestroy ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTDestroy( sgs_GetVar<int>()(C,0) ); return 0;
-}
-
-static int _sgs_method__MultiEntity__JTExists( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTExists ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->JTExists( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__MultiEntity__JTSetEnabled( SGS_CTX )
-{
-	MultiEntity* data; if( !SGS_PARSE_METHOD( C, MultiEntity::_sgs_interface, data, MultiEntity, JTSetEnabled ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->JTSetEnabled( sgs_GetVar<int>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
-}
-
-int MultiEntity::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
-{
-	static_cast<MultiEntity*>( obj->data )->C = C;
-	static_cast<MultiEntity*>( obj->data )->~MultiEntity();
-	return SGS_SUCCESS;
-}
-
-int MultiEntity::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MultiEntity*>( obj->data )->C, C );
-	return SGS_SUCCESS;
-}
-
-int MultiEntity::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MultiEntity*>( obj->data )->C, C );
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
-		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->_data ); return SGS_SUCCESS; }
-		SGS_CASE( "childCount" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->_ch.size() ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetWorldMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->_sgsGetParent() ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->name ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->m_id ); return SGS_SUCCESS; }
-		SGS_CASE( "mi0mesh" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->sgsGetMI0Mesh() ); return SGS_SUCCESS; }
-		SGS_CASE( "mi0sampleOffset" ){ sgs_PushVar( C, static_cast<MultiEntity*>( obj->data )->mi0sampleOffset ); return SGS_SUCCESS; }
-		if( sgs_PushIndex( C, static_cast<MultiEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
-	SGS_END_INDEXFUNC;
-}
-
-int MultiEntity::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MultiEntity*>( obj->data )->C, C );
-	SGS_BEGIN_INDEXFUNC
-		SGS_CASE( "_data" ){ static_cast<MultiEntity*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "position" ){ static_cast<MultiEntity*>( obj->data )->SetWorldPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotation" ){ static_cast<MultiEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "rotationXYZ" ){ static_cast<MultiEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "scale" ){ static_cast<MultiEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "transform" ){ static_cast<MultiEntity*>( obj->data )->SetWorldMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localPosition" ){ static_cast<MultiEntity*>( obj->data )->SetLocalPosition( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotation" ){ static_cast<MultiEntity*>( obj->data )->SetLocalRotation( sgs_GetVar<Quat>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localRotationXYZ" ){ static_cast<MultiEntity*>( obj->data )->SetLocalRotationXYZ( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localScale" ){ static_cast<MultiEntity*>( obj->data )->SetLocalScale( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "localTransform" ){ static_cast<MultiEntity*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "parent" ){ static_cast<MultiEntity*>( obj->data )->_SetParent( sgs_GetVar<EntityScrHandle>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "name" ){ static_cast<MultiEntity*>( obj->data )->name = sgs_GetVar<sgsString>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "id" ){ static_cast<MultiEntity*>( obj->data )->sgsSetID( sgs_GetVar<sgsString>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "mi0mesh" ){ static_cast<MultiEntity*>( obj->data )->sgsSetMI0Mesh( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "mi0sampleOffset" ){ static_cast<MultiEntity*>( obj->data )->mi0sampleOffset = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
-		if( sgs_SetIndex( C, static_cast<MultiEntity*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
-	SGS_END_INDEXFUNC;
-}
-
-int MultiEntity::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
-{
-	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MultiEntity*>( obj->data )->C, C );
-	char bfr[ 43 ];
-	sprintf( bfr, "MultiEntity (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
-	sgs_PushString( C, bfr );
-	if( depth > 0 )
-	{
-		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
-		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->_data, depth ).push( C ); }
-		{ sgs_PushString( C, "\nchildCount = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->_ch.size(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nposition = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotation = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nrotationXYZ = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nscale = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\ntransform = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetWorldMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalScale(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nlocalTransform = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nparent = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->_sgsGetParent(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nname = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->name, depth ).push( C ); }
-		{ sgs_PushString( C, "\nid = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->m_id, depth ).push( C ); }
-		{ sgs_PushString( C, "\nmi0mesh = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->sgsGetMI0Mesh(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nmi0sampleOffset = " ); sgs_DumpData( C, static_cast<MultiEntity*>( obj->data )->mi0sampleOffset, depth ).push( C ); }
-		sgs_StringConcat( C, 36 );
-		sgs_PadString( C );
-		sgs_PushString( C, "\n}" );
-		sgs_StringConcat( C, 3 );
-	}
-	return SGS_SUCCESS;
-}
-
-static sgs_RegFuncConst MultiEntity__sgs_funcs[] =
-{
-	{ "GetChild", _sgs_method__MultiEntity__GetChild },
-	{ "LocalToWorld", _sgs_method__MultiEntity__LocalToWorld },
-	{ "WorldToLocal", _sgs_method__MultiEntity__WorldToLocal },
-	{ "LocalToWorldDir", _sgs_method__MultiEntity__LocalToWorldDir },
-	{ "WorldToLocalDir", _sgs_method__MultiEntity__WorldToLocalDir },
-	{ "MICreate", _sgs_method__MultiEntity__MICreate },
-	{ "MIDestroy", _sgs_method__MultiEntity__MIDestroy },
-	{ "MIExists", _sgs_method__MultiEntity__MIExists },
-	{ "MISetMesh", _sgs_method__MultiEntity__MISetMesh },
-	{ "MISetEnabled", _sgs_method__MultiEntity__MISetEnabled },
-	{ "MISetMatrix", _sgs_method__MultiEntity__MISetMatrix },
-	{ "MISetShaderConst", _sgs_method__MultiEntity__MISetShaderConst },
-	{ "MISetLayers", _sgs_method__MultiEntity__MISetLayers },
-	{ "PSCreate", _sgs_method__MultiEntity__PSCreate },
-	{ "PSDestroy", _sgs_method__MultiEntity__PSDestroy },
-	{ "PSExists", _sgs_method__MultiEntity__PSExists },
-	{ "PSLoad", _sgs_method__MultiEntity__PSLoad },
-	{ "PSSetMatrix", _sgs_method__MultiEntity__PSSetMatrix },
-	{ "PSSetMatrixFromMeshAABB", _sgs_method__MultiEntity__PSSetMatrixFromMeshAABB },
-	{ "PSPlay", _sgs_method__MultiEntity__PSPlay },
-	{ "PSStop", _sgs_method__MultiEntity__PSStop },
-	{ "PSTrigger", _sgs_method__MultiEntity__PSTrigger },
-	{ "DSCreate", _sgs_method__MultiEntity__DSCreate },
-	{ "DSDestroy", _sgs_method__MultiEntity__DSDestroy },
-	{ "DSResize", _sgs_method__MultiEntity__DSResize },
-	{ "DSClear", _sgs_method__MultiEntity__DSClear },
-	{ "RBCreateFromMesh", _sgs_method__MultiEntity__RBCreateFromMesh },
-	{ "RBCreateFromConvexPointSet", _sgs_method__MultiEntity__RBCreateFromConvexPointSet },
-	{ "RBDestroy", _sgs_method__MultiEntity__RBDestroy },
-	{ "RBExists", _sgs_method__MultiEntity__RBExists },
-	{ "RBSetEnabled", _sgs_method__MultiEntity__RBSetEnabled },
-	{ "RBGetPosition", _sgs_method__MultiEntity__RBGetPosition },
-	{ "RBSetPosition", _sgs_method__MultiEntity__RBSetPosition },
-	{ "RBGetRotation", _sgs_method__MultiEntity__RBGetRotation },
-	{ "RBSetRotation", _sgs_method__MultiEntity__RBSetRotation },
-	{ "RBGetMatrix", _sgs_method__MultiEntity__RBGetMatrix },
-	{ "RBApplyForce", _sgs_method__MultiEntity__RBApplyForce },
-	{ "JTCreateHingeB2W", _sgs_method__MultiEntity__JTCreateHingeB2W },
-	{ "JTCreateHingeB2B", _sgs_method__MultiEntity__JTCreateHingeB2B },
-	{ "JTCreateConeTwistB2W", _sgs_method__MultiEntity__JTCreateConeTwistB2W },
-	{ "JTCreateConeTwistB2B", _sgs_method__MultiEntity__JTCreateConeTwistB2B },
-	{ "JTDestroy", _sgs_method__MultiEntity__JTDestroy },
-	{ "JTExists", _sgs_method__MultiEntity__JTExists },
-	{ "JTSetEnabled", _sgs_method__MultiEntity__JTSetEnabled },
-	{ NULL, NULL },
-};
-
-static int MultiEntity__sgs_ifn( SGS_CTX )
-{
-	sgs_CreateDict( C, NULL, 0 );
-	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
-		MultiEntity__sgs_funcs,
-		-1, "MultiEntity." );
-	return 1;
-}
-
-static sgs_ObjInterface MultiEntity__sgs_interface =
-{
-	"MultiEntity",
-	NULL, MultiEntity::_sgs_gcmark, MultiEntity::_sgs_getindex, MultiEntity::_sgs_setindex, NULL, NULL, MultiEntity::_sgs_dump, NULL, NULL, NULL, 
-};
-_sgsInterface MultiEntity::_sgs_interface(MultiEntity__sgs_interface, MultiEntity__sgs_ifn, &Entity::_sgs_interface);
 
 
 static int _sgs_method__MeshResource__GetWorldMatrix( SGS_CTX )

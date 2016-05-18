@@ -765,7 +765,7 @@ void TSCharacter::BeginClosestAction( float maxdist )
 		return;
 	
 	Vec3 QP = GetQueryPosition_FT();
-	EntityGather iact_gather;
+	GameObjectGather iact_gather;
 	m_level->QuerySphere( &iact_gather, IEST_InteractiveItem, QP, 5 );
 	if( iact_gather.items.size() )
 	{

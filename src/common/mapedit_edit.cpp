@@ -278,7 +278,6 @@ void EdBlockMoveTransform::ApplyTransform()
 	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
-		ByteReader br( m_objectStateData, SO.offset );
 		
 		EdObject* obj = SO.idx.GetEdObject();
 		GameObject* go = SO.idx.GetGameObject();
@@ -360,7 +359,6 @@ void EdVertexMoveTransform::ApplyTransform()
 	for( size_t i = 0; i < m_objStateMap.size(); ++i )
 	{
 		const SavedObject& SO = m_objStateMap[ i ];
-		ByteReader br( m_objectStateData, SO.offset );
 		
 		EdObject* obj = SO.idx.GetEdObject();
 		if( obj )

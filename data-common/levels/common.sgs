@@ -12,37 +12,31 @@ _G.
 function PropInfo_XForm( eptr )
 {
 	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
-	EE_AddFieldVec3( eptr, "rotationXYZ", "Rotation", 0, 2, 0, 360 );
+	EE_AddFieldVec3( eptr, "rotationXYZ", "Rotation", 0, 1, 0, 360 );
 	EE_AddFieldVec3( eptr, "scale", "Scale", 1, 2, 0.01, 100 );
 }
 
+global Entity = {};
 
-//
-// Entity extension functions
-//
-function ENTITY( name, inhname )
+function Entity.get_transform()
 {
-	data = _G[ name ];
-	data.
-	{
-		__inherit = inhname,
-		__getindex = mm_getindex_router,
-		__setindex = mm_setindex_router
-	};
-	sym_register( name, data );
-	level.entity_types[ name ] = data;
+	return EE_GenMatrix_SRaP( this.scale, this.rotationXYZ, this.position );
 }
 
-Entity.ED_Icon = "editor/icons/default.png";
+global ED_ENTITY_TYPES = {};
+function ENTITY( name )
+{
+	data = _G[ name ];
+	class( data, Entity );
+	sym_register( name, data );
+	ED_ENTITY_TYPES[ name ] = data;
+}
+
 function PropInfo_Entity( eptr )
 {
 	EE_AddFieldString( eptr, "name", "Name", "" );
 	EE_AddFieldString( eptr, "id", "Global ID", "" );
 	PropInfo_XForm( eptr );
-}
-function Entity.ED_PropInfo( eptr )
-{
-	PropInfo_Entity( eptr );
 }
 
 
@@ -286,7 +280,7 @@ function BhMeshArray.EditorGUI( ui )
 //
 
 global Marker = {};
-ENTITY( "Marker", "Entity" );
+ENTITY( "Marker" );
 
 Marker.ED_Icon = "editor/icons/marker.png";
 function Marker.ED_PropInfo( eptr )
@@ -303,7 +297,7 @@ function Marker.EditorDrawWorld()
 
 
 global LightSample = {};
-ENTITY( "LightSample", "Entity" );
+ENTITY( "LightSample" );
 
 LightSample.ED_Icon = "editor/icons/ltsample.png";
 function LightSample.ED_PropInfo( eptr )
@@ -313,7 +307,7 @@ function LightSample.ED_PropInfo( eptr )
 
 
 global MapLayer = {};
-ENTITY( "MapLayer", "Entity" );
+ENTITY( "MapLayer" );
 
 MapLayer.ED_Icon = "editor/icons/marker.png";
 function MapLayer.ED_PropInfo( eptr )
@@ -323,7 +317,7 @@ function MapLayer.ED_PropInfo( eptr )
 
 
 global SolidBox = {};
-ENTITY( "SolidBox", "Entity" );
+ENTITY( "SolidBox" );
 
 SolidBox.ED_Icon = "editor/icons/trigger.png";
 function SolidBox.ED_PropInfo( eptr )
@@ -334,12 +328,12 @@ function SolidBox.EditorDrawWorld()
 {
 	BR_Reset();
 	BR_Col( 0.2, 0.3, 0.8, 0.8 );
-	BR_AABB( -1, 1, this.transform );
+	BR_AABB( -1, 1, this.get_transform() );
 }
 
 
 global AICover = {};
-ENTITY( "AICover", "Entity" );
+ENTITY( "AICover" );
 
 AICover.ED_Icon = "editor/icons/trigger.png";
 function AICover.ED_PropInfo( eptr )
@@ -351,12 +345,12 @@ function AICover.EditorDrawWorld()
 {
 	BR_Reset();
 	BR_Col( 0.2, 0.3, 0.8, 0.8 );
-	BR_AABB( -1, 1, this.transform );
+	BR_AABB( -1, 1, this.get_transform() );
 }
 
 
 global AIPathArea = {};
-ENTITY( "AIPathArea", "Entity" );
+ENTITY( "AIPathArea" );
 
 AIPathArea.ED_Icon = "editor/icons/trigger.png";
 function AIPathArea.ED_PropInfo( eptr )
@@ -367,12 +361,12 @@ function AIPathArea.EditorDrawWorld()
 {
 	BR_Reset();
 	BR_Col( 0.2, 0.6, 0.8, 0.8 );
-	BR_AABB( -1, 1, this.transform );
+	BR_AABB( -1, 1, this.get_transform() );
 }
 
 
 global AIRoom = {};
-ENTITY( "AIRoom", "Entity" );
+ENTITY( "AIRoom" );
 function AIRoom.Init()
 {
 	this.negative = false;
@@ -389,7 +383,7 @@ function AIRoom.ED_PropInfo( eptr )
 function AIRoom.EditorDrawWorld()
 {
 	scale = this.scale;
-	mtx = this.transform;
+	mtx = this.get_transform();
 	BR_Reset();
 	BR_Col( 0.2, 0.9, 0.8, 0.8 );
 	BR_AABB( -1, 1, mtx );
@@ -408,113 +402,6 @@ function AIRoom.EditorDrawWorld()
 			}
 		}
 	}
-}
-
-
-//
-// Mesh Array
-//
-
-global MeshArray = {};
-ENTITY( "MeshArray", "Entity" );
-function MeshArray.Init()
-{
-	this._data.
-	{
-		offset = vec3(0),
-		count = 1,
-		limit = 100,
-		
-		mesh = null,
-		solid = true,
-		lightingMode = LM_Static,
-		lmQuality = 1.0,
-		castLMS = true,
-		
-		_entities = [],
-	};
-	this._ReadjustParts();
-}
-function MeshArray.OnDestroy()
-{
-	for( i = 0; i < this._entities.size; ++i )
-		level.DestroyEntity( this._entities[ i ] );
-}
-function MeshArray.OnIDUpdate()
-{
-	for( i = 0; i < this._entities.size; ++i )
-		this._entities[ i ].id = this.id $ "#" $ i;
-}
-function MeshArray._ReconfigEntity( e, i )
-{
-	e.localPosition = this.offset * i;
-	e.mesh = this.mesh;
-	e.solid = this.solid;
-	e.lightingMode = this.lightingMode;
-	e.lmQuality = this.lmQuality;
-	e.castLMS = this.castLMS;
-	e.parent = this;
-}
-function MeshArray._ReadjustParts( norec )
-{
-	// remove extra entities
-	while( this._entities.size > this.count )
-	{
-		level.DestroyEntity( this._entities.last );
-		this._entities.pop();
-	}
-	
-	if( !norec )
-	{
-		// reconfigure existing entities
-		for( i = 0; i < this._entities.size; ++i )
-			this._ReconfigEntity( this._entities[ i ], i );
-	}
-	
-	// add new entities
-	while( this._entities.size < this.count )
-	{
-		e = level.CreateEntity( "Mesh" );
-		e.id = this.id $ "#" $ this._entities.size;
-		this._ReconfigEntity( e, this._entities.size );
-		this._entities.push( e );
-	}
-}
-function MeshArray.__set_offset( off )
-{
-	if( typeof( off ) != "vec3" )
-		ERROR( "wrong type for 'vec3 offset'" );
-	this._data.offset = off;
-	this._ReadjustParts();
-}
-function MeshArray.__set_count( cnt )
-{
-	cnt = toint(cnt);
-	if( cnt < 0 || cnt > this.limit )
-		ERROR( "count must be >= 0 and <= limit (" $ this.limit $ ")" );
-	this._data.count = cnt;
-	this._ReadjustParts( true );
-}
-function MeshArray.OnTransformUpdate(){ this._ReadjustParts(); }
-function MeshArray.__set_mesh( m ){ this._data.mesh = m; this._ReadjustParts(); }
-function MeshArray.__set_solid( s ){ this._data.solid = s; this._ReadjustParts(); }
-function MeshArray.__set_lightingMode( lm ){ this._data.lightingMode = lm; this._ReadjustParts(); }
-function MeshArray.__set_lmQuality( q ){ this._data.lmQuality = q; this._ReadjustParts(); }
-function MeshArray.__set_castLMS( c ){ this._data.castLMS = c; this._ReadjustParts(); }
-
-MeshArray.ED_Icon = "editor/icons/mesharray.png";
-function MeshArray.ED_PropInfo( eptr )
-{
-	PropInfo_Entity( eptr );
-	EE_AddFieldVec3( eptr, "offset", "Offset", vec3(0,0,1), 2, -100, 100 );
-	EE_AddFieldInt( eptr, "count", "Count", 1, 0, 100 );
-	EE_AddFieldMesh( eptr, "mesh", "Mesh" );
-	EE_AddFieldBool( eptr, "solid", "Is solid?", true );
-	EE_AddFieldEnumSB( eptr, "lightingMode", "Lighting mode", LM_Static,
-		map{ [LM_Unlit] = "Unlit", [LM_Static] = "Static",
-		[LM_Dynamic] = "Dynamic", [LM_Decal] = "Decal" } );
-	EE_AddFieldFloat( eptr, "lmQuality", "Lightmap quality", 1, 2, 0.01, 100 );
-	EE_AddFieldBool( eptr, "castLMS", "[dyn] Cast lightmap shadow", true );
 }
 
 
@@ -574,7 +461,7 @@ function Trigger.SetupTrigger( once, fn, fnout )
 // Trigger Entity - Box
 //
 global BoxTrigger = clone( Trigger );
-ENTITY( "BoxTrigger", "Entity" );
+ENTITY( "BoxTrigger" );
 
 BoxTrigger.ED_Icon = "editor/icons/trigger.png";
 function BoxTrigger.ED_PropInfo( eptr )
@@ -585,12 +472,12 @@ function BoxTrigger.EditorDrawWorld()
 {
 	BR_Reset();
 	BR_Col( 0.1, 0.4, 0.9 );
-	BR_AABB( -1, 1, this.transform );
+	BR_AABB( -1, 1, this.get_transform() );
 }
 
 function BoxTrigger.Update( dt )
 {
-	this.UpdateState( level.QueryOBB( null, this.mask, this.transform ) );
+	this.UpdateState( level.QueryOBB( null, this.mask, this.get_transform() ) );
 }
 
 
@@ -598,7 +485,13 @@ function BoxTrigger.Update( dt )
 // Trigger Entity - Sphere
 //
 global SphereTrigger = clone( Trigger );
-ENTITY( "SphereTrigger", "Entity" );
+ENTITY( "SphereTrigger" );
+
+function SphereTrigger.ED_PropInfo( eptr )
+{
+	PropInfo_Entity( eptr );
+	EE_AddFieldFloat( eptr, "radius", "Radius", 1, 2, 0.01, 1000 );
+}
 
 function SphereTrigger.Init()
 {
@@ -742,7 +635,7 @@ function DoorCore.Update( dt, bf )
 
 
 global BasicDoor = clone( DoorCore );
-ENTITY( "BasicDoor", "Entity" );
+ENTITY( "BasicDoor" );
 
 function BasicDoor.Init()
 {

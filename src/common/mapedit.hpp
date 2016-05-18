@@ -1482,7 +1482,6 @@ struct EdEntity : EdObject
 	sgsVariable FSave( int version );
 	
 	void SetID( StringView idstr );
-	void UpdateRealEnt( FieldBase* curF );
 	void Data2Fields();
 	void Fields2Data();
 	void AddField( sgsString key, sgsString name, FieldBase* F );
@@ -1495,7 +1494,7 @@ struct EdEntity : EdObject
 	sgsVariable m_data;
 	Array< HField > m_fields;
 	
-	Entity* m_realEnt;
+	sgsVariable m_entIface;
 };
 
 typedef Handle< EdEntity > EdEntityHandle;

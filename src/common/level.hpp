@@ -197,68 +197,9 @@ EXP_STRUCT Transform
 #undef TF_ONREAD
 };
 
-struct Entity;
-typedef sgsHandle< Entity > EntityScrHandle;
 
 #define ENTITY_IS_A( ent, cls ) ((ent)->GetSGSInterface() == cls::_sgs_interface)
 
-EXP_STRUCT Entity : LevelScrObj, Transform
-{
-	SGS_OBJECT_INHERIT( LevelScrObj ) SGS_NO_DESTRUCT;
-	ENT_SGS_IMPLEMENT;
-	
-	GFW_EXPORT Entity( GameLevel* lev );
-	GFW_EXPORT ~Entity();
-	GFW_EXPORT virtual void OnDestroy();
-	GFW_EXPORT virtual void PrePhysicsFixedTick( float deltaTime );
-	GFW_EXPORT virtual void FixedTick( float deltaTime );
-	GFW_EXPORT virtual void Tick( float deltaTime, float blendFactor );
-	GFW_EXPORT virtual void PreRender();
-	GFW_EXPORT virtual void OnTransformUpdate();
-	GFW_EXPORT virtual void OnIDUpdate();
-	
-	virtual void DebugDrawWorld(){}
-	virtual void DebugDrawUI(){}
-	GFW_EXPORT virtual void EditorDrawWorld();
-	
-	FINLINE StringView GetID() const { return StringView( m_id.c_str(), m_id.size() ); }
-	FINLINE void SetID( StringView id );
-	FINLINE void sgsSetID( sgsString id );
-	
-	FINLINE SGS_METHOD EntityScrHandle GetChild( int i )
-	{
-		if( i < 0 || i >= (int) _ch.size() )
-		{
-			sgs_Msg( C, SGS_WARNING, "child index (%d) out of bounds [0;%d)", i, (int) _ch.size() );
-			return EntityScrHandle();
-		}
-		return EntityScrHandle( (Entity*) _ch[ i ] );
-	}
-	SGS_PROPERTY_FUNC( READ SOURCE _ch.size() ) SGS_ALIAS( int childCount );
-	
-	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetWorldPosition ) SGS_ALIAS( Vec3 position );
-	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat rotation );
-	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 rotationXYZ );
-	SGS_PROPERTY_FUNC( READ GetWorldScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 scale );
-	SGS_PROPERTY_FUNC( READ GetWorldMatrix WRITE SetWorldMatrix ) SGS_ALIAS( Mat4 transform );
-	
-	SGS_PROPERTY_FUNC( READ GetLocalPosition WRITE SetLocalPosition ) SGS_ALIAS( Vec3 localPosition );
-	SGS_PROPERTY_FUNC( READ GetLocalRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat localRotation );
-	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 localRotationXYZ );
-	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 localScale );
-	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix ) SGS_ALIAS( Mat4 localTransform );
-	
-	EntityScrHandle _sgsGetParent(){ return EntityScrHandle( (Entity*) _parent ); }
-	SGS_PROPERTY_FUNC( READ _sgsGetParent WRITE _SetParent ) SGS_ALIAS( EntityScrHandle parent );
-	
-	SGS_METHOD SGS_ALIAS( Vec3 LocalToWorld( Vec3 p ) );
-	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocal( Vec3 p ) );
-	SGS_METHOD SGS_ALIAS( Vec3 LocalToWorldDir( Vec3 p ) );
-	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocalDir( Vec3 p ) );
-	
-	SGS_PROPERTY sgsString name;
-	SGS_PROPERTY_FUNC( READ WRITE sgsSetID VARNAME id ) sgsString m_id;
-};
 
 #define IEST_InteractiveItem 0x0001
 #define IEST_HeatSource      0x0002
@@ -411,6 +352,7 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	GFW_EXPORT virtual void Update();
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void OnIDUpdate();
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
@@ -462,32 +404,26 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT GOBehavior* _CreateBehaviorReal( sgsString name, sgsString type );
 	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsString name );
 	
-	GameObject* GetParent() const { return (GameObject*) _parent; }
-	StringView GetName() const    { return StringView( m_name.c_str(), m_name.size() ); }
-	GFW_EXPORT void SetName( StringView nm );
-	StringView GetID() const      { return StringView( m_id.c_str(), m_id.size() ); }
-	GFW_EXPORT void SetID( StringView id );
-	
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
 	GFW_EXPORT virtual void FixedUpdate();
 	GFW_EXPORT virtual void Update();
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void OnIDUpdate();
 	
 	GFW_EXPORT virtual void DebugDrawWorld();
 	GFW_EXPORT virtual void DebugDrawUI();
 	
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME id ) sgsString m_id;
 	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
 	GOResourceTable m_resources;
 	GOBehaviorTable m_behaviors;
 	Array< H_GOBehavior > m_bhvr_order;
 	SGRX_GUID m_src_guid;
 	
+	// transforms
 	SGS_PROPERTY_FUNC( READ GetWorldPosition WRITE SetWorldPosition ) SGS_ALIAS( Vec3 position );
 	SGS_PROPERTY_FUNC( READ GetWorldRotation WRITE SetLocalRotation ) SGS_ALIAS( Quat rotation );
 	SGS_PROPERTY_FUNC( READ GetWorldRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 rotationXYZ );
@@ -499,6 +435,27 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ WRITE SetLocalRotationXYZ ) SGS_ALIAS( Vec3 localRotationXYZ );
 	SGS_PROPERTY_FUNC( READ GetLocalScale WRITE SetLocalScale ) SGS_ALIAS( Vec3 localScale );
 	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix ) SGS_ALIAS( Mat4 localTransform );
+	
+	SGS_METHOD SGS_ALIAS( Vec3 LocalToWorld( Vec3 p ) );
+	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocal( Vec3 p ) );
+	SGS_METHOD SGS_ALIAS( Vec3 LocalToWorldDir( Vec3 p ) );
+	SGS_METHOD SGS_ALIAS( Vec3 WorldToLocalDir( Vec3 p ) );
+	
+	// parent-child relation
+	GameObject* GetParent() const { return (GameObject*) _parent; }
+	ScrHandle _sgsGetParent(){ return ScrHandle( (GameObject*) _parent ); }
+	SGS_PROPERTY_FUNC( READ _sgsGetParent WRITE _SetParent ) SGS_ALIAS( ScrHandle parent );
+	
+	FINLINE SGS_METHOD_NAMED( GetChild ) ScrHandle sgsGetChild( int i )
+	{
+		if( i < 0 || i >= (int) _ch.size() )
+		{
+			sgs_Msg( C, SGS_WARNING, "child index (%d) out of bounds [0;%d)", i, (int) _ch.size() );
+			return ScrHandle();
+		}
+		return ScrHandle( (GameObject*) _ch[ i ] );
+	}
+	SGS_PROPERTY_FUNC( READ SOURCE _ch.size() ) SGS_ALIAS( int childCount );
 	
 	// resources / behaviors
 	SGS_METHOD_NAMED( AddResource ) sgsVariable sgsAddResource( sgsString name, uint32_t type, bool ovr )
@@ -537,6 +494,16 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	SGS_PROPERTY_FUNC( READ GetInfoMask WRITE SetInfoMask VARNAME infoMask ) uint32_t m_infoMask;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME localInfoTarget ) Vec3 m_infoTarget;
 	SGS_PROPERTY_FUNC( READ GetWorldInfoTarget ) SGS_ALIAS( Vec3 infoTarget );
+	
+	// id/name
+	FINLINE StringView GetName() const { return StringView( m_name.c_str(), m_name.size() ); }
+	FINLINE void SetName( StringView nm );
+	FINLINE StringView GetID() const { return StringView( m_id.c_str(), m_id.size() ); }
+	FINLINE void SetID( StringView id );
+	FINLINE void sgsSetID( sgsString id );
+	
+	SGS_PROPERTY sgsString m_name;
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetID VARNAME id ) sgsString m_id;
 };
 
 inline sgsHandle<struct GOResourceTable> GOBehavior::_get_resources()
@@ -707,11 +674,6 @@ EXP_STRUCT GameLevel :
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
 		m_scriptCtx.SetGlobal( type, iface );
 	}
-	GFW_EXPORT sgsVariable GetEntityInterface( StringView name );
-	GFW_EXPORT void EnumEntities( Array< StringView >& out );
-	GFW_EXPORT Entity* _CreateEntityReal( const StringView& type );
-	GFW_EXPORT Entity* CreateEntity( const StringView& type );
-	GFW_EXPORT void DestroyEntity( Entity* eptr );
 	GFW_EXPORT void ClearLevel();
 	
 	GFW_EXPORT void FixedTick( float deltaTime );
@@ -726,10 +688,6 @@ EXP_STRUCT GameLevel :
 	// serialization
 	template< class T > void Serialize( T& arch );
 	
-	GFW_EXPORT void _MapEntityByID( Entity* e );
-	GFW_EXPORT void _UnmapEntityByID( Entity* e );
-	GFW_EXPORT Entity* FindEntityByID( const StringView& name );
-	GFW_EXPORT SGS_METHOD_NAMED( FindEntity ) Entity::ScrHandle sgsFindEntity( StringView name );
 	GFW_EXPORT SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
 	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
 	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
@@ -790,8 +748,6 @@ EXP_STRUCT GameLevel :
 	bool m_enableLoadingScreen;
 	
 	// SYSTEMS
-	HashTable< StringView, Entity* > m_entIDMap;
-	InfoEmitGameObjectSet m_infoEmitSet;
 	Array< IGameLevelSystem* > m_systems;
 	
 	// LEVEL DATA
@@ -808,6 +764,10 @@ EXP_STRUCT GameLevel :
 	void DestroyGameObject( GameObject* obj );
 	GFW_EXPORT SGS_METHOD_NAMED( CreateGameObject ) sgsVariable sgsCreateGameObject();
 	GFW_EXPORT SGS_METHOD_NAMED( DestroyGameObject ) void sgsDestroyGameObject( sgsVariable oh );
+	GFW_EXPORT void _MapGameObjectByID( GameObject* obj );
+	GFW_EXPORT void _UnmapGameObjectByID( GameObject* obj );
+	GFW_EXPORT GameObject* FindGameObjectByID( const StringView& name );
+	GFW_EXPORT SGS_METHOD_NAMED( FindGameObject ) GameObject::ScrHandle sgsFindGameObject( StringView name );
 	template< class T > void RegisterNativeBehavior( StringView type )
 	{
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
@@ -819,6 +779,8 @@ EXP_STRUCT GameLevel :
 	Array< GameObject* > m_gameObjects;
 	SGRX_GUID nextObjectGUID;
 	HashTable< uint32_t, GOResourceInfo > m_goResourceMap;
+	HashTable< StringView, GameObject* > m_gameObjIDMap;
+	InfoEmitGameObjectSet m_infoEmitSet;
 };
 
 template< class T > T* AddSystemToLevel( GameLevel* lev )
@@ -875,21 +837,26 @@ template< class T > void LevelScrObj::_InitScriptInterface( T* ptr )
 	sgs_ObjAcquire( C, m_sgsObject );
 }
 
-FINLINE void Entity::SetID( StringView id )
+FINLINE void GameObject::SetName( StringView nm )
+{
+	m_name = m_level->GetScriptCtx().CreateString( nm );
+}
+
+FINLINE void GameObject::SetID( StringView id )
 {
 	sgsSetID( m_level->GetScriptCtx().CreateString( id ) );
 }
 
-FINLINE void Entity::sgsSetID( sgsString id )
+FINLINE void GameObject::sgsSetID( sgsString id )
 {
 	if( m_id.same_as( id ) )
 		return;
 	sgsString prev = m_id;
 	if( m_id.size() )
-		m_level->_UnmapEntityByID( this );
+		m_level->_UnmapGameObjectByID( this );
 	m_id = id;
 	if( m_id.size() )
-		m_level->_MapEntityByID( this );
+		m_level->_MapGameObjectByID( this );
 	OnIDUpdate();
 }
 
