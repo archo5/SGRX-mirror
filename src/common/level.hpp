@@ -274,7 +274,7 @@ enum MatrixMode
 
 struct GOResourceInfo
 {
-	StringView name;
+	const char* name;
 	struct GOResource* (*createFunc)( struct GameObject* );
 };
 

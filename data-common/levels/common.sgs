@@ -170,6 +170,10 @@ function RigidBodyResource.EditorDrawWorld()
 	BR_AABB( this.shapeMinExtents, this.shapeExtents, this.GetWorldMatrix() );
 }
 
+function ReflectionPlaneResource.EditorGUI( ui )
+{
+	this!GOResource.EditorGUI( ui );
+}
 function ReflectionPlaneResource.EditorDrawWorld()
 {
 	BR_Reset();

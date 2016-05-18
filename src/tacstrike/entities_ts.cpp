@@ -1765,7 +1765,6 @@ bool TSEnemyController::sgsRemoveNextPathPoint()
 TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
 	register_tsent_cvars(); // TODO global init?
-	m_level->GetScriptCtx().Include( "data/enemy" );
 	
 	static const sgs_RegIntConst g_ts_ints[] =
 	{
@@ -1785,6 +1784,8 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 	lev->RegisterNativeBehavior<TSPlayerController>( "TSPlayerController" );
 	lev->RegisterNativeBehavior<TPSPlayerController>( "TPSPlayerController" );
 	lev->RegisterNativeBehavior<TSEnemyController>( "TSEnemyController" );
+	
+	m_level->GetScriptCtx().Include( "data/enemy" );
 }
 
 

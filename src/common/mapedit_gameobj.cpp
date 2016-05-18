@@ -155,16 +155,11 @@ void EDGO_EditUI( GameObject* obj )
 			{
 				GOResource* rsrc = NULL;
 				
-				if( ImGui::Selectable( "Mesh resource" ) )
-					rsrc = obj->AddResource( sgsname, GO_RSRC_MESH );
-				if( ImGui::Selectable( "Light resource" ) )
-					rsrc = obj->AddResource( sgsname, GO_RSRC_LIGHT );
-				if( ImGui::Selectable( "Particle system resource" ) )
-					rsrc = obj->AddResource( sgsname, GO_RSRC_PSYS );
-				if( ImGui::Selectable( "Rigid body resource" ) )
-					rsrc = obj->AddResource( sgsname, GO_RSRC_RBODY );
-				if( ImGui::Selectable( "Reflection plane resource" ) )
-					rsrc = obj->AddResource( sgsname, GO_RSRC_REFPLANE );
+				for( size_t i = 0; i < g_Level->m_goResourceMap.size(); ++i )
+				{
+					if( ImGui::Selectable( g_Level->m_goResourceMap.item( i ).value.name ) )
+						rsrc = obj->AddResource( sgsname, g_Level->m_goResourceMap.item( i ).key );
+				}
 				
 				if( rsrc )
 				{

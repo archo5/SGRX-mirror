@@ -5,33 +5,6 @@
 
 
 
-static int RigidBodyInfo( SGS_CTX )
-{
-	SGS_CREATECLASS( C, NULL, SGRX_RigidBodyInfo, () );
-	return 1;
-}
-
-static int HingeJointInfo( SGS_CTX )
-{
-	SGS_CREATECLASS( C, NULL, SGRX_HingeJointInfo, () );
-	return 1;
-}
-
-static int ConeTwistJointInfo( SGS_CTX )
-{
-	SGS_CREATECLASS( C, NULL, SGRX_ConeTwistJointInfo, () );
-	return 1;
-}
-
-static sgs_RegFuncConst multient_funcconsts[] =
-{
-	{ "RigidBodyInfo", RigidBodyInfo },
-	{ "HingeJointInfo", HingeJointInfo },
-	{ "ConeTwistJointInfo", ConeTwistJointInfo },
-	{ NULL, NULL },
-};
-
-
 void MultiEntity::PreRender()
 {
 	if( m_dmgDecalSys )

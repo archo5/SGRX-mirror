@@ -420,7 +420,7 @@ void BhResourceMoveResource::Update()
 
 
 BhControllerBase::BhControllerBase( GameObject* obj ) :
-	GOBehavior( obj )
+	GOBehavior( obj ), enabled( true )
 {
 	_data = m_level->GetScriptCtx().CreateDict();
 }
