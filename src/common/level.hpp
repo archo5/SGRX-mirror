@@ -278,12 +278,21 @@ struct GOResourceInfo
 	struct GOResource* (*createFunc)( struct GameObject* );
 };
 
+typedef struct GOBehavior* GOBehaviorCreateFunc( struct GameObject* );
+
 #define IMPLEMENT_RESOURCE( cls, id, nm ) \
 	static GOResource* _Create( GameObject* go ){ return new cls( go ); } \
 	static void Register( GameLevel* lev ){ \
 		GOResourceInfo ri = { nm, _Create }; \
 		lev->RegisterNativeClass< cls >( _sgs_interface->name ); \
 		lev->m_goResourceMap.set( id, ri ); }
+
+#define IMPLEMENT_BEHAVIOR( cls ) \
+	static GOBehavior* _Create( GameObject* go ){ return new cls( go ); } \
+	static void Register( GameLevel* lev ){ \
+		lev->_RegisterNativeBehavior< cls >( _sgs_interface->name ); \
+		lev->m_goNativeBhvrMap.set( _sgs_interface->name, _Create ); }
+		
 
 EXP_STRUCT GOResource : LevelScrObj
 {
@@ -502,7 +511,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	FINLINE void SetID( StringView id );
 	FINLINE void sgsSetID( sgsString id );
 	
-	SGS_PROPERTY sgsString m_name;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME name ) sgsString m_name;
 	SGS_PROPERTY_FUNC( READ WRITE sgsSetID VARNAME id ) sgsString m_id;
 };
 
@@ -768,7 +777,7 @@ EXP_STRUCT GameLevel :
 	GFW_EXPORT void _UnmapGameObjectByID( GameObject* obj );
 	GFW_EXPORT GameObject* FindGameObjectByID( const StringView& name );
 	GFW_EXPORT SGS_METHOD_NAMED( FindGameObject ) GameObject::ScrHandle sgsFindGameObject( StringView name );
-	template< class T > void RegisterNativeBehavior( StringView type )
+	template< class T > void _RegisterNativeBehavior( StringView type )
 	{
 		sgsVariable iface = sgs_GetClassInterface< T >( GetSGSC() );
 		m_scriptCtx.SetGlobal( type, iface );
@@ -779,6 +788,7 @@ EXP_STRUCT GameLevel :
 	Array< GameObject* > m_gameObjects;
 	SGRX_GUID nextObjectGUID;
 	HashTable< uint32_t, GOResourceInfo > m_goResourceMap;
+	HashTable< StringView, GOBehaviorCreateFunc* > m_goNativeBhvrMap;
 	HashTable< StringView, GameObject* > m_gameObjIDMap;
 	InfoEmitGameObjectSet m_infoEmitSet;
 };

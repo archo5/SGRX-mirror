@@ -1907,18 +1907,61 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 {
 	String data;
 	
-#if TODO
-	for( size_t i = 0; i < g_EdWorld->m_entities.size(); ++i )
+	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
-		EdEntity* ent = g_EdWorld->m_entities[ i ];
-		UNUSED( ent );
+		GameObject* obj = g_Level->m_gameObjects[ i ];
+		if( obj->GetParent() )
+			continue; // has parent, so part of another object
+		if( obj->GetName() == "" )
+			continue; // no name, cannot create a function
+		
+		data.append( "\nfunction Create_" );
+		data.append( obj->GetName() );
+		data.append( "( level )\n{\n" );
+		
+		data.append( "\tobj = level.CreateGameObject().\n" );
+		data.append( "\t{\n" );
+		data.append( "\t\tname = " );
+		data.append( g_Level->GetScriptCtx().ToSGSON( obj->m_name ) );
+		data.append( ",\n\t\tid = " );
+		data.append( g_Level->GetScriptCtx().ToSGSON( obj->m_id ) );
+		data.append( ",\n\t\tlocalPosition = vec3(0,0,0)" );
+		data.append( ",\n\t};\n" );
+		for( size_t i = 0; i < obj->m_resources.size(); ++i )
+		{
+			GOResource* rsrc = obj->m_resources.item( i ).value;
+			
+			data.append( "\trsrc = obj.AddResource( " );
+			data.append( g_Level->GetScriptCtx().ToSGSON( rsrc->m_name ) );
+			char bfr[ 32 ];
+			sgrx_snprintf( bfr, 32, ", %u ).\n\t{\n", (unsigned) rsrc->m_type );
+			data.append( bfr );
+			// resource properties
+			// ---
+			data.append( "\t};\n" );
+		}
+		for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
+		{
+			GOBehavior* bhvr = obj->m_bhvr_order[ i ];
+			
+			data.append( "\tbhvr = obj.AddBehavior( " );
+			data.append( g_Level->GetScriptCtx().ToSGSON( bhvr->m_name ) );
+			data.append( ", " );
+			data.append( g_Level->GetScriptCtx().ToSGSON( bhvr->m_type ) );
+			data.append( " ).\n\t{\n" );
+			// behavior properties
+			// ---
+			data.append( "\t};\n" );
+		}
+		data.append( "\treturn obj;\n" );
+		
+		data.append( "}\n\n" );
 	}
-#endif
 	
 	char bfr[ 256 ];
 	StringView lname = LevelPathToName( m_fileName );
 	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s.pfb.sgs", TMIN( (int) lname.size(), 200 ), lname.data() );
-	if( !SaveTextFile( bfr, data ) )
+	if( !FS_SaveTextFile( bfr, data ) )
 		LOG_ERROR << "FAILED TO SAVE PREFAB";
 	else
 		LOG << "Prefab script is compiled";

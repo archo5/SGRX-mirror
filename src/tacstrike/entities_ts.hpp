@@ -87,6 +87,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 {
 	SGS_OBJECT_INHERIT( GOBehavior );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_BEHAVIOR( TSCharacter );
 	
 	struct ActionState
 	{
@@ -226,6 +227,7 @@ struct TSPlayerController : BhControllerBase
 {
 	SGS_OBJECT_INHERIT( BhControllerBase );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_BEHAVIOR( TSPlayerController );
 	
 	TSAimHelper m_aimHelper;
 	Vec2 i_move;
@@ -250,6 +252,7 @@ struct TPSPlayerController : BhControllerBase
 {
 	SGS_OBJECT_INHERIT( BhControllerBase );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_BEHAVIOR( TPSPlayerController );
 	
 	YawPitch m_angles;
 	Vec2 i_move;
@@ -280,6 +283,7 @@ struct TSEnemyController : BhControllerBase
 {
 	SGS_OBJECT_INHERIT( BhControllerBase );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_BEHAVIOR( TSEnemyController );
 	
 	bool i_crouch;
 	Vec2 i_move;

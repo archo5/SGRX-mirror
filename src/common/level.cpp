@@ -308,23 +308,17 @@ void GameObject::RemoveResource( sgsString name )
 
 GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 {
-//	for( size_t i = 0; i < m_systems.size(); ++i )
+	GOBehavior* bhvr = NULL;
+	StringView typekey( type.c_str(), type.size() );
+	GOBehaviorCreateFunc* createFunc = m_level->m_goNativeBhvrMap.getcopy( typekey, NULL );
+	if( createFunc )
+		bhvr = createFunc( this );
+	if( bhvr )
 	{
-//		GOBehavior* bhvr = m_systems[ i ]->AddBehavior( type );
-		GOBehavior* bhvr = NULL;
-		if( type.equals( "Behavior" ) )
-			bhvr = new GOBehavior( this );
-		if( type.equals( "BhResourceMoveObject" ) )
-			bhvr = new BhResourceMoveObject( this );
-		if( type.equals( "BhResourceMoveResource" ) )
-			bhvr = new BhResourceMoveResource( this );
-		if( bhvr )
-		{
-			bhvr->InitScriptInterface();
-			m_behaviors.set( name, bhvr );
-			m_bhvr_order.push_back( bhvr );
-			return bhvr;
-		}
+		bhvr->InitScriptInterface();
+		m_behaviors.set( name, bhvr );
+		m_bhvr_order.push_back( bhvr );
+		return bhvr;
 	}
 	
 	sgsVariable bclass = m_level->m_scriptCtx.GetGlobal( type );
@@ -336,7 +330,7 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 	}
 	
 	sgsString native_name = bclass.getprop("__inherit").get_string();
-	GOBehavior* bhvr = _CreateBehaviorReal( name, native_name );
+	bhvr = _CreateBehaviorReal( name, native_name );
 	if( !bhvr )
 	{
 		LOG_ERROR << "FAILED to create scripted behavior '" << type.c_str() << "'"
@@ -630,8 +624,9 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	ReflectionPlaneResource::Register( this );
 	
 	// register core behaviors
-	RegisterNativeBehavior<BhResourceMoveObject>( "BhResourceMoveObject" );
-	RegisterNativeBehavior<BhResourceMoveResource>( "BhResourceMoveResource" );
+	BhResourceMoveObject::Register( this );
+	BhResourceMoveResource::Register( this );
+	BhControllerBase::Register( this );
 	
 	// create the graphics scene
 	m_scene = GR_CreateScene();

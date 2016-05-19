@@ -1780,10 +1780,10 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 	};
 	sgs_RegIntConsts( lev->GetSGSC(), g_ts_ints, -1 );
 	
-	lev->RegisterNativeBehavior<TSCharacter>( "TSCharacter" );
-	lev->RegisterNativeBehavior<TSPlayerController>( "TSPlayerController" );
-	lev->RegisterNativeBehavior<TPSPlayerController>( "TPSPlayerController" );
-	lev->RegisterNativeBehavior<TSEnemyController>( "TSEnemyController" );
+	TSCharacter::Register( lev );
+	TSPlayerController::Register( lev );
+	TPSPlayerController::Register( lev );
+	TSEnemyController::Register( lev );
 	
 	m_level->GetScriptCtx().Include( "data/enemy" );
 }

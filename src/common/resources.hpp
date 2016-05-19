@@ -262,6 +262,7 @@ EXP_STRUCT BhResourceMoveObject : GOBehavior
 {
 	SGS_OBJECT_INHERIT( GOBehavior );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_BEHAVIOR( BhResourceMoveObject );
 	
 	GFW_EXPORT BhResourceMoveObject( GameObject* obj );
 	GFW_EXPORT void FixedUpdate();
@@ -276,6 +277,7 @@ EXP_STRUCT BhResourceMoveResource : GOBehavior
 {
 	SGS_OBJECT_INHERIT( GOBehavior );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_BEHAVIOR( BhResourceMoveResource );
 	
 	GFW_EXPORT BhResourceMoveResource( GameObject* obj );
 	GFW_EXPORT void FixedUpdate();
@@ -302,6 +304,7 @@ EXP_STRUCT BhControllerBase : GOBehavior, IController
 {
 	SGS_OBJECT_INHERIT( GOBehavior );
 	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_BEHAVIOR( BhControllerBase );
 	
 	GFW_EXPORT BhControllerBase( GameObject* obj );
 	GFW_EXPORT virtual SGS_METHOD Vec3 GetInput( uint32_t iid );
