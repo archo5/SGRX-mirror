@@ -412,6 +412,7 @@ typedef SGSRESULT (*sgs_ScriptFSFunc) (
 #define SGS_TRUE 1
 #define SGS_FALSE 0
 #define SGS_QUERY -1
+#define SGS_SERIALIZE_DEFAULT 0
 
 
 /* Statistics / debugging */
@@ -444,7 +445,6 @@ typedef SGSRESULT (*sgs_ScriptFSFunc) (
 #define SGS_CNTL_GET_ERRNO  9
 #define SGS_CNTL_ERRSUP     10
 #define SGS_CNTL_GET_ERRSUP 11
-#define SGS_CNTL_SERIALMODE 12
 #define SGS_CNTL_NUMRETVALS 13
 #define SGS_CNTL_GET_PAUSED 14
 #define SGS_CNTL_GET_ABORT  15
@@ -738,6 +738,10 @@ static SGS_INLINE sgs_Variable sgs_MakeCFunc( sgs_CFunc v )
 {
 	sgs_Variable out; out.type = SGS_VT_CFUNC; out.data.C = v; return out;
 }
+static SGS_INLINE sgs_Variable sgs_MakeObjPtrNoRef( sgs_VarObj* o )
+{
+	sgs_Variable out; out.type = SGS_VT_OBJECT; out.data.O = o; return out;
+}
 static SGS_INLINE sgs_Variable sgs_MakePtr( void* v )
 {
 	sgs_Variable out; out.type = SGS_VT_PTR; out.data.P = v; return out;
@@ -916,19 +920,16 @@ SGS_APIFUNC SGSBOOL sgs_IsMap( sgs_Variable var );
 SGS_APIFUNC SGSBOOL sgs_Unset( SGS_CTX, sgs_Variable var, sgs_Variable key );
 SGS_APIFUNC SGSBOOL sgs_EventState( SGS_CTX, sgs_Variable evt, int state );
 
-SGS_APIFUNC void sgs_Serialize( SGS_CTX, sgs_Variable var );
+SGS_APIFUNC void sgs_SerializeExt( SGS_CTX, sgs_Variable var, int mode );
 SGS_APIFUNC void sgs_SerializeObject( SGS_CTX, sgs_StkIdx args, const char* func );
-SGS_APIFUNC SGSBOOL sgs_Unserialize( SGS_CTX, sgs_Variable var );
+SGS_APIFUNC void sgs_SerializeObjIndex( SGS_CTX, sgs_Variable key, sgs_Variable val, int isprop );
+SGS_APIFUNC SGSBOOL sgs_UnserializeExt( SGS_CTX, sgs_Variable var, int mode );
+#define sgs_Serialize( C, var ) sgs_SerializeExt( C, var, SGS_SERIALIZE_DEFAULT )
+#define sgs_Unserialize( C, var ) sgs_UnserializeExt( C, var, SGS_SERIALIZE_DEFAULT )
 
-SGS_APIFUNC void sgs_SerializeV1( SGS_CTX, sgs_Variable var );
-SGS_APIFUNC SGSBOOL sgs_UnserializeV1( SGS_CTX, sgs_Variable var );
-SGS_APIFUNC void sgs_SerializeV2( SGS_CTX, sgs_Variable var );
-SGS_APIFUNC SGSBOOL sgs_UnserializeV2( SGS_CTX, sgs_Variable var );
-
-SGS_APIFUNC void sgs_SerializeSGSONFmt( SGS_CTX, sgs_Variable var, const char* tab );
-#define sgs_SerializeSGSON( C, var ) sgs_SerializeSGSONFmt( C, var, NULL )
-SGS_APIFUNC void sgs_UnserializeSGSONExt( SGS_CTX, const char* str, size_t size, sgs_Variable tmpl );
-#define sgs_UnserializeSGSON( C, str ) sgs_UnserializeSGSONExt( C, str, SGS_STRINGLENGTHFUNC( str ), sgs_MakeNull() )
+SGS_APIFUNC void sgs_SerializeSGSON( SGS_CTX, sgs_Variable var, const char* tab );
+SGS_APIFUNC void sgs_UnserializeSGSONExt( SGS_CTX, const char* str, size_t size );
+#define sgs_UnserializeSGSON( C, str ) sgs_UnserializeSGSONExt( C, str, SGS_STRINGLENGTHFUNC( str ) )
 
 SGS_APIFUNC int sgs_Compare( SGS_CTX, sgs_Variable* v1, sgs_Variable* v2 );
 SGS_APIFUNC SGSBOOL sgs_EqualTypes( sgs_Variable* v1, sgs_Variable* v2 );

@@ -883,11 +883,24 @@ static int sgsstd_array_serialize( SGS_CTX, sgs_VarObj* obj )
 	SGSARR_HDR_OI;
 	pos = SGSARR_PTR( hdr );
 	posend = pos + hdr->size;
-	while( pos < posend )
+	if( C->object_arg == 2 )
 	{
-		sgs_Serialize( C, *pos++ );
+		int32_t i = 0;
+		sgs_Serialize( C, sgs_MakeInt( hdr->size ) );
+		sgs_SerializeObject( C, 1, "array_sized" );
+		while( pos < posend )
+		{
+			sgs_SerializeObjIndex( C, sgs_MakeInt( i++ ), *pos++, SGS_FALSE );
+		}
 	}
-	sgs_SerializeObject( C, hdr->size, "array" );
+	else
+	{
+		while( pos < posend )
+		{
+			sgs_Serialize( C, *pos++ );
+		}
+		sgs_SerializeObject( C, hdr->size, "array" );
+	}
 	return SGS_SUCCESS;
 }
 
@@ -910,10 +923,14 @@ SGS_APIFUNC sgs_ObjInterface sgsstd_array_iface[1] =
 
 static int sgsstd_array( SGS_CTX )
 {
-	int i = 0, objcnt = sgs_StackSize( C );
+	/* first argument of __call metamethod = self */
+	int i = 1, objcnt = sgs_StackSize( C ) - 1;
 	void* data = sgs_Malloc( C, SGSARR_ALLOCSIZE( objcnt ) );
 	sgs_Variable *p, *pend;
-	sgsstd_array_header_t* hdr = (sgsstd_array_header_t*)
+	sgsstd_array_header_t* hdr;
+	
+	SGSFN( "array" );
+	hdr = (sgsstd_array_header_t*)
 		sgs_CreateObjectIPA( C, NULL, sizeof( sgsstd_array_header_t ), sgsstd_array_iface );
 	hdr->size = objcnt;
 	hdr->mem = objcnt;
@@ -921,6 +938,34 @@ static int sgsstd_array( SGS_CTX )
 	pend = p + objcnt;
 	while( p < pend )
 		sgs_GetStackItem( C, i++, p++ );
+	
+	sgs_PushInterface( C, sgsstd_array_iface_gen );
+	sgs_ObjSetMetaObj( C, sgs_GetObjectStruct( C, -2 ), sgs_GetObjectStruct( C, -1 ) );
+	sgs_Pop( C, 1 );
+	
+	return 1;
+}
+
+static int sgsstd_array_sized( SGS_CTX )
+{
+	sgs_SizeVal size = 0;
+	sgs_Variable *p, *pend;
+	sgsstd_array_header_t* hdr;
+	void* data;
+	
+	SGSFN( "array_sized" );
+	if( !sgs_LoadArgs( C, "l", &size ) )
+		return 0;
+	
+	data = sgs_Malloc( C, SGSARR_ALLOCSIZE( size ) );
+	hdr = (sgsstd_array_header_t*)
+		sgs_CreateObjectIPA( C, NULL, sizeof( sgsstd_array_header_t ), sgsstd_array_iface );
+	hdr->size = size;
+	hdr->mem = size;
+	p = hdr->data = (sgs_Variable*) data;
+	pend = p + size;
+	while( p < pend )
+		(p++)->type = SGS_VT_NULL;
 	
 	sgs_PushInterface( C, sgsstd_array_iface_gen );
 	sgs_ObjSetMetaObj( C, sgs_GetObjectStruct( C, -2 ), sgs_GetObjectStruct( C, -1 ) );
@@ -949,13 +994,25 @@ static int sgsstd_vht_serialize( SGS_CTX, sgs_VarObj* obj, const char* initfn )
 	HTHDR;
 	pair = ht->vars;
 	pend = ht->vars + sgs_vht_size( ht );
-	while( pair < pend )
+	if( C->object_arg == 2 )
 	{
-		sgs_Serialize( C, pair->key );
-		sgs_Serialize( C, pair->val );
-		pair++;
+		sgs_SerializeObject( C, 0, initfn );
+		while( pair < pend )
+		{
+			sgs_SerializeObjIndex( C, pair->key, pair->val, SGS_FALSE );
+			pair++;
+		}
 	}
-	sgs_SerializeObject( C, sgs_vht_size( ht ) * 2, initfn );
+	else
+	{
+		while( pair < pend )
+		{
+			sgs_Serialize( C, pair->key );
+			sgs_Serialize( C, pair->val );
+			pair++;
+		}
+		sgs_SerializeObject( C, sgs_vht_size( ht ) * 2, initfn );
+	}
 	return SGS_SUCCESS;
 }
 
@@ -2341,11 +2398,18 @@ static int sgsstd_va_arg_count( SGS_CTX )
 
 static int sgsstd_metaobj_set( SGS_CTX )
 {
-	sgs_VarObj *obj1, *obj2;
+	sgs_VarObj *obj, *metaobj;
 	SGSFN( "metaobj_set" );
-	if( !sgs_LoadArgs( C, "!xx", sgs_ArgCheck_Object, &obj1, sgs_ArgCheck_Object, &obj2 ) )
+	if( !sgs_LoadArgs( C, "!xx", sgs_ArgCheck_Object, &obj, sgs_ArgCheck_Object, &metaobj ) )
 		return 0;
-	sgs_ObjSetMetaObj( C, obj1, obj2 );
+	sgs_VarObj* chk = metaobj;
+	while( chk )
+	{
+		if( chk == obj )
+			STDLIB_WARN( "loop detected" );
+		chk = chk->metaobj;
+	}
+	sgs_ObjSetMetaObj( C, obj, metaobj );
 	sgs_SetStackSize( C, 1 );
 	return 1;
 }
@@ -2470,7 +2534,7 @@ static int sgsstd_event_convert( SGS_CTX, sgs_VarObj* obj, int type )
 
 static int sgsstd_event_serialize( SGS_CTX, sgs_VarObj* obj )
 {
-	sgs_PushBool( C, obj->data != NULL );
+	sgs_Serialize( C, sgs_MakeBool( obj->data != NULL ) );
 	sgs_SerializeObject( C, 1, "event" );
 	return SGS_SUCCESS;
 }
@@ -3854,251 +3918,39 @@ static int sgsstd_gc_collect( SGS_CTX )
 }
 
 
-static int sgsstd_serialize_core( SGS_CTX, int which )
+static int sgsstd_serialize( SGS_CTX )
 {
-	sgs_Variable var;
+	sgs_Int which = 2;
 	
-	if( !sgs_LoadArgs( C, "v.", &var ) )
+	SGSFN( "serialize" );
+	if( !sgs_LoadArgs( C, "?v|i", &which ) )
 		return 0;
 	
-	if( which )
-		sgs_SerializeV2( C, var );
-	else
-		sgs_SerializeV1( C, var );
+	if( which != 1 && which != 2 && which != 3 )
+		return sgs_Msg( C, SGS_ERROR, "bad serialization mode" );
+	
+	sgs_SerializeExt( C, sgs_StackItem( C, 0 ), (int) which );
 	return 1;
 }
 
-static int sgsstd_serialize( SGS_CTX ){ SGSFN( "serialize" ); return sgsstd_serialize_core( C, 0 ); }
-static int sgsstd_serialize2( SGS_CTX ){ SGSFN( "serialize2" ); return sgsstd_serialize_core( C, 1 ); }
 
-
-static int check_arrayordict_fn( SGS_CTX, int argid, va_list args, int flags )
+static int sgsstd_unserialize( SGS_CTX )
 {
-	uint32_t ty = sgs_ItemType( C, argid );
-	if( ty != SGS_VT_OBJECT || (
-		!sgs_IsObject( C, argid, sgsstd_array_iface ) &&
-		!sgs_IsObject( C, argid, sgsstd_dict_iface ) ) )
-		return sgs_ArgErrorExt( C, argid, 0, "array or dict", "" );
-	return 1;
-}
-
-static int sgsstd_unserialize_core( SGS_CTX, int which )
-{
-	int ret;
-	sgs_StkIdx ssz = sgs_StackSize( C ), dictpos;
-	sgs_Variable env;
+	sgs_Int which = 2;
 	
-	if( !sgs_LoadArgs( C, "?s|x", check_arrayordict_fn ) )
+	SGSFN( "unserialize" );
+	if( !sgs_LoadArgs( C, "?s|i", &which ) )
 		return 0;
 	
-	if( ssz >= 2 )
-	{
-		sgs_GetEnv( C, &env );
-		if( sgs_IsObject( C, 1, sgsstd_array_iface ) )
-		{
-			dictpos = sgs_StackSize( C );
-			sgs_CreateDict( C, NULL, 0 );
-			sgs_PushIterator( C, sgs_StackItem( C, 1 ) );
-			while( sgs_IterAdvance( C, sgs_StackItem( C, -1 ) ) > 0 )
-			{
-				sgs_IterPushData( C, sgs_StackItem( C, -1 ), 0, 1 );
-				sgs_ToString( C, -1 );
-				sgs_PushIndex( C, env, sgs_StackItem( C, -1 ), SGS_FALSE );
-				sgs_SetIndex( C, sgs_StackItem( C, dictpos ), sgs_StackItem( C, -2 ), sgs_StackItem( C, -1 ), 0 );
-				sgs_Pop( C, 2 ); /* pop name and value */
-			}
-			sgs_Pop( C, 1 ); /* pop iterator */
-		}
-		else
-			dictpos = 1;
-		
-		sgs_SetEnv( C, sgs_StackItem( C, dictpos ) );
-	}
+	if( which != 1 && which != 2 && which != 3 )
+		return sgs_Msg( C, SGS_ERROR, "bad serialization mode" );
 	
-	ret = which
-		? sgs_UnserializeV2( C, sgs_StackItem( C, 0 ) )
-		: sgs_UnserializeV1( C, sgs_StackItem( C, 0 ) );
-	
-	if( ssz >= 2 )
-	{
-		sgs_SetEnv( C, env );
-		sgs_Release( C, &env );
-	}
-	
-	return ret;
+	return sgs_UnserializeExt( C, sgs_StackItem( C, 0 ), (int) which );
 }
 
-static int sgsstd_unserialize( SGS_CTX ){ SGSFN( "unserialize" ); return sgsstd_unserialize_core( C, 0 ); }
-static int sgsstd_unserialize2( SGS_CTX ){ SGSFN( "unserialize2" ); return sgsstd_unserialize_core( C, 1 ); }
-
-
-#define sgson_tab( buf, C, depth, tab, tablen ) if( tab ){ \
-	int i = depth; \
-	sgs_membuf_appchr( buf, C, '\n' ); \
-	while( i-- > 0 ) sgs_membuf_appbuf( buf, C, tab, (size_t) tablen ); }
-
-#define sgs_tohex( c ) ("0123456789ABCDEF"[ (c) & 0x0f ])
-
-#define sgs_isid( c ) ( sgs_isalnum( c ) || (c) == '_' )
-
-static int sgson_encode_var( SGS_CTX, sgs_MemBuf* buf, int depth, const char* tab, sgs_SizeVal tablen )
-{
-	sgs_Variable var = sgs_StackItem( C, -1 );
-	switch( var.type )
-	{
-	case SGS_VT_NULL:
-		sgs_membuf_appbuf( buf, C, "null", 4 );
-		return 1;
-	case SGS_VT_BOOL:
-		sgs_membuf_appbuf( buf, C, var.data.B ? "true" : "false", var.data.B ? 4 : 5 );
-		return 1;
-	case SGS_VT_INT:
-		{
-			char tmp[ 64 ];
-			sprintf( tmp, "%" PRId64, var.data.I );
-			sgs_membuf_appbuf( buf, C, tmp, strlen( tmp ) );
-			return 1;
-		}
-	case SGS_VT_REAL:
-		{
-			char tmp[ 64 ];
-			sprintf( tmp, "%g", var.data.R );
-			sgs_membuf_appbuf( buf, C, tmp, strlen( tmp ) );
-			return 1;
-		}
-	case SGS_VT_STRING:
-		{
-			char* str = sgs_GetStringPtr( C, -1 );
-			char* frm = str, *end = str + sgs_GetStringSize( C, -1 );
-			sgs_membuf_appchr( buf, C, '"' );
-			{
-				while( str < end )
-				{
-					if( *str == '"' || *str == '\\' )
-					{
-						char pp[2];
-						{
-							pp[0] = '\\';
-							pp[1] = *str;
-						}
-						if( str != frm )
-							sgs_membuf_appbuf( buf, C, frm, (size_t) ( str - frm ) );
-						sgs_membuf_appbuf( buf, C, pp, 2 );
-						frm = str + 1;
-					}
-					else if( *str < 0x20 || *str == 0x7f )
-					{
-						size_t len = 2;
-						char pp[4];
-						pp[0] = '\\';
-						if( *str == '\n' ){ pp[1] = 'n'; }
-						else if( *str == '\r' ){ pp[1] = 'r'; }
-						else if( *str == '\t' ){ pp[1] = 't'; }
-						else
-						{
-							pp[1] = 'x';
-							pp[2] = sgs_tohex( *str >> 4 );
-							pp[3] = sgs_tohex( *str );
-							len = 4;
-						}
-						if( str != frm )
-							sgs_membuf_appbuf( buf, C, frm, (size_t) ( str - frm ) );
-						sgs_membuf_appbuf( buf, C, pp, len );
-						frm = str + 1;
-					}
-					str++;
-				}
-				if( str != frm )
-					sgs_membuf_appbuf( buf, C, frm, (size_t) ( str - frm ) );
-			}
-			sgs_membuf_appchr( buf, C, '"' );
-			return 1;
-		}
-	case SGS_VT_FUNC:
-	case SGS_VT_CFUNC:
-	case SGS_VT_PTR:
-	case SGS_VT_THREAD:
-		sgs_Msg( C, SGS_WARNING, "cannot encode functions, pointers or threads" );
-		return 0;
-	case SGS_VT_OBJECT:
-		{
-			/* stack: Obj */
-			sgs_SizeVal arrsize = sgs_ArraySize( sgs_StackItem( C, -1 ) );
-			int isarr = arrsize >= 0, first = 1;
-			sgs_membuf_appchr( buf, C, isarr ? '[' : '{' );
-			if( sgs_PushIterator( C, sgs_StackItem( C, -1 ) ) == SGS_FALSE )
-				return 0;
-			/* stack: Obj, Iter */
-			depth++;
-			while( sgs_IterAdvance( C, sgs_StackItem( C, -1 ) ) > 0 )
-			{
-				/* stack: Obj, Iter */
-				sgs_IterPushData( C, sgs_StackItem( C, -1 ), 0, 1 );
-				/* stack: Obj, Iter[, Key], Value */
-				
-				if( first ) first = 0;
-				else sgs_membuf_appchr( buf, C, ',' );
-				
-				sgson_tab( buf, C, depth, tab, tablen );
-				if( !isarr )
-				{
-					sgs_IterPushData( C, sgs_StackItem( C, -2 ), 1, 0 );
-					/* stack: Obj, Iter, Value, Key */
-					sgs_ToString( C, -1 );
-					{
-						int wrotekey = 0;
-						/* small identifier optimization */
-						char* str = sgs_GetStringPtr( C, -1 );
-						char* end = str + sgs_GetStringSize( C, -1 );
-						if( end - str <= 32 && end - str > 0 && ( *str == '_' || sgs_isalpha( *str ) ) )
-						{
-							char* cc = str + 1;
-							while( cc < end )
-							{
-								if( !sgs_isalnum( *cc ) && *cc != '_' )
-									break;
-								cc++;
-							}
-							if( cc == end )
-							{
-								/* only small identifiers */
-								sgs_membuf_appbuf( buf, C, str, (size_t)( end - str ) );
-								wrotekey = 1;
-							}
-						}
-						if( !wrotekey && !sgson_encode_var( C, buf, depth, tab, tablen ) )
-							return 0;
-					}
-					if( tab )
-						sgs_membuf_appbuf( buf, C, " = ", 3 );
-					else
-						sgs_membuf_appchr( buf, C, '=' );
-					
-					sgs_Pop( C, 1 );
-				}
-				/* stack: Obj, Iter, Value */
-				if( !sgson_encode_var( C, buf, depth, tab, tablen ) )
-					return 0;
-				/* stack: -- (?) */
-				sgs_Pop( C, 1 );
-				/* stack: Obj, Iter */
-			}
-			sgs_Pop( C, 1 );
-			/* stack: Obj */
-			depth--;
-			if( arrsize != 0 )
-				sgson_tab( buf, C, depth, tab, tablen );
-			sgs_membuf_appchr( buf, C, isarr ? ']' : '}' );
-			return 1;
-		}
-	}
-	return 0;
-}
 
 static int sgsstd_sgson_encode( SGS_CTX )
 {
-	sgs_MemBuf buf = sgs_membuf_create();
-	int ret;
 	const char* tab = NULL;
 	sgs_SizeVal tablen = 0;
 	
@@ -4106,284 +3958,8 @@ static int sgsstd_sgson_encode( SGS_CTX )
 	if( !sgs_LoadArgs( C, "?v|m", &tab, &tablen ) )
 		return 0;
 	
-	sgs_PushVariable( C, sgs_StackItem( C, 0 ) );
-	ret = sgson_encode_var( C, &buf, 0, tab, tablen );
-	if( buf.size > 0x7fffffff )
-	{
-		ret = 0;
-		sgs_Msg( C, SGS_WARNING, "generated more string data than allowed to store" );
-	}
-	if( ret )
-		sgs_PushStringBuf( C, buf.ptr, (sgs_SizeVal) buf.size );
-	sgs_membuf_destroy( &buf, C );
-	return ret;
-}
-
-void sgs_SerializeSGSONFmt( SGS_CTX, sgs_Variable var, const char* tab )
-{
-	int ret;
-	sgs_MemBuf buf = sgs_membuf_create();
-	sgs_SizeVal tablen = tab ? (sgs_SizeVal) SGS_STRINGLENGTHFUNC( tab ) : 0, stksize = sgs_StackSize( C );
-	sgs_PushVariable( C, var );
-	ret = sgson_encode_var( C, &buf, 0, tab, tablen );
-	if( buf.size > 0x7fffffff )
-	{
-		ret = 0;
-		sgs_Msg( C, SGS_WARNING, "generated more string data than allowed to store" );
-	}
-	if( ret )
-		sgs_PushStringBuf( C, buf.ptr, (sgs_SizeVal) buf.size );
-	else
-		sgs_PushNull( C );
-	sgs_membuf_destroy( &buf, C );
-	sgs_PopSkip( C, sgs_StackSize( C ) - stksize - 1, 1 );
-}
-
-
-static void sgson_skipws( const char** p, const char* end )
-{
-	const char* pos = *p;
-	while( pos < end )
-	{
-		if( *pos != ' ' && *pos != '\t' &&
-			*pos != '\n' && *pos != '\r' )
-			break;
-		pos++;
-	}
-	*p = pos;
-}
-
-#define SGSON_STK_TOP stack->ptr[ stack->size - 1 ]
-#define SGSON_STK_POP sgs_membuf_resize( stack, C, stack->size - 1 )
-#define SGSON_STK_PUSH( what ) sgs_membuf_appchr( stack, C, what )
-
-static const char* sgson_parse( SGS_CTX, sgs_MemBuf* stack, const char* buf, sgs_SizeVal size, sgs_Variable proto )
-{
-	int stk = sgs_StackSize( C );
-	const char* pos = buf, *end = buf + size;
-	for(;;)
-	{
-		int push = 0;
-		sgson_skipws( &pos, end );
-		if( pos >= end )
-			break;
-
-		if( SGSON_STK_TOP == '{' &&
-			*pos != '"' &&
-			*pos != '\'' &&
-			*pos != '_' &&
-			!sgs_isalpha( *pos ) &&
-			*pos != '}' )
-			return pos;
-
-		if( SGSON_STK_TOP == 0 && sgs_StackSize( C ) > stk )
-			return pos;
-
-		if( *pos == '{' )
-		{
-			SGSON_STK_PUSH( '{' );
-			if( proto.type != SGS_VT_NULL )
-			{
-				sgs_CloneItem( C, proto );
-			}
-			else
-			{
-				sgs_CreateDict( C, NULL, 0 );
-			}
-		}
-		else if( *pos == '}' )
-		{
-			if( SGSON_STK_TOP != '{' && SGSON_STK_TOP != ':' )
-				return pos;
-			SGSON_STK_POP;
-			push = 1;
-		}
-		else if( *pos == '[' )
-		{
-			SGSON_STK_PUSH( '[' );
-			sgs_CreateArray( C, NULL, 0 );
-		}
-		else if( *pos == ']' )
-		{
-			if( SGSON_STK_TOP != '[' )
-				return pos;
-			SGSON_STK_POP;
-			push = 1;
-		}
-		else if( *pos == '"' || *pos == '\'' )
-		{
-			char sc = *pos;
-			const char* beg = ++pos;
-			sgs_MemBuf str = sgs_membuf_create();
-			while( pos < end && *pos != sc )
-			{
-				uint8_t cc = (uint8_t) *pos;
-				if( cc <= 0x1f || cc == 0x7f )
-				{
-					sgs_membuf_destroy( &str, C );
-					return pos;
-				}
-				if( *pos == '\\' )
-				{
-					pos++;
-					switch( *pos )
-					{
-					case '"':
-					case '\'':
-					case '\\':
-						sgs_membuf_appchr( &str, C, *pos );
-						break;
-					case 'n': sgs_membuf_appchr( &str, C, '\n' ); break;
-					case 'r': sgs_membuf_appchr( &str, C, '\r' ); break;
-					case 't': sgs_membuf_appchr( &str, C, '\t' ); break;
-					case 'x':
-						{
-							uint8_t hex[ 2 ];
-							uint8_t chr;
-							pos++;
-							if( !sgs_hexchar( pos[0] ) ){ goto strfail; }
-							if( !sgs_hexchar( pos[1] ) ){ pos++; goto strfail; }
-							hex[ 0 ] = (uint8_t) ( sgs_gethex( pos[0] ) );
-							hex[ 1 ] = (uint8_t) ( sgs_gethex( pos[1] ) );
-							pos++;
-							chr = (uint8_t) ( ( hex[0] << 4 ) | hex[1] );
-							sgs_membuf_appchr( &str, C, (char) chr );
-						}
-						break;
-					default:
-					strfail:
-						sgs_membuf_destroy( &str, C );
-						return pos;
-					}
-				}
-				else
-					sgs_membuf_appchr( &str, C, *pos );
-				pos++;
-			}
-			if( pos >= end || str.size > 0x7fffffff )
-			{
-				sgs_membuf_destroy( &str, C );
-				return beg;
-			}
-			sgs_PushStringBuf( C, str.ptr, (sgs_SizeVal) str.size );
-			sgs_membuf_destroy( &str, C );
-			if( SGSON_STK_TOP == '{' )
-			{
-				SGSON_STK_TOP = '=';
-				pos++;
-				sgson_skipws( &pos, end );
-				if( *pos != '=' )
-					return pos;
-			}
-			else
-			{
-				push = 1;
-			}
-		}
-		else if( sgs_decchar( *pos ) || *pos == '-' )
-		{
-			sgs_Int outi;
-			sgs_Real outf;
-			int type = sgs_util_strtonum( &pos, end, &outi, &outf );
-			if( type == 1 )
-			{
-				sgs_PushInt( C, outi );
-				push = 1;
-			}
-			else if( type == 2 )
-			{
-				sgs_PushReal( C, outf );
-				push = 1;
-			}
-			else
-				return pos;
-			pos--;
-		}
-		else if( *pos == '_' || sgs_isalpha( *pos ) )
-		{
-			if( end - pos >= 4 &&
-				( pos[4] == '\0' || sgs_isoneof( pos[4], "}]=, \n\r\t" ) ) &&
-				memcmp( pos, "null", 4 ) == 0 )
-			{
-				sgs_PushNull( C );
-				pos += 4 - 1;
-				push = 1;
-			}
-			else if( end - pos >= 4 &&
-				( pos[4] == '\0' || sgs_isoneof( pos[4], "}]=, \n\r\t" ) ) &&
-				memcmp( pos, "true", 4 ) == 0 )
-			{
-				sgs_PushBool( C, SGS_TRUE );
-				pos += 4 - 1;
-				push = 1;
-			}
-			else if( end - pos >= 5 &&
-				( pos[5] == '\0' || sgs_isoneof( pos[5], "}]=, \n\r\t" ) ) &&
-				memcmp( pos, "false", 5 ) == 0 )
-			{
-				sgs_PushBool( C, SGS_FALSE );
-				pos += 5 - 1;
-				push = 1;
-			}
-			else if( SGSON_STK_TOP == '{' ) /* can use identifiers only as keys */
-			{
-				const char* idend = pos;
-				while( sgs_isid( *idend ) )
-					idend++;
-				if( idend - pos > 255 )
-				{
-					return pos;
-				}
-				
-				sgs_PushStringBuf( C, pos, idend - pos );
-				pos = idend;
-				if( SGSON_STK_TOP == '{' )
-				{
-					SGSON_STK_TOP = '=';
-					sgson_skipws( &pos, end );
-					if( *pos != '=' )
-						return pos;
-				}
-				else
-				{
-					push = 1;
-					pos--;
-				}
-			}
-			else
-				return pos;
-		}
-		else
-			return pos;
-
-		if( push )
-		{
-			if( SGSON_STK_TOP == '[' || SGSON_STK_TOP == '=' )
-			{
-				int revchr = SGSON_STK_TOP == '[' ? ']' : '}';
-				pos++;
-				sgson_skipws( &pos, end );
-				if( pos >= end )
-					break;
-				if( *pos != ',' && *pos != revchr ) return pos;
-				if( *pos != ',' )
-					pos--;
-			}
-			if( SGSON_STK_TOP == '[' )
-			{
-				sgs_ArrayPush( C, sgs_StackItem( C, -2 ), 1 );
-			}
-			if( SGSON_STK_TOP == '=' )
-			{
-				sgs_SetIndex( C, sgs_StackItem( C, -3 ), sgs_StackItem( C, -2 ), sgs_StackItem( C, -1 ), SGS_FALSE );
-				sgs_Pop( C, 2 );
-				SGSON_STK_TOP = '{';
-			}
-		}
-		pos++;
-	}
-/*	printf( "%d, %.*s, %d\n", stack->size, stack->size, stack->ptr, sgs_StackSize(C)-stk ); */
-	return sgs_StackSize( C ) > stk && stack->size == 1 ? NULL : buf;
+	sgs_SerializeInt_V3( C, sgs_StackItem( C, 0 ), tab, tablen );
+	return 1;
 }
 
 static int sgsstd_sgson_decode( SGS_CTX )
@@ -4392,14 +3968,14 @@ static int sgsstd_sgson_decode( SGS_CTX )
 	sgs_SizeVal size;
 	
 	SGSFN( "sgson_decode" );
-	if( !sgs_LoadArgs( C, "m|?o", &str, &size, NULL ) )
+	if( !sgs_LoadArgs( C, "m", &str, &size ) )
 		return 0;
 	
 	{
 		const char* ret = NULL;
 		sgs_MemBuf stack = sgs_membuf_create();
 		sgs_membuf_appchr( &stack, C, 0 );
-		ret = sgson_parse( C, &stack, str, size, sgs_OptStackItem( C, 1 ) );
+		ret = sgson_parse( C, &stack, str, size );
 		sgs_membuf_destroy( &stack, C );
 		if( ret )
 		{
@@ -4407,28 +3983,6 @@ static int sgsstd_sgson_decode( SGS_CTX )
 		}
 		return 1;
 	}
-}
-
-void sgs_UnserializeSGSONExt( SGS_CTX, const char* str, size_t size, sgs_Variable tmpl )
-{
-	const char* ret = NULL;
-	sgs_MemBuf stack = sgs_membuf_create();
-	sgs_SizeVal stksize = sgs_StackSize( C );
-	if( tmpl.type != SGS_VT_NULL && tmpl.type != SGS_VT_OBJECT )
-	{
-		sgs_PushNull( C );
-		sgs_Msg( C, SGS_ERROR, "cannot use non-object template" );
-		return;
-	}
-	sgs_membuf_appchr( &stack, C, 0 );
-	ret = sgson_parse( C, &stack, str, (sgs_SizeVal) size, tmpl );
-	sgs_membuf_destroy( &stack, C );
-	if( ret )
-	{
-		sgs_PushNull( C );
-		sgs_Msg( C, SGS_ERROR, "failed to parse SGSON (position %d, %.8s...", ret - str, ret );
-	}
-	sgs_PopSkip( C, sgs_StackSize( C ) - stksize - 1, 1 );
 }
 
 
@@ -4439,7 +3993,8 @@ void sgs_UnserializeSGSONExt( SGS_CTX, const char* str, size_t size, sgs_Variabl
 static sgs_RegFuncConst regfuncs[] =
 {
 	/* containers */
-	/* STDLIB_FN( array ), -- object */ STDLIB_FN( dict ), STDLIB_FN( map ), { "class", sgsstd_class },
+	/* STDLIB_FN( array ), -- object */ STDLIB_FN( array_sized ), STDLIB_FN( dict ),
+	STDLIB_FN( map ), { "class", sgsstd_class },
 	STDLIB_FN( array_filter ), STDLIB_FN( array_process ),
 	STDLIB_FN( dict_filter ), STDLIB_FN( map_filter ), STDLIB_FN( map_process ),
 	STDLIB_FN( dict_size ), STDLIB_FN( map_size ), STDLIB_FN( isset ), STDLIB_FN( unset ), STDLIB_FN( clone ),
@@ -4486,7 +4041,6 @@ static sgs_RegFuncConst regfuncs[] =
 	STDLIB_FN( dumpvar ), STDLIB_FN( dumpvar_ext ),
 	STDLIB_FN( gc_collect ),
 	STDLIB_FN( serialize ), STDLIB_FN( unserialize ),
-	STDLIB_FN( serialize2 ), STDLIB_FN( unserialize2 ),
 	STDLIB_FN( sgson_encode ), STDLIB_FN( sgson_decode ),
 };
 

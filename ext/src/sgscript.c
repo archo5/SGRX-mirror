@@ -6,6 +6,7 @@
 #include "sgscript/sgs_fnt.c"
 #include "sgscript/sgs_proc.c"
 #include "sgscript/sgs_regex.c"
+#include "sgscript/sgs_srlz.c"
 #include "sgscript/sgs_std.c"
 #include "sgscript/sgs_stdL.c"
 #include "sgscript/sgs_tok.c"

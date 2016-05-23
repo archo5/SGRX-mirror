@@ -230,6 +230,7 @@ sgs_CompFunc;
 
 
 /* - bytecode generator */
+SGS_APIFUNC sgs_CompFunc* sgsBC_MakeCompFunc( SGS_CTX );
 SGS_APIFUNC sgs_iFunc* sgsBC_ConvertFunc( SGS_CTX, sgs_CompFunc* nf,
 	const char* funcname, size_t fnsize, sgs_LineNum lnum );
 SGS_APIFUNC sgs_CompFunc* sgsBC_Generate( SGS_CTX, sgs_FTNode* tree );
@@ -452,6 +453,17 @@ void sgsVM_DestroyVar( SGS_CTX, sgs_Variable* p );
 	} \
 	(pvar)->type = SGS_VT_NULL; }
 
+void sgsVM_PopSkip( SGS_CTX, sgs_StkIdx num, sgs_StkIdx skip );
+
+#define _STACK_PREPARE ptrdiff_t _stksz = 0;
+#define _STACK_PROTECT _stksz = C->stack_off - C->stack_base; C->stack_off = C->stack_top;
+#define _STACK_PROTECT_SKIP( n ) do{ _stksz = C->stack_off - C->stack_base; \
+	C->stack_off = C->stack_top - (n); }while(0)
+#define _STACK_UNPROTECT sgsVM_PopSkip( C, SGS_STACKFRAMESIZE, 0 ); C->stack_off = C->stack_base + _stksz;
+#define _STACK_UNPROTECT_SKIP( n ) do{ sgs_StkIdx __n = (n); \
+	sgsVM_PopSkip( C, SGS_STACKFRAMESIZE - __n, __n ); \
+	C->stack_off = C->stack_base + _stksz; }while(0)
+
 size_t sgsVM_VarSize( const sgs_Variable* var );
 void sgsVM_VarDump( const sgs_Variable* var );
 
@@ -460,6 +472,10 @@ void sgsVM_StackDump( SGS_CTX );
 int sgsVM_PushStackFrame( SGS_CTX, sgs_Variable* func );
 int sgsVM_VarCall( SGS_CTX, sgs_Variable* var, int args, int clsr, int* outrvc, int gotthis );
 void sgsVM_PushClosures( SGS_CTX, sgs_Closure** cls, int num );
+
+
+void sgs_SerializeInt_V3( SGS_CTX, sgs_Variable var, const char* tab, sgs_SizeVal tablen );
+const char* sgson_parse( SGS_CTX, sgs_MemBuf* stack, const char* buf, sgs_SizeVal size );
 
 
 sgs_Variable* sgsVM_VarMake_Dict();
@@ -595,7 +611,6 @@ struct _sgs_ShCtx
 #define SGS_HAS_ERRORS          0x00010000
 #define SGS_MUST_STOP          (0x00020000 | SGS_HAS_ERRORS)
 #define SGS_STATE_LASTFUNCPAUSE 0x0002
-#define SGS_SERIALIZE_MODE2     0x0004
 #define SGS_STATE_DESTROYING    0x0010
 #define SGS_STATE_LASTFUNCABORT 0x0020
 #define SGS_STATE_INSIDE_API    0x0040

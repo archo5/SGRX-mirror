@@ -440,7 +440,7 @@ sgsVariable ScriptContext::Unserialize( const StringView& sv )
 
 String ScriptContext::ToSGSON( sgsVariable var, const char* tab )
 {
-	sgs_SerializeSGSONFmt( C, var.var, tab );
+	sgs_SerializeSGSON( C, var.var, tab );
 	String out = sgsVariable( C, -1 ).get<StringView>();
 	sgs_Pop( C, 1 );
 	return out;
@@ -448,7 +448,7 @@ String ScriptContext::ToSGSON( sgsVariable var, const char* tab )
 
 sgsVariable ScriptContext::ParseSGSON( const StringView& sv )
 {
-	sgs_UnserializeSGSONExt( C, sv.data(), sv.size(), sgs_MakeNull() );
+	sgs_UnserializeSGSONExt( C, sv.data(), sv.size() );
 	return sgsVariable( C, sgsVariable::PickAndPop );
 }
 
