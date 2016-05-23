@@ -353,6 +353,11 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	ENT_SGS_IMPLEMENT;
 	typedef sgsHandle< GOBehavior > ScrHandle;
 	
+	// implementation
+	GFW_EXPORT static GOBehavior* _Create( GameObject* go );
+	GFW_EXPORT static void Register( GameLevel* lev );
+	// --
+	
 	GFW_EXPORT GOBehavior( GameObject* obj );
 	
 	GFW_EXPORT virtual void OnDestroy();

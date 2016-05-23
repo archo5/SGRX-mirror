@@ -476,14 +476,20 @@ inline StringView FLoadVar( sgsVariable v, StringView def )
 }
 inline Vec2 FLoadVar( sgsVariable v, Vec2 def )
 {
+	if( v.is_object( xgm_vec2_iface ) )
+		return v.getdef( def );
 	return V2( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ) );
 }
 inline Vec3 FLoadVar( sgsVariable v, Vec3 def )
 {
+	if( v.is_object( xgm_vec3_iface ) )
+		return v.getdef( def );
 	return V3( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ), FLoadProp( v, "z", def.z ) );
 }
 inline Quat FLoadVar( sgsVariable v, Quat def )
 {
+	if( v.is_object( xgm_quat_iface ) )
+		return v.getdef( def );
 	return QUAT( FLoadProp( v, "x", def.x ), FLoadProp( v, "y", def.y ),
 		FLoadProp( v, "z", def.z ), FLoadProp( v, "w", def.w ) );
 }
@@ -517,59 +523,30 @@ inline sgsVariable FVar( StringView val )
 {
 	return g_Level->GetScriptCtx().CreateString( val );
 }
-inline sgsVariable FVar( Vec2 val )
-{
-	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
-	FSaveProp( v, "x", val.x );
-	FSaveProp( v, "y", val.y );
-	return v;
-}
-inline sgsVariable FVar( Vec3 val )
-{
-	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
-	FSaveProp( v, "x", val.x );
-	FSaveProp( v, "y", val.y );
-	FSaveProp( v, "z", val.z );
-	return v;
-}
-inline sgsVariable FVar( Quat val )
-{
-	sgsVariable v = g_Level->GetScriptCtx().CreateDict();
-	FSaveProp( v, "x", val.x );
-	FSaveProp( v, "y", val.y );
-	FSaveProp( v, "z", val.z );
-	FSaveProp( v, "w", val.w );
-	return v;
-}
 inline sgsVariable FVar( SGRX_GUID val )
 {
 	char bfr[ 36 ];
 	val.ToCharArray( bfr, false, false );
 	return FVar( StringView( bfr, 36 ) );
 }
-inline sgsVariable FIntVar( bool val ){ return sgsVariable().set_bool( val ); }
-inline sgsVariable FIntVar( int val ){ return sgsVariable().set_int( val ); }
-inline sgsVariable FIntVar( uint32_t val ){ return sgsVariable().set_int( val ); }
-inline sgsVariable FIntVar( float val ){ return sgsVariable().set_real( val ); }
-inline sgsVariable FIntVar( StringView val )
-{
-	return g_Level->GetScriptCtx().CreateString( val );
-}
-inline sgsVariable FIntVar( Vec2 val )
+inline sgsVariable FVar( Vec2 val )
 {
 	return g_Level->GetScriptCtx().CreateVec2( val );
 }
-inline sgsVariable FIntVar( Vec3 val )
+inline sgsVariable FVar( Vec3 val )
 {
 	return g_Level->GetScriptCtx().CreateVec3( val );
 }
-inline sgsVariable FIntVar( MeshHandle mh )
+inline sgsVariable FVar( Quat val )
+{
+	return g_Level->GetScriptCtx().CreateQuat( val );
+}
+inline sgsVariable FVar( MeshHandle mh )
 {
 	sgs_PushVar( g_Level->GetSGSC(), mh );
-	
 	return sgsVariable( g_Level->GetSGSC(), sgsVariable::PickAndPop );
 }
-inline sgsVariable FIntVar( TextureHandle th )
+inline sgsVariable FVar( TextureHandle th )
 {
 	sgs_PushVar( g_Level->GetSGSC(), th );
 	return sgsVariable( g_Level->GetSGSC(), sgsVariable::PickAndPop );
@@ -1405,8 +1382,6 @@ struct FieldBase : SGRX_RefCounted
 	virtual void EditUI() = 0;
 	virtual void SetFromVar( sgsVariable var ) = 0;
 	virtual sgsVariable ToVar() = 0;
-	virtual void SetFromIntVar( sgsVariable var ) = 0;
-	virtual sgsVariable ToIntVar() = 0;
 	sgsString key;
 	sgsString caption;
 	FieldType type;
@@ -1420,8 +1395,6 @@ typedef Handle< FieldBase > HField;
 	virtual void EditUI(); \
 	void SetFromVar( sgsVariable var ){ value = FLoadVar( var, def ); } \
 	sgsVariable ToVar(){ return FVar( value ); } \
-	void SetFromIntVar( sgsVariable var ){ value = var.get<ty>(); } \
-	sgsVariable ToIntVar(){ return FIntVar( value ); } \
 }
 #define EFIELD_TYPE( nm, ty, def ) EFIELD_TYPE_( nm, ty, def, ; )
 EFIELD_TYPE( Bool, bool, false );

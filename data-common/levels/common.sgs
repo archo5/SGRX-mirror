@@ -187,7 +187,7 @@ function ReflectionPlaneResource.EditorDrawWorld()
 //
 
 // === RESOURCE - MOVE OBJECT === //
-BEHAVIOR( "BhResourceMoveObject", "Behavior" );
+BEHAVIOR( "BhResourceMoveObject", "GOBehavior" );
 function BhResourceMoveObject.EditorGUI( ui )
 {
 	ui.PickLocalRsrc( "Resource", this, "resource", this.object );
@@ -196,7 +196,7 @@ function BhResourceMoveObject.EditorGUI( ui )
 	ui.EditFlag( "Transfer scale", this, "mask", 0x04 );
 }
 // === RESOURCE - MOVE RESOURCE === //
-BEHAVIOR( "BhResourceMoveResource", "Behavior" );
+BEHAVIOR( "BhResourceMoveResource", "GOBehavior" );
 function BhResourceMoveResource.EditorGUI( ui )
 {
 	ui.PickLocalRsrc( "Resource", this, "resource", this.object );
@@ -208,7 +208,7 @@ function BhResourceMoveResource.EditorGUI( ui )
 
 // === OBJECT ROTATOR === //
 global BhObjectRotate = {};
-BEHAVIOR( "BhObjectRotate", "Behavior" );
+BEHAVIOR( "BhObjectRotate", "GOBehavior" );
 function BhObjectRotate.Init()
 {
 	this.speed = vec3(0,0,180);
@@ -224,7 +224,7 @@ function BhObjectRotate.EditorGUI( ui )
 
 // === MESH ARRAY === //
 global BhMeshArray = {};
-BEHAVIOR( "BhMeshArray", "Behavior" );
+BEHAVIOR( "BhMeshArray", "GOBehavior" );
 BhMeshArray._props = [
 	"isStatic", "visible", "mesh", "localMatrix",
 	"matrixMode", "lightingMode", "lmQuality", "castLMS"

@@ -66,12 +66,15 @@ function ED_ISAVE.EditFloat( lbl, obj, prop, vmin, vmax, prec )
 function ED_ILOAD.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 {
 	d = ED_SDATA[ prop ];
-	obj.(prop) = vec3( d.x, d.y, d.z );
+	if( typeof(d) === "vec3" )
+		obj.(prop) = d;
+	else
+		obj.(prop) = vec3( d.x, d.y, d.z );
 }
 function ED_ISAVE.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 {
 	v = obj.(prop);
-	ED_SDATA[ prop ] = { x = v.x, y = v.y, z = v.z };
+	ED_SDATA[ prop ] = vec3( v );
 }
 function ED_ILCSV.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 {
@@ -101,12 +104,15 @@ function ED_ISAVE.EditMask( lbl, obj, prop, count )
 function ED_ILOAD.EditColorRGBLDR( lbl, obj, prop )
 {
 	d = ED_SDATA[ prop ];
-	obj.(prop) = vec3( d.x, d.y, d.z );
+	if( typeof(d) === "vec3" )
+		obj.(prop) = d;
+	else
+		obj.(prop) = vec3( d.x, d.y, d.z );
 }
 function ED_ISAVE.EditColorRGBLDR( lbl, obj, prop )
 {
 	v = obj.(prop);
-	ED_SDATA[ prop ] = { x = v.x, y = v.y, z = v.z };
+	ED_SDATA[ prop ] = vec3( v );
 }
 function ED_ILCSV.EditColorRGBLDR( lbl, obj, prop )
 {
@@ -117,7 +123,9 @@ function ED_ILOAD.EditXFMat4( lbl, obj, prop )
 {
 	a = ED_SDATA[ prop ];
 	m = mat4();
-	if( a != null )
+	if( typeof(a) === "mat4" )
+		m = a;
+	else if( a != null )
 	{
 		for( i = 0; i < 16; ++i )
 			m[ i ] = a[ i ];
@@ -127,10 +135,7 @@ function ED_ILOAD.EditXFMat4( lbl, obj, prop )
 function ED_ISAVE.EditXFMat4( lbl, obj, prop )
 {
 	m = obj.(prop);
-	a = [].resize( 16 );
-	for( i = 0; i < 16; ++i )
-		a[ i ] = m[ i ];
-	ED_SDATA[ prop ] = a;
+	ED_SDATA[ prop ] = mat4( m );
 }
 function ED_ILCSV.EditXFMat4( lbl, obj, prop )
 {

@@ -158,6 +158,17 @@ sgsVariable GOResourceTable::sgsGetNames()
 	return sgsVariable( C, sgsVariable::PickAndPop );
 }
 
+GOBehavior* GOBehavior::_Create( GameObject* go )
+{
+	return new GOBehavior( go );
+}
+
+void GOBehavior::Register( GameLevel* lev )
+{
+	lev->_RegisterNativeBehavior< GOBehavior >( _sgs_interface->name );
+	lev->m_goNativeBhvrMap.set( _sgs_interface->name, _Create );
+}
+
 GOBehavior::GOBehavior( GameObject* obj ) :
 	LevelScrObj( obj->m_level ),
 	m_obj( obj )
@@ -624,6 +635,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	ReflectionPlaneResource::Register( this );
 	
 	// register core behaviors
+	GOBehavior::Register( this );
 	BhResourceMoveObject::Register( this );
 	BhResourceMoveResource::Register( this );
 	BhControllerBase::Register( this );

@@ -224,7 +224,7 @@ void EdEntity::Data2Fields()
 		sgsVariable val = m_data.getprop( F->key );
 		if( val.type_id() == SGS_VT_NULL )
 			continue;
-		F->SetFromIntVar( val );
+		F->SetFromVar( val );
 	}
 }
 
@@ -234,7 +234,7 @@ void EdEntity::Fields2Data()
 	for( size_t i = 0; i < m_fields.size(); ++i )
 	{
 		FieldBase* F = m_fields[ i ];
-		data.setprop( F->key, F->ToIntVar() );
+		data.setprop( F->key, F->ToVar() );
 	}
 	data.set_meta_obj( m_entIface );
 	m_data = data;
