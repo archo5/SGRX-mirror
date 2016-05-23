@@ -3053,7 +3053,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 	}
 	ENGINE_EXPORT static SGRX_GUID Generate();
 	ENGINE_EXPORT static SGRX_GUID ParseString( StringView str );
-	ENGINE_EXPORT void ToCharArray( char* out, bool upper = false, bool nul = true ) const;
+	ENGINE_EXPORT void ToCharArray( char* out, bool upper = false, bool nul = true, char sep = '-' ) const;
 	ENGINE_EXPORT String ToString( bool upper = false );
 	
 	void SetNull(){ *this = Null; }

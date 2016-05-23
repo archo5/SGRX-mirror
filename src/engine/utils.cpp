@@ -2262,7 +2262,7 @@ error:
 	return SGRX_GUID::Null;
 }
 
-void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul ) const
+void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul, char sep ) const
 {
 	const char* hex = upper ? SGRX_HEX_UPPER : SGRX_HEX_LOWER;
 	const uint8_t* bp = bytes;
@@ -2271,16 +2271,16 @@ void SGRX_GUID::ToCharArray( char* out, bool upper, bool nul ) const
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
-	*out++ = '-';
+	if( sep ) *out++ = sep;
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
-	*out++ = '-';
+	if( sep ) *out++ = sep;
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
-	*out++ = '-';
+	if( sep ) *out++ = sep;
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
-	*out++ = '-';
+	if( sep ) *out++ = sep;
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];
 	*out++ = hex[ *bp >> 4 ]; *out++ = hex[ *bp++ & 0xf ];

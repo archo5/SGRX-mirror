@@ -1903,10 +1903,19 @@ void EdMainFrame::Level_Real_Compile_Default()
 		LOG << "Level is compiled";
 }
 
+static void AppendNameSafeGUID( String& out, const SGRX_GUID& guid )
+{
+	char bfr[ 33 ];
+	guid.ToCharArray( bfr, true, true, 0 );
+	out.append( bfr );
+}
+
 void EdMainFrame::Level_Real_Compile_Prefabs()
 {
 	String data;
 	ScriptContext& sctx = g_Level->GetScriptCtx();
+	
+	sctx.GetGlobal( "ED_ILCSV" ).thiscall( sctx.C, "_Restart" );
 	
 	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
@@ -1920,7 +1929,9 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 		data.append( obj->GetName() );
 		data.append( "( level )\n{\n" );
 		
-		data.append( "\tobj = level.CreateGameObject().\n" );
+		data.append( "\titem_" );
+		AppendNameSafeGUID( data, obj->m_src_guid );
+		data.append( " = obj = level.CreateGameObject().\n" );
 		data.append( "\t{\n" );
 		data.append( "\t\tname = " );
 		data.append( sctx.ToSGSON( obj->m_name ) );
@@ -1928,11 +1939,14 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 		data.append( sctx.ToSGSON( obj->m_id ) );
 		data.append( ",\n\t\tlocalPosition = vec3(0,0,0)" );
 		data.append( ",\n\t};\n" );
+		
 		for( size_t i = 0; i < obj->m_resources.size(); ++i )
 		{
 			GOResource* rsrc = obj->m_resources.item( i ).value;
 			
-			data.append( "\trsrc = obj.AddResource( " );
+			data.append( "\titem_" );
+			AppendNameSafeGUID( data, rsrc->m_src_guid );
+			data.append( " = obj.AddResource( " );
 			data.append( sctx.ToSGSON( rsrc->m_name ) );
 			char bfr[ 32 ];
 			sgrx_snprintf( bfr, 32, ", %u ).\n\t{\n", (unsigned) rsrc->m_type );
@@ -1951,11 +1965,14 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			// ---
 			data.append( "\t};\n" );
 		}
+		
 		for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
 		{
 			GOBehavior* bhvr = obj->m_bhvr_order[ i ];
 			
-			data.append( "\tbhvr = obj.AddBehavior( " );
+			data.append( "\titem_" );
+			AppendNameSafeGUID( data, bhvr->m_src_guid );
+			data.append( " = obj.AddBehavior( " );
 			data.append( sctx.ToSGSON( bhvr->m_name ) );
 			data.append( ", " );
 			data.append( sctx.ToSGSON( bhvr->m_type ) );
@@ -1974,11 +1991,29 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			// ---
 			data.append( "\t};\n" );
 		}
+		
+		// handle links
+		ScriptVarIterator it( sctx.GetGlobal( "ED_ILCSV" ).getprop( "links" ) );
+		while( it.Advance() )
+		{
+			sgsVariable link = it.GetValue();
+			data.append( "\titem_" );
+			AppendNameSafeGUID( data, SGRX_GUID::ParseString(
+				link.getprop( "src" ).getdef(SV()) ) );
+			data.append( "." );
+			data.append( link.getprop( "prop" ).getdef(SV()) );
+			data.append( " = item_" );
+			AppendNameSafeGUID( data, SGRX_GUID::ParseString(
+				link.getprop( "dst" ).getdef(SV()) ) );
+			data.append( ";\n" );
+		}
+		
 		data.append( "\treturn obj;\n" );
 		
 		data.append( "}\n\n" );
 	}
 	
+	// save the file
 	char bfr[ 256 ];
 	StringView lname = LevelPathToName( m_fileName );
 	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s.pfb.sgs", TMIN( (int) lname.size(), 200 ), lname.data() );
