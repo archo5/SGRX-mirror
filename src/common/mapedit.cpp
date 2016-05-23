@@ -1906,6 +1906,7 @@ void EdMainFrame::Level_Real_Compile_Default()
 void EdMainFrame::Level_Real_Compile_Prefabs()
 {
 	String data;
+	ScriptContext& sctx = g_Level->GetScriptCtx();
 	
 	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
@@ -1922,9 +1923,9 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 		data.append( "\tobj = level.CreateGameObject().\n" );
 		data.append( "\t{\n" );
 		data.append( "\t\tname = " );
-		data.append( g_Level->GetScriptCtx().ToSGSON( obj->m_name ) );
+		data.append( sctx.ToSGSON( obj->m_name ) );
 		data.append( ",\n\t\tid = " );
-		data.append( g_Level->GetScriptCtx().ToSGSON( obj->m_id ) );
+		data.append( sctx.ToSGSON( obj->m_id ) );
 		data.append( ",\n\t\tlocalPosition = vec3(0,0,0)" );
 		data.append( ",\n\t};\n" );
 		for( size_t i = 0; i < obj->m_resources.size(); ++i )
@@ -1932,11 +1933,21 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			GOResource* rsrc = obj->m_resources.item( i ).value;
 			
 			data.append( "\trsrc = obj.AddResource( " );
-			data.append( g_Level->GetScriptCtx().ToSGSON( rsrc->m_name ) );
+			data.append( sctx.ToSGSON( rsrc->m_name ) );
 			char bfr[ 32 ];
 			sgrx_snprintf( bfr, 32, ", %u ).\n\t{\n", (unsigned) rsrc->m_type );
 			data.append( bfr );
 			// resource properties
+			sgsVariable rsrcdata = EDGO_RSRC_LCSave( rsrc );
+			ScriptVarIterator it( rsrcdata );
+			while( it.Advance() )
+			{
+				data.append( "\t\t" );
+				data.append( sctx.ToSGSON( it.GetKey(), NULL ) );
+				data.append( " = " );
+				data.append( sctx.ToSGSON( it.GetValue(), NULL ) );
+				data.append( ",\n" );
+			}
 			// ---
 			data.append( "\t};\n" );
 		}
@@ -1945,11 +1956,21 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			GOBehavior* bhvr = obj->m_bhvr_order[ i ];
 			
 			data.append( "\tbhvr = obj.AddBehavior( " );
-			data.append( g_Level->GetScriptCtx().ToSGSON( bhvr->m_name ) );
+			data.append( sctx.ToSGSON( bhvr->m_name ) );
 			data.append( ", " );
-			data.append( g_Level->GetScriptCtx().ToSGSON( bhvr->m_type ) );
+			data.append( sctx.ToSGSON( bhvr->m_type ) );
 			data.append( " ).\n\t{\n" );
 			// behavior properties
+			sgsVariable bhvrdata = EDGO_BHVR_LCSave( bhvr );
+			ScriptVarIterator it( bhvrdata );
+			while( it.Advance() )
+			{
+				data.append( "\t\t" );
+				data.append( sctx.ToSGSON( it.GetKey(), NULL ) );
+				data.append( " = " );
+				data.append( sctx.ToSGSON( it.GetValue(), NULL ) );
+				data.append( ",\n" );
+			}
 			// ---
 			data.append( "\t};\n" );
 		}

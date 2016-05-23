@@ -377,6 +377,24 @@ GameObject* EDGO_Clone( GameObject* obj )
 	return EDGO_FLoad( data );
 }
 
+sgsVariable EDGO_RSRC_LCSave( GOResource* rsrc )
+{
+	sgsVariable data = FNewDict();
+	g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data );
+	rsrc->EditSave( data, g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ) );
+	g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+	return data;
+}
+
+sgsVariable EDGO_BHVR_LCSave( GOBehavior* bhvr )
+{
+	sgsVariable data = FNewDict();
+	g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data );
+	bhvr->EditSave( data, g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ) );
+	g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+	return data;
+}
+
 void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
 {
 	out->name = StringView( obj->m_name.c_str(), obj->m_name.size() );
@@ -390,12 +408,7 @@ void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
 	for( size_t i = 0; i < obj->m_resources.size(); ++i )
 	{
 		GOResource* rsrc = obj->m_resources.item( i ).value;
-		sgsVariable data_rsrc = FNewDict();
-		
-		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_rsrc );
-		rsrc->EditSave( data_rsrc,
-			g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ) );
-		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+		sgsVariable data_rsrc = EDGO_RSRC_LCSave( rsrc );
 		
 		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
 		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_type ) );
@@ -410,12 +423,7 @@ void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
 	for( size_t i = 0; i < obj->m_bhvr_order.size(); ++i )
 	{
 		GOBehavior* bhvr = obj->m_bhvr_order[ i ];
-		sgsVariable data_bhvr = FNewDict();
-		
-		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", data_bhvr );
-		bhvr->EditSave( data_bhvr,
-			g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ) );
-		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
+		sgsVariable data_bhvr = EDGO_BHVR_LCSave( bhvr );
 		
 		data_bhvr.setprop( "__name", bhvr->m_name.get_variable() );
 		data_bhvr.setprop( "__type", bhvr->m_type.get_variable() );
