@@ -142,6 +142,10 @@ function ED_ILCSV.EditXFMat4( lbl, obj, prop )
 	ED_SDATA[ prop ] = mat4( obj.(prop) );
 }
 
+function ED_ILOAD.EditString( lbl, obj, prop, maxlen ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
+function ED_ISAVE.EditString( lbl, obj, prop, maxlen ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
+// default ED_ILCSV
+
 function ED_ILOAD.PickMesh( lbl, obj, prop, caption ){ obj.(prop) = tostring( ED_SDATA[ prop ] ?? "" ); }
 function ED_ISAVE.PickMesh( lbl, obj, prop, caption ){ ED_SDATA[ prop ] = tostring( obj.(prop) ?? "" ); }
 // default ED_ILCSV

@@ -1076,6 +1076,13 @@ static sgs_ObjInterface GOResourceTable__sgs_interface =
 _sgsInterface GOResourceTable::_sgs_interface(GOResourceTable__sgs_interface, GOResourceTable__sgs_ifn, &LevelScrObj::_sgs_interface);
 
 
+static int _sgs_method__GOBehavior__SendMessage( SGS_CTX )
+{
+	GOBehavior* data; if( !SGS_PARSE_METHOD( C, GOBehavior::_sgs_interface, data, GOBehavior, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
+
 int GOBehavior::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GOBehavior*>( obj->data )->C = C;
@@ -1140,6 +1147,7 @@ int GOBehavior::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst GOBehavior__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__GOBehavior__SendMessage },
 	{ NULL, NULL },
 };
 
@@ -1244,6 +1252,13 @@ static int _sgs_method__GameObject__RemoveBehavior( SGS_CTX )
 	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, RemoveBehavior ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->RemoveBehavior( sgs_GetVar<sgsString>()(C,0) ); return 0;
+}
+
+static int _sgs_method__GameObject__SendMessage( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
 }
 
 static int _sgs_method__GameObject__LocalToWorld( SGS_CTX )
@@ -1418,6 +1433,7 @@ static sgs_RegFuncConst GameObject__sgs_funcs[] =
 {
 	{ "RemoveResource", _sgs_method__GameObject__RemoveResource },
 	{ "RemoveBehavior", _sgs_method__GameObject__RemoveBehavior },
+	{ "SendMessage", _sgs_method__GameObject__SendMessage },
 	{ "LocalToWorld", _sgs_method__GameObject__LocalToWorld },
 	{ "WorldToLocal", _sgs_method__GameObject__WorldToLocal },
 	{ "LocalToWorldDir", _sgs_method__GameObject__LocalToWorldDir },
@@ -3412,6 +3428,13 @@ static sgs_ObjInterface ReflectionPlaneResource__sgs_interface =
 _sgsInterface ReflectionPlaneResource::_sgs_interface(ReflectionPlaneResource__sgs_interface, ReflectionPlaneResource__sgs_ifn, &GOResource::_sgs_interface);
 
 
+static int _sgs_method__BhResourceMoveObject__SendMessage( SGS_CTX )
+{
+	BhResourceMoveObject* data; if( !SGS_PARSE_METHOD( C, BhResourceMoveObject::_sgs_interface, data, BhResourceMoveObject, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
+
 int BhResourceMoveObject::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<BhResourceMoveObject*>( obj->data )->C = C;
@@ -3482,6 +3505,7 @@ int BhResourceMoveObject::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst BhResourceMoveObject__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__BhResourceMoveObject__SendMessage },
 	{ NULL, NULL },
 };
 
@@ -3501,6 +3525,13 @@ static sgs_ObjInterface BhResourceMoveObject__sgs_interface =
 };
 _sgsInterface BhResourceMoveObject::_sgs_interface(BhResourceMoveObject__sgs_interface, BhResourceMoveObject__sgs_ifn, &GOBehavior::_sgs_interface);
 
+
+static int _sgs_method__BhResourceMoveResource__SendMessage( SGS_CTX )
+{
+	BhResourceMoveResource* data; if( !SGS_PARSE_METHOD( C, BhResourceMoveResource::_sgs_interface, data, BhResourceMoveResource, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
 
 int BhResourceMoveResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
@@ -3575,6 +3606,7 @@ int BhResourceMoveResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst BhResourceMoveResource__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__BhResourceMoveResource__SendMessage },
 	{ NULL, NULL },
 };
 
@@ -3594,6 +3626,13 @@ static sgs_ObjInterface BhResourceMoveResource__sgs_interface =
 };
 _sgsInterface BhResourceMoveResource::_sgs_interface(BhResourceMoveResource__sgs_interface, BhResourceMoveResource__sgs_ifn, &GOBehavior::_sgs_interface);
 
+
+static int _sgs_method__BhControllerBase__SendMessage( SGS_CTX )
+{
+	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
 
 static int _sgs_method__BhControllerBase__GetInput( SGS_CTX )
 {
@@ -3704,6 +3743,7 @@ int BhControllerBase::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst BhControllerBase__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__BhControllerBase__SendMessage },
 	{ "GetInput", _sgs_method__BhControllerBase__GetInput },
 	{ "Reset", _sgs_method__BhControllerBase__Reset },
 	{ "GetInputV3", _sgs_method__BhControllerBase__GetInputV3 },

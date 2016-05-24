@@ -235,6 +235,16 @@ void GOBehavior::OnIDUpdate()
 		GetScriptedObject().thiscall( C, fn );
 }
 
+void GOBehavior::SendMessage( sgsString name, sgsVariable arg )
+{
+	sgsVariable fn = GetScriptedObject().getprop( name );
+	if( fn.not_null() )
+	{
+		arg.push( C );
+		GetScriptedObject().thiscall( C, fn, 1 );
+	}
+}
+
 void GOBehavior::EditUI( EditorUIHelper*, sgsVariable iface )
 {
 	sgsVariable fn = GetScriptedObject().getprop( "EditorGUI" );
@@ -468,6 +478,12 @@ void GameObject::OnIDUpdate()
 //		m_resources.item( i ).value->OnIDUpdate();
 	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
 		m_bhvr_order[ i ]->OnIDUpdate();
+}
+
+void GameObject::SendMessage( sgsString name, sgsVariable arg )
+{
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		m_bhvr_order[ i ]->SendMessage( name, arg );
 }
 
 void GameObject::DebugDrawWorld()

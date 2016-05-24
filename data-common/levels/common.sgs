@@ -186,6 +186,12 @@ function ReflectionPlaneResource.EditorDrawWorld()
 // Basic behaviors
 //
 
+// === CONTROLLERS === //
+function BhControllerBase.EditorGUI( ui )
+{
+	ui.EditBool( "Enabled", this, "enabled" );
+}
+
 // === RESOURCE - MOVE OBJECT === //
 BEHAVIOR( "BhResourceMoveObject", "GOBehavior" );
 function BhResourceMoveObject.EditorGUI( ui )

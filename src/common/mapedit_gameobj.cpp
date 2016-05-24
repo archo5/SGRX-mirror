@@ -558,6 +558,21 @@ static int IMGUI_EditXFMat4( SGS_CTX )
 	return 0;
 }
 
+static int IMGUI_EditString( SGS_CTX )
+{
+	SGSFN( "ED_IMGUI.EditString" );
+	sgsString label( C, 0 );
+	sgsVariable obj( C, 1 );
+	sgsString prop( C, 2 );
+	int maxlen = sgs_StackSize( C ) > 3 ? sgs_GetVar<int>()( C, 3 ) : 256;
+	String value = obj.getprop( prop ).get<StringView>();
+	
+	if( IMGUIEditString( label.c_str(), value, maxlen ) )
+		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
+	
+	return 0;
+}
+
 static int IMGUI_PickMesh( SGS_CTX )
 {
 	SGSFN( "ED_IMGUI.PickMesh" );
@@ -694,6 +709,7 @@ sgs_RegFuncConst g_imgui_rfc[] =
 	{ "EditMask", IMGUI_EditMask },
 	{ "EditColorRGBLDR", IMGUI_EditColorRGBLDR },
 	{ "EditXFMat4", IMGUI_EditXFMat4 },
+	{ "EditString", IMGUI_EditString },
 	{ "PickMesh", IMGUI_PickMesh },
 	{ "PickTexture", IMGUI_PickTexture },
 	{ "PickPartSys", IMGUI_PickPartSys },
