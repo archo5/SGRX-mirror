@@ -1917,6 +1917,9 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 	
 	sctx.GetGlobal( "ED_ILCSV" ).thiscall( sctx.C, "_Restart" );
 	
+	data.append( "\nglobal PREFABS;\n" );
+	data.append( "if( !@PREFABS ) PREFABS = {};\n\n" );
+	
 	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
 		GameObject* obj = g_Level->m_gameObjects[ i ];
@@ -1925,7 +1928,7 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 		if( obj->GetName() == "" )
 			continue; // no name, cannot create a function
 		
-		data.append( "\nfunction Create_" );
+		data.append( "function PREFABS." );
 		data.append( obj->GetName() );
 		data.append( "( level )\n{\n" );
 		
@@ -2230,6 +2233,33 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 				if( ImGui::MenuItem( "Dump lightmap info" ) )
 				{
 					g_EdLGCont->DumpLightmapInfo();
+				}
+				ImGui::EndMenu();
+			}
+			
+			ImGui::SameLine();
+			if( ImGui::BeginMenu( "Prefabs" ) )
+			{
+				sgsVariable pfb = g_Level->GetScriptCtx().GetGlobal( "PREFABS" );
+				if( pfb.not_null() )
+				{
+					ScriptVarIterator it( pfb );
+					while( it.Advance() )
+					{
+						if( ImGui::MenuItem( it.GetKey().get_string().c_str() ) )
+						{
+							g_Level->GetScriptedObject().push( g_Level->GetSGSC() );
+							it.GetValue().call( g_Level->GetSGSC(), 1, 1 );
+							sgsVariable obj( g_Level->GetSGSC(), sgsVariable::PickAndPop );
+							SGRX_Camera& cam = g_EdScene->camera;
+							Vec3 pos = cam.position + cam.direction.Normalized();
+							obj.setprop( "position", g_Level->GetScriptCtx().CreateVec3( pos ) );
+						}
+					}
+				}
+				else
+				{
+					ImGui::Text( "No prefabs loaded" );
 				}
 				ImGui::EndMenu();
 			}
