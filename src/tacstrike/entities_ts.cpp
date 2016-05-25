@@ -791,8 +791,7 @@ bool TSCharacter::BeginAction( GameObject* obj )
 	return true;
 #endif
 	
-	sgs_PushVar( C, GetScriptedObject() );
-	obj->GetScriptedObject().thiscall( C, "OnInteract", 1 );
+	obj->SendMessage( "OnInteract", m_obj->GetScriptedObject() );
 	return true;
 }
 

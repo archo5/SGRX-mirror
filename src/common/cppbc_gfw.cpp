@@ -1080,7 +1080,7 @@ static int _sgs_method__GOBehavior__SendMessage( SGS_CTX )
 {
 	GOBehavior* data; if( !SGS_PARSE_METHOD( C, GOBehavior::_sgs_interface, data, GOBehavior, SendMessage ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
 }
 
 int GOBehavior::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -1258,7 +1258,7 @@ static int _sgs_method__GameObject__SendMessage( SGS_CTX )
 {
 	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, SendMessage ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
 }
 
 static int _sgs_method__GameObject__LocalToWorld( SGS_CTX )
@@ -3432,7 +3432,7 @@ static int _sgs_method__BhResourceMoveObject__SendMessage( SGS_CTX )
 {
 	BhResourceMoveObject* data; if( !SGS_PARSE_METHOD( C, BhResourceMoveObject::_sgs_interface, data, BhResourceMoveObject, SendMessage ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
 }
 
 int BhResourceMoveObject::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -3530,7 +3530,7 @@ static int _sgs_method__BhResourceMoveResource__SendMessage( SGS_CTX )
 {
 	BhResourceMoveResource* data; if( !SGS_PARSE_METHOD( C, BhResourceMoveResource::_sgs_interface, data, BhResourceMoveResource, SendMessage ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
 }
 
 int BhResourceMoveResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -3631,7 +3631,7 @@ static int _sgs_method__BhControllerBase__SendMessage( SGS_CTX )
 {
 	BhControllerBase* data; if( !SGS_PARSE_METHOD( C, BhControllerBase::_sgs_interface, data, BhControllerBase, SendMessage ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->SendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
 }
 
 static int _sgs_method__BhControllerBase__GetInput( SGS_CTX )

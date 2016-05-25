@@ -235,14 +235,14 @@ void GOBehavior::OnIDUpdate()
 		GetScriptedObject().thiscall( C, fn );
 }
 
-void GOBehavior::SendMessage( sgsString name, sgsVariable arg )
+void GOBehavior::sgsSendMessage( sgsString name, sgsVariable arg )
 {
-	sgsVariable fn = GetScriptedObject().getprop( name );
-	if( fn.not_null() )
-	{
-		arg.push( C );
-		GetScriptedObject().thiscall( C, fn, 1 );
-	}
+	m_obj->sgsSendMessage( name, arg );
+}
+
+void GOBehavior::SendMessage( StringView name, sgsVariable arg )
+{
+	sgsSendMessage( m_level->GetScriptCtx().CreateString( name ), arg );
 }
 
 void GOBehavior::EditUI( EditorUIHelper*, sgsVariable iface )
@@ -480,10 +480,23 @@ void GameObject::OnIDUpdate()
 		m_bhvr_order[ i ]->OnIDUpdate();
 }
 
-void GameObject::SendMessage( sgsString name, sgsVariable arg )
+void GameObject::sgsSendMessage( sgsString name, sgsVariable arg )
 {
 	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
-		m_bhvr_order[ i ]->SendMessage( name, arg );
+	{
+		sgsVariable so = m_bhvr_order[ i ]->GetScriptedObject();
+		sgsVariable fn = so.getprop( name );
+		if( fn.not_null() )
+		{
+			arg.push( C );
+			so.thiscall( C, fn, 1 );
+		}
+	}
+}
+
+void GameObject::SendMessage( StringView name, sgsVariable arg )
+{
+	sgsSendMessage( m_level->GetScriptCtx().CreateString( name ), arg );
 }
 
 void GameObject::DebugDrawWorld()

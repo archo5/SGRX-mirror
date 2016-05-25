@@ -367,7 +367,9 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void OnIDUpdate();
-	GFW_EXPORT virtual SGS_METHOD void SendMessage( sgsString name, sgsVariable arg );
+	GFW_EXPORT virtual SGS_METHOD_NAMED( SendMessage )
+		void sgsSendMessage( sgsString name, sgsVariable arg );
+	GFW_EXPORT void SendMessage( StringView name, sgsVariable arg );
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
@@ -426,7 +428,9 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT virtual void PreRender();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void OnIDUpdate();
-	GFW_EXPORT virtual SGS_METHOD void SendMessage( sgsString name, sgsVariable arg );
+	GFW_EXPORT virtual SGS_METHOD_NAMED( SendMessage )
+		void sgsSendMessage( sgsString name, sgsVariable arg );
+	GFW_EXPORT void SendMessage( StringView name, sgsVariable arg );
 	
 	GFW_EXPORT virtual void DebugDrawWorld();
 	GFW_EXPORT virtual void DebugDrawUI();
