@@ -3428,6 +3428,115 @@ static sgs_ObjInterface ReflectionPlaneResource__sgs_interface =
 _sgsInterface ReflectionPlaneResource::_sgs_interface(ReflectionPlaneResource__sgs_interface, ReflectionPlaneResource__sgs_ifn, &GOResource::_sgs_interface);
 
 
+static int _sgs_method__CameraResource__GetWorldMatrix( SGS_CTX )
+{
+	CameraResource* data; if( !SGS_PARSE_METHOD( C, CameraResource::_sgs_interface, data, CameraResource, GetWorldMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetWorldMatrix(  )); return 1;
+}
+
+int CameraResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<CameraResource*>( obj->data )->C = C;
+	static_cast<CameraResource*>( obj->data )->~CameraResource();
+	return SGS_SUCCESS;
+}
+
+int CameraResource::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CameraResource*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int CameraResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CameraResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "fieldOfView" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->fieldOfView ); return SGS_SUCCESS; }
+		SGS_CASE( "aspectMix" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->aspectMix ); return SGS_SUCCESS; }
+		SGS_CASE( "nearPlane" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->nearPlane ); return SGS_SUCCESS; }
+		SGS_CASE( "farPlane" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->farPlane ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->enabled ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<CameraResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int CameraResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CameraResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<CameraResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<CameraResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<CameraResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "fieldOfView" ){ static_cast<CameraResource*>( obj->data )->fieldOfView = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "aspectMix" ){ static_cast<CameraResource*>( obj->data )->aspectMix = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "nearPlane" ){ static_cast<CameraResource*>( obj->data )->nearPlane = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "farPlane" ){ static_cast<CameraResource*>( obj->data )->farPlane = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<CameraResource*>( obj->data )->enabled = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<CameraResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int CameraResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<CameraResource*>( obj->data )->C, C );
+	char bfr[ 46 ];
+	sprintf( bfr, "CameraResource (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nfieldOfView = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->fieldOfView, depth ).push( C ); }
+		{ sgs_PushString( C, "\naspectMix = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->aspectMix, depth ).push( C ); }
+		{ sgs_PushString( C, "\nnearPlane = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->nearPlane, depth ).push( C ); }
+		{ sgs_PushString( C, "\nfarPlane = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->farPlane, depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->enabled, depth ).push( C ); }
+		sgs_StringConcat( C, 26 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst CameraResource__sgs_funcs[] =
+{
+	{ "GetWorldMatrix", _sgs_method__CameraResource__GetWorldMatrix },
+	{ NULL, NULL },
+};
+
+static int CameraResource__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		CameraResource__sgs_funcs,
+		-1, "CameraResource." );
+	return 1;
+}
+
+static sgs_ObjInterface CameraResource__sgs_interface =
+{
+	"CameraResource",
+	CameraResource::_sgs_destruct, CameraResource::_sgs_gcmark, CameraResource::_sgs_getindex, CameraResource::_sgs_setindex, NULL, NULL, CameraResource::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface CameraResource::_sgs_interface(CameraResource__sgs_interface, CameraResource__sgs_ifn, &GOResource::_sgs_interface);
+
+
 static int _sgs_method__BhResourceMoveObject__SendMessage( SGS_CTX )
 {
 	BhResourceMoveObject* data; if( !SGS_PARSE_METHOD( C, BhResourceMoveObject::_sgs_interface, data, BhResourceMoveObject, SendMessage ) ) return 0;

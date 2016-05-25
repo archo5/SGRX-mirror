@@ -176,9 +176,23 @@ function ReflectionPlaneResource.EditorGUI( ui )
 }
 function ReflectionPlaneResource.EditorDrawWorld()
 {
+	mtx = this.GetWorldMatrix();
 	BR_Reset();
-	BR_Col( 0.2, 0.8, 0.9, 0.8 );
-	BR_AABB( vec3(-1,-1,0), vec3(1,1,0), this.GetWorldMatrix() );
+	BR_Col( 0.2, 0.8, 0.1, 0.05 );
+	BR_SetPrimitiveType( PT_Lines );
+	BR_Pos( mtx.TransformPos( vec3(0) ) );
+	BR_Pos( mtx.TransformPos( vec3(0,0,1) ) );
+}
+
+CameraResource.ED_Icon = "editor/icons/camera.png";
+function CameraResource.EditorGUI( ui )
+{
+	ui.EditBool( "Is enabled?", this, "enabled" );
+	ui.EditFloat( "Field of view", this, "fieldOfView", 0, 180 );
+	ui.EditFloat( "Aspect H/V mix", this, "aspectMix", 0, 1 );
+	ui.EditFloat( "Near plane", this, "nearPlane", 0, 1000000 );
+	ui.EditFloat( "Far plane", this, "nearPlane", 0, 1000000 );
+	this!GOResource.EditorGUI( ui );
 }
 
 

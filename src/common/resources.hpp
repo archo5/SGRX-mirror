@@ -20,6 +20,7 @@
 #define GO_RSRC_JOINT    5 // TODO
 #define GO_RSRC_SNDSRC   6 // TODO
 #define GO_RSRC_REFPLANE 7
+#define GO_RSRC_CAMERA   8
 
 
 
@@ -249,6 +250,24 @@ EXP_STRUCT ReflectionPlaneResource : GOResource
 	IMPLEMENT_RESOURCE( ReflectionPlaneResource, GO_RSRC_REFPLANE, "Reflection plane" );
 	
 	GFW_EXPORT ReflectionPlaneResource( GameObject* obj );
+};
+
+
+EXP_STRUCT CameraResource : GOResource
+{
+	SGS_OBJECT_INHERIT( GOResource );
+	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( CameraResource, GO_RSRC_CAMERA, "Camera" );
+	
+	GFW_EXPORT CameraResource( GameObject* obj );
+	
+	GFW_EXPORT void GetCamera( SGRX_Camera& out );
+	
+	SGS_PROPERTY float fieldOfView;
+	SGS_PROPERTY float aspectMix;
+	SGS_PROPERTY float nearPlane;
+	SGS_PROPERTY float farPlane;
+	SGS_PROPERTY bool enabled;
 };
 
 

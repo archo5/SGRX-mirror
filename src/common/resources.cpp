@@ -351,6 +351,34 @@ ReflectionPlaneResource::ReflectionPlaneResource( GameObject* obj ) :
 }
 
 
+CameraResource::CameraResource( GameObject* obj ) :
+	GOResource( obj ),
+	fieldOfView( 90 ),
+	aspectMix( 0.5f ),
+	nearPlane( 0.1f ),
+	farPlane( 10000 ),
+	enabled( true )
+{
+}
+
+void CameraResource::GetCamera( SGRX_Camera& out )
+{
+	Mat4 mtx = GetWorldMatrix();
+	
+	out.position = mtx.GetTranslation();
+	out.direction = mtx.TransformNormal( V3(0,0,1) ).Normalized();
+	out.updir = mtx.TransformNormal( V3(0,1,0) ).Normalized();
+	
+	out.angle = fieldOfView;
+	out.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+	out.aamix = aspectMix;
+	out.znear = nearPlane;
+	out.zfar = farPlane;
+	
+	out.UpdateMatrices();
+}
+
+
 
 BhResourceMoveObject::BhResourceMoveObject( GameObject* obj ) :
 	GOBehavior( obj ), mask( MoveMask_Position | MoveMask_Rotation )

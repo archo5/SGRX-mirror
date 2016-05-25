@@ -662,6 +662,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	ParticleSystemResource::Register( this );
 	RigidBodyResource::Register( this );
 	ReflectionPlaneResource::Register( this );
+	CameraResource::Register( this );
 	
 	// register core behaviors
 	GOBehavior::Register( this );

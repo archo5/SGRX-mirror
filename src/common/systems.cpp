@@ -1,7 +1,7 @@
 
 
 #include "systems.hpp"
-#include "entities.hpp"
+#include "resources.hpp"
 #include "level.hpp"
 
 
@@ -809,20 +809,31 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 }
 
 
-GFXSystem::GFXSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
+GFXSystem::GFXSystem( GameLevel* lev ) :
+	IGameLevelSystem( lev, e_system_uid )
 {
 	lev->GetScene()->director = this;
+	RegisterHandler( EID_GOResourceAdd );
+	RegisterHandler( EID_GOResourceRemove );
 }
 
 void GFXSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 {
 	if( eid == EID_GOResourceAdd )
 	{
-		m_reflectPlanes.push_back( (GOResource*) edata.GetUserData() );
+		SGRX_CAST( GOResource*, R, edata.GetUserData() );
+		if( R->m_type == GO_RSRC_CAMERA )
+			m_cameras.push_back( R );
+		else if( R->m_type == GO_RSRC_REFPLANE )
+			m_reflectPlanes.push_back( R );
 	}
 	else if( eid == EID_GOResourceRemove )
 	{
-		m_reflectPlanes.remove_first( (GOResource*) edata.GetUserData() );
+		SGRX_CAST( GOResource*, R, edata.GetUserData() );
+		if( R->m_type == GO_RSRC_CAMERA )
+			m_cameras.remove_first( R );
+		else if( R->m_type == GO_RSRC_REFPLANE )
+			m_reflectPlanes.remove_first( R );
 	}
 }
 
@@ -837,6 +848,30 @@ FINLINE Vec3 Vec3ReflectPos( const Vec3& pos, const Vec4& plane )
 }
 
 void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
+{
+	if( m_level->m_editorMode || !m_cameras.size() )
+	{
+		OnDrawSceneWithRefl( ctrl, info );
+		return;
+	}
+	
+	SGRX_Scene* scene = info.scene;
+	SGRX_Camera origCamera = scene->camera;
+	SGRX_Viewport* origViewport = info.viewport;
+	
+	// TODO sort cameras
+	for( size_t i = 0; i < m_cameras.size(); ++i )
+	{
+		SGRX_CAST( CameraResource*, CR, m_cameras[ i ] );
+		CR->GetCamera( scene->camera );
+		OnDrawSceneWithRefl( ctrl, info );
+	}
+	
+	scene->camera = origCamera;
+	info.viewport = origViewport;
+}
+
+void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
 #define RT_REFL 0xffe0
 	
