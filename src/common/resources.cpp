@@ -182,11 +182,6 @@ void ParticleSystemResource::Update()
 	}
 }
 
-void ParticleSystemResource::PreRender()
-{
-	m_psys.PreRender();
-}
-
 void ParticleSystemResource::sgsSetParticleSystem( StringView path )
 {
 	if( path == m_partSysPath )
@@ -376,6 +371,67 @@ void CameraResource::GetCamera( SGRX_Camera& out )
 	out.zfar = farPlane;
 	
 	out.UpdateMatrices();
+}
+
+SGS_MULTRET CameraResource::sgsWorldToScreen( Vec3 pos )
+{
+	SGRX_Camera cam;
+	GetCamera( cam );
+	bool infront = false;
+	sgs_PushVar( C, cam.WorldToScreen( pos, &infront ) );
+	sgs_PushVar( C, infront );
+	return 2;
+}
+
+SGS_MULTRET CameraResource::sgsWorldToScreenPx( Vec3 pos )
+{
+	SGRX_Camera cam;
+	GetCamera( cam );
+	bool infront = false;
+	sgs_PushVar( C, cam.WorldToScreen( pos, &infront )
+		* V3( GR_GetWidth(), GR_GetHeight(), 1 ) );
+	sgs_PushVar( C, infront );
+	return 2;
+}
+
+bool CameraResource::GetCursorWorldPoint( Vec3* isp, uint32_t layers, Vec2 cpn )
+{
+	SGRX_Camera cam;
+	GetCamera( cam );
+	Vec3 pos, dir, end;
+	if( !cam.GetCursorRay( cpn.x, cpn.y, pos, dir ) )
+		return false;
+	SceneRaycastInfo hitinfo;
+	end = pos + dir * cam.zfar;
+	if( !m_level->GetScene()->RaycastOne( pos, end, &hitinfo, layers ) )
+		return false;
+	*isp = TLERP( pos, end, hitinfo.factor );
+	return true;
+}
+
+SGS_MULTRET CameraResource::sgsGetCursorWorldPoint( uint32_t layers )
+{
+	Vec3 p;
+	if( !GetCursorWorldPoint( &p, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
+		return 0;
+	sgs_PushVar( C, p );
+	return 1;
+}
+
+SGS_MULTRET CameraResource::sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ )
+{
+	SGRX_Camera cam;
+	GetCamera( cam );
+	Vec2 cpn = Game_GetCursorPosNormalized();
+	Vec3 pos, dir, end;
+	if( !cam.GetCursorRay( cpn.x, cpn.y, pos, dir ) )
+		return 0;
+	SceneRaycastInfo hitinfo;
+	end = pos + dir * cam.zfar;
+	if( !m_level->GetScene()->RaycastOne( pos, end, &hitinfo, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
+		return 0;
+	sgs_PushPtr( C, hitinfo.meshinst.item );
+	return 1;
 }
 
 

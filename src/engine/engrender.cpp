@@ -95,6 +95,8 @@ void IRenderer::SetRenderTargets( SGRX_IDepthStencilSurface* dss, const SGRX_RTC
 
 void IRenderer::SortRenderItems( SGRX_Scene* scene )
 {
+	Game_FireEvent( EID_ScenePreRender, scene );
+	
 	_RS_UpdateProjectorMesh( scene );
 	
 	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_meshes.data(),

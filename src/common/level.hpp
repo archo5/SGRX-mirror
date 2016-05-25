@@ -642,6 +642,8 @@ struct InfoEmitGameObjectSet
 
 
 
+struct CameraResource;
+
 
 typedef sgsHandle< struct GameLevel > GameLevelScrHandle;
 
@@ -696,6 +698,8 @@ EXP_STRUCT GameLevel :
 	}
 	GFW_EXPORT void ClearLevel();
 	
+	GFW_EXPORT void _PreCallbackFixup();
+	
 	GFW_EXPORT void FixedTick( float deltaTime );
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	GFW_EXPORT void Draw2D();
@@ -708,12 +712,12 @@ EXP_STRUCT GameLevel :
 	// serialization
 	template< class T > void Serialize( T& arch );
 	
-	GFW_EXPORT SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
-	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
-	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
-	GFW_EXPORT bool GetCursorWorldPoint( Vec3* isp, uint32_t layers = 0xffffffff, Vec2 cpn = Game_GetCursorPosNormalized() );
-	GFW_EXPORT SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
-	GFW_EXPORT SGS_METHOD_NAMED( GetCursorMeshInst ) SGS_MULTRET sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ );
+//	GFW_EXPORT SGS_METHOD_NAMED( SetCameraPosDir ) void sgsSetCameraPosDir( Vec3 pos, Vec3 dir );
+//	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
+//	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
+//	GFW_EXPORT bool GetCursorWorldPoint( Vec3* isp, uint32_t layers = 0xffffffff, Vec2 cpn = Game_GetCursorPosNormalized() );
+//	GFW_EXPORT SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
+//	GFW_EXPORT SGS_METHOD_NAMED( GetCursorMeshInst ) SGS_MULTRET sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ );
 	
 	GFW_EXPORT bool Query( GameObjectProcessor* optProc, uint32_t mask );
 	GFW_EXPORT bool QuerySphere( GameObjectProcessor* optProc, uint32_t mask, Vec3 pos, float rad );
@@ -731,17 +735,7 @@ EXP_STRUCT GameLevel :
 	SGS_METHOD TimeVal GetTickTime(){ return m_currentTickTime * 1000.0; }
 	SGS_METHOD TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
 	
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.position ) SGS_ALIAS( Vec3 cameraPosition );
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.direction ) SGS_ALIAS( Vec3 cameraDirection );
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.updir ) SGS_ALIAS( Vec3 cameraUpdir );
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.znear ) SGS_ALIAS( float cameraZNear );
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.zfar ) SGS_ALIAS( float cameraZFar );
-	SGS_PROPERTY_FUNC( READ WRITE SOURCE GetScene()->camera.angle ) SGS_ALIAS( float cameraAngle );
-	SGS_METHOD void UpdateCameraMatrices()
-	{
-		GetScene()->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
-		GetScene()->camera.UpdateMatrices();
-	}
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME mainCamera ) sgsHandle< CameraResource > m_mainCamera;
 	
 	// Editor
 	void GetEditorCompilers( Array< IEditorSystemCompiler* >& out );

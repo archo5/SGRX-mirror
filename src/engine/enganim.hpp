@@ -295,7 +295,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ScenePSRaycast : SGRX_IPSRaycast
 #define PARTICLE_VDECL "pf3cf40b4"
 #define NUM_PARTICLE_TEXTURES 4
 
-struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
+struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted, SGRX_IEventHandler
 {
 	struct Vertex
 	{
@@ -548,12 +548,7 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 	
 	Array< MeshInstHandle > m_meshInsts;
 	
-	ParticleSystem() :
-		gravity(V3(0,0,-10)), maxGroupCount(10), globalScale(1),
-		looping(true), retriggerTimeExt(V2(1,0.1f)),
-		m_isPlaying(false), m_retriggerTime(0), m_nextGroup(0),
-		m_transform(Mat4::Identity), m_lightSampler(NULL), m_psRaycast(NULL)
-	{}
+	ParticleSystem();
 	
 	template< class T > void Serialize( T& arch, bool incl_state )
 	{
@@ -602,12 +597,14 @@ struct IF_GCC(ENGINE_EXPORT) ParticleSystem : SGRX_RefCounted
 	ENGINE_EXPORT bool Load( const StringView& sv );
 	ENGINE_EXPORT bool Save( const StringView& sv );
 	
+	ENGINE_EXPORT void HandleEvent( SGRX_EventID eid, const EventData& edata );
+	
 	ENGINE_EXPORT void OnRenderUpdate();
 	ENGINE_EXPORT void AddToScene( SceneHandle sh );
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
 	ENGINE_EXPORT bool Tick( float dt );
-	ENGINE_EXPORT void PreRender();
+	ENGINE_EXPORT void _PreRender();
 	
 	ENGINE_EXPORT void Trigger();
 	ENGINE_EXPORT void Play();

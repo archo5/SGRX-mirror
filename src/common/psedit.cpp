@@ -399,7 +399,6 @@ struct PSEditor : IGame
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		
 		g_PSys->Tick( dt );
-		g_PSys->PreRender();
 		
 		SGRX_IMGUI_NewFrame( dt );
 		

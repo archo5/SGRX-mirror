@@ -293,6 +293,7 @@ enum SGRX_EventIDType
 	EID_Type_Engine = 1,
 	
 	EID_WindowEvent, // Event*
+	EID_ScenePreRender, // SGRX_Scene*
 	
 	EID_Type_User = 65536,
 };

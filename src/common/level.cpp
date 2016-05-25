@@ -980,6 +980,11 @@ void GameLevel::ClearLevel()
 		m_systems[ i ]->Clear();
 }
 
+void GameLevel::_PreCallbackFixup()
+{
+	// TODO select main camera
+}
+
 void GameLevel::FixedTick( float deltaTime )
 {
 	m_deltaTime = deltaTime;
@@ -990,6 +995,8 @@ void GameLevel::FixedTick( float deltaTime )
 	{
 		m_currentTickTime += deltaTime;
 		
+		_PreCallbackFixup();
+		
 		m_eventType = LEV_PrePhysicsFixedUpdate;
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->PrePhysicsFixedUpdate();
@@ -999,6 +1006,8 @@ void GameLevel::FixedTick( float deltaTime )
 		int ITERS = 2;
 		for( int i = 0; i < ITERS; ++i )
 			m_phyWorld->Step( deltaTime / ITERS );
+		
+		_PreCallbackFixup();
 		
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->FixedUpdate();
@@ -1025,10 +1034,13 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 		m_levelTime += deltaTime;
 		m_currentPhyTime += deltaTime;
 		
+		_PreCallbackFixup();
+		
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->Update();
 	}
 	
+	_PreCallbackFixup();
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Tick( deltaTime, blendFactor );
 	for( size_t i = 0; i < m_gameObjects.size(); ++i )
@@ -1118,74 +1130,6 @@ void GameLevel::Draw()
 	rsinfo.debugdraw = this;
 	rsinfo.postdraw = this;
 	GR_RenderScene( rsinfo );
-}
-
-void GameLevel::sgsSetCameraPosDir( Vec3 pos, Vec3 dir )
-{
-	m_scene->camera.position = pos;
-	m_scene->camera.direction = dir;
-	m_scene->camera.UpdateMatrices();
-	if( m_soundSys )
-	{
-		SGRX_Sound3DAttribs attr =
-		{
-			pos, V3(0), dir, m_scene->camera.updir,
-		};
-		m_soundSys->Set3DAttribs( attr );
-	}
-}
-
-SGS_MULTRET GameLevel::sgsWorldToScreen( Vec3 pos )
-{
-	bool infront = false;
-	sgs_PushVar( C, m_scene->camera.WorldToScreen( pos, &infront ) );
-	sgs_PushVar( C, infront );
-	return 2;
-}
-
-SGS_MULTRET GameLevel::sgsWorldToScreenPx( Vec3 pos )
-{
-	bool infront = false;
-	sgs_PushVar( C, m_scene->camera.WorldToScreen( pos, &infront )
-		* V3( GR_GetWidth(), GR_GetHeight(), 1 ) );
-	sgs_PushVar( C, infront );
-	return 2;
-}
-
-bool GameLevel::GetCursorWorldPoint( Vec3* isp, uint32_t layers, Vec2 cpn )
-{
-	Vec3 pos, dir, end;
-	if( !m_scene->camera.GetCursorRay( cpn.x, cpn.y, pos, dir ) )
-		return false;
-	SceneRaycastInfo hitinfo;
-	end = pos + dir * m_scene->camera.zfar;
-	if( !m_scene->RaycastOne( pos, end, &hitinfo, layers ) )
-		return false;
-	*isp = TLERP( pos, end, hitinfo.factor );
-	return true;
-}
-
-SGS_MULTRET GameLevel::sgsGetCursorWorldPoint( uint32_t layers )
-{
-	Vec3 p;
-	if( !GetCursorWorldPoint( &p, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
-		return 0;
-	sgs_PushVar( C, p );
-	return 1;
-}
-
-SGS_MULTRET GameLevel::sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ )
-{
-	Vec2 cpn = Game_GetCursorPosNormalized();
-	Vec3 pos, dir, end;
-	if( !m_scene->camera.GetCursorRay( cpn.x, cpn.y, pos, dir ) )
-		return 0;
-	SceneRaycastInfo hitinfo;
-	end = pos + dir * m_scene->camera.zfar;
-	if( !m_scene->RaycastOne( pos, end, &hitinfo, sgs_StackSize( C ) >= 1 ? layers : 0xffffffff ) )
-		return 0;
-	sgs_PushPtr( C, hitinfo.meshinst.item );
-	return 1;
 }
 
 

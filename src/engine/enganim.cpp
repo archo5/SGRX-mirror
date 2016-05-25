@@ -1196,6 +1196,15 @@ void ParticleSystem::Emitter::PreRender( ParticleSystem* PS, ps_prerender_info& 
 }
 
 
+ParticleSystem::ParticleSystem() :
+	gravity(V3(0,0,-10)), maxGroupCount(10), globalScale(1),
+	looping(true), retriggerTimeExt(V2(1,0.1f)),
+	m_isPlaying(false), m_retriggerTime(0), m_nextGroup(0),
+	m_transform(Mat4::Identity), m_lightSampler(NULL), m_psRaycast(NULL)
+{
+	RegisterHandler( EID_ScenePreRender );
+}
+
 bool ParticleSystem::Load( const StringView& sv )
 {
 	ByteArray ba;
@@ -1212,6 +1221,18 @@ bool ParticleSystem::Save( const StringView& sv )
 	ByteWriter bw( &ba );
 	Serialize( bw, false );
 	return FS_SaveBinaryFile( sv, ba.data(), ba.size() );
+}
+
+void ParticleSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
+{
+	if( eid == EID_ScenePreRender )
+	{
+		SGRX_CAST( SGRX_Scene*, scene, edata.GetUserData() );
+		if( scene == m_scene )
+		{
+			_PreRender();
+		}
+	}
 }
 
 void ParticleSystem::OnRenderUpdate()
@@ -1283,7 +1304,7 @@ bool ParticleSystem::Tick( float dt )
 	return retval;
 }
 
-void ParticleSystem::PreRender()
+void ParticleSystem::_PreRender()
 {
 	if( !m_scene )
 		return;

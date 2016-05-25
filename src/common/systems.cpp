@@ -1150,7 +1150,6 @@ void DamageSystem::Tick( float deltaTime, float blendFactor )
 		{
 			mtl->particles.Tick( deltaTime );
 		}
-		mtl->particles.PreRender();
 	}
 }
 

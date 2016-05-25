@@ -137,7 +137,6 @@ EXP_STRUCT ParticleSystemResource : GOResource
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void EditorDrawWorld();
 	GFW_EXPORT virtual void Update();
-	GFW_EXPORT virtual void PreRender();
 	
 	GFW_EXPORT void sgsSetParticleSystem( StringView path );
 	GFW_EXPORT void sgsSetSoundEvent( StringView name );
@@ -262,6 +261,12 @@ EXP_STRUCT CameraResource : GOResource
 	GFW_EXPORT CameraResource( GameObject* obj );
 	
 	GFW_EXPORT void GetCamera( SGRX_Camera& out );
+	
+	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreen ) SGS_MULTRET sgsWorldToScreen( Vec3 pos );
+	GFW_EXPORT SGS_METHOD_NAMED( WorldToScreenPx ) SGS_MULTRET sgsWorldToScreenPx( Vec3 pos );
+	GFW_EXPORT bool GetCursorWorldPoint( Vec3* isp, uint32_t layers = 0xffffffff, Vec2 cpn = Game_GetCursorPosNormalized() );
+	GFW_EXPORT SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
+	GFW_EXPORT SGS_METHOD_NAMED( GetCursorMeshInst ) SGS_MULTRET sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ );
 	
 	SGS_PROPERTY float fieldOfView;
 	SGS_PROPERTY float aspectMix;

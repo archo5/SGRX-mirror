@@ -600,7 +600,6 @@ void TSCharacter::Update()
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
 	m_shootPS.Tick( deltaTime );
-	m_shootPS.PreRender();
 }
 
 void TSCharacter::_HandleGroundBody( Vec3& pos, SGRX_IPhyRigidBody* body, float dt )

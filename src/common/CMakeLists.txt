@@ -5,7 +5,6 @@ set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 # Core game library
 add_library( sgrx-gfw SHARED
 	level.hpp level.cpp
-	entities.hpp entities.cpp
 	resources.hpp resources.cpp
 	systems.hpp systems.cpp
 	gfwcore.hpp gfwcore.cpp
