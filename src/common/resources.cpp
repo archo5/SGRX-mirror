@@ -348,6 +348,7 @@ ReflectionPlaneResource::ReflectionPlaneResource( GameObject* obj ) :
 
 CameraResource::CameraResource( GameObject* obj ) :
 	GOResource( obj ),
+	depth( 1000 ),
 	fieldOfView( 90 ),
 	aspectMix( 0.5f ),
 	nearPlane( 0.1f ),

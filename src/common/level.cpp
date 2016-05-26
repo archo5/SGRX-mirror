@@ -602,6 +602,8 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	
 	// handled events
 	RegisterHandler( EID_WindowEvent );
+	RegisterHandler( EID_GOResourceAdd );
+	RegisterHandler( EID_GOResourceRemove );
 	
 	// create the scripted self
 	{
@@ -696,12 +698,20 @@ void GameLevel::HandleEvent( SGRX_EventID eid, const EventData& edata )
 {
 	switch( eid )
 	{
-	case EID_WindowEvent:
-		{
+	case EID_WindowEvent: {
 			SGRX_CAST( Event*, ev, edata.GetUserData() );
 			m_guiSys->EngineEvent( *ev );
-		}
-		break;
+		} break;
+	case EID_GOResourceAdd: {
+			SGRX_CAST( GOResource*, R, edata.GetUserData() );
+			if( R->m_type == GO_RSRC_CAMERA )
+				m_cameras.push_back( (CameraResource*) R );
+		} break;
+	case EID_GOResourceRemove: {
+			SGRX_CAST( GOResource*, R, edata.GetUserData() );
+			if( R->m_type == GO_RSRC_CAMERA )
+				m_cameras.remove_first( (CameraResource*) R );
+		} break;
 	}
 }
 
@@ -980,10 +990,41 @@ void GameLevel::ClearLevel()
 		m_systems[ i ]->Clear();
 }
 
+
+static int sort_cameras_by_depth( const void* A, const void* B )
+{
+	SGRX_CAST( CameraResource**, pCA, A );
+	SGRX_CAST( CameraResource**, pCB, B );
+	if( (*pCA)->depth != (*pCB)->depth )
+		return (*pCA)->depth - (*pCB)->depth;
+	return (int) ( pCA - pCB );
+}
+
 void GameLevel::_PreCallbackFixup()
 {
-	// TODO select main camera
+	qsort( m_cameras.data(), m_cameras.size(), sizeof(CameraResource*), sort_cameras_by_depth );
+	
+	if( GetMainCamera() && GetMainCamera()->enabled == false )
+	{
+		m_mainCamera = sgsHandle<CameraResource>();
+	}
+	
+	if( !GetMainCamera() )
+	{
+		for( size_t i = 0; i < m_cameras.size(); ++i )
+		{
+			if( m_cameras[ i ]->enabled )
+			{
+				m_mainCamera = sgsHandle<CameraResource>( m_cameras[ i ] );
+				break;
+			}
+		}
+	}
+	
+	if( GetMainCamera() )
+		GetMainCamera()->GetCamera( m_scene->camera );
 }
+
 
 void GameLevel::FixedTick( float deltaTime )
 {
@@ -1247,6 +1288,15 @@ GameObject* GameLevel::CreateGameObject()
 
 void GameLevel::DestroyGameObject( GameObject* obj )
 {
+	while( obj->m_bhvr_order.size() )
+		obj->RemoveBehavior( obj->m_bhvr_order.last()->m_name );
+	
+	while( obj->m_resources.size() )
+	{
+		obj->RemoveResource( obj->m_resources.item(
+			obj->m_resources.size() - 1 ).value->m_name );
+	}
+	
 	Game_FireEvent( EID_GODestroy, obj );
 	obj->OnDestroy();
 	delete obj;

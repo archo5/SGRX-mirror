@@ -688,6 +688,7 @@ EXP_STRUCT GameLevel :
 	float GetBlendFactor() const        { return m_blendFactor; }
 	float GetTickDeltaTime() const      { return m_tickDeltaTime; }
 	float GetFixedTickDeltaTime() const { return m_fixedTickDeltaTime; }
+	CameraResource* GetMainCamera()     { return m_mainCamera; }
 	bool GetEditorMode() const          { return m_editorMode; }
 	
 	GFW_EXPORT bool Load( const StringView& levelname );
@@ -736,6 +737,7 @@ EXP_STRUCT GameLevel :
 	SGS_METHOD TimeVal GetPhyTime(){ return m_currentPhyTime * 1000.0; }
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME mainCamera ) sgsHandle< CameraResource > m_mainCamera;
+	Array< CameraResource* > m_cameras;
 	
 	// Editor
 	void GetEditorCompilers( Array< IEditorSystemCompiler* >& out );

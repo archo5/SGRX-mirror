@@ -180,8 +180,8 @@ function ReflectionPlaneResource.EditorDrawWorld()
 	BR_Reset();
 	BR_Col( 0.2, 0.8, 0.1, 0.05 );
 	BR_SetPrimitiveType( PT_Lines );
-	BR_Pos( mtx.TransformPos( vec3(0) ) );
-	BR_Pos( mtx.TransformPos( vec3(0,0,1) ) );
+	BR_Pos( mtx.transform_pos( vec3(0) ) );
+	BR_Pos( mtx.transform_pos( vec3(0,0,1) ) );
 }
 
 CameraResource.ED_Icon = "editor/icons/camera.png";

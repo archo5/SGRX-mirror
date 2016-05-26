@@ -822,17 +822,13 @@ void GFXSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 	if( eid == EID_GOResourceAdd )
 	{
 		SGRX_CAST( GOResource*, R, edata.GetUserData() );
-		if( R->m_type == GO_RSRC_CAMERA )
-			m_cameras.push_back( R );
-		else if( R->m_type == GO_RSRC_REFPLANE )
+		if( R->m_type == GO_RSRC_REFPLANE )
 			m_reflectPlanes.push_back( R );
 	}
 	else if( eid == EID_GOResourceRemove )
 	{
 		SGRX_CAST( GOResource*, R, edata.GetUserData() );
-		if( R->m_type == GO_RSRC_CAMERA )
-			m_cameras.remove_first( R );
-		else if( R->m_type == GO_RSRC_REFPLANE )
+		if( R->m_type == GO_RSRC_REFPLANE )
 			m_reflectPlanes.remove_first( R );
 	}
 }
@@ -849,7 +845,7 @@ FINLINE Vec3 Vec3ReflectPos( const Vec3& pos, const Vec4& plane )
 
 void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
-	if( m_level->m_editorMode || !m_cameras.size() )
+	if( m_level->m_editorMode || !m_level->m_cameras.size() )
 	{
 		OnDrawSceneWithRefl( ctrl, info );
 		return;
@@ -860,9 +856,9 @@ void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 	SGRX_Viewport* origViewport = info.viewport;
 	
 	// TODO sort cameras
-	for( size_t i = 0; i < m_cameras.size(); ++i )
+	for( size_t i = 0; i < m_level->m_cameras.size(); ++i )
 	{
-		SGRX_CAST( CameraResource*, CR, m_cameras[ i ] );
+		SGRX_CAST( CameraResource*, CR, m_level->m_cameras[ i ] );
 		CR->GetCamera( scene->camera );
 		OnDrawSceneWithRefl( ctrl, info );
 	}
@@ -894,7 +890,6 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 	{
 		ctrl->RenderShadows( scene, shadow_pass_id );
 	}
-	ctrl->SortRenderItems( scene );
 	
 	// RENDER REFLECTIONS
 	TextureHandle rttREFL = GR_GetRenderTarget( reflW, reflH, RT_FORMAT_COLOR_HDR16, RT_REFL );
@@ -918,7 +913,13 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 		scene->camera.UpdateMatrices();
 		info.viewport = NULL;
 		
+		ctrl->SortRenderItems( scene );
+		
 		OnDrawSceneGeom( ctrl, info, rttREFL, dssREFL, NULL );
+	}
+	if( m_reflectPlanes.size() == 0 )
+	{
+		ctrl->SetRenderTargets( dssREFL, SGRX_RT_ClearAll, 0, 0, 1, rttREFL );
 	}
 	
 	scene->camera = origCamera;
@@ -928,6 +929,7 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 	ctrl->m_overrideTextures[ 10 ] = scene->skyTexture;
 	ctrl->m_overrideTextures[ 11 ] = rttREFL; // GR_GetTexture( "textures/unit.png" );
 	GR_PreserveResource( ctrl->m_overrideTextures[ 0 ] );
+	ctrl->SortRenderItems( scene );
 	SGRX_RenderDirector::OnDrawScene( ctrl, info );
 }
 

@@ -317,7 +317,6 @@ EXP_STRUCT GFXSystem : IGameLevelSystem, SGRX_RenderDirector, SGRX_IEventHandler
 	GFW_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
 	GFW_EXPORT virtual void OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
 	
-	Array< GOResource* > m_cameras;
 	Array< GOResource* > m_reflectPlanes;
 };
 

@@ -268,6 +268,7 @@ EXP_STRUCT CameraResource : GOResource
 	GFW_EXPORT SGS_METHOD_NAMED( GetCursorWorldPoint ) SGS_MULTRET sgsGetCursorWorldPoint( uint32_t layers /* = 0xffffffff */ );
 	GFW_EXPORT SGS_METHOD_NAMED( GetCursorMeshInst ) SGS_MULTRET sgsGetCursorMeshInst( uint32_t layers /* = 0xffffffff */ );
 	
+	SGS_PROPERTY int depth;
 	SGS_PROPERTY float fieldOfView;
 	SGS_PROPERTY float aspectMix;
 	SGS_PROPERTY float nearPlane;

@@ -97,6 +97,14 @@ void IRenderer::SortRenderItems( SGRX_Scene* scene )
 {
 	Game_FireEvent( EID_ScenePreRender, scene );
 	
+	_RS_Cull_Camera_Prepare( scene );
+	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList( scene );
+	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList( scene );
+	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList( scene );
+	
+	// MESH INST/LIGHT RELATIONS & DrawItems
+	_RS_Compile_MeshLists( scene, m_visible_meshes.data(), m_visible_meshes.size() );
+	
 	_RS_UpdateProjectorMesh( scene );
 	
 	_RS_LoadInstItems( scene->camera.mView, 0, m_visible_meshes.data(),
@@ -237,14 +245,6 @@ void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, SGRX_MeshInstance
 void IRenderer::_RS_PreProcess( SGRX_Scene* scene )
 {
 	m_stats.Reset();
-	
-	_RS_Cull_Camera_Prepare( scene );
-	m_stats.numVisMeshes = _RS_Cull_Camera_MeshList( scene );
-	m_stats.numVisPLights = _RS_Cull_Camera_PointLightList( scene );
-	m_stats.numVisSLights = _RS_Cull_Camera_SpotLightList( scene );
-	
-	// MESH INST/LIGHT RELATIONS & DrawItems
-	_RS_Compile_MeshLists( scene, m_visible_meshes.data(), m_visible_meshes.size() );
 }
 
 void IRenderer::_RS_Cull_Camera_Prepare( SGRX_Scene* scene )
