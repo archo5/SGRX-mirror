@@ -1915,13 +1915,13 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 	String data;
 	ScriptContext& sctx = g_Level->GetScriptCtx();
 	
-	sctx.GetGlobal( "ED_ILCSV" ).thiscall( sctx.C, "_Restart" );
-	
 	data.append( "\nglobal PREFABS;\n" );
 	data.append( "if( !@PREFABS ) PREFABS = {};\n\n" );
 	
 	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
+		sctx.GetGlobal( "ED_ILCSV" ).thiscall( sctx.C, "_Restart" );
+		
 		GameObject* obj = g_Level->m_gameObjects[ i ];
 		if( obj->GetParent() )
 			continue; // has parent, so part of another object
@@ -2015,6 +2015,8 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 		
 		data.append( "}\n\n" );
 	}
+	
+	sctx.GetGlobal( "ED_ILCSV" ).thiscall( sctx.C, "_Restart" );
 	
 	// save the file
 	char bfr[ 256 ];

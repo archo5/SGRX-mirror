@@ -46,6 +46,7 @@ void EDGO_EditUI( GameObject* obj )
 			ImGui::OpenPopup( "add_behavior" );
 		}
 		
+		ImGui::SetNextWindowContentSize( ImVec2(330,600) );
 		if( ImGui::BeginPopup( "add_behavior" ) )
 		{
 			IMGUIEditString( "Name", bhvrname, 256 );
@@ -145,6 +146,7 @@ void EDGO_EditUI( GameObject* obj )
 			ImGui::OpenPopup( "add_resource" );
 		}
 		
+		ImGui::SetNextWindowContentSize( ImVec2(330,600) );
 		if( ImGui::BeginPopup( "add_resource" ) )
 		{
 			IMGUIEditString( "Name", rsrcname, 256 );

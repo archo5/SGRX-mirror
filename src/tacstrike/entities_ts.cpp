@@ -933,6 +933,12 @@ Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
 	return m_animChar.GetAttachmentPos( m_animChar.FindAttachment( atch ), off );
 }
 
+Mat4 TSCharacter::sgsGetAttachmentMatrix( StringView atch )
+{
+	return m_animChar.GetAttachmentMatrix(
+		m_animChar.FindAttachment( atch ) );
+}
+
 
 
 TSAimHelper::TSAimHelper( GameLevel* lev ) :

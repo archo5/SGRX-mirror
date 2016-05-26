@@ -196,6 +196,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	bool m_skipTransformUpdate;
 	
 	SGS_METHOD_NAMED( GetAttachmentPos ) Vec3 sgsGetAttachmentPos( StringView atch, Vec3 off );
+	SGS_METHOD_NAMED( GetAttachmentMatrix ) Mat4 sgsGetAttachmentMatrix( StringView atch );
 };
 
 

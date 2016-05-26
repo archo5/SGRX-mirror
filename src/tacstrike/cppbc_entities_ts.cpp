@@ -3,6 +3,13 @@
 
 #include "entities_ts.hpp"
 
+static int _sgs_method__TSCharacter__SendMessage( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
+
 static int _sgs_method__TSCharacter__SetPlayerMode( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SetPlayerMode ) ) return 0;
@@ -108,6 +115,13 @@ static int _sgs_method__TSCharacter__GetAttachmentPos( SGS_CTX )
 	sgs_PushVar(C,data->sgsGetAttachmentPos( sgs_GetVar<StringView>()(C,0), sgs_GetVar<Vec3>()(C,1) )); return 1;
 }
 
+static int _sgs_method__TSCharacter__GetAttachmentMatrix( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, GetAttachmentMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsGetAttachmentMatrix( sgs_GetVar<StringView>()(C,0) )); return 1;
+}
+
 int TSCharacter::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<TSCharacter*>( obj->data )->C = C;
@@ -186,6 +200,7 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__TSCharacter__SendMessage },
 	{ "SetPlayerMode", _sgs_method__TSCharacter__SetPlayerMode },
 	{ "InitializeMesh", _sgs_method__TSCharacter__InitializeMesh },
 	{ "IsTouchingPoint", _sgs_method__TSCharacter__IsTouchingPoint },
@@ -201,6 +216,7 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "GetQueryPosition", _sgs_method__TSCharacter__GetQueryPosition },
 	{ "GetAimDir", _sgs_method__TSCharacter__GetAimDir },
 	{ "GetAttachmentPos", _sgs_method__TSCharacter__GetAttachmentPos },
+	{ "GetAttachmentMatrix", _sgs_method__TSCharacter__GetAttachmentMatrix },
 	{ NULL, NULL },
 };
 
@@ -220,6 +236,13 @@ static sgs_ObjInterface TSCharacter__sgs_interface =
 };
 _sgsInterface TSCharacter::_sgs_interface(TSCharacter__sgs_interface, TSCharacter__sgs_ifn, &GOBehavior::_sgs_interface);
 
+
+static int _sgs_method__TSPlayerController__SendMessage( SGS_CTX )
+{
+	TSPlayerController* data; if( !SGS_PARSE_METHOD( C, TSPlayerController::_sgs_interface, data, TSPlayerController, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
 
 static int _sgs_method__TSPlayerController__GetInput( SGS_CTX )
 {
@@ -347,6 +370,7 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSPlayerController__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__TSPlayerController__SendMessage },
 	{ "GetInput", _sgs_method__TSPlayerController__GetInput },
 	{ "Reset", _sgs_method__TSPlayerController__Reset },
 	{ "GetInputV3", _sgs_method__TSPlayerController__GetInputV3 },
@@ -373,6 +397,13 @@ static sgs_ObjInterface TSPlayerController__sgs_interface =
 };
 _sgsInterface TSPlayerController::_sgs_interface(TSPlayerController__sgs_interface, TSPlayerController__sgs_ifn, &BhControllerBase::_sgs_interface);
 
+
+static int _sgs_method__TPSPlayerController__SendMessage( SGS_CTX )
+{
+	TPSPlayerController* data; if( !SGS_PARSE_METHOD( C, TPSPlayerController::_sgs_interface, data, TPSPlayerController, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
 
 static int _sgs_method__TPSPlayerController__GetInput( SGS_CTX )
 {
@@ -510,6 +541,7 @@ int TPSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TPSPlayerController__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__TPSPlayerController__SendMessage },
 	{ "GetInput", _sgs_method__TPSPlayerController__GetInput },
 	{ "Reset", _sgs_method__TPSPlayerController__Reset },
 	{ "GetInputV3", _sgs_method__TPSPlayerController__GetInputV3 },
@@ -538,6 +570,13 @@ static sgs_ObjInterface TPSPlayerController__sgs_interface =
 };
 _sgsInterface TPSPlayerController::_sgs_interface(TPSPlayerController__sgs_interface, TPSPlayerController__sgs_ifn, &BhControllerBase::_sgs_interface);
 
+
+static int _sgs_method__TSEnemyController__SendMessage( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, SendMessage ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->sgsSendMessage( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsVariable>()(C,1) ); return 0;
+}
 
 static int _sgs_method__TSEnemyController__GetInput( SGS_CTX )
 {
@@ -770,6 +809,7 @@ int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst TSEnemyController__sgs_funcs[] =
 {
+	{ "SendMessage", _sgs_method__TSEnemyController__SendMessage },
 	{ "GetInput", _sgs_method__TSEnemyController__GetInput },
 	{ "Reset", _sgs_method__TSEnemyController__Reset },
 	{ "GetInputV3", _sgs_method__TSEnemyController__GetInputV3 },
