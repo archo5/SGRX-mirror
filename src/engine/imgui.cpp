@@ -689,9 +689,10 @@ void IMGUISoundPicker::Reload()
 }
 
 
-IMGUIFilePicker::IMGUIFilePicker( const char* dir, const char* ext )
+IMGUIFilePicker::IMGUIFilePicker( const char* dir, const char* ext, bool confirm )
 {
 	m_saveMode = false;
+	m_confirm = confirm;
 	m_directory = dir;
 	m_extension = ext;
 	Reload();
@@ -775,6 +776,11 @@ bool IMGUIFilePicker::HandleDirEntry( const StringView& loc, const StringView& n
 bool IMGUIFilePicker::EntryUI( size_t i, String& str )
 {
 	bool ret = IMGUIPickerCore::EntryUI( i, str );
+	
+	if( !m_confirm )
+	{
+		return ret;
+	}
 	
 	const char* popupName = m_saveMode ? "Overwrite file" : "Open file";
 	const char* labelText = m_saveMode ? "Do you really want to overwrite this file?"

@@ -2068,7 +2068,7 @@ bool MapEditor::OnInitialize()
 	g_NUIMeshPicker = new IMGUIMeshPicker();
 	g_NUITexturePicker = new IMGUITexturePicker();
 	g_NUICharPicker = new IMGUICharPicker();
-	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy" );
+	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy", false );
 	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
 	g_NUISoundPicker = new IMGUISoundPicker();
 	

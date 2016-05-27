@@ -22,6 +22,8 @@ import os.path
 	PART: (min size = 20)
 	- uint8 flags
 	- uint8 blendmode
+	- smallbuf name
+	- float xform[16] # matrix
 	- uint32 voff
 	- uint32 vcount
 	- uint32 ioff

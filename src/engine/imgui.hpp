@@ -135,7 +135,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUISoundPicker : IMGUIEntryPicker
 
 struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIEntryPicker, IDirEntryHandler
 {
-	ENGINE_EXPORT IMGUIFilePicker( const char* dir, const char* ext );
+	ENGINE_EXPORT IMGUIFilePicker( const char* dir, const char* ext, bool confirm = true );
 	ENGINE_EXPORT bool Popup( const char* caption, String& str, bool save );
 	ENGINE_EXPORT void Reload();
 	ENGINE_EXPORT virtual bool SearchUI( String& str );
@@ -145,6 +145,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIFilePicker : IMGUIEntryPicker, IDirEntryHandle
 	ENGINE_EXPORT virtual bool ConfirmPopup( const char* caption, const char* label, const char* file );
 	
 	bool m_saveMode;
+	bool m_confirm;
 	const char* m_directory;
 	const char* m_extension;
 };

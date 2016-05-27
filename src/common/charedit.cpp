@@ -513,8 +513,7 @@ struct XFormStateInfo
 		SGRX_MeshInstance* MI = g_AnimChar->m_cachedMeshInst;
 		xfdata.boneToWorld = g_AnimChar->m_cachedMesh->m_bones[ bid ].skinOffset
 			* MI->skin_matrices[ bid ] * MI->matrix;
-		xfdata.worldToBone = Mat4::Identity;
-		xfdata.boneToWorld.InvertTo( xfdata.worldToBone );
+		xfdata.worldToBone = xfdata.boneToWorld.Inverted();
 		
 		switch( type )
 		{

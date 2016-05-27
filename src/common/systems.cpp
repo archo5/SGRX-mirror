@@ -845,7 +845,10 @@ FINLINE Vec3 Vec3ReflectPos( const Vec3& pos, const Vec4& plane )
 
 void GFXSystem::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
-	if( m_level->m_editorMode || !m_level->m_cameras.size() )
+	DevelopSystem* ds = m_level->GetSystem<DevelopSystem>();
+	if( m_level->m_editorMode ||
+		!m_level->m_cameras.size() ||
+		( ds && ds->screenshotMode ) )
 	{
 		OnDrawSceneWithRefl( ctrl, info );
 		return;
