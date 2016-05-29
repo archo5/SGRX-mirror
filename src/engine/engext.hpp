@@ -6,6 +6,53 @@
 
 
 
+#define OPERAND_NONE 0xffff
+struct MEOperation
+{
+	uint16_t type;
+	uint16_t op1;
+	uint16_t op2;
+};
+struct MECompileResult
+{
+	MECompileResult(){}
+	MECompileResult( StringView up, StringView e ) : unparsed( up ), error( e ){}
+	operator bool () const { return error; }
+	
+	StringView unparsed;
+	StringView error;
+};
+struct MEVariableInterface
+{
+	// return OPERAND_NONE on failure
+	virtual uint16_t GetID( StringView name ) const = 0;
+	// GetValue must handle the >= count case
+	virtual double GetValue( uint16_t i ) const = 0;
+};
+struct MathEquation
+{
+	Array< double > consts;
+	Array< MEOperation > ops;
+	
+	MECompileResult Compile( StringView script, const MEVariableInterface* vars );
+	double Eval( const MEVariableInterface* vars );
+	
+	struct MEPTRes _AllocOper();
+	struct MEPTRes _AllocConst( double val );
+	void _Optimize( MEOperation& O );
+	struct MEPTRes _ParseTokens(
+		ArrayView< struct METoken > tokenlist,
+		StringView parentfirst,
+		const MEVariableInterface* vars
+	);
+	void _Clean();
+	double _Op1( const MEOperation& O, const MEVariableInterface* vars );
+	double _Op2( const MEOperation& O, const MEVariableInterface* vars );
+	double _DoOp( uint16_t op, const MEVariableInterface* vars );
+};
+
+
+
 struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 {
 	struct Body

@@ -335,7 +335,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	m_animChar.ApplyMask( "top", &m_anTopPlayer );
 	
 	m_anMainPlayer.Play( GR_GetAnim( "standing_idle" ) );
-//	m_anTopPlayer.Play( GR_GetAnim( "run" ) );
+	m_anTopPlayer.Play( GR_GetAnim( "stand_with_pistol_up" ) );
 	
 	ProcessAnims( 0 );
 	AnimInfo info = { m_animChar.m_cachedMeshInst->matrix };
@@ -455,7 +455,7 @@ void TSCharacter::FixedUpdate()
 		float i_speed = ctrl->GetInputV3( ACT_Chr_Move ).z;
 		
 		// animate character
-		const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_gun_up";
+		const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_pistol_up";
 		const char* anim_walk_fw = m_isCrouching ? "crouch_walk" : "walk";
 		const char* anim_walk_bw = m_isCrouching ? "crouch_walk_bw" : "walk_bw";
 		const char* anim_run_fw = m_isCrouching ? "crouch_walk" : "run";
