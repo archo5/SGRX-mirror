@@ -1324,6 +1324,20 @@ void EditMaskInfo( size_t self_id, AnimCharacter::Mask& mask )
 	ImGui::SetCursorPos( cursorEnd );
 }
 
+void EditVariableInfo( size_t self_id, Handle<AnimCharacter::Variable>& var )
+{
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	if( ImGui::TreeNode( &var, "Variable: %s", StackString<256>(var->name).str ) )
+	{
+		IMGUIEditString( "Name", var->name, 256 );
+		float v = var->value;
+		IMGUIEditFloat( "Value (test/initial)", v, -FLT_MAX, FLT_MAX );
+		var->value = v;
+		
+		ImGui::TreePop();
+	}
+}
+
 void EditAnimChar( AnimCharacter& ac )
 {
 	if( g_NUIMeshPicker->Property( "Pick mesh", "mesh", ac.mesh ) )
@@ -1369,6 +1383,14 @@ void EditAnimChar( AnimCharacter& ac )
 	IMGUI_GROUP( "Masks", false,
 	{
 		IMGUIEditArray( ac.masks, EditMaskInfo, "Add mask" );
+	});
+	IMGUI_GROUP( "Variables", false,
+	{
+		IMGUIEditArray( ac.variables, EditVariableInfo, NULL );
+		if( ImGui::Button( "Add variable" ) )
+		{
+			ac.variables.push_back( new AnimCharacter::Variable );
+		}
 	});
 }
 

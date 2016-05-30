@@ -885,6 +885,71 @@ void AnimRagdoll::ApplyImpulseExt( Vec3 origin, Vec3 imp, float atten, float rad
 
 
 
+struct RHTKey
+{
+	SGRX_GUID guid;
+	size_t id;
+	
+	static int sortfn( const void* a, const void* b )
+	{
+		SGRX_CAST( RHTKey*, A, a );
+		SGRX_CAST( RHTKey*, B, b );
+		return A->guid.Compare( B->guid );
+	}
+};
+
+void AnimCharacter::PlayerNode::RehashTransitions()
+{
+	transition_lookup.clear();
+	transition_lookup_ids.clear();
+	
+	Array< RHTKey > keys;
+	for( size_t i = 0; i < transitions.size(); ++i )
+	{
+		const Handle<Transition>& T = transitions[ i ];
+		RHTKey key = { T->source, i };
+		keys.push_back( key );
+		if( T->source.NotNull() && T->target.NotNull() && T->bidi )
+		{
+			key.guid = T->target;
+			keys.push_back( key );
+		}
+	}
+	if( keys.size() == 0 )
+	{
+		// ensure there is NULL GUID lookup info at the beginning
+		transition_lookup_ids.push_back( 0 );
+		return;
+	}
+	
+	// sort by GUID
+	qsort( keys.data(), keys.size(), sizeof(RHTKey), RHTKey::sortfn );
+	
+	// ensure there is NULL GUID lookup info at the beginning
+	if( keys[0].guid.NotNull() )
+		transition_lookup_ids.push_back( 0 );
+	
+	// index the data
+	static const uint8_t not_null_guid[16] = {1};
+	SGRX_GUID prev_guid = keys[0].guid.NotNull() ?
+		SGRX_GUID::Null : SGRX_GUID::FromBytes( not_null_guid );
+	size_t curr_count_at = 0;
+	for( size_t i = 0; i < keys.size(); ++i )
+	{
+		if( keys[ i ].guid != prev_guid )
+		{
+			prev_guid = keys[ i ].guid;
+			curr_count_at = transition_lookup_ids.size();
+			transition_lookup.set( prev_guid, curr_count_at );
+			transition_lookup_ids.push_back( 0 );
+		}
+		transition_lookup_ids[ curr_count_at ]++;
+		transition_lookup_ids.push_back( keys[ i ].id );
+	}
+}
+
+
+
 AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
 	m_scene( sh ),
 	m_anRagdoll( phyWorld )

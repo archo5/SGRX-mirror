@@ -297,6 +297,88 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 		}
 	};
 	
+	struct Variable : SGRX_RefCounted
+	{
+		String name;
+		float value;
+		
+		Variable() : value(0){}
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch << name;
+			arch << value;
+		}
+		template< class T > static Variable* UnserializeCreate( T& arch )
+		{
+			return new Variable;
+		}
+	};
+	struct State
+	{
+		SGRX_GUID guid;
+		String name;
+		String anim;
+		bool loop;
+		float speed;
+		
+		State() : loop(true), speed(1){}
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch << guid;
+			arch << name;
+			arch << anim;
+			arch << loop;
+			arch << speed;
+		}
+	};
+	struct Transition
+	{
+		String expr;
+		MathEquation compiled_expr;
+		SGRX_GUID source; // NULL GUID = transition from any state (bidi not sup.)
+		SGRX_GUID target;
+		bool bidi;
+		
+		Transition() : bidi(false){}
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch << expr;
+			arch << source;
+			arch << target;
+			arch << bidi;
+		}
+	};
+	enum NodeType
+	{
+		NT_Unknown = 0,
+		NT_Player = 1,
+	};
+	struct Node
+	{
+		virtual ~Node(){}
+		uint8_t type; // NodeType
+		SGRX_GUID guid;
+	};
+	struct PlayerNode : Node
+	{
+		Array< Handle< State > > states;
+		Array< Handle< Transition > > transitions;
+		
+		AnimPlayer player;
+		HashTable< SGRX_GUID, size_t > transition_lookup; /* GUID -> ID array offset */
+		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
+		... NULL GUID is first set of entries, always present */
+		
+		void RehashTransitions();
+		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		{
+			arch << states;
+			arch << transitions;
+			if( T::IsReader )
+				RehashTransitions();
+		}
+	};
+	
 	template< class T > void Serialize( T& basearch )
 	{
 		basearch.marker( "SGRXCHAR" );
@@ -305,13 +387,15 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 		// 2: added masks
 		// 3: added joints
 		// 4: base offset
-		SerializeVersionHelper<T> arch( basearch, 4 );
+		// 5: added variables
+		SerializeVersionHelper<T> arch( basearch, 5 );
 		
 		arch( mesh );
 		arch( bones );
 		arch( attachments );
 		arch( layers );
 		arch( masks, arch.version >= 2 );
+		arch( variables, arch.version >= 5 );
 	}
 	
 	ENGINE_EXPORT AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld );
@@ -366,6 +450,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	Array< Attachment > attachments;
 	Array< Layer > layers;
 	Array< Mask > masks;
+	Array< Handle< Variable > > variables;
 	
 	SceneHandle m_scene;
 	MeshHandle m_cachedMesh;

@@ -1365,12 +1365,11 @@ struct Handle
 	T* operator -> () const { return item; }
 	T& operator * () const { return *item; }
 	operator T* () const { return item; }
-	enum InitBeforeUnserialize{ IBU };
 	template< class S > void Serialize( S& arch )
 	{
 		if( S::IsReader && !item )
 		{
-			item = new T( IBU );
+			item = T::UnserializeCreate( arch );
 		}
 		else
 		{
@@ -3047,7 +3046,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 	};
 	
 	static const SGRX_GUID Null;
-	static FINLINE SGRX_GUID FromBytes( uint8_t bytes[16] )
+	static FINLINE SGRX_GUID FromBytes( const uint8_t bytes[16] )
 	{
 		SGRX_GUID o;
 		memcpy( &o, bytes, sizeof(o) );
@@ -3072,6 +3071,14 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 	FINLINE bool operator != ( const SGRX_GUID& o ) const { return !( *this == o ); }
 	FINLINE bool IsNull() const { return *this == Null; }
 	FINLINE bool NotNull() const { return *this != Null; }
+	FINLINE int Compare( const SGRX_GUID& o ) const
+	{
+		if( u32[0] != o.u32[0] ) return u32[0] - o.u32[0];
+		if( u32[1] != o.u32[1] ) return u32[1] - o.u32[1];
+		if( u32[2] != o.u32[2] ) return u32[2] - o.u32[2];
+		if( u32[3] != o.u32[3] ) return u32[3] - o.u32[3];
+		return 0;
+	}
 	template< class T > void Serialize( T& arch )
 	{
 		if( T::IsText )

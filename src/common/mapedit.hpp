@@ -593,13 +593,10 @@ struct EdSurface : SGRX_RefCounted
 		angle( 0 ), lmquality( 1 ),
 		xfit( 0 ), yfit( 0 )
 	{}
-	EdSurface( Handle<EdSurface>::InitBeforeUnserialize ) :
-		texgenmode( ED_TEXGEN_COORDS ),
-		xoff( 0 ), yoff( 0 ),
-		scale( 1 ), aspect( 1 ),
-		angle( 0 ), lmquality( 1 ),
-		xfit( 0 ), yfit( 0 )
-	{}
+	template< class T > static EdSurface* UnserializeCreate( T& arch )
+	{
+		return new EdSurface;
+	}
 	~EdSurface()
 	{
 		if( surface_guid.NotNull() )
