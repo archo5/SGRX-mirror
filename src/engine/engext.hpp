@@ -6,7 +6,7 @@
 
 
 
-#define OPERAND_NONE 0xffff
+#define ME_OPERAND_NONE 0xffff
 struct MEOperation
 {
 	uint16_t type;
@@ -24,31 +24,31 @@ struct MECompileResult
 };
 struct MEVariableInterface
 {
-	// return OPERAND_NONE on failure
-	virtual uint16_t GetID( StringView name ) const = 0;
+	// return ME_OPERAND_NONE on failure
+	virtual uint16_t MEGetID( StringView name ) const = 0;
 	// GetValue must handle the >= count case
-	virtual double GetValue( uint16_t i ) const = 0;
+	virtual double MEGetValue( uint16_t i ) const = 0;
 };
 struct MathEquation
 {
 	Array< double > consts;
 	Array< MEOperation > ops;
 	
-	MECompileResult Compile( StringView script, const MEVariableInterface* vars );
-	double Eval( const MEVariableInterface* vars );
+	ENGINE_EXPORT MECompileResult Compile( StringView script, const MEVariableInterface* vars );
+	ENGINE_EXPORT double Eval( const MEVariableInterface* vars );
 	
-	struct MEPTRes _AllocOper();
-	struct MEPTRes _AllocConst( double val );
-	void _Optimize( MEOperation& O );
-	struct MEPTRes _ParseTokens(
+	ENGINE_EXPORT struct MEPTRes _AllocOper();
+	ENGINE_EXPORT struct MEPTRes _AllocConst( double val );
+	ENGINE_EXPORT void _Optimize( MEOperation& O );
+	ENGINE_EXPORT struct MEPTRes _ParseTokens(
 		ArrayView< struct METoken > tokenlist,
 		StringView parentfirst,
 		const MEVariableInterface* vars
 	);
-	void _Clean();
-	double _Op1( const MEOperation& O, const MEVariableInterface* vars );
-	double _Op2( const MEOperation& O, const MEVariableInterface* vars );
-	double _DoOp( uint16_t op, const MEVariableInterface* vars );
+	ENGINE_EXPORT void _Clean();
+	ENGINE_EXPORT double _Op1( const MEOperation& O, const MEVariableInterface* vars );
+	ENGINE_EXPORT double _Op2( const MEOperation& O, const MEVariableInterface* vars );
+	ENGINE_EXPORT double _DoOp( uint16_t op, const MEVariableInterface* vars );
 };
 
 
@@ -89,7 +89,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 
 
 
-struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
+struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 {
 	enum BodyType
 	{
@@ -429,6 +429,14 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	
 	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
 	ENGINE_EXPORT void MRC_DebugDraw( SGRX_MeshInstance* mi );
+	ENGINE_EXPORT uint16_t MEGetID( StringView name ) const;
+	ENGINE_EXPORT double MEGetValue( uint16_t i ) const;
+	
+	ENGINE_EXPORT void _ReindexVariables();
+	ENGINE_EXPORT void _SetVar( StringView name, float val );
+	FINLINE void SetBool( StringView name, bool val ){ _SetVar( name, val ); }
+	FINLINE void SetInt( StringView name, int val ){ _SetVar( name, val ); }
+	FINLINE void SetFloat( StringView name, float val ){ _SetVar( name, val ); }
 	
 	FINLINE Mat4 GetAttachmentMatrix( int which, bool worldspace = true )
 	{
@@ -455,6 +463,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast
 	SceneHandle m_scene;
 	MeshHandle m_cachedMesh;
 	MeshInstHandle m_cachedMeshInst;
+	HashTable< StringView, uint16_t > m_variable_index;
 	Animator m_layerAnimator;
 	AnimMixer m_anMixer;
 	AnimDeformer m_anDeformer;

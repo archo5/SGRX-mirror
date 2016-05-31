@@ -144,7 +144,7 @@ static int _ME_TokenScore( const METoken& T, bool unary )
 struct MEPTRes
 {
 	MEPTRes( const MECompileResult& cr ) : error( cr ){ ASSERT( cr.error ); }
-	MEPTRes( uint16_t p ) : at( p ){ ASSERT( p != OPERAND_NONE ); }
+	MEPTRes( uint16_t p ) : at( p ){ ASSERT( p != ME_OPERAND_NONE ); }
 	
 	MECompileResult error;
 	uint16_t at;
@@ -152,7 +152,7 @@ struct MEPTRes
 
 MEPTRes MathEquation::_AllocOper()
 {
-	if( ops.size() >= OPERAND_NONE )
+	if( ops.size() >= ME_OPERAND_NONE )
 		return MECompileResult( "", "expression too complex" );
 	MEOperation op = { OT_NOP, 0, 0 };
 	ops.push_back( op );
@@ -302,8 +302,8 @@ MEPTRes MathEquation::_ParseTokens(
 		else
 		{
 			O.type = OT_VAR;
-			O.op1 = vars->GetID( tokenlist[0].data );
-			if( O.op1 == OPERAND_NONE )
+			O.op1 = vars->MEGetID( tokenlist[0].data );
+			if( O.op1 == ME_OPERAND_NONE )
 				return MECompileResult( name, "variable not found" );
 			_Optimize( O );
 		}
@@ -519,7 +519,7 @@ double MathEquation::_Op1( const MEOperation& O, const MEVariableInterface* vars
 	}
 	else if( O.type & ME_OPCODE_OP1VARBL )
 	{
-		return vars->GetValue( O.op1 );
+		return vars->MEGetValue( O.op1 );
 	}
 	else return _DoOp( O.op1, vars );
 }
@@ -534,7 +534,7 @@ double MathEquation::_Op2( const MEOperation& O, const MEVariableInterface* vars
 	}
 	else if( O.type & ME_OPCODE_OP2VARBL )
 	{
-		return vars->GetValue( O.op2 );
+		return vars->MEGetValue( O.op2 );
 	}
 	else return _DoOp( O.op2, vars );
 }
@@ -562,7 +562,7 @@ double MathEquation::_DoOp( uint16_t op, const MEVariableInterface* vars )
 	case OT_XOR: return (!!_Op1( O, vars )) ^ (!!_Op2( O, vars ));
 	case OT_NOT: return !_Op1( O, vars );
 	case OT_NEG: return -_Op1( O, vars );
-	case OT_VAR: return vars->GetValue( O.op1 );
+	case OT_VAR: return vars->MEGetValue( O.op1 );
 	case OT_VAL:
 		if( (size_t) O.op1 >= consts.size() )
 			return 0;
@@ -1369,6 +1369,29 @@ void AnimCharacter::MRC_DebugDraw( SGRX_MeshInstance* mi )
 		_GetHitboxMatrix( i, bxf );
 		br.AABB( -BI.hitbox.extents, BI.hitbox.extents, bxf * m_cachedMeshInst->matrix );
 	}
+}
+
+uint16_t AnimCharacter::MEGetID( StringView name ) const
+{
+	for( size_t i = 0; i < variables.size(); ++i )
+	{
+		if( variables[ i ]->name == name )
+			return (uint16_t) i;
+	}
+	return ME_OPERAND_NONE;
+}
+
+double AnimCharacter::MEGetValue( uint16_t i ) const
+{
+	if( size_t(i) >= variables.size() )
+		return 0;
+	return variables[ i ]->value;
+}
+
+
+void AnimCharacter::_SetVar( StringView name, float val )
+{
+	asdasdasd;
 }
 
 
