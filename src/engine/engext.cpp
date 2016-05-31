@@ -478,11 +478,19 @@ void MathEquation::_Clean()
 	}
 }
 
+void MathEquation::Clear()
+{
+	consts.clear();
+	ops.clear();
+}
+
 MECompileResult MathEquation::Compile( StringView script, const MEVariableInterface* vars )
 {
 	METoken token;
 	Array< METoken > tokenlist;
 	StringView origscript = script;
+	
+	Clear();
 	
 	// parse tokens
 	while( ( token = _ME_GetNextToken( script ) ).type > TT_Error )
@@ -497,7 +505,10 @@ MECompileResult MathEquation::Compile( StringView script, const MEVariableInterf
 		vars
 	).error;
 	if( error )
+	{
+		Clear();
 		return error;
+	}
 	
 	_Clean();
 	
@@ -884,6 +895,11 @@ void AnimRagdoll::ApplyImpulseExt( Vec3 origin, Vec3 imp, float atten, float rad
 }
 
 
+
+MECompileResult AnimCharacter::Transition::Recompile( const MEVariableInterface* vars )
+{
+	return compiled_expr.Compile( expr, vars );
+}
 
 struct RHTKey
 {
@@ -1389,9 +1405,21 @@ double AnimCharacter::MEGetValue( uint16_t i ) const
 }
 
 
+void AnimCharacter::_ReindexVariables()
+{
+	m_variable_index.clear();
+	for( size_t i = 0; i < variables.size(); ++i )
+	{
+		m_variable_index.set( variables[ i ]->name, i );
+	}
+}
+
 void AnimCharacter::_SetVar( StringView name, float val )
 {
-	asdasdasd;
+	uint16_t* id = m_variable_index.getptr( name );
+	if( !id || size_t(*id) >= variables.size() )
+		return;
+	variables[ *id ]->value = val;
 }
 
 

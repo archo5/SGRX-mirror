@@ -26,7 +26,7 @@ struct MEVariableInterface
 {
 	// return ME_OPERAND_NONE on failure
 	virtual uint16_t MEGetID( StringView name ) const = 0;
-	// GetValue must handle the >= count case
+	// MEGetValue must handle the >= count case
 	virtual double MEGetValue( uint16_t i ) const = 0;
 };
 struct MathEquation
@@ -34,6 +34,7 @@ struct MathEquation
 	Array< double > consts;
 	Array< MEOperation > ops;
 	
+	ENGINE_EXPORT void Clear();
 	ENGINE_EXPORT MECompileResult Compile( StringView script, const MEVariableInterface* vars );
 	ENGINE_EXPORT double Eval( const MEVariableInterface* vars );
 	
@@ -320,6 +321,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		String anim;
 		bool loop;
 		float speed;
+		// editor data
+		Vec2 editor_pos;
 		
 		State() : loop(true), speed(1){}
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
@@ -329,6 +332,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << anim;
 			arch << loop;
 			arch << speed;
+			arch << editor_pos;
 		}
 	};
 	struct Transition
@@ -340,6 +344,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		bool bidi;
 		
 		Transition() : bidi(false){}
+		MECompileResult Recompile( const MEVariableInterface* vars );
 		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
 		{
 			arch << expr;

@@ -1386,11 +1386,14 @@ void EditAnimChar( AnimCharacter& ac )
 	});
 	IMGUI_GROUP( "Variables", false,
 	{
+		ImGui::BeginChangeCheck();
 		IMGUIEditArray( ac.variables, EditVariableInfo, NULL );
 		if( ImGui::Button( "Add variable" ) )
 		{
 			ac.variables.push_back( new AnimCharacter::Variable );
 		}
+		if( ImGui::EndChangeCheck() )
+			ac._ReindexVariables();
 	});
 }
 
