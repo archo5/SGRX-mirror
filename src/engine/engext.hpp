@@ -314,7 +314,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			return new Variable;
 		}
 	};
-	struct State
+	struct State : SGRX_RefCounted
 	{
 		SGRX_GUID guid;
 		String name;
@@ -335,7 +335,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << editor_pos;
 		}
 	};
-	struct Transition
+	struct Transition : SGRX_RefCounted
 	{
 		String expr;
 		MathEquation compiled_expr;
@@ -357,16 +357,38 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	{
 		NT_Unknown = 0,
 		NT_Player = 1,
+		NT_Blend = 2,
 	};
 	struct Node : SGRX_RefCounted
 	{
 		virtual ~Node(){}
+		const char* GetName()
+		{
+			if( type == NT_Player ) return "Player";
+			if( type == NT_Blend ) return "Blend";
+			return "<Unknown>";
+		}
+		Node( uint8_t t ) : type(t), editor_pos(V2(0)){}
+		virtual void Init( Vec2 ep )
+		{
+			editor_pos = ep;
+			guid = SGRX_GUID::Generate();
+		}
+		template< class T > static Node* UnserializeCreate( T& arch );
+		template< class T > void Serialize( T& arch )
+		{
+			if( T::IsWriter )
+				arch << type;
+		}
+		
 		uint8_t type; // NodeType
 		SGRX_GUID guid;
 		Vec2 editor_pos;
 	};
 	struct PlayerNode : Node
 	{
+		String mask_name;
+		
 		Array< Handle< State > > states;
 		Array< Handle< Transition > > transitions;
 		
@@ -375,13 +397,33 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
 		... NULL GUID is first set of entries, always present */
 		
-		void RehashTransitions();
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
+		ENGINE_EXPORT void RehashTransitions();
+		template< class T > void Serialize( T& arch )
 		{
+			Node::Serialize( arch );
+			arch << mask_name;
 			arch << states;
 			arch << transitions;
 			if( T::IsReader )
 				RehashTransitions();
+		}
+	};
+	struct BlendNode : Node
+	{
+		SGRX_GUID A;
+		SGRX_GUID B;
+		float factor;
+		
+		AnimMixer mixer;
+		
+		BlendNode() : Node( NT_Blend ), factor( 1 ){}
+		template< class T > void Serialize( T& arch )
+		{
+			Node::Serialize( arch );
+			arch << A;
+			arch << B;
+			arch << factor;
 		}
 	};
 	
@@ -393,7 +435,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		// 2: added masks
 		// 3: added joints
 		// 4: base offset
-		// 5: added variables
+		// 5: added nodes, variables
 		SerializeVersionHelper<T> arch( basearch, 5 );
 		
 		arch( mesh );
@@ -401,7 +443,15 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		arch( attachments );
 		arch( layers );
 		arch( masks, arch.version >= 2 );
-		arch( variables, arch.version >= 5 );
+		if( arch.version >= 5 )
+		{
+			arch << nodes;
+			arch << variables;
+			
+			uint32_t output_id = nodes.find_first_at( output_node );
+			arch << output_id;
+			output_node = size_t(output_id) < nodes.size() ? nodes[ output_id ] : NULL;
+		}
 	}
 	
 	ENGINE_EXPORT AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld );
@@ -464,8 +514,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	Array< Attachment > attachments;
 	Array< Layer > layers;
 	Array< Mask > masks;
-	Array< Handle< Variable > > variables;
 	Array< Handle< Node > > nodes;
+	Array< Handle< Variable > > variables;
+	Handle< Node > output_node;
 	
 	SceneHandle m_scene;
 	MeshHandle m_cachedMesh;
@@ -477,6 +528,15 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	AnimRagdoll m_anRagdoll;
 	AnimInterp m_anEnd;
 };
+
+template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate( T& arch )
+{
+	uint8_t type;
+	arch << type;
+	if( type == NT_Player ) return new PlayerNode;
+	if( type == NT_Blend ) return new BlendNode;
+	return NULL;
+}
 
 
 

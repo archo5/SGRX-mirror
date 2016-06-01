@@ -17,6 +17,8 @@ FINLINE ImVec2 operator * ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a
 FINLINE bool operator == ( const ImVec2& a, const ImVec2& b ){ return a.x == b.x && a.y == b.y; }
 FINLINE bool operator != ( const ImVec2& a, const ImVec2& b ){ return a.x != b.x || a.y != b.y; }
 
+FINLINE Vec2 V2( const ImVec2& v ){ return V2( v.x, v.y ); }
+
 
 ENGINE_EXPORT void SGRX_IMGUI_Init();
 ENGINE_EXPORT void SGRX_IMGUI_Free();

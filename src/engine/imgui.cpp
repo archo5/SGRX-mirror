@@ -436,7 +436,8 @@ bool IMGUIRenderView::CanAcceptKeyboardInput()
 
 void IMGUIRenderView::Process( float deltaTime, bool editable )
 {
-	if( ImGui::IsMouseDown( 1 ) )
+	mouseOn = ImGui::IsMouseHoveringWindow();
+	if( mouseOn && ImGui::IsMouseDown( 1 ) )
 		ImGui::SetWindowFocus();
 	bool caki = CanAcceptKeyboardInput() && editable;
 	bool movefwd = caki && ImGui::IsKeyDown( SDLK_w );
@@ -448,7 +449,6 @@ void IMGUIRenderView::Process( float deltaTime, bool editable )
 	bool movedn = caki && ImGui::IsKeyDown( SDLK_z );
 	
 	cursor_aim = false;
-	mouseOn = ImGui::IsMouseHoveringWindow();
 	ImVec2 gcp = ImGui::GetMousePos() - ImGui::GetWindowPos();
 	ImVec2 gwsz = ImGui::GetWindowSize();
 	Vec2 cp = { safe_fdiv( gcp.x, gwsz.x ), safe_fdiv( gcp.y, gwsz.y ) };
