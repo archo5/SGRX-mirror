@@ -1398,6 +1398,80 @@ void EditAnimChar( AnimCharacter& ac )
 }
 
 
+static Vec2 g_NodeCameraPos = V2(0);
+static Vec2 g_NodePosTest = V2(50);
+static float g_TestVal;
+static const void* node_selected = NULL;
+void EditNodes( AnimCharacter& ac )
+{
+	const float NODE_SLOT_RADIUS = 4.0f;
+	const ImVec2 NODE_WINDOW_PADDING(8.0f, 8.0f);
+	
+	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(1,1));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
+	ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImColor(40,40,40,200));
+	ImGui::BeginChild("scrolling_region", ImVec2(0,0), true, ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoMove);
+	ImGui::PushItemWidth(120.0f);
+	
+	const void* node_hovered_in_list = NULL;
+	const void* node_hovered_in_scene = NULL;
+	bool open_context_menu = false;
+	
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+	draw_list->ChannelsSplit(2);
+	ImVec2 offset = ImGui::GetCursorScreenPos() - ImVec2( g_NodeCameraPos.x, g_NodeCameraPos.y );
+	
+	// DRAW NODE
+	
+	const void* node_id = &g_NodePosTest;
+	
+	ImGui::PushID(node_id);
+	ImVec2 node_rect_min = offset + ImVec2( g_NodePosTest.x, g_NodePosTest.y );
+	draw_list->ChannelsSetCurrent(1); // Foreground
+
+		bool old_any_active = ImGui::IsAnyItemActive();
+		ImGui::SetCursorScreenPos(node_rect_min + NODE_WINDOW_PADDING);
+		ImGui::BeginGroup(); // Lock horizontal position
+		ImGui::Text("%s", "TEST_NODE");
+		IMGUIEditFloat( "Value", g_TestVal, 0, 1 );
+		ImGui::EndGroup();
+
+		ImVec2 nodeSize = ImGui::GetItemRectSize() + NODE_WINDOW_PADDING + NODE_WINDOW_PADDING;
+		ImVec2 node_rect_max = node_rect_min + nodeSize;
+
+		bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
+
+		// Display node box
+		draw_list->ChannelsSetCurrent(0); // Background
+		ImGui::SetCursorScreenPos(node_rect_min);
+		ImGui::InvisibleButton("node", nodeSize);
+		if (ImGui::IsItemHovered())
+		{
+			node_hovered_in_scene = node_id;
+			open_context_menu |= ImGui::IsMouseClicked(1);
+		}
+		bool node_moving_active = ImGui::IsItemActive();
+		if (node_widgets_active || node_moving_active)
+			node_selected = node_id;
+		if (node_moving_active && ImGui::IsMouseDragging(0))
+		{
+			g_NodePosTest.x += ImGui::GetIO().MouseDelta.x;
+			g_NodePosTest.y += ImGui::GetIO().MouseDelta.y;
+		}
+
+		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node_id || node_hovered_in_scene == node_id || (node_hovered_in_list == NULL && node_selected == node_id)) ? ImColor(75,75,75) : ImColor(60,60,60), 4.0f); 
+		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100,100,100), 4.0f);
+	
+	ImGui::PopID();
+	draw_list->ChannelsMerge();
+	
+	ImGui::PopItemWidth();
+	ImGui::EndChild();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleVar(2);
+}
+
+
 void BoneRecalcUI( AnimCharacter& ac )
 {
 	IMGUIEditFloat( "Min. bone size", g_recalcMinBoneSize, 0, 10 );
@@ -1622,10 +1696,13 @@ struct CSEditor : IGame
 				ImGui::EndMenuBar();
 			}
 			
-			IMGUI_HSPLIT( 0.6f,
+			IMGUI_HSPLIT3( 0.3f, 0.7f,
 			{
 				g_NUIRenderView->Process( dt );
 				PostViewUI();
+			},
+			{
+				EditNodes( *g_AnimChar );
 			},
 			{
 				if( g_mode == EditChar )

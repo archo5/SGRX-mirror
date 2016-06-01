@@ -358,11 +358,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		NT_Unknown = 0,
 		NT_Player = 1,
 	};
-	struct Node
+	struct Node : SGRX_RefCounted
 	{
 		virtual ~Node(){}
 		uint8_t type; // NodeType
 		SGRX_GUID guid;
+		Vec2 editor_pos;
 	};
 	struct PlayerNode : Node
 	{
@@ -464,6 +465,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	Array< Layer > layers;
 	Array< Mask > masks;
 	Array< Handle< Variable > > variables;
+	Array< Handle< Node > > nodes;
 	
 	SceneHandle m_scene;
 	MeshHandle m_cachedMesh;
