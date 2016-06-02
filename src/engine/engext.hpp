@@ -37,6 +37,7 @@ struct MathEquation
 	ENGINE_EXPORT void Clear();
 	ENGINE_EXPORT MECompileResult Compile( StringView script, const MEVariableInterface* vars );
 	ENGINE_EXPORT double Eval( const MEVariableInterface* vars );
+	ENGINE_EXPORT void Dump();
 	
 	ENGINE_EXPORT struct MEPTRes _AllocOper();
 	ENGINE_EXPORT struct MEPTRes _AllocConst( double val );
@@ -123,7 +124,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		HitBox() : rotation( Quat::Identity ), position( V3(0) ),
 			extents( V3(0.1f) ), multiplier( 1 ){}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "HITBOX" );
 			arch( rotation );
@@ -142,7 +143,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		Body() : rotation( Quat::Identity ), position( V3(0) ),
 			type( BodyType_None ), size( V3(0.1f) ){}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "BODY" );
 			arch( type );
@@ -172,7 +173,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			parent_id(-1)
 		{}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "JOINT" );
 			arch( type );
@@ -198,7 +199,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		BoneInfo() : bone_id(-1){}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "BONEINFO" );
 			arch( name );
@@ -219,7 +220,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		Attachment() : rotation( Quat::Identity ), position( V3(0) ), bone_id(-1){}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "ATTACHMENT" );
 			arch( name );
@@ -242,7 +243,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		LayerTransform() : type( TransformType_None ), posaxis( V3(0,0,1) ),
 			angle( 0 ), base(0), bone_id(-1){}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "LAYERXF" );
 			arch( type );
@@ -261,7 +262,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		Layer() : amount( 0 ){}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "LAYER" );
 			arch( name );
@@ -277,7 +278,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		MaskCmd() : weight( 0 ), children( true ){}
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "MASKCMD" );
 			arch( bone );
@@ -290,7 +291,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		String name;
 		Array< MaskCmd > cmds;
 		
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "MASK" );
 			arch( name );
@@ -304,7 +305,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		float value;
 		
 		Variable() : value(0){}
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
 			arch << name;
 			arch << value;
@@ -312,6 +313,16 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		template< class T > static Variable* UnserializeCreate( T& arch )
 		{
 			return new Variable;
+		}
+	};
+	struct ValExpr
+	{
+		String expr;
+		MathEquation compiled_expr;
+		ENGINE_EXPORT MECompileResult Recompile( const MEVariableInterface* vars );
+		template< class T > void Serialize( T& arch )
+		{
+			arch << expr;
 		}
 	};
 	struct State : SGRX_RefCounted
@@ -325,8 +336,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		Vec2 editor_pos;
 		
 		State() : loop(true), speed(1){}
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
+			arch.marker( "STATE" );
 			arch << guid;
 			arch << name;
 			arch << anim;
@@ -337,16 +349,16 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	};
 	struct Transition : SGRX_RefCounted
 	{
-		String expr;
+		ValExpr expr;
 		MathEquation compiled_expr;
 		SGRX_GUID source; // NULL GUID = transition from any state (bidi not sup.)
 		SGRX_GUID target;
 		bool bidi;
 		
 		Transition() : bidi(false){}
-		MECompileResult Recompile( const MEVariableInterface* vars );
-		template< class T > void Serialize( SerializeVersionHelper<T>& arch )
+		template< class T > void Serialize( T& arch )
 		{
+			arch.marker( "TRANSITION" );
 			arch << expr;
 			arch << source;
 			arch << target;
@@ -358,6 +370,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		NT_Unknown = 0,
 		NT_Player = 1,
 		NT_Blend = 2,
+		NT_Ragdoll = 3,
 	};
 	struct Node : SGRX_RefCounted
 	{
@@ -366,6 +379,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		{
 			if( type == NT_Player ) return "Player";
 			if( type == NT_Blend ) return "Blend";
+			if( type == NT_Ragdoll ) return "Ragdoll";
 			return "<Unknown>";
 		}
 		virtual int GetInputLinkCount(){ return 0; }
@@ -381,16 +395,18 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		{
 			if( T::IsWriter )
 				arch << type;
+			arch << guid;
+			arch << editor_pos;
+			arch << mask_name;
 		}
 		
 		uint8_t type; // NodeType
 		SGRX_GUID guid;
 		Vec2 editor_pos;
+		String mask_name;
 	};
 	struct PlayerNode : Node
 	{
-		String mask_name;
-		
 		Array< Handle< State > > states;
 		Array< Handle< Transition > > transitions;
 		
@@ -404,7 +420,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		template< class T > void Serialize( T& arch )
 		{
 			Node::Serialize( arch );
-			arch << mask_name;
 			arch << states;
 			arch << transitions;
 			if( T::IsReader )
@@ -415,11 +430,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	{
 		SGRX_GUID A;
 		SGRX_GUID B;
-		float factor;
+		ValExpr factor;
 		
 		AnimMixer mixer;
 		
-		BlendNode() : Node( NT_Blend ), factor( 1 ){}
+		BlendNode() : Node( NT_Blend ){ factor.expr = "1"; }
 		virtual int GetInputLinkCount(){ return 2; }
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &A;
@@ -432,6 +447,10 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << B;
 			arch << factor;
 		}
+	};
+	struct RagdollNode : Node
+	{
+		RagdollNode() : Node( NT_Ragdoll ){}
 	};
 	
 	template< class T > void Serialize( T& basearch )
@@ -544,6 +563,7 @@ template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate(
 	arch << type;
 	if( type == NT_Player ) return new PlayerNode;
 	if( type == NT_Blend ) return new BlendNode;
+	if( type == NT_Ragdoll ) return new RagdollNode;
 	return NULL;
 }
 

@@ -67,8 +67,14 @@ METoken _ME_GetNextToken( StringView& script )
 		ch = script.ch();
 	}
 	
+	if( script.size() == 0 )
+	{
+		// end of script
+		METoken out = { TT_None, SV() };
+		return out;
+	}
 	// identifier
-	if( ch == '(' || ch == ')' )
+	else if( ch == '(' || ch == ')' )
 	{
 		METoken out = { ch == '(' ? TT_LParen : TT_RParen, script.take( 1 ) };
 		return out;
@@ -106,12 +112,6 @@ METoken _ME_GetNextToken( StringView& script )
 		METoken out = { TT_Operator, script.take( end ) };
 		return out;
 	}
-	else if( script.size() == 0 )
-	{
-		// end of script
-		METoken out = { TT_None, SV() };
-		return out;
-	}
 	else
 	{
 		// invalid character
@@ -134,9 +134,9 @@ static int _ME_TokenScore( const METoken& T, bool unary )
 		if( T.data == "==" || T.data == "!=" ||
 			T.data == "<" || T.data == ">" ||
 			T.data == "<=" || T.data == ">=" ) return 70;
-		if( T.data == "**" ) return 60;
-		if( T.data == "*" || T.data == "/" || T.data == "%" ) return 50;
-		if( T.data == "+" || T.data == "-" ) return 30;
+		if( T.data == "+" || T.data == "-" ) return 50;
+		if( T.data == "*" || T.data == "/" || T.data == "%" ) return 30;
+		if( T.data == "**" ) return 25;
 	}
 	return 10;
 }
@@ -232,13 +232,13 @@ void MathEquation::_Optimize( MEOperation& O )
 		if( ME_OPCODE_TYPE( ops[ O.op2 ].type ) == OT_VAR )
 		{
 			ops[ O.op2 ].type = OT_NOP;
-			O.op2 = ops[ O.op2 ].op2;
+			O.op2 = ops[ O.op2 ].op1;
 			O.type |= ME_OPCODE_OP2VARBL;
 		}
 		else if( ME_OPCODE_TYPE( ops[ O.op2 ].type ) == OT_VAL )
 		{
 			ops[ O.op2 ].type = OT_NOP;
-			O.op2 = ops[ O.op2 ].op2;
+			O.op2 = ops[ O.op2 ].op1;
 			O.type |= ME_OPCODE_OP2CONST;
 		}
 	}
@@ -339,14 +339,13 @@ MEPTRes MathEquation::_ParseTokens(
 			MEPTRes op = _AllocOper();
 			if( op.error )
 				return op;
-			MEOperation& O = ops[ op.at ];
-			O.type = _ME_Str1Op( tokenlist[0].data );
+			ops[ op.at ].type = _ME_Str1Op( tokenlist[0].data );
 			MEPTRes src = _ParseTokens( tokenlist.part( 1 ), tokenlist[0].data, vars );
 			if( src.error )
 				return src;
-			O.op1 = src.at;
+			ops[ op.at ].op1 = src.at;
 			
-			_Optimize( O );
+			_Optimize( ops[ op.at ] );
 			return op;
 		}
 		else
@@ -401,22 +400,23 @@ MEPTRes MathEquation::_ParseTokens(
 	MEPTRes op = _AllocOper();
 	if( op.error )
 		return op;
-	MEOperation& O = ops[ op.at ];
-	O.type = _ME_Str2Op( tokenlist[ best_token_id ].data );
-	if( O.type == OT_NOP )
+	ops[ op.at ].type = _ME_Str2Op( tokenlist[ best_token_id ].data );
+	if( ops[ op.at ].type == OT_NOP )
 		return MECompileResult( tokenlist[ best_token_id ].data, "bad operator" );
 	
 	MEPTRes src1 = _ParseTokens( tokenlist.part( 0, best_token_id ), tokenlist[ 0 ].data, vars );
 	if( src1.error )
 		return src1;
-	O.op1 = src1.at;
+	ASSERT( size_t(src1.at) < ops.size() );
+	ops[ op.at ].op1 = src1.at;
 	
 	MEPTRes src2 = _ParseTokens( tokenlist.part( best_token_id + 1 ), tokenlist[ best_token_id + 1 ].data, vars );
 	if( src2.error )
 		return src2;
-	O.op2 = src2.at;
+	ASSERT( size_t(src2.at) < ops.size() );
+	ops[ op.at ].op2 = src2.at;
 	
-	_Optimize( O );
+	_Optimize( ops[ op.at ] );
 	return op;
 }
 
@@ -462,6 +462,8 @@ void MathEquation::_Clean()
 	for( size_t i = consts.size(); i > 0; )
 	{
 		--i;
+		if( usage[ i ] )
+			continue;
 		// decrement references in ops
 		for( size_t j = 0; j < ops.size(); ++j )
 		{
@@ -512,12 +514,29 @@ MECompileResult MathEquation::Compile( StringView script, const MEVariableInterf
 	
 	_Clean();
 	
+#if 1||ME_DUMP_COMPILED
+	Dump();
+#endif
 	return MECompileResult();
 }
 
 double MathEquation::Eval( const MEVariableInterface* vars )
 {
 	return _DoOp( 0, vars );
+}
+
+void MathEquation::Dump()
+{
+	printf( "MATH_EQUATION %p\n", this );
+	for( size_t i = 0; i < consts.size(); ++i )
+		printf( "CONST #%03d: %.16g\n", int(i), consts[ i ] );
+	for( size_t i = 0; i < ops.size(); ++i )
+	{
+		MEOperation& O = ops[ i ];
+		printf( "OP #%03u: T%03uF%x O1:%03u O2:%03u\n",
+			int(i), ME_OPCODE_TYPE( O.type ), int((O.type>>8)&0xf),
+			int(O.op1), int(O.op2) );
+	}
 }
 
 double MathEquation::_Op1( const MEOperation& O, const MEVariableInterface* vars )
@@ -550,6 +569,13 @@ double MathEquation::_Op2( const MEOperation& O, const MEVariableInterface* vars
 	else return _DoOp( O.op2, vars );
 }
 
+static double safe_dpow( double x, double y )
+{
+	if( x < 0 && y != int(y) ) return 0;
+	if( x == 0 && y <= 0 ) return 0;
+	return pow( x, y );
+}
+
 double MathEquation::_DoOp( uint16_t op, const MEVariableInterface* vars )
 {
 	if( (size_t) op >= ops.size() )
@@ -573,6 +599,8 @@ double MathEquation::_DoOp( uint16_t op, const MEVariableInterface* vars )
 	case OT_XOR: return (!!_Op1( O, vars )) ^ (!!_Op2( O, vars ));
 	case OT_NOT: return !_Op1( O, vars );
 	case OT_NEG: return -_Op1( O, vars );
+	case OT_POW: return safe_dpow( _Op1( O, vars ), _Op2( O, vars ) );
+	case OT_ABS: return fabs( _Op1( O, vars ) );
 	case OT_VAR: return vars->MEGetValue( O.op1 );
 	case OT_VAL:
 		if( (size_t) O.op1 >= consts.size() )
@@ -896,7 +924,7 @@ void AnimRagdoll::ApplyImpulseExt( Vec3 origin, Vec3 imp, float atten, float rad
 
 
 
-MECompileResult AnimCharacter::Transition::Recompile( const MEVariableInterface* vars )
+MECompileResult AnimCharacter::ValExpr::Recompile( const MEVariableInterface* vars )
 {
 	return compiled_expr.Compile( expr, vars );
 }

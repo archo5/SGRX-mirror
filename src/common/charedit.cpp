@@ -1495,6 +1495,32 @@ void EditNodeInput( const char* label, AnimCharacter::Node* node, SGRX_GUID& gui
 	ImGui::PopID();
 }
 
+
+static HashTable< void*, RCString > g_ExprCompileResults;
+void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
+{
+	if( IMGUIEditString( label, expr.expr, 256 ) )
+	{
+		MECompileResult cr = expr.Recompile( g_AnimChar );
+		if( cr )
+		{
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "%s at pos. %d (%s...)",
+				StackString<128>(cr.error).str,
+				int( cr.unparsed.data() - expr.expr.data() ),
+				StackString<16>(cr.unparsed).str );
+			g_ExprCompileResults.set( &expr, bfr );
+		}
+		else
+			g_ExprCompileResults.unset( &expr );
+	}
+	RCString* errptr = g_ExprCompileResults.getptr( &expr );
+	if( errptr )
+		ImGui::Text( "Error: %s", errptr->c_str() );
+	else
+		ImGui::Text( "Value: %g", expr.compiled_expr.Eval( g_AnimChar ) );
+}
+
 void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 {
 	if( node->type == AnimCharacter::NT_Player )
@@ -1508,7 +1534,7 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 		SGRX_CAST( AnimCharacter::BlendNode*, BN, node );
 		EditNodeInput( "Input 1", BN, BN->A );
 		EditNodeInput( "Input 2", BN, BN->B );
-		IMGUIEditFloat( "Factor", BN->factor, 0, 1 );
+		EditValExpr( "Factor", BN->factor );
 	}
 }
 
