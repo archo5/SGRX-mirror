@@ -1423,6 +1423,78 @@ bool PickMaskName( const char* label, String& name )
 	return ret;
 }
 
+const float NODE_SLOT_RADIUS = 4.0f;
+const ImVec2 NODE_WINDOW_PADDING(4.0f, 4.0f);
+
+static Handle<AnimCharacter::Node> g_NodeLinkP1;
+static Handle<AnimCharacter::Node> g_NodeLinkP2;
+static SGRX_GUID* g_NodeLinkP2GUID;
+
+struct DrawNodeLink
+{
+	Handle<AnimCharacter::Node> node1;
+	Handle<AnimCharacter::Node> node2;
+	ImVec2 node2pos;
+};
+static Array< DrawNodeLink > g_TempNodeLinks;
+
+static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2 )
+{
+	// Hermite spline
+	ImVec2 t1 = ImVec2(+80.0f, 0.0f);
+	ImVec2 t2 = ImVec2(+80.0f, 0.0f);
+	const int STEPS = 12;
+	for (int step = 0; step <= STEPS; step++)
+	{
+		float t = (float)step / (float)STEPS;
+		float h1 = +2*t*t*t - 3*t*t + 1.0f;
+		float h2 = -2*t*t*t + 3*t*t;
+		float h3 =    t*t*t - 2*t*t + t;
+		float h4 =    t*t*t -   t*t;
+		draw_list->PathLineTo(ImVec2(h1*p1.x + h2*p2.x + h3*t1.x + h4*t2.x, h1*p1.y + h2*p2.y + h3*t1.y + h4*t2.y));
+	}
+	draw_list->PathStroke(ImColor(200,200,100), false, 3.0f);
+}
+
+void EditNodeInput( const char* label, AnimCharacter::Node* node, SGRX_GUID& guid )
+{
+	ImVec2 pos = ImGui::GetCursorScreenPos() + ImVec2( -4, 9 );
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+	ImGui::PushID( label );
+	ImGui::Text( "%s", label );
+	draw_list->AddCircleFilled(pos, NODE_SLOT_RADIUS, ImColor(150,150,150,150));
+	
+	AnimCharacter::Node* node_in = g_AnimChar->m_node_map.getcopy( guid );
+	if( node_in )
+	{
+		DrawNodeLink dnl = { node_in, node, pos };
+		g_TempNodeLinks.push_back( dnl );
+	}
+	
+	ImVec2 scpos = ImGui::GetCursorScreenPos();
+	ImGui::SetCursorScreenPos( pos - ImVec2( NODE_SLOT_RADIUS, NODE_SLOT_RADIUS ) );
+	ImGui::InvisibleButton( "ilink", ImVec2( NODE_SLOT_RADIUS * 2.0f, NODE_SLOT_RADIUS * 2.0f ) );
+	if( ImGui::IsItemHoveredRect() )
+	{
+		if( ImGui::IsMouseClicked(0) )
+		{
+			g_NodeLinkP2 = node;
+			g_NodeLinkP2GUID = &guid;
+		}
+		else if( ImGui::IsMouseReleased(0) && g_NodeLinkP1 )
+		{
+			guid = g_NodeLinkP1->guid;
+		}
+	}
+	if( g_NodeLinkP2 == node && g_NodeLinkP2GUID == &guid )
+	{
+		DrawLink( draw_list, ImGui::GetMousePos(), pos );
+	}
+	ImGui::SetCursorScreenPos( scpos );
+	
+	ImGui::PopID();
+}
+
 void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 {
 	if( node->type == AnimCharacter::NT_Player )
@@ -1434,6 +1506,8 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 	else if( node->type == AnimCharacter::NT_Blend )
 	{
 		SGRX_CAST( AnimCharacter::BlendNode*, BN, node );
+		EditNodeInput( "Input 1", BN, BN->A );
+		EditNodeInput( "Input 2", BN, BN->B );
 		IMGUIEditFloat( "Factor", BN->factor, 0, 1 );
 	}
 }
@@ -1442,9 +1516,6 @@ static Vec2 g_NodeCameraPos = V2(0);
 static AnimCharacter::Node* node_selected = NULL;
 void EditNodes( AnimCharacter& ac )
 {
-	const float NODE_SLOT_RADIUS = 4.0f;
-	const ImVec2 NODE_WINDOW_PADDING(4.0f, 4.0f);
-	
 	ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(1,1) );
 	ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(0,0) );
 	ImGui::PushStyleColor( ImGuiCol_ChildWindowBg, ImColor(40,40,40,200) );
@@ -1461,6 +1532,8 @@ void EditNodes( AnimCharacter& ac )
 		- ImGui::GetContentRegionAvail() * ImVec2( 0.5f, 0.5f )
 		- ImVec2( g_NodeCameraPos.x, g_NodeCameraPos.y );
 	
+	HashTable< AnimCharacter::Node*, ImVec2 > outPosMap;
+	g_TempNodeLinks.clear();
 	for( size_t i = 0; i < ac.nodes.size(); ++i )
 	{
 		Vec2& pos = ac.nodes[ i ]->editor_pos;
@@ -1479,14 +1552,47 @@ void EditNodes( AnimCharacter& ac )
 		EditACNode( ac, ac.nodes[ i ] );
 		ImGui::PopStyleVar(1);
 		ImGui::EndGroup();
-
+		
 		ImVec2 nodeSize = ImGui::GetItemRectSize() + NODE_WINDOW_PADDING + NODE_WINDOW_PADDING;
 		ImVec2 node_rect_max = node_rect_min + nodeSize;
 		
 		bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
 		
-		// Display node box
+		// draw box, do links
 		draw_list->ChannelsSetCurrent(0); // Background
+		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 24 );
+		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && node_selected == node)) ? ImColor(75,75,75) : ImColor(60,60,60), 4.0f); 
+		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20), 4.0f);
+		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100+(node == ac.output_node?120:0),100,100), 4.0f);
+		
+		// output link
+		{
+			ImVec2 pos = ImVec2( node_rect_max.x, node_rect_min.y + 12 );
+			outPosMap.set( ac.nodes[ i ], pos );
+			draw_list->AddCircleFilled(pos, NODE_SLOT_RADIUS, ImColor(150,150,150,150));
+			
+			ImVec2 scpos = ImGui::GetCursorScreenPos();
+			ImGui::SetCursorScreenPos( pos - ImVec2( NODE_SLOT_RADIUS, NODE_SLOT_RADIUS ) );
+			ImGui::InvisibleButton( "olink", ImVec2( NODE_SLOT_RADIUS * 2.0f, NODE_SLOT_RADIUS * 2.0f ) );
+			if( ImGui::IsItemHoveredRect() )
+			{
+				if( ImGui::IsMouseClicked(0) )
+				{
+					g_NodeLinkP1 = node;
+				}
+				else if( ImGui::IsMouseReleased(0) && g_NodeLinkP2 )
+				{
+					*g_NodeLinkP2GUID = node->guid;
+				}
+			}
+			if( g_NodeLinkP1 == node )
+			{
+				DrawLink( draw_list, pos, ImGui::GetMousePos() );
+			}
+			ImGui::SetCursorScreenPos( scpos );
+		}
+		
+		// node box
 		ImGui::SetCursorScreenPos(node_rect_min);
 		ImGui::InvisibleButton("node", nodeSize);
 		if (ImGui::IsItemHovered())
@@ -1503,19 +1609,26 @@ void EditNodes( AnimCharacter& ac )
 			pos.y += ImGui::GetIO().MouseDelta.y;
 		}
 		
-		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 24 );
-		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && node_selected == node)) ? ImColor(75,75,75) : ImColor(60,60,60), 4.0f); 
-		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20), 4.0f); 
-		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100+(node == ac.output_node?120:0),100,100), 4.0f);
-        {
-            ImVec2 pos = ImVec2( node_rect_max.x, node_rect_min.y + 12 );
-            draw_list->AddCircleFilled(pos, NODE_SLOT_RADIUS, ImColor(150,150,150,150));
-        }
-		
 		ImGui::PopID();
 	}
 	
+	draw_list->ChannelsSetCurrent(0); // Background
+	for( size_t i = 0; i < g_TempNodeLinks.size(); ++i )
+	{
+		const DrawNodeLink& dnl = g_TempNodeLinks[ i ];
+		DrawLink( draw_list, outPosMap.getcopy( dnl.node1 ), dnl.node2pos );
+	}
+	g_TempNodeLinks.clear();
+	
 	draw_list->ChannelsMerge();
+	
+	// Link post-processing
+	if( ImGui::IsMouseReleased(0) )
+	{
+		g_NodeLinkP1 = NULL;
+		g_NodeLinkP2 = NULL;
+		g_NodeLinkP2GUID = NULL;
+	}
 	
 	// Open context menu
 	if (!ImGui::IsAnyItemHovered() && ImGui::IsMouseHoveringWindow() && ImGui::IsMouseClicked(1))
@@ -1552,6 +1665,18 @@ void EditNodes( AnimCharacter& ac )
 			{
 				ac.output_node = node;
 			}
+			if( ImGui::MenuItem( "Unlink output pin" ) )
+			{
+				for( size_t i = 0; i < ac.nodes.size(); ++i )
+				{
+					for( int l = 0; l < ac.nodes[ i ]->GetInputLinkCount(); ++l )
+					{
+						SGRX_GUID* pguid = ac.nodes[ i ]->GetInputLink( l );
+						if( *pguid == node->guid )
+							pguid->SetNull();
+					}
+				}
+			}
 			if (ImGui::MenuItem("Copy", NULL, false, false)) {}
 		}
 		else
@@ -1565,6 +1690,7 @@ void EditNodes( AnimCharacter& ac )
 			{
 				nn->Init( V2( scene_pos ) );
 				ac.nodes.push_back( nn );
+				ac._RehashNodes();
 			}
 			ImGui::Separator();
 			if (ImGui::MenuItem("Paste", NULL, false, false)) {}

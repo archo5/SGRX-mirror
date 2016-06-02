@@ -1405,6 +1405,15 @@ double AnimCharacter::MEGetValue( uint16_t i ) const
 }
 
 
+void AnimCharacter::_RehashNodes()
+{
+	m_node_map.clear();
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		m_node_map.set( nodes[ i ]->guid, nodes[ i ] );
+	}
+}
+
 void AnimCharacter::_ReindexVariables()
 {
 	m_variable_index.clear();

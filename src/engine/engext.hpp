@@ -368,6 +368,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			if( type == NT_Blend ) return "Blend";
 			return "<Unknown>";
 		}
+		virtual int GetInputLinkCount(){ return 0; }
+		virtual SGRX_GUID* GetInputLink( int i ){ return NULL; }
 		Node( uint8_t t ) : type(t), editor_pos(V2(0)){}
 		virtual void Init( Vec2 ep )
 		{
@@ -418,6 +420,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		AnimMixer mixer;
 		
 		BlendNode() : Node( NT_Blend ), factor( 1 ){}
+		virtual int GetInputLinkCount(){ return 2; }
+		virtual SGRX_GUID* GetInputLink( int i ){
+			if( i == 0 ) return &A;
+			if( i == 1 ) return &B;
+			return NULL; }
 		template< class T > void Serialize( T& arch )
 		{
 			Node::Serialize( arch );
@@ -488,6 +495,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT uint16_t MEGetID( StringView name ) const;
 	ENGINE_EXPORT double MEGetValue( uint16_t i ) const;
 	
+	ENGINE_EXPORT void _RehashNodes();
 	ENGINE_EXPORT void _ReindexVariables();
 	ENGINE_EXPORT void _SetVar( StringView name, float val );
 	FINLINE void SetBool( StringView name, bool val ){ _SetVar( name, val ); }
@@ -522,6 +530,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	MeshHandle m_cachedMesh;
 	MeshInstHandle m_cachedMeshInst;
 	HashTable< StringView, uint16_t > m_variable_index;
+	HashTable< SGRX_GUID, Node* > m_node_map;
 	Animator m_layerAnimator;
 	AnimMixer m_anMixer;
 	AnimDeformer m_anDeformer;
