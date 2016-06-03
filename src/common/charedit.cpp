@@ -1523,18 +1523,40 @@ void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
 
 void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 {
+	// common
+	if( node->type != AnimCharacter::NT_Ragdoll )
+		PickMaskName( "Mask", node->mask_name );
+	
 	if( node->type == AnimCharacter::NT_Player )
 	{
 		SGRX_CAST( AnimCharacter::PlayerNode*, PN, node );
-		PickMaskName( "Mask", PN->mask_name );
 		ImGui::Button( "Edit states / transitions", ImVec2(140,20) );
 	}
-	else if( node->type == AnimCharacter::NT_Blend )
+	else if( node->type == AnimCharacter::NT_Mixer )
 	{
-		SGRX_CAST( AnimCharacter::BlendNode*, BN, node );
-		EditNodeInput( "Input 1", BN, BN->A );
-		EditNodeInput( "Input 2", BN, BN->B );
-		EditValExpr( "Factor", BN->factor );
+		SGRX_CAST( AnimCharacter::MixerNode*, MN, node );
+		IMGUIEditInt( "# of inputs", MN->input_count, 1, AC_MAX_MIXER_INPUTS );
+		for( uint8_t i = 0; i < MN->input_count; ++i )
+		{
+			ImGui::PushID( i );
+			char bfr[ 32 ];
+			sgrx_snprintf( bfr, 32, "Input %d", i + 1 );
+			ImGui::Text( "--- %s ---", bfr );
+			EditNodeInput( "Node", MN, MN->inputs[ i ].guid );
+			EditValExpr( "Factor", MN->inputs[ i ].factor );
+			ImGui::Text( "Abs:" );
+			ImGui::SameLine();
+			IMGUIEditIntFlags( "Pos", MN->inputs[ i ].flags, AnimMixer::TF_Absolute_Pos );
+			ImGui::SameLine();
+			IMGUIEditIntFlags( "Rot", MN->inputs[ i ].flags, AnimMixer::TF_Absolute_Rot );
+			ImGui::SameLine();
+			IMGUIEditIntFlags( "Scale", MN->inputs[ i ].flags, AnimMixer::TF_Absolute_Scale );
+			
+			IMGUIEditIntFlags( "Additive", MN->inputs[ i ].flags, AnimMixer::TF_Additive );
+			ImGui::SameLine();
+			IMGUIEditIntFlags( "Ignore mesh XF", MN->inputs[ i ].flags, AnimMixer::TF_IgnoreMeshXF );
+			ImGui::PopID();
+		}
 	}
 }
 
@@ -1710,8 +1732,10 @@ void EditNodes( AnimCharacter& ac )
 			AnimCharacter::Node* nn = NULL;
 			if (ImGui::MenuItem("Add: Player node"))
 				nn = new AnimCharacter::PlayerNode;
-			if (ImGui::MenuItem("Add: Blend node"))
-				nn = new AnimCharacter::BlendNode;
+			if (ImGui::MenuItem("Add: Mixer node"))
+				nn = new AnimCharacter::MixerNode;
+			if (ImGui::MenuItem("Add: Ragdoll node"))
+				nn = new AnimCharacter::RagdollNode;
 			if( nn )
 			{
 				nn->Init( V2( scene_pos ) );

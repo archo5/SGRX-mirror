@@ -350,7 +350,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	struct Transition : SGRX_RefCounted
 	{
 		ValExpr expr;
-		MathEquation compiled_expr;
 		SGRX_GUID source; // NULL GUID = transition from any state (bidi not sup.)
 		SGRX_GUID target;
 		bool bidi;
@@ -369,7 +368,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	{
 		NT_Unknown = 0,
 		NT_Player = 1,
-		NT_Blend = 2,
+		NT_Mixer = 2,
 		NT_Ragdoll = 3,
 	};
 	struct Node : SGRX_RefCounted
@@ -378,7 +377,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		const char* GetName()
 		{
 			if( type == NT_Player ) return "Player";
-			if( type == NT_Blend ) return "Blend";
+			if( type == NT_Mixer ) return "Mixer";
 			if( type == NT_Ragdoll ) return "Ragdoll";
 			return "<Unknown>";
 		}
@@ -426,26 +425,44 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 				RehashTransitions();
 		}
 	};
-	struct BlendNode : Node
+	struct MNInput
 	{
-		SGRX_GUID A;
-		SGRX_GUID B;
+		SGRX_GUID guid;
 		ValExpr factor;
+		uint16_t flags;
+	};
+	#define AC_MAX_MIXER_INPUTS 8
+	struct MixerNode : Node
+	{
+		uint8_t input_count;
+		MNInput inputs[ AC_MAX_MIXER_INPUTS ];
 		
 		AnimMixer mixer;
+		AnimMixer::Layer layers[2];
 		
-		BlendNode() : Node( NT_Blend ){ factor.expr = "1"; }
-		virtual int GetInputLinkCount(){ return 2; }
+		MixerNode() : Node( NT_Mixer ), input_count(1)
+		{
+			for( uint8_t i = 0; i < AC_MAX_MIXER_INPUTS; ++i )
+			{
+				inputs[ i ].factor.expr = "1";
+				inputs[ i ].flags = 0;
+			}
+			inputs[ 0 ].factor.Recompile( NULL );
+		}
+		virtual int GetInputLinkCount(){ return input_count; }
 		virtual SGRX_GUID* GetInputLink( int i ){
-			if( i == 0 ) return &A;
-			if( i == 1 ) return &B;
-			return NULL; }
+			if( i < 0 || i >= int(input_count) || i >= AC_MAX_MIXER_INPUTS ) return NULL;
+			return &inputs[ i ].guid; }
 		template< class T > void Serialize( T& arch )
 		{
 			Node::Serialize( arch );
-			arch << A;
-			arch << B;
-			arch << factor;
+			arch << input_count;
+			for( uint8_t i = 0; i < input_count; ++i )
+			{
+				arch << inputs[ i ].guid;
+				arch << inputs[ i ].factor;
+				arch << inputs[ i ].flags;
+			}
 		}
 	};
 	struct RagdollNode : Node
@@ -516,6 +533,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	
 	ENGINE_EXPORT void _RehashNodes();
 	ENGINE_EXPORT void _ReindexVariables();
+	ENGINE_EXPORT void _LinkAnimNodes();
 	ENGINE_EXPORT void _SetVar( StringView name, float val );
 	FINLINE void SetBool( StringView name, bool val ){ _SetVar( name, val ); }
 	FINLINE void SetInt( StringView name, int val ){ _SetVar( name, val ); }
@@ -562,7 +580,7 @@ template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate(
 	uint8_t type;
 	arch << type;
 	if( type == NT_Player ) return new PlayerNode;
-	if( type == NT_Blend ) return new BlendNode;
+	if( type == NT_Mixer ) return new MixerNode;
 	if( type == NT_Ragdoll ) return new RagdollNode;
 	return NULL;
 }

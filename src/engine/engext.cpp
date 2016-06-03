@@ -514,7 +514,7 @@ MECompileResult MathEquation::Compile( StringView script, const MEVariableInterf
 	
 	_Clean();
 	
-#if 1||ME_DUMP_COMPILED
+#if ME_DUMP_COMPILED
 	Dump();
 #endif
 	return MECompileResult();
