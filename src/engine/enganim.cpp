@@ -110,7 +110,7 @@ void SGRX_Animation::AddTrack( StringView name, Vec3SAV pos, QuatSAV rot, Vec3SA
 
 void SGRX_AnimBundle::Serialize( ByteReader& arch )
 {
-	ByteView anbd_chunk = arch.readChunk( "SGRXANBD" );
+	CByteView anbd_chunk = arch.readChunk( "SGRXANBD" );
 	ByteReader anr( anbd_chunk );
 	
 	anims.clear();
@@ -136,36 +136,23 @@ void SGRX_AnimBundle::Serialize( ByteWriter& arch )
 	arch.endChunk( anbd_chunk );
 }
 
-bool Animator::Prepare( const MeshHandle& mesh )
+
+void AnimMask::Prepare()
 {
-	SGRX_IMesh* M = mesh;
-	if( !M )
-		return false;
-	
-	m_mesh = mesh;
-	int count = M->m_numBones;
-	m_positions.clear();
-	m_rotations.clear();
-	m_scales.clear();
-	m_factors.clear();
-	m_positions.resize( count );
-	m_rotations.resize( count );
-	m_scales.resize( count );
-	m_factors.resize( count );
-	for( int i = 0; i < count; ++i )
-	{
-		m_positions[ i ] = V3(0);
-		m_rotations[ i ] = Quat::Identity;
-		m_scales[ i ] = V3(1);
-		m_factors[ i ] = 0;
-	}
-	
-	return true;
+	blendFactors.resize_using( m_mesh->m_numBones, 1 );
 }
 
-Array< float >& Animator::GetBlendFactorArray()
+void AnimMask::Advance( float deltaTime, AnimInfo* info )
 {
-	return m_factors;
+	if( animSource )
+	{
+		animSource->Advance( deltaTime, info );
+		for( size_t i = 0; i < m_pose.size(); ++i )
+		{
+			m_pose[ i ] = animSource->m_pose[ i ];
+			m_pose[ i ].fq *= blendFactors[ i ];
+		}
+	}
 }
 
 
@@ -177,28 +164,17 @@ AnimMixer::~AnimMixer()
 {
 }
 
-bool AnimMixer::Prepare( const MeshHandle& mesh )
+void AnimMixer::Prepare()
 {
-	if( Animator::Prepare( mesh ) == false )
-		return false;
-	m_staging.resize( m_factors.size() );
-	for( int i = 0; i < layerCount; ++i )
-	{
-		if( layers[ i ].anim->Prepare( mesh ) == false )
-			return false;
-	}
-	return true;
+	m_staging.resize( m_pose.size() );
 }
 
 void AnimMixer::Advance( float deltaTime, AnimInfo* info )
 {
 	// generate output
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
-		m_positions[ i ] = V3(0);
-		m_rotations[ i ] = Quat::Identity;
-		m_scales[ i ] = V3(1);
-		m_factors[ i ] = 0;
+		m_pose[ i ].Reset();
 	}
 	
 	for( int layer = 0; layer < layerCount; ++layer )
@@ -210,12 +186,12 @@ void AnimMixer::Advance( float deltaTime, AnimInfo* info )
 		bool abslayer = ( tflags & TF_Absolute_All ) != 0;
 		SGRX_MeshBone* MB = m_mesh->m_bones;
 		
-		for( size_t i = 0; i < m_factors.size(); ++i )
+		for( size_t i = 0; i < m_pose.size(); ++i )
 		{
-			Vec3 P = AN->m_positions[ i ];
-			Quat R = AN->m_rotations[ i ];
-			Vec3 S = AN->m_scales[ i ];
-			float q = AN->m_factors[ i ] * layers[ layer ].factor;
+			Vec3 P = m_pose[ i ].pos;
+			Quat R = m_pose[ i ].rot;
+			Vec3 S = m_pose[ i ].scl;
+			float q = m_pose[ i ].fq * layers[ layer ].factor;
 			
 			Mat4 orig;
 			if( abslayer )
@@ -236,7 +212,7 @@ void AnimMixer::Advance( float deltaTime, AnimInfo* info )
 				Mat4 inv = Mat4::Identity;
 				orig.InvertTo( inv );
 				Mat4 diff = tflags & TF_Additive ?
-					Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * orig * tfm * inv :
+					m_pose[ i ].GetSRT() * orig * tfm * inv :
 					tfm * inv;
 		//		if( q )
 		//			LOG << i << ":\t" << R;
@@ -244,29 +220,29 @@ void AnimMixer::Advance( float deltaTime, AnimInfo* info )
 			//		LOG << i << ":\t" << diff.GetRotationQuaternion() << m_rotations[i];
 				
 				// convert back to SRP
-				P = ( tflags & TF_Absolute_Pos ) ? diff.GetTranslation() : m_positions[ i ];
-				R = ( tflags & TF_Absolute_Rot ) ? diff.GetRotationQuaternion() : m_rotations[ i ];
-				S = ( tflags & TF_Absolute_Scale ) ? diff.GetScale() : m_scales[ i ];
+				P = ( tflags & TF_Absolute_Pos ) ? diff.GetTranslation() : m_pose[ i ].pos;
+				R = ( tflags & TF_Absolute_Rot ) ? diff.GetRotationQuaternion() : m_pose[ i ].rot;
+				S = ( tflags & TF_Absolute_Scale ) ? diff.GetScale() : m_pose[ i ].scl;
 			}
 			
-			if( !m_factors[ i ] )
+			if( !m_pose[ i ].fq )
 			{
-				m_positions[ i ] = P;
-				m_rotations[ i ] = R;
-				m_scales[ i ] = S;
-				m_factors[ i ] = q;
+				m_pose[ i ].pos = P;
+				m_pose[ i ].rot = R;
+				m_pose[ i ].scl = S;
+				m_pose[ i ].fq = q;
 			}
 			else
 			{
-				m_positions[ i ] = TLERP( m_positions[ i ], P, q );
-				m_rotations[ i ] = TLERP( m_rotations[ i ], R, q );
-				m_scales[ i ] = TLERP( m_scales[ i ], S, q );
-				m_factors[ i ] = TLERP( m_factors[ i ], 1.0f, q );
+				m_pose[ i ].pos = TLERP( m_pose[ i ].pos, P, q );
+				m_pose[ i ].rot = TLERP( m_pose[ i ].rot, R, q );
+				m_pose[ i ].scl = TLERP( m_pose[ i ].scl, S, q );
+				m_pose[ i ].fq = TLERP( m_pose[ i ].fq, 1.0f, q );
 			}
 			
 			if( abslayer )
 			{
-				m_staging[ i ] = Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * orig;
+				m_staging[ i ] = Mat4::CreateSRT( m_pose[ i ].scl, m_pose[ i ].rot, m_pose[ i ].pos ) * orig;
 			}
 		}
 	}
@@ -281,16 +257,11 @@ AnimPlayer::~AnimPlayer()
 	_clearAnimCache();
 }
 
-bool AnimPlayer::Prepare( const MeshHandle& mesh )
+void AnimPlayer::Prepare()
 {
 	m_currentAnims.clear();
 	_clearAnimCache();
-	if( Animator::Prepare( mesh ) == false )
-		return false;
-	m_blendFactors.resize( m_factors.size() );
-	for( size_t i = 0; i < m_factors.size(); ++i )
-		m_blendFactors[ i ] = 1;
-	return true;
+	m_blendFactors.resize_using( m_pose.size(), 1 );
 }
 
 void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
@@ -326,12 +297,9 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 	}
 	
 	// generate output
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
-		m_positions[ i ] = V3(0);
-		m_rotations[ i ] = Quat::Identity;
-		m_scales[ i ] = V3(1);
-		m_factors[ i ] = 0;
+		m_pose[ i ].Reset();
 	}
 	for( size_t an = 0; an < m_currentAnims.size(); ++an )
 	{
@@ -340,7 +308,7 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		
 		Vec3 P = V3(0), S = V3(1);
 		Quat R = Quat::Identity;
-		for( size_t i = 0; i < m_factors.size(); ++i )
+		for( size_t i = 0; i < m_pose.size(); ++i )
 		{
 			int tid = A.trackIDs[ i ];
 			if( tid < 0 )
@@ -351,24 +319,24 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 			float q = A.once ?
 				smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
 				smoothlerp_oneway( A.fade_at, 0, A.fadetime );
-			if( !m_factors[ i ] )
+			if( !m_pose[ i ].fq )
 			{
-				m_positions[ i ] = P;
-				m_rotations[ i ] = R;
-				m_scales[ i ] = S;
-				m_factors[ i ] = q;
+				m_pose[ i ].pos = P;
+				m_pose[ i ].rot = R;
+				m_pose[ i ].scl = S;
+				m_pose[ i ].fq = q;
 			}
 			else
 			{
-				m_positions[ i ] = TLERP( m_positions[ i ], P, q );
-				m_rotations[ i ] = TLERP( m_rotations[ i ], R, q );
-				m_scales[ i ] = TLERP( m_scales[ i ], S, q );
-				m_factors[ i ] = TLERP( m_factors[ i ], 1.0f, q );
+				m_pose[ i ].pos = TLERP( m_pose[ i ].pos, P, q );
+				m_pose[ i ].rot = TLERP( m_pose[ i ].rot, R, q );
+				m_pose[ i ].scl = TLERP( m_pose[ i ].scl, S, q );
+				m_pose[ i ].fq = TLERP( m_pose[ i ].fq, 1.0f, q );
 			}
 		}
 	}
-	for( size_t i = 0; i < m_factors.size(); ++i )
-		m_factors[ i ] *= m_blendFactors[ i ];
+	for( size_t i = 0; i < m_pose.size(); ++i )
+		m_pose[ i ].fq *= m_blendFactors[ i ];
 }
 
 void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
@@ -417,13 +385,13 @@ bool AnimPlayer::CheckMarker( const StringView& name )
 
 int* AnimPlayer::_getTrackIds( const AnimHandle& anim )
 {
-	if( !m_factors.size() )
+	if( !m_pose.size() )
 		return NULL;
 	int* ids = m_animCache.getcopy( anim );
 	if( !ids )
 	{
-		ids = new int [ m_factors.size() ];
-		for( size_t i = 0; i < m_factors.size(); ++i )
+		ids = new int [ m_pose.size() ];
+		for( size_t i = 0; i < m_pose.size(); ++i )
 		{
 			ids[ i ] = anim->FindTrackID( m_mesh->m_bones[ i ].name );
 		}
@@ -441,29 +409,14 @@ void AnimPlayer::_clearAnimCache()
 	m_animCache.clear();
 }
 
-Array< float >& AnimPlayer::GetBlendFactorArray()
-{
-	return m_blendFactors;
-}
-
 
 AnimInterp::AnimInterp() : animSource( NULL )
 {
 }
 
-bool AnimInterp::Prepare( const MeshHandle& mesh )
+void AnimInterp::Prepare()
 {
-	if( Animator::Prepare( mesh ) == false )
-		return false;
-	m_prev_positions.resize( m_factors.size() );
-	m_prev_rotations.resize( m_factors.size() );
-	m_prev_scales.resize( m_factors.size() );
-	if( animSource )
-	{
-		if( animSource->Prepare( mesh ) == false )
-			return false;
-	}
-	return true;
+	m_prev_pose.resize( m_pose.size() );
 }
 
 void AnimInterp::Advance( float deltaTime, AnimInfo* info )
@@ -474,21 +427,17 @@ void AnimInterp::Advance( float deltaTime, AnimInfo* info )
 
 void AnimInterp::Transfer()
 {
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
-		m_prev_positions[ i ] = animSource->m_positions[ i ];
-		m_prev_rotations[ i ] = animSource->m_rotations[ i ];
-		m_prev_scales[ i ] = animSource->m_scales[ i ];
+		m_prev_pose[ i ] = animSource->m_pose[ i ];
 	}
 }
 
 void AnimInterp::Interpolate( float deltaTime )
 {
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
-		m_positions[ i ] = TLERP( m_prev_positions[ i ], animSource->m_positions[ i ], deltaTime );
-		m_rotations[ i ] = TLERP( m_prev_rotations[ i ], animSource->m_rotations[ i ], deltaTime );
-		m_scales[ i ] = TLERP( m_prev_scales[ i ], animSource->m_scales[ i ], deltaTime );
+		m_pose[ i ].SetLerp( m_prev_pose[ i ], animSource->m_pose[ i ], deltaTime );
 	}
 }
 
@@ -497,17 +446,9 @@ AnimDeformer::AnimDeformer() : numIterations(4), numConstraintIterations(4)
 {
 }
 
-bool AnimDeformer::Prepare( const MeshHandle& mesh )
+void AnimDeformer::Prepare()
 {
-	if( Animator::Prepare( mesh ) == false )
-		return false;
 	_UpdatePoseInfo();
-	if( animSource )
-	{
-		if( animSource->Prepare( mesh ) == false )
-			return false;
-	}
-	return true;
 }
 
 void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
@@ -518,7 +459,7 @@ void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 	
 	_UpdatePoseInfo();
 	
-	int count = TMIN( int(m_factors.size()), SGRX_MAX_MESH_BONES );
+	int count = TMIN( int(m_pose.size()), SGRX_MAX_MESH_BONES );
 	Vec3 posns[ SGRX_MAX_MESH_BONES ];
 	Vec3 dirs[ SGRX_MAX_MESH_BONES ];
 	float dists[ SGRX_MAX_MESH_BONES ];
@@ -603,18 +544,14 @@ void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 	}
 	
 	// produce animation data
-#if 1
 	for( int i = 0; i < count; ++i )
 	{
-		m_positions[ i ] = animSource->m_positions[ i ];
-		m_rotations[ i ] = animSource->m_rotations[ i ];
-		m_scales[ i ] = animSource->m_scales[ i ];
-		m_factors[ i ] = animSource->m_factors[ i ];
+		m_pose[ i ] = animSource->m_pose[ i ];
 	}
 	if( count > 0 )
 	{
 		Vec3 off = m_bonePositions[ 0 ] - posns[ 0 ];
-		m_positions[ 0 ] += m_invSkinOffsets[ 0 ].TransformNormal( off );
+		m_pose[ 0 ].pos += m_invSkinOffsets[ 0 ].TransformNormal( off );
 	}
 	Mat4 skinXF[ SGRX_MAX_MESH_BONES ];
 	for( int i = 0; i < count; ++i )
@@ -645,55 +582,17 @@ void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 		avgpos /= cc;
 		avgtgt /= cc;
 		
-		Mat4 curxf = Mat4::CreateSRT( m_scales[ i ], m_rotations[ i ], m_positions[ i ] );
+		Mat4 curxf = m_pose[ i ].GetSRT();
 		Mat4 inv = Mat4::Identity;
 		( curxf * skinXF[ i ] ).InvertTo( inv );
 		avgtgt = inv.TransformPos( avgtgt ).Normalized();
 		avgpos = m_invSkinOffsets[ i ].TransformPos( avgpos ).Normalized();
-		m_rotations[ i ] = Quat::CreateAxisAxis( avgpos, avgtgt ) * m_rotations[ i ];
+		m_pose[ i ].rot = Quat::CreateAxisAxis( avgpos, avgtgt ) * m_pose[ i ].rot;
 		
-		skinXF[ i ] = Mat4::CreateSRT(
-			m_scales[ i ], m_rotations[ i ], m_positions[ i ] ) * skinXF[ i ];
+		skinXF[ i ] = m_pose[ i ].GetSRT() * skinXF[ i ];
 		
-		m_factors[ i ] = 1;
+		m_pose[ i ].fq = 1;
 	}
-#else
-	for( int i = 0; i < count; ++i )
-	{
-		m_positions[ i ] = animSource->m_positions[ i ];
-		m_rotations[ i ] = animSource->m_rotations[ i ];
-		m_scales[ i ] = animSource->m_scales[ i ];
-		m_factors[ i ] = animSource->m_factors[ i ];
-		
-		int pid = GetParentBoneID( i );
-		if( pid >= 0 )
-		{
-			// rotate bone with axis/angle in bone space
-			Vec3 nmdir = m_bonePositions[ i ] - m_bonePositions[ pid ];
-			Vec3 omdir = dirs[ i ];
-			
-			Vec3 tf_nmdir = m_invSkinOffsets[ i ].TransformNormal( nmdir ).Normalized();
-			Vec3 tf_omdir = m_invSkinOffsets[ i ].TransformNormal( omdir ).Normalized();
-			m_rotations[ i ] = m_rotations[ i ] * Quat::CreateAxisAxis( tf_omdir, tf_nmdir );
-			
-			// rotate child bones backwards
-			for( int ch = i + 1; ch < count; ++ch )
-			{
-				if( GetParentBoneID( ch ) != i )
-					continue;
-				tf_nmdir = m_invSkinOffsets[ ch ].TransformNormal( nmdir ).Normalized();
-				tf_omdir = m_invSkinOffsets[ ch ].TransformNormal( omdir ).Normalized();
-				m_rotations[ ch ] = m_rotations[ ch ] * Quat::CreateAxisAxis( tf_nmdir, tf_omdir );
-			}
-		}
-		else
-		{
-			// move bone set in world space
-			m_positions[ i ] += m_invSkinOffsets[ i ].TransformNormal( m_bonePositions[ i ] - posns[ i ] );
-		}
-		m_factors[ i ] = 1;
-	}
-#endif
 }
 
 void AnimDeformer::AddLocalForce( const Vec3& pos, const Vec3& dir, float rad, float power, float amount )
@@ -733,12 +632,12 @@ int AnimDeformer::_FindClosestBone( const Vec3& pos )
 
 void AnimDeformer::_UpdatePoseInfo()
 {
-	m_skinOffsets.resize( m_factors.size() );
-	m_invSkinOffsets.resize( m_factors.size() );
-	m_bonePositions.resize( m_factors.size() );
+	m_skinOffsets.resize( m_pose.size() );
+	m_invSkinOffsets.resize( m_pose.size() );
+	m_bonePositions.resize( m_pose.size() );
 	
 	GR_ApplyAnimator( animSource, m_skinOffsets.data(), m_skinOffsets.size(), false );
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
 		Mat4 inv = Mat4::Identity;
 		m_skinOffsets[ i ].InvertTo( inv );
@@ -820,7 +719,7 @@ bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool a
 	SGRX_IMesh* mesh = animator->m_mesh;
 	if( !mesh )
 		return false;
-	if( outsz != animator->m_positions.size() )
+	if( outsz != animator->m_pose.size() )
 		return false;
 	if( outsz != (size_t) mesh->m_numBones )
 		return false;
@@ -829,7 +728,7 @@ bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool a
 	for( size_t i = 0; i < outsz; ++i )
 	{
 		Mat4& M = out[ i ];
-		M = Mat4::CreateSRT( animator->m_scales[ i ], animator->m_rotations[ i ], animator->m_positions[ i ] ) * MB[ i ].boneOffset;
+		M = animator->m_pose[ i ].GetSRT() * MB[ i ].boneOffset;
 		if( MB[ i ].parent_id >= 0 )
 			M = M * out[ MB[ i ].parent_id ];
 		else if( base )

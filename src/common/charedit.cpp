@@ -1524,39 +1524,30 @@ void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
 void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 {
 	// common
-	if( node->type != AnimCharacter::NT_Ragdoll )
-		PickMaskName( "Mask", node->mask_name );
-	
 	if( node->type == AnimCharacter::NT_Player )
 	{
 		SGRX_CAST( AnimCharacter::PlayerNode*, PN, node );
 		ImGui::Button( "Edit states / transitions", ImVec2(140,20) );
 	}
-	else if( node->type == AnimCharacter::NT_Mixer )
+	else if( node->type == AnimCharacter::NT_Mask )
 	{
-		SGRX_CAST( AnimCharacter::MixerNode*, MN, node );
-		IMGUIEditInt( "# of inputs", MN->input_count, 1, AC_MAX_MIXER_INPUTS );
-		for( uint8_t i = 0; i < MN->input_count; ++i )
-		{
-			ImGui::PushID( i );
-			char bfr[ 32 ];
-			sgrx_snprintf( bfr, 32, "Input %d", i + 1 );
-			ImGui::Text( "--- %s ---", bfr );
-			EditNodeInput( "Node", MN, MN->inputs[ i ].guid );
-			EditValExpr( "Factor", MN->inputs[ i ].factor );
-			ImGui::Text( "Abs:" );
-			ImGui::SameLine();
-			IMGUIEditIntFlags( "Pos", MN->inputs[ i ].flags, AnimMixer::TF_Absolute_Pos );
-			ImGui::SameLine();
-			IMGUIEditIntFlags( "Rot", MN->inputs[ i ].flags, AnimMixer::TF_Absolute_Rot );
-			ImGui::SameLine();
-			IMGUIEditIntFlags( "Scale", MN->inputs[ i ].flags, AnimMixer::TF_Absolute_Scale );
-			
-			IMGUIEditIntFlags( "Additive", MN->inputs[ i ].flags, AnimMixer::TF_Additive );
-			ImGui::SameLine();
-			IMGUIEditIntFlags( "Ignore mesh XF", MN->inputs[ i ].flags, AnimMixer::TF_IgnoreMeshXF );
-			ImGui::PopID();
-		}
+		SGRX_CAST( AnimCharacter::MaskNode*, MN, node );
+		EditNodeInput( "Input", MN, MN->src );
+		PickMaskName( "Mask", MN->mask_name );
+	}
+	else if( node->type == AnimCharacter::NT_Blend )
+	{
+		SGRX_CAST( AnimCharacter::BlendNode*, BN, node );
+		EditNodeInput( "Input A", BN, BN->A );
+		EditNodeInput( "Input B", BN, BN->B );
+		EditValExpr( "Factor", BN->factor );
+		IMGUIComboBox( "Mode", BN->mode, "Normal\0Additive\0" );
+	}
+	else if( node->type == AnimCharacter::NT_RelAbs )
+	{
+		SGRX_CAST( AnimCharacter::RelAbsNode*, RN, node );
+		EditNodeInput( "Input", RN, RN->src );
+		IMGUIEditBool( "Reverse", RN->inv );
 	}
 }
 
@@ -1575,7 +1566,7 @@ void EditNodes( AnimCharacter& ac )
 	bool open_context_menu = false;
 	
 	ImDrawList* draw_list = ImGui::GetWindowDrawList();
-	draw_list->ChannelsSplit( 2 );
+	draw_list->ChannelsSplit( 3 );
 	ImVec2 offset = ImGui::GetCursorScreenPos()
 		- ImGui::GetContentRegionAvail() * ImVec2( 0.5f, 0.5f )
 		- ImVec2( g_NodeCameraPos.x, g_NodeCameraPos.y );
@@ -1589,7 +1580,7 @@ void EditNodes( AnimCharacter& ac )
 		
 		ImGui::PushID( node );
 		ImVec2 node_rect_min = offset + ImVec2( pos.x, pos.y );
-		draw_list->ChannelsSetCurrent( 1 );
+		draw_list->ChannelsSetCurrent( 2 );
 		
 		bool old_any_active = ImGui::IsAnyItemActive();
 		ImGui::SetCursorScreenPos(node_rect_min + NODE_WINDOW_PADDING);
@@ -1607,10 +1598,10 @@ void EditNodes( AnimCharacter& ac )
 		bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
 		
 		// draw box, do links
-		draw_list->ChannelsSetCurrent(0); // Background
+		draw_list->ChannelsSetCurrent(1); // Background
 		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 24 );
-		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && node_selected == node)) ? ImColor(75,75,75) : ImColor(60,60,60), 4.0f); 
-		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20), 4.0f);
+		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && node_selected == node)) ? ImColor(75,75,75,200) : ImColor(60,60,60,200), 4.0f); 
+		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20,200), 4.0f);
 		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100+(node == ac.output_node?120:0),100,100), 4.0f);
 		
 		// output link
@@ -1660,7 +1651,7 @@ void EditNodes( AnimCharacter& ac )
 		ImGui::PopID();
 	}
 	
-	draw_list->ChannelsSetCurrent(0); // Background
+	draw_list->ChannelsSetCurrent(0); // links
 	for( size_t i = 0; i < g_TempNodeLinks.size(); ++i )
 	{
 		const DrawNodeLink& dnl = g_TempNodeLinks[ i ];
@@ -1732,10 +1723,14 @@ void EditNodes( AnimCharacter& ac )
 			AnimCharacter::Node* nn = NULL;
 			if (ImGui::MenuItem("Add: Player node"))
 				nn = new AnimCharacter::PlayerNode;
-			if (ImGui::MenuItem("Add: Mixer node"))
-				nn = new AnimCharacter::MixerNode;
+			if (ImGui::MenuItem("Add: Mask node"))
+				nn = new AnimCharacter::MaskNode;
+			if (ImGui::MenuItem("Add: Blend node"))
+				nn = new AnimCharacter::BlendNode;
 			if (ImGui::MenuItem("Add: Ragdoll node"))
 				nn = new AnimCharacter::RagdollNode;
+			if (ImGui::MenuItem("Add: Rel<->Abs node"))
+				nn = new AnimCharacter::RelAbsNode;
 			if( nn )
 			{
 				nn->Init( V2( scene_pos ) );

@@ -99,32 +99,60 @@ typedef HashTable< AnimHandle, int* > AnimCache;
 
 struct AnimInfo
 {
+	uint32_t frameID; // to prevent repetition of work
 	Mat4 rootXF;
 };
 
+struct AnimTrackXForm
+{
+	Vec3 pos;
+	Quat rot;
+	Vec3 scl;
+	
+	FINLINE void SetLerp( const AnimTrackXForm& a, const AnimTrackXForm& b, float s )
+	{
+		pos = TLERP( a.pos, b.pos, s );
+		rot = TLERP( a.rot, b.rot, s );
+		scl = TLERP( a.scl, b.scl, s );
+	}
+	FINLINE Mat4 GetSRT() const
+	{
+		return Mat4::CreateSRT( scl, rot, pos );
+	}
+};
+struct AnimTrackFrame : AnimTrackXForm
+{
+	float fq;
+	
+	FINLINE void Reset( float f = 0 )
+	{
+		pos = V3(0);
+		rot = Quat::Identity;
+		scl = V3(1);
+		fq = f;
+	}
+};
+typedef ArrayView< AnimTrackFrame > ATFrameView;
+
 struct IF_GCC(ENGINE_EXPORT) Animator
 {
-	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
+	Animator() : frameID( 0 ){}
+	virtual void Prepare(){}
 	virtual void Advance( float deltaTime, AnimInfo* info ){}
 	
-	void ClearFactors( float f ){ GR_ClearFactors( m_factors, f ); }
-	void SetFactors( const MeshHandle& mesh, const StringView& name, float f, bool ch = true )
-	{
-		GR_SetFactors( m_factors, m_mesh, name, f, ch );
-	}
-	int GetParentBoneID( int i ) const
-	{
-		if( i < 0 || i >= m_mesh->m_numBones )
-			return -1;
-		return m_mesh->m_bones[ i ].parent_id;
-	}
-	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
-	
 	MeshHandle m_mesh;
-	Array< Vec3 > m_positions;
-	Array< Quat > m_rotations;
-	Array< Vec3 > m_scales;
-	Array< float > m_factors;
+	ATFrameView m_pose;
+	uint32_t frameID;
+};
+
+struct IF_GCC(ENGINE_EXPORT) AnimMask : Animator
+{
+	AnimMask() : animSource( NULL ){}
+	ENGINE_EXPORT virtual void Prepare();
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
+	
+	Animator* animSource;
+	Array< float > blendFactors;
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
@@ -151,7 +179,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
 	
 	ENGINE_EXPORT AnimMixer();
 	ENGINE_EXPORT ~AnimMixer();
-	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	Array< Mat4 > m_staging;
@@ -175,7 +203,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	
 	ENGINE_EXPORT AnimPlayer();
 	ENGINE_EXPORT ~AnimPlayer();
-	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
@@ -187,7 +215,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	{
 		GR_SetFactors( m_blendFactors, m_mesh, name, f, ch );
 	}
-	ENGINE_EXPORT virtual Array< float >& GetBlendFactorArray();
 	
 	ENGINE_EXPORT int* _getTrackIds( const AnimHandle& anim );
 	ENGINE_EXPORT void _clearAnimCache();
@@ -200,14 +227,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 struct IF_GCC(ENGINE_EXPORT) AnimInterp : Animator
 {
 	ENGINE_EXPORT AnimInterp();
-	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	ENGINE_EXPORT void Transfer();
 	ENGINE_EXPORT void Interpolate( float deltaTime );
 	
-	Array< Vec3 > m_prev_positions;
-	Array< Quat > m_prev_rotations;
-	Array< Vec3 > m_prev_scales;
+	Array< AnimTrackXForm > m_prev_pose;
 	
 	Animator* animSource; // INTERFACE
 };
@@ -226,7 +251,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
 	};
 	
 	ENGINE_EXPORT AnimDeformer();
-	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	ENGINE_EXPORT void AddLocalForce( const Vec3& pos, const Vec3& dir,
@@ -235,6 +260,13 @@ struct IF_GCC(ENGINE_EXPORT) AnimDeformer : Animator
 		float rad, float power = 1, float amount = 0.0f );
 	ENGINE_EXPORT int _FindClosestBone( const Vec3& pos );
 	ENGINE_EXPORT void _UpdatePoseInfo();
+	
+	int GetParentBoneID( int i ) const
+	{
+		if( i < 0 || i >= m_mesh->m_numBones )
+			return -1;
+		return m_mesh->m_bones[ i ].parent_id;
+	}
 	
 	Array< Mat4 > m_skinOffsets;
 	Array< Mat4 > m_invSkinOffsets;

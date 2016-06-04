@@ -1918,24 +1918,35 @@ struct SGRX_Regex
 };
 
 
+template< class T > struct RemoveConst { typedef T type; };
+template< class T > struct RemoveConst<const T> { typedef T type; };
+
+
 template< class T > struct IF_GCC(ENGINE_EXPORT) ArrayView
 {
 	typedef T value_type;
+	typedef const T const_type;
+	typedef typename RemoveConst<T>::type mutable_type;
 	
-	const T* m_data;
+	T* m_data;
 	size_t m_size;
 	
 	FINLINE ArrayView() : m_data( NULL ), m_size( 0 ){}
-	FINLINE ArrayView( const T* data, size_t size ) : m_data( data ), m_size( size ){}
-	FINLINE ArrayView( const Array<T>& arr ) : m_data( arr.m_data ), m_size( arr.m_size ){}
+	FINLINE ArrayView( T* data, size_t size ) : m_data( data ), m_size( size ){}
+	FINLINE ArrayView( const Array<const_type>& arr ) : m_data( arr.m_data ), m_size( arr.m_size ){}
+	FINLINE ArrayView( const Array<mutable_type>& arr ) : m_data( arr.m_data ), m_size( arr.m_size ){}
 	FINLINE ArrayView( const ArrayView& av ) : m_data( av.m_data ), m_size( av.m_size ){}
 	
+	FINLINE T* data(){ return m_data; }
 	FINLINE const T* data() const { return m_data; }
 	FINLINE size_t size() const { return m_size; }
 	FINLINE operator bool() const { return m_data && m_size; }
+	FINLINE T* begin(){ return m_data; }
 	FINLINE const T* begin() const { return m_data; }
+	FINLINE T* end(){ return m_data + m_size; }
 	FINLINE const T* end() const { return m_data + m_size; }
 	
+	FINLINE T& operator [] ( size_t i ){ ASSERT( i < m_size ); return m_data[ i ]; }
 	FINLINE const T& operator [] ( size_t i ) const { ASSERT( i < m_size ); return m_data[ i ]; }
 	
 	FINLINE bool operator == ( const ArrayView& av ) const
@@ -1979,9 +1990,11 @@ template< class T > struct IF_GCC(ENGINE_EXPORT) ArrayView
 	}
 	
 	FINLINE operator Array<T> () const { return Array<T>( m_data, m_size ); }
+	FINLINE operator ArrayView<const T> () const { return ArrayView<const T>( m_data, m_size ); }
 };
 
 typedef ArrayView< uint8_t > ByteView;
+typedef ArrayView< const uint8_t > CByteView;
 
 
 template< class T > struct StridingArrayView
@@ -2633,7 +2646,7 @@ template< class T > struct SerializeVersionHelper
 
 struct ByteReader
 {
-	ByteReader( ByteView bv, size_t p = 0 ) : input_ptr( bv.data() ), input_size( bv.size() ), pos( p ), error( false ){}
+	ByteReader( CByteView bv, size_t p = 0 ) : input_ptr( bv.data() ), input_size( bv.size() ), pos( p ), error( false ){}
 	enum { IsWriter = 0, IsReader = 1, IsText = 0, IsBinary = 1 };
 	FINLINE ByteReader& operator << ( bool& v ){ uint8_t u; _read( &u, sizeof(u) ); v = !!u; return *this; }
 	FINLINE ByteReader& operator << ( char& v ){ _read( &v, sizeof(v) ); return *this; }
@@ -2684,7 +2697,7 @@ struct ByteReader
 	FINLINE const void* at() const { return &input_ptr[ pos ]; }
 	FINLINE bool atEnd() const { return pos >= input_size; }
 	
-	ByteView readChunk( const char* mkr )
+	CByteView readChunk( const char* mkr )
 	{
 		marker( mkr );
 		uint32_t size = 0;
@@ -2692,9 +2705,9 @@ struct ByteReader
 		if( pos + size > input_size )
 		{
 			error = true;
-			return ByteView();
+			return CByteView();
 		}
-		return ByteView( input_ptr + pos, size );
+		return CByteView( input_ptr + pos, size );
 	}
 	FINLINE uint32_t beginChunk( const char* mkr )
 	{

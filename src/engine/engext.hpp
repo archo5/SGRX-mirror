@@ -71,7 +71,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	
 	ENGINE_EXPORT AnimRagdoll( PhyWorldHandle phyWorld );
 	ENGINE_EXPORT void Initialize( struct AnimCharacter* chinfo );
-	ENGINE_EXPORT virtual bool Prepare( const MeshHandle& mesh );
+	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	ENGINE_EXPORT void SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot );
@@ -85,7 +85,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	bool m_enabled;
 	float m_lastTickSize;
 	PhyWorldHandle m_phyWorld;
-	MeshHandle m_mesh;
 	Array< Body > m_bones;
 };
 
@@ -368,8 +367,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	{
 		NT_Unknown = 0,
 		NT_Player = 1,
-		NT_Mixer = 2,
+		NT_Blend = 2,
 		NT_Ragdoll = 3,
+		NT_Mask = 4,
+		NT_RelAbs = 5,
+		NT_Layers = 6,
 	};
 	struct Node : SGRX_RefCounted
 	{
@@ -377,12 +379,17 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		const char* GetName()
 		{
 			if( type == NT_Player ) return "Player";
-			if( type == NT_Mixer ) return "Mixer";
+			if( type == NT_Blend ) return "Blend";
 			if( type == NT_Ragdoll ) return "Ragdoll";
+			if( type == NT_Mask ) return "Mask";
+			if( type == NT_RelAbs ) return "Rel <-> Abs";
+			if( type == NT_Layers ) return "Layers";
 			return "<Unknown>";
 		}
 		virtual int GetInputLinkCount(){ return 0; }
 		virtual SGRX_GUID* GetInputLink( int i ){ return NULL; }
+		virtual bool OwnsAnimator(){ return type != NT_Ragdoll && type != NT_Layers; }
+		virtual Animator* GetAnimator( AnimCharacter* ch ) = 0;
 		Node( uint8_t t ) : type(t), editor_pos(V2(0)){}
 		virtual void Init( Vec2 ep )
 		{
@@ -393,28 +400,40 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		template< class T > void Serialize( T& arch )
 		{
 			if( T::IsWriter )
+			{
+				arch.marker( "NODE" );
 				arch << type;
+			}
 			arch << guid;
 			arch << editor_pos;
-			arch << mask_name;
 		}
 		
 		uint8_t type; // NodeType
 		SGRX_GUID guid;
 		Vec2 editor_pos;
-		String mask_name;
+	};
+	struct RagdollNode : Node
+	{
+		RagdollNode() : Node( NT_Ragdoll ){}
+		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharacter* ch );
+	};
+	struct LayersNode : Node
+	{
+		LayersNode() : Node( NT_Layers ){}
+		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharacter* ch );
 	};
 	struct PlayerNode : Node
 	{
 		Array< Handle< State > > states;
 		Array< Handle< Transition > > transitions;
 		
-		AnimPlayer player;
+		AnimPlayer player_anim;
 		HashTable< SGRX_GUID, size_t > transition_lookup; /* GUID -> ID array offset */
 		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
 		... NULL GUID is first set of entries, always present */
 		
 		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
+		virtual Animator* GetAnimator( AnimCharacter* ){ return &player_anim; }
 		ENGINE_EXPORT void RehashTransitions();
 		template< class T > void Serialize( T& arch )
 		{
@@ -425,49 +444,68 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 				RehashTransitions();
 		}
 	};
-	struct MNInput
+	struct MaskNode : Node
 	{
-		SGRX_GUID guid;
-		ValExpr factor;
-		uint16_t flags;
-	};
-	#define AC_MAX_MIXER_INPUTS 8
-	struct MixerNode : Node
-	{
-		uint8_t input_count;
-		MNInput inputs[ AC_MAX_MIXER_INPUTS ];
+		SGRX_GUID src;
+		String mask_name;
 		
-		AnimMixer mixer;
-		AnimMixer::Layer layers[2];
+		AnimMask mask_anim;
 		
-		MixerNode() : Node( NT_Mixer ), input_count(1)
-		{
-			for( uint8_t i = 0; i < AC_MAX_MIXER_INPUTS; ++i )
-			{
-				inputs[ i ].factor.expr = "1";
-				inputs[ i ].flags = 0;
-			}
-			inputs[ 0 ].factor.Recompile( NULL );
-		}
-		virtual int GetInputLinkCount(){ return input_count; }
-		virtual SGRX_GUID* GetInputLink( int i ){
-			if( i < 0 || i >= int(input_count) || i >= AC_MAX_MIXER_INPUTS ) return NULL;
-			return &inputs[ i ].guid; }
+		MaskNode() : Node( NT_Mask ){}
+		virtual int GetInputLinkCount(){ return 1; }
+		virtual SGRX_GUID* GetInputLink( int i ){ return i ? NULL : &src; }
+		virtual Animator* GetAnimator( AnimCharacter* ){ return &mask_anim; }
 		template< class T > void Serialize( T& arch )
 		{
 			Node::Serialize( arch );
-			arch << input_count;
-			for( uint8_t i = 0; i < input_count; ++i )
-			{
-				arch << inputs[ i ].guid;
-				arch << inputs[ i ].factor;
-				arch << inputs[ i ].flags;
-			}
+			arch << mask_name;
 		}
 	};
-	struct RagdollNode : Node
+	struct BlendNode : Node
 	{
-		RagdollNode() : Node( NT_Ragdoll ){}
+		SGRX_GUID A;
+		SGRX_GUID B;
+		ValExpr factor;
+		int32_t mode;
+		
+		BlendNode() : Node( NT_Blend ){ factor.expr = "1"; factor.Recompile( NULL ); }
+		virtual int GetInputLinkCount(){ return 2; }
+		virtual SGRX_GUID* GetInputLink( int i ){
+			if( i == 0 ) return &A;
+			if( i == 1 ) return &B;
+			return NULL; }
+		virtual Animator* GetAnimator( AnimCharacter* ){ return NULL; }
+		template< class T > void Serialize( T& arch )
+		{
+			Node::Serialize( arch );
+			arch << A;
+			arch << B;
+			arch << factor;
+			arch << mode;
+		}
+	};
+	struct RelAbsNode : Node
+	{
+		SGRX_GUID src;
+		SGRX_GUID optspace;
+		bool inv;
+		bool is_space;
+		
+		RelAbsNode() : Node( NT_RelAbs ), inv( false ), is_space( false ){}
+		virtual int GetInputLinkCount(){ return 2; }
+		virtual SGRX_GUID* GetInputLink( int i ){
+			if( i == 0 ) return &src;
+			if( i == 1 ) return &optspace;
+			return NULL; }
+		virtual Animator* GetAnimator( AnimCharacter* ){ return NULL; }
+		template< class T > void Serialize( T& arch )
+		{
+			Node::Serialize( arch );
+			arch << src;
+			arch << optspace;
+			arch << inv;
+			arch << is_space;
+		}
 	};
 	
 	template< class T > void Serialize( T& basearch )
@@ -503,6 +541,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT bool Save( const StringView& sv );
 	
 	ENGINE_EXPORT void _OnRenderUpdate();
+	ENGINE_EXPORT void _Prepare();
+	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
 	ENGINE_EXPORT void FixedTick( float deltaTime );
@@ -522,7 +562,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT void _GetHitboxMatrix( int which, Mat4& outwm );
 	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
 	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace = true ) const;
-	ENGINE_EXPORT bool ApplyMask( const StringView& name, Animator* tgt );
+	ENGINE_EXPORT bool ApplyMask( const StringView& name, AnimMask* tgt );
 	ENGINE_EXPORT int FindAttachment( const StringView& name );
 	ENGINE_EXPORT void SortEnsureAttachments( const StringView* atchnames, int count );
 	
@@ -568,6 +608,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	MeshInstHandle m_cachedMeshInst;
 	HashTable< StringView, uint16_t > m_variable_index;
 	HashTable< SGRX_GUID, Node* > m_node_map;
+	Array< AnimTrackFrame > m_node_frames;
+	uint32_t m_frameID;
 	Animator m_layerAnimator;
 	AnimMixer m_anMixer;
 	AnimDeformer m_anDeformer;
@@ -578,10 +620,14 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate( T& arch )
 {
 	uint8_t type;
+	arch.marker( "NODE" );
 	arch << type;
 	if( type == NT_Player ) return new PlayerNode;
-	if( type == NT_Mixer ) return new MixerNode;
+	if( type == NT_Blend ) return new BlendNode;
 	if( type == NT_Ragdoll ) return new RagdollNode;
+	if( type == NT_Mask ) return new MaskNode;
+	if( type == NT_RelAbs ) return new RelAbsNode;
+	if( type == NT_Layers ) return new LayersNode;
 	return NULL;
 }
 

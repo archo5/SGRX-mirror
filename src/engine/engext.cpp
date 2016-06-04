@@ -634,14 +634,14 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 	rbinfo.angularDamping = 0.1f;
 	rbinfo.group = 4;
 	
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
 		Body B = { V3(0), Quat::Identity,
 			NULL, NULL, V3(0), V3(0), Quat::Identity, Quat::Identity };
 		m_bones[ i ] = B;
 	}
 	
-	if( m_factors.size() != chinfo->bones.size() )
+	if( m_pose.size() != chinfo->bones.size() )
 	{
 		// ragdoll not used
 		return;
@@ -719,34 +719,25 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 	}
 }
 
-bool AnimRagdoll::Prepare( const MeshHandle& mesh )
+void AnimRagdoll::Prepare()
 {
-	if( Animator::Prepare( mesh ) == false )
-		return false;
-	
-	m_mesh = mesh;
-	m_bones.resize( m_factors.size() );
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	m_bones.resize( m_pose.size() );
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
 		Body B = { V3(0), Quat::Identity,
 			NULL, NULL, V3(0), V3(0), Quat::Identity, Quat::Identity };
 		m_bones[ i ] = B;
-		m_positions[ i ] = V3( 0 );
-		m_rotations[ i ] = Quat::Identity;
-		m_scales[ i ] = V3( 1 );
-		m_factors[ i ] = 0;
+		m_pose[ i ].Reset();
 	}
-	
-	return true;
 }
 
 void AnimRagdoll::Advance( float deltaTime, AnimInfo* info )
 {
 	m_lastTickSize = deltaTime;
 	
-	ASSERT( m_bones.size() == m_factors.size() );
-	for( size_t i = 0; i < m_factors.size(); ++i )
-		m_factors[ i ] = m_enabled && m_bones[ i ].bodyHandle;
+	ASSERT( m_bones.size() == m_pose.size() );
+	for( size_t i = 0; i < m_pose.size(); ++i )
+		m_pose[ i ].fq = m_enabled && m_bones[ i ].bodyHandle;
 	
 	if( m_enabled == false )
 		return;
@@ -759,15 +750,15 @@ void AnimRagdoll::Advance( float deltaTime, AnimInfo* info )
 			Vec3 pos = B.bodyHandle->GetPosition();
 			Quat rot = B.bodyHandle->GetRotation();
 			Quat nrot = B.relRot.Inverted() * rot;
-			m_positions[ i ] = pos - Mat4::CreateRotationFromQuat(nrot).TransformNormal( B.relPos );
-			m_rotations[ i ] = nrot;
+			m_pose[ i ].pos = pos - Mat4::CreateRotationFromQuat(nrot).TransformNormal( B.relPos );
+			m_pose[ i ].rot = nrot;
 		}
 	}
 }
 
 void AnimRagdoll::SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Vec3& curr_pos, const Quat& prev_rot, const Quat& curr_rot )
 {
-	ASSERT( bone_id >= 0 && bone_id < (int) m_factors.size() );
+	ASSERT( bone_id >= 0 && bone_id < (int) m_pose.size() );
 	Body& B = m_bones[ bone_id ];
 	B.prevPos = prev_pos;
 	B.currPos = curr_pos;
@@ -777,16 +768,16 @@ void AnimRagdoll::SetBoneTransforms( int bone_id, const Vec3& prev_pos, const Ve
 
 void AnimRagdoll::AdvanceTransforms( Animator* anim )
 {
-	if( m_factors.size() != anim->m_factors.size() )
+	if( m_pose.size() != anim->m_pose.size() )
 		return;
 	
-	for( size_t i = 0; i < m_factors.size(); ++i )
+	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
 		Body& B = m_bones[ i ];
 		B.prevPos = B.currPos;
 		B.prevRot = B.currRot;
-		B.currPos = anim->m_positions[ i ];
-		B.currRot = anim->m_rotations[ i ];
+		B.currPos = anim->m_pose[ i ].pos;
+		B.currRot = anim->m_pose[ i ].rot;
 	}
 }
 
@@ -942,6 +933,16 @@ struct RHTKey
 	}
 };
 
+Animator* AnimCharacter::RagdollNode::GetAnimator( AnimCharacter* ch )
+{
+	return &ch->m_anRagdoll;
+}
+
+Animator* AnimCharacter::LayersNode::GetAnimator( AnimCharacter* ch )
+{
+	return &ch->m_layerAnimator;
+}
+
 void AnimCharacter::PlayerNode::RehashTransitions()
 {
 	transition_lookup.clear();
@@ -996,6 +997,7 @@ void AnimCharacter::PlayerNode::RehashTransitions()
 
 AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
 	m_scene( sh ),
+	m_frameID( 0 ),
 	m_anRagdoll( phyWorld )
 {
 	ASSERT( sh && "scene handle must be valid" );
@@ -1035,11 +1037,49 @@ void AnimCharacter::_OnRenderUpdate()
 	m_cachedMeshInst->SetMesh( m_cachedMesh );
 	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh ? m_cachedMesh->m_numBones : 0 );
 	RecalcBoneIDs();
-	m_anEnd.Prepare( m_cachedMesh );
-	if( m_cachedMesh && (int) m_layerAnimator.m_factors.size() != m_cachedMesh->m_numBones )
-		m_layerAnimator.Prepare( m_cachedMesh );
-	m_layerAnimator.ClearFactors( 1.0f );
+	_Prepare();
 	m_anRagdoll.Initialize( this );
+}
+
+void AnimCharacter::_Prepare()
+{
+	// count animators
+	int num_animators = 3; // ragdoll, layers, end
+	int num_bones = m_cachedMesh ? m_cachedMesh->m_numBones : 0;
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		if( nodes[ i ]->OwnsAnimator() )
+			num_animators++;
+	}
+	
+	// allocate frames
+	m_node_frames.resize( num_animators * num_bones );
+	for( size_t i = 0; i < m_node_frames.size(); ++i )
+		m_node_frames[ i ].Reset();
+	
+	// equip animators
+	_EquipAnimator( &m_anRagdoll, 0 );
+	_EquipAnimator( &m_layerAnimator, 1 );
+	_EquipAnimator( &m_anEnd, 2 );
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		Animator* anim = nodes[ i ]->GetAnimator( this );
+		if( anim && nodes[ i ]->OwnsAnimator() )
+			_EquipAnimator( anim, 3 + i );
+	}
+	
+	// additional work
+	for( size_t i = 0; i < m_layerAnimator.m_pose.size(); ++i )
+		m_layerAnimator.m_pose[ i ].fq = 1;
+}
+
+void AnimCharacter::_EquipAnimator( Animator* anim, int which )
+{
+	int num_bones = m_cachedMesh ? m_cachedMesh->m_numBones : 0;
+	int at = which * num_bones;
+	anim->m_mesh = m_cachedMesh;
+	anim->m_pose = ArrayView<AnimTrackFrame>( m_node_frames ).part( at, at + num_bones );
+	anim->Prepare();
 }
 
 void AnimCharacter::SetTransform( const Mat4& mtx )
@@ -1050,7 +1090,7 @@ void AnimCharacter::SetTransform( const Mat4& mtx )
 
 void AnimCharacter::FixedTick( float deltaTime )
 {
-	AnimInfo info = { m_cachedMeshInst->matrix };
+	AnimInfo info = { ++m_frameID, m_cachedMeshInst->matrix };
 	m_anEnd.Advance( deltaTime, &info );
 	m_anRagdoll.AdvanceTransforms( &m_anEnd );
 }
@@ -1066,8 +1106,8 @@ void AnimCharacter::RecalcLayerState()
 	if( m_cachedMesh == NULL )
 		return;
 	
-	TMEMSET( m_layerAnimator.m_positions.data(), m_layerAnimator.m_positions.size(), V3(0) );
-	TMEMSET( m_layerAnimator.m_rotations.data(), m_layerAnimator.m_rotations.size(), Quat::Identity );
+	for( size_t i = 0; i < m_layerAnimator.m_pose.size(); ++i )
+		m_layerAnimator.m_pose[ i ].Reset();
 	for( size_t i = 0; i < layers.size(); ++i )
 	{
 		Layer& L = layers[ i ];
@@ -1083,17 +1123,17 @@ void AnimCharacter::RecalcLayerState()
 					int parent_id = m_cachedMesh->m_bones[ LT.bone_id ].parent_id;
 					if( parent_id >= 0 )
 					{
-						m_layerAnimator.m_positions[ LT.bone_id ] -= m_layerAnimator.m_positions[ parent_id ];
-						m_layerAnimator.m_rotations[ LT.bone_id ] =
-							m_layerAnimator.m_rotations[ parent_id ].Inverted() * m_layerAnimator.m_rotations[ LT.bone_id ];
+						m_layerAnimator.m_pose[ LT.bone_id ].pos -= m_layerAnimator.m_pose[ parent_id ].pos;
+						m_layerAnimator.m_pose[ LT.bone_id ].rot =
+							m_layerAnimator.m_pose[ parent_id ].rot.Inverted() * m_layerAnimator.m_pose[ LT.bone_id ].rot;
 					}
 				}
 				break;
 			case TransformType_Move:
-				m_layerAnimator.m_positions[ LT.bone_id ] += LT.posaxis * ( LT.base + L.amount );
+				m_layerAnimator.m_pose[ LT.bone_id ].pos += LT.posaxis * ( LT.base + L.amount );
 				break;
 			case TransformType_Rotate:
-				m_layerAnimator.m_rotations[ LT.bone_id ] = m_layerAnimator.m_rotations[ LT.bone_id ]
+				m_layerAnimator.m_pose[ LT.bone_id ].rot = m_layerAnimator.m_pose[ LT.bone_id ].rot
 					* Quat::CreateAxisAngle( LT.posaxis.Normalized(), DEG2RAD( LT.angle ) * ( LT.base + L.amount ) );
 				break;
 			}
@@ -1309,7 +1349,7 @@ bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace
 	return true;
 }
 
-bool AnimCharacter::ApplyMask( const StringView& name, Animator* tgt )
+bool AnimCharacter::ApplyMask( const StringView& name, AnimMask* tgt )
 {
 	if( !m_cachedMesh )
 		return false;
@@ -1320,7 +1360,7 @@ bool AnimCharacter::ApplyMask( const StringView& name, Animator* tgt )
 		if( M.name != name )
 			continue;
 		
-		Array< float >& factors = tgt->GetBlendFactorArray();
+		Array< float >& factors = tgt->blendFactors;
 		GR_ClearFactors( factors, 0 );
 		for( size_t j = 0; j < M.cmds.size(); ++j )
 		{
