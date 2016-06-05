@@ -1446,6 +1446,8 @@ void SGRX_MeshInstance::SetTransform( const Mat4& mtx )
 
 void SGRX_MeshInstance::_Precache()
 {
+	LOG_FUNCTION_ARG( "SGRX_MeshInstance" );
+	
 	size_t dicnt = TMIN( materials.size(), m_mesh->m_meshParts.size() );
 	if( m_invalid || m_drawItems.size() != dicnt )
 	{
@@ -1494,11 +1496,15 @@ void SGRX_MeshInstance::_Precache()
 
 void SGRX_MeshInstance::SetMesh( StringView path, bool mtls )
 {
+	LOG_FUNCTION_ARG(mtls?"[path] MTL":"[path] nomtl");
+	
 	SetMesh( GR_GetMesh( path ), mtls );
 }
 
 void SGRX_MeshInstance::SetMesh( MeshHandle mh, bool mtls )
 {
+	LOG_FUNCTION_ARG(mtls?"MTL":"nomtl");
+	
 	m_mesh = mh;
 	if( mtls )
 	{
@@ -1952,16 +1958,17 @@ TextureHandle GR_GetTexture( const StringView& path )
 	if( !tex )
 	{
 		// it's a regular texture
-		uint32_t usageflags;
-		ByteArray imgdata;
-		if( !g_Game->OnLoadTexture( path, imgdata, usageflags ) )
+		uint32_t usageflags = 0;
+		uint8_t lod = 0;
+		HFileReader fr = g_Game->OnLoadTexture( path, usageflags, lod );
+		if( fr == NULL )
 		{
 			LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
 			return TextureHandle();
 		}
 		
 		TextureData texdata;
-		if( !TextureData_Load( &texdata, imgdata, path ) )
+		if( !TextureData_Load( &texdata, fr, path, lod ) )
 		{
 			// error is already printed
 			return TextureHandle();

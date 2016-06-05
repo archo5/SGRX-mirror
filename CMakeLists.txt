@@ -137,10 +137,6 @@ add_subdirectory( src/common )
 add_subdirectory( src/tacstrike )
 add_subdirectory( src/smallgames )
 
-if(NOT RESTRICTED)
-add_subdirectory( src/tools )
-endif()
-
 # Copy external libraries
 message( STATUS "Copying shared libraries." )
 file( COPY ${ExternalSharedLibraries} DESTINATION "${CMAKE_SOURCE_DIR}/bin" NO_SOURCE_PERMISSIONS )

@@ -9,6 +9,7 @@
 ///
 
 ENGINE_EXPORT size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI );
+ENGINE_EXPORT size_t TextureInfo_GetMipSize( const TextureInfo* TI );
 ENGINE_EXPORT void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize,
 	size_t* outcopyrowcount, size_t* outcopyslicecount = NULL );
 ENGINE_EXPORT bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinfo );
@@ -17,9 +18,13 @@ struct TextureData
 {
 	TextureInfo info;
 	ByteArray data;
+	
+	// removes the top min(n,count-1) mipmaps
+	void SkipMips( int n );
+	size_t SkipMipInfo( int n );
 };
 
-ENGINE_EXPORT bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& filename = "<memory>" );
+ENGINE_EXPORT bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filename = "<memory>", uint8_t lod = 0 );
 ENGINE_EXPORT void TextureData_Free( TextureData* TD );
 ENGINE_EXPORT size_t TextureData_GetMipDataOffset( TextureInfo* texinfo, int side, int mip );
 ENGINE_EXPORT size_t TextureData_GetMipDataSize( TextureInfo* texinfo, int mip );

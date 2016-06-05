@@ -46,6 +46,11 @@ size_t TextureInfo_GetTextureSideSize( const TextureInfo* TI )
 	return 0;
 }
 
+size_t TextureInfo_GetMipSize( const TextureInfo* TI )
+{
+	return TextureInfo_GetTextureSideSize( TI ) * ( TI->type == TEXTYPE_CUBE ? 6 : 1 );
+}
+
 void TextureInfo_GetCopyDims( const TextureInfo* TI, size_t* outcopyrowsize,
 	size_t* outcopyrowcount, size_t* outcopyslicecount )
 {
@@ -96,6 +101,26 @@ bool TextureInfo_GetMipInfo( const TextureInfo* TI, int mip, TextureInfo* outinf
 	info.mipcount -= mip;
 	*outinfo = info;
 	return true;
+}
+
+void TextureData::SkipMips( int n )
+{
+	size_t skip = SkipMipInfo( n );
+	data.erase( 0, skip );
+}
+
+size_t TextureData::SkipMipInfo( int n )
+{
+	size_t skip = 0;
+	while( n --> 0 && info.mipcount > 1 )
+	{
+		skip += TextureInfo_GetMipSize( &info );
+		info.width /= 2; if( info.width < 1 ) info.width = 1;
+		info.height /= 2; if( info.height < 1 ) info.height = 1;
+		info.depth /= 2; if( info.depth < 1 ) info.depth = 1;
+		info.mipcount--;
+	}
+	return skip;
 }
 
 
@@ -331,12 +356,15 @@ static bool jpg_decode32( ByteArray& out, unsigned* outw, unsigned* outh, /* con
 /* =============== --- =============== */
 
 
-bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& filename )
+#define STX_HEADER_SIZE (8 + sizeof(TextureInfo))
+
+bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filename, uint8_t lod )
 {
 	LOG_FUNCTION_ARG( filename );
 	
 	unsigned w, h;
 	int err;
+	ByteArray texdata;
 	
 	static const dds_u32 dds_supfmt[] = { DDS_FMT_R8G8B8A8, DDS_FMT_B8G8R8A8, DDS_FMT_B8G8R8X8, DDS_FMT_DXT1, DDS_FMT_DXT3, DDS_FMT_DXT5, 0 };
 	dds_info ddsinfo;
@@ -344,19 +372,35 @@ bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& fi
 	memset( TD, 0, sizeof(*TD) );
 	
 	// Try to load STX
-	if( texdata.size() > 8 + sizeof(TextureInfo) && memcmp( texdata.data(), "STX\0", 4 ) == 0 )
+	fr->Seek( 0 );
+	uint8_t file_header[ STX_HEADER_SIZE ] = {0};
+	uint32_t hdrmaxsize = fr->TryRead( STX_HEADER_SIZE, file_header );
+	if( hdrmaxsize >= STX_HEADER_SIZE &&
+		fr->Length() > STX_HEADER_SIZE &&
+		memcmp( file_header, "STX\0", 4 ) == 0 )
 	{
 		uint32_t size = 0;
-		memcpy( &size, &texdata[ 4 + sizeof(TextureInfo) ], 4 );
-		if( texdata.size() != size + 8 + sizeof(TextureInfo) )
+		memcpy( &size, &file_header[ 4 + sizeof(TextureInfo) ], 4 );
+		if( fr->Length() != size + 8 + sizeof(TextureInfo) )
 		{
 			LOG << LOG_DATE << "  Failed to load texture " << filename << " - incomplete data";
 			return false;
 		}
-		memcpy( &TD->info, &texdata[ 4 ], sizeof(TextureInfo) );
-		TD->data.assign( &texdata[ 8 + sizeof(TextureInfo) ], size );
+		memcpy( &TD->info, &file_header[ 4 ], sizeof(TextureInfo) );
+		
+		size_t skiplen = TD->SkipMipInfo( lod );
+		ASSERT( fr->Length() - STX_HEADER_SIZE > skiplen );
+		TD->data.resize( fr->Length() - STX_HEADER_SIZE - skiplen );
+		fr->Seek( STX_HEADER_SIZE + skiplen );
+		if( !fr->Read( TD->data.size(), TD->data.data() ) )
+		{
+			LOG << LOG_DATE << "  Failed to load texture " << filename << " - read error";
+			return false;
+		}
 		goto success;
 	}
+	
+	fr->ReadAll( texdata );
 	
 	// Try to load DDS
 	err = dds_load_from_memory( texdata.data(), texdata.size(), &ddsinfo, dds_supfmt );
@@ -386,6 +430,8 @@ bool TextureData_Load( TextureData* TD, ByteArray& texdata, const StringView& fi
 			return false;
 		}
 		dds_close( &ddsinfo );
+		
+		TD->SkipMips( lod );
 		goto success;
 	}
 	
@@ -452,6 +498,8 @@ success_genmips:
 			_img_ds2x( (uint32_t*) dst, w, h, (uint32_t*) cur, pw, ph );
 			cur = dst;
 		}
+		
+		TD->SkipMips( lod );
 	}
 success:
 	

@@ -1860,6 +1860,8 @@ struct CSEditor : IGame
 	CSEditor(){}
 	bool OnInitialize()
 	{
+		LOG_FUNCTION_ARG( "CSEditor" );
+		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
 		
@@ -1911,6 +1913,8 @@ struct CSEditor : IGame
 	}
 	void OnDestroy()
 	{
+		LOG_FUNCTION_ARG( "CSEditor" );
+		
 		delete g_NUIMeshPicker;
 		delete g_NUICharFilePicker;
 		delete g_NUIRenderView;
@@ -1925,10 +1929,14 @@ struct CSEditor : IGame
 	}
 	void OnEvent( const Event& e )
 	{
+		LOG_FUNCTION_ARG( "CSEditor" );
+		
 		SGRX_IMGUI_Event( e );
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
+		LOG_FUNCTION_ARG( "CSEditor" );
+		
 		SGRX_IMGUI_NewFrame( dt );
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );

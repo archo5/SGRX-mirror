@@ -376,13 +376,22 @@ struct IF_GCC(ENGINE_EXPORT) IDirEntryHandler
 	ENGINE_EXPORT virtual bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir ) = 0;
 };
 
-struct IF_GCC(ENGINE_EXPORT) IFileSystem
+struct IF_GCC(ENGINE_EXPORT) IFileReader : SGRX_RefCounted
 {
-	FINLINE void Acquire(){ ++m_refcount; }
-	FINLINE void Release(){ --m_refcount; if( m_refcount <= 0 ) delete this; }
-	
-	ENGINE_EXPORT IFileSystem();
-	ENGINE_EXPORT virtual ~IFileSystem();
+	// derived classes must implement destructor using Close
+	ENGINE_EXPORT virtual void Close() = 0;
+	ENGINE_EXPORT virtual uint64_t Length() = 0;
+	ENGINE_EXPORT virtual bool Seek( uint64_t pos ) = 0;
+	ENGINE_EXPORT virtual uint64_t Tell() = 0;
+	ENGINE_EXPORT virtual uint32_t TryRead( uint32_t num, uint8_t* out ) = 0;
+	ENGINE_EXPORT bool Read( uint32_t num, uint8_t* out );
+	ENGINE_EXPORT bool ReadAll( ByteArray& out );
+};
+typedef Handle< IFileReader > HFileReader;
+
+struct IF_GCC(ENGINE_EXPORT) IFileSystem : SGRX_RefCounted
+{
+	ENGINE_EXPORT virtual HFileReader OpenBinaryFile( const StringView& path ) = 0;
 	ENGINE_EXPORT virtual bool LoadBinaryFile( const StringView& path, ByteArray& out ) = 0;
 	ENGINE_EXPORT virtual bool SaveBinaryFile( const StringView& path, const void* data, size_t size ) = 0;
 	ENGINE_EXPORT virtual bool LoadTextFile( const StringView& path, String& out ) = 0;
@@ -392,13 +401,12 @@ struct IF_GCC(ENGINE_EXPORT) IFileSystem
 	ENGINE_EXPORT virtual bool DirCreate( const StringView& path ) = 0;
 	ENGINE_EXPORT virtual uint32_t FileModTime( const StringView& path ) = 0;
 	ENGINE_EXPORT virtual void IterateDirectory( const StringView& path, IDirEntryHandler* deh ) = 0;
-	
-	int32_t m_refcount;
 };
 
 struct IF_GCC(ENGINE_EXPORT) BasicFileSystem : IFileSystem
 {
 	ENGINE_EXPORT BasicFileSystem( const StringView& root );
+	ENGINE_EXPORT virtual HFileReader OpenBinaryFile( const StringView& path );
 	ENGINE_EXPORT virtual bool LoadBinaryFile( const StringView& path, ByteArray& out );
 	ENGINE_EXPORT virtual bool SaveBinaryFile( const StringView& path, const void* data, size_t size );
 	ENGINE_EXPORT virtual bool LoadTextFile( const StringView& path, String& out );
@@ -416,6 +424,7 @@ typedef Handle< IFileSystem > FileSysHandle;
 ENGINE_EXPORT StringView Game_GetDir();
 ENGINE_EXPORT Array< FileSysHandle >& Game_FileSystems();
 
+ENGINE_EXPORT HFileReader FS_OpenBinaryFile( const StringView& path );
 ENGINE_EXPORT bool FS_LoadBinaryFile( const StringView& path, ByteArray& out );
 ENGINE_EXPORT bool FS_SaveBinaryFile( const StringView& path, const void* data, size_t size );
 ENGINE_EXPORT bool FS_LoadTextFile( const StringView& path, String& out );
@@ -1945,7 +1954,7 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	ENGINE_EXPORT virtual void OnLoadMtlShaders( const SGRX_RenderPass& pass, const StringView& defines, const SGRX_Material& mtl,
 		SGRX_MeshInstance* MI, VertexShaderHandle& VS, PixelShaderHandle& PS );
 	ENGINE_EXPORT virtual TextureHandle OnCreateSysTexture( const StringView& key );
-	ENGINE_EXPORT virtual bool OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags );
+	ENGINE_EXPORT virtual HFileReader OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8_t& outlod );
 	ENGINE_EXPORT virtual void GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name );
 	ENGINE_EXPORT virtual bool GetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, ByteArray& outdata );
 	ENGINE_EXPORT virtual bool SetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, const ByteArray& data );

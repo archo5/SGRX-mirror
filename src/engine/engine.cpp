@@ -957,7 +957,7 @@ void SGRX_RenderDirector::SetMode( int mode )
 
 
 
-void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags )
+void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags, uint8_t& outlod )
 {
 	if( flags.contains( ":nosrgb" ) ) outusageflags &= ~TEXFLAGS_SRGB;
 	if( flags.contains( ":srgb" ) ) outusageflags |= TEXFLAGS_SRGB;
@@ -971,6 +971,12 @@ void ParseDefaultTextureFlags( const StringView& flags, uint32_t& outusageflags 
 	if( flags.contains( ":lerp" ) ) outusageflags |= TEXFLAGS_LERP;
 	if( flags.contains( ":nomips" ) ) outusageflags &= ~TEXFLAGS_HASMIPS;
 	if( flags.contains( ":mips" ) ) outusageflags |= TEXFLAGS_HASMIPS;
+	
+	size_t pos = flags.find_first_at( ":lod" );
+	if( pos != NOT_FOUND )
+	{
+		outlod = (uint8_t) String_ParseInt( flags.part( pos + 4 ) );
+	}
 }
 
 bool IGame::OnConfigure( int argc, char** argv )
@@ -1143,19 +1149,21 @@ TextureHandle IGame::OnCreateSysTexture( const StringView& key )
 	return NULL;
 }
 
-bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& outusageflags )
+HFileReader IGame::OnLoadTexture( const StringView& key, uint32_t& outusageflags, uint8_t& outlod )
 {
 	LOG_FUNCTION;
 	
 	if( !key )
-		return false;
+		return NULL;
 	
 	StringView path = key.until( ":" );
 	
 	// try .stx (optimized) before original
-	if( FS_LoadBinaryFile( String_Concat( path, ".stx" ), outdata ) == false &&
-		FS_LoadBinaryFile( path, outdata ) == false )
-		return false;
+	HFileReader out = FS_OpenBinaryFile( String_Concat( path, ".stx" ) );
+	if( !out )
+		out = FS_OpenBinaryFile( path );
+	if( !out )
+		return NULL;
 	
 	outusageflags = TEXFLAGS_HASMIPS | TEXFLAGS_LERP;
 	if( path.contains( "diff." ) )
@@ -1165,9 +1173,9 @@ bool IGame::OnLoadTexture( const StringView& key, ByteArray& outdata, uint32_t& 
 	}
 	
 	StringView flags = key.from( ":" );
-	ParseDefaultTextureFlags( flags, outusageflags );
+	ParseDefaultTextureFlags( flags, outusageflags, outlod );
 	
-	return true;
+	return out;
 }
 
 void IGame::GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* sfx, const StringView& key, String& name )
@@ -1359,18 +1367,68 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 }
 
 
-IFileSystem::IFileSystem() : m_refcount(0)
+bool IFileReader::Read( uint32_t num, uint8_t* out )
 {
+	return TryRead( num, out ) == num;
 }
 
-IFileSystem::~IFileSystem()
+bool IFileReader::ReadAll( ByteArray& out )
 {
+	out.resize( Length() );
+	Seek( 0 );
+	return Read( out.size(), out.data() );
 }
+
+struct BasicFileReader : IFileReader
+{
+	BasicFileReader( FILE* f ) : fp( f )
+	{
+		fseek( f, 0, SEEK_END );
+		len = Tell();
+		fseek( f, 0, SEEK_SET );
+	}
+	~BasicFileReader(){ Close(); }
+	void Close()
+	{
+		if( fp )
+		{
+			fclose( fp );
+			fp = NULL;
+		}
+	}
+	uint64_t Length(){ return len; }
+	bool Seek( uint64_t pos )
+	{
+		return fseek( fp, 0, SEEK_SET ) != -1;
+	}
+	uint64_t Tell()
+	{
+		return ftell( fp );
+	}
+	uint32_t TryRead( uint32_t num, uint8_t* out )
+	{
+		return fread( out, 1, num, fp );
+	}
+	
+	FILE* fp;
+	uint64_t len;
+};
+
 
 BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root)
 {
 	if( m_fileRoot.size() && m_fileRoot.last() != '/' )
 		m_fileRoot.push_back( '/' );
+}
+
+HFileReader BasicFileSystem::OpenBinaryFile( const StringView& path )
+{
+	char bfr[ 4096 ];
+	sgrx_snprintf( bfr, 4096, "%s/%s", StackString<4096>(m_fileRoot).str, StackString<4096>(path).str );
+	FILE* f = fopen( bfr, "rb" );
+	if( f )
+		return new BasicFileReader( f );
+	return NULL;
 }
 
 bool BasicFileSystem::LoadBinaryFile( const StringView& path, ByteArray& out )
@@ -1443,6 +1501,18 @@ StringView Game_GetDir()
 Array< FileSysHandle >& Game_FileSystems()
 {
 	return g_FileSystems;
+}
+
+HFileReader FS_OpenBinaryFile( const StringView& path )
+{
+	LOG_FUNCTION;
+	for( size_t i = 0; i < g_FileSystems.size(); ++i )
+	{
+		HFileReader fr = g_FileSystems[ i ]->OpenBinaryFile( path );
+		if( fr )
+			return fr;
+	}
+	return NULL;
 }
 
 bool FS_LoadBinaryFile( const StringView& path, ByteArray& out )

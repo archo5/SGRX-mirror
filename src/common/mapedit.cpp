@@ -606,6 +606,8 @@ EdWorld::~EdWorld()
 
 void EdWorld::FLoad( sgsVariable obj )
 {
+	LOG_FUNCTION_ARG("EdWorld");
+	
 	Reset();
 	
 	g_Level->GetScriptCtx().GetGlobal( "ED_ILOAD" ).
@@ -653,6 +655,8 @@ NotObject:;
 
 sgsVariable EdWorld::FSave()
 {
+	LOG_FUNCTION_ARG("EdWorld");
+	
 	int version = MAP_FILE_VERSION;
 	
 	sgsVariable objects = FNewArray();
@@ -1710,6 +1714,8 @@ void EdMainFrame::Level_New()
 
 bool EdMainFrame::Level_Real_Open( const StringView& str )
 {
+	LOG_FUNCTION;
+	
 	LOG << "Trying to open level: " << str;
 	
 	String data;
@@ -1757,6 +1763,8 @@ bool EdMainFrame::Level_Real_Open( const StringView& str )
 
 bool EdMainFrame::Level_Real_Save( const StringView& str )
 {
+	LOG_FUNCTION;
+	
 	LOG << "Trying to save level: " << str;
 	String data;
 	
@@ -1791,6 +1799,8 @@ void EdMainFrame::Level_Real_Compile()
 
 void EdMainFrame::Level_Real_Compile_Default()
 {
+	LOG_FUNCTION;
+	
 	LOG << "Compiling level";
 	LevelCache lcache( &g_EdLGCont->m_sampleTree );
 	lcache.m_skyTexture = g_EdWorld->m_lighting.skyboxTexture;
@@ -1912,6 +1922,8 @@ static void AppendNameSafeGUID( String& out, const SGRX_GUID& guid )
 
 void EdMainFrame::Level_Real_Compile_Prefabs()
 {
+	LOG_FUNCTION;
+	
 	String data;
 	ScriptContext& sctx = g_Level->GetScriptCtx();
 	
@@ -2059,6 +2071,8 @@ int g_mode = LevelInfo;
 
 bool MapEditor::OnInitialize()
 {
+	LOG_FUNCTION_ARG( "MapEditor" );
+	
 	GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 	GR2D_SetFont( "core", 12 );
 	
@@ -2101,6 +2115,8 @@ bool MapEditor::OnInitialize()
 
 void MapEditor::OnDestroy()
 {
+	LOG_FUNCTION_ARG( "MapEditor" );
+	
 	delete g_UIFrame;
 	g_UIFrame = NULL;
 	delete g_EdWorld;
@@ -2125,6 +2141,8 @@ void MapEditor::OnDestroy()
 
 void MapEditor::OnEvent( const Event& e )
 {
+	LOG_FUNCTION_ARG( "MapEditor" );
+	
 	if( e.type == SDL_KEYDOWN )
 	{
 		if( e.key.keysym.sym == SDLK_F2 )

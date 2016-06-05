@@ -683,6 +683,8 @@ bool IMGUIPickerCore::EntryUI( size_t i, String& str )
 
 void IMGUISoundPicker::Reload()
 {
+	LOG_FUNCTION_ARG("IMGUISoundPicker");
+	
 	LOG << "Enumerating sound events";
 	sys->EnumerateSoundEvents( m_entries );
 	_Search( m_searchString );
@@ -706,6 +708,8 @@ bool IMGUIFilePicker::Popup( const char* caption, String& str, bool save )
 
 void IMGUIFilePicker::Reload()
 {
+	LOG_FUNCTION_ARG("IMGUIFilePicker");
+	
 	LOG << "Reloading files, dir=" << m_directory << ", ext=" << m_extension;
 	m_entries.clear();
 	FS_IterateDirectory( m_directory, this );
@@ -874,6 +878,8 @@ void IMGUIMeshPickerCore::Clear()
 
 void IMGUIMeshPickerCore::AddMesh( StringView path, StringView rsrcpath )
 {
+	LOG_FUNCTION;
+	
 	MeshInstHandle mih = m_scene->CreateMeshInstance();
 	mih->SetMesh( path );
 	mih->enabled = false;
@@ -927,6 +933,8 @@ IMGUITexturePicker::IMGUITexturePicker()
 
 void IMGUITexturePicker::Reload()
 {
+	LOG_FUNCTION_ARG("IMGUITexturePicker");
+	
 	LOG << "Reloading textures";
 	m_textures.clear();
 	m_textures.push_back( TextureHandle() );
@@ -978,6 +986,8 @@ IMGUIMeshPicker::IMGUIMeshPicker()
 
 void IMGUIMeshPicker::Reload()
 {
+	LOG_FUNCTION_ARG("IMGUIMeshPicker");
+	
 	LOG << "Reloading meshes";
 	Array< MeshInstHandle > oldHandles;
 	for( size_t i = 0; i < m_entries.size(); ++i )
@@ -1029,6 +1039,8 @@ IMGUICharPicker::IMGUICharPicker()
 
 void IMGUICharPicker::Reload()
 {
+	LOG_FUNCTION_ARG("IMGUICharPicker");
+	
 	LOG << "Reloading chars";
 	Array< MeshInstHandle > oldHandles;
 	for( size_t i = 0; i < m_entries.size(); ++i )
