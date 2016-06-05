@@ -139,11 +139,12 @@ void SGRX_AnimBundle::Serialize( ByteWriter& arch )
 
 void AnimMask::Prepare()
 {
-	blendFactors.resize_using( m_mesh->m_numBones, 1 );
+	blendFactors.resize_using( m_mesh.GetBoneCount(), 1 );
 }
 
 void AnimMask::Advance( float deltaTime, AnimInfo* info )
 {
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
 	if( animSource )
 	{
 		animSource->Advance( deltaTime, info );
@@ -151,6 +152,52 @@ void AnimMask::Advance( float deltaTime, AnimInfo* info )
 		{
 			m_pose[ i ] = animSource->m_pose[ i ];
 			m_pose[ i ].fq *= blendFactors[ i ];
+		}
+	}
+}
+
+
+void AnimBlend::Advance( float deltaTime, AnimInfo* info )
+{
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
+	if( animSourceA )
+	{
+		animSourceA->Advance( deltaTime, info );
+		if( animSourceB )
+		{
+			animSourceB->Advance( deltaTime, info );
+			if( blendMode == ABM_Additive )
+			{
+				for( size_t i = 0; i < m_pose.size(); ++i )
+				{
+					AnimTrackXForm mul;
+					mul.SetAdd(
+						animSourceA->m_pose[ i ],
+						animSourceB->m_pose[ i ]
+					);
+					m_pose[ i ].SetLerp(
+						animSourceA->m_pose[ i ],
+						mul,
+						animSourceB->m_pose[ i ].fq * blendFactor
+					);
+				}
+			}
+			else // ABM_Normal
+			{
+				for( size_t i = 0; i < m_pose.size(); ++i )
+				{
+					m_pose[ i ].SetLerp(
+						animSourceA->m_pose[ i ],
+						animSourceB->m_pose[ i ],
+						animSourceB->m_pose[ i ].fq * blendFactor
+					);
+				}
+			}
+		}
+		else
+		{
+			for( size_t i = 0; i < m_pose.size(); ++i )
+				m_pose[ i ] = animSourceA->m_pose[ i ];
 		}
 	}
 }
@@ -171,6 +218,7 @@ void AnimMixer::Prepare()
 
 void AnimMixer::Advance( float deltaTime, AnimInfo* info )
 {
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
 	// generate output
 	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
@@ -266,6 +314,7 @@ void AnimPlayer::Prepare()
 
 void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 {
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
 	// process tracks
 	for( size_t i = m_currentAnims.size(); i > 0; )
 	{
@@ -421,12 +470,17 @@ void AnimInterp::Prepare()
 
 void AnimInterp::Advance( float deltaTime, AnimInfo* info )
 {
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
+	if( !animSource )
+		return;
 	Transfer();
 	animSource->Advance( deltaTime, info );
 }
 
 void AnimInterp::Transfer()
 {
+	if( !animSource )
+		return;
 	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
 		m_prev_pose[ i ] = animSource->m_pose[ i ];
@@ -435,6 +489,8 @@ void AnimInterp::Transfer()
 
 void AnimInterp::Interpolate( float deltaTime )
 {
+	if( !animSource )
+		return;
 	for( size_t i = 0; i < m_pose.size(); ++i )
 	{
 		m_pose[ i ].SetLerp( m_prev_pose[ i ], animSource->m_pose[ i ], deltaTime );
@@ -453,6 +509,11 @@ void AnimDeformer::Prepare()
 
 void AnimDeformer::Advance( float deltaTime, AnimInfo* info )
 {
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
+	
+	if( !animSource )
+		return;
+	
 	animSource->Advance( deltaTime, info );
 	for( size_t fid = 0; fid < forces.size(); ++fid )
 		forces[ fid ].lifetime += deltaTime;

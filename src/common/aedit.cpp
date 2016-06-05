@@ -78,6 +78,7 @@ struct AssetRenderView : IMGUIRenderView
 	// preview data
 	TextureHandle m_texPreview;
 	MeshInstHandle m_meshPrevInst;
+	Array< AnimTrackFrame > m_animFrames;
 	AnimPlayer m_animPreview;
 };
 
@@ -86,7 +87,7 @@ void FC_SetTexture( TextureHandle tex )
 	g_NUIRenderView->m_texPreview = tex;
 	g_NUIRenderView->m_meshPrevInst->enabled = false;
 	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( 0 );
-	g_NUIRenderView->m_animPreview.Prepare( NULL );
+	g_NUIRenderView->m_animPreview.m_mesh = NULL;
 	g_NUIRenderView->m_animPreview.Stop();
 }
 void FC_SetMesh( MeshHandle mesh )
@@ -95,7 +96,7 @@ void FC_SetMesh( MeshHandle mesh )
 	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
 	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
 	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( 0 );
-	g_NUIRenderView->m_animPreview.Prepare( NULL );
+	g_NUIRenderView->m_animPreview.m_mesh = NULL;
 	g_NUIRenderView->m_animPreview.Stop();
 }
 void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
@@ -104,7 +105,10 @@ void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
 	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
 	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
 	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( mesh->m_numBones );
-	g_NUIRenderView->m_animPreview.Prepare( mesh );
+	g_NUIRenderView->m_animFrames.resize( mesh->m_numBones );
+	g_NUIRenderView->m_animPreview.m_mesh = mesh;
+	g_NUIRenderView->m_animPreview.m_pose = g_NUIRenderView->m_animFrames;
+	g_NUIRenderView->m_animPreview.Prepare();
 	g_NUIRenderView->m_animPreview.Stop();
 	g_NUIRenderView->m_animPreview.Play( anim );
 }

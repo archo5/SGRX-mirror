@@ -36,8 +36,8 @@ struct MathEquation
 	
 	ENGINE_EXPORT void Clear();
 	ENGINE_EXPORT MECompileResult Compile( StringView script, const MEVariableInterface* vars );
-	ENGINE_EXPORT double Eval( const MEVariableInterface* vars );
-	ENGINE_EXPORT void Dump();
+	ENGINE_EXPORT double Eval( const MEVariableInterface* vars ) const;
+	ENGINE_EXPORT void Dump() const;
 	
 	ENGINE_EXPORT struct MEPTRes _AllocOper();
 	ENGINE_EXPORT struct MEPTRes _AllocConst( double val );
@@ -48,9 +48,9 @@ struct MathEquation
 		const MEVariableInterface* vars
 	);
 	ENGINE_EXPORT void _Clean();
-	ENGINE_EXPORT double _Op1( const MEOperation& O, const MEVariableInterface* vars );
-	ENGINE_EXPORT double _Op2( const MEOperation& O, const MEVariableInterface* vars );
-	ENGINE_EXPORT double _DoOp( uint16_t op, const MEVariableInterface* vars );
+	ENGINE_EXPORT double _Op1( const MEOperation& O, const MEVariableInterface* vars ) const;
+	ENGINE_EXPORT double _Op2( const MEOperation& O, const MEVariableInterface* vars ) const;
+	ENGINE_EXPORT double _DoOp( uint16_t op, const MEVariableInterface* vars ) const;
 };
 
 
@@ -319,6 +319,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		String expr;
 		MathEquation compiled_expr;
 		ENGINE_EXPORT MECompileResult Recompile( const MEVariableInterface* vars );
+		double Eval( const MEVariableInterface* vars ) const { return compiled_expr.Eval( vars ); }
 		template< class T > void Serialize( T& arch )
 		{
 			arch << expr;
@@ -373,7 +374,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		NT_RelAbs = 5,
 		NT_Layers = 6,
 	};
-	struct Node : SGRX_RefCounted
+	struct IF_GCC(ENGINE_EXPORT) Node : SGRX_RefCounted
 	{
 		virtual ~Node(){}
 		const char* GetName()
@@ -388,8 +389,10 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		}
 		virtual int GetInputLinkCount(){ return 0; }
 		virtual SGRX_GUID* GetInputLink( int i ){ return NULL; }
+		virtual Animator** GetInputSource( int i ){ return NULL; }
 		virtual bool OwnsAnimator(){ return type != NT_Ragdoll && type != NT_Layers; }
 		virtual Animator* GetAnimator( AnimCharacter* ch ) = 0;
+		virtual void Advance( float dt, const MEVariableInterface* vars ){};
 		Node( uint8_t t ) : type(t), editor_pos(V2(0)){}
 		virtual void Init( Vec2 ep )
 		{
@@ -412,17 +415,17 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		SGRX_GUID guid;
 		Vec2 editor_pos;
 	};
-	struct RagdollNode : Node
+	struct IF_GCC(ENGINE_EXPORT) RagdollNode : Node
 	{
 		RagdollNode() : Node( NT_Ragdoll ){}
 		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharacter* ch );
 	};
-	struct LayersNode : Node
+	struct IF_GCC(ENGINE_EXPORT) LayersNode : Node
 	{
 		LayersNode() : Node( NT_Layers ){}
 		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharacter* ch );
 	};
-	struct PlayerNode : Node
+	struct IF_GCC(ENGINE_EXPORT) PlayerNode : Node
 	{
 		Array< Handle< State > > states;
 		Array< Handle< Transition > > transitions;
@@ -432,7 +435,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
 		... NULL GUID is first set of entries, always present */
 		
-		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
+		PlayerNode() : Node( NT_Player ){ RehashTransitions(); player_anim.Play( GR_GetAnim( "run" ) ); }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &player_anim; }
 		ENGINE_EXPORT void RehashTransitions();
 		template< class T > void Serialize( T& arch )
@@ -444,7 +447,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 				RehashTransitions();
 		}
 	};
-	struct MaskNode : Node
+	struct IF_GCC(ENGINE_EXPORT) MaskNode : Node
 	{
 		SGRX_GUID src;
 		String mask_name;
@@ -454,6 +457,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		MaskNode() : Node( NT_Mask ){}
 		virtual int GetInputLinkCount(){ return 1; }
 		virtual SGRX_GUID* GetInputLink( int i ){ return i ? NULL : &src; }
+		virtual Animator** GetInputSource( int i ){ return i ? NULL : &mask_anim.animSource; }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &mask_anim; }
 		template< class T > void Serialize( T& arch )
 		{
@@ -461,20 +465,33 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << mask_name;
 		}
 	};
-	struct BlendNode : Node
+	struct IF_GCC(ENGINE_EXPORT) BlendNode : Node
 	{
 		SGRX_GUID A;
 		SGRX_GUID B;
 		ValExpr factor;
-		int32_t mode;
+		uint8_t mode;
 		
-		BlendNode() : Node( NT_Blend ){ factor.expr = "1"; factor.Recompile( NULL ); }
+		AnimBlend blend_anim;
+		
+		BlendNode() : Node( NT_Blend ), mode( ABM_Normal ){
+			factor.expr = "1";
+			factor.Recompile( NULL ); }
 		virtual int GetInputLinkCount(){ return 2; }
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &A;
 			if( i == 1 ) return &B;
 			return NULL; }
-		virtual Animator* GetAnimator( AnimCharacter* ){ return NULL; }
+		virtual Animator** GetInputSource( int i ){
+			if( i == 0 ) return &blend_anim.animSourceA;
+			if( i == 1 ) return &blend_anim.animSourceB;
+			return NULL; }
+		virtual Animator* GetAnimator( AnimCharacter* ){ return &blend_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			blend_anim.blendFactor = factor.Eval( vars );
+			blend_anim.blendMode = mode;
+		}
 		template< class T > void Serialize( T& arch )
 		{
 			Node::Serialize( arch );
@@ -484,7 +501,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << mode;
 		}
 	};
-	struct RelAbsNode : Node
+	struct IF_GCC(ENGINE_EXPORT) RelAbsNode : Node
 	{
 		SGRX_GUID src;
 		SGRX_GUID optspace;
@@ -496,6 +513,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &src;
 			if( i == 1 ) return &optspace;
+			return NULL; }
+		virtual Animator** GetInputSource( int i ){
 			return NULL; }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return NULL; }
 		template< class T > void Serialize( T& arch )
@@ -533,6 +552,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << output_id;
 			output_node = size_t(output_id) < nodes.size() ? nodes[ output_id ] : NULL;
 		}
+		else
+		{
+			nodes.clear();
+			variables.clear();
+			output_node = NULL;
+		}
 	}
 	
 	ENGINE_EXPORT AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld );
@@ -541,6 +566,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT bool Save( const StringView& sv );
 	
 	ENGINE_EXPORT void _OnRenderUpdate();
+	ENGINE_EXPORT void _UnlinkNode( Node* node );
 	ENGINE_EXPORT void _Prepare();
 	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
@@ -610,8 +636,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	HashTable< SGRX_GUID, Node* > m_node_map;
 	Array< AnimTrackFrame > m_node_frames;
 	uint32_t m_frameID;
-	Animator m_layerAnimator;
-	AnimMixer m_anMixer;
+	Animator m_anLayers;
 	AnimDeformer m_anDeformer;
 	AnimRagdoll m_anRagdoll;
 	AnimInterp m_anEnd;

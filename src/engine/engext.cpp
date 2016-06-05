@@ -520,26 +520,26 @@ MECompileResult MathEquation::Compile( StringView script, const MEVariableInterf
 	return MECompileResult();
 }
 
-double MathEquation::Eval( const MEVariableInterface* vars )
+double MathEquation::Eval( const MEVariableInterface* vars ) const
 {
 	return _DoOp( 0, vars );
 }
 
-void MathEquation::Dump()
+void MathEquation::Dump() const
 {
 	printf( "MATH_EQUATION %p\n", this );
 	for( size_t i = 0; i < consts.size(); ++i )
 		printf( "CONST #%03d: %.16g\n", int(i), consts[ i ] );
 	for( size_t i = 0; i < ops.size(); ++i )
 	{
-		MEOperation& O = ops[ i ];
+		const MEOperation& O = ops[ i ];
 		printf( "OP #%03u: T%03uF%x O1:%03u O2:%03u\n",
 			int(i), ME_OPCODE_TYPE( O.type ), int((O.type>>8)&0xf),
 			int(O.op1), int(O.op2) );
 	}
 }
 
-double MathEquation::_Op1( const MEOperation& O, const MEVariableInterface* vars )
+double MathEquation::_Op1( const MEOperation& O, const MEVariableInterface* vars ) const
 {
 	if( O.type & ME_OPCODE_OP1CONST )
 	{
@@ -554,7 +554,7 @@ double MathEquation::_Op1( const MEOperation& O, const MEVariableInterface* vars
 	else return _DoOp( O.op1, vars );
 }
 
-double MathEquation::_Op2( const MEOperation& O, const MEVariableInterface* vars )
+double MathEquation::_Op2( const MEOperation& O, const MEVariableInterface* vars ) const
 {
 	if( O.type & ME_OPCODE_OP2CONST )
 	{
@@ -576,7 +576,7 @@ static double safe_dpow( double x, double y )
 	return pow( x, y );
 }
 
-double MathEquation::_DoOp( uint16_t op, const MEVariableInterface* vars )
+double MathEquation::_DoOp( uint16_t op, const MEVariableInterface* vars ) const
 {
 	if( (size_t) op >= ops.size() )
 		return 0.0;
@@ -940,7 +940,7 @@ Animator* AnimCharacter::RagdollNode::GetAnimator( AnimCharacter* ch )
 
 Animator* AnimCharacter::LayersNode::GetAnimator( AnimCharacter* ch )
 {
-	return &ch->m_layerAnimator;
+	return &ch->m_anLayers;
 }
 
 void AnimCharacter::PlayerNode::RehashTransitions()
@@ -1002,8 +1002,6 @@ AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
 {
 	ASSERT( sh && "scene handle must be valid" );
 	
-	m_anDeformer.animSource = &m_anMixer;
-	m_anEnd.animSource = &m_anDeformer;
 	m_cachedMeshInst = m_scene->CreateMeshInstance();
 	m_cachedMeshInst->raycastOverride = this;
 }
@@ -1035,17 +1033,30 @@ void AnimCharacter::_OnRenderUpdate()
 {
 	m_cachedMesh = GR_GetMesh( mesh );
 	m_cachedMeshInst->SetMesh( m_cachedMesh );
-	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh ? m_cachedMesh->m_numBones : 0 );
+	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh.GetBoneCount() );
 	RecalcBoneIDs();
 	_Prepare();
 	m_anRagdoll.Initialize( this );
+}
+
+void AnimCharacter::_UnlinkNode( Node* node )
+{
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		for( int l = 0; l < nodes[ i ]->GetInputLinkCount(); ++l )
+		{
+			SGRX_GUID* pguid = nodes[ i ]->GetInputLink( l );
+			if( *pguid == node->guid )
+				pguid->SetNull();
+		}
+	}
 }
 
 void AnimCharacter::_Prepare()
 {
 	// count animators
 	int num_animators = 3; // ragdoll, layers, end
-	int num_bones = m_cachedMesh ? m_cachedMesh->m_numBones : 0;
+	int num_bones = m_cachedMesh.GetBoneCount();
 	for( size_t i = 0; i < nodes.size(); ++i )
 	{
 		if( nodes[ i ]->OwnsAnimator() )
@@ -1059,7 +1070,7 @@ void AnimCharacter::_Prepare()
 	
 	// equip animators
 	_EquipAnimator( &m_anRagdoll, 0 );
-	_EquipAnimator( &m_layerAnimator, 1 );
+	_EquipAnimator( &m_anLayers, 1 );
 	_EquipAnimator( &m_anEnd, 2 );
 	for( size_t i = 0; i < nodes.size(); ++i )
 	{
@@ -1068,17 +1079,32 @@ void AnimCharacter::_Prepare()
 			_EquipAnimator( anim, 3 + i );
 	}
 	
+	// rehash & link
+	_RehashNodes();
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		for( int l = 0; l < nodes[ i ]->GetInputLinkCount(); ++l )
+		{
+			const SGRX_GUID* pguid = nodes[ i ]->GetInputLink( l );
+			Animator** panim = nodes[ i ]->GetInputSource( l );
+			Node* node = m_node_map.getcopy( *pguid );
+			if( node )
+				*panim = node->GetAnimator( this );
+		}
+	}
+	m_anEnd.animSource = output_node ? output_node->GetAnimator( this ) : NULL;
+	
 	// additional work
-	for( size_t i = 0; i < m_layerAnimator.m_pose.size(); ++i )
-		m_layerAnimator.m_pose[ i ].fq = 1;
+	for( size_t i = 0; i < m_anLayers.m_pose.size(); ++i )
+		m_anLayers.m_pose[ i ].fq = 1;
 }
 
 void AnimCharacter::_EquipAnimator( Animator* anim, int which )
 {
-	int num_bones = m_cachedMesh ? m_cachedMesh->m_numBones : 0;
+	int num_bones = m_cachedMesh.GetBoneCount();
 	int at = which * num_bones;
 	anim->m_mesh = m_cachedMesh;
-	anim->m_pose = ArrayView<AnimTrackFrame>( m_node_frames ).part( at, at + num_bones );
+	anim->m_pose = ArrayView<AnimTrackFrame>( m_node_frames ).part( at, num_bones );
 	anim->Prepare();
 }
 
@@ -1090,6 +1116,8 @@ void AnimCharacter::SetTransform( const Mat4& mtx )
 
 void AnimCharacter::FixedTick( float deltaTime )
 {
+	for( size_t i = 0; i < nodes.size(); ++i )
+		nodes[ i ]->Advance( deltaTime, this );
 	AnimInfo info = { ++m_frameID, m_cachedMeshInst->matrix };
 	m_anEnd.Advance( deltaTime, &info );
 	m_anRagdoll.AdvanceTransforms( &m_anEnd );
@@ -1106,8 +1134,8 @@ void AnimCharacter::RecalcLayerState()
 	if( m_cachedMesh == NULL )
 		return;
 	
-	for( size_t i = 0; i < m_layerAnimator.m_pose.size(); ++i )
-		m_layerAnimator.m_pose[ i ].Reset();
+	for( size_t i = 0; i < m_anLayers.m_pose.size(); ++i )
+		m_anLayers.m_pose[ i ].Reset();
 	for( size_t i = 0; i < layers.size(); ++i )
 	{
 		Layer& L = layers[ i ];
@@ -1123,17 +1151,17 @@ void AnimCharacter::RecalcLayerState()
 					int parent_id = m_cachedMesh->m_bones[ LT.bone_id ].parent_id;
 					if( parent_id >= 0 )
 					{
-						m_layerAnimator.m_pose[ LT.bone_id ].pos -= m_layerAnimator.m_pose[ parent_id ].pos;
-						m_layerAnimator.m_pose[ LT.bone_id ].rot =
-							m_layerAnimator.m_pose[ parent_id ].rot.Inverted() * m_layerAnimator.m_pose[ LT.bone_id ].rot;
+						m_anLayers.m_pose[ LT.bone_id ].pos -= m_anLayers.m_pose[ parent_id ].pos;
+						m_anLayers.m_pose[ LT.bone_id ].rot =
+							m_anLayers.m_pose[ parent_id ].rot.Inverted() * m_anLayers.m_pose[ LT.bone_id ].rot;
 					}
 				}
 				break;
 			case TransformType_Move:
-				m_layerAnimator.m_pose[ LT.bone_id ].pos += LT.posaxis * ( LT.base + L.amount );
+				m_anLayers.m_pose[ LT.bone_id ].pos += LT.posaxis * ( LT.base + L.amount );
 				break;
 			case TransformType_Rotate:
-				m_layerAnimator.m_pose[ LT.bone_id ].rot = m_layerAnimator.m_pose[ LT.bone_id ].rot
+				m_anLayers.m_pose[ LT.bone_id ].rot = m_anLayers.m_pose[ LT.bone_id ].rot
 					* Quat::CreateAxisAngle( LT.posaxis.Normalized(), DEG2RAD( LT.angle ) * ( LT.base + L.amount ) );
 				break;
 			}

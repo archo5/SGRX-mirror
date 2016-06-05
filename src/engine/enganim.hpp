@@ -102,6 +102,9 @@ struct AnimInfo
 	uint32_t frameID; // to prevent repetition of work
 	Mat4 rootXF;
 };
+#define ANIMATOR_ADVANCE_FRAME_CHECK( info ) \
+	if( (info)->frameID == m_frameID ) return; \
+	m_frameID = (info)->frameID;
 
 struct AnimTrackXForm
 {
@@ -109,6 +112,12 @@ struct AnimTrackXForm
 	Quat rot;
 	Vec3 scl;
 	
+	FINLINE void SetAdd( const AnimTrackXForm& a, const AnimTrackXForm& b )
+	{
+		pos = a.pos + b.pos;
+		rot = a.rot * b.rot;
+		scl = a.scl * b.scl;
+	}
 	FINLINE void SetLerp( const AnimTrackXForm& a, const AnimTrackXForm& b, float s )
 	{
 		pos = TLERP( a.pos, b.pos, s );
@@ -136,13 +145,13 @@ typedef ArrayView< AnimTrackFrame > ATFrameView;
 
 struct IF_GCC(ENGINE_EXPORT) Animator
 {
-	Animator() : frameID( 0 ){}
+	Animator() : m_frameID( 0 ){}
 	virtual void Prepare(){}
 	virtual void Advance( float deltaTime, AnimInfo* info ){}
 	
 	MeshHandle m_mesh;
 	ATFrameView m_pose;
-	uint32_t frameID;
+	uint32_t m_frameID;
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimMask : Animator
@@ -153,6 +162,23 @@ struct IF_GCC(ENGINE_EXPORT) AnimMask : Animator
 	
 	Animator* animSource;
 	Array< float > blendFactors;
+};
+
+enum AnimBlendMode
+{
+	ABM_Normal = 0,
+	ABM_Additive = 1,
+};
+
+struct IF_GCC(ENGINE_EXPORT) AnimBlend : Animator
+{
+	AnimBlend() : animSourceA( NULL ), animSourceB( NULL ), blendFactor( 1 ), blendMode( ABM_Normal ){}
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
+	
+	Animator* animSourceA;
+	Animator* animSourceB;
+	float blendFactor;
+	uint8_t blendMode;
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator

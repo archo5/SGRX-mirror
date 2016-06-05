@@ -1370,6 +1370,8 @@ struct Handle
 		if( S::IsReader && !item )
 		{
 			item = T::UnserializeCreate( arch );
+			ASSERT( item && "UnserializeCreate" );
+			item->Acquire();
 		}
 		else
 		{

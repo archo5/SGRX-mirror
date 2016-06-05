@@ -151,7 +151,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	AnimCharacter m_animChar;
 	AnimPlayer m_anMainPlayer;
 	AnimPlayer m_anTopPlayer;
-	AnimMixer::Layer m_anLayers[4];
+//	AnimMixer::Layer m_anLayers[4];
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;

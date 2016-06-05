@@ -272,17 +272,17 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
 	m_shadowInst->enabled = false;//true;
 	
-	m_anLayers[0].anim = &m_anMainPlayer;
-	m_anLayers[1].anim = &m_anTopPlayer;
-	m_anLayers[2].anim = &m_animChar.m_layerAnimator;
-	m_anLayers[2].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
-	m_anLayers[3].anim = &m_animChar.m_anRagdoll;
-	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos
-		| AnimMixer::TF_Absolute_Rot
-		| AnimMixer::TF_IgnoreMeshXF;
-	m_anLayers[3].factor = 0;
-	m_animChar.m_anMixer.layers = m_anLayers;
-	m_animChar.m_anMixer.layerCount = 4;
+//	m_anLayers[0].anim = &m_anMainPlayer;
+//	m_anLayers[1].anim = &m_anTopPlayer;
+//	m_anLayers[2].anim = &m_animChar.m_layerAnimator;
+//	m_anLayers[2].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
+//	m_anLayers[3].anim = &m_animChar.m_anRagdoll;
+//	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos
+//		| AnimMixer::TF_Absolute_Rot
+//		| AnimMixer::TF_IgnoreMeshXF;
+//	m_anLayers[3].factor = 0;
+//	m_animChar.m_anMixer.layers = m_anLayers;
+//	m_animChar.m_anMixer.layerCount = 4;
 	
 	m_shootPS.Load( "psys/gunflash.psy" );
 	m_shootPS.AddToScene( m_level->GetScene() );
@@ -332,15 +332,15 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	m_level->LightMesh( MI, V3(1) );
 	
 	m_anTopPlayer.ClearBlendFactors( 0.0f );
-	m_animChar.ApplyMask( "top", &m_anTopPlayer );
+//	m_animChar.ApplyMask( "top", &m_anTopPlayer );
 	
 	m_anMainPlayer.Play( GR_GetAnim( "standing_idle" ) );
 	m_anTopPlayer.Play( GR_GetAnim( "stand_with_pistol_up" ) );
 	
 	ProcessAnims( 0 );
-	AnimInfo info = { m_animChar.m_cachedMeshInst->matrix };
-	m_animChar.m_anEnd.Advance( 0, &info );
-	m_animChar.m_anEnd.Transfer();
+//	AnimInfo info = { m_animChar.m_cachedMeshInst->matrix };
+//	m_animChar.m_anEnd.Advance( 0, &info );
+//	m_animChar.m_anEnd.Transfer();
 }
 
 void TSCharacter::ProcessAnims( float deltaTime )
@@ -859,7 +859,7 @@ void TSCharacter::Reset()
 {
 	m_health = 100;
 	m_animChar.DisablePhysics();
-	m_anLayers[3].factor = 0;
+//	m_anLayers[3].factor = 0;
 	m_bodyHandle->SetEnabled( true );
 	m_animChar.m_cachedMeshInst->layers = 0xffffffff;
 }
@@ -883,7 +883,7 @@ void TSCharacter::OnDeath()
 	m_bodyHandle->SetEnabled( false );
 	m_animChar.EnablePhysics();
 	m_animChar.m_anDeformer.forces.clear();
-	m_anLayers[3].factor = 1;
+//	m_anLayers[3].factor = 1;
 	m_obj->SetInfoMask( 0 );
 	m_animChar.m_cachedMeshInst->layers = 0;
 	

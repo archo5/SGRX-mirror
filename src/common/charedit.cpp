@@ -14,7 +14,6 @@ inline Vec3 Q2EA( Quat q ){ return RAD2DEG( q.ToXYZ() ); }
 PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
 AnimCharacter* g_AnimChar;
-AnimMixer::Layer g_AnimMixLayers[2];
 
 
 IMGUIRenderView* g_NUIRenderView;
@@ -1041,7 +1040,7 @@ void DebugDraw()
 		}
 		
 		// draw bones
-		if( 1 )
+		if( 0 )
 		{
 			br.Reset();
 			SGRX_IMesh* mesh = g_AnimChar->m_cachedMeshInst->GetMesh();
@@ -1528,6 +1527,14 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 	{
 		SGRX_CAST( AnimCharacter::PlayerNode*, PN, node );
 		ImGui::Button( "Edit states / transitions", ImVec2(140,20) );
+		if( ImGui::Button( "Play 'run'", ImVec2(140,20) ) )
+		{
+			PN->player_anim.Play( GR_GetAnim( "run" ) );
+		}
+		if( ImGui::Button( "Play 'standing_idle'", ImVec2(140,20) ) )
+		{
+			PN->player_anim.Play( GR_GetAnim( "standing_idle" ) );
+		}
 	}
 	else if( node->type == AnimCharacter::NT_Mask )
 	{
@@ -1555,6 +1562,7 @@ static Vec2 g_NodeCameraPos = V2(0);
 static AnimCharacter::Node* node_selected = NULL;
 void EditNodes( AnimCharacter& ac )
 {
+	ImGui::BeginChangeCheck();
 	ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(1,1) );
 	ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(0,0) );
 	ImGui::PushStyleColor( ImGuiCol_ChildWindowBg, ImColor(40,40,40,200) );
@@ -1696,25 +1704,21 @@ void EditNodes( AnimCharacter& ac )
 			ImGui::Separator();
 			if (ImGui::MenuItem("Delete"))
 			{
+				ac._UnlinkNode( node );
 				ac.nodes.remove_first( node );
+				ac._RehashNodes();
 				node_selected = NULL;
 			}
 			ImGui::Separator();
 			if( ImGui::MenuItem( "Set as output" ) )
 			{
 				ac.output_node = node;
+				ac._Prepare();
 			}
 			if( ImGui::MenuItem( "Unlink output pin" ) )
 			{
-				for( size_t i = 0; i < ac.nodes.size(); ++i )
-				{
-					for( int l = 0; l < ac.nodes[ i ]->GetInputLinkCount(); ++l )
-					{
-						SGRX_GUID* pguid = ac.nodes[ i ]->GetInputLink( l );
-						if( *pguid == node->guid )
-							pguid->SetNull();
-					}
-				}
+				ac._UnlinkNode( node );
+				ac._Prepare();
 			}
 			if (ImGui::MenuItem("Copy", NULL, false, false)) {}
 		}
@@ -1736,6 +1740,7 @@ void EditNodes( AnimCharacter& ac )
 				nn->Init( V2( scene_pos ) );
 				ac.nodes.push_back( nn );
 				ac._RehashNodes();
+				ImGui::TriggerChangeCheck();
 			}
 			ImGui::Separator();
 			if (ImGui::MenuItem("Paste", NULL, false, false)) {}
@@ -1755,6 +1760,8 @@ void EditNodes( AnimCharacter& ac )
 	ImGui::EndChild();
 	ImGui::PopStyleColor();
 	ImGui::PopStyleVar(2);
+	if( ImGui::EndChangeCheck() )
+		ac._Prepare();
 }
 
 
@@ -1865,12 +1872,6 @@ struct CSEditor : IGame
 		g_EdScene->camera.UpdateMatrices();
 		g_EdScene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 		g_AnimChar = new AnimCharacter( g_EdScene, g_PhyWorld );
-		g_AnimMixLayers[ 0 ].anim = &g_AnimChar->m_layerAnimator;
-		g_AnimMixLayers[ 0 ].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
-		g_AnimMixLayers[ 1 ].anim = &g_AnimChar->m_anRagdoll;
-		g_AnimMixLayers[ 1 ].tflags = AnimMixer::TF_Absolute_Pos | AnimMixer::TF_Absolute_Rot;
-		g_AnimChar->m_anMixer.layers = g_AnimMixLayers;
-		g_AnimChar->m_anMixer.layerCount = sizeof(g_AnimMixLayers) / sizeof(g_AnimMixLayers[0]);
 		
 		// TEST
 #if 0
@@ -1901,6 +1902,9 @@ struct CSEditor : IGame
 		g_NUIRenderView = new CharRenderView;
 		g_NUICharFilePicker = new IMGUIFilePicker( "chars", ".chr" );
 		g_NUIMeshPicker = new IMGUIMeshPicker;
+		
+		
+		GR_LoadAnims( "meshes/chars/tstest.anb" );
 		
 		
 		return true;

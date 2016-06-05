@@ -1113,6 +1113,8 @@ struct MeshHandle : Handle< SGRX_IMesh >
 	MeshHandle() : Handle(){}
 	MeshHandle( const MeshHandle& h ) : Handle( h ){}
 	MeshHandle( struct SGRX_IMesh* mesh ) : Handle( mesh ){}
+	
+	int GetBoneCount() const { return item ? item->m_numBones : 0; }
 };
 
 struct SGRX_DrawItemLight
