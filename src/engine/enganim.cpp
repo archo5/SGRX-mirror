@@ -766,13 +766,51 @@ bool GR_ReadAnimBundle( const StringView& path, SGRX_AnimBundle& out )
 	ByteArray ba;
 	if( !FS_LoadBinaryFile( path, ba ) )
 	{
-		LOG << "Failed to load animation bundle file: " << path;
+		LOG_ERROR << LOG_DATE << "  Failed to load anim.bundle file: " << path;
 		return false;
 	}
 	
 	ByteReader br( ba );
 	br << out;
+	if( br.error )
+		LOG_ERROR << LOG_DATE << "  Failed to load anim.bundle file: " << path << " - parsing error";
 	return !br.error;
+}
+
+bool GR_EnumAnimBundle( const StringView& path, Array< RCString >& out )
+{
+	LOG_FUNCTION;
+	
+	ByteArray ba;
+	if( !FS_LoadBinaryFile( path, ba ) )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load anim.bundle file: " << path;
+		return false;
+	}
+	
+	ByteReader br( ba );
+	CByteView anbd_chunk = br.readChunk( "SGRXANBD" );
+	if( br.error )
+		return false;
+	ByteReader anr( anbd_chunk );
+	
+	StackPath spath( path );
+	String tmpname;
+	while( !anr.atEnd() && !anr.error )
+	{
+		// skip ANIM chunk
+		anr.readChunk( "ANIM" );
+		// read the name
+		anr.smallString( tmpname );
+		
+		// compose full key
+		char bfr[ 1024 ];
+		tmpname.push_back( '\0' );
+		sgrx_snprintf( bfr, 1024, "%s:%s", spath.str, tmpname.data() );
+		
+		out.push_back( bfr );
+	}
+	return !anr.error;
 }
 
 bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool applyinv, Mat4* base )

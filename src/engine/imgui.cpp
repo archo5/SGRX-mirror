@@ -1114,6 +1114,41 @@ bool IMGUIShaderPicker::Property( const char* label, String& str )
 }
 
 
+IMGUIAnimPicker::IMGUIAnimPicker()
+{
+	Reload();
+}
+
+void IMGUIAnimPicker::Reload()
+{
+	LOG_FUNCTION_ARG("IMGUIAnimPicker");
+	
+	LOG << "Reloading anims";
+	m_entries.clear();
+	FS_IterateDirectory( "meshes", this );
+	_Search( m_searchString );
+}
+
+bool IMGUIAnimPicker::HandleDirEntry( const StringView& loc, const StringView& name, bool isdir )
+{
+	if( name == "." || name == ".." )
+		return true;
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s", StackString<256>(loc).str, StackString<256>(name).str );
+	LOG << "[An]: " << bfr;
+	StringView fullname = bfr;
+	if( isdir )
+	{
+		FS_IterateDirectory( fullname, this );
+	}
+	else if( name.ends_with( ".anb" ) )
+	{
+		GR_EnumAnimBundle( fullname, m_entries );
+	}
+	return true;
+}
+
+
 bool IMGUIEnumPicker::Property( const char* label, int32_t& val )
 {
 	bool ret = false;

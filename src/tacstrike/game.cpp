@@ -384,8 +384,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
 	//	GR_LoadAnims( "meshes/animtest.ssm.anm", "my_" );
-	//	GR_LoadAnims( "meshes/tstest.ssm.anm" );
-		GR_LoadAnims( "meshes/chars/tstest.anb" );
+///////		GR_LoadAnims( "meshes/chars/tstest.anb" );
 //		GR_LoadAnims( "meshes/charmodel2.ssm.anm" );
 		
 		if( !BaseGame::OnInitialize() )

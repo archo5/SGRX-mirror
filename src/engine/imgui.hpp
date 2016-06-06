@@ -4,6 +4,7 @@
 #define __STDC_FORMAT_MACROS 1
 #include <float.h>
 #include "engine.hpp"
+#include "enganim.hpp"
 #include "sound.hpp"
 
 
@@ -222,6 +223,13 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIShaderPicker : IDirEntryHandler
 	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
 	ENGINE_EXPORT bool Property( const char* label, String& str );
 	Array< RCString > m_shaderList;
+};
+
+struct IF_GCC(ENGINE_EXPORT) IMGUIAnimPicker : IMGUIEntryPicker, IDirEntryHandler
+{
+	ENGINE_EXPORT IMGUIAnimPicker();
+	ENGINE_EXPORT void Reload();
+	ENGINE_EXPORT bool HandleDirEntry( const StringView& loc, const StringView& name, bool isdir );
 };
 
 struct IF_GCC(ENGINE_EXPORT) IMGUIEnumPicker

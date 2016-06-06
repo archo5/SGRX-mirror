@@ -2709,7 +2709,9 @@ struct ByteReader
 			error = true;
 			return CByteView();
 		}
-		return CByteView( input_ptr + pos, size );
+		CByteView out( input_ptr + pos, size );
+		pos += size;
+		return out;
 	}
 	FINLINE uint32_t beginChunk( const char* mkr )
 	{

@@ -2380,34 +2380,41 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 
 
 
-int GR_LoadAnims( const StringView& path, const StringView& prefix )
+static void _LoadAnimBundle( const StringView& path, const StringView& prefix )
 {
 	LOG_FUNCTION;
 	
 	SGRX_AnimBundle bundle;
 	if( !GR_ReadAnimBundle( path, bundle ) )
-		return false;
+		return;
 	
 	for( size_t i = 0; i < bundle.anims.size(); ++i )
 	{
 		SGRX_Animation* anim = bundle.anims[ i ];
 		
-		if( prefix )
-		{
-			anim->m_key.insert( 0, prefix );
-		}
-		
+		anim->m_key.insert( 0, prefix );		
 		g_Anims->set( anim->m_key, anim );
 	}
 	
-	LOG << "Loaded " << bundle.anims.size() << " animations"
-		" from " << path << " with prefix " << prefix;
-	
-	return bundle.anims.size();
+	LOG << "Loaded " << bundle.anims.size() << " anims from anim.bundle " << path;
 }
 
 AnimHandle GR_GetAnim( const StringView& name )
 {
+	AnimHandle out = g_Anims->getcopy( name );
+	if( out )
+		return out;
+	
+	StringView bundle = name.until( ":" );
+	if( name.size() == bundle.size() )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to request animation: " << name
+			<< " - invalid name (expected <bundle>:<anim>)";
+		return NULL;
+	}
+	
+	_LoadAnimBundle( bundle, name.part( 0, bundle.size() + 1 ) );
+	
 	return g_Anims->getcopy( name );
 }
 

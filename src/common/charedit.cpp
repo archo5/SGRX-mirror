@@ -19,6 +19,7 @@ AnimCharacter* g_AnimChar;
 IMGUIRenderView* g_NUIRenderView;
 IMGUIFilePicker* g_NUICharFilePicker;
 IMGUIMeshPicker* g_NUIMeshPicker;
+IMGUIAnimPicker* g_NUIAnimPicker;
 
 
 
@@ -1904,10 +1905,7 @@ struct CSEditor : IGame
 		g_NUIRenderView = new CharRenderView;
 		g_NUICharFilePicker = new IMGUIFilePicker( "chars", ".chr" );
 		g_NUIMeshPicker = new IMGUIMeshPicker;
-		
-		
-		GR_LoadAnims( "meshes/chars/tstest.anb" );
-		
+		g_NUIAnimPicker = new IMGUIAnimPicker;
 		
 		return true;
 	}
@@ -1915,6 +1913,7 @@ struct CSEditor : IGame
 	{
 		LOG_FUNCTION_ARG( "CSEditor" );
 		
+		delete g_NUIAnimPicker;
 		delete g_NUIMeshPicker;
 		delete g_NUICharFilePicker;
 		delete g_NUIRenderView;
