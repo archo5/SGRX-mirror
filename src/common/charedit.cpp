@@ -1430,6 +1430,10 @@ static Handle<AnimCharacter::Node> g_NodeLinkP1;
 static Handle<AnimCharacter::Node> g_NodeLinkP2;
 static SGRX_GUID* g_NodeLinkP2GUID;
 
+static Handle<AnimCharacter::State> g_StateLinkP1;
+static Handle<AnimCharacter::State> g_StateLinkP2;
+static SGRX_GUID* g_StateLinkP2GUID;
+
 struct DrawNodeLink
 {
 	Handle<AnimCharacter::Node> node1;
@@ -1437,6 +1441,14 @@ struct DrawNodeLink
 	ImVec2 node2pos;
 };
 static Array< DrawNodeLink > g_TempNodeLinks;
+
+struct DrawStateLink
+{
+	Handle<AnimCharacter::State> state1;
+	Handle<AnimCharacter::State> state2;
+	ImVec2 state2pos;
+};
+static Array< DrawStateLink > g_TempStateLinks;
 
 static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2 )
 {
@@ -1455,6 +1467,266 @@ static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2 )
 	}
 	draw_list->PathStroke(ImColor(200,200,100), false, 3.0f);
 }
+
+static HashTable< void*, RCString > g_ExprCompileResults;
+void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
+{
+	if( IMGUIEditString( label, expr.expr, 256 ) )
+	{
+		MECompileResult cr = expr.Recompile( g_AnimChar );
+		if( cr )
+		{
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "%s at pos. %d (%s...)",
+				StackString<128>(cr.error).str,
+				int( cr.unparsed.data() - expr.expr.data() ),
+				StackString<16>(cr.unparsed).str );
+			g_ExprCompileResults.set( &expr, bfr );
+		}
+		else
+			g_ExprCompileResults.unset( &expr );
+	}
+	RCString* errptr = g_ExprCompileResults.getptr( &expr );
+	if( errptr )
+		ImGui::Text( "Error: %s", errptr->c_str() );
+	else
+		ImGui::Text( "Value: %g", expr.compiled_expr.Eval( g_AnimChar ) );
+}
+
+
+//
+//  S T A T E   E D I T O R
+//
+
+static AnimCharacter::PlayerNode* g_EditedPlayerNode;
+static AnimCharacter::State* g_SelState = NULL;
+static ImVec2 g_StateCameraPos(0,0);
+static void EditPlayerStates()
+{
+	AnimCharacter::PlayerNode* P = g_EditedPlayerNode;
+	
+	ImGui::BeginChangeCheck();
+	ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(1,1) );
+	ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(0,0) );
+	ImGui::PushStyleColor( ImGuiCol_ChildWindowBg, ImColor(40,40,40,200) );
+	ImGui::BeginChild( "scrolling_region", ImVec2(0,0), true, ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoMove );
+	ImGui::PushItemWidth( 100.0f );
+	
+	AnimCharacter::State* node_hovered_in_list = NULL;
+	AnimCharacter::State* node_hovered_in_scene = NULL;
+	bool open_context_menu = false;
+	
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+	draw_list->ChannelsSplit( 3 );
+	ImVec2 left_upper_corner = ImGui::GetCursorScreenPos();
+	ImVec2 offset = ImGui::GetCursorScreenPos()
+		- ImGui::GetContentRegionAvail() * ImVec2( 0.5f, 0.5f )
+		- g_StateCameraPos;
+	
+	HashTable< AnimCharacter::State*, ImVec2 > outPosMap;
+	g_TempStateLinks.clear();
+	for( size_t i = 0; i < P->states.size(); ++i )
+	{
+		AnimCharacter::State* node = P->states[ i ];
+		Vec2& pos = node->editor_pos;
+		
+		ImGui::PushID( node );
+		ImVec2 node_rect_min = offset + ImVec2( pos.x, pos.y );
+		draw_list->ChannelsSetCurrent( 2 );
+		
+		bool old_any_active = ImGui::IsAnyItemActive();
+		ImGui::SetCursorScreenPos(node_rect_min + NODE_WINDOW_PADDING);
+		ImGui::BeginGroup();
+		ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(4,4) );
+		IMGUIEditString( "Name", node->name, 256 );
+		ImGui::Dummy( ImVec2(140, 1) );
+		{
+			const char* caption = "Select animation for state";
+			char bfr[ 128 ] = "<click to select animation>";
+			if( node->anim.size() )
+			{
+				StringView anim = node->anim;
+				StringView bundlepath = anim.until( ":" );
+				StringView animname = anim.after( ":" );
+				StringView bundlename = bundlepath.after_last( "/" );
+				StringView bundledir = bundlepath.until_last( "/" );
+				sgrx_snprintf( bfr, 128, "%s@%s|%s", StackPath(animname).str,
+					StackPath(bundlename).str, StackPath(bundledir).str );
+			}
+			if( ImGui::Button( bfr, ImVec2( 140, 20 ) ) )
+			{
+				g_NUIAnimPicker->OpenPopup( caption );
+			}
+			g_NUIAnimPicker->Popup( caption, node->anim );
+		}
+		IMGUIEditBool( "Loop", node->loop );
+		IMGUIEditFloat( "Speed", node->speed, 0, 1000 );
+		ImGui::PopStyleVar(1);
+		ImGui::EndGroup();
+		
+		ImVec2 nodeSize = ImGui::GetItemRectSize() + NODE_WINDOW_PADDING + NODE_WINDOW_PADDING;
+		ImVec2 node_rect_max = node_rect_min + nodeSize;
+		
+		bool node_widgets_active = (!old_any_active && ImGui::IsAnyItemActive());
+		
+		// draw box, do links
+		draw_list->ChannelsSetCurrent(1); // Background
+		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 28 );
+		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && g_SelState == node)) ? ImColor(75,75,75,200) : ImColor(60,60,60,200), 4.0f); 
+		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20,200), 4.0f);
+		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100+(node == P->starting_state?120:0),100,100), 4.0f);
+		
+		// output link
+		{
+			ImVec2 pos = ImVec2( node_rect_max.x, node_rect_min.y + 12 );
+			outPosMap.set( P->states[ i ], pos );
+			draw_list->AddCircleFilled(pos, NODE_SLOT_RADIUS, ImColor(150,150,150,150));
+			
+			ImVec2 scpos = ImGui::GetCursorScreenPos();
+			ImGui::SetCursorScreenPos( pos - ImVec2( NODE_SLOT_RADIUS, NODE_SLOT_RADIUS ) );
+			ImGui::InvisibleButton( "olink", ImVec2( NODE_SLOT_RADIUS * 2.0f, NODE_SLOT_RADIUS * 2.0f ) );
+			if( ImGui::IsItemHoveredRect() )
+			{
+				if( ImGui::IsMouseClicked(0) )
+				{
+					g_StateLinkP1 = node;
+				}
+				else if( ImGui::IsMouseReleased(0) && g_StateLinkP2 )
+				{
+					*g_StateLinkP2GUID = node->guid;
+				}
+			}
+			if( g_StateLinkP1 == node )
+			{
+				DrawLink( draw_list, pos, ImGui::GetMousePos() );
+			}
+			ImGui::SetCursorScreenPos( scpos );
+		}
+		
+		// node box
+		ImGui::SetCursorScreenPos(node_rect_min);
+		ImGui::InvisibleButton("node", nodeSize);
+		if (ImGui::IsItemHovered())
+		{
+			node_hovered_in_scene = node;
+			open_context_menu |= ImGui::IsMouseClicked(1);
+		}
+		bool node_moving_active = ImGui::IsItemActive();
+		if (node_widgets_active || node_moving_active)
+			g_SelState = node;
+		if (node_moving_active && ImGui::IsMouseDragging(0))
+		{
+			pos.x += ImGui::GetIO().MouseDelta.x;
+			pos.y += ImGui::GetIO().MouseDelta.y;
+		}
+		
+		ImGui::PopID();
+	}
+	
+	draw_list->ChannelsSetCurrent(0); // links
+	for( size_t i = 0; i < g_TempStateLinks.size(); ++i )
+	{
+		const DrawStateLink& dsl = g_TempStateLinks[ i ];
+		DrawLink( draw_list, outPosMap.getcopy( dsl.state1 ), dsl.state2pos );
+	}
+	g_TempStateLinks.clear();
+	
+	draw_list->ChannelsMerge();
+	
+	// Link post-processing
+	if( ImGui::IsMouseReleased(0) )
+	{
+		g_StateLinkP1 = NULL;
+		g_StateLinkP2 = NULL;
+		g_StateLinkP2GUID = NULL;
+	}
+	
+	// Open context menu
+	if (!ImGui::IsAnyItemHovered() && ImGui::IsMouseHoveringWindow() && ImGui::IsMouseClicked(1))
+	{
+		g_SelState = node_hovered_in_list = node_hovered_in_scene = NULL;
+		open_context_menu = true;
+	}
+	if (open_context_menu)
+	{
+		ImGui::OpenPopup("context_menu");
+		if (node_hovered_in_list != NULL)
+			g_SelState = node_hovered_in_list;
+		if (node_hovered_in_scene != NULL)
+			g_SelState = node_hovered_in_scene;
+	}
+	
+	// Draw context menu
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8,8));
+	if (ImGui::BeginPopup("context_menu"))
+	{
+		AnimCharacter::State* node = g_SelState;
+		ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
+		if (node)
+		{
+			ImGui::Text("State '%s'", StackString<100>(node->name).str);
+			ImGui::Separator();
+			if (ImGui::MenuItem("Delete"))
+			{
+				P->states.remove_first( node );
+				P->RehashTransitions();
+				g_SelState = NULL;
+			}
+			ImGui::Separator();
+			if( ImGui::MenuItem( "Set as current" ) )
+			{
+				P->current_state = node;
+			}
+			if( ImGui::MenuItem( "Set as first" ) )
+			{
+				P->starting_state = node;
+			}
+			if (ImGui::MenuItem("Copy", NULL, false, false)) {}
+		}
+		else
+		{
+			AnimCharacter::State* ns = NULL;
+			if (ImGui::MenuItem("Add state"))
+				ns = new AnimCharacter::State;
+			if( ns )
+			{
+				ns->Init( V2( scene_pos ) );
+				P->states.push_back( ns );
+				P->RehashTransitions();
+				ImGui::TriggerChangeCheck();
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Paste", NULL, false, false)) {}
+		}
+		ImGui::EndPopup();
+	}
+	ImGui::PopStyleVar();
+	
+	// MMB view scrolling
+	if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive() && ImGui::IsMouseDragging(2, 0.0f))
+	{
+		g_StateCameraPos -= ImGui::GetIO().MouseDelta;
+	}
+	
+	ImGui::SetCursorScreenPos( left_upper_corner );
+	if( ImGui::Button( "Close" ) )
+	{
+		g_EditedPlayerNode = NULL;
+	}
+	
+	ImGui::PopItemWidth();
+	ImGui::EndChild();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleVar(2);
+	if( ImGui::EndChangeCheck() )
+		; // WHAT
+}
+
+
+
+//
+//  N O D E   E D I T O R
+//
 
 void EditNodeInput( const char* label, AnimCharacter::Node* node, SGRX_GUID& guid )
 {
@@ -1495,39 +1767,16 @@ void EditNodeInput( const char* label, AnimCharacter::Node* node, SGRX_GUID& gui
 	ImGui::PopID();
 }
 
-
-static HashTable< void*, RCString > g_ExprCompileResults;
-void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
-{
-	if( IMGUIEditString( label, expr.expr, 256 ) )
-	{
-		MECompileResult cr = expr.Recompile( g_AnimChar );
-		if( cr )
-		{
-			char bfr[ 256 ];
-			sgrx_snprintf( bfr, 256, "%s at pos. %d (%s...)",
-				StackString<128>(cr.error).str,
-				int( cr.unparsed.data() - expr.expr.data() ),
-				StackString<16>(cr.unparsed).str );
-			g_ExprCompileResults.set( &expr, bfr );
-		}
-		else
-			g_ExprCompileResults.unset( &expr );
-	}
-	RCString* errptr = g_ExprCompileResults.getptr( &expr );
-	if( errptr )
-		ImGui::Text( "Error: %s", errptr->c_str() );
-	else
-		ImGui::Text( "Value: %g", expr.compiled_expr.Eval( g_AnimChar ) );
-}
-
 void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 {
 	// common
 	if( node->type == AnimCharacter::NT_Player )
 	{
 		SGRX_CAST( AnimCharacter::PlayerNode*, PN, node );
-		ImGui::Button( "Edit states / transitions", ImVec2(140,20) );
+		if( ImGui::Button( "Edit states / transitions", ImVec2(140,20) ) )
+		{
+			g_EditedPlayerNode = PN;
+		}
 		if( ImGui::Button( "Play 'run'", ImVec2(140,20) ) )
 		{
 			PN->player_anim.Play( GR_GetAnim( "run" ) );
@@ -1559,10 +1808,16 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 	}
 }
 
-static Vec2 g_NodeCameraPos = V2(0);
-static AnimCharacter::Node* node_selected = NULL;
+static ImVec2 g_NodeCameraPos(0,0);
+static AnimCharacter::Node* g_SelNode = NULL;
 void EditNodes( AnimCharacter& ac )
 {
+	if( g_EditedPlayerNode )
+	{
+		EditPlayerStates();
+		return;
+	}
+	
 	ImGui::BeginChangeCheck();
 	ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(1,1) );
 	ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2(0,0) );
@@ -1578,7 +1833,7 @@ void EditNodes( AnimCharacter& ac )
 	draw_list->ChannelsSplit( 3 );
 	ImVec2 offset = ImGui::GetCursorScreenPos()
 		- ImGui::GetContentRegionAvail() * ImVec2( 0.5f, 0.5f )
-		- ImVec2( g_NodeCameraPos.x, g_NodeCameraPos.y );
+		- g_NodeCameraPos;
 	
 	HashTable< AnimCharacter::Node*, ImVec2 > outPosMap;
 	g_TempNodeLinks.clear();
@@ -1609,7 +1864,7 @@ void EditNodes( AnimCharacter& ac )
 		// draw box, do links
 		draw_list->ChannelsSetCurrent(1); // Background
 		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 24 );
-		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && node_selected == node)) ? ImColor(75,75,75,200) : ImColor(60,60,60,200), 4.0f); 
+		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && g_SelNode == node)) ? ImColor(75,75,75,200) : ImColor(60,60,60,200), 4.0f); 
 		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20,200), 4.0f);
 		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100+(node == ac.output_node?120:0),100,100), 4.0f);
 		
@@ -1650,7 +1905,7 @@ void EditNodes( AnimCharacter& ac )
 		}
 		bool node_moving_active = ImGui::IsItemActive();
 		if (node_widgets_active || node_moving_active)
-			node_selected = node;
+			g_SelNode = node;
 		if (node_moving_active && ImGui::IsMouseDragging(0))
 		{
 			pos.x += ImGui::GetIO().MouseDelta.x;
@@ -1681,23 +1936,23 @@ void EditNodes( AnimCharacter& ac )
 	// Open context menu
 	if (!ImGui::IsAnyItemHovered() && ImGui::IsMouseHoveringWindow() && ImGui::IsMouseClicked(1))
 	{
-		node_selected = node_hovered_in_list = node_hovered_in_scene = NULL;
+		g_SelNode = node_hovered_in_list = node_hovered_in_scene = NULL;
 		open_context_menu = true;
 	}
 	if (open_context_menu)
 	{
 		ImGui::OpenPopup("context_menu");
 		if (node_hovered_in_list != NULL)
-			node_selected = node_hovered_in_list;
+			g_SelNode = node_hovered_in_list;
 		if (node_hovered_in_scene != NULL)
-			node_selected = node_hovered_in_scene;
+			g_SelNode = node_hovered_in_scene;
 	}
 	
 	// Draw context menu
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8,8));
 	if (ImGui::BeginPopup("context_menu"))
 	{
-		AnimCharacter::Node* node = node_selected;
+		AnimCharacter::Node* node = g_SelNode;
 		ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
 		if (node)
 		{
@@ -1708,7 +1963,7 @@ void EditNodes( AnimCharacter& ac )
 				ac._UnlinkNode( node );
 				ac.nodes.remove_first( node );
 				ac._RehashNodes();
-				node_selected = NULL;
+				g_SelNode = NULL;
 			}
 			ImGui::Separator();
 			if( ImGui::MenuItem( "Set as output" ) )
@@ -1753,8 +2008,7 @@ void EditNodes( AnimCharacter& ac )
 	// MMB view scrolling
 	if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive() && ImGui::IsMouseDragging(2, 0.0f))
 	{
-		g_NodeCameraPos.x -= ImGui::GetIO().MouseDelta.x;
-		g_NodeCameraPos.y -= ImGui::GetIO().MouseDelta.y;
+		g_NodeCameraPos -= ImGui::GetIO().MouseDelta;
 	}
 	
 	ImGui::PopItemWidth();

@@ -336,6 +336,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		Vec2 editor_pos;
 		
 		State() : loop(true), speed(1){}
+		void Init( Vec2 ep )
+		{
+			editor_pos = ep;
+			guid = SGRX_GUID::Generate();
+		}
 		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "STATE" );
@@ -429,7 +434,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	{
 		Array< Handle< State > > states;
 		Array< Handle< Transition > > transitions;
+		Handle< State > starting_state;
 		
+		Handle< State > current_state;
 		AnimPlayer player_anim;
 		HashTable< SGRX_GUID, size_t > transition_lookup; /* GUID -> ID array offset */
 		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
@@ -443,8 +450,16 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			Node::Serialize( arch );
 			arch << states;
 			arch << transitions;
+			
+			uint32_t starting_id = states.find_first_at( starting_state );
+			arch << starting_id;
+			starting_state = size_t(starting_id) < states.size() ? states[ starting_id ] : NULL;
+			
 			if( T::IsReader )
+			{
 				RehashTransitions();
+				current_state = starting_state;
+			}
 		}
 	};
 	struct IF_GCC(ENGINE_EXPORT) MaskNode : Node

@@ -14,6 +14,7 @@
 
 FINLINE ImVec2 operator + ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x + b.x, a.y + b.y ); }
 FINLINE ImVec2 operator - ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x - b.x, a.y - b.y ); }
+FINLINE ImVec2& operator -= ( ImVec2& a, const ImVec2& b ){ a.x -= b.x; a.y -= b.y; return a; }
 FINLINE ImVec2 operator * ( const ImVec2& a, const ImVec2& b ){ return ImVec2( a.x * b.x, a.y * b.y ); }
 FINLINE bool operator == ( const ImVec2& a, const ImVec2& b ){ return a.x == b.x && a.y == b.y; }
 FINLINE bool operator != ( const ImVec2& a, const ImVec2& b ){ return a.x != b.x || a.y != b.y; }
