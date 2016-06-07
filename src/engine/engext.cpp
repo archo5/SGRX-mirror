@@ -1069,14 +1069,15 @@ void AnimCharacter::_Prepare()
 		m_node_frames[ i ].Reset();
 	
 	// equip animators
-	_EquipAnimator( &m_anRagdoll, 0 );
-	_EquipAnimator( &m_anLayers, 1 );
-	_EquipAnimator( &m_anEnd, 2 );
+	int at = 0;
+	_EquipAnimator( &m_anRagdoll, at++ );
+	_EquipAnimator( &m_anLayers, at++ );
+	_EquipAnimator( &m_anEnd, at++ );
 	for( size_t i = 0; i < nodes.size(); ++i )
 	{
 		Animator* anim = nodes[ i ]->GetAnimator( this );
 		if( anim && nodes[ i ]->OwnsAnimator() )
-			_EquipAnimator( anim, 3 + i );
+			_EquipAnimator( anim, at++ );
 	}
 	
 	// rehash & link

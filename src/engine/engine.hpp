@@ -1124,6 +1124,7 @@ struct MeshHandle : Handle< SGRX_IMesh >
 	MeshHandle( struct SGRX_IMesh* mesh ) : Handle( mesh ){}
 	
 	int GetBoneCount() const { return item ? item->m_numBones : 0; }
+	SGRX_MeshBone* GetBonePtr() const { return item ? item->m_bones : NULL; }
 };
 
 struct SGRX_DrawItemLight

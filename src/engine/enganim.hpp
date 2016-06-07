@@ -124,6 +124,12 @@ struct AnimTrackXForm
 		rot = TLERP( a.rot, b.rot, s );
 		scl = TLERP( a.scl, b.scl, s );
 	}
+	FINLINE void SetMatrix( const Mat4& m )
+	{
+		pos = m.GetTranslation();
+		rot = m.GetRotationQuaternion();
+		scl = m.GetScale();
+	}
 	FINLINE Mat4 GetSRT() const
 	{
 		return Mat4::CreateSRT( scl, rot, pos );
@@ -179,6 +185,17 @@ struct IF_GCC(ENGINE_EXPORT) AnimBlend : Animator
 	Animator* animSourceB;
 	float blendFactor;
 	uint8_t blendMode;
+};
+
+struct IF_GCC(ENGINE_EXPORT) AnimRelAbs : Animator
+{
+	AnimRelAbs() : animSource( NULL ), inv( false ){}
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
+	
+	Array< Mat4 > m_tmpMtx;
+	
+	Animator* animSource;
+	bool inv;
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator

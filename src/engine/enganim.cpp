@@ -203,6 +203,47 @@ void AnimBlend::Advance( float deltaTime, AnimInfo* info )
 }
 
 
+void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
+{
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
+	if( animSource )
+	{
+		animSource->Advance( deltaTime, info );
+		m_tmpMtx.resize( m_mesh.GetBoneCount() );
+		SGRX_MeshBone* MB = m_mesh.GetBonePtr();
+		if( !inv )
+		{
+			// rel -> abs
+			for( size_t i = 0; i < m_pose.size(); ++i )
+			{
+				Mat4& M = m_tmpMtx[ i ];
+				M = animSource->m_pose[ i ].GetSRT() * MB[ i ].boneOffset;
+				if( MB[ i ].parent_id >= 0 )
+					M = M * m_tmpMtx[ MB[ i ].parent_id ];
+				else
+					M = M * info->rootXF;
+				m_pose[ i ].SetMatrix( M );
+			}
+		}
+		else
+		{
+			// abs -> rel
+			for( size_t i = 0; i < m_pose.size(); ++i )
+			{
+				Mat4& M = m_tmpMtx[ i ];
+				M = MB[ i ].boneOffset;
+				if( MB[ i ].parent_id >= 0 )
+					M = M * m_tmpMtx[ MB[ i ].parent_id ];
+				else
+					M = M * info->rootXF;
+				Mat4 sM = animSource->m_pose[ i ].GetSRT();
+				m_pose[ i ].SetMatrix( sM * M.Inverted() );
+			}
+		}
+	}
+}
+
+
 AnimMixer::AnimMixer() : layers(NULL), layerCount(0)
 {
 }

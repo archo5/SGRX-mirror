@@ -519,26 +519,28 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	struct IF_GCC(ENGINE_EXPORT) RelAbsNode : Node
 	{
 		SGRX_GUID src;
-		SGRX_GUID optspace;
 		bool inv;
-		bool is_space;
 		
-		RelAbsNode() : Node( NT_RelAbs ), inv( false ), is_space( false ){}
-		virtual int GetInputLinkCount(){ return 2; }
+		AnimRelAbs relabs_anim;
+		
+		RelAbsNode() : Node( NT_RelAbs ), inv( false ){}
+		virtual int GetInputLinkCount(){ return 1; }
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &src;
-			if( i == 1 ) return &optspace;
 			return NULL; }
 		virtual Animator** GetInputSource( int i ){
+			if( i == 0 ) return &relabs_anim.animSource;
 			return NULL; }
-		virtual Animator* GetAnimator( AnimCharacter* ){ return NULL; }
+		virtual Animator* GetAnimator( AnimCharacter* ){ return &relabs_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			relabs_anim.inv = inv;
+		}
 		template< class T > void Serialize( T& arch )
 		{
 			Node::Serialize( arch );
 			arch << src;
-			arch << optspace;
 			arch << inv;
-			arch << is_space;
 		}
 	};
 	

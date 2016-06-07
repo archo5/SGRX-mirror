@@ -1576,6 +1576,7 @@ void EditACStateProps()
 		{
 			P->transitions.remove_first( g_SelTransition );
 			g_SelTransition = NULL;
+			return;
 		}
 		IMGUIEditBool( "Bidirectional", g_SelTransition->bidi );
 		EditValExpr( "Condition", g_SelTransition->expr );
