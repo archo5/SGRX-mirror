@@ -1338,6 +1338,23 @@ void EditVariableInfo( size_t self_id, Handle<AnimCharacter::Variable>& var )
 	}
 }
 
+void EditACStateProps();
+
+void EditACVariables( AnimCharacter& ac )
+{
+	IMGUI_GROUP( "Variables", false,
+	{
+		ImGui::BeginChangeCheck();
+		IMGUIEditArray( ac.variables, EditVariableInfo, NULL );
+		if( ImGui::Button( "Add variable" ) )
+		{
+			ac.variables.push_back( new AnimCharacter::Variable );
+		}
+		if( ImGui::EndChangeCheck() )
+			ac._ReindexVariables();
+	});
+}
+
 void EditAnimChar( AnimCharacter& ac )
 {
 	if( g_NUIMeshPicker->Property( "Pick mesh", "mesh", ac.mesh ) )
@@ -1384,17 +1401,7 @@ void EditAnimChar( AnimCharacter& ac )
 	{
 		IMGUIEditArray( ac.masks, EditMaskInfo, "Add mask" );
 	});
-	IMGUI_GROUP( "Variables", false,
-	{
-		ImGui::BeginChangeCheck();
-		IMGUIEditArray( ac.variables, EditVariableInfo, NULL );
-		if( ImGui::Button( "Add variable" ) )
-		{
-			ac.variables.push_back( new AnimCharacter::Variable );
-		}
-		if( ImGui::EndChangeCheck() )
-			ac._ReindexVariables();
-	});
+	EditACVariables( ac );
 }
 
 
@@ -1432,7 +1439,6 @@ static SGRX_GUID* g_NodeLinkP2GUID;
 
 static Handle<AnimCharacter::State> g_StateLinkP1;
 static Handle<AnimCharacter::State> g_StateLinkP2;
-static SGRX_GUID* g_StateLinkP2GUID;
 
 struct DrawNodeLink
 {
@@ -1450,7 +1456,35 @@ struct DrawStateLink
 };
 static Array< DrawStateLink > g_TempStateLinks;
 
-static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2 )
+static bool HoverLink( ImVec2 p1, ImVec2 p2 )
+{
+	Vec3 mp = V3(ImGui::GetMousePos().x, ImGui::GetMousePos().y, 0.0f);
+	// Hermite spline
+	ImVec2 t1 = ImVec2(+80.0f, 0.0f);
+	ImVec2 t2 = ImVec2(+80.0f, 0.0f);
+	ImVec2 pp = p1;
+	const int STEPS = 12;
+	for (int step = 0; step <= STEPS; step++)
+	{
+		float t = (float)step / (float)STEPS;
+		float h1 = +2*t*t*t - 3*t*t + 1.0f;
+		float h2 = -2*t*t*t + 3*t*t;
+		float h3 =    t*t*t - 2*t*t + t;
+		float h4 =    t*t*t -   t*t;
+		ImVec2 pc(h1*p1.x + h2*p2.x + h3*t1.x + h4*t2.x, h1*p1.y + h2*p2.y + h3*t1.y + h4*t2.y);
+		Vec3 pp3 = V3(pp.x, pp.y, 0);
+		Vec3 pc3 = V3(pc.x, pc.y, 0);
+		Vec3 pn3 = ( pc3 - pp3 ).Normalized();
+		pp3 -= pn3 * 1.5f;
+		pc3 += pn3 * 1.5f;
+		if( PointLineDistance( mp, pp3, pc3 ) < 1.5f )
+			return true;
+		pp = pc;
+	}
+	return false;
+}
+
+static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2, ImColor col = ImColor(200,200,100) )
 {
 	// Hermite spline
 	ImVec2 t1 = ImVec2(+80.0f, 0.0f);
@@ -1465,7 +1499,7 @@ static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2 )
 		float h4 =    t*t*t -   t*t;
 		draw_list->PathLineTo(ImVec2(h1*p1.x + h2*p2.x + h3*t1.x + h4*t2.x, h1*p1.y + h2*p2.y + h3*t1.y + h4*t2.y));
 	}
-	draw_list->PathStroke(ImColor(200,200,100), false, 3.0f);
+	draw_list->PathStroke(col, false, 3.0f);
 }
 
 static HashTable< void*, RCString > g_ExprCompileResults;
@@ -1500,7 +1534,96 @@ void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
 
 static AnimCharacter::PlayerNode* g_EditedPlayerNode;
 static AnimCharacter::State* g_SelState = NULL;
+static AnimCharacter::Transition* g_SelTransition = NULL;
 static ImVec2 g_StateCameraPos(0,0);
+
+static void GenAnimPrintName( char bfr[128], StringView anim, const char* def )
+{
+	if( anim )
+	{
+		StringView bundlepath = anim.until( ":" );
+		StringView animname = anim.after( ":" );
+		StringView bundlename = bundlepath.after_last( "/" );
+		StringView bundledir = bundlepath.until_last( "/" );
+		sgrx_snprintf( bfr, 128, "%s@%s|%s", StackPath(animname).str,
+			StackPath(bundlename).str, StackPath(bundledir).str );
+	}
+	else
+		strcpy( bfr, def );
+}
+
+void EditACStateProps()
+{
+	AnimCharacter::PlayerNode* P = g_EditedPlayerNode;
+	
+	if( g_SelTransition )
+	{
+		AnimCharacter::State* a = NULL, * b = NULL;
+		for( size_t i = 0; i < P->states.size(); ++i )
+		{
+			AnimCharacter::State* s = P->states[ i ];
+			if( s->guid == g_SelTransition->source )
+				a = s;
+			if( s->guid == g_SelTransition->target )
+				b = s;
+		}
+		
+		ImGui::Text( "Transition: %s -> %s",
+			a ? StackPath(a->name).str : "<!err:a>",
+			b ? StackPath(b->name).str : "<!err:b>" );
+		ImGui::Separator();
+		if( ImGui::Button( "Delete" ) )
+		{
+			P->transitions.remove_first( g_SelTransition );
+			g_SelTransition = NULL;
+		}
+		IMGUIEditBool( "Bidirectional", g_SelTransition->bidi );
+		EditValExpr( "Condition", g_SelTransition->expr );
+		
+		ImGui::Separator();
+	}
+	
+	if( g_SelState )
+	{
+		ImGui::Text( "State" );
+		ImGui::Separator();
+		
+		IMGUIEditString( "Name", g_SelState->name, 256 );
+		{
+			const char* caption = "Select animation for state";
+			char bfr[ 128 ];
+			GenAnimPrintName( bfr, g_SelState->anim, "<click to select animation>" );
+			if( ImGui::Button( bfr, ImVec2( ImGui::GetContentRegionAvailWidth() * 2.0f/3.0f, 20 ) ) )
+			{
+				g_NUIAnimPicker->OpenPopup( caption );
+			}
+			ImGui::SameLine();
+			ImGui::Text( "Animation" );
+			g_NUIAnimPicker->Popup( caption, g_SelState->anim );
+		}
+		IMGUIEditBool( "Loop", g_SelState->loop );
+		IMGUIEditFloat( "Speed", g_SelState->speed, 0, 1000 );
+		
+		ImGui::Separator();
+	}
+}
+
+static void TryAddTransition( AnimCharacter::State* a, AnimCharacter::State* b )
+{
+	AnimCharacter::PlayerNode* P = g_EditedPlayerNode;
+	for( size_t i = 0; i < P->transitions.size(); ++i )
+	{
+		AnimCharacter::Transition* tr = P->transitions[ i ];
+		if( tr->source == a->guid && tr->target == b->guid )
+			return; // already exists
+	}
+	
+	AnimCharacter::Transition* tr = new AnimCharacter::Transition;
+	tr->source = a->guid;
+	tr->target = b->guid;
+	P->transitions.push_back( tr );
+	g_SelTransition = tr;
+}
 static void EditPlayerStates()
 {
 	AnimCharacter::PlayerNode* P = g_EditedPlayerNode;
@@ -1523,8 +1646,8 @@ static void EditPlayerStates()
 		- ImGui::GetContentRegionAvail() * ImVec2( 0.5f, 0.5f )
 		- g_StateCameraPos;
 	
-	HashTable< AnimCharacter::State*, ImVec2 > outPosMap;
-	g_TempStateLinks.clear();
+	HashTable< SGRX_GUID, ImVec2 > inPosMap;
+	HashTable< SGRX_GUID, ImVec2 > outPosMap;
 	for( size_t i = 0; i < P->states.size(); ++i )
 	{
 		AnimCharacter::State* node = P->states[ i ];
@@ -1538,29 +1661,13 @@ static void EditPlayerStates()
 		ImGui::SetCursorScreenPos(node_rect_min + NODE_WINDOW_PADDING);
 		ImGui::BeginGroup();
 		ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(4,4) );
-		IMGUIEditString( "Name", node->name, 256 );
+		ImGui::Text( "%s", StackPath(node->name).str );
 		ImGui::Dummy( ImVec2(140, 1) );
 		{
-			const char* caption = "Select animation for state";
-			char bfr[ 128 ] = "<click to select animation>";
-			if( node->anim.size() )
-			{
-				StringView anim = node->anim;
-				StringView bundlepath = anim.until( ":" );
-				StringView animname = anim.after( ":" );
-				StringView bundlename = bundlepath.after_last( "/" );
-				StringView bundledir = bundlepath.until_last( "/" );
-				sgrx_snprintf( bfr, 128, "%s@%s|%s", StackPath(animname).str,
-					StackPath(bundlename).str, StackPath(bundledir).str );
-			}
-			if( ImGui::Button( bfr, ImVec2( 140, 20 ) ) )
-			{
-				g_NUIAnimPicker->OpenPopup( caption );
-			}
-			g_NUIAnimPicker->Popup( caption, node->anim );
+			char bfr[ 128 ];
+			GenAnimPrintName( bfr, node->anim, "<no animation>" );
+			ImGui::Text( "%s", bfr );
 		}
-		IMGUIEditBool( "Loop", node->loop );
-		IMGUIEditFloat( "Speed", node->speed, 0, 1000 );
 		ImGui::PopStyleVar(1);
 		ImGui::EndGroup();
 		
@@ -1571,15 +1678,41 @@ static void EditPlayerStates()
 		
 		// draw box, do links
 		draw_list->ChannelsSetCurrent(1); // Background
-		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 28 );
+		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 24 );
 		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && g_SelState == node)) ? ImColor(75,75,75,200) : ImColor(60,60,60,200), 4.0f); 
 		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20,200), 4.0f);
 		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100+(node == P->starting_state?120:0),100,100), 4.0f);
 		
+		// input link
+		{
+			ImVec2 pos = ImVec2( node_rect_min.x, node_rect_min.y + 12 );
+			inPosMap.set( node->guid, pos );
+			draw_list->AddCircleFilled(pos, NODE_SLOT_RADIUS, ImColor(150,150,150,150));
+			
+			ImVec2 scpos = ImGui::GetCursorScreenPos();
+			ImGui::SetCursorScreenPos( pos - ImVec2( NODE_SLOT_RADIUS, NODE_SLOT_RADIUS ) );
+			ImGui::InvisibleButton( "ilink", ImVec2( NODE_SLOT_RADIUS * 2.0f, NODE_SLOT_RADIUS * 2.0f ) );
+			if( ImGui::IsItemHoveredRect() )
+			{
+				if( ImGui::IsMouseClicked(0) )
+				{
+					g_StateLinkP2 = node;
+				}
+				else if( ImGui::IsMouseReleased(0) && g_StateLinkP1 )
+				{
+					TryAddTransition( g_StateLinkP1, node );
+				}
+			}
+			if( g_StateLinkP2 == node )
+			{
+				DrawLink( draw_list, ImGui::GetMousePos(), pos, ImColor(200,200,100,127) );
+			}
+			ImGui::SetCursorScreenPos( scpos );
+		}
 		// output link
 		{
 			ImVec2 pos = ImVec2( node_rect_max.x, node_rect_min.y + 12 );
-			outPosMap.set( P->states[ i ], pos );
+			outPosMap.set( node->guid, pos );
 			draw_list->AddCircleFilled(pos, NODE_SLOT_RADIUS, ImColor(150,150,150,150));
 			
 			ImVec2 scpos = ImGui::GetCursorScreenPos();
@@ -1593,12 +1726,12 @@ static void EditPlayerStates()
 				}
 				else if( ImGui::IsMouseReleased(0) && g_StateLinkP2 )
 				{
-					*g_StateLinkP2GUID = node->guid;
+					TryAddTransition( node, g_StateLinkP2 );
 				}
 			}
 			if( g_StateLinkP1 == node )
 			{
-				DrawLink( draw_list, pos, ImGui::GetMousePos() );
+				DrawLink( draw_list, pos, ImGui::GetMousePos(), ImColor(200,200,100,127) );
 			}
 			ImGui::SetCursorScreenPos( scpos );
 		}
@@ -1624,12 +1757,28 @@ static void EditPlayerStates()
 	}
 	
 	draw_list->ChannelsSetCurrent(0); // links
-	for( size_t i = 0; i < g_TempStateLinks.size(); ++i )
+	AnimCharacter::Transition* tr_hover = NULL;
+	for( size_t i = 0; i < P->transitions.size(); ++i )
 	{
-		const DrawStateLink& dsl = g_TempStateLinks[ i ];
-		DrawLink( draw_list, outPosMap.getcopy( dsl.state1 ), dsl.state2pos );
+		AnimCharacter::Transition* tr = P->transitions[ i ];
+		if( HoverLink( outPosMap.getcopy( tr->source ), inPosMap.getcopy( tr->target ) ) )
+			tr_hover = tr;
 	}
-	g_TempStateLinks.clear();
+	if( ImGui::IsMouseHoveringWindow() && ImGui::IsMouseClicked(0) )
+		g_SelTransition = tr_hover;
+	for( size_t i = 0; i < P->transitions.size(); ++i )
+	{
+		AnimCharacter::Transition* tr = P->transitions[ i ];
+		ImColor c = ImColor(150,150,100);
+		if( tr == tr_hover )
+			c.Value.x += 50/255.0f; c.Value.y += 50/255.0f; c.Value.z += 50/255.0f;
+		if( tr == g_SelTransition )
+			c.Value.z += 100/255.0f;
+		DrawLink( draw_list,
+			outPosMap.getcopy( tr->source ),
+			inPosMap.getcopy( tr->target ),
+			c );
+	}
 	
 	draw_list->ChannelsMerge();
 	
@@ -1638,7 +1787,6 @@ static void EditPlayerStates()
 	{
 		g_StateLinkP1 = NULL;
 		g_StateLinkP2 = NULL;
-		g_StateLinkP2GUID = NULL;
 	}
 	
 	// Open context menu
@@ -2258,7 +2406,15 @@ struct CSEditor : IGame
 			{
 				if( g_mode == EditChar )
 				{
-					EditAnimChar( *g_AnimChar );
+					if( g_EditedPlayerNode )
+					{
+						EditACStateProps();
+						EditACVariables( *g_AnimChar );
+					}
+					else
+					{
+						EditAnimChar( *g_AnimChar );
+					}
 				}
 				else if( g_mode == RecalcBones )
 				{
