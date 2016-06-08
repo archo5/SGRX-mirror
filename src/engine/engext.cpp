@@ -319,12 +319,6 @@ MEPTRes MathEquation::_ParseTokens(
 		return op;
 	}
 	
-	// subexpression
-	if( tokenlist.size() >= 2 &&
-		tokenlist[0].type == TT_LParen &&
-		tokenlist[ tokenlist.size() - 1 ].type == TT_RParen )
-		return _ParseTokens( tokenlist.part( 1, tokenlist.size() - 2 ), tokenlist[0].data, vars );
-	
 	// unary operator
 	if( tokenlist[0].type == TT_Operator )
 	{
@@ -394,6 +388,12 @@ MEPTRes MathEquation::_ParseTokens(
 		best_token_id == 0 ||
 		best_token_id == tokenlist.size() - 1 )
 	{
+		// subexpression
+		if( tokenlist.size() >= 2 &&
+			tokenlist[0].type == TT_LParen &&
+			tokenlist[ tokenlist.size() - 1 ].type == TT_RParen )
+			return _ParseTokens( tokenlist.part( 1, tokenlist.size() - 2 ), tokenlist[0].data, vars );
+		
 		return MECompileResult( tokenlist[0].data, "invalid expression" );
 	}
 	
@@ -432,11 +432,14 @@ void MathEquation::_Clean()
 			for( size_t j = 0; j < i; ++j )
 			{
 				MEOperation& op = ops[ j ];
-				if( ME_OPCODE_TYPE( op.type ) == OT_VAR && op.op1 >= i )
+				if( ME_OPCODE_TYPE( op.type ) == OT_VAR ||
+					ME_OPCODE_TYPE( op.type ) == OT_VAL )
+					continue;
+				else if( !( op.type & (ME_OPCODE_OP1CONST|ME_OPCODE_OP1VARBL) ) &&
+					op.op1 >= i )
 					op.op1--;
-				else if( op.type & ME_OPCODE_OP1VARBL && op.op1 >= i )
-					op.op1--;
-				else if( op.type & ME_OPCODE_OP2VARBL && op.op2 >= i )
+				else if( !( op.type & (ME_OPCODE_OP2CONST|ME_OPCODE_OP2VARBL) ) &&
+					op.op2 >= i )
 					op.op2--;
 			}
 			// remove operation
@@ -948,6 +951,55 @@ Animator* AnimCharacter::LayersNode::GetAnimator( AnimCharacter* ch )
 	return &ch->m_anLayers;
 }
 
+void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
+{
+	if( !current_state )
+		current_state = starting_state;
+	if( !current_state )
+		return;
+	
+	// from-any transitions
+	for( size_t i = 0; i < transition_lookup_ids[0]; ++i )
+	{
+		Transition* tr = transitions[ transition_lookup_ids[ i + 1 ] ];
+		if( tr->expr.Eval( vars ) )
+		{
+			current_state = state_lookup.getcopy( tr->target );
+			return;
+		}
+	}
+	
+	// directly relevant transitions
+	size_t off = transition_lookup[ current_state->guid ];
+	for( size_t i = 0; i < transition_lookup_ids[ off ]; ++i )
+	{
+		Transition* tr = transitions[ transition_lookup_ids[ i + off + 1 ] ];
+		if( tr->source == current_state->guid )
+		{
+			if( tr->expr.Eval( vars ) )
+			{
+				current_state = state_lookup.getcopy( tr->target );
+				return;
+			}
+		}
+		else if( tr->bidi && tr->target == current_state->guid )
+		{
+			if( !tr->expr.Eval( vars ) )
+			{
+				current_state = state_lookup.getcopy( tr->source );
+				return;
+			}
+		}
+	}
+}
+
+void AnimCharacter::PlayerNode::RehashStates()
+{
+	state_lookup.clear();
+	for( size_t i = 0; i < states.size(); ++i )
+		state_lookup.set( states[ i ]->guid, states[ i ] );
+}
+
 void AnimCharacter::PlayerNode::RehashTransitions()
 {
 	transition_lookup.clear();
@@ -1100,6 +1152,28 @@ void AnimCharacter::_Prepare()
 	}
 	m_anEnd.animSource = output_node ? output_node->GetAnimator( this ) : NULL;
 	
+	// recompile expressions
+	for( size_t i = 0; i < aliases.size(); ++i )
+		aliases[ i ]->expr.Recompile( this );
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		Node* N = nodes[ i ];
+		if( N->type == NT_Player )
+		{
+			SGRX_CAST( PlayerNode*, PN, N );
+			for( size_t j = 0; j < PN->transitions.size(); ++j )
+			{
+				Transition* tr = PN->transitions[ j ];
+				tr->expr.Recompile( this );
+			}
+		}
+		else if( N->type == NT_Blend )
+		{
+			SGRX_CAST( BlendNode*, BN, N );
+			BN->factor.Recompile( this );
+		}
+	}
+	
 	// additional work
 	for( size_t i = 0; i < m_anLayers.m_pose.size(); ++i )
 		m_anLayers.m_pose[ i ].fq = 1;
@@ -1120,10 +1194,23 @@ void AnimCharacter::SetTransform( const Mat4& mtx )
 		m_cachedMeshInst->matrix = mtx;
 }
 
-void AnimCharacter::FixedTick( float deltaTime )
+void AnimCharacter::FixedTick( float deltaTime, bool changeStates )
 {
+	for( size_t i = 0; i < aliases.size(); ++i )
+	{
+		aliases[ i ]->value = aliases[ i ]->expr.Eval( this );
+	}
+	
 	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		if( nodes[ i ]->type == NT_Player && changeStates )
+		{
+			SGRX_CAST( PlayerNode*, P, nodes[ i ].item );
+			P->UpdateState( this );
+		}
 		nodes[ i ]->Advance( deltaTime, this );
+	}
+	
 	AnimInfo info = { ++m_frameID, m_cachedMeshInst->matrix };
 	m_anEnd.Advance( deltaTime, &info );
 	m_anRagdoll.AdvanceTransforms( &m_anEnd );
@@ -1494,16 +1581,28 @@ uint16_t AnimCharacter::MEGetID( StringView name ) const
 	for( size_t i = 0; i < variables.size(); ++i )
 	{
 		if( variables[ i ]->name == name )
-			return (uint16_t) i;
+			return uint16_t( i );
+	}
+	for( size_t i = 0 ; i < aliases.size(); ++i )
+	{
+		if( aliases[ i ]->name == name )
+			return uint16_t( i + variables.size() );
 	}
 	return ME_OPERAND_NONE;
 }
 
 double AnimCharacter::MEGetValue( uint16_t i ) const
 {
-	if( size_t(i) >= variables.size() )
-		return 0;
-	return variables[ i ]->value;
+	size_t e = i;
+	
+	if( e < variables.size() )
+		return variables[ e ]->value;
+	e -= variables.size();
+	
+	if( e < aliases.size() )
+		return aliases[ e ]->value;
+	
+	return 0;
 }
 
 

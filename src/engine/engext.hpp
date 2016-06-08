@@ -325,6 +325,23 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << expr;
 		}
 	};
+	struct Alias : SGRX_RefCounted
+	{
+		String name;
+		ValExpr expr;
+		double value;
+		
+		Alias() : value(0){}
+		template< class T > void Serialize( T& arch )
+		{
+			arch << name;
+			arch << expr;
+		}
+		template< class T > static Alias* UnserializeCreate( T& arch )
+		{
+			return new Alias;
+		}
+	};
 	struct State : SGRX_RefCounted
 	{
 		SGRX_GUID guid;
@@ -438,12 +455,15 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		Handle< State > current_state;
 		AnimPlayer player_anim;
+		HashTable< SGRX_GUID, State* > state_lookup;
 		HashTable< SGRX_GUID, size_t > transition_lookup; /* GUID -> ID array offset */
 		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
 		... NULL GUID is first set of entries, always present */
 		
-		PlayerNode() : Node( NT_Player ){ RehashTransitions(); player_anim.Play( GR_GetAnim( "run" ) ); }
+		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &player_anim; }
+		ENGINE_EXPORT void UpdateState( const MEVariableInterface* vars );
+		ENGINE_EXPORT void RehashStates();
 		ENGINE_EXPORT void RehashTransitions();
 		template< class T > void Serialize( T& arch )
 		{
@@ -457,6 +477,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			
 			if( T::IsReader )
 			{
+				RehashStates();
 				RehashTransitions();
 				current_state = starting_state;
 			}
@@ -552,7 +573,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		// 2: added masks
 		// 3: added joints
 		// 4: base offset
-		// 5: added nodes, variables
+		// 5: added nodes, variables, aliases
 		SerializeVersionHelper<T> arch( basearch, 5 );
 		
 		arch( mesh );
@@ -564,6 +585,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		{
 			arch << nodes;
 			arch << variables;
+			arch << aliases;
 			
 			uint32_t output_id = nodes.find_first_at( output_node );
 			arch << output_id;
@@ -573,6 +595,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		{
 			nodes.clear();
 			variables.clear();
+			aliases.clear();
 			output_node = NULL;
 		}
 	}
@@ -588,7 +611,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
-	ENGINE_EXPORT void FixedTick( float deltaTime );
+	ENGINE_EXPORT void FixedTick( float deltaTime, bool changeStates = true );
 	ENGINE_EXPORT void PreRender( float blendFactor );
 	ENGINE_EXPORT void RecalcLayerState();
 	
@@ -644,6 +667,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	Array< Mask > masks;
 	Array< Handle< Node > > nodes;
 	Array< Handle< Variable > > variables;
+	Array< Handle< Alias > > aliases;
 	Handle< Node > output_node;
 	
 	SceneHandle m_scene;

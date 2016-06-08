@@ -1324,6 +1324,31 @@ void EditMaskInfo( size_t self_id, AnimCharacter::Mask& mask )
 	ImGui::SetCursorPos( cursorEnd );
 }
 
+static HashTable< void*, RCString > g_ExprCompileResults;
+void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
+{
+	if( IMGUIEditString( label, expr.expr, 256 ) )
+	{
+		MECompileResult cr = expr.Recompile( g_AnimChar );
+		if( cr )
+		{
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "%s at pos. %d (%s...)",
+				StackString<128>(cr.error).str,
+				int( cr.unparsed.data() - expr.expr.data() ),
+				StackString<16>(cr.unparsed).str );
+			g_ExprCompileResults.set( &expr, bfr );
+		}
+		else
+			g_ExprCompileResults.unset( &expr );
+	}
+	RCString* errptr = g_ExprCompileResults.getptr( &expr );
+	if( errptr )
+		ImGui::Text( "Error: %s", errptr->c_str() );
+	else
+		ImGui::Text( "Value: %g", expr.compiled_expr.Eval( g_AnimChar ) );
+}
+
 void EditVariableInfo( size_t self_id, Handle<AnimCharacter::Variable>& var )
 {
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
@@ -1338,7 +1363,16 @@ void EditVariableInfo( size_t self_id, Handle<AnimCharacter::Variable>& var )
 	}
 }
 
-void EditACStateProps();
+void EditAliasInfo( size_t self_id, Handle<AnimCharacter::Alias>& alias )
+{
+	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
+	if( ImGui::TreeNode( &alias, "Alias: %s", StackString<256>(alias->name).str ) )
+	{
+		IMGUIEditString( "Name", alias->name, 256 );
+		EditValExpr( "Value", alias->expr );
+		ImGui::TreePop();
+	}
+}
 
 void EditACVariables( AnimCharacter& ac )
 {
@@ -1352,6 +1386,15 @@ void EditACVariables( AnimCharacter& ac )
 		}
 		if( ImGui::EndChangeCheck() )
 			ac._ReindexVariables();
+	});
+	
+	IMGUI_GROUP( "Aliases", false,
+	{
+		IMGUIEditArray( ac.aliases, EditAliasInfo, NULL );
+		if( ImGui::Button( "Add alias" ) )
+		{
+			ac.aliases.push_back( new AnimCharacter::Alias );
+		}
 	});
 }
 
@@ -1502,31 +1545,6 @@ static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2, ImColor col =
 	draw_list->PathStroke(col, false, 3.0f);
 }
 
-static HashTable< void*, RCString > g_ExprCompileResults;
-void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
-{
-	if( IMGUIEditString( label, expr.expr, 256 ) )
-	{
-		MECompileResult cr = expr.Recompile( g_AnimChar );
-		if( cr )
-		{
-			char bfr[ 256 ];
-			sgrx_snprintf( bfr, 256, "%s at pos. %d (%s...)",
-				StackString<128>(cr.error).str,
-				int( cr.unparsed.data() - expr.expr.data() ),
-				StackString<16>(cr.unparsed).str );
-			g_ExprCompileResults.set( &expr, bfr );
-		}
-		else
-			g_ExprCompileResults.unset( &expr );
-	}
-	RCString* errptr = g_ExprCompileResults.getptr( &expr );
-	if( errptr )
-		ImGui::Text( "Error: %s", errptr->c_str() );
-	else
-		ImGui::Text( "Value: %g", expr.compiled_expr.Eval( g_AnimChar ) );
-}
-
 
 //
 //  S T A T E   E D I T O R
@@ -1552,36 +1570,52 @@ static void GenAnimPrintName( char bfr[128], StringView anim, const char* def )
 		strcpy( bfr, def );
 }
 
+void EditTransition( AnimCharacter::Transition* tr )
+{
+	AnimCharacter::PlayerNode* P = g_EditedPlayerNode;
+	AnimCharacter::State* a = NULL, * b = NULL;
+	bool fromany = false;
+	for( size_t i = 0; i < P->states.size(); ++i )
+	{
+		AnimCharacter::State* s = P->states[ i ];
+		if( tr->source.IsNull() )
+			fromany = true;
+		if( s->guid == tr->source )
+			a = s;
+		if( s->guid == tr->target )
+			b = s;
+	}
+	
+	ImGui::Text( "Transition: %s -> %s",
+		fromany ? "<any>" : ( a ? StackPath(a->name).str : "<!err:a>" ),
+		b ? StackPath(b->name).str : "<!err:b>" );
+	ImGui::Separator();
+	if( ImGui::Button( "Delete" ) )
+	{
+		P->transitions.remove_first( tr );
+		P->RehashTransitions();
+		if( g_SelTransition == tr )
+			g_SelTransition = NULL;
+		return;
+	}
+	if( !fromany )
+	{
+		IMGUIEditBool( "Bidirectional", tr->bidi );
+	}
+	EditValExpr( "Condition", tr->expr );
+	
+	ImGui::Separator();
+}
+
 void EditACStateProps()
 {
 	AnimCharacter::PlayerNode* P = g_EditedPlayerNode;
 	
 	if( g_SelTransition )
 	{
-		AnimCharacter::State* a = NULL, * b = NULL;
-		for( size_t i = 0; i < P->states.size(); ++i )
-		{
-			AnimCharacter::State* s = P->states[ i ];
-			if( s->guid == g_SelTransition->source )
-				a = s;
-			if( s->guid == g_SelTransition->target )
-				b = s;
-		}
-		
-		ImGui::Text( "Transition: %s -> %s",
-			a ? StackPath(a->name).str : "<!err:a>",
-			b ? StackPath(b->name).str : "<!err:b>" );
-		ImGui::Separator();
-		if( ImGui::Button( "Delete" ) )
-		{
-			P->transitions.remove_first( g_SelTransition );
-			g_SelTransition = NULL;
-			return;
-		}
-		IMGUIEditBool( "Bidirectional", g_SelTransition->bidi );
-		EditValExpr( "Condition", g_SelTransition->expr );
-		
-		ImGui::Separator();
+		ImGui::PushID( -1 );
+		EditTransition( g_SelTransition );
+		ImGui::PopID();
 	}
 	
 	if( g_SelState )
@@ -1605,6 +1639,19 @@ void EditACStateProps()
 		IMGUIEditBool( "Loop", g_SelState->loop );
 		IMGUIEditFloat( "Speed", g_SelState->speed, 0, 1000 );
 		
+		IMGUI_GROUP( "Transitions from anywhere", true,
+		{
+			for( size_t i = 0; i < P->transitions.size(); ++i )
+			{
+				AnimCharacter::Transition* tr = P->transitions[ i ];
+				if( tr->source.NotNull() || tr->target != g_SelState->guid )
+					continue;
+				ImGui::PushID( i );
+				EditTransition( tr );
+				ImGui::PopID();
+			}
+		});
+		
 		ImGui::Separator();
 	}
 }
@@ -1612,15 +1659,16 @@ void EditACStateProps()
 static void TryAddTransition( AnimCharacter::State* a, AnimCharacter::State* b )
 {
 	AnimCharacter::PlayerNode* P = g_EditedPlayerNode;
+	SGRX_GUID srcguid = a ? a->guid : SGRX_GUID::Null;
 	for( size_t i = 0; i < P->transitions.size(); ++i )
 	{
 		AnimCharacter::Transition* tr = P->transitions[ i ];
-		if( tr->source == a->guid && tr->target == b->guid )
+		if( tr->source == srcguid && tr->target == b->guid )
 			return; // already exists
 	}
 	
 	AnimCharacter::Transition* tr = new AnimCharacter::Transition;
-	tr->source = a->guid;
+	tr->source = srcguid;
 	tr->target = b->guid;
 	P->transitions.push_back( tr );
 	g_SelTransition = tr;
@@ -1649,6 +1697,7 @@ static void EditPlayerStates()
 	
 	HashTable< SGRX_GUID, ImVec2 > inPosMap;
 	HashTable< SGRX_GUID, ImVec2 > outPosMap;
+//	outPosMap.set( SGRX_GUID::Null, left_upper_corner );
 	for( size_t i = 0; i < P->states.size(); ++i )
 	{
 		AnimCharacter::State* node = P->states[ i ];
@@ -1762,7 +1811,11 @@ static void EditPlayerStates()
 	for( size_t i = 0; i < P->transitions.size(); ++i )
 	{
 		AnimCharacter::Transition* tr = P->transitions[ i ];
-		if( HoverLink( outPosMap.getcopy( tr->source ), inPosMap.getcopy( tr->target ) ) )
+		ImVec2 p2 = inPosMap.getcopy( tr->target );
+		ImVec2 p1 = tr->source.NotNull() ?
+			outPosMap.getcopy( tr->source ) :
+			p2 + ImVec2( -20, 0 );
+		if( HoverLink( p1, p2 ) )
 			tr_hover = tr;
 	}
 	if( ImGui::IsMouseHoveringWindow() && ImGui::IsMouseClicked(0) )
@@ -1775,10 +1828,11 @@ static void EditPlayerStates()
 			c.Value.x += 50/255.0f; c.Value.y += 50/255.0f; c.Value.z += 50/255.0f;
 		if( tr == g_SelTransition )
 			c.Value.z += 100/255.0f;
-		DrawLink( draw_list,
-			outPosMap.getcopy( tr->source ),
-			inPosMap.getcopy( tr->target ),
-			c );
+		ImVec2 p2 = inPosMap.getcopy( tr->target );
+		ImVec2 p1 = tr->source.NotNull() ?
+			outPosMap.getcopy( tr->source ) :
+			p2 + ImVec2( -20, 0 );
+		DrawLink( draw_list, p1, p2, c );
 	}
 	
 	draw_list->ChannelsMerge();
@@ -1817,11 +1871,26 @@ static void EditPlayerStates()
 			ImGui::Separator();
 			if (ImGui::MenuItem("Delete"))
 			{
+				for( size_t i = 0; i < P->transitions.size(); ++i )
+				{
+					AnimCharacter::Transition* tr = P->transitions[ i ];
+					if( tr->source == node->guid || tr->target == node->guid )
+					{
+						if( g_SelTransition == tr )
+							g_SelTransition = NULL;
+						P->transitions.erase( i-- );
+					}
+				}
 				P->states.remove_first( node );
+				P->RehashStates();
 				P->RehashTransitions();
 				g_SelState = NULL;
 			}
 			ImGui::Separator();
+			if( ImGui::MenuItem( "Create transition from anywhere" ) )
+			{
+				TryAddTransition( NULL, node );
+			}
 			if( ImGui::MenuItem( "Set as current" ) )
 			{
 				P->current_state = node;
@@ -1841,6 +1910,7 @@ static void EditPlayerStates()
 			{
 				ns->Init( V2( scene_pos ) );
 				P->states.push_back( ns );
+				P->RehashStates();
 				P->RehashTransitions();
 				ImGui::TriggerChangeCheck();
 			}
@@ -2343,7 +2413,7 @@ struct CSEditor : IGame
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		g_AnimChar->RecalcLayerState();
-		g_AnimChar->FixedTick( dt );
+		g_AnimChar->FixedTick( dt, false );
 		for( int i = 0; i < g_phyIters; ++i )
 			g_PhyWorld->Step( dt * g_phySpeed / g_phyIters );
 		
