@@ -462,6 +462,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &player_anim; }
+		ENGINE_EXPORT void StartCurrentState();
 		ENGINE_EXPORT void UpdateState( const MEVariableInterface* vars );
 		ENGINE_EXPORT void RehashStates();
 		ENGINE_EXPORT void RehashTransitions();
@@ -609,6 +610,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT void _UnlinkNode( Node* node );
 	ENGINE_EXPORT void _Prepare();
 	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
+	ENGINE_EXPORT void ResetStates();
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
 	ENGINE_EXPORT void FixedTick( float deltaTime, bool changeStates = true );

@@ -951,10 +951,23 @@ Animator* AnimCharacter::LayersNode::GetAnimator( AnimCharacter* ch )
 	return &ch->m_anLayers;
 }
 
+void AnimCharacter::PlayerNode::StartCurrentState()
+{
+	if( !current_state )
+		return;
+	puts("state");
+	player_anim.Play(
+		GR_GetAnim( current_state->anim ),
+		!current_state->loop );
+}
+
 void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
 {
 	if( !current_state )
+	{
 		current_state = starting_state;
+		StartCurrentState();
+	}
 	if( !current_state )
 		return;
 	
@@ -965,6 +978,7 @@ void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
 		if( tr->expr.Eval( vars ) )
 		{
 			current_state = state_lookup.getcopy( tr->target );
+			StartCurrentState();
 			return;
 		}
 	}
@@ -979,6 +993,7 @@ void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
 			if( tr->expr.Eval( vars ) )
 			{
 				current_state = state_lookup.getcopy( tr->target );
+				StartCurrentState();
 				return;
 			}
 		}
@@ -987,6 +1002,7 @@ void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
 			if( !tr->expr.Eval( vars ) )
 			{
 				current_state = state_lookup.getcopy( tr->source );
+				StartCurrentState();
 				return;
 			}
 		}
@@ -1186,6 +1202,18 @@ void AnimCharacter::_EquipAnimator( Animator* anim, int which )
 	anim->m_mesh = m_cachedMesh;
 	anim->m_pose = ArrayView<AnimTrackFrame>( m_node_frames ).part( at, num_bones );
 	anim->Prepare();
+}
+
+void AnimCharacter::ResetStates()
+{
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		if( nodes[ i ]->type == NT_Player )
+		{
+			SGRX_CAST( PlayerNode*, PN, nodes[ i ].item );
+			PN->current_state = PN->starting_state;
+		}
+	}
 }
 
 void AnimCharacter::SetTransform( const Mat4& mtx )

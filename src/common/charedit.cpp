@@ -1550,10 +1550,17 @@ static void DrawLink( ImDrawList* draw_list, ImVec2 p1, ImVec2 p2, ImColor col =
 //  S T A T E   E D I T O R
 //
 
-static AnimCharacter::PlayerNode* g_EditedPlayerNode;
+static AnimCharacter::PlayerNode* g_EditedPlayerNode = NULL;
 static AnimCharacter::State* g_SelState = NULL;
 static AnimCharacter::Transition* g_SelTransition = NULL;
 static ImVec2 g_StateCameraPos(0,0);
+
+static void AfterReload()
+{
+	g_EditedPlayerNode = NULL;
+	g_SelState = NULL;
+	g_SelTransition = NULL;
+}
 
 static void GenAnimPrintName( char bfr[128], StringView anim, const char* def )
 {
@@ -2313,10 +2320,12 @@ enum EditorMode
 {
 	EditChar,
 	RecalcBones,
+	AnimPreview,
 	RagdollTest,
 	MiscProps,
 };
 int g_mode = EditChar;
+bool g_APChangeStates = false;
 float g_phySpeed = 1;
 int g_phyIters = 1;
 bool g_phyIIEnable = false;
@@ -2327,6 +2336,19 @@ Vec3 g_phyIIDir = V3(0);
 float g_phyIIStrength = 1;
 float g_phyIIAtten = 1;
 float g_phyIIRadius = 10;
+
+
+static bool ModeRB( const char* label, int mode, int key )
+{
+	if( ImGui::RadioButton( label, &g_mode, mode ) )
+		return true;
+	if( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( key, false ) )
+	{
+		g_mode = mode;
+		return true;
+	}
+	return false;
+}
 
 
 struct CSEditor : IGame
@@ -2413,7 +2435,7 @@ struct CSEditor : IGame
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		g_AnimChar->RecalcLayerState();
-		g_AnimChar->FixedTick( dt, false );
+		g_AnimChar->FixedTick( dt, g_mode == AnimPreview && g_APChangeStates );
 		for( int i = 0; i < g_phyIters; ++i )
 			g_PhyWorld->Step( dt * g_phySpeed / g_phyIters );
 		
@@ -2443,6 +2465,7 @@ struct CSEditor : IGame
 						g_fileName = "";
 						delete g_AnimChar;
 						g_AnimChar = new AnimCharacter( g_EdScene, g_PhyWorld );
+						AfterReload();
 					}
 					if( ImGui::MenuItem( "Open" ) ) needOpen = true;
 					if( ImGui::MenuItem( "Save" ) ) needSave = true;
@@ -2456,13 +2479,16 @@ struct CSEditor : IGame
 				ImGui::SameLine( 0, 50 );
 				ImGui::Text( "Edit mode:" );
 				ImGui::SameLine();
-				ImGui::RadioButton( "Character", &g_mode, EditChar );
+				ModeRB( "Character", EditChar, SDLK_1 );
 				ImGui::SameLine();
-				ImGui::RadioButton( "Recalc. bones", &g_mode, RecalcBones );
+				ModeRB( "Recalc. bones", RecalcBones, SDLK_2 );
 				ImGui::SameLine();
-				ImGui::RadioButton( "Ragdoll test", &g_mode, RagdollTest );
+				if( ModeRB( "Animation preview", AnimPreview, SDLK_3 ) )
+					g_AnimChar->_Prepare();
 				ImGui::SameLine();
-				ImGui::RadioButton( "Misc. settings", &g_mode, MiscProps );
+				ModeRB( "Ragdoll test", RagdollTest, SDLK_4 );
+				ImGui::SameLine();
+				ModeRB( "Misc. settings", MiscProps, SDLK_5 );
 				ImGui::EndMenuBar();
 			}
 			
@@ -2490,6 +2516,19 @@ struct CSEditor : IGame
 				else if( g_mode == RecalcBones )
 				{
 					BoneRecalcUI( *g_AnimChar );
+				}
+				else if( g_mode == AnimPreview )
+				{
+					IMGUIEditBool( "Change states", g_APChangeStates );
+					if( ImGui::Button( "Reset" ) )
+					{
+						g_AnimChar->ResetStates();
+					}
+					for( size_t i = 0; i < g_AnimChar->variables.size(); ++i )
+					{
+						AnimCharacter::Variable* var = g_AnimChar->variables[ i ];
+						IMGUIEditFloat( StackPath(var->name).str, var->value, -10000, 10000 );
+					}
 				}
 				else if( g_mode == RagdollTest )
 				{
@@ -2605,6 +2644,7 @@ struct CSEditor : IGame
 				{
 					g_fileName = fn;
 					reload_mesh_vertices();
+					AfterReload();
 				}
 				else
 				{
