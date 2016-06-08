@@ -736,8 +736,9 @@ void AnimRagdoll::Advance( float deltaTime, AnimInfo* info )
 	m_lastTickSize = deltaTime;
 	
 	ASSERT( m_bones.size() == m_pose.size() );
+	SGRX_MeshBone* MB = m_mesh.GetBonePtr();
 	for( size_t i = 0; i < m_pose.size(); ++i )
-		m_pose[ i ].fq = m_enabled && m_bones[ i ].bodyHandle;
+		m_pose[ i ].fq = m_enabled; // && ( m_bones[ i ].bodyHandle || MB[ i ].parent_id >= 0 );
 	
 	if( m_enabled == false )
 		return;
@@ -752,6 +753,10 @@ void AnimRagdoll::Advance( float deltaTime, AnimInfo* info )
 			Quat nrot = B.relRot.Inverted() * rot;
 			m_pose[ i ].pos = pos - Mat4::CreateRotationFromQuat(nrot).TransformNormal( B.relPos );
 			m_pose[ i ].rot = nrot;
+		}
+		else if( MB[ i ].parent_id >= 0 )
+		{
+			m_pose[ i ].SetMatrix( MB[ i ].boneOffset * m_pose[ MB[ i ].parent_id ].GetSRT() );
 		}
 	}
 }

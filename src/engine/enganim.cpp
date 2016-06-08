@@ -231,13 +231,18 @@ void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
 			for( size_t i = 0; i < m_pose.size(); ++i )
 			{
 				Mat4& M = m_tmpMtx[ i ];
-				M = MB[ i ].boneOffset;
+				if( animSource->m_pose[ i ].fq < 0.5f )
+				{
+					m_pose[ i ].Reset();
+					continue;
+				}
+				M = animSource->m_pose[ i ].GetSRT();
+				Mat4 pM = MB[ i ].boneOffset;
 				if( MB[ i ].parent_id >= 0 )
-					M = M * m_tmpMtx[ MB[ i ].parent_id ];
+					pM = pM * m_tmpMtx[ MB[ i ].parent_id ];
 				else
-					M = M * info->rootXF;
-				Mat4 sM = animSource->m_pose[ i ].GetSRT();
-				m_pose[ i ].SetMatrix( sM * M.Inverted() );
+					pM = pM * info->rootXF;
+				m_pose[ i ].SetMatrix( M * pM.Inverted() );
 			}
 		}
 	}

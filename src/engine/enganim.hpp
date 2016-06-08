@@ -112,6 +112,12 @@ struct AnimTrackXForm
 	Quat rot;
 	Vec3 scl;
 	
+	FINLINE void Reset()
+	{
+		pos = V3(0);
+		rot = Quat::Identity;
+		scl = V3(1);
+	}
 	FINLINE void SetAdd( const AnimTrackXForm& a, const AnimTrackXForm& b )
 	{
 		pos = a.pos + b.pos;
@@ -141,9 +147,7 @@ struct AnimTrackFrame : AnimTrackXForm
 	
 	FINLINE void Reset( float f = 0 )
 	{
-		pos = V3(0);
-		rot = Quat::Identity;
-		scl = V3(1);
+		AnimTrackXForm::Reset();
 		fq = f;
 	}
 };
