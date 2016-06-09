@@ -348,11 +348,20 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		String name;
 		String anim;
 		bool loop;
-		float speed;
+		ValExpr speed;
+		float fade_time;
 		// editor data
 		Vec2 editor_pos;
 		
-		State() : loop(true), speed(1){}
+		State() : loop(true), fade_time(0.5f){ speed.expr = "1"; speed.Recompile(NULL); }
+		StringView GetName()
+		{
+			if( name.size() ) return name;
+			StringView out = SV(anim).after( ":" );
+			if( out ) return out;
+			if( anim.size() ) return anim;
+			return "<unnamed>";
+		}
 		void Init( Vec2 ep )
 		{
 			editor_pos = ep;
@@ -366,7 +375,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << anim;
 			arch << loop;
 			arch << speed;
+			arch << fade_time;
 			arch << editor_pos;
+		}
+		template< class T > static State* UnserializeCreate( T& arch )
+		{
+			return new State;
 		}
 	};
 	struct Transition : SGRX_RefCounted
@@ -385,6 +399,10 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << target;
 			arch << bidi;
 		}
+		template< class T > static Transition* UnserializeCreate( T& arch )
+		{
+			return new Transition;
+		}
 	};
 	enum NodeType
 	{
@@ -396,6 +414,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		NT_RelAbs = 5,
 		NT_Layers = 6,
 	};
+	typedef SerializeVersionHelper<ByteReader> SVHBR;
+	typedef SerializeVersionHelper<ByteWriter> SVHBW;
+	#define IMPL_VIRTUAL_SERIALIZE \
+		virtual void Serialize( SVHBR& arch ){ SerializeT( arch ); } \
+		virtual void Serialize( SVHBW& arch ){ SerializeT( arch ); }
 	struct IF_GCC(ENGINE_EXPORT) Node : SGRX_RefCounted
 	{
 		virtual ~Node(){}
@@ -422,7 +445,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			guid = SGRX_GUID::Generate();
 		}
 		template< class T > static Node* UnserializeCreate( T& arch );
-		template< class T > void Serialize( T& arch )
+		template< class T > void SerializeT( T& arch )
 		{
 			if( T::IsWriter )
 			{
@@ -432,6 +455,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << guid;
 			arch << editor_pos;
 		}
+		IMPL_VIRTUAL_SERIALIZE;
 		
 		uint8_t type; // NodeType
 		SGRX_GUID guid;
@@ -466,7 +490,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		ENGINE_EXPORT void UpdateState( const MEVariableInterface* vars );
 		ENGINE_EXPORT void RehashStates();
 		ENGINE_EXPORT void RehashTransitions();
-		template< class T > void Serialize( T& arch )
+		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
 			arch << states;
@@ -483,6 +507,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 				current_state = starting_state;
 			}
 		}
+		IMPL_VIRTUAL_SERIALIZE;
 	};
 	struct IF_GCC(ENGINE_EXPORT) MaskNode : Node
 	{
@@ -496,11 +521,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		virtual SGRX_GUID* GetInputLink( int i ){ return i ? NULL : &src; }
 		virtual Animator** GetInputSource( int i ){ return i ? NULL : &mask_anim.animSource; }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &mask_anim; }
-		template< class T > void Serialize( T& arch )
+		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
 			arch << mask_name;
 		}
+		IMPL_VIRTUAL_SERIALIZE;
 	};
 	struct IF_GCC(ENGINE_EXPORT) BlendNode : Node
 	{
@@ -529,7 +555,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			blend_anim.blendFactor = factor.Eval( vars );
 			blend_anim.blendMode = mode;
 		}
-		template< class T > void Serialize( T& arch )
+		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
 			arch << A;
@@ -537,6 +563,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch << factor;
 			arch << mode;
 		}
+		IMPL_VIRTUAL_SERIALIZE;
 	};
 	struct IF_GCC(ENGINE_EXPORT) RelAbsNode : Node
 	{
@@ -558,12 +585,13 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		{
 			relabs_anim.inv = inv;
 		}
-		template< class T > void Serialize( T& arch )
+		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
 			arch << src;
 			arch << inv;
 		}
+		IMPL_VIRTUAL_SERIALIZE;
 	};
 	
 	template< class T > void Serialize( T& basearch )

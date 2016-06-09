@@ -1594,8 +1594,8 @@ void EditTransition( AnimCharacter::Transition* tr )
 	}
 	
 	ImGui::Text( "Transition: %s -> %s",
-		fromany ? "<any>" : ( a ? StackPath(a->name).str : "<!err:a>" ),
-		b ? StackPath(b->name).str : "<!err:b>" );
+		fromany ? "<any>" : ( a ? StackPath(a->GetName()).str : "<!err:a>" ),
+		b ? StackPath(b->GetName()).str : "<!err:b>" );
 	ImGui::Separator();
 	if( ImGui::Button( "Delete" ) )
 	{
@@ -1607,7 +1607,8 @@ void EditTransition( AnimCharacter::Transition* tr )
 	}
 	if( !fromany )
 	{
-		IMGUIEditBool( "Bidirectional", tr->bidi );
+		if( IMGUIEditBool( "Bidirectional", tr->bidi ) )
+			P->RehashTransitions();
 	}
 	EditValExpr( "Condition", tr->expr );
 	
@@ -1627,7 +1628,7 @@ void EditACStateProps()
 	
 	if( g_SelState )
 	{
-		ImGui::Text( "State" );
+		ImGui::Text( "State '%s'", StackPath(g_SelState->GetName()).str );
 		ImGui::Separator();
 		
 		IMGUIEditString( "Name", g_SelState->name, 256 );
@@ -1644,7 +1645,8 @@ void EditACStateProps()
 			g_NUIAnimPicker->Popup( caption, g_SelState->anim );
 		}
 		IMGUIEditBool( "Loop", g_SelState->loop );
-		IMGUIEditFloat( "Speed", g_SelState->speed, 0, 1000 );
+		EditValExpr( "Speed", g_SelState->speed );
+		IMGUIEditFloat( "Fade time", g_SelState->fade_time, 0, 1000 );
 		
 		IMGUI_GROUP( "Transitions from anywhere", true,
 		{
@@ -1678,6 +1680,7 @@ static void TryAddTransition( AnimCharacter::State* a, AnimCharacter::State* b )
 	tr->source = srcguid;
 	tr->target = b->guid;
 	P->transitions.push_back( tr );
+	P->RehashTransitions();
 	g_SelTransition = tr;
 }
 static void EditPlayerStates()
@@ -1718,7 +1721,7 @@ static void EditPlayerStates()
 		ImGui::SetCursorScreenPos(node_rect_min + NODE_WINDOW_PADDING);
 		ImGui::BeginGroup();
 		ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(4,4) );
-		ImGui::Text( "%s", StackPath(node->name).str );
+		ImGui::Text( "%s", StackPath(node->GetName()).str );
 		ImGui::Dummy( ImVec2(140, 1) );
 		{
 			char bfr[ 128 ];
@@ -1874,7 +1877,7 @@ static void EditPlayerStates()
 		ImVec2 scene_pos = ImGui::GetMousePosOnOpeningCurrentPopup() - offset;
 		if (node)
 		{
-			ImGui::Text("State '%s'", StackString<100>(node->name).str);
+			ImGui::Text("State '%s'", StackString<100>(node->GetName()).str);
 			ImGui::Separator();
 			if (ImGui::MenuItem("Delete"))
 			{
@@ -1901,6 +1904,7 @@ static void EditPlayerStates()
 			if( ImGui::MenuItem( "Set as current" ) )
 			{
 				P->current_state = node;
+				P->StartCurrentState();
 			}
 			if( ImGui::MenuItem( "Set as first" ) )
 			{
@@ -1919,6 +1923,9 @@ static void EditPlayerStates()
 				P->states.push_back( ns );
 				P->RehashStates();
 				P->RehashTransitions();
+				g_SelState = ns;
+				if( !P->starting_state )
+					P->starting_state = ns;
 				ImGui::TriggerChangeCheck();
 			}
 			ImGui::Separator();
@@ -2002,14 +2009,6 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 		if( ImGui::Button( "Edit states / transitions", ImVec2(140,20) ) )
 		{
 			g_EditedPlayerNode = PN;
-		}
-		if( ImGui::Button( "Play 'run'", ImVec2(140,20) ) )
-		{
-			PN->player_anim.Play( GR_GetAnim( "run" ) );
-		}
-		if( ImGui::Button( "Play 'standing_idle'", ImVec2(140,20) ) )
-		{
-			PN->player_anim.Play( GR_GetAnim( "standing_idle" ) );
 		}
 	}
 	else if( node->type == AnimCharacter::NT_Mask )
@@ -2222,6 +2221,8 @@ void EditNodes( AnimCharacter& ac )
 				nn->Init( V2( scene_pos ) );
 				ac.nodes.push_back( nn );
 				ac._RehashNodes();
+				if( !ac.output_node )
+					ac.output_node = nn;
 				ImGui::TriggerChangeCheck();
 			}
 			ImGui::Separator();
@@ -2325,7 +2326,7 @@ enum EditorMode
 	MiscProps,
 };
 int g_mode = EditChar;
-bool g_APChangeStates = false;
+bool g_APChangeStates = true;
 float g_phySpeed = 1;
 int g_phyIters = 1;
 bool g_phyIIEnable = false;
@@ -2484,7 +2485,10 @@ struct CSEditor : IGame
 				ModeRB( "Recalc. bones", RecalcBones, SDLK_2 );
 				ImGui::SameLine();
 				if( ModeRB( "Animation preview", AnimPreview, SDLK_3 ) )
+				{
 					g_AnimChar->_Prepare();
+					g_AnimChar->ResetStates();
+				}
 				ImGui::SameLine();
 				ModeRB( "Ragdoll test", RagdollTest, SDLK_4 );
 				ImGui::SameLine();
@@ -2524,6 +2528,20 @@ struct CSEditor : IGame
 					{
 						g_AnimChar->ResetStates();
 					}
+					IMGUI_GROUP( "Information", true,
+					{
+						for( size_t i = 0; i < g_AnimChar->nodes.size(); ++i )
+						{
+							AnimCharacter::Node* N = g_AnimChar->nodes[ i ];
+							if( N->type == AnimCharacter::NT_Player )
+							{
+								SGRX_CAST( AnimCharacter::PlayerNode*, PN, N );
+								ImGui::Text( "PlayerNode [#%d]: current_state=%s",
+									int(i),
+									StackPath(PN->current_state ? PN->current_state->GetName() : "<none>").str );
+							}
+						}
+					});
 					for( size_t i = 0; i < g_AnimChar->variables.size(); ++i )
 					{
 						AnimCharacter::Variable* var = g_AnimChar->variables[ i ];

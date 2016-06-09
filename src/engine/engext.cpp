@@ -955,10 +955,10 @@ void AnimCharacter::PlayerNode::StartCurrentState()
 {
 	if( !current_state )
 		return;
-	puts("state");
 	player_anim.Play(
 		GR_GetAnim( current_state->anim ),
-		!current_state->loop );
+		!current_state->loop,
+		current_state->fade_time );
 }
 
 void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
@@ -1177,6 +1177,11 @@ void AnimCharacter::_Prepare()
 		if( N->type == NT_Player )
 		{
 			SGRX_CAST( PlayerNode*, PN, N );
+			for( size_t j = 0; j < PN->states.size(); ++j )
+			{
+				State* s = PN->states[ j ];
+				s->speed.Recompile( this );
+			}
 			for( size_t j = 0; j < PN->transitions.size(); ++j )
 			{
 				Transition* tr = PN->transitions[ j ];
@@ -1212,6 +1217,7 @@ void AnimCharacter::ResetStates()
 		{
 			SGRX_CAST( PlayerNode*, PN, nodes[ i ].item );
 			PN->current_state = PN->starting_state;
+			PN->StartCurrentState();
 		}
 	}
 }
