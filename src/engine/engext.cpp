@@ -1267,7 +1267,7 @@ void AnimCharacter::RecalcLayerState()
 		return;
 	
 	for( size_t i = 0; i < m_anLayers.m_pose.size(); ++i )
-		m_anLayers.m_pose[ i ].Reset();
+		m_anLayers.m_pose[ i ].Reset( 1 );
 	for( size_t i = 0; i < layers.size(); ++i )
 	{
 		Layer& L = layers[ i ];

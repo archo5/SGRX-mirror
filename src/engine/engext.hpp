@@ -571,11 +571,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	struct IF_GCC(ENGINE_EXPORT) RelAbsNode : Node
 	{
 		SGRX_GUID src;
-		bool inv;
+		uint8_t flags;
 		
 		AnimRelAbs relabs_anim;
 		
-		RelAbsNode() : Node( NT_RelAbs ), inv( false ){}
+		RelAbsNode() : Node( NT_RelAbs ), flags( 0 ){}
 		virtual int GetInputLinkCount(){ return 1; }
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &src;
@@ -586,13 +586,13 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &relabs_anim; }
 		virtual void Advance( float dt, const MEVariableInterface* vars )
 		{
-			relabs_anim.inv = inv;
+			relabs_anim.flags = flags;
 		}
 		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
 			arch << src;
-			arch << inv;
+			arch << flags;
 		}
 		IMPL_VIRTUAL_SERIALIZE;
 	};

@@ -2029,7 +2029,8 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 	{
 		SGRX_CAST( AnimCharacter::RelAbsNode*, RN, node );
 		EditNodeInput( "Input", RN, RN->src );
-		IMGUIEditBool( "Reverse", RN->inv );
+		IMGUIEditIntFlags( "Reverse", RN->flags, ANIM_RELABS_INVERT );
+	//	IMGUIEditIntFlags( "Space change", RN->flags, ANIM_RELABS_POSOFF );
 	}
 }
 

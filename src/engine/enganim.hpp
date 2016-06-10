@@ -198,15 +198,17 @@ struct IF_GCC(ENGINE_EXPORT) AnimBlend : Animator
 	uint8_t blendMode;
 };
 
+#define ANIM_RELABS_INVERT 0x01
+#define ANIM_RELABS_POSOFF 0x02
 struct IF_GCC(ENGINE_EXPORT) AnimRelAbs : Animator
 {
-	AnimRelAbs() : animSource( NULL ), inv( false ){}
+	AnimRelAbs() : animSource( NULL ), flags( 0 ){}
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
 	Array< Mat4 > m_tmpMtx;
 	
 	Animator* animSource;
-	bool inv;
+	uint8_t flags;
 };
 
 struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator

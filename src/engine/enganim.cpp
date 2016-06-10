@@ -213,7 +213,7 @@ void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
 		animSource->Advance( deltaTime, info );
 		m_tmpMtx.resize( m_mesh.GetBoneCount() );
 		SGRX_MeshBone* MB = m_mesh.GetBonePtr();
-		if( !inv )
+		if( !( flags & ANIM_RELABS_INVERT ) )
 		{
 			// rel -> abs
 			for( size_t i = 0; i < m_pose.size(); ++i )
@@ -235,11 +235,6 @@ void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
 			{
 				Mat4& M = m_tmpMtx[ i ];
 				m_pose[ i ].fq = animSource->m_pose[ i ].fq;
-				if( animSource->m_pose[ i ].fq < 0.5f )
-				{
-			//		m_pose[ i ].Reset();
-			//		continue;
-				}
 				M = animSource->m_pose[ i ].GetSRT();
 				Mat4 pM = MB[ i ].boneOffset;
 				if( MB[ i ].parent_id >= 0 )
