@@ -2412,6 +2412,8 @@ static void _LoadAnimBundle( const StringView& path, const StringView& prefix )
 
 AnimHandle GR_GetAnim( const StringView& name )
 {
+	if( !name )
+		return NULL;
 	AnimHandle out = g_Anims->getcopy( name );
 	if( out )
 		return out;

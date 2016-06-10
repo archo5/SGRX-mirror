@@ -376,6 +376,16 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		A.prev_fade_at = A.fade_at;
 		A.fade_at += deltaTime;
 		
+		if( AN == NULL )
+		{
+			if( A.fade_at > A.fadetime )
+			{
+				// do not preserve empty ended anim
+				m_currentAnims.erase( 0, i + 1 );
+				break;
+			}
+			continue;
+		}
 		float animTime = AN->GetAnimTime();
 		if( !A.once )
 		{
@@ -409,28 +419,37 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		Quat R = Quat::Identity;
 		for( size_t i = 0; i < m_pose.size(); ++i )
 		{
-			int tid = A.trackIDs[ i ];
-			if( tid < 0 )
-				continue;
-			
-			AN->GetState( tid, A.at * AN->speed, P, R, S );
-			float animTime = AN->GetAnimTime();
-			float q = A.once ?
-				smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
-				smoothlerp_oneway( A.fade_at, 0, A.fadetime );
+			float q, t;
+			if( AN )
+			{
+				int tid = A.trackIDs[ i ];
+				if( tid < 0 )
+					continue;
+				AN->GetState( tid, A.at * AN->speed, P, R, S );
+				float animTime = AN->GetAnimTime();
+				q = A.once ?
+					smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
+					smoothlerp_oneway( A.fade_at, 0, A.fadetime );
+				t = 1;
+			}
+			else
+			{
+				q = smoothlerp_oneway( A.fade_at, 0, A.fadetime );
+				t = 0;
+			}
 			if( !m_pose[ i ].fq )
 			{
 				m_pose[ i ].pos = P;
 				m_pose[ i ].rot = R;
 				m_pose[ i ].scl = S;
-				m_pose[ i ].fq = q;
+				m_pose[ i ].fq = q * t;
 			}
 			else
 			{
 				m_pose[ i ].pos = TLERP( m_pose[ i ].pos, P, q );
 				m_pose[ i ].rot = TLERP( m_pose[ i ].rot, R, q );
 				m_pose[ i ].scl = TLERP( m_pose[ i ].scl, S, q );
-				m_pose[ i ].fq = TLERP( m_pose[ i ].fq, 1.0f, q );
+				m_pose[ i ].fq = TLERP( m_pose[ i ].fq, t, q );
 			}
 		}
 	}
@@ -440,8 +459,6 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 
 void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
 {
-	if( !anim )
-		return;
 	if( !once && m_currentAnims.size() && m_currentAnims.last().once == false && m_currentAnims.last().anim == anim )
 		return; // ignore repetitive invocations
 	Anim A = { anim, _getTrackIds( anim ), 0, 0, 0, fadetime, once };
@@ -484,7 +501,7 @@ bool AnimPlayer::CheckMarker( const StringView& name )
 
 int* AnimPlayer::_getTrackIds( const AnimHandle& anim )
 {
-	if( !m_pose.size() )
+	if( !m_pose.size() || !anim )
 		return NULL;
 	int* ids = m_animCache.getcopy( anim );
 	if( !ids )

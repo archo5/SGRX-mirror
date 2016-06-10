@@ -653,7 +653,8 @@ void IMGUIPickerCore::_Search( StringView text )
 	{
 		for( size_t i = 0; i < count; ++i )
 		{
-			if( GetEntryPath( i ).view().match_loose( text ) )
+			StringView e = GetEntryPath( i ).view();
+			if( !e || e.match_loose( text ) )
 				m_filtered.push_back( i );
 		}
 	}
@@ -661,7 +662,8 @@ void IMGUIPickerCore::_Search( StringView text )
 	{
 		for( size_t i = 0; i < count; ++i )
 		{
-			if( GetEntryPath( i ).view().find_first_at( text ) != NOT_FOUND )
+			StringView e = GetEntryPath( i ).view();
+			if( !e || e.find_first_at( text ) != NOT_FOUND )
 				m_filtered.push_back( i );
 		}
 	}
@@ -1125,6 +1127,7 @@ void IMGUIAnimPicker::Reload()
 	
 	LOG << "Reloading anims";
 	m_entries.clear();
+	m_entries.push_back( "" );
 	FS_IterateDirectory( "meshes", this );
 	_Search( m_searchString );
 }
