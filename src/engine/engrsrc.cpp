@@ -1238,6 +1238,17 @@ bool SGRX_IMesh::IsBoneUnder( int bone, int parent )
 	return bone == parent;
 }
 
+int SGRX_IMesh::BoneDistance( int bone, int parent )
+{
+	int count = 1;
+	while( bone != parent && bone != -1 )
+	{
+		bone = m_bones[ bone ].parent_id;
+		count++;
+	}
+	return bone == parent ? count : -1;
+}
+
 
 SGRX_Log& operator << ( SGRX_Log& L, const SGRX_Camera& cam )
 {

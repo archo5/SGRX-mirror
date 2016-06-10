@@ -1095,6 +1095,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	);
 	
 	ENGINE_EXPORT bool IsBoneUnder( int bone, int parent );
+	ENGINE_EXPORT int BoneDistance( int bone, int parent );
 	
 	/* rendering info */
 	uint32_t m_dataFlags;

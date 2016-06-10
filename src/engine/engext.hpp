@@ -274,8 +274,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		String bone;
 		float weight;
 		bool children;
+		uint8_t mode;
 		
-		MaskCmd() : weight( 0 ), children( true ){}
+		MaskCmd() : weight( 0 ), children( true ), mode( SFM_Set ){}
 		
 		template< class T > void Serialize( T& arch )
 		{
@@ -283,6 +284,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch( bone );
 			arch( weight );
 			arch( children );
+			arch( mode, arch.version >= 6, SFM_Set );
 		}
 	};
 	struct Mask
@@ -524,6 +526,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
+			arch << src;
 			arch << mask_name;
 		}
 		IMPL_VIRTUAL_SERIALIZE;
@@ -603,7 +606,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		// 3: added joints
 		// 4: base offset
 		// 5: added nodes, variables, aliases
-		SerializeVersionHelper<T> arch( basearch, 5 );
+		// 6: added mask mode
+		SerializeVersionHelper<T> arch( basearch, 6 );
 		
 		arch( mesh );
 		arch( bones );

@@ -180,6 +180,7 @@ void AnimBlend::Advance( float deltaTime, AnimInfo* info )
 						mul,
 						animSourceB->m_pose[ i ].fq * blendFactor
 					);
+					m_pose[ i ].fq = clamp( animSourceA->m_pose[ i ].fq + animSourceB->m_pose[ i ].fq * blendFactor, 0, 1 );
 				}
 			}
 			else // ABM_Normal
@@ -191,6 +192,7 @@ void AnimBlend::Advance( float deltaTime, AnimInfo* info )
 						animSourceB->m_pose[ i ],
 						animSourceB->m_pose[ i ].fq * blendFactor
 					);
+					m_pose[ i ].fq = TLERP( animSourceA->m_pose[ i ].fq, 1.0f, animSourceB->m_pose[ i ].fq * blendFactor );
 				}
 			}
 		}
@@ -222,6 +224,7 @@ void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
 					M = M * m_tmpMtx[ MB[ i ].parent_id ];
 				else
 					M = M * info->rootXF;
+				m_pose[ i ].fq = animSource->m_pose[ i ].fq;
 				m_pose[ i ].SetMatrix( M );
 			}
 		}
@@ -231,10 +234,11 @@ void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
 			for( size_t i = 0; i < m_pose.size(); ++i )
 			{
 				Mat4& M = m_tmpMtx[ i ];
+				m_pose[ i ].fq = animSource->m_pose[ i ].fq;
 				if( animSource->m_pose[ i ].fq < 0.5f )
 				{
-					m_pose[ i ].Reset();
-					continue;
+			//		m_pose[ i ].Reset();
+			//		continue;
 				}
 				M = animSource->m_pose[ i ].GetSRT();
 				Mat4 pM = MB[ i ].boneOffset;
@@ -754,20 +758,33 @@ void AnimDeformer::_UpdatePoseInfo()
 }
 
 
-void GR_ClearFactors( Array< float >& out, float factor )
+void GR_ClearFactors( const ArrayView< float >& out, float factor )
 {
 	TMEMSET( out.data(), out.size(), factor );
 }
 
-void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch )
+void GR_SetFactors( const ArrayView< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch, uint8_t mode )
 {
 	int subbones[ SGRX_MAX_MESH_BONES ];
 	int numsb = 0;
 	GR_FindBones( subbones, numsb, mesh, name, ch );
-	for( int i = 0; i < numsb; ++i )
+	if( mode == SFM_AddDist )
 	{
-		out[ subbones[ i ] ] = factor;
+		for( int i = 0; i < numsb; ++i )
+			out[ subbones[ i ] ] += factor * mesh->BoneDistance( subbones[ i ], subbones[ 0 ] );
 	}
+	else if( mode == SFM_Add )
+	{
+		for( int i = 0; i < numsb; ++i )
+			out[ subbones[ i ] ] += factor;
+	}
+	else if( mode == SFM_Set )
+	{
+		for( int i = 0; i < numsb; ++i )
+			out[ subbones[ i ] ] = factor;
+	}
+	for( int i = 0; i < numsb; ++i )
+		out[ subbones[ i ] ] = clamp( out[ subbones[ i ] ], 0, 1 );
 }
 
 void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch )

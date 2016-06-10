@@ -5,8 +5,15 @@
 
 
 
-ENGINE_EXPORT void GR_ClearFactors( Array< float >& out, float factor );
-ENGINE_EXPORT void GR_SetFactors( Array< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch = true );
+enum SetFactorMode
+{
+	SFM_Set,
+	SFM_Add,
+	SFM_AddDist,
+};
+
+ENGINE_EXPORT void GR_ClearFactors( const ArrayView< float >& out, float factor );
+ENGINE_EXPORT void GR_SetFactors( const ArrayView< float >& out, const MeshHandle& mesh, const StringView& name, float factor, bool ch = true, uint8_t mode = SFM_Set );
 ENGINE_EXPORT void GR_FindBones( int* subbones, int& numsb, const MeshHandle& mesh, const StringView& name, bool ch );
 
 

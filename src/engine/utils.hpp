@@ -1939,17 +1939,13 @@ template< class T > struct IF_GCC(ENGINE_EXPORT) ArrayView
 	FINLINE ArrayView( const Array<mutable_type>& arr ) : m_data( arr.m_data ), m_size( arr.m_size ){}
 	FINLINE ArrayView( const ArrayView& av ) : m_data( av.m_data ), m_size( av.m_size ){}
 	
-	FINLINE T* data(){ return m_data; }
-	FINLINE const T* data() const { return m_data; }
+	FINLINE T* data() const{ return m_data; }
 	FINLINE size_t size() const { return m_size; }
 	FINLINE operator bool() const { return m_data && m_size; }
-	FINLINE T* begin(){ return m_data; }
-	FINLINE const T* begin() const { return m_data; }
-	FINLINE T* end(){ return m_data + m_size; }
-	FINLINE const T* end() const { return m_data + m_size; }
+	FINLINE T* begin() const { return m_data; }
+	FINLINE T* end() const { return m_data + m_size; }
 	
-	FINLINE T& operator [] ( size_t i ){ ASSERT( i < m_size ); return m_data[ i ]; }
-	FINLINE const T& operator [] ( size_t i ) const { ASSERT( i < m_size ); return m_data[ i ]; }
+	FINLINE T& operator [] ( size_t i ) const { ASSERT( i < m_size ); return m_data[ i ]; }
 	
 	FINLINE bool operator == ( const ArrayView& av ) const
 	{

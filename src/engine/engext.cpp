@@ -1168,7 +1168,7 @@ void AnimCharacter::_Prepare()
 	}
 	m_anEnd.animSource = output_node ? output_node->GetAnimator( this ) : NULL;
 	
-	// recompile expressions
+	// recompile expressions, reapply masks
 	for( size_t i = 0; i < aliases.size(); ++i )
 		aliases[ i ]->expr.Recompile( this );
 	for( size_t i = 0; i < nodes.size(); ++i )
@@ -1192,6 +1192,11 @@ void AnimCharacter::_Prepare()
 		{
 			SGRX_CAST( BlendNode*, BN, N );
 			BN->factor.Recompile( this );
+		}
+		else if( N->type == NT_Mask )
+		{
+			SGRX_CAST( MaskNode*, MN, N );
+			ApplyMask( MN->mask_name, &MN->mask_anim );
 		}
 	}
 	
@@ -1515,12 +1520,12 @@ bool AnimCharacter::ApplyMask( const StringView& name, AnimMask* tgt )
 		if( M.name != name )
 			continue;
 		
-		Array< float >& factors = tgt->blendFactors;
+		ArrayView<float> factors = tgt->blendFactors;
 		GR_ClearFactors( factors, 0 );
 		for( size_t j = 0; j < M.cmds.size(); ++j )
 		{
 			MaskCmd& MC = M.cmds[ j ];
-			GR_SetFactors( factors, m_cachedMesh, MC.bone, MC.weight, MC.children );
+			GR_SetFactors( factors, m_cachedMesh, MC.bone, MC.weight, MC.children, MC.mode );
 		}
 		return true;
 	}

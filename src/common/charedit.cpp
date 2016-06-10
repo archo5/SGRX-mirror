@@ -1005,19 +1005,8 @@ void DebugDraw()
 				for( size_t j = 0; j < M.cmds.size(); ++j )
 				{
 					AnimCharacter::MaskCmd& MC = M.cmds[ j ];
-					int bone_id = g_AnimChar->_FindBone( MC.bone );
-					if( bone_id >= 0 )
-					{
-						maskdata[ bone_id ] = MC.weight;
-						if( MC.children )
-						{
-							for( int b = 0; b < g_AnimChar->m_cachedMesh->m_numBones; ++b )
-							{
-								if( g_AnimChar->m_cachedMesh->IsBoneUnder( b, bone_id ) )
-									maskdata[ b ] = MC.weight;
-							}
-						}
-					}
+					GR_SetFactors( ArrayView<float>( maskdata, SGRX_MAX_MESH_BONES ),
+						g_AnimChar->m_cachedMesh, MC.bone, MC.weight, MC.children, MC.mode );
 				}
 				
 				for( int bone_id = 0; bone_id < g_AnimChar->m_cachedMesh->m_numBones; ++bone_id )
@@ -1277,11 +1266,21 @@ void EditLayerInfo( size_t, AnimCharacter::Layer& layer )
 	}
 }
 
+const char* SFModeToString( uint8_t mode )
+{
+	if( mode == SFM_Set ) return "Set";
+	if( mode == SFM_Add ) return "Add";
+	if( mode == SFM_AddDist ) return "Add-Dist";
+	return "<unknown>";
+}
+
 void EditMaskCmdInfo( size_t, AnimCharacter::MaskCmd& mcmd )
 {
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
-	if( ImGui::TreeNode( &mcmd, "Mask command: %s, weight = %g%s",
-		StackString<256>(mcmd.bone).str, mcmd.weight, mcmd.children ? ", incl. children" : "" ) )
+	if( ImGui::TreeNode( &mcmd, "Mask command: %s, weight = %g, mode = %s%s",
+		StackString<256>(mcmd.bone).str, mcmd.weight,
+		SFModeToString( mcmd.mode ),
+		mcmd.children ? ", incl. children" : "" ) )
 	{
 		int id = -1;
 		for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
@@ -1293,7 +1292,8 @@ void EditMaskCmdInfo( size_t, AnimCharacter::MaskCmd& mcmd )
 			}
 		}
 		PickBoneName( "Bone", mcmd.bone, id );
-		IMGUIEditFloat( "Weight", mcmd.weight, 0, 1 );
+		IMGUIEditFloat( "Weight", mcmd.weight, -1, 1 );
+		IMGUIComboBox( "Mode", mcmd.mode, "Set\0Add\0Add-Dist\0" );
 		ImGui::Checkbox( "Include children?", &mcmd.children );
 		
 		ImGui::TreePop();
@@ -2214,6 +2214,8 @@ void EditNodes( AnimCharacter& ac )
 				nn = new AnimCharacter::BlendNode;
 			if (ImGui::MenuItem("Add: Ragdoll node"))
 				nn = new AnimCharacter::RagdollNode;
+			if (ImGui::MenuItem("Add: Layers node"))
+				nn = new AnimCharacter::LayersNode;
 			if (ImGui::MenuItem("Add: Rel<->Abs node"))
 				nn = new AnimCharacter::RelAbsNode;
 			if( nn )
