@@ -331,7 +331,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	MI->matrix = Mat4::CreateSRT( V3(1), Quat::Identity, m_ivPos.curr );
 	m_level->LightMesh( MI, V3(1) );
 	
-	m_anTopPlayer.ClearBlendFactors( 0.0f );
+//	m_anTopPlayer.ClearBlendFactors( 0.0f );
 //	m_animChar.ApplyMask( "top", &m_anTopPlayer );
 	
 	m_anMainPlayer.Play( GR_GetAnim( "standing_idle" ) );

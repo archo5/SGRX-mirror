@@ -367,9 +367,9 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		
 		Anim& A = m_currentAnims[ i ];
 		SGRX_Animation* AN = A.anim;
-		A.at += deltaTime;
+		A.at += deltaTime * A.speed;
 		A.prev_fade_at = A.fade_at;
-		A.fade_at += deltaTime;
+		A.fade_at += deltaTime * A.speed;
 		
 		if( AN == NULL )
 		{
@@ -456,7 +456,7 @@ void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
 {
 	if( !once && m_currentAnims.size() && m_currentAnims.last().once == false && m_currentAnims.last().anim == anim )
 		return; // ignore repetitive invocations
-	Anim A = { anim, _getTrackIds( anim ), 0, 0, 0, fadetime, once };
+	Anim A = { anim, _getTrackIds( anim ), 0, 0, 0, fadetime, 1, once };
 	m_currentAnims.push_back( A );
 }
 

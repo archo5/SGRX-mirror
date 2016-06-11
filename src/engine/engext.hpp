@@ -499,6 +499,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &player_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			if( current_state )
+				player_anim.SetLastAnimSpeed( current_state->speed.Eval( vars ) );
+		}
 		ENGINE_EXPORT void StartCurrentState();
 		ENGINE_EXPORT void UpdateState( const MEVariableInterface* vars );
 		ENGINE_EXPORT void RehashStates();

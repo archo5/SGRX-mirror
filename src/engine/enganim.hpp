@@ -254,6 +254,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 		float fade_at;
 		float prev_fade_at;
 		float fadetime;
+		float speed;
 		bool once;
 	};
 	
@@ -265,12 +266,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
 	ENGINE_EXPORT void Stop();
 	ENGINE_EXPORT bool CheckMarker( const StringView& name );
-	
-	void ClearBlendFactors( float f ){ GR_ClearFactors( m_blendFactors, f ); }
-	void SetBlendFactors( const StringView& name, float f, bool ch = true )
-	{
-		GR_SetFactors( m_blendFactors, m_mesh, name, f, ch );
-	}
+	FINLINE void SetLastAnimSpeed( float s ){ if( m_currentAnims.size() ) m_currentAnims.last().speed = s; }
 	
 	ENGINE_EXPORT int* _getTrackIds( const AnimHandle& anim );
 	ENGINE_EXPORT void _clearAnimCache();
