@@ -923,6 +923,28 @@ void AnimRagdoll::ApplyImpulseExt( Vec3 origin, Vec3 imp, float atten, float rad
 
 
 
+void AnimRotator::Advance( float deltaTime, AnimInfo* info )
+{
+	ANIMATOR_ADVANCE_FRAME_CHECK( info );
+	if( animSource )
+	{
+		animSource->Advance( deltaTime, info );
+		Mat4 rm = Mat4::CreateRotationZ( DEG2RAD( angle ) );
+		for( size_t i = 0; i < m_pose.size(); ++i )
+		{
+			Mat4 xf = animSource->m_pose[ i ].GetSRT();
+			Vec3 tr = animSource->m_pose[ 0 ].pos; // origin position
+			xf.SetTranslation( xf.GetTranslation() - tr );
+			xf = xf * rm;
+			xf.SetTranslation( xf.GetTranslation() + tr );
+			m_pose[ i ].SetMatrix( xf );
+			m_pose[ i ].fq = animSource->m_pose[ i ].fq;
+		}
+	}
+}
+
+
+
 MECompileResult AnimCharacter::ValExpr::Recompile( const MEVariableInterface* vars )
 {
 	return compiled_expr.Compile( expr, vars );

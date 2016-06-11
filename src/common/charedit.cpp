@@ -2032,6 +2032,12 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 		IMGUIEditIntFlags( "Reverse", RN->flags, ANIM_RELABS_INVERT );
 	//	IMGUIEditIntFlags( "Space change", RN->flags, ANIM_RELABS_POSOFF );
 	}
+	else if( node->type == AnimCharacter::NT_Rotator )
+	{
+		SGRX_CAST( AnimCharacter::RotatorNode*, RN, node );
+		EditNodeInput( "Input", RN, RN->src );
+		EditValExpr( "Angle", RN->angle );
+	}
 }
 
 static ImVec2 g_NodeCameraPos(0,0);
@@ -2219,6 +2225,8 @@ void EditNodes( AnimCharacter& ac )
 				nn = new AnimCharacter::LayersNode;
 			if (ImGui::MenuItem("Add: Rel<->Abs node"))
 				nn = new AnimCharacter::RelAbsNode;
+			if (ImGui::MenuItem("Add: Rotator node"))
+				nn = new AnimCharacter::RotatorNode;
 			if( nn )
 			{
 				nn->Init( V2( scene_pos ) );

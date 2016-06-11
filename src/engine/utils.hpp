@@ -1025,6 +1025,12 @@ struct ENGINE_EXPORT Mat4
 	{
 		return V3( m[3][0], m[3][1], m[3][2] );
 	}
+	void SetTranslation( const Vec3& v )
+	{
+		m[3][0] = v.x;
+		m[3][1] = v.y;
+		m[3][2] = v.z;
+	}
 	Vec3 GetScale() const
 	{
 		return V3(

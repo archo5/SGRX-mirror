@@ -88,6 +88,15 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	Array< Body > m_bones;
 };
 
+struct IF_GCC(ENGINE_EXPORT) AnimRotator : Animator
+{
+	AnimRotator() : animSource( NULL ), angle( 0 ){}
+	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
+	
+	Animator* animSource;
+	float angle;
+};
+
 
 
 struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
@@ -415,6 +424,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		NT_Mask = 4,
 		NT_RelAbs = 5,
 		NT_Layers = 6,
+		NT_Rotator = 7,
 	};
 	typedef SerializeVersionHelper<ByteReader> SVHBR;
 	typedef SerializeVersionHelper<ByteWriter> SVHBW;
@@ -432,6 +442,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			if( type == NT_Mask ) return "Mask";
 			if( type == NT_RelAbs ) return "Rel <-> Abs";
 			if( type == NT_Layers ) return "Layers";
+			if( type == NT_Rotator ) return "Rotator";
 			return "<Unknown>";
 		}
 		virtual int GetInputLinkCount(){ return 0; }
@@ -596,6 +607,34 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		}
 		IMPL_VIRTUAL_SERIALIZE;
 	};
+	struct IF_GCC(ENGINE_EXPORT) RotatorNode : Node
+	{
+		SGRX_GUID src;
+		ValExpr angle;
+		
+		AnimRotator rotator_anim;
+		
+		RotatorNode() : Node( NT_Rotator ){ angle.expr = "0"; angle.Recompile( NULL ); }
+		virtual int GetInputLinkCount(){ return 1; }
+		virtual SGRX_GUID* GetInputLink( int i ){
+			if( i == 0 ) return &src;
+			return NULL; }
+		virtual Animator** GetInputSource( int i ){
+			if( i == 0 ) return &rotator_anim.animSource;
+			return NULL; }
+		virtual Animator* GetAnimator( AnimCharacter* ){ return &rotator_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			rotator_anim.angle = angle.Eval( vars );
+		}
+		template< class T > void SerializeT( T& arch )
+		{
+			Node::Serialize( arch );
+			arch << src;
+			arch << angle;
+		}
+		IMPL_VIRTUAL_SERIALIZE;
+	};
 	
 	template< class T > void Serialize( T& basearch )
 	{
@@ -728,6 +767,7 @@ template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate(
 	if( type == NT_Mask ) return new MaskNode;
 	if( type == NT_RelAbs ) return new RelAbsNode;
 	if( type == NT_Layers ) return new LayersNode;
+	if( type == NT_Rotator ) return new RotatorNode;
 	return NULL;
 }
 
