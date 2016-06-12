@@ -748,7 +748,7 @@ bool SGRX_IMesh::ToMeshData( ByteArray& out )
 	return true;
 }
 
-bool SGRX_IMesh::SetPartData( SGRX_MeshPart* parts, int count )
+bool SGRX_IMesh::SetPartData( const SGRX_MeshPart* parts, int count )
 {
 	if( count < 0 )
 		return false;
@@ -2292,9 +2292,23 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 {
 	LOG_FUNCTION_ARG( path );
 	
-	SGRX_IMesh* mesh = g_Meshes->getcopy( path );
+	MeshHandle mesh = g_Meshes->getcopy( path );
 	if( mesh )
 		return mesh;
+	
+	mesh = g_Game->OnCreateSysMesh( path );
+	if( mesh )
+	{
+		if( dataonly == false )
+		{
+			mesh->GenerateTriangleTree();
+		}
+		
+		mesh->m_key = path;
+		g_Meshes->set( mesh->m_key, mesh );
+		LOG << "Created mesh: " << path;
+		return mesh;
+	}
 	
 	ByteArray meshdata;
 	if( !g_Game->OnLoadMesh( path, meshdata ) )
@@ -2381,10 +2395,10 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 	if( dataonly == false )
 	{
 		mesh->GenerateTriangleTree();
-		mesh->m_key = path;
-		g_Meshes->set( mesh->m_key, mesh );
 	}
 	
+	mesh->m_key = path;
+	g_Meshes->set( mesh->m_key, mesh );
 	LOG << "Created mesh: " << path;
 	return mesh;
 }

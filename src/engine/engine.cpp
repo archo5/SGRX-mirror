@@ -1366,6 +1366,74 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 	return true;
 }
 
+MeshHandle IGame::OnCreateSysMesh( const StringView& key )
+{
+	if( key == "sys:cube" )
+	{
+		static const SGRX_Vertex_Decal verts[ 4 * 6 ] =
+		{
+			// +X
+			{ V3(+1,-1,+1), V3(1,0,0), V3(0,0,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			{ V3(+1,+1,+1), V3(1,0,0), V3(1,0,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			{ V3(+1,+1,-1), V3(1,0,0), V3(1,1,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			{ V3(+1,-1,-1), V3(1,0,0), V3(0,1,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			// -X
+			{ V3(-1,+1,+1), V3(1,0,0), V3(0,0,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			{ V3(-1,-1,+1), V3(1,0,0), V3(1,0,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			{ V3(-1,-1,-1), V3(1,0,0), V3(1,1,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			{ V3(-1,+1,-1), V3(1,0,0), V3(0,1,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			// +Y
+			{ V3(+1,+1,+1), V3(0,1,0), V3(0,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,+1), V3(0,1,0), V3(1,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,-1), V3(0,1,0), V3(1,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,-1), V3(0,1,0), V3(0,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			// -Y
+			{ V3(-1,-1,+1), V3(0,1,0), V3(0,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,-1,+1), V3(0,1,0), V3(1,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,-1,-1), V3(0,1,0), V3(1,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(-1,-1,-1), V3(0,1,0), V3(0,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			// +Z
+			{ V3(+1,-1,+1), V3(0,0,1), V3(0,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,-1,+1), V3(0,0,1), V3(1,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,+1), V3(0,0,1), V3(1,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,+1), V3(0,0,1), V3(0,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			// -Z
+			{ V3(-1,-1,-1), V3(0,0,1), V3(0,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,-1,-1), V3(0,0,1), V3(1,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,-1), V3(0,0,1), V3(1,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,-1), V3(0,0,1), V3(0,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+		};
+		static const uint16_t indices[ 6 * 6 ] =
+		{
+			0, 1, 2, 2, 3, 0,
+			4, 5, 6, 6, 7, 4,
+			8, 9, 10, 10, 11, 8,
+			12, 13, 14, 14, 15, 12,
+			16, 17, 18, 18, 19, 16,
+			20, 21, 22, 22, 23, 20,
+		};
+		static const SGRX_MeshPart part =
+		{
+			0, 4 * 6, 0, 6 * 6,
+			"default",
+			{ "textures/unit.png", "", "", "", "", "", "", "" },
+			0, SGRX_MtlBlend_None,
+			"", Mat4::Identity
+		};
+		
+		MeshHandle mesh = GR_CreateMesh();
+		mesh->SetVertexData( verts, sizeof(verts), GR_GetVertexDecl( SGRX_VDECL_DECAL ) );
+		mesh->SetIndexData( indices, sizeof(indices), false );
+		mesh->SetPartData( &part, 1 );
+		mesh->m_boundsMin = V3(-1);
+		mesh->m_boundsMax = V3(1);
+		mesh->m_vdata.append( verts, sizeof(verts) );
+		mesh->m_idata.append( indices, sizeof(indices) );
+		return mesh;
+	}
+	return NULL;
+}
+
 
 bool IFileReader::Read( uint32_t num, uint8_t* out )
 {

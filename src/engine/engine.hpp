@@ -1066,7 +1066,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 	virtual bool InitIndexBuffer( size_t size, bool i32 ) = 0;
 	virtual bool UpdateVertexData( const void* data, size_t size ) = 0;
 	virtual bool UpdateIndexData( const void* data, size_t size ) = 0;
-	ENGINE_EXPORT virtual bool SetPartData( SGRX_MeshPart* parts, int count );
+	ENGINE_EXPORT virtual bool SetPartData( const SGRX_MeshPart* parts, int count );
 	
 	ENGINE_EXPORT bool SetBoneData( SGRX_MeshBone* bones, int count );
 	ENGINE_EXPORT bool RecalcBoneMatrices();
@@ -1973,6 +1973,7 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	ENGINE_EXPORT virtual bool OnLoadShaderFile( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata );
 	ENGINE_EXPORT virtual bool ParseShaderIncludes( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata );
 	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
+	ENGINE_EXPORT virtual MeshHandle OnCreateSysMesh( const StringView& key );
 };
 
 

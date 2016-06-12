@@ -138,6 +138,8 @@ struct Test_GameUI : ITest
 	}
 	void Do( float dt, float )
 	{
+		m_scriptCtx->Push( dt );
+		m_scriptCtx->GlobalCall( "process_threads", 1 );
 		m_guiSys->Draw( dt );
 	}
 	
@@ -145,6 +147,73 @@ struct Test_GameUI : ITest
 	GUISysHandle m_guiSys;
 }
 g_TestGameUI;
+
+
+
+struct Test_3DRendering : ITest, SGRX_LightSampler
+{
+	virtual StringView GetName() const { return "3D rendering test"; }
+	Test_3DRendering()
+	{
+	}
+	
+	void OnInitialize()
+	{
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.vsync = false;
+		GR_SetVideoMode( rs );
+		
+		m_scene = GR_CreateScene();
+		m_scene->camera.position = V3(-10,-10,10);
+		m_scene->camera.direction = V3(10,10,-5).Normalized();
+		m_scene->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+		m_scene->camera.angle = 45;
+		m_scene->camera.UpdateMatrices();
+		
+		MeshHandle mesh = GR_GetMesh( "sys:cube" );
+		
+		for( int y = 0; y < 50; ++y )
+		{
+			for( int x = 0; x < 50; ++x )
+			{
+				MeshInstHandle mih = m_scene->CreateMeshInstance();
+				mih->SetMesh( mesh );
+				mih->matrix = Mat4::CreateTranslation( x * 3, y * 3, 0 );
+				mih->SetLightingMode( SGRX_LM_Dynamic );
+				LightMesh( mih );
+				m_meshes.push_back( mih );
+			}
+		}
+	}
+	void OnDestroy()
+	{
+		m_meshes.clear();
+		m_scene = NULL;
+	}
+	void OnEvent( const Event& e )
+	{
+	}
+	void Do( float dt, float )
+	{
+		SGRX_RenderScene rs( V4(0), m_scene );
+		GR_RenderScene( rs );
+	}
+	
+	void SampleLight( const Vec3& pos, Vec3 outcolors[6] )
+	{
+		outcolors[0] = V3(0.3f,0.2f,0.2f) * 0.2f;
+		outcolors[1] = V3(0.5f,0.4f,0.4f) * 0.2f;
+		outcolors[2] = V3(0.7f,0.6f,0.6f) * 0.2f;
+		outcolors[3] = V3(0.3f,0.4f,0.3f) * 0.2f;
+		outcolors[4] = V3(0.5f,0.6f,0.5f) * 0.2f;
+		outcolors[5] = V3(0.7f,0.8f,0.7f) * 0.2f;
+	}
+	
+	SceneHandle m_scene;
+	Array< MeshInstHandle > m_meshes;
+}
+g_Test3DRendering;
 
 
 
@@ -157,12 +226,15 @@ ITest* g_Tests[] =
 	&g_TestPixelPerfectRendering,
 	&g_TestBruteForce,
 	&g_TestGameUI,
+	&g_Test3DRendering,
 };
+RenderSettings g_rs;
 #define TESTCOUNT (sizeof(g_Tests)/sizeof(g_Tests[0]))
 
 static void InitTest()
 {
 	ITest* T = g_Tests[ g_CurTest ];
+	GR_GetVideoMode( g_rs );
 	T->OnInitialize();
 	char bfr[ 4096 ];
 	sgrx_snprintf( bfr, 4096, "Test #%d: %s", (g_CurTest+1), StackString<4096>(T->GetName()).str );
@@ -172,6 +244,7 @@ static void FreeTest()
 {
 	ITest* T = g_Tests[ g_CurTest ];
 	T->OnDestroy();
+	GR_SetVideoMode( g_rs );
 }
 static void SetTest( size_t i )
 {
@@ -185,7 +258,8 @@ static void SetTest( size_t i )
 
 struct TestSuite : IGame
 {
-	TestSuite() : m_accum( 0.0f )
+	TestSuite() : m_accum( 0.0f ),
+		m_lastTime( 0 ), m_frameCount( 0 )
 	{
 	}
 	
@@ -241,6 +315,19 @@ struct TestSuite : IGame
 			SetTest( ( g_CurTest + 1 ) % TESTCOUNT );
 		}
 		g_Tests[ g_CurTest ]->Do( dt, ( m_accum + FIXED_TICK_SIZE ) / FIXED_TICK_SIZE );
+		
+		m_frameCount++;
+		if( gametime >= m_lastTime + 1000 )
+		{
+			char bfr[ 4096 ];
+			ITest* T = g_Tests[ g_CurTest ];
+			sgrx_snprintf( bfr, 4096, "Test #%d: %s | FPS: %u",
+				(g_CurTest+1), StackString<4096>(T->GetName()).str,
+				unsigned(m_frameCount) );
+			Window_SetTitle( bfr );
+			m_lastTime = gametime;
+			m_frameCount = 0;
+		}
 	}
 	void OnEvent( const Event& e )
 	{
@@ -248,6 +335,8 @@ struct TestSuite : IGame
 	}
 	
 	float m_accum;
+	uint32_t m_lastTime;
+	uint32_t m_frameCount;
 }
 g_Game;
 
