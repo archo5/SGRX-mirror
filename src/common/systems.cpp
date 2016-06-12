@@ -712,7 +712,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 			StringView src = MID.m_meshname;
 			if( src.ch() == '~' )
 			{
-				sgrx_snprintf( subbfr, sizeof(subbfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_DIR_SFX "%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
+				sgrx_snprintf( subbfr, sizeof(subbfr), SGRXPATH_COOKED_LEVELS "/%.*s" SGRX_LEVEL_DIR_SFX "%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data(), TMIN( (int) src.size() - 1, 200 ), src.data() + 1 );
 				MI->SetMesh( subbfr );
 			}
 			else

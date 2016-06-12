@@ -210,7 +210,7 @@ void EdLevelGraphicsCont::Reset()
 void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 {
 	char fname[ 256 ];
-	sgrx_snprintf( fname, sizeof(fname), SGRX_LEVELS_DIR "%s" SGRX_LEVEL_LMCACHE_SFX, StackString<200>(levname).str );
+	sgrx_snprintf( fname, sizeof(fname), SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_LMCACHE_SFX, StackString<200>(levname).str );
 	
 	ByteArray ba;
 	if( FS_LoadBinaryFile( fname, ba ) == false )
@@ -288,12 +288,13 @@ void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
 	
 	char path[ 256 ], fname[ 256 ];
 	sgrx_snprintf( path, sizeof(path),
-		SGRX_LEVELS_DIR "%s" SGRX_LEVEL_DIR_SFX,
+		SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_DIR_SFX,
 		StackString<200>(levname).str );
 	sgrx_snprintf( fname, sizeof(fname),
-		SGRX_LEVELS_DIR "%s" SGRX_LEVEL_LMCACHE_SFX,
+		SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_LMCACHE_SFX,
 		StackString<200>(levname).str );
 	
+	FS_DirCreate( SGRXPATH_CACHE_LEVELS );
 	FS_DirCreate( path );
 	FS_SaveBinaryFile( fname, ba.data(), ba.size() );
 }

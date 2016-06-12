@@ -817,7 +817,7 @@ bool GameLevel::Load( const StringView& levelname )
 	{
 		LOG_FUNCTION_ARG( "CORE" );
 		
-		sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_COMPILED_SFX, TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_COOKED_LEVELS "/%.*s" SGRX_LEVEL_COMPILED_SFX, TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		if( !FS_LoadBinaryFile( bfr, ba ) )
 			return false;
 	}
@@ -833,7 +833,7 @@ bool GameLevel::Load( const StringView& levelname )
 	{
 		LOG_FUNCTION_ARG( "SCRIPT" );
 		
-		sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
+		sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_COOKED_LEVELS "/%.*s", TMIN( (int) levelname.size(), 200 ), levelname.data() );
 		m_scriptCtx.Include( bfr );
 	}
 	

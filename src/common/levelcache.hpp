@@ -4,7 +4,6 @@
 #include <utils.hpp>
 
 
-#define SGRX_LEVELS_DIR "levels/"
 #define SGRX_LEVEL_DIR_SFX ".cache"
 #define SGRX_LEVELDIR_COMPILED_SFX "/compiled"
 #define SGRX_LEVELDIR_LMCACHE_SFX "/editor_lightmaps"

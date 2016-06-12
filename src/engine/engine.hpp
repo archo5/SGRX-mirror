@@ -431,6 +431,8 @@ ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler
 #define SGRXPATH_SRC "src"
 #define SGRXPATH_ASSETS "assets"
 #define SGRXPATH_COOKED "cooked"
+#define SGRXPATH_CACHE "cache"
+#define SGRXPATH_SRC_EDITOR SGRXPATH_SRC "/editor"
 #define SGRXPATH_SRC_CHARS SGRXPATH_SRC "/chars"
 #define SGRXPATH_SRC_LEVELS SGRXPATH_SRC "/levels"
 #define SGRXPATH_SRC_PARTSYS SGRXPATH_SRC "/psys"
@@ -440,6 +442,7 @@ ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler
 #define SGRXPATH_COOKED_PARTSYS SGRXPATH_COOKED "/psys"
 #define SGRXPATH_COOKED_SHADERS SGRXPATH_COOKED "/shaders"
 #define SGRXPATH_COOKED_SHADERCACHE SGRXPATH_COOKED "/shadercache_"
+#define SGRXPATH_CACHE_LEVELS SGRXPATH_CACHE "/levels"
 
 
 //

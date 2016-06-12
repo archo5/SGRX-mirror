@@ -476,11 +476,11 @@ void EdPaintProps::_UpdateColor()
 
 void ReconfigureEntities( StringView levname )
 {
-	g_Level->GetScriptCtx().Include( "levels/_template" );
+	g_Level->GetScriptCtx().Include( SGRXPATH_SRC_LEVELS "/_template" );
 	if( levname )
 	{
 		char bfr[ 256 ];
-		sgrx_snprintf( bfr, sizeof(bfr), "levels/%s", StackString<240>(levname).str );
+		sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_SRC_LEVELS "/%s", StackString<240>(levname).str );
 		g_Level->GetScriptCtx().Include( bfr );
 	}
 }
@@ -1085,7 +1085,7 @@ void EdWorld::DrawWires_GameObjects( const EdObjIdx& hl )
 			
 			// icon
 			sgsVariable texpathvar = rsrc->GetScriptedObject().getprop( "ED_Icon" );
-			StringView texpath = texpathvar.getdef( SV( "editor/icons/default.png" ) );
+			StringView texpath = texpathvar.getdef( SV( SGRXPATH_SRC_EDITOR "/icons/default.png" ) );
 			TextureHandle th = GR_GetTexture( texpath );
 			GR_PreserveResource( th );
 			
@@ -1531,7 +1531,7 @@ EdMainFrame::EdMainFrame() :
 	m_editTF( NULL ),
 	m_editMode( NULL )
 {
-	m_txMarker = GR_GetTexture( "editor/marker.png" );
+	m_txMarker = GR_GetTexture( SGRXPATH_SRC_EDITOR "/marker.png" );
 }
 
 void EdMainFrame::EditUI()
@@ -1699,8 +1699,8 @@ Vec3 EdMainFrame::Snapped( const Vec3& v )
 
 static StringView LevelPathToName( StringView path )
 {
-	if( path.starts_with( "levels/" ) && path.ends_with( ".tle" ) )
-		return path.part( STRLIT_LEN( "levels/" ), path.size() - STRLIT_LEN( "levels/.tle" ) );
+	if( path.starts_with( SGRXPATH_SRC_LEVELS "/" ) && path.ends_with( ".tle" ) )
+		return path.part( STRLIT_LEN( SGRXPATH_SRC_LEVELS "/" ), path.size() - STRLIT_LEN( SGRXPATH_SRC_LEVELS "/.tle" ) );
 	return path;
 }
 
@@ -1905,7 +1905,7 @@ void EdMainFrame::Level_Real_Compile_Default()
 	
 	char bfr[ 256 ];
 	StringView lname = LevelPathToName( m_fileName );
-	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) lname.size(), 200 ), lname.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_COOKED_LEVELS "/%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) lname.size(), 200 ), lname.data() );
 	
 	if( !lcache.SaveCache( g_NUISurfMtlPicker->m_materials, bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
@@ -2033,7 +2033,7 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 	// save the file
 	char bfr[ 256 ];
 	StringView lname = LevelPathToName( m_fileName );
-	sgrx_snprintf( bfr, sizeof(bfr), SGRX_LEVELS_DIR "%.*s.pfb.sgs", TMIN( (int) lname.size(), 200 ), lname.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_SRC_LEVELS "/%.*s.pfb.sgs", TMIN( (int) lname.size(), 200 ), lname.data() );
 	if( !FS_SaveTextFile( bfr, data ) )
 		LOG_ERROR << "FAILED TO SAVE PREFAB";
 	else
@@ -2078,25 +2078,25 @@ bool MapEditor::OnInitialize()
 	
 	SGRX_IMGUI_Init();
 	
-	g_NUILevelPicker = new IMGUIFilePicker( "levels", ".tle" );
+	g_NUILevelPicker = new IMGUIFilePicker( SGRXPATH_SRC_LEVELS, ".tle" );
 	g_NUIMeshPicker = new IMGUIMeshPicker();
 	g_NUITexturePicker = new IMGUITexturePicker();
 	g_NUICharPicker = new IMGUICharPicker();
-	g_NUIPartSysPicker = new IMGUIFilePicker( "psys", ".psy", false );
+	g_NUIPartSysPicker = new IMGUIFilePicker( SGRXPATH_COOKED_PARTSYS, ".psy", false );
 	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
 	g_NUISoundPicker = new IMGUISoundPicker();
 	
 	g_Level = g_BaseGame->CreateLevel();
 	g_Level->m_editorMode = true;
 	
-	g_Level->GetScriptCtx().ExecFile( "editor/ext.sgs" );
+	g_Level->GetScriptCtx().ExecFile( SGRXPATH_SRC_EDITOR "/ext.sgs" );
 	
 	sgs_RegIntConsts( g_Level->GetSGSC(), g_ent_scripted_ric, -1 );
 	sgs_RegFuncConsts( g_Level->GetSGSC(), g_ent_scripted_rfc, -1 );
 	sgs_StoreFuncConsts( g_Level->GetSGSC(),
 		g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" ).var, g_imgui_rfc, -1, "ED_IMGUI." );
 	
-	g_Level->GetScriptCtx().ExecFile( "levels/upgrade1.sgs" );
+	g_Level->GetScriptCtx().ExecFile( SGRXPATH_SRC_LEVELS "/upgrade1.sgs" );
 	
 	g_NUISoundPicker->sys = g_Level->GetSoundSys();
 	g_NUISoundPicker->Reload();
