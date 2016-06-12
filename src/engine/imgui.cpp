@@ -1048,7 +1048,7 @@ void IMGUICharPicker::Reload()
 	for( size_t i = 0; i < m_entries.size(); ++i )
 		oldHandles.push_back( m_entries[ i ].mesh );
 	Clear();
-	FS_IterateDirectory( SGRXPATH_COOKED_CHARS, this );
+	FS_IterateDirectory( SGRXPATH__CHARS, this );
 	_Search( m_searchString );
 }
 

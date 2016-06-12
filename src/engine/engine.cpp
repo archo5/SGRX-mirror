@@ -1182,7 +1182,7 @@ void IGame::GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* 
 {
 	LOG_FUNCTION;
 	
-	name = SGRXPATH_COOKED_SHADERCACHE;
+	name = SGRXPATH_CACHE_SHADERS;
 	name.append( rinfo.shaderCacheSfx );
 	name.append( "/" );
 	
@@ -1415,17 +1415,43 @@ struct BasicFileReader : IFileReader
 };
 
 
+#define BFS__COMMON( fret ) \
+	if( ppath.size() + root.size() > 1024 ) \
+		return fret \
+	memcpy( bfr, root.data(), root.size() ); \
+	memcpy( bfr + root.size(), ppath.data(), ppath.size() ); \
+	bfr[ root.size() + ppath.size() ] = 0; \
+	cpath = StringView( bfr, root.size() + ppath.size() );
+#define BFS_PROLOG( fret ) \
+	LOG_FUNCTION; \
+	char bfr[ 1025 ]; \
+	StringView root = path.ch() == ':' ? m_fileRoot : m_fileRootCache; \
+	StringView cpath, ppath = path.ch() == ':' ? path.part( 1 ) : path; \
+	BFS__COMMON( fret )
+#define BFS_CONT( fret ) \
+	if( path.ch() == ':' ) \
+		return fret \
+	root = m_fileRootSrc; \
+	BFS__COMMON( fret )
+
 BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root)
 {
 	if( m_fileRoot.size() && m_fileRoot.last() != '/' )
 		m_fileRoot.push_back( '/' );
+	m_fileRootCache = m_fileRoot;
+	m_fileRootCache.append( "cache/" );
+	m_fileRootSrc = m_fileRoot;
+	m_fileRootSrc.append( "src/" );
 }
 
 HFileReader BasicFileSystem::OpenBinaryFile( const StringView& path )
 {
-	char bfr[ 4096 ];
-	sgrx_snprintf( bfr, 4096, "%s/%s", StackString<4096>(m_fileRoot).str, StackString<4096>(path).str );
+	BFS_PROLOG( NULL; );
 	FILE* f = fopen( bfr, "rb" );
+	if( f )
+		return new BasicFileReader( f );
+	BFS_CONT( NULL; );
+	f = fopen( bfr, "rb" );
 	if( f )
 		return new BasicFileReader( f );
 	return NULL;
@@ -1433,62 +1459,104 @@ HFileReader BasicFileSystem::OpenBinaryFile( const StringView& path )
 
 bool BasicFileSystem::LoadBinaryFile( const StringView& path, ByteArray& out )
 {
-	LOG_FUNCTION;
-	return ::LoadBinaryFile( String_Concat( m_fileRoot, path ), out );
+	BFS_PROLOG( false; );
+	if( ::LoadBinaryFile( cpath, out ) )
+		return true;
+	BFS_CONT( false; );
+	return ::LoadBinaryFile( cpath, out );
 }
 
 bool BasicFileSystem::SaveBinaryFile( const StringView& path, const void* data, size_t size )
 {
-	LOG_FUNCTION;
-	return ::SaveBinaryFile( String_Concat( m_fileRoot, path ), data, size );
+	BFS_PROLOG( false; );
+	if( ::SaveBinaryFile( cpath, data, size ) )
+		return true;
+	BFS_CONT( false; );
+	return ::SaveBinaryFile( cpath, data, size );
 }
 
 bool BasicFileSystem::LoadTextFile( const StringView& path, String& out )
 {
-	LOG_FUNCTION;
-	return ::LoadTextFile( String_Concat( m_fileRoot, path ), out );
+	BFS_PROLOG( false; );
+	if( ::LoadTextFile( cpath, out ) )
+		return true;
+	BFS_CONT( false; );
+	return ::LoadTextFile( cpath, out );
 }
 
 bool BasicFileSystem::SaveTextFile( const StringView& path, const StringView& data )
 {
-	LOG_FUNCTION;
-	return ::SaveTextFile( String_Concat( m_fileRoot, path ), data );
+	BFS_PROLOG( false; );
+	if( ::SaveTextFile( cpath, data ) )
+		return true;
+	BFS_CONT( false; );
+	return ::SaveTextFile( cpath, data );
 }
 
 bool BasicFileSystem::FindRealPath( const StringView& path, String& out )
 {
-	LOG_FUNCTION;
-	out = m_fileRoot;
-	out.append( path );
-	return ::FSItemExists( out );
+	BFS_PROLOG( false; );
+	if( ::FSItemExists( cpath ) )
+	{
+		out = cpath;
+		return true;
+	}
+	BFS_CONT( false; );
+	if( ::FSItemExists( cpath ) )
+	{
+		out = cpath;
+		return true;
+	}
+	return false;
 }
 
 bool BasicFileSystem::FileExists( const StringView& path )
 {
-	LOG_FUNCTION;
-	return ::FileExists( String_Concat( m_fileRoot, path ) );
+	BFS_PROLOG( false; );
+	if( ::FileExists( cpath ) )
+		return true;
+	BFS_CONT( false; );
+	return ::FileExists( cpath );
 }
 
 bool BasicFileSystem::DirCreate( const StringView& path )
 {
-	LOG_FUNCTION;
-	return ::DirCreate( String_Concat( m_fileRoot, path ) );
+	BFS_PROLOG( false; );
+	if( ::DirCreate( cpath ) )
+		return true;
+	BFS_CONT( false; );
+	return ::DirCreate( cpath );
 }
 
 uint32_t BasicFileSystem::FileModTime( const StringView& path )
 {
-	LOG_FUNCTION;
-	return ::FileModTime( String_Concat( m_fileRoot, path ) );
+	BFS_PROLOG( 0; );
+	uint32_t t = ::FileModTime( cpath );
+	if( t )
+		return t;
+	BFS_CONT( 0; );
+	return ::FileModTime( cpath );
 }
 
 void BasicFileSystem::IterateDirectory( const StringView& path, IDirEntryHandler* deh )
 {
-	LOG_FUNCTION;
-	DirectoryIterator tdi( String_Concat( m_fileRoot, path ) );
-	while( tdi.Next() )
+	BFS_PROLOG( ; );
 	{
-		if( !deh->HandleDirEntry( path, tdi.Name(), tdi.IsDirectory() ) )
-			return;
+		DirectoryIterator tdi( cpath );
+		while( tdi.Next() )
+		{
+			if( !deh->HandleDirEntry( path, tdi.Name(), tdi.IsDirectory() ) )
+				return;
+		}
+	}
+	BFS_CONT( ; );
+	{
+		DirectoryIterator tdi( cpath );
+		while( tdi.Next() )
+		{
+			if( !deh->HandleDirEntry( path, tdi.Name(), tdi.IsDirectory() ) )
+				return;
+		}
 	}
 }
 

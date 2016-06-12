@@ -1789,7 +1789,7 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 	TPSPlayerController::Register( lev );
 	TSEnemyController::Register( lev );
 	
-	m_level->GetScriptCtx().Include( "data/enemy" );
+	m_level->GetScriptCtx().Include( "levels/ai_core" );
 }
 
 

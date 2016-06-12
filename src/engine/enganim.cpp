@@ -471,6 +471,8 @@ bool AnimPlayer::CheckMarker( const StringView& name )
 	{
 		Anim& A = m_currentAnims[ i ];
 		SGRX_Animation* AN = A.anim;
+		if( !AN )
+			continue;
 		float fp0 = A.prev_fade_at * AN->speed;
 		float fp1 = A.fade_at * AN->speed;
 		if( fp0 == fp1 )

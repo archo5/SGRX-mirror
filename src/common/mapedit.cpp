@@ -1905,7 +1905,7 @@ void EdMainFrame::Level_Real_Compile_Default()
 	
 	char bfr[ 256 ];
 	StringView lname = LevelPathToName( m_fileName );
-	sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_COOKED_LEVELS "/%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) lname.size(), 200 ), lname.data() );
+	sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_CACHE_LEVELS "/%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) lname.size(), 200 ), lname.data() );
 	
 	if( !lcache.SaveCache( g_NUISurfMtlPicker->m_materials, bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
@@ -2082,7 +2082,7 @@ bool MapEditor::OnInitialize()
 	g_NUIMeshPicker = new IMGUIMeshPicker();
 	g_NUITexturePicker = new IMGUITexturePicker();
 	g_NUICharPicker = new IMGUICharPicker();
-	g_NUIPartSysPicker = new IMGUIFilePicker( SGRXPATH_COOKED_PARTSYS, ".psy", false );
+	g_NUIPartSysPicker = new IMGUIFilePicker( SGRXPATH__PARTSYS, ".psy", false );
 	g_NUISurfMtlPicker = new IMGUISurfMtlPicker();
 	g_NUISoundPicker = new IMGUISoundPicker();
 	

@@ -2844,10 +2844,10 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		size_t slashpos = dir.find_first_at( "/" );
 		while( slashpos != NOT_FOUND )
 		{
-			FS_DirCreate( String_Concat( SGRXPATH_COOKED "/", dir.part( 0, slashpos ) ) );
+			FS_DirCreate( String_Concat( SGRXPATH_CACHE "/", dir.part( 0, slashpos ) ) );
 			slashpos = dir.find_first_at( "/", slashpos + 1 );
 		}
-		FS_DirCreate( String_Concat( SGRXPATH_COOKED "/", dir ) );
+		FS_DirCreate( String_Concat( SGRXPATH_CACHE "/", dir ) );
 	}
 	
 	puts( "- textures...");
@@ -2856,7 +2856,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_TextureAsset& TA = script.textureAssets[ tid ];
 		StringView catPath = script.categories.getcopy( TA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s.%s",
+		sgrx_snprintf( bfr, 520, SGRXPATH_CACHE "/%s/%s.%s",
 			StackString<256>(catPath).str,
 			StackString<256>(TA.outputName).str,
 			SGRX_TextureOutputFormat_Ext( TA.outputType ) );
@@ -2888,7 +2888,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_MeshAsset& MA = script.meshAssets[ tid ];
 		StringView catPath = script.categories.getcopy( MA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s.ssm",
+		sgrx_snprintf( bfr, 520, SGRXPATH_CACHE "/%s/%s.ssm",
 			StackString<256>(catPath).str,
 			StackString<256>(MA.outputName).str );
 		if( force == false &&
@@ -2929,7 +2929,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_AnimBundleAsset& ABA = script.animBundleAssets[ aid ];
 		StringView catPath = script.categories.getcopy( ABA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s.anb",
+		sgrx_snprintf( bfr, 520, SGRXPATH_CACHE "/%s/%s.anb",
 			StackString<256>(catPath).str,
 			StackString<256>(ABA.outputName).str );
 		if( force == false &&
@@ -2967,7 +2967,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_FileAsset& FA = script.fileAssets[ aid ];
 		StringView catPath = script.categories.getcopy( FA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s",
+		sgrx_snprintf( bfr, 520, SGRXPATH_CACHE "/%s/%s",
 			StackString<256>(catPath).str,
 			StackString<256>(FA.outputName).str );
 		if( force == false &&

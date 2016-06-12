@@ -410,6 +410,8 @@ struct IF_GCC(ENGINE_EXPORT) BasicFileSystem : IFileSystem
 	ENGINE_EXPORT virtual void IterateDirectory( const StringView& path, IDirEntryHandler* deh );
 	
 	String m_fileRoot;
+	String m_fileRootCache;
+	String m_fileRootSrc;
 };
 typedef Handle< IFileSystem > FileSysHandle;
 
@@ -428,21 +430,19 @@ ENGINE_EXPORT uint32_t FS_FileModTime( const StringView& path );
 ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh );
 
 
-#define SGRXPATH_SRC "src"
-#define SGRXPATH_ASSETS "assets"
-#define SGRXPATH_COOKED "cooked"
-#define SGRXPATH_CACHE "cache"
+#define SGRXPATH_SRC ":src"
+#define SGRXPATH_ASSETS ":assets"
+#define SGRXPATH_CACHE ":cache"
 #define SGRXPATH_SRC_EDITOR SGRXPATH_SRC "/editor"
 #define SGRXPATH_SRC_CHARS SGRXPATH_SRC "/chars"
 #define SGRXPATH_SRC_LEVELS SGRXPATH_SRC "/levels"
 #define SGRXPATH_SRC_PARTSYS SGRXPATH_SRC "/psys"
 #define SGRXPATH_SRC_SHADERS SGRXPATH_SRC "/shaders"
-#define SGRXPATH_COOKED_CHARS SGRXPATH_COOKED "/chars"
-#define SGRXPATH_COOKED_LEVELS SGRXPATH_COOKED "/levels"
-#define SGRXPATH_COOKED_PARTSYS SGRXPATH_COOKED "/psys"
-#define SGRXPATH_COOKED_SHADERS SGRXPATH_COOKED "/shaders"
-#define SGRXPATH_COOKED_SHADERCACHE SGRXPATH_COOKED "/shadercache_"
 #define SGRXPATH_CACHE_LEVELS SGRXPATH_CACHE "/levels"
+#define SGRXPATH_CACHE_SHADERS SGRXPATH_CACHE "/shaders_"
+#define SGRXPATH__CHARS "chars"
+#define SGRXPATH__LEVELS "levels"
+#define SGRXPATH__PARTSYS "psys"
 
 
 //
