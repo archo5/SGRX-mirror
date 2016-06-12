@@ -2615,8 +2615,8 @@ struct AnimProcessor
 		const SGRX_ABAnimation& AN = m_ABA.anims[ i ];
 		
 		StringView source = AN.source;
-		StringView animFile = source.until( ":" );
-		StringView animName = source.after( ":" );
+		StringView animFile = source.until_last( ":" );
+		StringView animName = source.after_last( ":" );
 		
 		ImpScene3DHandle scene = _GetSourceData( animFile );
 		if( !scene )

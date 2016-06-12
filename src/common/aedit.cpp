@@ -104,8 +104,8 @@ void FC_SetAnim( MeshHandle mesh, AnimHandle anim )
 	g_NUIRenderView->m_texPreview = NULL;
 	g_NUIRenderView->m_meshPrevInst->SetMesh( mesh );
 	g_NUIRenderView->m_meshPrevInst->enabled = mesh != NULL;
-	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( mesh->m_numBones );
-	g_NUIRenderView->m_animFrames.resize( mesh->m_numBones );
+	g_NUIRenderView->m_meshPrevInst->skin_matrices.resize( mesh.GetBoneCount() );
+	g_NUIRenderView->m_animFrames.resize( mesh.GetBoneCount() );
 	g_NUIRenderView->m_animPreview.m_mesh = mesh;
 	g_NUIRenderView->m_animPreview.m_pose = g_NUIRenderView->m_animFrames;
 	g_NUIRenderView->m_animPreview.Prepare();
@@ -1029,7 +1029,7 @@ struct ASEditor : IGame
 		SGRX_IMGUI_Init();
 		
 		g_NUIRenderView = new AssetRenderView;
-		g_NUIAssetPicker = new IMGUIFilePicker( "assets", "" );
+		g_NUIAssetPicker = new IMGUIFilePicker( SGRXPATH_ASSETS, "" );
 		g_NUIAssetPicker->m_layoutType = IMGUIPickerCore::Layout_List;
 		
 		ASCR_Open();
@@ -1070,7 +1070,7 @@ struct ASEditor : IGame
 		if( e.type == SDL_DROPFILE )
 		{
 			String rootpath;
-			if( FS_FindRealPath( "assets", rootpath ) )
+			if( FS_FindRealPath( SGRXPATH_ASSETS, rootpath ) )
 			{
 				rootpath = RealPath( rootpath );
 				LOG << "Root: " << rootpath;
@@ -1079,7 +1079,7 @@ struct ASEditor : IGame
 				LOG << "Dropped a file: " << path;
 				if( IsImageFile( path ) && PathIsUnder( path, rootpath ) )
 				{
-					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
+					String subpath = String_Concat( SGRXPATH_ASSETS "/", GetRelativePath( path, rootpath ) );
 					String category = "";
 					if( g_CurAsset )
 						category = g_CurAsset->outputCategory;
@@ -1099,7 +1099,7 @@ struct ASEditor : IGame
 				}
 				if( IsMeshFile( path ) && PathIsUnder( path, rootpath ) )
 				{
-					String subpath = String_Concat( "assets/", GetRelativePath( path, rootpath ) );
+					String subpath = String_Concat( SGRXPATH_ASSETS "/", GetRelativePath( path, rootpath ) );
 					String category = "";
 					if( g_CurAsset )
 						category = g_CurAsset->outputCategory;

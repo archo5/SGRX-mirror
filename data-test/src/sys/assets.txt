@@ -1,0 +1,214 @@
+CATEGORY mesh.char=meshes/chars
+TEXTURE
+ SOURCE :assets/purch_troopers/tstest_fix_a_diffuse.png
+ OUTPUT_CATEGORY mesh.char
+ OUTPUT_NAME tstest
+ OUTPUT_TYPE STX/RGBA32
+ IS_SRGB true
+ MIPS true
+ LERP true
+ CLAMPX false
+ CLAMPY false
+TEXTURE_END
+TEXTURE
+ SOURCE :assets/purch_troopers/tstest_fix_a_gun-material_diffuse.tga
+ OUTPUT_CATEGORY mesh.char
+ OUTPUT_NAME tstest_gun
+ OUTPUT_TYPE STX/RGBA32
+ IS_SRGB true
+ MIPS true
+ LERP true
+ CLAMPX false
+ CLAMPY false
+TEXTURE_END
+MESH
+ SOURCE :assets/purch_troopers/tstest_fix.ssm
+ OUTPUT_CATEGORY mesh.char
+ OUTPUT_NAME tstest
+ ROTATE_Y2Z false
+ FLIP_UVY false
+ TRANSFORM false
+ PART
+  MESH_NAME MilkShape3D Mesh#0
+  SHADER default
+  TEXTURE0 mesh.char/tstest
+  TEXTURE1 
+  TEXTURE2 
+  TEXTURE3 
+  TEXTURE4 
+  TEXTURE5 
+  TEXTURE6 
+  TEXTURE7 
+  MTL_FLAGS 0
+  MTL_BLENDMODE 0
+  OPT_TRANSFORM 0
+ PART_END
+MESH_END
+ANIM_BUNDLE
+ OUTPUT_CATEGORY mesh.char
+ OUTPUT_NAME tstest
+ BUNDLE_PREFIX 
+ PREVIEW_MESH mesh.char/tstest
+ SOURCE :assets/purch_troopers/tstest_fix.anb
+ SRC_PREFIX 
+ ANIM :assets/purch_troopers/tstest_fix.anb:crawl_with
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:crouch
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:crouch_walk
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:crouch_walk_bw
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:die
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:die_bw
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:gun_down_walk
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:hit
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:idle
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:jump
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:kneeling
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:looking_back
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:pointing_gun
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:prisoner
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:prisoner_kneel
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:prisoner_kneel_loop
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:prisoner_loop
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:reload
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:run
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:run_bw
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:run_nogun
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:side_kick
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:sitting
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:stand_with_gun_up
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:standing_idle
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:strafe_left
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:strafe_left_nogun
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:strafe_right
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:strafe_right_nogun
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:surrender
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:swim
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:turn_left
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:turn_left_nogun
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:turn_right
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:turn_right_nogun
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:walk
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:walk_bw
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:walk_nogun
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:walk_nogun_bw
+ ANIM_NAME 
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ ANIM :assets/purch_troopers/tstest_fix.anb:stand_with_pistol_up
+ ANIM_NAME stand_with_pistol_up
+ ANIM_START_FRAME 
+ ANIM_END_FRAME 
+ANIM_BUNDLE_END
