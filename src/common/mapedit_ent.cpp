@@ -92,7 +92,8 @@ EdEntity::EdEntity( sgsString type, bool isproto ) :
 	
 	StringView typestr( type.c_str(), type.size() );
 	m_entIface = ENT_GetEntityInterface( typestr );
-	m_iconTex = GR_GetTexture( m_entIface.getprop("ED_Icon").getdef<StringView>( "editor/icons/default.png" ) );
+	m_iconTex = GR_GetTexture( m_entIface.getprop("ED_Icon").getdef<StringView>(
+		SGRXPATH_SRC_EDITOR "/icons/default.png" ) );
 	
 	{
 		SGS_SCOPE;

@@ -12,6 +12,9 @@ struct IMGUIFilePicker* g_NUIPartSysPicker;
 IMGUITexturePicker* g_NUITexturePicker;
 
 
+#define SGRXPATH_SRC_EDITOR_PSYSISFX SGRXPATH_SRC_EDITOR "/psys_isfx.txt"
+
+
 #define MAX_PARTICLES 10000
 #define MAX_TIME 120.0f
 #define MAX_POS 8192.0f
@@ -131,9 +134,9 @@ void ISFX_Reload()
 	g_ISFX_Options.clear();
 	
 	String isfx_data;
-	if( FS_LoadTextFile( "editor/psys_isfx.txt", isfx_data ) == false )
+	if( FS_LoadTextFile( SGRXPATH_SRC_EDITOR_PSYSISFX, isfx_data ) == false )
 	{
-		LOG_ERROR << LOG_DATE << "  Failed to load editor/psys_isfx.txt";
+		LOG_ERROR << LOG_DATE << "  Failed to load " SGRXPATH_SRC_EDITOR_PSYSISFX;
 		return;
 	}
 	ConfigReader cr( isfx_data );

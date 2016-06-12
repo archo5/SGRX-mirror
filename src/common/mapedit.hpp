@@ -12,6 +12,9 @@
 #include "mapedit_graphics.hpp"
 
 
+#define SGRXPATH_SRC_EDITOR_MATERIALS SGRXPATH_SRC "/editor/materials.txt"
+
+
 // v0: initial
 // v1: added surface.lmquality
 // v2: added ent[light].flareoffset
@@ -102,7 +105,7 @@ struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
 		// parse material list
 		m_materials.clear();
 		String material_data;
-		if( FS_LoadTextFile( "editor/materials.txt", material_data ) )
+		if( FS_LoadTextFile( SGRXPATH_SRC_EDITOR_MATERIALS, material_data ) )
 		{
 			MapMaterial mmdummy;
 			MapMaterial* mmtl = &mmdummy;
@@ -143,7 +146,7 @@ struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
 		}
 		else
 		{
-			LOG_ERROR << "FAILED to open editor/materials.txt";
+			LOG_ERROR << "FAILED to open " SGRXPATH_SRC_EDITOR_MATERIALS;
 		}
 		
 		// load materials
