@@ -51,14 +51,6 @@ typedef SDL_Event Event;
 
 #define COBJ_FLAG_CONST      0x0001
 
-template< class T > void TSET_FLAG( T& var, T flag, bool val )
-{
-	if( val )
-		var |= flag;
-	else
-		var &= ~flag;
-}
-
 struct IF_GCC(ENGINE_EXPORT) CObj
 {
 	CObj( StringView nm, uint16_t ty ) : name( nm ), type( ty ), flags( 0 ){}

@@ -250,18 +250,26 @@ inline int getbin( char c ){ return c - '0'; }
 // TEMPLATES
 //
 
-template< class T > T TMIN( const T& a, const T& b ){ return a < b ? a : b; }
-template< class T > T TMAX( const T& a, const T& b ){ return a > b ? a : b; }
-template< class T > T TCLAMP( const T& v, const T& vmin, const T& vmax )
+
+template< class T > FINLINE void TSET_FLAG( T& var, T flag, bool val )
+{
+	if( val )
+		var |= flag;
+	else
+		var &= ~flag;
+}
+template< class T > FINLINE T TMIN( const T& a, const T& b ){ return a < b ? a : b; }
+template< class T > FINLINE T TMAX( const T& a, const T& b ){ return a > b ? a : b; }
+template< class T > FINLINE T TCLAMP( const T& v, const T& vmin, const T& vmax )
 {
 	return v < vmin ? vmin : ( v > vmax ? vmax : v );
 }
-template< class T > void TMEMSET( T* a, size_t c, const T& v )
+template< class T > FINLINE void TMEMSET( T* a, size_t c, const T& v )
 {
 	for( size_t i = 0; i < c; ++i )
 		a[ i ] = v;
 }
-template< class T > void TSWAP( T& a, T& b ){ T tmp( a ); a = b; b = tmp; }
+template< class T > FINLINE void TSWAP( T& a, T& b ){ T tmp( a ); a = b; b = tmp; }
 template< class T > void TMEMSWAP( T& a, T& b )
 {
 	char tmp[ sizeof(T) ];
@@ -269,10 +277,10 @@ template< class T > void TMEMSWAP( T& a, T& b )
 	memcpy( &a, &b, sizeof(T) );
 	memcpy( &b, tmp, sizeof(T) );
 }
-template< class T, class S > T TLERP( const T& a, const T& b, const S& s ){ return a * ( S(1) - s ) + b * s; }
-template< class S, class T > S TREVLERP( const T& a, const T& b, const T& s ){ if( a == b ) return a; return ( s - a ) / ( b - a ); }
+template< class T, class S > FINLINE T TLERP( const T& a, const T& b, const S& s ){ return a * ( S(1) - s ) + b * s; }
+template< class S, class T > FINLINE S TREVLERP( const T& a, const T& b, const T& s ){ if( a == b ) return a; return ( s - a ) / ( b - a ); }
 
-template< class T > inline T DefaultValue(){ return (T)0; }
+template< class T > FINLINE T DefaultValue(){ return T(0); }
 
 template< class T > struct IVState
 {

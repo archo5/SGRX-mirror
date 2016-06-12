@@ -1220,6 +1220,11 @@ void AnimCharacter::_Prepare()
 			SGRX_CAST( MaskNode*, MN, N );
 			ApplyMask( MN->mask_name, &MN->mask_anim );
 		}
+		else if( N->type == NT_Rotator )
+		{
+			SGRX_CAST( RotatorNode*, RN, N );
+			RN->angle.Recompile( this );
+		}
 	}
 	
 	// additional work
