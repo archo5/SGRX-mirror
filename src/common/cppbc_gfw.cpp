@@ -1694,175 +1694,6 @@ static sgs_ObjInterface LevelMapSystem__sgs_interface =
 _sgsInterface LevelMapSystem::_sgs_interface(LevelMapSystem__sgs_interface, LevelMapSystem__sgs_ifn);
 
 
-static int _sgs_method__MessagingSystem__Add( SGS_CTX )
-{
-	MessagingSystem* data; if( !SGS_PARSE_METHOD( C, MessagingSystem::_sgs_interface, data, MessagingSystem, Add ) ) return 0;
-	data->sgsAddMsg( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1), sgs_GetVar<float>()(C,2) ); return 0;
-}
-
-int MessagingSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
-{
-	static_cast<MessagingSystem*>( obj->data )->~MessagingSystem();
-	return SGS_SUCCESS;
-}
-
-int MessagingSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
-{
-	return SGS_SUCCESS;
-}
-
-int MessagingSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-	SGS_END_INDEXFUNC;
-}
-
-int MessagingSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-	SGS_END_INDEXFUNC;
-}
-
-int MessagingSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
-{
-	char bfr[ 47 ];
-	sprintf( bfr, "MessagingSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
-	sgs_PushString( C, bfr );
-	if( depth > 0 )
-	{
-		sgs_StringConcat( C, 0 );
-		sgs_PadString( C );
-		sgs_PushString( C, "\n}" );
-		sgs_StringConcat( C, 3 );
-	}
-	return SGS_SUCCESS;
-}
-
-static sgs_RegFuncConst MessagingSystem__sgs_funcs[] =
-{
-	{ "Add", _sgs_method__MessagingSystem__Add },
-	{ NULL, NULL },
-};
-
-static int MessagingSystem__sgs_ifn( SGS_CTX )
-{
-	sgs_CreateDict( C, NULL, 0 );
-	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
-		MessagingSystem__sgs_funcs,
-		-1, "MessagingSystem." );
-	return 1;
-}
-
-static sgs_ObjInterface MessagingSystem__sgs_interface =
-{
-	"MessagingSystem",
-	NULL, MessagingSystem::_sgs_gcmark, MessagingSystem::_sgs_getindex, MessagingSystem::_sgs_setindex, NULL, NULL, MessagingSystem::_sgs_dump, NULL, NULL, NULL, 
-};
-_sgsInterface MessagingSystem::_sgs_interface(MessagingSystem__sgs_interface, MessagingSystem__sgs_ifn);
-
-
-static int _sgs_method__ObjectiveSystem__Add( SGS_CTX )
-{
-	ObjectiveSystem* data; if( !SGS_PARSE_METHOD( C, ObjectiveSystem::_sgs_interface, data, ObjectiveSystem, Add ) ) return 0;
-	sgs_PushVar(C,data->sgsAddObj( sgs_GetVar<StringView>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<StringView>()(C,2), sgs_GetVar<bool>()(C,3), sgs_GetVar<Vec3>()(C,4) )); return 1;
-}
-
-static int _sgs_method__ObjectiveSystem__GetTitle( SGS_CTX )
-{
-	ObjectiveSystem* data; if( !SGS_PARSE_METHOD( C, ObjectiveSystem::_sgs_interface, data, ObjectiveSystem, GetTitle ) ) return 0;
-	sgs_PushVar(C,data->sgsGetTitle( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__ObjectiveSystem__SetTitle( SGS_CTX )
-{
-	ObjectiveSystem* data; if( !SGS_PARSE_METHOD( C, ObjectiveSystem::_sgs_interface, data, ObjectiveSystem, SetTitle ) ) return 0;
-	data->sgsSetTitle( sgs_GetVar<int>()(C,0), sgs_GetVar<StringView>()(C,1) ); return 0;
-}
-
-static int _sgs_method__ObjectiveSystem__GetState( SGS_CTX )
-{
-	ObjectiveSystem* data; if( !SGS_PARSE_METHOD( C, ObjectiveSystem::_sgs_interface, data, ObjectiveSystem, GetState ) ) return 0;
-	sgs_PushVar(C,data->sgsGetState( sgs_GetVar<int>()(C,0) )); return 1;
-}
-
-static int _sgs_method__ObjectiveSystem__SetState( SGS_CTX )
-{
-	ObjectiveSystem* data; if( !SGS_PARSE_METHOD( C, ObjectiveSystem::_sgs_interface, data, ObjectiveSystem, SetState ) ) return 0;
-	data->sgsSetState( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1) ); return 0;
-}
-
-static int _sgs_method__ObjectiveSystem__SetLocation( SGS_CTX )
-{
-	ObjectiveSystem* data; if( !SGS_PARSE_METHOD( C, ObjectiveSystem::_sgs_interface, data, ObjectiveSystem, SetLocation ) ) return 0;
-	data->sgsSetLocation( sgs_GetVar<int>()(C,0), sgs_GetVar<Vec3>()(C,1) ); return 0;
-}
-
-int ObjectiveSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
-{
-	static_cast<ObjectiveSystem*>( obj->data )->~ObjectiveSystem();
-	return SGS_SUCCESS;
-}
-
-int ObjectiveSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
-{
-	return SGS_SUCCESS;
-}
-
-int ObjectiveSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-	SGS_END_INDEXFUNC;
-}
-
-int ObjectiveSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
-{
-	SGS_BEGIN_INDEXFUNC
-	SGS_END_INDEXFUNC;
-}
-
-int ObjectiveSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
-{
-	char bfr[ 47 ];
-	sprintf( bfr, "ObjectiveSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
-	sgs_PushString( C, bfr );
-	if( depth > 0 )
-	{
-		sgs_StringConcat( C, 0 );
-		sgs_PadString( C );
-		sgs_PushString( C, "\n}" );
-		sgs_StringConcat( C, 3 );
-	}
-	return SGS_SUCCESS;
-}
-
-static sgs_RegFuncConst ObjectiveSystem__sgs_funcs[] =
-{
-	{ "Add", _sgs_method__ObjectiveSystem__Add },
-	{ "GetTitle", _sgs_method__ObjectiveSystem__GetTitle },
-	{ "SetTitle", _sgs_method__ObjectiveSystem__SetTitle },
-	{ "GetState", _sgs_method__ObjectiveSystem__GetState },
-	{ "SetState", _sgs_method__ObjectiveSystem__SetState },
-	{ "SetLocation", _sgs_method__ObjectiveSystem__SetLocation },
-	{ NULL, NULL },
-};
-
-static int ObjectiveSystem__sgs_ifn( SGS_CTX )
-{
-	sgs_CreateDict( C, NULL, 0 );
-	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
-		ObjectiveSystem__sgs_funcs,
-		-1, "ObjectiveSystem." );
-	return 1;
-}
-
-static sgs_ObjInterface ObjectiveSystem__sgs_interface =
-{
-	"ObjectiveSystem",
-	NULL, ObjectiveSystem::_sgs_gcmark, ObjectiveSystem::_sgs_getindex, ObjectiveSystem::_sgs_setindex, NULL, NULL, ObjectiveSystem::_sgs_dump, NULL, NULL, NULL, 
-};
-_sgsInterface ObjectiveSystem::_sgs_interface(ObjectiveSystem__sgs_interface, ObjectiveSystem__sgs_ifn);
-
-
 static int _sgs_method__HelpTextSystem__DrawText( SGS_CTX )
 {
 	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, DrawText ) ) return 0;
@@ -3167,6 +2998,7 @@ int CameraResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "depth" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->depth ); return SGS_SUCCESS; }
 		SGS_CASE( "fieldOfView" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->fieldOfView ); return SGS_SUCCESS; }
 		SGS_CASE( "aspectMix" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->aspectMix ); return SGS_SUCCESS; }
 		SGS_CASE( "nearPlane" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->nearPlane ); return SGS_SUCCESS; }
@@ -3183,6 +3015,7 @@ int CameraResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "_data" ){ static_cast<CameraResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ static_cast<CameraResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ static_cast<CameraResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "depth" ){ static_cast<CameraResource*>( obj->data )->depth = sgs_GetVar<int>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "fieldOfView" ){ static_cast<CameraResource*>( obj->data )->fieldOfView = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "aspectMix" ){ static_cast<CameraResource*>( obj->data )->aspectMix = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "nearPlane" ){ static_cast<CameraResource*>( obj->data )->nearPlane = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
@@ -3208,12 +3041,13 @@ int CameraResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\ndepth = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->depth, depth ).push( C ); }
 		{ sgs_PushString( C, "\nfieldOfView = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->fieldOfView, depth ).push( C ); }
 		{ sgs_PushString( C, "\naspectMix = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->aspectMix, depth ).push( C ); }
 		{ sgs_PushString( C, "\nnearPlane = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->nearPlane, depth ).push( C ); }
 		{ sgs_PushString( C, "\nfarPlane = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->farPlane, depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->enabled, depth ).push( C ); }
-		sgs_StringConcat( C, 26 );
+		sgs_StringConcat( C, 28 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

@@ -116,7 +116,7 @@ class SelectProjectFrame(tk.Frame):
 		# project list
 		self.projlist = tk.Listbox( self )
 		self.projlist.grid( row=0, column=0, sticky="nesw" )
-		self.projlist.bind( "<Double-1>", lambda x: self.select_project() )
+		self.projlist.bind( "<Double-1>", lambda x: self.select_project(False) )
 		self.reload()
 		
 		# action buttons
@@ -142,10 +142,11 @@ class SelectProjectFrame(tk.Frame):
 			if e.startswith( "data-" ) and e != "data-common":
 				self.projlist.insert( tk.END, e[5:] )
 	
-	def select_project( self ):
+	def select_project( self, loud = True ):
 		sel = self.projlist.curselection()
 		if not sel:
-			messagebox.showwarning( "Error", "Project is not selected" )
+			if loud:
+				messagebox.showwarning( "Error", "Project is not selected" )
 			return
 		projname = self.projlist.get( sel )
 		print( "Selected project: %s" % projname )

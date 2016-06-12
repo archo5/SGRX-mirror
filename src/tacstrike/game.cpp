@@ -296,8 +296,8 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		GameLevel* level = BaseGame::CreateLevel();
 		AddSystemToLevel<TSGameSystem>( level );
 		AddSystemToLevel<LevelMapSystem>( level );
-		AddSystemToLevel<MessagingSystem>( level );
-		AddSystemToLevel<ObjectiveSystem>( level );
+//		AddSystemToLevel<MessagingSystem>( level );
+//		AddSystemToLevel<ObjectiveSystem>( level );
 		AddSystemToLevel<HelpTextSystem>( level );
 		AddSystemToLevel<FlareSystem>( level );
 		AddSystemToLevel<LevelCoreSystem>( level );

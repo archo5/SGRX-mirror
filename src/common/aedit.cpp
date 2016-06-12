@@ -552,6 +552,28 @@ void EditAnimBundleAsset( SGRX_AnimBundleAsset& aba )
 }
 
 
+void EditFileAsset( SGRX_FileAsset& fa )
+{
+	ImGui::BeginChangeCheck();
+	
+	ImGui::Text( "File" );
+	ImGui::Separator();
+	
+	if( g_NUIAssetPicker->Property( "Select source file", "Source file", fa.sourceFile ) )
+	{
+		if( fa.outputName.size() == 0 )
+			fa.outputName = SV(fa.sourceFile).after_last( "/" );
+	}
+	
+	PickCategoryName( "Output category", fa.outputCategory );
+	IMGUIEditString( "Output name", fa.outputName, 256 );
+	
+	int chg = ImGui::EndChangeCheck();
+	if( chg )
+		fa.ri.rev_asset++;
+}
+
+
 String g_CurCategory;
 String g_CurCatName;
 String g_CurCatPath;
@@ -621,6 +643,11 @@ void EditCurAsset()
 				g_EdAS->animBundleAssets.push_back( new_asset );
 				g_CurAsset = &g_EdAS->animBundleAssets.last();
 			} break;
+		case SGRX_AT_File: {
+				SGRX_FileAsset new_asset = *g_CurAsset->ToFile();
+				g_EdAS->fileAssets.push_back( new_asset );
+				g_CurAsset = &g_EdAS->fileAssets.last();
+			} break;
 		}
 		g_CurAsset->outputName.append( " - Copy" );
 	}
@@ -638,6 +665,9 @@ void EditCurAsset()
 		case SGRX_AT_AnimBundle:
 			g_EdAS->animBundleAssets.erase( g_CurAsset->ToAnimBundle() - g_EdAS->animBundleAssets.data() );
 			break;
+		case SGRX_AT_File:
+			g_EdAS->fileAssets.erase( g_CurAsset->ToFile() - g_EdAS->fileAssets.data() );
+			break;
 		}
 		g_CurAsset = NULL;
 		return;
@@ -650,6 +680,7 @@ void EditCurAsset()
 	case SGRX_AT_Texture: EditTextureAsset( *g_CurAsset->ToTexture() ); break;
 	case SGRX_AT_Mesh: EditMeshAsset( *g_CurAsset->ToMesh() ); break;
 	case SGRX_AT_AnimBundle: EditAnimBundleAsset( *g_CurAsset->ToAnimBundle() ); break;
+	case SGRX_AT_File: EditFileAsset( *g_CurAsset->ToFile() ); break;
 	}
 }
 
@@ -757,6 +788,7 @@ enum ESortBy
 bool g_ShowTextures = true;
 bool g_ShowMeshes = true;
 bool g_ShowAnimBundles = true;
+bool g_ShowFiles = true;
 int g_GroupBy = GB_Category;
 int g_SortBy = SB_Name_ASC;
 String g_Filter;
@@ -787,8 +819,8 @@ int (*g_AssetCmpFuncs[ GB__MAX ][ SB__MAX ])( const void*, const void* ) =
 
 void EditAssetList()
 {
-	static const char* type_letters[] = { "T", "M", "A" };
-	static const char* type_names[] = { "Textures", "Meshes", "Anim. bundles" };
+	static const char* type_letters[] = { "T", "M", "A", "F" };
+	static const char* type_names[] = { "Textures", "Meshes", "Anim. bundles", "Files" };
 	static const char* gb_options[] = { "None", "Type", "Category" };
 	static const char* sb_options[] = { "Name [ASC]", "Name [DESC]" };
 	
@@ -796,6 +828,7 @@ void EditAssetList()
 	ImGui::SameLine();
 	IMGUIEditBool( "Show meshes", g_ShowMeshes );
 	IMGUIEditBool( "Show anim. bundles", g_ShowAnimBundles );
+	IMGUIEditBool( "Show files", g_ShowFiles );
 	IMGUI_COMBOBOX( "Group by", g_GroupBy, gb_options );
 	IMGUI_COMBOBOX( "Sort by", g_SortBy, sb_options );
 	IMGUIEditString( "Search", g_Filter, 256 );
@@ -824,6 +857,14 @@ void EditAssetList()
 		{
 			if( !g_Filter.size() || SV(g_EdAS->animBundleAssets[ i ].outputName).match_loose( g_Filter ) )
 				assets.push_back( &g_EdAS->animBundleAssets[ i ] );
+		}
+	}
+	if( g_ShowFiles )
+	{
+		for( size_t i = 0; i < g_EdAS->fileAssets.size(); ++i )
+		{
+			if( !g_Filter.size() || SV(g_EdAS->fileAssets[ i ].outputName).match_loose( g_Filter ) )
+				assets.push_back( &g_EdAS->fileAssets[ i ] );
 		}
 	}
 	qsort( assets.data(), assets.size(), sizeof(SGRX_Asset*), g_AssetCmpFuncs[ g_GroupBy ][ g_SortBy ] );
@@ -1147,6 +1188,15 @@ struct ASEditor : IGame
 						aba.outputCategory = g_CurAsset->outputCategory;
 					g_EdAS->animBundleAssets.push_back( aba );
 					SetCurAsset( &g_EdAS->animBundleAssets.last() );
+				}
+				ImGui::SameLine();
+				if( ImGui::Button( "Create file" ) )
+				{
+					SGRX_FileAsset fa;
+					if( g_CurAsset )
+						fa.outputCategory = g_CurAsset->outputCategory;
+					g_EdAS->fileAssets.push_back( fa );
+					SetCurAsset( &g_EdAS->fileAssets.last() );
 				}
 				
 				ImGui::EndMenuBar();

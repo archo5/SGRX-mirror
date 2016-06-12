@@ -1052,6 +1052,63 @@ uint32_t SGRX_AnimBundleAsset::LastSourceModTime()
 	return t;
 }
 
+
+void SGRX_FileAsset::Clone( const SGRX_FileAsset& other )
+{
+	*this = other;
+}
+
+bool SGRX_FileAsset::Parse( ConfigReader& cread )
+{
+	StringView key, value;
+	while( cread.Read( key, value ) )
+	{
+		if( key == "SOURCE" )
+			sourceFile = value;
+		else if( key == "OUTPUT_CATEGORY" )
+			outputCategory = value;
+		else if( key == "OUTPUT_NAME" )
+			outputName = value;
+		else if( key == "FILE_END" )
+			return true;
+		else
+		{
+			LOG_ERROR << "Unrecognized AssetScript/File command: " << key << "=" << value;
+			return false;
+		}
+	}
+	LOG_ERROR << "Incomplete AssetScript/File data";
+	return false;
+}
+
+void SGRX_FileAsset::Generate( String& out )
+{
+	out.append( "FILE\n" );
+	out.append( " SOURCE " ); out.append( sourceFile ); out.append( "\n" );
+	out.append( " OUTPUT_CATEGORY " ); out.append( outputCategory ); out.append( "\n" );
+	out.append( " OUTPUT_NAME " ); out.append( outputName ); out.append( "\n" );
+	out.append( "FILE_END\n" );
+}
+
+void SGRX_FileAsset::GetFullName( String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s",
+		StackString<100>(outputCategory).str,
+		StackString<100>(outputName).str );
+	out = bfr;
+}
+
+void SGRX_FileAsset::GetDesc( String& out )
+{
+	char bfr[ 256 ];
+	sgrx_snprintf( bfr, 256, "%s/%s",
+		StackString<100>(outputCategory).str,
+		StackString<100>(outputName).str );
+	out = bfr;
+}
+
+
 bool SGRX_AssetScript::Parse( ConfigReader& cread )
 {
 	StringView key, value;
@@ -1077,6 +1134,12 @@ bool SGRX_AssetScript::Parse( ConfigReader& cread )
 		{
 			animBundleAssets.push_back( SGRX_AnimBundleAsset() );
 			if( animBundleAssets.last().Parse( cread ) == false )
+				return false;
+		}
+		else if( key == "FILE" )
+		{
+			fileAssets.push_back( SGRX_FileAsset() );
+			if( fileAssets.last().Parse( cread ) == false )
 				return false;
 		}
 		else
@@ -1113,6 +1176,11 @@ void SGRX_AssetScript::Generate( String& out )
 	{
 		animBundleAssets[ i ].Generate( out );
 	}
+	
+	for( size_t i = 0; i < fileAssets.size(); ++i )
+	{
+		fileAssets[ i ].Generate( out );
+	}
 }
 
 bool SGRX_AssetScript::Load( const StringView& path )
@@ -1144,6 +1212,7 @@ enum EAssetType
 	AT_Texture,
 	AT_Mesh,
 	AT_AnimBundle,
+	AT_File,
 };
 
 struct AssetInfoItem
@@ -1227,6 +1296,16 @@ bool SGRX_AssetScript::LoadAssetInfo( const StringView& path )
 				ABA.ri.rev_asset = item.rev_asset;
 			}
 			break;
+		case AT_File:
+			for( size_t j = 0; j < fileAssets.size(); ++j )
+			{
+				SGRX_FileAsset& FA = fileAssets[ j ];
+				if( FA.outputCategory != item.category ||
+					FA.outputName != item.name )
+					continue;
+				FA.ri.rev_asset = item.rev_asset;
+			}
+			break;
 		}
 	}
 	
@@ -1255,6 +1334,12 @@ bool SGRX_AssetScript::SaveAssetInfo( const StringView& path )
 	{
 		const SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
 		AssetInfoItem item = { AT_AnimBundle, ABA.outputCategory, ABA.outputName, ABA.ri.rev_asset };
+		items.push_back( item );
+	}
+	for( size_t j = 0; j < fileAssets.size(); ++j )
+	{
+		const SGRX_FileAsset& FA = fileAssets[ j ];
+		AssetInfoItem item = { AT_File, FA.outputCategory, FA.outputName, FA.ri.rev_asset };
 		items.push_back( item );
 	}
 	tw << items;
@@ -1313,6 +1398,18 @@ bool SGRX_AssetScript::LoadOutputInfo( const StringView& path )
 				ABA.ri.rev_output = item.rev_output;
 			}
 			break;
+		case AT_File:
+			for( size_t j = 0; j < fileAssets.size(); ++j )
+			{
+				SGRX_FileAsset& FA = fileAssets[ j ];
+				if( FA.outputCategory != item.category ||
+					FA.outputName != item.name )
+					continue;
+				FA.ri.ts_source = item.ts_source;
+				FA.ri.ts_output = item.ts_output;
+				FA.ri.rev_output = item.rev_output;
+			}
+			break;
 		}
 	}
 	
@@ -1344,6 +1441,13 @@ bool SGRX_AssetScript::SaveOutputInfo( const StringView& path )
 		const SGRX_AnimBundleAsset& ABA = animBundleAssets[ j ];
 		AssetOutputItem item = { AT_AnimBundle, ABA.outputCategory, ABA.outputName,
 			ABA.ri.ts_source, ABA.ri.ts_output, ABA.ri.rev_output };
+		items.push_back( item );
+	}
+	for( size_t j = 0; j < fileAssets.size(); ++j )
+	{
+		const SGRX_FileAsset& FA = fileAssets[ j ];
+		AssetOutputItem item = { AT_File, FA.outputCategory, FA.outputName,
+			FA.ri.ts_source, FA.ri.ts_output, FA.ri.rev_output };
 		items.push_back( item );
 	}
 	tw << items;
@@ -2740,10 +2844,10 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		size_t slashpos = dir.find_first_at( "/" );
 		while( slashpos != NOT_FOUND )
 		{
-			FS_DirCreate( dir.part( 0, slashpos ) );
+			FS_DirCreate( String_Concat( SGRXPATH_COOKED "/", dir.part( 0, slashpos ) ) );
 			slashpos = dir.find_first_at( "/", slashpos + 1 );
 		}
-		FS_DirCreate( dir );
+		FS_DirCreate( String_Concat( SGRXPATH_COOKED "/", dir ) );
 	}
 	
 	puts( "- textures...");
@@ -2752,7 +2856,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_TextureAsset& TA = script.textureAssets[ tid ];
 		StringView catPath = script.categories.getcopy( TA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, "%s/%s.%s",
+		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s.%s",
 			StackString<256>(catPath).str,
 			StackString<256>(TA.outputName).str,
 			SGRX_TextureOutputFormat_Ext( TA.outputType ) );
@@ -2784,7 +2888,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_MeshAsset& MA = script.meshAssets[ tid ];
 		StringView catPath = script.categories.getcopy( MA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, "%s/%s.ssm",
+		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s.ssm",
 			StackString<256>(catPath).str,
 			StackString<256>(MA.outputName).str );
 		if( force == false &&
@@ -2825,7 +2929,7 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		SGRX_AnimBundleAsset& ABA = script.animBundleAssets[ aid ];
 		StringView catPath = script.categories.getcopy( ABA.outputCategory );
 		char bfr[ 520 ];
-		sgrx_snprintf( bfr, 520, "%s/%s.anb",
+		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s.anb",
 			StackString<256>(catPath).str,
 			StackString<256>(ABA.outputName).str );
 		if( force == false &&
@@ -2854,6 +2958,43 @@ void SGRX_ProcessAssets( SGRX_AssetScript& script, bool force )
 		else
 		{
 			printf( "ERROR: failed to save file to %s\n", bfr );
+		}
+	}
+	
+	puts( "- files..." );
+	for( size_t aid = 0; aid < script.fileAssets.size(); ++aid )
+	{
+		SGRX_FileAsset& FA = script.fileAssets[ aid ];
+		StringView catPath = script.categories.getcopy( FA.outputCategory );
+		char bfr[ 520 ];
+		sgrx_snprintf( bfr, 520, SGRXPATH_COOKED "/%s/%s",
+			StackString<256>(catPath).str,
+			StackString<256>(FA.outputName).str );
+		if( force == false &&
+			FA.ri.rev_output == FA.ri.rev_asset &&
+			FA.ri.ts_source != 0 &&
+			FA.ri.ts_output != 0 &&
+			FA.ri.ts_source == FS_FileModTime( FA.sourceFile ) &&
+			FA.ri.ts_output == FS_FileModTime( bfr ) )
+			continue;
+		
+		printf( "| %s => [%s] %s\n",
+			StackString<256>(FA.sourceFile).str,
+			StackString<256>(FA.outputCategory).str,
+			StackString<256>(FA.outputName).str );
+		
+		ByteArray data;
+		if( FS_LoadBinaryFile( StackPath(FA.sourceFile).str, data ) &&
+			FS_SaveBinaryFile( bfr, data.data(), data.size() ) )
+		{
+			FA.ri.rev_output = FA.ri.rev_asset;
+			FA.ri.ts_source = FS_FileModTime( FA.sourceFile );
+			FA.ri.ts_output = FS_FileModTime( bfr );
+			printf( "|----------- saved!\n" );
+		}
+		else
+		{
+			printf( "ERROR: failed to copy file to %s\n", bfr );
 		}
 	}
 }
