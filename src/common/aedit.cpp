@@ -296,6 +296,7 @@ struct TexturePicker : IMGUIEntryPicker
 	void Reload()
 	{
 		m_entries.clear();
+		m_entries.push_back( "" );
 		for( size_t i = 0; i < g_EdAS->textureAssets.size(); ++i )
 		{
 			const SGRX_TextureAsset& TA = g_EdAS->textureAssets[ i ];

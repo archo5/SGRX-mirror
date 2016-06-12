@@ -1048,7 +1048,7 @@ void IMGUICharPicker::Reload()
 	for( size_t i = 0; i < m_entries.size(); ++i )
 		oldHandles.push_back( m_entries[ i ].mesh );
 	Clear();
-	FS_IterateDirectory( "chars", this );
+	FS_IterateDirectory( SGRXPATH_COOKED_CHARS, this );
 	_Search( m_searchString );
 }
 
@@ -1092,7 +1092,7 @@ bool IMGUIShaderPicker::Property( const char* label, String& str )
 		ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
 	{
 		m_shaderList.clear();
-		FS_IterateDirectory( "shaders", this );
+		FS_IterateDirectory( SGRXPATH_SRC_SHADERS, this );
 		ImGui::OpenPopup( "pick_shader" );
 	}
 	ImGui::SameLine();
