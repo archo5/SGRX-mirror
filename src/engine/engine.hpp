@@ -428,6 +428,20 @@ ENGINE_EXPORT uint32_t FS_FileModTime( const StringView& path );
 ENGINE_EXPORT void FS_IterateDirectory( const StringView& path, IDirEntryHandler* deh );
 
 
+#define SGRXPATH_SRC "src"
+#define SGRXPATH_ASSETS "assets"
+#define SGRXPATH_COOKED "cooked"
+#define SGRXPATH_SRC_CHARS SGRXPATH_SRC "/chars"
+#define SGRXPATH_SRC_LEVELS SGRXPATH_SRC "/levels"
+#define SGRXPATH_SRC_PARTSYS SGRXPATH_SRC "/psys"
+#define SGRXPATH_SRC_SHADERS SGRXPATH_SRC "/shaders"
+#define SGRXPATH_COOKED_CHARS SGRXPATH_COOKED "/chars"
+#define SGRXPATH_COOKED_LEVELS SGRXPATH_COOKED "/levels"
+#define SGRXPATH_COOKED_PARTSYS SGRXPATH_COOKED "/psys"
+#define SGRXPATH_COOKED_SHADERS SGRXPATH_COOKED "/shaders"
+#define SGRXPATH_COOKED_SHADERCACHE SGRXPATH_COOKED "/shadercache_"
+
+
 //
 // PHYSICS DATA
 //

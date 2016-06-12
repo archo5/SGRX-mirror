@@ -6,9 +6,9 @@
 #include "assetcomp.hpp"
 
 
-#define ASSET_SCRIPT_NAME "assets.txt"
-#define ASSET_INFO_NAME "asset_revs.info"
-#define OUTPUT_INFO_NAME "output_revs.info"
+#define ASSET_SCRIPT_NAME SGRXPATH_SRC "/assets.txt"
+#define ASSET_INFO_NAME SGRXPATH_SRC "/asset_revs.info"
+#define OUTPUT_INFO_NAME SGRXPATH_SRC "/output_revs.info"
 
 
 SceneHandle g_EdScene;

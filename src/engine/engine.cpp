@@ -1182,7 +1182,7 @@ void IGame::GetShaderCacheFilename( const SGRX_RendererInfo& rinfo, const char* 
 {
 	LOG_FUNCTION;
 	
-	name = "shadercache_";
+	name = SGRXPATH_COOKED_SHADERCACHE;
 	name.append( rinfo.shaderCacheSfx );
 	name.append( "/" );
 	
@@ -1291,7 +1291,7 @@ bool IGame::OnLoadShaderFile( const SGRX_RendererInfo& rinfo, const StringView& 
 {
 	LOG_FUNCTION;
 	
-	String filename = "shaders";
+	String filename = SGRXPATH_SRC_SHADERS;
 	filename.push_back( '/' );
 	filename.append( path.data(), path.size() );
 	filename.append( STRLIT_BUF( ".shd" ) );
