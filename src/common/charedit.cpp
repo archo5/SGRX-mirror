@@ -2410,7 +2410,7 @@ struct CSEditor : IGame
 		SGRX_IMGUI_Init();
 		
 		g_NUIRenderView = new CharRenderView;
-		g_NUICharFilePicker = new IMGUIFilePicker( "src/chars", ".chr" );
+		g_NUICharFilePicker = new IMGUIFilePicker( SGRXPATH_SRC "/chars", ".chr" );
 		g_NUIMeshPicker = new IMGUIMeshPicker;
 		g_NUIAnimPicker = new IMGUIAnimPicker;
 		

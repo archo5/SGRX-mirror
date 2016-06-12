@@ -378,6 +378,7 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	{
 		f_turn_top = f_turn_btm;
 	}
+#if 0
 	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
 	{
 		AnimCharacter::Layer& L = m_animChar.layers[ i ];
@@ -387,6 +388,9 @@ void TSCharacter::ProcessAnims( float deltaTime )
 			L.amount = f_turn_top;
 	}
 	m_animChar.RecalcLayerState();
+#endif
+	m_animChar.SetFloat( "btm_angle", f_turn_btm );
+	m_animChar.SetFloat( "top_angle", f_turn_top );
 }
 
 void TSCharacter::FixedUpdate()

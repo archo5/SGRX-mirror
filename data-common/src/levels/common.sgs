@@ -67,7 +67,7 @@ function GOResource.EditorGUI( ui )
 	ui.ComboNT( "Matrix mode", this, "matrixMode", "Relative\0Absolute\0" );
 }
 
-MeshResource.ED_Icon = "src/editor/icons/mesh.png";
+MeshResource.ED_Icon = "editor/icons/mesh.png";
 function MeshResource.EditorGUI( ui )
 {
 	ui.PickMesh( "Mesh", this, "mesh", "Select mesh" );
@@ -82,7 +82,7 @@ function MeshResource.EditorGUI( ui )
 	}
 }
 
-LightResource.ED_Icon = "src/editor/icons/light.png";
+LightResource.ED_Icon = "editor/icons/light.png";
 function LightResource.EditorGUI( ui )
 {
 	ui.ComboNT( "Type", this, "type", "Point light\0Spotlight\0", 1 );
@@ -131,7 +131,7 @@ function LightResource.EditorDrawWorld()
 	}
 }
 
-ParticleSystemResource.ED_Icon = "src/editor/icons/particles.png";
+ParticleSystemResource.ED_Icon = "editor/icons/particles.png";
 function ParticleSystemResource.EditorGUI( ui )
 {
 	ui.EditBool( "Enabled", this, "enabled" );
@@ -140,7 +140,7 @@ function ParticleSystemResource.EditorGUI( ui )
 	this!GOResource.EditorGUI( ui );
 }
 
-RigidBodyResource.ED_Icon = "src/editor/icons/rigid_body.png";
+RigidBodyResource.ED_Icon = "editor/icons/rigid_body.png";
 function RigidBodyResource.EditorGUI( ui )
 {
 	ui.EditFloat( "Friction", this, "friction", 0, 1 );
@@ -184,7 +184,7 @@ function ReflectionPlaneResource.EditorDrawWorld()
 	BR_Pos( mtx.transform_pos( vec3(0,0,1) ) );
 }
 
-CameraResource.ED_Icon = "src/editor/icons/camera.png";
+CameraResource.ED_Icon = "editor/icons/camera.png";
 function CameraResource.EditorGUI( ui )
 {
 	ui.EditBool( "Is enabled?", this, "enabled" );
@@ -306,7 +306,7 @@ function BhMeshArray.EditorGUI( ui )
 global Marker = {};
 ENTITY( "Marker" );
 
-Marker.ED_Icon = "src/editor/icons/marker.png";
+Marker.ED_Icon = "editor/icons/marker.png";
 function Marker.ED_PropInfo( eptr )
 {
 	EE_AddFieldString( eptr, "name", "Name", "" );
@@ -323,7 +323,7 @@ function Marker.EditorDrawWorld()
 global LightSample = {};
 ENTITY( "LightSample" );
 
-LightSample.ED_Icon = "src/editor/icons/ltsample.png";
+LightSample.ED_Icon = "editor/icons/ltsample.png";
 function LightSample.ED_PropInfo( eptr )
 {
 	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
@@ -333,7 +333,7 @@ function LightSample.ED_PropInfo( eptr )
 global MapLayer = {};
 ENTITY( "MapLayer" );
 
-MapLayer.ED_Icon = "src/editor/icons/marker.png";
+MapLayer.ED_Icon = "editor/icons/marker.png";
 function MapLayer.ED_PropInfo( eptr )
 {
 	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
@@ -343,7 +343,7 @@ function MapLayer.ED_PropInfo( eptr )
 global SolidBox = {};
 ENTITY( "SolidBox" );
 
-SolidBox.ED_Icon = "src/editor/icons/trigger.png";
+SolidBox.ED_Icon = "editor/icons/trigger.png";
 function SolidBox.ED_PropInfo( eptr )
 {
 	PropInfo_XForm( eptr );
@@ -359,7 +359,7 @@ function SolidBox.EditorDrawWorld()
 global AICover = {};
 ENTITY( "AICover" );
 
-AICover.ED_Icon = "src/editor/icons/trigger.png";
+AICover.ED_Icon = "editor/icons/trigger.png";
 function AICover.ED_PropInfo( eptr )
 {
 	PropInfo_Entity( eptr );
@@ -376,7 +376,7 @@ function AICover.EditorDrawWorld()
 global AIPathArea = {};
 ENTITY( "AIPathArea" );
 
-AIPathArea.ED_Icon = "src/editor/icons/trigger.png";
+AIPathArea.ED_Icon = "editor/icons/trigger.png";
 function AIPathArea.ED_PropInfo( eptr )
 {
 	PropInfo_XForm( eptr );
@@ -397,7 +397,7 @@ function AIRoom.Init()
 	this.cellSize = 1.0;
 }
 
-AIRoom.ED_Icon = "src/editor/icons/trigger.png";
+AIRoom.ED_Icon = "editor/icons/trigger.png";
 function AIRoom.ED_PropInfo( eptr )
 {
 	PropInfo_Entity( eptr );
@@ -487,7 +487,7 @@ function Trigger.SetupTrigger( once, fn, fnout )
 global BoxTrigger = clone( Trigger );
 ENTITY( "BoxTrigger" );
 
-BoxTrigger.ED_Icon = "src/editor/icons/trigger.png";
+BoxTrigger.ED_Icon = "editor/icons/trigger.png";
 function BoxTrigger.ED_PropInfo( eptr )
 {
 	PropInfo_Entity( eptr );

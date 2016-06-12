@@ -1399,7 +1399,7 @@ struct BasicFileReader : IFileReader
 	uint64_t Length(){ return len; }
 	bool Seek( uint64_t pos )
 	{
-		return fseek( fp, 0, SEEK_SET ) != -1;
+		return fseek( fp, pos, SEEK_SET ) != -1;
 	}
 	uint64_t Tell()
 	{

@@ -381,7 +381,7 @@ bool TextureData_Load( TextureData* TD, IFileReader* fr, const StringView& filen
 	{
 		uint32_t size = 0;
 		memcpy( &size, &file_header[ 4 + sizeof(TextureInfo) ], 4 );
-		if( fr->Length() != size + 8 + sizeof(TextureInfo) )
+		if( fr->Length() != size + STX_HEADER_SIZE )
 		{
 			LOG << LOG_DATE << "  Failed to load texture " << filename << " - incomplete data";
 			return false;

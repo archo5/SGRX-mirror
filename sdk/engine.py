@@ -15,9 +15,7 @@ class SGRX:
 		"data-%s/src/sys",
 		"data-%s/cache",
 		"data-%s/cache/levels",
-		"data-%s/cooked",
-		"data-%s/cooked/levels",
-		"data-%s/cooked/shadercache_d3d11",
+		"data-%s/cache/shaders_d3d11",
 	]
 	
 	@classmethod

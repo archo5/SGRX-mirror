@@ -1191,6 +1191,7 @@ void AnimCharacter::_Prepare()
 	m_anEnd.animSource = output_node ? output_node->GetAnimator( this ) : NULL;
 	
 	// recompile expressions, reapply masks
+	_ReindexVariables();
 	for( size_t i = 0; i < aliases.size(); ++i )
 		aliases[ i ]->expr.Recompile( this );
 	for( size_t i = 0; i < nodes.size(); ++i )
