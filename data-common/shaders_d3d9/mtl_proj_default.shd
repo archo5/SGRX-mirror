@@ -1,1 +1,0 @@
-outColor = tex2D( Tex0, inTex0.xy ) * tex2D( Tex1, float2( inTex0.z, 0.5 ) );
