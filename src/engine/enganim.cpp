@@ -219,11 +219,11 @@ void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
 			for( size_t i = 0; i < m_pose.size(); ++i )
 			{
 				Mat4& M = m_tmpMtx[ i ];
-				M = animSource->m_pose[ i ].GetSRT() * MB[ i ].boneOffset;
+				M = M4MulAff( animSource->m_pose[ i ].GetSRT(), MB[ i ].boneOffset );
 				if( MB[ i ].parent_id >= 0 )
-					M = M * m_tmpMtx[ MB[ i ].parent_id ];
+					M = M4MulAff( M, m_tmpMtx[ MB[ i ].parent_id ] );
 				else
-					M = M * info->rootXF;
+					M = M4MulAff( M, info->rootXF );
 				m_pose[ i ].fq = animSource->m_pose[ i ].fq;
 				m_pose[ i ].SetMatrix( M );
 			}
@@ -238,9 +238,9 @@ void AnimRelAbs::Advance( float deltaTime, AnimInfo* info )
 				M = animSource->m_pose[ i ].GetSRT();
 				Mat4 pM = MB[ i ].boneOffset;
 				if( MB[ i ].parent_id >= 0 )
-					pM = pM * m_tmpMtx[ MB[ i ].parent_id ];
+					pM = M4MulAff( pM, m_tmpMtx[ MB[ i ].parent_id ] );
 				else
-					pM = pM * info->rootXF;
+					pM = M4MulAff( pM, info->rootXF );
 				m_pose[ i ].SetMatrix( M * pM.Inverted() );
 			}
 		}
@@ -904,18 +904,18 @@ bool GR_ApplyAnimator( const Animator* animator, Mat4* out, size_t outsz, bool a
 	for( size_t i = 0; i < outsz; ++i )
 	{
 		Mat4& M = out[ i ];
-		M = animator->m_pose[ i ].GetSRT() * MB[ i ].boneOffset;
+		M = M4MulAff( animator->m_pose[ i ].GetSRT(), MB[ i ].boneOffset );
 		if( MB[ i ].parent_id >= 0 )
-			M = M * out[ MB[ i ].parent_id ];
+			M = M4MulAff( M, out[ MB[ i ].parent_id ] );
 		else if( base )
-			M = M * *base;
+			M = M4MulAff( M, *base );
 	}
 	if( applyinv )
 	{
 		for( size_t i = 0; i < outsz; ++i )
 		{
 			Mat4& M = out[ i ];
-			M = MB[ i ].invSkinOffset * M;
+			M = M4MulAff( MB[ i ].invSkinOffset, M );
 		}
 	}
 	return true;

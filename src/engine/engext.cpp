@@ -935,7 +935,7 @@ void AnimRotator::Advance( float deltaTime, AnimInfo* info )
 			Mat4 xf = animSource->m_pose[ i ].GetSRT();
 			Vec3 tr = animSource->m_pose[ 0 ].pos; // origin position
 			xf.SetTranslation( xf.GetTranslation() - tr );
-			xf = xf * rm;
+			xf = M4MulAff( xf, rm );
 			xf.SetTranslation( xf.GetTranslation() + tr );
 			m_pose[ i ].SetMatrix( xf );
 			m_pose[ i ].fq = animSource->m_pose[ i ].fq;

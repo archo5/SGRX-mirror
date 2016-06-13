@@ -626,7 +626,19 @@ Quat Mat4::GetRotationQuaternion() const
 	if( scale.x != 0 ) scale.x = 1 / scale.x;
 	if( scale.y != 0 ) scale.y = 1 / scale.y;
 	if( scale.z != 0 ) scale.z = 1 / scale.z;
-	usm = usm * Mat4::CreateScale( scale );
+	
+	// fast postscale
+	usm.m[0][0] *= scale.x;
+	usm.m[0][1] *= scale.x;
+	usm.m[0][2] *= scale.x;
+	usm.m[1][0] *= scale.y;
+	usm.m[1][1] *= scale.y;
+	usm.m[1][2] *= scale.y;
+	usm.m[2][0] *= scale.z;
+	usm.m[2][1] *= scale.z;
+	usm.m[2][2] *= scale.z;	
+//	usm = usm * Mat4::CreateScale( scale );
+	
 #define r(x,y) usm.m[x][y]
 	
 	float tr = r(0,0) + r(1,1) + r(2,2);

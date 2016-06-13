@@ -1161,6 +1161,24 @@ struct ENGINE_EXPORT Mat4
 		n.Multiply( *this, o );
 		return n;
 	}
+	Mat4& MultiplyAffine( const Mat4& A, const Mat4& B )
+	{
+		m[0][0] = A.m[0][0] * B.m[0][0] + A.m[0][1] * B.m[1][0] + A.m[0][2] * B.m[2][0];
+		m[0][1] = A.m[0][0] * B.m[0][1] + A.m[0][1] * B.m[1][1] + A.m[0][2] * B.m[2][1];
+		m[0][2] = A.m[0][0] * B.m[0][2] + A.m[0][1] * B.m[1][2] + A.m[0][2] * B.m[2][2];
+		m[1][0] = A.m[1][0] * B.m[0][0] + A.m[1][1] * B.m[1][0] + A.m[1][2] * B.m[2][0];
+		m[1][1] = A.m[1][0] * B.m[0][1] + A.m[1][1] * B.m[1][1] + A.m[1][2] * B.m[2][1];
+		m[1][2] = A.m[1][0] * B.m[0][2] + A.m[1][1] * B.m[1][2] + A.m[1][2] * B.m[2][2];
+		m[2][0] = A.m[2][0] * B.m[0][0] + A.m[2][1] * B.m[1][0] + A.m[2][2] * B.m[2][0];
+		m[2][1] = A.m[2][0] * B.m[0][1] + A.m[2][1] * B.m[1][1] + A.m[2][2] * B.m[2][1];
+		m[2][2] = A.m[2][0] * B.m[0][2] + A.m[2][1] * B.m[1][2] + A.m[2][2] * B.m[2][2];
+		m[3][0] = A.m[3][0] * B.m[0][0] + A.m[3][1] * B.m[1][0] + A.m[3][2] * B.m[2][0] + B.m[3][0];
+		m[3][1] = A.m[3][0] * B.m[0][1] + A.m[3][1] * B.m[1][1] + A.m[3][2] * B.m[2][1] + B.m[3][1];
+		m[3][2] = A.m[3][0] * B.m[0][2] + A.m[3][1] * B.m[1][2] + A.m[3][2] * B.m[2][2] + B.m[3][2];
+		m[0][3] = m[1][3] = m[2][3] = 0;
+		m[3][3] = 1;
+		return *this;
+	}
 	
 	void Scale( Vec3 scale )
 	{
@@ -1226,6 +1244,7 @@ struct ENGINE_EXPORT Mat4
 			arch << a[ i ];
 	}
 };
+FINLINE Mat4 M4MulAff( const Mat4& a, const Mat4& b ){ Mat4 out; out.MultiplyAffine( a, b ); return out; }
 
 
 struct ENGINE_EXPORT Mat4x3
