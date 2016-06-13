@@ -1087,7 +1087,7 @@ struct ENGINE_EXPORT Mat4
 		return out * q;
 	}
 	FINLINE Vec3 TransformNormal( const Vec3& nrm ) const { return Transform( nrm, 0.0f ); }
-
+	
 	FINLINE bool operator == ( const Mat4& o ) const
 	{
 		for( int i = 0; i < 16; ++i )
@@ -1215,6 +1215,247 @@ struct ENGINE_EXPORT Mat4
 		if( T::IsText )
 			arch.marker( "Mat4" );
 		for( int i = 0; i < 16; ++i )
+			arch << a[ i ];
+	}
+};
+
+
+struct ENGINE_EXPORT Mat4x3
+{
+	union
+	{
+		float a[12];
+		float m[4][3];
+	};
+	
+	static const Mat4x3 Identity;
+	
+	static Mat4x3 CreateFromPtr( const float* v12f )
+	{
+		Mat4x3 m;
+		memcpy( m.a, v12f, sizeof(float[12]) );
+		return m;
+	}
+	
+	static Mat4x3 CreateScale( float x, float y, float z )
+	{
+		Mat4x3 m = Identity;
+		m.m[0][0] = x;
+		m.m[1][1] = y;
+		m.m[2][2] = z;
+		return m;
+	}
+	static FINLINE Mat4x3 CreateScale( const Vec3& v ){ return CreateScale( v.x, v.y, v.z ); }
+	static Mat4x3 CreateRotationDefAxis( int axis0, int axis1, float angle )
+	{
+		float s = sin( angle );
+		float c = cos( angle );
+		Mat4x3 m = Identity;
+		m.m[ axis0 ][ axis0 ] = c;
+		m.m[ axis1 ][ axis0 ] = -s;
+		m.m[ axis0 ][ axis1 ] = s;
+		m.m[ axis1 ][ axis1 ] = c;
+		return m;
+	}
+	static FINLINE Mat4x3 CreateRotationX( float angle ){ return CreateRotationDefAxis( 1, 2, angle ); }
+	static FINLINE Mat4x3 CreateRotationY( float angle ){ return CreateRotationDefAxis( 2, 0, angle ); }
+	static FINLINE Mat4x3 CreateRotationZ( float angle ){ return CreateRotationDefAxis( 0, 1, angle ); }
+	static Mat4x3 CreateRotationXYZ( float x, float y, float z )
+	{
+		Mat4x3 rx = CreateRotationX( x );
+		Mat4x3 ry = CreateRotationY( y );
+		Mat4x3 rz = CreateRotationZ( z );
+		Mat4x3 rot, rot2;
+		rot2.Multiply( rx, ry );
+		rot.Multiply( rot2, rz );
+		return rot;
+	}
+	static FINLINE Mat4x3 CreateRotationXYZ( const Vec3& rot_angles ){ return CreateRotationXYZ( rot_angles.x, rot_angles.y, rot_angles.z ); }
+	static Mat4x3 CreateRotationAxisAngle( float x, float y, float z, float angle )
+	{
+		float s = sin( angle );
+		float c = cos( angle );
+		float Ic = 1 - c;
+		
+		Mat4x3 m = Identity;
+		m.m[0][0] = x * x * Ic + c;
+		m.m[1][0] = y * x * Ic - z * s;
+		m.m[2][0] = z * x * Ic + y * s;
+		m.m[0][1] = x * y * Ic + z * s;
+		m.m[1][1] = y * y * Ic + c;
+		m.m[2][1] = z * y * Ic - x * s;
+		m.m[0][2] = x * z * Ic - y * s;
+		m.m[1][2] = y * z * Ic + x * s;
+		m.m[2][2] = z * z * Ic + c;
+		return m;
+	}
+	static FINLINE Mat4x3 CreateRotationAxisAngle( const Vec3& axis, float angle ){ return CreateRotationAxisAngle( axis.x, axis.y, axis.z, angle ); }
+	static Mat4x3 CreateRotationBetweenVectors( const Vec3& a, const Vec3& b, float scale = 1.0f )
+	{
+		float angle = acosf( clamp( Vec3Dot( a, b ), -1, 1 ) );
+		Vec3 axis = Vec3Cross( a, b );
+		if( axis.LengthSq() < SMALL_FLOAT )
+			axis = Vec3Cross( a, a.Shuffle() );
+		return CreateRotationAxisAngle( axis.Normalized(), angle * scale );
+	}
+	static Mat4x3 CreateRotationFromQuat( const Quat& q )
+	{
+		float a = -q.w;
+		float b = q.x;
+		float c = q.y;
+		float d = q.z;
+		float a2 = a*a;
+		float b2 = b*b;
+		float c2 = c*c;
+		float d2 = d*d;
+		
+		Mat4x3 m;
+		m.m[0][0] = a2 + b2 - c2 - d2;
+		m.m[1][0] = 2*(b*c + a*d);
+		m.m[2][0] = 2*(b*d - a*c);
+		m.m[3][0] = 0.0f;
+		
+		m.m[0][1] = 2*(b*c - a*d);
+		m.m[1][1] = a2 - b2 + c2 - d2;
+		m.m[2][1] = 2*(c*d + a*b);
+		m.m[3][1] = 0.0f;
+		
+		m.m[0][2] = 2*(b*d + a*c);
+		m.m[1][2] = 2*(c*d - a*b);
+		m.m[2][2] = a2 - b2 - c2 + d2;
+		m.m[3][2] = 0.0f;
+		
+		return m;
+	}
+	static FINLINE Mat4x3 CreateTranslation( float x, float y, float z )
+	{
+		Mat4x3 out = Identity;
+		out.m[3][0] = x;
+		out.m[3][1] = y;
+		out.m[3][2] = z;
+		return out;
+	}
+	static FINLINE Mat4x3 CreateTranslation( const Vec3& v ){ return CreateTranslation( v.x, v.y, v.z ); }
+	static FINLINE Mat4x3 CreateSRT( const Vec3& scale, const Vec3& rot_angles, const Vec3& pos )
+	{
+		return CreateSXT( scale, CreateRotationXYZ( rot_angles ), pos );
+	}
+	static FINLINE Mat4x3 CreateSRT( const Vec3& scale, const Quat& rot, const Vec3& pos )
+	{
+		return CreateSXT( scale, CreateRotationFromQuat( rot ), pos );
+	}
+	static Mat4x3 CreateSXT( const Vec3& scale, const Mat4x3& rot, const Vec3& pos )
+	{
+		Mat4x3 mscl = CreateScale( scale );
+		Mat4x3 mtrn = CreateTranslation( pos );
+		Mat4x3 mtmp1, mtmp2;
+		mtmp1.Multiply( mscl, rot );
+		mtmp2.Multiply( mtmp1, mtrn );
+		return mtmp2;
+	}
+	Vec3 GetTranslation() const
+	{
+		return V3( m[3][0], m[3][1], m[3][2] );
+	}
+	void SetTranslation( const Vec3& v )
+	{
+		m[3][0] = v.x;
+		m[3][1] = v.y;
+		m[3][2] = v.z;
+	}
+	Vec3 GetScale() const
+	{
+		return V3(
+			V3( m[0][0], m[1][0], m[2][0] ).Length(),
+			V3( m[0][1], m[1][1], m[2][1] ).Length(),
+			V3( m[0][2], m[1][2], m[2][2] ).Length()
+		);
+	}
+	Quat GetRotationQuaternion() const;
+	Vec3 GetXYZAngles() const
+	{
+		float q = sqrtf( m[1][2] * m[1][2] + m[2][2] * m[2][2] );
+		return V3( atan2( m[1][2], m[2][2] ), atan2( -m[0][2], q ), atan2( m[0][1], m[0][0] ) );
+	}
+	
+	FINLINE Vec3 Transform( const Vec3& v, float w ) const
+	{
+		Vec3 out =
+		{
+			v.x * m[0][0] + v.y * m[1][0] + v.z * m[2][0] + m[3][0] * w,
+			v.x * m[0][1] + v.y * m[1][1] + v.z * m[2][1] + m[3][1] * w,
+			v.x * m[0][2] + v.y * m[1][2] + v.z * m[2][2] + m[3][2] * w,
+		};
+		return out;
+	}
+	FINLINE Vec4 Transform( const Vec4& v ) const
+	{
+		Vec4 out =
+		{
+			v.x * m[0][0] + v.y * m[1][0] + v.z * m[2][0] + v.w * m[3][0],
+			v.x * m[0][1] + v.y * m[1][1] + v.z * m[2][1] + v.w * m[3][1],
+			v.x * m[0][2] + v.y * m[1][2] + v.z * m[2][2] + v.w * m[3][2],
+			v.w,
+		};
+		return out;
+	}
+	FINLINE Vec3 TransformPos( const Vec3& v ) const
+	{
+		Vec3 out =
+		{
+			v.x * m[0][0] + v.y * m[1][0] + v.z * m[2][0] + m[3][0],
+			v.x * m[0][1] + v.y * m[1][1] + v.z * m[2][1] + m[3][1],
+			v.x * m[0][2] + v.y * m[1][2] + v.z * m[2][2] + m[3][2],
+		};
+		return out;
+	}
+	FINLINE Vec3 TransformNormal( const Vec3& nrm ) const { return Transform( nrm, 0.0f ); }
+	
+	FINLINE bool operator == ( const Mat4x3& o ) const
+	{
+		for( int i = 0; i < 12; ++i )
+			if( a[ i ] != o.a[ i ] )
+				return false;
+		return true;
+	}
+	FINLINE bool operator != ( const Mat4x3& o ) const { return !( *this == o ); }
+	
+	bool InvertTo( Mat4x3& out ) const;
+	FINLINE Mat4x3 Inverted() const
+	{
+		Mat4x3 out = Identity;
+		InvertTo( out );
+		return out;
+	}
+	
+	Mat4x3& Multiply( const Mat4x3& A, const Mat4x3& B )
+	{
+		m[0][0] = A.m[0][0] * B.m[0][0] + A.m[0][1] * B.m[1][0] + A.m[0][2] * B.m[2][0];
+		m[0][1] = A.m[0][0] * B.m[0][1] + A.m[0][1] * B.m[1][1] + A.m[0][2] * B.m[2][1];
+		m[0][2] = A.m[0][0] * B.m[0][2] + A.m[0][1] * B.m[1][2] + A.m[0][2] * B.m[2][2];
+		m[1][0] = A.m[1][0] * B.m[0][0] + A.m[1][1] * B.m[1][0] + A.m[1][2] * B.m[2][0];
+		m[1][1] = A.m[1][0] * B.m[0][1] + A.m[1][1] * B.m[1][1] + A.m[1][2] * B.m[2][1];
+		m[1][2] = A.m[1][0] * B.m[0][2] + A.m[1][1] * B.m[1][2] + A.m[1][2] * B.m[2][2];
+		m[2][0] = A.m[2][0] * B.m[0][0] + A.m[2][1] * B.m[1][0] + A.m[2][2] * B.m[2][0];
+		m[2][1] = A.m[2][0] * B.m[0][1] + A.m[2][1] * B.m[1][1] + A.m[2][2] * B.m[2][1];
+		m[2][2] = A.m[2][0] * B.m[0][2] + A.m[2][1] * B.m[1][2] + A.m[2][2] * B.m[2][2];
+		m[3][0] = A.m[3][0] * B.m[0][0] + A.m[3][1] * B.m[1][0] + A.m[3][2] * B.m[2][0] + B.m[3][0];
+		m[3][1] = A.m[3][0] * B.m[0][1] + A.m[3][1] * B.m[1][1] + A.m[3][2] * B.m[2][1] + B.m[3][1];
+		m[3][2] = A.m[3][0] * B.m[0][2] + A.m[3][1] * B.m[1][2] + A.m[3][2] * B.m[2][2] + B.m[3][2];
+		return *this;
+	}
+	Mat4x3 operator * ( const Mat4x3& o ) const
+	{
+		Mat4x3 n;
+		n.Multiply( *this, o );
+		return n;
+	}
+	
+	template< class T > void Serialize( T& arch )
+	{
+		if( T::IsText )
+			arch.marker( "Mat4x3" );
+		for( int i = 0; i < 12; ++i )
 			arch << a[ i ];
 	}
 };

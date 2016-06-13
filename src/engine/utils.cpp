@@ -609,9 +609,16 @@ Vec3 CalcAngularVelocity( const Quat& qa, const Quat& qb )
 }
 
 
+const Mat4 Mat4::Identity =
+{
+	1, 0, 0, 0,
+	0, 1, 0, 0,
+	0, 0, 1, 0,
+	0, 0, 0, 1,
+};
+
 Quat Mat4::GetRotationQuaternion() const
 {
-#if 1
 	Quat Q;
 	
 	Mat4 usm = *this;
@@ -659,41 +666,6 @@ Quat Mat4::GetRotationQuaternion() const
 #undef r
 	
 	return Q.Normalized();
-#else
-#define r(x,y) m[x][y]
-	float trace = r(0,0) + r(1,1) + r(2,2);
-
-	float temp[4];
-
-	if (trace > float(0.0)) 
-	{
-		float s = sqrtf(trace + float(1.0));
-		temp[3]=(s * float(0.5));
-		s = float(0.5) / s;
-
-		temp[0]=((r(2,1) - r(1,2)) * s);
-		temp[1]=((r(0,2) - r(2,0)) * s);
-		temp[2]=((r(1,0) - r(0,1)) * s);
-	} 
-	else 
-	{
-		int i = r(0,0) < r(1,1) ? 
-			(r(1,1) < r(2,2) ? 2 : 1) :
-			(r(0,0) < r(2,2) ? 2 : 0); 
-		int j = (i + 1) % 3;  
-		int k = (i + 2) % 3;
-
-		float s = sqrtf(r(i,i) - r(j,j) - r(k,k) + float(1.0));
-		temp[i] = s * float(0.5);
-		s = float(0.5) / s;
-
-		temp[3] = (r(k,j) - r(j,k)) * s;
-		temp[j] = (r(j,i) + r(i,j)) * s;
-		temp[k] = (r(k,i) + r(i,k)) * s;
-	}
-	Quat Q = { temp[0], temp[1], temp[2], temp[3] };
-	return Q;
-#endif
 }
 
 bool Mat4::InvertTo( Mat4& out ) const
@@ -826,18 +798,98 @@ bool Mat4::InvertTo( Mat4& out ) const
 	return true;
 }
 
-Quat TransformQuaternion( const Quat& q, const Mat4& m )
-{
-	return Quat::CreateAxisAngle( m.TransformNormal( q.GetAxis() ), q.GetAngle() );
-}
 
-const Mat4 Mat4::Identity =
+const Mat4x3 Mat4x3::Identity =
 {
 	1, 0, 0, 0,
 	0, 1, 0, 0,
 	0, 0, 1, 0,
-	0, 0, 0, 1,
 };
+
+Quat Mat4x3::GetRotationQuaternion() const
+{
+	Quat Q;
+	
+	Mat4x3 usm = *this;
+	Vec3 scale = GetScale();
+	if( scale.x != 0 ) scale.x = 1 / scale.x;
+	if( scale.y != 0 ) scale.y = 1 / scale.y;
+	if( scale.z != 0 ) scale.z = 1 / scale.z;
+	usm = usm * CreateScale( scale );
+#define r(x,y) usm.m[x][y]
+	
+	float tr = r(0,0) + r(1,1) + r(2,2);
+	
+	if( tr > 0 )
+	{
+		float S = sqrtf( tr + 1.0f ) * 2;
+		Q.w = 0.25f * S;
+		Q.x = (r(1,2) - r(2,1)) / S;
+		Q.y = (r(2,0) - r(0,2)) / S;
+		Q.z = (r(0,1) - r(1,0)) / S;
+	}
+	else if( ( r(0,0) > r(1,1) ) && ( r(0,0) > r(2,2) ) )
+	{
+		float S = sqrtf( 1.0f + r(0,0) - r(1,1) - r(2,2) ) * 2;
+		Q.w = ( r(1,2) - r(2,1) ) / S;
+		Q.x = 0.25f * S;
+		Q.y = ( r(1,0) + r(0,1) ) / S;
+		Q.z = ( r(2,0) + r(0,2) ) / S;
+	}
+	else if( r(1,1) > r(2,2) )
+	{
+		float S = sqrtf( 1.0f + r(1,1) - r(0,0) - r(2,2) ) * 2;
+		Q.w = ( r(2,0) - r(0,2) ) / S;
+		Q.x = ( r(1,0) + r(0,1) ) / S;
+		Q.y = 0.25f * S;
+		Q.z = ( r(2,1) + r(1,2) ) / S;
+	}
+	else
+	{
+		float S = sqrtf( 1.0f + r(2,2) - r(0,0) - r(1,1) ) * 2;
+		Q.w = ( r(0,1) - r(1,0) ) / S;
+		Q.x = ( r(2,0) + r(0,2) ) / S;
+		Q.y = ( r(2,1) + r(1,2) ) / S;
+		Q.z = 0.25f * S;
+	}
+#undef r
+	
+	return Q.Normalized();
+}
+
+bool Mat4x3::InvertTo( Mat4x3& out ) const
+{
+	float inv00 = m[1][1]*m[2][2]-m[2][1]*m[1][2];
+	float inv01 = m[1][0]*m[2][2]-m[1][2]*m[2][0];
+	float inv02 = m[1][0]*m[2][1]-m[1][1]*m[2][0];
+	float det = +m[0][0]*inv00 -m[0][1]*inv01 +m[0][2]*inv02;
+	if( det == 0 )
+		return false;
+	
+	float invdet = 1.0f / det;
+	out.m[0][0] =  inv00*invdet;
+	out.m[0][1] = -(m[0][1]*m[2][2]-m[0][2]*m[2][1])*invdet;
+	out.m[0][2] =  (m[0][1]*m[1][2]-m[0][2]*m[1][1])*invdet;
+	out.m[1][0] = -inv01*invdet;
+	out.m[1][1] =  (m[0][0]*m[2][2]-m[0][2]*m[2][0])*invdet;
+	out.m[1][2] = -(m[0][0]*m[1][2]-m[1][0]*m[0][2])*invdet;
+	out.m[2][0] =  inv02*invdet;
+	out.m[2][1] = -(m[0][0]*m[2][1]-m[2][0]*m[0][1])*invdet;
+	out.m[2][2] =  (m[0][0]*m[1][1]-m[1][0]*m[0][1])*invdet;
+	
+	out.m[3][0] = -m[3][0];
+	out.m[3][1] = -m[3][1];
+	out.m[3][2] = -m[3][2];
+	
+	return true;
+}
+
+
+
+Quat TransformQuaternion( const Quat& q, const Mat4& m )
+{
+	return Quat::CreateAxisAngle( m.TransformNormal( q.GetAxis() ), q.GetAngle() );
+}
 
 
 
