@@ -4,7 +4,7 @@ set( CMAKE_SHARED_LIBRARY_PREFIX "" )
 
 # Test Suite
 add_library( testsuite SHARED testsuite.cpp )
-target_link_libraries( testsuite sgrx-gfw sgrx-core sgrx-script )
+target_link_libraries( testsuite sgrx-gfw sgrx-core sgrx-script sgrx-physics-bullet )
 set_target_properties( testsuite PROPERTIES
 	INCLUDE_DIRECTORIES "${SRCDIR}/engine;${SRCDIR}/common"
 	COMPILE_FLAGS "${CORE_FLAGS} -DTESTSUITE"

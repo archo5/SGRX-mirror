@@ -1263,6 +1263,8 @@ void AnimCharacter::SetTransform( const Mat4& mtx )
 
 void AnimCharacter::FixedTick( float deltaTime, bool changeStates )
 {
+	LOG_FUNCTION_ARG("AnimCharacter");
+	
 	for( size_t i = 0; i < aliases.size(); ++i )
 	{
 		aliases[ i ]->value = aliases[ i ]->expr.Eval( this );
@@ -1285,6 +1287,8 @@ void AnimCharacter::FixedTick( float deltaTime, bool changeStates )
 
 void AnimCharacter::PreRender( float blendFactor )
 {
+	LOG_FUNCTION_ARG("AnimCharacter");
+	
 	m_anEnd.Interpolate( blendFactor );
 	GR_ApplyAnimator( &m_anEnd, m_cachedMeshInst );
 }

@@ -1,6 +1,7 @@
 
 
 #include <engine.hpp>
+#include <engext.hpp>
 #include <gamegui.hpp>
 
 
@@ -150,7 +151,21 @@ g_TestGameUI;
 
 
 
-struct Test_3DRendering : ITest, SGRX_LightSampler
+struct Lighting1 : SGRX_LightSampler
+{
+	void SampleLight( const Vec3& pos, Vec3 outcolors[6] )
+	{
+		outcolors[0] = V3(0.3f,0.2f,0.2f) * 0.2f;
+		outcolors[1] = V3(0.5f,0.4f,0.4f) * 0.2f;
+		outcolors[2] = V3(0.7f,0.6f,0.6f) * 0.2f;
+		outcolors[3] = V3(0.3f,0.4f,0.3f) * 0.2f;
+		outcolors[4] = V3(0.5f,0.6f,0.5f) * 0.2f;
+		outcolors[5] = V3(0.7f,0.8f,0.7f) * 0.2f;
+	}
+}
+g_Lighting1;
+
+struct Test_3DRendering : ITest
 {
 	virtual StringView GetName() const { return "3D rendering test"; }
 	Test_3DRendering()
@@ -181,7 +196,7 @@ struct Test_3DRendering : ITest, SGRX_LightSampler
 				mih->SetMesh( mesh );
 				mih->matrix = Mat4::CreateTranslation( x * 3, y * 3, 0 );
 				mih->SetLightingMode( SGRX_LM_Dynamic );
-				LightMesh( mih );
+				g_Lighting1.LightMesh( mih );
 				m_meshes.push_back( mih );
 			}
 		}
@@ -200,20 +215,85 @@ struct Test_3DRendering : ITest, SGRX_LightSampler
 		GR_RenderScene( rs );
 	}
 	
-	void SampleLight( const Vec3& pos, Vec3 outcolors[6] )
-	{
-		outcolors[0] = V3(0.3f,0.2f,0.2f) * 0.2f;
-		outcolors[1] = V3(0.5f,0.4f,0.4f) * 0.2f;
-		outcolors[2] = V3(0.7f,0.6f,0.6f) * 0.2f;
-		outcolors[3] = V3(0.3f,0.4f,0.3f) * 0.2f;
-		outcolors[4] = V3(0.5f,0.6f,0.5f) * 0.2f;
-		outcolors[5] = V3(0.7f,0.8f,0.7f) * 0.2f;
-	}
-	
 	SceneHandle m_scene;
 	Array< MeshInstHandle > m_meshes;
 }
 g_Test3DRendering;
+
+
+
+struct Test_Characters : ITest
+{
+	virtual StringView GetName() const { return "Character animation test"; }
+	Test_Characters()
+	{
+	}
+	
+	void OnInitialize()
+	{
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.vsync = false;
+		GR_SetVideoMode( rs );
+		
+		m_phyWorld = PHY_CreateWorld();
+		m_scene = GR_CreateScene();
+		m_scene->camera.position = V3(-10,-10,10);
+		m_scene->camera.direction = V3(10,10,-6).Normalized();
+		m_scene->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+		m_scene->camera.angle = 45;
+		m_scene->camera.UpdateMatrices();
+		
+		int xe = 12, ye = 12;
+		m_chars.resize( xe * ye );
+		for( int y = 0; y < ye; ++y )
+		{
+			for( int x = 0; x < xe; ++x )
+			{
+				int i = x + y * xe;
+				m_chars[ i ] = new AnimCharacter( m_scene, m_phyWorld );
+				m_chars[ i ]->Load( "chars/tstest.chr" );
+				g_Lighting1.LightMesh( m_chars[ i ]->m_cachedMeshInst );
+				m_chars[ i ]->SetTransform( Mat4::CreateTranslation( x * 2, y * 2, 0 ) );
+			}
+		}
+	}
+	void OnDestroy()
+	{
+		for( size_t i = 0; i < m_chars.size(); ++i )
+			delete m_chars[ i ];
+		m_chars.clear();
+		m_scene = NULL;
+		m_phyWorld = NULL;
+	}
+	void OnEvent( const Event& e )
+	{
+	}
+	void FixedTick( float dt )
+	{
+		for( size_t i = 0; i < m_chars.size(); ++i )
+		{
+			m_chars[ i ]->FixedTick( dt );
+		}
+	}
+	void Do( float dt, float bf )
+	{
+		float t = sgrx_hqtime();
+		for( size_t i = 0; i < m_chars.size(); ++i )
+		{
+			m_chars[ i ]->SetFloat( "run", sin(t+i) * 0.5f + 0.5f );
+			m_chars[ i ]->SetFloat( "aim", cos(t*1.2f+i) + 1 );
+			m_chars[ i ]->PreRender( bf );
+		}
+		SGRX_RenderScene rs( V4(0), m_scene );
+		GR_RenderScene( rs );
+	}
+	
+	PhyWorldHandle m_phyWorld;
+	SceneHandle m_scene;
+	Array< AnimCharacter* > m_chars;
+}
+g_TestCharacters;
 
 
 
@@ -227,6 +307,7 @@ ITest* g_Tests[] =
 	&g_TestBruteForce,
 	&g_TestGameUI,
 	&g_Test3DRendering,
+	&g_TestCharacters,
 };
 RenderSettings g_rs;
 #define TESTCOUNT (sizeof(g_Tests)/sizeof(g_Tests[0]))
@@ -321,9 +402,9 @@ struct TestSuite : IGame
 		{
 			char bfr[ 4096 ];
 			ITest* T = g_Tests[ g_CurTest ];
-			sgrx_snprintf( bfr, 4096, "Test #%d: %s | FPS: %u",
+			sgrx_snprintf( bfr, 4096, "Test #%d: %s | ms: %f | FPS: %u",
 				(g_CurTest+1), StackString<4096>(T->GetName()).str,
-				unsigned(m_frameCount) );
+				1000.0f / m_frameCount, unsigned(m_frameCount) );
 			Window_SetTitle( bfr );
 			m_lastTime = gametime;
 			m_frameCount = 0;

@@ -2616,6 +2616,7 @@ SGRX_Log::RegFunc::STATS SGRX_Log::RegFunc::stats;
 SGRX_Log::RegFunc::STATS::STATS()
 {
 	f = fopen( "stats.txt", "w" );
+	setvbuf( f, NULL, _IOFBF, 1024 * 10 );
 }
 
 SGRX_Log::RegFunc::STATS::~STATS()
