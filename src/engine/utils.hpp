@@ -989,12 +989,20 @@ struct ENGINE_EXPORT Mat4
 	}
 	static Mat4 CreateSXT( const Vec3& scale, const Mat4& rot, const Vec3& pos )
 	{
-		Mat4 mscl = Mat4::CreateScale( scale );
-		Mat4 mtrn = Mat4::CreateTranslation( pos );
-		Mat4 mtmp1, mtmp2;
-		mtmp1.Multiply( mscl, rot );
-		mtmp2.Multiply( mtmp1, mtrn );
-		return mtmp2;
+		Mat4 tmp = rot;
+		// fast prescale
+		tmp.m[0][0] *= scale.x;
+		tmp.m[1][0] *= scale.x;
+		tmp.m[2][0] *= scale.x;
+		tmp.m[0][1] *= scale.y;
+		tmp.m[1][1] *= scale.y;
+		tmp.m[2][1] *= scale.y;
+		tmp.m[0][2] *= scale.z;
+		tmp.m[1][2] *= scale.z;
+		tmp.m[2][2] *= scale.z;
+		// fast translate
+		tmp.SetTranslation( pos );
+		return tmp;
 	}
 	
 	static Mat4 CreateLookAt( Vec3 pos, Vec3 dir, Vec3 up )
