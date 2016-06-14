@@ -458,6 +458,7 @@ void TSCharacter::FixedUpdate()
 		Vec2 i_move = ctrl->GetInputV2( ACT_Chr_Move );
 		float i_speed = ctrl->GetInputV3( ACT_Chr_Move ).z;
 		
+#if 0
 		// animate character
 		const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_pistol_up";
 		const char* anim_walk_fw = m_isCrouching ? "crouch_walk" : "walk";
@@ -472,12 +473,16 @@ void TSCharacter::FixedUpdate()
 		}
 		
 		const char* animname = anim_run_fw;
+#endif
 		Vec2 md = i_move.Normalized();
+		float fwdq = i_speed;
 		if( Vec2Dot( md, GetAimDir_FT().ToVec2() ) < -0.2f )
 		{
 			md = -md;
-			animname = anim_run_bw;
+			fwdq *= -1;
+	//		animname = anim_run_bw;
 		}
+#if 0
 		// TODO TURN ISSUES
 	//	if( i_move.Length() > 0.1f )
 	//	{
@@ -493,6 +498,10 @@ void TSCharacter::FixedUpdate()
 		
 		if( !IsPlayingAnim() && m_isOnGround && m_jumpTimeout == 0 )
 			m_anMainPlayer.Play( GR_GetAnim( animname ), false, 0.2f );
+#endif
+		m_animChar.SetFloat( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
+		m_animChar.SetBool( "crouch", m_isCrouching );
+		m_animChar.SetFloat( "aim", 1 );
 	}
 	
 	HandleMovementPhysics( deltaTime );

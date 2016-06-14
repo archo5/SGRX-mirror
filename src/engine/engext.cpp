@@ -319,35 +319,6 @@ MEPTRes MathEquation::_ParseTokens(
 		return op;
 	}
 	
-	// unary operator
-	if( tokenlist[0].type == TT_Operator )
-	{
-		if( tokenlist[0].data == "+" )
-		{
-			return _ParseTokens( tokenlist.part( 1 ), tokenlist[0].data, vars );
-		}
-		else if( tokenlist[0].data == "-" ||
-			tokenlist[0].data == "!" ||
-			tokenlist[0].data == "~" )
-		{
-			MEPTRes op = _AllocOper();
-			if( op.error )
-				return op;
-			ops[ op.at ].type = _ME_Str1Op( tokenlist[0].data );
-			MEPTRes src = _ParseTokens( tokenlist.part( 1 ), tokenlist[0].data, vars );
-			if( src.error )
-				return src;
-			ops[ op.at ].op1 = src.at;
-			
-			_Optimize( ops[ op.at ] );
-			return op;
-		}
-		else
-		{
-			return MECompileResult( tokenlist[0].data, "invalid unary operator" );
-		}
-	}
-	
 	// binary operators
 	int level = 0;
 	size_t best_token_id = NOT_FOUND;
@@ -393,6 +364,35 @@ MEPTRes MathEquation::_ParseTokens(
 			tokenlist[0].type == TT_LParen &&
 			tokenlist[ tokenlist.size() - 1 ].type == TT_RParen )
 			return _ParseTokens( tokenlist.part( 1, tokenlist.size() - 2 ), tokenlist[0].data, vars );
+		
+		// unary operator
+		if( tokenlist[0].type == TT_Operator )
+		{
+			if( tokenlist[0].data == "+" )
+			{
+				return _ParseTokens( tokenlist.part( 1 ), tokenlist[0].data, vars );
+			}
+			else if( tokenlist[0].data == "-" ||
+				tokenlist[0].data == "!" ||
+				tokenlist[0].data == "~" )
+			{
+				MEPTRes op = _AllocOper();
+				if( op.error )
+					return op;
+				ops[ op.at ].type = _ME_Str1Op( tokenlist[0].data );
+				MEPTRes src = _ParseTokens( tokenlist.part( 1 ), tokenlist[0].data, vars );
+				if( src.error )
+					return src;
+				ops[ op.at ].op1 = src.at;
+				
+				_Optimize( ops[ op.at ] );
+				return op;
+			}
+			else
+			{
+				return MECompileResult( tokenlist[0].data, "invalid unary operator" );
+			}
+		}
 		
 		return MECompileResult( tokenlist[0].data, "invalid expression" );
 	}

@@ -369,7 +369,7 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		SGRX_Animation* AN = A.anim;
 		A.at += deltaTime * A.speed;
 		A.prev_fade_at = A.fade_at;
-		A.fade_at += deltaTime * A.speed;
+		A.fade_at += deltaTime * fabsf( A.speed );
 		
 		if( AN == NULL )
 		{
@@ -385,6 +385,8 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		if( !A.once )
 		{
 			A.at = fmodf( A.at, animTime );
+			if( A.at < 0 )
+				A.at += animTime;
 			// permanent animation faded fully in, no need to keep previous tracks
 			if( A.fade_at > A.fadetime )
 			{
