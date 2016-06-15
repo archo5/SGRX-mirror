@@ -74,7 +74,7 @@ function ED_ILOAD.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 function ED_ISAVE.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 {
 	v = obj.(prop);
-	ED_SDATA[ prop ] = vec3( v );
+	ED_SDATA[ prop ] = vec3( v ) ?? vec3(0);
 }
 function ED_ILCSV.EditVec3( lbl, obj, prop, vmin, vmax, prec )
 {

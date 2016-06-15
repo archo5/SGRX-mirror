@@ -235,6 +235,8 @@ EXP_STRUCT RigidBodyResource : GOResource
 	SGS_PROPERTY_FUNC( READ WRITE SetShapeMinExtents ) Vec3 shapeMinExtents;
 	SGS_PROPERTY_FUNC( READ WRITE SetShapeMesh ) MeshHandle shapeMesh;
 	
+	SGS_METHOD void WakeUp(){ m_body->WakeUp(); }
+	
 	PhyRigidBodyHandle m_body;
 	PhyShapeHandle m_shape;
 	Vec3 m_prevPos;
@@ -277,11 +279,6 @@ EXP_STRUCT CameraResource : GOResource
 };
 
 
-
-#define MoveMask_Position 0x01
-#define MoveMask_Rotation 0x02
-#define MoveMask_Scale    0x04
-#define MoveMask_ALL      0x07
 
 EXP_STRUCT BhResourceMoveObject : GOBehavior
 {

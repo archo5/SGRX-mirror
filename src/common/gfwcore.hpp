@@ -123,5 +123,17 @@ GFW_DEFINE_HANDLE_CPPBC_CONV( MeshInstHandle, SGSMeshInstHandle );
 #define ForceType_Force PFT_Force
 
 
+enum MatrixMode
+{
+	MM_Relative = 0,
+	MM_Absolute = 1,
+};
+
+#define MoveMask_Position 0x01
+#define MoveMask_Rotation 0x02
+#define MoveMask_Scale    0x04
+#define MoveMask_ALL      0x07
+
+
 GFW_EXPORT void GFWRegisterCore( SGS_CTX );
 

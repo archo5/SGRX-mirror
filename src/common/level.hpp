@@ -267,12 +267,6 @@ struct EditorUIHelper
 		const char* caption, const char* label, String& value ) = 0;
 };
 
-enum MatrixMode
-{
-	MM_Relative = 0,
-	MM_Absolute = 1,
-};
-
 struct GOResourceInfo
 {
 	const char* name;
@@ -302,12 +296,12 @@ EXP_STRUCT GOResource : LevelScrObj
 	typedef sgsHandle< GOResource > ScrHandle;
 	
 	GFW_EXPORT GOResource( GameObject* obj );
-	GFW_EXPORT virtual void OnDestroy();
-	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
-	GFW_EXPORT virtual void FixedUpdate();
-	GFW_EXPORT virtual void Update();
-	GFW_EXPORT virtual void PreRender();
-	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual SGS_METHOD void OnDestroy();
+	GFW_EXPORT virtual SGS_METHOD void PrePhysicsFixedUpdate();
+	GFW_EXPORT virtual SGS_METHOD void FixedUpdate();
+	GFW_EXPORT virtual SGS_METHOD void Update();
+	GFW_EXPORT virtual SGS_METHOD void PreRender();
+	GFW_EXPORT virtual SGS_METHOD void OnTransformUpdate();
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
@@ -330,6 +324,16 @@ EXP_STRUCT GOResource : LevelScrObj
 	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
 	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_type;
 	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
+	
+	FINLINE Vec3 GetLocalPosition() const { return m_localMatrix.GetTranslation(); }
+	FINLINE Quat GetLocalRotation() const { return m_localMatrix.GetRotationQuaternion(); }
+	FINLINE Vec3 GetLocalRotationXYZ() const { return RAD2DEG( m_localMatrix.GetRotationQuaternion().ToXYZ() ); }
+	FINLINE Vec3 GetLocalScale() const { return m_localMatrix.GetScale(); }
+	
+	SGS_PROPERTY_FUNC( READ GetLocalPosition ) SGS_ALIAS( Vec3 localPosition );
+	SGS_PROPERTY_FUNC( READ GetLocalRotation ) SGS_ALIAS( Quat localRotation );
+	SGS_PROPERTY_FUNC( READ GetLocalRotationXYZ ) SGS_ALIAS( Vec3 localRotationXYZ );
+	SGS_PROPERTY_FUNC( READ GetLocalScale ) SGS_ALIAS( Vec3 localScale );
 	SGS_PROPERTY_FUNC( READ GetLocalMatrix WRITE SetLocalMatrix VARNAME localMatrix ) Mat4 m_localMatrix;
 	SGS_PROPERTY_FUNC( READ GetMatrixMode WRITE SetMatrixMode VARNAME matrixMode ) int m_matrixMode;
 	

@@ -75,6 +75,16 @@ static sgs_RegIntConst g_gfw_ints[] =
 	{ "ForceType_Acceleration", ForceType_Acceleration },
 	{ "ForceType_Force", ForceType_Force },
 	
+	// matrix modes
+	{ "MM_Relative", MM_Relative },
+	{ "MM_Absolute", MM_Absolute },
+	
+	// resource move masks
+	{ "MoveMask_Position", MoveMask_Position },
+	{ "MoveMask_Rotation", MoveMask_Rotation },
+	{ "MoveMask_Scale", MoveMask_Scale },
+	{ "MoveMask_ALL", MoveMask_ALL },
+	
 	{ NULL, 0 },
 };
 

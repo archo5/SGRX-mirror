@@ -482,7 +482,8 @@ void TSCharacter::FixedUpdate()
 #endif
 		m_animChar.SetFloat( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
 		m_animChar.SetBool( "crouch", m_isCrouching );
-		m_animChar.SetFloat( "aim", 1 );
+		GOBehavior* wpn = FindWeapon();
+		m_animChar.SetFloat( "aim", wpn ? 1 : 0 );
 	}
 	
 	HandleMovementPhysics( deltaTime );

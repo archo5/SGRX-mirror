@@ -902,6 +902,48 @@ static sgs_ObjInterface IGameLevelSystem__sgs_interface =
 _sgsInterface IGameLevelSystem::_sgs_interface(IGameLevelSystem__sgs_interface, IGameLevelSystem__sgs_ifn, &LevelScrObj::_sgs_interface);
 
 
+static int _sgs_method__GOResource__OnDestroy( SGS_CTX )
+{
+	GOResource* data; if( !SGS_PARSE_METHOD( C, GOResource::_sgs_interface, data, GOResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__GOResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	GOResource* data; if( !SGS_PARSE_METHOD( C, GOResource::_sgs_interface, data, GOResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__GOResource__FixedUpdate( SGS_CTX )
+{
+	GOResource* data; if( !SGS_PARSE_METHOD( C, GOResource::_sgs_interface, data, GOResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__GOResource__Update( SGS_CTX )
+{
+	GOResource* data; if( !SGS_PARSE_METHOD( C, GOResource::_sgs_interface, data, GOResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__GOResource__PreRender( SGS_CTX )
+{
+	GOResource* data; if( !SGS_PARSE_METHOD( C, GOResource::_sgs_interface, data, GOResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__GOResource__OnTransformUpdate( SGS_CTX )
+{
+	GOResource* data; if( !SGS_PARSE_METHOD( C, GOResource::_sgs_interface, data, GOResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
+
 static int _sgs_method__GOResource__GetWorldMatrix( SGS_CTX )
 {
 	GOResource* data; if( !SGS_PARSE_METHOD( C, GOResource::_sgs_interface, data, GOResource, GetWorldMatrix ) ) return 0;
@@ -932,6 +974,10 @@ int GOResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<GOResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<GOResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -963,9 +1009,13 @@ int GOResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<GOResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
-		sgs_StringConcat( C, 16 );
+		sgs_StringConcat( C, 24 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -975,6 +1025,12 @@ int GOResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst GOResource__sgs_funcs[] =
 {
+	{ "OnDestroy", _sgs_method__GOResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__GOResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__GOResource__FixedUpdate },
+	{ "Update", _sgs_method__GOResource__Update },
+	{ "PreRender", _sgs_method__GOResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__GOResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__GOResource__GetWorldMatrix },
 	{ NULL, NULL },
 };
@@ -2321,6 +2377,48 @@ static sgs_ObjInterface AIDBSystem__sgs_interface =
 _sgsInterface AIDBSystem::_sgs_interface(AIDBSystem__sgs_interface, AIDBSystem__sgs_ifn);
 
 
+static int _sgs_method__MeshResource__OnDestroy( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__MeshResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__MeshResource__FixedUpdate( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__MeshResource__Update( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__MeshResource__PreRender( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__MeshResource__OnTransformUpdate( SGS_CTX )
+{
+	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
+
 static int _sgs_method__MeshResource__GetWorldMatrix( SGS_CTX )
 {
 	MeshResource* data; if( !SGS_PARSE_METHOD( C, MeshResource::_sgs_interface, data, MeshResource, GetWorldMatrix ) ) return 0;
@@ -2358,6 +2456,10 @@ int MeshResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "meshInst" ){ sgs_PushPtr( C, static_cast<MeshResource*>( obj->data )->m_meshInst.item ); return SGS_SUCCESS; }
@@ -2406,6 +2508,10 @@ int MeshResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmeshInst = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_meshInst.item, depth ).push( C ); }
@@ -2416,7 +2522,7 @@ int MeshResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLightingMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlmQuality = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_lmQuality, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncastLMS = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_castLMS, depth ).push( C ); }
-		sgs_StringConcat( C, 32 );
+		sgs_StringConcat( C, 40 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -2426,6 +2532,12 @@ int MeshResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst MeshResource__sgs_funcs[] =
 {
+	{ "OnDestroy", _sgs_method__MeshResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__MeshResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__MeshResource__FixedUpdate },
+	{ "Update", _sgs_method__MeshResource__Update },
+	{ "PreRender", _sgs_method__MeshResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__MeshResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__MeshResource__GetWorldMatrix },
 	{ "SetShaderConst", _sgs_method__MeshResource__SetShaderConst },
 	{ NULL, NULL },
@@ -2447,6 +2559,48 @@ static sgs_ObjInterface MeshResource__sgs_interface =
 };
 _sgsInterface MeshResource::_sgs_interface(MeshResource__sgs_interface, MeshResource__sgs_ifn, &GOResource::_sgs_interface);
 
+
+static int _sgs_method__LightResource__OnDestroy( SGS_CTX )
+{
+	LightResource* data; if( !SGS_PARSE_METHOD( C, LightResource::_sgs_interface, data, LightResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__LightResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	LightResource* data; if( !SGS_PARSE_METHOD( C, LightResource::_sgs_interface, data, LightResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__LightResource__FixedUpdate( SGS_CTX )
+{
+	LightResource* data; if( !SGS_PARSE_METHOD( C, LightResource::_sgs_interface, data, LightResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__LightResource__Update( SGS_CTX )
+{
+	LightResource* data; if( !SGS_PARSE_METHOD( C, LightResource::_sgs_interface, data, LightResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__LightResource__PreRender( SGS_CTX )
+{
+	LightResource* data; if( !SGS_PARSE_METHOD( C, LightResource::_sgs_interface, data, LightResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__LightResource__OnTransformUpdate( SGS_CTX )
+{
+	LightResource* data; if( !SGS_PARSE_METHOD( C, LightResource::_sgs_interface, data, LightResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
 
 static int _sgs_method__LightResource__GetWorldMatrix( SGS_CTX )
 {
@@ -2478,6 +2632,10 @@ int LightResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "isStatic" ){ sgs_PushVar( C, static_cast<LightResource*>( obj->data )->IsStatic() ); return SGS_SUCCESS; }
@@ -2542,6 +2700,10 @@ int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nisStatic = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->IsStatic(), depth ).push( C ); }
@@ -2559,7 +2721,7 @@ int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ninnerAngle = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_innerAngle, depth ).push( C ); }
 		{ sgs_PushString( C, "\nspotCurve = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_spotCurve, depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightRadius = " ); sgs_DumpData( C, static_cast<LightResource*>( obj->data )->m_lightRadius, depth ).push( C ); }
-		sgs_StringConcat( C, 46 );
+		sgs_StringConcat( C, 54 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -2569,6 +2731,12 @@ int LightResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst LightResource__sgs_funcs[] =
 {
+	{ "OnDestroy", _sgs_method__LightResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__LightResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__LightResource__FixedUpdate },
+	{ "Update", _sgs_method__LightResource__Update },
+	{ "PreRender", _sgs_method__LightResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__LightResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__LightResource__GetWorldMatrix },
 	{ NULL, NULL },
 };
@@ -2589,6 +2757,48 @@ static sgs_ObjInterface LightResource__sgs_interface =
 };
 _sgsInterface LightResource::_sgs_interface(LightResource__sgs_interface, LightResource__sgs_ifn, &GOResource::_sgs_interface);
 
+
+static int _sgs_method__ParticleSystemResource__OnDestroy( SGS_CTX )
+{
+	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__ParticleSystemResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__ParticleSystemResource__FixedUpdate( SGS_CTX )
+{
+	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__ParticleSystemResource__Update( SGS_CTX )
+{
+	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__ParticleSystemResource__PreRender( SGS_CTX )
+{
+	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__ParticleSystemResource__OnTransformUpdate( SGS_CTX )
+{
+	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
 
 static int _sgs_method__ParticleSystemResource__GetWorldMatrix( SGS_CTX )
 {
@@ -2627,6 +2837,10 @@ int ParticleSystemResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "particleSystemPath" ){ sgs_PushVar( C, static_cast<ParticleSystemResource*>( obj->data )->m_partSysPath ); return SGS_SUCCESS; }
@@ -2664,12 +2878,16 @@ int ParticleSystemResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nparticleSystemPath = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_partSysPath, depth ).push( C ); }
 		{ sgs_PushString( C, "\nsoundEvent = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_soundEventName, depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<ParticleSystemResource*>( obj->data )->m_enabled, depth ).push( C ); }
-		sgs_StringConcat( C, 22 );
+		sgs_StringConcat( C, 30 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -2679,6 +2897,12 @@ int ParticleSystemResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst ParticleSystemResource__sgs_funcs[] =
 {
+	{ "OnDestroy", _sgs_method__ParticleSystemResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__ParticleSystemResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__ParticleSystemResource__FixedUpdate },
+	{ "Update", _sgs_method__ParticleSystemResource__Update },
+	{ "PreRender", _sgs_method__ParticleSystemResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__ParticleSystemResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__ParticleSystemResource__GetWorldMatrix },
 	{ "Trigger", _sgs_method__ParticleSystemResource__Trigger },
 	{ NULL, NULL },
@@ -2701,11 +2925,60 @@ static sgs_ObjInterface ParticleSystemResource__sgs_interface =
 _sgsInterface ParticleSystemResource::_sgs_interface(ParticleSystemResource__sgs_interface, ParticleSystemResource__sgs_ifn, &GOResource::_sgs_interface);
 
 
+static int _sgs_method__RigidBodyResource__OnDestroy( SGS_CTX )
+{
+	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__RigidBodyResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__RigidBodyResource__FixedUpdate( SGS_CTX )
+{
+	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__RigidBodyResource__Update( SGS_CTX )
+{
+	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__RigidBodyResource__PreRender( SGS_CTX )
+{
+	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__RigidBodyResource__OnTransformUpdate( SGS_CTX )
+{
+	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
+
 static int _sgs_method__RigidBodyResource__GetWorldMatrix( SGS_CTX )
 {
 	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, GetWorldMatrix ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->GetWorldMatrix(  )); return 1;
+}
+
+static int _sgs_method__RigidBodyResource__WakeUp( SGS_CTX )
+{
+	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, WakeUp ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->WakeUp(  ); return 0;
 }
 
 int RigidBodyResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -2731,6 +3004,10 @@ int RigidBodyResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "linearVelocity" ){ sgs_PushVar( C, static_cast<RigidBodyResource*>( obj->data )->GetLinearVelocity() ); return SGS_SUCCESS; }
@@ -2800,6 +3077,10 @@ int RigidBodyResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlinearVelocity = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->GetLinearVelocity(), depth ).push( C ); }
@@ -2821,7 +3102,7 @@ int RigidBodyResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nshapeExtents = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeExtents, depth ).push( C ); }
 		{ sgs_PushString( C, "\nshapeMinExtents = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeMinExtents, depth ).push( C ); }
 		{ sgs_PushString( C, "\nshapeMesh = " ); sgs_DumpData( C, static_cast<RigidBodyResource*>( obj->data )->shapeMesh, depth ).push( C ); }
-		sgs_StringConcat( C, 54 );
+		sgs_StringConcat( C, 62 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -2831,7 +3112,14 @@ int RigidBodyResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst RigidBodyResource__sgs_funcs[] =
 {
+	{ "OnDestroy", _sgs_method__RigidBodyResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__RigidBodyResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__RigidBodyResource__FixedUpdate },
+	{ "Update", _sgs_method__RigidBodyResource__Update },
+	{ "PreRender", _sgs_method__RigidBodyResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__RigidBodyResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__RigidBodyResource__GetWorldMatrix },
+	{ "WakeUp", _sgs_method__RigidBodyResource__WakeUp },
 	{ NULL, NULL },
 };
 
@@ -2851,6 +3139,48 @@ static sgs_ObjInterface RigidBodyResource__sgs_interface =
 };
 _sgsInterface RigidBodyResource::_sgs_interface(RigidBodyResource__sgs_interface, RigidBodyResource__sgs_ifn, &GOResource::_sgs_interface);
 
+
+static int _sgs_method__ReflectionPlaneResource__OnDestroy( SGS_CTX )
+{
+	ReflectionPlaneResource* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneResource::_sgs_interface, data, ReflectionPlaneResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__ReflectionPlaneResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	ReflectionPlaneResource* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneResource::_sgs_interface, data, ReflectionPlaneResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__ReflectionPlaneResource__FixedUpdate( SGS_CTX )
+{
+	ReflectionPlaneResource* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneResource::_sgs_interface, data, ReflectionPlaneResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__ReflectionPlaneResource__Update( SGS_CTX )
+{
+	ReflectionPlaneResource* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneResource::_sgs_interface, data, ReflectionPlaneResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__ReflectionPlaneResource__PreRender( SGS_CTX )
+{
+	ReflectionPlaneResource* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneResource::_sgs_interface, data, ReflectionPlaneResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__ReflectionPlaneResource__OnTransformUpdate( SGS_CTX )
+{
+	ReflectionPlaneResource* data; if( !SGS_PARSE_METHOD( C, ReflectionPlaneResource::_sgs_interface, data, ReflectionPlaneResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
 
 static int _sgs_method__ReflectionPlaneResource__GetWorldMatrix( SGS_CTX )
 {
@@ -2882,6 +3212,10 @@ int ReflectionPlaneResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<ReflectionPlaneResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -2913,9 +3247,13 @@ int ReflectionPlaneResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<ReflectionPlaneResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
-		sgs_StringConcat( C, 16 );
+		sgs_StringConcat( C, 24 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -2925,6 +3263,12 @@ int ReflectionPlaneResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst ReflectionPlaneResource__sgs_funcs[] =
 {
+	{ "OnDestroy", _sgs_method__ReflectionPlaneResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__ReflectionPlaneResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__ReflectionPlaneResource__FixedUpdate },
+	{ "Update", _sgs_method__ReflectionPlaneResource__Update },
+	{ "PreRender", _sgs_method__ReflectionPlaneResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__ReflectionPlaneResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__ReflectionPlaneResource__GetWorldMatrix },
 	{ NULL, NULL },
 };
@@ -2945,6 +3289,48 @@ static sgs_ObjInterface ReflectionPlaneResource__sgs_interface =
 };
 _sgsInterface ReflectionPlaneResource::_sgs_interface(ReflectionPlaneResource__sgs_interface, ReflectionPlaneResource__sgs_ifn, &GOResource::_sgs_interface);
 
+
+static int _sgs_method__CameraResource__OnDestroy( SGS_CTX )
+{
+	CameraResource* data; if( !SGS_PARSE_METHOD( C, CameraResource::_sgs_interface, data, CameraResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__CameraResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	CameraResource* data; if( !SGS_PARSE_METHOD( C, CameraResource::_sgs_interface, data, CameraResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__CameraResource__FixedUpdate( SGS_CTX )
+{
+	CameraResource* data; if( !SGS_PARSE_METHOD( C, CameraResource::_sgs_interface, data, CameraResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__CameraResource__Update( SGS_CTX )
+{
+	CameraResource* data; if( !SGS_PARSE_METHOD( C, CameraResource::_sgs_interface, data, CameraResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__CameraResource__PreRender( SGS_CTX )
+{
+	CameraResource* data; if( !SGS_PARSE_METHOD( C, CameraResource::_sgs_interface, data, CameraResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__CameraResource__OnTransformUpdate( SGS_CTX )
+{
+	CameraResource* data; if( !SGS_PARSE_METHOD( C, CameraResource::_sgs_interface, data, CameraResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
 
 static int _sgs_method__CameraResource__GetWorldMatrix( SGS_CTX )
 {
@@ -3004,6 +3390,10 @@ int CameraResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
 		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
 		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
 		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
 		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
 		SGS_CASE( "depth" ){ sgs_PushVar( C, static_cast<CameraResource*>( obj->data )->depth ); return SGS_SUCCESS; }
@@ -3047,6 +3437,10 @@ int CameraResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->m_name, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->m_type, depth ).push( C ); }
 		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
 		{ sgs_PushString( C, "\ndepth = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->depth, depth ).push( C ); }
@@ -3055,7 +3449,7 @@ int CameraResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nnearPlane = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->nearPlane, depth ).push( C ); }
 		{ sgs_PushString( C, "\nfarPlane = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->farPlane, depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<CameraResource*>( obj->data )->enabled, depth ).push( C ); }
-		sgs_StringConcat( C, 28 );
+		sgs_StringConcat( C, 36 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -3065,6 +3459,12 @@ int CameraResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 
 static sgs_RegFuncConst CameraResource__sgs_funcs[] =
 {
+	{ "OnDestroy", _sgs_method__CameraResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__CameraResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__CameraResource__FixedUpdate },
+	{ "Update", _sgs_method__CameraResource__Update },
+	{ "PreRender", _sgs_method__CameraResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__CameraResource__OnTransformUpdate },
 	{ "GetWorldMatrix", _sgs_method__CameraResource__GetWorldMatrix },
 	{ "WorldToScreen", _sgs_method__CameraResource__WorldToScreen },
 	{ "WorldToScreenPx", _sgs_method__CameraResource__WorldToScreenPx },
