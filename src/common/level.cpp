@@ -688,10 +688,17 @@ GameLevel::~GameLevel()
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->OnLevelDestroy();
+	m_systems.clear();
 	
 	m_sgsObject->data = NULL;
 	m_sgsObject->iface = g_sgsobj_empty_handle;
 	sgs_ObjRelease( C, m_sgsObject );
+	
+	// free all SGS objects before context destruction
+	m_self._release();
+	m_metadata._release();
+	m_persistent._release();
+	m_markerPositions._release();
 }
 
 void GameLevel::HandleEvent( SGRX_EventID eid, const EventData& edata )
@@ -988,6 +995,9 @@ void GameLevel::ClearLevel()
 	
 	for( size_t i = 0; i < m_systems.size(); ++i )
 		m_systems[ i ]->Clear();
+	
+	m_mainCamera._release();
+	m_cameras.clear();
 }
 
 

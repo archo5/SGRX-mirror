@@ -1289,6 +1289,13 @@ static int _sgs_method__GameObject__WorldToLocalDir( SGS_CTX )
 	sgs_PushVar(C,data->WorldToLocalDir( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
+static int _sgs_method__GameObject__SetParent( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, SetParent ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->sgsSetParent( sgs_GetVar<GameObject::ScrHandle>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
+}
+
 static int _sgs_method__GameObject__GetChild( SGS_CTX )
 {
 	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, GetChild ) ) return 0;
@@ -1438,6 +1445,7 @@ static sgs_RegFuncConst GameObject__sgs_funcs[] =
 	{ "WorldToLocal", _sgs_method__GameObject__WorldToLocal },
 	{ "LocalToWorldDir", _sgs_method__GameObject__LocalToWorldDir },
 	{ "WorldToLocalDir", _sgs_method__GameObject__WorldToLocalDir },
+	{ "SetParent", _sgs_method__GameObject__SetParent },
 	{ "GetChild", _sgs_method__GameObject__GetChild },
 	{ "AddResource", _sgs_method__GameObject__AddResource },
 	{ "AddBehavior", _sgs_method__GameObject__AddBehavior },

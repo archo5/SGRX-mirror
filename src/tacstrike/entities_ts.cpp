@@ -25,9 +25,11 @@ extern InputState MOVE_X;
 extern InputState MOVE_Y;
 extern InputState AIM_X;
 extern InputState AIM_Y;
-extern InputState SHOOT;
-extern InputState LOCK_ON;
-extern InputState RELOAD;
+extern InputState WP_SHOOT;
+extern InputState WP_LOCK_ON;
+extern InputState WP_RELOAD;
+extern InputState WP_DROP;
+extern InputState WP_HOLSTER;
 extern InputState CROUCH;
 extern InputState JUMP;
 extern InputState DO_ACTION;
@@ -272,18 +274,6 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
 	m_shadowInst->enabled = false;//true;
 	
-//	m_anLayers[0].anim = &m_anMainPlayer;
-//	m_anLayers[1].anim = &m_anTopPlayer;
-//	m_anLayers[2].anim = &m_animChar.m_layerAnimator;
-//	m_anLayers[2].tflags = AnimMixer::TF_Absolute_Rot | AnimMixer::TF_Additive;
-//	m_anLayers[3].anim = &m_animChar.m_anRagdoll;
-//	m_anLayers[3].tflags = AnimMixer::TF_Absolute_Pos
-//		| AnimMixer::TF_Absolute_Rot
-//		| AnimMixer::TF_IgnoreMeshXF;
-//	m_anLayers[3].factor = 0;
-//	m_animChar.m_anMixer.layers = m_anLayers;
-//	m_animChar.m_anMixer.layerCount = 4;
-	
 	m_shootPS.Load( "psys/gunflash.psy" );
 	m_shootPS.AddToScene( m_level->GetScene() );
 	m_shootPS.OnRenderUpdate();
@@ -331,16 +321,7 @@ void TSCharacter::InitializeMesh( const StringView& path )
 	MI->matrix = Mat4::CreateSRT( V3(1), Quat::Identity, m_ivPos.curr );
 	m_level->LightMesh( MI, V3(1) );
 	
-//	m_anTopPlayer.ClearBlendFactors( 0.0f );
-//	m_animChar.ApplyMask( "top", &m_anTopPlayer );
-	
-	m_anMainPlayer.Play( GR_GetAnim( "standing_idle" ) );
-	m_anTopPlayer.Play( GR_GetAnim( "stand_with_pistol_up" ) );
-	
 	ProcessAnims( 0 );
-//	AnimInfo info = { m_animChar.m_cachedMeshInst->matrix };
-//	m_animChar.m_anEnd.Advance( 0, &info );
-//	m_animChar.m_anEnd.Transfer();
 }
 
 void TSCharacter::ProcessAnims( float deltaTime )
@@ -582,13 +563,22 @@ void TSCharacter::Update()
 	}
 	
 	
+	// DROP WEAPON
+	if( ctrl->GetInputB3( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
+	{
+		GOBehavior* wpn = FindWeapon();
+		if( wpn )
+			wpn->SendMessage( "DropWeapon" );
+	}
+	
+	
 	m_shootLT->enabled = false;
 	if( m_shootTimeout > 0 )
 	{
 		m_shootTimeout -= deltaTime;
 		m_shootLT->enabled = true;
 	}
-	if( ctrl->GetInputB( ACT_Chr_Shoot ) && m_health > 0 && m_shootTimeout <= 0 )
+	if( ctrl->GetInputB( ACT_Chr_Shoot ) && IsAlive() && m_shootTimeout <= 0 )
 	{
 		Mat4 mtx = GetBulletOutputMatrix();
 		Vec3 origin = mtx.TransformPos( V3(0) );
@@ -856,7 +846,6 @@ void TSCharacter::PlayAnim( StringView name, bool loop )
 	}
 	m_animTimeLeft = loop ? FLT_MAX : anim->GetAnimTime();
 	m_anMainPlayer.Play( anim );
-	m_anTopPlayer.Stop();
 }
 
 void TSCharacter::StopAnim()
@@ -925,6 +914,19 @@ void TSCharacter::Hit( float pwr )
 			OnDeath();
 		}
 	}
+}
+
+GOBehavior* TSCharacter::FindWeapon() const
+{
+	for( size_t i = 0; i < m_obj->GetChildCount(); ++i )
+	{
+		GameObject* subobj = m_obj->GetChild( i );
+		GOBehavior* bhvr = subobj->m_behaviors.getcopy(
+			m_level->GetScriptCtx().CreateString( "weapon" ) );
+		if( bhvr )
+			return bhvr;
+	}
+	return NULL;
 }
 
 Mat4 TSCharacter::GetBulletOutputMatrix() const
@@ -1083,7 +1085,7 @@ void TSPlayerController::Update()
 	{
 		Vec3 pos = P->GetQueryPosition();
 		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-		m_aimHelper.Tick( m_level->GetDeltaTime(), pos, CURSOR_POS / screen_size, LOCK_ON.value > 0.5f );
+		m_aimHelper.Tick( m_level->GetDeltaTime(), pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
 	}
 	
 	i_move = V2
@@ -1112,8 +1114,9 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Jump: return V3(JUMP.value);
 	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
-	case ACT_Chr_Shoot: return V3(SHOOT.value);
+	case ACT_Chr_Shoot: return V3(WP_SHOOT.value);
 	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
+	case ACT_Chr_ReloadHolsterDrop: return V3(WP_RELOAD.value, WP_HOLSTER.value, WP_DROP.value);
 	}
 	return V3(0);
 }
@@ -1178,8 +1181,9 @@ Vec3 TPSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Jump: return V3(JUMP.value);
 	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
-	case ACT_Chr_Shoot: return V3(SHOOT.value);
+	case ACT_Chr_Shoot: return V3(WP_SHOOT.value);
 	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
+	case ACT_Chr_ReloadHolsterDrop: return V3(WP_RELOAD.value, WP_HOLSTER.value, WP_DROP.value);
 	}
 	return V3(0);
 }
@@ -1793,6 +1797,7 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 		{ "ACT_Chr_AimTarget", ACT_Chr_AimTarget },
 		{ "ACT_Chr_Shoot", ACT_Chr_Shoot },
 		{ "ACT_Chr_DoAction", ACT_Chr_DoAction },
+		{ "ACT_Chr_ReloadHolsterDrop", ACT_Chr_ReloadHolsterDrop },
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( lev->GetSGSC(), g_ts_ints, -1 );

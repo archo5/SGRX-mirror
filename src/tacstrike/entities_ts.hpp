@@ -80,6 +80,7 @@ enum TSActions
 	ACT_Chr_AimTarget, // v3
 	ACT_Chr_Shoot, // .x>0.5 => b
 	ACT_Chr_DoAction, // .x>0.5 => b
+	ACT_Chr_ReloadHolsterDrop, // .x/.y/.z>0.5 => b1/b2/b3
 };
 
 
@@ -138,6 +139,9 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD Vec3 GetPosition_FT() const { return m_ivPos.curr; }
 	SGS_METHOD Vec3 GetViewDir_FT() const { return V3( cosf( m_turnAngle ), sinf( m_turnAngle ), 0 ); }
 	SGS_METHOD Vec3 GetAimDir_FT() const { return m_aimDir.ToVec3(); }
+	GOBehavior* FindWeapon() const;
+	sgsVariable sgsCurWeapon() const { GOBehavior* w = FindWeapon(); return w ? w->GetScriptedObject() : sgsVariable(); }
+	SGS_PROPERTY_FUNC( READ sgsCurWeapon ) SGS_ALIAS( sgsVariable curWeapon );
 	Mat4 GetBulletOutputMatrix() const;
 	
 	SGS_METHOD Vec3 GetWorldPosition() const { return m_obj->GetWorldPosition(); }
@@ -150,8 +154,6 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	
 	AnimCharacter m_animChar;
 	AnimPlayer m_anMainPlayer;
-	AnimPlayer m_anTopPlayer;
-//	AnimMixer::Layer m_anLayers[4];
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;

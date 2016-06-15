@@ -798,8 +798,8 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 	static char errbfr[ 350 ];
 	
 	String mtlconfig;
-	if( FS_LoadTextFile( "data/damage.dat", mtlconfig ) == false )
-		return( "Failed to load data/damage.dat" );
+	if( FS_LoadTextFile( "damage.dat", mtlconfig ) == false )
+		return( "Failed to load damage.dat" );
 	
 	// defaults
 	String decal_base_tex = "textures/fx/impact_decals.png";
@@ -852,7 +852,7 @@ const char* DamageSystem::Init( SceneHandle scene, SGRX_LightSampler* sampler )
 			if( cur_mtl->particles.Load( value ) == false )
 			{
 				sgrx_snprintf( errbfr, 350, "Failed to load particle system '%.*s' while parsing "
-					"data/damage.dat", TMIN( 250, (int) value.size() ), value.data() );
+					"damage.dat", TMIN( 250, (int) value.size() ), value.data() );
 				return( errbfr );
 			}
 			cur_mtl->particles.m_lightSampler = sampler;

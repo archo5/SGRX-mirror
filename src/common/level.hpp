@@ -86,7 +86,8 @@ EXP_STRUCT Transform
 		_invWorldMatrix( Mat4::Identity ),
 		_outdated( true ),
 		_inTransformUpdate( false ),
-		_destroying( false )
+		_destroying( false ),
+		_xfChangeInvoker( NULL )
 	{}
 	~Transform()
 	{
@@ -369,7 +370,7 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	GFW_EXPORT virtual void OnIDUpdate();
 	GFW_EXPORT virtual SGS_METHOD_NAMED( SendMessage )
 		void sgsSendMessage( sgsString name, sgsVariable arg );
-	GFW_EXPORT void SendMessage( StringView name, sgsVariable arg );
+	GFW_EXPORT void SendMessage( StringView name, sgsVariable arg = sgsVariable() );
 	
 	virtual void DebugDrawWorld(){}
 	virtual void DebugDrawUI(){}
@@ -430,7 +431,7 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT virtual void OnIDUpdate();
 	GFW_EXPORT virtual SGS_METHOD_NAMED( SendMessage )
 		void sgsSendMessage( sgsString name, sgsVariable arg );
-	GFW_EXPORT void SendMessage( StringView name, sgsVariable arg );
+	GFW_EXPORT void SendMessage( StringView name, sgsVariable arg = sgsVariable() );
 	
 	GFW_EXPORT virtual void DebugDrawWorld();
 	GFW_EXPORT virtual void DebugDrawUI();
@@ -464,7 +465,15 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	// parent-child relation
 	GameObject* GetParent() const { return (GameObject*) _parent; }
 	ScrHandle _sgsGetParent(){ return ScrHandle( (GameObject*) _parent ); }
+	FINLINE GameObject* GetChild( size_t i ) const
+	{
+		if( i >= _ch.size() )
+			return NULL;
+		return (GameObject*) _ch[ i ];
+	}
+	FINLINE size_t GetChildCount() const { return _ch.size(); }
 	SGS_PROPERTY_FUNC( READ _sgsGetParent WRITE _SetParent ) SGS_ALIAS( ScrHandle parent );
+	FINLINE SGS_METHOD_NAMED( SetParent ) void sgsSetParent( GameObject::ScrHandle parent, bool preserve ){ _SetParent( parent, preserve ); }
 	
 	FINLINE SGS_METHOD_NAMED( GetChild ) ScrHandle sgsGetChild( int i )
 	{

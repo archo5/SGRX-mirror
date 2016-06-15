@@ -323,6 +323,9 @@ EXP_STRUCT IController
 	FINLINE Vec2 GetInputV2( uint32_t iid ){ return GetInput( iid ).ToVec2(); }
 	FINLINE float GetInputF( uint32_t iid ){ return GetInput( iid ).x; }
 	FINLINE bool GetInputB( uint32_t iid ){ return GetInput( iid ).x > 0.5f; }
+	FINLINE bool GetInputB1( uint32_t iid ){ return GetInput( iid ).x > 0.5f; }
+	FINLINE bool GetInputB2( uint32_t iid ){ return GetInput( iid ).y > 0.5f; }
+	FINLINE bool GetInputB3( uint32_t iid ){ return GetInput( iid ).z > 0.5f; }
 };
 
 EXP_STRUCT BhControllerBase : GOBehavior, IController
