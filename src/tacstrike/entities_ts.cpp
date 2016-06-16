@@ -239,6 +239,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_turnAngle( 0 ),
 	m_aimDir( YP(V3(1,0,0)) ), m_aimDist( 1 ),
 	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 ),
+	m_pickupTrigger( false ),
 	m_skipTransformUpdate( false )
 {
 	typeOverride = "*human*";
@@ -508,6 +509,14 @@ void TSCharacter::FixedUpdate()
 	}
 	
 	m_animChar.FixedTick( deltaTime );
+	// reset flags
+	{
+		if( m_pickupTrigger )
+		{
+			m_pickupTrigger = false;
+			m_animChar.SetBool( "pickup", false );
+		}
+	}
 	m_timeSinceLastHit += deltaTime;
 	
 	if( ctrl->GetInputB( ACT_Chr_DoAction ) )
@@ -856,6 +865,14 @@ void TSCharacter::StopAnim()
 		m_animTimeLeft = 0;
 		// animation will be changed on next tick
 	}
+}
+
+void TSCharacter::PlayPickupAnim( Vec3 tgt )
+{
+	m_animChar.SetFloat( "pickup_height",
+		tgt.z - ( GetWorldPosition().z + 1 ) );
+	m_animChar.SetBool( "pickup", true );
+	m_pickupTrigger = true;
 }
 
 void TSCharacter::Reset()

@@ -127,6 +127,8 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD bool IsPlayingAnim() const { return m_animTimeLeft > 0; }
 	SGS_METHOD void PlayAnim( StringView name, bool loop );
 	SGS_METHOD void StopAnim();
+	// - specific animation triggers
+	SGS_METHOD void PlayPickupAnim( Vec3 tgt );
 	
 	virtual bool IsAlive(){ return m_health > 0; }
 	virtual void Reset();
@@ -186,6 +188,8 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	ActionState m_actState;
 	uint32_t m_infoFlags;
 	float m_animTimeLeft;
+	
+	bool m_pickupTrigger;
 	
 	ParticleSystem m_shootPS;
 	LightHandle m_shootLT;

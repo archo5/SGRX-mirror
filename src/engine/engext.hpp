@@ -496,13 +496,17 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		HashTable< SGRX_GUID, size_t > transition_lookup; /* GUID -> ID array offset */
 		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
 		... NULL GUID is first set of entries, always present */
+		float m_stateTime;
 		
-		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
+		PlayerNode() : Node( NT_Player ), m_stateTime(0){ RehashTransitions(); }
 		virtual Animator* GetAnimator( AnimCharacter* ){ return &player_anim; }
 		virtual void Advance( float dt, const MEVariableInterface* vars )
 		{
 			if( current_state )
+			{
 				player_anim.SetLastAnimSpeed( current_state->speed.Eval( vars ) );
+				m_stateTime += dt;
+			}
 		}
 		ENGINE_EXPORT void StartCurrentState();
 		ENGINE_EXPORT void UpdateState( const MEVariableInterface* vars );
@@ -686,6 +690,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT void _UnlinkNode( Node* node );
 	ENGINE_EXPORT void _Prepare();
 	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
+	ENGINE_EXPORT void _PrepareSpecialVariables( Node* n );
 	ENGINE_EXPORT void ResetStates();
 	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
 	
@@ -759,6 +764,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	AnimDeformer m_anDeformer;
 	AnimRagdoll m_anRagdoll;
 	AnimInterp m_anEnd;
+	
+	// temp. variables
+	float m_v_time;
+	float m_v_pos;
+	float m_v_length;
+	bool m_v_end;
 };
 
 template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate( T& arch )

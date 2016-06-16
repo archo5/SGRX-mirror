@@ -3368,10 +3368,10 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_GUID
 	FINLINE bool NotNull() const { return *this != Null; }
 	FINLINE int Compare( const SGRX_GUID& o ) const
 	{
-		if( u32[0] != o.u32[0] ) return u32[0] - o.u32[0];
-		if( u32[1] != o.u32[1] ) return u32[1] - o.u32[1];
-		if( u32[2] != o.u32[2] ) return u32[2] - o.u32[2];
-		if( u32[3] != o.u32[3] ) return u32[3] - o.u32[3];
+		if( u32[0] != o.u32[0] ) return u32[0] < o.u32[0] ? -1 : 1;
+		if( u32[1] != o.u32[1] ) return u32[1] < o.u32[1] ? -1 : 1;
+		if( u32[2] != o.u32[2] ) return u32[2] < o.u32[2] ? -1 : 1;
+		if( u32[3] != o.u32[3] ) return u32[3] < o.u32[3] ? -1 : 1;
 		return 0;
 	}
 	template< class T > void Serialize( T& arch )

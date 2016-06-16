@@ -981,6 +981,7 @@ void AnimCharacter::PlayerNode::StartCurrentState()
 		GR_GetAnim( current_state->anim ),
 		!current_state->loop,
 		current_state->fade_time );
+	m_stateTime = 0;
 }
 
 void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
@@ -1099,6 +1100,8 @@ AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
 	
 	m_cachedMeshInst = m_scene->CreateMeshInstance();
 	m_cachedMeshInst->raycastOverride = this;
+	
+	_PrepareSpecialVariables( NULL );
 }
 
 bool AnimCharacter::Load( const StringView& sv )
@@ -1242,6 +1245,42 @@ void AnimCharacter::_EquipAnimator( Animator* anim, int which )
 	anim->Prepare();
 }
 
+void AnimCharacter::_PrepareSpecialVariables( Node* n )
+{
+	if( n )
+	{
+		if( n->type == NT_Player )
+		{
+			SGRX_CAST( PlayerNode*, PN, n );
+			if( PN->current_state )
+			{
+				AnimPlayer::Anim* panim = NULL;
+				if( PN->player_anim.m_currentAnims.size() )
+					panim = &PN->player_anim.m_currentAnims.last();
+				SGRX_Animation* aanim = panim ? panim->anim : NULL;
+				
+				StringView cur_state_anim = PN->current_state->anim;
+				StringView cur_played_anim = aanim ? aanim->m_key : "";
+				bool still_playing = cur_state_anim == cur_played_anim;
+				
+				m_v_time = PN->m_stateTime;
+				m_v_pos = still_playing && panim ? panim->fade_at : 0;
+				m_v_length = still_playing && aanim ? aanim->GetAnimTime() : 0;
+				m_v_end = !still_playing || ( m_v_pos > m_v_length );
+				return;
+			}
+		}
+	}
+	
+	// defaults
+	{
+		m_v_time = 0;
+		m_v_pos = 0;
+		m_v_length = 0;
+		m_v_end = false;
+	}
+}
+
 void AnimCharacter::ResetStates()
 {
 	for( size_t i = 0; i < nodes.size(); ++i )
@@ -1265,6 +1304,7 @@ void AnimCharacter::FixedTick( float deltaTime, bool changeStates )
 {
 	LOG_FUNCTION_ARG("AnimCharacter");
 	
+	_PrepareSpecialVariables( NULL );
 	for( size_t i = 0; i < aliases.size(); ++i )
 	{
 		aliases[ i ]->value = aliases[ i ]->expr.Eval( this );
@@ -1275,6 +1315,7 @@ void AnimCharacter::FixedTick( float deltaTime, bool changeStates )
 		if( nodes[ i ]->type == NT_Player && changeStates )
 		{
 			SGRX_CAST( PlayerNode*, P, nodes[ i ].item );
+			_PrepareSpecialVariables( P );
 			P->UpdateState( this );
 		}
 		nodes[ i ]->Advance( deltaTime, this );
@@ -1649,15 +1690,24 @@ void AnimCharacter::MRC_DebugDraw( SGRX_MeshInstance* mi )
 
 uint16_t AnimCharacter::MEGetID( StringView name ) const
 {
+	if( name.ch() == '_' )
+	{
+		if( name == "_time" ) return 0;
+		if( name == "_pos" ) return 1;
+		if( name == "_length" ) return 2;
+		if( name == "_end" ) return 3;
+	}
+	uint16_t off = 4;
 	for( size_t i = 0; i < variables.size(); ++i )
 	{
 		if( variables[ i ]->name == name )
-			return uint16_t( i );
+			return uint16_t( i ) + off;
 	}
+	off += variables.size();
 	for( size_t i = 0 ; i < aliases.size(); ++i )
 	{
 		if( aliases[ i ]->name == name )
-			return uint16_t( i + variables.size() );
+			return uint16_t( i ) + off;
 	}
 	return ME_OPERAND_NONE;
 }
@@ -1665,6 +1715,15 @@ uint16_t AnimCharacter::MEGetID( StringView name ) const
 double AnimCharacter::MEGetValue( uint16_t i ) const
 {
 	size_t e = i;
+	
+	if( e < 4 )
+	{
+		if( e == 0 ) return m_v_time;
+		if( e == 1 ) return m_v_pos;
+		if( e == 2 ) return m_v_length;
+		if( e == 3 ) return m_v_end;
+	}
+	e -= 4;
 	
 	if( e < variables.size() )
 		return variables[ e ]->value;
