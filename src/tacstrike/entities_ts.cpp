@@ -484,7 +484,8 @@ void TSCharacter::FixedUpdate()
 		m_animChar.SetFloat( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
 		m_animChar.SetBool( "crouch", m_isCrouching );
 		GOBehavior* wpn = FindWeapon();
-		m_animChar.SetFloat( "aim", wpn ? 1 : 0 );
+		m_animChar.SetFloat( "aim", wpn ? (
+			!wpn->GetScriptedObject().getprop("holstered").get<bool>()) : 0 );
 	}
 	
 	HandleMovementPhysics( deltaTime );
@@ -573,6 +574,20 @@ void TSCharacter::Update()
 	}
 	
 	
+	// RELOAD
+	if( ctrl->GetInputB1( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
+	{
+		GOBehavior* wpn = FindWeapon();
+		if( wpn )
+			wpn->SendMessage( "Reload" );
+	}
+	// [UN]HOLSTER
+	if( ctrl->GetInputB2( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
+	{
+		GOBehavior* wpn = FindWeapon();
+		if( wpn )
+			wpn->SendMessage( "HolsterToggle" );
+	}
 	// DROP WEAPON
 	if( ctrl->GetInputB3( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
 	{
@@ -873,6 +888,11 @@ void TSCharacter::PlayPickupAnim( Vec3 tgt )
 		tgt.z - ( GetWorldPosition().z + 1 ) );
 	m_animChar.SetBool( "pickup", true );
 	m_pickupTrigger = true;
+}
+
+void TSCharacter::sgsSetACVar( sgsString name, float val )
+{
+	m_animChar.SetFloat( name.c_str(), val );
 }
 
 void TSCharacter::Reset()
