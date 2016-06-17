@@ -646,6 +646,8 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	{
 		m_groundBody = NULL;
 	}
+	
+	m_animChar.SetBool( "jump", false );
 	if( !m_jumpTimeout && m_canJumpTimeout && jump )
 	{
 		lvel.z = 2.5f; // 4;
@@ -659,7 +661,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 		fsev->Start();
 		m_level->GetSystem<AIDBSystem>()->AddSound( m_obj->GetWorldPosition(), 4, 0.2f, AIS_Footstep );
 		
-		m_anMainPlayer.Play( GR_GetAnim( "jump" ) );
+		m_animChar.SetBool( "jump", true );
 	}
 	
 	if( !m_isOnGround && ground )
