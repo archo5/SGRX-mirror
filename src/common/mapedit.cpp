@@ -1961,10 +1961,10 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			
 			data.append( "\titem_" );
 			AppendNameSafeGUID( data, rsrc->m_src_guid );
-			data.append( " = obj.AddResource( " );
+			data.append( " = obj.RequireResource( " );
 			data.append( sctx.ToSGSON( rsrc->m_name ) );
 			char bfr[ 32 ];
-			sgrx_snprintf( bfr, 32, ", %u ).\n\t{\n", (unsigned) rsrc->m_type );
+			sgrx_snprintf( bfr, 32, ", %u, true ).\n\t{\n", (unsigned) rsrc->m_type );
 			data.append( bfr );
 			// resource properties
 			sgsVariable rsrcdata = EDGO_RSRC_LCSave( rsrc );
@@ -1987,11 +1987,11 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			
 			data.append( "\titem_" );
 			AppendNameSafeGUID( data, bhvr->m_src_guid );
-			data.append( " = obj.AddBehavior( " );
+			data.append( " = obj.RequireBehavior( " );
 			data.append( sctx.ToSGSON( bhvr->m_name ) );
 			data.append( ", " );
 			data.append( sctx.ToSGSON( bhvr->m_type ) );
-			data.append( " ).\n\t{\n" );
+			data.append( ", true ).\n\t{\n" );
 			// behavior properties
 			sgsVariable bhvrdata = EDGO_BHVR_LCSave( bhvr );
 			ScriptVarIterator it( bhvrdata );

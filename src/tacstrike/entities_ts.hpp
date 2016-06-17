@@ -145,7 +145,6 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	GOBehavior* FindWeapon() const;
 	sgsVariable sgsCurWeapon() const { GOBehavior* w = FindWeapon(); return w ? w->GetScriptedObject() : sgsVariable(); }
 	SGS_PROPERTY_FUNC( READ sgsCurWeapon ) SGS_ALIAS( sgsVariable curWeapon );
-	Mat4 GetBulletOutputMatrix() const;
 	
 	SGS_METHOD Vec3 GetWorldPosition() const { return m_obj->GetWorldPosition(); }
 	SGS_METHOD Vec3 GetQueryPosition() const { return m_obj->GetWorldPosition() + V3(0,0,0.5f); }
@@ -192,9 +191,6 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	
 	bool m_pickupTrigger;
 	
-	ParticleSystem m_shootPS;
-	LightHandle m_shootLT;
-	float m_shootTimeout;
 	SGS_PROPERTY_FUNC( READ VARNAME timeSinceLastHit ) float m_timeSinceLastHit;
 	void SetViewDir( Vec3 v ){ m_turnAngle = v.ToVec2().Normalized().Angle(); }
 	SGS_PROPERTY_FUNC( WRITE SetViewDir ) SGS_ALIAS( Vec3 viewDir );

@@ -267,6 +267,9 @@ void GOBehavior::EditSave( sgsVariable out, sgsVariable iface )
 
 void GOBehavior::EditorDrawWorld()
 {
+	sgsVariable fn = GetScriptedObject().getprop( "EditorDrawWorld" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
 }
 
 
@@ -309,11 +312,18 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 	return rsrc;
 }
 
-GOResource* GameObject::RequireResource( sgsString name, uint32_t type )
+GOResource* GameObject::RequireResource( sgsString name, uint32_t type, bool retifnc )
 {
 	GOResource* rsrc = m_resources.getcopy( name );
 	if( rsrc && rsrc->m_type == type )
-		return NULL;
+	{
+		if( m_level->nextObjectGUID.NotNull() )
+		{
+			rsrc->m_src_guid = m_level->nextObjectGUID;
+			m_level->nextObjectGUID.SetNull();
+		}
+		return retifnc ? rsrc : NULL;
+	}
 	return AddResource( name, type, true );
 }
 
@@ -384,26 +394,37 @@ GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type, bool ovr )
 {
 	if( !ovr && m_behaviors.isset( name ) )
 		return NULL;
+	
+	SGRX_GUID guid = m_level->nextObjectGUID;
+	m_level->nextObjectGUID.SetNull();
+	
 	GOBehavior* bhvr = _CreateBehaviorReal( name, type );
 	if( bhvr )
 	{
 		bhvr->m_name = name;
 		bhvr->m_type = type;
-		if( m_level->nextObjectGUID.NotNull() )
+		if( guid.NotNull() )
 		{
-			bhvr->m_src_guid = m_level->nextObjectGUID;
-			m_level->nextObjectGUID.SetNull();
+			bhvr->m_src_guid = guid;
+			guid.SetNull();
 		}
 		Game_FireEvent( EID_GOBehaviorAdd, bhvr );
 	}
 	return bhvr;
 }
 
-GOBehavior* GameObject::RequireBehavior( sgsString name, sgsString type )
+GOBehavior* GameObject::RequireBehavior( sgsString name, sgsString type, bool retifnc )
 {
 	GOBehavior* bhvr = m_behaviors.getcopy( name );
 	if( bhvr && bhvr->m_type == type )
-		return NULL;
+	{
+		if( m_level->nextObjectGUID.NotNull() )
+		{
+			bhvr->m_src_guid = m_level->nextObjectGUID;
+			m_level->nextObjectGUID.SetNull();
+		}
+		return retifnc ? bhvr : NULL;
+	}
 	return AddBehavior( name, type, true );
 }
 

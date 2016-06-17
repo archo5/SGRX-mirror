@@ -418,11 +418,11 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT ~GameObject();
 	
 	GFW_EXPORT GOResource* AddResource( sgsString name, uint32_t type, bool ovr = false );
-	GFW_EXPORT GOResource* RequireResource( sgsString name, uint32_t type );
+	GFW_EXPORT GOResource* RequireResource( sgsString name, uint32_t type, bool retifnc = false );
 	GFW_EXPORT SGS_METHOD void RemoveResource( sgsString name );
 	
 	GFW_EXPORT GOBehavior* AddBehavior( sgsString name, sgsString type, bool ovr = false );
-	GFW_EXPORT GOBehavior* RequireBehavior( sgsString name, sgsString type );
+	GFW_EXPORT GOBehavior* RequireBehavior( sgsString name, sgsString type, bool retifnc = false );
 	GFW_EXPORT GOBehavior* _CreateBehaviorReal( sgsString name, sgsString type );
 	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsString name );
 	
@@ -495,10 +495,10 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	{ GOResource* rsrc = AddResource( name, type, ovr ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
 	SGS_METHOD_NAMED( AddBehavior ) sgsVariable sgsAddBehavior( sgsString name, sgsString type, bool ovr )
 	{ GOBehavior* bhvr = AddBehavior( name, type, ovr ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
-	SGS_METHOD_NAMED( RequireResource ) sgsVariable sgsRequireResource( sgsString name, uint32_t type )
-	{ GOResource* rsrc = RequireResource( name, type ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
-	SGS_METHOD_NAMED( RequireBehavior ) sgsVariable sgsRequireBehavior( sgsString name, sgsString type )
-	{ GOBehavior* bhvr = RequireBehavior( name, type ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
+	SGS_METHOD_NAMED( RequireResource ) sgsVariable sgsRequireResource( sgsString name, uint32_t type, bool retifnc )
+	{ GOResource* rsrc = RequireResource( name, type, retifnc ); return rsrc ? rsrc->GetScriptedObject() : sgsVariable(); }
+	SGS_METHOD_NAMED( RequireBehavior ) sgsVariable sgsRequireBehavior( sgsString name, sgsString type, bool retifnc )
+	{ GOBehavior* bhvr = RequireBehavior( name, type, retifnc ); return bhvr ? bhvr->GetScriptedObject() : sgsVariable(); }
 	GOResourceTable::ScrHandle _get_resources(){ return GOResourceTable::ScrHandle( &m_resources ); }
 	SGS_PROPERTY_FUNC( READ _get_resources ) SGS_ALIAS( GOResourceTable::ScrHandle resources );
 	GOBehaviorTable::ScrHandle _get_behaviors(){ return GOBehaviorTable::ScrHandle( &m_behaviors ); }

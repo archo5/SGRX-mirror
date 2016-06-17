@@ -1377,14 +1377,14 @@ static int _sgs_method__GameObject__RequireResource( SGS_CTX )
 {
 	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, RequireResource ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsRequireResource( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<uint32_t>()(C,1) )); return 1;
+	sgs_PushVar(C,data->sgsRequireResource( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<uint32_t>()(C,1), sgs_GetVar<bool>()(C,2) )); return 1;
 }
 
 static int _sgs_method__GameObject__RequireBehavior( SGS_CTX )
 {
 	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, RequireBehavior ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsRequireBehavior( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsString>()(C,1) )); return 1;
+	sgs_PushVar(C,data->sgsRequireBehavior( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsString>()(C,1), sgs_GetVar<bool>()(C,2) )); return 1;
 }
 
 int GameObject::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )

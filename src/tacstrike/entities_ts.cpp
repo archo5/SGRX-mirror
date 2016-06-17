@@ -275,6 +275,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_shadowInst->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
 	m_shadowInst->enabled = false;//true;
 	
+#if 0
 	m_shootPS.Load( "psys/gunflash.psy" );
 	m_shootPS.AddToScene( m_level->GetScene() );
 	m_shootPS.OnRenderUpdate();
@@ -287,6 +288,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_shootLT->power = 4;
 	m_shootLT->UpdateTransform();
 	m_shootTimeout = 0;
+#endif
 	m_timeSinceLastHit = 9999;
 }
 
@@ -380,113 +382,39 @@ void TSCharacter::FixedUpdate()
 	float deltaTime = m_level->GetDeltaTime();
 	IController* ctrl = GetObjectController( m_obj );
 	
-	if( IsInAction() )
+	
+	Vec2 i_move = ctrl->GetInputV2( ACT_Chr_Move );
+	float i_speed = ctrl->GetInputV3( ACT_Chr_Move ).z;
+	
+#if 0 // ---------- TODO ---- W A L K ----------
+	// animate character
+	const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_pistol_up";
+	const char* anim_walk_fw = m_isCrouching ? "crouch_walk" : "walk";
+	const char* anim_walk_bw = m_isCrouching ? "crouch_walk_bw" : "walk_bw";
+	const char* anim_run_fw = m_isCrouching ? "crouch_walk" : "run";
+	const char* anim_run_bw = m_isCrouching ? "crouch_walk_bw" : "run_bw";
+	
+	if( i_speed < 0.5f )
 	{
-#if 0
-//		i_move = V2(0);
-		if( m_actState.timeoutMoveToStart > 0 )
-		{
-			if( !IsPlayingAnim() )
-				m_anMainPlayer.Play( GR_GetAnim( "stand_with_gun_up" ), false, 0.2f );
-			
-			m_bodyHandle->SetLinearVelocity( V3(0) );
-			if( ( m_actState.info.placePos - m_obj->GetWorldPosition() ).ToVec2().Length() < 0.1f )
-			{
-				m_actState.timeoutMoveToStart = 0;
-			}
-			else
-			{
-				PushTo( m_actState.info.placePos, deltaTime );
-				m_actState.timeoutMoveToStart -= deltaTime;
-			}
-		}
-		else if( m_actState.progress < m_actState.info.timeActual )
-		{
-			float pp = m_actState.progress;
-			float cp = pp + deltaTime;
-			
-			// <<< TODO EVENTS >>>
-			if( pp < 0.01f && 0.01f <= cp )
-			{
-				if( !IsPlayingAnim() )
-					m_anMainPlayer.Play( GR_GetAnim( "kneeling" ) );
-				m_actState.target->GetScriptedObject().thiscall( C, "OnActionStart" );
-			}
-		//	if( pp < 0.5f && 0.5f <= cp )
-		//	{
-		//	}
-			
-			m_actState.progress = cp;
-			if( m_actState.progress >= m_actState.info.timeActual )
-			{
-				// end of action
-				m_actState.target->GetScriptedObject().thiscall( C, "OnActionEnd" );
-				m_actState.timeoutEnding = IA_NEEDS_LONG_END( m_actState.info.type ) ? 1 : 0;
-			}
-		}
-		else
-		{
-			m_actState.timeoutEnding -= deltaTime;
-			if( m_actState.timeoutEnding <= 0 )
-			{
-				// end of action ending
-				InterruptAction( true );
-			}
-		}
-#endif
+		anim_run_fw = anim_walk_fw;
+		anim_run_bw = anim_walk_bw;
 	}
-	else
+#endif
+	
+	Vec2 md = i_move.Normalized();
+	float fwdq = i_speed;
+	if( Vec2Dot( md, GetAimDir_FT().ToVec2() ) < -0.2f )
 	{
-		Vec2 i_move = ctrl->GetInputV2( ACT_Chr_Move );
-		float i_speed = ctrl->GetInputV3( ACT_Chr_Move ).z;
-		
-#if 0
-		// animate character
-		const char* anim_stand = m_isCrouching ? "crouch" : "stand_with_pistol_up";
-		const char* anim_walk_fw = m_isCrouching ? "crouch_walk" : "walk";
-		const char* anim_walk_bw = m_isCrouching ? "crouch_walk_bw" : "walk_bw";
-		const char* anim_run_fw = m_isCrouching ? "crouch_walk" : "run";
-		const char* anim_run_bw = m_isCrouching ? "crouch_walk_bw" : "run_bw";
-		
-		if( i_speed < 0.5f )
-		{
-			anim_run_fw = anim_walk_fw;
-			anim_run_bw = anim_walk_bw;
-		}
-		
-		const char* animname = anim_run_fw;
-#endif
-		Vec2 md = i_move.Normalized();
-		float fwdq = i_speed;
-		if( Vec2Dot( md, GetAimDir_FT().ToVec2() ) < -0.2f )
-		{
-			md = -md;
-			fwdq *= -1;
-	//		animname = anim_run_bw;
-		}
-#if 0
-		// TODO TURN ISSUES
-	//	if( i_move.Length() > 0.1f )
-	//	{
-	//		TurnTo( md, deltaTime * 8 );
-	//	}
-#ifdef LD33GAME
-		anim_stand = "idle";
-		animname = "walk";
-#endif
-		
-		if( i_move.Length() < 0.3f )
-			animname = anim_stand;
-		
-		if( !IsPlayingAnim() && m_isOnGround && m_jumpTimeout == 0 )
-			m_anMainPlayer.Play( GR_GetAnim( animname ), false, 0.2f );
-#endif
-		m_animChar.SetFloat( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
-		m_animChar.SetBool( "crouch", m_isCrouching );
-		GOBehavior* wpn = FindWeapon();
-		m_animChar.SetFloat( "aim", wpn ? (
-			!wpn->GetScriptedObject().getprop("holstered").get<bool>()) : 0 );
+		md = -md;
+		fwdq *= -1;
 	}
+	
+	m_animChar.SetFloat( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
+	m_animChar.SetBool( "crouch", m_isCrouching );
+	GOBehavior* wpn = FindWeapon();
+	m_animChar.SetFloat( "aim", wpn ? (
+		!wpn->GetScriptedObject().getprop("holstered").get<bool>()) : 0 );
+	
 	
 	HandleMovementPhysics( deltaTime );
 	
@@ -574,29 +502,34 @@ void TSCharacter::Update()
 	}
 	
 	
-	// RELOAD
-	if( ctrl->GetInputB1( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
+	GOBehavior* wpn = FindWeapon();
+	if( wpn )
 	{
-		GOBehavior* wpn = FindWeapon();
-		if( wpn )
+		// RELOAD
+		if( ctrl->GetInputB1( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
+		{
 			wpn->SendMessage( "Reload" );
-	}
-	// [UN]HOLSTER
-	if( ctrl->GetInputB2( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
-	{
-		GOBehavior* wpn = FindWeapon();
-		if( wpn )
+		}
+		// [UN]HOLSTER
+		if( ctrl->GetInputB2( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
+		{
 			wpn->SendMessage( "HolsterToggle" );
-	}
-	// DROP WEAPON
-	if( ctrl->GetInputB3( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
-	{
-		GOBehavior* wpn = FindWeapon();
-		if( wpn )
+		}
+		// DROP WEAPON
+		if( ctrl->GetInputB3( ACT_Chr_ReloadHolsterDrop ) && IsAlive() )
+		{
 			wpn->SendMessage( "DropWeapon" );
+		}
+		// SHOOT
+		if( ctrl->GetInputB( ACT_Chr_Shoot ) && IsAlive() )
+			wpn->SendMessage( "SetShootTarget", m_level->GetScriptCtx().CreateVec3(
+				ctrl->GetInputV3( ACT_Chr_AimTarget ) ) );
+		else
+			wpn->SendMessage( "SetShootTarget", sgsVariable() );
 	}
 	
 	
+#if 0
 	m_shootLT->enabled = false;
 	if( m_shootTimeout > 0 )
 	{
@@ -628,6 +561,7 @@ void TSCharacter::Update()
 	m_shootLT->color = V3(0.9f,0.7f,0.5f)*0.5f * smoothlerp_oneway( m_shootTimeout, 0, 0.1f );
 	
 	m_shootPS.Tick( deltaTime );
+#endif
 }
 
 void TSCharacter::_HandleGroundBody( Vec3& pos, SGRX_IPhyRigidBody* body, float dt )
@@ -965,20 +899,6 @@ GOBehavior* TSCharacter::FindWeapon() const
 			return bhvr;
 	}
 	return NULL;
-}
-
-Mat4 TSCharacter::GetBulletOutputMatrix() const
-{
-	Mat4 out = m_animChar.m_cachedMeshInst->matrix;
-	for( size_t i = 0; i < m_animChar.attachments.size(); ++i )
-	{
-		if( m_animChar.attachments[ i ].name == StringView("gun_barrel") )
-		{
-			m_animChar.GetAttachmentMatrix( i, out );
-			break;
-		}
-	}
-	return out;
 }
 
 Vec3 TSCharacter::sgsGetAttachmentPos( StringView atch, Vec3 off )
