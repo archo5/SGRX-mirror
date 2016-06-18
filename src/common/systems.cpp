@@ -5,6 +5,8 @@
 #include "level.hpp"
 
 
+CVarBool gcv_cl_show_log( "cl_show_log", false );
+
 
 LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), viewPos(V3(0))
 {
@@ -2343,6 +2345,7 @@ DevelopSystem::DevelopSystem( GameLevel* lev ) :
 	consoleMode(false), justEnabledConsole(false)
 {
 	RegisterHandler( EID_WindowEvent );
+	REGCOBJ( gcv_cl_show_log );
 }
 
 void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
@@ -2351,7 +2354,9 @@ void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 	{
 		SGRX_CAST( Event*, ev, edata.GetUserData() );
 		if( m_level->GetEditorMode() == false &&
-			ev->type == SDL_KEYDOWN && ev->key.repeat == 0 && ev->key.keysym.sym == SDLK_F2 )
+			ev->type == SDL_KEYDOWN &&
+			ev->key.repeat == 0 &&
+			ev->key.keysym.sym == SDLK_F2 )
 		{
 			screenshotMode = !screenshotMode;
 			if( screenshotMode )
@@ -2494,6 +2499,12 @@ void DevelopSystem::DrawUI()
 		GR2D_SetFont( "core", y_cline );
 		GR2D_DrawTextLine( 10, y_end - y_bsize - y_cline / 2, ">", HALIGN_RIGHT, VALIGN_CENTER );
 		GR2D_DrawTextLine( 10, y_end - y_bsize - y_cline / 2, inputText, HALIGN_LEFT, VALIGN_CENTER );
+	}
+	
+	if( gcv_cl_show_log.value )
+	{
+		GR2D_SetFont( "system_outlined", 7 );
+		GR2D_DrawTextLine( 0, 0, "Log: TODO" );
 	}
 }
 

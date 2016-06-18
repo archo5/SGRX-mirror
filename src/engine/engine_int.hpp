@@ -232,6 +232,17 @@ void sgrx_int_InitializeFontRendering();
 void sgrx_int_FreeFontRendering();
 
 
+struct SystemFont : SGRX_IFont
+{
+	SystemFont( bool ol ) : outlined( ol ){ Acquire(); }
+	void LoadGlyphInfo( int pxsize, uint32_t ch, SGRX_GlyphInfo* info );
+	void GetGlyphBitmap( uint32_t* out, int pitch );
+	int GetYOffset( int ){ return -7 - outlined; }
+	
+	uint8_t* loaded_glyph;
+	bool outlined;
+};
+
 struct FTFont : SGRX_IFont
 {
 	FTFont();
@@ -266,6 +277,7 @@ struct SVGIconFont : SGRX_IFont
 	int m_rendersize;
 };
 
+SystemFont* sgrx_int_GetSystemFont( bool ol );
 FTFont* sgrx_int_CreateFont( const StringView& path );
 SVGIconFont* sgrx_int_CreateSVGIconFont( const StringView& path );
 

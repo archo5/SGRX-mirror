@@ -3587,6 +3587,14 @@ struct TriTree
 
 // #define GATHER_STATS
 
+struct IF_GCC(ENGINE_EXPORT) SGRX_LogOutput
+{
+	SGRX_LogOutput() : next(NULL){}
+	virtual ~SGRX_LogOutput(){}
+	virtual void Write( const char* text, size_t sz ) = 0;
+	SGRX_LogOutput* next;
+};
+
 struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 {
 	template< class T > struct Loggable

@@ -2505,6 +2505,9 @@ void SGRX_INT_InitResourceTables()
 	g_Anims = new AnimHashTable();
 	g_LoadedFonts = new FontHashTable();
 	g_PreservedResources = new ResourcePreserveHashTable();
+	
+	g_LoadedFonts->set( "system", sgrx_int_GetSystemFont( false ) );
+	g_LoadedFonts->set( "system_outlined", sgrx_int_GetSystemFont( true ) );
 }
 
 void SGRX_INT_DestroyResourceTables()
