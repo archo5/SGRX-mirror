@@ -650,6 +650,10 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		{ "GO_RSRC_LIGHT", GO_RSRC_LIGHT },
 		{ "GO_RSRC_PSYS", GO_RSRC_PSYS },
 		{ "GO_RSRC_RBODY", GO_RSRC_RBODY },
+		{ "GO_RSRC_JOINT", GO_RSRC_JOINT },
+		{ "GO_RSRC_SNDSRC", GO_RSRC_SNDSRC },
+		{ "GO_RSRC_REFPLANE", GO_RSRC_REFPLANE },
+		{ "GO_RSRC_CAMERA", GO_RSRC_CAMERA },
 		// rigid body resource shape types
 		{ "ShapeType_AABB", ShapeType_AABB },
 		{ "ShapeType_Box", ShapeType_Box },

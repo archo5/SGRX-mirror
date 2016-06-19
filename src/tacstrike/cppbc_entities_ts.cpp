@@ -66,6 +66,20 @@ static int _sgs_method__TSCharacter__SetACVar( SGS_CTX )
 	data->sgsSetACVar( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
 }
 
+static int _sgs_method__TSCharacter__IsAlive( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, IsAlive ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->IsAlive(  )); return 1;
+}
+
+static int _sgs_method__TSCharacter__Reset( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, Reset ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Reset(  ); return 0;
+}
+
 static int _sgs_method__TSCharacter__Hit( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, Hit ) ) return 0;
@@ -225,6 +239,8 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "StopAnim", _sgs_method__TSCharacter__StopAnim },
 	{ "PlayPickupAnim", _sgs_method__TSCharacter__PlayPickupAnim },
 	{ "SetACVar", _sgs_method__TSCharacter__SetACVar },
+	{ "IsAlive", _sgs_method__TSCharacter__IsAlive },
+	{ "Reset", _sgs_method__TSCharacter__Reset },
 	{ "Hit", _sgs_method__TSCharacter__Hit },
 	{ "GetQueryPosition_FT", _sgs_method__TSCharacter__GetQueryPosition_FT },
 	{ "GetPosition_FT", _sgs_method__TSCharacter__GetPosition_FT },

@@ -1214,6 +1214,7 @@ TSEnemyController::TSEnemyController( GameObject* obj ) :
 	m_aidb( m_level->GetSystem<AIDBSystem>() ),
 	m_coverSys( m_level->GetSystem<CoverSystem>() )
 {
+	InitScriptInterface();
 	_data = m_level->GetScriptCtx().CreateDict();
 	GetScriptedObject().thiscall( C, "Init" );
 }

@@ -131,8 +131,8 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD void PlayPickupAnim( Vec3 tgt );
 	SGS_METHOD_NAMED( SetACVar ) void sgsSetACVar( sgsString name, float val );
 	
-	virtual bool IsAlive(){ return m_health > 0; }
-	virtual void Reset();
+	SGS_METHOD bool IsAlive(){ return m_health > 0; }
+	SGS_METHOD void Reset();
 	
 	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	SGS_METHOD void Hit( float pwr );
