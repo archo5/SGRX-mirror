@@ -267,6 +267,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	ENGINE_EXPORT void Stop();
 	ENGINE_EXPORT bool CheckMarker( const StringView& name );
 	FINLINE void SetLastAnimSpeed( float s ){ if( m_currentAnims.size() ) m_currentAnims.last().speed = s; }
+	ENGINE_EXPORT float GetLastAnimBlendFactor() const;
 	
 	ENGINE_EXPORT int* _getTrackIds( const AnimHandle& anim );
 	ENGINE_EXPORT void _clearAnimCache();

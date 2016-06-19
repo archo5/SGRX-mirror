@@ -371,6 +371,14 @@ bool IMGUIEditString( const char* label, String& str, int maxsize )
 	return ret;
 }
 
+bool IMGUIEditString( const char* label, RCString& str, int maxsize )
+{
+	String s = str;
+	bool ret = IMGUIEditString( label, s, maxsize );
+	str = s;
+	return ret;
+}
+
 
 
 char g_errorStr[ 4096 ];
@@ -613,6 +621,14 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 	if( changed )
 		ImGui::TriggerChangeCheck();
 	return changed;
+}
+
+bool IMGUIPickerCore::Popup( const char* caption, RCString& str )
+{
+	String s = str;
+	bool ret = Popup( caption, s );
+	str = s;
+	return ret;
 }
 
 bool IMGUIPickerCore::Property( const char* caption, const char* label, String& str )

@@ -968,11 +968,6 @@ Animator* AnimCharacter::RagdollNode::GetAnimator( AnimCharacter* ch )
 	return &ch->m_anRagdoll;
 }
 
-Animator* AnimCharacter::LayersNode::GetAnimator( AnimCharacter* ch )
-{
-	return &ch->m_anLayers;
-}
-
 void AnimCharacter::PlayerNode::StartCurrentState()
 {
 	if( !current_state )
@@ -1094,7 +1089,15 @@ void AnimCharacter::PlayerNode::RehashTransitions()
 AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
 	m_scene( sh ),
 	m_frameID( 0 ),
-	m_anRagdoll( phyWorld )
+	m_animTimeLeft( 0 ),
+	m_anRagdoll( phyWorld ),
+	
+	m_v_time( 0 ),
+	m_v_pos( 0 ),
+	m_v_length( 0 ),
+	m_v_end( false ),
+	m_v_nfba( 0 ),
+	m_v_said( 0 )
 {
 	ASSERT( sh && "scene handle must be valid" );
 	
@@ -1169,7 +1172,6 @@ void AnimCharacter::_Prepare()
 	// equip animators
 	int at = 0;
 	_EquipAnimator( &m_anRagdoll, at++ );
-	_EquipAnimator( &m_anLayers, at++ );
 	_EquipAnimator( &m_anEnd, at++ );
 	for( size_t i = 0; i < nodes.size(); ++i )
 	{
@@ -1230,10 +1232,6 @@ void AnimCharacter::_Prepare()
 			RN->angle.Recompile( this );
 		}
 	}
-	
-	// additional work
-	for( size_t i = 0; i < m_anLayers.m_pose.size(); ++i )
-		m_anLayers.m_pose[ i ].fq = 1;
 }
 
 void AnimCharacter::_EquipAnimator( Animator* anim, int which )
@@ -1304,6 +1302,19 @@ void AnimCharacter::FixedTick( float deltaTime, bool changeStates )
 {
 	LOG_FUNCTION_ARG("AnimCharacter");
 	
+	m_animTimeLeft -= deltaTime;
+	m_v_nfba = 0;
+	if( m_animTimeLeft > 0 )
+	{
+		changeStates = false;
+		if( main_player_node && main_player_node->type == NT_Player )
+		{
+			SGRX_CAST( PlayerNode*, PN, main_player_node.item );
+			m_v_nfba = PN->player_anim.GetLastAnimBlendFactor();
+		}
+	}
+	else m_v_said = 0;
+	
 	_PrepareSpecialVariables( NULL );
 	for( size_t i = 0; i < aliases.size(); ++i )
 	{
@@ -1334,46 +1345,6 @@ void AnimCharacter::PreRender( float blendFactor )
 	GR_ApplyAnimator( &m_anEnd, m_cachedMeshInst );
 }
 
-void AnimCharacter::RecalcLayerState()
-{
-	if( m_cachedMesh == NULL )
-		return;
-	
-	for( size_t i = 0; i < m_anLayers.m_pose.size(); ++i )
-		m_anLayers.m_pose[ i ].Reset( 1 );
-	for( size_t i = 0; i < layers.size(); ++i )
-	{
-		Layer& L = layers[ i ];
-		for( size_t j = 0; j < L.transforms.size(); ++j )
-		{
-			LayerTransform& LT = L.transforms[ j ];
-			if( LT.bone_id < 0 )
-				continue;
-			switch( LT.type )
-			{
-			case TransformType_UndoParent:
-				{
-					int parent_id = m_cachedMesh->m_bones[ LT.bone_id ].parent_id;
-					if( parent_id >= 0 )
-					{
-						m_anLayers.m_pose[ LT.bone_id ].pos -= m_anLayers.m_pose[ parent_id ].pos;
-						m_anLayers.m_pose[ LT.bone_id ].rot =
-							m_anLayers.m_pose[ parent_id ].rot.Inverted() * m_anLayers.m_pose[ LT.bone_id ].rot;
-					}
-				}
-				break;
-			case TransformType_Move:
-				m_anLayers.m_pose[ LT.bone_id ].pos += LT.posaxis * ( LT.base + L.amount );
-				break;
-			case TransformType_Rotate:
-				m_anLayers.m_pose[ LT.bone_id ].rot = m_anLayers.m_pose[ LT.bone_id ].rot
-					* Quat::CreateAxisAngle( LT.posaxis.Normalized(), DEG2RAD( LT.angle ) * ( LT.base + L.amount ) );
-				break;
-			}
-		}
-	}
-}
-
 void AnimCharacter::EnablePhysics()
 {
 	m_anRagdoll.EnablePhysics( m_cachedMeshInst->matrix );
@@ -1388,6 +1359,68 @@ void AnimCharacter::WakeUp()
 {
 	m_anRagdoll.WakeUp();
 }
+
+
+bool AnimCharacter::CheckMarker( const StringView& name )
+{
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		Node* N = nodes[ i ];
+		if( N->type == NT_Player )
+		{
+			SGRX_CAST( PlayerNode*, PN, N );
+			if( PN->player_anim.CheckMarker( name ) )
+				return true;
+		}
+	}
+	return false;
+}
+
+bool AnimCharacter::IsPlayingAnim() const
+{
+	return m_animTimeLeft > 0;
+}
+
+void AnimCharacter::PlayAnim( StringView name, bool loop )
+{
+	MappedAnim* maptr = mapping.getptr( name );
+	if( maptr )
+	{
+		name = maptr->anim;
+		m_v_said = maptr->id;
+	}
+	else m_v_said = 0;
+	
+	AnimHandle anim = GR_GetAnim( name );
+	if( anim == NULL )
+	{
+		LOG_WARNING << "AnimCharacter::PlayAnim - anim not found: " << name;
+		return;
+	}
+	if( main_player_node == NULL || main_player_node->type != NT_Player )
+	{
+		LOG_WARNING << "AnimCharacter::PlayAnim - main player node undefined";
+		return;
+	}
+	m_animTimeLeft = loop ? FLT_MAX : anim->GetAnimTime();
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		if( nodes[ i ]->type != NT_Player )
+			continue;
+		SGRX_CAST( PlayerNode*, PN, nodes[ i ].item );
+		PN->player_anim.Play( PN == main_player_node ? anim : NULL, !loop );
+	}
+}
+
+void AnimCharacter::StopAnim()
+{
+	if( m_animTimeLeft > 0 )
+	{
+		m_animTimeLeft = 0;
+		// animation will be changed on next tick
+	}
+}
+
 
 int AnimCharacter::_FindBone( const StringView& name )
 {
@@ -1430,15 +1463,6 @@ void AnimCharacter::RecalcBoneIDs()
 	{
 		Attachment& AT = attachments[ i ];
 		AT.bone_id = _FindBone( AT.bone );
-	}
-	for( size_t i = 0; i < layers.size(); ++i )
-	{
-		Layer& LY = layers[ i ];
-		for( size_t j = 0; j < LY.transforms.size(); ++j )
-		{
-			LayerTransform& LT = LY.transforms[ j ];
-			LT.bone_id = _FindBone( LT.bone );
-		}
 	}
 }
 
@@ -1696,8 +1720,10 @@ uint16_t AnimCharacter::MEGetID( StringView name ) const
 		if( name == "_pos" ) return 1;
 		if( name == "_length" ) return 2;
 		if( name == "_end" ) return 3;
+		if( name == "_nfba" ) return 4;
+		if( name == "_said" ) return 5;
 	}
-	uint16_t off = 4;
+	uint16_t off = 6;
 	for( size_t i = 0; i < variables.size(); ++i )
 	{
 		if( variables[ i ]->name == name )
@@ -1716,14 +1742,16 @@ double AnimCharacter::MEGetValue( uint16_t i ) const
 {
 	size_t e = i;
 	
-	if( e < 4 )
+	if( e < 6 )
 	{
 		if( e == 0 ) return m_v_time;
 		if( e == 1 ) return m_v_pos;
 		if( e == 2 ) return m_v_length;
 		if( e == 3 ) return m_v_end;
+		if( e == 4 ) return m_v_nfba;
+		if( e == 5 ) return m_v_said;
 	}
-	e -= 4;
+	e -= 6;
 	
 	if( e < variables.size() )
 		return variables[ e ]->value;

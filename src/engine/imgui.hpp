@@ -65,6 +65,7 @@ ENGINE_EXPORT bool IMGUIEditColorHSVHDR( const char* label, Vec3& v, float maxva
 ENGINE_EXPORT bool IMGUIEditColorRGBLDR( const char* label, Vec3& v );
 ENGINE_EXPORT bool IMGUIEditColorRGBA32( const char* label, uint32_t& c );
 ENGINE_EXPORT bool IMGUIEditString( const char* label, String& str, int maxsize );
+ENGINE_EXPORT bool IMGUIEditString( const char* label, RCString& str, int maxsize );
 ENGINE_EXPORT void IMGUIErrorStr( StringView str );
 ENGINE_EXPORT void IMGUIError( const char* str, ... );
 ENGINE_EXPORT void IMGUIYesNo( bool v );
@@ -106,6 +107,7 @@ struct IF_GCC(ENGINE_EXPORT) IMGUIPickerCore
 	
 	ENGINE_EXPORT virtual void OpenPopup( const char* caption );
 	ENGINE_EXPORT virtual bool Popup( const char* caption, String& str );
+	ENGINE_EXPORT virtual bool Popup( const char* caption, RCString& str );
 	ENGINE_EXPORT virtual bool Property( const char* caption, const char* label, String& str );
 	ENGINE_EXPORT virtual void Reload();
 	ENGINE_EXPORT virtual bool SearchUI( String& str );

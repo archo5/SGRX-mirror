@@ -114,13 +114,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		JointType_Hinge = 1,
 		JointType_ConeTwist = 2,
 	};
-	enum TransformType
-	{
-		TransformType_None = 0,
-		TransformType_UndoParent = 1,
-		TransformType_Move = 2,
-		TransformType_Rotate = 3,
-	};
 	
 	struct HitBox
 	{
@@ -238,7 +231,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		}
 	};
 	
-	struct LayerTransform
+	struct UNUSED_LayerTransform
 	{
 		String bone;
 		uint8_t type; // TransformType
@@ -248,7 +241,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		
 		int bone_id;
 		
-		LayerTransform() : type( TransformType_None ), posaxis( V3(0,0,1) ),
+		UNUSED_LayerTransform() : type( 0 ), posaxis( V3(0,0,1) ),
 			angle( 0 ), base(0), bone_id(-1){}
 		
 		template< class T > void Serialize( T& arch )
@@ -261,14 +254,14 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			arch( base, arch.version >= 4, 0 );
 		}
 	};
-	struct Layer
+	struct UNUSED_Layer
 	{
 		String name;
-		Array< LayerTransform > transforms;
+		Array< UNUSED_LayerTransform > transforms;
 		
 		float amount;
 		
-		Layer() : amount( 0 ){}
+		UNUSED_Layer() : amount( 0 ){}
 		
 		template< class T > void Serialize( T& arch )
 		{
@@ -423,7 +416,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		NT_Ragdoll = 3,
 		NT_Mask = 4,
 		NT_RelAbs = 5,
-		NT_Layers = 6,
+		// NT_Layers = 6,
 		NT_Rotator = 7,
 	};
 	typedef SerializeVersionHelper<ByteReader> SVHBR;
@@ -441,14 +434,13 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			if( type == NT_Ragdoll ) return "Ragdoll";
 			if( type == NT_Mask ) return "Mask";
 			if( type == NT_RelAbs ) return "Rel <-> Abs";
-			if( type == NT_Layers ) return "Layers";
 			if( type == NT_Rotator ) return "Rotator";
 			return "<Unknown>";
 		}
 		virtual int GetInputLinkCount(){ return 0; }
 		virtual SGRX_GUID* GetInputLink( int i ){ return NULL; }
 		virtual Animator** GetInputSource( int i ){ return NULL; }
-		virtual bool OwnsAnimator(){ return type != NT_Ragdoll && type != NT_Layers; }
+		virtual bool OwnsAnimator(){ return type != NT_Ragdoll; }
 		virtual Animator* GetAnimator( AnimCharacter* ch ) = 0;
 		virtual void Advance( float dt, const MEVariableInterface* vars ){};
 		Node( uint8_t t ) : type(t), editor_pos(V2(0)){}
@@ -477,11 +469,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	struct IF_GCC(ENGINE_EXPORT) RagdollNode : Node
 	{
 		RagdollNode() : Node( NT_Ragdoll ){}
-		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharacter* ch );
-	};
-	struct IF_GCC(ENGINE_EXPORT) LayersNode : Node
-	{
-		LayersNode() : Node( NT_Layers ){}
 		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharacter* ch );
 	};
 	struct IF_GCC(ENGINE_EXPORT) PlayerNode : Node
@@ -645,6 +632,41 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		IMPL_VIRTUAL_SERIALIZE;
 	};
 	
+	struct IF_GCC(ENGINE_EXPORT) MappedAnim
+	{
+		RCString name;
+		RCString anim;
+		uint16_t id;
+		template< class T > void Serialize( T& arch )
+		{
+			arch << name;
+			arch << anim;
+			arch << id;
+		}
+	};
+	struct IF_GCC(ENGINE_EXPORT) AnimMap : HashTable< StringView, MappedAnim >
+	{
+		template< class T > void Serialize( T& arch )
+		{
+			uint32_t sz = m_size;
+			arch << sz;
+			if( T::IsReader )
+			{
+				for( uint32_t i = 0; i < sz; ++i )
+				{
+					MappedAnim ma;
+					arch << ma;
+					set( ma.name, ma );
+				}
+			}
+			else
+			{
+				for( size_type i = 0; i < m_size; ++i )
+					arch << item( i ).value;
+			}
+		}
+	};
+	
 	template< class T > void Serialize( T& basearch )
 	{
 		basearch.marker( "SGRXCHAR" );
@@ -655,29 +677,40 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		// 4: base offset
 		// 5: added nodes, variables, aliases
 		// 6: added mask mode
-		SerializeVersionHelper<T> arch( basearch, 6 );
+		// 7: added main player node & anim mapping, removed layers
+		SerializeVersionHelper<T> arch( basearch, 7 );
 		
 		arch( mesh );
 		arch( bones );
 		arch( attachments );
-		arch( layers );
+		
+		Array< UNUSED_Layer > layers;
+		arch( layers, arch.version < 7 );
+		
 		arch( masks, arch.version >= 2 );
 		if( arch.version >= 5 )
 		{
 			arch << nodes;
 			arch << variables;
 			arch << aliases;
+			arch( mapping, arch.version >= 7 );
 			
 			uint32_t output_id = nodes.find_first_at( output_node );
 			arch << output_id;
 			output_node = size_t(output_id) < nodes.size() ? nodes[ output_id ] : NULL;
+			
+			uint32_t mp_id = nodes.find_first_at( main_player_node );
+			arch( mp_id, arch.version >= 7, NOT_FOUND );
+			main_player_node = size_t(mp_id) < nodes.size() ? nodes[ mp_id ] : NULL;
 		}
 		else
 		{
 			nodes.clear();
 			variables.clear();
 			aliases.clear();
+			mapping.clear();
 			output_node = NULL;
+			main_player_node = NULL;
 		}
 	}
 	
@@ -696,11 +729,15 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	
 	ENGINE_EXPORT void FixedTick( float deltaTime, bool changeStates = true );
 	ENGINE_EXPORT void PreRender( float blendFactor );
-	ENGINE_EXPORT void RecalcLayerState();
 	
 	ENGINE_EXPORT void EnablePhysics();
 	ENGINE_EXPORT void DisablePhysics();
 	ENGINE_EXPORT void WakeUp();
+	
+	ENGINE_EXPORT bool CheckMarker( const StringView& name );
+	ENGINE_EXPORT bool IsPlayingAnim() const;
+	ENGINE_EXPORT void PlayAnim( StringView name, bool loop );
+	ENGINE_EXPORT void StopAnim();
 	
 	ENGINE_EXPORT int _FindBone( const StringView& name );
 	ENGINE_EXPORT int FindParentBone( int which );
@@ -746,12 +783,13 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	String mesh;
 	Array< BoneInfo > bones;
 	Array< Attachment > attachments;
-	Array< Layer > layers;
 	Array< Mask > masks;
 	Array< Handle< Node > > nodes;
 	Array< Handle< Variable > > variables;
 	Array< Handle< Alias > > aliases;
+	AnimMap mapping;
 	Handle< Node > output_node;
+	Handle< Node > main_player_node;
 	
 	SceneHandle m_scene;
 	MeshHandle m_cachedMesh;
@@ -760,7 +798,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	HashTable< SGRX_GUID, Node* > m_node_map;
 	Array< AnimTrackFrame > m_node_frames;
 	uint32_t m_frameID;
-	Animator m_anLayers;
+	float m_animTimeLeft;
 	AnimDeformer m_anDeformer;
 	AnimRagdoll m_anRagdoll;
 	AnimInterp m_anEnd;
@@ -770,6 +808,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	float m_v_pos;
 	float m_v_length;
 	bool m_v_end;
+	float m_v_nfba;
+	int m_v_said;
 };
 
 template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate( T& arch )
@@ -782,7 +822,6 @@ template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate(
 	if( type == NT_Ragdoll ) return new RagdollNode;
 	if( type == NT_Mask ) return new MaskNode;
 	if( type == NT_RelAbs ) return new RelAbsNode;
-	if( type == NT_Layers ) return new LayersNode;
 	if( type == NT_Rotator ) return new RotatorNode;
 	return NULL;
 }

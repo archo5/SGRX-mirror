@@ -238,7 +238,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_ivPos( V3(0) ), m_ivAimDir( V3(1,0,0) ),
 	m_turnAngle( 0 ),
 	m_aimDir( YP(V3(1,0,0)) ), m_aimDist( 1 ),
-	m_infoFlags( IEST_HeatSource ), m_animTimeLeft( 0 ),
+	m_infoFlags( IEST_HeatSource ),
 	m_pickupTrigger( false ),
 	m_skipTransformUpdate( false )
 {
@@ -331,8 +331,6 @@ void TSCharacter::ProcessAnims( float deltaTime )
 {
 	IController* ctrl = GetObjectController( m_obj );
 	
-	m_animTimeLeft -= deltaTime;
-	
 	// turning
 	Vec2 rundir = V2( cosf( m_turnAngle ), sinf( m_turnAngle ) );
 	Vec3 aimdir = V3( rundir.x, rundir.y, 0 );
@@ -358,21 +356,6 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	
 	float f_turn_btm = ( atan2( rundir.y, rundir.x ) - M_PI / 2 ) / ( M_PI * 2 );
 	float f_turn_top = ( atan2( aimdir.y, aimdir.x ) - M_PI / 2 ) / ( M_PI * 2 );
-	if( m_animTimeLeft > 0 )
-	{
-		f_turn_top = f_turn_btm;
-	}
-#if 0
-	for( size_t i = 0; i < m_animChar.layers.size(); ++i )
-	{
-		AnimCharacter::Layer& L = m_animChar.layers[ i ];
-		if( L.name == StringView("turn_bottom") )
-			L.amount = f_turn_btm;
-		else if( L.name == StringView("turn_top") )
-			L.amount = f_turn_top;
-	}
-	m_animChar.RecalcLayerState();
-#endif
 	m_animChar.SetFloat( "btm_angle", f_turn_btm );
 	m_animChar.SetFloat( "top_angle", f_turn_top );
 }
@@ -426,7 +409,7 @@ void TSCharacter::FixedUpdate()
 	
 	ProcessAnims( deltaTime );
 	
-	if( IsAlive() && m_anMainPlayer.CheckMarker( "step" ) )
+	if( IsAlive() && m_animChar.CheckMarker( "step" ) )
 	{
 		Vec3 pos = m_bodyHandle->GetPosition();
 		Vec3 lvel = m_bodyHandle->GetLinearVelocity();
@@ -795,27 +778,6 @@ bool TSCharacter::IsTouchingPoint( Vec3 p, float hmargin, float vmargin ) const
 Vec3 TSCharacter::GetMoveRefPos() const
 {
 	return GetPosition_FT() + V3(0,0,1) + V3( m_cachedBodyExtOffset * 0.5f, 0 );
-}
-
-void TSCharacter::PlayAnim( StringView name, bool loop )
-{
-	AnimHandle anim = GR_GetAnim( name );
-	if( anim == NULL )
-	{
-		LOG_WARNING << "TSCharacter::PlayAnim - anim not found: " << name;
-		return;
-	}
-	m_animTimeLeft = loop ? FLT_MAX : anim->GetAnimTime();
-	m_anMainPlayer.Play( anim );
-}
-
-void TSCharacter::StopAnim()
-{
-	if( m_animTimeLeft > 0 )
-	{
-		m_animTimeLeft = 0;
-		// animation will be changed on next tick
-	}
 }
 
 void TSCharacter::PlayPickupAnim( Vec3 tgt )

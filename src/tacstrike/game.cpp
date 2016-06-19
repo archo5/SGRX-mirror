@@ -327,8 +327,8 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !m_soundSys )
 		{
 			m_soundSys = SND_CreateSystem();
-			m_soundSys->Load( "sound/master.bank" );
-			m_soundSys->Load( "sound/master.strings.bank" );
+			m_soundSys->Load( "master.bank" );
+			m_soundSys->Load( "master.strings.bank" );
 		}
 		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );

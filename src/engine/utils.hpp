@@ -2387,6 +2387,11 @@ struct RCString_Data : SGRX_RefCounted
 			m_str[ m_size ] = '\0';
 		}
 	}
+	RCString_Data( uint32_t sz ) : m_str( NULL ), m_size( sz )
+	{
+		m_str = new char[ m_size + 1 ];
+		m_str[ m_size ] = '\0';
+	}
 	~RCString_Data()
 	{
 		delete [] m_str;
@@ -2413,6 +2418,24 @@ struct RCString : RCString_Handle
 	
 	FINLINE bool operator == ( const StringView& o ) const { return view() == o; }
 	FINLINE bool operator != ( const StringView& o ) const { return view() != o; }
+	
+	template< class T > void Serialize( T& arch )
+	{
+		uint32_t sz = size();
+		arch << sz;
+		if( T::IsReader )
+		{
+			if( item )
+				item->Release();
+			if( sz )
+			{
+				item = new RCString_Data( sz );
+				item->Acquire();
+			}
+			else item = NULL;
+		}
+		arch.charbuf( item ? item->m_str : NULL, sz );
+	}
 };
 
 

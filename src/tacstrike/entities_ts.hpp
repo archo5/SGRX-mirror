@@ -124,9 +124,9 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	Vec3 GetMoveRefPos() const;
 	SGS_PROPERTY_FUNC( READ GetMoveRefPos ) SGS_ALIAS( Vec3 moveRefPos );
 	
-	SGS_METHOD bool IsPlayingAnim() const { return m_animTimeLeft > 0; }
-	SGS_METHOD void PlayAnim( StringView name, bool loop );
-	SGS_METHOD void StopAnim();
+	SGS_METHOD bool IsPlayingAnim() const { return m_animChar.IsPlayingAnim(); }
+	SGS_METHOD void PlayAnim( StringView name, bool loop ){ m_animChar.PlayAnim( name, loop ); }
+	SGS_METHOD void StopAnim(){ m_animChar.StopAnim(); }
 	// - specific animation triggers
 	SGS_METHOD void PlayPickupAnim( Vec3 tgt );
 	SGS_METHOD_NAMED( SetACVar ) void sgsSetACVar( sgsString name, float val );
@@ -155,7 +155,6 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	LightHandle m_shadowInst;
 	
 	AnimCharacter m_animChar;
-	AnimPlayer m_anMainPlayer;
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;
@@ -187,7 +186,6 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	
 	ActionState m_actState;
 	uint32_t m_infoFlags;
-	float m_animTimeLeft;
 	
 	bool m_pickupTrigger;
 	

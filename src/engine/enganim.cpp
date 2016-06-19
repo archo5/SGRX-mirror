@@ -498,6 +498,20 @@ bool AnimPlayer::CheckMarker( const StringView& name )
 	return false;
 }
 
+float AnimPlayer::GetLastAnimBlendFactor() const
+{
+	if( m_currentAnims.size() < 1 )
+		return 0;
+	const Anim& A = m_currentAnims.last();
+	SGRX_Animation* AN = A.anim;
+	if( !AN )
+		return 0;
+	float animTime = AN->GetAnimTime();
+	return A.once ?
+		smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
+		smoothlerp_oneway( A.fade_at, 0, A.fadetime );
+}
+
 int* AnimPlayer::_getTrackIds( const AnimHandle& anim )
 {
 	if( !m_pose.size() || !anim )

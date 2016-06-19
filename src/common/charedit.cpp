@@ -1199,73 +1199,6 @@ void EditAttachmentInfo( size_t self_id, AnimCharacter::Attachment& atch )
 	ImGui::SetCursorPos( cursorEnd );
 }
 
-void EditLayerTransformInfo( size_t, AnimCharacter::LayerTransform& ltf )
-{
-	static const char* bi_transform_types[] = { "None", "Undo parent transform", "Move", "Rotate" };
-	
-	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
-	bool ret = false;
-	if( ltf.type == AnimCharacter::TransformType_None )
-	{
-		ret = ImGui::TreeNode( &ltf, "Layer transform: None" );
-	}
-	else if( ltf.type == AnimCharacter::TransformType_UndoParent )
-	{
-		ret = ImGui::TreeNode( &ltf, "Layer transform: Undo parent transform" );
-	}
-	else if( ltf.type == AnimCharacter::TransformType_Move )
-	{
-		ret = ImGui::TreeNode( &ltf, "Layer transform: Move by (%g;%g;%g)",
-			ltf.posaxis.x, ltf.posaxis.y, ltf.posaxis.z );
-	}
-	else if( ltf.type == AnimCharacter::TransformType_Rotate )
-	{
-		ret = ImGui::TreeNode( &ltf, "Layer transform: Rotate by %g around (%g;%g;%g)",
-			ltf.angle, ltf.posaxis.x, ltf.posaxis.y, ltf.posaxis.z );
-	}
-	else
-	{
-		ret = ImGui::TreeNode( &ltf, "Layer transform: <Unknown!>" );
-	}
-	if( ret )
-	{
-		PickBoneName( "Bone", ltf.bone, ltf.bone_id );
-		
-		IMGUI_COMBOBOX( "Type", ltf.type, bi_transform_types );
-		
-		if( ltf.type == AnimCharacter::TransformType_Move )
-			IMGUIEditVec3( "Offset", ltf.posaxis, -100, 100 );
-		else if( ltf.type == AnimCharacter::TransformType_Rotate )
-		{
-			IMGUIEditVec3( "Axis", ltf.posaxis, -100, 100 );
-			IMGUIEditFloat( "Angle", ltf.angle, -360, 360 );
-		}
-		if( ltf.type == AnimCharacter::TransformType_Move ||
-			ltf.type == AnimCharacter::TransformType_Rotate )
-		{
-			IMGUIEditFloat( "Base factor", ltf.base, -100, 100 );
-		}
-		
-		ImGui::TreePop();
-	}
-}
-
-void EditLayerInfo( size_t, AnimCharacter::Layer& layer )
-{
-	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
-	if( ImGui::TreeNode( &layer, "Layer: %s", StackString<256>(layer.name).str ) )
-	{
-		IMGUIEditString( "Name", layer.name, 256 );
-		IMGUI_GROUP( "Transforms", true,
-		{
-			IMGUIEditArray( layer.transforms, EditLayerTransformInfo, "Add transform" );
-		});
-		IMGUIEditFloat( "Test factor", layer.amount, -100, 100 );
-		
-		ImGui::TreePop();
-	}
-}
-
 const char* SFModeToString( uint8_t mode )
 {
 	if( mode == SFM_Set ) return "Set";
@@ -1322,6 +1255,90 @@ void EditMaskInfo( size_t self_id, AnimCharacter::Mask& mask )
 	if( ImGui::IsItemHovered() )
 		SetHovered( NOT_FOUND, NOT_FOUND, self_id );
 	ImGui::SetCursorPos( cursorEnd );
+}
+
+static void GenAnimPrintName( char bfr[128], StringView anim, const char* def )
+{
+	if( anim )
+	{
+		StringView bundlepath = anim.until( ":" );
+		StringView animname = anim.after( ":" );
+		StringView bundlename = bundlepath.after_last( "/" );
+		StringView bundledir = bundlepath.until_last( "/" );
+		sgrx_snprintf( bfr, 128, "%s@%s|%s", StackPath(animname).str,
+			StackPath(bundlename).str, StackPath(bundledir).str );
+	}
+	else
+		strcpy( bfr, def );
+}
+
+static void EditMapping( HashTable< StringView, AnimCharacter::MappedAnim >& mapping )
+{
+	Array< AnimCharacter::MappedAnim* > items;
+	for( size_t i = 0; i < mapping.size(); ++i )
+		items.push_back( &mapping.item( i ).value );
+	
+	// sort
+	
+	for( size_t i = 0; i < items.size(); ++i )
+	{
+		AnimCharacter::MappedAnim& MA = *items[ i ];
+		
+		if( ImGui::TreeNode( &MA, "Mapping: %s => %s",
+			MA.name.c_str(), MA.anim.c_str() ) )
+		{
+			ImVec2 cp_before = ImGui::GetCursorPos();
+			float width = ImGui::GetContentRegionAvail().x;
+			
+			// CANNOT EDIT IT THIS WAY
+		//	IMGUIEditString( "Name", MA.name, 256 );
+			{
+				const char* caption = "Select animation for state";
+				char bfr[ 128 ];
+				GenAnimPrintName( bfr, MA.anim, "<click to select animation>" );
+				if( ImGui::Button( bfr, ImVec2( ImGui::GetContentRegionAvailWidth() * 2.0f/3.0f, 20 ) ) )
+				{
+					g_NUIAnimPicker->OpenPopup( caption );
+				}
+				ImGui::SameLine();
+				ImGui::Text( "Animation" );
+				g_NUIAnimPicker->Popup( caption, MA.anim );
+			}
+			IMGUIEditInt( "ID", MA.id, 0, 65535 );
+			
+			ImVec2 cp_after = ImGui::GetCursorPos();
+			ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
+			if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
+			{
+				RCString name = MA.name;
+				mapping.unset( name );
+			}
+			ImGui::SetCursorPos( cp_after );
+			
+			ImGui::TreePop();
+		}
+	}
+	
+	// create new
+	static String mapname;
+	if( ImGui::Button( "Add mapping",
+			ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
+	{
+		mapname = "";
+		ImGui::OpenPopup( "create_mapping" );
+	}
+	
+	if( ImGui::BeginPopup( "create_mapping" ) )
+	{
+		IMGUIEditString( "Name", mapname, 256 );
+		if( ImGui::Button( "Create" ) )
+		{
+			AnimCharacter::MappedAnim ma = { mapname, "", 0 };
+			mapping.set( ma.name, ma );
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
 }
 
 static HashTable< void*, RCString > g_ExprCompileResults;
@@ -1436,13 +1453,13 @@ void EditAnimChar( AnimCharacter& ac )
 	{
 		IMGUIEditArray( ac.attachments, EditAttachmentInfo, "Add attachment" );
 	});
-	IMGUI_GROUP( "Layers", false,
-	{
-		IMGUIEditArray( ac.layers, EditLayerInfo, "Add layer" );
-	});
 	IMGUI_GROUP( "Masks", false,
 	{
 		IMGUIEditArray( ac.masks, EditMaskInfo, "Add mask" );
+	});
+	IMGUI_GROUP( "Anim. mapping", false,
+	{
+		EditMapping( ac.mapping );
 	});
 	EditACVariables( ac );
 }
@@ -1560,21 +1577,6 @@ static void AfterReload()
 	g_EditedPlayerNode = NULL;
 	g_SelState = NULL;
 	g_SelTransition = NULL;
-}
-
-static void GenAnimPrintName( char bfr[128], StringView anim, const char* def )
-{
-	if( anim )
-	{
-		StringView bundlepath = anim.until( ":" );
-		StringView animname = anim.after( ":" );
-		StringView bundlename = bundlepath.after_last( "/" );
-		StringView bundledir = bundlepath.until_last( "/" );
-		sgrx_snprintf( bfr, 128, "%s@%s|%s", StackPath(animname).str,
-			StackPath(bundlename).str, StackPath(bundledir).str );
-	}
-	else
-		strcpy( bfr, def );
 }
 
 void EditTransition( AnimCharacter::Transition* tr )
@@ -2098,7 +2100,10 @@ void EditNodes( AnimCharacter& ac )
 		ImVec2 node_title_max = node_rect_min + ImVec2( nodeSize.x, 24 );
 		draw_list->AddRectFilled(node_rect_min, node_rect_max, (node_hovered_in_list == node || node_hovered_in_scene == node || (node_hovered_in_list == NULL && g_SelNode == node)) ? ImColor(75,75,75,200) : ImColor(60,60,60,200), 4.0f); 
 		draw_list->AddRectFilled(node_rect_min, node_title_max, ImColor(20,20,20,200), 4.0f);
-		draw_list->AddRect(node_rect_min, node_rect_max, ImColor(100+(node == ac.output_node?120:0),100,100), 4.0f);
+		draw_list->AddRect(node_rect_min, node_rect_max,
+			ImColor(
+				100+(node == ac.output_node?120:0),
+				100+(node == ac.main_player_node?120:0),100), 4.0f);
 		
 		// output link
 		{
@@ -2195,6 +2200,10 @@ void EditNodes( AnimCharacter& ac )
 				ac._UnlinkNode( node );
 				ac.nodes.remove_first( node );
 				ac._RehashNodes();
+				if( ac.output_node == node )
+					ac.output_node = NULL;
+				if( ac.main_player_node == node )
+					ac.main_player_node = NULL;
 				g_SelNode = NULL;
 			}
 			ImGui::Separator();
@@ -2202,6 +2211,10 @@ void EditNodes( AnimCharacter& ac )
 			{
 				ac.output_node = node;
 				ac._Prepare();
+			}
+			if( node->type == AnimCharacter::NT_Player && ImGui::MenuItem( "Set as main player" ) )
+			{
+				ac.main_player_node = node;
 			}
 			if( ImGui::MenuItem( "Unlink output pin" ) )
 			{
@@ -2221,8 +2234,6 @@ void EditNodes( AnimCharacter& ac )
 				nn = new AnimCharacter::BlendNode;
 			if (ImGui::MenuItem("Add: Ragdoll node"))
 				nn = new AnimCharacter::RagdollNode;
-			if (ImGui::MenuItem("Add: Layers node"))
-				nn = new AnimCharacter::LayersNode;
 			if (ImGui::MenuItem("Add: Rel<->Abs node"))
 				nn = new AnimCharacter::RelAbsNode;
 			if (ImGui::MenuItem("Add: Rotator node"))
@@ -2363,12 +2374,12 @@ static bool ModeRB( const char* label, int mode, int key )
 }
 
 
-struct CSEditor : IGame
+struct CharEditor : IGame
 {
-	CSEditor(){}
+	CharEditor(){}
 	bool OnInitialize()
 	{
-		LOG_FUNCTION_ARG( "CSEditor" );
+		LOG_FUNCTION_ARG( "CharEditor" );
 		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
 		GR2D_SetFont( "core", 12 );
@@ -2418,7 +2429,7 @@ struct CSEditor : IGame
 	}
 	void OnDestroy()
 	{
-		LOG_FUNCTION_ARG( "CSEditor" );
+		LOG_FUNCTION_ARG( "CharEditor" );
 		
 		delete g_NUIAnimPicker;
 		delete g_NUIMeshPicker;
@@ -2435,18 +2446,17 @@ struct CSEditor : IGame
 	}
 	void OnEvent( const Event& e )
 	{
-		LOG_FUNCTION_ARG( "CSEditor" );
+		LOG_FUNCTION_ARG( "CharEditor" );
 		
 		SGRX_IMGUI_Event( e );
 	}
 	void OnTick( float dt, uint32_t gametime )
 	{
-		LOG_FUNCTION_ARG( "CSEditor" );
+		LOG_FUNCTION_ARG( "CharEditor" );
 		
 		SGRX_IMGUI_NewFrame( dt );
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-		g_AnimChar->RecalcLayerState();
 		g_AnimChar->FixedTick( dt, g_mode == AnimPreview && g_APChangeStates );
 		for( int i = 0; i < g_phyIters; ++i )
 			g_PhyWorld->Step( dt * g_phySpeed / g_phyIters );
@@ -2714,6 +2724,6 @@ struct CSEditor : IGame
 
 extern "C" EXPORT IGame* CreateGame()
 {
-	return new CSEditor;
+	return new CharEditor;
 }
 
