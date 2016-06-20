@@ -625,6 +625,14 @@ void EdWorld::FLoad( sgsVariable obj )
 		while( it.Advance() )
 		{
 			sgsVariable object = it.GetValue();
+			
+			// 2nd upgrade
+			g_Level->GetScriptCtx().Push( object );
+			g_Level->GetScriptCtx().GlobalCall( "OBJ_UPG2", 1, 1 );
+			object = sgsVariable( g_Level->GetScriptCtx().C, sgsVariable::PickAndPop );
+			if( object.not_null() == false )
+				continue; // already parsed some other way
+			
 			int type = object.getprop("type").get<int>();
 			EdObject* obj = NULL;
 			switch( type )

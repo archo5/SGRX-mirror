@@ -82,3 +82,41 @@ function ENT_UPG1_cover( pos, data )
 	};
 	return "AICover", data;
 }
+
+function OBJ_UPG2( objdata )
+{
+	if( objdata.type == 2 )
+	{
+		if( objdata.entity_type == "Light" )
+		{
+			p = objdata.props;
+			o = level.CreateGameObject().
+			{
+				name = p.name,
+				id = p.id,
+				position = vec3(p.position.x,p.position.y,p.position.z),
+				rotationXYZ = vec3(p.rotationXYZ.x,p.rotationXYZ.y,p.rotationXYZ.z),
+				scale = vec3(p.scale.x,p.scale.y,p.scale.z),
+			};
+			l = o.AddResource( "light", GO_RSRC_LIGHT ).
+			{
+				enabled = p.enabled,
+				type = p.type,
+				isStatic = p.isStatic,
+				hasShadows = p.hasShadows,
+				cookieTexture = p.cookieTexture,
+				color = vec3(p.color.x,p.color.y,p.color.z),
+				intensity = p.intensity,
+				range = p.range,
+				power = p.power,
+				angle = p.angle,
+				innerAngle = p.innerAngle,
+				aspect = p.aspect,
+				spotCurve = p.spotCurve,
+				lightRadius = p.lightRadius,
+			};
+			return null;
+		}
+	}
+	return objdata;
+}

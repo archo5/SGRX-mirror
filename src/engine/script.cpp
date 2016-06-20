@@ -152,7 +152,7 @@ static int Input_GetValue( SGS_CTX )
 		return 0;
 	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
 	if( !is )
-		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s", str );
 	return sgs_PushReal( C, is->value );
 }
 
@@ -164,7 +164,7 @@ static int Input_GetState( SGS_CTX )
 		return 0;
 	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
 	if( !is )
-		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s", str );
 	return sgs_PushBool( C, is->state );
 }
 
@@ -176,7 +176,7 @@ static int Input_GetPressed( SGS_CTX )
 		return 0;
 	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
 	if( !is )
-		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s", str );
 	return sgs_PushBool( C, is->IsPressed() );
 }
 
@@ -188,7 +188,7 @@ static int Input_GetReleased( SGS_CTX )
 		return 0;
 	InputState* is = Game_FindAction( sgs_GetVar<StringView>()( C, 0 ) );
 	if( !is )
-		return sgs_Msg( C, SGS_WARNING, "action not found: %s\n", str );
+		return sgs_Msg( C, SGS_WARNING, "action not found: %s", str );
 	return sgs_PushBool( C, is->IsReleased() );
 }
 
