@@ -1321,8 +1321,16 @@ GameObject* GameLevel::CreateGameObject()
 	return go;
 }
 
-void GameLevel::DestroyGameObject( GameObject* obj )
+void GameLevel::DestroyGameObject( GameObject* obj, bool ch )
 {
+	if( ch )
+	{
+		while( obj->_ch.size() )
+		{
+			DestroyGameObject( (GameObject*) obj->_ch.last(), true );
+		}
+	}
+	
 	while( obj->m_bhvr_order.size() )
 		obj->RemoveBehavior( obj->m_bhvr_order.last()->m_name );
 	
@@ -1343,11 +1351,13 @@ sgsVariable GameLevel::sgsCreateGameObject()
 	return CreateGameObject()->GetScriptedObject();
 }
 
-void GameLevel::sgsDestroyGameObject( sgsVariable oh )
+void GameLevel::sgsDestroyGameObject( sgsVariable oh, bool ch )
 {
 	GameObject* obj = oh.downcast<GameObject>();
+	if( sgs_StackSize( C ) < 2+1 )
+		ch = true;
 	if( obj )
-		DestroyGameObject( obj );
+		DestroyGameObject( obj, ch );
 }
 
 void GameLevel::_MapGameObjectByID( GameObject* obj )

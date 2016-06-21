@@ -790,9 +790,9 @@ EXP_STRUCT GameLevel :
 	
 	// GAMEOBJECT PROTO
 	GameObject* CreateGameObject();
-	void DestroyGameObject( GameObject* obj );
+	void DestroyGameObject( GameObject* obj, bool ch = true );
 	GFW_EXPORT SGS_METHOD_NAMED( CreateGameObject ) sgsVariable sgsCreateGameObject();
-	GFW_EXPORT SGS_METHOD_NAMED( DestroyGameObject ) void sgsDestroyGameObject( sgsVariable oh );
+	GFW_EXPORT SGS_METHOD_NAMED( DestroyGameObject ) void sgsDestroyGameObject( sgsVariable oh, bool ch );
 	GFW_EXPORT void _MapGameObjectByID( GameObject* obj );
 	GFW_EXPORT void _UnmapGameObjectByID( GameObject* obj );
 	GFW_EXPORT GameObject* FindGameObjectByID( const StringView& name );

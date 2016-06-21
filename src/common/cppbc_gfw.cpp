@@ -1580,7 +1580,7 @@ static int _sgs_method__GameLevel__DestroyGameObject( SGS_CTX )
 {
 	GameLevel* data; if( !SGS_PARSE_METHOD( C, GameLevel::_sgs_interface, data, GameLevel, DestroyGameObject ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->sgsDestroyGameObject( sgs_GetVar<sgsVariable>()(C,0) ); return 0;
+	data->sgsDestroyGameObject( sgs_GetVar<sgsVariable>()(C,0), sgs_GetVar<bool>()(C,1) ); return 0;
 }
 
 static int _sgs_method__GameLevel__FindGameObject( SGS_CTX )
