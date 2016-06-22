@@ -1308,7 +1308,7 @@ struct TSEC_FindSoundSource : AIFactDistance
 			return FLT_MAX;
 		
 		float dist = PointLineDistance( pos,
-			fact.position - V3(0,0,0.5f), fact.position + V3(0,0,0.5f) ) - 0.5f;
+			fact.position - V3(0,0,1), fact.position + V3(0,0,1) ) - 0.5f;
 		float maxdist = ( curTime - fact.created ) * 0.001f * speed;
 		if( dist > maxdist )
 			return FLT_MAX;
@@ -1354,9 +1354,6 @@ void TSEnemyController::FixedUpdate()
 			if( S.type == AIS_Shot )
 				sndtype = FT_Sound_Shot;
 			
-			m_factStorage.InsertOrUpdate( sndtype,
-				S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
-			
 			int lastid = m_factStorage.last_mod_id;
 			TSEC_FindSoundSource fss;
 			{
@@ -1364,7 +1361,17 @@ void TSEnemyController::FixedUpdate()
 				fss.speed = 10;
 				fss.curTime = curTime;
 			}
-			m_factStorage.CustomUpdate( fss, curTime, curTime + 30*1000, lastid );
+			if( !m_factStorage.CustomUpdate( fss, curTime, curTime + 30*1000, lastid ) &&
+				sndtype == FT_Sound_Footstep )
+			{
+				m_factStorage.InsertOrUpdate( sndtype,
+					S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
+			}
+			else if( sndtype != FT_Sound_Footstep )
+			{
+				m_factStorage.InsertOrUpdate( sndtype,
+					S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
+			}
 		}
 		else
 		{

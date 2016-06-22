@@ -141,6 +141,7 @@ function CreateSwitchButton( x, y, w, h, sbw, options, key )
 			values[ this.key ] = opt.value;
 		}
 		CallEventChain( ev_change, this.key );
+		this.InvokeCallbacks( "onchange" );
 	}
 	
 	ctrl.{ btn_mid, btn_lft, btn_rgt, options, key };

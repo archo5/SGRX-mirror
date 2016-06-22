@@ -10,12 +10,14 @@ sgs_ObjInterface g_sgsobj_empty_handle[1] = {{ "empty_handle", NULL }};
 
 CVarBool gcv_cl_gui( "cl_gui", true );
 CVarBool gcv_cl_debug( "cl_debug", false );
+CVarBool gcv_dbg_physics( "dbg_physics", false );
 CVarBool gcv_g_paused( "g_paused", false );
 
 void RegisterCommonGameCVars()
 {
 	REGCOBJ( gcv_cl_gui );
 	REGCOBJ( gcv_cl_debug );
+	REGCOBJ( gcv_dbg_physics );
 	REGCOBJ( gcv_g_paused );
 }
 
@@ -1162,7 +1164,8 @@ void GameLevel::DebugDraw()
 	
 	if( gcv_cl_debug.value )
 	{
-		m_phyWorld->DebugDraw();
+		if( gcv_dbg_physics.value )
+			m_phyWorld->DebugDraw();
 		
 		for( size_t i = 0; i < m_systems.size(); ++i )
 			m_systems[ i ]->DebugDrawWorld();
