@@ -627,8 +627,9 @@ AnimRagdoll::AnimRagdoll( PhyWorldHandle phyWorld ) :
 	ASSERT( phyWorld && "physics world handle must be valid" );
 }
 
-void AnimRagdoll::Initialize( AnimCharacter* chinfo )
+void AnimRagdoll::Initialize( AnimCharInst* chinst )
 {
+	AnimCharacter* chinfo = chinst->animChar;
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.enabled = false;
 	rbinfo.friction = 0.8f;
@@ -652,9 +653,9 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 	
 	for( size_t bid = 0; bid < chinfo->bones.size(); ++bid )
 	{
-		AnimCharacter::BoneInfo& BI = chinfo->bones[ bid ];
+		const AnimCharacter::BoneInfo& BI = chinfo->bones[ bid ];
 		
-		Body* TB = &m_bones[ BI.bone_id ];
+		Body* TB = &m_bones[ chinst->m_bone_ids[ bid ] ];
 		
 	//	LOG << SB.name << " > " << SB.capsule_radius << "|" << SB.capsule_height;
 		if( BI.body.type == AnimCharacter::BodyType_Sphere )
@@ -682,39 +683,39 @@ void AnimRagdoll::Initialize( AnimCharacter* chinfo )
 	
 	for( size_t bid = 0; bid < chinfo->bones.size(); ++bid )
 	{
-		AnimCharacter::BoneInfo& BI = chinfo->bones[ bid ];
+		const AnimCharacter::BoneInfo& BI = chinfo->bones[ bid ];
 		
-		if( BI.joint.parent_id >= 0 && BI.joint.type != AnimCharacter::JointType_None )
+		int jpbid = BI.joint.parent_id;
+		if( jpbid >= 0 && BI.joint.type != AnimCharacter::JointType_None )
 		{
-			AnimCharacter::BoneInfo& PBI = chinfo->bones[ BI.joint.parent_id ];
 			Mat4 jsm, jpm;
-			if( m_bones[ BI.bone_id ].bodyHandle &&
-				m_bones[ PBI.bone_id ].bodyHandle &&
+			if( m_bones[ chinst->m_bone_ids[ bid ] ].bodyHandle &&
+				m_bones[ chinst->m_bone_ids[ jpbid ] ].bodyHandle &&
 				chinfo->GetJointFrameMatrices( bid, jsm, jpm ) )
 			{
 				if( BI.joint.type == AnimCharacter::JointType_Hinge )
 				{
 					SGRX_PhyHingeJointInfo jinfo;
 					jinfo.enabled = false;
-					jinfo.bodyA = m_bones[ BI.bone_id ].bodyHandle;
-					jinfo.bodyB = m_bones[ PBI.bone_id ].bodyHandle;
+					jinfo.bodyA = m_bones[ chinst->m_bone_ids[ bid ] ].bodyHandle;
+					jinfo.bodyB = m_bones[ chinst->m_bone_ids[ jpbid ] ].bodyHandle;
 					jinfo.frameA = jsm;
 					jinfo.frameB = jpm;
-					m_bones[ BI.bone_id ].jointHandle =
+					m_bones[ chinst->m_bone_ids[ bid ] ].jointHandle =
 						m_phyWorld->CreateHingeJoint( jinfo );
 				}
 				else if( BI.joint.type == AnimCharacter::JointType_ConeTwist )
 				{
 					SGRX_PhyConeTwistJointInfo jinfo;
 					jinfo.enabled = false;
-					jinfo.bodyA = m_bones[ BI.bone_id ].bodyHandle;
-					jinfo.bodyB = m_bones[ PBI.bone_id ].bodyHandle;
+					jinfo.bodyA = m_bones[ chinst->m_bone_ids[ bid ] ].bodyHandle;
+					jinfo.bodyB = m_bones[ chinst->m_bone_ids[ jpbid ] ].bodyHandle;
 					jinfo.frameA = jsm;
 					jinfo.frameB = jpm;
 					jinfo.coneLimitX = DEG2RAD( BI.joint.turn_limit_1 );
 					jinfo.coneLimitY = DEG2RAD( BI.joint.turn_limit_2 );
 					jinfo.twistLimit = DEG2RAD( BI.joint.twist_limit );
-					m_bones[ BI.bone_id ].jointHandle =
+					m_bones[ chinst->m_bone_ids[ bid ] ].jointHandle =
 						m_phyWorld->CreateConeTwistJoint( jinfo );
 				}
 			}
@@ -963,70 +964,6 @@ struct RHTKey
 	}
 };
 
-Animator* AnimCharacter::RagdollNode::GetAnimator( AnimCharacter* ch )
-{
-	return &ch->m_anRagdoll;
-}
-
-void AnimCharacter::PlayerNode::StartCurrentState()
-{
-	if( !current_state )
-		return;
-	player_anim.Play(
-		GR_GetAnim( current_state->anim ),
-		!current_state->loop,
-		current_state->fade_time );
-	m_stateTime = 0;
-}
-
-void AnimCharacter::PlayerNode::UpdateState( const MEVariableInterface* vars )
-{
-	if( !current_state )
-	{
-		current_state = starting_state;
-		StartCurrentState();
-	}
-	if( !current_state )
-		return;
-	
-	// from-any transitions
-	for( size_t i = 0; i < transition_lookup_ids[0]; ++i )
-	{
-		Transition* tr = transitions[ transition_lookup_ids[ i + 1 ] ];
-		if( tr->expr.Eval( vars ) )
-		{
-			current_state = state_lookup.getcopy( tr->target );
-			StartCurrentState();
-			return;
-		}
-	}
-	
-	// directly relevant transitions
-	size_t off = transition_lookup[ current_state->guid ];
-	for( size_t i = 0; i < transition_lookup_ids[ off ]; ++i )
-	{
-		Transition* tr = transitions[ transition_lookup_ids[ i + off + 1 ] ];
-		if( tr->source == current_state->guid )
-		{
-			if( tr->expr.Eval( vars ) )
-			{
-				current_state = state_lookup.getcopy( tr->target );
-				StartCurrentState();
-				return;
-			}
-		}
-		else if( tr->bidi && tr->target == current_state->guid )
-		{
-			if( !tr->expr.Eval( vars ) )
-			{
-				current_state = state_lookup.getcopy( tr->source );
-				StartCurrentState();
-				return;
-			}
-		}
-	}
-}
-
 void AnimCharacter::PlayerNode::RehashStates()
 {
 	state_lookup.clear();
@@ -1086,27 +1023,6 @@ void AnimCharacter::PlayerNode::RehashTransitions()
 
 
 
-AnimCharacter::AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld ) :
-	m_scene( sh ),
-	m_frameID( 0 ),
-	m_animTimeLeft( 0 ),
-	m_anRagdoll( phyWorld ),
-	
-	m_v_time( 0 ),
-	m_v_pos( 0 ),
-	m_v_length( 0 ),
-	m_v_end( false ),
-	m_v_nfba( 0 ),
-	m_v_said( 0 )
-{
-	ASSERT( sh && "scene handle must be valid" );
-	
-	m_cachedMeshInst = m_scene->CreateMeshInstance();
-	m_cachedMeshInst->raycastOverride = this;
-	
-	_PrepareSpecialVariables( NULL );
-}
-
 bool AnimCharacter::Load( const StringView& sv )
 {
 	ByteArray ba;
@@ -1117,8 +1033,7 @@ bool AnimCharacter::Load( const StringView& sv )
 	if( br.error )
 		return false;
 	
-	_OnRenderUpdate();
-	m_cachedMeshInst->raycastOverride = m_cachedMesh->m_numBones ? this : NULL;
+	_Prepare();
 	return true;
 }
 
@@ -1130,73 +1045,38 @@ bool AnimCharacter::Save( const StringView& sv )
 	return FS_SaveBinaryFile( sv, ba.data(), ba.size() );
 }
 
-void AnimCharacter::_OnRenderUpdate()
-{
-	m_cachedMesh = GR_GetMesh( mesh );
-	m_cachedMeshInst->SetMesh( m_cachedMesh );
-	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh.GetBoneCount() );
-	RecalcBoneIDs();
-	_Prepare();
-	m_anRagdoll.Initialize( this );
-}
-
-void AnimCharacter::_UnlinkNode( Node* node )
-{
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		for( int l = 0; l < nodes[ i ]->GetInputLinkCount(); ++l )
-		{
-			SGRX_GUID* pguid = nodes[ i ]->GetInputLink( l );
-			if( *pguid == node->guid )
-				pguid->SetNull();
-		}
-	}
-}
-
 void AnimCharacter::_Prepare()
 {
-	// count animators
-	int num_animators = 3; // ragdoll, layers, end
-	int num_bones = m_cachedMesh.GetBoneCount();
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		if( nodes[ i ]->OwnsAnimator() )
-			num_animators++;
-	}
-	
-	// allocate frames
-	m_node_frames.resize( num_animators * num_bones );
-	for( size_t i = 0; i < m_node_frames.size(); ++i )
-		m_node_frames[ i ].Reset();
-	
-	// equip animators
-	int at = 0;
-	_EquipAnimator( &m_anRagdoll, at++ );
-	_EquipAnimator( &m_anEnd, at++ );
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		Animator* anim = nodes[ i ]->GetAnimator( this );
-		if( anim && nodes[ i ]->OwnsAnimator() )
-			_EquipAnimator( anim, at++ );
-	}
-	
-	// rehash & link
-	_RehashNodes();
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		for( int l = 0; l < nodes[ i ]->GetInputLinkCount(); ++l )
-		{
-			const SGRX_GUID* pguid = nodes[ i ]->GetInputLink( l );
-			Animator** panim = nodes[ i ]->GetInputSource( l );
-			Node* node = m_node_map.getcopy( *pguid );
-			if( node )
-				*panim = node->GetAnimator( this );
-		}
-	}
-	m_anEnd.animSource = output_node ? output_node->GetAnimator( this ) : NULL;
-	
-	// recompile expressions, reapply masks
+	_RecalcBoneIDs();
 	_ReindexVariables();
+	_RecompileExpressions();
+}
+
+void AnimCharacter::_RecalcBoneIDs()
+{
+	for( size_t i = 0; i < bones.size(); ++i )
+	{
+		BoneInfo& BI = bones[ i ];
+		BI.joint.parent_id = _FindBoneByName( BI.joint.parent_name );
+	}
+	for( size_t i = 0; i < attachments.size(); ++i )
+	{
+		Attachment& AT = attachments[ i ];
+		AT.bone_id = _FindBoneByName( AT.bone );
+	}
+}
+
+void AnimCharacter::_ReindexVariables()
+{
+	m_variable_index.clear();
+	for( size_t i = 0; i < variables.size(); ++i )
+	{
+		m_variable_index.set( variables[ i ]->name, i );
+	}
+}
+
+void AnimCharacter::_RecompileExpressions()
+{
 	for( size_t i = 0; i < aliases.size(); ++i )
 		aliases[ i ]->expr.Recompile( this );
 	for( size_t i = 0; i < nodes.size(); ++i )
@@ -1221,11 +1101,6 @@ void AnimCharacter::_Prepare()
 			SGRX_CAST( BlendNode*, BN, N );
 			BN->factor.Recompile( this );
 		}
-		else if( N->type == NT_Mask )
-		{
-			SGRX_CAST( MaskNode*, MN, N );
-			ApplyMask( MN->mask_name, &MN->mask_anim );
-		}
 		else if( N->type == NT_Rotator )
 		{
 			SGRX_CAST( RotatorNode*, RN, N );
@@ -1234,258 +1109,86 @@ void AnimCharacter::_Prepare()
 	}
 }
 
-void AnimCharacter::_EquipAnimator( Animator* anim, int which )
-{
-	int num_bones = m_cachedMesh.GetBoneCount();
-	int at = which * num_bones;
-	anim->m_mesh = m_cachedMesh;
-	anim->m_pose = ArrayView<AnimTrackFrame>( m_node_frames ).part( at, num_bones );
-	anim->Prepare();
-}
-
-void AnimCharacter::_PrepareSpecialVariables( Node* n )
-{
-	if( n )
-	{
-		if( n->type == NT_Player )
-		{
-			SGRX_CAST( PlayerNode*, PN, n );
-			if( PN->current_state )
-			{
-				AnimPlayer::Anim* panim = NULL;
-				if( PN->player_anim.m_currentAnims.size() )
-					panim = &PN->player_anim.m_currentAnims.last();
-				SGRX_Animation* aanim = panim ? panim->anim : NULL;
-				
-				StringView cur_state_anim = PN->current_state->anim;
-				StringView cur_played_anim = aanim ? aanim->m_key : "";
-				bool still_playing = cur_state_anim == cur_played_anim;
-				
-				m_v_time = PN->m_stateTime;
-				m_v_pos = still_playing && panim ? panim->fade_at : 0;
-				m_v_length = still_playing && aanim ? aanim->GetAnimTime() : 0;
-				m_v_end = !still_playing || ( m_v_pos > m_v_length );
-				return;
-			}
-		}
-	}
-	
-	// defaults
-	{
-		m_v_time = 0;
-		m_v_pos = 0;
-		m_v_length = 0;
-		m_v_end = false;
-	}
-}
-
-void AnimCharacter::ResetStates()
+void AnimCharacter::_UnlinkNode( Node* node )
 {
 	for( size_t i = 0; i < nodes.size(); ++i )
 	{
-		if( nodes[ i ]->type == NT_Player )
+		for( int l = 0; l < nodes[ i ]->GetInputLinkCount(); ++l )
 		{
-			SGRX_CAST( PlayerNode*, PN, nodes[ i ].item );
-			PN->current_state = PN->starting_state;
-			PN->StartCurrentState();
+			SGRX_GUID* pguid = nodes[ i ]->GetInputLink( l );
+			if( *pguid == node->guid )
+				pguid->SetNull();
 		}
 	}
 }
 
-void AnimCharacter::SetTransform( const Mat4& mtx )
+int AnimCharacter::_FindBoneByName( const StringView& name )
 {
-	if( m_cachedMeshInst )
-		m_cachedMeshInst->matrix = mtx;
-}
-
-void AnimCharacter::FixedTick( float deltaTime, bool changeStates )
-{
-	LOG_FUNCTION_ARG("AnimCharacter");
-	
-	m_animTimeLeft -= deltaTime;
-	m_v_nfba = 0;
-	if( m_animTimeLeft > 0 )
-	{
-		changeStates = false;
-		if( main_player_node && main_player_node->type == NT_Player )
-		{
-			SGRX_CAST( PlayerNode*, PN, main_player_node.item );
-			m_v_nfba = PN->player_anim.GetLastAnimBlendFactor();
-		}
-	}
-	else m_v_said = 0;
-	
-	_PrepareSpecialVariables( NULL );
-	for( size_t i = 0; i < aliases.size(); ++i )
-	{
-		aliases[ i ]->value = aliases[ i ]->expr.Eval( this );
-	}
-	
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		if( nodes[ i ]->type == NT_Player && changeStates )
-		{
-			SGRX_CAST( PlayerNode*, P, nodes[ i ].item );
-			_PrepareSpecialVariables( P );
-			P->UpdateState( this );
-		}
-		nodes[ i ]->Advance( deltaTime, this );
-	}
-	
-	AnimInfo info = { ++m_frameID, m_cachedMeshInst->matrix };
-	m_anEnd.Advance( deltaTime, &info );
-	m_anRagdoll.AdvanceTransforms( &m_anEnd );
-}
-
-void AnimCharacter::PreRender( float blendFactor )
-{
-	LOG_FUNCTION_ARG("AnimCharacter");
-	
-	m_anEnd.Interpolate( blendFactor );
-	GR_ApplyAnimator( &m_anEnd, m_cachedMeshInst );
-}
-
-void AnimCharacter::EnablePhysics()
-{
-	m_anRagdoll.EnablePhysics( m_cachedMeshInst->matrix );
-}
-
-void AnimCharacter::DisablePhysics()
-{
-	m_anRagdoll.DisablePhysics();
-}
-
-void AnimCharacter::WakeUp()
-{
-	m_anRagdoll.WakeUp();
-}
-
-
-bool AnimCharacter::CheckMarker( const StringView& name )
-{
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		Node* N = nodes[ i ];
-		if( N->type == NT_Player )
-		{
-			SGRX_CAST( PlayerNode*, PN, N );
-			if( PN->player_anim.CheckMarker( name ) )
-				return true;
-		}
-	}
-	return false;
-}
-
-bool AnimCharacter::IsPlayingAnim() const
-{
-	return m_animTimeLeft > 0;
-}
-
-void AnimCharacter::PlayAnim( StringView name, bool loop )
-{
-	MappedAnim* maptr = mapping.getptr( name );
-	if( maptr )
-	{
-		name = maptr->anim;
-		m_v_said = maptr->id;
-	}
-	else m_v_said = 0;
-	
-	AnimHandle anim = GR_GetAnim( name );
-	if( anim == NULL )
-	{
-		LOG_WARNING << "AnimCharacter::PlayAnim - anim not found: " << name;
-		return;
-	}
-	if( main_player_node == NULL || main_player_node->type != NT_Player )
-	{
-		LOG_WARNING << "AnimCharacter::PlayAnim - main player node undefined";
-		return;
-	}
-	m_animTimeLeft = loop ? FLT_MAX : anim->GetAnimTime();
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		if( nodes[ i ]->type != NT_Player )
-			continue;
-		SGRX_CAST( PlayerNode*, PN, nodes[ i ].item );
-		PN->player_anim.Play( PN == main_player_node ? anim : NULL, !loop );
-	}
-}
-
-void AnimCharacter::StopAnim()
-{
-	if( m_animTimeLeft > 0 )
-	{
-		m_animTimeLeft = 0;
-		// animation will be changed on next tick
-	}
-}
-
-
-int AnimCharacter::_FindBone( const StringView& name )
-{
-	if( !m_cachedMesh )
-		return -1;
-	int bid = 0;
-	for( ; bid < m_cachedMesh->m_numBones; ++bid )
-	{
-		if( m_cachedMesh->m_bones[ bid ].name == name )
-			break;
-	}
-	return bid < m_cachedMesh->m_numBones ? bid : -1;
-}
-
-int AnimCharacter::FindParentBone( int which )
-{
-	if( m_cachedMesh == NULL )
-		return -1;
-	if( which < 0 || which >= (int) bones.size() )
-		return -1;
-	
-	int parent_id = m_cachedMesh->m_bones[ bones[ which ].bone_id ].parent_id;
 	for( size_t i = 0; i < bones.size(); ++i )
 	{
-		if( bones[ i ].bone_id == parent_id )
+		if( bones[ i ].name == name )
 			return i;
 	}
 	return -1;
 }
 
-void AnimCharacter::RecalcBoneIDs()
+
+#define ANIMCHAR_VAR_time   0
+#define ANIMCHAR_VAR_pos    1
+#define ANIMCHAR_VAR_length 2
+#define ANIMCHAR_VAR_end    3
+#define ANIMCHAR_VAR_nfba   4
+#define ANIMCHAR_VAR_said   5
+
+#define ANIMCHAR_VAR_VOFF (6)
+#define ANIMCHAR_VAR_AOFF (6 + animChar->variables.size())
+
+uint16_t AnimCharacter::MEGetID( StringView name ) const
 {
-	for( size_t i = 0; i < bones.size(); ++i )
+	if( name.ch() == '_' )
 	{
-		BoneInfo& BI = bones[ i ];
-		BI.bone_id = _FindBone( BI.name );
-		BI.joint.parent_id = _FindBone( BI.joint.parent_name );
+		if( name == "_time" ) return 0;
+		if( name == "_pos" ) return 1;
+		if( name == "_length" ) return 2;
+		if( name == "_end" ) return 3;
+		if( name == "_nfba" ) return 4;
+		if( name == "_said" ) return 5;
 	}
-	for( size_t i = 0; i < attachments.size(); ++i )
+	uint16_t off = 6;
+	for( size_t i = 0; i < variables.size(); ++i )
 	{
-		Attachment& AT = attachments[ i ];
-		AT.bone_id = _FindBone( AT.bone );
+		if( variables[ i ]->name == name )
+			return uint16_t( i ) + off;
 	}
+	off += variables.size();
+	for( size_t i = 0 ; i < aliases.size(); ++i )
+	{
+		if( aliases[ i ]->name == name )
+			return uint16_t( i ) + off;
+	}
+	return ME_OPERAND_NONE;
 }
 
-bool AnimCharacter::GetBodyMatrix( int which, Mat4& outwm )
+
+bool AnimCharacter::ApplyMask( SGRX_IMesh* mesh, const StringView& name, AnimMask* tgt )
 {
-	if( !m_cachedMesh )
-		return false;
-	if( which < 0 || which >= (int) bones.size() )
-		return false;
-	BoneInfo& BI = bones[ which ];
-	
-	outwm = m_cachedMeshInst->matrix;
-	if( BI.bone_id >= 0 )
+	ASSERT( mesh );
+	for( size_t i = 0; i < masks.size(); ++i )
 	{
-		if( m_cachedMeshInst->IsSkinned() )
+		Mask& M = masks[ i ];
+		if( M.name != name )
+			continue;
+		
+		ArrayView<float> factors = tgt->blendFactors;
+		GR_ClearFactors( factors, 0 );
+		for( size_t j = 0; j < M.cmds.size(); ++j )
 		{
-			outwm = m_cachedMeshInst->skin_matrices[ BI.bone_id ] * outwm;
+			MaskCmd& MC = M.cmds[ j ];
+			GR_SetFactors( factors, mesh, MC.bone, MC.weight, MC.children, MC.mode );
 		}
-		outwm = m_cachedMesh->m_bones[ BI.bone_id ].skinOffset * outwm;
+		return true;
 	}
-	outwm = Mat4::CreateRotationFromQuat( BI.body.rotation ) *
-		Mat4::CreateTranslation( BI.body.position ) * outwm;
-	return true;
+	return false;
 }
 
 bool AnimCharacter::GetJointFrameMatrices( int which, Mat4& outself, Mat4& outprnt )
@@ -1515,20 +1218,480 @@ bool AnimCharacter::GetJointFrameMatrices( int which, Mat4& outself, Mat4& outpr
 	return true;
 }
 
-bool AnimCharacter::GetJointMatrix( int which, bool parent, Mat4& outwm )
+int AnimCharacter::FindAttachment( const StringView& name )
+{
+	for( size_t i = 0; i < attachments.size(); ++i )
+	{
+		if( attachments[ i ].name == name )
+			return i;
+	}
+	return -1;
+}
+
+
+
+
+Animator* AnimCharInst::RagdollNodeRT::GetAnimator( AnimCharInst* ch )
+{
+	return &ch->m_anRagdoll;
+}
+
+void AnimCharInst::PlayerNodeRT::StartCurrentState()
+{
+	if( !current_state )
+		return;
+	player_anim.Play(
+		GR_GetAnim( current_state->anim ),
+		!current_state->loop,
+		current_state->fade_time );
+	m_stateTime = 0;
+}
+
+void AnimCharInst::PlayerNodeRT::UpdateState( const MEVariableInterface* vars )
+{
+	SGRX_CAST( AnimCharacter::PlayerNode*, PN, src );
+	
+	if( !current_state )
+	{
+		current_state = PN->starting_state;
+		StartCurrentState();
+	}
+	if( !current_state )
+		return;
+	
+	// from-any transitions
+	for( size_t i = 0; i < PN->transition_lookup_ids[0]; ++i )
+	{
+		AnimCharacter::Transition* tr = PN->transitions[ PN->transition_lookup_ids[ i + 1 ] ];
+		if( tr->expr.Eval( vars ) )
+		{
+			current_state = PN->state_lookup.getcopy( tr->target );
+			StartCurrentState();
+			return;
+		}
+	}
+	
+	// directly relevant transitions
+	size_t off = PN->transition_lookup[ current_state->guid ];
+	for( size_t i = 0; i < PN->transition_lookup_ids[ off ]; ++i )
+	{
+		AnimCharacter::Transition* tr = PN->transitions[ PN->transition_lookup_ids[ i + off + 1 ] ];
+		if( tr->source == current_state->guid )
+		{
+			if( tr->expr.Eval( vars ) )
+			{
+				current_state = PN->state_lookup.getcopy( tr->target );
+				StartCurrentState();
+				return;
+			}
+		}
+		else if( tr->bidi && tr->target == current_state->guid )
+		{
+			if( !tr->expr.Eval( vars ) )
+			{
+				current_state = PN->state_lookup.getcopy( tr->source );
+				StartCurrentState();
+				return;
+			}
+		}
+	}
+}
+
+
+
+AnimCharInst::AnimCharInst( SceneHandle sh, PhyWorldHandle phyWorld ) :
+	m_scene( sh ),
+	m_frameID( 0 ),
+	m_animTimeLeft( 0 ),
+	m_anRagdoll( phyWorld )
+{
+	ASSERT( sh && "scene handle must be valid" );
+	
+	m_cachedMeshInst = m_scene->CreateMeshInstance();
+	m_cachedMeshInst->raycastOverride = this;
+	
+	_Prepare();
+}
+
+bool AnimCharInst::SetAnimChar( const StringView& sv )
+{
+	AnimCharHandle ch = GR_GetAnimChar( sv );
+	if( !ch )
+		return false;
+	SetAnimChar( ch );
+	return true;
+}
+
+void AnimCharInst::SetAnimChar( AnimCharacter* ch )
+{
+	animChar = ch;
+	_OnRenderUpdate();
+}
+
+void AnimCharInst::_OnRenderUpdate()
+{
+	m_cachedMesh = GR_GetMesh( animChar->mesh );
+	m_cachedMeshInst->SetMesh( m_cachedMesh );
+	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh.GetBoneCount() );
+	_RecalcBoneIDs();
+	_Prepare();
+	m_anRagdoll.Initialize( this );
+	m_cachedMeshInst->raycastOverride = m_cachedMesh->m_numBones ? this : NULL;
+}
+
+void AnimCharInst::_Prepare()
+{
+	// prepare variable storage & initial data
+	m_rtnodes.clear();
+	if( animChar )
+	{
+		m_values.resize( 6 + animChar->variables.size() + animChar->aliases.size() );
+		for( size_t i = 0; i < animChar->variables.size(); ++i )
+			m_values[ ANIMCHAR_VAR_VOFF + i ] = animChar->variables[ i ]->value;
+		
+		for( size_t i = 0; i < animChar->nodes.size(); ++i )
+		{
+			AnimCharacter::Node* N = animChar->nodes[ i ];
+			NodeRT* NRT = NULL;
+			switch( N->type )
+			{
+			case AnimCharacter::NT_Player: {
+				SGRX_CAST( AnimCharacter::PlayerNode*, PN, N );
+				PlayerNodeRT* PNRT = new PlayerNodeRT;
+				PNRT->current_state = PN->starting_state;
+				NRT = PNRT;
+			} break;
+			case AnimCharacter::NT_Blend: NRT = new BlendNodeRT; break;
+			case AnimCharacter::NT_Ragdoll: NRT = new RagdollNodeRT; break;
+			case AnimCharacter::NT_Mask: NRT = new MaskNodeRT; break;
+			case AnimCharacter::NT_RelAbs: NRT = new RelAbsNodeRT; break;
+			case AnimCharacter::NT_Rotator: NRT = new RotatorNodeRT; break;
+			}
+			NRT->src = N;
+			m_rtnodes.push_back( NRT );
+		}
+	}
+	else m_values.resize( 6 );
+	_PrepareSpecialVariables( NULL );
+	
+	// count animators
+	int num_animators = 2; // ragdoll, end
+	int num_bones = m_cachedMesh.GetBoneCount();
+	for( size_t i = 0; i < m_rtnodes.size(); ++i )
+	{
+		if( m_rtnodes[ i ]->OwnsAnimator() )
+			num_animators++;
+	}
+	
+	// allocate frames
+	m_node_frames.resize( num_animators * num_bones );
+	for( size_t i = 0; i < m_node_frames.size(); ++i )
+		m_node_frames[ i ].Reset();
+	
+	// equip animators
+	int at = 0;
+	_EquipAnimator( &m_anRagdoll, at++ );
+	_EquipAnimator( &m_anEnd, at++ );
+	for( size_t i = 0; i < m_rtnodes.size(); ++i )
+	{
+		Animator* anim = m_rtnodes[ i ]->GetAnimator( this );
+		if( anim && m_rtnodes[ i ]->OwnsAnimator() )
+			_EquipAnimator( anim, at++ );
+	}
+	
+	// link & set up masks
+	m_anEnd.animSource = NULL;
+	for( size_t i = 0; i < m_rtnodes.size(); ++i )
+	{
+		NodeRT* NRT = m_rtnodes[ i ];
+		if( NRT->src->type == AnimCharacter::NT_Mask )
+		{
+			SGRX_CAST( AnimCharacter::MaskNode*, MN, NRT->src );
+			SGRX_CAST( MaskNodeRT*, MNRT, NRT );
+			animChar->ApplyMask( m_cachedMesh, MN->mask_name, &MNRT->mask_anim );
+		}
+		for( int l = 0; l < m_rtnodes[ i ]->src->GetInputLinkCount(); ++l )
+		{
+			const SGRX_GUID* pguid = m_rtnodes[ i ]->src->GetInputLink( l );
+			Animator** panim = m_rtnodes[ i ]->GetInputSource( l );
+			
+			// -- iterate nodes to find one with matching GUID
+			for( size_t j = 0; j < m_rtnodes.size(); ++j )
+			{
+				if( m_rtnodes[ j ]->src->guid == *pguid )
+				{
+					*panim = m_rtnodes[ j ]->GetAnimator( this );
+					break;
+				}
+			}
+		}
+		if( m_rtnodes[ i ]->src == animChar->output_node )
+			m_anEnd.animSource = m_rtnodes[ i ]->GetAnimator( this );
+	}
+}
+
+void AnimCharInst::_EquipAnimator( Animator* anim, int which )
+{
+	int num_bones = m_cachedMesh.GetBoneCount();
+	int at = which * num_bones;
+	anim->m_mesh = m_cachedMesh;
+	anim->m_pose = ArrayView<AnimTrackFrame>( m_node_frames ).part( at, num_bones );
+	anim->Prepare();
+}
+
+void AnimCharInst::_PrepareSpecialVariables( NodeRT* n )
+{
+	if( n )
+	{
+		if( n->src->type == AnimCharacter::NT_Player )
+		{
+			SGRX_CAST( PlayerNodeRT*, PN, n );
+			if( PN->current_state )
+			{
+				AnimPlayer::Anim* panim = NULL;
+				if( PN->player_anim.m_currentAnims.size() )
+					panim = &PN->player_anim.m_currentAnims.last();
+				SGRX_Animation* aanim = panim ? panim->anim : NULL;
+				
+				StringView cur_state_anim = PN->current_state->anim;
+				StringView cur_played_anim = aanim ? aanim->m_key : "";
+				bool still_playing = cur_state_anim == cur_played_anim;
+				
+				m_values[ ANIMCHAR_VAR_time ] = PN->m_stateTime;
+				m_values[ ANIMCHAR_VAR_pos ] = still_playing && panim ? panim->fade_at : 0;
+				m_values[ ANIMCHAR_VAR_length ] = still_playing && aanim ? aanim->GetAnimTime() : 0;
+				m_values[ ANIMCHAR_VAR_end ] = !still_playing || ( m_values[ ANIMCHAR_VAR_pos ] > m_values[ ANIMCHAR_VAR_length ] );
+				return;
+			}
+		}
+	}
+	
+	// defaults
+	{
+		m_values[ ANIMCHAR_VAR_time ] = 0;
+		m_values[ ANIMCHAR_VAR_pos ] = 0;
+		m_values[ ANIMCHAR_VAR_length ] = 0;
+		m_values[ ANIMCHAR_VAR_end ] = false;
+	}
+}
+
+void AnimCharInst::_RecalcBoneIDs()
+{
+	size_t bs = animChar->bones.size();
+	m_bone_ids.resize( bs );
+	for( size_t i = 0; i < bs; ++i )
+	{
+		const AnimCharacter::BoneInfo& BI = animChar->bones[ i ];
+		m_bone_ids[ i ] = m_cachedMesh.FindBone( BI.name );
+	}
+}
+
+
+void AnimCharInst::SetTransform( const Mat4& mtx )
+{
+	if( m_cachedMeshInst )
+		m_cachedMeshInst->matrix = mtx;
+}
+
+void AnimCharInst::FixedTick( float deltaTime, bool changeStates )
+{
+	LOG_FUNCTION_ARG("AnimCharInst");
+	
+	m_animTimeLeft -= deltaTime;
+	m_values[ ANIMCHAR_VAR_nfba ] = 0;
+	if( m_animTimeLeft > 0 )
+	{
+		changeStates = false;
+		if( animChar->main_player_node && animChar->main_player_node->type == AnimCharacter::NT_Player )
+		{
+			SGRX_CAST( PlayerNodeRT*, PNRT, animChar->main_player_node.item );
+			m_values[ ANIMCHAR_VAR_nfba ] = PNRT->player_anim.GetLastAnimBlendFactor();
+		}
+	}
+	else m_values[ ANIMCHAR_VAR_said ] = 0;
+	
+	_PrepareSpecialVariables( NULL );
+	for( size_t i = 0; i < animChar->aliases.size(); ++i )
+	{
+		m_values[ ANIMCHAR_VAR_AOFF + i ] = animChar->aliases[ i ]->expr.Eval( this );
+	}
+	
+	for( size_t i = 0; i < m_rtnodes.size(); ++i )
+	{
+		if( m_rtnodes[ i ]->src->type == AnimCharacter::NT_Player && changeStates )
+		{
+			SGRX_CAST( PlayerNodeRT*, PNRT, m_rtnodes[ i ].item );
+			_PrepareSpecialVariables( PNRT );
+			PNRT->UpdateState( this );
+		}
+		m_rtnodes[ i ]->Advance( deltaTime, this );
+	}
+	
+	AnimInfo info = { ++m_frameID, m_cachedMeshInst->matrix };
+	m_anEnd.Advance( deltaTime, &info );
+	m_anRagdoll.AdvanceTransforms( &m_anEnd );
+}
+
+void AnimCharInst::PreRender( float blendFactor )
+{
+	LOG_FUNCTION_ARG("AnimCharInst");
+	
+	m_anEnd.Interpolate( blendFactor );
+	GR_ApplyAnimator( &m_anEnd, m_cachedMeshInst );
+}
+
+void AnimCharInst::ResetStates()
+{
+	for( size_t i = 0; i < m_rtnodes.size(); ++i )
+	{
+		if( m_rtnodes[ i ]->src->type == AnimCharacter::NT_Player )
+		{
+			SGRX_CAST( PlayerNodeRT*, PNRT, m_rtnodes[ i ].item );
+			SGRX_CAST( AnimCharacter::PlayerNode*, PN, PNRT->src );
+			PNRT->current_state = PN->starting_state;
+			PNRT->StartCurrentState();
+		}
+	}
+}
+
+void AnimCharInst::EnablePhysics()
+{
+	m_anRagdoll.EnablePhysics( m_cachedMeshInst->matrix );
+}
+
+void AnimCharInst::DisablePhysics()
+{
+	m_anRagdoll.DisablePhysics();
+}
+
+void AnimCharInst::WakeUp()
+{
+	m_anRagdoll.WakeUp();
+}
+
+
+bool AnimCharInst::CheckMarker( const StringView& name )
+{
+	for( size_t i = 0; i < m_rtnodes.size(); ++i )
+	{
+		NodeRT* N = m_rtnodes[ i ];
+		if( N->src->type == AnimCharacter::NT_Player )
+		{
+			SGRX_CAST( PlayerNodeRT*, PNRT, N );
+			if( PNRT->player_anim.CheckMarker( name ) )
+				return true;
+		}
+	}
+	return false;
+}
+
+bool AnimCharInst::IsPlayingAnim() const
+{
+	return m_animTimeLeft > 0;
+}
+
+void AnimCharInst::PlayAnim( StringView name, bool loop )
+{
+	AnimCharacter::MappedAnim* maptr = animChar->mapping.getptr( name );
+	if( maptr )
+	{
+		name = maptr->anim;
+		m_values[ ANIMCHAR_VAR_said ] = maptr->id;
+	}
+	else m_values[ ANIMCHAR_VAR_said ] = 0;
+	
+	AnimHandle anim = GR_GetAnim( name );
+	if( anim == NULL )
+	{
+		LOG_WARNING << "AnimCharInst::PlayAnim - anim not found: " << name;
+		return;
+	}
+	if( animChar->main_player_node == NULL || animChar->main_player_node->type != AnimCharacter::NT_Player )
+	{
+		LOG_WARNING << "AnimCharInst::PlayAnim - main player node undefined";
+		return;
+	}
+	m_animTimeLeft = loop ? FLT_MAX : anim->GetAnimTime();
+	for( size_t i = 0; i < m_rtnodes.size(); ++i )
+	{
+		if( m_rtnodes[ i ]->src->type != AnimCharacter::NT_Player )
+			continue;
+		SGRX_CAST( PlayerNodeRT*, PNRT, m_rtnodes[ i ].item );
+		PNRT->player_anim.Play( PNRT->src == animChar->main_player_node ? anim : NULL, !loop );
+	}
+}
+
+void AnimCharInst::StopAnim()
+{
+	if( m_animTimeLeft > 0 )
+	{
+		m_animTimeLeft = 0;
+		// animation will be changed on next tick
+	}
+}
+
+
+void AnimCharInst::_SetVar( StringView name, float val )
+{
+	uint16_t* id = animChar->m_variable_index.getptr( name );
+	if( !id || size_t(*id) >= animChar->variables.size() )
+		return;
+	m_values[ ANIMCHAR_VAR_VOFF + *id ] = val;
+}
+
+
+int AnimCharInst::_FindParentBone( int which )
+{
+	if( m_cachedMesh == NULL )
+		return -1;
+	if( which < 0 || which >= (int) animChar->bones.size() )
+		return -1;
+	
+	int parent_id = m_cachedMesh->m_bones[ _GetMeshBoneID( which ) ].parent_id;
+	for( size_t i = 0; i < animChar->bones.size(); ++i )
+	{
+		if( m_bone_ids[ i ] == parent_id )
+			return i;
+	}
+	return -1;
+}
+
+bool AnimCharInst::_GetBodyMatrix( int which, Mat4& outwm )
 {
 	if( !m_cachedMesh )
 		return false;
-	if( which < 0 || which >= (int) bones.size() )
+	if( which < 0 || which >= (int) animChar->bones.size() )
 		return false;
-	BoneInfo& BI = bones[ which ];
-	int bid = BI.bone_id;
+	const AnimCharacter::BoneInfo& BI = animChar->bones[ which ];
+	
+	outwm = m_cachedMeshInst->matrix;
+	if( _GetMeshBoneID( which ) >= 0 )
+	{
+		if( m_cachedMeshInst->IsSkinned() )
+		{
+			outwm = m_cachedMeshInst->skin_matrices[ _GetMeshBoneID( which ) ] * outwm;
+		}
+		outwm = m_cachedMesh->m_bones[ _GetMeshBoneID( which ) ].skinOffset * outwm;
+	}
+	outwm = Mat4::CreateRotationFromQuat( BI.body.rotation ) *
+		Mat4::CreateTranslation( BI.body.position ) * outwm;
+	return true;
+}
+
+bool AnimCharInst::_GetJointMatrix( int which, bool parent, Mat4& outwm )
+{
+	if( !m_cachedMesh )
+		return false;
+	if( which < 0 || which >= (int) animChar->bones.size() )
+		return false;
+	const AnimCharacter::BoneInfo& BI = animChar->bones[ which ];
+	int bid = _GetMeshBoneID( which );
 	if( parent )
 	{
 		int pb = BI.joint.parent_id;
-		if( pb < 0 || pb >= (int) bones.size() )
+		if( pb < 0 || pb >= (int) animChar->bones.size() )
 			return false;
-		bid = bones[ pb ].bone_id;
+		bid = _GetMeshBoneID( pb );
 	}
 	
 	outwm = m_cachedMeshInst->matrix;
@@ -1553,28 +1716,28 @@ bool AnimCharacter::GetJointMatrix( int which, bool parent, Mat4& outwm )
 	return true;
 }
 
-void AnimCharacter::_GetHitboxMatrix( int which, Mat4& outwm )
+void AnimCharInst::_GetHitboxMatrix( int which, Mat4& outwm )
 {
-	BoneInfo& BI = bones[ which ];
+	const AnimCharacter::BoneInfo& BI = animChar->bones[ which ];
 	outwm = Mat4::CreateRotationFromQuat( BI.hitbox.rotation ) *
 		Mat4::CreateTranslation( BI.hitbox.position );
-	if( BI.bone_id >= 0 )
+	if( _GetMeshBoneID( which ) >= 0 )
 	{
-		outwm = outwm * m_cachedMesh->m_bones[ BI.bone_id ].skinOffset;
+		outwm = outwm * m_cachedMesh->m_bones[ _GetMeshBoneID( which ) ].skinOffset;
 		if( m_cachedMeshInst->IsSkinned() )
 		{
-			outwm = outwm * m_cachedMeshInst->skin_matrices[ BI.bone_id ];
+			outwm = outwm * m_cachedMeshInst->skin_matrices[ _GetMeshBoneID( which ) ];
 		}
 	}
 }
 
-bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
+bool AnimCharInst::_GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 {
 	if( !m_cachedMesh )
 		return false;
-	if( which < 0 || which >= (int) bones.size() )
+	if( which < 0 || which >= (int) animChar->bones.size() )
 		return false;
-	BoneInfo& BI = bones[ which ];
+	const AnimCharacter::BoneInfo& BI = animChar->bones[ which ];
 	if( BI.hitbox.multiplier == 0 )
 		return false; // a way to disable it
 	
@@ -1584,97 +1747,43 @@ bool AnimCharacter::GetHitboxOBB( int which, Mat4& outwm, Vec3& outext )
 	return true;
 }
 
-bool AnimCharacter::GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace ) const
+
+bool AnimCharInst::GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace ) const
 {
 	outwm = worldspace ? m_cachedMeshInst->matrix : Mat4::Identity;
 	if( !m_cachedMesh )
 		return false;
-	if( which < 0 || which >= (int) attachments.size() )
+	if( which < 0 || which >= (int) animChar->attachments.size() )
 		return false;
-	const Attachment& AT = attachments[ which ];
+	const AnimCharacter::Attachment& AT = animChar->attachments[ which ];
 	
 	if( AT.bone_id >= 0 )
 	{
-		if( m_cachedMeshInst->IsSkinned() )
+		int mbid = m_bone_ids[ AT.bone_id ];
+		if( mbid >= 0 )
 		{
-			outwm = m_cachedMeshInst->skin_matrices[ AT.bone_id ] * outwm;
+			if( m_cachedMeshInst->IsSkinned() )
+			{
+				outwm = m_cachedMeshInst->skin_matrices[ mbid ] * outwm;
+			}
+			outwm = m_cachedMesh->m_bones[ mbid ].skinOffset * outwm;
 		}
-		outwm = m_cachedMesh->m_bones[ AT.bone_id ].skinOffset * outwm;
 	}
 	outwm = Mat4::CreateRotationFromQuat( AT.rotation ) *
 		Mat4::CreateTranslation( AT.position ) * outwm;
 	return true;
 }
 
-bool AnimCharacter::ApplyMask( const StringView& name, AnimMask* tgt )
-{
-	if( !m_cachedMesh )
-		return false;
-	
-	for( size_t i = 0; i < masks.size(); ++i )
-	{
-		Mask& M = masks[ i ];
-		if( M.name != name )
-			continue;
-		
-		ArrayView<float> factors = tgt->blendFactors;
-		GR_ClearFactors( factors, 0 );
-		for( size_t j = 0; j < M.cmds.size(); ++j )
-		{
-			MaskCmd& MC = M.cmds[ j ];
-			GR_SetFactors( factors, m_cachedMesh, MC.bone, MC.weight, MC.children, MC.mode );
-		}
-		return true;
-	}
-	return false;
-}
 
-int AnimCharacter::FindAttachment( const StringView& name )
-{
-	for( size_t i = 0; i < attachments.size(); ++i )
-	{
-		if( attachments[ i ].name == name )
-			return i;
-	}
-	return -1;
-}
-
-void AnimCharacter::SortEnsureAttachments( const StringView* atchnames, int count )
-{
-	for( int i = 0; i < count; ++i )
-	{
-		int aid = -1;
-		for( size_t j = i; j < attachments.size(); ++j )
-		{
-			if( attachments[ i ].name == atchnames[ i ] )
-			{
-				aid = j;
-				break;
-			}
-		}
-		if( aid == i )
-			continue; // at the right place already
-		if( aid != -1 )
-		{
-			TMEMSWAP( attachments[ i ], attachments[ aid ] );
-		}
-		else
-		{
-			attachments.insert( i, Attachment() );
-			attachments[ i ].name = atchnames[ i ];
-		}
-	}
-}
-
-void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi )
+void AnimCharInst::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCallback* cb, SGRX_MeshInstance* cbmi )
 {
 	UNUSED( cbmi ); // always use own mesh instance
 	if( !m_cachedMesh )
 		return;
-	for( size_t i = 0; i < bones.size(); ++i )
+	for( size_t i = 0; i < animChar->bones.size(); ++i )
 	{
 		Mat4 bxf, inv;
-		BoneInfo& BI = bones[ i ];
+		AnimCharacter::BoneInfo& BI = animChar->bones[ i ];
 		if( BI.hitbox.multiplier == 0 )
 			continue;
 		_GetHitboxMatrix( i, bxf );
@@ -1686,14 +1795,14 @@ void AnimCharacter::RaycastAll( const Vec3& from, const Vec3& to, SceneRaycastCa
 			if( SegmentAABBIntersect2( p0, p1, -BI.hitbox.extents, BI.hitbox.extents, dst ) )
 			{
 				Vec3 N = ( from - to ).Normalized();
-				SceneRaycastInfo srci = { dst[0], N, 0, 0, -1, -1, BI.bone_id, m_cachedMeshInst };
+				SceneRaycastInfo srci = { dst[0], N, 0, 0, -1, -1, _GetMeshBoneID( i ), m_cachedMeshInst };
 				cb->AddResult( &srci );
 			}
 		}
 	}
 }
 
-void AnimCharacter::MRC_DebugDraw( SGRX_MeshInstance* mi )
+void AnimCharInst::MRC_DebugDraw( SGRX_MeshInstance* mi )
 {
 	UNUSED( mi ); // always use own mesh instance
 	if( !m_cachedMesh )
@@ -1701,10 +1810,10 @@ void AnimCharacter::MRC_DebugDraw( SGRX_MeshInstance* mi )
 	
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	br.Reset().Col( 0.1f, 0.5f, 0.9f );
-	for( size_t i = 0; i < bones.size(); ++i )
+	for( size_t i = 0; i < animChar->bones.size(); ++i )
 	{
 		Mat4 bxf;
-		BoneInfo& BI = bones[ i ];
+		AnimCharacter::BoneInfo& BI = animChar->bones[ i ];
 		if( BI.hitbox.multiplier == 0 )
 			continue;
 		_GetHitboxMatrix( i, bxf );
@@ -1712,82 +1821,16 @@ void AnimCharacter::MRC_DebugDraw( SGRX_MeshInstance* mi )
 	}
 }
 
-uint16_t AnimCharacter::MEGetID( StringView name ) const
+uint16_t AnimCharInst::MEGetID( StringView name ) const
 {
-	if( name.ch() == '_' )
-	{
-		if( name == "_time" ) return 0;
-		if( name == "_pos" ) return 1;
-		if( name == "_length" ) return 2;
-		if( name == "_end" ) return 3;
-		if( name == "_nfba" ) return 4;
-		if( name == "_said" ) return 5;
-	}
-	uint16_t off = 6;
-	for( size_t i = 0; i < variables.size(); ++i )
-	{
-		if( variables[ i ]->name == name )
-			return uint16_t( i ) + off;
-	}
-	off += variables.size();
-	for( size_t i = 0 ; i < aliases.size(); ++i )
-	{
-		if( aliases[ i ]->name == name )
-			return uint16_t( i ) + off;
-	}
-	return ME_OPERAND_NONE;
+	return animChar->MEGetID( name );
 }
 
-double AnimCharacter::MEGetValue( uint16_t i ) const
+double AnimCharInst::MEGetValue( uint16_t i ) const
 {
-	size_t e = i;
-	
-	if( e < 6 )
-	{
-		if( e == 0 ) return m_v_time;
-		if( e == 1 ) return m_v_pos;
-		if( e == 2 ) return m_v_length;
-		if( e == 3 ) return m_v_end;
-		if( e == 4 ) return m_v_nfba;
-		if( e == 5 ) return m_v_said;
-	}
-	e -= 6;
-	
-	if( e < variables.size() )
-		return variables[ e ]->value;
-	e -= variables.size();
-	
-	if( e < aliases.size() )
-		return aliases[ e ]->value;
-	
+	if( size_t(i) < m_values.size() )
+		return m_values[ i ];
 	return 0;
-}
-
-
-void AnimCharacter::_RehashNodes()
-{
-	m_node_map.clear();
-	for( size_t i = 0; i < nodes.size(); ++i )
-	{
-		m_node_map.set( nodes[ i ]->guid, nodes[ i ] );
-	}
-}
-
-void AnimCharacter::_ReindexVariables()
-{
-	m_variable_index.clear();
-	for( size_t i = 0; i < variables.size(); ++i )
-	{
-		m_variable_index.set( variables[ i ]->name, i );
-	}
-}
-
-void AnimCharacter::_SetVar( StringView name, float val )
-{
-	uint16_t* id = m_variable_index.getptr( name );
-	if( !id || size_t(*id) >= variables.size() )
-		return;
-	variables[ *id ]->value = val;
 }
 
 

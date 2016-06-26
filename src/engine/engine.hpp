@@ -1103,6 +1103,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_IMesh : SGRX_RCRsrc, IMeshRaycast
 		size_t numParts = (size_t)-1
 	);
 	
+	ENGINE_EXPORT int FindBone( const StringView& name );
 	ENGINE_EXPORT bool IsBoneUnder( int bone, int parent );
 	ENGINE_EXPORT int BoneDistance( int bone, int parent );
 	
@@ -1135,6 +1136,7 @@ struct MeshHandle : Handle< SGRX_IMesh >
 	
 	int GetBoneCount() const { return item ? item->m_numBones : 0; }
 	SGRX_MeshBone* GetBonePtr() const { return item ? item->m_bones : NULL; }
+	int FindBone( const StringView& name ){ return item ? item->FindBone( name ) : -1; }
 };
 
 struct SGRX_DrawItemLight

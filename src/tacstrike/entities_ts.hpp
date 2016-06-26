@@ -154,7 +154,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	PhyShapeHandle m_shapeHandle;
 	LightHandle m_shadowInst;
 	
-	AnimCharacter m_animChar;
+	AnimCharInst m_animChar;
 	
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;

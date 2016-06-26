@@ -2,6 +2,7 @@
 
 #include "engine_int.hpp"
 #include "enganim.hpp"
+#include "engext.hpp"
 #include "sound.hpp"
 
 
@@ -16,6 +17,7 @@ typedef HashTable< StringView, SGRX_IVertexDecl* > VertexDeclHashTable;
 typedef HashTable< SGRX_VtxInputMapKey, SGRX_IVertexInputMapping* > VtxInputMapHashTable;
 typedef HashTable< StringView, SGRX_IMesh* > MeshHashTable;
 typedef HashTable< StringView, AnimHandle > AnimHashTable;
+typedef HashTable< StringView, AnimCharHandle > AnimCharHashTable;
 typedef HashTable< StringView, FontHandle > FontHashTable;
 typedef HashTable< GenericHandle, int > ResourcePreserveHashTable;
 
@@ -30,6 +32,7 @@ static VertexDeclHashTable* g_VertexDecls = NULL;
 static VtxInputMapHashTable* g_VtxInputMaps = NULL;
 static MeshHashTable* g_Meshes = NULL;
 static AnimHashTable* g_Anims = NULL;
+static AnimCharHashTable* g_AnimChars = NULL;
 static FontHashTable* g_LoadedFonts = NULL;
 static ResourcePreserveHashTable* g_PreservedResources = NULL;
 
@@ -1229,6 +1232,16 @@ void SGRX_IMesh::Clip( const Mat4& mtx,
 }
 
 
+int SGRX_IMesh::FindBone( const StringView& name )
+{
+	for( int bid = 0; bid < m_numBones; ++bid )
+	{
+		if( m_bones[ bid ].name == name )
+			return bid;
+	}
+	return -1;
+}
+
 bool SGRX_IMesh::IsBoneUnder( int bone, int parent )
 {
 	while( bone != parent && bone != -1 )
@@ -2399,7 +2412,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 	
 	mesh->m_key = path;
 	g_Meshes->set( mesh->m_key, mesh );
-	LOG << "Created mesh: " << path;
+	LOG << "Loaded mesh: " << path;
 	return mesh;
 }
 
@@ -2443,6 +2456,26 @@ AnimHandle GR_GetAnim( const StringView& name )
 	_LoadAnimBundle( bundle, name.part( 0, bundle.size() + 1 ) );
 	
 	return g_Anims->getcopy( name );
+}
+
+AnimCharHandle GR_GetAnimChar( const StringView& name )
+{
+	if( !name )
+		return NULL;
+	AnimCharHandle out = g_AnimChars->getcopy( name );
+	if( out )
+		return out;
+	
+	out = new AnimCharacter;
+	if( !out->Load( name ) )
+	{
+		LOG_ERROR << LOG_DATE << "  Failed to load animated character: " << name;
+		return NULL;
+	}
+	out->m_key = name;
+	g_AnimChars->set( out->m_key, out );
+	LOG << "Loaded animated character " << name;
+	return out;
 }
 
 
@@ -2503,6 +2536,7 @@ void SGRX_INT_InitResourceTables()
 	g_VtxInputMaps = new VtxInputMapHashTable();
 	g_Meshes = new MeshHashTable();
 	g_Anims = new AnimHashTable();
+	g_AnimChars = new AnimCharHashTable();
 	g_LoadedFonts = new FontHashTable();
 	g_PreservedResources = new ResourcePreserveHashTable();
 	
@@ -2520,6 +2554,9 @@ void SGRX_INT_DestroyResourceTables()
 	
 	delete g_Anims;
 	g_Anims = NULL;
+	
+	delete g_AnimChars;
+	g_AnimChars = NULL;
 	
 	delete g_Meshes;
 	g_Meshes = NULL;

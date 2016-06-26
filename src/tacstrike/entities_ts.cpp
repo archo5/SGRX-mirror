@@ -316,7 +316,7 @@ void TSCharacter::SetPlayerMode( bool isPlayer )
 
 void TSCharacter::InitializeMesh( const StringView& path )
 {
-	m_animChar.Load( path );
+	m_animChar.SetAnimChar( path );
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->userData = (SGRX_MeshInstUserData*) this;

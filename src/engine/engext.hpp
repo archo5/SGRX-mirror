@@ -70,7 +70,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimRagdoll : Animator
 	};
 	
 	ENGINE_EXPORT AnimRagdoll( PhyWorldHandle phyWorld );
-	ENGINE_EXPORT void Initialize( struct AnimCharacter* chinfo );
+	ENGINE_EXPORT void Initialize( struct AnimCharInst* chinfo );
 	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
@@ -99,7 +99,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimRotator : Animator
 
 
 
-struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
+struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 {
 	enum BodyType
 	{
@@ -196,10 +196,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		Body body;
 		Joint joint;
 		
-		int bone_id;
-		
-		BoneInfo() : bone_id(-1){}
-		
 		template< class T > void Serialize( T& arch )
 		{
 			arch.marker( "BONEINFO" );
@@ -239,10 +235,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		float angle; // only for rotation
 		float base; // additional unconditional offset
 		
-		int bone_id;
-		
 		UNUSED_LayerTransform() : type( 0 ), posaxis( V3(0,0,1) ),
-			angle( 0 ), base(0), bone_id(-1){}
+			angle( 0 ), base(0){}
 		
 		template< class T > void Serialize( T& arch )
 		{
@@ -437,12 +431,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			if( type == NT_Rotator ) return "Rotator";
 			return "<Unknown>";
 		}
-		virtual int GetInputLinkCount(){ return 0; }
+		virtual int GetInputLinkCount() const { return 0; }
 		virtual SGRX_GUID* GetInputLink( int i ){ return NULL; }
-		virtual Animator** GetInputSource( int i ){ return NULL; }
-		virtual bool OwnsAnimator(){ return type != NT_Ragdoll; }
-		virtual Animator* GetAnimator( AnimCharacter* ch ) = 0;
-		virtual void Advance( float dt, const MEVariableInterface* vars ){};
+		FINLINE const SGRX_GUID* GetInputLink( int i ) const { return const_cast<Node*>(this)->GetInputLink( i ); }
 		Node( uint8_t t ) : type(t), editor_pos(V2(0)){}
 		virtual void Init( Vec2 ep )
 		{
@@ -469,7 +460,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	struct IF_GCC(ENGINE_EXPORT) RagdollNode : Node
 	{
 		RagdollNode() : Node( NT_Ragdoll ){}
-		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharacter* ch );
 	};
 	struct IF_GCC(ENGINE_EXPORT) PlayerNode : Node
 	{
@@ -477,26 +467,12 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		Array< Handle< Transition > > transitions;
 		Handle< State > starting_state;
 		
-		Handle< State > current_state;
-		AnimPlayer player_anim;
 		HashTable< SGRX_GUID, State* > state_lookup;
 		HashTable< SGRX_GUID, size_t > transition_lookup; /* GUID -> ID array offset */
 		Array< size_t > transition_lookup_ids; /* ID count, IDs, ...
 		... NULL GUID is first set of entries, always present */
-		float m_stateTime;
 		
-		PlayerNode() : Node( NT_Player ), m_stateTime(0){ RehashTransitions(); }
-		virtual Animator* GetAnimator( AnimCharacter* ){ return &player_anim; }
-		virtual void Advance( float dt, const MEVariableInterface* vars )
-		{
-			if( current_state )
-			{
-				player_anim.SetLastAnimSpeed( current_state->speed.Eval( vars ) );
-				m_stateTime += dt;
-			}
-		}
-		ENGINE_EXPORT void StartCurrentState();
-		ENGINE_EXPORT void UpdateState( const MEVariableInterface* vars );
+		PlayerNode() : Node( NT_Player ){ RehashTransitions(); }
 		ENGINE_EXPORT void RehashStates();
 		ENGINE_EXPORT void RehashTransitions();
 		template< class T > void SerializeT( T& arch )
@@ -513,7 +489,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 			{
 				RehashStates();
 				RehashTransitions();
-				current_state = starting_state;
 			}
 		}
 		IMPL_VIRTUAL_SERIALIZE;
@@ -523,13 +498,9 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		SGRX_GUID src;
 		String mask_name;
 		
-		AnimMask mask_anim;
-		
 		MaskNode() : Node( NT_Mask ){}
-		virtual int GetInputLinkCount(){ return 1; }
+		virtual int GetInputLinkCount() const { return 1; }
 		virtual SGRX_GUID* GetInputLink( int i ){ return i ? NULL : &src; }
-		virtual Animator** GetInputSource( int i ){ return i ? NULL : &mask_anim.animSource; }
-		virtual Animator* GetAnimator( AnimCharacter* ){ return &mask_anim; }
 		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
@@ -545,26 +516,14 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		ValExpr factor;
 		uint8_t mode;
 		
-		AnimBlend blend_anim;
-		
 		BlendNode() : Node( NT_Blend ), mode( ABM_Normal ){
 			factor.expr = "1";
 			factor.Recompile( NULL ); }
-		virtual int GetInputLinkCount(){ return 2; }
+		virtual int GetInputLinkCount() const { return 2; }
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &A;
 			if( i == 1 ) return &B;
 			return NULL; }
-		virtual Animator** GetInputSource( int i ){
-			if( i == 0 ) return &blend_anim.animSourceA;
-			if( i == 1 ) return &blend_anim.animSourceB;
-			return NULL; }
-		virtual Animator* GetAnimator( AnimCharacter* ){ return &blend_anim; }
-		virtual void Advance( float dt, const MEVariableInterface* vars )
-		{
-			blend_anim.blendFactor = factor.Eval( vars );
-			blend_anim.blendMode = mode;
-		}
 		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
@@ -580,21 +539,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		SGRX_GUID src;
 		uint8_t flags;
 		
-		AnimRelAbs relabs_anim;
-		
 		RelAbsNode() : Node( NT_RelAbs ), flags( 0 ){}
-		virtual int GetInputLinkCount(){ return 1; }
+		virtual int GetInputLinkCount() const { return 1; }
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &src;
 			return NULL; }
-		virtual Animator** GetInputSource( int i ){
-			if( i == 0 ) return &relabs_anim.animSource;
-			return NULL; }
-		virtual Animator* GetAnimator( AnimCharacter* ){ return &relabs_anim; }
-		virtual void Advance( float dt, const MEVariableInterface* vars )
-		{
-			relabs_anim.flags = flags;
-		}
 		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
@@ -608,21 +557,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		SGRX_GUID src;
 		ValExpr angle;
 		
-		AnimRotator rotator_anim;
-		
 		RotatorNode() : Node( NT_Rotator ){ angle.expr = "0"; angle.Recompile( NULL ); }
-		virtual int GetInputLinkCount(){ return 1; }
+		virtual int GetInputLinkCount() const { return 1; }
 		virtual SGRX_GUID* GetInputLink( int i ){
 			if( i == 0 ) return &src;
 			return NULL; }
-		virtual Animator** GetInputSource( int i ){
-			if( i == 0 ) return &rotator_anim.animSource;
-			return NULL; }
-		virtual Animator* GetAnimator( AnimCharacter* ){ return &rotator_anim; }
-		virtual void Advance( float dt, const MEVariableInterface* vars )
-		{
-			rotator_anim.angle = angle.Eval( vars );
-		}
 		template< class T > void SerializeT( T& arch )
 		{
 			Node::Serialize( arch );
@@ -714,72 +653,24 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 		}
 	}
 	
-	ENGINE_EXPORT AnimCharacter( SceneHandle sh, PhyWorldHandle phyWorld );
-	
 	ENGINE_EXPORT bool Load( const StringView& sv );
 	ENGINE_EXPORT bool Save( const StringView& sv );
 	
-	ENGINE_EXPORT void _OnRenderUpdate();
-	ENGINE_EXPORT void _UnlinkNode( Node* node );
 	ENGINE_EXPORT void _Prepare();
-	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
-	ENGINE_EXPORT void _PrepareSpecialVariables( Node* n );
-	ENGINE_EXPORT void ResetStates();
-	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
-	
-	ENGINE_EXPORT void FixedTick( float deltaTime, bool changeStates = true );
-	ENGINE_EXPORT void PreRender( float blendFactor );
-	
-	ENGINE_EXPORT void EnablePhysics();
-	ENGINE_EXPORT void DisablePhysics();
-	ENGINE_EXPORT void WakeUp();
-	
-	ENGINE_EXPORT bool CheckMarker( const StringView& name );
-	ENGINE_EXPORT bool IsPlayingAnim() const;
-	ENGINE_EXPORT void PlayAnim( StringView name, bool loop );
-	ENGINE_EXPORT void StopAnim();
-	
-	ENGINE_EXPORT int _FindBone( const StringView& name );
-	ENGINE_EXPORT int FindParentBone( int which );
-	ENGINE_EXPORT void RecalcBoneIDs();
-	ENGINE_EXPORT bool GetBodyMatrix( int which, Mat4& outwm );
-	ENGINE_EXPORT bool GetJointFrameMatrices( int which, Mat4& outself, Mat4& outprnt );
-	ENGINE_EXPORT bool GetJointMatrix( int which, bool parent, Mat4& outwm );
-	ENGINE_EXPORT void _GetHitboxMatrix( int which, Mat4& outwm );
-	ENGINE_EXPORT bool GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
-	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace = true ) const;
-	ENGINE_EXPORT bool ApplyMask( const StringView& name, AnimMask* tgt );
-	ENGINE_EXPORT int FindAttachment( const StringView& name );
-	ENGINE_EXPORT void SortEnsureAttachments( const StringView* atchnames, int count );
-	
-	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
-	ENGINE_EXPORT void MRC_DebugDraw( SGRX_MeshInstance* mi );
-	ENGINE_EXPORT uint16_t MEGetID( StringView name ) const;
-	ENGINE_EXPORT double MEGetValue( uint16_t i ) const;
-	
-	ENGINE_EXPORT void _RehashNodes();
+	ENGINE_EXPORT void _RecalcBoneIDs();
 	ENGINE_EXPORT void _ReindexVariables();
-	ENGINE_EXPORT void _LinkAnimNodes();
-	ENGINE_EXPORT void _SetVar( StringView name, float val );
-	FINLINE void SetBool( StringView name, bool val ){ _SetVar( name, val ); }
-	FINLINE void SetInt( StringView name, int val ){ _SetVar( name, val ); }
-	FINLINE void SetFloat( StringView name, float val ){ _SetVar( name, val ); }
+	ENGINE_EXPORT void _RecompileExpressions();
+	ENGINE_EXPORT void _UnlinkNode( Node* node );
+	ENGINE_EXPORT int _FindBoneByName( const StringView& name );
 	
-	FINLINE Mat4 GetAttachmentMatrix( int which, bool worldspace = true )
-	{
-		Mat4 out = Mat4::Identity;
-		GetAttachmentMatrix( which, out, worldspace );
-		return out;
-	}
-	FINLINE Vec3 GetAttachmentPos( int which, Vec3 p = V3(0) )
-	{
-		return GetAttachmentMatrix( which ).TransformPos( p );
-	}
-	FINLINE Vec3 GetLocalAttachmentPos( int which, Vec3 p = V3(0) )
-	{
-		return GetAttachmentMatrix( which, false ).TransformPos( p );
-	}
+	ENGINE_EXPORT uint16_t MEGetID( StringView name ) const;
+	double MEGetValue( uint16_t i ) const { return 0; }
 	
+	ENGINE_EXPORT bool ApplyMask( SGRX_IMesh* mesh, const StringView& name, AnimMask* tgt );
+	ENGINE_EXPORT bool GetJointFrameMatrices( int which, Mat4& outself, Mat4& outprnt );
+	ENGINE_EXPORT int FindAttachment( const StringView& name );
+	
+	// DATA
 	String mesh;
 	Array< BoneInfo > bones;
 	Array< Attachment > attachments;
@@ -791,26 +682,11 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : IMeshRaycast, MEVariableInterface
 	Handle< Node > output_node;
 	Handle< Node > main_player_node;
 	
-	SceneHandle m_scene;
-	MeshHandle m_cachedMesh;
-	MeshInstHandle m_cachedMeshInst;
+	// CACHE
 	HashTable< StringView, uint16_t > m_variable_index;
-	HashTable< SGRX_GUID, Node* > m_node_map;
-	Array< AnimTrackFrame > m_node_frames;
-	uint32_t m_frameID;
-	float m_animTimeLeft;
-	AnimDeformer m_anDeformer;
-	AnimRagdoll m_anRagdoll;
-	AnimInterp m_anEnd;
-	
-	// temp. variables
-	float m_v_time;
-	float m_v_pos;
-	float m_v_length;
-	bool m_v_end;
-	float m_v_nfba;
-	int m_v_said;
+	HashTable< SGRX_GUID, AnimCharacter::Node* > m_node_map;
 };
+typedef Handle< AnimCharacter > AnimCharHandle;
 
 template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate( T& arch )
 {
@@ -825,6 +701,170 @@ template< class T > AnimCharacter::Node* AnimCharacter::Node::UnserializeCreate(
 	if( type == NT_Rotator ) return new RotatorNode;
 	return NULL;
 }
+
+
+ENGINE_EXPORT AnimCharHandle GR_GetAnimChar( const StringView& name );
+
+
+
+struct IF_GCC(ENGINE_EXPORT) AnimCharInst : IMeshRaycast, MEVariableInterface
+{
+	struct IF_GCC(ENGINE_EXPORT) NodeRT : SGRX_RefCounted
+	{
+		virtual ~NodeRT(){}
+		virtual Animator** GetInputSource( int i ){ return NULL; }
+		virtual bool OwnsAnimator(){ return true; }
+		virtual Animator* GetAnimator( AnimCharInst* ch ) = 0;
+		virtual void Advance( float dt, const MEVariableInterface* vars ){};
+		
+		const AnimCharacter::Node* src;
+	};
+	struct IF_GCC(ENGINE_EXPORT) RagdollNodeRT : NodeRT
+	{
+		virtual bool OwnsAnimator(){ return false; }
+		ENGINE_EXPORT virtual Animator* GetAnimator( AnimCharInst* ch );
+	};
+	struct IF_GCC(ENGINE_EXPORT) PlayerNodeRT : NodeRT
+	{
+		PlayerNodeRT() : m_stateTime(0){}
+		virtual Animator* GetAnimator( AnimCharInst* ){ return &player_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			if( current_state )
+			{
+				player_anim.SetLastAnimSpeed( current_state->speed.Eval( vars ) );
+				m_stateTime += dt;
+			}
+		}
+		ENGINE_EXPORT void StartCurrentState();
+		ENGINE_EXPORT void UpdateState( const MEVariableInterface* vars );
+		
+		Handle< AnimCharacter::State > current_state;
+		AnimPlayer player_anim;
+		float m_stateTime;
+	};
+	struct IF_GCC(ENGINE_EXPORT) MaskNodeRT : NodeRT
+	{
+		virtual Animator** GetInputSource( int i ){ return i ? NULL : &mask_anim.animSource; }
+		virtual Animator* GetAnimator( AnimCharInst* ){ return &mask_anim; }
+		
+		AnimMask mask_anim;
+	};
+	struct IF_GCC(ENGINE_EXPORT) BlendNodeRT : NodeRT
+	{
+		virtual Animator** GetInputSource( int i ){
+			if( i == 0 ) return &blend_anim.animSourceA;
+			if( i == 1 ) return &blend_anim.animSourceB;
+			return NULL; }
+		virtual Animator* GetAnimator( AnimCharInst* ){ return &blend_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			SGRX_CAST( AnimCharacter::BlendNode*, BN, src );
+			blend_anim.blendFactor = BN->factor.Eval( vars );
+			blend_anim.blendMode = BN->mode;
+		}
+		
+		AnimBlend blend_anim;
+	};
+	struct IF_GCC(ENGINE_EXPORT) RelAbsNodeRT : NodeRT
+	{
+		virtual Animator** GetInputSource( int i ){
+			if( i == 0 ) return &relabs_anim.animSource;
+			return NULL; }
+		virtual Animator* GetAnimator( AnimCharInst* ){ return &relabs_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			SGRX_CAST( AnimCharacter::RelAbsNode*, RN, src );
+			relabs_anim.flags = RN->flags;
+		}
+		
+		AnimRelAbs relabs_anim;
+	};
+	struct IF_GCC(ENGINE_EXPORT) RotatorNodeRT : NodeRT
+	{
+		virtual Animator** GetInputSource( int i ){
+			if( i == 0 ) return &rotator_anim.animSource;
+			return NULL; }
+		virtual Animator* GetAnimator( AnimCharInst* ){ return &rotator_anim; }
+		virtual void Advance( float dt, const MEVariableInterface* vars )
+		{
+			SGRX_CAST( AnimCharacter::RotatorNode*, RN, src );
+			rotator_anim.angle = RN->angle.Eval( vars );
+		}
+		
+		AnimRotator rotator_anim;
+	};
+	
+	ENGINE_EXPORT AnimCharInst( SceneHandle sh, PhyWorldHandle phyWorld );
+	bool SetAnimChar( const StringView& sv );
+	void SetAnimChar( AnimCharacter* ch );
+	
+	// internal construction helpers
+	ENGINE_EXPORT void _OnRenderUpdate();
+	ENGINE_EXPORT void _Prepare();
+	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
+	ENGINE_EXPORT void _PrepareSpecialVariables( NodeRT* n );
+	ENGINE_EXPORT void _RecalcBoneIDs();
+	
+	// primary API
+	ENGINE_EXPORT void SetTransform( const Mat4& mtx );
+	ENGINE_EXPORT void FixedTick( float deltaTime, bool changeStates = true );
+	ENGINE_EXPORT void PreRender( float blendFactor );
+	ENGINE_EXPORT void ResetStates();
+	ENGINE_EXPORT void EnablePhysics();
+	ENGINE_EXPORT void DisablePhysics();
+	ENGINE_EXPORT void WakeUp();
+	
+	ENGINE_EXPORT bool CheckMarker( const StringView& name );
+	ENGINE_EXPORT bool IsPlayingAnim() const;
+	ENGINE_EXPORT void PlayAnim( StringView name, bool loop );
+	ENGINE_EXPORT void StopAnim();
+	
+	ENGINE_EXPORT void _SetVar( StringView name, float val );
+	FINLINE void SetBool( StringView name, bool val ){ _SetVar( name, val ); }
+	FINLINE void SetInt( StringView name, int val ){ _SetVar( name, val ); }
+	FINLINE void SetFloat( StringView name, float val ){ _SetVar( name, val ); }
+	
+	// data extraction helpers
+	FINLINE int _GetMeshBoneID( int which ){ return which >= 0 && which < (int) animChar->bones.size() ? m_bone_ids[ which ] : -1; }
+	ENGINE_EXPORT int _FindParentBone( int which );
+	ENGINE_EXPORT bool _GetBodyMatrix( int which, Mat4& outwm );
+	ENGINE_EXPORT bool _GetJointMatrix( int which, bool parent, Mat4& outwm );
+	ENGINE_EXPORT void _GetHitboxMatrix( int which, Mat4& outwm );
+	ENGINE_EXPORT bool _GetHitboxOBB( int which, Mat4& outwm, Vec3& outext );
+	
+	// attachment helpers
+	FINLINE int FindAttachment( const StringView& name ){ return animChar->FindAttachment( name ); }
+	ENGINE_EXPORT bool GetAttachmentMatrix( int which, Mat4& outwm, bool worldspace = true ) const;
+	FINLINE Mat4 GetAttachmentMatrix( int which, bool worldspace = true ){ Mat4 out = Mat4::Identity; GetAttachmentMatrix( which, out, worldspace ); return out; }
+	FINLINE Vec3 GetAttachmentPos( int which, Vec3 p = V3(0) ){ return GetAttachmentMatrix( which ).TransformPos( p ); }
+	FINLINE Vec3 GetLocalAttachmentPos( int which, Vec3 p = V3(0) ){ return GetAttachmentMatrix( which, false ).TransformPos( p ); }
+	
+	// interface implementations
+	ENGINE_EXPORT void RaycastAll( const Vec3& from, const Vec3& to, struct SceneRaycastCallback* cb, struct SGRX_MeshInstance* cbmi = NULL );
+	ENGINE_EXPORT void MRC_DebugDraw( SGRX_MeshInstance* mi );
+	ENGINE_EXPORT uint16_t MEGetID( StringView name ) const;
+	ENGINE_EXPORT double MEGetValue( uint16_t i ) const;
+	
+	// INPUT
+	AnimCharHandle animChar;
+	
+	// CACHE
+	SceneHandle m_scene;
+	MeshHandle m_cachedMesh;
+	MeshInstHandle m_cachedMeshInst;
+	
+	Array< int > m_bone_ids;
+	Array< AnimTrackFrame > m_node_frames;
+	Array< float > m_values;
+	uint32_t m_frameID;
+	float m_animTimeLeft;
+	Array< Handle< NodeRT > > m_rtnodes;
+	
+	AnimDeformer m_anDeformer;
+	AnimRagdoll m_anRagdoll;
+	AnimInterp m_anEnd;
+};
 
 
 

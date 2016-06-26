@@ -14,6 +14,7 @@ inline Vec3 Q2EA( Quat q ){ return RAD2DEG( q.ToXYZ() ); }
 PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
 AnimCharacter* g_AnimChar;
+AnimCharInst* g_AnimCharInst;
 
 
 IMGUIRenderView* g_NUIRenderView;
@@ -58,7 +59,7 @@ void reload_mesh_vertices()
 	outverts.clear();
 	if( g_AnimChar )
 	{
-		SGRX_IMesh* M = g_AnimChar->m_cachedMesh;
+		SGRX_IMesh* M = g_AnimCharInst->m_cachedMesh;
 		if( M && M->m_vdata.size() && M->m_vertexDecl )
 		{
 			const VDeclInfo& VDI = M->m_vertexDecl.GetInfo();
@@ -274,13 +275,13 @@ void calc_char_bone_info( int bid, int thres, float minbs, int mask )
 		LOG_ERROR << "Cannot calculate bone info for bone " << bid << " at this time";
 		return;
 	}
-	SGRX_MeshBone* meshbones = g_AnimChar->m_cachedMesh->m_bones;
+	SGRX_MeshBone* meshbones = g_AnimCharInst->m_cachedMesh->m_bones;
 	AnimCharacter::BoneInfo& BI = g_AnimChar->bones[ bid ];
-	AMBone B = { BI.bone_id, BI.name, (uint8_t) thres };
+	AMBone B = { g_AnimCharInst->_GetMeshBoneID( bid ), BI.name, (uint8_t) thres };
 	
 	calc_bone_volume_info( B );
 	
-	Mat4 world_to_local = BI.bone_id < 0 ? Mat4::Identity : meshbones[ BI.bone_id ].invSkinOffset;
+	Mat4 world_to_local = B.id < 0 ? Mat4::Identity : meshbones[ B.id ].invSkinOffset;
 	Vec3 local_pos = world_to_local.TransformPos( B.world_center );
 	Vec3 lo1 = world_to_local.TransformNormal( B.world_axisX );
 	Vec3 lo2 = world_to_local.TransformNormal( B.world_axisY );
@@ -313,12 +314,12 @@ void calc_char_bone_info( int bid, int thres, float minbs, int mask )
 	if( mask & 4 )
 	{
 		Vec3 pbs = V3(0), bs = g_AnimChar->bones[ bid ].body.size.Abs();
-		int pbone = g_AnimChar->FindParentBone( bid );
+		int pbone = g_AnimCharInst->_FindParentBone( bid );
 		while( pbone >= 0 )
 		{
 			pbs = g_AnimChar->bones[ pbone ].body.size.Abs();
 			if( pbs.x < minbs || pbs.y < minbs || pbs.z < minbs )
-				pbone = g_AnimChar->FindParentBone( pbone );
+				pbone = g_AnimCharInst->_FindParentBone( pbone );
 			else
 				break;
 		}
@@ -332,7 +333,8 @@ void calc_char_bone_info( int bid, int thres, float minbs, int mask )
 		}
 		else
 		{
-			int pbone_m = g_AnimChar->bones[ pbone ].bone_id;
+			int pbone_m = g_AnimCharInst->_GetMeshBoneID( pbone );
+			ASSERT( pbone_m >= 0 );
 			
 			BI.joint.type = AnimCharacter::JointType_ConeTwist;
 			BI.joint.parent_name = g_AnimChar->bones[ pbone ].name;
@@ -341,16 +343,16 @@ void calc_char_bone_info( int bid, int thres, float minbs, int mask )
 			Mat4 world_to_parent = meshbones[ pbone_m ].invSkinOffset;
 			
 			// calculate own position
-			Vec3 bone_origin = meshbones[ BI.bone_id ].skinOffset.TransformPos( V3(0) );
+			Vec3 bone_origin = meshbones[ B.id ].skinOffset.TransformPos( V3(0) );
 			
 			// calculate child bone count / avg. position
 			int numch = 0;
 			Vec3 avg_child_origin = V3(0);
 			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
 			{
-				if( g_AnimChar->FindParentBone( i ) == bid )
+				if( g_AnimCharInst->_FindParentBone( i ) == bid )
 				{
-					int cmbid = g_AnimChar->bones[ i ].bone_id;
+					int cmbid = g_AnimCharInst->_GetMeshBoneID( i );
 					avg_child_origin += meshbones[ cmbid ].skinOffset.TransformPos( V3(0) );
 					numch++;
 				}
@@ -490,7 +492,7 @@ struct XFormStateInfo
 		case TT_BoneJointSelfFrame:
 			break;
 		case TT_BoneJointParentFrame:
-			iid = g_AnimChar->_FindBone( boneName );
+			iid = g_AnimCharInst->m_cachedMesh.FindBone( boneName );
 			if( iid < 0 )
 				return false;
 			boneName = g_AnimChar->bones[ iid ].joint.parent_name;
@@ -503,15 +505,15 @@ struct XFormStateInfo
 			break;
 		}
 		
-		int bid = xfdata.boneID = g_AnimChar->_FindBone( boneName );
+		int bid = xfdata.boneID = g_AnimCharInst->m_cachedMesh.FindBone( boneName );
 		if( bid < 0 )
 			return false;
 		if( iid < 0 )
 			iid = bid;
 		xfdata.itemID = iid;
 		
-		SGRX_MeshInstance* MI = g_AnimChar->m_cachedMeshInst;
-		xfdata.boneToWorld = g_AnimChar->m_cachedMesh->m_bones[ bid ].skinOffset
+		SGRX_MeshInstance* MI = g_AnimCharInst->m_cachedMeshInst;
+		xfdata.boneToWorld = g_AnimCharInst->m_cachedMesh->m_bones[ bid ].skinOffset
 			* MI->skin_matrices[ bid ] * MI->matrix;
 		xfdata.worldToBone = xfdata.boneToWorld.Inverted();
 		
@@ -770,7 +772,7 @@ void PostViewUI()
 		for( size_t i = 0; i < g_AnimChar->attachments.size(); ++i )
 		{
 			Mat4 wm;
-			if( g_AnimChar->GetAttachmentMatrix( i, wm ) )
+			if( g_AnimCharInst->GetAttachmentMatrix( i, wm ) )
 			{
 				bool infront = true;
 				Vec3 spos = g_EdScene->camera.WorldToScreen( wm.TransformPos( V3(0,0,0) ), &infront );
@@ -812,7 +814,7 @@ void DebugDraw()
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
 	
-	if( g_AnimChar && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
+	if( g_AnimCharInst->m_cachedMesh && g_AnimCharInst->m_cachedMeshInst )
 	{
 		if( g_showBodies )
 		{
@@ -820,7 +822,7 @@ void DebugDraw()
 			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
 			{
 				Mat4 wm;
-				if( g_AnimChar->GetBodyMatrix( i, wm ) )
+				if( g_AnimCharInst->_GetBodyMatrix( i, wm ) )
 				{
 					Vec3 size = g_AnimChar->bones[ i ].body.size;
 					if( i == g_hoverBone )
@@ -857,7 +859,7 @@ void DebugDraw()
 					continue;
 				
 				Mat4 wm;
-				if( g_AnimChar->GetJointMatrix( i, true, wm ) )
+				if( g_AnimCharInst->_GetJointMatrix( i, true, wm ) )
 				{
 					br.SetPrimitiveType( PT_Lines );
 					br.Col( 0.9f, 0.9f, 0.9f, a );
@@ -899,7 +901,7 @@ void DebugDraw()
 					}
 				}
 				
-				if( g_AnimChar->GetJointMatrix( i, false, wm ) )
+				if( g_AnimCharInst->_GetJointMatrix( i, false, wm ) )
 				{
 					br.SetPrimitiveType( PT_Lines );
 					br.Col( 0.6f, 0.6f, 0.6f, a );
@@ -930,15 +932,15 @@ void DebugDraw()
 			SceneRaycastCallback_Closest srcc;
 			Vec3 p0 = g_NUIRenderView->crpos;
 			Vec3 p1 = p0 + g_NUIRenderView->crdir * 1000;
-			g_AnimChar->RaycastAll( p0, p1, &srcc );
+			g_AnimCharInst->RaycastAll( p0, p1, &srcc );
 			
 			br.Reset();
 			for( size_t i = 0; i < g_AnimChar->bones.size(); ++i )
 			{
-				bool hit = srcc.m_hit && g_AnimChar->bones[ i ].bone_id == srcc.m_closest.boneID;
+				bool hit = srcc.m_hit && g_AnimCharInst->_GetMeshBoneID( i ) == srcc.m_closest.boneID;
 				Mat4 wm;
 				Vec3 ext;
-				if( g_AnimChar->GetHitboxOBB( i, wm, ext ) )
+				if( g_AnimCharInst->_GetHitboxOBB( i, wm, ext ) )
 				{
 					if( i == g_hoverBone )
 					{
@@ -967,7 +969,7 @@ void DebugDraw()
 			for( size_t i = 0; i < g_AnimChar->attachments.size(); ++i )
 			{
 				Mat4 wm;
-				if( g_AnimChar->GetAttachmentMatrix( i, wm ) )
+				if( g_AnimCharInst->GetAttachmentMatrix( i, wm ) )
 				{
 					float a, d = 0.8f;
 					if( i == g_hoverAtch )
@@ -990,7 +992,7 @@ void DebugDraw()
 		}
 		
 		// draw current mask
-		if( g_showMasks && g_AnimChar->m_cachedMesh && g_AnimChar->m_cachedMeshInst )
+		if( g_showMasks && g_AnimCharInst->m_cachedMesh && g_AnimCharInst->m_cachedMeshInst )
 		{
 			br.Reset();
 			
@@ -1006,15 +1008,15 @@ void DebugDraw()
 				{
 					AnimCharacter::MaskCmd& MC = M.cmds[ j ];
 					GR_SetFactors( ArrayView<float>( maskdata, SGRX_MAX_MESH_BONES ),
-						g_AnimChar->m_cachedMesh, MC.bone, MC.weight, MC.children, MC.mode );
+						g_AnimCharInst->m_cachedMesh, MC.bone, MC.weight, MC.children, MC.mode );
 				}
 				
-				for( int bone_id = 0; bone_id < g_AnimChar->m_cachedMesh->m_numBones; ++bone_id )
+				for( int bone_id = 0; bone_id < g_AnimCharInst->m_cachedMesh->m_numBones; ++bone_id )
 				{
-					Mat4 bmtx = g_AnimChar->m_cachedMeshInst->matrix;
-					if( g_AnimChar->m_cachedMeshInst->IsSkinned() )
-						bmtx = g_AnimChar->m_cachedMeshInst->skin_matrices[ bone_id ] * bmtx;
-					bmtx = g_AnimChar->m_cachedMesh->m_bones[ bone_id ].skinOffset * bmtx;
+					Mat4 bmtx = g_AnimCharInst->m_cachedMeshInst->matrix;
+					if( g_AnimCharInst->m_cachedMeshInst->IsSkinned() )
+						bmtx = g_AnimCharInst->m_cachedMeshInst->skin_matrices[ bone_id ] * bmtx;
+					bmtx = g_AnimCharInst->m_cachedMesh->m_bones[ bone_id ].skinOffset * bmtx;
 					
 					Vec3 pos = bmtx.TransformPos( V3(0) );
 					br.Col( 0.1f + ( 1 - maskdata[ bone_id ] ) * 0.8f, 0.1f + maskdata[ bone_id ] * 0.8f, 0.1f );
@@ -1033,7 +1035,7 @@ void DebugDraw()
 		if( 0 )
 		{
 			br.Reset();
-			SGRX_IMesh* mesh = g_AnimChar->m_cachedMeshInst->GetMesh();
+			SGRX_IMesh* mesh = g_AnimCharInst->m_cachedMeshInst->GetMesh();
 			for( int i = 0; i < mesh->m_numBones; ++i )
 			{
 				float sxt = ( 1 - float(i) / mesh->m_numBones );
@@ -1057,7 +1059,7 @@ bool PickBoneName( const char* label, String& name, int& id, int self = -1 )
 			{
 				if( pb == self )
 					break;
-				pb = g_AnimChar->FindParentBone( pb );
+				pb = g_AnimCharInst->_FindParentBone( pb );
 			}
 			// can't have child bones/self in the list
 			if( pb >= 0 )
@@ -1067,7 +1069,7 @@ bool PickBoneName( const char* label, String& name, int& id, int self = -1 )
 		int pb = i;
 		for(;;)
 		{
-			pb = g_AnimChar->FindParentBone( pb );
+			pb = g_AnimCharInst->_FindParentBone( pb );
 			if( pb < 0 )
 				break;
 			namelist.push_back( '-' );
@@ -1094,10 +1096,12 @@ void EditBoneInfo( size_t self_id, AnimCharacter::BoneInfo& bi )
 	ImVec2 cursorBegin = ImGui::GetCursorPos();
 	
 	ImGui::SetNextTreeNodeOpened( true, ImGuiSetCond_Appearing );
-	if( ImGui::TreeNode( &bi, "Bone: %s [id=%d]", StackString<256>(bi.name).str, bi.bone_id ) )
+	if( ImGui::TreeNode( &bi, "Bone: %s [id=%d]",
+		StackString<256>(bi.name).str,
+		g_AnimCharInst->_GetMeshBoneID( self_id ) ) )
 	{
 		if( IMGUIEditString( "Name", bi.name, 256 ) )
-			bi.bone_id = g_AnimChar->_FindBone( bi.name );
+			g_AnimCharInst->_RecalcBoneIDs();
 		
 		IMGUI_GROUP( "Hitbox", true,
 		{
@@ -1391,8 +1395,9 @@ void EditAliasInfo( size_t self_id, Handle<AnimCharacter::Alias>& alias )
 	}
 }
 
-void EditACVariables( AnimCharacter& ac )
+void EditACVariables()
 {
+	AnimCharacter& ac = *g_AnimChar;
 	IMGUI_GROUP( "Variables", false,
 	{
 		ImGui::BeginChangeCheck();
@@ -1415,13 +1420,14 @@ void EditACVariables( AnimCharacter& ac )
 	});
 }
 
-void EditAnimChar( AnimCharacter& ac )
+void EditAnimChar()
 {
+	AnimCharacter& ac = *g_AnimChar;
 	if( g_NUIMeshPicker->Property( "Pick mesh", "mesh", ac.mesh ) )
 	{
 		LOG << "Picked MESH: " << ac.mesh;
-		ac._OnRenderUpdate();
-		SGRX_IMesh* M = ac.m_cachedMesh;
+		g_AnimCharInst->_OnRenderUpdate();
+		SGRX_IMesh* M = g_AnimCharInst->m_cachedMesh;
 		if( M )
 		{
 			for( int i = 0; i < M->m_numBones; ++i )
@@ -1442,8 +1448,8 @@ void EditAnimChar( AnimCharacter& ac )
 			}
 		}
 		reload_mesh_vertices();
-		ac.RecalcBoneIDs();
-		lmm_prepmeshinst( ac.m_cachedMeshInst );
+		g_AnimCharInst->_RecalcBoneIDs();
+		lmm_prepmeshinst( g_AnimCharInst->m_cachedMeshInst );
 	}
 	IMGUI_GROUP( "Bones", false,
 	{
@@ -1461,7 +1467,7 @@ void EditAnimChar( AnimCharacter& ac )
 	{
 		EditMapping( ac.mapping );
 	});
-	EditACVariables( ac );
+	EditACVariables();
 }
 
 
@@ -1905,8 +1911,16 @@ static void EditPlayerStates()
 			}
 			if( ImGui::MenuItem( "Set as current" ) )
 			{
-				P->current_state = node;
-				P->StartCurrentState();
+				for( size_t i = 0; i < g_AnimCharInst->m_rtnodes.size(); ++i )
+				{
+					AnimCharInst::NodeRT* n = g_AnimCharInst->m_rtnodes[ i ];
+					if( n->src->type == AnimCharacter::NT_Player )
+					{
+						SGRX_CAST( AnimCharInst::PlayerNodeRT*, PNRT, n );
+						PNRT->current_state = node;
+						PNRT->StartCurrentState();
+					}
+				}
 			}
 			if( ImGui::MenuItem( "Set as first" ) )
 			{
@@ -2199,7 +2213,6 @@ void EditNodes( AnimCharacter& ac )
 			{
 				ac._UnlinkNode( node );
 				ac.nodes.remove_first( node );
-				ac._RehashNodes();
 				if( ac.output_node == node )
 					ac.output_node = NULL;
 				if( ac.main_player_node == node )
@@ -2242,7 +2255,6 @@ void EditNodes( AnimCharacter& ac )
 			{
 				nn->Init( V2( scene_pos ) );
 				ac.nodes.push_back( nn );
-				ac._RehashNodes();
 				if( !ac.output_node )
 					ac.output_node = nn;
 				ImGui::TriggerChangeCheck();
@@ -2392,7 +2404,8 @@ struct CharEditor : IGame
 		g_EdScene->camera.znear = 0.1f;
 		g_EdScene->camera.UpdateMatrices();
 		g_EdScene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
-		g_AnimChar = new AnimCharacter( g_EdScene, g_PhyWorld );
+		g_AnimChar = new AnimCharacter;
+		g_AnimCharInst = new AnimCharInst( g_EdScene, g_PhyWorld );
 		
 		// TEST
 #if 0
@@ -2437,6 +2450,8 @@ struct CharEditor : IGame
 		delete g_NUIRenderView;
 		
 		g_FloorMeshInst = NULL;
+		delete g_AnimCharInst;
+		g_AnimCharInst = NULL;
 		delete g_AnimChar;
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
@@ -2457,19 +2472,19 @@ struct CharEditor : IGame
 		SGRX_IMGUI_NewFrame( dt );
 		
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
-		g_AnimChar->FixedTick( dt, g_mode == AnimPreview && g_APChangeStates );
+		g_AnimCharInst->FixedTick( dt, g_mode == AnimPreview && g_APChangeStates );
 		for( int i = 0; i < g_phyIters; ++i )
 			g_PhyWorld->Step( dt * g_phySpeed / g_phyIters );
 		
-		if( g_AnimChar->m_cachedMeshInst )
-			lmm_prepmeshinst( g_AnimChar->m_cachedMeshInst );
-		g_AnimChar->PreRender( 1 );
+		if( g_AnimCharInst->m_cachedMeshInst )
+			lmm_prepmeshinst( g_AnimCharInst->m_cachedMeshInst );
+		g_AnimCharInst->PreRender( 1 );
 		
 #if 0
-		//float fac = sinf( g_AnimChar->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;
-		g_AnimChar->m_anDeformer.forces[ 0 ].amount = 1;//fac * 0.5f;
-		g_AnimChar->m_anDeformer.forces[ 0 ].pos = g_EdScene->camera.position;
-		g_AnimChar->m_anDeformer.forces[ 0 ].dir = g_EdScene->camera.direction;
+		//float fac = sinf( g_AnimCharInst->m_anDeformer.forces[ 0 ].lifetime * M_PI ) * 0.5f + 0.5f;
+		g_AnimCharInst->m_anDeformer.forces[ 0 ].amount = 1;//fac * 0.5f;
+		g_AnimCharInst->m_anDeformer.forces[ 0 ].pos = g_EdScene->camera.position;
+		g_AnimCharInst->m_anDeformer.forces[ 0 ].dir = g_EdScene->camera.direction;
 #endif
 		
 		IMGUI_MAIN_WINDOW_BEGIN
@@ -2486,7 +2501,7 @@ struct CharEditor : IGame
 					{
 						g_fileName = "";
 						delete g_AnimChar;
-						g_AnimChar = new AnimCharacter( g_EdScene, g_PhyWorld );
+						g_AnimChar = new AnimCharacter();
 						AfterReload();
 					}
 					if( ImGui::MenuItem( "Open" ) ) needOpen = true;
@@ -2508,7 +2523,8 @@ struct CharEditor : IGame
 				if( ModeRB( "Animation preview", AnimPreview, SDLK_3 ) )
 				{
 					g_AnimChar->_Prepare();
-					g_AnimChar->ResetStates();
+					g_AnimCharInst->_OnRenderUpdate();
+					g_AnimCharInst->ResetStates();
 				}
 				ImGui::SameLine();
 				ModeRB( "Ragdoll test", RagdollTest, SDLK_4 );
@@ -2531,11 +2547,11 @@ struct CharEditor : IGame
 					if( g_EditedPlayerNode )
 					{
 						EditACStateProps();
-						EditACVariables( *g_AnimChar );
+						EditACVariables();
 					}
 					else
 					{
-						EditAnimChar( *g_AnimChar );
+						EditAnimChar();
 					}
 				}
 				else if( g_mode == RecalcBones )
@@ -2547,19 +2563,19 @@ struct CharEditor : IGame
 					IMGUIEditBool( "Change states", g_APChangeStates );
 					if( ImGui::Button( "Reset" ) )
 					{
-						g_AnimChar->ResetStates();
+						g_AnimCharInst->ResetStates();
 					}
 					IMGUI_GROUP( "Information", true,
 					{
-						for( size_t i = 0; i < g_AnimChar->nodes.size(); ++i )
+						for( size_t i = 0; i < g_AnimCharInst->m_rtnodes.size(); ++i )
 						{
-							AnimCharacter::Node* N = g_AnimChar->nodes[ i ];
-							if( N->type == AnimCharacter::NT_Player )
+							AnimCharInst::NodeRT* N = g_AnimCharInst->m_rtnodes[ i ];
+							if( N->src->type == AnimCharacter::NT_Player )
 							{
-								SGRX_CAST( AnimCharacter::PlayerNode*, PN, N );
+								SGRX_CAST( AnimCharInst::PlayerNodeRT*, PNRT, N );
 								ImGui::Text( "PlayerNode [#%d]: current_state=%s",
 									int(i),
-									StackPath(PN->current_state ? PN->current_state->GetName() : "<none>").str );
+									StackPath(PNRT->current_state ? PNRT->current_state->GetName() : "<none>").str );
 							}
 						}
 					});
@@ -2627,13 +2643,13 @@ struct CharEditor : IGame
 					
 					if( ImGui::Button( "Start" ) )
 					{
-						if( g_AnimChar->m_anRagdoll.m_enabled == false )
+						if( g_AnimCharInst->m_anRagdoll.m_enabled == false )
 						{
-							g_AnimChar->m_anRagdoll.Initialize( g_AnimChar );
-							g_AnimChar->EnablePhysics();
+							g_AnimCharInst->m_anRagdoll.Initialize( g_AnimCharInst );
+							g_AnimCharInst->EnablePhysics();
 							if( g_phyIIEnable )
 							{
-								g_AnimChar->m_anRagdoll.ApplyImpulseExt(
+								g_AnimCharInst->m_anRagdoll.ApplyImpulseExt(
 									g_phyIIPos,
 									g_phyIIDir.Normalized() * g_phyIIStrength,
 									g_phyIIAtten,
@@ -2646,12 +2662,12 @@ struct CharEditor : IGame
 					ImGui::SameLine();
 					if( ImGui::Button( "Stop" ) )
 					{
-						g_AnimChar->DisablePhysics();
+						g_AnimCharInst->DisablePhysics();
 					}
 					ImGui::SameLine();
 					if( ImGui::Button( "Wake up" ) )
 					{
-						g_AnimChar->WakeUp();
+						g_AnimCharInst->WakeUp();
 					}
 				}
 				else if( g_mode == MiscProps )

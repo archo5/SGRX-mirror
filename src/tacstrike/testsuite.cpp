@@ -251,8 +251,8 @@ struct Test_Characters : ITest
 			for( int x = 0; x < xe; ++x )
 			{
 				int i = x + y * xe;
-				m_chars[ i ] = new AnimCharacter( m_scene, m_phyWorld );
-				m_chars[ i ]->Load( "chars/tstest.chr" );
+				m_chars[ i ] = new AnimCharInst( m_scene, m_phyWorld );
+				m_chars[ i ]->SetAnimChar( "chars/tstest.chr" );
 				g_Lighting1.LightMesh( m_chars[ i ]->m_cachedMeshInst );
 				m_chars[ i ]->SetTransform( Mat4::CreateTranslation( x * 2, y * 2, 0 ) );
 			}
@@ -291,7 +291,7 @@ struct Test_Characters : ITest
 	
 	PhyWorldHandle m_phyWorld;
 	SceneHandle m_scene;
-	Array< AnimCharacter* > m_chars;
+	Array< AnimCharInst* > m_chars;
 }
 g_TestCharacters;
 
