@@ -662,6 +662,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 	ENGINE_EXPORT void _RecompileExpressions();
 	ENGINE_EXPORT void _UnlinkNode( Node* node );
 	ENGINE_EXPORT int _FindBoneByName( const StringView& name );
+	ENGINE_EXPORT Node* _FindNodeByGUID( SGRX_GUID guid );
 	
 	ENGINE_EXPORT uint16_t MEGetID( StringView name ) const;
 	double MEGetValue( uint16_t i ) const { return 0; }
@@ -684,7 +685,6 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 	
 	// CACHE
 	HashTable< StringView, uint16_t > m_variable_index;
-	HashTable< SGRX_GUID, AnimCharacter::Node* > m_node_map;
 };
 typedef Handle< AnimCharacter > AnimCharHandle;
 
@@ -820,6 +820,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharInst : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT void PlayAnim( StringView name, bool loop );
 	ENGINE_EXPORT void StopAnim();
 	
+	ENGINE_EXPORT float* _GetVarValAt( int i );
 	ENGINE_EXPORT void _SetVar( StringView name, float val );
 	FINLINE void SetBool( StringView name, bool val ){ _SetVar( name, val ); }
 	FINLINE void SetInt( StringView name, int val ){ _SetVar( name, val ); }

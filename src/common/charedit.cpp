@@ -13,7 +13,7 @@ inline Vec3 Q2EA( Quat q ){ return RAD2DEG( q.ToXYZ() ); }
 
 PhyWorldHandle g_PhyWorld;
 SceneHandle g_EdScene;
-AnimCharacter* g_AnimChar;
+AnimCharHandle g_AnimChar;
 AnimCharInst* g_AnimCharInst;
 
 
@@ -1377,7 +1377,7 @@ void EditVariableInfo( size_t self_id, Handle<AnimCharacter::Variable>& var )
 	{
 		IMGUIEditString( "Name", var->name, 256 );
 		float v = var->value;
-		IMGUIEditFloat( "Value (test/initial)", v, -FLT_MAX, FLT_MAX );
+		IMGUIEditFloat( "Value (initial)", v, -FLT_MAX, FLT_MAX );
 		var->value = v;
 		
 		ImGui::TreePop();
@@ -1985,7 +1985,7 @@ void EditNodeInput( const char* label, AnimCharacter::Node* node, SGRX_GUID& gui
 	ImGui::Text( "%s", label );
 	draw_list->AddCircleFilled(pos, NODE_SLOT_RADIUS, ImColor(150,150,150,150));
 	
-	AnimCharacter::Node* node_in = g_AnimChar->m_node_map.getcopy( guid );
+	AnimCharacter::Node* node_in = g_AnimChar->_FindNodeByGUID( guid );
 	if( node_in )
 	{
 		DrawNodeLink dnl = { node_in, node, pos };
@@ -2016,7 +2016,7 @@ void EditNodeInput( const char* label, AnimCharacter::Node* node, SGRX_GUID& gui
 	ImGui::PopID();
 }
 
-void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
+void EditACNode( AnimCharacter::Node* node )
 {
 	// common
 	if( node->type == AnimCharacter::NT_Player )
@@ -2058,8 +2058,9 @@ void EditACNode( AnimCharacter& ac, AnimCharacter::Node* node )
 
 static ImVec2 g_NodeCameraPos(0,0);
 static AnimCharacter::Node* g_SelNode = NULL;
-void EditNodes( AnimCharacter& ac )
+void EditNodes()
 {
+	AnimCharacter& ac = *g_AnimChar;
 	if( g_EditedPlayerNode )
 	{
 		EditPlayerStates();
@@ -2100,7 +2101,7 @@ void EditNodes( AnimCharacter& ac )
 		ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2(4,4) );
 		ImGui::Text( "%s", ac.nodes[ i ]->GetName() );
 		ImGui::Dummy( ImVec2(140, 1) );
-		EditACNode( ac, ac.nodes[ i ] );
+		EditACNode( ac.nodes[ i ] );
 		ImGui::PopStyleVar(1);
 		ImGui::EndGroup();
 		
@@ -2406,6 +2407,7 @@ struct CharEditor : IGame
 		g_EdScene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 		g_AnimChar = new AnimCharacter;
 		g_AnimCharInst = new AnimCharInst( g_EdScene, g_PhyWorld );
+		g_AnimCharInst->SetAnimChar( g_AnimChar );
 		
 		// TEST
 #if 0
@@ -2452,7 +2454,6 @@ struct CharEditor : IGame
 		g_FloorMeshInst = NULL;
 		delete g_AnimCharInst;
 		g_AnimCharInst = NULL;
-		delete g_AnimChar;
 		g_AnimChar = NULL;
 		g_EdScene = NULL;
 		g_PhyWorld = NULL;
@@ -2500,8 +2501,8 @@ struct CharEditor : IGame
 					if( ImGui::MenuItem( "New" ) )
 					{
 						g_fileName = "";
-						delete g_AnimChar;
 						g_AnimChar = new AnimCharacter();
+						g_AnimCharInst->SetAnimChar( g_AnimChar );
 						AfterReload();
 					}
 					if( ImGui::MenuItem( "Open" ) ) needOpen = true;
@@ -2539,7 +2540,7 @@ struct CharEditor : IGame
 				PostViewUI();
 			},
 			{
-				EditNodes( *g_AnimChar );
+				EditNodes();
 			},
 			{
 				if( g_mode == EditChar )
@@ -2582,7 +2583,8 @@ struct CharEditor : IGame
 					for( size_t i = 0; i < g_AnimChar->variables.size(); ++i )
 					{
 						AnimCharacter::Variable* var = g_AnimChar->variables[ i ];
-						IMGUIEditFloat( StackPath(var->name).str, var->value, -10000, 10000 );
+						IMGUIEditFloat( StackPath(var->name).str,
+							*g_AnimCharInst->_GetVarValAt( i ), -10000, 10000 );
 					}
 				}
 				else if( g_mode == RagdollTest )
@@ -2697,6 +2699,7 @@ struct CharEditor : IGame
 			{
 				if( g_AnimChar->Load( fn ) )
 				{
+					g_AnimCharInst->SetAnimChar( g_AnimChar );
 					g_fileName = fn;
 					reload_mesh_vertices();
 					AfterReload();

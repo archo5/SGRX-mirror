@@ -1132,6 +1132,16 @@ int AnimCharacter::_FindBoneByName( const StringView& name )
 	return -1;
 }
 
+AnimCharacter::Node* AnimCharacter::_FindNodeByGUID( SGRX_GUID guid )
+{
+	for( size_t i = 0; i < nodes.size(); ++i )
+	{
+		if( nodes[ i ]->guid == guid )
+			return nodes[ i ];
+	}
+	return NULL;
+}
+
 
 #define ANIMCHAR_VAR_time   0
 #define ANIMCHAR_VAR_pos    1
@@ -1336,7 +1346,7 @@ void AnimCharInst::_OnRenderUpdate()
 	_RecalcBoneIDs();
 	_Prepare();
 	m_anRagdoll.Initialize( this );
-	m_cachedMeshInst->raycastOverride = m_cachedMesh->m_numBones ? this : NULL;
+	m_cachedMeshInst->raycastOverride = m_cachedMesh.GetBoneCount() ? this : NULL;
 }
 
 void AnimCharInst::_Prepare()
@@ -1630,6 +1640,13 @@ void AnimCharInst::StopAnim()
 	}
 }
 
+
+float* AnimCharInst::_GetVarValAt( int i )
+{
+	if( size_t(i) >= animChar->variables.size() )
+		return NULL;
+	return &m_values[ ANIMCHAR_VAR_VOFF + i ];
+}
 
 void AnimCharInst::_SetVar( StringView name, float val )
 {

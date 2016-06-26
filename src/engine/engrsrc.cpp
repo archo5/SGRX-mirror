@@ -1978,6 +1978,7 @@ TextureHandle GR_GetTexture( const StringView& path )
 	if( tex )
 		return tex;
 	
+	double t0 = sgrx_hqtime();
 	tex = g_Game->OnCreateSysTexture( path );
 	if( !tex )
 	{
@@ -2011,7 +2012,7 @@ TextureHandle GR_GetTexture( const StringView& path )
 	tex->m_key.append( path.data(), path.size() );
 	g_Textures->set( tex->m_key, tex );
 	
-	LOG << "Loaded texture: " << path;
+	LOG << "Loaded texture: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 	return tex;
 }
 
@@ -2309,6 +2310,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 	if( mesh )
 		return mesh;
 	
+	double t0 = sgrx_hqtime();
 	mesh = g_Game->OnCreateSysMesh( path );
 	if( mesh )
 	{
@@ -2319,7 +2321,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 		
 		mesh->m_key = path;
 		g_Meshes->set( mesh->m_key, mesh );
-		LOG << "Created mesh: " << path;
+		LOG << "Created sys. mesh: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 		return mesh;
 	}
 	
@@ -2412,7 +2414,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 	
 	mesh->m_key = path;
 	g_Meshes->set( mesh->m_key, mesh );
-	LOG << "Loaded mesh: " << path;
+	LOG << "Loaded mesh: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";;
 	return mesh;
 }
 
@@ -2460,12 +2462,15 @@ AnimHandle GR_GetAnim( const StringView& name )
 
 AnimCharHandle GR_GetAnimChar( const StringView& name )
 {
+	LOG_FUNCTION_ARG( name );
+	
 	if( !name )
 		return NULL;
 	AnimCharHandle out = g_AnimChars->getcopy( name );
 	if( out )
 		return out;
 	
+	double t0 = sgrx_hqtime();
 	out = new AnimCharacter;
 	if( !out->Load( name ) )
 	{
@@ -2474,7 +2479,8 @@ AnimCharHandle GR_GetAnimChar( const StringView& name )
 	}
 	out->m_key = name;
 	g_AnimChars->set( out->m_key, out );
-	LOG << "Loaded animated character " << name;
+	LOG << "Loaded animated character " << name
+		<< " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 	return out;
 }
 
