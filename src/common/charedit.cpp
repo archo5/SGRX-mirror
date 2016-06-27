@@ -1396,6 +1396,11 @@ static void EditSkins( HashTable< StringView, AnimCharacter::Skin >& skins )
 			}
 			
 			ImVec2 cp_after = ImGui::GetCursorPos();
+			ImGui::SetCursorPos( cp_before + ImVec2( width - 60, 0 ) );
+			if( ImGui::Button( "[set]", ImVec2( 30, 14 ) ) )
+			{
+				g_AnimCharInst->SetSkin( SK.name );
+			}
 			ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
 			if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
 			{
