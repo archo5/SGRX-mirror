@@ -606,6 +606,39 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 		}
 	};
 	
+	struct IF_GCC(ENGINE_EXPORT) Skin
+	{
+		RCString name;
+		RCString mesh;
+		template< class T > void Serialize( T& arch )
+		{
+			arch << name;
+			arch << mesh;
+		}
+	};
+	struct IF_GCC(ENGINE_EXPORT) SkinMap : HashTable< StringView, Skin >
+	{
+		template< class T > void Serialize( T& arch )
+		{
+			uint32_t sz = m_size;
+			arch << sz;
+			if( T::IsReader )
+			{
+				for( uint32_t i = 0; i < sz; ++i )
+				{
+					Skin sk;
+					arch << sk;
+					set( sk.name, sk );
+				}
+			}
+			else
+			{
+				for( size_type i = 0; i < m_size; ++i )
+					arch << item( i ).value;
+			}
+		}
+	};
+	
 	template< class T > void Serialize( T& basearch )
 	{
 		basearch.marker( "SGRXCHAR" );
@@ -617,7 +650,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 		// 5: added nodes, variables, aliases
 		// 6: added mask mode
 		// 7: added main player node & anim mapping, removed layers
-		SerializeVersionHelper<T> arch( basearch, 7 );
+		// 8: added skins
+		SerializeVersionHelper<T> arch( basearch, 8 );
 		
 		arch( mesh );
 		arch( bones );
@@ -633,6 +667,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 			arch << variables;
 			arch << aliases;
 			arch( mapping, arch.version >= 7 );
+			arch( skins, arch.version >= 8 );
 			
 			uint32_t output_id = nodes.find_first_at( output_node );
 			arch << output_id;
@@ -648,6 +683,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 			variables.clear();
 			aliases.clear();
 			mapping.clear();
+			skins.clear();
 			output_node = NULL;
 			main_player_node = NULL;
 		}
@@ -680,6 +716,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharacter : SGRX_RCRsrc, MEVariableInterface
 	Array< Handle< Variable > > variables;
 	Array< Handle< Alias > > aliases;
 	AnimMap mapping;
+	SkinMap skins;
 	Handle< Node > output_node;
 	Handle< Node > main_player_node;
 	
@@ -798,6 +835,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharInst : IMeshRaycast, MEVariableInterface
 	ENGINE_EXPORT AnimCharInst( SceneHandle sh, PhyWorldHandle phyWorld );
 	bool SetAnimChar( const StringView& sv );
 	void SetAnimChar( AnimCharacter* ch );
+	void SetSkin( StringView name );
 	
 	// internal construction helpers
 	ENGINE_EXPORT void _OnRenderUpdate();
@@ -849,6 +887,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharInst : IMeshRaycast, MEVariableInterface
 	
 	// INPUT
 	AnimCharHandle animChar;
+	String skinName;
 	
 	// CACHE
 	SceneHandle m_scene;

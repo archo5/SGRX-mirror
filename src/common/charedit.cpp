@@ -1276,6 +1276,7 @@ static void GenAnimPrintName( char bfr[128], StringView anim, const char* def )
 		strcpy( bfr, def );
 }
 
+
 static void EditMapping( HashTable< StringView, AnimCharacter::MappedAnim >& mapping )
 {
 	Array< AnimCharacter::MappedAnim* > items;
@@ -1338,12 +1339,97 @@ static void EditMapping( HashTable< StringView, AnimCharacter::MappedAnim >& map
 		if( ImGui::Button( "Create" ) )
 		{
 			AnimCharacter::MappedAnim ma = { mapname, "", 0 };
+			for( size_t i = 0; i < mapping.size(); ++i )
+			{
+				if( ma.id < mapping.item( i ).value.id )
+					ma.id = mapping.item( i ).value.id;
+			}
+			ma.id++;
 			mapping.set( ma.name, ma );
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::EndPopup();
 	}
 }
+
+
+static void EditSkins( HashTable< StringView, AnimCharacter::Skin >& skins )
+{
+	if( ImGui::Button( "Reset to default" ) )
+	{
+		g_AnimCharInst->SetSkin( "!default" );
+	}
+	ImGui::SameLine();
+	if( ImGui::Button( "Set to empty" ) )
+	{
+		g_AnimCharInst->SetSkin( "" );
+	}
+	
+	Array< AnimCharacter::Skin* > items;
+	for( size_t i = 0; i < skins.size(); ++i )
+		items.push_back( &skins.item( i ).value );
+	
+	// sort
+	
+	for( size_t i = 0; i < items.size(); ++i )
+	{
+		AnimCharacter::Skin& SK = *items[ i ];
+		
+		if( ImGui::TreeNode( &SK, "Skin: %s => %s",
+			SK.name.c_str(), SK.mesh.c_str() ) )
+		{
+			ImVec2 cp_before = ImGui::GetCursorPos();
+			float width = ImGui::GetContentRegionAvail().x;
+			
+			// CANNOT EDIT IT THIS WAY
+		//	IMGUIEditString( "Name", SK.name, 256 );
+			{
+				const char* caption = "Select mesh for skin";
+				if( ImGui::Button( SK.mesh.size() ? SK.mesh.c_str() : "<click to select mesh>",
+					ImVec2( ImGui::GetContentRegionAvailWidth() * 2.0f/3.0f, 20 ) ) )
+				{
+					g_NUIMeshPicker->OpenPopup( caption );
+				}
+				ImGui::SameLine();
+				ImGui::Text( "Animation" );
+				g_NUIMeshPicker->Popup( caption, SK.mesh );
+			}
+			
+			ImVec2 cp_after = ImGui::GetCursorPos();
+			ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
+			if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
+			{
+				RCString name = SK.name;
+				skins.unset( name );
+			}
+			ImGui::SetCursorPos( cp_after );
+			
+			ImGui::TreePop();
+		}
+	}
+	
+	// create new
+	static String skinname;
+	if( ImGui::Button( "Add skin",
+			ImVec2( ImGui::GetContentRegionAvailWidth() * 2.f/3.f, 20 ) ) )
+	{
+		skinname = "";
+		ImGui::OpenPopup( "create_skin" );
+	}
+	
+	if( ImGui::BeginPopup( "create_skin" ) )
+	{
+		IMGUIEditString( "Name", skinname, 256 );
+		if( ImGui::Button( "Create" ) )
+		{
+			AnimCharacter::Skin sk = { skinname, "" };
+			skins.set( sk.name, sk );
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+}
+
 
 static HashTable< void*, RCString > g_ExprCompileResults;
 void EditValExpr( const char* label, AnimCharacter::ValExpr& expr )
@@ -1466,6 +1552,10 @@ void EditAnimChar()
 	IMGUI_GROUP( "Anim. mapping", false,
 	{
 		EditMapping( ac.mapping );
+	});
+	IMGUI_GROUP( "Skins", false,
+	{
+		EditSkins( ac.skins );
 	});
 	EditACVariables();
 }
@@ -2407,6 +2497,7 @@ struct CharEditor : IGame
 		g_EdScene->skyTexture = GR_GetTexture( "textures/sky/overcast1.dds" );
 		g_AnimChar = new AnimCharacter;
 		g_AnimCharInst = new AnimCharInst( g_EdScene, g_PhyWorld );
+		g_AnimCharInst->SetSkin( "!default" );
 		g_AnimCharInst->SetAnimChar( g_AnimChar );
 		
 		// TEST

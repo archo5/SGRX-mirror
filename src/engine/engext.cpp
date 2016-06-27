@@ -645,7 +645,7 @@ void AnimRagdoll::Initialize( AnimCharInst* chinst )
 		m_bones[ i ] = B;
 	}
 	
-	if( m_pose.size() != chinfo->bones.size() )
+	if( !chinfo || m_pose.size() != chinfo->bones.size() )
 	{
 		// ragdoll not used
 		return;
@@ -1338,9 +1338,21 @@ void AnimCharInst::SetAnimChar( AnimCharacter* ch )
 	_OnRenderUpdate();
 }
 
+void AnimCharInst::SetSkin( StringView name )
+{
+	skinName = name;
+	_OnRenderUpdate();
+}
+
 void AnimCharInst::_OnRenderUpdate()
 {
-	m_cachedMesh = GR_GetMesh( animChar->mesh );
+	AnimCharacter::Skin* skin;
+	if( animChar && skinName == SV("!default") )
+		m_cachedMesh = GR_GetMesh( animChar->mesh );
+	else if( animChar && ( skin = animChar->skins.getptr( skinName ) ) != NULL )
+		m_cachedMesh = GR_GetMesh( skin->mesh );
+	else
+		m_cachedMesh = NULL;
 	m_cachedMeshInst->SetMesh( m_cachedMesh );
 	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh.GetBoneCount() );
 	_RecalcBoneIDs();
@@ -1414,7 +1426,7 @@ void AnimCharInst::_Prepare()
 	for( size_t i = 0; i < m_rtnodes.size(); ++i )
 	{
 		NodeRT* NRT = m_rtnodes[ i ];
-		if( NRT->src->type == AnimCharacter::NT_Mask )
+		if( NRT->src->type == AnimCharacter::NT_Mask && m_cachedMesh )
 		{
 			SGRX_CAST( AnimCharacter::MaskNode*, MN, NRT->src );
 			SGRX_CAST( MaskNodeRT*, MNRT, NRT );
@@ -1487,7 +1499,7 @@ void AnimCharInst::_PrepareSpecialVariables( NodeRT* n )
 
 void AnimCharInst::_RecalcBoneIDs()
 {
-	size_t bs = animChar->bones.size();
+	size_t bs = animChar ? animChar->bones.size() : 0;
 	m_bone_ids.resize( bs );
 	for( size_t i = 0; i < bs; ++i )
 	{
