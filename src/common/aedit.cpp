@@ -629,22 +629,26 @@ void EditCurAsset()
 		switch( g_CurAsset->assetType )
 		{
 		case SGRX_AT_Texture: {
-				SGRX_TextureAsset new_asset = *g_CurAsset->ToTexture();
+				SGRX_TextureAsset new_asset;
+				new_asset.Clone( *g_CurAsset->ToTexture() );
 				g_EdAS->textureAssets.push_back( new_asset );
 				g_CurAsset = &g_EdAS->textureAssets.last();
 			} break;
 		case SGRX_AT_Mesh: {
-				SGRX_MeshAsset new_asset = *g_CurAsset->ToMesh();
+				SGRX_MeshAsset new_asset;
+				new_asset.Clone( *g_CurAsset->ToMesh() );
 				g_EdAS->meshAssets.push_back( new_asset );
 				g_CurAsset = &g_EdAS->meshAssets.last();
 			} break;
 		case SGRX_AT_AnimBundle: {
-				SGRX_AnimBundleAsset new_asset = *g_CurAsset->ToAnimBundle();
+				SGRX_AnimBundleAsset new_asset;
+				new_asset.Clone( *g_CurAsset->ToAnimBundle() );
 				g_EdAS->animBundleAssets.push_back( new_asset );
 				g_CurAsset = &g_EdAS->animBundleAssets.last();
 			} break;
 		case SGRX_AT_File: {
-				SGRX_FileAsset new_asset = *g_CurAsset->ToFile();
+				SGRX_FileAsset new_asset;
+				new_asset.Clone( *g_CurAsset->ToFile() );
 				g_EdAS->fileAssets.push_back( new_asset );
 				g_CurAsset = &g_EdAS->fileAssets.last();
 			} break;

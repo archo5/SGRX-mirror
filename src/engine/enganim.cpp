@@ -352,7 +352,8 @@ AnimPlayer::~AnimPlayer()
 
 void AnimPlayer::Prepare()
 {
-	m_currentAnims.clear();
+	for( size_t i = 0; i < m_currentAnims.size(); ++i )
+		m_currentAnims[ i ].trackIDs = NULL;
 	_clearAnimCache();
 	m_blendFactors.resize_using( m_pose.size(), 1 );
 }
@@ -411,6 +412,8 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 	{
 		Anim& A = m_currentAnims[ an ];
 		SGRX_Animation* AN = A.anim;
+		if( !A.trackIDs && AN )
+			A.trackIDs = _getTrackIds( AN );
 		
 		Vec3 P = V3(0), S = V3(1);
 		Quat R = Quat::Identity;
@@ -458,7 +461,7 @@ void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
 {
 	if( !once && m_currentAnims.size() && m_currentAnims.last().once == false && m_currentAnims.last().anim == anim )
 		return; // ignore repetitive invocations
-	Anim A = { anim, _getTrackIds( anim ), 0, 0, 0, fadetime, 1, once };
+	Anim A = { anim, NULL, 0, 0, 0, fadetime, 1, once };
 	m_currentAnims.push_back( A );
 }
 

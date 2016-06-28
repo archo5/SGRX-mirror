@@ -807,6 +807,14 @@ void PostViewUI()
 	ImGui::SameLine(); ImGui::Text( "]" );
 	ImGui::PopStyleVar();
 	
+	if( g_AnimCharInst->skinName.size() == 0 )
+	{
+		ImGui::Text( "Warning! Empty skin selected." );
+		ImGui::SameLine();
+		if( ImGui::Button( "Reset to default" ) )
+			g_AnimCharInst->SetSkin( "!default" );
+	}
+	
 	idl->PopClipRect();
 }
 
@@ -1375,11 +1383,14 @@ static void EditSkins( HashTable< StringView, AnimCharacter::Skin >& skins )
 	{
 		AnimCharacter::Skin& SK = *items[ i ];
 		
+		ImGui::PushID( &SK );
+		
+		ImVec2 cp_before = ImGui::GetCursorPos();
+		float width = ImGui::GetContentRegionAvail().x;
+		
 		if( ImGui::TreeNode( &SK, "Skin: %s => %s",
 			SK.name.c_str(), SK.mesh.c_str() ) )
 		{
-			ImVec2 cp_before = ImGui::GetCursorPos();
-			float width = ImGui::GetContentRegionAvail().x;
 			
 			// CANNOT EDIT IT THIS WAY
 		//	IMGUIEditString( "Name", SK.name, 256 );
@@ -1395,22 +1406,24 @@ static void EditSkins( HashTable< StringView, AnimCharacter::Skin >& skins )
 				g_NUIMeshPicker->Popup( caption, SK.mesh );
 			}
 			
-			ImVec2 cp_after = ImGui::GetCursorPos();
-			ImGui::SetCursorPos( cp_before + ImVec2( width - 60, 0 ) );
-			if( ImGui::Button( "[set]", ImVec2( 30, 14 ) ) )
-			{
-				g_AnimCharInst->SetSkin( SK.name );
-			}
-			ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
-			if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
-			{
-				RCString name = SK.name;
-				skins.unset( name );
-			}
-			ImGui::SetCursorPos( cp_after );
-			
 			ImGui::TreePop();
 		}
+		
+		ImVec2 cp_after = ImGui::GetCursorPos();
+		ImGui::SetCursorPos( cp_before + ImVec2( width - 60, 0 ) );
+		if( ImGui::Button( "[set]", ImVec2( 30, 14 ) ) )
+		{
+			g_AnimCharInst->SetSkin( SK.name );
+		}
+		ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
+		if( ImGui::Button( "[del]", ImVec2( 30, 14 ) ) )
+		{
+			RCString name = SK.name;
+			skins.unset( name );
+		}
+		ImGui::SetCursorPos( cp_after );
+		
+		ImGui::PopID();
 	}
 	
 	// create new
@@ -2675,6 +2688,21 @@ struct CharEditor : IGame
 									StackPath(PNRT->current_state ? PNRT->current_state->GetName() : "<none>").str );
 							}
 						}
+					});
+					IMGUI_GROUP( "Skin", false,
+					{
+						ImGui::ListBoxHeader( "skin" );
+						if( ImGui::Selectable( "<empty>", g_AnimCharInst->skinName == SV("") ) )
+							g_AnimCharInst->SetSkin( "" );
+						if( ImGui::Selectable( "<default>", g_AnimCharInst->skinName == SV("!default") ) )
+							g_AnimCharInst->SetSkin( "!default" );
+						for( size_t i = 0; i < g_AnimChar->skins.size(); ++i )
+						{
+							AnimCharacter::Skin& SK = g_AnimChar->skins.item( i ).value;
+							if( ImGui::Selectable( SK.name.c_str(), g_AnimCharInst->skinName == SK.name ) )
+								g_AnimCharInst->SetSkin( SK.name );
+						}
+						ImGui::ListBoxFooter();
 					});
 					for( size_t i = 0; i < g_AnimChar->variables.size(); ++i )
 					{

@@ -838,8 +838,8 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharInst : IMeshRaycast, MEVariableInterface
 	void SetSkin( StringView name );
 	
 	// internal construction helpers
-	ENGINE_EXPORT void _OnRenderUpdate();
-	ENGINE_EXPORT void _Prepare();
+	ENGINE_EXPORT void _OnRenderUpdate( bool skinOnly = false );
+	ENGINE_EXPORT void _Prepare( bool skinOnly = false );
 	ENGINE_EXPORT void _EquipAnimator( Animator* anim, int which );
 	ENGINE_EXPORT void _PrepareSpecialVariables( NodeRT* n );
 	ENGINE_EXPORT void _RecalcBoneIDs();

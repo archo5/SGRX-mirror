@@ -2080,9 +2080,9 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 		return StringView( m_str + start, count );
 	}
 	
-	FINLINE StringView from( const StringView& substr ) const
+	FINLINE StringView from( const StringView& substr, size_t from = 0 ) const
 	{
-		size_t pos = find_first_at( substr, 0, m_size );
+		size_t pos = find_first_at( substr, from, m_size );
 		return StringView( m_str + pos, m_size - pos );
 	}
 	FINLINE StringView after( const StringView& substr ) const
@@ -2092,9 +2092,9 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 		size_t pos = find_first_at( substr, 0, m_size - substr.m_size ) + substr.m_size;
 		return StringView( m_str + pos, m_size - pos );
 	}
-	FINLINE StringView until( const StringView& substr ) const
+	FINLINE StringView until( const StringView& substr, size_t from = 0 ) const
 	{
-		size_t pos = find_first_at( substr, 0, m_size );
+		size_t pos = find_first_at( substr, from, m_size );
 		return StringView( m_str, pos );
 	}
 	FINLINE StringView until_last( const StringView& substr ) const

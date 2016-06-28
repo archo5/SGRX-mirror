@@ -1358,7 +1358,7 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 	if( !key )
 		return false;
 	
-	StringView path = key.until( ":" );
+	StringView path = key.until( ":", 1 );
 	
 	if( !FS_LoadBinaryFile( path, outdata ) )
 		return false;

@@ -1341,10 +1341,10 @@ void AnimCharInst::SetAnimChar( AnimCharacter* ch )
 void AnimCharInst::SetSkin( StringView name )
 {
 	skinName = name;
-	_OnRenderUpdate();
+	_OnRenderUpdate( true );
 }
 
-void AnimCharInst::_OnRenderUpdate()
+void AnimCharInst::_OnRenderUpdate( bool skinOnly )
 {
 	AnimCharacter::Skin* skin;
 	if( animChar && skinName == SV("!default") )
@@ -1355,46 +1355,49 @@ void AnimCharInst::_OnRenderUpdate()
 		m_cachedMesh = NULL;
 	m_cachedMeshInst->SetMesh( m_cachedMesh );
 	m_cachedMeshInst->skin_matrices.resize( m_cachedMesh.GetBoneCount() );
-	_RecalcBoneIDs();
-	_Prepare();
-	m_anRagdoll.Initialize( this );
 	m_cachedMeshInst->raycastOverride = m_cachedMesh.GetBoneCount() ? this : NULL;
+	_RecalcBoneIDs();
+	_Prepare( skinOnly );
+	m_anRagdoll.Initialize( this );
 }
 
-void AnimCharInst::_Prepare()
+void AnimCharInst::_Prepare( bool skinOnly )
 {
-	// prepare variable storage & initial data
-	m_rtnodes.clear();
-	if( animChar )
+	if( !skinOnly ) // no need to reset variables / nodes on skin change
 	{
-		m_values.resize( 6 + animChar->variables.size() + animChar->aliases.size() );
-		for( size_t i = 0; i < animChar->variables.size(); ++i )
-			m_values[ ANIMCHAR_VAR_VOFF + i ] = animChar->variables[ i ]->value;
-		
-		for( size_t i = 0; i < animChar->nodes.size(); ++i )
+		// prepare variable storage & initial data
+		m_rtnodes.clear();
+		if( animChar )
 		{
-			AnimCharacter::Node* N = animChar->nodes[ i ];
-			NodeRT* NRT = NULL;
-			switch( N->type )
+			m_values.resize( 6 + animChar->variables.size() + animChar->aliases.size() );
+			for( size_t i = 0; i < animChar->variables.size(); ++i )
+				m_values[ ANIMCHAR_VAR_VOFF + i ] = animChar->variables[ i ]->value;
+			
+			for( size_t i = 0; i < animChar->nodes.size(); ++i )
 			{
-			case AnimCharacter::NT_Player: {
-				SGRX_CAST( AnimCharacter::PlayerNode*, PN, N );
-				PlayerNodeRT* PNRT = new PlayerNodeRT;
-				PNRT->current_state = PN->starting_state;
-				NRT = PNRT;
-			} break;
-			case AnimCharacter::NT_Blend: NRT = new BlendNodeRT; break;
-			case AnimCharacter::NT_Ragdoll: NRT = new RagdollNodeRT; break;
-			case AnimCharacter::NT_Mask: NRT = new MaskNodeRT; break;
-			case AnimCharacter::NT_RelAbs: NRT = new RelAbsNodeRT; break;
-			case AnimCharacter::NT_Rotator: NRT = new RotatorNodeRT; break;
+				AnimCharacter::Node* N = animChar->nodes[ i ];
+				NodeRT* NRT = NULL;
+				switch( N->type )
+				{
+				case AnimCharacter::NT_Player: {
+					SGRX_CAST( AnimCharacter::PlayerNode*, PN, N );
+					PlayerNodeRT* PNRT = new PlayerNodeRT;
+					PNRT->current_state = PN->starting_state;
+					NRT = PNRT;
+				} break;
+				case AnimCharacter::NT_Blend: NRT = new BlendNodeRT; break;
+				case AnimCharacter::NT_Ragdoll: NRT = new RagdollNodeRT; break;
+				case AnimCharacter::NT_Mask: NRT = new MaskNodeRT; break;
+				case AnimCharacter::NT_RelAbs: NRT = new RelAbsNodeRT; break;
+				case AnimCharacter::NT_Rotator: NRT = new RotatorNodeRT; break;
+				}
+				NRT->src = N;
+				m_rtnodes.push_back( NRT );
 			}
-			NRT->src = N;
-			m_rtnodes.push_back( NRT );
 		}
+		else m_values.resize( 6 );
+		_PrepareSpecialVariables( NULL );
 	}
-	else m_values.resize( 6 );
-	_PrepareSpecialVariables( NULL );
 	
 	// count animators
 	int num_animators = 2; // ragdoll, end
@@ -1422,7 +1425,8 @@ void AnimCharInst::_Prepare()
 	}
 	
 	// link & set up masks
-	m_anEnd.animSource = NULL;
+	if( !skinOnly )
+		m_anEnd.animSource = NULL;
 	for( size_t i = 0; i < m_rtnodes.size(); ++i )
 	{
 		NodeRT* NRT = m_rtnodes[ i ];
@@ -1432,23 +1436,26 @@ void AnimCharInst::_Prepare()
 			SGRX_CAST( MaskNodeRT*, MNRT, NRT );
 			animChar->ApplyMask( m_cachedMesh, MN->mask_name, &MNRT->mask_anim );
 		}
-		for( int l = 0; l < m_rtnodes[ i ]->src->GetInputLinkCount(); ++l )
+		if( !skinOnly ) // no need to relink animators on skin change
 		{
-			const SGRX_GUID* pguid = m_rtnodes[ i ]->src->GetInputLink( l );
-			Animator** panim = m_rtnodes[ i ]->GetInputSource( l );
-			
-			// -- iterate nodes to find one with matching GUID
-			for( size_t j = 0; j < m_rtnodes.size(); ++j )
+			for( int l = 0; l < m_rtnodes[ i ]->src->GetInputLinkCount(); ++l )
 			{
-				if( m_rtnodes[ j ]->src->guid == *pguid )
+				const SGRX_GUID* pguid = m_rtnodes[ i ]->src->GetInputLink( l );
+				Animator** panim = m_rtnodes[ i ]->GetInputSource( l );
+				
+				// -- iterate nodes to find one with matching GUID
+				for( size_t j = 0; j < m_rtnodes.size(); ++j )
 				{
-					*panim = m_rtnodes[ j ]->GetAnimator( this );
-					break;
+					if( m_rtnodes[ j ]->src->guid == *pguid )
+					{
+						*panim = m_rtnodes[ j ]->GetAnimator( this );
+						break;
+					}
 				}
 			}
+			if( m_rtnodes[ i ]->src == animChar->output_node )
+				m_anEnd.animSource = m_rtnodes[ i ]->GetAnimator( this );
 		}
-		if( m_rtnodes[ i ]->src == animChar->output_node )
-			m_anEnd.animSource = m_rtnodes[ i ]->GetAnimator( this );
 	}
 }
 
