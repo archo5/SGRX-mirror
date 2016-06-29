@@ -1319,6 +1319,7 @@ AnimCharInst::AnimCharInst( SceneHandle sh, PhyWorldHandle phyWorld ) :
 	
 	m_cachedMeshInst = m_scene->CreateMeshInstance();
 	m_cachedMeshInst->raycastOverride = this;
+	skinName = "!default";
 	
 	_Prepare();
 }

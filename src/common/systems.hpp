@@ -397,6 +397,11 @@ EXP_STRUCT AIFact
 	SGS_PROPERTY TimeVal expires;
 };
 
+struct AICharInfo
+{
+	float suspicion;
+};
+
 EXP_STRUCT AIFactDistance
 {
 	GFW_EXPORT virtual float GetDistance( const AIFact& fact ) = 0;
@@ -424,7 +429,12 @@ EXP_STRUCT AIFactStorage
 	GFW_EXPORT void CustomInsertOrUpdate( AIFactDistance& distfn, uint32_t type,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	
+	AICharInfo& GetChar( GameObject* obj ){
+		return charInfo[ GameObject::ScrHandle( obj ) ]; }
+	
 	Array< AIFact > facts;
+	HashTable< GameObject::ScrHandle, AICharInfo > charInfo;
+	
 	TimeVal m_lastTime;
 	uint32_t last_mod_id;
 	uint32_t m_next_fact_id;

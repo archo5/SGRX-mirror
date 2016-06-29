@@ -21,6 +21,7 @@
 
 
 inline Hash HashVar( const sgsString& s ){ return HashVar( StringView( s.c_str(), s.size() ) ); }
+template< class T > inline Hash HashVar( const sgsHandle<T>& h ){ return HashVar( h.object ); }
 
 SGS_DECL_DUMPDATA_INT( String );
 template<> inline void sgs_PushVar<String>( SGS_CTX, const String& v ){ sgs_PushStringBuf( C, v.data(), (sgs_SizeVal) v.size() ); }
