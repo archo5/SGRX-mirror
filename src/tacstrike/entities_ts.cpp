@@ -238,7 +238,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_ivPos( V3(0) ), m_ivAimDir( V3(1,0,0) ),
 	m_turnAngle( 0 ),
 	m_aimDir( YP(V3(1,0,0)) ), m_aimDist( 1 ),
-	m_infoFlags( IEST_HeatSource ),
+	m_infoFlags( IEST_HeatSource | IEST_Target ), m_group( 0 ),
 	m_pickupTrigger( false ),
 	m_skipTransformUpdate( false )
 {
@@ -303,15 +303,6 @@ void TSCharacter::OnTransformUpdate()
 	Vec3 pos = m_obj->GetWorldPosition();
 	m_bodyHandle->SetPosition( pos );
 	m_ivPos.Set( pos );
-}
-
-void TSCharacter::SetPlayerMode( bool isPlayer )
-{
-	if( isPlayer )
-		m_infoFlags = ( m_infoFlags & ~IEST_Target ) | IEST_Player;
-	else
-		m_infoFlags = ( m_infoFlags & ~IEST_Player ) | IEST_Target;
-	ownerType = isPlayer ? GAT_Player : GAT_Enemy;
 }
 
 void TSCharacter::InitializeMesh( const StringView& path )
@@ -707,9 +698,6 @@ void TSCharacter::PushTo( const Vec3& pos, float speedDelta )
 
 void TSCharacter::BeginClosestAction( float maxdist )
 {
-	if( IsInAction() )
-		return;
-	
 	Vec3 QP = GetQueryPosition_FT();
 	GameObjectGather iact_gather;
 	m_level->QuerySphere( &iact_gather, IEST_InteractiveItem, QP, 5 );
@@ -721,47 +709,11 @@ void TSCharacter::BeginClosestAction( float maxdist )
 	}
 }
 
-bool TSCharacter::BeginAction( GameObject* obj )
+void TSCharacter::BeginAction( GameObject* obj )
 {
-	if( !obj || IsInAction() )
-		return false;
-	
-#if 0
-	IInteractiveEntity* IE = obj->GetInterface<IInteractiveEntity>();
-	if( IE == NULL || IE->GetInteractionInfo( GetQueryPosition_FT(), &m_actState.info ) == false )
-		return false;
-	
-	m_actState.timeoutMoveToStart = 1;
-	m_actState.progress = 0;
-	m_actState.target = obj;
-	return true;
-#endif
-	
-	obj->SendMessage( "OnInteract", m_obj->GetScriptedObject() );
-	return true;
-}
-
-bool TSCharacter::IsInAction()
-{
-	return m_actState.target != NULL;
-}
-
-bool TSCharacter::CanInterruptAction()
-{
-	if( IsInAction() == false )
-		return false;
-	
-	IInteractiveEntity* IE = m_actState.target->GetInterface<IInteractiveEntity>();
-	return IE && IE->CanInterruptAction( m_actState.progress );
-}
-
-void TSCharacter::InterruptAction( bool force )
-{
-	if( force == false && CanInterruptAction() == false )
+	if( !obj )
 		return;
-	
-	m_actState.progress = 0;
-	m_actState.target = NULL;
+	obj->SendMessage( "OnInteract", m_obj->GetScriptedObject() );
 }
 
 bool TSCharacter::IsTouchingPoint( Vec3 p, float hmargin, float vmargin ) const

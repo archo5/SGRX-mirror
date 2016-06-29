@@ -211,6 +211,7 @@ EXP_STRUCT Transform
 
 struct EditorEntity
 {
+	sgsVariable sysParams;
 	StringView type;
 	sgsVariable props;
 };
@@ -218,7 +219,7 @@ struct EditorEntity
 struct IF_GCC(GFW_EXPORT) IEditorSystemCompiler
 {
 	virtual ~IEditorSystemCompiler();
-	virtual bool GenerateChunk( ByteArray& out ){ return false; }
+	virtual bool GenerateChunk( ByteArray& out, sgsVariable sysParams ){ return false; }
 	virtual void ProcessEntity( EditorEntity& ent ) = 0;
 	
 	GFW_EXPORT void WrapChunk( ByteArray& chunk, const char id[4] );

@@ -573,7 +573,7 @@ void IEditorSystemCompiler::WrapChunk( ByteArray& chunk, const char id[4] )
 
 struct GameLevelSystemCompiler : IEditorSystemCompiler
 {
-	bool GenerateChunk( ByteArray& out )
+	bool GenerateChunk( ByteArray& out, sgsVariable sysParams )
 	{
 		ByteWriter bw( &out );
 		bw << markers;

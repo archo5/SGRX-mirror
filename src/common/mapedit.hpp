@@ -25,7 +25,8 @@
 // v7: added dynamic lights
 // v8: added mesh paths
 // v9: separated patch/path LM/physics solidity
-#define MAP_FILE_VERSION 9
+// v10: added systems parameters
+#define MAP_FILE_VERSION 10
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -1673,6 +1674,7 @@ struct EdWorld
 	LC_Light GetDirLightInfo();
 	
 	void EditUI();
+	void SystemsParamsUI();
 	
 	void VertEditUI( EdObjIdx idx, size_t vid )
 	{
@@ -1714,6 +1716,7 @@ struct EdWorld
 	
 	EdWorldBasicInfo m_info;
 	EdWorldLightingInfo m_lighting;
+	sgsVariable m_systemsParams;
 };
 
 inline void World_AddObject( EdObject* obj ){ g_EdWorld->AddObject( obj ); }

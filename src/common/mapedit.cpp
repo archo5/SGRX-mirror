@@ -586,7 +586,39 @@ void EdWorldLightingInfo::EditUI()
 void EdWorld::EditUI()
 {
 	m_info.EditUI();
+	SystemsParamsUI();
 	m_lighting.EditUI();
+}
+
+void EdWorld::SystemsParamsUI()
+{
+	sgsVariable gui = g_Level->GetScriptCtx().GetGlobal( "ED_IMGUI" );
+	IMGUI_GROUP_BEGIN( "Systems", true )
+	{
+		ScriptVarIterator it( g_Level->GetScriptCtx().GetGlobal( "ED_SYSTEM_TYPES" ) );
+		while( it.Advance() )
+		{
+			sgsVariable key = it.GetKey();
+			
+			// data
+			sgsVariable data = m_systemsParams.getprop( key );
+			if( data.not_null() == false )
+			{
+				data = FNewDict();
+				m_systemsParams.setprop( key, data );
+			}
+			
+			sgsString name = key.get_string();
+			sgsVariable func = it.GetValue();
+			IMGUI_GROUP_BEGIN( name.c_str(), false )
+			{
+				gui.push( g_Level->GetSGSC() );
+				data.thiscall( g_Level->GetSGSC(), func, 1 );
+			}
+			IMGUI_GROUP_END;
+		}
+	}
+	IMGUI_GROUP_END;
 }
 
 
@@ -596,6 +628,7 @@ EdWorld::EdWorld() :
 	m_vd = GR_GetVertexDecl( LCVertex_DECL );
 	
 	ReconfigureEntities( "" );
+	Reset();
 	TestData();
 }
 
@@ -618,6 +651,9 @@ void EdWorld::FLoad( sgsVariable obj )
 	
 	m_info.FLoad( obj.getprop("info") );
 	m_lighting.FLoad( obj.getprop("lighting") );
+	m_systemsParams = obj.getprop("systems");
+	if( m_systemsParams.not_null() == false )
+		m_systemsParams = FNewDict();
 	
 	sgsVariable objects = obj.getprop("objects");
 	{
@@ -688,6 +724,7 @@ sgsVariable EdWorld::FSave()
 	FSaveProp( out, "id", m_nextID );
 	out.setprop( "info", m_info.FSave() );
 	out.setprop( "lighting", m_lighting.FSave() );
+	out.setprop( "systems", m_systemsParams );
 	out.setprop( "objects", objects );
 	
 	return out;
@@ -705,6 +742,7 @@ void EdWorld::Reset()
 	m_nextID = 0;
 	m_info = EdWorldBasicInfo();
 	m_lighting = EdWorldLightingInfo();
+	m_systemsParams = FNewDict();
 	if( g_UIFrame )
 		g_UIFrame->OnDeleteObjects();
 }
@@ -1829,10 +1867,13 @@ void EdMainFrame::Level_Real_Compile_Default()
 		SGRX_CAST( EdEntity*, E, O );
 		EditorEntity EE =
 		{
+			// sys. params
+			g_EdWorld->m_systemsParams,
 			// type
 			StringView( E->m_entityType.c_str(), E->m_entityType.size() ),
 			// props
 			E->m_data,
+			
 		};
 		
 		// HARDCODED :(
@@ -1905,7 +1946,8 @@ void EdMainFrame::Level_Real_Compile_Default()
 	for( size_t i = 0; i < ESCs.size(); ++i )
 	{
 		ByteArray chunk;
-		if( ESCs[ i ]->GenerateChunk( chunk ) && chunk.size() )
+		if( ESCs[ i ]->GenerateChunk( chunk, g_EdWorld->m_systemsParams ) &&
+			chunk.size() )
 			lcache.m_chunkData.append( chunk );
 		
 		SAFE_DELETE( ESCs[ i ] );

@@ -90,22 +90,9 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	ENT_SGS_IMPLEMENT;
 	IMPLEMENT_BEHAVIOR( TSCharacter );
 	
-	struct ActionState
-	{
-		ActionState() : timeoutMoveToStart(0), timeoutEnding(0),
-			progress(0), target(NULL){}
-		
-		float timeoutMoveToStart;
-		float timeoutEnding;
-		float progress;
-		GameObject* target;
-		InteractInfo info;
-	};
-	
 	TSCharacter( GameObject* obj );
 	~TSCharacter();
 	virtual void OnTransformUpdate();
-	SGS_METHOD void SetPlayerMode( bool isPlayer );
 	SGS_METHOD void InitializeMesh( const StringView& path );
 	void ProcessAnims( float deltaTime );
 	void FixedUpdate();
@@ -115,10 +102,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	void TurnTo( const Vec2& turnDir, float speedDelta );
 	void PushTo( const Vec3& pos, float speedDelta );
 	void BeginClosestAction( float maxdist );
-	bool BeginAction( GameObject* obj );
-	bool IsInAction();
-	bool CanInterruptAction();
-	void InterruptAction( bool force );
+	void BeginAction( GameObject* obj );
 	
 	SGS_METHOD bool IsTouchingPoint( Vec3 p, float hmargin, float vmargin ) const;
 	Vec3 GetMoveRefPos() const;
@@ -184,8 +168,8 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	YawPitch m_aimDir;
 	float m_aimDist;
 	
-	ActionState m_actState;
 	uint32_t m_infoFlags;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME group ) uint32_t m_group;
 	
 	bool m_pickupTrigger;
 	

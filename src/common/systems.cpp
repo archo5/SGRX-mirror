@@ -1418,7 +1418,7 @@ struct LC_Chunk_AIRM
 
 struct LC_AIDB_Compiler : IEditorSystemCompiler
 {
-	bool GenerateChunk( ByteArray& out )
+	bool GenerateChunk( ByteArray& out, sgsVariable sysParams )
 	{
 		ByteWriter bw( &out );
 		bw << data;
@@ -2084,7 +2084,7 @@ struct LC_Chunk_COVR
 
 struct LC_CoverSys_Compiler : IEditorSystemCompiler
 {
-	bool GenerateChunk( ByteArray& out )
+	bool GenerateChunk( ByteArray& out, sgsVariable sysParams )
 	{
 		ByteWriter bw( &out );
 		bw << data;

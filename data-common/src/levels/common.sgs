@@ -41,6 +41,16 @@ function PropInfo_Entity( eptr )
 
 
 //
+// System extension functions
+//
+global ED_SYSTEM_TYPES = {};
+function ED_SYSTEM_TYPES.AIDBSystem( ui )
+{
+	ui.EditFlag( "Is player", this, "defaultRestrictions", 0x01 );
+}
+
+
+//
 // Game object extension functions
 //
 function BEHAVIOR( name, inhname )
