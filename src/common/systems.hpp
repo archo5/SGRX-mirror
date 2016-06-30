@@ -408,6 +408,16 @@ EXP_STRUCT AIZoneInfo
 	
 	uint32_t restrictedGroups;
 	float suspicionFactor;
+	int32_t priority;
+	Mat4 invBBXF;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << restrictedGroups;
+		arch << suspicionFactor;
+		arch << priority;
+		arch << invBBXF;
+	}
 };
 
 EXP_STRUCT AIFactDistance
@@ -460,6 +470,7 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	AISound GetSoundInfo( int i ){ return m_sounds[ i ]; }
 	
 	GFW_EXPORT AIDBSystem( GameLevel* lev );
+	GFW_EXPORT void Clear();
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
 	GFW_EXPORT IEditorSystemCompiler* EditorGetSystemCompiler();
 	GFW_EXPORT void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
@@ -473,6 +484,9 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	SGRX_Pathfinder m_pathfinder;
 	Array< AISound > m_sounds;
 	HashTable< StringView, AIRoomHandle > m_rooms;
+	Array< AIZoneInfo > m_zones;
+	uint32_t m_defaultRestrictedGroups;
+	float m_defaultSuspicionFactor;
 	AIFactStorage m_globalFacts;
 	
 	GFW_EXPORT SGS_METHOD_NAMED( AddSound ) void sgsAddSound( Vec3 pos, float rad, float timeout, int type );

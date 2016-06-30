@@ -1416,13 +1416,66 @@ struct LC_Chunk_AIRM
 	}
 };
 
+#define LC_FILE_AIZN_NAME "AIZN"
+#define LC_FILE_AIZN_VERSION 0
+struct LC_Chunk_AIZN
+{
+	uint32_t* defRestrict;
+	float* defSuspicion;
+	Array< AIZoneInfo >* zones;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_AIZN_VERSION );
+		svh << *defRestrict;
+		svh << *defSuspicion;
+		svh << *zones;
+	}
+	static int _PrioPred( const void* a, const void* b )
+	{
+		SGRX_CAST( AIZoneInfo*, za, a );
+		SGRX_CAST( AIZoneInfo*, zb, b );
+		return za->priority != zb->priority ? ( za->priority < zb->priority ? 1 : -1 ) : 0;
+	}
+	void SortZones()
+	{
+		qsort( zones->data(), zones->size(), sizeof(AIZoneInfo), _PrioPred );
+	}
+};
+
 struct LC_AIDB_Compiler : IEditorSystemCompiler
 {
+	LC_AIDB_Compiler()
+	{
+		aizn.defRestrict = &aizn_defRestrict;
+		aizn.defSuspicion = &aizn_defSuspicion;
+		aizn.zones = &aizn_zones;
+	}
 	bool GenerateChunk( ByteArray& out, sgsVariable sysParams )
 	{
-		ByteWriter bw( &out );
-		bw << data;
-		WrapChunk( out, LC_FILE_AIRM_NAME );
+		// room chunk
+		{
+			ByteArray ch_airm;
+			ByteWriter bw( &ch_airm );
+			bw << airm;
+			WrapChunk( ch_airm, LC_FILE_AIRM_NAME );
+			out.append( ch_airm );
+		}
+		
+		// zone chunk
+		{
+			aizn.SortZones();
+			aizn_defRestrict = sysParams.getprop("AIDBSystem")
+				.getprop("defaultRestrictions").get<uint32_t>();
+			aizn_defSuspicion = sysParams.getprop("AIDBSystem")
+				.getprop("defaultSuspicionFactor").get<float>();
+			ByteArray ch_aizn;
+			ByteWriter bw( &ch_aizn );
+			bw << aizn;
+			WrapChunk( ch_aizn, LC_FILE_AIZN_NAME );
+			out.append( ch_aizn );
+		}
+		
 		return true;
 	}
 	void ProcessEntity( EditorEntity& ent )
@@ -1439,12 +1492,33 @@ struct LC_AIDB_Compiler : IEditorSystemCompiler
 				ent.props.getprop("negative").get<bool>(),
 				ent.props.getprop("cellSize").get<float>(),
 			};
-			data.rooms.push_back( room );
+			airm.rooms.push_back( room );
+			return;
+		}
+		if( ent.type == "AIZone" )
+		{
+			AIZoneInfo zi =
+			{
+				ent.props.getprop("restrictedGroups").get<uint32_t>(),
+				ent.props.getprop("suspicionFactor").get<float>(),
+				ent.props.getprop("priority").get<int32_t>(),
+				Mat4::CreateSRT(
+					ent.props.getprop("scale").get<Vec3>(),
+					DEG2RAD( ent.props.getprop("rotationXYZ").get<Vec3>() ),
+					ent.props.getprop("position").get<Vec3>()
+				).Inverted()
+			};
+			aizn_zones.push_back( zi );
 			return;
 		}
 	}
 	
-	LC_Chunk_AIRM data;
+	LC_Chunk_AIRM airm;
+	
+	LC_Chunk_AIZN aizn;
+	uint32_t aizn_defRestrict;
+	float aizn_defSuspicion;
+	Array< AIZoneInfo > aizn_zones;
 };
 
 
@@ -1472,6 +1546,18 @@ AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
+	
+	Clear();
+}
+
+void AIDBSystem::Clear()
+{
+	m_sounds.clear();
+	m_rooms.clear();
+	m_zones.clear();
+	m_globalFacts.Clear();
+	m_defaultRestrictedGroups = 1;
+	m_defaultSuspicionFactor = 1000;
 }
 
 bool AIDBSystem::CanHearSound( Vec3 pos, int i )
@@ -1503,6 +1589,17 @@ bool AIDBSystem::LoadChunk( const StringView& type, ByteView data )
 				airm.rooms[ i ].cell_size
 			);
 		}
+		return true;
+	}
+	if( type == LC_FILE_AIZN_NAME )
+	{
+		LOG_FUNCTION_ARG( "AIZN chunk" );
+		LC_Chunk_AIZN aizn;
+		aizn.defRestrict = &m_defaultRestrictedGroups;
+		aizn.defSuspicion = &m_defaultSuspicionFactor;
+		aizn.zones = &m_zones;
+		ByteReader br( data );
+		br << aizn;
 		return true;
 	}
 	return false;
@@ -1548,9 +1645,17 @@ AIRoom* AIDBSystem::FindRoomByPos( Vec3 pos )
 
 AIZoneInfo AIDBSystem::GetZoneInfoByPos( Vec3 pos )
 {
+	for( size_t i = 0; i < m_zones.size(); ++i )
+	{
+		Vec3 p = m_zones[ i ].invBBXF.TransformPos( pos );
+		if( p.x >= -1 && p.x <= 1 &&
+			p.y >= -1 && p.y <= 1 &&
+			p.z >= -1 && p.z <= 1 )
+			return m_zones[ i ];
+	}
 	AIZoneInfo zi = {0};
-	zi.restrictedGroups = 0xffffffff;
-	zi.suspicionFactor = 1;
+	zi.restrictedGroups = m_defaultRestrictedGroups;
+	zi.suspicionFactor = m_defaultSuspicionFactor;
 	return zi;
 }
 

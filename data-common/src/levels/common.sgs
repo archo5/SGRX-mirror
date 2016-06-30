@@ -46,7 +46,11 @@ function PropInfo_Entity( eptr )
 global ED_SYSTEM_TYPES = {};
 function ED_SYSTEM_TYPES.AIDBSystem( ui )
 {
-	ui.EditFlag( "Is player", this, "defaultRestrictions", 0x01 );
+	@(this.defaultRestrictions ??= 0x1);
+	@(this.defaultSuspicionFactor ??= 1000);
+	
+	ui.EditFlag( "Restricted - player", this, "defaultRestrictions", 0x01 );
+	ui.EditFloat( "Default suspicion factor", this, "defaultSuspicionFactor", 0, 100000 );
 }
 
 
@@ -436,6 +440,31 @@ function AIRoom.EditorDrawWorld()
 			}
 		}
 	}
+}
+
+
+global AIZone = {};
+ENTITY( "AIZone" );
+function AIZone.Init()
+{
+	this.restrictedGroups = 1;
+	this.suspicionFactor = 1;
+	this.priority = 0;
+}
+
+AIZone.ED_Icon = "editor/icons/trigger.png";
+function AIZone.ED_PropInfo( eptr )
+{
+	PropInfo_XForm( eptr );
+	EE_AddFieldInt( eptr, "restrictedGroups", "Restricted groups", 1 );
+	EE_AddFieldFloat( eptr, "suspicionFactor", "Suspicion factor", 1, 2, 0, 100000 );
+	EE_AddFieldInt( eptr, "priority", "Priority", 0 );
+}
+function AIZone.EditorDrawWorld()
+{
+	BR_Reset();
+	BR_Col( 0.9, 0.9, 0.7, 0.8 );
+	BR_AABB( -1, 1, this.get_transform() );
 }
 
 

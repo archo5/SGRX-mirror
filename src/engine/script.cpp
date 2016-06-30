@@ -219,6 +219,21 @@ static int BR_Reset( SGS_CTX )
 	GR2D_GetBatchRenderer().Reset();
 	return 0;
 }
+static int BR_Flush( SGS_CTX )
+{
+	SGSFN( "BR_Flush" );
+	GR2D_GetBatchRenderer().Flush();
+	return 0;
+}
+static int BR_SetZEnable( SGS_CTX )
+{
+	sgs_Bool b;
+	SGSFN( "BR_SetZEnable" );
+	if( !sgs_LoadArgs( C, "b", &b ) )
+		return 0;
+	GR2D_GetBatchRenderer().RenderState.depthEnable = b != 0;
+	return 0;
+}
 static int BR_Col( SGS_CTX )
 {
 	float v[4] = {0,0,0,1};
@@ -307,6 +322,8 @@ static int BR_SetPrimitiveType( SGS_CTX )
 static sgs_RegFuncConst g_batchrenderer_rfc[] =
 {
 	{ "BR_Reset", BR_Reset },
+	{ "BR_Flush", BR_Flush },
+	{ "BR_SetZEnable", BR_SetZEnable },
 	{ "BR_Col", BR_Col },
 	{ "BR_Pos", BR_Pos },
 	{ "BR_SphereOutline", BR_SphereOutline },

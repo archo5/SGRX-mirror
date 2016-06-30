@@ -1201,6 +1201,10 @@ struct EPEnemyViewProc : GameObjectProcessor
 	EPEnemyViewProc() : sawEnemy(false){}
 	bool ProcessGameObject( GameObject* obj )
 	{
+		// exclude self
+		if( obj == enemy->m_obj )
+			return true;
+		
 		AIFactStorage& FS = enemy->m_factStorage;
 		AIDBSystem* aidb = enemy->m_aidb;
 		TSCharacter* mychr = enemy->GetChar();
@@ -1505,18 +1509,9 @@ bool TSEnemyController::CanSeePoint( Vec3 pt )
 	if( view2pos.ToVec2().Length() < 0.5f && fabsf( view2pos.z ) < 1 )
 		return true;
 	
-	// increase vertical FOV
-//	viewdir.z *= 0.5f;
-//	view2pos.z *= 0.5f;
-	// reduce vertical FOV upwards
-	if( view2pos.z > 0 )
-	{
-		viewdir.z *= 4;
-		view2pos.z *= 4;
-	}
-	
+	float coneAngle = clamp( 70.0f - powf( (view2pos*V3(1,1,2)).Length(), 0.9f ) * 5.2f, 0, 90 );
 	float vpdot = Vec3Dot( viewdir.Normalized(), view2pos.Normalized() );
-	if( vpdot < cosf(DEG2RAD(40.0f)) )
+	if( vpdot <= cosf(DEG2RAD(coneAngle)) )
 		return false; // outside view cone
 	
 	if( m_level->GetPhyWorld()->Raycast( vieworigin, pt, 1, 1 ) )
