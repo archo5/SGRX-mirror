@@ -397,9 +397,17 @@ EXP_STRUCT AIFact
 	SGS_PROPERTY TimeVal expires;
 };
 
-struct AICharInfo
+EXP_STRUCT AICharInfo
 {
 	float suspicion;
+};
+
+EXP_STRUCT AIZoneInfo
+{
+	SGS_OBJECT_LITE;
+	
+	uint32_t restrictedGroups;
+	float suspicionFactor;
 };
 
 EXP_STRUCT AIFactDistance
@@ -457,6 +465,7 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	GFW_EXPORT void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	GFW_EXPORT void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
 	GFW_EXPORT AIRoom* FindRoomByPos( Vec3 pos );
+	GFW_EXPORT AIZoneInfo GetZoneInfoByPos( Vec3 pos );
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	GFW_EXPORT void FixedTick( float deltaTime );
 	GFW_EXPORT void DebugDrawWorld();
@@ -470,17 +479,18 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	
 	GFW_EXPORT SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
 	GFW_EXPORT SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
-	GFW_EXPORT SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( uint32_t typemask, TimeVal maxtime );
 	GFW_EXPORT SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
-	GFW_EXPORT SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+	GFW_EXPORT SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( uint32_t type, Vec3 pos,
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	GFW_EXPORT SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact( sgs_Context* coro,
+	GFW_EXPORT SGS_METHOD_NAMED( InsertOrUpdateFact ) void sgsInsertOrUpdateFact(
 		uint32_t type, Vec3 pos, float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
-	GFW_EXPORT SGS_MULTRET sgsPushRoom( sgs_Context* coro, AIRoom* room );
-	GFW_EXPORT SGS_METHOD_NAMED( GetRoomList ) SGS_MULTRET sgsGetRoomList( sgs_Context* coro );
-	GFW_EXPORT SGS_METHOD_NAMED( GetRoomNameByPos ) sgsString sgsGetRoomNameByPos( sgs_Context* coro, Vec3 pos );
-	GFW_EXPORT SGS_METHOD_NAMED( GetRoomByPos ) SGS_MULTRET sgsGetRoomByPos( sgs_Context* coro, Vec3 pos );
-	GFW_EXPORT SGS_METHOD_NAMED( GetRoomPoints ) SGS_MULTRET sgsGetRoomPoints( sgs_Context* coro, StringView name );
+	GFW_EXPORT SGS_MULTRET sgsPushRoom( AIRoom* room );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomList ) SGS_MULTRET sgsGetRoomList();
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomNameByPos ) sgsString sgsGetRoomNameByPos( Vec3 pos );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomByPos ) SGS_MULTRET sgsGetRoomByPos( Vec3 pos );
+	GFW_EXPORT SGS_METHOD_NAMED( GetRoomPoints ) SGS_MULTRET sgsGetRoomPoints( StringView name );
+	GFW_EXPORT SGS_METHOD_NAMED( GetZoneInfoByPos ) SGS_MULTRET sgsGetZoneInfoByPos( Vec3 pos );
 };
 
 

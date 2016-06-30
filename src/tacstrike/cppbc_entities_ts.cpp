@@ -794,7 +794,6 @@ int TSEnemyController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
 		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->enabled ); return SGS_SUCCESS; }
-		SGS_CASE( "inPlayerTeam" ){ sgs_PushVar( C, static_cast<TSEnemyController*>( obj->data )->m_inPlayerTeam ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<TSEnemyController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -805,7 +804,6 @@ int TSEnemyController::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "_data" ){ static_cast<TSEnemyController*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ static_cast<TSEnemyController*>( obj->data )->enabled = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
-		SGS_CASE( "inPlayerTeam" ){ static_cast<TSEnemyController*>( obj->data )->m_inPlayerTeam = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		if( sgs_SetIndex( C, static_cast<TSEnemyController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -827,8 +825,7 @@ int TSEnemyController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->_get_resources(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->enabled, depth ).push( C ); }
-		{ sgs_PushString( C, "\ninPlayerTeam = " ); sgs_DumpData( C, static_cast<TSEnemyController*>( obj->data )->m_inPlayerTeam, depth ).push( C ); }
-		sgs_StringConcat( C, 20 );
+		sgs_StringConcat( C, 18 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

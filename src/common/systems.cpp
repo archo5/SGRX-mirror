@@ -1546,6 +1546,14 @@ AIRoom* AIDBSystem::FindRoomByPos( Vec3 pos )
 	return NULL;
 }
 
+AIZoneInfo AIDBSystem::GetZoneInfoByPos( Vec3 pos )
+{
+	AIZoneInfo zi = {0};
+	zi.restrictedGroups = 0xffffffff;
+	zi.suspicionFactor = 1;
+	return zi;
+}
+
 void AIDBSystem::Tick( float deltaTime, float blendFactor )
 {
 	for( size_t i = 0; i < m_sounds.size(); ++i )
@@ -1584,12 +1592,12 @@ bool AIDBSystem::sgsHasRecentFact( uint32_t typemask, TimeVal maxtime )
 	return m_globalFacts.HasRecentFact( typemask, maxtime );
 }
 
-SGS_MULTRET AIDBSystem::sgsGetRecentFact( sgs_Context* coro, uint32_t typemask, TimeVal maxtime )
+SGS_MULTRET AIDBSystem::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
 {
 	AIFact* F = m_globalFacts.GetRecentFact( typemask, maxtime );
 	if( F )
 	{
-		sgs_CreateLiteClassFrom( coro, NULL, F );
+		sgs_CreateLiteClassFrom( C, NULL, F );
 		return 1;
 	}
 	return 0;
@@ -1600,23 +1608,23 @@ void AIDBSystem::sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVa
 	m_globalFacts.Insert( type, pos, created, expires, ref );
 }
 
-bool AIDBSystem::sgsUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+bool AIDBSystem::sgsUpdateFact( uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( coro ) < 7 )
+	if( sgs_StackSize( C ) < 7 )
 		reset = true;
 	return m_globalFacts.Update( type, pos, rad, created, expires, ref, reset );
 }
 
-void AIDBSystem::sgsInsertOrUpdateFact( sgs_Context* coro, uint32_t type, Vec3 pos,
+void AIDBSystem::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
 	float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset )
 {
-	if( sgs_StackSize( coro ) < 7 )
+	if( sgs_StackSize( C ) < 7 )
 		reset = true;
 	m_globalFacts.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
 }
 
-SGS_MULTRET AIDBSystem::sgsPushRoom( sgs_Context* coro, AIRoom* room )
+SGS_MULTRET AIDBSystem::sgsPushRoom( AIRoom* room )
 {
 	Array< Vec3 > points;
 	
@@ -1673,43 +1681,50 @@ SGS_MULTRET AIDBSystem::sgsPushRoom( sgs_Context* coro, AIRoom* room )
 	// copy to sgs array
 	for( size_t i = 0; i < points.size(); ++i )
 	{
-		sgs_PushVar( coro, points[ i ] );
+		sgs_PushVar( C, points[ i ] );
 	}
-	return sgs_CreateArray( coro, NULL, points.size() );
+	return sgs_CreateArray( C, NULL, points.size() );
 }
 
-SGS_MULTRET AIDBSystem::sgsGetRoomList( sgs_Context* coro )
+SGS_MULTRET AIDBSystem::sgsGetRoomList()
 {
 	for( size_t i = 0; i < m_rooms.size(); ++i )
 	{
-		sgs_PushVar( coro, m_rooms.item( i ).key );
+		sgs_PushVar( C, m_rooms.item( i ).key );
 	}
-	return sgs_CreateArray( coro, NULL, m_rooms.size() );
+	return sgs_CreateArray( C, NULL, m_rooms.size() );
 }
 
-sgsString AIDBSystem::sgsGetRoomNameByPos( sgs_Context* coro, Vec3 pos )
+sgsString AIDBSystem::sgsGetRoomNameByPos( Vec3 pos )
 {
 	AIRoom* room = FindRoomByPos( pos );
 	if( room == NULL )
 		return sgsString();
 	StringView name = room->m_key;
-	return sgsString( coro, name.data(), name.size() );
+	return sgsString( C, name.data(), name.size() );
 }
 
-SGS_MULTRET AIDBSystem::sgsGetRoomByPos( sgs_Context* coro, Vec3 pos )
+SGS_MULTRET AIDBSystem::sgsGetRoomByPos( Vec3 pos )
 {
 	AIRoom* room = FindRoomByPos( pos );
 	if( room == NULL )
 		return 0;
-	return sgsPushRoom( coro, room );
+	return sgsPushRoom( room );
 }
 
-SGS_MULTRET AIDBSystem::sgsGetRoomPoints( sgs_Context* coro, StringView name )
+SGS_MULTRET AIDBSystem::sgsGetRoomPoints( StringView name )
 {
 	AIRoom* room = m_rooms.getcopy( name );
 	if( room == NULL )
 		return 0;
-	return sgsPushRoom( coro, room );
+	return sgsPushRoom( room );
+}
+
+SGS_MULTRET AIDBSystem::sgsGetZoneInfoByPos( Vec3 pos )
+{
+	AIZoneInfo zi = GetZoneInfoByPos( pos );
+	sgs_CreateLiteClassFrom( C, NULL, &zi );
+	return 1;
 }
 
 

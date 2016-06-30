@@ -2240,6 +2240,66 @@ static sgs_ObjInterface AIFact__sgs_interface =
 _sgsInterface AIFact::_sgs_interface(AIFact__sgs_interface, AIFact__sgs_ifn);
 
 
+int AIZoneInfo::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<AIZoneInfo*>( obj->data )->~AIZoneInfo();
+	return SGS_SUCCESS;
+}
+
+int AIZoneInfo::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	return SGS_SUCCESS;
+}
+
+int AIZoneInfo::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int AIZoneInfo::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	SGS_BEGIN_INDEXFUNC
+	SGS_END_INDEXFUNC;
+}
+
+int AIZoneInfo::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	char bfr[ 42 ];
+	sprintf( bfr, "AIZoneInfo (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		sgs_StringConcat( C, 0 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst AIZoneInfo__sgs_funcs[] =
+{
+	{ NULL, NULL },
+};
+
+static int AIZoneInfo__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		AIZoneInfo__sgs_funcs,
+		-1, "AIZoneInfo." );
+	return 1;
+}
+
+static sgs_ObjInterface AIZoneInfo__sgs_interface =
+{
+	"AIZoneInfo",
+	AIZoneInfo::_sgs_destruct, AIZoneInfo::_sgs_gcmark, AIZoneInfo::_sgs_getindex, AIZoneInfo::_sgs_setindex, NULL, NULL, AIZoneInfo::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface AIZoneInfo::_sgs_interface(AIZoneInfo__sgs_interface, AIZoneInfo__sgs_ifn);
+
+
 static int _sgs_method__AIDBSystem__AddSound( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, AddSound ) ) return 0;
@@ -2261,7 +2321,7 @@ static int _sgs_method__AIDBSystem__HasRecentFact( SGS_CTX )
 static int _sgs_method__AIDBSystem__GetRecentFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRecentFact ) ) return 0;
-	return data->sgsGetRecentFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) );
+	return data->sgsGetRecentFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) );
 }
 
 static int _sgs_method__AIDBSystem__InsertFact( SGS_CTX )
@@ -2273,37 +2333,43 @@ static int _sgs_method__AIDBSystem__InsertFact( SGS_CTX )
 static int _sgs_method__AIDBSystem__UpdateFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, UpdateFact ) ) return 0;
-	sgs_PushVar(C,data->sgsUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
+	sgs_PushVar(C,data->sgsUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
 }
 
 static int _sgs_method__AIDBSystem__InsertOrUpdateFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, InsertOrUpdateFact ) ) return 0;
-	data->sgsInsertOrUpdateFact( C, sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
+	data->sgsInsertOrUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
 }
 
 static int _sgs_method__AIDBSystem__GetRoomList( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomList ) ) return 0;
-	return data->sgsGetRoomList( C );
+	return data->sgsGetRoomList(  );
 }
 
 static int _sgs_method__AIDBSystem__GetRoomNameByPos( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomNameByPos ) ) return 0;
-	sgs_PushVar(C,data->sgsGetRoomNameByPos( C, sgs_GetVar<Vec3>()(C,0) )); return 1;
+	sgs_PushVar(C,data->sgsGetRoomNameByPos( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 static int _sgs_method__AIDBSystem__GetRoomByPos( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomByPos ) ) return 0;
-	return data->sgsGetRoomByPos( C, sgs_GetVar<Vec3>()(C,0) );
+	return data->sgsGetRoomByPos( sgs_GetVar<Vec3>()(C,0) );
 }
 
 static int _sgs_method__AIDBSystem__GetRoomPoints( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomPoints ) ) return 0;
-	return data->sgsGetRoomPoints( C, sgs_GetVar<StringView>()(C,0) );
+	return data->sgsGetRoomPoints( sgs_GetVar<StringView>()(C,0) );
+}
+
+static int _sgs_method__AIDBSystem__GetZoneInfoByPos( SGS_CTX )
+{
+	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetZoneInfoByPos ) ) return 0;
+	return data->sgsGetZoneInfoByPos( sgs_GetVar<Vec3>()(C,0) );
 }
 
 int AIDBSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
@@ -2357,6 +2423,7 @@ static sgs_RegFuncConst AIDBSystem__sgs_funcs[] =
 	{ "GetRoomNameByPos", _sgs_method__AIDBSystem__GetRoomNameByPos },
 	{ "GetRoomByPos", _sgs_method__AIDBSystem__GetRoomByPos },
 	{ "GetRoomPoints", _sgs_method__AIDBSystem__GetRoomPoints },
+	{ "GetZoneInfoByPos", _sgs_method__AIDBSystem__GetZoneInfoByPos },
 	{ NULL, NULL },
 };
 

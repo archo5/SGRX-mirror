@@ -280,7 +280,6 @@ struct TSEnemyController : BhControllerBase
 	bool i_shoot;
 	bool i_act;
 	
-	SGS_PROPERTY_FUNC( READ WRITE VARNAME inPlayerTeam ) bool m_inPlayerTeam;
 	SGS_PROPERTY sgsVariable _data;
 	SGS_BACKING_STORE( _data.var );
 	

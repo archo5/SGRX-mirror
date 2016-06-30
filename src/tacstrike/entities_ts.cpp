@@ -1162,7 +1162,6 @@ TSEnemyController::TSEnemyController( GameObject* obj ) :
 	BhControllerBase( obj ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
-	m_inPlayerTeam( false ),
 	m_aidb( m_level->GetSystem<AIDBSystem>() ),
 	m_coverSys( m_level->GetSystem<CoverSystem>() )
 {
@@ -1202,33 +1201,38 @@ struct EPEnemyViewProc : GameObjectProcessor
 	EPEnemyViewProc() : sawEnemy(false){}
 	bool ProcessGameObject( GameObject* obj )
 	{
-		Vec3 enemypos = obj->GetWorldInfoTarget();
-		
-		// verify the find
-		if( enemy->CanSeePoint( enemypos ) == false )
-		{
-			TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
-			if( !chr )
-				return true;
-			if( enemy->CanSeePoint( chr->sgsGetAttachmentPos( "head", V3(0) ) ) == false )
-				return true;
-		}
-		
-		// TODO friendlies
 		AIFactStorage& FS = enemy->m_factStorage;
+		AIDBSystem* aidb = enemy->m_aidb;
+		TSCharacter* mychr = enemy->GetChar();
+		ASSERT( mychr );
+		
+		Vec3 enemypos = obj->GetWorldInfoTarget();
 		
 		if( obj->GetInfoMask() & IEST_AIAlert )
 		{
+			if( !enemy->CanSeePoint( enemypos ) )
+				return true;
 			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
 		}
 		else if( gcv_notarget.value == false )
 		{
+			TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
+			if( !chr )
+				return true;
+			if( !enemy->CanSeePoint( enemypos ) &&
+				!enemy->CanSeePoint( chr->sgsGetAttachmentPos( "head", V3(0) ) ) )
+				return true;
+			
+			AIZoneInfo zi = aidb->GetZoneInfoByPos( chr->GetQueryPosition_FT() );
+			UNUSED( zi );
+			
+			bool foe = !( chr->m_group & mychr->m_group );
 			sawEnemy = true;
 			
 			TSEC_FindChar fchr;
 			{
-				fchr.type = FT_Sight_Foe,
+				fchr.type = foe ? FT_Sight_Foe : FT_Sight_Friend,
 				fchr.pos = enemypos;
 				fchr.speed = 10;
 				fchr.curTime = curtime;
@@ -1335,7 +1339,7 @@ void TSEnemyController::FixedUpdate()
 	EPEnemyViewProc evp;
 	evp.curtime = curTime;
 	evp.enemy = this;
-	uint32_t qmask = ( m_inPlayerTeam ? IEST_Target : IEST_Player ) | IEST_AIAlert;
+	uint32_t qmask = IEST_Target | IEST_AIAlert;
 	m_level->QuerySphere( &evp, qmask, chr->GetQueryPosition_FT(), 10.0f );
 	
 	// tick ESO
