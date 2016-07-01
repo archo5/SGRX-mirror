@@ -3613,9 +3613,16 @@ struct TriTree
 struct IF_GCC(ENGINE_EXPORT) SGRX_LogOutput
 {
 	SGRX_LogOutput() : next(NULL){}
-	virtual ~SGRX_LogOutput(){}
-	virtual void Write( const char* text, size_t sz ) = 0;
+	virtual ~SGRX_LogOutput(){ Unregister(); }
+	virtual void Write( const char* str, size_t sz ) = 0;
+	ENGINE_EXPORT void Register();
+	ENGINE_EXPORT void Unregister();
 	SGRX_LogOutput* next;
+};
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_LogOutputStdout : SGRX_LogOutput
+{
+	ENGINE_EXPORT virtual void Write( const char* str, size_t sz );
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_Log
@@ -3660,13 +3667,17 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 	bool need_sep;
 	const char* sep;
 	
-	struct init { init(); ~init(); };
-	static init _init;
-	static FILE* out;
 	static THREAD_LOCAL RegFunc* lastfunc;
+	static SGRX_LogOutput* out;
+	
+	ENGINE_EXPORT static void RegisterLogOutput( SGRX_LogOutput* o );
+	ENGINE_EXPORT static void UnregisterLogOutput( SGRX_LogOutput* o );
 	
 	ENGINE_EXPORT SGRX_Log();
 	ENGINE_EXPORT ~SGRX_Log();
+	ENGINE_EXPORT void write( const char* str, size_t size );
+	ENGINE_EXPORT void write( const char* str );
+	ENGINE_EXPORT void writef( const char* str, ... );
 	ENGINE_EXPORT void prelog();
 	
 	ENGINE_EXPORT SGRX_Log& operator << ( const Separator& );

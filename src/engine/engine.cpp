@@ -2127,6 +2127,10 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 {
 	LOG_FUNCTION;
 	
+	SGRX_LogOutputStdout los;
+	if( debug )
+		los.Register();
+	
 #if 1
 	LOG << "Engine self-test...";
 	int ret = TestSystems();

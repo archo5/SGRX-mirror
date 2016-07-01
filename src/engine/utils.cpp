@@ -2711,6 +2711,22 @@ void SGRX_Log::RegFunc::WriteStat( double dt )
 #endif
 
 
+void SGRX_LogOutput::Register()
+{
+	SGRX_Log::RegisterLogOutput( this );
+}
+
+void SGRX_LogOutput::Unregister()
+{
+	SGRX_Log::UnregisterLogOutput( this );
+}
+
+void SGRX_LogOutputStdout::Write( const char* str, size_t sz )
+{
+	fwrite( str, sz, 1, stdout );
+}
+
+
 SGRX_Log::RegFunc::RegFunc( const char* func, const char* file, int ln, StringView a ) :
 	funcname( func ), filename( file ), linenum( ln ), arg( a ), prev( lastfunc )
 {
@@ -2724,40 +2740,62 @@ SGRX_Log::RegFunc::~RegFunc()
 	lastfunc = prev;
 }
 
-
-SGRX_Log::init::init()
-{
-#ifdef LOG_TO_STDOUT
-	out = stdout;
-#endif
-#ifdef LOG_TO_FILE
-	out = fopen( "log.txt", "w" );
-	if( out )
-	{
-		setvbuf( out, NULL, _IONBF, 1024 );
-	}
-#endif
-}
-
-SGRX_Log::init::~init()
-{
-#ifdef LOG_TO_FILE
-	fclose( out );
-#endif
-}
-
-SGRX_Log::init SGRX_Log::_init;
-FILE* SGRX_Log::out = NULL;
 THREAD_LOCAL SGRX_Log::RegFunc* SGRX_Log::lastfunc = NULL;
+SGRX_LogOutput* SGRX_Log::out = NULL;
+
+void SGRX_Log::RegisterLogOutput( SGRX_LogOutput* o )
+{
+	o->next = out;
+	out = o;
+}
+void SGRX_Log::UnregisterLogOutput( SGRX_LogOutput* o )
+{
+	SGRX_LogOutput** p = &out;
+	while( *p )
+	{
+		if( *p == o )
+		{
+			*p = o->next;
+			o->next = NULL;
+			break;
+		}
+		p = &(*p)->next;
+	}
+}
 
 SGRX_Log::SGRX_Log() : end_newline(true), need_sep(false), sep("") {}
 SGRX_Log::~SGRX_Log(){ sep = ""; if( end_newline ) *this << "\n"; }
+
+void SGRX_Log::write( const char* str, size_t size )
+{
+	SGRX_LogOutput* o = out;
+	while( o )
+	{
+		o->Write( str, size );
+		o = o->next;
+	}
+}
+
+void SGRX_Log::write( const char* str )
+{
+	write( str, strlen( str ) );
+}
+
+void SGRX_Log::writef( const char* str, ... )
+{
+	char bfr[ 2048 ];
+	va_list args;
+	va_start( args, str );
+	int wc = sgrx_vsnprintf( bfr, 2048, str, args );
+	va_end( args );
+	write( bfr, wc );
+}
 
 void SGRX_Log::prelog()
 {
 	if( !out ) return;
 	if( need_sep )
-		fprintf( out, "%s", sep );
+		write( sep );
 	else
 		need_sep = true;
 }
@@ -2771,75 +2809,75 @@ SGRX_Log& SGRX_Log::operator << ( ESpec_Date )
 	struct tm T = *localtime( &ttv );
 	char pbuf[ 256 ] = {0};
 	strftime( pbuf, 255, "%Y-%m-%d %H:%M:%S", &T );
-	fprintf( out, "%s", pbuf );
+	write( pbuf );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( ESpec_CallStack )
 {
 	if( !out ) return *this;
-	fprintf( out, "--- CALL STACK ---\n" );
+	write( "--- CALL STACK ---\n" );
 	RegFunc* curr = lastfunc;
 	if( curr == NULL )
-		fprintf( out, "    === empty ===\n" );
+		write( "    === empty ===\n" );
 	while( curr )
 	{
-		fprintf( out, "> %s(", curr->funcname );
+		writef( "> %s(", curr->funcname );
 		if( curr->arg )
-			fprintf( out, "\"%s\"", StackString< 200 >( curr->arg ).str );
-		fprintf( out, ") (%s:%d)\n", curr->filename, curr->linenum );
+			writef( "\"%s\"", StackString< 200 >( curr->arg ).str );
+		writef( ") (%s:%d)\n", curr->filename, curr->linenum );
 		curr = curr->prev;
 	}
-	fprintf( out, "--- ---------- ---" );
+	write( "--- ---------- ---" );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Separator& s ){ sep = s.sep; return *this; }
-SGRX_Log& SGRX_Log::operator << ( bool v ){ if( out ){ prelog(); fprintf( out, "[%s / %02X]", v ? "true" : "false", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int8_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint8_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int16_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint16_t v ){ if( out ){ prelog(); fprintf( out, "%d", (int) v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int32_t v ){ if( out ){ prelog(); fprintf( out, "%" PRId32, v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ if( out ){ prelog(); fprintf( out, "%" PRIu32, v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( int64_t v ){ if( out ){ prelog(); fprintf( out, "%" PRId64, v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ if( out ){ prelog(); fprintf( out, "%" PRIu64, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( bool v ){ if( out ){ prelog(); writef( "[%s / %02X]", v ? "true" : "false", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int8_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint8_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int16_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint16_t v ){ if( out ){ prelog(); writef( "%d", (int) v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int32_t v ){ if( out ){ prelog(); writef( "%" PRId32, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint32_t v ){ if( out ){ prelog(); writef( "%" PRIu32, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( int64_t v ){ if( out ){ prelog(); writef( "%" PRId64, v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( uint64_t v ){ if( out ){ prelog(); writef( "%" PRIu64, v ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( float v ){ return *this << (double) v; }
-SGRX_Log& SGRX_Log::operator << ( double v ){ if( out ){ prelog(); fprintf( out, "%g", v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( const void* v ){ if( out ){ prelog(); fprintf( out, "[%p]", v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( const char* v ){ if( out ){ prelog(); fprintf( out, "%s", v ); } return *this; }
-SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ if( out ){ prelog(); fprintf( out, "[%d]\"", (int) sv.size() ); fwrite( sv.data(), sv.size(), 1, out ); fputc( '\"', out ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( double v ){ if( out ){ prelog(); writef( "%g", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( const void* v ){ if( out ){ prelog(); writef( "[%p]", v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( const char* v ){ if( out ){ prelog(); write( v ); } return *this; }
+SGRX_Log& SGRX_Log::operator << ( const StringView& sv ){ if( out ){ prelog(); writef( "[%d]\"", (int) sv.size() ); write( sv.data(), sv.size() ); write( "\"" ); } return *this; }
 SGRX_Log& SGRX_Log::operator << ( const String& sv ){ return *this << (StringView) sv; }
 SGRX_Log& SGRX_Log::operator << ( const Vec2& v )
 {
 	prelog();
-	if( out ) fprintf( out, "Vec2( %g ; %g )", v.x, v.y );
+	if( out ) writef( "Vec2( %g ; %g )", v.x, v.y );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Vec3& v )
 {
 	prelog();
-	if( out ) fprintf( out, "Vec3( %g ; %g ; %g )", v.x, v.y, v.z );
+	if( out ) writef( "Vec3( %g ; %g ; %g )", v.x, v.y, v.z );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Vec4& v )
 {
 	prelog();
-	if( out ) fprintf( out, "Vec4( %g ; %g ; %g ; %g )", v.x, v.y, v.z, v.w );
+	if( out ) writef( "Vec4( %g ; %g ; %g ; %g )", v.x, v.y, v.z, v.w );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Quat& q )
 {
 	prelog();
-	if( out ) fprintf( out, "Quat( %g ; %g ; %g ; w = %g )", q.x, q.y, q.z, q.w );
+	if( out ) writef( "Quat( %g ; %g ; %g ; w = %g )", q.x, q.y, q.z, q.w );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const Mat4& v )
 {
 	prelog();
-	if( out ) fprintf( out, "Mat4(\n" );
-	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
-	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
-	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
-	if( out ) fprintf( out, "\t%g\t%g\t%g\t%g\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
+	if( out ) write( "Mat4(\n" );
+	if( out ) writef( "\t%g\t%g\t%g\t%g\n",  v.m[0][0], v.m[0][1], v.m[0][2], v.m[0][3] );
+	if( out ) writef( "\t%g\t%g\t%g\t%g\n",  v.m[1][0], v.m[1][1], v.m[1][2], v.m[1][3] );
+	if( out ) writef( "\t%g\t%g\t%g\t%g\n",  v.m[2][0], v.m[2][1], v.m[2][2], v.m[2][3] );
+	if( out ) writef( "\t%g\t%g\t%g\t%g\n)", v.m[3][0], v.m[3][1], v.m[3][2], v.m[3][3] );
 	return *this;
 }
 SGRX_Log& SGRX_Log::operator << ( const SGRX_GUID& v )
@@ -2849,7 +2887,7 @@ SGRX_Log& SGRX_Log::operator << ( const SGRX_GUID& v )
 	{
 		char bfr[ 37 ];
 		v.ToCharArray( bfr );
-		fprintf( out, "GUID(%s)", bfr );
+		writef( "GUID(%s)", bfr );
 	}
 	return *this;
 }
