@@ -1222,6 +1222,7 @@ struct EPEnemyViewProc : GameObjectProcessor
 		else if( gcv_notarget.value == false )
 		{
 			TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
+			printf("%p %u\n", chr, chr->m_group);
 			if( !chr )
 				return true;
 			if( !enemy->CanSeePoint( enemypos ) &&
@@ -1229,7 +1230,11 @@ struct EPEnemyViewProc : GameObjectProcessor
 				return true;
 			
 			AIZoneInfo zi = aidb->GetZoneInfoByPos( chr->GetQueryPosition_FT() );
-			UNUSED( zi );
+			AICharInfo& ci = FS.GetCharInfo( obj );
+			if( zi.restrictedGroups & chr->m_group )
+			{
+				ci.IncreaseSuspicion( obj->m_level->GetDeltaTime() * zi.suspicionFactor );
+			}
 			
 			bool foe = !( chr->m_group & mychr->m_group );
 			sawEnemy = true;
@@ -1345,6 +1350,9 @@ void TSEnemyController::FixedUpdate()
 	evp.enemy = this;
 	uint32_t qmask = IEST_Target | IEST_AIAlert;
 	m_level->QuerySphere( &evp, qmask, chr->GetQueryPosition_FT(), 10.0f );
+	
+	// update suspicion
+	m_factStorage.DecreaseSuspicion( m_level->GetDeltaTime() );
 	
 	// tick ESO
 	m_level->m_scriptCtx.Push( m_level->GetDeltaTime() );

@@ -400,6 +400,13 @@ EXP_STRUCT AIFact
 EXP_STRUCT AICharInfo
 {
 	float suspicion;
+	bool suspicionIncreased;
+	
+	void IncreaseSuspicion( float amt )
+	{
+		suspicion += amt;
+		suspicionIncreased = true;
+	}
 };
 
 EXP_STRUCT AIZoneInfo
@@ -447,8 +454,8 @@ EXP_STRUCT AIFactStorage
 	GFW_EXPORT void CustomInsertOrUpdate( AIFactDistance& distfn, uint32_t type,
 		TimeVal created, TimeVal expires, uint32_t ref = 0, bool reset = true );
 	
-	AICharInfo& GetChar( GameObject* obj ){
-		return charInfo[ GameObject::ScrHandle( obj ) ]; }
+	GFW_EXPORT AICharInfo& GetCharInfo( GameObject* obj );
+	GFW_EXPORT void DecreaseSuspicion( float amt );
 	
 	Array< AIFact > facts;
 	HashTable< GameObject::ScrHandle, AICharInfo > charInfo;

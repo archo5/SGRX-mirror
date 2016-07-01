@@ -1355,6 +1355,31 @@ void AIFactStorage::CustomInsertOrUpdate( AIFactDistance& distfn, uint32_t type,
 }
 
 
+AICharInfo& AIFactStorage::GetCharInfo( GameObject* obj )
+{
+	GameObject::ScrHandle h( obj );
+	AICharInfo* ptr = charInfo.getptr( h );
+	if( !ptr )
+	{
+		ptr = &charInfo[ h ];
+		ptr->suspicion = 0;
+		ptr->suspicionIncreased = false;
+	}
+	return *ptr;
+}
+
+void AIFactStorage::DecreaseSuspicion( float amt )
+{
+	for( size_t i = 0; i < charInfo.size(); ++i )
+	{
+		AICharInfo& ci = charInfo.item( i ).value;
+		if( !ci.suspicionIncreased )
+			ci.suspicion -= amt;
+		ci.suspicionIncreased = false;
+	}
+}
+
+
 bool AIRoom::IsInside( Vec3 pos )
 {
 	bool in = false;
