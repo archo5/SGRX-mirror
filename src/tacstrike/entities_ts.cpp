@@ -1203,7 +1203,7 @@ struct EPEnemyViewProc : GameObjectProcessor
 	{
 		// exclude self
 		if( obj == enemy->m_obj )
-			return true;
+			return false;
 		
 		AIFactStorage& FS = enemy->m_factStorage;
 		AIDBSystem* aidb = enemy->m_aidb;
@@ -1215,19 +1215,18 @@ struct EPEnemyViewProc : GameObjectProcessor
 		if( obj->GetInfoMask() & IEST_AIAlert )
 		{
 			if( !enemy->CanSeePoint( enemypos ) )
-				return true;
+				return false;
 			FS.InsertOrUpdate( FT_Sight_Alarming,
 				enemypos, 0, curtime, curtime + 5*1000, 0 );
 		}
 		else if( gcv_notarget.value == false )
 		{
 			TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
-			printf("%p %u\n", chr, chr->m_group);
 			if( !chr )
-				return true;
+				return false;
 			if( !enemy->CanSeePoint( enemypos ) &&
 				!enemy->CanSeePoint( chr->sgsGetAttachmentPos( "head", V3(0) ) ) )
-				return true;
+				return false;
 			
 			AIZoneInfo zi = aidb->GetZoneInfoByPos( chr->GetQueryPosition_FT() );
 			AICharInfo& ci = FS.GetCharInfo( obj );
@@ -1257,7 +1256,7 @@ struct EPEnemyViewProc : GameObjectProcessor
 				curtime, curtime + 30*1000, FS.last_mod_id );
 		}
 		
-		return true;
+		return false;
 	}
 	
 	TimeVal curtime;

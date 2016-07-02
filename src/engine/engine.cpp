@@ -301,6 +301,26 @@ void CVarFloat::FromString( StringView str )
 	value = String_ParseFloat( str );
 }
 
+void CVarEnum::ToString( String& out )
+{
+	out = val_list[ value ];
+}
+
+void CVarEnum::FromString( StringView str )
+{
+	StringView* l = val_list;
+	value = 0;
+	while( l->size() )
+	{
+		if( *l == str )
+		{
+			value = l - val_list;
+			break;
+		}
+		l++;
+	}
+}
+
 
 
 SGRX_Joystick::SGRX_Joystick( int which ) : m_id( which ), m_gamectrl( NULL )

@@ -47,6 +47,7 @@ typedef SDL_Event Event;
 #define COBJ_TYPE_CVAR_BOOL   2
 #define COBJ_TYPE_CVAR_INT    3
 #define COBJ_TYPE_CVAR_FLOAT  4
+#define COBJ_TYPE_CVAR_ENUM   5
 #define COBJ_TYPE_INPUTSTATE  1000
 
 #define COBJ_FLAG_CONST      0x0001
@@ -98,6 +99,17 @@ struct IF_GCC(ENGINE_EXPORT) CVarFloat : CVar
 	ENGINE_EXPORT virtual void FromString( StringView str );
 	
 	float value;
+};
+
+struct IF_GCC(ENGINE_EXPORT) CVarEnum : CVar
+{
+	CVarEnum( StringView nm, StringView* vl, int v = 0 )
+		: CVar( nm, COBJ_TYPE_CVAR_ENUM ), value( v ), val_list( vl ){}
+	ENGINE_EXPORT virtual void ToString( String& out );
+	ENGINE_EXPORT virtual void FromString( StringView str );
+	
+	int value;
+	StringView* val_list;
 };
 
 struct IF_GCC(ENGINE_EXPORT) InputState : CObj

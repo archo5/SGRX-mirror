@@ -7,6 +7,16 @@
 
 CVarBool gcv_cl_show_log( "cl_show_log", false );
 
+#define DBG_LIST_NONE 0
+#define DBG_LIST_INFOTARGETS 1
+StringView dbg_list_vnames[] =
+{
+	"none",
+	"infotargets",
+	"",
+};
+CVarEnum gcv_dbg_list( "dbg_list", dbg_list_vnames );
+
 
 LevelMapSystem::LevelMapSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ), viewPos(V3(0))
 {
@@ -2491,6 +2501,7 @@ DevelopSystem::DevelopSystem( GameLevel* lev ) :
 {
 	RegisterHandler( EID_WindowEvent );
 	REGCOBJ( gcv_cl_show_log );
+	REGCOBJ( gcv_dbg_list );
 }
 
 void DevelopSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
@@ -2650,6 +2661,25 @@ void DevelopSystem::DrawUI()
 	{
 		GR2D_SetFont( "system_outlined", 7 );
 		GR2D_DrawTextLine( 0, 0, "Log: TODO" );
+	}
+	
+	switch( gcv_dbg_list.value )
+	{
+	case DBG_LIST_NONE: break;
+	case DBG_LIST_INFOTARGETS: {
+		GR2D_SetFont( "system_outlined", 7 );
+		GR2D_DrawTextLine( 0, 0, "Info targets:" );
+		const HashTable< GameObject*, NoValue >& objSet = m_level->m_infoEmitSet.m_gameObjects;
+		for( size_t i = 0; i < objSet.size(); ++i )
+		{
+			GameObject* o = objSet.item( i ).key;
+			Vec3 p = o->GetWorldPosition();
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, "%04d | obj=%p flags=%08X pos=[%.4g;%.4g;%.4g]",
+				int(i), o, o->m_infoMask, p.x, p.y, p.z );
+			GR2D_DrawTextLine( 0, 11 + i * 9, bfr );
+		}
+		} break;
 	}
 }
 
