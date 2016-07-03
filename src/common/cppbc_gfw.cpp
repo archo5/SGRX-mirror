@@ -2992,6 +2992,170 @@ static sgs_ObjInterface ParticleSystemResource__sgs_interface =
 _sgsInterface ParticleSystemResource::_sgs_interface(ParticleSystemResource__sgs_interface, ParticleSystemResource__sgs_ifn, &GOResource::_sgs_interface);
 
 
+static int _sgs_method__SoundSourceResource__OnDestroy( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__SoundSourceResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__SoundSourceResource__FixedUpdate( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__SoundSourceResource__Update( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__SoundSourceResource__PreRender( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__SoundSourceResource__OnTransformUpdate( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
+
+static int _sgs_method__SoundSourceResource__GetWorldMatrix( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, GetWorldMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetWorldMatrix(  )); return 1;
+}
+
+static int _sgs_method__SoundSourceResource__Trigger( SGS_CTX )
+{
+	SoundSourceResource* data; if( !SGS_PARSE_METHOD( C, SoundSourceResource::_sgs_interface, data, SoundSourceResource, Trigger ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Trigger(  ); return 0;
+}
+
+int SoundSourceResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<SoundSourceResource*>( obj->data )->C = C;
+	static_cast<SoundSourceResource*>( obj->data )->~SoundSourceResource();
+	return SGS_SUCCESS;
+}
+
+int SoundSourceResource::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SoundSourceResource*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int SoundSourceResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SoundSourceResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->m_type ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->m_soundEventName ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<SoundSourceResource*>( obj->data )->m_enabled ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<SoundSourceResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int SoundSourceResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SoundSourceResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<SoundSourceResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<SoundSourceResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<SoundSourceResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "soundEvent" ){ static_cast<SoundSourceResource*>( obj->data )->sgsSetSoundEvent( sgs_GetVar<String>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "enabled" ){ static_cast<SoundSourceResource*>( obj->data )->sgsSetPlaying( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<SoundSourceResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int SoundSourceResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<SoundSourceResource*>( obj->data )->C, C );
+	char bfr[ 51 ];
+	sprintf( bfr, "SoundSourceResource (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->m_type, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nsoundEvent = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->m_soundEventName, depth ).push( C ); }
+		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<SoundSourceResource*>( obj->data )->m_enabled, depth ).push( C ); }
+		sgs_StringConcat( C, 28 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst SoundSourceResource__sgs_funcs[] =
+{
+	{ "OnDestroy", _sgs_method__SoundSourceResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__SoundSourceResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__SoundSourceResource__FixedUpdate },
+	{ "Update", _sgs_method__SoundSourceResource__Update },
+	{ "PreRender", _sgs_method__SoundSourceResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__SoundSourceResource__OnTransformUpdate },
+	{ "GetWorldMatrix", _sgs_method__SoundSourceResource__GetWorldMatrix },
+	{ "Trigger", _sgs_method__SoundSourceResource__Trigger },
+	{ NULL, NULL },
+};
+
+static int SoundSourceResource__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		SoundSourceResource__sgs_funcs,
+		-1, "SoundSourceResource." );
+	return 1;
+}
+
+static sgs_ObjInterface SoundSourceResource__sgs_interface =
+{
+	"SoundSourceResource",
+	SoundSourceResource::_sgs_destruct, SoundSourceResource::_sgs_gcmark, SoundSourceResource::_sgs_getindex, SoundSourceResource::_sgs_setindex, NULL, NULL, SoundSourceResource::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface SoundSourceResource::_sgs_interface(SoundSourceResource__sgs_interface, SoundSourceResource__sgs_ifn, &GOResource::_sgs_interface);
+
+
 static int _sgs_method__RigidBodyResource__OnDestroy( SGS_CTX )
 {
 	RigidBodyResource* data; if( !SGS_PARSE_METHOD( C, RigidBodyResource::_sgs_interface, data, RigidBodyResource, OnDestroy ) ) return 0;

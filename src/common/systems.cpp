@@ -6,7 +6,7 @@
 
 
 CVarBool gcv_cl_show_log( "cl_show_log", false );
-
+CVarBool gcv_dbg_navmesh( "dbg_navmesh", false );
 #define DBG_LIST_NONE 0
 #define DBG_LIST_INFOTARGETS 1
 StringView dbg_list_vnames[] =
@@ -1582,6 +1582,8 @@ AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 	};
 	sgs_RegIntConsts( m_level->GetSGSC(), ric, -1 );
 	
+	REGCOBJ( gcv_dbg_navmesh );
+	
 	Clear();
 }
 
@@ -1714,7 +1716,8 @@ void AIDBSystem::FixedTick( float deltaTime )
 
 void AIDBSystem::DebugDrawWorld()
 {
-	m_pathfinder.DebugDraw();
+	if( gcv_dbg_navmesh.value )
+		m_pathfinder.DebugDraw();
 }
 
 void AIDBSystem::sgsAddSound( Vec3 pos, float rad, float timeout, int type )

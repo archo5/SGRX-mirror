@@ -689,6 +689,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	MeshResource::Register( this );
 	LightResource::Register( this );
 	ParticleSystemResource::Register( this );
+	SoundSourceResource::Register( this );
 	RigidBodyResource::Register( this );
 	ReflectionPlaneResource::Register( this );
 	CameraResource::Register( this );

@@ -705,6 +705,7 @@ void IMGUISoundPicker::Reload()
 	
 	LOG << "Enumerating sound events";
 	sys->EnumerateSoundEvents( m_entries );
+	LOG << "... " << m_entries.size() << " events found";
 	_Search( m_searchString );
 }
 

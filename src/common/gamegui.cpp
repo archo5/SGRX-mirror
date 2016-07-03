@@ -659,6 +659,13 @@ static int GetCVar( SGS_CTX )
 		return sgs_PushInt( C, ((CVarInt*)cv)->value );
 	if( cv->type == COBJ_TYPE_CVAR_FLOAT )
 		return sgs_PushReal( C, ((CVarFloat*)cv)->value );
+	if( cv->type == COBJ_TYPE_CVAR_ENUM )
+	{
+		String s;
+		((CVarEnum*)cv)->ToString( s );
+		sgs_PushVar( C, s );
+		return 1;
+	}
 	return 0;
 }
 
@@ -676,6 +683,8 @@ static int SetCVar( SGS_CTX )
 		((CVarInt*)cv)->value = sgs_GetInt( C, 1 );
 	if( cv->type == COBJ_TYPE_CVAR_FLOAT )
 		((CVarFloat*)cv)->value = sgs_GetReal( C, 1 );
+	if( cv->type == COBJ_TYPE_CVAR_ENUM )
+		((CVarEnum*)cv)->FromString( sgs_GetVar<StringView>()( C, 1 ) );
 	return 0;
 }
 

@@ -116,10 +116,13 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 			LOG << "Failed to load FMOD bank file: " << respath << " (error " << ret << ")";
 			return false;
 		}
+		
+		LOG << "Loaded FMOD bank: " << file << " (resolved to " << respath << ")";
 		return true;
 	}
 	bool EnumerateSoundEvents( Array< RCString >& out )
 	{
+		LOG << "FMODSoundSystem::EnumerateSoundEvents() called";
 		// can we have more, realistically? not yet.
 #define MAX_ENUM_BANKS 128
 		FMOD_STUDIO_BANK* banks[ MAX_ENUM_BANKS ];
@@ -131,6 +134,12 @@ struct FMODSoundSystem : SGRX_ISoundSystem
 			LOG << "Failed to enumerate FMOD banks (error " << ret << ")";
 			return false;
 		}
+		if( !bankcount )
+		{
+			LOG << "- NO BANKS";
+			return false;
+		}
+		LOG << "- " << bankcount << " banks found";
 		
 		int totaleventcount = 0;
 		for( int i = 0; i < bankcount; ++i )

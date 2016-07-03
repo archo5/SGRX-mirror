@@ -269,6 +269,95 @@ SGRX_Sound3DAttribs ParticleSystemResource::_Get3DAttribs()
 }
 
 
+SoundSourceResource::SoundSourceResource( GameObject* obj ) :
+	GOResource( obj ),
+	m_enabled( false ),
+	m_soundEventOneShot( false )
+{
+}
+
+void SoundSourceResource::OnTransformUpdate()
+{
+	if( m_soundEventInst )
+	{
+		m_soundEventInst->Set3DAttribs( _Get3DAttribs() );
+	}
+}
+
+void SoundSourceResource::EditorDrawWorld()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.Reset();
+	br.Col( 0.5f, 0.5f, 0.1f, 0.8f );
+	br.AABB( V3(-1), V3(1), GetWorldMatrix() );
+}
+
+void SoundSourceResource::sgsSetSoundEvent( StringView name )
+{
+	if( name == m_soundEventName )
+		return;
+	// destroy previous effect
+	m_soundEventInst = NULL;
+	// set new one
+	m_soundEventName = name;
+	m_soundEventOneShot = m_level->GetSoundSys()->EventIsOneShot( name );
+	// if particle system already running, start it
+	// do not start one-shot events here because ...
+	// ... this is generally called during resource creation
+	if( m_enabled && !m_soundEventOneShot )
+	{
+		_StartSoundEvent();
+	}
+}
+
+void SoundSourceResource::_StartSoundEvent()
+{
+	SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
+	if( sndevinst )
+	{
+		sndevinst->Set3DAttribs( _Get3DAttribs() );
+		sndevinst->Start();
+		if( !sndevinst->isOneShot )
+			m_soundEventInst = sndevinst;
+	}
+}
+
+void SoundSourceResource::sgsSetPlaying( bool playing )
+{
+	if( playing == m_enabled )
+		return;
+	
+	m_enabled = playing;
+	if( playing )
+	{
+		_StartSoundEvent();
+	}
+	else
+	{
+		m_soundEventInst = NULL;
+	}
+}
+
+void SoundSourceResource::Trigger()
+{
+	if( m_soundEventOneShot )
+	{
+		SoundEventInstanceHandle sndevinst = m_level->GetSoundSys()->CreateEventInstance( m_soundEventName );
+		if( sndevinst )
+		{
+			sndevinst->Set3DAttribs( _Get3DAttribs() );
+			sndevinst->Start();
+		}
+	}
+}
+
+SGRX_Sound3DAttribs SoundSourceResource::_Get3DAttribs()
+{
+	SGRX_Sound3DAttribs s3dattr = { GetWorldMatrix().GetTranslation(), V3(0), V3(0), V3(0) };
+	return s3dattr;
+}
+
+
 RigidBodyResource::RigidBodyResource( GameObject* obj ) :
 	GOResource( obj ),
 	shapeType( ShapeType_AABB ),

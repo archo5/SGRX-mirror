@@ -154,6 +154,14 @@ function ParticleSystemResource.EditorGUI( ui )
 	this!GOResource.EditorGUI( ui );
 }
 
+SoundSourceResource.ED_Icon = "editor/icons/sound.png";
+function SoundSourceResource.EditorGUI( ui )
+{
+	ui.EditBool( "Enabled", this, "enabled" );
+	ui.PickSound( "Sound event", this, "soundEvent", "Select sound event" );
+	this!GOResource.EditorGUI( ui );
+}
+
 RigidBodyResource.ED_Icon = "editor/icons/rigid_body.png";
 function RigidBodyResource.EditorGUI( ui )
 {

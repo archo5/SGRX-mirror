@@ -292,14 +292,12 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !m_soundSys )
 		{
 			m_soundSys = SND_CreateSystem();
-			m_soundSys->Load( "sound/master.bank" );
-			m_soundSys->Load( "sound/master.strings.bank" );
+			m_soundSys->Load( "master.bank" );
+			m_soundSys->Load( "master.strings.bank" );
 		}
 		GameLevel* level = BaseGame::CreateLevel();
 		AddSystemToLevel<TSGameSystem>( level );
 		AddSystemToLevel<LevelMapSystem>( level );
-//		AddSystemToLevel<MessagingSystem>( level );
-//		AddSystemToLevel<ObjectiveSystem>( level );
 		AddSystemToLevel<HelpTextSystem>( level );
 		AddSystemToLevel<FlareSystem>( level );
 		AddSystemToLevel<LevelCoreSystem>( level );
@@ -310,7 +308,6 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		AddSystemToLevel<BulletSystem>( level );
 		AddSystemToLevel<AIDBSystem>( level );
 		AddSystemToLevel<CoverSystem>( level );
-	//	AddSystemToLevel<TSFightGameMode>( level );
 		AddSystemToLevel<DevelopSystem>( level );
 		
 		HelpTextSystem* HTS = level->GetSystem<HelpTextSystem>();

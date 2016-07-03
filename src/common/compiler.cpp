@@ -1402,8 +1402,8 @@ bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
 	float agentMaxSlope = 45.0f;
 	int regionMinSize = 2;
 	int regionMergeSize = 10;
-	float edgeMaxLen = 12.0f;
-	float edgeMaxError = 0.3f;
+	float edgeMaxLen = 1.0f;
+	float edgeMaxError = 0.9f;
 	float detailSampleDist = 3.0f;
 	float detailSampleMaxError = 0.5f;
 	SamplePartitionType partitionType = SAMPLE_PARTITION_WATERSHED;

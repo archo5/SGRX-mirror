@@ -156,6 +156,31 @@ EXP_STRUCT ParticleSystemResource : GOResource
 };
 
 
+EXP_STRUCT SoundSourceResource : GOResource
+{
+	SGS_OBJECT_INHERIT( GOResource );
+	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( SoundSourceResource, GO_RSRC_SNDSRC, "Sound source" );
+	
+	GFW_EXPORT SoundSourceResource( GameObject* obj );
+	GFW_EXPORT virtual void OnTransformUpdate();
+	GFW_EXPORT virtual void EditorDrawWorld();
+	
+	GFW_EXPORT void sgsSetSoundEvent( StringView name );
+	GFW_EXPORT void _StartSoundEvent();
+	GFW_EXPORT void sgsSetPlaying( bool playing );
+	GFW_EXPORT SGRX_Sound3DAttribs _Get3DAttribs();
+	
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetSoundEvent VARNAME soundEvent ) String m_soundEventName;
+	SGS_PROPERTY_FUNC( READ WRITE sgsSetPlaying VARNAME enabled ) bool m_enabled;
+	
+	GFW_EXPORT SGS_METHOD void Trigger();
+	
+	bool m_soundEventOneShot;
+	SoundEventInstanceHandle m_soundEventInst;
+};
+
+
 #define ShapeType_AABB 0
 #define ShapeType_Box 1
 #define ShapeType_Sphere 2
