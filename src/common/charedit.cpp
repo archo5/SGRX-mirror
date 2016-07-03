@@ -1760,7 +1760,7 @@ void EditACStateProps()
 			ImGui::Text( "Animation" );
 			g_NUIAnimPicker->Popup( caption, g_SelState->anim );
 		}
-		IMGUIEditBool( "Loop", g_SelState->loop );
+		IMGUIComboBox( "Playback mode", g_SelState->playMode, "Loop\0Once\0Clamp\0" );
 		EditValExpr( "Speed", g_SelState->speed );
 		IMGUIEditFloat( "Fade time", g_SelState->fade_time, 0, 1000 );
 		

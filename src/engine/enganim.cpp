@@ -383,11 +383,15 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 			continue;
 		}
 		float animTime = AN->GetAnimTime();
-		if( !A.once )
+		if( A.playMode != ANIM_PLAY_ONCE )
 		{
-			A.at = fmodf( A.at, animTime );
-			if( A.at < 0 )
-				A.at += animTime;
+			if( A.playMode == ANIM_PLAY_LOOP )
+			{
+				// ANIM_PLAY_CLAMP does not need this
+				A.at = fmodf( A.at, animTime );
+				if( A.at < 0 )
+					A.at += animTime;
+			}
 			// permanent animation faded fully in, no need to keep previous tracks
 			if( A.fade_at > A.fadetime )
 			{
@@ -427,7 +431,7 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 					continue;
 				AN->GetState( tid, A.at * AN->speed, P, R, S );
 				float animTime = AN->GetAnimTime();
-				q = A.once ?
+				q = A.playMode == ANIM_PLAY_ONCE ?
 					smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
 					smoothlerp_oneway( A.fade_at, 0, A.fadetime );
 				t = 1;
@@ -457,11 +461,14 @@ void AnimPlayer::Advance( float deltaTime, AnimInfo* info )
 		m_pose[ i ].fq *= m_blendFactors[ i ];
 }
 
-void AnimPlayer::Play( const AnimHandle& anim, bool once, float fadetime )
+void AnimPlayer::Play( const AnimHandle& anim, uint8_t playMode, float fadetime )
 {
-	if( !once && m_currentAnims.size() && m_currentAnims.last().once == false && m_currentAnims.last().anim == anim )
+	if( playMode != ANIM_PLAY_ONCE &&
+		m_currentAnims.size() &&
+		m_currentAnims.last().playMode == playMode &&
+		m_currentAnims.last().anim == anim )
 		return; // ignore repetitive invocations
-	Anim A = { anim, NULL, 0, 0, 0, fadetime, 1, once };
+	Anim A = { anim, NULL, 0, 0, 0, fadetime, 1, playMode };
 	m_currentAnims.push_back( A );
 }
 
@@ -482,7 +489,7 @@ bool AnimPlayer::CheckMarker( const StringView& name )
 		float fp1 = A.fade_at * AN->speed;
 		if( fp0 == fp1 )
 			continue; // prevent 'thrilling' markers
-		if( A.once == false )
+		if( A.playMode != ANIM_PLAY_ONCE )
 		{
 			float pfp1 = fmodf( fp1, AN->frameCount );
 			fp0 += ( pfp1 - fp1 );
@@ -510,7 +517,7 @@ float AnimPlayer::GetLastAnimBlendFactor() const
 	if( !AN )
 		return 0;
 	float animTime = AN->GetAnimTime();
-	return A.once ?
+	return A.playMode == ANIM_PLAY_ONCE ?
 		smoothlerp_range( A.fade_at, 0, A.fadetime, animTime - A.fadetime, animTime ) :
 		smoothlerp_oneway( A.fade_at, 0, A.fadetime );
 }

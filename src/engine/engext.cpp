@@ -1252,7 +1252,7 @@ void AnimCharInst::PlayerNodeRT::StartCurrentState()
 		return;
 	player_anim.Play(
 		GR_GetAnim( current_state->anim ),
-		!current_state->loop,
+		current_state->playMode,
 		current_state->fade_time );
 	m_stateTime = 0;
 }

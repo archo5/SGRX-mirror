@@ -244,6 +244,10 @@ struct IF_GCC(ENGINE_EXPORT) AnimMixer : Animator
 	int layerCount; // INTERFACE
 };
 
+#define ANIM_PLAY_LOOP 0
+#define ANIM_PLAY_ONCE 1
+#define ANIM_PLAY_CLAMP 2
+
 struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 {
 	struct Anim
@@ -255,7 +259,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 		float prev_fade_at;
 		float fadetime;
 		float speed;
-		bool once;
+		uint8_t playMode;
 	};
 	
 	ENGINE_EXPORT AnimPlayer();
@@ -263,7 +267,7 @@ struct IF_GCC(ENGINE_EXPORT) AnimPlayer : Animator
 	ENGINE_EXPORT virtual void Prepare();
 	ENGINE_EXPORT virtual void Advance( float deltaTime, AnimInfo* info );
 	
-	ENGINE_EXPORT void Play( const AnimHandle& anim, bool once = false, float fadetime = 0.5f );
+	ENGINE_EXPORT void Play( const AnimHandle& anim, uint8_t playMode = ANIM_PLAY_LOOP, float fadetime = 0.5f );
 	ENGINE_EXPORT void Stop();
 	ENGINE_EXPORT bool CheckMarker( const StringView& name );
 	FINLINE void SetLastAnimSpeed( float s ){ if( m_currentAnims.size() ) m_currentAnims.last().speed = s; }
