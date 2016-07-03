@@ -386,6 +386,8 @@ void TSCharacter::FixedUpdate()
 	}
 	
 	m_animChar.SetFloat( "health", m_health );
+	m_animChar.SetFloat( "time_since_last_hit", m_timeSinceLastHit );
+	
 	m_animChar.SetFloat( "run", clamp( i_move.Length(), 0, 1 ) * fwdq );
 	m_animChar.SetBool( "crouch", m_isCrouching );
 	GOBehavior* wpn = FindWeapon();
