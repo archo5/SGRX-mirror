@@ -1092,6 +1092,7 @@ void EdLevelGraphicsCont::UpdateSurface( SGRX_GUID guid, uint32_t changes, EdLGC
 		if( info->rflags & LM_MESHINST_UNLIT )
 			lmode = SGRX_LM_Unlit;
 		S.meshInst->SetLightingMode( lmode );
+		S.meshInst->sortidx = info->decalLayer;
 		SGRX_Material& mtl = S.meshInst->GetMaterial( 0 );
 		
 		mtl.blendMode = SGRX_MtlBlend_None;

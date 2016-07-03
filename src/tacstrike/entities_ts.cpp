@@ -6,12 +6,14 @@
 CVarBool gcv_notarget( "notarget", false );
 CVarBool gcv_dbg_aifacts( "dbg_aifacts", false );
 CVarBool gcv_dbg_aistack( "dbg_aistack", false );
+CVarBool gcv_dbg_aipaths( "dbg_aipaths", false );
 
 void register_tsent_cvars()
 {
 	REGCOBJ( gcv_notarget );
 	REGCOBJ( gcv_dbg_aifacts );
 	REGCOBJ( gcv_dbg_aistack );
+	REGCOBJ( gcv_dbg_aipaths );
 }
 
 
@@ -1409,6 +1411,27 @@ void TSEnemyController::DebugDrawWorld()
 			br.SetPrimitiveType( PT_Lines );
 			br.Pos( pos ).Pos( F.position );
 			br.Tick( F.position, 0.1f );
+		}
+	}
+	
+	if( gcv_dbg_aipaths.value )
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset().Col( 0.9f, 0.2f, 0.1f );
+		br.SetPrimitiveType( PT_Lines );
+		for( size_t i = 0; i < m_path.size(); ++i )
+		{
+			float q;
+			if( i > 0 )
+			{
+				q = float(i-1) / ( m_path.size() - 1 );
+				br.Col( 1 - q, 1, 0 );
+				br.Pos( m_path[ i - 1 ] );
+				
+				q = float(i) / ( m_path.size() - 1 );
+				br.Col( 1 - q, 1, 0 );
+				br.Pos( m_path[ i ] );
+			}
+			br.Tick( m_path[ i ], 0.05f );
 		}
 	}
 }

@@ -757,18 +757,20 @@ void EdBlock::RegenerateMesh()
 		uint16_t v2 = _AddVtx( poly[i], z1 + poly[i].z, BS, tgx, tgy, vertices, 0 );
 		uint16_t v3 = _AddVtx( poly[i1], z1 + poly[i1].z, BS, tgx, tgy, vertices, 0 );
 		uint16_t v4 = _AddVtx( poly[i1], z0, BS, tgx, tgy, vertices, 0 );
-		if( vertices.size() < 3 )
-			continue;
-		_PostFitTexcoords( BS, vertices.data(), vertices.size() );
-		indices.push_back( v1 );
-		indices.push_back( v2 );
-		indices.push_back( v3 );
-		if( vertices.size() == 4 )
+		if( vertices.size() >= 3 )
 		{
-			indices.push_back( v3 );
-			indices.push_back( v4 );
+			_PostFitTexcoords( BS, vertices.data(), vertices.size() );
 			indices.push_back( v1 );
+			indices.push_back( v2 );
+			indices.push_back( v3 );
+			if( vertices.size() == 4 )
+			{
+				indices.push_back( v3 );
+				indices.push_back( v4 );
+				indices.push_back( v1 );
+			}
 		}
+		else vertices.clear();
 		
 		EdLGCSurfaceInfo S;
 		S.vdata = vertices.data();
@@ -804,9 +806,9 @@ void EdBlock::RegenerateMesh()
 		for( size_t i = 0; i < poly.size(); ++i )
 			_AddVtx( poly[i], z1 + poly[i].z, BS, tgx, tgy, vertices, 0 );
 		if( vertices.size() < 3 )
-			break;
+			vertices.clear();
 		_PostFitTexcoords( BS, vertices.data(), vertices.size() );
-		for( size_t i = 2; i < poly.size(); ++i )
+		for( size_t i = 2; i < vertices.size(); ++i )
 		{
 			indices.push_back( 0 );
 			indices.push_back( i );
@@ -848,9 +850,9 @@ void EdBlock::RegenerateMesh()
 		for( size_t i = 0; i < poly.size(); ++i )
 			_AddVtx( poly[i], z0, BS, tgx, tgy, vertices, 0 );
 		if( vertices.size() < 3 )
-			break;
+			vertices.clear();
 		_PostFitTexcoords( BS, vertices.data(), vertices.size() );
-		for( size_t i = 2; i < poly.size(); ++i )
+		for( size_t i = 2; i < vertices.size(); ++i )
 		{
 			indices.push_back( 0 );
 			indices.push_back( i - 1 );

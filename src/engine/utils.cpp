@@ -1100,8 +1100,8 @@ bool PolyGetPlane( const Vec3* points, int pointcount, Vec4& plane )
 		Vec3 nrm = Vec3Cross( points[i-1] - points[0], points[i] - points[0] ).Normalized();
 		dir += nrm;
 	}
-	float lendiff = dir.Length() - ( pointcount - 2 );
-	if( fabs( lendiff ) > SMALL_FLOAT )
+	float lendiff = dir.Length();
+	if( fabs( lendiff ) < SMALL_FLOAT )
 		return false;
 	dir = dir.Normalized();
 	plane.x = dir.x;
