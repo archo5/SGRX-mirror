@@ -783,7 +783,7 @@ void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 void TSCharacter::OnDeath()
 {
 	m_bodyHandle->SetEnabled( false );
-	m_animChar.EnablePhysics();
+//	m_animChar.EnablePhysics();
 	m_animChar.m_anDeformer.forces.clear();
 //	m_anLayers[3].factor = 1;
 	m_obj->SetInfoMask( 0 );
@@ -1303,6 +1303,11 @@ void TSEnemyController::FixedUpdate()
 	if( !chr )
 		return;
 	
+	if( !chr->IsAlive() )
+	{
+		return;
+	}
+	
 	TimeVal curTime = m_level->GetPhyTime();
 	
 	// process facts
@@ -1360,7 +1365,7 @@ void TSEnemyController::FixedUpdate()
 	evp.curtime = curTime;
 	evp.enemy = this;
 	uint32_t qmask = IEST_Target | IEST_AIAlert;
-	m_level->QuerySphere( &evp, qmask, chr->GetQueryPosition_FT(), 10.0f );
+	m_level->QuerySphere( &evp, qmask, chr->GetQueryPosition_FT(), 15.0f );
 	
 	// update suspicion
 	m_factStorage.DecreaseSuspicion( m_level->GetDeltaTime() );

@@ -99,7 +99,7 @@ struct MapItemInfo
 
 EXP_STRUCT LevelMapSystem : IGameLevelSystem
 {
-	SGS_OBJECT_LITE;
+	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 9 };
@@ -127,7 +127,7 @@ EXP_STRUCT LevelMapSystem : IGameLevelSystem
 
 EXP_STRUCT HelpTextSystem : IGameLevelSystem
 {
-	SGS_OBJECT_LITE;
+	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 13 };
@@ -164,7 +164,7 @@ struct FSFlare
 
 EXP_STRUCT FlareSystem : IGameLevelSystem
 {
-	SGS_OBJECT_LITE;
+	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 4 };
@@ -217,7 +217,7 @@ EXP_STRUCT GFXSystem : IGameLevelSystem, SGRX_RenderDirector, SGRX_IEventHandler
 
 EXP_STRUCT ScriptedSequenceSystem : IGameLevelSystem
 {
-	SGS_OBJECT_LITE;
+	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 11 };
@@ -237,7 +237,7 @@ EXP_STRUCT ScriptedSequenceSystem : IGameLevelSystem
 
 EXP_STRUCT MusicSystem : IGameLevelSystem
 {
-	SGS_OBJECT_LITE;
+	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 12 };
@@ -303,7 +303,7 @@ EXP_STRUCT DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 
 struct BulletSystem : IGameLevelSystem
 {
-	SGS_OBJECT_LITE;
+	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 6 };
@@ -469,7 +469,7 @@ EXP_STRUCT AIFactStorage
 
 EXP_STRUCT AIDBSystem : IGameLevelSystem
 {
-	SGS_OBJECT_LITE;
+	SGS_OBJECT;
 	SGS_NO_DESTRUCT;
 	
 	enum { e_system_uid = 7 };

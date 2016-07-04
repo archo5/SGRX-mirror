@@ -1691,22 +1691,26 @@ _sgsInterface GameLevel::_sgs_interface(GameLevel__sgs_interface, GameLevel__sgs
 static int _sgs_method__LevelMapSystem__DrawUIRect( SGS_CTX )
 {
 	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, DrawUIRect ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->DrawUIRect( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
 }
 
 int LevelMapSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<LevelMapSystem*>( obj->data )->C = C;
 	static_cast<LevelMapSystem*>( obj->data )->~LevelMapSystem();
 	return SGS_SUCCESS;
 }
 
 int LevelMapSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LevelMapSystem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int LevelMapSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LevelMapSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewPos" ){ sgs_PushVar( C, static_cast<LevelMapSystem*>( obj->data )->viewPos ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
@@ -1714,6 +1718,7 @@ int LevelMapSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int LevelMapSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LevelMapSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "viewPos" ){ static_cast<LevelMapSystem*>( obj->data )->viewPos = sgs_GetVar<Vec3>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
@@ -1721,6 +1726,7 @@ int LevelMapSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int LevelMapSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<LevelMapSystem*>( obj->data )->C, C );
 	char bfr[ 46 ];
 	sprintf( bfr, "LevelMapSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -1761,34 +1767,40 @@ _sgsInterface LevelMapSystem::_sgs_interface(LevelMapSystem__sgs_interface, Leve
 static int _sgs_method__HelpTextSystem__DrawText( SGS_CTX )
 {
 	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, DrawText ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->DrawText(  ); return 0;
 }
 
 static int _sgs_method__HelpTextSystem__Clear( SGS_CTX )
 {
 	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, Clear ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsClear(  ); return 0;
 }
 
 static int _sgs_method__HelpTextSystem__SetText( SGS_CTX )
 {
 	HelpTextSystem* data; if( !SGS_PARSE_METHOD( C, HelpTextSystem::_sgs_interface, data, HelpTextSystem, SetText ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsSetText( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
 }
 
 int HelpTextSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<HelpTextSystem*>( obj->data )->C = C;
 	static_cast<HelpTextSystem*>( obj->data )->~HelpTextSystem();
 	return SGS_SUCCESS;
 }
 
 int HelpTextSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<HelpTextSystem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int HelpTextSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<HelpTextSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "text" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_text ); return SGS_SUCCESS; }
 		SGS_CASE( "alpha" ){ sgs_PushVar( C, static_cast<HelpTextSystem*>( obj->data )->m_alpha ); return SGS_SUCCESS; }
@@ -1802,6 +1814,7 @@ int HelpTextSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int HelpTextSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<HelpTextSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "text" ){ static_cast<HelpTextSystem*>( obj->data )->m_text = sgs_GetVar<String>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "alpha" ){ static_cast<HelpTextSystem*>( obj->data )->m_alpha = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
@@ -1815,6 +1828,7 @@ int HelpTextSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int HelpTextSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<HelpTextSystem*>( obj->data )->C, C );
 	char bfr[ 46 ];
 	sprintf( bfr, "HelpTextSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -1863,28 +1877,33 @@ _sgsInterface HelpTextSystem::_sgs_interface(HelpTextSystem__sgs_interface, Help
 static int _sgs_method__FlareSystem__Update( SGS_CTX )
 {
 	FlareSystem* data; if( !SGS_PARSE_METHOD( C, FlareSystem::_sgs_interface, data, FlareSystem, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsUpdate( sgs_GetVarObj<void>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<bool>()(C,4) ); return 0;
 }
 
 static int _sgs_method__FlareSystem__Remove( SGS_CTX )
 {
 	FlareSystem* data; if( !SGS_PARSE_METHOD( C, FlareSystem::_sgs_interface, data, FlareSystem, Remove ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsRemove( sgs_GetVarObj<void>()(C,0) ); return 0;
 }
 
 int FlareSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<FlareSystem*>( obj->data )->C = C;
 	static_cast<FlareSystem*>( obj->data )->~FlareSystem();
 	return SGS_SUCCESS;
 }
 
 int FlareSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareSystem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int FlareSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "layers" ){ sgs_PushVar( C, static_cast<FlareSystem*>( obj->data )->m_layers ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
@@ -1892,6 +1911,7 @@ int FlareSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int FlareSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "layers" ){ static_cast<FlareSystem*>( obj->data )->m_layers = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
 	SGS_END_INDEXFUNC;
@@ -1899,6 +1919,7 @@ int FlareSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int FlareSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareSystem*>( obj->data )->C, C );
 	char bfr[ 43 ];
 	sprintf( bfr, "FlareSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -1940,22 +1961,26 @@ _sgsInterface FlareSystem::_sgs_interface(FlareSystem__sgs_interface, FlareSyste
 static int _sgs_method__ScriptedSequenceSystem__Start( SGS_CTX )
 {
 	ScriptedSequenceSystem* data; if( !SGS_PARSE_METHOD( C, ScriptedSequenceSystem::_sgs_interface, data, ScriptedSequenceSystem, Start ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsStart( sgs_GetVar<sgsVariable>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
 }
 
 int ScriptedSequenceSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<ScriptedSequenceSystem*>( obj->data )->C = C;
 	static_cast<ScriptedSequenceSystem*>( obj->data )->~ScriptedSequenceSystem();
 	return SGS_SUCCESS;
 }
 
 int ScriptedSequenceSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ScriptedSequenceSystem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int ScriptedSequenceSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ScriptedSequenceSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "func" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_func ); return SGS_SUCCESS; }
 		SGS_CASE( "time" ){ sgs_PushVar( C, static_cast<ScriptedSequenceSystem*>( obj->data )->m_time ); return SGS_SUCCESS; }
@@ -1965,6 +1990,7 @@ int ScriptedSequenceSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 
 int ScriptedSequenceSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ScriptedSequenceSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 		SGS_CASE( "func" ){ static_cast<ScriptedSequenceSystem*>( obj->data )->m_func = sgs_GetVar<sgsVariable>()( C, 1 );
 			static_cast<ScriptedSequenceSystem*>( obj->data )->_StartCutscene(); return SGS_SUCCESS; }
@@ -1975,6 +2001,7 @@ int ScriptedSequenceSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 
 int ScriptedSequenceSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<ScriptedSequenceSystem*>( obj->data )->C, C );
 	char bfr[ 54 ];
 	sprintf( bfr, "ScriptedSequenceSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -2017,40 +2044,47 @@ _sgsInterface ScriptedSequenceSystem::_sgs_interface(ScriptedSequenceSystem__sgs
 static int _sgs_method__MusicSystem__SetTrack( SGS_CTX )
 {
 	MusicSystem* data; if( !SGS_PARSE_METHOD( C, MusicSystem::_sgs_interface, data, MusicSystem, SetTrack ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsSetTrack( sgs_GetVar<StringView>()(C,0) ); return 0;
 }
 
 static int _sgs_method__MusicSystem__SetVar( SGS_CTX )
 {
 	MusicSystem* data; if( !SGS_PARSE_METHOD( C, MusicSystem::_sgs_interface, data, MusicSystem, SetVar ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsSetVar( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1) ); return 0;
 }
 
 int MusicSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<MusicSystem*>( obj->data )->C = C;
 	static_cast<MusicSystem*>( obj->data )->~MusicSystem();
 	return SGS_SUCCESS;
 }
 
 int MusicSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MusicSystem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int MusicSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MusicSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 	SGS_END_INDEXFUNC;
 }
 
 int MusicSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MusicSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 	SGS_END_INDEXFUNC;
 }
 
 int MusicSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<MusicSystem*>( obj->data )->C, C );
 	char bfr[ 43 ];
 	sprintf( bfr, "MusicSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -2091,40 +2125,47 @@ _sgsInterface MusicSystem::_sgs_interface(MusicSystem__sgs_interface, MusicSyste
 static int _sgs_method__BulletSystem__Add( SGS_CTX )
 {
 	BulletSystem* data; if( !SGS_PARSE_METHOD( C, BulletSystem::_sgs_interface, data, BulletSystem, Add ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->Add( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<uint32_t>()(C,4) ); return 0;
 }
 
 static int _sgs_method__BulletSystem__Zap( SGS_CTX )
 {
 	BulletSystem* data; if( !SGS_PARSE_METHOD( C, BulletSystem::_sgs_interface, data, BulletSystem, Zap ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->Zap( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<uint32_t>()(C,3) )); return 1;
 }
 
 int BulletSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<BulletSystem*>( obj->data )->C = C;
 	static_cast<BulletSystem*>( obj->data )->~BulletSystem();
 	return SGS_SUCCESS;
 }
 
 int BulletSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BulletSystem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int BulletSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BulletSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 	SGS_END_INDEXFUNC;
 }
 
 int BulletSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BulletSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 	SGS_END_INDEXFUNC;
 }
 
 int BulletSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<BulletSystem*>( obj->data )->C, C );
 	char bfr[ 44 ];
 	sprintf( bfr, "BulletSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
@@ -2303,100 +2344,117 @@ _sgsInterface AIZoneInfo::_sgs_interface(AIZoneInfo__sgs_interface, AIZoneInfo__
 static int _sgs_method__AIDBSystem__AddSound( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, AddSound ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsAddSound( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<int>()(C,3) ); return 0;
 }
 
 static int _sgs_method__AIDBSystem__HasFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, HasFact ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->sgsHasFact( sgs_GetVar<uint32_t>()(C,0) )); return 1;
 }
 
 static int _sgs_method__AIDBSystem__HasRecentFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, HasRecentFact ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->sgsHasRecentFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) )); return 1;
 }
 
 static int _sgs_method__AIDBSystem__GetRecentFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRecentFact ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	return data->sgsGetRecentFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) );
 }
 
 static int _sgs_method__AIDBSystem__InsertFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, InsertFact ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsInsertFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<TimeVal>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<uint32_t>()(C,4) ); return 0;
 }
 
 static int _sgs_method__AIDBSystem__UpdateFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, UpdateFact ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->sgsUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) )); return 1;
 }
 
 static int _sgs_method__AIDBSystem__InsertOrUpdateFact( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, InsertOrUpdateFact ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->sgsInsertOrUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
 }
 
 static int _sgs_method__AIDBSystem__GetRoomList( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomList ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	return data->sgsGetRoomList(  );
 }
 
 static int _sgs_method__AIDBSystem__GetRoomNameByPos( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomNameByPos ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->sgsGetRoomNameByPos( sgs_GetVar<Vec3>()(C,0) )); return 1;
 }
 
 static int _sgs_method__AIDBSystem__GetRoomByPos( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomByPos ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	return data->sgsGetRoomByPos( sgs_GetVar<Vec3>()(C,0) );
 }
 
 static int _sgs_method__AIDBSystem__GetRoomPoints( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetRoomPoints ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	return data->sgsGetRoomPoints( sgs_GetVar<StringView>()(C,0) );
 }
 
 static int _sgs_method__AIDBSystem__GetZoneInfoByPos( SGS_CTX )
 {
 	AIDBSystem* data; if( !SGS_PARSE_METHOD( C, AIDBSystem::_sgs_interface, data, AIDBSystem, GetZoneInfoByPos ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	return data->sgsGetZoneInfoByPos( sgs_GetVar<Vec3>()(C,0) );
 }
 
 int AIDBSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
+	static_cast<AIDBSystem*>( obj->data )->C = C;
 	static_cast<AIDBSystem*>( obj->data )->~AIDBSystem();
 	return SGS_SUCCESS;
 }
 
 int AIDBSystem::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<AIDBSystem*>( obj->data )->C, C );
 	return SGS_SUCCESS;
 }
 
 int AIDBSystem::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<AIDBSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 	SGS_END_INDEXFUNC;
 }
 
 int AIDBSystem::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<AIDBSystem*>( obj->data )->C, C );
 	SGS_BEGIN_INDEXFUNC
 	SGS_END_INDEXFUNC;
 }
 
 int AIDBSystem::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<AIDBSystem*>( obj->data )->C, C );
 	char bfr[ 42 ];
 	sprintf( bfr, "AIDBSystem (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
 	sgs_PushString( C, bfr );
