@@ -402,9 +402,11 @@ EXP_STRUCT AICharInfo
 	float suspicion;
 	bool suspicionIncreased;
 	
+	bool IsSuspicious(){ return suspicion >= 1; }
 	void IncreaseSuspicion( float amt )
 	{
 		suspicion += amt;
+		suspicion = clamp( suspicion, 0, 1 );
 		suspicionIncreased = true;
 	}
 };

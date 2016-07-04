@@ -1383,8 +1383,8 @@ void AIFactStorage::DecreaseSuspicion( float amt )
 	for( size_t i = 0; i < charInfo.size(); ++i )
 	{
 		AICharInfo& ci = charInfo.item( i ).value;
-		if( !ci.suspicionIncreased )
-			ci.suspicion -= amt;
+		if( !ci.suspicionIncreased && !ci.IsSuspicious() )
+			ci.suspicion = clamp( ci.suspicion - amt, 0, 1 );
 		ci.suspicionIncreased = false;
 	}
 }

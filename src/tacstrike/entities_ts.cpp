@@ -332,7 +332,12 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	{
 		aimdir = ctrl->GetInputV3( ACT_Chr_AimTarget ) - GetQueryPosition_FT();
 	}
-	m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
+	if( IsAlive() )
+	{
+		m_aimDir.TurnTo( YP( aimdir ), YP( aimspeed * deltaTime ) );
+	}
+	else
+		m_aimDir.TurnTo( YP( V3(rundir,0) ), YP( deltaTime ) );
 	m_aimDist = aimdir.Length();
 	aimdir = m_aimDir.ToVec3();
 	m_ivAimDir.Advance( V3( aimdir.x, aimdir.y, 0 ) );
@@ -688,6 +693,8 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 
 void TSCharacter::TurnTo( const Vec2& turnDir, float speedDelta )
 {
+	if( !IsAlive() )
+		return;
 	float angroot = m_aimDir.yaw + M_PI;
 	float angend = normalize_angle( turnDir.Angle() - angroot ) + angroot;
 	float angstart = normalize_angle( m_turnAngle - angroot ) + angroot;
@@ -1240,7 +1247,7 @@ struct EPEnemyViewProc : GameObjectProcessor
 				ci.IncreaseSuspicion( obj->m_level->GetDeltaTime() * zi.suspicionFactor );
 			}
 			
-			bool foe = !( chr->m_group & mychr->m_group );
+			bool foe = !( chr->m_group & mychr->m_group ) && ci.IsSuspicious();
 			sawEnemy = true;
 			
 			TSEC_FindChar fchr;
