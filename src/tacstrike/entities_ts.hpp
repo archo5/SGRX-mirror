@@ -113,6 +113,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD void StopAnim(){ m_animChar.StopAnim(); }
 	// - specific animation triggers
 	SGS_METHOD void PlayPickupAnim( Vec3 tgt );
+	SGS_METHOD void SetSkin( StringView name );
 	SGS_METHOD_NAMED( SetACVar ) void sgsSetACVar( sgsString name, float val );
 	
 	SGS_METHOD bool IsAlive(){ return m_health > 0; }

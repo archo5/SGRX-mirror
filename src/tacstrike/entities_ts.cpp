@@ -752,6 +752,11 @@ void TSCharacter::PlayPickupAnim( Vec3 tgt )
 	m_pickupTrigger = true;
 }
 
+void TSCharacter::SetSkin( StringView name )
+{
+	m_animChar.SetSkin( name );
+}
+
 void TSCharacter::sgsSetACVar( sgsString name, float val )
 {
 	m_animChar.SetFloat( name.c_str(), val );
@@ -1259,12 +1264,12 @@ struct EPEnemyViewProc : GameObjectProcessor
 			}
 			
 			// fact of seeing
-			FS.CustomInsertOrUpdate( fchr, FT_Sight_Foe,
+			FS.CustomInsertOrUpdate( fchr, fchr.type,
 				curtime, curtime + 5*1000 );
 			
 			// fact of position
-			fchr.type = FT_Position_Foe;
-			FS.CustomInsertOrUpdate( fchr, FT_Position_Foe,
+			fchr.type = foe ? FT_Position_Foe : FT_Position_Friend;
+			FS.CustomInsertOrUpdate( fchr, fchr.type,
 				curtime, curtime + 30*1000, FS.last_mod_id );
 		}
 		
@@ -1467,8 +1472,8 @@ void TSEnemyController::DebugDrawUI()
 	int x = screenpos.x * GR_GetWidth();
 	int y = screenpos.y * GR_GetHeight();
 	
-	GR2D_SetFont( "core", 12 );
-	GR2D_SetFont( "mono", 12 );
+	GR2D_SetFont( "system_outlined", 7 );
+	int lht = 9;
 	
 	if( gcv_dbg_aifacts.value )
 	{
@@ -1480,11 +1485,11 @@ void TSEnemyController::DebugDrawUI()
 			int(m_factStorage.m_next_fact_id) );
 		
 		int len = GR2D_GetTextLength( bfr );
-		br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
+		br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + lht - 1 );
 		br.Col( 1.0f );
 		GR2D_DrawTextLine( x, y, bfr );
 		
-		y += 13;
+		y += lht;
 		
 		for( size_t i = 0; i < count; ++i )
 		{
@@ -1509,11 +1514,11 @@ void TSEnemyController::DebugDrawUI()
 				int(F.created), int(F.expires) );
 			
 			int len = GR2D_GetTextLength( bfr );
-			br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
+			br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + lht - 1 );
 			br.Col( 1.0f );
 			GR2D_DrawTextLine( x, y, bfr );
 			
-			y += 13;
+			y += lht;
 		}
 	}
 	if( gcv_dbg_aistack.value )
@@ -1531,11 +1536,11 @@ void TSEnemyController::DebugDrawUI()
 			sf = sgs_GetFramePtr( T, sf, 0 );
 			
 			int len = GR2D_GetTextLength( bfr );
-			br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + 12 );
+			br.Reset().Col( 0.0f, 0.5f ).Quad( x, y, x + len, y + lht - 1 );
 			br.Col( 1.0f );
 			GR2D_DrawTextLine( x, y, bfr );
 			
-			y += 13;
+			y += lht;
 		}
 	}
 }

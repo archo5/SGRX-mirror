@@ -52,6 +52,13 @@ static int _sgs_method__TSCharacter__PlayPickupAnim( SGS_CTX )
 	data->PlayPickupAnim( sgs_GetVar<Vec3>()(C,0) ); return 0;
 }
 
+static int _sgs_method__TSCharacter__SetSkin( SGS_CTX )
+{
+	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SetSkin ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->SetSkin( sgs_GetVar<StringView>()(C,0) ); return 0;
+}
+
 static int _sgs_method__TSCharacter__SetACVar( SGS_CTX )
 {
 	TSCharacter* data; if( !SGS_PARSE_METHOD( C, TSCharacter::_sgs_interface, data, TSCharacter, SetACVar ) ) return 0;
@@ -233,6 +240,7 @@ static sgs_RegFuncConst TSCharacter__sgs_funcs[] =
 	{ "PlayAnim", _sgs_method__TSCharacter__PlayAnim },
 	{ "StopAnim", _sgs_method__TSCharacter__StopAnim },
 	{ "PlayPickupAnim", _sgs_method__TSCharacter__PlayPickupAnim },
+	{ "SetSkin", _sgs_method__TSCharacter__SetSkin },
 	{ "SetACVar", _sgs_method__TSCharacter__SetACVar },
 	{ "IsAlive", _sgs_method__TSCharacter__IsAlive },
 	{ "Reset", _sgs_method__TSCharacter__Reset },
