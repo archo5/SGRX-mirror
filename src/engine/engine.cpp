@@ -1176,7 +1176,7 @@ HFileReader IGame::OnLoadTexture( const StringView& key, uint32_t& outusageflags
 	if( !key )
 		return NULL;
 	
-	StringView path = key.until( ":" );
+	StringView path = key.until( ":", 1 );
 	
 	// try .stx (optimized) before original
 	HFileReader out = FS_OpenBinaryFile( String_Concat( path, ".stx" ) );
@@ -1192,7 +1192,7 @@ HFileReader IGame::OnLoadTexture( const StringView& key, uint32_t& outusageflags
 		outusageflags |= TEXFLAGS_SRGB;
 	}
 	
-	StringView flags = key.from( ":" );
+	StringView flags = key.from( ":", 1 );
 	ParseDefaultTextureFlags( flags, outusageflags, outlod );
 	
 	return out;
