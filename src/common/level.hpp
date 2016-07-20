@@ -664,7 +664,7 @@ typedef sgsHandle< struct GameLevel > GameLevelScrHandle;
 EXP_STRUCT GameLevel :
 	SGRX_PostDraw,
 	SGRX_DebugDraw,
-	SGRX_LightTreeSampler,
+	SGRX_LightEnvSampler,
 	SGRX_IEventHandler
 {
 	SGS_OBJECT SGS_NO_DESTRUCT;

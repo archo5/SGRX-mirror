@@ -599,7 +599,7 @@ void VoxelBlock::_PosToCoord( Vec3 p, int32_t outco[3] )
 }
 
 
-LevelCache::LevelCache( SGRX_LightTree* sampleTree ) : m_sampleTree( sampleTree )
+LevelCache::LevelCache( SGRX_LightEnv* lightEnv ) : m_lightEnv( lightEnv )
 {
 }
 
@@ -1275,7 +1275,7 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 	{
 		&m_meshinst,
 		&m_lights,
-		m_sampleTree,
+		m_lightEnv,
 		&m_phyMesh,
 		&m_solidBoxes,
 		m_skyTexture,

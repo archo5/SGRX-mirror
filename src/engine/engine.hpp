@@ -1582,47 +1582,38 @@ struct SGRX_SceneTree
 	Array< Item > items;
 };
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_LightTree
+struct IF_GCC(ENGINE_EXPORT) SGRX_LightEnv
 {
 	struct Colors
 	{
 		Vec3 color[6]; // X,Y,Z / +,-
 		void Clear(){ for( int i = 0; i < 6; ++i ) color[ i ] = V3(0); }
-		template< class T > void Serialize( T& arch ){ for( int i = 0; i < 6; ++i ) arch << color[i]; }
+		template< class T > void Serialize( T& arch )
+		{
+			for( int i = 0; i < 6; ++i ) arch << color[i];
+		}
 	};
-	struct Sample : Colors
+	struct Sample
 	{
 		Vec3 pos;
-		template< class T > void Serialize( T& arch ){ arch << pos; Colors::Serialize( arch ); }
-	};
-	struct Node // size = 8(3+3+2) * 4(float/int32)
-	{
-		Vec3 bbmin;
-		Vec3 bbmax;
-		int32_t ch; // ch0 = ch, ch1 = ch + 1
-		int32_t sdo; // sample data offset
-		template< class T > void Serialize( T& arch ){ arch << bbmin << bbmax << ch << sdo; }
+		Colors cols;
+		template< class T > void Serialize( T& arch )
+		{
+			arch << pos;
+			arch << cols;
+		}
 	};
 	
 	template< class T > void Serialize( T& arch )
 	{
-		arch << m_pos;
-		arch << m_colors;
-		arch << m_nodes;
-		arch << m_sampidx;
+		arch.marker( "SGRX_LGTENV1" );
+		arch << m_samples;
 	}
 	
-	ENGINE_EXPORT void SetSamples( Sample* samples, size_t count );
-	ENGINE_EXPORT void SetSamplesUncolored( Vec3* samples, size_t count, const Vec3& col = V3(0.15f) );
+	ENGINE_EXPORT void SetSamplePositions( Vec3* samples, size_t count, const Vec3& col = V3(0.15f) );
 	ENGINE_EXPORT void GetColors( Vec3 pos, Colors* out );
-	ENGINE_EXPORT void _RegenBVH();
 	
-	// samples
-	Array< Vec3 > m_pos;
-	Array< Colors > m_colors;
-	// BVH
-	Array< Node > m_nodes;
-	Array< int32_t > m_sampidx; // format: <count> [ <tri> x count ], ...
+	Array< Sample > m_samples;
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_LightSampler
@@ -1645,10 +1636,10 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_DummyLightSampler : SGRX_LightSampler
 };
 ENGINE_EXPORT SGRX_DummyLightSampler& GR_GetDummyLightSampler();
 
-struct IF_GCC(ENGINE_EXPORT) SGRX_LightTreeSampler : SGRX_LightSampler
+struct IF_GCC(ENGINE_EXPORT) SGRX_LightEnvSampler : SGRX_LightSampler
 {
 	ENGINE_EXPORT virtual void SampleLight( const Vec3& pos, Vec3 outcolors[6] );
-	SGRX_LightTree* m_lightTree;
+	SGRX_LightEnv* m_lightEnv;
 };
 
 enum EPrimitiveType

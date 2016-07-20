@@ -450,231 +450,39 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 
 
 //
-// LIGHT TREE
+// LIGHT ENVIRONMENT
 //
 
-#define LIGHTTREE_SAMPLE_EXTENTS 10.0f
-#define LIGHTTREE_MIN_SPLIT_SIZE 32
-#define LIGHTTREE_MAX_SPLIT_DEPTH 8
-
-struct _LightTree_SortIndices_Data
-{
-	SGRX_LightTree* LT;
-	Vec3 splitnrm;
-};
-
-int _LightTree_SortIndices( const void* A, const void* B, void* UD )
-{
-	SGRX_CAST( int32_t*, idx_a, A );
-	SGRX_CAST( int32_t*, idx_b, B );
-	SGRX_CAST( _LightTree_SortIndices_Data*, data, UD );
-	Array< Vec3 >& pos = data->LT->m_pos;
-	float dot_a = Vec3Dot( data->splitnrm, pos[ *idx_a ] );
-	float dot_b = Vec3Dot( data->splitnrm, pos[ *idx_b ] );
-	return dot_a == dot_b ? 0 : ( dot_a < dot_b ? -1 : 1 );
-}
-
-void _LightTree_MakeNode( SGRX_LightTree* LT, int32_t node,
-                          int32_t* sampidx_data, size_t sampidx_count, int depth )
-{
-	SGRX_LightTree::Node& N = LT->m_nodes[ node ];
-	
-	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
-	for( size_t i = 0; i < sampidx_count; ++i )
-	{
-		Vec3 pos = LT->m_pos[ sampidx_data[ i ] ];
-		bbmin = Vec3::Min( bbmin, pos );
-		bbmax = Vec3::Max( bbmax, pos );
-	}
-	N.bbmin = bbmin;
-	N.bbmax = bbmax;
-	
-	if( sampidx_count > LIGHTTREE_MIN_SPLIT_SIZE &&
-		depth < LIGHTTREE_MAX_SPLIT_DEPTH )
-	{
-		// split
-		int32_t ch = LT->m_nodes.size();
-		N.sdo = -1;
-		N.ch = ch;
-		
-		// find split direction
-		Vec3 bbsize = bbmax - bbmin;
-		Vec3 splitnrm = V3(0,0,1);
-		if( bbsize.x > bbsize.y && bbsize.x > bbsize.z ) splitnrm = V3(1,0,0);
-		else if( bbsize.y > bbsize.x && bbsize.y > bbsize.z ) splitnrm = V3(0,1,0);
-		
-		// sort and find middle
-		Array< int32_t > subsampidx( sampidx_data, sampidx_count );
-		_LightTree_SortIndices_Data LTSID = { LT, splitnrm };
-		sgrx_quicksort( subsampidx.data(), subsampidx.size(), sizeof(int32_t),
-			_LightTree_SortIndices, &LTSID );
-		size_t mid = sampidx_count / 2;
-		
-		// -- DO NOT TOUCH <N> ANYMORE --
-		LT->m_nodes.push_back( SGRX_LightTree::Node() );
-		LT->m_nodes.push_back( SGRX_LightTree::Node() );
-		_LightTree_MakeNode( LT, ch + 0, subsampidx.data(), mid, depth + 1 );
-		_LightTree_MakeNode( LT, ch + 1, &subsampidx[ mid ], sampidx_count - mid, depth + 1 );
-	}
-	else
-	{
-		// make leaf
-		N.sdo = LT->m_sampidx.size();
-		N.ch = -1;
-		LT->m_sampidx.push_back( sampidx_count );
-		LT->m_sampidx.append( sampidx_data, sampidx_count );
-	}
-}
-
-
-#ifdef DEBUG_LIGHT_TREE
-int lt_samples = 0;
-int lt_nodes = 0;
-int lt_nodes_all = 0;
-#endif
-void _LightTree_TestNode( SGRX_LightTree* LT, int32_t node, const Vec3 qbb[3],
-                          SGRX_LightTree::Colors* outaddcol, float* outaddwt )
-{
-#ifdef DEBUG_LIGHT_TREE
-	lt_nodes_all++;
-#endif
-	SGRX_LightTree::Node& N = LT->m_nodes[ node ];
-	if( qbb[0].x > N.bbmax.x || qbb[1].x < N.bbmin.x ||
-		qbb[0].y > N.bbmax.y || qbb[1].y < N.bbmin.y ||
-		qbb[0].z > N.bbmax.z || qbb[1].z < N.bbmin.z )
-		return;
-	
-#ifdef DEBUG_LIGHT_TREE
-	lt_nodes++;
-#endif
-	// samples
-	if( N.sdo != -1 )
-	{
-		size_t chcount = LT->m_sampidx[ N.sdo ], off = N.sdo + 1;
-		
-#ifdef DEBUG_LIGHT_TREE
-		lt_samples += chcount;
-#endif
-		
-		SGRX_LightTree::Colors tmpout;
-		tmpout.Clear();
-		float tmpwt = 0;
-		
-		// gather
-		for( size_t i = 0; i < chcount; ++i )
-		{
-			size_t idx = LT->m_sampidx[ i + off ];
-			// distfac: max = 100 to avoid precision issues
-			float distfac = powf( 2.0f / ( 1.0f + ( qbb[2] - LT->m_pos[ idx ] ).Length() ), 16.0f );
-			for( int c = 0; c < 6; ++c )
-				tmpout.color[ c ] += LT->m_colors[ idx ].color[ c ] * distfac;
-			tmpwt += distfac;
-		}
-		
-		// commit
-		for( int c = 0; c < 6; ++c )
-			outaddcol->color[ c ] += tmpout.color[ c ];
-		*outaddwt += tmpwt;
-	}
-	
-	// child nodes
-	if( N.ch != -1 )
-	{
-		_LightTree_TestNode( LT, N.ch + 0, qbb, outaddcol, outaddwt );
-		_LightTree_TestNode( LT, N.ch + 1, qbb, outaddcol, outaddwt );
-	}
-}
-
-void SGRX_LightTree::SetSamples( Sample* samples, size_t count )
-{
-	m_pos.clear();
-	m_colors.clear();
-	m_pos.reserve( count );
-	m_colors.reserve( count );
-	for( size_t i = 0; i < count; ++i )
-	{
-		if( m_pos.find_first_at( samples[ i ].pos ) == NOT_FOUND )
-		{
-			m_pos.push_back( samples[ i ].pos );
-			m_colors.push_back( samples[ i ] );
-		}
-	}
-	
-	_RegenBVH();
-}
-
-void SGRX_LightTree::SetSamplesUncolored( Vec3* samples, size_t count, const Vec3& col )
+void SGRX_LightEnv::SetSamplePositions( Vec3* samples, size_t count, const Vec3& col )
 {
 	Colors defcol = { { col, col, col, col, col, col } };
-	m_pos.clear();
-	m_colors.clear();
-	m_pos.reserve( count );
-	m_colors.reserve( count );
+	m_samples.resize( count );
 	for( size_t i = 0; i < count; ++i )
 	{
-		if( m_pos.find_first_at( samples[ i ] ) == NOT_FOUND )
-		{
-			m_pos.push_back( samples[ i ] );
-			m_colors.push_back( defcol );
-		}
+		m_samples[ i ].pos = samples[ i ];
+		m_samples[ i ].cols = defcol;
 	}
-	
-	_RegenBVH();
 }
 
-void SGRX_LightTree::GetColors( Vec3 pos, Colors* out )
+void SGRX_LightEnv::GetColors( Vec3 pos, Colors* out )
 {
-	Vec3 qbb[3] =
+	if( m_samples.size() )
 	{
-		pos - V3(LIGHTTREE_SAMPLE_EXTENTS),
-		pos + V3(LIGHTTREE_SAMPLE_EXTENTS),
-		pos
-	};
-	
-	Colors col;
-	col.Clear();
-	float total_weight = 0;
-	
-	if( m_nodes.size() )
-	{
-#ifdef DEBUG_LIGHT_TREE
-		int s = lt_samples;
-		int n = lt_nodes;
-		int a = lt_nodes_all;
-#endif
-		
-		_LightTree_TestNode( this, 0, qbb, &col, &total_weight );
-		
-#ifdef DEBUG_LIGHT_TREE
-		LOG << "LIGHT TREE SAMPLING SESSION AT " << pos << ":"
-			<< "\n- samples found: " << ( lt_samples - s )
-			<< "\n- nodes processed: " << ( lt_nodes - n )
-			<< "\n- nodes traversed: " << ( lt_nodes_all - a );
-#endif
-		
-		if( total_weight > SMALL_FLOAT )
+		size_t closest = 0;
+		float ndst = ( m_samples[ 0 ].pos - pos ).LengthSq();
+		for( size_t i = 1; i < m_samples.size(); ++i )
 		{
-			for( int c = 0; c < 6; ++c )
-				col.color[ c ] /= total_weight;
+			float dst = ( m_samples[ i ].pos - pos ).LengthSq();
+			if( dst < ndst )
+			{
+				ndst = dst;
+				closest = i;
+			}
 		}
+		*out = m_samples[ closest ].cols;
 	}
-	
-	*out = col;
-}
-
-void SGRX_LightTree::_RegenBVH()
-{
-	m_nodes.clear();
-	m_sampidx.clear();
-	if( m_pos.size() == 0 )
-		return;
-	
-	// BVH generation...
-	m_nodes.push_back( Node() );
-	Array< int32_t > sampidx;
-	for( size_t i = 0; i < m_pos.size(); ++i )
-		sampidx.push_back( i );
-	_LightTree_MakeNode( this, 0, sampidx.data(), sampidx.size(), 0 );
+	else
+		out->Clear();
 }
 
 
@@ -757,12 +565,12 @@ SGRX_DummyLightSampler& GR_GetDummyLightSampler()
 	return g_DummyLightSampler;
 }
 
-void SGRX_LightTreeSampler::SampleLight( const Vec3& pos, Vec3 outcolors[6] )
+void SGRX_LightEnvSampler::SampleLight( const Vec3& pos, Vec3 outcolors[6] )
 {
-	SGRX_LightTree::Colors cols;
-	if( m_lightTree )
+	SGRX_LightEnv::Colors cols;
+	if( m_lightEnv )
 	{
-		m_lightTree->GetColors( pos, &cols );
+		m_lightEnv->GetColors( pos, &cols );
 		for( int i = 0; i < 6; ++i )
 			outcolors[ i ] = cols.color[ i ];
 	}

@@ -1848,7 +1848,7 @@ void EdMainFrame::Level_Real_Compile_Default()
 	LOG_FUNCTION;
 	
 	LOG << "Compiling level";
-	LevelCache lcache( &g_EdLGCont->m_sampleTree );
+	LevelCache lcache( &g_EdLGCont->m_lightEnv );
 	lcache.m_skyTexture = g_EdWorld->m_lighting.skyboxTexture;
 	lcache.m_clutTexture = g_EdWorld->m_lighting.clutTexture;
 	

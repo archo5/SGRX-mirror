@@ -241,7 +241,7 @@ struct EdLevelGraphicsCont : SGRX_IEventHandler
 	HashTable< SGRX_GUID, Mesh > m_meshes;
 	HashTable< SGRX_GUID, Light > m_lights;
 	LMapTable m_lightmaps;
-	SGRX_LightTree m_sampleTree;
+	SGRX_LightEnv m_lightEnv;
 	
 	bool m_invalidSamples;
 	bool m_alrInvalidSamples;

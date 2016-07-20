@@ -197,7 +197,7 @@ EXP_STRUCT LevelCoreSystem : IGameLevelSystem
 	Array< LightHandle > m_lightInsts;
 	Array< PhyRigidBodyHandle > m_levelBodies;
 	Array< LC_Light > m_lights;
-	SGRX_LightTree m_ltSamples;
+	SGRX_LightEnv m_lightEnv;
 };
 
 

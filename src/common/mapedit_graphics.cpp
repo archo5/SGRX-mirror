@@ -177,7 +177,7 @@ void EdLevelGraphicsCont::LMap::ReloadTex()
 EdLevelGraphicsCont::EdLevelGraphicsCont()
 	: m_invalidSamples(false), m_alrInvalidSamples(false), m_lmRenderer(NULL)
 {
-	g_Level->m_lightTree = &m_sampleTree;
+	g_Level->m_lightEnv = &m_lightEnv;
 	
 	Game_RegisterEventHandler( this, EID_GOResourceAdd );
 	Game_RegisterEventHandler( this, EID_GOResourceRemove );
@@ -228,7 +228,7 @@ void EdLevelGraphicsCont::LoadLightmaps( const StringView& levname )
 	}
 	
 	br << m_invalidSamples;
-	br << m_sampleTree;
+	br << m_lightEnv;
 	
 	LMap LM;
 	while( br.pos < ba.size() )
@@ -276,7 +276,7 @@ void EdLevelGraphicsCont::SaveLightmaps( const StringView& levname )
 	bw.marker( "SGRXLMC3" );
 	
 	bw << m_invalidSamples;
-	bw << m_sampleTree;
+	bw << m_lightEnv;
 	
 	for( size_t i = 0; i < m_lightmaps.size(); ++i )
 	{
@@ -344,10 +344,10 @@ void EdLevelGraphicsCont::LightMesh( SGRX_MeshInstance* MI, SGRX_GUID lmguid )
 	ASSERT( m_lightmaps.isset( lmguid ) );
 	MI->SetMITexture( 0, m_lightmaps[ lmguid ]->texture );
 	// dynamic lighting
-	if( m_sampleTree.m_pos.size() )
+	if( m_lightEnv.m_samples.size() )
 	{
-		SGRX_LightTreeSampler lts;
-		lts.m_lightTree = &m_sampleTree;
+		SGRX_LightEnvSampler lts;
+		lts.m_lightEnv = &m_lightEnv;
 		Vec3 colors[6];
 		lts.SampleLight( MI->matrix.TransformPos( V3(0) ), colors );
 		for( int i = 0; i < 6; ++i )
@@ -642,9 +642,9 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 	
 	if( m_invalidSamples )
 	{
-		for( size_t i = 0; i < m_sampleTree.m_pos.size(); ++i )
+		for( size_t i = 0; i < m_lightEnv.m_samples.size(); ++i )
 		{
-			m_lmRenderer->sample_positions.push_back( m_sampleTree.m_pos[ i ] );
+			m_lmRenderer->sample_positions.push_back( m_lightEnv.m_samples[ i ].pos );
 		}
 	}
 	
@@ -738,13 +738,13 @@ void EdLevelGraphicsCont::ILMCheck()
 			}
 		}
 		
-		if( m_lmRenderer->rendered_sample_count == m_sampleTree.m_colors.size() )
+		if( m_lmRenderer->rendered_sample_count == m_lightEnv.m_samples.size() )
 		{
-			for( size_t i = 0; i < m_sampleTree.m_colors.size(); ++i )
+			for( size_t i = 0; i < m_lightEnv.m_samples.size(); ++i )
 			{
-				m_lmRenderer->GetSample( i, m_sampleTree.m_colors[ i ].color );
+				m_lmRenderer->GetSample( i, m_lightEnv.m_samples[ i ].cols.color );
 			}
-			if( m_sampleTree.m_colors.size() )
+			if( m_lightEnv.m_samples.size() )
 				RelightAllMeshes();
 			m_invalidSamples = m_alrInvalidSamples;
 		}
@@ -759,103 +759,17 @@ void EdLevelGraphicsCont::STRegenerate()
 	if( m_lmRenderer )
 		return;
 	
-	float density = g_EdWorld->m_lighting.sampleDensity;
-	float stepsize = density ? 1.0f / density : 1.0f;
-	
-	Vec3 bbmin = V3( FLT_MAX ), bbmax = V3( -FLT_MAX );
-	for( size_t i = 0; i < m_meshes.size(); ++i )
+	Array< Vec3 > poslist;
+	for( size_t i = 0; i < g_EdWorld->m_edobjs.size(); ++i )
 	{
-		Mesh& M = m_meshes.item( i ).value;
-		if( M.ent->m_isStatic == false )
+		if( g_EdWorld->m_edobjs[ i ]->m_type != ObjType_Entity )
 			continue;
-		
-		SGRX_IMesh* mesh = M.ent->m_meshInst->GetMesh();
-		if( mesh == NULL )
-			continue;
-		
-		Vec3 tfbbmin = mesh->m_boundsMin;
-		Vec3 tfbbmax = mesh->m_boundsMax;
-		TransformAABB( tfbbmin, tfbbmax, M.ent->m_meshInst->matrix );
-		bbmin = Vec3::Min( bbmin, tfbbmin );
-		bbmax = Vec3::Max( bbmax, tfbbmax );
-	}
-	for( size_t i = 0; i < m_surfaces.size(); ++i )
-	{
-		Surface& S = m_surfaces.item( i ).value;
-		SGRX_IMesh* mesh = S.meshInst->GetMesh();
-		if( mesh == NULL )
-			continue;
-		
-		Vec3 tfbbmin = mesh->m_boundsMin;
-		Vec3 tfbbmax = mesh->m_boundsMax;
-		TransformAABB( tfbbmin, tfbbmax, S.meshInst->matrix );
-		bbmin = Vec3::Min( bbmin, tfbbmin );
-		bbmax = Vec3::Max( bbmax, tfbbmax );
+		SGRX_CAST( EdEntity*, E, g_EdWorld->m_edobjs[ i ].item );
+		if( E->m_entityType.equals( "LightSample" ) )
+			poslist.push_back( E->GetPosition() );
 	}
 	
-	if( bbmin.x > bbmax.x )
-		return; // no data to generate samples for!
-	
-	LOG << "Generating samples for " << bbmin << " - " << bbmax << " area with step size: " << stepsize;
-	
-	VoxelBlock VB( bbmin, bbmax, stepsize );
-	LOG << "- voxel count: " << ( VB.m_xsize * VB.m_ysize * VB.m_zsize );
-	LOG << "- rasterizing blocks...";
-	// rasterize surfaces
-	for( size_t i = 0; i < m_surfaces.size(); ++i )
-	{
-		Surface& S = m_surfaces.item( i ).value;
-		for( size_t j = 0; j + 2 < S.indices.size(); j += 3 )
-		{
-			VB.RasterizeTriangle(
-				S.vertices[ S.indices[ j ] ].pos,
-				S.vertices[ S.indices[ j + 1 ] ].pos,
-				S.vertices[ S.indices[ j + 2 ] ].pos
-			);
-		}
-	}
-	LOG << "- rasterizing solids...";
-	// rasterize solids
-	for( size_t i = 0; i < m_solids.size(); ++i )
-	{
-		Solid& S = m_solids.item( i ).value;
-		if( S.planes.size() )
-			VB.RasterizeSolid( S.planes.data(), S.planes.size() );
-	}
-	LOG << "- rasterizing meshes...";
-	// rasterize meshes
-	// TODO
-	
-	LOG << "- generating samples...";
-	Array< Vec3 > samples;
-	size_t osc = samples.size();
-	// generate samples (1 on every side, 0.125 per voxel otherwise - 1 in each 2x2 block)
-	for( int32_t z = 0; z < VB.m_zsize; ++z )
-	{
-		for( int32_t y = 0; y < VB.m_ysize; ++y )
-		{
-			for( int32_t x = 0; x < VB.m_xsize; ++x )
-			{
-				if( VB.Get( x, y, z ) )
-					continue; // cannot put samples into geometry
-				
-				bool putsample = ( x % 2 == 0 ) && ( y % 2 == 0 ) && ( z % 2 == 0 );
-				if( !putsample )
-				{
-					// check for nearby blocks
-					if( VB.Get( x - 1, y, z ) || VB.Get( x + 1, y, z ) ||
-						VB.Get( x, y - 1, z ) || VB.Get( x, y + 1, z ) ||
-						VB.Get( x, y, z - 1 ) || VB.Get( x, y, z + 1 ) )
-						putsample = true;
-				}
-				if( putsample )
-					samples.push_back( VB.GetPosition( x, y, z ) );
-			}
-		}
-	}
-	LOG << "- done, generated sample count: " << ( samples.size() - osc );
-	
-	m_sampleTree.SetSamplesUncolored( samples.data(), samples.size() );
+	m_lightEnv.SetSamplePositions( poslist.data(), poslist.size() );
 	m_invalidSamples = true;
 }
 

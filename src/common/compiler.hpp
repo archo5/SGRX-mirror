@@ -284,7 +284,7 @@ struct LevelCache
 	
 	struct Solid : Array< Vec4 > {};
 	
-	LevelCache( SGRX_LightTree* sampleTree );
+	LevelCache( SGRX_LightEnv* lightEnv );
 	
 	void AddPart( const Vertex* verts, int vcount, LC_Lightmap& lm,
 		const StringView& mtlname, size_t fromsolid, uint32_t flags, int decalLayer );
@@ -327,7 +327,7 @@ struct LevelCache
 	StringView m_skyTexture;
 	StringView m_clutTexture;
 	LC_PhysicsMesh m_navMesh;
-	SGRX_LightTree* m_sampleTree;
+	SGRX_LightEnv* m_lightEnv;
 	Array< Vec2 > m_mapLines;
 	Array< LC_Map_Layer > m_mapLayers;
 	Array< PathArea > m_pathAreas;

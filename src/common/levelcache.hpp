@@ -158,7 +158,8 @@ struct LC_PhysicsMesh
 // v1: added solid boxes
 // v2: added sky texture
 // v3: added cLUT texture
-#define LC_FILE_GEOM_VERSION 3
+// v4: changed lighting env. (incompatible)
+#define LC_FILE_GEOM_VERSION 4
 struct LC_SolidBox
 {
 	Vec3 position;
@@ -176,7 +177,7 @@ struct LC_Chunk_Geom
 {
 	Array< LC_MeshInst >* meshinsts;
 	Array< LC_Light >* lights;
-	SGRX_LightTree* lightTree;
+	SGRX_LightEnv* lightEnv;
 	LC_PhysicsMesh* physics;
 	Array< LC_SolidBox >* solidBoxes;
 	StringView skyTexture;
@@ -187,7 +188,7 @@ struct LC_Chunk_Geom
 		SerializeVersionHelper<T> svh( arch, LC_FILE_GEOM_VERSION );
 		svh << *meshinsts;
 		svh << *lights;
-		svh << *lightTree;
+		svh << *lightEnv;
 		svh << *physics;
 		svh( *solidBoxes, svh.version >= 1 );
 		if( svh.version >= 2 )

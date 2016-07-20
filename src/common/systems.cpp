@@ -361,7 +361,7 @@ void FlareSystem::sgsRemove( void* handle )
 
 LevelCoreSystem::LevelCoreSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 {
-	lev->m_lightTree = &m_ltSamples;
+	lev->m_lightEnv = &m_lightEnv;
 }
 
 void LevelCoreSystem::Clear()
@@ -370,7 +370,7 @@ void LevelCoreSystem::Clear()
 	m_lightInsts.clear();
 	m_levelBodies.clear();
 	m_lights.clear();
-	m_ltSamples.SetSamples( NULL, 0 );
+	m_lightEnv.SetSamplePositions( NULL, 0 );
 }
 
 bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
@@ -381,7 +381,7 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 	Array< LC_MeshInst > meshInstDefs;
 	LC_PhysicsMesh phyMesh;
 	Array< LC_SolidBox > solidBoxes;
-	LC_Chunk_Geom geom = { &meshInstDefs, &m_lights, &m_ltSamples, &phyMesh, &solidBoxes };
+	LC_Chunk_Geom geom = { &meshInstDefs, &m_lights, &m_lightEnv, &phyMesh, &solidBoxes };
 	ByteReader br( data );
 	br << geom;
 	if( br.error )

@@ -350,64 +350,8 @@ function LightSample.ED_PropInfo( eptr )
 {
 	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
 }
-
-
-global LightSampleGrid = {};
-ENTITY( "LightSampleGrid" );
-LightSampleGrid.ED_Icon = "editor/icons/ltsample.png";
-function LightSampleGrid.Init()
+function LightSample.EditorDrawWorld()
 {
-	this.cellSize = 1.0;
-	this.cellSizeNU = vec3(1.0);
-	this.marginX = vec2(0);
-	this.marginY = vec2(0);
-	this.marginZ = vec2(0);
-}
-function LightSampleGrid.ED_PropInfo( eptr )
-{
-	PropInfo_XForm( eptr );
-	EE_AddFieldFloat( eptr, "cellSize", "Cell size", 1, 2, 0.01, 100 );
-	EE_AddFieldVec3( eptr, "cellSizeNU", "Cell size (non-uniform)", 1, 2, 0.01, 100 );
-	EE_AddFieldVec2( eptr, "marginX", "X margin", 0, 2, -100, 100 );
-	EE_AddFieldVec2( eptr, "marginY", "Y margin", 0, 2, -100, 100 );
-	EE_AddFieldVec2( eptr, "marginZ", "Z margin", 0, 2, -100, 100 );
-}
-function LightSampleGrid.EditorDrawWorld()
-{
-	negMargin = vec3( this.marginX.x, this.marginY.x, this.marginZ.x );
-	posMargin = vec3( this.marginX.y, this.marginY.y, this.marginZ.y );
-	scale = this.scale - ( posMargin + negMargin ) * 0.5;
-	mtx = this.get_transform();
-	BR_Reset();
-	BR_Col( 0.5, 0.9, 0.8, 0.8 );
-	BR_AABB( -1+negMargin/this.scale, 1-posMargin/this.scale, mtx );
-	BR_Col( 0.2, 0.9, 0.8, 0.8 );
-	BR_AABB( -1, 1, mtx );
-	csz = this.cellSizeNU * this.cellSize;
-	if( csz.x > 0.01 && csz.y > 0.01 && csz.z > 0.01 )
-	{
-		xcount = max( floor( scale.x / csz.x ), 1 );
-		ycount = max( floor( scale.y / csz.y ), 1 );
-		zcount = max( floor( scale.z / csz.z ), 1 );
-		if( xcount * ycount * zcount > 4096 )
-			return;
-		ncs = csz / this.scale;
-		for( z = 0; z < zcount; ++z )
-		{
-			for( y = 0; y < ycount; ++y )
-			{
-				for( x = 0; x < xcount; ++x )
-				{
-					pos = vec3(
-						( x * 2 - (xcount-1) ),
-						( y * 2 - (ycount-1) ),
-						( z * 2 - (zcount-1) ) ) * ncs;
-					pos += ( negMargin - posMargin ) / this.scale * 0.5;
-					BR_Tick( mtx.transform_pos( pos ), this.cellSize * 0.9 );
-				}
-			}
-		}
-	}
 }
 
 
