@@ -189,7 +189,8 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 struct TSAimHelper : GameObjectProcessor
 {
 	TSAimHelper( GameLevel* lev );
-	void Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock );
+	void Tick( float deltaTime, GameObject* ownerObj, Vec3 pos, Vec2 cp, bool lock );
+	bool DoQuery();
 	Vec3 GetAimPoint();
 	
 	Vec3 _CalcRCPos( Vec3 pos );
@@ -197,6 +198,7 @@ struct TSAimHelper : GameObjectProcessor
 	GameLevel* m_level;
 	Vec3 m_pos;
 	Vec2 m_cp;
+	GameObject* m_ownerObj;
 	void* m_aimPtr;
 	Vec3 m_aimPoint;
 	Vec3 m_rcPoint;

@@ -343,7 +343,7 @@ sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 		g_Level->GetScriptCtx().SetGlobal( "ED_SDATA", sgsVariable() );
 		
 		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
-		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_type ) );
+		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_rsrcType ) );
 		if( guids )
 		{
 			data_rsrc.setprop( "__guid",
@@ -418,7 +418,7 @@ void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
 		sgsVariable data_rsrc = EDGO_RSRC_LCSave( rsrc );
 		
 		data_rsrc.setprop( "__name", rsrc->m_name.get_variable() );
-		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_type ) );
+		data_rsrc.setprop( "__type", sgsVariable().set_int( rsrc->m_rsrcType ) );
 		data_rsrc.setprop( "__guid",
 			g_Level->GetScriptCtx().CreateString( rsrc->m_src_guid.ToString() ) );
 		

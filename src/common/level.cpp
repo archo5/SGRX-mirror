@@ -60,7 +60,7 @@ sgsHandle< GameLevel > LevelScrObj::_sgs_getLevel()
 
 GOResource::GOResource( GameObject* obj ) :
 	LevelScrObj( obj->m_level ),
-	m_type( 0 ),
+	m_rsrcType( 0 ),
 	m_localMatrix( Mat4::Identity ),
 	m_matrixMode( MM_Relative ),
 	m_obj( obj )
@@ -301,7 +301,7 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 	if( rsrc )
 	{
 		rsrc->m_name = name;
-		rsrc->m_type = type;
+		rsrc->m_rsrcType = type;
 		if( m_level->nextObjectGUID.NotNull() )
 		{
 			rsrc->m_src_guid = m_level->nextObjectGUID;
@@ -317,7 +317,7 @@ GOResource* GameObject::AddResource( sgsString name, uint32_t type, bool ovr )
 GOResource* GameObject::RequireResource( sgsString name, uint32_t type, bool retifnc )
 {
 	GOResource* rsrc = m_resources.getcopy( name );
-	if( rsrc && rsrc->m_type == type )
+	if( rsrc && rsrc->m_rsrcType == type )
 	{
 		if( m_level->nextObjectGUID.NotNull() )
 		{
@@ -739,12 +739,12 @@ void GameLevel::HandleEvent( SGRX_EventID eid, const EventData& edata )
 		} break;
 	case EID_GOResourceAdd: {
 			SGRX_CAST( GOResource*, R, edata.GetUserData() );
-			if( R->m_type == GO_RSRC_CAMERA )
+			if( R->m_rsrcType == GO_RSRC_CAMERA )
 				m_cameras.push_back( (CameraResource*) R );
 		} break;
 	case EID_GOResourceRemove: {
 			SGRX_CAST( GOResource*, R, edata.GetUserData() );
-			if( R->m_type == GO_RSRC_CAMERA )
+			if( R->m_rsrcType == GO_RSRC_CAMERA )
 				m_cameras.remove_first( (CameraResource*) R );
 		} break;
 	}

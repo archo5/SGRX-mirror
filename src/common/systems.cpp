@@ -581,13 +581,13 @@ void GFXSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 	if( eid == EID_GOResourceAdd )
 	{
 		SGRX_CAST( GOResource*, R, edata.GetUserData() );
-		if( R->m_type == GO_RSRC_REFPLANE )
+		if( R->m_rsrcType == GO_RSRC_REFPLANE )
 			m_reflectPlanes.push_back( R );
 	}
 	else if( eid == EID_GOResourceRemove )
 	{
 		SGRX_CAST( GOResource*, R, edata.GetUserData() );
-		if( R->m_type == GO_RSRC_REFPLANE )
+		if( R->m_rsrcType == GO_RSRC_REFPLANE )
 			m_reflectPlanes.remove_first( R );
 	}
 }

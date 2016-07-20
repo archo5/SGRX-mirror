@@ -221,6 +221,7 @@ void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, SGRX_MeshInstance
 {
 	Array< RenderItem >* RIA = slot ? &m_renderItemsAux : &m_renderItemsBase;
 	
+	// generate render items from mesh instances and their parts
 	RIA->clear();
 	for( size_t miid = 0; miid < micount; ++miid )
 	{
@@ -238,6 +239,7 @@ void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, SGRX_MeshInstance
 		}
 	}
 	
+	// sort render items according to key (multiple influences)
 	sgrx_combsort( RIA->data(), RIA->size(), sizeof(RenderItem), renderitem_sort, NULL );
 }
 

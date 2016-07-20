@@ -2014,7 +2014,7 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 			data.append( " = obj.RequireResource( " );
 			data.append( sctx.ToSGSON( rsrc->m_name ) );
 			char bfr[ 32 ];
-			sgrx_snprintf( bfr, 32, ", %u, true ).\n\t{\n", (unsigned) rsrc->m_type );
+			sgrx_snprintf( bfr, 32, ", %u, true ).\n\t{\n", (unsigned) rsrc->m_rsrcType );
 			data.append( bfr );
 			// resource properties
 			sgsVariable rsrcdata = EDGO_RSRC_LCSave( rsrc );

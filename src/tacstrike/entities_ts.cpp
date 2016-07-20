@@ -854,8 +854,9 @@ TSAimHelper::TSAimHelper( GameLevel* lev ) :
 {
 }
 
-void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
+void TSAimHelper::Tick( float deltaTime, GameObject* ownerObj, Vec3 pos, Vec2 cp, bool lock )
 {
+	m_ownerObj = ownerObj;
 	m_pos = pos;
 	if( m_aimFactor == 0 || m_aimPtr == NULL )
 		m_cp = cp;
@@ -863,9 +864,7 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 	
 	if( lock )
 	{
-		m_pDist = 0.5f;
-		m_closestObj = NULL;
-		lock = m_level->QuerySphere( this, IEST_Target, pos, 8.0f );
+		lock = DoQuery();
 		if( m_aimPtr == NULL || m_aimPtr == m_closestObj )
 		{
 			m_aimPoint = m_closestPoint;
@@ -893,6 +892,13 @@ void TSAimHelper::Tick( float deltaTime, Vec3 pos, Vec2 cp, bool lock )
 		Vec2 tgt = V2( clamp( target_pos.x, 0, 1 ), clamp( target_pos.y, 0, 1 ) ) * screen_size;
 		Game_SetCursorPos( tgt.x, tgt.y );
 	}
+}
+
+bool TSAimHelper::DoQuery()
+{
+	m_pDist = 0.5f;
+	m_closestObj = NULL;
+	return m_level->QuerySphere( this, IEST_Target, m_pos, 8.0f );
 }
 
 Vec3 TSAimHelper::GetAimPoint()
@@ -931,7 +937,7 @@ Vec3 TSAimHelper::_CalcRCPos( Vec3 pos )
 
 bool TSAimHelper::ProcessGameObject( GameObject* obj )
 {
-	if( obj->GetInfoMask() & IEST_Player )
+	if( obj == m_ownerObj )
 		return true;
 	
 	Vec3 tgtPos = obj->GetWorldInfoTarget();
@@ -976,7 +982,7 @@ void TSPlayerController::Update()
 	{
 		Vec3 pos = P->GetQueryPosition();
 		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-		m_aimHelper.Tick( m_level->GetDeltaTime(), pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
+		m_aimHelper.Tick( m_level->GetDeltaTime(), m_obj, pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
 	}
 	
 	i_move = V2
@@ -1014,9 +1020,7 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 
 void TSPlayerController::CalcUIAimInfo()
 {
-	m_aimHelper.m_pDist = 0.5f;
-	m_aimHelper.m_closestObj = NULL;
-	m_aimHelper.m_level->QuerySphere( &m_aimHelper, IEST_Target, m_aimHelper.m_pos, 8.0f );
+	m_aimHelper.DoQuery();
 }
 
 

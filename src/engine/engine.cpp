@@ -1089,6 +1089,7 @@ void IGame::OnMakeRenderState( const SGRX_RenderPass& pass, const SGRX_Material&
 	{
 		out.depthBias = 1e-5f;
 		out.slopeDepthBias = 0.5f;
+		out.cullMode = SGRX_RS_CullMode_None;
 	}
 }
 

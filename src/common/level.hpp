@@ -323,7 +323,7 @@ EXP_STRUCT GOResource : LevelScrObj
 	SGS_PROPERTY_FUNC( READ _get_object ) SGS_ALIAS( sgsHandle<GameObject> object );
 	
 	SGS_PROPERTY_FUNC( READ VARNAME __name ) sgsString m_name;
-	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_type;
+	SGS_PROPERTY_FUNC( READ VARNAME __type ) uint32_t m_rsrcType;
 	SGS_PROPERTY_FUNC( READ SOURCE m_src_guid.ToString() ) SGS_ALIAS( sgsString __guid );
 	
 	FINLINE Vec3 GetLocalPosition() const { return m_localMatrix.GetTranslation(); }
