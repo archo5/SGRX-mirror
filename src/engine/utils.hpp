@@ -3593,10 +3593,10 @@ float IntersectLineSegmentTriangle( const Vec3& L1, const Vec3& L2, const Vec3& 
 
 struct TriTree
 {
-	void SetTris( Triangle* tris, size_t count );
-	bool IntersectRay( const Vec3& from, const Vec3& to );
-	float IntersectRayDist( const Vec3& from, const Vec3& to, int32_t* outtid );
-	float GetDistance( const Vec3& p, float dist );
+	ENGINE_EXPORT void SetTris( Triangle* tris, size_t count );
+	ENGINE_EXPORT bool IntersectRay( const Vec3& from, const Vec3& to );
+	ENGINE_EXPORT float IntersectRayDist( const Vec3& from, const Vec3& to, int32_t* outtid );
+	ENGINE_EXPORT float GetDistance( const Vec3& p, float dist );
 	
 	AABBTree m_bbTree;
 	Array< Triangle > m_tris;

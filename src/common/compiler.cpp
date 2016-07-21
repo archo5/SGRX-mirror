@@ -1775,8 +1775,41 @@ fail:
 	goto ending;
 }
 
+struct PMRaycast
+{
+	TriTree m_triTree;
+	
+	PMRaycast( LC_PhysicsMesh* rcMesh )
+	{
+		Array< Vec3 >& vtcs = rcMesh->positions;
+		Array< uint32_t >& idcs = rcMesh->indices;
+		Array< Triangle > tris;
+		for( size_t i = 0; i < idcs.size() - 3; i += 4 )
+		{
+			Triangle t =
+			{
+				vtcs[ idcs[ i + 0 ] ],
+				vtcs[ idcs[ i + 1 ] ],
+				vtcs[ idcs[ i + 2 ] ],
+			};
+			tris.push_back( t );
+		}
+		m_triTree.SetTris( tris.data(), tris.size() );
+	}
+	
+	bool Hit( const Vec3& from, const Vec3& dir, float maxlen )
+	{
+		return m_triTree.IntersectRay( from, from + dir * maxlen );
+	}
+};
+
 bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
 {
+	static float height1 = 1.2f;
+	static float height2 = 1.9f;
+	static float depth = 0.7f;
+	
+	PMRaycast rc( &m_navMesh );
 	OBJExporter objex;
 	bool retval = true;
 	dtNavMesh* navmesh = dtAllocNavMesh();
@@ -1798,11 +1831,6 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
 			
 			if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION) continue;
 			
-#if 0
-			static const float thr = 0.01f*0.01f;
-			const dtPolyDetail* pd = &tile->detailMeshes[i];
-#endif
-			
 			for (int j = 0, nj = (int)p->vertCount; j < nj; ++j)
 			{
 				if (p->neis[j] != 0) continue;
@@ -1812,38 +1840,44 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
 				
 				Vec3 p0 = RC2SGRX( Vec3::CreateFromPtr( v0 ) );
 				Vec3 p1 = RC2SGRX( Vec3::CreateFromPtr( v1 ) );
-				Vec3 nrm = Vec3Cross( p1 - p0, V3(0,0,1) ).Normalized();
+				Vec3 nrm = Vec3Cross( V3(0,0,1), p1 - p0 ).Normalized();
 				
-				objex.AddVertex( p0, V2(0), V3(0,0,1) );
-				objex.AddVertex( p1, V2(0), V3(0,0,1) );
-				objex.AddVertex( (p0+p1)*0.5f+nrm*0.1f, V2(0), V3(0,0,1) );
-				
-#if 0
-				// Draw detail mesh edges which align with the actual poly edge.
-				// This is really slow.
-				for (int k = 0; k < pd->triCount; ++k)
+				Vec3 rco1 = TLERP( p0, p1, 0.25f );
+				Vec3 rco2 = TLERP( p0, p1, 0.75f );
+				bool hit_l1 = rc.Hit( rco1 + V3(0,0,height1), nrm, depth );
+				bool hit_l2 = rc.Hit( rco2 + V3(0,0,height1), nrm, depth );
+				bool hit_h1 = rc.Hit( rco1 + V3(0,0,height2), nrm, depth );
+				bool hit_h2 = rc.Hit( rco2 + V3(0,0,height2), nrm, depth );
+				int cl1 = hit_l1 ? ( hit_h1 ? 2 : 1 ) : 0;
+				int cl2 = hit_l2 ? ( hit_h2 ? 2 : 1 ) : 0;
+				if( cl1 == cl2 )
 				{
-					const unsigned char* t = &tile->detailTris[(pd->triBase+k)*4];
-					const float* tv[3];
-					for (int m = 0; m < 3; ++m)
+					// same level, do not split line
+					if( cl1 != 0 )
 					{
-						if (t[m] < p->vertCount)
-							tv[m] = &tile->verts[p->verts[t[m]]*3];
-						else
-							tv[m] = &tile->detailVerts[(pd->vertBase+(t[m]-p->vertCount))*3];
-					}
-					for (int m = 0, n = 2; m < 3; n=m++)
-					{
-						if (((t[3] >> (n*2)) & 0x3) == 0) continue;	// Skip inner detail edges.
-						if (distancePtLine2d(tv[n],v0,v1) < thr &&
-							distancePtLine2d(tv[m],v0,v1) < thr)
-						{
-							dd->vertex(tv[n], c);
-							dd->vertex(tv[m], c);
-						}
+						objex.AddVertex( p0, V2(0), V3(0,0,1) );
+						objex.AddVertex( p1, V2(0), V3(0,0,1) );
+						objex.AddVertex( (p0+p1)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
 					}
 				}
-#endif
+				else
+				{
+					// different levels, process line parts separately
+					Vec3 p0a = p0, p0b = ( p0 + p1 ) * 0.5f;
+					Vec3 p1a = p0b, p1b = p1;
+					if( cl1 != 0 )
+					{
+						objex.AddVertex( p0a, V2(0), V3(0,0,1) );
+						objex.AddVertex( p0b, V2(0), V3(0,0,1) );
+						objex.AddVertex( (p0a+p0b)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
+					}
+					if( cl2 != 0 )
+					{
+						objex.AddVertex( p1a, V2(0), V3(0,0,1) );
+						objex.AddVertex( p1b, V2(0), V3(0,0,1) );
+						objex.AddVertex( (p1a+p1b)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
+					}
+				}
 			}
 		}
 	}
