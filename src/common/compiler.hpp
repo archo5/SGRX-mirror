@@ -315,6 +315,7 @@ struct LevelCache
 	bool SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringView& path );
 	bool SaveCache( MapMaterialMap& mtls, const StringView& path );
 	bool GenerateNavmesh( const StringView& path, ByteArray& outData );
+	bool GenerateCoverData( const ByteView& navData, ByteArray& out );
 	
 	Array< Solid > m_solids;
 	Array< Mesh > m_meshes;

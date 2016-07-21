@@ -4,6 +4,10 @@
 #include "utils.hpp"
 
 
+inline Vec3 RC2SGRX( const Vec3& v ){ return V3( v.x, v.z, v.y ); }
+inline Vec3 SGRX2RC( const Vec3& v ){ return V3( v.x, v.z, v.y ); }
+
+
 struct SGRX_Pathfinder
 {
 	SGRX_Pathfinder();

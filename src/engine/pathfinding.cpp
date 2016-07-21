@@ -13,10 +13,6 @@
 #define MAX_PATH_POLYS 128
 
 
-inline Vec3 RC2SGRX( const Vec3& v ){ return V3( v.x, v.z, v.y ); }
-inline Vec3 SGRX2RC( const Vec3& v ){ return V3( v.x, v.z, v.y ); }
-
-
 struct DetourDebugDraw : duDebugDraw
 {
 	DetourDebugDraw() : br( GR2D_GetBatchRenderer().Reset() ){}

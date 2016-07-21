@@ -3,7 +3,9 @@
 #include <float.h>
 
 #include <engine.hpp>
+#include <pathfinding.hpp>
 #include "compiler.hpp"
+#include "edutils.hpp"
 
 #include <Recast.h>
 #include <DetourNavMesh.h>
@@ -1311,13 +1313,22 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 	}
 	
 	// AI system (pathfinding)
-	ByteArray ba_pfnd;
-	GenerateNavmesh( path, ba_pfnd );
+	ByteArray ba_pfnd, ba_covr;
+	if( GenerateNavmesh( path, ba_pfnd ) )
 	{
 		memcpy( chunk.sys_id, LC_FILE_PFND_NAME, sizeof(chunk.sys_id) );
 		chunk.ptr = ba_pfnd.data();
 		chunk.size = ba_pfnd.size();
 		level.chunks.push_back( chunk );
+		// - cover
+		if( GenerateCoverData( ba_pfnd, ba_covr ) )
+		{
+			// TODO
+			memcpy( chunk.sys_id, "NOOO", sizeof(chunk.sys_id) );
+			chunk.ptr = ba_covr.data();
+			chunk.size = ba_covr.size();
+			level.chunks.push_back( chunk );
+		}
 	}
 	
 	// misc. chunks
@@ -1757,6 +1768,89 @@ ending:
 	if( cset ) rcFreeContourSet( cset );
 	if( pmesh ) rcFreePolyMesh( pmesh );
 	if( dmesh ) rcFreePolyMeshDetail( dmesh );
+	return retval;
+	
+fail:
+	retval = false;
+	goto ending;
+}
+
+bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
+{
+	OBJExporter objex;
+	bool retval = true;
+	dtNavMesh* navmesh = dtAllocNavMesh();
+	dtStatus status = navmesh->init( navData.data(), navData.size(), DT_TILE_FREE_DATA );
+	if( dtStatusFailed( status ) )
+	{
+		LOG_ERROR << "Could not init Detour navmesh";
+		goto fail;
+	}
+	
+	for( int i = 0, max = navmesh->getMaxTiles(); i < max; ++i )
+	{
+		const dtNavMesh* cnm = navmesh;
+		const dtMeshTile* tile = cnm->getTile( i );
+		
+		for (int i = 0; i < tile->header->polyCount; ++i)
+		{
+			const dtPoly* p = &tile->polys[i];
+			
+			if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION) continue;
+			
+#if 0
+			static const float thr = 0.01f*0.01f;
+			const dtPolyDetail* pd = &tile->detailMeshes[i];
+#endif
+			
+			for (int j = 0, nj = (int)p->vertCount; j < nj; ++j)
+			{
+				if (p->neis[j] != 0) continue;
+				
+				const float* v0 = &tile->verts[p->verts[j]*3];
+				const float* v1 = &tile->verts[p->verts[(j+1) % nj]*3];
+				
+				Vec3 p0 = RC2SGRX( Vec3::CreateFromPtr( v0 ) );
+				Vec3 p1 = RC2SGRX( Vec3::CreateFromPtr( v1 ) );
+				Vec3 nrm = Vec3Cross( p1 - p0, V3(0,0,1) ).Normalized();
+				
+				objex.AddVertex( p0, V2(0), V3(0,0,1) );
+				objex.AddVertex( p1, V2(0), V3(0,0,1) );
+				objex.AddVertex( (p0+p1)*0.5f+nrm*0.1f, V2(0), V3(0,0,1) );
+				
+#if 0
+				// Draw detail mesh edges which align with the actual poly edge.
+				// This is really slow.
+				for (int k = 0; k < pd->triCount; ++k)
+				{
+					const unsigned char* t = &tile->detailTris[(pd->triBase+k)*4];
+					const float* tv[3];
+					for (int m = 0; m < 3; ++m)
+					{
+						if (t[m] < p->vertCount)
+							tv[m] = &tile->verts[p->verts[t[m]]*3];
+						else
+							tv[m] = &tile->detailVerts[(pd->vertBase+(t[m]-p->vertCount))*3];
+					}
+					for (int m = 0, n = 2; m < 3; n=m++)
+					{
+						if (((t[3] >> (n*2)) & 0x3) == 0) continue;	// Skip inner detail edges.
+						if (distancePtLine2d(tv[n],v0,v1) < thr &&
+							distancePtLine2d(tv[m],v0,v1) < thr)
+						{
+							dd->vertex(tv[n], c);
+							dd->vertex(tv[m], c);
+						}
+					}
+				}
+#endif
+			}
+		}
+	}
+	objex.Save( "cover.obj", "Exported from SGRX editor" );
+	
+ending:
+	if( navmesh ) dtFreeNavMesh( navmesh );
 	return retval;
 	
 fail:
