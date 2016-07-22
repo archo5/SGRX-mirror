@@ -903,9 +903,10 @@ void SGRX_RenderDirector::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_Rende
 	}
 	else
 	{
-		int base_pass_id = scene->FindPass( SGRX_FP_Base );
-		int point_pass_id = scene->FindPass( SGRX_FP_Point );
-		int spot_pass_id = scene->FindPass( SGRX_FP_Spot );
+		StringView shdef = m_curMode == SGRX_RDMode_NoDiffCol ? ":MOD_NODIFFCOL" : "";
+		int base_pass_id = scene->FindPass( SGRX_FP_Base, shdef );
+		int point_pass_id = scene->FindPass( SGRX_FP_Point, shdef );
+		int spot_pass_id = scene->FindPass( SGRX_FP_Spot, shdef );
 		
 		ctrl->RenderTypes( scene, base_pass_id, 1, SGRX_TY_Solid );
 		ctrl->RenderTypes( scene, point_pass_id, 4, SGRX_TY_Solid );
@@ -963,7 +964,7 @@ void SGRX_RenderDirector::OnDrawFog( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 
 int SGRX_RenderDirector::GetModeCount()
 {
-	return 2;
+	return 3;
 }
 
 void SGRX_RenderDirector::SetMode( int mode )

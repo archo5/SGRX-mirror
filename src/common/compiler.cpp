@@ -1254,14 +1254,13 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 	return FS_SaveBinaryFile( bfr, ba.data(), ba.size() );
 }
 
-bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
+bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path, ArrayView<LC_Chunk> xchunks )
 {
 	FS_DirCreate( path );
 	
 	LOG_TIME( GatherMeshes( GM_ALL ) );
 	
 	LOG_TIME( RemoveHiddenSurfaces() );
-	LOG_TIME( GenerateLines() );
 	
 	for( size_t i = 0; i < m_meshes.size(); ++i )
 	{
@@ -1301,26 +1300,7 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 		level.chunks.push_back( chunk );
 	}
 	
-	// map system
-	ByteArray ba_mapl;
-	LC_Chunk_Mapl ch_mapl = { &m_mapLines, &m_mapLayers };
-	ByteWriter( &ba_mapl ) << ch_mapl;
-	{
-		memcpy( chunk.sys_id, LC_FILE_MAPL_NAME, sizeof(chunk.sys_id) );
-		chunk.ptr = ba_mapl.data();
-		chunk.size = ba_mapl.size();
-		level.chunks.push_back( chunk );
-	}
-	
-	// AI system (pathfinding)
-	ByteArray ba_pfnd;
-	if( GenerateNavmesh( ba_pfnd ) )
-	{
-		memcpy( chunk.sys_id, LC_FILE_PFND_NAME, sizeof(chunk.sys_id) );
-		chunk.ptr = ba_pfnd.data();
-		chunk.size = ba_pfnd.size();
-		level.chunks.push_back( chunk );
-	}
+	level.chunks.append( xchunks.data(), xchunks.size() );
 	
 	// misc. chunks
 	Array< LC_Chunk > misc_chunks;
@@ -1889,6 +1869,10 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 	
 ending:
 	if( navmesh ) dtFreeNavMesh( navmesh );
+	if( retval )
+		LOG_ERROR << "Cover data successfully generated: " << out.size() << " parts";
+	else
+		LOG_ERROR << "Failed to generate cover data";
 	return retval;
 	
 fail:

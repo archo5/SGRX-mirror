@@ -1966,7 +1966,40 @@ void EdMainFrame::Level_Real_Compile_Default()
 	StringView lname = LevelPathToName( m_fileName );
 	sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_CACHE_LEVELS "/%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) lname.size(), 200 ), lname.data() );
 	
-	if( !lcache->SaveCache( g_NUISurfMtlPicker->m_materials, bfr ) )
+	// extra chunks
+	ByteArray ba_mapl, ba_cov2;
+	LC_Chunk chunk;
+	Array< LC_Chunk > xchunks;
+	// - map
+	if( g_EdMDCont->m_mapLines.size() )
+	{
+		LC_Chunk_Mapl ch_mapl = { &g_EdMDCont->m_mapLines, &g_EdMDCont->m_mapLayers };
+		ByteWriter( &ba_mapl ) << ch_mapl;
+		memcpy( chunk.sys_id, LC_FILE_MAPL_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = ba_mapl.data();
+		chunk.size = ba_mapl.size();
+		xchunks.push_back( chunk );
+	}
+	// - navigation data
+	if( g_EdMDCont->m_navMeshData.size() )
+	{
+		memcpy( chunk.sys_id, LC_FILE_PFND_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = g_EdMDCont->m_navMeshData.data();
+		chunk.size = g_EdMDCont->m_navMeshData.size();
+		xchunks.push_back( chunk );
+	}
+	// - cover data
+	if( g_EdMDCont->m_coverData.size() )
+	{
+		LC_Chunk_COV2 ch_cov2 = { &g_EdMDCont->m_coverData };
+		ByteWriter( &ba_cov2 ) << ch_cov2;
+		memcpy( chunk.sys_id, LC_FILE_COV2_NAME, sizeof(chunk.sys_id) );
+		chunk.ptr = ba_cov2.data();
+		chunk.size = ba_cov2.size();
+		xchunks.push_back( chunk );
+	}
+	
+	if( !lcache->SaveCache( g_NUISurfMtlPicker->m_materials, bfr, xchunks ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
 	else
 		LOG << "Level is compiled";
@@ -2292,6 +2325,10 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			{
 				g_Level->GetScene()->director->SetMode( 1 );
 			}
+			if( ImGui::IsKeyPressed( SDL_SCANCODE_F4, false ) )
+			{
+				g_Level->GetScene()->director->SetMode( 2 );
+			}
 			
 			ImGui::SameLine();
 			if( ImGui::Button( "Rebuild..." ) ||
@@ -2409,6 +2446,8 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 						g_Level->GetScene()->director->SetMode( 0 );
 					if( ImGui::RadioButton( "Unlit", mode == 1 ) )
 						g_Level->GetScene()->director->SetMode( 1 );
+					if( ImGui::RadioButton( "Lighting (no diffuse color)", mode == 2 ) )
+						g_Level->GetScene()->director->SetMode( 2 );
 				});
 				g_UIFrame->m_NUIRenderView.EditCameraParams();
 			}

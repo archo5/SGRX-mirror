@@ -320,7 +320,7 @@ struct LevelCache
 	};
 	void GatherMeshes( unsigned which );
 	bool SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringView& path );
-	bool SaveCache( MapMaterialMap& mtls, const StringView& path );
+	bool SaveCache( MapMaterialMap& mtls, const StringView& path, ArrayView<LC_Chunk> xchunks );
 	bool GenerateNavmesh( ByteArray& outData );
 	bool GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>& out );
 	

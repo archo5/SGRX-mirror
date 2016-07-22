@@ -355,6 +355,9 @@ __CODE__
 	totalDiffuse = float3(1,1,1);
 	totalSpecular = float3(0,0,0);
 #endif
+#if defined(MOD_NODIFFCOL) // -- ignore diffuse color
+	outDiffuseColor = float3(1,1,1);
+#endif
 	
 	RT0 = float4( totalDiffuse * outDiffuseColor + totalSpecular * outSpecularColor + outEmissiveLight, outOpacity );
 	RT1 = float4( outDistortion, 0, outOpacity );

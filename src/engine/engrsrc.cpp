@@ -1704,6 +1704,9 @@ static SGRX_RenderPass g_DefaultRenderPasses[] =
 	{ false, true, 16, 0, "sys_lighting" }, // base + 16 point lights
 	{ false, false, 16, 0, "sys_lighting" }, // 16 point lights
 	{ false, false, 0, 2, "sys_lighting" }, // 2 spotlights
+	{ false, true, 16, 0, "sys_lighting:MOD_NODIFFCOL" }, // base + 16 point lights
+	{ false, false, 16, 0, "sys_lighting:MOD_NODIFFCOL" }, // 16 point lights
+	{ false, false, 0, 2, "sys_lighting:MOD_NODIFFCOL" }, // 2 spotlights
 	{ false, true, 0, 0, "sys_lighting:MOD_UNLIT" }, // unlit pass
 };
 

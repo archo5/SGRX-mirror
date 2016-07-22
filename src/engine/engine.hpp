@@ -1911,6 +1911,7 @@ struct SGRX_RenderScene;
 
 #define SGRX_RDMode_Normal 0
 #define SGRX_RDMode_Unlit 1
+#define SGRX_RDMode_NoDiffCol 2
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_RenderDirector
 {

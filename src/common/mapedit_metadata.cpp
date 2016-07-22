@@ -78,6 +78,11 @@ void EdMetaDataCont::RebuildNavMesh()
 
 void EdMetaDataCont::RebuildCovers()
 {
+	if( m_navMeshData.size() == 0 )
+	{
+		LOG_WARNING << "NO NAVIGATION DATA! Cannot generate covers";
+		return;
+	}
 	LevelCache* LC = g_UIFrame->CreateCache();
 	LC->GatherMeshes( LevelCache::GM_Navigation );
 	LC->GenerateCoverData( m_navMeshData, m_coverData );
