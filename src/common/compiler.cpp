@@ -924,14 +924,14 @@ static int sort_part_by_texture( const void* a, const void* b )
 	return pa->m_mtlname.compare_to( pb->m_mtlname );
 }
 
-void LevelCache::GatherMeshes()
+void LevelCache::GatherMeshes( unsigned which )
 {
 	qsort( m_meshParts.data(), m_meshParts.size(), sizeof(Part), sort_part_by_texture );
 	
 	for( size_t pid = 0; pid < m_meshParts.size(); ++pid )
 	{
 		Part& P = m_meshParts[ pid ];
-		if( P.m_mtlname != SV("clip") )
+		if( ( which & GM_Render ) && P.m_mtlname != SV("clip") )
 		{
 			// mesh combination
 			Vec3 pcenter = V3(0), pmin = V3(FLT_MAX), pmax = V3(-FLT_MAX);
@@ -1019,7 +1019,7 @@ void LevelCache::GatherMeshes()
 		}
 		
 		// physics mesh generation
-		if( P.m_flags & LM_MESHINST_SOLID )
+		if( ( which & GM_Physics ) && ( P.m_flags & LM_MESHINST_SOLID ) )
 		{
 			uint32_t phy_mtl_id = m_phyMesh.materials.find_or_add( P.m_mtlname );
 			
@@ -1033,7 +1033,7 @@ void LevelCache::GatherMeshes()
 		}
 		
 		// navmesh generation
-		if( ( P.m_flags & LM_MESHINST_SOLID ) && P.m_mtlname != SV("black") )
+		if( ( which & GM_Navigation ) && ( P.m_flags & LM_MESHINST_SOLID ) && P.m_mtlname != SV("black") )
 		{
 			uint32_t nav_mtl_id = m_navMesh.materials.find_or_add( P.m_mtlname );
 			
@@ -1258,7 +1258,7 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 {
 	FS_DirCreate( path );
 	
-	LOG_TIME( GatherMeshes() );
+	LOG_TIME( GatherMeshes( GM_ALL ) );
 	
 	LOG_TIME( RemoveHiddenSurfaces() );
 	LOG_TIME( GenerateLines() );
@@ -1313,22 +1313,13 @@ bool LevelCache::SaveCache( MapMaterialMap& mtls, const StringView& path )
 	}
 	
 	// AI system (pathfinding)
-	ByteArray ba_pfnd, ba_covr;
-	if( GenerateNavmesh( path, ba_pfnd ) )
+	ByteArray ba_pfnd;
+	if( GenerateNavmesh( ba_pfnd ) )
 	{
 		memcpy( chunk.sys_id, LC_FILE_PFND_NAME, sizeof(chunk.sys_id) );
 		chunk.ptr = ba_pfnd.data();
 		chunk.size = ba_pfnd.size();
 		level.chunks.push_back( chunk );
-		// - cover
-		if( GenerateCoverData( ba_pfnd, ba_covr ) )
-		{
-			// TODO
-			memcpy( chunk.sys_id, "NOOO", sizeof(chunk.sys_id) );
-			chunk.ptr = ba_covr.data();
-			chunk.size = ba_covr.size();
-			level.chunks.push_back( chunk );
-		}
 	}
 	
 	// misc. chunks
@@ -1357,8 +1348,10 @@ enum SamplePartitionType
 	SAMPLE_PARTITION_LAYERS,
 };
 
-bool LevelCache::GenerateNavmesh( const StringView& path, ByteArray& outData )
+bool LevelCache::GenerateNavmesh( ByteArray& outData )
 {
+	outData.clear();
+	
 	if( m_navMesh.positions.size() == 0 ||
 		m_navMesh.indices.size() == 0 )
 	{
@@ -1803,11 +1796,13 @@ struct PMRaycast
 	}
 };
 
-bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
+bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>& out )
 {
 	static float height1 = 1.2f;
 	static float height2 = 1.9f;
 	static float depth = 0.7f;
+	
+	out.clear();
 	
 	PMRaycast rc( &m_navMesh );
 	OBJExporter objex;
@@ -1820,10 +1815,10 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
 		goto fail;
 	}
 	
-	for( int i = 0, max = navmesh->getMaxTiles(); i < max; ++i )
+	for( int tid = 0, max = navmesh->getMaxTiles(); tid < max; ++tid )
 	{
 		const dtNavMesh* cnm = navmesh;
-		const dtMeshTile* tile = cnm->getTile( i );
+		const dtMeshTile* tile = cnm->getTile( tid );
 		
 		for (int i = 0; i < tile->header->polyCount; ++i)
 		{
@@ -1855,6 +1850,9 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
 					// same level, do not split line
 					if( cl1 != 0 )
 					{
+						LC_CoverPart cp = { p0, p1, nrm, tid, cl1 == 1 ? COV_FLAG_LOW : 0 };
+						out.push_back( cp );
+						
 						objex.AddVertex( p0, V2(0), V3(0,0,1) );
 						objex.AddVertex( p1, V2(0), V3(0,0,1) );
 						objex.AddVertex( (p0+p1)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
@@ -1867,12 +1865,18 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, ByteArray& out )
 					Vec3 p1a = p0b, p1b = p1;
 					if( cl1 != 0 )
 					{
+						LC_CoverPart cp = { p0a, p0b, nrm, tid, cl1 == 1 ? COV_FLAG_LOW : 0 };
+						out.push_back( cp );
+						
 						objex.AddVertex( p0a, V2(0), V3(0,0,1) );
 						objex.AddVertex( p0b, V2(0), V3(0,0,1) );
 						objex.AddVertex( (p0a+p0b)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
 					}
 					if( cl2 != 0 )
 					{
+						LC_CoverPart cp = { p1a, p1b, nrm, tid, cl2 == 1 ? COV_FLAG_LOW : 0 };
+						out.push_back( cp );
+						
 						objex.AddVertex( p1a, V2(0), V3(0,0,1) );
 						objex.AddVertex( p1b, V2(0), V3(0,0,1) );
 						objex.AddVertex( (p1a+p1b)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );

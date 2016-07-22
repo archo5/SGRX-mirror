@@ -1800,6 +1800,7 @@ bool EdMainFrame::Level_Real_Open( const StringView& str )
 	}
 	
 	g_EdLGCont->LoadLightmaps( LevelPathToName( str ) );
+	g_EdMDCont->LoadCache( LevelPathToName( str ) );
 	g_EdWorld->ReloadSkybox();
 	g_EdWorld->ReloadCLUT();
 	
@@ -1829,6 +1830,7 @@ bool EdMainFrame::Level_Real_Save( const StringView& str )
 	}
 	
 	g_EdLGCont->SaveLightmaps( LevelPathToName( str ) );
+	g_EdMDCont->SaveCache( LevelPathToName( str ) );
 	
 	m_fileName = str;
 	ReconfigureEntities( LevelPathToName( str ) );
@@ -1843,16 +1845,13 @@ void EdMainFrame::Level_Real_Compile()
 		Level_Real_Compile_Default();
 }
 
-void EdMainFrame::Level_Real_Compile_Default()
+LevelCache* EdMainFrame::CreateCache()
 {
-	LOG_FUNCTION;
+	LevelCache* lcache = new LevelCache( &g_EdLGCont->m_lightEnv );
+	lcache->m_skyTexture = g_EdWorld->m_lighting.skyboxTexture;
+	lcache->m_clutTexture = g_EdWorld->m_lighting.clutTexture;
 	
-	LOG << "Compiling level";
-	LevelCache lcache( &g_EdLGCont->m_lightEnv );
-	lcache.m_skyTexture = g_EdWorld->m_lighting.skyboxTexture;
-	lcache.m_clutTexture = g_EdWorld->m_lighting.clutTexture;
-	
-	g_EdLGCont->UpdateCache( lcache );
+	g_EdLGCont->UpdateCache( *lcache );
 	
 	// gather system compilers
 	Array< IEditorSystemCompiler* > ESCs;
@@ -1885,12 +1884,12 @@ void EdMainFrame::Level_Real_Compile_Default()
 				Quat::CreateFromXYZ( EE.props["rotationXYZ"].get<Vec3>() ),
 				EE.props["scale"].get<Vec3>(),
 			};
-			lcache.m_solidBoxes.push_back( sb );
+			lcache->m_solidBoxes.push_back( sb );
 		}
 		if( EE.type == "MapLayer" )
 		{
 			LC_Map_Layer ml = { 0, 0, EE.props["position"].get<Vec3>().z };
-			lcache.m_mapLayers.push_back( ml );
+			lcache->m_mapLayers.push_back( ml );
 		}
 		if( EE.type == "AIPathArea" )
 		{
@@ -1907,7 +1906,7 @@ void EdMainFrame::Level_Real_Compile_Default()
 			PA.z0 = xf.TransformPos( V3(0,0,-1) ).z;
 			PA.z1 = xf.TransformPos( V3(0,0,1) ).z;
 			
-			lcache.m_pathAreas.push_back( PA );
+			lcache->m_pathAreas.push_back( PA );
 		}
 		
 		for( size_t i = 0; i < ESCs.size(); ++i )
@@ -1919,10 +1918,10 @@ void EdMainFrame::Level_Real_Compile_Default()
 	// compile game objects
 	g_Level->GetScriptCtx().GetGlobal( "ED_ILCSV" ).
 		thiscall( g_Level->GetSGSC(), "_Restart" );
-	lcache.m_gobj.gameObjects.resize( g_Level->m_gameObjects.size() );
+	lcache->m_gobj.gameObjects.resize( g_Level->m_gameObjects.size() );
 	for( size_t i = 0; i < g_Level->m_gameObjects.size(); ++i )
 	{
-		EDGO_LCSave( g_Level->m_gameObjects[ i ], &lcache.m_gobj.gameObjects[ i ] );
+		EDGO_LCSave( g_Level->m_gameObjects[ i ], &lcache->m_gobj.gameObjects[ i ] );
 	}
 	// links
 	{
@@ -1938,7 +1937,7 @@ void EdMainFrame::Level_Real_Compile_Default()
 				SGRX_GUID::ParseString( lv.getprop( "dst" ).get_string().c_str() ),
 				lv.getprop( "prop" ).get_string().c_str()
 			};
-			lcache.m_gobj.links.push_back( L );
+			lcache->m_gobj.links.push_back( L );
 		}
 	}
 	
@@ -1948,19 +1947,31 @@ void EdMainFrame::Level_Real_Compile_Default()
 		ByteArray chunk;
 		if( ESCs[ i ]->GenerateChunk( chunk, g_EdWorld->m_systemsParams ) &&
 			chunk.size() )
-			lcache.m_chunkData.append( chunk );
+			lcache->m_chunkData.append( chunk );
 		
 		SAFE_DELETE( ESCs[ i ] );
 	}
+	
+	return lcache;
+}
+
+void EdMainFrame::Level_Real_Compile_Default()
+{
+	LOG_FUNCTION;
+	
+	LOG << "Compiling level";
+	LevelCache* lcache = CreateCache();
 	
 	char bfr[ 256 ];
 	StringView lname = LevelPathToName( m_fileName );
 	sgrx_snprintf( bfr, sizeof(bfr), SGRXPATH_CACHE_LEVELS "/%.*s" SGRX_LEVEL_DIR_SFX, TMIN( (int) lname.size(), 200 ), lname.data() );
 	
-	if( !lcache.SaveCache( g_NUISurfMtlPicker->m_materials, bfr ) )
+	if( !lcache->SaveCache( g_NUISurfMtlPicker->m_materials, bfr ) )
 		LOG_ERROR << "FAILED TO SAVE CACHE";
 	else
 		LOG << "Level is compiled";
+	
+	delete lcache;
 }
 
 static void AppendNameSafeGUID( String& out, const SGRX_GUID& guid )
@@ -2153,6 +2164,7 @@ bool MapEditor::OnInitialize()
 	
 	// core layout
 	g_EdLGCont = new EdLevelGraphicsCont();
+	g_EdMDCont = new EdMetaDataCont();
 	g_EdScene = g_Level->GetScene();
 	g_EdScene->camera.position = Vec3::Create(3,3,3);
 	g_EdScene->camera.UpdateMatrices();
@@ -2172,6 +2184,8 @@ void MapEditor::OnDestroy()
 	delete g_EdWorld;
 	g_EdWorld = NULL;
 	g_EdScene = NULL;
+	delete g_EdMDCont;
+	g_EdMDCont = NULL;
 	delete g_EdLGCont;
 	g_EdLGCont = NULL;
 	delete g_Level;
@@ -2192,41 +2206,6 @@ void MapEditor::OnDestroy()
 void MapEditor::OnEvent( const Event& e )
 {
 	LOG_FUNCTION_ARG( "MapEditor" );
-	
-	if( e.type == SDL_KEYDOWN )
-	{
-		if( e.key.keysym.sym == SDLK_F2 )
-		{
-			g_Level->GetScene()->director->SetMode( 0 );
-		}
-		if( e.key.keysym.sym == SDLK_F3 )
-		{
-			g_Level->GetScene()->director->SetMode( 1 );
-		}
-		if( e.key.keysym.sym == SDLK_F5 )
-		{
-			if( g_EdLGCont->m_lmRenderer == NULL )
-			{
-				g_EdLGCont->InvalidateAll();
-				g_EdLGCont->ILMBeginRender();
-			}
-		}
-		if( e.key.keysym.sym == SDLK_F6 )
-		{
-			g_EdLGCont->ILMBeginRender();
-		}
-		if( e.key.keysym.sym == SDLK_F7 )
-		{
-			g_EdLGCont->ILMAbort();
-		}
-		if( e.key.keysym.sym == SDLK_F9 )
-		{
-			g_EdLGCont->STRegenerate();
-		}
-	}
-	
-	g_EdWorld->m_groupMgr.ProcessDestroyQueue();
-	
 	SGRX_IMGUI_Event( e );
 }
 
@@ -2244,6 +2223,7 @@ static bool ModeRB( const char* label, int mode, int key )
 
 void MapEditor::OnTick( float dt, uint32_t gametime )
 {
+	g_EdWorld->m_groupMgr.ProcessDestroyQueue();
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	g_EdLGCont->ApplyInvalidation();
 	g_EdLGCont->ILMCheck();
@@ -2278,36 +2258,6 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 			else ImGui::Button( "Save before compiling" );
 			
 			ImGui::SameLine();
-			if( ImGui::BeginMenu( "Lightmap" ) )
-			{
-				if( ImGui::MenuItem( "Rebuild all lightmaps", "F5" ) )
-				{
-					if( g_EdLGCont->m_lmRenderer == NULL )
-					{
-						g_EdLGCont->InvalidateAll();
-						g_EdLGCont->ILMBeginRender();
-					}
-				}
-				if( ImGui::MenuItem( "Update lightmaps", "F6" ) )
-				{
-					g_EdLGCont->ILMBeginRender();
-				}
-				if( ImGui::MenuItem( "Stop lightmap update", "F7" ) )
-				{
-					g_EdLGCont->ILMAbort();
-				}
-				if( ImGui::MenuItem( "Regenerate samples", "F9" ) )
-				{
-					g_EdLGCont->STRegenerate();
-				}
-				if( ImGui::MenuItem( "Dump lightmap info" ) )
-				{
-					g_EdLGCont->DumpLightmapInfo();
-				}
-				ImGui::EndMenu();
-			}
-			
-			ImGui::SameLine();
 			if( ImGui::BeginMenu( "Prefabs" ) )
 			{
 				sgsVariable pfb = g_Level->GetScriptCtx().GetGlobal( "PREFABS" );
@@ -2332,6 +2282,79 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 					ImGui::Text( "No prefabs loaded" );
 				}
 				ImGui::EndMenu();
+			}
+			
+			if( ImGui::IsKeyPressed( SDL_SCANCODE_F2, false ) )
+			{
+				g_Level->GetScene()->director->SetMode( 0 );
+			}
+			if( ImGui::IsKeyPressed( SDL_SCANCODE_F3, false ) )
+			{
+				g_Level->GetScene()->director->SetMode( 1 );
+			}
+			
+			ImGui::SameLine();
+			if( ImGui::Button( "Rebuild..." ) ||
+				ImGui::IsKeyPressed( SDL_SCANCODE_F5, false ) )
+				ImGui::OpenPopup( "Cache rebuild/info options" );
+			
+			if( ImGui::BeginPopupModal( "Cache rebuild/info options" ) )
+			{
+				if( ImGui::IsKeyPressed( SDLK_ESCAPE, false ) )
+					ImGui::CloseCurrentPopup();
+				IMGUI_GROUP( "Lightmap", true,
+				{
+					if( ImGui::Button( "Rebuild all lightmaps [1]" ) || ImGui::IsKeyPressed( SDLK_1, false ) )
+					{
+						if( g_EdLGCont->m_lmRenderer == NULL )
+						{
+							g_EdLGCont->InvalidateAll();
+							g_EdLGCont->ILMBeginRender();
+						}
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::SameLine();
+					if( ImGui::Button( "Rebuild outdated lightmaps [2]" ) || ImGui::IsKeyPressed( SDLK_2, false ) )
+					{
+						g_EdLGCont->ILMBeginRender();
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::SameLine();
+					if( ImGui::Button( "Stop [3]" ) || ImGui::IsKeyPressed( SDLK_3, false ) )
+					{
+						g_EdLGCont->ILMAbort();
+						ImGui::CloseCurrentPopup();
+					}
+					if( ImGui::Button( "Regenerate samples [4]" ) || ImGui::IsKeyPressed( SDLK_4, false ) )
+					{
+						g_EdLGCont->STRegenerate();
+						ImGui::CloseCurrentPopup();
+					}
+					if( ImGui::Button( "Dump lightmap info" ) )
+					{
+						g_EdLGCont->DumpLightmapInfo();
+						ImGui::CloseCurrentPopup();
+					}
+				});
+				IMGUI_GROUP( "Metadata", true,
+				{
+					if( ImGui::Button( "Rebuild navigation data [5]" ) || ImGui::IsKeyPressed( SDLK_5, false ) )
+					{
+						g_EdMDCont->RebuildNavMesh();
+						ImGui::CloseCurrentPopup();
+					}
+					if( ImGui::Button( "Rebuild cover data [6]" ) || ImGui::IsKeyPressed( SDLK_6, false ) )
+					{
+						g_EdMDCont->RebuildCovers();
+						ImGui::CloseCurrentPopup();
+					}
+					if( ImGui::Button( "Rebuild map data [7]" ) || ImGui::IsKeyPressed( SDLK_7, false ) )
+					{
+						g_EdMDCont->RebuildMap();
+						ImGui::CloseCurrentPopup();
+					}
+				});
+				ImGui::EndPopup();
 			}
 			
 			ImGui::SameLine( 0, 50 );

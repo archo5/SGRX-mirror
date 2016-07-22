@@ -311,11 +311,18 @@ struct LevelCache
 	void GenerateLines();
 	void CombineParts();
 	
-	void GatherMeshes();
+	enum GatherMeshesFlags
+	{
+		GM_Render = 0x01,
+		GM_Physics = 0x02,
+		GM_Navigation = 0x04,
+		GM_ALL = 0xff,
+	};
+	void GatherMeshes( unsigned which );
 	bool SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringView& path );
 	bool SaveCache( MapMaterialMap& mtls, const StringView& path );
-	bool GenerateNavmesh( const StringView& path, ByteArray& outData );
-	bool GenerateCoverData( const ByteView& navData, ByteArray& out );
+	bool GenerateNavmesh( ByteArray& outData );
+	bool GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>& out );
 	
 	Array< Solid > m_solids;
 	Array< Mesh > m_meshes;
@@ -329,8 +336,10 @@ struct LevelCache
 	StringView m_clutTexture;
 	LC_PhysicsMesh m_navMesh;
 	SGRX_LightEnv* m_lightEnv;
+	
 	Array< Vec2 > m_mapLines;
 	Array< LC_Map_Layer > m_mapLayers;
+	
 	Array< PathArea > m_pathAreas;
 	ByteArray m_chunkData;
 };

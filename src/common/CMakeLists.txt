@@ -32,6 +32,7 @@ set_target_properties( lighter PROPERTIES
 add_library( editor SHARED
 	mapedit.hpp mapedit.cpp
 	mapedit_graphics.hpp mapedit_graphics.cpp
+	mapedit_metadata.hpp mapedit_metadata.cpp
 	mapedit_edit.cpp
 	mapedit_ent.cpp mapedit_block.cpp mapedit_mpath.cpp mapedit_patch.cpp mapedit_gameobj.cpp
 	compiler.hpp compiler.cpp )

@@ -10,6 +10,7 @@
 #include <imgui.hpp>
 
 #include "mapedit_graphics.hpp"
+#include "mapedit_metadata.hpp"
 
 
 #define SGRXPATH_SRC_EDITOR_MATERIALS SGRXPATH_SRC "/editor/materials.txt"
@@ -44,6 +45,7 @@ MAPEDIT_GLOBAL( struct EdMainFrame* g_UIFrame );
 MAPEDIT_GLOBAL( SceneHandle g_EdScene );
 MAPEDIT_GLOBAL( struct EdWorld* g_EdWorld );
 MAPEDIT_GLOBAL( struct EdLevelGraphicsCont* g_EdLGCont );
+MAPEDIT_GLOBAL( struct EdMetaDataCont* g_EdMDCont );
 MAPEDIT_GLOBAL( BaseGame* g_BaseGame );
 MAPEDIT_GLOBAL( GameLevel* g_Level );
 
@@ -1991,6 +1993,8 @@ struct EdMainFrame
 	void Snap( Vec3& v );
 	Vec2 Snapped( const Vec2& v );
 	Vec3 Snapped( const Vec3& v );
+	
+	LevelCache* CreateCache();
 	
 	void Level_New();
 	bool Level_Real_Open( const StringView& str );

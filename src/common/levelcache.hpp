@@ -323,4 +323,34 @@ struct LC_Chunk_Mapl
 // Pathfinding data (just a byte buffer)
 #define LC_FILE_PFND_NAME "PFND"
 
+// Cover data (method 2)
+#define LC_FILE_COV2_NAME "COV2"
+#define LC_FILE_COV2_VERSION 0
+#define COV_FLAG_LOW 0x01
+struct LC_CoverPart
+{
+	Vec3 p0, p1, n;
+	uint32_t tileID;
+	uint32_t flags; // COV_FLAG_*
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch << p0;
+		arch << p1;
+		arch << n;
+		arch << tileID;
+		arch << flags;
+	}
+};
+struct LC_Chunk_COV2
+{
+	Array< LC_CoverPart >* covers;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		SerializeVersionHelper<T> svh( arch, LC_FILE_COV2_VERSION );
+		svh << *covers;
+	}
+};
+
 
