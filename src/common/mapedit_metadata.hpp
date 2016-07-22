@@ -20,6 +20,8 @@ struct EdMetaDataCont
 	void RebuildCovers();
 	void RebuildMap();
 	
+	void DebugDrawCovers();
+	
 	// navmesh data
 	ByteArray m_navMeshData;
 	// cover data

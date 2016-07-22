@@ -20,7 +20,7 @@ void EdMetaDataCont::Reset()
 void EdMetaDataCont::LoadCache( const StringView& levname )
 {
 	char fname[ 256 ];
-	sgrx_snprintf( fname, sizeof(fname), SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_LMCACHE_SFX, StackString<200>(levname).str );
+	sgrx_snprintf( fname, sizeof(fname), SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_MDCACHE_SFX, StackString<200>(levname).str );
 	
 	ByteArray ba;
 	if( FS_LoadBinaryFile( fname, ba ) == false )
@@ -60,7 +60,7 @@ void EdMetaDataCont::SaveCache( const StringView& levname )
 		SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_DIR_SFX,
 		StackString<200>(levname).str );
 	sgrx_snprintf( fname, sizeof(fname),
-		SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_LMCACHE_SFX,
+		SGRXPATH_CACHE_LEVELS "/%s" SGRX_LEVEL_MDCACHE_SFX,
 		StackString<200>(levname).str );
 	
 	FS_DirCreate( SGRXPATH_CACHE_LEVELS );
@@ -98,6 +98,32 @@ void EdMetaDataCont::RebuildMap()
 	m_mapLines = LC->m_mapLines;
 	m_mapLayers = LC->m_mapLayers;
 	delete LC;
+}
+
+void EdMetaDataCont::DebugDrawCovers()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	br.SetPrimitiveType( PT_Triangles );
+	br.Col( 0.1f, 0.4f, 0.7f, 0.5f );
+	for( size_t i = 0; i < m_coverData.size(); ++i )
+	{
+		const LC_CoverPart& CP = m_coverData[ i ];
+		Vec3 zoff = V3( 0, 0, CP.flags & COV_FLAG_LOW ? 1.2f : 1.9f );
+		br.Pos( CP.p0 );
+		br.Pos( CP.p1 );
+		br.Pos( CP.p1 + zoff );
+		br.Prev( 0 );
+		br.Pos( CP.p0 + zoff );
+		br.Prev( 4 );
+	}
+	br.Col( 0.1f, 0.5f, 0.9f, 0.5f );
+	for( size_t i = 0; i < m_coverData.size(); ++i )
+	{
+		const LC_CoverPart& CP = m_coverData[ i ];
+		br.Pos( CP.p0 );
+		br.Pos( CP.p1 );
+		br.Pos( ( CP.p0 + CP.p1 ) * 0.5f - CP.n * 0.1f );
+	}
 }
 
 

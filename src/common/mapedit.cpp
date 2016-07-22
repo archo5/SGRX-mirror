@@ -4,6 +4,9 @@
 #include "mapedit.hpp"
 
 
+bool g_DrawCovers = false;
+
+
 
 EdGroup::EdGroup( struct EdGroupManager* groupMgr, int32_t id, int32_t pid, const StringView& name ) :
 	m_groupMgr( groupMgr ),
@@ -1570,6 +1573,11 @@ void EdMultiObjectProps::EditUI()
 void MapEditorRenderView::DebugDraw()
 {
 	g_UIFrame->DebugDraw();
+	
+	if( g_DrawCovers )
+	{
+		g_EdMDCont->DebugDrawCovers();
+	}
 }
 
 
@@ -2448,6 +2456,10 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 						g_Level->GetScene()->director->SetMode( 1 );
 					if( ImGui::RadioButton( "Lighting (no diffuse color)", mode == 2 ) )
 						g_Level->GetScene()->director->SetMode( 2 );
+				});
+				IMGUI_GROUP( "Debug draw", true,
+				{
+					IMGUIEditBool( "Covers", g_DrawCovers );
 				});
 				g_UIFrame->m_NUIRenderView.EditCameraParams();
 			}
