@@ -2457,7 +2457,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 					if( ImGui::RadioButton( "Lighting (no diffuse color)", mode == 2 ) )
 						g_Level->GetScene()->director->SetMode( 2 );
 				});
-				IMGUI_GROUP( "Debug draw", true,
+				IMGUI_GROUP( "Display metadata", true,
 				{
 					IMGUIEditBool( "Covers", g_DrawCovers );
 				});
