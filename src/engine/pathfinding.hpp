@@ -14,9 +14,11 @@ struct SGRX_Pathfinder
 	~SGRX_Pathfinder();
 	
 	bool Load( ByteView data );
-	uint64_t FindPoly( const Vec3& pt, Vec3* outpt = NULL, const Vec3& ext = V3(2) );
-	bool FindPath( const Vec3& from, uint64_t frompoly,
-		const Vec3& to, uint64_t topoly, Array< Vec3 >& pts );
+	uint32_t FindPoly( const Vec3& pt, Vec3* outpt = NULL, const Vec3& ext = V3(2) );
+	Vec3 GetPolyPos( uint32_t poly );
+	int GetPolyNeighbors( uint32_t poly, uint32_t* out, int size );
+	bool FindPath( const Vec3& from, uint32_t frompoly,
+		const Vec3& to, uint32_t topoly, Array< Vec3 >& pts );
 	bool FindPath( const Vec3& from, const Vec3& to, Array< Vec3 >& pts );
 	void DebugDraw();
 	

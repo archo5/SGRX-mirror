@@ -465,6 +465,7 @@ FINLINE Vec3 operator / ( float f, const Vec3& v ){ Vec3 out = { f / v.x, f / v.
 FINLINE Vec3 V3( float x ){ Vec3 v = { x, x, x }; return v; }
 FINLINE Vec3 V3( Vec2 v2, float z ){ Vec3 v = { v2.x, v2.y, z }; return v; }
 FINLINE Vec3 V3( float x, float y, float z ){ Vec3 v = { x, y, z }; return v; }
+FINLINE Vec3 V3P( float* p ){ Vec3 v = { p[0], p[1], p[2] }; return v; }
 FINLINE float Vec3Dot( const Vec3& v1, const Vec3& v2 ){ return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z; }
 FINLINE Vec3 Vec3Cross( const Vec3& v1, const Vec3& v2 )
 {

@@ -1366,7 +1366,6 @@ bool LevelCache::GenerateNavmesh( ByteArray& outData )
 	bool retval = true;
 	unsigned char* triareas = NULL;
 	rcHeightfield* rchf = NULL;
-	dtNavMesh* dtnavmsh = NULL;
 	rcCompactHeightfield* cchf = NULL;
 	rcContourSet* cset = NULL;
 	rcPolyMesh* pmesh = NULL;
@@ -1379,7 +1378,7 @@ bool LevelCache::GenerateNavmesh( ByteArray& outData )
 	// Step 1. Initialize build config.
 	//
 	float cellSize = 0.2f;
-	float cellHeight = 0.2f;
+	float cellHeight = 0.1f;
 	float agentHeight = 1.5f;
 	float agentRadius = 0.4f;
 	float agentMaxClimb = 0.2f;
@@ -1387,7 +1386,7 @@ bool LevelCache::GenerateNavmesh( ByteArray& outData )
 	int regionMinSize = 2;
 	int regionMergeSize = 10;
 	float edgeMaxLen = 1.0f;
-	float edgeMaxError = 0.9f;
+	float edgeMaxError = 0.5f;
 	float detailSampleDist = 3.0f;
 	float detailSampleMaxError = 0.5f;
 	SamplePartitionType partitionType = SAMPLE_PARTITION_WATERSHED;
@@ -1698,35 +1697,6 @@ bool LevelCache::GenerateNavmesh( ByteArray& outData )
 		
 		outData.assign( navData, navDataSize );
 		dtFree( navData );
-		
-#if 0
-		TODO
-		
-		dtnavmsh = dtAllocNavMesh();
-		if (!dtnavmsh)
-		{
-			dtFree(navData);
-			LOG_ERROR << "Could not create Detour navmesh";
-			goto fail;
-		}
-		
-		dtStatus status;
-		
-		status = dtnavmsh->init(navData, navDataSize, DT_TILE_FREE_DATA);
-		if (dtStatusFailed(status))
-		{
-			dtFree(navData);
-			LOG_ERROR << "Could not init Detour navmesh";
-			goto fail;
-		}
-		
-		status = m_navQuery->init(dtnavmsh, 2048);
-		if (dtStatusFailed(status))
-		{
-			LOG_ERROR << "Could not init Detour navmesh query";
-			goto fail;
-		}
-#endif
 	}
 	
 	time_total_end = sgrx_hqtime();
@@ -1736,7 +1706,6 @@ bool LevelCache::GenerateNavmesh( ByteArray& outData )
 	
 ending:
 	if( rchf ) rcFreeHeightField( rchf );
-	if( dtnavmsh ) dtFreeNavMesh( dtnavmsh );
 	if( cchf ) rcFreeCompactHeightfield( cchf );
 	if( cset ) rcFreeContourSet( cset );
 	if( pmesh ) rcFreePolyMesh( pmesh );
@@ -1778,8 +1747,8 @@ struct PMRaycast
 
 bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>& out )
 {
-	static float height1 = 1.2f;
-	static float height2 = 1.9f;
+	static float height1 = 1.0f;
+	static float height2 = 1.7f;
 	static float depth = 0.7f;
 	
 	out.clear();
@@ -1787,10 +1756,13 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 	PMRaycast rc( &m_navMesh );
 	OBJExporter objex;
 	bool retval = true;
+	uint8_t* navCopy = (uint8_t*) dtAlloc( navData.size(), DT_ALLOC_PERM );
+	memcpy( navCopy, navData.data(), navData.size() );
 	dtNavMesh* navmesh = dtAllocNavMesh();
-	dtStatus status = navmesh->init( navData.data(), navData.size(), DT_TILE_FREE_DATA );
+	dtStatus status = navmesh->init( navCopy, navData.size(), DT_TILE_FREE_DATA );
 	if( dtStatusFailed( status ) )
 	{
+		dtFree( navCopy );
 		LOG_ERROR << "Could not init Detour navmesh";
 		goto fail;
 	}
@@ -1803,6 +1775,7 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 		for (int i = 0; i < tile->header->polyCount; ++i)
 		{
 			const dtPoly* p = &tile->polys[i];
+			uint32_t ref = navmesh->getPolyRefBase( tile ) | dtPolyRef( i );
 			
 			if (p->getType() == DT_POLYTYPE_OFFMESH_CONNECTION) continue;
 			
@@ -1830,7 +1803,7 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 					// same level, do not split line
 					if( cl1 != 0 )
 					{
-						LC_CoverPart cp = { p0, p1, nrm, tid, cl1 == 1 ? COV_FLAG_LOW : 0 };
+						LC_CoverPart cp = { p0, p1, nrm, ref, cl1 == 1 ? COV_FLAG_LOW : 0 };
 						out.push_back( cp );
 						
 						objex.AddVertex( p0, V2(0), V3(0,0,1) );
@@ -1870,7 +1843,7 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 ending:
 	if( navmesh ) dtFreeNavMesh( navmesh );
 	if( retval )
-		LOG_ERROR << "Cover data successfully generated: " << out.size() << " parts";
+		LOG << "Cover data successfully generated: " << out.size() << " parts";
 	else
 		LOG_ERROR << "Failed to generate cover data";
 	return retval;

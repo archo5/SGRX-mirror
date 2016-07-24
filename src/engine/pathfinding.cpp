@@ -106,7 +106,7 @@ bool SGRX_Pathfinder::Load( ByteView data )
 	return true;
 }
 
-uint64_t SGRX_Pathfinder::FindPoly( const Vec3& pt, Vec3* outpt, const Vec3& ext )
+uint32_t SGRX_Pathfinder::FindPoly( const Vec3& pt, Vec3* outpt, const Vec3& ext )
 {
 	dtQueryFilter qfilter;
 	
@@ -146,8 +146,55 @@ uint64_t SGRX_Pathfinder::FindPoly( const Vec3& pt, Vec3* outpt, const Vec3& ext
 	return out;
 }
 
-bool SGRX_Pathfinder::FindPath( const Vec3& from, uint64_t frompoly,
-	const Vec3& to, uint64_t topoly, Array< Vec3 >& pts )
+Vec3 SGRX_Pathfinder::GetPolyPos( uint32_t poly )
+{
+	Vec3 out = V3(0);
+	const dtMeshTile* tt;
+	const dtPoly* pp;
+	if( dtStatusFailed( m_navMesh->getTileAndPolyByRef( poly, &tt, &pp ) )
+		|| pp->vertCount == 0 )
+		return out;
+	for( uint8_t i = 0; i < pp->vertCount; ++i )
+	{
+		out += V3P( &tt->verts[ pp->verts[ i ] * 3 ] );
+	}
+	return RC2SGRX( out / pp->vertCount );
+}
+
+int SGRX_Pathfinder::GetPolyNeighbors( uint32_t poly, uint32_t* out, int size )
+{
+	const dtMeshTile* tt;
+	const dtPoly* pp;
+	if( dtStatusFailed( m_navMesh->getTileAndPolyByRef( poly, &tt, &pp ) )
+		|| pp->vertCount == 0 )
+		return 0;
+	int count = 0;
+	for( int i = 0; i < pp->vertCount && count < size; ++i )
+	{
+		if( pp->neis[ i ] == 0 )
+			continue;
+		if( pp->neis[ i ] & DT_EXT_LINK )
+		{
+			for( unsigned int k = pp->firstLink; k != DT_NULL_LINK; k = tt->links[ k ].next )
+			{
+				if( tt->links[ k ].edge == i )
+				{
+					out[ count++ ] = tt->links[ k ].ref;
+					goto foundextlink;
+				}
+			}
+foundextlink:;
+		}
+		else
+		{
+			out[ count++ ] = m_navMesh->getPolyRefBase( tt ) | dtPolyRef( pp->neis[ i ] );
+		}
+	}
+	return count;
+}
+
+bool SGRX_Pathfinder::FindPath( const Vec3& from, uint32_t frompoly,
+	const Vec3& to, uint32_t topoly, Array< Vec3 >& pts )
 {
 	dtQueryFilter qfilter;
 	
@@ -186,10 +233,10 @@ bool SGRX_Pathfinder::FindPath( const Vec3& from, uint64_t frompoly,
 bool SGRX_Pathfinder::FindPath( const Vec3& from, const Vec3& to, Array< Vec3 >& pts )
 {
 	Vec3 fxfrom = from, fxto = to;
-	uint64_t pfrom = FindPoly( from, &fxfrom );
+	uint32_t pfrom = FindPoly( from, &fxfrom );
 	if( !pfrom )
 		return false;
-	uint64_t pto = FindPoly( to, &fxto );
+	uint32_t pto = FindPoly( to, &fxto );
 	if( !pto )
 		return false;
 	return FindPath( fxfrom, pfrom, fxto, pto, pts );

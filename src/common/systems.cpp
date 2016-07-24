@@ -1639,6 +1639,16 @@ bool AIDBSystem::LoadChunk( const StringView& type, ByteView data )
 		br << aizn;
 		return true;
 	}
+	if( type == LC_FILE_COV2_NAME )
+	{
+		LOG_FUNCTION_ARG( "COV2 chunk" );
+		LC_Chunk_COV2 cov2;
+		cov2.covers = &m_coverParts;
+		ByteReader br( data );
+		br << cov2;
+		_PrepareCoverRanges();
+		return true;
+	}
 	return false;
 }
 
@@ -1670,6 +1680,7 @@ void AIDBSystem::AddRoomPart( const StringView& name, Mat4 xf, bool negative, fl
 	}
 }
 
+
 AIRoom* AIDBSystem::FindRoomByPos( Vec3 pos )
 {
 	for( size_t i = 0; i < m_rooms.size(); ++i )
@@ -1695,6 +1706,110 @@ AIZoneInfo AIDBSystem::GetZoneInfoByPos( Vec3 pos )
 	zi.suspicionFactor = m_defaultSuspicionFactor;
 	return zi;
 }
+
+
+static int cover_parts_sort_by_polyref( const void* pa, const void* pb )
+{
+	SGRX_CAST( LC_CoverPart*, a, pa );
+	SGRX_CAST( LC_CoverPart*, b, pb );
+	if( a->polyRef != b->polyRef )
+		return a->polyRef < b->polyRef ? -1 : 1;
+	return 0;
+}
+
+void AIDBSystem::_PrepareCoverRanges()
+{
+	// sort covers for range compatibility
+	qsort( m_coverParts.data(), m_coverParts.size(),
+		sizeof(LC_CoverPart), cover_parts_sort_by_polyref );
+	
+	// generate ranges
+	m_tileCoverRanges.clear();
+	uint32_t lastref = 0;
+	size_t start = 0;
+	for( size_t i = 0; i < m_coverParts.size(); ++i )
+	{
+		uint32_t newref = m_coverParts[ i ].polyRef;
+		if( newref != lastref )
+		{
+			if( lastref )
+			{
+				AICoverRange r = { start, i };
+				m_tileCoverRanges.set( lastref, r );
+			}
+			lastref = newref;
+			start = i;
+		}
+	}
+	if( m_coverParts.size() )
+	{
+		AICoverRange r = { start, m_coverParts.size() };
+		m_tileCoverRanges.set( lastref, r );
+	}
+	LOG << "[aidb] Prepared " << m_tileCoverRanges.size()
+		<< " cover ranges for " << m_coverParts.size() << " covers";
+}
+
+LC_CoverPart* AIDBSystem::FindCover( Vec3 pos, Vec3 target, uint32_t mask, uint32_t req )
+{
+	// some of these parameters can be made configurable
+#define COVER_POLY_VISIT_LIMIT 64
+#define MAX_COVER_DISTANCE 8.0f
+	
+	m_fcVisitedSet.clear();
+	m_fcPolyQueue.clear();
+	size_t numSearched = 0;
+	uint32_t firstPoly = m_pathfinder.FindPoly( pos );
+	if( firstPoly )
+		m_fcPolyQueue.push_back( firstPoly );
+	while( numSearched < m_fcPolyQueue.size() )
+	{
+		uint32_t poly = m_fcPolyQueue[ numSearched++ ];
+		m_fcVisitedSet.set( poly, NoValue() );
+		if( ( m_pathfinder.GetPolyPos( poly ) - pos ).LengthSq() >
+			MAX_COVER_DISTANCE * MAX_COVER_DISTANCE )
+			continue;
+		
+		// process covers
+		AICoverRange* covers = m_tileCoverRanges.getptr( poly );
+		if( covers )
+		{
+			for( uint32_t cid = covers->from; cid < covers->to; ++cid )
+			{
+				LC_CoverPart* cp = &m_coverParts[ cid ];
+				// cover does not fit requirements
+				if( ( cp->flags & mask ) != req )
+					continue;
+				// cover does not work
+				Vec2 cdir = V2(
+					target.x - ( cp->p0.x + cp->p1.x ) * 0.5f,
+					target.y - ( cp->p0.y + cp->p1.y ) * 0.5f
+				);
+				if( Vec2Dot( cdir, cp->n.ToVec2() ) < 0 )
+					continue;
+				
+				return cp;
+			}
+		}
+		
+		// search limit
+		if( numSearched >= COVER_POLY_VISIT_LIMIT )
+			break;
+		
+		// add sub-covers to queue
+		uint32_t neighbors[ 8 ];
+		int count = m_pathfinder.GetPolyNeighbors( poly, neighbors, 8 );
+		for( int i = 0; i < count; ++i )
+		{
+			uint32_t np = neighbors[ i ];
+			if( !m_fcVisitedSet.isset( np ) )
+				m_fcPolyQueue.push_back( np );
+		}
+	}
+	
+	return NULL;
+}
+
 
 void AIDBSystem::Tick( float deltaTime, float blendFactor )
 {
@@ -1807,20 +1922,6 @@ SGS_MULTRET AIDBSystem::sgsPushRoom( AIRoom* room )
 		}
 	}
 	
-	// global exclusion using covers
-	CoverSystem* coverSys = m_level->GetSystem<CoverSystem>();
-	if( coverSys )
-	{
-		for( size_t i = 0; i < coverSys->m_edgeMeshes.size(); ++i )
-		{
-			for( size_t p = 0; p < points.size(); ++p )
-			{
-				if( coverSys->m_edgeMeshes[ i ]->PointInBox( points[ p ] ) )
-					points.erase( p-- );
-			}
-		}
-	}
-	
 	// copy to sgs array
 	for( size_t i = 0; i < points.size(); ++i )
 	{
@@ -1868,629 +1969,6 @@ SGS_MULTRET AIDBSystem::sgsGetZoneInfoByPos( Vec3 pos )
 	AIZoneInfo zi = GetZoneInfoByPos( pos );
 	sgs_CreateLiteClassFrom( C, NULL, &zi );
 	return 1;
-}
-
-
-void CSCoverInfo::Clear()
-{
-	planes.clear();
-	shapes.clear();
-	covers.clear();
-	factors.clear();
-}
-
-bool CSCoverInfo::GetPosition( Vec3 position, float distpow, Vec3& out, float interval )
-{
-	if( covers.size() == 0 )
-		return false;
-	
-	// generate cover line goodness factors
-	factors.resize( covers.size() );
-	for( size_t cid = 0; cid < covers.size(); ++cid )
-	{
-		float dist = PointLineDistance( position, covers[ cid ].p0, covers[ cid ].p1 );
-		factors[ cid ] = TLERP( randf(), 1/(1+dist), distpow );
-	}
-	
-	// pick best cover line
-	size_t found_cid = _GetBestFactorID();
-	CSCoverLine clin = covers[ found_cid ];
-	
-	// calculate cover point placement on line
-	float len = ( clin.p1 - clin.p0 ).Length();
-	int count = floor( len / interval ) + 1;
-	float hoff = fmodf( len, interval ) / 2;
-	float qstart = hoff / len;
-	float qdt = interval / len;
-	
-	// generate cover point goodness factors
-	factors.resize( count );
-	float q = qstart;
-	for( int i = 0; i < count; ++i, q += qdt )
-	{
-		Vec3 pt = TLERP( clin.p0, clin.p1, q );
-		float dist = ( pt - position ).Length();
-		factors[ i ] = TLERP( randf(), 1/(1+dist), distpow );
-	}
-	
-	// pick best cover point
-	size_t found_ptid = _GetBestFactorID();
-	out = TLERP( clin.p0, clin.p1, qstart + qdt * found_ptid );
-	
-	return true;
-}
-
-void CSCoverInfo::ClipWithSpheres( Vec4* spheres, int count )
-{
-	for( int sid = 0; sid < count; ++sid )
-	{
-		Vec4 sphere = spheres[ sid ];
-		Vec3 sP = sphere.ToVec3();
-		float sR = sphere.w;
-		
-		size_t cover_count = covers.size();
-		for( size_t cid = 0; cid < cover_count; ++cid )
-		{
-			CSCoverLine clin = covers[ cid ];
-			
-			Vec3 pN = ( clin.p1 - clin.p0 ).Normalized();
-			float pDs = Vec3Dot( pN, sP );
-			float pD0 = Vec3Dot( pN, clin.p0 );
-			float pD1 = Vec3Dot( pN, clin.p1 );
-			if( fabsf( pD1 - pD0 ) > SMALL_FLOAT )
-			{
-				float fs = ( pDs - pD0 ) / ( pD1 - pD0 );
-				Vec3 sphere_proj = TLERP( clin.p0, clin.p1, fs );
-				float dist = ( sphere_proj - sP ).Length();
-				float pushfac = sR * cosf( asinf( clamp( dist / sR, -1, 1 ) ) );
-				if( pushfac > SMALL_FLOAT )
-				{
-					float fs0 = fs - pushfac / fabsf( pD1 - pD0 );
-					float fs1 = fs + pushfac / fabsf( pD1 - pD0 );
-					// 6 cases
-					if( fs0 <= 0 )
-					{
-						if( fs1 <= 0 ) continue; // start/end before line, skip
-						else if( fs1 < 1 )
-						{
-							// start-before/end-middle, clip beginning
-							covers[ cid ].p0 = TLERP( clin.p0, clin.p1, fs1 );
-							continue;
-						}
-						else
-						{
-							// start-before/end-after, remove the whole line
-							covers.uerase( cid-- );
-							cover_count--;
-						}
-					}
-					else if( fs0 < 1 )
-					{
-						if( fs1 < 1 )
-						{
-							// start/end at middle, clip middle out
-							CSCoverLine nl0 = { clin.p0, TLERP( clin.p0, clin.p1, fs0 ) };
-							CSCoverLine nl1 = { TLERP( clin.p0, clin.p1, fs1 ), clin.p1 };
-							covers[ cid ] = nl0;
-							covers.push_back( nl1 );
-						}
-						else
-						{
-							// start-middle/end-after, clip end
-							covers[ cid ].p1 = TLERP( clin.p0, clin.p1, fs0 );
-							continue;
-						}
-					}
-					else continue; // start/end after line, skip
-				}
-				else continue; // sphere didn't hit the line
-			}
-			else continue; // line too short to clip
-		}
-	}
-}
-
-size_t CSCoverInfo::_GetBestFactorID()
-{
-	float q = -1;
-	size_t id = NOT_FOUND;
-	for( size_t i = 0; i < factors.size(); ++i )
-	{
-		float nq = factors[ i ];
-		if( nq > q )
-		{
-			q = nq;
-			id = i;
-		}
-	}
-	return id;
-}
-
-bool _IntersectLinePlane( CSCoverLine& ioline, Vec4 plane )
-{
-	float sigdst0 = Vec3Dot( plane.ToVec3(), ioline.p0 ) - plane.w;
-	float sigdst1 = Vec3Dot( plane.ToVec3(), ioline.p1 ) - plane.w;
-	if( sigdst0 <= 0 && sigdst1 <= 0 )
-		return true;
-	float q = safe_fdiv( -sigdst0, sigdst1 - sigdst0 );
-	if( sigdst0 <= 0 )
-	{
-		ioline.p0 = TLERP( ioline.p0, ioline.p1, q );
-	}
-	else if( sigdst1 <= 0 )
-	{
-		ioline.p1 = TLERP( ioline.p0, ioline.p1, q );
-	}
-	return false;
-}
-
-void CSCoverInfo::_CullWithShadowLines( size_t firstcover, Vec4 P )
-{
-	for( size_t covid = firstcover; covid < covers.size(); ++covid )
-	{
-		bool rem = _IntersectLinePlane( covers[ covid ], P );
-		if( rem )
-			covers.uerase( covid-- );
-	}
-}
-
-void CSCoverInfo::_CullWithSolids()
-{
-	for( size_t sid = 0; sid < shapes.size(); ++sid )
-	{
-		const Shape& S = shapes[ sid ];
-		
-		size_t cover_count = covers.size();
-		for( size_t covid = 0; covid < cover_count; ++covid )
-		{
-			CSCoverLine clin = covers[ covid ];
-			CSCoverLine clout[2];
-			int cloutnum = 0;
-			
-			for( int plid = 0; plid < S.numPlanes; ++plid )
-			{
-				Vec4 plane = planes[ S.offset + plid ];
-				float sigdst0 = Vec3Dot( plane.ToVec3(), clin.p0 ) - plane.w;
-				float sigdst1 = Vec3Dot( plane.ToVec3(), clin.p1 ) - plane.w;
-				if( sigdst0 >= 0 && sigdst1 >= 0 )
-				{
-					clout[ 0 ] = clin;
-					cloutnum = 1;
-					break;
-				}
-				float q = safe_fdiv( -sigdst0, sigdst1 - sigdst0 );
-				Vec3 isp = TLERP( clin.p0, clin.p1, q );
-				
-				// check if intersection point is inside solid
-				bool ipin = true;
-				for( int i = 0; i < S.numPlanes; ++i )
-				{
-					Vec4 P = planes[ S.offset + i ];
-					if( Vec3Dot( P.ToVec3(), isp ) > P.w + SMALL_FLOAT )
-					{
-						// point outside, ignore it
-						ipin = false;
-						break;
-					}
-				}
-				
-				if( ipin )
-				{
-					if( sigdst0 >= 0 ) // p0 in front, p1 behind
-					{
-						if( ( clin.p0 - isp ).LengthSq() > SMALL_FLOAT )
-						{
-							ASSERT( cloutnum < 2 );
-							clout[ cloutnum ].p0 = clin.p0;
-							clout[ cloutnum ].p1 = isp;
-							cloutnum++;
-							clin.p0 = isp;
-						}
-					}
-					else if( sigdst1 >= 0 ) // p1 in front, p0 behind
-					{
-						if( ( clin.p1 - isp ).LengthSq() > SMALL_FLOAT )
-						{
-							ASSERT( cloutnum < 2 );
-							clout[ cloutnum ].p1 = clin.p1;
-							clout[ cloutnum ].p0 = isp;
-							cloutnum++;
-							clin.p1 = isp;
-						}
-					}
-				}
-				
-				// if isp outside solid, it's not the right intersection point
-				// if( sigdst0 < 0 && sigdst1 < 0 ) --> ambiguous outcome, must resolve with other planes
-			}
-			
-			// update situation
-			if( cloutnum == 0 )
-			{
-				covers.uerase( covid-- );
-				cover_count--;
-			}
-			else if( cloutnum == 1 )
-			{
-				covers[ covid ] = clout[ 0 ];
-			}
-			else // if( cloutnum == 2 )
-			{
-				covers[ covid ] = clout[ 0 ];
-				covers.push_back( clout[ 1 ] );
-			}
-		}
-	}
-}
-
-static const float cos135deg = cosf( FLT_PI * 0.75f );
-void CoverSystem::CoverPoint::AdjustNormals( Vec3 newout, Vec3 newup )
-{
-	Vec3 oldrt = Vec3Cross( nout, nup ).Normalized();
-	Vec3 newrt = Vec3Cross( newout, newup ).Normalized();
-	
-	float dot = clamp( Vec3Dot( oldrt, newrt ), -1, 1 );
-	if( dot < cos135deg )
-	{
-		nout += newout;
-		nout.Normalize();
-	}
-	else
-	{
-		nout = ( nout + newout ).Normalized() / cosf( 0.5f * acosf( dot ) );
-	}
-	
-	nup += newup;
-	nup.Normalize();
-}
-
-bool CoverSystem::EdgeMesh::InAABB( const Vec3& ibmin, const Vec3& ibmax ) const
-{
-	return bbmin.x < ibmax.x
-		&& bbmin.y < ibmax.y
-		&& bbmin.z < ibmax.z
-		&& ibmin.x < bbmax.x
-		&& ibmin.y < bbmax.y
-		&& ibmin.z < bbmax.z;
-}
-
-bool CoverSystem::EdgeMesh::PointInBox( Vec3 pt ) const
-{
-	Vec3 ixp = inv_bbox_xf.TransformPos( pt );
-	return ixp.x >= obb_min.x
-		&& ixp.y >= obb_min.y
-		&& ixp.z >= obb_min.z
-		&& ixp.x <= obb_max.x
-		&& ixp.y <= obb_max.y
-		&& ixp.z <= obb_max.z;
-}
-
-void CoverSystem::EdgeMesh::CalcCoverLines()
-{
-	coverpts.clear();
-	coveridcs.clear();
-	
-	for( size_t i = 0; i < edges.size(); ++i )
-	{
-		const Edge& E = edges[ i ];
-		bool is0 = Vec3Dot( E.n0, V3(0,0,-1) ) > 0.707f;
-		bool is1 = Vec3Dot( E.n1, V3(0,0,-1) ) > 0.707f;
-		if( ( is0 && is1 == false ) || ( is1 && is0 == false ) )
-		{
-			Vec3 nout = is0 ? E.n1 : E.n0;
-			Vec3 nup = is0 ? -E.n0 : -E.n1;
-			CoverPoint cp0 = { E.p0, nout, nup };
-			CoverPoint cp1 = { E.p1, nout, nup };
-			
-			size_t pos0 = coverpts.find_first_at( cp0 );
-			size_t pos1 = coverpts.find_first_at( cp1 );
-			
-			if( pos0 == NOT_FOUND )
-			{
-				pos0 = coverpts.size();
-				coverpts.push_back( cp0 );
-			}
-			else
-			{
-				coverpts[ pos0 ].AdjustNormals( nout, nup );
-			}
-			
-			if( pos1 == NOT_FOUND )
-			{
-				pos1 = coverpts.size();
-				coverpts.push_back( cp1 );
-			}
-			else
-			{
-				coverpts[ pos1 ].AdjustNormals( nout, nup );
-			}
-			
-			coveridcs.push_back( pos0 );
-			coveridcs.push_back( pos1 );
-		}
-	}
-}
-
-
-
-#define LC_FILE_COVR_NAME "COVR"
-#define LC_FILE_COVR_VERSION 1
-// v1: added 'negative'
-struct LC_AICover
-{
-	StringView name;
-	Mat4 transform;
-	bool negative;
-	
-	template< class T > void Serialize( T& arch )
-	{
-		arch.stringView( name );
-		arch << transform;
-		arch( negative, arch.version >= 1, false );
-	}
-};
-struct LC_Chunk_COVR
-{
-	Array< LC_AICover > covers;
-	
-	template< class T > void Serialize( T& arch )
-	{
-		SerializeVersionHelper<T> svh( arch, LC_FILE_COVR_VERSION );
-		svh << covers;
-	}
-};
-
-struct LC_CoverSys_Compiler : IEditorSystemCompiler
-{
-	bool GenerateChunk( ByteArray& out, sgsVariable sysParams )
-	{
-		ByteWriter bw( &out );
-		bw << data;
-		WrapChunk( out, LC_FILE_COVR_NAME );
-		return true;
-	}
-	void ProcessEntity( EditorEntity& ent )
-	{
-		if( ent.type == "AICover" )
-		{
-			LC_AICover cover =
-			{
-				ent.props.getprop("name").get<StringView>(),
-				Mat4::CreateSRT(
-					ent.props.getprop("scale").get<Vec3>(),
-					DEG2RAD( ent.props.getprop("rotationXYZ").get<Vec3>() ),
-					ent.props.getprop("position").get<Vec3>() ),
-				ent.props.getprop("negative").get<bool>(),
-			};
-			data.covers.push_back( cover );
-			return;
-		}
-	}
-	
-	LC_Chunk_COVR data;
-};
-
-
-
-bool CoverSystem::LoadChunk( const StringView& type, ByteView data )
-{
-	if( type == LC_FILE_COVR_NAME )
-	{
-		LC_Chunk_COVR chunk;
-		ByteReader br( data );
-		br << chunk;
-		for( size_t i = 0; i < chunk.covers.size(); ++i )
-		{
-			AddAABB( chunk.covers[ i ].name, V3(-1), V3(1),
-				chunk.covers[ i ].transform, chunk.covers[ i ].negative );
-		}
-		return true;
-	}
-	return false;
-}
-
-IEditorSystemCompiler* CoverSystem::EditorGetSystemCompiler()
-{
-	return new LC_CoverSys_Compiler;
-}
-
-void CoverSystem::Clear()
-{
-	m_edgeMeshes.clear();
-	m_edgeMeshesByName.clear();
-}
-
-void CoverSystem::AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx, bool negative )
-{
-	EdgeMesh* EM = new EdgeMesh;
-	EM->m_key = name;
-	EM->pos = mtx.TransformPos( V3(0) );
-	EM->inv_bbox_xf = Mat4::Identity;
-	mtx.InvertTo( EM->inv_bbox_xf );
-	EM->obb_min = bbmin;
-	EM->obb_max = bbmax;
-	EM->enabled = true;
-	EM->negative = negative;
-	
-	Mat4 ntx;
-	mtx.GenNormalMatrix( ntx );
-	
-	Edge edges[12] =
-	{
-		// X
-		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmin.z), V3(0,-1,0), V3(0,0,-1) },
-		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(0,1,0), V3(0,0,-1) },
-		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(0,-1,0), V3(0,0,1) },
-		{ V3(bbmin.x,bbmax.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(0,1,0), V3(0,0,1) },
-		// Y
-		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmin.z), V3(-1,0,0), V3(0,0,-1) },
-		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmin.z), V3(1,0,0), V3(0,0,-1) },
-		{ V3(bbmin.x,bbmin.y,bbmax.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,0,1) },
-		{ V3(bbmax.x,bbmin.y,bbmax.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,0,1) },
-		// Z
-		{ V3(bbmin.x,bbmin.y,bbmin.z), V3(bbmin.x,bbmin.y,bbmax.z), V3(-1,0,0), V3(0,-1,0) },
-		{ V3(bbmax.x,bbmin.y,bbmin.z), V3(bbmax.x,bbmin.y,bbmax.z), V3(1,0,0), V3(0,-1,0) },
-		{ V3(bbmin.x,bbmax.y,bbmin.z), V3(bbmin.x,bbmax.y,bbmax.z), V3(-1,0,0), V3(0,1,0) },
-		{ V3(bbmax.x,bbmax.y,bbmin.z), V3(bbmax.x,bbmax.y,bbmax.z), V3(1,0,0), V3(0,1,0) },
-	};
-	
-	for( int i = 0; i < 12; ++i )
-	{
-		edges[ i ].p0 = mtx.TransformPos( edges[ i ].p0 );
-		edges[ i ].p1 = mtx.TransformPos( edges[ i ].p1 );
-		edges[ i ].n0 = ntx.TransformNormal( edges[ i ].n0 ).Normalized();
-		edges[ i ].n1 = ntx.TransformNormal( edges[ i ].n1 ).Normalized();
-		edges[ i ].d0 = Vec3Dot( edges[ i ].p0, edges[ i ].n0 );
-		edges[ i ].d1 = Vec3Dot( edges[ i ].p1, edges[ i ].n1 );
-	}
-	
-	Vec4 planes[6] =
-	{
-		V4( edges[4].n0, Vec3Dot( edges[4].n0, edges[4].p0 ) ), // X-
-		V4( edges[5].n0, Vec3Dot( edges[5].n0, edges[5].p0 ) ), // X+
-		V4( edges[0].n0, Vec3Dot( edges[0].n0, edges[0].p0 ) ), // Y-
-		V4( edges[1].n0, Vec3Dot( edges[1].n0, edges[1].p0 ) ), // Y+
-		V4( edges[0].n1, Vec3Dot( edges[0].n1, edges[0].p0 ) ), // Z-
-		V4( edges[2].n1, Vec3Dot( edges[2].n1, edges[2].p0 ) ), // Z+
-	};
-	
-	EM->edges.assign( edges, 12 );
-	EM->planes.assign( planes, 6 );
-	EM->CalcCoverLines();
-	
-	EM->bbmin = V3(FLT_MAX);
-	EM->bbmax = V3(-FLT_MAX);
-	for( int i = 0; i < 12; ++i )
-	{
-		EM->bbmin = Vec3::Min( Vec3::Min( edges[ i ].p0, edges[ i ].p1 ), EM->bbmin );
-		EM->bbmax = Vec3::Max( Vec3::Max( edges[ i ].p0, edges[ i ].p1 ), EM->bbmax );
-	}
-	
-	m_edgeMeshes.push_back( EM );
-	m_edgeMeshesByName.set( EM->m_key, EM );
-}
-
-void CoverSystem::QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
-	float height, Vec3 viewer, bool visible, CSCoverInfo& cinfo )
-{
-	cinfo.Clear();
-	
-	for( size_t emid = 0; emid < m_edgeMeshes.size(); ++emid )
-	{
-		EdgeMesh* EM = m_edgeMeshes[ emid ];
-		if( EM->enabled == false )
-			continue;
-		if( EM->InAABB( bbmin, bbmax ) == false )
-			continue;
-		
-		// generate solids
-		{
-			CSCoverInfo::Shape sh = { cinfo.planes.size(), 0 };
-			cinfo.shapes.push_back( sh );
-			for( size_t i = 0; i < EM->planes.size(); ++i )
-			{
-				Vec4 P = EM->planes[ i ];
-				P.w += dist - SMALL_FLOAT;
-				cinfo.planes.push_back( P );
-				cinfo.shapes.last().numPlanes++;
-			}
-		}
-		
-		if( EM->negative )
-			continue;
-		
-		// produce lines
-		size_t cover_off = cinfo.covers.size();
-		for( size_t i = 0; i < EM->coveridcs.size(); i += 2 )
-		{
-			const CoverPoint& cp0 = EM->coverpts[ EM->coveridcs[ i + 0 ] ];
-			const CoverPoint& cp1 = EM->coverpts[ EM->coveridcs[ i + 1 ] ];
-			CSCoverLine outcl =
-			{
-				cp0.pos + cp0.nout * dist + cp0.nup * height,
-				cp1.pos + cp1.nout * dist + cp1.nup * height,
-			};
-			cinfo.covers.push_back( outcl );
-		}
-		
-		// shadow clip
-		if( visible == false )
-		{
-			// cut away shadow planes
-			for( size_t i = 0; i < EM->edges.size(); ++i )
-			{
-				Edge E = EM->edges[ i ];
-				bool is0 = Vec3Dot( E.n0, viewer ) > E.d0;
-				bool is1 = Vec3Dot( E.n1, viewer ) > E.d1;
-				
-				if( ( is0 && is1 == false ) || ( is0 == false && is1 ) )
-				{
-					// silhouette edge
-					// - generate plane
-					Vec3 pN = Vec3Cross( E.p0 - viewer, E.p1 - viewer ).Normalized();
-					if( Vec3Dot( pN, E.n0 ) < 0 || Vec3Dot( pN, E.n1 ) < 0 )
-						pN = -pN;
-					float pD = Vec3Dot( pN, viewer );
-					
-					// - push plane
-					Vec4 P = V4( pN, pD );
-					P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
-					cinfo._CullWithShadowLines( cover_off, -P );
-				}
-			}
-			for( size_t i = 0; i < EM->planes.size(); ++i )
-			{
-				Vec4 P = EM->planes[ i ];
-				if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
-				{
-					P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
-					cinfo._CullWithShadowLines( cover_off, -P );
-				}
-			}
-		}
-		else
-		{
-			// generate solid from shadow planes
-			CSCoverInfo::Shape sh = { cinfo.planes.size(), 0 };
-			cinfo.shapes.push_back( sh );
-			for( size_t i = 0; i < EM->edges.size(); ++i )
-			{
-				Edge E = EM->edges[ i ];
-				bool is0 = Vec3Dot( E.n0, viewer ) > E.d0;
-				bool is1 = Vec3Dot( E.n1, viewer ) > E.d1;
-				
-				if( ( is0 && is1 == false ) || ( is0 == false && is1 ) )
-				{
-					// silhouette edge
-					// - generate plane
-					Vec3 pN = Vec3Cross( E.p0 - viewer, E.p1 - viewer ).Normalized();
-					if( Vec3Dot( pN, E.n0 ) < 0 || Vec3Dot( pN, E.n1 ) < 0 )
-						pN = -pN;
-					float pD = Vec3Dot( pN, viewer );
-					
-					// - push plane
-					Vec4 P = V4( pN, pD );
-					P.w += ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
-					
-					cinfo.planes.push_back( P );
-					cinfo.shapes.last().numPlanes++;
-				}
-			}
-			for( size_t i = 0; i < EM->planes.size(); ++i )
-			{
-				Vec4 P = EM->planes[ i ];
-				if( Vec3Dot( P.ToVec3(), viewer ) > P.w )
-				{
-				//	P.w -= ( 1 - fabsf( Vec3Dot( P.ToVec3(), V3(0,0,1) ) ) ) * dist;
-					
-					cinfo.planes.push_back( P );
-					cinfo.shapes.last().numPlanes++;
-				}
-			}
-		}
-	}
-	
-	cinfo._CullWithSolids();
 }
 
 

@@ -429,6 +429,12 @@ EXP_STRUCT AIZoneInfo
 	}
 };
 
+EXP_STRUCT AICoverRange
+{
+	uint32_t from;
+	uint32_t to;
+};
+
 EXP_STRUCT AIFactDistance
 {
 	GFW_EXPORT virtual float GetDistance( const AIFact& fact ) = 0;
@@ -482,20 +488,34 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	GFW_EXPORT void Clear();
 	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
 	GFW_EXPORT IEditorSystemCompiler* EditorGetSystemCompiler();
+	
 	GFW_EXPORT void AddSound( Vec3 pos, float rad, float timeout, AISoundType type );
 	GFW_EXPORT void AddRoomPart( const StringView& name, Mat4 xf, bool negative, float cell_size );
+	
 	GFW_EXPORT AIRoom* FindRoomByPos( Vec3 pos );
 	GFW_EXPORT AIZoneInfo GetZoneInfoByPos( Vec3 pos );
+	
+	GFW_EXPORT void _PrepareCoverRanges();
+	GFW_EXPORT LC_CoverPart* FindCover( Vec3 pos, Vec3 target, uint32_t mask = 0, uint32_t req = 0 );
+	
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	GFW_EXPORT void FixedTick( float deltaTime );
 	GFW_EXPORT void DebugDrawWorld();
 	
+	// navmesh / cover data
 	SGRX_Pathfinder m_pathfinder;
-	Array< AISound > m_sounds;
+	Array< LC_CoverPart > m_coverParts;
+	HashTable< uint32_t, AICoverRange > m_tileCoverRanges;
+	// - internal
+	Array< uint32_t> m_fcPolyQueue;
+	HashTable< uint32_t, NoValue > m_fcVisitedSet;
+	// misc. spatial markers
 	HashTable< StringView, AIRoomHandle > m_rooms;
 	Array< AIZoneInfo > m_zones;
 	uint32_t m_defaultRestrictedGroups;
 	float m_defaultSuspicionFactor;
+	// world facts
+	Array< AISound > m_sounds;
 	AIFactStorage m_globalFacts;
 	
 	GFW_EXPORT SGS_METHOD_NAMED( AddSound ) void sgsAddSound( Vec3 pos, float rad, float timeout, int type );
@@ -514,105 +534,6 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	GFW_EXPORT SGS_METHOD_NAMED( GetRoomByPos ) SGS_MULTRET sgsGetRoomByPos( Vec3 pos );
 	GFW_EXPORT SGS_METHOD_NAMED( GetRoomPoints ) SGS_MULTRET sgsGetRoomPoints( StringView name );
 	GFW_EXPORT SGS_METHOD_NAMED( GetZoneInfoByPos ) SGS_MULTRET sgsGetZoneInfoByPos( Vec3 pos );
-};
-
-
-struct CSCoverLine
-{
-	Vec3 p0;
-	Vec3 p1;
-};
-
-EXP_STRUCT CSCoverInfo
-{
-	struct Shape
-	{
-		size_t offset;
-		int numPlanes;
-	};
-	
-	GFW_EXPORT void Clear();
-	GFW_EXPORT bool GetPosition( Vec3 position, float distpow, Vec3& out, float interval = 0.1f );
-	GFW_EXPORT void ClipWithSpheres( Vec4* spheres, int count );
-	
-	GFW_EXPORT size_t _GetBestFactorID();
-	GFW_EXPORT void _CullWithShadowLines( size_t firstcover, Vec4 P );
-	GFW_EXPORT void _CullWithSolids();
-	
-	Array< Vec4 > planes;
-	Array< Shape > shapes;
-	Array< CSCoverLine > covers;
-	Array< float > factors;
-};
-
-EXP_STRUCT CoverSystem : IGameLevelSystem
-{
-	enum { e_system_uid = 8 };
-	
-	struct Edge
-	{
-#if 0
-		int pl0;
-		int pl1;
-#else
-		Vec3 p0; // endpoint 0
-		Vec3 p1; // endpoint 1
-		Vec3 n0; // adjacent plane 0 normal
-		Vec3 n1; // adjacent plane 1 normal
-		float d0; // adjacent plane 0 distance
-		float d1; // adjacent plane 1 distance
-		
-		bool cover; // is cover edge (bottom/side)
-		Vec3 nout; // outwards extension direction if p0/p1 match
-		Vec3 nup; // upwards extension direction if p0/p1 match
-#endif
-	};
-	EXP_STRUCT CoverPoint
-	{
-		Vec3 pos;
-		Vec3 nout;
-		Vec3 nup;
-		
-		GFW_EXPORT void AdjustNormals( Vec3 newout, Vec3 newup );
-		bool operator == ( const CoverPoint& o ) const { return pos == o.pos; }
-	};
-	EXP_STRUCT EdgeMesh : SGRX_RCRsrc
-	{
-		// silhouette info
-		Array< Edge > edges;
-		// solid info
-		Array< Vec4 > planes;
-		// cover data
-		Array< CoverPoint > coverpts;
-		Array< uint16_t > coveridcs;
-		
-		Vec3 pos;
-		Vec3 bbmin;
-		Vec3 bbmax;
-		bool enabled;
-		bool negative;
-		
-		Mat4 inv_bbox_xf;
-		Vec3 obb_min;
-		Vec3 obb_max;
-		
-		GFW_EXPORT bool InAABB( const Vec3& ibmin, const Vec3& ibmax ) const;
-		GFW_EXPORT bool PointInBox( Vec3 pt ) const;
-		GFW_EXPORT void CalcCoverLines();
-	};
-	typedef Handle< EdgeMesh > EdgeMeshHandle;
-	
-	CoverSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid ){}
-	GFW_EXPORT bool LoadChunk( const StringView& type, ByteView data );
-	GFW_EXPORT IEditorSystemCompiler* EditorGetSystemCompiler();
-	GFW_EXPORT void Clear();
-	GFW_EXPORT void AddAABB( StringView name, Vec3 bbmin, Vec3 bbmax, Mat4 mtx, bool negative );
-	
-	GFW_EXPORT void QueryLines( Vec3 bbmin, Vec3 bbmax, float dist,
-		float height, Vec3 viewer, bool visible, CSCoverInfo& cinfo );
-	
-	Array< EdgeMeshHandle > m_edgeMeshes;
-	HashTable< StringView, EdgeMeshHandle > m_edgeMeshesByName;
 };
 
 

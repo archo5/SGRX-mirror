@@ -287,10 +287,8 @@ struct TSEnemyController : BhControllerBase
 	SGS_BACKING_STORE( _data.var );
 	
 	AIFactStorage m_factStorage;
-	CSCoverInfo m_coverInfo;
 	Array< Vec3 > m_path;
 	AIDBSystem* m_aidb;
-	CoverSystem* m_coverSys;
 	TSCharacter* GetChar()
 	{
 		return m_obj->FindBehaviorOfType<TSCharacter>();
@@ -319,10 +317,8 @@ struct TSEnemyController : BhControllerBase
 		float rad, TimeVal created, TimeVal expires, uint32_t ref, bool reset );
 	
 	// cover info
-	SGS_METHOD_NAMED( QueryCoverLines ) void sgsQueryCoverLines( Vec3 bbmin,
-		Vec3 bbmax, float dist, float height, Vec3 viewer, bool visible );
-	SGS_METHOD_NAMED( GetCoverPosition ) sgsMaybe<Vec3> sgsGetCoverPosition(
-		Vec3 position, float distpow, float interval /* = 0.1 */ );
+	SGS_METHOD_NAMED( GetCover ) SGS_MULTRET sgsGetCover(
+		Vec3 position, Vec3 viewer, uint32_t mask /* = 0 */, uint32_t req /* = 0 */ );
 	
 	// pathfinding
 	SGS_METHOD_NAMED( IsWalkable ) bool sgsIsWalkable( Vec3 pos, Vec3 ext );

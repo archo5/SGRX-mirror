@@ -1534,8 +1534,15 @@ void AnimCharInst::FixedTick( float deltaTime, bool changeStates )
 		changeStates = false;
 		if( animChar->main_player_node && animChar->main_player_node->type == AnimCharacter::NT_Player )
 		{
-			SGRX_CAST( PlayerNodeRT*, PNRT, animChar->main_player_node.item );
-			m_values[ ANIMCHAR_VAR_nfba ] = PNRT->player_anim.GetLastAnimBlendFactor();
+			for( size_t i = 0; i < m_rtnodes.size(); ++i )
+			{
+				if( m_rtnodes[ i ]->src == animChar->main_player_node )
+				{
+					SGRX_CAST( PlayerNodeRT*, PNRT, m_rtnodes[ i ].item );
+					m_values[ ANIMCHAR_VAR_nfba ] = PNRT->player_anim.GetLastAnimBlendFactor();
+					break;
+				}
+			}
 		}
 	}
 	else m_values[ ANIMCHAR_VAR_said ] = 0;

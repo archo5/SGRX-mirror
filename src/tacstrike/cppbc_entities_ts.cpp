@@ -713,18 +713,11 @@ static int _sgs_method__TSEnemyController__InsertOrUpdateFact( SGS_CTX )
 	data->sgsInsertOrUpdateFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<TimeVal>()(C,3), sgs_GetVar<TimeVal>()(C,4), sgs_GetVar<uint32_t>()(C,5), sgs_GetVar<bool>()(C,6) ); return 0;
 }
 
-static int _sgs_method__TSEnemyController__QueryCoverLines( SGS_CTX )
+static int _sgs_method__TSEnemyController__GetCover( SGS_CTX )
 {
-	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, QueryCoverLines ) ) return 0;
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetCover ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->sgsQueryCoverLines( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<Vec3>()(C,4), sgs_GetVar<bool>()(C,5) ); return 0;
-}
-
-static int _sgs_method__TSEnemyController__GetCoverPosition( SGS_CTX )
-{
-	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetCoverPosition ) ) return 0;
-	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	sgs_PushVar(C,data->sgsGetCoverPosition( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) )); return 1;
+	return data->sgsGetCover( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<uint32_t>()(C,2), sgs_GetVar<uint32_t>()(C,3) );
 }
 
 static int _sgs_method__TSEnemyController__IsWalkable( SGS_CTX )
@@ -858,8 +851,7 @@ static sgs_RegFuncConst TSEnemyController__sgs_funcs[] =
 	{ "InsertFact", _sgs_method__TSEnemyController__InsertFact },
 	{ "UpdateFact", _sgs_method__TSEnemyController__UpdateFact },
 	{ "InsertOrUpdateFact", _sgs_method__TSEnemyController__InsertOrUpdateFact },
-	{ "QueryCoverLines", _sgs_method__TSEnemyController__QueryCoverLines },
-	{ "GetCoverPosition", _sgs_method__TSEnemyController__GetCoverPosition },
+	{ "GetCover", _sgs_method__TSEnemyController__GetCover },
 	{ "IsWalkable", _sgs_method__TSEnemyController__IsWalkable },
 	{ "FindPath", _sgs_method__TSEnemyController__FindPath },
 	{ "HasPath", _sgs_method__TSEnemyController__HasPath },

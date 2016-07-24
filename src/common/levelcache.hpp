@@ -332,7 +332,7 @@ struct LC_Chunk_Mapl
 struct LC_CoverPart
 {
 	Vec3 p0, p1, n;
-	uint32_t tileID;
+	uint32_t polyRef;
 	uint32_t flags; // COV_FLAG_*
 	
 	template< class T > void Serialize( T& arch )
@@ -340,7 +340,7 @@ struct LC_CoverPart
 		arch << p0;
 		arch << p1;
 		arch << n;
-		arch << tileID;
+		arch << polyRef;
 		arch << flags;
 	}
 };

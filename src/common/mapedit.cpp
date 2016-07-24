@@ -1764,6 +1764,7 @@ void EdMainFrame::Level_New()
 	ReconfigureEntities( "" );
 	g_EdWorld->Reset();
 	g_EdLGCont->Reset();
+	g_EdMDCont->Reset();
 }
 
 bool EdMainFrame::Level_Real_Open( const StringView& str )

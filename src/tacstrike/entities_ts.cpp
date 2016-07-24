@@ -1183,8 +1183,7 @@ TSEnemyController::TSEnemyController( GameObject* obj ) :
 	BhControllerBase( obj ),
 	i_crouch( false ), i_move( V2(0) ), i_speed( 1 ), i_turn( V3(0) ),
 	i_aim_at( false ), i_aim_target( V3(0) ), i_shoot( false ), i_act( false ),
-	m_aidb( m_level->GetSystem<AIDBSystem>() ),
-	m_coverSys( m_level->GetSystem<CoverSystem>() )
+	m_aidb( m_level->GetSystem<AIDBSystem>() )
 {
 	InitScriptInterface();
 	_data = m_level->GetScriptCtx().CreateDict();
@@ -1634,24 +1633,16 @@ void TSEnemyController::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
 	m_factStorage.InsertOrUpdate( type, pos, rad, created, expires, ref, reset );
 }
 
-void TSEnemyController::sgsQueryCoverLines( Vec3 bbmin,
-	Vec3 bbmax, float dist, float height, Vec3 viewer, bool visible )
+SGS_MULTRET TSEnemyController::sgsGetCover(
+	Vec3 position, Vec3 viewer, uint32_t mask /* = 0 */, uint32_t req /* = 0 */ )
 {
-	if( m_coverSys == NULL )
-		return;
-	m_coverSys->QueryLines( bbmin, bbmax, dist, height, viewer, visible, m_coverInfo );
-	// TODO clip by facts
-}
-
-sgsMaybe<Vec3> TSEnemyController::sgsGetCoverPosition(
-	Vec3 position, float distpow, float interval /* = 0.1 */ )
-{
-	if( sgs_StackSize( C ) < 3 )
-		interval = 0.1f;
-	Vec3 out = V3(0);
-	if( m_coverInfo.GetPosition( position, distpow, out, interval ) )
-		return out;
-	return sgsMaybe<Vec3>();
+	LC_CoverPart* cover = m_aidb->FindCover( position, viewer, mask, req );
+	if( cover == NULL )
+		return 0;
+	sgs_PushVar( C, ( cover->p0 + cover->p1 ) * 0.5f );
+	sgs_PushVar( C, cover->flags );
+	sgs_PushVar( C, cover->n );
+	return 3;
 }
 
 bool TSEnemyController::sgsIsWalkable( Vec3 pos, Vec3 ext )

@@ -312,7 +312,6 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		AddSystemToLevel<DamageSystem>( level );
 		AddSystemToLevel<BulletSystem>( level );
 		AddSystemToLevel<AIDBSystem>( level );
-		AddSystemToLevel<CoverSystem>( level );
 		AddSystemToLevel<DevelopSystem>( level );
 		
 		HelpTextSystem* HTS = level->GetSystem<HelpTextSystem>();

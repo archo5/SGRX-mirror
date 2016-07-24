@@ -15,6 +15,8 @@ void EdMetaDataCont::Reset()
 {
 	m_navMeshData.clear();
 	m_coverData.clear();
+	m_mapLines.clear();
+	m_mapLayers.clear();
 }
 
 void EdMetaDataCont::LoadCache( const StringView& levname )
@@ -108,7 +110,7 @@ void EdMetaDataCont::DebugDrawCovers()
 	for( size_t i = 0; i < m_coverData.size(); ++i )
 	{
 		const LC_CoverPart& CP = m_coverData[ i ];
-		Vec3 zoff = V3( 0, 0, CP.flags & COV_FLAG_LOW ? 1.2f : 1.9f );
+		Vec3 zoff = V3( 0, 0, CP.flags & COV_FLAG_LOW ? 1.0f : 1.7f );
 		br.Pos( CP.p0 );
 		br.Pos( CP.p1 );
 		br.Pos( CP.p1 + zoff );
