@@ -110,7 +110,7 @@ void EdMetaDataCont::DebugDrawCovers()
 	for( size_t i = 0; i < m_coverData.size(); ++i )
 	{
 		const LC_CoverPart& CP = m_coverData[ i ];
-		Vec3 zoff = V3( 0, 0, CP.flags & COV_FLAG_LOW ? 1.0f : 1.7f );
+		Vec3 zoff = V3( 0, 0, CP.flags & COVER_LOW ? 1.0f : 1.7f );
 		br.Pos( CP.p0 );
 		br.Pos( CP.p1 );
 		br.Pos( CP.p1 + zoff );
@@ -122,9 +122,22 @@ void EdMetaDataCont::DebugDrawCovers()
 	for( size_t i = 0; i < m_coverData.size(); ++i )
 	{
 		const LC_CoverPart& CP = m_coverData[ i ];
+		Vec3 zoff = V3( 0, 0, CP.flags & COVER_LOW ? 1.0f : 1.7f );
 		br.Pos( CP.p0 );
 		br.Pos( CP.p1 );
 		br.Pos( ( CP.p0 + CP.p1 ) * 0.5f - CP.n * 0.1f );
+		if( CP.flags & COVER_OPENLEFT )
+		{
+			br.Pos( CP.p0 );
+			br.Pos( CP.p0 + zoff );
+			br.Pos( CP.p0 + zoff * 0.5f + CP.n * 0.1f );
+		}
+		if( CP.flags & COVER_OPENRIGHT )
+		{
+			br.Pos( CP.p1 );
+			br.Pos( CP.p1 + zoff );
+			br.Pos( CP.p1 + zoff * 0.5f + CP.n * 0.1f );
+		}
 	}
 }
 

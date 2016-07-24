@@ -328,12 +328,15 @@ struct LC_Chunk_Mapl
 // Cover data (method 2)
 #define LC_FILE_COV2_NAME "COV2"
 #define LC_FILE_COV2_VERSION 0
-#define COV_FLAG_LOW 0x01
+#define COVER_LOW 0x01
+#define COVER_OPENLEFT 0x02
+#define COVER_OPENRIGHT 0x04
+#define COVER_OPENTYPE 0x07 // mask for previous flags
 struct LC_CoverPart
 {
 	Vec3 p0, p1, n;
 	uint32_t polyRef;
-	uint32_t flags; // COV_FLAG_*
+	uint32_t flags; // COVER_*
 	
 	template< class T > void Serialize( T& arch )
 	{

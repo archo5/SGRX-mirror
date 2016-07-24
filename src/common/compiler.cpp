@@ -1747,9 +1747,11 @@ struct PMRaycast
 
 bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>& out )
 {
-	static float height1 = 1.0f;
-	static float height2 = 1.7f;
-	static float depth = 0.7f;
+	static const float height1 = 1.0f;
+	static const float height2 = 1.7f;
+	static const float depth = 0.7f;
+	static const float sideoff = 0.2f;
+	static const float sidedepth = 1.5f;
 	
 	out.clear();
 	
@@ -1798,17 +1800,27 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 				bool hit_h2 = rc.Hit( rco2 + V3(0,0,height2), nrm, depth );
 				int cl1 = hit_l1 ? ( hit_h1 ? 2 : 1 ) : 0;
 				int cl2 = hit_l2 ? ( hit_h2 ? 2 : 1 ) : 0;
+				float cht1 = hit_h1 ? height2 : height1;
+				float cht2 = hit_h2 ? height2 : height1;
+				
+#define COVER_PUSH_EDGE( pt0, pt1, cl ) \
+	LC_CoverPart cp = { pt0, pt1, nrm, ref, cl == 1 ? COVER_LOW : 0 }; \
+	Vec3 stdir = ( pt1 - pt0 ).Normalized() * sideoff; \
+	if( !rc.Hit( pt1 + stdir + V3(0,0,cht2), nrm, sidedepth ) ) \
+		cp.flags |= COVER_OPENRIGHT; \
+	if( !rc.Hit( pt0 - stdir + V3(0,0,cht1), nrm, sidedepth ) ) \
+		cp.flags |= COVER_OPENLEFT; \
+	out.push_back( cp ); \
+	objex.AddVertex( pt0, V2(0), V3(0,0,1) ); \
+	objex.AddVertex( pt1, V2(0), V3(0,0,1) ); \
+	objex.AddVertex( (pt0+pt1)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
+				
 				if( cl1 == cl2 )
 				{
 					// same level, do not split line
 					if( cl1 != 0 )
 					{
-						LC_CoverPart cp = { p0, p1, nrm, ref, cl1 == 1 ? COV_FLAG_LOW : 0 };
-						out.push_back( cp );
-						
-						objex.AddVertex( p0, V2(0), V3(0,0,1) );
-						objex.AddVertex( p1, V2(0), V3(0,0,1) );
-						objex.AddVertex( (p0+p1)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
+						COVER_PUSH_EDGE( p0, p1, cl1 );
 					}
 				}
 				else
@@ -1818,21 +1830,11 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 					Vec3 p1a = p0b, p1b = p1;
 					if( cl1 != 0 )
 					{
-						LC_CoverPart cp = { p0a, p0b, nrm, tid, cl1 == 1 ? COV_FLAG_LOW : 0 };
-						out.push_back( cp );
-						
-						objex.AddVertex( p0a, V2(0), V3(0,0,1) );
-						objex.AddVertex( p0b, V2(0), V3(0,0,1) );
-						objex.AddVertex( (p0a+p0b)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
+						COVER_PUSH_EDGE( p0a, p0b, cl1 );
 					}
 					if( cl2 != 0 )
 					{
-						LC_CoverPart cp = { p1a, p1b, nrm, tid, cl2 == 1 ? COV_FLAG_LOW : 0 };
-						out.push_back( cp );
-						
-						objex.AddVertex( p1a, V2(0), V3(0,0,1) );
-						objex.AddVertex( p1b, V2(0), V3(0,0,1) );
-						objex.AddVertex( (p1a+p1b)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
+						COVER_PUSH_EDGE( p1a, p1b, cl2 );
 					}
 				}
 			}
