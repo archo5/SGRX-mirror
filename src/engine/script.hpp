@@ -1,6 +1,15 @@
 
 
 #pragma once
+
+
+#ifdef SCRIPT_BUILDING
+#  define SCRIPT_EXPORT __declspec(dllexport)
+#else
+#  define SCRIPT_EXPORT __declspec(dllimport)
+#endif
+
+
 #define SGS_DLL 1
 #define __STDC_FORMAT_MACROS 1
 #define HEADER_SGSCRIPT_H "sgscript.h"
@@ -11,13 +20,6 @@
 #include "../../ext/src/sgscript/sgs_prof.h"
 
 #include "utils.hpp"
-
-
-#ifdef SCRIPT_BUILDING
-#  define SCRIPT_EXPORT __declspec(dllexport)
-#else
-#  define SCRIPT_EXPORT __declspec(dllimport)
-#endif
 
 
 inline Hash HashVar( const sgsString& s ){ return HashVar( StringView( s.c_str(), s.size() ) ); }
@@ -115,7 +117,6 @@ struct ScriptContext
 	SCRIPT_EXPORT sgsVariable GetGlobal( sgsString name );
 	SCRIPT_EXPORT void SetGlobal( const StringView& name, sgsVariable val );
 	
-	SCRIPT_EXPORT void Call( sgsVariable func, int args = 0, int ret = 0 );
 	SCRIPT_EXPORT bool GlobalCall( StringView name, int args = 0, int ret = 0 );
 	
 	// creates a new dict, sets metaobject of current to new, sets new as env

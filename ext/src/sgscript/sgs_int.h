@@ -188,14 +188,21 @@ SGS_APIFUNC void sgsT_DumpList( sgs_TokenList tlist, sgs_TokenList tend );
 #define SGS_SFT_FOREACH 26
 #define SGS_SFT_BREAK   27
 #define SGS_SFT_CONT    28
+#define SGS_SFT_DEFER   29
 #define SGS_SFT_FUNC    30
+#define SGS_SFT_CLASS   31
+#define SGS_SFT_CLSINH  32
+#define SGS_SFT_CLSINC  33
+#define SGS_SFT_CLSGLOB 34
+#define SGS_SFT_CLSPFX  35
+#define SGS_SFT_NEWCALL 36 /* new */
 /* threading addons */
 #define SGS_SFT_THRCALL 40 /* thread */
 #define SGS_SFT_STHCALL 41 /* subthread */
 #define SGS_SFT_HEAPBIT 255
 
-typedef struct _sgs_FTNode sgs_FTNode;
-struct _sgs_FTNode
+typedef struct sgs_FTNode sgs_FTNode;
+struct sgs_FTNode
 {
 	sgs_TokenList token;
 	sgs_FTNode*   next;
@@ -210,44 +217,20 @@ SGS_APIFUNC void sgsFT_Dump( sgs_FTNode* tree );
 
 
 
-/*
-	Intermediate function
-	- keeps the function data between compiler stages
-*/
-
-typedef
-struct _sgs_CompFunc
-{
-	sgs_MemBuf consts;
-	sgs_MemBuf code;
-	sgs_MemBuf lnbuf;
-	uint8_t gotthis; /* bool */
-	uint8_t numargs; /* guaranteed to be <= 255 by a test in `preparse_arglist` */
-	uint8_t numtmp; /* reg. count (0-255, incl. numargs) - numargs (0-255) */
-	uint8_t numclsr;
-}
-sgs_CompFunc;
-
-
 /* - bytecode generator */
-SGS_APIFUNC sgs_CompFunc* sgsBC_MakeCompFunc( SGS_CTX );
-SGS_APIFUNC sgs_iFunc* sgsBC_ConvertFunc( SGS_CTX, sgs_CompFunc* nf,
-	const char* funcname, size_t fnsize, sgs_LineNum lnum );
-SGS_APIFUNC sgs_CompFunc* sgsBC_Generate( SGS_CTX, sgs_FTNode* tree );
-SGS_APIFUNC void sgsBC_Dump( sgs_CompFunc* func );
+SGS_APIFUNC sgs_iFunc* sgsBC_Generate( SGS_CTX, sgs_FTNode* tree );
 SGS_APIFUNC void sgsBC_DumpEx( const char* constptr, size_t constsize,
 	const char* codeptr, size_t codesize );
-SGS_APIFUNC void sgsBC_Free( SGS_CTX, sgs_CompFunc* func );
 
 
 /*
 	Serialized bytecode
 */
-SGS_APIFUNC int sgsBC_Func2Buf( SGS_CTX, sgs_CompFunc* func, sgs_MemBuf* outbuf );
+SGS_APIFUNC int sgsBC_Func2Buf( SGS_CTX, sgs_iFunc* func, sgs_MemBuf* outbuf );
 
 /* assumes headers have already been validated (except size) but are still in the buffer */
 SGS_APIFUNC const char* sgsBC_Buf2Func( SGS_CTX, const char* fn,
-	const char* buf, size_t size, sgs_CompFunc** outfunc );
+	const char* buf, size_t size, sgs_Variable* outfunc );
 
 /* validates header size and bytes one by one (except last flag byte)
 -- will return header_size on success and failed byte position on failure */
@@ -269,13 +252,14 @@ SGS_APIFUNC int sgsBC_ValidateHeader( const char* buf, size_t size );
 #define SGS_INT_ERRSUP_DEC 2
 #define SGS_INT_RESET_WAIT_TIMER 3
 
-typedef enum sgs_Instruction_e
+typedef enum sgs_Instruction
 {
 	SGS_SI_NOP = 0,
 
 	SGS_SI_PUSH,     /* (B:src)                 push register/constant */
 	SGS_SI_INT,      /* (C:type)                invoke a system state change */
 
+	SGS_SI_RET1,     /* (C:src)                 return one value (see next op) */
 	SGS_SI_RETN,     /* (A:N)                   exit current frame of execution, preserve N output arguments */
 	SGS_SI_JUMP,     /* (E:off)                 add to instruction pointer */
 	SGS_SI_JMPT,     /* (C:src, E:off)          jump (add to instr.ptr.) if true */
@@ -294,10 +278,10 @@ typedef enum sgs_Instruction_e
 	SGS_SI_SETPROP,  /* (A:var, B:name, C:src)  <var> <prop> <value> => set a <prop> of <var> to <value> */
 	SGS_SI_GETINDEX, /* -- || -- */
 	SGS_SI_SETINDEX, /* -- || -- */
+	SGS_SI_ARRPUSH,  /* (A:var, C:src)          push <src> into <var> */
 
 	/* closures */
-	SGS_SI_GENCLSR,  /* (A:N)                   generates closure variables for the stack frame */
-	SGS_SI_PUSHCLSR, /* (A:src)                 pick closure variable for closure creation */
+	SGS_SI_CLSRINFO, /* (metadata)              indices of closure variables to import */
 	SGS_SI_MAKECLSR, /* (A:out, B:from, C:N)    creates a closure object containing closure vars */
 	SGS_SI_GETCLSR,  /* (A:out, B:which)        loads data from the specified closure */
 	SGS_SI_SETCLSR,  /* (B:which, C:src)        stores data to the specified closure */
@@ -340,8 +324,10 @@ typedef enum sgs_Instruction_e
 
 	/* specials */
 	SGS_SI_ARRAY,    /* (C:out, E:args) */
-	SGS_SI_DICT,     /* -- || -- */
-	SGS_SI_MAP,      /* -- || -- */
+	SGS_SI_DICT,     /* (C:out) */
+	SGS_SI_MAP,      /* (C:out) */
+	SGS_SI_CLASS,    /* (A:out, B:name, C:inhname) */
+	SGS_SI_NEW,      /* (B:out/class, C:lastarg) */
 	SGS_SI_RSYM,     /* (B:name, C:var)         performs dual registration to symbol table */
 	SGS_SI_COTRT,    /* (A:to, B:from)          sets A to true if `from` is finished */
 	SGS_SI_COTRF,    /* (A:to, B:from)          sets A to false if `from` is not finished */
@@ -394,7 +380,7 @@ typedef uint32_t sgs_instr_t;
 #define SGS_INSTR_RECOMB_E( a, b ) ( ( ( b ) << 8 ) | ( a ) )
 
 
-struct _sgs_iFunc
+struct sgs_iFunc
 {
 	int32_t refcount;
 	uint32_t size;
@@ -403,6 +389,7 @@ struct _sgs_iFunc
 	uint8_t numargs;
 	uint8_t numtmp;
 	uint8_t numclsr;
+	uint8_t inclsr;
 	sgs_LineNum linenum;
 	sgs_LineNum* lineinfo;
 	sgs_iStr* sfuncname;
@@ -413,24 +400,24 @@ SGS_CASSERT( sizeof(sgs_Variable) % 4 == 0, variable_object_chaining_issue );
 SGS_CASSERT( sizeof(sgs_iFunc) % 4 == 0, ifunc_object_chaining_issue );
 SGS_CASSERT( sizeof(sgs_iStr) % 4 == 0, istr_object_storage_compat_issue );
 
+#define sgs_func_size( pfn ) (pfn)->size
+#define sgs_func_instr_off( pfn ) (pfn)->instr_off
+#define sgs_func_instr_count( pfn ) ((sgs_func_size(pfn) - sgs_func_instr_off(pfn)) / sizeof(sgs_instr_t))
+#define sgs_func_const_count( pfn ) (sgs_func_instr_off(pfn) / sizeof(sgs_Variable))
 #define sgs_func_consts( pfn )   ((sgs_Variable*)SGS_ASSUME_ALIGNED(((sgs_iFunc*)(pfn))+1,16))
-#define sgs_func_bytecode( pfn ) ((sgs_instr_t*)(sgs_func_consts(pfn)+pfn->instr_off/sizeof(sgs_Variable)))
+#define sgs_func_bytecode( pfn ) ((sgs_instr_t*)(sgs_func_consts(pfn)+sgs_func_instr_off(pfn)/sizeof(sgs_Variable)))
+#define sgs_func_lineinfo( pfn ) ((pfn)->lineinfo)
 #define sgs_func_c_consts( pfn )   ((const sgs_Variable*)SGS_ASSUME_ALIGNED(((const sgs_iFunc*)(pfn))+1,16))
 #define sgs_func_c_bytecode( pfn ) \
-	((const sgs_instr_t*)(sgs_func_c_consts(pfn)+pfn->instr_off/sizeof(sgs_Variable)))
+	((const sgs_instr_t*)(sgs_func_c_consts(pfn) + sgs_func_instr_off(pfn) / sizeof(sgs_Variable)))
 
 
-typedef struct _sgs_Closure sgs_Closure;
-struct _sgs_Closure
+typedef struct sgs_Closure sgs_Closure;
+struct sgs_Closure
 {
 	int32_t refcount;
 	sgs_Variable var;
 };
-
-
-typedef struct _sgs_ShCtx sgs_ShCtx;
-#define SGS_SHCTX sgs_ShCtx* S
-#define SGS_SHCTX_USE SGS_SHCTX = C->shared
 
 
 /* VM interface */
@@ -453,16 +440,130 @@ void sgsVM_DestroyVar( SGS_CTX, sgs_Variable* p );
 	} \
 	(pvar)->type = SGS_VT_NULL; }
 
-void sgsVM_PopSkip( SGS_CTX, sgs_StkIdx num, sgs_StkIdx skip );
+#define ptr_add( a, b ) (((char*)(a)) + (b))
+#define ptr_sub( a, b ) ((char*)(a) - (char*)(b))
+#define ptr_dec( o, x ) *(char**)&(o) -= (x)
 
 #define _STACK_PREPARE ptrdiff_t _stksz = 0;
 #define _STACK_PROTECT _stksz = C->stack_off - C->stack_base; C->stack_off = C->stack_top;
 #define _STACK_PROTECT_SKIP( n ) do{ _stksz = C->stack_off - C->stack_base; \
 	C->stack_off = C->stack_top - (n); }while(0)
-#define _STACK_UNPROTECT sgsVM_PopSkip( C, SGS_STACKFRAMESIZE, 0 ); C->stack_off = C->stack_base + _stksz;
+#define _STACK_UNPROTECT fstk_pop( C, SGS_STACKFRAMESIZE ); C->stack_off = C->stack_base + _stksz;
 #define _STACK_UNPROTECT_SKIP( n ) do{ sgs_StkIdx __n = (n); \
-	sgsVM_PopSkip( C, SGS_STACKFRAMESIZE - __n, __n ); \
+	fstk_clean( C, C->stack_off, stk_ptop( C, -__n ) ); \
 	C->stack_off = C->stack_base + _stksz; }while(0)
+
+#define p_setvar_leave( dstp, srcp ){ \
+	VAR_RELEASE( dstp ); \
+	*(dstp) = *(srcp); }
+#define p_setvar( dstp, srcp ){ \
+	p_setvar_leave( dstp, srcp ); \
+	VAR_ACQUIRE( dstp ); }
+#define p_setvar_race( dstp, srcp ){ \
+	sgs_Variable old = *(dstp); \
+	*(dstp) = *(srcp); \
+	VAR_ACQUIRE( dstp ); \
+	VAR_RELEASE( &old ); }
+#define p_obj( p ) ((p)->data.O)
+#define p_objdata( p ) (p_obj( p )->data)
+#define p_str( p ) ((p)->data.S)
+#define p_cstr( p ) sgs_str_cstr( p_str( p ) )
+#define p_strsz( p ) ((sgs_SizeVal)p_str( p )->size)
+#define p_initnull( p ) {(p)->type = SGS_VT_NULL;}
+#define p_initvar( dstp, srcp ){ \
+	*(dstp) = *(srcp); \
+	VAR_ACQUIRE( dstp ); }
+
+#define stk_poff( C, off ) ((C)->stack_off + (off))
+#define stk_ptop( C, off ) ((C)->stack_top + (off))
+#define stk_gettop( C ) stk_ptop( C, -1 )
+#define stk_size( C ) ((sgs_StkIdx)((C)->stack_top - (C)->stack_off))
+#define stk_absindex( C, off ) ((sgs_StkIdx)((off) >= 0 ? (off) : (off) + stk_size(C)))
+
+#define DEBUG_STACK 0
+void fstk_resize( SGS_CTX, size_t nsz );
+#if DEBUG_STACK
+#  define stk_makespace( C, num ){ \
+	size_t _reqsz = (size_t) ( ( C->stack_top - C->stack_base ) + (num) ); \
+	sgs_BreakIf( (num) < 0 ); \
+	sgs_BreakIf( _reqsz < (num) ); /* overflow test */ \
+	fstk_resize( C, _reqsz ); }
+#else
+#  define stk_makespace( C, num ){ \
+	size_t _reqsz = (size_t) ( ( C->stack_top - C->stack_base ) + (num) ); \
+	sgs_BreakIf( (num) < 0 ); \
+	sgs_BreakIf( _reqsz < (num) ); /* overflow test */ \
+	if( _reqsz > (C)->stack_mem ) fstk_resize( (C), _reqsz ); }
+#endif
+
+#define stk_setlvar( C, off, srcp ){ \
+	sgs_Variable* dstp = stk_poff( C, off ); \
+	p_setvar( dstp, srcp ); }
+#define stk_setlvar_leave( C, off, srcp ){ \
+	sgs_Variable* dstp = stk_poff( C, off ); \
+	p_setvar_leave( dstp, srcp ); }
+#define stk_upush( C, vp ){ \
+	*(C)->stack_top = *(vp); \
+	VAR_ACQUIRE( (C)->stack_top ); \
+	(C)->stack_top++; }
+#define stk_upush_leave( C, vp ) \
+	*(C)->stack_top++ = *(vp)
+#define stk_push( C, vp ){ \
+	stk_makespace( C, 1 ); \
+	stk_upush( C, vp ); }
+#define stk_push_leave( C, vp ){ \
+	stk_makespace( C, 1 ); \
+	stk_upush_leave( C, vp ); }
+#define stk_push_null( C ){ \
+	stk_makespace( C, 1 ); \
+	((C)->stack_top++)->type = SGS_VT_NULL; }
+#define stk_push2( C, vp1, vp2 ){ \
+	stk_makespace( C, 2 ); \
+	C->stack_top[ 0 ] = *(vp1); \
+	C->stack_top[ 1 ] = *(vp2); \
+	VAR_ACQUIRE( &C->stack_top[ 0 ] ); \
+	VAR_ACQUIRE( &C->stack_top[ 1 ] ); \
+	C->stack_top += 2; }
+#define stk_push3( C, vp1, vp2, vp3 ){ \
+	stk_makespace( C, 3 ); \
+	C->stack_top[ 0 ] = *(vp1); \
+	C->stack_top[ 1 ] = *(vp2); \
+	C->stack_top[ 2 ] = *(vp3); \
+	VAR_ACQUIRE( &C->stack_top[ 0 ] ); \
+	VAR_ACQUIRE( &C->stack_top[ 1 ] ); \
+	VAR_ACQUIRE( &C->stack_top[ 2 ] ); \
+	C->stack_top += 3; }
+#define stk_mpush( C, vp, cnt ){ \
+	stk_makespace( C, cnt ); \
+	fstk_umpush( C, vp, cnt ); }
+#define stk_popskip( C, num, skip ){ \
+	if( (num) > 0 ){ \
+		sgs_Variable* off = C->stack_top - skip; \
+		sgs_Variable* ptr = off - num; \
+		fstk_clean( C, ptr, off ); \
+	} }
+#define stk_popto( C, to ){ \
+	sgs_Variable* top = C->stack_top; \
+	while( top > to ){ \
+		top--; \
+		VAR_RELEASE( top ); } \
+	C->stack_top = to; }
+#define stk_pop1( C ){ \
+	sgs_BreakIf( C->stack_top == C->stack_off ); \
+	C->stack_top--; \
+	VAR_RELEASE( C->stack_top ); }
+#define stk_pop1nr( C ){ \
+	sgs_BreakIf( C->stack_top == C->stack_off ); \
+	C->stack_top--; }
+
+void fstk_push( SGS_CTX, sgs_Variable* vp );
+void fstk_push_leave( SGS_CTX, sgs_Variable* vp );
+void fstk_push2( SGS_CTX, sgs_Variable* vp1, sgs_Variable* vp2 );
+void fstk_push_null( SGS_CTX );
+void fstk_umpush( SGS_CTX, sgs_Variable* vp, sgs_SizeVal cnt );
+void fstk_clean( SGS_CTX, sgs_Variable* from, sgs_Variable* to );
+void fstk_pop( SGS_CTX, sgs_StkIdx num );
+void fstk_pop1( SGS_CTX );
 
 size_t sgsVM_VarSize( const sgs_Variable* var );
 void sgsVM_VarDump( const sgs_Variable* var );
@@ -470,7 +571,6 @@ void sgsVM_VarDump( const sgs_Variable* var );
 void sgsVM_StackDump( SGS_CTX );
 
 int sgsVM_PushStackFrame( SGS_CTX, sgs_Variable* func );
-int sgsVM_VarCall( SGS_CTX, sgs_Variable* var, int args, int clsr, int* outrvc, int gotthis );
 void sgsVM_PushClosures( SGS_CTX, sgs_Closure** cls, int num );
 
 
@@ -482,7 +582,6 @@ sgs_Variable* sgsVM_VarMake_Dict();
 
 int sgsVM_RegStdLibs( SGS_CTX );
 
-int sgs_specfn_call( SGS_CTX );
 int sgs_specfn_apply( SGS_CTX );
 
 
@@ -490,41 +589,15 @@ int sgs_specfn_apply( SGS_CTX );
 	Context handling
 */
 
-typedef struct _sgs_BreakInfo sgs_BreakInfo;
-struct _sgs_BreakInfo
-{
-	sgs_BreakInfo* next;
-	uint32_t jdoff;  /* jump data offset */
-	uint16_t numlp;  /* which loop */
-	uint8_t  iscont; /* is a "continue"? */
-};
-
 /* register / constant position */
-typedef int32_t sgs_rcpos_t;
+typedef struct sgs_FuncCtx sgs_FuncCtx;
 
-typedef
-struct _sgs_FuncCtx
-{
-	int32_t func;
-	sgs_rcpos_t regs, lastreg;
-	sgs_MemBuf vars;
-	sgs_MemBuf gvars;
-	sgs_MemBuf clsr;
-	int inclsr, outclsr, syncdepth;
-	int32_t loops;
-	sgs_BreakInfo* binfo;
-}
-sgs_FuncCtx;
-
-typedef
-struct _sgs_ObjPoolItem
+typedef struct sgs_ObjPoolItem
 {
 	sgs_VarObj* obj;
 	uint32_t appsize;
 }
 sgs_ObjPoolItem;
-
-typedef sgs_Variable* sgs_VarPtr;
 
 #define SGS_SF_METHOD  0x01
 #define SGS_SF_HASTHIS 0x02
@@ -532,30 +605,41 @@ typedef sgs_Variable* sgs_VarPtr;
 #define SGS_SF_REENTER 0x08
 #define SGS_SF_PAUSED  0x10
 
-struct _sgs_StackFrame
+struct sgs_StackFrame
 {
-	sgs_Variable    func;
-	const uint32_t* code;
+	sgs_Variable*   func;
 	const uint32_t* iptr;
+#if SGS_DEBUG && SGS_DEBUG_VALIDATE
+	const uint32_t* code;
 	const uint32_t* iend;
-	const uint32_t* lptr;
+#endif
 	sgs_Variable*   cptr;
+	sgs_Closure**   clsrlist;
+	sgs_VarObj*     clsrref;
 	const char*     nfname;
 	sgs_StackFrame* prev;
 	sgs_StackFrame* next;
 	sgs_StkIdx argbeg;
-	sgs_StkIdx argend;
-	sgs_StkIdx argsfrom;
 	sgs_StkIdx stkoff;
-	sgs_StkIdx clsoff;
+#if SGS_DEBUG && SGS_DEBUG_VALIDATE
 	int32_t constcount;
+#endif
 	int32_t errsup;
 	uint8_t argcount;
-	uint8_t inexp;
 	uint8_t flags;
+#if SGS_DEBUG && SGS_DEBUG_VALIDATE
+	uint8_t clsrcount;
+#endif
 };
+#define SGS_SF_ARG_COUNT( sf ) \
+	((sf)->argcount + !!SGS_HAS_ANY_FLAG( (sf)->flags, SGS_SF_METHOD ))
+#define SGS_SF_ARGC_EXPECTED( sf ) \
+	((sf)->func->type == SGS_VT_FUNC ? (sf)->func->data.F->numargs : 0)
 
-struct _sgs_ShCtx
+typedef struct sgs_ShCtx sgs_ShCtx;
+#define SGS_SHCTX sgs_ShCtx* S
+#define SGS_SHCTX_USE SGS_SHCTX = C->shared
+struct sgs_ShCtx
 {
 	uint32_t      version;
 	sgs_Context*  ctx_root;
@@ -610,13 +694,13 @@ struct _sgs_ShCtx
 /* Virtual machine state */
 #define SGS_HAS_ERRORS          0x00010000
 #define SGS_MUST_STOP          (0x00020000 | SGS_HAS_ERRORS)
-#define SGS_STATE_LASTFUNCPAUSE 0x0002
-#define SGS_STATE_DESTROYING    0x0010
-#define SGS_STATE_LASTFUNCABORT 0x0020
-#define SGS_STATE_INSIDE_API    0x0040
-#define SGS_STATE_COROSTART     0x0080 /* function is pushed to stack */
+#define SGS_STATE_LASTFUNCPAUSE 0x0002U
+#define SGS_STATE_DESTROYING    0x0010U
+#define SGS_STATE_LASTFUNCABORT 0x0020U
+#define SGS_STATE_INSIDE_API    0x0040U
+#define SGS_STATE_COROSTART     0x0080U /* function is pushed to stack */
 
-struct _sgs_Context
+struct sgs_Context
 {
 	int32_t       refcount;
 	sgs_ShCtx*    shared;
@@ -645,22 +729,18 @@ struct _sgs_Context
 	/* virtual machine */
 	/* > coop micro-threading */
 	sgs_Context*  parent; /* owning (parent) context */
-	sgs_VarObj*   _T; /* subthreads */
+	sgs_Context*  subthreads; /* owned contexts */
+	sgs_Context*  st_next; /* next owned context of parent */
+	sgs_Real      st_timeout;
 	sgs_VarObj*   _E; /* end events */
 	sgs_Real      wait_timer; /* sync/race */
 	sgs_Real      tm_accum; /* delta time accumulator for yield return */
 	
 	/* > main stack */
-	sgs_VarPtr    stack_base;
+	sgs_Variable* stack_base;
 	uint32_t      stack_mem;
-	sgs_VarPtr    stack_off;
-	sgs_VarPtr    stack_top;
-	
-	/* > closure pointer stack */
-	sgs_Closure** clstk_base;
-	sgs_Closure** clstk_off;
-	sgs_Closure** clstk_top;
-	uint32_t      clstk_mem;
+	sgs_Variable* stack_off;
+	sgs_Variable* stack_top;
 	
 	/* > stack frame info */
 	sgs_StackFrame* sf_first;
@@ -704,15 +784,15 @@ static const char* sgs_VarNames[] =
 static const char* sgs_OpNames[] =
 {
 	"nop", "push", "int",
-	"return", "jump", "jump_if_true", "jump_if_false", "jump_if_null", "call",
+	"ret1", "return", "jump", "jump_if_true", "jump_if_false", "jump_if_null", "call",
 	"for_prep", "for_load", "for_jump", "loadconst", "getvar", "setvar",
-	"getprop", "setprop", "getindex", "setindex",
-	"genclsr", "pushclsr", "makeclsr", "getclsr", "setclsr",
+	"getprop", "setprop", "getindex", "setindex", "arrpush",
+	"clsrinfo", "makeclsr", "getclsr", "setclsr",
 	"set", "mconcat", "concat", "negate", "bool_inv", "invert",
 	"inc", "dec", "add", "sub", "mul", "div", "mod",
 	"and", "or", "xor", "lsh", "rsh",
 	"seq", "sneq", "eq", "neq", "lt", "gte", "gt", "lte", "rawcmp",
-	"array", "dict", "map", "rsym", "cotrt", "cotrf", "coabort", "yldjmp",
+	"array", "dict", "map", "class", "new", "rsym", "cotrt", "cotrf", "coabort", "yldjmp",
 };
 
 #endif
@@ -726,18 +806,18 @@ sgs_StackFrame* sgsCTX_AllocFrame( SGS_CTX );
 	SGS_SHCTX_USE; \
 	if( S->sf_pool_size >= SGS_STACKFRAMEPOOL_SIZE ){ \
 		sgs_Dealloc( F ); \
-		return; \
+	} else { \
+		F->next = S->sf_pool; \
+		S->sf_pool = F; \
+		S->sf_pool_size++; \
 	} \
-	F->next = S->sf_pool; \
-	S->sf_pool = F; \
-	S->sf_pool_size++; \
 }
 
 void sgsSTD_PostInit( SGS_CTX );
 SGSBOOL sgsSTD_MakeArray( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
 SGSBOOL sgsSTD_MakeDict( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
 SGSBOOL sgsSTD_MakeMap( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt );
-void sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* func, uint32_t clc );
+sgs_Closure** sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* out, sgs_Variable* func, size_t clc );
 void sgsSTD_ThreadsFree( SGS_CTX );
 void sgsSTD_ThreadsGC( SGS_CTX );
 void sgsSTD_RegistryInit( SGS_CTX );
@@ -777,6 +857,9 @@ extern SGS_APIFUNC sgs_ObjInterface sgsstd_dict_iface[1];
 extern SGS_APIFUNC sgs_ObjInterface sgsstd_dict_iter_iface[1];
 extern SGS_APIFUNC sgs_ObjInterface sgsstd_map_iface[1];
 extern SGS_APIFUNC sgs_ObjInterface sgsstd_closure_iface[1];
+extern SGS_APIFUNC sgs_ObjInterface sgsstd_event_iface[1];
+
+void sgsstd_array_insert_p( SGS_CTX, sgsstd_array_header_t* hdr, sgs_SizeVal pos, sgs_Variable* var );
 
 
 

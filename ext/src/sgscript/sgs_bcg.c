@@ -2,7 +2,66 @@
 
 #include "sgs_int.h"
 
+
+typedef int32_t sgs_rcpos_t;
 #define rcpos_t sgs_rcpos_t
+
+typedef struct sgs_BreakInfo sgs_BreakInfo;
+struct sgs_BreakInfo
+{
+	sgs_BreakInfo* next;
+	uint32_t jdoff;  /* jump data offset */
+	uint16_t numlp;  /* which loop */
+	uint8_t  iscont; /* is a "continue"? */
+};
+
+#ifndef SGS_MAX_DEFERRED_BLOCKS
+#  define SGS_MAX_DEFERRED_BLOCKS 256
+#endif
+
+typedef struct sgs_BlockInfo sgs_BlockInfo;
+struct sgs_BlockInfo
+{
+	sgs_BlockInfo* parent;
+	size_t defer_start;
+};
+
+typedef struct sgs_LoopInfo sgs_LoopInfo;
+struct sgs_LoopInfo
+{
+	sgs_LoopInfo* parent;
+	sgs_BlockInfo* block;
+};
+
+typedef struct sgs_CompFunc
+{
+	sgs_MemBuf consts;
+	sgs_MemBuf code;
+	sgs_MemBuf lnbuf;
+	uint8_t gotthis; /* bool */
+	uint8_t numargs; /* guaranteed to be <= 255 by a test in `preparse_arglist` */
+	uint8_t numtmp; /* reg. count (0-255, incl. numargs) - numargs (0-255) */
+	uint8_t numclsr;
+	uint8_t inclsr;
+}
+sgs_CompFunc;
+
+struct sgs_FuncCtx
+{
+	int32_t func;
+	sgs_rcpos_t regs, lastreg;
+	sgs_MemBuf vars;
+	sgs_MemBuf gvars;
+	sgs_MemBuf clsr;
+	int inclsr, outclsr, syncdepth;
+	int32_t loops;
+	sgs_BreakInfo* binfo;
+	sgs_BlockInfo* blocks;
+	sgs_LoopInfo* loopinfo;
+	sgs_FTNode* defers[ SGS_MAX_DEFERRED_BLOCKS ];
+	size_t num_defers;
+	sgs_CompFunc cfunc;
+};
 
 
 #define over_limit( x, lim ) ((x)>(lim)||(x)<(-lim))
@@ -44,20 +103,6 @@ static SGS_INLINE void comp_reg_unwind( SGS_CTX, rcpos_t pos )
 }
 
 
-sgs_CompFunc* sgsBC_MakeCompFunc( SGS_CTX )
-{
-	sgs_CompFunc* func = sgs_Alloc( sgs_CompFunc );
-	func->consts = sgs_membuf_create();
-	func->code = sgs_membuf_create();
-	func->lnbuf = sgs_membuf_create();
-	func->gotthis = SGS_FALSE;
-	func->numargs = 0;
-	func->numtmp = 0;
-	func->numclsr = 0;
-	return func;
-}
-
-
 static void fctx_binfo_add( SGS_CTX, sgs_FuncCtx* fctx,
 	uint32_t ioff, uint16_t loop, uint8_t iscont )
 {
@@ -86,6 +131,44 @@ static void fctx_binfo_rem( SGS_CTX, sgs_FuncCtx* fctx, sgs_BreakInfo* prev )
 	}
 }
 
+static void fctx_block_push( sgs_FuncCtx* fctx, sgs_BlockInfo* bdata, sgs_LoopInfo* ldata )
+{
+	bdata->defer_start = fctx->num_defers;
+	bdata->parent = fctx->blocks;
+	fctx->blocks = bdata;
+	if( ldata )
+	{
+		ldata->block = bdata;
+		ldata->parent = fctx->loopinfo;
+		fctx->loopinfo = ldata;
+	}
+}
+
+static void fctx_block_pop( sgs_FuncCtx* fctx, sgs_BlockInfo* bdata, sgs_LoopInfo* ldata )
+{
+	sgs_BreakIf( bdata != fctx->blocks );
+	fctx->num_defers = bdata->defer_start;
+	fctx->blocks = bdata->parent;
+	if( ldata )
+	{
+		sgs_BreakIf( ldata != fctx->loopinfo );
+		fctx->loopinfo = ldata->parent;
+	}
+}
+
+static void fctx_defer_add( SGS_CTX, sgs_FTNode* stmt )
+{
+	sgs_FuncCtx* fctx = C->fctx;
+	if( fctx->num_defers >= SGS_MAX_DEFERRED_BLOCKS )
+	{
+		C->state |= SGS_HAS_ERRORS | SGS_MUST_STOP;
+		sgs_Msg( C, SGS_ERROR, "exceeded deferred block limit" );
+	}
+	else
+		fctx->defers[ fctx->num_defers++ ] = stmt;
+}
+
+
 static sgs_FuncCtx* fctx_create( SGS_CTX )
 {
 	sgs_FuncCtx* fctx = sgs_Alloc( sgs_FuncCtx );
@@ -100,12 +183,39 @@ static sgs_FuncCtx* fctx_create( SGS_CTX )
 	fctx->syncdepth = 0;
 	fctx->loops = 0;
 	fctx->binfo = NULL;
+	fctx->blocks = NULL;
+	fctx->loopinfo = NULL;
+	fctx->num_defers = 0;
 	sgs_membuf_appbuf( &fctx->gvars, C, "_G=", 3 );
+	
+	fctx->cfunc.consts = sgs_membuf_create();
+	fctx->cfunc.code = sgs_membuf_create();
+	fctx->cfunc.lnbuf = sgs_membuf_create();
+	fctx->cfunc.gotthis = SGS_FALSE;
+	fctx->cfunc.numargs = 0;
+	fctx->cfunc.numtmp = 0;
+	fctx->cfunc.numclsr = 0;
+	fctx->cfunc.inclsr = 0;
+	
 	return fctx;
 }
 
 static void fctx_destroy( SGS_CTX, sgs_FuncCtx* fctx )
 {
+	sgs_CompFunc* func = &fctx->cfunc;
+	sgs_Variable* vbeg = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr, 4 );
+	sgs_Variable* vend = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr + func->consts.size, 4 );
+	sgs_Variable* var = vbeg;
+	while( var < vend )
+	{
+		sgs_Release( C, var );
+		var++;
+	}
+
+	sgs_membuf_destroy( &func->code, C );
+	sgs_membuf_destroy( &func->consts, C );
+	sgs_membuf_destroy( &func->lnbuf, C );
+	
 	while( fctx->binfo )
 		fctx_binfo_rem( C, fctx, NULL );
 	sgs_membuf_destroy( &fctx->vars, C );
@@ -188,6 +298,7 @@ static void dump_opcode( const sgs_instr_t* ptr, size_t count )
 		case SGS_SI_PUSH: printf( "PUSH " ); dump_rcpos( argB ); break;
 		case SGS_SI_INT: printf( "INT %d", argC ); break;
 
+		case SGS_SI_RET1: printf( "RET_1 <= " ); dump_rcpos( argC ); break;
 		case SGS_SI_RETN: printf( "RETURN %d", argA ); break;
 		case SGS_SI_JUMP: printf( "JUMP %d", (int) (int16_t) argE ); break;
 		case SGS_SI_JMPT: printf( "JMP_T " ); dump_rcpos( argC );
@@ -217,9 +328,10 @@ static void dump_opcode( const sgs_instr_t* ptr, size_t count )
 		DOP_A( SETPROP );
 		DOP_A( GETINDEX );
 		DOP_A( SETINDEX );
+		case SGS_SI_ARRPUSH: printf( "ARR_PUSH R%d <= ", argA );
+			dump_rcpos( argC ); break;
 
-		case SGS_SI_GENCLSR: printf( "GEN_CLSR %d", argA ); break;
-		case SGS_SI_PUSHCLSR: printf( "PUSH_CLSR %d", argA ); break;
+		case SGS_SI_CLSRINFO: printf( "CLSR_INFO %d %d %d", argA, argB, argC ); break;
 		case SGS_SI_MAKECLSR: printf( "MAKE_CLSR " ); dump_rcpos( argA );
 			printf( " <= " ); dump_rcpos( argB );
 			printf( " [%d]", argC ); break;
@@ -266,8 +378,18 @@ static void dump_opcode( const sgs_instr_t* ptr, size_t count )
 			printf( "ARRAY args:%d output:", argE );
 			dump_rcpos( argC ); break;
 		case SGS_SI_DICT:
-			printf( "DICT args:%d output:", argE );
+			printf( "DICT output:" );
 			dump_rcpos( argC ); break;
+		case SGS_SI_CLASS:
+			printf( "CLASS output:%d", argA );
+			printf( ", name:" ); dump_rcpos( argB );
+			printf( ", inhname:%s", argC == argA ? "<none>" : "" );
+			if( argC != argA ) dump_rcpos( argC );
+			break;
+		case SGS_SI_NEW:
+			printf( "NEW output:%d", argA );
+			printf( ", class:" ); dump_rcpos( argB );
+			break;
 		case SGS_SI_RSYM:
 			printf( "RSYM name:" ); dump_rcpos( argB );
 			printf( " value:" ); dump_rcpos( argC ); break;
@@ -387,6 +509,8 @@ static void add_instr( SGS_FNTCMP_ARGS, sgs_instr_t I )
 #define INSTR_WRITE_PCH() INSTR_WRITE( 63, 0, 0, 0 )
 
 #define QPRINT( str ) sgs_Msg( C, SGS_ERROR, "[line %d] " str, sgsT_LineNum( node->token ) )
+#define QINTERR( id ) sgs_Msg( C, SGS_INTERR, "[line %d] error SGSINT%d [%s:%d,v" SGS_VERSION "]", \
+	sgsT_LineNum( node->token ), id, __FILE__, __LINE__ )
 
 
 
@@ -417,23 +541,30 @@ cont:
 	return ret;
 }
 
+static int register_gv( SGS_FNTCMP_ARGS )
+{
+	if( find_varT( &C->fctx->clsr, node->token ) >= 0 )
+	{
+		QPRINT( "Variable storage redefined: closure -> global" );
+		return SGS_FALSE;
+	}
+	if( find_varT( &C->fctx->vars, node->token ) >= 0 )
+	{
+		QPRINT( "Variable storage redefined: local -> global" );
+		return SGS_FALSE;
+	}
+	add_varT( &C->fctx->gvars, C, node->token );
+	return SGS_TRUE;
+}
+
 static int preparse_gvlist( SGS_FNTCMP_ARGS )
 {
 	int ret = SGS_TRUE;
 	node = node->child;
 	while( node )
 	{
-		if( find_varT( &C->fctx->clsr, node->token ) >= 0 )
-		{
-			QPRINT( "Variable storage redefined: closure -> global" );
+		if( !register_gv( C, func, node ) )
 			return SGS_FALSE;
-		}
-		if( find_varT( &C->fctx->vars, node->token ) >= 0 )
-		{
-			QPRINT( "Variable storage redefined: local -> global" );
-			return SGS_FALSE;
-		}
-		add_varT( &C->fctx->gvars, C, node->token );
 		if( node->child )
 			ret &= preparse_varlists( C, func, node );
 		node = node->next;
@@ -450,6 +581,17 @@ static int preparse_varlists( SGS_FNTCMP_ARGS )
 			ret &= preparse_varlist( C, func, node );
 		else if( node->type == SGS_SFT_GVLIST )
 			ret &= preparse_gvlist( C, func, node );
+		else if( node->type == SGS_SFT_CLASS )
+		{
+			sgs_FTNode* ch = node->child;
+			ret &= register_gv( C, func, ch );
+			ch = ch->next;
+			while( ch )
+			{
+				ret &= preparse_varlists( C, func, ch );
+				ch = ch->next;
+			}
+		}
 		else if( node->type == SGS_SFT_KEYWORD && node->token && sgsT_IsKeyword( node->token, "this" ) )
 		{
 			func->gotthis = SGS_TRUE;
@@ -705,6 +847,7 @@ sgs_iFunc* sgsBC_ConvertFunc( SGS_CTX, sgs_CompFunc* nf,
 	F->numargs = nf->numargs;
 	F->numtmp = nf->numtmp;
 	F->numclsr = nf->numclsr;
+	F->inclsr = nf->inclsr;
 
 	{
 		size_t lnc = nf->lnbuf.size / sizeof( sgs_LineNum );
@@ -719,16 +862,14 @@ sgs_iFunc* sgsBC_ConvertFunc( SGS_CTX, sgs_CompFunc* nf,
 	if( C->filename )
 		sgsVM_VarCreateString( C, &strvar, C->filename, (sgs_SizeVal) strlen( C->filename ) );
 	else
-		sgs_InitStringBuf( C, &strvar, "", 0 );
+		sgsVM_VarCreateString( C, &strvar, "", 0 );
 	F->sfilename = strvar.data.S;
 	
 	memcpy( sgs_func_consts( F ), nf->consts.ptr, nf->consts.size );
 	memcpy( sgs_func_bytecode( F ), nf->code.ptr, nf->code.size );
-
-	sgs_membuf_destroy( &nf->consts, C );
-	sgs_membuf_destroy( &nf->code, C );
-	sgs_membuf_destroy( &nf->lnbuf, C );
-	sgs_Dealloc( nf );
+	
+	/* transfer ownership by making it look like constants don't exist here anymore */
+	nf->consts.size = 0;
 	
 	return F;
 }
@@ -747,8 +888,6 @@ static rcpos_t add_const_f( SGS_CTX, sgs_CompFunc* func, sgs_CompFunc* nf,
 	sgs_membuf_appbuf( &func->consts, C, &nvar, sizeof( nvar ) );
 	return pos;
 }
-
-#define INTERNAL_ERROR( loff ) sgs_Msg( C, SGS_ERROR, "INTERNAL ERROR occured in file %s [%d]", __FILE__, __LINE__ - (loff) )
 
 static int op_pick_opcode( int oper, int binary )
 {
@@ -796,6 +935,22 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out );
 static SGSBOOL compile_node_w( SGS_FNTCMP_ARGS, rcpos_t src );
 static SGSBOOL compile_node_rrw( SGS_FNTCMP_ARGS, rcpos_t dst );
 static SGSBOOL compile_oper( SGS_FNTCMP_ARGS, rcpos_t* arg, int out, int expect );
+
+
+static void compile_defers( SGS_CTX, sgs_CompFunc* func, sgs_BlockInfo* until )
+{
+	size_t end = until ? until->defer_start : 0;
+	for( size_t i = C->fctx->num_defers; i > end; )
+	{
+		--i;
+		compile_node( C, func, C->fctx->defers[ i ] );
+	}
+}
+
+#define BLOCK_BEGIN { sgs_BlockInfo binfo; fctx_block_push( C->fctx, &binfo, NULL );
+#define BLOCK_END compile_defers( C, func, &binfo ); fctx_block_pop( C->fctx, &binfo, NULL ); }
+#define LOOP_BEGIN { sgs_BlockInfo binfo; sgs_LoopInfo linfo; fctx_block_push( C->fctx, &binfo, &linfo );
+#define LOOP_END compile_defers( C, func, &binfo ); fctx_block_pop( C->fctx, &binfo, &linfo ); }
 
 
 
@@ -975,7 +1130,7 @@ static SGSBOOL compile_const( SGS_FNTCMP_ARGS, rcpos_t* opos )
 	}
 	else
 	{
-		QPRINT( "INTERNAL ERROR: constant doesn't have a token of type int/real/string attached" );
+		QINTERR( 1011 );
 		return 0;
 	}
 	return 1;
@@ -1117,14 +1272,16 @@ static SGSBOOL compile_fcall( SGS_FNTCMP_ARGS, rcpos_t* out, int expect )
 	else
 	{
 		sgs_FTNode* n;
-		int i = 0, gotthis = 0, regc = 0, threadmode = 0;
-		rcpos_t argpos, funcpos, fnargpos, objpos, realfnpos;
+		int i = 0, gotthis = 0, regc = 0, pfxfuncmode = 0, isthreadfunc;
+		rcpos_t argpos, funcpos, fnargpos, objpos, argend;
 		
-		if( node->type == SGS_SFT_THRCALL ) threadmode = 1;
-		if( node->type == SGS_SFT_STHCALL ) threadmode = 2;
+		if( node->type == SGS_SFT_THRCALL ) pfxfuncmode = 1;
+		if( node->type == SGS_SFT_STHCALL ) pfxfuncmode = 2;
+		if( node->type == SGS_SFT_NEWCALL ) pfxfuncmode = 3;
+		isthreadfunc = pfxfuncmode == 1 || pfxfuncmode == 2;
 		
 		/* count the required number of registers */
-		if( threadmode || ( node->child->type == SGS_SFT_OPER && /* thread always has 'this' */
+		if( isthreadfunc || ( node->child->type == SGS_SFT_OPER && /* thread always has 'this' */
 			( *node->child->token == SGS_ST_OP_MMBR || *node->child->token == SGS_ST_OP_NOT ) ) )
 		{
 			gotthis = 1;
@@ -1137,24 +1294,22 @@ static SGSBOOL compile_fcall( SGS_FNTCMP_ARGS, rcpos_t* out, int expect )
 			n = n->next;
 		}
 		regc++; /* function register */
-		if( threadmode )
+		if( isthreadfunc )
 			regc++; /* 'thread_create'/'subthread_create' function register */
-		if( out && regc < expect )
-			regc = expect;
-		argpos = comp_reg_alloc_n( C, regc );
-		realfnpos = argpos + regc - 1;
-		if( threadmode )
+		argpos = comp_reg_alloc_n( C, regc > expect ? regc : expect );
+		funcpos = argpos;
+		if( isthreadfunc )
 		{
-			funcpos = argpos;
-			objpos = argpos + 1;
-			fnargpos = argpos + 2;
+			const char* key = pfxfuncmode == 1 ? "thread_create" : "subthread_create";
+			rcpos_t strpos = add_const_s( C, func, (uint32_t) strlen( key ), key );
+			INSTR_WRITE( SGS_SI_GETVAR, argpos, BC_CONSTENC( strpos ), 0 );
+			gotthis = 0;
+			funcpos++;
 		}
-		else /* normal function call */
-		{
-			funcpos = realfnpos;
-			fnargpos = argpos + gotthis;
-			objpos = argpos;
-		}
+		
+		argend = argpos + regc - 1;
+		objpos = funcpos + 1;
+		fnargpos = funcpos + ( gotthis || isthreadfunc ? 2 : 1 );
 		
 		/* return register positions for expected data */
 		if( out )
@@ -1218,16 +1373,16 @@ static SGSBOOL compile_fcall( SGS_FNTCMP_ARGS, rcpos_t* out, int expect )
 			}
 		}
 		
-		if( threadmode )
-		{
-			const char* key = threadmode == 1 ? "thread_create" : "subthread_create";
-			rcpos_t strpos = add_const_s( C, func, (uint32_t) strlen( key ), key );
-			INSTR_WRITE( SGS_SI_GETVAR, realfnpos, BC_CONSTENC( strpos ), 0 );
-			gotthis = 0;
-		}
-		
 		/* compile call */
-		INSTR_WRITE( SGS_SI_CALL, expect, gotthis ? argpos | 0x100 : argpos, realfnpos );
+		if( pfxfuncmode == 3 )
+		{
+			/* new <class/ctor>(..) */
+			INSTR_WRITE( SGS_SI_NEW, 0, argpos, argend );
+		}
+		else
+		{
+			INSTR_WRITE( SGS_SI_CALL, expect, gotthis ? argpos | 0x100 : argpos, argend );
+		}
 		
 		comp_reg_unwind( C, argpos + expect );
 
@@ -1268,6 +1423,19 @@ static SGSBOOL compile_index_w( SGS_FNTCMP_ARGS, rcpos_t src )
 	return 1;
 }
 
+static SGSBOOL compile_clspfx_w( SGS_FNTCMP_ARGS, rcpos_t src )
+{
+	rcpos_t var, name;
+	rcpos_t regpos = C->fctx->regs;
+	SGS_FN_ENTER;
+	if( !compile_node_r( C, func, node, &var ) ) return 0;
+	SGS_FN_ENTER;
+	compile_ident( C, func, node->child, &name );
+	INSTR_WRITE( SGS_SI_SETINDEX, var, name, src );
+	comp_reg_unwind( C, regpos );
+	return 1;
+}
+
 static SGSBOOL compile_midxset( SGS_FNTCMP_ARGS, rcpos_t* out, int isprop )
 {
 	sgs_FTNode* mapi;
@@ -1281,9 +1449,7 @@ static SGSBOOL compile_midxset( SGS_FNTCMP_ARGS, rcpos_t* out, int isprop )
 	{
 		if( *mapi->token == SGS_ST_STRING )
 		{
-			uint32_t string_len;
-			SGS_AS_UINT32( string_len, mapi->token + 1 );
-			name = BC_CONSTENC( add_const_s( C, func, string_len, (const char*) mapi->token + 5 ) );
+			compile_const( C, func, mapi, &name );
 		}
 		else
 		{
@@ -1355,6 +1521,7 @@ static SGSBOOL try_optimize_last_instr_out( SGS_FNTCMP_ARGS, size_t ioff, rcpos_
 		switch( op )
 		{
 		case SGS_SI_GETVAR: case SGS_SI_GETPROP: case SGS_SI_GETINDEX:
+		case SGS_SI_MAKECLSR: case SGS_SI_GETCLSR:
 		case SGS_SI_SET: case SGS_SI_CONCAT:
 		case SGS_SI_NEGATE: case SGS_SI_BOOL_INV: case SGS_SI_INVERT:
 		case SGS_SI_ADD: case SGS_SI_SUB: case SGS_SI_MUL: case SGS_SI_DIV: case SGS_SI_MOD:
@@ -1372,7 +1539,7 @@ static SGSBOOL try_optimize_last_instr_out( SGS_FNTCMP_ARGS, size_t ioff, rcpos_
 			if( out )
 				*out = pos;
 			break;
-		case SGS_SI_ARRAY: case SGS_SI_DICT:
+		case SGS_SI_ARRAY: case SGS_SI_DICT: case SGS_SI_MAP:
 			{
 				int argE = SGS_INSTR_GET_E( I );
 				char* dummy0 = NULL;
@@ -1416,6 +1583,7 @@ static SGSBOOL try_optimize_set_op( SGS_CTX, sgs_CompFunc* func, size_t ioff, rc
 		switch( op )
 		{
 		case SGS_SI_GETVAR: case SGS_SI_GETPROP: case SGS_SI_GETINDEX:
+		case SGS_SI_MAKECLSR: case SGS_SI_GETCLSR:
 		case SGS_SI_SET: case SGS_SI_CONCAT:
 		case SGS_SI_NEGATE: case SGS_SI_BOOL_INV: case SGS_SI_INVERT:
 		case SGS_SI_ADD: case SGS_SI_SUB: case SGS_SI_MUL: case SGS_SI_DIV: case SGS_SI_MOD:
@@ -1431,7 +1599,7 @@ static SGSBOOL try_optimize_set_op( SGS_CTX, sgs_CompFunc* func, size_t ioff, rc
 			I = SGS_INSTR_MAKE( op, ireg, argB, argC );
 			memcpy( func->code.ptr + ioff, &I, sizeof(I) );
 			break;
-		case SGS_SI_ARRAY: case SGS_SI_DICT:
+		case SGS_SI_ARRAY: case SGS_SI_DICT: case SGS_SI_MAP:
 			{
 				int argE = SGS_INSTR_GET_E( I );
 				char* dummy0 = NULL;
@@ -1476,6 +1644,35 @@ static SGSBOOL compile_node_rrw( SGS_FNTCMP_ARGS, rcpos_t dst )
 	return 1;
 }
 
+static int compile_mconcat( SGS_FNTCMP_ARGS, rcpos_t* arg )
+{
+	int numch = 0;
+	sgs_FTNode* cur = node->child;
+	rcpos_t ireg, oreg = comp_reg_alloc( C );
+	if( C->state & SGS_MUST_STOP )
+		return 0;
+	
+	/* get source data registers */
+	while( cur )
+	{
+		int32_t bkup = C->fctx->regs;
+		
+		SGS_FN_ENTER;
+		if( !compile_node_r( C, func, cur, &ireg ) )
+			return 0;
+		INSTR_WRITE( SGS_SI_PUSH, 0, ireg, 0 );
+		numch++;
+		cur = cur->next;
+		
+		comp_reg_unwind( C, bkup );
+	}
+	
+	INSTR_WRITE( SGS_SI_MCONCAT, oreg, numch, 0 );
+	
+	if( arg )
+		*arg = oreg;
+	return 1;
+}
 
 static SGSBOOL compile_oper( SGS_FNTCMP_ARGS, rcpos_t* arg, int out, int expect )
 {
@@ -1702,28 +1899,10 @@ static SGSBOOL compile_oper( SGS_FNTCMP_ARGS, rcpos_t* arg, int out, int expect 
 		else if( *node->token == SGS_ST_OP_CATEQ && node->child &&
 			node->child->next && node->child->next->next )
 		{
-			int numch = 0;
-			sgs_FTNode* cur = node->child;
-			rcpos_t ireg, oreg = comp_reg_alloc( C );
-			if( C->state & SGS_MUST_STOP )
+			rcpos_t oreg;
+			SGS_FN_ENTER;
+			if( !compile_mconcat( C, func, node, &oreg ) )
 				goto fail;
-			
-			/* get source data registers */
-			while( cur )
-			{
-				int32_t bkup = C->fctx->regs;
-				
-				SGS_FN_ENTER;
-				if( !compile_node_r( C, func, cur, &ireg ) ) goto fail;
-				INSTR_WRITE( SGS_SI_PUSH, 0, ireg, 0 );
-				numch++;
-				cur = cur->next;
-				
-				comp_reg_unwind( C, bkup );
-			}
-			
-			INSTR_WRITE( SGS_SI_MCONCAT, oreg, numch, 0 );
-			
 			if( arg )
 				*arg = oreg;
 			
@@ -1742,7 +1921,7 @@ static SGSBOOL compile_oper( SGS_FNTCMP_ARGS, rcpos_t* arg, int out, int expect 
 			
 			if( !node->child || !node->child->next )
 			{
-				QPRINT( "Internal error (binary operator doesn't have 2 operands)" );
+				QINTERR( 1012 );
 				goto fail;
 			}
 			
@@ -1835,32 +2014,9 @@ static SGSBOOL compile_oper( SGS_FNTCMP_ARGS, rcpos_t* arg, int out, int expect 
 		else if( *node->token == SGS_ST_OP_CAT && node->child &&
 			node->child->next && node->child->next->next )
 		{
-			int numch = 0;
-			sgs_FTNode* cur = node->child;
-			rcpos_t ireg;
-			oreg = comp_reg_alloc( C );
-			if( C->state & SGS_MUST_STOP )
+			SGS_FN_ENTER;
+			if( !compile_mconcat( C, func, node, arg ) )
 				goto fail;
-			
-			/* get source data registers */
-			while( cur )
-			{
-				int32_t bkup = C->fctx->regs;
-				
-				SGS_FN_ENTER;
-				if( !compile_node_r( C, func, cur, &ireg ) ) goto fail;
-				INSTR_WRITE( SGS_SI_PUSH, 0, ireg, 0 );
-				numch++;
-				cur = cur->next;
-				
-				comp_reg_unwind( C, bkup );
-			}
-			
-			if( arg )
-				*arg = oreg;
-			
-			/* compile op */
-			INSTR_WRITE( SGS_SI_MCONCAT, oreg, numch, 0 );
 		}
 		else
 		{
@@ -1941,6 +2097,11 @@ static void rpts( sgs_MemBuf* out, SGS_CTX, sgs_FTNode* root )
 	case SGS_SFT_IDENT:
 		sgs_membuf_appbuf( out, C, root->token + 2, root->token[1] );
 		break;
+	case SGS_SFT_CLSPFX:
+		sgs_membuf_appbuf( out, C, root->token + 2, root->token[1] );
+		sgs_membuf_appchr( out, C, '.' );
+		rpts( out, C, root->child );
+		break;
 	case SGS_SFT_OPER:
 		switch( *root->token )
 		{
@@ -1963,10 +2124,8 @@ static void prefix_bytecode( SGS_CTX, sgs_CompFunc* func, int args )
 	if( C->fctx->outclsr > C->fctx->inclsr )
 	{
 		int i;
-		sgs_instr_t I = SGS_INSTR_MAKE( SGS_SI_GENCLSR, C->fctx->outclsr - C->fctx->inclsr, 0, 0 );
+		sgs_instr_t I;
 		uint16_t ln = 0;
-		sgs_membuf_appbuf( &ncode, C, &I, sizeof( I ) );
-		sgs_membuf_appbuf( &nlnbuf, C, &ln, sizeof( ln ) );
 
 		for( i = 0; i < args; ++i )
 		{
@@ -1988,7 +2147,15 @@ static void prefix_bytecode( SGS_CTX, sgs_CompFunc* func, int args )
 
 	sgs_membuf_appbuf( &ncode, C, func->code.ptr, func->code.size );
 	sgs_membuf_appbuf( &nlnbuf, C, func->lnbuf.ptr, func->lnbuf.size );
-
+	
+	/* append one extra return instruction to avoid VM bounds check */
+	{
+		sgs_instr_t I = SGS_INSTR_MAKE( SGS_SI_RETN, 0, 0, 0 );
+		uint16_t ln = 0;
+		sgs_membuf_appbuf( &ncode, C, &I, sizeof( I ) );
+		sgs_membuf_appbuf( &nlnbuf, C, &ln, sizeof( ln ) );
+	}
+	
 	sgs_membuf_destroy( &func->code, C );
 	sgs_membuf_destroy( &func->lnbuf, C );
 	
@@ -1999,11 +2166,55 @@ static void prefix_bytecode( SGS_CTX, sgs_CompFunc* func, int args )
 }
 
 
+static int compile_fn_base( SGS_FNTCMP_ARGS, int args )
+{
+	BLOCK_BEGIN;
+	
+	SGS_FN_ENTER;
+	if( !preparse_clsrlists( C, func, node ) ) return 0;
+	
+	SGS_FN_ENTER;
+	if( !preparse_varlists( C, func, node ) ) return 0;
+	args += func->gotthis;
+	
+	SGS_FN_ENTER;
+	if( !preparse_funcorder( C, func, node ) ) return 0;
+	
+	SGS_FN_ENTER;
+	if( !compile_node( C, func, node ) ) return 0;
+	
+	comp_reg_unwind( C, 0 );
+	
+	if( C->fctx->lastreg > 0xff )
+	{
+		QPRINT( "Max. register count exceeded" );
+		return 0;
+	}
+	if( C->fctx->outclsr > 0xff )
+	{
+		QPRINT( "Max. closure count exceeded" );
+		return 0;
+	}
+	
+	BLOCK_END;
+	
+	prefix_bytecode( C, func, args );
+	/* WP: closure limit */
+	func->numclsr = (uint8_t) C->fctx->outclsr;
+	func->inclsr = (uint8_t) C->fctx->inclsr;
+	
+#if SGS_DUMP_BYTECODE || ( SGS_DEBUG && SGS_DEBUG_DATA )
+	fctx_dump( C->fctx );
+	sgsBC_Dump( func );
+#endif
+	
+	return 1;
+}
+
 static SGSBOOL compile_func( SGS_FNTCMP_ARGS, rcpos_t* out )
 {
 	sgs_FuncCtx* fctx = fctx_create( C ), *bkfctx = C->fctx;
-	sgs_CompFunc* nf = sgsBC_MakeCompFunc( C );
-	int args = 0, clsrcnt = 0;
+	sgs_CompFunc* nf = &fctx->cfunc;
 
 	sgs_FTNode* n_arglist = node->child;
 	sgs_FTNode* n_uselist = n_arglist->next;
@@ -2021,42 +2232,9 @@ static SGSBOOL compile_func( SGS_FNTCMP_ARGS, rcpos_t* out )
 
 	SGS_FN_ENTER;
 	if( !preparse_arglist( C, nf, n_arglist ) ) { goto fail; }
-	args = fctx->regs;
-
-	SGS_FN_ENTER;
-	if( !preparse_clsrlists( C, nf, n_body ) ) { goto fail; }
-
-	SGS_FN_ENTER;
-	if( !preparse_varlists( C, nf, n_body ) ) { goto fail; }
-	args += nf->gotthis;
 	
-	SGS_FN_ENTER;
-	if( !preparse_funcorder( C, nf, n_body ) ) { goto fail; }
-
-	SGS_FN_ENTER;
-	if( !compile_node( C, nf, n_body ) ) { goto fail; }
-
-	comp_reg_unwind( C, 0 );
-
-	if( C->fctx->lastreg > 0xff )
-	{
-		QPRINT( "Max. register count exceeded" );
-		goto fail;
-	}
-	if( C->fctx->inclsr > 0xff )
-	{
-		QPRINT( "Max. closure count exceeded" );
-		goto fail;
-	}
+	if( !compile_fn_base( C, nf, n_body, fctx->regs ) ) goto fail;
 	
-	prefix_bytecode( C, nf, args );
-	/* WP: closure limit */
-	nf->numclsr = (uint8_t) ( clsrcnt = C->fctx->inclsr );
-
-#if SGS_DUMP_BYTECODE || ( SGS_DEBUG && SGS_DEBUG_DATA )
-	fctx_dump( fctx );
-	sgsBC_Dump( nf );
-#endif
 	C->fctx = bkfctx;
 
 	{
@@ -2066,17 +2244,32 @@ static SGSBOOL compile_func( SGS_FNTCMP_ARGS, rcpos_t* out )
 		*out = BC_CONSTENC( add_const_f( C, func, nf, ffn.ptr, ffn.size, sgsT_LineNum( node->token ) ) );
 		sgs_membuf_destroy( &ffn, C );
 		
-		if( clsrcnt > 0 )
+		if( fctx->outclsr > 0 )
 		{
 			int i;
 			rcpos_t ro = comp_reg_alloc( C );
-			sgs_FTNode* uli = n_uselist->child;
-			for( i = 0; i < clsrcnt; ++i )
+			INSTR_WRITE( SGS_SI_MAKECLSR, ro, *out, fctx->inclsr );
+			if( fctx->inclsr )
 			{
-				INSTR_WRITE( SGS_SI_PUSHCLSR, find_varT( &bkfctx->clsr, uli->token ), 0, 0 );
-				uli = uli->next;
+				sgs_FTNode* uli = n_uselist->child;
+				for( i = 0; i < fctx->inclsr; i += 3 )
+				{
+					int a, b = 0, c = 0;
+					a = find_varT( &bkfctx->clsr, uli->token );
+					uli = uli->next;
+					if( uli )
+					{
+						b = find_varT( &bkfctx->clsr, uli->token );
+						uli = uli->next;
+						if( uli )
+						{
+							c = find_varT( &bkfctx->clsr, uli->token );
+							uli = uli->next;
+						}
+					}
+					INSTR_WRITE( SGS_SI_CLSRINFO, a, b, c );
+				}
 			}
-			INSTR_WRITE( SGS_SI_MAKECLSR, ro, *out, clsrcnt );
 			*out = ro;
 		}
 	}
@@ -2084,7 +2277,6 @@ static SGSBOOL compile_func( SGS_FNTCMP_ARGS, rcpos_t* out )
 	return 1;
 
 fail:
-	sgsBC_Free( C, nf );
 	C->fctx = bkfctx;
 	fctx_destroy( C, fctx );
 	C->state |= SGS_HAS_ERRORS;
@@ -2133,6 +2325,7 @@ static SGSBOOL compile_node_w( SGS_FNTCMP_ARGS, rcpos_t src )
 	case SGS_SFT_FCALL:
 	case SGS_SFT_THRCALL:
 	case SGS_SFT_STHCALL:
+	case SGS_SFT_NEWCALL:
 		SGS_FN_HIT( "W_FCALL" );
 		if( !compile_fcall( C, func, node, NULL, 0 ) ) goto fail;
 		break;
@@ -2156,15 +2349,21 @@ static SGSBOOL compile_node_w( SGS_FNTCMP_ARGS, rcpos_t src )
 		SGS_FN_HIT( "W_EXPLIST" );
 		QPRINT( "Expression writes only allowed with function call reads" );
 		goto fail;
+		
+	case SGS_SFT_CLSPFX:
+		SGS_FN_HIT( "W_CLSPFX" );
+		if( !compile_clspfx_w( C, func, node, src ) ) goto fail;
+		break;
 
 	default:
-		sgs_Msg( C, SGS_ERROR, "Unexpected tree node [uncaught/internal BcG/w error]" );
+		QINTERR( 1003 );
 		goto fail;
 	}
 	SGS_FN_END;
 	return 1;
 
 fail:
+	C->state |= SGS_HAS_ERRORS;
 	SGS_FN_END;
 	return 0;
 }
@@ -2175,6 +2374,7 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 	{
 	case SGS_SFT_IDENT:
 	case SGS_SFT_KEYWORD:
+	case SGS_SFT_CLSPFX:
 		SGS_FN_HIT( "R_IDENT" );
 		if( !compile_ident_r( C, func, node, out ) ) goto fail;
 		break;
@@ -2191,22 +2391,27 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 		SGS_FN_HIT( "R_ARRLIST" );
 		{
 			rcpos_t pos = 0;
-			int args = 0;
+			int args = 0, off = 0;
 			sgs_FTNode* n = node->child;
 			while( n )
 			{
-				int32_t bkup = C->fctx->regs;
-				pos = 0;
-				SGS_FN_ENTER;
-				if( !compile_node_r( C, func, n, &pos ) )
-					goto fail;
-				INSTR_WRITE( SGS_SI_PUSH, 0, pos, 0 );
-				comp_reg_unwind( C, bkup );
 				args++;
 				n = n->next;
 			}
 			pos = comp_reg_alloc( C );
 			INSTR_WRITE_EX( SGS_SI_ARRAY, args, pos );
+			n = node->child;
+			while( n )
+			{
+				rcpos_t bkup = C->fctx->regs, vpos = 0;
+				SGS_FN_ENTER;
+				if( !compile_node_r( C, func, n, &vpos ) )
+					goto fail;
+				INSTR_WRITE( SGS_SI_ARRPUSH, pos, 0, vpos );
+				comp_reg_unwind( C, bkup );
+				off++;
+				n = n->next;
+			}
 			*out = pos;
 		}
 		break;
@@ -2214,43 +2419,43 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 	case SGS_SFT_MAPLIST:
 		SGS_FN_HIT( "R_(DCT|MAP)LIST" );
 		{
-			rcpos_t pos = 0;
 			int args = 0;
 			sgs_FTNode* n = node->child;
+			rcpos_t pos = comp_reg_alloc( C ), kpos, vpos, bkup;
+			bkup = C->fctx->regs;
+			INSTR_WRITE_EX( node->type == SGS_SFT_DCTLIST ? SGS_SI_DICT : SGS_SI_MAP, 0, pos );
 			while( n )
 			{
-				rcpos_t bkup = C->fctx->regs;
-				pos = 0;
 				if( args % 2 == 0 )
 				{
+					kpos = 0;
 					if( n->type != SGS_SFT_ARGMT )
 					{
 						SGS_FN_ENTER;
-						if( !compile_node_r( C, func, n, &pos ) )
+						if( !compile_node_r( C, func, n, &kpos ) )
 							goto fail;
 					}
 					else if( *n->token == SGS_ST_STRING )
-					{
-						uint32_t string_len;
-						SGS_AS_UINT32( string_len, n->token + 1 );
-						pos = BC_CONSTENC( add_const_s( C, func, string_len, (const char*) n->token + 5 ) );
-					}
+						compile_const( C, func, n, &kpos );
 					else
-						compile_ident( C, func, n, &pos );
+						compile_ident( C, func, n, &kpos );
 				}
 				else
 				{
+					vpos = 0;
 					SGS_FN_ENTER;
-					if( !compile_node_r( C, func, n, &pos ) )
+					if( !compile_node_r( C, func, n, &vpos ) )
 						goto fail;
 				}
-				INSTR_WRITE( SGS_SI_PUSH, 0, pos, 0 );
-				comp_reg_unwind( C, bkup );
+				if( args % 2 == 1 )
+				{
+					INSTR_WRITE( SGS_SI_SETINDEX, pos, kpos, vpos );
+					comp_reg_unwind( C, bkup );
+				}
 				args++;
 				n = n->next;
 			}
-			pos = comp_reg_alloc( C );
-			INSTR_WRITE_EX( node->type == SGS_SFT_DCTLIST ? SGS_SI_DICT : SGS_SI_MAP, args, pos );
+			sgs_BreakIf( args % 2 != 0 );
 			*out = pos;
 		}
 		break;
@@ -2264,6 +2469,7 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 	case SGS_SFT_FCALL:
 	case SGS_SFT_THRCALL:
 	case SGS_SFT_STHCALL:
+	case SGS_SFT_NEWCALL:
 		SGS_FN_HIT( "R_FCALL" );
 		if( !compile_fcall( C, func, node, out, 1 ) ) goto fail;
 		break;
@@ -2303,7 +2509,7 @@ static SGSBOOL compile_node_r( SGS_FNTCMP_ARGS, rcpos_t* out )
 		break;
 
 	default:
-		sgs_Msg( C, SGS_ERROR, "Unexpected tree node [uncaught/internal BcG/r error]" );
+		QINTERR( 1002 );
 		goto fail;
 	}
 	SGS_FN_END;
@@ -2322,7 +2528,7 @@ static SGSBOOL compile_for_explist( SGS_FNTCMP_ARGS, rcpos_t* out )
 
 	if( node->type != SGS_SFT_EXPLIST )
 	{
-		sgs_Msg( C, SGS_ERROR, "Unexpected tree node [uncaught/internal BcG/r[fe] error]" );
+		QINTERR( 1004 );
 		goto fail;
 	}
 
@@ -2384,6 +2590,7 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 	case SGS_SFT_FCALL:
 	case SGS_SFT_THRCALL:
 	case SGS_SFT_STHCALL:
+	case SGS_SFT_NEWCALL:
 		SGS_FN_HIT( "FCALL" );
 		if( !compile_fcall( C, func, node, NULL, 0 ) ) goto fail;
 		break;
@@ -2404,20 +2611,32 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 
 	case SGS_SFT_RETURN:
 		SGS_FN_HIT( "RETURN" );
+		compile_defers( C, func, 0 );
 		{
 			rcpos_t regstate = C->fctx->regs;
-			int num = 0;
 			sgs_FTNode* n = node->child;
-			while( n )
+			if( n && n->next == NULL )
 			{
+				/* one value */
 				rcpos_t arg = 0;
 				SGS_FN_ENTER;
 				if( !compile_node_r( C, func, n, &arg ) ) goto fail;
-				INSTR_WRITE( SGS_SI_PUSH, 0, arg, 0 );
-				n = n->next;
-				num++;
+				INSTR_WRITE( SGS_SI_RET1, 0, 0, arg );
 			}
-			INSTR_WRITE( SGS_SI_RETN, num, 0, 0 );
+			else
+			{
+				int num = 0;
+				while( n )
+				{
+					rcpos_t arg = 0;
+					SGS_FN_ENTER;
+					if( !compile_node_r( C, func, n, &arg ) ) goto fail;
+					INSTR_WRITE( SGS_SI_PUSH, 0, arg, 0 );
+					n = n->next;
+					num++;
+				}
+				INSTR_WRITE( SGS_SI_RETN, num, 0, 0 );
+			}
 			comp_reg_unwind( C, regstate );
 		}
 		break;
@@ -2425,6 +2644,7 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 	case SGS_SFT_BLOCK:
 		SGS_FN_HIT( "BLOCK" );
 		node = node->child;
+		BLOCK_BEGIN;
 		while( node )
 		{
 			rcpos_t regstate = C->fctx->regs;
@@ -2433,6 +2653,7 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 			node = node->next;
 			comp_reg_unwind( C, regstate );
 		}
+		BLOCK_END;
 		break;
 
 	case SGS_SFT_IFELSE:
@@ -2522,10 +2743,12 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 				size_t jp1, jp2 = 0;
 				jp1 = func->code.size;
 
+				LOOP_BEGIN;
 				regstate = C->fctx->regs;
 				SGS_FN_ENTER;
 				if( !compile_node( C, func, node->child->next ) ) goto fail; /* while */
 				comp_reg_unwind( C, regstate );
+				LOOP_END;
 
 				if( !compile_breaks( C, func, node, 1 ) )
 					goto fail;
@@ -2561,9 +2784,11 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 			C->fctx->loops++;
 			codesize = func->code.size;
 			{
+				LOOP_BEGIN;
 				SGS_FN_ENTER;
 				if( !compile_node( C, func, node->child->next ) ) goto fail; /* while */
 				comp_reg_unwind( C, regstate );
+				LOOP_END;
 
 				if( !compile_breaks( C, func, node, 1 ) )
 					goto fail;
@@ -2608,9 +2833,11 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 				size_t jp1, jp2 = 0;
 				jp1 = func->code.size;
 
+				LOOP_BEGIN;
 				SGS_FN_ENTER;
 				if( !compile_node( C, func, node->child->next->next->next ) ) goto fail; /* block */
 				comp_reg_unwind( C, regstate );
+				LOOP_END;
 
 				if( !compile_breaks( C, func, node, 1 ) )
 					goto fail;
@@ -2677,9 +2904,11 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 				/* write to value variable */
 				if( node->child->next->type != SGS_SFT_NULL && !compile_ident_w( C, func, node->child->next, val ) ) goto fail;
 				
+				LOOP_BEGIN;
 				SGS_FN_ENTER;
 				if( !compile_node( C, func, node->child->next->next->next ) ) goto fail; /* block */
 				comp_reg_unwind( C, regstate );
+				LOOP_END;
 				
 				if( !compile_breaks( C, func, node, 1 ) )
 					goto fail;
@@ -2731,6 +2960,13 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 					QPRINT( "Attempted to break while not in a loop" );
 				goto fail;
 			}
+			sgs_LoopInfo* loop = C->fctx->loopinfo;
+			{
+				int lev = blev;
+				while( --lev > 0 )
+					loop = loop->parent;
+			}
+			compile_defers( C, func, loop->block );
 			/* WP: instruction limit, max loop depth */
 			fctx_binfo_add( C, C->fctx, (uint32_t) func->code.size, (uint16_t)( C->fctx->loops + 1 - blev ), SGS_FALSE );
 			INSTR_WRITE_PCH();
@@ -2761,12 +2997,24 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 					QPRINT( "Attempted to continue while not in a loop" );
 				goto fail;
 			}
+			sgs_LoopInfo* loop = C->fctx->loopinfo;
+			{
+				int lev = blev;
+				while( --lev > 0 )
+					loop = loop->parent;
+			}
+			compile_defers( C, func, loop->block );
 			/* WP: instruction limit, max loop depth */
 			fctx_binfo_add( C, C->fctx, (uint32_t) func->code.size, (uint16_t)( C->fctx->loops + 1 - blev ), SGS_TRUE );
 			INSTR_WRITE_PCH();
 		}
 		break;
-
+	
+	case SGS_SFT_DEFER:
+		SGS_FN_HIT( "DEFER" );
+		fctx_defer_add( C, node->child );
+		break;
+	
 	case SGS_SFT_FUNC:
 		SGS_FN_HIT( "FUNC" );
 		{
@@ -2782,7 +3030,7 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 				if( !compile_node_w( C, func, n_name, pos ) ) goto fail;
 				
 				// symbol registration
-				if( C->fctx->func == SGS_FALSE )
+				if( C->fctx->func == SGS_FALSE || n_name->type == SGS_SFT_CLSPFX )
 				{
 					rcpos_t r_name;
 					sgs_MemBuf ffn = sgs_membuf_create();
@@ -2792,6 +3040,66 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 					INSTR_WRITE( SGS_SI_RSYM, 0, BC_CONSTENC( r_name ), pos );
 				}
 			}
+		}
+		break;
+		
+	case SGS_SFT_CLASS:
+		SGS_FN_HIT( "CLASS" );
+		{
+			sgs_FTNode* name = node->child;
+			sgs_FTNode* it = name->next;
+			rcpos_t regstate = C->fctx->regs;
+			
+			/* create class */
+			rcpos_t clsvar, r_name, r_inhname, vname, vsrc;
+			clsvar = comp_reg_alloc( C );
+			compile_ident( C, func, name, &r_name );
+			r_inhname = clsvar; /* r_inhname is 'empty' if it equals clsvar (class cannot inherit itself) */
+			if( it && it->type == SGS_SFT_CLSINH )
+			{
+				compile_ident( C, func, it, &r_inhname );
+				it = it->next;
+			}
+			INSTR_WRITE( SGS_SI_CLASS, clsvar, r_name, r_inhname );
+			compile_ident_w( C, func, name, clsvar );
+			
+			while( it )
+			{
+				if( it->type == SGS_SFT_CLSGLOB )
+				{
+					/* class globals -- convert to 'setindex' */
+					sgs_FTNode* vn = it->child;
+					while( vn )
+					{
+						compile_ident( C, func, vn, &vname );
+						if( vn->child )
+						{
+							SGS_FN_ENTER;
+							if( !compile_node_r( C, func, vn->child, &vsrc ) )
+								goto fail;
+						}
+						else
+						{
+							vsrc = add_const_null( C, func );
+						}
+						INSTR_WRITE( SGS_SI_SETINDEX, clsvar, vname, vsrc );
+						
+						vn = vn->next;
+					}
+				}
+				else if( it->type == SGS_SFT_FUNC )
+				{
+					compile_node( C, func, it );
+				}
+				else
+				{
+					QINTERR( 1005 );
+					goto fail;
+				}
+				it = it->next;
+			}
+			
+			comp_reg_unwind( C, regstate );
 		}
 		break;
 
@@ -2821,7 +3129,7 @@ static SGSBOOL compile_node( SGS_FNTCMP_ARGS )
 		break;
 
 	default:
-		sgs_Msg( C, SGS_ERROR, "Unexpected tree node [uncaught/internal BcG error]" );
+		QINTERR( 1001 );
 		goto fail;
 	}
 
@@ -2834,40 +3142,23 @@ fail:
 }
 
 
-sgs_CompFunc* sgsBC_Generate( SGS_CTX, sgs_FTNode* tree )
+sgs_iFunc* sgsBC_Generate( SGS_CTX, sgs_FTNode* tree )
 {
-	sgs_CompFunc* func = sgsBC_MakeCompFunc( C );
 	sgs_FuncCtx* fctx = fctx_create( C );
 	fctx->func = SGS_FALSE;
 	C->fctx = fctx;
-	if( !preparse_clsrlists( C, func, tree ) )
+	
+	if( !compile_fn_base( C, &fctx->cfunc, tree, 0 ) || ( C->state & SGS_HAS_ERRORS ) )
 		goto fail;
-	if( !preparse_varlists( C, func, tree ) )
-		goto fail;
-	if( !preparse_funcorder( C, func, tree ) )
-		goto fail;
-	if( !compile_node( C, func, tree ) )
-		goto fail;
-	comp_reg_unwind( C, 0 );
-
-	if( C->fctx->lastreg > 0xff )
+	
+	C->fctx = NULL;
 	{
-		sgs_Msg( C, SGS_ERROR, "[line %d] Maximum register count exceeded",
-			sgsT_LineNum( tree->token ) );
-		goto fail;
+		sgs_iFunc* outfn = sgsBC_ConvertFunc( C, &fctx->cfunc, "<main>", 6, 0 );
+		fctx_destroy( C, fctx );
+		return outfn;
 	}
 
-	prefix_bytecode( C, func, 0 );
-
-	C->fctx = NULL;
-#if SGS_DUMP_BYTECODE || ( SGS_DEBUG && SGS_DEBUG_DATA )
-	fctx_dump( fctx );
-#endif
-	fctx_destroy( C, fctx );
-	return func;
-
 fail:
-	sgsBC_Free( C, func );
 	C->fctx = NULL;
 	fctx_destroy( C, fctx );
 	C->state |= SGS_HAS_ERRORS;
@@ -2876,6 +3167,8 @@ fail:
 
 void sgsBC_Dump( sgs_CompFunc* func )
 {
+	printf( "function (this=%s args=%d tmp=%d clsr=%d inclsr=%d)\n",
+		func->gotthis ? "Y" : "n", func->numargs, func->numtmp, func->numclsr, func->inclsr );
 	sgsBC_DumpEx( func->consts.ptr, func->consts.size, func->code.ptr, func->code.size );
 }
 
@@ -2898,23 +3191,6 @@ void sgsBC_DumpEx( const char* constptr, size_t constsize,
 	printf( "> code:\n" );
 	dump_opcode( (const sgs_instr_t*) (const void*) SGS_ASSUME_ALIGNED( codeptr, 4 ), codesize / sizeof( sgs_instr_t ) );
 	printf( "}\n" );
-}
-
-void sgsBC_Free( SGS_CTX, sgs_CompFunc* func )
-{
-	sgs_Variable* vbeg = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr, 4 );
-	sgs_Variable* vend = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr + func->consts.size, 4 );
-	sgs_Variable* var = vbeg;
-	while( var < vend )
-	{
-		sgs_Release( C, var );
-		var++;
-	}
-
-	sgs_membuf_destroy( &func->code, C );
-	sgs_membuf_destroy( &func->consts, C );
-	sgs_membuf_destroy( &func->lnbuf, C );
-	sgs_Dealloc( func );
 }
 
 

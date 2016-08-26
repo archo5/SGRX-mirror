@@ -314,11 +314,9 @@ void GameUIControl::Draw( float dt )
 			SGS_SCOPE;
 			sgsVariable shader( C );
 			sgs_IterGetData( C, sgs_StackItem( C, -1 ), NULL, &shader.var );
-			sgs_PushVar( C, shader );
-			sgs_PushVar( C, obj );
-			sgs_PushVar( C, dt );
+			
 			GR2D_GetBatchRenderer().Reset();
-			sgs_ThisCall( C, shader.var, 2, 0 );
+			shader.tthiscall<void>( C, shader, obj, dt );
 		}
 	}
 	

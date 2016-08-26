@@ -404,20 +404,22 @@ void ScriptContext::RegisterBatchRenderer()
 bool ScriptContext::EvalFile( const StringView& path, sgsVariable* outvar )
 {
 	SGS_SCOPE;
-	int rvc = 0;
-	bool ret = SGS_SUCCEEDED( sgs_EvalFile( C, StackPath( path ), &rvc ) );
+	int rvc = sgs_EvalFile( C, StackPath( path ) );
+	bool ret = SGS_SUCCEEDED( rvc );
 	if( rvc && outvar )
 		*outvar = sgs_GetVar<sgsVariable>()( C, -rvc );
+	sgs_AdjustStack( C, 0, rvc );
 	return ret;
 }
 
 bool ScriptContext::EvalBuffer( const StringView& data, sgsVariable* outvar )
 {
 	SGS_SCOPE;
-	int rvc = 0;
-	bool ret = SGS_SUCCEEDED( sgs_EvalBuffer( C, data.data(), data.size(), &rvc ) );
+	int rvc = sgs_EvalBuffer( C, data.data(), data.size() );
+	bool ret = SGS_SUCCEEDED( rvc );
 	if( rvc && outvar )
 		*outvar = sgs_GetVar<sgsVariable>()( C, -rvc );
+	sgs_AdjustStack( C, 0, rvc );
 	return ret;
 }
 
@@ -548,18 +550,13 @@ void ScriptContext::SetGlobal( const StringView& name, sgsVariable val )
 	sgs_SetGlobal( C, key.var, val.var );
 }
 
-void ScriptContext::Call( sgsVariable func, int args, int ret )
-{
-	sgs_Call( C, func.var, args, ret );
-}
-
 bool ScriptContext::GlobalCall( StringView name, int args, int ret )
 {
 	sgsVariable func = GetGlobal( name );
 	if( sgs_IsCallableP( &func.var ) == false )
 		LOG_WARNING << "Failed to retrieve callable global from " << name;
 	if( func.not_null() )
-		sgs_Call( C, func.var, args, ret );
+		func.call( C, args, ret );
 	return func.not_null();
 }
 

@@ -22,16 +22,15 @@ static SGS_INLINE int detectline( const char* code, int32_t at )
 	return code[ at ] == '\r' || ( code[ at ] == '\n' && ( at == 0 || code[ at - 1 ] != '\r' ) );
 }
 
-static void skipcomment( SGS_CTX, sgs_MemBuf* out, sgs_LineNum* line, const char* code, int32_t* at, int32_t length )
+static void skipcomment( SGS_CTX, sgs_LineNum* line, const char* code, int32_t* at, int32_t length )
 {
 	int32_t i = *at + 1;
-	SGS_UNUSED( out );
 	if( code[ i ] == '/' )
 	{
 		i++;
 		while( i < length && code[ i ] != '\n' && code[ i ] != '\r' )
 			i++;
-		if( code[ i ] == '\r' && code[ i + 1 ] == '\n' )
+		if( i + 1 < length && code[ i ] == '\r' && code[ i + 1 ] == '\n' )
 			i++;
 		(*line)++;
 		*at = i;
@@ -159,7 +158,9 @@ static void readident( SGS_CTX, sgs_MemBuf* out, const char* code, int32_t* at, 
 		ident_equal( out->ptr + pos_rev + 2, sz, STRLIT_BUF("function") ) ||
 		ident_equal( out->ptr + pos_rev + 2, sz, STRLIT_BUF("use") ) ||
 		ident_equal( out->ptr + pos_rev + 2, sz, STRLIT_BUF("return") ) ||
-		ident_equal( out->ptr + pos_rev + 2, sz, STRLIT_BUF("this") ) )
+		ident_equal( out->ptr + pos_rev + 2, sz, STRLIT_BUF("this") ) ||
+		ident_equal( out->ptr + pos_rev + 2, sz, STRLIT_BUF("new") ) ||
+		ident_equal( out->ptr + pos_rev + 2, sz, STRLIT_BUF("defer") ) )
 	{
 		out->ptr[ pos_rev ] = SGS_ST_KEYWORD;
 	}
@@ -227,15 +228,15 @@ static void readstring( SGS_CTX, sgs_MemBuf* out, sgs_LineNum* line, const char*
 }
 
 static const char* sgs_opchars = "=<>+-*/%?!~&|^.$@";
-static const char* sgs_operators = "<=>;===;!==;==;!=;<=;>=;+=;-=;*=;/=;%=;&=;|=;^=;<<=;>>=;$=;"
-	"<<;>>;&&=;||=;?""?=;&&;||;?""?;<;>;=;++;--;+;-;*;/;%;&;|;^;.;$;!;~;@"; /* trigraphs detected */
+static const char* sgs_operators = "<=>;===;!==;==;!=;<=;>=;+=;-=;*=;/=;%=;&=;|=;^=;<<=;>>=;$=;..=;"
+	"<<;>>;&&=;||=;?""?=;&&;||;?""?;..;<;>;=;++;--;+;-;*;/;%;&;|;^;.;$;!;~;@"; /* trigraphs detected */
 static const sgs_TokenType sgs_optable[] =
 {
 	SGS_ST_OP_RWCMP, SGS_ST_OP_SEQ, SGS_ST_OP_SNEQ, SGS_ST_OP_EQ, SGS_ST_OP_NEQ, SGS_ST_OP_LEQ, SGS_ST_OP_GEQ,
 	SGS_ST_OP_ADDEQ, SGS_ST_OP_SUBEQ, SGS_ST_OP_MULEQ, SGS_ST_OP_DIVEQ, SGS_ST_OP_MODEQ,
-	SGS_ST_OP_ANDEQ, SGS_ST_OP_OREQ, SGS_ST_OP_XOREQ, SGS_ST_OP_LSHEQ, SGS_ST_OP_RSHEQ, SGS_ST_OP_CATEQ,
+	SGS_ST_OP_ANDEQ, SGS_ST_OP_OREQ, SGS_ST_OP_XOREQ, SGS_ST_OP_LSHEQ, SGS_ST_OP_RSHEQ, SGS_ST_OP_CATEQ, SGS_ST_OP_CATEQ,
 	SGS_ST_OP_LSH, SGS_ST_OP_RSH, SGS_ST_OP_BLAEQ, SGS_ST_OP_BLOEQ, SGS_ST_OP_NLOEQ, SGS_ST_OP_BLAND,
-	SGS_ST_OP_BLOR, SGS_ST_OP_NLOR, SGS_ST_OP_LESS, SGS_ST_OP_GRTR, SGS_ST_OP_SET, SGS_ST_OP_INC, SGS_ST_OP_DEC,
+	SGS_ST_OP_BLOR, SGS_ST_OP_NLOR, SGS_ST_OP_CAT, SGS_ST_OP_LESS, SGS_ST_OP_GRTR, SGS_ST_OP_SET, SGS_ST_OP_INC, SGS_ST_OP_DEC,
 	SGS_ST_OP_ADD, SGS_ST_OP_SUB, SGS_ST_OP_MUL, SGS_ST_OP_DIV, SGS_ST_OP_MOD, SGS_ST_OP_AND,
 	SGS_ST_OP_OR, SGS_ST_OP_XOR, SGS_ST_OP_MMBR, SGS_ST_OP_CAT, SGS_ST_OP_NOT, SGS_ST_OP_INV, SGS_ST_OP_ERSUP
 };
@@ -328,7 +329,7 @@ sgs_TokenList sgsT_Gen( SGS_CTX, const char* code, size_t length )
 		
 		/* comment */
 		if( fc == '/' && ( code[ i + 1 ] == '/'
-					|| code[ i + 1 ] == '*' ) )   skipcomment( C, &s, &line, code, &i, ilen );
+					|| code[ i + 1 ] == '*' ) )   skipcomment( C, &line, code, &i, ilen );
 		
 		/* special symbol */
 		else if( sgs_isoneof( fc, "()[]{},;:" ) ) sgs_membuf_appchr( &s, C, fc );
