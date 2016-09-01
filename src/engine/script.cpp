@@ -385,7 +385,7 @@ void ScriptContext::Reset()
 	C = sgs_CreateEngine();
 	sgs_LoadLib_String( C );
 	sgs_LoadLib_Math( C );
-	xgm_module_entry_point( C );
+	sgs_xgm_module_entry_point( C );
 	sgrx_math_lib( C );
 	sgs_SetScriptFSFunc( C, sgs_scriptfs_sgrx, NULL );
 }

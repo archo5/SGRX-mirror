@@ -1442,10 +1442,10 @@ static int sgsstd_class( SGS_CTX )
 static int sgsstd_closure_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	uint8_t* cl = (uint8_t*) obj->data;
-	int32_t i, cc = *(int32_t*) (void*) SGS_ASSUME_ALIGNED(cl+sizeof(sgs_Variable),sizeof(void*));
-	sgs_Closure** cls = (sgs_Closure**) (void*) SGS_ASSUME_ALIGNED(cl+sizeof(sgs_Variable)+sizeof(int32_t),sizeof(void*));
+	sgs_clsrcount_t i, cc = *SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable), sgs_clsrcount_t );
+	sgs_Closure** cls = SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable) + sizeof(sgs_clsrcount_t), sgs_Closure* );
 	
-	sgs_Release( C, (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( cl, sizeof(void*) ) );
+	sgs_Release( C, SGS_ASSUME_ALIGNED( cl, sgs_Variable ) );
 	
 	for( i = 0; i < cc; ++i )
 	{
@@ -1482,10 +1482,10 @@ static int sgsstd_closure_call( SGS_CTX, sgs_VarObj* obj )
 static int sgsstd_closure_gcmark( SGS_CTX, sgs_VarObj* obj )
 {
 	uint8_t* cl = (uint8_t*) obj->data;
-	int32_t i, cc = *(int32_t*) (void*) SGS_ASSUME_ALIGNED(cl+sizeof(sgs_Variable),sizeof(void*));
-	sgs_Closure** cls = (sgs_Closure**) (void*) SGS_ASSUME_ALIGNED(cl+sizeof(sgs_Variable)+sizeof(int32_t),sizeof(void*));
+	sgs_clsrcount_t i, cc = *SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable), sgs_clsrcount_t );
+	sgs_Closure** cls = SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable) + sizeof(sgs_clsrcount_t), sgs_Closure* );
 	
-	sgs_GCMark( C, (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( cl, sizeof(void*) ) );
+	sgs_GCMark( C, SGS_ASSUME_ALIGNED( cl, sgs_Variable ) );
 	
 	for( i = 0; i < cc; ++i )
 	{
@@ -1498,18 +1498,19 @@ static int sgsstd_closure_gcmark( SGS_CTX, sgs_VarObj* obj )
 static int sgsstd_closure_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 {
 	uint8_t* cl = (uint8_t*) obj->data;
-	int32_t i, ssz, cc = *(int32_t*) (void*) SGS_ASSUME_ALIGNED(cl+sizeof(sgs_Variable),sizeof(void*));
-	sgs_Closure** cls = (sgs_Closure**) (void*) SGS_ASSUME_ALIGNED(cl+sizeof(sgs_Variable)+sizeof(int32_t),sizeof(void*));
+	sgs_StkIdx ssz;
+	sgs_clsrcount_t i, cc = *SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable), sgs_clsrcount_t );
+	sgs_Closure** cls = SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable) + sizeof(sgs_clsrcount_t), sgs_Closure* );
 	
 	sgs_PushString( C, "closure\n{" );
 	
 	ssz = stk_size( C );
 	sgs_PushString( C, "\nfunc: " );
-	sgs_DumpVar( C, *(sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( cl, sizeof(void*) ), depth ); /* function */
+	sgs_DumpVar( C, *SGS_ASSUME_ALIGNED( cl, sgs_Variable ), depth ); /* function */
 	for( i = 0; i < cc; ++i )
 	{
 		char intro[ 64 ];
-		sprintf( intro, "\n#%"PRId32" (rc=%"PRId32"): ", i, cls[ i ]->refcount );
+		sprintf( intro, "\n#%d (rc=%"PRId32"): ", (int) i, cls[ i ]->refcount );
 		sgs_PushString( C, intro );
 		sgs_DumpVar( C, cls[ i ]->var, depth );
 	}
@@ -1530,7 +1531,7 @@ SGS_APIFUNC sgs_ObjInterface sgsstd_closure_iface[1] =
 	sgsstd_closure_call, NULL
 }};
 
-sgs_Closure** sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* out, sgs_Variable* func, size_t clc )
+sgs_Closure** sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* out, sgs_Variable* func, sgs_clsrcount_t clc )
 {
 	/* WP: range not affected by conversion */
 	uint32_t clsz = (uint32_t) ( sizeof(sgs_Closure*) * clc );
@@ -1542,7 +1543,7 @@ sgs_Closure** sgsSTD_MakeClosure( SGS_CTX, sgs_Variable* out, sgs_Variable* func
 	
 	memcpy( cl + sizeof(sgs_Variable), &clc, sizeof(clc) );
 	
-	return (sgs_Closure**) ( cl + sizeof(sgs_Variable) + sizeof(clc) );
+	return SGS_ASSUME_ALIGNED( cl + sizeof(sgs_Variable) + sizeof(clc), sgs_Closure* );
 }
 
 
@@ -3372,6 +3373,49 @@ notthispath:
 	return 0;
 }
 
+static int sgsstd_find_include_file( SGS_CTX )
+{
+	int ret;
+	char* fnstr, *dnstr = NULL, *pdstr = NULL, *ps = NULL;
+	sgs_SizeVal fnsize, dnsize = 0, pdsize = 0, pssize = 0;
+	sgs_MemBuf mb = sgs_membuf_create();
+	
+	SGSFN( "find_include_file" );
+	
+	if( !sgs_LoadArgs( C, "m", &fnstr, &fnsize ) )
+		return 0;
+	
+	ret = sgs_PushGlobalByName( C, "SGS_PATH" );
+	if( ret != SGS_SUCCESS ||
+		( ps = sgs_ToStringBuf( C, -1, &pssize ) ) == NULL )
+	{
+		ps = SGS_INCLUDE_PATH;
+		pssize = (sgs_SizeVal) strlen( ps );
+	}
+	
+	if( _push_curdir( C ) )
+	{
+		dnstr = p_cstr( stk_gettop( C ) );
+		dnsize = p_strsz( stk_gettop( C ) );
+	}
+	if( _push_procdir( C ) )
+	{
+		pdstr = p_cstr( stk_gettop( C ) );
+		pdsize = p_strsz( stk_gettop( C ) );
+	}
+	/* WP: string limit */
+	ret = _find_includable_file( C, &mb, ps, (size_t) pssize, fnstr, (size_t) fnsize, dnstr, (size_t) dnsize, pdstr, (size_t) pdsize );
+	if( ret == 0 || mb.size == 0 )
+	{
+		sgs_membuf_destroy( &mb, C );
+		return 0;
+	}
+	
+	sgs_PushStringBuf( C, mb.ptr, (sgs_SizeVal) mb.size );
+	sgs_membuf_destroy( &mb, C );
+	return 1;
+}
+
 static int sgsstd_include( SGS_CTX )
 {
 	char* fnstr, *dnstr = NULL, *pdstr = NULL;
@@ -3394,7 +3438,7 @@ static int sgsstd_include( SGS_CTX )
 		sgs_MemBuf mb = sgs_membuf_create();
 		
 		ret = sgs_PushGlobalByName( C, "SGS_PATH" );
-		if( ret != SGS_SUCCESS ||
+		if( ret == SGS_FALSE ||
 			( ps = sgs_ToStringBuf( C, -1, &pssize ) ) == NULL )
 		{
 			ps = SGS_INCLUDE_PATH;
@@ -3461,7 +3505,9 @@ static int sgsstd_include( SGS_CTX )
 		else
 		{
 			sgs_membuf_destroy( &mb, C );
-			return sgs_Msg( C, SGS_ERROR, "failed to load native module '%.*s'", fnsize, fnstr );
+			return sgs_Msg( C, SGS_ERROR, "failed to load native module '%.*s'%s", fnsize, fnstr,
+				ret == SGS_XPC_NOPROC ? " (library was loaded but '" SGS_LIB_ENTRY_POINT
+					"' function was not found)" : "" );
 		}
 		
 		sgs_membuf_destroy( &mb, C );
@@ -3569,7 +3615,7 @@ static int sgsstd_sys_curprocdir( SGS_CTX )
 
 static int sgsstd_multiply_path_ext_lists( SGS_CTX )
 {
-	char *pp, *ss, *prefixes, *osfx, *suffixes = "?;?" SGS_MODULE_EXT ";?.sgc;?.sgs", *joinstr = "/";
+	char *pp, *ss, *prefixes, *osfx, *suffixes = SGS_INCLUDE_FILEPATHS( "" ), *joinstr = "/";
 	size_t joinstrlen;
 	SGSFN( "multiply_path_ext_lists" );
 	
@@ -3974,6 +4020,7 @@ static sgs_RegFuncConst regfuncs[] =
 	STDLIB_FN( eval ), STDLIB_FN( eval_file ), STDLIB_FN( compile_sgs ),
 	STDLIB_FN( include_library ), STDLIB_FN( include_file ),
 	STDLIB_FN( include_shared ), STDLIB_FN( import_cfunc ),
+	STDLIB_FN( find_include_file ),
 	STDLIB_FN( include ),
 	STDLIB_FN( sys_curfile ), STDLIB_FN( sys_curfiledir ), STDLIB_FN( sys_curprocfile ), STDLIB_FN( sys_curprocdir ),
 	STDLIB_FN( multiply_path_ext_lists ),

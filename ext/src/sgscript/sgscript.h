@@ -127,7 +127,16 @@ extern "C" {
 	- name of entry point function to look for
 	- the default include path */
 #define SGS_LIB_ENTRY_POINT "sgscript_main"
-#define SGS_INCLUDE_PATH "|/?;|/?" SGS_MODULE_EXT ";|/?.sgc;|/?.sgs;?;?" SGS_MODULE_EXT ";?.sgc;?.sgs;@/?;@/?" SGS_MODULE_EXT ";@/?.sgc;@/?.sgs"
+#define SGS_INCLUDE_FILEPATHS( PFX ) \
+	PFX "?;" /*exact name */ \
+	PFX "?" SGS_MODULE_EXT ";" /* library without prefix */ \
+	PFX "lib?" SGS_MODULE_EXT ";" /* library with prefix */ \
+	PFX "?.sgc;" /* compiled SGScript code */ \
+	PFX "?.sgs" /* SGScript source code */
+#define SGS_INCLUDE_PATH \
+	SGS_INCLUDE_FILEPATHS( "|/" ) ";" /* in calling file's directory */ \
+	SGS_INCLUDE_FILEPATHS( "" ) ";" /* in current directory */ \
+	SGS_INCLUDE_FILEPATHS( "@/" ) /* in process directory */
 
 
 /*****
@@ -154,16 +163,19 @@ extern "C" {
 
 #define SGS_UNUSED( x ) (void)(x)
 
-#if defined(__GNUC__) && ( __GNUC__ > 4 || ( __GNUC__ == 4 && __GNUC_MINOR__ >= 7 ) )
-#  define SGS_ASSUME_ALIGNED __builtin_assume_aligned
-#else
-#  define SGS_ASSUME_ALIGNED( x, a ) (x)
-#endif
+/* ideally it would be possible to specify how the pointer got its alignment ..
+.. or for the compiler to detect that; now it just throws pointless warnings...
+On top of that, OSX Clang seems to align sgs_Variable to 4 bytes even though ..
+.. the structure contains a union that contains pointers and a double. */
+#define SGS_ASSUME_ALIGNED( x, t ) ((t*)(void*)(x))
+#define SGS_ASSUME_ALIGNED_CONST( x, t ) ((const t*)(const void*)(x))
 
 #ifdef __cplusplus
-#define SGS_DECLARE extern
+#  define SGS_DECLARE extern
+#  define SGS_CLINK extern "C"
 #else
-#define SGS_DECLARE static
+#  define SGS_DECLARE static
+#  define SGS_CLINK
 #endif
 
 
@@ -171,20 +183,36 @@ extern "C" {
 #  define BUILDING_SGS 1
 #endif
 
-#if SGS_DLL && defined( _WIN32 )
-#  if BUILDING_SGS
-#    define SGS_APIFUNC __declspec(dllexport)
-#  else
-#    define SGS_APIFUNC __declspec(dllimport)
-#  endif
+#if defined( _WIN32 ) || defined( __CYGWIN__ )
+#  define SGS_DLL_IMPORT __declspec(dllimport)
+#  define SGS_DLL_EXPORT __declspec(dllexport)
 #else
-#  define SGS_APIFUNC
+#  if __GNUC__ >= 4
+#    define SGS_DLL_IMPORT __attribute__((visibility("default")))
+#    define SGS_DLL_EXPORT __attribute__((visibility("default")))
+#  else
+#    define SGS_DLL_IMPORT
+#    define SGS_DLL_EXPORT
+#  endif
 #endif
 
 #if SGS_DLL
+#  if BUILDING_SGS
+#    define SGS_APIFUNC SGS_DLL_EXPORT
+#  else
+#    define SGS_APIFUNC SGS_DLL_IMPORT
+#  endif
 #  define SGS_IF_DLL( dll, nodll ) dll
 #else
+#  define SGS_APIFUNC
 #  define SGS_IF_DLL( dll, nodll ) nodll
+#endif
+
+#ifdef SGS_COMPILE_MODULE
+#  define SGS_MODULE_ENTRY_POINT( fname ) \
+	SGS_CLINK SGS_APIFUNC int sgscript_main( SGS_CTX ){ return fname( C ); }
+#else
+#  define SGS_MODULE_ENTRY_POINT( fname )
 #endif
 
 #if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_PC_APP || WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP)

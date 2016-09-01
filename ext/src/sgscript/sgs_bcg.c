@@ -203,8 +203,8 @@ static sgs_FuncCtx* fctx_create( SGS_CTX )
 static void fctx_destroy( SGS_CTX, sgs_FuncCtx* fctx )
 {
 	sgs_CompFunc* func = &fctx->cfunc;
-	sgs_Variable* vbeg = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr, 4 );
-	sgs_Variable* vend = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr + func->consts.size, 4 );
+	sgs_Variable* vbeg = SGS_ASSUME_ALIGNED( func->consts.ptr, sgs_Variable );
+	sgs_Variable* vend = SGS_ASSUME_ALIGNED( func->consts.ptr + func->consts.size, sgs_Variable );
 	sgs_Variable* var = vbeg;
 	while( var < vend )
 	{
@@ -410,36 +410,32 @@ static void dump_opcode( const sgs_instr_t* ptr, size_t count )
 }
 
 
-static int find_var( sgs_MemBuf* S, char* str, unsigned len )
+static int find_var( sgs_MemBuf* S, const char* str, unsigned len )
 {
-	char* ptr = S->ptr;
-	char* pend = ptr + S->size;
-	const char* cstr = str;
-	int difs = 0, at = 0;
-	unsigned left = len;
-
+	int at = 0;
+	const char* ptr = S->ptr;
+	const char* pend = ptr + S->size;
+	const char* estr = str + len;
+	
 	while( ptr < pend )
 	{
-		if( *ptr == '=' )
+		/* compare ptr .. '=' with str .. str + len */
+		const char* cstr = str;
+		while( ptr < pend && *ptr != '=' && cstr < estr )
 		{
-			if( difs == 0 && !left )
-				return at;
-			difs = 0;
-			cstr = str;
-			left = len;
+			if( *ptr != *cstr )
+				break;
 			ptr++;
-			at++;
+			cstr++;
 		}
-		else
-		{
-			difs += abs( *cstr - *ptr );
-			ptr += *ptr != '=';
-			if( left > 0 )
-			{
-				left--;
-				cstr++;
-			}
-		}
+		if( ptr < pend && *ptr == '=' && cstr == estr )
+			return at;
+		
+		/* advance to next variable */
+		at++;
+		while( ptr < pend && *ptr != '=' )
+			ptr++;
+		ptr++; /* skip '=' */
 	}
 	return -1;
 }
@@ -747,8 +743,8 @@ static int preparse_funcorder( SGS_FNTCMP_ARGS )
 
 
 #define add_const_HDR \
-	sgs_Variable* vbeg = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr, 4 ); \
-	sgs_Variable* vend = (sgs_Variable*) (void*) SGS_ASSUME_ALIGNED( func->consts.ptr + func->consts.size, 4 ); \
+	sgs_Variable* vbeg = SGS_ASSUME_ALIGNED( func->consts.ptr, sgs_Variable ); \
+	sgs_Variable* vend = SGS_ASSUME_ALIGNED( func->consts.ptr + func->consts.size, sgs_Variable ); \
 	sgs_Variable* var = vbeg; \
 	sgs_Variable nvar;
 
@@ -939,8 +935,8 @@ static SGSBOOL compile_oper( SGS_FNTCMP_ARGS, rcpos_t* arg, int out, int expect 
 
 static void compile_defers( SGS_CTX, sgs_CompFunc* func, sgs_BlockInfo* until )
 {
-	size_t end = until ? until->defer_start : 0;
-	for( size_t i = C->fctx->num_defers; i > end; )
+	size_t i, end = until ? until->defer_start : 0;
+	for( i = C->fctx->num_defers; i > end; )
 	{
 		--i;
 		compile_node( C, func, C->fctx->defers[ i ] );
@@ -3175,8 +3171,8 @@ void sgsBC_Dump( sgs_CompFunc* func )
 void sgsBC_DumpEx( const char* constptr, size_t constsize,
 	const char* codeptr, size_t codesize )
 {
-	const sgs_Variable* vbeg = (const sgs_Variable*) (const void*) SGS_ASSUME_ALIGNED( constptr, 4 );
-	const sgs_Variable* vend = (const sgs_Variable*) (const void*) SGS_ASSUME_ALIGNED( constptr + constsize, 4 );
+	const sgs_Variable* vbeg = SGS_ASSUME_ALIGNED_CONST( constptr, sgs_Variable );
+	const sgs_Variable* vend = SGS_ASSUME_ALIGNED_CONST( constptr + constsize, sgs_Variable );
 	const sgs_Variable* var = vbeg;
 
 	printf( "{\n" );
@@ -3189,7 +3185,7 @@ void sgsBC_DumpEx( const char* constptr, size_t constsize,
 		var++;
 	}
 	printf( "> code:\n" );
-	dump_opcode( (const sgs_instr_t*) (const void*) SGS_ASSUME_ALIGNED( codeptr, 4 ), codesize / sizeof( sgs_instr_t ) );
+	dump_opcode( SGS_ASSUME_ALIGNED_CONST( codeptr, sgs_instr_t ), codesize / sizeof( sgs_instr_t ) );
 	printf( "}\n" );
 }
 
