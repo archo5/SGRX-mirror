@@ -496,7 +496,7 @@ EXP_STRUCT AIDBSystem : IGameLevelSystem
 	GFW_EXPORT AIZoneInfo GetZoneInfoByPos( Vec3 pos );
 	
 	GFW_EXPORT void _PrepareCoverRanges();
-	GFW_EXPORT LC_CoverPart* FindCover( Vec3 pos, Vec3 target, uint32_t mask = 0, uint32_t req = 0 );
+	GFW_EXPORT LC_CoverPart* FindCover( Vec3 pos, Vec3 target, uint32_t mask = 0, uint32_t req = 0, bool inv = false );
 	
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	GFW_EXPORT void FixedTick( float deltaTime );

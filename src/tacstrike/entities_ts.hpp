@@ -318,7 +318,7 @@ struct TSEnemyController : BhControllerBase
 	
 	// cover info
 	SGS_METHOD_NAMED( GetCover ) SGS_MULTRET sgsGetCover(
-		Vec3 position, Vec3 viewer, uint32_t mask /* = 0 */, uint32_t req /* = 0 */ );
+		Vec3 position, Vec3 viewer, uint32_t mask /* = 0 */, uint32_t req /* = 0 */, bool inv /* = false */ );
 	
 	// pathfinding
 	SGS_METHOD_NAMED( IsWalkable ) bool sgsIsWalkable( Vec3 pos, Vec3 ext );

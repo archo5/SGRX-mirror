@@ -373,7 +373,7 @@ int sgsVM_PushStackFrame( SGS_CTX, sgs_Variable* func )
 	}
 	
 	F->func = func;
-	if( func && func->type == SGS_VT_FUNC )
+	if( func->type == SGS_VT_FUNC )
 	{
 		sgs_iFunc* fn = func->data.F;
 		F->iptr = sgs_func_bytecode( fn );
@@ -1212,6 +1212,19 @@ static SGSRESULT vm_getprop( SGS_CTX, sgs_Variable* outmaybe, sgs_Variable* obj,
 			p_initvar( outmaybe, &var->val );
 			return 0;
 		}
+	}
+	else if( isobj && obj->data.O->iface == sgsstd_array_iface && !isprop )
+	{
+		sgsstd_array_header_t* hdr = (sgsstd_array_header_t*) obj->data.O->data;
+		sgs_Variable* ptr = hdr->data;
+		sgs_Int i = var_getint( idx );
+		if( i < 0 || i >= hdr->size )
+		{
+			sgs_Msg( C, SGS_WARNING, "array index out of bounds" );
+			return VM_GETPROP_ERR( SGS_EBOUNDS );
+		}
+		p_initvar( outmaybe, &ptr[ i ] );
+		return 0;
 	}
 	else if( isobj && obj->data.O->iface->getindex )
 	{
@@ -2278,18 +2291,30 @@ static void vm_postcall( SGS_CTX, int rvc )
 		int expect, args_from;
 		sf = C->sf_last; /* current function change */
 		
-		I = *(sf->iptr-1);
-		sgs_BreakIf( SGS_INSTR_GET_OP( I ) != SGS_SI_CALL );
-		expect = SGS_INSTR_GET_A( I );
-		args_from = SGS_INSTR_GET_B( I ) & 0xff;
-		stk_resize_expected( C, expect, rvc );
-		
-		if( expect )
+		if( *sf->iptr == SGS_SI_RETN )
 		{
-			int i;
-			for( i = expect - 1; i >= 0; --i )
-				stk_setlvar( C, args_from + i, C->stack_top - expect + i );
-			fstk_pop( C, expect );
+			/* next instr = return 0, this can mean one of two things:
+			- call is the last instruction in the function
+			- sgs_Abort was called
+			... in both cases we do not care about the return or expected values
+			*/
+			fstk_pop( C, rvc );
+		}
+		else
+		{
+			I = *(sf->iptr-1);
+			sgs_BreakIf( SGS_INSTR_GET_OP( I ) != SGS_SI_CALL );
+			expect = SGS_INSTR_GET_A( I );
+			args_from = SGS_INSTR_GET_B( I ) & 0xff;
+			stk_resize_expected( C, expect, rvc );
+			
+			if( expect )
+			{
+				int i;
+				for( i = expect - 1; i >= 0; --i )
+					stk_setlvar( C, args_from + i, C->stack_top - expect + i );
+				fstk_pop( C, expect );
+			}
 		}
 	}
 }
@@ -2824,14 +2849,14 @@ void sgsVM_VarDump( const sgs_Variable* var )
 	case SGS_VT_BOOL: printf( " = %s", var->data.B ? "True" : "False" ); break;
 	case SGS_VT_INT: printf( " = %" PRId64, var->data.I ); break;
 	case SGS_VT_REAL: printf( " = %f", var->data.R ); break;
-	case SGS_VT_STRING: printf( " [rc:%"PRId32"] = \"", var->data.S->refcount );
+	case SGS_VT_STRING: printf( " [rc:%" PRId32"] = \"", var->data.S->refcount );
 		sgs_print_safe( stdout, sgs_var_cstr( var ), SGS_MIN( var->data.S->size, 16 ) );
 		printf( var->data.S->size > 16 ? "...\"" : "\"" ); break;
-	case SGS_VT_FUNC: printf( " [rc:%"PRId32"]", var->data.F->refcount ); break;
+	case SGS_VT_FUNC: printf( " [rc:%" PRId32"]", var->data.F->refcount ); break;
 	case SGS_VT_CFUNC: printf( " = %p", (void*)(size_t) var->data.C ); break;
-	case SGS_VT_OBJECT: printf( " [rc:%"PRId32"] = %p", var->data.O->refcount, var->data.O ); break;
+	case SGS_VT_OBJECT: printf( " [rc:%" PRId32"] = %p", var->data.O->refcount, var->data.O ); break;
 	case SGS_VT_PTR: printf( " = %p", var->data.P ); break;
-	case SGS_VT_THREAD: printf( " [rc:%"PRId32"] = %p", var->data.T->refcount, var->data.T ); break;
+	case SGS_VT_THREAD: printf( " [rc:%" PRId32"] = %p", var->data.T->refcount, var->data.T ); break;
 	}
 }
 
@@ -3444,8 +3469,8 @@ SGSBOOL sgs_StorePath( SGS_CTX, sgs_Variable var, sgs_Variable val, const char* 
 		int prop = -1;
 		char a = path[ len - 1 ];
 		
-		if( sgs_parse_path_key( C, "sgs_StorePath", len - 1, &args, a, &key, &prop ) == SGS_FALSE )
-			return SGS_FALSE;
+		if( ( ret = sgs_parse_path_key( C, "sgs_StorePath", len - 1, &args, a, &key, &prop ) ) == SGS_FALSE )
+			goto fail;
 		
 		ret = sgs_SetIndex( C, *stk_gettop( C ), key, val, prop );
 		VAR_RELEASE( &key );
@@ -4206,7 +4231,7 @@ void sgs_DumpVar( SGS_CTX, sgs_Variable var, int maxdepth )
 			char* source = sgs_var_cstr( &var );
 			uint32_t len = var.data.S->size;
 			char* srcend = source + len;
-			sprintf( buf, "string [%"PRId32"] \"", len );
+			sprintf( buf, "string [%" PRId32"] \"", len );
 			bptr += strlen( buf );
 			while( source < srcend && bptr < bend )
 			{
@@ -4271,7 +4296,7 @@ void sgs_DumpVar( SGS_CTX, sgs_Variable var, int maxdepth )
 		break;
 	case SGS_VT_OBJECT:
 		{
-			char buf[ 32 ];
+			char buf[ 256 ];
 			int q = 0;
 			_STACK_PREPARE;
 			sgs_VarObj* obj = var.data.O;
@@ -4285,8 +4310,9 @@ void sgs_DumpVar( SGS_CTX, sgs_Variable var, int maxdepth )
 			
 			if( !q )
 			{
-				sprintf( buf, "object (%p) [%"PRId32"] %s", (void*) obj, obj->refcount,
+				snprintf( buf, 255, "object (%p) [%" PRId32"] %s", (void*) obj, obj->refcount,
 					obj->iface->name ? obj->iface->name : "<unnamed>" );
+				buf[ 255 ] = 0;
 				sgs_PushString( C, buf );
 			}
 			else
@@ -4327,6 +4353,15 @@ static void sgsVM_GCExecute( SGS_SHCTX )
 	S->gcrun = SGS_TRUE;
 	
 	SGS_CTX = S->state_list;
+	/* shared state */
+	/* - interfaces */
+	if( S->array_iface )
+	{
+		obj_gcmark( S, S->array_iface );
+	}
+	/* - registry */
+	sgsSTD_RegistryGC( S );
+	
 	while( C )
 	{
 		/* -- MARK -- */
@@ -4350,8 +4385,6 @@ static void sgsVM_GCExecute( SGS_SHCTX )
 		
 		/* GLOBALS */
 		sgsSTD_GlobalGC( C );
-		/* REGISTRY */
-		sgsSTD_RegistryGC( C );
 		/* THREADS */
 		sgsSTD_ThreadsGC( C );
 		
@@ -4866,7 +4899,7 @@ void sgs_IterGetData( SGS_CTX, sgs_Variable var, sgs_Variable* key, sgs_Variable
 		return;
 	if( key ) fstk_push_null( C );
 	if( value ) fstk_push_null( C );
-	vm_fornext( C, key ? stk_absindex( C, value ? -2 : -1 ) : -1, value ? stk_absindex( C, -1 ) : -1, &var );
+	vm_fornext( C, key ? stk_topindex( C, value ? -2 : -1 ) : -1, value ? stk_topindex( C, -1 ) : -1, &var );
 	if( value ) sgs_StoreVariable( C, value );
 	if( key ) sgs_StoreVariable( C, key );
 }

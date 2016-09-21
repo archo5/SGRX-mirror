@@ -717,7 +717,7 @@ static int _sgs_method__TSEnemyController__GetCover( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, GetCover ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	return data->sgsGetCover( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<uint32_t>()(C,2), sgs_GetVar<uint32_t>()(C,3) );
+	return data->sgsGetCover( sgs_GetVar<Vec3>()(C,0), sgs_GetVar<Vec3>()(C,1), sgs_GetVar<uint32_t>()(C,2), sgs_GetVar<uint32_t>()(C,3), sgs_GetVar<bool>()(C,4) );
 }
 
 static int _sgs_method__TSEnemyController__IsWalkable( SGS_CTX )

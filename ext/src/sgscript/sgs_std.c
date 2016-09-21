@@ -735,7 +735,7 @@ static int sgsstd_array_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	char bfr[ 32 ];
 	int i, ssz = stk_size( C );
 	SGSARR_HDR_OI;
-	sprintf( bfr, "array (%"PRId32")\n[", hdr->size );
+	sprintf( bfr, "array (%" PRId32")\n[", hdr->size );
 	sgs_PushString( C, bfr );
 	if( depth )
 	{
@@ -872,9 +872,7 @@ static int sgsstd_array_convert( SGS_CTX, sgs_VarObj* obj, int type )
 			}
 		}
 		
-		sgs_PushInterface( C, sgsstd_array_iface_gen );
-		sgs_ObjSetMetaObj( C, sgs_GetObjectStruct( C, -2 ), p_obj( stk_gettop( C ) ) );
-		fstk_pop1( C );
+		sgs_ObjSetMetaObj( C, p_obj( stk_ptop( C, -1 ) ), C->shared->array_iface );
 		
 		return SGS_SUCCESS;
 	}
@@ -947,9 +945,7 @@ static int sgsstd_array( SGS_CTX )
 	while( p < pend )
 		sgs_GetStackItem( C, i++, p++ );
 	
-	sgs_PushInterface( C, sgsstd_array_iface_gen );
-	sgs_ObjSetMetaObj( C, p_obj( stk_ptop( C, -2 ) ), p_obj( stk_ptop( C, -1 ) ) );
-	fstk_pop1( C );
+	sgs_ObjSetMetaObj( C, p_obj( stk_ptop( C, -1 ) ), C->shared->array_iface );
 	
 	return 1;
 }
@@ -975,9 +971,7 @@ static int sgsstd_array_sized( SGS_CTX )
 	while( p < pend )
 		(p++)->type = SGS_VT_NULL;
 	
-	sgs_PushInterface( C, sgsstd_array_iface_gen );
-	sgs_ObjSetMetaObj( C, p_obj( stk_ptop( C, -2 ) ), p_obj( stk_ptop( C, -1 ) ) );
-	fstk_pop1( C );
+	sgs_ObjSetMetaObj( C, p_obj( stk_ptop( C, -1 ) ), C->shared->array_iface );
 	
 	return 1;
 }
@@ -1033,7 +1027,7 @@ static int sgsstd_vht_dump( SGS_CTX, sgs_VarObj* obj, int depth, const char* nam
 	pair = ht->vars;
 	pend = ht->vars + sgs_vht_size( ht );
 	ssz = stk_size( C );
-	sprintf( bfr, "%s (%"PRId32")\n{", name, sgs_vht_size( ht ) );
+	sprintf( bfr, "%s (%" PRId32")\n{", name, sgs_vht_size( ht ) );
 	sgs_PushString( C, bfr );
 	if( depth )
 	{
@@ -1510,7 +1504,7 @@ static int sgsstd_closure_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 	for( i = 0; i < cc; ++i )
 	{
 		char intro[ 64 ];
-		sprintf( intro, "\n#%d (rc=%"PRId32"): ", (int) i, cls[ i ]->refcount );
+		sprintf( intro, "\n#%d (rc=%" PRId32"): ", (int) i, cls[ i ]->refcount );
 		sgs_PushString( C, intro );
 		sgs_DumpVar( C, cls[ i ]->var, depth );
 	}
@@ -4066,6 +4060,8 @@ void sgsSTD_PostInit( SGS_CTX )
 	sgs_RegFuncConsts( C, regfuncs, SGS_ARRAY_SIZE( regfuncs ) );
 	
 	sgs_PushInterface( C, sgsstd_array_iface_gen );
+	C->shared->array_iface = stk_gettop( C )->data.O;
+	sgs_ObjAcquire( C, C->shared->array_iface );
 	sgs_SetGlobalByName( C, "array", *stk_gettop( C ) );
 	sgs_RegSymbol( C, "", "array", *stk_gettop( C ) );
 	fstk_pop1( C );
@@ -4122,9 +4118,7 @@ SGSBOOL sgsSTD_MakeArray( SGS_CTX, sgs_Variable* out, sgs_SizeVal cnt )
 			sgs_Pop( C, cnt );
 		}
 		
-		sgs_PushInterface( C, sgsstd_array_iface_gen );
-		sgs_ObjSetMetaObj( C, p_obj( out ), p_obj( stk_gettop( C ) ) );
-		fstk_pop1( C );
+		sgs_ObjSetMetaObj( C, p_obj( out ), C->shared->array_iface );
 		
 		return SGS_TRUE;
 	}
@@ -4249,13 +4243,19 @@ void sgsSTD_RegistryFree( SGS_CTX )
 	}
 }
 
-void sgsSTD_RegistryGC( SGS_CTX )
+void sgsSTD_RegistryGC( SGS_SHCTX )
 {
-	SGS_SHCTX_USE;
-	sgs_VarObj* obj = RLBP;
-	if( obj )
+	if( RLBP )
 	{
-		sgs_ObjGCMark( C, obj );
+		sgs_ObjGCMark( S->ctx_root, RLBP );
+	}
+	if( INCP )
+	{
+		sgs_ObjGCMark( S->ctx_root, INCP );
+	}
+	if( SYMP )
+	{
+		sgs_ObjGCMark( S->ctx_root, SYMP );
 	}
 }
 

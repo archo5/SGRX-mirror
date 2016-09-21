@@ -1752,6 +1752,10 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 	static const float depth = 0.7f;
 	static const float sideoff = 0.2f;
 	static const float sidedepth = 1.5f;
+	static const float maxEdgeLen = 0.4f;
+	static const float depthX = depth * 1.42f;
+	static const Mat4 rL = Mat4::CreateRotationZ( DEG2RAD( 45 ) );
+	static const Mat4 rR = Mat4::CreateRotationZ( DEG2RAD( -45 ) );
 	
 	out.clear();
 	
@@ -1788,21 +1792,31 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 				const float* v0 = &tile->verts[p->verts[j]*3];
 				const float* v1 = &tile->verts[p->verts[(j+1) % nj]*3];
 				
-				Vec3 p0 = RC2SGRX( Vec3::CreateFromPtr( v0 ) );
-				Vec3 p1 = RC2SGRX( Vec3::CreateFromPtr( v1 ) );
-				Vec3 nrm = Vec3Cross( V3(0,0,1), p1 - p0 ).Normalized();
-				
-				Vec3 rco1 = TLERP( p0, p1, 0.25f );
-				Vec3 rco2 = TLERP( p0, p1, 0.75f );
-				bool hit_l1 = rc.Hit( rco1 + V3(0,0,height1), nrm, depth );
-				bool hit_l2 = rc.Hit( rco2 + V3(0,0,height1), nrm, depth );
-				bool hit_h1 = rc.Hit( rco1 + V3(0,0,height2), nrm, depth );
-				bool hit_h2 = rc.Hit( rco2 + V3(0,0,height2), nrm, depth );
-				int cl1 = hit_l1 ? ( hit_h1 ? 2 : 1 ) : 0;
-				int cl2 = hit_l2 ? ( hit_h2 ? 2 : 1 ) : 0;
-				float cht1 = hit_h1 ? height2 : height1;
-				float cht2 = hit_h2 ? height2 : height1;
-				
+				Vec3 op0 = RC2SGRX( Vec3::CreateFromPtr( v0 ) );
+				Vec3 op1 = RC2SGRX( Vec3::CreateFromPtr( v1 ) );
+				float olength = ( op1 - op0 ).Length();
+				int partcount = ceil( olength / maxEdgeLen );
+				for( int e = 0; e < partcount; ++e )
+				{
+					float eq0 = e / float(partcount);
+					float eq1 = ( e + 1 ) / float(partcount);
+					Vec3 p0 = TLERP( op0, op1, eq0 );
+					Vec3 p1 = TLERP( op0, op1, eq1 );
+					Vec3 nrm = Vec3Cross( V3(0,0,1), p1 - p0 ).Normalized();
+					Vec3 nrmL = rL.TransformNormal( nrm );
+					Vec3 nrmR = rR.TransformNormal( nrm );
+					
+					Vec3 rco1 = TLERP( p0, p1, 0.25f );
+					Vec3 rco2 = TLERP( p0, p1, 0.75f );
+					bool hit_l1 = rc.Hit( rco1 + V3(0,0,height1), nrm, depth ) && rc.Hit( rco1 + V3(0,0,height1), nrmL, depthX ) && rc.Hit( rco1 + V3(0,0,height1), nrmR, depthX );
+					bool hit_l2 = rc.Hit( rco2 + V3(0,0,height1), nrm, depth ) && rc.Hit( rco2 + V3(0,0,height1), nrmL, depthX ) && rc.Hit( rco2 + V3(0,0,height1), nrmR, depthX );
+					bool hit_h1 = rc.Hit( rco1 + V3(0,0,height2), nrm, depth ) && rc.Hit( rco1 + V3(0,0,height2), nrmL, depthX ) && rc.Hit( rco1 + V3(0,0,height2), nrmR, depthX );
+					bool hit_h2 = rc.Hit( rco2 + V3(0,0,height2), nrm, depth ) && rc.Hit( rco2 + V3(0,0,height2), nrmL, depthX ) && rc.Hit( rco2 + V3(0,0,height2), nrmR, depthX );
+					int cl1 = hit_l1 ? ( hit_h1 ? 2 : 1 ) : 0;
+					int cl2 = hit_l2 ? ( hit_h2 ? 2 : 1 ) : 0;
+					float cht1 = hit_h1 ? height2 : height1;
+					float cht2 = hit_h2 ? height2 : height1;
+					
 #define COVER_PUSH_EDGE( pt0, pt1, cl ) \
 	LC_CoverPart cp = { pt0, pt1, nrm, ref, cl == 1 ? COVER_LOW : 0 }; \
 	Vec3 stdir = ( pt1 - pt0 ).Normalized() * sideoff; \
@@ -1814,32 +1828,33 @@ bool LevelCache::GenerateCoverData( const ByteView& navData, Array<LC_CoverPart>
 	objex.AddVertex( pt0, V2(0), V3(0,0,1) ); \
 	objex.AddVertex( pt1, V2(0), V3(0,0,1) ); \
 	objex.AddVertex( (pt0+pt1)*0.5f-nrm*0.1f, V2(0), V3(0,0,1) );
-				
-				if( cl1 == cl2 )
-				{
-					// same level, do not split line
-					if( cl1 != 0 )
+					
+					if( cl1 == cl2 )
 					{
-						COVER_PUSH_EDGE( p0, p1, cl1 );
+						// same level, do not split line
+						if( cl1 != 0 )
+						{
+							COVER_PUSH_EDGE( p0, p1, cl1 );
+						}
 					}
-				}
-				else
-				{
-					// different levels, process line parts separately
-					Vec3 p0a = p0, p0b = ( p0 + p1 ) * 0.5f;
-					Vec3 p1a = p0b, p1b = p1;
-					if( cl1 != 0 )
+					else
 					{
-						COVER_PUSH_EDGE( p0a, p0b, cl1 );
+						// different levels, process line parts separately
+						Vec3 p0a = p0, p0b = ( p0 + p1 ) * 0.5f;
+						Vec3 p1a = p0b, p1b = p1;
+						if( cl1 != 0 )
+						{
+							COVER_PUSH_EDGE( p0a, p0b, cl1 );
+						}
+						if( cl2 != 0 )
+						{
+							COVER_PUSH_EDGE( p1a, p1b, cl2 );
+						}
 					}
-					if( cl2 != 0 )
-					{
-						COVER_PUSH_EDGE( p1a, p1b, cl2 );
-					}
-				}
-			}
-		}
-	}
+				} // < edge parts
+			} // < edges
+		} // < polygons
+	} // < tiles
 	objex.Save( "cover.obj", "Exported from SGRX editor" );
 	
 ending:

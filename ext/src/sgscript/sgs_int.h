@@ -479,6 +479,7 @@ void sgsVM_DestroyVar( SGS_CTX, sgs_Variable* p );
 #define stk_ptop( C, off ) ((C)->stack_top + (off))
 #define stk_gettop( C ) stk_ptop( C, -1 )
 #define stk_size( C ) ((sgs_StkIdx)((C)->stack_top - (C)->stack_off))
+#define stk_topindex( C, off ) ((sgs_StkIdx)((off) + stk_size(C)))
 #define stk_absindex( C, off ) ((sgs_StkIdx)((off) >= 0 ? (off) : (off) + stk_size(C)))
 
 #define DEBUG_STACK 0
@@ -493,7 +494,7 @@ void fstk_resize( SGS_CTX, size_t nsz );
 #  define stk_makespace( C, num ){ \
 	size_t _reqsz = (size_t) ( ( C->stack_top - C->stack_base ) + (num) ); \
 	sgs_BreakIf( (num) < 0 ); \
-	sgs_BreakIf( _reqsz < (num) ); /* overflow test */ \
+	sgs_BreakIf( _reqsz < (size_t)(num) ); /* overflow test */ \
 	if( _reqsz > (C)->stack_mem ) fstk_resize( (C), _reqsz ); }
 #endif
 
@@ -686,6 +687,9 @@ struct sgs_ShCtx
 	sgs_VHTable   stringtable; /* string constant caching hash table */
 	sgs_VHTable   ifacetable; /* interface generator => object table */
 	
+	/* cached interface objects */
+	sgs_VarObj*   array_iface;
+	
 	/* > _R (global registry) */
 	sgs_VarObj*   _R;
 	sgs_VarObj*   _SYM;
@@ -821,7 +825,7 @@ void sgsSTD_ThreadsFree( SGS_CTX );
 void sgsSTD_ThreadsGC( SGS_CTX );
 void sgsSTD_RegistryInit( SGS_CTX );
 void sgsSTD_RegistryFree( SGS_CTX );
-void sgsSTD_RegistryGC( SGS_CTX );
+void sgsSTD_RegistryGC( SGS_SHCTX );
 void sgsSTD_RegistryIter( SGS_CTX, int subtype, sgs_VHTVar** outp, sgs_VHTVar** outpend );
 void sgsSTD_GlobalInit( SGS_CTX );
 void sgsSTD_GlobalFree( SGS_CTX );

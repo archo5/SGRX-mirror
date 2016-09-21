@@ -5,8 +5,8 @@
 
 #define SGS_VERSION_MAJOR 1
 #define SGS_VERSION_MINOR 4
-#define SGS_VERSION_INCR  0
-#define SGS_VERSION "1.4.0"
+#define SGS_VERSION_INCR  1
+#define SGS_VERSION "1.4.1"
 
 #define SGS_VERSION_OFFSET 8
 #define SGS_VERSION_INT ( ( ( ( SGS_VERSION_MAJOR << SGS_VERSION_OFFSET ) | \
@@ -102,7 +102,7 @@ extern "C" {
 #define SGS_STRINGTABLE_MAXLEN 0x7fffffff
 
 /* max. length of the call stack */
-#define SGS_MAX_CALL_STACK_SIZE 256
+#define SGS_MAX_CALL_STACK_SIZE 200
 
 /* the size of the stack buffer for temporary vsprintf'ed text
 	if predicted text length is longer than that, the memory
@@ -899,17 +899,6 @@ SGS_APIFUNC uint32_t sgs_ItemType( SGS_CTX, sgs_StkIdx item );
 SGS_APIFUNC void sgs_Assign( SGS_CTX, sgs_Variable* var_to, sgs_Variable* var_from );
 SGS_APIFUNC void sgs_ArithOp( SGS_CTX, sgs_Variable* out, sgs_Variable* A, sgs_Variable* B, int op );
 SGS_APIFUNC void sgs_IncDec( SGS_CTX, sgs_Variable* out, sgs_Variable* A, int inc );
-
-/*
-	CLOSURES
-*/
-SGS_APIFUNC void sgs_ClPushNulls( SGS_CTX, sgs_StkIdx num );
-SGS_APIFUNC void sgs_ClPushVariable( SGS_CTX, sgs_Variable var );
-SGS_APIFUNC void sgs_ClPushItem( SGS_CTX, sgs_StkIdx item );
-SGS_APIFUNC void sgs_ClPop( SGS_CTX, sgs_StkIdx num );
-SGS_APIFUNC void sgs_MakeClosure( SGS_CTX, sgs_Variable* func, sgs_StkIdx clcount, sgs_Variable* out );
-SGS_APIFUNC void sgs_ClGetItem( SGS_CTX, sgs_StkIdx item, sgs_Variable* out );
-SGS_APIFUNC void sgs_ClSetItem( SGS_CTX, sgs_StkIdx item, sgs_Variable* var );
 
 /*
 	OPERATIONS

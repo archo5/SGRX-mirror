@@ -1634,9 +1634,9 @@ void TSEnemyController::sgsInsertOrUpdateFact( uint32_t type, Vec3 pos,
 }
 
 SGS_MULTRET TSEnemyController::sgsGetCover(
-	Vec3 position, Vec3 viewer, uint32_t mask /* = 0 */, uint32_t req /* = 0 */ )
+	Vec3 position, Vec3 viewer, uint32_t mask /* = 0 */, uint32_t req /* = 0 */, bool inv /* = false */ )
 {
-	LC_CoverPart* cover = m_aidb->FindCover( position, viewer, mask, req );
+	LC_CoverPart* cover = m_aidb->FindCover( position, viewer, mask, req, inv );
 	if( cover == NULL )
 		return 0;
 	sgs_PushVar( C, ( cover->p0 + cover->p1 ) * 0.5f );
@@ -1724,6 +1724,12 @@ TSGameSystem::TSGameSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_u
 		{ "ACT_Chr_Shoot", ACT_Chr_Shoot },
 		{ "ACT_Chr_DoAction", ACT_Chr_DoAction },
 		{ "ACT_Chr_ReloadHolsterDrop", ACT_Chr_ReloadHolsterDrop },
+		
+		{ "COVER_LOW", COVER_LOW },
+		{ "COVER_OPENLEFT", COVER_OPENLEFT },
+		{ "COVER_OPENRIGHT", COVER_OPENRIGHT },
+		{ "COVER_OPENTYPE", COVER_OPENTYPE },
+		
 		{ NULL, 0 },
 	};
 	sgs_RegIntConsts( lev->GetSGSC(), g_ts_ints, -1 );

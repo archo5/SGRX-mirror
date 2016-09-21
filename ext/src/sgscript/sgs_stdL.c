@@ -823,7 +823,7 @@ static int commit_fmtspec( SGS_CTX, sgs_MemBuf* B, struct fmtspec* F, int* psi )
 			if( F->prec < 0 )
 				F->prec = 6;
 			
-			sprintf( tmpl, "%%.%"PRId32"%c", F->prec, F->type );
+			sprintf( tmpl, "%%.%" PRId32"%c", F->prec, F->type );
 			snprintf( data, FLT_MAXSIZE, tmpl, R );
 			data[ FLT_MAXSIZE ] = 0;
 			size = (int) strlen( data );
@@ -1933,6 +1933,11 @@ static int sgsstd_io_file_read( SGS_CTX )
 		}
 		fseek( fp, 0, SEEK_END );
 		len = ftell( fp );
+		if( len < 0 )
+		{
+			fclose( fp );
+			STDLIB_WARN( "failed to retrieve length of file" );
+		}
 		fseek( fp, 0, SEEK_SET );
 		
 		if( len > 0x7fffffff )
@@ -2040,7 +2045,7 @@ static int sgsstd_fileI_open( SGS_CTX )
 	char* path;
 	sgs_Int flags;
 	
-	FILE_IHDR( open )
+	FILE_IHDR( open ) /* contains data */
 	
 	if( !sgs_LoadArgs( C, "si", &path, &flags ) )
 		return 0;
@@ -2051,9 +2056,9 @@ static int sgsstd_fileI_open( SGS_CTX )
 	if( FVAR )
 		fclose( FVAR );
 	
-	sgs_SetObjectData( C, 0, fopen( path, g_io_fileflagmodes[ ff ] ) );
+	sgs_SetObjectData( C, 0, data = fopen( path, g_io_fileflagmodes[ ff ] ) );
 	
-	CRET( !!FVAR );
+	CRET( !!data );
 }
 
 static int sgsstd_fileI_close( SGS_CTX )

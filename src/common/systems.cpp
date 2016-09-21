@@ -1750,7 +1750,7 @@ void AIDBSystem::_PrepareCoverRanges()
 		<< " cover ranges for " << m_coverParts.size() << " covers";
 }
 
-LC_CoverPart* AIDBSystem::FindCover( Vec3 pos, Vec3 target, uint32_t mask, uint32_t req )
+LC_CoverPart* AIDBSystem::FindCover( Vec3 pos, Vec3 target, uint32_t mask, uint32_t req, bool inv )
 {
 	// some of these parameters can be made configurable
 #define COVER_POLY_VISIT_LIMIT 64
@@ -1760,6 +1760,7 @@ LC_CoverPart* AIDBSystem::FindCover( Vec3 pos, Vec3 target, uint32_t mask, uint3
 	m_fcPolyQueue.clear();
 	size_t numSearched = 0;
 	uint32_t firstPoly = m_pathfinder.FindPoly( pos );
+	bool checkdir = pos != target;
 	if( firstPoly )
 		m_fcPolyQueue.push_back( firstPoly );
 	while( numSearched < m_fcPolyQueue.size() )
@@ -1778,14 +1779,15 @@ LC_CoverPart* AIDBSystem::FindCover( Vec3 pos, Vec3 target, uint32_t mask, uint3
 			{
 				LC_CoverPart* cp = &m_coverParts[ cid ];
 				// cover does not fit requirements
-				if( ( cp->flags & mask ) != req )
+				if( ( ( cp->flags & mask ) != req ) ^ inv )
 					continue;
 				// cover does not work
 				Vec2 cdir = V2(
 					target.x - ( cp->p0.x + cp->p1.x ) * 0.5f,
 					target.y - ( cp->p0.y + cp->p1.y ) * 0.5f
-				);
-				if( Vec2Dot( cdir, cp->n.ToVec2() ) < 0 )
+				).Normalized();
+				if( checkdir &&
+					Vec2Dot( cdir, cp->n.ToVec2().Normalized() ) < cosf(DEG2RAD(45)) )
 					continue;
 				
 				return cp;
