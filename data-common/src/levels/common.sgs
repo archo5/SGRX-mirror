@@ -264,6 +264,38 @@ function BhObjectRotate.EditorGUI( ui )
 	ui.EditVec3( "Speed", this, "speed", -100000, 100000 );
 }
 
+// === OBJECT SINE MOVER === //
+class BhObjectMoveSine
+{
+	function Init()
+	{
+		this.speed = 1;
+		this.axis = vec3(0,0,1);
+		this.pos = this.object.position;
+	}
+	function Update()
+	{
+		this.object.position = this.pos + this.axis * sin( this.speed * ( level.GetPhyTime() / 1000 ) * 2 * M_PI );
+	}
+	function EditorGUI( ui )
+	{
+		ui.EditFloat( "Speed", this, "speed", -100000, 100000 );
+		ui.EditVec3( "Axis", this, "axis", -100000, 100000 );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_SetPrimitiveType( PT_Lines );
+		BR_Col( 0.1, 0.9, 0.1, 0.8 );
+		BR_Pos( this.object.position );
+		BR_Pos( this.object.position + this.axis );
+		BR_Col( 0.9, 0.1, 0.1, 0.8 );
+		BR_Pos( this.object.position );
+		BR_Pos( this.object.position - this.axis );
+	}
+}
+BEHAVIOR( "BhObjectMoveSine", "GOBehavior" );
+
 // === MESH ARRAY === //
 global BhMeshArray = {};
 BEHAVIOR( "BhMeshArray", "GOBehavior" );
