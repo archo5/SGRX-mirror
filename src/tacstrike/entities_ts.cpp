@@ -260,7 +260,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	rbinfo.position = V3(0) + V3(0,0,1);
 	rbinfo.canSleep = false;
 	rbinfo.group = 2;
-	rbinfo.mask = 1|2;
+	rbinfo.mask = 1;//|2;
 	rbinfo.ccdSweptSphereRadius = 0.3f;
 	rbinfo.ccdMotionThreshold = 0.001f;
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
@@ -438,6 +438,34 @@ void TSCharacter::FixedUpdate()
 	}
 }
 
+
+struct CharMoveAwayProc : GameObjectProcessor
+{
+	CharMoveAwayProc( TSCharacter* c, const Vec3& p ) : self(c), pos(p), force(V3(0)){}
+	bool ProcessGameObject( GameObject* obj )
+	{
+		static const float character_radius = 0.4f;
+		
+		TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
+		if( !chr || !chr->IsAlive() || chr == self )
+			return false;
+		
+		Vec3 ocp = chr->m_ivPos.Get( chr->m_level->GetBlendFactor() );
+		Vec3 dir = pos - ocp;
+		float dist = dir.Length();
+		if( dist > 0.0001f && dist < character_radius * 2 )
+		{
+			float diff = character_radius * 2 - dist;
+			force += dir * ( diff * 0.5f / dist );
+		}
+		return false;
+	}
+	Vec3 GetForce() const { return force; }
+	TSCharacter* self;
+	Vec3 pos;
+	Vec3 force;
+};
+
 void TSCharacter::Update()
 {
 	float deltaTime = m_level->GetDeltaTime();
@@ -449,6 +477,13 @@ void TSCharacter::Update()
 		TurnTo( turn.ToVec2(), turn.z * deltaTime );
 	
 	Vec3 pos = m_ivPos.Get( blendFactor );
+	if( IsAlive() )
+	{
+		CharMoveAwayProc cmap( this, pos );
+		m_level->QuerySphere( &cmap, IEST_Target, GetQueryPosition_FT(), 2.0f );
+		pos += cmap.GetForce();
+		m_bodyHandle->ApplyCentralForce( PFT_Velocity, cmap.GetForce() * deltaTime );
+	}
 	
 	SGRX_MeshInstance* MI = m_animChar.m_cachedMeshInst;
 	MI->matrix = Mat4::CreateTranslation( pos ); // Mat4::CreateSRT( V3(1), rdir, pos );
@@ -663,7 +698,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	float maxspeed = 5 * ctrl->GetInputV3( ACT_Chr_Move ).z;
 	float accel = ( md.NearZero() && !m_isCrouching ) ? 38 : 30;
 	if( m_isCrouching ){ accel = 5; maxspeed = 2.5f; }
-	if( !ground ){ accel = 10; }
+	if( !ground ){ accel = 0; /* 10 */; } // TODO CREATE VARIABLE
 	
 	float curspeed = Vec2Dot( lvel2, md );
 	float revmaxfactor = clamp( maxspeed - curspeed, 0, 1 );
