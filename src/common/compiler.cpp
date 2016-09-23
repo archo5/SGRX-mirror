@@ -1381,7 +1381,7 @@ bool LevelCache::GenerateNavmesh( ByteArray& outData )
 	float cellHeight = 0.1f;
 	float agentHeight = 1.5f;
 	float agentRadius = 0.4f;
-	float agentMaxClimb = 0.2f;
+	float agentMaxClimb = 0.5f;
 	float agentMaxSlope = 45.0f;
 	int regionMinSize = 2;
 	int regionMergeSize = 10;
