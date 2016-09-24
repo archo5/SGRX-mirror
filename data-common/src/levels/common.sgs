@@ -395,6 +395,9 @@ function MapLayer.ED_PropInfo( eptr )
 {
 	EE_AddFieldVec3( eptr, "position", "Position", 0, 2, EDPI_Pos_Min, EDPI_Pos_Max );
 }
+function MapLayer.EditorDrawWorld()
+{
+}
 
 
 global SolidBox = {};
