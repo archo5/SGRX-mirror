@@ -678,11 +678,25 @@ static int _sgs_method__TSEnemyController__HasFact( SGS_CTX )
 	sgs_PushVar(C,data->sgsHasFact( sgs_GetVar<uint32_t>()(C,0) )); return 1;
 }
 
+static int _sgs_method__TSEnemyController__ExpireFacts( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, ExpireFacts ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsExpireFacts( sgs_GetVar<uint32_t>()(C,0) )); return 1;
+}
+
 static int _sgs_method__TSEnemyController__HasRecentFact( SGS_CTX )
 {
 	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, HasRecentFact ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	sgs_PushVar(C,data->sgsHasRecentFact( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1) )); return 1;
+}
+
+static int _sgs_method__TSEnemyController__HasRecentFactAt( SGS_CTX )
+{
+	TSEnemyController* data; if( !SGS_PARSE_METHOD( C, TSEnemyController::_sgs_interface, data, TSEnemyController, HasRecentFactAt ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsHasRecentFactAt( sgs_GetVar<uint32_t>()(C,0), sgs_GetVar<TimeVal>()(C,1), sgs_GetVar<Vec3>()(C,2), sgs_GetVar<float>()(C,3) )); return 1;
 }
 
 static int _sgs_method__TSEnemyController__GetRecentFact( SGS_CTX )
@@ -846,7 +860,9 @@ static sgs_RegFuncConst TSEnemyController__sgs_funcs[] =
 	{ "CanSeePoint", _sgs_method__TSEnemyController__CanSeePoint },
 	{ "LookingAtPoint", _sgs_method__TSEnemyController__LookingAtPoint },
 	{ "HasFact", _sgs_method__TSEnemyController__HasFact },
+	{ "ExpireFacts", _sgs_method__TSEnemyController__ExpireFacts },
 	{ "HasRecentFact", _sgs_method__TSEnemyController__HasRecentFact },
+	{ "HasRecentFactAt", _sgs_method__TSEnemyController__HasRecentFactAt },
 	{ "GetRecentFact", _sgs_method__TSEnemyController__GetRecentFact },
 	{ "InsertFact", _sgs_method__TSEnemyController__InsertFact },
 	{ "UpdateFact", _sgs_method__TSEnemyController__UpdateFact },

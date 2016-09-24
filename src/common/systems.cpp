@@ -1132,7 +1132,7 @@ float BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 			// send event
 			if( mii )
 			{
-				MI_BulletHit_Data data = { hitpoint, B.velocity };
+				MI_BulletHit_Data data = { hitpoint, B.velocity, B.damage };
 				mii->OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
 			}
 			
@@ -1244,11 +1244,38 @@ bool AIFactStorage::HasFact( uint32_t typemask )
 	return false;
 }
 
+bool AIFactStorage::ExpireFacts( uint32_t typemask )
+{
+	bool any = false;
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( (1<<facts[ i ].type) & typemask )
+		{
+			any = true;
+			facts.uerase( i-- );
+		}
+	}
+	return any;
+}
+
 bool AIFactStorage::HasRecentFact( uint32_t typemask, TimeVal maxtime )
 {
 	for( size_t i = 0; i < facts.size(); ++i )
 	{
 		if( ( (1<<facts[ i ].type) & typemask ) != 0 && facts[ i ].created + maxtime > m_lastTime )
+			return true;
+	}
+	return false;
+}
+
+bool AIFactStorage::HasRecentFactAt( uint32_t typemask, TimeVal maxtime, Vec3 pos, float rad )
+{
+	float rad2 = rad * rad;
+	for( size_t i = 0; i < facts.size(); ++i )
+	{
+		if( ( (1<<facts[ i ].type) & typemask ) != 0 &&
+			facts[ i ].created + maxtime > m_lastTime &&
+			( pos - facts[ i ].position ).LengthSq() < rad2 )
 			return true;
 	}
 	return false;

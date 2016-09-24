@@ -30,6 +30,7 @@ struct MI_BulletHit_Data
 {
 	Vec3 pos;
 	Vec3 vel;
+	float dmg;
 };
 
 struct SGRX_MeshInstUserData
@@ -448,7 +449,9 @@ EXP_STRUCT AIFactStorage
 	GFW_EXPORT void SortCreatedDesc();
 	GFW_EXPORT void Process( TimeVal curTime );
 	GFW_EXPORT bool HasFact( uint32_t typemask );
+	GFW_EXPORT bool ExpireFacts( uint32_t typemask );
 	GFW_EXPORT bool HasRecentFact( uint32_t typemask, TimeVal maxtime );
+	GFW_EXPORT bool HasRecentFactAt( uint32_t typemask, TimeVal maxtime, Vec3 pos, float rad );
 	GFW_EXPORT AIFact* GetRecentFact( uint32_t typemask, TimeVal maxtime );
 	GFW_EXPORT void Insert( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref = 0 );
 	GFW_EXPORT void RemoveExt( uint32_t* types, size_t typecount );

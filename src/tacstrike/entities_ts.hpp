@@ -308,7 +308,9 @@ struct TSEnemyController : BhControllerBase
 	
 	// fact storage
 	SGS_METHOD_NAMED( HasFact ) bool sgsHasFact( uint32_t typemask );
+	SGS_METHOD_NAMED( ExpireFacts ) bool sgsExpireFacts( uint32_t typemask );
 	SGS_METHOD_NAMED( HasRecentFact ) bool sgsHasRecentFact( uint32_t typemask, TimeVal maxtime );
+	SGS_METHOD_NAMED( HasRecentFactAt ) bool sgsHasRecentFactAt( uint32_t typemask, TimeVal maxtime, Vec3 pos, float rad );
 	SGS_METHOD_NAMED( GetRecentFact ) SGS_MULTRET sgsGetRecentFact( uint32_t typemask, TimeVal maxtime );
 	SGS_METHOD_NAMED( InsertFact ) void sgsInsertFact( uint32_t type, Vec3 pos, TimeVal created, TimeVal expires, uint32_t ref );
 	SGS_METHOD_NAMED( UpdateFact ) bool sgsUpdateFact( uint32_t type, Vec3 pos,

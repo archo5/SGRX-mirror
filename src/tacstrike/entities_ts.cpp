@@ -4,6 +4,7 @@
 
 
 CVarBool gcv_notarget( "notarget", false );
+CVarBool gcv_dbg_aiproc( "dbg_aiproc", false );
 CVarBool gcv_dbg_aifacts( "dbg_aifacts", false );
 CVarBool gcv_dbg_aistack( "dbg_aistack", false );
 CVarBool gcv_dbg_aipaths( "dbg_aipaths", false );
@@ -11,6 +12,7 @@ CVarBool gcv_dbg_aipaths( "dbg_aipaths", false );
 void register_tsent_cvars()
 {
 	REGCOBJ( gcv_notarget );
+	REGCOBJ( gcv_dbg_aiproc );
 	REGCOBJ( gcv_dbg_aifacts );
 	REGCOBJ( gcv_dbg_aistack );
 	REGCOBJ( gcv_dbg_aipaths );
@@ -816,7 +818,7 @@ void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 		Vec3 pos = inv.TransformPos( bhinfo->pos );
 		Vec3 vel = inv.TransformNormal( bhinfo->vel ).Normalized();
 		m_animChar.m_anDeformer.AddModelForce( pos, vel * 0.4f, 0.3f );
-		Hit( bhinfo->vel.Length() * 0.15f );
+		Hit( bhinfo->vel.Length() * bhinfo->dmg * 0.15f );
 	}
 }
 
@@ -1492,6 +1494,11 @@ void TSEnemyController::DebugDrawWorld()
 			br.Tick( m_path[ i ], 0.05f );
 		}
 	}
+	
+	if( gcv_dbg_aiproc.value )
+	{
+		GetScriptedObject().thiscall( C, "debug_draw_world" );
+	}
 }
 
 void TSEnemyController::DebugDrawUI()
@@ -1631,9 +1638,19 @@ bool TSEnemyController::sgsHasFact( uint32_t typemask )
 	return m_factStorage.HasFact( typemask );
 }
 
+bool TSEnemyController::sgsExpireFacts( uint32_t typemask )
+{
+	return m_factStorage.ExpireFacts( typemask );
+}
+
 bool TSEnemyController::sgsHasRecentFact( uint32_t typemask, TimeVal maxtime )
 {
 	return m_factStorage.HasRecentFact( typemask, maxtime );
+}
+
+bool TSEnemyController::sgsHasRecentFactAt( uint32_t typemask, TimeVal maxtime, Vec3 pos, float rad )
+{
+	return m_factStorage.HasRecentFactAt( typemask, maxtime, pos, rad );
 }
 
 SGS_MULTRET TSEnemyController::sgsGetRecentFact( uint32_t typemask, TimeVal maxtime )
