@@ -46,11 +46,11 @@ template< class T > bool IMGUIEditIntFlags( const char* label, T& v, unsigned fl
 	v = iv;
 	return ret;
 }
-ENGINE_EXPORT bool IMGUIEditMask_( const char* label, uint64_t& v, int count );
-template< class T > bool IMGUIEditMask( const char* label, T& v, int count )
+ENGINE_EXPORT bool IMGUIEditMask_( const char* label, uint64_t& v, int count, const char** tips = NULL );
+template< class T > bool IMGUIEditMask( const char* label, T& v, int count, const char** tips = NULL )
 {
 	uint64_t iv = v;
-	bool ret = IMGUIEditMask_( label, iv, count );
+	bool ret = IMGUIEditMask_( label, iv, count, tips );
 	v = iv;
 	return ret;
 }

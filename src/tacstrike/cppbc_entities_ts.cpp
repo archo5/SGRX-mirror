@@ -357,10 +357,10 @@ int TSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->enabled ); return SGS_SUCCESS; }
 		SGS_CASE( "ahShouldDrawClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP() ); return SGS_SUCCESS; }
-		SGS_CASE( "ahClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_closestPoint ); return SGS_SUCCESS; }
-		SGS_CASE( "ahAimPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimPoint ); return SGS_SUCCESS; }
-		SGS_CASE( "ahAimFactor" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimFactor ); return SGS_SUCCESS; }
-		SGS_CASE( "ahCPDistance" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_pDist ); return SGS_SUCCESS; }
+		SGS_CASE( "ahClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetClosestPoint() ); return SGS_SUCCESS; }
+		SGS_CASE( "ahAimPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimPoint() ); return SGS_SUCCESS; }
+		SGS_CASE( "ahAimFactor" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimFactor() ); return SGS_SUCCESS; }
+		SGS_CASE( "ahCPDistance" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetCPDistance() ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<TSPlayerController*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
 	SGS_END_INDEXFUNC;
 }
@@ -393,10 +393,10 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->enabled, depth ).push( C ); }
 		{ sgs_PushString( C, "\nahShouldDrawClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP(), depth ).push( C ); }
-		{ sgs_PushString( C, "\nahClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_closestPoint, depth ).push( C ); }
-		{ sgs_PushString( C, "\nahAimPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimPoint, depth ).push( C ); }
-		{ sgs_PushString( C, "\nahAimFactor = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_aimFactor, depth ).push( C ); }
-		{ sgs_PushString( C, "\nahCPDistance = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.m_pDist, depth ).push( C ); }
+		{ sgs_PushString( C, "\nahClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetClosestPoint(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nahAimPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimPoint(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nahAimFactor = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimFactor(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nahCPDistance = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetCPDistance(), depth ).push( C ); }
 		sgs_StringConcat( C, 28 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );

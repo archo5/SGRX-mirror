@@ -195,7 +195,7 @@ bool IMGUIEditInt_( const char* label, int& v, int vmin, int vmax )
 	return ImGui::DragInt( label, &v, 0.2f, vmin, vmax );
 }
 
-bool IMGUIEditMask_( const char* label, uint64_t& flags, int count )
+bool IMGUIEditMask_( const char* label, uint64_t& flags, int count, const char** tips )
 {
 	if( count < 0 || count > 64 ) count = 64;
 	static const char* labels[ 64 ] =
@@ -229,6 +229,15 @@ bool IMGUIEditMask_( const char* label, uint64_t& flags, int count )
 			else
 				flags &= ~flag;
 		}
+		
+		if( tips && *tips )
+		{
+			if( ImGui::IsItemHovered() )
+				ImGui::SetTooltip( "%s (%02d/%02X)", *tips, i, i );
+			tips++;
+		}
+		else if( ImGui::IsItemHovered() )
+			ImGui::SetTooltip( "Flag #%02d (%02X)", i, i );
 	}
 	
 	ImGui::EndGroup();

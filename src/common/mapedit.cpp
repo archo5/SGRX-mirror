@@ -2056,6 +2056,13 @@ void EdMainFrame::Level_Real_Compile_Prefabs()
 		data.append( ",\n\t\tid = " );
 		data.append( sctx.ToSGSON( obj->m_id ) );
 		data.append( ",\n\t\tlocalPosition = vec3(0,0,0)" );
+		{
+			char bfr[ 1024 ];
+			Vec3 tgt = obj->GetInfoTarget();
+			sgrx_snprintf( bfr, 1024, ",\n\t\tinfoMask = %u,\n\t\tlocalInfoTarget = vec3(%g,%g,%g)",
+				(unsigned) obj->GetInfoMask(), tgt.x, tgt.y, tgt.z );
+			data.append( bfr );
+		}
 		data.append( ",\n\t};\n" );
 		
 		for( size_t i = 0; i < obj->m_resources.size(); ++i )

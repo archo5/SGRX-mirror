@@ -14,6 +14,7 @@ InputState AIM_X( "aim_x", 0 );
 InputState AIM_Y( "aim_y", 0 );
 InputState WP_SHOOT( "wp_shoot" );
 InputState WP_LOCK_ON( "wp_lock_on" );
+InputState WP_REMOVE_LOCK_ON( "wp_remove_lock_on" );
 InputState WP_RELOAD( "wp_reload" );
 InputState WP_DROP( "wp_drop" );
 InputState WP_HOLSTER( "wp_holster" );
@@ -340,6 +341,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		Game_RegisterAction( &MOVE_DOWN );
 		Game_RegisterAction( &WP_SHOOT );
 		Game_RegisterAction( &WP_LOCK_ON );
+		Game_RegisterAction( &WP_REMOVE_LOCK_ON );
 		Game_RegisterAction( &WP_RELOAD );
 		Game_RegisterAction( &WP_DROP );
 		Game_RegisterAction( &WP_HOLSTER );
@@ -377,6 +379,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		Game_BindGamepadAxisToAction( SDL_CONTROLLER_AXIS_RIGHTY, &AIM_Y );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, &WP_SHOOT );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_LEFTSHOULDER, &WP_LOCK_ON );
+		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_RIGHTSTICK, &WP_REMOVE_LOCK_ON );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_Y, &WP_RELOAD );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_A, &CROUCH );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &DO_ACTION );
@@ -419,7 +422,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		}
 		else if( e.type == SDL_CONTROLLERAXISMOTION )
 		{
-#if 1
+#if AAA
 			float rad = TMIN( GR_GetWidth(), GR_GetHeight() ) * 0.05f;
 			Vec2 off = V2( AIM_X.value, AIM_Y.value );
 			if( off.Length() > 0.35f )
@@ -429,7 +432,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 			}
 			else
 				cursor_dt = V2(0);
-#else
+#elif BBB
 			float rad = TMAX( GR_GetWidth(), GR_GetHeight() ) * 0.5f;
 			Vec2 off = V2( AIM_X.value, AIM_Y.value );
 			if( off.Length() > 0.1f )

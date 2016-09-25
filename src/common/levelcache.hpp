@@ -206,7 +206,7 @@ struct LC_Chunk_Geom
 
 // Level game object definitions
 #define LC_FILE_GOBJ_NAME "GOBJ"
-#define LC_FILE_GOBJ_VERSION 0
+#define LC_FILE_GOBJ_VERSION 1
 struct LC_GOLink
 {
 	SGRX_GUID obj_guid;
@@ -236,17 +236,23 @@ struct LC_GameObject
 	String name;
 	String id;
 	Mat4 transform;
+	uint32_t infoMask;
+	Vec3 localInfoTarget;
 	SGRX_GUID guid;
 	SGRX_GUID parent_guid;
 	// srlz_* contains [__name, __type, __guid] special vars
 	Array< String > srlz_resources;
 	Array< String > srlz_behaviors;
 	
+	LC_GameObject() : infoMask( 0 ), localInfoTarget( V3(0) ){}
+	
 	template< class T > void Serialize( T& arch )
 	{
 		arch << name;
 		arch << id;
 		arch << transform;
+		arch( infoMask, arch.version >= 1, 0 );
+		arch( localInfoTarget, arch.version >= 1, V3(0) );
 		arch << guid;
 		arch << parent_guid;
 		arch << srlz_resources;

@@ -909,6 +909,8 @@ bool GameLevel::Load( const StringView& levelname )
 				obj->SetName( GO.name );
 				obj->SetID( GO.id );
 				obj->SetLocalMatrix( GO.transform );
+				obj->SetInfoMask( GO.infoMask );
+				obj->SetInfoTarget( GO.localInfoTarget );
 				
 				if( obj->m_src_guid.NotNull() )
 					idVars.set( obj->m_src_guid, obj->GetScriptedObject() );

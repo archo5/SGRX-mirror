@@ -193,6 +193,13 @@ struct TSAimHelper : GameObjectProcessor
 	bool DoQuery();
 	Vec3 GetAimPoint();
 	
+	// API
+	bool ShouldDrawClosestPoint() const { return m_aimPtr == NULL && m_closestObj; }
+	Vec3 GetClosestPoint() const { return m_closestPoint; }
+	Vec3 GetAimPoint() const { return m_aimPoint; }
+	float GetAimFactor() const { return m_aimFactor; }
+	float GetCPDistance() const { return m_pDist; }
+	
 	Vec3 _CalcRCPos( Vec3 pos );
 	
 	GameLevel* m_level;
@@ -212,13 +219,46 @@ struct TSAimHelper : GameObjectProcessor
 };
 
 
+struct TSAimHelperV2 : GameObjectProcessor
+{
+	TSAimHelperV2( GameLevel* lev );
+	void Tick( Vec2 joyaxis, GameObject* owner );
+	void RemoveLockOn();
+	bool DoQuery();
+	bool IsAiming();
+	Vec3 GetAimPoint();
+	
+	// API
+	bool ShouldDrawClosestPoint() const { return m_relocking; }
+	Vec3 GetClosestPoint() const { return m_cachedAimPoint; }
+	Vec3 GetAimPoint() const { return m_cachedAimPoint; }
+	float GetAimFactor() const { return m_aimFactor; }
+	float GetCPDistance() const { return m_ctDist * 0.1f; }
+	
+	GameLevel* m_level;
+	GameObject* m_ownerObj;
+	GameObject* m_aimTarget;
+	float m_aimFactor;
+	bool m_relocking;
+	Vec2 m_prevJoyAxis;
+	Vec3 m_cachedAimPoint;
+	
+	// lock target query
+	virtual bool ProcessGameObject( GameObject* obj );
+	// - in
+	Vec2 m_scalableScreenPos;
+	// - out/state
+	float m_ctDist;
+};
+
+
 struct TSPlayerController : BhControllerBase
 {
 	SGS_OBJECT_INHERIT( BhControllerBase );
 	ENT_SGS_IMPLEMENT;
 	IMPLEMENT_BEHAVIOR( TSPlayerController );
 	
-	TSAimHelper m_aimHelper;
+	TSAimHelperV2 m_aimHelper;
 	Vec2 i_move;
 	Vec3 i_aim_target;
 	Vec3 i_turn;
@@ -228,12 +268,12 @@ struct TSPlayerController : BhControllerBase
 	virtual Vec3 GetInput( uint32_t iid );
 	
 	SGS_METHOD void CalcUIAimInfo();
-	bool _shouldDrawCP() const { return m_aimHelper.m_aimPtr == NULL && m_aimHelper.m_closestObj; }
+	bool _shouldDrawCP() const { return m_aimHelper.ShouldDrawClosestPoint(); }
 	SGS_PROPERTY_FUNC( READ _shouldDrawCP ) SGS_ALIAS( bool ahShouldDrawClosestPoint );
-	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_closestPoint ) SGS_ALIAS( Vec3 ahClosestPoint );
-	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_aimPoint ) SGS_ALIAS( Vec3 ahAimPoint );
-	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_aimFactor ) SGS_ALIAS( float ahAimFactor );
-	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.m_pDist ) SGS_ALIAS( float ahCPDistance );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.GetClosestPoint() ) SGS_ALIAS( Vec3 ahClosestPoint );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.GetAimPoint() ) SGS_ALIAS( Vec3 ahAimPoint );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.GetAimFactor() ) SGS_ALIAS( float ahAimFactor );
+	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.GetCPDistance() ) SGS_ALIAS( float ahCPDistance );
 };
 
 

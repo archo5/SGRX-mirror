@@ -35,6 +35,13 @@ void EDGO_EditUI( GameObject* obj )
 	if( IMGUIEditVec3( "Scale", scl, -8192, 8192 ) && scl != obj->GetLocalScale() )
 		obj->SetLocalScale( scl );
 	
+	const char* tips[] = {
+		"Interactive item", "Heat source", "Player", "<reserved>",
+		"Target", "AI Alert",
+		NULL,
+	};
+	IMGUIEditMask( "Info mask", obj->m_infoMask, 32, tips );
+	
 	ImGui::Separator();
 	
 	IMGUI_GROUP_BEGIN( "Behaviors", true )
@@ -253,6 +260,8 @@ GameObject* EDGO_FLoad( sgsVariable data )
 	obj->SetLocalPosition( FLoadProp( data, "position", V3(0) ) );
 	obj->SetLocalRotation( FLoadProp( data, "rotation", Quat::Identity ) );
 	obj->SetLocalScale( FLoadProp( data, "scale", V3(1) ) );
+	obj->SetInfoMask( FLoadProp( data, "infoMask", 0 ) );
+	obj->SetInfoTarget( FLoadProp( data, "localInfoTarget", V3(0) ) );
 	
 	_EDGO_RegObj( obj );
 	
@@ -330,6 +339,8 @@ sgsVariable EDGO_FSave( GameObject* obj, bool guids )
 	FSaveProp( data, "position", obj->GetLocalPosition() );
 	FSaveProp( data, "rotation", obj->GetLocalRotation() );
 	FSaveProp( data, "scale", obj->GetLocalScale() );
+	FSaveProp( data, "infoMask", obj->GetInfoMask() );
+	FSaveProp( data, "localInfoTarget", obj->GetInfoTarget() );
 	
 	sgsVariable out_rsrc = FNewArray();
 	for( size_t i = 0; i < obj->m_resources.size(); ++i )
@@ -407,6 +418,8 @@ void EDGO_LCSave( GameObject* obj, LC_GameObject* out )
 	out->name = StringView( obj->m_name.c_str(), obj->m_name.size() );
 	out->id = StringView( obj->m_id.c_str(), obj->m_id.size() );
 	out->transform = obj->GetLocalMatrix();
+	out->infoMask = obj->GetInfoMask();
+	out->localInfoTarget = obj->GetInfoTarget();
 	out->guid = obj->m_src_guid;
 	out->parent_guid = obj->GetParent() ?
 		obj->GetParent()->m_src_guid : SGRX_GUID::Null;

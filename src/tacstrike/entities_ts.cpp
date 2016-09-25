@@ -31,6 +31,7 @@ extern InputState AIM_X;
 extern InputState AIM_Y;
 extern InputState WP_SHOOT;
 extern InputState WP_LOCK_ON;
+extern InputState WP_REMOVE_LOCK_ON;
 extern InputState WP_RELOAD;
 extern InputState WP_DROP;
 extern InputState WP_HOLSTER;
@@ -1005,6 +1006,83 @@ bool TSAimHelper::ProcessGameObject( GameObject* obj )
 
 
 
+void ApplyDeadzone( Vec2& v, float lmin = 0.1f, float lmax = 1.0f )
+{
+	float len = TCLAMP( v.Length(), lmin, lmax );
+	v = v.Normalized() * TREVLERP<float>( lmin, lmax, len );
+}
+
+TSAimHelperV2::TSAimHelperV2( GameLevel* lev ) :
+	m_level(lev),
+	m_ownerObj(NULL), m_aimTarget(NULL), m_aimFactor(0),
+	m_relocking(false), m_prevJoyAxis(V2(0)), m_cachedAimPoint(V3(0)),
+	m_scalableScreenPos(V2(0)), m_ctDist(0)
+{
+}
+
+void TSAimHelperV2::Tick( Vec2 joyaxis, GameObject* owner )
+{
+	float deltaTime = m_level->GetDeltaTime();
+	
+	m_ownerObj = owner;
+	if( m_aimTarget )
+		m_cachedAimPoint = m_aimTarget->GetWorldInfoTarget();
+	m_aimFactor += deltaTime * ( m_aimTarget ? 10 : -10 );
+	m_aimFactor = TCLAMP( m_aimFactor, 0.0f, 1.0f );
+	
+	ApplyDeadzone( joyaxis );
+	m_relocking = joyaxis.Length() > m_prevJoyAxis.Length() + 0.001f;
+	if( m_relocking )
+	{
+		// reconfiguring lock-on
+		m_scalableScreenPos = joyaxis;
+		DoQuery();
+	}
+	m_prevJoyAxis = joyaxis;
+}
+
+void TSAimHelperV2::RemoveLockOn()
+{
+	m_aimTarget = NULL;
+}
+
+bool TSAimHelperV2::DoQuery()
+{
+	m_ctDist = FLT_MAX;
+	m_aimTarget = NULL;
+	return m_level->QuerySphere( this, IEST_Target, m_ownerObj->GetWorldInfoTarget(), 8.0f );
+}
+
+bool TSAimHelperV2::IsAiming()
+{
+	return !!m_aimTarget;
+}
+
+Vec3 TSAimHelperV2::GetAimPoint()
+{
+	return m_cachedAimPoint;
+}
+
+bool TSAimHelperV2::ProcessGameObject( GameObject* obj )
+{
+	if( obj == m_ownerObj )
+		return false;
+	
+	Vec3 tgtPos = obj->GetWorldInfoTarget();
+	
+	Vec2 curpos = m_scalableScreenPos;
+	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( tgtPos ).ToVec2() * 2 - V2(1);
+	float npdist = ( curpos - scrpos ).Length();
+	if( npdist < m_ctDist && Vec2Dot( curpos, scrpos ) > 0 )
+	{
+		m_aimTarget = obj;
+		m_ctDist = npdist;
+	}
+	return false;
+}
+
+
+
 TSPlayerController::TSPlayerController( GameObject* obj ) :
 	BhControllerBase( obj ),
 	m_aimHelper( obj->m_level ),
@@ -1015,12 +1093,17 @@ TSPlayerController::TSPlayerController( GameObject* obj ) :
 void TSPlayerController::Update()
 {
 	TSCharacter* P = m_obj->FindBehaviorOfType<TSCharacter>();
+	Vec3 pos = V3(0);
 	if( P )
 	{
-		Vec3 pos = P->GetQueryPosition();
+		pos = P->GetQueryPosition();
 		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-		m_aimHelper.Tick( m_level->GetDeltaTime(), m_obj, pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
+	//	m_aimHelper.Tick( m_level->GetDeltaTime(), m_obj, pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
+		m_aimHelper.Tick( V2( AIM_X.value, AIM_Y.value ), m_obj );
 	}
+	
+	if( WP_REMOVE_LOCK_ON.value )
+		m_aimHelper.RemoveLockOn();
 	
 	i_move = V2
 	(
@@ -1032,7 +1115,7 @@ void TSPlayerController::Update()
 	if( i_move.Length() > 0.1f )
 	{
 		Vec2 md = i_move;
-		if( Vec2Dot( ( i_aim_target - m_aimHelper.m_pos ).ToVec2(), md ) < 0 )
+		if( m_aimHelper.IsAiming() && Vec2Dot( ( i_aim_target - pos ).ToVec2(), md ) < 0 )
 			md = -md;
 		i_turn = V3( md.x, md.y, 8 );
 	}
@@ -1046,7 +1129,7 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	case ACT_Chr_Turn: return i_turn;
 	case ACT_Chr_Crouch: return V3(CROUCH.value);
 	case ACT_Chr_Jump: return V3(JUMP.value);
-	case ACT_Chr_AimAt: return V3( 1 /* yes */, 32 /* speed */, 0 );
+	case ACT_Chr_AimAt: return V3( m_aimHelper.IsAiming() /* aim? */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;
 	case ACT_Chr_Shoot: return V3(WP_SHOOT.value);
 	case ACT_Chr_DoAction: return V3(DO_ACTION.value);
@@ -1057,7 +1140,7 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 
 void TSPlayerController::CalcUIAimInfo()
 {
-	m_aimHelper.DoQuery();
+//	m_aimHelper.DoQuery();
 }
 
 
