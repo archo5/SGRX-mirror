@@ -265,7 +265,7 @@ function BhObjectRotate.EditorGUI( ui )
 }
 
 // === OBJECT SINE MOVER === //
-class BhObjectMoveSine
+class BhObjectMoveSine : GOBehavior
 {
 	function Init()
 	{
@@ -295,6 +295,76 @@ class BhObjectMoveSine
 	}
 }
 BEHAVIOR( "BhObjectMoveSine", "GOBehavior" );
+
+// === OBJECT DOOR MOVER === //
+class BhObjectMoveDoorSlide : GOBehavior
+{
+	function Init()
+	{
+		this.speed = 1;
+		this.offset = vec3(0,0,2);
+		this.pos = this.object.position;
+		this.factor = 0;
+		this.openTarget = false;
+	}
+	function OnTriggerChange( newState )
+	{
+		this.openTarget = newState;
+	}
+	function Update()
+	{
+		target = if( this.openTarget, 1, 0 );
+		diff = ( target - this.factor );
+		this.factor = clamp( this.factor + min( abs( diff ), this.speed * level.deltaTime ) * sign( diff ), 0, 1 );
+		this.object.position = this.pos + this.object.LocalToWorldDir( this.offset ) * this.factor;
+	}
+	function EditorGUI( ui )
+	{
+		ui.EditFloat( "Speed", this, "speed", -100000, 100000 );
+		ui.EditVec3( "Offset", this, "offset", -100000, 100000 );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_SetPrimitiveType( PT_Lines );
+		BR_Col( 0.1, 0.5, 0.9, 0.8 );
+		BR_Pos( this.object.position );
+		BR_Pos( this.pos + this.object.LocalToWorldDir( this.offset ) );
+	}
+}
+BEHAVIOR( "BhObjectMoveDoorSlide", "GOBehavior" );
+
+// === SPHERE TRIGGER === //
+class BhSphereTrigger : GOBehavior
+{
+	function Init()
+	{
+		this.radius = 1;
+		this.offset = vec3(0,0,0);
+		this.prevState = false;
+	}
+	function Update()
+	{
+		newState = level.QuerySphere( null, IEST_Target, this.object.LocalToWorld( this.offset ), this.radius );
+		if( newState != this.prevState )
+		{
+			this.prevState = newState;
+			this.object.SendMessage( "OnTriggerChange", newState );
+		}
+	}
+	function EditorGUI( ui )
+	{
+		ui.EditFloat( "Radius", this, "radius", -100000, 100000 );
+		ui.EditVec3( "Offset", this, "offset", -100000, 100000 );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_Col( 0.1, 0.8, 0.9, 0.8 );
+		BR_SphereOutline( this.object.LocalToWorld( this.offset ), this.radius, 32 );
+	}
+}
+BEHAVIOR( "BhSphereTrigger", "GOBehavior" );
 
 // === MESH ARRAY === //
 global BhMeshArray = {};
