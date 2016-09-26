@@ -1102,6 +1102,10 @@ void TSPlayerController::Update()
 		m_aimHelper.Tick( V2( AIM_X.value, AIM_Y.value ), m_obj );
 	}
 	
+	LevelMapSystem* map = m_level->GetSystem<LevelMapSystem>();
+	if( map )
+		map->viewPos = pos;
+	
 	if( WP_REMOVE_LOCK_ON.value )
 		m_aimHelper.RemoveLockOn();
 	

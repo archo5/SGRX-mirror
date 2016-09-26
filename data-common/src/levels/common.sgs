@@ -329,7 +329,7 @@ class BhObjectMoveDoorSlide : GOBehavior
 		BR_SetPrimitiveType( PT_Lines );
 		BR_Col( 0.1, 0.5, 0.9, 0.8 );
 		BR_Pos( this.object.position );
-		BR_Pos( this.pos + this.object.LocalToWorldDir( this.offset ) );
+		BR_Pos( this.object.position + this.object.LocalToWorldDir( this.offset ) );
 	}
 }
 BEHAVIOR( "BhObjectMoveDoorSlide", "GOBehavior" );
@@ -340,12 +340,32 @@ class BhSphereTrigger : GOBehavior
 	function Init()
 	{
 		this.radius = 1;
+		this.sticky = false;
 		this.offset = vec3(0,0,0);
 		this.prevState = false;
+		this.savedPosition = null;
+	}
+	function _getPos()
+	{
+		return if( this.sticky, this.savedPosition,
+			this.object.LocalToWorld( this.offset ) );
 	}
 	function Update()
 	{
-		newState = level.QuerySphere( null, IEST_Target, this.object.LocalToWorld( this.offset ), this.radius );
+		if( this.sticky && this.savedPosition === null )
+			this.savedPosition = this.object.LocalToWorld( this.offset );
+		
+		found = false;
+		itemID = "kcard1";
+		function fn( obj ) use( found, itemID )
+		{
+			// TODO search *object's* inventory
+			found = @_G.inventory[ itemID ] != 0;
+			return found;
+		}
+		
+		level.QuerySphere( fn, IEST_Target, this._getPos(), this.radius );
+		newState = found;
 		if( newState != this.prevState )
 		{
 			this.prevState = newState;
@@ -356,6 +376,7 @@ class BhSphereTrigger : GOBehavior
 	{
 		ui.EditFloat( "Radius", this, "radius", -100000, 100000 );
 		ui.EditVec3( "Offset", this, "offset", -100000, 100000 );
+		ui.EditBool( "Sticky", this, "sticky" );
 	}
 	function EditorDrawWorld()
 	{
