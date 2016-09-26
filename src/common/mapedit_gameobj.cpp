@@ -300,13 +300,13 @@ GameObject* EDGO_FLoad( sgsVariable data )
 		SGRX_GUID guid = SGRX_GUID::ParseString(
 			data_bhvr.getprop( "__guid" ).get<StringView>() );
 		g_Level->nextObjectGUID = guid.NotNull() ? guid : SGRX_GUID::Generate();
-		LOG << "BHVR" << guid << g_Level->nextObjectGUID;
+	//	LOG << "BHVR" << guid << g_Level->nextObjectGUID;
 		
 		GOBehavior* bhvr = obj->RequireBehavior( name, type, true );
-		if(bhvr)
-			LOG << "---FINL" << bhvr->m_src_guid;
-		else
-			LOG << "----NO BHVR????" << name.c_str() << "|" << type.c_str();
+	//	if(bhvr)
+	//		LOG << "---FINL" << bhvr->m_src_guid;
+	//	else
+	//		LOG << "----NO BHVR????" << name.c_str() << "|" << type.c_str();
 		if( bhvr == NULL )
 		{
 			LOG_ERROR << "FAILED TO LOAD BEHAVIOR type="

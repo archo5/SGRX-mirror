@@ -334,6 +334,59 @@ class BhObjectMoveDoorSlide : GOBehavior
 }
 BEHAVIOR( "BhObjectMoveDoorSlide", "GOBehavior" );
 
+// === BOX TRIGGER === //
+class BhBoxTrigger : GOBehavior
+{
+	function Init()
+	{
+		this.extents = vec3(1,1,1);
+		this.offset = vec3(0,0,0);
+		this.prevState = false;
+	}
+	function Update()
+	{
+		found = level.QueryOBB( null, IEST_Target, this._GetTransform() );
+		newState = found;
+		
+		this.OnTriggerPollFunc( newState );
+		if( newState )
+			this.OnTriggerInsideFunc();
+		if( newState != this.prevState )
+		{
+			this.prevState = newState;
+			this.OnTriggerChangeFunc( newState );
+		}
+	}
+	function _GetTransform()
+	{
+		return mat4()
+			.scale_v3( this.extents )
+			.translate_v3( this.offset )
+			.multiply( this.object.transform );
+	}
+	
+	// override for custom behavior:
+	function OnTriggerInsideFunc(){}
+	function OnTriggerPollFunc( newState ){}
+	function OnTriggerChangeFunc( newState )
+	{
+		this.object.SendMessage( "OnTriggerChange", newState );
+	}
+	
+	function EditorGUI( ui )
+	{
+		ui.EditVec3( "Extents", this, "extents", -100000, 100000 );
+		ui.EditVec3( "Offset", this, "offset", -100000, 100000 );
+	}
+	function EditorDrawWorld()
+	{
+		BR_Reset();
+		BR_Col( 0.1, 0.8, 0.9, 0.8 );
+		BR_AABB( -1, 1, this._GetTransform() );
+	}
+}
+BEHAVIOR( "BhBoxTrigger", "GOBehavior" );
+
 // === SPHERE TRIGGER === //
 class BhSphereTrigger : GOBehavior
 {
@@ -369,8 +422,12 @@ class BhSphereTrigger : GOBehavior
 		if( newState != this.prevState )
 		{
 			this.prevState = newState;
-			this.object.SendMessage( "OnTriggerChange", newState );
+			this.OnTriggerChangeFunc( newState );
 		}
+	}
+	function OnTriggerChangeFunc( newState )
+	{
+		this.object.SendMessage( "OnTriggerChange", newState );
 	}
 	function EditorGUI( ui )
 	{
