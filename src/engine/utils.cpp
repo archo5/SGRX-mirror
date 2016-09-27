@@ -1562,11 +1562,10 @@ double String_ParseFloat( const StringView& sv, bool* success )
 	return val;
 }
 
-Vec2 String_ParseVec2( const StringView& sv, bool* success )
+Vec2 String_ParseVec2( const StringView& sv, bool* success, StringView substr )
 {
 	bool suc = true;
 	Vec2 out = {0,0};
-	StringView substr = ";";
 	if( success ) *success = true;
 	
 	out.x = String_ParseFloat( sv.until( substr ), &suc );
@@ -1579,11 +1578,10 @@ Vec2 String_ParseVec2( const StringView& sv, bool* success )
 	return out;
 }
 
-Vec3 String_ParseVec3( const StringView& sv, bool* success )
+Vec3 String_ParseVec3( const StringView& sv, bool* success, StringView substr )
 {
 	bool suc = true;
 	Vec3 out = {0,0,0};
-	StringView substr = ";";
 	if( success ) *success = true;
 	
 	out.x = String_ParseFloat( sv.until( substr ), &suc );
@@ -1600,11 +1598,10 @@ Vec3 String_ParseVec3( const StringView& sv, bool* success )
 	return out;
 }
 
-Vec4 String_ParseVec4( const StringView& sv, bool* success )
+Vec4 String_ParseVec4( const StringView& sv, bool* success, StringView substr )
 {
 	bool suc = true;
 	Vec4 out = {0,0,0,0};
-	StringView substr = ";";
 	if( success ) *success = true;
 	
 	out.x = String_ParseFloat( sv.until( substr ), &suc );
@@ -1718,6 +1715,14 @@ void UTF8Iterator::SetOffset( size_t off )
 {
 	offset = off;
 	m_nextoff = off;
+}
+
+StringView UTF8Iterator::ReadUntilEndOr( StringView s )
+{
+	StringView curchr = m_text.part( m_nextoff );
+	StringView ret = curchr.until( s );
+	SetOffset( ret.end() - m_text.data() );
+	return ret;
 }
 
 

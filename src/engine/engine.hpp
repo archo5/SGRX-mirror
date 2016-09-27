@@ -1819,7 +1819,7 @@ struct BatchRenderer
 
 struct SGRX_FontSettings
 {
-	String font;
+	RCString font;
 	int size;
 	float letterspacing;
 	float lineheight; // +px, -size factor
@@ -1828,6 +1828,14 @@ struct SGRX_FontSettings
 	{
 		return lineheight >= 0 ? lineheight : -lineheight * size;
 	}
+};
+
+struct SGRX_TextSettings : SGRX_FontSettings
+{
+	SGRX_TextSettings(){}
+	SGRX_TextSettings( const SGRX_FontSettings& fs, uint32_t c = 0xffffffff )
+		: SGRX_FontSettings( fs ), color( c ){}
+	uint32_t color;
 };
 
 struct SGRX_GlyphInfo
@@ -2044,7 +2052,7 @@ ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 ENGINE_EXPORT int GR2D_DrawTextLine( const StringView& text, int halign, int valign );
 ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign );
 ENGINE_EXPORT void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
-	const StringView& text, int halign, int valign );
+	const StringView& text, int halign, int valign, bool parse = true );
 
 ENGINE_EXPORT BatchRenderer& GR2D_GetBatchRenderer();
 

@@ -2512,9 +2512,9 @@ ENGINE_EXPORT int util_strtonum( const char** at, const char* end, double* outf 
 ENGINE_EXPORT bool String_ParseBool( const StringView& sv );
 ENGINE_EXPORT int64_t String_ParseInt( const StringView& sv, bool* success = NULL );
 ENGINE_EXPORT double String_ParseFloat( const StringView& sv, bool* success = NULL );
-ENGINE_EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL );
-ENGINE_EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL );
-ENGINE_EXPORT Vec4 String_ParseVec4( const StringView& sv, bool* success = NULL );
+ENGINE_EXPORT Vec2 String_ParseVec2( const StringView& sv, bool* success = NULL, StringView substr = ";" );
+ENGINE_EXPORT Vec3 String_ParseVec3( const StringView& sv, bool* success = NULL, StringView substr = ";" );
+ENGINE_EXPORT Vec4 String_ParseVec4( const StringView& sv, bool* success = NULL, StringView substr = ";" );
 
 
 //
@@ -2536,6 +2536,7 @@ struct UTF8Iterator
 		offset(0), codepoint(0), m_nextoff(0), m_text(text){}
 	bool Advance();
 	void SetOffset( size_t off );
+	StringView ReadUntilEndOr( StringView s );
 	
 	size_t offset;
 	uint32_t codepoint;

@@ -850,7 +850,7 @@ void GR2D_GetFontSettings( SGRX_FontSettings* settings )
 //	settings->lineheight = g_CurFontSettings.lineheight;
 }
 
-void GR2D_SetFontSettings( SGRX_FontSettings* settings )
+void GR2D_SetFontSettings( const SGRX_FontSettings* settings )
 {
 	g_CurFontSettings = *settings;
 	GR2D_SetFont( settings->font, settings->size );
@@ -919,122 +919,253 @@ int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int
 	return GR2D_DrawTextLine( x - round( halign * 0.5f * length ), round( y - valign * 0.5f * g_FontRenderer->m_currentSize ), text );
 }
 
-struct TextLine
+struct TextBlock
 {
 	int start;
 	int end;
 	int pxwidth;
+	int pxheight;
+	SGRX_TextSettings settings;
 };
 
-void _GR2D_CalcTextLayout( Array< TextLine >& lines, const StringView& text, int width, int height )
+struct TextLine
 {
-	int lineheight = ceilf( g_CurFontSettings.CalcLineHeight() );
+	int blockstart;
+	int blockend;
+	int pxwidth;
+	int pxheight;
+};
+
+void _GR2D_CalcTextLayout
+(
+	Array< SGRX_TextSettings >& settingStack,
+	Array< TextBlock >& blocks,
+	Array< TextLine >& lines,
+	const StringView& text,
+	int width,
+	int height,
+	bool parse
+)
+{
+	settingStack.clear();
+	SGRX_TextSettings textSettings;
+	GR2D_GetFontSettings( &textSettings );
+	textSettings.color = GR2D_GetBatchRenderer().m_proto.color;
+	settingStack.push_back( textSettings );
 	
-	int line_start = 0;
-	int end_of_last_word = 0;
-	int cur_line_width = 0;
+	int total_height = 0;
 	int cur_word_width = 0;
+	int cur_word_start = 0;
+	int last_word_end = 0;
+	
+	TextBlock cur_block = { 0, 0, 0, 0 };
+	TextLine cur_line = { 0, 0, 0, 0 };
 	int num_words = 1;
 	
 	uint32_t prev_chr_val = 0;
+	
+#define COMMIT_BLOCK \
+	if( cur_block.end > cur_block.start ) \
+	{ \
+		cur_block.settings = settingStack.last(); \
+		blocks.push_back( cur_block ); \
+		cur_line.blockend = blocks.size(); \
+		cur_line.pxwidth += cur_block.pxwidth; \
+		cur_line.pxheight = TMAX( cur_line.pxheight, cur_block.pxheight ); \
+		cur_block.start = cur_block.end; \
+		cur_block.pxwidth = 0; \
+		cur_block.pxheight = 0; \
+	}
+#define COMMIT_BLOCK_BEFCH( off ) \
+	cur_block.end = off; \
+	COMMIT_BLOCK; \
+	cur_block.start = cur_block.end = IT.m_nextoff;
+		
+#define COMMIT_LINE \
+	if( cur_line.blockend > cur_line.blockstart ) \
+	{ \
+		lines.push_back( cur_line ); \
+		cur_line.blockstart = cur_line.blockend; \
+		cur_line.pxwidth = 0; \
+		cur_line.pxheight = 0; \
+	}
+#define SKIP_SPACES \
+	prev_chr_val = 0; \
+	bool lastadv; \
+	while( ( lastadv = IT.Advance() ) && IT.codepoint == ' ' ); \
+	if( !lastadv ) \
+		break;
 	
 	UTF8Iterator IT( text );
 	if( IT.Advance() == false )
 		return;
 	for(;;)
 	{
-		int chr_pos = IT.offset;
-		uint32_t chr_val = IT.codepoint;
+		const uint32_t& chr_val = IT.codepoint;
+		cur_block.end = IT.m_nextoff;
 		
 		int char_width = g_FontRenderer->GetAdvanceX( prev_chr_val, chr_val );
 		
 		if( chr_val == '\n' )
 		{
-			cur_line_width += cur_word_width;
+			cur_block.pxwidth += cur_word_width;
 			if( prev_chr_val == ' ' )
 				num_words--;
 			
-			TextLine LN = { line_start, chr_pos, cur_line_width };
-			lines.push_back( LN );
-			
-			cur_line_width = 0;
-			cur_word_width = 0;
-			num_words = 1;
-			if( ( (int)lines.size() + 1 ) * lineheight > height )
+			COMMIT_BLOCK;
+			total_height += cur_line.pxheight;
+			if( total_height > height )
 				break;
+			COMMIT_LINE;
 			
 			// goto next line after all subsequent spaces
-			prev_chr_val = 0;
-			bool lastadv;
-			while( ( lastadv = IT.Advance() ) && IT.codepoint == ' ' );
-			if( !lastadv )
-				break;
-			line_start = IT.offset;
+			last_word_end = IT.offset;
+			SKIP_SPACES;
+			cur_block.start = cur_block.end = IT.offset;
+			cur_word_start = IT.offset;
+			cur_word_width = 0;
+			num_words = 1;
 			continue;
 		}
 		if( chr_val == ' ' )
 		{
-			cur_line_width += cur_word_width;
+			cur_block.pxwidth += cur_word_width;
 			if( prev_chr_val != 0 && prev_chr_val != ' ' )
+			{
+				last_word_end = IT.offset;
 				num_words++;
-			end_of_last_word = chr_pos;
+			}
 			cur_word_width = 0;
+			cur_word_start = IT.m_nextoff;
 		}
 		
-		if( cur_line_width + cur_word_width + char_width < width )
+		if( parse && chr_val == '#' )
+		{
+			size_t off = IT.offset;
+			size_t noff = IT.m_nextoff;
+			if( IT.Advance() )
+			{
+				if( chr_val == '{' )
+				{
+					COMMIT_BLOCK_BEFCH( off );
+					SGRX_TextSettings ts = settingStack.last();
+					settingStack.push_back( ts );
+					if( !IT.Advance() )
+						break;
+					continue;
+				}
+				else if( chr_val == '}' )
+				{
+					COMMIT_BLOCK_BEFCH( off );
+					if( settingStack.size() > 1 )
+						settingStack.pop_back();
+					if( !IT.Advance() )
+						break;
+					continue;
+				}
+				else if( chr_val == 'f' )
+				{
+					IT.Advance();
+					if( IT.codepoint == '(' )
+					{
+						StringView text = IT.ReadUntilEndOr( ")" );
+						IT.Advance();
+						if( IT.codepoint == ')' )
+						{
+							COMMIT_BLOCK_BEFCH( off );
+							settingStack.last().font = text;
+							continue;
+						}
+					}
+				}
+				else if( chr_val == 's' )
+				{
+					IT.Advance();
+					if( IT.codepoint == '(' )
+					{
+						StringView text = IT.ReadUntilEndOr( ")" );
+						IT.Advance();
+						if( IT.codepoint == ')' )
+						{
+							COMMIT_BLOCK_BEFCH( off );
+							settingStack.last().size = String_ParseInt( text );
+							continue;
+						}
+					}
+				}
+				else if( chr_val == 'c' )
+				{
+					IT.Advance();
+					if( IT.codepoint == '(' )
+					{
+						StringView text = IT.ReadUntilEndOr( ")" );
+						IT.Advance();
+						if( IT.codepoint == ')' )
+						{
+							COMMIT_BLOCK_BEFCH( off );
+							bool suc = false;
+							Vec4 col = String_ParseVec4( text, &suc, "," );
+							if( !suc )
+								col.w = 1;
+							col *= V4( V3( 1.0f / 255.0f ), 1.0f );
+							settingStack.last().color = Vec4ToCol32( col );
+							continue;
+						}
+					}
+				}
+				// otherwise just print the character
+			}
+			IT.SetOffset( noff );
+		}
+		
+		if( cur_line.pxwidth + cur_block.pxwidth == 0 || cur_line.pxwidth + cur_block.pxwidth + cur_word_width + char_width < width )
 		{
 			// still within line
+		//	printf("br1 at=%d chr=%c lw=%d bw=%d\n",IT.offset,char(chr_val),cur_line.pxwidth,cur_block.pxwidth);
 			cur_word_width += char_width;
+			cur_block.pxheight = TMAX( cur_block.pxheight, (int) settingStack.last().CalcLineHeight() );
 			prev_chr_val = chr_val;
 			if( IT.Advance() == false )
 				break;
 		}
-		else
+		else // last word makes the line exceed rectangle width
 		{
-			// over the limit
-			if( cur_line_width )
-			{
-				// if not first word, commit line and restart the word
-				cur_word_width = 0;
-				num_words--;
-				chr_pos = end_of_last_word;
-				
-				IT.SetOffset( end_of_last_word );
-			}
-			cur_line_width += cur_word_width;
+			// fork block for new word
+			TextBlock newblock = cur_block;
+			cur_block.end = last_word_end;
+			newblock.start = cur_word_start;
+			// remove space sizes from beginning of word
+			for( int i = last_word_end; i < cur_word_start; ++i )
+				if( IT.m_text[ i ] == ' ' )
+					cur_word_width -= g_FontRenderer->GetAdvanceX( i > 0 ? IT.m_text[ i - 1 ] : 0, ' ' );
+			newblock.pxwidth = 0;
 			
-			TextLine LN = { line_start, chr_pos, cur_line_width };
-			lines.push_back( LN );
-			
-			cur_line_width = 0;
-			cur_word_width = 0;
-			num_words = 1;
-			if( ( (int)lines.size() + 1 ) * lineheight > height )
+			COMMIT_BLOCK;
+			total_height += cur_line.pxheight;
+			if( total_height > height )
 				break;
-			
-			// goto next line after all subsequent spaces
-			prev_chr_val = 0;
-			bool lastadv;
-			while( ( lastadv = IT.Advance() ) && IT.codepoint == ' ' );
-			if( !lastadv )
-				break;
-			line_start = IT.offset;
+			COMMIT_LINE;
+			cur_block = newblock;
+		//	printf("br2 at=%d chr=%c\n",IT.offset,char(chr_val));
 		}
 	}
 	
-	cur_line_width += cur_word_width;
-	if( cur_line_width )
+	cur_block.pxwidth += cur_word_width;
+	COMMIT_BLOCK;
+	total_height += cur_line.pxheight;
+	if( total_height <= height )
 	{
-		TextLine LN = { line_start, text.size(), cur_line_width };
-		lines.push_back( LN );
+		COMMIT_LINE;
 	}
 	
 	return;
 }
 
+static Array< SGRX_TextSettings > g_settingStack;
+static Array< TextBlock > blocks;
 static Array< TextLine > lines;
 void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
-	const StringView& text, int halign, int valign )
+	const StringView& text, int halign, int valign, bool parse )
 {
 	// sizing
 	int width = x1 - x0;
@@ -1044,8 +1175,10 @@ void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 	if( height < lineheight )
 		return;
 	
+	g_settingStack.clear();
+	blocks.clear();
 	lines.clear();
-	_GR2D_CalcTextLayout( lines, text, width, height );
+	_GR2D_CalcTextLayout( g_settingStack, blocks, lines, text, width, height, parse );
 	
 	int vspace = height - lines.size() * lineheight;
 	int y = y0;
@@ -1054,15 +1187,21 @@ void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 	
 	for( size_t i = 0; i < lines.size(); ++i )
 	{
-		TextLine& LN = lines[ i ];
+		const TextLine& LN = lines[ i ];
 		int hspace = width - LN.pxwidth;
 		int x = x0;
 		if( halign == HALIGN_CENTER ) x += hspace / 2;
 		else if( halign & HALIGN_RIGHT ) x += hspace;
 		
-		StringView textpart = text.part( LN.start, LN.end - LN.start );
-		
-		GR2D_DrawTextLine( x, y, textpart );
+		GR2D_SetTextCursor( x, y );
+		for( int j = LN.blockstart; j < LN.blockend; ++j )
+		{
+			const TextBlock& BLK = blocks[ j ];
+			GR2D_SetFontSettings( &BLK.settings );
+			GR2D_GetBatchRenderer().Colu( BLK.settings.color );
+			StringView textpart = text.part( BLK.start, BLK.end - BLK.start );
+			GR2D_DrawTextLine( textpart );
+		}
 		y += lineheight;
 	}
 }

@@ -76,6 +76,54 @@ g_TestPixelPerfectRendering;
 
 
 
+struct Test_AdvancedText : ITest
+{
+	Test_AdvancedText(){}
+	virtual StringView GetName() const { return "Advanced text rendering"; }
+	void Do( float, float )
+	{
+		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
+		GR2D_SetFont( "core", 12 );
+		for( int y = 0; y <= 2; ++y )
+		{
+			for( int x = 0; x <= 2; ++x )
+			{
+				int xo = y * 300 + x * 100;
+				DT( 10 + xo, 10, 90 + xo, 90, "text automatically split into several lines", x, y );
+			}
+		}
+		for( int y = 0; y <= 2; ++y )
+		{
+			for( int x = 0; x <= 2; ++x )
+			{
+				int xo = y * 300 + x * 100;
+				DT( 10 + xo, 110, 90 + xo, 190, "text automatically split into several lines and cropped because it is just too long", x, y );
+			}
+		}
+		for( int y = 0; y <= 2; ++y )
+		{
+			for( int x = 0; x <= 2; ++x )
+			{
+				int xo = y * 300 + x * 100;
+				DTP( 10 + xo, 210, 90 + xo, 290, "tagged #f(mono)text#f(core) automatically #{#c(255,127,0)split#} into #{#c(0,127,255,0.5)several#} lines", x, y );
+			}
+		}
+	}
+	void DT( int x0, int y0, int x1, int y1, StringView text, int ha = HALIGN_LEFT, int va = VALIGN_TOP )
+	{
+		GR2D_GetBatchRenderer().Reset().AARectOutline( x0-4, y0-4, x1+4, y1+4, 4 );
+		GR2D_DrawTextRect( x0, y0, x1, y1, text, ha, va, false );
+	}
+	void DTP( int x0, int y0, int x1, int y1, StringView text, int ha = HALIGN_LEFT, int va = VALIGN_TOP )
+	{
+		GR2D_GetBatchRenderer().Reset().AARectOutline( x0-4, y0-4, x1+4, y1+4, 4 );
+		GR2D_DrawTextRect( x0, y0, x1, y1, text, ha, va, true );
+	}
+}
+g_TestAdvancedText;
+
+
+
 struct Test_BruteForce : ITest
 {
 	Test_BruteForce(){}
@@ -304,6 +352,7 @@ ITest* g_Tests[] =
 {
 	&g_TestIntro,
 	&g_TestPixelPerfectRendering,
+	&g_TestAdvancedText,
 	&g_TestBruteForce,
 	&g_TestGameUI,
 	&g_Test3DRendering,
@@ -362,6 +411,7 @@ struct TestSuite : IGame
 		Game_FileSystems().insert( 0, new BasicFileSystem( "../data-test" ) );
 		
 		GR2D_LoadFont( "core", "fonts/lato-regular.ttf" );
+		GR2D_LoadFont( "mono", "fonts/dejavu-sans-mono-regular.ttf" );
 		
 		Game_RegisterAction( &MOVE_LEFT );
 		Game_RegisterAction( &MOVE_RIGHT );
