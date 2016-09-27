@@ -409,11 +409,10 @@ class BhSphereTrigger : GOBehavior
 			this.savedPosition = this.object.LocalToWorld( this.offset );
 		
 		found = false;
-		itemID = "kcard1";
-		function fn( obj ) use( found, itemID )
+		self = this;
+		function fn( obj ) use( found, self )
 		{
-			// TODO search *object's* inventory
-			found = @_G.inventory[ itemID ] != 0;
+			found = self.CheckObject( obj );
 			return found;
 		}
 		
@@ -425,6 +424,7 @@ class BhSphereTrigger : GOBehavior
 			this.OnTriggerChangeFunc( newState );
 		}
 	}
+	function CheckObject( obj ){ return true; }
 	function OnTriggerChangeFunc( newState )
 	{
 		this.object.SendMessage( "OnTriggerChange", newState );
@@ -443,6 +443,22 @@ class BhSphereTrigger : GOBehavior
 	}
 }
 BEHAVIOR( "BhSphereTrigger", "GOBehavior" );
+
+// === INVENTORY ITEM CONTROLLED SPHERE TRIGGER === //
+class BhInventorySphereTrigger : BhSphereTrigger
+{
+	function Init()
+	{
+		this!BhSphereTrigger.Init();
+		this.itemID = "key";
+	}
+	function CheckObject( obj )
+	{
+		// TODO search *object's* inventory
+		return @_G.inventory[ this.itemID ] != 0;
+	}
+}
+BEHAVIOR( "BhInventorySphereTrigger", "BhSphereTrigger" );
 
 // === MESH ARRAY === //
 global BhMeshArray = {};
