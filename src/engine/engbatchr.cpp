@@ -936,6 +936,14 @@ struct TextLine
 	int pxheight;
 };
 
+static int _blocks_width( const Array< TextBlock >& blocks, const TextLine& cur_line )
+{
+	int len = 0;
+	for( int i = cur_line.blockend; i < int(blocks.size()); ++i )
+		len += blocks[ i ].pxwidth;
+	return len;
+}
+
 void _GR2D_CalcTextLayout
 (
 	Array< SGRX_TextSettings >& settingStack,
@@ -956,14 +964,13 @@ void _GR2D_CalcTextLayout
 	int total_height = 0;
 	int cur_word_width = 0;
 	int cur_word_start = 0;
-	int last_word_end = 0;
 	
 	TextBlock cur_block = { 0, 0, 0, 0 };
 	TextLine cur_line = { 0, 0, 0, 0 };
-	int num_words = 1;
 	
 	uint32_t prev_chr_val = 0;
 	
+#define LAST_BLOCKS_WIDTH (_blocks_width(blocks,cur_line)+cur_block.pxwidth)
 #define COMMIT_BLOCK \
 	if( cur_block.end > cur_block.start ) \
 	{ \
@@ -975,12 +982,10 @@ void _GR2D_CalcTextLayout
 		cur_block.pxheight = 0; \
 	}
 #define COMMIT_BLOCK_BEFCH( off ) \
-	cur_block.pxwidth += cur_word_width; \
 	cur_word_width = 0; \
 	cur_block.end = off; \
 	COMMIT_BLOCK; \
-	cur_block.start = cur_block.end = cur_word_start = IT.offset; \
-	PUSH_BLOCKS_TO_LINE;
+	cur_block.start = cur_block.end = cur_word_start = IT.offset;
 #define PUSH_BLOCKS_TO_LINE \
 	for( ; cur_line.blockend < int(blocks.size()); ++cur_line.blockend ) \
 	{ \
@@ -1018,6 +1023,9 @@ void _GR2D_CalcTextLayout
 			cur_line.pxheight = TMAX( cur_line.pxheight, blocks[ i ].pxheight ); \
 			LOG << "NEW BLOCK["<<__LINE__<<",len="<<blocks[i].pxwidth<<"]:" << text.part(blocks[i].start,blocks[i].end-blocks[i].start);\
 		} \
+		total_height += cur_line.pxheight; \
+		if( total_height > height ) \
+			return; \
 		LOG << "LINE len=" << cur_line.pxwidth; \
 		lines.push_back( cur_line ); \
 		cur_line.blockstart = cur_line.blockend; \
@@ -1043,31 +1051,19 @@ void _GR2D_CalcTextLayout
 		
 		if( chr_val == '\n' )
 		{
-			if( prev_chr_val == ' ' )
-				num_words--;
-			
 			COMMIT_BLOCK;
-			total_height += cur_line.pxheight;
-			if( total_height > height )
-				break;
+			PUSH_BLOCKS_TO_LINE;
 			COMMIT_LINE;
 			
 			// goto next line after all subsequent spaces
-			last_word_end = IT.offset;
 			SKIP_SPACES;
 			cur_block.start = cur_block.end = IT.offset;
 			cur_word_start = IT.offset;
 			cur_word_width = 0;
-			num_words = 1;
 			continue;
 		}
 		if( chr_val == ' ' )
 		{
-			if( prev_chr_val != 0 && prev_chr_val != ' ' )
-			{
-				last_word_end = IT.offset;
-				num_words++;
-			}
 			cur_word_width = 0;
 			cur_word_start = IT.m_nextoff;
 		}
@@ -1093,7 +1089,10 @@ void _GR2D_CalcTextLayout
 						break;
 					COMMIT_BLOCK_BEFCH( off );
 					if( settingStack.size() > 1 )
+					{
 						settingStack.pop_back();
+						GR2D_SetFontSettings( &settingStack.last() );
+					}
 					continue;
 				}
 				else if( chr_val == 'f' )
@@ -1108,6 +1107,7 @@ void _GR2D_CalcTextLayout
 							IT.Advance();
 							COMMIT_BLOCK_BEFCH( off );
 							settingStack.last().font = cmd;
+							GR2D_SetFontSettings( &settingStack.last() );
 							continue;
 						}
 					}
@@ -1124,6 +1124,7 @@ void _GR2D_CalcTextLayout
 							IT.Advance();
 							COMMIT_BLOCK_BEFCH( off );
 							settingStack.last().size = String_ParseInt( cmd );
+							GR2D_SetFontSettings( &settingStack.last() );
 							continue;
 						}
 					}
@@ -1154,16 +1155,15 @@ void _GR2D_CalcTextLayout
 			IT.SetOffset( noff );
 		}
 		
-		cur_word_width += char_width;
+		if( chr_val != ' ' )
+			cur_word_width += char_width;
 		cur_block.pxwidth += char_width;
 		prev_chr_val = chr_val;
-		if( cur_word_width > width || cur_line.pxwidth + cur_block.pxwidth <= width )
+		if( cur_word_width > width || cur_line.pxwidth + LAST_BLOCKS_WIDTH <= width )
 		{
 			// still within line
 		//	printf("br1 at=%d chr=%c lw=%d bw=%d\n",IT.offset,char(chr_val),cur_line.pxwidth,cur_block.pxwidth);
 			cur_block.pxheight = TMAX( cur_block.pxheight, (int) settingStack.last().CalcLineHeight() );
-			if( IT.Advance() == false )
-				break;
 		}
 		else // last word makes the line exceed rectangle width
 		{
@@ -1176,24 +1176,18 @@ void _GR2D_CalcTextLayout
 			
 			COMMIT_BLOCK;
 			PUSH_BLOCKS_TO_LINE;
-			total_height += cur_line.pxheight;
-			if( total_height > height )
-				break;
 			COMMIT_LINE;
 			cur_block = newblock;
 		//	printf("br2 at=%d chr=%c\n",IT.offset,char(chr_val));
 		}
+		
+		if( IT.Advance() == false )
+			break;
 	}
 	
 	COMMIT_BLOCK;
 	PUSH_BLOCKS_TO_LINE;
-	total_height += cur_line.pxheight;
-	if( total_height <= height )
-	{
-		COMMIT_LINE;
-	}
-	
-	return;
+	COMMIT_LINE;
 }
 
 static Array< SGRX_TextSettings > g_settingStack;
@@ -1209,6 +1203,9 @@ void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 	int lineheight = ceilf( g_CurFontSettings.CalcLineHeight() );
 	if( height < lineheight )
 		return;
+	
+	SGRX_FontSettings fsBackup;
+	GR2D_GetFontSettings( &fsBackup );
 	
 	g_settingStack.clear();
 	blocks.clear();
@@ -1239,6 +1236,8 @@ void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 		}
 		y += lineheight;
 	}
+	
+	GR2D_SetFontSettings( &fsBackup );
 }
 
 

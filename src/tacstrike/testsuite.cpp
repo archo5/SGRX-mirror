@@ -82,6 +82,7 @@ struct Test_AdvancedText : ITest
 	virtual StringView GetName() const { return "Advanced text rendering"; }
 	void Do( float, float )
 	{
+		double t0 = sgrx_hqtime();
 		GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 		GR2D_SetFont( "core", 12 );
 		for( int y = 0; y <= 2; ++y )
@@ -92,7 +93,6 @@ struct Test_AdvancedText : ITest
 				DT( 10 + xo, 10, 90 + xo, 90, "text automatically split into several lines", x, y );
 			}
 		}
-	//	return;
 		for( int y = 0; y <= 2; ++y )
 		{
 			for( int x = 0; x <= 2; ++x )
@@ -109,6 +109,10 @@ struct Test_AdvancedText : ITest
 				DTP( 10 + xo, 210, 90 + xo, 290, "tagged #f(mono)text#f(core) automatically #{#c(255,127,0)split#} into #{#c(0,127,255,0.5)several#} lines", x, y );
 			}
 		}
+		double t1 = sgrx_hqtime();
+		char bfr[ 64 ];
+		sgrx_snprintf( bfr, 64, "Time to process text: %g ms", ( t1 - t0 ) * 1000 );
+		GR2D_DrawTextLine( 0, GR_GetHeight() - 12, bfr );
 	}
 	void DT( int x0, int y0, int x1, int y1, StringView text, int ha = HALIGN_LEFT, int va = VALIGN_TOP )
 	{
