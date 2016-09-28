@@ -92,6 +92,7 @@ struct Test_AdvancedText : ITest
 				DT( 10 + xo, 10, 90 + xo, 90, "text automatically split into several lines", x, y );
 			}
 		}
+	//	return;
 		for( int y = 0; y <= 2; ++y )
 		{
 			for( int x = 0; x <= 2; ++x )

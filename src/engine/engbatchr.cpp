@@ -967,23 +967,58 @@ void _GR2D_CalcTextLayout
 #define COMMIT_BLOCK \
 	if( cur_block.end > cur_block.start ) \
 	{ \
+		LOG << "NEW BLOCK["<<__LINE__<<",len="<<cur_block.pxwidth<<"]:" << text.part(cur_block.start,cur_block.end-cur_block.start);\
 		cur_block.settings = settingStack.last(); \
 		blocks.push_back( cur_block ); \
-		cur_line.blockend = blocks.size(); \
-		cur_line.pxwidth += cur_block.pxwidth; \
-		cur_line.pxheight = TMAX( cur_line.pxheight, cur_block.pxheight ); \
 		cur_block.start = cur_block.end; \
 		cur_block.pxwidth = 0; \
 		cur_block.pxheight = 0; \
 	}
 #define COMMIT_BLOCK_BEFCH( off ) \
+	cur_block.pxwidth += cur_word_width; \
+	cur_word_width = 0; \
 	cur_block.end = off; \
 	COMMIT_BLOCK; \
-	cur_block.start = cur_block.end = IT.m_nextoff;
+	cur_block.start = cur_block.end = cur_word_start = IT.offset; \
+	PUSH_BLOCKS_TO_LINE;
+#define PUSH_BLOCKS_TO_LINE \
+	for( ; cur_line.blockend < int(blocks.size()); ++cur_line.blockend ) \
+	{ \
+		cur_line.pxwidth += blocks[ cur_line.blockend ].pxwidth; \
+		cur_line.pxheight = TMAX( cur_line.pxheight, blocks[ cur_line.blockend ].pxheight ); \
+	}
 		
 #define COMMIT_LINE \
+	while( cur_line.blockend > cur_line.blockstart ){ \
+		TextBlock& TB = blocks[ cur_line.blockstart ]; \
+		while( TB.start < TB.end && text[ TB.start ] == ' ' ){ \
+			TB.pxwidth -= g_FontRenderer->GetAdvanceX( 0, ' ' ); \
+			TB.start++; } \
+		if( TB.start == TB.end ){ \
+			blocks.erase( cur_line.blockstart ); \
+			cur_line.blockend--; } \
+		else break; \
+	} \
+	while( cur_line.blockend > cur_line.blockstart ){ \
+		TextBlock& TB = blocks[ cur_line.blockend - 1 ]; \
+		while( TB.start < TB.end && text[ TB.end - 1 ] == ' ' ){ \
+			TB.pxwidth -= g_FontRenderer->GetAdvanceX( 0, ' ' ); \
+			TB.end--; } \
+		if( TB.start == TB.end ){ \
+			blocks.erase( --cur_line.blockend ); } \
+		else break; \
+	} \
 	if( cur_line.blockend > cur_line.blockstart ) \
 	{ \
+		LOG << "NEW LINE:"; \
+		cur_line.pxwidth = 0; \
+		cur_line.pxheight = 0; \
+		for( int i = cur_line.blockstart; i < cur_line.blockend; ++i ){ \
+			cur_line.pxwidth += blocks[ i ].pxwidth; \
+			cur_line.pxheight = TMAX( cur_line.pxheight, blocks[ i ].pxheight ); \
+			LOG << "NEW BLOCK["<<__LINE__<<",len="<<blocks[i].pxwidth<<"]:" << text.part(blocks[i].start,blocks[i].end-blocks[i].start);\
+		} \
+		LOG << "LINE len=" << cur_line.pxwidth; \
 		lines.push_back( cur_line ); \
 		cur_line.blockstart = cur_line.blockend; \
 		cur_line.pxwidth = 0; \
@@ -1008,7 +1043,6 @@ void _GR2D_CalcTextLayout
 		
 		if( chr_val == '\n' )
 		{
-			cur_block.pxwidth += cur_word_width;
 			if( prev_chr_val == ' ' )
 				num_words--;
 			
@@ -1029,7 +1063,6 @@ void _GR2D_CalcTextLayout
 		}
 		if( chr_val == ' ' )
 		{
-			cur_block.pxwidth += cur_word_width;
 			if( prev_chr_val != 0 && prev_chr_val != ' ' )
 			{
 				last_word_end = IT.offset;
@@ -1047,20 +1080,20 @@ void _GR2D_CalcTextLayout
 			{
 				if( chr_val == '{' )
 				{
+					if( !IT.Advance() )
+						break;
 					COMMIT_BLOCK_BEFCH( off );
 					SGRX_TextSettings ts = settingStack.last();
 					settingStack.push_back( ts );
-					if( !IT.Advance() )
-						break;
 					continue;
 				}
 				else if( chr_val == '}' )
 				{
+					if( !IT.Advance() )
+						break;
 					COMMIT_BLOCK_BEFCH( off );
 					if( settingStack.size() > 1 )
 						settingStack.pop_back();
-					if( !IT.Advance() )
-						break;
 					continue;
 				}
 				else if( chr_val == 'f' )
@@ -1068,12 +1101,13 @@ void _GR2D_CalcTextLayout
 					IT.Advance();
 					if( IT.codepoint == '(' )
 					{
-						StringView text = IT.ReadUntilEndOr( ")" );
+						StringView cmd = IT.ReadUntilEndOr( ")" );
 						IT.Advance();
 						if( IT.codepoint == ')' )
 						{
+							IT.Advance();
 							COMMIT_BLOCK_BEFCH( off );
-							settingStack.last().font = text;
+							settingStack.last().font = cmd;
 							continue;
 						}
 					}
@@ -1083,12 +1117,13 @@ void _GR2D_CalcTextLayout
 					IT.Advance();
 					if( IT.codepoint == '(' )
 					{
-						StringView text = IT.ReadUntilEndOr( ")" );
+						StringView cmd = IT.ReadUntilEndOr( ")" );
 						IT.Advance();
 						if( IT.codepoint == ')' )
 						{
+							IT.Advance();
 							COMMIT_BLOCK_BEFCH( off );
-							settingStack.last().size = String_ParseInt( text );
+							settingStack.last().size = String_ParseInt( cmd );
 							continue;
 						}
 					}
@@ -1098,13 +1133,14 @@ void _GR2D_CalcTextLayout
 					IT.Advance();
 					if( IT.codepoint == '(' )
 					{
-						StringView text = IT.ReadUntilEndOr( ")" );
+						StringView cmd = IT.ReadUntilEndOr( ")" );
 						IT.Advance();
 						if( IT.codepoint == ')' )
 						{
+							IT.Advance();
 							COMMIT_BLOCK_BEFCH( off );
 							bool suc = false;
-							Vec4 col = String_ParseVec4( text, &suc, "," );
+							Vec4 col = String_ParseVec4( cmd, &suc, "," );
 							if( !suc )
 								col.w = 1;
 							col *= V4( V3( 1.0f / 255.0f ), 1.0f );
@@ -1118,13 +1154,14 @@ void _GR2D_CalcTextLayout
 			IT.SetOffset( noff );
 		}
 		
-		if( cur_line.pxwidth + cur_block.pxwidth == 0 || cur_line.pxwidth + cur_block.pxwidth + cur_word_width + char_width < width )
+		cur_word_width += char_width;
+		cur_block.pxwidth += char_width;
+		prev_chr_val = chr_val;
+		if( cur_word_width > width || cur_line.pxwidth + cur_block.pxwidth <= width )
 		{
 			// still within line
 		//	printf("br1 at=%d chr=%c lw=%d bw=%d\n",IT.offset,char(chr_val),cur_line.pxwidth,cur_block.pxwidth);
-			cur_word_width += char_width;
 			cur_block.pxheight = TMAX( cur_block.pxheight, (int) settingStack.last().CalcLineHeight() );
-			prev_chr_val = chr_val;
 			if( IT.Advance() == false )
 				break;
 		}
@@ -1132,15 +1169,13 @@ void _GR2D_CalcTextLayout
 		{
 			// fork block for new word
 			TextBlock newblock = cur_block;
-			cur_block.end = last_word_end;
+			cur_block.end = cur_word_start;
+			cur_block.pxwidth -= cur_word_width;
 			newblock.start = cur_word_start;
-			// remove space sizes from beginning of word
-			for( int i = last_word_end; i < cur_word_start; ++i )
-				if( IT.m_text[ i ] == ' ' )
-					cur_word_width -= g_FontRenderer->GetAdvanceX( i > 0 ? IT.m_text[ i - 1 ] : 0, ' ' );
-			newblock.pxwidth = 0;
+			newblock.pxwidth = cur_word_width;
 			
 			COMMIT_BLOCK;
+			PUSH_BLOCKS_TO_LINE;
 			total_height += cur_line.pxheight;
 			if( total_height > height )
 				break;
@@ -1150,8 +1185,8 @@ void _GR2D_CalcTextLayout
 		}
 	}
 	
-	cur_block.pxwidth += cur_word_width;
 	COMMIT_BLOCK;
+	PUSH_BLOCKS_TO_LINE;
 	total_height += cur_line.pxheight;
 	if( total_height <= height )
 	{
