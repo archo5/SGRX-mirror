@@ -955,6 +955,8 @@ void _GR2D_CalcTextLayout
 	bool parse
 )
 {
+	LOG_FUNCTION;
+	
 	settingStack.clear();
 	SGRX_TextSettings textSettings;
 	GR2D_GetFontSettings( &textSettings );
@@ -1196,6 +1198,8 @@ static Array< TextLine > lines;
 void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 	const StringView& text, int halign, int valign, bool parse )
 {
+	LOG_FUNCTION;
+	
 	// sizing
 	int width = x1 - x0;
 	int height = y1 - y0;

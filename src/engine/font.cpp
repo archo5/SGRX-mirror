@@ -436,6 +436,8 @@ void FontRenderer::SetCursor( const Vec2& pos )
 
 int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 {
+//	LOG_FUNCTION;
+	
 	if( !m_currentFont )
 		return 0;
 	
@@ -508,6 +510,7 @@ float FontRenderer::GetTextWidth( const StringView& text )
 
 float FontRenderer::GetAdvanceX( uint32_t cpprev, uint32_t cpcurr )
 {
+//	LOG_FUNCTION;
 	if( m_currentFont == NULL )
 		return 0;
 	

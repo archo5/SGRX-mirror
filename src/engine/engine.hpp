@@ -215,7 +215,7 @@ struct EventData
 		case Int: case Int2: case Int3: case Int4:
 			{ IVec2 out = { data.IV4.x, data.IV4.y }; return out; }
 		case Float: case Float2: case Float3: case Float4:
-			{ IVec2 out = { data.FV4.x, data.FV4.y }; return out; }
+			{ IVec2 out = { (IntType) data.FV4.x, (IntType) data.FV4.y }; return out; }
 		default:
 			{ IVec2 out = { 0, 0 }; return out; }
 		}
@@ -227,7 +227,7 @@ struct EventData
 		case Int: case Int2: case Int3: case Int4:
 			{ IVec3 out = { data.IV4.x, data.IV4.y, data.IV4.z }; return out; }
 		case Float: case Float2: case Float3: case Float4:
-			{ IVec3 out = { data.FV4.x, data.FV4.y, data.FV4.z }; return out; }
+			{ IVec3 out = { (IntType) data.FV4.x, (IntType) data.FV4.y, (IntType) data.FV4.z }; return out; }
 		default:
 			{ IVec3 out = { 0, 0, 0 }; return out; }
 		}
@@ -238,7 +238,7 @@ struct EventData
 		{
 		case Int: case Int2: case Int3: case Int4: return data.IV4;
 		case Float: case Float2: case Float3: case Float4:
-			{ IVec4 out = { data.FV4.x, data.FV4.y, data.FV4.z, data.FV4.w }; return out; }
+			{ IVec4 out = { (IntType) data.FV4.x, (IntType) data.FV4.y, (IntType) data.FV4.z, (IntType) data.FV4.w }; return out; }
 		default:
 			{ IVec4 out = { 0, 0, 0, 0 }; return out; }
 		}
@@ -257,7 +257,7 @@ struct EventData
 		switch( type )
 		{
 		case Int: case Int2: case Int3: case Int4:
-			{ Vec2 out = { data.IV4.x, data.IV4.y }; return out; }
+			{ Vec2 out = { (float) data.IV4.x, (float) data.IV4.y }; return out; }
 		case Float: case Float2: case Float3: case Float4:
 			{ Vec2 out = { data.FV4.x, data.FV4.y }; return out; }
 		default:
@@ -269,7 +269,7 @@ struct EventData
 		switch( type )
 		{
 		case Int: case Int2: case Int3: case Int4:
-			{ Vec3 out = { data.IV4.x, data.IV4.y, data.IV4.z }; return out; }
+			{ Vec3 out = { (float) data.IV4.x, (float) data.IV4.y, (float) data.IV4.z }; return out; }
 		case Float: case Float2: case Float3: case Float4:
 			{ Vec3 out = { data.FV4.x, data.FV4.y, data.FV4.z }; return out; }
 		default:
@@ -281,7 +281,7 @@ struct EventData
 		switch( type )
 		{
 		case Int: case Int2: case Int3: case Int4:
-			{ Vec4 out = { data.IV4.x, data.IV4.y, data.IV4.z, data.IV4.w }; return out; }
+			{ Vec4 out = { (float) data.IV4.x, (float) data.IV4.y, (float) data.IV4.z, (float) data.IV4.w }; return out; }
 		case Float: case Float2: case Float3: case Float4: return data.FV4;
 		default:
 			{ Vec4 out = { 0, 0, 0, 0 }; return out; }
@@ -1365,7 +1365,7 @@ struct SGRX_MeshInstance : SGRX_RCXFItem
 	{
 		return m_srsData[ m_drawItems.size() * pass + part ];
 	}
-	FINLINE uint16_t GetMaterialCount() const { return materials.size(); }
+	FINLINE uint16_t GetMaterialCount() const { return (uint16_t) materials.size(); }
 	FINLINE void SetMaterialCount( uint16_t n ){ materials.resize( n ); OnUpdate(); }
 	FINLINE SGRX_Material& GetMaterial( uint16_t i ){ return materials[ i ]; }
 	
@@ -1819,7 +1819,7 @@ struct BatchRenderer
 
 struct SGRX_FontSettings
 {
-	RCString font;
+	StringView font;
 	int size;
 	float letterspacing;
 	float lineheight; // +px, -size factor
@@ -1949,7 +1949,7 @@ struct ENGINE_EXPORT SGRX_DebugDraw
 	virtual void DebugDraw() = 0;
 };
 
-struct ENGINE_EXPORT SGRX_RenderScene
+struct IF_GCC(ENGINE_EXPORT) SGRX_RenderScene
 {
 	ENGINE_EXPORT SGRX_RenderScene(
 		const Vec4& tv,

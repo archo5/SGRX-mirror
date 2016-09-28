@@ -3106,7 +3106,7 @@ struct ByteWriter
 	FINLINE ByteWriter& smallString( StringView str )
 	{
 		ASSERT( str.size() <= 255 );
-		write< uint8_t >( str.size() );
+		write< uint8_t >( (uint8_t) str.size() );
 		memory( str.data(), str.size() );
 		return *this;
 	}

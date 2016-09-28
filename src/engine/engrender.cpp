@@ -228,10 +228,10 @@ void IRenderer::_RS_LoadInstItems( const Mat4& view, int slot, SGRX_MeshInstance
 		SGRX_MeshInstance* MI = milist[ miid ];
 		for( size_t part_id = 0; part_id < MI->m_drawItems.size(); ++part_id )
 		{
-			if( MI->m_drawItems.size() <= part_id ||
+			if( uint16_t(MI->m_drawItems.size()) <= part_id ||
 				MI->GetMaterialCount() <= part_id ||
 				( MI->m_drawItems[ part_id ].type & flags ) == 0 ||
-				( MI->GetMaterial( part_id ).flags & SGRX_MtlFlag_Disable ) )
+				( MI->GetMaterial( (uint16_t) part_id ).flags & SGRX_MtlFlag_Disable ) )
 				continue;
 			
 			RenderItem RI = { _RS_GenSortKey( view, MI, part_id ), MI, part_id };
@@ -438,7 +438,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 		m_projectorMesh->SetPartData( m_projectorMeshParts.data(), m_projectorMeshParts.size() );
 		
 		scene->m_projMeshInst->SetMesh( m_projectorMesh, false );
-		scene->m_projMeshInst->SetMaterialCount( m_projectorMaterials.size() );
+		scene->m_projMeshInst->SetMaterialCount( (uint16_t) m_projectorMaterials.size() );
 		for( size_t i = 0; i < m_projectorMaterials.size(); ++i )
 		{
 			scene->m_projMeshInst->GetMaterial( i ) = *m_projectorMaterials[ i ];

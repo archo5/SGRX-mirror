@@ -729,7 +729,10 @@ void Game_Process( float dt )
 	
 	g_BatchRenderer->Flush();
 	
-	g_Renderer->Swap();
+	{
+		LOG_FUNCTION_ARG( "PRESENT_MAYBE_VSYNC" );
+		g_Renderer->Swap();
+	}
 	renderer_clear_rts();
 }
 
