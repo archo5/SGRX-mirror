@@ -553,12 +553,12 @@ void EdBlock::_PostFitTexcoords( const EdSurface& S, LCVertex* vertices, size_t 
 			vertices[ i ].tx0 = safe_fdiv( vertices[ i ].tx0 - xmin, xdst ) * S.xfit / S.scale + S.xoff;
 			if( S.yfit == 0 )
 			{
-				vertices[ i ].ty0 = safe_fdiv( vertices[ i ].ty0, xdst ) * S.xfit / S.scale * S.aspect + S.yoff;
+				vertices[ i ].ty0 = safe_fdiv( vertices[ i ].ty0, xdst ) * S.xfit / S.scale + S.yoff;
 			}
 		}
 		if( S.yfit )
 		{
-			vertices[ i ].ty0 = safe_fdiv( vertices[ i ].ty0 - ymin, ydst ) * S.yfit / S.scale * S.aspect + S.yoff;
+			vertices[ i ].ty0 = safe_fdiv( vertices[ i ].ty0 - ymin, ydst ) * S.yfit / S.scale + S.yoff;
 			if( S.xfit == 0 )
 			{
 				vertices[ i ].tx0 = safe_fdiv( vertices[ i ].tx0, ydst ) * S.yfit / S.scale + S.xoff;

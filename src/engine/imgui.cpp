@@ -642,6 +642,7 @@ bool IMGUIPickerCore::Popup( const char* caption, RCString& str )
 
 bool IMGUIPickerCore::Property( const char* caption, const char* label, String& str )
 {
+	ImGui::PushID( label );
 	if( ImGui::Button( str.size() ? StackPath(str).str : "<click to select>",
 		ImVec2( ImGui::GetContentRegionAvail().x * (2.f/3.f), 20 ) ) )
 	{
@@ -649,7 +650,9 @@ bool IMGUIPickerCore::Property( const char* caption, const char* label, String& 
 	}
 	ImGui::SameLine();
 	ImGui::Text( "%s", label );
-	return Popup( caption, str );
+	bool ret = Popup( caption, str );
+	ImGui::PopID();
+	return ret;
 }
 
 void IMGUIPickerCore::Reload()
