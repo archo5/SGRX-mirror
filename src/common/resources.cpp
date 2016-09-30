@@ -148,6 +148,7 @@ ParticleSystemResource::ParticleSystemResource( GameObject* obj ) :
 	m_enabled( false ),
 	m_soundEventOneShot( false )
 {
+	m_psys.m_lightSampler = m_level;
 }
 
 void ParticleSystemResource::OnTransformUpdate()

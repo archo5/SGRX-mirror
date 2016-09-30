@@ -373,7 +373,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_ScenePSRaycast : SGRX_IPSRaycast
 	uint32_t layers;
 };
 
-#define PARTICLESYSTEM_VERSION 5
+#define PARTICLESYSTEM_VERSION 6
 // 1: initial version
 // 2: added group count
 // 3: added global scale

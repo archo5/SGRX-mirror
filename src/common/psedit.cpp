@@ -374,7 +374,7 @@ struct PSEditor : IGame
 		SGRX_IMGUI_Init();
 		
 		g_NUIRenderView = new IMGUIRenderView( g_EdScene );
-		g_NUIPartSysPicker = new IMGUIFilePicker( SGRXPATH_SRC "psys", ".psy" );
+		g_NUIPartSysPicker = new IMGUIFilePicker( SGRXPATH_SRC "/psys", ".psy" );
 		g_NUITexturePicker = new IMGUITexturePicker();
 		ISFX_Reload();
 		
