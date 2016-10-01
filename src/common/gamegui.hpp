@@ -246,6 +246,7 @@ EXP_STRUCT GameUIControl
 	SGS_METHOD void DFont( StringView name, float size );
 	SGS_METHOD void DText( StringView text, float x, float y, int ha, int va );
 	SGS_METHOD float DTextLen( StringView text );
+	SGS_METHOD void DTextRect( StringView text, float x0, float y0, float x1, float y1, int ha, int va );
 };
 
 

@@ -976,7 +976,7 @@ void _GR2D_CalcTextLayout
 #define COMMIT_BLOCK \
 	if( cur_block.end > cur_block.start ) \
 	{ \
-		LOG << "NEW BLOCK["<<__LINE__<<",len="<<cur_block.pxwidth<<"]:" << text.part(cur_block.start,cur_block.end-cur_block.start);\
+	/*	LOG << "NEW BLOCK["<<__LINE__<<",len="<<cur_block.pxwidth<<"]:" << text.part(cur_block.start,cur_block.end-cur_block.start); */ \
 		cur_block.settings = settingStack.last(); \
 		blocks.push_back( cur_block ); \
 		cur_block.start = cur_block.end; \
@@ -1017,18 +1017,18 @@ void _GR2D_CalcTextLayout
 	} \
 	if( cur_line.blockend > cur_line.blockstart ) \
 	{ \
-		LOG << "NEW LINE:"; \
+	/*	LOG << "NEW LINE:"; */ \
 		cur_line.pxwidth = 0; \
 		cur_line.pxheight = 0; \
 		for( int i = cur_line.blockstart; i < cur_line.blockend; ++i ){ \
 			cur_line.pxwidth += blocks[ i ].pxwidth; \
 			cur_line.pxheight = TMAX( cur_line.pxheight, blocks[ i ].pxheight ); \
-			LOG << "NEW BLOCK["<<__LINE__<<",len="<<blocks[i].pxwidth<<"]:" << text.part(blocks[i].start,blocks[i].end-blocks[i].start);\
+		/*	LOG << "NEW BLOCK["<<__LINE__<<",len="<<blocks[i].pxwidth<<"]:" << text.part(blocks[i].start,blocks[i].end-blocks[i].start); */ \
 		} \
 		total_height += cur_line.pxheight; \
 		if( total_height > height ) \
 			return; \
-		LOG << "LINE len=" << cur_line.pxwidth; \
+	/*	LOG << "LINE len=" << cur_line.pxwidth; */ \
 		lines.push_back( cur_line ); \
 		cur_line.blockstart = cur_line.blockend; \
 		cur_line.pxwidth = 0; \

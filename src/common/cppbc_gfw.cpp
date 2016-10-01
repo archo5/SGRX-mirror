@@ -576,6 +576,13 @@ static int _sgs_method__GameUIControl__DTextLen( SGS_CTX )
 	sgs_PushVar(C,data->DTextLen( sgs_GetVar<StringView>()(C,0) )); return 1;
 }
 
+static int _sgs_method__GameUIControl__DTextRect( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DTextRect ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DTextRect( sgs_GetVar<StringView>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<int>()(C,5), sgs_GetVar<int>()(C,6) ); return 0;
+}
+
 int GameUIControl::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameUIControl*>( obj->data )->C = C;
@@ -738,6 +745,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DFont", _sgs_method__GameUIControl__DFont },
 	{ "DText", _sgs_method__GameUIControl__DText },
 	{ "DTextLen", _sgs_method__GameUIControl__DTextLen },
+	{ "DTextRect", _sgs_method__GameUIControl__DTextRect },
 	{ NULL, NULL },
 };
 

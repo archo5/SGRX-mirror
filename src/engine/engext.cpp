@@ -2108,6 +2108,7 @@ void SGRX_HelpTextRenderer::RenderText( StringView text )
 		char c = it.ch();
 		if( c == '#' )
 		{
+			StringView befit = it;
 			AddText( start, it );
 			it.skip( 1 );
 			char c2 = it.ch();
@@ -2117,6 +2118,7 @@ void SGRX_HelpTextRenderer::RenderText( StringView text )
 				it.skip( 1 ); // skip one #, include another
 				continue;
 			}
+			/*
 			else if( c2 == 'c' || c2 == 'C' ) // color
 			{
 				it.skip( 1 );
@@ -2147,6 +2149,7 @@ void SGRX_HelpTextRenderer::RenderText( StringView text )
 				start = it;
 				continue;
 			}
+			*/
 			else if( c2 == 'a' || c2 == 'A' ) // action
 			{
 				it.skip( 1 );
@@ -2160,6 +2163,12 @@ void SGRX_HelpTextRenderer::RenderText( StringView text )
 				AddActionInputText( actionname );
 				it.skip( actionname.size() + 1 );
 				start = it;
+				continue;
+			}
+			else
+			{
+				start = befit;
+				it.skip( 1 );
 				continue;
 			}
 		}
@@ -2248,7 +2257,7 @@ void SGRX_HelpTextRenderer::DrawTextItem( Text& item )
 	
 	GR2D_SetColor( c.x, c.y, c.z, c.w * opacity );
 	GR2D_SetFont( item.font, item.fontSize );
-	GR2D_DrawTextLine( item.pos.x + item.padding, item.pos.y, GetText( item ), HALIGN_LEFT, VALIGN_CENTER );
+	GR2D_DrawTextRect( item.pos.x + item.padding, item.pos.y - 1000, item.pos.x + 10000, item.pos.y + 1000, GetText( item ), HALIGN_LEFT, VALIGN_CENTER );
 }
 
 void SGRX_HelpTextRenderer::SetColor( StringView name )
