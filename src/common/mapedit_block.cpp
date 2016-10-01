@@ -238,6 +238,14 @@ void EdBlock::ScaleVertices( const Vec3& f )
 	z1 *= f.z;
 }
 
+void EdBlock::TransformVertices( const Mat4& xf, bool selected )
+{
+	position += xf.GetTranslation();
+	for( size_t i = 0; i < poly.size(); ++i )
+		if( !selected || IsVertexSelected( i ) || IsVertexSelected( i + poly.size() ) )
+			poly[ i ] = xf.TransformNormal( poly[ i ] );
+}
+
 void EdBlock::MoveSelectedVertices( const Vec3& tfv )
 {
 	int numbottom = 0, numtop = 0;

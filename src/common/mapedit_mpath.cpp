@@ -536,6 +536,14 @@ void EdMeshPath::ScaleVertices( const Vec3& f )
 	}
 }
 
+void EdMeshPath::TransformVertices( const Mat4& xf, bool selected )
+{
+	m_position += xf.GetTranslation();
+	for( size_t i = 0; i < m_points.size(); ++i )
+		if( !selected || m_points[ i ].sel )
+			m_points[ i ].pos = xf.TransformNormal( m_points[ i ].pos );
+}
+
 void EdMeshPath::MoveSelectedVertices( const Vec3& t )
 {
 	for( size_t i = 0; i < m_points.size(); ++i )

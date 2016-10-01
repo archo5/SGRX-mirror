@@ -500,6 +500,19 @@ void EdPatch::ScaleVertices( const Vec3& f )
 	}
 }
 
+void EdPatch::TransformVertices( const Mat4& xf, bool selected )
+{
+	position += xf.GetTranslation();
+	for( int y = 0; y < ysize; ++y )
+	{
+		for( int x = 0; x < xsize; ++x )
+		{
+			if( !selected || ( vertsel[ y ] & ( 1 << x ) ) )
+				vertices[ x + y * MAX_PATCH_WIDTH ].pos = xf.TransformNormal( vertices[ x + y * MAX_PATCH_WIDTH ].pos );
+		}
+	}
+}
+
 int EdPatch::GetOnlySelectedVertex() const
 {
 	int sel = -1;

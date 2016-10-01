@@ -61,8 +61,15 @@ int EdBasicEditTransform::ViewUI()
 	return 1;
 }
 
-EdBlockEditTransform::EdBlockEditTransform() : m_subpointCenter(false)
+EdBlockEditTransform::EdBlockEditTransform() :
+	m_xfmode( Translate ),
+	m_cmode( Camera ),
+	m_origin( V3(0) ),
+	m_subpointCenter(false),
+	m_xtdMask( V3(0) )
 {
+	m_xtdAABB[0] = V3(0);
+	m_xtdAABB[1] = V3(0);
 }
 
 bool EdBlockEditTransform::OnEnter()
@@ -212,20 +219,37 @@ Vec3 EdBlockEditTransform::GetMovementVector( const Vec2& a, const Vec2& b )
 	return V3(0);
 }
 
+Mat4 EdBlockEditTransform::GetRotationMatrix( const Vec2& a, const Vec2& b )
+{
+	Vec3 axis = V3(0);
+	Vec3 mult = V3(1);
+	switch( m_cmode )
+	{
+	case Camera: axis = g_EdScene->camera.direction.Normalized(); break;
+	case XAxis: mult = axis = V3(1,0,0); break;
+	case XPlane: axis = V3(1,0,0); mult = V3(0,1,1); break;
+	case YAxis: mult = axis = V3(0,1,0); break;
+	case YPlane: axis = V3(0,1,0); mult = V3(1,0,1); break;
+	case ZAxis: mult = axis = V3(0,0,1); break;
+	case ZPlane: axis = V3(0,0,1); mult = V3(1,1,0); break;
+	}
+	
+	Vec2 sso = ED_GetScreenPos( m_origin );
+	float angleA = ( a - sso ).Angle();
+	float angleB = ( b - sso ).Angle();
+	float angleDiff = ( angleB - angleA ) * -sign( Vec3Dot( g_EdScene->camera.direction, axis ) );
+	
+	return Mat4::CreateRotationAxisAngle( axis, angleDiff );
+}
+
 int EdBlockMoveTransform::ViewUI()
 {
 	int x0 = g_UIFrame->m_NUIRenderView.m_vp.x0;
 	int y1 = g_UIFrame->m_NUIRenderView.m_vp.y1;
 	char bfr[ 1024 ];
-	if( m_extend )
-	{
-		// TODO: more detail?
-		sgrx_snprintf( bfr, 1024, "Extending blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
-	}
-	else
-	{
-		sgrx_snprintf( bfr, 1024, "Moving blocks: %g ; %g ; %g", m_transform.x, m_transform.y, m_transform.z );
-	}
+	const char* actions[] = { "Moving", "Extending", "Rotating" };
+	// TODO: more detail?
+	sgrx_snprintf( bfr, 1024, "%s blocks: %g ; %g ; %g", actions[ m_xfmode ], m_transform.x, m_transform.y, m_transform.z );
 	
 	ImDrawList* idl = ImGui::GetWindowDrawList();
 	idl->PushClipRectFullScreen();
@@ -291,27 +315,35 @@ void EdBlockMoveTransform::ApplyTransform()
 		
 		if( obj )
 		{
-			if( m_extend )
+			switch( m_xfmode )
 			{
-				obj->SetPosition( ED_RemapPos( obj->GetPosition(), m_xtdAABB, dstbb ) );
-				obj->ScaleVertices( TREVLERP( V3(0), m_xtdAABB[1] - m_xtdAABB[0], dstbb[1] - dstbb[0] ) );
-			}
-			else
-			{
+			case Translate:
 				// simple translation only
 				obj->SetPosition( obj->GetPosition() + m_transform );
+				break;
+			case Extend:
+				obj->SetPosition( ED_RemapPos( obj->GetPosition(), m_xtdAABB, dstbb ) );
+				obj->ScaleVertices( TREVLERP( V3(0), m_xtdAABB[1] - m_xtdAABB[0], dstbb[1] - dstbb[0] ) );
+				break;
+			case Rotate:
+				obj->TransformVertices( m_rotateTransform );
+				break;
 			}
 			obj->RegenerateMesh();
 		}
 		else if( go )
 		{
-			if( m_extend )
+			switch( m_xfmode )
 			{
-				go->SetWorldPosition( ED_RemapPos( go->GetWorldPosition(), m_xtdAABB, dstbb ) );
-			}
-			else
-			{
+			case Translate:
 				go->SetWorldPosition( go->GetWorldPosition() + m_transform );
+				break;
+			case Extend:
+				go->SetWorldPosition( ED_RemapPos( go->GetWorldPosition(), m_xtdAABB, dstbb ) );
+				break;
+			case Rotate:
+				go->SetWorldMatrix( go->GetWorldMatrix() * m_rotateTransform );
+				break;
 			}
 		}
 	}
@@ -319,7 +351,17 @@ void EdBlockMoveTransform::ApplyTransform()
 
 void EdBlockMoveTransform::RecalcTransform()
 {
-	m_transform = g_UIFrame->Snapped( GetMovementVector( m_startCursorPos, ED_GetCursorPos() ) );
+	switch( m_xfmode )
+	{
+	case Translate:
+	case Extend:
+		m_transform = g_UIFrame->Snapped( GetMovementVector( m_startCursorPos, ED_GetCursorPos() ) );
+		break;
+	case Rotate:
+		m_rotateTransform = GetRotationMatrix( m_startCursorPos, ED_GetCursorPos() );
+		m_transform = RAD2DEG( m_rotateTransform.GetXYZAngles() );
+		break;
+	}
 }
 
 
@@ -363,7 +405,17 @@ void EdVertexMoveTransform::ApplyTransform()
 		EdObject* obj = SO.idx.GetEdObject();
 		if( obj )
 		{
-			obj->MoveSelectedVertices( m_transform );
+			switch( m_xfmode )
+			{
+			case Translate:
+				obj->MoveSelectedVertices( m_transform );
+				break;
+			case Rotate:
+				obj->TransformVertices( m_rotateTransform, true );
+				break;
+			case Extend: // not supported here (?)
+				break;
+			}
 			if( m_project )
 			{
 				obj->ProjectSelectedVertices();
@@ -676,13 +728,19 @@ void EdEditBlockEditMode::ViewUI()
 		// GRAB (MOVE)
 		if( ImGui::IsKeyPressed( SDLK_g, false ) )
 		{
-			m_transform.m_extend = false;
+			m_transform.m_xfmode = EdBlockEditTransform::Translate;
+			g_UIFrame->SetEditTransform( &m_transform );
+		}
+		// ROTATE
+		if( ImGui::IsKeyPressed( SDLK_r, false ) )
+		{
+			m_transform.m_xfmode = EdBlockEditTransform::Rotate;
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
 		// EXTEND
 		if( ImGui::IsKeyPressed( SDLK_e, false ) && m_hlBBEl != -1 )
 		{
-			m_transform.m_extend = true;
+			m_transform.m_xfmode = EdBlockEditTransform::Extend;
 			m_transform.m_xtdAABB[0] = m_selAABB[0];
 			m_transform.m_xtdAABB[1] = m_selAABB[1];
 			m_transform.m_xtdMask = GetActivePointFactor( m_hlBBEl );
@@ -702,7 +760,7 @@ void EdEditBlockEditMode::ViewUI()
 			{
 				m_curObj = g_EdWorld->GetOnlySelectedObject();
 				_ReloadBlockProps();
-				m_transform.m_extend = false;
+				m_transform.m_xfmode = EdBlockEditTransform::Translate;
 				g_UIFrame->SetEditTransform( &m_transform );
 			}
 		}
@@ -1015,7 +1073,7 @@ void EdEditVertexEditMode::_Do( ESpecialAction act )
 				break;
 			
 			obj->SpecialAction( act );
-			m_transform.m_extend = false;
+			m_transform.m_xfmode = EdBlockEditTransform::Translate;
 			g_UIFrame->SetEditTransform( &m_transform );
 			OnEnter(); // refresh selection
 			break;
@@ -1110,7 +1168,13 @@ void EdEditVertexEditMode::ViewUI()
 		// GRAB (MOVE)
 		if( ImGui::IsKeyPressed( SDLK_g ) )
 		{
-			m_transform.m_extend = false;
+			m_transform.m_xfmode = EdBlockEditTransform::Translate;
+			g_UIFrame->SetEditTransform( &m_transform );
+		}
+		// ROTATE
+		if( ImGui::IsKeyPressed( SDLK_r ) )
+		{
+			m_transform.m_xfmode = EdBlockEditTransform::Rotate;
 			g_UIFrame->SetEditTransform( &m_transform );
 		}
 		// TO BLOCK MODE

@@ -1119,7 +1119,7 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 			mtx.TransformPos( V3(0,0,0) ),
 			V3(0),
 			mtx.TransformNormal( V3(0,0,1) ).Normalized(),
-			mtx.TransformNormal( V3(0,-1,0) ).Normalized()
+			mtx.TransformNormal( V3(0,1,0) ).Normalized()
 		};
 		m_soundSys->Set3DAttribs( attr );
 	}

@@ -410,6 +410,7 @@ struct EdObject : SGRX_RefCounted
 	virtual bool IsVertexSelected( int i ) const { return false; }
 	virtual int GetOnlySelectedVertex() const { return -1; }
 	virtual void ScaleVertices( const Vec3& scale ) = 0;
+	virtual void TransformVertices( const Mat4& xf, bool selected = false ) = 0;
 	virtual void MoveSelectedVertices( const Vec3& t ) = 0;
 	virtual int GetNumPaintVerts() const { return 0; }
 	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol ){}
@@ -756,6 +757,7 @@ struct EdBlock : EdObject
 	virtual Vec3 GetPosition() const { return position; }
 	virtual void SetPosition( const Vec3& p ){ position = p; }
 	virtual void ScaleVertices( const Vec3& f );
+	virtual void TransformVertices( const Mat4& xf, bool selected );
 	virtual void MoveSelectedVertices( const Vec3& t );
 	int GetNumSurfs() const { return poly.size() + 2; }
 	Vec3 GetSurfaceCenter( int i ) const;
@@ -969,6 +971,7 @@ struct EdPatch : EdObject
 	virtual bool IsVertexSelected( int i ) const { return IsVertSel( i % xsize, i / xsize ); }
 	virtual int GetOnlySelectedVertex() const;
 	virtual void ScaleVertices( const Vec3& f );
+	virtual void TransformVertices( const Mat4& xf, bool selected );
 	virtual void MoveSelectedVertices( const Vec3& t );
 	virtual int GetNumPaintVerts() const { return xsize * ysize; }
 	virtual void GetPaintVertex( int v, int layer, Vec3& outpos, Vec4& outcol );
@@ -1249,6 +1252,7 @@ struct EdMeshPath : EdObject
 	virtual bool IsVertexSelected( int i ) const { return m_points[ i ].sel; }
 	virtual int GetOnlySelectedVertex() const;
 	virtual void ScaleVertices( const Vec3& f );
+	virtual void TransformVertices( const Mat4& xf, bool selected );
 	virtual void MoveSelectedVertices( const Vec3& t );
 	virtual void SpecialAction( ESpecialAction act );
 	virtual bool CanDoSpecialAction( ESpecialAction act );
@@ -1428,6 +1432,7 @@ struct EdEntity : EdObject
 	virtual Vec3 GetPosition() const { return Pos(); }
 	virtual void SetPosition( const Vec3& pos );
 	virtual void ScaleVertices( const Vec3& ){}
+	virtual void TransformVertices( const Mat4& xf, bool selected ){ SetPosition( xf.TransformPos( m_pos ) ); }
 	
 	virtual void EditUI();
 	
@@ -1771,6 +1776,12 @@ struct EdBasicEditTransform : EdEditTransform
 
 struct EdBlockEditTransform : EdBasicEditTransform
 {
+	enum XFormMode
+	{
+		Translate,
+		Extend,
+		Rotate,
+	};
 	enum ConstraintMode
 	{
 		Camera,
@@ -1793,15 +1804,16 @@ struct EdBlockEditTransform : EdBasicEditTransform
 	virtual void SaveState();
 	virtual void RestoreState();
 	Vec3 GetMovementVector( const Vec2& a, const Vec2& b );
+	Mat4 GetRotationMatrix( const Vec2& a, const Vec2& b );
 	
 	Array< SavedObject > m_objStateMap;
 	ByteArray m_objectStateData;
+	XFormMode m_xfmode;
 	ConstraintMode m_cmode;
 	Vec3 m_origin;
 	bool m_subpointCenter;
 	
 	// extending
-	bool m_extend;
 	Vec3 m_xtdAABB[2];
 	Vec3 m_xtdMask;
 };
@@ -1814,6 +1826,7 @@ struct EdBlockMoveTransform : EdBlockEditTransform
 	virtual void RecalcTransform();
 	
 	Vec3 m_transform;
+	Mat4 m_rotateTransform;
 };
 
 struct EdVertexMoveTransform : EdBlockMoveTransform
