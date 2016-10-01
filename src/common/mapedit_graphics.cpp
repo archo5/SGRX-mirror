@@ -1020,7 +1020,7 @@ void EdLevelGraphicsCont::UpdateSurface( SGRX_GUID guid, uint32_t changes, EdLGC
 		
 		if( info->rflags & LM_MESHINST_VCOL )
 			mtl.flags |= SGRX_MtlFlag_VCol;
-		if( info->rflags & LM_MESHINST_TRANSPARENT )
+		if( ( info->rflags & LM_MESHINST_TRANSPARENT ) && mtl.blendMode == SGRX_MtlBlend_None )
 			mtl.blendMode = SGRX_MtlBlend_Basic;
 		if( info->rflags & LM_MESHINST_DECAL )
 			mtl.flags |= SGRX_MtlFlag_Decal;

@@ -990,6 +990,27 @@ ENGINE_EXPORT bool VD_ExtractFloat3P( const VDeclInfo& vdinfo, int vcount, const
 ENGINE_EXPORT void VD_LerpTri( const VDeclInfo& vdinfo, int vcount, void* outbuf, Vec3* factors, const void* v1, const void* v2, const void* v3 );
 
 
+struct SGRX_VtxInputMapKey
+{
+	VertexShaderHandle vsh;
+	VertexDeclHandle vdh;
+	
+	FINLINE bool operator == ( const SGRX_VtxInputMapKey& o ) const { return vsh == o.vsh && vdh == o.vdh; }
+};
+inline Hash HashVar( const SGRX_VtxInputMapKey& v )
+{
+	return HashVar( v.vsh.item ) ^ HashVar( v.vdh.item );
+}
+
+struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexInputMapping : SGRX_RCRsrc
+{
+	ENGINE_EXPORT virtual ~SGRX_IVertexInputMapping();
+	
+	SGRX_VtxInputMapKey m_key;
+};
+typedef Handle< SGRX_IVertexInputMapping > VtxInputMapHandle;
+
+
 
 #define SGRX_MtlFlag_Unlit    0x01
 #define SGRX_MtlFlag_Nocull   0x02
@@ -1011,6 +1032,72 @@ struct SGRX_Material
 	uint8_t flags;
 	uint8_t blendMode;
 };
+
+
+
+typedef HashTable< StringView, StringView > SV2SVMap;
+struct SGRX_XShaderDef
+{
+	struct Pass
+	{
+		String name;
+		SGRX_RenderState render_state;
+		int16_t order;
+		
+		template< class T > void Serialize( T& arch )
+		{
+			arch << name;
+			arch << render_state;
+			arch << order;
+		}
+	};
+	
+	String shader;
+	Array< Pass > passes;
+	
+	template< class T > void Serialize( T& arch )
+	{
+		arch.marker( "SGRXFSHD" );
+		arch << shader;
+		arch << passes;
+	}
+	bool LoadText( StringView text );
+//	bool LoadBinary( ByteView bytes ){ ByteReader br( bytes ); br << *this; return !br.error; }
+//	bool SaveBinary( ByteArray& outbytes ){ ByteWriter bw( &outbytes ); bw << *this; return !bw.error; }
+	
+	bool _XSD_LoadProps( HashTable< StringView, SV2SVMap >& allprops, Array< StringView >& defines, StringView text );
+};
+
+enum SGRX_XShd_PassType
+{
+	XSP_Shadow,
+	XSP_Base,
+	XSP_PointLight,
+	XSP_SpotLight,
+	XSP_BaseNoDiff,
+	XSP_PointLightNoDiff,
+	XSP_SpotLightNoDiff,
+	XSP_Unlit,
+	XSHD_PASS_COUNT,
+};
+struct IF_GCC(ENGINE_EXPORT) SGRX_XShdInst : SGRX_RCRsrc
+{
+	struct Pass
+	{
+		RenderStateHandle renderState;
+		VertexShaderHandle vertexShader;
+		PixelShaderHandle pixelShader;
+		int16_t order;
+		bool enabled;
+	};
+	
+	Pass passes[ XSHD_PASS_COUNT ];
+};
+typedef Handle< SGRX_XShdInst > XShdInstHandle;
+
+XShdInstHandle GR_CreateXShdInstance( const SGRX_XShaderDef& def );
+XShdInstHandle GR_CreateXShdInstance( StringView shader );
+
 
 
 struct IF_GCC(ENGINE_EXPORT) IMeshRaycast
@@ -1284,27 +1371,6 @@ enum SGRX_LightingMode
 	SGRX_LM_Dynamic = 2, // constants
 	SGRX_LM_Decal = 3, // lighting from vertex data
 };
-
-
-struct SGRX_VtxInputMapKey
-{
-	VertexShaderHandle vsh;
-	VertexDeclHandle vdh;
-	
-	FINLINE bool operator == ( const SGRX_VtxInputMapKey& o ) const { return vsh == o.vsh && vdh == o.vdh; }
-};
-inline Hash HashVar( const SGRX_VtxInputMapKey& v )
-{
-	return HashVar( v.vsh.item ) ^ HashVar( v.vdh.item );
-}
-
-struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexInputMapping : SGRX_RCRsrc
-{
-	ENGINE_EXPORT virtual ~SGRX_IVertexInputMapping();
-	
-	SGRX_VtxInputMapKey m_key;
-};
-typedef Handle< SGRX_IVertexInputMapping > VtxInputMapHandle;
 
 
 struct SGRX_SRSData

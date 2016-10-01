@@ -1439,6 +1439,193 @@ SGRX_Material::SGRX_Material() : flags(0), blendMode(SGRX_MtlBlend_None)
 }
 
 
+static int LineNumber( StringView text, StringView name )
+{
+	return 1 + text.part( name.data() - text.data() ).count( "\n" );
+}
+
+static bool IsValidPassProp( StringView name )
+{
+	// pass properties
+	if( name == "Enabled" ) return true;
+	if( name == "Order" ) return true;
+	
+	// render states
+	if( name == "WireFill" ) return true;
+	if( name == "CullMode" ) return true;
+	if( name == "SeparateBlend" ) return true;
+	if( name == "ScissorEnable" ) return true;
+	if( name == "MultisampleEnable" ) return true;
+	if( name == "DepthEnable" ) return true;
+	if( name == "DepthWriteEnable" ) return true;
+	if( name == "DepthFunc" ) return true;
+	if( name == "StencilEnable" ) return true;
+	if( name == "StencilReadMask" ) return true;
+	if( name == "StencilWriteMask" ) return true;
+	if( name == "StencilFrontFailOp" ) return true;
+	if( name == "StencilFrontDepthFailOp" ) return true;
+	if( name == "StencilFrontPassOp" ) return true;
+	if( name == "StencilFrontFunc" ) return true;
+	if( name == "StencilBackFailOp" ) return true;
+	if( name == "StencilBackDepthFailOp" ) return true;
+	if( name == "StencilBackPassOp" ) return true;
+	if( name == "StencilBackFunc" ) return true;
+	if( name == "StencilRef" ) return true;
+	if( name == "DepthBias" ) return true;
+	if( name == "SlopeDepthBias" ) return true;
+	if( name == "DepthBiasClamp" ) return true;
+	if( name == "BlendFactor" ) return true;
+	
+	static const StringView rtVars[] = { "ColorWrite", "SrcBlend",
+		"DstBlend", "SrcBlendAlpha", "DstBlendAlpha" };
+	for( size_t i = 0; i < sizeof(rtVars)/sizeof(rtVars[0]); ++i )
+	{
+		if( name.starts_with( rtVars[i] ) )
+		{
+			if( name.size() == rtVars[i].size() ) return true;
+			if( name.size() == rtVars[i].size() + 3 )
+			{
+				StringView indexpart = name.part( rtVars[i].size() );
+				if( indexpart.size() == 3 && indexpart[0] == '[' && indexpart[2] == ']' )
+				{
+					for( int j = 0; j < 8; ++j )
+						if( indexpart[1] == "01234567"[j] )
+							return true;
+				}
+			}
+		}
+	}
+	
+	return false;
+}
+
+static bool _XSD_LoadPassProps( SV2SVMap& props, StringView passtext, StringView text )
+{
+	ConfigReader cr( passtext );
+	StringView key, value;
+	while( cr.Read( key, value ) )
+	{
+		if( !IsValidPassProp( key ) )
+		{
+			LOG_ERROR << LOG_DATE << "  XShaderDef::LoadText failed - "
+				"invalid pass property (" << key << ") at line " << LineNumber( text, key );
+			return false;
+		}
+		props[ key ] = value;
+	}
+	return true;
+}
+
+bool SGRX_XShaderDef::_XSD_LoadProps(
+	HashTable< StringView, SV2SVMap >& allprops,
+	Array< StringView >& defines,
+	StringView text )
+{
+#define MAX_DISABLEVEL 9999
+	int curlevel = 0, disablevel = MAX_DISABLEVEL;
+	
+	ConfigReader cr( text );
+	StringView key, value;
+	while( cr.Read( key, value ) )
+	{
+		if( key == "[[shader]]" )
+		{
+			StringView shdr = cr.it.until( "[[endshader]]" );
+			if( shdr.end() == cr.it.end() )
+				return false;
+			int newlines = text.part( cr.it.data() - text.data() ).count( "\n" );
+			cr.it.skip( shdr.size() );
+			cr.it = cr.it.after( "[[endshader]]" );
+			
+			if( curlevel < disablevel )
+			{
+				for( int i = 0; i < newlines; ++i )
+					shader.append( "\n" ); // for accurate line numbers
+				shader.append( shdr );
+			}
+		}
+		else if( key == "[[pass]]" )
+		{
+			StringView passtext = cr.it.until( "[[endpass]]" );
+			if( passtext.end() == cr.it.end() )
+				return false;
+			cr.it.skip( passtext.size() );
+			cr.it = cr.it.after( "[[endpass]]" );
+			
+			if( curlevel < disablevel )
+				_XSD_LoadPassProps( allprops[ value ], passtext, text );
+		}
+		else if( key == "[[define]]" )
+		{
+			if( curlevel < disablevel )
+				defines.push_back( value );
+		}
+		else if( key == "[[ifdef]]" )
+		{
+			if( curlevel < disablevel )
+			{
+				curlevel++;
+				if( defines.find_first_at( value ) == NOT_FOUND )
+					disablevel = curlevel;
+			}
+		}
+		else if( key == "[[ifndef]]" )
+		{
+			if( curlevel < disablevel )
+			{
+				curlevel++;
+				if( defines.find_first_at( value ) != NOT_FOUND )
+					disablevel = curlevel;
+			}
+		}
+		else if( key == "[[endif]]" )
+		{
+			if( curlevel < disablevel )
+			{
+				curlevel--;
+				disablevel = MAX_DISABLEVEL;
+			}
+		}
+		else
+		{
+			LOG_ERROR << LOG_DATE << "  XShaderDef::LoadText failed - "
+				"invalid command (" << key << ") at line " << LineNumber( text, key );
+			return false;
+		}
+	}
+	return true;
+}
+
+bool SGRX_XShaderDef::LoadText( StringView text )
+{
+	shader.clear();
+	passes.clear();
+	
+	HashTable< StringView, SV2SVMap > allprops;
+	Array< StringView > defines;
+	
+	return _XSD_LoadProps( allprops, defines, text );
+}
+
+XShdInstHandle GR_CreateXShdInstance( const SGRX_XShaderDef& def )
+{
+	XShdInstHandle h = new SGRX_XShdInst;
+	return h;
+}
+
+XShdInstHandle GR_CreateXShdInstance( StringView shader )
+{
+	String mtlname = String_Concat( "mtl:", shader );
+	XShdInstHandle h = new SGRX_XShdInst;
+	for( int i = 0; i < XSHD_PASS_COUNT; ++i )
+	{
+		h->passes[ i ].vertexShader = GR_GetVertexShader( mtlname );
+		h->passes[ i ].pixelShader = GR_GetPixelShader( mtlname );
+	}
+	return h;
+}
+
+
 SGRX_MeshInstance::SGRX_MeshInstance( SGRX_Scene* s ) :
 	_scene( s ),
 	raycastOverride( NULL ),

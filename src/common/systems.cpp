@@ -514,7 +514,12 @@ bool LevelCoreSystem::LoadChunk( const StringView& type, ByteView data )
 				if( MID.m_flags & LM_MESHINST_DECAL )
 					MI->SetAllMtlFlags( SGRX_MtlFlag_Decal, 0 );
 				if( MID.m_flags & LM_MESHINST_TRANSPARENT )
-					MI->SetAllBlendModes( SGRX_MtlBlend_Basic );
+				{
+					for( size_t i = 0; i < MI->materials.size(); ++i )
+						if( MI->materials[ i ].blendMode == SGRX_MtlBlend_None )
+							MI->materials[ i ].blendMode = SGRX_MtlBlend_Basic;
+					MI->OnUpdate();
+				}
 				MI->sortidx = MID.m_decalLayer;
 			}
 			

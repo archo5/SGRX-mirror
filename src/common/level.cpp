@@ -1110,6 +1110,20 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	m_blendFactor = blendFactor;
 	m_tickDeltaTime = deltaTime;
 	
+	CameraResource* mainCamera = GetMainCamera();
+	if( mainCamera )
+	{
+		Mat4 mtx = mainCamera->GetWorldMatrix();
+		SGRX_Sound3DAttribs attr =
+		{
+			mtx.TransformPos( V3(0,0,0) ),
+			V3(0),
+			mtx.TransformNormal( V3(0,0,1) ).Normalized(),
+			mtx.TransformNormal( V3(0,-1,0) ).Normalized()
+		};
+		m_soundSys->Set3DAttribs( attr );
+	}
+	
 	if( IsPaused() == false )
 	{
 		m_levelTime += deltaTime;
