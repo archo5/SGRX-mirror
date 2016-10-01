@@ -240,10 +240,13 @@ void EdBlock::ScaleVertices( const Vec3& f )
 
 void EdBlock::TransformVertices( const Mat4& xf, bool selected )
 {
-	position += xf.GetTranslation();
+	Vec3 oldpos = position;
+	position = xf.TransformPos( position );
 	for( size_t i = 0; i < poly.size(); ++i )
 		if( !selected || IsVertexSelected( i ) || IsVertexSelected( i + poly.size() ) )
-			poly[ i ] = xf.TransformNormal( poly[ i ] );
+			poly[ i ] = xf.TransformPos( poly[ i ] + oldpos ) - position;
+		else
+			poly[ i ] += oldpos - position;
 }
 
 void EdBlock::MoveSelectedVertices( const Vec3& tfv )

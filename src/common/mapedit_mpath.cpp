@@ -538,10 +538,13 @@ void EdMeshPath::ScaleVertices( const Vec3& f )
 
 void EdMeshPath::TransformVertices( const Mat4& xf, bool selected )
 {
+	Vec3 oldpos = m_position;
 	m_position += xf.GetTranslation();
 	for( size_t i = 0; i < m_points.size(); ++i )
 		if( !selected || m_points[ i ].sel )
-			m_points[ i ].pos = xf.TransformNormal( m_points[ i ].pos );
+			m_points[ i ].pos = xf.TransformPos( m_points[ i ].pos + oldpos ) - m_position;
+		else
+			m_points[ i ].pos += oldpos - m_position;
 }
 
 void EdMeshPath::MoveSelectedVertices( const Vec3& t )

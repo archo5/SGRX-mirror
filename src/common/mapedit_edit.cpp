@@ -238,8 +238,11 @@ Mat4 EdBlockEditTransform::GetRotationMatrix( const Vec2& a, const Vec2& b )
 	float angleA = ( a - sso ).Angle();
 	float angleB = ( b - sso ).Angle();
 	float angleDiff = ( angleB - angleA ) * -sign( Vec3Dot( g_EdScene->camera.direction, axis ) );
+	g_UIFrame->m_snapProps.SnapAngleRad( angleDiff );
 	
-	return Mat4::CreateRotationAxisAngle( axis, angleDiff );
+	return Mat4::CreateTranslation( -m_origin )
+		* Mat4::CreateRotationAxisAngle( axis, angleDiff )
+		* Mat4::CreateTranslation( m_origin );
 }
 
 int EdBlockMoveTransform::ViewUI()

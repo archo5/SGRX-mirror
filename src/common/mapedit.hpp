@@ -210,18 +210,22 @@ struct EdSnapProps
 	EdSnapProps()
 	{
 		enableSnap = true;
+		enableAngleSnap = true;
 		snapVerts = true;
 		snapRange = 0.2f;
 		snapGrid = 0.1f;
+		snapAngle = 5.0f;
 		projDist = 0.01f;
 	}
 	
 	void EditUI()
 	{
 		IMGUIEditBool( "Enable snapping", enableSnap );
+		IMGUIEditBool( "Enable angle snapping", enableAngleSnap );
 		IMGUIEditBool( "Snap to vertices", snapVerts );
 		IMGUIEditFloat( "Max. distance", snapRange, 0.01, 1 );
 		IMGUIEditFloat( "Grid unit size", snapGrid, 0.01, 100 );
+		IMGUIEditFloat( "Angle increments", snapAngle, 0.01, 100 );
 		IMGUIEditFloat( "Proj. distance", projDist, 0, 1 );
 	}
 	
@@ -241,10 +245,21 @@ struct EdSnapProps
 		pos = Round( pos );
 		pos *= snapGrid;
 	}
+	void SnapAngleRad( float& angleRad )
+	{
+		if( !enableAngleSnap )
+			return;
+		
+		float a = RAD2DEG( angleRad ) / snapAngle;
+		a = Round( a );
+		angleRad = DEG2RAD( a * snapAngle );
+	}
 	
 	bool enableSnap;
+	bool enableAngleSnap;
 	bool snapVerts;
 	float snapRange;
+	float snapAngle;
 	float snapGrid;
 	float projDist;
 };
