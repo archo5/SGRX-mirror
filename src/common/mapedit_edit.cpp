@@ -1167,6 +1167,8 @@ void EdEditVertexEditMode::ViewUI()
 		if( ImGui::IsKeyPressed( SDLK_9 ) && shiftdown ) _Do( SA_RotateCCW );
 		// ROTATE (CW)
 		if( ImGui::IsKeyPressed( SDLK_0 ) && shiftdown ) _Do( SA_RotateCW );
+		// TOGGLE
+		if( ImGui::IsKeyPressed( SDLK_t ) ) _Do( SA_Toggle );
 		
 		// GRAB (MOVE)
 		if( ImGui::IsKeyPressed( SDLK_g ) )
@@ -1206,6 +1208,7 @@ void EdEditVertexEditMode::ViewUI()
 	if( _CanDo( SA_SurfsToPatches ) ) actlist.append( ", Surfaces to patches [Alt+S]" );
 	if( _CanDo( SA_RotateCCW ) ) actlist.append( ", Rotate (CCW) [Shift+9/'(']" );
 	if( _CanDo( SA_RotateCW ) ) actlist.append( ", Rotate (CW) [Shift+0/')']" );
+	if( _CanDo( SA_Toggle ) ) actlist.append( ", Toggle [T]" );
 	
 	ImVec2 r0 = ImGui::GetWindowPos() + ImVec2( 1, 1 );
 	ImDrawList* idl = ImGui::GetWindowDrawList();
@@ -1616,6 +1619,78 @@ void EdEditGroupEditMode::EditUI()
 void EdEditGroupEditMode::Draw()
 {
 	g_EdWorld->m_groupMgr.DrawGroups();
+}
+
+
+EdMeasureEditMode::EdMeasureEditMode() : is1(false), is2(false){}
+
+void EdMeasureEditMode::ViewUI()
+{
+	is1 = false;
+	is2 = false;
+	if( ImGui::IsWindowHovered() )
+	{
+		Vec3 crpos = g_UIFrame->GetCursorRayPos();
+		Vec3 crdir = g_UIFrame->GetCursorRayDir();
+		
+		float len = g_EdScene->camera.zfar;
+		SceneRaycastInfo srci, srci2;
+		if( g_EdScene->RaycastOne( crpos, crpos + crdir * len, &srci ) )
+		{
+			Vec3 end2 = V3(0), nrm2 = V3(0), end = crpos + crdir * len * srci.factor;
+			is1 = true;
+			p1 = end;
+			
+			Vec3 nrm = srci.normal.Normalized();
+			float smalloffset = 0.00001f;
+			Vec3 rcp2 = end + nrm * smalloffset;
+			bool hit2 = g_EdScene->RaycastOne( rcp2, rcp2 + nrm * len, &srci2 );
+			if( hit2 )
+			{
+				end2 = rcp2 + nrm * len * srci2.factor;
+				nrm2 = srci2.normal.Normalized();
+				is2 = true;
+				p2 = end2;
+			}
+			
+			char bfr[ 1024 ];
+			sgrx_snprintf( bfr, 1024, "Hit #1:\n- Position = ( %g ; %g ; %g )\n- Normal = ( %g ; %g ; %g )",
+				end.x, end.y, end.z, nrm.x, nrm.y, nrm.z );
+			ImVec2 r0 = ImGui::GetMousePos() + ImVec2( 1, 1 );
+			
+			ImDrawList* idl = ImGui::GetWindowDrawList();
+			idl->PushClipRectFullScreen();
+			idl->AddRectFilled( r0, r0 + ImVec2( 300, hit2 ? 112 : 48 ), ImColor( 0.f, 0.f, 0.f, 0.5f ), 8.0f, 0xf );
+			ImGui::SetCursorScreenPos( r0 + ImVec2( 4, -1 ) );
+			ImGui::Text( bfr );
+			if( hit2 )
+			{
+				ImGui::SetCursorScreenPos( r0 + ImVec2( 4, -1 + 48 ) );
+				sgrx_snprintf( bfr, 1024, "Hit #2:\n- Distance = %g\n- Position = ( %g ; %g ; %g )\n- Normal = ( %g ; %g ; %g )",
+					srci2.factor * len + smalloffset, end2.x, end2.y, end2.z, nrm2.x, nrm2.y, nrm2.z );
+				ImGui::Text( bfr );
+			}
+			idl->PopClipRect();
+		}
+	}
+}
+
+void EdMeasureEditMode::Draw()
+{
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	
+	if( is1 )
+	{
+		br.Reset();
+		br.Col( 0, 1, 0, 0.5f );
+		br.Tick( p1, 0.1f );
+		
+		if( is2 )
+		{
+			br.SetPrimitiveType( PT_Lines );
+			br.Pos( p1 ).Pos( p2 );
+		}
+	}
 }
 
 

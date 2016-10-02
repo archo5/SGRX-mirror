@@ -84,7 +84,13 @@ bool EdPatch::InsertXLine( int at )
 		_InterpolateVertex( vp, vp + befoff, vp + aftoff, 0.5f );
 		
 		edgeflip[ i ] = insert_zero_bit( edgeflip[ i ], at );
+		disabled[ i ] = insert_zero_bit( disabled[ i ], at );
 		vertsel[ i ] = insert_zero_bit( vertsel[ i ], at );
+		
+		if( edgeflip[ i ] & ( 1 << (at-aftoff) ) )
+			edgeflip[ i ] |= ( 1 << at );
+		if( disabled[ i ] & ( 1 << (at-aftoff) ) )
+			disabled[ i ] |= ( 1 << at );
 	}
 	
 	xsize++;
@@ -102,9 +108,16 @@ bool EdPatch::InsertYLine( int at )
 			vertices + MAX_PATCH_WIDTH * at,
 			sizeof(*vertices) * MAX_PATCH_WIDTH * ( ysize - at ) );
 		memmove( edgeflip + at + 1, edgeflip + at, sizeof(*edgeflip) * ( ysize - at ) );
+		memmove( disabled + at + 1, disabled + at, sizeof(*disabled) * ( ysize - at ) );
 		memmove( vertsel + at + 1, vertsel + at, sizeof(*vertsel) * ( ysize - at ) );
+		edgeflip[ at ] = edgeflip[ at - 1 ];
+		disabled[ at ] = disabled[ at - 1 ];
 	}
-	edgeflip[ at ] = 0;
+	else
+	{
+		edgeflip[ at ] = 0;
+		disabled[ at ] = 0;
+	}
 	vertsel[ at ] = 0;
 	
 	int befoff = at == 0 ? MAX_PATCH_WIDTH : -MAX_PATCH_WIDTH;
@@ -131,6 +144,7 @@ bool EdPatch::RemoveXLine( int at )
 			EdPatchVtx* vp = vertices + MAX_PATCH_WIDTH * i + at;
 			memmove( vp, vp + 1, sizeof(*vertices) * ( xsize - at - 1 ) );
 			edgeflip[ i ] = remove_bit( edgeflip[ i ], at );
+			disabled[ i ] = remove_bit( disabled[ i ], at );
 			vertsel[ i ] = remove_bit( vertsel[ i ], at );
 		}
 	}
@@ -150,6 +164,7 @@ bool EdPatch::RemoveYLine( int at )
 			vertices + MAX_PATCH_WIDTH * ( at + 1 ),
 			sizeof(*vertices) * MAX_PATCH_WIDTH * ( MAX_PATCH_WIDTH - at - 1 ) );
 		memmove( edgeflip + at, edgeflip + at + 1, sizeof(*edgeflip) * ( MAX_PATCH_WIDTH - at - 1 ) );
+		memmove( disabled + at, disabled + at + 1, sizeof(*disabled) * ( MAX_PATCH_WIDTH - at - 1 ) );
 		memmove( vertsel + at, vertsel + at + 1, sizeof(*vertsel) * ( MAX_PATCH_WIDTH - at - 1 ) );
 	}
 	
@@ -356,6 +371,8 @@ Vec2 EdPatch::GenerateMeshData( Array< LCVertex >& outverts, Array< uint16_t >& 
 	{
 		for( int x = 0; x < (int) xsize - 1; ++x )
 		{
+			if( disabled[ y ] & ( 1 << x ) )
+				continue;
 			int bv = y * xsize + x;
 			if( edgeflip[ y ] & ( 1 << x ) )
 			{
@@ -690,9 +707,11 @@ void EdPatch::SpecialAction( ESpecialAction act )
 		{
 			EdPatchVtx nverts[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
 			uint16_t nedgeflip[ MAX_PATCH_WIDTH ];
+			uint16_t ndisabled[ MAX_PATCH_WIDTH ];
 			uint16_t nvertsel[ MAX_PATCH_WIDTH ];
 			memset( nverts, 0, sizeof(nverts) );
 			memset( nedgeflip, 0, sizeof(nedgeflip) );
+			memset( ndisabled, 0, sizeof(ndisabled) );
 			memset( nvertsel, 0, sizeof(nvertsel) );
 			for( int y = 0; y < ysize; ++y )
 			{
@@ -703,6 +722,7 @@ void EdPatch::SpecialAction( ESpecialAction act )
 						nverts[ y + ( xsize - 1 - x ) * MAX_PATCH_WIDTH ] =
 							vertices[ x + y * MAX_PATCH_WIDTH ];
 						PATCH_BYTESWAP( nedgeflip, y, xsize - 1 - x, edgeflip, x, y );
+						PATCH_BYTESWAP( ndisabled, y, xsize - 1 - x, disabled, x, y );
 						PATCH_BYTESWAP( nvertsel, y, xsize - 1 - x, vertsel, x, y );
 					}
 					else
@@ -710,14 +730,27 @@ void EdPatch::SpecialAction( ESpecialAction act )
 						nverts[ ( ysize - 1 - y ) + x * MAX_PATCH_WIDTH ] =
 							vertices[ x + y * MAX_PATCH_WIDTH ];
 						PATCH_BYTESWAP( nedgeflip, ysize - 1 - y, x, edgeflip, x, y );
+						PATCH_BYTESWAP( ndisabled, ysize - 1 - y, x, disabled, x, y );
 						PATCH_BYTESWAP( nvertsel, ysize - 1 - y, x, vertsel, x, y );
 					}
 				}
 			}
 			memcpy( vertices, nverts, sizeof(nverts) );
 			memcpy( edgeflip, nedgeflip, sizeof(nedgeflip) );
+			memcpy( disabled, ndisabled, sizeof(ndisabled) );
 			memcpy( vertsel, nvertsel, sizeof(nvertsel) );
 			TSWAP( xsize, ysize );
+		}
+		break;
+		
+	case SA_Toggle:
+		for( int y = 0; y < ysize - 1; ++y )
+		{
+			for( int x = 0; x < xsize - 1; ++x )
+			{
+				if( IsQuadSel( x, y ) )
+					disabled[ y ] ^= ( 1 << x );
+			}
 		}
 		break;
 		
@@ -806,6 +839,7 @@ bool EdPatch::CanDoSpecialAction( ESpecialAction act )
 		
 	case SA_RotateCCW:
 	case SA_RotateCW:
+	case SA_Toggle:
 		return true;
 		
 	default:

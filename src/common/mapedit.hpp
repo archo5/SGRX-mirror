@@ -27,7 +27,8 @@
 // v8: added mesh paths
 // v9: separated patch/path LM/physics solidity
 // v10: added systems parameters
-#define MAP_FILE_VERSION 10
+// v11: added patch quad disable flags
+#define MAP_FILE_VERSION 11
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -379,6 +380,7 @@ enum ESpecialAction
 	SA_SurfsToPatches,
 	SA_RotateCCW,
 	SA_RotateCW,
+	SA_Toggle,
 	// entity actions
 	SA_MoveBack,
 	SA_MoveFwd,
@@ -955,6 +957,7 @@ struct EdPatch : EdObject
 	{
 		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
 		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
+		TMEMSET<uint16_t>( disabled, MAX_PATCH_WIDTH, 0 );
 	}
 	
 	bool InsertXLine( int at );
@@ -1060,6 +1063,17 @@ struct EdPatch : EdObject
 			}
 		}
 		
+		// disabled
+		if( version >= 11 )
+		{
+			ScriptVarIterator it( data.getprop( "disabled" ) );
+			for( int y = 0; y < ysize; ++y )
+			{
+				it.Advance();
+				disabled[ y ] = FLoadVar( it.GetValue(), 0 );
+			}
+		}
+		
 		// layers
 		{
 			ScriptVarIterator it( data.getprop( "layers" ) );
@@ -1101,6 +1115,13 @@ struct EdPatch : EdObject
 		}
 		out.setprop( "edgeflip", out_edgeflip );
 		
+		sgsVariable out_disabled = FNewArray();
+		for( int y = 0; y < ysize; ++y )
+		{
+			FArrayAppend( out_disabled, FVar( disabled[ y ] ) );
+		}
+		out.setprop( "disabled", out_disabled );
+		
 		sgsVariable out_layers = FNewArray();
 		for( int l = 0; l < MAX_PATCH_LAYERS; ++l )
 		{
@@ -1119,6 +1140,7 @@ struct EdPatch : EdObject
 	Vec3 position;
 	EdPatchVtx vertices[ MAX_PATCH_WIDTH * MAX_PATCH_WIDTH ];
 	uint16_t edgeflip[ MAX_PATCH_WIDTH ]; // 0 - [\], 1 - [/]
+	uint16_t disabled[ MAX_PATCH_WIDTH ]; // 1 - no quad
 	uint16_t vertsel[ MAX_PATCH_WIDTH ];
 	int8_t xsize;
 	int8_t ysize;
@@ -1633,6 +1655,7 @@ struct EdObjIdx
 	EdObject* GetEdObject() const { return type != ObjType_NONE && type != ObjType_GameObject ? edobj : NULL; }
 	GameObject* GetGameObject() const { return type == ObjType_GameObject ? gameobj : NULL; }
 	bool Valid() const { return type != ObjType_NONE; }
+	void Unset(){ type = ObjType_NONE; ptr = NULL; }
 	bool operator == ( const EdObjIdx& o ) const { return type == o.type && ptr == o.ptr; }
 };
 inline Hash HashVar( const EdObjIdx& idx )
@@ -1989,6 +2012,16 @@ struct EdEditGroupEditMode : EdEditMode
 	void Draw();
 };
 
+struct EdMeasureEditMode : EdEditMode
+{
+	EdMeasureEditMode();
+	void ViewUI();
+	void Draw();
+	
+	bool is1, is2;
+	Vec3 p1, p2;
+};
+
 
 struct MapEditorRenderView : IMGUIRenderView
 {
@@ -2044,6 +2077,7 @@ struct EdMainFrame
 	EdPaintVertsEditMode m_emPaintVerts;
 	EdPaintSurfsEditMode m_emPaintSurfs;
 	EdEditGroupEditMode m_emEditGroup;
+	EdMeasureEditMode m_emMeasure;
 	
 	// extra edit data
 	TextureHandle m_txMarker;

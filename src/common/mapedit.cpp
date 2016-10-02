@@ -1251,8 +1251,15 @@ void EdWorld::DeleteObject( EdObjIdx idx, bool update )
 		m_edobjs.remove_first( idx.edobj );
 	}
 	
-	if( update && g_UIFrame )
-		g_UIFrame->OnDeleteObjects();
+	if( g_UIFrame )
+	{
+		if( g_UIFrame->m_emEditObjs.m_hlObj == idx )
+			g_UIFrame->m_emEditObjs.m_hlObj.Unset();
+		if( g_UIFrame->m_emEditObjs.m_curObj == idx )
+			g_UIFrame->m_emEditObjs.m_curObj.Unset();
+		if( update )
+			g_UIFrame->OnDeleteObjects();
+	}
 }
 
 void EdWorld::DeleteSelectedObjects()
@@ -2220,6 +2227,7 @@ bool MapEditor::OnInitialize()
 	g_EdWorld = new EdWorld();
 	g_EdWorld->RegenerateMeshes();
 	g_UIFrame = new EdMainFrame();
+	g_UIFrame->SetEditMode( &g_UIFrame->m_emMeasure );
 	
 	return true;
 }
@@ -2426,7 +2434,7 @@ void MapEditor::OnTick( float dt, uint32_t gametime )
 				g_UIFrame->SetEditMode( &g_UIFrame->m_emEditGroup );
 			ImGui::SameLine();
 			if( ModeRB( "Level info", LevelInfo, SDLK_5 ) )
-				g_UIFrame->SetEditMode( NULL );
+				g_UIFrame->SetEditMode( &g_UIFrame->m_emMeasure );
 			ImGui::SameLine();
 			if( ModeRB( "Misc. settings", MiscProps, SDLK_6 ) )
 				g_UIFrame->SetEditMode( NULL );
