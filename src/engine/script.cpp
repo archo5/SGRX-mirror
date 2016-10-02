@@ -82,9 +82,19 @@ ScriptContext::~ScriptContext()
 }
 
 
+static int mat4_look_at( SGS_CTX )
+{
+	Vec3 pos, dir, up;
+	SGSFN( "mat4_look_at" );
+	if( !sgs_LoadArgs( C, "xxx", sgs_ArgCheck_Vec3, &pos.x, sgs_ArgCheck_Vec3, &dir.x, sgs_ArgCheck_Vec3, &up.x ) )
+		return 0;
+	Mat4 mtx = Mat4::CreateLookAt( pos, dir, up );
+	return sgs_CreateMat4( C, NULL, mtx.a, 0 );
+}
 static int euler2quat( SGS_CTX )
 {
 	Vec3 angles;
+	SGSFN( "euler2quat" );
 	if( !sgs_LoadArgs( C, "x", sgs_ArgCheck_Vec3, &angles.x ) )
 		return 0;
 	Quat rot = Quat::CreateFromXYZ( DEG2RAD( angles ) );
@@ -93,6 +103,7 @@ static int euler2quat( SGS_CTX )
 static int quat2euler( SGS_CTX )
 {
 	Quat rot;
+	SGSFN( "quat2euler" );
 	if( !sgs_LoadArgs( C, "x", sgs_ArgCheck_Quat, &rot.x ) )
 		return 0;
 	Vec3 angles = RAD2DEG( rot.ToXYZ() );
@@ -102,6 +113,7 @@ static int quat_slerp( SGS_CTX )
 {
 	Quat A, B;
 	float q;
+	SGSFN( "quat_slerp" );
 	if( !sgs_LoadArgs( C, "xxf", sgs_ArgCheck_Quat, &A.x, sgs_ArgCheck_Quat, &B.x, &q ) )
 		return 0;
 	Quat R = QuatSlerp( A, B, q );
@@ -109,6 +121,7 @@ static int quat_slerp( SGS_CTX )
 }
 static sgs_RegFuncConst g_sgrxmath_rfc[] =
 {
+	{ "mat4_look_at", mat4_look_at },
 	{ "euler2quat", euler2quat },
 	{ "quat2euler", quat2euler },
 	{ "quat_slerp", quat_slerp },

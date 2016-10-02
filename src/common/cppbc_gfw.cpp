@@ -1395,6 +1395,20 @@ static int _sgs_method__GameObject__RequireBehavior( SGS_CTX )
 	sgs_PushVar(C,data->sgsRequireBehavior( sgs_GetVar<sgsString>()(C,0), sgs_GetVar<sgsString>()(C,1), sgs_GetVar<bool>()(C,2) )); return 1;
 }
 
+static int _sgs_method__GameObject__FindFirstResourceOfType( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, FindFirstResourceOfType ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsFindFirstResourceOfType( sgs_GetVar<sgsVariable>()(C,0) )); return 1;
+}
+
+static int _sgs_method__GameObject__FindFirstBehaviorOfType( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, FindFirstBehaviorOfType ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsFindFirstBehaviorOfType( sgs_GetVar<sgsVariable>()(C,0) )); return 1;
+}
+
 int GameObject::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameObject*>( obj->data )->C = C;
@@ -1515,6 +1529,8 @@ static sgs_RegFuncConst GameObject__sgs_funcs[] =
 	{ "AddBehavior", _sgs_method__GameObject__AddBehavior },
 	{ "RequireResource", _sgs_method__GameObject__RequireResource },
 	{ "RequireBehavior", _sgs_method__GameObject__RequireBehavior },
+	{ "FindFirstResourceOfType", _sgs_method__GameObject__FindFirstResourceOfType },
+	{ "FindFirstBehaviorOfType", _sgs_method__GameObject__FindFirstBehaviorOfType },
 	{ NULL, NULL },
 };
 

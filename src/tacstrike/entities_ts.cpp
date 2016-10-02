@@ -449,7 +449,7 @@ struct CharMoveAwayProc : GameObjectProcessor
 	{
 		static const float character_radius = 0.4f;
 		
-		TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
+		TSCharacter* chr = obj->FindFirstBehaviorOfType<TSCharacter>();
 		if( !chr || !chr->IsAlive() || chr == self )
 			return false;
 		
@@ -1092,7 +1092,9 @@ TSPlayerController::TSPlayerController( GameObject* obj ) :
 
 void TSPlayerController::Update()
 {
-	TSCharacter* P = m_obj->FindBehaviorOfType<TSCharacter>();
+	BhControllerBase::Update();
+	
+	TSCharacter* P = m_obj->FindFirstBehaviorOfType<TSCharacter>();
 	Vec3 pos = V3(0);
 	if( P )
 	{
@@ -1365,7 +1367,7 @@ struct EPEnemyViewProc : GameObjectProcessor
 		}
 		else if( gcv_notarget.value == false )
 		{
-			TSCharacter* chr = obj->FindBehaviorOfType<TSCharacter>();
+			TSCharacter* chr = obj->FindFirstBehaviorOfType<TSCharacter>();
 			if( !chr )
 				return false;
 			if( !enemy->CanSeePoint( enemypos ) &&

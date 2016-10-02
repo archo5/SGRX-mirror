@@ -366,6 +366,7 @@ EXP_STRUCT GOBehavior : LevelScrObj
 	
 	GFW_EXPORT GOBehavior( GameObject* obj );
 	
+	GFW_EXPORT virtual void Init();
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void PrePhysicsFixedUpdate();
 	GFW_EXPORT virtual void FixedUpdate();
@@ -505,7 +506,18 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GOBehaviorTable::ScrHandle _get_behaviors(){ return GOBehaviorTable::ScrHandle( &m_behaviors ); }
 	SGS_PROPERTY_FUNC( READ _get_behaviors ) SGS_ALIAS( GOBehaviorTable::ScrHandle behaviors );
 	
-	template< class T > T* FindBehaviorOfType()
+	template< class T > T* FindFirstResourceOfType()
+	{
+		for( size_t i = 0; i < m_resources.size(); ++i )
+		{
+			GOResource* rsrc = m_resources.item( i ).value;
+			T* trh = sgsHandle<T>( rsrc->C, rsrc->m_sgsObject );
+			if( trh )
+				return trh;
+		}
+		return NULL;
+	}
+	template< class T > T* FindFirstBehaviorOfType()
 	{
 		for( size_t i = 0; i < m_bhvr_order.size(); ++i )
 		{
@@ -516,6 +528,8 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 		}
 		return NULL;
 	}
+	SGS_METHOD_NAMED( FindFirstResourceOfType ) GOResource::ScrHandle sgsFindFirstResourceOfType( sgsVariable typeOrMetaObj );
+	SGS_METHOD_NAMED( FindFirstBehaviorOfType ) GOBehavior::ScrHandle sgsFindFirstBehaviorOfType( sgsVariable typeOrMetaObj );
 	
 	// info target
 	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }

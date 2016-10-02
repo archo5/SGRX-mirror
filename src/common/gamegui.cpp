@@ -614,7 +614,6 @@ float GameUIControl::DTextLen( StringView text )
 
 void GameUIControl::DTextRect( StringView text, float x0, float y0, float x1, float y1, int ha, int va )
 {
-	LOG << text;
 	GR2D_DrawTextRect( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ), text, ha, va );
 }
 

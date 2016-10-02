@@ -2920,7 +2920,7 @@ static int xgm_m4i_transpose( SGS_CTX )
 {
 	XGM_M4_IHDR( transpose );
 	MAT4_Transpose( *M );
-	return 0;
+	SGS_RETURN_THIS( C );
 }
 
 static int xgm_m4i_transpose_from( SGS_CTX )
@@ -2933,7 +2933,7 @@ static int xgm_m4i_transpose_from( SGS_CTX )
 	
 	memcpy( *M, M2, sizeof(M2) );
 	MAT4_Transpose( *M );
-	return 0;
+	SGS_RETURN_THIS( C );
 }
 
 static int xgm_m4i_invert( SGS_CTX )

@@ -188,6 +188,13 @@ int GOBehaviorTable::getindex( SGS_CTX, sgs_VarObj* obj )
 	return _sgs_getindex( C, obj );
 }
 
+void GOBehavior::Init()
+{
+	sgsVariable fn = GetScriptedObject().getprop( "Init" );
+	if( fn.not_null() )
+		GetScriptedObject().thiscall( C, fn );
+}
+
 void GOBehavior::OnDestroy()
 {
 	sgsVariable fn = GetScriptedObject().getprop( "OnDestroy" );
@@ -386,9 +393,6 @@ GOBehavior* GameObject::_CreateBehaviorReal( sgsString name, sgsString type )
 	BSO.set_meta_obj( bclass );
 	BSO.enable_metamethods( true );
 	
-	sgsVariable fn_init = BSO.getprop("Init");
-	if( fn_init.not_null() )
-		BSO.thiscall( m_level->GetSGSC(), fn_init );
 	return bhvr;
 }
 
@@ -410,6 +414,7 @@ GOBehavior* GameObject::AddBehavior( sgsString name, sgsString type, bool ovr )
 			bhvr->m_src_guid = guid;
 			guid.SetNull();
 		}
+		bhvr->Init();
 		Game_FireEvent( EID_GOBehaviorAdd, bhvr );
 	}
 	return bhvr;
@@ -544,6 +549,46 @@ void GameObject::EditorDrawWorld()
 		m_resources.item( i ).value->EditorDrawWorld();
 	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
 		m_bhvr_order[ i ]->EditorDrawWorld();
+}
+
+GOResource::ScrHandle GameObject::sgsFindFirstResourceOfType( sgsVariable typeOrMetaObj )
+{
+	for( size_t i = 0; i < m_resources.size(); ++i )
+	{
+		GOResource* rsrc = m_resources.item( i ).value;
+		int tid = typeOrMetaObj.type_id();
+		if( tid == SGS_VT_INT )
+		{
+			if( rsrc->m_rsrcType == typeOrMetaObj.get<uint32_t>() )
+				return GOResource::ScrHandle( rsrc );
+		}
+		else if( tid == SGS_VT_OBJECT )
+		{
+			if( rsrc->m_sgsObject->metaobj == typeOrMetaObj.get_object_struct() )
+				return GOResource::ScrHandle( rsrc );
+		}
+	}
+	return GOResource::ScrHandle();
+}
+
+GOBehavior::ScrHandle GameObject::sgsFindFirstBehaviorOfType( sgsVariable typeOrMetaObj )
+{
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+	{
+		GOBehavior* bhvr = m_bhvr_order[ i ];
+		int tid = typeOrMetaObj.type_id();
+		if( tid == SGS_VT_STRING )
+		{
+			if( bhvr->m_type == typeOrMetaObj.get_string() )
+				return GOBehavior::ScrHandle( bhvr );
+		}
+		else if( tid == SGS_VT_OBJECT )
+		{
+			if( bhvr->m_sgsObject->metaobj == typeOrMetaObj.get_object_struct() )
+				return GOBehavior::ScrHandle( bhvr );
+		}
+	}
+	return GOBehavior::ScrHandle();
 }
 
 void GameObject::SetInfoMask( uint32_t mask )

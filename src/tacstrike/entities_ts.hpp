@@ -300,7 +300,7 @@ struct TPSPlayerController : BhControllerBase
 	SGS_METHOD void UpdateMoveAim( bool tick );
 	TSCharacter* GetChar()
 	{
-		return m_obj->FindBehaviorOfType<TSCharacter>();
+		return m_obj->FindFirstBehaviorOfType<TSCharacter>();
 	}
 	
 	void SetDir( Vec3 v ){ m_angles = YP(v); }
@@ -331,7 +331,7 @@ struct TSEnemyController : BhControllerBase
 	AIDBSystem* m_aidb;
 	TSCharacter* GetChar()
 	{
-		return m_obj->FindBehaviorOfType<TSCharacter>();
+		return m_obj->FindFirstBehaviorOfType<TSCharacter>();
 	}
 	
 	TSEnemyController( GameObject* obj );

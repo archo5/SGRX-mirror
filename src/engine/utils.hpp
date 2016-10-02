@@ -3631,8 +3631,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 {
 	template< class T > struct Loggable
 	{
-		Loggable( const T& _v ) : v(_v){}
-		const T& v;
+		void _LogMe( SGRX_Log& to ) const { ((const T*)this)->Log( to ); }
 	};
 	template< class T > static Loggable<T> MakeLoggable( const T& v ){ return Loggable< T >( v ); }
 	struct Separator
@@ -3707,7 +3706,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Log
 	ENGINE_EXPORT SGRX_Log& operator << ( const Quat& );
 	ENGINE_EXPORT SGRX_Log& operator << ( const Mat4& );
 	ENGINE_EXPORT SGRX_Log& operator << ( const SGRX_GUID& );
-	template< class T > SGRX_Log& operator << ( const Loggable<T>& val ){ val.v.Log( *this ); return *this; }
+	template< class T > SGRX_Log& operator << ( const Loggable<T>& val ){ val._LogMe( *this ); return *this; }
 	template< class T > SGRX_Log& operator << ( const Array<T>& arr ){ *this << "ARRAY";
 		for( size_t i = 0; i < arr.size(); ++i ) *this << "\n\t" << i << ": " << arr[i]; return *this; }
 };
