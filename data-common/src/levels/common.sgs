@@ -408,6 +408,15 @@ class BhSphereTrigger : GOBehavior
 		if( this.sticky && this.savedPosition === null )
 			this.savedPosition = this.object.LocalToWorld( this.offset );
 		
+		newState = this.DoQuery();
+		if( newState != this.prevState )
+		{
+			this.prevState = newState;
+			this.OnTriggerChangeFunc( newState );
+		}
+	}
+	function DoQuery()
+	{
 		found = false;
 		self = this;
 		function fn( obj ) use( found, self )
@@ -415,14 +424,8 @@ class BhSphereTrigger : GOBehavior
 			found = self.CheckObject( obj );
 			return found;
 		}
-		
-		level.QuerySphere( fn, IEST_Target, this._getPos(), this.radius );
-		newState = found;
-		if( newState != this.prevState )
-		{
-			this.prevState = newState;
-			this.OnTriggerChangeFunc( newState );
-		}
+		procany = level.QuerySphere( fn, IEST_Target, this._getPos(), this.radius );
+		return found, procany;
 	}
 	function CheckObject( obj ){ return true; }
 	function OnTriggerChangeFunc( newState )
@@ -443,22 +446,6 @@ class BhSphereTrigger : GOBehavior
 	}
 }
 BEHAVIOR( "BhSphereTrigger", "GOBehavior" );
-
-// === INVENTORY ITEM CONTROLLED SPHERE TRIGGER === //
-class BhInventorySphereTrigger : BhSphereTrigger
-{
-	function Init()
-	{
-		this!BhSphereTrigger.Init();
-		this.itemID = "key";
-	}
-	function CheckObject( obj )
-	{
-		// TODO search *object's* inventory
-		return @_G.inventory[ this.itemID ] != 0;
-	}
-}
-BEHAVIOR( "BhInventorySphereTrigger", "BhSphereTrigger" );
 
 // === MESH ARRAY === //
 global BhMeshArray = {};
