@@ -1266,3 +1266,14 @@ void SGRX_INT_DestroyBatchRendering()
 }
 
 
+int DBG_GetFontTextures( Array< TextureHandle >& outTex )
+{
+	outTex.resize( g_FontRenderer->m_cache.m_pages.size() );
+	for( size_t i = 0; i < g_FontRenderer->m_cache.m_pages.size(); ++i )
+	{
+		outTex[ i ] = g_FontRenderer->m_cache.m_pages[ i ].texture;
+	}
+	return g_FontRenderer->m_cache.m_keyNodeMap.size();
+}
+
+

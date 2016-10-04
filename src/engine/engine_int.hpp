@@ -5,7 +5,7 @@
 #include "renderer.hpp"
 
 
-template< class K >
+template< class K, class V >
 struct RasterCache
 {
 	struct Node
@@ -16,6 +16,7 @@ struct RasterCache
 		int page;
 		bool occupied;
 		K key;
+		V data;
 	};
 	struct Page
 	{
@@ -88,7 +89,7 @@ struct RasterCache
 		
 		return _NodeAlloc( page, me->child0, w, h );
 	}
-	Node* _AllocItem( int32_t frame, const K& key, int32_t w, int32_t h )
+	Node* _AllocItem( int32_t frame, const K& key, const V& data, int32_t w, int32_t h )
 	{
 		for( size_t i = 0; i < m_pages.size(); ++i )
 		{
@@ -96,6 +97,7 @@ struct RasterCache
 			if( node )
 			{
 				node->key = key;
+				node->data = data;
 				node->page = i;
 				node->occupied = true;
 				node->lastframe = frame;
@@ -158,9 +160,9 @@ struct RasterCache
 	}
 	
 	// for best behavior, increase frame id after each submitted batch
-	Node* Alloc( int32_t frame, const K& key, int32_t w, int32_t h )
+	Node* Alloc( int32_t frame, const K& key, const V& data, int32_t w, int32_t h )
 	{
-		Node* node = _AllocItem( frame, key, w, h );
+		Node* node = _AllocItem( frame, key, data, w, h );
 		if( node )
 			return node; // could allocate
 		
@@ -168,7 +170,7 @@ struct RasterCache
 		if( !_DropLast( frame ) )
 			return NULL; // all pages are used currently, severe error (should never happen)
 		
-		node = _AllocItem( frame, key, w, h );
+		node = _AllocItem( frame, key, data, w, h );
 		if( node )
 			return node; // could allocate
 		
@@ -289,13 +291,15 @@ struct FontRenderer
 		FontHandle font;
 		int size;
 		uint32_t codepoint;
-		SGRX_GlyphInfo info;
 		
-		bool operator == ( const CacheKey& other ) const { return font == other.font && size == other.size && codepoint == other.codepoint; }
+		bool operator == ( const CacheKey& other ) const
+		{
+			return font == other.font && size == other.size && codepoint == other.codepoint;
+		}
 	};
-	typedef RasterCache< CacheKey > GlyphCache;
+	typedef RasterCache< CacheKey, SGRX_GlyphInfo > GlyphCache;
 	
-	FontRenderer( int pagecount = 8, int pagesize = 1024 );
+	FontRenderer( int pagecount = 2, int pagesize = 1024 );
 	~FontRenderer();
 	
 	// core features
@@ -320,9 +324,9 @@ struct FontRenderer
 	int32_t m_cache_frame;
 };
 
-inline Hash HashVar( const FontRenderer::CacheKey& ck )
+FINLINE Hash HashVar( const FontRenderer::CacheKey& ck )
 {
-	return (Hash)( ck.font.item ) + ck.codepoint;
+	return ( (Hash)( ck.font.item ) + ck.size ) ^ ck.codepoint;
 }
 
 

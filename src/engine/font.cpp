@@ -461,13 +461,13 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		if( node && br )
 		{
 			if( prev_glyph_id != NOT_FOUND )
-				m_cursor.x += m_currentFont->GetKerning( prev_glyph_id, node->key.info.glyph_kern_id );
+				m_cursor.x += m_currentFont->GetKerning( prev_glyph_id, node->data.glyph_kern_id );
 			
 			float ftx0 = node->x0 * ifw, ftx1 = node->x1 * ifw;
 			float fty0 = node->y0 * ifh, fty1 = node->y1 * ifh;
 			
-			float fx0 = m_cursor.x + node->key.info.bmoffx;
-			float fy0 = adjusted_y + m_currentSize - node->key.info.bmoffy;
+			float fx0 = m_cursor.x + node->data.bmoffx;
+			float fy0 = adjusted_y + m_currentSize - node->data.bmoffy;
 			float fx1 = fx0 + node->x1 - node->x0;
 			float fy1 = fy0 + node->y1 - node->y0;
 			
@@ -485,9 +485,9 @@ int FontRenderer::PutText( BatchRenderer* br, const StringView& text )
 		}
 		if( node )
 		{
-			m_cursor.x += node->key.info.advx;
+			m_cursor.x += node->data.advx;
 		}
-		prev_glyph_id = node->key.info.glyph_kern_id;
+		prev_glyph_id = node->data.glyph_kern_id;
 		n++;
 	}
 	return n;
@@ -519,12 +519,12 @@ float FontRenderer::GetAdvanceX( uint32_t cpprev, uint32_t cpcurr )
 	if( !currnode )
 		return 0;
 	
-	float adv = currnode->key.info.advx;
+	float adv = currnode->data.advx;
 	if( prevnode )
 	{
 		adv += m_currentFont->GetKerning(
-			prevnode->key.info.glyph_kern_id,
-			currnode->key.info.glyph_kern_id );
+			prevnode->data.glyph_kern_id,
+			currnode->data.glyph_kern_id );
 	}
 	return adv;
 }
@@ -538,10 +538,11 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( uint32_t ch )
 		return node;
 	
 	// load glyph
-	m_currentFont->LoadGlyphInfo( m_currentSize, ch, &ckey.info );
-	int width = ckey.info.bmsizex;
-	int height = ckey.info.bmsizey;
-	node = m_cache.Alloc( m_cache_frame, ckey, width, height );
+	SGRX_GlyphInfo ginfo;
+	m_currentFont->LoadGlyphInfo( m_currentSize, ch, &ginfo );
+	int width = ginfo.bmsizex;
+	int height = ginfo.bmsizey;
+	node = m_cache.Alloc( m_cache_frame, ckey, ginfo, width, height );
 	if( !node )
 	{
 		LOG_ERROR << "  FAILED TO ALLOCATE GLYPH!!!";

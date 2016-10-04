@@ -17,6 +17,28 @@ struct ITest
 	virtual void OnInitialize(){}
 	virtual void OnDestroy(){}
 	virtual void OnEvent( const Event& e ){}
+	
+	void DrawFontTextures()
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer();
+		
+		Array< TextureHandle > fontTextures;
+		int count = DBG_GetFontTextures( fontTextures );
+		
+		int w = GR_GetWidth(), h = GR_GetHeight();
+		float x0 = w / 2.0f;
+		float iw = w / 2.0f / fontTextures.size();
+		for( size_t i = 0; i < fontTextures.size(); ++i )
+		{
+			br.SetTexture( fontTextures[ i ] );
+			br.Quad( x0 + iw * i, h/2, x0 + iw * (i+1), h/2 + iw );
+		}
+		
+		char bfr[64];
+		sgrx_snprintf( bfr, 64, "glyph count: %d", count );
+		GR2D_SetFont( "system_outlined", 7 );
+		GR2D_DrawTextLine( w/2, h/2+iw, bfr );
+	}
 };
 
 
@@ -56,6 +78,8 @@ struct Test_PixelPerfectRendering : ITest
 		GR2D_SetWorldMatrix( Mat4::CreateScale( 4, 4, 1 ) * Mat4::CreateTranslation( 0, 100, 0 ) );
 		DrawSomeText();
 		GR2D_SetWorldMatrix( Mat4::Identity );
+		
+		DrawFontTextures();
 	}
 	void DrawSomeText()
 	{
@@ -113,6 +137,8 @@ struct Test_AdvancedText : ITest
 		char bfr[ 64 ];
 		sgrx_snprintf( bfr, 64, "Time to process text: %g ms", ( t1 - t0 ) * 1000 );
 		GR2D_DrawTextLine( 0, GR_GetHeight() - 12, bfr );
+		
+		DrawFontTextures();
 	}
 	void DT( int x0, int y0, int x1, int y1, StringView text, int ha = HALIGN_LEFT, int va = VALIGN_TOP )
 	{

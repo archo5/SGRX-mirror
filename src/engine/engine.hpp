@@ -2098,6 +2098,7 @@ inline void GR2D_SetColor( float x ){ GR2D_SetColor( x, x, x, x ); }
 ENGINE_EXPORT bool GR2D_LoadFont( const StringView& key, const StringView& path );
 ENGINE_EXPORT bool GR2D_LoadSVGIconFont( const StringView& key, const StringView& path );
 ENGINE_EXPORT FontHandle GR2D_GetFont( const StringView& key );
+ENGINE_EXPORT int DBG_GetFontTextures( Array< TextureHandle >& outTex );
 ENGINE_EXPORT void GR2D_GetFontSettings( SGRX_FontSettings* settings );
 ENGINE_EXPORT void GR2D_SetFontSettings( const SGRX_FontSettings* settings );
 ENGINE_EXPORT bool GR2D_SetFont( const StringView& name, int pxsize );

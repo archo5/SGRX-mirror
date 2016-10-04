@@ -1645,9 +1645,9 @@ struct Handle
 	Handle( const Handle& h ) : item( h.item ){ if( item ) item->Acquire(); }
 	~Handle(){ if( item ){ item->Release(); item = NULL; } }
 	Handle& operator = ( const Handle& h ){ if( item ) item->Release(); item = h.item; if( item ) item->Acquire(); return *this; }
-	T* operator -> () const { return item; }
-	T& operator * () const { return *item; }
-	operator T* () const { return item; }
+	FINLINE T* operator -> () const { return item; }
+	FINLINE T& operator * () const { return *item; }
+	FINLINE operator T* () const { return item; }
 	template< class S > void Serialize( S& arch )
 	{
 		if( S::IsReader && !item )
@@ -2652,6 +2652,22 @@ struct HashTable
 	FINLINE const V* getptr( const K& key, const V* defval = NULL ) const { const Var* raw = getraw( key ); return raw ? &raw->value : defval; }
 	FINLINE V& operator [] ( const K& key ){ Var* raw = getraw( key ); if( !raw ) raw = set( key, V() ); return raw->value; }
 	
+	enum _Info
+	{
+		probe_distance = 1,
+	};
+	FINLINE static void _probe_adv( size_type& i, size_type size )
+	{
+		i += probe_distance;
+		if( i >= size )
+			i -= size;
+	}
+	FINLINE unsigned _probe_length( size_type pos_idx, Hash hash ) const
+	{
+		unsigned off = m_pair_mem + unsigned(pos_idx) - hash % m_pair_mem;
+		return ( off % m_pair_mem ) / probe_distance;
+	}
+	
 	size_type _get_pair_id( const K& key, Hash hash ) const
 	{
 		size_type i, sp = (size_type)( hash % (Hash) m_pair_mem );
@@ -2663,9 +2679,7 @@ struct HashTable
 				break;
 			if( idx != REMOVED && m_vars[ idx ].key == key )
 				return i;
-			i++;
-			if( i >= m_pair_mem )
-				i = 0;
+			_probe_adv( i, m_pair_mem );
 		}
 		while( i != sp );
 		return -1;
@@ -2703,7 +2717,10 @@ struct HashTable
 		}
 		else
 		{
-			size_type osize = m_size;
+			unsigned curdist = 0; /* current probe length for item to be inserted */
+			size_type
+				osize = m_size, /* original hash table item count */
+				ipos = m_size; /* currently inserted item index */
 			UNUSED( osize );
 			
 			/* prefer to rehash if too many removed (num_rem) items are found */
@@ -2727,13 +2744,27 @@ struct HashTable
 				{
 					if( idx == REMOVED )
 						m_num_removed--;
-					m_pairs[ i ] = m_size;
+					m_pairs[ i ] = ipos;
 					m_size++;
 					break;
 				}
-				i++;
-				if( i >= m_pair_mem )
-					i = 0;
+				else
+				{
+					/* occupied, try Robin Hood Hashing */
+					
+					/* probe length for existing item */
+					unsigned exdist = _probe_length( i, m_vars[ idx ].hash );
+					if( exdist < curdist )
+					{
+						/* success, swap current / new items */
+						m_pairs[ i ] = ipos;
+						ipos = idx;
+						curdist = exdist;
+					}
+				}
+				_probe_adv( i, m_pair_mem );
+				
+				curdist++;
 			}
 			while( i != sp );
 			
