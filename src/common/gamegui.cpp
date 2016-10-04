@@ -612,9 +612,16 @@ float GameUIControl::DTextLen( StringView text )
 	return InvIS( len );
 }
 
-void GameUIControl::DTextRect( StringView text, float x0, float y0, float x1, float y1, int ha, int va )
+float GameUIControl::DTextRect( StringView text, float x0, float y0, float x1, float y1, int ha, int va )
 {
-	GR2D_DrawTextRect( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ), text, ha, va );
+	int ht = GR2D_DrawTextRect( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ), text, ha, va );
+	return InvIS( ht );
+}
+
+float GameUIControl::DTextRectHeight( StringView text, float x0, float y0, float x1, float y1 )
+{
+	int ht = GR2D_GetTextRectHeight( IX( x0 ), IY( y0 ), IX( x1 ), IY( y1 ), text );
+	return InvIS( ht );
 }
 
 

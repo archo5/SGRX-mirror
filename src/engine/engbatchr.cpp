@@ -944,7 +944,7 @@ static int _blocks_width( const Array< TextBlock >& blocks, const TextLine& cur_
 	return len;
 }
 
-void _GR2D_CalcTextLayout
+int _GR2D_CalcTextLayout
 (
 	Array< SGRX_TextSettings >& settingStack,
 	Array< TextBlock >& blocks,
@@ -1027,7 +1027,7 @@ void _GR2D_CalcTextLayout
 		} \
 		total_height += cur_line.pxheight; \
 		if( total_height > height ) \
-			return; \
+			return total_height; \
 	/*	LOG << "LINE len=" << cur_line.pxwidth; */ \
 		lines.push_back( cur_line ); \
 		cur_line.blockstart = cur_line.blockend; \
@@ -1043,7 +1043,7 @@ void _GR2D_CalcTextLayout
 	
 	UTF8Iterator IT( text );
 	if( IT.Advance() == false )
-		return;
+		return total_height;
 	for(;;)
 	{
 		const uint32_t& chr_val = IT.codepoint;
@@ -1190,12 +1190,13 @@ void _GR2D_CalcTextLayout
 	COMMIT_BLOCK;
 	PUSH_BLOCKS_TO_LINE;
 	COMMIT_LINE;
+	return total_height;
 }
 
 static Array< SGRX_TextSettings > g_settingStack;
 static Array< TextBlock > blocks;
 static Array< TextLine > lines;
-void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
+int GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 	const StringView& text, int halign, int valign, bool parse )
 {
 	LOG_FUNCTION;
@@ -1204,19 +1205,16 @@ void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 	int width = x1 - x0;
 	int height = y1 - y0;
 	
-	int lineheight = ceilf( g_CurFontSettings.CalcLineHeight() );
-	if( height < lineheight )
-		return;
-	
 	SGRX_FontSettings fsBackup;
 	GR2D_GetFontSettings( &fsBackup );
 	
 	g_settingStack.clear();
 	blocks.clear();
 	lines.clear();
-	_GR2D_CalcTextLayout( g_settingStack, blocks, lines, text, width, height, parse );
+	int textheight = _GR2D_CalcTextLayout(
+		g_settingStack, blocks, lines, text, width, height, parse );
 	
-	int vspace = height - lines.size() * lineheight;
+	int vspace = height - textheight;
 	int y = y0;
 	if( valign == VALIGN_CENTER ) y += vspace / 2;
 	else if( valign == VALIGN_BOTTOM ) y += vspace;
@@ -1238,10 +1236,33 @@ void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 			StringView textpart = text.part( BLK.start, BLK.end - BLK.start );
 			GR2D_DrawTextLine( textpart );
 		}
-		y += lineheight;
+		y += LN.pxheight;
 	}
 	
 	GR2D_SetFontSettings( &fsBackup );
+	return textheight;
+}
+
+int GR2D_GetTextRectHeight( int x0, int y0, int x1, int y1,
+	const StringView& text, bool parse )
+{
+	LOG_FUNCTION;
+	
+	// sizing
+	int width = x1 - x0;
+	int height = y1 - y0;
+	
+	SGRX_FontSettings fsBackup;
+	GR2D_GetFontSettings( &fsBackup );
+	
+	g_settingStack.clear();
+	blocks.clear();
+	lines.clear();
+	int textheight = _GR2D_CalcTextLayout(
+		g_settingStack, blocks, lines, text, width, height, parse );
+	
+	GR2D_SetFontSettings( &fsBackup );
+	return textheight;
 }
 
 

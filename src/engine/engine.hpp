@@ -2118,8 +2118,10 @@ ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text );
 #define VALIGN_BOTTOM 2
 ENGINE_EXPORT int GR2D_DrawTextLine( const StringView& text, int halign, int valign );
 ENGINE_EXPORT int GR2D_DrawTextLine( float x, float y, const StringView& text, int halign, int valign );
-ENGINE_EXPORT void GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
+ENGINE_EXPORT int GR2D_DrawTextRect( int x0, int y0, int x1, int y1,
 	const StringView& text, int halign, int valign, bool parse = true );
+ENGINE_EXPORT int GR2D_GetTextRectHeight( int x0, int y0, int x1, int y1,
+	const StringView& text, bool parse = true );
 
 ENGINE_EXPORT BatchRenderer& GR2D_GetBatchRenderer();
 
