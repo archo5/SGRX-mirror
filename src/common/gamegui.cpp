@@ -541,6 +541,12 @@ void GameUIControl::DQuadExt( float x0, float y0, float x1, float y1,
 		tox, toy, ssz >= 7 ? tsx : 1.0f, ssz >= 8 ? tsy : 1.0f );
 }
 
+void GameUIControl::DBox( float x, float y, float w, float h, float z )
+{
+	int ssz = sgs_StackSize( C );
+	GR2D_GetBatchRenderer().Box( IX( x ), IY( y ), IS( w ), IS( h ), ssz >= 5 ? z : 0 );
+}
+
 void GameUIControl::DTurnedBox( float x, float y, float dx, float dy, float z /* = 0 */ )
 {
 	int ssz = sgs_StackSize( C );

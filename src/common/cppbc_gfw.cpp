@@ -513,6 +513,13 @@ static int _sgs_method__GameUIControl__DQuadExt( SGS_CTX )
 	data->DQuadExt( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<float>()(C,5), sgs_GetVar<float>()(C,6), sgs_GetVar<float>()(C,7) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DBox( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DBox ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DBox( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DTurnedBox( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DTurnedBox ) ) return 0;
@@ -743,6 +750,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DQuadWH", _sgs_method__GameUIControl__DQuadWH },
 	{ "DQuadTexRect", _sgs_method__GameUIControl__DQuadTexRect },
 	{ "DQuadExt", _sgs_method__GameUIControl__DQuadExt },
+	{ "DBox", _sgs_method__GameUIControl__DBox },
 	{ "DTurnedBox", _sgs_method__GameUIControl__DTurnedBox },
 	{ "DCircleFill", _sgs_method__GameUIControl__DCircleFill },
 	{ "DButton", _sgs_method__GameUIControl__DButton },
@@ -1724,7 +1732,7 @@ static int _sgs_method__LevelMapSystem__DrawUIRect( SGS_CTX )
 {
 	LevelMapSystem* data; if( !SGS_PARSE_METHOD( C, LevelMapSystem::_sgs_interface, data, LevelMapSystem, DrawUIRect ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->DrawUIRect( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
+	data->DrawUIRect( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4), sgs_GetVar<sgsVariable>()(C,5) ); return 0;
 }
 
 int LevelMapSystem::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )

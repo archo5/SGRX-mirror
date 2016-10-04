@@ -237,6 +237,7 @@ EXP_STRUCT GameUIControl
 		float tx0, float ty0, float tx1, float ty1 );
 	SGS_METHOD void DQuadExt( float x0, float y0, float x1, float y1,
 		float tox, float toy, float tsx /* = 1 */, float tsy /* = 1 */ );
+	SGS_METHOD void DBox( float x, float y, float w, float h, float z /* = 0 */ );
 	SGS_METHOD void DTurnedBox( float x, float y, float dx, float dy, float z /* = 0 */ );
 	SGS_METHOD void DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ );
 	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );

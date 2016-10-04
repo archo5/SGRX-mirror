@@ -79,7 +79,7 @@ void LevelMapSystem::RemoveItem( Entity* e )
 }
 #endif
 
-void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float linesize )
+void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float linesize, sgsVariable cb )
 {
 	BatchRenderer& br = GR2D_GetBatchRenderer();
 	
@@ -200,6 +200,9 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 		}
 	}
 #endif
+	
+	if( cb.not_null() )
+		cb.tcall<void>( C );
 	
 	br.Flush();
 	GR2D_UnsetViewport();
