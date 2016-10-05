@@ -202,7 +202,9 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 #endif
 	
 	if( cb.not_null() )
-		cb.tcall<void>( C );
+	{
+		cb.tcall<void>( C, viewproj, inv_vp );
+	}
 	
 	br.Flush();
 	GR2D_UnsetViewport();

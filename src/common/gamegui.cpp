@@ -553,6 +553,11 @@ void GameUIControl::DTurnedBox( float x, float y, float dx, float dy, float z /*
 	GR2D_GetBatchRenderer().TurnedBox( IX( x ), IY( y ), IS( dx ), IS( dy ), ssz >= 5 ? z : 0 );
 }
 
+void GameUIControl::DTexLine( float x0, float y0, float x1, float y1, float rad )
+{
+	GR2D_GetBatchRenderer().TexLine( V2( IX( x0 ), IY( y0 ) ), V2( IX( x1 ), IY( y1 ) ), IS( rad ) );
+}
+
 void GameUIControl::DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ )
 {
 	int ssz = sgs_StackSize( C );
