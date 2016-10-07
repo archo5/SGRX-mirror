@@ -690,6 +690,43 @@ Vec2 CalcLMSizeAndNormalize( Array< LCVertex >& verts )
 	return sz;
 }
 
+void _AddSurfToMesh(
+	EdSurface& BS,
+	Array< LCVertex >& vertices,
+	Array< uint16_t >& indices,
+	SGRX_GUID solid_guid,
+	Mat4 mtx
+)
+{
+	EdLGCSurfaceInfo S;
+	S.vdata = vertices.data();
+	S.vcount = vertices.size();
+	S.idata = indices.data();
+	S.icount = indices.size();
+	S.mtlname = BS.texname;
+	S.lmsize = CalcLMSizeAndNormalize( vertices );
+	S.xform = mtx;
+	S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
+	S.lmdetail = BS.lmquality;
+	S.solid_guid = solid_guid;
+	
+	if( BS.texname.size() )
+	{
+		if( BS.surface_guid.NotNull() )
+			g_EdLGCont->UpdateSurface( BS.surface_guid, LGC_CHANGE_ALL, &S );
+		else
+		{
+			BS.surface_guid = SGRX_GUID::Generate();
+			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
+		}
+	}
+	else
+	{
+		g_EdLGCont->DeleteSurface( BS.surface_guid );
+		BS.surface_guid.SetNull();
+	}
+}
+
 void EdBlock::RegenerateMesh()
 {
 	if( !g_EdWorld || poly.size() < 3 || poly.size() > MAX_BLOCK_POLYGONS - 2 )
@@ -783,25 +820,7 @@ void EdBlock::RegenerateMesh()
 		}
 		else vertices.clear();
 		
-		EdLGCSurfaceInfo S;
-		S.vdata = vertices.data();
-		S.vcount = vertices.size();
-		S.idata = indices.data();
-		S.icount = indices.size();
-		S.mtlname = BS.texname;
-		S.lmsize = CalcLMSizeAndNormalize( vertices );
-		S.xform = mtx;
-		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
-		S.lmdetail = BS.lmquality;
-		S.solid_guid = solid_guid;
-		
-		if( BS.surface_guid.NotNull() )
-			g_EdLGCont->UpdateSurface( BS.surface_guid, LGC_CHANGE_ALL, &S );
-		else
-		{
-			BS.surface_guid = SGRX_GUID::Generate();
-			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
-		}
+		_AddSurfToMesh( BS, vertices, indices, solid_guid, mtx );
 	}
 	
 	// TOP
@@ -826,25 +845,7 @@ void EdBlock::RegenerateMesh()
 			indices.push_back( i - 1 );
 		}
 		
-		EdLGCSurfaceInfo S;
-		S.vdata = vertices.data();
-		S.vcount = vertices.size();
-		S.idata = indices.data();
-		S.icount = indices.size();
-		S.mtlname = BS.texname;
-		S.lmsize = CalcLMSizeAndNormalize( vertices );
-		S.xform = mtx;
-		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
-		S.lmdetail = BS.lmquality;
-		S.solid_guid = solid_guid;
-		
-		if( BS.surface_guid.NotNull() )
-			g_EdLGCont->UpdateSurface( BS.surface_guid, LGC_CHANGE_ALL, &S );
-		else
-		{
-			BS.surface_guid = SGRX_GUID::Generate();
-			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
-		}
+		_AddSurfToMesh( BS, vertices, indices, solid_guid, mtx );
 		break;
 	}
 	
@@ -870,25 +871,7 @@ void EdBlock::RegenerateMesh()
 			indices.push_back( i );
 		}
 		
-		EdLGCSurfaceInfo S;
-		S.vdata = vertices.data();
-		S.vcount = vertices.size();
-		S.idata = indices.data();
-		S.icount = indices.size();
-		S.mtlname = BS.texname;
-		S.lmsize = CalcLMSizeAndNormalize( vertices );
-		S.xform = mtx;
-		S.rflags = LM_MESHINST_CASTLMS | LM_MESHINST_SOLID;
-		S.lmdetail = BS.lmquality;
-		S.solid_guid = solid_guid;
-		
-		if( BS.surface_guid.NotNull() )
-			g_EdLGCont->UpdateSurface( BS.surface_guid, LGC_CHANGE_ALL, &S );
-		else
-		{
-			BS.surface_guid = SGRX_GUID::Generate();
-			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
-		}
+		_AddSurfToMesh( BS, vertices, indices, solid_guid, mtx );
 		break;
 	}
 }

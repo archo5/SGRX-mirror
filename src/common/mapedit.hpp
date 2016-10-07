@@ -28,7 +28,8 @@
 // v9: separated patch/path LM/physics solidity
 // v10: added systems parameters
 // v11: added patch quad disable flags
-#define MAP_FILE_VERSION 11
+// v12: added patch backface
+#define MAP_FILE_VERSION 12
 
 #define MAX_BLOCK_POLYGONS 32
 
@@ -103,8 +104,9 @@ struct IMGUISurfMtlPicker : IMGUIMeshPickerCore
 	{
 		LOG << "Reloading surface materials";
 		Clear();
-	//	Entry e = { "", NULL };
-	//	m_entries.push_back( e );
+		
+		Entry e = { "", NULL };
+		m_entries.push_back( e );
 		
 		// parse material list
 		m_materials.clear();
@@ -953,7 +955,7 @@ struct EdPatch : EdObject
 {
 	EdPatch() : EdObject( ObjType_Patch ), xsize(0), ysize(0),
 		blend(0), renderMode(PRM_Solid), m_isLMSolid(false),
-		m_isPhySolid(false), lmquality(1)
+		m_isPhySolid(false), m_hasBlackBackface(false), lmquality(1)
 	{
 		TMEMSET<uint16_t>( edgeflip, MAX_PATCH_WIDTH, 0 );
 		TMEMSET<uint16_t>( vertsel, MAX_PATCH_WIDTH, 0 );
@@ -1038,6 +1040,7 @@ struct EdPatch : EdObject
 		renderMode = FLoadProp( data, "renderMode", int(PRM_Solid) );
 		m_isLMSolid = FLoadProp( data, "isLMSolid", true );
 		m_isPhySolid = FLoadProp( data, "isPhySolid", true );
+		m_hasBlackBackface = FLoadProp( data, "hasBlackBackface", false );
 		lmquality = FLoadProp( data, "lmquality", 1.0f );
 		
 		// vertices
@@ -1096,6 +1099,7 @@ struct EdPatch : EdObject
 		FSaveProp( out, "renderMode", renderMode );
 		FSaveProp( out, "isLMSolid", m_isLMSolid );
 		FSaveProp( out, "isPhySolid", m_isPhySolid );
+		FSaveProp( out, "hasBlackBackface", m_hasBlackBackface );
 		FSaveProp( out, "lmquality", lmquality );
 		
 		sgsVariable out_vertices = FNewArray();
@@ -1148,8 +1152,10 @@ struct EdPatch : EdObject
 	uint8_t renderMode;
 	bool m_isLMSolid;
 	bool m_isPhySolid;
+	bool m_hasBlackBackface;
 	float lmquality;
 	EdPatchLayerInfo layers[ MAX_PATCH_LAYERS ];
+	SGRX_GUID back_surface_guid;
 };
 
 typedef Handle< EdPatch > EdPatchHandle;

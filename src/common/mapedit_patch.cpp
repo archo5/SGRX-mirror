@@ -270,6 +270,28 @@ void EdPatch::RegenerateMesh()
 			g_EdLGCont->RequestSurface( LI.surface_guid, &S );
 		}
 		
+		if( m_hasBlackBackface )
+		{
+			if( layer == 0 )
+			{
+				S.mtlname = "black";
+				for( size_t i = 0; i < outidcs.size(); i += 3 )
+					TSWAP( outidcs[ i + 1 ], outidcs[ i + 2 ] );
+				if( back_surface_guid.NotNull() )
+					g_EdLGCont->UpdateSurface( back_surface_guid, LGC_CHANGE_ALL, &S );
+				else
+				{
+					back_surface_guid = SGRX_GUID::Generate();
+					g_EdLGCont->RequestSurface( back_surface_guid, &S );
+				}
+			}
+		}
+		else if( back_surface_guid.NotNull() )
+		{
+			g_EdLGCont->DeleteSurface( back_surface_guid );
+			back_surface_guid.SetNull();
+		}
+		
 		if( LI.texname.size() )
 			first = false;
 	}
@@ -1109,6 +1131,7 @@ void EdPatch::EditUI()
 	IMGUIEditBool( "Casts lightmap shadows?", m_isLMSolid );
 	IMGUIEditBool( "Is solid?", m_isPhySolid );
 	IMGUIEditFloat( "Lightmap quality", lmquality, 0.01f, 100 );
+	IMGUIEditBool( "Black backface?", m_hasBlackBackface );
 	IMGUIEditInt( "Layer", blend, 0, 127 );
 	ImGui::Separator();
 	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )

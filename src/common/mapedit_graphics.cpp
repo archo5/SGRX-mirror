@@ -880,6 +880,9 @@ void EdLevelGraphicsCont::RequestSurface( SGRX_GUID guid, EdLGCSurfaceInfo* info
 void EdLevelGraphicsCont::DeleteSurface( SGRX_GUID guid )
 {
 	ASSERT( m_surfaces.isset( guid ) );
+	m_movedSurfs.unset( guid );
+	m_invalidLightmaps.unset( guid );
+	m_alrInvalidLightmaps.unset( guid );
 	m_lightmaps.unset( guid );
 	m_surfaces.unset( guid );
 }
