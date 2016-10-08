@@ -38,40 +38,11 @@ struct SGRX_MeshInstUserData
 	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL),
 		ovrDecalSysOverride(NULL), ownerType(0), typeOverride(NULL){}
 	virtual ~SGRX_MeshInstUserData(){}
-	virtual void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data ){}
+	virtual void MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data ){}
 	SGRX_DecalSystem* dmgDecalSysOverride;
 	SGRX_DecalSystem* ovrDecalSysOverride;
 	uint32_t ownerType;
 	const char* typeOverride;
-};
-
-
-
-enum EInteractionType
-{
-	IT_None = 0,
-	IT_Button,
-	IT_Pickup,
-	IT_Investigate,
-	IT_PickLock,
-};
-#define IA_NEEDS_LONG_END(t) ((t)==IT_Investigate||(t)==IT_PickLock)
-
-struct InteractInfo
-{
-	EInteractionType type;
-	Vec3 placePos; // placement
-	Vec3 placeDir;
-	float timeEstimate;
-	float timeActual;
-};
-
-struct IInteractiveEntity
-{
-	enum { e_iface_uid = 1 };
-	
-	virtual bool GetInteractionInfo( Vec3 pos, InteractInfo* out ){ return false; }
-	virtual bool CanInterruptAction( float progress ){ return false; }
 };
 
 

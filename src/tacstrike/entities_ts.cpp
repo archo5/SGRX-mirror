@@ -809,7 +809,7 @@ void TSCharacter::Reset()
 	m_animChar.m_cachedMeshInst->layers = 0xffffffff;
 }
 
-void TSCharacter::OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
+void TSCharacter::MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
 {
 	if( evid == MIEVT_BulletHit )
 	{

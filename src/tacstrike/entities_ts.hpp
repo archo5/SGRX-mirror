@@ -119,7 +119,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_METHOD bool IsAlive(){ return m_health > 0; }
 	SGS_METHOD void Reset();
 	
-	void OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
+	void MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	SGS_METHOD void Hit( float pwr );
 	virtual void OnDeath();
 	
@@ -169,7 +169,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	YawPitch m_aimDir;
 	float m_aimDist;
 	
-	uint32_t m_infoFlags;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME infoFlags ) uint32_t m_infoFlags;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME group ) uint32_t m_group;
 	
 	bool m_pickupTrigger;

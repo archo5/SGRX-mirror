@@ -1024,6 +1024,12 @@ void IMGUIMeshPicker::Reload()
 	for( size_t i = 0; i < m_entries.size(); ++i )
 		oldHandles.push_back( m_entries[ i ].mesh );
 	Clear();
+	
+	Array< StringView > sysMeshes;
+	Game_Get()->OnGetSysMeshList( sysMeshes );
+	for( size_t i = 0; i < sysMeshes.size(); ++i )
+		AddMesh( sysMeshes[ i ] );
+	
 	FS_IterateDirectory( "meshes", this );
 	_Search( m_searchString );
 }

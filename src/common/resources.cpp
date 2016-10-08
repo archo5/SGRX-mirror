@@ -32,6 +32,22 @@ void MeshResource::_UpdateMatrix()
 	_UpdateLighting();
 }
 
+void MeshResource::MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data )
+{
+	if( evid == MIEVT_BulletHit )
+	{
+		SGRX_CAST( MI_BulletHit_Data*, bhinfo, data );
+		ScriptContext& SC = m_level->GetScriptCtx();
+		SC.Push( "pos" );
+		SC.Push( bhinfo->pos );
+		SC.Push( "vel" );
+		SC.Push( bhinfo->vel );
+		SC.Push( "dmg" );
+		SC.Push( bhinfo->dmg );
+		m_obj->SendMessage( "OnBulletHit", SC.CreateDict( 6 ) );
+	}
+}
+
 void MeshResource::EditorDrawWorld()
 {
 	if( m_mesh )

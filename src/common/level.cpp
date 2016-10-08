@@ -591,6 +591,60 @@ GOBehavior::ScrHandle GameObject::sgsFindFirstBehaviorOfType( sgsVariable typeOr
 	return GOBehavior::ScrHandle();
 }
 
+sgsVariable GameObject::sgsFindAllResourcesOfType( sgsVariable typeOrMetaObj )
+{
+	int count = 0;
+	for( size_t i = 0; i < m_resources.size(); ++i )
+	{
+		GOResource* rsrc = m_resources.item( i ).value;
+		int tid = typeOrMetaObj.type_id();
+		if( tid == SGS_VT_INT )
+		{
+			if( rsrc->m_rsrcType == typeOrMetaObj.get<uint32_t>() )
+			{
+				count++;
+				m_level->GetScriptCtx().Push( rsrc->GetScriptedObject() );
+			}
+		}
+		else if( tid == SGS_VT_OBJECT )
+		{
+			if( rsrc->m_sgsObject->metaobj == typeOrMetaObj.get_object_struct() )
+			{
+				count++;
+				m_level->GetScriptCtx().Push( rsrc->GetScriptedObject() );
+			}
+		}
+	}
+	return m_level->GetScriptCtx().CreateArray( count );
+}
+
+sgsVariable GameObject::sgsFindAllBehaviorsOfType( sgsVariable typeOrMetaObj )
+{
+	int count = 0;
+	for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+	{
+		GOBehavior* bhvr = m_bhvr_order[ i ];
+		int tid = typeOrMetaObj.type_id();
+		if( tid == SGS_VT_STRING )
+		{
+			if( bhvr->m_type == typeOrMetaObj.get_string() )
+			{
+				count++;
+				m_level->GetScriptCtx().Push( bhvr->GetScriptedObject() );
+			}
+		}
+		else if( tid == SGS_VT_OBJECT )
+		{
+			if( bhvr->m_sgsObject->metaobj == typeOrMetaObj.get_object_struct() )
+			{
+				count++;
+				m_level->GetScriptCtx().Push( bhvr->GetScriptedObject() );
+			}
+		}
+	}
+	return m_level->GetScriptCtx().CreateArray( count );
+}
+
 void GameObject::SetInfoMask( uint32_t mask )
 {
 	if( mask && !m_infoMask )

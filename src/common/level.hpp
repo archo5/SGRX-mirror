@@ -530,6 +530,8 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	}
 	SGS_METHOD_NAMED( FindFirstResourceOfType ) GOResource::ScrHandle sgsFindFirstResourceOfType( sgsVariable typeOrMetaObj );
 	SGS_METHOD_NAMED( FindFirstBehaviorOfType ) GOBehavior::ScrHandle sgsFindFirstBehaviorOfType( sgsVariable typeOrMetaObj );
+	SGS_METHOD_NAMED( FindAllResourcesOfType ) sgsVariable sgsFindAllResourcesOfType( sgsVariable typeOrMetaObj );
+	SGS_METHOD_NAMED( FindAllBehaviorsOfType ) sgsVariable sgsFindAllBehaviorsOfType( sgsVariable typeOrMetaObj );
 	
 	// info target
 	FINLINE uint32_t GetInfoMask() const { return m_infoMask; }

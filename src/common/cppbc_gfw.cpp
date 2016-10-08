@@ -1433,6 +1433,20 @@ static int _sgs_method__GameObject__FindFirstBehaviorOfType( SGS_CTX )
 	sgs_PushVar(C,data->sgsFindFirstBehaviorOfType( sgs_GetVar<sgsVariable>()(C,0) )); return 1;
 }
 
+static int _sgs_method__GameObject__FindAllResourcesOfType( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, FindAllResourcesOfType ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsFindAllResourcesOfType( sgs_GetVar<sgsVariable>()(C,0) )); return 1;
+}
+
+static int _sgs_method__GameObject__FindAllBehaviorsOfType( SGS_CTX )
+{
+	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, FindAllBehaviorsOfType ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->sgsFindAllBehaviorsOfType( sgs_GetVar<sgsVariable>()(C,0) )); return 1;
+}
+
 int GameObject::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<GameObject*>( obj->data )->C = C;
@@ -1555,6 +1569,8 @@ static sgs_RegFuncConst GameObject__sgs_funcs[] =
 	{ "RequireBehavior", _sgs_method__GameObject__RequireBehavior },
 	{ "FindFirstResourceOfType", _sgs_method__GameObject__FindFirstResourceOfType },
 	{ "FindFirstBehaviorOfType", _sgs_method__GameObject__FindFirstBehaviorOfType },
+	{ "FindAllResourcesOfType", _sgs_method__GameObject__FindAllResourcesOfType },
+	{ "FindAllBehaviorsOfType", _sgs_method__GameObject__FindAllBehaviorsOfType },
 	{ NULL, NULL },
 };
 
@@ -2641,6 +2657,7 @@ int MeshResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "meshData" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMeshData() ); return SGS_SUCCESS; }
 		SGS_CASE( "mesh" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetMeshPath() ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->GetLightingMode() ); return SGS_SUCCESS; }
+		SGS_CASE( "hasBulletInteraction" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->HasBulletInteraction() ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_lmQuality ); return SGS_SUCCESS; }
 		SGS_CASE( "castLMS" ){ sgs_PushVar( C, static_cast<MeshResource*>( obj->data )->m_castLMS ); return SGS_SUCCESS; }
 		if( sgs_PushIndex( C, static_cast<MeshResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
@@ -2659,6 +2676,7 @@ int MeshResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "meshData" ){ static_cast<MeshResource*>( obj->data )->SetMeshData( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "mesh" ){ static_cast<MeshResource*>( obj->data )->SetMeshPath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ static_cast<MeshResource*>( obj->data )->SetLightingMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "hasBulletInteraction" ){ static_cast<MeshResource*>( obj->data )->SetBulletInteraction( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ static_cast<MeshResource*>( obj->data )->m_lmQuality = sgs_GetVar<float>()( C, 1 );
 			static_cast<MeshResource*>( obj->data )->_UpEv(); return SGS_SUCCESS; }
 		SGS_CASE( "castLMS" ){ static_cast<MeshResource*>( obj->data )->m_castLMS = sgs_GetVar<bool>()( C, 1 );
@@ -2693,9 +2711,10 @@ int MeshResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nmeshData = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMeshData(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nmesh = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetMeshPath(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlightingMode = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->GetLightingMode(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nhasBulletInteraction = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->HasBulletInteraction(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nlmQuality = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_lmQuality, depth ).push( C ); }
 		{ sgs_PushString( C, "\ncastLMS = " ); sgs_DumpData( C, static_cast<MeshResource*>( obj->data )->m_castLMS, depth ).push( C ); }
-		sgs_StringConcat( C, 40 );
+		sgs_StringConcat( C, 42 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

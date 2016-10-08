@@ -24,7 +24,7 @@
 
 
 
-EXP_STRUCT MeshResource : GOResource
+EXP_STRUCT MeshResource : GOResource, SGRX_MeshInstUserData
 {
 	SGS_OBJECT_INHERIT( GOResource );
 	ENT_SGS_IMPLEMENT;
@@ -36,6 +36,7 @@ EXP_STRUCT MeshResource : GOResource
 	GFW_EXPORT virtual void EditorDrawWorld();
 	GFW_EXPORT void _UpdateLighting();
 	GFW_EXPORT void _UpdateMatrix();
+	GFW_EXPORT void MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data );
 	
 	FINLINE void _UpEv(){ Game_FireEvent( EID_GOResourceUpdate, this ); }
 	
@@ -48,6 +49,8 @@ EXP_STRUCT MeshResource : GOResource
 	int GetLightingMode() const { return m_lightingMode; }
 	void SetLightingMode( int v ){ m_lightingMode = v;
 		m_meshInst->SetLightingMode( (SGRX_LightingMode) v ); _UpdateLighting(); }
+	bool HasBulletInteraction() const { return m_meshInst->userData != NULL; }
+	void SetBulletInteraction( bool v ){ m_meshInst->userData = v ? (SGRX_MeshInstUserData*) this : NULL; }
 	
 	SGS_PROPERTY_FUNC( READ SOURCE m_meshInst.item ) SGS_ALIAS( void* meshInst );
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME isStatic ) bool m_isStatic;
@@ -55,6 +58,7 @@ EXP_STRUCT MeshResource : GOResource
 	SGS_PROPERTY_FUNC( READ GetMeshData WRITE SetMeshData VARNAME meshData ) MeshHandle m_mesh;
 	SGS_PROPERTY_FUNC( READ GetMeshPath WRITE SetMeshPath ) SGS_ALIAS( StringView mesh );
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
+	SGS_PROPERTY_FUNC( READ HasBulletInteraction WRITE SetBulletInteraction ) SGS_ALIAS( bool hasBulletInteraction );
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lmQuality ) float m_lmQuality;
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME castLMS ) bool m_castLMS;

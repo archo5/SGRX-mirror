@@ -1143,7 +1143,7 @@ float BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 			if( mii )
 			{
 				MI_BulletHit_Data data = { hitpoint, B.velocity, B.damage };
-				mii->OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
+				mii->MeshInstUser_OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
 			}
 			
 			if( !isSolid )

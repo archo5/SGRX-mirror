@@ -94,6 +94,7 @@ function MeshResource.EditorGUI( ui )
 		ui.EditFloat( "Lightmap quality", this, "lmQuality", 0.01, 100 );
 		ui.EditBool( "Casts lightmap shadows?", this, "castLMS" );
 	}
+	ui.EditBool( "Has bullet interaction?", this, "hasBulletInteraction" );
 }
 
 LightResource.ED_Icon = "editor/icons/light.png";
@@ -345,7 +346,7 @@ class BhBoxTrigger : GOBehavior
 	}
 	function Update()
 	{
-		found = level.QueryOBB( null, IEST_Target, this._GetTransform() );
+		found = level.QueryOBB( null, IEST_Player, this._GetTransform() );
 		newState = found;
 		
 		this.OnTriggerPollFunc( newState );
@@ -502,6 +503,78 @@ function BhMeshArray.EditorGUI( ui )
 	if( ui.Button( "Regenerate" ) )
 		this.Rebuild();
 }
+
+// === BREAKABLE === //
+class BhBreakable : GOBehavior
+{
+	function Init()
+	{
+		this.health = 0;
+		this.damageMult = 1;
+		this.curTimeout = null;
+		this.deathTimeout = 5;
+		this.flags = 0;
+	}
+	function OnBulletHit( info )
+	{
+		if( this.curTimeout !== null )
+			return;
+		this.health -= info.vel.length * info.dmg * this.damageMult;
+		if( this.health <= 0 )
+		{
+			this.object.SendMessage( "OnBreak" );
+			this.OnPostBreak();
+		}
+	}
+	function OnPostBreak()
+	{
+		// act according to flags
+		if( this.flags & 0x01 )
+		{
+			meshes = this.object.FindAllResourcesOfType( MeshResource );
+			foreach( mesh : meshes )
+				mesh.visible = false;
+		}
+		else if( this.flags & 0x02 )
+		{
+			meshes = this.object.FindAllResourcesOfType( MeshResource );
+			foreach( mesh : meshes )
+				if( mesh.hasBulletInteraction )
+					mesh.visible = false;
+		}
+		if( this.flags & 0x04 )
+		{
+			lights = this.object.FindAllResourcesOfType( LightResource );
+			foreach( light : lights )
+				light.enabled = false;
+		}
+		
+		// destroy object / schedule for it
+		if( this.deathTimeout )
+			this.curTimeout = this.deathTimeout;
+		else
+			level.DestroyGameObject( this.object );
+	}
+	function Update()
+	{
+		if( this.curTimeout !== null )
+		{
+			this.curTimeout -= level.deltaTime;
+			if( this.curTimeout <= 0 )
+				level.DestroyGameObject( this.object );
+		}
+	}
+	function EditorGUI( ui )
+	{
+		ui.EditFloat( "Health", this, "health", 0, 100000 );
+		ui.EditFloat( "Damage multiplier", this, "damageMult", 0, 100000 );
+		ui.EditFloat( "Death timeout", this, "deathTimeout", 0, 100000 );
+		ui.EditFlag( "Disable meshes on hit", this, "flags", 0x01 );
+		ui.EditFlag( "Disable relevant meshes on hit", this, "flags", 0x02 );
+		ui.EditFlag( "Disable lights on hit", this, "flags", 0x04 );
+	}
+}
+BEHAVIOR( "BhBreakable", "GOBehavior" );
 
 
 //
@@ -714,54 +787,6 @@ function Trigger.SetupTrigger( once, fn, fnout )
 		this.funcOut = if( fnout, fn, null );
 	else
 		this.funcOut = fnout;
-}
-
-
-//
-// Trigger Entity - Box
-//
-global BoxTrigger = clone( Trigger );
-ENTITY( "BoxTrigger" );
-
-BoxTrigger.ED_Icon = "editor/icons/trigger.png";
-function BoxTrigger.ED_PropInfo( eptr )
-{
-	PropInfo_Entity( eptr );
-}
-function BoxTrigger.EditorDrawWorld()
-{
-	BR_Reset();
-	BR_Col( 0.1, 0.4, 0.9 );
-	BR_AABB( -1, 1, this.get_transform() );
-}
-
-function BoxTrigger.Update( dt )
-{
-	this.UpdateState( level.QueryOBB( null, this.mask, this.get_transform() ) );
-}
-
-
-//
-// Trigger Entity - Sphere
-//
-global SphereTrigger = clone( Trigger );
-ENTITY( "SphereTrigger" );
-
-function SphereTrigger.ED_PropInfo( eptr )
-{
-	PropInfo_Entity( eptr );
-	EE_AddFieldFloat( eptr, "radius", "Radius", 1, 2, 0.01, 1000 );
-}
-
-function SphereTrigger.Init()
-{
-	this!Trigger.Init();
-	this.radius = 1;
-}
-
-function SphereTrigger.Update( dt )
-{
-	this.UpdateState( level.QuerySphere( null, this.mask, this.position, this.radius ) );
 }
 
 

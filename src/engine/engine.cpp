@@ -1398,35 +1398,35 @@ MeshHandle IGame::OnCreateSysMesh( const StringView& key )
 		static const SGRX_Vertex_Decal verts[ 4 * 6 ] =
 		{
 			// +X
-			{ V3(+1,-1,+1), V3(1,0,0), V3(0,0,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
-			{ V3(+1,+1,+1), V3(1,0,0), V3(1,0,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
-			{ V3(+1,+1,-1), V3(1,0,0), V3(1,1,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
-			{ V3(+1,-1,-1), V3(1,0,0), V3(0,1,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			{ V3(+1,-1,+1), V3(+1,0,0), V3(0,0,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			{ V3(+1,+1,+1), V3(+1,0,0), V3(1,0,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			{ V3(+1,+1,-1), V3(+1,0,0), V3(1,1,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
+			{ V3(+1,-1,-1), V3(+1,0,0), V3(0,1,0), COLOR_RGB(127,255,127), 0xffffffff, 0 },
 			// -X
-			{ V3(-1,+1,+1), V3(1,0,0), V3(0,0,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
-			{ V3(-1,-1,+1), V3(1,0,0), V3(1,0,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
-			{ V3(-1,-1,-1), V3(1,0,0), V3(1,1,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
-			{ V3(-1,+1,-1), V3(1,0,0), V3(0,1,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			{ V3(-1,+1,+1), V3(-1,0,0), V3(0,0,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			{ V3(-1,-1,+1), V3(-1,0,0), V3(1,0,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			{ V3(-1,-1,-1), V3(-1,0,0), V3(1,1,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
+			{ V3(-1,+1,-1), V3(-1,0,0), V3(0,1,0), COLOR_RGB(127,000,127), 0xffffffff, 0 },
 			// +Y
-			{ V3(+1,+1,+1), V3(0,1,0), V3(0,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
-			{ V3(-1,+1,+1), V3(0,1,0), V3(1,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
-			{ V3(-1,+1,-1), V3(0,1,0), V3(1,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
-			{ V3(+1,+1,-1), V3(0,1,0), V3(0,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,+1), V3(0,+1,0), V3(0,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,+1), V3(0,+1,0), V3(1,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,-1), V3(0,+1,0), V3(1,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,-1), V3(0,+1,0), V3(0,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
 			// -Y
-			{ V3(-1,-1,+1), V3(0,1,0), V3(0,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
-			{ V3(+1,-1,+1), V3(0,1,0), V3(1,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
-			{ V3(+1,-1,-1), V3(0,1,0), V3(1,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
-			{ V3(-1,-1,-1), V3(0,1,0), V3(0,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(-1,-1,+1), V3(0,-1,0), V3(0,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,-1,+1), V3(0,-1,0), V3(1,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,-1,-1), V3(0,-1,0), V3(1,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(-1,-1,-1), V3(0,-1,0), V3(0,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
 			// +Z
-			{ V3(+1,-1,+1), V3(0,0,1), V3(0,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
-			{ V3(-1,-1,+1), V3(0,0,1), V3(1,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
-			{ V3(-1,+1,+1), V3(0,0,1), V3(1,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
-			{ V3(+1,+1,+1), V3(0,0,1), V3(0,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(+1,-1,+1), V3(0,0,+1), V3(0,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,-1,+1), V3(0,0,+1), V3(1,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,+1), V3(0,0,+1), V3(1,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,+1), V3(0,0,+1), V3(0,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
 			// -Z
-			{ V3(-1,-1,-1), V3(0,0,1), V3(0,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
-			{ V3(+1,-1,-1), V3(0,0,1), V3(1,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
-			{ V3(+1,+1,-1), V3(0,0,1), V3(1,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
-			{ V3(-1,+1,-1), V3(0,0,1), V3(0,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(-1,-1,-1), V3(0,0,-1), V3(0,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,-1,-1), V3(0,0,-1), V3(1,0,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,-1), V3(0,0,-1), V3(1,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,-1), V3(0,0,-1), V3(0,1,0), COLOR_RGB(255,127,127), 0xffffffff, 0 },
 		};
 		static const uint16_t indices[ 6 * 6 ] =
 		{
@@ -1457,6 +1457,11 @@ MeshHandle IGame::OnCreateSysMesh( const StringView& key )
 		return mesh;
 	}
 	return NULL;
+}
+
+void IGame::OnGetSysMeshList( Array< StringView >& outNames )
+{
+	outNames.push_back( "sys:cube" );
 }
 
 

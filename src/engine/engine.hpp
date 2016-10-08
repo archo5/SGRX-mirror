@@ -2054,6 +2054,7 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 	ENGINE_EXPORT virtual bool ParseShaderIncludes( const SGRX_RendererInfo& rinfo, const StringView& path, String& outdata );
 	ENGINE_EXPORT virtual bool OnLoadMesh( const StringView& key, ByteArray& outdata );
 	ENGINE_EXPORT virtual MeshHandle OnCreateSysMesh( const StringView& key );
+	ENGINE_EXPORT virtual void OnGetSysMeshList( Array< StringView >& outNames );
 };
 
 
