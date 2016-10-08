@@ -187,8 +187,9 @@ EdObject* EdPatch::Clone()
 	EdPatch* ptc = new EdPatch( *this );
 	for( int i = 0; i < MAX_PATCH_LAYERS; ++i )
 	{
-		ptc->layers[ i ].surface_guid = SGRX_GUID::Null;
+		ptc->layers[ i ].surface_guid.SetNull();
 	}
+	ptc->back_surface_guid.SetNull();
 	return ptc;
 }
 

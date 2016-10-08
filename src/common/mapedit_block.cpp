@@ -720,7 +720,7 @@ void _AddSurfToMesh(
 			g_EdLGCont->RequestSurface( BS.surface_guid, &S );
 		}
 	}
-	else
+	else if( BS.surface_guid.NotNull() )
 	{
 		g_EdLGCont->DeleteSurface( BS.surface_guid );
 		BS.surface_guid.SetNull();
