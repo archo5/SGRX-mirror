@@ -2546,14 +2546,14 @@ float IntersectLineSegmentTriangle( const Vec3& L1, const Vec3& L2, const Vec3& 
 	Vec3 u = P2 - P1;
 	Vec3 v = P3 - P1;
 	Vec3 n = Vec3Cross( u, v );
-	if( n.NearZero() )
+	if( n.NearZero2() )
 		return 2.0f;
 	
 	Vec3 dir = L2 - L1;
 	Vec3 w0 = L1 - P1;
 	float a = -Vec3Dot( n, w0 );
 	float b = Vec3Dot( n, dir );
-	if( fabs( b ) < SMALL_FLOAT )
+	if( fabs( b ) < SMALL_FLOAT2 )
 		return 2.0f;
 	
 	float r = a / b;

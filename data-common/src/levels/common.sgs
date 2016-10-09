@@ -548,6 +548,12 @@ class BhBreakable : GOBehavior
 			foreach( light : lights )
 				light.enabled = false;
 		}
+		if( this.flags & 0x08 )
+		{
+			psyslist = this.object.FindAllResourcesOfType( ParticleSystemResource );
+			foreach( psys : psyslist )
+				psys.Trigger();
+		}
 		
 		// destroy object / schedule for it
 		if( this.deathTimeout )
@@ -572,6 +578,7 @@ class BhBreakable : GOBehavior
 		ui.EditFlag( "Disable meshes on hit", this, "flags", 0x01 );
 		ui.EditFlag( "Disable relevant meshes on hit", this, "flags", 0x02 );
 		ui.EditFlag( "Disable lights on hit", this, "flags", 0x04 );
+		ui.EditFlag( "Trigger particle FX on hit", this, "flags", 0x08 );
 	}
 }
 BEHAVIOR( "BhBreakable", "GOBehavior" );

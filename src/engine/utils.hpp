@@ -191,6 +191,7 @@ struct SGRX_ScopedMtxLock
 
 
 #define SMALL_FLOAT 0.001f
+#define SMALL_FLOAT2 0.000001f
 #define ENGINE_MAX_PATH 256
 
 #define SPACE_CHARS " \t\n"
@@ -346,6 +347,7 @@ struct ENGINE_EXPORT Vec2
 	
 	FINLINE bool IsZero() const { return x == 0 && y == 0; }
 	FINLINE bool NearZero() const { return fabs(x) < SMALL_FLOAT && fabs(y) < SMALL_FLOAT; }
+	FINLINE bool NearZero2() const { return fabs(x) < SMALL_FLOAT2 && fabs(y) < SMALL_FLOAT2; }
 	FINLINE float LengthSq() const { return x * x + y * y; }
 	FINLINE float Length() const { return sqrtf( LengthSq() ); }
 	FINLINE float Angle() const { return atan2( y, x ); }
@@ -429,6 +431,7 @@ struct ENGINE_EXPORT Vec3
 	FINLINE Vec3 Shuffle() const { Vec3 v = { y, z, -x }; return v; }
 	FINLINE bool IsZero() const { return x == 0 && y == 0 && z == 0; }
 	FINLINE bool NearZero() const { return fabs(x) < SMALL_FLOAT && fabs(y) < SMALL_FLOAT && fabs(z) < SMALL_FLOAT; }
+	FINLINE bool NearZero2() const { return fabs(x) < SMALL_FLOAT2 && fabs(y) < SMALL_FLOAT2 && fabs(z) < SMALL_FLOAT2; }
 	FINLINE float LengthSq() const { return x * x + y * y + z * z; }
 	FINLINE float Length() const { return sqrtf( LengthSq() ); }
 	FINLINE Vec3 Normalized() const
@@ -550,6 +553,7 @@ struct ENGINE_EXPORT Vec4
 	
 	FINLINE bool IsZero() const { return x == 0 && y == 0 && z == 0 && w == 0; }
 	FINLINE bool NearZero() const { return fabs(x) < SMALL_FLOAT && fabs(y) < SMALL_FLOAT && fabs(z) < SMALL_FLOAT && fabs(w) < SMALL_FLOAT; }
+	FINLINE bool NearZero2() const { return fabs(x) < SMALL_FLOAT2 && fabs(y) < SMALL_FLOAT2 && fabs(z) < SMALL_FLOAT2 && fabs(w) < SMALL_FLOAT2; }
 	FINLINE float LengthSq() const { return x * x + y * y + z * z + w * w; }
 	FINLINE float Length() const { return sqrtf( LengthSq() ); }
 	FINLINE Vec4 Normalized() const
