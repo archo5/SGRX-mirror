@@ -515,11 +515,12 @@ void GameObject::sgsSendMessage( sgsString name, sgsVariable arg )
 		sgsVariable so = m_bhvr_order[ i ]->GetScriptedObject();
 		sgsVariable fn = so.getprop( name );
 		if( fn.not_null() )
-		{
-			arg.push( C );
-			so.thiscall( C, fn, 1 );
-		}
+			so.tthiscall<void>( C, fn, arg );
 	}
+	sgsVariable so = GetScriptedObject();
+	sgsVariable fn = so.getprop( name );
+	if( fn.not_null() )
+		so.tthiscall<void>( C, fn, arg );
 }
 
 void GameObject::SendMessage( StringView name, sgsVariable arg )
@@ -1200,6 +1201,8 @@ void GameLevel::FixedTick( float deltaTime )
 		}
 	}
 	m_eventType = LEV_None;
+	
+	_RemoveGameObjects( deltaTime );
 }
 
 void GameLevel::Tick( float deltaTime, float blendFactor )
@@ -1244,6 +1247,8 @@ void GameLevel::Tick( float deltaTime, float blendFactor )
 	
 	sgs_ProcessSubthreads( m_scriptCtx.C, deltaTime );
 	m_eventType = LEV_None;
+	
+	_RemoveGameObjects( deltaTime );
 }
 
 void GameLevel::Draw2D()
@@ -1280,6 +1285,8 @@ void GameLevel::DebugDraw()
 	
 	if( gcv_cl_debug.value )
 	{
+		m_eventType = LEV_DebugDraw;
+		
 		if( gcv_dbg_physics.value )
 			m_phyWorld->DebugDraw();
 		
@@ -1311,6 +1318,8 @@ void GameLevel::DebugDraw()
 		m_aidbSystem.m_pathfinder.DebugDraw();
 #endif
 	}
+	
+	m_eventType = LEV_None;
 }
 
 void GameLevel::PostDraw()
@@ -1440,13 +1449,28 @@ GameObject* GameLevel::CreateGameObject()
 	return go;
 }
 
-void GameLevel::DestroyGameObject( GameObject* obj, bool ch )
+void GameLevel::DestroyGameObject( GameObject* obj, bool ch, float t )
+{
+	if( m_eventType != LEV_None || t )
+	{
+		GameObjRmInfo& info = m_gameObjectsToRemove[ obj ];
+		info.t = t;
+		if( ch )
+			info.ch = true;
+	}
+	else
+	{
+		_RealDestroyGameObject( obj, ch );
+	}
+}
+
+void GameLevel::_RealDestroyGameObject( GameObject* obj, bool ch )
 {
 	if( ch )
 	{
 		while( obj->_ch.size() )
 		{
-			DestroyGameObject( (GameObject*) obj->_ch.last(), true );
+			_RealDestroyGameObject( (GameObject*) obj->_ch.last(), true );
 		}
 	}
 	
@@ -1463,6 +1487,22 @@ void GameLevel::DestroyGameObject( GameObject* obj, bool ch )
 	obj->OnDestroy();
 	delete obj;
 	m_gameObjects.remove_first( obj );
+}
+
+void GameLevel::_RemoveGameObjects( float dt )
+{
+	for( size_t i = 0; i < m_gameObjectsToRemove.size(); ++i )
+	{
+		GameObject* obj = m_gameObjectsToRemove.item( i ).key;
+		GameObjRmInfo& info = m_gameObjectsToRemove.item( i ).value;
+		info.t -= dt;
+		if( info.t <= 0 )
+		{
+			_RealDestroyGameObject( obj, info.ch );
+			m_gameObjectsToRemove.unset( obj );
+			i--;
+		}
+	}
 }
 
 sgsVariable GameLevel::sgsCreateGameObject()

@@ -39,6 +39,7 @@ enum LevelEventType
 	LEV_PrePhysicsFixedUpdate,
 	LEV_FixedUpdate,
 	LEV_Update,
+	LEV_DebugDraw,
 };
 
 
@@ -806,8 +807,16 @@ EXP_STRUCT GameLevel :
 	double m_levelTime;
 	
 	// GAMEOBJECT PROTO
-	GameObject* CreateGameObject();
-	void DestroyGameObject( GameObject* obj, bool ch = true );
+	struct GameObjRmInfo
+	{
+		GameObjRmInfo() : ch( false ), t( 0 ){}
+		bool ch;
+		float t;
+	};
+	GFW_EXPORT GameObject* CreateGameObject();
+	GFW_EXPORT void DestroyGameObject( GameObject* obj, bool ch = true, float t = 0 );
+	GFW_EXPORT void _RealDestroyGameObject( GameObject* obj, bool ch );
+	GFW_EXPORT void _RemoveGameObjects( float dt );
 	GFW_EXPORT SGS_METHOD_NAMED( CreateGameObject ) sgsVariable sgsCreateGameObject();
 	GFW_EXPORT SGS_METHOD_NAMED( DestroyGameObject ) void sgsDestroyGameObject( sgsVariable oh, bool ch );
 	GFW_EXPORT void _MapGameObjectByID( GameObject* obj );
@@ -823,6 +832,7 @@ EXP_STRUCT GameLevel :
 	void EnumBehaviors( Array< StringView >& out );
 	sgsVariable GetBehaviorInterface( StringView name );
 	Array< GameObject* > m_gameObjects;
+	HashTable< GameObject*, GameObjRmInfo > m_gameObjectsToRemove;
 	SGRX_GUID nextObjectGUID;
 	HashTable< uint32_t, GOResourceInfo > m_goResourceMap;
 	HashTable< StringView, GOBehaviorCreateFunc* > m_goNativeBhvrMap;
