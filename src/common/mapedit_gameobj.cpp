@@ -12,8 +12,25 @@ bool EDGO_RayIntersect( GameObject* obj, Vec3 rpos, Vec3 rdir, float outdst[1] )
 
 void EDGO_EditUI( GameObject* obj )
 {
-	ImGui::Text( "Game object properties" );
-	ImGui::Separator();
+	{
+		ImVec2 cp_before = ImGui::GetCursorPos();
+		float width = ImGui::GetContentRegionAvail().x;
+		
+		ImGui::Text( "Game object properties" );
+		ImGui::Separator();
+		
+		ImVec2 cp_after = ImGui::GetCursorPos();
+		
+		ImGui::SetCursorPos( cp_before + ImVec2( width - 30, 0 ) );
+		if( ImGui::Button( "[copy]", ImVec2( 30, 14 ) ) )
+		{
+			sgsVariable vardata = EDGO_FSave( obj, false );
+			String data = g_Level->GetScriptCtx().ToSGSON( vardata );
+			Window_SetClipboardText( String_Concat( "GAMEOBJ:", data ) );
+		}
+		
+		ImGui::SetCursorPos( cp_after );
+	}
 	
 	String name( obj->m_name.c_str(), obj->m_name.size() );
 	if( IMGUIEditString( "Name", name, 256 ) )

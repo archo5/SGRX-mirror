@@ -1902,6 +1902,7 @@ struct EdDrawBlockEditMode : EdEditMode
 		BD_MeshPath = 3,
 		BD_Entity = 4,
 		BD_GameObject = 5,
+		BD_PasteGameObject = 6,
 	};
 
 	EdDrawBlockEditMode();

@@ -453,7 +453,8 @@ void EdDrawBlockEditMode::EditUI()
 	ImGui::RadioButton( "Box strip", &m_blockDrawMode, BD_BoxStrip ); ImGui::NextColumn();
 	ImGui::RadioButton( "Mesh path", &m_blockDrawMode, BD_MeshPath ); ImGui::NextColumn();
 	ImGui::RadioButton( "Entity", &m_blockDrawMode, BD_Entity ); ImGui::NextColumn();
-	ImGui::RadioButton( "Game object", &m_blockDrawMode, BD_GameObject );
+	ImGui::RadioButton( "Game object", &m_blockDrawMode, BD_GameObject ); ImGui::NextColumn();
+	ImGui::RadioButton( "Paste game object", &m_blockDrawMode, BD_PasteGameObject );
 	ImGui::Columns( 1 );
 	ImGui::Separator();
 	
@@ -470,6 +471,15 @@ void EdDrawBlockEditMode::EditUI()
 	else if( m_blockDrawMode == BD_GameObject )
 	{
 		// ...
+	}
+	else if( m_blockDrawMode == BD_PasteGameObject )
+	{
+		String clipboard;
+		if( Window_GetClipboardText( clipboard ) &&
+			SV( clipboard ).starts_with( "GAMEOBJ:" ) )
+			ImGui::Text( "Clipboard has a GameObject!" );
+		else
+			ImGui::Text( "Clipboard DOES NOT have a GameObject!" );
 	}
 	else
 	{
@@ -492,6 +502,19 @@ void EdDrawBlockEditMode::ViewUI()
 				GameObject* obj = g_Level->CreateGameObject();
 				obj->m_src_guid = SGRX_GUID::Generate();
 				obj->SetWorldPosition( g_UIFrame->GetCursorPos() );
+			}
+			else if( m_blockDrawMode == BD_PasteGameObject )
+			{
+				String clipboard;
+				if( Window_GetClipboardText( clipboard ) &&
+					SV( clipboard ).starts_with( "GAMEOBJ:" ) )
+				{
+					sgsVariable vardata = g_Level->GetScriptCtx().ParseSGSON(
+						SV( clipboard ).after( "GAMEOBJ:" ) );
+					GameObject* obj = EDGO_FLoad( vardata );
+					obj->m_src_guid = SGRX_GUID::Generate();
+					obj->SetWorldPosition( g_UIFrame->GetCursorPos() );
+				}
 			}
 			else if( m_drawnVerts.size() < 14 )
 			{
@@ -568,6 +591,7 @@ void EdDrawBlockEditMode::ViewUI()
 			if( ImGui::IsKeyPressed( SDLK_3, false ) ) m_blockDrawMode = BD_MeshPath;
 			if( ImGui::IsKeyPressed( SDLK_4, false ) ) m_blockDrawMode = BD_Entity;
 			if( ImGui::IsKeyPressed( SDLK_5, false ) ) m_blockDrawMode = BD_GameObject;
+			if( ImGui::IsKeyPressed( SDLK_6, false ) ) m_blockDrawMode = BD_PasteGameObject;
 		}
 	}
 }
@@ -585,6 +609,9 @@ void EdDrawBlockEditMode::Draw()
 	else if( m_blockDrawMode == BD_GameObject )
 	{
 		g_EdWorld->DrawWires_GameObjects( EdObjIdx() );
+	}
+	else if( m_blockDrawMode == BD_PasteGameObject )
+	{
 	}
 	else
 	{
