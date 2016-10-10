@@ -1006,7 +1006,7 @@ bool TSAimHelper::ProcessGameObject( GameObject* obj )
 
 
 
-void ApplyDeadzone( Vec2& v, float lmin = 0.1f, float lmax = 1.0f )
+void ApplyDeadzone( Vec2& v, float lmin = 0.1f, float lmax = 0.9f )
 {
 	float len = TCLAMP( v.Length(), lmin, lmax );
 	v = v.Normalized() * TREVLERP<float>( lmin, lmax, len );
@@ -1111,11 +1111,23 @@ void TSPlayerController::Update()
 	if( WP_REMOVE_LOCK_ON.value )
 		m_aimHelper.RemoveLockOn();
 	
+	Vec2 walkaxis = V2( MOVE_X.value, MOVE_Y.value );
+	ApplyDeadzone( walkaxis );
 	i_move = V2
 	(
-		-MOVE_X.value + MOVE_LEFT.value - MOVE_RIGHT.value,
-		MOVE_Y.value + MOVE_DOWN.value - MOVE_UP.value
+		-walkaxis.x + MOVE_LEFT.value - MOVE_RIGHT.value,
+		walkaxis.y + MOVE_DOWN.value - MOVE_UP.value
 	);
+	
+	CameraResource* maincam = m_level->GetMainCamera();
+	if( maincam )
+	{
+		Mat4 wm = maincam->GetWorldMatrix();
+		Vec2 fwdir = wm.TransformNormal( V3( 0, -1, -1 ) ).ToVec2().Normalized();
+		Vec2 rtdir = wm.TransformNormal( V3( -1, 0, 0 ) ).ToVec2().Normalized();
+		i_move = rtdir * i_move.x + fwdir * i_move.y;
+	}
+	
 	i_aim_target = m_aimHelper.GetAimPoint();
 	i_turn = V3(0);
 	if( i_move.Length() > 0.1f )
