@@ -427,7 +427,8 @@ EXP_STRUCT GameObject : LevelScrObj, Transform
 	GFW_EXPORT GOBehavior* AddBehavior( sgsString name, sgsString type, bool ovr = false );
 	GFW_EXPORT GOBehavior* RequireBehavior( sgsString name, sgsString type, bool retifnc = false );
 	GFW_EXPORT GOBehavior* _CreateBehaviorReal( sgsString name, sgsString type );
-	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsString name );
+	GFW_EXPORT void _RemoveBehavior( GOBehavior* bhvr );
+	GFW_EXPORT SGS_METHOD void RemoveBehavior( sgsVariable nameOrBhvr );
 	
 	GFW_EXPORT virtual void OnDestroy();
 	GFW_EXPORT virtual void PrePhysicsFixedUpdate();

@@ -1339,7 +1339,7 @@ static int _sgs_method__GameObject__RemoveBehavior( SGS_CTX )
 {
 	GameObject* data; if( !SGS_PARSE_METHOD( C, GameObject::_sgs_interface, data, GameObject, RemoveBehavior ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
-	data->RemoveBehavior( sgs_GetVar<sgsString>()(C,0) ); return 0;
+	data->RemoveBehavior( sgs_GetVar<sgsVariable>()(C,0) ); return 0;
 }
 
 static int _sgs_method__GameObject__SendMessage( SGS_CTX )

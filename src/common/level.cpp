@@ -435,14 +435,34 @@ GOBehavior* GameObject::RequireBehavior( sgsString name, sgsString type, bool re
 	return AddBehavior( name, type, true );
 }
 
-void GameObject::RemoveBehavior( sgsString name )
+void GameObject::_RemoveBehavior( GOBehavior* bhvr )
 {
-	GOBehavior* bhvr = m_behaviors.getcopy( name );
-	if( bhvr )
+	ASSERT( bhvr );
+	Game_FireEvent( EID_GOBehaviorRemove, bhvr );
+	m_bhvr_order.remove_first( bhvr );
+	m_behaviors.unset( bhvr->m_name );
+}
+
+void GameObject::RemoveBehavior( sgsVariable nameOrBhvr )
+{
+	if( nameOrBhvr.type_id() == SGS_VT_STRING )
 	{
-		Game_FireEvent( EID_GOBehaviorRemove, bhvr );
-		m_bhvr_order.remove_first( bhvr );
-		m_behaviors.unset( name );
+		GOBehavior* bhvr = m_behaviors.getcopy( nameOrBhvr.get_string() );
+		if( bhvr )
+		{
+			_RemoveBehavior( bhvr );
+		}
+	}
+	else if( nameOrBhvr.type_id() == SGS_VT_OBJECT )
+	{
+		for( size_t i = 0; i < m_bhvr_order.size(); ++i )
+		{
+			if( m_bhvr_order[ i ]->m_sgsObject == nameOrBhvr.get_object_struct() )
+			{
+				_RemoveBehavior( m_bhvr_order[ i ] );
+				break;
+			}
+		}
 	}
 }
 
@@ -565,8 +585,13 @@ GOResource::ScrHandle GameObject::sgsFindFirstResourceOfType( sgsVariable typeOr
 		}
 		else if( tid == SGS_VT_OBJECT )
 		{
-			if( rsrc->m_sgsObject->metaobj == typeOrMetaObj.get_object_struct() )
-				return GOResource::ScrHandle( rsrc );
+			sgs_VarObj* obj = rsrc->m_sgsObject;
+			while( obj->metaobj )
+			{
+				if( obj->metaobj == typeOrMetaObj.get_object_struct() )
+					return GOResource::ScrHandle( rsrc );
+				obj = obj->metaobj;
+			}
 		}
 	}
 	return GOResource::ScrHandle();
@@ -585,8 +610,13 @@ GOBehavior::ScrHandle GameObject::sgsFindFirstBehaviorOfType( sgsVariable typeOr
 		}
 		else if( tid == SGS_VT_OBJECT )
 		{
-			if( bhvr->m_sgsObject->metaobj == typeOrMetaObj.get_object_struct() )
-				return GOBehavior::ScrHandle( bhvr );
+			sgs_VarObj* obj = bhvr->m_sgsObject;
+			while( obj->metaobj )
+			{
+				if( obj->metaobj == typeOrMetaObj.get_object_struct() )
+					return GOBehavior::ScrHandle( bhvr );
+				obj = obj->metaobj;
+			}
 		}
 	}
 	return GOBehavior::ScrHandle();
