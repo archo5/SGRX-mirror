@@ -186,8 +186,8 @@ void EditFilter( size_t i, SGRX_ImageFilter* IF )
 		SGRX_CAST( SGRX_ImageFilter_ExpandRange*, F, IF );
 		IMGUI_GROUP( "Expand range", true,
 		{
-			IMGUIEditVec4( "Min. value", F->vmin, 0, 1 );
-			IMGUIEditVec4( "Max. value", F->vmax, 0, 1 );
+			IMGUIEditVec4( "Min. value", F->vmin, -1000, 1000 );
+			IMGUIEditVec4( "Max. value", F->vmax, -1000, 1000 );
 		});
 		} break;
 	case SGRX_AIF_BCP: {
