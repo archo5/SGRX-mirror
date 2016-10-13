@@ -420,6 +420,8 @@ void EdMeshPath::RegenerateMesh()
 	Vec3 totalScale = m_scaleUni * m_scaleSep;
 	float advance = bbmax.x - bbmin.x;
 	float realAdv = advance * m_intervalScaleOffset.x * totalScale.x;
+	if( realAdv < 0.01f )
+		realAdv = 0.01f;
 	float totalLength = 0;
 	for( size_t i = 1; i < m_points.size(); ++i )
 	{
