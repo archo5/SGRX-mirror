@@ -478,6 +478,34 @@ static int _sgs_method__GameUIControl__DCol( SGS_CTX )
 	data->DCol( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DICol( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DICol ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DICol( sgs_GetVar<int>()(C,0), sgs_GetVar<int>()(C,1), sgs_GetVar<int>()(C,2), sgs_GetVar<int>()(C,3) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DSetPrimitiveType( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DSetPrimitiveType ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DSetPrimitiveType( sgs_GetVar<int>()(C,0) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DPrev( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DPrev ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DPrev( sgs_GetVar<int>()(C,0) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DPos( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DPos ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DPos( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DTex( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DTex ) ) return 0;
@@ -553,6 +581,13 @@ static int _sgs_method__GameUIControl__DAALine( SGS_CTX )
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAALine ) ) return 0;
 	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
 	data->DAALine( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
+}
+
+static int _sgs_method__GameUIControl__DAAStroke( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAAStroke ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DAAStroke( sgs_GetVar<sgsVariable>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<bool>()(C,2) ); return 0;
 }
 
 static int _sgs_method__GameUIControl__DAARectOutline( SGS_CTX )
@@ -752,6 +787,10 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "CreateControl", _sgs_method__GameUIControl__CreateControl },
 	{ "DReset", _sgs_method__GameUIControl__DReset },
 	{ "DCol", _sgs_method__GameUIControl__DCol },
+	{ "DICol", _sgs_method__GameUIControl__DICol },
+	{ "DSetPrimitiveType", _sgs_method__GameUIControl__DSetPrimitiveType },
+	{ "DPrev", _sgs_method__GameUIControl__DPrev },
+	{ "DPos", _sgs_method__GameUIControl__DPos },
 	{ "DTex", _sgs_method__GameUIControl__DTex },
 	{ "DQuad", _sgs_method__GameUIControl__DQuad },
 	{ "DQuadWH", _sgs_method__GameUIControl__DQuadWH },
@@ -763,6 +802,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DCircleFill", _sgs_method__GameUIControl__DCircleFill },
 	{ "DButton", _sgs_method__GameUIControl__DButton },
 	{ "DAALine", _sgs_method__GameUIControl__DAALine },
+	{ "DAAStroke", _sgs_method__GameUIControl__DAAStroke },
 	{ "DAARectOutline", _sgs_method__GameUIControl__DAARectOutline },
 	{ "DAACircleOutline", _sgs_method__GameUIControl__DAACircleOutline },
 	{ "DFont", _sgs_method__GameUIControl__DFont },

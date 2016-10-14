@@ -135,10 +135,10 @@ EXP_STRUCT GameUISystem : SGRX_RefCounted
 	sgsString m_str_onmouseenter;
 	sgsString m_str_onmouseleave;
 	sgsString m_str_GUIEvent;
+	HashTable< GameUIControl*, NoValue > m_controls;
 	
 	Array< TextureHandle > m_precachedTextures;
 };
-typedef Handle< GameUISystem > GUISysHandle;
 
 
 EXP_STRUCT GameUIControl
@@ -195,7 +195,7 @@ EXP_STRUCT GameUIControl
 	bool _getClickedR() const { return this == m_system->m_clickCtrl[1]; }
 	SGS_PROPERTY_FUNC( READ _getClickedR ) SGS_ALIAS( bool clickedR );
 	
-	GUISysHandle m_system;
+	GameUISystem* m_system;
 	Array< GameUIControl* > m_subitems;
 	
 	GameUIControl();
@@ -230,6 +230,10 @@ EXP_STRUCT GameUIControl
 	
 	SGS_METHOD void DReset();
 	SGS_METHOD void DCol( float a, float b, float c, float d );
+	SGS_METHOD void DICol( int a, int b, int c, int d );
+	SGS_METHOD void DSetPrimitiveType( int type );
+	SGS_METHOD void DPrev( int i );
+	SGS_METHOD void DPos( float x, float y, float z /* = 0 */ );
 	SGS_METHOD void DTex( StringView name );
 	SGS_METHOD void DQuad( float x0, float y0, float x1, float y1 );
 	SGS_METHOD void DQuadWH( float x, float y, float w, float h );
@@ -243,6 +247,7 @@ EXP_STRUCT GameUIControl
 	SGS_METHOD void DCircleFill( float x, float y, float r, float z /* = 0 */, int verts /* = -1 */ );
 	SGS_METHOD void DButton( float x0, float y0, float x1, float y1, Vec4 bdr, Vec4 texbdr );
 	SGS_METHOD void DAALine( float x0, float y0, float x1, float y1, float w );
+	SGS_METHOD void DAAStroke( sgsVariable pointlist, float w, bool closed );
 	SGS_METHOD void DAARectOutline( float x0, float y0, float x1, float y1, float w );
 	SGS_METHOD void DAACircleOutline( float x, float y, float r, float w );
 	SGS_METHOD void DFont( StringView name, float size );

@@ -394,7 +394,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		if( !BaseGame::OnInitialize() )
 			return false;
 		
-		m_level->m_enableLoadingScreen = false;
+	//	m_level->m_enableLoadingScreen = false;
 		m_level->Load( m_mapName );
 	//	m_level->Load( "tpstest" );
 	//	m_level->Load( "b5-1" );

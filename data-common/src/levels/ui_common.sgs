@@ -314,10 +314,10 @@ function animate( obj, prop, endval, time )
 {
 	startval = obj.(prop);
 	
-	for( at = 0; at < time; at += 1/120 )
+	for( at = 0; at < time; )
 	{
 		obj.(prop) = lerp( startval, endval, at / time );
-		yield 1/120;
+		at += yield( 1/120 );
 	}
 	
 	obj.(prop) = endval;
@@ -329,11 +329,11 @@ function animate_multi( obj, endvals, time )
 	foreach( k, v : startvals )
 		startvals[ k ] = obj.(k);
 	
-	for( at = 0; at < time; at += 1/120 )
+	for( at = 0; at < time; )
 	{
 		foreach( k, v : endvals )
 			obj.(k) = lerp( startvals[ k ], v, at / time );
-		yield 1/120;
+		at += yield( 1/120 );
 	}
 	
 	foreach( k, v : endvals )

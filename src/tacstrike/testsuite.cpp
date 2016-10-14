@@ -209,7 +209,7 @@ struct Test_GameUI : ITest
 	}
 	void OnDestroy()
 	{
-		m_guiSys = NULL;
+		SAFE_DELETE( m_guiSys );
 		delete m_scriptCtx;
 	}
 	void OnEvent( const Event& e )
@@ -224,7 +224,7 @@ struct Test_GameUI : ITest
 	}
 	
 	ScriptContext* m_scriptCtx;
-	GUISysHandle m_guiSys;
+	GameUISystem* m_guiSys;
 }
 g_TestGameUI;
 

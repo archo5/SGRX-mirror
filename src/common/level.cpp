@@ -857,6 +857,8 @@ GameLevel::~GameLevel()
 	m_metadata._release();
 	m_persistent._release();
 	m_markerPositions._release();
+	
+	delete m_guiSys;
 }
 
 void GameLevel::HandleEvent( SGRX_EventID eid, const EventData& edata )
@@ -967,13 +969,93 @@ struct LoadingScreen
 	volatile float m_alphaTgt;
 };
 
+struct ScriptedLoadingScreen
+{
+	ScriptedLoadingScreen( bool enable, StringView levelname )
+		: m_scriptCtx(NULL), m_running(enable)
+	{
+		if( enable )
+		{
+			m_scriptCtx = new ScriptContext;
+			m_guiSys = new GameUISystem( m_scriptCtx );
+			
+			m_scriptCtx->Include( SGRXPATH__LEVELS "/default.loadscr" );
+			
+			char bfr[ 256 ];
+			sgrx_snprintf( bfr, 256, SGRXPATH__LEVELS "/%s.loadscr", StackPath( levelname ).str );
+			m_scriptCtx->Include( bfr );
+			
+			int fade_in_time = m_scriptCtx->GetGlobal( "fade_in_time" ).get<float>() * 1000;
+			m_thread.Start( _Proc, this );
+			
+			sgrx_sleep( fade_in_time );
+		}
+	}
+	~ScriptedLoadingScreen()
+	{
+		if( m_running )
+		{
+			m_scriptMutex.Lock();
+			
+			m_scriptCtx->GlobalCall( "OnEnd" );
+			int fade_out_time = m_scriptCtx->GetGlobal( "fade_out_time" ).get<float>() * 1000;
+			
+			m_scriptMutex.Unlock();
+			
+			sgrx_sleep( fade_out_time );
+			m_running = false;
+			m_thread.Join();
+			
+			delete m_guiSys;
+			delete m_scriptCtx;
+		}
+	}
+	
+	void Run()
+	{
+		BatchRenderer& br = GR2D_GetBatchRenderer().Reset();
+		float t = 0;
+		double prevt = sgrx_hqtime();
+		while( m_running )
+		{
+			sgrx_sleep( 10 );
+			
+			double newt = sgrx_hqtime();
+			float deltaTime = ( newt - prevt );
+			t += deltaTime;
+			prevt = newt;
+			
+			m_scriptMutex.Lock();
+			
+			sgs_ProcessSubthreads( m_scriptCtx->C, deltaTime );
+			m_guiSys->Draw( deltaTime );
+			
+			m_scriptMutex.Unlock();
+			
+			br.Flush();
+			SGRX_Swap();
+		}
+	}
+	
+	static void _Proc( void* data )
+	{
+		((ScriptedLoadingScreen*)data)->Run();
+	}
+	
+	SGRX_Thread m_thread;
+	SGRX_Mutex m_scriptMutex;
+	ScriptContext* m_scriptCtx;
+	GameUISystem* m_guiSys;
+	volatile bool m_running;
+};
+
 
 
 bool GameLevel::Load( const StringView& levelname )
 {
 	LOG_FUNCTION_ARG( levelname );
 	
-	LoadingScreen LS( m_enableLoadingScreen );
+	ScriptedLoadingScreen LS( m_enableLoadingScreen, levelname );
 	
 	ByteArray ba;
 	

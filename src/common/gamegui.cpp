@@ -116,6 +116,7 @@ GameUIControl::~GameUIControl()
 	if( parent )
 		parent->m_subitems.remove_first( this );
 	m_system->_OnRemove( this );
+	m_system->m_controls.unset( this );
 }
 
 GameUIControl* GameUIControl::Create( SGS_CTX )
@@ -465,6 +466,7 @@ GameUIControl::Handle GameUIControl::CreateScreen(
 	CTL->y = y;
 	CTL->parent = Handle( this );
 	CTL->m_system = m_system;
+	m_system->m_controls.set( CTL, NoValue() );
 	CTL->id = ++m_system->m_idGen;
 	m_subitems.push_back( CTL );
 	
@@ -484,6 +486,7 @@ GameUIControl::Handle GameUIControl::CreateControl(
 	CTL->height = height;
 	CTL->parent = Handle( this );
 	CTL->m_system = m_system;
+	m_system->m_controls.set( CTL, NoValue() );
 	CTL->id = ++m_system->m_idGen;
 	m_subitems.push_back( CTL );
 	
@@ -509,6 +512,38 @@ void GameUIControl::DCol( float a, float b, float c, float d )
 		br.Col( a, b, c );
 	else
 		br.Col( a, b, c, d );
+}
+
+void GameUIControl::DICol( int a, int b, int c, int d )
+{
+	static const float q = 1.0f / 255.0f;
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	int ssz = sgs_StackSize( C );
+	if( ssz <= 1 )
+		br.Col( a*q );
+	else if( ssz == 2 )
+		br.Col( a*q, b*q );
+	else if( ssz == 3 )
+		br.Col( a*q, b*q, c*q );
+	else
+		br.Col( a*q, b*q, c*q, d*q );
+}
+
+void GameUIControl::DSetPrimitiveType( int type )
+{
+	GR2D_GetBatchRenderer().SetPrimitiveType( (EPrimitiveType) type );
+}
+
+void GameUIControl::DPrev( int i )
+{
+	GR2D_GetBatchRenderer().Prev( i );
+}
+
+void GameUIControl::DPos( float x, float y, float z /* = 0 */ )
+{
+	if( sgs_StackSize( C ) < 3 )
+		z = 0;
+	GR2D_GetBatchRenderer().Pos( IX( x ), IY( y ), z );
 }
 
 void GameUIControl::DTex( StringView name )
@@ -581,6 +616,20 @@ void GameUIControl::DAALine( float x0, float y0, float x1, float y1, float w )
 		V2( IX( x1 ), IY( y1 ) ),
 	};
 	GR2D_GetBatchRenderer().AAStroke( pts, 2, IS( w ), false );
+}
+
+void GameUIControl::DAAStroke( sgsVariable pointlist, float w, bool closed )
+{
+	if( sgs_StackSize( C ) < 3 )
+		closed = false;
+	Array< Vec2 > points;
+	ScriptVarIterator it( pointlist );
+	while( it.Advance() )
+	{
+		sgsVariable val = it.GetValue();
+		points.push_back( IP( val.get<Vec2>() ) );
+	}
+	GR2D_GetBatchRenderer().AAStroke( points.data(), points.size(), IS( w ), closed );
 }
 
 void GameUIControl::DAARectOutline( float x0, float y0, float x1, float y1, float w )
@@ -773,6 +822,12 @@ sgs_RegIntConst sgs_iconsts[] =
 	
 	{ "GUI_KeyMod_Filter", GUI_KeyMod_Filter },
 	{ "GUI_KeyMod_Shift", GUI_KeyMod_Shift },
+	
+	{ "PT_Points", PT_Points },
+	{ "PT_Lines", PT_Lines },
+	{ "PT_LineStrip", PT_LineStrip },
+	{ "PT_Triangles", PT_Triangles },
+	{ "PT_TriangleStrip", PT_TriangleStrip },
 };
 
 sgs_RegFuncConst sgs_funcs[] =
@@ -792,6 +847,7 @@ GameUISystem::GameUISystem( ScriptContext* scrctx ) :
 	SGS_CTX = m_scriptCtx->C;
 	m_rootCtrl = GameUIControl::Create( C );
 	m_rootCtrl->m_system = this;
+	m_controls.set( m_rootCtrl, NoValue() );
 	m_rootCtrl->id = ++m_idGen;
 	m_focusRootCtrl = m_rootCtrl;
 	m_clickCtrl[0] = NULL;
@@ -809,6 +865,7 @@ GameUISystem::GameUISystem( ScriptContext* scrctx ) :
 	m_str_GUIEvent = sgsString( C, "GUIEvent" );
 }
 
+static sgs_ObjInterface deleted_gui_ctrl = { "deleted_gui_ctrl" };
 GameUISystem::~GameUISystem()
 {
 	m_str_onclick = sgsString();
@@ -817,6 +874,15 @@ GameUISystem::~GameUISystem()
 	
 	sgs_ObjRelease( m_scriptCtx->C, m_rootCtrl->m_sgsObject );
 	m_rootCtrl = NULL;
+	
+	while( m_controls.size() )
+	{
+		GameUIControl* ctrl = m_controls.item( 0 ).key;
+		sgs_VarObj* obj = ctrl->m_sgsObject;
+		sgs_ObjCallDtor( m_scriptCtx->C, obj );
+		obj->data = NULL;
+		obj->iface = &deleted_gui_ctrl;
+	}
 }
 
 void GameUISystem::Load( const StringView& sv )

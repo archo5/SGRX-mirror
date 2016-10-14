@@ -779,7 +779,7 @@ EXP_STRUCT GameLevel :
 	ScriptContext m_scriptCtx;
 	PhyWorldHandle m_phyWorld;
 	SoundSystemHandle m_soundSys;
-	GUISysHandle m_guiSys;
+	GameUISystem* m_guiSys;
 	
 	// UTILITIES
 	uint32_t m_nameIDGen;
