@@ -249,15 +249,12 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 {
 	typeOverride = "*human*";
 	
-	PhyShapeHandle baseShape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
-	PhyShapeHandle fullShape = m_level->GetPhyWorld()->CreateCompoundShape();
-	fullShape->AddChildShape( baseShape );
-	fullShape->AddChildShape( baseShape, V3( 0, -0.5f, 0 ) );
+	PhyShapeHandle initShape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
 	
 	SGRX_PhyRigidBodyInfo rbinfo;
 	rbinfo.friction = 0;
 	rbinfo.restitution = 0;
-	rbinfo.shape = fullShape;
+	rbinfo.shape = initShape;
 	rbinfo.mass = 70;
 	rbinfo.inertia = V3(0);
 	rbinfo.position = V3(0) + V3(0,0,1);
@@ -347,8 +344,27 @@ void TSCharacter::ProcessAnims( float deltaTime )
 	
 	Vec2 totalShape2Offset = rundir.Normalized() * 0.2f + aimdir.ToVec2().Normalized() * 0.4f;
 	m_cachedBodyExtOffset = totalShape2Offset;
-	m_bodyHandle->GetShape()->UpdateChildShapeTransform( 1,
-		V3( totalShape2Offset.x, totalShape2Offset.y, 0 ) );
+	
+	static const float hh1 = 0.5f;
+	static const float hh2 = 0.4f;
+	static const float rr1 = 0.3f;
+	static const float rr2 = 0.8f;
+	Vec3 points[ 11 ] =
+	{
+		V3( 0, 0, -hh1 ),
+		V3( 0, 0, hh1 ),
+		V3( -rr1, 0, 0 ),
+		V3( rr1, 0, 0 ),
+		V3( 0, -rr1, 0 ),
+		V3( 0, rr1, 0 ),
+		V3( -rr1, 0, -hh2 ),
+		V3( rr1, 0, -hh2 ),
+		V3( 0, -rr1, -hh2 ),
+		V3( 0, rr1, -hh2 ),
+		V3( totalShape2Offset.Normalized() * rr2, 0 ),
+	};
+	m_bodyHandle->SetShape( m_level->GetPhyWorld()->CreateConvexHullShape(
+		points, SGRX_ARRAY_SIZE( points ) ) );
 	m_bodyHandle->FlushContacts();
 	
 	// committing to animator
@@ -544,8 +560,14 @@ void TSCharacter::Update()
 		}
 		// SHOOT
 		if( ctrl->GetInputB( ACT_Chr_Shoot ) && IsAlive() )
-			wpn->SendMessage( "SetShootTarget", m_level->GetScriptCtx().CreateVec3(
-				ctrl->GetInputV3( ACT_Chr_AimTarget ) ) );
+		{
+			Vec3 aimtgt = ctrl->GetInputV3( ACT_Chr_AimTarget );
+			if( !ctrl->GetInputB( ACT_Chr_AimAt ) )
+			{
+			//	aimtgt = GetQueryPosition() + GetAimDir() * 1000;
+			}
+			wpn->SendMessage( "SetShootTarget", m_level->GetScriptCtx().CreateVec3( aimtgt ) );
+		}
 		else
 			wpn->SendMessage( "SetShootTarget", sgsVariable() );
 	}
@@ -1025,6 +1047,8 @@ void TSAimHelperV2::Tick( Vec2 joyaxis, GameObject* owner )
 	float deltaTime = m_level->GetDeltaTime();
 	
 	m_ownerObj = owner;
+	if( m_aimTarget && !( m_aimTarget->GetInfoMask() & IEST_Target ) )
+		m_aimTarget = NULL;
 	if( m_aimTarget )
 		m_cachedAimPoint = m_aimTarget->GetWorldInfoTarget();
 	m_aimFactor += deltaTime * ( m_aimTarget ? 10 : -10 );
@@ -1086,7 +1110,8 @@ bool TSAimHelperV2::ProcessGameObject( GameObject* obj )
 TSPlayerController::TSPlayerController( GameObject* obj ) :
 	BhControllerBase( obj ),
 	m_aimHelper( obj->m_level ),
-	i_move( V2(0) ), i_aim_target( V3(0) ), i_turn( V3(0) )
+	i_move( V2(0) ), i_aim_target( V3(0) ),
+	i_turn( V3(0) ), i_crouch( false )
 {
 }
 
@@ -1137,6 +1162,11 @@ void TSPlayerController::Update()
 			md = -md;
 		i_turn = V3( md.x, md.y, 8 );
 	}
+	
+	if( CROUCH.IsPressed() )
+	{
+		i_crouch = !i_crouch;
+	}
 }
 
 Vec3 TSPlayerController::GetInput( uint32_t iid )
@@ -1145,7 +1175,7 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 	{
 	case ACT_Chr_Move: return V3( i_move.x, i_move.y, 1 );
 	case ACT_Chr_Turn: return i_turn;
-	case ACT_Chr_Crouch: return V3(CROUCH.value);
+	case ACT_Chr_Crouch: return V3(i_crouch);
 	case ACT_Chr_Jump: return V3(JUMP.value);
 	case ACT_Chr_AimAt: return V3( m_aimHelper.IsAiming() /* aim? */, 32 /* speed */, 0 );
 	case ACT_Chr_AimTarget: return i_aim_target;

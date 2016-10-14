@@ -262,6 +262,7 @@ struct TSPlayerController : BhControllerBase
 	Vec2 i_move;
 	Vec3 i_aim_target;
 	Vec3 i_turn;
+	bool i_crouch;
 	
 	TSPlayerController( GameObject* obj );
 	virtual void Update();
