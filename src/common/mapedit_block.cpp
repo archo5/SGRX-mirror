@@ -195,6 +195,7 @@ void EdBlock::VertEditUI( int vid )
 			if( (int) insat < vid )
 				vid++;
 			surfaces.insert( insat, new EdSurface( Scopy ) );
+			Scopy.surface_guid.SetNull();
 			
 			subsel.insert( oldpolysize * 2 + insat, false );
 			subsel.insert( oldpolysize + insat, false );
