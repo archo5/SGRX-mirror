@@ -662,7 +662,7 @@ bool EdLevelGraphicsCont::ILMBeginRender()
 		bool needslm = RenderInfoNeedsLM( M.info );
 		if( needslm && IsInvalidated( lmguid ) )
 		{
-			m_lmRenderer->AddMeshInst( M.ent->m_meshInst, V2(32 * M.info.lmdetail), lmguid, solid );
+			m_lmRenderer->AddMeshInst( M.ent->m_meshInst, V2(16 * M.info.lmdetail), lmguid, solid );
 		}
 		else
 		{
