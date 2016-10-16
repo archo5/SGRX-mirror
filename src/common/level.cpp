@@ -786,6 +786,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 		{ "GO_RSRC_SNDSRC", GO_RSRC_SNDSRC },
 		{ "GO_RSRC_REFPLANE", GO_RSRC_REFPLANE },
 		{ "GO_RSRC_CAMERA", GO_RSRC_CAMERA },
+		{ "GO_RSRC_FLARE", GO_RSRC_FLARE },
 		// rigid body resource shape types
 		{ "ShapeType_AABB", ShapeType_AABB },
 		{ "ShapeType_Box", ShapeType_Box },
@@ -818,6 +819,7 @@ GameLevel::GameLevel( PhyWorldHandle phyWorld ) :
 	// register core resources
 	MeshResource::Register( this );
 	LightResource::Register( this );
+	FlareResource::Register( this );
 	ParticleSystemResource::Register( this );
 	SoundSourceResource::Register( this );
 	RigidBodyResource::Register( this );
@@ -1367,6 +1369,11 @@ void GameLevel::Draw2D()
 {
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, GR_GetWidth(), GR_GetHeight() ) );
 	
+	m_eventType = LEV_Draw2D;
+	
+	for( size_t i = 0; i < m_systems.size(); ++i )
+		m_systems[ i ]->Draw2D();
+	
 	if( gcv_cl_gui.value )
 	{
 		m_guiSys->Draw( m_deltaTime );
@@ -1388,6 +1395,8 @@ void GameLevel::Draw2D()
 		for( size_t i = 0; i < m_gameObjects.size(); ++i )
 			m_gameObjects[ i ]->DebugDrawUI();
 	}
+	
+	m_eventType = LEV_None;
 }
 
 void GameLevel::DebugDraw()

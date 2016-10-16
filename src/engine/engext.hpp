@@ -911,6 +911,57 @@ struct IF_GCC(ENGINE_EXPORT) AnimCharInst : IMeshRaycast, MEVariableInterface
 
 
 
+struct IF_GCC(ENGINE_EXPORT) SGRX_LensFlare
+{
+	struct Part
+	{
+		// settings
+		RCString texPath;
+		float size;
+		float pos;
+		Vec4 color;
+		
+		// state
+		TextureHandle texture;
+		
+		template< class T > void Serialize( T& arch )
+		{
+			arch << texPath;
+			arch << size;
+			arch << pos;
+			arch << color;
+			if( T::IsReader )
+				ReloadTexture();
+		}
+		void ReloadTexture(){ texture = GR_GetTexture( texPath ); }
+	};
+	template< class T > void Serialize( T& basearch )
+	{
+		basearch.marker( "SGRXLFR1" );
+		
+		// 1: initial
+		SerializeVersionHelper<T> arch( basearch, 1 );
+		
+		arch << m_fadeSpeed;
+		arch << m_parts;
+	}
+	
+	ENGINE_EXPORT SGRX_LensFlare();
+	
+	ENGINE_EXPORT void TestData();
+	ENGINE_EXPORT bool Load( StringView filename );
+	ENGINE_EXPORT bool Save( StringView filename );
+	
+	ENGINE_EXPORT void Draw( float deltaTime, SceneHandle scene, Vec2 viewport, Vec3 pos, Vec3 lightColor );
+	
+	float m_fadeSpeed;
+	Array< Part > m_parts;
+	// state
+	float m_fadeState;
+};
+
+
+
 struct DecalMapPartInfo
 {
 	Vec4 bbox; // left, top, right, bottom / x0,y0,x1,y1

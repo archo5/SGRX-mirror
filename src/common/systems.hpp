@@ -182,8 +182,11 @@ EXP_STRUCT GFXSystem : IGameLevelSystem, SGRX_RenderDirector, SGRX_IEventHandler
 	
 	GFW_EXPORT virtual void OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
 	GFW_EXPORT virtual void OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info );
+	GFW_EXPORT virtual void OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+		TextureHandle rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH );
 	
-	Array< GOResource* > m_reflectPlanes;
+	Array< struct ReflectionPlaneResource* > m_reflectPlanes;
+	Array< struct FlareResource* > m_flares;
 };
 
 

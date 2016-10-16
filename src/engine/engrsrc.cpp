@@ -1996,6 +1996,13 @@ void SGRX_Scene::OnUpdate()
 		m_meshInstances.item( i ).key->OnUpdate();
 }
 
+bool SGRX_Scene::RaycastAny( const Vec3& from, const Vec3& to, uint32_t layers )
+{
+	SceneRaycastCallback_Any cb;
+	RaycastAll( from, to, &cb, layers );
+	return cb.m_hit;
+}
+
 bool SGRX_Scene::RaycastOne( const Vec3& from, const Vec3& to, SceneRaycastInfo* outinfo, uint32_t layers )
 {
 	SceneRaycastCallback_Closest cb;

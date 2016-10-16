@@ -1575,6 +1575,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	
 	ENGINE_EXPORT void OnUpdate();
 	
+	ENGINE_EXPORT bool RaycastAny( const Vec3& from, const Vec3& to, uint32_t layers = 0xffffffff );
 	// finds closest match and returns only that
 	ENGINE_EXPORT bool RaycastOne( const Vec3& from, const Vec3& to, SceneRaycastInfo* outinfo = NULL, uint32_t layers = 0xffffffff );
 	// finds all matches and returns them in random order
@@ -1790,6 +1791,7 @@ struct BatchRenderer
 	FINLINE BatchRenderer& Col( float x, float a ){ return Col( x, x, x, a ); }
 	FINLINE BatchRenderer& Col( float r, float g, float b ){ return Col( r, g, b, 1.0f ); }
 	FINLINE BatchRenderer& Col( const Vec3& col, float a = 1.0f ){ return Col( col.x, col.y, col.z, a ); }
+	FINLINE BatchRenderer& Col( const Vec4& col ){ return Col( col.x, col.y, col.z, col.w ); }
 	FINLINE BatchRenderer& Col( float r, float g, float b, float a ){ return Colb( COLOR_F2B( r ), COLOR_F2B( g ), COLOR_F2B( b ), COLOR_F2B( a ) ); }
 	ENGINE_EXPORT BatchRenderer& Colb( uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xff );
 	FINLINE BatchRenderer& Colu( uint32_t c ){ return Colb( COLOR_EXTRACT_R( c ), COLOR_EXTRACT_G( c ), COLOR_EXTRACT_B( c ), COLOR_EXTRACT_A( c ) ); }
@@ -2022,6 +2024,9 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_RenderScene
 		const SceneHandle& sh,
 		bool enablePP = true
 	);
+	ENGINE_EXPORT int GetOutputWidth();
+	ENGINE_EXPORT int GetOutputHeight();
+	ENGINE_EXPORT Vec2 GetOutputSizeF();
 	
 	Vec4 timevals;
 	SceneHandle scene;

@@ -1879,6 +1879,84 @@ double AnimCharInst::MEGetValue( uint16_t i ) const
 
 
 
+SGRX_LensFlare::SGRX_LensFlare() :
+	m_fadeSpeed( 5 ),
+	m_fadeState( 0 )
+{
+	TestData();
+}
+
+void SGRX_LensFlare::TestData()
+{
+	{Part p = { "textures/fx/flare_base.stx", 0.5f, 1, V4( 1 ) };
+	p.ReloadTexture(); m_parts.push_back( p );}
+	{Part p = { "textures/fx/flare_glow.stx", 0.15f, 0.6f, V4( 0.9f, 0.8f, 0.7f, 0.3f ) };
+	p.ReloadTexture(); m_parts.push_back( p );}
+	{Part p = { "textures/fx/flare_ring_2.stx", 0.35f, 0.3f, V4( 0.7f, 0.8f, 0.9f, 0.5f ) };
+	p.ReloadTexture(); m_parts.push_back( p );}
+	{Part p = { "textures/fx/flare_ring.stx", 0.25f, -0.4f, V4( 0.9f, 0.8f, 0.9f, 0.4f ) };
+	p.ReloadTexture(); m_parts.push_back( p );}
+	{Part p = { "textures/fx/flare_ring_2.stx", 0.3f, -0.8f, V4( 0.9f, 0.8f, 0.7f, 0.2f ) };
+	p.ReloadTexture(); m_parts.push_back( p );}
+}
+
+bool SGRX_LensFlare::Load( StringView filename )
+{
+	return false;
+}
+
+bool SGRX_LensFlare::Save( StringView filename )
+{
+	return false;
+}
+
+void SGRX_LensFlare::Draw( float deltaTime, SceneHandle scene, Vec2 viewport, Vec3 pos, Vec3 lightColor )
+{
+	Vec2 screenpos;
+	const Vec3& cp = scene->camera.position;
+	const Vec3& cd = scene->camera.direction;
+	// behind camera
+	bool visible = lightColor != V3(0);
+	if( visible )
+		visible = Vec3Dot( cd, pos ) > Vec3Dot( cd, cp );
+	// outside view
+	if( visible )
+	{
+		screenpos = scene->camera.WorldToScreen( pos ).ToVec2();
+		visible = screenpos.x >= 0 &&
+			screenpos.x <= 1 &&
+			screenpos.y >= 0 &&
+			screenpos.y <= 1;
+	}
+	// occluded
+	if( visible )
+		visible = scene->RaycastAny( scene->camera.position, pos ) == false;
+	
+	m_fadeState += m_fadeSpeed * deltaTime * ( visible ? 1 : -1 );
+	m_fadeState = TCLAMP( m_fadeState, 0.0f, 1.0f );
+	
+	if( m_fadeState <= 0 )
+		return;
+	
+	BatchRenderer& br = GR2D_GetBatchRenderer();
+	screenpos *= viewport;
+	Vec2 centerpos = viewport * 0.5f;
+	float fullsize = TMIN( viewport.x, viewport.y );
+	float alpha = 1 - TCLAMP( ( screenpos - centerpos ).Length() / ( fullsize * 0.5f ), 0.0f, 1.0f );
+	for( size_t i = 0; i < m_parts.size(); ++i )
+	{
+		br.Reset();
+		const Part& P = m_parts[ i ];
+		Vec2 fpos = TLERP( centerpos, screenpos, P.pos );
+		float fsz = fullsize * P.size;
+		br.Col( P.color * V4( lightColor, m_fadeState * alpha ) );
+		br.SetTexture( P.texture );
+		br.Box( fpos.x, fpos.y, fsz, fsz );
+	}
+}
+
+
+
 SGRX_DecalSystem::SGRX_DecalSystem() : m_lightSampler(NULL), m_vbSize(0)
 {
 }

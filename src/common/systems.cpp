@@ -592,13 +592,17 @@ void GFXSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 	{
 		SGRX_CAST( GOResource*, R, edata.GetUserData() );
 		if( R->m_rsrcType == GO_RSRC_REFPLANE )
-			m_reflectPlanes.push_back( R );
+			m_reflectPlanes.push_back( (ReflectionPlaneResource*) R );
+		else if( R->m_rsrcType == GO_RSRC_FLARE )
+			m_flares.push_back( (FlareResource*) R );
 	}
 	else if( eid == EID_GOResourceRemove )
 	{
 		SGRX_CAST( GOResource*, R, edata.GetUserData() );
 		if( R->m_rsrcType == GO_RSRC_REFPLANE )
-			m_reflectPlanes.remove_first( R );
+			m_reflectPlanes.remove_first( (ReflectionPlaneResource*) R );
+		else if( R->m_rsrcType == GO_RSRC_REFPLANE )
+			m_flares.remove_first( (FlareResource*) R );
 	}
 }
 
@@ -646,13 +650,8 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 	// shortcuts
 	SGRX_Scene* scene = info.scene;
 	
-	int reflW = GR_GetWidth();
-	int reflH = GR_GetHeight();
-	if( info.viewport )
-	{
-		reflW = info.viewport->x1 - info.viewport->x0;
-		reflH = info.viewport->y1 - info.viewport->y0;
-	}
+	int reflW = info.GetOutputWidth();
+	int reflH = info.GetOutputHeight();
 	SGRX_Camera origCamera = scene->camera;
 	SGRX_Viewport* origViewport = info.viewport;
 	
@@ -703,6 +702,28 @@ void GFXSystem::OnDrawSceneWithRefl( SGRX_IRenderControl* ctrl, SGRX_RenderScene
 	GR_PreserveResource( ctrl->m_overrideTextures[ 0 ] );
 	ctrl->SortRenderItems( scene );
 	SGRX_RenderDirector::OnDrawScene( ctrl, info );
+}
+
+void GFXSystem::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info,
+	TextureHandle rtt, DepthStencilSurfHandle dss, TextureHandle rttDEPTH )
+{
+	SGRX_RenderDirector::OnDrawSceneGeom( ctrl, info, rtt, dss, rttDEPTH );
+	
+	Vec2 vpsz = info.GetOutputSizeF();
+	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, vpsz.x, vpsz.y ) );
+	for( size_t i = 0; i < m_flares.size(); ++i )
+	{
+		GameObject* obj = m_flares[ i ]->m_obj;
+		
+		LightResource* lr = obj->FindFirstResourceOfType<LightResource>();
+		
+		m_flares[ i ]->m_flare.Draw(
+			m_level->m_editorMode ? 1 : m_level->GetDeltaTime(),
+			m_level->GetScene(),
+			vpsz,
+			m_flares[ i ]->GetWorldMatrix().GetTranslation(),
+			lr ? lr->GetFinalColor() : V3(1) );
+	}
 }
 
 

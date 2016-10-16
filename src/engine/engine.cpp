@@ -1786,6 +1786,21 @@ SGRX_RenderScene::SGRX_RenderScene(
 	debugdraw( NULL )
 {}
 
+int SGRX_RenderScene::GetOutputWidth()
+{
+	return viewport ? viewport->x1 - viewport->x0 : GR_GetWidth();
+}
+
+int SGRX_RenderScene::GetOutputHeight()
+{
+	return viewport ? viewport->y1 - viewport->y0 : GR_GetHeight();
+}
+
+Vec2 SGRX_RenderScene::GetOutputSizeF()
+{
+	return V2( GetOutputWidth(), GetOutputHeight() );
+}
+
 void GR_RenderScene( SGRX_RenderScene& info )
 {
 	g_BatchRenderer->Flush();

@@ -18,9 +18,10 @@
 #define GO_RSRC_PSYS     3
 #define GO_RSRC_RBODY    4
 #define GO_RSRC_JOINT    5 // TODO
-#define GO_RSRC_SNDSRC   6 // TODO
+#define GO_RSRC_SNDSRC   6
 #define GO_RSRC_REFPLANE 7
 #define GO_RSRC_CAMERA   8
+#define GO_RSRC_FLARE    9
 
 
 
@@ -110,6 +111,8 @@ EXP_STRUCT LightResource : GOResource
 	StringView GetCookieTexturePath() const { return m_cookieTexture ? SV(m_cookieTexture->m_key) : SV(""); }
 	void SetCookieTexturePath( StringView path ){ SetCookieTextureData( GR_GetTexture( path ) ); }
 	
+	FINLINE Vec3 GetFinalColor() const { return m_color * m_intensity * m_isEnabled; }
+	
 	SGS_PROPERTY_FUNC( READ IsStatic WRITE SetStatic VARNAME isStatic ) bool m_isStatic;
 	SGS_PROPERTY_FUNC( READ GetType WRITE SetType VARNAME type ) int m_type;
 	SGS_PROPERTY_FUNC( READ IsEnabled WRITE SetEnabled VARNAME enabled ) bool m_isEnabled;
@@ -128,6 +131,18 @@ EXP_STRUCT LightResource : GOResource
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lightRadius ) float m_lightRadius;
 	
 	LightHandle m_light;
+};
+
+
+EXP_STRUCT FlareResource : GOResource
+{
+	SGS_OBJECT_INHERIT( GOResource );
+	ENT_SGS_IMPLEMENT;
+	IMPLEMENT_RESOURCE( FlareResource, GO_RSRC_FLARE, "Flare" );
+	
+	GFW_EXPORT FlareResource( GameObject* obj );
+	
+	SGRX_LensFlare m_flare;
 };
 
 

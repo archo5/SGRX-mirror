@@ -39,6 +39,7 @@ enum LevelEventType
 	LEV_PrePhysicsFixedUpdate,
 	LEV_FixedUpdate,
 	LEV_Update,
+	LEV_Draw2D,
 	LEV_DebugDraw,
 };
 
@@ -240,6 +241,7 @@ EXP_STRUCT IGameLevelSystem : LevelScrObj
 	virtual void FixedTick( float deltaTime ){}
 	virtual void Tick( float deltaTime, float blendFactor ){}
 	virtual void PreRender(){}
+	virtual void Draw2D(){}
 	virtual void DrawUI(){}
 	
 	virtual void PostDraw(){}

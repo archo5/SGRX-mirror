@@ -146,6 +146,11 @@ function LightResource.EditorDrawWorld()
 	}
 }
 
+function FlareResource.EditorGUI( ui )
+{
+	this!GOResource.EditorGUI( ui );
+}
+
 ParticleSystemResource.ED_Icon = "editor/icons/particles.png";
 function ParticleSystemResource.EditorGUI( ui )
 {

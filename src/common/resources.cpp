@@ -159,6 +159,11 @@ void LightResource::_UpdateShadows()
 }
 
 
+FlareResource::FlareResource( GameObject* obj ) : GOResource( obj )
+{
+}
+
+
 ParticleSystemResource::ParticleSystemResource( GameObject* obj ) :
 	GOResource( obj ),
 	m_enabled( false ),

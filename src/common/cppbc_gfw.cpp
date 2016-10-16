@@ -2990,6 +2990,156 @@ static sgs_ObjInterface LightResource__sgs_interface =
 _sgsInterface LightResource::_sgs_interface(LightResource__sgs_interface, LightResource__sgs_ifn, &GOResource::_sgs_interface);
 
 
+static int _sgs_method__FlareResource__OnDestroy( SGS_CTX )
+{
+	FlareResource* data; if( !SGS_PARSE_METHOD( C, FlareResource::_sgs_interface, data, FlareResource, OnDestroy ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnDestroy(  ); return 0;
+}
+
+static int _sgs_method__FlareResource__PrePhysicsFixedUpdate( SGS_CTX )
+{
+	FlareResource* data; if( !SGS_PARSE_METHOD( C, FlareResource::_sgs_interface, data, FlareResource, PrePhysicsFixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PrePhysicsFixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__FlareResource__FixedUpdate( SGS_CTX )
+{
+	FlareResource* data; if( !SGS_PARSE_METHOD( C, FlareResource::_sgs_interface, data, FlareResource, FixedUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->FixedUpdate(  ); return 0;
+}
+
+static int _sgs_method__FlareResource__Update( SGS_CTX )
+{
+	FlareResource* data; if( !SGS_PARSE_METHOD( C, FlareResource::_sgs_interface, data, FlareResource, Update ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->Update(  ); return 0;
+}
+
+static int _sgs_method__FlareResource__PreRender( SGS_CTX )
+{
+	FlareResource* data; if( !SGS_PARSE_METHOD( C, FlareResource::_sgs_interface, data, FlareResource, PreRender ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->PreRender(  ); return 0;
+}
+
+static int _sgs_method__FlareResource__OnTransformUpdate( SGS_CTX )
+{
+	FlareResource* data; if( !SGS_PARSE_METHOD( C, FlareResource::_sgs_interface, data, FlareResource, OnTransformUpdate ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->OnTransformUpdate(  ); return 0;
+}
+
+static int _sgs_method__FlareResource__GetWorldMatrix( SGS_CTX )
+{
+	FlareResource* data; if( !SGS_PARSE_METHOD( C, FlareResource::_sgs_interface, data, FlareResource, GetWorldMatrix ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	sgs_PushVar(C,data->GetWorldMatrix(  )); return 1;
+}
+
+int FlareResource::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
+{
+	static_cast<FlareResource*>( obj->data )->C = C;
+	static_cast<FlareResource*>( obj->data )->~FlareResource();
+	return SGS_SUCCESS;
+}
+
+int FlareResource::_sgs_gcmark( SGS_CTX, sgs_VarObj* obj )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareResource*>( obj->data )->C, C );
+	return SGS_SUCCESS;
+}
+
+int FlareResource::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "level" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->_sgs_getLevel() ); return SGS_SUCCESS; }
+		SGS_CASE( "_data" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->_data ); return SGS_SUCCESS; }
+		SGS_CASE( "object" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->_get_object() ); return SGS_SUCCESS; }
+		SGS_CASE( "__name" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->m_name ); return SGS_SUCCESS; }
+		SGS_CASE( "__type" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->m_rsrcType ); return SGS_SUCCESS; }
+		SGS_CASE( "__guid" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->m_src_guid.ToString() ); return SGS_SUCCESS; }
+		SGS_CASE( "localPosition" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->GetLocalPosition() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotation" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->GetLocalRotation() ); return SGS_SUCCESS; }
+		SGS_CASE( "localRotationXYZ" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->GetLocalRotationXYZ() ); return SGS_SUCCESS; }
+		SGS_CASE( "localScale" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->GetLocalScale() ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->GetLocalMatrix() ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ sgs_PushVar( C, static_cast<FlareResource*>( obj->data )->GetMatrixMode() ); return SGS_SUCCESS; }
+		if( sgs_PushIndex( C, static_cast<FlareResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int FlareResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareResource*>( obj->data )->C, C );
+	SGS_BEGIN_INDEXFUNC
+		SGS_CASE( "_data" ){ static_cast<FlareResource*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "localMatrix" ){ static_cast<FlareResource*>( obj->data )->SetLocalMatrix( sgs_GetVar<Mat4>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "matrixMode" ){ static_cast<FlareResource*>( obj->data )->SetMatrixMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		if( sgs_SetIndex( C, static_cast<FlareResource*>( obj->data )->_data.var, sgs_StackItem( C, 0 ), sgs_StackItem( C, 1 ), sgs_ObjectArg( C ) ) ) return SGS_SUCCESS;
+	SGS_END_INDEXFUNC;
+}
+
+int FlareResource::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
+{
+	_sgsTmpChanger<sgs_Context*> _tmpchg( static_cast<FlareResource*>( obj->data )->C, C );
+	char bfr[ 45 ];
+	sprintf( bfr, "FlareResource (%p) %s", obj->data, depth > 0 ? "\n{" : " ..." );
+	sgs_PushString( C, bfr );
+	if( depth > 0 )
+	{
+		{ sgs_PushString( C, "\nlevel = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->_sgs_getLevel(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n_data = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->_data, depth ).push( C ); }
+		{ sgs_PushString( C, "\nobject = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->_get_object(), depth ).push( C ); }
+		{ sgs_PushString( C, "\n__name = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->m_name, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__type = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->m_rsrcType, depth ).push( C ); }
+		{ sgs_PushString( C, "\n__guid = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->m_src_guid.ToString(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalPosition = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->GetLocalPosition(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotation = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->GetLocalRotation(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalRotationXYZ = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->GetLocalRotationXYZ(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalScale = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->GetLocalScale(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nlocalMatrix = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->GetLocalMatrix(), depth ).push( C ); }
+		{ sgs_PushString( C, "\nmatrixMode = " ); sgs_DumpData( C, static_cast<FlareResource*>( obj->data )->GetMatrixMode(), depth ).push( C ); }
+		sgs_StringConcat( C, 24 );
+		sgs_PadString( C );
+		sgs_PushString( C, "\n}" );
+		sgs_StringConcat( C, 3 );
+	}
+	return SGS_SUCCESS;
+}
+
+static sgs_RegFuncConst FlareResource__sgs_funcs[] =
+{
+	{ "OnDestroy", _sgs_method__FlareResource__OnDestroy },
+	{ "PrePhysicsFixedUpdate", _sgs_method__FlareResource__PrePhysicsFixedUpdate },
+	{ "FixedUpdate", _sgs_method__FlareResource__FixedUpdate },
+	{ "Update", _sgs_method__FlareResource__Update },
+	{ "PreRender", _sgs_method__FlareResource__PreRender },
+	{ "OnTransformUpdate", _sgs_method__FlareResource__OnTransformUpdate },
+	{ "GetWorldMatrix", _sgs_method__FlareResource__GetWorldMatrix },
+	{ NULL, NULL },
+};
+
+static int FlareResource__sgs_ifn( SGS_CTX )
+{
+	sgs_CreateDict( C, NULL, 0 );
+	sgs_StoreFuncConsts( C, sgs_StackItem( C, -1 ),
+		FlareResource__sgs_funcs,
+		-1, "FlareResource." );
+	return 1;
+}
+
+static sgs_ObjInterface FlareResource__sgs_interface =
+{
+	"FlareResource",
+	FlareResource::_sgs_destruct, FlareResource::_sgs_gcmark, FlareResource::_sgs_getindex, FlareResource::_sgs_setindex, NULL, NULL, FlareResource::_sgs_dump, NULL, NULL, NULL, 
+};
+_sgsInterface FlareResource::_sgs_interface(FlareResource__sgs_interface, FlareResource__sgs_ifn, &GOResource::_sgs_interface);
+
+
 static int _sgs_method__ParticleSystemResource__OnDestroy( SGS_CTX )
 {
 	ParticleSystemResource* data; if( !SGS_PARSE_METHOD( C, ParticleSystemResource::_sgs_interface, data, ParticleSystemResource, OnDestroy ) ) return 0;
