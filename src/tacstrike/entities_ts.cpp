@@ -1131,7 +1131,7 @@ void TSPlayerController::Update()
 	if( P )
 	{
 		pos = P->GetQueryPosition();
-		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
+	//	Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
 	//	m_aimHelper.Tick( dt, m_obj, pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
 		m_aimHelper.Tick( V2( AIM_X.value, AIM_Y.value ), m_obj );
 		
@@ -1151,9 +1151,9 @@ void TSPlayerController::Update()
 		{
 			src = TMAX( 1.0f, src - dt );
 		}
-		else if( m_moveFactor == 0 ) // character not moving, aim carefully for 3 secs
+		else if( m_moveFactor == 0 ) // character not moving, aim carefully for 2 secs
 		{
-			src = TMAX( 0.0f, src - dt / 3 );
+			src = TMAX( 0.0f, src - dt / ( i_crouch ? 1 : 2 ) );
 		}
 		else if( src < 1 ) // character moving, revert careful aim
 		{
