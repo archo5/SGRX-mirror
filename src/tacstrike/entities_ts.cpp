@@ -668,14 +668,15 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	float rcxdist = 1.0f;
 	Vec3 lvel = m_bodyHandle->GetLinearVelocity();
 	float ht = cheight - 0.25f;
-	if( lvel.z >= -SMALL_FLOAT && !m_jumpTimeout )
+//	if( lvel.z >= -SMALL_FLOAT && !m_jumpTimeout )
 		ht += rcxdist;
 	
 	m_ivPos.Advance( pos + V3(0,0,-cheight) );
 	
 	bool ground = false;
-	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
-		&& fabsf( rcinfo.point.z - pos.z ) < cheight + SMALL_FLOAT )
+	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle,
+		pos + V3(0,0,0), pos + V3(0,0,-ht), 1, 1, &rcinfo )
+		&& ( fabsf( rcinfo.point.z - pos.z ) < cheight || ( lvel.z < 0 && m_isOnGround ) ) )
 	{
 		Vec3 v = m_bodyHandle->GetPosition();
 		float tgt = rcinfo.point.z + cheight;
@@ -1111,12 +1112,18 @@ TSPlayerController::TSPlayerController( GameObject* obj ) :
 	BhControllerBase( obj ),
 	m_aimHelper( obj->m_level ),
 	i_move( V2(0) ), i_aim_target( V3(0) ),
-	i_turn( V3(0) ), i_crouch( false )
+	i_turn( V3(0) ), i_crouch( false ),
+	m_prevPos( V3(0) ),
+	m_shootTimeout( 0.0f ),
+	m_moveFactor( 0.0f ),
+	m_imprecisionFactor( 1.0f ),
+	m_criticalHitThreshold( 0.2f )
 {
 }
 
 void TSPlayerController::Update()
 {
+	float dt = m_level->GetDeltaTime();
 	BhControllerBase::Update();
 	
 	TSCharacter* P = m_obj->FindFirstBehaviorOfType<TSCharacter>();
@@ -1125,8 +1132,37 @@ void TSPlayerController::Update()
 	{
 		pos = P->GetQueryPosition();
 		Vec2 screen_size = V2( GR_GetWidth(), GR_GetHeight() );
-	//	m_aimHelper.Tick( m_level->GetDeltaTime(), m_obj, pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
+	//	m_aimHelper.Tick( dt, m_obj, pos, CURSOR_POS / screen_size, WP_LOCK_ON.value > 0.5f );
 		m_aimHelper.Tick( V2( AIM_X.value, AIM_Y.value ), m_obj );
+		
+		// movement factor
+		m_moveFactor += ( pos - m_prevPos ).Length() * ( 0.02f / dt );
+		m_moveFactor -= dt * 2;
+		m_moveFactor = TCLAMP( m_moveFactor, 0.0f, 1.0f );
+		m_prevPos = pos;
+		
+		// final imprecision factor state mgmt
+		float& src = m_imprecisionFactor;
+		if( m_shootTimeout < 0.1f ) // shots fired recently, increase imprecision
+		{
+			src = TMIN( 2.0f, src + dt * 2 );
+		}
+		else if( src > 1 ) // recovering from shots
+		{
+			src = TMAX( 1.0f, src - dt );
+		}
+		else if( m_moveFactor == 0 ) // character not moving, aim carefully for 3 secs
+		{
+			src = TMAX( 0.0f, src - dt / 3 );
+		}
+		else if( src < 1 ) // character moving, revert careful aim
+		{
+			src = TMIN( 1.0f, src + dt * m_moveFactor );
+		}
+		
+		// shoot timeout for recoil imprecision
+		// processed after check to avoid factoring dt into calc
+		m_shootTimeout += dt;
 	}
 	
 	LevelMapSystem* map = m_level->GetSystem<LevelMapSystem>();

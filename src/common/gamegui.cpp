@@ -646,6 +646,11 @@ void GameUIControl::DAARectOutline( float x0, float y0, float x1, float y1, floa
 	GR2D_GetBatchRenderer().AAStroke( pts, 4, IS( w ), true );
 }
 
+void GameUIControl::DAACircleFill( float x, float y, float r )
+{
+	GR2D_GetBatchRenderer().AACircle( IX( x ), IY( y ), IS( r ) );
+}
+
 void GameUIControl::DAACircleOutline( float x, float y, float r, float w )
 {
 	if( sgs_StackSize( C ) < 4 )

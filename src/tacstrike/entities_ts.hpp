@@ -264,11 +264,18 @@ struct TSPlayerController : BhControllerBase
 	Vec3 i_turn;
 	bool i_crouch;
 	
+	SGS_PROPERTY_FUNC( READ ) Vec3 m_prevPos;
+	SGS_PROPERTY_FUNC( READ ) float m_shootTimeout;
+	SGS_PROPERTY_FUNC( READ ) float m_moveFactor;
+	SGS_PROPERTY_FUNC( READ ) float m_imprecisionFactor;
+	SGS_PROPERTY_FUNC( READ ) float m_criticalHitThreshold;
+	
 	TSPlayerController( GameObject* obj );
 	virtual void Update();
 	virtual Vec3 GetInput( uint32_t iid );
 	
 	SGS_METHOD void CalcUIAimInfo();
+	SGS_METHOD void ShotFired(){ m_shootTimeout = 0; }
 	bool _shouldDrawCP() const { return m_aimHelper.ShouldDrawClosestPoint(); }
 	SGS_PROPERTY_FUNC( READ _shouldDrawCP ) SGS_ALIAS( bool ahShouldDrawClosestPoint );
 	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.GetClosestPoint() ) SGS_ALIAS( Vec3 ahClosestPoint );

@@ -333,6 +333,13 @@ static int _sgs_method__TSPlayerController__CalcUIAimInfo( SGS_CTX )
 	data->CalcUIAimInfo(  ); return 0;
 }
 
+static int _sgs_method__TSPlayerController__ShotFired( SGS_CTX )
+{
+	TSPlayerController* data; if( !SGS_PARSE_METHOD( C, TSPlayerController::_sgs_interface, data, TSPlayerController, ShotFired ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->ShotFired(  ); return 0;
+}
+
 int TSPlayerController::_sgs_destruct( SGS_CTX, sgs_VarObj* obj )
 {
 	static_cast<TSPlayerController*>( obj->data )->C = C;
@@ -359,6 +366,11 @@ int TSPlayerController::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "resources" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_get_resources() ); return SGS_SUCCESS; }
 		SGS_CASE( "behaviors" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_get_behaviors() ); return SGS_SUCCESS; }
 		SGS_CASE( "enabled" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->enabled ); return SGS_SUCCESS; }
+		SGS_CASE( "m_prevPos" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_prevPos ); return SGS_SUCCESS; }
+		SGS_CASE( "m_shootTimeout" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_shootTimeout ); return SGS_SUCCESS; }
+		SGS_CASE( "m_moveFactor" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_moveFactor ); return SGS_SUCCESS; }
+		SGS_CASE( "m_imprecisionFactor" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_imprecisionFactor ); return SGS_SUCCESS; }
+		SGS_CASE( "m_criticalHitThreshold" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_criticalHitThreshold ); return SGS_SUCCESS; }
 		SGS_CASE( "ahShouldDrawClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP() ); return SGS_SUCCESS; }
 		SGS_CASE( "ahClosestPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetClosestPoint() ); return SGS_SUCCESS; }
 		SGS_CASE( "ahAimPoint" ){ sgs_PushVar( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimPoint() ); return SGS_SUCCESS; }
@@ -395,12 +407,17 @@ int TSPlayerController::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\nresources = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_get_resources(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nbehaviors = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_get_behaviors(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nenabled = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->enabled, depth ).push( C ); }
+		{ sgs_PushString( C, "\nm_prevPos = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_prevPos, depth ).push( C ); }
+		{ sgs_PushString( C, "\nm_shootTimeout = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_shootTimeout, depth ).push( C ); }
+		{ sgs_PushString( C, "\nm_moveFactor = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_moveFactor, depth ).push( C ); }
+		{ sgs_PushString( C, "\nm_imprecisionFactor = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_imprecisionFactor, depth ).push( C ); }
+		{ sgs_PushString( C, "\nm_criticalHitThreshold = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_criticalHitThreshold, depth ).push( C ); }
 		{ sgs_PushString( C, "\nahShouldDrawClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->_shouldDrawCP(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahClosestPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetClosestPoint(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahAimPoint = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimPoint(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahAimFactor = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetAimFactor(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nahCPDistance = " ); sgs_DumpData( C, static_cast<TSPlayerController*>( obj->data )->m_aimHelper.GetCPDistance(), depth ).push( C ); }
-		sgs_StringConcat( C, 28 );
+		sgs_StringConcat( C, 38 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );
@@ -418,6 +435,7 @@ static sgs_RegFuncConst TSPlayerController__sgs_funcs[] =
 	{ "GetInputF", _sgs_method__TSPlayerController__GetInputF },
 	{ "GetInputB", _sgs_method__TSPlayerController__GetInputB },
 	{ "CalcUIAimInfo", _sgs_method__TSPlayerController__CalcUIAimInfo },
+	{ "ShotFired", _sgs_method__TSPlayerController__ShotFired },
 	{ NULL, NULL },
 };
 

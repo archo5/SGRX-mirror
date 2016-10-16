@@ -597,6 +597,13 @@ static int _sgs_method__GameUIControl__DAARectOutline( SGS_CTX )
 	data->DAARectOutline( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2), sgs_GetVar<float>()(C,3), sgs_GetVar<float>()(C,4) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DAACircleFill( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAACircleFill ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DAACircleFill( sgs_GetVar<float>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<float>()(C,2) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DAACircleOutline( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAACircleOutline ) ) return 0;
@@ -804,6 +811,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DAALine", _sgs_method__GameUIControl__DAALine },
 	{ "DAAStroke", _sgs_method__GameUIControl__DAAStroke },
 	{ "DAARectOutline", _sgs_method__GameUIControl__DAARectOutline },
+	{ "DAACircleFill", _sgs_method__GameUIControl__DAACircleFill },
 	{ "DAACircleOutline", _sgs_method__GameUIControl__DAACircleOutline },
 	{ "DFont", _sgs_method__GameUIControl__DFont },
 	{ "DText", _sgs_method__GameUIControl__DText },

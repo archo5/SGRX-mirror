@@ -249,6 +249,7 @@ EXP_STRUCT GameUIControl
 	SGS_METHOD void DAALine( float x0, float y0, float x1, float y1, float w );
 	SGS_METHOD void DAAStroke( sgsVariable pointlist, float w, bool closed );
 	SGS_METHOD void DAARectOutline( float x0, float y0, float x1, float y1, float w );
+	SGS_METHOD void DAACircleFill( float x, float y, float r );
 	SGS_METHOD void DAACircleOutline( float x, float y, float r, float w );
 	SGS_METHOD void DFont( StringView name, float size );
 	SGS_METHOD void DText( StringView text, float x, float y, int ha, int va );
