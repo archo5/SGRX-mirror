@@ -372,7 +372,10 @@ GameHandle Game_Change( IGame* ng )
 
 void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
 {
+//	LOG << "\n\nREGISTER EVENT HANDLER\n- ptr=" << eh << "\n- id=" << eid << "\n";
+	
 	EventLinkEntry ele = { eid, eh };
+	
 	EventLinkArrayHandle links = g_EventLinksByID.getcopy( eid );
 	if( !links )
 	{
@@ -380,6 +383,7 @@ void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
 		g_EventLinksByID.set( eid, links );
 	}
 	links->find_or_add( ele );
+	
 	links = g_EventLinksByHandler.getcopy( eh );
 	if( !links )
 	{
@@ -391,25 +395,30 @@ void Game_RegisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
 
 void Game_UnregisterEventHandler( SGRX_IEventHandler* eh, SGRX_EventID eid )
 {
+//	LOG << "\n\nUNREGISTER EVENT HANDLER\n- ptr=" << eh << "\n- id=" << eid << "\n";
+	
 	if( eid == 0 )
 	{
 		EventLinkArrayHandle links = g_EventLinksByHandler.getcopy( eh );
 		if( !links )
 			return;
 		EventLinkArray& ELA = *links;
-		for( size_t i = 0; i < ELA.size(); ++i )
+		while( ELA.size() )
 		{
-			Game_UnregisterEventHandler( eh, ELA[ i ].eid );
+			Game_UnregisterEventHandler( eh, ELA.last().eid );
 		}
 	}
 	else
 	{
 		EventLinkEntry ele = { eid, eh };
+		
 		EventLinkArrayHandle links = g_EventLinksByID.getcopy( eid );
 		if( links )
 		{
 			links->remove_first( ele );
+			// keep id-mapped arrays because they're likely to be reused
 		}
+		
 		links = g_EventLinksByHandler.getcopy( eh );
 		if( links )
 		{
@@ -2344,6 +2353,22 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	delete g_ActionMap;
 	delete g_CObjs;
+	
+	size_t byid = 0;
+	for( size_t i = 0; i < g_EventLinksByID.size(); ++i )
+		byid += g_EventLinksByID.item( i ).value->size();
+	if( byid != 0 || g_EventLinksByHandler.size() != 0 )
+	{
+		LOG_WARNING << "\n!!! DETECTED UNRELEASED EVENT HANDLERS !!!";
+		LOG << "- # by id: " << byid;
+		LOG << "- # by handler: " << g_EventLinksByHandler.size();
+		LOG << "calling all handlers...\n";
+		for( size_t i = 0; i < g_EventLinksByHandler.size(); ++i )
+		{
+			LOG << "- " << ( i + 1 ) << "/" << g_EventLinksByHandler.size() << "...";
+			g_EventLinksByHandler.item( i ).key->HandleEvent( EID__Unfreed, EventData() );
+		}
+	}
 	
 	LOG << LOG_DATE << "  Engine finished";
 	return 0;

@@ -179,16 +179,16 @@ EdLevelGraphicsCont::EdLevelGraphicsCont()
 {
 	g_Level->m_lightEnv = &m_lightEnv;
 	
-	Game_RegisterEventHandler( this, EID_GOResourceAdd );
-	Game_RegisterEventHandler( this, EID_GOResourceRemove );
-	Game_RegisterEventHandler( this, EID_GOResourceUpdate );
+	RegisterHandler( EID_GOResourceAdd );
+	RegisterHandler( EID_GOResourceRemove );
+	RegisterHandler( EID_GOResourceUpdate );
 }
 
 EdLevelGraphicsCont::~EdLevelGraphicsCont()
 {
-	Game_UnregisterEventHandler( this, EID_GOResourceAdd );
-	Game_UnregisterEventHandler( this, EID_GOResourceRemove );
-	Game_UnregisterEventHandler( this, EID_GOResourceUpdate );
+	UnregisterHandler( EID_GOResourceAdd );
+	UnregisterHandler( EID_GOResourceRemove );
+	UnregisterHandler( EID_GOResourceUpdate );
 	
 	if( m_lmRenderer )
 		delete m_lmRenderer;

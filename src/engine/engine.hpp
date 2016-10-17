@@ -296,6 +296,7 @@ enum SGRX_EventIDType
 	EID_Type_None = 0,
 	EID_Type_Engine = 1,
 	
+	EID__Unfreed, // called if event handler is not freed, for memory checkers
 	EID_WindowEvent, // Event*
 	EID_ScenePreRender, // SGRX_Scene*
 	

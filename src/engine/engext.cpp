@@ -1484,7 +1484,7 @@ void AnimCharInst::_PrepareSpecialVariables( NodeRT* n )
 				SGRX_Animation* aanim = panim ? panim->anim : NULL;
 				
 				StringView cur_state_anim = PN->current_state->anim;
-				StringView cur_played_anim = aanim ? aanim->m_key : "";
+				StringView cur_played_anim = aanim ? SV(aanim->m_key) : SV();
 				bool still_playing = cur_state_anim == cur_played_anim;
 				
 				m_values[ ANIMCHAR_VAR_time ] = PN->m_stateTime;

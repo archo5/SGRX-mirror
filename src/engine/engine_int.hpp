@@ -57,7 +57,8 @@ struct RasterCache
 			return me;
 		
 		// split
-		me->child0 = P.tree.size();
+		int32_t chid0 = P.tree.size();
+		me->child0 = chid0;
 		me->child1 = me->child0 + 1;
 		Node tmpl = { 0, 0, 0, 0, 0, 0, false };
 		P.tree.push_back( tmpl );
@@ -87,7 +88,7 @@ struct RasterCache
 			ch1->y0 = me->y0 + h;
 		}
 		
-		return _NodeAlloc( page, me->child0, w, h );
+		return _NodeAlloc( page, chid0, w, h );
 	}
 	Node* _AllocItem( int32_t frame, const K& key, const V& data, int32_t w, int32_t h )
 	{
