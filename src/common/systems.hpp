@@ -31,17 +31,18 @@ struct MI_BulletHit_Data
 	Vec3 pos;
 	Vec3 vel;
 	float dmg;
+	float critDmg;
 };
 
 struct SGRX_MeshInstUserData
 {
 	SGRX_MeshInstUserData() : dmgDecalSysOverride(NULL),
-		ovrDecalSysOverride(NULL), ownerType(0), typeOverride(NULL){}
+		ovrDecalSysOverride(NULL), ownerID(NULL), typeOverride(NULL){}
 	virtual ~SGRX_MeshInstUserData(){}
 	virtual void MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, void* data ){}
 	SGRX_DecalSystem* dmgDecalSysOverride;
 	SGRX_DecalSystem* ovrDecalSysOverride;
-	uint32_t ownerType;
+	void* ownerID;
 	const char* typeOverride;
 };
 
@@ -227,14 +228,6 @@ EXP_STRUCT MusicSystem : IGameLevelSystem
 };
 
 
-enum GameActorType // = SGRX_MeshInstUserData::ownerType
-{
-	GAT_None = 0,
-	GAT_Player = 1,
-	GAT_Enemy = 2,
-};
-
-
 EXP_STRUCT DamageSystem : IGameLevelSystem, SGRX_ScenePSRaycast
 {
 	enum { e_system_uid = 5 };
@@ -289,8 +282,8 @@ struct BulletSystem : IGameLevelSystem
 		Vec3 velocity;
 		Vec3 dir;
 		float timeleft;
-		float damage;
-		uint32_t ownerType; // GameActorType
+		Vec2 damage;
+		void* ownerToSkip;
 		// penetration depth calculations
 		Vec3 intersectStart;
 		int numSolidRefs;
@@ -301,8 +294,8 @@ struct BulletSystem : IGameLevelSystem
 	
 	GFW_EXPORT void Tick( float deltaTime, float blendFactor );
 	
-	GFW_EXPORT SGS_METHOD void Add( Vec3 pos, Vec3 vel, float timeleft, float dmg, uint32_t ownerType );
-	GFW_EXPORT SGS_METHOD float Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType );
+	GFW_EXPORT SGS_METHOD void Add( Vec3 pos, Vec3 vel, float timeleft, Vec2 dmg, void* ownerID );
+	GFW_EXPORT SGS_METHOD float Zap( Vec3 p1, Vec3 p2, Vec2 dmg, void* ownerID );
 	GFW_EXPORT void Clear();
 	
 	float _ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B );

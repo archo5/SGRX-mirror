@@ -1269,11 +1269,11 @@ int GR2D_GetTextRectHeight( int x0, int y0, int x1, int y1,
 void SGRX_INT_InitBatchRendering()
 {
 	g_BatchRenderer = new BatchRenderer( g_Renderer );
-	LOG << LOG_DATE << "  Created batch renderer";
+	if( VERBOSE ) LOG << LOG_DATE << "  Created batch renderer";
 	
 	sgrx_int_InitializeFontRendering();
 	g_FontRenderer = new FontRenderer();
-	LOG << LOG_DATE << "  Created font renderer";
+	if( VERBOSE ) LOG << LOG_DATE << "  Created font renderer";
 }
 
 void SGRX_INT_DestroyBatchRendering()

@@ -100,6 +100,7 @@ static String g_RendererName = "d3d11";
 static bool g_Running = true;
 static bool g_HasFocus = true;
 static bool g_WindowVisible = true;
+bool g_VerboseLogging = false;
 static SDL_Window* g_Window = NULL;
 static void* g_GameLib = NULL;
 GameHandle g_Game = NULL;
@@ -1246,7 +1247,7 @@ bool IGame::GetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, 
 	String filename;
 	GetShaderCacheFilename( rinfo, sfx, key, filename );
 	
-	LOG << "Loading precompiled shader: " << filename << " (type=" << rinfo.shaderCacheSfx << ", key=" << key << ")";
+	if( VERBOSE ) LOG << "Loading precompiled shader: " << filename << " (type=" << rinfo.shaderCacheSfx << ", key=" << key << ")";
 	return FS_LoadBinaryFile( filename, outdata );
 }
 
@@ -1260,7 +1261,7 @@ bool IGame::SetCompiledShader( const SGRX_RendererInfo& rinfo, const char* sfx, 
 	String filename;
 	GetShaderCacheFilename( rinfo, sfx, key, filename );
 	
-	LOG << "Saving precompiled shader: " << filename << " (type=" << rinfo.shaderCacheSfx << ", key=" << key << ")";
+	if( VERBOSE ) LOG << "Saving precompiled shader: " << filename << " (type=" << rinfo.shaderCacheSfx << ", key=" << key << ")";
 	return FS_SaveBinaryFile( filename, data.data(), data.size() );
 }
 
@@ -1902,7 +1903,7 @@ static void remap_cursor()
 		else
 			g_CursorScale = V2( g_RenderSettings.width, g_RenderSettings.height ) / V2( TMAX( 1, dm.w ), TMAX( 1, dm.h ) );
 	}
-	LOG << "CURSOR REMAP: " << g_CursorScale;
+	if( VERBOSE ) LOG << "CURSOR REMAP: " << g_CursorScale;
 }
 
 static bool read_config()
@@ -1925,7 +1926,7 @@ static bool read_config()
 			if( value.size() )
 			{
 				g_GameLibName = value;
-				LOG << "CONFIG: Game library: " << value;
+				if( VERBOSE ) LOG << "CONFIG: Game library: " << value;
 			}
 		}
 		else if( key == "dir" )
@@ -1933,7 +1934,7 @@ static bool read_config()
 			if( value.size() )
 			{
 				g_GameDir = value;
-				LOG << "CONFIG: Game directory: " << value;
+				if( VERBOSE ) LOG << "CONFIG: Game directory: " << value;
 			}
 		}
 		else if( key == "dir2" )
@@ -1941,7 +1942,7 @@ static bool read_config()
 			if( value.size() )
 			{
 				g_GameDir2 = value;
-				LOG << "CONFIG: Game directory #2: " << value;
+				if( VERBOSE ) LOG << "CONFIG: Game directory #2: " << value;
 			}
 		}
 		else if( key == "renderer" )
@@ -1949,7 +1950,7 @@ static bool read_config()
 			if( value.size() )
 			{
 				g_RendererName = value;
-				LOG << "CONFIG: Renderer: " << value;
+				if( VERBOSE ) LOG << "CONFIG: Renderer: " << value;
 			}
 		}
 		else
@@ -2013,10 +2014,10 @@ static int init_graphics()
 		return 105;
 	}
 	renderer_clear_rts();
-	LOG << LOG_DATE << "  Loaded renderer: " << rendername;
+	if( VERBOSE ) LOG << LOG_DATE << "  Loaded renderer: " << rendername;
 	
 	SGRX_INT_InitResourceTables();
-	LOG << LOG_DATE << "  Created renderer resource caches";
+	if( VERBOSE ) LOG << LOG_DATE << "  Created renderer resource caches";
 	SGRX_INT_InitBatchRendering();
 	
 	g_Joysticks = new JoystickHashTable();
@@ -2027,7 +2028,7 @@ static int init_graphics()
 		LOG_ERROR << "Failed to load renderer (" << rendername << ") internal resources";
 		return 106;
 	}
-	LOG << LOG_DATE << "  Loaded internal renderer resources";
+	if( VERBOSE ) LOG << LOG_DATE << "  Loaded internal renderer resources";
 	
 	return 0;
 }
@@ -2036,7 +2037,7 @@ static void free_graphics()
 {
 	LOG_FUNCTION;
 	
-	LOG << LOG_DATE << "  Freeing internal graphics resources";
+	if( VERBOSE ) LOG << LOG_DATE << "  Freeing internal graphics resources";
 	
 	g_Renderer->UnloadInternalResources();
 	g_Renderer->_RS_ProjectorFree();
@@ -2044,19 +2045,19 @@ static void free_graphics()
 	SGRX_INT_DestroyBatchRendering();
 	SGRX_INT_DestroyResourceTables();
 	
-	LOG << LOG_DATE << "  Destroying renderer";
+	if( VERBOSE ) LOG << LOG_DATE << "  Destroying renderer";
 	
 	g_Renderer->Destroy();
 	g_Renderer = NULL;
 	
-	LOG << LOG_DATE << "  Unloading renderer library";
+	if( VERBOSE ) LOG << LOG_DATE << "  Unloading renderer library";
 	
 	g_RfnFree();
 	
 	SDL_UnloadObject( g_RenderLib );
 	g_RenderLib = NULL;
 	
-	LOG << LOG_DATE << "  Destroying main window";
+	if( VERBOSE ) LOG << LOG_DATE << "  Destroying main window";
 	
 	SDL_DestroyWindow( g_Window );
 	g_Window = NULL;
@@ -2086,11 +2087,11 @@ bool GR_SetVideoMode( const RenderSettings& rs )
 		{
 			if( ret == -2 )
 			{
-				LOG << "Failed to set fullscreen mode: unrecognized mode";
+				LOG_WARNING << "Failed to set fullscreen mode: unrecognized mode";
 			}
 			else
 			{
-				LOG << "Failed to set fullscreen mode: " << SDL_GetError();
+				LOG_WARNING << "Failed to set fullscreen mode: " << SDL_GetError();
 			}
 			return false;
 		}
@@ -2101,7 +2102,7 @@ bool GR_SetVideoMode( const RenderSettings& rs )
 		ret = SDL_SetWindowDisplayMode( g_Window, &dm );
 		if( ret < 0 )
 		{
-			LOG << "Failed to set display mode: " << SDL_GetError();
+			LOG_WARNING << "Failed to set display mode: " << SDL_GetError();
 			return false;
 		}
 		
@@ -2150,7 +2151,7 @@ bool GR_ListDisplayModes( int display, Array< DisplayMode >& out )
 	int numdm = SDL_GetNumDisplayModes( display );
 	if( numdm < 0 )
 	{
-		LOG << "Failed to get display mode count (display=" << display << "): " << SDL_GetError();
+		LOG_WARNING << "Failed to get display mode count (display=" << display << "): " << SDL_GetError();
 		return false;
 	}
 	
@@ -2162,7 +2163,7 @@ bool GR_ListDisplayModes( int display, Array< DisplayMode >& out )
 		int err = SDL_GetDisplayMode( display, i, &dmd );
 		if( err < 0 )
 		{
-			LOG << "Failed to get display mode (display=" << display << ", mode = " << i << "): " << SDL_GetError();
+			LOG_WARNING << "Failed to get display mode (display=" << display << ", mode = " << i << "): " << SDL_GetError();
 			return false;
 		}
 		
@@ -2182,21 +2183,22 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	LOG_FUNCTION;
 	
 	SGRX_LogOutputStdout los;
+	g_VerboseLogging = debug >= 2;
 	if( debug )
 		los.Register();
 	
 #if 1
-	LOG << "Engine self-test...";
+	if( VERBOSE ) LOG << "Engine self-test...";
 	int ret = TestSystems();
 	if( ret )
 	{
 		LOG << "Test FAILED with code: " << ret;
 		return 1;
 	}
-	LOG << "Test completed successfully.";
+	if( VERBOSE ) LOG << "Test completed successfully.";
 #endif
 	
-	LOG << LOG_DATE << "  Engine started";
+	if( VERBOSE ) LOG << LOG_DATE << "  Engine started";
 	
 	if( !read_config() )
 		return 4;
@@ -2206,17 +2208,17 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		if( strpeq( argv[i], "-game=" ) )
 		{
 			g_GameLibName = argv[i] + STRLIT_LEN("-game=");
-			LOG << "ARG: Game library: " << g_GameLibName;
+			if( VERBOSE ) LOG << "ARG: Game library: " << g_GameLibName;
 		}
 		else if( strpeq( argv[i], "-dir=" ) )
 		{
 			g_GameDir = argv[i] + STRLIT_LEN("-dir=");
-			LOG << "ARG: Game directory: " << g_GameDir;
+			if( VERBOSE ) LOG << "ARG: Game directory: " << g_GameDir;
 		}
 		else if( strpeq( argv[i], "-dir2=" ) )
 		{
 			g_GameDir = argv[i] + STRLIT_LEN("-dir2=");
-			LOG << "ARG: Game directory #2: " << g_GameDir2;
+			if( VERBOSE ) LOG << "ARG: Game directory #2: " << g_GameDir2;
 		}
 	}
 	
@@ -2345,11 +2347,11 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 	
 	free_graphics();
 	
-	LOG << LOG_DATE << "  Unloading game library";
+	if( VERBOSE ) LOG << LOG_DATE << "  Unloading game library";
 	
 	SDL_UnloadObject( g_GameLib );
 	
-	LOG << LOG_DATE << "  Freeing some internal engine data";
+	if( VERBOSE ) LOG << LOG_DATE << "  Freeing some internal engine data";
 	
 	delete g_ActionMap;
 	delete g_CObjs;
@@ -2370,7 +2372,7 @@ int SGRX_EntryPoint( int argc, char** argv, int debug )
 		}
 	}
 	
-	LOG << LOG_DATE << "  Engine finished";
+	if( VERBOSE ) LOG << LOG_DATE << "  Engine finished";
 	return 0;
 }
 

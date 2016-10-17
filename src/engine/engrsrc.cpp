@@ -38,6 +38,8 @@ static ResourcePreserveHashTable* g_PreservedResources = NULL;
 
 extern IGame* g_Game;
 extern IRenderer* g_Renderer;
+extern bool g_VerboseLogging;
+#define VERBOSE g_VerboseLogging
 
 
 
@@ -77,7 +79,7 @@ SoundEventInstanceHandle SGRX_ISoundSystem::CreateEventInstance( const StringVie
 
 SGRX_ConvexPointSet::~SGRX_ConvexPointSet()
 {
-	LOG << "Deleted convex point set: " << m_key;
+	if( VERBOSE ) LOG << "Deleted convex point set: " << m_key;
 	g_CPSets->unset( m_key );
 }
 
@@ -138,7 +140,7 @@ SGRX_ITexture::SGRX_ITexture() : m_rtkey(0)
 
 SGRX_ITexture::~SGRX_ITexture()
 {
-	LOG << "Deleted texture: " << m_key;
+	if( VERBOSE ) LOG << "Deleted texture: " << m_key;
 	g_Textures->unset( m_key );
 	if( m_rtkey )
 		g_RenderTargets->unset( m_rtkey );
@@ -222,7 +224,7 @@ SGRX_IDepthStencilSurface::SGRX_IDepthStencilSurface() : m_width(0), m_height(0)
 
 SGRX_IDepthStencilSurface::~SGRX_IDepthStencilSurface()
 {
-	LOG << "Deleted depth/stencil surface: " << m_width << "x" << m_height << ", format=" << m_format;
+	if( VERBOSE ) LOG << "Deleted depth/stencil surface: " << m_width << "x" << m_height << ", format=" << m_format;
 	if( m_key )
 		g_DepthStencilSurfs->unset( m_key );
 }
@@ -1937,7 +1939,7 @@ SGRX_Scene::~SGRX_Scene()
 {
 	m_projMeshInst = NULL;
 	
-	LOG << "Deleted scene: " << this;
+	if( VERBOSE ) LOG << "Deleted scene: " << this;
 }
 
 void SGRX_Scene::SetRenderPasses( const SGRX_RenderPass* passes, size_t count )
@@ -2142,7 +2144,8 @@ TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flag
 	
 	tex->m_info = ti;
 	
-	LOG << "Created 2D texture: " << width << "x" << height
+	if( VERBOSE )
+		LOG << "Created 2D texture: " << width << "x" << height
 		<< ", format=" << format << ", mips=" << mips;
 	return tex;
 }
@@ -2161,7 +2164,8 @@ TextureHandle GR_CreateTexture3D( int width, int height, int depth, int format, 
 	
 	tex->m_info = ti;
 	
-	LOG << "Created 3D texture: " << width << "x" << height << "x" << depth
+	if( VERBOSE )
+		LOG << "Created 3D texture: " << width << "x" << height << "x" << depth
 		<< ", format=" << format << ", mips=" << mips;
 	return tex;
 }
@@ -2185,7 +2189,8 @@ TextureHandle GR_GetTexture( const StringView& path )
 		HFileReader fr = g_Game->OnLoadTexture( path, usageflags, lod );
 		if( fr == NULL )
 		{
-			LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
+			if( VERBOSE || path != "" )
+				LOG_ERROR << LOG_DATE << "  Could not find texture: " << path;
 			return TextureHandle();
 		}
 		
@@ -2209,7 +2214,8 @@ TextureHandle GR_GetTexture( const StringView& path )
 	tex->m_key.append( path.data(), path.size() );
 	g_Textures->set( tex->m_key, tex );
 	
-	LOG << "Loaded texture: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
+	if( VERBOSE )
+		LOG << "Loaded texture: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 	return tex;
 }
 
@@ -2228,7 +2234,7 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 	
 	tex->m_info = ti;
 	
-	LOG << "Created renderable texture: " << width << "x" << height << ", format=" << format;
+	if( VERBOSE ) LOG << "Created renderable texture: " << width << "x" << height << ", format=" << format;
 	return tex;
 }
 
@@ -2263,7 +2269,7 @@ DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int 
 	dss->m_height = height;
 	dss->m_format = format;
 	
-	LOG << "Created depth/stencil surface: " << width << "x" << height << ", format=" << format;
+	if( VERBOSE ) LOG << "Created depth/stencil surface: " << width << "x" << height << ", format=" << format;
 	return dss;
 }
 
@@ -2348,7 +2354,7 @@ has_compiled_shader:
 	shd->m_key = path;
 	g_VertexShaders->set( shd->m_key, shd );
 	
-	LOG << "Loaded vertex shader: " << path;
+	if( VERBOSE ) LOG << "Loaded vertex shader: " << path;
 	return shd;
 }
 
@@ -2411,7 +2417,7 @@ has_compiled_shader:
 	shd->m_key = path;
 	g_PixelShaders->set( shd->m_key, shd );
 	
-	LOG << "Loaded pixel shader: " << path;
+	if( VERBOSE ) LOG << "Loaded pixel shader: " << path;
 	return shd;
 }
 
@@ -2428,7 +2434,7 @@ RenderStateHandle GR_GetRenderState( const SGRX_RenderState& state )
 	rs->m_info = state;
 	g_RenderStates->set( state, rs );
 	
-	LOG << "Created render state";
+	if( VERBOSE ) LOG << "Created render state";
 	return rs;
 }
 
@@ -2459,7 +2465,7 @@ VertexDeclHandle GR_GetVertexDecl( const StringView& vdecl )
 	VD->m_key = vdecl;
 	g_VertexDecls->set( VD->m_key, VD );
 	
-	LOG << "Created vertex declaration: " << vdecl;
+	if( VERBOSE ) LOG << "Created vertex declaration: " << vdecl;
 	return VD;
 }
 
@@ -2486,7 +2492,7 @@ VtxInputMapHandle GR_GetVertexInputMapping( SGRX_IVertexShader* vs, SGRX_IVertex
 	vim->m_key = key;
 	g_VtxInputMaps->set( key, vim );
 	
-	LOG << "Created vertex input mapping";
+	if( VERBOSE ) LOG << "Created vertex input mapping";
 	return vim;
 }
 
@@ -2518,7 +2524,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 		
 		mesh->m_key = path;
 		g_Meshes->set( mesh->m_key, mesh );
-		LOG << "Created sys. mesh: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
+		if( VERBOSE ) LOG << "Created sys. mesh: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 		return mesh;
 	}
 	
@@ -2611,7 +2617,7 @@ MeshHandle GR_GetMesh( const StringView& path, bool dataonly )
 	
 	mesh->m_key = path;
 	g_Meshes->set( mesh->m_key, mesh );
-	LOG << "Loaded mesh: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";;
+	if( VERBOSE ) LOG << "Loaded mesh: " << path << " (time=" << ( sgrx_hqtime() - t0 ) << ")";;
 	return mesh;
 }
 
@@ -2633,7 +2639,7 @@ static void _LoadAnimBundle( const StringView& path, const StringView& prefix )
 		g_Anims->set( anim->m_key, anim );
 	}
 	
-	LOG << "Loaded " << bundle.anims.size() << " anims from anim.bundle " << path;
+	if( VERBOSE ) LOG << "Loaded " << bundle.anims.size() << " anims from anim.bundle " << path;
 }
 
 AnimHandle GR_GetAnim( const StringView& name )
@@ -2676,7 +2682,8 @@ AnimCharHandle GR_GetAnimChar( const StringView& name )
 	}
 	out->m_key = name;
 	g_AnimChars->set( out->m_key, out );
-	LOG << "Loaded animated character " << name
+	if( VERBOSE )
+		LOG << "Loaded animated character " << name
 		<< " (time=" << ( sgrx_hqtime() - t0 ) << ")";
 	return out;
 }
@@ -2689,7 +2696,7 @@ SceneHandle GR_CreateScene()
 	SGRX_Scene* scene = new SGRX_Scene;
 	scene->clutTexture = GR_GetTexture( "sys:lut_default" );
 	
-	LOG << "Created scene";
+	if( VERBOSE ) LOG << "Created scene";
 	return scene;
 }
 

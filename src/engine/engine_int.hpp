@@ -5,6 +5,10 @@
 #include "renderer.hpp"
 
 
+extern bool g_VerboseLogging;
+#define VERBOSE g_VerboseLogging
+
+
 template< class K, class V >
 struct RasterCache
 {

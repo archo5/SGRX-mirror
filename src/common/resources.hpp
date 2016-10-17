@@ -50,6 +50,8 @@ EXP_STRUCT MeshResource : GOResource, SGRX_MeshInstUserData
 	int GetLightingMode() const { return m_lightingMode; }
 	void SetLightingMode( int v ){ m_lightingMode = v;
 		m_meshInst->SetLightingMode( (SGRX_LightingMode) v ); _UpdateLighting(); }
+	uint32_t GetLayers() const { return m_meshInst->layers; }
+	void SetLayers( uint32_t layers ){ m_meshInst->layers = layers; }
 	bool HasBulletInteraction() const { return m_meshInst->userData != NULL; }
 	void SetBulletInteraction( bool v ){ m_meshInst->userData = v ? (SGRX_MeshInstUserData*) this : NULL; }
 	
@@ -59,6 +61,7 @@ EXP_STRUCT MeshResource : GOResource, SGRX_MeshInstUserData
 	SGS_PROPERTY_FUNC( READ GetMeshData WRITE SetMeshData VARNAME meshData ) MeshHandle m_mesh;
 	SGS_PROPERTY_FUNC( READ GetMeshPath WRITE SetMeshPath ) SGS_ALIAS( StringView mesh );
 	SGS_PROPERTY_FUNC( READ GetLightingMode WRITE SetLightingMode VARNAME lightingMode ) int m_lightingMode;
+	SGS_PROPERTY_FUNC( READ GetLayers WRITE SetLayers ) SGS_ALIAS( uint32_t layers );
 	SGS_PROPERTY_FUNC( READ HasBulletInteraction WRITE SetBulletInteraction ) SGS_ALIAS( bool hasBulletInteraction );
 	// editor-only static mesh parameters
 	SGS_PROPERTY_FUNC( READ WRITE WRITE_CALLBACK _UpEv VARNAME lmQuality ) float m_lmQuality;

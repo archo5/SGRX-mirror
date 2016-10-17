@@ -94,6 +94,7 @@ function MeshResource.EditorGUI( ui )
 		ui.EditFloat( "Lightmap quality", this, "lmQuality", 0.01, 100 );
 		ui.EditBool( "Casts lightmap shadows?", this, "castLMS" );
 	}
+	ui.EditMask( "Layers", this, "layers", 32 );
 	ui.EditBool( "Has bullet interaction?", this, "hasBulletInteraction" );
 }
 

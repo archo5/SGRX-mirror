@@ -236,7 +236,8 @@ void TSCamera::Update()
 TSCharacter::TSCharacter( GameObject* obj ) :
 	GOBehavior( obj ),
 	m_animChar( obj->m_level->GetScene(), obj->m_level->GetPhyWorld() ),
-	m_health( 100 ), m_armor( 0 ), m_damageMultiplier( 1 ),
+	m_health( 100 ), m_armor( 0 ),
+	m_damageMultiplier( 1 ), m_acceptsCriticalDamage( true ),
 	m_footstepTime(0), m_isCrouching(false), m_isOnGround(false),
 	m_jumpTimeout(0), m_canJumpTimeout(0), m_cachedBodyExtOffset(V2(0)),
 	m_groundBody(NULL), m_groundLocalPos(V3(0)), m_groundWorldPos(V3(0)),
@@ -248,6 +249,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	m_skipTransformUpdate( false )
 {
 	typeOverride = "*human*";
+	ownerID = m_obj;
 	
 	PhyShapeHandle initShape = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.3f,0.3f,0.5f) );
 	
@@ -842,7 +844,8 @@ void TSCharacter::MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, vo
 		Vec3 pos = inv.TransformPos( bhinfo->pos );
 		Vec3 vel = inv.TransformNormal( bhinfo->vel ).Normalized();
 		m_animChar.m_anDeformer.AddModelForce( pos, vel * 0.4f, 0.3f );
-		Hit( bhinfo->vel.Length() * bhinfo->dmg * 0.15f );
+		Hit( bhinfo->vel.Length() * ( m_acceptsCriticalDamage ?
+			bhinfo->critDmg : bhinfo->dmg ) * 0.15f );
 	}
 }
 
@@ -1136,7 +1139,9 @@ void TSPlayerController::Update()
 		m_aimHelper.Tick( V2( AIM_X.value, AIM_Y.value ), m_obj );
 		
 		// movement factor
-		m_moveFactor += ( pos - m_prevPos ).Length() * ( 0.02f / dt );
+		Vec3 relpos1 = pos - m_aimHelper.GetAimPoint();
+		Vec3 relpos2 = m_prevPos - i_aim_target;
+		m_moveFactor += ( relpos1 - relpos2 ).Length() * ( 0.02f / dt );
 		m_moveFactor -= dt * 2;
 		m_moveFactor = TCLAMP( m_moveFactor, 0.0f, 1.0f );
 		m_prevPos = pos;
@@ -1151,7 +1156,7 @@ void TSPlayerController::Update()
 		{
 			src = TMAX( 1.0f, src - dt );
 		}
-		else if( m_moveFactor == 0 ) // character not moving, aim carefully for 2 secs
+		else if( m_moveFactor == 0 && m_aimHelper.IsAiming() ) // character not moving, aim carefully for 2 secs
 		{
 			src = TMAX( 0.0f, src - dt / ( i_crouch ? 1 : 2 ) );
 		}

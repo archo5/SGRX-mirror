@@ -1086,16 +1086,16 @@ void BulletSystem::Tick( float deltaTime, float blendFactor )
 	}
 }
 
-void BulletSystem::Add( Vec3 pos, Vec3 vel, float timeleft, float dmg, uint32_t ownerType )
+void BulletSystem::Add( Vec3 pos, Vec3 vel, float timeleft, Vec2 dmg, void* ownerID )
 {
-	Bullet B = { pos, vel, vel.Normalized(), timeleft, dmg, ownerType };
+	Bullet B = { pos, vel, vel.Normalized(), timeleft, dmg, ownerID };
 	m_bullets.push_back( B );
 }
 
-float BulletSystem::Zap( Vec3 p1, Vec3 p2, float dmg, uint32_t ownerType )
+float BulletSystem::Zap( Vec3 p1, Vec3 p2, Vec2 dmg, void* ownerID )
 {
 	Vec3 dir = ( p2 - p1 ).Normalized();
-	Bullet B = { p1, dir * dmg, dir, 0, dmg, ownerType };
+	Bullet B = { p1, dir * dmg.x, dir, 0, dmg, ownerID };
 	return _ProcessBullet( p1, p2, B );
 }
 
@@ -1120,7 +1120,7 @@ float BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 			
 			float entryIfL0 = Vec3Dot( B.dir, HIT.normal );
 			SGRX_MeshInstUserData* mii = (SGRX_MeshInstUserData*) HIT.meshinst->userData;
-			if( mii && mii->ownerType == B.ownerType )
+			if( mii && mii->ownerID == B.ownerToSkip )
 				continue;
 			
 			StringView decalType = "unknown";
@@ -1163,7 +1163,7 @@ float BulletSystem::_ProcessBullet( Vec3 p1, Vec3 p2, Bullet& B )
 			// send event
 			if( mii )
 			{
-				MI_BulletHit_Data data = { hitpoint, B.velocity, B.damage };
+				MI_BulletHit_Data data = { hitpoint, B.velocity, B.damage.x, B.damage.y };
 				mii->MeshInstUser_OnEvent( HIT.meshinst, MIEVT_BulletHit, &data );
 			}
 			

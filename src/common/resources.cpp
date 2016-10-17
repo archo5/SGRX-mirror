@@ -14,6 +14,7 @@ MeshResource::MeshResource( GameObject* obj ) : GOResource( obj ),
 {
 	m_meshInst = m_level->GetScene()->CreateMeshInstance();
 	m_meshInst->SetLightingMode( (SGRX_LightingMode) m_lightingMode );
+	ownerID = this;
 	_UpdateMatrix();
 }
 
@@ -44,7 +45,9 @@ void MeshResource::MeshInstUser_OnEvent( SGRX_MeshInstance* MI, uint32_t evid, v
 		SC.Push( bhinfo->vel );
 		SC.Push( "dmg" );
 		SC.Push( bhinfo->dmg );
-		m_obj->SendMessage( "OnBulletHit", SC.CreateDict( 6 ) );
+		SC.Push( "critDmg" );
+		SC.Push( bhinfo->critDmg );
+		m_obj->SendMessage( "OnBulletHit", SC.CreateDict( 8 ) );
 	}
 }
 

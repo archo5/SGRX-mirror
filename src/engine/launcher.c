@@ -44,6 +44,8 @@ int main( int argc, char* argv[] )
 		argv[ i ] = p;
 		if( !strcmp( p, "D" ) )
 			isDebug = 1;
+		if( !strcmp( p, "DV" ) )
+			isDebug = 2;
 		p += size;
 	}
 	

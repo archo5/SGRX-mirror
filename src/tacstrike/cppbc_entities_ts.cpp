@@ -179,6 +179,7 @@ int TSCharacter::_sgs_getindex( SGS_ARGS_GETINDEXFUNC )
 		SGS_CASE( "curWeapon" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->sgsCurWeapon() ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_health ); return SGS_SUCCESS; }
 		SGS_CASE( "damageMultiplier" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_damageMultiplier ); return SGS_SUCCESS; }
+		SGS_CASE( "acceptsCriticalDamage" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_acceptsCriticalDamage ); return SGS_SUCCESS; }
 		SGS_CASE( "isCrouching" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_isCrouching ); return SGS_SUCCESS; }
 		SGS_CASE( "infoFlags" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_infoFlags ); return SGS_SUCCESS; }
 		SGS_CASE( "group" ){ sgs_PushVar( C, static_cast<TSCharacter*>( obj->data )->m_group ); return SGS_SUCCESS; }
@@ -194,6 +195,7 @@ int TSCharacter::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "_data" ){ static_cast<TSCharacter*>( obj->data )->_data = sgs_GetVar<sgsVariable>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "health" ){ static_cast<TSCharacter*>( obj->data )->m_health = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "damageMultiplier" ){ static_cast<TSCharacter*>( obj->data )->m_damageMultiplier = sgs_GetVar<float>()( C, 1 ); return SGS_SUCCESS; }
+		SGS_CASE( "acceptsCriticalDamage" ){ static_cast<TSCharacter*>( obj->data )->m_acceptsCriticalDamage = sgs_GetVar<bool>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "infoFlags" ){ static_cast<TSCharacter*>( obj->data )->m_infoFlags = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "group" ){ static_cast<TSCharacter*>( obj->data )->m_group = sgs_GetVar<uint32_t>()( C, 1 ); return SGS_SUCCESS; }
 		SGS_CASE( "viewDir" ){ static_cast<TSCharacter*>( obj->data )->SetViewDir( sgs_GetVar<Vec3>()( C, 1 ) ); return SGS_SUCCESS; }
@@ -222,11 +224,12 @@ int TSCharacter::_sgs_dump( SGS_CTX, sgs_VarObj* obj, int depth )
 		{ sgs_PushString( C, "\ncurWeapon = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->sgsCurWeapon(), depth ).push( C ); }
 		{ sgs_PushString( C, "\nhealth = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_health, depth ).push( C ); }
 		{ sgs_PushString( C, "\ndamageMultiplier = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_damageMultiplier, depth ).push( C ); }
+		{ sgs_PushString( C, "\nacceptsCriticalDamage = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_acceptsCriticalDamage, depth ).push( C ); }
 		{ sgs_PushString( C, "\nisCrouching = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_isCrouching, depth ).push( C ); }
 		{ sgs_PushString( C, "\ninfoFlags = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_infoFlags, depth ).push( C ); }
 		{ sgs_PushString( C, "\ngroup = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_group, depth ).push( C ); }
 		{ sgs_PushString( C, "\ntimeSinceLastHit = " ); sgs_DumpData( C, static_cast<TSCharacter*>( obj->data )->m_timeSinceLastHit, depth ).push( C ); }
-		sgs_StringConcat( C, 32 );
+		sgs_StringConcat( C, 34 );
 		sgs_PadString( C );
 		sgs_PushString( C, "\n}" );
 		sgs_StringConcat( C, 3 );

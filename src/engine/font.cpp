@@ -285,7 +285,8 @@ FTFont* sgrx_int_CreateFont( const StringView& path )
 		return NULL;
 	}
 	font->face = face;
-	LOG << "Loaded new font: " << path;
+	if( g_VerboseLogging )
+		LOG << "Loaded new font: " << path;
 	return font;
 }
 
@@ -549,7 +550,8 @@ FontRenderer::GlyphCache::Node* FontRenderer::_GetGlyph( uint32_t ch )
 		return NULL;
 	}
 	
-	LOG << "Allocated glyph " << ch << " (" << width << "x" << height << ")";
+	if( g_VerboseLogging )
+		LOG << "Allocated glyph " << ch << " (" << width << "x" << height << ")";
 	
 	Array< uint32_t > bitmap;
 	bitmap.resize( width * height );

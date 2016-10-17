@@ -144,6 +144,7 @@ struct TSCharacter : GOBehavior, SGRX_MeshInstUserData
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME health ) float m_health;
 	float m_armor;
 	SGS_PROPERTY_FUNC( READ WRITE VARNAME damageMultiplier ) float m_damageMultiplier;
+	SGS_PROPERTY_FUNC( READ WRITE VARNAME acceptsCriticalDamage ) bool m_acceptsCriticalDamage;
 	
 	float m_footstepTime;
 	SGS_PROPERTY_FUNC( READ VARNAME isCrouching ) bool m_isCrouching;
