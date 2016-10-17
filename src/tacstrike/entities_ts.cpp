@@ -566,7 +566,7 @@ void TSCharacter::Update()
 			Vec3 aimtgt = ctrl->GetInputV3( ACT_Chr_AimTarget );
 			if( !ctrl->GetInputB( ACT_Chr_AimAt ) )
 			{
-			//	aimtgt = GetQueryPosition() + GetAimDir() * 1000;
+				aimtgt = GetQueryPosition() + GetAimDir() * 1000;
 			}
 			wpn->SendMessage( "SetShootTarget", m_level->GetScriptCtx().CreateVec3( aimtgt ) );
 		}
@@ -858,6 +858,7 @@ void TSCharacter::OnDeath()
 	m_obj->SetInfoMask( 0 );
 	m_animChar.m_cachedMeshInst->layers = 0;
 	
+	SendMessage( "OnDeath" );
 	// event
 	Game_FireEvent( TSEV_CharDied, this );
 }
