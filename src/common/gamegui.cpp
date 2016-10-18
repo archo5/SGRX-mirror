@@ -632,6 +632,18 @@ void GameUIControl::DAAStroke( sgsVariable pointlist, float w, bool closed )
 	GR2D_GetBatchRenderer().AAStroke( points.data(), points.size(), IS( w ), closed );
 }
 
+void GameUIControl::DAAPoly( sgsVariable pointlist )
+{
+	Array< Vec2 > points;
+	ScriptVarIterator it( pointlist );
+	while( it.Advance() )
+	{
+		sgsVariable val = it.GetValue();
+		points.push_back( IP( val.get<Vec2>() ) );
+	}
+	GR2D_GetBatchRenderer().AAPoly( points.data(), points.size() );
+}
+
 void GameUIControl::DAARectOutline( float x0, float y0, float x1, float y1, float w )
 {
 	if( sgs_StackSize( C ) < 5 )

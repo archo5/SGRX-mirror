@@ -590,6 +590,13 @@ static int _sgs_method__GameUIControl__DAAStroke( SGS_CTX )
 	data->DAAStroke( sgs_GetVar<sgsVariable>()(C,0), sgs_GetVar<float>()(C,1), sgs_GetVar<bool>()(C,2) ); return 0;
 }
 
+static int _sgs_method__GameUIControl__DAAPoly( SGS_CTX )
+{
+	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAAPoly ) ) return 0;
+	_sgsTmpChanger<sgs_Context*> _tmpchg( data->C, C );
+	data->DAAPoly( sgs_GetVar<sgsVariable>()(C,0) ); return 0;
+}
+
 static int _sgs_method__GameUIControl__DAARectOutline( SGS_CTX )
 {
 	GameUIControl* data; if( !SGS_PARSE_METHOD( C, GameUIControl::_sgs_interface, data, GameUIControl, DAARectOutline ) ) return 0;
@@ -810,6 +817,7 @@ static sgs_RegFuncConst GameUIControl__sgs_funcs[] =
 	{ "DButton", _sgs_method__GameUIControl__DButton },
 	{ "DAALine", _sgs_method__GameUIControl__DAALine },
 	{ "DAAStroke", _sgs_method__GameUIControl__DAAStroke },
+	{ "DAAPoly", _sgs_method__GameUIControl__DAAPoly },
 	{ "DAARectOutline", _sgs_method__GameUIControl__DAARectOutline },
 	{ "DAACircleFill", _sgs_method__GameUIControl__DAACircleFill },
 	{ "DAACircleOutline", _sgs_method__GameUIControl__DAACircleOutline },
@@ -2725,7 +2733,7 @@ int MeshResource::_sgs_setindex( SGS_ARGS_SETINDEXFUNC )
 		SGS_CASE( "meshData" ){ static_cast<MeshResource*>( obj->data )->SetMeshData( sgs_GetVar<MeshHandle>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "mesh" ){ static_cast<MeshResource*>( obj->data )->SetMeshPath( sgs_GetVar<StringView>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lightingMode" ){ static_cast<MeshResource*>( obj->data )->SetLightingMode( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
-		SGS_CASE( "layers" ){ static_cast<MeshResource*>( obj->data )->SetLayers( sgs_GetVar<int>()( C, 1 ) ); return SGS_SUCCESS; }
+		SGS_CASE( "layers" ){ static_cast<MeshResource*>( obj->data )->SetLayers( sgs_GetVar<uint32_t>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "hasBulletInteraction" ){ static_cast<MeshResource*>( obj->data )->SetBulletInteraction( sgs_GetVar<bool>()( C, 1 ) ); return SGS_SUCCESS; }
 		SGS_CASE( "lmQuality" ){ static_cast<MeshResource*>( obj->data )->m_lmQuality = sgs_GetVar<float>()( C, 1 );
 			static_cast<MeshResource*>( obj->data )->_UpEv(); return SGS_SUCCESS; }

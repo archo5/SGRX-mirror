@@ -995,7 +995,7 @@ int _GR2D_CalcTextLayout
 		cur_line.pxheight = TMAX( cur_line.pxheight, blocks[ cur_line.blockend ].pxheight ); \
 	}
 		
-#define COMMIT_LINE \
+#define COMMIT_LINE( forceht ) \
 	while( cur_line.blockend > cur_line.blockstart ){ \
 		TextBlock& TB = blocks[ cur_line.blockstart ]; \
 		while( TB.start < TB.end && text[ TB.start ] == ' ' ){ \
@@ -1015,11 +1015,11 @@ int _GR2D_CalcTextLayout
 			blocks.erase( --cur_line.blockend ); } \
 		else break; \
 	} \
-	if( cur_line.blockend > cur_line.blockstart ) \
+	if( cur_line.blockend > cur_line.blockstart || (forceht) ) \
 	{ \
 	/*	LOG << "NEW LINE:"; */ \
 		cur_line.pxwidth = 0; \
-		cur_line.pxheight = 0; \
+		cur_line.pxheight = forceht; \
 		for( int i = cur_line.blockstart; i < cur_line.blockend; ++i ){ \
 			cur_line.pxwidth += blocks[ i ].pxwidth; \
 			cur_line.pxheight = TMAX( cur_line.pxheight, blocks[ i ].pxheight ); \
@@ -1053,9 +1053,11 @@ int _GR2D_CalcTextLayout
 		
 		if( chr_val == '\n' )
 		{
+			cur_block.end = IT.offset;
 			COMMIT_BLOCK;
 			PUSH_BLOCKS_TO_LINE;
-			COMMIT_LINE;
+			int lht = settingStack.last().CalcLineHeight();
+			COMMIT_LINE( lht );
 			
 			// goto next line after all subsequent spaces
 			SKIP_SPACES;
@@ -1131,6 +1133,23 @@ int _GR2D_CalcTextLayout
 						}
 					}
 				}
+				else if( chr_val == 'l' )
+				{
+					IT.Advance();
+					if( IT.codepoint == '(' )
+					{
+						StringView cmd = IT.ReadUntilEndOr( ")" );
+						IT.Advance();
+						if( IT.codepoint == ')' )
+						{
+							IT.Advance();
+							COMMIT_BLOCK_BEFCH( off );
+							settingStack.last().lineheight = String_ParseFloat( cmd );
+							GR2D_SetFontSettings( &settingStack.last() );
+							continue;
+						}
+					}
+				}
 				else if( chr_val == 'c' )
 				{
 					IT.Advance();
@@ -1178,7 +1197,7 @@ int _GR2D_CalcTextLayout
 			
 			COMMIT_BLOCK;
 			PUSH_BLOCKS_TO_LINE;
-			COMMIT_LINE;
+			COMMIT_LINE( 0 );
 			cur_block = newblock;
 		//	printf("br2 at=%d chr=%c\n",IT.offset,char(chr_val));
 		}
@@ -1189,7 +1208,7 @@ int _GR2D_CalcTextLayout
 	
 	COMMIT_BLOCK;
 	PUSH_BLOCKS_TO_LINE;
-	COMMIT_LINE;
+	COMMIT_LINE( 0 );
 	return total_height;
 }
 
