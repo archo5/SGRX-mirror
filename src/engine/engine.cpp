@@ -1069,6 +1069,19 @@ int IGame::OnArgument( char* arg, int argcleft, char** argvleft )
 		g_RenderSettings.vsync = String_ParseBool( argvleft[0] );
 		return 2;
 	}
+	if( strpeq( arg, "-ccmd:" ) )
+	{
+		Game_DoCommand( SV(arg).part(6) );
+		return 1;
+	}
+	if( strpeq( arg, "-cvar:" ) )
+	{
+		StringView cv = SV(arg).part(6);
+		CObj* obj = Game_FindCObj( cv.until("=") );
+		if( obj )
+			obj->DoCommand( cv.after("=") );
+		return 1;
+	}
 	return 0;
 }
 

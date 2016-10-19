@@ -1168,6 +1168,12 @@ bool LevelCache::SaveMesh( MapMaterialMap& mtls, int mid, Mesh& M, const StringV
 		parts.push_back( PRD );
 	}
 	
+	if( verts.size() == 0 || indices.size() == 0 )
+	{
+		LOG_WARNING << "Empty mesh found, ignoring...";
+		return true;
+	}
+	
 	ByteArray ba;
 	ByteWriter bw( &ba );
 	

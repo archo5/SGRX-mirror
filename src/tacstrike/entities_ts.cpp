@@ -1155,7 +1155,7 @@ void TSPlayerController::Update()
 		}
 		else if( src > 1 ) // recovering from shots
 		{
-			src = TMAX( 1.0f, src - dt );
+			src = TMAX( 1.0f, src - dt * ( i_crouch ? 1.5f : 1 ) );
 		}
 		else if( m_moveFactor == 0 && m_aimHelper.IsAiming() ) // character not moving, aim carefully for 2 secs
 		{
