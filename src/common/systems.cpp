@@ -87,7 +87,14 @@ void LevelMapSystem::DrawUIRect( float x0, float y0, float x1, float y1, float l
 	
 	br.Reset();
 	
-	Mat4 lookat = Mat4::CreateLookAt( V3( viewPos.x, viewPos.y, -0.5f ), V3(0,0,1), V3(0,-1,0) );
+	Vec2 updir = V2(0,-1);
+	if( CameraResource* mainCamera = m_level->GetMainCamera() )
+	{
+		Vec3 d = mainCamera->GetWorldMatrix().TransformNormal( V3(0,1,1) );
+		updir = d.ToVec2().Normalized();
+	}
+	
+	Mat4 lookat = Mat4::CreateLookAt( V3( viewPos.x, viewPos.y, -0.5f ), V3(0,0,1), V3(updir.x,updir.y,0) );
 	Mat4 viewproj = lookat * Mat4::CreateScale( 1.0f / ( 8 * map_aspect ), 1.0f / 8, 1 );
 	Mat4 inv_vp = viewproj.Inverted();
 	GR2D_SetViewMatrix( viewproj );
