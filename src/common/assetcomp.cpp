@@ -944,7 +944,7 @@ bool SGRX_AnimBundleAsset::Parse( ConfigReader& cread )
 			return true;
 		else if( key == "SOURCE" )
 		{
-			SGRX_ABAnimSource src = { value, "" };
+			SGRX_ABAnimSource src = { value.str(), "" };
 			sources.push_back( src );
 		}
 		else if( key == "SRC_PREFIX" )
@@ -1473,7 +1473,7 @@ MeshHandle SGRX_AssetScript::GetMesh( StringView path )
 static void aiNode_GetMeshList( StringView path, const aiScene* S, aiNode* N,
 	AIMeshTable& out, HashTable< String, int >& counts )
 {
-	String subpath = path;
+	String subpath = path.str();
 	subpath.append( "/" );
 	subpath.append( N->mName.C_Str() );
 	
@@ -1506,7 +1506,7 @@ static void aiNode_GetMeshList( StringView path, const aiScene* S, aiNode* N,
 }
 
 SGRX_Scene3D::SGRX_Scene3D( const StringView& path, SceneImportOptimizedFor siof ) :
-	m_path( path ), m_imp( NULL ), m_scene( NULL )
+	m_path( path.str() ), m_imp( NULL ), m_scene( NULL )
 {
 	ByteArray data;
 	if( FS_LoadBinaryFile( path, data ) == false )
@@ -1615,7 +1615,7 @@ void SGRX_Scene3D::GetAnimList( Array< String >& out )
 
 AIMeshInfo SGRX_Scene3D::FindAssimpMesh( StringView name )
 {
-	AIMeshInfo* info = m_aiMeshTable.getptr( name );
+	AIMeshInfo* info = m_aiMeshTable.getptr( name.str() );
 	if( info )
 		return *info;
 	AIMeshInfo out = { NULL, NULL };
@@ -2038,7 +2038,7 @@ static String SGRX_TexIDToPath( const SGRX_AssetScript* AS, const StringView& te
 	if( TA == NULL )
 		return "";
 	
-	String out = catpath;
+	String out = catpath.str();
 	out.append( "/" );
 	out.append( name );
 	out.append( "." );
@@ -2242,7 +2242,7 @@ MeshHandle SGRX_ProcessMeshAsset( const SGRX_AssetScript* AS, const SGRX_MeshAss
 			return NULL;
 		}
 		part_ptrs[ i ] = mesh;
-		part_xfs[ i ] = nodes.getcopy( SV( MP->meshName ).until(":"), Mat4::Identity );
+		part_xfs[ i ] = nodes.getcopy( SV( MP->meshName ).until(":").str(), Mat4::Identity );
 		// update format
 		if( mesh->mVertices ) fmt.pos = true;
 		if( mesh->mNormals ) fmt.nrm = true;

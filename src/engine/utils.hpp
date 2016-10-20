@@ -1978,6 +1978,12 @@ struct String : Array< char >
 			resize( sz );
 		arch.charbuf( m_data, m_size );
 	}
+	
+	FINLINE String& operator = ( const char* str ){ clear(); append( str ); return *this; }
+	FINLINE String& operator = ( const StringView& sv );
+	FINLINE bool operator == ( const StringView& sv ) const;
+	FINLINE bool operator != ( const StringView& sv ) const;
+	FINLINE operator StringView () const;
 };
 
 struct IF_GCC(ENGINE_EXPORT) StringView
@@ -1988,7 +1994,6 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 	StringView() : m_str( NULL ), m_size( 0 ){}
 	StringView( const char* str ) : m_str( str ), m_size( StringLength( str ) ){}
 	StringView( const char* str, size_t size ) : m_str( str ), m_size( size ){}
-	StringView( const String& str ) : m_str( str.m_data ), m_size( str.m_size ){}
 	StringView( const StringView& sv ) : m_str( sv.m_str ), m_size( sv.m_size ){}
 	
 	FINLINE const char* data() const { return m_str; }
@@ -2180,7 +2185,7 @@ struct IF_GCC(ENGINE_EXPORT) StringView
 	ENGINE_EXPORT bool match_loose( const StringView& substr );
 	ENGINE_EXPORT bool match( const StringView& regex );
 	
-	FINLINE operator String () const { return String( m_str, m_size ); }
+	FINLINE String str() const { return String( m_str, m_size ); }
 };
 
 // shorthand single arg autoconversion
@@ -2195,6 +2200,11 @@ FINLINE void String::insert( size_t i, const struct StringView& sv )
 {
 	insert( i, sv.m_str, sv.m_size );
 }
+
+FINLINE String& String::operator = ( const StringView& sv ){ clear(); append( sv ); return *this; }
+FINLINE bool String::operator == ( const StringView& sv ) const { return StringView(*this) == sv; }
+FINLINE bool String::operator != ( const StringView& sv ) const { return StringView(*this) != sv; }
+FINLINE String::operator StringView () const { return StringView( m_data, m_size ); }
 
 struct SGRX_Regex
 {
@@ -2415,7 +2425,7 @@ struct RCString : RCString_Handle
 	FINLINE RCString( const StringView& sv ) : RCString_Handle( new RCString_Data( sv ) ){}
 	FINLINE RCString( const String& s ) : RCString_Handle( new RCString_Data( s ) ){}
 	FINLINE operator StringView () const { return item ? item->sv() : StringView(); }
-	FINLINE operator String () const { return item ? String( item->sv() ) : String(); }
+	FINLINE String str() const { return item ? item->sv().str() : String(); }
 	FINLINE const char* c_str() const { return item && item->m_str ? item->m_str : ""; }
 	FINLINE const char* data() const { return item ? item->m_str : NULL; }
 	FINLINE size_t size() const { return item ? item->m_size : 0; }

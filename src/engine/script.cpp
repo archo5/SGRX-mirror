@@ -473,7 +473,7 @@ sgsVariable ScriptContext::Unserialize( const StringView& sv )
 String ScriptContext::ToSGSON( sgsVariable var, const char* tab )
 {
 	sgs_SerializeSGSON( C, var.var, tab );
-	String out = sgsVariable( C, -1 ).get<StringView>();
+	String out = sgsVariable( C, -1 ).get<StringView>().str();
 	sgs_Pop( C, 1 );
 	return out;
 }

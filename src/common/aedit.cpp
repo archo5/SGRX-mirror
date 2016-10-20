@@ -1087,7 +1087,7 @@ struct ASEditor : IGame
 					String category = "";
 					if( g_CurAsset )
 						category = g_CurAsset->outputCategory;
-					String name = SV( subpath ).after_last( "/" ).until_last( "." );
+					String name = SV( subpath ).after_last( "/" ).until_last( "." ).str();
 					LOG << "Dropped image";
 					LOG << "file:" << subpath;
 					LOG << "name:" << name;
@@ -1107,7 +1107,7 @@ struct ASEditor : IGame
 					String category = "";
 					if( g_CurAsset )
 						category = g_CurAsset->outputCategory;
-					String name = SV( subpath ).after_last( "/" ).until_last( "." );
+					String name = SV( subpath ).after_last( "/" ).until_last( "." ).str();
 					LOG << "Dropped mesh";
 					LOG << "file:" << subpath;
 					LOG << "name:" << name;

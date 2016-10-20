@@ -127,9 +127,11 @@ void IRenderer::RenderShadows( SGRX_Scene* scene, int pass_id )
 	if( pass_id < 0 )
 		return;
 	
-	for( size_t vsl_id = 0; vsl_id < m_visible_spot_lights.size(); ++vsl_id )
+	for( size_t light_id = 0; light_id < scene->m_lights.size(); ++light_id )
 	{
-		SGRX_Light* L = m_visible_spot_lights[ vsl_id ];
+		SGRX_Light* L = scene->m_lights.item( light_id ).key;
+		if( L->type != LIGHT_SPOT )
+			continue;
 		if( !L->enabled ||
 			!L->hasShadows ||
 			!L->shadowTexture ||

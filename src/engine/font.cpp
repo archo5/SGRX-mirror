@@ -515,10 +515,12 @@ float FontRenderer::GetAdvanceX( uint32_t cpprev, uint32_t cpcurr )
 	if( m_currentFont == NULL )
 		return 0;
 	
-	GlyphCache::Node* prevnode = cpprev != 0 ? _GetGlyph( cpprev ) : NULL;
+	// this glyph might not be allocated, could invalidate ptrs
 	GlyphCache::Node* currnode = _GetGlyph( cpcurr );
 	if( !currnode )
 		return 0;
+	// this glyph will be allocated
+	GlyphCache::Node* prevnode = cpprev != 0 ? _GetGlyph( cpprev ) : NULL;
 	
 	float adv = currnode->data.advx;
 	if( prevnode )

@@ -446,7 +446,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 				( e.key.keysym.mod & KMOD_CTRL ) &&
 				( e.key.keysym.mod & KMOD_SHIFT ) )
 			{
-				String levname = m_level->GetLevelName();
+				String levname = m_level->GetLevelName().str();
 				m_level->Load( levname );
 			}
 		}

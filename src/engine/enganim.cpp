@@ -88,7 +88,7 @@ void SGRX_Animation::AddTrack( StringView name, Vec3SAV pos, QuatSAV rot, Vec3SA
 	ASSERT( pos.size() == 1 || pos.size() == frameCount );
 	ASSERT( pos.size() == 1 || pos.size() == frameCount );
 	
-	Track T = { name, data.size(), pos.size(), rot.size(), scl.size(), 0 };
+	Track T = { name.str(), data.size(), pos.size(), rot.size(), scl.size(), 0 };
 	tracks.push_back( T );
 	
 	for( size_t i = 0; i < pos.size(); ++i )

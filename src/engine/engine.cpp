@@ -1362,13 +1362,13 @@ bool IGame::ParseShaderIncludes( const SGRX_RendererInfo& rinfo, const StringVie
 {
 	LOG_FUNCTION;
 	
-	String basepath = path.up_to_last( "/" );
+	String basepath = path.up_to_last( "/" ).str();
 	String nstr;
 	StringView it = outdata, inc;
 	while( ( inc = it.from( "#include" ) ) != StringView() )
 	{
 		// generate path
-		String incstr = inc.after( "\"" ).until( "\"" );
+		String incstr = inc.after( "\"" ).until( "\"" ).str();
 		String incpath = String_Concat( basepath, incstr );
 		
 		// append prior data
@@ -1555,7 +1555,7 @@ struct BasicFileReader : IFileReader
 	root = m_fileRootSrc; \
 	BFS__COMMON( fret )
 
-BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root)
+BasicFileSystem::BasicFileSystem( const StringView& root ) : m_fileRoot(root.str())
 {
 	if( m_fileRoot.size() && m_fileRoot.last() != '/' )
 		m_fileRoot.push_back( '/' );

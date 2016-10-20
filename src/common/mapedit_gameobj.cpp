@@ -602,7 +602,7 @@ static int IMGUI_EditString( SGS_CTX )
 	sgsVariable obj( C, 1 );
 	sgsString prop( C, 2 );
 	int maxlen = sgs_StackSize( C ) > 3 ? sgs_GetVar<int>()( C, 3 ) : 256;
-	String value = obj.getprop( prop ).get<StringView>();
+	String value = obj.getprop( prop ).get<String>();
 	
 	if( IMGUIEditString( label.c_str(), value, maxlen ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
@@ -617,7 +617,7 @@ static int IMGUI_PickMesh( SGS_CTX )
 	sgsVariable obj( C, 1 );
 	sgsString prop( C, 2 );
 	sgsString caption( C, 3 );
-	String value = obj.getprop( prop ).get<StringView>();
+	String value = obj.getprop( prop ).get<String>();
 	
 	if( g_NUIMeshPicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
@@ -632,7 +632,7 @@ static int IMGUI_PickTexture( SGS_CTX )
 	sgsVariable obj( C, 1 );
 	sgsString prop( C, 2 );
 	sgsString caption( C, 3 );
-	String value = obj.getprop( prop ).get<StringView>();
+	String value = obj.getprop( prop ).get<String>();
 	
 	if( g_NUITexturePicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
@@ -647,7 +647,7 @@ static int IMGUI_PickPartSys( SGS_CTX )
 	sgsVariable obj( C, 1 );
 	sgsString prop( C, 2 );
 	sgsString caption( C, 3 );
-	String value = obj.getprop( prop ).get<StringView>();
+	String value = obj.getprop( prop ).get<String>();
 	
 	if( g_NUIPartSysPicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );
@@ -662,7 +662,7 @@ static int IMGUI_PickSound( SGS_CTX )
 	sgsVariable obj( C, 1 );
 	sgsString prop( C, 2 );
 	sgsString caption( C, 3 );
-	String value = obj.getprop( prop ).get<StringView>();
+	String value = obj.getprop( prop ).get<String>();
 	
 	if( g_NUISoundPicker->Property( caption.c_str(), label.c_str(), value ) )
 		obj.setprop( prop, g_Level->GetScriptCtx().CreateString( value ).get_variable() );

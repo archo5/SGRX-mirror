@@ -382,7 +382,7 @@ bool IMGUIEditString( const char* label, String& str, int maxsize )
 
 bool IMGUIEditString( const char* label, RCString& str, int maxsize )
 {
-	String s = str;
+	String s = str.str();
 	bool ret = IMGUIEditString( label, s, maxsize );
 	str = s;
 	return ret;
@@ -634,7 +634,7 @@ bool IMGUIPickerCore::Popup( const char* caption, String& str )
 
 bool IMGUIPickerCore::Popup( const char* caption, RCString& str )
 {
-	String s = str;
+	String s = str.str();
 	bool ret = Popup( caption, s );
 	str = s;
 	return ret;

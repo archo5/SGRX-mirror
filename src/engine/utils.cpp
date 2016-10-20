@@ -2028,7 +2028,7 @@ String AbsPath( const StringView& path )
 			return cwd;
 		}
 	}
-	return path;
+	return path.str();
 }
 
 String RealPath( const StringView& path )
@@ -2259,7 +2259,7 @@ bool LoadItemListFile( const StringView& path, ItemList& out )
 			it.skip( value.size() );
 			
 			// add param
-			outitem.params.set( name, value );
+			outitem.params.set( name.str(), value.str() );
 			
 			it = it.after_all( HSPACE_CHARS );
 		}
