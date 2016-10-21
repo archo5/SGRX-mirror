@@ -223,6 +223,18 @@ function CameraResource.EditorGUI( ui )
 	ui.EditFloat( "Far plane", this, "nearPlane", 0, 1000000 );
 	this!GOResource.EditorGUI( ui );
 }
+function CameraResource.EditorDrawWorld()
+{
+	p = this.GetWorldMatrix().transform_pos( vec3(0) );
+	d = this.GetWorldMatrix().transform_normal( vec3(0,0,1) ).normalized;
+	u = this.GetWorldMatrix().transform_normal( vec3(0,1,0) ).normalized;
+	BR_Reset();
+	BR_Col( 0.9, 0.5, 0.1, 1 );
+	BR_ConeOutline( p, d, u, 1, this.fieldOfView, 32 );
+	BR_SetPrimitiveType( PT_Lines );
+	BR_Pos( p );
+	BR_Pos( p + u );
+}
 
 
 //

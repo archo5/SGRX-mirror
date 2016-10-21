@@ -453,7 +453,7 @@ void TSCharacter::FixedUpdate()
 	}
 	m_timeSinceLastHit += deltaTime;
 	
-	if( ctrl->GetInputB( ACT_Chr_DoAction ) )
+	if( ctrl->GetInputB( ACT_Chr_DoAction ) && IsAlive() )
 	{
 		BeginClosestAction( 2 );
 	}
@@ -638,7 +638,7 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	IController* ctrl = GetObjectController( m_obj );
 	
 	// disabled features
-	bool jump = ctrl->GetInputB( ACT_Chr_Jump );
+	bool jump = ctrl->GetInputB( ACT_Chr_Jump ) && IsAlive();
 //	float m_jumpTimeout = 1, m_canJumpTimeout = 1;
 	
 	SGRX_PhyRaycastInfo rcinfo;
@@ -650,12 +650,15 @@ void TSCharacter::HandleMovementPhysics( float deltaTime )
 	Vec3 pos = m_bodyHandle->GetPosition();
 	
 	bool prevCrouch = m_isCrouching;
-	m_isCrouching = ctrl->GetInputB( ACT_Chr_Crouch );
-	if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
-		m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
-		fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
+	if( IsAlive() )
 	{
-		m_isCrouching = true;
+		m_isCrouching = ctrl->GetInputB( ACT_Chr_Crouch );
+		if( m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,3), 1, 1, &rcinfo ) &&
+			m_level->GetPhyWorld()->ConvexCast( m_shapeHandle, pos + V3(0,0,0), pos + V3(0,0,-3), 1, 1, &rcinfo2 ) &&
+			fabsf( rcinfo.point.z - rcinfo2.point.z ) < 1.8f )
+		{
+			m_isCrouching = true;
+		}
 	}
 	
 	if( prevCrouch != m_isCrouching )
