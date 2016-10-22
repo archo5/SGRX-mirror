@@ -608,7 +608,7 @@ void GFXSystem::HandleEvent( SGRX_EventID eid, const EventData& edata )
 		SGRX_CAST( GOResource*, R, edata.GetUserData() );
 		if( R->m_rsrcType == GO_RSRC_REFPLANE )
 			m_reflectPlanes.remove_first( (ReflectionPlaneResource*) R );
-		else if( R->m_rsrcType == GO_RSRC_REFPLANE )
+		else if( R->m_rsrcType == GO_RSRC_FLARE )
 			m_flares.remove_first( (FlareResource*) R );
 	}
 }
@@ -724,12 +724,22 @@ void GFXSystem::OnDrawSceneGeom( SGRX_IRenderControl* ctrl, SGRX_RenderScene& in
 		
 		LightResource* lr = obj->FindFirstResourceOfType<LightResource>();
 		
+		Vec3 flareColor = V3(1);
+		if( lr )
+		{
+			Vec3 fc = lr->GetFinalColor();
+			float hue = GetHue( fc );
+			float sat = GetHSVSaturation( fc );
+			float val = GetValue( fc );
+			val = 1.0f - 1.0f / ( val * 2 + 1 );
+			flareColor = HSV( V3( hue, sat, val ) );
+		}
 		m_flares[ i ]->m_flare.Draw(
 			m_level->m_editorMode ? 1 : m_level->GetDeltaTime(),
 			m_level->GetScene(),
 			vpsz,
 			m_flares[ i ]->GetWorldMatrix().GetTranslation(),
-			lr ? lr->GetFinalColor() : V3(1) );
+			flareColor );
 	}
 }
 
