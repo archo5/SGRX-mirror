@@ -117,7 +117,7 @@ static EventLinksByID g_EventLinksByID;
 static EventLinksByHandler g_EventLinksByHandler;
 static Array< FileSysHandle > g_FileSystems;
 
-static RenderSettings g_RenderSettings = { 0, 1280, 720, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
+static RenderSettings g_RenderSettings = { 0, 0, 1280, 720, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 0 };
 static const char* g_RendererPrefix = "sgrx-render-";
 static void* g_RenderLib = NULL;
 static pfnRndInitialize g_RfnInitialize = NULL;
@@ -130,6 +130,7 @@ extern BatchRenderer* g_BatchRenderer;
 
 
 CVarInt gcv_r_display( "r_display" );
+CVarInt gcv_r_gpu( "r_gpu" );
 CVarInt gcv_r_width( "r_width" );
 CVarInt gcv_r_height( "r_height" );
 CVarInt gcv_r_refresh_rate( "r_refresh_rate" );
@@ -146,8 +147,9 @@ struct CVarVideoMode : CVar
 	virtual void ToString( String& out )
 	{
 		char bfr[ 256 ];
-		sgrx_snprintf( bfr, sizeof(bfr), "%d %d %d %d %d %d %d %d\n",
+		sgrx_snprintf( bfr, sizeof(bfr), "%d %d %d %d %d %d %d %d %d\n",
 			(int) g_RenderSettings.display,
+			(int) g_RenderSettings.gpu,
 			(int) g_RenderSettings.width,
 			(int) g_RenderSettings.height,
 			(int) g_RenderSettings.refresh_rate,
@@ -161,6 +163,7 @@ struct CVarVideoMode : CVar
 		RenderSettings rs;
 		{
 			rs.display = str.parse_int();
+			rs.gpu = str.parse_int();
 			rs.width = str.parse_int();
 			rs.height = str.parse_int();
 			rs.refresh_rate = str.parse_int();
@@ -177,6 +180,7 @@ gcv_r_videomode;
 static void registercvars()
 {
 	gcv_r_display.SetConst( true );
+	gcv_r_gpu.SetConst( true );
 	gcv_r_width.SetConst( true );
 	gcv_r_height.SetConst( true );
 	gcv_r_refresh_rate.SetConst( true );
@@ -184,6 +188,7 @@ static void registercvars()
 	gcv_r_vsync.SetConst( true );
 	
 	gcv_r_display.value = g_RenderSettings.display;
+	gcv_r_gpu.value = g_RenderSettings.gpu;
 	gcv_r_width.value = g_RenderSettings.width;
 	gcv_r_height.value = g_RenderSettings.height;
 	gcv_r_refresh_rate.value = g_RenderSettings.refresh_rate;
@@ -191,6 +196,7 @@ static void registercvars()
 	gcv_r_vsync.value = g_RenderSettings.vsync;
 	
 	REGCOBJ( gcv_r_display );
+	REGCOBJ( gcv_r_gpu );
 	REGCOBJ( gcv_r_width );
 	REGCOBJ( gcv_r_height );
 	REGCOBJ( gcv_r_refresh_rate );
@@ -1037,6 +1043,11 @@ int IGame::OnArgument( char* arg, int argcleft, char** argvleft )
 	if( streq( arg, "-display" ) && argcleft )
 	{
 		g_RenderSettings.display = String_ParseInt( argvleft[0] );
+		return 2;
+	}
+	if( streq( arg, "-gpu" ) && argcleft )
+	{
+		g_RenderSettings.gpu = String_ParseInt( argvleft[0] );
 		return 2;
 	}
 	if( streq( arg, "-width" ) && argcleft )
@@ -1984,7 +1995,8 @@ static int init_graphics()
 	{
 		flags |= g_RenderSettings.fullscreen == FULLSCREEN_WINDOWED ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
 	}
-	g_Window = SDL_CreateWindow( "SGRX Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, g_RenderSettings.width, g_RenderSettings.height, flags );
+	unsigned cwp = SDL_WINDOWPOS_CENTERED_DISPLAY( g_RenderSettings.display );
+	g_Window = SDL_CreateWindow( "SGRX Engine", cwp, cwp, g_RenderSettings.width, g_RenderSettings.height, flags );
 	remap_cursor();
 	SDL_StartTextInput();
 	
@@ -2128,6 +2140,7 @@ bool GR_SetVideoMode( const RenderSettings& rs )
 	
 	g_RenderSettings = rs;
 	gcv_r_display.value = g_RenderSettings.display;
+	gcv_r_gpu.value = g_RenderSettings.gpu;
 	gcv_r_width.value = g_RenderSettings.width;
 	gcv_r_height.value = g_RenderSettings.height;
 	gcv_r_refresh_rate.value = g_RenderSettings.refresh_rate;

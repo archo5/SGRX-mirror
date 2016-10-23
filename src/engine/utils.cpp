@@ -1740,32 +1740,14 @@ Hash HashFunc( const char* str, size_t size )
 
 
 #ifdef _WIN32
-template< int N >
-struct StackWString
+int _win32_utf8towcs( const char* ins, int inc, wchar_t* outs, int outc )
 {
-	WCHAR str[ N + 1 ];
-	
-	StackWString( const StringView& sv )
-	{
-		int sz = MultiByteToWideChar( CP_UTF8, 0, sv.data(), sv.size(), str, N );
-		str[ sz ] = 0;
-	}
-	operator const WCHAR* (){ return str; }
-};
-template< int N >
-struct StackUnWString
+	return MultiByteToWideChar( CP_UTF8, 0, ins, inc, outs, outc );
+}
+int _win32_wcstoutf8( const wchar_t* ins, int inc, char* outs, int outc )
 {
-	static const int bufsize = N * 4 + 1;
-	char str[ bufsize ];
-	int size;
-	StackUnWString( const WCHAR* wstr, size_t wsize = NOT_FOUND )
-	{
-		if( wsize == NOT_FOUND )
-			wsize = wcslen( wstr );
-		size = WideCharToMultiByte( CP_UTF8, 0, wstr, wsize, str, bufsize, NULL, NULL );
-		str[ size ] = 0;
-	}
-};
+	return WideCharToMultiByte( CP_UTF8, 0, ins, inc, outs, outc, NULL, NULL );
+}
 #endif
 
 

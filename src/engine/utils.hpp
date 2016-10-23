@@ -2511,6 +2511,37 @@ struct StackString
 };
 typedef StackString< ENGINE_MAX_PATH > StackPath;
 
+#ifdef _WIN32
+ENGINE_EXPORT int _win32_utf8towcs( const char* ins, int inc, wchar_t* outs, int outc );
+ENGINE_EXPORT int _win32_wcstoutf8( const wchar_t* ins, int inc, char* outs, int outc );
+template< int N >
+struct StackWString
+{
+	wchar_t str[ N + 1 ];
+	
+	StackWString( const StringView& sv )
+	{
+		int sz = _win32_utf8towcs( sv.data(), sv.size(), str, N );
+		str[ sz ] = 0;
+	}
+	operator const wchar_t* (){ return str; }
+};
+template< int N >
+struct StackUnWString
+{
+	static const int bufsize = N * 4 + 1;
+	char str[ bufsize ];
+	int size;
+	StackUnWString( const wchar_t* wstr, size_t wsize = NOT_FOUND )
+	{
+		if( wsize == NOT_FOUND )
+			wsize = wcslen( wstr );
+		size = _win32_wcstoutf8( wstr, wsize, str, bufsize );
+		str[ size ] = 0;
+	}
+};
+#endif
+
 
 ENGINE_EXPORT String String_Concat( const StringView& a, const StringView& b );
 ENGINE_EXPORT String String_Replace( const StringView& base, const StringView& sub, const StringView& rep );

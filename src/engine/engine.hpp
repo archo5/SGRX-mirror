@@ -500,6 +500,7 @@ ENGINE_EXPORT ConvexPointSetHandle GP_GetConvexPointSet( const StringView& path 
 struct RenderSettings
 {
 	int display;
+	int gpu;
 	int width;
 	int height;
 	int refresh_rate;
@@ -507,6 +508,22 @@ struct RenderSettings
 	bool vsync;
 	int aa_mode;
 	int aa_quality;
+	
+	void Log( SGRX_Log& L ) const
+	{
+		L << "Display mode";
+		L << "{";
+		L << "  display: " << display;
+		L << "  gpu: " << gpu;
+		L << "  width: " << width;
+		L << "  height: " << height;
+		L << "  refresh rate: " << refresh_rate;
+		L << "  fullscreen: " << fullscreen;
+		L << "  vsync: " << vsync;
+		L << "  aa_mode: " << aa_mode;
+		L << "  aa_quality: " << aa_quality;
+		L << "}";
+	}
 };
 
 struct DisplayMode

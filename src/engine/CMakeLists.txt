@@ -43,7 +43,7 @@ endif()
 
 # Renderer - D3D11
 add_library( sgrx-render-d3d11 SHARED renderer_d3d11 )
-target_link_libraries( sgrx-render-d3d11 d3d11 sgrx-core )
+target_link_libraries( sgrx-render-d3d11 d3d11 dxgi sgrx-core )
 set_target_properties( sgrx-render-d3d11 PROPERTIES
 	INCLUDE_DIRECTORIES "D:/DXSDK/Include"
 	COMPILE_FLAGS "${CORE_FLAGS} ${MINGW_D3D_FLAGS} -DENABLE_SHADER_COMPILING"

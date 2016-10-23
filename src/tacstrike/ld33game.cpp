@@ -1591,7 +1591,7 @@ struct OfficeTheftGame : IGame
 	
 	bool OnConfigure( int argc, char** argv )
 	{
-		RenderSettings rs = { 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 4 };
+		RenderSettings rs = { 0, 0, 1024, 576, 60, FULLSCREEN_NONE, true, ANTIALIAS_NONE, 4 };
 		
 		InLocalStorage ils( "CrageGames/OfficeTheftGame" );
 		

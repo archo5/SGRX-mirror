@@ -102,6 +102,7 @@ const GUID g_IID_ID3D11Texture2D = {0x6f15aaf2,0xd208,0x4e89,{0x9a,0xb4,0x48,0x9
 const GUID g_IID_IDXGIDevice = {0x54ec77fa,0x1377,0x44e6,{0x8c,0x32,0x88,0xfd,0x5f,0x44,0xc8,0x4c}};
 const GUID g_IID_IDXGIAdapter = {0x2411e7e1,0x12ac,0x4ccf,{0xbd,0x14,0x97,0x98,0xe8,0x53,0x4d,0xc0}};
 const GUID g_IID_IDXGIFactory = {0x7b7166ec,0x21c7,0x44ae,{0xb2,0x1a,0xc9,0xae,0x32,0x1a,0xe3,0x69}};
+const GUID g_IID_IDXGIFactory1 = {0x770aae78,0xf26f,0x4dba,{0xa8,0x29,0x25,0x3c,0x83,0xd1,0xb3,0x87}};
 const GUID g_IID_ID3D11Debug = {0x79cf2233,0x7536,0x4948,{0x9d,0x36,0x1e,0x46,0x92,0xdc,0x57,0x60}};
 
 
@@ -609,9 +610,37 @@ extern "C" RENDERER_EXPORT IRenderer* CreateRenderer( const RenderSettings& sett
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	
+	IDXGIFactory1* pFactory = NULL;
+	CreateDXGIFactory1( g_IID_IDXGIFactory1, (void**)&pFactory );
+	IDXGIAdapter* pAdapter;
+	IDXGIAdapter* GoodAdapter = NULL;
+	for( UINT i = 0; pFactory->EnumAdapters( i, &pAdapter ) != DXGI_ERROR_NOT_FOUND; ++i )
+	{
+		DXGI_ADAPTER_DESC desc;
+		ZeroMemory( &desc, sizeof(desc) );
+		pAdapter->GetDesc( &desc );
+		LOG << "=== Adapter " << i << ": "
+			<< StackUnWString<128>( desc.Description ).str;
+		LOG << "- vendor: " << desc.VendorId;
+		LOG << "- device: " << desc.DeviceId;
+		LOG << "- subsystem: " << desc.SubSysId;
+		LOG << "- revision: " << desc.Revision;
+		LOG << "- video memory: "
+			<< uint64_t(desc.DedicatedVideoMemory);
+		LOG << "- dedicated system memory: "
+			<< uint64_t(desc.DedicatedSystemMemory);
+		LOG << "- shared system memory: "
+			<< uint64_t(desc.SharedSystemMemory);
+		if( int(i) == settings.gpu )
+		{
+			LOG << " ^^^ CHOSEN GPU ^^^\n";
+			GoodAdapter = pAdapter;
+		}
+	}
+	
 	hr = D3D11CreateDeviceAndSwapChain(
-		NULL, // adapter
-		D3D_DRIVER_TYPE_HARDWARE,
+		GoodAdapter, // adapter
+		GoodAdapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
 		NULL, // software rasterizer (unused)
 		0,//D3D11_CREATE_DEVICE_DEBUG, // flags
 		NULL, // feature levels
