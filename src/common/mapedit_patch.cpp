@@ -543,7 +543,7 @@ void EdPatch::ScaleVertices( const Vec3& f )
 void EdPatch::TransformVertices( const Mat4& xf, bool selected )
 {
 	Vec3 oldpos = position;
-	position += xf.GetTranslation();
+	position = xf.TransformPos( position );
 	for( int y = 0; y < ysize; ++y )
 	{
 		for( int x = 0; x < xsize; ++x )
