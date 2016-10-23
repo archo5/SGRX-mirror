@@ -1550,7 +1550,8 @@ void TSEnemyController::FixedUpdate()
 			continue;
 		AISound S = m_aidb->GetSoundInfo( i );
 		
-		if( S.type == AIS_Footstep || S.type == AIS_Shot )
+		if( S.type == AIS_Footstep ||
+			S.type == AIS_Shot )
 		{
 			AIFactType sndtype = FT_Sound_Footstep;
 			if( S.type == AIS_Shot )
@@ -1574,6 +1575,11 @@ void TSEnemyController::FixedUpdate()
 				m_factStorage.InsertOrUpdate( sndtype,
 					S.position, SMALL_FLOAT, curTime, curTime + 1*1000, 0, false );
 			}
+		}
+		else if( S.type == AIS_AccessDenied )
+		{
+			m_factStorage.InsertOrUpdate( FT_Sound_AccessDenied,
+				S.position, 1, curTime, curTime + 1*1000 );
 		}
 		else
 		{
@@ -1722,6 +1728,7 @@ void TSEnemyController::DebugDrawUI()
 			case FT_Sound_Noise: type = "snd-noise"; break;
 			case FT_Sound_Footstep: type = "snd-step"; break;
 			case FT_Sound_Shot: type = "snd-shot"; break;
+			case FT_Sound_AccessDenied: type = "snd-acc-denied"; break;
 			case FT_Sight_ObjectState: type = "sight-state"; break;
 			case FT_Sight_Alarming: type = "sight-alarm"; break;
 			case FT_Sight_Friend: type = "sight-friend"; break;

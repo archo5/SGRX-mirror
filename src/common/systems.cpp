@@ -1642,11 +1642,13 @@ AIDBSystem::AIDBSystem( GameLevel* lev ) : IGameLevelSystem( lev, e_system_uid )
 	{
 		{ "AIS_Footstep", AIS_Footstep },
 		{ "AIS_Shot", AIS_Shot },
+		{ "AIS_AccessDenied", AIS_AccessDenied },
 		
 		{ "FT_Unknown", FT_Unknown },
 		{ "FT_Sound_Noise", FT_Sound_Noise },
 		{ "FT_Sound_Footstep", FT_Sound_Footstep },
 		{ "FT_Sound_Shot", FT_Sound_Shot },
+		{ "FT_Sound_AccessDenied", FT_Sound_AccessDenied },
 		{ "FT_Sight_ObjectState", FT_Sight_ObjectState },
 		{ "FT_Sight_Alarming", FT_Sight_Alarming },
 		{ "FT_Sight_Friend", FT_Sight_Friend },

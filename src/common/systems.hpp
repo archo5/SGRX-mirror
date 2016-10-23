@@ -312,6 +312,7 @@ enum AISoundType
 	AIS_Unknown = 0,
 	AIS_Footstep,
 	AIS_Shot,
+	AIS_AccessDenied,
 };
 
 struct AISound
@@ -345,6 +346,7 @@ enum AIFactType // some basic fact types
 	FT_Sound_Noise,
 	FT_Sound_Footstep,
 	FT_Sound_Shot,
+	FT_Sound_AccessDenied,
 	FT_Sight_ObjectState,
 	FT_Sight_Alarming,
 	FT_Sight_Friend,
