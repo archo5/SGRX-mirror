@@ -766,13 +766,17 @@ SGRX_RenderDirector::~SGRX_RenderDirector(){}
 
 void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderScene& info )
 {
-#define RT_MAIN 0xfff0
-#define RT_HBLUR 0xfff1
-#define RT_VBLUR 0xfff2
-#define RT_HBLUR2 0xfff3
-#define RT_VBLUR2 0xfff4
-#define RT_HPASS 0xfff5
-#define RT_DEPTH 0xfff6
+#define RT_MAIN   0xfff0
+#define RT_DS1    0xfff1 // downsample 2x
+#define RT_DS2    0xfff2 // downsample 4x
+#define RT_HBLUR  0xfff3 // hblur 4x
+#define RT_VBLUR  0xfff4 // vblur 4x
+#define RT_DS3    0xfff5 // downsample blurred 2x
+#define RT_DS4    0xfff6 // downsample blurred 4x
+#define RT_HBLUR2 0xfff7 // hblur 16x
+#define RT_VBLUR2 0xfff8 // vblur 16x
+#define RT_HPASS  0xfff9 // high pass
+#define RT_DEPTH  0xfffa
 	
 	// preserve state
 	Mat4 viewMtx = g_BatchRenderer->viewMatrix;
@@ -783,12 +787,15 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	
 	int W = GR_GetWidth();
 	int H = GR_GetHeight();
+	int W2 = TMAX( W / 2, 1 ), H2 = TMAX( H / 2, 1 );
 	int W4 = TMAX( W / 4, 1 ), H4 = TMAX( H / 4, 1 );
-	int W16 = TMAX( W4 / 4, 1 ), H16 = TMAX( H4 / 4, 1 );
+	int W8 = TMAX( W / 8, 1 ), H8 = TMAX( H / 8, 1 );
+	int W16 = TMAX( W / 16, 1 ), H16 = TMAX( H / 16, 1 );
 	
 	// load shaders
 	PixelShaderHandle pppsh_final = GR_GetPixelShader( "sys_pp_final" );
 	PixelShaderHandle pppsh_highpass = GR_GetPixelShader( "sys_pp_highpass" );
+	PixelShaderHandle pppsh_transfer = GR_GetPixelShader( "sys_pp_transfer" );
 	PixelShaderHandle pppsh_blur = GR_GetPixelShader( "sys_pp_blur" );
 	
 	GR_PreserveResource( pppsh_final );
@@ -804,24 +811,34 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	ctrl->SortRenderItems( scene );
 	
 	// prepare render targets
-	TextureHandle rttMAIN, rttHPASS, rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2, rttDEPTH;
+	TextureHandle rttMAIN, rttHPASS, rttDEPTH,
+		rttHBLUR, rttVBLUR, rttHBLUR2, rttVBLUR2,
+		rttDS1, rttDS2, rttDS3, rttDS4;
 	DepthStencilSurfHandle dssMAIN;
 	if( info.enablePostProcessing )
 	{
 		rttMAIN = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
 		rttDEPTH = GR_GetRenderTarget( W, H, RT_FORMAT_DEPTH, RT_DEPTH );
 		rttHPASS = GR_GetRenderTarget( W, H, RT_FORMAT_COLOR_HDR16, RT_HPASS );
-		rttHBLUR = GR_GetRenderTarget( W4, H, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
+		rttDS1 = GR_GetRenderTarget( W2, H2, RT_FORMAT_COLOR_HDR16, RT_DS1 );
+		rttDS2 = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_DS2 );
+		rttHBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_HBLUR );
 		rttVBLUR = GR_GetRenderTarget( W4, H4, RT_FORMAT_COLOR_HDR16, RT_VBLUR );
-		rttHBLUR2 = GR_GetRenderTarget( W16, H4, RT_FORMAT_COLOR_HDR16, RT_HBLUR2 );
+		rttDS3 = GR_GetRenderTarget( W8, H8, RT_FORMAT_COLOR_HDR16, RT_DS3 );
+		rttDS4 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_DS4 );
+		rttHBLUR2 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_HBLUR2 );
 		rttVBLUR2 = GR_GetRenderTarget( W16, H16, RT_FORMAT_COLOR_HDR16, RT_VBLUR2 );
 		dssMAIN = GR_GetDepthStencilSurface( W, H, RT_FORMAT_COLOR_HDR16, RT_MAIN );
 		
 		GR_PreserveResource( rttMAIN );
 		GR_PreserveResource( rttDEPTH );
 		GR_PreserveResource( rttHPASS );
+		GR_PreserveResource( rttDS1 );
+		GR_PreserveResource( rttDS2 );
 		GR_PreserveResource( rttHBLUR );
 		GR_PreserveResource( rttVBLUR );
+		GR_PreserveResource( rttDS3 );
+		GR_PreserveResource( rttDS4 );
 		GR_PreserveResource( rttHBLUR2 );
 		GR_PreserveResource( rttVBLUR2 );
 		GR_PreserveResource( dssMAIN );
@@ -837,26 +854,40 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	GR2D_SetViewMatrix( Mat4::CreateUI( 0, 0, 1, 1 ) );
 	if( info.enablePostProcessing )
 	{
+		GR2D_UnsetViewport();
+		
 		br.Reset();
 		br.ShaderData.push_back( V4(0) );
 		
-		float spread = 3.5f;
+		float spread = 1;
 		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHPASS );
 		br.SetTexture( rttMAIN ).SetShader( pppsh_highpass ).Quad( 0, 0, 1, 1 ).Flush();
 		
-		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W ), 0 );
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR );
-		br.SetTexture( rttHPASS ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttDS1 );
+		br.SetTexture( rttHPASS ).SetShader( pppsh_transfer ).Quad( 0, 0, 1, 1 ).Flush();
 		
-		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H ) );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttDS2 );
+		br.SetTexture( rttDS1 ).SetShader( pppsh_transfer ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W4 ), 0 );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR );
+		br.SetTexture( rttDS2 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H4 ) );
 		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR );
 		br.SetTexture( rttHBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
 		
-		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W4 ), 0 );
-		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR2 );
-		br.SetTexture( rttVBLUR ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttDS3 );
+		br.SetTexture( rttVBLUR ).SetShader( pppsh_transfer ).Quad( 0, 0, 1, 1 ).Flush();
 		
-		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H4 ) );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttDS4 );
+		br.SetTexture( rttDS3 ).SetShader( pppsh_transfer ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, safe_fdiv( spread, W16 ), 0 );
+		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttHBLUR2 );
+		br.SetTexture( rttDS4 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
+		
+		br.ShaderData[0] = V4( 0, 0, 0, safe_fdiv( spread, H16 ) );
 		ctrl->SetRenderTargets( NULL, SGRX_RT_ClearAll, 0, 0, 1, rttVBLUR2 );
 		br.SetTexture( rttHBLUR2 ).SetShader( pppsh_blur ).Quad( 0, 0, 1, 1 ).Flush();
 		

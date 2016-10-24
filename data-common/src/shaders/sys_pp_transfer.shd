@@ -1,0 +1,10 @@
+#include "__eq"
+
+NEEDS_TEXTURE_2D(0);
+
+void main( float2 itex : TEXCOORD0
+	ARG_OUT_RT0 )
+{
+	RT0 = TEXSAMPLE_2D( Tex0, itex );
+}
+
