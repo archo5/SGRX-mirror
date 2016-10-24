@@ -175,6 +175,14 @@ ParticleSystemResource::ParticleSystemResource( GameObject* obj ) :
 	m_psys.m_lightSampler = m_level;
 }
 
+ParticleSystemResource::~ParticleSystemResource()
+{
+	if( m_soundEventInst && m_soundEventInst->isOneShot == false )
+	{
+		m_soundEventInst->Stop();
+	}
+}
+
 void ParticleSystemResource::OnTransformUpdate()
 {
 	Mat4 mtx = GetWorldMatrix();
@@ -299,6 +307,14 @@ SoundSourceResource::SoundSourceResource( GameObject* obj ) :
 	m_enabled( false ),
 	m_soundEventOneShot( false )
 {
+}
+
+SoundSourceResource::~SoundSourceResource()
+{
+	if( m_soundEventInst && m_soundEventInst->isOneShot == false )
+	{
+		m_soundEventInst->Stop();
+	}
 }
 
 void SoundSourceResource::OnTransformUpdate()

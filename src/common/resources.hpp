@@ -156,6 +156,7 @@ EXP_STRUCT ParticleSystemResource : GOResource
 	IMPLEMENT_RESOURCE( ParticleSystemResource, GO_RSRC_PSYS, "Particle system" );
 	
 	GFW_EXPORT ParticleSystemResource( GameObject* obj );
+	GFW_EXPORT ~ParticleSystemResource();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void EditorDrawWorld();
 	GFW_EXPORT virtual void Update();
@@ -185,6 +186,7 @@ EXP_STRUCT SoundSourceResource : GOResource
 	IMPLEMENT_RESOURCE( SoundSourceResource, GO_RSRC_SNDSRC, "Sound source" );
 	
 	GFW_EXPORT SoundSourceResource( GameObject* obj );
+	GFW_EXPORT ~SoundSourceResource();
 	GFW_EXPORT virtual void OnTransformUpdate();
 	GFW_EXPORT virtual void EditorDrawWorld();
 	
