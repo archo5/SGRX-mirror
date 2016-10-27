@@ -223,7 +223,7 @@ struct TSAimHelper : GameObjectProcessor
 struct TSAimHelperV2 : GameObjectProcessor
 {
 	TSAimHelperV2( GameLevel* lev );
-	void Tick( Vec2 joyaxis, GameObject* owner );
+	void Tick( Vec2 joyaxis, GameObject* owner, bool colchk = false );
 	void RemoveLockOn();
 	bool DoQuery();
 	bool IsAiming();
@@ -248,6 +248,7 @@ struct TSAimHelperV2 : GameObjectProcessor
 	virtual bool ProcessGameObject( GameObject* obj );
 	// - in
 	Vec2 m_scalableScreenPos;
+	bool m_colchk;
 	// - out/state
 	float m_ctDist;
 };
@@ -276,7 +277,7 @@ struct TSPlayerController : BhControllerBase
 	virtual Vec3 GetInput( uint32_t iid );
 	
 	SGS_METHOD void CalcUIAimInfo();
-	SGS_METHOD void ShotFired(){ m_shootTimeout = 0; }
+	SGS_METHOD void ShotFired();
 	bool _shouldDrawCP() const { return m_aimHelper.ShouldDrawClosestPoint(); }
 	SGS_PROPERTY_FUNC( READ _shouldDrawCP ) SGS_ALIAS( bool ahShouldDrawClosestPoint );
 	SGS_PROPERTY_FUNC( READ SOURCE m_aimHelper.GetClosestPoint() ) SGS_ALIAS( Vec3 ahClosestPoint );

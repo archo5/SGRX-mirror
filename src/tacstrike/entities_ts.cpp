@@ -266,7 +266,7 @@ TSCharacter::TSCharacter( GameObject* obj ) :
 	rbinfo.ccdSweptSphereRadius = 0.3f;
 	rbinfo.ccdMotionThreshold = 0.001f;
 	m_bodyHandle = m_level->GetPhyWorld()->CreateRigidBody( rbinfo );
-	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.25f) );
+	m_shapeHandle = m_level->GetPhyWorld()->CreateCylinderShape( V3(0.22f) );
 	
 	m_shadowInst = m_level->GetScene()->CreateLight();
 	m_shadowInst->type = LIGHT_PROJ;
@@ -1050,7 +1050,7 @@ TSAimHelperV2::TSAimHelperV2( GameLevel* lev ) :
 {
 }
 
-void TSAimHelperV2::Tick( Vec2 joyaxis, GameObject* owner )
+void TSAimHelperV2::Tick( Vec2 joyaxis, GameObject* owner, bool colchk )
 {
 	float deltaTime = m_level->GetDeltaTime();
 	
@@ -1068,6 +1068,7 @@ void TSAimHelperV2::Tick( Vec2 joyaxis, GameObject* owner )
 	{
 		// reconfiguring lock-on
 		m_scalableScreenPos = joyaxis;
+		m_colchk = colchk;
 		DoQuery();
 	}
 	m_prevJoyAxis = joyaxis;
@@ -1105,7 +1106,9 @@ bool TSAimHelperV2::ProcessGameObject( GameObject* obj )
 	Vec2 curpos = m_scalableScreenPos;
 	Vec2 scrpos = m_level->GetScene()->camera.WorldToScreen( tgtPos ).ToVec2() * 2 - V2(1);
 	float npdist = ( curpos - scrpos ).Length();
-	if( npdist < m_ctDist && Vec2Dot( curpos, scrpos ) > 0 )
+	if( npdist < m_ctDist &&
+		Vec2Dot( curpos, scrpos ) > 0 &&
+		( m_colchk == false || m_level->GetScene()->RaycastAny( m_ownerObj->GetWorldInfoTarget(), obj->GetWorldInfoTarget(), 0x0001 ) == false ) )
 	{
 		m_aimTarget = obj;
 		m_ctDist = npdist;
@@ -1207,6 +1210,12 @@ void TSPlayerController::Update()
 			md = -md;
 		i_turn = V3( md.x, md.y, 8 );
 	}
+	if( m_aimHelper.m_relocking )
+	{
+		Vec3 n = V3( AIM_X.value, AIM_Y.value, 0 );
+		n = m_level->GetScene()->camera.mInvView.TransformNormal( n );
+		P->TurnTo( -n.ToVec2().Normalized(), 10.0f * m_level->GetDeltaTime() );
+	}
 	
 	if( CROUCH.IsPressed() )
 	{
@@ -1234,6 +1243,29 @@ Vec3 TSPlayerController::GetInput( uint32_t iid )
 void TSPlayerController::CalcUIAimInfo()
 {
 //	m_aimHelper.DoQuery();
+}
+
+void TSPlayerController::ShotFired()
+{
+	m_shootTimeout = 0;
+	
+	Vec3 pos = m_obj->GetWorldInfoTarget();
+	Vec3 aimpt = m_aimHelper.GetAimPoint();
+	if( m_aimHelper.IsAiming() == false ||
+		m_level->GetScene()->RaycastAny( pos, aimpt, 0x1 ) )
+	{
+		m_aimHelper.RemoveLockOn();
+		bool infront;
+		Vec3 newaimpt = pos;
+		TSCharacter* P = m_obj->FindFirstBehaviorOfType<TSCharacter>();
+		if( P )
+			newaimpt += P->GetAimDir() * 10;
+		Vec3 screenpos = m_level->GetScene()->camera.WorldToScreen( newaimpt, &infront );
+		if( infront )
+		{
+			m_aimHelper.Tick( screenpos.ToVec2() * 2 - V2(1), m_obj, true );
+		}
+	}
 }
 
 
