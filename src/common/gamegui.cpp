@@ -78,6 +78,7 @@ int GUI_DefaultEventCallback( SGS_CTX )
 	{
 	case GUI_Event_BtnActivate:
 	case GUI_Event_KeyActivate:
+	case GUI_Event_CtrlBtnActivate:
 		ctrl->InvokeCallbacks( ctrl->m_system->m_str_onclick );
 		break;
 	case GUI_Event_MouseEnter:
@@ -89,6 +90,14 @@ int GUI_DefaultEventCallback( SGS_CTX )
 		ctrl->InvokeCallbacks( ctrl->m_system->m_str_onmouseleave );
 		break;
 	case GUI_Event_KeyDown:
+		if( ev.target == ctrl )
+		{
+			if( ev.key.key == GUI_Key_Left )  ctrl->m_system->MoveFocus( -1, 0 );
+			if( ev.key.key == GUI_Key_Right ) ctrl->m_system->MoveFocus( 1, 0 );
+			if( ev.key.key == GUI_Key_Up )    ctrl->m_system->MoveFocus( 0, -1 );
+			if( ev.key.key == GUI_Key_Down )  ctrl->m_system->MoveFocus( 0, 1 );
+		}
+	case GUI_Event_CtrlBtnDown:
 		if( ev.target == ctrl )
 		{
 			if( ev.key.key == GUI_Key_Left )  ctrl->m_system->MoveFocus( -1, 0 );
@@ -811,6 +820,9 @@ sgs_RegIntConst sgs_iconsts[] =
 	{ "GUI_Event_KeyDown", GUI_Event_KeyDown },
 	{ "GUI_Event_KeyUp", GUI_Event_KeyUp },
 	{ "GUI_Event_KeyActivate", GUI_Event_KeyActivate },
+	{ "GUI_Event_CtrlBtnUp", GUI_Event_CtrlBtnUp },
+	{ "GUI_Event_CtrlBtnDown", GUI_Event_CtrlBtnDown },
+	{ "GUI_Event_CtrlBtnActivate", GUI_Event_CtrlBtnActivate },
 	{ "GUI_Event_TextInput", GUI_Event_TextInput },
 	{ "GUI_Event_User", GUI_Event_User },
 	
@@ -1028,6 +1040,32 @@ void GameUISystem::EngineEvent( const Event& eev )
 		ev.text.text[7] = 0;
 		
 		m_kbdFocusCtrl->OnEvent( ev );
+	}
+	else if( eev.type == SDL_CONTROLLERBUTTONDOWN || eev.type == SDL_CONTROLLERBUTTONUP )
+	{
+		bool down = eev.type == SDL_CONTROLLERBUTTONDOWN;
+		GameUIEvent ev =
+		{
+			down ? GUI_Event_CtrlBtnDown : GUI_Event_CtrlBtnUp,
+			m_kbdFocusCtrl->GetHandle()
+		};
+		ev.ctrl.key = GUI_Key_Unknown;
+		ev.ctrl.engbutton = eev.cbutton.button;
+		
+		if(0);
+		else if( eev.cbutton.button == SDL_CONTROLLER_BUTTON_A ) ev.ctrl.key = GUI_Key_Enter;
+		else if( eev.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_LEFT ) ev.ctrl.key = GUI_Key_Left;
+		else if( eev.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_RIGHT ) ev.ctrl.key = GUI_Key_Right;
+		else if( eev.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_UP ) ev.ctrl.key = GUI_Key_Up;
+		else if( eev.cbutton.button == SDL_CONTROLLER_BUTTON_DPAD_DOWN ) ev.ctrl.key = GUI_Key_Down;
+		
+		m_kbdFocusCtrl->BubblingEvent( ev, true );
+		
+		if( down && ( ev.ctrl.key == GUI_Key_Enter || ev.ctrl.key == GUI_Key_Activate ) )
+		{
+			ev.type = GUI_Event_CtrlBtnActivate;
+			m_kbdFocusCtrl->BubblingEvent( ev, true );
+		}
 	}
 }
 

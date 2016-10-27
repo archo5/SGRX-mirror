@@ -27,6 +27,9 @@
 #define GUI_Event_KeyDown    41
 #define GUI_Event_KeyUp      42
 #define GUI_Event_KeyActivate 43
+#define GUI_Event_CtrlBtnUp  44
+#define GUI_Event_CtrlBtnDown 45
+#define GUI_Event_CtrlBtnActivate 46
 #define GUI_Event_TextInput  50
 #define GUI_Event_User       256
 
@@ -82,6 +85,9 @@ EXP_STRUCT GameUIEvent
 			int key, engkey, engmod;
 			bool repeat;
 		} key;
+		struct {
+			int key, engbutton;
+		} ctrl;
 		struct {
 			char text[8];
 		} text;

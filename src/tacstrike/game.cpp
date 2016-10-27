@@ -383,7 +383,7 @@ struct TACStrikeGame : BaseGame, SGRX_DebugDraw
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_Y, &WP_RELOAD );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_B, &CROUCH );
 		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_A, &DO_ACTION );
-		Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &JUMP );
+	//	Game_BindGamepadButtonToAction( SDL_CONTROLLER_BUTTON_X, &JUMP );
 		
 	//	Game_AddOverlayScreen( &g_SplashScreen );
 		
