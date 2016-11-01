@@ -97,13 +97,14 @@ int GUI_DefaultEventCallback( SGS_CTX )
 			if( ev.key.key == GUI_Key_Up )    ctrl->m_system->MoveFocus( 0, -1 );
 			if( ev.key.key == GUI_Key_Down )  ctrl->m_system->MoveFocus( 0, 1 );
 		}
+		break;
 	case GUI_Event_CtrlBtnDown:
 		if( ev.target == ctrl )
 		{
-			if( ev.key.key == GUI_Key_Left )  ctrl->m_system->MoveFocus( -1, 0 );
-			if( ev.key.key == GUI_Key_Right ) ctrl->m_system->MoveFocus( 1, 0 );
-			if( ev.key.key == GUI_Key_Up )    ctrl->m_system->MoveFocus( 0, -1 );
-			if( ev.key.key == GUI_Key_Down )  ctrl->m_system->MoveFocus( 0, 1 );
+			if( ev.ctrl.key == GUI_Key_Left )  ctrl->m_system->MoveFocus( -1, 0 );
+			if( ev.ctrl.key == GUI_Key_Right ) ctrl->m_system->MoveFocus( 1, 0 );
+			if( ev.ctrl.key == GUI_Key_Up )    ctrl->m_system->MoveFocus( 0, -1 );
+			if( ev.ctrl.key == GUI_Key_Down )  ctrl->m_system->MoveFocus( 0, 1 );
 		}
 		break;
 	}
