@@ -96,11 +96,12 @@ scr_btn_options2main.AddCallback( "onclick", function()
 });
 
 
-DoCommand( "r_videomode 0 600 600 60 0 1 0 0" );
+DoCommand( "r_videomode 0 0 600 600 60 0 1 0 0" );
 
 
 foreach( name : [
 	"r_display",
+	"r_gpu",
 	"r_width",
 	"r_height",
 	"r_refresh_rate",

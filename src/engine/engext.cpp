@@ -1987,6 +1987,7 @@ void SGRX_DecalSystem::Init( SceneHandle scene, TextureHandle texDecal, TextureH
 void SGRX_DecalSystem::Free()
 {
 	ClearAllDecals();
+	m_vertexDecl = NULL;
 	m_mesh = NULL;
 	m_meshInst = NULL;
 	m_vbSize = 0;

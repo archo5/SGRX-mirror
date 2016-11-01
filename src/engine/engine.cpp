@@ -1225,6 +1225,21 @@ void IGame::OnLoadMtlShaders( const SGRX_RenderPass& pass,
 
 TextureHandle IGame::OnCreateSysTexture( const StringView& key )
 {
+	if( key == "sys:black2d" )
+	{
+		uint32_t data[1] = { 0xff000000 };
+		return GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
+	if( key == "sys:blackt2d" )
+	{
+		uint32_t data[1] = { 0x00000000 };
+		return GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
+	if( key == "sys:white2d" )
+	{
+		uint32_t data[1] = { 0xffffffff };
+		return GR_CreateTexture( 1, 1, TEXFORMAT_RGBA8, TEXFLAGS_LERP, 1, data );
+	}
 	if( key == "sys:lut_default" )
 	{
 		uint32_t data[8] =
@@ -1458,6 +1473,39 @@ bool IGame::OnLoadMesh( const StringView& key, ByteArray& outdata )
 
 MeshHandle IGame::OnCreateSysMesh( const StringView& key )
 {
+	if( key == "sys:plane" )
+	{
+		static const SGRX_Vertex_Decal verts[ 4 ] =
+		{
+			// +Z
+			{ V3(+1,-1,0), V3(0,0,+1), V3(0,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,-1,0), V3(0,0,+1), V3(1,0,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(-1,+1,0), V3(0,0,+1), V3(1,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+			{ V3(+1,+1,0), V3(0,0,+1), V3(0,1,0), COLOR_RGB(000,127,127), 0xffffffff, 0 },
+		};
+		static const uint16_t indices[ 6 ] =
+		{
+			0, 1, 2, 2, 3, 0,
+		};
+		static const SGRX_MeshPart part =
+		{
+			0, 4, 0, 6,
+			"default",
+			{ "textures/unit.png", "", "", "", "", "", "", "" },
+			0, SGRX_MtlBlend_None,
+			"", Mat4::Identity
+		};
+		
+		MeshHandle mesh = GR_CreateMesh();
+		mesh->SetVertexData( verts, sizeof(verts), GR_GetVertexDecl( SGRX_VDECL_DECAL ) );
+		mesh->SetIndexData( indices, sizeof(indices), false );
+		mesh->SetPartData( &part, 1 );
+		mesh->m_boundsMin = V3(-1,-1,0);
+		mesh->m_boundsMax = V3(1,1,0);
+		mesh->m_vdata.append( verts, sizeof(verts) );
+		mesh->m_idata.append( indices, sizeof(indices) );
+		return mesh;
+	}
 	if( key == "sys:cube" )
 	{
 		static const SGRX_Vertex_Decal verts[ 4 * 6 ] =
@@ -1526,6 +1574,7 @@ MeshHandle IGame::OnCreateSysMesh( const StringView& key )
 
 void IGame::OnGetSysMeshList( Array< StringView >& outNames )
 {
+	outNames.push_back( "sys:plane" );
 	outNames.push_back( "sys:cube" );
 }
 

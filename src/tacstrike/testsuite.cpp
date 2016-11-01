@@ -376,6 +376,116 @@ g_TestCharacters;
 
 
 
+struct Test_Decals : ITest
+{
+	virtual StringView GetName() const { return "Decal test"; }
+	Test_Decals()
+	{
+		m_accum = 0.1f;
+	}
+	
+	void OnInitialize()
+	{
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.vsync = false;
+		GR_SetVideoMode( rs );
+		
+		m_scene = GR_CreateScene();
+		m_scene->camera.position = V3(-10,-10,10);
+		m_scene->camera.direction = V3(10,10,-10).Normalized();
+		m_scene->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+		m_scene->camera.angle = 90;
+		m_scene->camera.UpdateMatrices();
+		
+		m_decalSys.Init( m_scene,
+			GR_GetTexture( "textures/grid.png" ),
+			GR_GetTexture( "textures/fx/projfalloff2.png" )
+		);
+		m_decalSys.SetSize( 1024 * 1024 ); // 1 MB for decals
+		m_decalSys.m_lightSampler = &g_Lighting1;
+		
+		MeshHandle mesh = GR_GetMesh( "sys:plane" );
+		MeshInstHandle mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( mesh );
+		mih->matrix = Mat4::CreateScale( 10, 10, 1 );
+		mih->SetLightingMode( SGRX_LM_Dynamic );
+		g_Lighting1.LightMesh( mih );
+		m_meshes.push_back( mih );
+		
+		for( int y = -1; y <= 1; ++y )
+		{
+			for( int x = -1; x <= 1; ++x )
+			{
+				mesh = GR_GetMesh( "meshes/chars/tstest.ssm" );
+				mih = m_scene->CreateMeshInstance();
+				mih->SetMesh( mesh );
+				mih->matrix =
+					Mat4::CreateScale( V3(3) ) *
+					Mat4::CreateRotationZ( DEG2RAD( 115.0f ) ) *
+					Mat4::CreateTranslation( V3(x,y,0) * 5 );
+				mih->SetLightingMode( SGRX_LM_Dynamic );
+				g_Lighting1.LightMesh( mih );
+				m_meshes.push_back( mih );
+			}
+		}
+	}
+	void OnDestroy()
+	{
+		m_decalSys.Free();
+		m_meshes.clear();
+		m_scene = NULL;
+	}
+	void OnEvent( const Event& e )
+	{
+		if( e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_c )
+			m_decalSys.ClearAllDecals();
+	}
+	void Do( float dt, float bf )
+	{
+		m_accum -= dt;
+		while( m_accum < 0.1f )
+		{
+			m_accum += 0.1f;
+			
+			DecalProjectionInfo dpi =
+			{
+				V3( randf11() * 10, randf11() * 10, 0 ),
+				V3( 0, 0, -1 ),
+				V3( 0, -1, 0 ),
+				90.0f, // fov
+				2.0f, // ortho scale
+				1.0f, // aspect
+				1.0f, // aamix
+				1.0f, // distance scale
+				0.9f, // pushback
+				rand() % 2, // perspective
+				{
+					V4(0,0,1,1),
+					V3(2),
+				}
+			};
+			for( size_t i = 0; i < m_meshes.size(); ++i )
+			{
+				SGRX_MeshInstance* mi = m_meshes[ i ];
+				m_decalSys.AddDecal( dpi, mi->GetMesh(), mi->matrix );
+			}
+		}
+		
+		m_decalSys.Upload();
+		SGRX_RenderScene rs( V4(0), m_scene );
+		GR_RenderScene( rs );
+	}
+	
+	float m_accum;
+	SceneHandle m_scene;
+	Array< MeshInstHandle > m_meshes;
+	SGRX_DecalSystem m_decalSys;
+}
+g_TestDecals;
+
+
+
 
 
 size_t g_CurTest = 0;
@@ -388,6 +498,7 @@ ITest* g_Tests[] =
 	&g_TestGameUI,
 	&g_Test3DRendering,
 	&g_TestCharacters,
+	&g_TestDecals,
 };
 RenderSettings g_rs;
 #define TESTCOUNT (sizeof(g_Tests)/sizeof(g_Tests[0]))
