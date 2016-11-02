@@ -136,6 +136,9 @@ CVarInt gcv_r_height( "r_height" );
 CVarInt gcv_r_refresh_rate( "r_refresh_rate" );
 CVarInt gcv_r_fullscreen( "r_fullscreen" );
 CVarBool gcv_r_vsync( "r_vsync" );
+
+CVarInt gcv_r_scenedbgdraw( "r_scenedbgdraw" );
+
 struct CVarShowCursor : CVarBool {
 	CVarShowCursor() : CVarBool( "cl_showcursor", true ){}
 	virtual void OnChange(){ Game_ShowCursor( value ); }
@@ -203,6 +206,9 @@ static void registercvars()
 	REGCOBJ( gcv_r_fullscreen );
 	REGCOBJ( gcv_r_vsync );
 	REGCOBJ( gcv_r_videomode );
+	
+	REGCOBJ( gcv_r_scenedbgdraw );
+	
 	REGCOBJ( gcv_cl_showcursor );
 }
 
@@ -912,14 +918,42 @@ void SGRX_RenderDirector::OnDrawScene( SGRX_IRenderControl* ctrl, SGRX_RenderSce
 	}
 	
 	// debug rendering from camera viewpoint and optional depth clipping
-	if( info.debugdraw )
+	uint32_t ddf = scene->debugDrawFlags | gcv_r_scenedbgdraw.value;
+	if( info.debugdraw || ddf )
 	{
+		br.Flush().Reset();
 		ctrl->SetRenderTargets( dssMAIN, 0, 0, 0, 1 );
 		if( info.viewport )
 			GR2D_SetViewport( info.viewport->x0, info.viewport->y0, info.viewport->x1, info.viewport->y1 );
 		GR2D_SetViewMatrix( scene->camera.mView * scene->camera.mProj );
-		br.Flush().Reset();
-		info.debugdraw->DebugDraw();
+		
+		if( info.debugdraw )
+			info.debugdraw->DebugDraw();
+		
+		if( ddf & (SGRX_SceneDbgDraw_AllLights|SGRX_SceneDbgDraw_ActiveLights) )
+		{
+			for( size_t i = 0; i < scene->m_lights.size(); ++i )
+			{
+				SGRX_Light* L = scene->m_lights.item( i ).key;
+				if( (ddf & SGRX_SceneDbgDraw_AllLights) == 0 &&
+					L->enabled == false )
+					continue;
+				if( L->type == LIGHT_POINT )
+				{
+					br.Col( 0.9f, 0.9f, 0.1f );
+					br.SphereOutline( L->_tf_position, L->_tf_range, 32 );
+				}
+				else
+				{
+					if( L->type == LIGHT_SPOT )
+						br.Col( 0.9f, 0.5f, 0.1f );
+					else // PROJ
+						br.Col( 0.9f, 0.1f, 0.1f );
+					br.Frustum( L->viewProjMatrix );
+				}
+			}
+		}
+		
 		br.Flush();
 		if( info.viewport )
 			GR2D_UnsetViewport();

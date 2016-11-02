@@ -486,6 +486,99 @@ g_TestDecals;
 
 
 
+struct Test_Projectors : ITest
+{
+	virtual StringView GetName() const { return "Projector test"; }
+	Test_Projectors()
+	{
+		m_time = 0;
+	}
+	void OnInitialize()
+	{
+		RenderSettings rs;
+		GR_GetVideoMode( rs );
+		rs.vsync = false;
+		GR_SetVideoMode( rs );
+		
+		m_scene = GR_CreateScene();
+		m_scene->cullScene = &m_cullScene;
+		m_scene->debugDrawFlags = SGRX_SceneDbgDraw_ActiveLights;
+		m_scene->camera.position = V3(-10,-10,10);
+		m_scene->camera.direction = V3(10,10,-10).Normalized();
+		m_scene->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+		m_scene->camera.angle = 90;
+		m_scene->camera.UpdateMatrices();
+		
+		MeshHandle mesh = GR_GetMesh( "sys:plane" );
+		MeshInstHandle mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( mesh );
+		mih->matrix = Mat4::CreateScale( 10, 10, 1 );
+		mih->SetLightingMode( SGRX_LM_Dynamic );
+		g_Lighting1.LightMesh( mih );
+		m_meshes.push_back( mih );
+		
+		for( int y = -1; y <= 1; ++y )
+		{
+			for( int x = -1; x <= 1; ++x )
+			{
+				mesh = GR_GetMesh( "meshes/chars/tstest.ssm" );
+				mih = m_scene->CreateMeshInstance();
+				mih->SetMesh( mesh );
+				mih->matrix =
+					Mat4::CreateScale( V3(3) ) *
+					Mat4::CreateRotationZ( DEG2RAD( 115.0f ) ) *
+					Mat4::CreateTranslation( V3(x,y,0) * 5 );
+				mih->SetLightingMode( SGRX_LM_Dynamic );
+				g_Lighting1.LightMesh( mih );
+				m_meshes.push_back( mih );
+			}
+		}
+		
+		for( int i = 0; i < 8; ++i )
+		{
+			LightHandle proj = m_scene->CreateLight();
+			proj->type = LIGHT_PROJ;
+			proj->position = V3(0,0,1);
+			proj->direction = V3(0,0,-1);
+			proj->updir = V3(0,1,0);
+			proj->angle = 90;
+			proj->range = 10.0f;
+			proj->UpdateTransform();
+			proj->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
+			proj->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
+			m_projs.push_back( proj );
+		}
+	}
+	void OnDestroy()
+	{
+		m_meshes.clear();
+		m_projs.clear();
+		m_scene = NULL;
+	}
+	void Do( float dt, float bf )
+	{
+		m_time += dt;
+		for( size_t i = 0; i < m_projs.size(); ++i )
+		{
+			float t = m_time + float(i) / m_projs.size();
+			float q = M_PI * 2 * t;
+			m_projs[ i ]->position = V3( cos( q ) * 6, sin( q ) * 6, 5 );
+		}
+		
+		SGRX_RenderScene rs( V4(0), m_scene );
+		GR_RenderScene( rs );
+	}
+	
+	float m_time;
+	SGRX_DefaultCullScene m_cullScene;
+	SceneHandle m_scene;
+	Array< LightHandle > m_projs;
+	Array< MeshInstHandle > m_meshes;
+}
+g_TestProjectors;
+
+
+
 
 
 size_t g_CurTest = 0;
@@ -499,6 +592,7 @@ ITest* g_Tests[] =
 	&g_Test3DRendering,
 	&g_TestCharacters,
 	&g_TestDecals,
+	&g_TestProjectors,
 };
 RenderSettings g_rs;
 #define TESTCOUNT (sizeof(g_Tests)/sizeof(g_Tests[0]))

@@ -1348,7 +1348,7 @@ struct SGRX_CullSceneMesh
 	Vec3 min, max;
 };
 
-struct SGRX_CullScene
+struct IF_GCC(ENGINE_EXPORT) SGRX_CullScene
 {
 	ENGINE_EXPORT virtual ~SGRX_CullScene();
 	virtual void Camera_Prepare( SGRX_CullSceneCamera* camera ){}
@@ -1359,7 +1359,7 @@ struct SGRX_CullScene
 	virtual bool SpotLight_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield ){ return Camera_MeshList( count, camera, meshes, outbitfield ); }
 };
 
-struct SGRX_DefaultCullScene : SGRX_CullScene
+struct IF_GCC(ENGINE_EXPORT) SGRX_DefaultCullScene : SGRX_CullScene
 {
 	ENGINE_EXPORT virtual bool Camera_MeshList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullSceneMesh* meshes, uint32_t* outbitfield );
 	ENGINE_EXPORT virtual bool Camera_PointLightList( uint32_t count, SGRX_CullSceneCamera* camera, SGRX_CullScenePointLight* lights, uint32_t* outbitfield );
@@ -1579,6 +1579,10 @@ struct SGRX_RenderPass
 #define SGRX_FP_NoPoint 0x0040
 #define SGRX_FP_NoSpot  0x0080
 
+// scene debug draw flags
+#define SGRX_SceneDbgDraw_AllLights    0x0001
+#define SGRX_SceneDbgDraw_ActiveLights 0x0002
+
 struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 {
 	ENGINE_EXPORT SGRX_Scene();
@@ -1614,6 +1618,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	Vec4 m_timevals; // temporary?
 	MeshInstHandle m_projMeshInst;
 	
+	uint32_t debugDrawFlags;
 	struct SGRX_RenderDirector* director;
 	SGRX_CullScene* cullScene;
 	SGRX_Camera camera;
@@ -1844,6 +1849,7 @@ struct BatchRenderer
 	ENGINE_EXPORT BatchRenderer& CapsuleOutline( const Vec3& pos, float radius, const Vec3& nrm, float ht, int verts );
 	ENGINE_EXPORT BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, float angle, int verts );
 	ENGINE_EXPORT BatchRenderer& ConeOutline( const Vec3& pos, const Vec3& dir, const Vec3& up, float radius, Vec2 angles, int verts );
+	ENGINE_EXPORT BatchRenderer& Frustum( const Mat4& vpmtx );
 	ENGINE_EXPORT BatchRenderer& AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform = Mat4::Identity );
 	ENGINE_EXPORT BatchRenderer& Tick( const Vec3& pos, float radius, const Mat4& transform = Mat4::Identity );
 	ENGINE_EXPORT BatchRenderer& Axis( const Mat4& transform = Mat4::Identity, float size = 0.1f );

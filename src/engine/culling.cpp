@@ -416,7 +416,6 @@ bool SGRX_DefaultCullScene::Camera_MeshList( uint32_t count, SGRX_CullSceneCamer
 		outbitfield[ o++ ] = bfout;
 	}
 	
-	free( meshaabbs );
 	return 1;
 }
 
@@ -471,7 +470,6 @@ bool SGRX_DefaultCullScene::Camera_SpotLightList( uint32_t count, SGRX_CullScene
 		outbitfield[ o++ ] = bfout;
 	}
 	
-	free( lightaabbs );
 	return 1;
 }
 

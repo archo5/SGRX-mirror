@@ -1905,6 +1905,7 @@ ArrayView<SGRX_RenderPass> GR_GetDefaultRenderPasses()
 }
 
 SGRX_Scene::SGRX_Scene() :
+	debugDrawFlags( 0 ),
 	director( GR_GetDefaultRenderDirector() ),
 	cullScene( NULL ),
 	fogColor( Vec3::Create( 0.5 ) ),

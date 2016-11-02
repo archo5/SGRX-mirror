@@ -439,6 +439,12 @@ BatchRenderer& BatchRenderer::ConeOutline( const Vec3& pos, const Vec3& dir, con
 	return *this;
 }
 
+BatchRenderer& BatchRenderer::Frustum( const Mat4& vpmtx )
+{
+	Mat4 inv = vpmtx.Inverted();
+	return AABB( V3(-1), V3(1), inv );
+}
+
 BatchRenderer& BatchRenderer::AABB( const Vec3& bbmin, const Vec3& bbmax, const Mat4& transform )
 {
 	Vec3 pp[8] =
