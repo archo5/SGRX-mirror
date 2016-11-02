@@ -1635,6 +1635,22 @@ inline Vec3 GetHSL( const Vec3& rgbColor ){ return V3( GetHue( rgbColor ), GetHS
 
 
 //
+// TEMPLATE INFO
+//
+template< class T > struct IsPOD { enum { value = 0 }; };
+template<> struct IsPOD< signed char > { enum { value = 1 }; };
+template<> struct IsPOD< unsigned char > { enum { value = 1 }; };
+template<> struct IsPOD< signed short > { enum { value = 1 }; };
+template<> struct IsPOD< unsigned short > { enum { value = 1 }; };
+template<> struct IsPOD< signed int > { enum { value = 1 }; };
+template<> struct IsPOD< unsigned int > { enum { value = 1 }; };
+template<> struct IsPOD< signed long > { enum { value = 1 }; };
+template<> struct IsPOD< unsigned long > { enum { value = 1 }; };
+template<> struct IsPOD< signed long long > { enum { value = 1 }; };
+template<> struct IsPOD< unsigned long long > { enum { value = 1 }; };
+
+
+//
 // HANDLE
 //
 
@@ -1838,10 +1854,14 @@ template< class T >
 void Array<T>::resize( size_t sz )
 {
 	reserve( sz );
-	while( sz > m_size )
-		new (&m_data[ m_size++ ]) T();
-	while( sz < m_size )
-		m_data[ --m_size ].~T();
+	if( IsPOD<T>::value == false )
+	{
+		while( sz > m_size )
+			new (&m_data[ m_size++ ]) T();
+		while( sz < m_size )
+			m_data[ --m_size ].~T();
+	}
+	else m_size = sz;
 }
 
 template< class T >
@@ -1850,8 +1870,12 @@ void Array<T>::resize_using( size_t sz, const T& val )
 	reserve( sz );
 	while( sz > m_size )
 		new (&m_data[ m_size++ ]) T( val );
-	while( sz < m_size )
-		m_data[ --m_size ].~T();
+	if( IsPOD<T>::value == false )
+	{
+		while( sz < m_size )
+			m_data[ --m_size ].~T();
+	}
+	else m_size = sz;
 }
 
 template< class T >

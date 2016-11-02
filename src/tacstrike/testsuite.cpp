@@ -541,8 +541,8 @@ struct Test_Projectors : ITest
 			proj->position = V3(0,0,1);
 			proj->direction = V3(0,0,-1);
 			proj->updir = V3(0,1,0);
-			proj->angle = 90;
-			proj->range = 10.0f;
+			proj->angle = 60;
+			proj->range = 7.0f;
 			proj->UpdateTransform();
 			proj->projectionMaterial.textures[0] = GR_GetTexture( "textures/fx/blobshadow.png" );//GR_GetTexture( "textures/unit.png" );
 			proj->projectionMaterial.textures[1] = GR_GetTexture( "textures/fx/projfalloff2.png" );
@@ -560,8 +560,8 @@ struct Test_Projectors : ITest
 		m_time += dt;
 		for( size_t i = 0; i < m_projs.size(); ++i )
 		{
-			float t = m_time + float(i) / m_projs.size();
-			float q = M_PI * 2 * t;
+			float t = m_time + float(i) / m_projs.size() * M_PI * 2;
+			float q = t;
 			m_projs[ i ]->position = V3( cos( q ) * 6, sin( q ) * 6, 5 );
 		}
 		

@@ -414,7 +414,7 @@ bool IRenderer::_RS_UpdateProjectorMesh( SGRX_Scene* scene )
 					{
 						size_t vertoff = m_projectorVertices.size();
 						M->Clip( MI->matrix, L->viewProjMatrix, m_projectorVertices, true, invZNearToZFar, 0xffffffff, mil->DI->part, 1 );
-						SGRX_DoIndexTriangleMeshVertices( m_projectorIndices, m_projectorVertices, vertoff, 48 );
+						SGRX_DoIndexTriangleMeshVertices( m_projectorIndices, m_projectorVertices, vertoff, sizeof(SGRX_Vertex_Decal) );
 					}
 				}
 			}

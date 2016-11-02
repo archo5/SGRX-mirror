@@ -1082,20 +1082,13 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
 	if( pcount < 3 )
 		return;
 	
-	const VDeclInfo* VDI = &vdecl->m_info;
-	// convert vertices, fill in missing data
-	uint8_t decalvertbuf[ 48 * 3 ];
+	// interpolate vertices
+	uint8_t vbuf[ 256 * 9 ];
 	if( decal )
 	{
-		static const VDeclInfo decalvdi =
-		{
-			{ 0, 12, 24, 36, 0,0,0,0,0,0 },
-			{ VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, VDECLTYPE_FLOAT3, 0,0,0,0,0,0 },
-			{ VDECLUSAGE_POSITION, VDECLUSAGE_NORMAL, VDECLUSAGE_TEXTURE0, VDECLUSAGE_TANGENT, 0,0,0,0,0,0 },
-			4, 48
-		};
-		VDI = &decalvdi;
+		SGRX_CAST( SGRX_Vertex_Decal*, dvs, vbuf );
 		
+		// fixed function interpolation -- faster than VD_LerpTri
 		Vec3 nrm[3] = {0};
 		VD_ExtractFloat3P( vdecl->m_info, 3, verts, nrm, VDECLUSAGE_NORMAL );
 		
@@ -1103,35 +1096,22 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
 		nrm[1] = mtx.TransformNormal( nrm[1] );
 		nrm[2] = mtx.TransformNormal( nrm[2] );
 		
-		SGRX_CAST( SGRX_Vertex_Decal*, dvs, decalvertbuf );
-		for( int i = 0; i < 3; ++i )
+		for( int i = 0; i < pcount; ++i )
 		{
-			dvs[i].position = pos[ i ];
-			dvs[i].normal = nrm[ i ];
-			dvs[i].texcoord = V3(0);
-			dvs[i].tangent = 0x007f7f7f;
-			dvs[i].color = color;
-			dvs[i].padding0 = 0;
+			const Vec3& f = fcs[ i ];
+			dvs[ i ].position = pos[0] * f.x + pos[1] * f.y + pos[2] * f.z;
+			dvs[ i ].normal = nrm[0] * f.x + nrm[1] * f.y + nrm[2] * f.z;
+			// ignore texcoords, they will be regenerated
+			dvs[ i ].tangent = 0x007f7f7f; // TODO FIX
+			dvs[ i ].color = color; // always constant for decals
+			dvs[ i ].padding0 = 0;
 		}
 		
-		v1 = decalvertbuf+0;
-		v2 = decalvertbuf+48;
-		v3 = decalvertbuf+48*2;
-	}
-	
-	// interpolate vertices
-	uint8_t vbuf[ 256 * 9 ];
-	memset( vbuf, 0, sizeof(vbuf) );
-	int stride = VDI->size;
-	VD_LerpTri( *VDI, pcount, vbuf, fcs, v1, v2, v3 );
-	if( decal )
-	{
-		SGRX_CAST( SGRX_Vertex_Decal*, dvs, vbuf );
 		if( inv_zn2zf /* perspective distance correction */ )
 		{
 			for( int i = 0; i < pcount; ++i )
 			{
-				Vec4 vtp = vpmtx.Transform( V4( *(Vec3*)(vbuf + i * 48), 1.0f ) );
+				Vec4 vtp = vpmtx.Transform( V4( dvs[ i ].position, 1.0f ) );
 				if( vtp.w )
 				{
 					float rcp_vtp_w = 1.0f / vtp.w;
@@ -1152,7 +1132,7 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
 		{
 			for( int i = 0; i < pcount; ++i )
 			{
-				Vec4 vtp = vpmtx.Transform( V4( *(Vec3*)(vbuf + i * 48), 1.0f ) );
+				Vec4 vtp = vpmtx.Transform( V4( dvs[ i ].position, 1.0f ) );
 				if( vtp.w )
 				{
 					float rcp_vtp_w = 1.0f / vtp.w;
@@ -1170,10 +1150,72 @@ void SGRX_IMesh_Clip_Core_ClipTriangle( const Mat4& mtx,
 			}
 		}
 	}
+	else
+	{
+		memset( vbuf, 0, sizeof(vbuf) );
+		VD_LerpTri( vdecl->m_info, pcount, vbuf, fcs, v1, v2, v3 );
+	}
+	const int stride = decal ? sizeof(SGRX_Vertex_Decal) : vdecl->m_info.size;
 	for( int i = 1; i < pcount - 1; ++i )
 	{
 		outverts.append( vbuf, stride );
 		outverts.append( vbuf + i * stride, stride * 2 );
+	}
+}
+
+template< class IdxType >
+struct IMesh_ClipQuery
+{
+	void operator () ( int32_t* tris, int32_t count )
+	{
+		for( int32_t i = 0; i < count; ++i )
+		{
+			int32_t tri = tris[ i ];
+			if( usedTris[ tri >> 5 ] & ( 1 << ( tri & 31 ) ) )
+				continue;
+			usedTris[ tri >> 5 ] |= 1 << ( tri & 31 );
+			tri *= 3;
+			SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
+				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
+			);
+		}
+	}
+	
+	Mat4 mtx;
+	Mat4 vpmtx;
+	ByteArray& outverts;
+	bool decal;
+	float inv_zn2zf;
+	uint32_t color;
+	SGRX_IMesh* mesh;
+	SGRX_MeshPart& MP;
+	size_t stride;
+	IdxType* indices;
+	
+	Array< uint8_t > usedTris;
+};
+
+void FrustumAABB( const Mat4& mvp, Vec3& outmin, Vec3& outmax )
+{
+	Mat4 inv = mvp.Inverted();
+	Vec3 pts[8] =
+	{
+		inv.TransformPos( V3(-1,-1,-1) ),
+		inv.TransformPos( V3(+1,-1,-1) ),
+		inv.TransformPos( V3(-1,+1,-1) ),
+		inv.TransformPos( V3(+1,+1,-1) ),
+		inv.TransformPos( V3(-1,-1,+1) ),
+		inv.TransformPos( V3(+1,-1,+1) ),
+		inv.TransformPos( V3(-1,+1,+1) ),
+		inv.TransformPos( V3(+1,+1,+1) ),
+	};
+	outmin = outmax = pts[0];
+	for( int i = 1; i < 8; ++i )
+	{
+		outmin = Vec3::Min( outmin, pts[ i ] );
+		outmax = Vec3::Max( outmax, pts[ i ] );
 	}
 }
 
@@ -1197,13 +1239,29 @@ void SGRX_IMesh_Clip_Core( SGRX_IMesh* mesh,
 		if( MP.mtlBlendMode != SGRX_MtlBlend_None &&
 			MP.mtlBlendMode != SGRX_MtlBlend_Basic )
 			continue;
-		for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
+		
+		if( MP.m_triTree.m_bbTree.m_nodes.size() )
 		{
-			SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
-				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
-				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
-				, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
-			);
+			// we have a tree!
+			Vec3 bbmin, bbmax;
+			FrustumAABB( mtx * vpmtx, bbmin, bbmax );
+			IMesh_ClipQuery<IdxType> query = {
+				mtx, vpmtx, outverts, decal, inv_zn2zf, color,
+				mesh, MP, stride, indices
+			};
+			query.usedTris.resize_using( ( ( MP.indexCount / 3 ) >> 5 ) + 1, 0 );
+			MP.m_triTree.m_bbTree.Query( bbmin, bbmax, query );
+		}
+		else
+		{
+			for( uint32_t tri = MP.indexOffset, triend = MP.indexOffset + MP.indexCount; tri < triend; tri += 3 )
+			{
+				SGRX_IMesh_Clip_Core_ClipTriangle( mtx, vpmtx, outverts, mesh->m_vertexDecl, decal, inv_zn2zf, color
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 1 ] ) * stride ]
+					, &mesh->m_vdata[ ( MP.vertexOffset + indices[ tri + 2 ] ) * stride ]
+				);
+			}
 		}
 	}
 }
@@ -1763,7 +1821,7 @@ uint32_t SGRX_FindOrAddVertex( ByteArray& vertbuf, size_t searchoffset, size_t& 
 
 void SGRX_DoIndexTriangleMeshVertices( UInt32Array& indices, ByteArray& vertices, size_t offset, size_t stride )
 {
-#if 0
+#if 1
 	while( offset < vertices.size() )
 	{
 		indices.push_back( offset / stride );
@@ -1814,7 +1872,7 @@ void SGRX_ProjectionMeshProcessor::Process( void* data )
 	{
 		size_t vertoff = outVertices->size();
 		M->Clip( MI->matrix, viewProjMatrix, *outVertices, true, invZNearToZFar );
-		SGRX_DoIndexTriangleMeshVertices( *outIndices, *outVertices, vertoff, 48 );
+		SGRX_DoIndexTriangleMeshVertices( *outIndices, *outVertices, vertoff, sizeof(SGRX_Vertex_Decal) );
 	}
 }
 

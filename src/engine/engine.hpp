@@ -973,14 +973,14 @@ struct VDeclInfo
 };
 
 #define SGRX_VDECL_DECAL "pf3nf30f3tb4cb4xb4"
-struct SGRX_Vertex_Decal
+struct SGRX_Vertex_Decal // 48 bytes
 {
-	Vec3 position;
-	Vec3 normal;
-	Vec3 texcoord;
-	uint32_t tangent;
-	uint32_t color;
-	uint32_t padding0;
+	Vec3 position;     // 12
+	Vec3 normal;       // 12
+	Vec3 texcoord;     // 12
+	uint32_t tangent;  // 4
+	uint32_t color;    // 4
+	uint32_t padding0; // 4
 };
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IVertexDecl : SGRX_RCRsrc
