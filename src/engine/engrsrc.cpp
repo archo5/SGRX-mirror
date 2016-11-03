@@ -2051,6 +2051,20 @@ LightHandle SGRX_Scene::CreateLight()
 	return lt;
 }
 
+TextureHandle SGRX_Scene::CreateCubemap( int size )
+{
+	TextureHandle out = GR_CreateCubeRenderTexture( size, TEXFORMAT_RGBA16F, 0);// SGRX_MIPS_ALL );
+	
+	for( int i = 0; i < 6; ++i )
+	{
+		SGRX_RenderScene rs( V4(0), this, false, SGRX_RTSpec( out, i ) );
+		GR_RenderScene( rs );
+	}
+	
+//	out->RenderMips();
+	return out;
+}
+
 void SGRX_Scene::OnUpdate()
 {
 	for( size_t i = 0; i < m_meshInstances.size(); ++i )
@@ -2188,6 +2202,17 @@ void SGRX_SceneTree::UpdateTransforms()
 }
 
 
+int GR_CalcMipCount( int width, int height, int depth )
+{
+	int v = TMAX( width, TMAX( height, depth ) );
+	int count = 0;
+	while( v > 0 )
+	{
+		v /= 2;
+		count++;
+	}
+	return count;
+}
 
 TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips, const void* data )
 {
@@ -2278,11 +2303,13 @@ TextureHandle GR_GetTexture( const StringView& path )
 	return tex;
 }
 
-TextureHandle GR_CreateRenderTexture( int width, int height, int format )
+TextureHandle GR_CreateRenderTexture( int width, int height, int format, int mips )
 {
 	LOG_FUNCTION;
 	
-	TextureInfo ti = { TEXTYPE_2D, 1, width, height, 1, format,
+	if( mips == SGRX_MIPS_ALL )
+		mips = GR_CalcMipCount( width, height );
+	TextureInfo ti = { TEXTYPE_2D, mips, width, height, 1, format,
 		TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
 	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
 	if( !tex )
@@ -2293,7 +2320,36 @@ TextureHandle GR_CreateRenderTexture( int width, int height, int format )
 	
 	tex->m_info = ti;
 	
-	if( VERBOSE ) LOG << "Created renderable texture: " << width << "x" << height << ", format=" << format;
+	if( VERBOSE )
+	{
+		LOG << "Created renderable texture: " << width << "x"
+			<< height << ", format=" << format << ", mips=" << mips;
+	}
+	return tex;
+}
+
+TextureHandle GR_CreateCubeRenderTexture( int width, int format, int mips )
+{
+	LOG_FUNCTION;
+	
+	if( mips == SGRX_MIPS_ALL )
+		mips = GR_CalcMipCount( width );
+	TextureInfo ti = { TEXTYPE_CUBE, mips, width, width, 1, format,
+		TEXFLAGS_LERP | TEXFLAGS_CLAMP_X | TEXFLAGS_CLAMP_Y };
+	SGRX_ITexture* tex = g_Renderer->CreateRenderTexture( &ti );
+	if( !tex )
+	{
+		// error is already printed
+		return TextureHandle();
+	}
+	
+	tex->m_info = ti;
+	
+	if( VERBOSE )
+	{
+		LOG << "Created renderable cube texture: " << width
+			<< ", format=" << format << ", mips=" << mips;
+	}
 	return tex;
 }
 

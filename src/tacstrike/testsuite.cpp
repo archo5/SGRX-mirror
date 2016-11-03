@@ -579,6 +579,67 @@ g_TestProjectors;
 
 
 
+struct Test_SceneCubemap : ITest
+{
+	virtual StringView GetName() const { return "Scene cubemap test"; }
+	Test_SceneCubemap()
+	{
+	}
+	void OnInitialize()
+	{
+		m_scene = GR_CreateScene();
+		m_scene->camera.position = V3(-10,-10,10);
+		m_scene->camera.direction = V3(10,10,-10).Normalized();
+		m_scene->camera.aspect = safe_fdiv( GR_GetWidth(), GR_GetHeight() );
+		m_scene->camera.angle = 90;
+		m_scene->camera.UpdateMatrices();
+		
+		MeshHandle mesh = GR_GetMesh( "sys:plane" );
+		MeshInstHandle mih = m_scene->CreateMeshInstance();
+		mih->SetMesh( mesh );
+		mih->matrix = Mat4::CreateScale( 10, 10, 1 );
+		mih->SetLightingMode( SGRX_LM_Dynamic );
+		g_Lighting1.LightMesh( mih );
+		m_meshes.push_back( mih );
+		
+		for( int y = -1; y <= 1; ++y )
+		{
+			for( int x = -1; x <= 1; ++x )
+			{
+				if( x == 0 && y == 0 )
+					continue;
+				
+				mesh = GR_GetMesh( "meshes/chars/tstest.ssm" );
+				mih = m_scene->CreateMeshInstance();
+				mih->SetMesh( mesh );
+				mih->matrix =
+					Mat4::CreateScale( V3(3) ) *
+					Mat4::CreateRotationZ( DEG2RAD( 115.0f ) ) *
+					Mat4::CreateTranslation( V3(x,y,0) * 5 );
+				mih->SetLightingMode( SGRX_LM_Dynamic );
+				g_Lighting1.LightMesh( mih );
+				m_meshes.push_back( mih );
+			}
+		}
+	}
+	void OnDestroy()
+	{
+		m_meshes.clear();
+		m_scene = NULL;
+	}
+	void Do( float dt, float bf )
+	{
+		SGRX_RenderScene rs( V4(0), m_scene );
+		GR_RenderScene( rs );
+	}
+	
+	SceneHandle m_scene;
+	Array< MeshInstHandle > m_meshes;
+}
+g_TestSceneCubemap;
+
+
+
 
 
 size_t g_CurTest = 0;
@@ -593,6 +654,7 @@ ITest* g_Tests[] =
 	&g_TestCharacters,
 	&g_TestDecals,
 	&g_TestProjectors,
+	&g_TestSceneCubemap,
 };
 RenderSettings g_rs;
 #define TESTCOUNT (sizeof(g_Tests)/sizeof(g_Tests[0]))

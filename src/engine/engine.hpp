@@ -576,6 +576,7 @@ struct ENGINE_EXPORT RenderStats
 #define TEXFORMAT_BGRA8  2
 #define TEXFORMAT_BGRX8  3
 #define TEXFORMAT_R5G6B5 5
+#define TEXFORMAT_RGBA16F 7
 #define TEXFORMAT_DXT1   11
 #define TEXFORMAT_DXT3   13
 #define TEXFORMAT_DXT5   15
@@ -1595,6 +1596,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_Scene : SGRX_RefCounted
 	ENGINE_EXPORT MeshInstHandle CreateMeshInstance();
 	ENGINE_EXPORT LightHandle CreateLight();
 	
+	ENGINE_EXPORT TextureHandle CreateCubemap( int size );
+	
 	ENGINE_EXPORT void OnUpdate();
 	
 	ENGINE_EXPORT bool RaycastAny( const Vec3& from, const Vec3& to, uint32_t layers = 0xffffffff );
@@ -1979,6 +1982,15 @@ struct SGRX_RTClearInfo
 	float clearDepth;
 };
 
+struct SGRX_RTSpec
+{
+	SGRX_RTSpec( TextureHandle rtt = NULL, int side = 0, int mip = 0 )
+	: rtt(rtt), side(side), mip(mip){}
+	
+	TextureHandle rtt;
+	int side;
+	int mip;
+};
 
 struct IF_GCC(ENGINE_EXPORT) SGRX_IRenderControl
 {
@@ -2046,7 +2058,8 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_RenderScene
 	ENGINE_EXPORT SGRX_RenderScene(
 		const Vec4& tv,
 		const SceneHandle& sh,
-		bool enablePP = true
+		bool enablePP = true,
+		SGRX_RTSpec rtspec = SGRX_RTSpec()
 	);
 	ENGINE_EXPORT int GetOutputWidth();
 	ENGINE_EXPORT int GetOutputHeight();
@@ -2055,6 +2068,7 @@ struct IF_GCC(ENGINE_EXPORT) SGRX_RenderScene
 	Vec4 timevals;
 	SceneHandle scene;
 	bool enablePostProcessing;
+	SGRX_RTSpec renderTarget;
 	SGRX_Viewport* viewport;
 	SGRX_PostDraw* postdraw;
 	SGRX_DebugDraw* debugdraw;
@@ -2091,10 +2105,13 @@ struct IF_GCC(ENGINE_EXPORT) IGame : SGRX_RefCounted
 ENGINE_EXPORT int GR_GetWidth();
 ENGINE_EXPORT int GR_GetHeight();
 
+#define SGRX_MIPS_ALL -1
+ENGINE_EXPORT int GR_CalcMipCount( int width, int height = 0, int depth = 0 );
 ENGINE_EXPORT TextureHandle GR_CreateTexture( int width, int height, int format, uint32_t flags, int mips, const void* data );
 ENGINE_EXPORT TextureHandle GR_CreateTexture3D( int width, int height, int depth, int format, uint32_t flags, int mips, const void* data );
 ENGINE_EXPORT TextureHandle GR_GetTexture( const StringView& path );
-ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format );
+ENGINE_EXPORT TextureHandle GR_CreateRenderTexture( int width, int height, int format, int mips = 1 );
+ENGINE_EXPORT TextureHandle GR_CreateCubeRenderTexture( int width, int format, int mips = 1 );
 ENGINE_EXPORT TextureHandle GR_GetRenderTarget( int width, int height, int format, int extra );
 ENGINE_EXPORT DepthStencilSurfHandle GR_CreateDepthStencilSurface( int width, int height, int format );
 ENGINE_EXPORT DepthStencilSurfHandle GR_GetDepthStencilSurface( int width, int height, int format, int extra = 0 );

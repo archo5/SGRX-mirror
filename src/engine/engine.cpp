@@ -1924,11 +1924,13 @@ SGRX_RenderDirector* GR_GetDefaultRenderDirector()
 SGRX_RenderScene::SGRX_RenderScene(
 	const Vec4& tv,
 	const SceneHandle& sh,
-	bool enablePP
+	bool enablePP,
+	SGRX_RTSpec rtspec
 ) :
 	timevals( tv ),
 	scene( sh ),
 	enablePostProcessing( enablePP ),
+	renderTarget( rtspec ),
 	viewport( NULL ),
 	postdraw( NULL ),
 	debugdraw( NULL )
